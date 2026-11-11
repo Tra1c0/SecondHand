@@ -10,10 +10,10 @@ Etappen aus dem ursprünglichen Auftrag; Teilpakete bekommen Buchstaben (15a, 15
 
 Reihenfolge von oben nach unten.
 
-- **G1 Echter Gerätetest.** Emulator neu aufsetzen (ohne KVM), APK installieren, Tastatur
-  aktivieren und alles von der Checkliste in `docs/VALIDATION.md` prüfen: Tippen, Löschen,
-  Auswahl, Panel und Rad, Feld- und App-Wechsel, sensible Felder, Rotation, Abbrüche. Gefundene
-  Fehler eng korrigieren. Kein API-Schlüssel nötig. (M)
+- **G2 Restlicher Gerätetest.** Was G1 nicht abdeckt (Liste: `docs/VALIDATION.md` → G1 → Nicht
+  geprüft): Rotation, TalkBack, Gesten, Feld- und App-Wechsel, Inkognito, Sperre, Direct Boot,
+  Skill Keys, Workflows, Act Builder. Am besten auf einem echten Telefon; im Emulator ohne KVM
+  dauert jeder Schritt Minuten. (M)
 - **16c Externe Dienste, einzeln.** Gmail, Google Calendar und Notion, jeweils mit eigener
   Anmeldung (OAuth) und Freigabe. Blockiert, bis der Owner eigene OAuth-Zugänge bei Google und
   Notion registriert hat. Kein Modell darf sich selbst Fähigkeiten oder Zugangsdaten geben. (L)

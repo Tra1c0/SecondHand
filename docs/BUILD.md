@@ -35,10 +35,9 @@ python3 tools/dev.py upstream-tests
 ```
 
 Der Build-Helper erkennt alternativ eine benutzereigene `.toolchains` neben
-dem Projekt. Er baut standardmäßig ARM64; `--abi x86_64` erstellt separat eine
-APK für einen x86_64-Emulator. Die APK und ihre SHA-256-Prüfsumme werden unter
-`artifacts/` mit ABI-Suffix abgelegt. Der AGP-Entwicklungsparameter wählt nur
-eine native Zielarchitektur; eine Liste bedeutet keine universelle APK.
+dem Projekt. Mit dem festgeschriebenen Plugin enthält die APK alle vier ABIs, unabhängig
+von `--abi`; sie läuft also auf Telefon und x86_64-Emulator. Die APK und ihre SHA-256-Prüfsumme werden unter
+`artifacts/` abgelegt; der Dateiname nennt die tatsächlich enthaltenen ABIs (derzeit `universal`).
 Die unveränderten Upstream-ABI-Definitionen bleiben im Projekt erhalten.
 
 Nach Einführung der entsprechenden Module/Tests:

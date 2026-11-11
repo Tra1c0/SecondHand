@@ -65,8 +65,16 @@ class CalendarToolLauncherTest {
         val send = view.findViewById<Button>(R.id.agent_cloud_send)
         assertEquals(app.getString(R.string.agent_tool_hand_over), send.text.toString())
         assertFalse(view.findViewById<Button>(R.id.agent_apply).isEnabled)
+        assertEquals(app.getString(R.string.agent_tool_cancel), view.findViewById<Button>(R.id.agent_cloud_cancel).text.toString())
         send.performClick()
         assertEquals(1, sent)
+        view.showCloudBusy(R.string.agent_tool_running)
+        assertFalse(view.findViewById<Button>(R.id.agent_tool_test).isEnabled)
+        view.showHandedOver(R.string.agent_tool_handed_off) // the other app may never come to the front
+        assertTrue(view.findViewById<Button>(R.id.agent_tool_test).isEnabled)
+        assertEquals(android.view.View.GONE, send.visibility)
+        view.showCloudConfirmation("model-1", 5)
+        assertEquals(app.getString(R.string.agent_cloud_cancel), view.findViewById<Button>(R.id.agent_cloud_cancel).text.toString())
         view.showToolResult("chars=7 words=1 lines=1")
         assertFalse(view.findViewById<Button>(R.id.agent_apply).isEnabled) // a report never replaces text
         assertTrue(view.findViewById<Button>(R.id.agent_copy).isEnabled)

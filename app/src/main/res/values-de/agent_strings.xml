@@ -213,4 +213,21 @@
     <string name="agent_ai_provider">Anbieter für die KI-Aktionen der Tastatur</string>
     <string name="agent_ai_provider_note">Schlüssel und Modell unten gehören zum gewählten Anbieter. Workflow-Schritte nennen ihren eigenen Anbieter.</string>
     <string name="agent_ai_model_none">Für diesen Anbieter ist kein Modell voreingestellt. Trage die Modell-ID aus der Dokumentation des Anbieters ein.</string>
+    <string name="agent_tool_cancel">Abbrechen</string>
+    <string name="agent_learning_title">Gelernte Wörter</string>
+    <string name="agent_learning_description">Was die Tastatur aus deinem Tippen lernt, bleibt auf diesem Gerät. Es wird nie an einen KI-Anbieter gesendet, und erzeugter oder eingefügter Text wird nicht gelernt.</string>
+    <string name="agent_learning_enabled">Lernen aus dem Tippen ist an.</string>
+    <string name="agent_learning_disabled">Lernen aus dem Tippen ist aus (Textkorrektur → Personalisierte Vorschläge). Ausschalten löscht das Gelernte.</string>
+    <string name="agent_learning_pause">Lernen pausieren</string>
+    <string name="agent_learning_pause_description">Solange pausiert ist, wird nichts Neues gelernt und kein Wort in dein persönliches Wörterbuch aufgenommen. Das bisher Gelernte bleibt und wird weiter für Vorschläge genutzt.</string>
+    <string name="agent_learning_data">Auf diesem Gerät gespeichert</string>
+    <string name="agent_learning_count">Gelernte Wörter zählen</string>
+    <string name="agent_learning_empty">Es wurde nichts gelernt.</string>
+    <string name="agent_learning_language_count">%1$s: %2$d Wörter</string>
+    <string name="agent_learning_export">Gelernte Wörter exportieren …</string>
+    <string name="agent_learning_export_description">Schreibt eine lesbare JSON-Datei an einen Ort deiner Wahl. Die Datei enthält Wörter, die du getippt hast; halte sie privat.</string>
+    <string name="agent_learning_delete">Gelernte Wörter löschen</string>
+    <string name="agent_learning_delete_confirm">Alles löschen, was die Tastatur aus deinem Tippen gelernt hat, für alle Sprachen? Dein persönliches Wörterbuch bleibt unverändert. Das lässt sich nicht rückgängig machen.</string>
+    <string name="agent_learning_deleted">Gelernte Wörter gelöscht.</string>
+    <string name="agent_learning_failed">Das hat nicht geklappt. Es wurde nichts geändert oder exportiert.</string>
 </resources>

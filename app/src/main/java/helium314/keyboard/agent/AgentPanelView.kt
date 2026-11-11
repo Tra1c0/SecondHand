@@ -201,6 +201,14 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
     fun showToolConfirmation(summary: String, external: Boolean) {
         showWorkflowConfirmation(summary, false)
         sendButton.setText(if (external) R.string.agent_tool_hand_over else R.string.agent_tool_run_test)
+        cancelButton.setText(R.string.agent_tool_cancel)
+    }
+
+    /** The other app may never appear; the panel must stay usable after a hand-over. */
+    fun showHandedOver(message: Int) {
+        showStatus(message)
+        actionButtons.forEach { it.isEnabled = true }
+        scrollTo(0, 0)
     }
 
     fun showWorkflowResult(outcome: WorkflowResult, definition: WorkflowDefinition) {
@@ -223,6 +231,7 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
         source.text = ""
         result.text = ""
         showStatus(R.string.agent_panel_stale, true)
+        scrollTo(0, 0) // the explanation and the Close button are at the top
     }
 
     fun clear() {
@@ -239,6 +248,7 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
     }
 
     private fun hideCloudControls() {
+        cancelButton.setText(R.string.agent_cloud_cancel)
         cloudConfirmation.text = ""
         cloudConfirmation.visibility = View.GONE
         sendButton.visibility = View.GONE
@@ -249,6 +259,7 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
                               provider: String = "OpenAI") {
         hideWorkflowChoices()
         sendButton.text = context.getString(R.string.agent_cloud_send, provider)
+        cancelButton.setText(R.string.agent_cloud_cancel)
         resultHeading.setText(R.string.agent_panel_result)
         applyButton.isEnabled = false
         copyButton.isEnabled = false

@@ -737,6 +737,66 @@ dieser Baseline separat erkannt und vor dem nächsten Schritt behoben werden.
 - Offen: echte Anfragen bei allen drei Anbietern; Gemini-Vertrag nicht neu geprüft
   (`docs/PROVIDERS.md`); Bedienung der Anbieter-Auswahl auf einem Gerät.
 
+## G1 — erster Gerätetest im Emulator (2026-11-11)
+
+Umgebung: Android-Emulator 37.2.13, Abbild `system-images/android-35/default/x86_64` (Android 15,
+480×800), reine Software-Emulation ohne KVM, vier Gast-Kerne. Bedienung über `adb shell input`,
+Auswertung über Screenshots und `uiautomator dump --windows` (zeigt auch das Tastaturfenster).
+Der Gast war stark überlastet; Zeitüberschreitungen fremder System-Apps sind kein App-Befund.
+
+Geprüft und in Ordnung:
+
+- Installation der APK ohne `-t`, Aktivierung und Auswahl als Standardtastatur.
+- Tastatur erscheint im Textfeld der Nachrichten-App. Zehn Tastendrücke ergeben „Hallo welt“
+  (automatische Großschreibung, unterstrichenes Wort in Bearbeitung, Vorschlagsleiste). Zweimal
+  Löschen und Weitertippen ändern den Text wie erwartet.
+- Agent-Taste öffnet das Rad; „Uppercase“ zeigt im Panel die Vorschau „HALLO WETT“; erst der
+  eigene Klick „Replace selection“ ersetzt den Text im Feld; Panel schließt, Tastatur ist zurück.
+- Auswahl während offener Vorschau geändert: Ergebnis verworfen, alle Aktionen gesperrt, Hinweis
+  „The text or selection changed…“, Text unverändert.
+- Testwerkzeug: Freigabetext, dann Bericht `chars=10 words=2 lines=1`; „Replace“ bleibt gesperrt.
+- Kalenderentwurf: Vorschau mit Titel und Beschreibung; nach Klick startet Android
+  `ACTION_INSERT` auf `com.android.calendar/.EditEventActivity` mit Extras (Systemlog, Start aus
+  dem sichtbaren Tastaturfenster erlaubt).
+- KI-Einstellungen öffnen sich aus dem Panel; Anbieter-Auswahl ist sichtbar; der Screenshot ist
+  vollständig schwarz (`FLAG_SECURE` wirkt, auch über der Tastatur).
+- Passwortfeld (API-Schlüssel): Panel meldet „Text actions are disabled in this protected field“.
+- Schlüssel speichern mit dem echten Android Keystore: fünf Zeichen eingegeben (maskiert),
+  „Save key“ → „A key is stored on this device“, Feld geleert, Datei
+  `no_backup/agent_credentials/openai.sealed` mit 34 Byte (1 + 12 + 5 + 16) ohne Klartext;
+  „Delete stored key“ → „No key is stored“, Ordner leer.
+- Kein Absturz der Tastatur im Crash-Log über die ganze Sitzung.
+
+Gefundene Fehler, behoben und auf dem Gerät nachgeprüft:
+
+- Rad und Panel reichten unter die Navigationsleiste: „Clean spaces“, „Replace selection“ und
+  „Copy result“ waren verdeckt und nicht antippbar. `AgentKeyboardFrame` kürzt Overlays jetzt um
+  den von der Leiste verdeckten Teil. Nachher liegen alle Knöpfe sichtbar darüber.
+
+Gefundene Fehler, behoben, nur durch Tests geprüft (nicht erneut auf dem Gerät):
+
+- Bei Werkzeugen hieß der Abbruchknopf „Cancel AI action“; jetzt „Cancel“.
+- Nach einer Übergabe blieb das Panel gesperrt, wenn die andere App nicht erschien; jetzt sind
+  die Aktionen wieder frei.
+- Nach verworfener Vorschau stand das Panel am unteren Ende, Hinweis und „Close“ waren erst nach
+  Scrollen sichtbar; jetzt springt es nach oben.
+
+Befunde zur Umgebung und zum Werkzeug:
+
+- Die Kalender-App dieses Abbilds ist defekt (`ClassNotFoundException` für
+  `EditEventActivity` in `Calendar.apk`). Ob Titel und Beschreibung in einer funktionierenden
+  Kalender-App ankommen, ist deshalb weiter offen.
+- Beim ersten Nachtest wurde eine veraltete APK installiert, weil `tools/dev.py` die Datei nach
+  dem gewünschten ABI benannte, obwohl die APK alle ABIs enthält. Die Datei heißt jetzt nach
+  ihrem tatsächlichen Inhalt (`…-universal.apk`).
+- Start der Tastatur: beim ersten Versuch (Gast-Last 15–20) „failed to complete startup“; bei
+  Gast-Last um 5 startete sie normal. Ein Startproblem der App ist damit nicht belegt.
+
+Nicht geprüft: Rotation, TalkBack, Mehrfinger- und Wischgesten, Leertasten-Langdruck, Wechsel
+zwischen Feldern und Apps unter Last, Inkognito, gesperrtes Gerät, Direct Boot (Neustart vor dem
+ersten Entsperren), Compose- und WebView-Felder, Netzwerkmitschnitt beim Tippen, Profile, Skill
+Keys, Workflows, Act Builder und jede echte KI-Anfrage. Ein echtes Telefon wurde nicht benutzt.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

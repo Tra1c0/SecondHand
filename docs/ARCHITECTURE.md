@@ -178,8 +178,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `AndroidEditorAdapter.kt`: Main-Thread-Adapter. Holt die `InputConnection` jedes Mal neu,
   speichert sie nie in einem Snapshot. Prüft die Privacy vor dem Lesen und vergleicht vor der
   Übernahme erneut.
-- `AgentKeyboardFrame.kt`: Overlays sind exakt so groß wie die Tastatur und vergrößern die IME
-  nie. Hintergrundtasten sind währenddessen aus der Accessibility entfernt.
+- `AgentKeyboardFrame.kt`: Overlays sind so breit wie die Tastatur, vergrößern die IME nie und
+  enden über der Navigationsleiste (`overlayBottomInset`, Fallstrick P18). Hintergrundtasten sind
+  währenddessen aus der Accessibility entfernt.
 - `AgentPanelView.kt`: natives Aktionspanel im IME-Fenster (lokale Werkzeuge, KI-Aktionen,
   Workflows, Werkzeuge). Öffnet nie eine zweite
   `InputConnection` und keinen eigenen Editor.
@@ -362,7 +363,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 
 - `tools/dev.py`: `python3 tools/dev.py doctor|build|core-tests|agent-tests|upstream-tests|lint`.
   `build` erzeugt `:app:assembleDebugNoMinify` für ARM64 (`--abi x86_64` für den Emulator) und
-  legt APK plus SHA-256 unter `artifacts/` ab (nicht versioniert). `-Pandroid.injected.testOnly=false`
+  legt APK plus SHA-256 unter `artifacts/` ab (nicht versioniert); die Datei heißt nach den
+  enthaltenen ABIs, derzeit `…-universal.apk` (Fallstrick P19). `-Pandroid.injected.testOnly=false`
   verhindert, dass die APK als test-only markiert wird (Fallstrick P16). `agent-tests` läuft über
   `helium314.keyboard.agent.*`, die erzeugten `InputLogicTest`-Fälle und `BatchDeliveryTest`.
   Toolchain und Einrichtung: `docs/BUILD.md`. UI-Tests schreiben gerenderte Vorschauen nach
@@ -424,6 +426,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P17** Ein neuer Konstruktor-Parameter am Ende von `AgentEditorController` fängt das
   nachgestellte Lambda bestehender Aufrufe ein (Tests übergeben so den Provider). Neue
   Abhängigkeiten als ersetzbare Eigenschaft anlegen (`toolLauncher`).
+- **P18** Android 15 zeichnet die Navigationsleiste über das Tastaturfenster. Die Tastatur hat
+  dort leeren Rand, ein Overlay in voller Höhe legt seine untersten Knöpfe unter die Leiste
+  (im Gerätetest waren „Replace selection“ und „Copy result“ nicht antippbar). Robolectric
+  zeigt das nicht. Neue Overlays in `AgentKeyboardFrame` einhängen und auf einem Gerät ansehen.
+- **P19** Nach jedem Build die Datei installieren, die `tools/dev.py` als `APK:` ausgibt, und
+  nach der Installation prüfen, dass die Änderung sichtbar ist. Eine alte Datei im Ordner
+  `artifacts/` sah im Gerätetest wie ein wirkungsloser Fix aus.
 
 ## Datei-Inventar
 

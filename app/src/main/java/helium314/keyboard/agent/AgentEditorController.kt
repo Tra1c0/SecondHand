@@ -279,7 +279,7 @@ class AgentEditorController @JvmOverloads constructor(
                         canApply = false // A tool report is information, never a replacement.
                         panel?.showToolResult(result.text)
                     }
-                    ToolOutcome.HandedOff -> panel?.showStatus(R.string.agent_tool_handed_off)
+                    ToolOutcome.HandedOff -> panel?.showHandedOver(R.string.agent_tool_handed_off)
                 }
             }.onFailure { failure -> panel?.showStatus(when (failure) {
                 is ToolUnavailable -> R.string.agent_tool_unavailable

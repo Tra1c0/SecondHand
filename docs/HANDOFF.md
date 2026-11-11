@@ -10,25 +10,21 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
 - In Arbeit: Der Owner hat am 2026-11-11 die Fortsetzung beauftragt („Mach weiter“).
-- Fertig: Etappen 0–16b (zuletzt Anthropic und Gemini als weitere KI-Anbieter).
-- Letzter Build: 0.1.0 Debug nach Etappe 16b, eine APK für alle ABIs.
-- Geprüft: Kern 52/0, Agent-Suite 205/0, Build, Lint. Vollregression nach Etappe 15 steht aus.
-- G1 offen: Emulator bootet, Installation und Aktivierung klappen; Tippen noch NICHT geprüft
-  (Offene Punkte 1 und Sackgassen → Emulator).
-- Danach: `docs/ROADMAP.md` → Beschlossen (17, 18, A; 16c wartet auf OAuth-Zugänge des Owners).
+- Fertig: Etappen 0–16b und der erste Gerätetest G1 (drei gefundene Bedienfehler behoben).
+- Letzter Build: 0.1.0 Debug, `artifacts/…-universal.apk` (alle ABIs), nicht im Repo.
+- Geprüft: Kern 52/0, Agent-Suite 206/0, Build, Lint; Vollregression 387 Tests mit 7 Fehlern
+  (fünf Baseline, zwei Link-Tests am Netzwerkfilter dieser Umgebung).
+- Danach: `docs/ROADMAP.md` → Beschlossen (17, 18, G2, A; 16c wartet auf OAuth-Zugänge).
 - Wartet auf den Owner: OAuth-Zugänge für 16c; Entscheidung über den Branch `main`.
 
 ## Offene Punkte
 
-1. **Gerätetest erst angefangen.** Erreicht im Emulator (API 35, ohne KVM): Boot, Installation
-   der APK ohne `-t`, Tastatur per `ime enable`/`ime set` aktiviert und als Standard gesetzt.
-   Nicht erreicht: ein einziger Tastendruck. Der Gast war so überlastet, dass Android Apps und
-   die Tastatur wegen Startzeitüberschreitung beendete („failed to complete startup“). Das ist
-   bisher ein Umgebungsbefund, kein belegter App-Fehler; ob die Tastatur bei normaler
-   Geschwindigkeit sauber startet, ist offen. Nächster Versuch: Sackgassen → Emulator.
-   Checkliste: `docs/VALIDATION.md` → Gerätetest vor Meilensteinfreigabe; Keystore und
-   Direct Boot: `docs/STORAGE.md` → Prüflimits. Auch die Kalenderübergabe (Etappe 15) ist auf
-   einem Gerät ungeprüft.
+1. **Gerätetest teilweise erledigt (G1).** Im Emulator geprüft und in Ordnung: Installation,
+   Tippen, Löschen, Rad, Panel, Ersetzen, Schutz bei geänderter Auswahl, Passwortfeld,
+   Testwerkzeug, Start der Kalenderübergabe, KI-Einstellungen mit Screenshot-Schutz, Schlüssel
+   speichern und löschen mit dem echten Keystore. Protokoll und die Liste des Ungeprüften:
+   `docs/VALIDATION.md` → G1. Offen bleibt alles unter „Nicht geprüft“ dort, außerdem ein echtes
+   Telefon und eine funktionierende Kalender-App als Ziel.
 2. **Keine echte Modell-API-Anfrage.** Alle Provider-Tests nutzen Loopback- oder Testprovider. Ein
    Schlüssel ist nicht vorhanden und wird nur vom Owner in der App eingegeben.
 3. **Git-Basis.** Der Code wurde aus dem Übergabe-Archiv vom 2026-11-11 importiert. Die frühere
@@ -40,6 +36,9 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
    `XLinkTest.readmeLinks` (externe Erreichbarkeit, zuletzt HTTP 503, früher 404),
    `XLinkTest.knownDictionaries` (geändertes externes Datenformat). Die Baseline wird nicht
    erweitert; zeitweise externe 504-Fehler gelten nicht als neue Baseline.
+   In der Cloud-Umgebung „SecondHand“ scheitern zusätzlich `XLinkTest.layoutsLinksInternal` und
+   `XLinkTest.otherLinks` mit HTTP 403 vom Netzwerkfilter (Hosts nicht freigegeben); auch das
+   ist Umgebung, keine neue Baseline.
 5. **Upstream-CI `build-test-auto.yml`** ruft `testRunTestsUnitTest` auf, den es mit dem
    festgeschriebenen Plugin nicht gibt. Läuft nur bei Pull Requests und würde dort fehlschlagen.
    Bewusst unverändert gelassen.
@@ -120,11 +119,15 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
     einem Emulations-Thread lag die Gast-Last bei 15–20, überall ANRs. Schon gesetzte Abhilfen:
     Bluetooth deaktiviert (Absturzschleife), Animationen aus, App mit
     `cmd package compile -m speed -f` vorkompiliert.
+  - Bewährt (G1): vier Gast-Kerne ohne `thread=multi`, kein Gradle parallel, nach dem Boot
+    warten, bis die Gast-Last (`cat /proc/loadavg`) unter etwa 6 fällt, dann
+    `settings put global hide_error_dialogs 1`. Ein Tastendruck braucht 1–2 Sekunden.
   - Schlechter: `-qemu -accel tcg,thread=multi` mit zwei Gast-Kernen. Android bootete nach über
     20 Minuten nicht, weil der Systemdienst wegen Zeitüberschreitung immer wieder neu startete.
-    Nächste Ideen: kein paralleler Gradle-Lauf, älteres leichteres Abbild (z. B. API 30
-    `default`), nach dem Boot 10 Minuten ruhen lassen.
-  - Die Ansichtshierarchie per `uiautomator dump` taugt besser zur Prüfung als Screenshots.
+  - `uiautomator dump --windows` liefert auch das Tastaturfenster (Texte, IDs) und funktioniert
+    auch dort, wo Screenshots wegen `FLAG_SECURE` schwarz sind.
+  - Die Kalender-App des Abbilds `default` (API 35) ist defekt; Übergaben dorthin enden im
+    Absturz der Ziel-App.
 - **Maven Central drosselt (HTTP 429)** bei vielen parallelen Downloads; Build wiederholen.
   Robolectric konnte die Android-16-Laufzeit nicht selbst laden: die Datei
   `android-all-instrumented-16-robolectric-13921718-i7.jar` samt `.pom` und `.sha512` per `curl`
@@ -146,6 +149,8 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
 
+- 0.1.0 Debug (G1): Overlays enden über der Navigationsleiste, Panel bleibt nach Übergabe
+  bedienbar; im Emulator Tippen, Rad, Panel, Ersetzen, Keystore geprüft; Agent-Suite 206/0.
 - 0.1.0 Debug (Etappe 16a/b): Anthropic und Gemini als Anbieter; Agent-Suite 205/0, Kern 52/0,
   Build und Lint grün; auf keinem Gerät geprüft.
 - 0.1.0 Debug (Etappe 15): Werkzeuge im Panel; APK nicht mehr test-only; Kern 52/0, Agent-Suite

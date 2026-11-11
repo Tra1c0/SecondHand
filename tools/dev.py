@@ -9,6 +9,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import zipfile
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -73,7 +74,13 @@ def main() -> int:
             raise SystemExit("Build succeeded but its APK location was ambiguous.")
         artifacts = ROOT / "artifacts"
         artifacts.mkdir(exist_ok=True)
-        target = artifacts / (sources[0].stem + "-" + args.abi + ".apk")
+        # Name the file after what it really contains: with the pinned plugin the override is
+        # not applied and the APK carries every ABI. A name that claims one ABI led to installing
+        # a stale file during the device test.
+        with zipfile.ZipFile(sources[0]) as apk:
+            abis = sorted({name.split("/")[1] for name in apk.namelist() if name.startswith("lib/")})
+        label = abis[0] if len(abis) == 1 else "universal"
+        target = artifacts / (sources[0].stem + "-" + label + ".apk")
         shutil.copyfile(sources[0], target)
         digest = hashlib.sha256(target.read_bytes()).hexdigest()
         target.with_suffix(".apk.sha256").write_text(digest + "  " + target.name + "\n")

@@ -8,3 +8,7 @@
   eigener Modellkennung. Wähle den Anbieter in den KI-Einstellungen; Workflow-Schritte können
   je Schritt einen Anbieter nennen. Für Gemini trägst du die Modellkennung selbst ein.
 - Behoben: Die APK lässt sich jetzt normal installieren (sie war als „test-only“ markiert).
+- Behoben (im Gerätetest gefunden): Im Aktionsrad und im Panel lagen die untersten Knöpfe unter
+  der Navigationsleiste und ließen sich nicht antippen.
+- Behoben: Nach einer Kalender-Übergabe bleibt das Panel bedienbar; der Abbruchknopf bei
+  Werkzeugen heißt „Abbrechen“.

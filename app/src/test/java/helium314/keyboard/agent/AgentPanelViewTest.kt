@@ -53,6 +53,39 @@ class AgentPanelViewTest {
         assertFalse(view.findViewById<Button>(R.id.agent_copy).isEnabled)
     }
 
+    @Test fun overlaysEndAboveTheNavigationBarWhileTheKeyboardKeepsItsSize() {
+        // Geometry of the frame's bottom edge against the bar's top edge.
+        assertEquals(48, AgentKeyboardFrame.navigationOverlap(frameBottom = 800, windowHeight = 800, barHeight = 48))
+        assertEquals(0, AgentKeyboardFrame.navigationOverlap(752, 800, 48)) // the system already inset the window
+        assertEquals(20, AgentKeyboardFrame.navigationOverlap(772, 800, 48))
+        assertEquals(0, AgentKeyboardFrame.navigationOverlap(800, 800, 0))
+        assertEquals(48, AgentKeyboardFrame.navigationOverlap(900, 800, 48)) // never more than the bar
+        val frame = AgentKeyboardFrame(app, null)
+        frame.addView(View(app), FrameLayout.LayoutParams(360, 250))
+        val panel = AgentPanelView(app).apply { showSource("Hallo") }
+        val wheel = AgentWheelView(app).apply { visibility = View.VISIBLE }
+        frame.addView(panel, FrameLayout.LayoutParams(-1, -1))
+        frame.addView(wheel, FrameLayout.LayoutParams(-1, -1))
+        fun layout() {
+            frame.measure(View.MeasureSpec.makeMeasureSpec(360, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(800, View.MeasureSpec.AT_MOST))
+            frame.layout(0, 0, frame.measuredWidth, frame.measuredHeight)
+        }
+        layout()
+        assertEquals(250, panel.height)
+        frame.overlayBottomInset = 48
+        layout()
+        assertEquals(250, frame.height) // the IME itself never changes size
+        assertEquals(202, panel.height)
+        assertEquals(202, wheel.height)
+        assertEquals(0, panel.top)
+        // Every wheel button, including the bottom one, lies inside the visible part.
+        assertTrue((0 until wheel.childCount).all { wheel.getChildAt(it).bottom <= 202 })
+        frame.overlayBottomInset = -5
+        layout()
+        assertEquals(250, panel.height)
+    }
+
     @Test fun panelNeverBecomesAnEditableInputTarget() {
         val view = AgentPanelView(app)
         assertFalse(view.onCheckIsTextEditor())

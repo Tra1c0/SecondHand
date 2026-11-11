@@ -214,4 +214,21 @@
     <string name="agent_ai_provider">Provider for the keyboard’s AI actions</string>
     <string name="agent_ai_provider_note">The key and model below belong to the selected provider. Workflow steps name their own provider.</string>
     <string name="agent_ai_model_none">No model is preset for this provider. Enter the model ID from the provider’s documentation.</string>
+    <string name="agent_tool_cancel">Cancel</string>
+    <string name="agent_learning_title">Learned words</string>
+    <string name="agent_learning_description">What the keyboard learns from your typing stays on this device. It is never sent to an AI provider, and generated or inserted text is not learned.</string>
+    <string name="agent_learning_enabled">Learning from typing is on.</string>
+    <string name="agent_learning_disabled">Learning from typing is off (Text correction → Personalized suggestions). Switching it off deletes what was learned.</string>
+    <string name="agent_learning_pause">Pause learning</string>
+    <string name="agent_learning_pause_description">While paused, nothing new is learned and no word is added to your personal dictionary. What was learned before stays and is still used for suggestions.</string>
+    <string name="agent_learning_data">Stored on this device</string>
+    <string name="agent_learning_count">Count learned words</string>
+    <string name="agent_learning_empty">Nothing has been learned.</string>
+    <string name="agent_learning_language_count">%1$s: %2$d words</string>
+    <string name="agent_learning_export">Export learned words…</string>
+    <string name="agent_learning_export_description">Writes a readable JSON file to a place you choose. The file contains words you typed; keep it private.</string>
+    <string name="agent_learning_delete">Delete learned words</string>
+    <string name="agent_learning_delete_confirm">Delete everything the keyboard learned from your typing, for all languages? Your personal dictionary is not changed. This cannot be undone.</string>
+    <string name="agent_learning_deleted">Learned words deleted.</string>
+    <string name="agent_learning_failed">That did not work. Nothing was changed or exported.</string>
 </resources>

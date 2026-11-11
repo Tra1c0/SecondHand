@@ -8,14 +8,14 @@ zuletzt gepushten Branches. In Klammern steht die Etappe, in der die Funktion en
 Status: **E** = auf einem Gerät oder Emulator von Anfang bis Ende geprüft · **T** = durch
 automatische Tests abgedeckt (Robolectric simuliert Android, das ist kein Gerätetest) ·
 **–** = noch nicht geprüft. Nutzung auf einem echten Gerät zählt nur, wenn der Owner es sagt.
-Bisher hat keine Funktion den Status E, weil noch nie ein Gerätetest stattfand.
+E stammt bisher nur aus dem Emulator-Test vom 2026-11-11 (Android 15, Protokoll in VALIDATION.md → G1); auf einem echten Telefon ist noch nichts geprüft.
 
 ## Tastatur
 
 | Funktion | Was sie macht | Status |
 | --- | --- | --- |
-| HeliBoard-Tastatur | Tippen, Layouts, Wörterbücher, Autokorrektur, Vorschläge, Themes und Emoji wie in HeliBoard 4.2. Die Upstream-Tests laufen bis auf fünf geerbte Fehler durch. (0) | T |
-| Eigene App | Heißt „Agent Keyboard“ (Debug: „Agent Keyboard Lab“), eigene App-ID, damit sie neben HeliBoard installiert werden kann. (1) | T |
+| HeliBoard-Tastatur | Tippen, Layouts, Wörterbücher, Autokorrektur, Vorschläge, Themes und Emoji wie in HeliBoard 4.2. Die Upstream-Tests laufen bis auf fünf geerbte Fehler durch. (0) Im Emulator geprüft: Tippen, Löschen, Großschreibung, Vorschläge. | E |
+| Eigene App | Heißt „Agent Keyboard“ (Debug: „Agent Keyboard Lab“), eigene App-ID, damit sie neben HeliBoard installiert werden kann. (1) | E |
 | Sichere Voreinstellungen | Lernen aus deinem Tippen, Zwischenablage-Vorschläge und Zwischenablageverlauf sind anfangs aus. Keine automatischen Backups. (1) | T |
 | Normales Tippen offline | Die Internetverbindung wird erst nach einer ausdrücklichen Sendefreigabe aufgebaut, Tippen und lokale Werkzeuge brauchen sie nicht. Getestet ist der späte Aufbau; eine Messung auf dem Gerät fehlt. (9c) | T |
 
@@ -23,18 +23,18 @@ Bisher hat keine Funktion den Status E, weil noch nie ein Gerätetest stattfand.
 
 | Funktion | Was sie macht | Status |
 | --- | --- | --- |
-| Aktionspanel | Toolbar-Taste öffnet ein Panel über der Tastatur: markierten Text ansehen, Aktion wählen, Ergebnis prüfen, dann bewusst übernehmen oder kopieren. (5) | T |
-| Aktionsrad | Rundes Menü mit denselben Aktionen, auch mit TalkBack bedienbar. (6) | T |
+| Aktionspanel | Toolbar-Taste öffnet ein Panel über der Tastatur: markierten Text ansehen, Aktion wählen, Ergebnis prüfen, dann bewusst übernehmen oder kopieren. (5) | E |
+| Aktionsrad | Rundes Menü mit denselben Aktionen, auch mit TalkBack bedienbar. (6) TalkBack nicht geprüft. | E |
 | Leertasten-Langdruck | Optional: Langes Drücken der Leertaste öffnet das Rad. Standardmäßig aus, einschaltbar im Gestenprofil. (7) | T |
-| Lokale Werkzeuge | 3 lokale Textwerkzeuge: Großschreibung, Kleinschreibung, Leerzeichen aufräumen. Laufen ohne Internet und sind als lokal gekennzeichnet. (5) | T |
-| Schutz beim Ersetzen | Ersetzt wird nur, wenn sich Feld, Auswahl und Text seit der Vorschau nicht geändert haben. Sonst bleibt die Übernahme gesperrt. (4) | T |
-| Schutzbereiche | Passwortfelder, Inkognito, gesperrtes Gerät und Felder mit Lernverbot sperren alle Aktionen. (4) | T |
+| Lokale Werkzeuge | 3 lokale Textwerkzeuge: Großschreibung, Kleinschreibung, Leerzeichen aufräumen. Laufen ohne Internet und sind als lokal gekennzeichnet. (5) Im Emulator geprüft: Großschreibung. | E |
+| Schutz beim Ersetzen | Ersetzt wird nur, wenn sich Feld, Auswahl und Text seit der Vorschau nicht geändert haben. Sonst bleibt die Übernahme gesperrt. (4) | E |
+| Schutzbereiche | Passwortfelder, Inkognito, gesperrtes Gerät und Felder mit Lernverbot sperren alle Aktionen. Im Emulator geprüft: Passwortfeld. (4) | T |
 
 ## KI (eigene API-Schlüssel)
 
 | Funktion | Was sie macht | Status |
 | --- | --- | --- |
-| Schlüssel speichern | Je Anbieter ein eigener Schlüssel, verschlüsselt auf dem Gerät gespeichert, nie angezeigt, nicht gesichert. (8, 16) | T |
+| Schlüssel speichern | Je Anbieter ein eigener Schlüssel, verschlüsselt auf dem Gerät gespeichert, nie angezeigt, nicht gesichert. (8, 16) Im Emulator mit dem echten Android-Keystore geprüft (OpenAI-Platz). | E |
 | Anbieter und Modell wählen | In den KI-Einstellungen wählst du OpenAI, Anthropic oder Google Gemini für die KI-Aktionen der Tastatur und je Anbieter die Modellkennung. Für Gemini musst du die Modellkennung selbst eintragen. Workflow-Schritte können je Schritt einen anderen Anbieter nennen. (9, 16) | T |
 | KI-Textaktionen | 6 KI-Textaktionen: Korrigieren, Übersetzen, Umformulieren (Ton wählbar), Zusammenfassen, Antwort entwerfen, Analysieren (nur lesen, ersetzt nie). Vor dem Senden siehst du genau, was rausgeht, und bestätigst einmalig. (9–10) | T |
 | Übersetzen | 14 Zielsprachen, darunter Deutsch, Englisch und Spanisch. (10a) | T |
@@ -56,8 +56,8 @@ Bisher hat keine Funktion den Status E, weil noch nie ein Gerätetest stattfand.
 | Funktion | Was sie macht | Status |
 | --- | --- | --- |
 | Werkzeuge im Panel | 2 Werkzeuge im Aktionspanel unter „Werkzeuge“. Vor jedem Lauf siehst du Ziel und alle Werte und bestätigst einmal. (15) | T |
-| Testwerkzeug | Zählt Zeichen, Wörter und Zeilen des markierten Texts. Läuft nur auf dem Gerät, ersetzt nichts. Dient zum Ausprobieren des Werkzeug-Ablaufs. (15a) | T |
-| Kalenderentwurf | Öffnet die Kalender-App mit einem neuen Termin: erste Zeile als Titel, ganzer Text als Beschreibung. Datum und Uhrzeit stellst du dort ein. Gespeichert ist der Termin erst, wenn du ihn dort speicherst; die Tastatur liest den Kalender nicht. (15b) | T |
+| Testwerkzeug | Zählt Zeichen, Wörter und Zeilen des markierten Texts. Läuft nur auf dem Gerät, ersetzt nichts. Dient zum Ausprobieren des Werkzeug-Ablaufs. (15a) | E |
+| Kalenderentwurf | Öffnet die Kalender-App mit einem neuen Termin: erste Zeile als Titel, ganzer Text als Beschreibung. Datum und Uhrzeit stellst du dort ein. Gespeichert ist der Termin erst, wenn du ihn dort speicherst; die Tastatur liest den Kalender nicht. Im Emulator startet die Übergabe; ob die Daten in einer Kalender-App ankommen, ist offen (die App des Emulators war defekt). (15b) | T |
 
 ## Act Builder
 
