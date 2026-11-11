@@ -734,6 +734,53 @@ class InputLogicTest {
         assertEquals("prefix .co suffix", text)
     }
 
+    @Test fun generatedInsertionAtCursorPreservesSurroundingTextAndSingleDelete() {
+        setText("prefix  suffix")
+        setCursorPosition(7)
+        assertEquals(dev.agentkeyboard.core.ApplyOutcome.SUBMITTED, inputLogic.insertGeneratedText("Hallo", 7))
+        assertEquals("prefix Hallo suffix", text)
+        checkConnectionConsistency()
+        assertTrue(inputLogic.isAgentHistorySuppressed)
+        functionalKeyPress(KeyCode.DELETE)
+        assertEquals("prefix Hall suffix", text)
+    }
+
+    @Test fun generatedInsertionIsRefusedWhileAWordIsBeingComposed() {
+        chainInput("hel")
+        assertEquals("hel", composingText)
+        val suppressedBefore = inputLogic.isAgentHistorySuppressed
+        assertEquals(dev.agentkeyboard.core.ApplyOutcome.REJECTED, inputLogic.insertGeneratedText("Hallo", 3))
+        assertEquals("hel", text)
+        assertEquals(suppressedBefore, inputLogic.isAgentHistorySuppressed)
+        checkConnectionConsistency()
+    }
+
+    @Test fun generatedInsertionAfterPickedSuggestionGetsTheSameAutomaticSpaceAsTyping() {
+        pickSuggestion("this")
+        assertEquals("this", text)
+        assertEquals(dev.agentkeyboard.core.ApplyOutcome.SUBMITTED, inputLogic.insertGeneratedText("works", 4))
+        assertEquals("this works", text) // one commit, not "thisworks"
+        checkConnectionConsistency()
+    }
+
+    @Test fun generatedInsertionFollowsTheTypedTextRuleForTheAutomaticSpace() {
+        // Whatever typing a letter does after a picked suggestion in a field, insertion does the same.
+        for (type in listOf(InputType.TYPE_CLASS_TEXT, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)) {
+            reset()
+            setInputType(type)
+            chainInput("exam")
+            pickSuggestion("example")
+            input('c')
+            val typed = text
+            reset()
+            setInputType(type)
+            chainInput("exam")
+            pickSuggestion("example")
+            assertEquals(dev.agentkeyboard.core.ApplyOutcome.SUBMITTED, inputLogic.insertGeneratedText("c", 7))
+            assertEquals(typed, text)
+        }
+    }
+
     @Test fun generatedTextSuppressesLearningUntilFreshFrameworkSession() {
         latinIME.prefs().edit { putBoolean(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, true) }
         setText("prefix Hallo suffix")

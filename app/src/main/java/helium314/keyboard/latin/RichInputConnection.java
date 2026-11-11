@@ -362,6 +362,8 @@ public final class RichInputConnection implements PrivateCommandPerformer {
     /**
      * Inserts generated text at the cursor, only while the cursor is where it was previewed and
      * nothing is selected or being composed. Exactly one commit; no fallback and no retry.
+     * Only call this through InputLogic.insertGeneratedText: it also refuses while the editor still
+     * holds a composing span, which commitText would replace.
      */
     public ApplyOutcome insertTextIfCursorUnchanged(final String text, final int position) {
         final InputConnection connection = mParent.getCurrentInputConnection();
@@ -374,10 +376,14 @@ public final class RichInputConnection implements PrivateCommandPerformer {
         boolean uncertain = false;
         try {
             connection.beginBatchEdit();
-            final CharSequence selected = connection.getSelectedText(0);
-            if (selected == null || selected.length() == 0) {
-                attempted = true;
-                accepted = connection.commitText(text, 1);
+            // A null answer here means the editor did not respond (frozen app, dead connection,
+            // unsupported call). Then a null "selected text" below proves nothing: do not commit.
+            if (connection.getTextBeforeCursor(1, 0) != null) {
+                final CharSequence selected = connection.getSelectedText(0);
+                if (selected == null || selected.length() == 0) {
+                    attempted = true;
+                    accepted = connection.commitText(text, 1);
+                }
             }
         } catch (RuntimeException ignored) {
             uncertain = attempted;

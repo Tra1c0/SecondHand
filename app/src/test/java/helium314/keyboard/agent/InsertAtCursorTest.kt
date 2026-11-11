@@ -27,6 +27,8 @@ class InsertAtCursorTest {
     private var commitCount = 0
     private var reject = false
     private var loseReply = false
+    private var unresponsive = false
+    private var failReadsAfterCommit = false
 
     @Before fun setup() {
         field = EditText(app).apply { setText("prefix  suffix"); setSelection(7) }
@@ -36,9 +38,15 @@ class InsertAtCursorTest {
                 commitCount++
                 if (reject) return false
                 val result = super.commitText(text, newCursorPosition)
+                if (failReadsAfterCommit) unresponsive = true
                 if (loseReply) error("lost reply")
                 return result
             }
+            // A frozen app or a dead connection answers every read with null.
+            override fun getTextBeforeCursor(length: Int, flags: Int): CharSequence? =
+                if (unresponsive) null else super.getTextBeforeCursor(length, flags)
+            override fun getSelectedText(flags: Int): CharSequence? =
+                if (unresponsive) null else super.getSelectedText(flags)
         }
         val parent = mock(InputMethodService::class.java)
         `when`(parent.currentInputConnection).thenReturn(connection)
@@ -54,32 +62,64 @@ class InsertAtCursorTest {
         assertEquals(1, commitCount)
     }
 
-    @Test fun movedCursorOrNewSelectionNeverInsertsAndNeverReplaces() {
+    @Test fun emptyTextWrongPlaceOrNewSelectionNeverCommits() {
+        // The cursor really is at 7 here, so only the guards keep these from committing.
+        assertEquals(ApplyOutcome.REJECTED, rich.insertTextIfCursorUnchanged("", 7))
         assertEquals(ApplyOutcome.REJECTED, rich.insertTextIfCursorUnchanged("Hallo", 3)) // not the previewed place
+        assertEquals(0, commitCount)
         field.setSelection(0, 6) // the app selected text behind the keyboard's back
         assertEquals(ApplyOutcome.REJECTED, rich.insertTextIfCursorUnchanged("Hallo", 7))
         assertEquals("prefix  suffix", field.text.toString())
         assertEquals(0, commitCount)
-        assertEquals(ApplyOutcome.REJECTED, rich.insertTextIfCursorUnchanged("", 7))
-        assertEquals(ApplyOutcome.REJECTED, rich.insertTextIfCursorUnchanged("Hallo", -1))
     }
 
-    @Test fun rejectedOrLostCommitIsUnknownWithoutASecondAttempt() {
+    @Test fun unresponsiveEditorIsNeverTreatedAsNothingSelected() {
+        // The real state: a selection the keyboard was not told about, in an app that stopped
+        // answering. "No selected text" (null) proves nothing then; a commit would replace it later.
+        field.setSelection(0, 6)
+        unresponsive = true
+        assertEquals(ApplyOutcome.REJECTED, rich.insertTextIfCursorUnchanged("Hallo", 7))
+        assertEquals(0, commitCount)
+        assertEquals("prefix  suffix", field.text.toString())
+    }
+
+    @Test fun rejectedOrLostCommitIsUnknownClearsCachesAndIsNeverRepeated() {
         reject = true
         assertEquals(ApplyOutcome.UNKNOWN, rich.insertTextIfCursorUnchanged("Hallo", 7))
         assertEquals("prefix  suffix", field.text.toString())
         assertEquals(1, commitCount)
-        reject = false; loseReply = true
+        assertEquals(-1, rich.expectedSelectionStart)
+        assertEquals(-1, rich.expectedSelectionEnd)
+        // With unknown coordinates nothing can be inserted, not even at "position -1".
+        reject = false
+        assertEquals(ApplyOutcome.REJECTED, rich.insertTextIfCursorUnchanged("Hallo", 7))
+        assertEquals(ApplyOutcome.REJECTED, rich.insertTextIfCursorUnchanged("Hallo", -1))
+        assertEquals(1, commitCount)
+
+        loseReply = true
         assertTrue(rich.resetCachesUponCursorMoveAndReturnSuccess(7, 7, false))
         assertEquals(ApplyOutcome.UNKNOWN, rich.insertTextIfCursorUnchanged("Hallo", 7))
+        assertEquals("prefix Hallo suffix", field.text.toString()) // the editor took it; the keyboard cannot know
         assertEquals(2, commitCount)
+        assertEquals(-1, rich.expectedSelectionStart)
+        assertEquals(-1, rich.expectedSelectionEnd)
+    }
+
+    @Test fun successfulCommitWithUnavailableRefreshIsReportedAsUncertain() {
+        failReadsAfterCommit = true
+        assertEquals(ApplyOutcome.UNKNOWN, rich.insertTextIfCursorUnchanged("Hallo", 7))
+        assertEquals("prefix Hallo suffix", field.text.toString())
+        assertEquals(1, commitCount)
+        assertEquals(-1, rich.expectedSelectionStart)
+        assertEquals(-1, rich.expectedSelectionEnd)
     }
 
     @Test fun adapterConsumesTheAnchorOnceAndRefusesAfterAnyEditorChange() {
         val inserted = mutableListOf<Pair<Int, String>>()
         var outcome = ApplyOutcome.SUBMITTED
         var access = EditorAccess()
-        val adapter = AndroidEditorAdapter({ error("an anchor reads no editor text") }, { it.copy(isIncognito = access.isIncognito) },
+        var reads = 0
+        val adapter = AndroidEditorAdapter({ reads++; null }, { it.copy(isIncognito = access.isIncognito) },
             { _, _ -> error("insertion never replaces a selection") })
         assertIs<AnchorResult.Denied>(adapter.captureAnchor()) // no editor yet
         adapter.startEditor(InputType.TYPE_CLASS_TEXT, 0, 7, 7)
@@ -112,5 +152,6 @@ class InsertAtCursorTest {
         adapter.startEditor(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD, 0, 0, 0)
         assertEquals(AnchorResult.Denied(DenialReason.PASSWORD), adapter.captureAnchor())
         assertEquals(2, inserted.size)
+        assertEquals(0, reads) // anchors and insertions never read text from the editor
     }
 }

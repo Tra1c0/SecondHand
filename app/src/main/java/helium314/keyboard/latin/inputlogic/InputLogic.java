@@ -133,9 +133,22 @@ public final class InputLogic {
         return applyGenerated(() -> mConnection.replaceSelectedTextIfUnchanged(expected, replacement, selectionStart, selectionEnd));
     }
 
-    /** Same guarantees as {@link #applyGeneratedText}, for text inserted at an unchanged cursor. */
+    /**
+     * Same guarantees as {@link #applyGeneratedText}, for text inserted at an unchanged cursor.
+     * A pending automatic space (after a picked suggestion) is put in front under the same
+     * conditions as for typed text, inside the same single commit; without it the inserted text
+     * would stick to the previous word.
+     */
     public ApplyOutcome insertGeneratedText(final String text, final int position) {
-        return applyGenerated(() -> mConnection.insertTextIfCursorUnchanged(text, position));
+        final SettingsValues settingsValues = Settings.getValues();
+        final boolean pendingSpace = SpaceState.PHANTOM == mSpaceState
+                && settingsValues.shouldInsertSpacesAutomatically()
+                && settingsValues.mSpacingAndPunctuations.mCurrentLanguageHasSpaces
+                && !textBeforeCursorMayBeUrlOrSimilar(settingsValues, true)
+                && !mConnection.textBeforeCursorLooksLikeURL()
+                && !(mConnection.getCodePointBeforeCursor() == Constants.CODE_PERIOD && mConnection.wordBeforeCursorMayBeEmail());
+        final String toInsert = pendingSpace ? " " + text : text;
+        return applyGenerated(() -> mConnection.insertTextIfCursorUnchanged(toInsert, position));
     }
 
     /** minSdk 21: no java.util.function. */
