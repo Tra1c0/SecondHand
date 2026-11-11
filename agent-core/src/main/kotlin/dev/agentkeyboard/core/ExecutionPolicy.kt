@@ -15,12 +15,17 @@ data class EditorAccess(
 
 enum class DenialReason {
     NO_EDITOR, LOCKED, PASSWORD, INCOGNITO, NO_LEARNING, UNSUPPORTED_EDITOR,
-    COMPOSITION, NO_SELECTION, TOO_LARGE, INVALID_TEXT, STALE_CONTEXT,
+    COMPOSITION, NO_SELECTION, TOO_LARGE, INVALID_TEXT, STALE_CONTEXT, NO_CURSOR,
 }
 
 sealed interface CaptureResult {
     class Captured(val snapshot: TextSnapshot) : CaptureResult
     data class Denied(val reason: DenialReason) : CaptureResult
+}
+
+sealed interface AnchorResult {
+    class Captured(val anchor: InsertionAnchor) : AnchorResult
+    data class Denied(val reason: DenialReason) : AnchorResult
 }
 
 /** The same rules apply to local tools and to future provider requests. */
@@ -68,6 +73,24 @@ class ExecutionPolicy(
             || snapshot.selectionEnd != max(selectionStart, selectionEnd) || snapshot.text != selectedText)
             return DenialReason.STALE_CONTEXT
         return null
+    }
+
+    /** Insertion needs a plain cursor: a selection would be replaced, which is a different approval. */
+    fun captureAnchor(token: EditorToken?, access: EditorAccess, selectionStart: Int, selectionEnd: Int): AnchorResult {
+        if (token == null) return AnchorResult.Denied(DenialReason.NO_EDITOR)
+        editorDenial(access)?.let { return AnchorResult.Denied(it) }
+        if (selectionStart < 0 || selectionStart != selectionEnd) return AnchorResult.Denied(DenialReason.NO_CURSOR)
+        return AnchorResult.Captured(InsertionAnchor(token, selectionStart))
+    }
+
+    fun insertDenial(anchor: InsertionAnchor, token: EditorToken?, access: EditorAccess,
+                     selectionStart: Int, selectionEnd: Int, text: String): DenialReason? {
+        editorDenial(access)?.let { return it }
+        if (anchor.token != token || selectionStart != anchor.position || selectionEnd != anchor.position)
+            return DenialReason.STALE_CONTEXT
+        if (text.isEmpty()) return DenialReason.INVALID_TEXT
+        if (text.length > maxSelectionChars) return DenialReason.TOO_LARGE
+        return resultDenial(text)
     }
 
     fun resultDenial(result: String): DenialReason? = when {

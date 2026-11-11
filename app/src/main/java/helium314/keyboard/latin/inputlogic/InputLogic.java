@@ -130,12 +130,24 @@ public final class InputLogic {
     /** Generated text bypasses user typing, autocorrection, TLD handling and history. */
     public ApplyOutcome applyGeneratedText(final String expected, final String replacement,
             final int selectionStart, final int selectionEnd) {
+        return applyGenerated(() -> mConnection.replaceSelectedTextIfUnchanged(expected, replacement, selectionStart, selectionEnd));
+    }
+
+    /** Same guarantees as {@link #applyGeneratedText}, for text inserted at an unchanged cursor. */
+    public ApplyOutcome insertGeneratedText(final String text, final int position) {
+        return applyGenerated(() -> mConnection.insertTextIfCursorUnchanged(text, position));
+    }
+
+    /** minSdk 21: no java.util.function. */
+    private interface GeneratedCommit { ApplyOutcome run(); }
+
+    private ApplyOutcome applyGenerated(final GeneratedCommit commit) {
         if (hasActiveComposition()) return ApplyOutcome.REJECTED;
         final boolean previouslySuppressed = mAgentHistorySuppressed;
         mAgentHistorySuppressed = true;
         mLatinIME.mHandler.cancelResumeSuggestions();
         mLatinIME.mHandler.cancelUpdateSuggestionStrip();
-        final ApplyOutcome outcome = mConnection.replaceSelectedTextIfUnchanged(expected, replacement, selectionStart, selectionEnd);
+        final ApplyOutcome outcome = commit.run();
         if (outcome == ApplyOutcome.REJECTED) {
             mAgentHistorySuppressed = previouslySuppressed;
             return outcome;

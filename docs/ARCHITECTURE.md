@@ -72,10 +72,13 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 > Reine Kotlin-Datentypen und Regeln: Editor-Snapshots, Policy, Aktionen, Workflows, Skills.
 
 - `EditorSession.kt`: `EditorToken` (Besitzer-UUID, Generation, Revision; einmalige Autorität),
-  `EditorSession`, `TextSnapshot` (kopierter Text plus Sitzungsgeneration und Änderungsstand).
+  `EditorSession`, `TextSnapshot` (kopierter Text plus Sitzungsgeneration und Änderungsstand),
+  `InsertionAnchor` (Schreibmarken-Position mit einmaliger Autorität zum Einfügen, ohne Text).
 - `ExecutionPolicy.kt`: `EditorAccess`, `DenialReason`, `CaptureResult`. Prüft Größengrenzen,
   sensible Felder, Inkognito und Sperrzustand vor jedem Lesen und vor jeder Übernahme.
-  `resultDenial` prüft auch Namen und Literale aus Dateien.
+  `resultDenial` prüft auch Namen und Literale aus Dateien. `captureAnchor`/`insertDenial`
+  (`AnchorResult`) gelten für das Einfügen an der Schreibmarke: nur ohne Auswahl
+  (`DenialReason.NO_CURSOR` sonst), nur bei unverändertem Token und unveränderter Position.
 - `ApplyOutcome.kt`: Ergebnis einer nativen Ersetzung (inklusive `UNKNOWN`, siehe Fallstrick P3).
 - `LocalTextActions.kt`: lokale Textwerkzeuge ohne Netz.
   <!-- gen:local_actions -->
@@ -114,7 +117,8 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - `PendingBatchGate.kt`: sperrt Swipe-Batches unter Epoch/Lock, wird in `InputLogicHandler.java`
   benutzt (Fallstrick P5).
 - Tests in `CT/`: `AiTextActionTest`, `EditorPolicyTest`, `LocalTextActionsTest`,
-  `PendingBatchGateTest`, `SkillBindingTest`, `ToolTest`, `WorkflowTest`. Befehl: `core-tests`.
+  `PendingBatchGateTest`, `SkillBindingTest`, `ToolTest`, `WorkflowTest`,
+  `InsertionAnchorTest`. Befehl: `core-tests`.
 
 ## Geänderte Upstream-Dateien
 
@@ -125,10 +129,14 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
 - `LatinIME.java`: erzeugt `AgentEditorController`, meldet Editorstart/-ende, abgeschickten Text
   und unterdrückte Lernhistorie. Engine-Speicher läuft über `AgentStorageContexts.keyboard`.
 - `InputLogic.java`: verwirft Caches und blockiert Eingabepfade nach einer unklaren Ersetzung
-  (`ApplyOutcome.UNKNOWN`), unterdrückt Lernen nach generierter Übernahme.
+  (`ApplyOutcome.UNKNOWN`), unterdrückt Lernen nach generierter Übernahme. Ersetzen
+  (`applyGeneratedText`) und Einfügen (`insertGeneratedText`) laufen durch dieselbe
+  Nachbereitung (`applyGenerated`).
 - `InputLogicHandler.java`: hält Worker- und UI-Teil eines Swipe-Batches über
   `PendingBatchGate` gemeinsam gesperrt.
-- `RichInputConnection.java`: native Ersetzung als genau ein Commit, Ergebnis als `ApplyOutcome`.
+- `RichInputConnection.java`: native Ersetzung als genau ein Commit, Ergebnis als `ApplyOutcome`
+  (`replaceSelectedTextIfUnchanged`); ebenso `insertTextIfCursorUnchanged` für das Einfügen an
+  der unveränderten Schreibmarke, nur wenn nichts markiert ist.
 - `PointerTracker.java`: Leertasten-Langdruck öffnet das Rad über
   `CustomAction.SHOW_AGENT_WHEEL` und beendet den laufenden Zeiger samt Swipe/Touchpad-Flags.
 - `KeyboardActionListener.java` (neue `CustomAction.SHOW_AGENT_WHEEL`) und
@@ -181,7 +189,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   führt Übernahme oder Kopieren aus. Übersetzt Fehler (`CloudError`, `DenialReason`) in Texte.
 - `AndroidEditorAdapter.kt`: Main-Thread-Adapter. Holt die `InputConnection` jedes Mal neu,
   speichert sie nie in einem Snapshot. Prüft die Privacy vor dem Lesen und vergleicht vor der
-  Übernahme erneut.
+  Übernahme erneut. `captureAnchor`/`insert` fügen an der Schreibmarke ein und lesen dafür
+  keinen Text aus dem Editor; ohne gesetztes `commitInsertion` wird jede Einfügung abgelehnt.
 - `AgentKeyboardFrame.kt`: Overlays sind so breit wie die Tastatur, vergrößern die IME nie und
   enden über der Navigationsleiste (`overlayBottomInset`, Fallstrick P18). Hintergrundtasten sind
   währenddessen aus der Accessibility entfernt.
@@ -200,7 +209,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Schutzgrenze. Der Ablauf von Aktion bis Übernahme steht unter „Grundlagen“.
 - Tests in `AT/`: `AgentPanelViewTest`, `AgentWheelViewTest`, `AgentSpaceGestureTest`,
   `AndroidEditorAdapterTest`, `SelectedTextCommitTest`, `DebugPrivacyTest`,
-  `ForkIdentityTest`, dazu `BatchDeliveryTest.kt` in
+  `InsertAtCursorTest`, `ForkIdentityTest`, dazu `BatchDeliveryTest.kt` in
   `app/src/test/java/helium314/keyboard/latin/inputlogic/`.
 
 ## Speicher, Zugangsdaten und Datenschutz
@@ -458,13 +467,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P19** Nach jedem Build die Datei installieren, die `tools/dev.py` als `APK:` ausgibt, und
   nach der Installation prüfen, dass die Änderung sichtbar ist. Eine alte Datei im Ordner
   `artifacts/` sah im Gerätetest wie ein wirkungsloser Fix aus.
+- **P20** Einfügen an der Schreibmarke prüft Token, Position und „nichts markiert“, aber nicht
+  den umgebenden Text (der wird bewusst nicht gelesen). Ändert die Host-App den Text, ohne die
+  Schreibmarke zu bewegen, landet die Einfügung an derselben Position im neuen Text. Deshalb
+  gibt es Einfügen nur nach Vorschau und eigenem Klick, nie automatisch.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (152 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (154 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -480,10 +493,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
-- `AT/` (30): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (31): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, CalendarToolLauncherTest, DebugPrivacyTest,
-  EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, ForkIdentityTest,
+  EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, ForkIdentityTest, InsertAtCursorTest,
   JournaledModelCallTest, KeyboardProfileStoreTest, LearningDataTest, ManualWorkflowDraftTest,
   MoreProvidersTest, OpenAiProviderTest, SelectedTextCommitTest, SkillBindingStoreTest,
   SkillSettingsTest, TestRunJournal, ToolRunnerTest, WorkflowBuilderContractTest,
@@ -491,8 +504,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   WorkflowSettingsTest, WorkflowStoreTest
 - `C/` (12): AiTextAction, ApplyOutcome, EditorSession, ExecutionPolicy, LocalTextActions,
   ModelProvider, PendingBatchGate, Profiles, SkillBinding, TextCondition, Tool, Workflow
-- `CT/` (7): AiTextActionTest, EditorPolicyTest, LocalTextActionsTest, PendingBatchGateTest,
-  SkillBindingTest, ToolTest, WorkflowTest
+- `CT/` (8): AiTextActionTest, EditorPolicyTest, InsertionAnchorTest, LocalTextActionsTest,
+  PendingBatchGateTest, SkillBindingTest, ToolTest, WorkflowTest
 - `K/keyboard/` (3): KeyboardActionListener, KeyboardActionListenerImpl, PointerTracker
 - `K/keyboard/emoji/` (1): EmojiSearchActivity
 - `K/keyboard/internal/` (1): KeyboardIconsSet

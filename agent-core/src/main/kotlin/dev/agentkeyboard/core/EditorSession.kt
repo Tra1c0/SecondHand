@@ -47,3 +47,8 @@ class TextSnapshot internal constructor(
 ) {
     override fun toString() = "TextSnapshot(chars=${text.length}, token=$token)"
 }
+
+/** A cursor position with one-time authority to insert there. It carries no editor text. */
+class InsertionAnchor internal constructor(val token: EditorToken, val position: Int) {
+    override fun toString() = "InsertionAnchor(token=$token)"
+}

@@ -24,6 +24,8 @@ class AndroidEditorAdapter(
     private var composingStart = -1
     private var composingEnd = -1
     var onInvalidated: (() -> Unit)? = null
+    /** Inserts at an unchanged cursor. Without it every insertion is rejected. */
+    var commitInsertion: ((InsertionAnchor, String) -> ApplyOutcome)? = null
     private var notifying = false
     private val notificationHandler = Handler(Looper.getMainLooper())
     private val notification = Runnable {
@@ -110,6 +112,33 @@ class AndroidEditorAdapter(
         return session.isCurrent(snapshot.token) && policy.editorDenial(access) == null &&
             snapshot.selectionStart == min(selectionStart, selectionEnd) &&
             snapshot.selectionEnd == max(selectionStart, selectionEnd)
+    }
+
+    /** A plain cursor in an editor that allows processing. Reads no text from the editor. */
+    fun captureAnchor(): AnchorResult {
+        val token = session.token ?: return AnchorResult.Denied(DenialReason.NO_EDITOR)
+        val access = access() ?: return AnchorResult.Denied(DenialReason.NO_EDITOR)
+        return policy.captureAnchor(token, access, selectionStart, selectionEnd)
+    }
+
+    fun isCurrent(anchor: InsertionAnchor): Boolean {
+        val access = access() ?: return false
+        return session.isCurrent(anchor.token) && policy.editorDenial(access) == null &&
+            selectionStart == anchor.position && selectionEnd == anchor.position
+    }
+
+    fun insert(anchor: InsertionAnchor, text: String): ApplyOutcome {
+        val commit = commitInsertion ?: return ApplyOutcome.REJECTED
+        val access = access() ?: return ApplyOutcome.REJECTED
+        if (policy.insertDenial(anchor, session.token, access, selectionStart, selectionEnd, text) != null)
+            return ApplyOutcome.REJECTED
+        // Consume before calling into the editor: double clicks and failures cannot trigger retries.
+        if (!session.consume(anchor.token)) return ApplyOutcome.REJECTED
+        return try {
+            runCatching { commit(anchor, text) }.getOrDefault(ApplyOutcome.UNKNOWN)
+        } finally {
+            notifyInvalidation()
+        }
     }
 
     fun apply(snapshot: TextSnapshot, result: String): ApplyOutcome {

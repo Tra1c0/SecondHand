@@ -359,6 +359,48 @@ public final class RichInputConnection implements PrivateCommandPerformer {
         return uncertain ? ApplyOutcome.UNKNOWN : ApplyOutcome.SUBMITTED;
     }
 
+    /**
+     * Inserts generated text at the cursor, only while the cursor is where it was previewed and
+     * nothing is selected or being composed. Exactly one commit; no fallback and no retry.
+     */
+    public ApplyOutcome insertTextIfCursorUnchanged(final String text, final int position) {
+        final InputConnection connection = mParent.getCurrentInputConnection();
+        if (connection == null || mComposingText.length() != 0 || position < 0 || text.isEmpty()
+                || (long) position + text.length() > Integer.MAX_VALUE
+                || mExpectedSelStart != position || mExpectedSelEnd != position)
+            return ApplyOutcome.REJECTED;
+        boolean attempted = false;
+        boolean accepted = false;
+        boolean uncertain = false;
+        try {
+            connection.beginBatchEdit();
+            final CharSequence selected = connection.getSelectedText(0);
+            if (selected == null || selected.length() == 0) {
+                attempted = true;
+                accepted = connection.commitText(text, 1);
+            }
+        } catch (RuntimeException ignored) {
+            uncertain = attempted;
+        } finally {
+            try { connection.endBatchEdit(); }
+            catch (RuntimeException ignored) { uncertain = attempted; }
+        }
+        if (!attempted) return ApplyOutcome.REJECTED;
+        if (!accepted || uncertain) {
+            clearUncertainGeneratedTextCaches();
+            return ApplyOutcome.UNKNOWN;
+        }
+        try {
+            final int cursor = position + text.length();
+            if (!resetCachesUponCursorMoveAndReturnSuccess(cursor, cursor, false))
+                uncertain = true;
+        } catch (RuntimeException ignored) {
+            uncertain = true;
+        }
+        if (uncertain) clearUncertainGeneratedTextCaches();
+        return uncertain ? ApplyOutcome.UNKNOWN : ApplyOutcome.SUBMITTED;
+    }
+
     private void clearUncertainGeneratedTextCaches() {
         mCommittedTextBeforeComposingText.setLength(0);
         mComposingText.setLength(0);

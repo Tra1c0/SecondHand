@@ -814,6 +814,24 @@ Keys, Workflows, Act Builder und jede echte KI-Anfrage. Ein echtes Telefon wurde
   (ein früher Rücksprung). `InputLogic`, `RichInputConnection` und die Touch-Verarbeitung sind
   unverändert.
 
+## Etappe18a1 — sichere Einfügestelle
+
+- Kern 54/0 (zwei neue `InsertionAnchorTest`-Fälle), Agent-Suite 214/0 (vier neue
+  `InsertAtCursorTest`-Fälle), Build und Lint bestanden.
+- Kern: Anker nur bei schlichter Schreibmarke in einem erlaubten Editor; Passwort, Inkognito,
+  Lernverbot, Sperre, Komposition und Nicht-Textfelder werden abgelehnt. Einfügen wird nach jeder
+  Änderung (Position, Auswahl, Token) und für leeren, zu langen oder ungültigen Text abgelehnt.
+- Verbindung: genau ein Commit an der geprüften Position; verschobene Schreibmarke oder eine
+  hinter dem Rücken der Tastatur entstandene Auswahl → kein Commit, nie eine Ersetzung;
+  abgelehnter oder verlorener Commit → UNKNOWN ohne zweiten Versuch.
+- Adapter: liest keinen Editortext; Anker wird vor dem Commit verbraucht (Doppelklick wirkungslos);
+  ohne Commit-Pfad, nach Bewegung, in Inkognito und im Passwortfeld keine Einfügung.
+- `InputLogic` und `RichInputConnection` wurden eng geändert: Die Nachbereitung der Ersetzung
+  wurde unverändert in eine gemeinsame Methode gezogen, die bestehenden
+  `SelectedTextCommitTest`- und `InputLogicTest`-Fälle laufen unverändert durch. Die Änderung
+  bekommt nach Projektregel einen eigenen lesenden Review.
+- Noch keine Oberfläche benutzt die Einfügestelle; das folgt mit dem Diktat (18a2).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.
