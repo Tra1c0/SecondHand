@@ -28,7 +28,8 @@ Reihenfolge von oben nach unten.
   native Laufzeit (z. B. llama.cpp) für alle ABIs und ein Gerät mit Modell zum Prüfen; ohne
   beides wird nichts als fertig gemeldet. (L)
 - **A Abschluss.** Restliche Härtungen und Lint-Befunde, echte Dienstprüfungen mit eigenem
-  Schlüssel, wiederholte Gerätetests, Anleitung für Installation und Nutzung. (M)
+  Schlüssel, wiederholte Gerätetests. Die Anleitung (`docs/ANLEITUNG.md`) gibt es schon; sie
+  wird nach dem ersten Test auf einem echten Telefon nachgezogen. (M)
 
 ## Eventuell später (nicht entschieden)
 

@@ -14,8 +14,8 @@ genannten Datei. `AGENTS.md` ist eine automatisch erzeugte Kopie dieser Datei f�
 3. `docs/ARCHITECTURE.md`: nur den Abschnitt des Bereichs, den du änderst, vor jedem Review
    zusätzlich „Fallstricke“. Diese Datei ist die Code-Landkarte. Durchsuche den Code nicht von
    Grund auf, wenn die Landkarte die Frage beantwortet.
-4. `docs/FEATURES.md` (was es gibt) und `docs/ROADMAP.md` (was noch nicht gebaut ist), beide
-   für den Owner geschrieben.
+4. `docs/FEATURES.md` (was es gibt), `docs/ROADMAP.md` (was noch nicht gebaut ist) und
+   `docs/ANLEITUNG.md` (installieren und benutzen), alle drei für den Owner geschrieben.
 5. Nachschlagewerke, nur bei Bedarf: `docs/VALIDATION.md` (Prüfnachweise je Etappe),
    `docs/STORAGE.md`, `docs/WORKFLOWS.md`, `docs/PROVIDERS.md`, `docs/BUILD.md`.
    `docs/UEBERGABE-2026-11-11.md` ist ein abgeschlossener Bericht und wird nicht mehr gepflegt.
@@ -88,6 +88,7 @@ genannten Datei. `AGENTS.md` ist eine automatisch erzeugte Kopie dieser Datei f�
 | Wenn du … | aktualisiere |
 | --- | --- |
 | eine Funktion hinzufügst, änderst oder entfernst | `docs/FEATURES.md`, `docs/ROADMAP.md` |
+| die Bedienung änderst (Menüpfad, Knopftext, Ablauf, Berechtigung) | `docs/ANLEITUNG.md` |
 | eine Datei, einen Hook oder einen Fallstrick hinzufügst, umbenennst oder löschst | `docs/ARCHITECTURE.md` (ihr Bereich) |
 | eine bisher unveränderte Upstream-Datei änderst | `map.sources` in `scripts/docs_sync.json` und `docs/ARCHITECTURE.md` → Geänderte Upstream-Dateien |
 | eine Etappe abschließt | `docs/VALIDATION.md` (Prüfnachweis der Etappe) |
