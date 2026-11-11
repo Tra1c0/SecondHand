@@ -5,6 +5,7 @@
  */
 package helium314.keyboard.latin
 
+import helium314.keyboard.agent.LearningData
 import android.Manifest
 import android.content.Context
 import android.provider.UserDictionary
@@ -302,6 +303,10 @@ class DictionaryFacilitatorImpl : DictionaryFacilitator {
         // increase / decrease confidence
         if (words.size == 1) // ignore if more than a single word, which only happens with (badly working) spaceAwareGesture
             adjustConfidences(suggestion, wasAutoCapitalized)
+
+        // Learning paused by the user: nothing new is stored, neither in the typing history nor
+        // in the personal dictionary. Language confidence above is in memory only.
+        if (LearningData.blocksLearning(Settings.getValues().mLearningPaused)) return
 
         // Add word to user dictionary if it is in no other dictionary except user history dictionary (i.e. typed again).
         val sv = Settings.getValues()

@@ -10,11 +10,12 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
 - In Arbeit: Der Owner hat am 2026-11-11 die Fortsetzung beauftragt („Mach weiter“).
-- Fertig: Etappen 0–16b und der erste Gerätetest G1 (drei gefundene Bedienfehler behoben).
+- Fertig: Etappen 0–17a und der erste Gerätetest G1 (drei gefundene Bedienfehler behoben).
 - Letzter Build: 0.1.0 Debug, `artifacts/…-universal.apk` (alle ABIs), nicht im Repo.
-- Geprüft: Kern 52/0, Agent-Suite 206/0, Build, Lint; Vollregression 387 Tests mit 7 Fehlern
+- Geprüft: Kern 52/0, Agent-Suite 210/0, Build, Lint; Vollregression 387 Tests mit 7 Fehlern
   (fünf Baseline, zwei Link-Tests am Netzwerkfilter dieser Umgebung).
-- Danach: `docs/ROADMAP.md` → Beschlossen (17, 18, G2, A; 16c wartet auf OAuth-Zugänge).
+- Danach: `docs/ROADMAP.md` → Beschlossen (18, G2, A; 17b braucht eine Klärung mit dem Owner;
+  16c wartet auf OAuth-Zugänge).
 - Wartet auf den Owner: OAuth-Zugänge für 16c; Entscheidung über den Branch `main`.
 
 ## Offene Punkte
@@ -149,6 +150,8 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
 
+- 0.1.0 Debug (Etappe 17a): Seite „Gelernte Wörter“ (Pause, Zählen, Export, Löschen);
+  Agent-Suite 210/0, Build und Lint grün; auf keinem Gerät geprüft.
 - 0.1.0 Debug (G1): Overlays enden über der Navigationsleiste, Panel bleibt nach Übergabe
   bedienbar; im Emulator Tippen, Rad, Panel, Ersetzen, Keystore geprüft; Agent-Suite 206/0.
 - 0.1.0 Debug (Etappe 16a/b): Anthropic und Gemini als Anbieter; Agent-Suite 205/0, Kern 52/0,

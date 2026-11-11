@@ -72,6 +72,15 @@ E stammt bisher nur aus dem Emulator-Test vom 2026-11-11 (Android 15, Protokoll 
 | --- | --- | --- |
 | Getrennte Profile | Design, Tastenanordnung und Gesten getrennt speichern, laden und teilen. (3) | T |
 
+## Gelernte Wörter
+
+| Funktion | Was sie macht | Status |
+| --- | --- | --- |
+| Lernen pausieren | Schalter unter „Gelernte Wörter“: Solange pausiert ist, lernt die Tastatur nichts Neues, das bisher Gelernte bleibt. (Das Ausschalten der personalisierten Vorschläge löscht dagegen alles.) Die Einstellung ist getestet; dass dabei wirklich kein Wort gespeichert wird, ist bisher nur am Code geprüft. (17a) | T |
+| Gelernte Wörter zählen | Zeigt je Sprache, wie viele Wörter gelernt wurden. (17a) | T |
+| Gelernte Wörter exportieren | Schreibt alle gelernten Wörter als lesbare JSON-Datei an einen Ort deiner Wahl. Mit echten Lerndaten noch nicht ausprobiert. (17a) | T |
+| Gelernte Wörter löschen | Löscht nach Rückfrage alles Gelernte für alle Sprachen. Das persönliche Wörterbuch bleibt. (17a) | T |
+
 ## Ideen (nicht gebaut)
 
 Alle offenen Ideen stehen in [ROADMAP.md](ROADMAP.md).

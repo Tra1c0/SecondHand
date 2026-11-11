@@ -33,6 +33,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - **Werkzeuge** – Fest eingebaute Werkzeuge: lokales Testwerkzeug und Übergabe eines Kalenderentwurfs an eine Kalender-App.
 - **Act Builder** – Natürliche Beschreibung → freigegebene Anfrage → streng validierter Workflow-Entwurf.
 - **Einstellungen und Profile** – Compose-Seiten der Agent-Funktionen sowie Design-, Layout- und Gestenprofile.
+- **Lerndaten** – Was die Tastatur aus dem Tippen lernt: pausieren, zählen, exportieren, löschen. Alles auf dem Gerät.
 - **Unveränderter Upstream** – Was ohne Änderung von HeliBoard übernommen ist; nur nach Ordnern beschrieben.
 - **Build, Tests, CI, Docs-System** – Lokaler Build, Prüfbefehle, Workflows und die Docs-Prüfung.
 - **Fallstricke** – Fehler, die schon passiert sind oder nahelagen: bei jedem Review prüfen.
@@ -149,6 +150,9 @@ Speicher, Datenschutz und Identität:
   Upstream-Daten ausdrücklich den DE-Kontext. `SettingsActivity.kt` öffnet mit dem Extra
   `AgentPreferences.OPEN_AI_SETTINGS` direkt die KI-Einstellungen.
 - `ClipboardDao.kt` und `gesturedata/Share.kt`: teilen Dateien über `AgentFileProvider`.
+- `SettingsValues.java` (`mLearningPaused` aus `AgentPreferences.LEARNING_PAUSED`) und
+  `DictionaryFacilitatorImpl.kt` (`addToUserHistory` speichert bei Pause nichts): die
+  Lernpause, siehe „Lerndaten“.
 - `Defaults.kt`: personalisierte Wörterbücher, Zwischenablage-Vorschläge und
   Zwischenablageverlauf standardmäßig aus.
 - `DebugFlags.kt`: privater Crashhandler entfernt, damit keine rohen Fehlermeldungen oder
@@ -156,7 +160,7 @@ Speicher, Datenschutz und Identität:
 - `AndroidManifest.xml`: `INTERNET`, kein Klartextverkehr, Backups aus
   (`agent_data_extraction_rules.xml`), CE als Standard, eigener FileProvider, der
   AndroidX-Startup-Initializer für HTTP ist entfernt.
-- `SettingsNavHost.kt` und `MainSettingsScreen.kt`: Ziele und Menüeinträge der vier
+- `SettingsNavHost.kt` und `MainSettingsScreen.kt`: Ziele und Menüeinträge der fünf
   Agent-Einstellungsseiten.
 - App-Identität: `app/build.gradle.kts` (App-ID `dev.personal.agentkeyboard`, Version 0.1.0,
   APK-Name, Lint-Baseline `lint-baseline-upstream.xml`), `settings.gradle`
@@ -187,7 +191,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `AgentWheelView.kt`: radiales Aktionsrad aus echten Buttons (Tastaturnavigation, TalkBack). Eine
   Auswahl bereitet nur eine Vorschau vor.
 - `SkillLabels.kt`: Titel und Toolbar-Tasten der Skills.
-- `AgentPreferences.kt`: Schlüssel der Leertastengeste und des Extras für die KI-Einstellungen.
+- `AgentPreferences.kt`: Schlüssel der Leertastengeste, der Lernpause und des Extras für die
+  KI-Einstellungen.
 - Regeln: Ohne zuverlässig bestimmbare Auswahl wird nicht ersetzt. Editorwechsel, Neustart,
   geänderte Auswahl und zwischenzeitliche Eingaben machen eine ausstehende Ersetzung ungültig,
   auch wenn der Text gleich aussieht. Android hat kein universelles Compare-and-swap für fremde
@@ -346,6 +351,26 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `agent_ids.xml`, `agent_attrs.xml`.
 - Tests: `KeyboardProfileStoreTest`, `SkillSettingsTest`, `WorkflowSettingsTest`.
 
+## Lerndaten
+
+> Was die Tastatur aus dem Tippen lernt: pausieren, zählen, exportieren, löschen. Alles auf dem Gerät.
+
+- `LearningData.kt`: `LearningData` (`blocksLearning` ist die eine Regel, die die Engine vor dem
+  Speichern fragt; `isPaused`/`setPaused`; `counts`; `export` als lesbares JSON, Format
+  `agent-keyboard-learning` Version 1, höchstens 1 MiB, sonst Abbruch statt Kürzung),
+  `LearnedWord`, `LearningSource`, `UserHistoryLearningSource` (liest die Dateien
+  „UserHistoryDictionary.<Sprache>.dict“ im DE-Speicher der Engine über `PersonalizationHelper`).
+- `K/settings/screens/AgentLearningScreen.kt`: Einstellungsseite „Gelernte Wörter“. Der
+  Exportinhalt liegt nur im Speicher, nie im Saved State.
+- Zwei verschiedene Schalter: „Personalisierte Vorschläge“ (Upstream, Textkorrektur) schaltet
+  das Lernen ab und löscht dabei alles Gelernte. „Lernen pausieren“ behält das Gelernte und
+  speichert nur nichts Neues, weder in der Tipp-Historie noch im persönlichen Wörterbuch.
+- Die Sprach-Konfidenz für mehrsprachiges Tippen wird auch bei Pause angepasst; sie liegt nur im
+  Arbeitsspeicher.
+- Tests: `LearningDataTest` (Pause erreicht die Engine-Einstellungen, Exportformat, Abbruch bei
+  Übergröße, nur echte Historien-Dateien). Dass bei Pause wirklich kein Wort in der nativen
+  Historie landet, ist nur am Code geprüft, nicht durch einen Test mit der nativen Engine.
+
 ## Unveränderter Upstream
 
 > Was ohne Änderung von HeliBoard übernommen ist; nur nach Ordnern beschrieben.
@@ -439,30 +464,31 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (147 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (152 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (3): build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (28): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (29): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
   AndroidEditorAdapter, ApprovedActionRunner, EncryptedActionRunStore, JournaledModelCall,
-  JournaledRun, KeyboardProfileStore, ManualWorkflowDraft, ModelSettings, RunSubjectCodec,
-  SkillBindingStore, SkillLabels, ToolApprovalSummary, ToolLauncher, WorkflowApprovalSummary,
-  WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
-  WorkflowStore
+  JournaledRun, KeyboardProfileStore, LearningData, ManualWorkflowDraft, ModelSettings,
+  RunSubjectCodec, SkillBindingStore, SkillLabels, ToolApprovalSummary, ToolLauncher,
+  WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner,
+  WorkflowInputSummary, WorkflowStore
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
-- `AT/` (29): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (30): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, CalendarToolLauncherTest, DebugPrivacyTest,
   EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, ForkIdentityTest,
-  JournaledModelCallTest, KeyboardProfileStoreTest, ManualWorkflowDraftTest, MoreProvidersTest,
-  OpenAiProviderTest, SelectedTextCommitTest, SkillBindingStoreTest, SkillSettingsTest,
-  TestRunJournal, ToolRunnerTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
-  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  JournaledModelCallTest, KeyboardProfileStoreTest, LearningDataTest, ManualWorkflowDraftTest,
+  MoreProvidersTest, OpenAiProviderTest, SelectedTextCommitTest, SkillBindingStoreTest,
+  SkillSettingsTest, TestRunJournal, ToolRunnerTest, WorkflowBuilderContractTest,
+  WorkflowBuilderSettingsTest, WorkflowConditionSummaryTest, WorkflowDraftRunnerTest,
+  WorkflowSettingsTest, WorkflowStoreTest
 - `C/` (12): AiTextAction, ApplyOutcome, EditorSession, ExecutionPolicy, LocalTextActions,
   ModelProvider, PendingBatchGate, Profiles, SkillBinding, TextCondition, Tool, Workflow
 - `CT/` (7): AiTextActionTest, EditorPolicyTest, LocalTextActionsTest, PendingBatchGateTest,
@@ -471,16 +497,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/keyboard/emoji/` (1): EmojiSearchActivity
 - `K/keyboard/internal/` (1): KeyboardIconsSet
 - `K/keyboard/internal/keyboard_parser/floris/` (1): KeyCode
-- `K/latin/` (4): App, InputView, LatinIME, RichInputConnection
+- `K/latin/` (5): App, DictionaryFacilitatorImpl, InputView, LatinIME, RichInputConnection
 - `K/latin/database/` (1): ClipboardDao
 - `K/latin/define/` (1): DebugFlags
 - `K/latin/inputlogic/` (2): InputLogic, InputLogicHandler
-- `K/latin/settings/` (1): Defaults
+- `K/latin/settings/` (2): Defaults, SettingsValues
 - `K/latin/spellcheck/` (1): AndroidSpellCheckerService
 - `K/latin/utils/` (1): ToolbarUtils
 - `K/settings/` (2): SettingsActivity, SettingsNavHost
-- `K/settings/screens/` (8): AgentAiScreen, AgentProfilesScreen, AgentRunStatus, AgentSkillsScreen,
-  AgentWorkflowsScreen, MainSettingsScreen, WorkflowBuilderDialog, WorkflowDraftProtection
+- `K/settings/screens/` (9): AgentAiScreen, AgentLearningScreen, AgentProfilesScreen,
+  AgentRunStatus, AgentSkillsScreen, AgentWorkflowsScreen, MainSettingsScreen,
+  WorkflowBuilderDialog, WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
 - `app/` (1): build.gradle

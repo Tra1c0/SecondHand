@@ -797,6 +797,23 @@ zwischen Feldern und Apps unter Last, Inkognito, gesperrtes Gerät, Direct Boot 
 ersten Entsperren), Compose- und WebView-Felder, Netzwerkmitschnitt beim Tippen, Profile, Skill
 Keys, Workflows, Act Builder und jede echte KI-Anfrage. Ein echtes Telefon wurde nicht benutzt.
 
+## Etappe17a — Lerndaten verwalten
+
+- Agent-Suite 210/0 (206 nach G1, vier neue in `LearningDataTest`), Kern 52/0, Build und Lint
+  bestanden.
+- Pause: Voreinstellung aus; der Schalter schreibt genau einen Schlüssel und erreicht nach dem
+  Neuladen `SettingsValues.mLearningPaused`; `blocksLearning` folgt ihm.
+- Export: nur `format`, `version`, `languages`; je Wort nur `word` und `probability`; stabile
+  Reihenfolge; ein zu großer Export (40 000 Wörter) wird abgelehnt statt gekürzt.
+- Quelle: nur Verzeichnisse „UserHistoryDictionary.<Sprache>.dict“ zählen; fremde, leere oder
+  ungültige Namen werden nicht geöffnet.
+- Nicht durch Tests belegt: der Abbruch in `DictionaryFacilitatorImpl.addToUserHistory` selbst
+  (die Tests ersetzen die Wörterbuchschicht), das Lesen echter Lerndaten über die native Engine
+  und die Bedienung der Seite. Das gehört in G2.
+- Geänderte Upstream-Dateien: `SettingsValues.java` (ein Feld), `DictionaryFacilitatorImpl.kt`
+  (ein früher Rücksprung). `InputLogic`, `RichInputConnection` und die Touch-Verarbeitung sind
+  unverändert.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

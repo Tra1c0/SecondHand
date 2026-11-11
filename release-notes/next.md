@@ -12,3 +12,5 @@
   der Navigationsleiste und ließen sich nicht antippen.
 - Behoben: Nach einer Kalender-Übergabe bleibt das Panel bedienbar; der Abbruchknopf bei
   Werkzeugen heißt „Abbrechen“.
+- Neu: Seite „Gelernte Wörter“ in den Einstellungen: Lernen pausieren (ohne zu löschen),
+  gelernte Wörter je Sprache zählen, als Datei exportieren oder löschen.

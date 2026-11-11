@@ -17,9 +17,11 @@ Reihenfolge von oben nach unten.
 - **16c Externe Dienste, einzeln.** Gmail, Google Calendar und Notion, jeweils mit eigener
   Anmeldung (OAuth) und Freigabe. Blockiert, bis der Owner eigene OAuth-Zugänge bei Google und
   Notion registriert hat. Kein Modell darf sich selbst Fähigkeiten oder Zugangsdaten geben. (L)
-- **17 Personalisierung.** Lokale Lerndaten verwalten: Pause, Löschen, Export. Danach ein
-  getrenntes Stilprofil, nur mit ausdrücklicher Zustimmung. Erzeugter oder eingefügter Text
-  zählt nie als Zustimmung. (M)
+- **17b Stilprofil.** Ein getrenntes Stilprofil, nur mit ausdrücklicher Zustimmung: Die
+  Tastatur merkt sich auf dem Gerät, wie du schreibst (z. B. Anrede, Satzlänge, typische
+  Wendungen), und gibt das auf Wunsch den KI-Aktionen als Stilhinweis mit. Erzeugter oder
+  eingefügter Text zählt nie als Zustimmung. Vor dem Bau klären: woraus gelernt wird und was
+  davon an den KI-Anbieter geht. (M)
 - **18 Sprache und lokale KI, getrennt.** Eigenes Diktat auf dem Gerät (Android 12+, ohne
   stillen Rückfall auf einen Cloud-Erkenner) mit sicherer Einfügevorschau. Danach echte
   optionale lokale KI mit einem selbst importierten Modell, ohne automatische Downloads. Die

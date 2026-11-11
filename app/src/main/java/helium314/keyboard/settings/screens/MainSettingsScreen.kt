@@ -47,6 +47,7 @@ fun MainSettingsScreen(
     onClickAgentAi: () -> Unit = {},
     onClickAgentSkills: () -> Unit = {},
     onClickAgentWorkflows: () -> Unit = {},
+    onClickAgentLearning: () -> Unit = {},
 ) {
     SearchSettingsScreen(
         onClickBack = onClickBack,
@@ -67,6 +68,8 @@ fun MainSettingsScreen(
                     icon = R.drawable.ic_skill_1) { NextScreenIcon() }
                 Preference(name = stringResource(R.string.agent_workflows_title), onClick = onClickAgentWorkflows,
                     icon = R.drawable.ic_agent_actions) { NextScreenIcon() }
+                Preference(name = stringResource(R.string.agent_learning_title), onClick = onClickAgentLearning,
+                    icon = R.drawable.ic_settings_correction) { NextScreenIcon() }
                 Preference(
                     name = stringResource(R.string.agent_profiles_title),
                     onClick = onClickAgentProfiles,
