@@ -45,6 +45,8 @@ class DictationSession(
 ) {
     interface Ui {
         fun listening(partial: String)
+        /** The user said "done"; the final text has not arrived yet. */
+        fun processing()
         fun review(text: String)
         fun failed(error: DictationError)
         fun denied(reason: DenialReason)
@@ -56,6 +58,7 @@ class DictationSession(
     private var heard: String? = null
     var isListening = false
         private set
+    private var finishing = false
     val isActive: Boolean get() = anchor != null
     /** The reviewed text, for copying. Null while listening or idle. */
     val reviewText: String? get() = if (isListening) null else heard
@@ -78,7 +81,14 @@ class DictationSession(
         ui.listening("")
         speech.start(languageTag(), object : SpeechEngine.Listener {
             override fun onPartial(text: String) {
-                if (mine == epoch && isListening) ui.listening(text.take(MAX_PARTIAL_CHARS))
+                if (mine != epoch || !isListening) return
+                // Lock, incognito or a moved cursor reach us only through events; re-check here
+                // so the microphone does not keep running after the editor stopped being allowed.
+                val target = anchor
+                if (target == null || !isCurrent(target)) {
+                    cancel()
+                    ui.denied(DenialReason.STALE_CONTEXT)
+                } else if (!finishing) ui.listening(text.take(MAX_PARTIAL_CHARS))
             }
             override fun onFinal(text: String) {
                 if (mine != epoch || !isListening) return
@@ -103,14 +113,18 @@ class DictationSession(
 
     /** The user is done speaking. The final text arrives through the listener. */
     fun finish() {
-        if (isListening) engine().stop()
+        if (!isListening || finishing) return // a second tap does not stop twice
+        finishing = true
+        ui.processing()
+        engine().stop()
     }
 
     /** Stops the microphone and forgets everything. True if there was something to discard. */
     fun cancel(): Boolean {
         val active = isActive
-        if (isListening) runCatching { engine().cancel() }
-        reset()
+        val listening = isListening
+        reset() // first: a recognizer that calls back from cancel() finds a newer epoch
+        if (listening) runCatching { engine().cancel() }
         return active
     }
 
@@ -136,6 +150,7 @@ class DictationSession(
         anchor = null
         heard = null
         isListening = false
+        finishing = false
     }
 
     private companion object { const val MAX_PARTIAL_CHARS = 2_000 }

@@ -391,8 +391,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `SpeechRecognizer`, der laut Plattform-Doku Ton an Server streamen kann, wird nie erzeugt.
   Die Erkennung selbst macht der Systemdienst, nicht die App. Pro Diktat ein neuer Erkenner, der
   danach zerstört wird.
-- `AgentPanelView.kt`: `showDictationListening` (Text direkt über „Fertig“ und „Abbrechen“),
-  `showDictationReview`, `showDictationStatus`. Textaktionen bleiben im Diktat aus.
+- `AgentPanelView.kt`: `showDictationListening` (Text direkt über „Fertig“ und „Abbrechen“,
+  Bildschirm bleibt an), `showDictationProcessing`, `showDictationReview`,
+  `showDictationStatus`. Textaktionen bleiben im Diktat aus; der Diktier-Knopf ist nur aktiv,
+  wenn keine Auswahl angezeigt wird.
+- Sperre und Inkognito lösen kein Editor-Ereignis aus: `DictationSession` prüft deshalb bei
+  jedem Zwischenergebnis `isCurrent` und bricht sonst ab.
 - `K/settings/screens/AgentDictationScreen.kt`: Erklärung, Verfügbarkeit und die einzige Stelle,
   an der das Mikrofonrecht angefragt wird (ein Tastaturdienst kann den Systemdialog nicht zeigen).
 - Regeln: keine Aufnahme vor den drei Prüfungen; kein Einfügen ohne Klick; nie eine Auswahl

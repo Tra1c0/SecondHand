@@ -68,8 +68,10 @@ class OnDeviceSpeechEngine(context: Context) : SpeechEngine {
     override fun stop() { runCatching { recognizer?.stopListening() } }
 
     override fun cancel() {
-        runCatching { recognizer?.cancel() }
-        release()
+        val old = recognizer
+        recognizer = null // first: its late callbacks are ignored by the identity checks
+        runCatching { old?.cancel() }
+        runCatching { old?.destroy() }
     }
 
     private fun release() {

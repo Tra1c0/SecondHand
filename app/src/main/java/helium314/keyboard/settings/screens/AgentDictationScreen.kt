@@ -56,10 +56,10 @@ fun AgentDictationScreen(onClickBack: () -> Unit, engineFactory: (() -> SpeechEn
                 style = MaterialTheme.typography.titleMedium)
             Text(stringResource(if (allowed) R.string.agent_dictation_permission_granted else R.string.agent_dictation_permission_missing),
                 style = MaterialTheme.typography.titleMedium)
-            if (!allowed) Button(onClick = { request.launch(Manifest.permission.RECORD_AUDIO) }) {
+            if (!allowed && available) Button(onClick = { request.launch(Manifest.permission.RECORD_AUDIO) }) {
                 Text(stringResource(R.string.agent_dictation_allow))
             }
-            if (refused) Text(stringResource(R.string.agent_dictation_permission_refused))
+            if (refused && !allowed) Text(stringResource(R.string.agent_dictation_permission_refused))
             Text(stringResource(R.string.agent_dictation_howto), style = MaterialTheme.typography.bodySmall)
         }
     }

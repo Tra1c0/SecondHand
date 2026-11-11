@@ -17,11 +17,13 @@ class DictationSessionTest {
             failOnStart?.let { listener.onError(it) }
         }
         override fun stop() { stops++ }
-        override fun cancel() { cancels++ }
+        var onCancel: (() -> Unit)? = null
+        override fun cancel() { cancels++; onCancel?.invoke() }
     }
     private class Ui : DictationSession.Ui {
         val events = mutableListOf<String>()
         override fun listening(partial: String) { events.add("listening:$partial") }
+        override fun processing() { events.add("processing") }
         override fun review(text: String) { events.add("review:$text") }
         override fun failed(error: DictationError) { events.add("failed:$error") }
         override fun denied(reason: DenialReason) { events.add("denied:$reason") }
@@ -72,9 +74,11 @@ class DictationSessionTest {
         engine.listener!!.onPartial("Hallo")
         assertNull(session.reviewText)
         session.finish()
+        session.finish() // a second tap on "done" does not stop twice
         assertEquals(1, engine.stops)
+        engine.listener!!.onPartial("Hallo We") // no longer repainted as "listening"
         engine.listener!!.onFinal("  Hallo Welt ")
-        assertEquals(listOf("listening:", "listening:Hallo", "review:Hallo Welt"), ui.events)
+        assertEquals(listOf("listening:", "listening:Hallo", "processing", "review:Hallo Welt"), ui.events)
         assertEquals("Hallo Welt", session.reviewText)
         assertFalse(session.isListening)
         assertTrue(inserted.isEmpty()) // hearing something never inserts it
@@ -106,6 +110,29 @@ class DictationSessionTest {
         assertEquals(listOf("listening:"), ui.events)
         assertEquals(ApplyOutcome.REJECTED, session.insert())
         assertTrue(inserted.isEmpty())
+    }
+
+    @Test fun privacyChangeWithoutAnEditorEventStopsTheMicrophoneAtTheNextWords() {
+        // Locking the device or switching to incognito sends no cursor event. The next partial
+        // result notices it; nobody calls editorChanged() here.
+        assertTrue(session.start())
+        engine.listener!!.onPartial("Hallo")
+        access = access.copy(isLocked = true)
+        engine.listener!!.onPartial("Hallo geheim")
+        assertEquals(1, engine.cancels)
+        assertFalse(session.isActive)
+        assertEquals(listOf("listening:", "listening:Hallo", "denied:STALE_CONTEXT"), ui.events)
+        engine.listener!!.onFinal("Hallo geheim")
+        assertNull(session.reviewText)
+    }
+
+    @Test fun recognizerCallingBackFromCancelCannotPublishAnything() {
+        assertTrue(session.start())
+        val listener = engine.listener!!
+        engine.onCancel = { listener.onFinal("text from a cancelled recognition") }
+        assertTrue(session.cancel())
+        assertEquals(listOf("listening:"), ui.events)
+        assertNull(session.reviewText)
     }
 
     @Test fun editorChangeDuringReviewDiscardsTheText() {

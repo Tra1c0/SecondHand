@@ -170,6 +170,7 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
         hideCloudControls()
         resultHeading.setText(R.string.agent_panel_result)
         source.text = text
+        dictateButton.isEnabled = false
         source.maxLines = 6
         source.ellipsize = TextUtils.TruncateAt.END
         result.setText(R.string.agent_panel_empty)
@@ -256,7 +257,10 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
     private fun hideCloudControls() {
         cancelButton.setText(R.string.agent_cloud_cancel)
         applyButton.setText(R.string.agent_panel_apply)
-        dictateButton.isEnabled = true
+        keepScreenOn = false
+        // Dictation needs a plain cursor. With a selection on show it could only fail, and starting
+        // it would throw away the prepared result.
+        dictateButton.isEnabled = source.text.isEmpty()
         cloudConfirmation.text = ""
         cloudConfirmation.visibility = View.GONE
         sendButton.visibility = View.GONE
@@ -311,8 +315,15 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
         sendButton.visibility = View.VISIBLE
         cancelButton.setText(R.string.agent_tool_cancel)
         cancelButton.visibility = View.VISIBLE
+        keepScreenOn = true // a screen timeout must not leave the microphone running unseen
         visibility = View.VISIBLE
         scrollTo(0, 0)
+    }
+
+    /** "Done" was tapped: wait for the final text. Only cancel is possible. */
+    fun showDictationProcessing() {
+        status.setText(R.string.agent_dictation_processing)
+        sendButton.isEnabled = false
     }
 
     /** The microphone is off. The heard text is shown; inserting it is a separate click. */

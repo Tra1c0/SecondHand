@@ -32,6 +32,10 @@ class DictationUiTest {
         val apply = view.findViewById<Button>(R.id.agent_apply)
         val copy = view.findViewById<Button>(R.id.agent_copy)
         assertFalse(dictateButton.isEnabled) // hidden panel
+        view.showSource("Hallo")
+        view.showResult("HALLO")
+        assertFalse(dictateButton.isEnabled) // with a selection dictation could only fail and would drop the result
+        view.showExpired()
         view.showStatus(R.string.agent_panel_select_text, true) // no selection: text actions off, dictation offered
         assertTrue(dictateButton.isEnabled)
         assertFalse(view.findViewById<Button>(R.id.agent_uppercase).isEnabled)
@@ -48,12 +52,17 @@ class DictationUiTest {
         assertFalse(apply.isEnabled) // nothing can be inserted while the microphone is on
         assertFalse(copy.isEnabled)
         assertFalse(view.findViewById<Button>(R.id.agent_cloud_correct).isEnabled)
+        assertTrue(view.keepScreenOn)
         send.performClick(); cancel.performClick()
         assertEquals(1, done); assertEquals(1, cancelled); assertEquals(0, applied)
+        view.showDictationProcessing()
+        assertFalse(send.isEnabled)
+        assertEquals(View.VISIBLE, cancel.visibility)
 
         view.showDictationReview("Hallo Welt")
         assertEquals("Hallo Welt", view.findViewById<TextView>(R.id.agent_result).text.toString())
         assertEquals(View.GONE, send.visibility)
+        assertFalse(view.keepScreenOn)
         assertEquals(app.getString(R.string.agent_dictation_insert), apply.text.toString())
         assertTrue(apply.isEnabled); assertTrue(copy.isEnabled); assertTrue(dictateButton.isEnabled)
         assertEquals(0, applied)

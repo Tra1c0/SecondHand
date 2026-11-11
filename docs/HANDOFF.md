@@ -10,10 +10,10 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
 - In Arbeit: Der Owner hat am 2026-11-11 die Fortsetzung beauftragt („Mach weiter“).
-- Fertig: Etappen 0–17a und 18a (Diktat auf dem Gerät), Gerätetest G1, zwei lesende Reviews
-  ohne Blocker, alle Befunde behoben.
+- Fertig: Etappen 0–17a und 18a (Diktat auf dem Gerät), Gerätetest G1, drei lesende Reviews
+  ohne Blocker; Befunde behoben bis auf die unter Offene Punkte genannten.
 - Letzter Build: 0.1.0 Debug, `artifacts/…-universal.apk` (alle ABIs), nicht im Repo.
-- Geprüft: Kern 54/0, Agent-Suite 236/0, Build, Lint. Vollregression zuletzt nach Etappe 16
+- Geprüft: Kern 54/0, Agent-Suite 238/0, Build, Lint. Vollregression zuletzt nach Etappe 16
   (387 Tests, 7 Fehler: fünf Baseline, zwei Link-Tests am Netzwerkfilter dieser Umgebung).
 - Danach: `docs/ROADMAP.md` → Beschlossen (G2 auf echtem Telefon, 18b lokale KI, A). 17b braucht
   eine Klärung mit dem Owner, 16c wartet auf OAuth-Zugänge.
@@ -64,9 +64,10 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 13. **Diktat nur mit nachgebautem Erkenner getestet.** Offen auf einem echten Telefon: ob Android
     dem Tastaturdienst die Aufnahme erlaubt, der Berechtigungsdialog, Sprachpakete, Qualität.
     Die APK fordert jetzt zusätzlich `RECORD_AUDIO` an.
-14. **Der dritte Review steht aus:** Die Korrektur am Einfügen (`RichInputConnection`,
-    `InputLogic` mit dem automatischen Leerzeichen) und das Diktat sind nach den beiden Reviews
-    entstanden und noch von keinem Prüfer gelesen.
+14. **Offen aus dem dritten Review** (`docs/VALIDATION.md` → Lesender Review von 18a): keine Tests
+    für die Diktat-Verdrahtung im Controller und den Android-12-Pfad des Erkenners; das
+    Zeitfenster beim Einfügen ist nur verkleinert (Idee: ab API 31 `getSurroundingText`); zwei
+    schwache `InputLogicTest`-Fälle; kein Zeitlimit nach „Fertig“.
 
 ## Arbeitsweise
 
@@ -161,8 +162,8 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
 
 - 0.1.0 Debug (Etappe 18a): Diktat über den On-device-Erkenner mit Vorschau und Einfügen an der
-  Schreibmarke; neue Berechtigung Mikrofon; Agent-Suite 236/0, Build und Lint grün; auf keinem
-  Gerät geprüft.
+  Schreibmarke; neue Berechtigung Mikrofon; Agent-Suite 238/0, Build und Lint grün; im Emulator
+  nur Panel und Ablehnungsmeldung gesehen, Erkennung ungeprüft.
 - 0.1.0 Debug (Etappe 17a): Seite „Gelernte Wörter“ (Pause, Zählen, Export, Löschen);
   Agent-Suite 210/0, Build und Lint grün; auf keinem Gerät geprüft.
 - 0.1.0 Debug (G1): Overlays enden über der Navigationsleiste, Panel bleibt nach Übergabe

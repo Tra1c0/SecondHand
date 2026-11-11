@@ -251,7 +251,7 @@
     <string name="agent_dictation_insert">Insert at cursor</string>
     <string name="agent_dictation_cancelled">Dictation cancelled. The microphone is off and nothing was inserted.</string>
     <string name="agent_dictation_permission">Allow the microphone first: Settings → Dictation.</string>
-    <string name="agent_dictation_language">The speech pack for the keyboard language is not installed on this device. Install it in the system’s speech settings.</string>
+    <string name="agent_dictation_language">On-device recognition cannot use the keyboard language on this device: it is not supported or its speech pack is not installed (system speech settings).</string>
     <string name="agent_dictation_no_speech">Nothing was understood. The microphone is off.</string>
     <string name="agent_dictation_busy">The speech recognizer is busy. Try again in a moment.</string>
     <string name="agent_dictation_failed">Dictation failed. The microphone is off and nothing was inserted.</string>
@@ -259,4 +259,5 @@
     <string name="agent_dictation_no_cursor">Dictation inserts at the cursor. Tap where the text should go, without selecting text.</string>
     <string name="agent_dictation_no_field">Dictation needs a normal text field.</string>
     <string name="agent_dictation_composing">Finish the current word first (for example with a space), then dictate.</string>
+    <string name="agent_dictation_processing">Finishing… The text appears in a moment. Nothing is inserted yet.</string>
 </resources>

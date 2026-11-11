@@ -107,6 +107,7 @@ class AgentEditorController @JvmOverloads constructor(
         languageTag = { Settings.getValues().mLocale.toLanguageTag() },
         ui = object : DictationSession.Ui {
             override fun listening(partial: String) { panel?.showDictationListening(partial) }
+            override fun processing() { panel?.showDictationProcessing() }
             override fun review(text: String) { panel?.showDictationReview(text) }
             override fun failed(error: DictationError) { panel?.showDictationStatus(error.messageResource()) }
             override fun denied(reason: DenialReason) { panel?.showDictationStatus(reason.dictationMessageResource()) }
@@ -449,7 +450,7 @@ class AgentEditorController @JvmOverloads constructor(
 
     private fun applyPrepared() {
         if (dictation.isActive) {
-            insertDictation()
+            if (!dictation.isListening) insertDictation() // nothing can be inserted while the microphone is on
             return
         }
         val source = snapshot ?: return

@@ -899,7 +899,7 @@ Upstream-Verhalten aus und wurde durch einen Vergleich mit dem Tippen im selben 
 
 ## Etappe18a2 — Diktat auf dem Gerät
 
-- Kern 54/0, Agent-Suite 236/0 (216 zuvor; elf `DictationSessionTest`, drei `DictationUiTest`,
+- Kern 54/0, Agent-Suite 236/0 zum Zeitpunkt des Etappen-Commits (216 zuvor; elf `DictationSessionTest`, drei `DictationUiTest`,
   zwei zusätzliche `InsertAtCursorTest`, vier `InputLogicTest`), Build und Lint bestanden.
 - Ablauf (`DictationSessionTest`, reiner JVM-Test mit nachgebautem Erkenner): keine Aufnahme bei
   Auswahl, Passwortfeld, Inkognito, fehlendem Erkenner oder fehlendem Mikrofonrecht (der Erkenner
@@ -919,6 +919,43 @@ Upstream-Verhalten aus und wurde durch einen Vergleich mit dem Tippen im selben 
 - Nicht geprüft: echter Erkenner, echtes Mikrofon, ob Android dem Tastaturdienst die Aufnahme
   erlaubt, Sprachpakete, die Einstellungsseite samt Berechtigungsdialog, das Symbol der Taste.
   Das Emulator-Abbild hat keine On-device-Erkennung. Das gehört auf ein echtes Telefon (G2).
+
+## Lesender Review von 18a (Korrektur und Diktat) und Korrekturen
+
+Der dritte unabhängige Review (`a5acd76`, `f4d60e6`) fand keinen Blocker: kein Pfad fügt ohne
+Klick ein, ersetzt eine Auswahl, committet doppelt oder erzeugt den allgemeinen Erkenner.
+
+Behoben:
+
+- Sperre oder Inkognito ohne Editor-Ereignis stoppte das Mikrofon nicht. Jetzt prüft jedes
+  Zwischenergebnis den Editorzustand und bricht ab; das Panel hält beim Zuhören den Bildschirm an.
+- Der Diktier-Knopf war auch bei vorhandener Auswahl aktiv, wo er nur scheitern konnte und ein
+  vorbereitetes (bezahltes) Ergebnis verwarf. Er ist jetzt nur ohne Auswahl aktiv.
+- Reihenfolge beim Abbruch: erst Zustand zurücksetzen, dann den Erkenner abbrechen; ein
+  Erkenner, der aus `cancel` zurückruft, kann nichts mehr veröffentlichen.
+- „Einfügen“ während des Zuhörens tut nichts mehr (vorher wurde der Änderungs-Hook entfernt).
+- Nach „Fertig“ gibt es einen eigenen Zustand ohne zweiten Stopp.
+- Diktat-Seite: Hinweis „nicht freigegeben“ verschwindet nach späterer Freigabe; „Mikrofon
+  erlauben“ erscheint nur, wenn es eine On-device-Erkennung gibt. Sprachmeldung deckt
+  „nicht unterstützt“ und „nicht installiert“ ab.
+
+Nach den Korrekturen: Agent-Suite 238/0 (zwei neue `DictationSessionTest`-Fälle, erweiterte
+Panel-Prüfungen), Kern 54/0, Build und Lint bestanden.
+
+Bewusst offen gelassen und im Handoff vermerkt:
+
+- Die Verdrahtung im Controller (`openDictation`, Abbruch bei `close`, Tastencode) und der
+  Android-12-Pfad des Erkenners haben keinen eigenen Test.
+- Das verbleibende Zeitfenster beim Einfügen (App antwortet auf die erste Abfrage und friert
+  dann ein) ist nur verkleinert, nicht geschlossen.
+- Zwei `InputLogicTest`-Fälle beweisen weniger, als ihr Name sagt: Der Vergleich Text-/URL-Feld
+  trifft in beiden Fällen den Zweig „Leerzeichen wird gesetzt“; die Ablehnung während einer
+  Komposition trennt die beiden Schutzprüfungen nicht.
+- Kein Zeitlimit, falls der Erkenner nach „Fertig“ nie antwortet (Abbrechen bleibt möglich).
+
+Gerätecheck des Stands `f4d60e6` im Emulator: Panel mit Diktier-Knopf wird korrekt dargestellt;
+ein Tipp auf „Dictate“ bei einer Schreibmarke direkt an einem Wort meldet „Finish the current word
+first…“, ohne Absturz. Die Erkennung selbst gibt es im Emulator nicht.
 
 ## Gerätetest vor Meilensteinfreigabe
 

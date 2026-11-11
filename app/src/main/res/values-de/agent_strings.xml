@@ -250,7 +250,7 @@
     <string name="agent_dictation_insert">An Schreibmarke einfügen</string>
     <string name="agent_dictation_cancelled">Diktat abgebrochen. Das Mikrofon ist aus und nichts wurde eingefügt.</string>
     <string name="agent_dictation_permission">Erlaube zuerst das Mikrofon: Einstellungen → Diktat.</string>
-    <string name="agent_dictation_language">Das Sprachpaket für die Tastatursprache ist auf diesem Gerät nicht installiert. Installiere es in den Spracheinstellungen des Systems.</string>
+    <string name="agent_dictation_language">Die Erkennung auf dem Gerät kann die Tastatursprache hier nicht verwenden: Sie wird nicht unterstützt oder ihr Sprachpaket ist nicht installiert (Spracheinstellungen des Systems).</string>
     <string name="agent_dictation_no_speech">Es wurde nichts verstanden. Das Mikrofon ist aus.</string>
     <string name="agent_dictation_busy">Die Spracherkennung ist gerade belegt. Versuche es gleich noch einmal.</string>
     <string name="agent_dictation_failed">Das Diktat ist fehlgeschlagen. Das Mikrofon ist aus und nichts wurde eingefügt.</string>
@@ -258,4 +258,5 @@
     <string name="agent_dictation_no_cursor">Das Diktat fügt an der Schreibmarke ein. Tippe dorthin, wo der Text hin soll, ohne Text zu markieren.</string>
     <string name="agent_dictation_no_field">Das Diktat braucht ein normales Textfeld.</string>
     <string name="agent_dictation_composing">Beende zuerst das aktuelle Wort (zum Beispiel mit einem Leerzeichen), dann diktiere.</string>
+    <string name="agent_dictation_processing">Wird fertiggestellt … Der Text erscheint gleich. Noch wird nichts eingefügt.</string>
 </resources>
