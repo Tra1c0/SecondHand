@@ -1,6 +1,6 @@
 # Workflows
 
-## Aktueller Stand13e
+## Aktuelles Format3 (seit13e, unverändert bis14c)
 
 Bis zu acht geordnete Schritte und drei Modellaufrufe; Format3. Ein Eingang ist
 die freigegebene Auswahl oder exakt das Ergebnis eines früheren Schritts, auch

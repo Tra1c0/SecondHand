@@ -1,0 +1,115 @@
+{
+  "//": "Config of scripts/docs_sync.py. Paths are relative to the repository root; keys named // are comments.",
+
+  "docs": ["CLAUDE.md", "docs/*.md"],
+
+  "//aliases": "Short forms used in docs/ARCHITECTURE.md; glob tokens in the map may use them.",
+  "aliases": {
+    "A/": "app/src/main/java/helium314/keyboard/agent/",
+    "K/": "app/src/main/java/helium314/keyboard/",
+    "C/": "agent-core/src/main/kotlin/dev/agentkeyboard/core/",
+    "AT/": "app/src/test/java/helium314/keyboard/agent/",
+    "CT/": "agent-core/src/test/kotlin/dev/agentkeyboard/core/"
+  },
+
+  "map": {
+    "file": "docs/ARCHITECTURE.md",
+    "//sources": "The fork's own code and tests, every upstream file the fork changed, fork resources, build files, tools and CI. Untouched HeliBoard files are described by folder only. A newly changed upstream file must be added here (CLAUDE.md -> Keep the docs current).",
+    "sources": [
+      "agent-core/src/**/*.kt",
+      "agent-core/build.gradle.kts",
+      "app/src/main/java/helium314/keyboard/agent/**/*.kt",
+      "app/src/main/java/helium314/keyboard/settings/screens/{Agent,Workflow}*.kt",
+      "app/src/test/java/helium314/keyboard/agent/*.kt",
+      "app/src/test/java/helium314/keyboard/latin/inputlogic/*.kt",
+      "app/src/main/res/values{,-de}/agent_*.xml",
+      "app/src/main/res/xml/agent_*.xml",
+      "app/src/main/res/drawable/ic_{agent,skill}_*.xml",
+
+      "app/src/main/AndroidManifest.xml",
+      "app/build.gradle.kts",
+      "settings.gradle",
+      "app/src/main/res/layout/main_keyboard_frame.xml",
+      "app/src/main/res/values/{clip_provider,donottranslate,gesture_data}.xml",
+      "app/src/{debug,debugNoMinify}/res/values/{clip_provider,gesture_data,strings}.xml",
+      "app/src/main/java/helium314/keyboard/keyboard/{KeyboardActionListener.java,KeyboardActionListenerImpl.kt,PointerTracker.java}",
+      "app/src/main/java/helium314/keyboard/keyboard/emoji/EmojiSearchActivity.kt",
+      "app/src/main/java/helium314/keyboard/keyboard/internal/KeyboardIconsSet.kt",
+      "app/src/main/java/helium314/keyboard/keyboard/internal/keyboard_parser/floris/KeyCode.kt",
+      "app/src/main/java/helium314/keyboard/latin/{App.kt,InputView.java,LatinIME.java,RichInputConnection.java}",
+      "app/src/main/java/helium314/keyboard/latin/database/ClipboardDao.kt",
+      "app/src/main/java/helium314/keyboard/latin/define/DebugFlags.kt",
+      "app/src/main/java/helium314/keyboard/latin/inputlogic/{InputLogic,InputLogicHandler}.java",
+      "app/src/main/java/helium314/keyboard/latin/settings/Defaults.kt",
+      "app/src/main/java/helium314/keyboard/latin/spellcheck/AndroidSpellCheckerService.java",
+      "app/src/main/java/helium314/keyboard/latin/utils/ToolbarUtils.kt",
+      "app/src/main/java/helium314/keyboard/settings/{SettingsActivity,SettingsNavHost}.kt",
+      "app/src/main/java/helium314/keyboard/settings/screens/MainSettingsScreen.kt",
+      "app/src/main/java/helium314/keyboard/settings/screens/gesturedata/Share.kt",
+      "app/src/test/java/helium314/keyboard/Shadows.kt",
+      "app/src/test/java/helium314/keyboard/latin/{InputLogicTest,SuggestTest}.kt",
+
+      "tools/dev.py",
+      "scripts/*.{py,sh,json}",
+      ".claude/**",
+      ".github/workflows/*.yml"
+    ],
+    "exclude": [],
+    "match_stem": true,
+    "//search_roots": "Where names written in the map are looked up (a name that exists nowhere gives a warning).",
+    "search_roots": ["app", "agent-core", "tools", "scripts", "docs", ".github", ".claude", "release-notes",
+                     "CLAUDE.md", "AGENTS.md", "README.md", "AI_USAGE.md", "CONTRIBUTING.md", "layouts.md", "settings.gradle", "build.gradle.kts", "upstream.lock"],
+    "extensions": [".kt", ".java", ".kts", ".py", ".sh", ".yml", ".xml", ".json", ".md", ".gradle"]
+  },
+
+  "//lists": "Values a doc states as a number; 'counts' below keeps the numbers honest.",
+  "lists": {
+    "ai_actions": {"file": "agent-core/src/main/kotlin/dev/agentkeyboard/core/AiTextAction.kt",
+                   "pattern": "^            ([A-Z]+) -> \"", "item": "`{0}`"},
+    "local_actions": {"file": "agent-core/src/main/kotlin/dev/agentkeyboard/core/LocalTextActions.kt",
+                      "pattern": "^        ([A-Z_]+) -> text", "item": "`{0}`"},
+    "languages": {"file": "agent-core/src/main/kotlin/dev/agentkeyboard/core/AiTextAction.kt",
+                  "pattern": "([A-Z]+)\\(\"[a-z]{2}\", \"(\\w+)\"\\)", "item": "{1}"},
+    "providers": {"file": "agent-core/src/main/kotlin/dev/agentkeyboard/core/Workflow.kt",
+                  "pattern": "([A-Z]+)\\(\"([a-z]+)\"\\)", "item": "`{1}`"}
+  },
+
+  "blocks": {
+    "toc": {"type": "toc", "skip": "Inhalt"},
+    "inventory": {"type": "inventory", "title": "Alle kartierten Dateien nach Ordner"},
+    "ai_actions": {"type": "list", "list": "ai_actions", "template": "{count} KI-Textaktionen: {items}"},
+    "local_actions": {"type": "list", "list": "local_actions", "template": "{count} lokale Textwerkzeuge: {items}"},
+    "languages": {"type": "list", "list": "languages", "template": "{count} Zielsprachen: {items}"},
+    "providers": {"type": "list", "list": "providers", "template": "{count} Provider-Kennungen im Workflowformat: {items}"}
+  },
+
+  "counts": [
+    {"file": "docs/FEATURES.md", "pattern": "(\\d+) KI-Textaktionen", "list": "ai_actions"},
+    {"file": "docs/FEATURES.md", "pattern": "(\\d+) lokale Textwerkzeuge", "list": "local_actions"},
+    {"file": "docs/FEATURES.md", "pattern": "(\\d+) Zielsprachen", "list": "languages"}
+  ],
+
+  "size_warnings": {"docs/HANDOFF.md": 400},
+
+  "//commands": "No fast external check exists: Gradle builds and tests need the Android toolchain (docs/BUILD.md).",
+  "commands": [],
+
+  "//copies": "AGENTS.md is the same instruction set for tools that read AGENTS.md instead of CLAUDE.md.",
+  "copies": [{"from": "CLAUDE.md", "to": "AGENTS.md"}],
+
+  "//base_branch": "The branch that ships. It does not exist on the remote yet (docs/HANDOFF.md -> Open points); until then the warnings compare with the last commit.",
+  "base_branch": "main",
+
+  "warn_if_changed": [
+    {
+      "when": ["app/src/main/**", "agent-core/src/main/**", "app/build.gradle.kts",
+               "agent-core/build.gradle.kts", "settings.gradle", "build.gradle.kts", "gradle/**"],
+      "file": "release-notes/next.md",
+      "need": "nonempty",
+      "message": "code changed but release-notes/next.md is empty: write the user-facing notes of this push"
+    }
+  ],
+
+  "state": {"file": "docs/HANDOFF.md", "heading": "Aktueller Stand"},
+  "brief": {"max_lines": 15, "toc_file": "docs/ARCHITECTURE.md"}
+}

@@ -1,0 +1,25 @@
+name: Docs check
+
+# Fails when the working-memory docs are out of date (rules: docs/HANDOFF.md → How to work).
+# To run it inside an existing build workflow instead, add this step before the build:
+#   - name: Check the docs
+#     run: python3 -I scripts/docs_sync.py --check
+# (checkout with fetch-depth: 2, so the warnings can compare with the previous commit)
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docs:
+    name: Check the docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+      - name: Check the docs
+        run: python3 -I scripts/docs_sync.py --check

@@ -1,77 +1,438 @@
-# Agent Keyboard — Architekturentscheidungen
+# Agent Keyboard – Code-Landkarte
 
-## Grundlage
+Die Code-Landkarte für alle, die Code ändern: wo jeder Teil liegt, wie die Teile zusammenhängen
+und was schon einmal kaputtging. Lies nur den Abschnitt des Bereichs, den du änderst. Seine
+Startzeile steht in der Ausgabe beim Sitzungsstart, alternativ:
+`python3 -I scripts/docs_sync.py --toc docs/ARCHITECTURE.md`.
 
-HeliBoards Eingabefläche, Touch-Verarbeitung, Layoutparser, Wörterbücher und
-Autokorrektur bleiben zunächst erhalten. Neue Funktionen werden über wenige
-Adapter angebunden. Bestehende Compose-Einstellungen bleiben erhalten; die
-Tastatur bleibt eine View. Es gibt keinen vorgezogenen Komplettumbau der Engine.
+Regeln für diese Datei: Jede Datei, die `map.sources` in `scripts/docs_sync.json` erfasst, wird
+hier genannt, per Dateiname, Stamm oder Glob in Backticks wie `Workflow*.kt`. Sonst schlägt
+`--check` fehl. Fakten stehen nach Bereich sortiert, nie nach Datum (die Historie liegt in git
+und in `docs/VALIDATION.md`). Jeder `## `-Abschnitt beginnt mit einer `> `-Zeile, die als Eintrag
+ins Inhaltsverzeichnis kommt. Blöcke zwischen `<!-- gen:… -->` und `<!-- /gen:… -->` werden
+erzeugt: nicht bearbeiten, sondern `python3 -I scripts/docs_sync.py --write` ausführen.
 
-Der erste Meilenstein arbeitet vollständig lokal. Er benötigt weder einen
-API-Schlüssel noch eine Netzwerkberechtigung. Eine lokale Texttransformation ist
-als lokale Funktion gekennzeichnet und täuscht keine KI-Antwort vor.
+Kurzformen (auch als `aliases` in der Konfiguration):
+`A/` = `app/src/main/java/helium314/keyboard/agent/`,
+`K/` = `app/src/main/java/helium314/keyboard/`,
+`C/` = `agent-core/src/main/kotlin/dev/agentkeyboard/core/`,
+`AT/` = `app/src/test/java/helium314/keyboard/agent/`,
+`CT/` = `agent-core/src/test/kotlin/dev/agentkeyboard/core/`.
 
-## Zuständigkeiten
+## Inhalt
 
-- Android-App: IME, Einstellungen, Profiladapter, Editoradapter und Darstellung.
-- `agent-core`: reine Kotlin-Datentypen, Ausführungsregeln und lokale Aktionen;
-  später begrenzte Workflows. Keine Android- oder Netzwerkabhängigkeit.
+<!-- gen:toc -->
+- **Grundlagen** – Stack, Module, Einstiegspunkte und die Grundentscheidungen, die für jeden Bereich gelten.
+- **Kern (`agent-core`)** – Reine Kotlin-Datentypen und Regeln: Editor-Snapshots, Policy, Aktionen, Workflows, Skills.
+- **Geänderte Upstream-Dateien** – Jede Upstream-Datei, die der Fork ändert, mit dem Grund. Alle übrigen Upstream-Dateien sind unverändert.
+- **Editorzugriff, Panel und Rad** – Wie die Tastatur Auswahl liest, Aktionen zeigt und Ergebnisse übernimmt.
+- **Speicher, Zugangsdaten und Datenschutz** – CE/DE-Trennung, verschlüsselte Schlüssel, Dateifreigaben. Details und Prüflimits: docs/STORAGE.md.
+- **KI-Anbindung** – Der einzige echte Provider (OpenAI) und der journalisierte Modellaufruf. Verträge: docs/PROVIDERS.md.
+- **Laufjournal** – Verschlüsselte Metadaten zu Läufen: Absicht vor Wirkung, kein Retry, keine Inhalte.
+- **Workflows und Skill Keys** – Gespeicherte Abläufe, ihre Ausführung nach Freigabe und die drei Skill-Tasten. Format: docs/WORKFLOWS.md.
+- **Act Builder** – Natürliche Beschreibung → freigegebene Anfrage → streng validierter Workflow-Entwurf.
+- **Einstellungen und Profile** – Compose-Seiten der Agent-Funktionen sowie Design-, Layout- und Gestenprofile.
+- **Unveränderter Upstream** – Was ohne Änderung von HeliBoard übernommen ist; nur nach Ordnern beschrieben.
+- **Build, Tests, CI, Docs-System** – Lokaler Build, Prüfbefehle, Workflows und die Docs-Prüfung.
+- **Fallstricke** – Fehler, die schon passiert sind oder nahelagen: bei jedem Review prüfen.
+- **Datei-Inventar** – Erzeugte Liste aller kartierten Dateien nach Ordner.
+<!-- /gen:toc -->
+
+## Grundlagen
+
+> Stack, Module, Einstiegspunkte und die Grundentscheidungen, die für jeden Bereich gelten.
+
+- Fork von HeliBoard `v4.2`, Commit in `upstream.lock`. HeliBoards Eingabefläche,
+  Touch-Verarbeitung, Layoutparser, Wörterbücher, Autokorrektur und die native JNI-Engine
+  (`app/src/main/jni/`) bleiben erhalten. Neue Funktionen hängen über wenige Adapter an der
+  Engine. Es gibt keinen Komplettumbau, die Tastatur bleibt eine View.
+- Sprachen: Java und Kotlin. Einstellungen nutzen Jetpack Compose, die Tastatur und ihre
+  Overlays sind klassische Views. Toolchain und Versionen stehen in `docs/BUILD.md`.
+- Module: `:app` (Android-App mit IME, Einstellungen und Adaptern) und `:agent-core` (reines
+  Kotlin/JVM, ohne Android- und Netzwerkabhängigkeit; `agent-core/build.gradle.kts`,
+  eingebunden in `settings.gradle`).
+- Paketnamen: Die Upstream-Pakete `helium314.keyboard.*` bleiben, damit die native Engine stabil
+  bleibt. Eigener App-Code liegt in `helium314.keyboard.agent` (`A/`) und in
+  `K/settings/screens/`. Der Kern liegt in `dev.agentkeyboard.core` (`C/`).
+- Einstiegspunkte: IME-Dienst `LatinIME.java`, Anwendung `App.kt`, Einstellungen
+  `SettingsActivity.kt` (alles Upstream-Dateien, siehe „Geänderte Upstream-Dateien“).
+- Ablauf jeder Aktion: Aktion starten → Quelltextvorschau → ausdrücklich freigegebener Snapshot →
+  Policy-Prüfung → Verarbeitung → Ergebnisvorschau → bewusste Übernahme.
+- Vorgesehene Grenzen: `EditorAdapter`, `ModelProvider`, `ExecutionPolicy`, `ProfileStore`,
+  `WorkflowRunner`, `RunStore`, `ToolAdapter`, `CredentialStore`. Es wird nur gebaut, was die
+  aktuelle Etappe braucht. `ToolAdapter` existiert noch nicht (Etappe 15).
 - Ein Anbietermodul entsteht erst zusammen mit seinem echten Anschluss.
+- Berechtigungen gelten für die ganze APK. Modulgrenzen sind keine Sandbox des Betriebssystems,
+  die Policy wird durch Tests belegt.
 
-Die vorgesehenen Grenzen sind `EditorAdapter`, `ModelProvider`,
-`ExecutionPolicy`, `ProfileStore`, `WorkflowRunner`, `RunStore`, `ToolAdapter`
-und `CredentialStore`. Es werden nur die für den aktuellen Schritt benötigten
-Grenzen implementiert.
+## Kern (`agent-core`)
 
-## Kontext und Ergebnisübernahme
+> Reine Kotlin-Datentypen und Regeln: Editor-Snapshots, Policy, Aktionen, Workflows, Skills.
 
-Aktion starten → Quelltextvorschau → explizit freigegebener Snapshot →
-Policy-Prüfung → Verarbeitung → Ergebnisvorschau → bewusste Übernahme.
+- `EditorSession.kt`: `EditorToken` (Besitzer-UUID, Generation, Revision; einmalige Autorität),
+  `EditorSession`, `TextSnapshot` (kopierter Text plus Sitzungsgeneration und Änderungsstand).
+- `ExecutionPolicy.kt`: `EditorAccess`, `DenialReason`, `CaptureResult`. Prüft Größengrenzen,
+  sensible Felder, Inkognito und Sperrzustand vor jedem Lesen und vor jeder Übernahme.
+  `resultDenial` prüft auch Namen und Literale aus Dateien.
+- `ApplyOutcome.kt`: Ergebnis einer nativen Ersetzung (inklusive `UNKNOWN`, siehe Fallstrick P3).
+- `LocalTextActions.kt`: lokale Textwerkzeuge ohne Netz.
+  <!-- gen:local_actions -->
+3 lokale Textwerkzeuge: `UPPERCASE`, `LOWERCASE`, `CLEAN_SPACES`
+<!-- /gen:local_actions -->
+- `AiTextAction.kt`: `AiTextAction` mit festen Instruktionen. `ANALYZE` erlaubt keine
+  Ersetzung. Dazu `TranslationLanguage` und `WritingTone`.
+  <!-- gen:ai_actions -->
+6 KI-Textaktionen: `CORRECT`, `TRANSLATE`, `REPHRASE`, `SUMMARIZE`, `REPLY`, `ANALYZE`
+<!-- /gen:ai_actions -->
+  <!-- gen:languages -->
+14 Zielsprachen: English, German, French, Spanish, Italian, Portuguese, Ukrainian, Russian, Arabic, Turkish, Chinese, Japanese, Korean, Hindi
+<!-- /gen:languages -->
+- `ModelProvider.kt`: `ModelProvider`, `ProviderCapabilities`, `ModelOutputFormat`,
+  `ModelRequest` (nur Strings, keine Tokens oder `InputConnection`), `ModelResponse`.
+- `Workflow.kt`: `WorkflowDefinition` (unveränderlich, versioniert), `WorkflowStep.Local` und
+  `WorkflowStep.Ai`, `WorkflowInput` (Auswahl oder `StepResult` eines früheren Schritts),
+  `WorkflowRunner`, `WorkflowError`. Grenzen und Format: `docs/WORKFLOWS.md`.
+  <!-- gen:providers -->
+4 Provider-Kennungen im Workflowformat: `openai`, `claude`, `gemini`, `local`
+<!-- /gen:providers -->
+  Nur `openai` hat einen echten Anschluss. Die anderen Kennungen werden vor jeder Anfrage
+  abgewiesen.
+- `TextCondition.kt`: deterministische Bedingungen `NON_EMPTY`, `CONTAINS_LITERAL`,
+  `LENGTH_AT_LEAST`, optional negiert. Kein Regex, kein Skript.
+- `SkillBinding.kt`: `BuiltinAction` (stabile Datei-IDs) und `SkillBinding` (Slot 1–3, Alias,
+  Aktion, bei `WORKFLOW` eine kanonische UUID).
+- `Profiles.kt`: `ProfileGroup`, `PreferenceValue`, `ConfigurationProfile`, `ProfileStore`.
+- `PendingBatchGate.kt`: sperrt Swipe-Batches unter Epoch/Lock, wird in `InputLogicHandler.java`
+  benutzt (Fallstrick P5).
+- Tests in `CT/`: `AiTextActionTest`, `EditorPolicyTest`, `LocalTextActionsTest`,
+  `PendingBatchGateTest`, `SkillBindingTest`, `WorkflowTest`. Befehl: `core-tests`.
 
-- Die erste Version verarbeitet ausschließlich markierten Text mit fester
-  Größenbegrenzung. Ohne zuverlässig bestimmbare Auswahl wird nicht ersetzt.
-- Snapshots enthalten kopierte Daten, Sitzungsgeneration und Änderungsstand.
-  Eine `InputConnection` wird weder gespeichert noch an den Kern weitergereicht.
-- Editorwechsel, Neustart, veränderte Auswahl und zwischenzeitliche Eingaben
-  machen ausstehende Ersetzungen ungültig, auch wenn der Text später gleich aussieht.
-- Vor einer Ersetzung werden Sitzung, Auswahl und Quelltext erneut geprüft.
-  Android bietet keine universelle atomare Compare-and-swap-Operation für fremde
-  Textfelder; bei Unklarheit bleibt die Ersetzung gesperrt.
-- Ergebnisse werden niemals automatisch eingefügt. Das Panel darf keinen neuen
-  Editor öffnen und damit den eigentlichen Eingabekontext verlieren.
+## Geänderte Upstream-Dateien
 
-## Daten und Berechtigungen
+> Jede Upstream-Datei, die der Fork ändert, mit dem Grund. Alle übrigen Upstream-Dateien sind unverändert.
 
-- Normales Tippen startet keine Netzwerkanfrage.
-- Passwortfelder, Inkognito, gesperrtes Gerät und Lernverbotsfelder sperren
-  zusätzliche Datenverarbeitung. Lernen und Cloud-Freigaben bleiben getrennt.
-- Personalisierte Wörterbücher und Zwischenablageverlauf starten ausgeschaltet.
-- Spätere Schlüssel werden mit einem Android-Keystore-Schlüssel verschlüsselt,
-  in credential-protected storage gehalten und von Export/Backup ausgeschlossen.
-- Feldinhalte, Ergebnisse, Zugangsdaten und Lerndaten gehören nicht in Logs.
-- Persönliche Lerndaten verlassen das Gerät nicht. Erzeugte oder eingefügte
-  Texte sind keine stillschweigende Einwilligung zum Stiltraining.
-- Berechtigungen gelten für die gesamte APK. Modulgrenzen sind keine zusätzliche
-  Betriebssystem-Sandbox; die Policy wird durch Tests nachgewiesen.
+Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lassen):
 
-## Anpassbarkeit
+- `LatinIME.java`: erzeugt `AgentEditorController`, meldet Editorstart/-ende, abgeschickten Text
+  und unterdrückte Lernhistorie. Engine-Speicher läuft über `AgentStorageContexts.keyboard`.
+- `InputLogic.java`: verwirft Caches und blockiert Eingabepfade nach einer unklaren Ersetzung
+  (`ApplyOutcome.UNKNOWN`), unterdrückt Lernen nach generierter Übernahme.
+- `InputLogicHandler.java`: hält Worker- und UI-Teil eines Swipe-Batches über
+  `PendingBatchGate` gemeinsam gesperrt.
+- `RichInputConnection.java`: native Ersetzung als genau ein Commit, Ergebnis als `ApplyOutcome`.
+- `PointerTracker.java`: Leertasten-Langdruck öffnet das Rad über
+  `CustomAction.SHOW_AGENT_WHEEL` und beendet den laufenden Zeiger samt Swipe/Touchpad-Flags.
+- `KeyboardActionListener.java` (neue `CustomAction.SHOW_AGENT_WHEEL`) und
+  `KeyboardActionListenerImpl.kt` (leitet Panel-, Rad- und Skill-Tasten an den Controller,
+  blockiert Eingabe während eines Overlays).
+- `InputView.java`: leitet Touch und Hover an sichtbare Overlays (Panel, Rad).
+- `main_keyboard_frame.xml`: Wurzel ist `AgentKeyboardFrame`, darin Tastatur, `AgentPanelView`
+  und `AgentWheelView`.
+- `KeyCode.kt` (`AGENT_ACTIONS` = -12000, `SKILL_1`–`SKILL_3` = -12001…-12003),
+  `ToolbarUtils.kt` (Toolbar-Tasten `AGENT` und `SKILL_1`–`SKILL_3`, `AGENT` standardmäßig in der
+  Toolbar), `KeyboardIconsSet.kt` (Symbole `ic_agent_actions.xml` und
+  `ic_skill_*.xml` für die drei Skill-Tasten).
 
-Design, Layout und Gesten werden getrennt gespeichert. Der bestehende
-HeliBoard-Layoutparser bleibt die Quelle für Layoutsyntax. Profile enthalten nur
-zugelassene Einstellungen und niemals Berechtigungen, Geheimnisse, Lernverläufe
-oder ausführbaren Code. Ungültige Imports werden vor Änderungen verworfen.
+Speicher, Datenschutz und Identität:
 
-Eine neue Darstellung kann später den aktuellen Darstellungsadapter ersetzen.
-Die vorhandene View vollständig austauschen zu können ist ein eigener Umbau,
-keine bereits erledigte Eigenschaft des Forks.
+- `App.kt`: bewahrt den CE-Kontext (`credentialStorageContext`), bevor die Engine einen
+  DE-Kontext bekommt. Kein Paketmanager-Startlog mehr (Fallstrick P8).
+- `SettingsActivity.kt`, `EmojiSearchActivity.kt`, `AndroidSpellCheckerService.java`: nutzen für
+  Upstream-Daten ausdrücklich den DE-Kontext. `SettingsActivity.kt` öffnet mit dem Extra
+  `AgentPreferences.OPEN_AI_SETTINGS` direkt die KI-Einstellungen.
+- `ClipboardDao.kt` und `gesturedata/Share.kt`: teilen Dateien über `AgentFileProvider`.
+- `Defaults.kt`: personalisierte Wörterbücher, Zwischenablage-Vorschläge und
+  Zwischenablageverlauf standardmäßig aus.
+- `DebugFlags.kt`: privater Crashhandler entfernt, damit keine rohen Fehlermeldungen oder
+  LastLog automatisch in External/DE gespeichert werden. Androids Standardhandler bleibt.
+- `AndroidManifest.xml`: `INTERNET`, kein Klartextverkehr, Backups aus
+  (`agent_data_extraction_rules.xml`), CE als Standard, eigener FileProvider, der
+  AndroidX-Startup-Initializer für HTTP ist entfernt.
+- `SettingsNavHost.kt` und `MainSettingsScreen.kt`: Ziele und Menüeinträge der vier
+  Agent-Einstellungsseiten.
+- App-Identität: `app/build.gradle.kts` (App-ID `dev.personal.agentkeyboard`, Version 0.1.0,
+  APK-Name, Lint-Baseline `lint-baseline-upstream.xml`), `settings.gradle`
+  (`:agent-core`), `clip_provider.xml` und `gesture_data.xml` (eigene Provider-Authorities,
+  auch in `debug`/`debugNoMinify`), `donottranslate.xml` und `strings.xml` in
+  `debug`/`debugNoMinify` (Namen „Agent Keyboard“ bzw. „Agent Keyboard Lab“).
 
-## Spätere Workflows
+Geänderte Upstream-Tests: `Shadows.kt` (IME-Info aus `BuildConfig.APPLICATION_ID`),
+`InputLogicTest.kt` (zusätzliche erzeugte Fälle), `SuggestTest.kt` (Personalisierung im Test
+ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 
-Runner und Android-Scheduler bleiben getrennt. Persistenz bedeutet
-wiederherstellbaren Zustand, keine garantierte permanente Hintergrundausführung.
-Importierte Prompts und Modellantworten erteilen keine Berechtigungen.
-Zugelassene Schritte, Providerziele und Budgets prüft eine deterministische Policy.
+## Editorzugriff, Panel und Rad
 
-Vor externen Effekten wird die Absicht persistiert. Unbekannte Ergebnisse werden
-als solche gespeichert und ohne Idempotenznachweis nicht automatisch wiederholt.
-Ein Prozessneustart führt niemals zu einer automatischen Editor-Ersetzung.
+> Wie die Tastatur Auswahl liest, Aktionen zeigt und Ergebnisse übernimmt.
+
+- `AgentEditorController.kt`: besitzt nur die Aktionssitzung der IME, nie das Textfeld der
+  Host-App. Öffnet Panel, Rad und Skills, holt Freigaben ein, startet Läufe, zeigt Ergebnisse und
+  führt Übernahme oder Kopieren aus. Übersetzt Fehler (`CloudError`, `DenialReason`) in Texte.
+- `AndroidEditorAdapter.kt`: Main-Thread-Adapter. Holt die `InputConnection` jedes Mal neu,
+  speichert sie nie in einem Snapshot. Prüft die Privacy vor dem Lesen und vergleicht vor der
+  Übernahme erneut.
+- `AgentKeyboardFrame.kt`: Overlays sind exakt so groß wie die Tastatur und vergrößern die IME
+  nie. Hintergrundtasten sind währenddessen aus der Accessibility entfernt.
+- `AgentPanelView.kt`: natives Aktionspanel im IME-Fenster. Öffnet nie eine zweite
+  `InputConnection` und keinen eigenen Editor.
+- `AgentWheelView.kt`: radiales Aktionsrad aus echten Buttons (Tastaturnavigation, TalkBack). Eine
+  Auswahl bereitet nur eine Vorschau vor.
+- `SkillLabels.kt`: Titel und Toolbar-Tasten der Skills.
+- `AgentPreferences.kt`: Schlüssel der Leertastengeste und des Extras für die KI-Einstellungen.
+- Regeln: Ohne zuverlässig bestimmbare Auswahl wird nicht ersetzt. Editorwechsel, Neustart,
+  geänderte Auswahl und zwischenzeitliche Eingaben machen eine ausstehende Ersetzung ungültig,
+  auch wenn der Text gleich aussieht. Android hat kein universelles Compare-and-swap für fremde
+  Textfelder, daher bleibt die Ersetzung bei Unklarheit gesperrt. Kopieren prüft dieselbe
+  Schutzgrenze. Der Ablauf von Aktion bis Übernahme steht unter „Grundlagen“.
+- Tests in `AT/`: `AgentPanelViewTest`, `AgentWheelViewTest`, `AgentSpaceGestureTest`,
+  `AndroidEditorAdapterTest`, `SelectedTextCommitTest`, `DebugPrivacyTest`,
+  `ForkIdentityTest`, dazu `BatchDeliveryTest.kt` in
+  `app/src/test/java/helium314/keyboard/latin/inputlogic/`.
+
+## Speicher, Zugangsdaten und Datenschutz
+
+> CE/DE-Trennung, verschlüsselte Schlüssel, Dateifreigaben. Details und Prüflimits: docs/STORAGE.md.
+
+- `AgentStorageContexts.kt`: liefert der Engine den DE-Kontext (Direct Boot). Geheimnisse und
+  Agent-Konfiguration nutzen den rohen CE-Kontext aus `App.kt`.
+- `security/EncryptedCredentialStore.kt`: `CredentialSlot`, `Secret`, `credentialContext`,
+  `credentialAccessAllowed`. Feste Slots, gesperrt vor Entsperren und vor Android 6.
+- `security/SecretCipher.kt`: AES-256-GCM mit Schlüssel im Android Keystore,
+  `AesGcmSecretCipher` für Tests mit injiziertem Schlüssel.
+- `ModelSettings.kt`: Modellkennung, Zielsprache und Ton in eigenen CE-Einstellungen
+  (`agent_models`), nicht in den exportierbaren Tastatureinstellungen.
+- `AgentFileProvider.kt`: FileProvider mit denselben DE-Wurzeln wie die Engine-Komponenten, die
+  die Dateien erzeugen.
+- `AgentDocumentIO.kt`: liest und schreibt nur vom Nutzer gewählte SAF-Dokumente, mit
+  Byte-Grenzen vor dem Parsen.
+- Regeln: Personalisierte Wörterbücher und Zwischenablageverlauf starten ausgeschaltet. Lernen
+  und Cloud-Freigaben sind getrennt. Erzeugter oder eingefügter Text ist keine Einwilligung zum
+  Stiltraining. Neue Agent-Dateien liegen in CE/`noBackupFilesDir`, Upstream-Dateien in DE.
+  Keine versteckten Android-APIs, keine Credential-Exporte oder -Backups.
+- Tests in `AT/`: `EncryptedCredentialStoreTest`, `AgentStorageContextsTest`,
+  `AgentDocumentIOTest`.
+
+## KI-Anbindung
+
+> Der einzige echte Provider (OpenAI) und der journalisierte Modellaufruf. Verträge: docs/PROVIDERS.md.
+
+- `providers/OpenAiProvider.kt`: `OpenAiProvider` (Responses-API, feste URL,
+  `store:false`/`stream:false`), `CloudHttpClient` (OkHttp, erst nach dem Senden initialisiert,
+  ohne Redirects und Retries, einmaliger `RequestBody`), `CloudError`, `CloudFailure`.
+  Fremde Fehlerkörper werden weder angezeigt noch geloggt. Grenzen: Connect/Read/Write 10 s,
+  Call 45 s, Antwort höchstens 1 MiB und 16384 Zeichen, 2048 Ausgabetokens (Builder 4096). Nur
+  vollständig abgeschlossene Texte zählen; Refusal, Incomplete und Tool-Blöcke sind kein Ergebnis.
+  Der AndroidX-Startup-Initializer ist im Manifest entfernt, `OkHttp.initialize` läuft erst nach
+  dem Senden auf IO.
+- `JournaledModelCall.kt`: genau ein freigegebener Modellaufruf mit Journal, unabhängig von der
+  Tastatur-UI. Speichert nie Text.
+- Tests: `OpenAiProviderTest` (Loopback-Server, kein echter Schlüssel), `JournaledModelCallTest`.
+
+## Laufjournal
+
+> Verschlüsselte Metadaten zu Läufen: Absicht vor Wirkung, kein Retry, keine Inhalte.
+
+- `ActionRunJournal.kt`: `ActionRunJournal`, `ActionRunRecord`, `ActionRunState`, `RunSubject`
+  (TextAction, Workflow, Builder) und `WorkflowStepLink`.
+- `JournaledRun.kt`: schreibt die Absicht dauerhaft vor dem Start und den Endzustand danach.
+- `EncryptedActionRunStore.kt`: Datei `agent_runs/status.sealed`, höchstens 20 Einträge, sieben
+  Tage. `RunStoreFailure` bei beschädigter Datei.
+- `RunSubjectCodec.kt`: strenges JSON-Schema 2 inklusive Migration von Schema 1.
+- Regeln: Timeout oder unklare Antwort ergibt `UNKNOWN`, lokaler Abbruch `CANCELLED`. Keine
+  automatische Wiederholung oder Editorübernahme nach einem Neustart. Workflow-Namen werden nicht
+  ins Journal geschrieben. Ein Elternlauf entsteht vor dem Workflow, Kindaufrufe verweisen auf
+  Parent, Definition, Revision und Schritt-ID. Speicherformat: `docs/STORAGE.md`.
+- Tests: `EncryptedActionRunStoreTest`; `TestRunJournal.kt` ist das Test-Double für Runner-Tests.
+
+## Workflows und Skill Keys
+
+> Gespeicherte Abläufe, ihre Ausführung nach Freigabe und die drei Skill-Tasten. Format: docs/WORKFLOWS.md.
+
+- `WorkflowStore.kt`: Laufzeitdatei „agent_workflows.json“ in CE/noBackup, höchstens zehn Abläufe. Jede
+  Mutation verlangt die angezeigte Generation (Schutz vor veralteten Schreibzugriffen), auch ein
+  identischer oder leerender Import erzeugt eine neue Generation.
+  `WorkflowRecovery` setzt nur dieselbe unlesbare Datei (gleiche SHA-256) nach Bestätigung
+  zurück; der Fingerabdruck liest höchstens 1 MiB, größere Dateien bleiben unangetastet.
+  `WorkflowConfiguration` ist der gelesene Stand.
+- `ManualWorkflowDraft.kt`: bearbeitbarer, unvollständiger Entwurf; die Umwandlung ist die
+  einzige Validierungsgrenze. `proposal()` macht aus einem Builder-Ergebnis Revision 1.
+- `ApprovedActionRunner.kt`: Main-Thread-Steuerung eines freigegebenen Laufs (Einzelaktion oder
+  Workflow). Epoch-Prüfungen schützen vor späten Antworten, das Gesamtbudget beträgt 95 s.
+- Zusammenfassungen für Freigabe und Anzeige: `WorkflowApprovalSummary.kt`,
+  `WorkflowInputSummary.kt`, `WorkflowConditionSummary.kt`.
+- `SkillBindingStore.kt`: Belegung der Slots 1–3. Fehlende Workflow-IDs bleiben ohne Ersatz
+  stehen.
+- Regeln: Import und Speichern führen nichts aus. Ein Alias erteilt keine Berechtigung. Ein
+  Skill-Druck liest die aktuelle Definition und verlangt eine einmalige Freigabe.
+- Tests: `WorkflowStoreTest`, `ManualWorkflowDraftTest`, `ApprovedActionRunnerTest`,
+  `ApprovedWorkflowRunnerTest`, `WorkflowConditionSummaryTest`, `SkillBindingStoreTest`.
+
+## Act Builder
+
+> Natürliche Beschreibung → freigegebene Anfrage → streng validierter Workflow-Entwurf.
+
+- `WorkflowBuilderContract.kt`: festes JSON-Schema für Responses `text.format` (strict,
+  geschlossene Objekte). Das Modell darf nur `name` und `steps` vorschlagen.
+- `WorkflowDraftRunner.kt`: `WorkflowDraftApproval` (identitätsgebundene, einmalige Freigabe)
+  und der Runner (Budget 65 s, nur OpenAI mit Structured-Output-Fähigkeit). Kein Editor-,
+  Speicher- oder Startzugriff.
+- `K/settings/screens/WorkflowBuilderDialog.kt`: Prompt (höchstens 4096 Zeichen) → genaue
+  Sendevorschau → separater Sendeklick → Entwurf.
+- `K/settings/screens/WorkflowDraftProtection.kt`: `ProtectWorkflowDraft` hält `FLAG_SECURE`
+  vom Builder bis zum Speichern oder Verwerfen. Pause, Stop und Inkognito verwerfen Prompt,
+  Freigabe und Entwurf.
+- Tests: `WorkflowBuilderContractTest`, `WorkflowDraftRunnerTest`,
+  `WorkflowBuilderSettingsTest`.
+
+## Einstellungen und Profile
+
+> Compose-Seiten der Agent-Funktionen sowie Design-, Layout- und Gestenprofile.
+
+- `K/settings/screens/AgentAiScreen.kt`: API-Schlüssel (maskiert, nie zurückgeladen),
+  Modellkennung, Sprache, Ton, Laufstatus. Gesperrt ohne Entsperren.
+- `K/settings/screens/AgentRunStatus.kt`: lesbare und löschbare Laufmetadaten.
+- `K/settings/screens/AgentWorkflowsScreen.kt`: Workflows anlegen, bearbeiten, importieren,
+  exportieren, wiederherstellen, Builder öffnen.
+- `K/settings/screens/AgentSkillsScreen.kt`: Skill-Slots belegen, Import/Export.
+- `K/settings/screens/AgentProfilesScreen.kt` mit `KeyboardProfileStore.kt`: getrennte Design-,
+  Layout- und Gestenprofile. Profile enthalten nur erlaubte Einstellungen, nie Berechtigungen,
+  Geheimnisse, Lernverläufe oder Code. Ungültige Importe werden vor jeder Änderung verworfen.
+- Texte: `agent_strings.xml` (Englisch in `values/`, Deutsch in `values-de/`), IDs und Attribute:
+  `agent_ids.xml`, `agent_attrs.xml`.
+- Tests: `KeyboardProfileStoreTest`, `SkillSettingsTest`, `WorkflowSettingsTest`.
+
+## Unveränderter Upstream
+
+> Was ohne Änderung von HeliBoard übernommen ist; nur nach Ordnern beschrieben.
+
+- `K/latin/`: Eingabelogik, Wörterbücher, Vorschläge, Rechtschreibprüfung, Einstellungen-Backend.
+- `K/keyboard/`: Tastatur-View, Layoutparser, Emoji, Zwischenablage.
+- `K/settings/`: Compose-Einstellungen (bis auf die oben genannten Dateien).
+- `app/src/main/jni/`: native Engine. `app/src/main/assets/`: Wörterbücher und Layouts.
+- Upstream-Dokumente `README.md` (Fork-Hinweis oben), `layouts.md`, `CONTRIBUTING.md`,
+  `AI_USAGE.md`, Lizenzen. Die Upstream-Tests in `app/src/test/` laufen mit `upstream-tests`.
+
+## Build, Tests, CI, Docs-System
+
+> Lokaler Build, Prüfbefehle, Workflows und die Docs-Prüfung.
+
+- `tools/dev.py`: `python3 tools/dev.py doctor|build|core-tests|agent-tests|upstream-tests|lint`.
+  `build` erzeugt `:app:assembleDebugNoMinify` für ARM64 (`--abi x86_64` für den Emulator) und
+  legt APK plus SHA-256 unter `artifacts/` ab (nicht versioniert). `agent-tests` läuft über
+  `helium314.keyboard.agent.*`, die erzeugten `InputLogicTest`-Fälle und `BatchDeliveryTest`.
+  Toolchain und Einrichtung: `docs/BUILD.md`. UI-Tests schreiben gerenderte Vorschauen nach
+  `app/build/agent-previews/` (z. B. `builder-send-review.png`, nicht versioniert).
+- Baseline: `upstream-tests` endet mit genau fünf geerbten Fehlern, Liste in
+  `docs/VALIDATION.md` und `docs/HANDOFF.md` → Offene Punkte. Jeder weitere Fehler ist neu.
+- CI: `.github/workflows/docs-check.yml` führt bei jedem Push den Docs-Check aus. Von Upstream
+  übernommen: `build-debug-apk.yml` (nur manuell) und `build-test-auto.yml` (bei Pull Requests;
+  ruft den nicht existierenden Task `testRunTestsUnitTest` auf, siehe `docs/BUILD.md`).
+- Docs-System: `scripts/docs_sync.py` (Konfiguration `scripts/docs_sync.json`),
+  `scripts/install-hooks.sh` (optionaler Pre-Commit-Hook), `.claude/hooks/session-start.sh`
+  (registriert in `.claude/settings.json`). Bedienung: `docs/HANDOFF.md` → Arbeitsweise.
+
+## Fallstricke
+
+> Fehler, die schon passiert sind oder nahelagen: bei jedem Review prüfen.
+
+- **P1** Eine Freigabe gilt genau einmal und nur für die unveränderliche Quelle bzw. Definition,
+  die angezeigt wurde. Eine verbrauchte oder fremde Freigabe darf nie einen zweiten Lauf starten.
+- **P2** Läufe: den Job `LAZY` installieren, bevor ein synchroner oder reentranter Abbruch
+  eintreten kann. Die Generation vor `cancel` erhöhen. Eine alte Antwort darf nie einen neuen Lauf
+  beenden oder etwas veröffentlichen.
+- **P3** `ApplyOutcome.UNKNOWN` verwirft die Caches und blockiert die Eingabepfade, bis ein
+  autoritativer Refresh oder Restart kommt. Eine Ersetzung ist genau ein Commit, nie
+  Löschen plus Einfügen.
+- **P4** Nicht abbrechbare Journal-IO kann das Zeitbudget überschreiten. Die späte
+  Veröffentlichung muss trotzdem gesperrt bleiben (Job-, Epoch- und Policy-Prüfung).
+- **P5** Swipe: `PendingBatchGate` hält Worker- und UI-Teil unter derselben Epoch/Lock gesperrt.
+  Beide Teile nie getrennt sperren oder freigeben.
+- **P6** UI-Zustände direkt im Elternscope erfassen (`displayed…`). Eine reine
+  null→null-Konfiguration hatte die Recovery- und Fehleranzeige sonst nicht aktualisiert.
+  Speichern braucht `key(binding)` bzw. die angezeigte Generation.
+- **P7** Speichern im Builder erfasst Proposal-Flag, Generation und Revision unveränderlich und
+  prüft die Objektidentität. Sonst kann ein vorgemerkter Klick nach Verwerfen oder Inkognito
+  einen verworfenen Entwurf speichern.
+- **P8** Kein `PackageManager`-Aufruf im Start-Log von `App.kt`: Die späte Abfrage warf nach dem
+  Robolectric-Teardown eine Hintergrund-Exception (`NameNotFoundException`). Nutze `BuildConfig`.
+- **P9** Kein Lock-Finish-Cleanup darf einen CE-Pfadgetter anfassen, solange das Gerät gesperrt
+  ist.
+- **P10** Private Eingabefelder (Builder-Prompt, Workflow-Name, Literal) nutzen unmaskierte
+  Passwort-IME-Semantik, damit die eigene Tastatur sie nicht lernt. Prompt und ungespeicherte
+  Namen dürfen nicht in den Saved State.
+- **P11** Tests: App-Unit-Tests laufen mit `forkEvery=1` (ein Java-21-Worker pro Klasse).
+  Robolectric hält sonst Wörterbuchkopien bis zum Prozessende und füllt den Datenträger (ENOSPC).
+- **P12** Tests: Neue native Tests brauchen einen Handler-Shadow, der `true` (Boolean, nicht
+  `Unit`) liefert, und synchronisierte Runnable-Queues. `awaitAgentUi` liefert echte Callbacks.
+- **P13** Tests: JUnit4-Methoden müssen `Unit` liefern. `runBlocking` mit `assertFails` kann
+  versehentlich `Throwable` zurückgeben, dann läuft der Test nicht.
+- **P14** Compose-Tests: `isEnabled()` als Matcher in `onAllNodes` verwenden. Menüpunkte vor dem
+  Klick ggf. mit `performScrollTo` sichtbar machen. Das Label eines TextFields gehört zur
+  gemergten Textsemantik, leeren Inhalt daher über `SemanticsProperties.EditableText` prüfen.
+- **P15** Dialog-Bitmaps: vor der `ShadowDialog`-Aufnahme den sichtbaren Dialog assertieren und
+  idle warten. `captureToImage` wartete im Robolectric-Fenster sonst auf einen Redraw, der nie
+  kam.
+
+## Datei-Inventar
+
+> Erzeugte Liste aller kartierten Dateien nach Ordner.
+
+<!-- gen:inventory -->
+<details><summary>Alle kartierten Dateien nach Ordner (136 files; generated, do not edit)</summary>
+
+- `.claude/` (1): settings
+- `.claude/hooks/` (1): session-start
+- `.github/workflows/` (3): build-debug-apk, build-test-auto, docs-check
+- `/` (1): settings
+- `A/` (26): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+  AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
+  AndroidEditorAdapter, ApprovedActionRunner, EncryptedActionRunStore, JournaledModelCall,
+  JournaledRun, KeyboardProfileStore, ManualWorkflowDraft, ModelSettings, RunSubjectCodec,
+  SkillBindingStore, SkillLabels, WorkflowApprovalSummary, WorkflowBuilderContract,
+  WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
+- `A/providers/` (1): OpenAiProvider
+- `A/security/` (2): EncryptedCredentialStore, SecretCipher
+- `AT/` (26): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+  AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
+  ApprovedWorkflowRunnerTest, DebugPrivacyTest, EncryptedActionRunStoreTest,
+  EncryptedCredentialStoreTest, ForkIdentityTest, JournaledModelCallTest, KeyboardProfileStoreTest,
+  ManualWorkflowDraftTest, OpenAiProviderTest, SelectedTextCommitTest, SkillBindingStoreTest,
+  SkillSettingsTest, TestRunJournal, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
+  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+- `C/` (11): AiTextAction, ApplyOutcome, EditorSession, ExecutionPolicy, LocalTextActions,
+  ModelProvider, PendingBatchGate, Profiles, SkillBinding, TextCondition, Workflow
+- `CT/` (6): AiTextActionTest, EditorPolicyTest, LocalTextActionsTest, PendingBatchGateTest,
+  SkillBindingTest, WorkflowTest
+- `K/keyboard/` (3): KeyboardActionListener, KeyboardActionListenerImpl, PointerTracker
+- `K/keyboard/emoji/` (1): EmojiSearchActivity
+- `K/keyboard/internal/` (1): KeyboardIconsSet
+- `K/keyboard/internal/keyboard_parser/floris/` (1): KeyCode
+- `K/latin/` (4): App, InputView, LatinIME, RichInputConnection
+- `K/latin/database/` (1): ClipboardDao
+- `K/latin/define/` (1): DebugFlags
+- `K/latin/inputlogic/` (2): InputLogic, InputLogicHandler
+- `K/latin/settings/` (1): Defaults
+- `K/latin/spellcheck/` (1): AndroidSpellCheckerService
+- `K/latin/utils/` (1): ToolbarUtils
+- `K/settings/` (2): SettingsActivity, SettingsNavHost
+- `K/settings/screens/` (8): AgentAiScreen, AgentProfilesScreen, AgentRunStatus, AgentSkillsScreen,
+  AgentWorkflowsScreen, MainSettingsScreen, WorkflowBuilderDialog, WorkflowDraftProtection
+- `K/settings/screens/gesturedata/` (1): Share
+- `agent-core/` (1): build.gradle
+- `app/` (1): build.gradle
+- `app/src/debug/res/values/` (3): clip_provider, gesture_data, strings
+- `app/src/debugNoMinify/res/values/` (3): clip_provider, gesture_data, strings
+- `app/src/main/` (1): AndroidManifest
+- `app/src/main/res/drawable/` (4): ic_agent_actions, ic_skill_1, ic_skill_2, ic_skill_3
+- `app/src/main/res/layout/` (1): main_keyboard_frame
+- `app/src/main/res/values-de/` (1): agent_strings
+- `app/src/main/res/values/` (6): agent_attrs, agent_ids, agent_strings, clip_provider,
+  donottranslate, gesture_data
+- `app/src/main/res/xml/` (1): agent_data_extraction_rules
+- `app/src/test/java/helium314/keyboard/` (1): Shadows
+- `app/src/test/java/helium314/keyboard/latin/` (2): InputLogicTest, SuggestTest
+- `app/src/test/java/helium314/keyboard/latin/inputlogic/` (1): BatchDeliveryTest
+- `scripts/` (3): docs_sync, docs_sync, install-hooks
+- `tools/` (1): dev
+
+</details>
+<!-- /gen:inventory -->

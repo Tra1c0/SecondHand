@@ -21,3 +21,7 @@ __pycache__/
 .env.*
 *.jks
 *.keystore
+
+# Docs system scripts (the *.sh rule above is upstream's)
+!scripts/*.sh
+!.claude/hooks/*.sh

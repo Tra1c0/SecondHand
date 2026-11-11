@@ -4,7 +4,7 @@ Private Android keyboard built incrementally on HeliBoard 4.2. Ordinary typing
 and local text actions work offline. Optional OpenAI support uses your own API
 key, stored encrypted in separate credential-protected storage. The APK now
 includes network permission; ordinary typing does not initialize cloud transport.
-AI correction and translation require a separate approval to send the previewed selection.
+AI text actions (correct, translate, rephrase, summarize, reply, analyze) require a separate approval to send the previewed selection.
 The result is shown for review and requires another click to replace the selection.
 Personal dictionary learning and clipboard retention start disabled; automatic
 system backups are disabled. Existing themes, layouts and input features remain available.
