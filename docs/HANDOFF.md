@@ -9,20 +9,26 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 ## Aktueller Stand
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
-- Pause aufgehoben: Der Owner hat am 2026-11-11 die vollständige Fertigstellung beauftragt.
-- Fertig: Etappen 0–14c (Tastatur, Panel/Rad, OpenAI-Aktionen, Skill Keys, Workflows, Act Builder).
-- Letzter Build: 0.1.0 Debug, ARM64 und x86_64, Etappe 14c (APKs nicht im Repo).
-- Nicht geprüft: kein Gerätetest, keine echte API-Anfrage.
-- Laufende Runde: `docs/ROADMAP.md` → Beschlossen von oben nach unten (G1, dann 15–18, A).
-- Wartet auf den Owner: Entscheidung über den Branch `main` (Offene Punkte 3).
+- Pausiert auf Wunsch des Owners (2026-11-11, mitten in G1). Weiter erst nach neuem Auftrag.
+- Fertig: Etappen 0–15 (zuletzt Werkzeuge: Testwerkzeug und Kalenderentwurf).
+- Letzter Build: 0.1.0 Debug nach Etappe 15, eine APK für alle ABIs, nicht mehr test-only.
+- Geprüft: Kern 52/0, Agent-Suite 198/0, Build, Lint. Vollregression nach Etappe 15 steht aus.
+- G1 begonnen: Emulator bootet, Installation und Aktivierung klappen; Tippen noch NICHT geprüft
+  (Offene Punkte 1 und Sackgassen → Emulator).
+- Danach: `docs/ROADMAP.md` → Beschlossen (16 mit Anthropic zuerst, dann 17, 18, A).
+- Wartet auf den Owner: Auftrag zur Fortsetzung; Entscheidung über den Branch `main`.
 
 ## Offene Punkte
 
-1. **Gerätetest fehlt komplett.** Es gab nie einen Emulator-Boot, eine Installation oder eine
-   Prüfung von Tippen, Löschen, Auswahl, Panel/Rad, Feld- und App-Wechsel, sensiblen Feldern,
-   Rotation, TalkBack und Abbruchpfaden. Checkliste: `docs/VALIDATION.md` → Gerätetest vor
-   Meilensteinfreigabe; Keystore und Direct Boot: `docs/STORAGE.md` → Prüflimits. Ein separates
-   Test-Editor-APK gibt es noch nicht.
+1. **Gerätetest erst angefangen.** Erreicht im Emulator (API 35, ohne KVM): Boot, Installation
+   der APK ohne `-t`, Tastatur per `ime enable`/`ime set` aktiviert und als Standard gesetzt.
+   Nicht erreicht: ein einziger Tastendruck. Der Gast war so überlastet, dass Android Apps und
+   die Tastatur wegen Startzeitüberschreitung beendete („failed to complete startup“). Das ist
+   bisher ein Umgebungsbefund, kein belegter App-Fehler; ob die Tastatur bei normaler
+   Geschwindigkeit sauber startet, ist offen. Nächster Versuch: Sackgassen → Emulator.
+   Checkliste: `docs/VALIDATION.md` → Gerätetest vor Meilensteinfreigabe; Keystore und
+   Direct Boot: `docs/STORAGE.md` → Prüflimits. Auch die Kalenderübergabe (Etappe 15) ist auf
+   einem Gerät ungeprüft.
 2. **Keine echte Modell-API-Anfrage.** Alle Provider-Tests nutzen Loopback- oder Testprovider. Ein
    Schlüssel ist nicht vorhanden und wird nur vom Owner in der App eingegeben.
 3. **Git-Basis.** Der Code wurde aus dem Übergabe-Archiv vom 2026-11-11 importiert. Die frühere
@@ -42,6 +48,15 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 7. **Alte `GlobalScope`-View-Callbacks** aus Upstream sind für eine eigene Härtung vorgemerkt.
 8. **Lint:** Die geerbte Baseline `app/lint-baseline-upstream.xml` und die Warnungen bleiben
    bestehen.
+9. **Gemini-Vertrag nicht neu prüfbar.** Die Doku-Hosts `ai.google.dev` und
+   `aistudio.google.com` sind in der Cloud-Umgebung „SecondHand“ nicht freigegeben. Der
+   Anthropic-Vertrag in `docs/PROVIDERS.md` wurde am 2026-11-11 gegen die offizielle Doku
+   bestätigt (Bearer-Schlüssel, `anthropic-version: 2026-10-21`, kein `temperature`,
+   `stop_reason` u. a. `end_turn`, `max_tokens`, `refusal`).
+10. **Externe Dienste (Gmail, Google Calendar, Notion)** brauchen vom Owner registrierte
+    OAuth-Clients. Ohne sie ist dieser Teil von Etappe 16 nicht baubar.
+11. **Beide APK-Artefakte sind gleich:** Das injizierte ABI wirkt in dieser AGP-Version nicht, die
+    APK enthält alle vier ABIs (ca. 36 MB). `docs/BUILD.md` beschreibt noch getrennte ABIs.
 
 ## Arbeitsweise
 
@@ -96,13 +111,25 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
 
 ## Sackgassen (Prozess und Umgebung; Code-Sackgassen stehen in ARCHITECTURE.md)
 
-- **Emulator in einer Cloud-Umgebung ohne `/dev/kvm`:** nur Software-Emulation möglich, sehr
-  langsam. Eine parallele Emulator-Installation füllte einen 8-GB-Datenträger; den Download erst
-  nach abgeschlossenem Build starten und Archive danach löschen.
-- **Emulator-Ablage in `/dev/shm`:** Die vorbereitete Installation (Emulator 37.2.13, Image
-  API 35 AOSP-ATD x86_64, AVD `AgentKeyboardApi35`) lag in flüchtigem RAM und in einer anderen
-  Umgebung. Sie ist weg. Neu aufbauen; dabei zeigten die SDK-Ordner `emulator` und
-  `system-images` per Symlink dorthin.
+- **Emulator in einer Cloud-Umgebung ohne `/dev/kvm`:** nur Software-Emulation. Die Toolchain
+  liegt in `/home/user/.toolchains` (flüchtig, pro Container neu aufzubauen: JDK 17 per `apt`,
+  cmdline-tools 16111833, Paketnamen mit `/` statt `;`, z. B. `platforms/android-37.0`).
+  - Abbild `aosp_atd` (API 35): bootet in ca. 9 Minuten, rendert aber kein Bild
+    (Screenshots schwarz) und startet keine normalen Apps. Für UI-Tests unbrauchbar.
+  - Abbild `default` (API 35): rendert, bootet in ca. 10 Minuten. Mit vier Gast-Kernen und
+    einem Emulations-Thread lag die Gast-Last bei 15–20, überall ANRs. Schon gesetzte Abhilfen:
+    Bluetooth deaktiviert (Absturzschleife), Animationen aus, App mit
+    `cmd package compile -m speed -f` vorkompiliert.
+  - Noch nicht ausgewertet: Start mit `-qemu -accel tcg,thread=multi` (ca. 150 % Host-CPU statt
+    100 %); der Boot war nach über 9 Minuten nicht fertig, als pausiert wurde. Nächste Ideen:
+    nur 1–2 Gast-Kerne, kein paralleler Gradle-Lauf, älteres leichteres Abbild (z. B. API 30
+    `default`), nach dem Boot 10 Minuten ruhen lassen.
+  - Die Ansichtshierarchie per `uiautomator dump` taugt besser zur Prüfung als Screenshots.
+- **Maven Central drosselt (HTTP 429)** bei vielen parallelen Downloads; Build wiederholen.
+  Robolectric konnte die Android-16-Laufzeit nicht selbst laden: die Datei
+  `android-all-instrumented-16-robolectric-13921718-i7.jar` samt `.pom` und `.sha512` per `curl`
+  nach `~/.m2/repository/org/robolectric/android-all-instrumented/<Version>/` legen.
+- **`dl.google.com`** ist nur in der Cloud-Umgebung „SecondHand“ freigegeben, nicht in „Default“.
 - **`sdkmanager`/`avdmanager`:** Der aktuelle `sdkmanager` ist ein Android-CLI-Shim. Die alte
   Java-Version von `avdmanager` erkannte einen getrennten SDK-Root erst über Symlinks im
   ursprünglichen SDK. Keine Paket-XMLs manipulieren.
@@ -119,5 +146,7 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
 
+- 0.1.0 Debug (Etappe 15): Werkzeuge im Panel; APK nicht mehr test-only; Kern 52/0, Agent-Suite
+  198/0, Lint grün; im Emulator installiert, Tippen ungeprüft.
 - 0.1.0 Debug (Etappe 14c): Act Builder mit privater Entwurfsprüfung; ARM64- und x86_64-APK,
   Agent-Suite 189/0, Vollregression 370 Tests mit genau fünf Baselinefehlern, Lint grün.
