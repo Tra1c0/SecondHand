@@ -79,6 +79,16 @@ Ergebnisvorschau und bewusste Übernahme bleiben erforderlich.
 
 - https://developer.android.com/reference/android/speech/SpeechRecognizer
 
+Umgesetzt in Etappe 18a2 (`OnDeviceSpeechEngine`). Am 2026-11-11 gegen die Referenz geprüft:
+`createOnDeviceSpeechRecognizer` und `isOnDeviceRecognitionAvailable` gibt es ab API 31; die
+Erzeugung wirft `UnsupportedOperationException`, wenn keine On-device-Erkennung verfügbar ist;
+alle Aufrufe gehören auf den Main-Thread; `RECORD_AUDIO` ist nötig; Fehlercodes 12
+(`ERROR_LANGUAGE_NOT_SUPPORTED`) und 13 (`ERROR_LANGUAGE_UNAVAILABLE`). Die Referenz nennt den
+Erkenner „on-device“, sichert aber nicht wörtlich zu, dass der Systemdienst nie das Netz nutzt;
+die App-Texte behaupten deshalb nur, dass die Tastatur ausschließlich diesen Erkenner verwendet.
+Der allgemeine Erkenner ist dort als „likely to stream audio to remote servers“ beschrieben und
+wird nie erzeugt.
+
 Lokale Inferenz benötigt eine echte, gepinnte Laufzeit und ein separat importiertes
 kompatibles Modell, mit begrenztem Speicher, Kontext und Ausgabetokens. Keine
 automatischen Downloads. Mögliche Laufzeiten: llama.cpp JNI (.gguf) oder LiteRT-LM

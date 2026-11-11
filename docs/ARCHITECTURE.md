@@ -33,6 +33,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - **Werkzeuge** – Fest eingebaute Werkzeuge: lokales Testwerkzeug und Übergabe eines Kalenderentwurfs an eine Kalender-App.
 - **Act Builder** – Natürliche Beschreibung → freigegebene Anfrage → streng validierter Workflow-Entwurf.
 - **Einstellungen und Profile** – Compose-Seiten der Agent-Funktionen sowie Design-, Layout- und Gestenprofile.
+- **Diktat** – Diktieren über den On-device-Erkenner des Systems: zuhören, Vorschau, Einfügen erst nach eigenem Klick.
 - **Lerndaten** – Was die Tastatur aus dem Tippen lernt: pausieren, zählen, exportieren, löschen. Alles auf dem Gerät.
 - **Unveränderter Upstream** – Was ohne Änderung von HeliBoard übernommen ist; nur nach Ordnern beschrieben.
 - **Build, Tests, CI, Docs-System** – Lokaler Build, Prüfbefehle, Workflows und die Docs-Prüfung.
@@ -131,23 +132,28 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
 - `InputLogic.java`: verwirft Caches und blockiert Eingabepfade nach einer unklaren Ersetzung
   (`ApplyOutcome.UNKNOWN`), unterdrückt Lernen nach generierter Übernahme. Ersetzen
   (`applyGeneratedText`) und Einfügen (`insertGeneratedText`) laufen durch dieselbe
-  Nachbereitung (`applyGenerated`).
+  Nachbereitung (`applyGenerated`). Beim Einfügen kommt ein ausstehendes automatisches
+  Leerzeichen (nach gewähltem Vorschlag) unter denselben Bedingungen wie beim Tippen mit in
+  denselben einen Commit.
 - `InputLogicHandler.java`: hält Worker- und UI-Teil eines Swipe-Batches über
   `PendingBatchGate` gemeinsam gesperrt.
 - `RichInputConnection.java`: native Ersetzung als genau ein Commit, Ergebnis als `ApplyOutcome`
   (`replaceSelectedTextIfUnchanged`); ebenso `insertTextIfCursorUnchanged` für das Einfügen an
-  der unveränderten Schreibmarke, nur wenn nichts markiert ist.
+  der unveränderten Schreibmarke, nur wenn der Editor antwortet und nichts markiert ist
+  (Fallstrick P24). Nur über `InputLogic.insertGeneratedText` aufrufen.
 - `PointerTracker.java`: Leertasten-Langdruck öffnet das Rad über
   `CustomAction.SHOW_AGENT_WHEEL` und beendet den laufenden Zeiger samt Swipe/Touchpad-Flags.
 - `KeyboardActionListener.java` (neue `CustomAction.SHOW_AGENT_WHEEL`) und
-  `KeyboardActionListenerImpl.kt` (leitet Panel-, Rad- und Skill-Tasten an den Controller,
+  `KeyboardActionListenerImpl.kt` (leitet Panel-, Rad-, Skill- und Diktat-Taste an den Controller,
   blockiert Eingabe während eines Overlays).
 - `InputView.java`: leitet Touch und Hover an sichtbare Overlays (Panel, Rad).
 - `main_keyboard_frame.xml`: Wurzel ist `AgentKeyboardFrame`, darin Tastatur, `AgentPanelView`
   und `AgentWheelView`.
-- `KeyCode.kt` (`AGENT_ACTIONS` = -12000, `SKILL_1`–`SKILL_3` = -12001…-12003),
-  `ToolbarUtils.kt` (Toolbar-Tasten `AGENT` und `SKILL_1`–`SKILL_3`, `AGENT` standardmäßig in der
-  Toolbar), `KeyboardIconsSet.kt` (Symbole `ic_agent_actions.xml` und
+- `KeyCode.kt` (`AGENT_ACTIONS` = -12000, `SKILL_1`–`SKILL_3` = -12001…-12003,
+  `AGENT_DICTATE` = -12004),
+  `ToolbarUtils.kt` (Toolbar-Tasten `AGENT`, `SKILL_1`–`SKILL_3` und `DICTATE`; nur `AGENT` ist
+  standardmäßig in der Toolbar), `KeyboardIconsSet.kt` (Symbole `ic_agent_actions.xml`,
+  `ic_agent_dictate.xml` und
   `ic_skill_*.xml` für die drei Skill-Tasten).
 
 Speicher, Datenschutz und Identität:
@@ -166,10 +172,11 @@ Speicher, Datenschutz und Identität:
   Zwischenablageverlauf standardmäßig aus.
 - `DebugFlags.kt`: privater Crashhandler entfernt, damit keine rohen Fehlermeldungen oder
   LastLog automatisch in External/DE gespeichert werden. Androids Standardhandler bleibt.
-- `AndroidManifest.xml`: `INTERNET`, kein Klartextverkehr, Backups aus
+- `AndroidManifest.xml`: `INTERNET`, `RECORD_AUDIO` (nur für das Diktat, siehe „Diktat“), kein
+  Klartextverkehr, Backups aus
   (`agent_data_extraction_rules.xml`), CE als Standard, eigener FileProvider, der
   AndroidX-Startup-Initializer für HTTP ist entfernt.
-- `SettingsNavHost.kt` und `MainSettingsScreen.kt`: Ziele und Menüeinträge der fünf
+- `SettingsNavHost.kt` und `MainSettingsScreen.kt`: Ziele und Menüeinträge der sechs
   Agent-Einstellungsseiten.
 - App-Identität: `app/build.gradle.kts` (App-ID `dev.personal.agentkeyboard`, Version 0.1.0,
   APK-Name, Lint-Baseline `lint-baseline-upstream.xml`), `settings.gradle`
@@ -366,6 +373,36 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `agent_ids.xml`, `agent_attrs.xml`.
 - Tests: `KeyboardProfileStoreTest`, `SkillSettingsTest`, `WorkflowSettingsTest`.
 
+## Diktat
+
+> Diktieren über den On-device-Erkenner des Systems: zuhören, Vorschau, Einfügen erst nach eigenem Klick.
+
+- Ablauf: Taste `DICTATE` oder Knopf „Diktieren“ im Panel → `openDictation` in
+  `AgentEditorController.kt` → `DictationSession.start` prüft der Reihe nach Editor
+  (`captureAnchor`: schlichte Schreibmarke, kein geschütztes Feld), Erkenner und
+  Mikrofonrecht; erst danach läuft das Mikrofon → „Fertig“ → Vorschau → eigener Klick
+  „An Schreibmarke einfügen“ → `AndroidEditorAdapter.insert` → `InputLogic.insertGeneratedText`.
+- `Dictation.kt`: `SpeechEngine` (Nahtstelle zum Erkenner), `DictationError`,
+  `DictationSession` (Zustandsautomat auf dem Main-Thread, ohne Android-Abhängigkeit; der Text
+  liegt nur im Speicher; jede Änderung von Editor, Schreibmarke oder Schutzzustand verwirft ihn;
+  späte Rückrufe einer älteren Erkennung werden über eine Epoche ignoriert).
+- `OnDeviceSpeechEngine.kt`: einzige Implementierung, `SpeechRecognizer.createOnDeviceSpeechRecognizer`
+  (Android 12+). Fehlt die On-device-Erkennung, ist das Diktat nicht verfügbar. Der allgemeine
+  `SpeechRecognizer`, der laut Plattform-Doku Ton an Server streamen kann, wird nie erzeugt.
+  Die Erkennung selbst macht der Systemdienst, nicht die App. Pro Diktat ein neuer Erkenner, der
+  danach zerstört wird.
+- `AgentPanelView.kt`: `showDictationListening` (Text direkt über „Fertig“ und „Abbrechen“),
+  `showDictationReview`, `showDictationStatus`. Textaktionen bleiben im Diktat aus.
+- `K/settings/screens/AgentDictationScreen.kt`: Erklärung, Verfügbarkeit und die einzige Stelle,
+  an der das Mikrofonrecht angefragt wird (ein Tastaturdienst kann den Systemdialog nicht zeigen).
+- Regeln: keine Aufnahme vor den drei Prüfungen; kein Einfügen ohne Klick; nie eine Auswahl
+  ersetzen; diktierter Text wird wie erzeugter Text nicht gelernt; kein Journal, weil nichts das
+  Gerät verlässt. Die vorhandene `VOICE`-Taste (Wechsel zu einer System-Sprachtastatur) ist
+  davon unabhängig.
+- Tests in `AT/`: `DictationSessionTest` (reiner JVM-Test), `DictationUiTest` (Panel, Fehlercodes,
+  Taste). Der echte Erkenner und das Mikrofon sind nicht getestet (kein Gerät mit
+  On-device-Erkennung).
+
 ## Lerndaten
 
 > Was die Tastatur aus dem Tippen lernt: pausieren, zählen, exportieren, löschen. Alles auf dem Gerät.
@@ -483,10 +520,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P19** Nach jedem Build die Datei installieren, die `tools/dev.py` als `APK:` ausgibt, und
   nach der Installation prüfen, dass die Änderung sichtbar ist. Eine alte Datei im Ordner
   `artifacts/` sah im Gerätetest wie ein wirkungsloser Fix aus.
-- **P20** Einfügen an der Schreibmarke prüft Token, Position und „nichts markiert“, aber nicht
-  den umgebenden Text (der wird bewusst nicht gelesen). Ändert die Host-App den Text, ohne die
-  Schreibmarke zu bewegen, landet die Einfügung an derselben Position im neuen Text. Deshalb
-  gibt es Einfügen nur nach Vorschau und eigenem Klick, nie automatisch.
+- **P20** Einfügen an der Schreibmarke prüft Token, Position, „Editor antwortet“ und „nichts
+  markiert“, aber nicht den umgebenden Text (der wird bewusst nicht gelesen). Ändert die
+  Host-App den Text, ohne die Schreibmarke zu bewegen, oder ist eine Bewegung noch nicht
+  gemeldet, landet die Einfügung an der alten Position im neuen Text. Deshalb gibt es Einfügen
+  nur nach Vorschau und eigenem Klick, nie automatisch.
 - **P21** `ExpandableBinaryDictionary.getWordPropertiesForSyncing` wartet 100 ms und liefert
   danach ein leeres Feld; „nichts gelernt“ und „nicht rechtzeitig gelesen“ sind damit nicht zu
   unterscheiden. Für alles, was der Nutzer als vollständig ansehen soll (Zählen, Export), nur
@@ -498,37 +536,44 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P23** Ausgabegrenzen der Provider schließen Denk-Token ein. Eine zu knappe Grenze lässt
   bezahlte Anfragen als „abgeschnitten“ enden. OpenAI steht noch bei 2048 (offener Punkt in
   `docs/HANDOFF.md`), Anthropic und Gemini bei 8192.
+- **P24** `InputConnection.getSelectedText` liefert `null` sowohl bei „nichts markiert“ als auch,
+  wenn die App nicht rechtzeitig antwortet. Wer daraus „keine Auswahl“ liest, ersetzt im
+  schlimmsten Fall später doch eine Auswahl. Vor einem Commit, der sich auf „nichts markiert“
+  stützt, erst eine Antwort des Editors verlangen (`getTextBeforeCursor(1, 0) != null`).
+- **P25** `commitText` ersetzt einen Composing-Bereich im Editor, wo auch immer die Schreibmarke
+  steht. `insertTextIfCursorUnchanged` ist nur zusammen mit der Prüfung
+  `hasActiveComposition` in `InputLogic` sicher; nie direkt aufrufen.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (155 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (161 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (3): build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (29): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (31): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
-  AndroidEditorAdapter, ApprovedActionRunner, EncryptedActionRunStore, JournaledModelCall,
-  JournaledRun, KeyboardProfileStore, LearningData, ManualWorkflowDraft, ModelSettings,
-  RunSubjectCodec, SkillBindingStore, SkillLabels, ToolApprovalSummary, ToolLauncher,
-  WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner,
-  WorkflowInputSummary, WorkflowStore
+  AndroidEditorAdapter, ApprovedActionRunner, Dictation, EncryptedActionRunStore,
+  JournaledModelCall, JournaledRun, KeyboardProfileStore, LearningData, ManualWorkflowDraft,
+  ModelSettings, OnDeviceSpeechEngine, RunSubjectCodec, SkillBindingStore, SkillLabels,
+  ToolApprovalSummary, ToolLauncher, WorkflowApprovalSummary, WorkflowBuilderContract,
+  WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
-- `AT/` (31): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (33): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
-  ApprovedWorkflowRunnerTest, CalendarToolLauncherTest, DebugPrivacyTest,
-  EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, ForkIdentityTest, InsertAtCursorTest,
-  JournaledModelCallTest, KeyboardProfileStoreTest, LearningDataTest, ManualWorkflowDraftTest,
-  MoreProvidersTest, OpenAiProviderTest, SelectedTextCommitTest, SkillBindingStoreTest,
-  SkillSettingsTest, TestRunJournal, ToolRunnerTest, WorkflowBuilderContractTest,
-  WorkflowBuilderSettingsTest, WorkflowConditionSummaryTest, WorkflowDraftRunnerTest,
-  WorkflowSettingsTest, WorkflowStoreTest
+  ApprovedWorkflowRunnerTest, CalendarToolLauncherTest, DebugPrivacyTest, DictationSessionTest,
+  DictationUiTest, EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, ForkIdentityTest,
+  InsertAtCursorTest, JournaledModelCallTest, KeyboardProfileStoreTest, LearningDataTest,
+  ManualWorkflowDraftTest, MoreProvidersTest, OpenAiProviderTest, SelectedTextCommitTest,
+  SkillBindingStoreTest, SkillSettingsTest, TestRunJournal, ToolRunnerTest,
+  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowConditionSummaryTest,
+  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `C/` (12): AiTextAction, ApplyOutcome, EditorSession, ExecutionPolicy, LocalTextActions,
   ModelProvider, PendingBatchGate, Profiles, SkillBinding, TextCondition, Tool, Workflow
 - `CT/` (8): AiTextActionTest, EditorPolicyTest, InsertionAnchorTest, LocalTextActionsTest,
@@ -546,8 +591,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/latin/spellcheck/` (1): AndroidSpellCheckerService
 - `K/latin/utils/` (1): ToolbarUtils
 - `K/settings/` (2): SettingsActivity, SettingsNavHost
-- `K/settings/screens/` (9): AgentAiScreen, AgentLearningScreen, AgentProfilesScreen,
-  AgentRunStatus, AgentSkillsScreen, AgentWorkflowsScreen, MainSettingsScreen,
+- `K/settings/screens/` (10): AgentAiScreen, AgentDictationScreen, AgentLearningScreen,
+  AgentProfilesScreen, AgentRunStatus, AgentSkillsScreen, AgentWorkflowsScreen, MainSettingsScreen,
   WorkflowBuilderDialog, WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
@@ -555,7 +600,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `app/src/debug/res/values/` (3): clip_provider, gesture_data, strings
 - `app/src/debugNoMinify/res/values/` (3): clip_provider, gesture_data, strings
 - `app/src/main/` (1): AndroidManifest
-- `app/src/main/res/drawable/` (4): ic_agent_actions, ic_skill_1, ic_skill_2, ic_skill_3
+- `app/src/main/res/drawable/` (5): ic_agent_actions, ic_agent_dictate, ic_skill_1, ic_skill_2,
+  ic_skill_3
 - `app/src/main/res/layout/` (1): main_keyboard_frame
 - `app/src/main/res/values-de/` (1): agent_strings
 - `app/src/main/res/values/` (6): agent_attrs, agent_ids, agent_strings, clip_provider,

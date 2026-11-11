@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.PersistableBundle
 import android.widget.Toast
 import dev.agentkeyboard.core.ApplyOutcome
+import dev.agentkeyboard.core.AnchorResult
 import dev.agentkeyboard.core.CaptureResult
 import dev.agentkeyboard.core.DenialReason
 import dev.agentkeyboard.core.LocalTextAction
@@ -83,6 +84,62 @@ class AgentEditorController @JvmOverloads constructor(
         },
     )
 
+    init {
+        editor.commitInsertion = { target, text ->
+            inputLogic.insertGeneratedText(text, target.position).also {
+                if (it != ApplyOutcome.REJECTED) ime.onAgentTextSubmitted()
+            }
+        }
+    }
+
+    /** Replaceable in tests. Production only ever uses the system's on-device recognizer. */
+    internal var speechEngine: SpeechEngine? = null
+    private val deviceSpeechEngine by lazy { OnDeviceSpeechEngine(ime) }
+    private val dictation = DictationSession(
+        engine = { speechEngine ?: deviceSpeechEngine },
+        captureAnchor = { editor.captureAnchor() },
+        isCurrent = { editor.isCurrent(it) },
+        insertAt = { target, text -> editor.insert(target, text) },
+        microphoneGranted = {
+            androidx.core.content.ContextCompat.checkSelfPermission(ime, android.Manifest.permission.RECORD_AUDIO) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+        },
+        languageTag = { Settings.getValues().mLocale.toLanguageTag() },
+        ui = object : DictationSession.Ui {
+            override fun listening(partial: String) { panel?.showDictationListening(partial) }
+            override fun review(text: String) { panel?.showDictationReview(text) }
+            override fun failed(error: DictationError) { panel?.showDictationStatus(error.messageResource()) }
+            override fun denied(reason: DenialReason) { panel?.showDictationStatus(reason.dictationMessageResource()) }
+        },
+    )
+
+    /**
+     * Opens the panel in dictation mode. Needs a plain cursor in an editor that allows processing;
+     * the microphone starts only after that check and only with the on-device recognizer.
+     */
+    fun openDictation() {
+        val target = panel ?: return
+        if (needsCursorRefresh) return
+        close()
+        KeyboardSwitcher.getInstance().mainKeyboardView?.closing()
+        target.rootView.findViewById<SuggestionStripView>(R.id.suggestion_strip_view)?.dismissMoreSuggestionsPanel()
+        editor.onInvalidated = { if (dictation.editorChanged()) panel?.showExpired() }
+        dictation.start()
+    }
+
+    private fun insertDictation() {
+        editor.onInvalidated = null
+        when (dictation.insert()) {
+            ApplyOutcome.SUBMITTED -> close()
+            ApplyOutcome.REJECTED -> panel?.showExpired()
+            ApplyOutcome.UNKNOWN -> {
+                needsCursorRefresh = true
+                panel?.showStatus(R.string.agent_panel_apply_unknown, true)
+                runCatching { ime.currentInputConnection?.requestCursorUpdates(InputConnection.CURSOR_UPDATE_IMMEDIATE) }
+            }
+        }
+    }
+
     fun startEditor(info: EditorInfo) {
         close()
         needsCursorRefresh = false
@@ -120,6 +177,7 @@ class AgentEditorController @JvmOverloads constructor(
         panel?.onWorkflows = ::chooseWorkflows
         panel?.onWorkflow = ::prepareWorkflow
         panel?.onTool = ::prepareTool
+        panel?.onDictate = ::openDictation
         panel?.onSettings = {
             close()
             ime.startActivity(android.content.Intent(ime, helium314.keyboard.settings.SettingsActivity::class.java)
@@ -187,6 +245,7 @@ class AgentEditorController @JvmOverloads constructor(
     }
 
     private fun discardStaleContext() {
+        dictation.cancel()
         skillJob?.cancel()
         skillJob = null
         cloudRunner.cancel()
@@ -290,6 +349,10 @@ class AgentEditorController @JvmOverloads constructor(
     }
 
     private fun sendCloud() {
+        if (dictation.isActive) { // the same button means "done speaking" while the microphone is on
+            dictation.finish()
+            return
+        }
         val tool = pendingTool
         if (tool != null) {
             pendingTool = null // One approval for exactly the previewed request, consumed before start.
@@ -329,6 +392,10 @@ class AgentEditorController @JvmOverloads constructor(
     }
 
     private fun cancelCloud() {
+        if (dictation.cancel()) {
+            panel?.showDictationStatus(R.string.agent_dictation_cancelled)
+            return
+        }
         val toolOnly = pendingTool != null && !cloudRunner.isRunning
         cloudRunner.cancel()
         pendingApproval = null
@@ -381,6 +448,10 @@ class AgentEditorController @JvmOverloads constructor(
     }
 
     private fun applyPrepared() {
+        if (dictation.isActive) {
+            insertDictation()
+            return
+        }
         val source = snapshot ?: return
         val result = preparedResult ?: return
         if (!canApply) return
@@ -405,9 +476,17 @@ class AgentEditorController @JvmOverloads constructor(
     }
 
     private fun copyPrepared() {
+        if (dictation.isActive) {
+            if (dictation.editorChanged()) { panel?.showExpired(); return }
+            copyToClipboard(dictation.reviewText ?: return)
+            return
+        }
         val source = snapshot ?: return
         if (!editor.isCurrent(source)) { discardStaleContext(); return }
-        val text = preparedResult ?: return
+        copyToClipboard(preparedResult ?: return)
+    }
+
+    private fun copyToClipboard(text: String) {
         val clip = ClipData.newPlainText(ime.getString(R.string.english_ime_name), text)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
             clip.description.extras = PersistableBundle().apply { putBoolean("android.content.extra.IS_SENSITIVE", true) }
@@ -416,6 +495,7 @@ class AgentEditorController @JvmOverloads constructor(
     }
 
     fun close() {
+        dictation.cancel()
         skillJob?.cancel()
         skillJob = null
         cloudRunner.cancel()
@@ -469,4 +549,22 @@ private fun DenialReason.messageResource() = when (this) {
     DenialReason.COMPOSITION -> R.string.agent_panel_composing
     DenialReason.STALE_CONTEXT -> R.string.agent_panel_stale
     else -> R.string.agent_panel_select_text
+}
+
+private fun DictationError.messageResource() = when (this) {
+    DictationError.UNAVAILABLE -> R.string.agent_dictation_unavailable
+    DictationError.PERMISSION -> R.string.agent_dictation_permission
+    DictationError.LANGUAGE -> R.string.agent_dictation_language
+    DictationError.NO_SPEECH -> R.string.agent_dictation_no_speech
+    DictationError.BUSY -> R.string.agent_dictation_busy
+    DictationError.FAILED -> R.string.agent_dictation_failed
+}
+
+private fun DenialReason.dictationMessageResource() = when (this) {
+    DenialReason.PASSWORD, DenialReason.INCOGNITO, DenialReason.NO_LEARNING, DenialReason.LOCKED -> R.string.agent_panel_protected
+    DenialReason.COMPOSITION -> R.string.agent_dictation_composing
+    DenialReason.STALE_CONTEXT -> R.string.agent_panel_stale
+    DenialReason.TOO_LARGE -> R.string.agent_dictation_too_long
+    DenialReason.NO_CURSOR -> R.string.agent_dictation_no_cursor
+    else -> R.string.agent_dictation_no_field
 }

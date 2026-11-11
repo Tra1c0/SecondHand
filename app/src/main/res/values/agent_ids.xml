@@ -26,5 +26,6 @@
     <item name="agent_cloud_cancel" type="id" />
     <item name="agent_cloud_settings" type="id" />
     <item name="agent_tool_test" type="id" />
+    <item name="agent_dictate" type="id" />
     <item name="agent_tool_calendar" type="id" />
 </resources>

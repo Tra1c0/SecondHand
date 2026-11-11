@@ -72,6 +72,14 @@ E stammt bisher nur aus dem Emulator-Test vom 2026-11-11 (Android 15, Protokoll 
 | --- | --- | --- |
 | Getrennte Profile | Design, Tastenanordnung und Gesten getrennt speichern, laden und teilen. (3) | T |
 
+## Diktat
+
+| Funktion | Was sie macht | Status |
+| --- | --- | --- |
+| Diktieren auf dem Gerät | Knopf „Diktieren“ im Aktionspanel oder die Toolbar-Taste „Diktieren (auf dem Gerät)“. Die Tastatur nutzt nur die Erkennung, die Android für Spracherkennung auf dem Gerät bereitstellt (ab Android 12); fehlt sie, gibt es kein Diktat. Getestet ist der Ablauf mit einem nachgebauten Erkenner; mit echtem Mikrofon und echter Erkennung noch nie ausprobiert. (18a) | T |
+| Vorschau vor dem Einfügen | Das Gehörte wird erst angezeigt. Eingefügt wird nur nach deinem Klick, an der Schreibmarke, und nur wenn sich im Textfeld nichts geändert hat. Eine Auswahl wird nie ersetzt. (18a) | T |
+| Mikrofon erlauben | Unter Einstellungen → Diktat erlaubst du das Mikrofon. Ohne Erlaubnis startet keine Aufnahme. (18a) | T |
+
 ## Gelernte Wörter
 
 | Funktion | Was sie macht | Status |

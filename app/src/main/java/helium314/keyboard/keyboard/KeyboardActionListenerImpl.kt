@@ -119,6 +119,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
             KeyCode.SKILL_1 -> { latinIME.agentEditorController.openSkill(1); return }
             KeyCode.SKILL_2 -> { latinIME.agentEditorController.openSkill(2); return }
             KeyCode.SKILL_3 -> { latinIME.agentEditorController.openSkill(3); return }
+            KeyCode.AGENT_DICTATE -> { latinIME.agentEditorController.openDictation(); return }
             KeyCode.TOGGLE_AUTOCORRECT -> return settings.toggleAutoCorrect()
             KeyCode.TOGGLE_INCOGNITO_MODE -> {
                 settings.toggleAlwaysIncognitoMode()

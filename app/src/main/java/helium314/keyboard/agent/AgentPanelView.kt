@@ -28,6 +28,7 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
     var onWorkflows: (() -> Unit)? = null
     var onWorkflow: ((WorkflowDefinition) -> Unit)? = null
     var onTool: ((ToolId) -> Unit)? = null
+    var onDictate: (() -> Unit)? = null
     private val source: TextView
     private val result: TextView
     private val status: TextView
@@ -38,6 +39,7 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
     private val sendButton: Button
     private val cancelButton: Button
     private val workflowChoices: LinearLayout
+    private val dictateButton: Button
     private val actionButtons = mutableListOf<Button>()
     private val dp = resources.displayMetrics.density
 
@@ -81,6 +83,8 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
         heading.addView(button(R.string.agent_panel_close, R.id.agent_close) { onClose?.invoke() })
         body.addView(heading)
         body.addView(label(R.string.agent_panel_local_description))
+        dictateButton = button(R.string.agent_dictation_start, R.id.agent_dictate) { onDictate?.invoke() }
+        body.addView(dictateButton)
         status = label(R.string.agent_panel_select_text, R.id.agent_status)
         status.accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         body.addView(status)
@@ -242,13 +246,17 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
         result.text = ""
         status.setText(R.string.agent_panel_select_text)
         actionButtons.forEach { it.isEnabled = false }
+        dictateButton.isEnabled = false
         applyButton.isEnabled = false
         copyButton.isEnabled = false
         visibility = View.GONE
     }
 
+    /** Back to the neutral labels. Every state calls this first and then sets its own. */
     private fun hideCloudControls() {
         cancelButton.setText(R.string.agent_cloud_cancel)
+        applyButton.setText(R.string.agent_panel_apply)
+        dictateButton.isEnabled = true
         cloudConfirmation.text = ""
         cloudConfirmation.visibility = View.GONE
         sendButton.visibility = View.GONE
@@ -277,9 +285,61 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
         hideCloudControls()
         status.setText(message)
         actionButtons.forEach { it.isEnabled = false }
+        dictateButton.isEnabled = false
         applyButton.isEnabled = false
         copyButton.isEnabled = false
         cancelButton.visibility = View.VISIBLE
+    }
+
+    /** The microphone is on. Text actions need a selection and stay off; only done and cancel work. */
+    fun showDictationListening(partial: String) {
+        hideWorkflowChoices()
+        hideCloudControls()
+        source.text = ""
+        result.text = ""
+        resultHeading.setText(R.string.agent_panel_result)
+        status.setText(R.string.agent_dictation_listening)
+        // Shown directly above the two buttons, so the words and the controls are visible together.
+        cloudConfirmation.text = partial
+        cloudConfirmation.visibility = View.VISIBLE
+        actionButtons.forEach { it.isEnabled = false }
+        dictateButton.isEnabled = false
+        applyButton.isEnabled = false
+        copyButton.isEnabled = false
+        sendButton.setText(R.string.agent_dictation_done)
+        sendButton.isEnabled = true
+        sendButton.visibility = View.VISIBLE
+        cancelButton.setText(R.string.agent_tool_cancel)
+        cancelButton.visibility = View.VISIBLE
+        visibility = View.VISIBLE
+        scrollTo(0, 0)
+    }
+
+    /** The microphone is off. The heard text is shown; inserting it is a separate click. */
+    fun showDictationReview(text: String) {
+        hideWorkflowChoices()
+        hideCloudControls()
+        source.text = ""
+        resultHeading.setText(R.string.agent_dictation_heard)
+        result.text = text
+        result.maxLines = 6
+        result.ellipsize = TextUtils.TruncateAt.END
+        status.setText(R.string.agent_dictation_review)
+        actionButtons.forEach { it.isEnabled = false }
+        applyButton.setText(R.string.agent_dictation_insert)
+        applyButton.isEnabled = true
+        copyButton.isEnabled = true
+        visibility = View.VISIBLE
+        post { if (applyButton.isEnabled) smoothScrollTo(0, resultHeading.top) }
+    }
+
+    /** Dictation did not start or ended without text: the microphone is off and nothing is kept. */
+    fun showDictationStatus(message: Int) {
+        showStatus(message, true)
+        source.text = ""
+        result.text = ""
+        resultHeading.setText(R.string.agent_panel_result)
+        scrollTo(0, 0)
     }
 
     private fun hideWorkflowChoices() {

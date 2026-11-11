@@ -63,6 +63,7 @@ private fun setToolbarButtonActivatedState(button: ImageButton) {
 
 fun getCodeForToolbarKey(key: ToolbarKey) = Settings.getInstance().getCustomToolbarKeyCode(key) ?: when (key) {
     AGENT -> KeyCode.AGENT_ACTIONS
+    DICTATE -> KeyCode.AGENT_DICTATE
     SKILL_1 -> KeyCode.SKILL_1
     SKILL_2 -> KeyCode.SKILL_2
     SKILL_3 -> KeyCode.SKILL_3
@@ -125,7 +126,7 @@ fun getCodeForToolbarKeyLongClick(key: ToolbarKey) = Settings.getInstance().getC
 enum class ToolbarKey {
     VOICE, CLIPBOARD, NUMPAD, DPAD, UNDO, REDO, SETTINGS, SELECT_ALL, SELECT_WORD, COPY, CUT, PASTE, ONE_HANDED, FLOATING, SPLIT,
     INCOGNITO, AUTOCORRECT, CLEAR_CLIPBOARD, CLOSE_HISTORY, EMOJI, LEFT, RIGHT, UP, DOWN, WORD_LEFT, WORD_RIGHT,
-    PAGE_UP, PAGE_DOWN, FULL_LEFT, FULL_RIGHT, PAGE_START, PAGE_END, BACKGROUND_GATHERING, AGENT, SKILL_1, SKILL_2, SKILL_3
+    PAGE_UP, PAGE_DOWN, FULL_LEFT, FULL_RIGHT, PAGE_START, PAGE_END, BACKGROUND_GATHERING, AGENT, SKILL_1, SKILL_2, SKILL_3, DICTATE
 }
 
 enum class ToolbarMode {

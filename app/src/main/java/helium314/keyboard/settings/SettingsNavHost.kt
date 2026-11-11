@@ -17,6 +17,7 @@ import helium314.keyboard.latin.common.LocaleUtils.constructLocale
 import helium314.keyboard.latin.settings.SettingsSubtype.Companion.toSettingsSubtype
 import helium314.keyboard.latin.settings.getTransitionAnimationScale
 import helium314.keyboard.settings.screens.AboutScreen
+import helium314.keyboard.settings.screens.AgentDictationScreen
 import helium314.keyboard.settings.screens.AgentLearningScreen
 import helium314.keyboard.settings.screens.AgentProfilesScreen
 import helium314.keyboard.settings.screens.AgentAiScreen
@@ -89,6 +90,7 @@ fun SettingsNavHost(
                 onClickAgentSkills = { navController.navigate(SettingsDestination.AgentSkills) },
                 onClickAgentWorkflows = { navController.navigate(SettingsDestination.AgentWorkflows) },
                 onClickAgentLearning = { navController.navigate(SettingsDestination.AgentLearning) },
+                onClickAgentDictation = { navController.navigate(SettingsDestination.AgentDictation) },
             )
         }
         composable(SettingsDestination.About) {
@@ -101,6 +103,7 @@ fun SettingsNavHost(
         composable(SettingsDestination.AgentSkills) { AgentSkillsScreen(onClickBack = ::goBack) }
         composable(SettingsDestination.AgentWorkflows) { AgentWorkflowsScreen(onClickBack = ::goBack) }
         composable(SettingsDestination.AgentLearning) { AgentLearningScreen(onClickBack = ::goBack) }
+        composable(SettingsDestination.AgentDictation) { AgentDictationScreen(onClickBack = ::goBack) }
         composable(SettingsDestination.TextCorrection) {
             TextCorrectionScreen(onClickBack = ::goBack)
         }
@@ -168,6 +171,7 @@ object SettingsDestination {
     const val AgentSkills = "agent_skills"
     const val AgentWorkflows = "agent_workflows"
     const val AgentLearning = "agent_learning"
+    const val AgentDictation = "agent_dictation"
     const val About = "about"
     const val TextCorrection = "text_correction"
     const val Preferences = "preferences"

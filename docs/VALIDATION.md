@@ -865,6 +865,61 @@ Nach den Korrekturen: Agent-Suite 216/0 (zwei neue Fälle, zwei erweiterte), Ker
 Lint bestanden. Die Punkte 1 und 4 betreffen die native Wörterbuchschicht und sind nur am Code
 geprüft, nicht durch einen Test mit echten Lerndaten.
 
+## Lesender Review von 18a1 und Korrekturen
+
+Der nach Projektregel nötige unabhängige Review der Änderung an `InputLogic` und
+`RichInputConnection` (`cea7096`) fand keinen Blocker. Bestätigt: Die Umstellung in `InputLogic`
+ist bis auf eine Zeile identisch und verhaltensgleich; `insertTextIfCursorUnchanged` hat dieselben
+Schutzprüfungen, dieselbe Fehlerbehandlung und dieselbe Cache-Auffrischung wie die Ersetzung; der
+Adapter verbraucht den Anker vor jedem Commit; kein veralteter Anker passiert die Policy.
+
+Befunde, am Code nachvollzogen und behoben:
+
+1. Fail-open: `getSelectedText` liefert `null` auch, wenn die App nicht antwortet. In einer
+   eingefrorenen App hätte ein später verarbeiteter Commit eine inzwischen entstandene Auswahl
+   ersetzen können. Jetzt wird vor dem Commit eine Antwort des Editors verlangt
+   (`getTextBeforeCursor(1, 0) != null`), sonst gibt es keinen Commit.
+2. Testlücken: Nach UNKNOWN wird jetzt geprüft, dass die Caches verworfen sind; neu sind die
+   Fälle „Commit gelungen, Auffrischung gescheitert“ und „Editor antwortet nicht“; der Text nach
+   verlorener Antwort wird geprüft. Drei Assertions, die auch ohne den geprüften Code bestanden
+   hätten, wurden ersetzt (leerer Text und Position -1 jetzt in Zuständen, in denen nur die
+   Schutzprüfung den Commit verhindert; Lesezähler statt wirkungsloser Ausnahme; exakter
+   `toString`).
+3. `InputLogic.insertGeneratedText` hatte keinen Aufrufer und keinen Test. Jetzt vier
+   `InputLogicTest`-Fälle: Einfügen mit konsistenten Caches und einzelnem Löschen danach;
+   Ablehnung während einer Komposition ohne Änderung der Lernunterdrückung; automatisches
+   Leerzeichen nach gewähltem Vorschlag; gleiches Verhalten wie Tippen in Text- und URL-Feld.
+
+Aus den Hinweisen des Reviews für 18a2 übernommen: ein ausstehendes automatisches Leerzeichen
+wird beim Einfügen mitgesetzt (sonst „wordHallo“); eigene Meldungen für „keine Schreibmarke“ und
+„Wort noch in Arbeit“.
+
+Ein eigener neuer Testfall für URL-Felder ging zunächst von einer falschen Annahme über das
+Upstream-Verhalten aus und wurde durch einen Vergleich mit dem Tippen im selben Zustand ersetzt.
+
+## Etappe18a2 — Diktat auf dem Gerät
+
+- Kern 54/0, Agent-Suite 236/0 (216 zuvor; elf `DictationSessionTest`, drei `DictationUiTest`,
+  zwei zusätzliche `InsertAtCursorTest`, vier `InputLogicTest`), Build und Lint bestanden.
+- Ablauf (`DictationSessionTest`, reiner JVM-Test mit nachgebautem Erkenner): keine Aufnahme bei
+  Auswahl, Passwortfeld, Inkognito, fehlendem Erkenner oder fehlendem Mikrofonrecht (der Erkenner
+  wird in keinem dieser Fälle gestartet); Gehörtes wird nie von selbst eingefügt; Einfügen nur
+  einmal; während des Zuhörens kein Einfügen; Änderung des Editors beim Zuhören stoppt das
+  Mikrofon und ignoriert späte Ergebnisse; Änderung in der Vorschau verwirft den Text; Text nach
+  bewegter Schreibmarke wird nicht angeboten; Abbruch, Fehler, Stille, Überlänge und ungültiger
+  Text hinterlassen nichts; sofort scheiternder Erkenner lässt keine Sitzung offen; späte
+  Rückrufe einer alten Erkennung erreichen keine neue; unklares Einfügen wird nicht wiederholt.
+- Oberfläche (`DictationUiTest`): Panel trennt Zuhören, Vorschau und Einfügen; Beschriftungen
+  fallen danach auf „Ersetzen“ zurück; auf SDK 28 ist der Erkenner „nicht verfügbar“ und ein Start
+  meldet das, statt auszuweichen; Netzfehler des Erkenners werden nie zu „online wiederholen“;
+  die Taste hat einen eigenen Code und ist standardmäßig nicht in der Toolbar.
+- API gegen die offizielle Referenz geprüft (`docs/PROVIDERS.md` → Sprache und lokale Modelle).
+- Neue Berechtigung `RECORD_AUDIO` für die ganze APK; sie wird nur auf der Seite „Diktat“
+  angefragt.
+- Nicht geprüft: echter Erkenner, echtes Mikrofon, ob Android dem Tastaturdienst die Aufnahme
+  erlaubt, Sprachpakete, die Einstellungsseite samt Berechtigungsdialog, das Symbol der Taste.
+  Das Emulator-Abbild hat keine On-device-Erkennung. Das gehört auf ein echtes Telefon (G2).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

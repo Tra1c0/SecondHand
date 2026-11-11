@@ -12,7 +12,8 @@ Reihenfolge von oben nach unten.
 
 - **G2 Restlicher Gerätetest.** Was G1 nicht abdeckt (Liste: `docs/VALIDATION.md` → G1 → Nicht
   geprüft): Rotation, TalkBack, Gesten, Feld- und App-Wechsel, Inkognito, Sperre, Direct Boot,
-  Skill Keys, Workflows, Act Builder. Am besten auf einem echten Telefon; im Emulator ohne KVM
+  Skill Keys, Workflows, Act Builder, dazu Diktat mit echtem Mikrofon und die Seite „Gelernte
+  Wörter“ mit echten Lerndaten. Am besten auf einem echten Telefon; im Emulator ohne KVM
   dauert jeder Schritt Minuten. (M)
 - **16c Externe Dienste, einzeln.** Gmail, Google Calendar und Notion, jeweils mit eigener
   Anmeldung (OAuth) und Freigabe. Blockiert, bis der Owner eigene OAuth-Zugänge bei Google und
@@ -22,10 +23,10 @@ Reihenfolge von oben nach unten.
   Wendungen), und gibt das auf Wunsch den KI-Aktionen als Stilhinweis mit. Erzeugter oder
   eingefügter Text zählt nie als Zustimmung. Vor dem Bau klären: woraus gelernt wird und was
   davon an den KI-Anbieter geht. (M)
-- **18 Sprache und lokale KI, getrennt.** Eigenes Diktat auf dem Gerät (Android 12+, ohne
-  stillen Rückfall auf einen Cloud-Erkenner) mit sicherer Einfügevorschau. Danach echte
-  optionale lokale KI mit einem selbst importierten Modell, ohne automatische Downloads. Die
-  heutige Sprachtaste gibt nur an eine andere Sprach-Tastatur weiter. (L)
+- **18b Lokale KI.** Echte optionale lokale KI mit einem selbst importierten Modell, ohne
+  automatische Downloads, mit begrenztem Speicher und begrenzter Ausgabe. Braucht eine gepinnte
+  native Laufzeit (z. B. llama.cpp) für alle ABIs und ein Gerät mit Modell zum Prüfen; ohne
+  beides wird nichts als fertig gemeldet. (L)
 - **A Abschluss.** Restliche Härtungen und Lint-Befunde, echte Dienstprüfungen mit eigenem
   Schlüssel, wiederholte Gerätetests, Anleitung für Installation und Nutzung. (M)
 
@@ -34,6 +35,7 @@ Reihenfolge von oben nach unten.
 - **U1** Ein eigenes kleines Test-Editor-APK für reproduzierbare Gerätetests. (S)
 - **U2** Werkzeuge auch als Workflow-Schritt und auf Skill Keys. (M)
 - **U3** Kalenderentwurf mit erkanntem Datum und erkannter Uhrzeit. (M)
+- **U4** Diktiertes direkt an eine KI-Aktion weitergeben (z. B. diktieren und korrigieren). (M)
 
 ## Unsortiert
 

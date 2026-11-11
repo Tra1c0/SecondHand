@@ -17,3 +17,8 @@
 - Behoben (nach Review): Zählen und Exportieren gelernter Wörter melden einen Fehler, statt
   bei einem langsamen Wörterbuch „0 Wörter“ anzuzeigen. Zu lange KI-Antworten von Anthropic und
   Gemini werden als „zu lang“ gemeldet.
+- Neu: Diktieren auf dem Gerät. Knopf „Diktieren“ im Aktionspanel oder die Toolbar-Taste
+  „Diktieren (auf dem Gerät)“. Das Gehörte wird erst angezeigt und nur nach deinem Klick an der
+  Schreibmarke eingefügt. Erlaube vorher unter Einstellungen → Diktat das Mikrofon. Braucht
+  Android 12 und die Spracherkennung auf dem Gerät; mit echtem Mikrofon noch nicht ausprobiert.
+- Neue Berechtigung: Mikrofon (nur für das Diktat).
