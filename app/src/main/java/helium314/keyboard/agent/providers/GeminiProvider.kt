@@ -31,7 +31,7 @@ class GeminiProvider(
                     put("role", "user")
                     put("parts", buildJsonArray { add(buildJsonObject { put("text", request.input) }) })
                 }) })
-                put("generationConfig", buildJsonObject { put("maxOutputTokens", 2048); put("candidateCount", 1) })
+                put("generationConfig", buildJsonObject { put("maxOutputTokens", MAX_TOKENS); put("candidateCount", 1) })
             }.toString()
         }, { secret, body ->
             Request.Builder()
@@ -42,6 +42,9 @@ class GeminiProvider(
     }
 
     companion object {
+        /** Thought tokens count against this cap on thinking models; leave room for them. */
+        const val MAX_TOKENS = 8192
+
         fun validModel(model: String) = model.matches(Regex("[a-z0-9][a-z0-9.-]{0,99}")) && !model.contains("..")
 
         private val blockedReasons = setOf("SAFETY", "RECITATION", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII", "IMAGE_SAFETY")
@@ -55,7 +58,8 @@ class GeminiProvider(
                 when (candidate["finishReason"]?.jsonPrimitive?.content) {
                     "STOP" -> Unit
                     in blockedReasons -> throw CloudFailure(CloudError.REFUSED)
-                    else -> throw CloudFailure(CloudError.INVALID_RESPONSE) // truncated or unknown
+                    "MAX_TOKENS" -> throw CloudFailure(CloudError.TOO_LARGE) // cut off
+                    else -> throw CloudFailure(CloudError.INVALID_RESPONSE)
                 }
                 val text = StringBuilder()
                 candidate.getValue("content").jsonObject.getValue("parts").jsonArray.forEach { part ->

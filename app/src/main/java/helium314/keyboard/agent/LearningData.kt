@@ -57,29 +57,50 @@ object LearningData {
     }
 }
 
-/** Reads the engine's per-language typing history. Call off the main thread. */
+/**
+ * Reads the engine's per-language typing history. Call off the main thread.
+ * It works on the same dictionary objects the running keyboard uses, so a read shows what the
+ * keyboard holds and a delete empties exactly those objects.
+ */
 class UserHistoryLearningSource(context: Context) : LearningSource {
     // Same storage context as the engine that writes these files.
     private val storage = AgentStorageContexts.keyboard(context.applicationContext)
 
-    override fun languages(): List<String> = (storage.filesDir.list() ?: emptyArray())
-        .filter { it.startsWith(PREFIX) && it.endsWith(SUFFIX) }
+    private fun historyEntries() = (storage.filesDir.list() ?: emptyArray()).filter { it.startsWith(PREFIX) }
+
+    override fun languages(): List<String> = historyEntries()
+        .filter { it.endsWith(SUFFIX) }
         .map { it.removePrefix(PREFIX).removeSuffix(SUFFIX) }
         .filter { it.isNotEmpty() && it.matches(Regex("[A-Za-z0-9-]{1,40}")) }
         .distinct().sorted()
 
+    private fun dictionary(language: String) =
+        PersonalizationHelper.getUserHistoryDictionary(storage, Locale.forLanguageTag(language))
+
+    /** Complete or an exception: a slow or unloaded dictionary is never reported as "no words". */
     override fun words(language: String): List<LearnedWord> {
         require(language in languages())
-        val dictionary = PersonalizationHelper.getUserHistoryDictionary(storage, Locale.forLanguageTag(language))
-        return dictionary.wordPropertiesForSyncing
+        val properties = checkNotNull(dictionary(language).readAllWordProperties(READ_TIMEOUT_MS)) { "UNREADABLE" }
+        return properties
             .filter { !it.mIsNotAWord && !it.mIsBeginningOfSentence && it.mWord.isNotEmpty() }
             .map { LearnedWord(it.mWord, it.mProbabilityInfo.mProbability.coerceIn(0, 255)) }
     }
 
-    override fun deleteAll() = PersonalizationHelper.removeAllUserHistoryDictionaries(storage)
+    /**
+     * Empties every history in place and waits for it. The dictionaries stay registered, so the
+     * running keyboard and this screen keep sharing one object per language.
+     */
+    override fun deleteAll() {
+        val known = languages()
+        known.forEach { language -> check(dictionary(language).clearAndWait(READ_TIMEOUT_MS)) { "NOT_CLEARED" } }
+        // Leftovers that are not a language's dictionary (temporary or malformed entries).
+        val live = known.map { PREFIX + it + SUFFIX }.toSet()
+        historyEntries().filter { it !in live }.forEach { java.io.File(storage.filesDir, it).deleteRecursively() }
+    }
 
     private companion object {
         const val PREFIX = "UserHistoryDictionary."
         const val SUFFIX = ".dict"
+        const val READ_TIMEOUT_MS = 10_000L
     }
 }

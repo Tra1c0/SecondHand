@@ -371,6 +371,10 @@ class AgentEditorController @JvmOverloads constructor(
             panel?.showStatus(R.string.agent_workflow_provider_unavailable)
             return
         }
+        if (definition.steps.filterIsInstance<WorkflowStep.Ai>().any { !CloudProviders.validModel(it.provider, it.model) }) {
+            panel?.showStatus(R.string.agent_workflow_model_invalid)
+            return
+        }
         pendingWorkflow = definition
         panel?.showWorkflowConfirmation(workflowApprovalSummary(ime, definition, source.text.length),
             definition.steps.any { it is WorkflowStep.Ai })
@@ -447,7 +451,8 @@ internal fun CloudError?.cloudMessage() = when (this) {
     CloudError.RATE_LIMIT -> R.string.agent_cloud_rate_limit
     CloudError.TIMEOUT -> R.string.agent_cloud_timeout
     CloudError.REFUSED -> R.string.agent_cloud_refused
-    CloudError.INVALID_RESPONSE, CloudError.TOO_LARGE -> R.string.agent_cloud_invalid_response
+    CloudError.INVALID_RESPONSE -> R.string.agent_cloud_invalid_response
+    CloudError.TOO_LARGE -> R.string.agent_cloud_too_long
     CloudError.BUSY -> R.string.agent_cloud_busy
     else -> R.string.agent_cloud_network
 }

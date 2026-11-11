@@ -55,6 +55,11 @@ fun AgentLearningScreen(onClickBack: () -> Unit, sourceFactory: (() -> LearningS
         exportContent = null
         if (uri != null && encoded != null) run(R.string.agent_file_exported) {
             withContext(Dispatchers.IO) { AgentDocumentIO.writeJson(context, uri, encoded, LearningData.MAX_EXPORT_BYTES) }
+        } else if (uri != null) {
+            // The screen was recreated while the file picker was open: the words were deliberately
+            // not kept. Say so and remove the empty document instead of leaving a 0-byte "export".
+            runCatching { android.provider.DocumentsContract.deleteDocument(context.contentResolver, uri) }
+            notice = R.string.agent_learning_failed
         }
     }
 

@@ -304,8 +304,9 @@ class DictionaryFacilitatorImpl : DictionaryFacilitator {
         if (words.size == 1) // ignore if more than a single word, which only happens with (badly working) spaceAwareGesture
             adjustConfidences(suggestion, wasAutoCapitalized)
 
-        // Learning paused by the user: nothing new is stored, neither in the typing history nor
-        // in the personal dictionary. Language confidence above is in memory only.
+        // Learning paused by the user: typing changes no stored data. Nothing is added to the typing
+        // history or the personal dictionary, and a typed word is not taken off the blacklist either.
+        // Language confidence above is in memory only.
         if (LearningData.blocksLearning(Settings.getValues().mLearningPaused)) return
 
         // Add word to user dictionary if it is in no other dictionary except user history dictionary (i.e. typed again).
@@ -820,7 +821,7 @@ private class DictionaryGroup(
                     if (blacklistFile.isDirectory) blacklistFile.delete()
                     blacklistFile.appendText("$word\n")
                 } catch (e: IOException) {
-                    Log.e(TAG, "Exception while trying to add word \"$word\" to blacklist ${blacklistFile.name}", e)
+                    Log.e(TAG, "Exception while trying to add a word to blacklist ${blacklistFile.name}", e)
                 }
             }
         }
@@ -834,7 +835,7 @@ private class DictionaryGroup(
                     val newLines = blacklistFile.readLines().filterNot { it == word }
                     blacklistFile.writeText(newLines.joinToString("\n"))
                 } catch (e: IOException) {
-                    Log.e(TAG, "Exception while trying to remove word \"$word\" to blacklist ${blacklistFile.name}", e)
+                    Log.e(TAG, "Exception while trying to remove a word to blacklist ${blacklistFile.name}", e)
                 }
             }
         }

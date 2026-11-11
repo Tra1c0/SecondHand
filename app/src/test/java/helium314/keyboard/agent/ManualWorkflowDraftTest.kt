@@ -38,6 +38,16 @@ class ManualWorkflowDraftTest {
         assertEquals(WorkflowInput.StepResult(edited.steps[0].id), edited.steps[1].input)
     }
 
+    @Test fun modelMustBeUsableByTheStepsOwnProvider() {
+        fun draft(provider: WorkflowProvider, model: String) = ManualWorkflowDraft(UUID.randomUUID().toString(), 1, "Example",
+            listOf(ManualWorkflowStep(BuiltinAction.CORRECT, provider = provider, model = model)))
+        // The file format allows this ID, Gemini's URL path does not: caught when saving, not after approval.
+        assertEquals("gpt-6:luna_X", (draft(WorkflowProvider.OPENAI, "gpt-6:luna_X").definition().steps.single() as WorkflowStep.Ai).model)
+        assertFails { draft(WorkflowProvider.GEMINI, "gpt-6:luna_X").definition() }
+        assertFails { draft(WorkflowProvider.GEMINI, "").definition() }
+        assertEquals(WorkflowProvider.GEMINI, (draft(WorkflowProvider.GEMINI, "gemini-test-1.0").definition().steps.single() as WorkflowStep.Ai).provider)
+    }
+
     @Test fun explicitOriginalInputIsNotChangedIntoAnIntermediateReference() {
         val draft = ManualWorkflowDraft.new().copy(name = "Example")
         val definition = draft.copy(steps = draft.steps.map { it.copy(inputStepIndex = null) }).definition()

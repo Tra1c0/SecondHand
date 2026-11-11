@@ -231,4 +231,6 @@
     <string name="agent_learning_delete_confirm">Delete everything the keyboard learned from your typing, for all languages? Your personal dictionary is not changed. This cannot be undone.</string>
     <string name="agent_learning_deleted">Learned words deleted.</string>
     <string name="agent_learning_failed">That did not work. Nothing was changed or exported.</string>
+    <string name="agent_cloud_too_long">The answer was too long and was discarded. Nothing is inserted. Try a shorter selection.</string>
+    <string name="agent_workflow_model_invalid">A step of this workflow has a model ID its provider cannot use. Edit the workflow. No request was sent.</string>
 </resources>

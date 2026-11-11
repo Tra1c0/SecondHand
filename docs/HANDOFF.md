@@ -10,12 +10,13 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
 - In Arbeit: Der Owner hat am 2026-11-11 die Fortsetzung beauftragt („Mach weiter“).
-- Fertig: Etappen 0–17a und der erste Gerätetest G1 (drei gefundene Bedienfehler behoben).
+- Fertig: Etappen 0–17a, 18a1 (sichere Einfügestelle), Gerätetest G1, ein lesender Review mit
+  sechs behobenen Befunden.
 - Letzter Build: 0.1.0 Debug, `artifacts/…-universal.apk` (alle ABIs), nicht im Repo.
-- Geprüft: Kern 52/0, Agent-Suite 210/0, Build, Lint; Vollregression 387 Tests mit 7 Fehlern
+- Geprüft: Kern 54/0, Agent-Suite 216/0, Build, Lint; Vollregression 387 Tests mit 7 Fehlern
   (fünf Baseline, zwei Link-Tests am Netzwerkfilter dieser Umgebung).
-- Danach: `docs/ROADMAP.md` → Beschlossen (18, G2, A; 17b braucht eine Klärung mit dem Owner;
-  16c wartet auf OAuth-Zugänge).
+- Danach: `docs/ROADMAP.md` → Beschlossen (18a2 Diktat, 18b lokale KI, G2, A). 17b braucht eine
+  Klärung mit dem Owner, 16c wartet auf OAuth-Zugänge.
 - Wartet auf den Owner: OAuth-Zugänge für 16c; Entscheidung über den Branch `main`.
 
 ## Offene Punkte
@@ -46,17 +47,20 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 6. **Android 5 (API 21/22)** ist nicht geprüft, weil Robolectric API 21 nicht unterstützt. Rein
    lokale Workflows sind dort ohne Journal verfügbar, Cloud ist ohne sicheren Speicher gesperrt.
 7. **Alte `GlobalScope`-View-Callbacks** aus Upstream sind für eine eigene Härtung vorgemerkt.
-8. **Lint:** Die geerbte Baseline `app/lint-baseline-upstream.xml` und die Warnungen bleiben
-   bestehen.
-9. **Gemini-Vertrag nicht neu prüfbar.** Die Doku-Hosts `ai.google.dev` und
-   `aistudio.google.com` sind in der Cloud-Umgebung „SecondHand“ nicht freigegeben. Der
-   Anthropic-Vertrag in `docs/PROVIDERS.md` wurde am 2026-11-11 gegen die offizielle Doku
-   bestätigt (Bearer-Schlüssel, `anthropic-version: 2026-10-21`, kein `temperature`,
-   `stop_reason` u. a. `end_turn`, `max_tokens`, `refusal`).
-10. **Externe Dienste (Gmail, Google Calendar, Notion)** brauchen vom Owner registrierte
+8. **Ausgabegrenze bei OpenAI.** `max_output_tokens` steht bei 2048 (Builder 4096) und schließt
+   bei Reasoning-Modellen die Denk-Token ein. Ob das für das eingestellte Modell reicht, lässt
+   sich nur mit einer echten Anfrage klären. Anthropic und Gemini stehen bei 8192.
+9. **Lerndaten mit der nativen Engine ungeprüft:** Pause (kein Wort landet in der Historie),
+   Zählen, Export und Löschen echter Lerndaten brauchen ein Gerät (G2).
+10. **Lint:** Die geerbte Baseline `app/lint-baseline-upstream.xml` und die Warnungen bleiben
+    bestehen.
+11. **Gemini-Vertrag nicht neu prüfbar.** Die Doku-Hosts `ai.google.dev` und
+    `aistudio.google.com` sind in der Cloud-Umgebung „SecondHand“ nicht freigegeben. Der
+    Anthropic-Vertrag in `docs/PROVIDERS.md` wurde am 2026-11-11 gegen die offizielle Doku
+    bestätigt (Bearer-Schlüssel, `anthropic-version: 2026-10-21`, kein `temperature`,
+    `stop_reason` u. a. `end_turn`, `max_tokens`, `refusal`).
+12. **Externe Dienste (Gmail, Google Calendar, Notion)** brauchen vom Owner registrierte
     OAuth-Clients. Ohne sie ist dieser Teil von Etappe 16 nicht baubar.
-11. **Beide APK-Artefakte sind gleich:** Das injizierte ABI wirkt in dieser AGP-Version nicht, die
-    APK enthält alle vier ABIs (ca. 36 MB). `docs/BUILD.md` beschreibt noch getrennte ABIs.
 
 ## Arbeitsweise
 

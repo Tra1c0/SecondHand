@@ -85,6 +85,7 @@ class MoreProvidersTest {
         assertEquals("user", message.getValue("role").jsonPrimitive.content)
         assertEquals("Hallo", message.getValue("content").jsonPrimitive.content)
         assertEquals(false, json.getValue("stream").jsonPrimitive.boolean)
+        assertEquals(8192, json.getValue("max_tokens").jsonPrimitive.int) // room for default thinking
         assertTrue(bytes.all { it == 0.toByte() })
     }
 
@@ -92,6 +93,9 @@ class MoreProvidersTest {
         assertEquals("Grüße 😀", AnthropicProvider.parseResponse(claude("Grüße 😀")).text)
         assertEquals(CloudError.REFUSED, assertFailsWith<CloudFailure> {
             AnthropicProvider.parseResponse(claude("x", stop = "refusal")) }.error)
+        // A cut-off answer is never a result, and it is reported as "too long", not as a broken reply.
+        for (stop in listOf("max_tokens", "model_context_window_exceeded")) assertEquals(CloudError.TOO_LARGE,
+            assertFailsWith<CloudFailure> { AnthropicProvider.parseResponse(claude("partial answ", stop = stop)) }.error)
         for (body in listOf("{}", "[broken", claude(""), claude("x", stop = "max_tokens"), claude("x", stop = "tool_use"),
             claude("x", stop = "pause_turn"), claude("x", type = "tool_use"), claude("x".repeat(16385)),
             claude("x").replace("\"assistant\"", "\"user\""), claude("marker").replace("\"marker\"", "42"))) {
@@ -112,6 +116,7 @@ class MoreProvidersTest {
         assertEquals("Hallo", json.getValue("contents").jsonArray.single().jsonObject.getValue("parts").jsonArray
             .single().jsonObject.getValue("text").jsonPrimitive.content)
         assertEquals(1, json.getValue("generationConfig").jsonObject.getValue("candidateCount").jsonPrimitive.int)
+        assertEquals(8192, json.getValue("generationConfig").jsonObject.getValue("maxOutputTokens").jsonPrimitive.int)
         var calls = 0
         val guarded = GeminiProvider({ Secret("t".toByteArray()) }, Call.Factory { calls++; error("must not run") })
         for (model in listOf("x/../y", "a:b", "A-model", "a..b", "a b", "a?key=1", "a#b")) {
@@ -127,6 +132,8 @@ class MoreProvidersTest {
         }
         val blocked = buildJsonObject { put("promptFeedback", buildJsonObject { put("blockReason", "SAFETY") }) }.toString()
         assertEquals(CloudError.REFUSED, assertFailsWith<CloudFailure> { GeminiProvider.parseResponse(blocked) }.error)
+        assertEquals(CloudError.TOO_LARGE, assertFailsWith<CloudFailure> {
+            GeminiProvider.parseResponse(gemini("partial answ", "MAX_TOKENS")) }.error)
         val twoCandidates = gemini("x").replace("\"candidates\":[", "\"candidates\":[{\"finishReason\":\"STOP\"},")
         val functionCall = gemini("x").replace("{\"text\":\"x\"}", "{\"functionCall\":{\"name\":\"n\"}}")
         for (body in listOf("{}", "[broken", gemini(""), gemini("x", "MAX_TOKENS"), gemini("x", "OTHER"), twoCandidates,

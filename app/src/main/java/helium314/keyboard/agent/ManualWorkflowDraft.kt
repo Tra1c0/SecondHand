@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.agent
 
+import helium314.keyboard.agent.providers.CloudProviders
 import dev.agentkeyboard.core.*
 import java.util.UUID
 
@@ -35,8 +36,12 @@ data class ManualWorkflowDraft(val id: String, val revision: Int, val name: Stri
         } ?: WorkflowInput.Selection
         when {
             step.action.local != null -> WorkflowStep.Local("step${index + 1}", input, requireNotNull(step.action.local), step.condition?.condition())
-            step.action.ai != null -> WorkflowStep.Ai("step${index + 1}", input, requireNotNull(step.action.ai),
-                step.provider, step.model, step.language, step.tone, step.condition?.condition())
+            step.action.ai != null -> {
+                // Stricter than the file format: a model ID must be usable by the step's own provider.
+                require(CloudProviders.validModel(step.provider, step.model))
+                WorkflowStep.Ai("step${index + 1}", input, requireNotNull(step.action.ai),
+                    step.provider, step.model, step.language, step.tone, step.condition?.condition())
+            }
             else -> error("Unassigned action")
         }
     })

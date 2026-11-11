@@ -230,4 +230,6 @@
     <string name="agent_learning_delete_confirm">Alles löschen, was die Tastatur aus deinem Tippen gelernt hat, für alle Sprachen? Dein persönliches Wörterbuch bleibt unverändert. Das lässt sich nicht rückgängig machen.</string>
     <string name="agent_learning_deleted">Gelernte Wörter gelöscht.</string>
     <string name="agent_learning_failed">Das hat nicht geklappt. Es wurde nichts geändert oder exportiert.</string>
+    <string name="agent_cloud_too_long">Die Antwort war zu lang und wurde verworfen. Nichts wird eingefügt. Versuche es mit einer kürzeren Auswahl.</string>
+    <string name="agent_workflow_model_invalid">Ein Schritt dieses Workflows hat eine Modell-ID, die sein Anbieter nicht verwenden kann. Bearbeite den Workflow. Es wurde keine Anfrage gesendet.</string>
 </resources>

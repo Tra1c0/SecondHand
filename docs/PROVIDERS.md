@@ -39,6 +39,8 @@ Bearer-Schlüssel, `anthropic-version: 2026-10-21`, `temperature`/`top_p`/`top_k
 `stop_reason` ∈ end_turn, max_tokens, stop_sequence, tool_use, pause_turn, refusal,
 model_context_window_exceeded. Implementiert in `AnthropicProvider` (Etappe 16a). Voreinstellung
 `claude-haiku-5-5` (im Modellkatalog der Referenz als schnellstes Modell geführt), frei änderbar.
+`max_tokens` 8192: Bei Modellen mit standardmäßig aktivem Thinking zählen die Denk-Token mit; ein
+abgeschnittenes Ergebnis (`stop_reason:max_tokens`) wird verworfen und als „zu lang“ gemeldet.
 Keine echte Anfrage gesendet.
 
 `POST https://api.anthropic.com/v1/messages`, Bearer-Schlüssel,

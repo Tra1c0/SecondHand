@@ -64,6 +64,17 @@ class LearningDataTest {
         assertFalse(LearnedWord("private", 1).toString().contains("private"))
     }
 
+    @Test fun unreadableLanguageFailsTheWholeCountAndExport() {
+        // The real source throws when a dictionary cannot be read in time; "0 words" would be a lie.
+        val source = object : LearningSource {
+            override fun languages() = listOf("de", "en-US")
+            override fun words(language: String) = if (language == "de") listOf(LearnedWord("Hallo", 1)) else error("UNREADABLE")
+            override fun deleteAll() = error("not used")
+        }
+        assertFails { LearningData.counts(source) }
+        assertFails { LearningData.export(source) }
+    }
+
     @Test fun oversizedExportIsRefusedInsteadOfCut() {
         val many = (0 until 40_000).map { LearnedWord("wort$it".padEnd(24, 'x'), 1) }
         assertFails { LearningData.export(FakeSource(mutableMapOf("de" to many))) }

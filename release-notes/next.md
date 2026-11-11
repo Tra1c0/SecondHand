@@ -14,3 +14,6 @@
   Werkzeugen heißt „Abbrechen“.
 - Neu: Seite „Gelernte Wörter“ in den Einstellungen: Lernen pausieren (ohne zu löschen),
   gelernte Wörter je Sprache zählen, als Datei exportieren oder löschen.
+- Behoben (nach Review): Zählen und Exportieren gelernter Wörter melden einen Fehler, statt
+  bei einem langsamen Wörterbuch „0 Wörter“ anzuzeigen. Zu lange KI-Antworten von Anthropic und
+  Gemini werden als „zu lang“ gemeldet.

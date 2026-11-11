@@ -25,7 +25,7 @@ class AnthropicProvider(
         return transport.post(request, {
             buildJsonObject {
                 put("model", request.model)
-                put("max_tokens", 2048)
+                put("max_tokens", MAX_TOKENS)
                 put("system", request.instruction)
                 put("messages", buildJsonArray { add(buildJsonObject {
                     put("role", "user"); put("content", request.input)
@@ -42,6 +42,8 @@ class AnthropicProvider(
 
     companion object {
         const val API_VERSION = "2026-10-21"
+        /** Thinking tokens count against this cap on models that think by default; leave room for them. */
+        const val MAX_TOKENS = 8192
 
         internal fun parseResponse(body: String): ModelResponse {
             try {
@@ -51,7 +53,8 @@ class AnthropicProvider(
                 when (root["stop_reason"]?.jsonPrimitive?.content) {
                     "end_turn" -> Unit
                     "refusal" -> throw CloudFailure(CloudError.REFUSED)
-                    else -> throw CloudFailure(CloudError.INVALID_RESPONSE) // truncated, paused or tool use
+                    "max_tokens", "model_context_window_exceeded" -> throw CloudFailure(CloudError.TOO_LARGE) // cut off
+                    else -> throw CloudFailure(CloudError.INVALID_RESPONSE) // paused, tool use or unknown
                 }
                 val text = StringBuilder()
                 root.getValue("content").jsonArray.forEach { block ->

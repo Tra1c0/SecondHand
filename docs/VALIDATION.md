@@ -832,6 +832,39 @@ Keys, Workflows, Act Builder und jede echte KI-Anfrage. Ein echtes Telefon wurde
   bekommt nach Projektregel einen eigenen lesenden Review.
 - Noch keine Oberfläche benutzt die Einfügestelle; das folgt mit dem Diktat (18a2).
 
+## Lesender Review der Etappen 15–17a und Korrekturen
+
+Ein unabhängiger, nur lesender Review über `28163d1..b992cb2` (Werkzeuge, Anbieter, Gerätetest-
+Korrekturen, Lerndaten) fand keinen Blocker. Bestätigt wurden u. a.: einmalige Freigaben und kein
+Doppelstart bei Werkzeugen und Cloud-Anfragen, Journal vor externer Wirkung, eigener
+Schlüsselplatz je Anbieter, Schlüssel nie in der URL, unverändertes Verhalten von OpenAI nach dem
+Herauslösen des Transports, Parser nehmen nur abgeschlossene Antworten, Gemini-Modell kann Host,
+Pfad und Query nicht verändern, keine Layout-Schleife im Tastaturrahmen.
+
+Sechs Befunde, alle am Code nachvollzogen und behoben:
+
+1. Zählen und Export konnten nach 100 ms Zeitüberschreitung „0 Wörter“ bzw. eine leere Datei als
+   Erfolg melden. Jetzt blockierendes Lesen mit 10 s; Zeitüberschreitung ist ein Fehler.
+2. `max_tokens` 2048 bei Anthropic und Gemini konnte bei Modellen mit Thinking bezahlte Anfragen
+   abgeschnitten enden lassen. Jetzt 8192, und Abschneiden wird als „zu lang“ gemeldet.
+3. Nach Neuaufbau der Seite bei offenem Dateidialog blieb eine leere Exportdatei ohne Meldung.
+   Jetzt wird sie entfernt und ein Fehler gezeigt.
+4. Löschen warf die Wörterbücher aus dem gemeinsamen Cache; danach arbeiteten Tastatur und
+   Seite auf getrennten Objekten. Jetzt wird an Ort und Stelle geleert und darauf gewartet.
+5. Bei Pause wird ein getipptes Wort auch nicht von der Sperrliste genommen. Beibehalten und
+   dokumentiert: Bei Pause ändert Tippen keine gespeicherten Daten.
+6. Beim Wechsel des Anbieters eines Workflow-Schritts blieb die alte Modellkennung stehen, und
+   eine für Gemini ungültige Kennung ließ sich speichern. Jetzt setzt der Editor das Modell des
+   neuen Anbieters ein, die Umwandlung prüft je Anbieter, und das Panel weist einen Workflow mit
+   unbrauchbarer Modellkennung vor der Freigabe ab.
+
+Zusätzlich: Zwei Upstream-Fehlermeldungen der Sperrliste schrieben das betroffene Wort ins Log;
+sie nennen es nicht mehr.
+
+Nach den Korrekturen: Agent-Suite 216/0 (zwei neue Fälle, zwei erweiterte), Kern 54/0, Build und
+Lint bestanden. Die Punkte 1 und 4 betreffen die native Wörterbuchschicht und sind nur am Code
+geprüft, nicht durch einen Test mit echten Lerndaten.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

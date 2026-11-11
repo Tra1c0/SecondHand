@@ -158,9 +158,10 @@ Speicher, Datenschutz und Identität:
   Upstream-Daten ausdrücklich den DE-Kontext. `SettingsActivity.kt` öffnet mit dem Extra
   `AgentPreferences.OPEN_AI_SETTINGS` direkt die KI-Einstellungen.
 - `ClipboardDao.kt` und `gesturedata/Share.kt`: teilen Dateien über `AgentFileProvider`.
-- `SettingsValues.java` (`mLearningPaused` aus `AgentPreferences.LEARNING_PAUSED`) und
-  `DictionaryFacilitatorImpl.kt` (`addToUserHistory` speichert bei Pause nichts): die
-  Lernpause, siehe „Lerndaten“.
+- `SettingsValues.java` (`mLearningPaused` aus `AgentPreferences.LEARNING_PAUSED`),
+  `DictionaryFacilitatorImpl.kt` (`addToUserHistory` speichert bei Pause nichts; die beiden
+  Sperrlisten-Fehlermeldungen loggen das Wort nicht mehr) und `ExpandableBinaryDictionary.java`
+  (`readAllWordProperties`, `clearAndWait`): Lernpause und Lerndaten, siehe „Lerndaten“.
 - `Defaults.kt`: personalisierte Wörterbücher, Zwischenablage-Vorschläge und
   Zwischenablageverlauf standardmäßig aus.
 - `DebugFlags.kt`: privater Crashhandler entfernt, damit keine rohen Fehlermeldungen oder
@@ -251,12 +252,15 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   10 s, Call 45 s), `CloudError`, `CloudFailure`. Der AndroidX-Startup-Initializer ist im
   Manifest entfernt, `OkHttp.initialize` läuft erst nach dem Senden auf IO.
 - `providers/AnthropicProvider.kt`: Messages-API, `anthropic-version` aus `API_VERSION`,
-  Bearer-Schlüssel, kein `temperature`. Ergebnis nur bei `stop_reason:end_turn`; `refusal` wird
-  `REFUSED`; `thinking`-Blöcke werden übergangen, jeder andere Blocktyp ist ein Fehler.
+  Bearer-Schlüssel, kein `temperature`, `max_tokens` 8192 (`MAX_TOKENS`; Denk-Token zählen bei
+  Modellen mit Standard-Thinking mit). Ergebnis nur bei `stop_reason:end_turn`; `refusal` wird
+  `REFUSED`; `max_tokens` wird `TOO_LARGE` (abgeschnitten, nie ein Ergebnis); `thinking`-Blöcke
+  werden übergangen, jeder andere Blocktyp ist ein Fehler.
 - `providers/GeminiProvider.kt`: `generateContent` (v1beta), Schlüssel im Header
   `x-goog-api-key`, nie in der URL. Das Modell wird Teil des URL-Pfads und ist deshalb strenger
   geprüft (`validModel`: nur Kleinbuchstaben, Ziffern, Punkt, Bindestrich). Ergebnis nur bei
-  `finishReason:STOP` und genau einem Kandidaten; Teile mit `thought:true` werden übergangen.
+  `finishReason:STOP` und genau einem Kandidaten; `MAX_TOKENS` wird `TOO_LARGE`; Teile mit
+  `thought:true` werden übergangen. `maxOutputTokens` 8192.
 - `providers/CloudProviders.kt`: `SUPPORTED` (Provider mit echtem Adapter, Reihenfolge der
   Einstellungen), `get` (erzeugt den Adapter erst bei der ersten freigegebenen Anfrage),
   `slot` (eigener Schlüsselplatz je Provider), `displayName`, `validModel`.
@@ -296,7 +300,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   zurück; der Fingerabdruck liest höchstens 1 MiB, größere Dateien bleiben unangetastet.
   `WorkflowConfiguration` ist der gelesene Stand.
 - `ManualWorkflowDraft.kt`: bearbeitbarer, unvollständiger Entwurf; die Umwandlung ist die
-  einzige Validierungsgrenze. `proposal()` macht aus einem Builder-Ergebnis Revision 1.
+  einzige Validierungsgrenze und prüft die Modellkennung gegen den Provider des Schritts
+  (`CloudProviders.validModel`). Der Editor setzt beim Providerwechsel das Modell dieses
+  Providers ein. `proposal()` macht aus einem Builder-Ergebnis Revision 1.
 - `ApprovedActionRunner.kt`: Main-Thread-Steuerung eines freigegebenen Laufs (Einzelaktion oder
   Workflow). Epoch-Prüfungen schützen vor späten Antworten, das Gesamtbudget beträgt 95 s.
 - Zusammenfassungen für Freigabe und Anzeige: `WorkflowApprovalSummary.kt`,
@@ -367,18 +373,28 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `LearningData.kt`: `LearningData` (`blocksLearning` ist die eine Regel, die die Engine vor dem
   Speichern fragt; `isPaused`/`setPaused`; `counts`; `export` als lesbares JSON, Format
   `agent-keyboard-learning` Version 1, höchstens 1 MiB, sonst Abbruch statt Kürzung),
-  `LearnedWord`, `LearningSource`, `UserHistoryLearningSource` (liest die Dateien
-  „UserHistoryDictionary.<Sprache>.dict“ im DE-Speicher der Engine über `PersonalizationHelper`).
+  `LearnedWord`, `LearningSource`, `UserHistoryLearningSource` (arbeitet über
+  `PersonalizationHelper` auf denselben Wörterbuch-Objekten wie die laufende Tastatur; Dateien
+  „UserHistoryDictionary.<Sprache>.dict“ im DE-Speicher der Engine).
+- Lesen und Löschen sind „ganz oder Fehler“: `words` wirft, wenn ein Wörterbuch nicht innerhalb
+  von 10 s gelesen werden kann; `deleteAll` leert jedes Wörterbuch an Ort und Stelle und wartet
+  darauf. Dafür gibt es in `ExpandableBinaryDictionary.java` `readAllWordProperties` (liefert
+  `null` statt eines leeren Feldes bei Zeitüberschreitung, siehe Fallstrick P21) und
+  `clearAndWait`.
 - `K/settings/screens/AgentLearningScreen.kt`: Einstellungsseite „Gelernte Wörter“. Der
-  Exportinhalt liegt nur im Speicher, nie im Saved State.
+  Exportinhalt liegt nur im Speicher, nie im Saved State. Wird die Seite neu aufgebaut, während
+  der Dateidialog offen ist, entsteht kein leerer „Export“: Die leere Datei wird entfernt und
+  ein Fehler gemeldet.
 - Zwei verschiedene Schalter: „Personalisierte Vorschläge“ (Upstream, Textkorrektur) schaltet
-  das Lernen ab und löscht dabei alles Gelernte. „Lernen pausieren“ behält das Gelernte und
-  speichert nur nichts Neues, weder in der Tipp-Historie noch im persönlichen Wörterbuch.
+  das Lernen ab und löscht dabei alles Gelernte. „Lernen pausieren“ behält das Gelernte; Tippen
+  ändert dann keine gespeicherten Daten: nichts kommt in die Tipp-Historie oder ins persönliche
+  Wörterbuch, und ein getipptes Wort wird auch nicht von der Sperrliste genommen.
 - Die Sprach-Konfidenz für mehrsprachiges Tippen wird auch bei Pause angepasst; sie liegt nur im
   Arbeitsspeicher.
 - Tests: `LearningDataTest` (Pause erreicht die Engine-Einstellungen, Exportformat, Abbruch bei
-  Übergröße, nur echte Historien-Dateien). Dass bei Pause wirklich kein Wort in der nativen
-  Historie landet, ist nur am Code geprüft, nicht durch einen Test mit der nativen Engine.
+  Übergröße und bei unlesbarer Sprache, nur echte Historien-Dateien). Nicht durch Tests belegt,
+  weil sie die native Engine brauchen: dass bei Pause kein Wort in der Historie landet, das
+  Lesen echter Lerndaten und das Leeren.
 
 ## Unveränderter Upstream
 
@@ -471,13 +487,24 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   den umgebenden Text (der wird bewusst nicht gelesen). Ändert die Host-App den Text, ohne die
   Schreibmarke zu bewegen, landet die Einfügung an derselben Position im neuen Text. Deshalb
   gibt es Einfügen nur nach Vorschau und eigenem Klick, nie automatisch.
+- **P21** `ExpandableBinaryDictionary.getWordPropertiesForSyncing` wartet 100 ms und liefert
+  danach ein leeres Feld; „nichts gelernt“ und „nicht rechtzeitig gelesen“ sind damit nicht zu
+  unterscheiden. Für alles, was der Nutzer als vollständig ansehen soll (Zählen, Export), nur
+  `readAllWordProperties` verwenden.
+- **P22** `PersonalizationHelper.removeAllUserHistoryDictionaries` wirft die Wörterbücher aus dem
+  gemeinsamen Cache. Solange das Lernen an bleibt, behält die Tastatur ihre alten Objekte und
+  ein späterer Zugriff erzeugt ein zweites Objekt auf derselben Datei. Zum Leeren bei
+  eingeschaltetem Lernen deshalb `clearAndWait` auf dem vorhandenen Objekt verwenden.
+- **P23** Ausgabegrenzen der Provider schließen Denk-Token ein. Eine zu knappe Grenze lässt
+  bezahlte Anfragen als „abgeschnitten“ enden. OpenAI steht noch bei 2048 (offener Punkt in
+  `docs/HANDOFF.md`), Anthropic und Gemini bei 8192.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (154 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (155 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -513,6 +540,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/latin/` (5): App, DictionaryFacilitatorImpl, InputView, LatinIME, RichInputConnection
 - `K/latin/database/` (1): ClipboardDao
 - `K/latin/define/` (1): DebugFlags
+- `K/latin/dictionary/` (1): ExpandableBinaryDictionary
 - `K/latin/inputlogic/` (2): InputLogic, InputLogicHandler
 - `K/latin/settings/` (2): Defaults, SettingsValues
 - `K/latin/spellcheck/` (1): AndroidSpellCheckerService

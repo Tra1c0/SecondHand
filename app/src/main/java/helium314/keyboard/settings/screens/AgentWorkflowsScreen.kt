@@ -298,6 +298,10 @@ private fun WorkflowDescription(definition: WorkflowDefinition) {
 private fun WorkflowEditDialog(initial: ManualWorkflowDraft, busy: Boolean, error: Boolean, proposal: Boolean,
                                onDismiss: () -> Unit, onSave: (WorkflowDefinition) -> Unit) {
     var draft by remember(initial) { mutableStateOf(initial) }
+    val context = LocalContext.current
+    // The user's own model for that provider, else the checked default; empty when neither exists.
+    fun modelFor(provider: WorkflowProvider): String =
+        runCatching { ModelSettings(context).model(provider) }.getOrDefault(ModelSettings.defaultModel(provider))
     val valid = runCatching { draft.definition() }.getOrNull()
     AlertDialog(onDismissRequest = onDismiss,
         properties = DialogProperties(securePolicy = if (proposal) SecureFlagPolicy.SecureOn else SecureFlagPolicy.Inherit), title = { Text(stringResource(if (proposal) R.string.agent_builder_draft_review else R.string.agent_workflow_edit)) }, text = {
@@ -318,9 +322,13 @@ private fun WorkflowEditDialog(initial: ManualWorkflowDraft, busy: Boolean, erro
                         else stringResource(R.string.agent_workflow_input_step, previous + 1) },
                     { update(step.copy(inputStepIndex = it)) })
                 if (step.action.ai != null) {
-                    WorkflowChoice(step.provider, CloudProviders.SUPPORTED, !busy, { CloudProviders.displayName(it) }, { update(step.copy(provider = it)) })
+                    WorkflowChoice(step.provider, CloudProviders.SUPPORTED, !busy, { CloudProviders.displayName(it) }, { chosen ->
+                        // A model ID belongs to one provider: switching provider switches to that provider's model.
+                        if (chosen != step.provider) update(step.copy(provider = chosen, model = modelFor(chosen)))
+                    })
                     OutlinedTextField(value = step.model, onValueChange = { if (it.length <= 100) update(step.copy(model = it)) },
-                        enabled = !busy, label = { Text(stringResource(R.string.agent_ai_model)) }, singleLine = true)
+                        enabled = !busy, label = { Text(stringResource(R.string.agent_ai_model)) }, singleLine = true,
+                        isError = !CloudProviders.validModel(step.provider, step.model))
                     WorkflowChoice(step.language, TranslationLanguage.entries, !busy, { it.code }, { update(step.copy(language = it)) })
                     WorkflowChoice(step.tone, WritingTone.entries, !busy, { stringResource(it.titleResource()) }, { update(step.copy(tone = it)) })
                 }

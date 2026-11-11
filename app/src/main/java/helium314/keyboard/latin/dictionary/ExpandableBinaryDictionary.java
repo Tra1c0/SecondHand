@@ -611,6 +611,49 @@ abstract public class ExpandableBinaryDictionary extends Dictionary {
     }
 
     /**
+     * Complete dictionary content, or null if it could not be read within the timeout or the
+     * dictionary is not loaded. Unlike {@link #getWordPropertiesForSyncing()}, which waits 100 ms
+     * and then answers with an empty array, a failure is never reported as an empty dictionary.
+     */
+    @Nullable
+    public WordProperty[] readAllWordProperties(final long timeoutMillis) {
+        reloadDictionaryIfRequired();
+        final AsyncResultHolder<WordProperty[]> result = new AsyncResultHolder<>("ReadAllWordProperties");
+        asyncExecuteTaskWithLock(mLock.readLock(), () -> {
+            final BinaryDictionary binaryDictionary = getBinaryDictionary();
+            if (binaryDictionary == null) {
+                result.set(null);
+                return;
+            }
+            final ArrayList<WordProperty> wordPropertyList = new ArrayList<>();
+            int token = 0;
+            do {
+                final BinaryDictionary.GetNextWordPropertyResult nextWordPropertyResult =
+                        binaryDictionary.getNextWordProperty(token);
+                final WordProperty wordProperty = nextWordPropertyResult.mWordProperty;
+                if (wordProperty == null) {
+                    break;
+                }
+                wordPropertyList.add(wordProperty);
+                token = nextWordPropertyResult.mNextToken;
+            } while (token != 0);
+            result.set(wordPropertyList.toArray(new WordProperty[0]));
+        });
+        return result.get(null, timeoutMillis);
+    }
+
+    /** Like {@link #clear()}, but returns only once the dictionary is empty; false on timeout. */
+    public boolean clearAndWait(final long timeoutMillis) {
+        final AsyncResultHolder<Boolean> result = new AsyncResultHolder<>("ClearAndWait");
+        asyncExecuteTaskWithWriteLock(() -> {
+            removeBinaryDictionaryLocked();
+            createOnMemoryBinaryDictionaryLocked();
+            result.set(true);
+        });
+        return result.get(false, timeoutMillis);
+    }
+
+    /**
      * Returns dictionary content required for syncing.
      */
     public WordProperty[] getWordPropertiesForSyncing() {
