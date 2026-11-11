@@ -1,0 +1,698 @@
+# Prüfnachweise
+
+## Etappe 0 — unveränderte HeliBoard-Codebasis
+
+Stand: 2026-11-08. Upstream-Commit siehe `upstream.lock`.
+
+| Prüfung | Ergebnis |
+| --- | --- |
+| Gradle-Konfiguration (`help`) | Bestanden |
+| Unverändertes `assembleDebugNoMinify`, JDK 17, ARM64 | Bestanden, 42 Tasks, 4 min 14 s |
+| APK enthält native ARM64-Wörterbuchbibliothek | Bestanden, ZIP-Inhalt geprüft |
+| `testDebugUnitTest`, unveränderte Quelle, Test-JVM 21 | 181 Tests: 176 bestanden, 5 geerbte Fehler |
+| Software-Emulator | Installation wegen begrenztem Dateisystemplatz abgebrochen |
+| Physisches Android-Gerät | Ausstehend |
+
+Baseline-APK: `HeliBoard_4.2-debugNoMinify.apk`, 34.779.764 Bytes.
+
+SHA-256:
+`1fa0f8e36a7dd01b1e35ac4232e6bea70ec023fc5e334359d49908b5378a9ec4`
+
+Der erste Buildversuch wurde durch eine gleichzeitige Emulatorinstallation und
+ein volles Dateisystem unterbrochen. Er wurde nach Bereinigung ausschließlich
+eigener temporärer Dateien erfolgreich wiederholt. Upstream-C++-Warnungen und
+Gradle-Deprecations wurden nicht durch sachfremde Quellcodeänderungen behoben.
+
+Robolectric mit SDK 36 verlangt Java 21. Der erste Testlauf auf JDK 17 konnte
+deshalb neun Testklassen nicht starten. Die Wiederholung verwendete nur einen
+externen Gradle-Init-Hook für die Test-JVM 21; der Anwendungsquellcode war
+unverändert. Die fünf Baseline-Fehler sind:
+
+- `InputLogicTest.insertLetterIntoWordHangulFails`: bekannte Hangul-Abweichung.
+- `StringUtilsTest.detectEmojisAtEndFails`: bekannte Emoji-Abweichung.
+- `XLinkTest.layoutsLinks`: externer Link liefert HTTP 404.
+- `XLinkTest.readmeLinks`: externer Link liefert HTTP 404.
+- `XLinkTest.knownDictionaries`: geändertes externes Datenformat.
+
+Diese Fehler werden nicht als bestanden gewertet. Neue Fehler müssen gegenüber
+dieser Baseline separat erkannt und vor dem nächsten Schritt behoben werden.
+
+## Etappe 1 — persönlicher Fork
+
+- App-ID `dev.personal.agentkeyboard.debug`, Name `Agent Keyboard Lab` aus
+  der tatsächlich gepackten ARM64-APK mit `aapt2 dump badging` geprüft.
+- Build bestanden. Die drei neuen Manifest-/Provider-Tests bestehen.
+- Unabhängiges Astra-Review fand noch alte Namen in Debug-Ressourcen; beide
+  Varianten sind korrigiert und die sichtbare Identität ist nun mitgeprüft.
+- Vollständiger Regressionslauf: 184 Tests, fünf Baseline-Fehler und ein
+  zusätzlicher Test, der personalisierte Vorschläge implizit voraussetzte.
+  Dieser Test aktiviert nun gezielt die Personalisierung für sein Szenario.
+  Seine Erwartungswerte bleiben unverändert.
+- Anschließend alle 29 Suggestion-Tests und drei Fork-Tests bestanden.
+- Kompilierung weiterhin Java 17; Testprozesse verwenden automatisch Java 21.
+- Keine Internetberechtigung, automatische Backups einschließlich Transfer
+  ausgeschlossen. Physischer Installationstest weiterhin offen.
+
+## Etappe 2 — unabhängiger Kern
+
+- 16 JVM-Tests bestanden: sensible Editoren, Größen-/Unicode-Grenzen,
+  Sitzungswechsel, zwischenzeitliche Änderungen, Einmal-Token und lokale Aktionen.
+- Kern ohne Android- oder Netzwerkabhängigkeit, JDK 17.
+- Unabhängiges Review: Tokens enthalten zusätzlich eine zufällige Besitzer-ID,
+  damit ein neuer IME-Service kein Ergebnis seines Vorgängers übernehmen kann.
+  Ein eigener Regressionstest deckt diesen Fall ab.
+- ARM64-App-Build mit eingebundenem Kern bestanden.
+- `ModelProvider` ist nur ein Vertrag; es gibt noch keinen echten Anbieteranschluss.
+
+## Etappe 3a — Designprofil
+
+- Profilseite in den Einstellungen; je Bereich zunächst ein gespeicherter Stand.
+- Designprofil umfasst Tastenstil, Ränder und Schriftgröße. Bestehende Farb-/Layouteditoren bleiben verfügbar.
+- Sieben Agent-Tests bestanden, darunter vier Profilprüfungen: Bereichstrennung,
+  Reset ohne Verlust des gespeicherten Profils, ungültige Imports ohne Mutation
+  und Export ohne fremde Einstellungen/Zugangsdaten.
+- App-Build bestanden. Visuelle Geräteprüfung steht noch aus.
+
+## Etappe 3b — Tastenanordnung
+
+- Separater Stand für Zahlenreihe, Emoji- und Sprachtaste.
+- Acht Agent-Tests und App-Build bestanden. Ein zusätzlicher Test prüft,
+  dass Wiederherstellung Design und Sprachlayouts nicht verändert.
+- Sprachen und eigene Layoutdateien bleiben im vorhandenen Layouteditor.
+
+## Etappe 3c — Gestenprofil
+
+- Separater Stand für horizontale/vertikale Leertasten-Gesten und Wischen zum Löschen.
+- Neun Agent-Tests und App-Build bestanden. Nicht unterstützte Aktionen werden
+  vor jeder Änderung abgewiesen; Cursorbewegung bleibt die horizontale Voreinstellung.
+- Profilformat 1 speichert je Bereich einen Stand. Änderungen der Feldlisten
+  brauchen eine explizite Formatmigration; unbekannte Daten werden nicht still übernommen.
+
+## Etappe 4 — Android-Editoradapter
+
+- 20 Kernprüfungen und 29 gezielte Android-/Integrationstests bestanden.
+- Quellenzugriff ausschließlich auf begrenzten markierten Text; sensible Flags
+  werden vor jedem Textzugriff geprüft. Editorwechsel, Eingaben, Auswahländerungen
+  und neue IME-Instanzen machen alte Übernahmen ungültig.
+- Einmalige direkte Ersetzung mit Cache-Abgleich, ohne TLD-/Autospace-Verarbeitung.
+  Unklare Ergebnisse verwerfen Cache und erwartete Positionen; kein automatischer Retry.
+- Echte InputLogic-Tests prüfen exakte Ersetzung, danach einzelnes Löschen und
+  unterdrücktes Lernen bis zu einer neuen Framework-Editorsitzung.
+- Unabhängiges Review fand und korrigierte unsichere Cache-Koordinaten,
+  Callback-Reentranz und die Worker-/UI-Lücke verspäteter Swipe-Ergebnisse.
+  Tokens verfallen sofort; reine UI-Beobachter laufen im nächsten Main-Loop-Turn.
+- Generation-geprüfte Swipe-Ergebnisse bleiben bis zur tatsächlichen UI-Verarbeitung
+  gesperrt. Drei zusätzliche Produktionstests prüfen den echten Zustellungsweg.
+- ARM64-App-Build bestanden. Physische Editor-/Geräteprüfung bleibt offen.
+
+## Etappe 5 — lokale Aktionsoberfläche
+
+- 36 gezielte Android-/Integrationstests und ARM64-Build bestanden.
+- Drei lokale Aktionen mit Quell-/Ergebnisvorschau, separater Übernahme und
+  ausdrücklichem Kopieren. Keine neue Activity oder editierbare Vorschau.
+- Gerenderte helle/dunkle Vorschau geprüft; das Panel scrollt auf kleinen Flächen.
+- Vollständige Regression: 215 Tests, ausschließlich dieselben fünf Baseline-Fehler.
+- Unabhängiges Review fand zwei Integrationsfehler: Vollbild-IME-Geometrie und
+  Accessibility-Eingaben unter dem Panel. Beide sind korrigiert und durch
+  Layout-/Messungs- sowie Produktionseingabetests abgedeckt; erneutes Review ohne P1.
+- Overlay-Größe folgt der ursprünglichen Keyboard-Engine, niemals dem Vollbildfenster.
+  UNKNOWN blockiert Text-, Tasten-, Inhalts-, Swipe- und Vorschlagseingaben bis
+  zur Cache-Erholung mit autoritativen Cursorpositionen.
+- Erste Lint-Prüfung: ein neuer Ressourcenindexfehler korrigiert; Forktexte sind
+  vorerst Deutsch/Englisch mit englischem Fallback. 68 Übersetzungslücken sind
+  nach byteweisem Vergleich mit dem Upstream-Pin separat baseliniert.
+- Abschließendes Lint bestanden: keine neuen Fehler, 105 Warnungen und ein Hinweis;
+  68 geerbte Übersetzungslücken bleiben in der Baseline sichtbar.
+- Alte Hintergrundwarnung im Robolectric-Lauf bleibt zu untersuchen.
+  Physische Touch-/TalkBack-/Editorprüfungen bleiben offen.
+
+## Etappe 6 — Aktionsrad
+
+- 40 gezielte Android-/Integrationstests und ARM64-Build bestanden.
+- Radiale echte Buttons, Tastatur-/TalkBack-Semantik, kompakte Anordnung bei
+  schmaler/niedriger Tastatur. Zielgrößen und überlappungsfreie Bounds geprüft.
+- Gerenderte Vorschau visuell geprüft. Ein Produktionstest durchläuft Wheel →
+  lokale Aktion → Vorschau → explizite Ersetzung im echten InputLogic.
+- Öffnen/Schließen erfasst keinen Editorinhalt und startet keine Aktion.
+- Geräteprüfung mit TalkBack/Rotation/Floating Keyboard bleibt offen.
+
+## Etappe 7 — optionale Leertastengeste
+
+- 20 Kernprüfungen und 49 gezielte Android-/Integrationstests bestanden; ARM64-Build bestanden.
+- Standard ausgeschaltet, getrennte Einstellung im Gestenprofil. Live-Prüfung erst
+  beim Langdruck; keine Änderung an Cursor-/Sprachwischkonfiguration oder Timing.
+- Echte TimerHandler-/PointerTracker-Sequenzen prüfen Hold → UP, Hold → CANCEL,
+  nächste Taste, Swipe-Abbruch, normale/Auto-Popups, Globe-Picker, Callback-Fallback
+  und Mehrfingerpakete mit Pointer-IDs. Keine Aktion beim bloßen Öffnen des Rads.
+- Unabhängiges Review ohne blockierende Befunde; die dort genannten Testlücken
+  zu Fallback/Auto-Popups/Mehrfingerpaketen anschließend geschlossen.
+- Profilformat 2: explizite Migration aus Format 1. Neue Geste bleibt dabei aus;
+  unpassende Schlüssel/Versionen werden vor Mutation abgewiesen.
+- Physische Touch-/TalkBack-/Mehrfingerprüfung bleibt offen.
+
+## Etappe 8 — verschlüsselte Zugangsdaten
+
+- 61 gezielte Android-/Integrationstests und ARM64-Build bestanden.
+- AES-256-GCM, zufällige IVs, authentifizierte Slotbindung, begrenzte atomare
+  Dateien im CE-No-Backup-Speicher; Keystore erst bei explizitem Zugriff.
+- Sperrstatus wird vor Zugriff geprüft, unbekannte Systemdienste sperren.
+  Keine automatische Schlüsselregeneration bei vorhandenen Geheimtextdateien.
+- Formular maskiert und nicht saveable; ON_STOP/Verlassen/Speichern leert es,
+  FLAG_SECURE bleibt während der Seite gesetzt. Mutable Kopien werden gelöscht.
+- Read-only-Sicherheitsreview durch Sol: Speicherpfade für Emoji-Suche und
+  Dateianbieter sowie Formular-Lifecycle korrigiert. Astra-Review konnte wegen
+  des gemeldeten Nutzungslimits nicht laufen.
+- Produktionsnahe Provider-Tests öffnen eine DE-Clipboard-Datei nach Attach aus
+  CE und weisen CE-Zugangsdaten außerhalb beider Freigabewurzeln ab.
+- Vollständiger Lauf: 240 Tests, 7 Fehler. Zwei bekannte Textabweichungen, fünf
+  externe Prüfungen: vier Links liefern HTTP 504 und ein Dictionary-Formatfehler.
+  Damit zwei zusätzliche externe Timeout-Fälle gegenüber der ursprünglichen
+  Fünfer-Baseline; keine Abschwächung der Assertions oder Änderung der Baseline.
+- Erster Lint-Lauf brach mit einem Kotlin-FIR-/ProviderPermissionDetector-Fehler
+  ab; Wiederholung auf unverändertem Stand bestanden: 110 Warnungen, ein Hinweis,
+  keine neuen Fehler, weiterhin 68 geerbte Übersetzungsfehler separat baseliniert.
+- API 21 wird von Robolectric 4.16 nicht unterstützt. Die Capability-Grenze
+  (Schlüssel ab API 23) ist separat geprüft; kein API-21-Gerätetest behauptet.
+- Algorithmustests verwenden einen injizierten AES-Schlüssel. Echte Android-
+  Keystore-, Direct-Boot-, Formular- und Emoji-/Freigabe-Gerätetests bleiben offen.
+- Einzelheiten zur erhaltenen Engine-Speicherbasis siehe `STORAGE.md`.
+
+## Etappe 9a — echter OpenAI-Transport
+
+- 69 gezielte Android-/Integrationstests und ARM64-Build bestanden.
+- Fester Responses-HTTPS-Ursprung, kein Redirect, keine automatischen POST-Retries,
+  10-Sekunden-I/O- und 45-Sekunden-Gesamtfrist einschließlich Warteschlange.
+- Ein aktiver Lauf pro Providerinstanz, tatsächliches Call.cancel bei Abbruch,
+  maximal 1 MiB Antwortkörper und 16.384 Ergebniszeichen.
+- Strikte JSON-Texttypen, vollständige Nachrichtenblöcke, keine Refusal-/Thinking-
+  oder unvollständigen Ergebnisse. Neutrale Fehler ohne fremde Fehlerkörper.
+- Sicherheitsreview fand HTTP-503-Wiederholung trotz retryOnConnectionFailure(false):
+  RequestBody ist nun zusätzlich one-shot. Ein echter Loopback-HTTP-Test bestätigt
+  exakt einen POST bei 503 + Retry-After:0. Kein echter Provideraufruf.
+- Weitere Reviewfunde (Warteschlangenfrist, JSON-Zahl als Text, synchrone Fehler)
+  korrigiert; erneutes Read-only-Review ohne Transportblocker.
+- OkHttp 5.3.2 gepinnt, Square-POM und AAR-Minimum API 21 geprüft.
+  Automatischer HTTP-Startup-Initializer entfernt. Produktionseingabetest bestätigt,
+  dass normales Tippen den Cloud-Client nicht initialisiert.
+- INTERNET nun bewusst vorhanden; Klartexttransport auf APK-Ebene ausgeschaltet.
+  Das Panel startet noch keinen Provideraufruf; Verkabelung folgt in 9b.
+
+## Etappe 9b — bestätigte KI-Korrektur
+
+- 74 gezielte Android-/Integrationstests, ARM64-Build und Lint bestanden.
+- Panel zeigt Provider, Modell und Umfang. Erst der separate Senden-Knopf startet
+  eine Anfrage. Ergebnisvorschau und Editorübernahme bleiben getrennte Aktionen.
+- Tatsächlicher InputLogic-Integrationstest mit simuliertem Provider: Vorschau →
+  Sendefreigabe → Antwortvorschau → bewusste Ersetzung; vorher bleibt Text unverändert.
+- Runner prüft Sitzungen und Generationen. Tests mit absichtlich nicht kooperativem
+  Anbieter verwerfen Ergebnisse nach Abbruch/Editorwechsel und schützen neue Läufe.
+- Abbruch bei veraltetem Kontext, Schließen, Editorende oder Servicezerstörung.
+  Anbieterinstanz bleibt pro Controller erhalten; kein automatischer Retry.
+- Read-only-Review ohne Einfüge-/Datenschutzblocker. Die gefundenen UI-Punkte
+  (lokale Aussage eingrenzen, Aktionen nach Antwort wieder freigeben) sind korrigiert.
+- Lint fand zunächst die fehlende Startup-Klasse im Compile-Klassenpfad. Android-AAR
+  und Startup-Runtime sind nun explizit eingebunden; Gradle bestätigt androidJvm-
+  Variante. HTTP-Initializer bleibt entfernt, öffentlicher manueller Einstieg wird
+  ausschließlich beim expliziten Cloudstart verwendet.
+- Echte API-Schlüssel, Live-Anfragen und physische Geräteprüfung weiter ausstehend.
+
+## Etappe 9c — Initialisierung ohne blockierte Tastatur
+
+- Lazy Factory hält nur den App-Kontext. HTTP-/TLS-Client und Call werden erst
+  nach Sendefreigabe im IO-Kontext aufgebaut. Secret-Zugriff bleibt ebenfalls in IO.
+- Transporttest prüft tatsächlich unterschiedliche Threads für Aufrufer und
+  Call-Aufbau. Alle 74 gezielten Tests und ARM64-Build bestanden.
+
+## Etappe 10a — Übersetzen
+
+- 21 Kernprüfungen, 75 gezielte Android-/Integrationstests und ARM64-Build bestanden.
+- 14 feste Zielsprachen, separat in KI-Einstellungen gespeichert. Keine freie
+  Sprachzeichenfolge wird in die Systeminstruktion importiert.
+- Bestätigung zeigt Aufgabe und Zielsprache. Approval friert Modell, Aufgabe und
+  Zielsprache ein. Ein echter InputLogic-/Paneltest ändert die Einstellungen nach
+  der Vorschau und bestätigt, dass weiterhin die angezeigte Sprache gesendet wird.
+- Auswahl, Sendefreigabe, Vorschau und Übernahme nutzen unverändert denselben
+  abgesicherten Weg. Kein echter Anbieter-/Übersetzungsqualitätstest behauptet.
+
+## Etappe 10b — Umformulieren
+
+- 21 Kernprüfungen, 76 gezielte Android-/Integrationstests und ARM64-Build bestanden.
+- Neutraler, freundlicher oder professioneller Tonfall, in Einstellungen wählbar
+  und vor Sendefreigabe sichtbar. Approval friert den Tonfall ein.
+- Produktionstest ändert den Tonfall nach Vorschau und bestätigt die unveränderte
+  freigegebene Instruktion. Keine automatische Ersetzung; kein Qualitätsversprechen
+  aus simulierten Modellantworten.
+
+## Etappe 10c — Zusammenfassen
+
+- 21 Kernprüfungen, 77 gezielte Android-/Integrationstests und ARM64-Build bestanden.
+- Zusammenfassung als eigener ausdrücklich bestätigter Auftrag, mit Ergebnisvorschau
+  und separater Übernahme. Native Integration durchläuft denselben sicheren Pfad.
+- Die modellseitige Zusammenfassungsqualität bleibt eine echte API-Prüfung.
+
+## Etappe 10d — Antwortentwurf
+
+- 21 Kernprüfungen, 78 gezielte Android-/Integrationstests und ARM64-Build bestanden.
+- Antwortentwurf mit sichtbar gewähltem, eingefrorenem Tonfall. Es wird keine
+  Nachricht verschickt; erst bewusste Übernahme ersetzt den ausgewählten Editortext.
+- Tatsächlicher InputLogic-/Paneltest bestätigt Sendefreigabe, Tonfallbindung und
+  unveränderten Editor bis zur Übernahme. Antworten bleiben prüfbedürftige KI-Entwürfe.
+
+## Etappe 10e — Kontextanalyse ohne Ersetzung
+
+- 21 Kernprüfungen, 79 gezielte Android-/Integrationstests und ARM64-Build bestanden.
+- Inhalt, Ton und mögliche Absichten werden als Analyse angefordert. UI kennzeichnet
+  Absichten als Vermutungen; das Ergebnis kann gelesen und bewusst kopiert werden.
+- Analyse sperrt Übernahme in Controller und View. Der native Test prüft sowohl
+  den deaktivierten Button als auch den direkten Callback-Aufruf ohne Textmutation.
+- Unabhängiges Read-only-Review der Aktionserweiterung ohne konkreten Datenschutz-
+  oder Einfügungsbefund. Alte Ergebnisse, Sprach-/Tonbindung und Stale-Sperren bleiben erhalten.
+- Echte Analysequalität und Gerätekontrolle sind weiterhin ausstehend.
+
+## Härtung 9d — gesperrte KI-Einstellungen
+
+- 80 gezielte Android-/Integrationstests und ARM64-Build bestanden.
+- AgentAiScreen konstruiert die CE-Einstellungen erst nach strikter Entsperrprüfung.
+  Vor dem ersten Unlock erscheint nur ein Hinweis. Bei ON_RESUME wird erneut
+  geprüft, bei ON_STOP wird das Eingabeformular entfernt.
+- Settings und CredentialStore verwenden dieselbe ausfallsichere Sperrprüfung.
+  Tests prüfen fehlende/fehlerhafte Systemdienste, Keyguard und User-Unlock getrennt.
+- Der echte Reboot-/Settings-Lifecycle-Gerätetest bleibt ausstehend.
+
+## Etappe 10f — kompakte Aktionsauswahl
+
+- 80 gezielte Android-/Integrationstests, ARM64-Build und Lint bestanden.
+- Sechs KI-Aktionen in zwei Spalten, getrennt von lokalen Werkzeugen.
+  Anbieter-Einstellungen sind im Kopf erreichbar; Sendebestätigung steht direkt
+  unter dem Auswahltext. Alle Felder bleiben nicht editierbare Views.
+- Native helle Vorschau visuell geprüft. Lint: 116 Warnungen, ein Hinweis,
+  keine neuen Fehler; 68 geerbte Übersetzungsfehler bleiben separat baseliniert.
+
+## Etappe 11a — Skill-Belegungen und Dateiformat
+
+- 21 Kernprüfungen, 84 gezielte Android-/Integrationstests und ARM64-Build bestanden.
+- Drei feste Plätze, stabile Builtin-IDs, begrenzte Beschriftungen ohne Steuer-/
+  BiDi-Täuschungszeichen. Keine Code-, URL- oder Zugangsdatenfelder.
+- CE-No-Backup-Datei, atomare Speicherung, striktes Format 1. Ganze Datei wird
+  geprüft, bevor etwas verändert wird. Unbekannte Versionen/Felder/Aktionen,
+  doppelte Plätze, falsche Typen und übergroße Dateien verändern keinen Stand.
+- Bei gesperrtem oder unlesbarem Speicher liefert der Tippweg eine neutrale
+  unbelegte Taste; Schreibzugriffe bleiben gesperrt. Tastatureinstellungen sind getrennt.
+- Native Tasten und Dateiauswahl werden im nächsten Teil verbunden.
+
+## Etappe 11b — native Skill-Tasten
+
+- 86 gezielte Android-/Integrationstests und ARM64-Build bestanden.
+- Drei nummerierte Toolbar-/Layoutcodes mit Icons für alle drei Tastenstile.
+  Belegungen und explizites Anheften sind in den Einstellungen verfügbar.
+- Quelle wird vor asynchronem Konfigurationszugriff erfasst. Identität und Token
+  müssen vor Vorbereitung weiterhin stimmen; Abbruch/Editorwechsel stoppen den Weg.
+- Native Integrationstests: Skill 1 bereitet lokale Großschreibung ohne Mutation
+  vor; Skill 2 zeigt eine KI-Sendebestätigung ohne initialisierten Cloud-Transport.
+- Die alte Handler-Testattrappe liefert nun den echten Boolean-Erfolg zurück,
+  statt durch Unit einen abgewiesenen Coroutine-Post vorzutäuschen. Neue Async-Tests
+  stellen Runnable-Callbacks gezielt zu; bisherige Testassertionen unverändert.
+- Unabhängiges Read-only-Review ohne konkreten Sicherheits-/Tippbefund.
+- Vollständige Regression: 267 Tests, genau zwei bekannte Textfehler und fünf
+  externe Link-/Formatfehler wie im letzten vollständigen Lauf. Keine neue
+  funktionale Abweichung durch die präzisere Handler-Attrappe.
+- Lint bestanden: 119 Warnungen, ein Hinweis; 68 geerbte Übersetzungsfehler baseliniert.
+
+## Etappe 11c — Dateiimport und -export
+
+- 91 gezielte Android-/Integrationstests, ARM64-Build und Lint bestanden.
+- SAF-Dokumentauswahl für Skill-Belegungen und vorhandene Profilgruppen.
+  UTF-8 wird strikt dekodiert, BOM akzeptiert, Dateigröße vor Parsing begrenzt.
+- Exporte werden vor dem Öffnen/Trunkieren auf UTF-8-Bytegröße geprüft.
+- Falsche Profilgruppe verändert weder gespeicherte noch aktive Profile. Import
+  speichert zunächst; erst „Anwenden“ ändert die Tastatur. Skills führen nie aus.
+- Keine Credentials, Editorinhalte oder Ergebnisse in diesen Dateiformaten.
+- Unabhängiges lesendes Review ohne blockierenden Befund. Echte SAF-Provider-
+  und Rotationsprüfung auf Android bleibt offen.
+
+## Etappe 12a — verschlüsseltes Statusjournal
+
+- 97 gezielte Android-/Integrationstests und ARM64-Build bestanden.
+- Eigene CE/noBackup-Datei, eigenes Keystore-Alias und AAD. Höchstens 20 Einträge,
+  terminale Zustände höchstens sieben Tage; aktive Absichten werden nicht verdrängt.
+- Metadaten ausschließlich: Aktion, Anbieter, Modell, Zeit, Prozess, Zustand/ID.
+  Keine Quelltexte, Ergebnisse, Prompts, Zugangsdaten oder Editorberechtigungen.
+- Neustart markiert fremde laufende Aufträge UNKNOWN; abgeschlossene Zustände sind
+  unveränderlich. Löschen der Historie erzeugt bei späterer Antwort keinen Eintrag.
+- Sperre, beschädigte Verschlüsselung und ungültige Metadaten verändern keine Datei.
+- Unabhängiges Review ohne Speicherblocker; bei 12b ist Beginn/ID-Übernahme gegen
+  Coroutine-Abbruch zu schützen. Keystore-/Prozesskill-Gerätetest bleibt offen.
+
+## Etappe 12b — abbrechsichere Ausführung und Statusoberfläche
+
+- 103 gezielte Android-/Integrationstests, ARM64-Build und Lint bestanden.
+- Intent und ID-Übernahme sind gemeinsam nicht abbrechbar; danach wird Abbruch
+  vor jedem Providerstart geprüft. Abschluss wird vor der Ergebnisanzeige gespeichert.
+- Kaputter Anfangsspeicher verhindert die Anfrage. Kaputter Abschlussspeicher
+  veröffentlicht kein ungesichertes Erfolgsergebnis. Keine automatischen Retries.
+- Netzwerk-/Timeout-Ausgänge sind UNKNOWN; lokaler Abbruch bedeutet ausdrücklich
+  keine Zusicherung, dass der Anbieter die Anfrage noch nicht verarbeitet hat.
+- Review fand Sperren→Abbruch→Entsperren im selben Prozess: RAM-Registry aktiver
+  IDs erlaubt nun, fehlgeschlagene Abschlüsse nach Entsperren als UNKNOWN zu
+  bereinigen. Gezielter Test plus erneutes unabhängiges Review bestanden.
+- Native Textaktionen verwenden das echte Journal; Test-Provider und Testjournal
+  sind unabhängig injizierbar. Alle sechs End-to-end-Flows prüfen den Abschluss.
+- Entsperrte KI-Einstellungen zeigen nur Metadaten, Aktualisieren und Löschen.
+  Echte Prozesskill-/Keystore-/Lock-Lifecycle-Geräteprüfung bleibt offen.
+
+## Härtung — automatische Crashdateien entfernt
+
+- 104 gezielte Android-/Integrationstests und ARM64-Build bestanden.
+- Alter privater Crashhandler entfernt: keine automatische Persistenz roher
+  Fehlermeldungen oder LastLog in External/DE. Androids Standardhandler bleibt
+  erhalten, unabhängig vom Debugschalter. Regressionstest und lesendes Review.
+- Dadurch ist die alte maskierte Warnung lokalisierbar: Robolectric meldet im
+  Hintergrund PackageManager.NameNotFoundException aus App.kt:41 (Versionslog
+  nach Test-Teardown). Dieser Ursprungsfehler wird separat korrigiert.
+- Vorhandene alte Crashdateien bleiben ausdrücklich manuell exportierbar.
+
+## Härtung — Startmetadaten ohne Paketmanager-Race
+
+- 104 gezielte Android-/Integrationstests und ARM64-Build bestanden.
+- Startlog verwendet BuildConfig-Konstanten statt spät aufgelöster Paketdaten.
+  Keine asynchrone PackageManager-Abfrage nach einem Robolectric-Teardown.
+- Test-XML und Laufprotokoll enthalten im erneuten Lauf keine Hintergrund-
+  Exception/NameNotFoundException/NullPointerException. Kein Handler unterdrückt sie.
+- Andere alte GlobalScope-View-Callbacks bleiben für eine eigene Härtung markiert.
+
+## Etappe 13a — begrenzter Workflow-Kern
+
+- 35 reine Kernprüfungen (14 neue Workflowfälle), 104 gezielte Android-/
+  Integrationstests, ARM64-Build und Lint bestanden. Vollständige Regression: 285 Tests, genau die
+  fünf ursprünglichen Baseline-Fehler; keine zusätzlichen externen Timeouts.
+- Unveränderliche Definitionen, höchstens zwei Schritte/Modellaufrufe, strikte
+  rückwärts gerichtete Referenzen, Anbieterprüfung vor jeder Ausführung.
+- Textbudgets und UTF-16 validiert; zu großes Zwischenergebnis wird nicht an das
+  nächste Modell gesendet. Analyse bleibt entlang der Abhängigkeiten nicht ersetzbar.
+- ModelRequest hält ausschließlich input:String; der Snapshot-Konstruktor kopiert
+  Text, übergibt jedoch keine Editorberechtigung. Nativer Send-/Apply-Weg unverändert.
+- Unabhängiges Sol-Review ohne Grenzverletzung; Astra-Review von Kern und Journal ebenfalls ohne Blocker.
+- Speicher, Aktivierung, Sendefreigabe, Timeout und Journal-Anbindung sind der
+  nächste getrennte Teil. Aktuell kein Workflow-Start über die Oberfläche.
+
+## Etappe 13b1 — Workflow-Konfigurationsspeicher
+
+- 111 gezielte Android-/Integrationstests und ARM64-Build bestanden.
+- CE/noBackup, max. zehn Abläufe/32.768 Austauschbytes. Vollständige Typ-/Feld-/
+  Referenzprüfung vor atomarem Schreiben. Kein Start beim Laden oder Import.
+- Austauschformat 1 mit IDs/Revisionsnummern, festen Aktionen und Modellparametern.
+  Lokaler Speicherwrapper hält zusätzlich einen Generationstoken.
+- Review fand Same-ID/Same-Revision-Import-Race: Jede Mutation verlangt jetzt den
+  gelesenen Generationstoken und erzeugt einen neuen. Stale save/delete/replaceAll
+  werden auch nach Import, Leerung und Delete/Recreate abgewiesen. Nachtest und
+  unabhängiges Rereview ohne weiteren Befund.
+- Defekte Dateien sind keine leere Sammlung; Sperre/ungültige Daten verändern nichts.
+  Austauschformat enthält den internen Generationstoken nicht.
+
+## Etappe 13b2 — manuelle Workflow-Einstellungen und Dateivorschau
+
+- 115 gezielte Android-/Integrationstests, ARM64-Build und Lint bestanden.
+- Neuer Einstellungen-Einstieg: bis zwei Schritte erstellen/bearbeiten/löschen;
+  Modell, Sprache, Ton und ursprüngliche Auswahl/vorheriges Ergebnis festlegen.
+- Import validiert und zeigt sämtliche Schritte. Erst „Konfiguration aktivieren“
+  ersetzt den gespeicherten Stand, ohne Ausführung. Export enthält Konfiguration.
+- Neuer Compose-/Robolectric-Test: Datei wählen, Activity stoppen/fortsetzen,
+  Importvorschau anzeigen, gespeicherten Stand vor Aktivierung unverändert prüfen,
+  danach den aktivierten Stand. Native Bitmap-Vorschau des Dialogs visuell geprüft.
+- ON_STOP entfernt CE-Oberfläche. SaveableStateHolder erhält ausschließlich die
+  SAF-Auftragsmetadaten/Launcherkeys; keinerlei Editorinhalt oder Credential.
+- Review fand Capture-Race zwischen altem Card-Inhalt und neuer Generation; alle
+  UI-Callbacks erfassen jetzt Definitionen und Generation gemeinsam aus demselben
+  dargestellten Snapshot. Rereview ohne weiteren Befund.
+- Echte SAF-Provider-/Rotations-/Lock-Geräteprüfung offen. Compose-WindowCapture
+  wartete im Test auf einen nicht gelieferten Redraw; native Canvas-Aufnahme des
+  Dialogs liefert die geprüfte Vorschau ohne Änderung der funktionalen Assertions.
+- Start aus dem Tastaturpanel folgt als eigenständiger Schritt13b3.
+
+## Härtung — Kopieren prüft die aktuelle Schutzgrenze
+
+- 119 gezielte Android-/Integrationstests und ARM64-Build bestanden.
+- Copy prüft denselben aktuellen Token/Datenschutzstatus wie Verarbeitung und
+  Übernahme. Inkognito zwischen Vorschau und Klick sperrt auch einen direkten
+  Callback, bevor die UI ihre deaktivierte Darstellung erhalten hat.
+- Erkannte Staleness verwirft Quelle, Ergebnis und Freigaben; beide sichtbaren
+  Vorschauen werden gelöscht. Auch Stale-Cancel und abgewiesene Übernahme tun das.
+- Native Tests prüfen unveränderte Zwischenablage bei Inkognito und Stale-Cancel,
+  gültige bewusste Kopie mit IS_SENSITIVE und unveränderten Editorinhalt.
+- Unabhängiges Review ohne Copy-Bypass; dort genannter Cancel-Konsistenzpfad
+  ebenfalls korrigiert und gezielt geprüft. Keine InputLogic-/IC-Mutation geändert.
+
+## Etappe13b3a — journalisierter Workflow-Runner
+
+- 127 gezielte Android-/Integrationstests, ARM64-Build und Lint bestanden.
+- JournaledModelCall extrahiert die geprüften Intent-/Abschlussregeln für Einzel-
+  und Workflow-Aktionen. Nach begin nochmals Abbruch und ursprünglichen Editor
+  prüfen. Text wird weiterhin ausschließlich an den Provider übergeben.
+- startWorkflow führt den Core unter95s-Budget aus. Checkpoints prüfen den Job
+  des zeitbegrenzten Laufs. Timeout wird als Ergebnisfehler zurückgegeben und
+  unbeantworteter Aufruf UNKNOWN; manuelles Cancel lokalCANCELLED. Nicht abbrechbare
+  Journal-I/O kann das Budget überziehen, ohne spätere Veröffentlichung zu erlauben.
+- LAZY-Job vor Ausführung zugewiesen; auch synchroner/reentranter Cancel verhindert
+  Schritt2. Lokale Abläufe initialisieren keinen Provider und keinen Modellauftrag.
+- Acht neue Runnerfälle plus bisherige acht Single-Action-Fälle: sequenzieller
+  Datenfluss, nur Endergebnis, Sperrwechsel beim Begin, Cancel zwischen Schritten,
+  Timeout, unsupported-provider-Preflight, Teilfehler und verspäteter alter Lauf.
+- Unabhängiges Astra-Code-Review ohne Blocker. Einmalige Freigabe und native Panel-
+  Anbindung folgen13b3b. Journal aktuell pro AI-Schritt, kein Gesamtworkflow-Resume.
+
+## Etappe13b3b — native Workflow-Freigabe und Ergebnisvorschau
+
+- 130 gezielte Android-/Integrationstests, ARM64-Build und Lint bestanden.
+- Native Workflowliste lädt IO und bleibt an den ursprünglichen Snapshot gebunden.
+  Vollständige Bestätigung nennt echte Aktionen, Anbieter/Modelle, Eingaben und
+  mögliche Weitergabe von Zwischenwerten. Importierter Name ersetzt diese Angaben nie.
+- Unveränderliche Definition wird vor Coroutine-Start einmalig verbraucht. Spätere
+  Konfigurationsimporte ändern den genehmigten Ablauf nicht; doppelte Sendeklicks
+  starten keine zweite Anfrage. Close/Cancel/Stale löschen beide Freigabetypen.
+- Native Tests: lokaler Ablauf ohne Provider/Transport, separater Apply; Cloud mit
+  genau freigegebenem Zwischentext trotz zwischenzeitlichem Same-ID-Import;
+  Stale-Direktcallback ohne Provider. Analyse-Sperre kommt aus dem Core-Ergebnis.
+- Später Cancel nach schnellem lokalen Abschluss löscht nun ebenfalls Ergebnis/
+  canApply; Direkt-Apply bleibt danach ohne Wirkung. Neue Freigabe ist erforderlich.
+- Unabhängiges Sol-Review ohne Consent-/Race-Befund.
+- Vollständiger Lauf vor dieser letzten Cancel-Ergänzung:311 Tests, genau fünf
+  ursprüngliche Baseline-Fehler. Anschließende gezielte Suite einschließlich
+  zusätzlichem Cancel-Fall vollständig grün. Echte Geräte-/API-Prüfungen offen.
+
+## Etappe13c1a — deterministische Bedingungslogik
+
+- 43 Kernprüfungen,132 gezielte Android-/Integrationstests, ARM64-Build und Lint
+  bestanden. Acht neue Kernfälle plus Freigabedarstellungs-/Speicherschutztests.
+- NON_EMPTY, CONTAINS_LITERAL (case sensitive) und LENGTH_AT_LEAST (UTF-16),
+  optionale Negation; kein Regex/Code. Literal höchstens128 Zeichen, gültiges UTF-16,
+  keine BiDi-Steuerzeichen; Zeilenumbrüche/Tabulatoren eindeutig escaped.
+- Falsch: Eingabe unverändert weiterreichen, kein Modellaufruf und kein neu
+  budgetierter Ausgabetext. Vorhandene Analyse-Sperre bleibt erhalten; ein
+  übersprungener Analyseschritt erzeugt keine Analyseausgabe/Sperre.
+- Ergebnis enthält unveränderliche Listen ausgeführter/übersprungener IDs, keine
+  zusätzliche Inhaltskopie. Native Anzeige nennt tatsächliche Modellanfragen/Skips.
+- Review fand U+2028/U+2029-Zeilentrenner: ebenfalls sichtbar escaped, Regressionstest.
+  Unabhängiges Rereview ohne weiteren Befund.
+- Speicherformat1 lehnt bedingte Definitionen ausdrücklich ab. Bedingungen sind
+  noch keine erstell-/importierbare App-Funktion; Format2 und Editor folgen13c1b.
+
+## Etappe13c1b — Bedingungsformat und Editor
+
+- 43 Kernprüfungen,137 gezielte Android-/Integrationstests, ARM64-Build und Lint
+  bestanden. Bedingungseditor als native Bitmap visuell geprüft.
+- Austauschformat2 mit condition:null oder strengem Regelobjekt. Format1 wird
+  ausdrücklich bedingungslos gelesen; neue Felder in v1 bleiben unzulässig.
+  Bestehender Speicherwrapper1/Generationstoken unverändert. Neue Exporte Format2.
+- Unfertige Literal-/Zahleneingaben bleiben reine Drafts, Speichern erst nach
+  vollständiger Core-Validierung. Importierte Regeln bleiben beim Bearbeiten erhalten.
+- Compose-Test: leeres Literal sperrt Save, Text/Negation eingeben, dieselbe Regel
+  nochmals wählen, Save, gespeicherten Inhalt prüfen. Review fand Same-Predicate-
+  Reset; behoben und per Test gegen Datenverlust abgesichert, Rereview bestanden.
+- Nativer End-to-end-Test: false AI-Bedingung initialisiert keinen Provider,
+  zeigt0Modellanfragen/1Skip und verändert den Editor nicht. Alle realen Regeln
+  und Fallback sind in Import-/Aktivierungs-/Ausführungsansichten sichtbar.
+- Falsche Versionen, Typen, unbekannte Prädikate/Felder und v1-Bedingungsfelder
+  verändern keine vorhandene Konfiguration. Gerätetests bleiben offen.
+
+## Etappe13d1 — versionierte Skill-Verweise
+
+- 45 Kernprüfungen,140 gezielte Android-/Integrationstests und ARM64-Build bestanden.
+- Skillformat2 speichert zusätzliche workflowId:null/String. Genau WORKFLOW plus
+  kanonische UUID ist erlaubt; Builtins dürfen keine versteckte Referenz tragen.
+- Format1 wird ausdrücklich zu Builtin/null migriert. Neue Felder oder WORKFLOW
+  unter v1, falsche UUID-/JSON-Typen und inkonsistente Kombinationen werden vor
+  jeder Mutation abgewiesen. Export enthält nur Referenz, keinen Workflowinhalt.
+- Workflow-Editor und Codec gestatten keine verschachtelten Workflow-Schritte.
+- Unabhängiges Sol-Review ohne Format-/Capabilitybefund. UI-/Tastaturverdrahtung
+  der Referenz folgt13d2; derzeit keine automatische oder implizite Ausführung.
+
+## Etappe13d2 — Workflows auf Skill Keys
+
+- 147 gezielte Android-/Integrationstests, ARM64-Build und Lint bestanden; Core
+  weiterhin45Prüfungen. Neuer Slot-CAS-Test ergänzt die beiden Compose-/vier Nativefälle.
+- Skill-Einstellungen wählen gespeicherte Workflows, speichern ausschließlich UUID
+  und Alias. Default-Alias bleibt gültiges UTF-16; fehlende importierte UUID wird
+  angezeigt und bei Umbenennung beibehalten statt auf ersten Ablauf umzubiegen.
+- Slot-Schreibzugriff kann die angezeigte alte Belegung vergleichen; ein veralteter
+  Editor überschreibt keinen zwischenzeitlichen Import. Andere Slots bleiben mergebar.
+- Tastendruck lädt Belegung und Definition IO, prüft Source-Identität/Policy und
+  öffnet nur die vollständige Freigabe. Lokaler Ablauf benötigt Start plus Apply;
+  Cloud-Alias ersetzt niemals Anbieter/Modell/Schritte. Fehlende UUID ohne Fallback.
+- Neue Nativefälle prüfen lokalen Workflow, irreführenden Cloud-Alias ohne Anfrage,
+  Missing-Referenz trotz anderem gespeicherten Ablauf sowie Stale während IO.
+- Compose-Fälle prüfen UTF-16-sicheren Alias, unveränderte Tastaturpräferenzen,
+  gespeicherte UUID ohne Workflowkopie und Umbenennen eines fehlenden Verweises.
+- Unabhängiges Sol-Review ohne Capability-/Racebefund. Echte Geräteprüfung offen.
+
+## Etappe13e — größere Abläufe und genaue Datenverweise
+
+- 48 Kernprüfungen,151 gezielte Android-/Integrationstests, ARM64-Build und Lint
+  bestanden. Astra-Review ohne Referenz-/Migrations-/Budgetbefund.
+- Format3 erlaubt bis8Schritte/max3Modellaufrufe. V1/V2 bleiben ausdrücklich bei
+  höchstens2Schritten; v1keineBedingung, v2/v3strengeBedingung. Kein impliziter Upgrade.
+- ManualDraft nutzt nullable inputStepIndex statt Boolean/hardcodedstep1. Import-
+  Referenzen bleiben beim kanonischen Umbenennen erhalten, nur frühere Indizes erlaubt.
+  AddStep nimmt zuletzt vorhandenen Schritt als Default. Editor, Karten und Freigabe
+  nennen exakt das referenzierte Ergebnis von SchrittN.
+- Core/Manual/Compose/Native prüfen nicht benachbarte Verweise; acht lokale Schritte,
+  drei erlaubte Modellaufrufe und Ablehnung von vier. Textbudget32K/AIinput8192/
+  output16384 und95s-Gesamtbudget bleiben erhalten; Höchstzahlen garantieren keinen
+  Abschluss bei zu großen Zwischenwerten oder langsamen Providern.
+- Erster Volltest332/23: fünf Baselinefehler plus18 TempDirectory-Initialisierungs-
+  fehler wegen temporärer Festplattenbelegung; kein Produktbefund. Robolectric hält
+  App-/Wörterbuchkopien bis zum Workerende. App-Tests jetzt forkEvery1 proTestklasse,
+  keine Assertion abgeschwächt oder ausgeschlossen. Temporärdateien werden beim
+  Workerende freigegeben; keine Benutzerdateien zur Bereinigung gelöscht.
+- Wiederholung332Tests/genau5ursprünglicheBaselinefehler, keine Hintergrundexception.
+  Zwei bekannte Textabweichungen und drei externe Link-/Formatfehler bleiben offen.
+
+## Etappe13f1 — allgemeine verschlüsselte Laufmetadaten
+
+- 156 gezielte Android-/Integrationstests, ARM64-Build und Lint bestanden; Core48.
+- RunSubject unterscheidet Textaktion, Workflowdefinition/Revision und Builder.
+  Textaktionen können einen streng validierten Workflow-/Run-/Step-Link tragen.
+  Eltern haben keine Provider-/Modellfelder; Modellaufrufe benötigen beide.
+- Journal-JSONschema2 mit expliziter v1-action→TextSubject-Migration. AES-Alias und
+  AADv1 bleiben der bestehende Kryptokontext; kein Schlüsselwechsel/Regenerieren.
+- GenericJournaledModelCall unterstützt Builderdaten ohne Editor-Token und prüft
+  beforeCall nach dem unverlierbaren Intent. Workflow-Eltern dürfen darüber keine
+  Modellanfrage starten. Neue Titel/Abschlusstexte unterscheiden die tatsächliche Rolle.
+- Neue Crypto-/Legacy-/strikteSchemafälle und zwei Builder-Callerfälle grün.
+  Ein erster neuer Test musste den Unit-Rückgabetyp für JUnit4 ausdrücklich machen;
+  danach vollständige gezielte Suite grün. Keine Funktionsassertion abgeschwächt.
+- Astra-Review ohne Krypto-/Type-/Scopeblocker. Noch keine Elternproduzenten;
+  Verknüpfung im Runner folgt13f2, Builderoberfläche14. Keine Inhaltsretention.
+
+## Etappe13f2 — Workflow-Gesamtlauf und Schrittverknüpfung
+
+- 161 gezielte Android-/Integrationstests, ARM64-Build und Lint bestanden; Core48
+  unverändert. Unabhängiges Astra-Review ohne blockierenden Befund.
+- Gemeinsamer JournaledRun speichert Intent und terminale Metadaten ohne Inhalte.
+  Der Elternlauf umfasst lokale und AI-Schritte; Modellaufträge referenzieren
+  dessen ID sowie Definition, Revision und Step-ID. Ergebnis erst nach Parent-Finish.
+- Konkreter zeitbegrenzter Job bleibt Checkpoint-Grundlage. Timeout UNKNOWN,
+  manueller Cancel CANCELLED; Abbruch während begin verliert die gespeicherte ID
+  nicht. Parent-Intent-/Finish-Fehler verhindern Provider bzw. Ergebnisanzeige.
+- SDK21/22 führt rein lokale Workflows ohne Keystore-Metadaten aus; keine behauptete
+  Persistenz. AI dort weiter gesperrt. Zusätzlicher Crypto-Test prüft Locked-Finish
+  ohne Zugriff auf nicht verfügbaren CE-Verzeichnispfad; nach Unlock UNKNOWN.
+- Status löst Workflow-Namen ausschließlich über passende aktuelle ID/Revision
+  auf; kein persistierter historischer Name. API-/Geräteprüfungen bleiben offen.
+
+## Etappe13g — gezielte Wiederherstellung beschädigter Konfiguration
+
+- 165 gezielte Android-/Integrationstests, ARM64-Build und Lint bestanden; Core48
+  unverändert. Sol-Read-Review ohne
+  Consent-/Atomizitätsblocker; dessen Robustheitsfund (unbegrenzte Hashlesung)
+  durch1MiB-Obergrenze behoben. Größere Dateien bleiben unangetastet.
+- Nur eine erneut als unlesbar geprüfte Datei mit identischem SHA256 kann nach
+  zweiter Dialogbestätigung durch eine gültige leere Konfiguration ersetzt werden.
+  Gesunde, inzwischen reparierte/ersetzte, fehlende und gesperrte Dateien werden
+  nicht zurückgesetzt. Reset betrifft keine Keys, Profile, Laufdaten oder Skills.
+- Drei Storetests und ein Composefall prüfen Zugriffsschutz, Übergröße, stale
+  Bestätigung, Dateierhalt bei Cancel, expliziten Reset und erneute Bearbeitbarkeit.
+  Native Dialogvorschau visuell geprüft. Keine Fehlertexte/Inhalte geloggt.
+- Der UI-Test fand eine Renderlücke bei null→null-Konfiguration: Recovery-/Fehler-
+  und Busy-Zustände werden nun im Elternscope eingefroren. Regressionslauf zeigte
+  denselben Beobachtungspfad im Skill-Screen; Parent-Captures ergänzen, ohne
+  key(binding), fehlende UUIDs oder store.set(saved,binding)-CAS zu ändern.
+- Diagnose- und Clock-Pumpversuche wieder entfernt. Vor roher Dialog-Bitmapaufnahme
+  wartet der Test auf die sichtbare Bestätigung; fachliche Assertions unverändert.
+  Abschließend vollständige gezielte Suite grün. Geräteprüfungen offen.
+
+## Etappe14a — geschlossener Act-Builder-Vertrag
+
+- 48 Kernprüfungen,28 relevante App-Tests (Buildervertrag, OpenAI, WorkflowStore)
+  sowie ARM64-Build und Lint bestanden.
+  Unabhängiges Astra-Review ohne Schema-/API-/Validierungsblocker.
+- Fester Outputformat-Enum und feste Providerfähigkeit; kein frei übergebenes
+  Schema. Responses text.format verwendet app-eigenes geschlossenes JSONSchema.
+  Normaler Textauftrag behält seinen bisherigen HTTP-Körper, Builder4096Tokens.
+- Sechs Vertragsfälle plus neuer Providerfall prüfen neue App-Identität/Revision,
+  eingefrorenes Modell, unveränderte Transportgrenzen, rückwärtige Referenzen,
+  Bedingungen, Typ-/Unicode-/Größen- und Schrittgrenzen sowie verbotene Felder.
+- Unbekannte Identität, Provider-/Modellwahl, Prompts, URLs und Tools werden vor
+  weiterer Verarbeitung abgewiesen; Decoder verwendet denselben Codec/Core.
+  Keine Speicherung oder Ausführung. Noch kein UI-/Runnerproduzent; folgt14b/c.
+- Ein Testfixture ersetzte zunächst auch einen Action-Namen beim Umbenennen einer
+  Step-ID; präzisiert und relevant wiederholt. Keine Funktionsassertion entfernt.
+  Echte Modell-/Geräteprüfungen bleiben offen.
+
+## Etappe14b — freigegebene Entwurfsgenerierung
+
+- 36 relevante Runner-/Vertragstests, ARM64-Build und Lint bestanden. Zehn neue
+  Builderfälle; Core48 unverändert. Astra-Read-Review ohne blockierenden Befund.
+- prepare friert Text/Modell ohne IO ein. start akzeptiert genau die aktuelle
+  identitätsgebundene Freigabe, verbraucht sie vor Coroutine-Start und installiert
+  einen LAZY-Job vor synchroner Arbeit. Feste OpenAI-/Structured-Capabilitygrenze.
+- Dauerhafter Intent vor Providerkonstruktion; Validierung gehört zum gespeicherten
+  Builderlauf. Ein Entwurf wird erst nach gültigem Ergebnis und erfolgreichem
+  Terminalschreiben veröffentlicht. Keine Editor-, Speicher- oder Ausführungsautorität.
+- Tests prüfen Doppelsenden, alte/fremde Freigaben, Cancel während begin, Privacy-
+  Wechsel in begin/generate/finish, Storagefehler vor/nach Provider, ungültige
+  Ausgabe, unsupported-provider und Capability, Timeout sowie nicht kooperativen
+  alten Provider. Timeout UNKNOWN, lokaler Cancel CANCELLED, Fehler neutral.
+- 65s Gesamtbudget kann durch nicht abbrechbare Journal-IO überschritten werden;
+  Job-/Epoch-/Policy-Prüfung verhindert trotzdem späte Veröffentlichung. Host muss
+  Main-Thread, Lifecycle- und Inkognito-Abbruch liefern; Oberfläche folgt14c.
+  Keine Live-API-/Geräteprüfung behauptet.
+
+## Etappe14c — Act Builder mit privater Entwurfsprüfung
+
+- 189 gezielte Android-/Integrationstests, ARM64-Build und Lint bestanden, Core48
+  unverändert. Vollständige Regression370Tests/genau5geerbteFehler, keine neue
+  Hintergrundexception. Identische Baselinefälle: Hangul, Emoji, zwei externe
+  Links (diesmal503statt404) und externes Dictionaryformat.
+- Sechs neue Builder-UI-Fälle und ein zusätzlicher ManualDraft-Fall. Genaue
+  Sendefreigabe ist vom Generieren und vom Speichern getrennt. Modell und
+  Konfigurationsgeneration stammen unveränderlich aus dem beim Öffnen dargestellten
+  Stand. Neue Entwürfe bleiben Revision1; Store-CAS verhindert stale Aktivierung.
+- Tests belegen kein Provider vor Send, keine Konfiguration vor Save, kein zweiter
+  Auftrag bei deaktiviertem Send, eingefrorenes Modell trotz Einstellungsänderung,
+  unveränderte neu importierte Konfiguration, Cancellation bei Hintergrundwechsel
+  und leere neue Formulare nach Rückkehr bzw. Incognito.
+- SaveableStateRegistry enthält weder Prompt noch ungespeicherten Entwurfsnamen.
+  Activity- und Dialog-Screenshotschutz werden geprüft. Native Sendungs-/Entwurfs-
+  Bitmaps visuell geprüft. Keine Live-API-Anfrage, nur klar erkennbare Testprovider.
+- Astra fand fehlenden Schutz beim Übergang zur Entwurfsprüfung. Ein gemeinsamer
+  Parent hält FLAG_SECURE durchgehend, beide Dialoge SecureOn, Pause/Stop/Incognito
+  verwerfen auch den ungespeicherten Entwurf. Name/Literal verwenden unmaskierte
+  Passwort-IME-Eingabesemantik ohne Autokorrektur. Nachprüfung ohne Blocker.
+- Zusätzlicher Regressionstest ruft den echten alten Save-OnClick nach Verwerfen,
+  Incognito-Rückkehr und neu geöffnetem Builder direkt auf. Keine Speicherung:
+  Identität, Proposal-Flag, Generation und Revision sind gebunden; busy/stale
+  Callbacks werden vor IO verworfen. Preference-Widerruf erfolgt synchron auf Main.
+  Auch Builder-Abschluss-/Dismiss-Callbacks können keine neue Sitzung verändern.
+- Zwei anfängliche UI-Assertions erfassten auch das gemergte Textfeldlabel statt
+  nur den leeren Inhalt. Präzise EditableText-Prüfung, keine Erwartung abgeschwächt.
+  Tatsächliche IME-/Geräte-, Lock-/Rotations- und Live-API-Prüfungen bleiben offen.
+
+## Gerätetest vor Meilensteinfreigabe
+
+- Installation neben der bisherigen Tastatur und problemloser Rückwechsel.
+- Tippen, Löschen, Umlaute, Emoji, Auswahl, Autokorrektur, Rotation, Appwechsel.
+- Native Textfelder, Compose-Textfelder und WebView.
+- Keine Ersetzung bei veraltetem Kontext, Feldwechsel oder zwischenzeitlicher Eingabe.
+- Keine Verarbeitung in Passwort-, Inkognito- oder gesperrten Zuständen.
+- Keine Netzwerkanfragen durch normales Tippen oder lokale Aktionen.
+- Neues Profil anwenden und zum vorherigen funktionierenden Zustand zurückkehren.

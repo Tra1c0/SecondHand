@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="agent_workflows" type="id" />
+    <item name="agent_cloud_analyze" type="id" />
+    <item name="agent_cloud_reply" type="id" />
+    <item name="agent_cloud_summarize" type="id" />
+    <item name="agent_cloud_rephrase" type="id" />
+    <item name="agent_cloud_translate" type="id" />
+    <item name="agent_wheel_menu" type="id" />
+    <item name="agent_wheel_uppercase" type="id" />
+    <item name="agent_wheel_lowercase" type="id" />
+    <item name="agent_wheel_spaces" type="id" />
+    <item name="agent_wheel_close" type="id" />
+    <item type="id" name="agent_close" />
+    <item type="id" name="agent_source" />
+    <item type="id" name="agent_result" />
+    <item type="id" name="agent_status" />
+    <item type="id" name="agent_uppercase" />
+    <item type="id" name="agent_lowercase" />
+    <item type="id" name="agent_clean_spaces" />
+    <item type="id" name="agent_apply" />
+    <item type="id" name="agent_copy" />
+    <item name="agent_cloud_correct" type="id" />
+    <item name="agent_cloud_confirmation" type="id" />
+    <item name="agent_cloud_send" type="id" />
+    <item name="agent_cloud_cancel" type="id" />
+    <item name="agent_cloud_settings" type="id" />
+</resources>

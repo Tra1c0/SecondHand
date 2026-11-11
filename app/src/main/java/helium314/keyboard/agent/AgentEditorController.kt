@@ -1,0 +1,411 @@
+// SPDX-License-Identifier: GPL-3.0-only
+package helium314.keyboard.agent
+
+import android.view.inputmethod.EditorInfo
+import android.view.View
+import android.view.inputmethod.InputConnection
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.os.Build
+import android.os.PersistableBundle
+import android.widget.Toast
+import dev.agentkeyboard.core.ApplyOutcome
+import dev.agentkeyboard.core.CaptureResult
+import dev.agentkeyboard.core.DenialReason
+import dev.agentkeyboard.core.LocalTextAction
+import dev.agentkeyboard.core.TextSnapshot
+import dev.agentkeyboard.core.ModelProvider
+import dev.agentkeyboard.core.AiTextAction
+import dev.agentkeyboard.core.TranslationLanguage
+import dev.agentkeyboard.core.WritingTone
+import dev.agentkeyboard.core.WorkflowDefinition
+import dev.agentkeyboard.core.WorkflowStep
+import dev.agentkeyboard.core.WorkflowProvider
+import dev.agentkeyboard.core.WorkflowFailure
+import dev.agentkeyboard.core.WorkflowError
+import dev.agentkeyboard.core.BuiltinAction
+import helium314.keyboard.keyboard.KeyboardSwitcher
+import helium314.keyboard.latin.R
+import helium314.keyboard.latin.suggestions.SuggestionStripView
+import helium314.keyboard.compat.isDeviceLocked
+import helium314.keyboard.compat.isUserLocked
+import helium314.keyboard.latin.LatinIME
+import helium314.keyboard.latin.inputlogic.InputLogic
+import helium314.keyboard.latin.settings.Defaults
+import helium314.keyboard.latin.settings.Settings
+import helium314.keyboard.latin.utils.prefs
+import helium314.keyboard.agent.providers.*
+import helium314.keyboard.agent.security.EncryptedCredentialStore
+import kotlinx.coroutines.*
+
+/** Owns only the IME's action session; it never owns the host application's text field. */
+class AgentEditorController @JvmOverloads constructor(
+    private val ime: LatinIME,
+    private val inputLogic: InputLogic,
+    private val journalFactory: (() -> ActionRunJournal)? = null,
+    private val providerFactory: (() -> ModelProvider)? = null,
+) {
+    private var panel: AgentPanelView? = null
+    private var wheel: AgentWheelView? = null
+    private var snapshot: TextSnapshot? = null
+    private var preparedResult: String? = null
+    private var needsCursorRefresh = false
+    private var canApply = false
+    private var skillJob: Job? = null
+    private class CloudApproval(val model: String, val action: AiTextAction, val language: TranslationLanguage, val tone: WritingTone)
+    private var pendingApproval: CloudApproval? = null
+    private var pendingWorkflow: WorkflowDefinition? = null
+    private val actionScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val cloudProvider: ModelProvider by lazy {
+        providerFactory?.invoke() ?: OpenAiProvider(EncryptedCredentialStore(ime), CloudHttpClient.callsForContext(ime))
+    }
+    private val cloudRunner by lazy { ApprovedActionRunner(actionScope, { cloudProvider }, editor::isCurrent,
+        journalFactory?.invoke() ?: EncryptedActionRunStore(ime)) }
+    val isAwaitingCursorRefresh: Boolean get() = needsCursorRefresh
+    val isBlockingInput: Boolean get() = needsCursorRefresh || panel?.visibility == View.VISIBLE || wheel?.visibility == View.VISIBLE
+    val editor = AndroidEditorAdapter(
+        connection = { ime.currentInputConnection },
+        liveAccess = { access -> access.copy(
+            isIncognito = ime.prefs().getBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, Defaults.PREF_ALWAYS_INCOGNITO_MODE),
+            isLocked = isDeviceLocked(ime) || isUserLocked(ime),
+            isComposing = inputLogic.hasActiveComposition(),
+        ) },
+        commitSelection = { source, result ->
+            inputLogic.applyGeneratedText(source.text, result, source.selectionStart, source.selectionEnd).also {
+                if (it != ApplyOutcome.REJECTED) ime.onAgentTextSubmitted()
+            }
+        },
+    )
+
+    fun startEditor(info: EditorInfo) {
+        close()
+        needsCursorRefresh = false
+        editor.startEditor(info.inputType, info.imeOptions, info.initialSelStart, info.initialSelEnd)
+    }
+    fun invalidate() = editor.invalidate()
+    fun finishEditor() {
+        close()
+        needsCursorRefresh = false
+        editor.finishEditor()
+    }
+    fun selectionChanged(start: Int, end: Int, compositionStart: Int, compositionEnd: Int) {
+        editor.selectionChanged(start, end, compositionStart, compositionEnd)
+        if (needsCursorRefresh && start >= 0 && end >= 0 && inputLogic.refreshAgentEditorCaches(start, end))
+            needsCursorRefresh = false
+    }
+
+    fun attach(view: View) {
+        close()
+        panel = view.findViewById(R.id.agent_panel)
+        wheel = view.findViewById(R.id.agent_wheel)
+        wheel?.onClose = ::close
+        wheel?.onAction = { action -> open(); if (action != null) runLocal(action) }
+        panel?.onClose = {
+            val hideKeyboard = needsCursorRefresh
+            close()
+            if (hideKeyboard) ime.requestHideSelf(0)
+        }
+        panel?.onAction = ::runLocal
+        panel?.onApply = ::applyPrepared
+        panel?.onCopy = ::copyPrepared
+        panel?.onPrepareCloud = ::prepareCloud
+        panel?.onSendCloud = ::sendCloud
+        panel?.onCancelCloud = ::cancelCloud
+        panel?.onWorkflows = ::chooseWorkflows
+        panel?.onWorkflow = ::prepareWorkflow
+        panel?.onSettings = {
+            close()
+            ime.startActivity(android.content.Intent(ime, helium314.keyboard.settings.SettingsActivity::class.java)
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                .putExtra(AgentPreferences.OPEN_AI_SETTINGS, true))
+        }
+    }
+
+    fun openWheel(): Boolean {
+        val target = wheel ?: return false
+        if (needsCursorRefresh) return false
+        close()
+        KeyboardSwitcher.getInstance().mainKeyboardView?.closing()
+        target.rootView.findViewById<SuggestionStripView>(R.id.suggestion_strip_view)?.dismissMoreSuggestionsPanel()
+        target.visibility = View.VISIBLE
+        target.announceForAccessibility(ime.getString(R.string.agent_wheel_title))
+        return true
+    }
+
+    fun openSkill(slot: Int) {
+        if (slot !in 1..3) return
+        open()
+        val source = snapshot ?: return
+        panel?.showStatus(R.string.agent_skill_loading, true)
+        skillJob = actionScope.launch {
+            val (binding, workflow) = withContext(Dispatchers.IO) {
+                val binding = SkillBindingStore(ime).forTyping(slot)
+                val workflow = if (binding.action == BuiltinAction.WORKFLOW) runCatching {
+                    WorkflowStore(ime).read().singleOrNull { it.id == binding.workflowId }
+                }.getOrNull() else null
+                binding to workflow
+            }
+            if (snapshot !== source) return@launch
+            if (!editor.isCurrent(source)) { discardStaleContext(); return@launch }
+            skillJob = null
+            panel?.showSource(source.text)
+            when {
+                binding.action == BuiltinAction.WORKFLOW -> if (workflow != null) prepareWorkflow(workflow)
+                    else panel?.showStatus(R.string.agent_skill_workflow_missing)
+                binding.action.local != null -> runLocal(binding.action.local!!)
+                binding.action.ai != null -> prepareCloud(binding.action.ai!!)
+                else -> panel?.showStatus(R.string.agent_skill_unavailable)
+            }
+        }
+    }
+
+    fun open() {
+        val target = panel ?: return
+        close()
+        KeyboardSwitcher.getInstance().mainKeyboardView?.closing()
+        target.rootView.findViewById<SuggestionStripView>(R.id.suggestion_strip_view)?.dismissMoreSuggestionsPanel()
+        when (val captured = editor.capture()) {
+            is CaptureResult.Captured -> {
+                snapshot = captured.snapshot
+                target.showSource(captured.snapshot.text)
+                editor.onInvalidated = {
+                    val source = snapshot
+                    if (source != null && !editor.isCurrent(source)) {
+                        discardStaleContext()
+                    }
+                }
+            }
+            is CaptureResult.Denied -> target.showStatus(captured.reason.messageResource(), true)
+        }
+    }
+
+    private fun discardStaleContext() {
+        skillJob?.cancel()
+        skillJob = null
+        cloudRunner.cancel()
+        pendingApproval = null
+        pendingWorkflow = null
+        preparedResult = null
+        snapshot = null
+        canApply = false
+        panel?.showExpired()
+    }
+
+    private fun runLocal(action: LocalTextAction) {
+        if (cloudRunner.isRunning || skillJob?.isActive == true) return
+        pendingApproval = null
+        pendingWorkflow = null
+        val source = snapshot ?: return
+        if (!editor.isCurrent(source)) {
+            discardStaleContext()
+            return
+        }
+        val result = action.transform(source.text)
+        if (editor.policy.resultDenial(result) != null) {
+            panel?.showStatus(R.string.agent_panel_result_invalid, true)
+            return
+        }
+        preparedResult = result
+        canApply = true
+        panel?.showResult(result)
+    }
+
+    private fun prepareCloud(action: AiTextAction) {
+        val source = snapshot ?: return
+        if (!editor.isCurrent(source)) { discardStaleContext(); return }
+        if (cloudRunner.isRunning || skillJob?.isActive == true) return
+        pendingWorkflow = null
+        val approval = runCatching {
+            val settings = ModelSettings(ime)
+            CloudApproval(settings.openAiModel, action, settings.translationLanguage, settings.writingTone)
+        }.getOrNull()
+        if (approval == null) {
+            panel?.showStatus(R.string.agent_cloud_credentials, true)
+            return
+        }
+        if (!ModelSettings.validModel(approval.model)) {
+            panel?.showStatus(R.string.agent_cloud_invalid_request, true)
+            return
+        }
+        preparedResult = null
+        canApply = false
+        pendingApproval = approval
+        val task = when (action) {
+            AiTextAction.CORRECT -> ime.getString(R.string.agent_cloud_correct)
+            AiTextAction.TRANSLATE -> ime.getString(R.string.agent_cloud_translate_to,
+                java.util.Locale.forLanguageTag(approval.language.code).getDisplayLanguage(java.util.Locale.getDefault()))
+            AiTextAction.REPHRASE -> ime.getString(R.string.agent_cloud_rephrase_tone, ime.getString(approval.tone.titleResource()))
+            AiTextAction.SUMMARIZE -> ime.getString(R.string.agent_cloud_summarize)
+            AiTextAction.REPLY -> ime.getString(R.string.agent_cloud_reply_tone, ime.getString(approval.tone.titleResource()))
+            AiTextAction.ANALYZE -> ime.getString(R.string.agent_cloud_analyze)
+        }
+        panel?.showCloudConfirmation(approval.model, source.text.length, task)
+    }
+
+    private fun sendCloud() {
+        val workflow = pendingWorkflow
+        if (workflow != null) {
+            pendingWorkflow = null // One approval for the immutable complete definition, consumed before start.
+            val source = snapshot ?: return
+            if (!editor.isCurrent(source)) { discardStaleContext(); return }
+            panel?.showCloudBusy(R.string.agent_workflow_running)
+            if (!cloudRunner.startWorkflow(source, workflow) { outcome ->
+                outcome.onSuccess { result ->
+                    preparedResult = result.text
+                    canApply = result.allowsReplacement
+                    panel?.showWorkflowResult(result, workflow)
+                }.onFailure { failure -> panel?.showStatus(failure.workflowMessage(), true) }
+            }) discardStaleContext()
+            return
+        }
+        val approval = pendingApproval ?: return
+        pendingApproval = null // Confirmation is consumed once, including failures.
+        val source = snapshot ?: return
+        if (!editor.isCurrent(source)) { discardStaleContext(); return }
+        panel?.showCloudBusy()
+        if (!cloudRunner.start(source, approval.model, approval.action.instruction(approval.language, approval.tone), approval.action) { outcome ->
+            outcome.onSuccess { result ->
+                if (editor.policy.resultDenial(result) == null) {
+                    preparedResult = result
+                    canApply = approval.action.allowsReplacement
+                    panel?.showResult(result, approval.action.allowsReplacement)
+                } else panel?.showStatus(R.string.agent_panel_result_invalid, true)
+            }.onFailure { failure -> panel?.showStatus((failure as? CloudFailure)?.error.cloudMessage(), true) }
+        }) panel?.showStatus(R.string.agent_panel_stale, true)
+    }
+
+    private fun cancelCloud() {
+        cloudRunner.cancel()
+        pendingApproval = null
+        pendingWorkflow = null
+        preparedResult = null
+        canApply = false
+        val source = snapshot ?: return
+        if (editor.isCurrent(source)) {
+            panel?.showSource(source.text)
+            panel?.showStatus(R.string.agent_cloud_cancelled)
+        } else discardStaleContext()
+    }
+
+    private fun chooseWorkflows() {
+        if (cloudRunner.isRunning || skillJob?.isActive == true) return
+        val source = snapshot ?: return
+        if (!editor.isCurrent(source)) { discardStaleContext(); return }
+        pendingApproval = null; pendingWorkflow = null; preparedResult = null; canApply = false
+        panel?.showStatus(R.string.agent_workflow_loading, true)
+        skillJob = actionScope.launch {
+            val definitions = try { withContext(Dispatchers.IO) { WorkflowStore(ime).read() } }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { null }
+            if (snapshot !== source) return@launch
+            if (!editor.isCurrent(source)) { discardStaleContext(); return@launch }
+            skillJob = null
+            panel?.showSource(source.text)
+            if (definitions == null) panel?.showStatus(R.string.agent_workflow_error)
+            else panel?.showWorkflowChoices(definitions)
+        }
+    }
+
+    private fun prepareWorkflow(definition: WorkflowDefinition) {
+        if (cloudRunner.isRunning || skillJob?.isActive == true) return
+        val source = snapshot ?: return
+        if (!editor.isCurrent(source)) { discardStaleContext(); return }
+        pendingApproval = null; pendingWorkflow = null; preparedResult = null; canApply = false
+        if (definition.steps.filterIsInstance<WorkflowStep.Ai>().any { it.provider != WorkflowProvider.OPENAI }) {
+            panel?.showStatus(R.string.agent_workflow_provider_unavailable)
+            return
+        }
+        pendingWorkflow = definition
+        panel?.showWorkflowConfirmation(workflowApprovalSummary(ime, definition, source.text.length),
+            definition.steps.any { it is WorkflowStep.Ai })
+    }
+
+    private fun applyPrepared() {
+        val source = snapshot ?: return
+        val result = preparedResult ?: return
+        if (!canApply) return
+        canApply = false
+        editor.onInvalidated = null
+        when (editor.apply(source, result)) {
+            ApplyOutcome.SUBMITTED -> close()
+            ApplyOutcome.REJECTED -> discardStaleContext()
+            ApplyOutcome.UNKNOWN -> {
+                needsCursorRefresh = true
+                panel?.showStatus(R.string.agent_panel_apply_unknown, true)
+                runCatching { ime.currentInputConnection?.requestCursorUpdates(InputConnection.CURSOR_UPDATE_IMMEDIATE) }
+            }
+        }
+    }
+
+    fun cursorPositionUpdated(start: Int, end: Int) {
+        if (needsCursorRefresh && start >= 0 && end >= 0 && inputLogic.refreshAgentEditorCaches(start, end)) {
+            needsCursorRefresh = false
+            editor.selectionChanged(start, end, -1, -1)
+        }
+    }
+
+    private fun copyPrepared() {
+        val source = snapshot ?: return
+        if (!editor.isCurrent(source)) { discardStaleContext(); return }
+        val text = preparedResult ?: return
+        val clip = ClipData.newPlainText(ime.getString(R.string.english_ime_name), text)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
+            clip.description.extras = PersistableBundle().apply { putBoolean("android.content.extra.IS_SENSITIVE", true) }
+        (ime.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager)?.setPrimaryClip(clip)
+        Toast.makeText(ime, R.string.agent_panel_copied, Toast.LENGTH_SHORT).show()
+    }
+
+    fun close() {
+        skillJob?.cancel()
+        skillJob = null
+        cloudRunner.cancel()
+        pendingApproval = null
+        pendingWorkflow = null
+        editor.onInvalidated = null
+        snapshot = null
+        preparedResult = null
+        canApply = false
+        panel?.clear()
+        wheel?.visibility = View.GONE
+        editor.invalidate()
+    }
+
+    fun destroy() { finishEditor(); actionScope.cancel() }
+}
+
+private fun Throwable.workflowMessage(): Int = when (this) {
+    is WorkflowFailure -> when (error) {
+        WorkflowError.UNSUPPORTED_PROVIDER -> R.string.agent_workflow_provider_unavailable
+        WorkflowError.INVALID_INPUT, WorkflowError.INVALID_OUTPUT, WorkflowError.TEXT_BUDGET -> R.string.agent_workflow_limits
+    }
+    is CloudFailure -> error.cloudMessage()
+    else -> R.string.agent_cloud_network
+}
+
+internal fun CloudError?.cloudMessage() = when (this) {
+    CloudError.STORAGE -> R.string.agent_runs_unavailable
+    CloudError.CREDENTIALS -> R.string.agent_cloud_credentials
+    CloudError.AUTHENTICATION -> R.string.agent_cloud_authentication
+    CloudError.INVALID_REQUEST -> R.string.agent_cloud_invalid_request
+    CloudError.RATE_LIMIT -> R.string.agent_cloud_rate_limit
+    CloudError.TIMEOUT -> R.string.agent_cloud_timeout
+    CloudError.REFUSED -> R.string.agent_cloud_refused
+    CloudError.INVALID_RESPONSE, CloudError.TOO_LARGE -> R.string.agent_cloud_invalid_response
+    CloudError.BUSY -> R.string.agent_cloud_busy
+    else -> R.string.agent_cloud_network
+}
+
+fun WritingTone.titleResource() = when (this) {
+    WritingTone.NEUTRAL -> R.string.agent_tone_neutral
+    WritingTone.FRIENDLY -> R.string.agent_tone_friendly
+    WritingTone.PROFESSIONAL -> R.string.agent_tone_professional
+}
+
+private fun DenialReason.messageResource() = when (this) {
+    DenialReason.PASSWORD, DenialReason.INCOGNITO, DenialReason.NO_LEARNING, DenialReason.LOCKED -> R.string.agent_panel_protected
+    DenialReason.TOO_LARGE -> R.string.agent_panel_too_large
+    DenialReason.COMPOSITION -> R.string.agent_panel_composing
+    DenialReason.STALE_CONTEXT -> R.string.agent_panel_stale
+    else -> R.string.agent_panel_select_text
+}

@@ -1,0 +1,12 @@
+{
+  "upstreamCommit": "0c60dffb03a4e2e7a37cb82210f5299f93c03979",
+  "tests": 181,
+  "passed": 176,
+  "failed": [
+    "helium314.keyboard.latin.InputLogicTest#insertLetterIntoWordHangulFails",
+    "helium314.keyboard.latin.StringUtilsTest#detectEmojisAtEndFails",
+    "helium314.keyboard.XLinkTest#layoutsLinks",
+    "helium314.keyboard.XLinkTest#readmeLinks",
+    "helium314.keyboard.XLinkTest#knownDictionaries"
+  ]
+}

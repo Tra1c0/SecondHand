@@ -1,0 +1,3 @@
+include ':app'
+include ':agent-core'
+include ':tools:make-emoji-keys'

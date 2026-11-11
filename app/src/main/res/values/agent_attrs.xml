@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="AgentSurface">
+        <attr name="android:colorBackground" />
+        <attr name="android:textColorPrimary" />
+    </declare-styleable>
+</resources>

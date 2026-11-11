@@ -1,0 +1,89 @@
+// SPDX-License-Identifier: GPL-3.0-only
+package dev.agentkeyboard.core
+
+import kotlin.math.max
+import kotlin.math.min
+
+data class EditorAccess(
+    val isText: Boolean = false,
+    val isPassword: Boolean = false,
+    val isIncognito: Boolean = false,
+    val forbidsLearning: Boolean = false,
+    val isLocked: Boolean = false,
+    val isComposing: Boolean = false,
+)
+
+enum class DenialReason {
+    NO_EDITOR, LOCKED, PASSWORD, INCOGNITO, NO_LEARNING, UNSUPPORTED_EDITOR,
+    COMPOSITION, NO_SELECTION, TOO_LARGE, INVALID_TEXT, STALE_CONTEXT,
+}
+
+sealed interface CaptureResult {
+    class Captured(val snapshot: TextSnapshot) : CaptureResult
+    data class Denied(val reason: DenialReason) : CaptureResult
+}
+
+/** The same rules apply to local tools and to future provider requests. */
+class ExecutionPolicy(
+    val maxSelectionChars: Int = 8_192,
+    val maxResultChars: Int = 16_384,
+) {
+    init {
+        require(maxSelectionChars > 0 && maxResultChars >= maxSelectionChars)
+    }
+
+    fun editorDenial(access: EditorAccess): DenialReason? = when {
+        access.isLocked -> DenialReason.LOCKED
+        access.isPassword -> DenialReason.PASSWORD
+        access.isIncognito -> DenialReason.INCOGNITO
+        access.forbidsLearning -> DenialReason.NO_LEARNING
+        !access.isText -> DenialReason.UNSUPPORTED_EDITOR
+        access.isComposing -> DenialReason.COMPOSITION
+        else -> null
+    }
+
+    fun capture(
+        token: EditorToken?, access: EditorAccess,
+        selectionStart: Int, selectionEnd: Int, selectedText: String?,
+    ): CaptureResult {
+        if (token == null) return CaptureResult.Denied(DenialReason.NO_EDITOR)
+        editorDenial(access)?.let { return CaptureResult.Denied(it) }
+        val start = min(selectionStart, selectionEnd)
+        val end = max(selectionStart, selectionEnd)
+        if (start < 0 || start == end || selectedText.isNullOrEmpty())
+            return CaptureResult.Denied(DenialReason.NO_SELECTION)
+        if (end.toLong() - start > maxSelectionChars || selectedText.length > maxSelectionChars)
+            return CaptureResult.Denied(DenialReason.TOO_LARGE)
+        if (selectedText.length != end - start || !hasValidUtf16(selectedText))
+            return CaptureResult.Denied(DenialReason.INVALID_TEXT)
+        return CaptureResult.Captured(TextSnapshot(token, start, end, selectedText))
+    }
+
+    fun applyDenial(
+        snapshot: TextSnapshot, token: EditorToken?, access: EditorAccess,
+        selectionStart: Int, selectionEnd: Int, selectedText: String?,
+    ): DenialReason? {
+        editorDenial(access)?.let { return it }
+        if (snapshot.token != token || snapshot.selectionStart != min(selectionStart, selectionEnd)
+            || snapshot.selectionEnd != max(selectionStart, selectionEnd) || snapshot.text != selectedText)
+            return DenialReason.STALE_CONTEXT
+        return null
+    }
+
+    fun resultDenial(result: String): DenialReason? = when {
+        result.length > maxResultChars -> DenialReason.TOO_LARGE
+        !hasValidUtf16(result) -> DenialReason.INVALID_TEXT
+        else -> null
+    }
+
+    private fun hasValidUtf16(text: String): Boolean {
+        var index = 0
+        while (index < text.length) {
+            val char = text[index++]
+            if (char.isHighSurrogate()) {
+                if (index == text.length || !text[index++].isLowSurrogate()) return false
+            } else if (char.isLowSurrogate()) return false
+        }
+        return true
+    }
+}
