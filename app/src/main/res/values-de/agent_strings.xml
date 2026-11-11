@@ -73,13 +73,13 @@
     <string name="agent_panel_result_invalid">Dieses Ergebnis kann nicht übernommen werden.</string>
     <string name="agent_panel_apply_unknown">Die App könnte das Ergebnis bereits übernommen haben. Prüfe zuerst den Text. Beim Schließen dieses Panels wird die Tastatur bei Bedarf geschlossen und neu verbunden.</string>
     <string name="agent_cloud_correct">Mit KI korrigieren…</string>
-    <string name="agent_cloud_send">Auswahl an OpenAI senden</string>
+    <string name="agent_cloud_send">Auswahl an %1$s senden</string>
     <string name="agent_cloud_cancel">KI-Aktion abbrechen</string>
-    <string name="agent_cloud_confirm">%3$s: die angezeigte Auswahl (%2$d Zeichen) mit %1$s an OpenAI senden? Es gelten API-Kosten und die Datenregeln des Anbieters.</string>
-    <string name="agent_cloud_working">Korrektur bei OpenAI wird angefragt…</string>
+    <string name="agent_cloud_confirm">%3$s: die angezeigte Auswahl (%2$d Zeichen) mit %1$s an %4$s senden? Es gelten API-Kosten und die Datenregeln des Anbieters.</string>
+    <string name="agent_cloud_working">Warte auf den KI-Anbieter …</string>
     <string name="agent_cloud_cancelled">Aktion abgebrochen. Kein Ergebnis wird eingefügt. Eine bereits gesendete Anfrage kann Kosten verursachen.</string>
     <string name="agent_cloud_credentials">API-Schlüssel unter KI-Anbieter einrichten. Danach den Text erneut auswählen und starten.</string>
-    <string name="agent_cloud_authentication">OpenAI hat den Schlüssel oder seine Berechtigungen abgewiesen. KI-Anbieter prüfen und erneut starten.</string>
+    <string name="agent_cloud_authentication">Der Anbieter hat den Schlüssel oder seine Berechtigungen abgewiesen. KI-Anbieter prüfen und erneut starten.</string>
     <string name="agent_cloud_invalid_request">Modell oder Anfrage wurden nicht akzeptiert. Modell-ID unter KI-Anbieter prüfen.</string>
     <string name="agent_cloud_rate_limit">Das Anfrage- oder Nutzungslimit des Anbieters wurde erreicht. Keine automatische Wiederholung.</string>
     <string name="agent_cloud_timeout">Zeitlimit erreicht. Keine automatische Wiederholung. Eine bereits empfangene Anfrage kann Kosten verursachen.</string>
@@ -209,4 +209,8 @@
     <string name="agent_tool_cancelled">Werkzeug abgebrochen. Es wurde nichts übergeben.</string>
     <string name="agent_runs_tool_test_succeeded">Testwerkzeug auf diesem Gerät abgeschlossen.</string>
     <string name="agent_runs_tool_handed_off">An eine andere App übergeben. Ob dort etwas gespeichert wurde, ist nicht bekannt.</string>
+    <string name="agent_cloud_model_missing">Trage zuerst unter KI-Anbieter eine Modell-ID für diesen Anbieter ein.</string>
+    <string name="agent_ai_provider">Anbieter für die KI-Aktionen der Tastatur</string>
+    <string name="agent_ai_provider_note">Schlüssel und Modell unten gehören zum gewählten Anbieter. Workflow-Schritte nennen ihren eigenen Anbieter.</string>
+    <string name="agent_ai_model_none">Für diesen Anbieter ist kein Modell voreingestellt. Trage die Modell-ID aus der Dokumentation des Anbieters ein.</string>
 </resources>

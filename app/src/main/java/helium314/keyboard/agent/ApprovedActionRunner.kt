@@ -4,15 +4,18 @@ package helium314.keyboard.agent
 import dev.agentkeyboard.core.*
 import helium314.keyboard.agent.providers.CloudError
 import helium314.keyboard.agent.providers.CloudFailure
+import helium314.keyboard.agent.providers.CloudProviders
 import kotlinx.coroutines.*
 
 /** Main-thread session controller. Epoch checks protect against non-cooperative late providers. */
 class ApprovedActionRunner(
     private val scope: CoroutineScope,
-    private val provider: () -> ModelProvider,
+    private val provider: (WorkflowProvider) -> ModelProvider,
     private val isCurrent: (TextSnapshot) -> Boolean,
     private val journal: ActionRunJournal,
     private val workflowTimeoutMillis: Long = 95_000,
+    /** Providers a workflow step may name. A step naming any other provider fails before any request. */
+    private val providers: Set<WorkflowProvider> = CloudProviders.SUPPORTED.toSet(),
 ) {
     init { require(workflowTimeoutMillis in 1..95_000) }
     private val modelCall = JournaledModelCall(journal)
@@ -23,8 +26,9 @@ class ApprovedActionRunner(
         private set
 
     fun start(source: TextSnapshot, model: String, instruction: String, action: AiTextAction = AiTextAction.CORRECT,
+              target: WorkflowProvider = WorkflowProvider.OPENAI,
               onComplete: (Result<String>) -> Unit): Boolean = startOperation(source, onComplete) {
-        modelCall.execute(action, ModelRequest(model, instruction, source), provider()) { requireCurrent(source) }
+        modelCall.execute(action, ModelRequest(model, instruction, source), provider(target)) { requireCurrent(source) }
     }
 
     /** The host must already have displayed and consumed approval for this immutable definition. */
@@ -35,11 +39,11 @@ class ApprovedActionRunner(
             // Capture this timed execution's context, not its outer supervisor or caller job.
             val executionContext = currentCoroutineContext()
             suspend fun execute(parentId: String?): WorkflowResult {
-                val runner = WorkflowRunner(setOf(WorkflowProvider.OPENAI), { step, input ->
+                val runner = WorkflowRunner(providers, { step, input ->
                     val link = parentId?.let { WorkflowStepLink(it, definition.id, definition.revision, step.id) }
                     modelCall.execute(RunSubject.TextAction(step.action, link),
                         ModelRequest(step.model, step.action.instruction(step.language, step.tone), input),
-                        provider()) { requireCurrent(source) }
+                        provider(step.provider)) { requireCurrent(source) }
                 }, {
                     executionContext.ensureActive()
                     requireCurrent(source)

@@ -10,7 +10,8 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
 
-enum class CredentialSlot { OPENAI }
+/** One fixed slot per provider. The name is part of the file name and of the authenticated data. */
+enum class CredentialSlot { OPENAI, ANTHROPIC, GEMINI }
 enum class CredentialError { LOCKED, UNSUPPORTED, INVALID_KEY, UNAVAILABLE }
 class CredentialFailure(val error: CredentialError) : Exception(error.name)
 

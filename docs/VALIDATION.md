@@ -714,6 +714,29 @@ dieser Baseline separat erkannt und vor dem nächsten Schritt behoben werden.
   beide Artefakte sind also gleich nutzbar.
 - Offen: echte Übergabe an eine Kalender-App auf einem Gerät (siehe Gerätetest).
 
+## Etappe16a/b — Anthropic und Gemini
+
+- Agent-Suite 205/0 (198 bisherige, sieben neue in `MoreProvidersTest`), Kern 52/0 unverändert.
+  Build und Lint: siehe Abschluss dieser Etappe im Build-Log.
+- Der Transport wurde aus `OpenAiProvider` in `CloudTransport` herausgelöst. Alle zehn
+  bestehenden `OpenAiProviderTest`-Fälle laufen unverändert weiter (fester Ursprung, One-shot-Body,
+  kein Replay bei 503, Abbruch, BUSY, neutrale Fehler).
+- Anthropic: fester Ursprung, Versions-Header, Body genau `model`, `max_tokens`, `system`,
+  `messages`, `stream`; Schlüsselkopie nach Gebrauch gelöscht. Parser: nur `end_turn` mit Text;
+  `refusal` → REFUSED; `max_tokens`, `tool_use`, `pause_turn`, Tool-Blöcke, falsche Rolle,
+  Nicht-String und Überlänge scheitern.
+- Gemini: Schlüssel nur im Header, nie in der URL; acht ungültige Modellnamen (Pfad, Query,
+  Fragment, Doppelpunkt, Großbuchstaben) erzeugen keinen Aufruf. Parser: nur `STOP` mit genau
+  einem Kandidaten; Sperrgründe → REFUSED; `MAX_TOKENS`, Funktionsaufrufe, zwei Kandidaten
+  scheitern; Thought-Teile erscheinen nie im Ergebnis.
+- Beide lehnen Workflow-Entwürfe vor jedem Aufruf ab. HTTP 401/429/400/529 werden neutral
+  abgebildet, der fremde Fehlertext taucht nicht auf.
+- Ein Test erwartete Gemini als nicht unterstützten Provider; er prüft dasselbe jetzt mit `local`.
+- Ein eigener Testfall war falsch gestellt (leerer Modellname scheitert schon in `ModelRequest`)
+  und wurde korrigiert, ohne eine Erwartung abzuschwächen.
+- Offen: echte Anfragen bei allen drei Anbietern; Gemini-Vertrag nicht neu geprüft
+  (`docs/PROVIDERS.md`); Bedienung der Anbieter-Auswahl auf einem Gerät.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

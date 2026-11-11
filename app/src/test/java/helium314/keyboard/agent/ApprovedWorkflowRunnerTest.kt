@@ -135,7 +135,7 @@ class ApprovedWorkflowRunnerTest {
         var failure: Throwable? = null
         try {
             val runner = ApprovedActionRunner(scope, { error("must not construct") }, { true }, journal)
-            runner.startWorkflow(source(), workflow(ai("first"), ai("second", provider = WorkflowProvider.GEMINI))) {
+            runner.startWorkflow(source(), workflow(ai("first"), ai("second", provider = WorkflowProvider.LOCAL))) {
                 failure = it.exceptionOrNull()
             }
             assertEquals(WorkflowError.UNSUPPORTED_PROVIDER, (failure as WorkflowFailure).error)

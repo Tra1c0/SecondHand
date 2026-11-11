@@ -14,10 +14,9 @@ Reihenfolge von oben nach unten.
   aktivieren und alles von der Checkliste in `docs/VALIDATION.md` prüfen: Tippen, Löschen,
   Auswahl, Panel und Rad, Feld- und App-Wechsel, sensible Felder, Rotation, Abbrüche. Gefundene
   Fehler eng korrigieren. Kein API-Schlüssel nötig. (M)
-- **16 Weitere Anschlüsse, einzeln.** Echte Claude- und Gemini-Anbindung, danach externe Dienste
-  wie Gmail, Google Calendar und Notion, jeweils mit eigener Anmeldung (OAuth) und Freigabe.
-  Kein Modell darf sich selbst Fähigkeiten oder Zugangsdaten geben. Die API-Verträge in
-  `docs/PROVIDERS.md` vorher neu prüfen. (L)
+- **16c Externe Dienste, einzeln.** Gmail, Google Calendar und Notion, jeweils mit eigener
+  Anmeldung (OAuth) und Freigabe. Blockiert, bis der Owner eigene OAuth-Zugänge bei Google und
+  Notion registriert hat. Kein Modell darf sich selbst Fähigkeiten oder Zugangsdaten geben. (L)
 - **17 Personalisierung.** Lokale Lerndaten verwalten: Pause, Löschen, Export. Danach ein
   getrenntes Stilprofil, nur mit ausdrücklicher Zustimmung. Erzeugter oder eingefügter Text
   zählt nie als Zustimmung. (M)

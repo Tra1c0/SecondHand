@@ -34,6 +34,13 @@ Nur abgeschlossene Antworten akzeptieren. Alle Assistant-Message-Blöcke und der
 
 ## Anthropic
 
+Am 2026-11-11 erneut gegen die offizielle Referenz geprüft (Messages „create“ und „API versions“):
+Bearer-Schlüssel, `anthropic-version: 2026-10-21`, `temperature`/`top_p`/`top_k` entfernt,
+`stop_reason` ∈ end_turn, max_tokens, stop_sequence, tool_use, pause_turn, refusal,
+model_context_window_exceeded. Implementiert in `AnthropicProvider` (Etappe 16a). Voreinstellung
+`claude-haiku-5-5` (im Modellkatalog der Referenz als schnellstes Modell geführt), frei änderbar.
+Keine echte Anfrage gesendet.
+
 `POST https://api.anthropic.com/v1/messages`, Bearer-Schlüssel,
 `anthropic-version: 2026-10-21`. `model`, `max_tokens`, `system`, `messages`,
 `stream:false`; keine `temperature`/`top_p`/`top_k` in dieser API-Version.
@@ -45,6 +52,11 @@ Nur Textblöcke mit `stop_reason:end_turn`; Thinking und Tool-Blöcke sind kein 
 - https://platform.claude.com/docs/en/api/errors
 
 ## Gemini
+
+Implementiert in `GeminiProvider` (Etappe 16b) nach dem unten stehenden Vertrag vom 2026-11-09.
+Am 2026-11-11 NICHT erneut prüfbar: die Doku-Hosts waren aus der Entwicklungsumgebung nicht
+erreichbar. Deshalb gibt es keine voreingestellte Modellkennung; der Nutzer trägt sie ein. Vor der
+ersten echten Nutzung Vertrag und Modellnamen prüfen. Keine echte Anfrage gesendet.
 
 `POST https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`.
 Schlüssel im `x-goog-api-key`-Header, niemals in der URL. Modellkennung strikt

@@ -74,13 +74,13 @@
     <string name="agent_panel_result_invalid">This result cannot be applied.</string>
     <string name="agent_panel_apply_unknown">The editor may have accepted the result. Check the text before doing anything else. Closing this panel may close the keyboard so it can reconnect.</string>
     <string name="agent_cloud_correct">Correct with AI…</string>
-    <string name="agent_cloud_send">Send selection to OpenAI</string>
+    <string name="agent_cloud_send">Send selection to %1$s</string>
     <string name="agent_cloud_cancel">Cancel AI action</string>
-    <string name="agent_cloud_confirm">%3$s: send the previewed selection (%2$d characters) to OpenAI using %1$s? API charges and the provider’s data policy apply.</string>
-    <string name="agent_cloud_working">Requesting a correction from OpenAI…</string>
+    <string name="agent_cloud_confirm">%3$s: send the previewed selection (%2$d characters) to %4$s using %1$s? API charges and the provider’s data policy apply.</string>
+    <string name="agent_cloud_working">Waiting for the AI provider…</string>
     <string name="agent_cloud_cancelled">Action cancelled. No result will be inserted. A request already sent may still incur charges.</string>
     <string name="agent_cloud_credentials">Set up your API key under AI providers, then reselect your text and start again.</string>
-    <string name="agent_cloud_authentication">OpenAI rejected this key or its permissions. Check AI providers, then start again.</string>
+    <string name="agent_cloud_authentication">The provider rejected this key or its permissions. Check AI providers, then start again.</string>
     <string name="agent_cloud_invalid_request">The model or request was not accepted. Check the model ID under AI providers.</string>
     <string name="agent_cloud_rate_limit">The provider’s rate or usage limit was reached. No retry was sent.</string>
     <string name="agent_cloud_timeout">The request timed out. No retry was sent. A request already received may still incur charges.</string>
@@ -210,4 +210,8 @@
     <string name="agent_tool_cancelled">Tool cancelled. Nothing was handed over.</string>
     <string name="agent_runs_tool_test_succeeded">Test tool finished on this device.</string>
     <string name="agent_runs_tool_handed_off">Handed over to another app. Whether anything was saved there is not known.</string>
+    <string name="agent_cloud_model_missing">Enter a model ID for this provider under AI providers first.</string>
+    <string name="agent_ai_provider">Provider for the keyboard’s AI actions</string>
+    <string name="agent_ai_provider_note">The key and model below belong to the selected provider. Workflow steps name their own provider.</string>
+    <string name="agent_ai_model_none">No model is preset for this provider. Enter the model ID from the provider’s documentation.</string>
 </resources>

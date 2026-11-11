@@ -30,15 +30,15 @@ Bisher hat keine Funktion den Status E, weil noch nie ein Gerätetest stattfand.
 | Schutz beim Ersetzen | Ersetzt wird nur, wenn sich Feld, Auswahl und Text seit der Vorschau nicht geändert haben. Sonst bleibt die Übernahme gesperrt. (4) | T |
 | Schutzbereiche | Passwortfelder, Inkognito, gesperrtes Gerät und Felder mit Lernverbot sperren alle Aktionen. (4) | T |
 
-## KI (eigener OpenAI-Schlüssel)
+## KI (eigene API-Schlüssel)
 
 | Funktion | Was sie macht | Status |
 | --- | --- | --- |
-| Schlüssel speichern | Dein OpenAI-Schlüssel wird verschlüsselt auf dem Gerät gespeichert, nie angezeigt, nicht gesichert. (8) | T |
-| Modell frei wählen | Die OpenAI-Modellkennung ist frei einstellbar. (9) | T |
+| Schlüssel speichern | Je Anbieter ein eigener Schlüssel, verschlüsselt auf dem Gerät gespeichert, nie angezeigt, nicht gesichert. (8, 16) | T |
+| Anbieter und Modell wählen | In den KI-Einstellungen wählst du OpenAI, Anthropic oder Google Gemini für die KI-Aktionen der Tastatur und je Anbieter die Modellkennung. Für Gemini musst du die Modellkennung selbst eintragen. Workflow-Schritte können je Schritt einen anderen Anbieter nennen. (9, 16) | T |
 | KI-Textaktionen | 6 KI-Textaktionen: Korrigieren, Übersetzen, Umformulieren (Ton wählbar), Zusammenfassen, Antwort entwerfen, Analysieren (nur lesen, ersetzt nie). Vor dem Senden siehst du genau, was rausgeht, und bestätigst einmalig. (9–10) | T |
 | Übersetzen | 14 Zielsprachen, darunter Deutsch, Englisch und Spanisch. (10a) | T |
-| Echte Anfrage an OpenAI | Mit echtem Schlüssel noch nie ausprobiert. | – |
+| Echte Anfrage an einen Anbieter | Mit echtem Schlüssel noch bei keinem der drei Anbieter ausprobiert. | – |
 
 ## Skill Keys und Workflows
 
@@ -63,7 +63,7 @@ Bisher hat keine Funktion den Status E, weil noch nie ein Gerätetest stattfand.
 
 | Funktion | Was sie macht | Status |
 | --- | --- | --- |
-| Workflow aus Beschreibung | Du beschreibst einen Ablauf in eigenen Worten. Nach Freigabe macht OpenAI daraus einen Entwurf, den du vollständig prüfst und bearbeitest und erst dann speicherst. Der Entwurf kann keine neuen Werkzeuge, Links oder Zugangsdaten einschleusen. (14) | T |
+| Workflow aus Beschreibung | Du beschreibst einen Ablauf in eigenen Worten. Nach Freigabe macht OpenAI (nur dieser Anbieter) daraus einen Entwurf, den du vollständig prüfst und bearbeitest und erst dann speicherst. Der Entwurf kann keine neuen Werkzeuge, Links oder Zugangsdaten einschleusen. (14) | T |
 | Privater Entwurf | Bildschirmfotos sind gesperrt. App-Wechsel oder Inkognito verwerfen Beschreibung und Entwurf. (14c) | T |
 
 ## Einstellungen

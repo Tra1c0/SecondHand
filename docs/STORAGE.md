@@ -15,7 +15,8 @@ ist. Ein globaler DE-Standard kann deshalb nicht für die neuen Zugangsdaten gel
 ## Zugangsdaten
 
 - Zugriff ausschließlich über den aufbewahrten CE-Kontext und `noBackupFilesDir`.
-- Nur feste Slots; keine Schlüssel als Dateinamen, Aliase oder Logbestandteile.
+- Nur feste Slots (`OPENAI`, `ANTHROPIC`, `GEMINI`; je eine Datei und eigener authentifizierter
+  Slotname); keine Schlüssel als Dateinamen, Aliase oder Logbestandteile.
 - AES-256-GCM mit zufälligem 96-Bit-IV, 128-Bit-Tag und authentifiziertem Slotnamen.
 - Der Android Keystore verwahrt den AES-Schlüssel. Bearer-Tokens liegen nur als
   authentifizierter Geheimtext in begrenzten, atomar geschriebenen Dateien.

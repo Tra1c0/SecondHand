@@ -25,6 +25,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import dev.agentkeyboard.core.*
 import helium314.keyboard.agent.*
+import helium314.keyboard.agent.providers.CloudProviders
 import helium314.keyboard.agent.security.credentialAccessAllowed
 import helium314.keyboard.latin.R
 import helium314.keyboard.settings.SearchSettingsScreen
@@ -317,7 +318,7 @@ private fun WorkflowEditDialog(initial: ManualWorkflowDraft, busy: Boolean, erro
                         else stringResource(R.string.agent_workflow_input_step, previous + 1) },
                     { update(step.copy(inputStepIndex = it)) })
                 if (step.action.ai != null) {
-                    WorkflowChoice(step.provider, listOf(WorkflowProvider.OPENAI), !busy, { it.id }, { update(step.copy(provider = it)) })
+                    WorkflowChoice(step.provider, CloudProviders.SUPPORTED, !busy, { CloudProviders.displayName(it) }, { update(step.copy(provider = it)) })
                     OutlinedTextField(value = step.model, onValueChange = { if (it.length <= 100) update(step.copy(model = it)) },
                         enabled = !busy, label = { Text(stringResource(R.string.agent_ai_model)) }, singleLine = true)
                     WorkflowChoice(step.language, TranslationLanguage.entries, !busy, { it.code }, { update(step.copy(language = it)) })

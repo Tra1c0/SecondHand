@@ -1,6 +1,9 @@
 # Workflows
 
-## Aktuelles Format3 (seit13e, unverändert bis14c)
+## Aktuelles Format3 (seit13e, unverändert)
+
+Seit Etappe 16 darf ein KI-Schritt `openai`, `claude` oder `gemini` nennen; `local` wird vor jeder
+Anfrage abgewiesen. Das Dateiformat ist unverändert, die Kennungen gab es schon.
 
 Bis zu acht geordnete Schritte und drei Modellaufrufe; Format3. Ein Eingang ist
 die freigegebene Auswahl oder exakt das Ergebnis eines früheren Schritts, auch

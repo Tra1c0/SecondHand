@@ -27,7 +27,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - **Geänderte Upstream-Dateien** – Jede Upstream-Datei, die der Fork ändert, mit dem Grund. Alle übrigen Upstream-Dateien sind unverändert.
 - **Editorzugriff, Panel und Rad** – Wie die Tastatur Auswahl liest, Aktionen zeigt und Ergebnisse übernimmt.
 - **Speicher, Zugangsdaten und Datenschutz** – CE/DE-Trennung, verschlüsselte Schlüssel, Dateifreigaben. Details und Prüflimits: docs/STORAGE.md.
-- **KI-Anbindung** – Der einzige echte Provider (OpenAI) und der journalisierte Modellaufruf. Verträge: docs/PROVIDERS.md.
+- **KI-Anbindung** – Drei Cloud-Provider (OpenAI, Anthropic, Gemini) über einen gemeinsamen Transport. Verträge: docs/PROVIDERS.md.
 - **Laufjournal** – Verschlüsselte Metadaten zu Läufen: Absicht vor Wirkung, kein Retry, keine Inhalte.
 - **Workflows und Skill Keys** – Gespeicherte Abläufe, ihre Ausführung nach Freigabe und die drei Skill-Tasten. Format: docs/WORKFLOWS.md.
 - **Werkzeuge** – Fest eingebaute Werkzeuge: lokales Testwerkzeug und Übergabe eines Kalenderentwurfs an eine Kalender-App.
@@ -96,8 +96,8 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   <!-- gen:providers -->
 4 Provider-Kennungen im Workflowformat: `openai`, `claude`, `gemini`, `local`
 <!-- /gen:providers -->
-  Nur `openai` hat einen echten Anschluss. Die anderen Kennungen werden vor jeder Anfrage
-  abgewiesen.
+  Einen echten Anschluss haben `openai`, `claude` und `gemini` (`CloudProviders.SUPPORTED`).
+  `local` wird vor jeder Anfrage abgewiesen (Etappe 18).
 - `Tool.kt`: `ToolId` (fest eingebaute Werkzeuge, `external` = Wirkung außerhalb der Tastatur),
   `ToolField`, `ToolRequest` (unveränderlich, nur aus der freigegebenen Auswahl abgeleitet) und
   `Tools` (`prepare` ist rein und deterministisch, `runTest` ist das Testwerkzeug). Kein Modell
@@ -203,12 +203,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 
 - `AgentStorageContexts.kt`: liefert der Engine den DE-Kontext (Direct Boot). Geheimnisse und
   Agent-Konfiguration nutzen den rohen CE-Kontext aus `App.kt`.
-- `security/EncryptedCredentialStore.kt`: `CredentialSlot`, `Secret`, `credentialContext`,
+- `security/EncryptedCredentialStore.kt`: `CredentialSlot` (ein Platz je Provider), `Secret`, `credentialContext`,
   `credentialAccessAllowed`. Feste Slots, gesperrt vor Entsperren und vor Android 6.
 - `security/SecretCipher.kt`: AES-256-GCM mit Schlüssel im Android Keystore,
   `AesGcmSecretCipher` für Tests mit injiziertem Schlüssel.
-- `ModelSettings.kt`: Modellkennung, Zielsprache und Ton in eigenen CE-Einstellungen
-  (`agent_models`), nicht in den exportierbaren Tastatureinstellungen.
+- `ModelSettings.kt`: aktiver Provider der Tastatur-Aktionen, Modellkennung je Provider,
+  Zielsprache und Ton in eigenen CE-Einstellungen (`agent_models`), nicht in den exportierbaren
+  Tastatureinstellungen. Gemini hat bewusst keine Voreinstellung für das Modell.
 - `AgentFileProvider.kt`: FileProvider mit denselben DE-Wurzeln wie die Engine-Komponenten, die
   die Dateien erzeugen.
 - `AgentDocumentIO.kt`: liest und schreibt nur vom Nutzer gewählte SAF-Dokumente, mit
@@ -222,19 +223,35 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 
 ## KI-Anbindung
 
-> Der einzige echte Provider (OpenAI) und der journalisierte Modellaufruf. Verträge: docs/PROVIDERS.md.
+> Drei Cloud-Provider (OpenAI, Anthropic, Gemini) über einen gemeinsamen Transport. Verträge: docs/PROVIDERS.md.
 
-- `providers/OpenAiProvider.kt`: `OpenAiProvider` (Responses-API, feste URL,
-  `store:false`/`stream:false`), `CloudHttpClient` (OkHttp, erst nach dem Senden initialisiert,
-  ohne Redirects und Retries, einmaliger `RequestBody`), `CloudError`, `CloudFailure`.
-  Fremde Fehlerkörper werden weder angezeigt noch geloggt. Grenzen: Connect/Read/Write 10 s,
-  Call 45 s, Antwort höchstens 1 MiB und 16384 Zeichen, 2048 Ausgabetokens (Builder 4096). Nur
-  vollständig abgeschlossene Texte zählen; Refusal, Incomplete und Tool-Blöcke sind kein Ergebnis.
-  Der AndroidX-Startup-Initializer ist im Manifest entfernt, `OkHttp.initialize` läuft erst nach
-  dem Senden auf IO.
+- `providers/CloudTransport.kt`: der einzige Weg zu einem Provider. Genau ein nicht
+  wiederholbarer JSON-POST (`isOneShot`), ein Aufruf zur selben Zeit (`BUSY`), Budget 45 s,
+  Antwort höchstens 1 MiB, HTTP-Status wird auf neutrale `CloudError` abgebildet. Fremde
+  Fehlerkörper werden weder angezeigt noch geloggt. Provider-Klassen liefern nur Body, Request
+  und Parser.
+- `providers/OpenAiProvider.kt`: `OpenAiProvider` (Responses-API, `store:false`/`stream:false`,
+  2048 Ausgabetokens, Builder 4096; einziger Provider mit `workflowDrafts`), `CloudHttpClient`
+  (OkHttp, erst nach dem Senden initialisiert, ohne Redirects und Retries; Connect/Read/Write
+  10 s, Call 45 s), `CloudError`, `CloudFailure`. Der AndroidX-Startup-Initializer ist im
+  Manifest entfernt, `OkHttp.initialize` läuft erst nach dem Senden auf IO.
+- `providers/AnthropicProvider.kt`: Messages-API, `anthropic-version` aus `API_VERSION`,
+  Bearer-Schlüssel, kein `temperature`. Ergebnis nur bei `stop_reason:end_turn`; `refusal` wird
+  `REFUSED`; `thinking`-Blöcke werden übergangen, jeder andere Blocktyp ist ein Fehler.
+- `providers/GeminiProvider.kt`: `generateContent` (v1beta), Schlüssel im Header
+  `x-goog-api-key`, nie in der URL. Das Modell wird Teil des URL-Pfads und ist deshalb strenger
+  geprüft (`validModel`: nur Kleinbuchstaben, Ziffern, Punkt, Bindestrich). Ergebnis nur bei
+  `finishReason:STOP` und genau einem Kandidaten; Teile mit `thought:true` werden übergangen.
+- `providers/CloudProviders.kt`: `SUPPORTED` (Provider mit echtem Adapter, Reihenfolge der
+  Einstellungen), `get` (erzeugt den Adapter erst bei der ersten freigegebenen Anfrage),
+  `slot` (eigener Schlüsselplatz je Provider), `displayName`, `validModel`.
+- Regeln für alle Provider: Ergebnis höchstens 16384 Zeichen, nur vollständig abgeschlossener
+  Text; Refusal, abgeschnittene Antworten und Tool-Blöcke sind kein Ergebnis. Anthropic und
+  Gemini lehnen `WORKFLOW_DRAFT` vor jedem Aufruf ab (der Act Builder bleibt bei OpenAI).
 - `JournaledModelCall.kt`: genau ein freigegebener Modellaufruf mit Journal, unabhängig von der
   Tastatur-UI. Speichert nie Text.
-- Tests: `OpenAiProviderTest` (Loopback-Server, kein echter Schlüssel), `JournaledModelCallTest`.
+- Tests: `OpenAiProviderTest`, `MoreProvidersTest` (Anthropic, Gemini, Platz- und
+  Modellzuordnung; alles mit Test-Calls, kein echter Schlüssel), `JournaledModelCallTest`.
 
 ## Laufjournal
 
@@ -413,7 +430,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (142 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (147 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -426,16 +443,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   SkillBindingStore, SkillLabels, ToolApprovalSummary, ToolLauncher, WorkflowApprovalSummary,
   WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
   WorkflowStore
-- `A/providers/` (1): OpenAiProvider
+- `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
+  OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
-- `AT/` (28): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (29): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, CalendarToolLauncherTest, DebugPrivacyTest,
   EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, ForkIdentityTest,
-  JournaledModelCallTest, KeyboardProfileStoreTest, ManualWorkflowDraftTest, OpenAiProviderTest,
-  SelectedTextCommitTest, SkillBindingStoreTest, SkillSettingsTest, TestRunJournal, ToolRunnerTest,
-  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowConditionSummaryTest,
-  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  JournaledModelCallTest, KeyboardProfileStoreTest, ManualWorkflowDraftTest, MoreProvidersTest,
+  OpenAiProviderTest, SelectedTextCommitTest, SkillBindingStoreTest, SkillSettingsTest,
+  TestRunJournal, ToolRunnerTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
+  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `C/` (12): AiTextAction, ApplyOutcome, EditorSession, ExecutionPolicy, LocalTextActions,
   ModelProvider, PendingBatchGate, Profiles, SkillBinding, TextCondition, Tool, Workflow
 - `CT/` (7): AiTextActionTest, EditorPolicyTest, LocalTextActionsTest, PendingBatchGateTest,

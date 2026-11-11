@@ -58,15 +58,14 @@ class AgentEditorController @JvmOverloads constructor(
     private var needsCursorRefresh = false
     private var canApply = false
     private var skillJob: Job? = null
-    private class CloudApproval(val model: String, val action: AiTextAction, val language: TranslationLanguage, val tone: WritingTone)
+    private class CloudApproval(val provider: WorkflowProvider, val model: String, val action: AiTextAction, val language: TranslationLanguage, val tone: WritingTone)
     private var pendingApproval: CloudApproval? = null
     private var pendingWorkflow: WorkflowDefinition? = null
     private var pendingTool: ToolRequest? = null
     private val actionScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val cloudProvider: ModelProvider by lazy {
-        providerFactory?.invoke() ?: OpenAiProvider(EncryptedCredentialStore(ime), CloudHttpClient.callsForContext(ime))
-    }
-    private val cloudRunner by lazy { ApprovedActionRunner(actionScope, { cloudProvider }, editor::isCurrent,
+    private val cloudProviders by lazy { CloudProviders(ime) }
+    private val injectedProvider: ModelProvider? by lazy { providerFactory?.invoke() }
+    private val cloudRunner by lazy { ApprovedActionRunner(actionScope, { injectedProvider ?: cloudProviders.get(it) }, editor::isCurrent,
         journalFactory?.invoke() ?: EncryptedActionRunStore(ime)) }
     val isAwaitingCursorRefresh: Boolean get() = needsCursorRefresh
     val isBlockingInput: Boolean get() = needsCursorRefresh || panel?.visibility == View.VISIBLE || wheel?.visibility == View.VISIBLE
@@ -228,14 +227,15 @@ class AgentEditorController @JvmOverloads constructor(
         pendingTool = null
         val approval = runCatching {
             val settings = ModelSettings(ime)
-            CloudApproval(settings.openAiModel, action, settings.translationLanguage, settings.writingTone)
+            val provider = settings.provider
+            CloudApproval(provider, settings.model(provider), action, settings.translationLanguage, settings.writingTone)
         }.getOrNull()
         if (approval == null) {
             panel?.showStatus(R.string.agent_cloud_credentials, true)
             return
         }
-        if (!ModelSettings.validModel(approval.model)) {
-            panel?.showStatus(R.string.agent_cloud_invalid_request, true)
+        if (!CloudProviders.validModel(approval.provider, approval.model)) {
+            panel?.showStatus(if (approval.model.isEmpty()) R.string.agent_cloud_model_missing else R.string.agent_cloud_invalid_request, true)
             return
         }
         preparedResult = null
@@ -250,7 +250,7 @@ class AgentEditorController @JvmOverloads constructor(
             AiTextAction.REPLY -> ime.getString(R.string.agent_cloud_reply_tone, ime.getString(approval.tone.titleResource()))
             AiTextAction.ANALYZE -> ime.getString(R.string.agent_cloud_analyze)
         }
-        panel?.showCloudConfirmation(approval.model, source.text.length, task)
+        panel?.showCloudConfirmation(approval.model, source.text.length, task, CloudProviders.displayName(approval.provider))
     }
 
     private fun prepareTool(tool: ToolId) {
@@ -316,7 +316,8 @@ class AgentEditorController @JvmOverloads constructor(
         val source = snapshot ?: return
         if (!editor.isCurrent(source)) { discardStaleContext(); return }
         panel?.showCloudBusy()
-        if (!cloudRunner.start(source, approval.model, approval.action.instruction(approval.language, approval.tone), approval.action) { outcome ->
+        if (!cloudRunner.start(source, approval.model, approval.action.instruction(approval.language, approval.tone), approval.action,
+                approval.provider) { outcome ->
             outcome.onSuccess { result ->
                 if (editor.policy.resultDenial(result) == null) {
                     preparedResult = result
@@ -366,7 +367,7 @@ class AgentEditorController @JvmOverloads constructor(
         val source = snapshot ?: return
         if (!editor.isCurrent(source)) { discardStaleContext(); return }
         pendingApproval = null; pendingWorkflow = null; pendingTool = null; preparedResult = null; canApply = false
-        if (definition.steps.filterIsInstance<WorkflowStep.Ai>().any { it.provider != WorkflowProvider.OPENAI }) {
+        if (definition.steps.filterIsInstance<WorkflowStep.Ai>().any { it.provider !in CloudProviders.SUPPORTED }) {
             panel?.showStatus(R.string.agent_workflow_provider_unavailable)
             return
         }

@@ -9,14 +9,14 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 ## Aktueller Stand
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
-- Pausiert auf Wunsch des Owners (2026-11-11, mitten in G1). Weiter erst nach neuem Auftrag.
-- Fertig: Etappen 0–15 (zuletzt Werkzeuge: Testwerkzeug und Kalenderentwurf).
-- Letzter Build: 0.1.0 Debug nach Etappe 15, eine APK für alle ABIs, nicht mehr test-only.
-- Geprüft: Kern 52/0, Agent-Suite 198/0, Build, Lint. Vollregression nach Etappe 15 steht aus.
-- G1 begonnen: Emulator bootet, Installation und Aktivierung klappen; Tippen noch NICHT geprüft
+- In Arbeit: Der Owner hat am 2026-11-11 die Fortsetzung beauftragt („Mach weiter“).
+- Fertig: Etappen 0–16b (zuletzt Anthropic und Gemini als weitere KI-Anbieter).
+- Letzter Build: 0.1.0 Debug nach Etappe 16b, eine APK für alle ABIs.
+- Geprüft: Kern 52/0, Agent-Suite 205/0, Build, Lint. Vollregression nach Etappe 15 steht aus.
+- G1 offen: Emulator bootet, Installation und Aktivierung klappen; Tippen noch NICHT geprüft
   (Offene Punkte 1 und Sackgassen → Emulator).
-- Danach: `docs/ROADMAP.md` → Beschlossen (16 mit Anthropic zuerst, dann 17, 18, A).
-- Wartet auf den Owner: Auftrag zur Fortsetzung; Entscheidung über den Branch `main`.
+- Danach: `docs/ROADMAP.md` → Beschlossen (17, 18, A; 16c wartet auf OAuth-Zugänge des Owners).
+- Wartet auf den Owner: OAuth-Zugänge für 16c; Entscheidung über den Branch `main`.
 
 ## Offene Punkte
 
@@ -120,9 +120,9 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
     einem Emulations-Thread lag die Gast-Last bei 15–20, überall ANRs. Schon gesetzte Abhilfen:
     Bluetooth deaktiviert (Absturzschleife), Animationen aus, App mit
     `cmd package compile -m speed -f` vorkompiliert.
-  - Noch nicht ausgewertet: Start mit `-qemu -accel tcg,thread=multi` (ca. 150 % Host-CPU statt
-    100 %); der Boot war nach über 9 Minuten nicht fertig, als pausiert wurde. Nächste Ideen:
-    nur 1–2 Gast-Kerne, kein paralleler Gradle-Lauf, älteres leichteres Abbild (z. B. API 30
+  - Schlechter: `-qemu -accel tcg,thread=multi` mit zwei Gast-Kernen. Android bootete nach über
+    20 Minuten nicht, weil der Systemdienst wegen Zeitüberschreitung immer wieder neu startete.
+    Nächste Ideen: kein paralleler Gradle-Lauf, älteres leichteres Abbild (z. B. API 30
     `default`), nach dem Boot 10 Minuten ruhen lassen.
   - Die Ansichtshierarchie per `uiautomator dump` taugt besser zur Prüfung als Screenshots.
 - **Maven Central drosselt (HTTP 429)** bei vielen parallelen Downloads; Build wiederholen.
@@ -146,6 +146,8 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
 
+- 0.1.0 Debug (Etappe 16a/b): Anthropic und Gemini als Anbieter; Agent-Suite 205/0, Kern 52/0,
+  Build und Lint grün; auf keinem Gerät geprüft.
 - 0.1.0 Debug (Etappe 15): Werkzeuge im Panel; APK nicht mehr test-only; Kern 52/0, Agent-Suite
   198/0, Lint grün; im Emulator installiert, Tippen ungeprüft.
 - 0.1.0 Debug (Etappe 14c): Act Builder mit privater Entwurfsprüfung; ARM64- und x86_64-APK,

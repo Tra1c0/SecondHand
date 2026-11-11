@@ -93,7 +93,7 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
         body.addView(source)
         cloudConfirmation = label(R.string.agent_panel_empty, R.id.agent_cloud_confirmation)
         body.addView(cloudConfirmation)
-        sendButton = button(R.string.agent_cloud_send, R.id.agent_cloud_send) { onSendCloud?.invoke() }
+        sendButton = button(R.string.agent_workflow_run_local, R.id.agent_cloud_send) { onSendCloud?.invoke() }
         cancelButton = button(R.string.agent_cloud_cancel, R.id.agent_cloud_cancel) { onCancelCloud?.invoke() }
         body.addView(sendButton)
         body.addView(cancelButton)
@@ -245,14 +245,15 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
         cancelButton.visibility = View.GONE
     }
 
-    fun showCloudConfirmation(model: String, characters: Int, task: String = context.getString(R.string.agent_cloud_correct)) {
+    fun showCloudConfirmation(model: String, characters: Int, task: String = context.getString(R.string.agent_cloud_correct),
+                              provider: String = "OpenAI") {
         hideWorkflowChoices()
-        sendButton.setText(R.string.agent_cloud_send)
+        sendButton.text = context.getString(R.string.agent_cloud_send, provider)
         resultHeading.setText(R.string.agent_panel_result)
         applyButton.isEnabled = false
         copyButton.isEnabled = false
         result.text = ""
-        cloudConfirmation.text = context.getString(R.string.agent_cloud_confirm, model, characters, task)
+        cloudConfirmation.text = context.getString(R.string.agent_cloud_confirm, model, characters, task, provider)
         cloudConfirmation.visibility = View.VISIBLE
         sendButton.visibility = View.VISIBLE
         cancelButton.visibility = View.VISIBLE
