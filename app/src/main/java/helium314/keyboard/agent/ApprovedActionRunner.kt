@@ -58,6 +58,29 @@ class ApprovedActionRunner(
             ?: throw CloudFailure(CloudError.TIMEOUT)
     }
 
+    /**
+     * The host must already have displayed the exact request and consumed its approval. The intent
+     * is durable before the launcher runs; a hand-over is never repeated and never means "saved".
+     */
+    fun startTool(source: TextSnapshot, request: ToolRequest, launcher: ToolLauncher,
+                  onComplete: (Result<ToolOutcome>) -> Unit): Boolean = startOperation(source, onComplete) {
+        suspend fun run(): ToolOutcome = when (request.tool) {
+            ToolId.TEST_COUNT -> ToolOutcome.Text(Tools.runTest(request))
+            ToolId.CALENDAR_INSERT -> {
+                requireCurrent(source)
+                if (!launcher.launch(request)) throw ToolUnavailable()
+                ToolOutcome.HandedOff
+            }
+        }
+        if (journal.supportsWorkflowRecords) {
+            runs.execute(RunSubject.Tool(request.tool), beforeRun = { requireCurrent(source) }) { run() }
+        } else {
+            // No durable intent is possible: only the tool without an external effect stays available.
+            if (request.tool.external) throw CloudFailure(CloudError.STORAGE)
+            run()
+        }
+    }
+
     private fun requireCurrent(source: TextSnapshot) {
         if (!isCurrent(source)) throw CancellationException("STALE")
     }

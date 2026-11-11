@@ -9,6 +9,7 @@ import android.view.View
 import android.widget.*
 import dev.agentkeyboard.core.LocalTextAction
 import dev.agentkeyboard.core.AiTextAction
+import dev.agentkeyboard.core.ToolId
 import dev.agentkeyboard.core.WorkflowDefinition
 import dev.agentkeyboard.core.WorkflowResult
 import dev.agentkeyboard.core.WorkflowStep
@@ -26,6 +27,7 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
     var onSettings: (() -> Unit)? = null
     var onWorkflows: (() -> Unit)? = null
     var onWorkflow: ((WorkflowDefinition) -> Unit)? = null
+    var onTool: ((ToolId) -> Unit)? = null
     private val source: TextView
     private val result: TextView
     private val status: TextView
@@ -129,6 +131,17 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
         body.addView(workflows)
         workflowChoices = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         body.addView(workflowChoices)
+        body.addView(label(R.string.agent_tools_title))
+        val tools = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+        listOf(
+            Triple(ToolId.TEST_COUNT, R.string.agent_tool_test, R.id.agent_tool_test),
+            Triple(ToolId.CALENDAR_INSERT, R.string.agent_tool_calendar, R.id.agent_tool_calendar),
+        ).forEach { (tool, title, id) ->
+            val view = button(title, id) { onTool?.invoke(tool) }
+            actionButtons.add(view)
+            tools.addView(view, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
+        }
+        body.addView(tools)
         resultHeading = label(R.string.agent_panel_result)
         body.addView(resultHeading)
         result = label(R.string.agent_panel_empty, R.id.agent_result).apply {
@@ -176,6 +189,18 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
         applyButton.isEnabled = allowsReplacement
         copyButton.isEnabled = true
         post { if (copyButton.isEnabled) smoothScrollTo(0, resultHeading.top) }
+    }
+
+    /** A tool report can be read or copied; it never offers to replace the selection. */
+    fun showToolResult(text: String) {
+        showResult(text, false)
+        resultHeading.setText(R.string.agent_tool_test_result)
+        status.setText(R.string.agent_tool_test_ready)
+    }
+
+    fun showToolConfirmation(summary: String, external: Boolean) {
+        showWorkflowConfirmation(summary, false)
+        sendButton.setText(if (external) R.string.agent_tool_hand_over else R.string.agent_tool_run_test)
     }
 
     fun showWorkflowResult(outcome: WorkflowResult, definition: WorkflowDefinition) {

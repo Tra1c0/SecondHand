@@ -13,7 +13,7 @@ internal class JournaledModelCall(private val journal: ActionRunJournal) {
 
     suspend fun execute(subject: RunSubject, request: ModelRequest, provider: ModelProvider,
                         beforeCall: () -> Unit): String {
-        if (subject is RunSubject.Workflow) throw CloudFailure(CloudError.INVALID_REQUEST)
+        if (subject is RunSubject.Workflow || subject is RunSubject.Tool) throw CloudFailure(CloudError.INVALID_REQUEST)
         return runs.execute(subject, provider.id, request.model, beforeCall) {
             provider.generate(request) {}.text
         }
@@ -22,6 +22,6 @@ internal class JournaledModelCall(private val journal: ActionRunJournal) {
 
 internal fun Exception.neutralFailure(): Exception = when (this) {
     is RunStoreFailure -> CloudFailure(CloudError.STORAGE)
-    is CloudFailure, is WorkflowFailure -> this
+    is CloudFailure, is WorkflowFailure, is ToolFailure, is ToolUnavailable -> this
     else -> CloudFailure(CloudError.NETWORK)
 }

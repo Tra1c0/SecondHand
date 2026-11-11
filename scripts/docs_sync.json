@@ -70,6 +70,8 @@
                       "pattern": "^        ([A-Z_]+) -> text", "item": "`{0}`"},
     "languages": {"file": "agent-core/src/main/kotlin/dev/agentkeyboard/core/AiTextAction.kt",
                   "pattern": "([A-Z]+)\\(\"[a-z]{2}\", \"(\\w+)\"\\)", "item": "{1}"},
+    "tools": {"file": "agent-core/src/main/kotlin/dev/agentkeyboard/core/Tool.kt",
+              "pattern": "^    ([A-Z_]+)\\(\"([a-z.]+)\", external", "item": "`{1}`"},
     "providers": {"file": "agent-core/src/main/kotlin/dev/agentkeyboard/core/Workflow.kt",
                   "pattern": "([A-Z]+)\\(\"([a-z]+)\"\\)", "item": "`{1}`"}
   },
@@ -80,13 +82,15 @@
     "ai_actions": {"type": "list", "list": "ai_actions", "template": "{count} KI-Textaktionen: {items}"},
     "local_actions": {"type": "list", "list": "local_actions", "template": "{count} lokale Textwerkzeuge: {items}"},
     "languages": {"type": "list", "list": "languages", "template": "{count} Zielsprachen: {items}"},
+    "tools": {"type": "list", "list": "tools", "template": "{count} Werkzeuge: {items}"},
     "providers": {"type": "list", "list": "providers", "template": "{count} Provider-Kennungen im Workflowformat: {items}"}
   },
 
   "counts": [
     {"file": "docs/FEATURES.md", "pattern": "(\\d+) KI-Textaktionen", "list": "ai_actions"},
     {"file": "docs/FEATURES.md", "pattern": "(\\d+) lokale Textwerkzeuge", "list": "local_actions"},
-    {"file": "docs/FEATURES.md", "pattern": "(\\d+) Zielsprachen", "list": "languages"}
+    {"file": "docs/FEATURES.md", "pattern": "(\\d+) Zielsprachen", "list": "languages"},
+    {"file": "docs/FEATURES.md", "pattern": "(\\d+) Werkzeuge", "list": "tools"}
   ],
 
   "size_warnings": {"docs/HANDOFF.md": 400},

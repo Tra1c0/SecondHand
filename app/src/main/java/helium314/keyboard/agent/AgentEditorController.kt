@@ -25,6 +25,9 @@ import dev.agentkeyboard.core.WorkflowProvider
 import dev.agentkeyboard.core.WorkflowFailure
 import dev.agentkeyboard.core.WorkflowError
 import dev.agentkeyboard.core.BuiltinAction
+import dev.agentkeyboard.core.ToolId
+import dev.agentkeyboard.core.ToolRequest
+import dev.agentkeyboard.core.Tools
 import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.suggestions.SuggestionStripView
@@ -46,6 +49,8 @@ class AgentEditorController @JvmOverloads constructor(
     private val journalFactory: (() -> ActionRunJournal)? = null,
     private val providerFactory: (() -> ModelProvider)? = null,
 ) {
+    /** Replaceable in tests; production hands over to the user's calendar app. */
+    internal var toolLauncher: ToolLauncher = CalendarToolLauncher(ime)
     private var panel: AgentPanelView? = null
     private var wheel: AgentWheelView? = null
     private var snapshot: TextSnapshot? = null
@@ -56,6 +61,7 @@ class AgentEditorController @JvmOverloads constructor(
     private class CloudApproval(val model: String, val action: AiTextAction, val language: TranslationLanguage, val tone: WritingTone)
     private var pendingApproval: CloudApproval? = null
     private var pendingWorkflow: WorkflowDefinition? = null
+    private var pendingTool: ToolRequest? = null
     private val actionScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val cloudProvider: ModelProvider by lazy {
         providerFactory?.invoke() ?: OpenAiProvider(EncryptedCredentialStore(ime), CloudHttpClient.callsForContext(ime))
@@ -114,6 +120,7 @@ class AgentEditorController @JvmOverloads constructor(
         panel?.onCancelCloud = ::cancelCloud
         panel?.onWorkflows = ::chooseWorkflows
         panel?.onWorkflow = ::prepareWorkflow
+        panel?.onTool = ::prepareTool
         panel?.onSettings = {
             close()
             ime.startActivity(android.content.Intent(ime, helium314.keyboard.settings.SettingsActivity::class.java)
@@ -186,6 +193,7 @@ class AgentEditorController @JvmOverloads constructor(
         cloudRunner.cancel()
         pendingApproval = null
         pendingWorkflow = null
+        pendingTool = null
         preparedResult = null
         snapshot = null
         canApply = false
@@ -196,6 +204,7 @@ class AgentEditorController @JvmOverloads constructor(
         if (cloudRunner.isRunning || skillJob?.isActive == true) return
         pendingApproval = null
         pendingWorkflow = null
+        pendingTool = null
         val source = snapshot ?: return
         if (!editor.isCurrent(source)) {
             discardStaleContext()
@@ -216,6 +225,7 @@ class AgentEditorController @JvmOverloads constructor(
         if (!editor.isCurrent(source)) { discardStaleContext(); return }
         if (cloudRunner.isRunning || skillJob?.isActive == true) return
         pendingWorkflow = null
+        pendingTool = null
         val approval = runCatching {
             val settings = ModelSettings(ime)
             CloudApproval(settings.openAiModel, action, settings.translationLanguage, settings.writingTone)
@@ -243,7 +253,49 @@ class AgentEditorController @JvmOverloads constructor(
         panel?.showCloudConfirmation(approval.model, source.text.length, task)
     }
 
+    private fun prepareTool(tool: ToolId) {
+        if (cloudRunner.isRunning || skillJob?.isActive == true) return
+        val source = snapshot ?: return
+        if (!editor.isCurrent(source)) { discardStaleContext(); return }
+        pendingApproval = null; pendingWorkflow = null; pendingTool = null; preparedResult = null; canApply = false
+        val request = runCatching { Tools.prepare(tool, source.text) }.getOrNull()
+        if (request == null) {
+            panel?.showStatus(R.string.agent_tool_invalid)
+            return
+        }
+        pendingTool = request
+        panel?.showToolConfirmation(toolApprovalSummary(ime, request), request.tool.external)
+    }
+
+    private fun sendTool(request: ToolRequest) {
+        val source = snapshot ?: return
+        if (!editor.isCurrent(source)) { discardStaleContext(); return }
+        panel?.showCloudBusy(R.string.agent_tool_running)
+        if (!cloudRunner.startTool(source, request, toolLauncher) { outcome ->
+            outcome.onSuccess { result ->
+                when (result) {
+                    is ToolOutcome.Text -> {
+                        preparedResult = result.text
+                        canApply = false // A tool report is information, never a replacement.
+                        panel?.showToolResult(result.text)
+                    }
+                    ToolOutcome.HandedOff -> panel?.showStatus(R.string.agent_tool_handed_off)
+                }
+            }.onFailure { failure -> panel?.showStatus(when (failure) {
+                is ToolUnavailable -> R.string.agent_tool_unavailable
+                is CloudFailure -> failure.error.cloudMessage()
+                else -> R.string.agent_tool_failed
+            }, true) }
+        }) discardStaleContext()
+    }
+
     private fun sendCloud() {
+        val tool = pendingTool
+        if (tool != null) {
+            pendingTool = null // One approval for exactly the previewed request, consumed before start.
+            sendTool(tool)
+            return
+        }
         val workflow = pendingWorkflow
         if (workflow != null) {
             pendingWorkflow = null // One approval for the immutable complete definition, consumed before start.
@@ -276,15 +328,17 @@ class AgentEditorController @JvmOverloads constructor(
     }
 
     private fun cancelCloud() {
+        val toolOnly = pendingTool != null && !cloudRunner.isRunning
         cloudRunner.cancel()
         pendingApproval = null
         pendingWorkflow = null
+        pendingTool = null
         preparedResult = null
         canApply = false
         val source = snapshot ?: return
         if (editor.isCurrent(source)) {
             panel?.showSource(source.text)
-            panel?.showStatus(R.string.agent_cloud_cancelled)
+            panel?.showStatus(if (toolOnly) R.string.agent_tool_cancelled else R.string.agent_cloud_cancelled)
         } else discardStaleContext()
     }
 
@@ -292,7 +346,7 @@ class AgentEditorController @JvmOverloads constructor(
         if (cloudRunner.isRunning || skillJob?.isActive == true) return
         val source = snapshot ?: return
         if (!editor.isCurrent(source)) { discardStaleContext(); return }
-        pendingApproval = null; pendingWorkflow = null; preparedResult = null; canApply = false
+        pendingApproval = null; pendingWorkflow = null; pendingTool = null; preparedResult = null; canApply = false
         panel?.showStatus(R.string.agent_workflow_loading, true)
         skillJob = actionScope.launch {
             val definitions = try { withContext(Dispatchers.IO) { WorkflowStore(ime).read() } }
@@ -311,7 +365,7 @@ class AgentEditorController @JvmOverloads constructor(
         if (cloudRunner.isRunning || skillJob?.isActive == true) return
         val source = snapshot ?: return
         if (!editor.isCurrent(source)) { discardStaleContext(); return }
-        pendingApproval = null; pendingWorkflow = null; preparedResult = null; canApply = false
+        pendingApproval = null; pendingWorkflow = null; pendingTool = null; preparedResult = null; canApply = false
         if (definition.steps.filterIsInstance<WorkflowStep.Ai>().any { it.provider != WorkflowProvider.OPENAI }) {
             panel?.showStatus(R.string.agent_workflow_provider_unavailable)
             return
@@ -362,6 +416,7 @@ class AgentEditorController @JvmOverloads constructor(
         cloudRunner.cancel()
         pendingApproval = null
         pendingWorkflow = null
+        pendingTool = null
         editor.onInvalidated = null
         snapshot = null
         preparedResult = null

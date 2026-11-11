@@ -192,4 +192,21 @@
     <string name="agent_builder_unavailable">Der Builder ist nicht verfügbar. Entsperre das Gerät und beende den Inkognitomodus vor einem neuen Versuch.</string>
     <string name="agent_builder_draft_review">Workflow-Entwurf prüfen</string>
     <string name="agent_builder_save_explanation">Prüfe vor dem Speichern alle Schritte und Modelle. Dieser Entwurf ist noch nicht gespeichert. Speichern legt die Konfiguration an; starte den Workflow anschließend separat aus der Tastatur.</string>
+    <string name="agent_tools_title">Werkzeuge</string>
+    <string name="agent_tool_test">Testwerkzeug: Zählen</string>
+    <string name="agent_tool_calendar">Kalenderentwurf</string>
+    <string name="agent_tool_test_confirm">Testwerkzeug (auf diesem Gerät): zählt Zeichen, Wörter und Zeilen der %1$d markierten Zeichen. Nichts verlässt die Tastatur und nichts wird eingefügt.</string>
+    <string name="agent_tool_calendar_confirm">Übergabe an: die Kalender-App deiner Wahl (Android-Ansicht „Neuer Termin“).\nDie Tastatur speichert keinen Termin und kann nicht sehen, ob du dort einen speicherst.\n\nTitel: %1$s\n\nBeschreibung (%2$d Zeichen):\n%3$s</string>
+    <string name="agent_tool_run_test">Testwerkzeug ausführen</string>
+    <string name="agent_tool_hand_over">An Kalender-App übergeben</string>
+    <string name="agent_tool_running">Werkzeug läuft … Nichts wird automatisch eingefügt.</string>
+    <string name="agent_tool_test_result">Bericht des Testwerkzeugs</string>
+    <string name="agent_tool_test_ready">Testwerkzeug auf diesem Gerät abgeschlossen. Der markierte Text ist unverändert.</string>
+    <string name="agent_tool_handed_off">An die Kalender-App übergeben. Der Termin ist erst gespeichert, wenn du ihn dort speicherst.</string>
+    <string name="agent_tool_unavailable">Keine App hat den Kalenderentwurf angenommen. Es wurde nichts übergeben.</string>
+    <string name="agent_tool_failed">Das Werkzeug ist fehlgeschlagen. Nichts wird automatisch wiederholt.</string>
+    <string name="agent_tool_invalid">Diese Auswahl kann das Werkzeug nicht verwenden.</string>
+    <string name="agent_tool_cancelled">Werkzeug abgebrochen. Es wurde nichts übergeben.</string>
+    <string name="agent_runs_tool_test_succeeded">Testwerkzeug auf diesem Gerät abgeschlossen.</string>
+    <string name="agent_runs_tool_handed_off">An eine andere App übergeben. Ob dort etwas gespeichert wurde, ist nicht bekannt.</string>
 </resources>

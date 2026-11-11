@@ -51,6 +51,14 @@ Bisher hat keine Funktion den Status E, weil noch nie ein Gerätetest stattfand.
 | Laufstatus | Die Einstellungen zeigen, welche Läufe erfolgreich, abgebrochen oder unklar endeten (ohne Texte). Löschbar. (12, 13f) | T |
 | Reparatur | Eine beschädigte Workflow-Datei lässt sich nach Bestätigung zurücksetzen; Schlüssel, Profile und Skill-Belegungen bleiben. (13g) | T |
 
+## Werkzeuge
+
+| Funktion | Was sie macht | Status |
+| --- | --- | --- |
+| Werkzeuge im Panel | 2 Werkzeuge im Aktionspanel unter „Werkzeuge“. Vor jedem Lauf siehst du Ziel und alle Werte und bestätigst einmal. (15) | T |
+| Testwerkzeug | Zählt Zeichen, Wörter und Zeilen des markierten Texts. Läuft nur auf dem Gerät, ersetzt nichts. Dient zum Ausprobieren des Werkzeug-Ablaufs. (15a) | T |
+| Kalenderentwurf | Öffnet die Kalender-App mit einem neuen Termin: erste Zeile als Titel, ganzer Text als Beschreibung. Datum und Uhrzeit stellst du dort ein. Gespeichert ist der Termin erst, wenn du ihn dort speicherst; die Tastatur liest den Kalender nicht. (15b) | T |
+
 ## Act Builder
 
 | Funktion | Was sie macht | Status |

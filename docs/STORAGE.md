@@ -82,6 +82,10 @@ UUID genau bei `action:workflow`. Format1 migriert ausschließlich zu Builtin/nu
 neue Fähigkeiten/Felder unter alter Version bleiben unzulässig. Es werden keine
 Workflowinhalte oder Zugangsdaten in Skill-Dateien eingebettet.
 
+Seit Etappe 15 schreibt das Journal Schema3: zusätzlicher Subject-Typ `tool` mit genau den Feldern
+`kind` und `tool` (feste Werkzeug-ID), ohne Provider, Modell oder Nutzdaten. Schema2 wird weiter
+gelesen; ein Schema-2-Dokument mit `tool`-Eintrag wird als Ganzes abgewiesen und nicht überschrieben.
+
 Laufmetadaten verwenden seit13f1 JSONschema2 mit RunSubject(TextAction, Workflow,
 WorkflowBuilder), optionalem WorkflowStepLink und rollenspezifischen Pflichtfeldern.
 Schema1-action wird ausdrücklich in TextAction migriert. Kryptokontext/Alias/AADv1

@@ -3,6 +3,7 @@ package helium314.keyboard.agent
 
 import android.app.Application
 import dev.agentkeyboard.core.AiTextAction
+import dev.agentkeyboard.core.ToolId
 import helium314.keyboard.agent.security.*
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
@@ -137,7 +138,7 @@ class EncryptedActionRunStoreTest {
         assertEquals(RunSubject.WorkflowBuilder, records.getValue(builder).subject)
         val plain = cipher.open(directory.listFiles()!!.single().readBytes(), "AgentKeyboard/ActionRuns/v1".toByteArray())
         val root = JSONObject(plain.toString(Charsets.UTF_8))
-        assertEquals(2, root.getInt("version"))
+        assertEquals(RunSubjectCodec.SCHEMA, root.getInt("version"))
         val row = root.getJSONArray("runs").getJSONObject(0)
         assertEquals(setOf("id", "subject", "provider", "model", "startedAt", "updatedAt", "state", "owner"), row.keys().asSequence().toSet())
         plain.fill(0)
@@ -159,8 +160,34 @@ class EncryptedActionRunStoreTest {
         assertEquals(RunSubject.TextAction(AiTextAction.CORRECT), migrated.subject)
         assertEquals(ActionRunState.SUCCEEDED, migrated.state)
         val after = cipher.open(file.readBytes(), aad)
-        assertEquals(2, JSONObject(after.toString(Charsets.UTF_8)).getInt("version"))
+        assertEquals(RunSubjectCodec.SCHEMA, JSONObject(after.toString(Charsets.UTF_8)).getInt("version"))
         after.fill(0)
+    }
+
+    @Test fun toolSubjectsNeedSchemaThreeAndCarryNoProviderModelOrPayload() = runBlocking {
+        assertEquals(3, RunSubjectCodec.SCHEMA)
+        val id = store().begin(RunSubject.Tool(ToolId.CALENDAR_INSERT))
+        store().finish(id, ActionRunState.SUCCEEDED)
+        val record = store().records().single()
+        assertEquals(RunSubject.Tool(ToolId.CALENDAR_INSERT), record.subject)
+        assertNull(record.provider); assertNull(record.model)
+        val file = directory.listFiles()!!.single(); val before = file.readBytes()
+        assertFailsWith<RunStoreFailure> { store().begin(RunSubject.Tool(ToolId.TEST_COUNT), "openai", "model") }
+        assertContentEquals(before, file.readBytes())
+        val encoded = RunSubjectCodec.encode(RunSubject.Tool(ToolId.TEST_COUNT))
+        assertEquals(setOf("kind", "tool"), encoded.keys().asSequence().toSet())
+        assertEquals(RunSubject.Tool(ToolId.TEST_COUNT), RunSubjectCodec.decode(encoded))
+        assertFails { RunSubjectCodec.decode(encoded, 2) } // an older document cannot introduce tools
+        assertFails { RunSubjectCodec.decode(JSONObject().put("kind", "tool").put("tool", "calendar.delete")) }
+        assertFails { RunSubjectCodec.decode(JSONObject().put("kind", "tool").put("tool", "calendar.insert").put("title", "x")) }
+        // A schema-2 file that claims a tool subject is rejected as a whole and stays untouched.
+        val aad = "AgentKeyboard/ActionRuns/v1".toByteArray()
+        val plain = cipher.open(file.readBytes(), aad)
+        val root = JSONObject(plain.toString(Charsets.UTF_8)).put("version", 2); plain.fill(0)
+        file.writeBytes(cipher.seal(root.toString().toByteArray(), aad))
+        val downgraded = file.readBytes()
+        assertFailsWith<RunStoreFailure> { store().records() }
+        assertContentEquals(downgraded, file.readBytes())
     }
 
     @Test fun inconsistentOrUnknownSubjectsNeverOverwriteSavedStatus() = runBlocking {

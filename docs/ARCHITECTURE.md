@@ -30,6 +30,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - **KI-Anbindung** – Der einzige echte Provider (OpenAI) und der journalisierte Modellaufruf. Verträge: docs/PROVIDERS.md.
 - **Laufjournal** – Verschlüsselte Metadaten zu Läufen: Absicht vor Wirkung, kein Retry, keine Inhalte.
 - **Workflows und Skill Keys** – Gespeicherte Abläufe, ihre Ausführung nach Freigabe und die drei Skill-Tasten. Format: docs/WORKFLOWS.md.
+- **Werkzeuge** – Fest eingebaute Werkzeuge: lokales Testwerkzeug und Übergabe eines Kalenderentwurfs an eine Kalender-App.
 - **Act Builder** – Natürliche Beschreibung → freigegebene Anfrage → streng validierter Workflow-Entwurf.
 - **Einstellungen und Profile** – Compose-Seiten der Agent-Funktionen sowie Design-, Layout- und Gestenprofile.
 - **Unveränderter Upstream** – Was ohne Änderung von HeliBoard übernommen ist; nur nach Ordnern beschrieben.
@@ -59,8 +60,8 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - Ablauf jeder Aktion: Aktion starten → Quelltextvorschau → ausdrücklich freigegebener Snapshot →
   Policy-Prüfung → Verarbeitung → Ergebnisvorschau → bewusste Übernahme.
 - Vorgesehene Grenzen: `EditorAdapter`, `ModelProvider`, `ExecutionPolicy`, `ProfileStore`,
-  `WorkflowRunner`, `RunStore`, `ToolAdapter`, `CredentialStore`. Es wird nur gebaut, was die
-  aktuelle Etappe braucht. `ToolAdapter` existiert noch nicht (Etappe 15).
+  `WorkflowRunner`, `RunStore`, `ToolLauncher`, `CredentialStore`. Es wird nur gebaut, was die
+  aktuelle Etappe braucht.
 - Ein Anbietermodul entsteht erst zusammen mit seinem echten Anschluss.
 - Berechtigungen gelten für die ganze APK. Modulgrenzen sind keine Sandbox des Betriebssystems,
   die Policy wird durch Tests belegt.
@@ -97,6 +98,13 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 <!-- /gen:providers -->
   Nur `openai` hat einen echten Anschluss. Die anderen Kennungen werden vor jeder Anfrage
   abgewiesen.
+- `Tool.kt`: `ToolId` (fest eingebaute Werkzeuge, `external` = Wirkung außerhalb der Tastatur),
+  `ToolField`, `ToolRequest` (unveränderlich, nur aus der freigegebenen Auswahl abgeleitet) und
+  `Tools` (`prepare` ist rein und deterministisch, `runTest` ist das Testwerkzeug). Kein Modell
+  und kein Import kann ein Werkzeug wählen, hinzufügen oder konfigurieren.
+  <!-- gen:tools -->
+2 Werkzeuge: `test.count`, `calendar.insert`
+<!-- /gen:tools -->
 - `TextCondition.kt`: deterministische Bedingungen `NON_EMPTY`, `CONTAINS_LITERAL`,
   `LENGTH_AT_LEAST`, optional negiert. Kein Regex, kein Skript.
 - `SkillBinding.kt`: `BuiltinAction` (stabile Datei-IDs) und `SkillBinding` (Slot 1–3, Alias,
@@ -105,7 +113,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - `PendingBatchGate.kt`: sperrt Swipe-Batches unter Epoch/Lock, wird in `InputLogicHandler.java`
   benutzt (Fallstrick P5).
 - Tests in `CT/`: `AiTextActionTest`, `EditorPolicyTest`, `LocalTextActionsTest`,
-  `PendingBatchGateTest`, `SkillBindingTest`, `WorkflowTest`. Befehl: `core-tests`.
+  `PendingBatchGateTest`, `SkillBindingTest`, `ToolTest`, `WorkflowTest`. Befehl: `core-tests`.
 
 ## Geänderte Upstream-Dateien
 
@@ -172,7 +180,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Übernahme erneut.
 - `AgentKeyboardFrame.kt`: Overlays sind exakt so groß wie die Tastatur und vergrößern die IME
   nie. Hintergrundtasten sind währenddessen aus der Accessibility entfernt.
-- `AgentPanelView.kt`: natives Aktionspanel im IME-Fenster. Öffnet nie eine zweite
+- `AgentPanelView.kt`: natives Aktionspanel im IME-Fenster (lokale Werkzeuge, KI-Aktionen,
+  Workflows, Werkzeuge). Öffnet nie eine zweite
   `InputConnection` und keinen eigenen Editor.
 - `AgentWheelView.kt`: radiales Aktionsrad aus echten Buttons (Tastaturnavigation, TalkBack). Eine
   Auswahl bereitet nur eine Vorschau vor.
@@ -232,11 +241,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Verschlüsselte Metadaten zu Läufen: Absicht vor Wirkung, kein Retry, keine Inhalte.
 
 - `ActionRunJournal.kt`: `ActionRunJournal`, `ActionRunRecord`, `ActionRunState`, `RunSubject`
-  (TextAction, Workflow, Builder) und `WorkflowStepLink`.
+  (TextAction, Workflow, Builder, Tool) und `WorkflowStepLink`.
 - `JournaledRun.kt`: schreibt die Absicht dauerhaft vor dem Start und den Endzustand danach.
 - `EncryptedActionRunStore.kt`: Datei `agent_runs/status.sealed`, höchstens 20 Einträge, sieben
   Tage. `RunStoreFailure` bei beschädigter Datei.
-- `RunSubjectCodec.kt`: strenges JSON-Schema 2 inklusive Migration von Schema 1.
+- `RunSubjectCodec.kt`: strenges JSON-Schema 3 (`SCHEMA`). Schema 1 wird migriert, Schema 2
+  gelesen; ein `tool`-Eintrag ist erst ab Schema 3 gültig.
 - Regeln: Timeout oder unklare Antwort ergibt `UNKNOWN`, lokaler Abbruch `CANCELLED`. Keine
   automatische Wiederholung oder Editorübernahme nach einem Neustart. Workflow-Namen werden nicht
   ins Journal geschrieben. Ein Elternlauf entsteht vor dem Workflow, Kindaufrufe verweisen auf
@@ -265,6 +275,24 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Skill-Druck liest die aktuelle Definition und verlangt eine einmalige Freigabe.
 - Tests: `WorkflowStoreTest`, `ManualWorkflowDraftTest`, `ApprovedActionRunnerTest`,
   `ApprovedWorkflowRunnerTest`, `WorkflowConditionSummaryTest`, `SkillBindingStoreTest`.
+
+## Werkzeuge
+
+> Fest eingebaute Werkzeuge: lokales Testwerkzeug und Übergabe eines Kalenderentwurfs an eine Kalender-App.
+
+- Ablauf: Werkzeug im Panel wählen → `Tools.prepare` leitet die Felder aus der Auswahl ab →
+  `ToolApprovalSummary.kt` zeigt Ziel und jeden Wert → ein eigener Klick → `startTool` in
+  `ApprovedActionRunner.kt` schreibt die Absicht ins Journal (`RunSubject.Tool`) und ruft erst
+  danach den `ToolLauncher` genau einmal auf.
+- `ToolLauncher.kt`: `ToolLauncher` (die eine externe Wirkung), `CalendarToolLauncher`
+  (`Intent.ACTION_INSERT` auf `CalendarContract.Events.CONTENT_URI` mit ausschließlich Titel und
+  Beschreibung, ohne festes Zielpaket, ohne Kalender-Berechtigung), `ToolOutcome` (`Text` oder
+  `HandedOff`), `ToolUnavailable` (keine App hat angenommen).
+- Regeln: Eine Übergabe heißt nie „gespeichert“; die Tastatur liest den Kalender nicht. Ein
+  Werkzeugbericht ist nie ersetzbar (`canApply` bleibt `false`). Ohne dauerhaftes Journal
+  (API 21/22) läuft nur das Testwerkzeug, die Übergabe wird abgelehnt. Fehlt eine Kalender-App,
+  endet der Lauf als `FAILED`, nicht als `UNKNOWN`, und wird nicht wiederholt.
+- Tests in `AT/`: `ToolRunnerTest`, `CalendarToolLauncherTest`.
 
 ## Act Builder
 
@@ -317,7 +345,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 
 - `tools/dev.py`: `python3 tools/dev.py doctor|build|core-tests|agent-tests|upstream-tests|lint`.
   `build` erzeugt `:app:assembleDebugNoMinify` für ARM64 (`--abi x86_64` für den Emulator) und
-  legt APK plus SHA-256 unter `artifacts/` ab (nicht versioniert). `agent-tests` läuft über
+  legt APK plus SHA-256 unter `artifacts/` ab (nicht versioniert). `-Pandroid.injected.testOnly=false`
+  verhindert, dass die APK als test-only markiert wird (Fallstrick P16). `agent-tests` läuft über
   `helium314.keyboard.agent.*`, die erzeugten `InputLogicTest`-Fälle und `BatchDeliveryTest`.
   Toolchain und Einrichtung: `docs/BUILD.md`. UI-Tests schreiben gerenderte Vorschauen nach
   `app/build/agent-previews/` (z. B. `builder-send-review.png`, nicht versioniert).
@@ -371,37 +400,46 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P15** Dialog-Bitmaps: vor der `ShadowDialog`-Aufnahme den sichtbaren Dialog assertieren und
   idle warten. `captureToImage` wartete im Robolectric-Fenster sonst auf einen Redraw, der nie
   kam.
+- **P16** Build: Ein injiziertes ABI (`android.injected.build.abi`) markierte die APK als
+  test-only. Ein Telefon lehnt so eine APK bei der Installation aus dem Dateimanager ab, `adb`
+  verlangt `-t`. `tools/dev.py` setzt deshalb `android.injected.testOnly=false`. Nach jedem
+  Build-Umbau mit `aapt2 dump badging` prüfen.
+- **P17** Ein neuer Konstruktor-Parameter am Ende von `AgentEditorController` fängt das
+  nachgestellte Lambda bestehender Aufrufe ein (Tests übergeben so den Provider). Neue
+  Abhängigkeiten als ersetzbare Eigenschaft anlegen (`toolLauncher`).
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (136 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (142 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (3): build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (26): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (28): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
   AndroidEditorAdapter, ApprovedActionRunner, EncryptedActionRunStore, JournaledModelCall,
   JournaledRun, KeyboardProfileStore, ManualWorkflowDraft, ModelSettings, RunSubjectCodec,
-  SkillBindingStore, SkillLabels, WorkflowApprovalSummary, WorkflowBuilderContract,
-  WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
+  SkillBindingStore, SkillLabels, ToolApprovalSummary, ToolLauncher, WorkflowApprovalSummary,
+  WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
+  WorkflowStore
 - `A/providers/` (1): OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
-- `AT/` (26): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (28): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
-  ApprovedWorkflowRunnerTest, DebugPrivacyTest, EncryptedActionRunStoreTest,
-  EncryptedCredentialStoreTest, ForkIdentityTest, JournaledModelCallTest, KeyboardProfileStoreTest,
-  ManualWorkflowDraftTest, OpenAiProviderTest, SelectedTextCommitTest, SkillBindingStoreTest,
-  SkillSettingsTest, TestRunJournal, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
-  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
-- `C/` (11): AiTextAction, ApplyOutcome, EditorSession, ExecutionPolicy, LocalTextActions,
-  ModelProvider, PendingBatchGate, Profiles, SkillBinding, TextCondition, Workflow
-- `CT/` (6): AiTextActionTest, EditorPolicyTest, LocalTextActionsTest, PendingBatchGateTest,
-  SkillBindingTest, WorkflowTest
+  ApprovedWorkflowRunnerTest, CalendarToolLauncherTest, DebugPrivacyTest,
+  EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, ForkIdentityTest,
+  JournaledModelCallTest, KeyboardProfileStoreTest, ManualWorkflowDraftTest, OpenAiProviderTest,
+  SelectedTextCommitTest, SkillBindingStoreTest, SkillSettingsTest, TestRunJournal, ToolRunnerTest,
+  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowConditionSummaryTest,
+  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+- `C/` (12): AiTextAction, ApplyOutcome, EditorSession, ExecutionPolicy, LocalTextActions,
+  ModelProvider, PendingBatchGate, Profiles, SkillBinding, TextCondition, Tool, Workflow
+- `CT/` (7): AiTextActionTest, EditorPolicyTest, LocalTextActionsTest, PendingBatchGateTest,
+  SkillBindingTest, ToolTest, WorkflowTest
 - `K/keyboard/` (3): KeyboardActionListener, KeyboardActionListenerImpl, PointerTracker
 - `K/keyboard/emoji/` (1): EmojiSearchActivity
 - `K/keyboard/internal/` (1): KeyboardIconsSet

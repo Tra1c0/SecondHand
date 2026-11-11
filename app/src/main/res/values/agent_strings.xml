@@ -193,4 +193,21 @@
     <string name="agent_builder_unavailable">The builder is unavailable. Unlock the device and leave incognito mode before trying again.</string>
     <string name="agent_builder_draft_review">Review workflow draft</string>
     <string name="agent_builder_save_explanation">Review every step and model before saving. This draft is not saved yet. Saving adds configuration; start the workflow separately from the keyboard.</string>
+    <string name="agent_tools_title">Tools</string>
+    <string name="agent_tool_test">Test tool: count</string>
+    <string name="agent_tool_calendar">Calendar draft</string>
+    <string name="agent_tool_test_confirm">Test tool (on this device): counts the characters, words and lines of the %1$d selected characters. Nothing leaves the keyboard and nothing is inserted.</string>
+    <string name="agent_tool_calendar_confirm">Hand over to: the calendar app you choose (Android “new event” screen).\nThe keyboard does not save an event and cannot see whether you save one there.\n\nTitle: %1$s\n\nDescription (%2$d characters):\n%3$s</string>
+    <string name="agent_tool_run_test">Run test tool</string>
+    <string name="agent_tool_hand_over">Hand over to calendar app</string>
+    <string name="agent_tool_running">Running tool… Nothing is automatically inserted.</string>
+    <string name="agent_tool_test_result">Test tool report</string>
+    <string name="agent_tool_test_ready">Test tool finished on this device. The selected text is unchanged.</string>
+    <string name="agent_tool_handed_off">Handed over to the calendar app. The event is not saved until you save it there.</string>
+    <string name="agent_tool_unavailable">No app accepted the calendar draft. Nothing was handed over.</string>
+    <string name="agent_tool_failed">The tool failed. Nothing is repeated automatically.</string>
+    <string name="agent_tool_invalid">This selection cannot be used with the tool.</string>
+    <string name="agent_tool_cancelled">Tool cancelled. Nothing was handed over.</string>
+    <string name="agent_runs_tool_test_succeeded">Test tool finished on this device.</string>
+    <string name="agent_runs_tool_handed_off">Handed over to another app. Whether anything was saved there is not known.</string>
 </resources>

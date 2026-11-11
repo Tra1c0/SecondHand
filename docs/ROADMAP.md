@@ -14,9 +14,6 @@ Reihenfolge von oben nach unten.
   aktivieren und alles von der Checkliste in `docs/VALIDATION.md` prüfen: Tippen, Löschen,
   Auswahl, Panel und Rad, Feld- und App-Wechsel, sensible Felder, Rotation, Abbrüche. Gefundene
   Fehler eng korrigieren. Kein API-Schlüssel nötig. (M)
-- **15 Werkzeuge.** Zuerst ein klar gekennzeichnetes Testwerkzeug, danach die Übergabe an eine
-  Kalender-App mit genauer Vorschau von Ziel und Daten. Die Übergabe gilt nicht als
-  gespeicherter Termin. Keine automatischen Wiederholungen. (M)
 - **16 Weitere Anschlüsse, einzeln.** Echte Claude- und Gemini-Anbindung, danach externe Dienste
   wie Gmail, Google Calendar und Notion, jeweils mit eigener Anmeldung (OAuth) und Freigabe.
   Kein Modell darf sich selbst Fähigkeiten oder Zugangsdaten geben. Die API-Verträge in
@@ -34,6 +31,8 @@ Reihenfolge von oben nach unten.
 ## Eventuell später (nicht entschieden)
 
 - **U1** Ein eigenes kleines Test-Editor-APK für reproduzierbare Gerätetests. (S)
+- **U2** Werkzeuge auch als Workflow-Schritt und auf Skill Keys. (M)
+- **U3** Kalenderentwurf mit erkanntem Datum und erkannter Uhrzeit. (M)
 
 ## Unsortiert
 

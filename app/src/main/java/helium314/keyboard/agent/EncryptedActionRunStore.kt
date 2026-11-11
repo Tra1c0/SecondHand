@@ -99,7 +99,7 @@ class EncryptedActionRunStore(
             val root = JSONObject(plain.toString(Charsets.UTF_8))
             require(root.keys().asSequence().toSet() == setOf("version", "runs"))
             val version = root.strictInt("version")
-            require(version in 1..2)
+            require(version in 1..RunSubjectCodec.SCHEMA)
             val array = root.getJSONArray("runs")
             require(array.length() <= MAX_RECORDS)
             val ids = hashSetOf<String>()
@@ -111,7 +111,7 @@ class EncryptedActionRunStore(
                 require(UUID.fromString(id).toString() == id && ids.add(id))
                 require(UUID.fromString(owner).toString() == owner)
                 val subject = if (version == 1) RunSubject.TextAction(AiTextAction.valueOf(row.strictString("action")))
-                    else RunSubjectCodec.decode(row.getJSONObject("subject"))
+                    else RunSubjectCodec.decode(row.getJSONObject("subject"), version)
                 val provider = row.nullableString("provider"); val model = row.nullableString("model")
                 RunSubjectCodec.validate(subject, provider, model)
                 val started = row.strictLong("startedAt"); val updated = row.strictLong("updatedAt")
@@ -129,7 +129,7 @@ class EncryptedActionRunStore(
         records.forEach { r -> array.put(JSONObject().put("id", r.id).put("subject", RunSubjectCodec.encode(r.subject))
             .put("provider", r.provider ?: JSONObject.NULL).put("model", r.model ?: JSONObject.NULL).put("startedAt", r.startedAt)
             .put("updatedAt", r.updatedAt).put("state", r.state.name).put("owner", r.owner)) }
-        val plain = JSONObject().put("version", 2).put("runs", array).toString().toByteArray(Charsets.UTF_8)
+        val plain = JSONObject().put("version", RunSubjectCodec.SCHEMA).put("runs", array).toString().toByteArray(Charsets.UTF_8)
         val encrypted = try { require(plain.size <= MAX_BYTES - 29); cipher.seal(plain, AAD) }
             finally { plain.fill(0) }
         require(encrypted.size <= MAX_BYTES)

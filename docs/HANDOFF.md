@@ -9,12 +9,12 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 ## Aktueller Stand
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
-- App-Entwicklung auf Wunsch des Owners pausiert (seit 2026-11-11). Neue Etappen erst nach Auftrag.
+- Pause aufgehoben: Der Owner hat am 2026-11-11 die vollständige Fertigstellung beauftragt.
 - Fertig: Etappen 0–14c (Tastatur, Panel/Rad, OpenAI-Aktionen, Skill Keys, Workflows, Act Builder).
 - Letzter Build: 0.1.0 Debug, ARM64 und x86_64, Etappe 14c (APKs nicht im Repo).
 - Nicht geprüft: kein Gerätetest, keine echte API-Anfrage.
-- Nächster Schritt nach Auftrag: Gerätetest (Offene Punkte 1), danach `docs/ROADMAP.md` → Beschlossen.
-- Wartet auf den Owner: Auftrag zur Fortsetzung; Entscheidung über den Branch `main` (Offene Punkte 3).
+- Laufende Runde: `docs/ROADMAP.md` → Beschlossen von oben nach unten (G1, dann 15–18, A).
+- Wartet auf den Owner: Entscheidung über den Branch `main` (Offene Punkte 3).
 
 ## Offene Punkte
 

@@ -687,6 +687,33 @@ dieser Baseline separat erkannt und vor dem nächsten Schritt behoben werden.
   nur den leeren Inhalt. Präzise EditableText-Prüfung, keine Erwartung abgeschwächt.
   Tatsächliche IME-/Geräte-, Lock-/Rotations- und Live-API-Prüfungen bleiben offen.
 
+## Etappe15 — Werkzeuge: Testwerkzeug und Kalenderübergabe
+
+- Neue Toolchain in neuer Umgebung (JDK 17.0.21, SDK 37.0, Build-Tools 36.0.0, NDK 28.0.13004108).
+  Vor der Änderung: Kern 48/0. Die Agent-Suite lief im ersten Versuch nur bis 164 Fälle, weil
+  Robolectric die Android-16-Laufzeit nicht laden konnte (Maven-Ratelimit 429/IOException);
+  nach manuellem Laden der Laufzeit mit geprüfter SHA-512 lief sie vollständig.
+- Nach der Änderung: Kern 52/0 (vier neue `ToolTest`-Fälle), Agent-Suite 198/0 (189 bisherige,
+  fünf `ToolRunnerTest`, drei `CalendarToolLauncherTest`, ein Journal-Fall). ARM64- und
+  x86_64-Build sowie Lint bestanden.
+- Kern: `Tools.prepare` ist rein und deterministisch; Titel höchstens 120, Beschreibung höchstens
+  2000 UTF-16-Einheiten, nie ein halbes Surrogatpaar; ungültige Auswahl ergibt keine Anfrage;
+  `toString` gibt keinen Text aus.
+- Runner: Die Absicht steht im Journal, bevor der Launcher läuft (im Launcher geprüft:
+  Zustand `RUNNING`). Genau ein Aufruf. Fehlende App → `FAILED` ohne Wiederholung. Veralteter
+  Editor vor Start oder während des Journalschreibens → kein Aufruf, `CANCELLED`. Journal nicht
+  schreibbar → kein Aufruf, Speicherfehler. Ohne dauerhaftes Journal läuft nur das Testwerkzeug.
+- Intent: nur `ACTION_INSERT`, Kalender-URI, Titel, Beschreibung, `NEW_TASK`; kein Zielpaket.
+- Panel: Werkzeugtasten ohne Auswahl deaktiviert; Vorschau zeigt Titel und vollständige
+  Beschreibung; Senden ist ein eigener Klick; ein Bericht aktiviert nie „Ersetzen“.
+- Journal: Schema 3. Zwei bestehende Assertions prüften die Formatnummer 2 und prüfen jetzt
+  `RunSubjectCodec.SCHEMA` (3). Das ist die beabsichtigte Formatänderung, keine abgeschwächte
+  Erwartung; Migration von Schema 1 und Ablehnung unbekannter Subjects bleiben geprüft.
+- Befund beim Installieren: Die APK war test-only (`INSTALL_FAILED_TEST_ONLY`). Behoben in
+  `tools/dev.py`; `aapt2 dump badging` zeigt kein `testOnly` mehr. Die APK enthält alle vier ABIs,
+  beide Artefakte sind also gleich nutzbar.
+- Offen: echte Übergabe an eine Kalender-App auf einem Gerät (siehe Gerätetest).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

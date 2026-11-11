@@ -68,6 +68,7 @@ internal fun AgentRunStatus() {
                             stringResource(R.string.agent_runs_named_workflow, it, subject.revision)
                         } ?: stringResource(R.string.agent_runs_workflow_title, subject.revision)
                         RunSubject.WorkflowBuilder -> stringResource(R.string.agent_runs_builder_title)
+                        is RunSubject.Tool -> stringResource(subject.tool.titleResource())
                     }
                     Text(title, style = MaterialTheme.typography.titleSmall)
                     if (record.provider != null) Text(record.provider + " · " + record.model)
@@ -77,7 +78,7 @@ internal fun AgentRunStatus() {
                         is RunSubject.TextAction -> subject.workflow?.let { link ->
                             Text(stringResource(R.string.agent_runs_step_reference, link.runId.take(8), link.stepId), style = MaterialTheme.typography.bodySmall)
                         }
-                        RunSubject.WorkflowBuilder -> Unit
+                        RunSubject.WorkflowBuilder, is RunSubject.Tool -> Unit
                     }
                     Text(DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(record.startedAt)),
                         style = MaterialTheme.typography.bodySmall)
@@ -87,6 +88,8 @@ internal fun AgentRunStatus() {
                             is RunSubject.Workflow -> R.string.agent_runs_workflow_succeeded
                             RunSubject.WorkflowBuilder -> R.string.agent_runs_builder_succeeded
                             is RunSubject.TextAction -> R.string.agent_runs_succeeded
+                            is RunSubject.Tool -> if (record.subject.tool.external) R.string.agent_runs_tool_handed_off
+                                else R.string.agent_runs_tool_test_succeeded
                         }
                         ActionRunState.FAILED -> R.string.agent_runs_failed
                         ActionRunState.CANCELLED -> R.string.agent_runs_cancelled

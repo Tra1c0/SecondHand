@@ -58,6 +58,9 @@ def main() -> int:
     }[args.check]
     command = [str(ROOT / "gradlew"), *tasks,
                "-Pandroid.injected.build.abi=" + args.abi,
+               # An injected ABI otherwise marks the APK test-only, which a phone refuses to
+               # install from a file manager (and adb refuses without -t).
+               "-Pandroid.injected.testOnly=false",
                "--no-configuration-cache", "--console=plain", "--max-workers=2",
                "-Dorg.gradle.jvmargs=-Xmx2048m"]
     code = subprocess.run(command, cwd=ROOT, env=env).returncode

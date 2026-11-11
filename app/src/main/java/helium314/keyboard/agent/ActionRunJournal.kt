@@ -2,6 +2,7 @@
 package helium314.keyboard.agent
 
 import dev.agentkeyboard.core.AiTextAction
+import dev.agentkeyboard.core.ToolId
 import java.util.UUID
 
 internal fun requireRunIdentifier(id: String) {
@@ -21,6 +22,8 @@ sealed interface RunSubject {
         init { requireRunIdentifier(definitionId); require(revision in 1..1_000_000) }
     }
     data object WorkflowBuilder : RunSubject
+    /** A built-in tool run. For an external tool, success means handed over, never "saved". */
+    data class Tool(val tool: ToolId) : RunSubject
 }
 
 enum class ActionRunState { RUNNING, SUCCEEDED, FAILED, CANCELLED, UNKNOWN }

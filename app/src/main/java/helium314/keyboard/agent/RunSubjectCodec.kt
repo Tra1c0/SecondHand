@@ -2,6 +2,7 @@
 package helium314.keyboard.agent
 
 import dev.agentkeyboard.core.AiTextAction
+import dev.agentkeyboard.core.ToolId
 import org.json.JSONObject
 
 internal object RunSubjectCodec {
@@ -11,9 +12,11 @@ internal object RunSubjectCodec {
                 .put("definitionId", link.definitionId).put("revision", link.revision).put("stepId", link.stepId) } ?: JSONObject.NULL)
         is RunSubject.Workflow -> JSONObject().put("kind", "workflow").put("definitionId", subject.definitionId).put("revision", subject.revision)
         RunSubject.WorkflowBuilder -> JSONObject().put("kind", "workflow-builder")
+        is RunSubject.Tool -> JSONObject().put("kind", "tool").put("tool", subject.tool.id)
     }
 
-    fun decode(value: JSONObject): RunSubject = when (value.strictString("kind")) {
+    /** Tool subjects exist from schema 3; an older document cannot introduce them. */
+    fun decode(value: JSONObject, version: Int = SCHEMA): RunSubject = when (value.strictString("kind")) {
         "text-action" -> {
             value.requireFields(setOf("kind", "action", "workflow"))
             val raw = value.get("workflow")
@@ -32,11 +35,18 @@ internal object RunSubjectCodec {
             value.requireFields(setOf("kind"))
             RunSubject.WorkflowBuilder
         }
+        "tool" -> {
+            require(version >= 3)
+            value.requireFields(setOf("kind", "tool"))
+            RunSubject.Tool(ToolId.fromId(value.strictString("tool")) ?: error("INVALID"))
+        }
         else -> error("INVALID")
     }
 
+    const val SCHEMA = 3
+
     fun validate(subject: RunSubject, provider: String?, model: String?) {
-        if (subject is RunSubject.Workflow) require(provider == null && model == null)
+        if (subject is RunSubject.Workflow || subject is RunSubject.Tool) require(provider == null && model == null)
         else require(provider != null && provider.matches(Regex("[a-z0-9._-]{1,40}")) && model != null && ModelSettings.validModel(model))
     }
 }
