@@ -10,6 +10,40 @@ Etappen aus dem ursprünglichen Auftrag; Teilpakete bekommen Buchstaben (15a, 15
 
 Reihenfolge von oben nach unten.
 
+Ziel des Owners (2026-11-12): ein „Agentic Keyboard“, das aus dem Gesprächskontext erkennt, was
+du tun willst, und es mit einer Geste und einem Tipp erledigt, dazu eine lernfähige
+Autokorrektur. Der Owner hat die Entscheidung über Machbarkeit und Reihenfolge abgegeben; das
+Folgende ist die Entscheidung des Leads.
+
+- **20 Lernende Autokorrektur, lokal, ohne KI.**
+  - 20a Gültige Wörter schützen: ein richtiges Wort wird nur bei sehr hoher Sicherheit ersetzt,
+    ein reiner Umlaut-Unterschied (mochte/möchte) noch strenger; Schalter „gültige Wörter nie
+    ändern“. Eine mit der Löschtaste rückgängig gemachte Korrektur wird als Paar gesperrt und
+    nie wieder automatisch angewendet. (M)
+  - 20b Eigene Tippfehler lernen: ein Paar „getippt → gemeint“ zählt nur bei eindeutiger
+    Bestätigung (Korrektur behalten oder Vorschlag selbst gewählt), mit dem Wort davor als
+    Kontext; ab drei gleichen Bestätigungen wird es sicher korrigiert. Ein unkorrigierter
+    Tippfehler wird nie als richtiges Wort gelernt. (M)
+  - 20c Seite zum Ansehen, Löschen und verschlüsselten Exportieren der gelernten Paare. (S)
+  - Opt-in, nur auf dem Gerät, nicht in geschützten Feldern, ohne Protokollierung.
+- **21 Absichten erkennen und mit einem Tipp ausführen.** Leertaste halten öffnet statt des
+  Rads (oder in ihm) ein bis drei Aktionsvorschläge zum Text vor der Schreibmarke, zur Auswahl
+  oder zu frisch kopiertem Text; eine Aktion braucht genau einen bestätigenden Tipp auf einer
+  Karte, die zeigt, was passiert.
+  - 21a Datum und Uhrzeit (Deutsch, Englisch, Spanisch, auch „morgen 18 Uhr“, „Samstag halb
+    acht“) erkennen und als Termin eintragen: direkt mit Kalenderberechtigung oder wie bisher
+    über die Kalender-App. Ersetzt U3. (M)
+  - 21b Orte: Maps-Link zu erkannter oder markierter Adresse, zu selbst gespeicherten Orten
+    („Zuhause“, „Arbeit“), zu Kontakt-Adressen (Kontakte-Berechtigung) und optional zum
+    aktuellen Standort (Standort-Berechtigung, jedes Mal sichtbar bestätigt). Der Link wird
+    eingefügt, nicht gesendet. (M)
+  - 21c Androids eingebaute Texterkennung (TextClassifier, auf dem Gerät) als zusätzliche Quelle
+    für Adressen, Termine, Telefonnummern; ob das Xiaomi sie anbietet, muss am Gerät geprüft
+    werden. (S)
+  - 21d Wenn nichts lokal passt: „KI fragen“ mit dem eigenen Schlüssel, wie alle Cloud-Aktionen
+    nur nach Freigabe des genau angezeigten Texts. Später mit lokaler KI (18b). (M)
+  - Grenze: Die Tastatur sieht nur das eigene Eingabefeld, nicht die Nachricht des
+    Gegenübers. Für fremde Nachrichten: Nachricht kopieren, dann Leertaste halten.
 - **19f Flacher Look am Gerät.** 19a–19e (Tasten, Leiste, Menü, Zwischenablage, Panel) sind
   gebaut, aber nur mit Tests und gerenderten Bildern geprüft. Offen: Vergleich auf dem Telefon
   des Owners mit Bildschirmfotos (Dichte, Systemschrift, Abstand zur Navigationsleiste,
@@ -41,7 +75,6 @@ Reihenfolge von oben nach unten.
 
 - **U1** Ein eigenes kleines Test-Editor-APK für reproduzierbare Gerätetests. (S)
 - **U2** Werkzeuge auch als Workflow-Schritt und auf Skill Keys. (M)
-- **U3** Kalenderentwurf mit erkanntem Datum und erkannter Uhrzeit. (M)
 - **U4** Diktiertes direkt an eine KI-Aktion weitergeben (z. B. diktieren und korrigieren). (M)
 
 ## Unsortiert
@@ -53,3 +86,10 @@ Reihenfolge von oben nach unten.
 Vereinbart für dieses private Projekt: keine öffentliche Community, keine Konten, kein Backend,
 keine Synchronisierung. Austausch läuft über Dateien. Keine Behauptung von hunderten
 Integrationen.
+- Lerndaten auf einem Server, auch verschlüsselt (2026-11-12 entschieden): Lernen geschieht
+  ohnehin auf dem Gerät; ein Server brächte nur Risiko. Sicherung über verschlüsselte
+  Exportdatei.
+- Bildschirm anderer Apps mitlesen (Bedienungshilfe-Dienst) oder Benachrichtigungen mitlesen:
+  zu weitreichender Zugriff auf alles Angezeigte. Ersatz: Nachricht kopieren.
+- Aktionen ganz ohne Bestätigung ausführen: eine Fehlerkennung würde still falsche Termine
+  anlegen oder Orte verschicken.
