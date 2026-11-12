@@ -62,6 +62,8 @@ object KeyboardCommands {
         fun textAfterCursor(length: Int): CharSequence? = null
         /** Replaces the chips in the strip, e.g. after a read; false if the strip shows something else by now. */
         fun showChips(chips: List<Chip>): Boolean = false
+        /** Opens the text actions with the saved workflow [workflowId] like a skill key (stage 24f `@wf`); the field stays unchanged. */
+        fun openWorkflow(workflowId: String): Boolean = false
     }
 
     /** A built-in command. Commands never come from files or models. */
@@ -89,6 +91,9 @@ object KeyboardCommands {
         CharacterCommand,
         EmojiCommand,
         ConvertCommand,
+        helium314.keyboard.agent.commands.SnipCommand,
+        helium314.keyboard.agent.commands.ClipCommand,
+        helium314.keyboard.agent.commands.WorkflowCommand,
     )
 
     /** Replaced in tests. */
@@ -241,6 +246,7 @@ object KeyboardCommands {
             override fun textAfterCursor(length: Int): CharSequence? = ime.currentInputConnection?.getTextAfterCursor(length, 0)
             // e.g. after reading the screen: only while the strip still shows this command at this cursor
             override fun showChips(chips: List<Chip>): Boolean = ime.agentCommandCursor == position && onShow(chips)
+            override fun openWorkflow(workflowId: String) = ime.agentEditorController.openWorkflow(workflowId)
         }
         return chipsFor(context, host)
     }

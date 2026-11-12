@@ -230,6 +230,29 @@ class AgentEditorController @JvmOverloads constructor(
         }
     }
 
+    /**
+     * Stage 24f `@wf`: opens the panel and prepares the saved workflow [workflowId] the way a skill
+     * key bound to it does. Without selected text the panel shows its usual message; the run still
+     * needs the approval in the panel. The field is not changed. False if there is no panel now.
+     */
+    fun openWorkflow(workflowId: String): Boolean {
+        if (panel == null || needsCursorRefresh) return false
+        open()
+        val source = snapshot ?: return true
+        panel?.showStatus(R.string.agent_workflow_loading, true)
+        skillJob = actionScope.launch {
+            val workflow = withContext(Dispatchers.IO) {
+                runCatching { WorkflowStore(ime).read().singleOrNull { it.id == workflowId } }.getOrNull()
+            }
+            if (snapshot !== source) return@launch
+            if (!editor.isCurrent(source)) { discardStaleContext(); return@launch }
+            skillJob = null
+            panel?.showSource(source.text)
+            if (workflow != null) prepareWorkflow(workflow) else panel?.showStatus(R.string.agent_skill_workflow_missing)
+        }
+        return true
+    }
+
     /** An edit outside the panel (a typed command) ended unclear: block input until the editor reports (P3). */
     fun onUnclearEdit() {
         needsCursorRefresh = true

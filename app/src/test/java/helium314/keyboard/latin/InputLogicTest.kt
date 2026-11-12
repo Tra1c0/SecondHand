@@ -1346,6 +1346,40 @@ class InputLogicTest {
         assertFalse(helium314.keyboard.agent.providers.CloudHttpClient.isInitialized)
     }
 
+    @Test fun typedWorkflowCommandPreparesTheSavedWorkflowLikeASkillKeyAndNeedsItsApproval() {
+        val panel = prepareSkillEditor()
+        val workflow = nativeSkillWorkflow(true)
+        saveNativeSkillWorkflow(workflow)
+        assertTrue(latinIME.agentEditorController.openWorkflow(workflow.id))
+        awaitAgentUi { panel.findViewById<android.widget.Button>(R.id.agent_cloud_send).visibility == android.view.View.VISIBLE }
+        assertEquals(latinIME.getString(R.string.agent_workflow_run_cloud), panel.findViewById<android.widget.Button>(R.id.agent_cloud_send).text.toString())
+        assertTrue(panel.findViewById<android.widget.TextView>(R.id.agent_cloud_confirmation).text.contains("skill-model"))
+        // nothing ran and nothing changed in the field before the approval
+        assertFalse(helium314.keyboard.agent.providers.CloudHttpClient.isInitialized)
+        assertEquals("prefix Hallo suffix", text)
+
+        latinIME.agentEditorController.close()
+        assertTrue(latinIME.agentEditorController.openWorkflow(java.util.UUID.randomUUID().toString()))
+        awaitAgentUi { panel.findViewById<android.widget.TextView>(R.id.agent_status).text.toString() == latinIME.getString(R.string.agent_skill_workflow_missing) }
+        assertEquals(android.view.View.GONE, panel.findViewById<android.widget.Button>(R.id.agent_cloud_send).visibility)
+    }
+
+    @Test fun typedWorkflowCommandWithoutSelectionShowsThePanelMessageAndPreparesNothing() {
+        val panel = prepareSkillEditor()
+        val workflow = nativeSkillWorkflow(false)
+        saveNativeSkillWorkflow(workflow)
+        setCursorPosition(19)
+        latinIME.agentEditorController.startEditor(EditorInfo().apply { inputType = currentInputType; initialSelStart = 19; initialSelEnd = 19 })
+        assertTrue(latinIME.agentEditorController.openWorkflow(workflow.id))
+        org.robolectric.shadows.ShadowLooper.idleMainLooper()
+        // the panel's own message: the word at the cursor (like a typed command name) is still being composed, or no selection
+        assertTrue(panel.findViewById<android.widget.TextView>(R.id.agent_status).text.toString() in
+            listOf(R.string.agent_panel_composing, R.string.agent_panel_select_text).map { latinIME.getString(it) })
+        assertEquals(android.view.View.GONE, panel.findViewById<android.widget.Button>(R.id.agent_cloud_send).visibility)
+        assertEquals(android.view.View.VISIBLE, panel.visibility)
+        assertEquals("prefix Hallo suffix", text)
+    }
+
     private fun nativeSkillWorkflow(cloud: Boolean) = dev.agentkeyboard.core.WorkflowDefinition(
         java.util.UUID.randomUUID().toString(), 1, "Saved workflow", if (cloud) listOf(
             dev.agentkeyboard.core.WorkflowStep.Ai("first", dev.agentkeyboard.core.WorkflowInput.Selection,

@@ -96,6 +96,7 @@ fun AgentCommandsScreen(onClickBack: () -> Unit) {
                 }
             }
             AgentScreenReaderSection(prefix) // stage 24e
+            AgentSnippetsSection(prefix) // stage 24f
         }
     }
 }
