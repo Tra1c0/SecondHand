@@ -147,7 +147,29 @@ Solange du nichts antippst, passiert nichts; der Befehl bleibt einfach als Text 
 Passwortfeldern, im Inkognito-Modus und bei gesperrtem Gerät gibt es keine Befehle. Unter
 Einstellungen → Befehle schaltest du Befehle ab oder wählst statt `@` ein anderes Zeichen (`#`,
 `$`, `%`, `~`, `§`), etwa wenn du in einer App oft Leute mit `@` erwähnst. Weitere Befehle
-(`@contact`, `@url` …) folgen. Noch auf keinem Gerät ausprobiert.
+stehen unten. Noch auf keinem Gerät ausprobiert.
+
+### Weitere Befehle
+
+- `@contact Ann`: Kontakt antippen, dann Nummer, E-Mail oder Adresse. Beim ersten Mal erscheint
+  „Kontakte erlauben“; das öffnet Einstellungen → Befehle, dort den Zugriff erlauben.
+- `@url heise.de` öffnet die Seite. `@url` allein schlägt Adressen aus Zwischenablage und Feld vor.
+  „Bildschirm lesen“: einmal einschalten unter Einstellungen → Befehle → „Bildschirm lesen“ →
+  „Bedienungshilfen öffnen“. Auf dem Xiaomi vorher: App-Info von „Agent Keyboard Lab“ → ⋮ →
+  „Eingeschränkte Einstellungen zulassen“. Der Dienst liest nur, wenn du den Chip antippst.
+- `@such Begriff`, `@zeichen pfeil`, `@emoji herz`, `@conv 5 oz` (auch `@conv 5 oz in g`).
+- `@snip name`: Bausteine legst du unter Einstellungen → Befehle → „Textbausteine“ an.
+- `@clip wort`: braucht Einstellungen → Optionen → Zwischenablage-Verlauf.
+- `@wf name`: erst Text markieren, dann öffnet sich der Workflow in den Textaktionen.
+- `@datum`, `@datum morgen`; `@termin Samstag halb acht Kino` öffnet einen Kalenderentwurf (gespeichert
+  ist er erst in der Kalender-App); `@ort Bahnhofstraße 1 Köln` oder `@ort zuhause` (Orte unter
+  Einstellungen → Befehle → „Gespeicherte Orte“).
+
+## Design auswählen
+
+Einstellungen → Aussehen → „Design“ oder im Tastaturmenü die Pille „Design“: Kachel antippen.
+„Flacher Look“ setzt auch Reihen, Größen und Leiste; zurück geht es unter Tastaturprofile.
+Mit dem flachen Tastenstil sehen auch die Einstellungen moderner aus.
 
 ## Aussehen: flacher Look
 

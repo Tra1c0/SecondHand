@@ -260,8 +260,14 @@ Speicher, Datenschutz und Identität:
 - `res/xml/clipboard_provider_path.xml`: zusätzlicher Pfad `agent_screenshot/` für die Kopien
   der Screenshot-Pille, getrennt von den Clip-Dateien (deren Aufräumen hielte ein Unterordner
   sonst für verwaist).
-- `SettingsNavHost.kt` und `MainSettingsScreen.kt`: Ziele und Menüeinträge der acht
-  Agent-Einstellungsseiten.
+- `SettingsNavHost.kt` und `MainSettingsScreen.kt`: Ziele und Menüeinträge der Agent-
+  Einstellungsseiten (dazu `agent_design`); `MainSettingsScreen` baut seine Einträge als Liste
+  und zeigt im Stil „Flat“ die moderne Liste aus `AgentMainSettings.kt` (23e).
+- `SearchScreen.kt` (23e): optionaler Parameter `largeTitle` vor `content` (Fallstrick P46) und
+  `LARGE_TITLE_BAR_TAG`; ohne ihn unverändert.
+- `AppearanceScreen.kt` (23f1): Eintrag „Design“ als erstes Element. `KeyboardTheme.kt`:
+  `getPreviewColors` für die Kacheln.
+- `AndroidManifest.xml` (24e): Dienst `ScreenReaderService` mit `BIND_ACCESSIBILITY_SERVICE`.
 - App-Identität: `app/build.gradle.kts` (App-ID `dev.personal.agentkeyboard`, Version 0.1.0,
   APK-Name, Lint-Baseline `lint-baseline-upstream.xml`), `settings.gradle`
   (`:agent-core`), `clip_provider.xml` und `gesture_data.xml` (eigene Provider-Authorities,
@@ -482,6 +488,44 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - Tests: `CommandSyntaxTest` und `MathExpressionTest` (`CT/`), `KeyboardCommandsTest`, `CommandReplaceTest` und
   `CalculatorViewTest` (`AT/`), `InputLogicTest.typedCommand*`.
 
+- Weitere Befehle (Etappe 24c–24f), jeder in einer eigenen Datei, Reihenfolge in `BUILT_IN`:
+  - `A/ContactCommand.kt` (`@contact`): `rank` (gleich, beginnt mit, Wortanfänge, enthält; höchstens
+    6), austauschbare `source`, echte Quelle `PhoneContacts` (`ContactsContract`, Projektion und
+    Grenzen 30/20, keine Logs von Namen oder Nummern), Feldauswahl nur für denselben Befehlstext an
+    derselben Schreibmarke (`Host.cursor`, `Host.refresh`). Berechtigung `READ_CONTACTS` steht
+    schon im Upstream-Manifest und gilt auch für das Kontakte-Wörterbuch.
+  - `A/commands/UrlCommand.kt` und `C/UrlDetector.kt` (`@url`): strenge Erkennung (http/https
+    oder bekannte Endung, keine Dateinamen, Versionen, Benutzerdaten); Vorschläge aus
+    Zwischenablage (nur Text, nicht sensibel), Feld vor und nach der Schreibmarke (je 2000
+    Zeichen); Öffnen vor Entfernen (P43). `A/commands/ScreenReaderService.kt`: Bedienungshilfe-
+    Dienst ohne abonnierte Ereignisse (`res/xml/agent_screen_reader.xml`, Fallstrick P44), liest
+    nur nach einem Tipp einmal die App-Fenster, überspringt Passwort-, sensible und eigene
+    Knoten, höchstens 3000 Knoten/20 000 Zeichen; Brücke über ein statisches `connected` im
+    selben Prozess; Ergebnis über `Host.showChips` (nur solange dieselbe Chip-Zeile steht).
+    Einstellungen: `K/settings/screens/AgentScreenReaderSection.kt`.
+  - `A/SearchCommand.kt` (`@such`, `ACTION_WEB_SEARCH`, sonst DuckDuckGo; austauschbarer
+    `launcher`), `A/CharacterCommand.kt` (`@zeichen`, `C/SpecialCharacters.kt`),
+    `A/EmojiCommand.kt` (`@emoji`, `C/EmojiNames.kt`; HeliBoards Emoji-Suche braucht ein
+    nachzuladendes Wörterbuch), beide über `C/SymbolTable.kt` (ä→a, ß→ss, exakt vor Präfix,
+    höchstens 12); `A/ConvertCommand.kt` (`@conv`, `C/UnitConversion.kt`, exakt mit `BigDecimal`,
+    US-Maße, „Pfund“ = lb).
+  - `A/commands/SnipCommand.kt` und `A/commands/SnippetStore.kt` (`@snip`, CE-Datei,
+    Einstellungen `K/settings/screens/AgentSnippetsSection.kt`), `A/commands/ClipCommand.kt`
+    (`@clip`, nur mit eingeschaltetem Verlauf, nur Text; nur der aktuelle Clip ist als vertraulich
+    erkennbar), `A/commands/WorkflowCommand.kt` (`@wf`, `Host.openWorkflow` →
+    `AgentEditorController.openWorkflow`, wie eine Skill-Taste; ändert das Feld nicht).
+  - `A/DateCommand.kt` (`@datum`), `A/EventCommand.kt` (`@termin`, Entwurf über
+    `CalendarToolLauncher.eventDraft`, Entfernen erst nach erfolgreichem Start), `A/PlaceCommand.kt`
+    (`@ort`, Maps-Link einfügen oder `geo:` öffnen) mit `A/SavedPlaces.kt` (CE) und
+    `SavedPlacesSection.kt`; Logik in `C/CivilDate.kt` (Datum ohne `java.time`, Fallstrick P45),
+    `C/DateFormatting.kt` (de, en-US, es), `C/EventParser.kt` (Datum, Uhrzeit, Titel aus Freitext,
+    „jetzt“ und Zeitzone übergeben), `C/Places.kt`.
+  - Tests: `CT/UrlDetectorTest.kt`, `CT/SymbolTableTest.kt`, `CT/UnitConversionTest.kt`,
+    `CT/EventParserTest.kt`, `CT/DateFormattingTest.kt`, `CT/PlacesTest.kt`;
+    `AT/ContactCommandTest.kt`, `AT/MoreCommandsTest.kt`, `AT/SnipCommandTest.kt`,
+    `AT/ClipCommandTest.kt`, `AT/DatePlaceCommandsTest.kt`, `UrlCommandTest` und
+    `ScreenReaderServiceTest` (`AT/commands/`), `InputLogicTest.typed*`.
+
 ## Act Builder
 
 > Natürliche Beschreibung → freigegebene Anfrage → streng validierter Workflow-Entwurf.
@@ -515,6 +559,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - Texte: `agent_strings.xml` (Englisch in `values/`, Deutsch in `values-de/`), IDs und Attribute:
   `agent_ids.xml`, `agent_attrs.xml`.
 - Tests: `KeyboardProfileStoreTest`, `SkillSettingsTest`, `WorkflowSettingsTest`.
+
+- Moderne Hauptseite (23e): `K/settings/screens/AgentMainSettings.kt` (Einträge als Liste,
+  Weiche `isModern` = Tastenstil „Flat“, großer einklappender Titel über `SearchScreen(largeTitle)`,
+  Zeilen ≥ 76 dp ohne Trennlinien und Pfeile, Outline-Icons `ic_agent_settings_*.xml`, ab
+  Android 12 Systemfarben, darunter warm-dunkel); andere Stile behalten die Upstream-Liste. Test
+  `AT/MainSettingsLookTest.kt` (Bilder unter `app/build/reports/agent-settings/`).
+- Design-Seite (23f1): `A/DesignTiles.kt` (Abschnitte, Kacheln, Auswahl; schreibt genau die
+  Schlüssel von Tag/Nacht-Schalter und Farbwähler, „Flacher Look“ über `FlatPreset.apply`) und
+  `K/settings/screens/AgentDesignScreen.kt` (Raster, Rahmen und Häkchen, TalkBack als
+  Radio-Buttons); erreichbar über Aussehen → „Design“ und die Menü-Pille „Design“
+  (`agent_design`). Test `AT/DesignTilesTest.kt` (Bild unter `app/build/reports/design-tiles/`).
 
 ## Flacher Stil
 
@@ -873,47 +928,63 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Neustart der Eingabe bewegen kann (Feld wird leer, Vorschläge der App ändern sich):
   `onStartInputView` → `AgentEditorController.startEditor` schließt alle Overlays. Erst öffnen,
   dann mit einem eigenen Klick ändern. Am Telefon beim Rechner beobachtet (Ursache vermutet).
+- **P44** Der Bedienungshilfe-Dienst (`agent_screen_reader.xml`) abonniert absichtlich keine
+  Ereignisse; so weckt ihn das System nie und er liest nur auf Befehl. Wer `accessibilityEventTypes`
+  hinzufügt, bricht die Zusage an den Owner; `ScreenReaderServiceTest` prüft die Attributliste.
+- **P45** `java.time` ist ohne eingeschaltetes Desugaring erst ab API 26 sicher (minSdk 21);
+  Datumsrechnung deshalb über `CivilDate`.
+- **P46** Ein neuer Parameter an `SearchScreen` oder `SearchSettingsScreen` muss vor `content`
+  stehen, sonst brechen alle Aufrufe mit nachgestelltem Lambda (P41). `captureToImage` läuft bei
+  Compose-Seiten in Robolectric in einen Timeout (wie P15): die `decorView` selbst zeichnen.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (229 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (284 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (4): agent-apk, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (41): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (51): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
-  AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CorrectionMemory, Dictation,
-  EncryptedActionRunStore, FlatMenuView, FlatPanelStyle, FlatPreset, JournaledModelCall,
-  JournaledRun, KeyboardCommands, KeyboardProfileStore, LearningData, ManualWorkflowDraft,
-  ModelSettings, OnDeviceSpeechEngine, RunSubjectCodec, ScreenshotChip, SkillBindingStore,
-  SkillLabels, ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel, TypoMemory,
-  WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner,
-  WorkflowInputSummary, WorkflowStore
+  AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand, ContactCommand,
+  ConvertCommand, CorrectionMemory, DateCommand, DesignTiles, Dictation, EmojiCommand,
+  EncryptedActionRunStore, EventCommand, FlatMenuView, FlatPanelStyle, FlatPreset,
+  JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore, LearningData,
+  ManualWorkflowDraft, ModelSettings, OnDeviceSpeechEngine, PlaceCommand, RunSubjectCodec,
+  SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore, SkillLabels, ToolApprovalSummary,
+  ToolLauncher, TouchCalibration, TouchModel, TypoMemory, WorkflowApprovalSummary,
+  WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
+  WorkflowStore
+- `A/commands/` (6): ClipCommand, ScreenReaderService, SnipCommand, SnippetStore, UrlCommand,
+  WorkflowCommand
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
-- `AT/` (45): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (53): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
-  ApprovedWorkflowRunnerTest, CalculatorViewTest, CalendarToolLauncherTest, CommandReplaceTest,
-  CorrectionMemoryTest, DebugPrivacyTest, DictationSessionTest, DictationUiTest,
+  ApprovedWorkflowRunnerTest, CalculatorViewTest, CalendarToolLauncherTest, ClipCommandTest,
+  CommandReplaceTest, ContactCommandTest, CorrectionMemoryTest, DatePlaceCommandsTest,
+  DebugPrivacyTest, DesignTilesTest, DictationSessionTest, DictationUiTest,
   EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, FlatClipboardTest, FlatMenuTest,
   FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, InsertAtCursorTest,
   JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LearningDataTest,
-  ManualWorkflowDraftTest, MoreProvidersTest, OpenAiProviderTest, ScreenshotChipTest,
-  SelectedTextCommitTest, SkillBindingStoreTest, SkillSettingsTest, TestRunJournal, ToolRunnerTest,
-  TouchModelTest, TypoMemoryTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
+  MainSettingsLookTest, ManualWorkflowDraftTest, MoreCommandsTest, MoreProvidersTest,
+  OpenAiProviderTest, ScreenshotChipTest, SelectedTextCommitTest, SkillBindingStoreTest,
+  SkillSettingsTest, SnipCommandTest, TestRunJournal, ToolRunnerTest, TouchModelTest,
+  TypoMemoryTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
   WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
-- `C/` (14): AiTextAction, ApplyOutcome, Commands, EditorSession, ExecutionPolicy, LocalTextActions,
-  MathExpression, ModelProvider, PendingBatchGate, Profiles, SkillBinding, TextCondition, Tool,
-  Workflow
-- `CT/` (10): AiTextActionTest, CommandSyntaxTest, EditorPolicyTest, InsertionAnchorTest,
-  LocalTextActionsTest, MathExpressionTest, PendingBatchGateTest, SkillBindingTest, ToolTest,
-  WorkflowTest
+- `C/` (23): AiTextAction, ApplyOutcome, CivilDate, Commands, DateFormatting, EditorSession,
+  EmojiNames, EventParser, ExecutionPolicy, LocalTextActions, MathExpression, ModelProvider,
+  PendingBatchGate, Places, Profiles, SkillBinding, SpecialCharacters, SymbolTable, TextCondition,
+  Tool, UnitConversion, UrlDetector, Workflow
+- `CT/` (16): AiTextActionTest, CommandSyntaxTest, DateFormattingTest, EditorPolicyTest,
+  EventParserTest, InsertionAnchorTest, LocalTextActionsTest, MathExpressionTest,
+  PendingBatchGateTest, PlacesTest, SkillBindingTest, SymbolTableTest, ToolTest, UnitConversionTest,
+  UrlDetectorTest, WorkflowTest
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,
   KeyboardActionListenerImpl, KeyboardSwitcher, KeyboardTheme, KeyboardView, MainKeyboardView,
   PointerTracker
@@ -932,10 +1003,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/latin/spellcheck/` (1): AndroidSpellCheckerService
 - `K/latin/suggestions/` (2): FlatStrip, SuggestionStripView
 - `K/latin/utils/` (1): ToolbarUtils
-- `K/settings/` (2): SettingsActivity, SettingsNavHost
-- `K/settings/screens/` (12): AgentAiScreen, AgentCommandsScreen, AgentDictationScreen,
-  AgentLearningScreen, AgentProfilesScreen, AgentRunStatus, AgentScreenshotScreen,
-  AgentSkillsScreen, AgentWorkflowsScreen, MainSettingsScreen, WorkflowBuilderDialog,
+- `K/settings/` (3): SearchScreen, SettingsActivity, SettingsNavHost
+- `K/settings/screens/` (17): AgentAiScreen, AgentCommandsScreen, AgentDesignScreen,
+  AgentDictationScreen, AgentLearningScreen, AgentMainSettings, AgentProfilesScreen, AgentRunStatus,
+  AgentScreenReaderSection, AgentScreenshotScreen, AgentSkillsScreen, AgentSnippetsSection,
+  AgentWorkflowsScreen, AppearanceScreen, MainSettingsScreen, WorkflowBuilderDialog,
   WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
@@ -946,9 +1018,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `app/src/main/assets/layouts/functional/` (1): functional_keys_flat
 - `app/src/main/assets/layouts/more_symbols/` (1): symbols_shifted_flat
 - `app/src/main/assets/layouts/symbols/` (1): symbols_flat
-- `app/src/main/res/drawable/` (20): btn_keyboard_key_flat, btn_keyboard_key_flat_pill,
+- `app/src/main/res/drawable/` (29): btn_keyboard_key_flat, btn_keyboard_key_flat_pill,
   btn_keyboard_key_flat_rect, btn_keyboard_key_functional_flat, ic_agent_actions, ic_agent_dictate,
-  ic_skill_1, ic_skill_2, ic_skill_3, sym_keyboard_clipboard_flat, sym_keyboard_delete_flat,
+  ic_agent_settings_ai, ic_agent_settings_commands, ic_agent_settings_layouts,
+  ic_agent_settings_learning, ic_agent_settings_profiles, ic_agent_settings_screenshot,
+  ic_agent_settings_skills, ic_agent_settings_toolbar, ic_agent_settings_workflows, ic_skill_1,
+  ic_skill_2, ic_skill_3, sym_keyboard_clipboard_flat, sym_keyboard_delete_flat,
   sym_keyboard_go_flat, sym_keyboard_grid_flat, sym_keyboard_mic_flat, sym_keyboard_pen_flat,
   sym_keyboard_return_flat, sym_keyboard_shift_flat, sym_keyboard_shift_lock_flat,
   sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
@@ -956,7 +1031,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `app/src/main/res/values-de/` (1): agent_strings
 - `app/src/main/res/values/` (8): agent_attrs, agent_ids, agent_strings, attrs, clip_provider,
   donottranslate, gesture_data, themes-flat
-- `app/src/main/res/xml/` (2): agent_data_extraction_rules, clipboard_provider_path
+- `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
+  clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (1): Shadows
 - `app/src/test/java/helium314/keyboard/latin/` (2): InputLogicTest, SuggestTest
 - `app/src/test/java/helium314/keyboard/latin/inputlogic/` (1): BatchDeliveryTest

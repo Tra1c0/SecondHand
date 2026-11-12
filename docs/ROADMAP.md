@@ -24,19 +24,12 @@ Folgende ist die Entscheidung des Leads.
   feldern, im Inkognito-Modus oder bei gesperrtem Gerät. Befehlstexte werden nicht gelernt.
   - 24a ist gebaut (siehe FEATURES.md).
   - 24b ist gebaut (siehe FEATURES.md), einschließlich des Ergebnis-Chips für `@math 12*3,5`.
-  - 24c `@contact Name`: Kontakte aus dem Adressbuch des Telefons (Google-Kontakte inbegriffen) als
-    Vorschläge, dann Felder wählen; Einfügen als Text. Kontakte-Berechtigung, nur lokal. (M)
-  - 24d `@url`: eingetippte Adresse öffnen; ohne Adresse URLs aus Eingabefeld und Zwischenablage
-    vorschlagen. Nur echte URLs (Schema bzw. Domain geprüft) lösen etwas aus. (S)
-  - 24e `@url` liest den Bildschirm: Bedienungshilfe-Dienst, der keine Ereignisse abonniert und nur
-    auf Befehl den angezeigten Text liest (kein Akkuverbrauch im Ruhezustand); Rückfall
-    Screenshot (`takeScreenshot`, ab Android 11) mit Texterkennung auf dem Gerät für Apps, die
-    Text als Grafik zeichnen. Inhalte werden nie gespeichert oder protokolliert. Am Xiaomi muss
-    der Owner „Eingeschränkte Einstellungen zulassen“ und den Dienst selbst einschalten. (M)
-  - 24f weitere Befehle, einzeln: `@snip` (eigene Textbausteine), `@datum`/`@termin` (mit 21a),
-    `@ort` (mit 21b), `@clip` (Zwischenablage durchsuchen), `@emoji`, `@zeichen` (Sonderzeichen
-    per Name), `@conv` (Einheiten, ohne Währungen), `@such` (Websuche im Browser), `@wf`
-    (Workflow oder Skill Key starten), `@ki` (KI-Aktion nach Freigabe). Nicht gewünscht: `@chord`.
+  - 24c, 24d, 24e und aus 24f `@such`, `@zeichen`, `@emoji`, `@conv`, `@snip`, `@clip`, `@wf`,
+    `@datum`, `@termin`, `@ort` sind gebaut (siehe FEATURES.md). Offen: `@ki` (in Arbeit);
+    Rückfall Screenshot mit Texterkennung für `@url`, wenn eine App Text als Grafik zeichnet;
+    `@clip` erkennt nur den aktuellen Clip als vertraulich (der Upstream-Verlauf speichert die
+    Markierung nicht, Änderung braucht eine Entscheidung); `@wf` bietet den gewählten Workflow erst
+    nach dem Markieren an; `@ort` ohne Kontakt-Adressen und Standort.
 - **20 Lernende Autokorrektur, lokal, ohne KI.**
   - 20a ist gebaut (siehe FEATURES.md). Abweichend vom ersten Entwurf gilt der Schutz nur für
     Umlaute, nicht für alle Akzente: Spanische Akzente (esta/está) sind meist aus Bequemlichkeit
@@ -71,7 +64,7 @@ Folgende ist die Entscheidung des Leads.
   - 23b ist gebaut (siehe FEATURES.md).
   - 23c ist gebaut (siehe FEATURES.md).
   - 23d ist gebaut (siehe FEATURES.md).
-  - 23e Einstellungen im modernen Look. (M) Vorlage (Screenshot des Owners, nicht im Repo):
+  - 23e ist gebaut (siehe FEATURES.md). Vorlage war (Screenshot des Owners, nicht im Repo):
     - große Überschrift oben links, die beim Scrollen kleiner wird;
     - Hauptliste mit großen Einträgen: rundes oder flaches Icon links, Titel groß, keine
       Untertitel-Flut, viel Abstand;
@@ -83,7 +76,8 @@ Folgende ist die Entscheidung des Leads.
     Betrifft vor allem `MainSettingsScreen.kt` und die gemeinsamen Compose-Bausteine
     (`Preference`, `SearchSettingsScreen`). Upstream-Dateien nur eng ändern, besser eigene
     Bausteine mit Weiche auf den flachen Stil.
-  - 23f Design-Seite mit Vorschau. (L) Vorlage: ein Raster aus Kacheln, jede eine kleine
+  - 23f1 ist gebaut (siehe FEATURES.md). Offen 23f2: Editor mit Live-Vorschau, „Meine Designs“ mit
+    Kachel „+“, eigene Farbsätze als Kacheln, eigenes Hintergrundbild. Ursprünglich: Vorlage: ein Raster aus Kacheln, jede eine kleine
     gerenderte Tastatur im jeweiligen Design (Farben, Tastenform), Antippen wählt das Design.
     Der Owner will darüber hinaus mehr Optionen als Gboard (Farben, Rundung, Abstände,
     Schrift, Hintergrund), jeweils mit Live-Vorschau beim Ändern. Beobachtet auf dem Screenshot

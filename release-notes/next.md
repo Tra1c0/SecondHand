@@ -68,3 +68,10 @@
   „Einfügen“ ersetzt `@math …` durch das Ergebnis.
 - Neu im Rechner: Taste „fx“ mit sin, cos, tan (in Grad), asin, acos, atan, ln, log, √, ∛,
   n-te Wurzel, Fakultät, π und e. Auch tippbar, etwa `@math wurzel(16)` oder `@math 2pi`.
+- Neu: Einstellungen im modernen Look (mit dem flachen Tastenstil) und eine Design-Seite mit
+  Vorschau-Kacheln (Aussehen → Design oder Menü-Pille „Design“).
+- Neue Befehle: `@contact` (Kontakte, Berechtigung unter Einstellungen → Befehle), `@url` (Adresse
+  öffnen, Vorschläge aus Zwischenablage und Feld, optional Bildschirm lesen per Bedienungshilfe nur
+  auf Tipp), `@such`, `@zeichen`, `@emoji`, `@conv`, `@snip` (eigene Textbausteine), `@clip`,
+  `@wf`, `@datum`, `@termin` (Kalenderentwurf), `@ort` (Maps-Link, gespeicherte Orte).
+- Neue Berechtigung möglich: Bedienungshilfe „Bildschirm lesen“ (nur wenn du sie einschaltest).

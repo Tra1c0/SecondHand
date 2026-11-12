@@ -58,7 +58,8 @@
       "app/src/main/java/helium314/keyboard/latin/Suggest.kt",
       "app/src/main/java/helium314/keyboard/keyboard/{KeyDetector,KeyboardSwitcher}.java",
       "app/src/main/java/helium314/keyboard/settings/{SettingsActivity,SettingsNavHost}.kt",
-      "app/src/main/java/helium314/keyboard/settings/screens/MainSettingsScreen.kt",
+      "app/src/main/java/helium314/keyboard/settings/screens/{MainSettingsScreen,AppearanceScreen}.kt",
+      "app/src/main/java/helium314/keyboard/settings/SearchScreen.kt",
       "app/src/main/java/helium314/keyboard/settings/screens/gesturedata/Share.kt",
       "app/src/test/java/helium314/keyboard/Shadows.kt",
       "app/src/test/java/helium314/keyboard/latin/{InputLogicTest,SuggestTest}.kt",
@@ -68,7 +69,7 @@
       ".claude/**",
       ".github/workflows/*.yml"
     ],
-    "exclude": [],
+    "exclude": [".claude/worktrees/**"],
     "match_stem": true,
     "//search_roots": "Where names written in the map are looked up (a name that exists nowhere gives a warning).",
     "search_roots": ["app", "agent-core", "tools", "scripts", "docs", ".github", ".claude", "release-notes",

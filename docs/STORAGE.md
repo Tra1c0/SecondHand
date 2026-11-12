@@ -145,3 +145,14 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   `agent_calculator_style` (zuletzt gewählte Ausgabe des Rechners).
 - Getippte Befehle, Rechnungen und Ergebnisse werden nicht gespeichert und nicht protokolliert.
   Der Rechner hält seine Eingabe nur im Speicher und leert sie beim Schließen.
+
+## Daten der Befehle 24c–24f
+
+- `@snip`: CE-Datei `noBackupFilesDir/agent_snippets.json` (AtomicFile, `storageVersion` 1,
+  höchstens 50 Bausteine, Lesegrenze 1 MiB), erst nach dem Entsperren lesbar, kein Backup, kein
+  Export.
+- `@ort`: CE-SharedPreferences `agent_places`, Schlüssel `places` (JSON-Array `{name, address}`,
+  höchstens 10), nur entsperrt, nicht in Exporten.
+- `@contact`, `@url`, `@clip`, Bildschirmlesen: nichts gespeichert. Gefundene Kontakte, Adressen,
+  Clip-Texte und gelesener Bildschirmtext liegen nur im Speicher, solange der Befehl vor der
+  Schreibmarke steht.
