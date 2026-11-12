@@ -49,8 +49,19 @@ Folgende ist die Entscheidung des Leads.
   - 23b ist gebaut (siehe FEATURES.md).
   - 23c ist gebaut (siehe FEATURES.md).
   - 23d ist gebaut (siehe FEATURES.md).
-  - 23e Einstellungen im modernen Look (große Überschrift, große Einträge mit Icons). (M)
-  - 23f Design-Seite mit Vorschau-Kacheln und Editor mit mehr Optionen und Live-Vorschau. (L)
+  - 23e Einstellungen im modernen Look. (M) Vorlage (Screenshot des Owners, nicht im Repo):
+    - große Überschrift oben links, die beim Scrollen kleiner wird;
+    - Hauptliste mit großen Einträgen: rundes oder flaches Icon links, Titel groß, keine
+      Untertitel-Flut, viel Abstand;
+    - dunkler Hintergrund passend zum flachen Look.
+    Betrifft vor allem `MainSettingsScreen.kt` und die gemeinsamen Compose-Bausteine
+    (`Preference`, `SearchSettingsScreen`). Upstream-Dateien nur eng ändern, besser eigene
+    Bausteine mit Weiche auf den flachen Stil.
+  - 23f Design-Seite mit Vorschau. (L) Vorlage: ein Raster aus Kacheln, jede eine kleine
+    gerenderte Tastatur im jeweiligen Design (Farben, Tastenform), Antippen wählt das Design.
+    Der Owner will darüber hinaus mehr Optionen als Gboard (Farben, Rundung, Abstände,
+    Schrift, Hintergrund), jeweils mit Live-Vorschau beim Ändern. Vorschlag: zuerst 23f1 Kacheln
+    für die vorhandenen Themes und die Vorlage „Flacher Look“, dann 23f2 Editor mit Vorschau.
 - **22 Persönliche Trefferzonen (Wunsch des Owners vom 2026-11-12).** Die Tastatur lernt, wo du
   jede Taste tatsächlich triffst, und verschiebt unsichtbar die Erkennungszonen; die Tasten
   selbst bleiben an ihrem Platz, damit das Muskelgedächtnis nicht gestört wird.
@@ -91,6 +102,10 @@ Folgende ist die Entscheidung des Leads.
 - **U1** Ein eigenes kleines Test-Editor-APK für reproduzierbare Gerätetests. (S)
 - **U2** Werkzeuge auch als Workflow-Schritt und auf Skill Keys. (M)
 - **U4** Diktiertes direkt an eine KI-Aktion weitergeben (z. B. diktieren und korrigieren). (M)
+- **U5** „Embeds“ (Frage des Owners vom 2026-11-12, noch nicht geklärt, was gemeint ist). Möglich
+  sind nur Text und Inhalte über `commitContent`. Link-Vorschauen baut die Ziel-App selbst aus
+  einem Link, Discord-Embeds dürfen nur Bots senden. Machbar wäre eine lokal gezeichnete
+  Info-Karte als Bild (z. B. Termin oder Ort), nur in Feldern, die Bilder annehmen.
 
 ## Unsortiert
 

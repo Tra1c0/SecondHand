@@ -776,6 +776,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Wer `setImageURI` durch eigenes Dekodieren ersetzt, nimmt `ImageDecoder`.
 - **P39** Ein Intent an eine schon laufende Aufgabe, der sich nur in den Extras unterscheidet,
   holt sie bloß nach vorn. Für ein Sprungziel in den Einstellungen `FLAG_ACTIVITY_CLEAR_TASK`.
+- **P40** Robolectric (Native-Grafik) zeichnet einzeiligen Text mit horizontal zentrierter
+  Gravitation nicht (`singleLine` plus `gravity=center`); im Render-Test fehlt der Text, auf
+  Geräten nicht. Für Render-Tests die Beschriftung links ausrichten, wenn die Ansicht den Text
+  ohnehin umschließt.
+- **P41** Bekommt eine Kotlin-Funktion mit Lambda-Parametern einen weiteren Lambda-Parameter mit
+  Standardwert ans Ende, bindet ein bisheriges nachgestelltes Lambda an den neuen Parameter.
+  Aufrufer dann mit benanntem Argument (`onDone = { … }`) schreiben.
 
 ## Datei-Inventar
 

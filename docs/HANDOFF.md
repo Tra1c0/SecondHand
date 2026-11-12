@@ -23,6 +23,10 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 
 ## Offene Punkte
 
+0. **Nächste Sitzung: 23e, dann 23f** (Vorlage in ROADMAP.md → 23). Die Screenshots des Owners
+   liegen nicht im Repo; die Beschreibung in ROADMAP ist alles, was davon übrig ist. Bei Bedarf
+   den Owner um die Bilder bitten. Offene Frage an den Owner: was „Embeds“ heißen soll (U5).
+   Bewusst nicht geändert nach Review 23d: Screenshot-Kopien leben nur 10 Minuten.
 1. **Gerätetest teilweise erledigt (G1).** Im Emulator geprüft und in Ordnung: Installation,
    Tippen, Löschen, Rad, Panel, Ersetzen, Schutz bei geänderter Auswahl, Passwortfeld,
    Testwerkzeug, Start der Kalenderübergabe, KI-Einstellungen mit Screenshot-Schutz, Schlüssel
