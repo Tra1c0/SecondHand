@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- Flat style: solid keys without bevel, 6dp corners, pills for the action and the layout switch
+     key. Gaps, paddings and text ratios were measured on reference screenshots that are 1200 px
+     wide. The keyboard view is 793 px high there: 39 px top padding (together with the 40 dp strip
+     above it this gives the 169 px between the upper edge and the first row), 722 px of rows and
+     32 px bottom padding. See helium314.keyboard.keyboard.FlatStyle. -->
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
+    <style name="KeyboardTheme.Flat" parent="KeyboardTheme.Rounded_Base_Border">
+        <item name="keyboardStyle">@style/Keyboard.Flat</item>
+        <item name="keyboardViewStyle">@style/KeyboardView.Flat</item>
+        <item name="mainKeyboardViewStyle">@style/MainKeyboardView.Flat</item>
+        <item name="emojiPalettesViewStyle">@style/EmojiPalettesView.Flat</item>
+        <item name="clipboardHistoryViewStyle">@style/ClipboardHistoryView.Flat</item>
+        <item name="popupKeysKeyboardStyle">@style/PopupKeysKeyboard.Flat</item>
+    </style>
+
+    <style name="Keyboard.Flat" parent="Keyboard">
+        <!-- This should be aligned with KeyboardTheme.THEME_ID_* -->
+        <item name="themeId">Flat</item>
+        <!-- 16 to 17 px of 1200: keys are 102 px wide in 118.6 px cells -->
+        <item name="horizontalGap">1.37%p</item>
+        <!-- 26, 39 and 32 px of 793, slightly above the exact fractions because they are truncated -->
+        <item name="verticalGap">3.29%p</item>
+        <item name="keyboardTopPadding">4.93%p</item>
+        <item name="keyboardBottomPadding">4.05%p</item>
+        <!-- 7 px of 1200; multiplied with the side padding scale, which is 0 by default in portrait -->
+        <item name="keyboardLeftPadding">0.5834%p</item>
+        <item name="keyboardRightPadding">0.5834%p</item>
+    </style>
+
+    <style name="PopupKeysKeyboard.Flat" parent="Keyboard.Flat">
+        <item name="keyboardTopPadding">0%p</item>
+        <item name="keyboardBottomPadding">0%p</item>
+        <item name="keyboardLeftPadding">0%p</item>
+        <item name="keyboardRightPadding">0%p</item>
+        <item name="horizontalGap">0%p</item>
+        <item name="touchPositionCorrectionData">@null</item>
+    </style>
+
+    <style name="KeyboardView.Flat" parent="KeyboardView.Rounded_Base_Border">
+        <item name="keyBackground">@drawable/btn_keyboard_key_flat</item>
+        <item name="functionalKeyBackground">@drawable/btn_keyboard_key_functional_flat</item>
+        <item name="spacebarBackground">@drawable/btn_keyboard_key_flat</item>
+        <item name="keyLetterSize">62.4%</item>
+        <item name="keyLabelSize">40.4%</item>
+        <item name="keyHintLetterRatio">26.1%</item>
+        <item name="keyHintLetterPadding">2.5dp</item>
+        <item name="keyHintLabelVerticalAdjustment">9%p</item>
+    </style>
+
+    <style name="MainKeyboardView.Flat" parent="MainKeyboardView.Rounded_Base_Border">
+        <item name="keyBackground">@drawable/btn_keyboard_key_flat</item>
+        <item name="functionalKeyBackground">@drawable/btn_keyboard_key_functional_flat</item>
+        <item name="spacebarBackground">@drawable/btn_keyboard_key_flat</item>
+        <item name="keyLetterSize">62.4%</item>
+        <item name="keyLabelSize">40.4%</item>
+        <item name="keyHintLetterRatio">26.1%</item>
+        <item name="keyHintLetterPadding">2.5dp</item>
+        <item name="keyHintLabelVerticalAdjustment">9%p</item>
+        <item name="languageOnSpacebarTextRatio">37%</item>
+    </style>
+
+    <style name="EmojiPalettesView.Flat" parent="EmojiPalettesView.Rounded_Base_Border">
+        <item name="keyBackground">@drawable/btn_keyboard_key_flat</item>
+        <item name="functionalKeyBackground">@drawable/btn_keyboard_key_functional_flat</item>
+        <item name="spacebarBackground">@drawable/btn_keyboard_key_flat</item>
+    </style>
+
+    <style name="ClipboardHistoryView.Flat" parent="ClipboardHistoryView.Rounded_Base_Border">
+        <item name="keyBackground">@drawable/btn_keyboard_key_flat</item>
+        <item name="functionalKeyBackground">@drawable/btn_keyboard_key_functional_flat</item>
+    </style>
+</resources>

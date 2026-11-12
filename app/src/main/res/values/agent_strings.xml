@@ -260,4 +260,10 @@
     <string name="agent_dictation_no_field">Dictation needs a normal text field.</string>
     <string name="agent_dictation_composing">Finish the current word first (for example with a space), then dictate.</string>
     <string name="agent_dictation_processing">Finishing… The text appears in a moment. Nothing is inserted yet.</string>
+    <string name="style_name_Flat" tools:keep="@string/style_name_Flat">Flat</string>
+    <string name="theme_name_flat_black" tools:keep="@string/theme_name_flat_black">Flat black</string>
+    <string name="agent_flat_preset_title">Flat look (preset)</string>
+    <string name="agent_flat_preset_description">Black background, flat grey keys, pill-shaped Enter and ?123 keys, number row and symbol hints. Sets style, colors, icons, rows and sizes for portrait in one step. Your previous values are kept until you restore them.</string>
+    <string name="agent_flat_preset_apply">Apply preset</string>
+    <string name="agent_flat_preset_restore">Restore previous look</string>
 </resources>

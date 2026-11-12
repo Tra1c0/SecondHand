@@ -957,6 +957,40 @@ Gerätecheck des Stands `f4d60e6` im Emulator: Panel mit Diktier-Knopf wird korr
 ein Tipp auf „Dictate“ bei einer Schreibmarke direkt an einem Wort meldet „Finish the current word
 first…“, ohne Absturz. Die Erkennung selbst gibt es im Emulator nicht.
 
+## Etappe19a — flacher Look, Tastenfläche
+
+Auftrag des Owners vom 2026-11-12: Aussehen nach fünf Screenshots (1200 × 2670 px) nachbauen,
+als Ausgangspunkt für ein eigenes Design.
+
+- Vermessen: Tasten, Lücken, Farben, Schriftgrößen und Icons aus den Screenshots (Pixelmaße).
+  Die Dichte 3,25 px je dp ist aus wiederkehrenden Maßen geschlossen (26 px = 8 dp, 19,5 px =
+  6 dp, 111 px ≈ 34 dp), nicht am Gerät abgelesen.
+- `FlatStyleTest` (7 Fälle): Vorlage setzt und restauriert genau ihre 18 Einstellungen, auch
+  „war nicht gesetzt“; zweites Anwenden überschreibt die Sicherung nicht; Lernen, Verlauf und
+  fremde Einstellungen bleiben unberührt; Höhenskala; Stil und Farbwerte; Tastengeometrie bei
+  1200 × 793 px gegen die Messwerte mit höchstens 1 px Abweichung (Reihen bei 39/178/327/477/627,
+  Höhen 117/123/124/124/134, Tastenbreite 102, Lücke 16, Leertaste 459); andere Stile behalten
+  gleich hohe Reihen und ihre Icons.
+- `FlatStyleRenderTest` (2 Fälle): zeichnet die echte `MainKeyboardView` mit nativer Grafik bei
+  1200 px Breite und 3,25 px je dp und prüft Farben, 6-dp-Ecken und Pillen an Pixeln.
+- Bildvergleich des gerenderten Bilds mit den beiden Tastatur-Screenshots (Skript, nicht im
+  Repo): Tastenkanten in allen fünf Reihen identisch bis auf 1–2 px; Ziffernhöhe 58/59 px,
+  x-Höhe 43/43 px, Hinweise 26/25 px, „?123“ 111 × 39/40 px, Leertastentext 271/266 px breit,
+  Icons Umschalt 79 × 77 / 81 × 76, Löschen 92 × 75 / 92 × 74, Emoji 73/72, Enter 69 × 51 / 69 × 50
+  (jeweils Nachbau / Vorlage). 4 bis 6 % der Pixel weichen deutlich ab, fast nur an
+  Schriftkanten: das Bild nutzt Roboto, die Vorlage eine andere Schrift.
+- Bekannte Abweichungen: Die Vorlage rundet ihre 1,5 Zellen breiten Tasten links auf 161 px und
+  rechts auf 163 px und setzt die Leertaste 2 px weiter links; der Nachbau liegt auf dem
+  gleichmäßigen Raster. Der Schrägstrich ist in der Vorlage schmaler.
+- Agent-Suite 247/0, Build und Lint bestanden (drei neue Stilhinweise „UseKtx“ in
+  `FlatPreset.kt`). Vollregression mit einem Zwischenstand dieser Etappe (Tastatur-View 780 statt
+  793 px, sonst gleich): 428 Tests, 7 Fehler, dieselben wie zuvor (fünf Baseline, zwei
+  Link-Tests am Netzwerkfilter).
+- Nicht geprüft: kein Gerät und kein Emulator. Der Emulator dieser Umgebung startete seinen
+  Systemdienst wiederholt neu (Zeitüberschreitung ohne Hardware-Beschleunigung). Offen sind
+  damit: Aussehen mit der Systemschrift des Telefons, Zusammenspiel mit Leiste und
+  Navigationsbereich, die tatsächliche Dichte, Druckfarbe und Tastenvorschau.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

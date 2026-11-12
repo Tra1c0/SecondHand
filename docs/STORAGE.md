@@ -92,3 +92,13 @@ WorkflowBuilder), optionalem WorkflowStepLink und rollenspezifischen Pflichtfeld
 Schema1-action wird ausdrücklich in TextAction migriert. Kryptokontext/Alias/AADv1
 bleiben unverändert, damit alte authentifizierte Dateien lesbar bleiben. Keine
 Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Subject.
+
+## Vorlage „Flacher Look“ (19a)
+
+- Datei: SharedPreferences `agent_flat_preset_backup` im Standardspeicher der App (wie
+  `agent_keyboard_profiles`).
+- Inhalt: `present` (Boolean) und je ersetzter Einstellung ein Eintrag `value:<Schlüssel>` mit dem
+  Wert vor dem Anwenden (String, Boolean oder Float). Fehlt der Eintrag, war die Einstellung
+  vorher nicht gesetzt und wird beim Wiederherstellen entfernt.
+- Nur Darstellungs- und Layout-Einstellungen (Liste: `FlatPreset.values()`), keine Texte,
+  Lerndaten oder Zugangsdaten. Wird beim Wiederherstellen geleert.

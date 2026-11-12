@@ -4,9 +4,11 @@ package helium314.keyboard.keyboard.internal.keyboard_parser
 import android.content.Context
 import android.content.res.Configuration
 import helium314.keyboard.latin.utils.Log
+import helium314.keyboard.keyboard.FlatStyle
 import helium314.keyboard.keyboard.Key
 import helium314.keyboard.keyboard.Key.KeyParams
 import helium314.keyboard.keyboard.KeyboardElement
+import helium314.keyboard.keyboard.KeyboardTheme
 import helium314.keyboard.keyboard.internal.KeyboardParams
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyData
@@ -85,6 +87,8 @@ class KeyboardParser(private val params: KeyboardParams, private val context: Co
             keysInRows.forEachIndexed { i, row ->
                 row.forEach { it.mHeight *= if (i == keysInRows.lastIndex) bottomRowScale else otherRowScale }
             }
+            if (params.mThemeId == KeyboardTheme.THEME_ID_FLAT && params.mId.element.isAlphaOrSymbol && params.mId.numberRowEnabled)
+                FlatStyle.shortenNumberRow(keysInRows)
         }
 
         return keysInRows

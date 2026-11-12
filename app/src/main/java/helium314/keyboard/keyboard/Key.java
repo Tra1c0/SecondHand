@@ -312,10 +312,10 @@ public class Key implements Comparable<Key> {
         // get the "correct" float gap: may shift keys by one pixel, but results in more uniform gaps between keys
         final float horizontalGapFloat = isSpacer() ? 0 : (keyParams.mKeyboardParams.mRelativeHorizontalGap * keyParams.mKeyboardParams.mOccupiedWidth);
         mHorizontalGap = Math.round(horizontalGapFloat);
-        mVerticalGap = Math.round(keyParams.mKeyboardParams.mRelativeVerticalGap * keyParams.mKeyboardParams.mOccupiedHeight);
+        mVerticalGap = Math.round(keyParams.mKeyboardParams.mRelativeVerticalGap * keyParams.mKeyboardParams.mOccupiedHeight * keyParams.mVerticalGapScale);
         mWidth = Math.round(keyParams.mAbsoluteWidth - horizontalGapFloat);
         // height is always rounded down, because rounding up may make the keyboard too high to fit, leading to issues
-        mHeight = (int) (keyParams.mAbsoluteHeight - keyParams.mKeyboardParams.mVerticalGap);
+        mHeight = (int) (keyParams.mAbsoluteHeight - keyParams.mKeyboardParams.mVerticalGap * keyParams.mVerticalGapScale);
         if (!isSpacer() && (mWidth == 0 || mHeight == 0)) {
             throw new IllegalStateException("key needs positive width and height");
         }
@@ -515,6 +515,10 @@ public class Key implements Comparable<Key> {
 
     public final boolean hasActionKeyBackground() {
         return mBackgroundType == BACKGROUND_TYPE_ACTION;
+    }
+
+    private boolean isLayoutSwitchKey() {
+        return mCode == KeyCode.SYMBOL_ALPHA || mCode == KeyCode.ALPHA || mCode == KeyCode.SYMBOL;
     }
 
     public final boolean isShift() {
@@ -917,6 +921,10 @@ public class Key implements Comparable<Key> {
             // 4: BACKGROUND_TYPE_SPACEBAR
             new KeyBackgroundState(),
         };
+
+        // Functional key that switches between the alphabet and the symbols layout. Only the
+        // Flat style has a drawable for this state (a pill), all other selectors ignore it.
+        public static final KeyBackgroundState LAYOUT_SWITCH = new KeyBackgroundState(android.R.attr.state_single);
     }
 
     /**
@@ -939,7 +947,9 @@ public class Key implements Comparable<Key> {
         } else {
             background = keyBackground;
         }
-        final int[] state = KeyBackgroundState.STATES[mBackgroundType].getState(mPressed || mLocked);
+        final KeyBackgroundState backgroundState = mBackgroundType == BACKGROUND_TYPE_FUNCTIONAL && isLayoutSwitchKey()
+                ? KeyBackgroundState.LAYOUT_SWITCH : KeyBackgroundState.STATES[mBackgroundType];
+        final int[] state = backgroundState.getState(mPressed || mLocked);
         background.setState(state);
         return background;
     }
@@ -983,6 +993,8 @@ public class Key implements Comparable<Key> {
         private final KeyboardParams mKeyboardParams; // for reading gaps and keyboard width / height
         public float mWidth;
         public float mHeight; // also should allow negative values, indicating absolute height is defined
+        /** Scales the gap below this key; the row height is unaffected. Used by the Flat style for the number row. */
+        public float mVerticalGapScale = 1f;
 
         // params that may change
         public float mAbsoluteWidth;
@@ -1290,6 +1302,7 @@ public class Key implements Comparable<Key> {
             yPos = keyParams.yPos;
             mWidth = keyParams.mWidth;
             mHeight = keyParams.mHeight;
+            mVerticalGapScale = keyParams.mVerticalGapScale;
             isSpacer = keyParams.isSpacer;
             mKeyboardParams = keyParams.mKeyboardParams;
             mEnabled = keyParams.mEnabled;

@@ -10,6 +10,13 @@ Etappen aus dem ursprünglichen Auftrag; Teilpakete bekommen Buchstaben (15a, 15
 
 Reihenfolge von oben nach unten.
 
+- **19b–19e Flacher Look, Rest.** Vom Owner am 2026-11-12 beauftragt (Vorlage: fünf
+  Screenshots der bisherigen Tastatur, nur als Ausgangspunkt für ein eigenes Design). 19a
+  (Tastenfläche) ist gebaut. Offen: 19b Leiste über den Tasten (fünf Symbole, Mikrofon im
+  Kreis, 52 dp hoch), 19c Menü hinter dem Raster-Symbol (sechs Pillen), 19d
+  Zwischenablage-Ansicht (Kopfzeile, zweispaltige Karten, Bilder), 19e Panel im Stil der
+  „Schreibtools“. Nicht nachbaubar und deshalb nicht geplant: GIF, Sticker, „Tastatur
+  teilen“, automatisches Senden ohne Freigabe, animierter Leuchtrand. (L)
 - **G2 Restlicher Gerätetest.** Was G1 nicht abdeckt (Liste: `docs/VALIDATION.md` → G1 → Nicht
   geprüft): Rotation, TalkBack, Gesten, Feld- und App-Wechsel, Inkognito, Sperre, Direct Boot,
   Skill Keys, Workflows, Act Builder, dazu Diktat mit echtem Mikrofon und die Seite „Gelernte

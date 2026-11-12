@@ -47,6 +47,7 @@ private constructor(val themeId: Int, @JvmField val mStyleId: Int) {
         const val STYLE_MATERIAL = "Material"
         const val STYLE_HOLO = "Holo"
         const val STYLE_ROUNDED = "Rounded"
+        const val STYLE_FLAT = "Flat" // fork: see FlatStyle
 
         // new themes that are just colors
         const val THEME_LIGHT = "light"
@@ -65,12 +66,14 @@ private constructor(val themeId: Int, @JvmField val mStyleId: Int) {
         const val THEME_PINK = "pink"
         const val THEME_SAND = "sand"
         const val THEME_VIOLETTE = "violette"
+        const val THEME_FLAT_BLACK = "flat_black" // fork: see FlatStyle
         fun getAvailableDefaultColors(prefs: SharedPreferences, isNight: Boolean) = listOfNotNull(
             if (!isNight) THEME_LIGHT else null, THEME_DARK,
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) THEME_DYNAMIC else null,
             if (prefs.getString(Settings.PREF_THEME_STYLE, Defaults.PREF_THEME_STYLE) == STYLE_HOLO) THEME_HOLO_WHITE else null,
             THEME_DARKER,
             THEME_BLACK,
+            THEME_FLAT_BLACK,
             if (!isNight) THEME_BLUE_GRAY else null,
             if (!isNight) THEME_BROWN else null,
             THEME_CHOCOLATE,
@@ -82,7 +85,7 @@ private constructor(val themeId: Int, @JvmField val mStyleId: Int) {
             if (!isNight) THEME_SAND else null,
             THEME_VIOLETTE
         )
-        val STYLES = arrayOf(STYLE_MATERIAL, STYLE_HOLO, STYLE_ROUNDED)
+        val STYLES = arrayOf(STYLE_MATERIAL, STYLE_HOLO, STYLE_ROUNDED, STYLE_FLAT)
 
         // These should be aligned with Keyboard.themeId and Keyboard.Case.keyboardTheme
         // attributes' values in attrs.xml.
@@ -91,6 +94,7 @@ private constructor(val themeId: Int, @JvmField val mStyleId: Int) {
         private const val THEME_ID_LXX_BASE_BORDER = 2
         private const val THEME_ID_ROUNDED_BASE = 3
         private const val THEME_ID_ROUNDED_BASE_BORDER = 4
+        const val THEME_ID_FLAT = 5
         private const val DEFAULT_THEME_ID = THEME_ID_LXX_BASE
 
         private val KEYBOARD_THEMES = arrayOf(
@@ -98,7 +102,8 @@ private constructor(val themeId: Int, @JvmField val mStyleId: Int) {
             KeyboardTheme(THEME_ID_LXX_BASE, R.style.KeyboardTheme_LXX_Base),
             KeyboardTheme(THEME_ID_LXX_BASE_BORDER, R.style.KeyboardTheme_LXX_Base_Border),
             KeyboardTheme(THEME_ID_ROUNDED_BASE, R.style.KeyboardTheme_Rounded_Base),
-            KeyboardTheme(THEME_ID_ROUNDED_BASE_BORDER, R.style.KeyboardTheme_Rounded_Base_Border)
+            KeyboardTheme(THEME_ID_ROUNDED_BASE_BORDER, R.style.KeyboardTheme_Rounded_Base_Border),
+            KeyboardTheme(THEME_ID_FLAT, R.style.KeyboardTheme_Flat)
         )
 
         // named colors, with names from old settings
@@ -121,6 +126,7 @@ private constructor(val themeId: Int, @JvmField val mStyleId: Int) {
             val matchingId = when (style) {
                 STYLE_HOLO -> THEME_ID_HOLO_BASE
                 STYLE_ROUNDED -> if (borders) THEME_ID_ROUNDED_BASE_BORDER else THEME_ID_ROUNDED_BASE
+                STYLE_FLAT -> THEME_ID_FLAT
                 else -> if (borders) THEME_ID_LXX_BASE_BORDER else THEME_ID_LXX_BASE
             }
             return KEYBOARD_THEMES.firstOrNull { it.themeId == matchingId } ?: KEYBOARD_THEMES[DEFAULT_THEME_ID]
@@ -145,9 +151,11 @@ private constructor(val themeId: Int, @JvmField val mStyleId: Int) {
         }
 
         private fun getThemeColors(themeName: String, themeStyle: String, context: Context, prefs: SharedPreferences, isNight: Boolean): Colors {
-            val hasBorders = prefs.getBoolean(Settings.PREF_THEME_KEY_BORDERS, Defaults.PREF_THEME_KEY_BORDERS)
+            // the Flat style only exists with key backgrounds
+            val hasBorders = themeStyle == STYLE_FLAT || prefs.getBoolean(Settings.PREF_THEME_KEY_BORDERS, Defaults.PREF_THEME_KEY_BORDERS)
             val backgroundImage = Settings.readUserBackgroundImage(context, isNight)
             return when (themeName) {
+                THEME_FLAT_BLACK -> FlatStyle.colors(themeStyle, hasBorders, backgroundImage)
                 THEME_DYNAMIC -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) DynamicColors(context, themeStyle, hasBorders, backgroundImage)
                     else getThemeColors(THEME_LIGHT, themeStyle, context, prefs, isNight)

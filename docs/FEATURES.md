@@ -17,6 +17,7 @@ E stammt bisher nur aus dem Emulator-Test vom 2026-11-11 (Android 15, Protokoll 
 | HeliBoard-Tastatur | Tippen, Layouts, Wörterbücher, Autokorrektur, Vorschläge, Themes und Emoji wie in HeliBoard 4.2. Die Upstream-Tests laufen bis auf fünf geerbte Fehler durch. (0) Im Emulator geprüft: Tippen, Löschen, Großschreibung, Vorschläge. | E |
 | Eigene App | Heißt „Agent Keyboard“ (Debug: „Agent Keyboard Lab“), eigene App-ID, damit sie neben HeliBoard installiert werden kann. (1) | E |
 | Sichere Voreinstellungen | Lernen aus deinem Tippen, Zwischenablage-Vorschläge und Zwischenablageverlauf sind anfangs aus. Keine automatischen Backups. (1) | T |
+| Flacher Look (Vorlage) | Ein Tipp unter Einstellungen → Tastaturprofile stellt das Aussehen nach deinen Referenz-Screenshots ein: schwarzer Hintergrund, flache graue Tasten mit 6-dp-Ecken, Enter und „?123“ als Pille, Zahlenreihe, Symbolhinweise, eigene Icons, Sprachkürzel mit Punkten auf der Leertaste. Ein zweiter Knopf stellt den vorherigen Look wieder her. Tastenpositionen stimmen im gerenderten Bild bis auf 1–2 Pixel mit dem Screenshot überein; die Schrift ist die Systemschrift des Telefons, nicht Google Sans. Auf einem Gerät noch nicht geprüft. (19a) | T |
 | Normales Tippen offline | Die Internetverbindung wird erst nach einer ausdrücklichen Sendefreigabe aufgebaut, Tippen und lokale Werkzeuge brauchen sie nicht. Getestet ist der späte Aufbau; eine Messung auf dem Gerät fehlt. (9c) | T |
 
 ## Aktionen im Textfeld

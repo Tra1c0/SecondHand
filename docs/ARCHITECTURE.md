@@ -33,6 +33,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - **Werkzeuge** – Fest eingebaute Werkzeuge: lokales Testwerkzeug und Übergabe eines Kalenderentwurfs an eine Kalender-App.
 - **Act Builder** – Natürliche Beschreibung → freigegebene Anfrage → streng validierter Workflow-Entwurf.
 - **Einstellungen und Profile** – Compose-Seiten der Agent-Funktionen sowie Design-, Layout- und Gestenprofile.
+- **Flacher Stil** – Tastenstil „Flat“, Farbsatz „Flach schwarz“ und die Vorlage, die beides mit Größen einstellt.
 - **Diktat** – Diktieren über den On-device-Erkenner des Systems: zuhören, Vorschau, Einfügen erst nach eigenem Klick.
 - **Lerndaten** – Was die Tastatur aus dem Tippen lernt: pausieren, zählen, exportieren, löschen. Alles auf dem Gerät.
 - **Unveränderter Upstream** – Was ohne Änderung von HeliBoard übernommen ist; nur nach Ordnern beschrieben.
@@ -155,6 +156,20 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   standardmäßig in der Toolbar), `KeyboardIconsSet.kt` (Symbole `ic_agent_actions.xml`,
   `ic_agent_dictate.xml` und
   `ic_skill_*.xml` für die drei Skill-Tasten).
+
+Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Flacher Stil“):
+
+- `KeyboardTheme.kt`: Stil `STYLE_FLAT` („Flat“, Theme-ID 5, immer mit Tastenhintergrund) und
+  Farbsatz `THEME_FLAT_BLACK`. `attrs.xml`: Enum-Wert `Flat` = 5 bei `themeId` und
+  `keyboardTheme`.
+- `Key.java`: `KeyParams.mVerticalGapScale` (Lücke unter einer Taste je Taste skalierbar) und
+  der Zustand `KeyBackgroundState.LAYOUT_SWITCH` (`state_single`) für die Tasten „?123“/„ABC“.
+- `KeyboardParser.kt`: ruft im flachen Stil `FlatStyle.shortenNumberRow` auf.
+- `KeyboardView.java`: Schrift für Beschriftung und Hinweise, rechtsbündige Hinweise,
+  angehobene Kleinbuchstaben, jeweils nur im flachen Stil.
+- `MainKeyboardView.java`: Sprachkürzel auf der Leertaste mit Punkt als Trenner und Schrift,
+  nur im flachen Stil.
+- `KeyboardIconsSet.kt`: Icon-Satz für den Stil „Flat“ (Material plus `FlatStyle.iconOverrides`).
 
 Speicher, Datenschutz und Identität:
 
@@ -373,6 +388,37 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `agent_ids.xml`, `agent_attrs.xml`.
 - Tests: `KeyboardProfileStoreTest`, `SkillSettingsTest`, `WorkflowSettingsTest`.
 
+## Flacher Stil
+
+> Tastenstil „Flat“, Farbsatz „Flach schwarz“ und die Vorlage, die beides mit Größen einstellt.
+
+- Auftrag: Aussehen nach fünf Screenshots des Owners (1200 px breit, 3,25 px je dp,
+  Tastatur-View 793 px hoch: 39 px oberer Rand, 722 px Reihen, 32 px unterer Rand), als Ausgangspunkt für ein eigenes Design. Alle Maße stehen als
+  Verhältnisse im Code, nicht als Pixel.
+- `K/keyboard/FlatStyle.kt`: Konstanten (Farben, Zeilenskalierung, Höhe = 66 % der Breite),
+  `colors()` (füllt jede `ColorType` über `AllColors`), `shortenNumberRow()` (Zahlenreihe
+  niedriger, Buchstabenreihen entsprechend höher, Summe unverändert), `typeface()` (mittlere
+  Strichstärke der Systemschrift), `lowercaseLift()`, `iconOverrides`, `LANGUAGE_SEPARATOR`.
+- `themes-flat.xml` (in `res/values/`): Stile `KeyboardTheme.Flat` (erbt von Rounded mit Rahmen),
+  `Keyboard.Flat` (Lücken und Ränder), `KeyboardView.Flat`/`MainKeyboardView.Flat`
+  (Hintergründe, Schriftverhältnisse), `PopupKeysKeyboard.Flat`.
+- Hintergründe: `btn_keyboard_key_flat.xml` (Buchstaben, Leertaste, Aktionstaste über
+  `state_active`) und `btn_keyboard_key_functional_flat.xml` (`state_single` = Pille), beide
+  aus `btn_keyboard_key_flat_rect.xml` (6 dp) und `btn_keyboard_key_flat_pill.xml`. Je Taste
+  genau eine Form ohne Kante, Schatten oder Ebenen: ein `drawRoundRect` je Taste.
+- Icons `sym_keyboard_{shift,shifted,shift_lock,delete,smiley,go,return}_flat.xml`: Vektoren im
+  Pixelmaß der Vorlage (Viewport 91 = 28 dp), deshalb keine Skalierung beim Zeichnen.
+- `assets/layouts/functional/functional_keys_flat.json`: wie `functional_keys.json`, aber die
+  Emoji-Taste hat `"type": "character"` und damit den hellen Tastenhintergrund.
+- `K/agent/FlatPreset.kt`: schreibt 18 Darstellungs- und Layout-Einstellungen für das Hochformat
+  (Liste: `values()`), berechnet die Höhenskala aus Bildschirmbreite und Standardhöhe und
+  sichert die ersetzten Werte einmalig in `agent_flat_preset_backup` (siehe `docs/STORAGE.md`).
+  `restore()` setzt genau diese Schlüssel zurück, auch „war nicht gesetzt“. Knöpfe dafür:
+  `AgentProfilesScreen.kt`.
+- Tests: `FlatStyleTest` (Vorlage, Farben, Tastengeometrie gegen die Messwerte) und
+  `FlatStyleRenderTest` (zeichnet die echte `MainKeyboardView` mit nativer Grafik und prüft
+  Pixel; Bilder unter `app/build/reports/flat-style/`, nicht versioniert).
+
 ## Diktat
 
 > Diktieren über den On-device-Erkenner des Systems: zuhören, Vorschau, Einfügen erst nach eigenem Klick.
@@ -547,21 +593,32 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P25** `commitText` ersetzt einen Composing-Bereich im Editor, wo auch immer die Schreibmarke
   steht. `insertTextIfCursorUnchanged` ist nur zusammen mit der Prüfung
   `hasActiveComposition` in `InputLogic` sicher; nie direkt aufrufen.
+- **P26** Die Aktionstaste (Enter) nimmt ihren Hintergrund aus `keyBackground`, nicht aus
+  `functionalKeyBackground` (`Colors.selectAndColorDrawable`). Eine Form für `state_active`
+  muss deshalb im Selektor der normalen Tasten stehen.
+- **P27** Tastenhöhen werden abgeschnitten, nicht gerundet (`Key`-Konstruktor). Ein rechnerisch
+  exakter Skalenwert ergibt leicht eine Taste, die 1 px zu niedrig ist; `FlatStyle` nutzt deshalb
+  Werte knapp über dem exakten Verhältnis, und `FlatStyleTest` pinnt die Pixel.
+- **P28** Der seitliche Rand der Tastatur wird mit der Seitenrand-Skala multipliziert, und die
+  ist im Hochformat standardmäßig 0. Ohne die Vorlage (`FlatPreset` setzt sie auf 1) reichen die
+  Tasten im flachen Stil 7 px weiter nach außen.
+- **P29** Ein gerendertes Bild aus Robolectric (native Grafik) ist kein Gerätetest: Es zeigt
+  Roboto statt der Systemschrift des Telefons und weder Leiste noch Navigationsbereich.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (161 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (184 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (3): build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (31): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (32): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
-  AndroidEditorAdapter, ApprovedActionRunner, Dictation, EncryptedActionRunStore,
+  AndroidEditorAdapter, ApprovedActionRunner, Dictation, EncryptedActionRunStore, FlatPreset,
   JournaledModelCall, JournaledRun, KeyboardProfileStore, LearningData, ManualWorkflowDraft,
   ModelSettings, OnDeviceSpeechEngine, RunSubjectCodec, SkillBindingStore, SkillLabels,
   ToolApprovalSummary, ToolLauncher, WorkflowApprovalSummary, WorkflowBuilderContract,
@@ -569,22 +626,24 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
-- `AT/` (33): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (35): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, CalendarToolLauncherTest, DebugPrivacyTest, DictationSessionTest,
-  DictationUiTest, EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, ForkIdentityTest,
-  InsertAtCursorTest, JournaledModelCallTest, KeyboardProfileStoreTest, LearningDataTest,
-  ManualWorkflowDraftTest, MoreProvidersTest, OpenAiProviderTest, SelectedTextCommitTest,
-  SkillBindingStoreTest, SkillSettingsTest, TestRunJournal, ToolRunnerTest,
-  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowConditionSummaryTest,
-  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  DictationUiTest, EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, FlatStyleRenderTest,
+  FlatStyleTest, ForkIdentityTest, InsertAtCursorTest, JournaledModelCallTest,
+  KeyboardProfileStoreTest, LearningDataTest, ManualWorkflowDraftTest, MoreProvidersTest,
+  OpenAiProviderTest, SelectedTextCommitTest, SkillBindingStoreTest, SkillSettingsTest,
+  TestRunJournal, ToolRunnerTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
+  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `C/` (12): AiTextAction, ApplyOutcome, EditorSession, ExecutionPolicy, LocalTextActions,
   ModelProvider, PendingBatchGate, Profiles, SkillBinding, TextCondition, Tool, Workflow
 - `CT/` (8): AiTextActionTest, EditorPolicyTest, InsertionAnchorTest, LocalTextActionsTest,
   PendingBatchGateTest, SkillBindingTest, ToolTest, WorkflowTest
-- `K/keyboard/` (3): KeyboardActionListener, KeyboardActionListenerImpl, PointerTracker
+- `K/keyboard/` (8): FlatStyle, Key, KeyboardActionListener, KeyboardActionListenerImpl,
+  KeyboardTheme, KeyboardView, MainKeyboardView, PointerTracker
 - `K/keyboard/emoji/` (1): EmojiSearchActivity
 - `K/keyboard/internal/` (1): KeyboardIconsSet
+- `K/keyboard/internal/keyboard_parser/` (1): KeyboardParser
 - `K/keyboard/internal/keyboard_parser/floris/` (1): KeyCode
 - `K/latin/` (5): App, DictionaryFacilitatorImpl, InputView, LatinIME, RichInputConnection
 - `K/latin/database/` (1): ClipboardDao
@@ -604,12 +663,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `app/src/debug/res/values/` (3): clip_provider, gesture_data, strings
 - `app/src/debugNoMinify/res/values/` (3): clip_provider, gesture_data, strings
 - `app/src/main/` (1): AndroidManifest
-- `app/src/main/res/drawable/` (5): ic_agent_actions, ic_agent_dictate, ic_skill_1, ic_skill_2,
-  ic_skill_3
+- `app/src/main/assets/layouts/functional/` (1): functional_keys_flat
+- `app/src/main/res/drawable/` (16): btn_keyboard_key_flat, btn_keyboard_key_flat_pill,
+  btn_keyboard_key_flat_rect, btn_keyboard_key_functional_flat, ic_agent_actions, ic_agent_dictate,
+  ic_skill_1, ic_skill_2, ic_skill_3, sym_keyboard_delete_flat, sym_keyboard_go_flat,
+  sym_keyboard_return_flat, sym_keyboard_shift_flat, sym_keyboard_shift_lock_flat,
+  sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
 - `app/src/main/res/values-de/` (1): agent_strings
-- `app/src/main/res/values/` (6): agent_attrs, agent_ids, agent_strings, clip_provider,
-  donottranslate, gesture_data
+- `app/src/main/res/values/` (8): agent_attrs, agent_ids, agent_strings, attrs, clip_provider,
+  donottranslate, gesture_data, themes-flat
 - `app/src/main/res/xml/` (1): agent_data_extraction_rules
 - `app/src/test/java/helium314/keyboard/` (1): Shadows
 - `app/src/test/java/helium314/keyboard/latin/` (2): InputLogicTest, SuggestTest

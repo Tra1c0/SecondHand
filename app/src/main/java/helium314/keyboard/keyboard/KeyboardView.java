@@ -391,13 +391,13 @@ public class KeyboardView extends View {
         float labelBaseline = centerY;
         final String label = key.getLabel();
         if (label != null) {
-            paint.setTypeface(KeyboardTypeface.resolve(label, key.selectTypeface(params)));
+            paint.setTypeface(KeyboardTypeface.resolve(label, FlatStyle.typeface(mColors, key.selectTypeface(params))));
             paint.setTextSize(key.selectTextSize(params) * mFontSizeMultiplier);
             final float labelCharHeight = TypefaceUtils.getReferenceCharHeight(paint);
             final float labelCharWidth = TypefaceUtils.getReferenceCharWidth(paint);
 
             // Vertical label text alignment.
-            labelBaseline = centerY + labelCharHeight / 2.0f;
+            labelBaseline = centerY + labelCharHeight / 2.0f - FlatStyle.lowercaseLift(mColors, label, labelCharHeight);
 
             // Horizontal label text alignment
             if (key.isAlignLabelOffCenter() && mShowsHints) {
@@ -463,7 +463,7 @@ public class KeyboardView extends View {
             paint.setTextSize(key.selectHintTextSize(params) * mHintFontSizeMultiplier);
             paint.setColor(key.selectHintTextColor(params));
             // TODO: Should add a way to specify type face for hint letters
-            paint.setTypeface(KeyboardTypeface.resolve(hintLabel, Typeface.DEFAULT_BOLD));
+            paint.setTypeface(KeyboardTypeface.resolve(hintLabel, FlatStyle.typeface(mColors, Typeface.DEFAULT_BOLD)));
             blendAlpha(paint, params.mAnimAlpha);
             final float labelCharHeight = TypefaceUtils.getReferenceCharHeight(paint);
             final float labelCharWidth = TypefaceUtils.getReferenceCharWidth(paint);
@@ -495,7 +495,9 @@ public class KeyboardView extends View {
                 final float hintDigitWidth = TypefaceUtils.getReferenceDigitWidth(paint);
                 final float hintLabelWidth = TypefaceUtils.getStringWidth(hintLabel, paint);
                 hintBaseline = -paint.ascent();
-                hintX = isFunctionalKeyAndRoundedStyle
+                if (FlatStyle.isActive(mColors)) // right-aligned
+                    hintX = keyWidth - mKeyHintLetterPadding - hintLabelWidth / 2.0f;
+                else hintX = isFunctionalKeyAndRoundedStyle
                         ? keyWidth - hintBaseline
                         : keyWidth - mKeyHintLetterPadding - Math.max(hintDigitWidth, hintLabelWidth) / 2.0f;
                 paint.setTextAlign(Align.CENTER);

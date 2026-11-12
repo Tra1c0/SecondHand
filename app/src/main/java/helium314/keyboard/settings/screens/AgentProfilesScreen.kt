@@ -14,6 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.agentkeyboard.core.ProfileGroup
+import helium314.keyboard.agent.FlatPreset
 import helium314.keyboard.agent.KeyboardProfileStore
 import helium314.keyboard.agent.AgentPreferences
 import helium314.keyboard.agent.AgentDocumentIO
@@ -76,6 +77,21 @@ fun AgentProfilesScreen(onClickBack: () -> Unit) {
             Text(stringResource(R.string.agent_profiles_intro), style = MaterialTheme.typography.bodyMedium)
             Spacer(Modifier.height(12.dp))
             key(revision) {
+                val flatPreset = remember { FlatPreset(context) }
+                Card(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text(stringResource(R.string.agent_flat_preset_title), style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.agent_flat_preset_description), style = MaterialTheme.typography.bodyMedium)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(enabled = !busy, onClick = { runChange { flatPreset.apply() } }) {
+                                Text(stringResource(R.string.agent_flat_preset_apply))
+                            }
+                            TextButton(enabled = !busy && flatPreset.canRestore, onClick = { runChange { flatPreset.restore() } }) {
+                                Text(stringResource(R.string.agent_flat_preset_restore))
+                            }
+                        }
+                    }
+                }
                 store.availableGroups.forEach { group ->
                     Card(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
                         Column(Modifier.padding(16.dp)) {

@@ -22,3 +22,8 @@
   Schreibmarke eingefügt. Erlaube vorher unter Einstellungen → Diktat das Mikrofon. Braucht
   Android 12 und die Spracherkennung auf dem Gerät; mit echtem Mikrofon noch nicht ausprobiert.
 - Neue Berechtigung: Mikrofon (nur für das Diktat).
+- Neu: „Flacher Look (Vorlage)“ unter Einstellungen → Tastaturprofile. Ein Tipp stellt das
+  Aussehen nach deinen Screenshots ein (schwarzer Hintergrund, flache Tasten, Enter und „?123“
+  als Pille, Zahlenreihe, Symbolhinweise, neue Icons), ein zweiter stellt den alten Look wieder
+  her. Bisher nur die Tastenfläche; Leiste, Menü, Zwischenablage und Panel folgen. Auf einem
+  Gerät noch nicht geprüft.

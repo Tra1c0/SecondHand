@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.res.Resources
 import android.graphics.drawable.Drawable
 import androidx.core.content.ContextCompat
+import helium314.keyboard.keyboard.FlatStyle
 import helium314.keyboard.keyboard.KeyboardTheme
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.settings.customIconIds
@@ -25,6 +26,7 @@ class KeyboardIconsSet private constructor() {
         val defaultIds = when (iconStyle) {
             KeyboardTheme.STYLE_HOLO -> keyboardIconsHolo
             KeyboardTheme.STYLE_ROUNDED -> keyboardIconsRounded
+            KeyboardTheme.STYLE_FLAT -> keyboardIconsFlat
             else -> keyboardIconsMaterial
         }
         val overrideIds = customIconIds(context, prefs)
@@ -165,6 +167,8 @@ class KeyboardIconsSet private constructor() {
                 })
             }
         } }
+
+        private val keyboardIconsFlat by lazy { keyboardIconsMaterial + FlatStyle.iconOverrides }
 
         private val keyboardIconsMaterial by lazy { hashMapOf(
             NAME_SHIFT_KEY to                   R.drawable.sym_keyboard_shift_lxx,
@@ -311,6 +315,7 @@ class KeyboardIconsSet private constructor() {
                 name to when (iconStyle) {
                     KeyboardTheme.STYLE_HOLO -> listOfNotNull(keyboardIconsHolo[name], keyboardIconsRounded[name], id)
                     KeyboardTheme.STYLE_ROUNDED -> listOfNotNull(keyboardIconsRounded[name], id, keyboardIconsHolo[name])
+                    KeyboardTheme.STYLE_FLAT -> listOfNotNull(FlatStyle.iconOverrides[name], id, keyboardIconsRounded[name], keyboardIconsHolo[name])
                     else -> listOfNotNull(id, keyboardIconsRounded[name], keyboardIconsHolo[name])
                 }
             }

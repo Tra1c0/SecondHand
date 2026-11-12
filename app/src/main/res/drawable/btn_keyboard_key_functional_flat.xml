@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- Flat style, functional and action keys. state_active is the action key, state_single the
+     layout switch key (see Key.selectBackgroundDrawable); both are pills. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_active="true"
+          android:drawable="@drawable/btn_keyboard_key_flat_pill" />
+    <item android:state_single="true"
+          android:drawable="@drawable/btn_keyboard_key_flat_pill" />
+    <item android:state_empty="true" android:state_pressed="true"
+          android:drawable="@drawable/btn_keyboard_key_flat_rect" />
+    <item android:state_empty="true"
+          android:drawable="@android:color/transparent" />
+    <item android:drawable="@drawable/btn_keyboard_key_flat_rect" />
+</selector>

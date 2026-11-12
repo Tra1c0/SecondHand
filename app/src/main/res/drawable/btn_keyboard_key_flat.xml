@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- Flat style, letter keys, space bar and (state_active) the action key, which takes its
+     drawable from keyBackground. The pressed colour comes from the tint list. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_active="true"
+          android:drawable="@drawable/btn_keyboard_key_flat_pill" />
+    <item android:state_empty="true" android:state_pressed="true"
+          android:drawable="@drawable/btn_keyboard_key_flat_rect" />
+    <item android:state_empty="true"
+          android:drawable="@android:color/transparent" />
+    <item android:drawable="@drawable/btn_keyboard_key_flat_rect" />
+</selector>

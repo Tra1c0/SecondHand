@@ -108,6 +108,21 @@ auf. Mit echtem Mikrofon wurde das Diktat noch nie ausprobiert.
 Die Mikrofon-Taste, die es in HeliBoard schon gab, ist etwas anderes: Sie wechselt zu einer
 Sprach-Tastatur des Systems, falls eine installiert ist.
 
+## Aussehen: flacher Look
+
+Einstellungen → Tastaturprofile → „Flacher Look (Vorlage)“ → „Vorlage anwenden“. Das stellt
+Stil, Farben, Icons, Zahlenreihe, Symbolhinweise und die Größen für das Hochformat in einem
+Schritt ein. „Vorherigen Look wiederherstellen“ setzt genau diese Einstellungen auf den Stand
+vor dem Anwenden zurück.
+
+- Die Tastenhöhe wird aus der Bildschirmbreite berechnet (Tastatur ohne Leiste = 66 % der Breite).
+  Feinjustieren: Einstellungen → Darstellung → Tastaturhöhe.
+- „DE • EN • ES“ auf der Leertaste erscheint, wenn du unter Sprachen und Layouts bei Deutsch
+  die mehrsprachige Eingabe mit Englisch und Spanisch einschaltest.
+- Die Schrift ist die Systemschrift deines Telefons. Eine eigene Schriftdatei lässt sich unter
+  Darstellung → „Eigene Schriftart“ laden.
+- Stil „Flach“ und Farben „Flach schwarz“ lassen sich unter Darstellung auch einzeln wählen.
+
 ## Gelernte Wörter
 
 Lernen aus dem Tippen ist anfangs aus. Einschalten: Einstellungen → Textkorrektur →
