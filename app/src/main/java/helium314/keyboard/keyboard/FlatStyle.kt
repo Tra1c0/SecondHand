@@ -27,6 +27,35 @@ import java.util.Locale
  * Upstream classes only call into this object, which keeps their own changes to single lines.
  */
 object FlatStyle {
+    /**
+     * A single-line label that does not fit scrolls through like a ticker, as in the reference.
+     * The ticker runs only while the view is selected; TalkBack is told it is not, so that it does
+     * not announce every pill as "selected". With animations turned off in the system settings
+     * the label is cut with an ellipsis instead.
+     */
+    @JvmStatic
+    fun scrollWhenTooLong(view: android.widget.TextView) {
+        view.isSingleLine = true
+        if (!animationsEnabled(view.context)) {
+            view.ellipsize = android.text.TextUtils.TruncateAt.END
+            return
+        }
+        view.ellipsize = android.text.TextUtils.TruncateAt.MARQUEE
+        view.marqueeRepeatLimit = -1
+        view.isSelected = true
+        view.accessibilityDelegate = object : android.view.View.AccessibilityDelegate() {
+            override fun onInitializeAccessibilityNodeInfo(host: android.view.View, info: android.view.accessibility.AccessibilityNodeInfo) {
+                super.onInitializeAccessibilityNodeInfo(host, info)
+                info.isSelected = false
+            }
+        }
+    }
+
+    /** False when the owner turned animations off (developer options or "remove animations"). */
+    @JvmStatic
+    fun animationsEnabled(context: android.content.Context): Boolean =
+        android.provider.Settings.Global.getFloat(context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) != 0f
+
     /** Height of the keyboard view (top padding to bottom padding) relative to its width: 793 / 1200. */
     const val HEIGHT_TO_WIDTH = 0.6609f
 

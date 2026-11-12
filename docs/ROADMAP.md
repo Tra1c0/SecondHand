@@ -47,7 +47,7 @@ Folgende ist die Entscheidung des Leads.
 - **23 Gboard-Details und moderne Oberfläche (Auftrag des Owners vom 2026-11-12, mit Screenshots).**
   - 23a ist gebaut (siehe FEATURES.md).
   - 23b ist gebaut (siehe FEATURES.md).
-  - 23c Laufschrift für abgeschnittene Texte in den Menü-Pillen. (S)
+  - 23c ist gebaut (siehe FEATURES.md).
   - 23d Screenshot-Pille: ein neuer Screenshot erscheint in der Leiste, ein Tipp fügt ihn ein;
     braucht Zugriff auf Bilder, opt-in. (M)
   - 23e Einstellungen im modernen Look (große Überschrift, große Einträge mit Icons). (M)

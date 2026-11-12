@@ -135,8 +135,7 @@ class FlatMenuView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         button.setTextColor(textColor)
         button.setTextSize(TypedValue.COMPLEX_UNIT_DIP, TEXT_DP)
         button.typeface = FlatStyle.labelTypeface
-        button.isSingleLine = true
-        button.ellipsize = android.text.TextUtils.TruncateAt.END
+        FlatStyle.scrollWhenTooLong(button)
         button.gravity = Gravity.START or Gravity.CENTER_VERTICAL
         button.isSoundEffectsEnabled = false
         button.background = roundedBackground(pillColor, dp(PILL_HEIGHT_DP) / 2f)

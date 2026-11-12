@@ -1183,6 +1183,14 @@ APK installiert war: weiterhin kein Gerätelauf.
   `strip-emojis.png` gerendert. Das Umschalten in `KeyboardSwitcher` ist nur durch den Build
   geprüft, nicht auf einem Gerät.
 
+## Etappe23c — Laufschrift in den Menü-Pillen
+
+- `FlatMenuTest.aLabelThatIsTooLongScrollsUnlessAnimationsAreOff`: alle sechs Pillen mit
+  `TruncateAt.MARQUEE`, ausgewählt (Voraussetzung für das Laufen), in der Bedienungshilfe nicht
+  als ausgewählt gemeldet; bei `ANIMATOR_DURATION_SCALE` 0 Ellipse am Ende und nicht ausgewählt.
+  Dass der Text in einem Tastaturfenster wirklich läuft, ist nur auf einem Gerät prüfbar und
+  dort nicht geprüft.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

@@ -51,3 +51,5 @@
   `~ | • √ π ÷ × § Δ`, `< >` und der Taste „1234“).
 - Neu im flachen Look: Auf den Symbolseiten zeigt die Leiste deine zuletzt benutzten Emojis; ein
   Tipp fügt sie ein.
+- Neu im flachen Look: Zu lange Texte im Menü laufen als Laufschrift durch (aus, wenn du die
+  Animationen in Android abgeschaltet hast).

@@ -443,7 +443,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/keyboard/FlatStyle.kt`: Konstanten (Farben, Zeilenskalierung, Höhe = 66 % der Breite),
   `colors()` (füllt jede `ColorType` über `AllColors`), `shortenNumberRow()` (Zahlenreihe
   niedriger, Buchstabenreihen entsprechend höher, Summe unverändert), `typeface()` (mittlere
-  Strichstärke der Systemschrift), `lowercaseLift()`, `iconOverrides`, `LANGUAGE_SEPARATOR`.
+  Strichstärke der Systemschrift), `lowercaseLift()`, `iconOverrides`, `LANGUAGE_SEPARATOR`,
+  `scrollWhenTooLong()` (Laufschrift über `TruncateAt.MARQUEE` und `isSelected`, für TalkBack
+  nicht „ausgewählt“; bei Animationsskala 0 „…“ statt Laufschrift), `animationsEnabled()`.
 - `themes-flat.xml` (in `res/values/`): Stile `KeyboardTheme.Flat` (erbt von Rounded mit Rahmen),
   `Keyboard.Flat` (Lücken und Ränder), `KeyboardView.Flat`/`MainKeyboardView.Flat`
   (Hintergründe, Schriftverhältnisse), `PopupKeysKeyboard.Flat`.

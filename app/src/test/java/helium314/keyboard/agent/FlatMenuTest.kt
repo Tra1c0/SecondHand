@@ -239,6 +239,31 @@ class FlatMenuTest {
         assertTrue(intent.flags and android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK != 0)
     }
 
+    @Test fun aLabelThatIsTooLongScrollsUnlessAnimationsAreOff() {
+        val menu = FlatMenuView(context, null)
+        val frame = ltrFrame().apply { addView(menu) }
+        menu.open(STRIP)
+        layout(frame)
+        val pills = listOf(R.id.agent_menu_design, R.id.agent_menu_undo, R.id.agent_menu_one_handed, R.id.agent_menu_emoji, R.id.agent_menu_incognito, R.id.agent_menu_floating).map { menu.findViewById<Button>(it) }
+        pills.forEach { pill ->
+            assertEquals(android.text.TextUtils.TruncateAt.MARQUEE, pill.ellipsize)
+            assertTrue(pill.isSelected) // the ticker only runs while selected
+            val info = android.view.accessibility.AccessibilityNodeInfo.obtain()
+            pill.onInitializeAccessibilityNodeInfo(info)
+            assertFalse(info.isSelected) // ... but TalkBack does not hear "selected"
+        }
+
+        android.provider.Settings.Global.putFloat(latinIME.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
+        try {
+            val still = android.widget.TextView(context)
+            FlatStyle.scrollWhenTooLong(still)
+            assertEquals(android.text.TextUtils.TruncateAt.END, still.ellipsize)
+            assertFalse(still.isSelected)
+        } finally {
+            android.provider.Settings.Global.putFloat(latinIME.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+        }
+    }
+
     /** A root without a window cannot resolve the layout direction on its own. */
     private fun ltrFrame() = FrameLayout(context).apply { layoutDirection = View.LAYOUT_DIRECTION_LTR }
 
