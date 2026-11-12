@@ -56,6 +56,8 @@ object KeyboardCommands {
         val cursor: Int get() = -1
         /** Builds the chips again for the current text, e.g. after a chip changed what a command shows. */
         fun refresh() {}
+        /** Opens the text actions with the saved workflow [workflowId] like a skill key (stage 24f `@wf`); the field stays unchanged. */
+        fun openWorkflow(workflowId: String): Boolean = false
     }
 
     /** A built-in command. Commands never come from files or models. */
@@ -75,7 +77,11 @@ object KeyboardCommands {
     }
 
     /** Built-in commands in the order of the settings page; each stage adds its own. */
-    val BUILT_IN: List<Command> = listOf(MathCommand, ContactCommand)
+    val BUILT_IN: List<Command> = listOf(MathCommand, ContactCommand,
+        helium314.keyboard.agent.commands.SnipCommand,
+        helium314.keyboard.agent.commands.ClipCommand,
+        helium314.keyboard.agent.commands.WorkflowCommand,
+    )
 
     /** Replaced in tests. */
     @JvmStatic var registry: List<Command> = BUILT_IN
@@ -220,6 +226,7 @@ object KeyboardCommands {
             override val canOpenCalculator: Boolean get() = ime.agentEditorController.canOpenCalculator
             override val cursor: Int get() = position
             override fun refresh() = onRefresh()
+            override fun openWorkflow(workflowId: String) = ime.agentEditorController.openWorkflow(workflowId)
         }
         return chipsFor(context, host)
     }
