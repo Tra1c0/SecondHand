@@ -71,3 +71,26 @@ Robolectric hält sonst App-/Wörterbuchkopien bis zum Prozessende, was im begre
 Cloud-Dateisystem trotz freiem Platz vor dem Lauf zu temporärem ENOSPC führte.
 Der Wiederholungslauf prüft alle332Fälle ohne diese Infrastrukturfehler. Assertions
 und Testauswahl bleiben unverändert; Prozessstarts erhöhen nur die Testdauer.
+
+## Installierbare APK (GitHub Actions)
+
+Android installiert eine neue Version nur dann als Update (mit allen Daten), wenn sie mit
+demselben Schlüssel signiert ist und eine höhere Versionsnummer hat. Lokale und Cloud-Builds
+nutzen einen Debug-Schlüssel, der in jeder neuen Umgebung anders ist; sie sind nur zum Prüfen da.
+
+- Workflow `.github/workflows/agent-apk.yml`, nur von Hand gestartet (Actions → „Agent Keyboard
+  APK“ → „Run workflow“, Branch wählen). Baut `:app:assembleDebugNoMinify` (App-ID
+  `dev.personal.agentkeyboard.debug`, Name „Agent Keyboard Lab“) und veröffentlicht die APK samt
+  SHA-256 als Vorab-Release `build-<Laufnummer>` mit `release-notes/next.md` als Text.
+- Signatur: Repository-Secrets `AGENT_KEYSTORE_BASE64` (PKCS12-Datei, Base64) und
+  `AGENT_KEYSTORE_PASSWORD` (Passwort von Datei und Schlüssel), Alias `agentkeyboard`. Der
+  Workflow schreibt die Datei nach `$RUNNER_TEMP` und löscht sie nach dem Build. `app/build.gradle.kts`
+  nimmt die Signatur nur, wenn `AGENT_KEYSTORE_FILE` gesetzt ist; sonst bleibt es beim
+  Debug-Schlüssel.
+- Versionsnummer: `AGENT_VERSION_CODE` = Laufnummer des Workflows, also steigend.
+- Zertifikat des Owners (SHA-256):
+  `D5:6E:8F:00:11:D7:80:63:37:90:8C:FA:A7:36:E5:D4:F8:FE:25:49:14:5A:5B:37:5D:FB:BB:1D:18:63:60:2A`.
+  Der Workflow gibt das Zertifikat der APK im Log aus.
+- Geht der Schlüssel verloren, lässt sich keine Version mehr als Update installieren: einmal
+  deinstallieren (alle Daten weg), neuen Schlüssel als Secret anlegen. Der Owner hebt eine Kopie
+  im Passwortmanager auf; Keystores werden nie committet.

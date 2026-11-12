@@ -723,7 +723,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `app/build/agent-previews/` (z. B. `builder-send-review.png`, nicht versioniert).
 - Baseline: `upstream-tests` endet mit genau fünf geerbten Fehlern, Liste in
   `docs/VALIDATION.md` und `docs/HANDOFF.md` → Offene Punkte. Jeder weitere Fehler ist neu.
-- CI: `.github/workflows/docs-check.yml` führt bei jedem Push den Docs-Check aus. Von Upstream
+- CI: `.github/workflows/docs-check.yml` führt bei jedem Push den Docs-Check aus.
+  `.github/workflows/agent-apk.yml` baut von Hand gestartet die installierbare, mit dem
+  Schlüssel des Owners signierte APK (`docs/BUILD.md` → Installierbare APK); dafür liest
+  `app/build.gradle.kts` `AGENT_KEYSTORE_FILE`, `AGENT_KEYSTORE_PASSWORD`, `AGENT_KEY_ALIAS` und
+  `AGENT_VERSION_CODE` aus der Umgebung. Von Upstream
   übernommen: `build-debug-apk.yml` (nur manuell) und `build-test-auto.yml` (bei Pull Requests;
   ruft den nicht existierenden Task `testRunTestsUnitTest` auf, siehe `docs/BUILD.md`).
 - Docs-System: `scripts/docs_sync.py` (Konfiguration `scripts/docs_sync.json`),
@@ -863,11 +867,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (228 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (229 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
-- `.github/workflows/` (3): build-debug-apk, build-test-auto, docs-check
+- `.github/workflows/` (4): agent-apk, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
 - `A/` (41): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,

@@ -17,7 +17,8 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 - Fertig: Etappen 0–17a, 18a, 19a–19e, 20a–20b, 22a–22b, 23a–23d, 24a–24b, Gerätetest G1.
 - Letzter Build: 0.1.0 Debug, `artifacts/…-universal.apk` (alle ABIs), nicht im Repo.
 - Geprüft nach 24b: siehe Build-Log. Etappen 19–24 sind auf keinem Gerät gelaufen.
-- Wartet auf den Owner: APK installieren und Eindrücke vom Xiaomi; OAuth-Zugänge für 16c;
+- Wartet auf den Owner: Secrets `AGENT_KEYSTORE_BASE64`/`_PASSWORD` in GitHub anlegen, dann
+  Workflow „Agent Keyboard APK“ starten und installieren; Eindrücke vom Xiaomi; OAuth für 16c;
   Branch `main`.
 
 ## Offene Punkte
@@ -129,9 +130,10 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
 2. Docs laut `CLAUDE.md` → „Docs aktuell halten“ im selben Push aktualisieren.
    `release-notes/next.md` durch die Notizen dieses Pushs ersetzen.
 3. `python3 -I scripts/docs_sync.py --check` muss grün sein; `main` einmal pushen.
-4. Build: `python3 tools/dev.py build` (und `--abi x86_64` für den Emulator). Der Owner bekommt
-   die APK aus `artifacts/` samt `.apk.sha256` und installiert sie selbst. Eine Release-Pipeline
-   oder einen Download-Link gibt es nicht.
+4. Prüf-Build: `python3 tools/dev.py build`. Zum Installieren startet der Owner (oder der Lead
+   über die GitHub-Werkzeuge, falls verfügbar) den Workflow „Agent Keyboard APK“ auf dem
+   gepushten Branch; die APK steht danach als Vorab-Release `build-<Nummer>` bereit und
+   installiert sich als Update (`docs/BUILD.md` → Installierbare APK).
 
 ## Sackgassen (Prozess und Umgebung; Code-Sackgassen stehen in ARCHITECTURE.md)
 

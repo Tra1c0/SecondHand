@@ -6,14 +6,29 @@ plugins {
     kotlin("plugin.compose") version "2.4.0"
 }
 
+// The owner's own signing key, only in the GitHub workflow (secrets, never in the repository).
+// With it, each new APK installs as an update over the previous one and keeps all data.
+val ownerKeystore: String? = System.getenv("AGENT_KEYSTORE_FILE")?.takeIf { it.isNotBlank() }
+
 android {
     compileSdk = 37
+
+    signingConfigs {
+        if (ownerKeystore != null) create("owner") {
+            storeFile = file(ownerKeystore)
+            storeType = "pkcs12"
+            storePassword = System.getenv("AGENT_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("AGENT_KEY_ALIAS") ?: "agentkeyboard"
+            keyPassword = System.getenv("AGENT_KEYSTORE_PASSWORD")
+        }
+    }
 
     defaultConfig {
         applicationId = "dev.personal.agentkeyboard"
         minSdk = 21
         targetSdk = 37
-        versionCode = 1
+        // counted up by the workflow, so that Android accepts each build as an update
+        versionCode = System.getenv("AGENT_VERSION_CODE")?.toIntOrNull() ?: 1
         versionName = "0.1.0"
         ndk {
             abiFilters.clear()
@@ -50,7 +65,7 @@ android {
             isDebuggable = true
             isMinifyEnabled = false
             isJniDebuggable = false
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName(if (ownerKeystore != null) "owner" else "debug")
             applicationIdSuffix = ".debug"
             isDefault = true
         }

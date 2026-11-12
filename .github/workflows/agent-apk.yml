@@ -1,0 +1,73 @@
+# Builds the APK the owner installs, signed with the owner's own key from the repository secrets
+# AGENT_KEYSTORE_BASE64 and AGENT_KEYSTORE_PASSWORD, and publishes it as a pre-release. Every
+# build has a higher version code and the same signature, so it installs as an update.
+name: Agent Keyboard APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the signing secrets
+        env:
+          KEYSTORE: ${{ secrets.AGENT_KEYSTORE_BASE64 }}
+          PASSWORD: ${{ secrets.AGENT_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE" ] || [ -z "$PASSWORD" ]; then
+            echo "::error::Repository secrets AGENT_KEYSTORE_BASE64 and AGENT_KEYSTORE_PASSWORD are missing (see docs/BUILD.md)."
+            exit 1
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - uses: gradle/actions/setup-gradle@v3
+
+      - name: Android SDK packages
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" 'platforms;android-37.0' 'build-tools;36.0.0' 'ndk;28.0.13004108' > /dev/null
+
+      - name: Build the signed APK
+        env:
+          KEYSTORE: ${{ secrets.AGENT_KEYSTORE_BASE64 }}
+          AGENT_KEYSTORE_PASSWORD: ${{ secrets.AGENT_KEYSTORE_PASSWORD }}
+          AGENT_VERSION_CODE: ${{ github.run_number }}
+        run: |
+          export AGENT_KEYSTORE_FILE="$RUNNER_TEMP/agent.p12"
+          echo "$KEYSTORE" | base64 -d > "$AGENT_KEYSTORE_FILE"
+          chmod +x gradlew
+          ./gradlew :app:assembleDebugNoMinify --no-configuration-cache --console=plain
+          rm -f "$AGENT_KEYSTORE_FILE"
+
+      - name: Publish as a pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          APK=$(ls app/build/outputs/apk/debugNoMinify/*.apk | head -1)
+          NAME="AgentKeyboard-build-${{ github.run_number }}.apk"
+          cp "$APK" "$NAME"
+          sha256sum "$NAME" > "$NAME.sha256"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$NAME" | grep -i "SHA-256" || true
+          gh release create "build-${{ github.run_number }}" "$NAME" "$NAME.sha256" \
+            --prerelease --target "${{ github.sha }}" \
+            --title "Agent Keyboard Build ${{ github.run_number }} (${{ github.ref_name }})" \
+            --notes-file release-notes/next.md
+
+      - name: Reports of a failed build
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: '*/build/reports'

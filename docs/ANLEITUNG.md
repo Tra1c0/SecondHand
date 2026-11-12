@@ -10,15 +10,22 @@ nichts geprüft. Rechne beim ersten Versuch mit Fehlern und behalte deine bisher
 
 ## Installieren
 
-1. APK bauen lassen oder die fertige Datei `AgentKeyboard_0.1.0-debugNoMinify-universal.apk` aufs
-   Telefon kopieren. Sie ist für Android 5 und neuer gebaut und enthält alle üblichen
-   Prozessor-Varianten; KI-Schlüssel brauchen Android 6, das Diktat Android 12.
+1. Einmalig: Lege in GitHub unter deinem Repo → Settings → Secrets and variables → Actions zwei
+   „Repository secrets“ an: `AGENT_KEYSTORE_BASE64` und `AGENT_KEYSTORE_PASSWORD` (Inhalte aus
+   den beiden Dateien, die du bekommen hast). Bewahre beide zusätzlich im Passwortmanager auf.
+2. Für jede neue Version: GitHub → Actions → „Agent Keyboard APK“ → „Run workflow“, Branch
+   wählen. Nach etwa 10–20 Minuten steht unter „Releases“ ein Eintrag `build-<Nummer>` mit der
+   Datei `AgentKeyboard-build-<Nummer>.apk`. Lade sie auf dem Telefon herunter. Sie ist für
+   Android 5 und neuer gebaut; KI-Schlüssel brauchen Android 6, das Diktat Android 12.
 2. Die Datei auf dem Telefon antippen. Android fragt, ob die App, mit der du die Datei öffnest
    (z. B. der Dateimanager), unbekannte Apps installieren darf. Erlaube es für diesen einen Zweck.
 3. Die App erscheint als „Agent Keyboard Lab“. Sie ersetzt keine andere Tastatur und kann neben
    HeliBoard installiert sein.
+4. Neue Versionen installierst du genauso: Android zeigt „Aktualisieren“, Einstellungen,
+   Schlüssel und Gelerntes bleiben. Eine APK aus einer anderen Quelle (etwa ein Test-Build aus
+   einer Cloud-Sitzung) hat eine andere Signatur; Android lehnt sie dann als Update ab.
 
-Prüfsumme: Neben der APK liegt eine Datei `.apk.sha256`. Wer sichergehen will, vergleicht sie mit
+Prüfsumme: Neben der APK liegt im Release eine Datei `.apk.sha256`. Wer sichergehen will, vergleicht sie mit
 `sha256sum` der kopierten Datei.
 
 ## Als Tastatur einschalten
