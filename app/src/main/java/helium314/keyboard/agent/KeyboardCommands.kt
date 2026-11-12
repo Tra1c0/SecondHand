@@ -2,6 +2,7 @@
 package helium314.keyboard.agent
 
 import android.content.Context
+import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.text.TextUtils
 import android.util.TypedValue
@@ -13,6 +14,7 @@ import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.edit
+import androidx.core.graphics.ColorUtils
 import dev.agentkeyboard.core.ApplyOutcome
 import dev.agentkeyboard.core.CommandCall
 import dev.agentkeyboard.core.CommandContext
@@ -39,7 +41,24 @@ import helium314.keyboard.latin.utils.prefs
  */
 object KeyboardCommands {
     /** A chip in the strip. [onTap] runs on the main thread. */
-    class Chip(val label: CharSequence, val description: CharSequence = label, val onTap: () -> Unit)
+    class Chip(val label: CharSequence, val description: CharSequence = label, val kind: Kind = Kind.ACTION, val onTap: () -> Unit) {
+        enum class Kind {
+            /** A chip that does what it says. */
+            ACTION,
+            /** A secondary chip: cancel, discard, retry, an error that opens the details. */
+            MUTED,
+            /** Waiting for an answer: moving dots before the label ([LoadingDotsView]); a tap does nothing. */
+            LOADING,
+            /** An answer: as wide as its label (the row scrolls), a tap inserts it. */
+            RESULT,
+        }
+    }
+
+    /** The controller that runs typed AI requests from the strip; set by the controller of the running keyboard. */
+    internal var aiRequests: java.lang.ref.WeakReference<AgentEditorController>? = null
+
+    /** Cancels a typed AI request sent from the strip and drops its answer (no command typed any more, blocked field). */
+    fun dropAiRequests() { aiRequests?.get()?.dropCommandRequest() }
 
     /** What a command may do: replace its own text, nothing else of the field. */
     interface Host {
@@ -68,17 +87,22 @@ object KeyboardCommands {
          * The field stays unchanged. False if the panel cannot open now.
          */
         fun openWorkflow(workflowId: String): Boolean = false
+        /** Display name of the AI provider a send chip sends to (`@ki`, `@translate`), or null without AI here. */
+        val aiProvider: String? get() = null
+        /** The typed AI request sent for exactly [command] at this cursor, or null; its changes rebuild these chips. */
+        fun aiRequest(command: CommandCall): helium314.keyboard.agent.commands.CommandAiRequest? = null
         /**
-         * Opens the text actions with a send preview of exactly [question] (stage 24f `@ki`); nothing
-         * is sent before "Send" there, and "Insert" replaces [command]. The field stays unchanged.
+         * The tap on a send chip: the one-time approval of exactly [request] for [command], consumed by
+         * starting one run (or a failed request that says why nothing was sent). The field stays unchanged.
          */
-        fun askAi(command: CommandCall, question: String): Boolean = false
-        /**
-         * Opens the text actions with a send preview of exactly [request] (`@translate`, see
-         * [dev.agentkeyboard.core.StyledTranslation.request]); like [askAi], nothing is sent before
-         * "Send", and "Insert" replaces [command] by the translation. The field stays unchanged.
-         */
-        fun translateAi(command: CommandCall, request: String): Boolean = false
+        fun sendAi(command: CommandCall, request: String, action: dev.agentkeyboard.core.AiTextAction):
+            helium314.keyboard.agent.commands.CommandAiRequest? = null
+        /** Cancels the request of [command] or discards its answer; nothing is inserted. */
+        fun dropAi(command: CommandCall) {}
+        /** The tap on an answer: replaces [command] by it in one commit (or inserts it at the cursor). */
+        fun insertAi(command: CommandCall): Boolean = false
+        /** The tap on a failed request: the panel with the details, or the AI settings for a missing key or model. */
+        fun aiDetails(command: CommandCall): Boolean = false
     }
 
     /** A built-in command. Commands never come from files or models. */
@@ -287,10 +311,15 @@ object KeyboardCommands {
             // e.g. after reading the screen: only while the strip still shows this command at this cursor
             override fun showChips(chips: List<Chip>): Boolean = ime.agentCommandCursor == position && onShow(chips)
             override fun openWorkflow(workflowId: String) = ime.agentEditorController.openWorkflow(workflowId)
-            override fun askAi(command: CommandCall, question: String) =
-                ime.agentEditorController.openQuestion(question, command.text, position)
-            override fun translateAi(command: CommandCall, request: String) =
-                ime.agentEditorController.openQuestion(request, command.text, position, dev.agentkeyboard.core.AiTextAction.TRANSLATE_STYLED)
+            override val aiProvider: String? get() = ime.agentEditorController.commandProviderName
+            // the chips built last for this request are the ones its answer updates
+            override fun aiRequest(command: CommandCall) =
+                ime.agentEditorController.commandRequest(command.text, position)?.also { it.onChange = onRefresh }
+            override fun sendAi(command: CommandCall, request: String, action: dev.agentkeyboard.core.AiTextAction) =
+                ime.agentEditorController.sendCommandRequest(request, command.text, position, action, onRefresh)
+            override fun dropAi(command: CommandCall) { ime.agentEditorController.dropCommandRequest(command.text, position) }
+            override fun insertAi(command: CommandCall) = ime.agentEditorController.insertCommandAnswer(command.text, position)
+            override fun aiDetails(command: CommandCall) = ime.agentEditorController.openCommandRequestDetails(command.text, position)
         }
         return chipsFor(context, host)
     }
@@ -318,23 +347,42 @@ object KeyboardCommands {
             setPadding(dp(4f), 0, dp(4f), 0)
             id = R.id.agent_command_chips
         }
+        val accent = if (flat) FlatStyle.ACCENT else colors.get(ColorType.ACTION_KEY_BACKGROUND)
         for (chip in chips) {
-            row.addView(TextView(context).apply {
+            val muted = chip.kind == Chip.Kind.MUTED
+            val label = TextView(context).apply {
                 text = chip.label
-                contentDescription = chip.description
                 setSingleLine()
                 ellipsize = TextUtils.TruncateAt.END
-                maxWidth = context.resources.displayMetrics.widthPixels * 2 / 3
-                setTextColor(textColor)
+                // an answer is as wide as its (already shortened) label: the row scrolls instead
+                maxWidth = if (chip.kind == Chip.Kind.RESULT) Int.MAX_VALUE else context.resources.displayMetrics.widthPixels * 2 / 3
+                setTextColor(if (muted) ColorUtils.setAlphaComponent(textColor, 0x99) else textColor)
                 setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15f)
                 if (flat) typeface = FlatStyle.labelTypeface
                 gravity = Gravity.START or Gravity.CENTER_VERTICAL // centred single lines do not draw in render tests (P40)
+            }
+            val view: View = if (chip.kind == Chip.Kind.LOADING) LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                isBaselineAligned = false
+                addView(LoadingDotsView(context, accent), LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(8f) })
+                addView(label, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT))
+            } else label
+            view.apply {
+                contentDescription = chip.description
                 setPadding(dp(14f), 0, dp(14f), 0)
-                background = GradientDrawable().apply { cornerRadius = dp(17f).toFloat(); setColor(chipColor) }
-                isClickable = true
-                isFocusable = true
-                setOnClickListener { chip.onTap() }
-            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(34f)).apply { marginEnd = dp(6f) })
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(17f).toFloat()
+                    setColor(if (muted) ColorUtils.setAlphaComponent(chipColor, Color.alpha(chipColor) / 2) else chipColor)
+                }
+                if (chip.kind != Chip.Kind.LOADING) {
+                    isClickable = true
+                    isFocusable = true
+                    setOnClickListener { chip.onTap() }
+                }
+            }
+            row.addView(view, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(34f)).apply { marginEnd = dp(6f) })
         }
         return HorizontalScrollView(context).apply {
             isHorizontalScrollBarEnabled = false

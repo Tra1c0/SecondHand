@@ -1325,6 +1325,33 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   auch nicht, ob Modelle derbe Texte getreu übersetzen oder ablehnen; nichts auf einem Gerät
   (Chip, Vorschau, Einfügen in echten Apps, Tippen von „…“-Zeichen mit der Tastatur).
 
+## 24f Variante A (`@ki`, `@translate` in zwei Tipps)
+
+- Gebaut: Der Befehls-Chip ist der Senden-Knopf und nennt den Anbieter; sein Tipp erzeugt und
+  verbraucht die Freigabe genau der getippten Anfrage (`sendCommandRequest`, derselbe
+  `ApprovedActionRunner`). Lade-Chip mit drei Punkten (`LoadingDotsView`) und „Abbrechen“,
+  Ergebnis-Chip mit „↻“ und „✕“, ein grauer Fehler-Chip (KI-Einstellungen oder Panel als
+  Detailansicht). Zustand je Befehlstext und Schreibmarke, Abbruch bei Tippen, Cursorwechsel,
+  Feldwechsel, Schutz und Panel. Keine Änderung an `InputLogic`, `RichInputConnection`,
+  `Suggest`, `PointerTracker`.
+- Geprüft (Robolectric): `AskCommandTest` (10: Chip nennt Anbieter, nichts vor dem Tipp, Tipp
+  sendet genau die Frage, Kürzung nur im Label, Lade- und Abbruch-Chip, Ergebnis-Chip fügt nur
+  per Tipp ein, ↻ ist ein neuer Tipp, Fehler-Chip, gesperrte Felder), `TranslateCommandTest` (8),
+  `LoadingDotsViewTest` (3: läuft nur angehängt, stoppt beim Abhängen, steht bei
+  `ANIMATOR_DURATION_SCALE` 0 still, Welle mit 150 ms Versatz in 1,2 s),
+  `InputLogicTest.typedQuestion*`/`typedTranslation*`/`typedRequest*` (18, davon 11 neu für die
+  Leiste: genau eine Anfrage mit genau dem Text, Journal, Antwort übersteht neu gebaute Leisten,
+  ersetzt genau den Befehl in einem Commit erst nach Tipp, Abbrechen, Tippen mit und ohne
+  Cursor-Meldung bricht ab und zeigt keine späte Antwort, Inkognito bricht ab, ↻/✕, ohne
+  Schlüssel öffnet die KI-Einstellungen ohne Anfrage, Fehler öffnet das Panel mit Grund, Einfügen
+  an der Schreibmarke ohne Befehl; die bisherigen Panel-Fälle laufen jetzt über `openQuestion`).
+  `tools/dev.py agent-tests` grün (439 Tests in 61 Klassen, 0 Fehler; nach der letzten Änderung an
+  `LoadingDotsView` nur die betroffenen Klassen erneut, grün). `tools/dev.py lint` ohne neue
+  Befunde in den geänderten Dateien.
+- Nicht geprüft: kein Gerät (Aussehen und Flüssigkeit der Punkte, Breite und Wischen langer
+  Antwort-Chips, ob eine echte App beim Warten Leistenaktualisierungen oder Cursor-Meldungen
+  schickt, die die Anfrage ungewollt abbrechen), keine echte Anfrage an einen Anbieter.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

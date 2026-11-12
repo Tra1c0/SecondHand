@@ -41,6 +41,7 @@ import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.agent.providers.*
 import helium314.keyboard.agent.security.EncryptedCredentialStore
+import helium314.keyboard.agent.commands.CommandAiRequest
 import kotlinx.coroutines.*
 
 /** Owns only the IME's action session; it never owns the host application's text field. */
@@ -103,7 +104,16 @@ class AgentEditorController @JvmOverloads constructor(
         },
     )
 
+    /**
+     * The typed `@ki`/`@translate` request sent from the strip (Variante A), or null. Separate from the
+     * panel's [snapshot]: the panel is closed while it runs, and opening the panel drops it.
+     */
+    private var commandRequest: CommandAiRequest? = null
+    /** The question snapshot [commandRequest] runs with; never shown or stored. */
+    private var commandSource: TextSnapshot? = null
+
     init {
+        KeyboardCommands.aiRequests = java.lang.ref.WeakReference(this)
         editor.commitInsertion = { target, text ->
             inputLogic.insertGeneratedText(text, target.position).also {
                 if (it != ApplyOutcome.REJECTED) ime.onAgentTextSubmitted()
@@ -175,6 +185,8 @@ class AgentEditorController @JvmOverloads constructor(
     }
     fun selectionChanged(start: Int, end: Int, compositionStart: Int, compositionEnd: Int) {
         editor.selectionChanged(start, end, compositionStart, compositionEnd)
+        // typed, moved or selected: a request from the strip ends, a late answer is never shown (P2)
+        commandRequest?.let { if (start != end || start != it.commandEnd) dropCommandRequest() }
         if (needsCursorRefresh && start >= 0 && end >= 0 && inputLogic.refreshAgentEditorCaches(start, end))
             needsCursorRefresh = false
     }
@@ -205,9 +217,7 @@ class AgentEditorController @JvmOverloads constructor(
         panel?.onDictate = ::openDictation
         panel?.onSettings = {
             close()
-            ime.startActivity(android.content.Intent(ime, helium314.keyboard.settings.SettingsActivity::class.java)
-                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                .putExtra(AgentPreferences.OPEN_AI_SETTINGS, true))
+            openAiSettings()
         }
     }
 
@@ -402,6 +412,164 @@ class AgentEditorController @JvmOverloads constructor(
         canApply = false
         pendingApproval = approval
         panel?.showQuestionConfirmation(approval.model, source.text.length, CloudProviders.displayName(approval.provider), translating)
+    }
+
+    /** Display name of the provider a typed request would go to now, or null if the AI settings cannot be read. */
+    val commandProviderName: String?
+        get() = runCatching { CloudProviders.displayName(ModelSettings(ime).provider) }.getOrNull()
+
+    /**
+     * The request sent from the strip for exactly [commandText] ending at [commandEnd], or null. A
+     * request for any other command or cursor is cancelled and dropped here: the chips are being
+     * built for a changed field, so its answer must never show up (P2).
+     */
+    fun commandRequest(commandText: String, commandEnd: Int): CommandAiRequest? {
+        val current = commandRequest ?: return null
+        // a running or answered request also ends when the editor is no longer the same or turned
+        // protected (incognito, lock, password)
+        val source = commandSource
+        if (current.matches(commandText, commandEnd) && (source == null || editor.isCurrent(source))) return current
+        dropCommandRequest()
+        return null
+    }
+
+    /**
+     * The tap on the send chip of a typed `@ki` or `@translate` (Variante A). The tap is the one-time
+     * approval of exactly [request], the text the chip names and the field shows: the approval is
+     * created here and consumed by starting one run through the same [cloudRunner] (journal, budget,
+     * generation, cancellation) as the panel's "Send". Nothing of the field is changed or sent. The
+     * returned request is running, or failed with the reason nothing was sent; [onChange] rebuilds the
+     * chips when the answer or a failure arrives. Null for an action a typed command cannot ask for.
+     */
+    fun sendCommandRequest(request: String, commandText: String, commandEnd: Int, action: AiTextAction,
+                           onChange: () -> Unit): CommandAiRequest? {
+        if (action != AiTextAction.ASK && action != AiTextAction.TRANSLATE_STYLED) return null
+        if (commandText.isEmpty() || commandEnd < 0) return null
+        dropCommandRequest()
+        // one run at a time: an open panel, wheel or calculator (and its run) is closed by this tap
+        if (!needsCursorRefresh && (isBlockingInput || cloudRunner.isRunning)) close()
+        val entry = CommandAiRequest(commandText, commandEnd, action, request)
+        entry.onChange = onChange
+        commandRequest = entry
+        val translation = action == AiTextAction.TRANSLATE_STYLED
+        fun fail(chip: Int, details: Int, needsSettings: Boolean = false): CommandAiRequest {
+            entry.state = CommandAiRequest.Failed(chip, details, needsSettings)
+            return entry
+        }
+        if (needsCursorRefresh) return fail(R.string.agent_command_ai_not_sent, R.string.agent_panel_apply_unknown)
+        val source = when (val captured = editor.captureQuestion(request)) {
+            is CaptureResult.Captured -> captured.snapshot
+            is CaptureResult.Denied -> return fail(R.string.agent_command_ai_not_sent, captured.reason.questionMessageResource(translation))
+        }
+        val approval = runCatching {
+            val settings = ModelSettings(ime)
+            val provider = settings.provider
+            CloudApproval(provider, settings.model(provider), action, settings.translationLanguage, settings.writingTone)
+        }.getOrNull()
+        if (approval == null || !hasCredential(approval.provider))
+            return fail(R.string.agent_command_ai_no_key,
+                if (translation) R.string.agent_command_translate_credentials else R.string.agent_command_ki_credentials, true)
+        if (!CloudProviders.validModel(approval.provider, approval.model))
+            return fail(R.string.agent_command_ai_no_model,
+                if (approval.model.isEmpty()) R.string.agent_cloud_model_missing else R.string.agent_cloud_invalid_request, true)
+        commandSource = source
+        // the approval is used exactly once, right here; a second run needs a new tap
+        val started = cloudRunner.start(source, approval.model, approval.action.instruction(approval.language, approval.tone),
+                approval.action, approval.provider) { outcome ->
+            if (commandRequest !== entry) return@start // dropped meanwhile: never shown (P2)
+            outcome.onSuccess { result ->
+                entry.state = if (result.isNotBlank() && editor.policy.resultDenial(result) == null) CommandAiRequest.Answer(result)
+                    else CommandAiRequest.Failed(R.string.agent_command_ai_unusable, R.string.agent_panel_result_invalid)
+            }.onFailure { failure ->
+                val error = (failure as? CloudFailure)?.error
+                entry.state = CommandAiRequest.Failed(error.commandChip(), error.cloudMessage(),
+                    error == CloudError.CREDENTIALS || error == CloudError.AUTHENTICATION)
+            }
+            entry.onChange?.invoke()
+        }
+        if (!started && commandRequest === entry) {
+            commandSource = null
+            return fail(R.string.agent_command_ai_not_sent, R.string.agent_panel_stale)
+        }
+        return entry
+    }
+
+    /** Cancels the strip's request of exactly [commandText] at [commandEnd] (or discards its answer) and shows the send chip again. */
+    fun dropCommandRequest(commandText: String, commandEnd: Int) {
+        val current = commandRequest ?: return
+        if (!current.matches(commandText, commandEnd)) return
+        dropCommandRequest()
+        current.onChange?.invoke()
+    }
+
+    /** Cancels a request from the strip, if any, and forgets it and its answer. */
+    fun dropCommandRequest() {
+        val current = commandRequest ?: return
+        commandRequest = null
+        commandSource = null
+        if (current.state == CommandAiRequest.Running) cloudRunner.cancel()
+    }
+
+    /**
+     * The tap on the answer chip: replaces exactly the typed command by the answer in one commit
+     * (generated text, so learning stops as after other AI results), or inserts it at the cursor when
+     * the command is no longer directly before it. Nothing is inserted without this tap.
+     */
+    fun insertCommandAnswer(commandText: String, commandEnd: Int): Boolean {
+        val current = commandRequest ?: return false
+        val answer = (current.state as? CommandAiRequest.Answer)?.text ?: return false
+        if (!current.matches(commandText, commandEnd) || needsCursorRefresh) return false
+        val source = commandSource
+        if (source == null || !editor.isCurrent(source)) { dropCommandRequest(); current.onChange?.invoke(); return false }
+        // one tap, one attempt: forgotten before the field changes
+        commandRequest = null
+        commandSource = null
+        val replaced = inputLogic.replaceCommandText(commandText, answer, commandEnd, true)
+        if (replaced != ApplyOutcome.REJECTED) ime.onAgentTextSubmitted()
+        when (replaced) {
+            ApplyOutcome.SUBMITTED -> return true
+            ApplyOutcome.UNKNOWN -> { onUnclearEdit(); return false }
+            ApplyOutcome.REJECTED -> {} // the command is gone (changed elsewhere): insert at the cursor instead
+        }
+        val captured = editor.captureAnchor()
+        val inserted = if (captured is AnchorResult.Captured) editor.insert(captured.anchor, answer) else ApplyOutcome.REJECTED
+        when (inserted) {
+            ApplyOutcome.SUBMITTED -> return true
+            ApplyOutcome.UNKNOWN -> {
+                needsCursorRefresh = true
+                Toast.makeText(ime, R.string.agent_panel_apply_unknown, Toast.LENGTH_LONG).show()
+                runCatching { ime.currentInputConnection?.requestCursorUpdates(InputConnection.CURSOR_UPDATE_IMMEDIATE) }
+            }
+            ApplyOutcome.REJECTED -> Toast.makeText(ime, if (current.action == AiTextAction.TRANSLATE_STYLED)
+                R.string.agent_command_ai_translation_expired else R.string.agent_command_ai_answer_expired, Toast.LENGTH_SHORT).show()
+        }
+        current.onChange?.invoke()
+        return false
+    }
+
+    /**
+     * The tap on a failed request: a missing key or model opens the AI settings; anything else opens
+     * the panel with the send preview of the same request and the reason it failed. Sending from
+     * there needs its own tap on "Send" again.
+     */
+    fun openCommandRequestDetails(commandText: String, commandEnd: Int): Boolean {
+        val current = commandRequest ?: return false
+        val failed = current.state as? CommandAiRequest.Failed ?: return false
+        if (!current.matches(commandText, commandEnd)) return false
+        if (failed.needsSettings) {
+            dropCommandRequest()
+            openAiSettings()
+            return true
+        }
+        if (!openQuestion(current.request, commandText, commandEnd, current.action)) return false
+        if (pendingApproval != null) panel?.showQuestionNote(failed.details)
+        return true
+    }
+
+    private fun openAiSettings() {
+        ime.startActivity(android.content.Intent(ime, helium314.keyboard.settings.SettingsActivity::class.java)
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            .putExtra(AgentPreferences.OPEN_AI_SETTINGS, true))
     }
 
     /** The tap on "Insert": replaces the typed command in one commit, else inserts at the cursor. */
@@ -746,6 +914,7 @@ class AgentEditorController @JvmOverloads constructor(
     }
 
     fun close() {
+        dropCommandRequest()
         dictation.cancel()
         skillJob?.cancel()
         skillJob = null
@@ -767,7 +936,11 @@ class AgentEditorController @JvmOverloads constructor(
         editor.invalidate()
     }
 
-    fun destroy() { finishEditor(); actionScope.cancel() }
+    fun destroy() {
+        finishEditor()
+        actionScope.cancel()
+        if (KeyboardCommands.aiRequests?.get() === this) KeyboardCommands.aiRequests = null
+    }
 }
 
 /** Denials that only mean "select the text now": a workflow chosen with `@wf` waits for them to pass. */
@@ -780,6 +953,17 @@ private fun Throwable.workflowMessage(): Int = when (this) {
     }
     is CloudFailure -> error.cloudMessage()
     else -> R.string.agent_cloud_network
+}
+
+/** The short text of a failed typed request on its chip; the panel shows [cloudMessage]. */
+private fun CloudError?.commandChip() = when (this) {
+    CloudError.CREDENTIALS -> R.string.agent_command_ai_no_key
+    CloudError.AUTHENTICATION -> R.string.agent_command_ai_key_rejected
+    CloudError.REFUSED -> R.string.agent_command_ai_refused
+    CloudError.TOO_LARGE -> R.string.agent_command_ai_too_long
+    CloudError.TIMEOUT -> R.string.agent_command_ai_timeout
+    CloudError.INVALID_RESPONSE -> R.string.agent_command_ai_unusable
+    else -> R.string.agent_command_ai_failed
 }
 
 internal fun CloudError?.cloudMessage() = when (this) {

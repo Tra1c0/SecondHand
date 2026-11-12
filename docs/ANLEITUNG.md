@@ -169,14 +169,17 @@ stehen unten. Noch auf keinem Gerät ausprobiert.
   markieren, Textaktionen wieder öffnen (Stift): Der Workflow ist vorbereitet, du gibst ihn wie
   gewohnt frei. Ist schon Text markiert, wird er sofort vorbereitet. Ein Feldwechsel verwirft die
   Wahl.
-- `@ki Frage`: zeigt die Frage, Anbieter und Modell; erst „Frage an … senden“ schickt sie (eigener
-  Schlüssel nötig). „Einfügen“ setzt die Antwort an die Stelle des Befehls; hast du die
-  Schreibmarke inzwischen woanders hingesetzt, landet sie dort und `@ki …` bleibt stehen.
+- `@ki Frage`: Chip „✦ KI fragen (Anbieter): …“ antippen – das sendet genau die getippte Frage
+  (eigener Schlüssel nötig). Drei wandernde Punkte zeigen „Frage läuft …“; „Abbrechen“ stoppt.
+  Die Antwort erscheint als Chip in der Leiste (lange Antworten seitlich wischen); antippen
+  ersetzt `@ki …` durch die Antwort. „↻“ fragt noch einmal (neue Anfrage), „✕“ verwirft. Tippst
+  du weiter oder setzt die Schreibmarke um, wird die Anfrage abgebrochen. Ein grauer Fehler-Chip
+  öffnet bei fehlendem Schlüssel die KI-Einstellungen, sonst das Panel mit dem Grund.
 - `@translate "Text" Stil`: z. B. `@translate "wann treffen wir uns morgen" natürliches slang
   spanisch`. Der Text steht in Anführungszeichen ("…", „…“, “…”, «…», »…«, '…'), alles danach
-  ist der Stil (Sprache, Ton, Slang); ohne Stil wird es natürliches Englisch. Chip „Übersetzen: …“
-  antippen, im Panel Stil und Text prüfen, dann „Zum Übersetzen an … senden“ (eigener Schlüssel
-  nötig). „Einfügen“ ersetzt den Befehl durch die Übersetzung. Höchstens 500 Zeichen nach
+  ist der Stil (Sprache, Ton, Slang); ohne Stil wird es natürliches Englisch. Chip „🌐 Übersetzen
+  mit Anbieter: Stil“ antippen – das sendet genau Stil und Text (eigener Schlüssel nötig); danach
+  wie bei `@ki`: „Übersetze …“, dann die Übersetzung als Chip antippen, um den Befehl zu ersetzen. Höchstens 500 Zeichen nach
   `@translate`; bei mehr verschwindet der Chip und die Autokorrektur greift wieder. Für längere
   Texte: Text markieren, Stift, „Mit KI übersetzen“.
 - `@qr Text` erzeugt einen QR-Code, z. B. `@qr https://…` oder für WLAN

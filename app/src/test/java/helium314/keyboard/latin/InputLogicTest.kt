@@ -1631,25 +1631,24 @@ class InputLogicTest {
         return controller to panel
     }
 
-    /** Types [typed], reports the cursor like the editor would and taps the "Ask AI" chip for [question]. */
-    private fun tapAskChip(controller: helium314.keyboard.agent.AgentEditorController, typed: String, question: String) {
+    /**
+     * Types [typed], reports the cursor like the editor would and opens the panel's send preview of
+     * [request] for the typed command: the details view a failed request in the strip opens.
+     */
+    private fun openQuestionPanel(controller: helium314.keyboard.agent.AgentEditorController, typed: String, request: String,
+                                  action: dev.agentkeyboard.core.AiTextAction = dev.agentkeyboard.core.AiTextAction.ASK) {
         chainInput(typed)
         controller.selectionChanged(text.length, text.length, composingStart, composingEnd)
-        val chips = helium314.keyboard.agent.KeyboardCommands.createChipsView(latinIME, android.widget.FrameLayout(latinIME))
-        assertNotNull(chips)
-        val row = (chips as android.view.ViewGroup).getChildAt(0) as android.view.ViewGroup
-        (0 until row.childCount).map { row.getChildAt(it) as android.widget.TextView }
-            .single { it.text.toString() == latinIME.getString(R.string.agent_command_ki_chip, question) }
-            .performClick()
+        assertTrue(controller.openQuestion(request, text.substring(text.indexOf('@')), text.length, action))
     }
 
     private fun panelText(panel: android.view.View, id: Int) = panel.findViewById<android.widget.TextView>(id).text.toString()
 
-    @Test fun typedQuestionIsSentOnlyAfterSendAndTheAnswerReplacesTheCommandOnlyAfterInsert() {
+    @Test fun typedQuestionPanelIsSentOnlyAfterSendAndTheAnswerReplacesTheCommandOnlyAfterInsert() {
         val provider = QuestionProvider()
         val journal = helium314.keyboard.agent.TestRunJournal()
         val (controller, panel) = questionSurface(provider, journal)
-        tapAskChip(controller, "x @ki wie hoch ist der Mount Everest", "wie hoch ist der Mount Everest")
+        openQuestionPanel(controller, "x @ki wie hoch ist der Mount Everest", "wie hoch ist der Mount Everest")
         // the field is unchanged and the panel shows exactly the text that would be sent
         assertEquals("x @ki wie hoch ist der Mount Everest", text)
         assertEquals(android.view.View.VISIBLE, panel.visibility)
@@ -1696,12 +1695,12 @@ class InputLogicTest {
         controller.destroy()
     }
 
-    @Test fun typedQuestionWithoutAKeyShowsTheWayToTheSettingsAndSendsNothing() {
+    @Test fun typedQuestionPanelWithoutAKeyShowsTheWayToTheSettingsAndSendsNothing() {
         val provider = QuestionProvider()
         val journal = helium314.keyboard.agent.TestRunJournal()
         val (controller, panel) = questionSurface(provider, journal)
         controller.credentialCheck = { false }
-        tapAskChip(controller, "x @ki hallo", "hallo")
+        openQuestionPanel(controller, "x @ki hallo", "hallo")
         assertEquals(latinIME.getString(R.string.agent_command_ki_credentials), panelText(panel, R.id.agent_status))
         assertEquals(android.view.View.GONE, panel.findViewById<android.view.View>(R.id.agent_cloud_send).visibility)
         assertTrue(panel.findViewById<android.view.View>(R.id.agent_cloud_settings).isEnabled) // the way to the AI settings
@@ -1713,11 +1712,11 @@ class InputLogicTest {
         controller.destroy()
     }
 
-    @Test fun cancelledQuestionShowsNoAnswerAndChangesNothing() {
+    @Test fun cancelledQuestionPanelShowsNoAnswerAndChangesNothing() {
         val provider = QuestionProvider()
         val journal = helium314.keyboard.agent.TestRunJournal()
         val (controller, panel) = questionSurface(provider, journal)
-        tapAskChip(controller, "x @ki hallo", "hallo")
+        openQuestionPanel(controller, "x @ki hallo", "hallo")
         panel.findViewById<android.widget.Button>(R.id.agent_cloud_cancel).performClick() // before sending
         assertTrue(provider.requests.isEmpty())
         assertEquals("hallo", panelText(panel, R.id.agent_source))
@@ -1725,7 +1724,7 @@ class InputLogicTest {
         panel.onSendCloud?.invoke() // the cancelled approval is gone
         assertTrue(provider.requests.isEmpty())
 
-        tapAskChip(controller, "", "hallo") // the chip again: a fresh preview
+        openQuestionPanel(controller, "", "hallo") // again: a fresh preview
         panel.findViewById<android.widget.Button>(R.id.agent_cloud_send).performClick()
         assertEquals(1, provider.requests.size)
         panel.findViewById<android.widget.Button>(R.id.agent_cloud_cancel).performClick() // while waiting
@@ -1789,12 +1788,12 @@ class InputLogicTest {
     private val translationRequest =
         "Translation style:\nnatürliches slang spanisch\n\nText to translate:\nwann treffen wir uns morgen du geile sau"
 
-    @Test fun typedTranslationIsSentOnlyAfterSendAndReplacesTheCommandOnlyAfterInsert() {
+    @Test fun typedTranslationPanelIsSentOnlyAfterSendAndReplacesTheCommandOnlyAfterInsert() {
         val provider = QuestionProvider()
         val journal = helium314.keyboard.agent.TestRunJournal()
         val (controller, panel) = questionSurface(provider, journal)
         val typed = "x @translate \"wann treffen wir uns morgen du geile sau\" natürliches slang spanisch"
-        tapCommandChip(controller, typed, latinIME.getString(R.string.agent_command_translate_chip, "natürliches slang spanisch"))
+        openQuestionPanel(controller, typed, translationRequest, dev.agentkeyboard.core.AiTextAction.TRANSLATE_STYLED)
         // the field is unchanged and the panel shows exactly the request: style and text, labelled
         assertEquals(typed, text)
         assertEquals(android.view.View.VISIBLE, panel.visibility)
@@ -1842,12 +1841,13 @@ class InputLogicTest {
         controller.destroy()
     }
 
-    @Test fun typedTranslationWithoutAKeyShowsTheWayToTheSettingsAndSendsNothing() {
+    @Test fun typedTranslationPanelWithoutAKeyShowsTheWayToTheSettingsAndSendsNothing() {
         val provider = QuestionProvider()
         val journal = helium314.keyboard.agent.TestRunJournal()
         val (controller, panel) = questionSurface(provider, journal)
         controller.credentialCheck = { false }
-        tapCommandChip(controller, "x @translate \"hallo\"", latinIME.getString(R.string.agent_command_translate_chip, "natural English"))
+        openQuestionPanel(controller, "x @translate \"hallo\"", "Translation style:\nnatural English\n\nText to translate:\nhallo",
+            dev.agentkeyboard.core.AiTextAction.TRANSLATE_STYLED)
         assertEquals(latinIME.getString(R.string.agent_command_translate_credentials), panelText(panel, R.id.agent_status))
         assertEquals(android.view.View.GONE, panel.findViewById<android.view.View>(R.id.agent_cloud_send).visibility)
         assertTrue(panel.findViewById<android.view.View>(R.id.agent_cloud_settings).isEnabled) // the way to the AI settings
@@ -1872,13 +1872,12 @@ class InputLogicTest {
         controller.destroy()
     }
 
-    @Test fun typedTranslationCancelledShowsNothingAndChangesNothing() {
+    @Test fun typedTranslationPanelCancelledShowsNothingAndChangesNothing() {
         val provider = QuestionProvider()
         val journal = helium314.keyboard.agent.TestRunJournal()
         val (controller, panel) = questionSurface(provider, journal)
-        val chip = latinIME.getString(R.string.agent_command_translate_chip, "spanisch")
-        tapCommandChip(controller, "x @translate \"hallo\" spanisch", chip)
         val request = "Translation style:\nspanisch\n\nText to translate:\nhallo"
+        openQuestionPanel(controller, "x @translate \"hallo\" spanisch", request, dev.agentkeyboard.core.AiTextAction.TRANSLATE_STYLED)
         panel.findViewById<android.widget.Button>(R.id.agent_cloud_cancel).performClick() // before sending
         assertTrue(provider.requests.isEmpty())
         assertEquals(request, panelText(panel, R.id.agent_source))
@@ -1886,7 +1885,7 @@ class InputLogicTest {
         panel.onSendCloud?.invoke() // the cancelled approval is gone
         assertTrue(provider.requests.isEmpty())
 
-        tapCommandChip(controller, "", chip) // the chip again: a fresh preview
+        openQuestionPanel(controller, "", request, dev.agentkeyboard.core.AiTextAction.TRANSLATE_STYLED) // again: a fresh preview
         panel.findViewById<android.widget.Button>(R.id.agent_cloud_send).performClick()
         assertEquals(request, provider.requests.single().input)
         panel.findViewById<android.widget.Button>(R.id.agent_cloud_cancel).performClick() // while waiting
@@ -1931,6 +1930,293 @@ class InputLogicTest {
             assertFalse(controller.openQuestion("hallo", "@ki hallo", 9, action), action.name)
         assertNotEquals(android.view.View.VISIBLE, panel.visibility)
         panel.onSendCloud?.invoke()
+        assertTrue(provider.requests.isEmpty())
+        controller.destroy()
+    }
+
+    // Variante A: `@ki` and `@translate` in two taps from the strip, without the panel
+
+    /** Types [typed] and reports the cursor like the editor would. */
+    private fun typeCommand(controller: helium314.keyboard.agent.AgentEditorController, typed: String) {
+        chainInput(typed)
+        controller.selectionChanged(text.length, text.length, composingStart, composingEnd)
+    }
+
+    /** The chips the strip shows now for the text before the cursor (a normal strip update). */
+    private fun commandStrip(): android.view.ViewGroup {
+        val chips = helium314.keyboard.agent.KeyboardCommands.createChipsView(latinIME, android.widget.FrameLayout(latinIME))
+        assertNotNull(chips)
+        return chips as android.view.ViewGroup
+    }
+
+    private fun chipViews(strip: android.view.ViewGroup): List<android.view.View> =
+        (strip.getChildAt(0) as android.view.ViewGroup).let { row -> (0 until row.childCount).map { row.getChildAt(it) } }
+
+    private fun chipLabel(chip: android.view.View): String = when (chip) {
+        is android.widget.TextView -> chip.text.toString()
+        is android.view.ViewGroup -> (0 until chip.childCount).map { chip.getChildAt(it) }
+            .filterIsInstance<android.widget.TextView>().single().text.toString()
+        else -> ""
+    }
+
+    private fun chipLabels(strip: android.view.ViewGroup) = chipViews(strip).map(::chipLabel)
+
+    private fun tapStripChip(strip: android.view.ViewGroup, label: String) {
+        assertTrue(chipViews(strip).single { chipLabel(it) == label }.performClick())
+    }
+
+    private val askingLabel get() = latinIME.getString(R.string.agent_command_ai_asking)
+    private val cancelLabel get() = latinIME.getString(R.string.agent_command_ai_cancel)
+
+    @Test fun typedQuestionIsSentWithOneTapAndOnlyTheAnswerChipReplacesTheCommand() {
+        val provider = QuestionProvider()
+        val journal = helium314.keyboard.agent.TestRunJournal()
+        val (controller, panel) = questionSurface(provider, journal)
+        typeCommand(controller, "x @ki wie hoch ist der Mount Everest")
+        val strip = commandStrip()
+        val send = latinIME.getString(R.string.agent_command_ki_chip, "OpenAI", "wie hoch ist der Mount Everest")
+        assertEquals(listOf(send), chipLabels(strip)) // names the provider it sends to
+        assertTrue(provider.requests.isEmpty()) // nothing is sent before the tap
+        assertTrue(journal.states.isEmpty())
+
+        tapStripChip(strip, send)
+        assertEquals(1, provider.requests.size)
+        val request = provider.requests.single()
+        assertEquals("wie hoch ist der Mount Everest", request.input) // exactly the typed question, nothing else of the field
+        assertEquals(dev.agentkeyboard.core.AiTextAction.ASK.instruction(), request.instruction)
+        assertEquals(helium314.keyboard.agent.ModelSettings.DEFAULT_MODEL, request.model)
+        assertNotEquals(android.view.View.VISIBLE, panel.visibility) // no panel in between
+        assertEquals("x @ki wie hoch ist der Mount Everest", text)
+
+        // waiting: moving dots before the text, and a way to cancel
+        assertEquals(listOf(askingLabel, cancelLabel), chipLabels(strip))
+        val loading = chipViews(strip).first() as android.view.ViewGroup
+        assertTrue(loading.getChildAt(0) is helium314.keyboard.agent.LoadingDotsView)
+        assertFalse(loading.isClickable)
+        // a normal strip update while waiting shows the same chips and sends nothing new
+        val rebuilt = commandStrip()
+        assertEquals(listOf(askingLabel, cancelLabel), chipLabels(rebuilt))
+        assertEquals(1, provider.requests.size)
+
+        provider.response.complete("8849 m")
+        awaitAgentUi { chipLabels(rebuilt).firstOrNull() == "8849 m" }
+        assertEquals(listOf("8849 m", "↻", "✕"), chipLabels(rebuilt))
+        assertEquals(helium314.keyboard.agent.ActionRunState.SUCCEEDED, journal.modelStates.values.single())
+        assertEquals(helium314.keyboard.agent.RunSubject.TextAction(dev.agentkeyboard.core.AiTextAction.ASK), journal.subjects.values.single())
+        assertEquals("x @ki wie hoch ist der Mount Everest", text) // nothing is replaced automatically
+        assertEquals(listOf("8849 m", "↻", "✕"), chipLabels(commandStrip())) // and the answer survives strip updates
+
+        tapStripChip(rebuilt, "8849 m")
+        assertEquals("x 8849 m", text) // exactly the command is replaced, in one commit
+        assertTrue(inputLogic.isAgentHistorySuppressed) // generated text is not learned from
+        checkConnectionConsistency()
+        assertFalse(controller.insertCommandAnswer("@ki wie hoch ist der Mount Everest", 36)) // nothing left to insert
+        assertEquals("x 8849 m", text)
+        assertEquals(1, provider.requests.size)
+        controller.destroy()
+    }
+
+    @Test fun typedTranslationIsSentWithOneTapAndOnlyTheAnswerChipReplacesTheCommand() {
+        val provider = QuestionProvider()
+        val journal = helium314.keyboard.agent.TestRunJournal()
+        val (controller, _) = questionSurface(provider, journal)
+        val typed = "x @translate \"wann treffen wir uns morgen du geile sau\" natürliches slang spanisch"
+        typeCommand(controller, typed)
+        val strip = commandStrip()
+        val send = latinIME.getString(R.string.agent_command_translate_chip, "OpenAI", "natürliches slang spanisch")
+        assertEquals(listOf(send), chipLabels(strip))
+        assertTrue(provider.requests.isEmpty())
+        tapStripChip(strip, send)
+        assertEquals(translationRequest, provider.requests.single().input) // the same request as the panel sends
+        assertEquals(dev.agentkeyboard.core.AiTextAction.TRANSLATE_STYLED.instruction(), provider.requests.single().instruction)
+        assertEquals(listOf(latinIME.getString(R.string.agent_command_ai_translating), cancelLabel), chipLabels(strip))
+        provider.response.complete("¿cuándo nos vemos mañana, cabrón?")
+        awaitAgentUi { chipLabels(strip).firstOrNull() == "¿cuándo nos vemos mañana, cabrón?" }
+        assertEquals(helium314.keyboard.agent.RunSubject.TextAction(dev.agentkeyboard.core.AiTextAction.TRANSLATE_STYLED),
+            journal.subjects.values.single())
+        assertEquals(typed, text)
+        tapStripChip(strip, "¿cuándo nos vemos mañana, cabrón?")
+        assertEquals("x ¿cuándo nos vemos mañana, cabrón?", text)
+        assertTrue(inputLogic.isAgentHistorySuppressed)
+        checkConnectionConsistency()
+        controller.destroy()
+    }
+
+    @Test fun typedQuestionCancelChipStopsTheRunAndNoAnswerShows() {
+        val provider = QuestionProvider()
+        val journal = helium314.keyboard.agent.TestRunJournal()
+        val (controller, _) = questionSurface(provider, journal)
+        typeCommand(controller, "x @ki hallo")
+        val strip = commandStrip()
+        val send = latinIME.getString(R.string.agent_command_ki_chip, "OpenAI", "hallo")
+        tapStripChip(strip, send)
+        tapStripChip(strip, cancelLabel)
+        assertEquals(listOf(send), chipLabels(strip)) // the send chip again
+        awaitAgentUi { journal.modelStates.values.singleOrNull() == helium314.keyboard.agent.ActionRunState.CANCELLED }
+        provider.response.complete("zu spät")
+        awaitAgentUi { true }
+        assertEquals(listOf(send), chipLabels(strip))
+        assertEquals(listOf(send), chipLabels(commandStrip()))
+        assertEquals("x @ki hallo", text)
+        assertEquals(1, provider.requests.size)
+        controller.destroy()
+    }
+
+    @Test fun typedQuestionIsCancelledByTypingAndNoStaleAnswerShows() {
+        val provider = QuestionProvider()
+        val journal = helium314.keyboard.agent.TestRunJournal()
+        val (controller, _) = questionSurface(provider, journal)
+        typeCommand(controller, "x @ki hallo")
+        tapStripChip(commandStrip(), latinIME.getString(R.string.agent_command_ki_chip, "OpenAI", "hallo"))
+        typeCommand(controller, " du") // the editor reports the new cursor
+        awaitAgentUi { journal.modelStates.values.singleOrNull() == helium314.keyboard.agent.ActionRunState.CANCELLED }
+        provider.response.complete("Antwort")
+        awaitAgentUi { true }
+        assertEquals(listOf(latinIME.getString(R.string.agent_command_ki_chip, "OpenAI", "hallo du")), chipLabels(commandStrip()))
+        // deleting back to the sent text does not bring the old answer back
+        functionalKeyPress(KeyCode.DELETE)
+        functionalKeyPress(KeyCode.DELETE)
+        functionalKeyPress(KeyCode.DELETE)
+        controller.selectionChanged(text.length, text.length, composingStart, composingEnd)
+        assertEquals("x @ki hallo", text)
+        assertEquals(listOf(latinIME.getString(R.string.agent_command_ki_chip, "OpenAI", "hallo")), chipLabels(commandStrip()))
+        assertEquals(1, provider.requests.size)
+        assertEquals("x @ki hallo", text)
+        controller.destroy()
+    }
+
+    @Test fun typedQuestionIsCancelledWhenTheStripIsBuiltForChangedText() {
+        val provider = QuestionProvider()
+        val journal = helium314.keyboard.agent.TestRunJournal()
+        val (controller, _) = questionSurface(provider, journal)
+        typeCommand(controller, "x @ki hallo")
+        tapStripChip(commandStrip(), latinIME.getString(R.string.agent_command_ki_chip, "OpenAI", "hallo"))
+        chainInput(" du") // no cursor report yet: the strip for the new text ends the request
+        val strip = commandStrip()
+        assertEquals(listOf(latinIME.getString(R.string.agent_command_ki_chip, "OpenAI", "hallo du")), chipLabels(strip))
+        awaitAgentUi { journal.modelStates.values.singleOrNull() == helium314.keyboard.agent.ActionRunState.CANCELLED }
+        provider.response.complete("Antwort")
+        awaitAgentUi { true }
+        assertFalse("Antwort" in chipLabels(strip))
+        assertEquals("x @ki hallo du", text)
+        controller.destroy()
+    }
+
+    @Test fun typedQuestionIsCancelledWhenTheFieldTurnsProtected() {
+        val provider = QuestionProvider()
+        val journal = helium314.keyboard.agent.TestRunJournal()
+        val (controller, _) = questionSurface(provider, journal)
+        typeCommand(controller, "x @ki hallo")
+        tapStripChip(commandStrip(), latinIME.getString(R.string.agent_command_ki_chip, "OpenAI", "hallo"))
+        latinIME.prefs().edit { putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true) }
+        val strip = helium314.keyboard.agent.KeyboardCommands.createChipsView(latinIME, android.widget.FrameLayout(latinIME))
+        awaitAgentUi { journal.modelStates.values.singleOrNull() == helium314.keyboard.agent.ActionRunState.CANCELLED }
+        provider.response.complete("Antwort")
+        awaitAgentUi { true }
+        assertTrue(strip == null || "Antwort" !in chipLabels(strip as android.view.ViewGroup))
+        assertEquals("x @ki hallo", text)
+        controller.destroy()
+    }
+
+    @Test fun typedQuestionRetryNeedsANewTapAndDiscardDropsTheAnswer() {
+        val provider = QuestionProvider()
+        val journal = helium314.keyboard.agent.TestRunJournal()
+        val (controller, _) = questionSurface(provider, journal)
+        typeCommand(controller, "x @ki hallo")
+        val strip = commandStrip()
+        val send = latinIME.getString(R.string.agent_command_ki_chip, "OpenAI", "hallo")
+        tapStripChip(strip, send)
+        provider.response.complete("Antwort")
+        awaitAgentUi { chipLabels(strip).firstOrNull() == "Antwort" }
+        awaitAgentUi { true }
+        assertEquals(1, provider.requests.size) // an answer never sends again by itself
+        tapStripChip(strip, "↻")
+        assertEquals(2, provider.requests.size)
+        assertEquals(provider.requests[0].input, provider.requests[1].input)
+        awaitAgentUi { chipLabels(strip).firstOrNull() == "Antwort" }
+        assertEquals(2, journal.modelStates.size) // two taps, two journaled runs
+        tapStripChip(strip, "✕")
+        assertEquals(listOf(send), chipLabels(strip))
+        assertEquals("x @ki hallo", text)
+        assertEquals(2, provider.requests.size)
+        controller.destroy()
+    }
+
+    @Test fun typedQuestionWithoutAKeySendsNothingAndItsChipOpensTheAiSettings() {
+        val provider = QuestionProvider()
+        val journal = helium314.keyboard.agent.TestRunJournal()
+        val (controller, panel) = questionSurface(provider, journal)
+        controller.credentialCheck = { false }
+        typeCommand(controller, "x @ki hallo")
+        val strip = commandStrip()
+        tapStripChip(strip, latinIME.getString(R.string.agent_command_ki_chip, "OpenAI", "hallo"))
+        val noKey = latinIME.getString(R.string.agent_command_ai_no_key)
+        assertEquals(listOf(noKey), chipLabels(strip))
+        awaitAgentUi { true }
+        assertTrue(provider.requests.isEmpty())
+        assertTrue(journal.states.isEmpty())
+        tapStripChip(strip, noKey)
+        val started = org.robolectric.Shadows.shadowOf(org.robolectric.RuntimeEnvironment.getApplication()).nextStartedActivity
+        assertNotNull(started)
+        assertTrue(started.getBooleanExtra(helium314.keyboard.agent.AgentPreferences.OPEN_AI_SETTINGS, false))
+        assertNotEquals(android.view.View.VISIBLE, panel.visibility)
+        assertTrue(provider.requests.isEmpty())
+        assertEquals("x @ki hallo", text)
+        controller.destroy()
+    }
+
+    @Test fun typedQuestionFailureIsOneChipThatOpensThePanelWithTheReason() {
+        val provider = QuestionProvider()
+        val journal = helium314.keyboard.agent.TestRunJournal()
+        val (controller, panel) = questionSurface(provider, journal)
+        typeCommand(controller, "x @ki hallo")
+        val strip = commandStrip()
+        tapStripChip(strip, latinIME.getString(R.string.agent_command_ki_chip, "OpenAI", "hallo"))
+        provider.response.completeExceptionally(helium314.keyboard.agent.providers.CloudFailure(
+            helium314.keyboard.agent.providers.CloudError.REFUSED))
+        val refused = latinIME.getString(R.string.agent_command_ai_refused)
+        awaitAgentUi { chipLabels(strip) == listOf(refused) }
+        assertEquals(1, provider.requests.size) // no retry by itself
+        tapStripChip(strip, refused)
+        // the panel is the details view: the same request, ready for a new explicit Send, and why it failed
+        assertEquals(android.view.View.VISIBLE, panel.visibility)
+        assertEquals("hallo", panelText(panel, R.id.agent_source))
+        assertEquals(android.view.View.VISIBLE, panel.findViewById<android.view.View>(R.id.agent_cloud_send).visibility)
+        assertEquals(latinIME.getString(R.string.agent_cloud_refused), panelText(panel, R.id.agent_status))
+        assertEquals(1, provider.requests.size)
+        assertEquals("x @ki hallo", text)
+        controller.destroy()
+    }
+
+    @Test fun typedQuestionAnswerIsInsertedAtTheCursorOnlyWhenTheCommandIsGone() {
+        val provider = QuestionProvider()
+        val journal = helium314.keyboard.agent.TestRunJournal()
+        val (controller, _) = questionSurface(provider, journal)
+        setText("x ")
+        setCursorPosition(2)
+        controller.startEditor(EditorInfo().apply { inputType = currentInputType; initialSelStart = 2; initialSelEnd = 2 })
+        controller.selectionChanged(2, 2, -1, -1)
+        var changes = 0
+        // the command is no longer before the cursor
+        val sent = controller.sendCommandRequest("frage", "@ki frage", 2, dev.agentkeyboard.core.AiTextAction.ASK) { changes++ }
+        assertNotNull(sent)
+        assertEquals("frage", provider.requests.single().input)
+        provider.response.complete("Antwort")
+        awaitAgentUi { changes == 1 }
+        assertEquals("x ", text)
+        assertTrue(controller.insertCommandAnswer("@ki frage", 2))
+        assertEquals("x Antwort", text)
+        controller.destroy()
+    }
+
+    @Test fun typedRequestFromTheStripTakesOnlyQuestionsAndTranslations() {
+        val provider = QuestionProvider()
+        val journal = helium314.keyboard.agent.TestRunJournal()
+        val (controller, _) = questionSurface(provider, journal)
+        for (action in dev.agentkeyboard.core.AiTextAction.entries.filter {
+                it != dev.agentkeyboard.core.AiTextAction.ASK && it != dev.agentkeyboard.core.AiTextAction.TRANSLATE_STYLED })
+            kotlin.test.assertNull(controller.sendCommandRequest("hallo", "@ki hallo", 9, action) {}, action.name)
+        awaitAgentUi { true }
         assertTrue(provider.requests.isEmpty())
         controller.destroy()
     }
