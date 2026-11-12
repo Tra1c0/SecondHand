@@ -459,4 +459,12 @@
     <string name="agent_command_ki_credentials">No API key for the selected provider. Set it up under AI providers (button above), then type the question again.</string>
     <string name="agent_command_ki_unavailable">The question cannot be sent from this field. Close the panel and type it again.</string>
     <string name="agent_command_ki_insert_failed">The field changed. Nothing was inserted; you can still copy the answer.</string>
+    <string name="agent_command_qr">QR code: %sqr text makes a QR code for the text, locally on the device without a network. In fields that take images, Insert QR code puts the image there; elsewhere Share QR code opens the share sheet. Nothing is made or sent before a tap.</string>
+    <string name="agent_command_qr_insert">Insert QR code</string>
+    <string name="agent_command_qr_insert_description">Insert a QR code for: %s</string>
+    <string name="agent_command_qr_share">Share QR code</string>
+    <string name="agent_command_qr_share_description">Share a QR code for: %s</string>
+    <string name="agent_command_qr_label">QR code</string>
+    <string name="agent_command_qr_failed">The QR code could not be made.</string>
+    <string name="agent_command_qr_none">No app can share the QR code.</string>
 </resources>

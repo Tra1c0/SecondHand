@@ -7,4 +7,8 @@
     <files-path
         name="agent_screenshot"
         path="agent_screenshot/"/>
+    <!-- QR codes made by the @qr command, see QrCommand -->
+    <files-path
+        name="agent_qr"
+        path="agent_qr/"/>
 </paths>

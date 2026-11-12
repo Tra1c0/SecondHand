@@ -170,6 +170,7 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.9.8")
     implementation("sh.calvin.reorderable:reorderable:3.1.0") // for easier re-ordering
     implementation("com.github.skydoves:colorpicker-compose:1.1.3") // for user-defined colors, newer requires minSdk 23
+    implementation("com.google.zxing:core:3.5.4") // QR encoder for the @qr command (Apache-2.0), core only, no scanner
 
     // test
     testImplementation(kotlin("test"))
