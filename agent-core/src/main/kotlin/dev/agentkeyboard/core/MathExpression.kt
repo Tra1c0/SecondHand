@@ -21,6 +21,8 @@ object MathExpression {
     const val MAX_FRACTION_DIGITS = 10
     private const val MAX_EXPONENT = 999
     private val MAX_MAGNITUDE = BigDecimal.TEN.pow(100)
+    /** Exact powers with more digits than this are computed with [CONTEXT] instead. */
+    private const val MAX_EXACT_DIGITS = 400L
 
     sealed interface Node
     data class Number(val text: String, val value: BigDecimal) : Node
@@ -94,6 +96,7 @@ object MathExpression {
     }
 
     private fun power(base: BigDecimal, exponent: BigDecimal, inexact: () -> Unit): BigDecimal {
+        if (base.signum() == 0 && exponent.signum() < 0) throw Fail(Reason.DIVISION_BY_ZERO)
         val whole = try { exponent.intValueExact() } catch (e: ArithmeticException) {
             // a fractional exponent: only roots of non-negative bases, computed in double precision
             if (exponent.abs() > BigDecimal(MAX_EXPONENT)) throw Fail(Reason.TOO_LARGE)
@@ -107,6 +110,11 @@ object MathExpression {
         if (whole >= 0) {
             // estimate the size first: 10^100^999 must not be computed
             if (base.abs() > BigDecimal.ONE && (base.precision() - base.scale() - 1).toLong() * whole > 100) throw Fail(Reason.TOO_LARGE)
+            // the digits grow with the exponent (0,99^999 has about 2000): beyond that compute rounded
+            if (base.precision().toLong() * whole > MAX_EXACT_DIGITS) {
+                inexact()
+                return base.pow(whole, CONTEXT)
+            }
             return base.pow(whole)
         }
         if (base.signum() == 0) throw Fail(Reason.DIVISION_BY_ZERO)
@@ -281,8 +289,10 @@ object MathExpression {
         is Binary -> when (node.operator) {
             '^' -> {
                 val exponent = superscript(node.right, locale)
-                if (unicode && exponent != null) plain(node.left, locale, true) + exponent
-                else plain(node.left, locale, unicode) + "^" + plain(node.right, locale, unicode)
+                val base = if (node.left is Binary && node.left.operator == '^') "(${plain(node.left, locale, unicode)})"
+                    else plain(node.left, locale, unicode)
+                if (unicode && exponent != null) base + exponent
+                else base + "^" + plain(node.right, locale, unicode)
             }
             '/' -> {
                 val fraction = if (unicode) unicodeFraction(node) else null
@@ -301,7 +311,11 @@ object MathExpression {
         is Percent -> latex(node.operand, locale) + "\\,\\%"
         is Root -> "\\sqrt{${latex(unwrap(node.operand), locale)}}"
         is Binary -> when (node.operator) {
-            '^' -> "${latex(node.left, locale)}^{${latex(unwrap(node.right), locale)}}"
+            '^' -> {
+                val base = if (node.left is Binary && node.left.operator == '^') "\\left(${latex(node.left, locale)}\\right)"
+                    else latex(node.left, locale)
+                "$base^{${latex(unwrap(node.right), locale)}}"
+            }
             '/' -> "\\frac{${latex(unwrap(node.left), locale)}}{${latex(unwrap(node.right), locale)}}"
             '*' -> "${latex(node.left, locale)} \\cdot ${latex(node.right, locale)}"
             '-' -> "${latex(node.left, locale)} - ${latex(node.right, locale)}"

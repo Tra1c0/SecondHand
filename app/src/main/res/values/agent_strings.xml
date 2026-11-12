@@ -346,4 +346,5 @@
     <string name="agent_command_math">Calculator: computes on the device and inserts the calculation, the result, LaTeX or x²/½ notation. %smath 12*3,5 starts with that calculation.</string>
     <string name="agent_command_math_open">Calculator</string>
     <string name="agent_command_math_insert">Insert %s</string>
+    <string name="agent_command_expired">The text before the cursor changed. Nothing was replaced.</string>
 </resources>

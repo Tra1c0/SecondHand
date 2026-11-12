@@ -61,6 +61,7 @@ class MathExpressionTest {
         assertEquals(Reason.TOO_LARGE, failure("9^999"))
         assertEquals(Reason.TOO_LARGE, failure("(10^90)*(10^20)"))
         assertEquals(BigDecimal.TEN.pow(90), value("10^90").value)
+        assertEquals(Reason.DIVISION_BY_ZERO, failure("0^-0,5"))
         assertEquals(Reason.TOO_LONG, failure("1+".repeat(101) + "1"))
     }
 
@@ -95,5 +96,22 @@ class MathExpressionTest {
         assertEquals(de, MathExpression.Locale.forLanguage("de"))
         assertEquals(de, MathExpression.Locale.forLanguage("es"))
         assertEquals(en, MathExpression.Locale.forLanguage("en"))
+    }
+
+    @Test fun hugePrecisionStaysCheap() {
+        val start = System.nanoTime()
+        val tiny = value("(0,99^999)^999")
+        assertFalse(tiny.exact)
+        assertEquals(BigDecimal.ZERO, tiny.value) // rounded to 10 places
+        assertFalse(value("(1,000000000000000000000000000000000000000000000000000000001^999)^99").exact)
+        assertTrue((System.nanoTime() - start) / 1_000_000 < 2000)
+        assertTrue(value("0,5^10").exact)
+    }
+
+    @Test fun powerOfPowerIsBracketed() {
+        assertEquals(BigDecimal(64), value("2²^3").value)
+        assertEquals("(2^2)^3 = 64", format("2²^3"))
+        assertEquals("(2²)³ = 64", format("2²^3", Style.UNICODE))
+        assertEquals("\\left(2^{2}\\right)^{3} = 64", format("2²^3", Style.LATEX))
     }
 }

@@ -163,13 +163,18 @@ public class LatinIME extends InputMethodService implements
     /** Stage 24: replaces a typed command after a tap on its chip; see InputLogic.replaceCommandText. */
     public ApplyOutcome replaceCommandText(final String expected, final String replacement, final int position) {
         if (mAgentEditorController.isBlockingInput() || position < 0) return ApplyOutcome.REJECTED;
-        return mInputLogic.replaceCommandText(expected, replacement, position);
+        final ApplyOutcome outcome = mInputLogic.replaceCommandText(expected, replacement, position);
+        // like an unclear replacement in the panel: block input until the editor reports its state (P3)
+        if (outcome == ApplyOutcome.UNKNOWN) mAgentEditorController.onUnclearEdit();
+        return outcome;
     }
     private boolean tryShowCommandChips() {
-        if (!hasSuggestionStripView()) return false;
+        if (!hasSuggestionStripView() || !onEvaluateInputViewShown()) return false;
         final View chips = helium314.keyboard.agent.KeyboardCommands.createChipsView(this, mSuggestionStripView);
         if (chips == null) return false;
         mSuggestionStripView.setExternalSuggestionView(chips, false);
+        // the chips live in the suggestion area, which an open toolbar would hide
+        mSuggestionStripView.setToolbarVisibility(false);
         return true;
     }
     public void onAgentTextSubmitted() {

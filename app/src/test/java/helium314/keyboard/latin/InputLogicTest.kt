@@ -829,6 +829,26 @@ class InputLogicTest {
         assertEquals("hi @ma", text)
     }
 
+    @Test fun typedCommandChipFromBeforeTheLastKeystrokeLeavesTheWordAlone() {
+        chainInput("hi @ma")
+        input('t') // the chips were built for "@ma" at 6
+        assertEquals(dev.agentkeyboard.core.ApplyOutcome.REJECTED, inputLogic.replaceCommandText("@ma", "@math ", 6))
+        assertEquals("hi @mat", text)
+        assertEquals("mat", composingText) // still composing, suggestions keep working
+        assertTrue(composer.isComposingWord)
+    }
+
+    @Test fun typedCommandIsKeptWhenTheEditorCursorMovedUnseen() {
+        setText("x @ma")
+        setCursorPosition(5)
+        // the app put text in front without the keyboard knowing yet: the relative text still matches
+        ShadowInputMethodService.text = "yyy x @ma"
+        ShadowInputMethodService.selectionStart = 9
+        ShadowInputMethodService.selectionEnd = 9
+        assertEquals(dev.agentkeyboard.core.ApplyOutcome.REJECTED, inputLogic.replaceCommandText("@ma", "@math ", 5))
+        assertEquals("yyy x @ma", text)
+    }
+
     @Test fun generatedInsertionIsRefusedWhileAWordIsBeingComposed() {
         chainInput("hel")
         assertEquals("hel", composingText)

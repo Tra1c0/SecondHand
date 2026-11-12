@@ -427,18 +427,30 @@ public final class RichInputConnection implements PrivateCommandPerformer {
             connection.beginBatchEdit();
             // read from the editor, not from the cache: the app may have changed the text meanwhile
             final CharSequence before = connection.getTextBeforeCursor(expected.length(), 0);
-            if (before != null && TextUtils.equals(expected, before.toString())) {
+            if (before != null && TextUtils.equals(expected, before.toString())
+                    && editorCursorMatches(connection, position)) {
                 final CharSequence selected = connection.getSelectedText(0);
                 if (selected == null || selected.length() == 0) {
                     attempted = true;
                     // a composing region plus commitText is one replacement, never delete plus insert
                     accepted = connection.setComposingRegion(start, position)
                             && connection.commitText(replacement, 1);
+                    // an editor that ignored the region would have inserted instead of replaced
+                    if (accepted) {
+                        final CharSequence after = connection.getTextBeforeCursor(replacement.length(), 0);
+                        if (after == null || !TextUtils.equals(replacement, after.toString())
+                                || !editorCursorMatches(connection, start + replacement.length()))
+                            uncertain = true;
+                    }
                 }
             }
         } catch (RuntimeException ignored) {
             uncertain = attempted;
         } finally {
+            // never leave a composing region over the command: the next typed letter would replace it (P25)
+            if (attempted && (!accepted || uncertain)) {
+                try { connection.finishComposingText(); } catch (RuntimeException ignored) { }
+            }
             try { connection.endBatchEdit(); }
             catch (RuntimeException ignored) { uncertain = attempted; }
         }
@@ -456,6 +468,20 @@ public final class RichInputConnection implements PrivateCommandPerformer {
         }
         if (uncertain) clearUncertainGeneratedTextCaches();
         return uncertain ? ApplyOutcome.UNKNOWN : ApplyOutcome.SUBMITTED;
+    }
+
+    /**
+     * The absolute cursor the editor reports, where it reports one: the replacement uses absolute
+     * positions, so a cursor that moved without the keyboard knowing yet must not pass. Editors
+     * without extracted text are trusted with the relative check alone.
+     */
+    private static boolean editorCursorMatches(final InputConnection connection, final int position) {
+        final ExtractedTextRequest request = new ExtractedTextRequest();
+        request.hintMaxChars = 1;
+        final ExtractedText extracted = connection.getExtractedText(request, 0);
+        if (extracted == null) return true;
+        return extracted.selectionStart + extracted.startOffset == position
+                && extracted.selectionEnd + extracted.startOffset == position;
     }
 
     private void clearUncertainGeneratedTextCaches() {

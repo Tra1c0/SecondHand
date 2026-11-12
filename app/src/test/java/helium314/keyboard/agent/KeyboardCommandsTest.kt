@@ -57,6 +57,7 @@ class KeyboardCommandsTest {
             return true
         }
         override fun openCalculator(initial: String): Boolean { calculators += initial; return true }
+        override var canOpenCalculator = true
     }
 
     @Before fun setUp() {
@@ -92,6 +93,8 @@ class KeyboardCommandsTest {
     }
 
     @Test fun passwordFieldsAndSwitchedOffCommandsShowNothing() {
+        assertNull(find("@math", EditorInfo().apply { inputType = InputType.TYPE_CLASS_NUMBER }))
+        assertNull(find("@math", EditorInfo().apply { inputType = InputType.TYPE_CLASS_PHONE }))
         assertNull(find("@math", EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD }))
         assertNull(find("@math", EditorInfo().apply { inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD }))
         assertNull(KeyboardCommands.find("@math", null, text))
@@ -155,5 +158,9 @@ class KeyboardCommandsTest {
         replaceWorks = false
         KeyboardCommands.chipsFor(find("@math") as CommandCall, host).single().onTap()
         assertEquals(1, calculators.size)
+        // without a calculator (or while input is blocked) there is no chip that would delete the command
+        replaceWorks = true
+        host.canOpenCalculator = false
+        assertTrue(KeyboardCommands.chipsFor(find("@math") as CommandCall, host).isEmpty())
     }
 }

@@ -1219,6 +1219,46 @@ APK installiert war: weiterhin kein Gerätelauf.
 - Nicht geprüft: die echte Abfrage des Medienspeichers, der Berechtigungsdialog und das
   Einfügen in einer echten App. Dafür braucht es einen Gerätetest.
 
+## Etappe24a und 24b — getippte Befehle und `@math`
+
+- `CommandSyntaxTest`: Präfix allein, angefangener Name, vollständiger Name mit und ohne
+  Argument, Groß- und Kleinschreibung; keine Auslösung bei E-Mail-Adressen, Erwähnungen,
+  längeren Wörtern, über Zeilen hinweg und bei Worttrenner-Präfixen; Längengrenzen.
+- `MathExpressionTest`: exakte Dezimalrechnung (0,1 + 0,2 = 0,3), Rangfolge, Vorzeichen, `^`
+  rechtsassoziativ, `%`, `√`, `²`; gerundete Ergebnisse mit „≈“; Fehler (Syntax, Division
+  durch null, negative Wurzel, zu groß, zu lang); vier Ausgaben, Komma/Punkt, Gruppierung;
+  Potenz einer Potenz geklammert; `(0,99^999)^999` wird gerundet statt Millionen Stellen zu
+  rechnen.
+- `KeyboardCommandsTest`: Namens-Chips vervollständigen, ein Befehl handelt erst beim Tipp;
+  keine Befehle in Passwort-, Zahlen- und Telefonfeldern oder ohne Einstellungen; abgeschaltete
+  Befehle und Hauptschalter; eigener Präfix, ungültiger gespeicherter Präfix fällt auf `@`
+  zurück; `@math` bietet das Ergebnis im gemerkten Format und den Rechner, ohne Rechner keinen
+  Chip, der den Befehl löscht.
+- `CalculatorViewTest`: Start mit der getippten Rechnung, Einfügen nur auf Tipp, Tasten,
+  Löschen, Leeren, Fehlermeldung, Wahl und Merken der Ausgabe, englischer Dezimalpunkt.
+- `InputLogicTest.typedCommand*`: Ersetzen in einem Commit während eines getippten Worts, ohne
+  das Lernen abzuschalten; Ablehnung bei anderem Text, anderer Position, Auswahl, einem Chip von
+  vor dem letzten Tastendruck (das Wort bleibt im Entstehen) und unbemerkt verschobener
+  Schreibmarke.
+- `CommandReplaceTest` (echtes `Editable`): genau ein Commit, Löschen mit leerem Ersatz, nie
+  fremder Text; ein Editor, der den Bereich ignoriert, ergibt UNKNOWN; nach einem
+  gescheiterten Commit bleibt kein Composing-Bereich über dem Befehl.
+- Test-Attrappe korrigiert: `Shadows.kt` lieferte bei `getTextBeforeCursor(n)` die ersten statt
+  der letzten n Zeichen. Die übrigen `InputLogicTest`-Fälle laufen unverändert (nur der
+  bekannte Hangul-Fehler).
+- Prüfer (Engine, Datenschutz, Rechenkern): ein hoher Befund (ungebremste Stellenzahl exakter
+  Potenzen konnte die Tastatur einfrieren), drei mittlere (UNKNOWN sperrte die Eingabe nicht und
+  konnte einen Composing-Bereich über dem Befehl lassen; absolute Position nicht geprüft; ein
+  veralteter Chip beendete das getippte Wort vor der Prüfung), dazu niedrige: Schutz vor
+  Autokorrektur nur noch für Befehle, deren Argument Text ist (`@math` nicht); Chips auch bei
+  offener Toolbar sichtbar und nur bei sichtbarer Tastatur; Potenz einer Potenz geklammert;
+  `0^-0,5` ist Division durch null; kein „Rechner“-Chip, wenn er nicht öffnen kann; nur
+  Textfelder; Ergebnis für TalkBack als Live-Region. Alle behoben und getestet, wo testbar.
+  Bewusst offen: ein Komma gilt auch bei englischer Sprache als Dezimalzeichen (`1,000` = 1);
+  der Chip zeigt das Ergebnis vor dem Tipp.
+- Nicht geprüft: alles auf einem Gerät (Leiste mit Chips, Rechner über der Navigationsleiste,
+  Querformat, TalkBack, Einfügen in echten Apps, WebView).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

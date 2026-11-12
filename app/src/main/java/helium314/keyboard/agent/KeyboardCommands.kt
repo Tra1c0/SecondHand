@@ -51,6 +51,7 @@ object KeyboardCommands {
         fun replace(command: CommandContext, replacement: String): Boolean
         /** Shows the calculator in place of the keys (stage 24b). */
         fun openCalculator(initial: String): Boolean
+        val canOpenCalculator: Boolean
     }
 
     /** A built-in command. Commands never come from files or models. */
@@ -59,6 +60,8 @@ object KeyboardCommands {
         val name: String
         /** One line for the settings page. */
         fun description(context: Context): String
+        /** True if the words of the argument are text the user writes and must not be autocorrected. */
+        val protectsArgument: Boolean get() = false
         /** The chips for a complete command; empty to show nothing (then the normal strip stays). */
         fun chips(host: Host, call: CommandCall): List<Chip>
     }
@@ -125,6 +128,8 @@ object KeyboardCommands {
     fun isBlocked(settings: SettingsValues?, editorInfo: EditorInfo?): Boolean {
         if (settings == null || settings.mIncognitoModeEnabled || settings.mIsLocked) return true
         val inputType = editorInfo?.inputType ?: return true
+        // only text fields: the insertion checks refuse anything else anyway
+        if (inputType and android.text.InputType.TYPE_MASK_CLASS != android.text.InputType.TYPE_CLASS_TEXT) return true
         return InputTypeUtils.isAnyPasswordInputType(inputType)
     }
 
@@ -143,15 +148,20 @@ object KeyboardCommands {
         val cursor = ime.agentCommandCursor
         val context = if (cursor < 0) null
             else find(ime.getAgentTextBeforeCursor(CommandSyntax.LOOKBACK + 1), Settings.getValues(), ime.currentInputEditorInfo)
-        inCommand = context is CommandCall
+        inCommand = context is CommandCall && registry.firstOrNull { it.name == context.name }?.protectsArgument == true
         context ?: return null
         val host = object : Host {
             override val context: Context get() = ime
             override val editorInfo: EditorInfo? get() = ime.currentInputEditorInfo
             override val language: String get() = Settings.getValues()?.mLocale?.language.orEmpty()
-            override fun replace(command: CommandContext, replacement: String) =
-                ime.replaceCommandText(command.text, replacement, cursor) == ApplyOutcome.SUBMITTED
+            override fun replace(command: CommandContext, replacement: String): Boolean {
+                val outcome = ime.replaceCommandText(command.text, replacement, cursor)
+                if (outcome == ApplyOutcome.REJECTED)
+                    android.widget.Toast.makeText(ime, R.string.agent_command_expired, android.widget.Toast.LENGTH_SHORT).show()
+                return outcome == ApplyOutcome.SUBMITTED
+            }
             override fun openCalculator(initial: String) = ime.agentEditorController.openCalculator(initial)
+            override val canOpenCalculator: Boolean get() = ime.agentEditorController.canOpenCalculator
         }
         val chips = chipsFor(context, host)
         if (chips.isEmpty()) return null
@@ -224,8 +234,9 @@ object MathCommand : KeyboardCommands.Command {
             val text = MathExpression.format(outcome, storedStyle(host.context), MathExpression.Locale.forLanguage(host.language))
             chips += KeyboardCommands.Chip(text, host.context.getString(R.string.agent_command_math_insert, text)) { host.replace(call, text) }
         }
-        chips += KeyboardCommands.Chip(host.context.getString(R.string.agent_command_math_open)) {
-            if (host.replace(call, "")) host.openCalculator(call.argument)
+        // without a calculator to open, the command text stays
+        if (host.canOpenCalculator) chips += KeyboardCommands.Chip(host.context.getString(R.string.agent_command_math_open)) {
+            if (host.canOpenCalculator && host.replace(call, "")) host.openCalculator(call.argument)
         }
         return chips
     }

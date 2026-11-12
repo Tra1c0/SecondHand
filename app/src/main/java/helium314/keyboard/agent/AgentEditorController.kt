@@ -230,6 +230,16 @@ class AgentEditorController @JvmOverloads constructor(
         }
     }
 
+    /** An edit outside the panel (a typed command) ended unclear: block input until the editor reports (P3). */
+    fun onUnclearEdit() {
+        needsCursorRefresh = true
+        Toast.makeText(ime, R.string.agent_panel_apply_unknown, Toast.LENGTH_LONG).show()
+        runCatching { ime.currentInputConnection?.requestCursorUpdates(InputConnection.CURSOR_UPDATE_IMMEDIATE) }
+    }
+
+    /** Whether [openCalculator] would open now. */
+    val canOpenCalculator: Boolean get() = calculator != null && !needsCursorRefresh
+
     /** Stage 24b: the calculator of `@math` in place of the keys, starting with [initial]. */
     fun openCalculator(initial: String): Boolean {
         val target = calculator ?: return false

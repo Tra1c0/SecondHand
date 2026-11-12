@@ -160,6 +160,11 @@ public final class InputLogic {
      */
     public ApplyOutcome replaceCommandText(final String expected, final String replacement, final int position) {
         if (mInputLogicHandler.hasPendingBatchInput()) return ApplyOutcome.REJECTED;
+        // a chip built before the last keystroke: refuse before touching the word being typed
+        if (expected.isEmpty() || position != mConnection.getExpectedSelectionStart() || mConnection.hasSelection())
+            return ApplyOutcome.REJECTED;
+        final CharSequence cached = mConnection.getTextBeforeCursor(expected.length(), 0);
+        if (cached == null || !TextUtils.equals(expected, cached.toString())) return ApplyOutcome.REJECTED;
         if (mWordComposer.isComposingWord()) {
             if (mWordComposer.isCursorFrontOrMiddleOfComposingWord()) return ApplyOutcome.REJECTED;
             mConnection.beginBatchEdit();

@@ -72,6 +72,7 @@ class CalculatorView @JvmOverloads constructor(context: Context, attrs: Attribut
         addView(input, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
         preview = TextView(context).apply {
             id = R.id.agent_calculator_preview
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
             setTextColor(textColor)
             alpha = 0.75f
             setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16f)
