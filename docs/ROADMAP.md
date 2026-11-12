@@ -46,7 +46,7 @@ Folgende ist die Entscheidung des Leads.
     Gegenübers. Für fremde Nachrichten: Nachricht kopieren, dann Leertaste halten.
 - **23 Gboard-Details und moderne Oberfläche (Auftrag des Owners vom 2026-11-12, mit Screenshots).**
   - 23a ist gebaut (siehe FEATURES.md).
-  - 23b Zuletzt benutzte Emojis in der Leiste, solange eine Symbolseite offen ist. (S)
+  - 23b ist gebaut (siehe FEATURES.md).
   - 23c Laufschrift für abgeschnittene Texte in den Menü-Pillen. (S)
   - 23d Screenshot-Pille: ein neuer Screenshot erscheint in der Leiste, ein Tipp fügt ihn ein;
     braucht Zugriff auf Bilder, opt-in. (M)

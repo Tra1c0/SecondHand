@@ -127,6 +127,24 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     private var direction = 1 // 1 if LTR, -1 if RTL
     /** In the Flat style the pinned keys stay visible beside the toolbar, see [FlatStrip]. */
     private val flatStyle = FlatStyle.isActive(Settings.getValues().mColors)
+    /** Flat style: recent emojis shown instead of tools and words while a symbol page is open (stage 23b). */
+    private var emojiRow: android.view.ViewGroup? = null
+    private var toolbarBeforeEmojis = false
+
+    /** Shows the recent emojis while a symbol page is open, and the previous strip afterwards. */
+    fun showRecentEmojis(show: Boolean) {
+        val row = emojiRow ?: return
+        if (show == row.isVisible) return
+        if (show) {
+            toolbarBeforeEmojis = toolbarContainer.isVisible
+            FlatStrip.fillEmojiRow(row, FlatStrip.emojisToShow(runCatching { helium314.keyboard.keyboard.emoji.RecentEmojis.get() }.getOrDefault(emptyList())))
+            row.isVisible = true
+            setToolbarVisibility(toolbarBeforeEmojis)
+        } else {
+            row.isVisible = false
+            setToolbarVisibility(toolbarBeforeEmojis)
+        }
+    }
 
     private val toolbarKeyLayoutParams = LinearLayout.LayoutParams(
         resources.getDimensionPixelSize(R.dimen.config_suggestions_strip_edge_key_width),
@@ -178,8 +196,13 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             // todo: results in requestLayout() improperly called by android.widget.LinearLayout during layout: running second layout pass
             toolbar.minimumWidth = toolbarContainer.width
         }
-        if (flatStyle)
+        if (flatStyle) {
             FlatStrip.arrange(this, findViewById(R.id.suggestions_strip_wrapper), toolbarExpandKey, toolbarContainer, toolbar, pinnedKeys)
+            emojiRow = FlatStrip.createEmojiRow(findViewById(R.id.suggestions_strip_wrapper), toolbarContainer) { emoji ->
+                if (::listener.isInitialized) (listener as? helium314.keyboard.latin.LatinIME)?.onTextInput(emoji)
+                runCatching { helium314.keyboard.keyboard.emoji.RecentEmojis.add(emoji) }
+            }
+        }
 
         updateKeys()
     }
@@ -233,9 +256,10 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     }
 
     fun setToolbarVisibility(toolbarVisible: Boolean) {
+        val emojis = emojiRow?.isVisible == true // stage 23b: neither tools nor words while emojis are shown
         pinnedKeys.isVisible = !toolbarVisible || flatStyle
-        suggestionsStrip.isVisible = !toolbarVisible
-        toolbarContainer.isVisible = toolbarVisible
+        suggestionsStrip.isVisible = !toolbarVisible && !emojis
+        toolbarContainer.isVisible = toolbarVisible && !emojis
 
         if (DEBUG_SUGGESTIONS) {
             for (view in debugInfoViews) {

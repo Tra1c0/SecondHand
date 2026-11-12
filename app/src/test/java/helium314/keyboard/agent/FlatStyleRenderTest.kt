@@ -192,6 +192,41 @@ class FlatStyleRenderTest {
         }
     }
 
+    @Test fun symbolPagesShowRecentEmojisInsteadOfTheTools() {
+        val context = ContextThemeWrapper(latinIME, R.style.KeyboardTheme_Flat)
+        KeyboardIconsSet.instance.loadIcons(context)
+        helium314.keyboard.keyboard.emoji.RecentEmojis.set(listOf("🤠", "👍"))
+        val container = LayoutInflater.from(context).inflate(R.layout.strip_container, null) as ViewGroup
+        val strip = container.findViewById<SuggestionStripView>(R.id.suggestion_strip_view)
+        strip.setToolbarVisibility(true)
+        val toolbar = strip.findViewById<View>(R.id.toolbar_container)
+        val emojis = strip.findViewById<ViewGroup>(R.id.agent_strip_emojis)
+        assertEquals(View.GONE, emojis.visibility)
+
+        strip.showRecentEmojis(true)
+        assertEquals(View.VISIBLE, emojis.visibility)
+        assertEquals(View.GONE, toolbar.visibility)
+        val shown = (0 until emojis.childCount).map(emojis::getChildAt).filterIsInstance<android.widget.TextView>().map { it.text.toString() }
+        assertEquals(listOf("🤠", "👍", "😂", "❤️", "🙏", "😊"), shown) // recent first, then defaults without the duplicate
+        assertEquals(View.VISIBLE, strip.findViewById<View>(R.id.suggestions_strip_toolbar_key).visibility) // menu stays
+        assertEquals(View.VISIBLE, strip.findViewById<View>(R.id.pinned_keys).visibility) // dictation stays
+        strip.setToolbarVisibility(true) // e.g. the strip went neutral: the emojis stay
+        assertEquals(View.GONE, toolbar.visibility)
+        container.measure(View.MeasureSpec.makeMeasureSpec(WIDTH, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(130, View.MeasureSpec.EXACTLY))
+        container.layout(0, 0, WIDTH, 130)
+        val picture = Bitmap.createBitmap(WIDTH, 130, Bitmap.Config.ARGB_8888)
+        container.draw(Canvas(picture))
+        save(picture, "strip-emojis.png")
+
+        // tapping an emoji moves it to the front of the recent ones
+        (0 until emojis.childCount).map(emojis::getChildAt).filterIsInstance<android.widget.TextView>()[2].performClick()
+        assertEquals("😂", helium314.keyboard.keyboard.emoji.RecentEmojis.get().first())
+
+        strip.showRecentEmojis(false)
+        assertEquals(View.GONE, emojis.visibility)
+        assertEquals(View.VISIBLE, toolbar.visibility) // back as before
+    }
+
     @Test fun toolbarSwitchThatIsOffIsDrawnDarker() {
         val context = ContextThemeWrapper(latinIME, R.style.KeyboardTheme_Flat)
         val key = ImageButton(context, null, 0)

@@ -15,6 +15,7 @@ import android.widget.LinearLayout
 import android.widget.Space
 import androidx.core.content.ContextCompat
 import androidx.core.view.children
+import androidx.core.view.isVisible
 import helium314.keyboard.agent.AgentPreferences
 import helium314.keyboard.agent.FlatMenuView
 import helium314.keyboard.keyboard.FlatStyle
@@ -96,6 +97,52 @@ internal object FlatStrip {
         val size = Math.round(BUTTON_DP * original.resources.displayMetrics.density)
         setButtonSize(copy, size)
         setButtonSize(original, size)
+    }
+
+    // ---- recent emojis while a symbol page is shown (stage 23b) ----
+
+    const val EMOJI_SLOTS = 6
+    /** Shown when fewer emojis were used so far. */
+    val DEFAULT_EMOJIS = listOf("👍", "😂", "❤️", "🙏", "😊", "🔥")
+
+    /** A row of [EMOJI_SLOTS] emoji buttons spread like the toolbar keys; added once, filled on show. */
+    fun createEmojiRow(wrapper: ViewGroup, toolbarContainer: View, onPick: (String) -> Unit): LinearLayout {
+        val context = wrapper.context
+        val density = context.resources.displayMetrics.density
+        val row = LinearLayout(context).apply {
+            id = R.id.agent_strip_emojis
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            visibility = View.GONE
+        }
+        row.addView(Space(context), LinearLayout.LayoutParams(0, 0, 1f))
+        repeat(EMOJI_SLOTS) {
+            val button = android.widget.TextView(context).apply {
+                gravity = android.view.Gravity.CENTER
+                setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 24f)
+                isSoundEffectsEnabled = false
+                setOnClickListener { v -> (v as android.widget.TextView).text?.toString()?.takeIf { it.isNotEmpty() }?.let(onPick) }
+            }
+            row.addView(button, LinearLayout.LayoutParams(Math.round(BUTTON_DP * density), LinearLayout.LayoutParams.MATCH_PARENT))
+            row.addView(Space(context), LinearLayout.LayoutParams(0, 0, 1f))
+        }
+        wrapper.addView(row, wrapper.indexOfChild(toolbarContainer) + 1, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
+        return row
+    }
+
+    /** The emojis to show: recently used first, then defaults, without duplicates. */
+    fun emojisToShow(recent: List<String>): List<String> =
+        (recent + DEFAULT_EMOJIS).distinct().take(EMOJI_SLOTS)
+
+    fun fillEmojiRow(row: ViewGroup, emojis: List<String>) {
+        var slot = 0
+        for (i in 0 until row.childCount) {
+            val child = row.getChildAt(i) as? android.widget.TextView ?: continue
+            val emoji = emojis.getOrNull(slot++)
+            child.text = emoji ?: ""
+            child.contentDescription = emoji
+            child.isVisible = emoji != null
+        }
     }
 
     // ---- menu behind the left key ----

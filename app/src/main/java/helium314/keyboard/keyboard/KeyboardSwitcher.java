@@ -764,6 +764,9 @@ public final class KeyboardSwitcher {
             Keyboard oldKeyboard = keyboardView.getKeyboard();
             Keyboard newKeyboard = mKeyboardLayoutSet.getKeyboard(keyboardElement);
             keyboardView.setKeyboard(newKeyboard);
+            // fork, stage 23b: the Flat strip shows recent emojis on the symbol pages
+            if (mSuggestionStripView != null) mSuggestionStripView.showRecentEmojis(
+                    keyboardElement == KeyboardElement.SYMBOLS || keyboardElement == KeyboardElement.SYMBOLS_SHIFTED);
             mCurrentInputView.setKeyboardTopPadding(newKeyboard.mTopPadding);
             keyboardView.setKeyPreviewPopupEnabled(currentSettingsValues.mKeyPreviewPopupOn);
             keyboardView.updateShortcutKey(mRichImm.isShortcutImeReady());

@@ -47,3 +47,7 @@
   unsichtbaren Trefferflächen der Buchstaben ein Stück dorthin, wo du wirklich tippst.
 - Behoben: „Gelernte Wörter löschen“ löscht jetzt auch gelernte Tippfehler, gemerkte Korrekturen
   und Trefferzonen.
+- Neu im flachen Look: Symbolseiten wie bei Gboard (Seite 1 `@ # € _ & - + ( ) /`, Seite 2 mit
+  `~ | • √ π ÷ × § Δ`, `< >` und der Taste „1234“).
+- Neu im flachen Look: Auf den Symbolseiten zeigt die Leiste deine zuletzt benutzten Emojis; ein
+  Tipp fügt sie ein.

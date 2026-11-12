@@ -1173,6 +1173,16 @@ APK installiert war: weiterhin kein Gerätelauf.
   1234-Taste hell, keine Pfeiltaste; je vier Reihen. `FlatStyleTest` prüft weiter die Hinweise
   der Buchstaben (q zeigt %). `ParserTest` (Upstream) unverändert grün.
 
+## Etappe23b — Emojis in der Leiste auf den Symbolseiten
+
+- `FlatStyleRenderTest.symbolPagesShowRecentEmojisInsteadOfTheTools`: Reihe zunächst versteckt;
+  mit `showRecentEmojis(true)` sichtbar, Toolbar weg, Inhalt zuerst die zuletzt benutzten
+  Emojis, dann die Standardliste ohne Doppelte; Menü-Taste und angeheftete Tasten bleiben; ein
+  erneutes `setToolbarVisibility(true)` holt die Toolbar nicht zurück; ein Tipp rückt das Emoji
+  in `RecentEmojis` nach vorn; `showRecentEmojis(false)` stellt die Toolbar wieder her. Bild
+  `strip-emojis.png` gerendert. Das Umschalten in `KeyboardSwitcher` ist nur durch den Build
+  geprüft, nicht auf einem Gerät.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

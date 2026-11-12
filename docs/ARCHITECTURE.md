@@ -200,7 +200,12 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
 - `SuggestionStripView.kt`: im flachen Stil ordnet `FlatStrip.arrange` die Leiste, angeheftete
   Tasten bleiben neben der Toolbar sichtbar, die linke Taste öffnet das Menü
   (`FlatStrip.toggleMenu`) statt zwischen Toolbar und Vorschlägen zu wechseln, jede
-  Toolbar-Taste schließt es.
+  Toolbar-Taste schließt es. Auf den Symbolseiten zeigt `showRecentEmojis` statt der Werkzeuge
+  eine Reihe mit sechs zuletzt benutzten Emojis (`FlatStrip.createEmojiRow`, aufgefüllt mit
+  `FlatStrip.DEFAULT_EMOJIS`); ein Tipp fügt über `LatinIME.onTextInput` ein und ruft
+  `RecentEmojis.add`.
+- `KeyboardSwitcher.java`: `setKeyboard` meldet der Leiste, ob eine Symbolseite (SYMBOLS oder
+  SYMBOLS_SHIFTED) offen ist (`showRecentEmojis`); ohne flachen Stil gibt es die Reihe nicht.
 - Zwischenablage: `ClipboardHistoryView.kt` (im flachen Stil Kopfzeile, Abschnittstitel, Liste
   bis zum unteren Rand, keine untere Tastenreihe, keine Hardware-Ebene), `ClipboardAdapter.kt`
   (Kartenstil, quadratische Bilder), `ClipboardHistoryEntry.kt` und `ClipboardHistoryManager.kt`
@@ -750,7 +755,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (213 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (214 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -781,8 +786,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   ModelProvider, PendingBatchGate, Profiles, SkillBinding, TextCondition, Tool, Workflow
 - `CT/` (8): AiTextActionTest, EditorPolicyTest, InsertionAnchorTest, LocalTextActionsTest,
   PendingBatchGateTest, SkillBindingTest, ToolTest, WorkflowTest
-- `K/keyboard/` (9): FlatStyle, Key, KeyDetector, KeyboardActionListener,
-  KeyboardActionListenerImpl, KeyboardTheme, KeyboardView, MainKeyboardView, PointerTracker
+- `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,
+  KeyboardActionListenerImpl, KeyboardSwitcher, KeyboardTheme, KeyboardView, MainKeyboardView,
+  PointerTracker
 - `K/keyboard/clipboard/` (3): ClipboardAdapter, ClipboardHistoryView, FlatClipboard
 - `K/keyboard/emoji/` (1): EmojiSearchActivity
 - `K/keyboard/internal/` (1): KeyboardIconsSet
