@@ -192,7 +192,8 @@ Befehle (Etappe 24a, Details im Abschnitt „Befehle“):
 - `LatinIME.java`: `setSuggestedWords` und `setNeutralSuggestionStrip` zeigen zuerst die Chips
   eines getippten Befehls (`tryShowCommandChips`); `getAgentTextBeforeCursor`,
   `getAgentCommandCursor`, `replaceCommandText` für `KeyboardCommands`;
-  `onStartInputViewInternal` lädt die Befehlseinstellungen.
+  `onStartInputViewInternal` lädt die Befehlseinstellungen; `onCreate`/`onDestroy` hängen
+  `SensitiveClips.attach` an die Zwischenablage (eigener Listener, der Verlauf bleibt unverändert).
 - `Suggest.kt`: keine automatische Korrektur für ein Befehlswort und, solange ein vollständiger
   Befehl vor der Schreibmarke steht, für die Wörter seines Arguments
   (`KeyboardCommands.suppressesCorrection`); ebenso keine gelernte Korrektur.
@@ -267,7 +268,8 @@ Speicher, Datenschutz und Identität:
 - `SearchScreen.kt` (23e): optionaler Parameter `largeTitle` vor `content` (Fallstrick P46) und
   `LARGE_TITLE_BAR_TAG`; ohne ihn unverändert.
 - `AppearanceScreen.kt` (23f1): Eintrag „Design“ als erstes Element. `KeyboardTheme.kt`:
-  `getPreviewColors` für die Kacheln.
+  `getPreviewColors` für die Kacheln (`withBackgroundImage = false`: kein Dekodieren des
+  Hintergrundbilds je Kachel).
 - `AndroidManifest.xml` (24e): Dienst `ScreenReaderService` mit `BIND_ACCESSIBILITY_SERVICE`.
 - App-Identität: `app/build.gradle.kts` (App-ID `dev.personal.agentkeyboard`, Version 0.1.0,
   APK-Name, Lint-Baseline `lint-baseline-upstream.xml`), `settings.gradle`
@@ -455,7 +457,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Schreibmarke (Name angefangen oder vollständig ohne Argument, oder Argument eines Befehls mit
   `protectsArgument`). `InputLogic` prüft das beim Lernen direkt; für `Suggest` (Worker-Thread)
   setzt `updateGuard` bei jeder Leistenaktualisierung ein `@Volatile`-Flag, auch ohne sichtbare
-  Leiste.
+  Leiste. Steht dabei kein Befehl vor der Schreibmarke (oder ist Text markiert), ruft `updateGuard`
+  `forget()`: Gefundenes bleibt auch ohne Leiste nicht im Speicher. Liefert ein Neuaufbau
+  (`Host.refresh`) keine Chips mehr, zeigt die Leiste wieder ihren Normalzustand
+  (`setNeutralSuggestionStrip`) statt der alten Zeile.
 - Ersetzen (`RichInputConnection.replaceTextBeforeCursorIfUnchanged`): vorher relativer Text und,
   wo der Editor es meldet, die absolute Schreibmarke (`getExtractedText`); nachher das Zeichen
   vor dem Befehl plus Ersatz und wieder die Schreibmarke, sonst UNKNOWN. UNKNOWN sperrt die
@@ -493,16 +498,22 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   - `A/ContactCommand.kt` (`@contact`): `rank` (gleich, beginnt mit, Wortanfänge, enthält; höchstens
     6), austauschbare `source`, echte Quelle `PhoneContacts` (`ContactsContract`, Projektion und
     Grenzen 30/20, keine Logs von Namen oder Nummern), Feldauswahl nur für denselben Befehlstext an
-    derselben Schreibmarke (`Host.cursor`, `Host.refresh`). Berechtigung `READ_CONTACTS` steht
+    derselben Schreibmarke (`Host.cursor`, `Host.refresh`). Abfragen nie auf dem Main-Thread:
+    `Worker` (`BackgroundWorker`, ein Hintergrund-Thread), Name 150 ms nach dem letzten Tastendruck
+    (`DEBOUNCE_MS`, ein neuer Tastendruck bricht ab), Felder sofort; das Ergebnis kommt über
+    `Host.showChips`, nur wenn derselbe Befehl noch vor derselben Schreibmarke steht; `reset` erhöht
+    eine Generation, späte Antworten verfallen. Bis dahin bleiben die alten Treffer, die noch passen. Berechtigung `READ_CONTACTS` steht
     schon im Upstream-Manifest und gilt auch für das Kontakte-Wörterbuch.
   - `A/commands/UrlCommand.kt` und `C/UrlDetector.kt` (`@url`): strenge Erkennung (http/https
     oder bekannte Endung, keine Dateinamen, Versionen, Benutzerdaten); Vorschläge aus
     Zwischenablage (nur Text, nicht sensibel), Feld vor und nach der Schreibmarke (je 2000
-    Zeichen); Öffnen vor Entfernen (P43). `A/commands/ScreenReaderService.kt`: Bedienungshilfe-
+    Zeichen), einmal je Befehlstext und Schreibmarke gelesen (Cache, `reset`); Öffnen vor Entfernen
+    (P43). `A/commands/ScreenReaderService.kt`: Bedienungshilfe-
     Dienst ohne abonnierte Ereignisse (`res/xml/agent_screen_reader.xml`, Fallstrick P44), liest
     nur nach einem Tipp einmal die App-Fenster, überspringt Passwort-, sensible und eigene
     Knoten, höchstens 3000 Knoten/20 000 Zeichen; Brücke über ein statisches `connected` im
-    selben Prozess; Ergebnis über `Host.showChips` (nur solange dieselbe Chip-Zeile steht).
+    selben Prozess; Ergebnis über `Host.showChips` (nur solange dieselbe Chip-Zeile steht), ohne
+    Adressen, die die Zeile schon zeigt.
     Einstellungen: `K/settings/screens/AgentScreenReaderSection.kt`.
   - `A/SearchCommand.kt` (`@such`, `ACTION_WEB_SEARCH`, sonst DuckDuckGo; austauschbarer
     `launcher`), `A/CharacterCommand.kt` (`@zeichen`, `C/SpecialCharacters.kt`),
@@ -512,15 +523,26 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     US-Maße, „Pfund“ = lb).
   - `A/commands/SnipCommand.kt` und `A/commands/SnippetStore.kt` (`@snip`, CE-Datei,
     Einstellungen `K/settings/screens/AgentSnippetsSection.kt`), `A/commands/ClipCommand.kt`
-    (`@clip`, nur mit eingeschaltetem Verlauf, nur Text; nur der aktuelle Clip ist als vertraulich
-    erkennbar), `A/commands/WorkflowCommand.kt` (`@wf`, `Host.openWorkflow` →
-    `AgentEditorController.openWorkflow`, wie eine Skill-Taste; ändert das Feld nicht).
+    (`@clip`, nur mit eingeschaltetem Verlauf, nur Text; überspringt den aktuellen vertraulichen Clip
+    und alles, was `A/commands/SensitiveClips.kt` als vertraulich kopiert vermerkt hat: eigener
+    Zwischenablage-Listener aus `LatinIME`, Markierung `IS_SENSITIVE` oder Passwortfeld als
+    aktueller Editor, gesalzene SHA-256 in DE-Einstellungen, Speicher: `docs/STORAGE.md`; vor
+    diesem Stand kopierte Clips bleiben unerkannt), `A/commands/WorkflowCommand.kt` (`@wf`,
+    `Host.openWorkflow` → `AgentEditorController.openWorkflow`; ändert das Feld nicht; `false`
+    ergibt einen Toast). Ohne Auswahl (`NO_SELECTION`/`COMPOSITION`, `WAITS_FOR_SELECTION`) merkt
+    sich der Controller nur die ID (`chosenWorkflowId`) und zeigt „Workflow vorgemerkt“; das
+    nächste `open()` (Stift, Rad ohne Aktion) mit Auswahl bereitet ihn wie eine Skill-Taste vor
+    (`prepareStoredWorkflow`, Freigabe wie immer) und verbraucht die Wahl. Verworfen bei
+    `startEditor`/`finishEditor` und bei jeder anderen Ablehnung (Inkognito, Sperre, Passwortfeld);
+    Schließen des Panels behält sie. Interne Öffner (Rad mit Aktion, Skill-Tasten) nutzen `capture()`
+    und übergehen sie.
   - `A/DateCommand.kt` (`@datum`), `A/EventCommand.kt` (`@termin`, Entwurf über
     `CalendarToolLauncher.eventDraft`, Entfernen erst nach erfolgreichem Start), `A/PlaceCommand.kt`
     (`@ort`, Maps-Link einfügen oder `geo:` öffnen) mit `A/SavedPlaces.kt` (CE) und
     `SavedPlacesSection.kt`; Logik in `C/CivilDate.kt` (Datum ohne `java.time`, Fallstrick P45),
     `C/DateFormatting.kt` (de, en-US, es), `C/EventParser.kt` (Datum, Uhrzeit, Titel aus Freitext,
-    „jetzt“ und Zeitzone übergeben), `C/Places.kt`.
+    „jetzt“ und Zeitzone übergeben), `C/Places.kt`. `@ort` prüft selbst `isBlocked` und liest die
+    Orte einmal je Befehl (`reset`, `SavedPlaces.store` verwirft den Cache).
   - `A/commands/AskCommand.kt` (`@ki`): `Host.askAi` → `AgentEditorController.openQuestion`; die
     Frage wird als `TextSnapshot` mit leerer Auswahl erfasst (`ExecutionPolicy.captureQuestion`,
     `isCurrentQuestion`: gleiche Sitzung und Schutzregeln, Composition erlaubt; `apply` lehnt
@@ -578,7 +600,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - Design-Seite (23f1): `A/DesignTiles.kt` (Abschnitte, Kacheln, Auswahl; schreibt genau die
   Schlüssel von Tag/Nacht-Schalter und Farbwähler, „Flacher Look“ über `FlatPreset.apply`) und
   `K/settings/screens/AgentDesignScreen.kt` (Raster, Rahmen und Häkchen, TalkBack als
-  Radio-Buttons); erreichbar über Aussehen → „Design“ und die Menü-Pille „Design“
+  Radio-Buttons; Kachelfarben neu bei geändertem Stil oder Tastenrahmen, `DesignTiles.look`); erreichbar über Aussehen → „Design“ und die Menü-Pille „Design“
   (`agent_design`). Test `AT/DesignTilesTest.kt` (Bild unter `app/build/reports/design-tiles/`).
 
 ## Flacher Stil
@@ -952,7 +974,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (287 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (290 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -969,8 +991,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   ToolLauncher, TouchCalibration, TouchModel, TypoMemory, WorkflowApprovalSummary,
   WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
   WorkflowStore
-- `A/commands/` (7): AskCommand, ClipCommand, ScreenReaderService, SnipCommand, SnippetStore,
-  UrlCommand, WorkflowCommand
+- `A/commands/` (8): AskCommand, ClipCommand, ScreenReaderService, SensitiveClips, SnipCommand,
+  SnippetStore, UrlCommand, WorkflowCommand
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
@@ -987,6 +1009,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   SkillSettingsTest, SnipCommandTest, TestRunJournal, ToolRunnerTest, TouchModelTest,
   TypoMemoryTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
   WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+- `AT/commands/` (2): ScreenReaderServiceTest, UrlCommandTest
 - `C/` (23): AiTextAction, ApplyOutcome, CivilDate, Commands, DateFormatting, EditorSession,
   EmojiNames, EventParser, ExecutionPolicy, LocalTextActions, MathExpression, ModelProvider,
   PendingBatchGate, Places, Profiles, SkillBinding, SpecialCharacters, SymbolTable, TextCondition,

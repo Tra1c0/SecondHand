@@ -62,7 +62,11 @@ object KeyboardCommands {
         fun textAfterCursor(length: Int): CharSequence? = null
         /** Replaces the chips in the strip, e.g. after a read; false if the strip shows something else by now. */
         fun showChips(chips: List<Chip>): Boolean = false
-        /** Opens the text actions with the saved workflow [workflowId] like a skill key (stage 24f `@wf`); the field stays unchanged. */
+        /**
+         * Hands the saved workflow [workflowId] to the text actions (stage 24f `@wf`): prepared like a
+         * skill key with selected text, otherwise remembered until the panel opens with a selection.
+         * The field stays unchanged. False if the panel cannot open now.
+         */
         fun openWorkflow(workflowId: String): Boolean = false
         /**
          * Opens the text actions with a send preview of exactly [question] (stage 24f `@ki`); nothing
@@ -184,8 +188,16 @@ object KeyboardCommands {
         }
     }
 
-    /** Called with the text before the cursor whenever the strip is updated. */
-    @JvmStatic fun updateGuard(before: CharSequence?) { inCommand = guardsTextBefore(before) }
+    /**
+     * Called with the text before the cursor whenever the strip is updated, also when no strip is
+     * shown; null while text is selected. Without a command before the cursor, every command drops
+     * what it found, so nothing stays in memory when the chips are never built.
+     */
+    @JvmStatic fun updateGuard(before: CharSequence?) {
+        inCommand = guardsTextBefore(before)
+        val current = active
+        if (current == null || before == null || CommandSyntax.parse(before, current.prefix, current.names) == null) forget()
+    }
 
     fun isBlocked(settings: SettingsValues?, editorInfo: EditorInfo?): Boolean {
         if (settings == null || settings.mIncognitoModeEnabled || settings.mIsLocked) return true
@@ -206,7 +218,11 @@ object KeyboardCommands {
      * The chips view for the strip, or null when no command is typed. Reads only the text before
      * the cursor that the keyboard already holds.
      */
-    @JvmStatic fun createChipsView(ime: LatinIME, parent: ViewGroup): View? {
+    @JvmStatic fun createChipsView(ime: LatinIME, parent: ViewGroup): View? =
+        createChipsView(ime, parent) { ime.setNeutralSuggestionStrip() }
+
+    /** [neutral] shows the normal strip again when a rebuilt row would be empty. */
+    internal fun createChipsView(ime: LatinIME, parent: ViewGroup, neutral: () -> Unit): View? {
         var view: HorizontalScrollView? = null
         // a chip asked to show other chips for the same command: swap the row in place
         fun swap(chips: List<Chip>, onlyIfShown: Boolean): Boolean {
@@ -221,8 +237,12 @@ object KeyboardCommands {
             shown.scrollTo(0, 0)
             return true
         }
-        fun build(): List<Chip>? = buildChips(ime, onRefresh = { build()?.let { swap(it, onlyIfShown = false) } },
-            onShow = { swap(it, onlyIfShown = true) })
+        fun build(): List<Chip>? = buildChips(ime, onRefresh = {
+            val rebuilt = build()
+            // nothing left to show for this text: the normal strip, not the old row
+            if (rebuilt.isNullOrEmpty()) { if (view?.parent != null) neutral() }
+            else swap(rebuilt, onlyIfShown = false)
+        }, onShow = { swap(it, onlyIfShown = true) })
         val chips = build()
         if (chips.isNullOrEmpty()) return null
         return (chipRow(parent, chips) as HorizontalScrollView).also { view = it }

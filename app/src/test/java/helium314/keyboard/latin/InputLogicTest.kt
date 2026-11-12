@@ -880,6 +880,11 @@ class InputLogicTest {
             override fun fields(context: android.content.Context, contactId: Long, limit: Int) =
                 listOf(helium314.keyboard.agent.ContactCommand.Field(helium314.keyboard.agent.ContactCommand.Kind.PHONE, "0170 123", "Mobile"))
         }
+        // the address book answers at once here; ContactCommandTest covers the background queries
+        contact.worker = object : helium314.keyboard.agent.ContactCommand.Worker {
+            override fun schedule(delayMs: Long, task: () -> Unit): () -> Unit { task(); return {} }
+            override fun post(task: () -> Unit) = task()
+        }
         try {
             chainInput("x @contact Ann")
             assertEquals("x @contact Ann", text) // the typed name is not corrected
@@ -899,6 +904,7 @@ class InputLogicTest {
         } finally {
             contact.source = helium314.keyboard.agent.ContactCommand.PhoneContacts
             contact.reset()
+            contact.worker = helium314.keyboard.agent.ContactCommand.BackgroundWorker
         }
     }
 
@@ -1372,12 +1378,111 @@ class InputLogicTest {
         latinIME.agentEditorController.startEditor(EditorInfo().apply { inputType = currentInputType; initialSelStart = 19; initialSelEnd = 19 })
         assertTrue(latinIME.agentEditorController.openWorkflow(workflow.id))
         org.robolectric.shadows.ShadowLooper.idleMainLooper()
-        // the panel's own message: the word at the cursor (like a typed command name) is still being composed, or no selection
-        assertTrue(panel.findViewById<android.widget.TextView>(R.id.agent_status).text.toString() in
-            listOf(R.string.agent_panel_composing, R.string.agent_panel_select_text).map { latinIME.getString(it) })
+        // nothing selected: the panel says the workflow waits for a selection
+        assertEquals(latinIME.getString(R.string.agent_command_wf_pending), panelText(panel, R.id.agent_status))
         assertEquals(android.view.View.GONE, panel.findViewById<android.widget.Button>(R.id.agent_cloud_send).visibility)
         assertEquals(android.view.View.VISIBLE, panel.visibility)
         assertEquals("prefix Hallo suffix", text)
+    }
+
+    /** Reports the editor's current selection and composition to [controller], as the app does after each change. */
+    private fun reportEditorState(controller: helium314.keyboard.agent.AgentEditorController) =
+        controller.selectionChanged(selectionStart, selectionEnd, composingStart, composingEnd)
+
+    /** Taps the chip labelled [label] in a fresh chip row for the text before the cursor. */
+    private fun tapCommandChip(label: String) {
+        val chips = helium314.keyboard.agent.KeyboardCommands.createChipsView(latinIME, android.widget.FrameLayout(latinIME))
+        assertNotNull(chips)
+        val row = (chips as android.view.ViewGroup).getChildAt(0) as android.view.ViewGroup
+        (0 until row.childCount).map { row.getChildAt(it) as android.widget.TextView }
+            .single { it.text.toString() == label }
+            .performClick()
+    }
+
+    @Test fun typedWorkflowCommandIsPreparedWhenThePanelOpensAgainWithSelectedText() {
+        val panel = prepareSkillEditor()
+        val controller = latinIME.agentEditorController
+        val workflow = nativeSkillWorkflow(true)
+        saveNativeSkillWorkflow(workflow)
+        setText("")
+        helium314.keyboard.agent.KeyboardCommands.load(latinIME)
+        chainInput("x @wf Saved")
+        controller.selectionChanged(text.length, text.length, composingStart, composingEnd)
+        tapCommandChip(latinIME.getString(R.string.agent_command_wf_label, "Saved workflow"))
+        // the chip changes nothing in the field; the panel asks for the text
+        assertEquals("x @wf Saved", text)
+        assertEquals(android.view.View.VISIBLE, panel.visibility)
+        assertEquals(latinIME.getString(R.string.agent_command_wf_pending), panelText(panel, R.id.agent_status))
+        assertEquals(android.view.View.GONE, panel.findViewById<android.widget.Button>(R.id.agent_cloud_send).visibility)
+
+        // the user closes the panel, selects text and opens the text actions again (pen key)
+        panel.onClose?.invoke()
+        setCursorPosition(0, 1)
+        reportEditorState(controller) // the editor reports the ended composition, as an app does
+        controller.open()
+        awaitAgentUi { panel.findViewById<android.widget.Button>(R.id.agent_cloud_send).visibility == android.view.View.VISIBLE }
+        assertEquals("x", panelText(panel, R.id.agent_source))
+        assertTrue(panelText(panel, R.id.agent_cloud_confirmation).contains("skill-model"))
+        // nothing ran and nothing changed before the approval
+        assertFalse(helium314.keyboard.agent.providers.CloudHttpClient.isInitialized)
+        assertEquals("x @wf Saved", text)
+
+        // offered once: the next panel is the plain one
+        controller.close()
+        controller.open()
+        org.robolectric.shadows.ShadowLooper.idleMainLooper()
+        assertEquals(android.view.View.GONE, panel.findViewById<android.widget.Button>(R.id.agent_cloud_send).visibility)
+        assertEquals("x", panelText(panel, R.id.agent_source))
+        assertFalse(helium314.keyboard.agent.providers.CloudHttpClient.isInitialized)
+    }
+
+    @Test fun typedWorkflowChoiceIsDroppedWhenTheEditorChanges() {
+        val panel = prepareSkillEditor()
+        val controller = latinIME.agentEditorController
+        val workflow = nativeSkillWorkflow(true)
+        saveNativeSkillWorkflow(workflow)
+        setText("")
+        helium314.keyboard.agent.KeyboardCommands.load(latinIME)
+        chainInput("x @wf Saved")
+        controller.selectionChanged(text.length, text.length, composingStart, composingEnd)
+        tapCommandChip(latinIME.getString(R.string.agent_command_wf_label, "Saved workflow"))
+        assertEquals(latinIME.getString(R.string.agent_command_wf_pending), panelText(panel, R.id.agent_status))
+        panel.onClose?.invoke()
+        // another field: the choice is gone
+        setText("prefix Hallo suffix")
+        setCursorPosition(7, 12)
+        reportEditorState(controller)
+        controller.open()
+        org.robolectric.shadows.ShadowLooper.idleMainLooper()
+        assertEquals("Hallo", panelText(panel, R.id.agent_source))
+        assertEquals(android.view.View.GONE, panel.findViewById<android.widget.Button>(R.id.agent_cloud_send).visibility)
+        assertFalse(helium314.keyboard.agent.providers.CloudHttpClient.isInitialized)
+    }
+
+    @Test fun typedWorkflowChoiceIsDroppedInIncognito() {
+        val panel = prepareSkillEditor()
+        val controller = latinIME.agentEditorController
+        val workflow = nativeSkillWorkflow(true)
+        saveNativeSkillWorkflow(workflow)
+        setCursorPosition(19)
+        controller.startEditor(EditorInfo().apply { inputType = currentInputType; initialSelStart = 19; initialSelEnd = 19 })
+        assertTrue(controller.openWorkflow(workflow.id))
+        assertEquals(latinIME.getString(R.string.agent_command_wf_pending), panelText(panel, R.id.agent_status))
+        panel.onClose?.invoke()
+        latinIME.prefs().edit().putBoolean(helium314.keyboard.latin.settings.Settings.PREF_ALWAYS_INCOGNITO_MODE, true).commit()
+        try {
+            setCursorPosition(7, 12)
+            reportEditorState(controller)
+            controller.open() // denied in incognito: the choice is dropped
+            assertNotEquals(latinIME.getString(R.string.agent_command_wf_pending), panelText(panel, R.id.agent_status))
+        } finally {
+            latinIME.prefs().edit().putBoolean(helium314.keyboard.latin.settings.Settings.PREF_ALWAYS_INCOGNITO_MODE, false).commit()
+        }
+        controller.close()
+        controller.open()
+        org.robolectric.shadows.ShadowLooper.idleMainLooper()
+        assertEquals("Hallo", panelText(panel, R.id.agent_source))
+        assertEquals(android.view.View.GONE, panel.findViewById<android.widget.Button>(R.id.agent_cloud_send).visibility)
     }
 
     private fun nativeSkillWorkflow(cloud: Boolean) = dev.agentkeyboard.core.WorkflowDefinition(

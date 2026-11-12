@@ -153,6 +153,14 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   Export.
 - `@ort`: CE-SharedPreferences `agent_places`, Schlüssel `places` (JSON-Array `{name, address}`,
   höchstens 10), nur entsperrt, nicht in Exporten.
+- `@clip`, vertrauliche Clips: DE-SharedPreferences `agent_sensitive_clips` (Tastatur-Kontext),
+  Schlüssel `salt` (16 Zufallsbytes, hex) und `hashes` (kommagetrennte SHA-256 über Salt und
+  Cliptext, höchstens 200, älteste zuerst verdrängt). Ein Eintrag entsteht nur bei eingeschaltetem
+  Zwischenablage-Verlauf für einen neuen Clip, der als vertraulich markiert ist oder in einem
+  Passwortfeld kopiert wurde; nie der Text selbst. DE wie die Verlaufsdatenbank, die den Text im
+  Klartext hält: der Hash macht nichts lesbar, was dort nicht schon steht. Nur im Speicher reichte
+  nicht, weil der Verlauf einen Neustart der Tastatur überdauert. Kein Backup (`allowBackup=false`),
+  kein Export; „Verlauf löschen“ lässt die Hashes stehen (sie verfallen durch die Grenze).
 - `@contact`, `@url`, `@clip`, Bildschirmlesen: nichts gespeichert. Gefundene Kontakte, Adressen,
   Clip-Texte und gelesener Bildschirmtext liegen nur im Speicher, solange der Befehl vor der
   Schreibmarke steht.

@@ -13,6 +13,7 @@ import dev.agentkeyboard.core.CommandContext
 import helium314.keyboard.ShadowInputMethodManager2
 import helium314.keyboard.ShadowProximityInfo
 import helium314.keyboard.agent.commands.ClipCommand
+import helium314.keyboard.agent.commands.SensitiveClips
 import helium314.keyboard.latin.LatinIME
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.database.ClipboardDao
@@ -66,9 +67,11 @@ class ClipCommandTest {
         KeyboardCommands.registry = KeyboardCommands.BUILT_IN
         KeyboardCommands.load(latinIME)
         ClipCommand.source = ClipCommand.Source { reads++; clips }
+        SensitiveClips.clear(latinIME)
     }
 
     @After fun tearDown() {
+        SensitiveClips.clear(latinIME)
         ClipCommand.source = ClipCommand.History
         KeyboardCommands.load(latinIME)
     }
@@ -153,5 +156,50 @@ class ClipCommandTest {
         } finally {
             dao.clear()
         }
+    }
+
+    private fun sensitiveClip(text: String) = ClipData.newPlainText("", text).apply {
+        description.extras = PersistableBundle().apply { putBoolean("android.content.extra.IS_SENSITIVE", true) }
+    }
+
+    @Test fun aSensitiveClipStaysHiddenAfterANewerClipReplacedIt() {
+        val dao = assertNotNull(ClipboardDao.getInstance(latinIME))
+        dao.clear()
+        try {
+            val manager = latinIME.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            // the keyboard's own listener notes the sensitive clip while it is the primary clip
+            manager.setPrimaryClip(sensitiveClip("Kennwort123"))
+            manager.setPrimaryClip(ClipData.newPlainText("", "harmloser Text"))
+            dao.clear()
+            dao.addClip(now - 2_000, false, "Kennwort123")
+            dao.addClip(now - 1_000, false, "harmloser Text")
+            val read = ClipCommand.History.clips(latinIME)
+            assertEquals(listOf("Kennwort123"), read.filter { it.sensitive }.map { it.text })
+            assertEquals(listOf("harmloser Text"), ClipCommand.match("", read).map { it.text })
+            assertTrue(ClipCommand.match("Kennwort", read).isEmpty())
+            // only a salted hash is stored, never the text
+            val stored = AgentStorageContexts.keyboard(latinIME).getSharedPreferences(SensitiveClips.FILE, Context.MODE_PRIVATE).all
+            assertTrue(stored.isNotEmpty())
+            assertFalse(stored.values.any { it.toString().contains("Kennwort") })
+        } finally {
+            dao.clear()
+        }
+    }
+
+    @Test fun aClipCopiedInAPasswordFieldCountsAsSensitive() {
+        SensitiveClips.note(latinIME, ClipData.newPlainText("", "aus dem Passwortfeld"), inPasswordField = true)
+        SensitiveClips.note(latinIME, ClipData.newPlainText("", "normaler Text"), inPasswordField = false)
+        val sensitive = SensitiveClips.matcher(latinIME)
+        assertTrue(sensitive("aus dem Passwortfeld"))
+        assertFalse(sensitive("normaler Text"))
+        assertFalse(sensitive("aus dem Passwortfeld ")) // exactly the copied text
+    }
+
+    @Test fun theRecordKeepsOnlyTheNewestHashes() {
+        for (i in 0..SensitiveClips.MAX_ENTRIES) SensitiveClips.remember(latinIME, "geheim $i")
+        val sensitive = SensitiveClips.matcher(latinIME)
+        assertFalse(sensitive("geheim 0")) // the oldest is dropped
+        assertTrue(sensitive("geheim 1"))
+        assertTrue(sensitive("geheim ${SensitiveClips.MAX_ENTRIES}"))
     }
 }

@@ -24,6 +24,10 @@ import java.util.Locale
  * argument, as chips; a tap on a contact shows its fields, a tap on a field replaces the command
  * by that text. The address book is only read while the command is typed, with a bounded query,
  * and nothing is stored or logged; what was found lives in memory until the command is gone.
+ *
+ * Queries never run on the main thread: a name is looked up [DEBOUNCE_MS] after the last keystroke
+ * on [worker]; the chips appear through [KeyboardCommands.Host.showChips], and only while the strip
+ * still shows this command at the same cursor. Until then the earlier results that still match stay.
  */
 object ContactCommand : KeyboardCommands.Command {
     private const val TAG = "ContactCommand"
@@ -51,14 +55,51 @@ object ContactCommand : KeyboardCommands.Command {
 
     @JvmStatic var source: Source = PhoneContacts
 
+    /** Wait after the last keystroke before the address book is asked. */
+    const val DEBOUNCE_MS = 150L
+
+    /** Runs the queries off the main thread and hands the results back; replaced in tests. */
+    interface Worker {
+        /** Runs [task] in the background after [delayMs]; the returned call cancels it if it has not started. */
+        fun schedule(delayMs: Long, task: () -> Unit): () -> Unit
+        /** Runs [task] on the main thread. */
+        fun post(task: () -> Unit)
+    }
+
+    /** One background thread for all contact queries, results posted to the main looper. */
+    object BackgroundWorker : Worker {
+        private val executor by lazy {
+            java.util.concurrent.ScheduledThreadPoolExecutor(1) { runnable ->
+                Thread(runnable, "agent-contacts").apply { isDaemon = true }
+            }.apply { removeOnCancelPolicy = true }
+        }
+        private val main by lazy { android.os.Handler(android.os.Looper.getMainLooper()) }
+        override fun schedule(delayMs: Long, task: () -> Unit): () -> Unit {
+            val future = executor.schedule(task, delayMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+            return { future.cancel(false) }
+        }
+        override fun post(task: () -> Unit) { main.post(task) }
+    }
+
+    @JvmStatic var worker: Worker = BackgroundWorker
+
     /** A contact chosen for exactly this command text at this cursor; anything else shows the list again. */
     private class Chosen(val text: String, val cursor: Int, val contact: Contact)
 
+    // all state below is read and written on the main thread only; the worker only runs the query
     private var chosen: Chosen? = null
     private var cachedQuery: String? = null
+    /** What the address book returned for [cachedQuery], before ranking; re-ranked while a longer name loads. */
+    private var cachedFound: List<Contact> = emptyList()
     private var cachedMatches: List<Contact> = emptyList()
     private var cachedFieldsId: Long? = null
     private var cachedFields: List<Field> = emptyList()
+    /** The query waiting for or running on the worker, and how to cancel it. */
+    private var loadingQuery: String? = null
+    private var loadingFieldsId: Long? = null
+    private var cancelLoading: (() -> Unit)? = null
+    /** Raised by [reset]: an answer for an older generation is dropped. */
+    private var generation = 0
 
     override val name = "contact"
     override val protectsArgument = true
@@ -71,8 +112,14 @@ object ContactCommand : KeyboardCommands.Command {
         ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
 
     override fun reset() {
+        generation++
+        cancelLoading?.invoke()
+        cancelLoading = null
+        loadingQuery = null
+        loadingFieldsId = null
         chosen = null
         cachedQuery = null
+        cachedFound = emptyList()
         cachedMatches = emptyList()
         cachedFieldsId = null
         cachedFields = emptyList()
@@ -95,22 +142,75 @@ object ContactCommand : KeyboardCommands.Command {
             }
             chosen = null
         }
-        return matches(context, query).map { contact ->
-            KeyboardCommands.Chip(contact.name, context.getString(R.string.agent_command_contact_show, contact.name)) {
-                chosen = Chosen(call.text, host.cursor, contact)
-                host.refresh()
+        if (query != cachedQuery) load(host, call, query)
+        // the answer, or until it arrives the earlier contacts that still match
+        val contacts = if (query == cachedQuery) cachedMatches else rank(query, cachedFound)
+        return contactChips(host, call, contacts)
+    }
+
+    private fun contactChips(host: KeyboardCommands.Host, call: CommandCall, contacts: List<Contact>) = contacts.map { contact ->
+        KeyboardCommands.Chip(contact.name, host.context.getString(R.string.agent_command_contact_show, contact.name)) {
+            chosen = Chosen(call.text, host.cursor, contact)
+            host.refresh()
+        }
+    }
+
+    /** Asks the address book for [query] after [DEBOUNCE_MS]; a newer keystroke cancels the wait. */
+    private fun load(host: KeyboardCommands.Host, call: CommandCall, query: String) {
+        if (loadingQuery == query) return
+        cancelLoading?.invoke()
+        loadingQuery = query
+        loadingFieldsId = null
+        val context = host.context
+        val expected = generation
+        cancelLoading = worker.schedule(DEBOUNCE_MS) {
+            val found = read { source.find(context, query, QUERY_LIMIT) }.orEmpty()
+            worker.post {
+                if (expected != generation || loadingQuery != query) return@post
+                loadingQuery = null
+                cancelLoading = null
+                cachedQuery = query
+                cachedFound = found
+                cachedMatches = rank(query, found)
+                if (chosen == null && isShown(host, call)) host.showChips(contactChips(host, call, cachedMatches))
             }
         }
     }
 
+    /** Reads the fields of [contact] in the background and shows them if it is still the chosen one. */
+    private fun loadFields(host: KeyboardCommands.Host, call: CommandCall, contact: Contact) {
+        if (loadingFieldsId == contact.id) return
+        cancelLoading?.invoke()
+        loadingQuery = null
+        loadingFieldsId = contact.id
+        val context = host.context
+        val expected = generation
+        cancelLoading = worker.schedule(0) {
+            val fields = read { source.fields(context, contact.id, MAX_FIELDS) }.orEmpty()
+            worker.post {
+                if (expected != generation || loadingFieldsId != contact.id) return@post
+                loadingFieldsId = null
+                cancelLoading = null
+                cachedFieldsId = contact.id
+                cachedFields = fields
+                val selected = chosen
+                if (selected != null && selected.contact.id == contact.id && isShown(host, call))
+                    host.showChips(fieldChips(host, call, contact))
+            }
+        }
+    }
+
+    /** Whether the field still shows [call] before the cursor the chips were built for. */
+    private fun isShown(host: KeyboardCommands.Host, call: CommandCall): Boolean =
+        host.textBeforeCursor(call.text.length)?.toString()?.endsWith(call.text) ?: true
+
     /** A back chip, then the name and the fields of a chosen contact. */
     private fun fieldChips(host: KeyboardCommands.Host, call: CommandCall, contact: Contact): List<KeyboardCommands.Chip> {
         val context = host.context
-        if (cachedFieldsId != contact.id) {
-            cachedFields = read { source.fields(context, contact.id, MAX_FIELDS) }.orEmpty()
-            cachedFieldsId = contact.id
-        }
-        val fields = (listOf(Field(Kind.NAME, contact.name, context.getString(R.string.agent_command_contact_name))) + cachedFields)
+        if (cachedFieldsId != contact.id) loadFields(host, call, contact)
+        // until the fields arrive, the name alone
+        val loaded = if (cachedFieldsId == contact.id) cachedFields else emptyList()
+        val fields = (listOf(Field(Kind.NAME, contact.name, context.getString(R.string.agent_command_contact_name))) + loaded)
             .filter { it.text.isNotBlank() }
             .distinctBy { it.kind to it.text }
         val back = KeyboardCommands.Chip("←", context.getString(R.string.agent_command_contact_back)) {
@@ -123,14 +223,6 @@ object ContactCommand : KeyboardCommands.Command {
                 if (host.replace(call, field.text)) reset()
             }
         }
-    }
-
-    private fun matches(context: Context, query: String): List<Contact> {
-        if (query != cachedQuery) {
-            cachedMatches = rank(query, read { source.find(context, query, QUERY_LIMIT) }.orEmpty())
-            cachedQuery = query
-        }
-        return cachedMatches
     }
 
     /** Runs a query; a failure (e.g. permission taken away) shows nothing. Names and numbers are never logged. */
@@ -222,7 +314,8 @@ object ContactCommand : KeyboardCommands.Command {
                     result += when (cursor.getString(0)) {
                         Phone.CONTENT_ITEM_TYPE -> Field(Kind.PHONE, value, Phone.getTypeLabel(resources, type, label).toString())
                         Email.CONTENT_ITEM_TYPE -> Field(Kind.EMAIL, value, Email.getTypeLabel(resources, type, label).toString())
-                        // one line: an Enter in a chat field could send the message
+                        // one line, as an address is usually written in a message; the inserted text
+                        // itself is plain text (a line break would not send), so snippets keep theirs
                         else -> Field(Kind.ADDRESS, value.lines().map { it.trim() }.filter { it.isNotEmpty() }.joinToString(", "),
                             StructuredPostal.getTypeLabel(resources, type, label).toString())
                     }

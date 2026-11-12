@@ -69,6 +69,32 @@ class ContactCommandTest {
         override val canOpenCalculator = false
         override var cursor = 20
         override fun refresh() { refreshed++ }
+        var before: String? = null
+        override fun textBeforeCursor(length: Int): CharSequence? = before
+        val shown = mutableListOf<List<String>>()
+        override fun showChips(chips: List<KeyboardCommands.Chip>): Boolean { shown += labels(chips); return true }
+    }
+
+    /** Runs everything at once, as if the address book answered immediately. */
+    private object Immediate : ContactCommand.Worker {
+        override fun schedule(delayMs: Long, task: () -> Unit): () -> Unit { task(); return {} }
+        override fun post(task: () -> Unit) = task()
+    }
+
+    /** Holds the background tasks and the main-thread answers until the test runs them. */
+    private class Manual : ContactCommand.Worker {
+        val delays = mutableListOf<Long>()
+        val background = mutableListOf<() -> Unit>()
+        val main = mutableListOf<() -> Unit>()
+        var cancelled = 0
+        override fun schedule(delayMs: Long, task: () -> Unit): () -> Unit {
+            delays += delayMs
+            background += task
+            return { if (background.remove(task)) cancelled++ }
+        }
+        override fun post(task: () -> Unit) { main += task }
+        fun runBackground() { background.toList().also { background.clear() }.forEach { it() } }
+        fun runMain() { main.toList().also { main.clear() }.forEach { it() } }
     }
 
     @Before fun setUp() {
@@ -76,11 +102,13 @@ class ContactCommandTest {
         KeyboardCommands.registry = KeyboardCommands.BUILT_IN
         KeyboardCommands.load(latinIME)
         ContactCommand.source = source
+        ContactCommand.worker = Immediate
         shadowOf(latinIME.application).grantPermissions(Manifest.permission.READ_CONTACTS)
     }
 
     @After fun tearDown() {
         ContactCommand.source = ContactCommand.PhoneContacts
+        ContactCommand.worker = ContactCommand.BackgroundWorker
         KeyboardCommands.load(latinIME)
     }
 
@@ -194,5 +222,91 @@ class ContactCommandTest {
         KeyboardCommands.forget()
         assertEquals("Ann", labels(KeyboardCommands.chipsFor(call, host)).first())
         assertEquals(listOf("Ann", "Ann"), queries) // asked again: nothing was kept
+    }
+
+    @Test fun theAddressBookIsAskedOffTheMainThreadOnceTheTypingPauses() {
+        val manual = Manual()
+        ContactCommand.worker = manual
+        host.before = "Hi @contact An"
+        // a keystroke shows nothing yet and asks nothing on this thread
+        assertTrue(KeyboardCommands.chipsFor(call("Hi @contact An"), host).isEmpty())
+        assertTrue(queries.isEmpty())
+        assertEquals(listOf(ContactCommand.DEBOUNCE_MS), manual.delays)
+        // the next keystroke within the wait replaces the query
+        host.before = "Hi @contact Ann"
+        assertTrue(KeyboardCommands.chipsFor(call("Hi @contact Ann"), host).isEmpty())
+        assertEquals(1, manual.cancelled)
+        assertEquals(1, manual.background.size)
+        // a strip update for the same text asks nothing again
+        KeyboardCommands.chipsFor(call("Hi @contact Ann"), host)
+        assertEquals(1, manual.background.size)
+
+        manual.runBackground()
+        assertEquals(listOf("Ann"), queries) // only the last name was looked up
+        assertTrue(host.shown.isEmpty()) // the answer waits for the main thread
+        manual.runMain()
+        assertEquals(listOf(listOf("Ann", "Anna Müller", "Bob Annberg", "Hannah Berg")), host.shown)
+        // the answer is kept: the same text needs no new query
+        assertEquals(listOf("Ann", "Anna Müller", "Bob Annberg", "Hannah Berg"), labels(KeyboardCommands.chipsFor(call("Hi @contact Ann"), host)))
+        assertTrue(manual.background.isEmpty())
+
+        // one more letter: the earlier contacts that still match stay until the new answer
+        host.before = "Hi @contact Anna"
+        assertEquals(listOf("Anna Müller", "Hannah Berg"), labels(KeyboardCommands.chipsFor(call("Hi @contact Anna"), host)))
+        assertEquals(1, manual.background.size)
+    }
+
+    @Test fun aLateAnswerIsNotShownWhenTheCommandIsGoneOrChanged() {
+        val manual = Manual()
+        ContactCommand.worker = manual
+        host.before = "@contact Ann"
+        KeyboardCommands.chipsFor(call("@contact Ann"), host)
+        manual.runBackground()
+        host.before = "@contact Ann und mehr" // the field moved on before the answer arrived
+        manual.runMain()
+        assertTrue(host.shown.isEmpty())
+
+        // forgotten while the query runs: the answer is dropped and nothing is kept
+        host.before = "@contact Bo"
+        KeyboardCommands.chipsFor(call("@contact Bo"), host)
+        manual.runBackground()
+        KeyboardCommands.forget()
+        manual.runMain()
+        assertTrue(host.shown.isEmpty())
+        KeyboardCommands.chipsFor(call("@contact Bo"), host)
+        assertEquals(1, manual.background.size) // asked again: nothing was kept
+    }
+
+    @Test fun theFieldsOfAChosenContactAreReadInTheBackground() {
+        val manual = Manual()
+        ContactCommand.worker = manual
+        host.before = "@contact Ann"
+        val call = call("@contact Ann")
+        KeyboardCommands.chipsFor(call, host)
+        manual.runBackground(); manual.runMain()
+        host.shown.clear()
+        KeyboardCommands.chipsFor(call, host)[1].onTap()
+        // until the fields arrive, the name alone
+        assertEquals(listOf("←", "Anna Müller"), labels(KeyboardCommands.chipsFor(call, host)))
+        assertTrue(fieldReads.isEmpty())
+        assertEquals(0L, manual.delays.last())
+        manual.runBackground()
+        assertEquals(listOf(anna.id), fieldReads)
+        manual.runMain()
+        assertEquals(listOf(listOf("←", "Anna Müller", "+49 170 1234567", "anna@example.org", "Hauptstr. 1, 10115 Berlin")), host.shown)
+    }
+
+    @Test fun noCommandBeforeTheCursorForgetsWhatWasFoundEvenWithoutAStrip() {
+        val call = call("@contact Ann")
+        KeyboardCommands.chipsFor(call, host)
+        KeyboardCommands.updateGuard("@contact Ann") // still typed: kept
+        KeyboardCommands.chipsFor(call, host)
+        assertEquals(listOf("Ann"), queries)
+        KeyboardCommands.updateGuard("Hallo") // gone: dropped
+        KeyboardCommands.chipsFor(call, host)
+        assertEquals(listOf("Ann", "Ann"), queries)
+        KeyboardCommands.updateGuard(null) // text selected: dropped as well
+        KeyboardCommands.chipsFor(call, host)
+        assertEquals(listOf("Ann", "Ann", "Ann"), queries)
     }
 }

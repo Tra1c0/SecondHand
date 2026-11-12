@@ -252,6 +252,31 @@ class DatePlaceCommandsTest {
         assertTrue(launched.isEmpty() && replaced.isEmpty())
     }
 
+    @Test fun savedPlacesAreReadOncePerCommandAndAgainAfterAChange() {
+        SavedPlaces.save(latinIME, "Zuhause", "Musterweg 5")
+        placeReads = 0
+        labels("@ort z"); labels("@ort zu"); labels("@ort zuh")
+        assertEquals(1, placeReads) // strip updates for the same command read nothing again
+        SavedPlaces.save(latinIME, "Arbeit", "Domplatz 1")
+        placeReads = 0
+        assertEquals(2, labels("@ort ").size) // the change is seen at once
+        assertEquals(1, placeReads)
+        KeyboardCommands.forget()
+        labels("@ort ")
+        assertEquals(2, placeReads)
+    }
+
+    @Test fun thePlaceCommandItselfReadsNothingInBlockedFields() {
+        SavedPlaces.save(latinIME, "Zuhause", "Musterweg 5")
+        val typed = call("@ort zuhause")
+        placeReads = 0
+        val password = object : KeyboardCommands.Host by host {
+            override val editorInfo = EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD }
+        }
+        assertTrue(PlaceCommand.chips(password, typed).isEmpty())
+        assertEquals(0, placeReads)
+    }
+
     private companion object {
         const val NOW = 1_794_505_500_000L // 2026-11-12T17:45Z
         const val SATURDAY_19_30 = 1_794_681_000_000L // 2026-11-14T18:30Z

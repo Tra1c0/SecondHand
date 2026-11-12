@@ -65,6 +65,14 @@ class AgentEditorController @JvmOverloads constructor(
     private var pendingWorkflow: WorkflowDefinition? = null
     private var pendingTool: ToolRequest? = null
     private val actionScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    /**
+     * The workflow chosen with a typed `@wf` while nothing was selected (stage 24f): the next time the
+     * panel opens with selected text in this editor it prepares this workflow first. Kept when the
+     * panel closes (the user closes it to select text), dropped when the editor starts or finishes,
+     * when the panel is denied for a reason other than "nothing selected" (incognito, lock, password
+     * field), and once it was offered. Only an id: the definition is read again from the store.
+     */
+    private var chosenWorkflowId: String? = null
     /** True while the panel serves a typed `@ki` question (stage 24f); the selection actions stay off. */
     private var asking = false
     /** The typed `@ki` command that "Insert" replaces, and where it ended. */
@@ -151,12 +159,14 @@ class AgentEditorController @JvmOverloads constructor(
 
     fun startEditor(info: EditorInfo) {
         close()
+        chosenWorkflowId = null
         needsCursorRefresh = false
         editor.startEditor(info.inputType, info.imeOptions, info.initialSelStart, info.initialSelEnd)
     }
     fun invalidate() = editor.invalidate()
     fun finishEditor() {
         close()
+        chosenWorkflowId = null
         needsCursorRefresh = false
         editor.finishEditor()
     }
@@ -174,7 +184,7 @@ class AgentEditorController @JvmOverloads constructor(
         calculator = view.findViewById(R.id.agent_calculator)
         calculator?.onClose = ::close
         calculator?.onInsert = ::insertCalculation
-        wheel?.onAction = { action -> open(); if (action != null) runLocal(action) }
+        wheel?.onAction = { action -> if (action == null) open() else { capture(); runLocal(action) } }
         panel?.onClose = {
             val hideKeyboard = needsCursorRefresh
             close()
@@ -211,7 +221,7 @@ class AgentEditorController @JvmOverloads constructor(
 
     fun openSkill(slot: Int) {
         if (slot !in 1..3) return
-        open()
+        capture()
         val source = snapshot ?: return
         panel?.showStatus(R.string.agent_skill_loading, true)
         skillJob = actionScope.launch {
@@ -238,13 +248,29 @@ class AgentEditorController @JvmOverloads constructor(
 
     /**
      * Stage 24f `@wf`: opens the panel and prepares the saved workflow [workflowId] the way a skill
-     * key bound to it does. Without selected text the panel shows its usual message; the run still
-     * needs the approval in the panel. The field is not changed. False if there is no panel now.
+     * key bound to it does; the run still needs the approval in the panel and the field is not
+     * changed. A typed command means nothing is selected: then the panel only says to select the text
+     * now, and the workflow is remembered ([chosenWorkflowId]) until the panel is opened again with
+     * selected text. False if there is no panel now or input waits for the editor (P3).
      */
     fun openWorkflow(workflowId: String): Boolean {
         if (panel == null || needsCursorRefresh) return false
-        open()
-        val source = snapshot ?: return true
+        val denied = capture()
+        val source = snapshot
+        if (source == null) {
+            if (denied in WAITS_FOR_SELECTION) {
+                chosenWorkflowId = workflowId
+                panel?.showStatus(R.string.agent_command_wf_pending, true)
+            } else chosenWorkflowId = null
+            return true
+        }
+        chosenWorkflowId = null
+        prepareStoredWorkflow(source, workflowId)
+        return true
+    }
+
+    /** Reads the workflow [workflowId] off the main thread and prepares it for [source] (approval in the panel). */
+    private fun prepareStoredWorkflow(source: TextSnapshot, workflowId: String) {
         panel?.showStatus(R.string.agent_workflow_loading, true)
         skillJob = actionScope.launch {
             val workflow = withContext(Dispatchers.IO) {
@@ -256,7 +282,6 @@ class AgentEditorController @JvmOverloads constructor(
             panel?.showSource(source.text)
             if (workflow != null) prepareWorkflow(workflow) else panel?.showStatus(R.string.agent_skill_workflow_missing)
         }
-        return true
     }
 
     /** An edit outside the panel (a typed command) ended unclear: block input until the editor reports (P3). */
@@ -409,8 +434,26 @@ class AgentEditorController @JvmOverloads constructor(
         }
     }
 
+    /**
+     * Opens the text actions (pen key, wheel). A workflow chosen with `@wf` comes first: with selected
+     * text it is prepared like a skill key; without, the panel says the workflow waits for a selection.
+     */
     fun open() {
-        val target = panel ?: return
+        val denied = capture()
+        val chosen = chosenWorkflowId ?: return
+        val source = snapshot
+        if (source == null) {
+            if (panel != null && denied in WAITS_FOR_SELECTION) panel?.showStatus(R.string.agent_command_wf_pending, true)
+            else chosenWorkflowId = null
+            return
+        }
+        chosenWorkflowId = null
+        prepareStoredWorkflow(source, chosen)
+    }
+
+    /** Opens the panel and captures the selection; returns why the capture was denied, or null. */
+    private fun capture(): DenialReason? {
+        val target = panel ?: return null
         close()
         KeyboardSwitcher.getInstance().mainKeyboardView?.closing()
         target.rootView.findViewById<SuggestionStripView>(R.id.suggestion_strip_view)?.dismissMoreSuggestionsPanel()
@@ -425,8 +468,12 @@ class AgentEditorController @JvmOverloads constructor(
                     }
                 }
             }
-            is CaptureResult.Denied -> target.showStatus(captured.reason.messageResource(), true)
+            is CaptureResult.Denied -> {
+                target.showStatus(captured.reason.messageResource(), true)
+                return captured.reason
+            }
         }
+        return null
     }
 
     private fun discardStaleContext() {
@@ -713,6 +760,9 @@ class AgentEditorController @JvmOverloads constructor(
 
     fun destroy() { finishEditor(); actionScope.cancel() }
 }
+
+/** Denials that only mean "select the text now": a workflow chosen with `@wf` waits for them to pass. */
+private val WAITS_FOR_SELECTION = setOf(DenialReason.NO_SELECTION, DenialReason.COMPOSITION)
 
 private fun Throwable.workflowMessage(): Int = when (this) {
     is WorkflowFailure -> when (error) {

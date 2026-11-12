@@ -87,6 +87,8 @@ fun AgentDesignScreen(onClickBack: () -> Unit) {
     var taps by remember { mutableIntStateOf(0) }
     val selected = remember(changed, taps) { DesignTiles.selectedId(prefs) }
     val sections = remember(changed, taps) { DesignTiles.sections(prefs) }
+    // the tiles show the current style and key borders: recompute their colours when those change
+    val look = remember(changed, taps) { DesignTiles.look(context) }
     SearchSettingsScreen(onClickBack, stringResource(R.string.agent_design_title), emptyList()) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
             sections.forEach { (section, tiles) ->
@@ -103,7 +105,7 @@ fun AgentDesignScreen(onClickBack: () -> Unit) {
                 tiles.chunked(COLUMNS).forEach { row ->
                     Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         row.forEach { tile ->
-                            DesignTile(tile, tile.id == selected, Modifier.weight(1f)) {
+                            DesignTile(tile, tile.id == selected, look, Modifier.weight(1f)) {
                                 if (tile.id != selected) {
                                     DesignTiles.select(context, tile)
                                     taps++
@@ -139,9 +141,9 @@ private fun tileLabel(tile: Tile): String = when (tile) {
 }
 
 @Composable
-private fun DesignTile(tile: Tile, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+private fun DesignTile(tile: Tile, selected: Boolean, look: String, modifier: Modifier, onClick: () -> Unit) {
     val context = LocalContext.current
-    val swatches = remember(tile.id) { DesignTiles.swatches(context, tile) }
+    val swatches = remember(tile.id, look) { DesignTiles.swatches(context, tile) }
     val accent = MaterialTheme.colorScheme.primary
     val shape = RoundedCornerShape(12.dp)
     Column(

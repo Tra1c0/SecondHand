@@ -382,7 +382,7 @@
     <string name="agent_command_url_no_browser">Keine App kann diese Adresse öffnen.</string>
     <string name="agent_command_url_read_screen">Bildschirm lesen</string>
     <string name="agent_command_url_read_screen_off">Bildschirm lesen einschalten</string>
-    <string name="agent_command_url_screen_none">Keine Webadresse auf dem Bildschirm.</string>
+    <string name="agent_command_url_screen_none">Keine neue Webadresse auf dem Bildschirm.</string>
     <string name="agent_command_url_screen_failed">Der Bildschirm konnte nicht gelesen werden.</string>
     <string name="agent_screen_reader_label">Agent Keyboard: Bildschirm auf Befehl lesen</string>
     <string name="agent_screen_reader_summary">Liest den sichtbaren Text einmal, wenn du nach @url auf „Bildschirm lesen“ tippst.</string>
@@ -398,13 +398,15 @@
     <string name="agent_command_snip_add">Textbausteine anlegen</string>
     <string name="agent_command_snip_add_description">Öffnet die Befehlseinstellungen, um Textbausteine anzulegen</string>
     <string name="agent_command_snip_insert">Textbaustein %s einfügen</string>
-    <string name="agent_command_clip">Zwischenablage: %1$sclip zeigt die neuesten Einträge aus dem Zwischenablage-Verlauf der Tastatur, %1$sclip Wort die Einträge mit diesem Wort; ein Tipp fügt den ganzen Eintrag ein. Nur Text, als vertraulich markierte Einträge bleiben weg. Braucht den Zwischenablage-Verlauf (Einstellungen → Optionen), der standardmäßig aus ist.</string>
+    <string name="agent_command_clip">Zwischenablage: %1$sclip zeigt die neuesten Einträge aus dem Zwischenablage-Verlauf der Tastatur, %1$sclip Wort die Einträge mit diesem Wort; ein Tipp fügt den ganzen Eintrag ein. Nur Text; Einträge, die als vertraulich markiert waren oder in einem Passwortfeld kopiert wurden, bleiben weg. Braucht den Zwischenablage-Verlauf (Einstellungen → Optionen), der standardmäßig aus ist.</string>
     <string name="agent_command_clip_enable">Zwischenablage-Verlauf einschalten</string>
     <string name="agent_command_clip_enable_description">Öffnet die Einstellungen mit dem Schalter für den Zwischenablage-Verlauf</string>
     <string name="agent_command_clip_insert">Eintrag einfügen: %s</string>
-    <string name="agent_command_wf">Workflows: %1$swf Name zeigt deine gespeicherten Workflows; ein Tipp öffnet den gewählten in den Textaktionen, wo du den Lauf wie gewohnt freigibst. Ein Workflow arbeitet mit markiertem Text: Markiere ihn, wenn das Panel danach fragt.</string>
+    <string name="agent_command_wf">Workflows: %1$swf Name zeigt deine gespeicherten Workflows; ein Tipp merkt sich den gewählten und öffnet die Textaktionen. Markiere dann den Text und öffne die Textaktionen erneut (Stift-Taste): Dort ist der Workflow vorbereitet, und du gibst den Lauf wie gewohnt frei. Die Wahl verfällt, wenn du das Feld wechselst.</string>
     <string name="agent_command_wf_label">%s (markierter Text)</string>
     <string name="agent_command_wf_open">Workflow %s in den Textaktionen öffnen; er braucht markierten Text</string>
+    <string name="agent_command_wf_pending">Workflow vorgemerkt. Markiere jetzt den Text in der App und öffne dann die Textaktionen erneut (Stift-Taste).</string>
+    <string name="agent_command_wf_unavailable">Die Textaktionen lassen sich gerade nicht öffnen. Versuche es gleich noch einmal.</string>
     <string name="agent_command_wf_add">Workflows anlegen</string>
     <string name="agent_command_wf_add_description">Öffnet die Workflow-Einstellungen</string>
     <string name="agent_snippets_title">Textbausteine</string>

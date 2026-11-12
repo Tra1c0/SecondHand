@@ -39,7 +39,9 @@ object SavedPlaces {
         if (!available(context)) return false
         val array = JSONArray()
         places.forEach { array.put(JSONObject().put("name", it.name).put("address", it.address)) }
-        return runCatching { prefs(context).edit().putString(KEY, array.toString()).commit() }.getOrDefault(false)
+        val stored = runCatching { prefs(context).edit().putString(KEY, array.toString()).commit() }.getOrDefault(false)
+        PlaceCommand.reset() // `@ort` reads the list again
+        return stored
     }
 
     enum class SaveResult { SAVED, INVALID, FULL, UNAVAILABLE }

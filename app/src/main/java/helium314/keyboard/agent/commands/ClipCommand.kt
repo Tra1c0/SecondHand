@@ -18,8 +18,10 @@ import java.util.Locale
 /**
  * `@clip word` (stage 24f): searches the keyboard's own clipboard history, which is opt-in. `@clip`
  * shows the newest text clips, `@clip word` the clips containing the word; a tap replaces the
- * command by the whole clip. Images are left out, and so is a clip the copying app marked as
- * sensitive. With the history off, nothing is read and one chip leads to the setting.
+ * command by the whole clip. Images are left out, and so is a clip that was sensitive when it was
+ * copied: marked so by the copying app or copied in a password field ([SensitiveClips]; clips copied
+ * before that record existed are only known when they are still the current clip). With the history
+ * off, nothing is read and one chip leads to the setting.
  */
 object ClipCommand : KeyboardCommands.Command {
     private const val TAG = "ClipCommand"
@@ -28,7 +30,7 @@ object ClipCommand : KeyboardCommands.Command {
     /** Chips for a search word. */
     const val MAX_CHIPS = 8
 
-    /** A text clip of the history; [sensitive] when the copying app marked it so. [toString] never shows the text. */
+    /** A text clip of the history; [sensitive] when it was sensitive when copied. [toString] never shows the text. */
     class Clip(val text: String, val timestamp: Long, val sensitive: Boolean = false) {
         override fun toString() = "Clip(${text.length} chars)"
     }
@@ -100,8 +102,10 @@ object ClipCommand : KeyboardCommands.Command {
         override fun clips(context: Context): List<Clip> {
             val dao = ClipboardDao.getInstance(context) ?: return emptyList()
             val entries = synchronized(dao) { dao.getAll().toList() }
-            // the history does not keep the sensitive mark: it is known for the current clip only
+            // the history does not keep the sensitive mark: SensitiveClips remembered which texts were
+            // sensitive when they were copied; the current clip is checked directly as well
             val sensitiveText = sensitivePrimaryText(context)
+            val wasSensitive = SensitiveClips.matcher(context)
             // clips past the retention time are only removed when the history view opens
             val retention = Settings.getValues()?.mClipboardHistoryRetentionTime ?: 121L
             val oldest = if (retention > 120) Long.MIN_VALUE else System.currentTimeMillis() - retention * 60 * 1000L
@@ -109,7 +113,7 @@ object ClipCommand : KeyboardCommands.Command {
                 val text = entry.text
                 if (entry.filename != null || text.isNullOrBlank()) return@mapNotNull null
                 if (!entry.isPinned && entry.timeStamp < oldest) return@mapNotNull null
-                Clip(text, entry.timeStamp, sensitive = text == sensitiveText)
+                Clip(text, entry.timeStamp, sensitive = text == sensitiveText || wasSensitive(text))
             }
         }
 

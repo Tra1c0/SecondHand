@@ -92,12 +92,13 @@ object UrlDetector {
     const val MAX_SCAN = 20_000
 
     private val WHITESPACE = Regex("\\s+")
+    private val SCHEME = Regex("(?i)https?://")
 
     private fun trimToken(raw: String): String? {
         if (raw.length < 4 || raw.length > MAX_LENGTH + 8) return null
         var token = raw
         // "Link:https://…" or "(https://…": start at the scheme
-        val scheme = Regex("(?i)https?://").find(token)
+        val scheme = SCHEME.find(token)
         if (scheme != null) token = token.substring(scheme.range.first)
         else {
             if ('@' in token) return null // a mail address or a mention
