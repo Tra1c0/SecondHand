@@ -279,4 +279,14 @@
     <string name="agent_clipboard_recent">Recent</string>
     <string name="agent_clipboard_back">Back to the keys</string>
     <string name="agent_clipboard_image">Image</string>
+    <string name="agent_autocorrect_title">Autocorrect</string>
+    <string name="agent_autocorrect_keep_umlaut">Keep umlaut words</string>
+    <string name="agent_autocorrect_keep_umlaut_description">A correct word is never replaced automatically by one that differs only by an umlaut (mochte/möchte, schon/schön). The other word is still suggested.</string>
+    <string name="agent_autocorrect_keep_valid">Never change correct words</string>
+    <string name="agent_autocorrect_keep_valid_description">Only words that are not in the dictionary are corrected automatically. Everything else is only suggested.</string>
+    <string name="agent_autocorrect_remember">Remember undone corrections</string>
+    <string name="agent_autocorrect_remember_description">If you press backspace right after an automatic correction, this pair is never applied automatically again. Stored only on this device, not in incognito mode, not while learning is paused.</string>
+    <string name="agent_autocorrect_stored">Remembered pairs: %d</string>
+    <string name="agent_autocorrect_clear">Forget remembered pairs</string>
+    <string name="agent_autocorrect_clear_confirm">Forget all remembered corrections? They can be corrected automatically again.</string>
 </resources>

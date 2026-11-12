@@ -5,6 +5,8 @@
  */
 package helium314.keyboard.latin
 
+import helium314.keyboard.agent.CorrectionGuard
+import helium314.keyboard.agent.RejectedCorrections
 import android.text.TextUtils
 import com.android.inputmethod.latin.utils.BinaryDictionaryUtils
 import helium314.keyboard.keyboard.Keyboard
@@ -92,7 +94,7 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         val firstOccurrenceOfTypedWordInSuggestions = SuggestedWordInfo.removeDupsAndTypedWord(capitalizedTypedWord, suggestionsContainer)
         makeFirstTwoSuggestionsNonEmoji(suggestionsContainer)
 
-        val (allowsToBeAutoCorrected, hasAutoCorrection) = shouldBeAutoCorrected(
+        val (allowsToBeAutoCorrected, rawHasAutoCorrection) = shouldBeAutoCorrected(
             trailingSingleQuotesCount,
             capitalizedTypedWord,
             suggestionsContainer.firstOrNull(),
@@ -109,6 +111,9 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
             firstOccurrenceOfTypedWordInSuggestions,
             typedWordFirstOccurrenceWordInfo
         )
+        // fork, stage 20a: protect known words and corrections the user undid before
+        val hasAutoCorrection = rawHasAutoCorrection && guardAllows(typedWordString, suggestionsContainer.firstOrNull(),
+            typedWordFirstOccurrenceWordInfo)
         val typedWordInfo = SuggestedWordInfo(typedWordString, "", SuggestedWordInfo.MAX_SCORE,
             SuggestedWordInfo.KIND_TYPED, typedWordFirstOccurrenceWordInfo?.mSourceDict ?: Dictionary.DICTIONARY_USER_TYPED,
             SuggestedWordInfo.NOT_AN_INDEX , SuggestedWordInfo.NOT_A_CONFIDENCE)
@@ -152,6 +157,22 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         val isTypedWordValid = firstOccurrenceOfTypedWordInSuggestions > -1 || (!resultsArePredictions && !allowsToBeAutoCorrected)
         return SuggestedWords(suggestionsList, suggestionResults.mRawSuggestions, typedWordInfo,
             isTypedWordValid, hasAutoCorrection || correctToCapitalizedWord, false, inputStyle, sequenceNumber)
+    }
+
+    /**
+     * The typed word counts as known only if it is in a main dictionary of the same language as the
+     * correction: a word from another active language, the typing history, contacts or the personal
+     * dictionary does not protect it (e.g. English "fur" must not keep German "für" from being set).
+     */
+    private fun guardAllows(typed: String, first: SuggestedWordInfo?, typedInfo: SuggestedWordInfo?): Boolean {
+        val correction = first?.mWord ?: return true
+        val typedIsDictionaryWord = typedInfo != null && typedInfo.mSourceDict.mDictType == Dictionary.TYPE_MAIN
+            && typedInfo.mSourceDict.mLocale == first.mSourceDict.mLocale
+        val settings = Settings.getValues()
+        val context = Settings.getCurrentContext()
+        return CorrectionGuard.allowsAutoCorrection(typed, correction, typedIsDictionaryWord,
+            settings.mKeepValidWords, settings.mKeepUmlautVariants
+        ) { t, c -> settings.mRememberRejectedCorrections && context != null && RejectedCorrections.contains(context, t, c) }
     }
 
     // returns [allowsToBeAutoCorrected, hasAutoCorrection]

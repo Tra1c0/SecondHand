@@ -3,6 +3,8 @@ package helium314.keyboard.latin
 
 import androidx.core.content.edit
 import helium314.keyboard.ShadowBinaryDictionaryUtils
+import helium314.keyboard.agent.AgentPreferences
+import helium314.keyboard.agent.RejectedCorrections
 import helium314.keyboard.ShadowInputMethodManager2
 import helium314.keyboard.ShadowLocaleManagerCompat
 import helium314.keyboard.event.Event
@@ -23,6 +25,8 @@ import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.settings.SettingsValuesForSuggestion
 import helium314.keyboard.latin.utils.SuggestionResults
 import helium314.keyboard.latin.utils.prefs
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
@@ -62,6 +66,7 @@ class SuggestTest {
         tapTypingSuggestions = suggestionResults(emptyList())
         glideTypingSuggestions = suggestionResults(emptyList())
         nextWordSuggestions = suggestionResults(emptyList())
+        RejectedCorrections.clear(latinIME)
     }
 
     @Test fun `'on' to 'in' if 'in' was used before in this context`() {
@@ -553,6 +558,70 @@ class SuggestTest {
         val result2 = getSuggestedWords(false, "buT", CapsMode.MANUAL_LOCKED)
         assert(!result2.mWillAutoCorrect)
         assertEquals(listOf("buT", "BUT", "BUY", "BIT", "😢", "BUTTER"), result2.mSuggestedWordInfoList.map { it.mWord })
+    }
+
+    // fork, stage 20a
+    @Test fun `known word is not replaced by its umlaut variant unless the user allows it`() {
+        currentTypingLocale = Locale.GERMAN
+        enableAutocorrect(confidenceVeryAggressive)
+        fun mochte(): SuggestedWords {
+            tapTypingSuggestions = suggestionResults(listOf(
+                suggestion("möchte", 650000), // above the limit
+                suggestion("mochte", 300000), // the typed word is a known word, below the limit
+            ))
+            return getSuggestedWords(false, "mochte", CapsMode.OFF)
+        }
+        latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_KEEP_UMLAUT_VARIANTS, false) }
+        assert(mochte().mWillAutoCorrect) // upstream behaviour: replaced
+
+        latinIME.prefs().edit { remove(AgentPreferences.AUTOCORRECT_KEEP_UMLAUT_VARIANTS) } // default: keep
+        val kept = mochte()
+        assertFalse(kept.mWillAutoCorrect)
+        assertTrue(kept.mSuggestedWordInfoList.any { it.mWord == "möchte" }) // still offered
+
+        // an unknown word with an umlaut variant is still corrected
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("möchte", 650000)))
+        assert(getSuggestedWords(false, "mochte", CapsMode.OFF).mWillAutoCorrect)
+
+        // a word of another active language does not count as known: English "fur" still becomes "für"
+        tapTypingSuggestions = suggestionResults(listOf(
+            suggestion("für", 650000, Locale.GERMAN),
+            suggestion("fur", 300000, Locale.ENGLISH),
+        ))
+        assert(getSuggestedWords(false, "fur", CapsMode.OFF).mWillAutoCorrect)
+    }
+
+    @Test fun `known words can be protected completely`() {
+        enableAutocorrect(confidenceVeryAggressive)
+        fun hell(): SuggestedWords {
+            tapTypingSuggestions = suggestionResults(listOf(suggestion("hello", 650000), suggestion("hell", 300000)))
+            return getSuggestedWords(false, "hell", CapsMode.OFF)
+        }
+        assert(hell().mWillAutoCorrect)
+        latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_KEEP_VALID_WORDS, true) }
+        assertFalse(hell().mWillAutoCorrect)
+        // words that are not in the dictionary are still corrected
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("hello", 650000)))
+        assert(getSuggestedWords(false, "henlo", CapsMode.OFF).mWillAutoCorrect)
+    }
+
+    @Test fun `an undone correction is not applied again while remembering is on`() {
+        enableAutocorrect(confidenceVeryAggressive)
+        fun henlo(): SuggestedWords {
+            tapTypingSuggestions = suggestionResults(listOf(suggestion("hello", 650000)))
+            return getSuggestedWords(false, "henlo", CapsMode.OFF)
+        }
+        latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_REMEMBER_REJECTED, true) }
+        RejectedCorrections.remember(latinIME, "henlo", "hello", Settings.getValues())
+        assertFalse(henlo().mWillAutoCorrect)
+        assertTrue(henlo().mSuggestedWordInfoList.any { it.mWord == "hello" })
+        // case does not matter; control: another typo is still corrected
+        assertFalse(getSuggestedWords(false, "Henlo", CapsMode.OFF).mWillAutoCorrect)
+        assert(getSuggestedWords(false, "Hrllo", CapsMode.OFF).mWillAutoCorrect)
+        // switched off: the pair is ignored again, but kept
+        latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_REMEMBER_REJECTED, false) }
+        assert(henlo().mWillAutoCorrect)
+        assertEquals(1, RejectedCorrections.all(latinIME).size)
     }
 
     @Test fun `normal autocorrect works with manual caps modes`() {

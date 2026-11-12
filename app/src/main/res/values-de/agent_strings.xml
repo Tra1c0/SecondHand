@@ -278,4 +278,14 @@
     <string name="agent_clipboard_recent">Letzte</string>
     <string name="agent_clipboard_back">Zurück zu den Tasten</string>
     <string name="agent_clipboard_image">Bild</string>
+    <string name="agent_autocorrect_title">Autokorrektur</string>
+    <string name="agent_autocorrect_keep_umlaut">Umlaut-Wörter behalten</string>
+    <string name="agent_autocorrect_keep_umlaut_description">Ein richtiges Wort wird nie automatisch durch eines ersetzt, das sich nur im Umlaut unterscheidet (mochte/möchte, schon/schön). Das andere Wort wird weiter vorgeschlagen.</string>
+    <string name="agent_autocorrect_keep_valid">Richtige Wörter nie ändern</string>
+    <string name="agent_autocorrect_keep_valid_description">Automatisch korrigiert werden nur Wörter, die nicht im Wörterbuch stehen. Alles andere wird nur vorgeschlagen.</string>
+    <string name="agent_autocorrect_remember">Rückgängig gemachte Korrekturen merken</string>
+    <string name="agent_autocorrect_remember_description">Drückst du direkt nach einer automatischen Korrektur die Löschtaste, wird dieses Paar nie wieder automatisch angewendet. Nur auf diesem Gerät gespeichert, nicht im Inkognito-Modus und nicht bei pausiertem Lernen.</string>
+    <string name="agent_autocorrect_stored">Gemerkte Paare: %d</string>
+    <string name="agent_autocorrect_clear">Gemerkte Paare vergessen</string>
+    <string name="agent_autocorrect_clear_confirm">Alle gemerkten Korrekturen vergessen? Sie können danach wieder automatisch angewendet werden.</string>
 </resources>

@@ -38,3 +38,6 @@
   Werkzeugen verborgen; das Menü scrollt im Querformat; die Zwischenablage-Ansicht hat auch bei
   ausgeblendeter Symbolleiste einen Weg zurück; kopierte Fotos stehen im Vorschaubild richtig
   herum; die Vorlage rechnet die Tastaturhöhe auch im Querformat richtig.
+- Neu: Die Autokorrektur macht aus einem richtigen Wort nicht mehr automatisch eine
+  Umlaut-Variante (mochte bleibt mochte, möchte wird vorgeschlagen). Optional merkt sie sich
+  Korrekturen, die du mit der Löschtaste rückgängig machst. Einstellungen → Gelernte Wörter.

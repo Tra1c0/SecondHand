@@ -9,4 +9,10 @@ object AgentPreferences {
     val SETTINGS_DESTINATIONS = setOf("appearance", "toolbar")
     /** Keeps what was learned but adds nothing new. Different from switching learning off, which deletes. */
     const val LEARNING_PAUSED = "agent_learning_paused"
+    /** Never replace a known word automatically (default off: known words may still be corrected when clearly wrong). */
+    const val AUTOCORRECT_KEEP_VALID_WORDS = "agent_autocorrect_keep_valid_words"
+    /** Never replace a known word by one that differs only by an umlaut, e.g. mochte/möchte (default on). */
+    const val AUTOCORRECT_KEEP_UMLAUT_VARIANTS = "agent_autocorrect_keep_umlaut_variants"
+    /** Opt-in: remember corrections undone with backspace and never apply them again. */
+    const val AUTOCORRECT_REMEMBER_REJECTED = "agent_autocorrect_remember_rejected"
 }

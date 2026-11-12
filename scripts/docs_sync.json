@@ -53,6 +53,7 @@
       "app/src/main/java/helium314/keyboard/latin/suggestions/{FlatStrip,SuggestionStripView}.kt",
       "app/src/main/java/helium314/keyboard/keyboard/clipboard/{ClipboardAdapter,ClipboardHistoryView,FlatClipboard}.kt",
       "app/src/main/java/helium314/keyboard/latin/{ClipboardHistoryEntry,ClipboardHistoryManager,ClipboardThumbnails}.kt",
+      "app/src/main/java/helium314/keyboard/latin/Suggest.kt",
       "app/src/main/java/helium314/keyboard/settings/{SettingsActivity,SettingsNavHost}.kt",
       "app/src/main/java/helium314/keyboard/settings/screens/MainSettingsScreen.kt",
       "app/src/main/java/helium314/keyboard/settings/screens/gesturedata/Share.kt",

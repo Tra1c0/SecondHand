@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.latin
 
+import helium314.keyboard.agent.AgentPreferences
+import helium314.keyboard.agent.RejectedCorrections
 import android.os.Handler
 import android.os.Message
 import android.text.InputType
@@ -664,6 +666,40 @@ class InputLogicTest {
         getAutocorrectedWithSpaceAfter("hello", "hullo")
         functionalKeyPress(KeyCode.DELETE)
         assertEquals("hello", text)
+    }
+
+    // fork, stage 20a
+    @Test fun `undone correction is remembered only when switched on and not in incognito`() {
+        RejectedCorrections.clear(latinIME)
+        setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT)
+        chainInput("hullo")
+        getAutocorrectedWithSpaceAfter("hello", "hullo")
+        functionalKeyPress(KeyCode.DELETE)
+        assertEquals("hullo", text)
+        assertFalse(RejectedCorrections.contains(latinIME, "hullo", "hello")) // off by default
+
+        reset()
+        latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_REMEMBER_REJECTED, true) }
+        setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT)
+        chainInput("hullo")
+        getAutocorrectedWithSpaceAfter("hello", "hullo")
+        functionalKeyPress(KeyCode.DELETE)
+        assertEquals("hullo", text)
+        assertTrue(RejectedCorrections.contains(latinIME, "hullo", "hello"))
+
+        RejectedCorrections.clear(latinIME)
+        reset()
+        latinIME.prefs().edit {
+            putBoolean(AgentPreferences.AUTOCORRECT_REMEMBER_REJECTED, true)
+            putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true)
+        }
+        setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT)
+        chainInput("hullo")
+        getAutocorrectedWithSpaceAfter("hello", "hullo")
+        functionalKeyPress(KeyCode.DELETE)
+        assertEquals("hullo", text)
+        assertFalse(RejectedCorrections.contains(latinIME, "hullo", "hello"))
+        RejectedCorrections.clear(latinIME)
     }
 
     @Test fun `remove glide typing word on delete`() {

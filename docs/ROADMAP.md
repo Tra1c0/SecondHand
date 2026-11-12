@@ -16,10 +16,9 @@ Autokorrektur. Der Owner hat die Entscheidung über Machbarkeit und Reihenfolge 
 Folgende ist die Entscheidung des Leads.
 
 - **20 Lernende Autokorrektur, lokal, ohne KI.**
-  - 20a Gültige Wörter schützen: ein richtiges Wort wird nur bei sehr hoher Sicherheit ersetzt,
-    ein reiner Umlaut-Unterschied (mochte/möchte) noch strenger; Schalter „gültige Wörter nie
-    ändern“. Eine mit der Löschtaste rückgängig gemachte Korrektur wird als Paar gesperrt und
-    nie wieder automatisch angewendet. (M)
+  - 20a ist gebaut (siehe FEATURES.md). Abweichend vom ersten Entwurf gilt der Schutz nur für
+    Umlaute, nicht für alle Akzente: Spanische Akzente (esta/está) sind meist aus Bequemlichkeit
+    weggelassen, ihre Korrektur bleibt erwünscht.
   - 20b Eigene Tippfehler lernen: ein Paar „getippt → gemeint“ zählt nur bei eindeutiger
     Bestätigung (Korrektur behalten oder Vorschlag selbst gewählt), mit dem Wort davor als
     Kontext; ab drei gleichen Bestätigungen wird es sicher korrigiert. Ein unkorrigierter

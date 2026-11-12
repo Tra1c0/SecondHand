@@ -1086,6 +1086,30 @@ Kern-Tests, Build und Lint bestanden (139 Warnungen, ein Hinweis). Ein zweiter E
 mit frischen Daten bootete, ging aber mit einem Neustart der Arbeitsumgebung verloren, bevor die
 APK installiert war: weiterhin kein Gerätelauf.
 
+## Etappe20a — Autokorrektur behält Umlaut-Wörter und merkt rückgängig gemachte Korrekturen
+
+- `CorrectionMemoryTest` (4 Fälle): Umlaut-Erkennung (mochte/möchte, schon/schön, Wurde/würde
+  ja; esta/está, ne/né, nur Großschreibung nein), der Wächter blockiert nur, Speichern nur mit
+  Schalter und ohne Lernpause oder Inkognito, nur-Großschreibung und leere Wörter werden nicht
+  gespeichert, Richtung zählt, Grenze 500 mit Verwerfen der ältesten, Neuladen nach Neustart,
+  Vergessen.
+- `SuggestTest` (3 neue Fälle, durch die echte Vorschlagslogik): ohne Schalter wird „mochte“
+  wie bisher zu „möchte“ korrigiert, mit Standard nicht mehr und „möchte“ bleibt Vorschlag; ein
+  unbekanntes Wort wird weiter korrigiert; englisches „fur“ wird bei Deutsch weiter zu „für“;
+  „Richtige Wörter nie ändern“; ein gemerktes Paar wird nicht angewendet, eine andere
+  Vertippung schon, ausgeschaltet gilt das Paar nicht mehr.
+- `InputLogicTest` (1 neuer Fall): Löschtaste direkt nach einer Korrektur stellt das Wort wieder
+  her und merkt das Paar nur mit Schalter, nicht im Inkognito-Modus.
+- Lesender Prüfer (Pflicht wegen `InputLogic`): ein Hauptbefund behoben (als „bekannt“ galt jedes
+  Wort aus irgendeinem Wörterbuch, auch aus einer anderen Sprache oder dem Tippverlauf; jetzt nur
+  Hauptwörterbuch derselben Sprache wie die Korrektur). Behoben: falsche Annahme zur
+  Wischeingabe im Rückgängig-Pfad, nicht atomare Lese-Menge. Offen, gering: Lesen und Löschen
+  der kleinen Datei auf dem UI-Thread der Einstellungsseite.
+- Agent-Suite 272/0, die betroffenen Upstream-Klassen ohne neue Fehler (nur der geerbte
+  Hangul-Fall), Build und Lint bestanden (142 Warnungen, ein Hinweis).
+- Nicht geprüft: echtes Tippen auf dem Telefon, also ob sich die Korrektur im Alltag besser
+  anfühlt.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

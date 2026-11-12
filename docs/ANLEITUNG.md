@@ -141,6 +141,18 @@ dabei nicht gesichert.
 - Das Aktionsrad erreichst du im flachen Look über den Leertasten-Langdruck (Einstellungen →
   Tastaturprofile → Gesten), die Stift-Taste öffnet das Panel.
 
+## Autokorrektur
+
+Einstellungen → Gelernte Wörter → Abschnitt „Autokorrektur“:
+
+- „Umlaut-Wörter behalten“ (an): Aus „mochte“ wird nicht mehr automatisch „möchte“, wenn beide
+  Wörter existieren. „möchte“ steht dann als Vorschlag in der Leiste.
+- „Richtige Wörter nie ändern“ (aus): Automatisch korrigiert werden nur noch Wörter, die nicht im
+  Wörterbuch stehen.
+- „Rückgängig gemachte Korrekturen merken“ (aus): Korrigiert die Tastatur ein Wort falsch und du
+  drückst sofort die Löschtaste, kommt dein Wort zurück, und dieses Paar wird nie wieder
+  automatisch angewendet. „Gemerkte Paare vergessen“ löscht alle.
+
 ## Gelernte Wörter
 
 Lernen aus dem Tippen ist anfangs aus. Einschalten: Einstellungen → Textkorrektur →

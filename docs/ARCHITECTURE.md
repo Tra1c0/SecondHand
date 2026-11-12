@@ -157,6 +157,15 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   `ic_agent_dictate.xml` und
   `ic_skill_*.xml` für die drei Skill-Tasten).
 
+Autokorrektur (Etappe 20a, Details im Abschnitt „Lerndaten“):
+
+- `Suggest.kt`: nach `shouldBeAutoCorrected` entscheidet `guardAllows` (über `CorrectionGuard`),
+  ob die automatische Korrektur bleibt; sonst bleibt sie nur Vorschlag. `shouldBeAutoCorrected`
+  selbst ist unverändert, damit die Upstream-Tests es weiter direkt prüfen.
+- `InputLogic.java`: `revertCommit` meldet eine rückgängig gemachte Korrektur aus Tipp-Eingabe an
+  `RejectedCorrections.remember` (nicht bei Wischeingabe).
+- `SettingsValues.java`: `mKeepValidWords`, `mKeepUmlautVariants`, `mRememberRejectedCorrections`.
+
 Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Flacher Stil“):
 
 - `KeyboardTheme.kt`: Stil `STYLE_FLAT` („Flat“, Theme-ID 5, immer mit Tastenhintergrund) und
@@ -536,6 +545,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Übergröße und bei unlesbarer Sprache, nur echte Historien-Dateien). Nicht durch Tests belegt,
   weil sie die native Engine brauchen: dass bei Pause kein Wort in der Historie landet, das
   Lesen echter Lerndaten und das Leeren.
+- Autokorrektur (20a): `K/agent/CorrectionMemory.kt`. `CorrectionGuard.allowsAutoCorrection`
+  blockiert nur, korrigiert nie selbst: gesperrtes Paar, dann (nur wenn das getippte Wort im
+  Wörterbuch steht) „richtige Wörter nie ändern“ oder ein reiner Umlaut-Unterschied (NFD,
+  U+0308 entfernt). `RejectedCorrections` hält die Paare kleingeschrieben in
+  `agent_correction_memory` (gerätegeschützter Speicher wie die Lernwörterbücher, siehe
+  `docs/STORAGE.md`), höchstens 500, älteste zuerst verworfen, im Speicher als Menge für die
+  Abfrage aus dem Vorschlags-Thread. Gespeichert wird nur mit Schalter an, ohne Lernpause,
+  ohne Inkognito und bei entsperrtem Gerät; nur gemeinsam mit Rückgängig per Löschtaste.
+  Einstellungen: Abschnitt „Autokorrektur“ in `AgentLearningScreen.kt`. Tests:
+  `CorrectionMemoryTest`, Fälle „stage 20a“ in `SuggestTest` und `InputLogicTest`.
 
 ## Unveränderter Upstream
 
@@ -689,30 +708,31 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (201 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (204 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (3): build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (34): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (35): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
-  AndroidEditorAdapter, ApprovedActionRunner, Dictation, EncryptedActionRunStore, FlatMenuView,
-  FlatPanelStyle, FlatPreset, JournaledModelCall, JournaledRun, KeyboardProfileStore, LearningData,
-  ManualWorkflowDraft, ModelSettings, OnDeviceSpeechEngine, RunSubjectCodec, SkillBindingStore,
-  SkillLabels, ToolApprovalSummary, ToolLauncher, WorkflowApprovalSummary, WorkflowBuilderContract,
-  WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
+  AndroidEditorAdapter, ApprovedActionRunner, CorrectionMemory, Dictation, EncryptedActionRunStore,
+  FlatMenuView, FlatPanelStyle, FlatPreset, JournaledModelCall, JournaledRun, KeyboardProfileStore,
+  LearningData, ManualWorkflowDraft, ModelSettings, OnDeviceSpeechEngine, RunSubjectCodec,
+  SkillBindingStore, SkillLabels, ToolApprovalSummary, ToolLauncher, WorkflowApprovalSummary,
+  WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
+  WorkflowStore
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
-- `AT/` (38): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (39): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
-  ApprovedWorkflowRunnerTest, CalendarToolLauncherTest, DebugPrivacyTest, DictationSessionTest,
-  DictationUiTest, EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, FlatClipboardTest,
-  FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest,
-  InsertAtCursorTest, JournaledModelCallTest, KeyboardProfileStoreTest, LearningDataTest,
-  ManualWorkflowDraftTest, MoreProvidersTest, OpenAiProviderTest, SelectedTextCommitTest,
-  SkillBindingStoreTest, SkillSettingsTest, TestRunJournal, ToolRunnerTest,
+  ApprovedWorkflowRunnerTest, CalendarToolLauncherTest, CorrectionMemoryTest, DebugPrivacyTest,
+  DictationSessionTest, DictationUiTest, EncryptedActionRunStoreTest, EncryptedCredentialStoreTest,
+  FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest,
+  ForkIdentityTest, InsertAtCursorTest, JournaledModelCallTest, KeyboardProfileStoreTest,
+  LearningDataTest, ManualWorkflowDraftTest, MoreProvidersTest, OpenAiProviderTest,
+  SelectedTextCommitTest, SkillBindingStoreTest, SkillSettingsTest, TestRunJournal, ToolRunnerTest,
   WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowConditionSummaryTest,
   WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `C/` (12): AiTextAction, ApplyOutcome, EditorSession, ExecutionPolicy, LocalTextActions,
@@ -726,8 +746,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/keyboard/internal/` (1): KeyboardIconsSet
 - `K/keyboard/internal/keyboard_parser/` (1): KeyboardParser
 - `K/keyboard/internal/keyboard_parser/floris/` (1): KeyCode
-- `K/latin/` (8): App, ClipboardHistoryEntry, ClipboardHistoryManager, ClipboardThumbnails,
-  DictionaryFacilitatorImpl, InputView, LatinIME, RichInputConnection
+- `K/latin/` (9): App, ClipboardHistoryEntry, ClipboardHistoryManager, ClipboardThumbnails,
+  DictionaryFacilitatorImpl, InputView, LatinIME, RichInputConnection, Suggest
 - `K/latin/database/` (1): ClipboardDao
 - `K/latin/define/` (1): DebugFlags
 - `K/latin/dictionary/` (1): ExpandableBinaryDictionary

@@ -102,3 +102,11 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   vorher nicht gesetzt und wird beim Wiederherstellen entfernt.
 - Nur Darstellungs- und Layout-Einstellungen (Liste: `FlatPreset.values()`), keine Texte,
   Lerndaten oder Zugangsdaten. Wird beim Wiederherstellen geleert.
+
+## Gemerkte Autokorrekturen (20a)
+
+- Datei: SharedPreferences `agent_correction_memory` im gerätegeschützten Speicher (Direct Boot),
+  wie die Lernwörterbücher der Engine. Schlüssel `rejected`: JSON-Liste von Einträgen
+  „getippt␀korrigiert“, beides kleingeschrieben, älteste zuerst, höchstens 500.
+- Entsteht nur mit eingeschaltetem „Rückgängig gemachte Korrekturen merken“. Kein Backup (die
+  App schließt Backups aus), kein Protokoll. „Gemerkte Paare vergessen“ leert die Datei.

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.settings.screens
 
+import helium314.keyboard.agent.AgentPreferences
+import helium314.keyboard.agent.RejectedCorrections
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -98,6 +100,8 @@ fun AgentLearningScreen(onClickBack: () -> Unit, sourceFactory: (() -> LearningS
             Text(stringResource(R.string.agent_learning_export_description), style = MaterialTheme.typography.bodySmall)
             Button(enabled = !busy, onClick = { confirmDelete = true }) { Text(stringResource(R.string.agent_learning_delete)) }
             if (notice != 0) Text(stringResource(notice))
+            HorizontalDivider()
+            AutocorrectSection(busy)
         }
     }
     if (confirmDelete) ConfirmationDialog(
@@ -111,5 +115,50 @@ fun AgentLearningScreen(onClickBack: () -> Unit, sourceFactory: (() -> LearningS
         },
         content = { Text(stringResource(R.string.agent_learning_delete_confirm)) },
         confirmButtonText = stringResource(R.string.agent_learning_delete),
+    )
+}
+
+/** Stage 20a: rules that keep known words, and the opt-in memory of undone corrections. */
+@Composable
+private fun AutocorrectSection(busy: Boolean) {
+    val context = LocalContext.current
+    val prefs = context.prefs()
+    var keepUmlaut by remember { mutableStateOf(prefs.getBoolean(AgentPreferences.AUTOCORRECT_KEEP_UMLAUT_VARIANTS, true)) }
+    var keepValid by remember { mutableStateOf(prefs.getBoolean(AgentPreferences.AUTOCORRECT_KEEP_VALID_WORDS, false)) }
+    var remember by remember { mutableStateOf(prefs.getBoolean(AgentPreferences.AUTOCORRECT_REMEMBER_REJECTED, false)) }
+    var stored by remember { mutableIntStateOf(RejectedCorrections.all(context).size) }
+    var confirmClear by remember { mutableStateOf(false) }
+
+    @Composable
+    fun toggle(title: Int, description: Int, checked: Boolean, key: String, onChange: (Boolean) -> Unit) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(stringResource(title), Modifier.weight(1f))
+            Switch(checked = checked, enabled = !busy, onCheckedChange = { value ->
+                if (prefs.edit().putBoolean(key, value).commit()) onChange(value)
+            })
+        }
+        Text(stringResource(description), style = MaterialTheme.typography.bodySmall)
+    }
+
+    Text(stringResource(R.string.agent_autocorrect_title), style = MaterialTheme.typography.titleMedium)
+    toggle(R.string.agent_autocorrect_keep_umlaut, R.string.agent_autocorrect_keep_umlaut_description,
+        keepUmlaut, AgentPreferences.AUTOCORRECT_KEEP_UMLAUT_VARIANTS) { keepUmlaut = it }
+    toggle(R.string.agent_autocorrect_keep_valid, R.string.agent_autocorrect_keep_valid_description,
+        keepValid, AgentPreferences.AUTOCORRECT_KEEP_VALID_WORDS) { keepValid = it }
+    toggle(R.string.agent_autocorrect_remember, R.string.agent_autocorrect_remember_description,
+        remember, AgentPreferences.AUTOCORRECT_REMEMBER_REJECTED) { remember = it }
+    Text(stringResource(R.string.agent_autocorrect_stored, stored))
+    OutlinedButton(enabled = !busy && stored > 0, onClick = { confirmClear = true }) {
+        Text(stringResource(R.string.agent_autocorrect_clear))
+    }
+    if (confirmClear) ConfirmationDialog(
+        onDismissRequest = { confirmClear = false },
+        onConfirmed = {
+            confirmClear = false
+            runCatching { RejectedCorrections.clear(context) }
+            stored = RejectedCorrections.all(context).size
+        },
+        content = { Text(stringResource(R.string.agent_autocorrect_clear_confirm)) },
+        confirmButtonText = stringResource(R.string.agent_autocorrect_clear),
     )
 }

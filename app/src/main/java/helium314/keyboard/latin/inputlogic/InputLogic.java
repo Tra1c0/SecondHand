@@ -2041,6 +2041,10 @@ public final class InputLogic {
         mConnection.deleteTextBeforeCursor(deleteLength);
         if (!TextUtils.isEmpty(committedWord)) {
             unlearnWord(committedWordString, inputTransaction.getSettingsValues(), DictionaryFacilitator.UnlearnEvent.REVERT);
+            // fork, stage 20a: an undone correction is not applied automatically again
+            // (gesture input only corrects capitalization, which remember() does not store)
+            helium314.keyboard.agent.RejectedCorrections.remember(mLatinIME, originallyTypedWord.toString(),
+                    committedWordString, inputTransaction.getSettingsValues());
         }
         final String stringToCommit = originallyTypedWord +
                 (usePhantomSpace ? "" : separatorString);
