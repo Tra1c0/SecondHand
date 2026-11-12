@@ -36,4 +36,7 @@
     <item type="id" name="agent_menu_incognito" />
     <item type="id" name="agent_menu_floating" />
     <item type="id" name="agent_menu_edit" />
+    <item type="id" name="agent_clipboard_back" />
+    <item type="id" name="agent_clipboard_title" />
+    <item type="id" name="agent_clipboard_section" />
 </resources>

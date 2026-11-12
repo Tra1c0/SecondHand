@@ -17,6 +17,8 @@ import android.view.inputmethod.EditorInfo
 import androidx.core.view.inputmethod.InputContentInfoCompat
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
+import helium314.keyboard.keyboard.FlatStyle
+import helium314.keyboard.keyboard.clipboard.FlatClipboard
 import helium314.keyboard.keyboard.KeyboardTypeface
 import helium314.keyboard.compat.ClipboardManagerCompat
 import helium314.keyboard.event.Event
@@ -226,7 +228,11 @@ class ClipboardHistoryManager(
             val imageView = binding.clipboardSuggestionImage
             imageView.isVisible = true
             try {
-                imageView.setImageURI(clipItem.uri)
+                // decoded once per clip at a small size instead of at full size on every strip update
+                val thumbnail = ClipboardThumbnails.fromUri(latinIME.contentResolver, clipItem.uri, timeStamp,
+                    latinIME.resources.displayMetrics.widthPixels / 4)
+                if (thumbnail != null) imageView.setImageBitmap(thumbnail)
+                else imageView.setImageURI(clipItem.uri)
             } catch (e: Exception) {
                 Log.w(TAG, "error setting clipboard image", e) // happens with SecurityException: Permission Denial
                 return null
@@ -245,6 +251,12 @@ class ClipboardHistoryManager(
         clipIcon?.let { colors.setColor(it, ColorType.CLIPBOARD_SUGGESTION_ICON) }
         colors.setColor(closeButton, ColorType.REMOVE_SUGGESTION_ICON)
         colors.setBackground(binding.root, ColorType.CLIPBOARD_SUGGESTION_BACKGROUND)
+        if (FlatStyle.isActive(colors)) {
+            val label = clipData.description?.label?.toString()?.trim().orEmpty()
+            FlatClipboard.styleChip(binding.root, textView, binding.clipboardSuggestionImage, closeButton, hasImage,
+                if (label.length in 1..FlatClipboard.MAX_CHIP_LABEL && !isClipSensitive(inputType)) label else null
+            ) { removeClipboardSuggestion() }
+        }
 
         clipboardSuggestionView = binding.root
         return clipboardSuggestionView

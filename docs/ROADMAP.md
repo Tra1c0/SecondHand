@@ -10,12 +10,12 @@ Etappen aus dem ursprünglichen Auftrag; Teilpakete bekommen Buchstaben (15a, 15
 
 Reihenfolge von oben nach unten.
 
-- **19d–19e Flacher Look, Rest.** Vom Owner am 2026-11-12 beauftragt (Vorlage: fünf
-  Screenshots der bisherigen Tastatur, nur als Ausgangspunkt für ein eigenes Design). 19a
-  (Tastenfläche), 19b (Leiste) und 19c (Menü) sind gebaut. Offen: 19d Zwischenablage-Ansicht
-  (Kopfzeile, zweispaltige Karten, Bilder, Chip in der Leiste), 19e Panel im Stil der
-  „Schreibtools“ samt Stift-Taste, die das Panel direkt öffnet. Nicht nachbaubar und deshalb nicht geplant: GIF, Sticker, „Tastatur
-  teilen“, automatisches Senden ohne Freigabe, animierter Leuchtrand. (L)
+- **19f Flacher Look am Gerät.** 19a–19e (Tasten, Leiste, Menü, Zwischenablage, Panel) sind
+  gebaut, aber nur mit Tests und gerenderten Bildern geprüft. Offen: Vergleich auf dem Telefon
+  des Owners mit Bildschirmfotos (Dichte, Systemschrift, Abstand zur Navigationsleiste,
+  Tastenvorschau), danach Feinjustierung. Aus der Vorlage bewusst nicht übernommen: GIF, Sticker,
+  „Tastatur teilen“, automatisches Senden ohne Freigabe, der umlaufend animierte Leuchtrand
+  der Karte, Laufschrift in den Menü-Pillen, mehrere Menüseiten. (S)
 - **G2 Restlicher Gerätetest.** Was G1 nicht abdeckt (Liste: `docs/VALIDATION.md` → G1 → Nicht
   geprüft): Rotation, TalkBack, Gesten, Feld- und App-Wechsel, Inkognito, Sperre, Direct Boot,
   Skill Keys, Workflows, Act Builder, dazu Diktat mit echtem Mikrofon und die Seite „Gelernte

@@ -28,6 +28,7 @@ import helium314.keyboard.latin.utils.ToolbarKey
 import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.settings.SettingsActivity
 import helium314.keyboard.settings.SettingsDestination
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -63,6 +64,14 @@ class FlatMenuTest {
         KeyboardIconsSet.needsReload = true
         Settings.getInstance().loadSettings(latinIME, Locale.GERMANY, InputAttributes(EditorInfo(), false, latinIME.packageName))
         KeyboardIconsSet.instance.loadIcons(context)
+    }
+
+
+    /** The settings singleton outlives a test; later tests must not inherit the Flat style. */
+    @After fun restoreDefaults() {
+        latinIME.prefs().edit().clear().commit()
+        KeyboardIconsSet.needsReload = true
+        Settings.getInstance().loadSettings(latinIME, Locale.GERMANY, InputAttributes(EditorInfo(), false, latinIME.packageName))
     }
 
     @Test fun pillsSitWhereTheReferenceHasThemAndTheStripStaysFree() {

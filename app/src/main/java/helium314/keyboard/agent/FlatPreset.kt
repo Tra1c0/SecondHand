@@ -43,6 +43,8 @@ class FlatPreset(private val context: Context) {
         Settings.PREF_AUTO_HIDE_TOOLBAR to true,
         Settings.PREF_TOOLBAR_KEYS to toolbarPref(TOOLBAR_KEYS),
         Settings.PREF_PINNED_TOOLBAR_KEYS to toolbarPref(PINNED_KEYS),
+        // clipboard header: back and title are fixed, these keys follow as round buttons
+        Settings.PREF_CLIPBOARD_TOOLBAR_KEYS to toolbarPref(CLIPBOARD_KEYS, withCloseHistory = true),
         Settings.PREF_LAYOUT_PREFIX + LayoutType.FUNCTIONAL.name to FUNCTIONAL_LAYOUT,
         Settings.PREF_FONT_SCALE to 1f,
         Settings.PREF_HINT_FONT_SCALE to 1f,
@@ -114,10 +116,15 @@ class FlatPreset(private val context: Context) {
 
         val TOOLBAR_KEYS = listOf(ToolbarKey.CLIPBOARD, ToolbarKey.EMOJI, ToolbarKey.AGENT)
         val PINNED_KEYS = listOf(ToolbarKey.DICTATE)
+        val CLIPBOARD_KEYS = listOf(ToolbarKey.CLEAR_CLIPBOARD, ToolbarKey.SETTINGS)
 
-        /** Same format as the toolbar settings write: the enabled keys first and in order, then all others. */
-        private fun toolbarPref(enabled: List<ToolbarKey>): String =
-            (enabled.map { it to true } + ToolbarKey.entries.filterNot { it in enabled || it == ToolbarKey.CLOSE_HISTORY }.map { it to false })
+        /**
+         * Same format as the toolbar settings write: the enabled keys first and in order, then all others.
+         * Only the clipboard list knows the key that closes the clipboard view.
+         */
+        private fun toolbarPref(enabled: List<ToolbarKey>, withCloseHistory: Boolean = false): String =
+            (enabled.map { it to true } + ToolbarKey.entries
+                .filterNot { it in enabled || (it == ToolbarKey.CLOSE_HISTORY && !withCloseHistory) }.map { it to false })
                 .joinToString(Separators.ENTRY) { (key, on) -> key.name + Separators.KV + on }
 
         private fun portraitKey(prefix: String, conditions: Int) = createPrefKeyForBooleanSettings(prefix, 0, conditions)

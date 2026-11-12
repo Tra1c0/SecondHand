@@ -274,4 +274,8 @@
     <string name="agent_menu_edit">Tasten der Leiste bearbeiten</string>
     <string name="agent_menu_open">Tastaturmenü öffnen</string>
     <string name="agent_menu_close">Tastaturmenü schließen</string>
+    <string name="agent_clipboard_title">Zwischenablage</string>
+    <string name="agent_clipboard_recent">Letzte</string>
+    <string name="agent_clipboard_back">Zurück zu den Tasten</string>
+    <string name="agent_clipboard_image">Bild</string>
 </resources>

@@ -28,4 +28,9 @@
   her. Auf einem Gerät noch nicht geprüft.
 - Neu im flachen Look: Leiste mit fünf Knöpfen (Menü, Zwischenablage, Emoji, Aktionen, Diktat im
   Kreis) und ein Menü hinter dem Raster-Symbol mit Design, Rückgängig, Einhändig, Emoji,
-  Inkognito und Unverankert. Zwischenablage-Ansicht und Panel im neuen Look folgen.
+  Inkognito und Unverankert.
+- Neu im flachen Look: Zwischenablage-Ansicht mit Kopfzeile und zweispaltigen Karten, kopierte
+  Bilder als Pille mit rundem Vorschaubild in der Leiste, Aktionspanel mit Ergebnis-Karte und
+  Chips. Die Stift-Taste öffnet das Panel direkt.
+- Schneller: Bilder in der Zwischenablage werden einmal in Anzeigegröße geladen statt bei jedem
+  Scrollen in voller Auflösung (alle Stile).

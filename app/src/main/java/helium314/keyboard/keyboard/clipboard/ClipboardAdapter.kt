@@ -30,11 +30,13 @@ class ClipboardAdapter(
     var itemTypeFace: Typeface? = null
     var itemTextColor = 0
     var itemTextSize = 0f
+    /** Cards of the Flat style, see [FlatClipboard]. */
+    var flatStyle = false
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
                 .inflate(R.layout.clipboard_entry_key, parent, false)
-        return ViewHolder(view)
+        return ViewHolder(view, parent)
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
@@ -46,7 +48,8 @@ class ClipboardAdapter(
     override fun getItemCount() = clipboardHistoryManager?.getHistorySize() ?: 0
 
     inner class ViewHolder(
-            view: View
+            view: View,
+            private val list: ViewGroup
     ) : RecyclerView.ViewHolder(view), View.OnClickListener, View.OnTouchListener, View.OnLongClickListener {
 
         private val pinnedIconView: ImageView
@@ -75,6 +78,7 @@ class ClipboardAdapter(
             clipboardLayoutParams.setItemProperties(view)
             val colors = Settings.getValues().mColors
             colors.setColor(pinnedIconView, ColorType.CLIPBOARD_PIN)
+            if (flatStyle) FlatClipboard.styleCard(view, contentTextView, contentImageView, colors, list.width)
         }
 
         fun setContent(historyEntry: ClipboardHistoryEntry?) {
@@ -82,6 +86,7 @@ class ClipboardAdapter(
             itemView.tag = historyEntry.id
             if (historyEntry.filename != null) {
                 historyEntry.setImageAndDescription(contentImageView, contentTextView)
+                if (flatStyle) FlatClipboard.squareImage(contentImageView, list.width, columnCount(), list.paddingLeft + list.paddingRight)
             } else {
                 contentTextView.text = historyEntry.text?.take(1000) // truncate displayed text for performance reasons
             }
@@ -89,6 +94,9 @@ class ClipboardAdapter(
             contentImageView.visibility = if (historyEntry.filename != null) View.VISIBLE else View.GONE
             contentTextView.visibility = if (contentTextView.text.isNullOrEmpty()) View.GONE else View.VISIBLE
         }
+
+        private fun columnCount() =
+            ((list as? androidx.recyclerview.widget.RecyclerView)?.layoutManager as? androidx.recyclerview.widget.StaggeredGridLayoutManager)?.spanCount ?: 2
 
         @SuppressLint("ClickableViewAccessibility")
         override fun onTouch(view: View, event: MotionEvent): Boolean {

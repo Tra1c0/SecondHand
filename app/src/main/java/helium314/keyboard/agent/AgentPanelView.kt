@@ -41,6 +41,8 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
     private val workflowChoices: LinearLayout
     private val dictateButton: Button
     private val actionButtons = mutableListOf<Button>()
+    /** Look of the Flat key style; null in every other style. */
+    private var flatStyle: FlatPanelStyle? = null
     private val dp = resources.displayMetrics.density
 
     init {
@@ -160,6 +162,7 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
         footer.addView(applyButton, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
         footer.addView(copyButton, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
         body.addView(footer)
+        flatStyle = FlatPanelStyle.attachIfActive(this, body)
         clear()
     }
 
@@ -255,6 +258,7 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
 
     /** Back to the neutral labels. Every state calls this first and then sets its own. */
     private fun hideCloudControls() {
+        flatStyle?.setBusy(false)
         cancelButton.setText(R.string.agent_cloud_cancel)
         applyButton.setText(R.string.agent_panel_apply)
         keepScreenOn = false
@@ -293,6 +297,7 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
         applyButton.isEnabled = false
         copyButton.isEnabled = false
         cancelButton.visibility = View.VISIBLE
+        flatStyle?.let { result.text = ""; it.setBusy(true) }
     }
 
     /** The microphone is on. Text actions need a selection and stay off; only done and cancel work. */
@@ -373,7 +378,7 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
                 isAllCaps = false
                 minimumHeight = px(48)
                 setOnClickListener { onWorkflow?.invoke(definition) }
-            })
+            }.also { flatStyle?.styleChip(it) })
         }
         workflowChoices.visibility = View.VISIBLE
         post { if (workflowChoices.visibility == View.VISIBLE) smoothScrollTo(0, workflowChoices.top) }

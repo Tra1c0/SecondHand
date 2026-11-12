@@ -5,7 +5,6 @@ package helium314.keyboard.latin
 import android.annotation.SuppressLint
 import android.content.ClipDescription
 import android.content.Context
-import android.graphics.BitmapFactory
 import android.os.Build
 import android.widget.ImageView
 import android.widget.TextView
@@ -48,14 +47,8 @@ class ClipboardHistoryEntry(
         if (mimeTypes == null || filename == null) return // should never happen
         try {
             val path = File(ClipboardDao.clipFilesDir, filename).absolutePath
-            val opt = BitmapFactory.Options()
-            opt.inJustDecodeBounds = true
-            BitmapFactory.decodeFile(path, opt)
-            // reduce size of images larger than the screen, only needs to fit half screen width
-            val scale = opt.outWidth / (imageView.resources.displayMetrics.widthPixels * 2)
-            opt.inSampleSize = scale
-            opt.inJustDecodeBounds = false
-            val bitmap = BitmapFactory.decodeFile(path, opt)
+            // only needs to fit half the screen width; decoded once and then kept, see ClipboardThumbnails
+            val bitmap = ClipboardThumbnails.fromFile(path, imageView.resources.displayMetrics.widthPixels / 2)
             if (bitmap != null) {
                 imageView.setImageBitmap(bitmap)
                 textView.text = null

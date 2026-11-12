@@ -174,6 +174,13 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
   Tasten bleiben neben der Toolbar sichtbar, die linke Taste öffnet das Menü
   (`FlatStrip.toggleMenu`) statt zwischen Toolbar und Vorschlägen zu wechseln, jede
   Toolbar-Taste schließt es.
+- Zwischenablage: `ClipboardHistoryView.kt` (im flachen Stil Kopfzeile, Abschnittstitel, Liste
+  bis zum unteren Rand, keine untere Tastenreihe, keine Hardware-Ebene), `ClipboardAdapter.kt`
+  (Kartenstil, quadratische Bilder), `ClipboardHistoryEntry.kt` und `ClipboardHistoryManager.kt`
+  (Bilder über `ClipboardThumbnails`, Chip im flachen Stil), jeweils als Aufruf in
+  `FlatClipboard`.
+- `KeyboardActionListenerImpl.kt`: `KeyCode.AGENT_ACTIONS` öffnet im flachen Stil das Panel statt
+  des Rads.
 - `InputView.java`: zählt `agent_menu` zu den Overlays. `SettingsActivity.kt`: Extra
   `AgentPreferences.OPEN_SETTINGS_DESTINATION` öffnet „appearance“ oder „toolbar“ direkt.
 
@@ -416,7 +423,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Pixelmaß der Vorlage (Viewport 91 = 28 dp), deshalb keine Skalierung beim Zeichnen.
 - `assets/layouts/functional/functional_keys_flat.json`: wie `functional_keys.json`, aber die
   Emoji-Taste hat `"type": "character"` und damit den hellen Tastenhintergrund.
-- `K/agent/FlatPreset.kt`: schreibt 23 Darstellungs-, Layout- und Leisten-Einstellungen für das Hochformat
+- `K/agent/FlatPreset.kt`: schreibt 24 Darstellungs-, Layout- und Leisten-Einstellungen für das Hochformat
   (Liste: `values()`), berechnet die Höhenskala aus Bildschirmbreite und Standardhöhe und
   sichert die ersetzten Werte einmalig in `agent_flat_preset_backup` (siehe `docs/STORAGE.md`).
   `restore()` setzt genau diese Schlüssel zurück, auch „war nicht gesetzt“. Knöpfe dafür:
@@ -434,10 +441,26 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Screenreader blendet `FlatStrip.toggleMenu` nur `keyboard_view_wrapper` aus, nicht die
   Leiste; `AgentKeyboardFrame.updateOverlayAccessibility` zählt das Menü deshalb nicht mit. Es
   schließt sich, wenn das Tastaturfenster verschwindet.
+- Zwischenablage: `K/keyboard/clipboard/FlatClipboard.kt` baut die Kopfzeile in `clipboard_strip`
+  (`agent_clipboard_back`, `agent_clipboard_title`, danach die Tasten aus
+  `clipboard_toolbar_keys` als Kreise), den Abschnittstitel `agent_clipboard_section`, den
+  Kartenstil (`styleCard`, `squareImage`) und den Chip der Leiste (`styleChip`: dunkle Pille,
+  rundes Vorschaubild, kein Schließen-Kreuz, langes Drücken blendet aus; ein Clip-Label erscheint
+  nur bis 24 Zeichen und nie bei sensiblen Clips). `K/latin/ClipboardThumbnails.kt` gilt für alle
+  Stile: Bilder werden mit passender Abtastrate einmal dekodiert und in einem `LruCache` von
+  16 MB gehalten, nur im Speicher; `onClipsRemoved` leert ihn.
+- Panel: `K/agent/FlatPanelStyle.kt` ändert nur Aussehen und Reihenfolge von `AgentPanelView`
+  (IDs, View-Typen und Callbacks bleiben): Kopfzeile mit rundem Zurück- und Einstellungs-Knopf
+  (Text als `contentDescription`), Ergebnisblock direkt unter Senden/Abbrechen, Beschreibung und
+  Diktat-Chip ans Ende, alle `Button` als Chips, „Übernehmen“ und „Senden“ in der Akzentfarbe.
+  `setBusy` zeigt in der Karte vier Balken, die in 80-ms-Schritten pulsieren, nur während
+  `showCloudBusy` und nur bei eingeschalteten Systemanimationen.
 - Tests: `FlatStyleTest` (Vorlage, Farben, Tastengeometrie gegen die Messwerte),
   `FlatStyleRenderTest` (zeichnet die echte `MainKeyboardView` und die Leiste mit nativer Grafik
-  und prüft Pixel und Positionen) und `FlatMenuTest` (Positionen der Pillen, Aktionen,
-  Zusammenspiel mit der Leiste). Bilder unter `app/build/reports/flat-style/`, nicht versioniert.
+  und prüft Pixel und Positionen), `FlatMenuTest` (Positionen der Pillen, Aktionen,
+  Zusammenspiel mit der Leiste), `FlatClipboardTest` (Abtastrate und Cache, Kopfzeile, Karten,
+  echte `ClipboardHistoryView`, Chip) und `FlatPanelTest` (IDs, Typen und Callbacks, Positionen,
+  Balken). Jeder dieser Tests lädt danach die Standardeinstellungen neu (Fallstrick P32). Bilder unter `app/build/reports/flat-style/`, nicht versioniert.
 
 ## Diktat
 
@@ -629,48 +652,61 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   verloren. Abstände deshalb über Gewichte lösen, nicht nachträglich setzen (`FlatStrip`).
 - **P31** Views ohne Fenster lösen die Leserichtung nicht auf: relative Icons an `TextView`
   fehlen im gerenderten Testbild, bis die Wurzel eine feste `layoutDirection` hat.
+- **P32** `Settings.getValues()` ist ein Singleton und überlebt einen Robolectric-Test. Ein Test,
+  der einen anderen Stil lädt, muss danach die Standardwerte neu laden, sonst sehen spätere Tests
+  im selben Prozess z. B. das Panel im flachen Look.
+- **P33** `clipToOutline` beschneidet nur mit Hardware-Rendering. In einem Test-Bitmap bleiben
+  Bilder in runden Karten eckig; das Flag prüfen, nicht die Pixel.
+- **P34** In einem `apply { }` auf einer `TextView` meint `text` die Eigenschaft der View, nicht
+  eine gleichnamige Variable der umgebenden Klasse. Farbvariablen deshalb nie `text` nennen.
+- **P35** Horizontale `LinearLayout`-Zeilen richten ihre Kinder an der Grundlinie aus. Ein
+  zweizeiliger Knopf rutscht dadurch nach unten und wird abgeschnitten; für Chip-Zeilen
+  `isBaselineAligned = false` setzen.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (192 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (201 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (3): build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (33): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (34): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
   AndroidEditorAdapter, ApprovedActionRunner, Dictation, EncryptedActionRunStore, FlatMenuView,
-  FlatPreset, JournaledModelCall, JournaledRun, KeyboardProfileStore, LearningData,
+  FlatPanelStyle, FlatPreset, JournaledModelCall, JournaledRun, KeyboardProfileStore, LearningData,
   ManualWorkflowDraft, ModelSettings, OnDeviceSpeechEngine, RunSubjectCodec, SkillBindingStore,
   SkillLabels, ToolApprovalSummary, ToolLauncher, WorkflowApprovalSummary, WorkflowBuilderContract,
   WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
-- `AT/` (36): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (38): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, CalendarToolLauncherTest, DebugPrivacyTest, DictationSessionTest,
-  DictationUiTest, EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, FlatMenuTest,
-  FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, InsertAtCursorTest, JournaledModelCallTest,
-  KeyboardProfileStoreTest, LearningDataTest, ManualWorkflowDraftTest, MoreProvidersTest,
-  OpenAiProviderTest, SelectedTextCommitTest, SkillBindingStoreTest, SkillSettingsTest,
-  TestRunJournal, ToolRunnerTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
-  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  DictationUiTest, EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, FlatClipboardTest,
+  FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest,
+  InsertAtCursorTest, JournaledModelCallTest, KeyboardProfileStoreTest, LearningDataTest,
+  ManualWorkflowDraftTest, MoreProvidersTest, OpenAiProviderTest, SelectedTextCommitTest,
+  SkillBindingStoreTest, SkillSettingsTest, TestRunJournal, ToolRunnerTest,
+  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowConditionSummaryTest,
+  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `C/` (12): AiTextAction, ApplyOutcome, EditorSession, ExecutionPolicy, LocalTextActions,
   ModelProvider, PendingBatchGate, Profiles, SkillBinding, TextCondition, Tool, Workflow
 - `CT/` (8): AiTextActionTest, EditorPolicyTest, InsertionAnchorTest, LocalTextActionsTest,
   PendingBatchGateTest, SkillBindingTest, ToolTest, WorkflowTest
 - `K/keyboard/` (8): FlatStyle, Key, KeyboardActionListener, KeyboardActionListenerImpl,
   KeyboardTheme, KeyboardView, MainKeyboardView, PointerTracker
+- `K/keyboard/clipboard/` (3): ClipboardAdapter, ClipboardHistoryView, FlatClipboard
 - `K/keyboard/emoji/` (1): EmojiSearchActivity
 - `K/keyboard/internal/` (1): KeyboardIconsSet
 - `K/keyboard/internal/keyboard_parser/` (1): KeyboardParser
 - `K/keyboard/internal/keyboard_parser/floris/` (1): KeyCode
-- `K/latin/` (5): App, DictionaryFacilitatorImpl, InputView, LatinIME, RichInputConnection
+- `K/latin/` (8): App, ClipboardHistoryEntry, ClipboardHistoryManager, ClipboardThumbnails,
+  DictionaryFacilitatorImpl, InputView, LatinIME, RichInputConnection
 - `K/latin/database/` (1): ClipboardDao
 - `K/latin/define/` (1): DebugFlags
 - `K/latin/dictionary/` (1): ExpandableBinaryDictionary

@@ -36,6 +36,7 @@ import helium314.keyboard.latin.utils.LanguageOnSpacebarUtils
 import helium314.keyboard.latin.utils.SubtypeUtilsAdditional
 import helium314.keyboard.latin.utils.ToolbarKey
 import helium314.keyboard.latin.utils.prefs
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -66,6 +67,14 @@ class FlatStyleRenderTest {
         latinIME.getSharedPreferences(FlatPreset.BACKUP_NAME, Context.MODE_PRIVATE).edit().clear().commit()
         FlatPreset(latinIME).apply()
         prefs.edit().putString(Settings.PREF_SPACE_BAR_TEXT, listOf("DE", "EN", "ES").joinToString(FlatStyle.LANGUAGE_SEPARATOR)).commit()
+        KeyboardIconsSet.needsReload = true
+        Settings.getInstance().loadSettings(latinIME, Locale.GERMANY, InputAttributes(EditorInfo(), false, latinIME.packageName))
+    }
+
+
+    /** The settings singleton outlives a test; later tests must not inherit the Flat style. */
+    @After fun restoreDefaults() {
+        latinIME.prefs().edit().clear().commit()
         KeyboardIconsSet.needsReload = true
         Settings.getInstance().loadSettings(latinIME, Locale.GERMANY, InputAttributes(EditorInfo(), false, latinIME.packageName))
     }

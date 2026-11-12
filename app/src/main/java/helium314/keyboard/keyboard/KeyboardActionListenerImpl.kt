@@ -115,7 +115,12 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         if (latinIME.agentEditorController.isBlockingInput) return;
         latinIME.invalidateAgentEditor()
         when (primaryCode) {
-            KeyCode.AGENT_ACTIONS -> { latinIME.agentEditorController.openWheel(); return }
+            KeyCode.AGENT_ACTIONS -> {
+                // the Flat style has the panel behind its pen key; the wheel stays on the space bar long press
+                if (FlatStyle.isActive(settings.current.mColors)) latinIME.agentEditorController.open()
+                else latinIME.agentEditorController.openWheel()
+                return
+            }
             KeyCode.SKILL_1 -> { latinIME.agentEditorController.openSkill(1); return }
             KeyCode.SKILL_2 -> { latinIME.agentEditorController.openSkill(2); return }
             KeyCode.SKILL_3 -> { latinIME.agentEditorController.openSkill(3); return }

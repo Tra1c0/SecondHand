@@ -123,14 +123,21 @@ vor dem Anwenden zurück.
   Aussehen → „Benutzerdefinierte Schriftart aus Datei festlegen“ laden.
 - Stil „Flach“ und Farben „Flach schwarz“ lassen sich unter Aussehen auch einzeln wählen.
 - Leiste über den Tasten, von links: Menü (Raster), Zwischenablage, Emoji, Aktionen (Stift,
-  öffnet das Aktionsrad) und im Kreis das Diktat. Beim Tippen stehen in der Mitte die
+  öffnet das Aktionspanel) und im Kreis das Diktat. Beim Tippen stehen in der Mitte die
   Wortvorschläge. Welche Tasten dort liegen, änderst du unter Einstellungen → Symbolleiste oder
   über den Stift-Knopf im Menü.
 - Menü: Raster antippen. Design öffnet die Einstellungen zum Aussehen, die anderen Pillen
   schalten Rückgängig, Einhandmodus, Emoji, Inkognito und die frei verschiebbare Tastatur.
   Das X schließt das Menü.
 - Die Zwischenablage-Taste zeigt erst etwas, wenn du den Zwischenablageverlauf einschaltest
-  (Einstellungen → Optionen → „Zwischenablage-Verlauf aktivieren“); er ist anfangs aus.
+  (Einstellungen → Optionen → „Zwischenablage-Verlauf aktivieren“); er ist anfangs aus. In der
+  Ansicht: Karte antippen fügt ein, lange drücken heftet an, zur Seite wischen entfernt. Oben
+  links geht es zurück zu den Tasten, oben rechts leerst du den Verlauf.
+- Die Pille mit kopiertem Text oder Bild in der Leiste erscheint nur, wenn
+  „Zwischenablagen-Inhalt vorschlagen“ (Einstellungen → Textkorrektur) an ist. Antippen fügt ein, lange
+  drücken blendet sie aus.
+- Das Aktionsrad erreichst du im flachen Look über den Leertasten-Langdruck (Einstellungen →
+  Tastaturprofile → Gesten), die Stift-Taste öffnet das Panel.
 
 ## Gelernte Wörter
 

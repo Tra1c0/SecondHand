@@ -32,6 +32,7 @@ import helium314.keyboard.latin.utils.ToolbarMode
 import helium314.keyboard.latin.utils.getEnabledToolbarKeys
 import helium314.keyboard.latin.utils.getPinnedToolbarKeys
 import helium314.keyboard.latin.utils.prefs
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -64,6 +65,14 @@ class FlatStyleTest {
     }
 
     private fun reloadSettings() {
+        KeyboardIconsSet.needsReload = true
+        Settings.getInstance().loadSettings(latinIME, Locale.GERMANY, InputAttributes(EditorInfo(), false, latinIME.packageName))
+    }
+
+
+    /** The settings singleton outlives a test; later tests must not inherit the Flat style. */
+    @After fun restoreDefaults() {
+        latinIME.prefs().edit().clear().commit()
         KeyboardIconsSet.needsReload = true
         Settings.getInstance().loadSettings(latinIME, Locale.GERMANY, InputAttributes(EditorInfo(), false, latinIME.packageName))
     }

@@ -14,6 +14,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import helium314.keyboard.event.HapticEvent
+import helium314.keyboard.keyboard.FlatStyle
 import helium314.keyboard.keyboard.KeyboardActionListener
 import helium314.keyboard.keyboard.KeyboardElement
 import helium314.keyboard.keyboard.KeyboardLayoutSet
@@ -24,6 +25,7 @@ import helium314.keyboard.keyboard.PointerTracker
 import helium314.keyboard.keyboard.internal.KeyDrawParams
 import helium314.keyboard.keyboard.internal.KeyVisualAttributes
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
+import helium314.keyboard.latin.ClipboardThumbnails
 import helium314.keyboard.latin.ClipboardHistoryManager
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.common.ColorType
@@ -55,6 +57,9 @@ class ClipboardHistoryView @JvmOverloads constructor(
     private lateinit var clipboardRecyclerView: ClipboardHistoryRecyclerView
     private lateinit var placeholderView: TextView
     private val toolbarKeys = mutableListOf<ImageButton>()
+    /** Flat style: header in the strip, section label, no bottom row; see [FlatClipboard]. */
+    private val flatStyle = FlatStyle.isActive(Settings.getValues().mColors)
+    private var flatLabelHeight = 0
     private lateinit var clipboardAdapter: ClipboardAdapter
 
     lateinit var keyboardActionListener: KeyboardActionListener
@@ -101,6 +106,18 @@ class ClipboardHistoryView @JvmOverloads constructor(
             placeholderView = this@ClipboardHistoryView.placeholderView
         }
         val clipboardStrip = KeyboardSwitcher.getInstance().clipboardStrip
+        if (flatStyle) {
+            toolbarKeys.forEach {
+                it.setOnClickListener(this@ClipboardHistoryView)
+                it.setOnLongClickListener(this@ClipboardHistoryView)
+            }
+            clipboardAdapter.flatStyle = true
+            FlatClipboard.buildHeader(clipboardStrip, toolbarKeys, colors) {
+                keyboardActionListener.onCodeInput(KeyCode.CLIPBOARD, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+            }
+            flatLabelHeight = FlatClipboard.arrangeList(this, findViewById(R.id.bottom_row_keyboard), colors)
+            return
+        }
         toolbarKeys.forEach {
             clipboardStrip.addView(it)
             it.setOnClickListener(this@ClipboardHistoryView)
@@ -120,6 +137,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
     }
 
     private fun setupToolbarKeys() {
+        if (flatStyle) return // the header set fixed sizes
         // set layout params
         val toolbarKeyLayoutParams = LayoutParams(resources.getDimensionPixelSize(R.dimen.config_suggestions_strip_edge_key_width), LayoutParams.MATCH_PARENT)
         toolbarKeys.forEach { it.layoutParams = toolbarKeyLayoutParams }
@@ -135,7 +153,8 @@ class ClipboardHistoryView @JvmOverloads constructor(
     }
 
     fun setHardwareAcceleratedDrawingEnabled(enabled: Boolean) {
-        if (!enabled) return
+        // no layer in the Flat style: a scrolling list inside a hardware layer is rendered twice per frame
+        if (!enabled || flatStyle) return
         // TODO: Should use LAYER_TYPE_SOFTWARE when hardware acceleration is off?
         setLayerType(LAYER_TYPE_HARDWARE, null)
     }
@@ -171,6 +190,8 @@ class ClipboardHistoryView @JvmOverloads constructor(
             layoutParams.width = keyboardWidth
             // new ClipboardLayoutParams means ClipboardAdapter has wrong gaps, but that's ok (only relevant when resizing floating keyboard)
             ClipboardLayoutParams(context).setListProperties(this)
+            if (flatStyle) // the list runs down to the lower edge
+                layoutParams.height = ResourceUtils.getSecondaryKeyboardHeight(resources, settings.current) - flatLabelHeight
 
             // set side padding
             val keyboardAttr = context.obtainStyledAttributes(
@@ -233,6 +254,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
     }
 
     override fun onClipsRemoved(position: Int, count: Int) {
+        ClipboardThumbnails.clear()
         clipboardAdapter.notifyItemRangeRemoved(position, count)
     }
 

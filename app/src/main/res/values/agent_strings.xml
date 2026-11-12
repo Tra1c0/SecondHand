@@ -275,4 +275,8 @@
     <string name="agent_menu_edit">Edit toolbar keys</string>
     <string name="agent_menu_open">Open keyboard menu</string>
     <string name="agent_menu_close">Close keyboard menu</string>
+    <string name="agent_clipboard_title">Clipboard</string>
+    <string name="agent_clipboard_recent">Recent</string>
+    <string name="agent_clipboard_back">Back to the keys</string>
+    <string name="agent_clipboard_image">Image</string>
 </resources>

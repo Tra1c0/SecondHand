@@ -1015,6 +1015,36 @@ als Ausgangspunkt für ein eigenes Design.
   Apps (Rückgängig hängt von der App ab), der Einhand- und der unverankerte Modus zusammen mit
   dem flachen Stil, das Menü über der Navigationsleiste (Fallstrick P18) und TalkBack.
 
+## Etappe19d/19e — flacher Look, Zwischenablage und Panel
+
+- 19d Zwischenablage. `FlatClipboardTest` (7 Fälle): Abtastrate (1200 px breites Bild bei 600 px
+  Ziel → 2 statt früher 0, also volle Auflösung); ein 1200 × 2670 px großes Bild wird als
+  600 × 1335 px dekodiert, beim zweiten Aufruf kommt dasselbe Objekt aus dem Cache, nach
+  `clear()` ein neues; Kopfzeile im echten `strip_container` bei 1200 px Breite: Kreise bei
+  x 20–131, 906–1017 und 1069–1180, Titel ab x 173 (± 2 px, wie in der Vorlage); Karten in
+  einer echten `RecyclerView`: Spalten 22–585 und 615–1178, quadratische Bildkarte 563 px,
+  26 px Reihenabstand; die echte `ClipboardHistoryView` im flachen Stil: keine Hardware-Ebene,
+  untere Tastenreihe ausgeblendet, Abschnittstitel als erstes Kind, Liste bis zum unteren Rand,
+  Kopfzeile mit genau Zurück, Titel und den zwei Tasten der Vorlage, Zurück sendet
+  `KeyCode.CLIPBOARD`, ein zweiter Start verdoppelt nichts; Chip: dunkle Pille, rundes
+  Vorschaubild vorn, kein Kreuz, langes Drücken blendet aus, Label nur wenn übergeben.
+- 19e Panel. `FlatPanelTest` (4 Fälle): alle bisherigen IDs bleiben `Button` bzw. `TextView`;
+  jede Aktion ruft genau ihren Callback, Übernehmen und Senden brauchen weiter einen eigenen
+  Klick; runde Knöpfe tragen ihren Namen als `contentDescription`; Zurück-Kreis x 52–163, Titel ab
+  x 204, Karte x 52–1148 (wie in der Vorlage); Ergebnisblock über den Chips; Kartenrand oben
+  links dunkler und gelblicher als unten rechts; „Übernehmen“ in #6A96EF; bei laufender Anfrage
+  Balken in #514745 statt Text, jeder andere Zustand stellt die normale Karte wieder her; in
+  einem anderen Stil bleibt das Panel unverändert. Die bisherigen Panel-Tests laufen unverändert.
+- Vollregression nach 19e: 443 Tests, 7 Fehler, dieselben wie zuvor (`InputLogicTest`
+  Hangul, `StringUtilsTest` Emoji, fünf `XLinkTest` an externen Hosts bzw. am Netzwerkfilter).
+  Build und Lint bestanden (138 Warnungen, ein Hinweis).
+- Nicht geprüft: kein Gerät, kein Emulator. Offen: echte Zwischenablage-Einträge samt Bildern
+  aus anderen Apps, der Eckenbeschnitt der Bildkarten (greift nur mit Hardware-Rendering),
+  Scroll-Verhalten und Speicherbedarf mit vielen Bildern, der Chip mit einem echten Clip, das
+  Pulsieren der Balken und das Panel über der Navigationsleiste. Nicht durch Tests abgedeckt:
+  der Aufruf `styleChip` in `ClipboardHistoryManager` und der geänderte Zweig für
+  `KeyCode.AGENT_ACTIONS` in `KeyboardActionListenerImpl` (nur gelesen).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.
