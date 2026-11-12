@@ -56,6 +56,12 @@ object KeyboardCommands {
         val cursor: Int get() = -1
         /** Builds the chips again for the current text, e.g. after a chip changed what a command shows. */
         fun refresh() {}
+        /** Up to [length] characters of the field before the cursor (ending with the command), or null (stage 24d). */
+        fun textBeforeCursor(length: Int): CharSequence? = null
+        /** Up to [length] characters of the field after the cursor, or null (stage 24d). */
+        fun textAfterCursor(length: Int): CharSequence? = null
+        /** Replaces the chips in the strip, e.g. after a read; false if the strip shows something else by now. */
+        fun showChips(chips: List<Chip>): Boolean = false
     }
 
     /** A built-in command. Commands never come from files or models. */
@@ -78,6 +84,7 @@ object KeyboardCommands {
     val BUILT_IN: List<Command> = listOf(
         MathCommand,
         ContactCommand,
+        helium314.keyboard.agent.commands.UrlCommand,
         SearchCommand,
         CharacterCommand,
         EmojiCommand,
@@ -187,24 +194,27 @@ object KeyboardCommands {
      */
     @JvmStatic fun createChipsView(ime: LatinIME, parent: ViewGroup): View? {
         var view: HorizontalScrollView? = null
-        fun build(): List<Chip>? = buildChips(ime) {
-            // a chip asked to show other chips for the same command: swap the row in place
-            val shown = view ?: return@buildChips
-            val chips = build()
-            if (chips.isNullOrEmpty()) return@buildChips
+        // a chip asked to show other chips for the same command: swap the row in place
+        fun swap(chips: List<Chip>, onlyIfShown: Boolean): Boolean {
+            val shown = view ?: return false
+            // a later answer (e.g. a screen read) only while the strip still shows this row
+            if (chips.isEmpty() || (onlyIfShown && shown.parent == null)) return false
             val row = chipRow(parent, chips) as HorizontalScrollView
             val inner = row.getChildAt(0)
             row.removeView(inner)
             shown.removeAllViews()
             shown.addView(inner)
             shown.scrollTo(0, 0)
+            return true
         }
+        fun build(): List<Chip>? = buildChips(ime, onRefresh = { build()?.let { swap(it, onlyIfShown = false) } },
+            onShow = { swap(it, onlyIfShown = true) })
         val chips = build()
         if (chips.isNullOrEmpty()) return null
         return (chipRow(parent, chips) as HorizontalScrollView).also { view = it }
     }
 
-    private fun buildChips(ime: LatinIME, onRefresh: () -> Unit): List<Chip>? {
+    private fun buildChips(ime: LatinIME, onRefresh: () -> Unit, onShow: (List<Chip>) -> Boolean): List<Chip>? {
         val position = ime.agentCommandCursor
         val context = if (position < 0) null
             else find(ime.getAgentTextBeforeCursor(CommandSyntax.LOOKBACK + 1), Settings.getValues(), ime.currentInputEditorInfo)
@@ -227,6 +237,10 @@ object KeyboardCommands {
             override val canOpenCalculator: Boolean get() = ime.agentEditorController.canOpenCalculator
             override val cursor: Int get() = position
             override fun refresh() = onRefresh()
+            override fun textBeforeCursor(length: Int) = ime.getAgentTextBeforeCursor(length)
+            override fun textAfterCursor(length: Int): CharSequence? = ime.currentInputConnection?.getTextAfterCursor(length, 0)
+            // e.g. after reading the screen: only while the strip still shows this command at this cursor
+            override fun showChips(chips: List<Chip>): Boolean = ime.agentCommandCursor == position && onShow(chips)
         }
         return chipsFor(context, host)
     }

@@ -95,6 +95,7 @@ fun AgentCommandsScreen(onClickBack: () -> Unit) {
                     if (permission in refused) Text(stringResource(R.string.agent_commands_permission_refused))
                 }
             }
+            AgentScreenReaderSection(prefix) // stage 24e
         }
     }
 }

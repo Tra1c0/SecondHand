@@ -67,6 +67,18 @@ SPDX-License-Identifier: Apache-2.0 AND GPL-3.0-only
                     android:resource="@xml/spellchecker" />
         </service>
 
+        <!-- Stage 24e: reads the screen only on "@url" -> "Read screen"; subscribes to no events. -->
+        <service android:name="helium314.keyboard.agent.commands.ScreenReaderService"
+                 android:label="@string/agent_screen_reader_label"
+                 android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+                 android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data android:name="android.accessibilityservice"
+                    android:resource="@xml/agent_screen_reader" />
+        </service>
+
         <!-- Activities -->
         <activity android:name="helium314.keyboard.settings.SettingsActivity"
                 android:theme="@style/platformActivityTheme"

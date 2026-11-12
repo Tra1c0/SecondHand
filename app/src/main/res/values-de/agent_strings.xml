@@ -375,4 +375,23 @@
     <string name="agent_command_conv">Einheiten umrechnen auf dem Gerät: %1$sconv 5 oz oder %1$sconv 100 f. Länge, Gewicht, Volumen (US-Tassen und -Löffel), Temperatur und Geschwindigkeit, keine Währungen. „in“ wählt das Ziel: 5 oz in g.</string>
     <string name="agent_command_insert_text">%s einfügen</string>
     <string name="agent_command_symbol_insert">%1$s einfügen (%2$s)</string>
+    <string name="agent_command_url">Webadresse: %1$surl heise.de öffnet die Adresse im Browser. %1$surl allein schlägt Adressen aus dem Feld und der Zwischenablage vor und, falls eingeschaltet, vom Bildschirm.</string>
+    <string name="agent_command_url_open">Öffnen: %s</string>
+    <string name="agent_command_url_insert">%s einfügen</string>
+    <string name="agent_command_url_open_short">%s öffnen</string>
+    <string name="agent_command_url_no_browser">Keine App kann diese Adresse öffnen.</string>
+    <string name="agent_command_url_read_screen">Bildschirm lesen</string>
+    <string name="agent_command_url_read_screen_off">Bildschirm lesen einschalten</string>
+    <string name="agent_command_url_screen_none">Keine Webadresse auf dem Bildschirm.</string>
+    <string name="agent_command_url_screen_failed">Der Bildschirm konnte nicht gelesen werden.</string>
+    <string name="agent_screen_reader_label">Agent Keyboard: Bildschirm auf Befehl lesen</string>
+    <string name="agent_screen_reader_summary">Liest den sichtbaren Text einmal, wenn du nach @url auf „Bildschirm lesen“ tippst.</string>
+    <string name="agent_screen_reader_description">Liest den gerade sichtbaren Text nur, wenn du @url tippst und auf „Bildschirm lesen“ tippst, sucht darin Webadressen und zeigt sie als Chips. Der Dienst hört auf keine Ereignisse, tut also dazwischen nichts und braucht keinen Akku. Passwortfelder und die Tastatur selbst werden übersprungen. Das Gelesene bleibt nur für diese Chips im Speicher; es wird nie gespeichert, protokolliert oder gesendet.</string>
+    <string name="agent_screen_reader_title">Bildschirm lesen (@url)</string>
+    <string name="agent_screen_reader_explanation">Mit %1$surl allein kann der Chip „Bildschirm lesen“ Webadressen auf dem Bildschirm der aktuellen App finden. Dafür braucht die Tastatur einen Bedienungshilfe-Dienst. Er liest nur, wenn du auf den Chip tippst, einmal, überspringt Passwortfelder und behält nichts: kein Speichern, kein Protokoll, kein Internet. Er hört auf keine Ereignisse und läuft dazwischen nicht.</string>
+    <string name="agent_screen_reader_on">Status: eingeschaltet</string>
+    <string name="agent_screen_reader_off">Status: ausgeschaltet</string>
+    <string name="agent_screen_reader_open_settings">Bedienungshilfen öffnen</string>
+    <string name="agent_screen_reader_restricted">Ist der Schalter ausgegraut (Xiaomi, Android 13 und neuer, Apps nicht aus einem Store): Öffne die App-Info dieser Tastatur, tippe auf das Menü mit den drei Punkten und wähle „Eingeschränkte Einstellungen zulassen“; danach den Dienst einschalten.</string>
+    <string name="agent_screen_reader_app_info">App-Info öffnen</string>
 </resources>
