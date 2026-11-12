@@ -7,6 +7,7 @@
 package helium314.keyboard.latin;
 
 import helium314.keyboard.agent.AgentEditorController;
+import dev.agentkeyboard.core.ApplyOutcome;
 import android.view.inputmethod.CursorAnchorInfo;
 
 import android.annotation.SuppressLint;
@@ -149,6 +150,28 @@ public class LatinIME extends InputMethodService implements
 
     public AgentEditorController getAgentEditorController() { return mAgentEditorController; }
     public void invalidateAgentEditor() { mAgentEditorController.invalidate(); }
+    /** Stage 24: the text before the cursor the keyboard already holds, for typed commands. */
+    public CharSequence getAgentTextBeforeCursor(final int length) {
+        return mInputLogic.mConnection.getTextBeforeCursor(length, 0);
+    }
+    /** Stage 24: the cursor for a typed command, or -1 while text is selected or the position is unknown. */
+    public int getAgentCommandCursor() {
+        final RichInputConnection connection = mInputLogic.mConnection;
+        if (connection.hasSelection()) return -1;
+        return connection.getExpectedSelectionStart();
+    }
+    /** Stage 24: replaces a typed command after a tap on its chip; see InputLogic.replaceCommandText. */
+    public ApplyOutcome replaceCommandText(final String expected, final String replacement, final int position) {
+        if (mAgentEditorController.isBlockingInput() || position < 0) return ApplyOutcome.REJECTED;
+        return mInputLogic.replaceCommandText(expected, replacement, position);
+    }
+    private boolean tryShowCommandChips() {
+        if (!hasSuggestionStripView()) return false;
+        final View chips = helium314.keyboard.agent.KeyboardCommands.createChipsView(this, mSuggestionStripView);
+        if (chips == null) return false;
+        mSuggestionStripView.setExternalSuggestionView(chips, false);
+        return true;
+    }
     public void onAgentTextSubmitted() {
         mGestureConsumer = GestureConsumer.NULL_GESTURE_CONSUMER;
         setGestureDataGatheringMode(getCurrentInputEditorInfo(), true);
@@ -919,6 +942,7 @@ public class LatinIME extends InputMethodService implements
     void onStartInputViewInternal(final EditorInfo editorInfo, final boolean restarting) {
         // fork, stage 22: personal hit boxes, and the calibration field of our own settings
         helium314.keyboard.agent.TouchModel.load(this, mSettings.getCurrent());
+        helium314.keyboard.agent.KeyboardCommands.load(this);
         helium314.keyboard.agent.TouchCalibration.setActive(editorInfo != null
                 && getPackageName().equals(editorInfo.packageName)
                 && helium314.keyboard.agent.AgentPreferences.TOUCH_CALIBRATION_FIELD.equals(editorInfo.privateImeOptions));
@@ -1567,6 +1591,8 @@ public class LatinIME extends InputMethodService implements
         if (!onEvaluateInputViewShown()) {
             return;
         }
+        // a typed command shows its chips instead of word suggestions (stage 24)
+        if (tryShowCommandChips()) return;
 
         final boolean isEmptyApplicationSpecifiedCompletions =
                 currentSettingsValues.mInputAttributes.mApplicationSpecifiedCompletionOn
@@ -1646,6 +1672,7 @@ public class LatinIME extends InputMethodService implements
     @Override
     public void setNeutralSuggestionStrip() {
         final SettingsValues currentSettings = mSettings.getCurrent();
+        if (tryShowCommandChips()) return;
         if (tryShowClipboardSuggestion()) {
             // clipboard suggestion has been set
             if (hasSuggestionStripView() && currentSettings.mAutoHideToolbar)

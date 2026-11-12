@@ -130,7 +130,7 @@ public final class InputLogic {
     /** Generated text bypasses user typing, autocorrection, TLD handling and history. */
     public ApplyOutcome applyGeneratedText(final String expected, final String replacement,
             final int selectionStart, final int selectionEnd) {
-        return applyGenerated(() -> mConnection.replaceSelectedTextIfUnchanged(expected, replacement, selectionStart, selectionEnd));
+        return applyGenerated(() -> mConnection.replaceSelectedTextIfUnchanged(expected, replacement, selectionStart, selectionEnd), true);
     }
 
     /**
@@ -148,16 +148,35 @@ public final class InputLogic {
                 && !mConnection.textBeforeCursorLooksLikeURL()
                 && !(mConnection.getCodePointBeforeCursor() == Constants.CODE_PERIOD && mConnection.wordBeforeCursorMayBeEmail());
         final String toInsert = pendingSpace ? " " + text : text;
-        return applyGenerated(() -> mConnection.insertTextIfCursorUnchanged(toInsert, position));
+        return applyGenerated(() -> mConnection.insertTextIfCursorUnchanged(toInsert, position), true);
+    }
+
+    /**
+     * Replaces a typed command right before the cursor after a tap on its chip (an empty
+     * replacement deletes it). A word still being composed is first left as it is shown, without
+     * autocorrection and without learning; then the same single-commit guarantees as for generated
+     * text apply. Unlike generated text this does not stop learning for the rest of the session:
+     * the user typed everything around the command.
+     */
+    public ApplyOutcome replaceCommandText(final String expected, final String replacement, final int position) {
+        if (mInputLogicHandler.hasPendingBatchInput()) return ApplyOutcome.REJECTED;
+        if (mWordComposer.isComposingWord()) {
+            if (mWordComposer.isCursorFrontOrMiddleOfComposingWord()) return ApplyOutcome.REJECTED;
+            mConnection.beginBatchEdit();
+            mConnection.finishComposingText();
+            mConnection.endBatchEdit();
+            resetComposingState(true);
+        }
+        return applyGenerated(() -> mConnection.replaceTextBeforeCursorIfUnchanged(expected, replacement, position), false);
     }
 
     /** minSdk 21: no java.util.function. */
     private interface GeneratedCommit { ApplyOutcome run(); }
 
-    private ApplyOutcome applyGenerated(final GeneratedCommit commit) {
+    private ApplyOutcome applyGenerated(final GeneratedCommit commit, final boolean suppressHistory) {
         if (hasActiveComposition()) return ApplyOutcome.REJECTED;
         final boolean previouslySuppressed = mAgentHistorySuppressed;
-        mAgentHistorySuppressed = true;
+        if (suppressHistory) mAgentHistorySuppressed = true;
         mLatinIME.mHandler.cancelResumeSuggestions();
         mLatinIME.mHandler.cancelUpdateSuggestionStrip();
         final ApplyOutcome outcome = commit.run();
@@ -1786,6 +1805,8 @@ public final class InputLogic {
     private void performAdditionToUserHistoryDictionary(final SettingsValues settingsValues,
             final String suggestion, @NonNull final NgramContext ngramContext) {
         if (mAgentHistorySuppressed) return;
+        // a typed command (e.g. "@math") is no word of the user's
+        if (helium314.keyboard.agent.KeyboardCommands.isCommandWord(suggestion)) return;
         // For addition to user history we want suggestions (even if just for autocorrect) or a gestured word.
         // That's to avoid unintended additions in some sensitive fields, or fields that
         // expect to receive non-words.

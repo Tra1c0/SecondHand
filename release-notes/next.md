@@ -56,3 +56,8 @@
 - Neu: Screenshot-Pille (aus). Nach einem Screenshot zeigt die Leiste ihn drei Minuten lang an;
   ein Tipp fügt ihn ein. Einschalten unter Einstellungen → Screenshots.
 - Neue Berechtigung: Zugriff auf Bilder (nur für die Screenshot-Pille, nur wenn du sie erlaubst).
+- Neu: Befehle in der Tastatur. Tippe `@` am Wortanfang: Die Leiste zeigt die Befehle als Chips,
+  erst dein Tipp führt einen aus. Präfix und Befehle unter Einstellungen → Befehle.
+- Neu: `@math`. `@math 12*3,5` bietet „12 × 3,5 = 42“ zum Einsetzen an; der Chip „Rechner“
+  öffnet einen Rechner im Platz der Tasten mit vier Ausgaben (Rechnung, Ergebnis, LaTeX,
+  Hochzahlen/Brüche). Rechnet exakt und nur auf dem Gerät. Noch auf keinem Gerät ausprobiert.

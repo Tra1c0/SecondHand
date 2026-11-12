@@ -137,3 +137,11 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   JSON-Objekt Buchstabencode → `[dx, dy, Anzahl]`, dx und dy in Tastengrößen. Keine Texte, keine
   Reihenfolge von Berührungen. Die Kalibrierung hält ihre Rohdaten nur im Speicher und verwirft
   sie beim Schließen.
+
+## Befehle (24a, 24b)
+
+- Nur Einstellungen in den normalen Einstellungen der Tastatur: `agent_commands` (Schalter),
+  `agent_command_prefix` (ein Zeichen), `agent_commands_disabled` (Namen abgeschalteter Befehle),
+  `agent_calculator_style` (zuletzt gewählte Ausgabe des Rechners).
+- Getippte Befehle, Rechnungen und Ergebnisse werden nicht gespeichert und nicht protokolliert.
+  Der Rechner hält seine Eingabe nur im Speicher und leert sie beim Schließen.

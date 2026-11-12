@@ -54,6 +54,7 @@ class AgentEditorController @JvmOverloads constructor(
     internal var toolLauncher: ToolLauncher = CalendarToolLauncher(ime)
     private var panel: AgentPanelView? = null
     private var wheel: AgentWheelView? = null
+    private var calculator: CalculatorView? = null
     private var snapshot: TextSnapshot? = null
     private var preparedResult: String? = null
     private var needsCursorRefresh = false
@@ -70,6 +71,7 @@ class AgentEditorController @JvmOverloads constructor(
         journalFactory?.invoke() ?: EncryptedActionRunStore(ime)) }
     val isAwaitingCursorRefresh: Boolean get() = needsCursorRefresh
     val isBlockingInput: Boolean get() = needsCursorRefresh || panel?.visibility == View.VISIBLE || wheel?.visibility == View.VISIBLE
+        || calculator?.visibility == View.VISIBLE
     val editor = AndroidEditorAdapter(
         connection = { ime.currentInputConnection },
         liveAccess = { access -> access.copy(
@@ -163,6 +165,9 @@ class AgentEditorController @JvmOverloads constructor(
         panel = view.findViewById(R.id.agent_panel)
         wheel = view.findViewById(R.id.agent_wheel)
         wheel?.onClose = ::close
+        calculator = view.findViewById(R.id.agent_calculator)
+        calculator?.onClose = ::close
+        calculator?.onInsert = ::insertCalculation
         wheel?.onAction = { action -> open(); if (action != null) runLocal(action) }
         panel?.onClose = {
             val hideKeyboard = needsCursorRefresh
@@ -221,6 +226,36 @@ class AgentEditorController @JvmOverloads constructor(
                 binding.action.local != null -> runLocal(binding.action.local!!)
                 binding.action.ai != null -> prepareCloud(binding.action.ai!!)
                 else -> panel?.showStatus(R.string.agent_skill_unavailable)
+            }
+        }
+    }
+
+    /** Stage 24b: the calculator of `@math` in place of the keys, starting with [initial]. */
+    fun openCalculator(initial: String): Boolean {
+        val target = calculator ?: return false
+        if (needsCursorRefresh) return false
+        close()
+        KeyboardSwitcher.getInstance().mainKeyboardView?.closing()
+        target.rootView.findViewById<SuggestionStripView>(R.id.suggestion_strip_view)?.dismissMoreSuggestionsPanel()
+        target.show(initial, Settings.getValues().mLocale.language)
+        return true
+    }
+
+    /** The tap on "Insert": at the cursor as it is now, through the same checks as the dictation. */
+    private fun insertCalculation(text: String) {
+        val captured = editor.captureAnchor()
+        if (captured !is AnchorResult.Captured) {
+            Toast.makeText(ime, R.string.agent_calculator_expired, Toast.LENGTH_SHORT).show()
+            return
+        }
+        when (editor.insert(captured.anchor, text)) {
+            ApplyOutcome.SUBMITTED -> close()
+            ApplyOutcome.REJECTED -> Toast.makeText(ime, R.string.agent_calculator_expired, Toast.LENGTH_SHORT).show()
+            ApplyOutcome.UNKNOWN -> {
+                needsCursorRefresh = true
+                close()
+                Toast.makeText(ime, R.string.agent_panel_apply_unknown, Toast.LENGTH_LONG).show()
+                runCatching { ime.currentInputConnection?.requestCursorUpdates(InputConnection.CURSOR_UPDATE_IMMEDIATE) }
             }
         }
     }
@@ -509,6 +544,7 @@ class AgentEditorController @JvmOverloads constructor(
         canApply = false
         panel?.clear()
         wheel?.visibility = View.GONE
+        calculator?.hide()
         editor.invalidate()
     }
 

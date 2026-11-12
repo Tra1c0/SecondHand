@@ -15,6 +15,28 @@ du tun willst, und es mit einer Geste und einem Tipp erledigt, dazu eine lernfä
 Autokorrektur. Der Owner hat die Entscheidung über Machbarkeit und Reihenfolge abgegeben; das
 Folgende ist die Entscheidung des Leads.
 
+- **24 Befehle in der Tastatur (Auftrag des Owners vom 2026-11-12, vor 23e/23f).** Tippst du
+  einen Befehl wie `@math` am Wortanfang, zeigt die Leiste passende Chips; erst ein Tipp auf einen
+  Chip löscht den Befehlstext und führt aus. Ein bloßes `@` zeigt alle Befehle, ein angefangener
+  Name die passenden. E-Mail-Adressen und Erwähnungen (`a@b`, `@lewin`) lösen nichts aus. Der
+  Präfix ist einstellbar (Standard `@`, nur Zeichen, die keine Worttrenner sind, damit die
+  Autokorrektur den Befehl nicht ändert). Jeder Befehl ist einzeln abschaltbar. Nie in Passwort-
+  feldern, im Inkognito-Modus oder bei gesperrtem Gerät. Befehlstexte werden nicht gelernt.
+  - 24a ist gebaut (siehe FEATURES.md).
+  - 24b ist gebaut (siehe FEATURES.md), einschließlich des Ergebnis-Chips für `@math 12*3,5`.
+  - 24c `@contact Name`: Kontakte aus dem Adressbuch des Telefons (Google-Kontakte inbegriffen) als
+    Vorschläge, dann Felder wählen; Einfügen als Text. Kontakte-Berechtigung, nur lokal. (M)
+  - 24d `@url`: eingetippte Adresse öffnen; ohne Adresse URLs aus Eingabefeld und Zwischenablage
+    vorschlagen. Nur echte URLs (Schema bzw. Domain geprüft) lösen etwas aus. (S)
+  - 24e `@url` liest den Bildschirm: Bedienungshilfe-Dienst, der keine Ereignisse abonniert und nur
+    auf Befehl den angezeigten Text liest (kein Akkuverbrauch im Ruhezustand); Rückfall
+    Screenshot (`takeScreenshot`, ab Android 11) mit Texterkennung auf dem Gerät für Apps, die
+    Text als Grafik zeichnen. Inhalte werden nie gespeichert oder protokolliert. Am Xiaomi muss
+    der Owner „Eingeschränkte Einstellungen zulassen“ und den Dienst selbst einschalten. (M)
+  - 24f weitere Befehle, einzeln: `@snip` (eigene Textbausteine), `@datum`/`@termin` (mit 21a),
+    `@ort` (mit 21b), `@clip` (Zwischenablage durchsuchen), `@emoji`, `@zeichen` (Sonderzeichen
+    per Name), `@conv` (Einheiten, ohne Währungen), `@such` (Websuche im Browser), `@wf`
+    (Workflow oder Skill Key starten), `@ki` (KI-Aktion nach Freigabe). Nicht gewünscht: `@chord`.
 - **20 Lernende Autokorrektur, lokal, ohne KI.**
   - 20a ist gebaut (siehe FEATURES.md). Abweichend vom ersten Entwurf gilt der Schutz nur für
     Umlaute, nicht für alle Akzente: Spanische Akzente (esta/está) sind meist aus Bequemlichkeit
@@ -119,7 +141,8 @@ Integrationen.
 - Lerndaten auf einem Server, auch verschlüsselt (2026-11-12 entschieden): Lernen geschieht
   ohnehin auf dem Gerät; ein Server brächte nur Risiko. Sicherung über verschlüsselte
   Exportdatei.
-- Bildschirm anderer Apps mitlesen (Bedienungshilfe-Dienst) oder Benachrichtigungen mitlesen:
-  zu weitreichender Zugriff auf alles Angezeigte. Ersatz: Nachricht kopieren.
+- Bildschirm anderer Apps ständig mitlesen oder Benachrichtigungen mitlesen: zu weitreichender
+  Zugriff. Ausnahme (Owner, 2026-11-12): der Bedienungshilfe-Dienst aus 24e, der nur auf einen
+  ausdrücklichen Befehl einmal liest. Für Absichten (21) gilt weiter: Nachricht kopieren.
 - Aktionen ganz ohne Bestätigung ausführen: eine Fehlerkennung würde still falsche Termine
   anlegen oder Orte verschicken.

@@ -31,6 +31,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - **Laufjournal** – Verschlüsselte Metadaten zu Läufen: Absicht vor Wirkung, kein Retry, keine Inhalte.
 - **Workflows und Skill Keys** – Gespeicherte Abläufe, ihre Ausführung nach Freigabe und die drei Skill-Tasten. Format: docs/WORKFLOWS.md.
 - **Werkzeuge** – Fest eingebaute Werkzeuge: lokales Testwerkzeug und Übergabe eines Kalenderentwurfs an eine Kalender-App.
+- **Befehle** – Getippte Befehle wie `@math`: Erkennung vor der Schreibmarke, Chips in der Leiste, Ausführung erst nach Tipp.
 - **Act Builder** – Natürliche Beschreibung → freigegebene Anfrage → streng validierter Workflow-Entwurf.
 - **Einstellungen und Profile** – Compose-Seiten der Agent-Funktionen sowie Design-, Layout- und Gestenprofile.
 - **Flacher Stil** – Tastenstil „Flat“, Farbsatz „Flach schwarz“ und die Vorlage, die beides mit Größen einstellt.
@@ -135,21 +136,27 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   (`applyGeneratedText`) und Einfügen (`insertGeneratedText`) laufen durch dieselbe
   Nachbereitung (`applyGenerated`). Beim Einfügen kommt ein ausstehendes automatisches
   Leerzeichen (nach gewähltem Vorschlag) unter denselben Bedingungen wie beim Tippen mit in
-  denselben einen Commit.
+  denselben einen Commit. `replaceCommandText` (24a) beendet zuerst ein gerade getipptes Wort
+  so, wie es dasteht (ohne Korrektur, ohne Lernen), und läuft dann durch `applyGenerated`, aber
+  ohne das Lernen für den Rest der Sitzung abzuschalten. `performAdditionToUserHistoryDictionary`
+  lernt kein Befehlswort (`KeyboardCommands.isCommandWord`).
 - `InputLogicHandler.java`: hält Worker- und UI-Teil eines Swipe-Batches über
   `PendingBatchGate` gemeinsam gesperrt.
 - `RichInputConnection.java`: native Ersetzung als genau ein Commit, Ergebnis als `ApplyOutcome`
   (`replaceSelectedTextIfUnchanged`); ebenso `insertTextIfCursorUnchanged` für das Einfügen an
   der unveränderten Schreibmarke, nur wenn der Editor antwortet und nichts markiert ist
   (Fallstrick P24). Nur über `InputLogic.insertGeneratedText` aufrufen.
+  `replaceTextBeforeCursorIfUnchanged` (24a) ersetzt einen getippten Befehl direkt vor der
+  Schreibmarke: liest den Text aus dem Editor (nicht aus dem Cache), dann `setComposingRegion`
+  plus `commitText` als ein Commit. Nur über `InputLogic.replaceCommandText` aufrufen.
 - `PointerTracker.java`: Leertasten-Langdruck öffnet das Rad über
   `CustomAction.SHOW_AGENT_WHEEL` und beendet den laufenden Zeiger samt Swipe/Touchpad-Flags.
 - `KeyboardActionListener.java` (neue `CustomAction.SHOW_AGENT_WHEEL`) und
   `KeyboardActionListenerImpl.kt` (leitet Panel-, Rad-, Skill- und Diktat-Taste an den Controller,
   blockiert Eingabe während eines Overlays).
-- `InputView.java`: leitet Touch und Hover an sichtbare Overlays (Panel, Rad).
-- `main_keyboard_frame.xml`: Wurzel ist `AgentKeyboardFrame`, darin Tastatur, `FlatMenuView`, `AgentPanelView`
-  und `AgentWheelView`.
+- `InputView.java`: leitet Touch und Hover an sichtbare Overlays (Panel, Rad, Rechner).
+- `main_keyboard_frame.xml`: Wurzel ist `AgentKeyboardFrame`, darin Tastatur, `FlatMenuView`, `AgentPanelView`,
+  `AgentWheelView` und `CalculatorView` (24b).
 - `KeyCode.kt` (`AGENT_ACTIONS` = -12000, `SKILL_1`–`SKILL_3` = -12001…-12003,
   `AGENT_DICTATE` = -12004),
   `ToolbarUtils.kt` (Toolbar-Tasten `AGENT`, `SKILL_1`–`SKILL_3` und `DICTATE`; nur `AGENT` ist
@@ -178,6 +185,16 @@ Trefferzonen (Etappe 22a, Touch-Verarbeitung, jede Änderung mit Prüfer):
   das Kalibrierfeld den Fokus hat (Ansicht- in Tastatur-Koordinaten über das Padding).
 - `LatinIME.java`: `onStartInputViewInternal` lädt `TouchModel` und schaltet die Kalibrierung
   nur für das eigene Feld mit `AgentPreferences.TOUCH_CALIBRATION_FIELD` ein.
+
+Befehle (Etappe 24a, Details im Abschnitt „Befehle“):
+
+- `LatinIME.java`: `setSuggestedWords` und `setNeutralSuggestionStrip` zeigen zuerst die Chips
+  eines getippten Befehls (`tryShowCommandChips`); `getAgentTextBeforeCursor`,
+  `getAgentCommandCursor`, `replaceCommandText` für `KeyboardCommands`;
+  `onStartInputViewInternal` lädt die Befehlseinstellungen.
+- `Suggest.kt`: keine automatische Korrektur für ein Befehlswort und, solange ein vollständiger
+  Befehl vor der Schreibmarke steht, für die Wörter seines Arguments
+  (`KeyboardCommands.suppressesCorrection`); ebenso keine gelernte Korrektur.
 - `InputLogic.java` (22b): `commitChosenWord` gibt die Tipp-Koordinaten des Worts an
   `TouchModel.learnFromWord` (nur mit Schalter und nur Tipp-Eingabe).
 
@@ -243,7 +260,7 @@ Speicher, Datenschutz und Identität:
 - `res/xml/clipboard_provider_path.xml`: zusätzlicher Pfad `agent_screenshot/` für die Kopien
   der Screenshot-Pille, getrennt von den Clip-Dateien (deren Aufräumen hielte ein Unterordner
   sonst für verwaist).
-- `SettingsNavHost.kt` und `MainSettingsScreen.kt`: Ziele und Menüeinträge der sieben
+- `SettingsNavHost.kt` und `MainSettingsScreen.kt`: Ziele und Menüeinträge der acht
   Agent-Einstellungsseiten.
 - App-Identität: `app/build.gradle.kts` (App-ID `dev.personal.agentkeyboard`, Version 0.1.0,
   APK-Name, Lint-Baseline `lint-baseline-upstream.xml`), `settings.gradle`
@@ -251,8 +268,10 @@ Speicher, Datenschutz und Identität:
   auch in `debug`/`debugNoMinify`), `donottranslate.xml` und `strings.xml` in
   `debug`/`debugNoMinify` (Namen „Agent Keyboard“ bzw. „Agent Keyboard Lab“).
 
-Geänderte Upstream-Tests: `Shadows.kt` (IME-Info aus `BuildConfig.APPLICATION_ID`),
-`InputLogicTest.kt` (zusätzliche erzeugte Fälle), `SuggestTest.kt` (Personalisierung im Test
+Geänderte Upstream-Tests: `Shadows.kt` (IME-Info aus `BuildConfig.APPLICATION_ID`;
+`getTextBeforeCursor(n)` liefert wie Android die letzten n Zeichen vor der Schreibmarke, nicht die
+ersten n des Felds),
+`InputLogicTest.kt` (zusätzliche erzeugte Fälle, `typedCommand*` für 24a), `SuggestTest.kt` (Personalisierung im Test
 ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 
 ## Editorzugriff, Panel und Rad
@@ -405,6 +424,43 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   (API 21/22) läuft nur das Testwerkzeug, die Übergabe wird abgelehnt. Fehlt eine Kalender-App,
   endet der Lauf als `FAILED`, nicht als `UNKNOWN`, und wird nicht wiederholt.
 - Tests in `AT/`: `ToolRunnerTest`, `CalendarToolLauncherTest`.
+
+## Befehle
+
+> Getippte Befehle wie `@math`: Erkennung vor der Schreibmarke, Chips in der Leiste, Ausführung erst nach Tipp.
+
+- `C/Commands.kt`: `CommandSyntax.parse` erkennt im Text vor der Schreibmarke einen Befehl
+  (`CommandNames` = Präfix mit angefangenem Namen, `CommandCall` = vollständiger Name mit
+  optionalem Argument). Präfix nur am Anfang, nach Leerraum oder öffnender Klammer, Name aus
+  ASCII-Buchstaben, Argument höchstens 200 Zeichen auf derselben Zeile. Erlaubte Präfixe
+  (`ALLOWED_PREFIXES`) sind nur Zeichen, die in `symbols_word_separators` fehlen; sonst wäre der
+  Befehl beim Tippen kein einzelnes Wort und die Autokorrektur könnte ihn ändern.
+- `A/KeyboardCommands.kt`: Einstellungen (`AgentPreferences.COMMANDS`, `COMMAND_PREFIX`,
+  `COMMANDS_DISABLED`), die Liste der eingebauten Befehle (`BUILT_IN`, je Etappe einer; Befehle
+  kommen nie aus Dateien oder Modellen), `find` (aus in Passwortfeldern, im Inkognito-Modus, bei
+  gesperrtem Gerät und bei Auswahl), `chipsFor` und `chipRow`. Ein Namens-Chip vervollständigt
+  den Namen, ein Befehl liefert eigene Chips; erst `Chip.onTap` handelt. Ein Befehl darf über
+  `Host.replace` nur seinen eigenen Text ersetzen, und nur wenn der Editor ihn unverändert vor
+  der Schreibmarke zeigt. Die Leiste zeigt die Chips über `setExternalSuggestionView`; der
+  nächste normale Vorschlag ersetzt sie.
+- `K/settings/screens/AgentCommandsScreen.kt`: Hauptschalter, Präfix, Schalter je Befehl.
+- `@math` (24b): `MathCommand` in `A/KeyboardCommands.kt` bietet bei gültigem Argument einen
+  Ergebnis-Chip (ersetzt den Befehl durch den formatierten Text) und „Rechner“ (löscht den
+  Befehl, dann `AgentEditorController.openCalculator`). `C/MathExpression.kt`: eigener Parser
+  (Punkt vor Strich, `^` rechtsassoziativ und stärker als das Vorzeichen, `%` = durch 100,
+  `√`, `²`, `³`), exakt mit `BigDecimal`; Division ohne endliche Dezimaldarstellung, Wurzeln
+  und gebrochene Exponenten mit 40 Stellen und als ungefähr markiert; Anzeige höchstens 10
+  Nachkommastellen. Grenzen gegen Rechenlast: Eingabe 200 Zeichen, Exponent ±999, Abschätzung
+  vor `pow`, Beträge über 10^100 sind „zu groß“. Ausgabe in vier `Style`s mit Komma oder Punkt
+  nach der Sprache (`Locale.forLanguage`), Gruppierung ab fünf Stellen.
+- `A/CalculatorView.kt`: Overlay in `AgentKeyboardFrame` (Kind `agent_calculator`, auch in
+  `InputView` als Overlay gezählt), Farben aus dem Tastatur-Farbsatz, eigene Tasten, Wahl der
+  Ausgabe (gemerkt in `AgentPreferences.CALCULATOR_STYLE`). „Einfügen“ geht über
+  `editor.captureAnchor` und `editor.insert` wie das Diktat (Prüfung von Token, Position,
+  Schutzgrenzen; generierter Text, also ohne Lernen). `isBlockingInput` gilt, solange der Rechner
+  offen ist; `close()` und jeder Editorwechsel schließen ihn.
+- Tests: `CommandSyntaxTest` und `MathExpressionTest` (`CT/`), `KeyboardCommandsTest` und
+  `CalculatorViewTest` (`AT/`), `InputLogicTest.typedCommand*`.
 
 ## Act Builder
 
@@ -783,44 +839,53 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P41** Bekommt eine Kotlin-Funktion mit Lambda-Parametern einen weiteren Lambda-Parameter mit
   Standardwert ans Ende, bindet ein bisheriges nachgestelltes Lambda an den neuen Parameter.
   Aufrufer dann mit benanntem Argument (`onDone = { … }`) schreiben.
+- **P42** Ein Präfix, der in `symbols_word_separators` steht (z. B. `/`, `!`, `?`, `.`)
+  beendet das Wort: Der Befehlsname wird dann als normales Wort getippt und beim
+  Leerzeichen autokorrigiert (`math` → `Mathe`). Deshalb nur `CommandSyntax.ALLOWED_PREFIXES`.
+  Außerdem korrigiert der zweite Zweig von `shouldBeAutoCorrected` auch Wörter mit `@`, wenn der
+  Vorschlag gut genug ist; der Schutz für Befehle steht deshalb in der Schlussbedingung von
+  `hasAutoCorrection`, nicht neben der `@`-Regel.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (218 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (227 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (3): build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (39): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (41): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
-  AndroidEditorAdapter, ApprovedActionRunner, CorrectionMemory, Dictation, EncryptedActionRunStore,
-  FlatMenuView, FlatPanelStyle, FlatPreset, JournaledModelCall, JournaledRun, KeyboardProfileStore,
-  LearningData, ManualWorkflowDraft, ModelSettings, OnDeviceSpeechEngine, RunSubjectCodec,
-  ScreenshotChip, SkillBindingStore, SkillLabels, ToolApprovalSummary, ToolLauncher,
-  TouchCalibration, TouchModel, TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract,
-  WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
+  AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CorrectionMemory, Dictation,
+  EncryptedActionRunStore, FlatMenuView, FlatPanelStyle, FlatPreset, JournaledModelCall,
+  JournaledRun, KeyboardCommands, KeyboardProfileStore, LearningData, ManualWorkflowDraft,
+  ModelSettings, OnDeviceSpeechEngine, RunSubjectCodec, ScreenshotChip, SkillBindingStore,
+  SkillLabels, ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel, TypoMemory,
+  WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner,
+  WorkflowInputSummary, WorkflowStore
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
-- `AT/` (42): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (44): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
-  ApprovedWorkflowRunnerTest, CalendarToolLauncherTest, CorrectionMemoryTest, DebugPrivacyTest,
-  DictationSessionTest, DictationUiTest, EncryptedActionRunStoreTest, EncryptedCredentialStoreTest,
-  FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest,
-  ForkIdentityTest, InsertAtCursorTest, JournaledModelCallTest, KeyboardProfileStoreTest,
-  LearningDataTest, ManualWorkflowDraftTest, MoreProvidersTest, OpenAiProviderTest,
-  ScreenshotChipTest, SelectedTextCommitTest, SkillBindingStoreTest, SkillSettingsTest,
-  TestRunJournal, ToolRunnerTest, TouchModelTest, TypoMemoryTest, WorkflowBuilderContractTest,
-  WorkflowBuilderSettingsTest, WorkflowConditionSummaryTest, WorkflowDraftRunnerTest,
-  WorkflowSettingsTest, WorkflowStoreTest
-- `C/` (12): AiTextAction, ApplyOutcome, EditorSession, ExecutionPolicy, LocalTextActions,
-  ModelProvider, PendingBatchGate, Profiles, SkillBinding, TextCondition, Tool, Workflow
-- `CT/` (8): AiTextActionTest, EditorPolicyTest, InsertionAnchorTest, LocalTextActionsTest,
-  PendingBatchGateTest, SkillBindingTest, ToolTest, WorkflowTest
+  ApprovedWorkflowRunnerTest, CalculatorViewTest, CalendarToolLauncherTest, CorrectionMemoryTest,
+  DebugPrivacyTest, DictationSessionTest, DictationUiTest, EncryptedActionRunStoreTest,
+  EncryptedCredentialStoreTest, FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest,
+  FlatStyleTest, ForkIdentityTest, InsertAtCursorTest, JournaledModelCallTest, KeyboardCommandsTest,
+  KeyboardProfileStoreTest, LearningDataTest, ManualWorkflowDraftTest, MoreProvidersTest,
+  OpenAiProviderTest, ScreenshotChipTest, SelectedTextCommitTest, SkillBindingStoreTest,
+  SkillSettingsTest, TestRunJournal, ToolRunnerTest, TouchModelTest, TypoMemoryTest,
+  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowConditionSummaryTest,
+  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+- `C/` (14): AiTextAction, ApplyOutcome, Commands, EditorSession, ExecutionPolicy, LocalTextActions,
+  MathExpression, ModelProvider, PendingBatchGate, Profiles, SkillBinding, TextCondition, Tool,
+  Workflow
+- `CT/` (10): AiTextActionTest, CommandSyntaxTest, EditorPolicyTest, InsertionAnchorTest,
+  LocalTextActionsTest, MathExpressionTest, PendingBatchGateTest, SkillBindingTest, ToolTest,
+  WorkflowTest
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,
   KeyboardActionListenerImpl, KeyboardSwitcher, KeyboardTheme, KeyboardView, MainKeyboardView,
   PointerTracker
@@ -840,9 +905,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/latin/suggestions/` (2): FlatStrip, SuggestionStripView
 - `K/latin/utils/` (1): ToolbarUtils
 - `K/settings/` (2): SettingsActivity, SettingsNavHost
-- `K/settings/screens/` (11): AgentAiScreen, AgentDictationScreen, AgentLearningScreen,
-  AgentProfilesScreen, AgentRunStatus, AgentScreenshotScreen, AgentSkillsScreen,
-  AgentWorkflowsScreen, MainSettingsScreen, WorkflowBuilderDialog, WorkflowDraftProtection
+- `K/settings/screens/` (12): AgentAiScreen, AgentCommandsScreen, AgentDictationScreen,
+  AgentLearningScreen, AgentProfilesScreen, AgentRunStatus, AgentScreenshotScreen,
+  AgentSkillsScreen, AgentWorkflowsScreen, MainSettingsScreen, WorkflowBuilderDialog,
+  WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
 - `app/` (1): build.gradle

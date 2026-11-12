@@ -122,6 +122,23 @@ Sprach-Tastatur des Systems, falls eine installiert ist.
 Die Tastatur gibt der App eine Kopie, die nach 10 Minuten gelöscht wird. Wechselst du das Feld,
 bevor die Kopie fertig ist, wird nichts eingefügt. Noch auf keinem Gerät ausprobiert.
 
+## Befehle (z. B. Rechner)
+
+1. Tippe in ein Textfeld `@math` oder `@math 12*3,5`. Ein einzelnes `@` zeigt in der Leiste alle
+   Befehle; ein Tipp auf einen Namen vervollständigt ihn.
+2. Mit Rechnung zeigt die Leiste das Ergebnis als Chip, z. B. „12 × 3,5 = 42“. Antippen ersetzt
+   `@math 12*3,5` durch genau diesen Text.
+3. Der Chip „Rechner“ löscht den Befehl und öffnet statt der Tasten einen Rechner. Oben siehst
+   du die Rechnung und darunter, was eingefügt würde. Darunter wählst du die Ausgabe: Rechnung,
+   nur Ergebnis, LaTeX oder „x² ½“ (Hochzahlen, Brüche). „Einfügen“ setzt sie an die
+   Schreibmarke, „Schließen“ bricht ab.
+
+Solange du nichts antippst, passiert nichts; der Befehl bleibt einfach als Text stehen. In
+Passwortfeldern, im Inkognito-Modus und bei gesperrtem Gerät gibt es keine Befehle. Unter
+Einstellungen → Befehle schaltest du Befehle ab oder wählst statt `@` ein anderes Zeichen (`#`,
+`$`, `%`, `~`, `§`), etwa wenn du in einer App oft Leute mit `@` erwähnst. Weitere Befehle
+(`@contact`, `@url` …) folgen. Noch auf keinem Gerät ausprobiert.
+
 ## Aussehen: flacher Look
 
 Einstellungen → Tastaturprofile → „Flacher Look (Vorlage)“ → „Vorlage anwenden“. Das stellt

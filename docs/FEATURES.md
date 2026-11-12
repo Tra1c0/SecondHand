@@ -73,6 +73,13 @@ E stammt bisher nur aus dem Emulator-Test vom 2026-11-11 (Android 15, Protokoll 
 | Testwerkzeug | Zählt Zeichen, Wörter und Zeilen des markierten Texts. Läuft nur auf dem Gerät, ersetzt nichts. Dient zum Ausprobieren des Werkzeug-Ablaufs. (15a) | E |
 | Kalenderentwurf | Öffnet die Kalender-App mit einem neuen Termin: erste Zeile als Titel, ganzer Text als Beschreibung. Datum und Uhrzeit stellst du dort ein. Gespeichert ist der Termin erst, wenn du ihn dort speicherst; die Tastatur liest den Kalender nicht. Im Emulator startet die Übergabe; ob die Daten in einer Kalender-App ankommen, ist offen (die App des Emulators war defekt). (15b) | T |
 
+## Befehle
+
+| Funktion | Was sie macht | Status |
+| --- | --- | --- |
+| Getippte Befehle | Tippst du am Wortanfang `@` und einen Befehlsnamen, zeigt die Leiste Chips statt Wortvorschlägen. Ein einzelnes `@` listet alle Befehle, ein angefangener Name die passenden; ein Tipp vervollständigt den Namen. Erst ein Tipp auf einen Chip löscht den Befehlstext und führt etwas aus. E-Mail-Adressen und Erwähnungen (`a@b.de`, `@lewin`) lösen nichts aus. Befehlswörter werden weder autokorrigiert noch gelernt, die Wörter danach auf derselben Zeile auch nicht autokorrigiert. Aus in Passwortfeldern, im Inkognito-Modus und bei gesperrtem Gerät. Präfix (`@ # $ % ~ §`) und jeder Befehl einstellbar unter Einstellungen → Befehle. (24a) Auf keinem Gerät ausprobiert. | T |
+| `@math` | `@math 12*3,5` zeigt den Chip „12 × 3,5 = 42“; ein Tipp ersetzt den Befehl durch die Rechnung. Der Chip „Rechner“ öffnet statt der Tasten einen Rechner mit Live-Ergebnis; „Einfügen“ setzt das Ergebnis an die Schreibmarke. Rechnet exakt mit Dezimalzahlen (0,1 + 0,2 = 0,3), kann `+ − × ÷ ^ √ %`, Klammern, `²` und `³`; gerundete Ergebnisse (1 ÷ 3, √2) stehen mit „≈“. Vier Ausgaben, die sich die Tastatur merkt: Rechnung, nur Ergebnis, LaTeX, Hochzahlen und Brüche (`2¹⁰`, `½`). Komma oder Punkt nach der Tastatursprache. Nur auf dem Gerät. (24b) Auf keinem Gerät ausprobiert. | T |
+
 ## Act Builder
 
 | Funktion | Was sie macht | Status |

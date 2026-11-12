@@ -176,6 +176,8 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         if (!settings.mLearnTypos || !isCorrectionEnabled || typed.isEmpty() || !wordComposer.isComposingWord
             || wordComposer.isResumed || wordComposer.hasDigits() || wordComposer.isCursorFrontOrMiddleOfComposingWord
             || (wordComposer.isMostlyCaps && !wordComposer.isAllUpperCase) || typed.contains('@') || typed.contains('.')
+            || helium314.keyboard.agent.KeyboardCommands.isCommandWord(typed)
+            || helium314.keyboard.agent.KeyboardCommands.suppressesCorrection()
             || !mDictionaryFacilitator.hasAtLeastOneInitializedMainDictionary()) return false
         val context = Settings.getCurrentContext() ?: return false
         val previous = if (ngramContext.prevWordCount >= 1 && !ngramContext.isNthPrevWordBeginningOfSentence(1))
@@ -267,6 +269,9 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
             || wordComposer.hasDigits() // If the word has digits, we never auto-correct because it's likely the word was type with a lot of care // todo: but what if user touched the number row?
             || (wordComposer.isMostlyCaps && !wordComposer.isAllUpperCase) // If the word is mostly caps, we never auto-correct because this is almost certainly intentional
             || wordComposer.isResumed // We never auto-correct when suggestions are resumed because it would be unexpected
+            // a typed command like "@math" and the words of its argument stay as typed
+            || helium314.keyboard.agent.KeyboardCommands.isCommandWord(typedWordString)
+            || helium314.keyboard.agent.KeyboardCommands.suppressesCorrection()
             // If we don't have a main dictionary, we never want to auto-correct. The reason
             // for this is, the user may have a contact whose name happens to match a valid
             // word in their language, and it will unexpectedly auto-correct. For example, if

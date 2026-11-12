@@ -37,6 +37,14 @@
     <item type="id" name="agent_menu_floating" />
     <item type="id" name="agent_menu_edit" />
     <item type="id" name="agent_clipboard_back" />
+    <item type="id" name="agent_command_chips" />
+    <item type="id" name="agent_calculator_close" />
+    <item type="id" name="agent_calculator_input" />
+    <item type="id" name="agent_calculator_preview" />
+    <item type="id" name="agent_calculator_styles" />
+    <item type="id" name="agent_calculator_insert" />
+    <item type="id" name="agent_calculator_delete" />
+    <item type="id" name="agent_calculator_clear" />
     <item type="id" name="agent_clipboard_title" />
     <item type="id" name="agent_clipboard_section" />
     <item type="id" name="agent_strip_emojis" />

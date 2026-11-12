@@ -167,7 +167,8 @@ class ShadowInputMethodService {
     private val ic = object : InputConnection {
         // pretty clear (though this may be slow depending on the editor)
         // bad return value here is likely the cause for that weird bug improved/fixed by fixIncorrectLength
-        override fun getTextBeforeCursor(p0: Int, p1: Int): CharSequence = textBeforeCursor.take(p0)
+        // the n characters right before the cursor, as Android returns them (not the first n of the field)
+        override fun getTextBeforeCursor(p0: Int, p1: Int): CharSequence = textBeforeCursor.takeLast(p0)
         // pretty clear (though this may be slow depending on the editor)
         override fun getTextAfterCursor(p0: Int, p1: Int): CharSequence = textAfterCursor.take(p0)
         // pretty clear

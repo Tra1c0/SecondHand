@@ -801,6 +801,34 @@ class InputLogicTest {
         assertEquals("prefix Hall suffix", text)
     }
 
+    @Test fun typedCommandIsReplacedInOneCommitWithoutStoppingLearning() {
+        chainInput("hi @ma")
+        assertEquals("hi @ma", text)
+        assertEquals(dev.agentkeyboard.core.ApplyOutcome.SUBMITTED, inputLogic.replaceCommandText("@ma", "@math ", 6))
+        assertEquals("hi @math ", text)
+        assertEquals("", composingText)
+        checkConnectionConsistency()
+        assertFalse(inputLogic.isAgentHistorySuppressed) // the user typed everything around the command
+        // an empty replacement deletes the command
+        assertEquals(dev.agentkeyboard.core.ApplyOutcome.SUBMITTED, inputLogic.replaceCommandText("@math ", "", 9))
+        assertEquals("hi ", text)
+        checkConnectionConsistency()
+    }
+
+    @Test fun typedCommandIsKeptWhenTheFieldOrCursorDiffers() {
+        chainInput("hi @ma")
+        assertEquals(dev.agentkeyboard.core.ApplyOutcome.REJECTED, inputLogic.replaceCommandText("@mo", "@math ", 6))
+        assertEquals("hi @ma", text)
+        assertEquals(dev.agentkeyboard.core.ApplyOutcome.REJECTED, inputLogic.replaceCommandText("@ma", "@math ", 5))
+        assertEquals(dev.agentkeyboard.core.ApplyOutcome.REJECTED, inputLogic.replaceCommandText("", "x", 6))
+        assertEquals("hi @ma", text)
+        checkConnectionConsistency()
+        setText("hi @ma")
+        setCursorPosition(3, 6) // a selection: never replaced
+        assertEquals(dev.agentkeyboard.core.ApplyOutcome.REJECTED, inputLogic.replaceCommandText("@ma", "@math ", 6))
+        assertEquals("hi @ma", text)
+    }
+
     @Test fun generatedInsertionIsRefusedWhileAWordIsBeingComposed() {
         chainInput("hel")
         assertEquals("hel", composingText)

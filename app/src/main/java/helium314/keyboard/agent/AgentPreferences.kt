@@ -20,6 +20,14 @@ object AgentPreferences {
     /** Opt-in: personal hit boxes for letter keys (stage 22). */
     const val ADAPT_TOUCH = "agent_adapt_touch"
     const val SCREENSHOT_CHIP = "agent_screenshot_chip"
+    /** Typed commands like "@math" (stage 24, default on). */
+    const val COMMANDS = "agent_commands"
+    /** One character from CommandSyntax.ALLOWED_PREFIXES. */
+    const val COMMAND_PREFIX = "agent_command_prefix"
+    /** Names of switched-off commands. */
+    const val COMMANDS_DISABLED = "agent_commands_disabled"
+    /** Last output format of the calculator, a MathExpression.Style name. */
+    const val CALCULATOR_STYLE = "agent_calculator_style"
     /** privateImeOptions of the calibration field in the settings: the keyboard records touches there. */
     const val TOUCH_CALIBRATION_FIELD = "dev.personal.agentkeyboard.touchCalibration"
 }

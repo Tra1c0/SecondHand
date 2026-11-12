@@ -54,6 +54,7 @@ def main() -> int:
         "core-tests": [":agent-core:test"],
         "agent-tests": [":app:testDebugUnitTest", "--tests", "helium314.keyboard.agent.*",
                         "--tests", "helium314.keyboard.latin.InputLogicTest.generated*",
+                        "--tests", "helium314.keyboard.latin.InputLogicTest.typedCommand*",
                         "--tests", "helium314.keyboard.latin.inputlogic.BatchDeliveryTest"],
         "lint": [":app:lintDebugNoMinify"],
     }[args.check]

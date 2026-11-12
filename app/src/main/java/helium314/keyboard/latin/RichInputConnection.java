@@ -407,6 +407,57 @@ public final class RichInputConnection implements PrivateCommandPerformer {
         return uncertain ? ApplyOutcome.UNKNOWN : ApplyOutcome.SUBMITTED;
     }
 
+    /**
+     * Replaces the text right before the cursor (a typed command) in one commit, only while the
+     * cursor is at [position], nothing is selected or composed and the editor itself still shows
+     * [expected] there. An empty [replacement] deletes it. Only call this through
+     * InputLogic.replaceCommandText, which finishes a composing word first.
+     */
+    public ApplyOutcome replaceTextBeforeCursorIfUnchanged(final String expected, final String replacement, final int position) {
+        final InputConnection connection = mParent.getCurrentInputConnection();
+        final int start = position - expected.length();
+        if (connection == null || mComposingText.length() != 0 || expected.isEmpty() || start < 0
+                || (long) start + replacement.length() > Integer.MAX_VALUE
+                || mExpectedSelStart != position || mExpectedSelEnd != position)
+            return ApplyOutcome.REJECTED;
+        boolean attempted = false;
+        boolean accepted = false;
+        boolean uncertain = false;
+        try {
+            connection.beginBatchEdit();
+            // read from the editor, not from the cache: the app may have changed the text meanwhile
+            final CharSequence before = connection.getTextBeforeCursor(expected.length(), 0);
+            if (before != null && TextUtils.equals(expected, before.toString())) {
+                final CharSequence selected = connection.getSelectedText(0);
+                if (selected == null || selected.length() == 0) {
+                    attempted = true;
+                    // a composing region plus commitText is one replacement, never delete plus insert
+                    accepted = connection.setComposingRegion(start, position)
+                            && connection.commitText(replacement, 1);
+                }
+            }
+        } catch (RuntimeException ignored) {
+            uncertain = attempted;
+        } finally {
+            try { connection.endBatchEdit(); }
+            catch (RuntimeException ignored) { uncertain = attempted; }
+        }
+        if (!attempted) return ApplyOutcome.REJECTED;
+        if (!accepted || uncertain) {
+            clearUncertainGeneratedTextCaches();
+            return ApplyOutcome.UNKNOWN;
+        }
+        try {
+            final int cursor = start + replacement.length();
+            if (!resetCachesUponCursorMoveAndReturnSuccess(cursor, cursor, false))
+                uncertain = true;
+        } catch (RuntimeException ignored) {
+            uncertain = true;
+        }
+        if (uncertain) clearUncertainGeneratedTextCaches();
+        return uncertain ? ApplyOutcome.UNKNOWN : ApplyOutcome.SUBMITTED;
+    }
+
     private void clearUncertainGeneratedTextCaches() {
         mCommittedTextBeforeComposingText.setLength(0);
         mComposingText.setLength(0);
