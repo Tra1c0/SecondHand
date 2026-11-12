@@ -349,4 +349,12 @@
     <string name="agent_command_expired">The text before the cursor changed. Nothing was replaced.</string>
     <string name="agent_calculator_functions">Functions</string>
     <string name="agent_calculator_undefined">Not defined</string>
+    <string name="agent_command_search">Web search: %ssuch term opens a web search for the term in the default search app or browser (otherwise DuckDuckGo). Only after a tap on the chip; the term then leaves the keyboard.</string>
+    <string name="agent_command_search_chip">Search the web: %s</string>
+    <string name="agent_command_search_none">No app can open a web search.</string>
+    <string name="agent_command_chars">Special characters by name, on the device: %szeichen pfeil offers → ← ↑ ↓, also English names like arrow or degree.</string>
+    <string name="agent_command_emoji">Emojis by keyword, on the device: %semoji daumen offers 👍 👎, also English keywords like heart or dog.</string>
+    <string name="agent_command_conv">Unit conversion on the device: %1$sconv 5 oz or %1$sconv 100 f. Length, mass, volume (US cups and spoons), temperature and speed, no currencies. “in” picks the target: 5 oz in g.</string>
+    <string name="agent_command_insert_text">Insert %s</string>
+    <string name="agent_command_symbol_insert">Insert %1$s (%2$s)</string>
 </resources>

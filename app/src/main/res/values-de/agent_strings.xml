@@ -348,4 +348,12 @@
     <string name="agent_command_expired">Der Text vor der Schreibmarke hat sich geändert. Es wurde nichts ersetzt.</string>
     <string name="agent_calculator_functions">Funktionen</string>
     <string name="agent_calculator_undefined">Nicht definiert</string>
+    <string name="agent_command_search">Websuche: %ssuch Begriff öffnet eine Websuche nach dem Begriff in der Standard-Such-App oder im Browser (sonst DuckDuckGo). Erst nach einem Tipp auf den Chip; der Begriff verlässt dann die Tastatur.</string>
+    <string name="agent_command_search_chip">Im Web suchen: %s</string>
+    <string name="agent_command_search_none">Keine App kann eine Websuche öffnen.</string>
+    <string name="agent_command_chars">Sonderzeichen per Name, auf dem Gerät: %szeichen pfeil bietet → ← ↑ ↓, auch englische Namen wie arrow oder degree.</string>
+    <string name="agent_command_emoji">Emojis per Stichwort, auf dem Gerät: %semoji daumen bietet 👍 👎, auch englische Stichwörter wie heart oder dog.</string>
+    <string name="agent_command_conv">Einheiten umrechnen auf dem Gerät: %1$sconv 5 oz oder %1$sconv 100 f. Länge, Gewicht, Volumen (US-Tassen und -Löffel), Temperatur und Geschwindigkeit, keine Währungen. „in“ wählt das Ziel: 5 oz in g.</string>
+    <string name="agent_command_insert_text">%s einfügen</string>
+    <string name="agent_command_symbol_insert">%1$s einfügen (%2$s)</string>
 </resources>
