@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.keyboard.clipboard
 
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
 import android.view.Gravity
@@ -17,6 +18,7 @@ import helium314.keyboard.keyboard.FlatStyle
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.common.ColorType
 import helium314.keyboard.latin.common.Colors
+import helium314.keyboard.latin.utils.ToolbarKey
 
 /**
  * Clipboard view of the Flat style, measured on the reference screenshot (3.25 px per dp):
@@ -25,6 +27,8 @@ import helium314.keyboard.latin.common.Colors
  * bottom key row; the back button returns to the keys.
  */
 internal object FlatClipboard {
+    /** Round keys after the title; more would push the title out of a phone-wide header. */
+    const val MAX_HEADER_KEYS = 3
     private const val BUTTON_DP = 34f
     private const val EDGE_DP = 6f
     private const val STRIP_TOP_DP = 4f // as in FlatStrip, so that the header sits where the toolbar sits
@@ -72,11 +76,14 @@ internal object FlatClipboard {
         }
         strip.addView(title, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = strip.dp(TITLE_GAP_DP) })
 
-        keys.forEachIndexed { index, key ->
+        // The header does not scroll: back button and title must stay visible. It takes the first
+        // keys of the clipboard toolbar; closing is the back button's job.
+        val shown = keys.filter { it.tag != ToolbarKey.CLOSE_HISTORY }.take(MAX_HEADER_KEYS)
+        shown.forEachIndexed { index, key ->
             key.drawable?.mutate()?.setTint(icon)
             strip.addView(asCircle(key, circle), LinearLayout.LayoutParams(button, button).apply {
                 marginStart = if (index == 0) 0 else strip.dp(ACTION_GAP_DP)
-                if (index == keys.lastIndex) marginEnd = strip.dp(EDGE_DP)
+                if (index == shown.lastIndex) marginEnd = strip.dp(EDGE_DP)
             })
         }
     }
@@ -134,6 +141,12 @@ internal object FlatClipboard {
 
     /** Pictures fill a square card: as wide as a column, cropped around the centre. */
     fun squareImage(image: ImageView, listWidth: Int, columns: Int, listPadding: Int) {
+        if (image.drawable !is BitmapDrawable) { // a file type icon, not a picture: keep it small
+            image.scaleType = ImageView.ScaleType.CENTER_INSIDE
+            image.layoutParams = image.layoutParams.apply { width = ViewGroup.LayoutParams.WRAP_CONTENT; height = ViewGroup.LayoutParams.WRAP_CONTENT }
+            return
+        }
+        image.scaleType = ImageView.ScaleType.CENTER_CROP
         val side = Math.round(listWidth * CARD_SIDE_PX_PER_WIDTH)
         val size = ((listWidth - listPadding) / columns - 2 * side).coerceAtLeast(1)
         image.layoutParams = image.layoutParams.apply { width = size; height = size }

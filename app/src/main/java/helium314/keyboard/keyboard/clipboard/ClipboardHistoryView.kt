@@ -59,6 +59,8 @@ class ClipboardHistoryView @JvmOverloads constructor(
     private val toolbarKeys = mutableListOf<ImageButton>()
     /** Flat style: header in the strip, section label, no bottom row; see [FlatClipboard]. */
     private val flatStyle = FlatStyle.isActive(Settings.getValues().mColors)
+            // the back button lives in the strip; with a hidden strip the bottom row must stay
+            && Settings.getValues().isSecondaryStripVisible
     private var flatLabelHeight = 0
     private lateinit var clipboardAdapter: ClipboardAdapter
 
@@ -213,6 +215,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
     fun stopClipboardHistory() {
         if (!this::clipboardAdapter.isInitialized) return
         clipboardRecyclerView.adapter = null
+        ClipboardThumbnails.clear() // pictures are not kept beyond the visit of this view
         clipboardHistoryManager.setHistoryChangeListener(null)
         clipboardAdapter.clipboardHistoryManager = null
     }
@@ -254,7 +257,6 @@ class ClipboardHistoryView @JvmOverloads constructor(
     }
 
     override fun onClipsRemoved(position: Int, count: Int) {
-        ClipboardThumbnails.clear()
         clipboardAdapter.notifyItemRangeRemoved(position, count)
     }
 

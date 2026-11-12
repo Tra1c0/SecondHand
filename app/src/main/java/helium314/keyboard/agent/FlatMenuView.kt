@@ -16,6 +16,7 @@ import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
 import helium314.keyboard.keyboard.FlatStyle
@@ -61,6 +62,8 @@ class FlatMenuView(context: Context, attrs: AttributeSet?) : FrameLayout(context
     val isOpen: Boolean get() = visibility == VISIBLE
 
     private val content = LinearLayout(context)
+    /** Scrolls when the key area is lower than the menu, as in landscape. */
+    private val scroll = ScrollView(context)
     private var built = false
 
     init {
@@ -69,14 +72,18 @@ class FlatMenuView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         // swallow touches between the pills so that they do not reach the keys underneath
         content.isClickable = true
         content.isSoundEffectsEnabled = false
-        addView(content, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        scroll.isFillViewport = true
+        scroll.isVerticalScrollBarEnabled = false
+        scroll.addView(content, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+        addView(scroll, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     }
 
     /** Shows the menu below the strip, which is [stripHeight] pixels high. */
     fun open(stripHeight: Int) {
         if (!built) { build(); built = true }
-        (content.layoutParams as LayoutParams).topMargin = stripHeight
-        content.requestLayout()
+        (scroll.layoutParams as LayoutParams).topMargin = stripHeight
+        scroll.scrollTo(0, 0)
+        scroll.requestLayout()
         visibility = VISIBLE
     }
 
@@ -100,8 +107,8 @@ class FlatMenuView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         val text = colors?.get(ColorType.KEY_TEXT) ?: FlatStyle.LABEL
         val icon = colors?.get(ColorType.KEY_ICON) ?: FlatStyle.FUNCTIONAL_LABEL
 
-        content.setBackgroundColor(background)
-        content.setPadding(dp(SIDE_DP), dp(SIDE_DP), dp(SIDE_DP), 0)
+        scroll.setBackgroundColor(background)
+        content.setPadding(dp(SIDE_DP), dp(SIDE_DP), dp(SIDE_DP), dp(GAP_DP))
         val chevron = ContextCompat.getDrawable(context, R.drawable.ic_arrow_right)
         entries.chunked(COLUMNS).forEachIndexed { rowIndex, rowEntries ->
             val row = LinearLayout(context)

@@ -9,15 +9,19 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 ## Aktueller Stand
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
-- In Arbeit: Der Owner hat am 2026-11-11 die Fortsetzung beauftragt („Mach weiter“).
-- Fertig: Etappen 0–17a und 18a (Diktat auf dem Gerät), Gerätetest G1, drei lesende Reviews
-  ohne Blocker; Befunde behoben bis auf die unter Offene Punkte genannten.
+- In Arbeit: nichts. Runde „flacher Look“ (Auftrag des Owners vom 2026-11-12: Aussehen nach
+  fünf Screenshots, als Ausgangspunkt für ein eigenes Design) ist gebaut, lesend geprüft und
+  korrigiert (zwei von fünf Gegenprüfungen fielen am Nutzungslimit aus).
+- Fertig: Etappen 0–17a, 18a und 19a–19e (Tastenstil „Flat“ mit Vorlage, Leiste, Menü,
+  Zwischenablage, Panel-Look), Gerätetest G1, vier lesende Reviews.
 - Letzter Build: 0.1.0 Debug, `artifacts/…-universal.apk` (alle ABIs), nicht im Repo.
-- Geprüft: Kern 54/0, Agent-Suite 238/0, Build, Lint. Vollregression zuletzt nach Etappe 16
-  (387 Tests, 7 Fehler: fünf Baseline, zwei Link-Tests am Netzwerkfilter dieser Umgebung).
-- Danach: `docs/ROADMAP.md` → Beschlossen (G2 auf echtem Telefon, 18b lokale KI, A). 17b braucht
-  eine Klärung mit dem Owner, 16c wartet auf OAuth-Zugänge.
-- Wartet auf den Owner: Test auf dem eigenen Telefon; OAuth-Zugänge für 16c; Branch `main`.
+- Geprüft: Agent-Suite, Build, Lint; Vollregression nach den Review-Korrekturen mit 449 Tests und 7 Fehlern
+  (zwei geerbte, fünf Link-Tests an externen Hosts bzw. am Netzwerkfilter). Etappe 19 ist auf
+  keinem Gerät und in keinem Emulator gelaufen, nur als gerendertes Bild verglichen.
+- Danach: 19f (flacher Look auf dem Telefon des Owners vergleichen und nachjustieren), sonst
+  `docs/ROADMAP.md` → Beschlossen. 17b braucht eine Klärung, 16c wartet auf OAuth-Zugänge.
+- Wartet auf den Owner: APK installieren, Vorlage anwenden, Bildschirmfotos schicken;
+  OAuth-Zugänge für 16c; Branch `main`.
 
 ## Offene Punkte
 
@@ -68,6 +72,12 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
     für die Diktat-Verdrahtung im Controller und den Android-12-Pfad des Erkenners; das
     Zeitfenster beim Einfügen ist nur verkleinert (Idee: ab API 31 `getSurroundingText`); zwei
     schwache `InputLogicTest`-Fälle; kein Zeitlimit nach „Fertig“.
+
+15. **Flacher Look (19a–19e) ohne Gerät.** Maße stammen aus Screenshots mit 1200 px Breite;
+    die Dichte 3,25 ist erschlossen, die Systemschrift des Telefons unbekannt. Im Test gerendert
+    wird mit Roboto. Offen am Gerät: Gesamtbild, Abstand zur Navigationsleiste, Wechsel zwischen
+    Werkzeugen und Wortvorschlägen, Menü-Aktionen, Zwischenablage mit echten Bildern, Balken im
+    Panel, TalkBack. Liste je Etappe: `docs/VALIDATION.md` → Etappe19….
 
 ## Arbeitsweise
 
@@ -138,6 +148,11 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
     20 Minuten nicht, weil der Systemdienst wegen Zeitüberschreitung immer wieder neu startete.
   - `uiautomator dump --windows` liefert auch das Tastaturfenster (Texte, IDs) und funktioniert
     auch dort, wo Screenshots wegen `FLAG_SECURE` schwarz sind.
+  - 2026-11-12: Dasselbe Abbild mit denselben Optionen kam nicht mehr in einen stabilen
+    Zustand. Der Systemdienst wurde alle 3–4 Minuten vom Watchdog beendet („Blocked in handler
+    on main thread“), auch ohne Gradle und ohne Abfragen von außen. Statt des Emulators hat die
+    Runde 19 die echten Views in Robolectric mit nativer Grafik gerendert und mit den
+    Screenshots verglichen (`FlatStyleRenderTest` u. a.). Das ersetzt keinen Gerätetest.
   - Die Kalender-App des Abbilds `default` (API 35) ist defekt; Übergaben dorthin enden im
     Absturz der Ziel-App.
 - **Maven Central drosselt (HTTP 429)** bei vielen parallelen Downloads; Build wiederholen.
@@ -161,6 +176,9 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
 
+- 0.1.0 Debug (Etappen 19a–19e): Tastenstil „Flat“ mit Vorlage, Leiste mit fünf Knöpfen,
+  Tastaturmenü, Zwischenablage-Ansicht mit Vorschaubild-Cache, Panel-Look; Vollregression 449
+  Tests mit den sieben bekannten Fehlern, Build und Lint grün; auf keinem Gerät geprüft.
 - 0.1.0 Debug (Etappe 18a): Diktat über den On-device-Erkenner mit Vorschau und Einfügen an der
   Schreibmarke; neue Berechtigung Mikrofon; Agent-Suite 238/0, Build und Lint grün; im Emulator
   nur Panel und Ablehnungsmeldung gesehen, Erkennung ungeprüft.

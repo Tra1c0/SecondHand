@@ -172,6 +172,23 @@ class FlatStyleRenderTest {
         }
     }
 
+    @Test fun toolbarSwitchThatIsOffIsDrawnDarker() {
+        val context = ContextThemeWrapper(latinIME, R.style.KeyboardTheme_Flat)
+        val key = ImageButton(context, null, 0)
+        key.setImageDrawable(androidx.core.content.ContextCompat.getDrawable(context, R.drawable.sym_keyboard_grid_flat)!!.mutate())
+        Settings.getValues().mColors.setColor(key, helium314.keyboard.latin.common.ColorType.TOOL_BAR_KEY)
+        fun draw(activated: Boolean): Bitmap {
+            key.isActivated = activated
+            key.measure(View.MeasureSpec.makeMeasureSpec(111, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(111, View.MeasureSpec.EXACTLY))
+            key.layout(0, 0, 111, 111)
+            return Bitmap.createBitmap(111, 111, Bitmap.Config.ARGB_8888).also { key.draw(Canvas(it)) }
+        }
+        assertTrue(colourCount(draw(true), 0, 0, 111, 111, FlatStyle.TOOLBAR_ICON) > 500)
+        val off = draw(false)
+        assertTrue(colourCount(off, 0, 0, 111, 111, FlatStyle.TOOLBAR_ICON_OFF) > 500)
+        assertEquals(0, colourCount(off, 0, 0, 111, 111, FlatStyle.TOOLBAR_ICON))
+    }
+
     private fun colourCount(picture: Bitmap, left: Int, top: Int, width: Int, height: Int, colour: Int): Int {
         var count = 0
         for (y in top until top + height) for (x in left until left + width)

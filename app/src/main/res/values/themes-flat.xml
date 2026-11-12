@@ -24,9 +24,8 @@
         <item name="verticalGap">3.29%p</item>
         <item name="keyboardTopPadding">4.93%p</item>
         <item name="keyboardBottomPadding">4.05%p</item>
-        <!-- 7 px of 1200; multiplied with the side padding scale, which is 0 by default in portrait -->
-        <item name="keyboardLeftPadding">0.5834%p</item>
-        <item name="keyboardRightPadding">0.5834%p</item>
+        <!-- side padding stays the common 8 % times the side padding setting; the preset sets that
+             setting so that 7 px of 1200 result -->
     </style>
 
     <style name="PopupKeysKeyboard.Flat" parent="Keyboard.Flat">

@@ -148,7 +148,7 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   `KeyboardActionListenerImpl.kt` (leitet Panel-, Rad-, Skill- und Diktat-Taste an den Controller,
   blockiert Eingabe während eines Overlays).
 - `InputView.java`: leitet Touch und Hover an sichtbare Overlays (Panel, Rad).
-- `main_keyboard_frame.xml`: Wurzel ist `AgentKeyboardFrame`, darin Tastatur, `AgentPanelView`
+- `main_keyboard_frame.xml`: Wurzel ist `AgentKeyboardFrame`, darin Tastatur, `FlatMenuView`, `AgentPanelView`
   und `AgentWheelView`.
 - `KeyCode.kt` (`AGENT_ACTIONS` = -12000, `SKILL_1`–`SKILL_3` = -12001…-12003,
   `AGENT_DICTATE` = -12004),
@@ -425,16 +425,22 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Emoji-Taste hat `"type": "character"` und damit den hellen Tastenhintergrund.
 - `K/agent/FlatPreset.kt`: schreibt 24 Darstellungs-, Layout- und Leisten-Einstellungen für das Hochformat
   (Liste: `values()`), berechnet die Höhenskala aus Bildschirmbreite und Standardhöhe und
-  sichert die ersetzten Werte einmalig in `agent_flat_preset_backup` (siehe `docs/STORAGE.md`).
+  sichert die ersetzten Werte in `agent_flat_preset_backup` (siehe `docs/STORAGE.md`): beim ersten
+  Anwenden alle, später nur Schlüssel, die eine neuere Vorlage dazubringt. Die Höhenskala liest
+  die Hochformat-Ressourcen, auch wenn die Einstellungen gerade quer stehen.
   `restore()` setzt genau diese Schlüssel zurück, auch „war nicht gesetzt“. Knöpfe dafür:
   `AgentProfilesScreen.kt`.
-- Leiste: `K/latin/suggestions/FlatStrip.kt`. Die Leiste bleibt 40 dp hoch; 4 dp oberer
-  Innenabstand und der 39 px hohe obere Rand der Tastatur ergeben die 169 px der Vorlage.
+- Leiste: `K/latin/suggestions/FlatStrip.kt`. Die Leiste behält ihre Höhe (40 dp, im
+  Querformat 36 dp); was über die 36 dp hohe Knopfzeile hinausgeht, wird oberer Innenabstand.
+  4 dp davon und der 39 px hohe obere Rand der Tastatur ergeben die 169 px der Vorlage.
+  Solange das Menü offen ist, zeigt die Leiste die Werkzeuge (auch ohne „automatisch anzeigen“);
+  ein externer Vorschlag (Autofill, Zwischenablage) verdrängt die Toolbar immer.
   Knöpfe 34 dp, außen 6 dp Rand; die Toolbar-Tasten verteilen sich über Abstandhalter mit
   gleichem Gewicht in einem einzigen Layout-Durchlauf (`fillViewport`), die letzte angeheftete
   Taste bekommt den Kreis. Keine `LayoutTransition` mehr im flachen Stil. Icons
   `sym_keyboard_{grid,clipboard,pen,mic}_flat.xml` (Viewport 111 = 34 dp).
-- Menü: `K/agent/FlatMenuView.kt`, drittes Kind von `AgentKeyboardFrame` (`agent_menu`). Es
+- Menü: `K/agent/FlatMenuView.kt`, Kind mit Index 1 von `AgentKeyboardFrame` (`agent_menu`), also
+  unter Panel und Rad. Der Inhalt liegt in einer `ScrollView` (Querformat). Es
   malt und fängt Touches nur unterhalb der Leiste; die Leiste bleibt bedienbar. Sechs `Button`
   (`agent_menu_*`) plus `agent_menu_edit`; jede Aktion schließt zuerst das Menü und geht dann
   als Tastencode über den Listener der Leiste oder als Intent an `SettingsActivity`. Für
@@ -448,7 +454,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   rundes Vorschaubild, kein Schließen-Kreuz, langes Drücken blendet aus; ein Clip-Label erscheint
   nur bis 24 Zeichen und nie bei sensiblen Clips). `K/latin/ClipboardThumbnails.kt` gilt für alle
   Stile: Bilder werden mit passender Abtastrate einmal dekodiert und in einem `LruCache` von
-  16 MB gehalten, nur im Speicher; `onClipsRemoved` leert ihn.
+  16 MB gehalten, nur im Speicher; der Schlüssel enthält Änderungszeit und Größe der Datei, und
+  beim Verlassen der Zwischenablage-Ansicht wird alles verworfen. Das Bild des Chips liegt in
+  einem einzelnen Platz, wird ab Android 9 mit `ImageDecoder` (EXIF-Drehung) dekodiert und vor
+  Android 8 gar nicht gemerkt. Die Kopfzeile zeigt höchstens drei Tasten und nie „Schließen“;
+  ohne sichtbare Leiste (Symbolleiste ausgeblendet) bleibt die Ansicht beim alten Aufbau mit
+  unterer Tastenreihe.
 - Panel: `K/agent/FlatPanelStyle.kt` ändert nur Aussehen und Reihenfolge von `AgentPanelView`
   (IDs, View-Typen und Callbacks bleiben): Kopfzeile mit rundem Zurück- und Einstellungs-Knopf
   (Text als `contentDescription`), Ergebnisblock direkt unter Senden/Abbrechen, Beschreibung und
@@ -642,9 +653,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P27** Tastenhöhen werden abgeschnitten, nicht gerundet (`Key`-Konstruktor). Ein rechnerisch
   exakter Skalenwert ergibt leicht eine Taste, die 1 px zu niedrig ist; `FlatStyle` nutzt deshalb
   Werte knapp über dem exakten Verhältnis, und `FlatStyleTest` pinnt die Pixel.
-- **P28** Der seitliche Rand der Tastatur wird mit der Seitenrand-Skala multipliziert, und die
-  ist im Hochformat standardmäßig 0. Ohne die Vorlage (`FlatPreset` setzt sie auf 1) reichen die
-  Tasten im flachen Stil 7 px weiter nach außen.
+- **P28** Der seitliche Rand der Tastatur ist in allen Stilen 8 % der Breite mal der
+  Seitenrand-Einstellung, und die ist im Hochformat standardmäßig 0. `FlatPreset` setzt sie auf
+  0,073 (7 px bei 1200 px). Den Rand nie im Stil selbst verkleinern: dann wirkt die Einstellung
+  des Nutzers nicht mehr.
 - **P29** Ein gerendertes Bild aus Robolectric (native Grafik) ist kein Gerätetest: Es zeigt
   Roboto statt der Systemschrift des Telefons und weder Leiste noch Navigationsbereich.
 - **P30** Ein Layout-Wunsch während eines Layout-Durchlaufs (`doOnLayout` → `requestLayout`)
@@ -662,6 +674,15 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P35** Horizontale `LinearLayout`-Zeilen richten ihre Kinder an der Grundlinie aus. Ein
   zweizeiliger Knopf rutscht dadurch nach unten und wird abgeschnitten; für Chip-Zeilen
   `isBaselineAligned = false` setzen.
+- **P36** Ein Drawable wird erst durch eine zustandsabhängige Tönung „stateful“ und behält bis
+  zur nächsten Zustandsänderung seinen alten, leeren Zustand. Nach `setTintList` deshalb
+  `drawable.state = view.drawableState` setzen, sonst erscheint die Farbe des Aus-Zustands.
+- **P37** `AllColors` kennt weder „ohne Tastenrahmen“ noch den aktivierten Zustand von
+  Leistentasten. Ein eingebauter Farbsatz darauf muss beides selbst behandeln (`FlatStyle.colors`).
+- **P38** `BitmapFactory` ignoriert die EXIF-Drehung, `ImageView.setImageURI` nicht (ab Android 9).
+  Wer `setImageURI` durch eigenes Dekodieren ersetzt, nimmt `ImageDecoder`.
+- **P39** Ein Intent an eine schon laufende Aufgabe, der sich nur in den Extras unterscheidet,
+  holt sie bloß nach vorn. Für ein Sprungziel in den Einstellungen `FLAG_ACTIVITY_CLEAR_TASK`.
 
 ## Datei-Inventar
 

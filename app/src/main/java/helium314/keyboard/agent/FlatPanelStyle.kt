@@ -78,7 +78,7 @@ internal class FlatPanelStyle private constructor(private val result: TextView, 
     }
 
     /** Chip look for an action button, also for the workflow choices that are created later. */
-    fun styleChip(button: Button, filled: Int = surface) {
+    fun styleChip(button: Button, filled: Int = surface, wholeLabel: Boolean = false) {
         button.background = GradientDrawable().apply {
             cornerRadius = dp(if (filled == accent) CHIP_HEIGHT_DP / 2 else CHIP_RADIUS_DP).toFloat()
             val pressed = ColorUtils.blendARGB(filled, 0xFFFFFFFF.toInt(), 0.15f)
@@ -100,7 +100,11 @@ internal class FlatPanelStyle private constructor(private val result: TextView, 
         button.minHeight = dp(CHIP_HEIGHT_DP)
         // room for a second line: long labels wrap instead of being cut
         button.setPadding(dp(CHIP_PADDING_DP), dp(CHIP_VERTICAL_DP), dp(CHIP_PADDING_DP), dp(CHIP_VERTICAL_DP))
-        button.maxLines = 2
+        // fixed action names get two lines and an ellipsis; names the owner chose are shown in full
+        if (!wholeLabel) {
+            button.maxLines = 2
+            button.ellipsize = android.text.TextUtils.TruncateAt.END
+        }
         (button.layoutParams as? ViewGroup.MarginLayoutParams)?.setMargins(dp(CHIP_GAP_DP / 2), dp(CHIP_GAP_DP / 2), dp(CHIP_GAP_DP / 2), dp(CHIP_GAP_DP / 2))
     }
 
@@ -256,7 +260,9 @@ internal class FlatPanelStyle private constructor(private val result: TextView, 
         private const val BAR_HEIGHT_DP = 20.7f
         private const val BAR_PITCH_DP = 25.5f
         private const val LAST_BAR_FRACTION = 0.72f
-        private const val BAR_COLOR = 0xFF514745.toInt()
+        // lighter than the #514745 measured on the reference, which was a frame of an animation and
+        // is nearly invisible on the card as a standing colour
+        private const val BAR_COLOR = 0xFF6A5E5A.toInt()
         private const val BORDER_START = 0xFF5C4F22.toInt() // dim olive-gold at the upper left
         private const val BORDER_END = 0xFFBC9C8F.toInt()   // rose-beige at the lower right
         private const val CHIP_HEIGHT_DP = 36f

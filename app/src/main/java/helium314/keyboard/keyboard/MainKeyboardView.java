@@ -749,28 +749,33 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
         // avoid showing same language twice
         final List<Locale> secondaryLocalesToUse = withoutDuplicateLanguages(secondaryLocales, subtype.getLocale().getLanguage());
         if (!secondaryLocalesToUse.isEmpty()) {
-            // the Flat style always shows the short codes, separated by bullets
-            final boolean flat = FlatStyle.isActive(Settings.getValues().mColors);
-            final String separator = flat ? FlatStyle.LANGUAGE_SEPARATOR : " - ";
-            StringBuilder sb = new StringBuilder(subtype.getMiddleDisplayName());
             final Locale displayLocale = ConfigurationCompatKt.locale(getResources().getConfiguration());
-            for (Locale locale : secondaryLocales) {
-                sb.append(separator);
-                sb.append(locale.getDisplayLanguage(displayLocale));
-            }
-            final String full = sb.toString();
-            if (!flat && fitsTextIntoWidth(width, full, paint)) {
-                return full;
-            }
-            sb.setLength(0);
-            sb.append(subtype.getLocale().getLanguage().toUpperCase(displayLocale));
-            for (Locale locale : secondaryLocales) {
-                sb.append(separator);
-                sb.append(locale.getLanguage().toUpperCase(displayLocale));
-            }
-            final String middle = sb.toString();
-            if (fitsTextIntoWidth(width, middle, paint)) {
-                return middle;
+            if (FlatStyle.isActive(Settings.getValues().mColors)) {
+                // the Flat style always shows the short codes, separated by bullets
+                final String codes = FlatStyle.languageCodes(subtype.getLocale(), secondaryLocalesToUse, displayLocale);
+                if (fitsTextIntoWidth(width, codes, paint)) {
+                    return codes;
+                }
+            } else {
+                StringBuilder sb = new StringBuilder(subtype.getMiddleDisplayName());
+                for (Locale locale : secondaryLocales) {
+                    sb.append(" - ");
+                    sb.append(locale.getDisplayLanguage(displayLocale));
+                }
+                final String full = sb.toString();
+                if (fitsTextIntoWidth(width, full, paint)) {
+                    return full;
+                }
+                sb.setLength(0);
+                sb.append(subtype.getLocale().getLanguage().toUpperCase(displayLocale));
+                for (Locale locale : secondaryLocales) {
+                    sb.append(" - ");
+                    sb.append(locale.getLanguage().toUpperCase(displayLocale));
+                }
+                final String middle = sb.toString();
+                if (fitsTextIntoWidth(width, middle, paint)) {
+                    return middle;
+                }
             }
         }
 

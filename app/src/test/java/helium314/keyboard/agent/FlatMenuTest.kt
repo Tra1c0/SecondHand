@@ -120,6 +120,19 @@ class FlatMenuTest {
         assertNotNull(menu.findViewById<ImageButton>(R.id.agent_menu_edit).contentDescription)
     }
 
+    @Test fun menuScrollsWhenTheKeyAreaIsLowerThanItsContent() {
+        val menu = FlatMenuView(context, null)
+        val frame = ltrFrame().apply { addView(menu) }
+        menu.open(STRIP)
+        // key area of 400 px, the content needs about 780 px
+        frame.measure(View.MeasureSpec.makeMeasureSpec(WIDTH, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(STRIP + 400, View.MeasureSpec.EXACTLY))
+        frame.layout(0, 0, WIDTH, STRIP + 400)
+        val scroll = menu.getChildAt(0) as android.widget.ScrollView
+        assertEquals(400, scroll.height)
+        assertTrue(scroll.getChildAt(0).height > 400)
+        assertTrue(scroll.canScrollVertically(1))
+    }
+
     @Test fun everyPillClosesTheMenuFirstAndThenReportsItsAction() {
         val menu = FlatMenuView(context, null)
         ltrFrame().apply { addView(menu) }.also { menu.open(STRIP); layout(it) }
@@ -203,12 +216,27 @@ class FlatMenuTest {
         assertFalse(menu.isOpen)
         assertEquals(listOf(KeyCode.UNDO, KeyCode.CLIPBOARD), codes)
 
+        // with the toolbar hidden (suggestions showing), the open menu shows the tools and closing hides them again
+        strip.setToolbarVisibility(false)
+        leftKey.performClick()
+        assertEquals(View.VISIBLE, strip.findViewById<View>(R.id.toolbar_container).visibility)
+        leftKey.performClick()
+        assertEquals(View.GONE, strip.findViewById<View>(R.id.toolbar_container).visibility)
+        strip.setToolbarVisibility(true)
+
+        // a long press on a toolbar key closes the menu too (the same happens when the strip is hidden
+        // for the emoji or clipboard view; views without a window get no visibility callback to test it)
+        leftKey.performClick()
+        strip.findViewById<ViewGroup>(R.id.toolbar).findViewWithTag<View>(ToolbarKey.EMOJI).performLongClick()
+        assertFalse(menu.isOpen)
+
         // design and edit open the settings at the right page
         leftKey.performClick()
         menu.findViewById<View>(R.id.agent_menu_edit).performClick()
         val intent = shadowOf(latinIME.application).nextStartedActivity
         assertEquals(SettingsActivity::class.java.name, intent.component?.className)
         assertEquals(SettingsDestination.Toolbar, intent.getStringExtra(AgentPreferences.OPEN_SETTINGS_DESTINATION))
+        assertTrue(intent.flags and android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK != 0)
     }
 
     /** A root without a window cannot resolve the layout direction on its own. */

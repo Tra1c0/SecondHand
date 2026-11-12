@@ -113,7 +113,8 @@ Sprach-Tastatur des Systems, falls eine installiert ist.
 Einstellungen → Tastaturprofile → „Flacher Look (Vorlage)“ → „Vorlage anwenden“. Das stellt
 Stil, Farben, Icons, Zahlenreihe, Symbolhinweise und die Größen für das Hochformat in einem
 Schritt ein. „Vorherigen Look wiederherstellen“ setzt genau diese Einstellungen auf den Stand
-vor dem Anwenden zurück.
+vor dem ersten Anwenden zurück; was du zwischen zwei Anwendungen von Hand geändert hast, wird
+dabei nicht gesichert.
 
 - Die Tastenhöhe wird aus der Bildschirmbreite berechnet (Tastatur ohne Leiste = 66 % der Breite).
   Feinjustieren: Einstellungen → Aussehen → „Tastaturgröße“.
@@ -129,9 +130,10 @@ vor dem Anwenden zurück.
 - Menü: Raster antippen. Design öffnet die Einstellungen zum Aussehen, die anderen Pillen
   schalten Rückgängig, Einhandmodus, Emoji, Inkognito und die frei verschiebbare Tastatur.
   Das X schließt das Menü.
-- Die Zwischenablage-Taste zeigt erst etwas, wenn du den Zwischenablageverlauf einschaltest
-  (Einstellungen → Optionen → „Zwischenablage-Verlauf aktivieren“); er ist anfangs aus. In der
-  Ansicht: Karte antippen fügt ein, lange drücken heftet an, zur Seite wischen entfernt. Oben
+- Die Zwischenablage-Taste fügt den aktuellen Inhalt der Zwischenablage an der Schreibmarke
+  ein, solange der Zwischenablageverlauf aus ist (so ist er anfangs). Erst mit eingeschaltetem
+  Verlauf (Einstellungen → Optionen → „Zwischenablage-Verlauf aktivieren“) öffnet sie die
+  Zwischenablage-Ansicht. In der Ansicht: Karte antippen fügt ein, lange drücken heftet an, zur Seite wischen entfernt. Oben
   links geht es zurück zu den Tasten, oben rechts leerst du den Verlauf.
 - Die Pille mit kopiertem Text oder Bild in der Leiste erscheint nur, wenn
   „Zwischenablagen-Inhalt vorschlagen“ (Einstellungen → Textkorrektur) an ist. Antippen fügt ein, lange

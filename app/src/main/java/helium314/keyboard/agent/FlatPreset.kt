@@ -3,6 +3,7 @@ package helium314.keyboard.agent
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.content.res.Configuration
 import helium314.keyboard.keyboard.FlatStyle
 import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.keyboard.KeyboardTheme
@@ -52,14 +53,14 @@ class FlatPreset(private val context: Context) {
         portraitKey(Settings.PREF_BOTTOM_ROW_SCALE_PREFIX, 2) to FlatStyle.BOTTOM_ROW_SCALE,
         portraitKey(Settings.PREF_BOTTOM_PADDING_SCALE_PREFIX, 2) to 1f,
         portraitKey(Settings.PREF_KEY_GAP_SCALE_PREFIX, 2) to 1f,
-        portraitKey(Settings.PREF_SIDE_PADDING_SCALE_PREFIX, 3) to 1f,
+        portraitKey(Settings.PREF_SIDE_PADDING_SCALE_PREFIX, 3) to FlatStyle.SIDE_PADDING_SCALE,
     )
 
     val canRestore: Boolean get() = backup.getBoolean(BACKUP_PRESENT, false)
 
     fun apply() {
         val values = values()
-        if (!canRestore) saveBackup(values.keys)
+        saveBackup(values.keys)
         val edit = keyboardPrefs.edit()
         values.forEach { (key, value) -> edit.put(key, value) }
         check(edit.commit())
@@ -70,7 +71,9 @@ class FlatPreset(private val context: Context) {
     fun restore() {
         check(canRestore)
         val edit = keyboardPrefs.edit()
-        values().keys.forEach { key ->
+        // only keys that were backed up; a key added by a newer preset and never applied is left alone
+        val known = backup.getStringSet(BACKUP_KEYS, null) ?: values().keys
+        known.forEach { key ->
             val old = backup.all[VALUE_PREFIX + key]
             if (old == null) edit.remove(key) else edit.put(key, old)
         }
@@ -79,17 +82,27 @@ class FlatPreset(private val context: Context) {
         reload()
     }
 
+    /**
+     * Remembers the current value of every key that is not in the backup yet. The first apply
+     * stores all of them; a later apply only adds keys that a newer version of the preset brought.
+     * So restore always returns to the look before the first apply.
+     */
     private fun saveBackup(keys: Set<String>) {
+        val known = backup.getStringSet(BACKUP_KEYS, emptySet()).orEmpty()
+        val added = keys - known
+        if (added.isEmpty() && canRestore) return
         val current = keyboardPrefs.all
-        val edit = backup.edit().clear().putBoolean(BACKUP_PRESENT, true)
-        keys.forEach { key -> current[key]?.let { edit.put(VALUE_PREFIX + key, it) } }
+        val edit = backup.edit().putBoolean(BACKUP_PRESENT, true).putStringSet(BACKUP_KEYS, known + added)
+        added.forEach { key -> current[key]?.let { edit.put(VALUE_PREFIX + key, it) } }
         check(edit.commit())
     }
 
     /** Scale that makes the key area [FlatStyle.HEIGHT_TO_WIDTH] of the portrait width high. */
     private fun heightScale(): Float {
-        val resources = context.resources
-        val metrics = resources.displayMetrics
+        // the values differ in landscape; the scale is stored for portrait, so read the portrait ones
+        val portrait = Configuration(context.resources.configuration).apply { orientation = Configuration.ORIENTATION_PORTRAIT }
+        val resources = context.createConfigurationContext(portrait).resources
+        val metrics = context.resources.displayMetrics
         val width = minOf(metrics.widthPixels, metrics.heightPixels)
         val height = maxOf(metrics.widthPixels, metrics.heightPixels)
         return heightScale(
@@ -109,6 +122,7 @@ class FlatPreset(private val context: Context) {
         const val BACKUP_NAME = "agent_flat_preset_backup"
         const val FUNCTIONAL_LAYOUT = "functional_keys_flat"
         private const val BACKUP_PRESENT = "present"
+        private const val BACKUP_KEYS = "keys"
         private const val VALUE_PREFIX = "value:"
         private const val NUMBER_ROW_HEIGHT_FACTOR = 1.33f // as in ResourceUtils.getDefaultKeyboardHeight
         private const val MIN_SCALE = 0.3f // range of the height setting

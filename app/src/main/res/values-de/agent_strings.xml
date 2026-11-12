@@ -262,7 +262,7 @@
     <string name="style_name_Flat" tools:keep="@string/style_name_Flat">Flach</string>
     <string name="theme_name_flat_black" tools:keep="@string/theme_name_flat_black">Flach schwarz</string>
     <string name="agent_flat_preset_title">Flacher Look (Vorlage)</string>
-    <string name="agent_flat_preset_description">Schwarzer Hintergrund, flache graue Tasten, Enter und ?123 als Pille, Zahlenreihe und Symbolhinweise. Setzt Stil, Farben, Icons, Reihen und Größen für das Hochformat in einem Schritt. Die bisherigen Werte bleiben erhalten, bis du sie wiederherstellst.</string>
+    <string name="agent_flat_preset_description">Schwarzer Hintergrund, flache graue Tasten, Enter und ?123 als Pille, Zahlenreihe und Symbolhinweise. Setzt Stil, Farben, Icons, Reihen und Größen für das Hochformat in einem Schritt. Die Werte von vor dem ersten Anwenden bleiben erhalten, bis du sie wiederherstellst.</string>
     <string name="agent_flat_preset_apply">Vorlage anwenden</string>
     <string name="agent_flat_preset_restore">Vorherigen Look wiederherstellen</string>
     <string name="agent_menu_design">Design</string>

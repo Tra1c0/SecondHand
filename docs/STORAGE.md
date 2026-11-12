@@ -97,7 +97,7 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
 
 - Datei: SharedPreferences `agent_flat_preset_backup` im Standardspeicher der App (wie
   `agent_keyboard_profiles`).
-- Inhalt: `present` (Boolean) und je ersetzter Einstellung ein Eintrag `value:<Schlüssel>` mit dem
+- Inhalt: `present` (Boolean), `keys` (Menge der gesicherten Schlüssel) und je ersetzter Einstellung ein Eintrag `value:<Schlüssel>` mit dem
   Wert vor dem Anwenden (String, Boolean oder Float). Fehlt der Eintrag, war die Einstellung
   vorher nicht gesetzt und wird beim Wiederherstellen entfernt.
 - Nur Darstellungs- und Layout-Einstellungen (Liste: `FlatPreset.values()`), keine Texte,

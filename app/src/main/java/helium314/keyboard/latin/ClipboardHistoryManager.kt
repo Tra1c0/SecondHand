@@ -2,6 +2,7 @@
 
 package helium314.keyboard.latin
 
+import android.os.Build
 import android.content.ClipData
 import android.content.ClipDescription
 import android.content.ClipboardManager
@@ -229,7 +230,9 @@ class ClipboardHistoryManager(
             imageView.isVisible = true
             try {
                 // decoded once per clip at a small size instead of at full size on every strip update
-                val thumbnail = ClipboardThumbnails.fromUri(latinIME.contentResolver, clipItem.uri, timeStamp,
+                // before Android 8 the clip has no time of its own, so nothing can be reused safely
+                val stamp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) timeStamp else null
+                val thumbnail = ClipboardThumbnails.fromUri(latinIME.contentResolver, clipItem.uri, stamp,
                     latinIME.resources.displayMetrics.widthPixels / 4)
                 if (thumbnail != null) imageView.setImageBitmap(thumbnail)
                 else imageView.setImageURI(clipItem.uri)

@@ -274,6 +274,7 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
     fun showCloudConfirmation(model: String, characters: Int, task: String = context.getString(R.string.agent_cloud_correct),
                               provider: String = "OpenAI") {
         hideWorkflowChoices()
+        flatStyle?.setBusy(false)
         sendButton.text = context.getString(R.string.agent_cloud_send, provider)
         cancelButton.setText(R.string.agent_cloud_cancel)
         resultHeading.setText(R.string.agent_panel_result)
@@ -327,6 +328,7 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
 
     /** "Done" was tapped: wait for the final text. Only cancel is possible. */
     fun showDictationProcessing() {
+        flatStyle?.setBusy(false)
         status.setText(R.string.agent_dictation_processing)
         sendButton.isEnabled = false
     }
@@ -372,13 +374,15 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
         actionButtons.forEach { it.isEnabled = true }
         status.setText(if (definitions.isEmpty()) R.string.agent_workflow_empty else R.string.agent_workflow_choose)
         definitions.forEach { definition ->
-            workflowChoices.addView(Button(context).apply {
+            val choice = Button(context).apply {
                 text = context.getString(R.string.agent_workflow_choice, definition.name, definition.revision)
                 tag = definition.id
                 isAllCaps = false
                 minimumHeight = px(48)
                 setOnClickListener { onWorkflow?.invoke(definition) }
-            }.also { flatStyle?.styleChip(it) })
+            }
+            workflowChoices.addView(choice)
+            flatStyle?.styleChip(choice, wholeLabel = true) // after adding: the margins need layout params
         }
         workflowChoices.visibility = View.VISIBLE
         post { if (workflowChoices.visibility == View.VISIBLE) smoothScrollTo(0, workflowChoices.top) }

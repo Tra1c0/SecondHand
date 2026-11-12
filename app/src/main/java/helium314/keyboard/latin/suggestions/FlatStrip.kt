@@ -19,6 +19,8 @@ import helium314.keyboard.agent.AgentPreferences
 import helium314.keyboard.agent.FlatMenuView
 import helium314.keyboard.keyboard.FlatStyle
 import helium314.keyboard.latin.R
+import helium314.keyboard.latin.common.ColorType
+import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.settings.SettingsActivity
 
 /**
@@ -33,8 +35,8 @@ import helium314.keyboard.settings.SettingsActivity
 internal object FlatStrip {
     private const val BUTTON_DP = 34f
     private const val EDGE_DP = 6f
-    /** Extra room above the 36 dp content row of the 40 dp strip. */
-    private const val TOP_PADDING_DP = 4f
+    /** Height of the row the buttons sit in; a higher strip gets the rest as padding above it (4 dp at 40 dp). */
+    private const val CONTENT_ROW_DP = 36f
 
     fun arrange(
         strip: ViewGroup, wrapper: ViewGroup, expandKey: ImageButton, toolbarContainer: View,
@@ -44,7 +46,9 @@ internal object FlatStrip {
         val button = Math.round(BUTTON_DP * density)
         val edge = Math.round(EDGE_DP * density)
 
-        strip.setPadding(0, Math.round(TOP_PADDING_DP * density), 0, 0)
+        // 40 dp in portrait, 36 dp in phone landscape, where no padding is left
+        val stripHeight = strip.resources.getDimensionPixelSize(R.dimen.config_suggestions_strip_height)
+        strip.setPadding(0, (stripHeight - Math.round(CONTENT_ROW_DP * density)).coerceAtLeast(0), 0, 0)
         (wrapper as? LinearLayout)?.layoutTransition = null
 
         // left key: plain icon instead of the tinted circle
@@ -87,10 +91,17 @@ internal object FlatStrip {
         view.background = null
     }
 
+    /** Quick pin copies a toolbar key together with its layout params; give the copy its own fixed size. */
+    fun sizePinnedCopy(original: View, copy: View) {
+        val size = Math.round(BUTTON_DP * original.resources.displayMetrics.density)
+        setButtonSize(copy, size)
+        setButtonSize(original, size)
+    }
+
     // ---- menu behind the left key ----
 
     /** Opens or closes the menu over the key area. [onCode] receives the key code of a tapped pill. */
-    fun toggleMenu(strip: View, key: ImageButton, onCode: (Int) -> Unit) {
+    fun toggleMenu(strip: SuggestionStripView, key: ImageButton, toolbarContainer: View, onCode: (Int) -> Unit) {
         val root = strip.rootView
         val menu = root.findViewById<FlatMenuView>(R.id.agent_menu) ?: return
         if (menu.isOpen) {
@@ -104,9 +115,15 @@ internal object FlatStrip {
                 is FlatMenuView.Action.OpenSettings -> openSettings(strip.context, action.destination)
             }
         }
+        // While the menu is open the strip shows the tools, also when the toolbar does not appear on
+        // its own (auto-show off): otherwise nothing in this style could reach them.
+        val toolbarWasVisible = toolbarContainer.visibility == View.VISIBLE
+        strip.dismissMoreSuggestionsPanel()
+        if (!toolbarWasVisible) strip.setToolbarVisibility(true)
         menu.onClosed = {
             keys?.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
             showGridIcon(key)
+            if (!toolbarWasVisible) strip.setToolbarVisibility(false)
         }
         // the keys under the menu must not be reachable for screen readers while it is open
         keys?.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
@@ -128,7 +145,7 @@ internal object FlatStrip {
         key.setImageDrawable(ContextCompat.getDrawable(key.context, R.drawable.ic_close))
         key.background = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
-            setColor(FlatStyle.FUNCTIONAL_KEY)
+            setColor(Settings.getValues()?.mColors?.get(ColorType.FUNCTIONAL_KEY_BACKGROUND) ?: FlatStyle.FUNCTIONAL_KEY)
         }
         key.contentDescription = key.context.getString(R.string.agent_menu_close)
     }
@@ -143,7 +160,8 @@ internal object FlatStrip {
     private fun openSettings(context: Context, destination: String) {
         context.startActivity(
             Intent(context, SettingsActivity::class.java)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                // clear an existing settings task: it would only come to the front and ignore the destination
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                 .putExtra(AgentPreferences.OPEN_SETTINGS_DESTINATION, destination)
         )
     }

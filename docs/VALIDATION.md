@@ -1045,6 +1045,47 @@ als Ausgangspunkt für ein eigenes Design.
   der Aufruf `styleChip` in `ClipboardHistoryManager` und der geänderte Zweig für
   `KeyCode.AGENT_ACTIONS` in `KeyboardActionListenerImpl` (nur gelesen).
 
+## Lesender Review der Etappen 19a–19e und Korrekturen
+
+Fünf Prüfer, je ein Bereich (Tasten, Leiste und Menü, Zwischenablage, Panel, Vorlage/Tests/Doku),
+nur lesend. Für Tasten, Leiste/Menü und Panel hat je ein zweiter Prüfer jeden Befund am Code
+nachvollzogen und alle 21 bestätigt. Die Gegenprüfungen für Zwischenablage und
+Vorlage/Tests/Doku brachen am Nutzungslimit ab; deren 15 Befunde hat der Lead selbst am Code
+geprüft. Kein Blocker. Behoben:
+
+- Tasten: Seitenrand wieder über die gemeinsame 8-%-Einstellung (Vorlage setzt 0,073);
+  „Flach schwarz“ ohne Tastenrahmen malt keine deckenden Tasten mehr; die Einstellung
+  „Akzentfarbe für das Umschalt-Icon“ wirkt; Leisten-Schalter (Inkognito u. a.) zeigen ihren
+  Aus-Zustand dunkler; die wirkungslose Farbprüfung im Test ist ersetzt; die Sprachkürzel der
+  Leertaste entstehen in `FlatStyle.languageCodes` und sind getestet.
+- Leiste und Menü: Autofill- und Zwischenablage-Vorschläge verdrängen im flachen Stil immer
+  die Toolbar (vorher blieben sie in Passwortfeldern verdeckt); ohne Vorlage sind die Werkzeuge
+  über das offene Menü erreichbar; das Menü scrollt, wenn die Tastenfläche niedriger ist
+  (Querformat); langes Drücken einer Leistentaste und das Ausblenden der Leiste schließen das
+  Menü; angeheftete Kopien bekommen eigene Layout-Parameter; kein zweiter Layout-Durchlauf mehr;
+  das Sprungziel in die Einstellungen ersetzt eine vorhandene Einstellungs-Aufgabe; der Kreis
+  hinter dem X nimmt die Farbe des Farbsatzes; im Querformat (36 dp Leiste) wird nichts mehr
+  abgeschnitten.
+- Panel: Workflow-Chips bekommen ihre Abstände und zeigen ihren Namen ganz; feste Chips haben
+  zwei Zeilen mit Auslassungspunkten; die Balken sind heller (#6A5E5A) und damit sichtbar; jeder
+  Zustand nach einer laufenden Anfrage zeigt wieder die normale Karte (13 Zustände im Test).
+- Zwischenablage: ohne sichtbare Leiste bleibt der alte Aufbau mit unterer Tastenreihe (vorher
+  kein Weg zurück); die Kopfzeile zeigt höchstens drei Tasten; Chip-Bilder werden wieder nach
+  EXIF gedreht; der Bild-Cache merkt gelöschte und ersetzte Dateien und wird beim Verlassen der
+  Ansicht geleert; kein Aufstauen vor Android 8; Dateityp-Icons werden nicht mehr aufgeblasen.
+- Vorlage und Doku: Die Höhenskala stimmt auch, wenn die Einstellungen quer stehen; eine
+  zweite Anwendung sichert neu hinzugekommene Schlüssel; der Test prüft jetzt Farbe und Form des
+  Chips; die Anleitung sagt richtig, dass die Zwischenablage-Taste bei ausgeschaltetem Verlauf
+  einfügt.
+
+Nicht behoben, bewusst: Nach einer zweiten Anwendung der Vorlage gehen Handänderungen
+dazwischen beim Wiederherstellen verloren (jetzt so beschrieben). Die Flat-Zweige des echten
+`ClipboardAdapter` und `ClipboardThumbnails.fromUri` laufen in keinem Test.
+Danach: 30 Flat-Tests bestanden; Vollregression 449 Tests mit denselben sieben bekannten Fehlern;
+Kern-Tests, Build und Lint bestanden (139 Warnungen, ein Hinweis). Ein zweiter Emulator-Versuch
+mit frischen Daten bootete, ging aber mit einem Neustart der Arbeitsumgebung verloren, bevor die
+APK installiert war: weiterhin kein Gerätelauf.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

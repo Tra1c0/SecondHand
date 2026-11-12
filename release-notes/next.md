@@ -34,3 +34,7 @@
   Chips. Die Stift-Taste öffnet das Panel direkt.
 - Schneller: Bilder in der Zwischenablage werden einmal in Anzeigegröße geladen statt bei jedem
   Scrollen in voller Auflösung (alle Stile).
+- Behoben (nach Review): Autofill-Vorschläge bleiben in Passwortfeldern nicht mehr hinter den
+  Werkzeugen verborgen; das Menü scrollt im Querformat; die Zwischenablage-Ansicht hat auch bei
+  ausgeblendeter Symbolleiste einen Weg zurück; kopierte Fotos stehen im Vorschaubild richtig
+  herum; die Vorlage rechnet die Tastaturhöhe auch im Querformat richtig.

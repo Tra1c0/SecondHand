@@ -173,7 +173,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             if (pinnedKeyInToolbar != null && Settings.getValues().mQuickPinToolbarKeys)
                 pinnedKeyInToolbar.background = enabledToolKeyBackground
         }
-        toolbarContainer.doOnNextLayout {
+        if (!flatStyle) toolbarContainer.doOnNextLayout { // FlatStrip spreads the keys with spacers instead
             // set min with of the toolbar so the weight of the toolbar keys actually does something
             // todo: results in requestLayout() improperly called by android.widget.LinearLayout during layout: running second layout pass
             toolbar.minimumWidth = toolbarContainer.width
@@ -280,7 +280,9 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             suggestionsStrip.addView(view)
         }
 
-        if (Settings.getValues().mAutoHideToolbar) setToolbarVisibility(false)
+        // In the Flat style the left key opens the menu and cannot collapse the toolbar, so an external
+        // suggestion (inline autofill, clipboard) always takes its place.
+        if (Settings.getValues().mAutoHideToolbar || flatStyle) setToolbarVisibility(false)
     }
 
     fun setMoreSuggestionsHeight(remainingHeight: Int) {
@@ -305,6 +307,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         // workaround for a bug with inline suggestions views that just keep showing up otherwise, https://github.com/HeliBorg/HeliBoard/pull/386
         if (view === this)
             suggestionsStrip.visibility = visibility
+        // the strip goes away for the emoji and clipboard views: an open menu must not stay over them
+        if (visibility != VISIBLE && flatStyle) FlatStrip.closeMenu(this)
     }
 
     override fun onDetachedFromWindow() {
@@ -343,7 +347,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         AudioAndHapticFeedbackManager.getInstance().performHapticAndAudioFeedback(KeyCode.NOT_SPECIFIED, this, HapticEvent.KEY_PRESS)
         if (view === toolbarExpandKey) {
             if (flatStyle) // the left key opens the menu; toolbar and suggestions switch on their own
-                FlatStrip.toggleMenu(this, toolbarExpandKey) { listener.onCodeInput(it, Constants.SUGGESTION_STRIP_COORDINATE, Constants.SUGGESTION_STRIP_COORDINATE, false) }
+                FlatStrip.toggleMenu(this, toolbarExpandKey, toolbarContainer) { listener.onCodeInput(it, Constants.SUGGESTION_STRIP_COORDINATE, Constants.SUGGESTION_STRIP_COORDINATE, false) }
             else setToolbarVisibility(toolbarContainer.visibility != VISIBLE)
         }
 
@@ -359,6 +363,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
 
     override fun onLongClick(view: View): Boolean {
         if (view.tag is ToolbarKey) {
+            if (flatStyle) FlatStrip.closeMenu(this)
             onLongClickToolbarKey(view)
             return true
         }
@@ -547,6 +552,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         copy.isActivated = original.isActivated
         setupKey(copy, Settings.getValues().mColors)
         pinnedKeys.addView(copy)
+        if (flatStyle) FlatStrip.sizePinnedCopy(original, copy)
     }
 
     private fun setupKey(view: ImageButton, colors: Colors) {

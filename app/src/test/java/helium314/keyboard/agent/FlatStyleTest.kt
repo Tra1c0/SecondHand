@@ -24,6 +24,8 @@ import helium314.keyboard.latin.R
 import helium314.keyboard.latin.RichInputMethodSubtype
 import helium314.keyboard.latin.InputAttributes
 import helium314.keyboard.latin.common.ColorType
+import helium314.keyboard.latin.common.DefaultColors
+import helium314.keyboard.latin.common.default
 import helium314.keyboard.latin.common.Constants
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.SubtypeUtilsAdditional
@@ -91,7 +93,7 @@ class FlatStyleTest {
         assertEquals(1f, prefs.getFloat(Settings.PREF_FONT_SCALE, 0f))
         assertEquals(FlatPreset.FUNCTIONAL_LAYOUT, prefs.getString("layout_FUNCTIONAL", null))
         assertEquals(FlatStyle.BOTTOM_ROW_SCALE, prefs.getFloat("bottom_row_scale_false_false", 0f))
-        assertEquals(1f, prefs.getFloat("side_padding_scale_false_false_false", 0f))
+        assertEquals(FlatStyle.SIDE_PADDING_SCALE, prefs.getFloat("side_padding_scale_false_false_false", 0f))
         assertTrue(prefs.contains("keyboard_height_scale_false_false"))
         // strip: three tools between the left key and the pinned dictation key
         assertEquals(listOf(ToolbarKey.CLIPBOARD, ToolbarKey.EMOJI, ToolbarKey.AGENT), getEnabledToolbarKeys(prefs))
@@ -167,8 +169,41 @@ class FlatStyleTest {
         assertEquals("#B7B7B7", hex(ColorType.KEY_ICON))
         assertEquals("#B7B7B7", hex(ColorType.SHIFT_KEY_ICON))
         // every colour type is filled, none falls back to the hash-based placeholder
-        ColorType.entries.forEach { assertEquals(0xFF, colors.get(it) ushr 24 or 0xFF, it.name) }
+        ColorType.entries.forEach { assertNotEquals(it.default(), colors.get(it), it.name) }
         assertTrue(FlatStyle.isActive(colors))
+    }
+
+    @Test fun coloursRespectBorderlessStylesAndTheShiftAccentSetting() {
+        // without key backgrounds the keys must stay transparent, as with every other colour set
+        val borderless = FlatStyle.colors(KeyboardTheme.STYLE_MATERIAL, false, null)
+        assertTrue(borderless is DefaultColors)
+        assertEquals(FlatStyle.BACKGROUND, borderless.get(ColorType.MAIN_BACKGROUND))
+
+        prefs.edit().putBoolean(Settings.PREF_ACCENT_SHIFTED_ICON, true).commit()
+        assertEquals(FlatStyle.ACCENT, FlatStyle.colors(KeyboardTheme.STYLE_FLAT, true, null).get(ColorType.SHIFT_KEY_ICON))
+        prefs.edit().putBoolean(Settings.PREF_ACCENT_SHIFTED_ICON, false).commit()
+        assertEquals(FlatStyle.FUNCTIONAL_LABEL, FlatStyle.colors(KeyboardTheme.STYLE_FLAT, true, null).get(ColorType.SHIFT_KEY_ICON))
+
+    }
+
+    @Test fun spaceBarShowsLanguageCodesWithBullets() {
+        assertEquals("DE \u2009\u2022\u2009 EN \u2009\u2022\u2009 ES",
+            FlatStyle.languageCodes(Locale.GERMANY, listOf(Locale.ENGLISH, Locale("es")), Locale.GERMANY))
+        assertEquals("DE", FlatStyle.languageCodes(Locale.GERMAN, emptyList(), Locale.GERMANY))
+    }
+
+    @Test fun backupKeepsTheLookBeforeTheFirstApplyAndGrowsWithNewKeys() {
+        prefs.edit().putString(Settings.PREF_THEME_STYLE, KeyboardTheme.STYLE_HOLO).commit()
+        preset.apply()
+        // a backup written by an older preset that did not know the toolbar keys yet
+        val backup = latinIME.getSharedPreferences(FlatPreset.BACKUP_NAME, Context.MODE_PRIVATE)
+        val older = backup.getStringSet("keys", emptySet())!! - Settings.PREF_TOOLBAR_KEYS
+        backup.edit().putStringSet("keys", older).remove("value:" + Settings.PREF_TOOLBAR_KEYS).commit()
+        prefs.edit().putString(Settings.PREF_TOOLBAR_KEYS, "UNDO:true").putString(Settings.PREF_THEME_STYLE, KeyboardTheme.STYLE_ROUNDED).commit()
+        preset.apply()
+        preset.restore()
+        assertEquals("UNDO:true", prefs.getString(Settings.PREF_TOOLBAR_KEYS, null)) // saved by the second apply
+        assertEquals(KeyboardTheme.STYLE_HOLO, prefs.getString(Settings.PREF_THEME_STYLE, null)) // from before the first
     }
 
     @Test fun keyGeometryMatchesTheReferenceScreenshot() {

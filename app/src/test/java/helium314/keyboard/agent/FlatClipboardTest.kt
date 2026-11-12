@@ -109,6 +109,15 @@ class FlatClipboardTest {
         ClipboardThumbnails.clear()
         assertNotSame(first, ClipboardThumbnails.fromFile(file.absolutePath, 600))
         assertNull(ClipboardThumbnails.fromFile(File(latinIME.cacheDir, "missing.png").absolutePath, 600))
+        // a deleted file is not served from memory, a replaced one is decoded again
+        val cached = assertNotNull(ClipboardThumbnails.fromFile(file.absolutePath, 600))
+        Bitmap.createBitmap(1200, 1200, Bitmap.Config.ARGB_8888).also { other -> file.outputStream().use { other.compress(Bitmap.CompressFormat.PNG, 100, it) } }
+        file.setLastModified(file.lastModified() + 5000)
+        val replaced = assertNotNull(ClipboardThumbnails.fromFile(file.absolutePath, 600))
+        assertNotSame(cached, replaced)
+        assertEquals(600, replaced.height)
+        file.delete()
+        assertNull(ClipboardThumbnails.fromFile(file.absolutePath, 600))
     }
 
     @Test fun presetPutsTwoRoundKeysIntoTheClipboardHeader() {
@@ -145,6 +154,18 @@ class FlatClipboardTest {
         assertNotNull(back.contentDescription)
         back.performClick()
         assertEquals(1, backClicks)
+
+        // with the default eleven clipboard keys the header takes three and never the close key
+        val many = listOf(ToolbarKey.CLOSE_HISTORY, ToolbarKey.CLEAR_CLIPBOARD, ToolbarKey.UP, ToolbarKey.DOWN, ToolbarKey.LEFT, ToolbarKey.RIGHT)
+            .map { createToolbarKey(context, it) }
+        FlatClipboard.buildHeader(strip, many, colors) { }
+        assertEquals(listOf(ToolbarKey.CLEAR_CLIPBOARD, ToolbarKey.UP, ToolbarKey.DOWN), (2 until strip.childCount).map { strip.getChildAt(it).tag })
+        container.measure(View.MeasureSpec.makeMeasureSpec(WIDTH, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(STRIP, View.MeasureSpec.EXACTLY))
+        container.layout(0, 0, WIDTH, STRIP)
+        assertTrue(strip.width <= WIDTH, "header is ${strip.width} wide")
+        FlatClipboard.buildHeader(strip, keys, colors) { backClicks++ }
+        container.measure(View.MeasureSpec.makeMeasureSpec(WIDTH, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(STRIP, View.MeasureSpec.EXACTLY))
+        container.layout(0, 0, WIDTH, STRIP)
 
         val picture = Bitmap.createBitmap(WIDTH, STRIP, Bitmap.Config.ARGB_8888)
         container.draw(Canvas(picture))
@@ -256,6 +277,20 @@ class FlatClipboardTest {
         assertEquals(R.id.clipboard_list, (view.getChildAt(1) as ViewGroup).getChildAt(1).id)
     }
 
+    @Test fun withoutAStripTheClipboardViewKeepsItsBottomRow() {
+        latinIME.prefs().edit().putString(Settings.PREF_TOOLBAR_MODE, "HIDDEN").commit()
+        Settings.getInstance().loadSettings(latinIME, Locale.GERMANY, InputAttributes(EditorInfo(), false, latinIME.packageName))
+        assertFalse(Settings.getValues().isSecondaryStripVisible)
+        val container = LayoutInflater.from(context).inflate(R.layout.strip_container, null) as ViewGroup
+        KeyboardSwitcher::class.java.getDeclaredField("mClipboardStripView").apply { isAccessible = true }
+            .set(KeyboardSwitcher.getInstance(), container.findViewById<LinearLayout>(R.id.clipboard_strip))
+        val view = LayoutInflater.from(context).inflate(R.layout.clipboard_history_view, FrameLayout(context), false) as ClipboardHistoryView
+        view.keyboardActionListener = KeyboardActionListener.Adapter()
+        view.startClipboardHistory(ClipboardHistoryManager(latinIME), null, EditorInfo(), view.keyboardActionListener)
+        assertEquals(View.VISIBLE, view.findViewById<View>(R.id.bottom_row_keyboard).visibility)
+        assertNull(view.findViewById<View>(R.id.agent_clipboard_section))
+    }
+
     @Test fun chipIsADarkPillWithARoundThumbnailAndNoCloseCross() {
         val chip = LayoutInflater.from(context).inflate(R.layout.clipboard_suggestion, LinearLayout(context), false) as ViewGroup
         val text = chip.findViewById<TextView>(R.id.clipboard_suggestion_text)
@@ -268,6 +303,9 @@ class FlatClipboardTest {
         assertTrue(abs(image.layoutParams.width - 85) <= 1 && image.layoutParams.width == image.layoutParams.height) // 26 dp
         assertTrue(image.clipToOutline)
         assertTrue(abs(chip.layoutParams.height - 111) <= 1) // 34 dp
+        val pill = chip.background as android.graphics.drawable.GradientDrawable
+        assertEquals(0xFF191919.toInt(), pill.color?.defaultColor)
+        assertTrue(pill.cornerRadius >= 55f)
         assertEquals(context.getString(R.string.agent_clipboard_image), text.text.toString())
         assertTrue(text.performLongClick())
         assertEquals(1, dismissed)

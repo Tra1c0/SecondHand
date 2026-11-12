@@ -196,7 +196,7 @@ class FlatPanelTest {
         // first bar: 16 dp from the card's left edge, 22.5 dp below its top
         val left = generateSequence<View>(result) { it.parent as? View }.takeWhile { it !== frame }.sumOf { it.left }
         val top = generateSequence<View>(result) { it.parent as? View }.takeWhile { it !== frame }.sumOf { it.top - (it.parent as View).scrollY }
-        assertEquals("#514745", String.format("#%06X", picture.getPixel(left + 52 + 60, top + 73 + 30) and 0xFFFFFF))
+        assertEquals("#6A5E5A", String.format("#%06X", picture.getPixel(left + 52 + 60, top + 73 + 30) and 0xFFFFFF))
         assertFalse(panel.findViewById<Button>(R.id.agent_apply).isEnabled)
         assertEquals(View.VISIBLE, panel.findViewById<View>(R.id.agent_cloud_cancel).visibility)
 
@@ -206,6 +206,22 @@ class FlatPanelTest {
         panel.showCloudBusy()
         panel.clear()
         assertSame(idle, result.background)
+        // every state that can follow a running request shows the normal card again
+        val states = listOf<Pair<String, () -> Unit>>(
+            "source" to { panel.showSource("x") }, "confirmation" to { panel.showCloudConfirmation("m", 1) },
+            "status" to { panel.showStatus(R.string.agent_panel_ready) }, "expired" to { panel.showExpired() },
+            "tool" to { panel.showToolResult("x") }, "tool confirmation" to { panel.showToolConfirmation("x", false) },
+            "handed over" to { panel.showHandedOver(R.string.agent_panel_ready) }, "workflow choices" to { panel.showWorkflowChoices(emptyList()) },
+            "workflow confirmation" to { panel.showWorkflowConfirmation("x", true) }, "listening" to { panel.showDictationListening("") },
+            "processing" to { panel.showDictationProcessing() }, "review" to { panel.showDictationReview("x") },
+            "dictation status" to { panel.showDictationStatus(R.string.agent_panel_ready) },
+        )
+        states.forEach { (name, show) ->
+            panel.showCloudBusy()
+            assertNotSame(idle, result.background, name)
+            show()
+            assertSame(idle, result.background, name)
+        }
     }
 
     @Test fun otherStylesKeepThePlainPanel() {
