@@ -108,6 +108,20 @@ auf. Mit echtem Mikrofon wurde das Diktat noch nie ausprobiert.
 Die Mikrofon-Taste, die es in HeliBoard schon gab, ist etwas anderes: Sie wechselt zu einer
 Sprach-Tastatur des Systems, falls eine installiert ist.
 
+## Screenshot einfügen
+
+1. Einstellungen → Screenshots → „Neue Screenshots in der Leiste anbieten“ einschalten und den
+   Zugriff auf Bilder erlauben. Wählst du nur „ausgewählte Fotos“, sieht die Tastatur neue
+   Screenshots nicht.
+2. Screenshot machen, dann in ein Textfeld tippen. Drei Minuten lang steht der Screenshot als
+   Pille in der Leiste.
+3. Pille antippen: Das Bild wird eingefügt. Die Pille erscheint nur in Feldern, die Bilder
+   annehmen. Langes Drücken (im
+   flachen Look) oder das Kreuz blendet die Pille aus.
+
+Die Tastatur gibt der App eine Kopie, die nach 10 Minuten gelöscht wird. Wechselst du das Feld,
+bevor die Kopie fertig ist, wird nichts eingefügt. Noch auf keinem Gerät ausprobiert.
+
 ## Aussehen: flacher Look
 
 Einstellungen → Tastaturprofile → „Flacher Look (Vorlage)“ → „Vorlage anwenden“. Das stellt

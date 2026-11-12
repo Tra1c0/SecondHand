@@ -103,6 +103,18 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
 - Nur Darstellungs- und Layout-Einstellungen (Liste: `FlatPreset.values()`), keine Texte,
   Lerndaten oder Zugangsdaten. Wird beim Wiederherstellen geleert.
 
+## Screenshot-Kopien (23d)
+
+- Ort: `files/agent_screenshot/screenshot-<ID>.<Endung>` im gerätegeschützten Speicher (DE) der
+  Tastatur, also schon vor dem ersten Entsperren lesbar; über den eigenen FileProvider
+  (`clipboard_provider_authority`) für die Ziel-App freigegeben. Entsteht nur beim Tipp auf die
+  Pille. Deshalb kurz gehalten: Kopien älter als 10 Minuten löscht jede Prüfung auf neue
+  Screenshots, auch ohne Berechtigung, beim Ausschalten des Schalters werden alle gelöscht. Grenze:
+  Eine App, die das Bild erst nach mehr als 10 Minuten liest (etwa ein späterer Upload aus
+  einem Entwurf), findet es nicht mehr. Kein Backup, kein Protokoll.
+- Einstellungen: `agent_screenshot_chip` (Schalter) und `agent_screenshot_dismissed` (ID des
+  zuletzt benutzten oder geschlossenen Screenshots).
+
 ## Gemerkte Autokorrekturen (20a)
 
 - Datei: SharedPreferences `agent_correction_memory` im gerätegeschützten Speicher (Direct Boot),

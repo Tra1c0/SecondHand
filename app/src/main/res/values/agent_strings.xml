@@ -312,4 +312,13 @@
     <string name="agent_touch_discard">Discard</string>
     <string name="agent_touch_reset">Reset hit zones</string>
     <string name="agent_touch_reset_confirm">Forget all learned hit zones?</string>
+    <string name="agent_screenshot_chip">Screenshot</string>
+    <string name="agent_screenshot_title">Screenshots</string>
+    <string name="agent_screenshot_description">After you take a screenshot, the keyboard shows it as a small chip in the strip for three minutes. The chip only appears in fields that accept images; tapping it inserts the image there. Nothing is inserted without your tap. The chip does not appear in password and number fields, in incognito mode or while the device is locked. The keyboard only looks for new images in screenshot folders and sends nothing anywhere.</string>
+    <string name="agent_screenshot_switch">Offer new screenshots in the strip</string>
+    <string name="agent_screenshot_permission_granted">Access to images is allowed.</string>
+    <string name="agent_screenshot_permission_missing">Access to images is not allowed yet. Without it there is no chip.</string>
+    <string name="agent_screenshot_allow">Allow access to images</string>
+    <string name="agent_screenshot_permission_refused">Android did not grant access. If no dialog appeared, allow it in this app\'s system settings (Permissions → Photos and videos). With access to selected photos only, new screenshots are not visible.</string>
+    <string name="agent_screenshot_selected_only">Only selected photos are allowed. New screenshots are not among them, so there is no chip. Allow all photos in this app\'s system settings (Permissions → Photos and videos).</string>
 </resources>

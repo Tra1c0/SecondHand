@@ -311,4 +311,13 @@
     <string name="agent_touch_discard">Verwerfen</string>
     <string name="agent_touch_reset">Trefferzonen zurücksetzen</string>
     <string name="agent_touch_reset_confirm">Alle gelernten Trefferzonen vergessen?</string>
+    <string name="agent_screenshot_chip">Screenshot</string>
+    <string name="agent_screenshot_title">Screenshots</string>
+    <string name="agent_screenshot_description">Nach einem Screenshot zeigt die Tastatur ihn drei Minuten lang als kleine Pille in der Leiste. Die Pille erscheint nur in Feldern, die Bilder annehmen; ein Tipp fügt das Bild dort ein. Ohne deinen Tipp wird nichts eingefügt. In Passwort- und Zahlenfeldern, im Inkognito-Modus und bei gesperrtem Gerät erscheint keine Pille. Die Tastatur sucht nur in Screenshot-Ordnern nach neuen Bildern und sendet nichts.</string>
+    <string name="agent_screenshot_switch">Neue Screenshots in der Leiste anbieten</string>
+    <string name="agent_screenshot_permission_granted">Der Zugriff auf Bilder ist erlaubt.</string>
+    <string name="agent_screenshot_permission_missing">Der Zugriff auf Bilder ist noch nicht erlaubt. Ohne ihn gibt es keine Pille.</string>
+    <string name="agent_screenshot_allow">Zugriff auf Bilder erlauben</string>
+    <string name="agent_screenshot_permission_refused">Android hat den Zugriff nicht freigegeben. Falls kein Dialog erschien, erlaube ihn in den Systemeinstellungen dieser App (Berechtigungen → Fotos und Videos). Mit Zugriff nur auf ausgewählte Fotos sieht die Tastatur neue Screenshots nicht.</string>
+    <string name="agent_screenshot_selected_only">Erlaubt sind nur ausgewählte Fotos. Neue Screenshots gehören nicht dazu, deshalb gibt es keine Pille. Erlaube alle Fotos in den Systemeinstellungen dieser App (Berechtigungen → Fotos und Videos).</string>
 </resources>

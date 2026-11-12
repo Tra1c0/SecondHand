@@ -185,6 +185,8 @@ internal object FlatClipboard {
         text.setTextSize(TypedValue.COMPLEX_UNIT_DIP, CHIP_TEXT_DP)
         text.typeface = FlatStyle.labelTypeface
         text.setPadding(chip.dp(10f), 0, chip.dp(14f), 0)
+        // the label view wraps its text, so start and centre look the same; start also draws in render tests
+        text.gravity = android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL
         if (!hasImage) return
 
         text.setCompoundDrawablesRelative(null, null, null, null)

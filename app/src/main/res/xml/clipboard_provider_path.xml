@@ -3,4 +3,8 @@
     <files-path
         name="clipboard_data"
         path="clipboard/"/>
+    <!-- copies of screenshots for the opt-in screenshot chip, see ScreenshotChip -->
+    <files-path
+        name="agent_screenshot"
+        path="agent_screenshot/"/>
 </paths>

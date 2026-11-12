@@ -27,6 +27,7 @@
       "app/src/main/res/drawable/ic_{agent,skill}_*.xml",
 
       "app/src/main/AndroidManifest.xml",
+      "app/src/main/res/xml/clipboard_provider_path.xml",
       "app/build.gradle.kts",
       "settings.gradle",
       "app/src/main/res/layout/main_keyboard_frame.xml",

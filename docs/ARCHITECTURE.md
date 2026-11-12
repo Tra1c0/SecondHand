@@ -210,7 +210,9 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
   bis zum unteren Rand, keine untere Tastenreihe, keine Hardware-Ebene), `ClipboardAdapter.kt`
   (Kartenstil, quadratische Bilder), `ClipboardHistoryEntry.kt` und `ClipboardHistoryManager.kt`
   (Bilder über `ClipboardThumbnails`, Chip im flachen Stil), jeweils als Aufruf in
-  `FlatClipboard`.
+  `FlatClipboard`. `ClipboardHistoryManager.getClipboardSuggestionView` bietet zuerst einen
+  frischen Screenshot an (`ScreenshotChip`); `hideSuggestionView` blendet einen Chip aus, ohne
+  den Clip als erledigt zu markieren.
 - `KeyboardActionListenerImpl.kt`: `KeyCode.AGENT_ACTIONS` öffnet im flachen Stil das Panel statt
   des Rads.
 - `InputView.java`: zählt `agent_menu` zu den Overlays. `SettingsActivity.kt`: Extra
@@ -232,11 +234,16 @@ Speicher, Datenschutz und Identität:
   Zwischenablageverlauf standardmäßig aus.
 - `DebugFlags.kt`: privater Crashhandler entfernt, damit keine rohen Fehlermeldungen oder
   LastLog automatisch in External/DE gespeichert werden. Androids Standardhandler bleibt.
-- `AndroidManifest.xml`: `INTERNET`, `RECORD_AUDIO` (nur für das Diktat, siehe „Diktat“), kein
+- `AndroidManifest.xml`: `INTERNET`, `RECORD_AUDIO` (nur für das Diktat, siehe „Diktat“),
+  `READ_MEDIA_IMAGES` bzw. bis Android 12 `READ_EXTERNAL_STORAGE` (nur für die Screenshot-Pille;
+  `READ_MEDIA_VISUAL_USER_SELECTED`, damit „nur ausgewählte Fotos“ erkannt wird), kein
   Klartextverkehr, Backups aus
   (`agent_data_extraction_rules.xml`), CE als Standard, eigener FileProvider, der
   AndroidX-Startup-Initializer für HTTP ist entfernt.
-- `SettingsNavHost.kt` und `MainSettingsScreen.kt`: Ziele und Menüeinträge der sechs
+- `res/xml/clipboard_provider_path.xml`: zusätzlicher Pfad `agent_screenshot/` für die Kopien
+  der Screenshot-Pille, getrennt von den Clip-Dateien (deren Aufräumen hielte ein Unterordner
+  sonst für verwaist).
+- `SettingsNavHost.kt` und `MainSettingsScreen.kt`: Ziele und Menüeinträge der sieben
   Agent-Einstellungsseiten.
 - App-Identität: `app/build.gradle.kts` (App-ID `dev.personal.agentkeyboard`, Version 0.1.0,
   APK-Name, Lint-Baseline `lint-baseline-upstream.xml`), `settings.gradle`
@@ -494,9 +501,27 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   16 MB gehalten, nur im Speicher; der Schlüssel enthält Änderungszeit und Größe der Datei, und
   beim Verlassen der Zwischenablage-Ansicht wird alles verworfen. Das Bild des Chips liegt in
   einem einzelnen Platz, wird ab Android 9 mit `ImageDecoder` (EXIF-Drehung) dekodiert und vor
-  Android 8 gar nicht gemerkt. Die Kopfzeile zeigt höchstens drei Tasten und nie „Schließen“;
+  Android 8 gar nicht gemerkt. `styleChip` richtet die Beschriftung links aus (die Ansicht
+  umschließt den Text, also sieht es aus wie zentriert; einzeilig zentrierter Text wird in
+  Robolectric nicht gezeichnet). Die Kopfzeile zeigt höchstens drei Tasten und nie „Schließen“;
   ohne sichtbare Leiste (Symbolleiste ausgeblendet) bleibt die Ansicht beim alten Aufbau mit
   unterer Tastenreihe.
+- Screenshot-Pille: `K/agent/ScreenshotChip.kt`, opt-in (`AgentPreferences.SCREENSHOT_CHIP`,
+  aus) und nur mit Bildberechtigung. `current` sucht das neueste Bild mit „screenshot“ im
+  Ordnerpfad (`RELATIVE_PATH`, vor Android 10 `DATA`), höchstens drei Minuten alt; das Ergebnis
+  bleibt gemerkt, bis ein `ContentObserver` auf `MediaStore.Images` eine Änderung meldet. Nie in
+  Passwort- oder Zahlenfeldern, im Inkognito-Modus oder bei gesperrtem Gerät, und nur in Feldern,
+  deren `EditorInfo` den Bildtyp annimmt (`editorAccepts`), damit `onContent` nie den Umweg über
+  die System-Zwischenablage nimmt. Ohne funktionierenden Observer höchstens eine Abfrage alle
+  5 s. Die Pille nutzt das Layout des Zwischenablage-Chips (im flachen Stil
+  `FlatClipboard.styleChip`). Ein Tipp kopiert das Bild auf einem Hintergrund-Thread nach
+  `files/agent_screenshot/` des Tastaturspeichers (DE) und übergibt danach auf dem Main-Thread
+  die URI des eigenen FileProviders an `KeyboardActionListenerImpl.onContent`, nur wenn noch
+  dasselbe Feld aktiv ist (`isSameField`: Paket, `fieldId`, Eingabetyp) und es das Bild annimmt; der
+  Medienspeicher-URI selbst wird nie weitergegeben. Kopien älter als 10 Minuten löscht jede
+  Abfrage, beim Ausschalten werden alle gelöscht. Benutzt oder geschlossen, kommt derselbe
+  Screenshot nicht wieder (ID in `agent_screenshot_dismissed`). Einstellungen und
+  Berechtigung: `K/settings/screens/AgentScreenshotScreen.kt`. Test: `ScreenshotChipTest`.
 - Panel: `K/agent/FlatPanelStyle.kt` ändert nur Aussehen und Reihenfolge von `AgentPanelView`
   (IDs, View-Typen und Callbacks bleiben): Kopfzeile mit rundem Zurück- und Einstellungs-Knopf
   (Text als `contentDescription`), Ergebnisblock direkt unter Senden/Abbrechen, Beschreibung und
@@ -757,33 +782,34 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (214 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (218 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (3): build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (38): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (39): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
   AndroidEditorAdapter, ApprovedActionRunner, CorrectionMemory, Dictation, EncryptedActionRunStore,
   FlatMenuView, FlatPanelStyle, FlatPreset, JournaledModelCall, JournaledRun, KeyboardProfileStore,
   LearningData, ManualWorkflowDraft, ModelSettings, OnDeviceSpeechEngine, RunSubjectCodec,
-  SkillBindingStore, SkillLabels, ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel,
-  TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary,
-  WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
+  ScreenshotChip, SkillBindingStore, SkillLabels, ToolApprovalSummary, ToolLauncher,
+  TouchCalibration, TouchModel, TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract,
+  WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
-- `AT/` (41): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (42): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, CalendarToolLauncherTest, CorrectionMemoryTest, DebugPrivacyTest,
   DictationSessionTest, DictationUiTest, EncryptedActionRunStoreTest, EncryptedCredentialStoreTest,
   FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest,
   ForkIdentityTest, InsertAtCursorTest, JournaledModelCallTest, KeyboardProfileStoreTest,
   LearningDataTest, ManualWorkflowDraftTest, MoreProvidersTest, OpenAiProviderTest,
-  SelectedTextCommitTest, SkillBindingStoreTest, SkillSettingsTest, TestRunJournal, ToolRunnerTest,
-  TouchModelTest, TypoMemoryTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
-  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  ScreenshotChipTest, SelectedTextCommitTest, SkillBindingStoreTest, SkillSettingsTest,
+  TestRunJournal, ToolRunnerTest, TouchModelTest, TypoMemoryTest, WorkflowBuilderContractTest,
+  WorkflowBuilderSettingsTest, WorkflowConditionSummaryTest, WorkflowDraftRunnerTest,
+  WorkflowSettingsTest, WorkflowStoreTest
 - `C/` (12): AiTextAction, ApplyOutcome, EditorSession, ExecutionPolicy, LocalTextActions,
   ModelProvider, PendingBatchGate, Profiles, SkillBinding, TextCondition, Tool, Workflow
 - `CT/` (8): AiTextActionTest, EditorPolicyTest, InsertionAnchorTest, LocalTextActionsTest,
@@ -807,9 +833,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/latin/suggestions/` (2): FlatStrip, SuggestionStripView
 - `K/latin/utils/` (1): ToolbarUtils
 - `K/settings/` (2): SettingsActivity, SettingsNavHost
-- `K/settings/screens/` (10): AgentAiScreen, AgentDictationScreen, AgentLearningScreen,
-  AgentProfilesScreen, AgentRunStatus, AgentSkillsScreen, AgentWorkflowsScreen, MainSettingsScreen,
-  WorkflowBuilderDialog, WorkflowDraftProtection
+- `K/settings/screens/` (11): AgentAiScreen, AgentDictationScreen, AgentLearningScreen,
+  AgentProfilesScreen, AgentRunStatus, AgentScreenshotScreen, AgentSkillsScreen,
+  AgentWorkflowsScreen, MainSettingsScreen, WorkflowBuilderDialog, WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
 - `app/` (1): build.gradle
@@ -829,7 +855,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `app/src/main/res/values-de/` (1): agent_strings
 - `app/src/main/res/values/` (8): agent_attrs, agent_ids, agent_strings, attrs, clip_provider,
   donottranslate, gesture_data, themes-flat
-- `app/src/main/res/xml/` (1): agent_data_extraction_rules
+- `app/src/main/res/xml/` (2): agent_data_extraction_rules, clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (1): Shadows
 - `app/src/test/java/helium314/keyboard/latin/` (2): InputLogicTest, SuggestTest
 - `app/src/test/java/helium314/keyboard/latin/inputlogic/` (1): BatchDeliveryTest

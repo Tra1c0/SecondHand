@@ -49,6 +49,7 @@ fun MainSettingsScreen(
     onClickAgentWorkflows: () -> Unit = {},
     onClickAgentLearning: () -> Unit = {},
     onClickAgentDictation: () -> Unit = {},
+    onClickAgentScreenshots: () -> Unit = {},
 ) {
     SearchSettingsScreen(
         onClickBack = onClickBack,
@@ -71,6 +72,8 @@ fun MainSettingsScreen(
                     icon = R.drawable.ic_agent_actions) { NextScreenIcon() }
                 Preference(name = stringResource(R.string.agent_dictation_title), onClick = onClickAgentDictation,
                     icon = R.drawable.ic_agent_dictate) { NextScreenIcon() }
+                Preference(name = stringResource(R.string.agent_screenshot_title), onClick = onClickAgentScreenshots,
+                    icon = R.drawable.sym_keyboard_paste) { NextScreenIcon() }
                 Preference(name = stringResource(R.string.agent_learning_title), onClick = onClickAgentLearning,
                     icon = R.drawable.ic_settings_correction) { NextScreenIcon() }
                 Preference(

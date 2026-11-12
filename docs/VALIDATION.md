@@ -1191,6 +1191,34 @@ APK installiert war: weiterhin kein Gerätelauf.
   Dass der Text in einem Tastaturfenster wirklich läuft, ist nur auf einem Gerät prüfbar und
   dort nicht geprüft.
 
+## Etappe23d — Screenshot-Pille
+
+- `ScreenshotChipTest` (Robolectric, Medienspeicher durch `finder` ersetzt):
+  - ohne Schalter oder ohne Berechtigung keine Pille und keine Abfrage;
+  - mit beiden ein drei Minuten frischer Screenshot, danach nicht mehr; das Ergebnis wird bis
+    zur nächsten Änderung gemerkt;
+  - nach dem Ausblenden kommt er nicht wieder;
+  - keine Pille in Passwort-, sichtbaren Passwort- und Zahlenfeldern und im Inkognito-Modus;
+  - ein Tipp übergibt eine Kopie mit der Authority des eigenen FileProviders, Bildtyp und
+    gleichem Inhalt und schließt die Pille; langes Drücken schließt nur.
+  - keine Pille in Feldern ohne Bildtyp; ein benutzter Screenshot kommt auch nach einem
+    Neustart nicht wieder; Kopien älter als 10 Minuten werden gelöscht.
+- Prüfer: Befunde behoben, und zwar
+  - kein Umweg über die System-Zwischenablage (Pille nur bei passendem Bildtyp);
+  - Kopien nur 10 Minuten und beim Ausschalten gelöscht, DE in STORAGE vermerkt;
+  - eigener Provider-Pfad statt Unterordner der Clip-Dateien;
+  - Kopie im Hintergrund;
+  - gedrosselte Abfrage ohne Observer;
+  - Teilzugriff auf Fotos erkannt;
+  - benutzte ID gespeichert;
+  - Dateiendung aus dem MIME-Typ.
+- Nachprüfung: acht Befunde bestätigt. Drei neue behoben: kein Einfügen nach Feldwechsel während
+  der Kopie (im Test geprüft), Aufräumen auch ohne Berechtigung, die 10-Minuten-Grenze steht in
+  STORAGE und ANLEITUNG.
+- Bild `screenshot-chip.png` gerendert (das runde Zuschneiden zeigt Robolectric nicht).
+- Nicht geprüft: die echte Abfrage des Medienspeichers, der Berechtigungsdialog und das
+  Einfügen in einer echten App. Dafür braucht es einen Gerätetest.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

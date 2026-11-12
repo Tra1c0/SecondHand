@@ -53,3 +53,6 @@
   Tipp fügt sie ein.
 - Neu im flachen Look: Zu lange Texte im Menü laufen als Laufschrift durch (aus, wenn du die
   Animationen in Android abgeschaltet hast).
+- Neu: Screenshot-Pille (aus). Nach einem Screenshot zeigt die Leiste ihn drei Minuten lang an;
+  ein Tipp fügt ihn ein. Einschalten unter Einstellungen → Screenshots.
+- Neue Berechtigung: Zugriff auf Bilder (nur für die Screenshot-Pille, nur wenn du sie erlaubst).

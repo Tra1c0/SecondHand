@@ -19,6 +19,7 @@ object AgentPreferences {
     const val AUTOCORRECT_LEARN_TYPOS = "agent_autocorrect_learn_typos"
     /** Opt-in: personal hit boxes for letter keys (stage 22). */
     const val ADAPT_TOUCH = "agent_adapt_touch"
+    const val SCREENSHOT_CHIP = "agent_screenshot_chip"
     /** privateImeOptions of the calibration field in the settings: the keyboard records touches there. */
     const val TOUCH_CALIBRATION_FIELD = "dev.personal.agentkeyboard.touchCalibration"
 }

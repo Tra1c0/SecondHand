@@ -185,6 +185,13 @@ class ClipboardHistoryManager(
         // maybe no need to create a new view
         // but a cache has to consider a few possible changes, so better don't implement without need
         clipboardSuggestionView = null
+        // a fresh screenshot comes first (opt-in, see ScreenshotChip)
+        if (parent != null) helium314.keyboard.agent.ScreenshotChip.current(latinIME, editorInfo)?.let { shot ->
+            helium314.keyboard.agent.ScreenshotChip.createView(latinIME, parent, shot, onDone = { hideSuggestionView() })?.let {
+                clipboardSuggestionView = it
+                return it
+            }
+        }
 
         // get the content, or return null
         if (!latinIME.mSettings.current.mSuggestClipboardContent) return null
@@ -267,6 +274,10 @@ class ClipboardHistoryManager(
 
     private fun removeClipboardSuggestion() {
         dontShowCurrentSuggestion = true
+        hideSuggestionView()
+    }
+
+    private fun hideSuggestionView() {
         val csv = clipboardSuggestionView ?: return
         if (csv.parent != null && !csv.isGone) {
             // clipboard view is shown ->
