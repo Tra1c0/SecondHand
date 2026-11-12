@@ -347,6 +347,16 @@
     <string name="agent_command_math_open">Calculator</string>
     <string name="agent_command_math_insert">Insert %s</string>
     <string name="agent_command_expired">The text before the cursor changed. Nothing was replaced.</string>
+    <string name="agent_command_contact">Contacts: %scontact Ann shows matching contacts from the phone\'s address book (synced Google contacts included). A tap shows name, phone numbers, mail and postal addresses, another tap inserts one as text. Read on the device only, only while you type the command; needs access to contacts.</string>
+    <string name="agent_command_contact_allow">Allow contacts</string>
+    <string name="agent_command_contact_allow_description">Opens the command settings to allow access to contacts</string>
+    <string name="agent_command_contact_show">Show the details of %s</string>
+    <string name="agent_command_contact_back">Back to the contacts</string>
+    <string name="agent_command_contact_name">Name</string>
+    <string name="agent_command_contact_insert">Insert %1$s: %2$s</string>
+    <string name="agent_commands_permission_missing">%s needs access to contacts, which is not allowed yet.</string>
+    <string name="agent_commands_permission_allow">Allow access to contacts</string>
+    <string name="agent_commands_permission_refused">Android did not grant the access. If no dialog appeared, allow it in the system settings of this app (Permissions → Contacts).</string>
     <string name="agent_calculator_functions">Functions</string>
     <string name="agent_calculator_undefined">Not defined</string>
 </resources>

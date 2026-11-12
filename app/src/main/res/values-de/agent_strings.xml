@@ -346,6 +346,16 @@
     <string name="agent_command_math_open">Rechner</string>
     <string name="agent_command_math_insert">%s einfügen</string>
     <string name="agent_command_expired">Der Text vor der Schreibmarke hat sich geändert. Es wurde nichts ersetzt.</string>
+    <string name="agent_command_contact">Kontakte: %scontact Anna zeigt passende Kontakte aus dem Adressbuch des Telefons (synchronisierte Google-Kontakte inbegriffen). Ein Tipp zeigt Name, Telefonnummern, E-Mail- und Postadressen, ein weiterer fügt eines als Text ein. Gelesen wird nur auf dem Gerät und nur, während du den Befehl tippst; braucht Zugriff auf Kontakte.</string>
+    <string name="agent_command_contact_allow">Kontakte erlauben</string>
+    <string name="agent_command_contact_allow_description">Öffnet die Befehlseinstellungen, um den Zugriff auf Kontakte zu erlauben</string>
+    <string name="agent_command_contact_show">Angaben zu %s zeigen</string>
+    <string name="agent_command_contact_back">Zurück zu den Kontakten</string>
+    <string name="agent_command_contact_name">Name</string>
+    <string name="agent_command_contact_insert">%1$s einfügen: %2$s</string>
+    <string name="agent_commands_permission_missing">%s braucht Zugriff auf Kontakte, der noch nicht erlaubt ist.</string>
+    <string name="agent_commands_permission_allow">Zugriff auf Kontakte erlauben</string>
+    <string name="agent_commands_permission_refused">Android hat den Zugriff nicht freigegeben. Falls kein Dialog erschien, erlaube ihn in den Systemeinstellungen dieser App (Berechtigungen → Kontakte).</string>
     <string name="agent_calculator_functions">Funktionen</string>
     <string name="agent_calculator_undefined">Nicht definiert</string>
 </resources>
