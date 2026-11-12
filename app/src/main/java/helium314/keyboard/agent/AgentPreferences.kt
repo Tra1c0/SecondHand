@@ -6,7 +6,9 @@ object AgentPreferences {
     const val OPEN_AI_SETTINGS = "agent_open_ai_settings"
     /** Intent extra: one of [SETTINGS_DESTINATIONS], opened instead of the settings start page. */
     const val OPEN_SETTINGS_DESTINATION = "agent_open_settings_destination"
-    val SETTINGS_DESTINATIONS = setOf("appearance", "toolbar")
+    /** The commands page (SettingsDestination.AgentCommands), opened by `@url` to switch on screen reading. */
+    const val COMMANDS_DESTINATION = "agent_commands"
+    val SETTINGS_DESTINATIONS = setOf("appearance", "toolbar", COMMANDS_DESTINATION)
     /** Keeps what was learned but adds nothing new. Different from switching learning off, which deletes. */
     const val LEARNING_PAUSED = "agent_learning_paused"
     /** Never replace a known word automatically (default off: known words may still be corrected when clearly wrong). */

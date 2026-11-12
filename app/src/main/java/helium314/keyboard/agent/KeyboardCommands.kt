@@ -52,6 +52,12 @@ object KeyboardCommands {
         /** Shows the calculator in place of the keys (stage 24b); "Insert" replaces [command]. */
         fun openCalculator(command: CommandCall): Boolean
         val canOpenCalculator: Boolean
+        /** Up to [length] characters of the field before the cursor (ending with the command), or null (stage 24d). */
+        fun textBeforeCursor(length: Int): CharSequence? = null
+        /** Up to [length] characters of the field after the cursor, or null (stage 24d). */
+        fun textAfterCursor(length: Int): CharSequence? = null
+        /** Replaces the chips in the strip, e.g. after a read; false if the strip shows something else by now. */
+        fun showChips(chips: List<Chip>): Boolean = false
     }
 
     /** A built-in command. Commands never come from files or models. */
@@ -67,7 +73,7 @@ object KeyboardCommands {
     }
 
     /** Built-in commands in the order of the settings page; each stage adds its own. */
-    val BUILT_IN: List<Command> = listOf(MathCommand)
+    val BUILT_IN: List<Command> = listOf(MathCommand, helium314.keyboard.agent.commands.UrlCommand)
 
     /** Replaced in tests. */
     @JvmStatic var registry: List<Command> = BUILT_IN
@@ -169,6 +175,7 @@ object KeyboardCommands {
         val context = if (cursor < 0) null
             else find(ime.getAgentTextBeforeCursor(CommandSyntax.LOOKBACK + 1), Settings.getValues(), ime.currentInputEditorInfo)
         context ?: return null
+        var shown: View? = null
         val host = object : Host {
             override val context: Context get() = ime
             override val editorInfo: EditorInfo? get() = ime.currentInputEditorInfo
@@ -182,10 +189,22 @@ object KeyboardCommands {
             override fun openCalculator(command: CommandCall) =
                 ime.agentEditorController.openCalculator(command.argument, command.text, cursor)
             override val canOpenCalculator: Boolean get() = ime.agentEditorController.canOpenCalculator
+            override fun textBeforeCursor(length: Int) = ime.getAgentTextBeforeCursor(length)
+            override fun textAfterCursor(length: Int): CharSequence? = ime.currentInputConnection?.getTextAfterCursor(length, 0)
+            override fun showChips(chips: List<Chip>): Boolean {
+                val old = shown ?: return false
+                val strip = parent as? helium314.keyboard.latin.suggestions.SuggestionStripView ?: return false
+                // the strip moved on (typing, cursor) or dropped the chips
+                if (old.parent == null || ime.agentCommandCursor != cursor || chips.isEmpty()) return false
+                val next = chipRow(parent, chips)
+                strip.setExternalSuggestionView(next, false)
+                shown = next
+                return true
+            }
         }
         val chips = chipsFor(context, host)
         if (chips.isEmpty()) return null
-        return chipRow(parent, chips)
+        return chipRow(parent, chips).also { shown = it }
     }
 
     /** Name candidates complete the name; a complete command asks the command. */

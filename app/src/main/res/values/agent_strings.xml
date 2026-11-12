@@ -349,4 +349,23 @@
     <string name="agent_command_expired">The text before the cursor changed. Nothing was replaced.</string>
     <string name="agent_calculator_functions">Functions</string>
     <string name="agent_calculator_undefined">Not defined</string>
+    <string name="agent_command_url">Web address: %1$surl heise.de opens the address in the browser. %1$surl alone suggests addresses from the field and the clipboard and, if switched on, from the screen.</string>
+    <string name="agent_command_url_open">Open: %s</string>
+    <string name="agent_command_url_insert">Insert %s</string>
+    <string name="agent_command_url_open_short">Open %s</string>
+    <string name="agent_command_url_no_browser">No app can open this address.</string>
+    <string name="agent_command_url_read_screen">Read screen</string>
+    <string name="agent_command_url_read_screen_off">Turn on screen reading</string>
+    <string name="agent_command_url_screen_none">No web address on the screen.</string>
+    <string name="agent_command_url_screen_failed">The screen could not be read.</string>
+    <string name="agent_screen_reader_label">Agent Keyboard: read screen on command</string>
+    <string name="agent_screen_reader_summary">Reads the visible text once when you tap “Read screen” after @url.</string>
+    <string name="agent_screen_reader_description">Reads the text that is currently visible only when you type @url and tap “Read screen”, finds web addresses in it and shows them as chips. It listens to no events, so it does nothing in between and uses no battery. Password fields and the keyboard itself are skipped. What is read stays in memory only for these chips; it is never stored, logged or sent.</string>
+    <string name="agent_screen_reader_title">Read screen (@url)</string>
+    <string name="agent_screen_reader_explanation">With %1$surl alone, the chip “Read screen” can find web addresses on the screen of the current app. For this the keyboard needs an accessibility service. It reads only when you tap the chip, once, skips password fields and keeps nothing: no storage, no log, no internet. It listens to no events and does not run in between.</string>
+    <string name="agent_screen_reader_on">Status: switched on</string>
+    <string name="agent_screen_reader_off">Status: switched off</string>
+    <string name="agent_screen_reader_open_settings">Open accessibility settings</string>
+    <string name="agent_screen_reader_restricted">If the switch is greyed out (Xiaomi, Android 13 and newer, apps not installed from a store): open App info of this keyboard, tap the menu with the three dots and choose “Allow restricted settings”, then switch the service on.</string>
+    <string name="agent_screen_reader_app_info">Open App info</string>
 </resources>

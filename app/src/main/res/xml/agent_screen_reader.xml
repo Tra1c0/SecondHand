@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    SPDX-License-Identifier: GPL-3.0-only
+    Stage 24e: reads the screen only when "@url" -> "Read screen" is tapped. No event types (the
+    attribute is left out on purpose, so the system never delivers events or wakes the service),
+    no gestures, no key filtering, no fingerprint gestures, no magnification. Checked by
+    ScreenReaderServiceTest.
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/agent_screen_reader_description"
+    android:summary="@string/agent_screen_reader_summary"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagRetrieveInteractiveWindows"
+    android:canRetrieveWindowContent="true"
+    android:notificationTimeout="0" />
