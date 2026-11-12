@@ -240,11 +240,20 @@ class AgentEditorController @JvmOverloads constructor(
     /** Whether [openCalculator] would open now. */
     val canOpenCalculator: Boolean get() = calculator != null && !needsCursorRefresh
 
-    /** Stage 24b: the calculator of `@math` in place of the keys, starting with [initial]. */
-    fun openCalculator(initial: String): Boolean {
+    /** The typed command the calculator replaces on "Insert", and where it ended. */
+    private var calculatorCommand: Pair<String, Int>? = null
+
+    /**
+     * Stage 24b: the calculator of `@math` in place of the keys, starting with [initial]. The field
+     * stays as it is until "Insert": an app may restart the input when its text changes (e.g. when
+     * it becomes empty), and a restart closes every overlay. [commandText] ending at [commandEnd]
+     * is then replaced by the result in one commit.
+     */
+    fun openCalculator(initial: String, commandText: String? = null, commandEnd: Int = -1): Boolean {
         val target = calculator ?: return false
         if (needsCursorRefresh) return false
         close()
+        calculatorCommand = if (commandText.isNullOrEmpty() || commandEnd < 0) null else commandText to commandEnd
         KeyboardSwitcher.getInstance().mainKeyboardView?.closing()
         target.rootView.findViewById<SuggestionStripView>(R.id.suggestion_strip_view)?.dismissMoreSuggestionsPanel()
         target.show(initial, Settings.getValues().mLocale.language)
@@ -253,6 +262,14 @@ class AgentEditorController @JvmOverloads constructor(
 
     /** The tap on "Insert": at the cursor as it is now, through the same checks as the dictation. */
     private fun insertCalculation(text: String) {
+        calculatorCommand?.let { (command, end) ->
+            when (inputLogic.replaceCommandText(command, text, end)) {
+                ApplyOutcome.SUBMITTED -> { close(); return }
+                ApplyOutcome.UNKNOWN -> { close(); onUnclearEdit(); return }
+                // the command is gone (deleted or changed elsewhere): insert at the cursor instead
+                ApplyOutcome.REJECTED -> calculatorCommand = null
+            }
+        }
         val captured = editor.captureAnchor()
         if (captured !is AnchorResult.Captured) {
             Toast.makeText(ime, R.string.agent_calculator_expired, Toast.LENGTH_SHORT).show()
@@ -555,6 +572,7 @@ class AgentEditorController @JvmOverloads constructor(
         panel?.clear()
         wheel?.visibility = View.GONE
         calculator?.hide()
+        calculatorCommand = null
         editor.invalidate()
     }
 

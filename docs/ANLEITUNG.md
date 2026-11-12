@@ -135,10 +135,11 @@ bevor die Kopie fertig ist, wird nichts eingefügt. Noch auf keinem Gerät auspr
    Befehle; ein Tipp auf einen Namen vervollständigt ihn.
 2. Mit Rechnung zeigt die Leiste das Ergebnis als Chip, z. B. „12 × 3,5 = 42“. Antippen ersetzt
    `@math 12*3,5` durch genau diesen Text.
-3. Der Chip „Rechner“ löscht den Befehl und öffnet statt der Tasten einen Rechner. Oben siehst
+3. Der Chip „Rechner“ öffnet statt der Tasten einen Rechner; dein Text bleibt dabei unverändert. Oben siehst
    du die Rechnung und darunter, was eingefügt würde. Darunter wählst du die Ausgabe: Rechnung,
-   nur Ergebnis, LaTeX oder „x² ½“ (Hochzahlen, Brüche). „Einfügen“ setzt sie an die
-   Schreibmarke, „Schließen“ bricht ab.
+   nur Ergebnis, LaTeX oder „x² ½“ (Hochzahlen, Brüche). „Einfügen“ ersetzt `@math …` durch das
+   Ergebnis (ist der Befehl inzwischen weg, landet es an der Schreibmarke). „Schließen“ bricht ab,
+   `@math` bleibt dann stehen.
 
 Solange du nichts antippst, passiert nichts; der Befehl bleibt einfach als Text stehen. In
 Passwortfeldern, im Inkognito-Modus und bei gesperrtem Gerät gibt es keine Befehle. Unter

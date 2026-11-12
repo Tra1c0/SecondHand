@@ -49,8 +49,8 @@ object KeyboardCommands {
         val language: String
         /** Replaces the typed command (exactly [CommandContext.text]) by [replacement] in one commit; false if the field changed. */
         fun replace(command: CommandContext, replacement: String): Boolean
-        /** Shows the calculator in place of the keys (stage 24b). */
-        fun openCalculator(initial: String): Boolean
+        /** Shows the calculator in place of the keys (stage 24b); "Insert" replaces [command]. */
+        fun openCalculator(command: CommandCall): Boolean
         val canOpenCalculator: Boolean
     }
 
@@ -179,7 +179,8 @@ object KeyboardCommands {
                     android.widget.Toast.makeText(ime, R.string.agent_command_expired, android.widget.Toast.LENGTH_SHORT).show()
                 return outcome == ApplyOutcome.SUBMITTED
             }
-            override fun openCalculator(initial: String) = ime.agentEditorController.openCalculator(initial)
+            override fun openCalculator(command: CommandCall) =
+                ime.agentEditorController.openCalculator(command.argument, command.text, cursor)
             override val canOpenCalculator: Boolean get() = ime.agentEditorController.canOpenCalculator
         }
         val chips = chipsFor(context, host)
@@ -255,7 +256,8 @@ object MathCommand : KeyboardCommands.Command {
         }
         // without a calculator to open, the command text stays
         if (host.canOpenCalculator) chips += KeyboardCommands.Chip(host.context.getString(R.string.agent_command_math_open)) {
-            if (host.canOpenCalculator && host.replace(call, "")) host.openCalculator(call.argument)
+            // the field stays unchanged until "Insert" replaces the command by the result
+            if (host.canOpenCalculator) host.openCalculator(call)
         }
         return chips
     }

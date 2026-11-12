@@ -50,6 +50,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
 
 @RunWith(RobolectricTestRunner::class)
 @Config(shadows = [
@@ -841,6 +842,55 @@ class InputLogicTest {
         assertFalse(helium314.keyboard.agent.KeyboardCommands.guardsTextBefore("hi @math 2*3")) // @math does not protect its argument
         assertFalse(helium314.keyboard.agent.KeyboardCommands.guardsTextBefore("mail@math"))
         assertFalse(helium314.keyboard.agent.KeyboardCommands.guardsTextBefore("hi @lewin"))
+    }
+
+    @Test fun typedCommandCalculatorChipOpensTheCalculator() {
+        helium314.keyboard.agent.KeyboardCommands.load(latinIME)
+        val root = android.widget.FrameLayout(latinIME)
+        val calculator = helium314.keyboard.agent.CalculatorView(latinIME).apply { id = R.id.agent_calculator }
+        root.addView(calculator)
+        latinIME.agentEditorController.attach(root)
+        chainInput("x @math")
+        val strip = android.widget.FrameLayout(latinIME)
+        val chips = helium314.keyboard.agent.KeyboardCommands.createChipsView(latinIME, strip)
+        assertNotNull(chips)
+        val row = (chips as android.view.ViewGroup).getChildAt(0) as android.view.ViewGroup
+        val open = (0 until row.childCount).map { row.getChildAt(it) as android.widget.TextView }
+            .single { it.text.toString() == latinIME.getString(R.string.agent_command_math_open) }
+        open.performClick()
+        // the field stays as it is while the calculator is open (an app may restart input otherwise)
+        assertEquals("x @math", text)
+        assertEquals(android.view.View.VISIBLE, calculator.visibility)
+        listOf("2", "+", "3").forEach { label ->
+            buttons(calculator).first { it.text.toString() == label }.performClick()
+        }
+        calculator.findViewById<android.widget.Button>(R.id.agent_calculator_insert).performClick()
+        assertEquals("x 2 + 3 = 5", text) // the command is replaced in one commit
+        assertEquals(android.view.View.GONE, calculator.visibility)
+        checkConnectionConsistency()
+    }
+
+    @Test fun typedCommandCalculatorInsertsAtTheCursorWhenTheCommandIsGone() {
+        helium314.keyboard.agent.KeyboardCommands.load(latinIME)
+        val root = android.widget.FrameLayout(latinIME)
+        val calculator = helium314.keyboard.agent.CalculatorView(latinIME).apply { id = R.id.agent_calculator }
+        root.addView(calculator)
+        val controller = latinIME.agentEditorController
+        controller.attach(root)
+        setText("x ")
+        setCursorPosition(2)
+        controller.startEditor(EditorInfo().apply { inputType = currentInputType; initialSelStart = 2; initialSelEnd = 2 })
+        controller.selectionChanged(2, 2, -1, -1)
+        assertTrue(controller.openCalculator("4*2", "@math 4*2", 11)) // the command is no longer there
+        calculator.findViewById<android.widget.Button>(R.id.agent_calculator_insert).performClick()
+        assertEquals("x 4 × 2 = 8", text)
+        assertEquals(android.view.View.GONE, calculator.visibility)
+    }
+
+    private fun buttons(group: android.view.View): List<android.widget.Button> = when (group) {
+        is android.widget.Button -> listOf(group)
+        is android.view.ViewGroup -> (0 until group.childCount).flatMap { buttons(group.getChildAt(it)) }
+        else -> emptyList()
     }
 
     @Test fun typedCommandChipFromBeforeTheLastKeystrokeLeavesTheWordAlone() {

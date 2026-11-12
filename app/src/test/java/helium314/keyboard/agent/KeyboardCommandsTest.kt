@@ -56,7 +56,7 @@ class KeyboardCommandsTest {
             replaced += command.text to replacement
             return true
         }
-        override fun openCalculator(initial: String): Boolean { calculators += initial; return true }
+        override fun openCalculator(command: CommandCall): Boolean { calculators += command.argument; return true }
         override var canOpenCalculator = true
     }
 
@@ -147,19 +147,14 @@ class KeyboardCommandsTest {
         chips[0].onTap()
         assertEquals("@math 12*3,5" to "12 × 3,5 = 42", replaced.single())
         chips[1].onTap()
-        assertEquals("@math 12*3,5" to "", replaced.last())
+        assertEquals(1, replaced.size) // the calculator leaves the field alone until "Insert"
         assertEquals(listOf("12*3,5"), calculators)
         // the stored output format is used, and an incomplete calculation only offers the calculator
         latinIME.prefs().edit().putString(AgentPreferences.CALCULATOR_STYLE, "LATEX").commit()
         assertEquals("12 \\cdot 3{,}5 = 42", KeyboardCommands.chipsFor(call, host)[0].label.toString())
         assertEquals(1, KeyboardCommands.chipsFor(find("@math 12*") as CommandCall, host).size)
         assertEquals(1, KeyboardCommands.chipsFor(find("@math") as CommandCall, host).size)
-        // when the field changed, the calculator does not open
-        replaceWorks = false
-        KeyboardCommands.chipsFor(find("@math") as CommandCall, host).single().onTap()
-        assertEquals(1, calculators.size)
-        // without a calculator (or while input is blocked) there is no chip that would delete the command
-        replaceWorks = true
+        // without a calculator (or while input is blocked) there is no calculator chip
         host.canOpenCalculator = false
         assertTrue(KeyboardCommands.chipsFor(find("@math") as CommandCall, host).isEmpty())
     }

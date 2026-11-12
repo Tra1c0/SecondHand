@@ -64,3 +64,5 @@
 - Neu: Installierbare Versionen kommen jetzt aus GitHub (Actions → „Agent Keyboard APK“, dann
   Releases) und sind mit deinem eigenen Schlüssel signiert. Jede neue Version installiert sich
   als Update; Einstellungen, Schlüssel und Gelerntes bleiben erhalten.
+- Behoben: Der Chip „Rechner“ öffnet jetzt den Rechner. Dein Text bleibt dabei stehen;
+  „Einfügen“ ersetzt `@math …` durch das Ergebnis.

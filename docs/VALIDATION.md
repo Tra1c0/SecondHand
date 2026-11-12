@@ -1266,7 +1266,11 @@ APK installiert war: weiterhin kein Gerätelauf.
   - Offen und nur am Gerät prüfbar: Editoren, die Änderungen verzögert anwenden (WebView), könnten
     nach dem Ersetzen den alten Stand melden. Dann sperrt die Tastatur wie bei P3 und meldet es,
     die sichere Richtung.
-- Nicht geprüft: alles auf einem Gerät (Leiste mit Chips, Rechner über der Navigationsleiste,
+- Gerätetest durch den Owner (Build 1, Xiaomi): Ergebnis-Chip `@math 2*3` funktioniert; ein Tipp
+  auf „Rechner“ öffnete nichts. Im Test öffnete er sich; vermutete Ursache: Löschen des Befehls
+  vor dem Öffnen (P43). Geändert: Der Rechner öffnet sich ohne Änderung am Feld, „Einfügen“
+  ersetzt den Befehl (`InputLogicTest.typedCommandCalculator*`). Am Gerät noch nicht bestätigt.
+- Nicht geprüft: alles weitere auf einem Gerät (Leiste mit Chips, Rechner über der Navigationsleiste,
   Querformat, TalkBack, Einfügen in echten Apps, WebView).
 
 ## Gerätetest vor Meilensteinfreigabe

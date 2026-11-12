@@ -457,8 +457,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   das getippte Wort abgeschlossen wird.
 - `K/settings/screens/AgentCommandsScreen.kt`: Hauptschalter, Präfix, Schalter je Befehl.
 - `@math` (24b): `MathCommand` in `A/KeyboardCommands.kt` bietet bei gültigem Argument einen
-  Ergebnis-Chip (ersetzt den Befehl durch den formatierten Text) und „Rechner“ (löscht den
-  Befehl, dann `AgentEditorController.openCalculator`). `C/MathExpression.kt`: eigener Parser
+  Ergebnis-Chip (ersetzt den Befehl durch den formatierten Text) und „Rechner“
+  (`AgentEditorController.openCalculator` mit Befehlstext und Ende; das Feld bleibt bis
+  „Einfügen“ unverändert, dann ersetzt `InputLogic.replaceCommandText` den Befehl, sonst Einfügen
+  an der Schreibmarke). Grund: Erst löschen und dann öffnen ließ den Rechner auf dem Telefon nicht
+  erscheinen; wahrscheinlich startet eine App die Eingabe neu, wenn ihr Feld leer wird, und das
+  schließt alle Overlays (Fallstrick P43). `C/MathExpression.kt`: eigener Parser
   (Punkt vor Strich, `^` rechtsassoziativ und stärker als das Vorzeichen, `%` = durch 100,
   `√`, `²`, `³`), exakt mit `BigDecimal`; Division ohne endliche Dezimaldarstellung, Wurzeln
   und gebrochene Exponenten mit 40 Stellen und als ungefähr markiert; Anzeige höchstens 10
@@ -861,6 +865,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Außerdem korrigiert der zweite Zweig von `shouldBeAutoCorrected` auch Wörter mit `@`, wenn der
   Vorschlag gut genug ist; der Schutz für Befehle steht deshalb in der Schlussbedingung von
   `hasAutoCorrection`, nicht neben der `@`-Regel.
+- **P43** Ein Overlay nicht direkt nach einer Änderung im Feld öffnen, die die App zu einem
+  Neustart der Eingabe bewegen kann (Feld wird leer, Vorschläge der App ändern sich):
+  `onStartInputView` → `AgentEditorController.startEditor` schließt alle Overlays. Erst öffnen,
+  dann mit einem eigenen Klick ändern. Am Telefon beim Rechner beobachtet (Ursache vermutet).
 
 ## Datei-Inventar
 
