@@ -83,4 +83,20 @@ class CalculatorViewTest {
         assertEquals(View.GONE, view.visibility)
         assertEquals("", view.typed)
     }
+
+    @Test fun functionKeys() {
+        view.show("", "de")
+        press("fx")
+        listOf("sin", "3", "0", ")").forEach(::press)
+        assertEquals("sin(30)", view.typed)
+        assertEquals("sin(30°) = 0,5", preview)
+        press("⌫"); press("⌫"); press("⌫")
+        assertEquals("sin(", view.typed)
+        press("⌫") // the function name goes as a whole
+        assertEquals("", view.typed)
+        listOf("ln", "0", ")").forEach(::press)
+        assertEquals(latinIME.getString(R.string.agent_calculator_undefined), preview)
+        press("123")
+        assertEquals("fx", view.findViewById<Button>(R.id.agent_calculator_functions).text.toString())
+    }
 }

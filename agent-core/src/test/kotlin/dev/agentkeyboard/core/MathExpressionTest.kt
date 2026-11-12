@@ -114,4 +114,67 @@ class MathExpressionTest {
         assertEquals("(2²)³ = 64", format("2²^3", Style.UNICODE))
         assertEquals("\\left(2^{2}\\right)^{3} = 64", format("2²^3", Style.LATEX))
     }
+
+    @Test fun functionsConstantsAndFactorial() {
+        assertEquals(BigDecimal("4"), value("sqrt(16)").value)
+        assertEquals(BigDecimal("4"), value("Wurzel(16)").value)
+        assertTrue(value("sqrt(16)").exact)
+        assertEquals(BigDecimal("3"), value("∛27").value)
+        assertTrue(value("∛27").exact)
+        assertEquals(BigDecimal("-2"), value("root(-8;3)").value)
+        assertEquals(BigDecimal("2"), value("root(16;4)").value)
+        assertEquals(BigDecimal("0.5"), value("sin(30)").value) // degrees
+        assertTrue(value("sin(30)").exact)
+        assertEquals(BigDecimal.ZERO, value("cos(90)").value)
+        assertEquals(BigDecimal("1"), value("tan(45)").value)
+        assertEquals(BigDecimal("45"), value("atan(1)").value)
+        assertEquals(BigDecimal("30"), value("asin(0,5)").value)
+        assertEquals(BigDecimal("3"), value("log(1000)").value)
+        assertEquals(BigDecimal("3"), value("lg(1000)").value)
+        assertFalse(value("ln(2)").exact)
+        assertEquals("0.6931471806", value("ln(2)").value.toPlainString())
+        assertEquals(BigDecimal("120"), value("5!").value)
+        assertEquals(BigDecimal("24"), value("(2+2)!").value)
+        assertFalse(value("π").exact)
+        assertEquals("3.1415926536", value("π").value.toPlainString())
+        assertEquals("6.2831853072", value("2π").value.toPlainString())
+        assertEquals(BigDecimal("8"), value("2(1+3)").value)
+        assertEquals(BigDecimal("21"), value("(1+2)(3+4)").value)
+        assertEquals(BigDecimal("6"), value("3√4").value)
+        assertEquals(BigDecimal("1"), value("abs(-1)").value)
+    }
+
+    @Test fun functionFailures() {
+        assertEquals(Reason.UNDEFINED, failure("ln(0)"))
+        assertEquals(Reason.UNDEFINED, failure("log(-1)"))
+        assertEquals(Reason.UNDEFINED, failure("tan(90)"))
+        assertEquals(Reason.UNDEFINED, failure("asin(2)"))
+        assertEquals(Reason.UNDEFINED, failure("(-1)!"))
+        assertEquals(Reason.UNDEFINED, failure("2,5!"))
+        assertEquals(Reason.UNDEFINED, failure("root(8;1)"))
+        assertEquals(Reason.TOO_LARGE, failure("70!"))
+        assertEquals(Reason.NEGATIVE_ROOT, failure("root(-16;4)"))
+        assertEquals(Reason.SYNTAX, failure("sin 30"))
+        assertEquals(Reason.SYNTAX, failure("foo(2)"))
+        assertEquals(Reason.SYNTAX, failure("root(8)"))
+        assertEquals(Reason.SYNTAX, failure("sin(30;2)"))
+    }
+
+    @Test fun functionFormats() {
+        assertEquals("sin(30°) = 0,5", format("sin(30)"))
+        assertEquals("\\sin\\left(30^\\circ\\right) = 0{,}5", format("sin(30)", Style.LATEX))
+        assertEquals("√16 = 4", format("sqrt(16)"))
+        assertEquals("√(9 + 7) = 4", format("wurzel(9+7)"))
+        assertEquals("∛27 = 3", format("root(27;3)"))
+        assertEquals("⁵√32 = 2", format("root(32;5)", Style.UNICODE))
+        assertEquals("\\sqrt[3]{27} = 3", format("∛27", Style.LATEX))
+        assertEquals("2π ≈ 6,2831853072", format("2pi"))
+        assertEquals("2 \\pi \\approx 6{,}2831853072", format("2π", Style.LATEX))
+        assertEquals("5! = 120", format("5!"))
+        assertEquals("ln(2) ≈ 0,6931471806", format("ln(2)"))
+        assertEquals("\\ln\\left(2\\right) \\approx 0{,}6931471806", format("ln(2)", Style.LATEX))
+        assertEquals("|−3| = 3", format("abs(-3)"))
+        assertEquals("\\arcsin\\left(0{,}5\\right) = 30", format("asin(0,5)", Style.LATEX))
+        assertEquals("2(1 + 3) = 8", format("2(1+3)"))
+    }
 }

@@ -1270,6 +1270,9 @@ APK installiert war: weiterhin kein Gerätelauf.
   auf „Rechner“ öffnete nichts. Im Test öffnete er sich; vermutete Ursache: Löschen des Befehls
   vor dem Öffnen (P43). Geändert: Der Rechner öffnet sich ohne Änderung am Feld, „Einfügen“
   ersetzt den Befehl (`InputLogicTest.typedCommandCalculator*`). Am Gerät noch nicht bestätigt.
+- Owner: Der Rechner konnte keine Wurzeln oder Funktionen (nur die `√`-Taste). Ergänzt: Funktionen,
+  `π`, `e`, `!`, n-te Wurzeln, implizites Malnehmen, Taste „fx“ im Rechner;
+  `MathExpressionTest.function*` (Werte, Fehler, alle Ausgaben), `CalculatorViewTest.functionKeys`.
 - Nicht geprüft: alles weitere auf einem Gerät (Leiste mit Chips, Rechner über der Navigationsleiste,
   Querformat, TalkBack, Einfügen in echten Apps, WebView).
 

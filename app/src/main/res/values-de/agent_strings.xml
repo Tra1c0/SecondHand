@@ -346,4 +346,6 @@
     <string name="agent_command_math_open">Rechner</string>
     <string name="agent_command_math_insert">%s einfügen</string>
     <string name="agent_command_expired">Der Text vor der Schreibmarke hat sich geändert. Es wurde nichts ersetzt.</string>
+    <string name="agent_calculator_functions">Funktionen</string>
+    <string name="agent_calculator_undefined">Nicht definiert</string>
 </resources>

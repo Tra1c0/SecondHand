@@ -10,8 +10,12 @@ import java.math.RoundingMode
  * prints the calculation in several formats. No `eval`, no scripting, no network.
  *
  * Input: numbers with `,` or `.` as decimal mark (no thousands separators), `+ - * / ^ %`, the
- * signs `× ÷ − ·`, `√` (square root of the following factor), `²` and `³`, and parentheses.
- * `%` divides the number before it by 100.
+ * signs `× ÷ − ·`, `√` and `∛` (root of the following factor), `²`, `³`, `!` and parentheses.
+ * `%` divides the number before it by 100. Constants `π`/`pi` and `e`; functions [FUNCTIONS],
+ * arguments separated by `;` (the comma is a decimal mark). Angles are in degrees. A number or a
+ * closing parenthesis directly before `(`, a constant, a function or a root multiplies (`2π`).
+ * Functions without a finite decimal result are computed in double precision: the result is
+ * rounded to 12 significant digits and marked approximate when the shown value is rounded.
  */
 object MathExpression {
     const val MAX_INPUT = 200
@@ -27,16 +31,33 @@ object MathExpression {
     sealed interface Node
     data class Number(val text: String, val value: BigDecimal) : Node
     data class Unary(val operator: Char, val operand: Node) : Node
-    data class Binary(val operator: Char, val left: Node, val right: Node) : Node
+    /** [implicit]: a multiplication written without a sign, like `2π`. */
+    data class Binary(val operator: Char, val left: Node, val right: Node, val implicit: Boolean = false) : Node
     data class Group(val inner: Node) : Node
     data class Root(val operand: Node) : Node
     data class Percent(val operand: Node) : Node
+    data class Factorial(val operand: Node) : Node
+    /** `π` or `e`. */
+    data class Constant(val name: String) : Node
+    /** One of [FUNCTIONS]; `root` has two arguments (radicand; index). */
+    data class Function(val name: String, val args: List<Node>) : Node
+
+    /** Function names with their number of arguments; German and English spellings. */
+    val FUNCTIONS: Map<String, Int> = mapOf(
+        "sin" to 1, "cos" to 1, "tan" to 1, "asin" to 1, "acos" to 1, "atan" to 1,
+        "ln" to 1, "log" to 1, "lg" to 1, "exp" to 1, "abs" to 1, "sqrt" to 1, "wurzel" to 1, "root" to 2,
+    )
+    private val TRIG = setOf("sin", "cos", "tan")
+    private val PI = BigDecimal("3.141592653589793238462643383279502884197")
+    private val E = BigDecimal("2.718281828459045235360287471352662497757")
+    private const val MAX_FACTORIAL = 69 // 69! < 10^100 < 70!
 
     sealed interface Outcome
     /** [exact] is false when the shown value is rounded (e.g. 1/3 or √2). */
     data class Value(val tree: Node, val value: BigDecimal, val exact: Boolean) : Outcome
     data class Failure(val reason: Reason) : Outcome
-    enum class Reason { EMPTY, SYNTAX, DIVISION_BY_ZERO, NEGATIVE_ROOT, TOO_LARGE, TOO_LONG }
+    /** [UNDEFINED]: outside the domain of a function, e.g. ln(0), tan(90°), (−1)!. */
+    enum class Reason { EMPTY, SYNTAX, DIVISION_BY_ZERO, NEGATIVE_ROOT, TOO_LARGE, TOO_LONG, UNDEFINED }
 
     private class Fail(val reason: Reason) : Exception(null, null, false, false)
 
@@ -70,6 +91,9 @@ object MathExpression {
             is Unary -> if (node.operator == '-') compute(node.operand, inexact).negate() else compute(node.operand, inexact)
             is Percent -> compute(node.operand, inexact).divide(BigDecimal(100))
             is Root -> squareRoot(compute(node.operand, inexact), inexact)
+            is Factorial -> factorial(compute(node.operand, inexact))
+            is Constant -> { inexact(); if (node.name == "π") PI else E }
+            is Function -> function(node.name, node.args.map { compute(it, inexact) }, inexact)
             is Binary -> {
                 val left = compute(node.left, inexact)
                 val right = compute(node.right, inexact)
@@ -121,6 +145,76 @@ object MathExpression {
         return divide(BigDecimal.ONE, power(base, BigDecimal(-whole), inexact), inexact)
     }
 
+    private fun factorial(value: BigDecimal): BigDecimal {
+        val n = try { value.intValueExact() } catch (e: ArithmeticException) { throw Fail(Reason.UNDEFINED) }
+        if (n < 0) throw Fail(Reason.UNDEFINED)
+        if (n > MAX_FACTORIAL) throw Fail(Reason.TOO_LARGE)
+        var result = BigDecimal.ONE
+        for (i in 2..n) result = result.multiply(BigDecimal(i))
+        return result
+    }
+
+    private fun function(name: String, args: List<BigDecimal>, inexact: () -> Unit): BigDecimal {
+        val x = args[0]
+        when (name) {
+            "abs" -> return x.abs()
+            "sqrt" -> return squareRoot(x, inexact)
+            "root" -> return root(x, args[1], inexact)
+        }
+        val d = x.toDouble()
+        val result = when (name) {
+            in TRIG -> {
+                val radians = Math.toRadians(d)
+                // exact multiples of 90° give exact zeros, not 6e-17
+                val sin = snap(Math.sin(radians))
+                val cos = snap(Math.cos(radians))
+                when (name) {
+                    "sin" -> sin
+                    "cos" -> cos
+                    else -> if (cos == 0.0) throw Fail(Reason.UNDEFINED) else snap(sin / cos)
+                }
+            }
+            "asin", "acos" -> {
+                if (d < -1 || d > 1) throw Fail(Reason.UNDEFINED)
+                Math.toDegrees(if (name == "asin") Math.asin(d) else Math.acos(d))
+            }
+            "atan" -> Math.toDegrees(Math.atan(d))
+            "ln", "log" -> {
+                if (x.signum() <= 0) throw Fail(Reason.UNDEFINED)
+                if (name == "ln") Math.log(d) else Math.log10(d)
+            }
+            "exp" -> Math.exp(d)
+            else -> throw Fail(Reason.SYNTAX)
+        }
+        return fromDouble(result, inexact)
+    }
+
+    private fun snap(value: Double) = if (kotlin.math.abs(value) < 1e-12) 0.0 else value
+
+    /** A double result as a decimal of 12 significant digits; approximate unless that is short (sin 30° = 0,5). */
+    private fun fromDouble(value: Double, inexact: () -> Unit): BigDecimal {
+        if (value.isNaN() || value.isInfinite()) throw Fail(Reason.TOO_LARGE)
+        if (value == 0.0) return BigDecimal.ZERO
+        val rounded = BigDecimal(value).round(MathContext(12, RoundingMode.HALF_EVEN)).stripTrailingZeros()
+        if (rounded.scale() > MAX_FRACTION_DIGITS - 2) inexact()
+        return rounded
+    }
+
+    /** The [index]-th root; odd roots of negative numbers are negative. Exact when it powers back. */
+    private fun root(value: BigDecimal, index: BigDecimal, inexact: () -> Unit): BigDecimal {
+        val n = try { index.intValueExact() } catch (e: ArithmeticException) { throw Fail(Reason.UNDEFINED) }
+        if (n < 2 || n > MAX_EXPONENT) throw Fail(Reason.UNDEFINED)
+        if (n == 2) return squareRoot(value, inexact)
+        if (value.signum() < 0 && n % 2 == 0) throw Fail(Reason.NEGATIVE_ROOT)
+        if (value.signum() == 0) return BigDecimal.ZERO
+        val magnitude = Math.pow(value.abs().toDouble(), 1.0 / n)
+        val candidate = BigDecimal(magnitude).round(MathContext(12, RoundingMode.HALF_EVEN)).stripTrailingZeros()
+        val signed = if (value.signum() < 0) candidate.negate() else candidate
+        if (signed.pow(n).compareTo(value) == 0) return signed
+        inexact()
+        return if (value.signum() < 0) BigDecimal(magnitude, CONTEXT).negate() else BigDecimal(magnitude, CONTEXT)
+    }
+
     /** Newton's method in decimals; BigDecimal.sqrt needs Android 13. */
     private fun squareRoot(value: BigDecimal, inexact: () -> Unit): BigDecimal {
         if (value.signum() < 0) throw Fail(Reason.NEGATIVE_ROOT)
@@ -167,11 +261,19 @@ object MathExpression {
         private fun product(): Node {
             var node = unary()
             while (true) {
-                val op = when (peek()) { '*', '×', '·' -> '*'; '/', '÷', ':' -> '/'; else -> return node }
+                val next = peek()
+                // 2π, 2(1+3), 3√2, (1+2)(3+4): a factor right after another multiplies
+                if (next != null && startsImplicitFactor(next)) {
+                    node = Binary('*', node, power(), implicit = true)
+                    continue
+                }
+                val op = when (next) { '*', '×', '·' -> '*'; '/', '÷', ':' -> '/'; else -> return node }
                 index++
                 node = Binary(op, node, unary())
             }
         }
+
+        private fun startsImplicitFactor(char: Char) = char == '(' || char == 'π' || char == '√' || char == '∛' || char.isLetter()
 
         private fun unary(): Node = when (peek()) {
             '-', '−' -> { index++; Unary('-', unary()) }
@@ -194,6 +296,7 @@ object MathExpression {
             while (true) {
                 node = when (peek()) {
                     '%' -> { index++; Percent(node) }
+                    '!' -> { index++; Factorial(node) }
                     '²' -> { index++; Binary('^', node, Number("2", BigDecimal(2))) }
                     '³' -> { index++; Binary('^', node, Number("3", BigDecimal(3))) }
                     else -> return node
@@ -212,9 +315,32 @@ object MathExpression {
                     Group(inner)
                 }
                 char == '√' -> { index++; Root(postfix()) }
+                char == '∛' -> { index++; Function("root", listOf(postfix(), Number("3", BigDecimal(3)))) }
+                char == 'π' -> { index++; Constant("π") }
                 char.isDigit() || char == ',' || char == '.' -> number()
+                char.isLetter() -> word()
                 else -> throw Fail(Reason.SYNTAX)
             }
+        }
+
+        private fun word(): Node {
+            val start = index
+            while (index < text.length && text[index].isLetter()) index++
+            val name = text.substring(start, index).lowercase()
+            when (name) {
+                "pi" -> return Constant("π")
+                "e" -> return Constant("e")
+            }
+            val count = FUNCTIONS[name] ?: throw Fail(Reason.SYNTAX)
+            if (peek() != '(') throw Fail(Reason.SYNTAX)
+            index++
+            val args = mutableListOf(sum())
+            while (peek() == ';') { index++; args += sum() }
+            if (peek() != ')' || args.size != count) throw Fail(Reason.SYNTAX)
+            index++
+            // one spelling per function in the output
+            val canonical = when (name) { "wurzel" -> "sqrt"; "lg" -> "log"; else -> name }
+            return Function(canonical, args)
         }
 
         private fun number(): Node {
@@ -286,6 +412,9 @@ object MathExpression {
         is Unary -> (if (node.operator == '-') "−" else "+") + plain(node.operand, locale, unicode)
         is Percent -> plain(node.operand, locale, unicode) + " %"
         is Root -> "√" + plain(node.operand, locale, unicode)
+        is Factorial -> plainAtom(node.operand, locale, unicode) + "!"
+        is Constant -> node.name
+        is Function -> plainFunction(node, locale, unicode)
         is Binary -> when (node.operator) {
             '^' -> {
                 val exponent = superscript(node.right, locale)
@@ -298,7 +427,35 @@ object MathExpression {
                 val fraction = if (unicode) unicodeFraction(node) else null
                 fraction ?: "${plain(node.left, locale, unicode)} ÷ ${plain(node.right, locale, unicode)}"
             }
+            '*' -> if (node.implicit && node.right !is Number) plain(node.left, locale, unicode) + plain(node.right, locale, unicode)
+                else "${plain(node.left, locale, unicode)} × ${plain(node.right, locale, unicode)}"
             else -> "${plain(node.left, locale, unicode)} ${symbol(node.operator)} ${plain(node.right, locale, unicode)}"
+        }
+    }
+
+    /** Numbers, constants and groups stand alone; anything else gets parentheses (√(1 + 3), (2 + 1)!). */
+    private fun plainAtom(node: Node, locale: Locale, unicode: Boolean): String {
+        val text = plain(node, locale, unicode)
+        return if (node is Number || node is Constant || node is Group || node is Function) text else "($text)"
+    }
+
+    private fun plainFunction(node: Function, locale: Locale, unicode: Boolean): String {
+        val arg = node.args[0]
+        return when (node.name) {
+            // angles are degrees: shown, so that nobody reads radians
+            in TRIG -> "${node.name}(${plain(unwrap(arg), locale, unicode)}°)"
+            "sqrt" -> "√" + plainAtom(arg, locale, unicode)
+            "root" -> {
+                val index = node.args[1]
+                val sign = when {
+                    index is Number && index.value.compareTo(BigDecimal(3)) == 0 -> "∛"
+                    index is Number && index.value.compareTo(BigDecimal(4)) == 0 -> "∜"
+                    else -> (superscript(index, locale) ?: "(${plain(index, locale, unicode)})") + "√"
+                }
+                sign + plainAtom(arg, locale, unicode)
+            }
+            "abs" -> "|${plain(unwrap(arg), locale, unicode)}|"
+            else -> "${node.name}(${plain(unwrap(arg), locale, unicode)})"
         }
     }
 
@@ -310,6 +467,10 @@ object MathExpression {
         is Unary -> (if (node.operator == '-') "-" else "+") + latex(node.operand, locale)
         is Percent -> latex(node.operand, locale) + "\\,\\%"
         is Root -> "\\sqrt{${latex(unwrap(node.operand), locale)}}"
+        is Factorial -> (if (node.operand is Number || node.operand is Group || node.operand is Constant) latex(node.operand, locale)
+            else "\\left(${latex(node.operand, locale)}\\right)") + "!"
+        is Constant -> if (node.name == "π") "\\pi" else "e"
+        is Function -> latexFunction(node, locale)
         is Binary -> when (node.operator) {
             '^' -> {
                 val base = if (node.left is Binary && node.left.operator == '^') "\\left(${latex(node.left, locale)}\\right)"
@@ -317,9 +478,23 @@ object MathExpression {
                 "$base^{${latex(unwrap(node.right), locale)}}"
             }
             '/' -> "\\frac{${latex(unwrap(node.left), locale)}}{${latex(unwrap(node.right), locale)}}"
-            '*' -> "${latex(node.left, locale)} \\cdot ${latex(node.right, locale)}"
+            '*' -> if (node.implicit && node.right !is Number) "${latex(node.left, locale)} ${latex(node.right, locale)}"
+                else "${latex(node.left, locale)} \\cdot ${latex(node.right, locale)}"
             '-' -> "${latex(node.left, locale)} - ${latex(node.right, locale)}"
             else -> "${latex(node.left, locale)} + ${latex(node.right, locale)}"
+        }
+    }
+
+    private fun latexFunction(node: Function, locale: Locale): String {
+        val arg = latex(unwrap(node.args[0]), locale)
+        return when (node.name) {
+            in TRIG -> "\\${node.name}\\left($arg^\\circ\\right)"
+            "asin", "acos", "atan" -> "\\arc${node.name.drop(1)}\\left($arg\\right)"
+            "ln", "log", "exp" -> "\\${node.name}\\left($arg\\right)"
+            "abs" -> "\\left|$arg\\right|"
+            "sqrt" -> "\\sqrt{$arg}"
+            "root" -> "\\sqrt[${latex(unwrap(node.args[1]), locale)}]{$arg}"
+            else -> "\\operatorname{${node.name}}\\left($arg\\right)"
         }
     }
 

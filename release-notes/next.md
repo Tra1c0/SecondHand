@@ -66,3 +66,5 @@
   als Update; Einstellungen, Schlüssel und Gelerntes bleiben erhalten.
 - Behoben: Der Chip „Rechner“ öffnet jetzt den Rechner. Dein Text bleibt dabei stehen;
   „Einfügen“ ersetzt `@math …` durch das Ergebnis.
+- Neu im Rechner: Taste „fx“ mit sin, cos, tan (in Grad), asin, acos, atan, ln, log, √, ∛,
+  n-te Wurzel, Fakultät, π und e. Auch tippbar, etwa `@math wurzel(16)` oder `@math 2pi`.

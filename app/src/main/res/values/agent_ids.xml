@@ -45,6 +45,7 @@
     <item type="id" name="agent_calculator_insert" />
     <item type="id" name="agent_calculator_delete" />
     <item type="id" name="agent_calculator_clear" />
+    <item type="id" name="agent_calculator_functions" />
     <item type="id" name="agent_clipboard_title" />
     <item type="id" name="agent_clipboard_section" />
     <item type="id" name="agent_strip_emojis" />

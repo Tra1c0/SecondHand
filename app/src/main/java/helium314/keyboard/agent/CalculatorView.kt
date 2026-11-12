@@ -43,6 +43,12 @@ class CalculatorView @JvmOverloads constructor(context: Context, attrs: Attribut
     private var textColor = 0
     private var accentTextColor = 0
 
+    private val functionRows by lazy { keyRows(FUNCTION_ROWS, withIds = false) }
+    private val functionsKey by lazy {
+        key("fx", R.id.agent_calculator_functions, functional = true,
+            description = context.getString(R.string.agent_calculator_functions)) { showFunctions(functionRows.visibility != View.VISIBLE) }
+    }
+
     init {
         orientation = VERTICAL
         isClickable = true
@@ -88,22 +94,31 @@ class CalculatorView @JvmOverloads constructor(context: Context, attrs: Attribut
             LayoutParams(LayoutParams.MATCH_PARENT, (40 * dp).toInt()))
 
         insert = key(context.getString(R.string.agent_calculator_insert), R.id.agent_calculator_insert, accent = true) { insertResult() }
-        val rows = listOf(
-            listOf("(", ")", "%", "÷", "⌫"),
-            listOf("7", "8", "9", "×", "√"),
-            listOf("4", "5", "6", "−", "^"),
-            listOf("1", "2", "3", "+", "C"),
-        )
-        for (row in rows) {
-            val line = LinearLayout(context).apply { orientation = HORIZONTAL; isBaselineAligned = false }
-            for (label in row) line.addView(keyFor(label), LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
-            addView(line, LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f))
-        }
+        addView(keyRows(BASIC_ROWS, withIds = true), LayoutParams(LayoutParams.MATCH_PARENT, 0, 4f))
+        addView(functionRows, LayoutParams(LayoutParams.MATCH_PARENT, 0, 4f))
+        functionRows.visibility = View.GONE
         val last = LinearLayout(context).apply { orientation = HORIZONTAL; isBaselineAligned = false }
         last.addView(keyFor("0"), LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
         last.addView(keyFor(","), LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
-        last.addView(insert, LayoutParams(0, LayoutParams.MATCH_PARENT, 3f))
+        last.addView(functionsKey, LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
+        last.addView(insert, LayoutParams(0, LayoutParams.MATCH_PARENT, 2f))
         addView(last, LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f))
+    }
+
+    /** Switches between digits and functions (sin, ln, π …); the last row stays. */
+    fun showFunctions(show: Boolean) {
+        functionRows.visibility = if (show) View.VISIBLE else View.GONE
+        (getChildAt(indexOfChild(functionRows) - 1)).visibility = if (show) View.GONE else View.VISIBLE
+        functionsKey.text = if (show) "123" else "fx"
+    }
+
+    private fun keyRows(rows: List<List<String>>, withIds: Boolean) = LinearLayout(context).apply {
+        orientation = VERTICAL
+        for (row in rows) {
+            val line = LinearLayout(context).apply { orientation = HORIZONTAL; isBaselineAligned = false }
+            for (label in row) line.addView(keyFor(label, withIds), LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
+            addView(line, LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f))
+        }
     }
 
     private fun readColors() {
@@ -127,15 +142,23 @@ class CalculatorView @JvmOverloads constructor(context: Context, attrs: Attribut
         colorsReady = true
     }
 
-    private fun keyFor(label: String): Button = when (label) {
-        "⌫" -> key(label, R.id.agent_calculator_delete, functional = true, description = context.getString(R.string.agent_calculator_delete)) {
-            if (expression.isNotEmpty()) expression.setLength(expression.length - 1); refresh()
+    private fun keyFor(label: String, withIds: Boolean = true): Button = when (label) {
+        "⌫" -> key(label, if (withIds) R.id.agent_calculator_delete else View.NO_ID, functional = true,
+            description = context.getString(R.string.agent_calculator_delete)) {
+            // a function name goes as a whole: "sin(" is one key
+            val name = Regex("[a-z]+\\($").find(expression)
+            if (name != null) expression.setLength(name.range.first)
+            else if (expression.isNotEmpty()) expression.setLength(expression.length - 1)
+            refresh()
         }
-        "C" -> key(label, R.id.agent_calculator_clear, functional = true, description = context.getString(R.string.agent_calculator_clear)) {
+        "C" -> key(label, if (withIds) R.id.agent_calculator_clear else View.NO_ID, functional = true,
+            description = context.getString(R.string.agent_calculator_clear)) {
             expression.setLength(0); refresh()
         }
         else -> key(label, View.NO_ID, functional = !label[0].isDigit() && label != ",") {
-            if (expression.length < MathExpression.MAX_INPUT) expression.append(label)
+            // functions open their parenthesis: "sin" types "sin("
+            val text = if (label in MathExpression.FUNCTIONS) "$label(" else label
+            if (expression.length + text.length <= MathExpression.MAX_INPUT) expression.append(text)
             refresh()
         }
     }
@@ -179,6 +202,7 @@ class CalculatorView @JvmOverloads constructor(context: Context, attrs: Attribut
         expression.setLength(0)
         expression.append(initial.take(MathExpression.MAX_INPUT).replace('*', '×').replace('/', '÷').replace('-', '−'))
         buildStyles()
+        showFunctions(false)
         refresh()
         visibility = View.VISIBLE
         announceForAccessibility(context.getString(R.string.agent_calculator_title))
@@ -236,6 +260,20 @@ class CalculatorView @JvmOverloads constructor(context: Context, attrs: Attribut
     val typed: String get() = expression.toString()
 
     companion object {
+        private val BASIC_ROWS = listOf(
+            listOf("(", ")", "%", "÷", "⌫"),
+            listOf("7", "8", "9", "×", "√"),
+            listOf("4", "5", "6", "−", "^"),
+            listOf("1", "2", "3", "+", "C"),
+        )
+        /** Angles in degrees; `;` separates the arguments of root(x; n). */
+        private val FUNCTION_ROWS = listOf(
+            listOf("sin", "cos", "tan", "(", ")"),
+            listOf("asin", "acos", "atan", "!", "⌫"),
+            listOf("ln", "log", "√", "∛", "root"),
+            listOf("π", "e", "^", ";", "C"),
+        )
+
         fun styleTitle(style: MathExpression.Style) = when (style) {
             MathExpression.Style.EQUATION -> R.string.agent_calculator_style_equation
             MathExpression.Style.RESULT -> R.string.agent_calculator_style_result
@@ -248,6 +286,7 @@ class CalculatorView @JvmOverloads constructor(context: Context, attrs: Attribut
             MathExpression.Reason.NEGATIVE_ROOT -> R.string.agent_calculator_negative_root
             MathExpression.Reason.TOO_LARGE -> R.string.agent_calculator_too_large
             MathExpression.Reason.TOO_LONG -> R.string.agent_calculator_too_long
+            MathExpression.Reason.UNDEFINED -> R.string.agent_calculator_undefined
             MathExpression.Reason.EMPTY, MathExpression.Reason.SYNTAX -> R.string.agent_calculator_incomplete
         }
     }

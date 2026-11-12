@@ -464,7 +464,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   erscheinen; wahrscheinlich startet eine App die Eingabe neu, wenn ihr Feld leer wird, und das
   schließt alle Overlays (Fallstrick P43). `C/MathExpression.kt`: eigener Parser
   (Punkt vor Strich, `^` rechtsassoziativ und stärker als das Vorzeichen, `%` = durch 100,
-  `√`, `²`, `³`), exakt mit `BigDecimal`; Division ohne endliche Dezimaldarstellung, Wurzeln
+  `√`, `∛`, `²`, `³`, `!`, Konstanten `π`/`e`, Funktionen aus `FUNCTIONS` mit `;` als
+  Argumenttrenner, Winkel in Grad, implizites Malnehmen `2π` als `Binary(implicit = true)`),
+  exakt mit `BigDecimal`; Funktionen ohne exakten Weg (Winkel, Logarithmen, n-te Wurzeln) in
+  `double`, auf 12 Stellen gerundet, nur bei kurzem Ergebnis ohne „≈“ (sin 30° = 0,5), Nullen
+  unter 1e-12 werden zu 0 (cos 90°); `UNDEFINED` für ln(0), tan(90°), (−1)!; Division ohne endliche Dezimaldarstellung, Wurzeln
   und gebrochene Exponenten mit 40 Stellen und als ungefähr markiert; Anzeige höchstens 10
   Nachkommastellen. Grenzen gegen Rechenlast: Eingabe 200 Zeichen, Exponent ±999, Abschätzung
   vor `pow`, Beträge über 10^100 sind „zu groß“. Ausgabe in vier `Style`s mit Komma oder Punkt

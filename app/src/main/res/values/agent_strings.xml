@@ -347,4 +347,6 @@
     <string name="agent_command_math_open">Calculator</string>
     <string name="agent_command_math_insert">Insert %s</string>
     <string name="agent_command_expired">The text before the cursor changed. Nothing was replaced.</string>
+    <string name="agent_calculator_functions">Functions</string>
+    <string name="agent_calculator_undefined">Not defined</string>
 </resources>

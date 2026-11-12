@@ -138,7 +138,9 @@ bevor die Kopie fertig ist, wird nichts eingefügt. Noch auf keinem Gerät auspr
 3. Der Chip „Rechner“ öffnet statt der Tasten einen Rechner; dein Text bleibt dabei unverändert. Oben siehst
    du die Rechnung und darunter, was eingefügt würde. Darunter wählst du die Ausgabe: Rechnung,
    nur Ergebnis, LaTeX oder „x² ½“ (Hochzahlen, Brüche). „Einfügen“ ersetzt `@math …` durch das
-   Ergebnis (ist der Befehl inzwischen weg, landet es an der Schreibmarke). „Schließen“ bricht ab,
+   Ergebnis (ist der Befehl inzwischen weg, landet es an der Schreibmarke). Die Taste „fx“ zeigt
+   Funktionen: `sin cos tan` (in Grad), `asin acos atan`, `ln log`, `√ ∛`, `root` (n-te Wurzel,
+   z. B. `root(32;5)`), `!`, `π`, `e`. Auch tippbar: `@math wurzel(16)`, `@math 2pi`. „Schließen“ bricht ab,
    `@math` bleibt dann stehen.
 
 Solange du nichts antippst, passiert nichts; der Befehl bleibt einfach als Text stehen. In
