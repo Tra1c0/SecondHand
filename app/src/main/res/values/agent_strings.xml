@@ -445,4 +445,18 @@
     <string name="agent_places_invalid">Enter a name and an address (name up to 40, address up to 200 characters).</string>
     <string name="agent_places_full">At most %d places can be saved.</string>
     <string name="agent_places_unavailable">Saved places are available only while the device is unlocked.</string>
+    <string name="agent_command_ki">Ask AI: %1$ski question opens the text actions with a preview of exactly your question, the provider and the model. Only a tap on Send sends the question, nothing else from the field, to your own AI provider (API key required). Insert then replaces the typed command by the answer.</string>
+    <string name="agent_command_ki_chip">Ask AI: %s</string>
+    <string name="agent_command_ki_open">Prepare the question for your AI provider: %s</string>
+    <string name="agent_command_ki_source">Question to send</string>
+    <string name="agent_command_ki_count">Question: %1$d characters</string>
+    <string name="agent_command_ki_task">Ask AI</string>
+    <string name="agent_command_ki_confirm">Send exactly the question shown above (%2$d characters) to %3$s using %1$s? Nothing else from the text field is sent. API charges and the provider’s data policy apply.</string>
+    <string name="agent_command_ki_send">Send question to %1$s</string>
+    <string name="agent_command_ki_answer">Answer from the AI</string>
+    <string name="agent_command_ki_ready">Review the answer. Insert replaces the typed command by it.</string>
+    <string name="agent_command_ki_insert">Insert</string>
+    <string name="agent_command_ki_credentials">No API key for the selected provider. Set it up under AI providers (button above), then type the question again.</string>
+    <string name="agent_command_ki_unavailable">The question cannot be sent from this field. Close the panel and type it again.</string>
+    <string name="agent_command_ki_insert_failed">The field changed. Nothing was inserted; you can still copy the answer.</string>
 </resources>

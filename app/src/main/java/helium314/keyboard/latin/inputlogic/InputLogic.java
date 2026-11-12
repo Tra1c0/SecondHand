@@ -159,6 +159,16 @@ public final class InputLogic {
      * the user typed everything around the command.
      */
     public ApplyOutcome replaceCommandText(final String expected, final String replacement, final int position) {
+        return replaceCommandText(expected, replacement, position, false);
+    }
+
+    /**
+     * Same as {@link #replaceCommandText(String, String, int)}; with {@code generated} the replacement
+     * is generated text (an AI answer of `@ki`, stage 24f) and stops learning for the rest of the
+     * session like {@link #applyGeneratedText}.
+     */
+    public ApplyOutcome replaceCommandText(final String expected, final String replacement, final int position,
+            final boolean generated) {
         if (mInputLogicHandler.hasPendingBatchInput()) return ApplyOutcome.REJECTED;
         // a chip built before the last keystroke: refuse before touching the word being typed
         if (expected.isEmpty() || position != mConnection.getExpectedSelectionStart() || mConnection.hasSelection())
@@ -172,7 +182,7 @@ public final class InputLogic {
             mConnection.endBatchEdit();
             resetComposingState(true);
         }
-        return applyGenerated(() -> mConnection.replaceTextBeforeCursorIfUnchanged(expected, replacement, position), false);
+        return applyGenerated(() -> mConnection.replaceTextBeforeCursorIfUnchanged(expected, replacement, position), generated);
     }
 
     /** minSdk 21: no java.util.function. */

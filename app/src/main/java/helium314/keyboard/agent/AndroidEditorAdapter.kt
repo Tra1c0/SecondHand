@@ -107,8 +107,18 @@ class AndroidEditorAdapter(
         if (raw.length > policy.maxSelectionChars) null else raw.toString()
     }.getOrNull()
 
+    /** Stage 24f `@ki`: the typed question as the source of one approved request; reads no text from the editor. */
+    fun captureQuestion(question: String): CaptureResult {
+        val token = session.token ?: return CaptureResult.Denied(DenialReason.NO_EDITOR)
+        val access = access() ?: return CaptureResult.Denied(DenialReason.NO_EDITOR)
+        return policy.captureQuestion(token, access, selectionStart, selectionEnd, question)
+    }
+
     fun isCurrent(snapshot: TextSnapshot): Boolean {
         val access = access() ?: return false
+        // only a question has an empty selection: a selection capture needs start != end
+        if (snapshot.selectionStart == snapshot.selectionEnd)
+            return policy.isCurrentQuestion(snapshot, session.token, access)
         return session.isCurrent(snapshot.token) && policy.editorDenial(access) == null &&
             snapshot.selectionStart == min(selectionStart, selectionEnd) &&
             snapshot.selectionEnd == max(selectionStart, selectionEnd)
@@ -142,6 +152,8 @@ class AndroidEditorAdapter(
     }
 
     fun apply(snapshot: TextSnapshot, result: String): ApplyOutcome {
+        // a question (stage 24f) has no selection to replace
+        if (snapshot.selectionStart == snapshot.selectionEnd) return ApplyOutcome.REJECTED
         if (!isCurrent(snapshot) || policy.resultDenial(result) != null) return ApplyOutcome.REJECTED
         val access = access() ?: return ApplyOutcome.REJECTED
         if (policy.applyDenial(snapshot, session.token, access, selectionStart, selectionEnd, readSelection()) != null)
