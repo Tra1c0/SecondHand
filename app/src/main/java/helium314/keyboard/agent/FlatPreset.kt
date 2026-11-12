@@ -47,6 +47,8 @@ class FlatPreset(private val context: Context) {
         // clipboard header: back and title are fixed, these keys follow as round buttons
         Settings.PREF_CLIPBOARD_TOOLBAR_KEYS to toolbarPref(CLIPBOARD_KEYS, withCloseHistory = true),
         Settings.PREF_LAYOUT_PREFIX + LayoutType.FUNCTIONAL.name to FUNCTIONAL_LAYOUT,
+        Settings.PREF_LAYOUT_PREFIX + LayoutType.SYMBOLS.name to SYMBOLS_LAYOUT,
+        Settings.PREF_LAYOUT_PREFIX + LayoutType.MORE_SYMBOLS.name to MORE_SYMBOLS_LAYOUT,
         Settings.PREF_FONT_SCALE to 1f,
         Settings.PREF_HINT_FONT_SCALE to 1f,
         portraitKey(Settings.PREF_KEYBOARD_HEIGHT_SCALE_PREFIX, 2) to heightScale(),
@@ -121,6 +123,8 @@ class FlatPreset(private val context: Context) {
     companion object {
         const val BACKUP_NAME = "agent_flat_preset_backup"
         const val FUNCTIONAL_LAYOUT = "functional_keys_flat"
+        const val SYMBOLS_LAYOUT = "symbols_flat"
+        const val MORE_SYMBOLS_LAYOUT = "symbols_shifted_flat"
         private const val BACKUP_PRESENT = "present"
         private const val BACKUP_KEYS = "keys"
         private const val VALUE_PREFIX = "value:"

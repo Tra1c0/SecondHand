@@ -127,7 +127,27 @@ class FlatStyleRenderTest {
         }
         val (keyboard, _) = render(KeyboardElement.ALPHABET, url, "keyboard-url.png", KeyboardMode.URL)
         assertTrue(keyboard.sortedKeys.any { it.label == "/" })
-        render(KeyboardElement.SYMBOLS, EditorInfo(), "keyboard-symbols.png")
+        val (symbols, _) = render(KeyboardElement.SYMBOLS, EditorInfo(), "keyboard-symbols.png")
+        val (more, _) = render(KeyboardElement.SYMBOLS_SHIFTED, EditorInfo(), "keyboard-more-symbols.png")
+        fun rows(keyboard: Keyboard) = keyboard.sortedKeys.groupBy { it.y }.toSortedMap().values.map { row -> row.sortedBy { it.x } }
+        fun labels(row: List<helium314.keyboard.keyboard.Key>) = row.map { it.label ?: it.code.toString() }
+        // stage 23a: like the reference, page 1 has the digits, page 2 its own first row and < > at the bottom
+        val first = rows(symbols)
+        assertEquals(listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0"), labels(first[0]))
+        assertEquals(listOf("@", "#", "€", "_", "&", "-", "+", "(", ")", "/"), labels(first[1]))
+        assertEquals(listOf("*", "\"", "'", ":", ";", "!", "?"), labels(first[2]).drop(1).dropLast(1))
+        assertEquals(4, first.size)
+        val second = rows(more)
+        assertEquals(listOf("~", "`", "|", "•", "√", "π", "÷", "×", "§", "Δ"), labels(second[0]))
+        assertEquals(listOf("£", "¥", "$", "¢", "^", "°", "=", "{", "}", "\\"), labels(second[1]))
+        assertEquals(listOf("%", "©", "®", "™", "✓", "[", "]"), labels(second[2]).drop(1).dropLast(1))
+        // bottom rows: ABC, comma or <, the light 1234 key, space, period or >, enter; no dpad key
+        fun bottom(row: List<helium314.keyboard.keyboard.Key>) = row.map { it.code }
+        assertTrue(bottom(first[3]).contains(KeyCode.NUMPAD) && !bottom(first[3]).contains(KeyCode.DPAD))
+        assertTrue(bottom(second[3]).contains(KeyCode.NUMPAD))
+        assertEquals(helium314.keyboard.keyboard.Key.BACKGROUND_TYPE_NORMAL, first[3].single { it.code == KeyCode.NUMPAD }.backgroundType)
+        assertEquals(listOf("<", ">"), labels(second[3]).filter { it == "<" || it == ">" })
+        assertEquals(4, second.size)
     }
 
     @Test fun stripShowsFiveEvenlySpacedButtonsWithTheLastOneInACircle() {

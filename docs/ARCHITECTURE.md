@@ -188,7 +188,10 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
   `keyboardTheme`.
 - `Key.java`: `KeyParams.mVerticalGapScale` (Lücke unter einer Taste je Taste skalierbar) und
   der Zustand `KeyBackgroundState.LAYOUT_SWITCH` (`state_single`) für die Tasten „?123“/„ABC“.
-- `KeyboardParser.kt`: ruft im flachen Stil `FlatStyle.shortenNumberRow` auf.
+- `KeyboardParser.kt`: ruft im flachen Stil `FlatStyle.shortenNumberRow` auf; auf der zweiten
+  Symbolseite (`SYMBOLS_SHIFTED`) gibt es im flachen Stil keine Zahlenreihe (23a); die
+  Buchstaben-Hinweise kommen bei `symbols_flat` weiter aus dem Standard-Layout `symbols`.
+- `LayoutParser.kt`: `parseLayout` nimmt optional einen festen Layoutnamen (für die Hinweise).
 - `KeyboardView.java`: Schrift für Beschriftung und Hinweise, rechtsbündige Hinweise,
   angehobene Kleinbuchstaben, jeweils nur im flachen Stil.
 - `MainKeyboardView.java`: Sprachkürzel auf der Leertaste mit Punkt als Trenner und Schrift,
@@ -446,7 +449,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - Icons `sym_keyboard_{shift,shifted,shift_lock,delete,smiley,go,return}_flat.xml`: Vektoren im
   Pixelmaß der Vorlage (Viewport 91 = 28 dp), deshalb keine Skalierung beim Zeichnen.
 - `assets/layouts/functional/functional_keys_flat.json`: wie `functional_keys.json`, aber die
-  Emoji-Taste hat `"type": "character"` und damit den hellen Tastenhintergrund.
+  Emoji- und die 1234-Taste haben `"type": "character"` (heller Hintergrund), keine Pfeiltaste,
+  und auf der zweiten Symbolseite `<` und `>` statt Komma und Punkt.
+- `assets/layouts/symbols/symbols_flat.txt` und `assets/layouts/more_symbols/symbols_shifted_flat.txt`:
+  Symbolseiten nach der Gboard-Vorlage (23a), von `FlatPreset` gesetzt.
 - `K/agent/FlatPreset.kt`: schreibt 24 Darstellungs-, Layout- und Leisten-Einstellungen für das Hochformat
   (Liste: `values()`), berechnet die Höhenskala aus Bildschirmbreite und Standardhöhe und
   sichert die ersetzten Werte in `agent_flat_preset_backup` (siehe `docs/STORAGE.md`): beim ersten
@@ -744,7 +750,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (210 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (213 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -780,7 +786,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/keyboard/clipboard/` (3): ClipboardAdapter, ClipboardHistoryView, FlatClipboard
 - `K/keyboard/emoji/` (1): EmojiSearchActivity
 - `K/keyboard/internal/` (1): KeyboardIconsSet
-- `K/keyboard/internal/keyboard_parser/` (1): KeyboardParser
+- `K/keyboard/internal/keyboard_parser/` (2): KeyboardParser, LayoutParser
 - `K/keyboard/internal/keyboard_parser/floris/` (1): KeyCode
 - `K/latin/` (9): App, ClipboardHistoryEntry, ClipboardHistoryManager, ClipboardThumbnails,
   DictionaryFacilitatorImpl, InputView, LatinIME, RichInputConnection, Suggest
@@ -803,6 +809,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `app/src/debugNoMinify/res/values/` (3): clip_provider, gesture_data, strings
 - `app/src/main/` (1): AndroidManifest
 - `app/src/main/assets/layouts/functional/` (1): functional_keys_flat
+- `app/src/main/assets/layouts/more_symbols/` (1): symbols_shifted_flat
+- `app/src/main/assets/layouts/symbols/` (1): symbols_flat
 - `app/src/main/res/drawable/` (20): btn_keyboard_key_flat, btn_keyboard_key_flat_pill,
   btn_keyboard_key_flat_rect, btn_keyboard_key_functional_flat, ic_agent_actions, ic_agent_dictate,
   ic_skill_1, ic_skill_2, ic_skill_3, sym_keyboard_clipboard_flat, sym_keyboard_delete_flat,

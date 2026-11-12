@@ -1165,6 +1165,14 @@ APK installiert war: weiterhin kein Gerätelauf.
   rückgängig gemacht werden können; doppelt abgezogenes Padding (heute 0, also ohne Wirkung).
   Offen: kein Test über den echten `InputLogic`-Haken.
 
+## Etappe23a — Symbolseiten wie Gboard
+
+- `FlatStyleRenderTest` rendert beide Symbolseiten mit der Vorlage und prüft jede Reihe gegen
+  die Screenshots des Owners: Seite 1 Ziffern, `@ # € _ & - + ( ) /`, `* " ' : ; ! ?`; Seite 2
+  `~ ` | • √ π ÷ × § Δ`, `£ ¥ $ ¢ ^ ° = { } \`, `% © ® ™ ✓ [ ]`, `<` und `>` unten; die
+  1234-Taste hell, keine Pfeiltaste; je vier Reihen. `FlatStyleTest` prüft weiter die Hinweise
+  der Buchstaben (q zeigt %). `ParserTest` (Upstream) unverändert grün.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

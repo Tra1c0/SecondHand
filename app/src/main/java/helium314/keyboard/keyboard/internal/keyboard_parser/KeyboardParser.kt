@@ -19,6 +19,7 @@ import helium314.keyboard.keyboard.internal.keyboard_parser.floris.TextKeyData
 import helium314.keyboard.latin.common.isEmoji
 import helium314.keyboard.latin.define.DebugFlags
 import helium314.keyboard.latin.settings.Settings
+import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.latin.utils.LayoutType
 import helium314.keyboard.latin.utils.POPUP_KEYS_LAYOUT
 import helium314.keyboard.latin.utils.POPUP_KEYS_NUMBER
@@ -87,7 +88,8 @@ class KeyboardParser(private val params: KeyboardParams, private val context: Co
             keysInRows.forEachIndexed { i, row ->
                 row.forEach { it.mHeight *= if (i == keysInRows.lastIndex) bottomRowScale else otherRowScale }
             }
-            if (params.mThemeId == KeyboardTheme.THEME_ID_FLAT && params.mId.element.isAlphaOrSymbol && params.mId.numberRowEnabled)
+            if (params.mThemeId == KeyboardTheme.THEME_ID_FLAT && params.mId.element.isAlphaOrSymbol && params.mId.numberRowEnabled
+                    && params.mId.element != KeyboardElement.SYMBOLS_SHIFTED)
                 FlatStyle.shortenNumberRow(keysInRows)
         }
 
@@ -108,7 +110,9 @@ class KeyboardParser(private val params: KeyboardParams, private val context: Co
         addNumberRowOrPopupKeys(baseKeys, numberRow)
         if (element.isAlphabet)
             addSymbolPopupKeys(baseKeys)
-        if (element.isAlphaOrSymbol && params.mId.numberRowEnabled) {
+        // fork, stage 23a: in the Flat style the second symbol page has its own first row instead of digits
+        val flatMoreSymbols = params.mThemeId == KeyboardTheme.THEME_ID_FLAT && element == KeyboardElement.SYMBOLS_SHIFTED
+        if (element.isAlphaOrSymbol && params.mId.numberRowEnabled && !flatMoreSymbols) {
             val newLabelFlags = defaultLabelFlags or
                     if (Settings.getValues().mShowNumberRowHints) 0 else Key.LABEL_FLAGS_DISABLE_HINT_LABEL
             baseKeys.add(0, numberRow.mapTo(mutableListOf()) { it.copy(newLabelFlags = newLabelFlags) })
@@ -297,7 +301,11 @@ class KeyboardParser(private val params: KeyboardParams, private val context: Co
     }
 
     private fun addSymbolPopupKeys(baseKeys: MutableList<MutableList<KeyData>>) {
-        val layout = LayoutParser.parseLayout(LayoutType.SYMBOLS, params, context)
+        // fork, stage 23a: the Flat symbol page drops the row % \ | = [ ] ... that the letter hints
+        // come from; the hints keep following the default symbol layout, as in the reference
+        val flatSymbols = params.mThemeId == KeyboardTheme.THEME_ID_FLAT
+            && (params.mId.subtype.layouts[LayoutType.SYMBOLS] ?: Settings.readDefaultLayoutName(LayoutType.SYMBOLS, context.prefs())) == FLAT_SYMBOLS
+        val layout = LayoutParser.parseLayout(LayoutType.SYMBOLS, params, context, if (flatSymbols) "symbols" else null)
         layout.forEachIndexed { i, row ->
             val baseRow = baseKeys.getOrNull(i) ?: return@forEachIndexed
             row.forEachIndexed { j, key ->
@@ -346,3 +354,6 @@ class KeyboardParser(private val params: KeyboardParams, private val context: Co
     }
 
 }
+
+/** Symbol layout of the Flat preset, see FlatPreset. */
+private const val FLAT_SYMBOLS = "symbols_flat"
