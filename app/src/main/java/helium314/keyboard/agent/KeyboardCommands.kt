@@ -82,6 +82,9 @@ object KeyboardCommands {
         CharacterCommand,
         EmojiCommand,
         ConvertCommand,
+        DateCommand,
+        EventCommand,
+        PlaceCommand,
     )
 
     /** Replaced in tests. */

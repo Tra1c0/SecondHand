@@ -20,6 +20,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import dev.agentkeyboard.core.CommandSyntax
 import helium314.keyboard.agent.KeyboardCommands
+import helium314.keyboard.agent.PlaceCommand
 import helium314.keyboard.latin.R
 import helium314.keyboard.settings.SearchSettingsScreen
 
@@ -95,6 +96,7 @@ fun AgentCommandsScreen(onClickBack: () -> Unit) {
                     if (permission in refused) Text(stringResource(R.string.agent_commands_permission_refused))
                 }
             }
+            if (KeyboardCommands.registry.any { it.name == PlaceCommand.name }) SavedPlacesSection()
         }
     }
 }
