@@ -107,6 +107,7 @@ object KeyboardCommands {
         DateCommand,
         EventCommand,
         PlaceCommand,
+        helium314.keyboard.agent.commands.QrCommand,
     )
 
     /** Replaced in tests. */

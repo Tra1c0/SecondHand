@@ -460,4 +460,12 @@
     <string name="agent_command_ki_credentials">Kein API-Schlüssel für den gewählten Anbieter. Richte ihn unter KI-Anbieter ein (Knopf oben) und tippe die Frage danach erneut.</string>
     <string name="agent_command_ki_unavailable">Die Frage kann aus diesem Feld nicht gesendet werden. Schließe das Panel und tippe sie erneut.</string>
     <string name="agent_command_ki_insert_failed">Das Feld hat sich geändert. Es wurde nichts eingefügt; du kannst die Antwort weiterhin kopieren.</string>
+    <string name="agent_command_qr">QR-Code: %sqr Text erstellt einen QR-Code für den Text, lokal auf dem Gerät ohne Netz. In Feldern, die Bilder annehmen, fügt „QR-Code einfügen“ das Bild ein; sonst öffnet „QR-Code teilen“ das Teilen-Menü. Vor einem Tipp wird nichts erstellt oder gesendet.</string>
+    <string name="agent_command_qr_insert">QR-Code einfügen</string>
+    <string name="agent_command_qr_insert_description">QR-Code einfügen für: %s</string>
+    <string name="agent_command_qr_share">QR-Code teilen</string>
+    <string name="agent_command_qr_share_description">QR-Code teilen für: %s</string>
+    <string name="agent_command_qr_label">QR-Code</string>
+    <string name="agent_command_qr_failed">Der QR-Code konnte nicht erstellt werden.</string>
+    <string name="agent_command_qr_none">Keine App kann den QR-Code teilen.</string>
 </resources>
