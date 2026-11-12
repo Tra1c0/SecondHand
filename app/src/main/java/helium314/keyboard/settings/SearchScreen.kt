@@ -6,6 +6,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,6 +24,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -32,6 +34,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -43,6 +46,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -119,6 +124,8 @@ fun <T: Any?> SearchScreen(
     itemContent: @Composable (T) -> Unit,
     icon: @Composable (() -> Unit)? = null,
     menu: List<Pair<String, () -> Unit>>? = null,
+    // fork: large title on the page background that collapses while the content scrolls up
+    largeTitle: Boolean = false,
     content: @Composable (ColumnScope.() -> Unit)? = null,
 ) {
     // searchText and showSearch should have the same remember or rememberSaveable
@@ -126,9 +133,11 @@ fun <T: Any?> SearchScreen(
     // keyboard in unexpected situations such as going back from another screen, which is rather annoying
     var searchText by remember { mutableStateOf(TextFieldValue()) }
     var showSearch by remember { mutableStateOf(false) }
+    val scrollBehavior = if (largeTitle) TopAppBarDefaults.exitUntilCollapsedScrollBehavior() else null
     Scaffold(contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top))
     { innerPadding ->
-        Column(Modifier.fillMaxSize().padding(innerPadding)) {
+        Column(Modifier.fillMaxSize().padding(innerPadding)
+            .then(if (scrollBehavior != null) Modifier.nestedScroll(scrollBehavior.nestedScrollConnection) else Modifier)) {
 
             fun setShowSearch(value: Boolean) {
                 showSearch = value
@@ -139,19 +148,16 @@ fun <T: Any?> SearchScreen(
                 else onClickBack()
             }
             Surface(
-                color = MaterialTheme.colorScheme.surfaceContainer,
+                color = if (largeTitle) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.surfaceContainer,
             ) {
                 Column {
-                    TopAppBar(
-                        title = title,
-                        windowInsets = WindowInsets(0),
-                        navigationIcon = {
+                    val navigationIcon: @Composable () -> Unit = {
                             BackButton {
                                 if (showSearch) setShowSearch(false)
                                 else onClickBack()
                             }
-                        },
-                        actions = {
+                        }
+                    val actions: @Composable RowScope.() -> Unit = {
                             if (icon == null)
                                 IconButton(onClick = { setShowSearch(!showSearch) }) { SearchIcon() }
                             else
@@ -174,7 +180,25 @@ fun <T: Any?> SearchScreen(
                                         }
                                     }
                                 }
-                        },
+                        }
+                    if (scrollBehavior != null)
+                        LargeTopAppBar(
+                            title = title,
+                            modifier = Modifier.testTag(LARGE_TITLE_BAR_TAG),
+                            windowInsets = WindowInsets(0),
+                            navigationIcon = navigationIcon,
+                            actions = actions,
+                            scrollBehavior = scrollBehavior,
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.background,
+                                scrolledContainerColor = MaterialTheme.colorScheme.background,
+                            ),
+                        )
+                    else TopAppBar(
+                        title = title,
+                        windowInsets = WindowInsets(0),
+                        navigationIcon = navigationIcon,
+                        actions = actions,
                     )
                     ExpandableSearchField(
                         expanded = showSearch,
@@ -211,6 +235,9 @@ fun <T: Any?> SearchScreen(
         }
     }
 }
+
+/** fork: test tag of the collapsing title bar shown with `largeTitle` */
+const val LARGE_TITLE_BAR_TAG = "agent_large_title_bar"
 
 // from StreetComplete
 /** Expandable text field that can be dismissed and requests focus when it is expanded */

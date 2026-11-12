@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -20,11 +21,11 @@ import helium314.keyboard.latin.R
 import helium314.keyboard.latin.utils.JniUtils
 import helium314.keyboard.latin.utils.SubtypeLocaleUtils.displayName
 import helium314.keyboard.latin.utils.SubtypeSettings
-import helium314.keyboard.latin.utils.NextScreenIcon
+import helium314.keyboard.settings.SearchScreen
 import helium314.keyboard.settings.SearchSettingsScreen
+import helium314.keyboard.settings.SettingsActivity
 import helium314.keyboard.latin.utils.Theme
 import helium314.keyboard.settings.initPreview
-import helium314.keyboard.settings.preferences.Preference
 import helium314.keyboard.latin.utils.previewDark
 import helium314.keyboard.settings.screens.gesturedata.END_DATE_EPOCH_MILLIS
 import helium314.keyboard.settings.screens.gesturedata.TWO_WEEKS_IN_MILLIS
@@ -52,97 +53,68 @@ fun MainSettingsScreen(
     onClickAgentScreenshots: () -> Unit = {},
     onClickAgentCommands: () -> Unit = {},
 ) {
-    SearchSettingsScreen(
+    val enabledSubtypes = SubtypeSettings.getEnabledSubtypes(true)
+    // fork: entries as a list, rendered in the upstream or the modern look (AgentMainSettings)
+    val entries = listOfNotNull(
+        MainSettingsEntry(stringResource(R.string.agent_ai_title), R.drawable.ic_agent_actions, onClickAgentAi,
+            modernIcon = R.drawable.ic_agent_settings_ai),
+        MainSettingsEntry(stringResource(R.string.agent_skills_title), R.drawable.ic_skill_1, onClickAgentSkills,
+            modernIcon = R.drawable.ic_agent_settings_skills),
+        MainSettingsEntry(stringResource(R.string.agent_workflows_title), R.drawable.ic_agent_actions, onClickAgentWorkflows,
+            modernIcon = R.drawable.ic_agent_settings_workflows),
+        MainSettingsEntry(stringResource(R.string.agent_dictation_title), R.drawable.ic_agent_dictate, onClickAgentDictation),
+        MainSettingsEntry(stringResource(R.string.agent_screenshot_title), R.drawable.sym_keyboard_paste, onClickAgentScreenshots,
+            modernIcon = R.drawable.ic_agent_settings_screenshot),
+        MainSettingsEntry(stringResource(R.string.agent_commands_title), R.drawable.ic_agent_actions, onClickAgentCommands,
+            modernIcon = R.drawable.ic_agent_settings_commands),
+        MainSettingsEntry(stringResource(R.string.agent_learning_title), R.drawable.ic_settings_correction, onClickAgentLearning,
+            modernIcon = R.drawable.ic_agent_settings_learning),
+        MainSettingsEntry(stringResource(R.string.agent_profiles_title), R.drawable.ic_settings_appearance, onClickAgentProfiles,
+            modernIcon = R.drawable.ic_agent_settings_profiles),
+        MainSettingsEntry(
+            stringResource(R.string.language_and_layouts_title), R.drawable.ic_settings_languages, onClickLanguage,
+            description = enabledSubtypes.joinToString(", ") { it.displayName() },
+        ),
+        MainSettingsEntry(stringResource(R.string.settings_screen_preferences), R.drawable.ic_settings_preferences, onClickPreferences),
+        MainSettingsEntry(stringResource(R.string.settings_screen_appearance), R.drawable.ic_settings_appearance, onClickAppearance),
+        MainSettingsEntry(stringResource(R.string.settings_screen_toolbar), R.drawable.ic_settings_toolbar, onClickToolbar,
+            modernIcon = R.drawable.ic_agent_settings_toolbar),
+        if (JniUtils.sHaveGestureLib)
+            MainSettingsEntry(stringResource(R.string.settings_screen_gesture), R.drawable.ic_settings_gesture, onClickGestureTyping)
+        else null,
+        // we don't even show the menu if data gathering phase ended more than 2 weeks ago
+        if (JniUtils.sHaveGestureLib && System.currentTimeMillis() < END_DATE_EPOCH_MILLIS + TWO_WEEKS_IN_MILLIS)
+            MainSettingsEntry(stringResource(R.string.gesture_data_screen), R.drawable.ic_settings_gesture, onClickDataGathering)
+        else null,
+        MainSettingsEntry(stringResource(R.string.settings_screen_correction), R.drawable.ic_settings_correction, onClickTextCorrection),
+        MainSettingsEntry(stringResource(R.string.settings_screen_secondary_layouts), R.drawable.ic_settings_layout, onClickLayouts,
+            modernIcon = R.drawable.ic_agent_settings_layouts),
+        MainSettingsEntry(stringResource(R.string.dictionary_settings_category), R.drawable.ic_dictionary, onClickDictionaries),
+        MainSettingsEntry(stringResource(R.string.settings_screen_advanced), R.drawable.ic_settings_advanced, onClickAdvanced),
+        MainSettingsEntry(stringResource(R.string.settings_screen_about), R.drawable.ic_settings_about, onClickAbout),
+    )
+    if (agentMainSettingsModern()) {
+        AgentMainSettingsTheme {
+            // same search as SearchSettingsScreen, with the large collapsing title
+            SearchScreen(
+                onClickBack = onClickBack,
+                title = { Text(stringResource(R.string.ime_settings)) },
+                filteredItems = { SettingsActivity.settingsContainer.filter(it) },
+                itemContent = { it.Preference() },
+                content = { AgentMainSettingsList(entries) },
+                largeTitle = true,
+            )
+        }
+    } else SearchSettingsScreen(
         onClickBack = onClickBack,
         title = stringResource(R.string.ime_settings),
         settings = emptyList(),
     ) {
-        val enabledSubtypes = SubtypeSettings.getEnabledSubtypes(true)
         Scaffold(contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)) { innerPadding ->
             Column(
                 Modifier.verticalScroll(rememberScrollState()).then(Modifier.padding(innerPadding))
             ) {
-                Preference(
-                    name = stringResource(R.string.agent_ai_title),
-                    onClick = onClickAgentAi,
-                    icon = R.drawable.ic_agent_actions
-                ) { NextScreenIcon() }
-                Preference(name = stringResource(R.string.agent_skills_title), onClick = onClickAgentSkills,
-                    icon = R.drawable.ic_skill_1) { NextScreenIcon() }
-                Preference(name = stringResource(R.string.agent_workflows_title), onClick = onClickAgentWorkflows,
-                    icon = R.drawable.ic_agent_actions) { NextScreenIcon() }
-                Preference(name = stringResource(R.string.agent_dictation_title), onClick = onClickAgentDictation,
-                    icon = R.drawable.ic_agent_dictate) { NextScreenIcon() }
-                Preference(name = stringResource(R.string.agent_screenshot_title), onClick = onClickAgentScreenshots,
-                    icon = R.drawable.sym_keyboard_paste) { NextScreenIcon() }
-                Preference(name = stringResource(R.string.agent_commands_title), onClick = onClickAgentCommands,
-                    icon = R.drawable.ic_agent_actions) { NextScreenIcon() }
-                Preference(name = stringResource(R.string.agent_learning_title), onClick = onClickAgentLearning,
-                    icon = R.drawable.ic_settings_correction) { NextScreenIcon() }
-                Preference(
-                    name = stringResource(R.string.agent_profiles_title),
-                    onClick = onClickAgentProfiles,
-                    icon = R.drawable.ic_settings_appearance
-                ) { NextScreenIcon() }
-                Preference(
-                    name = stringResource(R.string.language_and_layouts_title),
-                    description = enabledSubtypes.joinToString(", ") { it.displayName() },
-                    onClick = onClickLanguage,
-                    icon = R.drawable.ic_settings_languages
-                ) { NextScreenIcon() }
-                Preference(
-                    name = stringResource(R.string.settings_screen_preferences),
-                    onClick = onClickPreferences,
-                    icon = R.drawable.ic_settings_preferences
-                ) { NextScreenIcon() }
-                Preference(
-                    name = stringResource(R.string.settings_screen_appearance),
-                    onClick = onClickAppearance,
-                    icon = R.drawable.ic_settings_appearance
-                ) { NextScreenIcon() }
-                Preference(
-                    name = stringResource(R.string.settings_screen_toolbar),
-                    onClick = onClickToolbar,
-                    icon = R.drawable.ic_settings_toolbar
-                ) { NextScreenIcon() }
-                if (JniUtils.sHaveGestureLib)
-                    Preference(
-                        name = stringResource(R.string.settings_screen_gesture),
-                        onClick = onClickGestureTyping,
-                        icon = R.drawable.ic_settings_gesture
-                    ) { NextScreenIcon() }
-                // we don't even show the menu if data gathering phase ended more than 2 weeks ago
-                if (JniUtils.sHaveGestureLib && System.currentTimeMillis() < END_DATE_EPOCH_MILLIS + TWO_WEEKS_IN_MILLIS)
-                    Preference(
-                        name = stringResource(R.string.gesture_data_screen),
-                        onClick = onClickDataGathering,
-                        icon = R.drawable.ic_settings_gesture
-                    ) { NextScreenIcon() }
-                Preference(
-                    name = stringResource(R.string.settings_screen_correction),
-                    onClick = onClickTextCorrection,
-                    icon = R.drawable.ic_settings_correction
-                ) { NextScreenIcon() }
-                Preference(
-                    name = stringResource(R.string.settings_screen_secondary_layouts),
-                    onClick = onClickLayouts,
-                    icon = R.drawable.ic_settings_layout
-                ) { NextScreenIcon() }
-                Preference(
-                    name = stringResource(R.string.dictionary_settings_category),
-                    onClick = onClickDictionaries,
-                    icon = R.drawable.ic_dictionary
-                ) { NextScreenIcon() }
-                Preference(
-                    name = stringResource(R.string.settings_screen_advanced),
-                    onClick = onClickAdvanced,
-                    icon = R.drawable.ic_settings_advanced
-                ) { NextScreenIcon() }
-                Preference(
-                    name = stringResource(R.string.settings_screen_about),
-                    onClick = onClickAbout,
-                    icon = R.drawable.ic_settings_about
-                ) { NextScreenIcon() }
+                UpstreamMainSettingsList(entries)
             }
         }
     }
