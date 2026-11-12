@@ -37,6 +37,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - **Flacher Stil** – Tastenstil „Flat“, Farbsatz „Flach schwarz“ und die Vorlage, die beides mit Größen einstellt.
 - **Diktat** – Diktieren über den On-device-Erkenner des Systems: zuhören, Vorschau, Einfügen erst nach eigenem Klick.
 - **Lerndaten** – Was die Tastatur aus dem Tippen lernt: pausieren, zählen, exportieren, löschen. Alles auf dem Gerät.
+- **Updates** – Opt-in-Prüfung auf neue Builds im öffentlichen Release-Repository, Download und Installation nur nach eigenem Klick.
 - **Unveränderter Upstream** – Was ohne Änderung von HeliBoard übernommen ist; nur nach Ordnern beschrieben.
 - **Build, Tests, CI, Docs-System** – Lokaler Build, Prüfbefehle, Workflows und die Docs-Prüfung.
 - **Fallstricke** – Fehler, die schon passiert sind oder nahelagen: bei jedem Review prüfen.
@@ -123,9 +124,11 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - `Profiles.kt`: `ProfileGroup`, `PreferenceValue`, `ConfigurationProfile`, `ProfileStore`.
 - `PendingBatchGate.kt`: sperrt Swipe-Batches unter Epoch/Lock, wird in `InputLogicHandler.java`
   benutzt (Fallstrick P5).
+- `UpdateReleases.kt`: Regeln der Update-Prüfung (Abschnitt „Updates“): `REPOSITORY`, Tag
+  `build-<n>`, Asset-Namen, erwartete Download-URL, `newest`, `isNewer`, `parseChecksum`.
 - Tests in `CT/`: `AiTextActionTest`, `EditorPolicyTest`, `LocalTextActionsTest`,
   `PendingBatchGateTest`, `SkillBindingTest`, `ToolTest`, `WorkflowTest`,
-  `InsertionAnchorTest`, `StyledTranslationTest`. Befehl: `core-tests`.
+  `InsertionAnchorTest`, `StyledTranslationTest`, `UpdateReleasesTest`. Befehl: `core-tests`.
 
 ## Geänderte Upstream-Dateien
 
@@ -275,6 +278,10 @@ Speicher, Datenschutz und Identität:
   `getPreviewColors` für die Kacheln (`withBackgroundImage = false`: kein Dekodieren des
   Hintergrundbilds je Kachel).
 - `AndroidManifest.xml` (24e): Dienst `ScreenReaderService` mit `BIND_ACCESSIBILITY_SERVICE`.
+- `AndroidManifest.xml` (Update-Prüfung): `POST_NOTIFICATIONS`, `REQUEST_INSTALL_PACKAGES`, Dienst
+  `UpdateCheckJobService` (`BIND_JOB_SERVICE`) und Empfänger `UpdateInstallReceiver`, beide nicht
+  exportiert und nicht `directBootAware`. `SettingsNavHost.kt`/`MainSettingsScreen.kt`: Ziel und
+  Eintrag „Updates“ (`agent_updates`, auch in `AgentPreferences.SETTINGS_DESTINATIONS`).
 - App-Identität: `app/build.gradle.kts` (App-ID `dev.personal.agentkeyboard`, Version 0.1.0,
   APK-Name, Lint-Baseline `lint-baseline-upstream.xml`), `settings.gradle`
   (`:agent-core`), `clip_provider.xml` und `gesture_data.xml` (eigene Provider-Authorities,
@@ -816,6 +823,41 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   rechnet mit den normalen Tastenpositionen. Oberfläche: Abschnitt „Trefferzonen“ in `AgentLearningScreen.kt`.
   Tests: `TouchModelTest`.
 
+## Updates
+
+> Opt-in-Prüfung auf neue Builds im öffentlichen Release-Repository, Download und Installation nur nach eigenem Klick.
+
+- Quelle: öffentliches Repository `Tra1c0/AgenticKeyboard` (`UpdateReleases.REPOSITORY` in
+  `C/UpdateReleases.kt`, im Workflow `RELEASE_REPOSITORY`). Kein Token, kein `Authorization`-Header.
+- `A/updates/GitHubUpdateClient.kt`: `UpdateHttp` (eigener OkHttp-Client, nicht der KI-Client,
+  ohne automatische Redirects und Retries; Connect 15 s, Read 30 s) und `GitHubUpdateClient`:
+  `GET …/releases?per_page=10` (höchstens 2 MiB, 30 s), strenges Parsen, `.sha256`-Asset
+  (höchstens 4 KiB), APK-Download über `browser_download_url` mit selbst verfolgten Redirects
+  (höchstens 5, nur HTTPS), Größe ≤ 120 MB und genau die gelistete Größe, SHA-256 beim Schreiben.
+  `UpdateError`/`UpdateFailure` sind neutral, kein Antworttext wird gezeigt oder geloggt.
+- `C/UpdateReleases.kt` nimmt nur Assets mit genau der erwarteten Download-URL
+  (`https://github.com/<REPOSITORY>/releases/download/build-<n>/<Name>`).
+- `A/updates/Updates.kt`: `check` (speichert das Ergebnis), `downloadAndInstall` (fragt die API
+  erneut, lädt, vergleicht SHA-256, prüft mit `ApkCheck` Paket, Zertifikate und höhere
+  Versionsnummer, erst dann `ApkInstallSession`; die Datei wird immer gelöscht), `cleanup`,
+  `runScheduled` (nur entsperrt, nur bei eingeschaltetem Schalter, sonst Job abbrechen;
+  Benachrichtigung einmal je Build), `setDaily`.
+- `A/updates/UpdateInstaller.kt`: `ApkIdentity`, `ApkCheck` (gleiche nicht leere Menge der
+  SHA-256 der aktuellen Signaturzertifikate, `apkContentsSigners` ab Android 9),
+  `AndroidApkInspector` (`getPackageArchiveInfo`), `PackageInstallerSession` (Session mit
+  `setAppPackageName`, Rückmeldung per explizitem `PendingIntent`), `UpdateInstallReceiver`
+  (startet bei `STATUS_PENDING_USER_ACTION` den Bestätigungsdialog des Systems).
+- `A/updates/UpdateCheckJob.kt`: `UpdateScheduler` (JobScheduler, 24 h, Netz nötig, persistiert),
+  `UpdateCheckJobService`, `UpdateNotifier` (Kanal „Updates“, öffnet nur die Seite über
+  `OPEN_SETTINGS_DESTINATION` mit `FLAG_ACTIVITY_CLEAR_TASK`, P39).
+- `A/updates/UpdateSettings.kt`: CE-Einstellungen `agent_updates` (`UpdateStatus`).
+- `K/settings/screens/AgentUpdatesScreen.kt`: Seite „Updates“ (Schalter, „Jetzt prüfen“, Ergebnis,
+  Download-Knopf mit Fortschritt und Abbrechen, Weg zu „Unbekannte Apps installieren“, Hinweis
+  für Freunde). Texte in `agent_update_strings.xml`, Icon `ic_agent_settings_updates.xml`.
+- Tests: `AT/UpdateCheckTest.kt` (Anfrage ohne Zugangsdaten, strenges Parsen, Redirect nur
+  HTTPS, Prüfsummen-, Paket- und Zertifikatsfehler, Größen, Schalter und Job, Benachrichtigung
+  einmal je Build), `CT/UpdateReleasesTest.kt`.
+
 ## Unveränderter Upstream
 
 > Was ohne Änderung von HeliBoard übernommen ist; nur nach Ordnern beschrieben.
@@ -845,7 +887,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `.github/workflows/agent-apk.yml` baut von Hand gestartet die installierbare, mit dem
   Schlüssel des Owners signierte APK (`docs/BUILD.md` → Installierbare APK); dafür liest
   `app/build.gradle.kts` `AGENT_KEYSTORE_FILE`, `AGENT_KEYSTORE_PASSWORD`, `AGENT_KEY_ALIAS` und
-  `AGENT_VERSION_CODE` aus der Umgebung. Von Upstream
+  `AGENT_VERSION_CODE` aus der Umgebung. Mit dem Secret `RELEASES_TOKEN` legt er dasselbe Release
+  im öffentlichen Repository `RELEASE_REPOSITORY` an (Abschnitt „Updates“), ohne Secret nur eine
+  Warnung. Von Upstream
   übernommen: `build-debug-apk.yml` (nur manuell) und `build-test-auto.yml` (bei Pull Requests;
   ruft den nicht existierenden Task `testRunTestsUnitTest` auf, siehe `docs/BUILD.md`).
 - Docs-System: `scripts/docs_sync.py` (Konfiguration `scripts/docs_sync.json`),
@@ -991,13 +1035,18 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P46** Ein neuer Parameter an `SearchScreen` oder `SearchSettingsScreen` muss vor `content`
   stehen, sonst brechen alle Aufrufe mit nachgestelltem Lambda (P41). `captureToImage` läuft bei
   Compose-Seiten in Robolectric in einen Timeout (wie P15): die `decorView` selbst zeichnen.
+- **P47** Die Update-Prüfung folgt Redirects selbst (`followRedirects(false)`): OkHttp würde
+  sonst auch auf `http://` folgen dürfen. Nur Assets mit der erwarteten Download-URL zulassen
+  und vor der Installation immer Paketname und Signaturzertifikate gegen die installierte App
+  prüfen; die SHA-256 schützt nur gegen Übertragungsfehler, nicht gegen ein manipuliertes
+  Release.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (296 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (308 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -1019,7 +1068,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
-- `AT/` (54): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
+- `AT/` (55): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, CalculatorViewTest, CalendarToolLauncherTest,
   ClipCommandTest, CommandReplaceTest, ContactCommandTest, CorrectionMemoryTest,
@@ -1030,17 +1080,18 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   MainSettingsLookTest, ManualWorkflowDraftTest, MoreCommandsTest, MoreProvidersTest,
   OpenAiProviderTest, ScreenshotChipTest, SelectedTextCommitTest, SkillBindingStoreTest,
   SkillSettingsTest, SnipCommandTest, TestRunJournal, ToolRunnerTest, TouchModelTest,
-  TypoMemoryTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
-  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
+  WorkflowCommandTest, WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest,
+  WorkflowStoreTest
 - `AT/commands/` (4): QrCommandTest, ScreenReaderServiceTest, TranslateCommandTest, UrlCommandTest
-- `C/` (24): AiTextAction, ApplyOutcome, CivilDate, Commands, DateFormatting, EditorSession,
+- `C/` (25): AiTextAction, ApplyOutcome, CivilDate, Commands, DateFormatting, EditorSession,
   EmojiNames, EventParser, ExecutionPolicy, LocalTextActions, MathExpression, ModelProvider,
   PendingBatchGate, Places, Profiles, SkillBinding, SpecialCharacters, StyledTranslation,
-  SymbolTable, TextCondition, Tool, UnitConversion, UrlDetector, Workflow
-- `CT/` (18): AiTextActionTest, CommandSyntaxTest, DateFormattingTest, EditorPolicyTest,
+  SymbolTable, TextCondition, Tool, UnitConversion, UpdateReleases, UrlDetector, Workflow
+- `CT/` (19): AiTextActionTest, CommandSyntaxTest, DateFormattingTest, EditorPolicyTest,
   EventParserTest, InsertionAnchorTest, LocalTextActionsTest, MathExpressionTest,
   PendingBatchGateTest, PlacesTest, QuestionCaptureTest, SkillBindingTest, StyledTranslationTest,
-  SymbolTableTest, ToolTest, UnitConversionTest, UrlDetectorTest, WorkflowTest
+  SymbolTableTest, ToolTest, UnitConversionTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,
   KeyboardActionListenerImpl, KeyboardSwitcher, KeyboardTheme, KeyboardView, MainKeyboardView,
   PointerTracker
@@ -1060,11 +1111,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/latin/suggestions/` (2): FlatStrip, SuggestionStripView
 - `K/latin/utils/` (1): ToolbarUtils
 - `K/settings/` (3): SearchScreen, SettingsActivity, SettingsNavHost
-- `K/settings/screens/` (17): AgentAiScreen, AgentCommandsScreen, AgentDesignScreen,
+- `K/settings/screens/` (18): AgentAiScreen, AgentCommandsScreen, AgentDesignScreen,
   AgentDictationScreen, AgentLearningScreen, AgentMainSettings, AgentProfilesScreen, AgentRunStatus,
   AgentScreenReaderSection, AgentScreenshotScreen, AgentSkillsScreen, AgentSnippetsSection,
-  AgentWorkflowsScreen, AppearanceScreen, MainSettingsScreen, WorkflowBuilderDialog,
-  WorkflowDraftProtection
+  AgentUpdatesScreen, AgentWorkflowsScreen, AppearanceScreen, MainSettingsScreen,
+  WorkflowBuilderDialog, WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
 - `app/` (1): build.gradle
@@ -1074,19 +1125,19 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `app/src/main/assets/layouts/functional/` (1): functional_keys_flat
 - `app/src/main/assets/layouts/more_symbols/` (1): symbols_shifted_flat
 - `app/src/main/assets/layouts/symbols/` (1): symbols_flat
-- `app/src/main/res/drawable/` (29): btn_keyboard_key_flat, btn_keyboard_key_flat_pill,
+- `app/src/main/res/drawable/` (30): btn_keyboard_key_flat, btn_keyboard_key_flat_pill,
   btn_keyboard_key_flat_rect, btn_keyboard_key_functional_flat, ic_agent_actions, ic_agent_dictate,
   ic_agent_settings_ai, ic_agent_settings_commands, ic_agent_settings_layouts,
   ic_agent_settings_learning, ic_agent_settings_profiles, ic_agent_settings_screenshot,
-  ic_agent_settings_skills, ic_agent_settings_toolbar, ic_agent_settings_workflows, ic_skill_1,
-  ic_skill_2, ic_skill_3, sym_keyboard_clipboard_flat, sym_keyboard_delete_flat,
-  sym_keyboard_go_flat, sym_keyboard_grid_flat, sym_keyboard_mic_flat, sym_keyboard_pen_flat,
-  sym_keyboard_return_flat, sym_keyboard_shift_flat, sym_keyboard_shift_lock_flat,
-  sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
+  ic_agent_settings_skills, ic_agent_settings_toolbar, ic_agent_settings_updates,
+  ic_agent_settings_workflows, ic_skill_1, ic_skill_2, ic_skill_3, sym_keyboard_clipboard_flat,
+  sym_keyboard_delete_flat, sym_keyboard_go_flat, sym_keyboard_grid_flat, sym_keyboard_mic_flat,
+  sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
+  sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (1): agent_strings
-- `app/src/main/res/values/` (8): agent_attrs, agent_ids, agent_strings, attrs, clip_provider,
-  donottranslate, gesture_data, themes-flat
+- `app/src/main/res/values-de/` (2): agent_strings, agent_update_strings
+- `app/src/main/res/values/` (9): agent_attrs, agent_ids, agent_strings, agent_update_strings,
+  attrs, clip_provider, donottranslate, gesture_data, themes-flat
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (1): Shadows

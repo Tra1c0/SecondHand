@@ -52,6 +52,7 @@ fun MainSettingsScreen(
     onClickAgentDictation: () -> Unit = {},
     onClickAgentScreenshots: () -> Unit = {},
     onClickAgentCommands: () -> Unit = {},
+    onClickAgentUpdates: () -> Unit = {},
 ) {
     val enabledSubtypes = SubtypeSettings.getEnabledSubtypes(true)
     // fork: entries as a list, rendered in the upstream or the modern look (AgentMainSettings)
@@ -71,6 +72,7 @@ fun MainSettingsScreen(
             modernIcon = R.drawable.ic_agent_settings_learning),
         MainSettingsEntry(stringResource(R.string.agent_profiles_title), R.drawable.ic_settings_appearance, onClickAgentProfiles,
             modernIcon = R.drawable.ic_agent_settings_profiles),
+        MainSettingsEntry(stringResource(R.string.agent_updates_title), R.drawable.ic_agent_settings_updates, onClickAgentUpdates),
         MainSettingsEntry(
             stringResource(R.string.language_and_layouts_title), R.drawable.ic_settings_languages, onClickLanguage,
             description = enabledSubtypes.joinToString(", ") { it.displayName() },

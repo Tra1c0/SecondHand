@@ -34,6 +34,20 @@ Verlassen oder Speichern geleert. Das Fenster bleibt mit FLAG_SECURE geschützt.
 Mutable Kopien werden nach Gebrauch gelöscht; unveränderliche Strings und
 interne Kopien in Android/HTTP lassen sich nicht zuverlässig aus dem RAM löschen.
 
+## Update-Prüfung
+
+- Kein Zugangsdatum: Das Release-Repository `Tra1c0/AgenticKeyboard` ist öffentlich, die App
+  sendet keinen `Authorization`-Header und speichert keinen Token.
+- CE-Einstellungen `agent_updates` (nicht in den exportierbaren Tastatureinstellungen): Schalter
+  der täglichen Suche (`daily`, Standard aus), zuletzt gemeldeter Build (`notified_build`) und
+  das letzte Ergebnis (`status`, `status_number`, `status_error`: nur Art, Build-Nummer oder
+  Fehlercode, nie eine Antwort von GitHub).
+- Download nach `cacheDir/agent_update/update.apk` im CE-Kontext, höchstens 120 MB, Prüfsumme
+  höchstens 4 KiB, Release-Liste höchstens 2 MiB. Die Datei wird nach der Übergabe an den
+  Installer, bei jedem Fehler und beim nächsten Öffnen der Seite oder Lauf des Jobs gelöscht.
+- Der tägliche Job (JobScheduler, ID `0x41475550`, persistiert über Neustarts) liest nichts vor
+  dem ersten Entsperren; Dienst und Empfänger sind nicht `directBootAware`.
+
 ## Prüflimits
 
 JVM-/Robolectric-Tests verwenden für den Algorithmus einen injizierten AES-Schlüssel.

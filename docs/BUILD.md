@@ -91,6 +91,19 @@ nutzen einen Debug-Schlüssel, der in jeder neuen Umgebung anders ist; sie sind 
 - Zertifikat des Owners (SHA-256):
   `D5:6E:8F:00:11:D7:80:63:37:90:8C:FA:A7:36:E5:D4:F8:FE:25:49:14:5A:5B:37:5D:FB:BB:1D:18:63:60:2A`.
   Der Workflow gibt das Zertifikat der APK im Log aus.
+- Öffentliches Release-Repository `Tra1c0/AgenticKeyboard` (Name in `UpdateReleases.REPOSITORY`
+  und in `RELEASE_REPOSITORY` des Workflows): Der Workflow legt dort zusätzlich dasselbe Release
+  `build-<Laufnummer>` mit APK und `.sha256` an (kein Vorab-Release, Text aus
+  `release-notes/next.md`). Die In-App-Prüfung und Freunde lesen nur dort, ohne Token. Fehlt das
+  Secret `RELEASES_TOKEN`, überspringt der Workflow diesen Schritt mit einer Warnung; der Build
+  schlägt deshalb nicht fehl.
+- Einmalige Einrichtung durch den Owner: Das öffentliche Repository braucht mindestens einen
+  Commit (z. B. eine README), sonst kann `gh release create` dort kein Tag anlegen. Dann auf
+  GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens →
+  „Generate new token“: Resource owner `Tra1c0`, Repository access „Only select repositories“ →
+  nur `Tra1c0/AgenticKeyboard`, Repository permissions → Contents: „Read and write“, sonst nichts.
+  Den Token im privaten Repository unter Settings → Secrets and variables → Actions als Repository
+  secret `RELEASES_TOKEN` speichern. Läuft er ab, neuen Token anlegen und das Secret ersetzen.
 - Geht der Schlüssel verloren, lässt sich keine Version mehr als Update installieren: einmal
   deinstallieren (alle Daten weg), neuen Schlüssel als Secret anlegen. Der Owner hebt eine Kopie
   im Passwortmanager auf; Keystores werden nie committet.

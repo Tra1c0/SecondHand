@@ -8,8 +8,11 @@ object AgentPreferences {
     const val OPEN_SETTINGS_DESTINATION = "agent_open_settings_destination"
     /** The commands page (SettingsDestination.AgentCommands), opened by commands to ask for permissions or services. */
     const val COMMANDS_DESTINATION = "agent_commands"
+    /** The Updates page (SettingsDestination.AgentUpdates), opened by the update notification. */
+    const val UPDATES_DESTINATION = "agent_updates"
     val SETTINGS_DESTINATIONS = setOf("appearance", "toolbar", "agent_design", COMMANDS_DESTINATION,
-        "preferences", "agent_workflows") // stage 24f: clipboard history setting, workflows
+        "preferences", "agent_workflows", // stage 24f: clipboard history setting, workflows
+        UPDATES_DESTINATION)
     /** Keeps what was learned but adds nothing new. Different from switching learning off, which deletes. */
     const val LEARNING_PAUSED = "agent_learning_paused"
     /** Never replace a known word automatically (default off: known words may still be corrected when clearly wrong). */

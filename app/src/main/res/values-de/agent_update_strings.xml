@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="agent_updates_title">Updates</string>
+    <string name="agent_updates_description">Optional: sucht auf GitHub im öffentlichen Release-Repository nach einem neueren Build dieser App. Ohne Konto und ohne Token: gefragt wird nur api.github.com (und beim Installieren der Download-Server von GitHub), nie beim Tippen.</string>
+    <string name="agent_updates_unlock">Entsperre das Gerät, um die Update-Einstellungen zu ändern.</string>
+    <string name="agent_updates_repository">Repository: %s</string>
+    <string name="agent_updates_installed">Installiert: Build %d</string>
+    <string name="agent_updates_daily">Täglich nach Updates suchen</string>
+    <string name="agent_updates_daily_summary">Etwa einmal am Tag und nur mit Netzverbindung. Zeigt eine Benachrichtigung, wenn es einen neuen Build gibt.</string>
+    <string name="agent_updates_notifications_refused">Benachrichtigungen sind nicht erlaubt. Die tägliche Suche läuft trotzdem, kann dir einen neuen Build aber nicht melden.</string>
+    <string name="agent_updates_check_now">Jetzt prüfen</string>
+    <string name="agent_updates_checking">Prüfe …</string>
+    <string name="agent_updates_status_none">Noch nicht geprüft.</string>
+    <string name="agent_updates_status_current">Aktuell: Build %d</string>
+    <string name="agent_updates_status_available">Build %d verfügbar</string>
+    <string name="agent_updates_install">Build %d herunterladen und installieren</string>
+    <string name="agent_updates_downloading">Lade herunter: %1$d von %2$d MB</string>
+    <string name="agent_updates_verifying">Prüfe Prüfsumme, Paket und Signatur …</string>
+    <string name="agent_updates_install_started">Geprüft. Bestätige die Installation im Systemdialog.</string>
+    <string name="agent_updates_install_permission">Android installiert das Update nur, wenn diese App unbekannte Apps installieren darf. Erlaube es und komm dann hierher zurück.</string>
+    <string name="agent_updates_install_permission_open">Einstellung öffnen</string>
+    <string name="agent_updates_cancel">Abbrechen</string>
+    <string name="agent_updates_error_locked">Das Gerät ist gesperrt.</string>
+    <string name="agent_updates_error_storage">Der sichere Speicher ist nicht verfügbar.</string>
+    <string name="agent_updates_error_not_found">Release-Repository nicht gefunden.</string>
+    <string name="agent_updates_error_rate_limit">GitHub begrenzt gerade die Anfragen. Versuche es später.</string>
+    <string name="agent_updates_error_service">GitHub hat mit einem Fehler geantwortet. Versuche es später.</string>
+    <string name="agent_updates_error_network">Keine Verbindung zu GitHub.</string>
+    <string name="agent_updates_error_timeout">GitHub hat nicht rechtzeitig geantwortet.</string>
+    <string name="agent_updates_error_invalid_response">Unerwartete Antwort von GitHub.</string>
+    <string name="agent_updates_error_too_large">Die Datei ist größer als erlaubt.</string>
+    <string name="agent_updates_error_checksum">Die Prüfsumme stimmt nicht. Der Download wurde gelöscht und nicht installiert.</string>
+    <string name="agent_updates_error_wrong_package">Die Datei ist nicht diese App. Sie wurde gelöscht und nicht installiert.</string>
+    <string name="agent_updates_error_wrong_signature">Die Datei ist mit einem anderen Schlüssel signiert. Sie wurde gelöscht und nicht installiert.</string>
+    <string name="agent_updates_error_not_newer">Kein neuerer Build verfügbar.</string>
+    <string name="agent_updates_error_install">Die Installation wurde abgebrochen oder ist fehlgeschlagen.</string>
+    <string name="agent_updates_channel">Updates</string>
+    <string name="agent_updates_notification">Agent Keyboard: Build %d verfügbar</string>
+    <string name="agent_updates_notification_text">Öffne die Seite „Updates“, um ihn herunterzuladen und zu installieren.</string>
+    <string name="agent_updates_friends">Für Freunde: Die APK einmal von %s installieren (Android fragt, ob der Browser Apps installieren darf), danach kommen Updates hier in der App. Alternativ kann Obtainium dieser Adresse folgen.</string>
+</resources>

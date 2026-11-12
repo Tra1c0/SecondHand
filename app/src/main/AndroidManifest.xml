@@ -21,6 +21,9 @@ SPDX-License-Identifier: Apache-2.0 AND GPL-3.0-only
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <!-- declared so that "selected photos only" can be told apart and explained -->
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+    <!-- opt-in update check: notification about a new build, install after the system's confirmation -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application android:label="@string/english_ime_name"
             android:name="helium314.keyboard.latin.App"
@@ -78,6 +81,15 @@ SPDX-License-Identifier: Apache-2.0 AND GPL-3.0-only
             <meta-data android:name="android.accessibilityservice"
                     android:resource="@xml/agent_screen_reader" />
         </service>
+
+        <!-- Opt-in daily update check (only while switched on) and the installer's result; never before unlock. -->
+        <service android:name="helium314.keyboard.agent.updates.UpdateCheckJobService"
+                 android:permission="android.permission.BIND_JOB_SERVICE"
+                 android:directBootAware="false"
+                 android:exported="false" />
+        <receiver android:name="helium314.keyboard.agent.updates.UpdateInstallReceiver"
+                  android:directBootAware="false"
+                  android:exported="false" />
 
         <!-- Activities -->
         <activity android:name="helium314.keyboard.settings.SettingsActivity"

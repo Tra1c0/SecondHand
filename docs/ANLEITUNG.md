@@ -28,6 +28,32 @@ nichts geprüft. Rechne beim ersten Versuch mit Fehlern und behalte deine bisher
 Prüfsumme: Neben der APK liegt im Release eine Datei `.apk.sha256`. Wer sichergehen will, vergleicht sie mit
 `sha256sum` der kopierten Datei.
 
+## Updates in der App
+
+Jeder Build erscheint zusätzlich im öffentlichen Repository
+[github.com/Tra1c0/AgenticKeyboard/releases](https://github.com/Tra1c0/AgenticKeyboard/releases)
+(Einrichtung einmalig: `docs/BUILD.md` → Installierbare APK). Die App braucht dafür kein Konto
+und keinen Token.
+
+1. Einstellungen → „Updates“. Die Seite zeigt den installierten Build und das Repository.
+2. „Jetzt prüfen“: Darunter steht „Aktuell: Build 6“, „Build 7 verfügbar“ oder eine Meldung.
+3. Ist ein neuer Build da, tippe „Build 7 herunterladen und installieren“. Darf die App noch
+   keine Apps installieren, zeigt die Seite „Einstellung öffnen“: dort „Agent Keyboard Lab“
+   erlauben und zurückkommen. Die App lädt die Datei, prüft Prüfsumme, Paketname und Signatur und
+   übergibt sie an Android; du bestätigst die Installation im Systemdialog. Passt etwas nicht,
+   wird die Datei gelöscht und nichts installiert.
+4. Optional „Täglich nach Updates suchen“ (anfangs aus): Etwa einmal am Tag und nur mit Netz
+   fragt die App nach einem neuen Build. Ab Android 13 fragt Android beim Einschalten, ob die App
+   Benachrichtigungen zeigen darf. Ein neuer Build meldet sich einmal als „Agent Keyboard: Build 7
+   verfügbar“; ein Tipp öffnet die Seite „Updates“, geladen wird erst nach deinem Tipp dort.
+   Ausschalten beendet die tägliche Suche sofort.
+
+Für Freunde: Die APK einmal von der Release-Seite oben im Browser des Telefons herunterladen und
+installieren (Android fragt, ob der Browser Apps installieren darf). Danach kommen Updates wie
+oben in der App. Wer lieber eine Update-App nutzt, kann in Obtainium die Adresse der
+Release-Seite eintragen. Updates gehen nur, wenn die APK mit demselben Schlüssel signiert ist wie
+die installierte App.
+
 ## Als Tastatur einschalten
 
 1. Android-Einstellungen → System → Tastatur → Bildschirmtastatur → Tastaturen verwalten

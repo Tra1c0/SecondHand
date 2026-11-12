@@ -83,3 +83,10 @@
 - Besser: Die Vorschau von `@ki` zeigt die ganze Frage, nicht nur sechs Zeilen.
 - Besser: `@clip` zeigt vertraulich kopierte Einträge nie; `@wf` merkt sich den Workflow, bis du
   Text markierst; `@contact` sucht im Hintergrund.
+- Neu: Einstellungen → Updates. „Jetzt prüfen“ sucht im öffentlichen Repository
+  `Tra1c0/AgenticKeyboard` nach einem neuen Build, ohne Konto und ohne Token. Optional (aus):
+  „Täglich nach Updates suchen“ mit Benachrichtigung. „Build … herunterladen und installieren“
+  prüft Prüfsumme, Paket und Signatur und übergibt an den Android-Installer, der nachfragt.
+  Freunde installieren die APK einmal von github.com/Tra1c0/AgenticKeyboard/releases.
+- Neue Berechtigungen: Benachrichtigungen (nur für die tägliche Update-Suche) und „Apps
+  installieren“ (nur für Updates, Android fragt jedes Mal).
