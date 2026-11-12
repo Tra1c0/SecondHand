@@ -49,6 +49,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 
 @RunWith(RobolectricTestRunner::class)
 @Config(shadows = [
@@ -827,6 +828,19 @@ class InputLogicTest {
         setCursorPosition(3, 6) // a selection: never replaced
         assertEquals(dev.agentkeyboard.core.ApplyOutcome.REJECTED, inputLogic.replaceCommandText("@ma", "@math ", 6))
         assertEquals("hi @ma", text)
+    }
+
+    @Test fun typedCommandNameIsNeitherLearnedNorGuardedAfterwards() {
+        helium314.keyboard.agent.KeyboardCommands.load(latinIME)
+        lastAddedWord = ""
+        chainInput("@math ")
+        assertEquals("@math ", text)
+        assertNotEquals("math", lastAddedWord)
+        assertTrue(helium314.keyboard.agent.KeyboardCommands.guardsTextBefore("hi @math "))
+        assertTrue(helium314.keyboard.agent.KeyboardCommands.guardsTextBefore("hi @ma"))
+        assertFalse(helium314.keyboard.agent.KeyboardCommands.guardsTextBefore("hi @math 2*3")) // @math does not protect its argument
+        assertFalse(helium314.keyboard.agent.KeyboardCommands.guardsTextBefore("mail@math"))
+        assertFalse(helium314.keyboard.agent.KeyboardCommands.guardsTextBefore("hi @lewin"))
     }
 
     @Test fun typedCommandChipFromBeforeTheLastKeystrokeLeavesTheWordAlone() {

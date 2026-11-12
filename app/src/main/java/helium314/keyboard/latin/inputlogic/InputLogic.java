@@ -1811,7 +1811,9 @@ public final class InputLogic {
             final String suggestion, @NonNull final NgramContext ngramContext) {
         if (mAgentHistorySuppressed) return;
         // a typed command (e.g. "@math") is no word of the user's
-        if (helium314.keyboard.agent.KeyboardCommands.isCommandWord(suggestion)) return;
+        if (helium314.keyboard.agent.KeyboardCommands.isCommandWord(suggestion)
+                || helium314.keyboard.agent.KeyboardCommands.guardsTextBefore(
+                        mConnection.getTextBeforeCursor(dev.agentkeyboard.core.CommandSyntax.LOOKBACK + 1, 0))) return;
         // For addition to user history we want suggestions (even if just for autocorrect) or a gestured word.
         // That's to avoid unintended additions in some sensitive fields, or fields that
         // expect to receive non-words.

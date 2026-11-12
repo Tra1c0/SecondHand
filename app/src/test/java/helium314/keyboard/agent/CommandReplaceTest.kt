@@ -29,6 +29,7 @@ class CommandReplaceTest {
     private var ignoreRegion = false
     private var failCommit = false
     private var commits = 0
+    private var noExtractedText = false
 
     @Before fun setup() {
         field = EditText(app).apply { setText("Preis @math 2*3 ok"); setSelection(15) }
@@ -41,7 +42,7 @@ class CommandReplaceTest {
                 if (failCommit) return false
                 return super.commitText(text, newCursorPosition)
             }
-            override fun getExtractedText(request: ExtractedTextRequest?, flags: Int) = ExtractedText().apply {
+            override fun getExtractedText(request: ExtractedTextRequest?, flags: Int) = if (noExtractedText) null else ExtractedText().apply {
                 startOffset = 0
                 selectionStart = field.selectionStart
                 selectionEnd = field.selectionEnd
@@ -83,6 +84,17 @@ class CommandReplaceTest {
         ignoreRegion = true
         assertEquals(ApplyOutcome.UNKNOWN, rich.replaceTextBeforeCursorIfUnchanged("@math 2*3", "6", 15))
         assertEquals(-1, composing())
+    }
+
+    @Test fun withoutExtractedTextTheCharacterBeforeTheCommandIsChecked() {
+        noExtractedText = true
+        ignoreRegion = true // the editor inserts at the cursor instead of replacing
+        assertEquals(ApplyOutcome.UNKNOWN, rich.replaceTextBeforeCursorIfUnchanged("@math 2*3", "", 15))
+        assertEquals(ApplyOutcome.REJECTED, rich.replaceTextBeforeCursorIfUnchanged("@math 2*3", "6", 15)) // caches were dropped
+        ignoreRegion = false
+        setup()
+        assertEquals(ApplyOutcome.SUBMITTED, rich.replaceTextBeforeCursorIfUnchanged("@math 2*3", "6", 15))
+        assertEquals("Preis 6 ok", field.text.toString())
     }
 
     @Test fun aFailedCommitLeavesNoComposingRegionOverTheCommand() {

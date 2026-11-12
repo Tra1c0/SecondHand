@@ -420,6 +420,13 @@ public final class RichInputConnection implements PrivateCommandPerformer {
                 || (long) start + replacement.length() > Integer.MAX_VALUE
                 || mExpectedSelStart != position || mExpectedSelEnd != position)
             return ApplyOutcome.REJECTED;
+        // the character before the command, from the cache: after the replacement it must still be
+        // there, also in editors that report no extracted text
+        final CharSequence cachedBefore = getTextBeforeCursor(expected.length() + 1, 0);
+        final boolean hasPrevious = start > 0;
+        if (hasPrevious && (cachedBefore == null || cachedBefore.length() != expected.length() + 1))
+            return ApplyOutcome.REJECTED;
+        final char previous = hasPrevious ? cachedBefore.charAt(0) : 0;
         boolean attempted = false;
         boolean accepted = false;
         boolean uncertain = false;
@@ -437,8 +444,9 @@ public final class RichInputConnection implements PrivateCommandPerformer {
                             && connection.commitText(replacement, 1);
                     // an editor that ignored the region would have inserted instead of replaced
                     if (accepted) {
-                        final CharSequence after = connection.getTextBeforeCursor(replacement.length(), 0);
-                        if (after == null || !TextUtils.equals(replacement, after.toString())
+                        final CharSequence after = connection.getTextBeforeCursor(replacement.length() + 1, 0);
+                        final String expectedAfter = hasPrevious ? previous + replacement : replacement;
+                        if (after == null || !TextUtils.equals(expectedAfter, after.toString())
                                 || !editorCursorMatches(connection, start + replacement.length()))
                             uncertain = true;
                     }

@@ -443,6 +443,18 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `Host.replace` nur seinen eigenen Text ersetzen, und nur wenn der Editor ihn unverändert vor
   der Schreibmarke zeigt. Die Leiste zeigt die Chips über `setExternalSuggestionView`; der
   nächste normale Vorschlag ersetzt sie.
+- Schutz vor Korrektur und Lernen: Ohne URL-Erkennung gehört das Präfix nicht zum getippten
+  Wort, die Engine sieht nur `math`. `guardsTextBefore` entscheidet deshalb nach dem Text vor der
+  Schreibmarke (Name angefangen oder vollständig ohne Argument, oder Argument eines Befehls mit
+  `protectsArgument`). `InputLogic` prüft das beim Lernen direkt; für `Suggest` (Worker-Thread)
+  setzt `updateGuard` bei jeder Leistenaktualisierung ein `@Volatile`-Flag, auch ohne sichtbare
+  Leiste.
+- Ersetzen (`RichInputConnection.replaceTextBeforeCursorIfUnchanged`): vorher relativer Text und,
+  wo der Editor es meldet, die absolute Schreibmarke (`getExtractedText`); nachher das Zeichen
+  vor dem Befehl plus Ersatz und wieder die Schreibmarke, sonst UNKNOWN. UNKNOWN sperrt die
+  Eingabe über `AgentEditorController.onUnclearEdit`; ein unklarer Versuch lässt nie einen
+  Composing-Bereich stehen (P25). Ein Chip von vor dem letzten Tastendruck wird abgelehnt, bevor
+  das getippte Wort abgeschlossen wird.
 - `K/settings/screens/AgentCommandsScreen.kt`: Hauptschalter, Präfix, Schalter je Befehl.
 - `@math` (24b): `MathCommand` in `A/KeyboardCommands.kt` bietet bei gültigem Argument einen
   Ergebnis-Chip (ersetzt den Befehl durch den formatierten Text) und „Rechner“ (löscht den
@@ -459,7 +471,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `editor.captureAnchor` und `editor.insert` wie das Diktat (Prüfung von Token, Position,
   Schutzgrenzen; generierter Text, also ohne Lernen). `isBlockingInput` gilt, solange der Rechner
   offen ist; `close()` und jeder Editorwechsel schließen ihn.
-- Tests: `CommandSyntaxTest` und `MathExpressionTest` (`CT/`), `KeyboardCommandsTest` und
+- Tests: `CommandSyntaxTest` und `MathExpressionTest` (`CT/`), `KeyboardCommandsTest`, `CommandReplaceTest` und
   `CalculatorViewTest` (`AT/`), `InputLogicTest.typedCommand*`.
 
 ## Act Builder
@@ -851,7 +863,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (227 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (228 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -869,17 +881,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
-- `AT/` (44): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (45): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
-  ApprovedWorkflowRunnerTest, CalculatorViewTest, CalendarToolLauncherTest, CorrectionMemoryTest,
-  DebugPrivacyTest, DictationSessionTest, DictationUiTest, EncryptedActionRunStoreTest,
-  EncryptedCredentialStoreTest, FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest,
-  FlatStyleTest, ForkIdentityTest, InsertAtCursorTest, JournaledModelCallTest, KeyboardCommandsTest,
-  KeyboardProfileStoreTest, LearningDataTest, ManualWorkflowDraftTest, MoreProvidersTest,
-  OpenAiProviderTest, ScreenshotChipTest, SelectedTextCommitTest, SkillBindingStoreTest,
-  SkillSettingsTest, TestRunJournal, ToolRunnerTest, TouchModelTest, TypoMemoryTest,
-  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowConditionSummaryTest,
-  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  ApprovedWorkflowRunnerTest, CalculatorViewTest, CalendarToolLauncherTest, CommandReplaceTest,
+  CorrectionMemoryTest, DebugPrivacyTest, DictationSessionTest, DictationUiTest,
+  EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, FlatClipboardTest, FlatMenuTest,
+  FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, InsertAtCursorTest,
+  JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LearningDataTest,
+  ManualWorkflowDraftTest, MoreProvidersTest, OpenAiProviderTest, ScreenshotChipTest,
+  SelectedTextCommitTest, SkillBindingStoreTest, SkillSettingsTest, TestRunJournal, ToolRunnerTest,
+  TouchModelTest, TypoMemoryTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
+  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `C/` (14): AiTextAction, ApplyOutcome, Commands, EditorSession, ExecutionPolicy, LocalTextActions,
   MathExpression, ModelProvider, PendingBatchGate, Profiles, SkillBinding, TextCondition, Tool,
   Workflow

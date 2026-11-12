@@ -9,23 +9,24 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 ## Aktueller Stand
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
-- In Arbeit: Etappe 23 (Gboard-Details, Auftrag mit Screenshots): 23a Symbolseiten, 23b Emojis
-  auf den Symbolseiten, 23c Laufschrift im Menü, 23d Screenshot-Pille (mit Prüfer) gebaut.
-  Offen: 23e Einstellungen im modernen Look, 23f Design-Seite mit Vorschau-Kacheln.
-- Fertig: Etappen 0–17a, 18a, 19a–19e, 20a–20b, 22a–22b, 23a–23d, Gerätetest G1.
+- In Arbeit: Etappe 24 (Befehle wie `@math`, Auftrag vom 2026-11-12, vor 23e/23f). Gebaut und
+  geprüft (mit Prüfer und Nachprüfung): 24a Gerüst, 24b `@math` mit Rechner.
+- Offen in 24: 24c `@contact`, 24d `@url` (Feld, Zwischenablage), 24e `@url` liest den Bildschirm
+  per Bedienungshilfe (vom Owner freigegeben, nur auf Befehl), 24f weitere Befehle.
+- Danach: 23e, 23f, 20c, 22c, 21, 19f.
+- Fertig: Etappen 0–17a, 18a, 19a–19e, 20a–20b, 22a–22b, 23a–23d, 24a–24b, Gerätetest G1.
 - Letzter Build: 0.1.0 Debug, `artifacts/…-universal.apk` (alle ABIs), nicht im Repo.
-- Geprüft: Agent-Suite 296/0, Build, Lint nach 23d; Vollregression zuletzt nach 22b (478 Tests,
-  7 bekannte Fehler). Etappen 19–23 sind auf keinem Gerät gelaufen.
-- Danach: 23e, 23f, dann 20c (gelernte Paare ansehen/löschen/exportieren), 22c (Trefferzonen auch im
-  Korrekturmodell), 21 (Termine und Orte), 19f (Look am Telefon nachjustieren).
-- Wartet auf den Owner: APK installieren, Schalter einschalten, Bildschirmfotos und Eindrücke
-  vom Xiaomi; OAuth-Zugänge für 16c; Branch `main`.
+- Geprüft nach 24b: siehe Build-Log. Etappen 19–24 sind auf keinem Gerät gelaufen.
+- Wartet auf den Owner: APK installieren und Eindrücke vom Xiaomi; OAuth-Zugänge für 16c;
+  Branch `main`.
 
 ## Offene Punkte
 
-0. **Nächste Sitzung: 23e, dann 23f** (Vorlage in ROADMAP.md → 23). Die Screenshots des Owners
-   liegen nicht im Repo; die Beschreibung in ROADMAP ist alles, was davon übrig ist. Bei Bedarf
-   den Owner um die Bilder bitten. Offene Frage an den Owner: was „Embeds“ heißen soll (U5).
+0. **Nächste Sitzung: 24c–24e** (Reihenfolge in ROADMAP.md → 24), danach 23e, 23f. Für 24e am
+   Xiaomi: nach der Installation „Eingeschränkte Einstellungen zulassen“, Dienst selbst
+   einschalten. Bei 24c/24d `protectsArgument` bewusst setzen (Namen und freie Texte schützen).
+   Zu 23e/23f: Der Owner hat die Screenshots am 2026-11-12 erneut geschickt; was darauf zu sehen
+   ist, steht jetzt in ROADMAP.md → 23 (die Bilder selbst liegen nicht im Repo). Offene Frage an den Owner: was „Embeds“ heißen soll (U5).
    Bewusst nicht geändert nach Review 23d: Screenshot-Kopien leben nur 10 Minuten.
 1. **Gerätetest teilweise erledigt (G1).** Im Emulator geprüft und in Ordnung: Installation,
    Tippen, Löschen, Rad, Panel, Ersetzen, Schutz bei geänderter Auswahl, Passwortfeld,
@@ -160,6 +161,11 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
 - **Gradle-Testbericht scheitert mit „Failed to create MD5 hash“ / „Could not generate test
   report“:** Die Shell hatte keine UTF-8-Locale, Testnamen mit Akzenten („né“) ließen sich nicht
   als Datei schreiben. Vor Gradle `export LC_ALL=C.UTF-8 LANG=C.UTF-8` setzen.
+- **Maven Central leitet große Dateien auf `gcp.mirrors.maven.org` um, das in der Umgebung
+  gesperrt ist (403):** lokal ein Gradle-Init-Skript `~/.gradle/init.d/mirror.gradle` mit
+  `https://maven-central.storage-download.googleapis.com/maven2/` als zusätzlichem Repository
+  anlegen (nicht ins Repo); die Robolectric-Laufzeiten (`android-all-instrumented`
+  `16-robolectric-13921718-i7` und `9-robolectric-4913185-2-i7`) von dort nach `~/.m2` legen.
 - **Maven Central drosselt (HTTP 429)** bei vielen parallelen Downloads; Build wiederholen.
   Robolectric konnte die Android-16-Laufzeit nicht selbst laden: die Datei
   `android-all-instrumented-16-robolectric-13921718-i7.jar` samt `.pom` und `.sha512` per `curl`
@@ -180,6 +186,8 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
   Code aktualisieren (`CLAUDE.md` → Docs aktuell halten).
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
+- 0.1.0 Debug (Etappen 24a–24b): getippte Befehle mit Chips, `@math` mit Ergebnis-Chip und
+  Rechner; Ergebnisse der Prüfungen: `docs/VALIDATION.md` → Etappe24a und 24b; kein Gerätetest.
 
 - 0.1.0 Debug (Etappen 23a–23d): Symbolseiten wie die Vorlage, Emojis in der Leiste, Laufschrift,
   Screenshot-Pille (opt-in, Bildberechtigung); Agent-Suite 296/0, Lint grün, kein Gerätetest.

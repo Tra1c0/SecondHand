@@ -1256,6 +1256,16 @@ APK installiert war: weiterhin kein Gerätelauf.
   Textfelder; Ergebnis für TalkBack als Live-Region. Alle behoben und getestet, wo testbar.
   Bewusst offen: ein Komma gilt auch bei englischer Sprache als Dezimalzeichen (`1,000` = 1);
   der Chip zeigt das Ergebnis vor dem Tipp.
+- Nachprüfung: alle zehn Befunde bestätigt. Vier neue, behoben:
+  - Ohne URL-Erkennung gehört das Präfix nicht zum getippten Wort; die Engine sah nur `math`, die
+    Korrektur dazu fiel mit dem engeren Argumentschutz weg (hoch). Jetzt schützt
+    `guardsTextBefore` den Namen nach dem Text vor der Schreibmarke, auch beim Lernen, und
+    `updateGuard` läuft auch ohne sichtbare Leiste (Test `typedCommandNameIsNeitherLearned…`).
+  - Die Toolbar wird nur im aufklappbaren Modus für die Chips eingeklappt (mittel).
+  - Ohne ExtractedText prüft das Ersetzen das Zeichen vor dem Befehl (Test).
+  - Offen und nur am Gerät prüfbar: Editoren, die Änderungen verzögert anwenden (WebView), könnten
+    nach dem Ersetzen den alten Stand melden. Dann sperrt die Tastatur wie bei P3 und meldet es,
+    die sichere Richtung.
 - Nicht geprüft: alles auf einem Gerät (Leiste mit Chips, Rechner über der Navigationsleiste,
   Querformat, TalkBack, Einfügen in echten Apps, WebView).
 

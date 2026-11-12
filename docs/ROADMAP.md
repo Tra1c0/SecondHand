@@ -76,13 +76,25 @@ Folgende ist die Entscheidung des Leads.
     - Hauptliste mit großen Einträgen: rundes oder flaches Icon links, Titel groß, keine
       Untertitel-Flut, viel Abstand;
     - dunkler Hintergrund passend zum flachen Look.
+    Beobachtet auf dem Screenshot (2026-11-12): Titel groß links, Outline-Icons einfarbig ohne
+    Kreis, nur „Sprachen“ hat einen Untertitel, sehr hohe Zeilen ohne Trennlinien, warm-dunkler
+    Hintergrund (vermutlich dynamische Systemfarbe). Ob der Titel beim Scrollen schrumpft, zeigt
+    das Standbild nicht.
     Betrifft vor allem `MainSettingsScreen.kt` und die gemeinsamen Compose-Bausteine
     (`Preference`, `SearchSettingsScreen`). Upstream-Dateien nur eng ändern, besser eigene
     Bausteine mit Weiche auf den flachen Stil.
   - 23f Design-Seite mit Vorschau. (L) Vorlage: ein Raster aus Kacheln, jede eine kleine
     gerenderte Tastatur im jeweiligen Design (Farben, Tastenform), Antippen wählt das Design.
     Der Owner will darüber hinaus mehr Optionen als Gboard (Farben, Rundung, Abstände,
-    Schrift, Hintergrund), jeweils mit Live-Vorschau beim Ändern. Vorschlag: zuerst 23f1 Kacheln
+    Schrift, Hintergrund), jeweils mit Live-Vorschau beim Ändern. Beobachtet auf dem Screenshot
+    (2026-11-12): Zurück-Pfeil, Titel „Design“, Abschnittstitel in Akzentfarbe; Abschnitte „Meine
+    Designs“ (Kachel „+“ und eigene), „Standard“ (Dynamische Farbe, Systemeinstellung als halb
+    helle, halb dunkle Kachel, Standard, Dunkel, mit Beschriftung darunter), dann aufklappbare
+    Gruppen (Farben, Landschaften, heller und dunkler Farbverlauf). Die Kacheln sind keine
+    gerenderte Tastatur, sondern Hintergrundfarbe, ein Balken als Leertaste und ein Punkt in
+    Akzentfarbe als Enter; Auswahl durch Rahmen in Akzentfarbe und rundes Häkchen. Das macht 23f1
+    eher zu (M). Bilder zum Herunterladen (Landschaften) passen nicht zu „keine automatischen
+    Downloads“: höchstens ein selbst gewähltes Bild als Hintergrund. Vorschlag: zuerst 23f1 Kacheln
     für die vorhandenen Themes und die Vorlage „Flacher Look“, dann 23f2 Editor mit Vorschau.
 - **22 Persönliche Trefferzonen (Wunsch des Owners vom 2026-11-12).** Die Tastatur lernt, wo du
   jede Taste tatsächlich triffst, und verschiebt unsichtbar die Erkennungszonen; die Tasten

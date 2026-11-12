@@ -122,8 +122,28 @@ object KeyboardCommands {
         return CommandSyntax.isCommandWord(trimmed, current.prefix, current.names)
     }
 
-    /** True while a complete command is typed: the words of its argument are not autocorrected either. */
+    /**
+     * True while the word at the cursor belongs to a command: its name (with URL detection off the
+     * prefix is not part of the composing word, so the engine only sees "math") or the argument of
+     * a command that protects it. Set from the text before the cursor on the main thread
+     * ([updateGuard]); read by the suggestion worker.
+     */
     @JvmStatic fun suppressesCorrection(): Boolean = inCommand && active != null
+
+    /** Whether the text before the cursor ends in a command name or a protected argument. */
+    @JvmStatic fun guardsTextBefore(before: CharSequence?): Boolean {
+        val current = active ?: return false
+        if (before == null) return false
+        return when (val context = CommandSyntax.parse(before, current.prefix, current.names)) {
+            null -> false
+            is CommandNames -> true
+            is CommandCall -> context.argument.isBlank() ||
+                registry.firstOrNull { it.name == context.name }?.protectsArgument == true
+        }
+    }
+
+    /** Called with the text before the cursor whenever the strip is updated. */
+    @JvmStatic fun updateGuard(before: CharSequence?) { inCommand = guardsTextBefore(before) }
 
     fun isBlocked(settings: SettingsValues?, editorInfo: EditorInfo?): Boolean {
         if (settings == null || settings.mIncognitoModeEnabled || settings.mIsLocked) return true
@@ -148,7 +168,6 @@ object KeyboardCommands {
         val cursor = ime.agentCommandCursor
         val context = if (cursor < 0) null
             else find(ime.getAgentTextBeforeCursor(CommandSyntax.LOOKBACK + 1), Settings.getValues(), ime.currentInputEditorInfo)
-        inCommand = context is CommandCall && registry.firstOrNull { it.name == context.name }?.protectsArgument == true
         context ?: return null
         val host = object : Host {
             override val context: Context get() = ime

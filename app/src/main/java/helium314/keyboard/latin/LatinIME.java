@@ -169,12 +169,17 @@ public class LatinIME extends InputMethodService implements
         return outcome;
     }
     private boolean tryShowCommandChips() {
+        // also without a visible strip: the guard keeps the autocorrection off a typed command name
+        helium314.keyboard.agent.KeyboardCommands.updateGuard(
+                getAgentCommandCursor() < 0 ? null : getAgentTextBeforeCursor(dev.agentkeyboard.core.CommandSyntax.LOOKBACK + 1));
         if (!hasSuggestionStripView() || !onEvaluateInputViewShown()) return false;
         final View chips = helium314.keyboard.agent.KeyboardCommands.createChipsView(this, mSuggestionStripView);
         if (chips == null) return false;
         mSuggestionStripView.setExternalSuggestionView(chips, false);
-        // the chips live in the suggestion area, which an open toolbar would hide
-        mSuggestionStripView.setToolbarVisibility(false);
+        // the chips live in the suggestion area, which an expandable toolbar may cover; a toolbar that
+        // is always shown (keys only) has no suggestion area to give back
+        if (mSettings.getCurrent().mToolbarMode == ToolbarMode.EXPANDABLE)
+            mSuggestionStripView.setToolbarVisibility(false);
         return true;
     }
     public void onAgentTextSubmitted() {
@@ -1591,6 +1596,7 @@ public class LatinIME extends InputMethodService implements
         mInputLogic.setSuggestedWords(suggestedWords);
         // TODO: Modify this when we support suggestions with hard keyboard
         if (!hasSuggestionStripView()) {
+            tryShowCommandChips(); // only updates the command guard here
             return;
         }
         if (!onEvaluateInputViewShown()) {
