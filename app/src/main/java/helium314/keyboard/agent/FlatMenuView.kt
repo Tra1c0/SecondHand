@@ -46,7 +46,7 @@ class FlatMenuView(context: Context, attrs: AttributeSet?) : FrameLayout(context
     private class Entry(val id: Int, val label: Int, val icon: String, val action: Action, val opensScreen: Boolean = false)
 
     private val entries = listOf(
-        Entry(R.id.agent_menu_design, R.string.agent_menu_design, ToolbarKey.SETTINGS.name, Action.OpenSettings(SettingsDestination.Appearance), true),
+        Entry(R.id.agent_menu_design, R.string.agent_menu_design, ToolbarKey.SETTINGS.name, Action.OpenSettings(SettingsDestination.AgentDesign), true),
         Entry(R.id.agent_menu_undo, R.string.agent_menu_undo, ToolbarKey.UNDO.name, Action.Code(KeyCode.UNDO)),
         Entry(R.id.agent_menu_one_handed, R.string.agent_menu_one_handed, ToolbarKey.ONE_HANDED.name, Action.Code(KeyCode.TOGGLE_ONE_HANDED_MODE)),
         Entry(R.id.agent_menu_emoji, R.string.agent_menu_emoji, ToolbarKey.EMOJI.name, Action.Code(KeyCode.EMOJI), true),

@@ -150,6 +150,10 @@ private constructor(val themeId: Int, @JvmField val mStyleId: Int) {
             return getThemeColors(themeName!!, themeStyle!!, context, prefs, isNight)
         }
 
+        /** fork: colours of a built-in colour theme for the preview tiles of the design page (DesignTiles) */
+        fun getPreviewColors(context: Context, themeName: String, themeStyle: String): Colors =
+            getThemeColors(themeName, themeStyle, context, context.prefs(), false)
+
         private fun getThemeColors(themeName: String, themeStyle: String, context: Context, prefs: SharedPreferences, isNight: Boolean): Colors {
             // the Flat style only exists with key backgrounds
             val hasBorders = themeStyle == STYLE_FLAT || prefs.getBoolean(Settings.PREF_THEME_KEY_BORDERS, Defaults.PREF_THEME_KEY_BORDERS)
