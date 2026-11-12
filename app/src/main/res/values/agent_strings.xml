@@ -349,4 +349,13 @@
     <string name="agent_command_expired">The text before the cursor changed. Nothing was replaced.</string>
     <string name="agent_calculator_functions">Functions</string>
     <string name="agent_calculator_undefined">Not defined</string>
+    <string name="agent_design_title">Design</string>
+    <string name="agent_design_entry_description">Choose a theme from preview tiles</string>
+    <string name="agent_design_section_standard">Standard</string>
+    <string name="agent_design_section_templates">Templates</string>
+    <string name="agent_design_section_colors">Colors</string>
+    <string name="agent_design_system">System setting</string>
+    <string name="agent_design_flat">Flat look</string>
+    <string name="agent_design_flat_note">The Flat look also sets rows, sizes and the toolbar. Keyboard profiles can restore the look from before.</string>
+    <string name="agent_design_more">More appearance settings</string>
 </resources>

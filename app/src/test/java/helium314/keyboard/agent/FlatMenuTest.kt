@@ -141,7 +141,7 @@ class FlatMenuTest {
         menu.onAction = { seen += menu.isOpen to it }
         menu.onClosed = { closed++ }
         val expected = listOf(
-            R.id.agent_menu_design to FlatMenuView.Action.OpenSettings(SettingsDestination.Appearance),
+            R.id.agent_menu_design to FlatMenuView.Action.OpenSettings(SettingsDestination.AgentDesign),
             R.id.agent_menu_undo to FlatMenuView.Action.Code(KeyCode.UNDO),
             R.id.agent_menu_one_handed to FlatMenuView.Action.Code(KeyCode.TOGGLE_ONE_HANDED_MODE),
             R.id.agent_menu_emoji to FlatMenuView.Action.Code(KeyCode.EMOJI),
