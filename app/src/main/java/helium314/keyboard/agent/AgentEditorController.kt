@@ -73,8 +73,11 @@ class AgentEditorController @JvmOverloads constructor(
      * field), and once it was offered. Only an id: the definition is read again from the store.
      */
     private var chosenWorkflowId: String? = null
-    /** True while the panel serves a typed `@ki` question (stage 24f); the selection actions stay off. */
+    /** True while the panel serves a typed `@ki` question or `@translate` (stage 24f); the selection actions stay off. */
     private var asking = false
+    /** What the typed request asks for while [asking]: [AiTextAction.ASK] or [AiTextAction.TRANSLATE_STYLED]. */
+    private var questionAction = AiTextAction.ASK
+    private val translating: Boolean get() = questionAction == AiTextAction.TRANSLATE_STYLED
     /** The typed `@ki` command that "Insert" replaces, and where it ended. */
     private var questionCommand: Pair<String, Int>? = null
     /** Replaceable in tests: whether a key is stored for the provider. Reads no key, only whether one exists. */
@@ -346,27 +349,30 @@ class AgentEditorController @JvmOverloads constructor(
      * and model from the AI settings. Nothing is sent before "Send", nothing from the field is part
      * of the request, and the field stays unchanged until "Insert" replaces [commandText] ending at
      * [commandEnd] by the answer (or inserts it at the cursor once the command is gone). False if
-     * there is no panel now.
+     * there is no panel now. `@translate` comes the same way with [action]
+     * [AiTextAction.TRANSLATE_STYLED] and its whole request as [question]; no other action can.
      */
-    fun openQuestion(question: String, commandText: String, commandEnd: Int): Boolean {
+    fun openQuestion(question: String, commandText: String, commandEnd: Int, action: AiTextAction = AiTextAction.ASK): Boolean {
+        if (action != AiTextAction.ASK && action != AiTextAction.TRANSLATE_STYLED) return false
         val target = panel ?: return false
         if (needsCursorRefresh) return false
         close()
         KeyboardSwitcher.getInstance().mainKeyboardView?.closing()
         target.rootView.findViewById<SuggestionStripView>(R.id.suggestion_strip_view)?.dismissMoreSuggestionsPanel()
         asking = true
+        questionAction = action
         questionCommand = if (commandText.isEmpty() || commandEnd < 0) null else commandText to commandEnd
         when (val captured = editor.captureQuestion(question)) {
             is CaptureResult.Captured -> {
                 snapshot = captured.snapshot
-                target.showQuestion(captured.snapshot.text)
+                target.showQuestion(captured.snapshot.text, translating)
                 editor.onInvalidated = {
                     val source = snapshot
                     if (source != null && !editor.isCurrent(source)) discardStaleContext()
                 }
                 prepareQuestion()
             }
-            is CaptureResult.Denied -> target.showStatus(captured.reason.questionMessageResource(), true)
+            is CaptureResult.Denied -> target.showStatus(captured.reason.questionMessageResource(translating), true)
         }
         return true
     }
@@ -382,10 +388,10 @@ class AgentEditorController @JvmOverloads constructor(
         val approval = runCatching {
             val settings = ModelSettings(ime)
             val provider = settings.provider
-            CloudApproval(provider, settings.model(provider), AiTextAction.ASK, settings.translationLanguage, settings.writingTone)
+            CloudApproval(provider, settings.model(provider), questionAction, settings.translationLanguage, settings.writingTone)
         }.getOrNull()
         if (approval == null || !hasCredential(approval.provider)) {
-            panel?.showStatus(R.string.agent_command_ki_credentials, true)
+            panel?.showStatus(if (translating) R.string.agent_command_translate_credentials else R.string.agent_command_ki_credentials, true)
             return
         }
         if (!CloudProviders.validModel(approval.provider, approval.model)) {
@@ -395,7 +401,7 @@ class AgentEditorController @JvmOverloads constructor(
         preparedResult = null
         canApply = false
         pendingApproval = approval
-        panel?.showQuestionConfirmation(approval.model, source.text.length, CloudProviders.displayName(approval.provider))
+        panel?.showQuestionConfirmation(approval.model, source.text.length, CloudProviders.displayName(approval.provider), translating)
     }
 
     /** The tap on "Insert": replaces the typed command in one commit, else inserts at the cursor. */
@@ -424,7 +430,8 @@ class AgentEditorController @JvmOverloads constructor(
             ApplyOutcome.REJECTED -> {
                 // the answer stays readable and copyable; inserting needs a fresh question
                 panel?.disableApply()
-                Toast.makeText(ime, R.string.agent_command_ki_insert_failed, Toast.LENGTH_SHORT).show()
+                Toast.makeText(ime, if (translating) R.string.agent_command_translate_insert_failed
+                    else R.string.agent_command_ki_insert_failed, Toast.LENGTH_SHORT).show()
             }
             ApplyOutcome.UNKNOWN -> {
                 needsCursorRefresh = true
@@ -512,7 +519,8 @@ class AgentEditorController @JvmOverloads constructor(
     }
 
     private fun prepareCloud(action: AiTextAction) {
-        if (asking || action == AiTextAction.ASK) return // a question has its own preview (prepareQuestion)
+        // a typed question or translation has its own preview (prepareQuestion)
+        if (asking || action == AiTextAction.ASK || action == AiTextAction.TRANSLATE_STYLED) return
         val source = snapshot ?: return
         if (!editor.isCurrent(source)) { discardStaleContext(); return }
         if (cloudRunner.isRunning || skillJob?.isActive == true) return
@@ -542,7 +550,7 @@ class AgentEditorController @JvmOverloads constructor(
             AiTextAction.SUMMARIZE -> ime.getString(R.string.agent_cloud_summarize)
             AiTextAction.REPLY -> ime.getString(R.string.agent_cloud_reply_tone, ime.getString(approval.tone.titleResource()))
             AiTextAction.ANALYZE -> ime.getString(R.string.agent_cloud_analyze)
-            AiTextAction.ASK -> return
+            AiTextAction.ASK, AiTextAction.TRANSLATE_STYLED -> return
         }
         panel?.showCloudConfirmation(approval.model, source.text.length, task, CloudProviders.displayName(approval.provider))
     }
@@ -621,7 +629,7 @@ class AgentEditorController @JvmOverloads constructor(
                 if (editor.policy.resultDenial(result) == null && asking) {
                     preparedResult = result
                     canApply = result.isNotBlank() // inserting is still a separate tap (insertAnswer)
-                    panel?.showAnswer(result)
+                    panel?.showAnswer(result, translating)
                 } else if (editor.policy.resultDenial(result) == null) {
                     preparedResult = result
                     canApply = approval.action.allowsReplacement
@@ -645,7 +653,7 @@ class AgentEditorController @JvmOverloads constructor(
         canApply = false
         val source = snapshot ?: return
         if (editor.isCurrent(source)) {
-            if (asking) panel?.showQuestion(source.text) else panel?.showSource(source.text)
+            if (asking) panel?.showQuestion(source.text, translating) else panel?.showSource(source.text)
             panel?.showStatus(if (toolOnly) R.string.agent_tool_cancelled else R.string.agent_cloud_cancelled)
         } else discardStaleContext()
     }
@@ -754,6 +762,7 @@ class AgentEditorController @JvmOverloads constructor(
         calculator?.hide()
         calculatorCommand = null
         asking = false
+        questionAction = AiTextAction.ASK
         questionCommand = null
         editor.invalidate()
     }
@@ -801,9 +810,9 @@ private fun DenialReason.messageResource() = when (this) {
     else -> R.string.agent_panel_select_text
 }
 
-private fun DenialReason.questionMessageResource() = when (this) {
+private fun DenialReason.questionMessageResource(translating: Boolean) = when (this) {
     DenialReason.PASSWORD, DenialReason.INCOGNITO, DenialReason.NO_LEARNING, DenialReason.LOCKED -> R.string.agent_panel_protected
-    else -> R.string.agent_command_ki_unavailable
+    else -> if (translating) R.string.agent_command_translate_unavailable else R.string.agent_command_ki_unavailable
 }
 
 private fun DictationError.messageResource() = when (this) {

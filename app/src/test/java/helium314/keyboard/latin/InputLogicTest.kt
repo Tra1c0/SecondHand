@@ -1570,6 +1570,7 @@ class InputLogicTest {
             dev.agentkeyboard.core.AiTextAction.REPLY -> R.id.agent_cloud_reply
             dev.agentkeyboard.core.AiTextAction.ANALYZE -> R.id.agent_cloud_analyze
             dev.agentkeyboard.core.AiTextAction.ASK -> error("a question has no panel button, only the typed command")
+            dev.agentkeyboard.core.AiTextAction.TRANSLATE_STYLED -> error("a styled translation has no panel button, only the typed command")
         }).performClick()
         if (action == dev.agentkeyboard.core.AiTextAction.TRANSLATE) {
             // Configuration changes after the displayed approval cannot silently
@@ -1768,6 +1769,167 @@ class InputLogicTest {
         assertTrue(controller.openQuestion("hallo", "@ki hallo", 0))
         assertEquals(latinIME.getString(R.string.agent_panel_protected), panelText(panel, R.id.agent_status))
         assertEquals(android.view.View.GONE, panel.findViewById<android.view.View>(R.id.agent_cloud_send).visibility)
+        panel.onSendCloud?.invoke()
+        assertTrue(provider.requests.isEmpty())
+        controller.destroy()
+    }
+
+    /** Types [typed], reports the cursor like the editor would and taps the chip labelled [label]. */
+    private fun tapCommandChip(controller: helium314.keyboard.agent.AgentEditorController, typed: String, label: String) {
+        chainInput(typed)
+        controller.selectionChanged(text.length, text.length, composingStart, composingEnd)
+        val chips = helium314.keyboard.agent.KeyboardCommands.createChipsView(latinIME, android.widget.FrameLayout(latinIME))
+        assertNotNull(chips)
+        val row = (chips as android.view.ViewGroup).getChildAt(0) as android.view.ViewGroup
+        (0 until row.childCount).map { row.getChildAt(it) as android.widget.TextView }
+            .single { it.text.toString() == label }
+            .performClick()
+    }
+
+    private val translationRequest =
+        "Translation style:\nnatürliches slang spanisch\n\nText to translate:\nwann treffen wir uns morgen du geile sau"
+
+    @Test fun typedTranslationIsSentOnlyAfterSendAndReplacesTheCommandOnlyAfterInsert() {
+        val provider = QuestionProvider()
+        val journal = helium314.keyboard.agent.TestRunJournal()
+        val (controller, panel) = questionSurface(provider, journal)
+        val typed = "x @translate \"wann treffen wir uns morgen du geile sau\" natürliches slang spanisch"
+        tapCommandChip(controller, typed, latinIME.getString(R.string.agent_command_translate_chip, "natürliches slang spanisch"))
+        // the field is unchanged and the panel shows exactly the request: style and text, labelled
+        assertEquals(typed, text)
+        assertEquals(android.view.View.VISIBLE, panel.visibility)
+        assertEquals(translationRequest, panelText(panel, R.id.agent_source))
+        assertEquals(Int.MAX_VALUE, panel.findViewById<android.widget.TextView>(R.id.agent_source).maxLines) // never cut off
+        val confirmation = panelText(panel, R.id.agent_cloud_confirmation)
+        assertEquals(latinIME.getString(R.string.agent_command_translate_confirm, helium314.keyboard.agent.ModelSettings.DEFAULT_MODEL,
+            translationRequest.length, "OpenAI"), confirmation)
+        assertEquals(latinIME.getString(R.string.agent_command_translate_send, "OpenAI"), panelText(panel, R.id.agent_cloud_send))
+        // the selection actions stay off, and bypassing them changes nothing
+        assertFalse(panel.findViewById<android.widget.Button>(R.id.agent_cloud_translate).isEnabled)
+        panel.onPrepareCloud?.invoke(dev.agentkeyboard.core.AiTextAction.TRANSLATE_STYLED)
+        panel.onPrepareCloud?.invoke(dev.agentkeyboard.core.AiTextAction.CORRECT)
+        assertEquals(confirmation, panelText(panel, R.id.agent_cloud_confirmation))
+        assertTrue(provider.requests.isEmpty())
+        assertTrue(journal.states.isEmpty())
+
+        panel.findViewById<android.widget.Button>(R.id.agent_cloud_send).performClick()
+        panel.onSendCloud?.invoke() // the approval is consumed: a second send starts nothing
+        assertEquals(1, provider.requests.size)
+        val request = provider.requests.single()
+        assertEquals(translationRequest, request.input) // exactly the shown request, nothing else of the field
+        assertEquals(dev.agentkeyboard.core.AiTextAction.TRANSLATE_STYLED.instruction(), request.instruction)
+        assertEquals(helium314.keyboard.agent.ModelSettings.DEFAULT_MODEL, request.model)
+        assertEquals(typed, text)
+
+        provider.response.complete("¿cuándo nos vemos mañana, cabrón?")
+        awaitAgentUi { panelText(panel, R.id.agent_result) == "¿cuándo nos vemos mañana, cabrón?" }
+        assertEquals(helium314.keyboard.agent.ActionRunState.SUCCEEDED, journal.modelStates.values.single())
+        assertEquals(helium314.keyboard.agent.RunSubject.TextAction(dev.agentkeyboard.core.AiTextAction.TRANSLATE_STYLED),
+            journal.subjects.values.single())
+        assertEquals(latinIME.getString(R.string.agent_command_translate_ready), panelText(panel, R.id.agent_status))
+        assertEquals(typed, text) // nothing is replaced automatically
+        val insert = panel.findViewById<android.widget.Button>(R.id.agent_apply)
+        assertTrue(insert.isEnabled)
+        assertTrue(panel.findViewById<android.widget.Button>(R.id.agent_copy).isEnabled)
+
+        insert.performClick()
+        assertEquals("x ¿cuándo nos vemos mañana, cabrón?", text) // exactly the command is replaced, in one commit
+        assertEquals(android.view.View.GONE, panel.visibility)
+        assertTrue(inputLogic.isAgentHistorySuppressed) // generated text is not learned from
+        checkConnectionConsistency()
+        panel.onApply?.invoke() // a second tap has nothing left to insert
+        assertEquals("x ¿cuándo nos vemos mañana, cabrón?", text)
+        controller.destroy()
+    }
+
+    @Test fun typedTranslationWithoutAKeyShowsTheWayToTheSettingsAndSendsNothing() {
+        val provider = QuestionProvider()
+        val journal = helium314.keyboard.agent.TestRunJournal()
+        val (controller, panel) = questionSurface(provider, journal)
+        controller.credentialCheck = { false }
+        tapCommandChip(controller, "x @translate \"hallo\"", latinIME.getString(R.string.agent_command_translate_chip, "natural English"))
+        assertEquals(latinIME.getString(R.string.agent_command_translate_credentials), panelText(panel, R.id.agent_status))
+        assertEquals(android.view.View.GONE, panel.findViewById<android.view.View>(R.id.agent_cloud_send).visibility)
+        assertTrue(panel.findViewById<android.view.View>(R.id.agent_cloud_settings).isEnabled) // the way to the AI settings
+        panel.onSendCloud?.invoke() // even a direct send has no approval to use
+        org.robolectric.shadows.ShadowLooper.idleMainLooper()
+        assertTrue(provider.requests.isEmpty())
+        assertTrue(journal.states.isEmpty())
+        assertEquals("x @translate \"hallo\"", text)
+        controller.destroy()
+    }
+
+    @Test fun typedTranslationWithoutQuotesOffersOnlyAHintAndOpensNothing() {
+        val provider = QuestionProvider()
+        val journal = helium314.keyboard.agent.TestRunJournal()
+        val (controller, panel) = questionSurface(provider, journal)
+        tapCommandChip(controller, "x @translate hallo spanisch", latinIME.getString(R.string.agent_command_translate_hint))
+        assertNotEquals(android.view.View.VISIBLE, panel.visibility)
+        panel.onSendCloud?.invoke()
+        org.robolectric.shadows.ShadowLooper.idleMainLooper()
+        assertTrue(provider.requests.isEmpty())
+        assertEquals("x @translate hallo spanisch", text)
+        controller.destroy()
+    }
+
+    @Test fun typedTranslationCancelledShowsNothingAndChangesNothing() {
+        val provider = QuestionProvider()
+        val journal = helium314.keyboard.agent.TestRunJournal()
+        val (controller, panel) = questionSurface(provider, journal)
+        val chip = latinIME.getString(R.string.agent_command_translate_chip, "spanisch")
+        tapCommandChip(controller, "x @translate \"hallo\" spanisch", chip)
+        val request = "Translation style:\nspanisch\n\nText to translate:\nhallo"
+        panel.findViewById<android.widget.Button>(R.id.agent_cloud_cancel).performClick() // before sending
+        assertTrue(provider.requests.isEmpty())
+        assertEquals(request, panelText(panel, R.id.agent_source))
+        assertEquals(latinIME.getString(R.string.agent_cloud_cancelled), panelText(panel, R.id.agent_status))
+        panel.onSendCloud?.invoke() // the cancelled approval is gone
+        assertTrue(provider.requests.isEmpty())
+
+        tapCommandChip(controller, "", chip) // the chip again: a fresh preview
+        panel.findViewById<android.widget.Button>(R.id.agent_cloud_send).performClick()
+        assertEquals(request, provider.requests.single().input)
+        panel.findViewById<android.widget.Button>(R.id.agent_cloud_cancel).performClick() // while waiting
+        provider.response.complete("hola")
+        org.robolectric.shadows.ShadowLooper.idleMainLooper()
+        assertEquals(helium314.keyboard.agent.ActionRunState.CANCELLED, journal.modelStates.values.single())
+        assertEquals(latinIME.getString(R.string.agent_panel_empty), panelText(panel, R.id.agent_result)) // no translation shown
+        assertFalse(panel.findViewById<android.widget.Button>(R.id.agent_apply).isEnabled)
+        panel.onApply?.invoke()
+        assertEquals("x @translate \"hallo\" spanisch", text)
+        controller.destroy()
+    }
+
+    @Test fun typedTranslationIsInsertedAtTheCursorWhenTheCommandIsGone() {
+        val provider = QuestionProvider()
+        val journal = helium314.keyboard.agent.TestRunJournal()
+        val (controller, panel) = questionSurface(provider, journal)
+        setText("x ")
+        setCursorPosition(2)
+        controller.startEditor(EditorInfo().apply { inputType = currentInputType; initialSelStart = 2; initialSelEnd = 2 })
+        controller.selectionChanged(2, 2, -1, -1)
+        val request = "Translation style:\nspanisch\n\nText to translate:\nhallo"
+        // the command is no longer there
+        assertTrue(controller.openQuestion(request, "@translate \"hallo\" spanisch", 29, dev.agentkeyboard.core.AiTextAction.TRANSLATE_STYLED))
+        panel.findViewById<android.widget.Button>(R.id.agent_cloud_send).performClick()
+        assertEquals(request, provider.requests.single().input)
+        provider.response.complete("hola")
+        awaitAgentUi { panelText(panel, R.id.agent_result) == "hola" }
+        assertEquals("x ", text)
+        panel.findViewById<android.widget.Button>(R.id.agent_apply).performClick()
+        assertEquals("x hola", text)
+        assertEquals(android.view.View.GONE, panel.visibility)
+        controller.destroy()
+    }
+
+    @Test fun typedTranslationIsTheOnlyOtherActionATypedRequestCanOpen() {
+        val provider = QuestionProvider()
+        val journal = helium314.keyboard.agent.TestRunJournal()
+        val (controller, panel) = questionSurface(provider, journal)
+        for (action in dev.agentkeyboard.core.AiTextAction.entries.filter {
+                it != dev.agentkeyboard.core.AiTextAction.ASK && it != dev.agentkeyboard.core.AiTextAction.TRANSLATE_STYLED })
+            assertFalse(controller.openQuestion("hallo", "@ki hallo", 9, action), action.name)
+        assertNotEquals(android.view.View.VISIBLE, panel.visibility)
         panel.onSendCloud?.invoke()
         assertTrue(provider.requests.isEmpty())
         controller.destroy()

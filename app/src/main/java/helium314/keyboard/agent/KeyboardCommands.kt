@@ -73,6 +73,12 @@ object KeyboardCommands {
          * is sent before "Send" there, and "Insert" replaces [command]. The field stays unchanged.
          */
         fun askAi(command: CommandCall, question: String): Boolean = false
+        /**
+         * Opens the text actions with a send preview of exactly [request] (`@translate`, see
+         * [dev.agentkeyboard.core.StyledTranslation.request]); like [askAi], nothing is sent before
+         * "Send", and "Insert" replaces [command] by the translation. The field stays unchanged.
+         */
+        fun translateAi(command: CommandCall, request: String): Boolean = false
     }
 
     /** A built-in command. Commands never come from files or models. */
@@ -83,6 +89,8 @@ object KeyboardCommands {
         fun description(context: Context): String
         /** True if the words of the argument are text the user writes and must not be autocorrected. */
         val protectsArgument: Boolean get() = false
+        /** True if the argument may be up to [CommandSyntax.MAX_LONG_ARGUMENT] characters instead of [CommandSyntax.MAX_ARGUMENT]. */
+        val longArgument: Boolean get() = false
         /** The chips for a complete command; empty to show nothing (then the normal strip stays). */
         fun chips(host: Host, call: CommandCall): List<Chip>
         /** The runtime permission the command needs, requested on the settings page; null for none. */
@@ -108,6 +116,7 @@ object KeyboardCommands {
         EventCommand,
         PlaceCommand,
         helium314.keyboard.agent.commands.QrCommand,
+        helium314.keyboard.agent.commands.TranslateCommand,
     )
 
     /** Replaced in tests. */
@@ -117,7 +126,7 @@ object KeyboardCommands {
     /** True while the text before the cursor is a complete command: its words are not autocorrected. */
     @Volatile private var inCommand = false
 
-    private class Active(val prefix: Char, val names: Set<String>)
+    private class Active(val prefix: Char, val names: Set<String>, val longNames: Set<String>)
 
     fun isEnabled(context: Context) = context.prefs().getBoolean(AgentPreferences.COMMANDS, true)
 
@@ -151,7 +160,8 @@ object KeyboardCommands {
     /** Reads the settings; called when an input view starts and when the settings page changes them. */
     @JvmStatic fun load(context: Context) {
         val names = registry.map { it.name }.filter { isCommandEnabled(context, it) }.toSet()
-        active = if (isEnabled(context) && names.isNotEmpty()) Active(prefix(context), names) else null
+        val longNames = registry.filter { it.longArgument && it.name in names }.map { it.name }.toSet()
+        active = if (isEnabled(context) && names.isNotEmpty()) Active(prefix(context), names, longNames) else null
         inCommand = false
         forget()
     }
@@ -181,7 +191,7 @@ object KeyboardCommands {
     @JvmStatic fun guardsTextBefore(before: CharSequence?): Boolean {
         val current = active ?: return false
         if (before == null) return false
-        return when (val context = CommandSyntax.parse(before, current.prefix, current.names)) {
+        return when (val context = CommandSyntax.parse(before, current.prefix, current.names, current.longNames)) {
             null -> false
             is CommandNames -> true
             is CommandCall -> context.argument.isBlank() ||
@@ -197,7 +207,7 @@ object KeyboardCommands {
     @JvmStatic fun updateGuard(before: CharSequence?) {
         inCommand = guardsTextBefore(before)
         val current = active
-        if (current == null || before == null || CommandSyntax.parse(before, current.prefix, current.names) == null) forget()
+        if (current == null || before == null || CommandSyntax.parse(before, current.prefix, current.names, current.longNames) == null) forget()
     }
 
     fun isBlocked(settings: SettingsValues?, editorInfo: EditorInfo?): Boolean {
@@ -212,7 +222,7 @@ object KeyboardCommands {
     fun find(before: CharSequence?, settings: SettingsValues?, editorInfo: EditorInfo?): CommandContext? {
         val current = active ?: return null
         if (before == null || isBlocked(settings, editorInfo)) return null
-        return CommandSyntax.parse(before, current.prefix, current.names)
+        return CommandSyntax.parse(before, current.prefix, current.names, current.longNames)
     }
 
     /**
@@ -279,6 +289,8 @@ object KeyboardCommands {
             override fun openWorkflow(workflowId: String) = ime.agentEditorController.openWorkflow(workflowId)
             override fun askAi(command: CommandCall, question: String) =
                 ime.agentEditorController.openQuestion(question, command.text, position)
+            override fun translateAi(command: CommandCall, request: String) =
+                ime.agentEditorController.openQuestion(request, command.text, position, dev.agentkeyboard.core.AiTextAction.TRANSLATE_STYLED)
         }
         return chipsFor(context, host)
     }

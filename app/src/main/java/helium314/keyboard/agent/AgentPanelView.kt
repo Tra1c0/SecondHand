@@ -195,28 +195,34 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
 
     /**
      * Stage 24f `@ki`: the typed question is shown as exactly the text that would be sent. The text
-     * actions stay off, since nothing is selected.
+     * actions stay off, since nothing is selected. The whole text is shown, never cut off.
+     * [translation]: the request of `@translate` (style and text in two labelled sections).
      */
-    fun showQuestion(question: String) {
+    fun showQuestion(question: String, translation: Boolean = false) {
         showSource(question)
+        source.maxLines = Int.MAX_VALUE
+        source.ellipsize = null
         actionsLocked = true
         enableActions()
-        sourceHeading.setText(R.string.agent_command_ki_source)
-        status.text = context.getString(R.string.agent_command_ki_count, question.length)
+        sourceHeading.setText(if (translation) R.string.agent_command_translate_source else R.string.agent_command_ki_source)
+        status.text = context.getString(if (translation) R.string.agent_command_translate_count else R.string.agent_command_ki_count,
+            question.length)
     }
 
     /** The send preview of a question: provider, model and length of the question shown above. */
-    fun showQuestionConfirmation(model: String, characters: Int, provider: String) {
-        showCloudConfirmation(model, characters, context.getString(R.string.agent_command_ki_task), provider)
-        cloudConfirmation.text = context.getString(R.string.agent_command_ki_confirm, model, characters, provider)
-        sendButton.text = context.getString(R.string.agent_command_ki_send, provider)
+    fun showQuestionConfirmation(model: String, characters: Int, provider: String, translation: Boolean = false) {
+        showCloudConfirmation(model, characters,
+            context.getString(if (translation) R.string.agent_command_translate_task else R.string.agent_command_ki_task), provider)
+        cloudConfirmation.text = context.getString(if (translation) R.string.agent_command_translate_confirm
+            else R.string.agent_command_ki_confirm, model, characters, provider)
+        sendButton.text = context.getString(if (translation) R.string.agent_command_translate_send else R.string.agent_command_ki_send, provider)
     }
 
     /** The answer to a question; inserting it is a separate tap and replaces the typed command. */
-    fun showAnswer(text: String) {
+    fun showAnswer(text: String, translation: Boolean = false) {
         showResult(text, true)
-        resultHeading.setText(R.string.agent_command_ki_answer)
-        status.setText(R.string.agent_command_ki_ready)
+        resultHeading.setText(if (translation) R.string.agent_command_translate_answer else R.string.agent_command_ki_answer)
+        status.setText(if (translation) R.string.agent_command_translate_ready else R.string.agent_command_ki_ready)
         applyButton.setText(R.string.agent_command_ki_insert)
         applyButton.isEnabled = text.isNotBlank()
     }

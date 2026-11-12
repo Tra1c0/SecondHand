@@ -1303,6 +1303,28 @@ Befunde eines lesenden Reviews der Befehle, behoben:
 - Nicht geprüft: alles auf einem Gerät (Zwischenablage-Listener mit echten Passwort-Managern,
   `@wf`-Ablauf, Kontakte-Verzögerung, Design-Seite).
 
+## 24f `@translate`
+
+- Gebaut: `@translate "Text" Stil` über den Weg von `@ki` (`openQuestion` mit
+  `AiTextAction.TRANSLATE_STYLED`), Anfrage aus `StyledTranslation.request`, Argument bis 500
+  Zeichen nur für diesen Befehl (`Command.longArgument`, `CommandSyntax.MAX_LONG_ARGUMENT`).
+- Geprüft (JVM): `:agent-core:test` grün, darin `StyledTranslationTest` (alle Anführungszeichen,
+  fehlende oder leere Anführungszeichen, leerer Stil, Anführungszeichen im Stil, Apostrophe im
+  Text, Anfrage mit zwei Abschnitten), `CommandSyntaxTest.onlyNamedCommandsTakeLongArguments`,
+  `AiTextActionTest.styledTranslation…` (feste Anweisung, kein `BuiltinAction`).
+- Geprüft (Robolectric): `TranslateCommandTest` (8, Chip, Hinweis-Chip ohne Wirkung, Kürzung,
+  500-Zeichen-Grenze nur hier, gesperrte Felder, Titel der Laufliste) und
+  `InputLogicTest.typedTranslation*` (6: nichts vor „Senden“, Anfrage genau wie angezeigt,
+  Freigabe einmalig, Journal, „Einfügen“ ersetzt genau den Befehl in einem Commit, Einfügen an der
+  Schreibmarke ohne Befehl, ohne Schlüssel, Abbruch vor und während der Anfrage, andere Aktionen
+  über `openQuestion` abgewiesen); `AskCommandTest` und die Frage-Fälle von `InputLogicTest`
+  weiter grün. `tools/dev.py agent-tests` grün (431 Tests in 60 Klassen, 0 Fehler), die ganze
+  `InputLogicTest` grün bis auf den geerbten Fall `insertLetterIntoWordHangulFails`;
+  `tools/dev.py lint` ohne neue Fehler.
+- Nicht geprüft: keine echte Anfrage an einen Anbieter (kein Schlüssel, nur Test-Anbieter), also
+  auch nicht, ob Modelle derbe Texte getreu übersetzen oder ablehnen; nichts auf einem Gerät
+  (Chip, Vorschau, Einfügen in echten Apps, Tippen von „…“-Zeichen mit der Tastatur).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

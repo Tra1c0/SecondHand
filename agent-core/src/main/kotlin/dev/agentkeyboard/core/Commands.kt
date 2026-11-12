@@ -18,8 +18,10 @@ object CommandSyntax {
     const val DEFAULT_PREFIX: Char = '@'
     const val MAX_NAME = 16
     const val MAX_ARGUMENT = 200
+    /** The argument limit of the few commands that name themselves in `longArguments` (`@translate`). */
+    const val MAX_LONG_ARGUMENT = 500
     /** Characters the caller must read before the cursor; one more tells whether the field starts there. */
-    const val LOOKBACK = 1 + MAX_NAME + 1 + MAX_ARGUMENT
+    const val LOOKBACK = 1 + MAX_NAME + 1 + MAX_LONG_ARGUMENT
 
     private val OPENERS = setOf('(', '[', '{', '"', '\'', '„', '“', '«', '¿', '¡')
 
@@ -27,9 +29,11 @@ object CommandSyntax {
 
     /**
      * What is typed before the cursor, or null. [before] is the text before the cursor, up to
-     * [LOOKBACK] + 1 characters; [names] are the enabled command names in lower case.
+     * [LOOKBACK] + 1 characters; [names] are the enabled command names in lower case. Commands in
+     * [longArguments] take up to [MAX_LONG_ARGUMENT] characters, all others [MAX_ARGUMENT].
      */
-    fun parse(before: CharSequence, prefix: Char, names: Collection<String>): CommandContext? {
+    fun parse(before: CharSequence, prefix: Char, names: Collection<String>,
+              longArguments: Collection<String> = emptySet()): CommandContext? {
         if (!isAllowedPrefix(prefix) || names.isEmpty()) return null
         // a window cut by the caller does not tell what precedes its first character
         val fieldStartsInWindow = before.length <= LOOKBACK
@@ -39,14 +43,15 @@ object CommandSyntax {
             if (before[index] == '\n') return null // commands never span lines
             if (before[index] == prefix) {
                 val atBoundary = if (index == 0) fieldStartsInWindow else before[index - 1].isWhitespace() || before[index - 1] in OPENERS
-                if (atBoundary) parseAt(before, index, prefix, names)?.let { return it }
+                if (atBoundary) parseAt(before, index, prefix, names, longArguments)?.let { return it }
             }
             index--
         }
         return null
     }
 
-    private fun parseAt(before: CharSequence, start: Int, prefix: Char, names: Collection<String>): CommandContext? {
+    private fun parseAt(before: CharSequence, start: Int, prefix: Char, names: Collection<String>,
+                        longArguments: Collection<String>): CommandContext? {
         var end = start + 1
         while (end < before.length && end - start - 1 < MAX_NAME && before[end].isAsciiLetter()) end++
         val typed = before.substring(start + 1, end).lowercase()
@@ -58,7 +63,8 @@ object CommandSyntax {
         }
         if (typed !in names || before[end] != ' ') return null
         val argument = before.substring(end + 1)
-        if (argument.length > MAX_ARGUMENT || argument.any { it == '\n' || it == '\r' }) return null
+        val limit = if (typed in longArguments) MAX_LONG_ARGUMENT else MAX_ARGUMENT
+        if (argument.length > limit || argument.any { it == '\n' || it == '\r' }) return null
         return CommandCall(start, text, prefix, typed, argument)
     }
 

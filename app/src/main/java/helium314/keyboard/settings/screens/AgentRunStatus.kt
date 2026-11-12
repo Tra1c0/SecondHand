@@ -102,8 +102,12 @@ internal fun AgentRunStatus() {
 }
 
 /**
- * Title of a journaled text action. The free question of `@ki` (AiTextAction.ASK) has no built-in
- * action on purpose, so it must not be looked up there: a missing entry would crash this page.
+ * Title of a journaled text action. The free question of `@ki` (AiTextAction.ASK) and the translation
+ * of `@translate` (AiTextAction.TRANSLATE_STYLED) have no built-in action on purpose, so they must not
+ * be looked up there: a missing entry would crash this page.
  */
-internal fun textActionTitle(action: dev.agentkeyboard.core.AiTextAction): Int =
-    BuiltinAction.entries.firstOrNull { it.ai == action }?.titleResource() ?: R.string.agent_command_ki_task
+internal fun textActionTitle(action: dev.agentkeyboard.core.AiTextAction): Int = when (action) {
+    dev.agentkeyboard.core.AiTextAction.ASK -> R.string.agent_command_ki_task
+    dev.agentkeyboard.core.AiTextAction.TRANSLATE_STYLED -> R.string.agent_command_translate_task
+    else -> BuiltinAction.entries.firstOrNull { it.ai == action }?.titleResource() ?: R.string.agent_command_ki_task
+}

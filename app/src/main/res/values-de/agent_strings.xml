@@ -468,4 +468,19 @@
     <string name="agent_command_qr_label">QR-Code</string>
     <string name="agent_command_qr_failed">Der QR-Code konnte nicht erstellt werden.</string>
     <string name="agent_command_qr_none">Keine App kann den QR-Code teilen.</string>
+    <string name="agent_command_translate">Mit KI übersetzen: %1$stranslate \"Text\" Stil öffnet die Textaktionen mit einer Vorschau genau des Texts in Anführungszeichen und des Stils danach (z. B. natürliches Slang-Spanisch; ohne Stil natürliches Englisch), des Anbieters und des Modells. Erst ein Tipp auf Senden schickt beides, sonst nichts aus dem Feld, an deinen eigenen KI-Anbieter (API-Schlüssel nötig). Einfügen ersetzt dann den getippten Befehl durch die Übersetzung. Bis 500 Zeichen nach dem Befehlsnamen.</string>
+    <string name="agent_command_translate_hint">Text in \"…\" setzen</string>
+    <string name="agent_command_translate_usage">Tippe %1$stranslate \"Text\" Stil, z. B. %1$stranslate \"bis morgen\" lockeres Spanisch</string>
+    <string name="agent_command_translate_chip">Übersetzen: %s</string>
+    <string name="agent_command_translate_open">Übersetzung für deinen KI-Anbieter vorbereiten: %s</string>
+    <string name="agent_command_translate_source">Zu sendender Stil und Text</string>
+    <string name="agent_command_translate_count">Anfrage: %1$d Zeichen</string>
+    <string name="agent_command_translate_task">Übersetzen mit Stil</string>
+    <string name="agent_command_translate_confirm">Genau den oben angezeigten Stil und Text (%2$d Zeichen) mit %1$s an %3$s senden? Sonst wird nichts aus dem Textfeld gesendet. Es gelten API-Kosten und die Datenregeln des Anbieters.</string>
+    <string name="agent_command_translate_send">Zum Übersetzen an %1$s senden</string>
+    <string name="agent_command_translate_answer">Übersetzung der KI</string>
+    <string name="agent_command_translate_ready">Prüfe die Übersetzung. Einfügen ersetzt den getippten Befehl durch sie.</string>
+    <string name="agent_command_translate_credentials">Kein API-Schlüssel für den gewählten Anbieter. Richte ihn unter KI-Anbieter ein (Knopf oben) und tippe den Befehl danach erneut.</string>
+    <string name="agent_command_translate_unavailable">Die Übersetzung kann aus diesem Feld nicht gesendet werden. Schließe das Panel und tippe den Befehl erneut.</string>
+    <string name="agent_command_translate_insert_failed">Das Feld hat sich geändert. Es wurde nichts eingefügt; du kannst die Übersetzung weiterhin kopieren.</string>
 </resources>
