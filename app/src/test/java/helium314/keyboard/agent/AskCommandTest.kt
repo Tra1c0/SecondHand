@@ -83,4 +83,12 @@ class AskCommandTest {
         assertNull(KeyboardCommands.find("@ki hallo", Settings.getValues(), editor))
         assertTrue(asked.isEmpty())
     }
+
+    @Test fun everyJournaledTextActionHasATitleIncludingTheQuestion() {
+        // the run list on the AI settings page must not crash after an @ki run (ASK has no built-in action)
+        for (action in dev.agentkeyboard.core.AiTextAction.entries)
+            assertTrue(latinIME.getString(helium314.keyboard.settings.screens.textActionTitle(action)).isNotBlank())
+        assertEquals(R.string.agent_command_ki_task,
+            helium314.keyboard.settings.screens.textActionTitle(dev.agentkeyboard.core.AiTextAction.ASK))
+    }
 }

@@ -527,7 +527,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     solche Snapshots ab), gesendet über die bestehende Freigabe (`AiTextAction.ASK`, nur hier
     erreichbar, kein `BuiltinAction`), eingefügt über `InputLogic.replaceCommandText(…, generated
     = true)` (Lernen stoppt wie bei anderen KI-Übernahmen), sonst `captureAnchor`/`insert`. Solange
-    eine Frage offen ist, sind Auswahl-Aktionen gesperrt (`asking`). Tests `CT/QuestionCaptureTest.kt`,
+    eine Frage offen ist, sind Auswahl-Aktionen gesperrt (`asking`); die Laufliste der
+    KI-Einstellungen titelt `ASK` über `textActionTitle` (ohne `BuiltinAction`, sonst Absturz). Tests `CT/QuestionCaptureTest.kt`,
     `AskCommandTest` (`AT/`), `InputLogicTest` (Frage-Fälle).
   - Tests: `CT/UrlDetectorTest.kt`, `CT/SymbolTableTest.kt`, `CT/UnitConversionTest.kt`,
     `CT/EventParserTest.kt`, `CT/DateFormattingTest.kt`, `CT/PlacesTest.kt`;

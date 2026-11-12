@@ -162,7 +162,8 @@ stehen unten. Noch auf keinem Gerät ausprobiert.
 - `@clip wort`: braucht Einstellungen → Optionen → Zwischenablage-Verlauf.
 - `@wf name`: erst Text markieren, dann öffnet sich der Workflow in den Textaktionen.
 - `@ki Frage`: zeigt die Frage, Anbieter und Modell; erst „Frage an … senden“ schickt sie (eigener
-  Schlüssel nötig). „Einfügen“ setzt die Antwort an die Stelle des Befehls.
+  Schlüssel nötig). „Einfügen“ setzt die Antwort an die Stelle des Befehls; hast du die
+  Schreibmarke inzwischen woanders hingesetzt, landet sie dort und `@ki …` bleibt stehen.
 - `@datum`, `@datum morgen`; `@termin Samstag halb acht Kino` öffnet einen Kalenderentwurf (gespeichert
   ist er erst in der Kalender-App); `@ort Bahnhofstraße 1 Köln` oder `@ort zuhause` (Orte unter
   Einstellungen → Befehle → „Gespeicherte Orte“).

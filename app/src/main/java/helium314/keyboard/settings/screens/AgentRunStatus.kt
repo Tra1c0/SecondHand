@@ -63,7 +63,7 @@ internal fun AgentRunStatus() {
             OutlinedCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     val title = when (val subject = record.subject) {
-                        is RunSubject.TextAction -> stringResource(BuiltinAction.entries.first { it.ai == subject.action }.titleResource())
+                        is RunSubject.TextAction -> stringResource(textActionTitle(subject.action))
                         is RunSubject.Workflow -> workflowNames[subject.definitionId to subject.revision]?.let {
                             stringResource(R.string.agent_runs_named_workflow, it, subject.revision)
                         } ?: stringResource(R.string.agent_runs_workflow_title, subject.revision)
@@ -100,3 +100,10 @@ internal fun AgentRunStatus() {
         }
     }
 }
+
+/**
+ * Title of a journaled text action. The free question of `@ki` (AiTextAction.ASK) has no built-in
+ * action on purpose, so it must not be looked up there: a missing entry would crash this page.
+ */
+internal fun textActionTitle(action: dev.agentkeyboard.core.AiTextAction): Int =
+    BuiltinAction.entries.firstOrNull { it.ai == action }?.titleResource() ?: R.string.agent_command_ki_task
