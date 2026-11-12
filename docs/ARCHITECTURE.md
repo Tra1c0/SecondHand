@@ -178,6 +178,8 @@ Trefferzonen (Etappe 22a, Touch-Verarbeitung, jede Änderung mit Prüfer):
   das Kalibrierfeld den Fokus hat (Ansicht- in Tastatur-Koordinaten über das Padding).
 - `LatinIME.java`: `onStartInputViewInternal` lädt `TouchModel` und schaltet die Kalibrierung
   nur für das eigene Feld mit `AgentPreferences.TOUCH_CALIBRATION_FIELD` ein.
+- `InputLogic.java` (22b): `commitChosenWord` gibt die Tipp-Koordinaten des Worts an
+  `TouchModel.learnFromWord` (nur mit Schalter und nur Tipp-Eingabe).
 
 Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Flacher Stil“):
 
@@ -582,8 +584,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Trefferfläche die Berührung enthält, die mit dem nächsten verschobenen Mittelpunkt; haben beide
   Kandidaten nichts gelernt, gilt die normale Regel (Flächen überlappen um ein Pixel).
   `K/agent/TouchCalibration.kt` sammelt im Speicher Berührungen samt Tastengeometrie, gleicht sie
-  mit dem Zieltext ab (Editierdistanz, Nachbartasten als günstigere Verwechslung) und liefert
-  Mittelwerte ab vier Treffern. Oberfläche: Abschnitt „Trefferzonen“ in `AgentLearningScreen.kt`.
+  mit dem Zieltext ab (Editierdistanz, Nachbartasten als günstigere Verwechslung, das nicht
+  getippte Ende kostet nichts) und liefert Mittelwerte ab vier Treffern; ändert sich die
+  Tastatur, beginnt die Sammlung neu. `learnFromWord` (22b) ordnet jede Berührung dem Buchstaben
+  an derselben Stelle des abgeschickten Worts zu (gleiche Länge, höchstens zwei Unterschiede) und
+  speichert alle zehn Wörter. Der Wörterbuch-Decoder bekommt weiter die rohen Koordinaten und
+  rechnet mit den normalen Tastenpositionen. Oberfläche: Abschnitt „Trefferzonen“ in `AgentLearningScreen.kt`.
   Tests: `TouchModelTest`.
 
 ## Unveränderter Upstream

@@ -1147,6 +1147,24 @@ APK installiert war: weiterhin kein Gerätelauf.
 - Nicht geprüft: echtes Tippen auf dem Telefon, die Kalibrierungsseite im Gerät, Einhand- und
   geteilte Tastatur.
 
+## Lesender Review von 22a und Etappe22b — Lernen beim Tippen
+
+- Prüfer zu 22a: ein Hauptbefund behoben (wer die Kalibrierung früh beendet, bekam eine falsche
+  Zuordnung, weil das ungetippte Ende teurer war als ein übersprungener Anfang; jetzt kostet
+  das ungetippte Ende nichts, getestet mit 20 von 168 Buchstaben). Behoben: Treffer, die
+  über eine gelernte Zone erkannt wurden, fielen weg und zogen jede neue Kalibrierung zur
+  Mitte; geänderte Tastatur mitten in der Kalibrierung; Löschen entfernte beliebige Treffer;
+  Schaltertext versprach Lernen beim Tippen (jetzt gebaut); Umlaut-Hinweis falsch für QWERTZ+
+  (Text enthält jetzt ä ö ü ß); Zähler nach Neustart 0. Offen, dokumentiert: Der
+  Wörterbuch-Decoder rechnet mit den normalen Tastenpositionen.
+- 22b: `TouchModelTest` (jetzt 9 Fälle): Lernen aus abgeschickten Wörtern nur mit Schalter; ein
+  korrigierter Vertipper (wrrt → wert) zählt für e, gemessen vom e; andere Wörter oder Längen
+  lehren nichts; Inkognito und Lernpause lehren nichts.
+- Prüfer zu 22b: behoben, dass fortgesetzte Wörter (Cursor ins Wort gesetzt) mit Tastenmitten
+  statt Berührungen gelernt wurden; dass automatische Korrekturen sofort zählten, obwohl sie noch
+  rückgängig gemacht werden können; doppelt abgezogenes Padding (heute 0, also ohne Wirkung).
+  Offen: kein Test über den echten `InputLogic`-Haken.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

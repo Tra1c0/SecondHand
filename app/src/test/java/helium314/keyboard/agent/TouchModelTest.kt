@@ -140,10 +140,10 @@ class TouchModelTest {
         }
         // target "hallo welt": the user hits a little too low, types "hsllo" (s for a), corrects one letter with delete
         "hsllo".forEach { tap(it, 0f, 0.2f) }
-        tap('x'); TouchCalibration.onKey(KeyCode.DELETE, 0, 0, 0, 0, keyboard) // typed and deleted
-        TouchCalibration.onKey('ä'.code, 5, 5, 0, 0, keyboard) // from a popup: not on a letter key, ignored
+        tap('x'); TouchCalibration.onKey(KeyCode.DELETE, 0, 0, 0, 0, keyboard) // typed and deleted: left to the alignment
+        TouchCalibration.onKey('ä'.code, 5, 5, 0, 0, keyboard) // no ä key on this layout: ignored
         "welt".forEach { tap(it, 0f, 0.2f) }
-        assertEquals(9, TouchCalibration.touchCount())
+        assertEquals(10, TouchCalibration.touchCount())
         val result = TouchCalibration.result("Hallo Welt")
         // l occurs three times in the target and was hit three times; s was meant as a
         assertTrue(result.isEmpty()) // fewer than MIN_TOUCHES per key
@@ -151,12 +151,71 @@ class TouchModelTest {
         val more = TouchCalibration.result("Hallo Welt Hallo Welt Hallo Welt Hallo Welt Hallo Welt")
         val l = more.getValue('l'.code)
         assertTrue(abs(l.second - 0.2f) < 0.03f && abs(l.first) < 0.03f)
-        assertEquals(15, l.third)
+        assertEquals(15, l.third) // the deleted x was not counted for any letter
         val a = more.getValue('a'.code) // the s touches count for a, measured from the a key
         assertTrue(a.first > 0.5f, "s is right of a: ${a.first}")
         assertFalse('s'.code in more)
         TouchCalibration.start()
         assertEquals(0, TouchCalibration.touchCount())
+    }
+
+    @Test fun stoppingEarlyStillAlignsFromTheStart() {
+        val target = TouchCalibration.TEXT.lowercase().filter { it.isLetter() }.map { it.code }
+        val typed = target.take(20)
+        val pairs = TouchCalibration.align(typed, target) { _, _ -> 3 }
+        assertEquals(typed.indices.map { it to typed[it] }, pairs)
+    }
+
+    @Test fun aChangedKeyboardStartsTheCalibrationAgain() {
+        TouchCalibration.active = true
+        TouchCalibration.start()
+        val box = key('e').hitBox
+        repeat(3) { TouchCalibration.onKey('e'.code, box.centerX(), box.centerY(), 0, 0, keyboard) }
+        assertEquals(3, TouchCalibration.touchCount())
+        val other = KeyboardBuilder(ContextThemeWrapper(latinIME, R.style.KeyboardTheme_LXX_Base_Border), KeyboardParams(UniqueKeysCache.NO_CACHE)).run {
+            val p = KeyboardLayoutSet.Params()
+            p.editorInfo = EditorInfo()
+            p.subtype = RichInputMethodSubtype.get(SubtypeUtilsAdditional.createEmojiCapableAdditionalSubtype(Locale.GERMANY, "qwertz", true))
+            p.keyboardWidth = 1080; p.keyboardHeight = 500; p.settingsValues = Settings.getValues()
+            load(KeyboardId(KeyboardElement.ALPHABET, p)); build()
+        }
+        val small = other.sortedKeys.single { it.code == 'e'.code }.hitBox
+        TouchCalibration.onKey('e'.code, small.centerX(), small.centerY(), 0, 0, other)
+        assertEquals(1, TouchCalibration.touchCount())
+    }
+
+    @Test fun typedWordsTeachTheZonesOnlyWhenAllowed() {
+        fun type(word: String, committed: String, dx: Float, settings: helium314.keyboard.latin.settings.SettingsValues) {
+            val boxes = word.map { key(it).hitBox }
+            TouchModel.learnFromWord(latinIME, word, committed, boxes.map { (it.exactCenterX() + dx * it.width()).toInt() }.toIntArray(),
+                boxes.map { it.centerY() }.toIntArray(), word.length, keyboard, 0, 0, settings)
+        }
+        type("wert", "wert", 0.25f, Settings.getValues()) // switched off
+        assertEquals(0, TouchModel.samples('w'.code))
+        latinIME.prefs().edit().putBoolean(AgentPreferences.ADAPT_TOUCH, true).commit()
+        Settings.getInstance().loadSettings(latinIME, Locale.GERMANY, InputAttributes(EditorInfo(), false, latinIME.packageName))
+        val on = Settings.getValues()
+        type("wert", "wert", 0.25f, on)
+        assertEquals(1, TouchModel.samples('w'.code))
+        // a corrected slip: a touch on the left part of r counts for e, measured from the e key
+        val e = key('e').hitBox; val r = key('r').hitBox; val w = key('w').hitBox; val t = key('t').hitBox
+        TouchModel.learnFromWord(latinIME, "wrrt", "wert", intArrayOf(w.centerX(), r.left + r.width() / 5, r.centerX(), t.centerX()),
+            IntArray(4) { e.centerY() }, 4, keyboard, 0, 0, on)
+        assertEquals(2, TouchModel.samples('e'.code))
+        val meanE = TouchModel.all().getValue('e'.code).first
+        assertTrue(meanE > 0.4f && meanE < 0.6f, "mean $meanE") // (0.25 + about 0.7) / 2
+        // different words or lengths teach nothing
+        type("wert", "haus", 0f, on)
+        type("wer", "wert", 0f, on)
+        assertEquals(2, TouchModel.samples('w'.code))
+        // incognito and paused learning teach nothing
+        for (flag in listOf(Settings.PREF_ALWAYS_INCOGNITO_MODE, AgentPreferences.LEARNING_PAUSED)) {
+            latinIME.prefs().edit().putBoolean(flag, true).commit()
+            Settings.getInstance().loadSettings(latinIME, Locale.GERMANY, InputAttributes(EditorInfo(), false, latinIME.packageName))
+            type("wert", "wert", 0f, Settings.getValues())
+            latinIME.prefs().edit().remove(flag).commit()
+        }
+        assertEquals(2, TouchModel.samples('w'.code))
     }
 
     @Test fun alignmentKeepsMatchesAndSubstitutionsOnly() {

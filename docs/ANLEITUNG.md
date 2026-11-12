@@ -166,8 +166,10 @@ Einstellungen → Gelernte Wörter → Abschnitt „Trefferzonen“:
    sind egal, die Tastatur gleicht sie ab.
 3. „Auswerten“: Du siehst pro Taste, wohin du daneben triffst. „Übernehmen“ speichert es.
 
-„Trefferzonen zurücksetzen“ löscht alles. Die Umlaute und ß liegen auf langem Druck und werden
-nicht vermessen.
+Danach lernt die Tastatur beim normalen Tippen weiter: aus getippten (nicht gewischten) Wörtern,
+auch wenn du einen Vertipper über die Vorschlagsleiste korrigierst. Gespeichert wird alle zehn
+Wörter; wird die Tastatur vorher beendet, gehen bis zu neun Wörter verloren. „Trefferzonen zurücksetzen“ löscht alles. Umlaute werden nur vermessen,
+wenn sie eigene Tasten haben (Layout QWERTZ+); ß hat keine eigene Taste.
 
 ## Gelernte Wörter
 

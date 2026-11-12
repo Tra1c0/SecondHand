@@ -200,6 +200,7 @@ private fun TouchSection(busy: Boolean) {
     val context = LocalContext.current
     val prefs = context.prefs()
     var adapt by remember { mutableStateOf(prefs.getBoolean(AgentPreferences.ADAPT_TOUCH, false)) }
+    remember { TouchModel.loadStored(context); true } // the keyboard may not have been shown since a restart
     var learned by remember { mutableIntStateOf(TouchModel.all().count { it.value.third >= TouchModel.MIN_SAMPLES }) }
     var calibrating by remember { mutableStateOf(false) }
     var confirmReset by remember { mutableStateOf(false) }

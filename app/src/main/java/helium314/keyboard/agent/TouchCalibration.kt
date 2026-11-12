@@ -13,12 +13,12 @@ import helium314.keyboard.latin.common.Constants
  * in memory and is dropped when the page is left.
  */
 object TouchCalibration {
-    /** Text to type: two pangrams and a plain sentence, so every letter of QWERTZ occurs. */
+    /** Text to type: two pangrams and a plain sentence, so every letter of QWERTZ occurs, also ä ö ü ß. */
     const val TEXT = "Franz jagt im komplett verwahrlosten Taxi quer durch Bayern. " +
-        "Victor jagt zwei Boxer quer durch den Sylter Deich. " +
+        "Zwölf Boxkämpfer jagen Viktor quer über den großen Sylter Deich. " +
         "Die Katze sitzt heute wieder auf dem warmen Fensterbrett und schaut hinaus."
 
-    /** Cost of an extra or missing letter; a substitution costs 1 between neighbouring keys and 2 otherwise. */
+    /** Cost of an extra or missing letter; a substitution costs 1 between neighbouring keys and 3 otherwise. */
     private const val GAP = 2
 
     private fun step(touched: Int, intended: Int, substitution: (Int, Int) -> Int) =
@@ -51,21 +51,22 @@ object TouchCalibration {
     fun onKey(code: Int, viewX: Int, viewY: Int, paddingLeft: Int, paddingTop: Int, keyboard: Keyboard?) {
         if (!active) return
         synchronized(this) {
-            if (code == helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode.DELETE) {
-                if (touches.isNotEmpty()) touches.removeAt(touches.size - 1)
-                return
-            }
+            // deleting is not counted: a typed-and-deleted letter is left out by the alignment
             val lower = Character.toLowerCase(code)
             if (!Character.isLetter(lower) || viewX == Constants.NOT_A_COORDINATE || viewY == Constants.NOT_A_COORDINATE) return
             val x = viewX - paddingLeft
             val y = viewY - paddingTop
+            val current = HashMap<Int, Rect>()
             keyboard?.sortedKeys?.forEach { key ->
                 val c = Character.toLowerCase(key.code)
-                if (Character.isLetter(c)) geometry[c] = Rect(key.hitBox)
+                if (Character.isLetter(c)) current[c] = Rect(key.hitBox)
             }
-            // a letter from a popup has coordinates of the popup: only touches on a letter key count
-            val box = geometry[lower] ?: return
-            if (!box.contains(x, y)) return
+            // the keyboard changed size or layout: earlier touches would be measured against the wrong keys
+            if (current != geometry) { touches.clear(); geometry.clear(); geometry.putAll(current) }
+            if (lower !in geometry) return
+            // a letter from a popup has coordinates of the popup: the touch must be on some letter key
+            // (not necessarily the one found: with learned zones a touch may count for a neighbour)
+            if (geometry.values.none { it.contains(x, y) }) return
             touches.add(Touch(lower, x, y))
         }
     }
@@ -74,7 +75,8 @@ object TouchCalibration {
 
     /**
      * Per intended letter: mean offset from its key centre in key sizes and number of touches.
-     * Letters not on the keyboard (umlauts on long press, ß, punctuation) are skipped.
+     * Letters without their own key on the current layout (e.g. umlauts on QWERTZ without extra
+     * keys) and punctuation are skipped.
      */
     fun result(target: String = TEXT): Map<Int, Triple<Float, Float, Int>> = synchronized(this) {
         val wanted = target.lowercase().map { it.code }.filter { it in geometry }
@@ -94,21 +96,24 @@ object TouchCalibration {
     }
 
     /**
-     * Edit-distance alignment of the touched letters with the intended ones. Returns
+     * Edit-distance alignment of the touched letters with the intended ones (a prefix of them). Returns
      * (index of touch, intended letter) for matches and substitutions; extra or missing letters
      * are left out.
      */
     internal fun align(touched: List<Int>, intended: List<Int>, substitution: (Int, Int) -> Int = { _, _ -> 1 }): List<Pair<Int, Int>> {
         val n = touched.size; val m = intended.size
         val cost = Array(n + 1) { IntArray(m + 1) }
-        for (i in 0..n) cost[i][0] = i
-        for (j in 0..m) cost[0][j] = j
+        for (i in 0..n) cost[i][0] = i * GAP
+        for (j in 0..m) cost[0][j] = j * GAP
         for (i in 1..n) for (j in 1..m) {
             cost[i][j] = minOf(cost[i - 1][j - 1] + step(touched[i - 1], intended[j - 1], substitution),
                 cost[i - 1][j] + GAP, cost[i][j - 1] + GAP)
         }
+        // stopping early is fine: the rest of the text after the last typed letter costs nothing
+        var end = m
+        for (k in 0..m) if (cost[n][k] < cost[n][end]) end = k
         val result = ArrayList<Pair<Int, Int>>()
-        var i = n; var j = m
+        var i = n; var j = end
         while (i > 0 && j > 0) {
             when {
                 cost[i][j] == cost[i - 1][j - 1] + step(touched[i - 1], intended[j - 1], substitution) -> {

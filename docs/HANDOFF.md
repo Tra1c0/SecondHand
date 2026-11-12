@@ -9,19 +9,17 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 ## Aktueller Stand
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
-- In Arbeit: nichts. Runde „flacher Look“ (Auftrag des Owners vom 2026-11-12: Aussehen nach
-  fünf Screenshots, als Ausgangspunkt für ein eigenes Design) ist gebaut, lesend geprüft und
-  korrigiert (zwei von fünf Gegenprüfungen fielen am Nutzungslimit aus).
-- Fertig: Etappen 0–17a, 18a und 19a–19e (Tastenstil „Flat“ mit Vorlage, Leiste, Menü,
-  Zwischenablage, Panel-Look), Gerätetest G1, vier lesende Reviews.
+- In Arbeit: nichts. Seit 2026-11-12 nach Auftrag des Owners („Mach“): Etappen 20a, 20b
+  (lernende Autokorrektur), 22a, 22b (persönliche Trefferzonen) gebaut, je mit lesendem Prüfer.
+- Fertig: Etappen 0–17a, 18a, 19a–19e (flacher Look), 20a–20b, 22a–22b, Gerätetest G1.
 - Letzter Build: 0.1.0 Debug, `artifacts/…-universal.apk` (alle ABIs), nicht im Repo.
-- Geprüft: Agent-Suite, Build, Lint; Vollregression nach den Review-Korrekturen mit 449 Tests und 7 Fehlern
-  (zwei geerbte, fünf Link-Tests an externen Hosts bzw. am Netzwerkfilter). Etappe 19 ist auf
-  keinem Gerät und in keinem Emulator gelaufen, nur als gerendertes Bild verglichen.
-- Danach: 19f (flacher Look auf dem Telefon des Owners vergleichen und nachjustieren), sonst
-  `docs/ROADMAP.md` → Beschlossen. 17b braucht eine Klärung, 16c wartet auf OAuth-Zugänge.
-- Wartet auf den Owner: APK installieren, Vorlage anwenden, Bildschirmfotos schicken;
-  OAuth-Zugänge für 16c; Branch `main`.
+- Geprüft: Agent-Suite, Build, Lint; Vollregression nach 22b mit 478 Tests und 7 Fehlern
+  (zwei geerbte, fünf Link-Tests an externen Hosts bzw. am Netzwerkfilter). Etappen 19–22 sind
+  auf keinem Gerät gelaufen.
+- Danach: 20c (gelernte Paare ansehen/löschen/exportieren), 22c (Trefferzonen auch im
+  Korrekturmodell), 21 (Termine und Orte), 19f (Look am Telefon nachjustieren).
+- Wartet auf den Owner: APK installieren, Schalter einschalten, Bildschirmfotos und Eindrücke
+  vom Xiaomi; OAuth-Zugänge für 16c; Branch `main`.
 
 ## Offene Punkte
 
@@ -155,6 +153,9 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
     Screenshots verglichen (`FlatStyleRenderTest` u. a.). Das ersetzt keinen Gerätetest.
   - Die Kalender-App des Abbilds `default` (API 35) ist defekt; Übergaben dorthin enden im
     Absturz der Ziel-App.
+- **Gradle-Testbericht scheitert mit „Failed to create MD5 hash“ / „Could not generate test
+  report“:** Die Shell hatte keine UTF-8-Locale, Testnamen mit Akzenten („né“) ließen sich nicht
+  als Datei schreiben. Vor Gradle `export LC_ALL=C.UTF-8 LANG=C.UTF-8` setzen.
 - **Maven Central drosselt (HTTP 429)** bei vielen parallelen Downloads; Build wiederholen.
   Robolectric konnte die Android-16-Laufzeit nicht selbst laden: die Datei
   `android-all-instrumented-16-robolectric-13921718-i7.jar` samt `.pom` und `.sha512` per `curl`
@@ -176,6 +177,9 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
 
+- 0.1.0 Debug (Etappen 20a–22b): Umlaut-Schutz, gemerkte und gelernte Korrekturen, persönliche
+  Trefferzonen mit Kalibrierung; Vollregression 478 Tests mit den sieben bekannten Fehlern,
+  Agent-Suite grün, Build und Lint grün; auf keinem Gerät geprüft.
 - 0.1.0 Debug (Etappen 19a–19e): Tastenstil „Flat“ mit Vorlage, Leiste mit fünf Knöpfen,
   Tastaturmenü, Zwischenablage-Ansicht mit Vorschaubild-Cache, Panel-Look; Vollregression 449
   Tests mit den sieben bekannten Fehlern, Build und Lint grün; auf keinem Gerät geprüft.

@@ -295,7 +295,7 @@
     <string name="agent_autocorrect_typos_clear_confirm">Alle gelernten Tippfehler vergessen?</string>
     <string name="agent_touch_title">Trefferzonen</string>
     <string name="agent_touch_adapt">Trefferzonen an mich anpassen</string>
-    <string name="agent_touch_adapt_description">Die Tastatur lernt, wo du jede Buchstabentaste wirklich triffst, und verschiebt die unsichtbare Trefferfläche ein Stück dorthin. Die sichtbaren Tasten bleiben, wo sie sind. Eine Zone wandert höchstens um ein Drittel Taste. Gespeichert werden nur Durchschnittswerte pro Taste, auf diesem Gerät, kein Text.</string>
+    <string name="agent_touch_adapt_description">Die Tastatur lernt aus der Kalibrierung und aus den Wörtern, die du tippst, wo du jede Buchstabentaste wirklich triffst, und verschiebt die unsichtbare Trefferfläche ein Stück dorthin. Die sichtbaren Tasten bleiben, wo sie sind. Eine Zone wandert höchstens um ein Drittel Taste. Gespeichert werden nur Durchschnittswerte pro Taste, auf diesem Gerät, kein Text.</string>
     <string name="agent_touch_learned">Tasten mit gelernter Zone: %d</string>
     <string name="agent_touch_calibrate">Kalibrieren</string>
     <string name="agent_touch_calibrate_description">Tippe den Text unten so ab, wie du normal tippst, mit dieser Tastatur. Tippfehler sind egal; du kannst auch früher aufhören.</string>

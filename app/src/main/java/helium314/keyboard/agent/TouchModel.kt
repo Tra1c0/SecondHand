@@ -50,6 +50,12 @@ object TouchModel {
     @JvmStatic
     fun load(context: Context, settings: SettingsValues) {
         enabled = settings.mAdaptTouch
+        loadStored(context)
+    }
+
+    /** Reads the stored values once, e.g. for the settings page before the keyboard was shown. */
+    @JvmStatic
+    fun loadStored(context: Context) {
         if (loaded) return
         synchronized(lock) {
             if (loaded) return
@@ -88,6 +94,40 @@ object TouchModel {
     }
 
     @JvmStatic fun persist(context: Context) = synchronized(lock) { save(context) }
+
+    private var unsaved = 0
+    private const val SAVE_EVERY = 10 // words
+
+    /**
+     * Stage 22b: learns from a word that was just committed after tap typing. Each touch counts for
+     * the letter at the same position of the committed word, so a corrected slip ("wprd" -> "word")
+     * teaches where the user aimed. Only words of the same length with at most two different letters.
+     * [xs]/[ys] are keyboard coordinates as WordComposer keeps them (the keyboard view already
+     * subtracted its padding); [paddingLeft]/[paddingTop] are for callers with view coordinates.
+     */
+    @JvmStatic
+    fun learnFromWord(context: Context, typed: String, committed: String, xs: IntArray, ys: IntArray, size: Int,
+                      keyboard: helium314.keyboard.keyboard.Keyboard?, paddingLeft: Int, paddingTop: Int, settings: SettingsValues) {
+        if (!settings.mAdaptTouch || settings.mLearningPaused || settings.mIncognitoModeEnabled || settings.mIsLocked) return
+        if (keyboard == null) return
+        val typedCodes = helium314.keyboard.latin.common.StringUtils.toCodePointArray(typed)
+        val meant = helium314.keyboard.latin.common.StringUtils.toCodePointArray(committed.lowercase())
+        if (typedCodes.size != size || meant.size != size || size < 2) return
+        var differences = 0
+        for (i in 0 until size) if (Character.toLowerCase(typedCodes[i]) != meant[i]) differences++
+        if (differences > 2) return
+        val boxes = HashMap<Int, Rect>()
+        keyboard.sortedKeys.forEach { key -> if (index(key.code) >= 0) boxes[Character.toLowerCase(key.code)] = key.hitBox }
+        var learned = false
+        for (i in 0 until size) {
+            if (xs[i] < 0 || ys[i] < 0) continue
+            val box = boxes[meant[i]] ?: continue
+            val ox = (xs[i] - paddingLeft - box.exactCenterX()) / box.width()
+            val oy = (ys[i] - paddingTop - box.exactCenterY()) / box.height()
+            learned = record(meant[i], ox, oy) || learned
+        }
+        if (learned && ++unsaved >= SAVE_EVERY) { unsaved = 0; persist(context) }
+    }
 
     /** Learned offset for [code] as applied: zero below [MIN_SAMPLES], damped while few, bounded. */
     @JvmStatic

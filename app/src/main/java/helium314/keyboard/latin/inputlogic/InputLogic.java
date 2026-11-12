@@ -2586,7 +2586,20 @@ public final class InputLogic {
         // what user typed. Note: currently this is done much later in
         // LastComposedWord#didCommitTypedWord by string equality of the remembered
         // strings.
+        // fork, stage 22b: tap positions of the word teach the personal hit zones (opt-in). Not for
+        // resumed words (their positions are key centres, not touches) and not for an automatic
+        // correction, which the user may still undo: only for the word as typed or as picked.
+        final boolean tapTyped = mWordComposer.isComposingWord() && !mWordComposer.isBatchMode() && !mWordComposer.isResumed();
+        final boolean confirmedWord = commitType == LastComposedWord.COMMIT_TYPE_MANUAL_PICK
+                || chosenWord.equalsIgnoreCase(mWordComposer.getTypedWord());
+        final String typedForTouch = tapTyped && confirmedWord && settingsValues.mAdaptTouch ? mWordComposer.getTypedWord() : null;
         mLastComposedWord = mWordComposer.commitWord(commitType, chosenWord, separatorString, ngramContext);
+        if (typedForTouch != null) {
+            final InputPointers pointers = mLastComposedWord.mInputPointers; // keyboard coordinates already
+            helium314.keyboard.agent.TouchModel.learnFromWord(mLatinIME, typedForTouch, chosenWord,
+                    pointers.getXCoordinates(), pointers.getYCoordinates(), pointers.getPointerSize(),
+                    KeyboardSwitcher.getInstance().getKeyboard(), 0, 0, settingsValues);
+        }
         if (DebugFlags.DEBUG_ENABLED) {
             long runTimeMillis = SystemClock.elapsedRealtime() - startTimeMillis;
             Log.d(TAG, "commitChosenWord() : " + runTimeMillis + " ms to run "

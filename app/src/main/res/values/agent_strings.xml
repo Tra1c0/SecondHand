@@ -296,7 +296,7 @@
     <string name="agent_autocorrect_typos_clear_confirm">Forget all learned typos?</string>
     <string name="agent_touch_title">Hit zones</string>
     <string name="agent_touch_adapt">Adapt hit zones to me</string>
-    <string name="agent_touch_adapt_description">The keyboard learns where you really hit each letter key and moves the invisible touch area a little towards it. The keys you see stay where they are. A zone moves at most a third of a key. Only averages per key are stored, on this device, no text.</string>
+    <string name="agent_touch_adapt_description">The keyboard learns where you really hit each letter key, from the calibration and from words you type, and moves the invisible touch area a little towards it. The keys you see stay where they are. A zone moves at most a third of a key. Only averages per key are stored, on this device, no text.</string>
     <string name="agent_touch_learned">Keys with a learned zone: %d</string>
     <string name="agent_touch_calibrate">Calibrate</string>
     <string name="agent_touch_calibrate_description">Type the text below as you normally do, with this keyboard. Typos do not matter; you can also stop earlier.</string>
