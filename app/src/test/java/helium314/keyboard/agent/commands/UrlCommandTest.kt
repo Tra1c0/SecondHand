@@ -31,6 +31,7 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowToast
 import java.util.Locale
 import kotlin.test.*
 
@@ -75,6 +76,7 @@ class UrlCommandTest {
         }
         override fun openCalculator(command: CommandCall) = false
         override val canOpenCalculator = false
+        override var cursor = -1
         override fun textBeforeCursor(length: Int): CharSequence? { fieldReads++; return before?.takeLast(length) }
         override fun textAfterCursor(length: Int): CharSequence? { fieldReads++; return after?.take(length) }
         override fun showChips(chips: List<KeyboardCommands.Chip>): Boolean {
@@ -206,6 +208,35 @@ class UrlCommandTest {
         chips.last().onTap()
         assertEquals(3, screen.reads)
         assertEquals(1, shown.size) // nothing found, nothing shown
+    }
+
+    @Test fun suggestionsAreReadOncePerCommandAtOneCursor() {
+        clip = "heise.de"; before = "Siehe example.com @url"; after = ""
+        host.cursor = 22
+        chips("Siehe example.com @url")
+        chips("Siehe example.com @url") // a strip update for the same command
+        assertEquals(1, clipReads)
+        assertEquals(2, fieldReads)
+        host.cursor = 30 // the same text elsewhere: read again
+        chips("Siehe example.com @url")
+        assertEquals(2, clipReads)
+        KeyboardCommands.forget() // the command is gone: nothing is kept
+        host.cursor = 22
+        chips("Siehe example.com @url")
+        assertEquals(3, clipReads)
+    }
+
+    @Test fun aScreenReadDoesNotRepeatAddressesTheRowAlreadyOffers() {
+        screen.isAvailable = true
+        clip = "heise.de"
+        val chips = chips("@url")
+        screen.result = listOf("heise.de und https://news.example.org/x", "noch einmal heise.de")
+        chips.last().onTap()
+        assertEquals(listOf("news.example.org/x", "↗", "heise.de", "↗"), labels(shown.single()))
+        screen.result = listOf("nur heise.de") // nothing new on the screen
+        chips.last().onTap()
+        assertEquals(1, shown.size)
+        assertEquals(latinIME.getString(R.string.agent_command_url_screen_none), ShadowToast.getTextOfLatestToast())
     }
 
     @Test fun switchedOffScreenReaderOpensTheCommandsPage() {

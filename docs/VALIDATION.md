@@ -1276,6 +1276,33 @@ APK installiert war: weiterhin kein Gerätelauf.
 - Nicht geprüft: alles weitere auf einem Gerät (Leiste mit Chips, Rechner über der Navigationsleiste,
   Querformat, TalkBack, Einfügen in echten Apps, WebView).
 
+## Review-Korrekturen 24c–24f
+
+Befunde eines lesenden Reviews der Befehle, behoben:
+
+- `@clip` (mittel): Der Upstream-Verlauf speichert Clips ohne Vertraulich-Markierung, ein altes
+  Passwort erschien nach dem nächsten Kopieren wieder. Jetzt merkt `SensitiveClips` (eigener
+  Zwischenablage-Listener, Verlauf unverändert) gesalzene Hashes vertraulicher oder im Passwortfeld
+  kopierter Clips; `@clip` überspringt sie. Tests `ClipCommandTest.aSensitiveClipStaysHidden…`,
+  `…PasswordField…`, `…NewestHashes`. Grenze: vor diesem Stand kopierte Clips bleiben unerkannt.
+- `@wf` (mittel): Ohne Markierung bereitete der Befehl nie etwas vor. Jetzt merkt sich das Panel
+  den Workflow bis zum nächsten Öffnen mit Markierung im selben Feld; Toast, wenn das Panel nicht
+  öffnen kann. Tests `InputLogicTest.typedWorkflowCommandIsPreparedWhenThePanelOpensAgain…`
+  (getippter Befehl, Chip, Markieren, Stift; kein Cloud-Aufruf ohne Freigabe),
+  `typedWorkflowChoiceIsDropped…` (Feldwechsel, Inkognito).
+- `@contact` (mittel): Adressbuch-Abfragen liefen je Tastendruck auf dem Main-Thread. Jetzt im
+  Hintergrund mit 150 ms Verzögerung; Tests mit steuerbarem Worker (`ContactCommandTest`).
+- Niedrig: `@ort` prüft selbst `isBlocked` und liest Orte einmal je Befehl; `@url` liest
+  Vorschlagsquellen einmal je Befehl und Schreibmarke, Bildschirmtreffer ohne Dubletten, Regex
+  vorkompiliert; `updateGuard` vergisst Gefundenes auch ohne Leiste, ein leerer Neuaufbau zeigt
+  die normale Leiste; Design-Kacheln ohne Hintergrundbild und neu bei Stilwechsel; Kommentar zu
+  einzeiligen Adressen; `map.sources` umfasst `AT/commands/`.
+- Geprüft (Robolectric/JVM): `:agent-core:test` und gezielte App-Tests (`*Command*`,
+  `commands.*`, `DesignTilesTest`, `InputLogicTest.typed*`), alle grün; `tools/dev.py agent-tests`
+  grün (415 App-Tests in 58 Klassen, 0 Fehler).
+- Nicht geprüft: alles auf einem Gerät (Zwischenablage-Listener mit echten Passwort-Managern,
+  `@wf`-Ablauf, Kontakte-Verzögerung, Design-Seite).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

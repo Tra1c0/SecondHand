@@ -156,11 +156,19 @@ stehen unten. Noch auf keinem Gerät ausprobiert.
 - `@url heise.de` öffnet die Seite. `@url` allein schlägt Adressen aus Zwischenablage und Feld vor.
   „Bildschirm lesen“: einmal einschalten unter Einstellungen → Befehle → „Bildschirm lesen“ →
   „Bedienungshilfen öffnen“. Auf dem Xiaomi vorher: App-Info von „Agent Keyboard Lab“ → ⋮ →
-  „Eingeschränkte Einstellungen zulassen“. Der Dienst liest nur, wenn du den Chip antippst.
+  „Eingeschränkte Einstellungen zulassen“. Der Dienst liest nur, wenn du den Chip antippst, und
+  speichert nichts. Er liest auch Apps mit Bildschirmschutz (z. B. Banking-Apps), Passwortfelder
+  aber nie. Vor Android 14 erkennt er andere vertrauliche Felder wie Einmalcodes nicht; tippe den
+  Chip dort nicht an.
 - `@such Begriff`, `@zeichen pfeil`, `@emoji herz`, `@conv 5 oz` (auch `@conv 5 oz in g`).
 - `@snip name`: Bausteine legst du unter Einstellungen → Befehle → „Textbausteine“ an.
-- `@clip wort`: braucht Einstellungen → Optionen → Zwischenablage-Verlauf.
-- `@wf name`: erst Text markieren, dann öffnet sich der Workflow in den Textaktionen.
+- `@clip wort`: braucht Einstellungen → Optionen → Zwischenablage-Verlauf. Einträge, die als
+  vertraulich markiert waren oder in einem Passwortfeld kopiert wurden, zeigt er nicht. Ausnahme:
+  vor diesem Update kopierte Einträge, die die Tastatur nicht mehr als aktuellen Clip sieht.
+- `@wf name`: Workflow antippen; das Panel sagt „Workflow vorgemerkt“. Panel schließen, Text
+  markieren, Textaktionen wieder öffnen (Stift): Der Workflow ist vorbereitet, du gibst ihn wie
+  gewohnt frei. Ist schon Text markiert, wird er sofort vorbereitet. Ein Feldwechsel verwirft die
+  Wahl.
 - `@ki Frage`: zeigt die Frage, Anbieter und Modell; erst „Frage an … senden“ schickt sie (eigener
   Schlüssel nötig). „Einfügen“ setzt die Antwort an die Stelle des Befehls.
 - `@datum`, `@datum morgen`; `@termin Samstag halb acht Kino` öffnet einen Kalenderentwurf (gespeichert

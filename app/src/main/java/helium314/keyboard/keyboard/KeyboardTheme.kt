@@ -151,18 +151,20 @@ private constructor(val themeId: Int, @JvmField val mStyleId: Int) {
         }
 
         /** fork: colours of a built-in colour theme for the preview tiles of the design page (DesignTiles) */
-        fun getPreviewColors(context: Context, themeName: String, themeStyle: String): Colors =
-            getThemeColors(themeName, themeStyle, context, context.prefs(), false)
+        /** Colours of a theme for a preview; [withBackgroundImage] false skips decoding the user's background image. */
+        fun getPreviewColors(context: Context, themeName: String, themeStyle: String, withBackgroundImage: Boolean = true): Colors =
+            getThemeColors(themeName, themeStyle, context, context.prefs(), false, withBackgroundImage)
 
-        private fun getThemeColors(themeName: String, themeStyle: String, context: Context, prefs: SharedPreferences, isNight: Boolean): Colors {
+        private fun getThemeColors(themeName: String, themeStyle: String, context: Context, prefs: SharedPreferences, isNight: Boolean,
+                                   withBackgroundImage: Boolean = true): Colors {
             // the Flat style only exists with key backgrounds
             val hasBorders = themeStyle == STYLE_FLAT || prefs.getBoolean(Settings.PREF_THEME_KEY_BORDERS, Defaults.PREF_THEME_KEY_BORDERS)
-            val backgroundImage = Settings.readUserBackgroundImage(context, isNight)
+            val backgroundImage = if (withBackgroundImage) Settings.readUserBackgroundImage(context, isNight) else null
             return when (themeName) {
                 THEME_FLAT_BLACK -> FlatStyle.colors(themeStyle, hasBorders, backgroundImage)
                 THEME_DYNAMIC -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) DynamicColors(context, themeStyle, hasBorders, backgroundImage)
-                    else getThemeColors(THEME_LIGHT, themeStyle, context, prefs, isNight)
+                    else getThemeColors(THEME_LIGHT, themeStyle, context, prefs, isNight, withBackgroundImage)
                 }
                 THEME_LIGHT -> DefaultColors(
                     themeStyle,

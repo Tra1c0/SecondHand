@@ -43,18 +43,26 @@ object UrlCommand : KeyboardCommands.Command {
 
     override fun description(context: Context) = context.getString(R.string.agent_command_url, KeyboardCommands.prefix(context).toString())
 
+    /** Suggestions read once for a typed command at one cursor; strip updates reuse them. Dropped with [reset]. */
+    private class Cached(val text: String, val cursor: Int, val urls: List<String>)
+    private var cached: Cached? = null
+
+    override fun reset() { cached = null }
+
     // a typed address is no word: never correct "heise.de" or learn it
     override val protectsArgument: Boolean get() = true
 
     override fun chips(host: KeyboardCommands.Host, call: CommandCall): List<KeyboardCommands.Chip> {
-        if (blocked(host)) return emptyList()
+        if (blocked(host)) { reset(); return emptyList() }
         val context = host.context
         if (call.argument.isNotBlank()) {
             val url = UrlDetector.normalize(call.argument) ?: return emptyList()
             return listOf(KeyboardCommands.Chip(context.getString(R.string.agent_command_url_open, url)) { open(host, call, url) })
         }
-        val chips = addressChips(host, call, suggestions(host, call))
-        chips += screenChip(host, call, chips.toList())
+        val urls = cached?.takeIf { it.text == call.text && it.cursor == host.cursor && it.cursor >= 0 }?.urls
+            ?: suggestions(host, call).also { cached = Cached(call.text, host.cursor, it) }
+        val chips = addressChips(host, call, urls)
+        chips += screenChip(host, call, urls, chips.toList())
         return chips
     }
 
@@ -83,7 +91,8 @@ object UrlCommand : KeyboardCommands.Command {
         return chips
     }
 
-    private fun screenChip(host: KeyboardCommands.Host, call: CommandCall, others: List<KeyboardCommands.Chip>): KeyboardCommands.Chip {
+    private fun screenChip(host: KeyboardCommands.Host, call: CommandCall, shown: List<String>,
+                           others: List<KeyboardCommands.Chip>): KeyboardCommands.Chip {
         val context = host.context
         if (!screen.isAvailable) return KeyboardCommands.Chip(context.getString(R.string.agent_command_url_read_screen_off)) {
             openCommandSettings(context)
@@ -95,7 +104,8 @@ object UrlCommand : KeyboardCommands.Command {
                 val found = LinkedHashSet<String>()
                 for (text in texts) {
                     if (found.size >= MAX_URLS) break
-                    found += UrlDetector.find(text, MAX_URLS)
+                    // addresses the row already offers are not repeated
+                    found += UrlDetector.find(text, MAX_URLS + shown.size).filter { it !in shown }
                 }
                 if (found.isEmpty()) return@read toast(context, R.string.agent_command_url_screen_none)
                 host.showChips(addressChips(host, call, found.take(MAX_URLS)) + others)

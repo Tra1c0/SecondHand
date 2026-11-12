@@ -105,7 +105,8 @@ object DesignTiles {
 
     /** Preview colours of a theme; the flat tile shows its own style, the others the current one. */
     fun swatch(context: Context, theme: String, style: String = currentStyle(context)): Swatch {
-        val colors = KeyboardTheme.getPreviewColors(context, theme, style)
+        // the swatch colours do not depend on the user's background image: do not decode it per tile
+        val colors = KeyboardTheme.getPreviewColors(context, theme, style, withBackgroundImage = false)
         return Swatch(
             colors.get(ColorType.MAIN_BACKGROUND),
             colors.get(ColorType.SPACE_BAR_BACKGROUND),
@@ -119,6 +120,10 @@ object DesignTiles {
         is Tile.System -> listOf(swatch(context, Defaults.PREF_THEME_COLORS), swatch(context, Defaults.PREF_THEME_COLORS_NIGHT))
         is Tile.Flat -> listOf(swatch(context, KeyboardTheme.THEME_FLAT_BLACK, KeyboardTheme.STYLE_FLAT))
     }
+
+    /** What the tiles of the non-flat themes depend on besides the theme: style and key borders. */
+    fun look(context: Context): String = currentStyle(context) + "/" +
+        context.prefs().getBoolean(Settings.PREF_THEME_KEY_BORDERS, Defaults.PREF_THEME_KEY_BORDERS)
 
     private fun currentStyle(context: Context) =
         context.prefs().getString(Settings.PREF_THEME_STYLE, Defaults.PREF_THEME_STYLE)!!

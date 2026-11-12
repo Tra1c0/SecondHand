@@ -383,7 +383,7 @@
     <string name="agent_command_url_no_browser">No app can open this address.</string>
     <string name="agent_command_url_read_screen">Read screen</string>
     <string name="agent_command_url_read_screen_off">Turn on screen reading</string>
-    <string name="agent_command_url_screen_none">No web address on the screen.</string>
+    <string name="agent_command_url_screen_none">No new web address on the screen.</string>
     <string name="agent_command_url_screen_failed">The screen could not be read.</string>
     <string name="agent_screen_reader_label">Agent Keyboard: read screen on command</string>
     <string name="agent_screen_reader_summary">Reads the visible text once when you tap “Read screen” after @url.</string>
@@ -399,13 +399,15 @@
     <string name="agent_command_snip_add">Add snippets</string>
     <string name="agent_command_snip_add_description">Opens the command settings to add text snippets</string>
     <string name="agent_command_snip_insert">Insert the snippet %s</string>
-    <string name="agent_command_clip">Clipboard: %1$sclip shows the newest clips of the keyboard\'s clipboard history, %1$sclip word the clips containing the word; a tap inserts the whole clip. Text only, clips marked as sensitive are left out. Needs the clipboard history (Preferences), which is off by default.</string>
+    <string name="agent_command_clip">Clipboard: %1$sclip shows the newest clips of the keyboard\'s clipboard history, %1$sclip word the clips containing the word; a tap inserts the whole clip. Text only; clips that were marked as sensitive or copied in a password field are left out. Needs the clipboard history (Preferences), which is off by default.</string>
     <string name="agent_command_clip_enable">Turn on clipboard history</string>
     <string name="agent_command_clip_enable_description">Opens the settings with the clipboard history switch</string>
     <string name="agent_command_clip_insert">Insert the clip: %s</string>
-    <string name="agent_command_wf">Workflows: %1$swf name shows your saved workflows; a tap opens the chosen one in the text actions, where you approve the run as usual. A workflow works on selected text: select it when the panel asks for it.</string>
+    <string name="agent_command_wf">Workflows: %1$swf name shows your saved workflows; a tap remembers the chosen one and opens the text actions. Then select the text and open the text actions again (pen key): the workflow is prepared there and you approve the run as usual. The choice is dropped when you switch fields.</string>
     <string name="agent_command_wf_label">%s (selected text)</string>
     <string name="agent_command_wf_open">Open the workflow %s in the text actions; it needs selected text</string>
+    <string name="agent_command_wf_pending">Workflow chosen. Select the text in the app now, then open the text actions again (pen key).</string>
+    <string name="agent_command_wf_unavailable">The text actions cannot open right now. Try again in a moment.</string>
     <string name="agent_command_wf_add">Create workflows</string>
     <string name="agent_command_wf_add_description">Opens the workflow settings</string>
     <string name="agent_snippets_title">Snippets</string>

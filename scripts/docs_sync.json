@@ -20,7 +20,7 @@
       "agent-core/build.gradle.kts",
       "app/src/main/java/helium314/keyboard/agent/**/*.kt",
       "app/src/main/java/helium314/keyboard/settings/screens/{Agent,Workflow}*.kt",
-      "app/src/test/java/helium314/keyboard/agent/*.kt",
+      "app/src/test/java/helium314/keyboard/agent/**/*.kt",
       "app/src/test/java/helium314/keyboard/latin/inputlogic/*.kt",
       "app/src/main/res/values{,-de}/agent_*.xml",
       "app/src/main/res/xml/agent_*.xml",

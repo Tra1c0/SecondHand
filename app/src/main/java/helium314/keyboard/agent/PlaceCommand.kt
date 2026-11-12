@@ -8,6 +8,7 @@ import android.widget.Toast
 import dev.agentkeyboard.core.CommandCall
 import dev.agentkeyboard.core.Places
 import helium314.keyboard.latin.R
+import helium314.keyboard.latin.settings.Settings
 
 /**
  * `@ort Adresse` (stage 24f): "Karte: …" replaces the command by a Google Maps search link (only
@@ -19,6 +20,13 @@ object PlaceCommand : KeyboardCommands.Command {
     override val name = "ort"
     override val protectsArgument = true
 
+    /** Saved places read once per typed command (a binder call and JSON); dropped with [reset] and on every change. */
+    private var cached: List<Places.Place>? = null
+
+    override fun reset() { cached = null }
+
+    private fun savedPlaces(context: Context) = cached ?: SavedPlaces.load(context).also { cached = it }
+
     /** Replaced in tests, so that they need no maps app. */
     @JvmStatic var launcher: SearchCommand.Launcher = SearchCommand.SYSTEM_LAUNCHER
 
@@ -29,13 +37,15 @@ object PlaceCommand : KeyboardCommands.Command {
         Intent(Intent.ACTION_VIEW, Uri.parse(Places.geoUri(query))).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
     override fun chips(host: KeyboardCommands.Host, call: CommandCall): List<KeyboardCommands.Chip> {
+        // find() already refuses these fields; checked again so that no saved place is read there
+        if (KeyboardCommands.isBlocked(Settings.getValues(), host.editorInfo)) { reset(); return emptyList() }
         val argument = call.argument.trim()
         val context = host.context
         if (argument.isEmpty()) {
             // one link chip per saved place
-            return SavedPlaces.load(context).map { linkChip(host, call, "${it.name} – ${it.address}", it.address) }
+            return savedPlaces(context).map { linkChip(host, call, "${it.name} – ${it.address}", it.address) }
         }
-        val saved = Places.find(SavedPlaces.load(context), argument)
+        val saved = Places.find(savedPlaces(context), argument)
         val query = saved?.address ?: argument
         val shown = if (saved != null) "${saved.name} – ${saved.address}" else argument
         return listOf(

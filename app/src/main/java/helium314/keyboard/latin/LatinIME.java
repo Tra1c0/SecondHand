@@ -148,6 +148,7 @@ public class LatinIME extends InputMethodService implements
     final InputLogic mInputLogic = new InputLogic(this, this, mDictionaryFacilitator);
     private final AgentEditorController mAgentEditorController = new AgentEditorController(this, mInputLogic);
 
+    private kotlin.jvm.functions.Function0<Unit> mDetachSensitiveClips;
     public AgentEditorController getAgentEditorController() { return mAgentEditorController; }
     public void invalidateAgentEditor() { mAgentEditorController.invalidate(); }
     /** Stage 24: the text before the cursor the keyboard already holds, for typed commands. */
@@ -627,6 +628,9 @@ public class LatinIME extends InputMethodService implements
 
         loadSettings();
         mClipboardHistoryManager.onCreate();
+        // the history stores clips without their sensitive mark: remember which ones were (for @clip)
+        mDetachSensitiveClips = helium314.keyboard.agent.commands.SensitiveClips.attach(this,
+                this::getCurrentInputEditorInfo);
         mHandler.onCreate();
         if (FoldableUtils.INSTANCE.isFoldable())
             foldableObserver = new FoldableUtils.FoldableObserver(this);
@@ -775,6 +779,7 @@ public class LatinIME extends InputMethodService implements
     public void onDestroy() {
         mAgentEditorController.destroy();
         mClipboardHistoryManager.onDestroy();
+        if (mDetachSensitiveClips != null) mDetachSensitiveClips.invoke();
         mDictionaryFacilitator.closeDictionaries();
         mSettings.onDestroy();
         if (foldableObserver != null)
