@@ -9,14 +9,14 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 ## Aktueller Stand
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
-- In Arbeit: nichts. Seit 2026-11-12 nach Auftrag des Owners („Mach“): Etappen 20a, 20b
-  (lernende Autokorrektur), 22a, 22b (persönliche Trefferzonen) gebaut, je mit lesendem Prüfer.
-- Fertig: Etappen 0–17a, 18a, 19a–19e (flacher Look), 20a–20b, 22a–22b, Gerätetest G1.
+- In Arbeit: Etappe 23 (Gboard-Details, Auftrag mit Screenshots): 23a Symbolseiten, 23b Emojis
+  auf den Symbolseiten, 23c Laufschrift im Menü, 23d Screenshot-Pille (mit Prüfer) gebaut.
+  Offen: 23e Einstellungen im modernen Look, 23f Design-Seite mit Vorschau-Kacheln.
+- Fertig: Etappen 0–17a, 18a, 19a–19e, 20a–20b, 22a–22b, 23a–23d, Gerätetest G1.
 - Letzter Build: 0.1.0 Debug, `artifacts/…-universal.apk` (alle ABIs), nicht im Repo.
-- Geprüft: Agent-Suite, Build, Lint; Vollregression nach 22b mit 478 Tests und 7 Fehlern
-  (zwei geerbte, fünf Link-Tests an externen Hosts bzw. am Netzwerkfilter). Etappen 19–22 sind
-  auf keinem Gerät gelaufen.
-- Danach: 20c (gelernte Paare ansehen/löschen/exportieren), 22c (Trefferzonen auch im
+- Geprüft: Agent-Suite 296/0, Build, Lint nach 23d; Vollregression zuletzt nach 22b (478 Tests,
+  7 bekannte Fehler). Etappen 19–23 sind auf keinem Gerät gelaufen.
+- Danach: 23e, 23f, dann 20c (gelernte Paare ansehen/löschen/exportieren), 22c (Trefferzonen auch im
   Korrekturmodell), 21 (Termine und Orte), 19f (Look am Telefon nachjustieren).
 - Wartet auf den Owner: APK installieren, Schalter einschalten, Bildschirmfotos und Eindrücke
   vom Xiaomi; OAuth-Zugänge für 16c; Branch `main`.
@@ -177,6 +177,8 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
 
+- 0.1.0 Debug (Etappen 23a–23d): Symbolseiten wie die Vorlage, Emojis in der Leiste, Laufschrift,
+  Screenshot-Pille (opt-in, Bildberechtigung); Agent-Suite 296/0, Lint grün, kein Gerätetest.
 - 0.1.0 Debug (Etappen 20a–22b): Umlaut-Schutz, gemerkte und gelernte Korrekturen, persönliche
   Trefferzonen mit Kalibrierung; Vollregression 478 Tests mit den sieben bekannten Fehlern,
   Agent-Suite grün, Build und Lint grün; auf keinem Gerät geprüft.
