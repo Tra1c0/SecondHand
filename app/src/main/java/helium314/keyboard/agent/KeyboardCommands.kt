@@ -75,7 +75,14 @@ object KeyboardCommands {
     }
 
     /** Built-in commands in the order of the settings page; each stage adds its own. */
-    val BUILT_IN: List<Command> = listOf(MathCommand, ContactCommand)
+    val BUILT_IN: List<Command> = listOf(
+        MathCommand,
+        ContactCommand,
+        SearchCommand,
+        CharacterCommand,
+        EmojiCommand,
+        ConvertCommand,
+    )
 
     /** Replaced in tests. */
     @JvmStatic var registry: List<Command> = BUILT_IN
