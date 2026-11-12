@@ -162,9 +162,22 @@ Autokorrektur (Etappe 20a, Details im Abschnitt „Lerndaten“):
 - `Suggest.kt`: nach `shouldBeAutoCorrected` entscheidet `guardAllows` (über `CorrectionGuard`),
   ob die automatische Korrektur bleibt; sonst bleibt sie nur Vorschlag. `shouldBeAutoCorrected`
   selbst ist unverändert, damit die Upstream-Tests es weiter direkt prüfen.
-- `InputLogic.java`: `revertCommit` meldet eine rückgängig gemachte Korrektur aus Tipp-Eingabe an
-  `RejectedCorrections.remember` (nicht bei Wischeingabe).
-- `SettingsValues.java`: `mKeepValidWords`, `mKeepUmlautVariants`, `mRememberRejectedCorrections`.
+- `InputLogic.java`: `revertCommit` meldet eine rückgängig gemachte Korrektur an
+  `RejectedCorrections.remember` und `TypoMemory.forget`; `onPickSuggestionManually` meldet ein
+  anderes als das getippte Wort an `TypoMemory.confirm` (20b, nur Tipp-Eingabe, kein Emoji).
+- `Suggest.kt` (20b): `applyLearnedCorrection` setzt ein gelerntes Wort an die erste Stelle und
+  macht es zur automatischen Korrektur; ein unbekanntes Wort bekommt die Quelle
+  `TypoMemory.DICTIONARY`.
+- `SettingsValues.java`: `mKeepValidWords`, `mKeepUmlautVariants`, `mRememberRejectedCorrections`,
+  `mLearnTypos`, `mAdaptTouch`.
+
+Trefferzonen (Etappe 22a, Touch-Verarbeitung, jede Änderung mit Prüfer):
+
+- `KeyDetector.java`: nach der normalen Erkennung `TouchModel.adjust`, nur wenn eingeschaltet.
+- `KeyboardActionListenerImpl.kt`: `onCodeInput` meldet Tasten an `TouchCalibration`, solange
+  das Kalibrierfeld den Fokus hat (Ansicht- in Tastatur-Koordinaten über das Padding).
+- `LatinIME.java`: `onStartInputViewInternal` lädt `TouchModel` und schaltet die Kalibrierung
+  nur für das eigene Feld mit `AgentPreferences.TOUCH_CALIBRATION_FIELD` ein.
 
 Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Flacher Stil“):
 
@@ -555,6 +568,23 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   ohne Inkognito und bei entsperrtem Gerät; nur gemeinsam mit Rückgängig per Löschtaste.
   Einstellungen: Abschnitt „Autokorrektur“ in `AgentLearningScreen.kt`. Tests:
   `CorrectionMemoryTest`, Fälle „stage 20a“ in `SuggestTest` und `InputLogicTest`.
+- Eigene Tippfehler (20b): `K/agent/TypoMemory.kt`, Datei `agent_typo_memory` (gerätegeschützt).
+  Je getippter Form die gemeinten Wörter mit Gesamtzahl und Zahl pro vorherigem Wort (höchstens
+  20). Höchstens 1000 getippte Formen, zuletzt benutzte bleiben. Angewendet ab drei
+  Bestätigungen und 80 % aller Bestätigungen dieser Form; eine Form, die selbst Wort eines
+  Hauptwörterbuchs ist, nur über den Kontext. Nicht gezählt: Vervollständigungen (gemeintes Wort
+  beginnt mit dem getippten), Formen mit Ziffern, unter zwei Zeichen, nur andere Großschreibung.
+  Tests: `TypoMemoryTest`, Fälle „stage 20b“ in `SuggestTest` und `InputLogicTest`.
+- Trefferzonen (22a): `K/agent/TouchModel.kt` hält pro Buchstabe (Code unter U+0250) den
+  gleitenden Mittelwert der Abweichung vom Tastenmittelpunkt in Tastenbreiten und -höhen und die
+  Anzahl, Datei `agent_touch_model` (gerätegeschützt). Wirksam erst ab 15 Treffern, gedämpft und
+  auf ein Drittel Taste begrenzt. `adjust` wählt unter den Buchstabentasten, deren verschobene
+  Trefferfläche die Berührung enthält, die mit dem nächsten verschobenen Mittelpunkt; haben beide
+  Kandidaten nichts gelernt, gilt die normale Regel (Flächen überlappen um ein Pixel).
+  `K/agent/TouchCalibration.kt` sammelt im Speicher Berührungen samt Tastengeometrie, gleicht sie
+  mit dem Zieltext ab (Editierdistanz, Nachbartasten als günstigere Verwechslung) und liefert
+  Mittelwerte ab vier Treffern. Oberfläche: Abschnitt „Trefferzonen“ in `AgentLearningScreen.kt`.
+  Tests: `TouchModelTest`.
 
 ## Unveränderter Upstream
 
@@ -708,24 +738,24 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (204 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (210 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (3): build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (35): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (38): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
   AndroidEditorAdapter, ApprovedActionRunner, CorrectionMemory, Dictation, EncryptedActionRunStore,
   FlatMenuView, FlatPanelStyle, FlatPreset, JournaledModelCall, JournaledRun, KeyboardProfileStore,
   LearningData, ManualWorkflowDraft, ModelSettings, OnDeviceSpeechEngine, RunSubjectCodec,
-  SkillBindingStore, SkillLabels, ToolApprovalSummary, ToolLauncher, WorkflowApprovalSummary,
-  WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
-  WorkflowStore
+  SkillBindingStore, SkillLabels, ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel,
+  TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary,
+  WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
-- `AT/` (39): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (41): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, CalendarToolLauncherTest, CorrectionMemoryTest, DebugPrivacyTest,
   DictationSessionTest, DictationUiTest, EncryptedActionRunStoreTest, EncryptedCredentialStoreTest,
@@ -733,14 +763,14 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   ForkIdentityTest, InsertAtCursorTest, JournaledModelCallTest, KeyboardProfileStoreTest,
   LearningDataTest, ManualWorkflowDraftTest, MoreProvidersTest, OpenAiProviderTest,
   SelectedTextCommitTest, SkillBindingStoreTest, SkillSettingsTest, TestRunJournal, ToolRunnerTest,
-  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowConditionSummaryTest,
-  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  TouchModelTest, TypoMemoryTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
+  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `C/` (12): AiTextAction, ApplyOutcome, EditorSession, ExecutionPolicy, LocalTextActions,
   ModelProvider, PendingBatchGate, Profiles, SkillBinding, TextCondition, Tool, Workflow
 - `CT/` (8): AiTextActionTest, EditorPolicyTest, InsertionAnchorTest, LocalTextActionsTest,
   PendingBatchGateTest, SkillBindingTest, ToolTest, WorkflowTest
-- `K/keyboard/` (8): FlatStyle, Key, KeyboardActionListener, KeyboardActionListenerImpl,
-  KeyboardTheme, KeyboardView, MainKeyboardView, PointerTracker
+- `K/keyboard/` (9): FlatStyle, Key, KeyDetector, KeyboardActionListener,
+  KeyboardActionListenerImpl, KeyboardTheme, KeyboardView, MainKeyboardView, PointerTracker
 - `K/keyboard/clipboard/` (3): ClipboardAdapter, ClipboardHistoryView, FlatClipboard
 - `K/keyboard/emoji/` (1): EmojiSearchActivity
 - `K/keyboard/internal/` (1): KeyboardIconsSet

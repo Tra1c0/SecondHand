@@ -19,10 +19,11 @@ Folgende ist die Entscheidung des Leads.
   - 20a ist gebaut (siehe FEATURES.md). Abweichend vom ersten Entwurf gilt der Schutz nur für
     Umlaute, nicht für alle Akzente: Spanische Akzente (esta/está) sind meist aus Bequemlichkeit
     weggelassen, ihre Korrektur bleibt erwünscht.
-  - 20b Eigene Tippfehler lernen: ein Paar „getippt → gemeint“ zählt nur bei eindeutiger
-    Bestätigung (Korrektur behalten oder Vorschlag selbst gewählt), mit dem Wort davor als
-    Kontext; ab drei gleichen Bestätigungen wird es sicher korrigiert. Ein unkorrigierter
-    Tippfehler wird nie als richtiges Wort gelernt. (M)
+  - 20b ist gebaut (siehe FEATURES.md). Abweichend vom Entwurf zählt nur ein selbst gewähltes
+    Wort aus der Leiste, nicht eine behaltene Autokorrektur: Sonst würde die Tastatur ihre
+    eigenen, unbemerkt falschen Korrekturen verstärken. Offen aus dem Entwurf: dass das
+    eingebaute Lernen (Personalisierte Vorschläge) häufige, nie korrigierte Tippfehler als Wort
+    lernt; ein gelerntes Paar korrigiert sie trotzdem.
   - 20c Seite zum Ansehen, Löschen und verschlüsselten Exportieren der gelernten Paare. (S)
   - Opt-in, nur auf dem Gerät, nicht in geschützten Feldern, ohne Protokollierung.
 - **21 Absichten erkennen und mit einem Tipp ausführen.** Leertaste halten öffnet statt des
@@ -46,8 +47,7 @@ Folgende ist die Entscheidung des Leads.
 - **22 Persönliche Trefferzonen (Wunsch des Owners vom 2026-11-12).** Die Tastatur lernt, wo du
   jede Taste tatsächlich triffst, und verschiebt unsichtbar die Erkennungszonen; die Tasten
   selbst bleiben an ihrem Platz, damit das Muskelgedächtnis nicht gestört wird.
-  - 22a Kalibrierung in den Einstellungen: einen vorgegebenen Text abtippen (alle Buchstaben,
-    Deutsch), Ergebnis als Übersicht pro Taste, Übernehmen oder Verwerfen, Zurücksetzen. (M)
+  - 22a ist gebaut (siehe FEATURES.md).
   - 22b Lernen beim normalen Tippen, nur aus abgeschickten Wörtern, langsam und begrenzt
     (höchstens etwa ein Drittel Tastenbreite Verschiebung). (M)
   - 22c Dieselben Werte auch für das Korrekturmodell der Autokorrektur. (S)

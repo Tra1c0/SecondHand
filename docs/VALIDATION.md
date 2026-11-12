@@ -1110,6 +1110,43 @@ APK installiert war: weiterhin kein Gerätelauf.
 - Nicht geprüft: echtes Tippen auf dem Telefon, also ob sich die Korrektur im Alltag besser
   anfühlt.
 
+## Etappe20b — eigene Tippfehler lernen
+
+- `TypoMemoryTest` (9 Fälle): nur mit Schalter, nicht bei Lernpause oder Inkognito; drei gleiche
+  Bestätigungen nötig, Groß- und Kleinschreibung gleich; konkurrierende Bedeutungen blockieren
+  sich bis 80 %; ein echtes Wort nur im gelernten Kontext; Vervollständigungen (auch Mad →
+  Mädchen, stras → Straße), Ziffern, gleiche Wörter und Einbuchstabiges zählen nicht; Großschreibung
+  von Nomen bleibt, die vom Satzanfang nicht; höchstens fünf Bedeutungen je Form; Rückgängig
+  vergisst das Paar; Grenze 1000 Formen und Neuladen (aus dem Speicher der Prefs, nicht von der
+  Platte).
+- `SuggestTest` (2 neue Fälle, echte Vorschlagslogik): gelernter Tippfehler wird korrigiert,
+  auch zu einem Wort ohne Wörterbuch, mit Großschreibung bei Umschalttaste; nicht bei
+  ausgeschalteter Autokorrektur, ausgeschaltetem Schalter oder gemerktem Rückgängig; ein echtes
+  Wort, das zuerst aus einer anderen Quelle kommt, nur im Kontext; „Richtige Wörter nie ändern“
+  gilt auch hier. `InputLogicTest` (1 neuer Fall): Auswahl aus der Leiste zählt nur mit Schalter,
+  mit dem vorherigen Wort als Kontext.
+- Lesender Prüfer: vier Hauptbefunde behoben (Großschreibung ging verloren, Kontextschutz über
+  die Tipp-Historie umgehbar, gelernte Paare übergingen „Richtige Wörter nie ändern“, „Gelernte
+  Wörter löschen“ ließ Tippfehler, gemerkte Korrekturen und Trefferzonen stehen) und die
+  kleineren (fortgesetzte Wörter, Umlaut-Vervollständigung, fehlende Ausschlüsse wie bei der
+  normalen Autokorrektur, Lesen ohne Sperre, unbegrenzte Bedeutungen). Bewusst entschieden: ein
+  selbst beigebrachtes Paar geht der Umlaut-Regel vor (Text des Schalters sagt das). Offen:
+  Paare gelten sprachübergreifend; das ganze Format wird bei jeder Auswahl neu geschrieben.
+
+## Etappe22a — persönliche Trefferzonen mit Kalibrierung
+
+- `TouchModelTest` (6 Fälle, echte Tastatur und echter `KeyDetector`): Wirkung erst ab 15
+  Treffern, gedämpft, auf ein Drittel begrenzt, Ausreißer und Nicht-Buchstaben ignoriert; ohne
+  gelernte Werte ist die Erkennung an einem Raster von 23 000 Punkten identisch mit der normalen;
+  ein gelerntes Verschieben von e nach rechts macht aus einem Treffer knapp rechts der e/r-Kante
+  ein e, die Mitte von r bleibt r, Umschalttaste und ferne Tasten bleiben gleich; Speichern und
+  Laden; Kalibrierung gleicht „hsllo welt“ mit „Hallo Welt“ ab, zählt Löschen und Popup-Buchstaben
+  nicht, misst Abweichungen vom gemeinten Tastenmittelpunkt; Nachbarverwechslungen werden
+  bevorzugt zugeordnet.
+- Agent-Suite 287/0, Lint bestanden (148 Warnungen, ein Hinweis).
+- Nicht geprüft: echtes Tippen auf dem Telefon, die Kalibrierungsseite im Gerät, Einhand- und
+  geteilte Tastatur.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

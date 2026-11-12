@@ -281,7 +281,7 @@
     <string name="agent_clipboard_image">Image</string>
     <string name="agent_autocorrect_title">Autocorrect</string>
     <string name="agent_autocorrect_keep_umlaut">Keep umlaut words</string>
-    <string name="agent_autocorrect_keep_umlaut_description">A correct word is never replaced automatically by one that differs only by an umlaut (mochte/möchte, schon/schön). The other word is still suggested.</string>
+    <string name="agent_autocorrect_keep_umlaut_description">A correct word is never replaced automatically by one that differs only by an umlaut (mochte/möchte, schon/schön). The other word is still suggested. Exception: a pair you taught it yourself with \"Learn my typos\".</string>
     <string name="agent_autocorrect_keep_valid">Never change correct words</string>
     <string name="agent_autocorrect_keep_valid_description">Only words that are not in the dictionary are corrected automatically. Everything else is only suggested.</string>
     <string name="agent_autocorrect_remember">Remember undone corrections</string>
@@ -289,4 +289,27 @@
     <string name="agent_autocorrect_stored">Remembered pairs: %d</string>
     <string name="agent_autocorrect_clear">Forget remembered pairs</string>
     <string name="agent_autocorrect_clear_confirm">Forget all remembered corrections? They can be corrected automatically again.</string>
+    <string name="agent_autocorrect_learn">Learn my typos</string>
+    <string name="agent_autocorrect_learn_description">If you pick a different word from the suggestion strip after typing, the keyboard counts this pair. After three equal picks it corrects it automatically; a word that exists itself only after the same previous word. Stored only on this device.</string>
+    <string name="agent_autocorrect_typos">Learned typos: %1$d, confirmed at least three times: %2$d</string>
+    <string name="agent_autocorrect_typos_clear">Forget learned typos</string>
+    <string name="agent_autocorrect_typos_clear_confirm">Forget all learned typos?</string>
+    <string name="agent_touch_title">Hit zones</string>
+    <string name="agent_touch_adapt">Adapt hit zones to me</string>
+    <string name="agent_touch_adapt_description">The keyboard learns where you really hit each letter key and moves the invisible touch area a little towards it. The keys you see stay where they are. A zone moves at most a third of a key. Only averages per key are stored, on this device, no text.</string>
+    <string name="agent_touch_learned">Keys with a learned zone: %d</string>
+    <string name="agent_touch_calibrate">Calibrate</string>
+    <string name="agent_touch_calibrate_description">Type the text below as you normally do, with this keyboard. Typos do not matter; you can also stop earlier.</string>
+    <string name="agent_touch_counted">Letters counted: %d</string>
+    <string name="agent_touch_evaluate">Evaluate</string>
+    <string name="agent_touch_too_few">Too few letters to say anything yet. Type a little more.</string>
+    <string name="agent_touch_key">%1$s: %2$s, %3$s (%4$d touches)</string>
+    <string name="agent_touch_left">%d %% to the left</string>
+    <string name="agent_touch_right">%d %% to the right</string>
+    <string name="agent_touch_up">%d %% too high</string>
+    <string name="agent_touch_down">%d %% too low</string>
+    <string name="agent_touch_apply">Apply</string>
+    <string name="agent_touch_discard">Discard</string>
+    <string name="agent_touch_reset">Reset hit zones</string>
+    <string name="agent_touch_reset_confirm">Forget all learned hit zones?</string>
 </resources>

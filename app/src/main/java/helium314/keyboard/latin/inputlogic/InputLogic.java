@@ -416,8 +416,18 @@ public final class InputLogic {
             return inputTransaction;
         }
 
+        // fork, stage 20b: a word picked instead of the tap-typed one confirms "typed -> meant"
+        final String typedBeforePick = mWordComposer.isComposingWord() && !mWordComposer.isBatchMode()
+                && !mWordComposer.isResumed() && !suggestionInfo.isEmoji() ? mWordComposer.getTypedWord() : null;
         commitChosenWord(settingsValues, suggestion, LastComposedWord.COMMIT_TYPE_MANUAL_PICK, LastComposedWord.NOT_A_SEPARATOR);
         mConnection.endBatchEdit();
+        if (typedBeforePick != null) {
+            final NgramContext context = mLastComposedWord.mNgramContext;
+            final CharSequence previous = context != null && context.getPrevWordCount() >= 1
+                    && !context.isNthPrevWordBeginningOfSentence(1) ? context.getNthPrevWord(1) : null;
+            helium314.keyboard.agent.TypoMemory.confirm(mLatinIME, typedBeforePick, suggestion,
+                    previous == null ? null : previous.toString(), settingsValues);
+        }
         // Don't allow cancellation of manual pick
         mLastComposedWord.deactivate();
 
@@ -2045,6 +2055,8 @@ public final class InputLogic {
             // (gesture input only corrects capitalization, which remember() does not store)
             helium314.keyboard.agent.RejectedCorrections.remember(mLatinIME, originallyTypedWord.toString(),
                     committedWordString, inputTransaction.getSettingsValues());
+            // stage 20b: a learned pair that was just undone is dropped
+            helium314.keyboard.agent.TypoMemory.forget(mLatinIME, originallyTypedWord.toString(), committedWordString);
         }
         final String stringToCommit = originallyTypedWord +
                 (usePhantomSpace ? "" : separatorString);

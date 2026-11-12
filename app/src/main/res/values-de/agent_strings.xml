@@ -280,7 +280,7 @@
     <string name="agent_clipboard_image">Bild</string>
     <string name="agent_autocorrect_title">Autokorrektur</string>
     <string name="agent_autocorrect_keep_umlaut">Umlaut-Wörter behalten</string>
-    <string name="agent_autocorrect_keep_umlaut_description">Ein richtiges Wort wird nie automatisch durch eines ersetzt, das sich nur im Umlaut unterscheidet (mochte/möchte, schon/schön). Das andere Wort wird weiter vorgeschlagen.</string>
+    <string name="agent_autocorrect_keep_umlaut_description">Ein richtiges Wort wird nie automatisch durch eines ersetzt, das sich nur im Umlaut unterscheidet (mochte/möchte, schon/schön). Das andere Wort wird weiter vorgeschlagen. Ausnahme: ein Paar, das du ihr mit „Meine Tippfehler lernen“ selbst beigebracht hast.</string>
     <string name="agent_autocorrect_keep_valid">Richtige Wörter nie ändern</string>
     <string name="agent_autocorrect_keep_valid_description">Automatisch korrigiert werden nur Wörter, die nicht im Wörterbuch stehen. Alles andere wird nur vorgeschlagen.</string>
     <string name="agent_autocorrect_remember">Rückgängig gemachte Korrekturen merken</string>
@@ -288,4 +288,27 @@
     <string name="agent_autocorrect_stored">Gemerkte Paare: %d</string>
     <string name="agent_autocorrect_clear">Gemerkte Paare vergessen</string>
     <string name="agent_autocorrect_clear_confirm">Alle gemerkten Korrekturen vergessen? Sie können danach wieder automatisch angewendet werden.</string>
+    <string name="agent_autocorrect_learn">Meine Tippfehler lernen</string>
+    <string name="agent_autocorrect_learn_description">Wählst du nach dem Tippen ein anderes Wort aus der Vorschlagsleiste, zählt die Tastatur dieses Paar. Nach drei gleichen Auswahlen korrigiert sie es automatisch; ein Wort, das es selbst gibt, nur nach demselben vorherigen Wort. Nur auf diesem Gerät gespeichert.</string>
+    <string name="agent_autocorrect_typos">Gelernte Tippfehler: %1$d, davon mindestens dreimal bestätigt: %2$d</string>
+    <string name="agent_autocorrect_typos_clear">Gelernte Tippfehler vergessen</string>
+    <string name="agent_autocorrect_typos_clear_confirm">Alle gelernten Tippfehler vergessen?</string>
+    <string name="agent_touch_title">Trefferzonen</string>
+    <string name="agent_touch_adapt">Trefferzonen an mich anpassen</string>
+    <string name="agent_touch_adapt_description">Die Tastatur lernt, wo du jede Buchstabentaste wirklich triffst, und verschiebt die unsichtbare Trefferfläche ein Stück dorthin. Die sichtbaren Tasten bleiben, wo sie sind. Eine Zone wandert höchstens um ein Drittel Taste. Gespeichert werden nur Durchschnittswerte pro Taste, auf diesem Gerät, kein Text.</string>
+    <string name="agent_touch_learned">Tasten mit gelernter Zone: %d</string>
+    <string name="agent_touch_calibrate">Kalibrieren</string>
+    <string name="agent_touch_calibrate_description">Tippe den Text unten so ab, wie du normal tippst, mit dieser Tastatur. Tippfehler sind egal; du kannst auch früher aufhören.</string>
+    <string name="agent_touch_counted">Gezählte Buchstaben: %d</string>
+    <string name="agent_touch_evaluate">Auswerten</string>
+    <string name="agent_touch_too_few">Noch zu wenige Buchstaben für eine Aussage. Tippe noch etwas weiter.</string>
+    <string name="agent_touch_key">%1$s: %2$s, %3$s (%4$d Treffer)</string>
+    <string name="agent_touch_left">%d %% zu weit links</string>
+    <string name="agent_touch_right">%d %% zu weit rechts</string>
+    <string name="agent_touch_up">%d %% zu hoch</string>
+    <string name="agent_touch_down">%d %% zu tief</string>
+    <string name="agent_touch_apply">Übernehmen</string>
+    <string name="agent_touch_discard">Verwerfen</string>
+    <string name="agent_touch_reset">Trefferzonen zurücksetzen</string>
+    <string name="agent_touch_reset_confirm">Alle gelernten Trefferzonen vergessen?</string>
 </resources>

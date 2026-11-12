@@ -85,6 +85,8 @@ public class SettingsValues {
     public final boolean mKeepValidWords;
     public final boolean mKeepUmlautVariants;
     public final boolean mRememberRejectedCorrections;
+    public final boolean mLearnTypos;
+    public final boolean mAdaptTouch;
     public final boolean mUseDoubleSpacePeriod;
     public final boolean mBlockPotentiallyOffensive;
     public final KeyboardActionListener.SwipeAction mSpaceSwipeHorizontal;
@@ -226,6 +228,8 @@ public class SettingsValues {
         mKeepValidWords = prefs.getBoolean(helium314.keyboard.agent.AgentPreferences.AUTOCORRECT_KEEP_VALID_WORDS, false);
         mKeepUmlautVariants = prefs.getBoolean(helium314.keyboard.agent.AgentPreferences.AUTOCORRECT_KEEP_UMLAUT_VARIANTS, true);
         mRememberRejectedCorrections = prefs.getBoolean(helium314.keyboard.agent.AgentPreferences.AUTOCORRECT_REMEMBER_REJECTED, false);
+        mLearnTypos = prefs.getBoolean(helium314.keyboard.agent.AgentPreferences.AUTOCORRECT_LEARN_TYPOS, false);
+        mAdaptTouch = prefs.getBoolean(helium314.keyboard.agent.AgentPreferences.ADAPT_TOUCH, false);
         mUseDoubleSpacePeriod = prefs.getBoolean(Settings.PREF_KEY_USE_DOUBLE_SPACE_PERIOD, Defaults.PREF_KEY_USE_DOUBLE_SPACE_PERIOD)
                 && inputAttributes.mIsGeneralTextInput;
         mBlockPotentiallyOffensive = prefs.getBoolean(Settings.PREF_BLOCK_POTENTIALLY_OFFENSIVE, Defaults.PREF_BLOCK_POTENTIALLY_OFFENSIVE);

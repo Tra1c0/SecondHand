@@ -7,6 +7,7 @@ package helium314.keyboard.latin
 
 import helium314.keyboard.agent.CorrectionGuard
 import helium314.keyboard.agent.RejectedCorrections
+import helium314.keyboard.agent.TypoMemory
 import android.text.TextUtils
 import com.android.inputmethod.latin.utils.BinaryDictionaryUtils
 import helium314.keyboard.keyboard.Keyboard
@@ -112,8 +113,11 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
             typedWordFirstOccurrenceWordInfo
         )
         // fork, stage 20a: protect known words and corrections the user undid before
-        val hasAutoCorrection = rawHasAutoCorrection && guardAllows(typedWordString, suggestionsContainer.firstOrNull(),
+        val guardedAutoCorrection = rawHasAutoCorrection && guardAllows(typedWordString, suggestionsContainer.firstOrNull(),
             typedWordFirstOccurrenceWordInfo)
+        // fork, stage 20b: a typo the user corrected by hand three times is corrected automatically
+        val hasAutoCorrection = applyLearnedCorrection(typedWordString, capsMode, ngramContext, suggestionResults,
+            suggestionsContainer, isCorrectionEnabled, wordComposer) || guardedAutoCorrection
         val typedWordInfo = SuggestedWordInfo(typedWordString, "", SuggestedWordInfo.MAX_SCORE,
             SuggestedWordInfo.KIND_TYPED, typedWordFirstOccurrenceWordInfo?.mSourceDict ?: Dictionary.DICTIONARY_USER_TYPED,
             SuggestedWordInfo.NOT_AN_INDEX , SuggestedWordInfo.NOT_A_CONFIDENCE)
@@ -157,6 +161,39 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         val isTypedWordValid = firstOccurrenceOfTypedWordInSuggestions > -1 || (!resultsArePredictions && !allowsToBeAutoCorrected)
         return SuggestedWords(suggestionsList, suggestionResults.mRawSuggestions, typedWordInfo,
             isTypedWordValid, hasAutoCorrection || correctToCapitalizedWord, false, inputStyle, sequenceNumber)
+    }
+
+    /**
+     * Puts the learned meant word of [typed] first in [suggestions] and returns true, or changes
+     * nothing and returns false. Respects the autocorrect setting and undone corrections.
+     */
+    private fun applyLearnedCorrection(
+        typed: String, capsMode: CapsMode, ngramContext: NgramContext, results: SuggestionResults,
+        suggestions: ArrayList<SuggestedWordInfo>, isCorrectionEnabled: Boolean, wordComposer: WordComposer,
+    ): Boolean {
+        val settings = Settings.getValues()
+        // the same exclusions as the normal autocorrection
+        if (!settings.mLearnTypos || !isCorrectionEnabled || typed.isEmpty() || !wordComposer.isComposingWord
+            || wordComposer.isResumed || wordComposer.hasDigits() || wordComposer.isCursorFrontOrMiddleOfComposingWord
+            || (wordComposer.isMostlyCaps && !wordComposer.isAllUpperCase) || typed.contains('@') || typed.contains('.')
+            || !mDictionaryFacilitator.hasAtLeastOneInitializedMainDictionary()) return false
+        val context = Settings.getCurrentContext() ?: return false
+        val previous = if (ngramContext.prevWordCount >= 1 && !ngramContext.isNthPrevWordBeginningOfSentence(1))
+            ngramContext.getNthPrevWord(1)?.toString() else null
+        // known if any main dictionary has it, not only the best-ranked source
+        val typedIsMainWord = results.any { it.mWord.equals(typed, ignoreCase = true) && it.mSourceDict.mDictType == Dictionary.TYPE_MAIN }
+        // "never change correct words" also covers learned pairs; the umlaut rule does not: three own picks in this context are a clear wish
+        if (typedIsMainWord && settings.mKeepValidWords) return false
+        val meant = TypoMemory.meantWord(context, typed, previous, typedIsMainWord) ?: return false
+        if (settings.mRememberRejectedCorrections && RejectedCorrections.contains(context, typed, meant)) return false
+        val wanted = capitalize(meant, capsMode, mDictionaryFacilitator.mainLocale)
+        val index = suggestions.indexOfFirst { it.mWord == wanted }.takeIf { it >= 0 }
+            ?: suggestions.indexOfFirst { it.mWord.equals(meant, ignoreCase = true) && !(meant.first().isUpperCase() && it.mWord.first().isLowerCase()) }
+        val info = if (index >= 0) suggestions.removeAt(index)
+            else SuggestedWordInfo(wanted, "", SuggestedWordInfo.MAX_SCORE,
+                SuggestedWordInfo.KIND_CORRECTION, TypoMemory.DICTIONARY, SuggestedWordInfo.NOT_AN_INDEX, SuggestedWordInfo.NOT_A_CONFIDENCE)
+        suggestions.add(0, info)
+        return true
     }
 
     /**

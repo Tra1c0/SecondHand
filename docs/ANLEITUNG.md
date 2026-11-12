@@ -152,6 +152,22 @@ Einstellungen → Gelernte Wörter → Abschnitt „Autokorrektur“:
 - „Rückgängig gemachte Korrekturen merken“ (aus): Korrigiert die Tastatur ein Wort falsch und du
   drückst sofort die Löschtaste, kommt dein Wort zurück, und dieses Paar wird nie wieder
   automatisch angewendet. „Gemerkte Paare vergessen“ löscht alle.
+- „Meine Tippfehler lernen“ (aus): Wenn du nach einem Tippfehler das richtige Wort in der
+  Vorschlagsleiste antippst, merkt sich die Tastatur das. Nach dem dritten Mal korrigiert sie
+  diesen Tippfehler selbst. Gibt es das getippte Wort wirklich (mochte), lernt sie es nur für
+  das Wort davor (ich möchte). „Gelernte Tippfehler vergessen“ löscht alles.
+
+## Trefferzonen
+
+Einstellungen → Gelernte Wörter → Abschnitt „Trefferzonen“:
+
+1. „Trefferzonen an mich anpassen“ einschalten.
+2. „Kalibrieren“ antippen und den angezeigten Text so abtippen, wie du sonst tippst. Tippfehler
+   sind egal, die Tastatur gleicht sie ab.
+3. „Auswerten“: Du siehst pro Taste, wohin du daneben triffst. „Übernehmen“ speichert es.
+
+„Trefferzonen zurücksetzen“ löscht alles. Die Umlaute und ß liegen auf langem Druck und werden
+nicht vermessen.
 
 ## Gelernte Wörter
 

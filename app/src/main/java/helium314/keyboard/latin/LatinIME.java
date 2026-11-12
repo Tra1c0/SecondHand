@@ -917,6 +917,11 @@ public class LatinIME extends InputMethodService implements
     }
 
     void onStartInputViewInternal(final EditorInfo editorInfo, final boolean restarting) {
+        // fork, stage 22: personal hit boxes, and the calibration field of our own settings
+        helium314.keyboard.agent.TouchModel.load(this, mSettings.getCurrent());
+        helium314.keyboard.agent.TouchCalibration.setActive(editorInfo != null
+                && getPackageName().equals(editorInfo.packageName)
+                && helium314.keyboard.agent.AgentPreferences.TOUCH_CALIBRATION_FIELD.equals(editorInfo.privateImeOptions));
         super.onStartInputView(editorInfo, restarting);
 
         setGestureDataGatheringMode(editorInfo, restarting);

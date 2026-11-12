@@ -101,6 +101,9 @@ public class KeyDetector {
                 primaryKey = key;
             }
         }
+        // fork, stage 22: personal hit boxes for letter keys (no change while switched off or unlearned)
+        if (helium314.keyboard.agent.TouchModel.getEnabled())
+            return helium314.keyboard.agent.TouchModel.adjust(primaryKey, mKeyboard.getNearestKeys(touchX, touchY), touchX, touchY);
         return primaryKey;
     }
 }

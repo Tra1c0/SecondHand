@@ -41,3 +41,9 @@
 - Neu: Die Autokorrektur macht aus einem richtigen Wort nicht mehr automatisch eine
   Umlaut-Variante (mochte bleibt mochte, möchte wird vorgeschlagen). Optional merkt sie sich
   Korrekturen, die du mit der Löschtaste rückgängig machst. Einstellungen → Gelernte Wörter.
+- Neu: „Meine Tippfehler lernen“ (aus): Wählst du nach einem Tippfehler dreimal dasselbe Wort aus
+  der Leiste, korrigiert die Tastatur diesen Fehler danach selbst.
+- Neu: Trefferzonen (aus): Nach einer kurzen Kalibrierung verschiebt die Tastatur die
+  unsichtbaren Trefferflächen der Buchstaben ein Stück dorthin, wo du wirklich tippst.
+- Behoben: „Gelernte Wörter löschen“ löscht jetzt auch gelernte Tippfehler, gemerkte Korrekturen
+  und Trefferzonen.

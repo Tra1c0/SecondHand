@@ -3,6 +3,7 @@ package helium314.keyboard.latin
 
 import helium314.keyboard.agent.AgentPreferences
 import helium314.keyboard.agent.RejectedCorrections
+import helium314.keyboard.agent.TypoMemory
 import android.os.Handler
 import android.os.Message
 import android.text.InputType
@@ -700,6 +701,25 @@ class InputLogicTest {
         assertEquals("hullo", text)
         assertFalse(RejectedCorrections.contains(latinIME, "hullo", "hello"))
         RejectedCorrections.clear(latinIME)
+    }
+
+    // fork, stage 20b
+    @Test fun `picking another word confirms a typo pair only when learning typos is on`() {
+        TypoMemory.clear(latinIME)
+        chainInput("nciht")
+        pickSuggestion("nicht")
+        assertEquals("nicht", text)
+        assertEquals(0, TypoMemory.all(latinIME).size)
+
+        reset()
+        latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_LEARN_TYPOS, true) }
+        chainInput("das nciht")
+        pickSuggestion("nicht")
+        assertEquals("das nicht", text)
+        assertEquals(listOf(Triple("nciht", "nicht", 1)), TypoMemory.all(latinIME))
+        repeat(2) { chainInput(" das nciht"); pickSuggestion("nicht") }
+        assertEquals("nicht", TypoMemory.meantWord(latinIME, "nciht", "das", true)) // learned with the previous word
+        TypoMemory.clear(latinIME)
     }
 
     @Test fun `remove glide typing word on delete`() {

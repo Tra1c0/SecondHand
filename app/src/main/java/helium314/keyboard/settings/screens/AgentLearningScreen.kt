@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.settings.screens
 
+import helium314.keyboard.agent.TouchCalibration
+import helium314.keyboard.agent.TouchModel
 import helium314.keyboard.agent.AgentPreferences
 import helium314.keyboard.agent.RejectedCorrections
+import helium314.keyboard.agent.TypoMemory
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -102,6 +105,8 @@ fun AgentLearningScreen(onClickBack: () -> Unit, sourceFactory: (() -> LearningS
             if (notice != 0) Text(stringResource(notice))
             HorizontalDivider()
             AutocorrectSection(busy)
+            HorizontalDivider()
+            TouchSection(busy)
         }
     }
     if (confirmDelete) ConfirmationDialog(
@@ -109,7 +114,13 @@ fun AgentLearningScreen(onClickBack: () -> Unit, sourceFactory: (() -> LearningS
         onConfirmed = {
             confirmDelete = false
             run(R.string.agent_learning_deleted) {
-                withContext(Dispatchers.IO) { source.deleteAll() }
+                withContext(Dispatchers.IO) {
+                    source.deleteAll()
+                    // everything learned from typing, as the confirmation says
+                    TypoMemory.clear(context)
+                    RejectedCorrections.clear(context)
+                    TouchModel.clear(context)
+                }
                 counts = emptyMap()
             }
         },
@@ -127,6 +138,9 @@ private fun AutocorrectSection(busy: Boolean) {
     var keepValid by remember { mutableStateOf(prefs.getBoolean(AgentPreferences.AUTOCORRECT_KEEP_VALID_WORDS, false)) }
     var remember by remember { mutableStateOf(prefs.getBoolean(AgentPreferences.AUTOCORRECT_REMEMBER_REJECTED, false)) }
     var stored by remember { mutableIntStateOf(RejectedCorrections.all(context).size) }
+    var learnTypos by remember { mutableStateOf(prefs.getBoolean(AgentPreferences.AUTOCORRECT_LEARN_TYPOS, false)) }
+    var typos by remember { mutableStateOf(TypoMemory.all(context)) }
+    var confirmClearTypos by remember { mutableStateOf(false) }
     var confirmClear by remember { mutableStateOf(false) }
 
     @Composable
@@ -147,10 +161,27 @@ private fun AutocorrectSection(busy: Boolean) {
         keepValid, AgentPreferences.AUTOCORRECT_KEEP_VALID_WORDS) { keepValid = it }
     toggle(R.string.agent_autocorrect_remember, R.string.agent_autocorrect_remember_description,
         remember, AgentPreferences.AUTOCORRECT_REMEMBER_REJECTED) { remember = it }
+    toggle(R.string.agent_autocorrect_learn, R.string.agent_autocorrect_learn_description,
+        learnTypos, AgentPreferences.AUTOCORRECT_LEARN_TYPOS) { learnTypos = it }
+    Text(stringResource(R.string.agent_autocorrect_typos, typos.size,
+        typos.count { it.third >= TypoMemory.MIN_CONFIRMATIONS }))
+    OutlinedButton(enabled = !busy && typos.isNotEmpty(), onClick = { confirmClearTypos = true }) {
+        Text(stringResource(R.string.agent_autocorrect_typos_clear))
+    }
     Text(stringResource(R.string.agent_autocorrect_stored, stored))
     OutlinedButton(enabled = !busy && stored > 0, onClick = { confirmClear = true }) {
         Text(stringResource(R.string.agent_autocorrect_clear))
     }
+    if (confirmClearTypos) ConfirmationDialog(
+        onDismissRequest = { confirmClearTypos = false },
+        onConfirmed = {
+            confirmClearTypos = false
+            runCatching { TypoMemory.clear(context) }
+            typos = TypoMemory.all(context)
+        },
+        content = { Text(stringResource(R.string.agent_autocorrect_typos_clear_confirm)) },
+        confirmButtonText = stringResource(R.string.agent_autocorrect_typos_clear),
+    )
     if (confirmClear) ConfirmationDialog(
         onDismissRequest = { confirmClear = false },
         onConfirmed = {
@@ -161,4 +192,108 @@ private fun AutocorrectSection(busy: Boolean) {
         content = { Text(stringResource(R.string.agent_autocorrect_clear_confirm)) },
         confirmButtonText = stringResource(R.string.agent_autocorrect_clear),
     )
+}
+
+/** Stage 22a: personal hit boxes for letter keys, with a calibration. */
+@Composable
+private fun TouchSection(busy: Boolean) {
+    val context = LocalContext.current
+    val prefs = context.prefs()
+    var adapt by remember { mutableStateOf(prefs.getBoolean(AgentPreferences.ADAPT_TOUCH, false)) }
+    var learned by remember { mutableIntStateOf(TouchModel.all().count { it.value.third >= TouchModel.MIN_SAMPLES }) }
+    var calibrating by remember { mutableStateOf(false) }
+    var confirmReset by remember { mutableStateOf(false) }
+
+    Text(stringResource(R.string.agent_touch_title), style = MaterialTheme.typography.titleMedium)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(stringResource(R.string.agent_touch_adapt), Modifier.weight(1f))
+        Switch(checked = adapt, enabled = !busy, onCheckedChange = { value ->
+            if (prefs.edit().putBoolean(AgentPreferences.ADAPT_TOUCH, value).commit()) { adapt = value; TouchModel.enabled = value }
+        })
+    }
+    Text(stringResource(R.string.agent_touch_adapt_description), style = MaterialTheme.typography.bodySmall)
+    Text(stringResource(R.string.agent_touch_learned, learned))
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(enabled = !busy, onClick = { calibrating = true }) { Text(stringResource(R.string.agent_touch_calibrate)) }
+        OutlinedButton(enabled = !busy && learned > 0, onClick = { confirmReset = true }) { Text(stringResource(R.string.agent_touch_reset)) }
+    }
+    if (calibrating) CalibrationDialog(onDone = {
+        calibrating = false
+        learned = TouchModel.all().count { it.value.third >= TouchModel.MIN_SAMPLES }
+    })
+    if (confirmReset) ConfirmationDialog(
+        onDismissRequest = { confirmReset = false },
+        onConfirmed = {
+            confirmReset = false
+            runCatching { TouchModel.clear(context) }
+            learned = 0
+        },
+        content = { Text(stringResource(R.string.agent_touch_reset_confirm)) },
+        confirmButtonText = stringResource(R.string.agent_touch_reset),
+    )
+}
+
+@Composable
+private fun CalibrationDialog(onDone: () -> Unit) {
+    val context = LocalContext.current
+    var touches by remember { mutableIntStateOf(0) }
+    var result by remember { mutableStateOf<Map<Int, Triple<Float, Float, Int>>?>(null) }
+    DisposableEffect(Unit) {
+        TouchCalibration.start()
+        onDispose { TouchCalibration.start() } // touches are not kept beyond this dialog
+    }
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDone,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(Modifier.fillMaxWidth().padding(12.dp), shape = MaterialTheme.shapes.large) {
+            Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(stringResource(R.string.agent_touch_calibrate), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.agent_touch_calibrate_description), style = MaterialTheme.typography.bodySmall)
+                Text(TouchCalibration.TEXT, style = MaterialTheme.typography.bodyLarge)
+                val current = result
+                if (current == null) {
+                    androidx.compose.ui.viewinterop.AndroidView(modifier = Modifier.fillMaxWidth(), factory = { ctx ->
+                        android.widget.EditText(ctx).apply {
+                            privateImeOptions = AgentPreferences.TOUCH_CALIBRATION_FIELD
+                            inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                                android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+                            minLines = 3
+                            addTextChangedListener(object : android.text.TextWatcher {
+                                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+                                override fun afterTextChanged(s: android.text.Editable?) { touches = TouchCalibration.touchCount() }
+                            })
+                            requestFocus()
+                        }
+                    })
+                    Text(stringResource(R.string.agent_touch_counted, touches))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = onDone) { Text(stringResource(android.R.string.cancel)) }
+                        Button(enabled = touches > 0, onClick = { result = TouchCalibration.result() }) {
+                            Text(stringResource(R.string.agent_touch_evaluate))
+                        }
+                    }
+                } else {
+                    if (current.isEmpty()) Text(stringResource(R.string.agent_touch_too_few))
+                    current.entries.sortedByDescending { kotlin.math.abs(it.value.first) + kotlin.math.abs(it.value.second) }
+                        .forEach { (code, value) -> Text(describe(context, code, value)) }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = onDone) { Text(stringResource(R.string.agent_touch_discard)) }
+                        Button(enabled = current.isNotEmpty(), onClick = {
+                            // calibration touches count like typed ones, plus enough to be used right away
+                            runCatching { TouchModel.replace(context, current.mapValues { (_, v) ->
+                                Triple(v.first, v.second, v.third + TouchModel.MIN_SAMPLES) }) }
+                            onDone()
+                        }) { Text(stringResource(R.string.agent_touch_apply)) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun describe(context: android.content.Context, code: Int, value: Triple<Float, Float, Int>): String {
+    fun percent(v: Float) = kotlin.math.round(kotlin.math.abs(v) * 100).toInt()
+    val horizontal = context.getString(if (value.first < 0) R.string.agent_touch_left else R.string.agent_touch_right, percent(value.first))
+    val vertical = context.getString(if (value.second < 0) R.string.agent_touch_up else R.string.agent_touch_down, percent(value.second))
+    return context.getString(R.string.agent_touch_key, String(Character.toChars(code)).uppercase(), horizontal, vertical, value.third)
 }

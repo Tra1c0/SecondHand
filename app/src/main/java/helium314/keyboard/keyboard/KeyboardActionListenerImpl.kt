@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.keyboard
 
+import helium314.keyboard.agent.TouchCalibration
 import android.text.InputType
 import helium314.keyboard.agent.AgentPreferences
 import android.util.SparseArray
@@ -113,6 +114,10 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
 
     override fun onCodeInput(primaryCode: Int, x: Int, y: Int, isKeyRepeat: Boolean) {
         if (latinIME.agentEditorController.isBlockingInput) return;
+        if (TouchCalibration.active) keyboardSwitcher.mainKeyboardView?.let { view ->
+            // view to keyboard coordinates, as KeyDetector does
+            TouchCalibration.onKey(primaryCode, x, y, view.paddingLeft, view.paddingTop, keyboardSwitcher.keyboard)
+        }
         latinIME.invalidateAgentEditor()
         when (primaryCode) {
             KeyCode.AGENT_ACTIONS -> {

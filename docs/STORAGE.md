@@ -110,3 +110,18 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   „getippt␀korrigiert“, beides kleingeschrieben, älteste zuerst, höchstens 500.
 - Entsteht nur mit eingeschaltetem „Rückgängig gemachte Korrekturen merken“. Kein Backup (die
   App schließt Backups aus), kein Protokoll. „Gemerkte Paare vergessen“ leert die Datei.
+
+## Gelernte Tippfehler (20b)
+
+- Datei: SharedPreferences `agent_typo_memory`, gerätegeschützter Speicher. Schlüssel `pairs`:
+  JSON-Liste aus `{typed, meant: [{word, total, contexts: {vorheriges Wort: Anzahl}}]}`, alles
+  kleingeschrieben, älteste getippte Form zuerst, höchstens 1000 Formen und 20 Kontexte je Wort.
+- Entsteht nur mit eingeschaltetem „Meine Tippfehler lernen“, kein Backup, kein Protokoll.
+  „Gelernte Tippfehler vergessen“ leert die Datei.
+
+## Trefferzonen (22a)
+
+- Datei: SharedPreferences `agent_touch_model`, gerätegeschützter Speicher. Schlüssel `offsets`:
+  JSON-Objekt Buchstabencode → `[dx, dy, Anzahl]`, dx und dy in Tastengrößen. Keine Texte, keine
+  Reihenfolge von Berührungen. Die Kalibrierung hält ihre Rohdaten nur im Speicher und verwirft
+  sie beim Schließen.

@@ -5,6 +5,7 @@ import androidx.core.content.edit
 import helium314.keyboard.ShadowBinaryDictionaryUtils
 import helium314.keyboard.agent.AgentPreferences
 import helium314.keyboard.agent.RejectedCorrections
+import helium314.keyboard.agent.TypoMemory
 import helium314.keyboard.ShadowInputMethodManager2
 import helium314.keyboard.ShadowLocaleManagerCompat
 import helium314.keyboard.event.Event
@@ -67,6 +68,7 @@ class SuggestTest {
         glideTypingSuggestions = suggestionResults(emptyList())
         nextWordSuggestions = suggestionResults(emptyList())
         RejectedCorrections.clear(latinIME)
+        TypoMemory.clear(latinIME)
     }
 
     @Test fun `'on' to 'in' if 'in' was used before in this context`() {
@@ -623,6 +625,75 @@ class SuggestTest {
         assert(henlo().mWillAutoCorrect)
         assertEquals(1, RejectedCorrections.all(latinIME).size)
     }
+
+    // fork, stage 20b
+    @Test fun `a learned typo is corrected automatically, also to a word no dictionary offered`() {
+        enableAutocorrect(confidenceModest)
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("nichts", 200000), suggestion("nicht", 150000)))
+        assertFalse(getSuggestedWords(false, "nciht", CapsMode.OFF).mWillAutoCorrect) // too unsure on its own
+
+        latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_LEARN_TYPOS, true) }
+        repeat(3) { TypoMemory.confirm(latinIME, "nciht", "nicht", null, Settings.getValues()) }
+        val learned = getSuggestedWords(false, "nciht", CapsMode.OFF)
+        assert(learned.mWillAutoCorrect)
+        assertEquals("nicht", learned.mSuggestedWordInfoList[1].mWord) // the autocorrection
+        assertEquals("Nicht", getSuggestedWords(false, "nciht", CapsMode.MANUAL).mSuggestedWordInfoList[1].mWord)
+
+        tapTypingSuggestions = suggestionResults(emptyList()) // no dictionary knows it
+        repeat(3) { TypoMemory.confirm(latinIME, "lgtm", "looks good", null, Settings.getValues()) }
+        val own = getSuggestedWords(false, "lgtm", CapsMode.OFF)
+        assert(own.mWillAutoCorrect)
+        assertEquals("looks good", own.mSuggestedWordInfoList[1].mWord)
+
+        // autocorrect off: nothing is applied
+        latinIME.prefs().edit { putBoolean(Settings.PREF_AUTO_CORRECTION, false) }
+        assertFalse(getSuggestedWords(false, "lgtm", CapsMode.OFF).mWillAutoCorrect)
+        latinIME.prefs().edit { putBoolean(Settings.PREF_AUTO_CORRECTION, true) }
+
+        // switched off: learned pairs are not used
+        latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_LEARN_TYPOS, false) }
+        assertFalse(getSuggestedWords(false, "lgtm", CapsMode.OFF).mWillAutoCorrect)
+
+        // an undone pair wins over a learned one
+        latinIME.prefs().edit {
+            putBoolean(AgentPreferences.AUTOCORRECT_LEARN_TYPOS, true)
+            putBoolean(AgentPreferences.AUTOCORRECT_REMEMBER_REJECTED, true)
+        }
+        RejectedCorrections.remember(latinIME, "lgtm", "looks good", Settings.getValues())
+        assertFalse(getSuggestedWords(false, "lgtm", CapsMode.OFF).mWillAutoCorrect)
+    }
+
+    @Test fun `a learned pair for a real word needs its context and respects never change correct words`() {
+        currentTypingLocale = Locale.GERMAN
+        enableAutocorrect(confidenceModest)
+        latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_LEARN_TYPOS, true) }
+        repeat(3) { TypoMemory.confirm(latinIME, "mochte", "möchte", "ich", Settings.getValues()) }
+        // "mochte" is a main dictionary word, its best-ranked occurrence comes from another source
+        tapTypingSuggestions = suggestionResults(listOf(
+            SuggestedWordInfo("mochte", "", 400000, KIND_FLAG_APPROPRIATE_FOR_AUTO_CORRECTION, Dictionary.DICTIONARY_USER_TYPED, 0, 0),
+            suggestion("mochte", 300000),
+            suggestion("möchte", 250000),
+        ))
+        fun after(previous: String) = suggest.getSuggestedWords(composer("mochte"), NgramContext(NgramContext.WordInfo(previous)),
+            keyboard(), Settings.getValues().mSettingsValuesForSuggestion, true, 0, 0)
+        assert(after("ich").mWillAutoCorrect)
+        assertFalse(after("er").mWillAutoCorrect) // other context: the real word stays
+
+        latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_KEEP_VALID_WORDS, true) }
+        assertFalse(after("ich").mWillAutoCorrect)
+    }
+
+    private fun composer(word: String) = WordComposer().apply {
+        StringUtils.toCodePointArray(word).forEach {
+            val e = Event.createEventForCodePointFromAlreadyTypedText(it, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE)
+            applyProcessedEvent(processEvent(e))
+        }
+        adviseCapitalizedModeBeforeFetchingSuggestions(CapsMode.OFF)
+    }
+
+    private fun keyboard() = Keyboard(KeyboardParams().apply {
+        GRID_HEIGHT = 1; GRID_WIDTH = 1; mId = KeyboardLayoutSet.getFakeKeyboardId(KeyboardElement.ALPHABET)
+    })
 
     @Test fun `normal autocorrect works with manual caps modes`() {
         enableAutocorrect(confidenceAggressive)

@@ -15,4 +15,10 @@ object AgentPreferences {
     const val AUTOCORRECT_KEEP_UMLAUT_VARIANTS = "agent_autocorrect_keep_umlaut_variants"
     /** Opt-in: remember corrections undone with backspace and never apply them again. */
     const val AUTOCORRECT_REMEMBER_REJECTED = "agent_autocorrect_remember_rejected"
+    /** Opt-in: learn own typos from words picked in the suggestion strip (stage 20b). */
+    const val AUTOCORRECT_LEARN_TYPOS = "agent_autocorrect_learn_typos"
+    /** Opt-in: personal hit boxes for letter keys (stage 22). */
+    const val ADAPT_TOUCH = "agent_adapt_touch"
+    /** privateImeOptions of the calibration field in the settings: the keyboard records touches there. */
+    const val TOUCH_CALIBRATION_FIELD = "dev.personal.agentkeyboard.touchCalibration"
 }
