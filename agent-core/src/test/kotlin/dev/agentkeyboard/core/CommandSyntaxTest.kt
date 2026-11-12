@@ -53,6 +53,19 @@ class CommandSyntaxTest {
         assertEquals("contact", (parse(longest) as CommandCall).name)
     }
 
+    @Test fun onlyNamedCommandsTakeLongArguments() {
+        val long = "x".repeat(CommandSyntax.MAX_LONG_ARGUMENT)
+        val longNames = setOf("contact")
+        assertEquals(long, (CommandSyntax.parse("@contact $long", '@', names, longNames) as CommandCall).argument)
+        assertNull(CommandSyntax.parse("@contact ${long}y", '@', names, longNames))
+        // every other command keeps the short limit, also when another one is long
+        assertNull(CommandSyntax.parse("@url " + "x".repeat(CommandSyntax.MAX_ARGUMENT + 1), '@', names, longNames))
+        assertNull(parse("@contact " + "x".repeat(CommandSyntax.MAX_ARGUMENT + 1)))
+        // the longest long command fills the window read by the caller and still counts
+        val window = ("Hallo @contact $long").takeLast(CommandSyntax.LOOKBACK + 1)
+        assertEquals("contact", (CommandSyntax.parse(window, '@', names, longNames) as CommandCall).name)
+    }
+
     @Test fun commandWords() {
         assertTrue(CommandSyntax.isCommandWord("@math", '@', names))
         assertTrue(CommandSyntax.isCommandWord("@URL", '@', names))

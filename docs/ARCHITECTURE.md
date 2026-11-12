@@ -88,9 +88,13 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 3 lokale Textwerkzeuge: `UPPERCASE`, `LOWERCASE`, `CLEAN_SPACES`
 <!-- /gen:local_actions -->
 - `AiTextAction.kt`: `AiTextAction` mit festen Instruktionen. `ANALYZE` erlaubt keine
-  Ersetzung. Dazu `TranslationLanguage` und `WritingTone`.
+  Ersetzung. `ASK` und `TRANSLATE_STYLED` gibt es nur über `@ki` bzw. `@translate`. Dazu
+  `TranslationLanguage` und `WritingTone`.
+- `StyledTranslation.kt`: `@translate`-Argument zerlegen (`parse`: Text im ersten
+  Anführungszeichenpaar, Stil = Rest, leer = `natural English`) und die Anfrage bauen (`request`:
+  zwei beschriftete Abschnitte „Translation style:“ und „Text to translate:“).
   <!-- gen:ai_actions -->
-7 KI-Textaktionen: `CORRECT`, `TRANSLATE`, `REPHRASE`, `SUMMARIZE`, `REPLY`, `ANALYZE`, `ASK`
+8 KI-Textaktionen: `CORRECT`, `TRANSLATE`, `REPHRASE`, `SUMMARIZE`, `REPLY`, `ANALYZE`, `ASK`, `TRANSLATE_STYLED`
 <!-- /gen:ai_actions -->
   <!-- gen:languages -->
 14 Zielsprachen: English, German, French, Spanish, Italian, Portuguese, Ukrainian, Russian, Arabic, Turkish, Chinese, Japanese, Korean, Hindi
@@ -121,7 +125,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   benutzt (Fallstrick P5).
 - Tests in `CT/`: `AiTextActionTest`, `EditorPolicyTest`, `LocalTextActionsTest`,
   `PendingBatchGateTest`, `SkillBindingTest`, `ToolTest`, `WorkflowTest`,
-  `InsertionAnchorTest`. Befehl: `core-tests`.
+  `InsertionAnchorTest`, `StyledTranslationTest`. Befehl: `core-tests`.
 
 ## Geänderte Upstream-Dateien
 
@@ -441,7 +445,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `C/Commands.kt`: `CommandSyntax.parse` erkennt im Text vor der Schreibmarke einen Befehl
   (`CommandNames` = Präfix mit angefangenem Namen, `CommandCall` = vollständiger Name mit
   optionalem Argument). Präfix nur am Anfang, nach Leerraum oder öffnender Klammer, Name aus
-  ASCII-Buchstaben, Argument höchstens 200 Zeichen auf derselben Zeile. Erlaubte Präfixe
+  ASCII-Buchstaben, Argument höchstens 200 Zeichen (`MAX_ARGUMENT`) auf derselben Zeile; nur
+  Befehle mit `Command.longArgument` (bisher `@translate`) dürfen 500 (`MAX_LONG_ARGUMENT`,
+  `parse(…, longArguments)`). `LOOKBACK` richtet sich nach der langen Grenze, alle Leser
+  (`guardsTextBefore`, `updateGuard`, Chips) lesen deshalb bis zu 519 Zeichen. Erlaubte Präfixe
   (`ALLOWED_PREFIXES`) sind nur Zeichen, die in `symbols_word_separators` fehlen; sonst wäre der
   Befehl beim Tippen kein einzelnes Wort und die Autokorrektur könnte ihn ändern.
 - `A/KeyboardCommands.kt`: Einstellungen (`AgentPreferences.COMMANDS`, `COMMAND_PREFIX`,
@@ -552,6 +559,15 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     eine Frage offen ist, sind Auswahl-Aktionen gesperrt (`asking`); die Laufliste der
     KI-Einstellungen titelt `ASK` über `textActionTitle` (ohne `BuiltinAction`, sonst Absturz). Tests `CT/QuestionCaptureTest.kt`,
     `AskCommandTest` (`AT/`), `InputLogicTest` (Frage-Fälle).
+  - `A/commands/TranslateCommand.kt` (`@translate "Text" Stil`): `StyledTranslation.parse`; ohne
+    geschlossenes, nicht leeres Anführungszeichenpaar nur ein Hinweis-Chip (Tipp zeigt einen Toast,
+    sonst nichts). Der Chip ruft `Host.translateAi` → `openQuestion(request, …,
+    AiTextAction.TRANSLATE_STYLED)`; danach derselbe Weg wie `@ki` (`asking`, `questionAction`,
+    eigene Texte über `translating`). `openQuestion` nimmt nur `ASK` und `TRANSLATE_STYLED` an.
+    Die Vorschau zeigt die ganze Anfrage ungekürzt (`showQuestion` hebt `maxLines` auf).
+    `longArgument = true` (500 Zeichen). Laufliste: `textActionTitle` → „Übersetzen mit Stil“.
+    Tests `AT/commands/TranslateCommandTest.kt`, `CT/StyledTranslationTest.kt`,
+    `InputLogicTest.typedTranslation*`.
   - `A/commands/QrCommand.kt` (`@qr`): ZXing `QRCodeWriter` (Fehlerkorrektur M, Ruhezone 4,
     512 px), erzeugt erst nach dem Tipp auf einem Hintergrund-Thread. Einfügen über
     `ScreenshotChip.editorAccepts`/`isSameField` und `onContent` (Datei unter `files/agent_qr/`,
@@ -981,7 +997,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (292 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (296 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -998,8 +1014,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   ToolLauncher, TouchCalibration, TouchModel, TypoMemory, WorkflowApprovalSummary,
   WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
   WorkflowStore
-- `A/commands/` (9): AskCommand, ClipCommand, QrCommand, ScreenReaderService, SensitiveClips,
-  SnipCommand, SnippetStore, UrlCommand, WorkflowCommand
+- `A/commands/` (10): AskCommand, ClipCommand, QrCommand, ScreenReaderService, SensitiveClips,
+  SnipCommand, SnippetStore, TranslateCommand, UrlCommand, WorkflowCommand
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
@@ -1016,15 +1032,15 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   SkillSettingsTest, SnipCommandTest, TestRunJournal, ToolRunnerTest, TouchModelTest,
   TypoMemoryTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
   WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
-- `AT/commands/` (3): QrCommandTest, ScreenReaderServiceTest, UrlCommandTest
-- `C/` (23): AiTextAction, ApplyOutcome, CivilDate, Commands, DateFormatting, EditorSession,
+- `AT/commands/` (4): QrCommandTest, ScreenReaderServiceTest, TranslateCommandTest, UrlCommandTest
+- `C/` (24): AiTextAction, ApplyOutcome, CivilDate, Commands, DateFormatting, EditorSession,
   EmojiNames, EventParser, ExecutionPolicy, LocalTextActions, MathExpression, ModelProvider,
-  PendingBatchGate, Places, Profiles, SkillBinding, SpecialCharacters, SymbolTable, TextCondition,
-  Tool, UnitConversion, UrlDetector, Workflow
-- `CT/` (17): AiTextActionTest, CommandSyntaxTest, DateFormattingTest, EditorPolicyTest,
+  PendingBatchGate, Places, Profiles, SkillBinding, SpecialCharacters, StyledTranslation,
+  SymbolTable, TextCondition, Tool, UnitConversion, UrlDetector, Workflow
+- `CT/` (18): AiTextActionTest, CommandSyntaxTest, DateFormattingTest, EditorPolicyTest,
   EventParserTest, InsertionAnchorTest, LocalTextActionsTest, MathExpressionTest,
-  PendingBatchGateTest, PlacesTest, QuestionCaptureTest, SkillBindingTest, SymbolTableTest,
-  ToolTest, UnitConversionTest, UrlDetectorTest, WorkflowTest
+  PendingBatchGateTest, PlacesTest, QuestionCaptureTest, SkillBindingTest, StyledTranslationTest,
+  SymbolTableTest, ToolTest, UnitConversionTest, UrlDetectorTest, WorkflowTest
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,
   KeyboardActionListenerImpl, KeyboardSwitcher, KeyboardTheme, KeyboardView, MainKeyboardView,
   PointerTracker

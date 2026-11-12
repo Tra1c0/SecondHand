@@ -77,5 +77,9 @@
 - Neue Berechtigung möglich: Bedienungshilfe „Bildschirm lesen“ (nur wenn du sie einschaltest).
 - Neu: `@ki Frage` fragt deinen KI-Anbieter, erst nach „Senden“; „Einfügen“ setzt die Antwort ein.
 - Neu: `@qr Text` erzeugt einen QR-Code auf dem Gerät und fügt ihn als Bild ein oder teilt ihn.
+- Neu: `@translate "Text" Stil` übersetzt den Text in Anführungszeichen im gewünschten Stil, z. B.
+  `@translate "wann treffen wir uns morgen" natürliches slang spanisch`; erst nach „Senden“,
+  „Einfügen“ ersetzt den Befehl. Bis 500 Zeichen.
+- Besser: Die Vorschau von `@ki` zeigt die ganze Frage, nicht nur sechs Zeilen.
 - Besser: `@clip` zeigt vertraulich kopierte Einträge nie; `@wf` merkt sich den Workflow, bis du
   Text markierst; `@contact` sucht im Hintergrund.

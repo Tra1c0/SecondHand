@@ -469,4 +469,19 @@
     <string name="agent_command_qr_label">QR code</string>
     <string name="agent_command_qr_failed">The QR code could not be made.</string>
     <string name="agent_command_qr_none">No app can share the QR code.</string>
+    <string name="agent_command_translate">Translate with AI: %1$stranslate \"text\" style opens the text actions with a preview of exactly the text in quotes and the style after it (e.g. natural Spanish slang; without a style natural English), the provider and the model. Only a tap on Send sends them, nothing else from the field, to your own AI provider (API key required). Insert then replaces the typed command by the translation. Up to 500 characters after the command name.</string>
+    <string name="agent_command_translate_hint">Put the text in \"…\"</string>
+    <string name="agent_command_translate_usage">Type %1$stranslate \"text\" style, e.g. %1$stranslate \"see you tomorrow\" casual Spanish</string>
+    <string name="agent_command_translate_chip">Translate: %s</string>
+    <string name="agent_command_translate_open">Prepare the translation for your AI provider: %s</string>
+    <string name="agent_command_translate_source">Style and text to send</string>
+    <string name="agent_command_translate_count">Request: %1$d characters</string>
+    <string name="agent_command_translate_task">Translate in a style</string>
+    <string name="agent_command_translate_confirm">Send exactly the style and text shown above (%2$d characters) to %3$s using %1$s? Nothing else from the text field is sent. API charges and the provider’s data policy apply.</string>
+    <string name="agent_command_translate_send">Send to %1$s for translation</string>
+    <string name="agent_command_translate_answer">Translation from the AI</string>
+    <string name="agent_command_translate_ready">Review the translation. Insert replaces the typed command by it.</string>
+    <string name="agent_command_translate_credentials">No API key for the selected provider. Set it up under AI providers (button above), then type the command again.</string>
+    <string name="agent_command_translate_unavailable">The translation cannot be sent from this field. Close the panel and type the command again.</string>
+    <string name="agent_command_translate_insert_failed">The field changed. Nothing was inserted; you can still copy the translation.</string>
 </resources>

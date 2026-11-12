@@ -80,7 +80,7 @@
   "//lists": "Values a doc states as a number; 'counts' below keeps the numbers honest.",
   "lists": {
     "ai_actions": {"file": "agent-core/src/main/kotlin/dev/agentkeyboard/core/AiTextAction.kt",
-                   "pattern": "^            ([A-Z]+) -> \"", "item": "`{0}`"},
+                   "pattern": "^            ([A-Z_]+) -> \"", "item": "`{0}`"},
     "local_actions": {"file": "agent-core/src/main/kotlin/dev/agentkeyboard/core/LocalTextActions.kt",
                       "pattern": "^        ([A-Z_]+) -> text", "item": "`{0}`"},
     "languages": {"file": "agent-core/src/main/kotlin/dev/agentkeyboard/core/AiTextAction.kt",
