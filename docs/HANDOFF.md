@@ -18,8 +18,8 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 - Letzter Build: 0.1.0 Debug, `artifacts/…-universal.apk` (alle ABIs), nicht im Repo.
 - Geprüft nach 24b: siehe Build-Log. Etappen 19–24 sind auf keinem Gerät gelaufen.
 - Wartet auf den Owner: Secrets `AGENT_KEYSTORE_BASE64`/`_PASSWORD` in GitHub anlegen, dann
-  Workflow „Agent Keyboard APK“ starten und installieren; Eindrücke vom Xiaomi; OAuth für 16c;
-  Branch `main`.
+  in GitHub den Standard-Branch auf `main` stellen, Workflow „Agent Keyboard APK“ starten und
+  installieren; Eindrücke vom Xiaomi; OAuth für 16c.
 
 ## Offene Punkte
 
@@ -38,9 +38,10 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 2. **Keine echte Modell-API-Anfrage.** Alle Provider-Tests nutzen Loopback- oder Testprovider. Ein
    Schlüssel ist nicht vorhanden und wird nur vom Owner in der App eingegeben.
 3. **Git-Basis.** Der Code wurde aus dem Übergabe-Archiv vom 2026-11-11 importiert. Die frühere
-   Historie (Etappen-Commits bis `71a4c959`) ist nicht enthalten. Auf dem Remote gibt es noch
-   keinen Branch `main`. `base_branch` in `scripts/docs_sync.json` ist trotzdem `main`; bis
-   dahin vergleichen die Warnungen mit dem letzten Commit.
+   Historie (Etappen-Commits bis `71a4c959`) ist nicht enthalten. `main` gibt es seit dem
+   2026-11-12 (Stand nach 24b und dem Update-Workflow); neue Sitzungen starten davon, sobald der
+   Owner ihn in GitHub als Standard-Branch eingestellt hat. Jede Sitzung arbeitet auf ihrem
+   eigenen Branch und bringt geprüfte Runden nach `main`.
 4. **Geerbte Testfehler (Baseline, genau fünf):** `InputLogicTest.insertLetterIntoWordHangulFails`
    (Hangul), `StringUtilsTest.detectEmojisAtEndFails` (Emoji), `XLinkTest.layoutsLinks` und
    `XLinkTest.readmeLinks` (externe Erreichbarkeit, zuletzt HTTP 503, früher 404),
