@@ -75,11 +75,15 @@
   auf Tipp), `@such`, `@zeichen`, `@emoji`, `@conv`, `@snip` (eigene Textbausteine), `@clip`,
   `@wf`, `@datum`, `@termin` (Kalenderentwurf), `@ort` (Maps-Link, gespeicherte Orte).
 - Neue Berechtigung möglich: Bedienungshilfe „Bildschirm lesen“ (nur wenn du sie einschaltest).
-- Neu: `@ki Frage` fragt deinen KI-Anbieter, erst nach „Senden“; „Einfügen“ setzt die Antwort ein.
+- Neu: `@ki Frage` fragt deinen KI-Anbieter in zwei Tipps: Chip antippen sendet genau die Frage,
+  die Antwort erscheint als Chip in der Leiste und ersetzt den Befehl erst, wenn du sie antippst.
 - Neu: `@qr Text` erzeugt einen QR-Code auf dem Gerät und fügt ihn als Bild ein oder teilt ihn.
 - Neu: `@translate "Text" Stil` übersetzt den Text in Anführungszeichen im gewünschten Stil, z. B.
-  `@translate "wann treffen wir uns morgen" natürliches slang spanisch`; erst nach „Senden“,
-  „Einfügen“ ersetzt den Befehl. Bis 500 Zeichen.
+  `@translate "wann treffen wir uns morgen" natürliches slang spanisch`; wie `@ki` in zwei Tipps
+  (Chip sendet, Übersetzungs-Chip ersetzt den Befehl). Bis 500 Zeichen.
+- Neu: Während `@ki` und `@translate` warten, zeigen drei wandernde Punkte den Lauf („Abbrechen“
+  stoppt ihn); ohne Animationen am Gerät stehen die Punkte still. Fehler zeigen einen grauen Chip
+  mit kurzem Grund, der zu den Details oder den KI-Einstellungen führt.
 - Besser: Die Vorschau von `@ki` zeigt die ganze Frage, nicht nur sechs Zeilen.
 - Besser: `@clip` zeigt vertraulich kopierte Einträge nie; `@wf` merkt sich den Workflow, bis du
   Text markierst; `@contact` sucht im Hintergrund.

@@ -218,6 +218,11 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
         sendButton.text = context.getString(if (translation) R.string.agent_command_translate_send else R.string.agent_command_ki_send, provider)
     }
 
+    /** Why the same request sent from the strip failed, shown above its send preview (Variante A). */
+    fun showQuestionNote(message: Int) {
+        status.setText(message)
+    }
+
     /** The answer to a question; inserting it is a separate tap and replaces the typed command. */
     fun showAnswer(text: String, translation: Boolean = false) {
         showResult(text, true)

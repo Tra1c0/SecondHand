@@ -25,7 +25,11 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import kotlin.test.*
 
-/** `@translate`: the chip only opens the send preview; the panel flow is in InputLogicTest (typedTranslation*). */
+/**
+ * `@translate` (Variante A): the chip names the provider and the style and its tap sends exactly the
+ * request; the run and the insertion are in InputLogicTest (typedTranslation*), the states of the
+ * chips after the tap in AskCommandTest (shared [AiCommandChips]).
+ */
 @RunWith(RobolectricTestRunner::class)
 @Config(shadows = [ShadowInputMethodManager2::class, ShadowProximityInfo::class])
 class TranslateCommandTest {
@@ -34,6 +38,7 @@ class TranslateCommandTest {
     private val replaced = mutableListOf<String>()
     private val translated = mutableListOf<Pair<String, String>>()
     private val asked = mutableListOf<String>()
+    private var request: CommandAiRequest? = null
 
     private val host = object : KeyboardCommands.Host {
         override val context: Context get() = latinIME
@@ -42,8 +47,12 @@ class TranslateCommandTest {
         override fun replace(command: CommandContext, replacement: String): Boolean { replaced += replacement; return true }
         override fun openCalculator(command: CommandCall) = false
         override val canOpenCalculator = false
-        override fun askAi(command: CommandCall, question: String): Boolean { asked += question; return true }
-        override fun translateAi(command: CommandCall, request: String): Boolean { translated += command.text to request; return true }
+        override val aiProvider = "Gemini"
+        override fun aiRequest(command: CommandCall) = request?.takeIf { it.matches(command.text, 1) }
+        override fun sendAi(command: CommandCall, request: String, action: AiTextAction): CommandAiRequest {
+            if (action == AiTextAction.TRANSLATE_STYLED) translated += command.text to request else asked += request
+            return CommandAiRequest(command.text, 1, action, request).also { this@TranslateCommandTest.request = it }
+        }
     }
 
     @Before fun setUp() {
@@ -64,23 +73,26 @@ class TranslateCommandTest {
         assertTrue(TranslateCommand.description(latinIME).contains("@translate"))
     }
 
-    @Test fun oneChipWithTheStyleAndATapOnlyOpensThePreviewWithTheExactRequest() {
+    @Test fun oneChipWithProviderAndStyleAndATapSendsExactlyTheRequest() {
         val typed = "@translate \"wann treffen wir uns morgen du geile sau\" natürliches slang spanisch"
         val chips = KeyboardCommands.chipsFor(call("x $typed"), host)
-        assertEquals(listOf(latinIME.getString(R.string.agent_command_translate_chip, "natürliches slang spanisch")),
+        assertEquals(listOf(latinIME.getString(R.string.agent_command_translate_chip, "Gemini", "natürliches slang spanisch")),
             chips.map { it.label.toString() })
-        assertEquals(latinIME.getString(R.string.agent_command_translate_open, "natürliches slang spanisch"), chips.single().description)
-        assertTrue(translated.isEmpty()) // nothing happens without a tap
+        assertEquals(latinIME.getString(R.string.agent_command_translate_open, "Gemini", "natürliches slang spanisch"), chips.single().description)
+        assertTrue(translated.isEmpty()) // nothing is sent without a tap
         chips.single().onTap()
         assertEquals(listOf(typed to "Translation style:\nnatürliches slang spanisch\n\nText to translate:\nwann treffen wir uns morgen du geile sau"),
             translated)
-        assertTrue(replaced.isEmpty()) // the field stays unchanged: the panel opens first (P43)
+        assertTrue(replaced.isEmpty()) // the field stays unchanged until the answer is tapped
         assertTrue(asked.isEmpty())
+        // the same command now waits for its translation
+        assertEquals(latinIME.getString(R.string.agent_command_ai_translating),
+            KeyboardCommands.chipsFor(call("x $typed"), host).first().label.toString())
     }
 
     @Test fun withoutAStyleTheChipSaysNaturalEnglish() {
         val chips = KeyboardCommands.chipsFor(call("@translate „bis morgen“"), host)
-        assertEquals(listOf(latinIME.getString(R.string.agent_command_translate_chip, "natural English")), chips.map { it.label.toString() })
+        assertEquals(listOf(latinIME.getString(R.string.agent_command_translate_chip, "Gemini", "natural English")), chips.map { it.label.toString() })
         chips.single().onTap()
         assertEquals("Translation style:\nnatural English\n\nText to translate:\nbis morgen", translated.single().second)
     }
@@ -89,7 +101,7 @@ class TranslateCommandTest {
         val style = "sehr locker wie unter Freunden in Madrid mit viel Slang und Emojis"
         val chip = KeyboardCommands.chipsFor(call("@translate «hallo» $style"), host).single()
         val label = chip.label.toString()
-        assertTrue(label.endsWith("…") && label.length < latinIME.getString(R.string.agent_command_translate_chip, style).length)
+        assertTrue(label.endsWith("…") && label.length < latinIME.getString(R.string.agent_command_translate_chip, "Gemini", style).length)
         chip.onTap()
         assertTrue(translated.single().second.startsWith("Translation style:\n$style\n\n"))
     }

@@ -455,7 +455,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `COMMANDS_DISABLED`), die Liste der eingebauten Befehle (`BUILT_IN`, je Etappe einer; Befehle
   kommen nie aus Dateien oder Modellen), `find` (aus in Passwortfeldern, im Inkognito-Modus, bei
   gesperrtem Gerät und bei Auswahl), `chipsFor` und `chipRow`. Ein Namens-Chip vervollständigt
-  den Namen, ein Befehl liefert eigene Chips; erst `Chip.onTap` handelt. Ein Befehl darf über
+  den Namen, ein Befehl liefert eigene Chips; erst `Chip.onTap` handelt. `Chip.kind`: `ACTION`,
+  `MUTED` (halbe Deckkraft: Abbrechen, Verwerfen, Fehler), `LOADING` (nicht antippbar, davor
+  `A/LoadingDotsView.kt`: drei Punkte in Akzentfarbe, Welle 1,2 s mit 150 ms Versatz, läuft nur
+  angehängt und steht bei `ANIMATOR_DURATION_SCALE` 0 still wie `FlatStyle.animationsEnabled`),
+  `RESULT` (ohne Breitengrenze, die Zeile scrollt). Ein Befehl darf über
   `Host.replace` nur seinen eigenen Text ersetzen, und nur wenn der Editor ihn unverändert vor
   der Schreibmarke zeigt. Die Leiste zeigt die Chips über `setExternalSuggestionView`; der
   nächste normale Vorschlag ersetzt sie.
@@ -550,21 +554,36 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `C/DateFormatting.kt` (de, en-US, es), `C/EventParser.kt` (Datum, Uhrzeit, Titel aus Freitext,
     „jetzt“ und Zeitzone übergeben), `C/Places.kt`. `@ort` prüft selbst `isBlocked` und liest die
     Orte einmal je Befehl (`reset`, `SavedPlaces.store` verwirft den Cache).
-  - `A/commands/AskCommand.kt` (`@ki`): `Host.askAi` → `AgentEditorController.openQuestion`; die
-    Frage wird als `TextSnapshot` mit leerer Auswahl erfasst (`ExecutionPolicy.captureQuestion`,
-    `isCurrentQuestion`: gleiche Sitzung und Schutzregeln, Composition erlaubt; `apply` lehnt
-    solche Snapshots ab), gesendet über die bestehende Freigabe (`AiTextAction.ASK`, nur hier
-    erreichbar, kein `BuiltinAction`), eingefügt über `InputLogic.replaceCommandText(…, generated
-    = true)` (Lernen stoppt wie bei anderen KI-Übernahmen), sonst `captureAnchor`/`insert`. Solange
-    eine Frage offen ist, sind Auswahl-Aktionen gesperrt (`asking`); die Laufliste der
-    KI-Einstellungen titelt `ASK` über `textActionTitle` (ohne `BuiltinAction`, sonst Absturz). Tests `CT/QuestionCaptureTest.kt`,
-    `AskCommandTest` (`AT/`), `InputLogicTest` (Frage-Fälle).
+  - `A/commands/AskCommand.kt` (`@ki`) und `A/commands/AiCommandChips.kt` (Variante A, zwei
+    Tipps ohne Panel): `AiCommandChips.chips` zeigt je nach `CommandAiRequest.state` den
+    Senden-Chip (nennt den Anbieter, `Host.aiProvider`), `Running` (Lade-Chip, „Abbrechen“),
+    `Answer` (Ergebnis-Chip, „↻“, „✕“) oder `Failed` (ein grauer Chip). Der Tipp auf den
+    Senden-Chip ruft `Host.sendAi` → `AgentEditorController.sendCommandRequest`: Frage als
+    `TextSnapshot` mit leerer Auswahl (`ExecutionPolicy.captureQuestion`, `isCurrentQuestion`:
+    gleiche Sitzung und Schutzregeln, Composition erlaubt; `apply` lehnt solche Snapshots ab), die
+    Freigabe (`CloudApproval`, `AiTextAction.ASK`, kein `BuiltinAction`) entsteht und vergeht im
+    Tipp mit genau einem `cloudRunner.start`. Der Zustand gehört zu Befehlstext und Schreibmarke
+    (`commandRequest`, wie die Feldauswahl von `@contact`): `Host.aiRequest` liefert ihn nur dafür
+    und hängt `onChange` an die zuletzt gebauten Chips (übersteht normale Leistenaktualisierungen);
+    jede andere Kombination, `selectionChanged` mit anderer Schreibmarke, `reset`
+    (`KeyboardCommands.dropAiRequests`, über `KeyboardCommands.aiRequests`), ein geschützter Editor
+    und `close()` brechen den Lauf ab und verwerfen die Antwort (P2). Der Tipp auf das Ergebnis
+    (`insertCommandAnswer`) ersetzt über `InputLogic.replaceCommandText(…, generated = true)`
+    (Lernen stoppt wie bei anderen KI-Übernahmen), sonst `captureAnchor`/`insert`. Ein Fehler-Chip
+    öffnet `openCommandRequestDetails`: fehlender oder abgelehnter Schlüssel, fehlendes Modell →
+    KI-Einstellungen; sonst `openQuestion` (das Panel als Detailansicht mit derselben Anfrage, neuer
+    Freigabe über „Senden“ und dem Grund über `AgentPanelView.showQuestionNote`). Solange eine Frage
+    im Panel offen ist, sind Auswahl-Aktionen gesperrt (`asking`); die Laufliste der
+    KI-Einstellungen titelt `ASK` über `textActionTitle` (ohne `BuiltinAction`, sonst Absturz).
+    Tests `CT/QuestionCaptureTest.kt`, `AskCommandTest` und `LoadingDotsViewTest` (`AT/`),
+    `InputLogicTest` (Frage-Fälle, Leiste und Panel).
   - `A/commands/TranslateCommand.kt` (`@translate "Text" Stil`): `StyledTranslation.parse`; ohne
     geschlossenes, nicht leeres Anführungszeichenpaar nur ein Hinweis-Chip (Tipp zeigt einen Toast,
-    sonst nichts). Der Chip ruft `Host.translateAi` → `openQuestion(request, …,
-    AiTextAction.TRANSLATE_STYLED)`; danach derselbe Weg wie `@ki` (`asking`, `questionAction`,
-    eigene Texte über `translating`). `openQuestion` nimmt nur `ASK` und `TRANSLATE_STYLED` an.
-    Die Vorschau zeigt die ganze Anfrage ungekürzt (`showQuestion` hebt `maxLines` auf).
+    sonst nichts). Sonst dieselben Chips wie `@ki` (`AiCommandChips`) mit
+    `AiTextAction.TRANSLATE_STYLED` und `StyledTranslation.request` als Anfrage.
+    `sendCommandRequest` und `openQuestion` nehmen nur `ASK` und `TRANSLATE_STYLED` an. Die
+    Panel-Vorschau (Detailansicht) zeigt die ganze Anfrage ungekürzt (`showQuestion` hebt
+    `maxLines` auf; `asking`, `questionAction`, eigene Texte über `translating`).
     `longArgument = true` (500 Zeichen). Laufliste: `textActionTitle` → „Übersetzen mit Stil“.
     Tests `AT/commands/TranslateCommandTest.kt`, `CT/StyledTranslationTest.kt`,
     `InputLogicTest.typedTranslation*`.
@@ -991,35 +1010,39 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P46** Ein neuer Parameter an `SearchScreen` oder `SearchSettingsScreen` muss vor `content`
   stehen, sonst brechen alle Aufrufe mit nachgestelltem Lambda (P41). `captureToImage` läuft bei
   Compose-Seiten in Robolectric in einen Timeout (wie P15): die `decorView` selbst zeichnen.
+- **P47** Eine Anfrage aus der Leiste (`@ki`, `@translate`) gehört zu genau einem Befehlstext an
+  einer Schreibmarke. Chips werden bei jeder Leistenaktualisierung neu gebaut, deshalb hängt die
+  Antwort an `onChange` der zuletzt gebauten Chips, nie an der ersten Chip-Zeile. Wer den Zustand
+  an anderer Stelle hält oder den Schlüssel lockert, zeigt alte Antworten an fremden Stellen.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (296 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (299 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (4): agent-apk, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (51): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (52): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
   AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand, ContactCommand,
   ConvertCommand, CorrectionMemory, DateCommand, DesignTiles, Dictation, EmojiCommand,
   EncryptedActionRunStore, EventCommand, FlatMenuView, FlatPanelStyle, FlatPreset,
   JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore, LearningData,
-  ManualWorkflowDraft, ModelSettings, OnDeviceSpeechEngine, PlaceCommand, RunSubjectCodec,
-  SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore, SkillLabels, ToolApprovalSummary,
-  ToolLauncher, TouchCalibration, TouchModel, TypoMemory, WorkflowApprovalSummary,
-  WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
-  WorkflowStore
-- `A/commands/` (10): AskCommand, ClipCommand, QrCommand, ScreenReaderService, SensitiveClips,
-  SnipCommand, SnippetStore, TranslateCommand, UrlCommand, WorkflowCommand
+  LoadingDotsView, ManualWorkflowDraft, ModelSettings, OnDeviceSpeechEngine, PlaceCommand,
+  RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore, SkillLabels,
+  ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel, TypoMemory,
+  WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner,
+  WorkflowInputSummary, WorkflowStore
+- `A/commands/` (11): AiCommandChips, AskCommand, ClipCommand, QrCommand, ScreenReaderService,
+  SensitiveClips, SnipCommand, SnippetStore, TranslateCommand, UrlCommand, WorkflowCommand
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
-- `AT/` (54): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (55): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, CalculatorViewTest, CalendarToolLauncherTest,
   ClipCommandTest, CommandReplaceTest, ContactCommandTest, CorrectionMemoryTest,
@@ -1027,11 +1050,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, FlatClipboardTest, FlatMenuTest,
   FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, InsertAtCursorTest,
   JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LearningDataTest,
-  MainSettingsLookTest, ManualWorkflowDraftTest, MoreCommandsTest, MoreProvidersTest,
-  OpenAiProviderTest, ScreenshotChipTest, SelectedTextCommitTest, SkillBindingStoreTest,
-  SkillSettingsTest, SnipCommandTest, TestRunJournal, ToolRunnerTest, TouchModelTest,
-  TypoMemoryTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
-  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  LoadingDotsViewTest, MainSettingsLookTest, ManualWorkflowDraftTest, MoreCommandsTest,
+  MoreProvidersTest, OpenAiProviderTest, ScreenshotChipTest, SelectedTextCommitTest,
+  SkillBindingStoreTest, SkillSettingsTest, SnipCommandTest, TestRunJournal, ToolRunnerTest,
+  TouchModelTest, TypoMemoryTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
+  WorkflowCommandTest, WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest,
+  WorkflowStoreTest
 - `AT/commands/` (4): QrCommandTest, ScreenReaderServiceTest, TranslateCommandTest, UrlCommandTest
 - `C/` (24): AiTextAction, ApplyOutcome, CivilDate, Commands, DateFormatting, EditorSession,
   EmojiNames, EventParser, ExecutionPolicy, LocalTextActions, MathExpression, ModelProvider,

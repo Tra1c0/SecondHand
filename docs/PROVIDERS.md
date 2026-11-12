@@ -106,6 +106,15 @@ automatischen Downloads. Mögliche Laufzeiten: llama.cpp JNI (.gguf) oder LiteRT
   data“, weil die Frage die Anfrage ist. Keine Werkzeuge. Gleicher Transport, gleiche Freigabe,
   Journal `RunSubject.TextAction(ASK)` (Schema 3 unverändert).
 
+## Freigabe aus der Leiste (`@ki`, `@translate`, Variante A)
+
+- Der Tipp auf den Senden-Chip ist die einmalige Freigabe genau der getippten Anfrage (Frage bzw.
+  `StyledTranslation.request`). `AgentEditorController.sendCommandRequest` erzeugt die Freigabe im
+  Tipp und verbraucht sie sofort mit einem Lauf über denselben `ApprovedActionRunner` (Journal,
+  45-s-Budget, Generation, Abbruch) wie „Senden“ im Panel; es gibt keinen zweiten Netzweg. Der
+  Chip nennt den Anbieter (`CloudProviders.displayName`). „↻“ ist eine neue Freigabe mit neuem
+  Lauf und neuem Journal-Eintrag; nichts wird automatisch wiederholt.
+
 ## Übersetzen mit Stil (`@translate`, 24f)
 
 - Aktion `AiTextAction.TRANSLATE_STYLED` mit fester Anweisung: den Abschnitt „Text to translate“
