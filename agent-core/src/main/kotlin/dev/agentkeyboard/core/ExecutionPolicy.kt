@@ -83,6 +83,32 @@ class ExecutionPolicy(
         return AnchorResult.Captured(InsertionAnchor(token, selectionStart))
     }
 
+    /**
+     * Stage 24f `@ki`: a typed [question] as the source of one approved request. It is no text read
+     * from the field but the argument of the command, taken at a plain cursor; the snapshot has an
+     * empty selection there, so it can never pass [applyDenial]. The last word of the command may
+     * still be composing, which is why composition is no denial here.
+     */
+    fun captureQuestion(token: EditorToken?, access: EditorAccess, selectionStart: Int, selectionEnd: Int,
+                        question: String): CaptureResult {
+        if (token == null) return CaptureResult.Denied(DenialReason.NO_EDITOR)
+        editorDenial(access.copy(isComposing = false))?.let { return CaptureResult.Denied(it) }
+        if (selectionStart < 0 || selectionStart != selectionEnd) return CaptureResult.Denied(DenialReason.NO_CURSOR)
+        if (question.isBlank() || !hasValidUtf16(question)) return CaptureResult.Denied(DenialReason.INVALID_TEXT)
+        if (question.length > maxSelectionChars) return CaptureResult.Denied(DenialReason.TOO_LARGE)
+        return CaptureResult.Captured(TextSnapshot(token, selectionStart, selectionStart, question))
+    }
+
+    /**
+     * Whether a [captureQuestion] snapshot still belongs to the same editor and the editor still
+     * allows processing. Unlike a selection, the question does not depend on the field, so a moved
+     * cursor or a changed revision does not end it; the insertion checks the field again on its own.
+     */
+    fun isCurrentQuestion(snapshot: TextSnapshot, token: EditorToken?, access: EditorAccess): Boolean =
+        snapshot.selectionStart == snapshot.selectionEnd && token != null &&
+            snapshot.token.ownerId == token.ownerId && snapshot.token.generation == token.generation &&
+            editorDenial(access.copy(isComposing = false)) == null
+
     fun insertDenial(anchor: InsertionAnchor, token: EditorToken?, access: EditorAccess,
                      selectionStart: Int, selectionEnd: Int, text: String): DenialReason? {
         editorDenial(access)?.let { return it }

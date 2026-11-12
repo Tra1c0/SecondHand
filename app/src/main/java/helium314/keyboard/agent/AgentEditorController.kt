@@ -65,6 +65,12 @@ class AgentEditorController @JvmOverloads constructor(
     private var pendingWorkflow: WorkflowDefinition? = null
     private var pendingTool: ToolRequest? = null
     private val actionScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    /** True while the panel serves a typed `@ki` question (stage 24f); the selection actions stay off. */
+    private var asking = false
+    /** The typed `@ki` command that "Insert" replaces, and where it ended. */
+    private var questionCommand: Pair<String, Int>? = null
+    /** Replaceable in tests: whether a key is stored for the provider. Reads no key, only whether one exists. */
+    internal var credentialCheck: ((WorkflowProvider) -> Boolean)? = null
     private val cloudProviders by lazy { CloudProviders(ime) }
     private val injectedProvider: ModelProvider? by lazy { providerFactory?.invoke() }
     private val cloudRunner by lazy { ApprovedActionRunner(actionScope, { injectedProvider ?: cloudProviders.get(it) }, editor::isCurrent,
@@ -310,6 +316,99 @@ class AgentEditorController @JvmOverloads constructor(
         }
     }
 
+    /**
+     * Stage 24f `@ki`: opens the panel with a send preview of exactly [question] and the provider
+     * and model from the AI settings. Nothing is sent before "Send", nothing from the field is part
+     * of the request, and the field stays unchanged until "Insert" replaces [commandText] ending at
+     * [commandEnd] by the answer (or inserts it at the cursor once the command is gone). False if
+     * there is no panel now.
+     */
+    fun openQuestion(question: String, commandText: String, commandEnd: Int): Boolean {
+        val target = panel ?: return false
+        if (needsCursorRefresh) return false
+        close()
+        KeyboardSwitcher.getInstance().mainKeyboardView?.closing()
+        target.rootView.findViewById<SuggestionStripView>(R.id.suggestion_strip_view)?.dismissMoreSuggestionsPanel()
+        asking = true
+        questionCommand = if (commandText.isEmpty() || commandEnd < 0) null else commandText to commandEnd
+        when (val captured = editor.captureQuestion(question)) {
+            is CaptureResult.Captured -> {
+                snapshot = captured.snapshot
+                target.showQuestion(captured.snapshot.text)
+                editor.onInvalidated = {
+                    val source = snapshot
+                    if (source != null && !editor.isCurrent(source)) discardStaleContext()
+                }
+                prepareQuestion()
+            }
+            is CaptureResult.Denied -> target.showStatus(captured.reason.questionMessageResource(), true)
+        }
+        return true
+    }
+
+    private fun hasCredential(provider: WorkflowProvider): Boolean = credentialCheck?.invoke(provider)
+        ?: (providerFactory != null || runCatching { EncryptedCredentialStore(ime).contains(CloudProviders.slot(provider)) }.getOrDefault(false))
+
+    /** The send preview of the question; the approval is consumed by the next "Send" like every cloud action's. */
+    private fun prepareQuestion() {
+        val source = snapshot ?: return
+        if (!editor.isCurrent(source)) { discardStaleContext(); return }
+        if (cloudRunner.isRunning) return
+        val approval = runCatching {
+            val settings = ModelSettings(ime)
+            val provider = settings.provider
+            CloudApproval(provider, settings.model(provider), AiTextAction.ASK, settings.translationLanguage, settings.writingTone)
+        }.getOrNull()
+        if (approval == null || !hasCredential(approval.provider)) {
+            panel?.showStatus(R.string.agent_command_ki_credentials, true)
+            return
+        }
+        if (!CloudProviders.validModel(approval.provider, approval.model)) {
+            panel?.showStatus(if (approval.model.isEmpty()) R.string.agent_cloud_model_missing else R.string.agent_cloud_invalid_request, true)
+            return
+        }
+        preparedResult = null
+        canApply = false
+        pendingApproval = approval
+        panel?.showQuestionConfirmation(approval.model, source.text.length, CloudProviders.displayName(approval.provider))
+    }
+
+    /** The tap on "Insert": replaces the typed command in one commit, else inserts at the cursor. */
+    private fun insertAnswer() {
+        val source = snapshot ?: return
+        val answer = preparedResult ?: return
+        if (!canApply) return
+        if (!editor.isCurrent(source)) { discardStaleContext(); return }
+        canApply = false // one tap, one attempt
+        editor.onInvalidated = null
+        questionCommand?.let { (command, end) ->
+            // generated text: stops learning for the rest of the session like an applied AI result
+            val outcome = inputLogic.replaceCommandText(command, answer, end, true)
+            if (outcome != ApplyOutcome.REJECTED) ime.onAgentTextSubmitted()
+            when (outcome) {
+                ApplyOutcome.SUBMITTED -> { close(); return }
+                ApplyOutcome.UNKNOWN -> { close(); onUnclearEdit(); return }
+                // the command is gone (deleted or changed elsewhere): insert at the cursor instead
+                ApplyOutcome.REJECTED -> questionCommand = null
+            }
+        }
+        val captured = editor.captureAnchor()
+        val outcome = if (captured is AnchorResult.Captured) editor.insert(captured.anchor, answer) else ApplyOutcome.REJECTED
+        when (outcome) {
+            ApplyOutcome.SUBMITTED -> close()
+            ApplyOutcome.REJECTED -> {
+                // the answer stays readable and copyable; inserting needs a fresh question
+                panel?.disableApply()
+                Toast.makeText(ime, R.string.agent_command_ki_insert_failed, Toast.LENGTH_SHORT).show()
+            }
+            ApplyOutcome.UNKNOWN -> {
+                needsCursorRefresh = true
+                panel?.showStatus(R.string.agent_panel_apply_unknown, true)
+                runCatching { ime.currentInputConnection?.requestCursorUpdates(InputConnection.CURSOR_UPDATE_IMMEDIATE) }
+            }
+        }
+    }
+
     fun open() {
         val target = panel ?: return
         close()
@@ -345,6 +444,7 @@ class AgentEditorController @JvmOverloads constructor(
     }
 
     private fun runLocal(action: LocalTextAction) {
+        if (asking) return // nothing is selected: the question is no text of the field
         if (cloudRunner.isRunning || skillJob?.isActive == true) return
         pendingApproval = null
         pendingWorkflow = null
@@ -365,6 +465,7 @@ class AgentEditorController @JvmOverloads constructor(
     }
 
     private fun prepareCloud(action: AiTextAction) {
+        if (asking || action == AiTextAction.ASK) return // a question has its own preview (prepareQuestion)
         val source = snapshot ?: return
         if (!editor.isCurrent(source)) { discardStaleContext(); return }
         if (cloudRunner.isRunning || skillJob?.isActive == true) return
@@ -394,11 +495,13 @@ class AgentEditorController @JvmOverloads constructor(
             AiTextAction.SUMMARIZE -> ime.getString(R.string.agent_cloud_summarize)
             AiTextAction.REPLY -> ime.getString(R.string.agent_cloud_reply_tone, ime.getString(approval.tone.titleResource()))
             AiTextAction.ANALYZE -> ime.getString(R.string.agent_cloud_analyze)
+            AiTextAction.ASK -> return
         }
         panel?.showCloudConfirmation(approval.model, source.text.length, task, CloudProviders.displayName(approval.provider))
     }
 
     private fun prepareTool(tool: ToolId) {
+        if (asking) return
         if (cloudRunner.isRunning || skillJob?.isActive == true) return
         val source = snapshot ?: return
         if (!editor.isCurrent(source)) { discardStaleContext(); return }
@@ -468,7 +571,11 @@ class AgentEditorController @JvmOverloads constructor(
         if (!cloudRunner.start(source, approval.model, approval.action.instruction(approval.language, approval.tone), approval.action,
                 approval.provider) { outcome ->
             outcome.onSuccess { result ->
-                if (editor.policy.resultDenial(result) == null) {
+                if (editor.policy.resultDenial(result) == null && asking) {
+                    preparedResult = result
+                    canApply = result.isNotBlank() // inserting is still a separate tap (insertAnswer)
+                    panel?.showAnswer(result)
+                } else if (editor.policy.resultDenial(result) == null) {
                     preparedResult = result
                     canApply = approval.action.allowsReplacement
                     panel?.showResult(result, approval.action.allowsReplacement)
@@ -491,12 +598,13 @@ class AgentEditorController @JvmOverloads constructor(
         canApply = false
         val source = snapshot ?: return
         if (editor.isCurrent(source)) {
-            panel?.showSource(source.text)
+            if (asking) panel?.showQuestion(source.text) else panel?.showSource(source.text)
             panel?.showStatus(if (toolOnly) R.string.agent_tool_cancelled else R.string.agent_cloud_cancelled)
         } else discardStaleContext()
     }
 
     private fun chooseWorkflows() {
+        if (asking) return
         if (cloudRunner.isRunning || skillJob?.isActive == true) return
         val source = snapshot ?: return
         if (!editor.isCurrent(source)) { discardStaleContext(); return }
@@ -516,6 +624,7 @@ class AgentEditorController @JvmOverloads constructor(
     }
 
     private fun prepareWorkflow(definition: WorkflowDefinition) {
+        if (asking) return
         if (cloudRunner.isRunning || skillJob?.isActive == true) return
         val source = snapshot ?: return
         if (!editor.isCurrent(source)) { discardStaleContext(); return }
@@ -538,6 +647,7 @@ class AgentEditorController @JvmOverloads constructor(
             if (!dictation.isListening) insertDictation() // nothing can be inserted while the microphone is on
             return
         }
+        if (asking) { insertAnswer(); return }
         val source = snapshot ?: return
         val result = preparedResult ?: return
         if (!canApply) return
@@ -596,6 +706,8 @@ class AgentEditorController @JvmOverloads constructor(
         wheel?.visibility = View.GONE
         calculator?.hide()
         calculatorCommand = null
+        asking = false
+        questionCommand = null
         editor.invalidate()
     }
 
@@ -637,6 +749,11 @@ private fun DenialReason.messageResource() = when (this) {
     DenialReason.COMPOSITION -> R.string.agent_panel_composing
     DenialReason.STALE_CONTEXT -> R.string.agent_panel_stale
     else -> R.string.agent_panel_select_text
+}
+
+private fun DenialReason.questionMessageResource() = when (this) {
+    DenialReason.PASSWORD, DenialReason.INCOGNITO, DenialReason.NO_LEARNING, DenialReason.LOCKED -> R.string.agent_panel_protected
+    else -> R.string.agent_command_ki_unavailable
 }
 
 private fun DictationError.messageResource() = when (this) {

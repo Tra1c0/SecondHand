@@ -64,6 +64,11 @@ object KeyboardCommands {
         fun showChips(chips: List<Chip>): Boolean = false
         /** Opens the text actions with the saved workflow [workflowId] like a skill key (stage 24f `@wf`); the field stays unchanged. */
         fun openWorkflow(workflowId: String): Boolean = false
+        /**
+         * Opens the text actions with a send preview of exactly [question] (stage 24f `@ki`); nothing
+         * is sent before "Send" there, and "Insert" replaces [command]. The field stays unchanged.
+         */
+        fun askAi(command: CommandCall, question: String): Boolean = false
     }
 
     /** A built-in command. Commands never come from files or models. */
@@ -94,6 +99,7 @@ object KeyboardCommands {
         helium314.keyboard.agent.commands.SnipCommand,
         helium314.keyboard.agent.commands.ClipCommand,
         helium314.keyboard.agent.commands.WorkflowCommand,
+        helium314.keyboard.agent.commands.AskCommand,
         DateCommand,
         EventCommand,
         PlaceCommand,
@@ -250,6 +256,8 @@ object KeyboardCommands {
             // e.g. after reading the screen: only while the strip still shows this command at this cursor
             override fun showChips(chips: List<Chip>): Boolean = ime.agentCommandCursor == position && onShow(chips)
             override fun openWorkflow(workflowId: String) = ime.agentEditorController.openWorkflow(workflowId)
+            override fun askAi(command: CommandCall, question: String) =
+                ime.agentEditorController.openQuestion(question, command.text, position)
         }
         return chipsFor(context, host)
     }

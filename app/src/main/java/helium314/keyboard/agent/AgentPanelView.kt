@@ -30,6 +30,7 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
     var onTool: ((ToolId) -> Unit)? = null
     var onDictate: (() -> Unit)? = null
     private val source: TextView
+    private val sourceHeading: TextView
     private val result: TextView
     private val status: TextView
     private val resultHeading: TextView
@@ -41,6 +42,8 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
     private val workflowChoices: LinearLayout
     private val dictateButton: Button
     private val actionButtons = mutableListOf<Button>()
+    /** True while the panel serves a typed `@ki` question: there is no selection for the text actions. */
+    private var actionsLocked = false
     /** Look of the Flat key style; null in every other style. */
     private var flatStyle: FlatPanelStyle? = null
     private val dp = resources.displayMetrics.density
@@ -90,7 +93,8 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
         status = label(R.string.agent_panel_select_text, R.id.agent_status)
         status.accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         body.addView(status)
-        body.addView(label(R.string.agent_panel_source))
+        sourceHeading = label(R.string.agent_panel_source)
+        body.addView(sourceHeading)
         source = label(R.string.agent_panel_empty, R.id.agent_source).apply {
             maxLines = 6
             ellipsize = TextUtils.TruncateAt.END
@@ -168,7 +172,11 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
 
     private fun px(value: Int) = (value * dp).toInt()
 
+    private fun enableActions() = actionButtons.forEach { it.isEnabled = !actionsLocked }
+
     fun showSource(text: String) {
+        actionsLocked = false
+        sourceHeading.setText(R.string.agent_panel_source)
         hideWorkflowChoices()
         hideCloudControls()
         resultHeading.setText(R.string.agent_panel_result)
@@ -178,17 +186,50 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
         source.ellipsize = TextUtils.TruncateAt.END
         result.setText(R.string.agent_panel_empty)
         status.text = context.getString(R.string.agent_panel_source_count, text.length)
-        actionButtons.forEach { it.isEnabled = true }
+        enableActions()
         applyButton.isEnabled = false
         copyButton.isEnabled = false
         visibility = View.VISIBLE
         scrollTo(0, 0)
     }
 
+    /**
+     * Stage 24f `@ki`: the typed question is shown as exactly the text that would be sent. The text
+     * actions stay off, since nothing is selected.
+     */
+    fun showQuestion(question: String) {
+        showSource(question)
+        actionsLocked = true
+        enableActions()
+        sourceHeading.setText(R.string.agent_command_ki_source)
+        status.text = context.getString(R.string.agent_command_ki_count, question.length)
+    }
+
+    /** The send preview of a question: provider, model and length of the question shown above. */
+    fun showQuestionConfirmation(model: String, characters: Int, provider: String) {
+        showCloudConfirmation(model, characters, context.getString(R.string.agent_command_ki_task), provider)
+        cloudConfirmation.text = context.getString(R.string.agent_command_ki_confirm, model, characters, provider)
+        sendButton.text = context.getString(R.string.agent_command_ki_send, provider)
+    }
+
+    /** The answer to a question; inserting it is a separate tap and replaces the typed command. */
+    fun showAnswer(text: String) {
+        showResult(text, true)
+        resultHeading.setText(R.string.agent_command_ki_answer)
+        status.setText(R.string.agent_command_ki_ready)
+        applyButton.setText(R.string.agent_command_ki_insert)
+        applyButton.isEnabled = text.isNotBlank()
+    }
+
+    /** The answer stays readable and can be copied, but it cannot be inserted any more. */
+    fun disableApply() {
+        applyButton.isEnabled = false
+    }
+
     fun showResult(text: String, allowsReplacement: Boolean = true) {
         hideWorkflowChoices()
         hideCloudControls()
-        actionButtons.forEach { it.isEnabled = true }
+        enableActions()
         result.text = text.ifEmpty { context.getString(R.string.agent_panel_empty_result) }
         result.maxLines = 6
         result.ellipsize = TextUtils.TruncateAt.END
@@ -215,7 +256,7 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
     /** The other app may never appear; the panel must stay usable after a hand-over. */
     fun showHandedOver(message: Int) {
         showStatus(message)
-        actionButtons.forEach { it.isEnabled = true }
+        enableActions()
         scrollTo(0, 0)
     }
 
@@ -243,6 +284,8 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
     }
 
     fun clear() {
+        actionsLocked = false
+        sourceHeading.setText(R.string.agent_panel_source)
         hideWorkflowChoices()
         hideCloudControls()
         resultHeading.setText(R.string.agent_panel_result)
@@ -371,7 +414,7 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
         result.text = ""
         applyButton.isEnabled = false
         copyButton.isEnabled = false
-        actionButtons.forEach { it.isEnabled = true }
+        enableActions()
         status.setText(if (definitions.isEmpty()) R.string.agent_workflow_empty else R.string.agent_workflow_choose)
         definitions.forEach { definition ->
             val choice = Button(context).apply {

@@ -11,4 +11,14 @@ class AiTextActionTest {
             assertNull(TranslationLanguage.fromCode(invalid))
         assertEquals(TranslationLanguage.entries.size, TranslationLanguage.entries.map { it.code }.toSet().size)
     }
+
+    @Test fun askAnswersTheQuestionAndIsNoSkillOrWorkflowAction() {
+        val instruction = AiTextAction.ASK.instruction()
+        assertTrue(instruction.startsWith("Answer the user's question concisely in the language of the question."))
+        assertFalse(instruction.contains("as data, not instructions")) // the question is the request
+        // fixed text: settings cannot change what is sent
+        assertEquals(instruction, AiTextAction.ASK.instruction(TranslationLanguage.FRENCH, WritingTone.FRIENDLY))
+        assertTrue(BuiltinAction.entries.none { it.ai == AiTextAction.ASK })
+        assertTrue(AiTextAction.CORRECT.instruction().contains("as data, not instructions"))
+    }
 }

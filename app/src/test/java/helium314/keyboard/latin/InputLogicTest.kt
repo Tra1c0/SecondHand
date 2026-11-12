@@ -1464,6 +1464,7 @@ class InputLogicTest {
             dev.agentkeyboard.core.AiTextAction.SUMMARIZE -> R.id.agent_cloud_summarize
             dev.agentkeyboard.core.AiTextAction.REPLY -> R.id.agent_cloud_reply
             dev.agentkeyboard.core.AiTextAction.ANALYZE -> R.id.agent_cloud_analyze
+            dev.agentkeyboard.core.AiTextAction.ASK -> error("a question has no panel button, only the typed command")
         }).performClick()
         if (action == dev.agentkeyboard.core.AiTextAction.TRANSLATE) {
             // Configuration changes after the displayed approval cannot silently
@@ -1493,6 +1494,177 @@ class InputLogicTest {
         }
         panel.findViewById<android.widget.Button>(R.id.agent_apply).performClick()
         assertEquals("prefix HALLO suffix", text)
+        controller.destroy()
+    }
+
+    /** A test provider that records every request and answers with [response]. */
+    private class QuestionProvider(val response: kotlinx.coroutines.CompletableDeferred<String> = kotlinx.coroutines.CompletableDeferred()) :
+        dev.agentkeyboard.core.ModelProvider {
+        val requests = mutableListOf<dev.agentkeyboard.core.ModelRequest>()
+        override val id = "offline-test"
+        override val capabilities = dev.agentkeyboard.core.ProviderCapabilities()
+        override suspend fun generate(request: dev.agentkeyboard.core.ModelRequest, onTextDelta: (String) -> Unit): dev.agentkeyboard.core.ModelResponse {
+            requests += request
+            return dev.agentkeyboard.core.ModelResponse(response.await())
+        }
+    }
+
+    /** A controller with the test provider and journal, attached to a panel; the field is started empty. */
+    private fun questionSurface(provider: QuestionProvider, journal: helium314.keyboard.agent.TestRunJournal):
+            Pair<helium314.keyboard.agent.AgentEditorController, helium314.keyboard.agent.AgentPanelView> {
+        latinIME.agentEditorController.destroy()
+        val controller = helium314.keyboard.agent.AgentEditorController(latinIME, inputLogic, { journal }) { provider }
+        org.robolectric.util.ReflectionHelpers.setField(latinIME, "mAgentEditorController", controller)
+        val root = android.widget.FrameLayout(latinIME)
+        val panel = helium314.keyboard.agent.AgentPanelView(latinIME).apply { id = R.id.agent_panel }
+        root.addView(panel)
+        controller.attach(root)
+        setText("")
+        controller.startEditor(EditorInfo().apply { inputType = currentInputType; initialSelStart = 0; initialSelEnd = 0 })
+        helium314.keyboard.agent.KeyboardCommands.load(latinIME)
+        return controller to panel
+    }
+
+    /** Types [typed], reports the cursor like the editor would and taps the "Ask AI" chip for [question]. */
+    private fun tapAskChip(controller: helium314.keyboard.agent.AgentEditorController, typed: String, question: String) {
+        chainInput(typed)
+        controller.selectionChanged(text.length, text.length, composingStart, composingEnd)
+        val chips = helium314.keyboard.agent.KeyboardCommands.createChipsView(latinIME, android.widget.FrameLayout(latinIME))
+        assertNotNull(chips)
+        val row = (chips as android.view.ViewGroup).getChildAt(0) as android.view.ViewGroup
+        (0 until row.childCount).map { row.getChildAt(it) as android.widget.TextView }
+            .single { it.text.toString() == latinIME.getString(R.string.agent_command_ki_chip, question) }
+            .performClick()
+    }
+
+    private fun panelText(panel: android.view.View, id: Int) = panel.findViewById<android.widget.TextView>(id).text.toString()
+
+    @Test fun typedQuestionIsSentOnlyAfterSendAndTheAnswerReplacesTheCommandOnlyAfterInsert() {
+        val provider = QuestionProvider()
+        val journal = helium314.keyboard.agent.TestRunJournal()
+        val (controller, panel) = questionSurface(provider, journal)
+        tapAskChip(controller, "x @ki wie hoch ist der Mount Everest", "wie hoch ist der Mount Everest")
+        // the field is unchanged and the panel shows exactly the text that would be sent
+        assertEquals("x @ki wie hoch ist der Mount Everest", text)
+        assertEquals(android.view.View.VISIBLE, panel.visibility)
+        assertEquals("wie hoch ist der Mount Everest", panelText(panel, R.id.agent_source))
+        val confirmation = panelText(panel, R.id.agent_cloud_confirmation)
+        assertTrue(confirmation.contains(helium314.keyboard.agent.ModelSettings.DEFAULT_MODEL))
+        assertTrue(confirmation.contains("OpenAI"))
+        assertTrue(confirmation.contains("30")) // characters of the question
+        assertEquals(android.view.View.VISIBLE, panel.findViewById<android.view.View>(R.id.agent_cloud_send).visibility)
+        // the selection actions stay off: there is no selection
+        assertFalse(panel.findViewById<android.widget.Button>(R.id.agent_cloud_correct).isEnabled)
+        assertFalse(panel.findViewById<android.widget.Button>(R.id.agent_uppercase).isEnabled)
+        panel.onPrepareCloud?.invoke(dev.agentkeyboard.core.AiTextAction.CORRECT) // bypassing the disabled view changes nothing
+        assertEquals(android.view.View.VISIBLE, panel.findViewById<android.view.View>(R.id.agent_cloud_send).visibility)
+        assertTrue(provider.requests.isEmpty())
+        assertTrue(journal.states.isEmpty())
+
+        panel.findViewById<android.widget.Button>(R.id.agent_cloud_send).performClick()
+        panel.onSendCloud?.invoke() // the approval is consumed: a second send starts nothing
+        assertEquals(1, provider.requests.size)
+        val request = provider.requests.single()
+        assertEquals("wie hoch ist der Mount Everest", request.input) // exactly the shown question, nothing else of the field
+        assertEquals(dev.agentkeyboard.core.AiTextAction.ASK.instruction(), request.instruction)
+        assertEquals(helium314.keyboard.agent.ModelSettings.DEFAULT_MODEL, request.model)
+        assertEquals("x @ki wie hoch ist der Mount Everest", text)
+
+        provider.response.complete("8849 m")
+        awaitAgentUi { panelText(panel, R.id.agent_result) == "8849 m" }
+        assertEquals(helium314.keyboard.agent.ActionRunState.SUCCEEDED, journal.modelStates.values.single())
+        assertEquals(helium314.keyboard.agent.RunSubject.TextAction(dev.agentkeyboard.core.AiTextAction.ASK), journal.subjects.values.single())
+        assertEquals("x @ki wie hoch ist der Mount Everest", text) // nothing is replaced automatically
+        val insert = panel.findViewById<android.widget.Button>(R.id.agent_apply)
+        assertTrue(insert.isEnabled)
+        assertEquals(latinIME.getString(R.string.agent_command_ki_insert), insert.text.toString())
+        assertTrue(panel.findViewById<android.widget.Button>(R.id.agent_copy).isEnabled)
+
+        insert.performClick()
+        assertEquals("x 8849 m", text) // exactly the command is replaced, in one commit
+        assertEquals(android.view.View.GONE, panel.visibility)
+        assertTrue(inputLogic.isAgentHistorySuppressed) // generated text is not learned from
+        checkConnectionConsistency()
+        panel.onApply?.invoke() // a second tap has nothing left to insert
+        assertEquals("x 8849 m", text)
+        controller.destroy()
+    }
+
+    @Test fun typedQuestionWithoutAKeyShowsTheWayToTheSettingsAndSendsNothing() {
+        val provider = QuestionProvider()
+        val journal = helium314.keyboard.agent.TestRunJournal()
+        val (controller, panel) = questionSurface(provider, journal)
+        controller.credentialCheck = { false }
+        tapAskChip(controller, "x @ki hallo", "hallo")
+        assertEquals(latinIME.getString(R.string.agent_command_ki_credentials), panelText(panel, R.id.agent_status))
+        assertEquals(android.view.View.GONE, panel.findViewById<android.view.View>(R.id.agent_cloud_send).visibility)
+        assertTrue(panel.findViewById<android.view.View>(R.id.agent_cloud_settings).isEnabled) // the way to the AI settings
+        panel.onSendCloud?.invoke() // even a direct send has no approval to use
+        org.robolectric.shadows.ShadowLooper.idleMainLooper()
+        assertTrue(provider.requests.isEmpty())
+        assertTrue(journal.states.isEmpty())
+        assertEquals("x @ki hallo", text)
+        controller.destroy()
+    }
+
+    @Test fun cancelledQuestionShowsNoAnswerAndChangesNothing() {
+        val provider = QuestionProvider()
+        val journal = helium314.keyboard.agent.TestRunJournal()
+        val (controller, panel) = questionSurface(provider, journal)
+        tapAskChip(controller, "x @ki hallo", "hallo")
+        panel.findViewById<android.widget.Button>(R.id.agent_cloud_cancel).performClick() // before sending
+        assertTrue(provider.requests.isEmpty())
+        assertEquals("hallo", panelText(panel, R.id.agent_source))
+        assertEquals(latinIME.getString(R.string.agent_cloud_cancelled), panelText(panel, R.id.agent_status))
+        panel.onSendCloud?.invoke() // the cancelled approval is gone
+        assertTrue(provider.requests.isEmpty())
+
+        tapAskChip(controller, "", "hallo") // the chip again: a fresh preview
+        panel.findViewById<android.widget.Button>(R.id.agent_cloud_send).performClick()
+        assertEquals(1, provider.requests.size)
+        panel.findViewById<android.widget.Button>(R.id.agent_cloud_cancel).performClick() // while waiting
+        provider.response.complete("zu spät")
+        org.robolectric.shadows.ShadowLooper.idleMainLooper()
+        assertEquals(helium314.keyboard.agent.ActionRunState.CANCELLED, journal.modelStates.values.single())
+        assertEquals(latinIME.getString(R.string.agent_panel_empty), panelText(panel, R.id.agent_result)) // no answer shown
+        assertFalse(panel.findViewById<android.widget.Button>(R.id.agent_apply).isEnabled)
+        panel.onApply?.invoke()
+        assertEquals("x @ki hallo", text)
+        controller.destroy()
+    }
+
+    @Test fun answerIsInsertedAtTheCursorWhenTheCommandIsGone() {
+        val provider = QuestionProvider()
+        val journal = helium314.keyboard.agent.TestRunJournal()
+        val (controller, panel) = questionSurface(provider, journal)
+        setText("x ")
+        setCursorPosition(2)
+        controller.startEditor(EditorInfo().apply { inputType = currentInputType; initialSelStart = 2; initialSelEnd = 2 })
+        controller.selectionChanged(2, 2, -1, -1)
+        assertTrue(controller.openQuestion("frage", "@ki frage", 11)) // the command is no longer there
+        panel.findViewById<android.widget.Button>(R.id.agent_cloud_send).performClick()
+        assertEquals("frage", provider.requests.single().input)
+        provider.response.complete("Antwort")
+        awaitAgentUi { panelText(panel, R.id.agent_result) == "Antwort" }
+        assertEquals("x ", text)
+        panel.findViewById<android.widget.Button>(R.id.agent_apply).performClick()
+        assertEquals("x Antwort", text)
+        assertEquals(android.view.View.GONE, panel.visibility)
+        controller.destroy()
+    }
+
+    @Test fun questionIsNotPreparedInProtectedFields() {
+        val provider = QuestionProvider()
+        val journal = helium314.keyboard.agent.TestRunJournal()
+        val (controller, panel) = questionSurface(provider, journal)
+        controller.startEditor(EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD; initialSelStart = 0; initialSelEnd = 0 })
+        // even a direct call cannot prepare a request from a password field
+        assertTrue(controller.openQuestion("hallo", "@ki hallo", 0))
+        assertEquals(latinIME.getString(R.string.agent_panel_protected), panelText(panel, R.id.agent_status))
+        assertEquals(android.view.View.GONE, panel.findViewById<android.view.View>(R.id.agent_cloud_send).visibility)
+        panel.onSendCloud?.invoke()
+        assertTrue(provider.requests.isEmpty())
         controller.destroy()
     }
 

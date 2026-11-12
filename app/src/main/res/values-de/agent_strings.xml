@@ -444,4 +444,18 @@
     <string name="agent_places_invalid">Gib einen Namen und eine Adresse ein (Name bis 40, Adresse bis 200 Zeichen).</string>
     <string name="agent_places_full">Höchstens %d Orte können gespeichert werden.</string>
     <string name="agent_places_unavailable">Gespeicherte Orte sind nur bei entsperrtem Gerät verfügbar.</string>
+    <string name="agent_command_ki">KI fragen: %1$ski Frage öffnet die Textaktionen mit einer Vorschau genau deiner Frage, des Anbieters und des Modells. Erst ein Tipp auf Senden schickt die Frage, sonst nichts aus dem Feld, an deinen eigenen KI-Anbieter (API-Schlüssel nötig). Einfügen ersetzt dann den getippten Befehl durch die Antwort.</string>
+    <string name="agent_command_ki_chip">KI fragen: %s</string>
+    <string name="agent_command_ki_open">Frage für deinen KI-Anbieter vorbereiten: %s</string>
+    <string name="agent_command_ki_source">Zu sendende Frage</string>
+    <string name="agent_command_ki_count">Frage: %1$d Zeichen</string>
+    <string name="agent_command_ki_task">KI fragen</string>
+    <string name="agent_command_ki_confirm">Genau die oben angezeigte Frage (%2$d Zeichen) mit %1$s an %3$s senden? Sonst wird nichts aus dem Textfeld gesendet. Es gelten API-Kosten und die Datenregeln des Anbieters.</string>
+    <string name="agent_command_ki_send">Frage an %1$s senden</string>
+    <string name="agent_command_ki_answer">Antwort der KI</string>
+    <string name="agent_command_ki_ready">Prüfe die Antwort. Einfügen ersetzt den getippten Befehl durch sie.</string>
+    <string name="agent_command_ki_insert">Einfügen</string>
+    <string name="agent_command_ki_credentials">Kein API-Schlüssel für den gewählten Anbieter. Richte ihn unter KI-Anbieter ein (Knopf oben) und tippe die Frage danach erneut.</string>
+    <string name="agent_command_ki_unavailable">Die Frage kann aus diesem Feld nicht gesendet werden. Schließe das Panel und tippe sie erneut.</string>
+    <string name="agent_command_ki_insert_failed">Das Feld hat sich geändert. Es wurde nichts eingefügt; du kannst die Antwort weiterhin kopieren.</string>
 </resources>
