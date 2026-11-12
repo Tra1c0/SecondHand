@@ -20,6 +20,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import dev.agentkeyboard.core.CommandSyntax
 import helium314.keyboard.agent.KeyboardCommands
+import helium314.keyboard.agent.PlaceCommand
 import helium314.keyboard.latin.R
 import helium314.keyboard.settings.SearchSettingsScreen
 
@@ -97,6 +98,7 @@ fun AgentCommandsScreen(onClickBack: () -> Unit) {
             }
             AgentScreenReaderSection(prefix) // stage 24e
             AgentSnippetsSection(prefix) // stage 24f
+            if (KeyboardCommands.registry.any { it.name == PlaceCommand.name }) SavedPlacesSection()
         }
     }
 }

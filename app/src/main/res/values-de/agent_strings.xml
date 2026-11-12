@@ -423,4 +423,25 @@
     <string name="agent_snippets_unavailable">Die Textbausteine lassen sich gerade nicht lesen. Entsperre das Telefon und versuche es erneut.</string>
     <string name="agent_snippets_save">Speichern</string>
     <string name="agent_snippets_cancel">Abbrechen</string>
+    <string name="agent_command_date">Datum und Uhrzeit auf dem Gerät: %1$sdatum bietet das heutige Datum und die Uhrzeit in mehreren Formaten der Tastatursprache; %1$sdatum morgen, +3, freitag oder 24.12. einen anderen Tag.</string>
+    <string name="agent_command_event">Kalenderentwurf: %1$stermin morgen 18 Uhr Zahnarzt erkennt Datum und Uhrzeit auf dem Gerät (Deutsch, Englisch, Spanisch) und öffnet deine Kalender-App mit einem neuen Termin. Gespeichert wird er nur, wenn du ihn dort speicherst; keine Kalenderberechtigung.</string>
+    <string name="agent_command_event_chip">Termin: %1$s – %2$s</string>
+    <string name="agent_command_event_chip_untitled">Termin: %s</string>
+    <string name="agent_command_event_open">Neuen Kalendertermin öffnen: %s</string>
+    <string name="agent_command_event_none">Keine Kalender-App kann einen Termin anlegen.</string>
+    <string name="agent_command_place">Orte: %1$sort Adresse fügt einen Google-Maps-Link zur Adresse ein oder öffnet sie in einer Karten-App. %1$sort zuhause nimmt einen gespeicherten Ort. Vor einem Tipp verlässt nichts die Tastatur.</string>
+    <string name="agent_command_place_chip">Karte: %s</string>
+    <string name="agent_command_place_link">Google-Maps-Link für %s einfügen</string>
+    <string name="agent_command_place_open">In Karten öffnen</string>
+    <string name="agent_command_place_open_description">%s in einer Karten-App öffnen</string>
+    <string name="agent_command_place_none">Keine Karten-App installiert.</string>
+    <string name="agent_places_title">Gespeicherte Orte</string>
+    <string name="agent_places_description">Namen, die du statt der Adresse nach %sort tippen kannst, zum Beispiel Zuhause oder Arbeit. Nur auf diesem Gerät gespeichert und erst nach dem Entsperren lesbar.</string>
+    <string name="agent_places_name">Name</string>
+    <string name="agent_places_address">Adresse</string>
+    <string name="agent_places_add">Ort speichern</string>
+    <string name="agent_places_delete">%s löschen</string>
+    <string name="agent_places_invalid">Gib einen Namen und eine Adresse ein (Name bis 40, Adresse bis 200 Zeichen).</string>
+    <string name="agent_places_full">Höchstens %d Orte können gespeichert werden.</string>
+    <string name="agent_places_unavailable">Gespeicherte Orte sind nur bei entsperrtem Gerät verfügbar.</string>
 </resources>

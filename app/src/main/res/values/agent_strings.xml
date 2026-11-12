@@ -424,4 +424,25 @@
     <string name="agent_snippets_unavailable">Snippets cannot be read right now. Unlock the phone and try again.</string>
     <string name="agent_snippets_save">Save</string>
     <string name="agent_snippets_cancel">Cancel</string>
+    <string name="agent_command_date">Date and time on the device: %1$sdatum offers today\'s date and the time in several formats for the keyboard language; %1$sdatum morgen, +3, freitag or 24.12. another day.</string>
+    <string name="agent_command_event">Calendar draft: %1$stermin morgen 18 Uhr Zahnarzt recognizes date and time on the device (German, English, Spanish) and opens your calendar app with a new event. The calendar app saves it only if you do there; no calendar permission.</string>
+    <string name="agent_command_event_chip">Event: %1$s – %2$s</string>
+    <string name="agent_command_event_chip_untitled">Event: %s</string>
+    <string name="agent_command_event_open">Open a new calendar event: %s</string>
+    <string name="agent_command_event_none">No calendar app can create an event.</string>
+    <string name="agent_command_place">Places: %1$sort address inserts a Google Maps link to the address or opens it in a maps app. %1$sort zuhause uses a saved place. Nothing leaves the keyboard before a tap.</string>
+    <string name="agent_command_place_chip">Map: %s</string>
+    <string name="agent_command_place_link">Insert a Google Maps link for %s</string>
+    <string name="agent_command_place_open">Open in maps</string>
+    <string name="agent_command_place_open_description">Open %s in a maps app</string>
+    <string name="agent_command_place_none">No maps app is installed.</string>
+    <string name="agent_places_title">Saved places</string>
+    <string name="agent_places_description">Names you can type after %sort instead of the address, for example Zuhause or Arbeit. Kept only on this device and readable only after the device was unlocked.</string>
+    <string name="agent_places_name">Name</string>
+    <string name="agent_places_address">Address</string>
+    <string name="agent_places_add">Save place</string>
+    <string name="agent_places_delete">Delete %s</string>
+    <string name="agent_places_invalid">Enter a name and an address (name up to 40, address up to 200 characters).</string>
+    <string name="agent_places_full">At most %d places can be saved.</string>
+    <string name="agent_places_unavailable">Saved places are available only while the device is unlocked.</string>
 </resources>

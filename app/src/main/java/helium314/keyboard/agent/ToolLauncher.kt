@@ -45,5 +45,17 @@ class CalendarToolLauncher(private val context: Context) : ToolLauncher {
             .putExtra(CalendarContract.Events.TITLE, request.value("title"))
             .putExtra(CalendarContract.Events.DESCRIPTION, request.value("description"))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+        /**
+         * The calendar app's "new event" screen with a start and end (`@termin`, stage 24f); like
+         * [intent] it needs no calendar permission. [title] is left out when blank.
+         */
+        fun eventDraft(title: String, beginMillis: Long, endMillis: Long, allDay: Boolean): Intent = Intent(Intent.ACTION_INSERT)
+            .setData(CalendarContract.Events.CONTENT_URI)
+            .apply { if (title.isNotBlank()) putExtra(CalendarContract.Events.TITLE, title) }
+            .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, beginMillis)
+            .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, endMillis)
+            .putExtra(CalendarContract.EXTRA_EVENT_ALL_DAY, allDay)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
 }

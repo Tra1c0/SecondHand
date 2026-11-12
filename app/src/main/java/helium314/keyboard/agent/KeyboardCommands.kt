@@ -94,6 +94,9 @@ object KeyboardCommands {
         helium314.keyboard.agent.commands.SnipCommand,
         helium314.keyboard.agent.commands.ClipCommand,
         helium314.keyboard.agent.commands.WorkflowCommand,
+        DateCommand,
+        EventCommand,
+        PlaceCommand,
     )
 
     /** Replaced in tests. */
