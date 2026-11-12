@@ -75,3 +75,4 @@
   auf Tipp), `@such`, `@zeichen`, `@emoji`, `@conv`, `@snip` (eigene Textbausteine), `@clip`,
   `@wf`, `@datum`, `@termin` (Kalenderentwurf), `@ort` (Maps-Link, gespeicherte Orte).
 - Neue Berechtigung möglich: Bedienungshilfe „Bildschirm lesen“ (nur wenn du sie einschaltest).
+- Neu: `@ki Frage` fragt deinen KI-Anbieter, erst nach „Senden“; „Einfügen“ setzt die Antwort ein.

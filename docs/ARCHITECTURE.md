@@ -90,7 +90,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - `AiTextAction.kt`: `AiTextAction` mit festen Instruktionen. `ANALYZE` erlaubt keine
   Ersetzung. Dazu `TranslationLanguage` und `WritingTone`.
   <!-- gen:ai_actions -->
-6 KI-Textaktionen: `CORRECT`, `TRANSLATE`, `REPHRASE`, `SUMMARIZE`, `REPLY`, `ANALYZE`
+7 KI-Textaktionen: `CORRECT`, `TRANSLATE`, `REPHRASE`, `SUMMARIZE`, `REPLY`, `ANALYZE`, `ASK`
 <!-- /gen:ai_actions -->
   <!-- gen:languages -->
 14 Zielsprachen: English, German, French, Spanish, Italian, Portuguese, Ukrainian, Russian, Arabic, Turkish, Chinese, Japanese, Korean, Hindi
@@ -139,7 +139,8 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   denselben einen Commit. `replaceCommandText` (24a) beendet zuerst ein gerade getipptes Wort
   so, wie es dasteht (ohne Korrektur, ohne Lernen), und läuft dann durch `applyGenerated`, aber
   ohne das Lernen für den Rest der Sitzung abzuschalten. `performAdditionToUserHistoryDictionary`
-  lernt kein Befehlswort (`KeyboardCommands.isCommandWord`).
+  lernt kein Befehlswort (`KeyboardCommands.isCommandWord`). Die Überladung mit `generated = true`
+  (`@ki`) stoppt das Lernen für den Rest der Sitzung wie bei anderen KI-Übernahmen.
 - `InputLogicHandler.java`: hält Worker- und UI-Teil eines Swipe-Batches über
   `PendingBatchGate` gemeinsam gesperrt.
 - `RichInputConnection.java`: native Ersetzung als genau ein Commit, Ergebnis als `ApplyOutcome`
@@ -520,6 +521,14 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `SavedPlacesSection.kt`; Logik in `C/CivilDate.kt` (Datum ohne `java.time`, Fallstrick P45),
     `C/DateFormatting.kt` (de, en-US, es), `C/EventParser.kt` (Datum, Uhrzeit, Titel aus Freitext,
     „jetzt“ und Zeitzone übergeben), `C/Places.kt`.
+  - `A/commands/AskCommand.kt` (`@ki`): `Host.askAi` → `AgentEditorController.openQuestion`; die
+    Frage wird als `TextSnapshot` mit leerer Auswahl erfasst (`ExecutionPolicy.captureQuestion`,
+    `isCurrentQuestion`: gleiche Sitzung und Schutzregeln, Composition erlaubt; `apply` lehnt
+    solche Snapshots ab), gesendet über die bestehende Freigabe (`AiTextAction.ASK`, nur hier
+    erreichbar, kein `BuiltinAction`), eingefügt über `InputLogic.replaceCommandText(…, generated
+    = true)` (Lernen stoppt wie bei anderen KI-Übernahmen), sonst `captureAnchor`/`insert`. Solange
+    eine Frage offen ist, sind Auswahl-Aktionen gesperrt (`asking`). Tests `CT/QuestionCaptureTest.kt`,
+    `AskCommandTest` (`AT/`), `InputLogicTest` (Frage-Fälle).
   - Tests: `CT/UrlDetectorTest.kt`, `CT/SymbolTableTest.kt`, `CT/UnitConversionTest.kt`,
     `CT/EventParserTest.kt`, `CT/DateFormattingTest.kt`, `CT/PlacesTest.kt`;
     `AT/ContactCommandTest.kt`, `AT/MoreCommandsTest.kt`, `AT/SnipCommandTest.kt`,
@@ -942,7 +951,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (284 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (287 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -959,16 +968,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   ToolLauncher, TouchCalibration, TouchModel, TypoMemory, WorkflowApprovalSummary,
   WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
   WorkflowStore
-- `A/commands/` (6): ClipCommand, ScreenReaderService, SnipCommand, SnippetStore, UrlCommand,
-  WorkflowCommand
+- `A/commands/` (7): AskCommand, ClipCommand, ScreenReaderService, SnipCommand, SnippetStore,
+  UrlCommand, WorkflowCommand
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
-- `AT/` (53): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (54): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
-  ApprovedWorkflowRunnerTest, CalculatorViewTest, CalendarToolLauncherTest, ClipCommandTest,
-  CommandReplaceTest, ContactCommandTest, CorrectionMemoryTest, DatePlaceCommandsTest,
-  DebugPrivacyTest, DesignTilesTest, DictationSessionTest, DictationUiTest,
+  ApprovedWorkflowRunnerTest, AskCommandTest, CalculatorViewTest, CalendarToolLauncherTest,
+  ClipCommandTest, CommandReplaceTest, ContactCommandTest, CorrectionMemoryTest,
+  DatePlaceCommandsTest, DebugPrivacyTest, DesignTilesTest, DictationSessionTest, DictationUiTest,
   EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, FlatClipboardTest, FlatMenuTest,
   FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, InsertAtCursorTest,
   JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LearningDataTest,
@@ -981,10 +990,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   EmojiNames, EventParser, ExecutionPolicy, LocalTextActions, MathExpression, ModelProvider,
   PendingBatchGate, Places, Profiles, SkillBinding, SpecialCharacters, SymbolTable, TextCondition,
   Tool, UnitConversion, UrlDetector, Workflow
-- `CT/` (16): AiTextActionTest, CommandSyntaxTest, DateFormattingTest, EditorPolicyTest,
+- `CT/` (17): AiTextActionTest, CommandSyntaxTest, DateFormattingTest, EditorPolicyTest,
   EventParserTest, InsertionAnchorTest, LocalTextActionsTest, MathExpressionTest,
-  PendingBatchGateTest, PlacesTest, SkillBindingTest, SymbolTableTest, ToolTest, UnitConversionTest,
-  UrlDetectorTest, WorkflowTest
+  PendingBatchGateTest, PlacesTest, QuestionCaptureTest, SkillBindingTest, SymbolTableTest,
+  ToolTest, UnitConversionTest, UrlDetectorTest, WorkflowTest
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,
   KeyboardActionListenerImpl, KeyboardSwitcher, KeyboardTheme, KeyboardView, MainKeyboardView,
   PointerTracker

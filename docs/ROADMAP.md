@@ -25,7 +25,7 @@ Folgende ist die Entscheidung des Leads.
   - 24a ist gebaut (siehe FEATURES.md).
   - 24b ist gebaut (siehe FEATURES.md), einschließlich des Ergebnis-Chips für `@math 12*3,5`.
   - 24c, 24d, 24e und aus 24f `@such`, `@zeichen`, `@emoji`, `@conv`, `@snip`, `@clip`, `@wf`,
-    `@datum`, `@termin`, `@ort` sind gebaut (siehe FEATURES.md). Offen: `@ki` (in Arbeit);
+    `@datum`, `@termin`, `@ort` und `@ki` sind gebaut (siehe FEATURES.md). Offen:
     Rückfall Screenshot mit Texterkennung für `@url`, wenn eine App Text als Grafik zeichnet;
     `@clip` erkennt nur den aktuellen Clip als vertraulich (der Upstream-Verlauf speichert die
     Markierung nicht, Änderung braucht eine Entscheidung); `@wf` bietet den gewählten Workflow erst

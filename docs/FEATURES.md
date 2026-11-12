@@ -50,7 +50,7 @@ E stammt bisher nur aus dem Emulator-Test vom 2026-11-11 (Android 15, Protokoll 
 | --- | --- | --- |
 | Schlüssel speichern | Je Anbieter ein eigener Schlüssel, verschlüsselt auf dem Gerät gespeichert, nie angezeigt, nicht gesichert. (8, 16) Im Emulator mit dem echten Android-Keystore geprüft (OpenAI-Platz). | E |
 | Anbieter und Modell wählen | In den KI-Einstellungen wählst du OpenAI, Anthropic oder Google Gemini für die KI-Aktionen der Tastatur und je Anbieter die Modellkennung. Für Gemini musst du die Modellkennung selbst eintragen. Workflow-Schritte können je Schritt einen anderen Anbieter nennen. (9, 16) | T |
-| KI-Textaktionen | 6 KI-Textaktionen: Korrigieren, Übersetzen, Umformulieren (Ton wählbar), Zusammenfassen, Antwort entwerfen, Analysieren (nur lesen, ersetzt nie). Vor dem Senden siehst du genau, was rausgeht, und bestätigst einmalig. (9–10) | T |
+| KI-Textaktionen | 7 KI-Textaktionen: Korrigieren, Übersetzen, Umformulieren (Ton wählbar), Zusammenfassen, Antwort entwerfen, Analysieren (nur lesen, ersetzt nie), dazu die freie Frage, die es nur über `@ki` gibt (nicht im Panel, nicht als Skill oder Workflow-Schritt). Vor dem Senden siehst du genau, was rausgeht, und bestätigst einmalig. (9–10) | T |
 | Übersetzen | 14 Zielsprachen, darunter Deutsch, Englisch und Spanisch. (10a) | T |
 | Echte Anfrage an einen Anbieter | Mit echtem Schlüssel noch bei keinem der drei Anbieter ausprobiert. | – |
 
@@ -84,6 +84,7 @@ E stammt bisher nur aus dem Emulator-Test vom 2026-11-11 (Android 15, Protokoll 
 | `@such`, `@zeichen`, `@emoji`, `@conv` | Websuche im Browser (`@such Begriff`, Standard-Such-App, sonst DuckDuckGo); Sonderzeichen per Name (`@zeichen pfeil` → → ← ↑ ↓); Emojis per Stichwort (`@emoji daumen`); Einheiten (`@conv 5 oz` → „5 oz = 141,7 g“; Länge, Gewicht, Volumen in US-Maßen, Temperatur, Geschwindigkeit; „Pfund“ = lb; keine Währungen). (24f) Auf keinem Gerät ausprobiert. | T |
 | `@snip`, `@clip`, `@wf` | Eigene Textbausteine (`@snip name`, anlegen unter Einstellungen → Befehle → Textbausteine, höchstens 50); Zwischenablage-Verlauf durchsuchen (`@clip wort`, nur wenn der Verlauf an ist); Workflow per Name öffnen (`@wf name`, öffnet die Textaktionen wie eine Skill-Taste, vorher Text markieren). (24f) Auf keinem Gerät ausprobiert. | T |
 | `@datum`, `@termin`, `@ort` | Datum und Uhrzeit in fünf Formaten einfügen (`@datum`, auch `morgen`, `+3`, `freitag`, `24.12.`); Termin als Entwurf an die Kalender-App (`@termin morgen 18 Uhr Zahnarzt`, Deutsch, Englisch, Spanisch); Maps-Link einfügen oder Karte öffnen (`@ort Adresse`, gespeicherte Orte wie `@ort zuhause` unter Einstellungen → Befehle). (24f) Auf keinem Gerät ausprobiert. | T |
+| `@ki` | `@ki Frage` öffnet die Textaktionen mit genau der Frage, Anbieter und Modell; erst „Frage an … senden“ schickt sie mit deinem Schlüssel. Die Antwort erscheint in der Karte; „Einfügen“ ersetzt den Befehl (oder fügt an der Schreibmarke ein), „Kopieren“ kopiert. Ohne Schlüssel ein Hinweis auf die KI-Einstellungen. (24f) Nur mit Test-Anbieter geprüft, keine echte Anfrage, kein Gerät. | T |
 
 ## Act Builder
 
