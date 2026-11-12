@@ -1,6 +1,8 @@
 # Builds the APK the owner installs, signed with the owner's own key from the repository secrets
 # AGENT_KEYSTORE_BASE64 and AGENT_KEYSTORE_PASSWORD, and publishes it as a pre-release. Every
 # build has a higher version code and the same signature, so it installs as an update.
+# With the secret RELEASES_TOKEN the same files also go to the public release repository, where
+# the app's opt-in update check (and friends) find them without any token.
 name: Agent Keyboard APK
 
 on:
@@ -8,6 +10,10 @@ on:
 
 permissions:
   contents: write
+
+env:
+  # The public release repository; the app has the same name in UpdateReleases.REPOSITORY.
+  RELEASE_REPOSITORY: Tra1c0/AgenticKeyboard
 
 jobs:
   apk:
@@ -63,6 +69,20 @@ jobs:
           gh release create "build-${{ github.run_number }}" "$NAME" "$NAME.sha256" \
             --prerelease --target "${{ github.sha }}" \
             --title "Agent Keyboard Build ${{ github.run_number }} (${{ github.ref_name }})" \
+            --notes-file release-notes/next.md
+
+      - name: Publish in the public release repository
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::Secret RELEASES_TOKEN is missing: build-${{ github.run_number }} was not published in $RELEASE_REPOSITORY, the in-app update check will not see it (see docs/BUILD.md)."
+            exit 0
+          fi
+          NAME="AgentKeyboard-build-${{ github.run_number }}.apk"
+          gh release create "build-${{ github.run_number }}" "$NAME" "$NAME.sha256" \
+            --repo "$RELEASE_REPOSITORY" \
+            --title "Agent Keyboard Build ${{ github.run_number }}" \
             --notes-file release-notes/next.md
 
       - name: Reports of a failed build

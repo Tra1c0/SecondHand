@@ -1351,6 +1351,26 @@ Befunde eines lesenden Reviews der Befehle, behoben:
 - Nicht geprüft: kein Gerät (Aussehen und Flüssigkeit der Punkte, Breite und Wischen langer
   Antwort-Chips, ob eine echte App beim Warten Leistenaktualisierungen oder Cursor-Meldungen
   schickt, die die Anfrage ungewollt abbrechen), keine echte Anfrage an einen Anbieter.
+## Update-Prüfung in der App
+
+- Gebaut: Seite „Updates“, Prüfung und Download aus dem öffentlichen Release-Repository
+  `Tra1c0/AgenticKeyboard` ohne Token, täglicher Job (opt-in), Benachrichtigung, Installation über
+  `PackageInstaller` nach Prüfung von SHA-256, Paketname und Signaturzertifikat; Workflow
+  veröffentlicht zusätzlich dort (mit Secret `RELEASES_TOKEN`, sonst Warnung).
+- Geprüft (JVM): `UpdateReleasesTest` (5: Tags, höchster vollständiger Build, Entwürfe, fehlende
+  Prüfsumme, Größen, fremde Download-URLs, nur höhere Nummer, Prüfsummenzeile).
+- Geprüft (Robolectric, nur mit nachgebautem GitHub über einen OkHttp-Interceptor):
+  `UpdateCheckTest` (11: genaue URL ohne `Authorization`, strenges Parsen, Redirect zum
+  Speicher-Host, `http`-Redirect abgelehnt, Prüfsumme falsch, fremdes Paket, fremdes oder
+  zusätzliches Zertifikat, keine höhere Version, Größenfehler, Schalter aus bricht den Job ab und
+  fragt nichts, Benachrichtigung einmal je Build, Benachrichtigung öffnet nur die Seite,
+  Aufräumen). `tools/dev.py agent-tests` grün (442 Tests in 61 Klassen, 0 Fehler), `tools/dev.py lint`
+  ohne Fehler (nur Warnungen wie im übrigen Agent-Code: `UseKtx`, `PluralsCandidate`).
+- Nicht geprüft: keine echte Anfrage an api.github.com und kein echter Download (das Repository
+  hatte noch kein Release); `getPackageArchiveInfo` mit echter APK, `PackageInstaller`-Session,
+  Systemdialog, Recht „Unbekannte Apps installieren“, Benachrichtigungsberechtigung und der
+  tägliche Job laufen nur auf einem Gerät; der Workflow-Schritt ins öffentliche Repository ist
+  nicht gelaufen.
 
 ## Gerätetest vor Meilensteinfreigabe
 

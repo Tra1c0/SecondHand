@@ -25,6 +25,7 @@ import helium314.keyboard.settings.screens.AgentLearningScreen
 import helium314.keyboard.settings.screens.AgentProfilesScreen
 import helium314.keyboard.settings.screens.AgentAiScreen
 import helium314.keyboard.settings.screens.AgentSkillsScreen
+import helium314.keyboard.settings.screens.AgentUpdatesScreen
 import helium314.keyboard.settings.screens.AgentWorkflowsScreen
 import helium314.keyboard.settings.screens.AdvancedSettingsScreen
 import helium314.keyboard.settings.screens.AppearanceScreen
@@ -96,6 +97,7 @@ fun SettingsNavHost(
                 onClickAgentDictation = { navController.navigate(SettingsDestination.AgentDictation) },
                 onClickAgentScreenshots = { navController.navigate(SettingsDestination.AgentScreenshots) },
                 onClickAgentCommands = { navController.navigate(SettingsDestination.AgentCommands) },
+                onClickAgentUpdates = { navController.navigate(SettingsDestination.AgentUpdates) },
             )
         }
         composable(SettingsDestination.About) {
@@ -112,6 +114,7 @@ fun SettingsNavHost(
         composable(SettingsDestination.AgentScreenshots) { AgentScreenshotScreen(onClickBack = ::goBack) }
         composable(SettingsDestination.AgentCommands) { AgentCommandsScreen(onClickBack = ::goBack) }
         composable(SettingsDestination.AgentDesign) { AgentDesignScreen(onClickBack = ::goBack) }
+        composable(SettingsDestination.AgentUpdates) { AgentUpdatesScreen(onClickBack = ::goBack) }
         composable(SettingsDestination.TextCorrection) {
             TextCorrectionScreen(onClickBack = ::goBack)
         }
@@ -183,6 +186,7 @@ object SettingsDestination {
     const val AgentScreenshots = "agent_screenshots"
     const val AgentCommands = "agent_commands"
     const val AgentDesign = "agent_design"
+    const val AgentUpdates = helium314.keyboard.agent.AgentPreferences.UPDATES_DESTINATION
     const val About = "about"
     const val TextCorrection = "text_correction"
     const val Preferences = "preferences"

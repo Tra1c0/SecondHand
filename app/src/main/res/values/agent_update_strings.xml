@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Opt-in update check (own file so parallel work on agent_strings.xml does not collide). English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="agent_updates_title">Updates</string>
+    <string name="agent_updates_description">Optional: looks on GitHub for a newer build of this app in the public release repository. No account and no token: only api.github.com is asked (plus GitHub\'s download server when you install a build), never while typing.</string>
+    <string name="agent_updates_unlock">Unlock the device to change the update settings.</string>
+    <string name="agent_updates_repository">Repository: %s</string>
+    <string name="agent_updates_installed">Installed: build %d</string>
+    <string name="agent_updates_daily">Check for updates daily</string>
+    <string name="agent_updates_daily_summary">About once a day and only with a network connection. Shows a notification when a new build exists.</string>
+    <string name="agent_updates_notifications_refused">Notifications are not allowed. The daily check still runs, but cannot tell you about a new build.</string>
+    <string name="agent_updates_check_now">Check now</string>
+    <string name="agent_updates_checking">Checking…</string>
+    <string name="agent_updates_status_none">Not checked yet.</string>
+    <string name="agent_updates_status_current">Up to date: build %d</string>
+    <string name="agent_updates_status_available">Build %d available</string>
+    <string name="agent_updates_install">Download and install build %d</string>
+    <string name="agent_updates_downloading">Downloading: %1$d of %2$d MB</string>
+    <string name="agent_updates_verifying">Checking checksum, package and signature…</string>
+    <string name="agent_updates_install_started">Verified. Confirm the installation in the system dialog.</string>
+    <string name="agent_updates_install_permission">Android installs the update only if this app may install unknown apps. Allow it, then come back here.</string>
+    <string name="agent_updates_install_permission_open">Open setting</string>
+    <string name="agent_updates_cancel">Cancel</string>
+    <string name="agent_updates_error_locked">The device is locked.</string>
+    <string name="agent_updates_error_storage">The secure storage is not available.</string>
+    <string name="agent_updates_error_not_found">Release repository not found.</string>
+    <string name="agent_updates_error_rate_limit">GitHub limits requests right now. Try again later.</string>
+    <string name="agent_updates_error_service">GitHub answered with an error. Try again later.</string>
+    <string name="agent_updates_error_network">No connection to GitHub.</string>
+    <string name="agent_updates_error_timeout">GitHub did not answer in time.</string>
+    <string name="agent_updates_error_invalid_response">Unexpected answer from GitHub.</string>
+    <string name="agent_updates_error_too_large">The file is larger than allowed.</string>
+    <string name="agent_updates_error_checksum">The checksum does not match. The download was deleted and not installed.</string>
+    <string name="agent_updates_error_wrong_package">The file is not this app. It was deleted and not installed.</string>
+    <string name="agent_updates_error_wrong_signature">The file is signed with a different key. It was deleted and not installed.</string>
+    <string name="agent_updates_error_not_newer">No newer build available.</string>
+    <string name="agent_updates_error_install">The installation was cancelled or failed.</string>
+    <string name="agent_updates_channel">Updates</string>
+    <string name="agent_updates_notification">Agent Keyboard: build %d available</string>
+    <string name="agent_updates_notification_text">Open the Updates page to download and install it.</string>
+    <string name="agent_updates_friends">For friends: install the APK once from %s (Android asks to allow installing from the browser), then updates work here in the app. Alternatively, Obtainium can follow this address.</string>
+</resources>
