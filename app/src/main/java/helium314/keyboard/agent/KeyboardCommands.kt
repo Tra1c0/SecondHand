@@ -52,6 +52,10 @@ object KeyboardCommands {
         /** Shows the calculator in place of the keys (stage 24b); "Insert" replaces [command]. */
         fun openCalculator(command: CommandCall): Boolean
         val canOpenCalculator: Boolean
+        /** The cursor the chips were built for, or -1 when unknown; lets a command tell a tap's context apart. */
+        val cursor: Int get() = -1
+        /** Builds the chips again for the current text, e.g. after a chip changed what a command shows. */
+        fun refresh() {}
     }
 
     /** A built-in command. Commands never come from files or models. */
@@ -64,10 +68,14 @@ object KeyboardCommands {
         val protectsArgument: Boolean get() = false
         /** The chips for a complete command; empty to show nothing (then the normal strip stays). */
         fun chips(host: Host, call: CommandCall): List<Chip>
+        /** The runtime permission the command needs, requested on the settings page; null for none. */
+        val permission: String? get() = null
+        /** Forgets what the command keeps in memory; called when no command is typed any more. */
+        fun reset() {}
     }
 
     /** Built-in commands in the order of the settings page; each stage adds its own. */
-    val BUILT_IN: List<Command> = listOf(MathCommand)
+    val BUILT_IN: List<Command> = listOf(MathCommand, ContactCommand)
 
     /** Replaced in tests. */
     @JvmStatic var registry: List<Command> = BUILT_IN
@@ -112,6 +120,12 @@ object KeyboardCommands {
         val names = registry.map { it.name }.filter { isCommandEnabled(context, it) }.toSet()
         active = if (isEnabled(context) && names.isNotEmpty()) Active(prefix(context), names) else null
         inCommand = false
+        forget()
+    }
+
+    /** Lets every command drop what it holds in memory (e.g. contacts found for the typed name). */
+    fun forget() {
+        registry.forEach { it.reset() }
     }
 
     /** A typed command word like "@math" (trailing punctuation ignored); never corrected or learned. */
@@ -165,27 +179,49 @@ object KeyboardCommands {
      * the cursor that the keyboard already holds.
      */
     @JvmStatic fun createChipsView(ime: LatinIME, parent: ViewGroup): View? {
-        val cursor = ime.agentCommandCursor
-        val context = if (cursor < 0) null
+        var view: HorizontalScrollView? = null
+        fun build(): List<Chip>? = buildChips(ime) {
+            // a chip asked to show other chips for the same command: swap the row in place
+            val shown = view ?: return@buildChips
+            val chips = build()
+            if (chips.isNullOrEmpty()) return@buildChips
+            val row = chipRow(parent, chips) as HorizontalScrollView
+            val inner = row.getChildAt(0)
+            row.removeView(inner)
+            shown.removeAllViews()
+            shown.addView(inner)
+            shown.scrollTo(0, 0)
+        }
+        val chips = build()
+        if (chips.isNullOrEmpty()) return null
+        return (chipRow(parent, chips) as HorizontalScrollView).also { view = it }
+    }
+
+    private fun buildChips(ime: LatinIME, onRefresh: () -> Unit): List<Chip>? {
+        val position = ime.agentCommandCursor
+        val context = if (position < 0) null
             else find(ime.getAgentTextBeforeCursor(CommandSyntax.LOOKBACK + 1), Settings.getValues(), ime.currentInputEditorInfo)
-        context ?: return null
+        if (context == null) {
+            forget() // nothing a command found stays in memory once the command is gone
+            return null
+        }
         val host = object : Host {
             override val context: Context get() = ime
             override val editorInfo: EditorInfo? get() = ime.currentInputEditorInfo
             override val language: String get() = Settings.getValues()?.mLocale?.language.orEmpty()
             override fun replace(command: CommandContext, replacement: String): Boolean {
-                val outcome = ime.replaceCommandText(command.text, replacement, cursor)
+                val outcome = ime.replaceCommandText(command.text, replacement, position)
                 if (outcome == ApplyOutcome.REJECTED)
                     android.widget.Toast.makeText(ime, R.string.agent_command_expired, android.widget.Toast.LENGTH_SHORT).show()
                 return outcome == ApplyOutcome.SUBMITTED
             }
             override fun openCalculator(command: CommandCall) =
-                ime.agentEditorController.openCalculator(command.argument, command.text, cursor)
+                ime.agentEditorController.openCalculator(command.argument, command.text, position)
             override val canOpenCalculator: Boolean get() = ime.agentEditorController.canOpenCalculator
+            override val cursor: Int get() = position
+            override fun refresh() = onRefresh()
         }
-        val chips = chipsFor(context, host)
-        if (chips.isEmpty()) return null
-        return chipRow(parent, chips)
+        return chipsFor(context, host)
     }
 
     /** Name candidates complete the name; a complete command asks the command. */

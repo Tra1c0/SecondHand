@@ -870,6 +870,38 @@ class InputLogicTest {
         checkConnectionConsistency()
     }
 
+    @Test fun typedCommandContactChipShowsFieldsAndInsertsOne() {
+        helium314.keyboard.agent.KeyboardCommands.load(latinIME)
+        org.robolectric.Shadows.shadowOf(latinIME.application).grantPermissions(android.Manifest.permission.READ_CONTACTS)
+        val contact = helium314.keyboard.agent.ContactCommand
+        contact.source = object : helium314.keyboard.agent.ContactCommand.Source {
+            override fun find(context: android.content.Context, query: String, limit: Int) =
+                listOf(helium314.keyboard.agent.ContactCommand.Contact(7, "Anna Muster"))
+            override fun fields(context: android.content.Context, contactId: Long, limit: Int) =
+                listOf(helium314.keyboard.agent.ContactCommand.Field(helium314.keyboard.agent.ContactCommand.Kind.PHONE, "0170 123", "Mobile"))
+        }
+        try {
+            chainInput("x @contact Ann")
+            assertEquals("x @contact Ann", text) // the typed name is not corrected
+            val strip = android.widget.FrameLayout(latinIME)
+            val chips = helium314.keyboard.agent.KeyboardCommands.createChipsView(latinIME, strip) as android.view.ViewGroup
+            fun labels() = (chips.getChildAt(0) as android.view.ViewGroup).let { row ->
+                (0 until row.childCount).map { row.getChildAt(it) as android.widget.TextView }
+            }
+            assertEquals(listOf("Anna Muster"), labels().map { it.text.toString() })
+            labels().single().performClick()
+            // the same strip now shows the fields; the field is unchanged
+            assertEquals(listOf("←", "Anna Muster", "0170 123"), labels().map { it.text.toString() })
+            assertEquals("x @contact Ann", text)
+            labels().last().performClick()
+            assertEquals("x 0170 123", text) // the command is replaced in one commit
+            checkConnectionConsistency()
+        } finally {
+            contact.source = helium314.keyboard.agent.ContactCommand.PhoneContacts
+            contact.reset()
+        }
+    }
+
     @Test fun typedCommandCalculatorInsertsAtTheCursorWhenTheCommandIsGone() {
         helium314.keyboard.agent.KeyboardCommands.load(latinIME)
         val root = android.widget.FrameLayout(latinIME)
