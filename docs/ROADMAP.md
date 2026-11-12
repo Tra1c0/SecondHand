@@ -43,6 +43,16 @@ Folgende ist die Entscheidung des Leads.
     nur nach Freigabe des genau angezeigten Texts. Später mit lokaler KI (18b). (M)
   - Grenze: Die Tastatur sieht nur das eigene Eingabefeld, nicht die Nachricht des
     Gegenübers. Für fremde Nachrichten: Nachricht kopieren, dann Leertaste halten.
+- **22 Persönliche Trefferzonen (Wunsch des Owners vom 2026-11-12).** Die Tastatur lernt, wo du
+  jede Taste tatsächlich triffst, und verschiebt unsichtbar die Erkennungszonen; die Tasten
+  selbst bleiben an ihrem Platz, damit das Muskelgedächtnis nicht gestört wird.
+  - 22a Kalibrierung in den Einstellungen: einen vorgegebenen Text abtippen (alle Buchstaben,
+    Deutsch), Ergebnis als Übersicht pro Taste, Übernehmen oder Verwerfen, Zurücksetzen. (M)
+  - 22b Lernen beim normalen Tippen, nur aus abgeschickten Wörtern, langsam und begrenzt
+    (höchstens etwa ein Drittel Tastenbreite Verschiebung). (M)
+  - 22c Dieselben Werte auch für das Korrekturmodell der Autokorrektur. (S)
+  - Gespeichert werden nur Mittelwerte pro Taste, keine Texte und keine Tippfolgen; opt-in,
+    nur auf dem Gerät. Berührt die Touch-Verarbeitung: nur eng und mit Prüfer.
 - **19f Flacher Look am Gerät.** 19a–19e (Tasten, Leiste, Menü, Zwischenablage, Panel) sind
   gebaut, aber nur mit Tests und gerenderten Bildern geprüft. Offen: Vergleich auf dem Telefon
   des Owners mit Bildschirmfotos (Dichte, Systemschrift, Abstand zur Navigationsleiste,
