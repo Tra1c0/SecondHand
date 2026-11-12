@@ -172,6 +172,8 @@ stehen unten. Noch auf keinem Gerät ausprobiert.
 - `@ki Frage`: zeigt die Frage, Anbieter und Modell; erst „Frage an … senden“ schickt sie (eigener
   Schlüssel nötig). „Einfügen“ setzt die Antwort an die Stelle des Befehls; hast du die
   Schreibmarke inzwischen woanders hingesetzt, landet sie dort und `@ki …` bleibt stehen.
+- `@qr Text` erzeugt einen QR-Code, z. B. `@qr https://…` oder für WLAN
+  `@qr WIFI:T:WPA;S:Netzname;P:Passwort;;`. „QR-Code einfügen“ (in Chats mit Bildern) oder „QR-Code teilen“.
 - `@datum`, `@datum morgen`; `@termin Samstag halb acht Kino` öffnet einen Kalenderentwurf (gespeichert
   ist er erst in der Kalender-App); `@ort Bahnhofstraße 1 Köln` oder `@ort zuhause` (Orte unter
   Einstellungen → Befehle → „Gespeicherte Orte“).

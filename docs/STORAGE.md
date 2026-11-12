@@ -164,3 +164,5 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
 - `@contact`, `@url`, `@clip`, Bildschirmlesen: nichts gespeichert. Gefundene Kontakte, Adressen,
   Clip-Texte und gelesener Bildschirmtext liegen nur im Speicher, solange der Befehl vor der
   Schreibmarke steht.
+- `@qr`: `files/agent_qr/qr-<uuid>.png` im DE-Speicher der Tastatur, über den eigenen Provider nur
+  per Leseberechtigung freigegeben, gelöscht nach 10 Minuten bzw. beim nächsten QR-Code.

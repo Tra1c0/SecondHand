@@ -76,3 +76,6 @@
   `@wf`, `@datum`, `@termin` (Kalenderentwurf), `@ort` (Maps-Link, gespeicherte Orte).
 - Neue Berechtigung möglich: Bedienungshilfe „Bildschirm lesen“ (nur wenn du sie einschaltest).
 - Neu: `@ki Frage` fragt deinen KI-Anbieter, erst nach „Senden“; „Einfügen“ setzt die Antwort ein.
+- Neu: `@qr Text` erzeugt einen QR-Code auf dem Gerät und fügt ihn als Bild ein oder teilt ihn.
+- Besser: `@clip` zeigt vertraulich kopierte Einträge nie; `@wf` merkt sich den Workflow, bis du
+  Text markierst; `@contact` sucht im Hintergrund.

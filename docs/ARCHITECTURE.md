@@ -259,7 +259,7 @@ Speicher, Datenschutz und Identität:
   Klartextverkehr, Backups aus
   (`agent_data_extraction_rules.xml`), CE als Standard, eigener FileProvider, der
   AndroidX-Startup-Initializer für HTTP ist entfernt.
-- `res/xml/clipboard_provider_path.xml`: zusätzlicher Pfad `agent_screenshot/` für die Kopien
+- `res/xml/clipboard_provider_path.xml`: zusätzliche Pfade `agent_qr/` (`@qr`) und `agent_screenshot/` für die Kopien
   der Screenshot-Pille, getrennt von den Clip-Dateien (deren Aufräumen hielte ein Unterordner
   sonst für verwaist).
 - `SettingsNavHost.kt` und `MainSettingsScreen.kt`: Ziele und Menüeinträge der Agent-
@@ -552,6 +552,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     eine Frage offen ist, sind Auswahl-Aktionen gesperrt (`asking`); die Laufliste der
     KI-Einstellungen titelt `ASK` über `textActionTitle` (ohne `BuiltinAction`, sonst Absturz). Tests `CT/QuestionCaptureTest.kt`,
     `AskCommandTest` (`AT/`), `InputLogicTest` (Frage-Fälle).
+  - `A/commands/QrCommand.kt` (`@qr`): ZXing `QRCodeWriter` (Fehlerkorrektur M, Ruhezone 4,
+    512 px), erzeugt erst nach dem Tipp auf einem Hintergrund-Thread. Einfügen über
+    `ScreenshotChip.editorAccepts`/`isSameField` und `onContent` (Datei unter `files/agent_qr/`,
+    Pfad in `clipboard_provider_path.xml`), erst danach `Host.replace` (P43); sonst Teilen über die
+    Auswahl mit Leseberechtigung, Entfernen nach erfolgreichem Start. Austauschbar: `sink`,
+    `launcher`, `blocked`. Test `AT/commands/QrCommandTest.kt` (dekodiert den Code mit ZXing).
+    Robolectric: `FileProvider` merkt sich seine Wurzeln JVM-weit, der Test leert `sCache`.
   - Tests: `CT/UrlDetectorTest.kt`, `CT/SymbolTableTest.kt`, `CT/UnitConversionTest.kt`,
     `CT/EventParserTest.kt`, `CT/DateFormattingTest.kt`, `CT/PlacesTest.kt`;
     `AT/ContactCommandTest.kt`, `AT/MoreCommandsTest.kt`, `AT/SnipCommandTest.kt`,
@@ -974,7 +981,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (290 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (292 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -991,8 +998,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   ToolLauncher, TouchCalibration, TouchModel, TypoMemory, WorkflowApprovalSummary,
   WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
   WorkflowStore
-- `A/commands/` (8): AskCommand, ClipCommand, ScreenReaderService, SensitiveClips, SnipCommand,
-  SnippetStore, UrlCommand, WorkflowCommand
+- `A/commands/` (9): AskCommand, ClipCommand, QrCommand, ScreenReaderService, SensitiveClips,
+  SnipCommand, SnippetStore, UrlCommand, WorkflowCommand
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
@@ -1009,7 +1016,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   SkillSettingsTest, SnipCommandTest, TestRunJournal, ToolRunnerTest, TouchModelTest,
   TypoMemoryTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
   WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
-- `AT/commands/` (2): ScreenReaderServiceTest, UrlCommandTest
+- `AT/commands/` (3): QrCommandTest, ScreenReaderServiceTest, UrlCommandTest
 - `C/` (23): AiTextAction, ApplyOutcome, CivilDate, Commands, DateFormatting, EditorSession,
   EmojiNames, EventParser, ExecutionPolicy, LocalTextActions, MathExpression, ModelProvider,
   PendingBatchGate, Places, Profiles, SkillBinding, SpecialCharacters, SymbolTable, TextCondition,

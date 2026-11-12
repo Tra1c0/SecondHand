@@ -94,3 +94,8 @@ nutzen einen Debug-Schlüssel, der in jeder neuen Umgebung anders ist; sie sind 
 - Geht der Schlüssel verloren, lässt sich keine Version mehr als Update installieren: einmal
   deinstallieren (alle Daten weg), neuen Schlüssel als Secret anlegen. Der Owner hebt eine Kopie
   im Passwortmanager auf; Keystores werden nie committet.
+
+## Fremdbibliotheken der Agent-Funktionen
+
+- `com.google.zxing:core` 3.5.4 (Apache-2.0, `LICENSE-Apache-2.0` im Wurzelverzeichnis): nur der
+  QR-Encoder für `@qr`, kein Scanner, keine Kamera.
