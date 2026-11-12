@@ -6,8 +6,11 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.view.ContextThemeWrapper
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
+import android.widget.ImageButton
 import helium314.keyboard.ShadowInputMethodManager2
 import helium314.keyboard.ShadowProximityInfo
 import helium314.keyboard.keyboard.FlatStyle
@@ -28,8 +31,10 @@ import helium314.keyboard.latin.R
 import helium314.keyboard.latin.RichInputMethodSubtype
 import helium314.keyboard.latin.common.Constants
 import helium314.keyboard.latin.settings.Settings
+import helium314.keyboard.latin.suggestions.SuggestionStripView
 import helium314.keyboard.latin.utils.LanguageOnSpacebarUtils
 import helium314.keyboard.latin.utils.SubtypeUtilsAdditional
+import helium314.keyboard.latin.utils.ToolbarKey
 import helium314.keyboard.latin.utils.prefs
 import org.junit.Before
 import org.junit.Test
@@ -40,6 +45,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.File
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -115,6 +121,48 @@ class FlatStyleRenderTest {
         render(KeyboardElement.SYMBOLS, EditorInfo(), "keyboard-symbols.png")
     }
 
+    @Test fun stripShowsFiveEvenlySpacedButtonsWithTheLastOneInACircle() {
+        val context = ContextThemeWrapper(latinIME, R.style.KeyboardTheme_Flat)
+        KeyboardIconsSet.instance.loadIcons(context)
+        val container = LayoutInflater.from(context).inflate(R.layout.strip_container, null) as ViewGroup
+        container.findViewById<View>(R.id.emoji_tab_strip).visibility = View.GONE
+        container.findViewById<View>(R.id.clipboard_strip_scroll_view).visibility = View.GONE
+        val strip = container.findViewById<SuggestionStripView>(R.id.suggestion_strip_view)
+        strip.setToolbarVisibility(true)
+        val stripHeight = 130 // 40 dp
+        container.measure(View.MeasureSpec.makeMeasureSpec(WIDTH, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(stripHeight, View.MeasureSpec.EXACTLY))
+        container.layout(0, 0, WIDTH, stripHeight) // a single pass must be enough
+        val picture = Bitmap.createBitmap(WIDTH, stripHeight, Bitmap.Config.ARGB_8888)
+        container.draw(Canvas(picture))
+        save(picture, "strip-toolbar.png")
+
+        val toolbar = strip.findViewById<ViewGroup>(R.id.toolbar)
+        val pinned = strip.findViewById<ViewGroup>(R.id.pinned_keys)
+        val buttons = (listOf(strip.findViewById<View>(R.id.suggestions_strip_toolbar_key)) +
+            (0 until toolbar.childCount).map(toolbar::getChildAt) + (0 until pinned.childCount).map(pinned::getChildAt))
+            .filterIsInstance<ImageButton>()
+        assertEquals(listOf(null, ToolbarKey.CLIPBOARD, ToolbarKey.EMOJI, ToolbarKey.AGENT, ToolbarKey.DICTATE), buttons.map { it.tag })
+        // positions relative to the container; the views are not attached to a window
+        fun View.leftInContainer(): Int = generateSequence(this) { it.parent as? View }.takeWhile { it !== container }.sumOf { it.left - (it.parent as View).scrollX }
+        fun View.topInContainer(): Int = generateSequence(this) { it.parent as? View }.takeWhile { it !== container }.sumOf { it.top }
+        val centres = buttons.map { it.leftInContainer() + it.width / 2f to it.topInContainer() + it.height / 2f }
+        // reference: centres at x = 75.5, 338, 600, 861, 1124.5 and 71.5 px below the upper edge
+        listOf(75.5f, 338f, 600f, 861f, 1124.5f).zip(centres).forEach { (expected, centre) ->
+            assertTrue(abs(expected - centre.first) <= 2.5f, "x centre $expected, was ${centre.first}")
+            assertTrue(abs(71.5f - centre.second) <= 1f, "y centre, was ${centre.second}")
+        }
+        buttons.forEach { assertTrue(abs(it.width - 111) <= 1 && abs(it.height - 111) <= 1, "button ${it.width} x ${it.height}") }
+
+        fun hex(x: Int, y: Int) = String.format("#%06X", picture.getPixel(x, y) and 0xFFFFFF)
+        assertEquals("#4B4B4B", hex(1124, 24)) // inside the circle, above the glyph
+        assertEquals("#000000", hex(1076, 24)) // outside the circle, inside its bounding box
+        assertEquals("#000000", hex(600, 5))
+        assertTrue(colourCount(picture, 1069, 16, 111, 111, FlatStyle.STRIP_CIRCLE_ICON) > 500, "dictation glyph")
+        listOf(20, 282, 544, 805).forEach { left ->
+            assertTrue(colourCount(picture, left, 16, 111, 111, FlatStyle.TOOLBAR_ICON) > 500, "icon at $left")
+        }
+    }
+
     private fun colourCount(picture: Bitmap, left: Int, top: Int, width: Int, height: Int, colour: Int): Int {
         var count = 0
         for (y in top until top + height) for (x in left until left + width)
@@ -145,10 +193,14 @@ class FlatStyleRenderTest {
         val canvas = Canvas(picture)
         canvas.drawColor(Settings.getValues().mColors.get(helium314.keyboard.latin.common.ColorType.MAIN_BACKGROUND))
         view.draw(canvas)
+        save(picture, fileName)
+        return keyboard to picture
+    }
+
+    private fun save(picture: Bitmap, fileName: String) {
         File("build/reports/flat-style").apply { mkdirs() }.resolve(fileName).outputStream().use {
             picture.compress(Bitmap.CompressFormat.PNG, 100, it)
         }
-        return keyboard to picture
     }
 
     private companion object {

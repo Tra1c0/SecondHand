@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="34dp" android:height="34dp"
+    android:viewportWidth="111" android:viewportHeight="111">
+    <!-- sparkles -->
+    <path android:fillColor="#FFF"
+        android:pathData="M44,19Q46,37 64,39Q46,41 44,59Q42,41 24,39Q42,37 44,19zM79,22L86,29L79,36L72,29zM33,63L40,70L33,77L26,70z" />
+    <!-- pencil, drawn upright and turned by 45 degrees -->
+    <group android:pivotX="71" android:pivotY="66" android:rotation="45"
+        android:translateX="-4" android:translateY="-3">
+        <path android:strokeColor="#FFF" android:strokeWidth="5.5" android:strokeLineJoin="round"
+            android:pathData="M63,80V47a4,4 0,0 1,4 -4h8a4,4 0,0 1,4 4V80L71,93z" />
+        <path android:fillColor="#FFF" android:pathData="M63,80H79L71,93z" />
+    </group>
+</vector>

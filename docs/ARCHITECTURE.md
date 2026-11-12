@@ -170,6 +170,12 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
 - `MainKeyboardView.java`: Sprachkürzel auf der Leertaste mit Punkt als Trenner und Schrift,
   nur im flachen Stil.
 - `KeyboardIconsSet.kt`: Icon-Satz für den Stil „Flat“ (Material plus `FlatStyle.iconOverrides`).
+- `SuggestionStripView.kt`: im flachen Stil ordnet `FlatStrip.arrange` die Leiste, angeheftete
+  Tasten bleiben neben der Toolbar sichtbar, die linke Taste öffnet das Menü
+  (`FlatStrip.toggleMenu`) statt zwischen Toolbar und Vorschlägen zu wechseln, jede
+  Toolbar-Taste schließt es.
+- `InputView.java`: zählt `agent_menu` zu den Overlays. `SettingsActivity.kt`: Extra
+  `AgentPreferences.OPEN_SETTINGS_DESTINATION` öffnet „appearance“ oder „toolbar“ direkt.
 
 Speicher, Datenschutz und Identität:
 
@@ -410,14 +416,28 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Pixelmaß der Vorlage (Viewport 91 = 28 dp), deshalb keine Skalierung beim Zeichnen.
 - `assets/layouts/functional/functional_keys_flat.json`: wie `functional_keys.json`, aber die
   Emoji-Taste hat `"type": "character"` und damit den hellen Tastenhintergrund.
-- `K/agent/FlatPreset.kt`: schreibt 18 Darstellungs- und Layout-Einstellungen für das Hochformat
+- `K/agent/FlatPreset.kt`: schreibt 23 Darstellungs-, Layout- und Leisten-Einstellungen für das Hochformat
   (Liste: `values()`), berechnet die Höhenskala aus Bildschirmbreite und Standardhöhe und
   sichert die ersetzten Werte einmalig in `agent_flat_preset_backup` (siehe `docs/STORAGE.md`).
   `restore()` setzt genau diese Schlüssel zurück, auch „war nicht gesetzt“. Knöpfe dafür:
   `AgentProfilesScreen.kt`.
-- Tests: `FlatStyleTest` (Vorlage, Farben, Tastengeometrie gegen die Messwerte) und
-  `FlatStyleRenderTest` (zeichnet die echte `MainKeyboardView` mit nativer Grafik und prüft
-  Pixel; Bilder unter `app/build/reports/flat-style/`, nicht versioniert).
+- Leiste: `K/latin/suggestions/FlatStrip.kt`. Die Leiste bleibt 40 dp hoch; 4 dp oberer
+  Innenabstand und der 39 px hohe obere Rand der Tastatur ergeben die 169 px der Vorlage.
+  Knöpfe 34 dp, außen 6 dp Rand; die Toolbar-Tasten verteilen sich über Abstandhalter mit
+  gleichem Gewicht in einem einzigen Layout-Durchlauf (`fillViewport`), die letzte angeheftete
+  Taste bekommt den Kreis. Keine `LayoutTransition` mehr im flachen Stil. Icons
+  `sym_keyboard_{grid,clipboard,pen,mic}_flat.xml` (Viewport 111 = 34 dp).
+- Menü: `K/agent/FlatMenuView.kt`, drittes Kind von `AgentKeyboardFrame` (`agent_menu`). Es
+  malt und fängt Touches nur unterhalb der Leiste; die Leiste bleibt bedienbar. Sechs `Button`
+  (`agent_menu_*`) plus `agent_menu_edit`; jede Aktion schließt zuerst das Menü und geht dann
+  als Tastencode über den Listener der Leiste oder als Intent an `SettingsActivity`. Für
+  Screenreader blendet `FlatStrip.toggleMenu` nur `keyboard_view_wrapper` aus, nicht die
+  Leiste; `AgentKeyboardFrame.updateOverlayAccessibility` zählt das Menü deshalb nicht mit. Es
+  schließt sich, wenn das Tastaturfenster verschwindet.
+- Tests: `FlatStyleTest` (Vorlage, Farben, Tastengeometrie gegen die Messwerte),
+  `FlatStyleRenderTest` (zeichnet die echte `MainKeyboardView` und die Leiste mit nativer Grafik
+  und prüft Pixel und Positionen) und `FlatMenuTest` (Positionen der Pillen, Aktionen,
+  Zusammenspiel mit der Leiste). Bilder unter `app/build/reports/flat-style/`, nicht versioniert.
 
 ## Diktat
 
@@ -604,33 +624,38 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Tasten im flachen Stil 7 px weiter nach außen.
 - **P29** Ein gerendertes Bild aus Robolectric (native Grafik) ist kein Gerätetest: Es zeigt
   Roboto statt der Systemschrift des Telefons und weder Leiste noch Navigationsbereich.
+- **P30** Ein Layout-Wunsch während eines Layout-Durchlaufs (`doOnLayout` → `requestLayout`)
+  kostet auf dem Gerät einen zweiten Durchlauf und geht in einem Test ohne Fenster ganz
+  verloren. Abstände deshalb über Gewichte lösen, nicht nachträglich setzen (`FlatStrip`).
+- **P31** Views ohne Fenster lösen die Leserichtung nicht auf: relative Icons an `TextView`
+  fehlen im gerenderten Testbild, bis die Wurzel eine feste `layoutDirection` hat.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (184 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (192 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (3): build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (32): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (33): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
-  AndroidEditorAdapter, ApprovedActionRunner, Dictation, EncryptedActionRunStore, FlatPreset,
-  JournaledModelCall, JournaledRun, KeyboardProfileStore, LearningData, ManualWorkflowDraft,
-  ModelSettings, OnDeviceSpeechEngine, RunSubjectCodec, SkillBindingStore, SkillLabels,
-  ToolApprovalSummary, ToolLauncher, WorkflowApprovalSummary, WorkflowBuilderContract,
+  AndroidEditorAdapter, ApprovedActionRunner, Dictation, EncryptedActionRunStore, FlatMenuView,
+  FlatPreset, JournaledModelCall, JournaledRun, KeyboardProfileStore, LearningData,
+  ManualWorkflowDraft, ModelSettings, OnDeviceSpeechEngine, RunSubjectCodec, SkillBindingStore,
+  SkillLabels, ToolApprovalSummary, ToolLauncher, WorkflowApprovalSummary, WorkflowBuilderContract,
   WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
-- `AT/` (35): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (36): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, CalendarToolLauncherTest, DebugPrivacyTest, DictationSessionTest,
-  DictationUiTest, EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, FlatStyleRenderTest,
-  FlatStyleTest, ForkIdentityTest, InsertAtCursorTest, JournaledModelCallTest,
+  DictationUiTest, EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, FlatMenuTest,
+  FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, InsertAtCursorTest, JournaledModelCallTest,
   KeyboardProfileStoreTest, LearningDataTest, ManualWorkflowDraftTest, MoreProvidersTest,
   OpenAiProviderTest, SelectedTextCommitTest, SkillBindingStoreTest, SkillSettingsTest,
   TestRunJournal, ToolRunnerTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
@@ -652,6 +677,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/latin/inputlogic/` (2): InputLogic, InputLogicHandler
 - `K/latin/settings/` (2): Defaults, SettingsValues
 - `K/latin/spellcheck/` (1): AndroidSpellCheckerService
+- `K/latin/suggestions/` (2): FlatStrip, SuggestionStripView
 - `K/latin/utils/` (1): ToolbarUtils
 - `K/settings/` (2): SettingsActivity, SettingsNavHost
 - `K/settings/screens/` (10): AgentAiScreen, AgentDictationScreen, AgentLearningScreen,
@@ -664,9 +690,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `app/src/debugNoMinify/res/values/` (3): clip_provider, gesture_data, strings
 - `app/src/main/` (1): AndroidManifest
 - `app/src/main/assets/layouts/functional/` (1): functional_keys_flat
-- `app/src/main/res/drawable/` (16): btn_keyboard_key_flat, btn_keyboard_key_flat_pill,
+- `app/src/main/res/drawable/` (20): btn_keyboard_key_flat, btn_keyboard_key_flat_pill,
   btn_keyboard_key_flat_rect, btn_keyboard_key_functional_flat, ic_agent_actions, ic_agent_dictate,
-  ic_skill_1, ic_skill_2, ic_skill_3, sym_keyboard_delete_flat, sym_keyboard_go_flat,
+  ic_skill_1, ic_skill_2, ic_skill_3, sym_keyboard_clipboard_flat, sym_keyboard_delete_flat,
+  sym_keyboard_go_flat, sym_keyboard_grid_flat, sym_keyboard_mic_flat, sym_keyboard_pen_flat,
   sym_keyboard_return_flat, sym_keyboard_shift_flat, sym_keyboard_shift_lock_flat,
   sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame

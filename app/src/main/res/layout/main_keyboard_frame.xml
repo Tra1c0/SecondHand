@@ -96,6 +96,11 @@
             android:src="@drawable/ic_drag_indicator"/>
     </LinearLayout>
     </LinearLayout>
+    <helium314.keyboard.agent.FlatMenuView
+        android:id="@+id/agent_menu"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
     <helium314.keyboard.agent.AgentPanelView
         android:id="@+id/agent_panel"
         android:layout_width="match_parent"

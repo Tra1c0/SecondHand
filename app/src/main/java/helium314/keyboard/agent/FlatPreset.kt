@@ -10,7 +10,10 @@ import helium314.keyboard.keyboard.internal.KeyboardIconsSet
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.settings.createPrefKeyForBooleanSettings
+import helium314.keyboard.latin.common.Constants.Separators
 import helium314.keyboard.latin.utils.LayoutType
+import helium314.keyboard.latin.utils.ToolbarKey
+import helium314.keyboard.latin.utils.ToolbarMode
 import helium314.keyboard.latin.utils.prefs
 
 /**
@@ -34,6 +37,12 @@ class FlatPreset(private val context: Context) {
         Settings.PREF_SHOW_EMOJI_KEY to true,
         Settings.PREF_SHOW_LANGUAGE_SWITCH_KEY to false,
         Settings.PREF_SHOW_HINTS to true,
+        // strip: tools while nothing is suggested, words while typing, dictation at the right end
+        Settings.PREF_TOOLBAR_MODE to ToolbarMode.EXPANDABLE.name,
+        Settings.PREF_AUTO_SHOW_TOOLBAR to true,
+        Settings.PREF_AUTO_HIDE_TOOLBAR to true,
+        Settings.PREF_TOOLBAR_KEYS to toolbarPref(TOOLBAR_KEYS),
+        Settings.PREF_PINNED_TOOLBAR_KEYS to toolbarPref(PINNED_KEYS),
         Settings.PREF_LAYOUT_PREFIX + LayoutType.FUNCTIONAL.name to FUNCTIONAL_LAYOUT,
         Settings.PREF_FONT_SCALE to 1f,
         Settings.PREF_HINT_FONT_SCALE to 1f,
@@ -102,6 +111,14 @@ class FlatPreset(private val context: Context) {
         private const val NUMBER_ROW_HEIGHT_FACTOR = 1.33f // as in ResourceUtils.getDefaultKeyboardHeight
         private const val MIN_SCALE = 0.3f // range of the height setting
         private const val MAX_SCALE = 1.5f
+
+        val TOOLBAR_KEYS = listOf(ToolbarKey.CLIPBOARD, ToolbarKey.EMOJI, ToolbarKey.AGENT)
+        val PINNED_KEYS = listOf(ToolbarKey.DICTATE)
+
+        /** Same format as the toolbar settings write: the enabled keys first and in order, then all others. */
+        private fun toolbarPref(enabled: List<ToolbarKey>): String =
+            (enabled.map { it to true } + ToolbarKey.entries.filterNot { it in enabled || it == ToolbarKey.CLOSE_HISTORY }.map { it to false })
+                .joinToString(Separators.ENTRY) { (key, on) -> key.name + Separators.KV + on }
 
         private fun portraitKey(prefix: String, conditions: Int) = createPrefKeyForBooleanSettings(prefix, 0, conditions)
 

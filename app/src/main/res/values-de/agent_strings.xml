@@ -265,4 +265,13 @@
     <string name="agent_flat_preset_description">Schwarzer Hintergrund, flache graue Tasten, Enter und ?123 als Pille, Zahlenreihe und Symbolhinweise. Setzt Stil, Farben, Icons, Reihen und Größen für das Hochformat in einem Schritt. Die bisherigen Werte bleiben erhalten, bis du sie wiederherstellst.</string>
     <string name="agent_flat_preset_apply">Vorlage anwenden</string>
     <string name="agent_flat_preset_restore">Vorherigen Look wiederherstellen</string>
+    <string name="agent_menu_design">Design</string>
+    <string name="agent_menu_undo">Rückgängig</string>
+    <string name="agent_menu_one_handed">Einhändig</string>
+    <string name="agent_menu_emoji">Emoji</string>
+    <string name="agent_menu_incognito">Inkognito</string>
+    <string name="agent_menu_floating">Unverankert</string>
+    <string name="agent_menu_edit">Tasten der Leiste bearbeiten</string>
+    <string name="agent_menu_open">Tastaturmenü öffnen</string>
+    <string name="agent_menu_close">Tastaturmenü schließen</string>
 </resources>

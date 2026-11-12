@@ -25,5 +25,7 @@
 - Neu: „Flacher Look (Vorlage)“ unter Einstellungen → Tastaturprofile. Ein Tipp stellt das
   Aussehen nach deinen Screenshots ein (schwarzer Hintergrund, flache Tasten, Enter und „?123“
   als Pille, Zahlenreihe, Symbolhinweise, neue Icons), ein zweiter stellt den alten Look wieder
-  her. Bisher nur die Tastenfläche; Leiste, Menü, Zwischenablage und Panel folgen. Auf einem
-  Gerät noch nicht geprüft.
+  her. Auf einem Gerät noch nicht geprüft.
+- Neu im flachen Look: Leiste mit fünf Knöpfen (Menü, Zwischenablage, Emoji, Aktionen, Diktat im
+  Kreis) und ein Menü hinter dem Raster-Symbol mit Design, Rückgängig, Einhändig, Emoji,
+  Inkognito und Unverankert. Zwischenablage-Ansicht und Panel im neuen Look folgen.

@@ -28,4 +28,12 @@
     <item name="agent_tool_test" type="id" />
     <item name="agent_dictate" type="id" />
     <item name="agent_tool_calendar" type="id" />
+    <item type="id" name="agent_menu" />
+    <item type="id" name="agent_menu_design" />
+    <item type="id" name="agent_menu_undo" />
+    <item type="id" name="agent_menu_one_handed" />
+    <item type="id" name="agent_menu_emoji" />
+    <item type="id" name="agent_menu_incognito" />
+    <item type="id" name="agent_menu_floating" />
+    <item type="id" name="agent_menu_edit" />
 </resources>

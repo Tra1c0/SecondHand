@@ -51,7 +51,8 @@ class AgentKeyboardFrame(context: Context, attrs: AttributeSet?) : FrameLayout(c
     }
 
     fun updateOverlayAccessibility() {
-        val show = (1 until childCount).any { getChildAt(it).visibility == View.VISIBLE }
+        // the menu keeps the strip usable and hides only the keys itself, see FlatStrip.toggleMenu
+        val show = (1 until childCount).map(::getChildAt).any { it.visibility == View.VISIBLE && it !is FlatMenuView }
         getChildAt(0).importantForAccessibility = if (show)
             View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS else View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
     }

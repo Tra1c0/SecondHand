@@ -27,6 +27,10 @@ import helium314.keyboard.latin.common.ColorType
 import helium314.keyboard.latin.common.Constants
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.SubtypeUtilsAdditional
+import helium314.keyboard.latin.utils.ToolbarKey
+import helium314.keyboard.latin.utils.ToolbarMode
+import helium314.keyboard.latin.utils.getEnabledToolbarKeys
+import helium314.keyboard.latin.utils.getPinnedToolbarKeys
 import helium314.keyboard.latin.utils.prefs
 import org.junit.Before
 import org.junit.Test
@@ -80,6 +84,12 @@ class FlatStyleTest {
         assertEquals(FlatStyle.BOTTOM_ROW_SCALE, prefs.getFloat("bottom_row_scale_false_false", 0f))
         assertEquals(1f, prefs.getFloat("side_padding_scale_false_false_false", 0f))
         assertTrue(prefs.contains("keyboard_height_scale_false_false"))
+        // strip: three tools between the left key and the pinned dictation key
+        assertEquals(listOf(ToolbarKey.CLIPBOARD, ToolbarKey.EMOJI, ToolbarKey.AGENT), getEnabledToolbarKeys(prefs))
+        assertEquals(listOf(ToolbarKey.DICTATE), getPinnedToolbarKeys(prefs))
+        assertEquals(ToolbarMode.EXPANDABLE, Settings.readToolbarMode(prefs))
+        assertTrue(prefs.getBoolean(Settings.PREF_AUTO_SHOW_TOOLBAR, false))
+        assertTrue(prefs.getBoolean(Settings.PREF_AUTO_HIDE_TOOLBAR, false))
         assertTrue(preset.canRestore)
 
         preset.restore()

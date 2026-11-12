@@ -50,6 +50,7 @@
       "app/src/main/java/helium314/keyboard/latin/dictionary/ExpandableBinaryDictionary.java",
       "app/src/main/java/helium314/keyboard/latin/spellcheck/AndroidSpellCheckerService.java",
       "app/src/main/java/helium314/keyboard/latin/utils/ToolbarUtils.kt",
+      "app/src/main/java/helium314/keyboard/latin/suggestions/{FlatStrip,SuggestionStripView}.kt",
       "app/src/main/java/helium314/keyboard/settings/{SettingsActivity,SettingsNavHost}.kt",
       "app/src/main/java/helium314/keyboard/settings/screens/MainSettingsScreen.kt",
       "app/src/main/java/helium314/keyboard/settings/screens/gesturedata/Share.kt",

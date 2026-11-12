@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- Viewport units are reference pixels of a 34 dp toolbar button (3.25 px per dp). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="34dp" android:height="34dp"
+    android:viewportWidth="111" android:viewportHeight="111">
+    <path android:fillColor="#FFF"
+        android:pathData="M30,22h13a8,8 0,0 1,8 8v13a8,8 0,0 1,-8 8h-13a8,8 0,0 1,-8 -8v-13a8,8 0,0 1,8 -8zM68,22h13a8,8 0,0 1,8 8v13a8,8 0,0 1,-8 8h-13a8,8 0,0 1,-8 -8v-13a8,8 0,0 1,8 -8zM30,60h13a8,8 0,0 1,8 8v13a8,8 0,0 1,-8 8h-13a8,8 0,0 1,-8 -8v-13a8,8 0,0 1,8 -8zM68,60h13a8,8 0,0 1,8 8v13a8,8 0,0 1,-8 8h-13a8,8 0,0 1,-8 -8v-13a8,8 0,0 1,8 -8z" />
+</vector>

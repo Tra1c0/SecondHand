@@ -266,4 +266,13 @@
     <string name="agent_flat_preset_description">Black background, flat grey keys, pill-shaped Enter and ?123 keys, number row and symbol hints. Sets style, colors, icons, rows and sizes for portrait in one step. Your previous values are kept until you restore them.</string>
     <string name="agent_flat_preset_apply">Apply preset</string>
     <string name="agent_flat_preset_restore">Restore previous look</string>
+    <string name="agent_menu_design">Design</string>
+    <string name="agent_menu_undo">Undo</string>
+    <string name="agent_menu_one_handed">One hand</string>
+    <string name="agent_menu_emoji">Emoji</string>
+    <string name="agent_menu_incognito">Incognito</string>
+    <string name="agent_menu_floating">Floating</string>
+    <string name="agent_menu_edit">Edit toolbar keys</string>
+    <string name="agent_menu_open">Open keyboard menu</string>
+    <string name="agent_menu_close">Close keyboard menu</string>
 </resources>

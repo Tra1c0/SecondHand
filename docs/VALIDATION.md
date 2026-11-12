@@ -991,6 +991,30 @@ als Ausgangspunkt für ein eigenes Design.
   damit: Aussehen mit der Systemschrift des Telefons, Zusammenspiel mit Leiste und
   Navigationsbereich, die tatsächliche Dichte, Druckfarbe und Tastenvorschau.
 
+## Etappe19b/19c — flacher Look, Leiste und Menü
+
+- 19b Leiste. `FlatStyleRenderTest` (jetzt 3 Fälle) lädt das echte `strip_container`-Layout bei
+  1200 px Breite: fünf Knöpfe (Menü, Zwischenablage, Emoji, Aktionen, Diktat) in genau dieser
+  Reihenfolge, je 111 px, Mittelpunkte bei x = 75,5 / 338 / 600 / 861 / 1124,5 (± 2,5 px) und
+  71,5 px unter der Oberkante (± 1 px), Kreis #4B4B4B hinter dem letzten, alles nach einem
+  einzigen Layout-Durchlauf. Bildvergleich mit dem Screenshot: Raster 42–108 / 42–108,
+  Zwischenablage 308–366 / 308–367, Diktatkreis 1069–1179 / 1069–1179 (Nachbau / Vorlage, x in
+  px); der Stift lag 3–4 px daneben und ist danach verschoben worden. `FlatStyleTest` prüft die
+  fünf neuen Leisten-Einstellungen der Vorlage (jetzt 23 Einstellungen).
+- 19c Menü. `FlatMenuTest` (3 Fälle): sechs Pillen und der Stift-Knopf liegen bei 1200 px
+  Breite auf den Messwerten der Vorlage (Spalten 78–587 und 613–1122, Reihen 208/390/572 px
+  unter der Oberkante der Leiste, je 156 px hoch, Stift 888–1122 × 806–910; ± 2 px), der
+  Bereich der Leiste wird nicht übermalt; jede Pille schließt erst das Menü und meldet dann
+  genau ihre Aktion; die linke Leistentaste öffnet und schließt das Menü, wechselt Icon,
+  Hintergrund und Beschriftung für Screenreader, blendet nur die Tasten für Screenreader aus;
+  eine Toolbar-Taste schließt das Menü vor ihrer Aktion; „Bearbeiten“ startet die
+  Einstellungen mit dem Ziel „toolbar“.
+- Agent-Suite 251/0, Build und Lint bestanden (138 Warnungen, ein Hinweis).
+- Nicht geprüft: kein Gerät, kein Emulator. Offen sind damit das Umschalten zwischen
+  Werkzeugen und Wortvorschlägen beim echten Tippen, die Wirkung der Menü-Aktionen in echten
+  Apps (Rückgängig hängt von der App ab), der Einhand- und der unverankerte Modus zusammen mit
+  dem flachen Stil, das Menü über der Navigationsleiste (Fallstrick P18) und TalkBack.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

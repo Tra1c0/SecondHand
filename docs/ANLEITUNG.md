@@ -116,12 +116,21 @@ Schritt ein. „Vorherigen Look wiederherstellen“ setzt genau diese Einstellun
 vor dem Anwenden zurück.
 
 - Die Tastenhöhe wird aus der Bildschirmbreite berechnet (Tastatur ohne Leiste = 66 % der Breite).
-  Feinjustieren: Einstellungen → Darstellung → Tastaturhöhe.
-- „DE • EN • ES“ auf der Leertaste erscheint, wenn du unter Sprachen und Layouts bei Deutsch
-  die mehrsprachige Eingabe mit Englisch und Spanisch einschaltest.
+  Feinjustieren: Einstellungen → Aussehen → „Tastaturgröße“.
+- „DE • EN • ES“ auf der Leertaste erscheint, wenn du unter Sprachen & Layouts bei Deutsch
+  „Mehrsprachiges Tippen“ mit Englisch und Spanisch einschaltest.
 - Die Schrift ist die Systemschrift deines Telefons. Eine eigene Schriftdatei lässt sich unter
-  Darstellung → „Eigene Schriftart“ laden.
-- Stil „Flach“ und Farben „Flach schwarz“ lassen sich unter Darstellung auch einzeln wählen.
+  Aussehen → „Benutzerdefinierte Schriftart aus Datei festlegen“ laden.
+- Stil „Flach“ und Farben „Flach schwarz“ lassen sich unter Aussehen auch einzeln wählen.
+- Leiste über den Tasten, von links: Menü (Raster), Zwischenablage, Emoji, Aktionen (Stift,
+  öffnet das Aktionsrad) und im Kreis das Diktat. Beim Tippen stehen in der Mitte die
+  Wortvorschläge. Welche Tasten dort liegen, änderst du unter Einstellungen → Symbolleiste oder
+  über den Stift-Knopf im Menü.
+- Menü: Raster antippen. Design öffnet die Einstellungen zum Aussehen, die anderen Pillen
+  schalten Rückgängig, Einhandmodus, Emoji, Inkognito und die frei verschiebbare Tastatur.
+  Das X schließt das Menü.
+- Die Zwischenablage-Taste zeigt erst etwas, wenn du den Zwischenablageverlauf einschaltest
+  (Einstellungen → Optionen → „Zwischenablage-Verlauf aktivieren“); er ist anfangs aus.
 
 ## Gelernte Wörter
 

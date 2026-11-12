@@ -123,7 +123,9 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
                     else {
                         SettingsNavHost(onClickBack = { this.finish() }, startDestination =
                             if (intent.getBooleanExtra(helium314.keyboard.agent.AgentPreferences.OPEN_AI_SETTINGS, false))
-                                SettingsDestination.AgentAi else null)
+                                SettingsDestination.AgentAi
+                            else intent.getStringExtra(helium314.keyboard.agent.AgentPreferences.OPEN_SETTINGS_DESTINATION)
+                                ?.takeIf { it in helium314.keyboard.agent.AgentPreferences.SETTINGS_DESTINATIONS })
                         if (showWelcomeWizard) {
                             WelcomeWizard(close = { showWelcomeWizard = false }, finish = this::finish)
                         } else if (crashReports.isNotEmpty()) {

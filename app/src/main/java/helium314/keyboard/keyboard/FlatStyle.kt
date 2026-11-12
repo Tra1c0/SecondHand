@@ -47,6 +47,9 @@ object FlatStyle {
     val HINT = Color.rgb(0xDB, 0xDB, 0xDB)
     val FUNCTIONAL_LABEL = Color.rgb(0xB7, 0xB7, 0xB7)
     val TOOLBAR_ICON = Color.rgb(0x99, 0x99, 0x99)
+    /** Round background and glyph of the key at the right end of the strip. */
+    val STRIP_CIRCLE = Color.rgb(0x4B, 0x4B, 0x4B)
+    val STRIP_CIRCLE_ICON = Color.rgb(0xC9, 0xC9, 0xC9)
 
     /** Icons that replace the Material ones in this style. Their intrinsic sizes are the measured ones. */
     @JvmField
@@ -58,16 +61,28 @@ object FlatStyle {
         "enter_key" to R.drawable.sym_keyboard_return_flat,
         "go_key" to R.drawable.sym_keyboard_go_flat,
         "emoji" to R.drawable.sym_keyboard_smiley_flat,
+        // strip above the keys: left key, clipboard, panel and dictation
+        "toolbar_key" to R.drawable.sym_keyboard_grid_flat,
+        "clipboard" to R.drawable.sym_keyboard_clipboard_flat,
+        "agent" to R.drawable.sym_keyboard_pen_flat,
+        "dictate" to R.drawable.sym_keyboard_mic_flat,
     )
 
-    private val mediumTypeface: Typeface by lazy { Typeface.create("sans-serif-medium", Typeface.NORMAL) }
+    /**
+     * Medium weight of the system font. The reference strokes lie between regular and medium (stem
+     * 9.05 px at a cap height of 58.6 px; Roboto has 7.5 px at 400 and 9.8 px at 500), medium is the
+     * nearer one. A weight in between is not requested because a font with static weights resolves
+     * it unpredictably.
+     */
+    @JvmStatic
+    val labelTypeface: Typeface by lazy { Typeface.create("sans-serif-medium", Typeface.NORMAL) }
 
     @JvmStatic
     fun isActive(colors: Colors): Boolean = colors.themeStyle == KeyboardTheme.STYLE_FLAT
 
-    /** Labels, hints and the space bar text use the medium weight of the system font. */
+    /** Labels, hints and the space bar text use [labelTypeface] in this style. */
     @JvmStatic
-    fun typeface(colors: Colors, fallback: Typeface): Typeface = if (isActive(colors)) mediumTypeface else fallback
+    fun typeface(colors: Colors, fallback: Typeface): Typeface = if (isActive(colors)) labelTypeface else fallback
 
     /**
      * A single lowercase letter sits a little higher than a capital letter or digit, which are

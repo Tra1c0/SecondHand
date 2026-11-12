@@ -30,6 +30,7 @@ import android.widget.TextView
 import androidx.core.view.doOnNextLayout
 import androidx.core.view.isVisible
 import helium314.keyboard.event.HapticEvent
+import helium314.keyboard.keyboard.FlatStyle
 import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.keyboard.internal.KeyboardIconsSet
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
@@ -124,6 +125,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     private val defaultToolbarBackground: Drawable = toolbarExpandKey.background
     private val enabledToolKeyBackground = GradientDrawable()
     private var direction = 1 // 1 if LTR, -1 if RTL
+    /** In the Flat style the pinned keys stay visible beside the toolbar, see [FlatStrip]. */
+    private val flatStyle = FlatStyle.isActive(Settings.getValues().mColors)
 
     private val toolbarKeyLayoutParams = LinearLayout.LayoutParams(
         resources.getDimensionPixelSize(R.dimen.config_suggestions_strip_edge_key_width),
@@ -175,6 +178,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             // todo: results in requestLayout() improperly called by android.widget.LinearLayout during layout: running second layout pass
             toolbar.minimumWidth = toolbarContainer.width
         }
+        if (flatStyle)
+            FlatStrip.arrange(this, findViewById(R.id.suggestions_strip_wrapper), toolbarExpandKey, toolbarContainer, toolbar, pinnedKeys)
 
         updateKeys()
     }
@@ -228,7 +233,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     }
 
     fun setToolbarVisibility(toolbarVisible: Boolean) {
-        pinnedKeys.isVisible = !toolbarVisible
+        pinnedKeys.isVisible = !toolbarVisible || flatStyle
         suggestionsStrip.isVisible = !toolbarVisible
         toolbarContainer.isVisible = toolbarVisible
 
@@ -331,12 +336,15 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     override fun onClick(view: View) {
         val tag = view.tag
         if (tag is ToolbarKey) {
+            if (flatStyle) FlatStrip.closeMenu(this)
             onClickToolbarKey(view) { listener.onCodeInput(it, Constants.SUGGESTION_STRIP_COORDINATE, Constants.SUGGESTION_STRIP_COORDINATE, false) }
             return
         }
         AudioAndHapticFeedbackManager.getInstance().performHapticAndAudioFeedback(KeyCode.NOT_SPECIFIED, this, HapticEvent.KEY_PRESS)
         if (view === toolbarExpandKey) {
-            setToolbarVisibility(toolbarContainer.visibility != VISIBLE)
+            if (flatStyle) // the left key opens the menu; toolbar and suggestions switch on their own
+                FlatStrip.toggleMenu(this, toolbarExpandKey) { listener.onCodeInput(it, Constants.SUGGESTION_STRIP_COORDINATE, Constants.SUGGESTION_STRIP_COORDINATE, false) }
+            else setToolbarVisibility(toolbarContainer.visibility != VISIBLE)
         }
 
         // tag for word views is set in SuggestionStripLayoutHelper (setupWordViewsTextAndColor, layoutPunctuationSuggestions)
@@ -518,9 +526,10 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             toolbarExpandKey.setImageDrawable(toolbarArrowIcon)
             toolbarExpandKey.isVisible = toolbarIsExpandable
         }
+        if (flatStyle) FlatStrip.keepMenuIcon(this, toolbarExpandKey)
 
         toolbarExpandKey.setOnClickListener(if (!toolbarIsExpandable) null else this)
-        pinnedKeys.visibility = suggestionsStrip.visibility
+        pinnedKeys.visibility = if (flatStyle) VISIBLE else suggestionsStrip.visibility
         isExternalSuggestionVisible = false
     }
 
