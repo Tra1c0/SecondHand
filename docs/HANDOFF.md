@@ -9,17 +9,18 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 ## Aktueller Stand
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
-- In Arbeit: Etappe 24 (Befehle wie `@math`, Auftrag vom 2026-11-12, vor 23e/23f). Gebaut und
-  geprüft (mit Prüfer und Nachprüfung): 24a Gerüst, 24b `@math` mit Rechner.
-- Offen in 24: 24c `@contact`, 24d `@url` (Feld, Zwischenablage), 24e `@url` liest den Bildschirm
-  per Bedienungshilfe (vom Owner freigegeben, nur auf Befehl), 24f weitere Befehle.
-- Danach: 23e, 23f, 20c, 22c, 21, 19f.
-- Fertig: Etappen 0–17a, 18a, 19a–19e, 20a–20b, 22a–22b, 23a–23d, 24a–24b, Gerätetest G1.
-- Letzter Build: 0.1.0 Debug, `artifacts/…-universal.apk` (alle ABIs), nicht im Repo.
-- Geprüft nach 24b: siehe Build-Log. Etappen 19–24 sind auf keinem Gerät gelaufen.
-- Wartet auf den Owner: Secrets `AGENT_KEYSTORE_BASE64`/`_PASSWORD` in GitHub anlegen, dann
-  in GitHub den Standard-Branch auf `main` stellen, Workflow „Agent Keyboard APK“ starten und
-  installieren; Eindrücke vom Xiaomi; OAuth für 16c.
+- Stand 2026-11-13: Etappen 24a–24f (alle Befehle außer `@chord`), 23e, 23f1/23f2, Updates,
+  Befehlsvorlagen, `@wecker`/`@timer`, Design-Editor und Leertasten-Gesten sind gebaut, geprüft
+  (Robolectric, Prüfer) und in `main`. Installiert wird Build 10 aus `agent-apk.yml`.
+- Nichts davon seit 19 lief auf einem Gerät außer dem, was der Owner am Telefon gemeldet hat
+  (Befehle funktionieren, Rechner öffnet sich, `@translate` mit Gemini).
+- Wartet auf den Owner: Secret `RELEASES_TOKEN` (öffentliches Repo `Tra1c0/AgenticKeyboard`, erst
+  dann bekommt die Freundin Updates); Entscheidung, ob vertrauliche Clips aus dem Verlauf bleiben;
+  Entscheidung, ob der Emoji-Mix Bilder bei Google laden darf (Wunsch 2026-11-13: Emoji-Mix,
+  animierte Emojis, Sticker-Ersteller, noch nicht in der Roadmap).
+- Wackelige Tests im vollen Lauf: `SpaceGesturesTest.defaults…` und
+  `InputLogicTest.typedWorkflowChoiceIsDroppedWhenTheEditorChanges` fielen je einmal, einzeln
+  grün, im dritten Lauf grün; Ursache offen (vermutlich Zustand aus früheren Tests).
 
 ## Offene Punkte
 
@@ -189,6 +190,9 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
   Code aktualisieren (`CLAUDE.md` → Docs aktuell halten).
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
+- Build 10 (signiert, Workflow): Vorlagen, `@wecker`/`@timer`, Design-Editor, Leertasten-Gesten,
+  Prüferbefunde behoben; Agent-Suite grün, Upstream 722 mit den 7 bekannten Fehlern, Lint und
+  Build grün; kein Gerätetest.
 - 0.1.0 Debug (Etappen 24a–24b): getippte Befehle mit Chips, `@math` mit Ergebnis-Chip und
   Rechner; Ergebnisse der Prüfungen: `docs/VALIDATION.md` → Etappe24a und 24b; kein Gerätetest.
 
