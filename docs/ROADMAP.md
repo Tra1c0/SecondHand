@@ -91,6 +91,19 @@ Reihenfolge von oben nach unten.
   Tracking-Parameter entfernen (utm_*, fbclid, gclid …) vor dem Einfügen; Code aus SMS
   (Einmalcode) nur aus der Zwischenablage, nie aus Benachrichtigungen. Nicht in Passwortfeldern,
   Inkognito, gesperrt; vertrauliche Clips nie. (M)
+- **41 Formatwächter (Wunsch des Owners vom 2026-11-13)**. Nur in Feldern mit eindeutigem Typ,
+  nie automatisch korrigiert: die Leiste zeigt einen Hinweis-Chip, ein Tipp übernimmt. E-Mail:
+  Tippfehler in der Domain (`gmial.com` → „gmail.com?“, Editierabstand gegen eine lokale Liste
+  häufiger Anbieter), fehlendes `@`, Leerzeichen. Telefon: Formatierung/Ländervorwahl
+  (libphonenumber, Apache 2.0; APK-Größe vor dem Bau messen). IBAN: Prüfziffer (Modulo 97) live
+  als grüner/roter Punkt, Viererblöcke auf Wunsch. Zahlen/Beträge: Dezimalzeichen passend zur
+  Sprache des Felds. Reine Funktionen in `agent-core`, voll testbar. (S–M)
+- **42 Textbausteine 2.0 (Wunsch des Owners vom 2026-11-13)**. `@snip` mit Variablen (`{datum}`,
+  `{datum+3t}`, `{uhrzeit}`, `{wochentag}`, `{zwischenablage}`), Ausfüllfeldern `{?Name}` (die
+  Leiste wird zum kurzen Eingabefeld, Enter springt weiter), Cursor-Marke `{cursor}` und
+  Beschränkung auf bestimmte Apps. Beispiel: „Hallo {?Name}, danke für die Einladung am
+  {datum+2t}, leider kann ich nicht. {cursor}“. Kleine Vorlagensprache mit Parser in `agent-core`;
+  `{zwischenablage}` nie bei vertraulichen Clips, nichts in Passwortfeldern. (M)
 - **34 Eigene Designs gestalten (übernächste Runde)** (Wunsch des Owners vom 2026-11-13). Eigene
   Tastatur-Designs gibt es schon (Design-Seite → „Meine Designs“, seit Build 10). Annahme des
   Leads, vor dem Bau bestätigen: gemeint sind eigene RGB-Designs, also selbst gestaltete
