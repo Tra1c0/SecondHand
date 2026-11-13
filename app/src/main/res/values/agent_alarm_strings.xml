@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- @wecker and @timer (own file so parallel work on agent_strings.xml does not collide). English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="agent_command_alarm">Alarm: %1$swecker 6:30 Training reads the time on the device (also 7 Uhr, halb acht, 6pm) and opens your clock app with a new alarm and the remaining words as label. The clock app shows it; it is set only when you confirm it there. Only hour and minute are handed over: a day word cannot be set and is shown as ignored.</string>
+    <string name="agent_command_alarm_chip">⏰ Alarm %1$s – %2$s</string>
+    <string name="agent_command_alarm_chip_untitled">⏰ Alarm %s</string>
+    <!-- %s: one of the two alarm chip labels above -->
+    <string name="agent_command_alarm_chip_day_ignored">%s (day ignored)</string>
+    <string name="agent_command_alarm_open">Open a new alarm in the clock app: %s</string>
+    <string name="agent_command_alarm_day_note">The clock app sets the next %s; the typed day was not handed over.</string>
+    <string name="agent_command_alarm_hint">No time found</string>
+    <string name="agent_command_alarm_usage">Type a time, e.g. %1$swecker 6:30 Training or %1$swecker halb acht</string>
+    <string name="agent_command_timer">Timer: %1$stimer 10 min Pasta reads the duration on the device (also 90 s, 1:30, 1 h 20, half an hour; German, English, Spanish; at most 24 hours) and opens your clock app with a new timer and the remaining words as label. The clock app shows it; it starts only when you confirm it there.</string>
+    <string name="agent_command_timer_chip">⏱ Timer %1$s – %2$s</string>
+    <string name="agent_command_timer_chip_untitled">⏱ Timer %s</string>
+    <string name="agent_command_timer_open">Open a new timer in the clock app: %s</string>
+    <string name="agent_command_timer_hint">No duration found</string>
+    <string name="agent_command_timer_usage">Type a duration of at most 24 hours, e.g. %1$stimer 10 min Pasta or %1$stimer 1 h 20</string>
+    <string name="agent_command_clock_none">No clock app found</string>
+</resources>

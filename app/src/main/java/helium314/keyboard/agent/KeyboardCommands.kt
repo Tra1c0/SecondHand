@@ -141,6 +141,8 @@ object KeyboardCommands {
         PlaceCommand,
         helium314.keyboard.agent.commands.QrCommand,
         helium314.keyboard.agent.commands.TranslateCommand,
+        helium314.keyboard.agent.commands.AlarmCommand,
+        helium314.keyboard.agent.commands.TimerCommand,
     )
 
     /** Replaced in tests. */

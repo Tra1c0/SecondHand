@@ -278,6 +278,8 @@ Speicher, Datenschutz und Identität:
   `getPreviewColors` für die Kacheln (`withBackgroundImage = false`: kein Dekodieren des
   Hintergrundbilds je Kachel).
 - `AndroidManifest.xml` (24e): Dienst `ScreenReaderService` mit `BIND_ACCESSIBILITY_SERVICE`.
+- `AndroidManifest.xml` (`@wecker`/`@timer`): `com.android.alarm.permission.SET_ALARM` (normale
+  Berechtigung, bei der Installation erteilt, keine Nachfrage).
 - `AndroidManifest.xml` (Update-Prüfung): `POST_NOTIFICATIONS`, `REQUEST_INSTALL_PACKAGES`, Dienst
   `UpdateCheckJobService` (`BIND_JOB_SERVICE`) und Empfänger `UpdateInstallReceiver`, beide nicht
   exportiert und nicht `directBootAware`. `SettingsNavHost.kt`/`MainSettingsScreen.kt`: Ziel und
@@ -601,8 +603,21 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     Auswahl mit Leseberechtigung, Entfernen nach erfolgreichem Start. Austauschbar: `sink`,
     `launcher`, `blocked`. Test `AT/commands/QrCommandTest.kt` (dekodiert den Code mit ZXing).
     Robolectric: `FileProvider` merkt sich seine Wurzeln JVM-weit, der Test leert `sCache`.
+  - `A/commands/AlarmCommand.kt` (`@wecker`) und `A/commands/TimerCommand.kt` (`@timer`), dazu
+    `ClockCommands` (in `AlarmCommand.kt`: Start, dann Entfernen; Hinweis-Chip `MUTED`, dessen Tipp
+    nur einen Toast zeigt). `AlarmClock.ACTION_SET_ALARM` (`EXTRA_HOUR`, `EXTRA_MINUTES`,
+    `EXTRA_MESSAGE` nur mit Titel) bzw. `ACTION_SET_TIMER` (`EXTRA_LENGTH` in Sekunden), immer
+    `EXTRA_SKIP_UI = false` und `FLAG_ACTIVITY_NEW_TASK`; austauschbarer `launcher` (wie
+    `SearchCommand`), Entfernen erst nach erfolgreichem Start (P43). Logik in `C/AlarmParser.kt`
+    (`EventParser.parse(…, alarm = true)`: umgangssprachliche Zeiten bleiben morgens, eine nackte
+    Zahl ist eine Stunde; `dayIgnored`, wenn der getippte Tag nicht das nächste Mal der Uhrzeit
+    ist, denn `ACTION_SET_ALARM` kennt nur Stunde und Minute, `EXTRA_DAYS` wäre ein
+    wiederkehrender Wecker) und `C/TimerParser.kt` (Einheiten de/en/es, Hälften, `h:mm:ss`,
+    höchstens `MAX_SECONDS` = 24 h). Berechtigung `SET_ALARM` im Manifest. Texte in eigener Datei
+    `agent_alarm_strings.xml` (`values/`, `values-de/`).
   - Tests: `CT/UrlDetectorTest.kt`, `CT/SymbolTableTest.kt`, `CT/UnitConversionTest.kt`,
-    `CT/EventParserTest.kt`, `CT/DateFormattingTest.kt`, `CT/PlacesTest.kt`;
+    `CT/EventParserTest.kt`, `CT/DateFormattingTest.kt`, `CT/PlacesTest.kt`, `CT/AlarmParserTest.kt`,
+    `CT/TimerParserTest.kt`, `AT/commands/ClockCommandsTest.kt`;
     `AT/ContactCommandTest.kt`, `AT/MoreCommandsTest.kt`, `AT/SnipCommandTest.kt`,
     `AT/ClipCommandTest.kt`, `AT/DatePlaceCommandsTest.kt`, `UrlCommandTest` und
     `ScreenReaderServiceTest` (`AT/commands/`), `InputLogicTest.typed*`.
@@ -1069,7 +1084,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (311 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (320 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -1086,8 +1101,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel, TypoMemory,
   WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner,
   WorkflowInputSummary, WorkflowStore
-- `A/commands/` (11): AiCommandChips, AskCommand, ClipCommand, QrCommand, ScreenReaderService,
-  SensitiveClips, SnipCommand, SnippetStore, TranslateCommand, UrlCommand, WorkflowCommand
+- `A/commands/` (13): AiCommandChips, AlarmCommand, AskCommand, ClipCommand, QrCommand,
+  ScreenReaderService, SensitiveClips, SnipCommand, SnippetStore, TimerCommand, TranslateCommand,
+  UrlCommand, WorkflowCommand
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
@@ -1106,15 +1122,18 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   TouchModelTest, TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest,
   WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
   WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
-- `AT/commands/` (4): QrCommandTest, ScreenReaderServiceTest, TranslateCommandTest, UrlCommandTest
-- `C/` (25): AiTextAction, ApplyOutcome, CivilDate, Commands, DateFormatting, EditorSession,
-  EmojiNames, EventParser, ExecutionPolicy, LocalTextActions, MathExpression, ModelProvider,
-  PendingBatchGate, Places, Profiles, SkillBinding, SpecialCharacters, StyledTranslation,
-  SymbolTable, TextCondition, Tool, UnitConversion, UpdateReleases, UrlDetector, Workflow
-- `CT/` (19): AiTextActionTest, CommandSyntaxTest, DateFormattingTest, EditorPolicyTest,
-  EventParserTest, InsertionAnchorTest, LocalTextActionsTest, MathExpressionTest,
+- `AT/commands/` (5): ClockCommandsTest, QrCommandTest, ScreenReaderServiceTest,
+  TranslateCommandTest, UrlCommandTest
+- `C/` (27): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
+  EditorSession, EmojiNames, EventParser, ExecutionPolicy, LocalTextActions, MathExpression,
+  ModelProvider, PendingBatchGate, Places, Profiles, SkillBinding, SpecialCharacters,
+  StyledTranslation, SymbolTable, TextCondition, TimerParser, Tool, UnitConversion, UpdateReleases,
+  UrlDetector, Workflow
+- `CT/` (21): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
+  EditorPolicyTest, EventParserTest, InsertionAnchorTest, LocalTextActionsTest, MathExpressionTest,
   PendingBatchGateTest, PlacesTest, QuestionCaptureTest, SkillBindingTest, StyledTranslationTest,
-  SymbolTableTest, ToolTest, UnitConversionTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
+  SymbolTableTest, TimerParserTest, ToolTest, UnitConversionTest, UpdateReleasesTest,
+  UrlDetectorTest, WorkflowTest
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,
   KeyboardActionListenerImpl, KeyboardSwitcher, KeyboardTheme, KeyboardView, MainKeyboardView,
   PointerTracker
@@ -1158,9 +1177,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (2): agent_strings, agent_update_strings
-- `app/src/main/res/values/` (9): agent_attrs, agent_ids, agent_strings, agent_update_strings,
-  attrs, clip_provider, donottranslate, gesture_data, themes-flat
+- `app/src/main/res/values-de/` (3): agent_alarm_strings, agent_strings, agent_update_strings
+- `app/src/main/res/values/` (10): agent_alarm_strings, agent_attrs, agent_ids, agent_strings,
+  agent_update_strings, attrs, clip_provider, donottranslate, gesture_data, themes-flat
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (1): Shadows

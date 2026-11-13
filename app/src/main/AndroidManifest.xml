@@ -24,6 +24,8 @@ SPDX-License-Identifier: Apache-2.0 AND GPL-3.0-only
     <!-- opt-in update check: notification about a new build, install after the system's confirmation -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- @wecker/@timer: hand an alarm or timer to the clock app (normal permission, granted at install) -->
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
 
     <application android:label="@string/english_ime_name"
             android:name="helium314.keyboard.latin.App"
