@@ -214,8 +214,9 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
 - Build 12 geprüft (Workflow-Lauf 13, von `main`): wie Test-Build 12 plus Prüferfixes (Emoji-Mix-
   Senke, Symbol nach Ausblenden, Screenshot vor dem Start, Update-Migrationen P84); Upstream mit
-  den 7 bekannten Fehlern (lokal, Stand 15b3c5a), Agent-Suite (lokal, ef4f172), Lint, GitHub-Läufe
-  1–2 grün; Lauf 3 auf dem Endstand 675fb38 bei diesem Commit noch offen; kein Gerätetest.
+  den 7 bekannten Fehlern (lokal, Stand 15b3c5a), Agent-Suite (lokal, ef4f172), GitHub-Lauf 4 auf
+  dem Endstand eef5254 grün (Agent, Upstream ohne neue Fehler, Lint; Lauf 3 hatte den wackeligen
+  `LearningDataTest`, behoben); kein Gerätetest.
 - Test-Build 12 (Workflow-Lauf 12, Arbeitsbranch 15b3c5a, vor Abschluss der Prüfer an den Owner):
   Rückmeldung: Haptik-Kette spielt sofort statt an Rastpunkten (→ 33), eigenes Design nach dem
   Update verändert (→ P84, behoben).
