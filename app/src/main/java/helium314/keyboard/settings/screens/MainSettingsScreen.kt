@@ -53,6 +53,7 @@ fun MainSettingsScreen(
     onClickAgentScreenshots: () -> Unit = {},
     onClickAgentCommands: () -> Unit = {},
     onClickAgentUpdates: () -> Unit = {},
+    onClickAgentSymbols: () -> Unit = {},
 ) {
     val enabledSubtypes = SubtypeSettings.getEnabledSubtypes(true)
     // fork: entries as a list, rendered in the upstream or the modern look (AgentMainSettings)
@@ -84,6 +85,8 @@ fun MainSettingsScreen(
         if (JniUtils.sHaveGestureLib)
             MainSettingsEntry(stringResource(R.string.settings_screen_gesture), R.drawable.ic_settings_gesture, onClickGestureTyping)
         else null,
+        // stage 27: also without the gesture library, which HeliBoard does not ship
+        MainSettingsEntry(stringResource(R.string.agent_symbols_title), R.drawable.ic_settings_gesture, onClickAgentSymbols),
         // we don't even show the menu if data gathering phase ended more than 2 weeks ago
         if (JniUtils.sHaveGestureLib && System.currentTimeMillis() < END_DATE_EPOCH_MILLIS + TWO_WEEKS_IN_MILLIS)
             MainSettingsEntry(stringResource(R.string.gesture_data_screen), R.drawable.ic_settings_gesture, onClickDataGathering)

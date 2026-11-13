@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="agent_symbols_title">Symbole malen</string>
+    <string name="agent_symbols_summary">Sonderzeichen auf die Buchstaben malen, statt Gestenschreiben</string>
+    <string name="agent_symbols_switch">Symbole malen (statt Gestenschreiben)</string>
+    <string name="agent_symbols_switch_summary">Wischen über die Buchstaben malt ein Symbol; Gestenschreiben ist aus. Tippen, langes Drücken und das Wischen auf Leer- und Löschtaste bleiben, wie sie sind.</string>
+    <string name="agent_symbols_how">Male auf die Buchstabentasten. Striche, die innerhalb einer halben Sekunde folgen, gehören zum selben Symbol (≠, ÷, €). Nach der Pause wird das Symbol geschrieben, die Leiste bietet bis zu drei andere an. Nicht in Passwortfeldern.</string>
+    <string name="agent_symbols_local">Wird lokal auf dem Telefon erkannt. Nichts wird gesendet, Zeichnungen werden nicht gespeichert.</string>
+    <string name="agent_symbols_not_recognized">Nicht erkannt</string>
+    <string name="agent_symbols_alternative">Durch %1$s ersetzen</string>
+    <string name="agent_symbols_builtin">Eingebaute Symbole</string>
+    <string name="agent_symbols_own">Eigene Symbole</string>
+    <string name="agent_symbols_own_description">Male ein Symbol dreimal und wähle den Text, den es schreibt (bis zu 8 Zeichen, auch Emoji). Eigene Symbole werden zusammen mit den eingebauten erkannt.</string>
+    <string name="agent_symbols_own_empty">Noch keine eigenen Symbole.</string>
+    <string name="agent_symbols_add">Symbol hinzufügen</string>
+    <string name="agent_symbols_full">Höchstens 30 eigene Symbole.</string>
+    <string name="agent_symbols_drawing">Zeichnung %1$d von %2$d</string>
+    <string name="agent_symbols_draw_hint">Male das Symbol in das Feld, mit beliebig vielen Strichen.</string>
+    <string name="agent_symbols_redraw">Neu malen</string>
+    <string name="agent_symbols_next">Weiter</string>
+    <string name="agent_symbols_text">Text, den es schreibt</string>
+    <string name="agent_symbols_text_too_long">Höchstens 8 Zeichen.</string>
+    <string name="agent_symbols_save">Speichern</string>
+    <string name="agent_symbols_delete">%1$s löschen</string>
+    <string name="agent_symbols_drawing_of">Zeichnung von %1$s</string>
+</resources>

@@ -9,6 +9,7 @@ import helium314.keyboard.latin.utils.JniUtils
 import helium314.keyboard.settings.screens.createAboutSettings
 import helium314.keyboard.settings.screens.createAdvancedSettings
 import helium314.keyboard.settings.screens.createAgentSpaceSettings
+import helium314.keyboard.settings.screens.createAgentSymbolSettings
 import helium314.keyboard.settings.screens.createAppearanceSettings
 import helium314.keyboard.settings.screens.createCorrectionSettings
 import helium314.keyboard.settings.screens.createGestureTypingSettings
@@ -66,6 +67,7 @@ class Setting(
 private fun createSettings(context: Context) = createAboutSettings(context) + createAppearanceSettings(context) +
         createCorrectionSettings(context) + createPreferencesSettings(context) + createToolbarSettings(context) +
         createLayoutSettings(context) + createAdvancedSettings(context) + createAgentSpaceSettings(context) +
+        createAgentSymbolSettings(context) +
         if (JniUtils.sHaveGestureLib) createGestureTypingSettings(context) else emptyList()
 
 object SettingsWithoutKey {

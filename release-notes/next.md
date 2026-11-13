@@ -148,3 +148,7 @@
   Tastatur; Emoji- und Zwischenablage-Ansicht stören es nicht mehr; der Energiesparmodus wirkt
   sofort; ausgeschaltete Werkzeuge in der Leiste bleiben grau; der Umschalt-Akzent bleibt;
   halbdurchsichtige Beschriftungen bleiben lesbar; weniger Rechenarbeit je Bild.
+- Neu: Symbole malen (anfangs aus). Einstellungen → „Symbole malen“: Wischen über die Buchstaben
+  malt ein Sonderzeichen (→ ≠ € ✓ ♥ und 35 weitere) statt eines Gestenworts; eigene Symbole
+  malst du dreimal und gibst den Text dazu ein. Erkennung nur auf dem Telefon. Auf einem Gerät
+  noch nicht ausprobiert.

@@ -206,6 +206,20 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
 - Getippte Befehle, Rechnungen und Ergebnisse werden nicht gespeichert und nicht protokolliert.
   Der Rechner hält seine Eingabe nur im Speicher und leert sie beim Schließen.
 
+## Symbole malen (27)
+
+- Schalter `agent_symbol_drawing` in den Tastatureinstellungen (Standard aus).
+- Eigene Symbole: SharedPreferences-Datei `agent_symbols` im gerätegeschützten Speicher (DE, wie
+  die Tastatureinstellungen, damit Malen auch vor dem ersten Entsperren geht), Schlüssel `own`.
+  Format (`OwnInkSymbols`): erste Zeile `v1`, dann je Symbol eine Zeile: Text (`%`, Tab und
+  Zeilenumbruch als `%XX`), dann je Zeichnung ein Tab und 32 Punkte `x,y,s` mit `;` getrennt
+  (x, y in Tausendsteln der normierten Wolke, s = Strichnummer). Höchstens 30 Symbole,
+  3 Zeichnungen, Text 1–8 Codepoints ohne Steuerzeichen, Lesegrenze 512 KiB; kaputte Zeilen
+  werden übersprungen. Keine rohen Berührungspunkte. Nicht in HeliBoards Sicherung, kein Backup,
+  kein Export.
+- Gemalte Zeichnungen und Ergebnisse liegen nur im Speicher bis zur Erkennung bzw. bis zur
+  nächsten Eingabe; nichts wird gespeichert, gelernt oder protokolliert.
+
 ## Daten der Befehle 24c–24f
 
 - `@snip`: CE-Datei `noBackupFilesDir/agent_snippets.json` (AtomicFile, `storageVersion` 1,
