@@ -115,3 +115,8 @@
   Leertaste. Ohne eigene Wahl bleibt alles wie bisher; ein einzelner Tipp schreibt immer ein
   Leerzeichen. Der Schalter „Leertaste halten öffnet das Rad“ ist jetzt die Geste „Halten“. Noch
   auf keinem Gerät ausprobiert.
+- Neu: Sprachbefehle. Tippe `@sp`, `@ger`, `@eng` oder eine Sprache bzw. ein Land deiner aktiven
+  Tastatursprachen (`@spanisch`, `@español`, `@deutsch`, `@usa` …), auch mit Tippfehlern
+  (`@spnaish`). Ein Tipp auf den Chip „🌐 Español (ES)“ löscht den Befehl und stellt die
+  Tastatur sofort um. `@lang` listet alle aktiven Sprachen. Vertippte Befehlsnamen (`@mtah`)
+  zeigen jetzt den richtigen Namen zum Vervollständigen. Noch auf keinem Gerät ausprobiert.

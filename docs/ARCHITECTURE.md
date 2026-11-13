@@ -665,6 +665,32 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     wiederkehrender Wecker) und `C/TimerParser.kt` (Einheiten de/en/es, Hälften, `h:mm:ss`,
     höchstens `MAX_SECONDS` = 24 h). Berechtigung `SET_ALARM` im Manifest. Texte in eigener Datei
     `agent_alarm_strings.xml` (`values/`, `values-de/`).
+  - Sprachbefehle (24g): `A/commands/LanguageCommand.kt` (`@lang`) und `C/LanguageNames.kt`
+    (`LanguageNames`: `normalize` ohne Akzente, ß→ss; `allowedEdits` 0/1/2 für Aliasse bis 2,
+    bis 5, ab 6 Zeichen; `distance` Damerau-Levenshtein (OSA); `aliases` aus `java.util.Locale`:
+    ISO-639-1/-3, Sprachname in `DISPLAY_LANGUAGES` (en, de, es, fr, it, pt) und in sich selbst,
+    `SHORT_FORMS` (Owner-Kürzel `sp`, `ger`, `eng`, dazu `usa`, `uk`, `england` …), Länder aus
+    `COUNTRIES` (kuratiert) und dem Land des Subtyps mit Code und Namen in en, de und der eigenen
+    Sprache. `LanguageMatcher`: allgemeine Wörter (`GENERIC`, z. B. „sprache“) = alle; sonst
+    exakter Alias vor Präfix (ab 2 Zeichen) und Tippfehler (ab 3 Zeichen); Aliasse gleich oder nah
+    an einem Befehlsnamen (`reserved`) nur exakt). Parser: `CommandSyntax.parse(…, fuzzyNames,
+    claim)`, beides nur aus `KeyboardCommands` (`Active.parse`, alle Leser gleich). Reihenfolge:
+    exakter Name, angefangener Name, Name mit Tippfehler (`closeNames`, `CommandNames.fuzzy`, nur
+    vervollständigen, nie ausführen, auch nicht mit Argument), dann `claim`. Nur ein `claim` darf
+    Nicht-ASCII-Buchstaben lesen (`@español`); `CommandCall.claimed` trägt das getippte Wort.
+    `Command.claims(word)` (darf auf dem Vorschlags-Thread laufen) und `Command.load(context)`
+    (aus `KeyboardCommands.load`, nur für eingeschaltete Befehle): `LanguageCommand` baut dort den
+    Matcher aus den aktiven Subtypen (`SubtypeSettings.getEnabledSubtypes(true)`, austauschbar
+    `subtypes`; „zz“ ohne Aliasse) und hält ihn `@Volatile`. `isCommandWord` zählt beanspruchte
+    Wörter mit (nicht gelernt). Chips: je aktivem Subtyp der Sprache einer („🌐 Español (ES)“, mit
+    Layout, wenn dieselbe Locale mehrfach aktiv ist); Tipp = `Host.replace(call, "")`, erst bei
+    Erfolg `Host.switchSubtype` → `LatinIME.switchToSubtype` (wie die Sprachtaste). `@lang` ohne
+    Argument listet alle aktiven Sprachen als Chips (keine Vorlagen), mit Argument filtert er. Ein
+    Sprachwort mit Argument (`@sp hola`) zeigt nichts. Nur ein aktiver Subtyp: grauer Chip „Nur
+    eine Sprache aktiv“ → Spracheinstellungen (`languages` in `AgentPreferences.SETTINGS_DESTINATIONS`).
+    Texte in `agent_language_strings.xml` (`values/`, `values-de/`). Tests `CT/LanguageNamesTest.kt`,
+    `CommandSyntaxTest` (Tippfehler, `claim`), `AT/commands/LanguageCommandTest.kt`,
+    `InputLogicTest.typedCommandLanguageChipRemovesTheCommandThenSwitches` (echter Host).
   - Tests: `CT/UrlDetectorTest.kt`, `CT/SymbolTableTest.kt`, `CT/UnitConversionTest.kt`,
     `CT/EventParserTest.kt`, `CT/DateFormattingTest.kt`, `CT/PlacesTest.kt`, `CT/AlarmParserTest.kt`,
     `CT/TimerParserTest.kt`, `AT/commands/ClockCommandsTest.kt`;
@@ -1166,12 +1192,25 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   bricht ab, auch bei vollem Neubau). `MyDesigns` nutzt deshalb `1f` (Standard im Hochformat).
   Bei so einem `VerifyError` zuerst den letzten neuen Zugriff auf `Defaults` prüfen.
 
+- **P53** Sprachwörter (`@sp`) dürfen nie einen Befehl überdecken: Ein Befehlsname, der mit einem
+  Sprachkürzel beginnt, schluckt es als angefangenen Namen (deshalb heißt der Befehl `@lang` und
+  nicht `@sprache`, sonst zeigte `@sp` nur „@sprache“). Neue Befehlsnamen gegen `SHORT_FORMS` und
+  ISO-Codes prüfen. Ein `claim` kommt immer zuletzt (nach exakt, Präfix, Tippfehler eines Namens),
+  und `LanguageMatcher` nimmt Aliasse nah an Befehlsnamen nur exakt.
+- **P54** Sprache erst nach dem Entfernen umschalten: `LatinIME.switchToSubtype` ruft
+  `InputLogic.onSubtypeChanged` (`finishInput`/`startInput`) und lädt die Tastatur neu. Der Tipp
+  ersetzt deshalb zuerst den Befehl (ein Commit, Prüfung von Text und Schreibmarke) und schaltet
+  nur bei Erfolg um; umgekehrt liefe das Ersetzen gegen einen frisch gestarteten Eingabezustand.
+  `switchToSubtype` braucht ein aktuelles `EditorInfo` (Robolectric ohne Eingabe: NPE in
+  `saveSubtypeForApp`), daher prüft `LanguageCommandTest` den Wechsel über einen Test-Host und
+  `InputLogicTest` den echten Weg.
+
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (335 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (341 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -1188,9 +1227,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   SkillLabels, SpaceGestures, ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel,
   TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary,
   WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
-- `A/commands/` (13): AiCommandChips, AlarmCommand, AskCommand, ClipCommand, QrCommand,
-  ScreenReaderService, SensitiveClips, SnipCommand, SnippetStore, TimerCommand, TranslateCommand,
-  UrlCommand, WorkflowCommand
+- `A/commands/` (14): AiCommandChips, AlarmCommand, AskCommand, ClipCommand, LanguageCommand,
+  QrCommand, ScreenReaderService, SensitiveClips, SnipCommand, SnippetStore, TimerCommand,
+  TranslateCommand, UrlCommand, WorkflowCommand
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
@@ -1210,18 +1249,18 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
   WorkflowCommandTest, WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest,
   WorkflowStoreTest
-- `AT/commands/` (5): ClockCommandsTest, QrCommandTest, ScreenReaderServiceTest,
-  TranslateCommandTest, UrlCommandTest
-- `C/` (27): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
-  EditorSession, EmojiNames, EventParser, ExecutionPolicy, LocalTextActions, MathExpression,
-  ModelProvider, PendingBatchGate, Places, Profiles, SkillBinding, SpecialCharacters,
-  StyledTranslation, SymbolTable, TextCondition, TimerParser, Tool, UnitConversion, UpdateReleases,
-  UrlDetector, Workflow
-- `CT/` (21): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
-  EditorPolicyTest, EventParserTest, InsertionAnchorTest, LocalTextActionsTest, MathExpressionTest,
-  PendingBatchGateTest, PlacesTest, QuestionCaptureTest, SkillBindingTest, StyledTranslationTest,
-  SymbolTableTest, TimerParserTest, ToolTest, UnitConversionTest, UpdateReleasesTest,
-  UrlDetectorTest, WorkflowTest
+- `AT/commands/` (6): ClockCommandsTest, LanguageCommandTest, QrCommandTest,
+  ScreenReaderServiceTest, TranslateCommandTest, UrlCommandTest
+- `C/` (28): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
+  EditorSession, EmojiNames, EventParser, ExecutionPolicy, LanguageNames, LocalTextActions,
+  MathExpression, ModelProvider, PendingBatchGate, Places, Profiles, SkillBinding,
+  SpecialCharacters, StyledTranslation, SymbolTable, TextCondition, TimerParser, Tool,
+  UnitConversion, UpdateReleases, UrlDetector, Workflow
+- `CT/` (22): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
+  EditorPolicyTest, EventParserTest, InsertionAnchorTest, LanguageNamesTest, LocalTextActionsTest,
+  MathExpressionTest, PendingBatchGateTest, PlacesTest, QuestionCaptureTest, SkillBindingTest,
+  StyledTranslationTest, SymbolTableTest, TimerParserTest, ToolTest, UnitConversionTest,
+  UpdateReleasesTest, UrlDetectorTest, WorkflowTest
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,
   KeyboardActionListenerImpl, KeyboardSwitcher, KeyboardTheme, KeyboardView, MainKeyboardView,
   PointerTracker
@@ -1266,11 +1305,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (5): agent_alarm_strings, agent_design_strings, agent_space_strings,
-  agent_strings, agent_update_strings
-- `app/src/main/res/values/` (12): agent_alarm_strings, agent_attrs, agent_design_strings,
-  agent_ids, agent_space_strings, agent_strings, agent_update_strings, attrs, clip_provider,
-  donottranslate, gesture_data, themes-flat
+- `app/src/main/res/values-de/` (6): agent_alarm_strings, agent_design_strings,
+  agent_language_strings, agent_space_strings, agent_strings, agent_update_strings
+- `app/src/main/res/values/` (13): agent_alarm_strings, agent_attrs, agent_design_strings,
+  agent_ids, agent_language_strings, agent_space_strings, agent_strings, agent_update_strings,
+  attrs, clip_provider, donottranslate, gesture_data, themes-flat
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (1): Shadows

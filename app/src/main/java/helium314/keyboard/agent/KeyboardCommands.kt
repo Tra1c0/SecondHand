@@ -112,6 +112,8 @@ object KeyboardCommands {
         fun insertAi(command: CommandCall): Boolean = false
         /** The tap on a failed request: the panel with the details, or the AI settings for a missing key or model. */
         fun aiDetails(command: CommandCall): Boolean = false
+        /** Switches the keyboard to the enabled [subtype] (stage 24g), like the language key; false if it cannot. */
+        fun switchSubtype(subtype: android.view.inputmethod.InputMethodSubtype): Boolean = false
     }
 
     /** A built-in command. Commands never come from files or models. */
@@ -132,6 +134,13 @@ object KeyboardCommands {
         fun reset() {}
         /** The argument patterns offered while the argument is empty ([Template]); none by default. */
         fun templates(host: Host): List<Template> = emptyList()
+        /**
+         * True if the command takes the unknown typed [word] as its own (stage 24g: `@sp` for `@lang`).
+         * Asked only after every command name, started name and typo of a name; may run on the suggestion thread.
+         */
+        fun claims(word: String): Boolean = false
+        /** Reads what the command needs before it is typed, e.g. the enabled languages; called by [load] while enabled. */
+        fun load(context: Context) {}
     }
 
     /** Built-in commands in the order of the settings page; each stage adds its own. */
@@ -154,6 +163,7 @@ object KeyboardCommands {
         helium314.keyboard.agent.commands.TranslateCommand,
         helium314.keyboard.agent.commands.AlarmCommand,
         helium314.keyboard.agent.commands.TimerCommand,
+        helium314.keyboard.agent.commands.LanguageCommand,
     )
 
     /** Replaced in tests. */
@@ -163,7 +173,14 @@ object KeyboardCommands {
     /** True while the text before the cursor is a complete command: its words are not autocorrected. */
     @Volatile private var inCommand = false
 
-    private class Active(val prefix: Char, val names: Set<String>, val longNames: Set<String>)
+    private class Active(val prefix: Char, val names: Set<String>, val longNames: Set<String>, val claimers: List<Command>) {
+        /** Stage 24g: the enabled command that takes an unknown word as its own, or null. */
+        val claim: (String) -> String? = { word -> claimers.firstOrNull { it.claims(word) }?.name }
+
+        /** Typos of names offer the name to complete (stage 24g); every reader parses the same way. */
+        fun parse(before: CharSequence) = CommandSyntax.parse(before, prefix, names, longNames, fuzzyNames = true,
+            claim = claim.takeIf { claimers.isNotEmpty() })
+    }
 
     fun isEnabled(context: Context) = context.prefs().getBoolean(AgentPreferences.COMMANDS, true)
 
@@ -198,7 +215,9 @@ object KeyboardCommands {
     @JvmStatic fun load(context: Context) {
         val names = registry.map { it.name }.filter { isCommandEnabled(context, it) }.toSet()
         val longNames = registry.filter { it.longArgument && it.name in names }.map { it.name }.toSet()
-        active = if (isEnabled(context) && names.isNotEmpty()) Active(prefix(context), names, longNames) else null
+        val enabled = registry.filter { it.name in names }
+        if (isEnabled(context)) enabled.forEach { it.load(context) }
+        active = if (isEnabled(context) && names.isNotEmpty()) Active(prefix(context), names, longNames, enabled) else null
         inCommand = false
         forget()
     }
@@ -213,7 +232,7 @@ object KeyboardCommands {
         val current = active ?: return false
         if (word.isNullOrEmpty()) return false
         val trimmed = word.trimEnd { !it.isLetter() }
-        return CommandSyntax.isCommandWord(trimmed, current.prefix, current.names)
+        return CommandSyntax.isCommandWord(trimmed, current.prefix, current.names, current.claim.takeIf { current.claimers.isNotEmpty() })
     }
 
     /**
@@ -228,7 +247,7 @@ object KeyboardCommands {
     @JvmStatic fun guardsTextBefore(before: CharSequence?): Boolean {
         val current = active ?: return false
         if (before == null) return false
-        return when (val context = CommandSyntax.parse(before, current.prefix, current.names, current.longNames)) {
+        return when (val context = current.parse(before)) {
             null -> false
             is CommandNames -> true
             is CommandCall -> context.argument.isBlank() ||
@@ -244,7 +263,7 @@ object KeyboardCommands {
     @JvmStatic fun updateGuard(before: CharSequence?) {
         inCommand = guardsTextBefore(before)
         val current = active
-        if (current == null || before == null || CommandSyntax.parse(before, current.prefix, current.names, current.longNames) == null) forget()
+        if (current == null || before == null || current.parse(before) == null) forget()
     }
 
     fun isBlocked(settings: SettingsValues?, editorInfo: EditorInfo?): Boolean {
@@ -259,7 +278,7 @@ object KeyboardCommands {
     fun find(before: CharSequence?, settings: SettingsValues?, editorInfo: EditorInfo?): CommandContext? {
         val current = active ?: return null
         if (before == null || isBlocked(settings, editorInfo)) return null
-        return CommandSyntax.parse(before, current.prefix, current.names, current.longNames)
+        return current.parse(before)
     }
 
     /**
@@ -333,6 +352,11 @@ object KeyboardCommands {
             override fun dropAi(command: CommandCall) { ime.agentEditorController.dropCommandRequest(command.text, position) }
             override fun insertAi(command: CommandCall) = ime.agentEditorController.insertCommandAnswer(command.text, position)
             override fun aiDetails(command: CommandCall) = ime.agentEditorController.openCommandRequestDetails(command.text, position)
+            // called after the command is gone, so the new keyboard starts on the changed field
+            override fun switchSubtype(subtype: android.view.inputmethod.InputMethodSubtype): Boolean {
+                ime.switchToSubtype(subtype)
+                return true
+            }
         }
         return chipsFor(context, host)
     }

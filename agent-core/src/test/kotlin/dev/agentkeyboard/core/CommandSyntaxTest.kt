@@ -74,4 +74,66 @@ class CommandSyntaxTest {
         assertFalse(CommandSyntax.isCommandWord("@", '@', names))
         assertFalse(CommandSyntax.isCommandWord("#math", '@', names))
     }
+
+    // stage 24g
+    private val all = listOf("math", "contact", "conv", "url", "translate", "lang", "ki")
+    private val languages = LanguageMatcher(listOf("de", "en", "es").map { LanguageMatcher.Language(it, LanguageNames.aliases(it)) }, all)
+    private val claim: (String) -> String? = { word -> "lang".takeIf { languages.match(word).isNotEmpty() } }
+    private fun extended(text: String) = CommandSyntax.parse(text, '@', all, fuzzyNames = true, claim = claim)
+
+    @Test fun typosOfNamesOnlyOfferTheNameToComplete() {
+        assertEquals(CommandNames(0, "@mtah", '@', "mtah", listOf("math"), fuzzy = true), extended("@mtah"))
+        assertEquals(listOf("translate"), (extended("x @tranlate") as CommandNames).candidates)
+        assertEquals(listOf("contact"), (extended("@contcat") as CommandNames).candidates)
+        // never a call, also not with an argument after it
+        assertNull(extended("@mtah 3+4"))
+        assertNull(extended("@lewin"))
+        assertNull(extended("@max"))
+        assertNull(extended("@xy")) // two letters: exact only
+        // without the option nothing changes
+        assertNull(CommandSyntax.parse("@mtah", '@', all))
+        assertEquals(listOf("math"), CommandSyntax.closeNames("mtah", all))
+        assertTrue(CommandSyntax.closeNames("ma", all).isEmpty())
+        assertTrue(CommandSyntax.closeNames("math", listOf("math")).isEmpty()) // the name itself is no typo
+    }
+
+    @Test fun aCommandMayClaimUnknownWords() {
+        assertEquals(CommandCall(0, "@sp", '@', "lang", "", claimed = "sp"), extended("@sp"))
+        assertEquals(CommandCall(6, "@sp ", '@', "lang", "", claimed = "sp"), extended("Hallo @sp "))
+        for (typed in listOf("spain", "spanisch", "spnaish", "espanol", "español", "ger", "deutsch", "deustch", "germany",
+                "eng", "english", "englisch", "inglés", "usa", "Österreich"))
+            assertEquals("lang", (extended("@$typed") as CommandCall).name, typed)
+        assertEquals("español", (extended("@Español") as CommandCall).claimed)
+        assertEquals("hola", (extended("@sp hola") as CommandCall).argument)
+        // the command's own name stays a normal call
+        assertEquals(CommandCall(0, "@lang", '@', "lang", ""), extended("@lang"))
+        // mail addresses, mentions and other punctuation never count
+        assertNull(extended("a@spain"))
+        assertNull(extended("@lewin"))
+        assertNull(extended("@sp."))
+        assertNull(extended("@max hallo"))
+        // a claim may only name an enabled command
+        assertNull(CommandSyntax.parse("@sp", '@', listOf("math"), fuzzyNames = true, claim = claim))
+        // without a claim, accented words stay no command
+        assertNull(CommandSyntax.parse("@español", '@', all, fuzzyNames = true))
+    }
+
+    @Test fun commandNamesAlwaysWinOverClaims() {
+        assertEquals(CommandCall(0, "@math", '@', "math", ""), extended("@math"))
+        assertEquals(CommandNames(0, "@u", '@', "u", listOf("url")), extended("@u"))
+        assertEquals(CommandCall(0, "@ki", '@', "ki", ""), extended("@ki"))
+        // a claim that would take a typo of a command name loses to the name
+        val greedy: (String) -> String? = { "lang" }
+        assertEquals(listOf("math"), (CommandSyntax.parse("@mathe", '@', all, fuzzyNames = true, claim = greedy) as CommandNames).candidates)
+        assertNull(CommandSyntax.parse("@mathe 2", '@', all, fuzzyNames = true, claim = greedy))
+        assertEquals("lang", (CommandSyntax.parse("@kino", '@', all, fuzzyNames = true, claim = greedy) as CommandCall).name)
+    }
+
+    @Test fun claimedWordsAreCommandWords() {
+        assertTrue(CommandSyntax.isCommandWord("@sp", '@', all, claim))
+        assertTrue(CommandSyntax.isCommandWord("@Español", '@', all, claim))
+        assertFalse(CommandSyntax.isCommandWord("@sp", '@', all))
+        assertFalse(CommandSyntax.isCommandWord("@lewin", '@', all, claim))
+        assertFalse(CommandSyntax.isCommandWord("@sp", '@', listOf("math"), claim))
+    }
 }
