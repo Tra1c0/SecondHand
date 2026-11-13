@@ -12,6 +12,7 @@ import android.os.Message
 import android.text.InputType
 import android.view.inputmethod.*
 import androidx.core.content.edit
+import helium314.keyboard.ShadowBinaryDictionaryUtils
 import helium314.keyboard.ShadowInputMethodManager2
 import helium314.keyboard.ShadowInputMethodService
 import helium314.keyboard.ShadowInputMethodService.Companion.composingEnd
@@ -63,6 +64,7 @@ import kotlin.test.assertNotNull
     ShadowKeyboardSwitcher::class,
     ShadowHandler::class,
     ShadowFacilitator2::class,
+    ShadowBinaryDictionaryUtils::class, // no native dictionary library (bundled emoji dictionary)
 ])
 class InputLogicTest {
     private val latinIME = Robolectric.setupService(LatinIME::class.java)

@@ -1499,6 +1499,13 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   `anExtractedEmojiDictionaryIsReusedNotRewritten`). Ebenfalls behoben (niedrig): Emoji-Dateien
   erzeugten zusätzliche Sprachen in der Wörterbuchliste (`bundledEmojiDictionariesAddNoLanguages`).
   Anleitung korrigiert: Die Emoji-Schalter sind standardmäßig an. `BundledEmojiDictTest` 5/5 grün.
+- Nachtrag: Mit dem mitgelieferten Emoji-Wörterbuch las `LatinIME.onCreate` (Inline-Emoji-Suche)
+  in Robolectric einen Wörterbuch-Kopf über die native Bibliothek, die es dort nicht gibt;
+  `InputLogicTest` brach komplett ab (`UnsatisfiedLinkError`). Behoben im Test:
+  `ShadowBinaryDictionaryUtils.getHeaderWithOffsetAndLength` meldet „Format nicht lesbar“, und
+  `InputLogicTest` nutzt diesen Shadow. Danach 146 Tests, nur der geerbte Fehler
+  `insertLetterIntoWordHangulFails`. In der App gibt es die native Bibliothek; geändert hat sich
+  dort nichts.
 
 ## 23g Screenshot zuerst
 

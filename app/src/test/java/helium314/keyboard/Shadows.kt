@@ -52,6 +52,15 @@ class ShadowInputMethodManager2 : ShadowInputMethodManager() {
 
 @Implements(BinaryDictionaryUtils::class)
 object ShadowBinaryDictionaryUtils {
+    /**
+     * Unit tests have no native dictionary library; reading a header (e.g. of the bundled emoji
+     * dictionary) behaves like an unreadable file instead of an UnsatisfiedLinkError.
+     */
+    @Implementation
+    @JvmStatic
+    fun getHeaderWithOffsetAndLength(dictFile: java.io.File, offset: Long, length: Long): helium314.keyboard.latin.makedict.DictionaryHeader =
+        throw helium314.keyboard.latin.makedict.UnsupportedFormatException("no native dictionary library in unit tests")
+
     @Implementation
     @JvmStatic
     fun calcNormalizedScore(beforeString: String, afterString: String, score: Int): Float {
