@@ -288,9 +288,70 @@ class SymbolInkTest {
 
     @Test fun tooManyStrokesAreNoSymbol() {
         stroke(*line(20f, 80f, 300f, 80f))
-        repeat(12) { touch(MotionEvent.ACTION_DOWN, 30f + 20 * it, 40f); touch(MotionEvent.ACTION_UP, 30f + 20 * it, 40f) }
+        // short strokes, not taps: since stage 31 a tap that is no dot types its letter
+        repeat(12) { touch(MotionEvent.ACTION_DOWN, 30f + 20 * it, 40f); touch(MotionEvent.ACTION_MOVE, 30f + 20 * it, 70f); touch(MotionEvent.ACTION_UP, 30f + 20 * it, 70f) }
         pause()
         assertTrue(drawings.isEmpty())
         noLetterTyped()
+    }
+
+    // stage 31: a letter tapped in the pause is no longer lost
+
+    private fun tap(x: Float, y: Float) { touch(MotionEvent.ACTION_DOWN, x, y); touch(MotionEvent.ACTION_UP, x, y) }
+
+    @Test fun aTapInThePauseWritesTheSymbolFirstAndThenTypesItsLetter() {
+        stroke(*line(20f, 80f, 300f, 80f))
+        assertTrue(SymbolInk.isWaiting)
+        clearInvocations(listener) // the stroke's own key press
+        tap(40f, 30f) // far from where ÷ has its dots
+        assertEquals(listOf("symbol", "code ${'a'.code}"), log)
+        verify(listener, times(1)).onPressKey(eq('a'.code), anyInt(), anyInt(), any()) // pressed like a tap (feedback)
+        verify(listener, times(1)).onReleaseKey(eq('a'.code), eq(false))
+        assertEquals("–", recognizer.recognize(drawings.single()).best?.text) // the tap is not part of it
+        assertFalse(SymbolInk.isWaiting)
+        // the next tap is an ordinary tap, and nothing else comes after the pause
+        tap(60f, 30f)
+        verify(listener, times(2)).onCodeInput(eq('a'.code), anyInt(), anyInt(), eq(false))
+        pause()
+        assertEquals(1, drawings.size)
+    }
+
+    @Test fun aTapAfterAFinishedArrowTypesItsLetter() {
+        stroke(*line(20f, 80f, 300f, 80f))
+        stroke(260f, 40f, 280f, 60f, 300f, 80f, 280f, 100f, 260f, 120f)
+        tap(160f, 130f)
+        assertEquals(listOf("symbol", "code ${'a'.code}"), log)
+        assertEquals("→", recognizer.recognize(drawings.single()).best?.text)
+    }
+
+    @Test fun dotsCountOnlyForSymbolsWithDots() {
+        // the same tap as the first dot of ÷, but without any symbol that has dots: a letter
+        SymbolInk.dotCheck = SymbolInk.DotCheck { strokes, x, y ->
+            dev.agentkeyboard.core.InkDots(InkSymbols.templates.filter { it.text != "÷" }).isDot(strokes, x, y) }
+        try {
+            stroke(*line(20f, 80f, 300f, 80f))
+            tap(160f, 30f)
+            assertEquals(listOf("symbol", "code ${'a'.code}"), log)
+        } finally {
+            SymbolInk.dotCheck = SymbolInk.builtInDotCheck
+        }
+    }
+
+    @Test fun aDroppedStrokeDrawsNoMoreTrail() {
+        stroke(*line(20f, 80f, 300f, 80f))
+        touch(MotionEvent.ACTION_DOWN, 100f, 40f) // continuation stroke of pointer 0
+        touch(MotionEvent.ACTION_MOVE, 110f, 50f)
+        val first = PointerTracker.getPointerTracker(0)
+        verify(drawing, atLeastOnce()).showGestureTrail(eq(first), anyBoolean())
+        val properties = Array(2) { id -> MotionEvent.PointerProperties().apply { this.id = id; toolType = MotionEvent.TOOL_TYPE_FINGER } }
+        val coords = Array(2) { MotionEvent.PointerCoords().apply { x = 110f + 50 * it; y = 50f; pressure = 1f; size = 1f } }
+        val packet = MotionEvent.obtain(now, now + 5, MotionEvent.ACTION_POINTER_DOWN or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT),
+            2, properties, coords, 0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_TOUCHSCREEN, 0)
+        try { PointerTracker.getPointerTracker(1).processMotionEvent(packet, detector) } finally { packet.recycle() }
+        now += 10
+        assertFalse(SymbolInk.isWaiting)
+        clearInvocations(drawing)
+        touch(MotionEvent.ACTION_MOVE, 140f, 70f); touch(MotionEvent.ACTION_MOVE, 170f, 90f) // the first finger goes on
+        verify(drawing, never()).showGestureTrail(eq(first), anyBoolean())
     }
 }

@@ -129,7 +129,8 @@ object HapticChain {
     /** Replaced in tests: the vibrator the feedback plays on. */
     @JvmStatic var deviceForTest: Device? = null
 
-    private fun deviceFor(context: Context): Device? {
+    /** The phone's vibrator ([deviceForTest] in tests); also read by the diagnose page (stage 30). */
+    internal fun deviceFor(context: Context): Device? {
         deviceForTest?.let { return it }
         @Suppress("DEPRECATION")
         val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator ?: return null

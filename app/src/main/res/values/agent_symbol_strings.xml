@@ -6,7 +6,7 @@
     <string name="agent_symbols_summary">Draw special characters on the letters instead of gesture typing</string>
     <string name="agent_symbols_switch">Draw symbols (instead of gesture typing)</string>
     <string name="agent_symbols_switch_summary">Swiping across the letters draws a symbol; gesture typing is off. Taps, long presses and the space and delete swipes stay as they are.</string>
-    <string name="agent_symbols_how">Draw on the letter keys. Strokes that follow within half a second belong to the same symbol (≠, ÷, €). The symbol is typed after the pause; the strip offers up to three alternatives. Not in password fields.</string>
+    <string name="agent_symbols_how">Draw on the letter keys. Strokes that follow within half a second belong to the same symbol (≠, ÷, €). The symbol is typed after the pause; the strip offers up to three alternatives. A quick tap in that half second types the symbol and then the letter; it only counts as a dot where a symbol needs one (÷). Not in password fields.</string>
     <string name="agent_symbols_local">Recognized locally on the phone. Nothing is sent, drawings are not saved.</string>
     <string name="agent_symbols_not_recognized">Not recognized</string>
     <string name="agent_symbols_alternative">Replace with %1$s</string>
@@ -17,7 +17,9 @@
     <string name="agent_symbols_add">Add symbol</string>
     <string name="agent_symbols_full">At most 30 own symbols.</string>
     <string name="agent_symbols_drawing">Drawing %1$d of %2$d</string>
-    <string name="agent_symbols_draw_hint">Draw the symbol in the box, with as many strokes as you like.</string>
+    <string name="agent_symbols_draw_hint">Draw the symbol in the box, with up to 12 strokes.</string>
+    <string name="agent_symbols_too_many_strokes">At most 12 strokes. Please draw it again.</string>
+    <string name="agent_symbols_too_long">Drawn for too long. Please draw it again.</string>
     <string name="agent_symbols_redraw">Draw again</string>
     <string name="agent_symbols_next">Next</string>
     <string name="agent_symbols_text">Text it types</string>
@@ -25,4 +27,5 @@
     <string name="agent_symbols_save">Save</string>
     <string name="agent_symbols_delete">Delete %1$s</string>
     <string name="agent_symbols_drawing_of">Drawing of %1$s</string>
+    <string name="agent_symbols_gesture_off">Off while “Draw symbols” is on</string>
 </resources>

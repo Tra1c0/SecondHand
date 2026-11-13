@@ -3266,6 +3266,139 @@ class InputLogicTest {
         assertEquals("alt", text)
     }
 
+    private fun afterThePause() {
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(600))
+        handleMessages()
+    }
+
+    @Test fun symbolDrawPredictionPickedInThePauseComesAfterTheSymbol() {
+        // stage 31 (review build 12): a new word from the strip in the pause landed before the symbol
+        enableSymbolDrawing()
+        setText("Hallo ")
+        drawStrokes(*arrowStrokes)
+        assertTrue(helium314.keyboard.agent.SymbolInk.isWaiting)
+        pickSuggestion("ich")
+        assertFalse(helium314.keyboard.agent.SymbolInk.isWaiting) // written right before the word
+        assertTrue(text.startsWith("Hallo →"), text)
+        assertTrue(text.indexOf("→") < text.indexOf("ich"), text)
+        afterThePause()
+        assertEquals(1, text.count { it == '→' }, text)
+        assertTrue(text.indexOf("→") < text.indexOf("ich"), text)
+        checkConnectionConsistency()
+    }
+
+    @Test fun symbolDrawCorrectionOfTheTypedWordPickedInThePauseKeepsTheSymbolAfterIt() {
+        // the word typed before the drawing is corrected; the symbol stays where it was drawn, after it
+        enableSymbolDrawing()
+        chainInput("Preis")
+        drawStrokes(*arrowStrokes)
+        pickSuggestion("Preise")
+        assertTrue(helium314.keyboard.agent.SymbolInk.isWaiting)
+        afterThePause()
+        assertFalse("Preis→" in text, text)
+        assertEquals("Preise", text.substringBefore("→").trim(), text)
+        assertTrue(text.trimEnd().endsWith("→"), text)
+        assertEquals(1, text.count { it == '→' }, text)
+        checkConnectionConsistency()
+    }
+
+    // stage 30: why the language changed, for the diagnose page (SubtypeSwitchLog through LatinIME's hooks)
+
+    private val switchLog = helium314.keyboard.agent.SubtypeSwitchLog
+
+    private fun lastSwitch() = switchLog.entries().first().let { it.reason to it.languageTag }
+
+    @Test fun subtypeSwitchLogTellsTheKeyboardAndTheSystemApart() {
+        val german = SubtypeSettings.getResourceSubtypesForLocale("de".constructLocale()).first()
+        val english = SubtypeSettings.getResourceSubtypesForLocale("en-US".constructLocale()).first()
+        for (subtype in listOf(german, english)) SubtypeSettings.addEnabledSubtype(latinIME.prefs(), subtype)
+        try {
+            latinIME.switchToSubtype(german)
+            switchLog.clear()
+            latinIME.switchToSubtype(english) // language key, language list, space bar slide
+            assertEquals(helium314.keyboard.agent.SubtypeSwitchLog.Reason.KEYBOARD to "en-US", lastSwitch())
+            latinIME.switchToSubtype(english) // no change, no entry
+            assertEquals(1, switchLog.entries().size)
+            latinIME.onCurrentInputMethodSubtypeChanged(german) // called by Android itself
+            assertEquals(helium314.keyboard.agent.SubtypeSwitchLog.Reason.SYSTEM to "de", lastSwitch())
+            latinIME.switchToNextSubtype()
+            assertEquals(helium314.keyboard.agent.SubtypeSwitchLog.Reason.KEYBOARD, lastSwitch().first)
+            assertEquals(3, switchLog.entries().size)
+            // only the reason, the language and the time: nothing about the app or the field
+            assertTrue(switchLog.entries().all { it.languageTag in setOf("de", "en-US") })
+        } finally {
+            SubtypeSettings.removeEnabledSubtype(latinIME, german)
+            switchLog.clear()
+        }
+    }
+
+    @Test fun subtypeSwitchLogTellsACommandAndAChoiceKeptOnRestart() {
+        val german = SubtypeSettings.getResourceSubtypesForLocale("de".constructLocale()).first()
+        val spanish = SubtypeSettings.getResourceSubtypesForLocale("es".constructLocale()).first()
+        for (subtype in listOf(german, spanish)) SubtypeSettings.addEnabledSubtype(latinIME.prefs(), subtype)
+        fun field() = EditorInfo().apply {
+            inputType = currentInputType; packageName = "com.example"; fieldId = 7
+            hintLocales = android.os.LocaleList(Locale.GERMANY)
+        }
+        ShadowInputMethodService.currentPackageName = "com.example"
+        ShadowInputMethodService.currentFieldId = 7
+        try {
+            latinIME.switchToSubtype(german)
+            switchLog.clear()
+            latinIME.switchToSubtypeByCommand(spanish)
+            assertEquals(helium314.keyboard.agent.SubtypeSwitchLog.Reason.COMMAND to "es", lastSwitch())
+            // the app restarts the field twice; its German hint does not switch back (P66), one entry
+            repeat(2) {
+                latinIME.mHandler.onStartInput(field(), true)
+                handleMessages()
+            }
+            assertEquals(spanish, RichInputMethodManager.getInstance().currentSubtype.rawSubtype)
+            assertEquals(helium314.keyboard.agent.SubtypeSwitchLog.Reason.KEPT_BY_CHOICE to "es", lastSwitch())
+            assertEquals(listOf(helium314.keyboard.agent.SubtypeSwitchLog.Reason.KEPT_BY_CHOICE, helium314.keyboard.agent.SubtypeSwitchLog.Reason.COMMAND),
+                switchLog.entries().map { it.reason })
+        } finally {
+            helium314.keyboard.agent.commands.SubtypeChoice.clear()
+            for (subtype in listOf(spanish, german)) SubtypeSettings.removeEnabledSubtype(latinIME, subtype)
+            switchLog.clear()
+        }
+    }
+
+    @Test fun subtypeSwitchLogTellsTheAppHintItsEndAndTheLanguagePerApp() {
+        val german = SubtypeSettings.getResourceSubtypesForLocale("de".constructLocale()).first()
+        val english = SubtypeSettings.getResourceSubtypesForLocale("en-US".constructLocale()).first()
+        val spanish = SubtypeSettings.getResourceSubtypesForLocale("es".constructLocale()).first()
+        for (subtype in listOf(german, english, spanish)) SubtypeSettings.addEnabledSubtype(latinIME.prefs(), subtype)
+        fun field(pkg: String, id: Int, hint: Locale?) = EditorInfo().apply {
+            inputType = currentInputType; packageName = pkg; fieldId = id
+            if (hint != null) hintLocales = android.os.LocaleList(hint)
+        }
+        try {
+            latinIME.prefs().edit { putBoolean(Settings.PREF_SAVE_SUBTYPE_PER_APP, false) }
+            latinIME.switchToSubtype(english)
+            switchLog.clear()
+            latinIME.mHandler.onStartInput(field("com.example", 1, Locale.GERMANY), false)
+            handleMessages()
+            assertEquals(helium314.keyboard.agent.SubtypeSwitchLog.Reason.APP_HINT to "de", lastSwitch())
+            latinIME.mHandler.onStartInput(field("com.example", 2, null), false)
+            handleMessages()
+            assertEquals(helium314.keyboard.agent.SubtypeSwitchLog.Reason.HINT_ENDED to "en-US", lastSwitch())
+            // language per app: Spanish was last used in com.spanish, English elsewhere
+            latinIME.prefs().edit { putBoolean(Settings.PREF_SAVE_SUBTYPE_PER_APP, true) }
+            ShadowInputMethodService.currentPackageName = "com.spanish"
+            latinIME.switchToSubtype(spanish)
+            ShadowInputMethodService.currentPackageName = "com.other"
+            latinIME.switchToSubtype(english)
+            latinIME.mHandler.onStartInput(field("com.spanish", 3, null), false)
+            handleMessages()
+            assertEquals(spanish, RichInputMethodManager.getInstance().currentSubtype.rawSubtype)
+            assertEquals(helium314.keyboard.agent.SubtypeSwitchLog.Reason.PER_APP to "es", lastSwitch())
+        } finally {
+            latinIME.prefs().edit { putBoolean(Settings.PREF_SAVE_SUBTYPE_PER_APP, false) }
+            for (subtype in listOf(spanish, german)) SubtypeSettings.removeEnabledSubtype(latinIME, subtype)
+            switchLog.clear()
+        }
+    }
+
     private lateinit var screenshotImage: java.io.File
 
     /**

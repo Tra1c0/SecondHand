@@ -392,14 +392,24 @@ langes Drücken für Sonderzeichen und das Wischen auf Leer- und Löschtaste ble
 - Male mit einem Finger auf den Buchstabentasten, zügig wie beim Wischen. Die Spur bleibt kurz
   sichtbar.
 - Ein Symbol aus mehreren Strichen: den nächsten Strich innerhalb einer halben Sekunde ansetzen.
-  Kurze Striche und Tupfer zählen dann mit. Tippst du in dieser halben Sekunde auf einen
-  Buchstaben, zählt der Tipp als Tupfer des Symbols, nicht als Buchstabe. Nach der Pause wird das Symbol geschrieben; tippst du
-  vorher eine andere Taste, kommt das Symbol zuerst.
+  Kurze Striche zählen dann mit. Nach der Pause wird das Symbol geschrieben; tippst du vorher
+  eine andere Taste, kommt das Symbol zuerst.
+- Ein kurzer Tipp auf einen Buchstaben in dieser halben Sekunde schreibt das Symbol und dann den
+  Buchstaben. Als Punkt zählt der Tipp nur, wenn ein Symbol hier einen Punkt braucht: nach einem
+  waagerechten Strich ungefähr über oder unter seiner Mitte (÷), bei eigenen Symbolen mit Punkten
+  dort, wo du den Punkt gemalt hast. Darum wird ein Buchstabe, den du direkt über oder unter die
+  Mitte eines gemalten Strichs tippst, zum Punkt.
+- Tippst du in dieser halben Sekunde einen Wortvorschlag an, kommt das Symbol zuerst und das Wort
+  danach. Ersetzt der Vorschlag das Wort, das du vor dem Malen getippt hast, bleibt das Symbol
+  dahinter.
 - Die Leiste zeigt danach bis zu drei andere Symbole; ein Tipp tauscht das geschriebene aus.
 - „Nicht erkannt“: nichts wurde geschrieben; ein Tipp öffnet die eigenen Symbole (bei gesperrtem
   Telefon nicht, dann verschwindet nur der Chip).
-- Ein zweiter Finger während eines Strichs verwirft die Zeichnung. In Passwortfeldern geht Malen
-  nicht, ebenso wenig ohne Hauptwörterbuch für die Sprache (wie beim Gestenschreiben).
+- Ein zweiter Finger während eines Strichs verwirft die Zeichnung; ihre Spur malt dann nicht
+  weiter. In Passwortfeldern geht Malen nicht, ebenso wenig ohne Hauptwörterbuch für die Sprache
+  (wie beim Gestenschreiben). Ob beides passt, zeigt Einstellungen → Diagnose.
+- Unter Einstellungen → Gestenschreiben ist der Schalter „Gestenschreiben“ ausgegraut, solange
+  Symbole malen an ist („Aus, solange „Symbole malen“ an ist“); dein Wert bleibt gespeichert.
 
 Eingebaute Symbole (Reihenfolge der Striche und Richtung sind egal):
 
@@ -438,7 +448,7 @@ Eingebaute Symbole (Reihenfolge der Striche und Richtung sind egal):
 
 Eigene Symbole: Auf derselben Seite „Symbol hinzufügen“; darunter öffnet sich ein Malfeld. Das
 Symbol dreimal hineinmalen (je „Weiter“, „Neu malen“ wischt das Feld leer, „Abbrechen“ verwirft
-alles), dann den Text eingeben, den es schreiben soll (bis 8 Zeichen, auch Emoji), und
+alles; mehr als 12 Striche oder sehr langes Malen: „Bitte neu malen“, „Weiter“ geht dann nicht), dann den Text eingeben, den es schreiben soll (bis 8 Zeichen, auch Emoji), und
 „Speichern“. Höchstens 30. Löschen über „Löschen“ neben dem Symbol. Alles bleibt auf dem Telefon.
 
 ## Schieberegler
@@ -591,6 +601,14 @@ pausieren (das Gelernte bleibt), die gelernten Wörter je Sprache zählen, als D
 oder löschen. Wer „Personalisierte Vorschläge“ ausschaltet, löscht dabei alles Gelernte.
 
 ## Wenn etwas nicht klappt
+
+Einstellungen → „Diagnose“ (unter „Erweitert“) zeigt, was dein Telefon wirklich macht, ohne Texte,
+Schlüssel oder Kennungen: welche Haptik die Kette bei Rückgängig/Wiederholen spielt (Knopf „Test“),
+ob Symbole malen laufen kann, warum die Sprache zuletzt gewechselt hat (z. B. „Sprach-Hinweis der
+App → en-US“; nur seit dem Start der Tastatur, nichts wird gespeichert), den Stand von Emoji-Mix
+und die Versionen. „gstatic erreichbar?“ lädt nur bei diesem Tipp einmal ein Testbild von Google.
+„Kopieren“ legt genau die angezeigten Werte in die Zwischenablage, zum Weitergeben; ein
+Screenshot geht auch.
 
 Schreib dazu auf, was hilft, den Fehler zu finden:
 
