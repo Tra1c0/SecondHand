@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 24g language commands (own file so parallel work on agent_strings.xml does not collide). -->
+<resources>
+    <string name="agent_command_lang">Sprachen: %1$slang zeigt deine aktiven Tastatursprachen; ein Tipp stellt die Tastatur sofort darauf um und entfernt den Befehl. Du kannst auch %1$s und eine Sprache, ein Land oder ein Kürzel tippen, auch mit Tippfehlern: %1$ssp, %1$sspain, %1$sspanisch, %1$sger, %1$sdeutsch, %1$seng, %1$senglish, %1$susa. Befehlsnamen haben immer Vorrang (%1$surl bleibt der URL-Befehl). Aktiv: %2$s</string>
+    <string name="agent_command_lang_none">keine</string>
+    <string name="agent_command_lang_chip">🌐 %1$s (%2$s)</string>
+    <string name="agent_command_lang_chip_layout">🌐 %1$s (%2$s) · %3$s</string>
+    <string name="agent_command_lang_switch">Tastatursprache auf %s umstellen</string>
+    <string name="agent_command_lang_single">Nur eine Sprache aktiv</string>
+    <string name="agent_command_lang_single_description">Es ist nur eine Tastatursprache aktiv. Öffnet die Spracheinstellungen, um eine hinzuzufügen.</string>
+</resources>

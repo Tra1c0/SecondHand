@@ -272,6 +272,31 @@ stehen unten. Noch auf keinem Gerät ausprobiert.
   direkt nach der Dauer zählt mit (`@timer 5 min 3 Eier` sind 5 Minuten 3 Sekunden); der Chip
   zeigt die erkannte Dauer, bevor du tippst.
 
+### Sprachbefehle
+
+Tippe `@` und eine deiner aktiven Tastatursprachen, ein Land oder ein Kürzel. Die Leiste zeigt
+z. B. „🌐 Español (ES)“; ein Tipp darauf löscht den Befehl und stellt die Tastatur sofort auf
+diese Sprache um.
+
+- Kürzel: `@sp` (Spanisch), `@ger` (Deutsch), `@eng` (Englisch), dazu die Sprachcodes `@es`,
+  `@de`, `@en`.
+- Sprache: `@spanisch`, `@spanish`, `@español`/`@espanol`, `@castellano`; `@deutsch`, `@german`;
+  `@englisch`, `@english`, `@inglés`.
+- Land: `@spain`, `@spanien`, `@españa`, `@mexico`; `@germany`, `@deutschland`, `@österreich`,
+  `@schweiz`; `@usa`, `@uk`, `@england`.
+- Tippfehler gehen auch: `@spnaish`, `@deustch`, `@englsih`. Angefangene Wörter ab zwei Buchstaben
+  ebenfalls (`@spa`, `@deu`).
+- `@lang` zeigt alle aktiven Sprachen als Chips; `@lang spa` nur die passenden.
+- Hat eine Sprache mehrere Layouts, gibt es einen Chip je Layout (z. B. „· QWERTY“).
+- Nur Sprachen, die unter Einstellungen → Sprachen & Layouts aktiv sind. Ist nur eine aktiv,
+  zeigt die Leiste „Nur eine Sprache aktiv“; ein Tipp öffnet die Spracheinstellungen.
+- Befehlsnamen haben Vorrang: `@url`, `@ki` usw. bleiben Befehle. Erwähnungen wie `@lewin` lösen
+  nichts aus. Tippst du danach ein weiteres Wort (`@sp hola`), verschwindet der Chip.
+- Vertippte Befehlsnamen: `@mtah` oder `@tranlate` zeigt den richtigen Namen als Chip; ein Tipp
+  vervollständigt ihn nur.
+- Abschalten unter Einstellungen → Befehle → `@lang`; dort stehen auch die Kürzel deiner aktiven
+  Sprachen.
+
 ## Design auswählen
 
 Einstellungen → Aussehen → „Design“ oder im Tastaturmenü die Pille „Design“: Kachel antippen.

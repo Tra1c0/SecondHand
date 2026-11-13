@@ -25,7 +25,10 @@ Folgende ist die Entscheidung des Leads.
   - 24a ist gebaut (siehe FEATURES.md).
   - 24b ist gebaut (siehe FEATURES.md), einschließlich des Ergebnis-Chips für `@math 12*3,5`.
   - 24c, 24d, 24e und aus 24f `@such`, `@zeichen`, `@emoji`, `@conv`, `@snip`, `@clip`, `@wf`,
-    `@datum`, `@termin`, `@ort`, `@ki`, `@qr`, `@translate`, `@wecker` und `@timer` sind gebaut (siehe FEATURES.md). Offen:
+    `@datum`, `@termin`, `@ort`, `@ki`, `@qr`, `@translate`, `@wecker` und `@timer` sind gebaut (siehe FEATURES.md).
+  - 24g Sprachbefehle (`@lang`, `@sp`, `@ger`, `@eng` mit Tippfehlertoleranz, Auftrag vom
+    2026-11-13) ist gebaut (siehe FEATURES.md). Offen: ein Land wählt nur die Sprache, nicht den
+    passenden Subtyp (`@uk` bietet alle aktiven Englisch-Subtypen an). Offen aus 24c–24f:
     Rückfall Screenshot mit Texterkennung für `@url`, wenn eine App Text als Grafik zeichnet;
     `@clip` erkennt nur den aktuellen Clip als vertraulich (der Upstream-Verlauf speichert die
     Markierung nicht, Änderung braucht eine Entscheidung); `@wf` bietet den gewählten Workflow erst

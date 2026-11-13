@@ -943,6 +943,31 @@ class InputLogicTest {
         assertTrue(composer.isComposingWord)
     }
 
+    @Test fun typedCommandLanguageChipRemovesTheCommandThenSwitches() {
+        val german = SubtypeSettings.getResourceSubtypesForLocale("de".constructLocale()).first()
+        val spanish = SubtypeSettings.getResourceSubtypesForLocale("es".constructLocale()).first()
+        val language = helium314.keyboard.agent.commands.LanguageCommand
+        language.subtypes = { listOf(german, spanish) }
+        try {
+            latinIME.switchToSubtype(german)
+            helium314.keyboard.agent.KeyboardCommands.load(latinIME)
+            chainInput("hola @spnaish")
+            assertEquals("hola @spnaish", text) // the typed word is not corrected
+            val strip = android.widget.FrameLayout(latinIME)
+            val chips = helium314.keyboard.agent.KeyboardCommands.createChipsView(latinIME, strip) as android.view.ViewGroup
+            val row = chips.getChildAt(0) as android.view.ViewGroup
+            assertEquals(1, row.childCount)
+            assertEquals(german, RichInputMethodManager.getInstance().currentSubtype.rawSubtype) // nothing before the tap
+            row.getChildAt(0).performClick()
+            assertEquals("hola ", text) // the command went in one commit, in the field it was typed in
+            assertEquals(spanish, RichInputMethodManager.getInstance().currentSubtype.rawSubtype)
+            checkConnectionConsistency()
+        } finally {
+            language.subtypes = { SubtypeSettings.getEnabledSubtypes(true) }
+            helium314.keyboard.agent.KeyboardCommands.load(latinIME)
+        }
+    }
+
     @Test fun typedCommandIsKeptWhenTheEditorCursorMovedUnseen() {
         setText("x @ma")
         setCursorPosition(5)

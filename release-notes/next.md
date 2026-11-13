@@ -128,3 +128,8 @@
   Hintergrund, Beschriftung) und wo (auch Wortvorschläge und Leistenknöpfe), Effekte beim Tippen
   und „Nur beim Tippen sichtbar“. Beschriftungen bleiben lesbar. Läuft nur bei sichtbarer
   Tastatur, steht im Energiesparmodus still. Noch auf keinem Gerät ausprobiert.
+- Neu: Sprachbefehle. Tippe `@sp`, `@ger`, `@eng` oder eine Sprache bzw. ein Land deiner aktiven
+  Tastatursprachen (`@spanisch`, `@español`, `@deutsch`, `@usa` …), auch mit Tippfehlern
+  (`@spnaish`). Ein Tipp auf den Chip „🌐 Español (ES)“ löscht den Befehl und stellt die
+  Tastatur sofort um. `@lang` listet alle aktiven Sprachen. Vertippte Befehlsnamen (`@mtah`)
+  zeigen jetzt den richtigen Namen zum Vervollständigen. Noch auf keinem Gerät ausprobiert.

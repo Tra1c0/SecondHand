@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 24g language commands (own file so parallel work on agent_strings.xml does not collide). English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <!-- %1$s: the command prefix, %2$s: the enabled languages with their short forms -->
+    <string name="agent_command_lang">Languages: %1$slang shows your enabled keyboard languages; a tap switches the keyboard to it at once and removes the command. You can also type %1$s and a language, a country or a short form, even with typos: %1$ssp, %1$sspain, %1$sspanisch, %1$sger, %1$sdeutsch, %1$seng, %1$senglish, %1$susa. Command names always win (%1$surl stays the URL command). Enabled: %2$s</string>
+    <string name="agent_command_lang_none">none</string>
+    <!-- %1$s: language name, %2$s: country or language code, e.g. "Español (ES)" -->
+    <string name="agent_command_lang_chip">🌐 %1$s (%2$s)</string>
+    <!-- %1$s: language name, %2$s: code, %3$s: keyboard layout -->
+    <string name="agent_command_lang_chip_layout">🌐 %1$s (%2$s) · %3$s</string>
+    <string name="agent_command_lang_switch">Switch the keyboard language to %s</string>
+    <string name="agent_command_lang_single">Only one language enabled</string>
+    <string name="agent_command_lang_single_description">Only one keyboard language is enabled. Opens the language settings to add one.</string>
+</resources>

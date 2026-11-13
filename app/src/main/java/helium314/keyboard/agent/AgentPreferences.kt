@@ -13,7 +13,8 @@ object AgentPreferences {
     const val UPDATES_DESTINATION = "agent_updates"
     val SETTINGS_DESTINATIONS = setOf("appearance", "toolbar", "agent_design", COMMANDS_DESTINATION,
         "preferences", "agent_workflows", // stage 24f: clipboard history setting, workflows
-        UPDATES_DESTINATION)
+        UPDATES_DESTINATION,
+        "languages") // stage 24g: @lang with only one enabled language
     /** Keeps what was learned but adds nothing new. Different from switching learning off, which deletes. */
     const val LEARNING_PAUSED = "agent_learning_paused"
     /** Never replace a known word automatically (default off: known words may still be corrected when clearly wrong). */

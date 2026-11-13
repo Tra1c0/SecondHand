@@ -1585,6 +1585,38 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   Telefon, Aussehen im Holo-Stil (Bild-Tasten werden einfarbig), Wechsel des Energiesparmodus
   während die Tastatur offen und das Licht stehend ist (greift erst beim nächsten Öffnen),
   TalkBack auf der neuen Seite, Querformat.
+## 24g Sprachbefehle
+
+- Gebaut: `LanguageNames`/`LanguageMatcher` (agent-core: Normalisierung, Aliasse aus
+  `java.util.Locale` plus kleine Tabellen, Damerau-Levenshtein mit 0/1/2 erlaubten Fehlern,
+  Präfix ab 2 Zeichen), `CommandSyntax.parse(…, fuzzyNames, claim)` (Tippfehler von Befehlsnamen
+  nur zum Vervollständigen, `claim` zuletzt), `Command.claims`/`Command.load`,
+  `Host.switchSubtype` (→ `LatinIME.switchToSubtype`), `LanguageCommand` (`@lang`). Keine
+  Änderung an `InputLogic`, `RichInputConnection`, `Suggest`, `PointerTracker` oder einer
+  bisher unveränderten Upstream-Datei.
+- Geprüft (JVM): `tools/dev.py core-tests` grün (155 Tests in 22 Klassen), neu `LanguageNamesTest`
+  (9: alle Beispiele des Owners, Präfixe, 18 Vornamen und Befehls-Tippfehler ohne Treffer,
+  allgemeine Wörter, Abstandsregeln, Normalisierung, erzeugte Aliasse, Aliasse nah an
+  Befehlsnamen nur exakt, Rangfolge) und `CommandSyntaxTest` (4 neue Fälle: `@mtah`/`@tranlate`
+  nur als Namensvorschlag, nie mit Argument; `claim` für alle Beispiele inkl. `@español`,
+  `@inglés`, `@Österreich`; `a@spain`, `@lewin`, `@max` nichts; Befehlsnamen und ihre Tippfehler
+  gewinnen gegen jeden `claim`; beanspruchte Wörter sind Befehlswörter). Alte Fälle unverändert
+  (`@mathe` ohne Option weiter `null`).
+- Geprüft (Robolectric): `LanguageCommandTest` (9: eingebaut mit Beschreibung der Kürzel; Chips
+  für alle Beispiele, nichts vor dem Tipp, `@sp ` mit Leerzeichen ja, `@sp hola` nein; Tipp =
+  erst Ersetzen, dann Umschalten, bei abgelehntem Ersetzen kein Umschalten; keine Überdeckung von
+  `@math`, `@url`, `@ki`, `@u`, `@e`; `@`-Liste mit einem Eintrag `lang`; `@mtah` vervollständigt
+  nur; `@lang` listet und filtert; zwei russische Layouts = zwei Chips mit Layout; eine Sprache →
+  grauer Chip, öffnet die Spracheinstellungen; Passwortfeld, Inkognito, abgeschalteter Befehl,
+  kein Lernen). Der Wechsel ist dort über einen Test-Host beobachtet (echtes
+  `switchToSubtype` braucht ein laufendes Eingabefeld, P54); den echten Host prüft
+  `InputLogicTest.typedCommandLanguageChipRemovesTheCommandThenSwitches` (`hola @spnaish` →
+  Chip über `createChipsView`, Tipp → Text „hola “, aktueller Subtyp danach Spanisch, vorher
+  Deutsch). `tools/dev.py agent-tests` grün (517 Tests in 68 Klassen, 0 Fehler).
+  `tools/dev.py lint` erfolgreich (179 Warnungen, 0 neue Fehler), kein Befund in den neuen oder
+  geänderten Dateien.
+- Nicht geprüft: kein Gerät (ob das Umschalten in echten Apps ohne Flackern sofort greift, Chip-
+  Darstellung mit 🌐, Android-ICU-Namen statt JDK-CLDR-Namen der Sprachen und Länder).
 
 ## Gerätetest vor Meilensteinfreigabe
 
