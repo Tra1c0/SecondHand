@@ -52,7 +52,11 @@ class SymbolInkTest {
     private var now = 10_000L
     private val log = mutableListOf<String>()
     private val drawings = mutableListOf<List<InkStroke>>()
-    private val sink = SymbolInk.Sink { drawings += it; log += "symbol" }
+    private val waiting = mutableListOf<Int>()
+    private val sink = object : SymbolInk.Sink {
+        override fun onDrawing(strokes: List<InkStroke>) { drawings += strokes; log += "symbol" }
+        override fun onWaiting(strokes: List<InkStroke>) { waiting += strokes.size }
+    }
     private val recognizer = InkRecognizer(InkSymbols.templates)
 
     private fun key(code: Int) = mock(Key::class.java).also {
@@ -105,6 +109,7 @@ class SymbolInkTest {
         `when`(listener.onSpaceSwipe(any(SpaceGesture::class.java), anyInt())).thenReturn(true)
         PointerTracker.setKeyboardActionListener(listener)
         SymbolInk.cancel()
+        SymbolInk.resetPace()
         SymbolInk.sink = sink
     }
 
@@ -137,7 +142,9 @@ class SymbolInkTest {
         return FloatArray(2 * (steps + 1)) { i -> val t = (i / 2).toFloat() / steps; if (i % 2 == 0) x1 + t * (x2 - x1) else y1 + t * (y2 - y1) }
     }
 
-    private fun pause() = Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(600))
+    // stage 36: the pause is 0.6–1.5 s now (was 0.5 s); waiting the longest one ends any drawing
+    private fun pause() = Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(SymbolInk.MAX_PAUSE_MILLIS + 100))
+    private fun idle(millis: Long) = Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(millis))
     private fun hold() = Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis((Settings.getValues().mKeyLongpressTimeout * 2).toLong()))
     private fun noLetterTyped() = verify(listener, never()).onCodeInput(eq('a'.code), anyInt(), anyInt(), anyBoolean())
 
@@ -414,10 +421,129 @@ class SymbolInkTest {
     @Test fun aTapThatSlidesALittleTypesTheKeyWhereItTouchedDown() {
         stroke(*line(20f, 80f, 300f, 80f))
         clearInvocations(listener)
-        // down on a letter just above delete, up 8 px lower on delete: still a tap (10 dp slop)
-        touch(MotionEvent.ACTION_DOWN, 330f, 145f); touch(MotionEvent.ACTION_MOVE, 330f, 150f); touch(MotionEvent.ACTION_UP, 330f, 153f)
+        // down on a letter just above delete, up 3 px lower on delete: still a tap (stage 36: below 4 dp;
+        // before, 8 px within the 10 dp slop)
+        touch(MotionEvent.ACTION_DOWN, 330f, 148f); touch(MotionEvent.ACTION_MOVE, 330f, 150f); touch(MotionEvent.ACTION_UP, 330f, 151f)
         assertEquals(listOf("symbol", "code ${'a'.code}"), log)
         verify(listener, never()).onPressKey(eq(KeyCode.DELETE), anyInt(), anyInt(), any())
         verify(listener, never()).onCodeInput(eq(KeyCode.DELETE), anyInt(), anyInt(), anyBoolean())
+    }
+
+    // stage 36: grouping of strokes (owner feedback on build 14) and the state machine
+
+    @Test fun aShortStrokeInThePauseIsAStrokeNotATap() {
+        stroke(*line(20f, 80f, 300f, 80f))
+        clearInvocations(listener)
+        stroke(40f, 30f, 43f, 30f, 46f, 30f) // 6 px, far from the dots of ÷: a tap with the old 10 dp, a stroke now
+        assertTrue(SymbolInk.isWaiting)
+        assertTrue(log.isEmpty())
+        pause()
+        assertEquals(2, drawings.single().size)
+        noLetterTyped()
+    }
+
+    @Test fun aVeryFastStrokeWithoutMovesIsAStroke() {
+        stroke(*line(20f, 80f, 300f, 80f))
+        touch(MotionEvent.ACTION_DOWN, 100f, 40f); touch(MotionEvent.ACTION_UP, 130f, 40f) // down and up only
+        assertTrue(SymbolInk.isWaiting)
+        pause()
+        assertEquals(2, drawings.single().size)
+        noLetterTyped()
+    }
+
+    @Test fun aStrokeAfterMoreThanHalfASecondStillBelongsToTheSymbol() {
+        stroke(*line(20f, 80f, 300f, 80f))
+        idle(800) // the old pause was 500 ms: the head started a new symbol
+        assertTrue(SymbolInk.isWaiting)
+        stroke(260f, 40f, 280f, 60f, 300f, 80f, 280f, 100f, 260f, 120f)
+        pause()
+        assertEquals("→", recognizer.recognize(drawings.single()).best?.text)
+        verify(listener, times(1)).onStartBatchInput()
+    }
+
+    @Test fun thePauseFollowsThePaceOfTheStrokes() {
+        assertEquals(900, SymbolInk.pauseMillis)
+        stroke(*line(20f, 80f, 300f, 80f))
+        repeat(3) { i ->
+            idle(100) // quick hands: 100 ms between two strokes
+            stroke(40f + 60 * i, 20f, 70f + 60 * i, 40f)
+        }
+        assertEquals(600, SymbolInk.pauseMillis) // 2.5 × 100 ms, but never below 600 ms
+        idle(650)
+        assertEquals(1, drawings.size) // the drawing ended after the shorter pause
+        assertEquals(4, drawings.single().size)
+    }
+
+    @Test fun lettersTypedInThePauseDoNotSetThePace() {
+        repeat(3) {
+            now += 1_000 // no fast typing before the stroke (HeliBoard would then ask for a longer swipe)
+            stroke(*line(20f, 80f, 300f, 80f))
+            idle(100)
+            tap(40f, 30f) // a letter right after the symbol: no gap between two strokes
+        }
+        assertEquals(3, drawings.size)
+        assertEquals(900, SymbolInk.pauseMillis)
+    }
+
+    @Test fun aTapHeldStillIsALetterNotADot() {
+        stroke(*line(20f, 80f, 300f, 80f))
+        touch(MotionEvent.ACTION_DOWN, 40f, 30f)
+        hold() // no long-press popup in the pause, and no stray dot in the drawing
+        touch(MotionEvent.ACTION_UP, 40f, 30f)
+        assertEquals(listOf("symbol", "code ${'a'.code}"), log)
+        assertEquals(1, drawings.single().size)
+    }
+
+    /** "." for x >= 300 above y = 150 (only in these tests). */
+    private fun periodKey(): Key {
+        val period = key('.'.code)
+        `when`(detector.detectHitKey(anyInt(), anyInt())).thenAnswer {
+            val x = it.getArgument<Int>(0); val y = it.getArgument<Int>(1)
+            if (y < 150) (if (x >= 300) period else letter) else if (x < 200) space else delete
+        }
+        return period
+    }
+
+    @Test fun aStrokeMayStartOnThePeriodKeyAndATapThereTypesIt() {
+        periodKey()
+        stroke(*line(20f, 80f, 280f, 80f))
+        clearInvocations(listener)
+        stroke(*line(320f, 40f, 200f, 120f)) // starts on "." (before: wrote "–" and began a new symbol)
+        assertTrue(SymbolInk.isWaiting)
+        verify(listener, never()).onCodeInput(eq('.'.code), anyInt(), anyInt(), anyBoolean())
+        verify(listener, never()).onStartBatchInput()
+        tap(330f, 30f) // a tap on "." in the pause: the symbol, then the period
+        assertEquals(listOf("symbol", "code ${'.'.code}"), log)
+        assertEquals(2, drawings.single().size)
+    }
+
+    @Test fun theWaitingDrawingIsShownAfterEveryStrokeAndDroppedWhenCancelled() {
+        stroke(*line(20f, 80f, 300f, 80f))
+        stroke(260f, 40f, 280f, 60f, 300f, 80f, 280f, 100f, 260f, 120f)
+        assertEquals(listOf(1, 2), waiting)
+        touch(MotionEvent.ACTION_DOWN, 100f, 40f)
+        touch(MotionEvent.ACTION_CANCEL, 100f, 40f)
+        assertEquals(listOf(1, 2, 0), waiting) // the preview goes with the drawing
+        pause()
+        assertTrue(drawings.isEmpty())
+    }
+
+    @Test fun aCancelThatReachesAnotherTrackerEndsTheInkStroke() {
+        // review of 057a6d5 (N-a): ACTION_CANCEL reaches only one tracker; an ink stroke of another
+        // pointer stayed "drawing", and the next touch made it a key that never got its up (a ghost letter)
+        stroke(*line(20f, 80f, 300f, 80f))
+        val ink = Triple(1, 40f, 30f)
+        fingers(MotionEvent.ACTION_DOWN, 0, ink) // a continuation stroke of pointer 1, a tap so far
+        assertEquals(1, SymbolInk.drawingPointer)
+        fingers(MotionEvent.ACTION_CANCEL, 0, Triple(0, 60f, 60f), ink) // the cancel goes to pointer 0's tracker
+        assertFalse(SymbolInk.isDrawing())
+        assertFalse(SymbolInk.isWaiting)
+        clearInvocations(listener)
+        tap(60f, 30f)
+        pause()
+        tap(80f, 30f)
+        verify(listener, times(2)).onPressKey(eq('a'.code), anyInt(), anyInt(), any())
+        verify(listener, times(2)).onCodeInput(eq('a'.code), anyInt(), anyInt(), anyBoolean())
+        assertTrue(drawings.isEmpty())
     }
 }

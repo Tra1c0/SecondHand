@@ -6,8 +6,8 @@
     <string name="agent_symbols_summary">Draw special characters on the letters instead of gesture typing</string>
     <string name="agent_symbols_switch">Draw symbols (instead of gesture typing)</string>
     <string name="agent_symbols_switch_summary">Swiping across the letters draws a symbol; gesture typing is off. Taps, long presses and the space and delete swipes stay as they are.</string>
-    <string name="agent_symbols_how">Draw on the letter keys. Strokes that follow within half a second belong to the same symbol (≠, ÷, €). The symbol is typed after the pause; the strip offers up to three alternatives. A quick tap in that half second types the symbol and then the letter; it only counts as a dot where a symbol needs one (÷). Not in password fields.</string>
-    <string name="agent_symbols_local">Recognized locally on the phone. Nothing is sent, drawings are not saved.</string>
+    <string name="agent_symbols_how">Draw on the letter keys. Strokes that follow within a short pause belong to the same symbol (≠, ÷, €); the pause starts at 0.9 seconds and adapts to your pace (0.6 to 1.5 seconds). While you draw, the strip shows the symbol that would be written now; a tap on it writes it at once. After the pause the symbol is typed and the strip offers up to three alternatives. A tap that hardly moves types the symbol and then the letter; it only counts as a dot where a symbol needs one (÷). Further strokes may also start on punctuation keys. Not in password fields.</string>
+    <string name="agent_symbols_local">Recognized locally on the phone. Nothing is sent. Drawings are only saved as personal templates, when you calibrate or turn on learning below.</string>
     <string name="agent_symbols_not_recognized">Not recognized</string>
     <string name="agent_symbols_alternative">Replace with %1$s</string>
     <string name="agent_symbols_builtin">Built-in symbols</string>
@@ -28,4 +28,20 @@
     <string name="agent_symbols_delete">Delete %1$s</string>
     <string name="agent_symbols_drawing_of">Drawing of %1$s</string>
     <string name="agent_symbols_gesture_off">Off while “Draw symbols” is on</string>
+    <!-- stage 36 -->
+    <string name="agent_symbols_preview">Write %1$s now</string>
+    <string name="agent_symbols_preview_unknown">Not recognized yet; end the drawing now</string>
+    <string name="agent_symbols_preview_instead">Write %1$s instead</string>
+    <string name="agent_symbols_learning">Learn from my corrections</string>
+    <string name="agent_symbols_learning_summary">When you pick another symbol from the strip, the drawing is kept as a personal template of that symbol (up to 5 per symbol, the newest win). Locally only; not in incognito mode, while learning is paused or the device is locked.</string>
+    <string name="agent_symbols_personal">Personal templates</string>
+    <string name="agent_symbols_personal_description">Your own handwriting of known symbols, from the calibration and from your corrections. They are recognized together with the built-in ones.</string>
+    <string name="agent_symbols_personal_empty">No personal templates yet.</string>
+    <string name="agent_symbols_personal_count">%1$d drawings</string>
+    <string name="agent_symbols_personal_delete_all">Delete all personal templates</string>
+    <string name="agent_symbols_calibrate">Calibrate</string>
+    <string name="agent_symbols_calibrate_description">Draw each built-in symbol twice in your own handwriting. You can skip a symbol or stop at any time; what you drew so far is kept.</string>
+    <string name="agent_symbols_calibrate_step">Draw %1$s (%2$d of %3$d), symbol %4$d of %5$d</string>
+    <string name="agent_symbols_calibrate_skip">Skip</string>
+    <string name="agent_symbols_calibrate_done">Done</string>
 </resources>

@@ -231,7 +231,7 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
 - Getippte Befehle, Rechnungen und Ergebnisse werden nicht gespeichert und nicht protokolliert.
   Der Rechner hält seine Eingabe nur im Speicher und leert sie beim Schließen.
 
-## Symbole malen (27)
+## Symbole malen (27, 36)
 
 - Schalter `agent_symbol_drawing` in den Tastatureinstellungen (Standard aus).
 - Eigene Symbole: SharedPreferences-Datei `agent_symbols` im gerätegeschützten Speicher (DE, wie
@@ -242,8 +242,19 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   3 Zeichnungen, Text 1–8 Codepoints ohne Steuerzeichen, Lesegrenze 512 KiB; kaputte Zeilen
   werden übersprungen. Keine rohen Berührungspunkte. Nicht in HeliBoards Sicherung, kein Backup,
   kein Export.
+- Persönliche Vorlagen (36): dieselbe Datei `agent_symbols`, Schlüssel `personal`, dasselbe Format
+  `v1` (`PersonalInkSymbols`), aber höchstens 5 Zeichnungen je Symbol (die neuesten bleiben) und
+  80 Symbole (das am längsten nicht geänderte fällt zuerst weg). Geschrieben nur (a) beim
+  Kalibrieren auf der Einstellungsseite und (b) bei der Wahl einer Alternative in der Leiste, dann
+  nur mit Schalter `agent_symbol_learning` (Tastatureinstellungen, Standard aus), ohne Lernpause
+  (`agent_learning_paused`), ohne Inkognito, bei entsperrtem Gerät und nie aus einem Passwortfeld.
+  Löschen: einzeln oder alle auf der Seite „Symbole malen“. Keine rohen Berührungspunkte, nicht in
+  HeliBoards Sicherung, kein Backup, kein Export.
+- Die Pause zwischen zwei Strichen passt sich dem Tempo an (36): die letzten neun Lücken liegen nur
+  im Speicher und gehen beim Beenden der Tastatur verloren.
 - Gemalte Zeichnungen und Ergebnisse liegen nur im Speicher bis zur Erkennung bzw. bis zur
-  nächsten Eingabe; nichts wird gespeichert, gelernt oder protokolliert.
+  nächsten Eingabe; die Wolke des zuletzt geschriebenen Symbols bleibt dort, solange seine Chips
+  gelten (für das Lernen). Nichts davon wird protokolliert.
 
 ## Daten der Befehle 24c–24f
 

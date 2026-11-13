@@ -34,12 +34,13 @@ object OwnInkSymbols {
         else -> null
     }
 
-    fun encode(symbols: List<Symbol>): String = buildString {
+    /** Stage 36: the personal templates use the same format with other limits ([PersonalInkSymbols]). */
+    fun encode(symbols: List<Symbol>, maxSymbols: Int = MAX_SYMBOLS, maxSamples: Int = SAMPLES): String = buildString {
         append(VERSION)
-        for (symbol in symbols.take(MAX_SYMBOLS)) {
+        for (symbol in symbols.take(maxSymbols)) {
             if (textProblem(symbol.text) != null || symbol.samples.isEmpty()) continue
             append('\n').append(escape(symbol.text))
-            for (cloud in symbol.samples.take(SAMPLES)) {
+            for (cloud in symbol.samples.take(maxSamples)) {
                 append('\t')
                 for (i in 0 until InkCloud.SIZE) {
                     if (i > 0) append(';')
@@ -50,17 +51,18 @@ object OwnInkSymbols {
         }
     }
 
-    fun parse(encoded: String?): List<Symbol> {
+    fun parse(encoded: String?, maxSymbols: Int = MAX_SYMBOLS, maxSamples: Int = SAMPLES): List<Symbol> {
         if (encoded == null || encoded.length > MAX_ENCODED_LENGTH) return emptyList()
         val lines = encoded.split('\n')
         if (lines.firstOrNull() != VERSION) return emptyList()
         val out = ArrayList<Symbol>()
         for (line in lines.drop(1)) {
-            if (out.size >= MAX_SYMBOLS) break
+            if (out.size >= maxSymbols) break
             val parts = line.split('\t')
             val text = unescape(parts[0]) ?: continue
             if (textProblem(text) != null) continue
-            val clouds = parts.drop(1).take(SAMPLES).mapNotNull(::parseCloud)
+            if (parts.size - 1 > maxSamples) continue // not written by this code
+            val clouds = parts.drop(1).mapNotNull(::parseCloud)
             if (clouds.isEmpty() || clouds.size != parts.size - 1) continue // a broken drawing spoils the symbol
             out += Symbol(text, clouds)
         }

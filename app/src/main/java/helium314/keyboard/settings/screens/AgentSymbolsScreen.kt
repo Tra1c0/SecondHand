@@ -29,6 +29,7 @@ import dev.agentkeyboard.core.InkGroup
 import dev.agentkeyboard.core.InkStroke
 import dev.agentkeyboard.core.InkSymbols
 import dev.agentkeyboard.core.OwnInkSymbols
+import dev.agentkeyboard.core.PersonalInkSymbols
 import helium314.keyboard.agent.AgentPreferences
 import helium314.keyboard.agent.SymbolDrawing
 import helium314.keyboard.latin.R
@@ -55,13 +56,16 @@ fun createAgentSymbolSettings(context: Context) = listOf(
 
 /**
  * Stage 27 "Symbole malen": the switch, the built-in symbols as small drawings, and the own symbols
- * (draw [OwnInkSymbols.SAMPLES] times, choose the text). Nothing here leaves the phone.
+ * (draw [OwnInkSymbols.SAMPLES] times, choose the text). Stage 36: the personal templates (learning
+ * switch, list with delete, calibration). Nothing here leaves the phone.
  */
 @Composable
 fun AgentSymbolsScreen(onClickBack: () -> Unit) {
     val context = LocalContext.current
     var own by remember { mutableStateOf(SymbolDrawing.ownSymbols(context)) }
     var adding by remember { mutableStateOf(false) }
+    var personal by remember { mutableStateOf(SymbolDrawing.personalSymbols(context)) }
+    var calibrating by remember { mutableStateOf(false) }
     SearchSettingsScreen(onClickBack, stringResource(R.string.agent_symbols_title), emptyList()) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
             SwitchPreference(name = stringResource(R.string.agent_symbols_switch), key = AgentPreferences.SYMBOL_DRAWING,
@@ -91,6 +95,42 @@ fun AgentSymbolsScreen(onClickBack: () -> Unit) {
                 else if (own.size >= OwnInkSymbols.MAX_SYMBOLS) Text(stringResource(R.string.agent_symbols_full))
                 else Button(onClick = { adding = true }, modifier = Modifier.testTag("agent_symbol_add")) {
                     Text(stringResource(R.string.agent_symbols_add))
+                }
+                // stage 36: personal templates
+                Text(stringResource(R.string.agent_symbols_personal), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.agent_symbols_personal_description))
+            }
+            SwitchPreference(name = stringResource(R.string.agent_symbols_learning), key = AgentPreferences.SYMBOL_LEARNING,
+                default = false, description = stringResource(R.string.agent_symbols_learning_summary))
+            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (personal.isEmpty()) Text(stringResource(R.string.agent_symbols_personal_empty), style = MaterialTheme.typography.bodySmall)
+                personal.forEach { symbol ->
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.testTag("agent_symbol_personal_${symbol.text}")) {
+                        CloudPreview(symbol.samples.last(), Modifier.size(40.dp))
+                        Text(symbol.text, Modifier.padding(start = 12.dp), style = MaterialTheme.typography.titleLarge)
+                        Text(stringResource(R.string.agent_symbols_personal_count, symbol.samples.size),
+                            Modifier.weight(1f).padding(start = 12.dp), style = MaterialTheme.typography.bodySmall)
+                        val delete = stringResource(R.string.agent_symbols_delete, symbol.text)
+                        TextButton(onClick = {
+                            personal = PersonalInkSymbols.remove(personal, symbol.text)
+                            SymbolDrawing.savePersonalSymbols(context, personal)
+                        }, modifier = Modifier.semantics { contentDescription = delete }) { Text(stringResource(R.string.delete)) }
+                    }
+                }
+                if (personal.isNotEmpty()) TextButton(onClick = {
+                    personal = emptyList()
+                    SymbolDrawing.savePersonalSymbols(context, personal)
+                }, modifier = Modifier.testTag("agent_symbol_personal_clear")) { Text(stringResource(R.string.agent_symbols_personal_delete_all)) }
+                if (calibrating) CalibrationCard(onDone = { calibrating = false }) { text, cloud ->
+                    // saved at once: stopping half way keeps what was drawn
+                    personal = PersonalInkSymbols.add(SymbolDrawing.personalSymbols(context), text, cloud)
+                    SymbolDrawing.savePersonalSymbols(context, personal)
+                }
+                else {
+                    Text(stringResource(R.string.agent_symbols_calibrate_description), style = MaterialTheme.typography.bodySmall)
+                    Button(onClick = { calibrating = true }, modifier = Modifier.testTag("agent_symbol_calibrate")) {
+                        Text(stringResource(R.string.agent_symbols_calibrate))
+                    }
                 }
                 Text(stringResource(R.string.agent_symbols_builtin), style = MaterialTheme.typography.titleMedium)
                 InkSymbols.all.chunked(5).forEach { row ->
@@ -163,6 +203,53 @@ private fun AddSymbolCard(onDismiss: () -> Unit, onSave: (OwnInkSymbols.Symbol) 
         }
     }
 }
+
+/**
+ * Stage 36: draw every built-in symbol [CALIBRATION_SAMPLES] times; each drawing goes to [onSample]
+ * at once (a personal template). "Überspringen" goes to the next symbol, "Fertig" stops.
+ */
+@Composable
+private fun CalibrationCard(onDone: () -> Unit, onSample: (String, InkCloud) -> Unit) {
+    var index by remember { mutableStateOf(0) }
+    var sample by remember { mutableStateOf(1) }
+    var strokes by remember { mutableStateOf(listOf<List<Offset>>()) }
+    val symbol = InkSymbols.all[index]
+    val tooManyStrokes = strokes.size > InkCloud.MAX_STROKES
+    val tooLong = strokes.sumOf { it.size } > MAX_PAD_POINTS
+    fun nextSymbol() {
+        strokes = emptyList()
+        sample = 1
+        if (index + 1 >= InkSymbols.all.size) onDone() else index++
+    }
+    Card(Modifier.fillMaxWidth().testTag("agent_symbol_calibration")) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(R.string.agent_symbols_calibrate), style = MaterialTheme.typography.titleMedium)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                StrokesPreview(symbol.variants.first(), Modifier.size(36.dp))
+                Text(stringResource(R.string.agent_symbols_calibrate_step, symbol.text, sample, CALIBRATION_SAMPLES,
+                    index + 1, InkSymbols.all.size), Modifier.padding(start = 12.dp).testTag("agent_symbol_calibration_step"))
+            }
+            DrawingPad(strokes, { strokes = it }, Modifier.fillMaxWidth().aspectRatio(1f))
+            if (tooManyStrokes || tooLong) Text(stringResource(if (tooManyStrokes) R.string.agent_symbols_too_many_strokes
+                else R.string.agent_symbols_too_long), color = MaterialTheme.colorScheme.error)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = onDone) { Text(stringResource(R.string.agent_symbols_calibrate_done)) }
+                TextButton(onClick = { nextSymbol() }) { Text(stringResource(R.string.agent_symbols_calibrate_skip)) }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                if (strokes.isNotEmpty()) TextButton(onClick = { strokes = emptyList() }) { Text(stringResource(R.string.agent_symbols_redraw)) }
+                TextButton(enabled = strokes.isNotEmpty() && !tooManyStrokes && !tooLong, onClick = {
+                    InkCloud.of(strokes.map { stroke -> InkStroke(FloatArray(2 * stroke.size) { i -> if (i % 2 == 0) stroke[i / 2].x else stroke[i / 2].y }) })
+                        ?.let { onSample(symbol.text, it) }
+                    if (sample < CALIBRATION_SAMPLES) { sample++; strokes = emptyList() } else nextSymbol()
+                }) { Text(stringResource(R.string.agent_symbols_next)) }
+            }
+        }
+    }
+}
+
+/** Stage 36: how often the calibration asks for each built-in symbol. */
+const val CALIBRATION_SAMPLES = 2
 
 /** Points of all strokes of one drawing in [DrawingPad]; like [InkGroup.MAX_POINTS] on the keyboard. */
 private const val MAX_PAD_POINTS = InkGroup.MAX_POINTS

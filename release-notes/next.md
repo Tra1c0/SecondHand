@@ -111,3 +111,14 @@
 - Neu auf der Diagnose-Seite: was die RGB-Beleuchtung je Bild kostet (die letzten 5 Sekunden mit
   Licht). Tastatur mit RGB öffnen, kurz tippen, dann Einstellungen → Diagnose → „Kopieren“ und mir
   schicken.
+- Behoben: Symbole malen erkennt deutlich mehr (Rückmeldung zu Build 14). Ein kurzer Strich zählt
+  jetzt zum Symbol, statt es zu beenden und einen Buchstaben zu tippen; nur ein Tipp, bei dem sich
+  der Finger kaum bewegt, ist ein Buchstabe. Die Pause zwischen zwei Strichen ist länger (anfangs
+  0,9 Sekunden) und passt sich deinem Tempo an. Ein Strich darf auch auf Punkt, Komma oder einer
+  Ziffer beginnen. Während du malst, zeigt die Leiste, was geschrieben würde („✎ →“); ein Tipp
+  darauf schreibt es sofort. Die Erkennung achtet jetzt auf die Richtung und Zahl der Striche,
+  damit Spitze und Schrägstrich (⇒ und ≠) auseinandergehalten werden. Neu: „Aus meinen Korrekturen lernen“ (anfangs aus) merkt sich deine Zeichnung,
+  wenn du in der Leiste ein anderes Symbol wählst, und „Kalibrieren“ fragt jedes Symbol zweimal ab;
+  beides unter Einstellungen → „Symbole malen“, nur auf dem Telefon, jederzeit löschbar. Im
+  Test mit künstlichen Fingerzeichnungen 96 % statt 86 % richtig; noch auf keinem Gerät
+  ausprobiert.
