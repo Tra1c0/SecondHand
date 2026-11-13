@@ -1493,6 +1493,7 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   Emoji-Einstellung kein Emoji-Wörterbuch, mit ihr `emoji_de.dict`).
 - Nicht geprüft: echte Emoji-Vorschläge mit der nativen Wörterbuch-Bibliothek (gibt es in
   Robolectric nicht) und der Dialog am Gerät.
+
 ## 23g Screenshot zuerst
 
 - Gebaut: Ein neuer Screenshot meldet sich über den Observer entprellt (500 ms) auf dem
