@@ -70,6 +70,8 @@ fun <T: Number> SliderPreference(
             intermediateSteps = stepSize?.let {
                 // this is not nice, but slider wants it like this...
                 ((range.endInclusive - range.start) / it - 1).toInt()
-            }
+            },
+            defaultValue = default.toFloat(),
+            integerValues = default is Int,
         )
 }

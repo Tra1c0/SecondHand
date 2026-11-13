@@ -4,7 +4,6 @@ package helium314.keyboard.settings.dialogs
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -18,6 +17,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.utils.Theme
 import helium314.keyboard.latin.utils.previewDark
+import helium314.keyboard.settings.screens.AgentSlider
 
 @Composable
 fun SliderDialog(
@@ -32,6 +32,9 @@ fun SliderDialog(
     title: (@Composable () -> Unit)? = null,
     intermediateSteps: Int? = null,
     positionString: (@Composable (Float) -> String) = { it.toString() },
+    // fork (stage 28): detent at the default value, ticks and round values on whole numbers
+    defaultValue: Float? = null,
+    integerValues: Boolean = false,
 ) {
     var sliderPosition by remember { mutableFloatStateOf(initialValue) }
 
@@ -47,21 +50,15 @@ fun SliderDialog(
                 LocalTextStyle provides MaterialTheme.typography.bodyLarge
             ) {
                 Column {
-                    if (intermediateSteps == null)
-                        Slider(
-                            value = sliderPosition,
-                            onValueChange = { sliderPosition = it },
-                            onValueChangeFinished = { onValueChanged(sliderPosition) },
-                            valueRange = range,
-                        )
-                    else
-                        Slider(
-                            value = sliderPosition,
-                            onValueChange = { sliderPosition = it },
-                            onValueChangeFinished = { onValueChanged(sliderPosition) },
-                            valueRange = range,
-                            steps = intermediateSteps
-                        )
+                    AgentSlider(
+                        value = sliderPosition,
+                        onValueChange = { sliderPosition = it },
+                        onValueChangeFinished = { onValueChanged(sliderPosition) },
+                        valueRange = range,
+                        steps = intermediateSteps ?: 0,
+                        defaultValue = defaultValue,
+                        integer = integerValues,
+                    )
                     Text(positionString(sliderPosition))
                 }
             }

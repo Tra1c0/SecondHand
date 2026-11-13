@@ -36,3 +36,15 @@
   App das Bild wirklich angenommen hat; sonst bleiben sie stehen und ein Hinweis erscheint.
   Setzt eine App das Bild selbst an die Schreibmarke, heißt der Hinweis jetzt „Bild eingefügt …“
   statt „Text geändert“. Noch auf keinem Gerät ausprobiert.
+
+## Nächster Build
+
+- Neu: Alle Schieberegler der Einstellungen ticken beim Ziehen leicht und rasten am Standardwert,
+  an den Enden und an runden Werten (z. B. 100 %, Zehner bei Prozent und Millisekunden) mit einem
+  etwas stärkeren Impuls ein. Werte direkt neben einer Rast: etwas darüber hinaus und langsam
+  zurück ziehen. Gespürt nur mit „Vibration bei Tastendruck“. Die RGB-Seite folgt später. Noch auf
+  keinem Gerät ausprobiert.
+- Neu: Emoji-Mixer mit „Zuletzt gemischt“: Solange kein Paar gewählt ist, zeigt der Mixer die
+  letzten bis zu 12 Sticker, die noch auf dem Telefon liegen; ein Tipp fügt sie ohne Internet
+  ein. Im Inkognito-Modus wird nichts gemerkt; „Gespeicherte Mischungen löschen“ leert auch diese
+  Reihe. Noch auf keinem Gerät ausprobiert.

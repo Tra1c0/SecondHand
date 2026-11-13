@@ -266,3 +266,11 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   dieselbe Wurzel wie `@qr` und die Screenshot-Kopien hat; bei gesperrtem Gerät ist Emoji-Mix aus.
 - Im Speicher: Zustand der zuletzt angefragten 12 Paare samt kleinem Vorschaubild (höchstens 320
   px), nicht auf der Platte. Einstellung `agent_emoji_mix_strip` (Tastatur-Einstellungen, Standard an).
+- „Zuletzt gemischt“ (32): Einstellung `agent_emoji_mix_recent` (Tastatur-Einstellungen, DE, wie
+  HeliBoards zuletzt benutzte Emojis): bis zu 12 Paarschlüssel (`<links>_<rechts>` als Codepunkte,
+  kein getippter Text), durch Kommas getrennt, neueste zuerst. Nicht geschrieben im Inkognito-Modus
+  (auch Passwort- und No-Learning-Felder) oder bei gesperrtem Gerät. Beim Lesen werden ungültige
+  Einträge übergangen. Gelöscht mit „Gespeicherte Mischungen löschen“; ein Paar, dessen Bild der
+  Cache gelöscht hat, bleibt in der Liste, wird aber nicht gezeigt, bis es aus der Liste fällt.
+  Kleine Bilder der Reihe (höchstens 160 px, höchstens 12) nur im Speicher. Mit HeliBoards
+  Einstellungs-Sicherung wird die Liste wie alle Tastatur-Einstellungen mitgesichert.

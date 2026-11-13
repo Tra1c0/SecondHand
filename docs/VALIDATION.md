@@ -2060,6 +2060,52 @@ Befunde eines lesenden Reviews der Befehle, behoben:
 - Offen (niedrig, unverändert): 7 Höhe der Mixer-Leiste im Layout; 8 eine Anfrage je Tipp (kein
   Bündeln); 9 englischer Ersatztext; 10 globaler Listener je Besitzer („chips“, „palette“).
 
+## Etappen 28 und 32
+
+Etappe 28 (Haptik und Rastpunkte für alle Schieberegler) und 32 (Emoji-Mix: zuletzt gemischt),
+gebaut in einer eigenen Arbeitskopie, ohne Prüfer (steht noch aus). Keine Änderung an
+`InputLogic`, `RichInputConnection`, `PointerTracker`, `KeyboardActionListenerImpl` oder
+`HapticChain`. Neu geänderte Upstream-Dateien: `SliderDialog.kt`, `SliderPreference.kt`,
+`KeyboardScalePreference.kt`, `ColorPickerDialog.kt` (in `map.sources` und unter „Geänderte
+Upstream-Dateien“).
+
+- Annahmen des Leads (vom Owner änderbar): Die Impulse folgen „Vibration bei Tastendruck“ und
+  „Bitte nicht stören“ wie die Haptik-Kette, nicht der Android-Einstellung für Berührungs-Haptik.
+  Rastpunkte je Regler = Standardwert, Enden, runde Werte nach der Regel in ARCHITECTURE.md →
+  Einstellungen und Profile (Fangzone 1,5 % je Seite, Ticks 20–40 über den Bereich, höchstens
+  alle 25 ms). Als „gemischt“ zählt ein Sticker, sobald er nach einem Tipp fertig ist, und wieder
+  beim Einfügen oder Teilen.
+- Übernommene Regler: `SliderDialog` (damit jede `SliderPreference`: Zwischenablage-Aufbewahrung
+  und -Größe, Vibrationsdauer, Lautstärke, Schrift-, Hinweis- und Emoji-Größe,
+  Autokorrektur-Schwelle, Langdruck-Verzögerung, Sprachwechsel-Wischweg, Touchpad-Empfindlichkeit,
+  Android-Version (Debug), Gestenschreiben-Pause und Spurdauer), `KeyboardScalePreference`
+  (Trennabstand, Tastenabstand, Tastaturhöhe, untere Reihe, Abstand unten und seitlich),
+  `ColorPickerDialog` (Deckkraft, Helligkeit) und `AgentDesignEditor` (Eckenrundung, Abstand,
+  Höhe). Nicht übernommen: `AgentRgbScreen.kt` (wird parallel in 29 neu gebaut).
+- Tests: `SliderFeelTest` (8: Tick-Abstand und Rastpunkte für zehn echte Regler, langsamer Zug
+  10 Ticks + 10 Rasten, 25-ms-Grenze, Fangen/Halten/Loslassen/Wiederscharfstellen, Start neben
+  und auf einer Rast, Sprung über eine Rast, Stufen-Regler, leerer Bereich), `AgentSliderTest`
+  (7, Compose: Zug fängt genau 0,5 und kein Wert in der Zone, feiner Wert nach dem Zurückziehen,
+  Ende genau 100, TalkBack setzt 0,49 und 0,505 ohne Impuls, `SliderDialog` rastet auf 50 und
+  spielt Klick und Tick auf der Vibrator-Attrappe, ohne Tastenvibration still, Einstellungen und
+  „Bitte nicht stören“, Stufen der Geräte), `EmojiMixRecentsTest` (6: höchstens 12, neueste
+  zuerst, Wiederholung nach vorn, kaputte Einstellung; nur Bilder im Cache, keine Anfrage,
+  gelöschtes Bild verschwindet; Tipp fügt über die Senke ein und rückt nach vorn; gesperrtes
+  Feld fügt nichts ein; neue Mischung wird gemerkt, im Inkognito-Modus nichts; Löschen leert
+  die Liste). `DesignEditorTest` (5) unverändert grün.
+- Gegenproben (danach per `git checkout` zurückgesetzt): `AgentSlider` lässt jeden Wert durch
+  `SliderDrag` (auch TalkBack) → `talkBackSetsExactValuesWithoutSnappingOrImpulses` rot;
+  `EmojiMixRecents.recording()` ohne Inkognito-/Sperrprüfung → `aNewMixIsRecordedButNotInIncognitoMode`
+  rot; `shown` ohne Cache-Filter → `theRowShowsOnlyCachedStickersAndLoadsNothing` rot.
+- Gesamtlauf: `tools/dev.py agent-tests` grün (658 Tests in 81 Klassen, 0 Fehler, 0 übersprungen), darin alle
+  Emoji-Mix-Tests (`EmojiMixPaletteTest`, `EmojiMixCommandTest`, `InputLogicTest.typedEmoji*`) und
+  `DesignEditorTest`. `python3 -I scripts/docs_sync.py --check` grün.
+- Nicht geprüft: Gerätetest (Stärke und Gefühl der Impulse, Fangzone mit echtem Finger, Tippen
+  auf die Leiste eines Reglers: erreicht unter Robolectric nicht einmal einen unveränderten
+  Material-Slider, P86), Farbwähler-Leisten nur kompiliert, nicht im Test bedient; Höhe der
+  Reihe „Zuletzt gemischt“ in der Emoji-Ansicht; Einfügen in echte Apps. Kein Build, kein voller
+  `upstream-tests`-Lauf, Lint nicht gelaufen (gemeinsam genutzte Maschine).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

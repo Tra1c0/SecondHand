@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Settings sliders with ticks and detents (stage 28). Own file so parallel work on agent_strings.xml does not collide. English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="agent_slider_alpha">Opacity</string>
+    <string name="agent_slider_brightness">Brightness</string>
+</resources>

@@ -361,6 +361,12 @@ von Google (www.gstatic.com); gesendet werden dabei nur die beiden Emojis, kein 
   ein (oder teilt ihn). Ein gewähltes Emoji antippen entfernt es; ein drittes ersetzt das
   zweite. Gibt es keine Mischung, steht dort „Keine Mischung“ mit Partnern, die eine haben.
   Nochmals „Emoji-Mixer“ oder das Verlassen der Emoji-Ansicht beendet den Mixer.
+- „Zuletzt gemischt“: Solange im Mixer noch kein Paar gewählt ist, zeigt eine Reihe die letzten
+  bis zu 12 Sticker, deren Bild noch auf dem Gerät liegt (ohne Internet). Antippen fügt den
+  Sticker ein (oder teilt ihn), wie einen frisch gemischten. Neu in der Reihe ist ein Sticker,
+  sobald er nach deinem Tipp geladen ist; Einfügen oder Teilen rückt ihn nach vorn. Im
+  Inkognito-Modus merkt sich die Tastatur nichts. „Gespeicherte Mischungen löschen“ leert die
+  Reihe; Sticker, die wegen der 20-MB-Grenze gelöscht wurden, verschwinden aus ihr.
 - „Keine Mischung“ heißt: Google hat dieses Paar nicht. Bei „Laden fehlgeschlagen“ (kein Netz)
   versucht ein neuer Tipp es noch einmal. Steht im Mixer „Tippen, um die Mischung von Google zu
   laden“ (z. B. nachdem du die gespeicherten Mischungen gelöscht hast), lädt erst dieser Tipp.
@@ -427,6 +433,18 @@ Eigene Symbole: Auf derselben Seite „Symbol hinzufügen“; darunter öffnet s
 Symbol dreimal hineinmalen (je „Weiter“, „Neu malen“ wischt das Feld leer, „Abbrechen“ verwirft
 alles), dann den Text eingeben, den es schreiben soll (bis 8 Zeichen, auch Emoji), und
 „Speichern“. Höchstens 30. Löschen über „Löschen“ neben dem Symbol. Alles bleibt auf dem Telefon.
+
+## Schieberegler
+
+Alle Schieberegler der Einstellungen (z. B. Aussehen → Tastaturhöhe, Schriftgröße; Vibrationsdauer,
+Lautstärke; Deckkraft und Helligkeit im Farbwähler; Eckenrundung, Abstand und Höhe im
+Design-Editor) ticken beim Ziehen leicht. Am Standardwert, an den Enden und an runden Werten
+(z. B. 50 %, 100 %, 150 %, Zehner bei Prozent und Millisekunden) rastet der Regler mit einem etwas
+stärkeren Impuls ein; ziehst du weiter, löst er sich wieder. Einen Wert direkt neben einer Rast
+(z. B. 49 %) erreichst du so: etwas über die Rast hinausziehen und langsam zurück, dann rastet sie
+nicht sofort wieder ein. Mit TalkBack stellst du jeden Wert genau ein. Gespürt wird das nur, wenn
+Einstellungen → Optionen → „Vibration bei Tastendruck“ an ist; bei „Bitte nicht stören“ nur, wenn
+Vibrieren dort erlaubt ist. Die RGB-Seite rastet noch nicht.
 
 ## Design auswählen
 

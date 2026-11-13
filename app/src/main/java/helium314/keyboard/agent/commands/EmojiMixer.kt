@@ -107,7 +107,7 @@ object EmojiMixer {
         if (listener == null) listeners.remove(owner) else listeners[owner] = listener
     }
 
-    private fun changed() {
+    internal fun changed() {
         listeners.values.toList().forEach { it() }
     }
 
@@ -175,6 +175,8 @@ object EmojiMixer {
         val app = context.applicationContext ?: context
         val callsFor = calls
         val started = generation
+        // stage 32: a tap that makes the sticker ready counts as mixed, unless in incognito mode now or then
+        val recordable = EmojiMixRecents.recording()
         worker.execute {
             val result: State = try {
                 val cached = cache.get(mix)
@@ -199,6 +201,7 @@ object EmojiMixer {
                 // the cache was cleared meanwhile: the file may be gone, the pair starts unknown again
                 if (started != generation) return@toMain
                 states[mix.key] = result
+                if (recordable && result is State.Ready) EmojiMixRecents.record(app, mix)
                 changed()
             }
         }
@@ -209,17 +212,17 @@ object EmojiMixer {
      * A small bitmap of [file] for chips and the palette, its longest side at most [THUMBNAIL_PX]
      * (the images are 534 px, a sample size alone would keep them whole); null if it is no readable image.
      */
-    fun thumbnail(file: File): Bitmap? = try {
+    fun thumbnail(file: File, maxPx: Int = THUMBNAIL_PX): Bitmap? = try {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(file.path, bounds)
         val longestSide = maxOf(bounds.outWidth, bounds.outHeight)
         var sample = 1
-        while (longestSide / (sample * 2) >= THUMBNAIL_PX) sample *= 2
+        while (longestSide / (sample * 2) >= maxPx) sample *= 2
         val decoded = BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })
         val longest = decoded?.let { maxOf(it.width, it.height) } ?: 0
-        if (decoded == null || longest <= THUMBNAIL_PX) decoded
+        if (decoded == null || longest <= maxPx) decoded
         else {
-            val scale = THUMBNAIL_PX.toFloat() / longest
+            val scale = maxPx.toFloat() / longest
             Bitmap.createScaledBitmap(decoded, maxOf(1, Math.round(decoded.width * scale)),
                 maxOf(1, Math.round(decoded.height * scale)), true).also { if (it !== decoded) decoded.recycle() }
         }
@@ -232,9 +235,10 @@ object EmojiMixer {
      * Hands the image of [file] to [field]: inserted if the field takes PNG images, otherwise the
      * share sheet. [afterInsert] runs only after the field took the image (e.g. removes the typed
      * emojis or the command); [afterShare] after the share sheet started. False if nothing went out;
-     * a field that did not take the image says so in a toast, and the text stays.
+     * a field that did not take the image says so in a toast, and the text stays. A sticker of [mix]
+     * that went out is the newest of "Zuletzt gemischt" (stage 32).
      */
-    fun deliver(context: Context, field: EditorInfo?, file: File, afterInsert: () -> Unit, afterShare: () -> Unit): Boolean {
+    fun deliver(context: Context, field: EditorInfo?, file: File, afterInsert: () -> Unit, afterShare: () -> Unit, mix: EmojiMix? = null): Boolean {
         if (blocked(field) || !file.isFile) return false
         val uri = try { uriFor(context, file) } catch (e: Exception) {
             Log.w(TAG, "could not share the image: ${e.javaClass.simpleName}")
@@ -246,6 +250,7 @@ object EmojiMixer {
                 android.widget.Toast.makeText(context, R.string.agent_image_not_inserted, android.widget.Toast.LENGTH_SHORT).show()
                 return false
             }
+            mix?.let { EmojiMixRecents.record(context, it) }
             afterInsert()
             return true
         }
@@ -253,6 +258,7 @@ object EmojiMixer {
             android.widget.Toast.makeText(context, R.string.agent_command_qr_none, android.widget.Toast.LENGTH_SHORT).show()
             return false
         }
+        mix?.let { EmojiMixRecents.record(context, it) }
         afterShare()
         return true
     }
@@ -265,12 +271,16 @@ object EmojiMixer {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
 
-    /** Deletes every cached image (settings) and forgets the states; what is loading now is dropped when it arrives. */
+    /**
+     * Deletes every cached image (settings) and forgets the states and the list "Zuletzt gemischt";
+     * what is loading now is dropped when it arrives.
+     */
     fun clearCache(context: Context) {
         val cache = cache(context)
         generation++
         states.clear()
         cachedReads.clear()
+        EmojiMixRecents.clear(context)
         worker.execute { cache.clear() }
         changed()
     }
@@ -285,7 +295,7 @@ object EmojiMixer {
         return null
     }
 
-    /** Runs [block] on the worker after everything queued before; tests wait for it. */
+    /** Runs [block] on the worker after everything queued before (pictures of [EmojiMixRecents]); tests wait for it. */
     internal fun afterWork(block: () -> Unit) { worker.execute(block) }
 
     @JvmStatic fun resetForTest() {
@@ -298,6 +308,7 @@ object EmojiMixer {
         states.clear()
         cachedReads.clear()
         listeners.clear()
+        EmojiMixRecents.resetForTest()
         tableFailed = false
         // a load started under another toMain may never report back (a test's shadow handler): allow a new one
         if (table == null) tableLoading = false

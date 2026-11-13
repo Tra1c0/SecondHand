@@ -125,7 +125,7 @@ object EmojiMixCommand : KeyboardCommands.Command {
                 label.append(text)
                 listOf(Chip(label, context.getString(if (inserts) R.string.agent_emoji_mix_insert_description
                     else R.string.agent_emoji_mix_share_description, pair), Chip.Kind.RESULT) {
-                    deliver(host, state, expected, replace, removeOnShare)
+                    deliver(host, mix, state, expected, replace, removeOnShare)
                 })
             }
         }
@@ -137,7 +137,7 @@ object EmojiMixCommand : KeyboardCommands.Command {
         EmojiMixer.request(host.context, mix)
     }
 
-    private fun deliver(host: KeyboardCommands.Host, state: EmojiMixer.State.Ready, expected: String, replace: () -> Boolean, removeOnShare: Boolean) {
+    private fun deliver(host: KeyboardCommands.Host, mix: EmojiMix, state: EmojiMixer.State.Ready, expected: String, replace: () -> Boolean, removeOnShare: Boolean) {
         val context = host.context
         // only while the typed text is unchanged before the cursor: the replacement checks it again
         if (host.textBeforeCursor(expected.length)?.toString() != expected) {
@@ -145,7 +145,7 @@ object EmojiMixCommand : KeyboardCommands.Command {
             return
         }
         EmojiMixer.deliver(context, host.editorInfo, state.file, afterInsert = { QrCommand.removeAfterInsert(host, expected, replace) },
-            afterShare = { if (removeOnShare) replace() })
+            afterShare = { if (removeOnShare) replace() }, mix = mix)
     }
 
     // reset(): nothing to drop. The pair states hold no typed text (only which pairs were asked
