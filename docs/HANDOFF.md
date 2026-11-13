@@ -9,26 +9,44 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 ## Aktueller Stand
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
-- Stand 2026-11-13: Build 11 installiert beim Owner (vom Arbeitsbranch gebaut, danach geprüft und
-  nach `main`). Neu seit Build 10: 23g Screenshot zuerst, 26 RGB-Beleuchtung, 24g Sprachbefehle,
-  eingebaute Emoji-Wörterbücher (de/en/es); alle mit Prüfer und Nachprüfung. Kein Gerätetest.
-- Für Build 12 offen (Nachprüfung, alle niedrig): Screenshot-Verlauf verpasst im 500-ms-Fenster
-  einen Screenshot; Reste in `files/agent_screenshot_pending/`; `ClipboardHistoryManager.onDestroy`
-  stoppt Observer/Timer nicht; Temp-Datei beim Wörterbuch-Entpacken im Locale-Ordner sichtbar.
-- Emoji-Mix (25a) für Build 12 gewünscht, blockiert: Paarliste ohne Lizenz; Owner wählt „fragen“
-  (Issue bei xsalazar) oder „privat“. Danach 25b animierte Emojis, 25c Sticker-Ersteller.
-- Wartet auf den Owner: `RELEASES_TOKEN` (Updates für die Freundin), vertrauliche Clips im Verlauf.
-- Tests: Robolectric hat keine native Wörterbuch-Bibliothek; `ShadowBinaryDictionaryUtils` gilt
-  global (robolectric.properties). Wackelige Tests im vollen Lauf siehe Build-Log 10.
+- Stand 2026-11-13 (Übergabe): `main` = Build 11 (beim Owner installiert). Arbeitsbranch
+  `ccr-2b6708f5-qwv8ok` = Build 11 + Sprachwechsel-Fix (SubtypeChoice, P66) + Haptik-Kette
+  Undo/Redo (HapticChain, P67), committet, aber ohne Prüfer und ohne vollen Testlauf.
+- Ungetestete Zwischenstände (gestoppte Agenten, Basis 4c08f98, NICHT gemergt):
+  `wip/emoji-mix` (25a: Tabelle, `@mix`, Leisten-Chip, Cache, Mixer im Emoji-Menü) und
+  `wip/symbole-malen` (27: Symbole malen statt Gestenschreiben, $P-Erkenner, PointerTracker-Hook).
+- Nächste Schritte für Build 12: siehe Offene Punkte 0.
+- Kein Gerätetest für alles seit Build 10 außer den Rückmeldungen des Owners.
 
 ## Offene Punkte
 
-0. **Nächste Sitzung: 24c–24e** (Reihenfolge in ROADMAP.md → 24), danach 23e, 23f. Für 24e am
-   Xiaomi: nach der Installation „Eingeschränkte Einstellungen zulassen“, Dienst selbst
-   einschalten. Bei 24c/24d `protectsArgument` bewusst setzen (Namen und freie Texte schützen).
-   Zu 23e/23f: Der Owner hat die Screenshots am 2026-11-12 erneut geschickt; was darauf zu sehen
-   ist, steht jetzt in ROADMAP.md → 23 (die Bilder selbst liegen nicht im Repo). Offene Frage an den Owner: was „Embeds“ heißen soll (U5).
-   Bewusst nicht geändert nach Review 23d: Screenshot-Kopien leben nur 10 Minuten.
+0. **Build 12 fertigstellen (Reihenfolge):**
+   1. Prüfer für den Arbeitsbranch: `LatinIME.switchToSubtypeByCommand`/`SubtypeChoice.holds` in
+      `onStartInputInternal` (Engine-Datei, Pflicht) und `HapticChain`. Volle `upstream-tests`
+      und `agent-tests` (nach Commit B nicht komplett gelaufen). Test zum Sprachwechsel auf
+      ö, ü, ß erweitern (Owner meinte: deutsches Layout ohne Umlaute im Lange-Druck-Popup nach
+      en → de; Ursache in Robolectric nur mit Hint-Locale nachgestellt, am Xiaomi unbestätigt).
+   2. `wip/emoji-mix` und `wip/symbole-malen` je in einer Arbeitskopie fertigstellen (Stand lesen,
+      Tests laufen lassen, fehlende Teile ergänzen, Docs), dann auf den Arbeitsbranch mergen.
+      Aufträge des Owners: Emoji-Mix wie Gboard (Paare, Laden von gstatic erst nach Tipp bzw.
+      im Mixer-Modus nach Wahl des 2. Emojis; im Emoji-Menü statt Leertaste+Suche zwei exakt
+      gleich breite Felder „Emojis suchen“ und „Emoji-Mixer“, vergrößerte Vorschau gleitet
+      herein). Lizenz der Paarliste (xsalazar/emoji-kitchen-backend): Autor hat laut Owner am
+      2026-11-13 mündlich zugestimmt, Lizenzdatei fehlt noch; in BUILD.md festhalten, später
+      prüfen. Symbole malen: ersetzt Gestenschreiben ganz (Einstellung, Standard aus), lokale
+      feste Liste + eigene Symbole, kein ML Kit. Berührt PointerTracker: Prüfer Pflicht.
+   3. Die vier niedrigen Punkte der Nachprüfung von Build 11 (Screenshot-Verlauf im
+      500-ms-Fenster, Reste in `agent_screenshot_pending/`, `ClipboardHistoryManager.onDestroy`
+      stoppt Observer/Timer nicht, Temp-Datei beim Wörterbuch-Entpacken im Locale-Ordner).
+   4. Volle Prüfungen, Build über `agent-apk.yml`, APK per Datei an den Owner (Browser-Download
+      aus dem privaten Repo hängt auf seinem Handy), danach `main`.
+   Danach offen: 25b animierte Emojis (Noto, CC BY 4.0), 25c Sticker-Ersteller, U6 `@generate`.
+   Wartet auf den Owner: Secret `RELEASES_TOKEN` (öffentliche Updates für die Freundin);
+   Entscheidung, ob vertrauliche Clips aus dem normalen Zwischenablageverlauf bleiben.
+   Sitzungs-Hinweis: Diese Sitzung lief sehr lang; mehrere parallele Agenten in Arbeitskopien
+   haben sich bewährt, Docs-Konflikte (VALIDATION, release-notes, ARCHITECTURE-Fallstricke) beim
+   Mergen beide Seiten behalten, Fallstrick-Nummern vorab je Agent verteilen.
+
 1. **Gerätetest teilweise erledigt (G1).** Im Emulator geprüft und in Ordnung: Installation,
    Tippen, Löschen, Rad, Panel, Ersetzen, Schutz bei geänderter Auswahl, Passwortfeld,
    Testwerkzeug, Start der Kalenderübergabe, KI-Einstellungen mit Screenshot-Schutz, Schlüssel
