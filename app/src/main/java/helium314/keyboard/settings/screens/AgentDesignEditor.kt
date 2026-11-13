@@ -70,7 +70,12 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.agentkeyboard.core.RgbArea
+import dev.agentkeyboard.core.RgbColors
+import dev.agentkeyboard.core.RgbEngine
+import dev.agentkeyboard.core.RgbLayer
 import helium314.keyboard.agent.DesignLook
+import helium314.keyboard.agent.RgbKeyPainter
 import helium314.keyboard.compat.locale
 import helium314.keyboard.agent.MyDesigns
 import helium314.keyboard.agent.MyDesigns.Design
@@ -414,7 +419,7 @@ fun previewHeight(heightScale: Float): Dp = (STRIP_DP + PADDING_DP * 2 + ROW_DP 
  * colour. Colours come from [PreviewLook.of]; shapes, gaps, height and font from the design.
  */
 @Composable
-fun DesignPreview(design: Design, image: ImageBitmap?, modifier: Modifier = Modifier) {
+fun DesignPreview(design: Design, image: ImageBitmap?, modifier: Modifier = Modifier, light: PreviewLight? = null) {
     val context = LocalContext.current
     val look = remember(design) { PreviewLook.of(context, design) }
     val measurer = rememberTextMeasurer()
@@ -425,7 +430,17 @@ fun DesignPreview(design: Design, image: ImageBitmap?, modifier: Modifier = Modi
         modifier.fillMaxWidth().height(previewHeight(look.height))
             .testTag("agent_design_preview")
             .semantics { contentDescription = description }
-    ) { drawKeyboard(look, image, measurer, language) }
+    ) { drawKeyboard(look, image, measurer, language, light) }
+}
+
+/**
+ * RGB light for the preview (stage 26): the same engine and colour rules as the keyboard
+ * ([helium314.keyboard.agent.RgbKeyPainter]). [pendingTaps] are taps in preview pixels; drawing
+ * hands each to the engine with the key under it and removes it.
+ */
+class PreviewLight(val engine: RgbEngine, val timeMs: Long, val pendingTaps: MutableList<Offset> = mutableListOf()) {
+    val settings get() = engine.settings
+    fun lit(area: RgbArea) = settings.enabled && area in settings.areas
 }
 
 private class PreviewKey(val label: String, val width: Float, val kind: Kind, val hint: String? = null) {
@@ -445,15 +460,37 @@ private val ROWS = listOf(
     ),
 )
 
-private fun DrawScope.drawKeyboard(look: PreviewLook, image: ImageBitmap?, measurer: TextMeasurer, language: String) {
+private fun DrawScope.drawKeyboard(look: PreviewLook, image: ImageBitmap?, measurer: TextMeasurer, language: String,
+                                   light: PreviewLight? = null) {
     drawRect(Color(look.background))
     if (image != null) drawCover(image)
     else drawRect(Color(look.strip), size = Size(size.width, STRIP_DP.dp.toPx()))
-    // strip: three suggestions
     val stripHeight = STRIP_DP.dp.toPx()
+    val keysHeight = (size.height - stripHeight).coerceAtLeast(1f)
+    val engine = light?.engine
+    val now = light?.timeMs ?: 0L
+    engine?.aspect = keysHeight / size.width
+    val keyboardLayer = light != null && light.settings.enabled && RgbLayer.KEYBOARD_BACKGROUND in light.settings.layers
+    val backgroundLayer = light != null && light.settings.enabled && RgbLayer.KEY_BACKGROUND in light.settings.layers
+    val labelLayer = light != null && light.settings.enabled && RgbLayer.LABEL in light.settings.layers
+    if (engine != null && keyboardLayer) {
+        // the same coarse grid as the keyboard, here as rectangles
+        val cols = RgbKeyPainter.GRID_COLUMNS
+        val rows = (cols * keysHeight / size.width).roundToInt().coerceIn(2, RgbKeyPainter.GRID_MAX_ROWS)
+        val cw = size.width / cols
+        val ch = keysHeight / rows
+        for (r in 0 until rows) for (c in 0 until cols) {
+            val value = engine.light((c + 0.5f) / cols, (r + 0.5f) / rows, -1, now)
+            if (RgbColors.alpha(value) > 0) drawRect(Color(value), Offset(c * cw, stripHeight + r * ch), Size(cw + 0.5f, ch + 0.5f))
+        }
+    }
+    // strip: three suggestions
     listOf("Hallo", "danke", "gern").forEachIndexed { i, word ->
-        val layout = measurer.measure(word, TextStyle(color = Color(look.suggestion), fontSize = 15.sp))
         val center = size.width * (i * 2 + 1) / 6f
+        val wordColor = if (engine != null && light.lit(RgbArea.SUGGESTIONS))
+            RgbColors.label(look.suggestion, engine.light(center / size.width, 0f, -1, now), true, look.strip)
+        else look.suggestion
+        val layout = measurer.measure(word, TextStyle(color = Color(wordColor), fontSize = 15.sp))
         drawText(layout, topLeft = Offset(center - layout.size.width / 2f, (stripHeight - layout.size.height) / 2f))
     }
     val padding = PADDING_DP.dp.toPx()
@@ -468,9 +505,28 @@ private fun DrawScope.drawKeyboard(look: PreviewLook, image: ImageBitmap?, measu
         val rowWidth = row.sumOf { it.width.toDouble() }.toFloat() * unit
         var x = (size.width - rowWidth) / 2
         val top = stripHeight + padding + rowIndex * rowHeight
-        row.forEach { key ->
+        row.forEachIndexed { keyIndex, key ->
             val rect = Rect(x + hGap / 2, top + vGap / 2, x + key.width * unit - hGap / 2, top + rowHeight - vGap / 2)
             x += key.width * unit
+            val keyId = rowIndex * 100 + keyIndex
+            val cx = rect.center.x / size.width
+            val cy = (rect.center.y - stripHeight) / keysHeight
+            light?.pendingTaps?.removeAll { tap ->
+                val hit = tap.x >= rect.left - hGap / 2 && tap.x < rect.right + hGap / 2 && tap.y >= rect.top - vGap / 2 && tap.y < rect.bottom + vGap / 2
+                if (hit) engine?.tap(cx, cy, keyId, now)
+                hit
+            }
+            val area = when (key.kind) {
+                PreviewKey.Kind.SPACE -> RgbArea.SPACE
+                PreviewKey.Kind.LETTER -> if (key.label == "," || key.label == ".") RgbArea.FUNCTIONAL else RgbArea.LETTERS
+                else -> RgbArea.FUNCTIONAL
+            }
+            val inArea = engine != null && light.lit(area)
+            val fillLit = inArea && backgroundLayer
+            val labelLit = inArea && labelLayer
+            // as on the keyboard: labels stay readable whenever something behind them is lit
+            val keyLit = fillLit || labelLit || keyboardLayer
+            val keyLight = if (fillLit || labelLit) engine!!.light(cx, cy, keyId, now) else 0
             val pill = look.style == KeyboardTheme.STYLE_FLAT && (key.kind == PreviewKey.Kind.PILL || key.kind == PreviewKey.Kind.ENTER)
             val radius = if (pill) rect.height / 2 else ownRadius ?: styleRadius
             val fill = when (key.kind) {
@@ -479,17 +535,23 @@ private fun DrawScope.drawKeyboard(look: PreviewLook, image: ImageBitmap?, measu
                 PreviewKey.Kind.SPACE -> look.space
                 PreviewKey.Kind.ENTER -> look.accent
             }
-            // without key backgrounds only Enter keeps its accent shape, as in the keyboard
-            if (look.keyBackgrounds || key.kind == PreviewKey.Kind.ENTER) {
+            val shown = look.keyBackgrounds || key.kind == PreviewKey.Kind.ENTER
+            val themeFill = if (shown) fill else android.graphics.Color.TRANSPARENT
+            val litFill = if (fillLit) RgbColors.applyLight(themeFill, keyLight) else themeFill
+            // without key backgrounds only Enter keeps its accent shape, as in the keyboard (unless lit)
+            if (shown || fillLit) {
                 val enterRadius = if (!look.keyBackgrounds) rect.height / 2 else radius
-                drawRoundRect(Color(fill), rect.topLeft, rect.size, CornerRadius(enterRadius, enterRadius))
+                drawRoundRect(Color(litFill), rect.topLeft, rect.size, CornerRadius(enterRadius, enterRadius))
             }
-            val color = when (key.kind) {
+            val themeColor = when (key.kind) {
                 PreviewKey.Kind.ENTER -> look.actionIcon
                 PreviewKey.Kind.FUNCTIONAL, PreviewKey.Kind.PILL -> look.functionalLabel
                 PreviewKey.Kind.SPACE -> look.spaceLabel
                 PreviewKey.Kind.LETTER -> look.label
             }
+            val keyboardBack = if (engine != null && keyboardLayer)
+                RgbColors.applyLight(look.background or 0xFF000000.toInt(), engine.light(cx, cy, -1, now)) else look.background
+            val color = if (keyLit) RgbColors.label(themeColor, keyLight, labelLit, RgbColors.over(litFill, keyboardBack)) else themeColor
             val text = if (key.kind == PreviewKey.Kind.SPACE) language else key.label
             val fontSize = when (key.kind) {
                 PreviewKey.Kind.SPACE, PreviewKey.Kind.PILL -> rowHeight * 0.26f
@@ -497,10 +559,16 @@ private fun DrawScope.drawKeyboard(look: PreviewLook, image: ImageBitmap?, measu
             }
             drawLabel(measurer, text, rect, color, fontSize, look.weight)
             key.hint?.let { hint ->
-                val layout = measurer.measure(hint, TextStyle(color = Color(look.hint), fontSize = (rowHeight * 0.2f).toSp(), fontWeight = look.weight))
+                val hintColor = if (keyLit) RgbColors.label(look.hint, keyLight, labelLit, RgbColors.over(litFill, keyboardBack)) else look.hint
+                val layout = measurer.measure(hint, TextStyle(color = Color(hintColor), fontSize = (rowHeight * 0.2f).toSp(), fontWeight = look.weight))
                 drawText(layout, topLeft = Offset(rect.right - layout.size.width - rect.width * 0.12f, rect.top + rect.height * 0.04f))
             }
         }
+    }
+    // a tap between the keys or on the strip still starts ripples and the reactive light
+    light?.pendingTaps?.let { taps ->
+        taps.forEach { engine?.tap(it.x / size.width, (it.y - stripHeight) / keysHeight, -1, now) }
+        taps.clear()
     }
 }
 

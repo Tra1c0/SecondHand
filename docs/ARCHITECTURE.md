@@ -35,6 +35,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - **Act Builder** – Natürliche Beschreibung → freigegebene Anfrage → streng validierter Workflow-Entwurf.
 - **Einstellungen und Profile** – Compose-Seiten der Agent-Funktionen sowie Design-, Layout- und Gestenprofile.
 - **Flacher Stil** – Tastenstil „Flat“, Farbsatz „Flach schwarz“ und die Vorlage, die beides mit Größen einstellt.
+- **RGB-Beleuchtung** – Animierte Farben für Tasten, Beschriftung, Hintergrund und Leiste (Etappe 26): Rechnen im Kern, Zeichnen über einen Painter.
 - **Diktat** – Diktieren über den On-device-Erkenner des Systems: zuhören, Vorschau, Einfügen erst nach eigenem Klick.
 - **Lerndaten** – Was die Tastatur aus dem Tippen lernt: pausieren, zählen, exportieren, löschen. Alles auf dem Gerät.
 - **Updates** – Opt-in-Prüfung auf neue Builds im öffentlichen Release-Repository, Download und Installation nur nach eigenem Klick.
@@ -126,9 +127,16 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   benutzt (Fallstrick P5).
 - `UpdateReleases.kt`: Regeln der Update-Prüfung (Abschnitt „Updates“): `REPOSITORY`, Tag
   `build-<n>`, Asset-Namen, erwartete Download-URL, `newest`, `isNewer`, `parseChecksum`.
+- `RgbLighting.kt` (Etappe 26): `RgbSettings` (alle Optionen, `encode`/`parse` mit feldweiser
+  Begrenzung, nie eine Ausnahme), `RgbEngine` (Farbe und Stärke für Punkt, Taste und Zeit:
+  Muster × Wellenform × Palette, Tipp-Effekte, Phase mit Tempo-Schub; ohne Allokation je
+  Aufruf), `RgbWave`, `RgbColors` (ARGB, HSV, Mischung, Kontrast, `readable`/`label` für
+  mindestens 3:1), `RgbRun.mode` (Akku-Regeln) und `RgbFramePacer` (Bildrate). Details im
+  Abschnitt „RGB-Beleuchtung“.
 - Tests in `CT/`: `AiTextActionTest`, `EditorPolicyTest`, `LocalTextActionsTest`,
   `PendingBatchGateTest`, `SkillBindingTest`, `ToolTest`, `WorkflowTest`,
-  `InsertionAnchorTest`, `StyledTranslationTest`, `UpdateReleasesTest`. Befehl: `core-tests`.
+  `InsertionAnchorTest`, `StyledTranslationTest`, `UpdateReleasesTest`, `RgbLightingTest`.
+  Befehl: `core-tests`.
 
 ## Geänderte Upstream-Dateien
 
@@ -261,6 +269,24 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
   des Rads.
 - `InputView.java`: zählt `agent_menu` zu den Overlays. `SettingsActivity.kt`: Extra
   `AgentPreferences.OPEN_SETTINGS_DESTINATION` öffnet „appearance“ oder „toolbar“ direkt.
+
+RGB-Beleuchtung (Etappe 26, jeweils nur Aufrufe in `A/RgbLighting.kt` bzw. `RgbKeyPainter`;
+ohne Einstellung ist der Painter `null` und das Zeichnen genau wie im Upstream):
+
+- `KeyboardView.java`: Feld `mRgbPainter` mit `setRgbPainter`/`getRgbPainter`; in
+  `onDrawKeyboard` `beginDraw` und `drawKeyboardBackground` (voller und Teil-Neuzeichnen), in
+  `onDrawKey` `beginKey` und `tintBackground`/`restoreBackground` um den Tastenhintergrund, in
+  `onDrawKeyTopVisuals` `labelColor` für Beschriftung (nicht Emoji) und Hinweis sowie
+  `tintIcon`/`restoreIcon` um das Symbol.
+- `MainKeyboardView.java`: `setKeyboard` holt den Painter (`RgbLighting.painterFor`, liest dabei
+  die Einstellung neu), `onKeyPressed` meldet die Taste (`RgbLighting.onKeyPressed`, nur Position
+  der Taste, nichts aus `PointerTracker`), `onAttachedToWindow`/`onDetachedFromWindow`/
+  `onVisibilityChanged`/`onWindowVisibilityChanged` und `onHideWindow` starten oder stoppen die
+  Bilder, das Sprachkürzel auf der Leertaste nimmt `labelColor`.
+- `SuggestionStripView.kt`: `updateKeys` (nach jedem Aufbau und jeden neuen Vorschlägen) ruft
+  `RgbLighting.onStripChanged`.
+- `SettingsNavHost.kt` (Ziel `agent_rgb`) und `AppearanceScreen.kt` (Eintrag „RGB-Beleuchtung“
+  nach „Design“, `createAgentRgbSetting`).
 
 Speicher, Datenschutz und Identität:
 
@@ -738,6 +764,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Schlüssel, Bild, Rundung, Schrift) und `AT/DesignEditorTest.kt` (Kacheln, Editor, Löschen mit
   Rückfrage, Vorschau-Pixel; Bilder unter `app/build/reports/design-editor/`).
 
+- RGB-Seite (26): `K/settings/screens/AgentRgbScreen.kt` (alle Optionen, speichert jede Änderung
+  sofort über `RgbLighting.write`, Vorschau oben mit `withFrameNanos` und `RgbFramePacer`,
+  Tipp auf die Vorschau probiert die Effekte; bei ausgeschalteten Android-Animationen steht sie
+  still). Die Vorschau ist `DesignPreview` aus `AgentDesignEditor.kt` mit `PreviewLight` (gleiche
+  Engine und Farbregeln wie die Tastatur). Einträge auf der Design-Seite (`agent_design_rgb`) und
+  unter Aussehen. Texte: `agent_rgb_strings.xml`. Test `AT/RgbSettingsScreenTest.kt`.
+- `KeyboardProfileStore.kt`: das Designprofil enthält `agent_rgb_lighting` als Text
+  (`Binding.freeText`); beim Lesen feldweise über `RgbSettings.parse` begrenzt, leer (Profile von
+  vor 26) heißt „unverändert lassen“.
+
 ## Flacher Stil
 
 > Tastenstil „Flat“, Farbsatz „Flach schwarz“ und die Vorlage, die beides mit Größen einstellt.
@@ -832,6 +868,47 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Zusammenspiel mit der Leiste), `FlatClipboardTest` (Abtastrate und Cache, Kopfzeile, Karten,
   echte `ClipboardHistoryView`, Chip) und `FlatPanelTest` (IDs, Typen und Callbacks, Positionen,
   Balken). Jeder dieser Tests lädt danach die Standardeinstellungen neu (Fallstrick P32). Bilder unter `app/build/reports/flat-style/`, nicht versioniert.
+
+## RGB-Beleuchtung
+
+> Animierte Farben für Tasten, Beschriftung, Hintergrund und Leiste (Etappe 26): Rechnen im Kern, Zeichnen über einen Painter.
+
+- Rechnen: `C/RgbLighting.kt` (siehe „Kern“). Koordinaten 0..1 über die Tastatur-View,
+  `aspect` = Höhe/Breite hält Kreise rund; die Leiste liegt bei y = 0. Eine Lichtfarbe trägt die
+  Stärke im Alpha (Muster, Atmen, Effekte, Deckkraft), `RgbColors.applyLight` mischt sie mit der
+  Designfarbe.
+- Ablauf: `A/RgbLighting.kt` (Singleton auf dem UI-Thread): Einstellung `agent_rgb_lighting`,
+  Engine, Uhr (`drawTimeMs`, in `STATIC` eingefroren), Modus aus `RgbRun.mode` und ein
+  `Choreographer.FrameCallback`, der nur in `RUNNING` läuft und je erlaubtem Bild
+  `invalidateAllKeys` der Tastatur und `RgbStrip.paint` aufruft. Sichtbar heißt: angehängt,
+  `isShown`, Fenster sichtbar. Energiesparmodus und Animationsskala werden beim Laden und
+  höchstens alle 2 s während des Laufs gelesen. „Nur beim Tippen“ und statische Muster
+  brauchen Bilder nur, solange ein Effekt verblasst; danach wird einmal neu gezeichnet.
+- Tasten: `A/RgbKeyPainter.kt`, einer je `MainKeyboardView` (andere `KeyboardView`s wie Popups,
+  Emoji-Seiten und mehr Vorschläge bekommen nie einen). `areaOf` ordnet Tasten Bereichen zu
+  (Leertaste, Ziffern = Zahlenreihe, Funktions-/Aktionstasten, Umschalt, Komma und Punkt =
+  Funktionstasten, sonst Buchstaben). Der Tastenhintergrund bekommt einen
+  `PorterDuffColorFilter(SRC_IN)` auf dem gerade gewählten Kind des Zustands-Drawables (P52),
+  gedrückt etwas heller oder dunkler (`RgbColors.pressed`); danach kommt der alte Filter zurück.
+  Ohne Tastenrahmen gilt die Designfarbe als durchsichtig. Der Tastaturhintergrund ist ein
+  Raster von 24 × bis zu 16 Pixeln, gefiltert auf die View gestreckt. Beschriftung, Hinweise,
+  Symbole und das Sprachkürzel gehen durch `labelColor`: mit Ebene „Beschriftung“ in der
+  Lichtfarbe, immer mindestens 3:1 zum (gemischten) Hintergrund dahinter.
+- Leiste: `A/RgbStrip.kt` färbt die Wort-`TextView`s direkt in `suggestions_strip` und alle
+  `ImageView`s in Toolbar, angehefteten Tasten und der linken Taste. Chips (Zwischenablage,
+  Screenshot, Befehle) sind keine direkten `TextView`s und bleiben unverändert. Die
+  Originalfarbe liegt im Tag `agent_rgb_original`; hat die Leiste die Farbe inzwischen selbst
+  geändert, wird diese das neue Original. Leiste: nur Text- und Symbolfarbe, unabhängig von den
+  Ebenen.
+- Kosten je Bild: etwa 45 Tasten × 2 Lichtwerte plus 384 Rasterwerte (Kern-Messung:
+  `RgbLightingTest.oneFrameOfLightIsCheap`), ein Farbfilter-Objekt je Taste, ein volles
+  Neuzeichnen der Tastatur-View (wie bei jedem Tastendruck mit Hardware-Beschleunigung).
+- Datenschutz: liest keinen Text, speichert nur die Einstellung; Tipp-Positionen (höchstens
+  acht) nur im Speicher, beim Ausblenden verworfen. Keine Logs.
+- Tests: `CT/RgbLightingTest.kt`, `AT/RgbLightingRenderTest.kt` (echte `MainKeyboardView` im
+  flachen Stil: aus = gleiche Pixel, Tastenfarben aus der Engine, Bereiche, Lesbarkeit,
+  Tastaturhintergrund, Blitz bei „Nur beim Tippen“, Animationen aus, Leiste, Designprofil),
+  `AT/RgbSettingsScreenTest.kt`. Bilder unter `app/build/reports/rgb-lighting/`.
 
 ## Diktat
 
@@ -1166,28 +1243,43 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   bricht ab, auch bei vollem Neubau). `MyDesigns` nutzt deshalb `1f` (Standard im Hochformat).
   Bei so einem `VerifyError` zuerst den letzten neuen Zugriff auf `Defaults` prüfen.
 
+- **P52** `DrawableContainer` (Zustandslisten wie `btn_keyboard_key_*.xml`) merkt sich nach
+  `setColorFilter` – auch mit `null` – für immer, dass es einen Filter gibt, und gibt Kindern,
+  die es später zum ersten Mal wählt, nur noch diesen Filter statt der Tönung. Einen Filter
+  für ein einzelnes Zeichnen deshalb nur auf `drawable.current` setzen und danach den alten
+  Filter dieses Kindes zurückgeben (`RgbKeyPainter.tintBackground`).
+- **P53** Werte im `companion object` werden in der Reihenfolge ihrer Deklaration erzeugt. Ein
+  `val DEFAULT = RgbSettings()` vor `DEFAULT_PALETTE` gab der Vorgabe eine `null`-Palette und
+  jedem Zugriff einen `NoClassDefFoundError`. Vorgaben, die andere Konstanten brauchen, zuletzt
+  deklarieren.
+- **P54** Eine Compose-Seite mit endloser `withFrameNanos`-Schleife (Vorschau der RGB-Seite)
+  wird mit der automatisch laufenden Testuhr nie „idle“, `waitForIdle` liefe in einen Timeout
+  (vorsorglich vermieden, nicht beobachtet). Tests schalten dafür die Animationsskala auf 0 (die
+  Seite steht dann still) oder setzen `mainClock.autoAdvance = false` und gehen mit
+  `advanceTimeBy` weiter.
+
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (335 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (345 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (4): agent-apk, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (55): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (58): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
   AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand, ContactCommand,
   ConvertCommand, CorrectionMemory, DateCommand, DesignLook, DesignTiles, Dictation, EmojiCommand,
   EncryptedActionRunStore, EventCommand, FlatMenuView, FlatPanelStyle, FlatPreset,
   JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore, LearningData,
   LoadingDotsView, ManualWorkflowDraft, ModelSettings, MyDesigns, OnDeviceSpeechEngine,
-  PlaceCommand, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore,
-  SkillLabels, SpaceGestures, ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel,
-  TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary,
-  WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
+  PlaceCommand, RgbKeyPainter, RgbLighting, RgbStrip, RunSubjectCodec, SavedPlaces, ScreenshotChip,
+  SearchCommand, SkillBindingStore, SkillLabels, SpaceGestures, ToolApprovalSummary, ToolLauncher,
+  TouchCalibration, TouchModel, TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract,
+  WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
 - `A/commands/` (13): AiCommandChips, AlarmCommand, AskCommand, ClipCommand, QrCommand,
   ScreenReaderService, SensitiveClips, SnipCommand, SnippetStore, TimerCommand, TranslateCommand,
   UrlCommand, WorkflowCommand
@@ -1195,7 +1287,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (60): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (62): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, CalculatorViewTest, CalendarToolLauncherTest,
   ClipCommandTest, CommandReplaceTest, CommandTemplatesTest, ContactCommandTest,
@@ -1205,23 +1297,23 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   ForkIdentityTest, InsertAtCursorTest, JournaledModelCallTest, KeyboardCommandsTest,
   KeyboardProfileStoreTest, LearningDataTest, LoadingDotsViewTest, MainSettingsLookTest,
   ManualWorkflowDraftTest, MoreCommandsTest, MoreProvidersTest, MyDesignsTest, OpenAiProviderTest,
-  ScreenshotChipTest, SelectedTextCommitTest, SkillBindingStoreTest, SkillSettingsTest,
-  SnipCommandTest, SpaceGesturesTest, TestRunJournal, ToolRunnerTest, TouchModelTest,
-  TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
-  WorkflowCommandTest, WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest,
-  WorkflowStoreTest
+  RgbLightingRenderTest, RgbSettingsScreenTest, ScreenshotChipTest, SelectedTextCommitTest,
+  SkillBindingStoreTest, SkillSettingsTest, SnipCommandTest, SpaceGesturesTest, TestRunJournal,
+  ToolRunnerTest, TouchModelTest, TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest,
+  WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
+  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (5): ClockCommandsTest, QrCommandTest, ScreenReaderServiceTest,
   TranslateCommandTest, UrlCommandTest
-- `C/` (27): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
+- `C/` (28): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
   EditorSession, EmojiNames, EventParser, ExecutionPolicy, LocalTextActions, MathExpression,
-  ModelProvider, PendingBatchGate, Places, Profiles, SkillBinding, SpecialCharacters,
+  ModelProvider, PendingBatchGate, Places, Profiles, RgbLighting, SkillBinding, SpecialCharacters,
   StyledTranslation, SymbolTable, TextCondition, TimerParser, Tool, UnitConversion, UpdateReleases,
   UrlDetector, Workflow
-- `CT/` (21): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
+- `CT/` (22): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
   EditorPolicyTest, EventParserTest, InsertionAnchorTest, LocalTextActionsTest, MathExpressionTest,
-  PendingBatchGateTest, PlacesTest, QuestionCaptureTest, SkillBindingTest, StyledTranslationTest,
-  SymbolTableTest, TimerParserTest, ToolTest, UnitConversionTest, UpdateReleasesTest,
-  UrlDetectorTest, WorkflowTest
+  PendingBatchGateTest, PlacesTest, QuestionCaptureTest, RgbLightingTest, SkillBindingTest,
+  StyledTranslationTest, SymbolTableTest, TimerParserTest, ToolTest, UnitConversionTest,
+  UpdateReleasesTest, UrlDetectorTest, WorkflowTest
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,
   KeyboardActionListenerImpl, KeyboardSwitcher, KeyboardTheme, KeyboardView, MainKeyboardView,
   PointerTracker
@@ -1241,12 +1333,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/latin/suggestions/` (2): FlatStrip, SuggestionStripView
 - `K/latin/utils/` (1): ToolbarUtils
 - `K/settings/` (4): SearchScreen, SettingsActivity, SettingsContainer, SettingsNavHost
-- `K/settings/screens/` (21): AdvancedScreen, AgentAiScreen, AgentCommandsScreen, AgentDesignEditor,
+- `K/settings/screens/` (22): AdvancedScreen, AgentAiScreen, AgentCommandsScreen, AgentDesignEditor,
   AgentDesignScreen, AgentDictationScreen, AgentLearningScreen, AgentMainSettings,
-  AgentProfilesScreen, AgentRunStatus, AgentScreenReaderSection, AgentScreenshotScreen,
-  AgentSkillsScreen, AgentSnippetsSection, AgentSpaceScreen, AgentUpdatesScreen,
-  AgentWorkflowsScreen, AppearanceScreen, MainSettingsScreen, WorkflowBuilderDialog,
-  WorkflowDraftProtection
+  AgentProfilesScreen, AgentRgbScreen, AgentRunStatus, AgentScreenReaderSection,
+  AgentScreenshotScreen, AgentSkillsScreen, AgentSnippetsSection, AgentSpaceScreen,
+  AgentUpdatesScreen, AgentWorkflowsScreen, AppearanceScreen, MainSettingsScreen,
+  WorkflowBuilderDialog, WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
 - `app/` (1): build.gradle
@@ -1266,11 +1358,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (5): agent_alarm_strings, agent_design_strings, agent_space_strings,
-  agent_strings, agent_update_strings
-- `app/src/main/res/values/` (12): agent_alarm_strings, agent_attrs, agent_design_strings,
-  agent_ids, agent_space_strings, agent_strings, agent_update_strings, attrs, clip_provider,
-  donottranslate, gesture_data, themes-flat
+- `app/src/main/res/values-de/` (6): agent_alarm_strings, agent_design_strings, agent_rgb_strings,
+  agent_space_strings, agent_strings, agent_update_strings
+- `app/src/main/res/values/` (13): agent_alarm_strings, agent_attrs, agent_design_strings,
+  agent_ids, agent_rgb_strings, agent_space_strings, agent_strings, agent_update_strings, attrs,
+  clip_provider, donottranslate, gesture_data, themes-flat
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (1): Shadows

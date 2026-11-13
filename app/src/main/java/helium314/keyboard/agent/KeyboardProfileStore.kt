@@ -6,6 +6,7 @@ import dev.agentkeyboard.core.ConfigurationProfile
 import dev.agentkeyboard.core.PreferenceValue
 import dev.agentkeyboard.core.ProfileGroup
 import dev.agentkeyboard.core.ProfileStore
+import dev.agentkeyboard.core.RgbSettings
 import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.keyboard.KeyboardActionListener.SwipeAction
 import helium314.keyboard.keyboard.KeyboardTheme
@@ -20,10 +21,12 @@ class KeyboardProfileStore(context: Context) : ProfileStore {
     private val keyboardPrefs = context.prefs()
     private val storage = context.getSharedPreferences(STORAGE_NAME, Context.MODE_PRIVATE)
 
-    private class Binding(val default: PreferenceValue, val choices: Set<String> = emptySet()) {
+    /** [freeText]: any string up to that length is accepted (normalised elsewhere), [choices] are ignored. */
+    private class Binding(val default: PreferenceValue, val choices: Set<String> = emptySet(), val freeText: Int = 0) {
         fun accepts(value: PreferenceValue) = when (default) {
             is PreferenceValue.Flag -> value is PreferenceValue.Flag
-            is PreferenceValue.Choice -> value is PreferenceValue.Choice && value.value in choices
+            is PreferenceValue.Choice -> value is PreferenceValue.Choice &&
+                (if (freeText > 0) value.value.length <= freeText else value.value in choices)
             is PreferenceValue.Scale -> value is PreferenceValue.Scale && value.value.isFinite() && value.value in 0.1f..5f
         }
     }
@@ -33,6 +36,8 @@ class KeyboardProfileStore(context: Context) : ProfileStore {
             Settings.PREF_THEME_STYLE to Binding(PreferenceValue.Choice(Defaults.PREF_THEME_STYLE), KeyboardTheme.STYLES.toSet()),
             Settings.PREF_THEME_KEY_BORDERS to Binding(PreferenceValue.Flag(Defaults.PREF_THEME_KEY_BORDERS)),
             Settings.PREF_FONT_SCALE to Binding(PreferenceValue.Scale(Defaults.PREF_FONT_SCALE)),
+            // stage 26: the whole RGB configuration as one text; "" (older profiles) = no own value
+            RgbLighting.PREF to Binding(PreferenceValue.Choice(RgbSettings.DEFAULT.encode()), freeText = RgbSettings.MAX_ENCODED_LENGTH),
         ),
         ProfileGroup.LAYOUT to linkedMapOf(
             Settings.PREF_SHOW_NUMBER_ROW to Binding(PreferenceValue.Flag(Defaults.PREF_SHOW_NUMBER_ROW)),
@@ -63,7 +68,9 @@ class KeyboardProfileStore(context: Context) : ProfileStore {
         val values = bindings.getValue(group).mapValues { (key, binding) ->
             when (val default = binding.default) {
                 is PreferenceValue.Flag -> PreferenceValue.Flag(keyboardPrefs.getBoolean(key, default.value))
-                is PreferenceValue.Choice -> PreferenceValue.Choice(keyboardPrefs.getString(key, default.value) ?: default.value)
+                is PreferenceValue.Choice ->
+                    if (key == RgbLighting.PREF) PreferenceValue.Choice(RgbLighting.read(keyboardPrefs).encode())
+                    else PreferenceValue.Choice(keyboardPrefs.getString(key, default.value) ?: default.value)
                 is PreferenceValue.Scale -> PreferenceValue.Scale(keyboardPrefs.getFloat(key, default.value))
             }
         }
@@ -99,6 +106,10 @@ class KeyboardProfileStore(context: Context) : ProfileStore {
                 is PreferenceValue.Flag -> edit.putBoolean(key, value.value)
                 is PreferenceValue.Choice ->
                     if (key in SpaceGestures.keys && value.value == SpaceGestures.INHERIT) edit.remove(key)
+                    else if (key == RgbLighting.PREF) {
+                        // invalid or out-of-range parts were clamped to their defaults when reading
+                        if (value.value.isNotEmpty()) edit.putString(key, RgbSettings.parse(value.value).encode())
+                    }
                     else edit.putString(key, value.value)
                 is PreferenceValue.Scale -> edit.putFloat(key, value.value)
             }
@@ -163,6 +174,15 @@ class KeyboardProfileStore(context: Context) : ProfileStore {
         if (group == ProfileGroup.GESTURES && values.keys == bindings.getValue(group).keys - SpaceGestures.keys) {
             // Saved before the per-gesture space settings: every gesture keeps following the older settings.
             values = values + SpaceGestures.keys.associateWith { PreferenceValue.Choice(SpaceGestures.INHERIT) }
+        }
+        if (group == ProfileGroup.DESIGN && values.keys == bindings.getValue(group).keys - RgbLighting.PREF) {
+            // saved before the RGB lighting: the profile leaves it as it is
+            values = values + (RgbLighting.PREF to PreferenceValue.Choice(""))
+        }
+        values[RgbLighting.PREF]?.let { rgb ->
+            // clamp an imported configuration field by field; a non-text value fails validation below
+            if (rgb is PreferenceValue.Choice && rgb.value.isNotEmpty())
+                values = values + (RgbLighting.PREF to PreferenceValue.Choice(RgbSettings.parse(rgb.value).encode()))
         }
         return ConfigurationProfile(group = group, values = values).also(::validate)
     }

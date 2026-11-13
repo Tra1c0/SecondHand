@@ -97,6 +97,9 @@ public class KeyboardView extends View {
     private final Canvas mOffscreenCanvas = new Canvas();
     @NonNull
     private final Paint mPaint = new Paint();
+    /** fork: RGB lighting (stage 26), set only by MainKeyboardView while something is lit */
+    @Nullable
+    protected helium314.keyboard.agent.RgbKeyPainter mRgbPainter;
     private final Paint.FontMetrics mFontMetrics = new Paint.FontMetrics();
 
     public KeyboardView(final Context context, final AttributeSet attrs) {
@@ -161,6 +164,17 @@ public class KeyboardView extends View {
         final int color = paint.getColor();
         paint.setARGB((paint.getAlpha() * alpha) / Constants.Color.ALPHA_OPAQUE,
                 Color.red(color), Color.green(color), Color.blue(color));
+    }
+
+    /** fork: RGB lighting painter, null draws exactly as upstream */
+    public void setRgbPainter(@Nullable final helium314.keyboard.agent.RgbKeyPainter painter) {
+        if (painter != mRgbPainter) invalidateAllKeys();
+        mRgbPainter = painter;
+    }
+
+    @Nullable
+    public helium314.keyboard.agent.RgbKeyPainter getRgbPainter() {
+        return mRgbPainter;
     }
 
     public void setHardwareAcceleratedDrawingEnabled(final boolean enabled) {
@@ -292,6 +306,7 @@ public class KeyboardView extends View {
         mIconScaleFactor = scale < 0.8f ? scale + 0.2f : 1f;
         final Paint paint = mPaint;
         final Drawable background = getBackground();
+        if (mRgbPainter != null) mRgbPainter.beginDraw(this); // fork
         // Calculate clip region and set.
         final boolean drawAllKeys = mInvalidateAllKeys || mInvalidatedKeys.isEmpty();
         final boolean isHardwareAccelerated = canvas.isHardwareAccelerated();
@@ -302,6 +317,7 @@ public class KeyboardView extends View {
                 canvas.drawColor(Color.BLACK, PorterDuff.Mode.CLEAR);
                 background.draw(canvas);
             }
+            if (mRgbPainter != null) mRgbPainter.drawKeyboardBackground(canvas); // fork
             // Draw all keys.
             for (final Key key : keyboard.getSortedKeys()) {
                 onDrawKey(key, canvas, paint);
@@ -320,6 +336,7 @@ public class KeyboardView extends View {
                     canvas.clipRect(mClipRect);
                     canvas.drawColor(Color.BLACK, PorterDuff.Mode.CLEAR);
                     background.draw(canvas);
+                    if (mRgbPainter != null) mRgbPainter.drawKeyboardBackground(canvas); // fork
                     canvas.restore();
                 }
                 onDrawKey(key, canvas, paint);
@@ -340,11 +357,14 @@ public class KeyboardView extends View {
         // don't use the raw key height, linear font scaling with height is too extreme
         final KeyDrawParams params = mKeyDrawParams.mayCloneAndUpdateParams((int) (key.getHeight() * mKeyScaleForText), attr);
         params.mAnimAlpha = Constants.Color.ALPHA_OPAQUE;
+        if (mRgbPainter != null) mRgbPainter.beginKey(key, keyDrawX, keyDrawY); // fork
 
         if (!key.isSpacer()) {
             final Drawable background = key.selectBackgroundDrawable(
                     mKeyBackground, mFunctionalKeyBackground, mSpacebarBackground, mActionKeyBackground);
+            if (mRgbPainter != null) mRgbPainter.tintBackground(background); // fork
             onDrawKeyBackground(key, canvas, background);
+            if (mRgbPainter != null) mRgbPainter.restoreBackground(); // fork
         }
         onDrawKeyTopVisuals(key, canvas, paint, params);
 
@@ -439,6 +459,7 @@ public class KeyboardView extends View {
                     paint.setColor(mColors.get(ColorType.POPUP_KEY_TEXT));
                 else
                     paint.setColor(key.selectTextColor(params));
+                if (mRgbPainter != null && !StringUtilsKt.isEmoji(label)) paint.setColor(mRgbPainter.labelColor(paint.getColor())); // fork
                 // Set a drop shadow for the text if the shadow radius is positive value.
                 if (mKeyTextShadowRadius > 0.0f) {
                     paint.setShadowLayer(mKeyTextShadowRadius, 0.0f, 0.0f, params.mTextShadowColor);
@@ -464,6 +485,7 @@ public class KeyboardView extends View {
         if (hintLabel != null && mShowsHints) {
             paint.setTextSize(key.selectHintTextSize(params) * mHintFontSizeMultiplier);
             paint.setColor(key.selectHintTextColor(params));
+            if (mRgbPainter != null) paint.setColor(mRgbPainter.labelColor(paint.getColor())); // fork
             // TODO: Should add a way to specify type face for hint letters
             paint.setTypeface(KeyboardTypeface.resolve(hintLabel, FlatStyle.typeface(mColors, Typeface.DEFAULT_BOLD)));
             blendAlpha(paint, params.mAnimAlpha);
@@ -549,7 +571,9 @@ public class KeyboardView extends View {
                 : (keyHeight - iconHeight) / 2; // Align vertically center.
             int iconX = (keyWidth - iconWidth) / 2; // Align horizontally center.
             setKeyIconColor(key, icon, keyboard);
+            if (mRgbPainter != null) mRgbPainter.tintIcon(key, icon); // fork
             drawIcon(canvas, icon, iconX, iconY, iconWidth, iconHeight);
+            if (mRgbPainter != null) mRgbPainter.restoreIcon(); // fork
         }
     }
 

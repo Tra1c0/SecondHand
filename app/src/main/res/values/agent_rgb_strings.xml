@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- RGB lighting (stage 26). English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="agent_rgb_title">RGB lighting</string>
+    <string name="agent_rgb_summary">Animated colours for keys, labels and background</string>
+    <string name="agent_rgb_enabled">RGB lighting on</string>
+    <string name="agent_rgb_preview_hint">Tap the preview to try the tap effects. Changes apply the next time the keyboard opens.</string>
+    <string name="agent_rgb_static_note">Android animations are off: the light stands still.</string>
+    <string name="agent_rgb_group_pattern">Pattern</string>
+    <string name="agent_rgb_group_wave">Motion</string>
+    <string name="agent_rgb_group_speed">Speed and direction</string>
+    <string name="agent_rgb_group_colors">Colours</string>
+    <string name="agent_rgb_group_layers">What lights up</string>
+    <string name="agent_rgb_group_areas">Where</string>
+    <string name="agent_rgb_group_tap">When typing</string>
+    <string name="agent_rgb_group_battery">Battery</string>
+    <string name="agent_rgb_pattern_wave_horizontal">Wave horizontal</string>
+    <string name="agent_rgb_pattern_wave_vertical">Wave vertical</string>
+    <string name="agent_rgb_pattern_wave_diagonal">Wave diagonal</string>
+    <string name="agent_rgb_pattern_circle">Circle from the centre</string>
+    <string name="agent_rgb_pattern_breathe">Breathing (all keys alike)</string>
+    <string name="agent_rgb_pattern_static">Static rainbow (no motion)</string>
+    <string name="agent_rgb_wave_sine">Sine (smooth)</string>
+    <string name="agent_rgb_wave_triangle">Triangle (zigzag)</string>
+    <string name="agent_rgb_wave_sawtooth">Sawtooth (rise, then jump)</string>
+    <string name="agent_rgb_wave_steps">Steps (jagged)</string>
+    <string name="agent_rgb_wave_pulse">Rise and fall</string>
+    <string name="agent_rgb_steps">Steps: %1$d</string>
+    <string name="agent_rgb_period">Duration of one cycle: %1$s s</string>
+    <string name="agent_rgb_reverse">Reverse direction</string>
+    <string name="agent_rgb_width">Wave width: %1$s cycles across the keyboard</string>
+    <string name="agent_rgb_palette_rainbow">Rainbow</string>
+    <string name="agent_rgb_palette_own">Own colours</string>
+    <string name="agent_rgb_color_n">Colour %1$d</string>
+    <string name="agent_rgb_color_add">Add colour</string>
+    <string name="agent_rgb_color_remove">Remove last colour</string>
+    <string name="agent_rgb_saturation">Saturation: %1$d %%</string>
+    <string name="agent_rgb_brightness">Brightness: %1$d %%</string>
+    <string name="agent_rgb_mix">Strength against the design colours: %1$d %%</string>
+    <string name="agent_rgb_layer_key_background">Key background</string>
+    <string name="agent_rgb_layer_keyboard_background">Keyboard background</string>
+    <string name="agent_rgb_layer_label">Labels (text and symbols of the keys)</string>
+    <string name="agent_rgb_contrast_note">Labels always keep a minimum contrast of 3:1 against what is behind them.</string>
+    <string name="agent_rgb_area_letters">Letter keys</string>
+    <string name="agent_rgb_area_functional">Function keys (shift, delete, enter, ?123, comma, period)</string>
+    <string name="agent_rgb_area_space">Space bar</string>
+    <string name="agent_rgb_area_number_row">Number row</string>
+    <string name="agent_rgb_area_suggestions">Suggestion strip (text of the word suggestions)</string>
+    <string name="agent_rgb_area_toolbar">Strip buttons (extra keys)</string>
+    <string name="agent_rgb_strip_note">In the strip only the colour of text and symbols changes.</string>
+    <string name="agent_rgb_tap_none">No reaction</string>
+    <string name="agent_rgb_tap_flash">Tapped key flashes and fades</string>
+    <string name="agent_rgb_tap_ripple">Ring spreads from the tapped key</string>
+    <string name="agent_rgb_tap_speed">Typing speeds it up briefly</string>
+    <string name="agent_rgb_reactive">Only visible when typing</string>
+    <string name="agent_rgb_reactive_summary">Otherwise the light is off; after each tap it appears and fades.</string>
+    <string name="agent_rgb_glow">Fade time: %1$s s</string>
+    <string name="agent_rgb_fps">Frame rate</string>
+    <string name="agent_rgb_fps_value">%1$d frames/s</string>
+    <string name="agent_rgb_power_save">Pause in power saving mode</string>
+    <string name="agent_rgb_battery_note">Runs only while the keyboard is visible. With Android animations off the picture stands still.</string>
+</resources>

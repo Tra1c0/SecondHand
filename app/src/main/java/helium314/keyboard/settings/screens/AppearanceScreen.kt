@@ -58,6 +58,7 @@ fun AppearanceScreen(
     val dayNightMode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && prefs.getBoolean(Settings.PREF_THEME_DAY_NIGHT, Defaults.PREF_THEME_DAY_NIGHT)
     val items = listOf(
         AGENT_DESIGN_SETTING, // fork: design page with preview tiles
+        AGENT_RGB_SETTING, // fork: RGB lighting
         R.string.settings_screen_theme,
         Settings.PREF_THEME_STYLE,
         Settings.PREF_ICON_STYLE,
@@ -105,6 +106,7 @@ fun AppearanceScreen(
 
 fun createAppearanceSettings(context: Context) = listOf(
     createAgentDesignSetting(context), // fork
+    createAgentRgbSetting(context), // fork
     Setting(context, Settings.PREF_THEME_STYLE, R.string.theme_style) { setting ->
         val ctx = LocalContext.current
         val prefs = ctx.prefs()

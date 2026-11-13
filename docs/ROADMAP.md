@@ -98,6 +98,10 @@ Folgende ist die Entscheidung des Leads.
   - 22c Dieselben Werte auch für das Korrekturmodell der Autokorrektur. (S)
   - Gespeichert werden nur Mittelwerte pro Taste, keine Texte und keine Tippfolgen; opt-in,
     nur auf dem Gerät. Berührt die Touch-Verarbeitung: nur eng und mit Prüfer.
+- **26 RGB-Beleuchtung (Auftrag des Owners vom 2026-11-13).** 26a–26c sind gebaut (siehe
+  FEATURES.md). Offen: Ansehen auf dem Telefon (Flüssigkeit bei 30/60 Bilder/s, Akku, Lesbarkeit,
+  Holo-Stil mit Bildtasten); die Leistenknöpfe im flachen Look leuchten nur als Symbol, nicht
+  ihr Kreis; der Tastaturhintergrund leuchtet nur hinter den Tasten, nicht hinter der Leiste. (S)
 - **19f Flacher Look am Gerät.** 19a–19e (Tasten, Leiste, Menü, Zwischenablage, Panel) sind
   gebaut, aber nur mit Tests und gerenderten Bildern geprüft. Offen: Vergleich auf dem Telefon
   des Owners mit Bildschirmfotos (Dichte, Systemschrift, Abstand zur Navigationsleiste,
