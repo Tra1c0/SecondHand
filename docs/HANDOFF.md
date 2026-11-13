@@ -15,8 +15,9 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 - Für Build 12 offen (Nachprüfung, alle niedrig): Screenshot-Verlauf verpasst im 500-ms-Fenster
   einen Screenshot; Reste in `files/agent_screenshot_pending/`; `ClipboardHistoryManager.onDestroy`
   stoppt Observer/Timer nicht; Temp-Datei beim Wörterbuch-Entpacken im Locale-Ordner sichtbar.
-- Emoji-Mix (25a) für Build 12 gewünscht, blockiert: Paarliste ohne Lizenz; Owner wählt „fragen“
-  (Issue bei xsalazar) oder „privat“. Danach 25b animierte Emojis, 25c Sticker-Ersteller.
+- Emoji-Mix (25a) gebaut für Build 12 (`@mix`, Leisten-Chip, Emoji-Mixer in der Emoji-Ansicht);
+  Paarliste mit mündlicher Erlaubnis des Autors (Owner), gstatic hier nicht erreichbar, kein
+  Gerätetest. Danach 25b animierte Emojis, 25c Sticker-Ersteller.
 - Wartet auf den Owner: `RELEASES_TOKEN` (Updates für die Freundin), vertrauliche Clips im Verlauf.
 - Tests: Robolectric hat keine native Wörterbuch-Bibliothek; `ShadowBinaryDictionaryUtils` gilt
   global (robolectric.properties). Wackelige Tests im vollen Lauf siehe Build-Log 10.
@@ -83,6 +84,14 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
     wird mit Roboto. Offen am Gerät: Gesamtbild, Abstand zur Navigationsleiste, Wechsel zwischen
     Werkzeugen und Wortvorschlägen, Menü-Aktionen, Zwischenablage mit echten Bildern, Balken im
     Panel, TalkBack. Liste je Etappe: `docs/VALIDATION.md` → Etappe19….
+
+16. **Emoji-Mix (25a): Lizenzdatei im Repo des Autors nachprüfen.** `xsalazar/emoji-kitchen-backend`
+    hat keine Lizenzdatei; Erlaubnis laut Owner mündlich am 2026-11-13, schriftlich ausstehend
+    (`docs/BUILD.md` → Emoji-Mix-Tabelle). Außerdem ungeprüft: echte Bilder von www.gstatic.com
+    (in der Cloud-Umgebung gesperrt), Einfügen in WhatsApp/Telegram, der Mixer in der
+    Emoji-Ansicht am Gerät (Leistenhöhe, Animation, Tastenbeschriftung „Emojis suchen“ /
+    „Emoji-Mixer“ in schmalen Tasten), ob die Leiste nach Emojis aus der Emoji-Ansicht den Chip
+    zeigt.
 
 ## Arbeitsweise
 

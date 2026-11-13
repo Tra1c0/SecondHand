@@ -1766,6 +1766,41 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   außer dem Energiesparmodus-Wechsel bei offener Tastatur (jetzt im Robolectric-Test, nicht auf
   einem Gerät).
 
+## 25a Emoji-Mix
+
+- Gebaut: Paartabelle als Asset (`tools/emoji_mix_table.py`, 48 690 Byte, aus `metadata.json`
+  mit SHA-256 `73a7a2a6…1804`, am 2026-11-13 erneut geladen und gleich), `C/EmojiMix.kt`,
+  `EmojiMixer`/`EmojiMixClient`, `@mix`, Leisten-Chip nach zwei Emojis, Mixer in der
+  Emoji-Ansicht (untere Reihe: „Emojis suchen“ und „Emoji-Mixer“ gleich breit), Einstellungen.
+  Geänderte Upstream-Dateien: `EmojiPalettesView.java`, `KeyLabel.kt` (neu geändert),
+  `emoji_bottom_row*.json` (neu geändert), `KeyCode.kt`, `KeyboardActionListenerImpl.kt`,
+  `clipboard_provider_path.xml`. Keine Änderung an `InputLogic`, `RichInputConnection` oder
+  `PointerTracker`; die Leiste ersetzt über den vorhandenen `replaceCommandText`.
+- Generator: prüft das URL-Muster an allen 293 586 `isLatest`-Einträgen (0 Abweichungen), zwei
+  Läufe ergeben dieselbe Datei (SHA-256 `28a06b84…a556`).
+- Geprüft (JVM): `CT/EmojiMixTest` (9: echte Tabelle 619/147 000, Reihenfolge und umgekehrtes
+  Paar 🐱🐶 → `u1f436_u1f431`, FE0F ❤/❤️, Hautton auf Basis, ZWJ 😮‍💨, Cluster, Partner, kaputte
+  Dateien, URL-Prüfung gegen fremde Hosts/HTTP/Query, LRU-Cache, PNG-Signatur).
+- Geprüft (Robolectric, nachgebauter Server per OkHttp-Interceptor): `AT/commands/EmojiMixCommandTest`
+  (10: Chips und Partner ohne Anfrage, ein Tipp = genau eine Anfrage ohne Cookie/Authorization,
+  zweiter Tipp während des Ladens nichts, Ergebnis-Chip mit Vorschaubild, Einfügen über den
+  Provider und erst danach Entfernen des Befehls, gecachtes Bild ohne Netz, Teilen, geänderter
+  Text → nichts, 404 → „Keine Mischung“ ohne zweite Anfrage, Fehler → nur neuer Tipp, Leisten-Chip
+  nur direkt an der Schreibmarke und nur für Paare der Tabelle, Ersetzen der zwei Emojis, Schalter,
+  gesperrte Felder/Inkognito/Sperre, Client: fremde Hosts nie angefragt, Weiterleitung nicht
+  verfolgt, falscher Typ, zu groß, 404, 500, Zeitlimit; echte Ein-Commit-Ersetzung der zwei
+  Emojis mit `RichInputConnection` für Surrogate, FE0F und ZWJ) und `AT/EmojiMixPaletteTest` (7:
+  Leiste an/aus, Seiten geben ihre Höhe ab, Auswahl höchstens zwei, Laden genau einmal je Paar,
+  Vorschau und Einfügen, Partner ohne Netz, gesperrt bleibt aus; echte Emoji-Ansicht aus
+  `KeyboardSwitcher`: beide Hälften genau gleich breit, Zurück/Löschen bleiben, Taste schaltet den
+  Mixer, Verlassen beendet ihn; auch im flachen Stil).
+- Gesamtläufe: siehe unten (wird beim Abschluss eingetragen).
+- Nicht geprüft: www.gstatic.com ist aus der Cloud-Umgebung nicht erreichbar, es wurde also nie ein
+  echtes Bild geladen (Muster nur gegen die Metadatei geprüft); kein Gerätetest (Einfügen in echte
+  Chat-Apps, Mixer-Leiste und Animation, Lesbarkeit der Tastentexte, ob der Leisten-Chip nach
+  Emojis aus der Emoji-Ansicht beim Zurückwechseln erscheint). Lizenz der Paarliste schriftlich
+  ausstehend (`docs/BUILD.md`).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.
