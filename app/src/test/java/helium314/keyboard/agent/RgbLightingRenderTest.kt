@@ -567,6 +567,23 @@ class RgbLightingRenderTest {
         assertTrue(minima >= 4, "hatching lines across the key: $minima")
     }
 
+    /** Review 29 (L2): keys in one colour each compute no light grid under the keys, only the tile moves. */
+    @Test fun solidKeysComputeNoGridUnderTheKeys() {
+        use(RgbSettings(enabled = true, pattern = RgbPattern.LED, solidKeys = true, layers = setOf(RgbLayer.KEY_BACKGROUND)))
+        val (keyboard, picture) = render("rgb-solid-led.png")
+        val keys = assertNotNull(lastView.rgbPainter).keysTexture
+        assertFalse(keys.hasField, "no grid under solid keys")
+        assertTrue(keys.hasTile, "the LED panel still lies over the keys")
+        // still one colour per key under the panel: the light at the key centre, the panel darkens around the dots
+        val k = keyboard.key("k")
+        val onKey = (k.y + 8 until k.y + k.height - 8).flatMap { y -> (k.x + 8 until k.x + k.width - 8).map { x -> RgbColors.luminance(picture.getPixel(x, y)) } }
+        assertTrue(spread(onKey) > 4.0, "LED panel on a solid key: ${spread(onKey)}")
+        // soft keys compute the grid
+        use(RgbSettings(enabled = true, pattern = RgbPattern.LED, layers = setOf(RgbLayer.KEY_BACKGROUND)))
+        render("rgb-soft-led.png")
+        assertTrue(assertNotNull(lastView.rgbPainter).keysTexture.hasField)
+    }
+
     @Test fun everyElementCanHaveItsOwnLook() {
         val base = RgbSettings(enabled = true, pattern = RgbPattern.STATIC_RAINBOW,
             layers = setOf(RgbLayer.KEY_BACKGROUND, RgbLayer.KEYBOARD_BACKGROUND), areas = RgbArea.entries.toSet()).withSeparate(true)
@@ -695,6 +712,9 @@ class RgbLightingRenderTest {
         view.measure(View.MeasureSpec.makeMeasureSpec(WIDTH, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(HEIGHT, View.MeasureSpec.EXACTLY))
         view.layout(0, 0, WIDTH, HEIGHT)
         lastView = view
+        // texture tiles are made in the background (review 29, M1): the picture is taken once they are there
+        RgbTiles.awaitIdle()
+        shadowOf(Looper.getMainLooper()).idle()
         val picture = draw(view)
         File("build/reports/rgb-lighting").apply { mkdirs() }.resolve(fileName).outputStream().use {
             picture.compress(Bitmap.CompressFormat.PNG, 100, it)

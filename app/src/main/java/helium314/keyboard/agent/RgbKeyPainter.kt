@@ -97,8 +97,10 @@ class RgbKeyPainter {
         if (keyboardLayer) background.update(backEngine, 0f, 0f, width.toFloat(), height.toFloat(), now, -1)
         keysReady = backgroundLayer
         if (backgroundLayer) {
+            // one colour per key: the grid under the keys is never drawn, only the tile
+            if (solid) keys.updateTileOnly(keysEngine, 0f, 0f, width.toFloat(), height.toFloat())
             // the same engine and no per-key reactive flash: the keys use the background's grid
-            if (keyboardLayer && keysEngine === backEngine && keysEngine.keyFactor(-1, now) == 1f) keys.copyFrom(background)
+            else if (keyboardLayer && keysEngine === backEngine && keysEngine.keyFactor(-1, now) == 1f) keys.copyFrom(background)
             else keys.update(keysEngine, 0f, 0f, width.toFloat(), height.toFloat(), now, RgbEngine.FIELD_KEYS)
         }
     }
@@ -236,6 +238,8 @@ class RgbKeyPainter {
 
     /** Number of cached key masks (tests). */
     internal val maskCount get() = masks.size
+    /** The light under the keys (tests). */
+    internal val keysTexture get() = keys
 
     companion object {
         private const val BLACK = 0xFF000000.toInt()

@@ -2372,6 +2372,57 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Lokaler Agent-Lauf auf ceca94d: 698 Tests, 84 Fehler, alle `ZipException` beim Laden von
   Klassen, weil der Lead währenddessen `agent-core` neu baute (Infrastrukturabbruch, kein
   Befund). Maßgeblich ist der GitHub-Lauf.
+- Korrektur der übrigen Prüfer-Befunde (eigene Arbeitskopie, ohne Gerätetest, ohne neuen Prüfer):
+  - **M1 Kacheln auf dem UI-Thread:** `RgbTiles` (in `A/RgbTexture.kt`) macht die Kacheln auf
+    einem Hintergrund-Thread; Zeichnen fragt nur nach (`ready`, blockiert nie) und zeichnet bis
+    dahin ohne Detail, danach zeichnen Tastatur und Vorschau über einen Zuhörer neu;
+    `RgbLighting.load` bestellt die Kacheln schon beim Lesen der Einstellung. Test
+    `RgbTilesTest.drawingNeverWaitsAndTheTileIsMadeOffTheMainThread` (zurückgehaltener Executor:
+    Zeichnen ohne Kachel, kein Bau auf dem Main-Thread, Bau auf einem anderen Thread, Zuhörer auf
+    dem Main-Thread, danach Kachel da) und `theRealExecutorIsABackgroundThread`. Gegenprobe:
+    Kachel wieder beim Zeichnen gebaut → „no tile before it is made“ schlägt fehl.
+  - **M2 Galerie und Cache:** Cache hält alle fünf Kachel-Muster
+    (`RgbTilesTest.theCacheHoldsEveryTiledPatternAndNothingIsMadeTwice`). Galeriebilder hängen
+    nur an Muster und Farben, entstehen auf `Dispatchers.Default`, nach der ersten Runde erst
+    nach 250 ms Ruhe, und werden gemerkt. Test
+    `RgbSettingsScreenTest.theGalleryIsNotRebuiltWhileACurvePointIsDragged` (12 Zwischenstände
+    eines gezogenen Punkts: kein neues Bild; andere Farben: neue Bilder, keine neue Kachel).
+    Gegenprobe: Kurve im Schlüssel → 24 statt 12 Bilder, Test schlägt fehl.
+  - **L1 Speicher:** Cache ohne Pixel-Array (nur Bitmap und Mittelfarbe), geleert bei
+    ausgeschalteter Beleuchtung und über `LatinIME.onTrimMemory` → `RgbLighting.onTrimMemory`
+    (`theTilesAreDroppedWhenTheLightIsOffOrMemoryRunsLow`, `aTileMadeBeforeAClearIsNotKept`).
+  - **L2 Einfarbige Tasten:** nur noch die Lage der Kachel, kein Raster
+    (`RgbLightingRenderTest.solidKeysComputeNoGridUnderTheKeys`; Gegenprobe ohne Fix: „no grid
+    under solid keys“ schlägt fehl).
+  - **L3 Filter:** alle `BitmapShader` über `RgbTexture.bitmapShader`, ab API 33
+    `FILTER_MODE_LINEAR` (P105). `theNewPatternsMoveInThePreview` und der neue
+    `thePreviewLightIsSmoothLikeTheGrid` laufen mit SDK 36: Vorschau gegen das bilineare Raster
+    höchstens 4 je Kanal über 34 Pixel der Leertaste, gegen Blöcke bis 32. Gegenprobe mit SDK 28
+    (Robolectric zeichnet ungefiltert): schlägt fehl (8 statt höchstens 4). Dass gerade das
+    Setzen des Filtermodus den Unterschied macht, zeigt der Test nicht: Robolectric mit SDK 36
+    filtert auch über die Paint-Flagge; nur am Gerät prüfbar.
+  - **L4 Allokationen:** `RgbOverlay.transform` schreibt in ein festes Feld (ohne `Quad` und
+    Closure), Shader je Taste in `SparseArray` (`RgbPatternsTest.theTileMatrixIsReusedAndItsDriftRepeats`).
+  - **L5 Sprung im Fluss:** `RgbEngine.flow` bricht an `RgbPatterns.flowPeriod` um, wo sich das
+    Farbfeld genau wiederholt (P107); die Phase verliert ab 10⁶ nur ganze `DRIFT_PERIOD`.
+    Tests `theFlowRepeatsExactlyAtItsPeriod` (größte Abweichung nach einer Periode 2·10⁻⁴, Tinte)
+    und `noJumpAcrossTheWrapOfTheFlow` (alle Texturen, beide Richtungen, höchstens 8 je Bild bei
+    30 s; Phase über 10⁶ ohne Sprung in Farbe und Kachel). Gegenprobe mit dem alten Umbruch bei
+    4096: Tinte springt um 197.
+  - **L6 Kurven-Editor:** langes Drücken wählt nur noch, entfernt nichts; TalkBack-Aktionen
+    hoch, runter, links, rechts (Enden nur hoch, runter) und entfernen für den gewählten Punkt;
+    gewählter Punkt mit `rememberSaveable`; Galerie bekommt `look.reverse`; Kommentare berichtigt.
+    Tests `theCurveIsEditedByTouch` (geändert: langes Drücken lässt 3 Punkte, „Punkt entfernen“
+    entfernt) und `theSelectedPointHasTalkBackActions`. Gegenprobe mit altem Langdruck: „a long
+    press removes nothing“ schlägt fehl. TalkBack selbst nicht am Gerät geprüft.
+  - Sichtbar für den Owner (bleibt, steht in ANLEITUNG und Release-Notes): alte Einstellungen
+    ohne `keys=` laufen weich; „Jede Taste einfarbig“ holt das alte Bild zurück.
+  - **Befehle:** `python3 tools/dev.py core-tests`: 276 Tests, 0 Fehler. RGB-App-Tests
+    (`--tests 'helium314.keyboard.agent.Rgb*'`): 39 Tests, 0 Fehler (Render 22, Seite 12, Kacheln 5). `python3 tools/dev.py agent-tests`:
+    704 Tests, 1 Fehler:
+    `SpaceGesturesTest.defaultsEqualTheBehaviorBeforePerGestureSettings` (leere Einstellungen
+    erwartet; dieselbe Stelle wie der bekannte Wettlauf mit `SupportedEmojis.load`, siehe „Etappen
+    30 und 31“; allein wiederholt grün; die Ursache in diesem Lauf nicht nachgelesen). Kein Build, keine volle Upstream-Suite. `python3 -I scripts/docs_sync.py --check`: grün.
 
 ## Gerätetest vor Meilensteinfreigabe
 

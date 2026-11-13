@@ -504,8 +504,10 @@ Einstellungen in Karten:
   senkrecht die Farbe im Farbverlauf (bei „Atmen“ die Helligkeit). Ziehe einen Punkt (Kreis mit
   Kreuz), um ihn zu verschieben; die beiden Enden bleiben links und rechts und gehen nur hoch und
   runter. Tippe auf eine freie Stelle für einen neuen Punkt oder auf „Punkt hinzufügen“ (kommt in
-  die größte Lücke). Drücke lang auf einen Punkt oder ziehe ihn aus dem Feld, um ihn zu entfernen,
-  oder wähle ihn und tippe „Punkt entfernen“. Mindestens zwei, höchstens 24 Punkte. Vorlagen:
+  die größte Lücke). Tippen oder langes Drücken auf einen Punkt wählt ihn (langes Drücken löscht
+  nichts). Entfernen: Punkt wählen und „Punkt entfernen“ tippen, oder ihn aus dem Feld ziehen.
+  Mit TalkBack: Punkt wählen, dann über die Aktionen des Kurvenfelds „Punkt nach oben/unten/links/
+  rechts“ (in Zwanzigstel-Schritten) oder „Punkt entfernen“. Mindestens zwei, höchstens 24 Punkte. Vorlagen:
   Sinus (weich), Dreieck (Zickzack), Sägezahn, Stufen (mit Regler 2–12), An- und Abstieg; wer
   vorher einen Verlauf gewählt hatte, findet ihn als passende Kurve wieder.
 - Tempo und Richtung: Dauer eines Durchlaufs 0,5–30 s (bei den Texturen auch das Tempo der
@@ -518,6 +520,9 @@ Einstellungen in Karten:
   den Tasten), Beschriftung. Beschriftungen bleiben immer lesbar: Ist der Kontrast zum
   Hintergrund kleiner als 3:1, werden sie heller oder dunkler. „Jede Taste einfarbig“: eine Farbe
   pro Taste wie bei LED-Tastaturen; aus (Vorgabe) laufen die Farben weich über die Tasten.
+  Nach dem Update auf die überarbeitete Beleuchtung laufen die Farben auch bei einer schon
+  gespeicherten Einstellung weich über die Tasten (vorher war jede Taste einfarbig). Wer das alte
+  Bild zurückwill, schaltet „Jede Taste einfarbig“ ein.
 - Wo (mehrere wählbar): Buchstabentasten, Funktionstasten (Umschalt, Löschen, Enter, ?123,
   Komma, Punkt), Leertaste, Zahlenreihe, Vorschlagsleiste (Text der Wortvorschläge),
   Leistenknöpfe. In der Leiste ändert sich nur die Farbe von Text und Symbolen.
@@ -534,6 +539,10 @@ Energiesparmodus bei offener Tastatur ein oder aus, bleibt das Licht sofort steh
 weiter. Hast du in den Android-Einstellungen (Entwickleroptionen oder Bedienungshilfen) die
 Animationen ausgeschaltet, bleibt das Bild stehen (läuft es gerade, nach höchstens 2 s, sonst
 beim nächsten Einblenden der Tastatur) und die Tipp-Effekte entfallen.
+Bei Rauten, Lamellen, Raster, LED-Punkten und Höhenlinien können die feinen Linien und Punkte
+beim ersten Öffnen und nach einem Musterwechsel einen Augenblick später erscheinen als die Farben:
+Sie werden im Hintergrund vorbereitet, damit die Tastatur dabei nicht ruckelt. Die Bilder der
+Mustergalerie zeigen Muster und Farben, nicht deine Kurve oder dein Tempo.
 Leistenknöpfe: Nur eingeschaltete Werkzeuge leuchten, ausgeschaltete behalten ihre graue Farbe;
 der runde Knopf im flachen Look leuchtet nicht. Mit eigenem Hintergrundbild prüft die Tastatur
 die Lesbarkeit gegen die Hintergrundfarbe, nicht gegen das Bild. Die Einstellung steht im

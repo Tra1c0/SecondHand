@@ -103,9 +103,24 @@ object RgbLighting {
         settings = RgbSettings.parse(value)
         engines = RgbEngines(settings)
         pacer = RgbFramePacer(settings.fps)
+        // tiles are made in the background ahead of the first frame; switched off they are dropped
+        if (settings.enabled) {
+            RgbTiles.addListener(onTilesReady)
+            RgbTiles.request(engines.all.map { it.settings.pattern })
+        } else RgbTiles.clear()
         // strip areas deselected while the keys stay lit: give the strip its own colours back
         if (!settings.lightsStrip()) restoreStrip()
     }
+
+    /** A tile was made in the background: draw it now, also when the light stands still. */
+    private val onTilesReady: () -> Unit = {
+        val view = keyboardView?.get()
+        if (mode != RgbRun.Mode.OFF && isVisible(view)) redraw(view)
+    }
+
+    /** Low memory (LatinIME.onTrimMemory): drops the tiles; the next frame asks for them again. */
+    @JvmStatic
+    fun onTrimMemory() = RgbTiles.clear()
 
     /** True for the one view that may be lit: the keyboard of main_keyboard_frame. */
     @JvmStatic

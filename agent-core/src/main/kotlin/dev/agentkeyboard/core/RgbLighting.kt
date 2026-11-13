@@ -533,6 +533,13 @@ class RgbEngine(settings: RgbSettings) {
     /** Position in cycles; grows with time (and faster after a tap with [RgbTapReaction.SPEED_UP]). */
     var phase = 0.0
         private set
+    /**
+     * Time of the flow of texture patterns in cycles: grows like [phase], but wraps at the
+     * pattern's [RgbPatterns.flowPeriod], where the flow repeats exactly (no jump at the wrap).
+     */
+    var flow = 0.0
+        private set
+    private val flowPeriod = RgbPatterns.flowPeriod(this.settings.pattern)
     private var lastAdvanceMs = Long.MIN_VALUE
 
     private val tapX = FloatArray(MAX_TAPS)
@@ -558,15 +565,30 @@ class RgbEngine(settings: RgbSettings) {
         if (last == Long.MIN_VALUE || settings.pattern == RgbPattern.STATIC_RAINBOW) return
         val dt = (nowMs - last).coerceIn(0L, MAX_STEP_MS)
         val boost = if (settings.tapReaction == RgbTapReaction.SPEED_UP) 1f + SPEED_BOOST * globalFade(nowMs) else 1f
-        phase += dt.toDouble() / settings.periodMs * boost
-        if (phase > 1e6) phase -= floor(phase)
+        val step = dt.toDouble() / settings.periodMs * boost
+        phase += step
+        // whole drift periods only: colours (whole cycles) and tile drift go on without a jump
+        if (phase > PHASE_WRAP_AT) phase -= floor(phase / RgbOverlay.DRIFT_PERIOD) * RgbOverlay.DRIFT_PERIOD
+        flow += step
+        if (flow >= flowPeriod) flow -= flowPeriod * floor(flow / flowPeriod)
     }
 
     /** Restarts timing without changing the phase (after a pause). */
     fun resetClock() { lastAdvanceMs = Long.MIN_VALUE }
 
     /** Takes over the phase of [other] (a changed setting goes on where the light was, no restart). */
-    fun continueFrom(other: RgbEngine) { if (settings.pattern != RgbPattern.STATIC_RAINBOW) phase = other.phase }
+    fun continueFrom(other: RgbEngine) {
+        if (settings.pattern == RgbPattern.STATIC_RAINBOW) return
+        phase = other.phase
+        // the same pattern goes on exactly; another pattern has another period (it changes anyway)
+        flow = other.flow % flowPeriod
+    }
+
+    /** Puts the clock at [cycles] of phase and flow (tests: the wraps after hours of running). */
+    internal fun jumpTo(cycles: Double) {
+        phase = cycles
+        flow = cycles % flowPeriod
+    }
 
     fun tap(x: Float, y: Float, keyId: Int, nowMs: Long) {
         tapX[nextTap] = x
@@ -605,7 +627,7 @@ class RgbEngine(settings: RgbSettings) {
         var strength = 1f
         if (s.pattern.textured) {
             val fp = (phase - floor(phase)).toFloat()
-            val time = ((phase % FLOW_WRAP).toFloat()) * (if (s.reverse) -1f else 1f)
+            val time = flow.toFloat() * (if (s.reverse) -1f else 1f)
             RgbPatterns.field(s.pattern, x, y, aspect, time, if (s.reverse) fp else -fp, s.waveWidth, sample)
             val u = sample.u
             var c = paletteAt(s.curve.value(u - floor(u)), s.curve.cyclic)
@@ -766,8 +788,8 @@ class RgbEngine(settings: RgbSettings) {
         /** Rainbow smoothing radius in table entries (about ±2 % of the cycle in two passes). */
         private const val SMOOTH_RADIUS = 28
         private const val GREY = 0xFF8A8A8A.toInt()
-        /** The flow of texture patterns repeats after this many cycles (float precision). */
-        private const val FLOW_WRAP = 4096.0
+        /** Above this many cycles whole [RgbOverlay.DRIFT_PERIOD]s are taken off the phase (double precision). */
+        private const val PHASE_WRAP_AT = 1e6
     }
 }
 

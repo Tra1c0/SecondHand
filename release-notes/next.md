@@ -73,12 +73,20 @@
   Höhenlinien. Sie fließen bzw. wandern langsam (Tempo über „Dauer eines Durchlaufs“).
 - Neu: Schaltest du „Gleiches Muster überall“ aus, bekommen Tasten, Hintergrund, Beschriftung,
   Vorschläge und Leistenknöpfe je ein eigenes Muster mit eigenem Verlauf, Tempo und eigenen Farben.
-- Neu: Der Verlauf ist eine eigene Kurve: Punkte ziehen, durch Tippen hinzufügen, durch langes
-  Drücken oder Hinausziehen entfernen. Die bisherigen Verläufe gibt es als Vorlagen; deine
-  bisherige Wahl wird automatisch zur passenden Kurve.
-- Weicher: Die Farben laufen jetzt ohne Stufen über die Tasten („Jede Taste einfarbig“ stellt
-  das alte Verhalten wieder her), eigene Farben werden ohne graue Mitte gemischt, der Regenbogen
-  hat keine hellen Kanten mehr.
+- Neu: Der Verlauf ist eine eigene Kurve: Punkte ziehen, durch Tippen hinzufügen, durch Tippen
+  oder langes Drücken wählen und mit „Punkt entfernen“ oder Hinausziehen entfernen (langes
+  Drücken löscht nichts). Mit TalkBack lässt sich der gewählte Punkt über Aktionen verschieben
+  und entfernen. Die bisherigen Verläufe gibt es als Vorlagen; deine bisherige Wahl wird
+  automatisch zur passenden Kurve.
+- Weicher: Die Farben laufen jetzt ohne Stufen über die Tasten, auch bei deiner schon
+  gespeicherten Einstellung. Wer jede Taste wie bisher in einer Farbe will, schaltet „Jede Taste
+  einfarbig“ ein. Eigene Farben werden ohne graue Mitte gemischt, der Regenbogen hat keine hellen
+  Kanten mehr.
+- Flüssiger: Die feinen Linien und Punkte der Texturen werden im Hintergrund vorbereitet und
+  erscheinen beim ersten Öffnen einen Augenblick nach den Farben, statt die Tastatur kurz
+  anzuhalten. Die Mustergalerie der RGB-Seite rechnet nicht mehr bei jeder Bewegung eines
+  Kurvenpunkts oder Reglers neu. Die Bewegung der Texturen springt auch nach langer Laufzeit
+  nicht mehr.
 - Noch auf keinem Gerät ausprobiert; Akkuverbrauch und Ruckelfreiheit auf dem Telefon sind nicht
   gemessen.
 - Neu: Emoji-Vorschläge in der Leiste treffen deutlich mehr. Wortformen („Katzen“ → 🐈),

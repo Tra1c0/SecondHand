@@ -22,7 +22,10 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextStyle
@@ -31,6 +34,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.agentkeyboard.core.RgbCurve
+import helium314.keyboard.latin.R
 import kotlin.math.hypot
 
 /** Inner margin of the curve area: room for the handles at the edges. */
@@ -40,10 +44,12 @@ internal val CURVE_HEIGHT = 200.dp
 /**
  * Own curve of the RGB lighting (stage 29d), drawn like the owner's sketch: two axes, the curve and
  * its control points as circles with a cross. Drag a point to move it (the ends only up and down),
- * tap an empty spot to add a point there, long press a point or drag it out of the area to remove it
- * (never the ends, never below two points). [onChange] gets every intermediate curve with
+ * tap an empty spot to add a point there, tap or long press a point to select it, drag it out of the
+ * area to remove it (never the ends, never below two points); a long press never removes, so a
+ * finger resting on a point loses nothing. [onChange] gets every intermediate curve with
  * commit = false while dragging and the final one with commit = true. [selected] is the point the
- * "remove" button acts on.
+ * "remove" button acts on; TalkBack offers moving it in steps of [A11Y_STEP] and removing it as
+ * custom actions on the editor.
  */
 @Composable
 fun RgbCurveEditor(
@@ -66,11 +72,36 @@ fun RgbCurveEditor(
     var dragging by remember { mutableIntStateOf(-1) }
     var outside by remember { mutableStateOf(false) }
     val measurer = rememberTextMeasurer()
+    val upLabel = stringResource(R.string.agent_rgb_curve_up)
+    val downLabel = stringResource(R.string.agent_rgb_curve_down)
+    val leftLabel = stringResource(R.string.agent_rgb_curve_left)
+    val rightLabel = stringResource(R.string.agent_rgb_curve_right)
+    val removeLabel = stringResource(R.string.agent_rgb_curve_remove)
+    val selectedText = stringResource(R.string.agent_rgb_curve_selected, selected + 1)
+    /** Moves the selected point by ([dx], [dy]) and saves (TalkBack). */
+    fun nudge(dx: Float, dy: Float): Boolean {
+        val p = current.points.getOrNull(selected) ?: return false
+        change(current.move(selected, p.x + dx, p.y + dy), true)
+        return true
+    }
     Canvas(
         modifier.fillMaxWidth().height(CURVE_HEIGHT).testTag("agent_rgb_curve")
             .semantics {
                 contentDescription = description
-                stateDescription = curve.points.joinToString(", ") { "${(it.x * 100).toInt()} %: ${(it.y * 100).toInt()} %" }
+                val points = curve.points.joinToString(", ") { "${(it.x * 100).toInt()} %: ${(it.y * 100).toInt()} %" }
+                stateDescription = if (selected in curve.points.indices) "$selectedText. $points" else points
+                if (selected in curve.points.indices) customActions = listOfNotNull(
+                    CustomAccessibilityAction(upLabel) { nudge(0f, A11Y_STEP) },
+                    CustomAccessibilityAction(downLabel) { nudge(0f, -A11Y_STEP) },
+                    // the ends stay at the left and right edge
+                    CustomAccessibilityAction(leftLabel) { nudge(-A11Y_STEP, 0f) }.takeIf { selected > 0 && selected < curve.points.size - 1 },
+                    CustomAccessibilityAction(rightLabel) { nudge(A11Y_STEP, 0f) }.takeIf { selected > 0 && selected < curve.points.size - 1 },
+                    CustomAccessibilityAction(removeLabel) {
+                        change(current.remove(selected), true)
+                        select(-1)
+                        true
+                    }.takeIf { curve.canRemove(selected) },
+                )
             }
             .pointerInput(Unit) {
                 val pad = CURVE_PAD.toPx()
@@ -94,7 +125,7 @@ fun RgbCurveEditor(
                     val start = down.position
                     val index = hit(start)
                     if (index >= 0) down.consume()
-                    // wait: lifted (tap), moved past the slop (drag), or held (long press)
+                    // wait: lifted (tap), moved past the slop (drag), or held (long press: select only)
                     val first = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
                         var result = 0
                         while (result == 0) {
@@ -109,11 +140,8 @@ fun RgbCurveEditor(
                         result
                     }
                     when {
-                        first == null -> { // long press
-                            if (index >= 0 && current.canRemove(index)) {
-                                change(current.remove(index), true)
-                                select(-1)
-                            }
+                        first == null -> { // long press: selects the point, removing is the button's or dragging out
+                            if (index >= 0) select(index)
                             do { val e = awaitPointerEvent(); e.changes.forEach { it.consume() } } while (e.changes.any { it.pressed })
                         }
                         first == TAP && index >= 0 -> select(index)
@@ -199,6 +227,9 @@ internal fun curvePointOffset(curve: RgbCurve, index: Int, widthPx: Float, heigh
     val p = curve.points[index]
     return Offset(padPx + p.x * (widthPx - 2 * padPx), padPx + (1 - p.y) * (heightPx - 2 * padPx))
 }
+
+/** Step of the TalkBack actions: a twentieth of the area. */
+internal const val A11Y_STEP = 0.05f
 
 private const val TAP = 1
 private const val DRAG = 2

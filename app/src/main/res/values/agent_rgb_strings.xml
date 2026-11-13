@@ -76,7 +76,7 @@
     <string name="agent_rgb_pattern_hatch">Hatching</string>
     <string name="agent_rgb_pattern_led">LED dots</string>
     <string name="agent_rgb_pattern_topo">Contour lines</string>
-    <string name="agent_rgb_curve_summary">Across: place in the cycle (time and position), up: colour in the palette (brightness for \"Breathing\"). Drag a point, tap an empty spot for a new one, long press or drag it out to remove it. The ends stay left and right.</string>
+    <string name="agent_rgb_curve_summary">Across: place in the cycle (time and position), up: colour in the palette (brightness for \"Breathing\"). Drag a point, tap an empty spot for a new one. Tap or long press selects a point; remove it with \"Remove point\" or by dragging it out. The ends stay left and right.</string>
     <string name="agent_rgb_curve_presets">Presets</string>
     <string name="agent_rgb_curve_own">Own curve</string>
     <string name="agent_rgb_curve_add">Add point</string>
@@ -86,4 +86,9 @@
     <string name="agent_rgb_axis_y">Colour</string>
     <string name="agent_rgb_solid_keys">One colour per key</string>
     <string name="agent_rgb_solid_keys_summary">Like LED keyboards, one colour per key. Off: the colours run smoothly across the keys.</string>
+    <string name="agent_rgb_curve_up">Point up</string>
+    <string name="agent_rgb_curve_down">Point down</string>
+    <string name="agent_rgb_curve_left">Point left</string>
+    <string name="agent_rgb_curve_right">Point right</string>
+    <string name="agent_rgb_curve_selected">Point %1$d selected</string>
 </resources>
