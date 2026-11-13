@@ -9,29 +9,33 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 ## Aktueller Stand
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
-- Stand 2026-11-13: `main` = Build 13 (geprüft; Nummer = Workflow-Lauf, siehe `CLAUDE.md` →
-  Build). Neu: 25a Emoji-Mix, 27 Symbole malen, Sprachwahl-Fix mit Umlaut-Tests,
-  Haptik-Kette, vier Screenshot-/Wörterbuch-Fixes, Update-Migrationen (P84, Design-Abstände).
-  Alles mit Prüfer, Nachprüfung der Fixes und vollem Testlauf (lokal und GitHub). Kein Gerätetest.
-- Build 12 (Test-Build) ist beim Owner installiert; Build 13 bringt die Prüferfixes.
-- Nächste Runde: ROADMAP 28–33 (Regler-Haptik, RGB-Überarbeitung, Diagnose,
-  Symbole-Feinschliff, zuletzt gemischt, Leertasten-Geste mit Rastpunkten). Der Owner stellt dafür
-  Opus 5.5 mit Effort high ein; erst dann beginnen.
-- Kein Gerätetest für alles seit Build 10 außer den Rückmeldungen des Owners.
+- Stand 2026-11-13 (Ende der Runde): `main` = Build 16 (geprüft, sobald der GitHub-Lauf grün ist). Neu seit Build 13: 28
+  Regler-Haptik, 29 RGB-Überarbeitung (sechs bewegte Muster je Element, Kurven-Editor, Leistung),
+  30 Diagnose (mit Lichtkosten), 31/36 Symbole malen (Feinschliff, neue Erkennung, Lernen opt-in),
+  32 zuletzt gemischt, 33 Leertasten-Rastpunkte, 35 tolerantere Emoji-Vorschläge. Alle Etappen mit
+  Prüfer und Nachprüfung; GitHub-Läufe grün. Kein Gerätetest außer den Rückmeldungen des Owners.
+- Beim Owner: Build 15 (Test). Rückmeldungen zu Build 14: Symbol-Erkennung schlecht (→ 36),
+  RGB-Menü und Tastatur ruckeln (→ Hintergrund-Rechnung; Messung auf der Diagnose-Seite steht aus).
+- Nächste Sitzung: Diagnose-Werte des Owners zur RGB-Leistung und Rückmeldung zur neuen
+  Erkennung abwarten; dann 34 (eigene Designs/RGB-Designs, Annahme bestätigen).
 
 ## Offene Punkte
 
-0. **Nächste Runde (ROADMAP 28–33).** Offene Fragen an den Owner stehen dort (Rastpunkte je Regler,
-   was die RGB-Kurve steuert, Punkte-Abstände und „ganzer Text rückgängig“ bei 33). Ablauf wie in
-   der Runde davor: Agenten je Etappe in Arbeitskopien, Fallstrick-Nummern vorab verteilen (ab P85),
-   Test-Build zuerst (`CLAUDE.md`), dann Prüfer und volle Läufe. Tests laufen auch auf GitHub
-   (`agent-tests.yml`, bei jedem Code-Push auf `claude/**`, Ergebnis im Job-Summary).
-   Offen aus Build 12 (alle niedrig, Liste in VALIDATION → „Build 12: …“): Emoji-Mix 7–10,
-   Symbole malen (Tupfer-Regel, Spur, Gestenschalter), Screenshot-Reste beim Start mit Schalter aus,
-   `dicts_extracting`-Reste. Lizenzdatei der Emoji-Kitchen-Paarliste nachprüfen (BUILD.md).
+0. **Nächste Runde.** Zuerst Rückmeldung zu Build 16: RGB-Leistung am Xiaomi (Diagnose → „RGB-
+   Beleuchtung“; größter Posten laut JVM ist das Zeichnen des Lichts durch die Tastenmasken, 2,5–18
+   ms je Bild in Robolectric-Software, am Gerät unbekannt; nächster Kandidat: Licht nicht je Taste
+   durch Masken, sondern eine Ebene), Symbol-Erkennung (Tipp-Grenze 8 dp, Bereich 3 Tastenbreiten:
+   Abwägung zwischen verlorenen Buchstaben neben der Zeichnung und abreißenden Symbolen; „glitcht“
+   ungeklärt), Rastpunkte der Leertaste (Abstände, Gefühl), Regler-Ticks. Danach ROADMAP 34
+   (Annahme: eigene RGB-Designs) und die offenen niedrigen Befunde in VALIDATION (Etappen 28–36).
+   Arbeitsweise dieser Runde: Agenten je Etappe in Arbeitskopien mit eigenen Sicherungsordnern
+   (`scratchpad/bak-<etappe>/`), Fallstrick-Nummern vorab verteilen (belegt bis P118, frei ab
+   P119), nie `agent-core` neu bauen, während ein eigener App-Testlauf läuft
+   (ZipException), Merge-Konflikte in Docs: beide Seiten, generierte Blöcke per `--write`.
+   Parallel-Sitzung auf eigenem Branch hat sich bewährt (35); Merge durch die Haupt-Sitzung.
    Danach offen: 25b animierte Emojis, 25c Sticker-Ersteller, U6 `@generate`.
-   Wartet auf den Owner: Secret `RELEASES_TOKEN` (kommt später); Entscheidung, ob vertrauliche
-   Clips aus dem normalen Zwischenablageverlauf bleiben.
+   Wartet auf den Owner: Secret `RELEASES_TOKEN`; Entscheidung, ob vertrauliche Clips aus dem
+   normalen Zwischenablageverlauf bleiben.
 
 1. **Gerätetest teilweise erledigt (G1).** Im Emulator geprüft und in Ordnung: Installation,
    Tippen, Löschen, Rad, Panel, Ersetzen, Schutz bei geänderter Auswahl, Passwortfeld,
@@ -212,6 +216,12 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
   Code aktualisieren (`CLAUDE.md` → Docs aktuell halten).
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
+- Build 16 (geprüft, von `main`, in Vorbereitung): Etappen 28–33, 35, 36 mit allen
+  Prüferkorrekturen; GitHub-Lauf auf 9f097dd bei diesem Commit noch offen; kein Gerätetest.
+- Build 15 (Test, Arbeitsbranch 7818560): RGB-Leistung (Hintergrund-Raster, Kacheln), Korrekturen
+  zu 30/31, Lichtkosten auf der Diagnose-Seite; noch alte Symbol-Erkennung.
+- Build 14 (Test, Arbeitsbranch caeca49): 28–33 und 35. Rückmeldung: Symbol-Erkennung schlecht,
+  RGB-Menü und Tastatur ruckeln.
 - Build 13 (geprüft, von `main`): wie Build 12 plus Prüferfixes (Emoji-Mix-
   Senke, Symbol nach Ausblenden, Screenshot vor dem Start, Update-Migrationen P84); Upstream mit
   den 7 bekannten Fehlern (lokal, Stand 15b3c5a), Agent-Suite (lokal, ef4f172), GitHub-Lauf 4 auf
