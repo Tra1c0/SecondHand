@@ -118,17 +118,20 @@ class SubtypeState(private val switchToSubtype: (InputMethodSubtype?) -> Unit) {
     // 3. for each hint locale, if any enabled subtype matches it, we return it.
     // 4. if a subtype was saved for the app, we fall back on it.
     // 5. we don't switch.
+    // fork (stage 30 fix): peek = true only asks what would be switched to and changes nothing (SubtypeChoice)
+    @JvmOverloads
     fun getSubtypeForLocales(
         richImm: RichInputMethodManager,
         locales: MutableList<Locale>,
-        subtypeForApp: RichInputMethodSubtype?
+        subtypeForApp: RichInputMethodSubtype?,
+        peek: Boolean = false
     ): InputMethodSubtype? {
         val overridden = overriddenByLocale
         if (locales.isEmpty() && subtypeForApp == null) {
             if (overridden != null) {
                 // no locales provided, so switch back to
                 // whatever subtype was used last time.
-                overriddenByLocale = null
+                if (!peek) overriddenByLocale = null
 
                 return overridden
             }
@@ -159,7 +162,7 @@ class SubtypeState(private val switchToSubtype: (InputMethodSubtype?) -> Unit) {
         }
 
         if (newSubtype != null && newSubtype != currentSubtype.rawSubtype) {
-            if (overridden == null) {
+            if (overridden == null && !peek) {
                 // auto-switching based on hint locale, so store
                 // whatever subtype was in use so we can switch back
                 // to it later when there are no hint locales.

@@ -3210,6 +3210,21 @@ class InputLogicTest {
         }
     }
 
+    @Test fun symbolDrawTapInThePauseThatIsNoDotMatchesTheDrawingOnce() {
+        // review N2: the dot check (rule 4) and the written symbol share one match on the main thread
+        enableSymbolDrawing()
+        // shifted: the same arrow as in other tests of this class would already be in the recognizer's memo
+        drawStrokes(*arrowStrokes.map { s -> FloatArray(s.size) { s[it] + 3 + (it % 2) * 2 } }.toTypedArray())
+        val before = helium314.keyboard.agent.SymbolDrawing.currentRecognizer()
+        val start = before?.recognitions ?: 0
+        // a tap above the middle of the arrow's line, where ÷ has a dot, as PointerTracker reports it
+        helium314.keyboard.agent.SymbolInk.onInkDown(0, 150, 40)
+        assertTrue(helium314.keyboard.agent.SymbolInk.onInkUp(0, 150, 40)) // a letter: the arrow is written now
+        assertEquals("→", text)
+        val after = helium314.keyboard.agent.SymbolDrawing.currentRecognizer()!!
+        assertEquals(1, after.recognitions - (if (after === before) start else 0))
+    }
+
     @Test fun symbolDrawWaitingSymbolIsTypedBeforeTheNextKey() {
         enableSymbolDrawing()
         drawStrokes(floatArrayOf(0f, 100f, 300f, 100f))
@@ -3358,6 +3373,47 @@ class InputLogicTest {
                 switchLog.entries().map { it.reason })
         } finally {
             helium314.keyboard.agent.commands.SubtypeChoice.clear()
+            for (subtype in listOf(spanish, german)) SubtypeSettings.removeEnabledSubtype(latinIME, subtype)
+            switchLog.clear()
+        }
+    }
+
+    @Test fun subtypeSwitchLogNotesAKeptChoiceOnlyWhenTheFieldWouldHaveSwitched() {
+        // review N3: "kept" only when the app's hint (or the language per app) would really have switched
+        val german = SubtypeSettings.getResourceSubtypesForLocale("de".constructLocale()).first()
+        val spanish = SubtypeSettings.getResourceSubtypesForLocale("es".constructLocale()).first()
+        for (subtype in listOf(german, spanish)) SubtypeSettings.addEnabledSubtype(latinIME.prefs(), subtype)
+        fun field(pkg: String, id: Int, hint: Locale?) = EditorInfo().apply {
+            inputType = currentInputType; packageName = pkg; fieldId = id
+            if (hint != null) hintLocales = android.os.LocaleList(hint)
+        }
+        ShadowInputMethodService.currentPackageName = "com.example"
+        ShadowInputMethodService.currentFieldId = 7
+        try {
+            latinIME.prefs().edit { putBoolean(Settings.PREF_SAVE_SUBTYPE_PER_APP, false) }
+            latinIME.switchToSubtype(german)
+            switchLog.clear()
+            latinIME.switchToSubtypeByCommand(spanish)
+            // restarts without a hint, and with a Spanish one: nothing would switch, nothing was kept
+            latinIME.mHandler.onStartInput(field("com.example", 7, null), true)
+            handleMessages()
+            latinIME.mHandler.onStartInput(field("com.example", 7, "es".constructLocale()), true)
+            handleMessages()
+            assertEquals(spanish, RichInputMethodManager.getInstance().currentSubtype.rawSubtype)
+            assertEquals(listOf(helium314.keyboard.agent.SubtypeSwitchLog.Reason.COMMAND), switchLog.entries().map { it.reason })
+            // a German hint would have switched back: now the choice was really kept
+            latinIME.mHandler.onStartInput(field("com.example", 7, Locale.GERMANY), true)
+            handleMessages()
+            assertEquals(spanish, RichInputMethodManager.getInstance().currentSubtype.rawSubtype)
+            assertEquals(helium314.keyboard.agent.SubtypeSwitchLog.Reason.KEPT_BY_CHOICE to "es", lastSwitch())
+            // asking changed nothing: after the language key, a field without hints keeps that language
+            latinIME.switchToSubtype(german)
+            latinIME.mHandler.onStartInput(field("com.other", 8, null), false)
+            handleMessages()
+            assertEquals(german, RichInputMethodManager.getInstance().currentSubtype.rawSubtype)
+        } finally {
+            helium314.keyboard.agent.commands.SubtypeChoice.clear()
+            latinIME.prefs().edit { putBoolean(Settings.PREF_SAVE_SUBTYPE_PER_APP, false) }
             for (subtype in listOf(spanish, german)) SubtypeSettings.removeEnabledSubtype(latinIME, subtype)
             switchLog.clear()
         }

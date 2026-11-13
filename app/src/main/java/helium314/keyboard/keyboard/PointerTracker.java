@@ -129,6 +129,8 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
     private boolean mIsDetectingGesture = false; // per PointerTracker.
     // fork (stage 27): this pointer draws a further stroke of a waiting drawn symbol (SymbolInk)
     private boolean mInInk = false;
+    // fork (stage 31 fix): where that stroke touched down; a tap that is a key presses the key there
+    private int mInkDownX, mInkDownY;
     private static boolean sInGesture = false;
     private static TypingTimeRecorder sTypingTimeRecorder;
 
@@ -712,13 +714,16 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
      * Fork (stage 27, "Symbole malen"): while a drawn symbol waits for its next stroke, a touch that
      * starts on a letter key of the alphabet is ink at once (no key press, no gesture threshold), so
      * short strokes and dots belong to the symbol. Only one finger draws: another touch while a
-     * stroke is drawn drops the drawing and is handled as usual. Without a waiting symbol, or with
+     * stroke is drawn ends it (a tap so far becomes a key press, a real stroke drops the drawing)
+     * and is handled as usual. Without a waiting symbol, or with
      * the setting off, nothing changes.
      */
     private boolean startsInk(final Key key, final int x, final int y, final long eventTime) {
         mInInk = false;
-        if (SymbolInk.isDrawing()) {
-            SymbolInk.cancel();
+        if (SymbolInk.isDrawing()) { // a second finger: a tap so far is a key (two thumbs), a stroke is dropped (P104)
+            final int drawing = SymbolInk.getDrawingPointer();
+            if (drawing != mPointerId && SymbolInk.onSecondFinger()) getPointerTracker(drawing).inkTapBecomesKey(eventTime);
+            else SymbolInk.cancel();
             return false;
         }
         if (!SymbolInk.continuesInk() || !sGestureEnabler.shouldHandleGesture() || sInGesture
@@ -728,12 +733,20 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         }
         mInInk = true;
         mDownTime = eventTime;
-        mLastX = x;
-        mLastY = y;
+        mLastX = mInkDownX = x;
+        mLastY = mInkDownY = y;
         mGestureStrokeDrawingPoints.onDownEvent(x, y, 0);
         SymbolInk.onInkDown(mPointerId, x, y);
         sDrawingProxy.showGestureTrail(this, false);
         return true;
+    }
+
+    /** Fork (stage 31 fix): this pointer's ink tap is a key after all, pressed where it touched down (P104). */
+    private void inkTapBecomesKey(final long eventTime) {
+        mInInk = false;
+        sDrawingProxy.showGestureTrail(this, false);
+        sPointerTrackerQueue.add(this);
+        onDownEventInternal(mInkDownX, mInkDownY, eventTime);
     }
 
     private void moveInk(final int x, final int y, final long eventTime, final MotionEvent me) {
@@ -1113,7 +1126,7 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
             if (!typesKey) return;
             // stage 31: a quick tap that is no dot; the symbol is written, now the key is typed as a tap
             sPointerTrackerQueue.add(this);
-            onDownEventInternal(x, y, eventTime);
+            onDownEventInternal(mInkDownX, mInkDownY, eventTime); // the key where it touched down
         }
 
         sTimerProxy.cancelUpdateBatchInputTimer(this);

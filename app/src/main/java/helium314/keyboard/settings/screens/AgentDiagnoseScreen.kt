@@ -57,20 +57,22 @@ fun AgentDiagnoseScreen(onClickBack: () -> Unit) {
     var tableRead by remember { mutableStateOf(false) }
     var cache by remember { mutableStateOf<Pair<Int, Long>?>(null) }
     var reach by remember { mutableStateOf<Diagnose.Reach?>(null) }
+    // stage 30 fix: every section is built once (as the page opens), not on each recomposition
+    var symbols by remember { mutableStateOf<Diagnose.Section?>(null) }
     LaunchedEffect(Unit) {
         val app = context.applicationContext ?: context
+        // lists the dictionary files: off the main thread
+        symbols = withContext(Dispatchers.IO) { Diagnose.symbols(context) }
         // the table the keyboard has in memory (main thread), else read from the asset; both offline
         table = EmojiMixer.table(context) ?: withContext(Dispatchers.IO) { Diagnose.readTable(app) }
         tableRead = true
         cache = withContext(Dispatchers.IO) { Diagnose.cacheStats(context) }
     }
-    val sections = listOf(
-        Diagnose.haptics(context, device),
-        Diagnose.symbols(context),
-        Diagnose.languages(context, SubtypeSwitchLog.entries(), SystemClock.elapsedRealtime()),
-        Diagnose.emojiMix(context, table, tableRead, cache, reach),
-        Diagnose.device(context),
-    )
+    val haptics = remember { Diagnose.haptics(context, device) }
+    val languages = remember { Diagnose.languages(context, SubtypeSwitchLog.entries(), SystemClock.elapsedRealtime()) }
+    val phone = remember { Diagnose.device(context) }
+    val emojiMix = remember(table, tableRead, cache, reach) { Diagnose.emojiMix(context, table, tableRead, cache, reach) }
+    val sections = remember(symbols, emojiMix) { listOfNotNull(haptics, symbols, languages, emojiMix, phone) }
     SearchSettingsScreen(onClickBack, stringResource(R.string.agent_diagnose_title), emptyList()) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)) {

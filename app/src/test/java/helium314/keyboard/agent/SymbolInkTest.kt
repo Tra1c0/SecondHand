@@ -213,6 +213,8 @@ class SymbolInkTest {
     @Test fun secondFingerDropsTheDrawingAndIsHandledAsUsual() {
         stroke(*line(20f, 80f, 300f, 80f))
         touch(MotionEvent.ACTION_DOWN, 100f, 40f) // continuation stroke of pointer 0
+        // stage 31 fix: a real stroke (farther than the tap slop); a mere tap would be a key (two thumbs)
+        touch(MotionEvent.ACTION_MOVE, 115f, 55f)
         assertTrue(SymbolInk.isDrawing())
         val properties = Array(2) { id -> MotionEvent.PointerProperties().apply { this.id = id; toolType = MotionEvent.TOOL_TYPE_FINGER } }
         val coords = Array(2) { MotionEvent.PointerCoords().apply { x = 100f + 50 * it; y = 40f; pressure = 1f; size = 1f } }
@@ -353,5 +355,69 @@ class SymbolInkTest {
         clearInvocations(drawing)
         touch(MotionEvent.ACTION_MOVE, 140f, 70f); touch(MotionEvent.ACTION_MOVE, 170f, 90f) // the first finger goes on
         verify(drawing, never()).showGestureTrail(eq(first), anyBoolean())
+    }
+
+    // stage 31 fix (review M1, N1): two thumbs in the pause, and a tap that slides a little
+
+    /** One packet with all [fingers] (pointer id, x, y) down; [action] concerns the finger at [index]. */
+    private fun fingers(action: Int, index: Int, vararg fingers: Triple<Int, Float, Float>) {
+        val properties = Array(fingers.size) { i -> MotionEvent.PointerProperties().apply { id = fingers[i].first; toolType = MotionEvent.TOOL_TYPE_FINGER } }
+        val coords = Array(fingers.size) { i -> MotionEvent.PointerCoords().apply { x = fingers[i].second; y = fingers[i].third; pressure = 1f; size = 1f } }
+        val packet = MotionEvent.obtain(now, now + 5, action or (index shl MotionEvent.ACTION_POINTER_INDEX_SHIFT),
+            fingers.size, properties, coords, 0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_TOUCHSCREEN, 0)
+        try { PointerTracker.getPointerTracker(fingers[index].first).processMotionEvent(packet, detector) } finally { packet.recycle() }
+        now += 10
+    }
+
+    /** Letters left of x = 200 are "a", right of it "b" (only in these tests). */
+    private fun twoLetters() {
+        val b = key('b'.code)
+        `when`(detector.detectHitKey(anyInt(), anyInt())).thenAnswer {
+            val x = it.getArgument<Int>(0); val y = it.getArgument<Int>(1)
+            if (y < 150) (if (x < 200) letter else b) else if (x < 200) space else delete
+        }
+    }
+
+    @Test fun twoThumbsInThePauseTypeBothLettersAfterTheSymbol() {
+        twoLetters()
+        stroke(*line(20f, 80f, 300f, 80f))
+        assertTrue(SymbolInk.isWaiting)
+        clearInvocations(listener) // the stroke's own key press
+        val a = Triple(0, 30f, 130f); val b = Triple(1, 330f, 30f) // both far from where ÷ has its dots
+        touch(MotionEvent.ACTION_DOWN, a.second, a.third) // thumb A: a tap so far, held as ink
+        assertTrue(SymbolInk.isDrawing())
+        fingers(MotionEvent.ACTION_POINTER_DOWN, 1, a, b) // thumb B before A lifts
+        assertEquals(listOf("symbol"), log) // the symbol is written at once
+        assertFalse(SymbolInk.isWaiting)
+        fingers(MotionEvent.ACTION_POINTER_UP, 0, a, b) // A lifts first
+        assertEquals(listOf("symbol", "code ${'a'.code}"), log)
+        fingers(MotionEvent.ACTION_UP, 0, b) // then B
+        assertEquals(listOf("symbol", "code ${'a'.code}", "code ${'b'.code}"), log)
+        verify(listener, times(1)).onPressKey(eq('a'.code), anyInt(), anyInt(), any()) // A pressed once, like a tap
+        assertEquals("–", recognizer.recognize(drawings.single()).best?.text) // A is not part of it
+        pause()
+        assertEquals(1, drawings.size)
+    }
+
+    @Test fun twoThumbsInThePauseKeepTheirOrderWhenTheSecondLiftsFirst() {
+        twoLetters()
+        stroke(*line(20f, 80f, 300f, 80f))
+        val a = Triple(0, 30f, 130f); val b = Triple(1, 330f, 30f)
+        touch(MotionEvent.ACTION_DOWN, a.second, a.third)
+        fingers(MotionEvent.ACTION_POINTER_DOWN, 1, a, b)
+        fingers(MotionEvent.ACTION_POINTER_UP, 1, a, b) // B lifts first: A, the older key, is typed before it
+        assertEquals(listOf("symbol", "code ${'a'.code}", "code ${'b'.code}"), log)
+        fingers(MotionEvent.ACTION_UP, 0, a) // A ends quietly, it was already typed
+        assertEquals(listOf("symbol", "code ${'a'.code}", "code ${'b'.code}"), log)
+    }
+
+    @Test fun aTapThatSlidesALittleTypesTheKeyWhereItTouchedDown() {
+        stroke(*line(20f, 80f, 300f, 80f))
+        clearInvocations(listener)
+        // down on a letter just above delete, up 8 px lower on delete: still a tap (10 dp slop)
+        touch(MotionEvent.ACTION_DOWN, 330f, 145f); touch(MotionEvent.ACTION_MOVE, 330f, 150f); touch(MotionEvent.ACTION_UP, 330f, 153f)
+        assertEquals(listOf("symbol", "code ${'a'.code}"), log)
+        verify(listener, never()).onPressKey(eq(KeyCode.DELETE), anyInt(), anyInt(), any())
+        verify(listener, never()).onCodeInput(eq(KeyCode.DELETE), anyInt(), anyInt(), anyBoolean())
     }
 }

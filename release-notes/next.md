@@ -67,3 +67,10 @@
   Tipp nur noch, wo ein Symbol einen Punkt braucht. Ein Wortvorschlag in dieser halben Sekunde
   kommt nach dem Symbol. „Gestenschreiben“ ist ausgegraut, solange Symbole malen an ist. Noch auf
   keinem Gerät ausprobiert.
+- Behoben: Symbole malen: Schnelles Tippen direkt nach einem gemalten Strich (z. B. „E-Mail“)
+  verliert keine Buchstaben mehr. Als Punkt des ÷ zählt nur noch ein Tipp ungefähr senkrecht über
+  oder unter der Mitte des Strichs, die Tasten daneben bleiben Buchstaben. Zwei Daumen
+  gleichzeitig tippen beide Buchstaben nach dem Symbol, statt die Zeichnung und den ersten
+  Buchstaben zu verwerfen. Ein Tipp, der beim Loslassen auf die Nachbartaste rutscht, tippt die
+  Taste, auf der er aufsetzte. Das Malfeld eigener Symbole nimmt jetzt genau so viele Punkte wie
+  die Tastatur. Noch auf keinem Gerät ausprobiert.

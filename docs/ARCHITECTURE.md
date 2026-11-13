@@ -156,6 +156,9 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   Diagnose (30): je eine Zeile in `onCurrentInputMethodSubtypeChanged` (`SubtypeSwitchLog.onSwitched`
   nach den frühen Rücksprüngen), `switchToSubtype` (`internalSwitch`), `switchToSubtypeByCommand`
   (`expectCommand`) und `onStartInputInternal` vor `postSwitchLanguage` (`expectFromStart`), P98.
+  Korrektur nach Prüfer (30/31): Die Prüfung `SubtypeChoice.holds` bekommt als dritten Wert eine
+  Funktion, die `SubtypeState.getSubtypeForLocales(…, peek = true)` fragt; „behalten“ wird nur
+  notiert, wenn die App wirklich umgeschaltet hätte (P98).
 - `InputLogic.java`: verwirft Caches und blockiert Eingabepfade nach einer unklaren Ersetzung
   (`ApplyOutcome.UNKNOWN`), unterdrückt Lernen nach generierter Übernahme. Ersetzen
   (`applyGeneratedText`) und Einfügen (`insertGeneratedText`) laufen durch dieselbe
@@ -335,6 +338,9 @@ Speicher, Datenschutz und Identität:
   (`readAllWordProperties`, `clearAndWait`): Lernpause und Lerndaten, siehe „Lerndaten“.
 - `Defaults.kt`: personalisierte Wörterbücher, Zwischenablage-Vorschläge und
   Zwischenablageverlauf standardmäßig aus.
+- `SubtypeUtils.kt` (Korrektur nach Prüfer zu 30): `SubtypeState.getSubtypeForLocales` hat den
+  Parameter `peek` (Standard `false`, `@JvmOverloads`); mit `true` liefert sie dasselbe Ergebnis,
+  ändert aber `overriddenByLocale` nicht. Nur für `SubtypeChoice.holds` (P98).
 - Emoji-Wörterbücher (Wunsch des Owners vom 2026-11-13): `assets/dicts/emoji_de.dict`,
   `emoji_en.dict`, `emoji_es.dict`, unverändert aus `Helium314/aosp-dictionaries`
   (`emoji_cldr_signal_dictionaries`, Stand 2026-09-22, Lizenz Unicode License V3 für CLDR und
@@ -389,11 +395,15 @@ Symbole malen (Etappe 27, Touch-Verarbeitung, jede Änderung mit Prüfer; Detail
   erlaubt, kein anderer Zeiger aktiv, Alphabet, Buchstabentaste): dann `mInInk`, kein
   Tastendruck, kein Eintrag in die Zeigerwarteschlange, Spur über `showGestureTrail`.
   `onMoveEvent` (`moveInk`, auch historische Punkte), `onUpEvent` und `onCancelEvent` prüfen
-  `mInInk` zuerst. Ein weiterer Finger während eines Folgestrichs verwirft die Zeichnung
-  (`SymbolInk.cancel`) und wird normal verarbeitet; `moveInk` zeichnet danach keine Spur mehr (31).
+  `mInInk` zuerst. Ein weiterer Finger während eines Folgestrichs beendet ihn
+  (`SymbolInk.onSecondFinger`, P104): Ist der Strich noch ein Tipp, ist das Symbol damit
+  geschrieben und `inkTapBecomesKey` macht den ersten Finger zu einem normalen Tastendruck; ein
+  echter Strich verwirft die Zeichnung (`SymbolInk.cancel`). Der weitere Finger wird normal
+  verarbeitet; `moveInk` zeichnet nach dem Verwerfen keine Spur mehr (31).
   31: Meldet `SymbolInk.onInkUp` einen Tipp, der kein Punkt ist (`true`, das Symbol ist dann schon
   geschrieben), holt `onUpEvent` den normalen Down nach (`sPointerTrackerQueue.add`,
-  `onDownEventInternal` an der Up-Stelle) und läuft weiter durch den normalen Up-Pfad (P96).
+  `onDownEventInternal` an der Aufsetzstelle `mInkDownX/Y`) und läuft weiter durch den normalen
+  Up-Pfad (P96).
   `mUpTime` bleibt im Tintenzweig ungesetzt wie im normalen Pfad (P95). Gestenerkennung,
   Batch-Aufrufe, P5-Sperre: unverändert.
 - `KeyboardActionListenerImpl.kt`: die vier Batch-Methoden gehen bei eingeschaltetem
@@ -1076,7 +1086,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Vibrator-Attrappe, Einstellungen, Stufen der Geräte).
 - Diagnose (30): `K/settings/screens/AgentDiagnoseScreen.kt` (Seite, „Kopieren“ legt
   `Diagnose.text` als Klartext in die Zwischenablage, Knopf „Test“ spielt den Plan der Kette einmal,
-  „gstatic erreichbar?“ nur auf Tipp über `Dispatchers.IO`; kein `FLAG_SECURE`) und `A/Diagnose.kt`
+  „gstatic erreichbar?“ nur auf Tipp über `Dispatchers.IO`; kein `FLAG_SECURE`; jeder Abschnitt
+  wird beim Öffnen einmal gebaut, „Symbole malen“ wegen der Wörterbuch-Dateien über
+  `Dispatchers.IO`, Emoji-Mix neu nur, wenn sich sein Zustand ändert) und `A/Diagnose.kt`
   (liest nur Zustände: `HapticChain.plan` allein in `Diagnose.chain`, damit eine geänderte Kette
   nur dort angepasst wird; `HapticChain.deviceFor` ist dafür `internal`; Gesten-Bibliothek,
   Hauptwörterbuch über `getUserAndInternalDictionaries`, TalkBack über `AccessibilityManager`;
@@ -1084,7 +1096,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   -Größe, `checkGstatic` = ein GET des Paars 🐶 + 🐱 mit `EmojiMixClient` und `EmojiMixer.calls`,
   das Bild wird verworfen; Versionen und `Build.MODEL`, keine Kennungen, kein Schlüsselstatus).
   `A/SubtypeSwitchLog.kt`: die letzten fünf Sprachwechsel mit Grund, Zeit und Sprach-Tag, nur im
-  Speicher (P98); `SubtypeChoice.holds` meldet eine behaltene Befehlswahl (`onKept`).
+  Speicher (P98); `SubtypeChoice.holds` meldet eine behaltene Befehlswahl (`onKept`), nur wenn
+  die App wirklich umgeschaltet hätte.
   Texte: `agent_diagnose_strings.xml`. Tests: `AT/DiagnoseScreenTest.kt`,
   `InputLogicTest.subtypeSwitch*`.
 - `KeyboardProfileStore.kt`: das Designprofil enthält `agent_rgb_lighting` als Text
@@ -1472,13 +1485,22 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Punkt, wenn `SymbolInk.dotCheck` zustimmt (31, `C/InkDots.kt`): (1) ein Symbol hat Punkte
   (eingebaut nur ÷, dazu eigene), (2) die bisherigen Striche ohne frühere Punkte gleichen dessen
   punktlosem Teil (`$P` ≤ 1,3), (3) der Tipp liegt nach Deckung der Teile (gleiche Mitte, gleiche
-  längere Seite) höchstens 0,3 Symbolgrößen neben einem seiner Punkte, (4) kein ganzes Symbol passt
-  klar besser (Faktor 1,25 plus 0,1; ein fertiges → ist nah an einem Strich, bleibt aber ein Pfeil).
+  längere Seite, ein schräger Strich bis 20° gerade gedreht) in Richtung eines seiner Punkte, von
+  der Mitte des punktlosen Teils aus gesehen höchstens 0,12 Symbolgrößen seitlich und 0,25 näher
+  oder weiter (bei ÷: ungefähr senkrecht über oder unter der Mitte des Strichs; Korrektur nach
+  Prüfer, vorher ein Kreis mit 0,3), (4) kein ganzes Symbol passt klar besser (Faktor 1,25 plus
+  0,1; ein fertiges → ist nah an einem Strich, bleibt aber ein Pfeil).
   Sonst schreibt `SymbolInk` das wartende Symbol sofort, und `PointerTracker` tippt die Taste wie
   einen Tipp (P96). Abwägung: ein Buchstabe direkt über oder unter der Mitte eines gemalten Strichs
-  wird zum Punkt. `SymbolDrawing.attach` setzt `dotCheck` mit den eigenen Symbolen (gleiche Vorlagen
-  wie der Erkenner), sonst `builtInDotCheck`. Die Regel kostet nur bei Tipps im Fenster etwas
-  (ca. 50 µs, mit Schritt 4 einmal die volle Erkennung, ca. 12 ms auf dem JVM).
+  wird zum Punkt (etwa eine Taste je Nachbarreihe, P104). `SymbolDrawing.attach` setzt `dotCheck`
+  mit den eigenen Symbolen (gleiche Vorlagen und derselbe `InkRecognizer` wie der Erkenner), sonst
+  `builtInDotCheck`. Die Regel kostet nur bei Tipps im Fenster etwas (ca. 50 µs, mit Schritt 4
+  einmal die volle Erkennung, ca. 12 ms auf dem JVM); schreibt der Tipp danach das Symbol, liefert
+  `InkRecognizer` das Ergebnis von Schritt 4 aus seinem Merker für die letzte Zeichnung, ohne neu
+  zu rechnen. Zwei Daumen im Fenster: P104. Bewusst so gelassen (Prüfer 30/31): Ein Finger im
+  Fenster ist Tinte ohne Langdruck-Timer; langes Halten ohne Bewegung ist beim Loslassen ein Tipp
+  und tippt den Grundbuchstaben, kein Popup. Der Randfall eines Wortvorschlags im Fenster bei
+  einbuchstabiger Vorhersage bzw. Satzzeichen-Leiste (P97) bleibt wie er ist.
   Ein Wortvorschlag im Fenster: `SymbolDrawing.beforeSuggestionPick` (P97). Nach der Pause (Timer per `postAtTime`, P51) oder vor jeder anderen Taste
   (`flush`) gehen die Striche an die Senke. Es wird nie sofort nach einem Strich erkannt, weil
   jeder Strich der erste eines mehrstrichigen Symbols sein kann (– → =, ≠).
@@ -1494,15 +1516,19 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - Eigene Symbole: DE-SharedPreferences `agent_symbols`, Schlüssel `own` (Format in
   `docs/STORAGE.md`), Seite `K/settings/screens/AgentSymbolsScreen.kt` (Schalter, eigene
   Symbole dreimal malen in einer Karte `AddSymbolCard` auf der Seite, kein Dialog (P78), Liste
-  der eingebauten als kleine Zeichnungen). `DrawingPad` nimmt höchstens 4096 Punkte
-  (`InkGroup.MAX_POINTS`) für alle Striche zusammen; über 12 Striche oder an der Punktgrenze zeigt
-  die Karte „Bitte neu malen“ (`agent_symbol_pad_limit`) und sperrt „Weiter“ (31). Texte in
+  der eingebauten als kleine Zeichnungen). `DrawingPad` nimmt wie die Tastatur 4096 Punkte
+  (`InkGroup.MAX_POINTS`) für alle Striche zusammen und höchstens einen mehr; über 12 Striche oder
+  über 4096 Punkten zeigt die Karte „Bitte neu malen“ (`agent_symbol_pad_limit`) und sperrt
+  „Weiter“ (31). Texte in
   `agent_symbol_strings.xml`.
 - Tests: `AT/SymbolInkTest.kt` (echter PointerTracker, auch Passwortfeld; 31: Tipp im Fenster,
-  Tipp nach →, Punkte nur mit Punkt-Symbolen, keine Spur nach dem Verwerfen), `CT/InkDotsTest.kt`,
+  Tipp nach →, Punkte nur mit Punkt-Symbolen, keine Spur nach dem Verwerfen; Korrektur: zwei
+  Daumen in beiden Reihenfolgen, Tipp mit kleinem Rutschen auf die Löschtaste), `CT/InkDotsTest.kt`
+  (Korrektur: Tasten neben der Mitte eines Strichs, Tipps rund um gemalte Striche, ÷ in beiden
+  Reihenfolgen, eine Erkennung je abgelehntem Tipp),
   `AT/SymbolSettingsScreenTest.kt` (Schalter, Liste, eigenes Symbol dreimal malen, speichern,
   löschen), `InputLogicTest.symbolDraw*` (echte Weiterleitung, Einfügen, Chips, Sperre; 31: Vorschlag
-  im Fenster), Kern siehe oben. `AT/SymbolSettingsScreenTest.kt` prüft auch den ausgegrauten
+  im Fenster; Korrektur: ein abgelehnter Tipp kostet eine Erkennung), Kern siehe oben. `AT/SymbolSettingsScreenTest.kt` prüft auch den ausgegrauten
   Gestenschalter und die Grenzen des Malfelds (31).
 
 ## Build, Tests, CI, Docs-System
@@ -1806,8 +1832,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P75** Symbole malen braucht `GestureEnabler.shouldHandleGesture()`: Die Robolectric-Tests
   müssen `PointerTracker.setKeyDetector` (Passwortmodus) und `AccessibilityUtils.init` aufrufen,
   sonst erkennt der echte PointerTracker keine Geste und tippt einen Buchstaben. Ein Folgestrich
-  steht nicht in der Zeigerwarteschlange; deshalb verwirft ein zweiter Finger die Zeichnung, statt
-  zu warten, und ein hängender Strich kann die Tastatur nie blockieren.
+  steht nicht in der Zeigerwarteschlange; deshalb beendet ein zweiter Finger ihn sofort, statt zu
+  warten (ein Tipp wird Taste, ein Strich verwirft die Zeichnung, P104), und ein hängender Strich
+  kann die Tastatur nie blockieren.
 - **P76** Beim Malen nie `LatinIME.onStartBatchInput` erreichen: das startet die
   Gestenwort-Verarbeitung und die P5-Sperre; die Weiterleitung steht allein in
   `KeyboardActionListenerImpl`.
@@ -1827,9 +1854,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   dass er ein Buchstabe ist. Dann muss zuerst das Symbol ins Feld (es kann die Umschaltung ändern,
   z. B. Großschreibung nach einem eigenen „.“) und erst danach die Taste ermittelt werden.
   `SymbolInk.onInkUp` schreibt das Symbol, `PointerTracker` holt den Down mit
-  `onDownEventInternal` an der Up-Stelle nach (Tastendruck, Rückmeldung, Vorschau) und lässt den
-  normalen Up-Pfad die Taste senden. Ein zweiter Finger während des Tipps hat die Zeichnung schon
-  verworfen; dann liefert `onInkUp` `false` und es wird nichts getippt.
+  `onDownEventInternal` an der Aufsetzstelle nach (Tastendruck, Rückmeldung, Vorschau; nicht an der
+  Up-Stelle, sonst drückt ein Tipp, der bis 10 dp auf die Nachbartaste rutscht, z. B. Löschen,
+  diese) und lässt den normalen Up-Pfad die Taste senden. Kam ein zweiter Finger dazu, ist der Tipp
+  schon Taste (P104); dann liefert `onInkUp` `false` und der normale Pfad tippt ihn.
 - **P97** Ein Wortvorschlag kann im Wartefenster zwei Dinge sein: ein neues Wort (Vorhersage) oder
   die Korrektur des Worts vor der Zeichnung. Schreibt man das Symbol bei einer Korrektur zuerst,
   beendet `onTextInput` das Wort, und die Wahl würde danach eingefügt („Preis→Preise“). Deshalb
@@ -1841,10 +1869,24 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   frische Notiz (2 s, gleicher Subtyp) zählt als System. Der Wechsel aus `onStartInputInternal`
   läuft über eine Nachricht (`postSwitchLanguage`); die Notiz dafür setzt `expectFromStart` beim
   Posten. Ein Wechsel, der wegen „gleicher Subtyp“ früh endet, erzeugt keinen Eintrag.
+  „Behalten“ (`SubtypeChoice.holds`) zählt nur, wenn `getSubtypeForLocales` einen anderen Subtyp
+  geliefert hätte; gefragt wird mit `peek = true`, denn ohne setzt die Methode `overriddenByLocale`
+  auf die behaltene Sprache, und ein späteres Feld ohne Hinweis schaltet dann nach einem Wechsel
+  per Sprachtaste auf sie zurück (`onSubtypeChanged` löscht den Wert nicht, wenn der alte Subtyp
+  er selbst ist).
 - **P99** `SearchSettingsScreen` mit einer Liste von Einstellungsschlüsseln (z. B.
   `GestureTypingScreen`) liest `SettingsActivity.settingsContainer`; ein Compose-Test ohne
   `SettingsActivity` muss ihn vorher setzen (`SettingsContainer(app)`), sonst
   `UninitializedPropertyAccessException`.
+- **P104** Zwei Daumen im Wartefenster von Symbole malen: Daumen A tippt (als Tinte, er könnte ein
+  Punkt sein), Daumen B setzt auf, bevor A loslässt. `startsInk` von B fragt
+  `SymbolInk.onSecondFinger`: Ist As Strich noch ein Tipp (bis 10 dp), wird das Symbol sofort
+  geschrieben und A über `inkTapBecomesKey` ein normaler Tastendruck an seiner Aufsetzstelle (in
+  der Warteschlange vor B, also in Tipp-Reihenfolge); nur ein echter Strich wird verworfen. Ein Tipp
+  mit zweitem Finger wird nie Punkt. Die Punkt-Zone (`InkDots`, Schritt 3) ist schmal und in
+  Richtung des Punkts gestreckt; ein `$P`-Vergleich „Strich plus Tipp gleicht ÷ besser als –“
+  taugt nicht als weitere Regel: mit einem Punkt ist er schief (ein erster Punkt unter dem Strich
+  verlor gegen „–“, auch genau an der ÷-Stelle) und sortierte kaum Buchstaben aus.
 - **P70** Assets mit der Endung `.gz` entpackt der Android-Build beim Zusammenführen und lässt
   die Endung weg (`mergeDebugAssets`); `assets.open("….gz")` findet dann nichts. Die
   Emoji-Mix-Tabelle heißt deshalb `emoji_mix_pairs.bin`, obwohl sie gzip-Daten enthält.
@@ -1932,7 +1974,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (418 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (419 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -2008,7 +2050,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/latin/settings/` (2): Defaults, SettingsValues
 - `K/latin/spellcheck/` (1): AndroidSpellCheckerService
 - `K/latin/suggestions/` (2): FlatStrip, SuggestionStripView
-- `K/latin/utils/` (3): DictionaryInfoUtils, DictionaryUtils, ToolbarUtils
+- `K/latin/utils/` (4): DictionaryInfoUtils, DictionaryUtils, SubtypeUtils, ToolbarUtils
 - `K/settings/` (4): SearchScreen, SettingsActivity, SettingsContainer, SettingsNavHost
 - `K/settings/dialogs/` (2): ColorPickerDialog, SliderDialog
 - `K/settings/preferences/` (2): KeyboardScalePreference, SliderPreference

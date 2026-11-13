@@ -173,6 +173,19 @@ class DiagnoseScreenTest {
         assertEquals(1, requests.size)
     }
 
+    @Test fun theSectionsAreBuiltOnceAndTheDictionaryFilesListedOffTheMainThread() {
+        // review N4: recompositions (here the gstatic check: running, then its result) build nothing again
+        val lookups = Diagnose.dictionaryLookups
+        page()
+        row("Hauptwörterbuch")
+        compose.onNodeWithTag("agent_diagnose_gstatic").performScrollTo().performClick()
+        compose.waitUntil(5_000) { compose.onAllNodes(hasText("erreichbar, Testbild geladen", substring = true)).fetchSemanticsNodes().isNotEmpty() }
+        compose.waitForIdle()
+        assertEquals(1, Diagnose.dictionaryLookups - lookups)
+        assertFalse(Diagnose.dictionaryLookupOnMainThread)
+        row("Hauptwörterbuch")
+    }
+
     @Test fun aRefusingNetworkIsShownAsNotReachable() {
         EmojiMixer.calls = { OkHttpClient.Builder().addInterceptor { throw java.io.IOException("blocked") }.build() }
         page()

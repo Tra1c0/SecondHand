@@ -172,6 +172,29 @@ class SymbolSettingsScreenTest {
         compose.onNodeWithText("Weiter").assertIsNotEnabled()
     }
 
+    @Test fun drawingPadTakesExactlyAsManyPointsAsTheKeyboard() {
+        // review N5: 4096 points are a drawing (InkGroup.MAX_POINTS), 4097 are too long
+        page()
+        compose.onNodeWithTag("agent_symbol_add").performClick()
+        compose.waitForIdle()
+        fun draw(points: Int) = compose.onNodeWithTag("agent_symbol_pad").performScrollTo().performTouchInput {
+            down(Offset(width * 0.1f, height * 0.1f))
+            // each move to a new point
+            for (i in 1 until points) moveTo(Offset(width * (0.1f + 0.8f * ((i % 200) / 200f)), height * (0.1f + 0.8f * (i / 4200f))))
+            up()
+        }
+        draw(dev.agentkeyboard.core.InkGroup.MAX_POINTS)
+        compose.waitForIdle()
+        compose.onNodeWithTag("agent_symbol_pad_limit").assertDoesNotExist()
+        compose.onNodeWithText("Weiter").assertIsEnabled()
+        compose.onNodeWithText("Neu malen").performScrollTo().performClick()
+        compose.waitForIdle()
+        draw(dev.agentkeyboard.core.InkGroup.MAX_POINTS + 1)
+        compose.waitForIdle()
+        compose.onNode(hasText("Zu lange gemalt. Bitte neu malen.")).assertExists()
+        compose.onNodeWithText("Weiter").assertIsNotEnabled()
+    }
+
     @Test fun cancelledAddingSavesNothing() {
         page()
         compose.onNodeWithTag("agent_symbol_add").performClick()

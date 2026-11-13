@@ -147,15 +147,20 @@ object SymbolDrawing {
 
     // --- templates ---
 
-    /** The recognizer of the built-in and own symbols; [dots] is rebuilt with it from the same templates. */
+    /**
+     * The recognizer of the built-in and own symbols; [dots] is rebuilt with it from the same
+     * templates and shares it, so a tap that is no dot does not match the written drawing twice.
+     */
     private fun recognizer(context: Context): InkRecognizer {
         val raw = prefs(context).getString(OWN_SYMBOLS, null)
         val cached = recognizer
         if (cached != null && raw == recognizerSource) return cached
         val templates = OwnInkSymbols.parse(raw).flatMap { it.templates() } + InkSymbols.templates
-        dots = InkDots(templates)
-        return InkRecognizer(templates).also { recognizer = it; recognizerSource = raw }
+        return InkRecognizer(templates).also { dots = InkDots(templates, it); recognizer = it; recognizerSource = raw }
     }
+
+    /** The keyboard's recognizer as it is now, if built; for tests (stage 31 fix, one match per tap). */
+    internal fun currentRecognizer(): InkRecognizer? = recognizer
 
     private fun prefs(context: Context) =
         AgentStorageContexts.keyboard(context).getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)

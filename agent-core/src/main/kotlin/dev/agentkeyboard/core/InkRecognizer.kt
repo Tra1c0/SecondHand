@@ -172,7 +172,25 @@ class InkRecognizer(templates: List<InkTemplate>) {
         return recognize(cloud)
     }
 
+    /**
+     * The last cloud and its result (stage 31 fix): a tap in the pause that is no dot makes [InkDots]
+     * (rule 4) match the drawing, and then the very same drawing is written; that second question is
+     * answered from here instead of matching again on the main thread.
+     */
+    @Volatile private var last: Pair<InkCloud, InkResult>? = null
+
+    /** How many clouds were really matched (answers from [last] not counted); for tests. */
+    @Volatile var recognitions = 0
+        private set
+
     fun recognize(cloud: InkCloud): InkResult {
+        last?.let { (seen, result) ->
+            if (seen.xs.contentEquals(cloud.xs) && seen.ys.contentEquals(cloud.ys) && seen.strokes.contentEquals(cloud.strokes)) return result
+        }
+        return match(cloud).also { last = cloud to it; recognitions++ }
+    }
+
+    private fun match(cloud: InkCloud): InkResult {
         val best = LinkedHashMap<String, InkMatch>()
         // a hand rarely draws exactly upright: also try the drawing slightly turned (pure $P has no
         // rotation tolerance); far less than the 45° between → and ↗ or + and ×
