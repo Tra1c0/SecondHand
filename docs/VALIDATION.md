@@ -1766,6 +1766,29 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   außer dem Energiesparmodus-Wechsel bei offener Tastatur (jetzt im Robolectric-Test, nicht auf
   einem Gerät).
 
+## 24g Korrektur: Sprachwahl übersteht den Neustart des Felds (nach Build 11)
+
+- Befund des Owners (Xiaomi, Build 11): Deutsch → Spanisch → Englisch per Befehl ging, zurück zu
+  Deutsch fehlte das „ä“ unter „a“.
+- Untersucht: Befehl und Sprachtaste schalten schon gleich um (`LatinIME.switchToSubtype` mit
+  einem Subtyp aus `SubtypeSettings.getEnabledSubtypes(true)`; `RichInputMethodManager`,
+  `SettingsValues` und Tastatur werden neu geladen). In Robolectric de → es → en → de per Chip:
+  Subtyp, `Settings.mLocale` und Popup-Tasten von „a“ (mit „ä“ nur bei Deutsch) stimmen, ohne
+  Neustart des Felds also kein Fehler. Unterschied: Der Chip löscht den Befehl und leert das
+  Feld; startet die App das Feld neu, wendet `onStartInputInternal` Hint-Locales und App-Subtyp
+  an. Nachgestellt mit Hint „de-DE“ und „Sprache pro App“: nach `@spanisch` und `@englisch`
+  sprang die Tastatur zurück (Test schlug vor der Korrektur bei „@spanisch after the restart“
+  fehl, ausprobiert). Welche Sprache die App auf dem Telefon vorgibt, ist unbekannt; mit Hint
+  „en“ entspräche das dem Befund.
+- Gebaut: `SubtypeChoice`, `LatinIME.switchToSubtypeByCommand`, Prüfung in
+  `onStartInputInternal` (P66).
+- Geprüft (Robolectric): `InputLogicTest.typedCommandLanguageChoiceSurvivesTheAppRestartingTheField`
+  (Rundweg, Popup-Tasten gleich wie über `switchToSubtype` direkt, anderes Feld folgt wieder dem
+  Hint), `SubtypeChoiceTest` (6), `LanguageCommandTest` (14) grün. Gesamtläufe siehe Abschnitt
+  zur Haptik-Kette unten.
+- Nicht geprüft: auf dem Telefon; ob Android/MIUI zusätzlich `onCurrentInputMethodSubtypeChanged`
+  mit einem anderen Subtyp ruft.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

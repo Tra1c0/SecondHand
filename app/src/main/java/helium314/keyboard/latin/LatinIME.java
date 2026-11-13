@@ -939,9 +939,22 @@ public class LatinIME extends InputMethodService implements
         onCurrentInputMethodSubtypeChanged(subtype);
     }
 
+    /**
+     * fork, stage 24g fix: the switch of a language command chip. The same switch as the language
+     * key, but the choice is kept when the app restarts this field (P66).
+     */
+    public void switchToSubtypeByCommand(final InputMethodSubtype subtype) {
+        switchToSubtype(subtype);
+        if (subtype.equals(mRichImm.getCurrentSubtype().getRawSubtype()))
+            helium314.keyboard.agent.commands.SubtypeChoice.remember(getCurrentInputEditorInfo(), subtype);
+    }
+
     private void onStartInputInternal(EditorInfo editorInfo, boolean restarting) {
         super.onStartInput(editorInfo, restarting);
 
+        // fork, stage 24g fix (P66): a language command's choice survives the app restarting the same field
+        if (helium314.keyboard.agent.commands.SubtypeChoice.holds(editorInfo, mRichImm.getCurrentSubtype().getRawSubtype()))
+            return;
         RichInputMethodSubtype subtypeForApp = editorInfo == null
             ? null :
             mSettings.getSubtypeForApp(editorInfo.packageName);

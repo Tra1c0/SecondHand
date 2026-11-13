@@ -356,7 +356,7 @@ object KeyboardCommands {
             override fun aiDetails(command: CommandCall) = ime.agentEditorController.openCommandRequestDetails(command.text, position)
             // called after the command is gone, so the new keyboard starts on the changed field
             override fun switchSubtype(subtype: android.view.inputmethod.InputMethodSubtype): Boolean {
-                ime.switchToSubtype(subtype)
+                ime.switchToSubtypeByCommand(subtype)
                 return true
             }
             override val currentSubtype: android.view.inputmethod.InputMethodSubtype?

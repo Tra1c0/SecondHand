@@ -143,6 +143,9 @@ class ShadowInputMethodService {
         /** Content types the field declares (e.g. images for the screenshot chip), none by default. */
         var acceptedMimeTypes: Array<String>? = null
         var currentImeOptions = 0
+        /** The field's app and id, for tests that tell fields apart (none by default). */
+        var currentPackageName: String? = null
+        var currentFieldId = 0
 
         // convenience for access
         val textBeforeCursor get() = text.substring(0, selectionStart)
@@ -164,6 +167,8 @@ class ShadowInputMethodService {
             currentInputType = InputType.TYPE_CLASS_TEXT
             acceptedMimeTypes = null
             currentImeOptions = 0
+            currentPackageName = null
+            currentFieldId = 0
         }
     }
 
@@ -171,6 +176,8 @@ class ShadowInputMethodService {
     fun getCurrentInputEditorInfo() = EditorInfo().apply {
         inputType = currentInputType
         imeOptions = currentImeOptions
+        packageName = currentPackageName
+        fieldId = currentFieldId
         acceptedMimeTypes?.let { androidx.core.view.inputmethod.EditorInfoCompat.setContentMimeTypes(this, it) }
         // anything else?
     }

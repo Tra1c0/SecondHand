@@ -319,6 +319,9 @@ diese Sprache um.
 - Vertippte Befehlsnamen: `@mtah` oder `@tranlate` zeigt den richtigen Namen als Chip; ein Tipp
   vervollständigt ihn nur. Auch hier ab vier Buchstaben und mit richtigem ersten Buchstaben
   (`@matt`, `@uri` bleiben Erwähnungen).
+- Die gewählte Sprache bleibt, solange du im selben Feld bleibst, auch wenn die App das Feld
+  nach dem Löschen des Befehls neu startet. Wechselst du in ein anderes Feld, gilt dort wieder,
+  was die App oder „Sprache pro App merken“ vorgibt (wie bei der Sprachtaste).
 - Abschalten unter Einstellungen → Befehle → `@lang`; dort stehen auch die Kürzel deiner aktiven
   Sprachen.
 
