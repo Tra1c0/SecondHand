@@ -1971,6 +1971,23 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   wird – der Test ruft `createChipsView` direkt). Kein Prüfer gelesen. Lizenz der Paarliste: nur
   mündliche Zustimmung, Lizenzdatei später zu prüfen (`docs/BUILD.md`).
 
+## Build 12: Prüfer zu Etappe 27 (Symbole malen, Engine-Review)
+
+- Prüfer (lesend) zu `79f99b5..71c9f20`: kein hoher Befund. Mit ausgeschaltetem Schalter ist
+  `PointerTracker` nach Codelesung unverändert (`startsInk` kehrt vor Rauschfilter-Zustand und
+  Warteschlange zurück); belegt durch Test nur für Wischen und Tippen.
+- Mittel: Ein wartendes Symbol wurde nach dem Ausblenden der Tastatur (Zurück, Bildschirm aus)
+  oder dem Ende der Eingabe noch ins Feld geschrieben. Behoben: `SymbolDrawing.reset` auch in
+  `onFinishInputInternal` und `onFinishInputViewInternal`. Test
+  `InputLogicTest.symbolDrawWaitingDrawingIsDroppedWhenTheKeyboardHides`; Gegenprobe ohne die
+  zwei Zeilen rot, mit ihnen grün; `symbolDraw*` und `SymbolInkTest` grün.
+- Niedrig, offen: Ein Buchstabentipp innerhalb von 500 ms nach einem Strich wird zum Tupfer
+  (Buchstabe fehlt, in der Anleitung genannt); ein Wortvorschlag in diesem Fenster landet vor dem
+  Symbol; ein verworfener Strich zeichnet weiter Spur; `mUpTime` im Tintenzweig nicht gesetzt;
+  „Gestenschreiben“ bleibt sichtbar an, wirkt aber nicht; `DrawingPad` ohne Punktgrenze und ohne
+  Hinweis bei mehr als 12 Strichen; Surrogates in manipulierten Prefs. Kein Test von Berührung bis
+  Text in einem Stück (SymbolInkTest mit nachgebautem Listener, InputLogicTest ohne PointerTracker).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

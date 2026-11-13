@@ -376,7 +376,8 @@ langes Drücken für Sonderzeichen und das Wischen auf Leer- und Löschtaste ble
 - Male mit einem Finger auf den Buchstabentasten, zügig wie beim Wischen. Die Spur bleibt kurz
   sichtbar.
 - Ein Symbol aus mehreren Strichen: den nächsten Strich innerhalb einer halben Sekunde ansetzen.
-  Kurze Striche und Tupfer zählen dann mit. Nach der Pause wird das Symbol geschrieben; tippst du
+  Kurze Striche und Tupfer zählen dann mit. Tippst du in dieser halben Sekunde auf einen
+  Buchstaben, zählt der Tipp als Tupfer des Symbols, nicht als Buchstabe. Nach der Pause wird das Symbol geschrieben; tippst du
   vorher eine andere Taste, kommt das Symbol zuerst.
 - Die Leiste zeigt danach bis zu drei andere Symbole; ein Tipp tauscht das geschriebene aus.
 - „Nicht erkannt“: nichts wurde geschrieben; ein Tipp öffnet die eigenen Symbole (bei gesperrtem

@@ -3005,6 +3005,27 @@ class InputLogicTest {
         assertEquals("neu", text)
     }
 
+    @Test fun symbolDrawWaitingDrawingIsDroppedWhenTheKeyboardHides() {
+        // review build 12: back key or screen off within the pause must not write into the field
+        enableSymbolDrawing()
+        setText("alt")
+        drawStrokes(*arrowStrokes)
+        assertTrue(helium314.keyboard.agent.SymbolInk.isWaiting)
+        latinIME.onFinishInputView(false)
+        assertFalse(helium314.keyboard.agent.SymbolInk.isWaiting)
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(600))
+        handleMessages()
+        assertEquals("alt", text)
+        // and the end of the input itself
+        drawStrokes(*arrowStrokes)
+        assertTrue(helium314.keyboard.agent.SymbolInk.isWaiting)
+        latinIME.onFinishInput()
+        assertFalse(helium314.keyboard.agent.SymbolInk.isWaiting)
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(600))
+        handleMessages()
+        assertEquals("alt", text)
+    }
+
     private lateinit var screenshotImage: java.io.File
 
     /**
