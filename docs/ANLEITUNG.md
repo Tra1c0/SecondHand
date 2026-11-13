@@ -395,14 +395,17 @@ langes Drücken für Sonderzeichen und das Wischen auf Leer- und Löschtaste ble
   ist anfangs 0,9 Sekunden und passt sich deinem Tempo an (etwa 2,5-mal so lang wie deine übliche
   Lücke zwischen zwei Strichen, mindestens 0,6 und höchstens 1,5 Sekunden). Kurze Striche zählen
   dann mit, auch wenn sie auf einer Satzzeichen- oder Zifferntaste beginnen, aber nur in der Nähe
-  der Zeichnung (etwa ihre halbe Größe drumherum, mindestens eine Taste breit). Tippst du weiter
+  der Zeichnung (etwa ihre halbe Größe drumherum, mindestens drei Tasten breit). Tippst du weiter
   weg, kommt das Symbol und dann die Taste, so geht beim Weitertippen nichts verloren. Auf
   Leertaste, Enter, Löschen, Umschalt und „?123“ beginnt nie ein Strich. Nach der Pause wird das
   Symbol geschrieben; tippst du vorher eine andere Taste, kommt das Symbol zuerst.
+  Direkt neben der Zeichnung (bis etwa drei Tasten) kann ein stark verwackelter Tipp noch als
+  Strich zählen; dann fehlt der Buchstabe und das Symbol ändert sich. Ein Tipp auf den Chip in der
+  Leiste schreibt das Symbol vorher.
 - Hältst du kurz inne (etwa eine Zehntelsekunde), zeigt die Leiste, was jetzt geschrieben würde:
   „✎ →“ und bis zu zwei andere Symbole („✎ ?“, solange nichts passt). Ein Tipp darauf schreibt das Symbol sofort, ohne die Pause
   abzuwarten; ein Tipp auf ein anderes Symbol schreibt dieses.
-- Ein Tipp in dieser Pause nahe der Zeichnung (der Finger bewegt sich kaum, weniger als etwa 6 dp, so lange er auch
+- Ein Tipp in dieser Pause nahe der Zeichnung (der Finger bewegt sich kaum, weniger als etwa 8 dp, so lange er auch
   liegt) schreibt das Symbol und dann den Buchstaben. Bewegt er sich weiter, ist er ein Strich des
   Symbols. Als Punkt zählt der Tipp nur, wenn ein Symbol hier einen Punkt braucht: nach einem
   waagerechten Strich ungefähr senkrecht über oder unter seiner Mitte (÷), bei eigenen Symbolen mit
@@ -423,8 +426,8 @@ langes Drücken für Sonderzeichen und das Wischen auf Leer- und Löschtaste ble
   danach), merkt sich die Tastatur deine Zeichnung für dieses Symbol, bis zu drei je Symbol, die
   neuesten bleiben. Wählst du danach noch einmal um, wandert die Zeichnung mit; wählst du das
   zuerst erkannte Symbol zurück, ist alles wie vorher. Eine Zeichnung mit einem Punkt merkt sie sich
-  nur für ein Symbol mit Punkten (÷). Nicht im Inkognito-Modus, bei „Lernen pausieren“ oder
-  gesperrtem Telefon. „Gelernte Wörter löschen“ (Einstellungen → Gelernte Wörter, dort steht auch
+  nur für ein Symbol mit Punkten (÷). Nur, wenn auch „Personalisierte Vorschläge“ an ist (Einstellungen
+  → Textkorrektur); nicht im Inkognito-Modus, bei „Lernen pausieren“ oder gesperrtem Telefon. „Gelernte Wörter löschen“ (Einstellungen → Gelernte Wörter, dort steht auch
   ihre Zahl) und das Ausschalten von „Personalisierte Vorschläge“ löschen sie mit.
 - „Kalibrieren“ (dieselbe Seite): Die Seite zeigt nacheinander jedes eingebaute Symbol; male es
   zweimal in das Feld, je „Weiter“. „Überspringen“ geht zum nächsten Symbol, „Fertig“ hört auf;

@@ -1645,13 +1645,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Weitere Striche innerhalb der Pause: Hook `startsInk`, sofort Tinte, auch Punkte (÷), auf jeder
   Taste, die ein Zeichen schreibt (36: auch Satzzeichen; Leertaste, Enter und Modifier nicht), aber
   nur nahe der Zeichnung (Prüfer H1, `InkTap.nearDrawing`: ihr Rechteck, auf jeder Seite um 0,6 ihrer
-  längeren Seite vergrößert, mindestens um eine Tastenbreite `mMostCommonKeyWidth`). Eine Berührung
+  längeren Seite vergrößert, mindestens um 3 Tastenbreiten `mMostCommonKeyWidth`, `InkTap.KEY_MARGIN`;
+  Nachprüfer F2: mit einer Tastenbreite begannen % (erster Kreis klein) und ≤/≥ (Strich zuerst) ein
+  neues Symbol; `CT/InkAreaTest.kt`: eingebaute Zeichnungen 2–3 Reihen hoch brauchen bis 2,6, die
+  zufälligen Reihenfolgen des Finger-Modells zu 97 % bis 3). Eine Berührung
   weiter weg beendet die Zeichnung und wird normal getippt (Ziffer, Satzzeichen, Buchstabe).
   Pause (36, `C/InkTiming.kt` `InkPace`): 900 ms, ab drei gemessenen Lücken (Loslassen bis
   nächstes Aufsetzen, nur innerhalb eines Symbols, `SystemClock.uptimeMillis`) 2,5 × Median der
   letzten neun, begrenzt auf 600–1500 ms; nur im Speicher. Vorher fest 500 ms (Rückmeldung zu
   Build 14: der Rest eines Symbols begann ein neues). Ein Tipp (36: Bewegung unter
-  `InkTap.SLOP_DP` = 6 dp vom Aufsetzpunkt, Dauer egal, P111; vorher 10 dp, in der ersten Fassung
+  `InkTap.SLOP_DP` = 8 dp wie Androids Touch-Slop (Nachprüfer F3; 6 dp nach dem ersten Prüfer) vom
+  Aufsetzpunkt, Dauer egal, P111; vorher 10 dp, in der ersten Fassung
   von 36 4 dp, Prüfer H1) ist nur dann ein
   Punkt, wenn `SymbolInk.dotCheck` zustimmt (31, `C/InkDots.kt`): (1) ein Symbol hat Punkte
   (eingebaut nur ÷, dazu eigene), (2) die bisherigen Striche ohne frühere Punkte gleichen dessen
@@ -1681,7 +1685,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   im Hauptthread, erkennt auf einem eigenen Thread (`previewExecutor`, in Tests direkt) und zeigt das
   Ergebnis per `postAtTime` (P51) nur, wenn sich nichts geändert hat (`previewGeneration`, jede
   Zustandsänderung über `setShown`): in der Leiste „✎ →“ plus bis zu zwei Alternativen
-  (`Waiting`). Derselbe Erkenner; das Schreiben nach der Pause kommt aus dessen Merker (P112). Ein
+  (`Waiting`, mit der Zahl der Striche, für die es gilt). Beginnt ein weiterer Strich
+  (`Sink.onStrokeStarted`), ist der Chip veraltet (Nachprüfer F1): ein Tipp darauf, oder ein Tipp,
+  nachdem die Zeichnung mehr Striche hat, schreibt den besten Treffer aller Striche und lernt nichts.
+  Auch bei gesperrter Eingabe wird eine laufende Vorschau verworfen (F5). Derselbe Erkenner; das
+  Schreiben nach der Pause kommt aus dessen Merker (P112). Ein
   Tipp schreibt sofort (`SymbolInk.takeWaiting`, nichts, solange ein Strich auf den Tasten ist oder
   die Eingabe gesperrt ist, Prüfer N3: die Zeichnung bleibt dann); eine Alternative ist eine
   Korrektur (Lernen, unten). Bekannt, nicht geändert: im Modus „Werkzeugleiste ausklappbar“ wird die
@@ -1716,7 +1724,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Punkten behalten (`PersonalInkSymbols.hasDots` über alle Vorlagen des Symbols, Prüfer M3, P113).
   Quellen: (a) Wahl einer Alternative (Vorschau oder nach dem Schreiben), nur mit
   Schalter `agent_symbol_learning` (Standard aus), ohne Lernpause, ohne Inkognito, entsperrt, kein
-  Passwortfeld (`SymbolDrawing.mayLearn`). Die Wolke der Zeichnung liegt dafür im Speicher am
+  Passwortfeld, und nur mit „Personalisierte Vorschläge“ (Nachprüfer F7: dessen Ausschalten löscht
+  sie) (`SymbolDrawing.mayLearn`). Die Wolke der Zeichnung liegt dafür im Speicher am
   geschriebenen Symbol (`Inserted.cloud`), dazu die persönlichen Vorlagen von vor dem Lernen
   (`Inserted.learnedOn`, Prüfer N4): eine zweite Wahl lernt auf diesem Stand neu, die Wahl des
   erkannten Symbols stellt ihn wieder her, auch eine dabei verdrängte Zeichnung. (b) Kalibrieren
@@ -1740,7 +1749,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `InputLogicTest.symbolDraw*` (Chip bei gesperrter Eingabe, keine Punkt-Zeichnung für „–“,
   Zurücknehmen stellt verdrängte Vorlage wieder her), `SymbolSettingsScreenTest` (Zahl und Löschen
   auf „Gelernte Wörter“, Ausschalten der personalisierten Vorschläge), `InkRecognizerTest`
-  (315 Vorlagen), `PersonalInkSymbolsTest` (3/40, Punkte), `InkTimingTest` (6 dp, Bereich).
+  (315 Vorlagen, `jvmTimingWithEveryTemplateTheUserCanHave`), `PersonalInkSymbolsTest` (3/40,
+  Punkte), `InkTimingTest` (8 dp, Bereich), `InkAreaTest` (Folgestriche aller Symbole im Bereich).
+  Nachprüfer: `InputLogicTest.symbolDrawPreviewChipForFewerStrokesWritesTheWholeDrawingAndLearnsNothing`
+  (F1), `symbolDrawPreviewOnTheWorkerIsShownAndALateOneIsDropped` (F5, echter Thread; der direkte
+  Executor der übrigen Tests wird nach jedem Test zurückgesetzt), `symbolDrawLearnsNothingWithoutPersonalizedSuggestions` (F7).
 - Tests 36: `CT/InkBenchmarkTest.kt` mit `CT/InkFingerModel.kt` (Finger-Modell, Nachweis),
   `CT/InkTimingTest.kt`, `CT/PersonalInkSymbolsTest.kt`; `AT/SymbolInkTest.kt` (kurzer Strich,
   schneller Strich ohne Bewegung, Strich nach 800 ms, Pause nach Tempo, still gehaltener Tipp,
@@ -2124,7 +2137,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   z. B. Großschreibung nach einem eigenen „.“) und erst danach die Taste ermittelt werden.
   `SymbolInk.onInkUp` schreibt das Symbol, `PointerTracker` holt den Down mit
   `onDownEventInternal` an der Aufsetzstelle nach (Tastendruck, Rückmeldung, Vorschau; nicht an der
-  Up-Stelle, sonst drückt ein Tipp, der bis zur Tipp-Grenze (seit 36 unter 6 dp) auf die
+  Up-Stelle, sonst drückt ein Tipp, der bis zur Tipp-Grenze (seit 36 unter 8 dp) auf die
   Nachbartaste rutscht, z. B. Löschen, diese) und lässt den normalen Up-Pfad die Taste senden. Kam ein zweiter Finger dazu, ist der Tipp
   schon Taste (P104): `inkTapBecomesKey` hat `mInInk` gelöscht, `onUpEvent` ruft `onInkUp` dann
   gar nicht und der normale Pfad tippt ihn (Korrektur nach Prüfer zu 057a6d5).
@@ -2151,7 +2164,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P104** Zwei Daumen im Wartefenster von Symbole malen: Daumen A tippt (als Tinte, er könnte ein
   Punkt sein), Daumen B setzt auf, bevor A loslässt. `startsInk` von B fragt
   `SymbolInk.onSecondFinger`: Ist As Strich noch ein Tipp (bei zweitem Finger unter 10 dp,
-  `InkTap.SECOND_FINGER_SLOP_DP`, großzügiger als die 6 dp beim Loslassen), wird das Symbol sofort
+  `InkTap.SECOND_FINGER_SLOP_DP`, großzügiger als die 8 dp beim Loslassen), wird das Symbol sofort
   geschrieben und A über `inkTapBecomesKey` ein normaler Tastendruck an seiner Aufsetzstelle (in
   der Warteschlange vor B, also in Tipp-Reihenfolge); ein echter Strich endet mit der Zeichnung, die
   samt ihm geschrieben wird (Prüfer M1, vorher verworfen); As Loslassen bleibt danach still. Ein Tipp
@@ -2271,8 +2284,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Tastendruck, der nie losgelassen wird (Geisterbuchstabe). Deshalb: `onCancelEvent` beendet jeden
   laufenden Folgestrich (auch eines anderen Trackers), und `startsInk` macht nur einen Tracker mit
   `mInInk` zur Taste, sonst `SymbolInk.cancel`. Test `SymbolInkTest.aCancelThatReachesAnotherTrackerEndsTheInkStroke`.
-- **P111** Die Tipp-Regel im Wartefenster misst nur die Bewegung (unter 6 dp; die erste Fassung mit
-  4 dp verlor nach dem Modell 7 % der Buchstaben, Prüfer H1), nicht die Dauer.
+- **P111** Die Tipp-Regel im Wartefenster misst nur die Bewegung (unter 8 dp wie Androids Touch-Slop;
+  die erste Fassung mit 4 dp verlor nach dem Modell 7 % der Buchstaben, Prüfer H1, 6 dp noch 2 %,
+  Nachprüfer F3; der Preis: kurze absichtliche Striche unter 8 dp gelten als Tipp), nicht die Dauer.
+  Innerhalb des Bereichs um die Zeichnung (3 Tasten) kann ein stark verwackelter Tipp (ab 8 dp)
+  trotzdem als Strich zählen.
   Eine still gehaltene Berührung hat keine Form; als Strich gezählt, fügte sie der Zeichnung einen
   Punkt hinzu und verlöre den Buchstaben (ein langsamer Tipp). Die vorgeschlagene Regel „unter
   4 dp und unter 180 ms“ ist im Nachweis gemessen und verworfen (`InkTimingTest`).
@@ -2299,7 +2315,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (438 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (439 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -2352,13 +2368,14 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   ModelProvider, OwnInkSymbols, PendingBatchGate, PersonalInkSymbols, Places, Profiles, RgbCurve,
   RgbLighting, RgbPatterns, SkillBinding, SpecialCharacters, StyledTranslation, SymbolTable,
   TextCondition, TimerParser, Tool, UnitConversion, UpdateReleases, UrlDetector, Workflow
-- `CT/` (35): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
-  EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest, EventParserTest, InkBenchmarkTest, InkDotsTest,
-  InkFingerModel, InkRecognizerTest, InkTimingTest, InsertionAnchorTest, LanguageNamesTest,
-  LocalTextActionsTest, MathExpressionTest, OwnInkSymbolsTest, PendingBatchGateTest,
-  PersonalInkSymbolsTest, PlacesTest, QuestionCaptureTest, RgbCurveTest, RgbFrameStatsTest,
-  RgbLightingTest, RgbPatternsTest, SkillBindingTest, StyledTranslationTest, SymbolTableTest,
-  TimerParserTest, ToolTest, UnitConversionTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
+- `CT/` (36): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
+  EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest, EventParserTest, InkAreaTest, InkBenchmarkTest,
+  InkDotsTest, InkFingerModel, InkRecognizerTest, InkTimingTest, InsertionAnchorTest,
+  LanguageNamesTest, LocalTextActionsTest, MathExpressionTest, OwnInkSymbolsTest,
+  PendingBatchGateTest, PersonalInkSymbolsTest, PlacesTest, QuestionCaptureTest, RgbCurveTest,
+  RgbFrameStatsTest, RgbLightingTest, RgbPatternsTest, SkillBindingTest, StyledTranslationTest,
+  SymbolTableTest, TimerParserTest, ToolTest, UnitConversionTest, UpdateReleasesTest,
+  UrlDetectorTest, WorkflowTest
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,
   KeyboardActionListenerImpl, KeyboardSwitcher, KeyboardTheme, KeyboardView, MainKeyboardView,
   PointerTracker

@@ -247,7 +247,8 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   40 Symbole (das am längsten nicht geänderte fällt zuerst weg); eine Zeile mit mehr Zeichnungen
   wird beim Lesen übersprungen. Eine Zeichnung mit Punkt nur für ein Symbol mit Punkten. Geschrieben nur (a) beim
   Kalibrieren auf der Einstellungsseite und (b) bei der Wahl einer Alternative in der Leiste, dann
-  nur mit Schalter `agent_symbol_learning` (Tastatureinstellungen, Standard aus), ohne Lernpause
+  nur mit Schalter `agent_symbol_learning` (Tastatureinstellungen, Standard aus) und
+  „Personalisierte Vorschläge“ an, ohne Lernpause
   (`agent_learning_paused`), ohne Inkognito, bei entsperrtem Gerät und nie aus einem Passwortfeld.
   Löschen: einzeln oder alle auf der Seite „Symbole malen“, mit „Gelernte Wörter löschen“ und beim
   Ausschalten von „Personalisierte Vorschläge“. Keine rohen Berührungspunkte, nicht in

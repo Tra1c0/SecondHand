@@ -201,7 +201,7 @@ class InkRecognizerTest {
         assertTrue(millis < 50, "$millis ms")
     }
 
-    @Test fun recognitionWithEveryTemplateTheUserCanHaveFitsTheMainThread() {
+    @Test fun jvmTimingWithEveryTemplateTheUserCanHave() {
         // review M2: built-in, 30 own symbols drawn 3 times and 40 personal symbols with 3 drawings each
         val random = Random(36)
         val own = List(OwnInkSymbols.MAX_SYMBOLS * OwnInkSymbols.SAMPLES) { k ->

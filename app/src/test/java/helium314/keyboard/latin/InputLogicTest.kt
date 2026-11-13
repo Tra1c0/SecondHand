@@ -3399,9 +3399,100 @@ class InputLogicTest {
     private fun reloadSettings() = latinIME.mSettings.loadSettings(latinIME, latinIME.mSettings.current.mLocale,
         InputAttributes(latinIME.currentInputEditorInfo, false, latinIME.packageName))
 
+    /** Learning, and since follow-up review F7 also personalized suggestions (its off switch deletes the templates). */
     private fun learnSymbols(on: Boolean) {
-        latinIME.prefs().edit { putBoolean(AgentPreferences.SYMBOL_LEARNING, on) }
+        latinIME.prefs().edit {
+            putBoolean(AgentPreferences.SYMBOL_LEARNING, on)
+            putBoolean(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, on)
+        }
         reloadSettings()
+    }
+
+    /** Follow-up review F5: the inline preview executor of these tests never outlives a test. */
+    @kotlin.test.AfterTest fun restoreSymbolPreviewWorker() {
+        symbolDrawing.previewExecutor = symbolDrawing.workerExecutor
+    }
+
+    @Test fun symbolDrawPreviewChipForFewerStrokesWritesTheWholeDrawingAndLearnsNothing() {
+        // follow-up review F1: the chip of stroke 1 tapped after stroke 2 wrote the old guess for both
+        enableSymbolDrawing()
+        learnSymbols(true)
+        try {
+            setText("")
+            drawStrokes(arrowStrokes[0])
+            afterPreview()
+            val old = symbolChips()!!
+            assertEquals(symbolDrawing.PREVIEW_MARK + "–", chipLabels(old).first())
+            drawStrokes(arrowStrokes[1]) // the head, tapped before its own preview came
+            tapStripChip(old, symbolDrawing.PREVIEW_MARK + "–")
+            handleMessages()
+            assertEquals("→", text) // the best match of both strokes, not the old guess
+            assertTrue(personalSymbols().isEmpty()) // and no arrow kept as a dash
+            // the same with a stroke drawn through PointerTracker's hooks
+            setText("")
+            drawStrokes(arrowStrokes[0])
+            afterPreview()
+            val again = symbolChips()!!
+            symbolInk.onInkDown(0, 216, 78)
+            symbolInk.onInkMove(0, 300, 150)
+            assertFalse(symbolInk.onInkUp(0, 216, 222))
+            tapStripChip(again, chipLabels(again).last()) // an alternative of the dash
+            handleMessages()
+            assertEquals("→", text)
+            assertTrue(personalSymbols().isEmpty())
+        } finally {
+            symbolDrawing.savePersonalSymbols(latinIME, emptyList())
+        }
+    }
+
+    @Test fun symbolDrawLearnsNothingWithoutPersonalizedSuggestions() {
+        // follow-up review F7: the switch that deletes the templates also stops new ones
+        enableSymbolDrawing()
+        learnSymbols(true)
+        latinIME.prefs().edit { putBoolean(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, false) }
+        reloadSettings()
+        try {
+            setText("")
+            drawSymbol(*arrowStrokes)
+            tapStripChip(symbolChips()!!, chipLabels(symbolChips()!!).first())
+            handleMessages()
+            assertTrue(personalSymbols().isEmpty())
+        } finally {
+            symbolDrawing.savePersonalSymbols(latinIME, emptyList())
+        }
+    }
+
+    /** Waits until the preview worker did everything handed to it so far, then runs the main looper. */
+    private fun afterWorker() {
+        val done = java.util.concurrent.CountDownLatch(1)
+        symbolDrawing.workerExecutor.execute { done.countDown() }
+        assertTrue(done.await(5, java.util.concurrent.TimeUnit.SECONDS))
+        org.robolectric.shadows.ShadowLooper.idleMainLooper()
+        handleMessages()
+    }
+
+    @Test fun symbolDrawPreviewOnTheWorkerIsShownAndALateOneIsDropped() {
+        // follow-up review F5: the real worker thread; a result that arrives after the drawing was
+        // dropped or written shows nothing
+        enableSymbolDrawing()
+        symbolDrawing.previewExecutor = symbolDrawing.workerExecutor
+        drawStrokes(*arrowStrokes)
+        afterPreview() // the drawing went to the worker
+        afterWorker()
+        assertEquals(symbolDrawing.PREVIEW_MARK + "→", chipLabels(symbolChips()!!).first())
+        symbolDrawing.reset()
+        drawStrokes(*arrowStrokes)
+        afterPreview()
+        symbolDrawing.reset() // dropped while the worker matches it
+        afterWorker()
+        kotlin.test.assertNull(symbolChips())
+        drawStrokes(*arrowStrokes)
+        afterPreview()
+        symbolInk.flush() // written while the worker matches it: its alternatives stay, no late preview
+        afterWorker()
+        assertEquals("→", text)
+        val chips = chipLabels(symbolChips()!!)
+        assertTrue(chips.isNotEmpty() && chips.none { it.startsWith(symbolDrawing.PREVIEW_MARK) }, "$chips")
     }
 
     /** The preview comes a moment after the last stroke (review M2). */

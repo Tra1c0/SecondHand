@@ -12,9 +12,10 @@ object InkTap {
     /**
      * A touch that moves less than this (dp) from where it went down is no stroke (stage 36: 10 dp
      * before; 4 dp in the first version, review: a rolling finger moves more than 4 dp, P101, and a
-     * typed letter got lost, so 6 dp, docs/VALIDATION.md).
+     * typed letter got lost; 6 dp in the second, follow-up review F3: still below Android's 8 dp touch
+     * slop, so 8 dp like a normal tap, docs/VALIDATION.md).
      */
-    const val SLOP_DP = 6f
+    const val SLOP_DP = 8f
 
     /**
      * A second finger comes down while the first one draws: the first one counts as a tap (two thumbs
@@ -34,22 +35,30 @@ object InkTap {
     /** True when a touch that moved at most [movedDp] from its down point is a tap, not a stroke. */
     fun isTap(movedDp: Float): Boolean = movedDp < SLOP_DP
 
-    /** The area around a drawing grows by this share of its larger side, but at least by a key width. */
+    /** The area around a drawing grows by this share of its larger side, but at least by [KEY_MARGIN] key widths. */
     const val AREA_MARGIN = 0.6f
+
+    /**
+     * Follow-up review F2: a small first part (the first circle of %, the bar of ≤, an arrow head drawn
+     * first) must still reach the start of the next stroke. InkAreaTest, drawings 2–3 rows tall: the
+     * built-in drawings need up to 2.6 key widths, 97 % of the finger model's random orders up to 3.
+     * The price: within 3 keys of a drawing a typed key is a tap only below [SLOP_DP] (P111).
+     */
+    const val KEY_MARGIN = 3f
 
     /**
      * Stage 36 (review H1): whether a touch at ([x], [y]) is near enough to the waiting drawing
      * [strokes] (screen units) to be a further stroke of it: inside its bounding box grown on every
-     * side by [AREA_MARGIN] of its larger side, at least by [minMargin] (a key width). Anything farther
-     * away ends the drawing and is typed as usual, so typing right after a symbol loses nothing.
+     * side by [AREA_MARGIN] of its larger side, at least by [keyMargin] times [keyWidth]. Anything
+     * farther away ends the drawing and is typed as usual, so typing right after a symbol loses nothing.
      */
-    fun nearDrawing(strokes: List<InkStroke>, x: Float, y: Float, minMargin: Float): Boolean {
+    fun nearDrawing(strokes: List<InkStroke>, x: Float, y: Float, keyWidth: Float, keyMargin: Float = KEY_MARGIN): Boolean {
         var minX = Float.MAX_VALUE; var minY = Float.MAX_VALUE; var maxX = -Float.MAX_VALUE; var maxY = -Float.MAX_VALUE
         for (s in strokes) for (i in 0 until s.size) {
             minX = minOf(minX, s.x(i)); maxX = maxOf(maxX, s.x(i)); minY = minOf(minY, s.y(i)); maxY = maxOf(maxY, s.y(i))
         }
         if (minX > maxX) return false
-        val margin = maxOf(AREA_MARGIN * maxOf(maxX - minX, maxY - minY), minMargin)
+        val margin = maxOf(AREA_MARGIN * maxOf(maxX - minX, maxY - minY), keyMargin * keyWidth)
         return x >= minX - margin && x <= maxX + margin && y >= minY - margin && y <= maxY + margin
     }
 }

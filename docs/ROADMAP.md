@@ -29,11 +29,11 @@ Reihenfolge von oben nach unten.
   `PointerTracker`, Gerätetest.
 - **36 Symbole malen: Erkennung überarbeiten** (Rückmeldung des Owners zu Build 14) ist gebaut
   (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 36 (Erkennung Symbole malen)):
-  Tipp-Grenze 6 dp, Folgestriche nur nahe der Zeichnung (auch auf Satzzeichen- und
+  Tipp-Grenze 8 dp, Folgestriche nur nahe der Zeichnung (3 Tasten; auch auf Satzzeichen- und
   Zifferntasten), Pause 0,9 s nach Tempo (0,6–1,5 s), Vorschau-Chip (nicht im Hauptthread),
   Erkennung mit Strichrichtung und Strichzahl, mehr Vorlagen, persönliche Vorlagen (Lernen aus
   Korrekturen, anfangs aus, und Kalibrieren). Prüfer-Befunde H1, M1–M4, N1, N3, N4 korrigiert
-  (`docs/VALIDATION.md`). Offen: erneutes Prüfer-Review der `PointerTracker`-Änderung (Pflicht),
+  (`docs/VALIDATION.md`), ebenso die Nachprüfer-Befunde F1–F5, F7. Offen: erneutes Prüfer-Review der `PointerTracker`-Änderung (Pflicht),
   Gerätetest am Xiaomi (Erkennung mit echten Fingern, Tipp-Grenze, Bereich um die Zeichnung, Tempo
   der Pause, ob der Vorschau-Chip beim Malen stört, Zeit der Erkennung), ob ⇒ → ≠ am Telefon weg
   ist (im Test nie nachgestellt); Annahme des Leads:

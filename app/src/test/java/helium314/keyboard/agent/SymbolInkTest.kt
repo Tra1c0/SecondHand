@@ -438,7 +438,7 @@ class SymbolInkTest {
     @Test fun aShortStrokeInThePauseIsAStrokeNotATap() {
         stroke(*line(20f, 80f, 300f, 80f))
         clearInvocations(listener)
-        stroke(40f, 30f, 44f, 30f, 48f, 30f) // 8 px, far from the dots of ÷: a tap with the old 10 dp, a stroke now (6 dp)
+        stroke(40f, 30f, 45f, 30f, 49f, 30f) // 9 px, far from the dots of ÷: a tap with the old 10 dp, a stroke now (8 dp)
         assertTrue(SymbolInk.isWaiting)
         assertTrue(log.isEmpty())
         pause()
@@ -579,10 +579,11 @@ class SymbolInkTest {
 
     @Test fun digitsAndPunctuationTypedAwayFromTheDrawingAreTyped() {
         digitAndPeriod()
-        stroke(*line(20f, 40f, 120f, 40f)) // a small dash: its area reaches 60 px around it
+        stroke(*line(20f, 40f, 120f, 40f)) // a small dash: its area reaches 3 key widths (150 px) around it
         clearInvocations(listener)
-        // a rolling finger (7 px) on "3" far from the dash: no stroke of the drawing, the symbol and then 3
-        touch(MotionEvent.ACTION_DOWN, 270f, 120f); touch(MotionEvent.ACTION_MOVE, 275f, 125f); touch(MotionEvent.ACTION_UP, 275f, 125f)
+        // a rolling finger (7 px) on "3" far from the dash (the area: 3 keys = 150 px around it): no stroke
+        // of the drawing, the symbol and then 3
+        touch(MotionEvent.ACTION_DOWN, 285f, 120f); touch(MotionEvent.ACTION_MOVE, 290f, 125f); touch(MotionEvent.ACTION_UP, 290f, 125f)
         assertEquals(listOf("symbol", "code ${'3'.code}"), log)
         assertEquals(1, drawings.single().size)
         now += 1_000 // no fast typing before the next stroke (HeliBoard would then ask for a longer swipe)
@@ -599,8 +600,9 @@ class SymbolInkTest {
         stroke(60f, 75f, 65f, 75f, 70f, 75f) // 10 px inside the area: a further stroke
         assertTrue(SymbolInk.isWaiting)
         assertTrue(log.isEmpty())
-        // a tap rolling 5 px inside the area: below 6 dp, a tap (a letter, no dot of a dash there)
-        touch(MotionEvent.ACTION_DOWN, 150f, 90f); touch(MotionEvent.ACTION_MOVE, 153f, 94f); touch(MotionEvent.ACTION_UP, 153f, 94f)
+        // a tap rolling 7 px inside the area: below 8 dp, a tap (a letter, no dot of a dash there;
+        // follow-up review F3, with 6 dp it was a stroke)
+        touch(MotionEvent.ACTION_DOWN, 150f, 90f); touch(MotionEvent.ACTION_MOVE, 155f, 95f); touch(MotionEvent.ACTION_UP, 155f, 95f)
         assertEquals(listOf("symbol", "code ${'a'.code}"), log)
         assertEquals(2, drawings.single().size)
     }

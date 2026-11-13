@@ -46,6 +46,8 @@ object SymbolInk {
         fun onDrawing(strokes: List<InkStroke>)
         /** Stage 36: the waiting drawing so far (shortly after a stroke); empty when it was dropped. */
         fun onWaiting(strokes: List<InkStroke>) {}
+        /** Follow-up review F1: a further stroke begins; a preview shown so far is out of date. */
+        fun onStrokeStarted() {}
     }
 
     private var sinkRef: WeakReference<Sink>? = null
@@ -89,6 +91,9 @@ object SymbolInk {
 
     /** A symbol has strokes and waits for more (or for the pause to end). */
     @JvmStatic val isWaiting: Boolean get() = !group.isEmpty
+
+    /** How many strokes the waiting drawing has (follow-up review F1: is a preview still current?). */
+    @JvmStatic val waitingStrokes: Int get() = group.size
 
     /** How long a drawing waits now for its next stroke (stage 36: follows the user's pace). */
     @JvmStatic val pauseMillis: Long get() = pace.pauseMillis
@@ -178,6 +183,7 @@ object SymbolInk {
         handler.removeCallbacksAndMessages(previewToken)
         inkGap = if (lastStrokeEnd >= 0) SystemClock.uptimeMillis() - lastStrokeEnd else -1
         inkPointer = pointerId
+        sink?.onStrokeStarted()
         pointCount = 0
         addPoint(x, y)
     }

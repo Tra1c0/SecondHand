@@ -299,10 +299,11 @@ class SymbolSettingsScreenTest {
         compose.onAllNodes(hasText("Gelernte Wörter löschen") and hasClickAction()).onLast().performClick() // the confirmation
         compose.waitForIdle()
         compose.waitUntil(5_000) { SymbolDrawing.personalSymbols(app).isEmpty() }
-        compose.waitForIdle()
-        // the count on the page follows (unmerged: the dialog may still be closing in the merged tree)
-        compose.onNode(hasText("Persönliche Vorlagen von „Symbole malen“: 0 Zeichnungen", substring = true),
-            useUnmergedTree = true).assertExists()
+        // the count on the page follows once the deletion (on an IO thread) is back on the main thread
+        compose.waitUntil(5_000) {
+            compose.onAllNodes(hasText("Persönliche Vorlagen von „Symbole malen“: 0 Zeichnungen", substring = true),
+                useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        }
     }
 
     @Test fun turningPersonalizedSuggestionsOffDeletesPersonalTemplates() {

@@ -2750,6 +2750,56 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
     nur im ungemergten Baum (allein grün); der Test sucht sie jetzt dort, nachdem er auf das Löschen
     gewartet hat (die Prüfung der Daten selbst ist unverändert). Zweiter Lauf 758/0. Nicht gelaufen:
     `upstream-tests`, `lint`, Build.
+- Nachprüfer zu `efb3939` und Korrekturen (in der Arbeitskopie, nicht gepusht):
+  - F1 Veralteter Vorschau-Chip: Der Chip für Strich N, nach Strich N+1 angetippt, schrieb die alte
+    Vermutung für alle Striche und lernte sie (ein Pfeil als „–“). Jetzt trägt `Waiting` die Zahl der
+    Striche; `SymbolInk` meldet jeden neuen Strich (`Sink.onStrokeStarted`, der Chip wird veraltet,
+    eine laufende Vorschau verworfen). Ein veralteter Chip schreibt den besten Treffer aller Striche
+    und lernt nichts. Test `symbolDrawPreviewChipForFewerStrokesWritesTheWholeDrawingAndLearnsNothing`
+    (über die Batch-Striche und über die `PointerTracker`-Hooks).
+  - F2 Mehrteilige Symbole mit kleinem erstem Teil (% mit erstem Kreis, ≤/≥ mit dem Strich zuerst,
+    Pfeilkopf zuerst) begannen beim nächsten Strich ein neues Symbol. Neuer Test `CT/InkAreaTest.kt`:
+    alle eingebauten Zeichnungen in ihrer Reihenfolge und Richtung und 4800 Finger-Zeichnungen mit
+    zufälliger Reihenfolge und Richtung, 2, 2,5 und 3 Reihen hoch (Taste 36 dp, Reihe 55 dp). Die
+    eingebauten brauchen bis 2,58 Tastenbreiten; vom Finger-Modell brauchen mehr als 1,5 / 2 / 2,5 /
+    3 / 4 Tastenbreiten 466 / 357 / 230 / 125 / 15 von 4800. Gewählt: mindestens 3 Tastenbreiten
+    (`InkTap.KEY_MARGIN`), eingebaute 100 %, Finger-Modell 4675/4800 (97,4 %, Test ≥ 97 %); der Rest
+    sind Zeichnungen, deren nächster Strich weit weg beginnt (vor allem Pfeilkopf zuerst, dann der
+    Schaft vom anderen Ende, π, ≤). Dass jede Folgezeichnung angenommen wird, wie gewünscht, ginge
+    erst mit etwa 4,6 Tastenbreiten, dann wäre fast die ganze Tastatur Malbereich und H1 hinfällig;
+    darum nicht. Preis der 3 Tasten: Im Umkreis von 3 Tasten um die Zeichnung zählt ein Tipp nur
+    unter 8 dp als Tipp (F3).
+  - F3 Tipp-Grenze 8 dp statt 6 (Androids Touch-Slop). Modell `InkTimingTest`: 0,5 % falsche Striche
+    (Tipps als Strich), 8,7 % falsche Tipps (kurze Striche 5–40 dp als Tipp; 6 dp: 2,2 % / 3,0 %,
+    10 dp: 0,1 % / 14,4 %). Die Test-Grenzen sind jetzt < 1 % falsche Striche und < 10 % falsche
+    Tipps, und weniger falsche Tipps als mit 10 dp (vorher: ein Drittel davon, mit 8 dp nicht mehr
+    erfüllt, ehrlich gelockert). Restrisiko in ANLEITUNG und Release-Notes: direkt neben der
+    Zeichnung kann ein verwackelter Tipp noch als Strich zählen. `aShortStrokeInThePauseIsAStrokeNotATap`
+    zieht 9 px (8 px sind jetzt gerade ein Strich), der rollende Tipp im Bereich rollt 7 px (unter 8,
+    mit 6 dp ein Strich), der Ziffern-Test tippt 15 px weiter rechts (außerhalb der 3 Tasten).
+  - F4 Zeit-Test umbenannt in `jvmTimingWithEveryTemplateTheUserCanHave` (misst auf dem JVM, nicht am
+    Telefon).
+  - F5 `InputLogicTest` setzt den direkten Vorschau-Executor nach jedem Test auf den echten Thread
+    zurück (`@AfterTest`). Neuer Test über den echten Thread:
+    `symbolDrawPreviewOnTheWorkerIsShownAndALateOneIsDropped` (Vorschau kommt; nach Verwerfen kein
+    Chip; nach dem Schreiben bleiben die Alternativen, keine späte Vorschau). Unter gesperrter Eingabe
+    verwirft `onWaiting` eine laufende Vorschau.
+  - F7 Lernen nur mit „Personalisierte Vorschläge“ (dessen Ausschalten löscht die Vorlagen). Test
+    `symbolDrawLearnsNothingWithoutPersonalizedSuggestions`; der Test-Helfer für das Lernen schaltet
+    beides ein.
+  - Gegenproben (in einem Lauf: 6 dp, 1,5 Tastenbreiten, alter Chip schreibt seine Vermutung,
+    Vorschau ohne Zustands-Prüfung, Lernen ohne personalisierte Vorschläge): rot beide Bereichs-Tests
+    in `InkAreaTest`, drei `InkTimingTest`-Fälle, `aShortStrokeNearTheDrawing…`, der F1- und der
+    F7-Test. Der Worker-Test blieb dabei zuerst grün (der Chip-Aufbau verwarf die späte Vorschau
+    schon); auf „Schreiben, dann späte Vorschau“ umgestellt, danach mit nur der fehlenden
+    Zustands-Prüfung rot. Danach alles wiederhergestellt.
+  - Flaky behoben: `theLearnedDataPageCountsAndDeletesPersonalTemplates` wartet jetzt, bis die Zahl
+    nach dem Löschen (IO-Thread) wieder im Hauptthread steht, statt sofort zu prüfen; das war die
+    Ursache des einen Fehlers im vorigen Gesamtlauf.
+  - Läufe: `tools/dev.py core-tests` 303/0, `tools/dev.py agent-tests` 761/0; nach einer letzten
+    Textänderung `SymbolInkTest` 32, `SymbolSettingsScreenTest` 13, `InputLogicTest.symbolDraw*` 25
+    grün. `PointerTracker` und `LatinIME` in dieser Runde unverändert. Nicht gelaufen:
+    `upstream-tests`, `lint`, Build. Kein Gerätetest.
 
 ## Gerätetest vor Meilensteinfreigabe
 

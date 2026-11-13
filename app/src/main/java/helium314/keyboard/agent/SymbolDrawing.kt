@@ -62,8 +62,12 @@ object SymbolDrawing {
     private class Inserted(val text: String, val alternatives: List<String>, cursor: Int, val cloud: InkCloud?,
         val recognized: String, val learnedOn: List<OwnInkSymbols.Symbol>? = null) : Shown(cursor)
     private class NotRecognized(cursor: Int) : Shown(cursor)
-    /** Stage 36: a drawing that waits for its next stroke; [guess] is what would be written now. */
-    private class Waiting(val guess: String?, val alternatives: List<String>) : Shown(-1)
+    /**
+     * Stage 36: a drawing that waits for its next stroke; [guess] is what would be written now for its
+     * first [strokes] strokes. [stale] once a further stroke began (follow-up review F1): a tap then
+     * writes the best match of all strokes and learns nothing.
+     */
+    private class Waiting(val guess: String?, val alternatives: List<String>, val strokes: Int, val stale: Boolean = false) : Shown(-1)
 
     private var shown: Shown? = null
     private var recognizer: InkRecognizer? = null
@@ -75,7 +79,8 @@ object SymbolDrawing {
      * Stage 36 review M2: the preview is matched off the main thread (up to some 300 templates); the
      * result is shown only if nothing changed meanwhile ([previewGeneration]). Tests run it inline.
      */
-    internal var previewExecutor: Executor = Executors.newSingleThreadExecutor { Thread(it, "symbol-preview").apply { isDaemon = true } }
+    internal val workerExecutor: Executor = Executors.newSingleThreadExecutor { Thread(it, "symbol-preview").apply { isDaemon = true } }
+    internal var previewExecutor: Executor = workerExecutor
     private var previewGeneration = 0
     private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
 
@@ -96,6 +101,7 @@ object SymbolDrawing {
         return object : SymbolInk.Sink {
             override fun onDrawing(strokes: List<InkStroke>) { ref.get()?.let { onDrawing(it, strokes) } }
             override fun onWaiting(strokes: List<InkStroke>) { ref.get()?.let { onWaiting(it, strokes) } }
+            override fun onStrokeStarted() { this@SymbolDrawing.onStrokeStarted() }
         }.also { SymbolInk.sink = it }
     }
 
@@ -152,7 +158,10 @@ object SymbolDrawing {
             ime.mHandler.postUpdateSuggestionStrip(SuggestedWords.INPUT_STYLE_TYPING)
             return
         }
-        if (ime.agentEditorController.isBlockingInput) return
+        if (ime.agentEditorController.isBlockingInput) {
+            previewGeneration++ // follow-up review F5: an older preview still being matched is out of date
+            return
+        }
         val matcher = recognizer(ime) // read on the main thread (preferences), matched on the worker
         val generation = ++previewGeneration
         val drawing = strokes.toList()
@@ -165,7 +174,7 @@ object SymbolDrawing {
                 // a newer stroke, a written or dropped drawing, or a key in between: out of date
                 if (generation != previewGeneration || !SymbolInk.isWaiting) return@postAtTime
                 val guess = result.best?.text
-                setShown(Waiting(guess, (if (guess == null) emptyList() else result.alternatives.map { it.text }).take(2)))
+                setShown(Waiting(guess, (if (guess == null) emptyList() else result.alternatives.map { it.text }).take(2), drawing.size))
                 keyboard.setNeutralSuggestionStrip()
             }, SystemClock.uptimeMillis())
         }
@@ -218,14 +227,22 @@ object SymbolDrawing {
         return KeyboardCommands.chipRow(parent, chips).apply { id = R.id.agent_symbol_chips }
     }
 
+    /** Follow-up review F1: a further stroke begins; the preview shown is for fewer strokes now. */
+    private fun onStrokeStarted() {
+        previewGeneration++ // a preview still being matched is out of date
+        (shown as? Waiting)?.let { shown = Waiting(it.guess, it.alternatives, it.strokes, stale = true) }
+    }
+
     /** A preview chip: write the waiting drawing now, as [chosen] (null: the best match, i.e. none). */
     private fun takeWaiting(ime: LatinIME, chosen: String?) {
-        if (shown !is Waiting) return
+        val state = shown as? Waiting ?: return
         // review N3: while input is blocked the drawing stays where it is instead of being dropped
         if (ime.agentEditorController.isBlockingInput) return
         // a stroke still on the keys, or nothing waits any more: the chip is out of date
         val strokes = SymbolInk.takeWaiting() ?: return
-        write(ime, strokes, chosen)
+        // follow-up review F1: a chip for fewer strokes writes the best match of all of them, never its
+        // old guess (and so learns nothing)
+        write(ime, strokes, if (state.stale || state.strokes != strokes.size) null else chosen)
     }
 
     private fun replace(ime: LatinIME, state: Inserted, alternative: String) {
@@ -265,10 +282,12 @@ object SymbolDrawing {
 
     // --- learning (stage 36) ---
 
-    /** Whether a picked alternative may be kept now: switch on, not paused, not incognito, not locked. */
+    /** Whether a picked alternative may be kept now: switch and personalized suggestions on, not paused, not incognito, not locked. */
     @JvmStatic fun mayLearn(context: Context): Boolean {
         val settings = helium314.keyboard.latin.settings.Settings.getValues() ?: return false
-        return context.prefs().getBoolean(AgentPreferences.SYMBOL_LEARNING, false) && !settings.mLearningPaused
+        // follow-up review F7: also only with personalized suggestions, whose off switch deletes the templates
+        return context.prefs().getBoolean(AgentPreferences.SYMBOL_LEARNING, false) && settings.mUsePersonalizedDicts
+            && !settings.mLearningPaused
             && !settings.mIncognitoModeEnabled && !settings.mIsLocked && !settings.mInputAttributes.mIsPasswordField
     }
 
