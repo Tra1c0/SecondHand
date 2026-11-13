@@ -286,13 +286,16 @@ ohne Einstellung ist der Painter `null` und das Zeichnen genau wie im Upstream):
 - `KeyboardView.java`: Feld `mRgbPainter` mit `setRgbPainter`/`getRgbPainter`; in
   `onDrawKeyboard` `beginDraw` und `drawKeyboardBackground` (voller und Teil-Neuzeichnen), in
   `onDrawKey` `beginKey` und `tintBackground`/`restoreBackground` um den Tastenhintergrund, in
-  `onDrawKeyTopVisuals` `labelColor` für Beschriftung (nicht Emoji) und Hinweis sowie
-  `tintIcon`/`restoreIcon` um das Symbol.
+  `onDrawKeyTopVisuals` `labelColor` für Beschriftung (nicht Emoji), Hinweis und Hinweis-Symbol,
+  in `drawKeyPopupHint` für das „…“, sowie `tintIcon`/`restoreIcon` um das Symbol.
+  `setKeyIconColor` gibt den gesetzten `ColorType` zurück, damit `tintIcon` die wirklich
+  gesetzte Farbe bekommt (Umschalt-Akzent, Tastentext).
 - `MainKeyboardView.java`: `setKeyboard` holt den Painter (`RgbLighting.painterFor`, liest dabei
   die Einstellung neu), `onKeyPressed` meldet die Taste (`RgbLighting.onKeyPressed`, nur Position
-  der Taste, nichts aus `PointerTracker`), `onAttachedToWindow`/`onDetachedFromWindow`/
-  `onVisibilityChanged`/`onWindowVisibilityChanged` und `onHideWindow` starten oder stoppen die
-  Bilder, das Sprachkürzel auf der Leertaste nimmt `labelColor`.
+  der Taste, nichts aus `PointerTracker`), `onAttachedToWindow`/`onVisibilityChanged`/
+  `onWindowVisibilityChanged`/`onSizeChanged` (`RgbLighting.onVisibilityChanged`),
+  `onDetachedFromWindow` (`onDetached`) und `onHideWindow` starten oder stoppen die Bilder; das
+  Sprachkürzel auf der Leertaste nimmt `labelColor` nach seinem Alpha.
 - `SuggestionStripView.kt`: `updateKeys` (nach jedem Aufbau und jeden neuen Vorschlägen) ruft
   `RgbLighting.onStripChanged`.
 - `SettingsNavHost.kt` (Ziel `agent_rgb`) und `AppearanceScreen.kt` (Eintrag „RGB-Beleuchtung“
@@ -996,35 +999,71 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - Ablauf: `A/RgbLighting.kt` (Singleton auf dem UI-Thread): Einstellung `agent_rgb_lighting`,
   Engine, Uhr (`drawTimeMs`, in `STATIC` eingefroren), Modus aus `RgbRun.mode` und ein
   `Choreographer.FrameCallback`, der nur in `RUNNING` läuft und je erlaubtem Bild
-  `invalidateAllKeys` der Tastatur und `RgbStrip.paint` aufruft. Sichtbar heißt: angehängt,
-  `isShown`, Fenster sichtbar. Energiesparmodus und Animationsskala werden beim Laden und
-  höchstens alle 2 s während des Laufs gelesen. „Nur beim Tippen“ und statische Muster
-  brauchen Bilder nur, solange ein Effekt verblasst; danach wird einmal neu gezeichnet.
-- Tasten: `A/RgbKeyPainter.kt`, einer je `MainKeyboardView` (andere `KeyboardView`s wie Popups,
-  Emoji-Seiten und mehr Vorschläge bekommen nie einen). `areaOf` ordnet Tasten Bereichen zu
+  `invalidateAllKeys` der Tastatur und `RgbStrip.paint` aufruft. Das nächste Bild wird erst
+  angefordert, wenn es fällig ist (`RgbFramePacer.nanosUntilDue`, `postFrameCallbackDelayed`),
+  nicht bei jedem VSync. Sichtbar heißt: angehängt, `isShown`, Fenster sichtbar, Breite > 0; die
+  erste Größe meldet `onSizeChanged`. Energiesparmodus: Broadcast
+  `ACTION_POWER_SAVE_MODE_CHANGED`, registriert am Application-Kontext nur, solange die
+  Beleuchtung an und die Tastatur angehängt ist (abgemeldet beim Ausschalten und in
+  `onDetached`, P63). Animationsskala (kein Broadcast): bei jedem Sichtbarwerden, beim Laden und
+  höchstens alle 2 s während des Laufs. „Nur beim Tippen“ und statische Muster brauchen Bilder
+  nur, solange ein Effekt verblasst; danach wird einmal neu gezeichnet.
+- Nur die Tastatur aus `main_keyboard_frame` (`R.id.keyboard_view`, `RgbLighting.isMainKeyboard`)
+  bekommt einen Painter und steuert den Ablauf. Die unteren Reihen der Emoji- und
+  Zwischenablage-Ansicht sind ebenfalls `MainKeyboardView`s (`bottom_row_keyboard`, P65); ihre
+  `setKeyboard`, Tipps, Sichtbarkeit und `onHideWindow` werden ignoriert.
+- Tasten: `A/RgbKeyPainter.kt`, einer für die Haupttastatur (andere `KeyboardView`s wie Popups,
+  Emoji-Seiten, untere Reihen und mehr Vorschläge bekommen nie einen). `areaOf` ordnet Tasten Bereichen zu
   (Leertaste, Ziffern = Zahlenreihe, Funktions-/Aktionstasten, Umschalt, Komma und Punkt =
   Funktionstasten, sonst Buchstaben). Der Tastenhintergrund bekommt einen
   `PorterDuffColorFilter(SRC_IN)` auf dem gerade gewählten Kind des Zustands-Drawables (P60),
   gedrückt etwas heller oder dunkler (`RgbColors.pressed`); danach kommt der alte Filter zurück.
-  Ohne Tastenrahmen gilt die Designfarbe als durchsichtig. Der Tastaturhintergrund ist ein
-  Raster von 24 × bis zu 16 Pixeln, gefiltert auf die View gestreckt. Beschriftung, Hinweise,
-  Symbole und das Sprachkürzel gehen durch `labelColor`: mit Ebene „Beschriftung“ in der
-  Lichtfarbe, immer mindestens 3:1 zum (gemischten) Hintergrund dahinter.
+  Ohne gewähltes Kind (`current` null) bleibt die Taste ungefärbt. Ohne Tastenrahmen gilt die
+  Designfarbe als durchsichtig; `RgbColors.applyLight` mischt mit vormultipliziertem Alpha, das
+  Licht wird dort also nicht doppelt abgeschwächt. Der Tastaturhintergrund ist ein Raster von
+  24 × bis zu 16 Pixeln, gefiltert auf die View gestreckt. Beschriftung, Hinweise,
+  Hinweis-Symbole, das „…“ für weitere Zeichen, Symbole und das Sprachkürzel gehen durch
+  `labelColor`: mit Ebene „Beschriftung“ in der Lichtfarbe, immer mindestens 3:1 zum
+  (gemischten) Hintergrund dahinter, gerechnet mit der sichtbaren Farbe (Alpha des Textes über
+  dem Hintergrund); ist ein Text so durchsichtig, dass auch Schwarz oder Weiß 3:1 nicht
+  erreichen, wird er Schwarz oder Weiß. Symbole gehen von der Farbe aus, die
+  `setKeyIconColor` gesetzt hat (Umschalt-Akzent bleibt ohne Ebene „Beschriftung“ erhalten).
+  Grenze: Mit eigenem Hintergrundbild wird gegen die Farbe `MAIN_BACKGROUND` gerechnet, nicht
+  gegen das Bild; ohne Tastenrahmen kann eine Beschriftung über einem hellen oder bunten Bild
+  deshalb unter 3:1 liegen.
 - Leiste: `A/RgbStrip.kt` färbt die Wort-`TextView`s direkt in `suggestions_strip` und alle
   `ImageView`s in Toolbar, angehefteten Tasten und der linken Taste. Chips (Zwischenablage,
   Screenshot, Befehle) sind keine direkten `TextView`s und bleiben unverändert. Die
-  Originalfarbe liegt im Tag `agent_rgb_original`; hat die Leiste die Farbe inzwischen selbst
-  geändert, wird diese das neue Original. Leiste: nur Text- und Symbolfarbe, unabhängig von den
-  Ebenen.
+  Originalfarbe liegt im Tag `agent_rgb_original`; hat die Leiste die Textfarbe inzwischen
+  selbst geändert, wird diese das neue Original. Leistenknöpfe mit Tönungsliste des Designs
+  (`TOOL_BAR_KEY`; die Liste liest eine Probe-Drawable einmal je Farbsatz, `Colors` hat keinen
+  Getter) bekommen eine abgeleitete `ColorStateList` (`RgbStrip.litTint`): nur „aktiviert“
+  (Werkzeug an) leuchtet, ausgeschaltete Werkzeuge und eigene Druckfarben bleiben in der
+  Designfarbe, Alpha je Zustand bleibt (P64). Knöpfe mit View-Farbfilter (Ausklapp-Taste)
+  bekommen das Licht als Filter; Knöpfe mit eigenem Filter auf der Drawable (runder Knopf im
+  flachen Stil) bleiben unverändert. Leiste: nur Text- und Symbolfarbe, unabhängig von den
+  Ebenen. Werden die Leistenbereiche abgewählt, während Tasten weiter leuchten, stellt das
+  nächste Laden der Einstellung die Leiste zurück (`restoreStrip`).
 - Kosten je Bild: etwa 45 Tasten × 2 Lichtwerte plus 384 Rasterwerte (Kern-Messung:
   `RgbLightingTest.oneFrameOfLightIsCheap`), ein Farbfilter-Objekt je Taste, ein volles
   Neuzeichnen der Tastatur-View (wie bei jedem Tastendruck mit Hardware-Beschleunigung).
+  Leiste: die Views werden einmal je Aufbau gesammelt (Tag `agent_rgb_strip_views` an der
+  Leiste, nichts Statisches hält Views; neu nur, wenn sich die Kinder ändern),
+  je View eine Positionsabfrage ohne Allokation und ein Lichtwert, ein neues Farbobjekt nur bei
+  geänderter Farbe. Kein Frame-Callback zwischen den fälligen Bildern. RGB-Seite: die Uhr der
+  Vorschau wird nur beim Zeichnen gelesen (`PreviewLight.timeMs` ist eine Funktion), Bilder
+  zeichnen also nur die Vorschau neu, die Optionsliste wird nicht neu zusammengesetzt.
 - Datenschutz: liest keinen Text, speichert nur die Einstellung; Tipp-Positionen (höchstens
   acht) nur im Speicher, beim Ausblenden verworfen. Keine Logs.
+- Robustheit: `RgbEngine.aspect` ignoriert NaN/Unendlich und begrenzt auf 0,01–100,
+  `light`, `paletteAt`, `RgbColors.hsv` und `lerp` werfen bei NaN nicht; die Designvorschau
+  zeichnet ohne Breite oder Höhe nichts.
 - Tests: `CT/RgbLightingTest.kt`, `AT/RgbLightingRenderTest.kt` (echte `MainKeyboardView` im
   flachen Stil: aus = gleiche Pixel, Tastenfarben aus der Engine, Bereiche, Lesbarkeit,
-  Tastaturhintergrund, Blitz bei „Nur beim Tippen“, Animationen aus, Leiste, Designprofil),
-  `AT/RgbSettingsScreenTest.kt`. Bilder unter `app/build/reports/rgb-lighting/`.
+  Tastaturhintergrund, Blitz bei „Nur beim Tippen“, Animationen aus, Leiste, nur die
+  Haupttastatur, Start nach dem ersten Layout, Energiesparmodus per Broadcast, Umschalt-Akzent,
+  Alpha, Knopfzustände, Designprofil), `AT/RgbSettingsScreenTest.kt`. Bilder unter
+  `app/build/reports/rgb-lighting/`.
 
 ## Diktat
 
@@ -1408,6 +1447,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   (vorsorglich vermieden, nicht beobachtet). Tests schalten dafür die Animationsskala auf 0 (die
   Seite steht dann still) oder setzen `mainClock.autoAdvance = false` und gehen mit
   `advanceTimeBy` weiter.
+- **P63** Während `View.onDetachedFromWindow` gilt die View noch als angehängt
+  (`isAttachedToWindow` ist erst danach `false`). Wer dort „sichtbar?“ neu prüft, lässt Bilder
+  und Empfänger weiterlaufen. `RgbLighting.onDetached` stoppt deshalb ausdrücklich.
+- **P64** Ein Farbfilter auf einer Drawable (auch über `ImageView.setColorFilter`) ersetzt ihre
+  Tönungsliste ganz: Zustände wie „aktiviert“ oder „gedrückt“ sind dann unsichtbar, und
+  `colorFilter = null` nimmt auch einen Filter weg, den jemand anders direkt auf die Drawable
+  gesetzt hat. Leistenknöpfe mit Tönungsliste deshalb über eine abgeleitete `ColorStateList`
+  färben (`RgbStrip.litTint`), nicht über einen Filter.
+- **P65** Emoji- und Zwischenablage-Ansicht enthalten je eine eigene `MainKeyboardView` für die
+  untere Reihe (`bottom_row_keyboard`). Code in `MainKeyboardView` läuft also auch für diese
+  Views; was nur für die Haupttastatur gilt, muss die View prüfen (`R.id.keyboard_view`).
 
 ## Datei-Inventar
 

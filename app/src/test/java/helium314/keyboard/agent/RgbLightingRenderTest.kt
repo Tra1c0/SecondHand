@@ -1,10 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.agent
 
+import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.StateListDrawable
+import android.os.Looper
+import android.os.PowerManager
 import android.view.ContextThemeWrapper
 import android.view.LayoutInflater
 import android.view.View
@@ -53,6 +59,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.File
@@ -185,7 +192,7 @@ class RgbLightingRenderTest {
         assertNotEquals("#4C4C4C", hex(after, q.x + 12, q.y + q.height - 12), "tapped key lights up")
         assertEquals("#4C4C4C", hex(after, w.x + 12, w.y + w.height - 12), "only there")
         assertTrue(RgbLighting.engine.hasActiveEffect(RgbLighting.drawTimeMs))
-        RgbLighting.onHideWindow()
+        RgbLighting.onHideWindow(lastView)
         assertFalse(RgbLighting.engine.hasActiveEffect(RgbLighting.drawTimeMs), "hiding drops the effects")
     }
 
@@ -235,13 +242,198 @@ class RgbLightingRenderTest {
         strip.setToolbarVisibility(true)
         val toolbar = strip.findViewById<ViewGroup>(R.id.toolbar)
         val button = (0 until toolbar.childCount).map { toolbar.getChildAt(it) }.filterIsInstance<ImageView>().first()
+        button.isActivated = true // a tool that is on (only that state takes the light)
         val buttonFilter = button.colorFilter
+        val buttonColour = iconColour(button)
         RgbStrip.paint(strip, true)
-        assertNotNull(button.colorFilter)
-        assertNotEquals(buttonFilter, button.colorFilter)
+        assertNotEquals(buttonColour, iconColour(button), "button coloured")
+        assertTrue(RgbColors.contrast(iconColour(button), colors.get(ColorType.STRIP_BACKGROUND)) >= RgbColors.MIN_LABEL_CONTRAST)
         RgbStrip.paint(strip, false)
         assertEquals(original, word.currentTextColor, "word restored")
-        assertEquals(buttonFilter, button.colorFilter, "button restored")
+        assertEquals(buttonFilter, button.colorFilter, "button filter untouched")
+        assertEquals(buttonColour, iconColour(button), "button restored")
+    }
+
+    @Test fun onlyTheMainKeyboardViewIsLit() {
+        use(lit.copy(tapReaction = RgbTapReaction.FLASH, reactiveOnly = true, glowMs = 5000))
+        val (keyboard, _) = render("rgb-main.png")
+        val main = lastView
+        assertNotNull(main.rgbPainter)
+        assertSame(main, RgbLighting.controlledView)
+        // the bottom rows of the emoji and clipboard views are MainKeyboardViews too
+        val context = ContextThemeWrapper(latinIME, R.style.KeyboardTheme_Flat)
+        for (id in listOf(R.id.bottom_row_keyboard, View.NO_ID)) {
+            val bottomRow = MainKeyboardView(context, null).apply { this.id = id }
+            bottomRow.setKeyboard(keyboard)
+            assertNull(bottomRow.rgbPainter, "no painter for a bottom row")
+            assertSame(main, RgbLighting.controlledView, "the main keyboard stays the lit view")
+            // its taps, visibility and hiding do not touch the light of the main keyboard
+            bottomRow.onKeyPressed(keyboard.key("q"), false)
+            assertFalse(RgbLighting.engine.hasActiveEffect(RgbLighting.drawTimeMs), "a tap on the bottom row starts nothing")
+            RgbLighting.onVisibilityChanged(bottomRow)
+            RgbLighting.onHideWindow(bottomRow)
+        }
+        main.onKeyPressed(keyboard.key("q"), false)
+        assertTrue(RgbLighting.engine.hasActiveEffect(RgbLighting.drawTimeMs), "the main keyboard still reacts")
+    }
+
+    @Test fun theLightStartsAfterTheFirstLayoutAndFollowsPowerSaving() {
+        use(RgbSettings(enabled = true))
+        reload()
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val context = ContextThemeWrapper(activity, R.style.KeyboardTheme_Flat)
+        KeyboardIconsSet.instance.loadIcons(context)
+        val view = MainKeyboardView(context, null).apply { id = R.id.keyboard_view }
+        view.setKeyboard(buildKeyboard(context, KeyboardElement.ALPHABET))
+        assertEquals(RgbRun.Mode.PAUSED, RgbLighting.mode, "no window, no size yet")
+        activity.setContentView(view)
+        shadowOf(Looper.getMainLooper()).idle()
+        assertTrue(view.isAttachedToWindow && view.width > 0)
+        // attached before laid out: only the size change after the first layout can start it
+        assertEquals(RgbRun.Mode.RUNNING, RgbLighting.mode, "running after the first layout")
+        assertTrue(RgbLighting.listensForPowerSave)
+
+        // power saving switched on while running: still picture at once, no frames
+        val power = shadowOf(latinIME.getSystemService(PowerManager::class.java))
+        power.setIsPowerSaveMode(true)
+        latinIME.sendBroadcast(Intent(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED))
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(RgbRun.Mode.STATIC, RgbLighting.mode, "power saving is seen without a frame")
+        power.setIsPowerSaveMode(false)
+        latinIME.sendBroadcast(Intent(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED))
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(RgbRun.Mode.RUNNING, RgbLighting.mode, "and its end, also from the still picture")
+
+        // animations switched off while the keyboard was hidden: seen when it is shown again
+        view.visibility = View.GONE
+        assertEquals(RgbRun.Mode.PAUSED, RgbLighting.mode)
+        android.provider.Settings.Global.putFloat(latinIME.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
+        view.visibility = View.VISIBLE
+        assertEquals(RgbRun.Mode.STATIC, RgbLighting.mode)
+        android.provider.Settings.Global.putFloat(latinIME.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+        view.visibility = View.GONE
+        view.visibility = View.VISIBLE
+        assertEquals(RgbRun.Mode.RUNNING, RgbLighting.mode)
+
+        // detached: no frames and no receiver left behind
+        (view.parent as ViewGroup).removeView(view)
+        shadowOf(Looper.getMainLooper()).idle()
+        assertFalse(view.isAttachedToWindow)
+        assertEquals(RgbRun.Mode.PAUSED, RgbLighting.mode)
+        assertFalse(RgbLighting.listensForPowerSave, "receiver unregistered")
+        assertTrue(shadowOf(latinIME.application).registeredReceivers.none { it.broadcastReceiver.javaClass.name.contains("RgbLighting") })
+        activity.finish()
+    }
+
+    @Test fun theLightOffUnregistersTheReceiver() {
+        use(RgbSettings(enabled = true))
+        reload()
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val context = ContextThemeWrapper(activity, R.style.KeyboardTheme_Flat)
+        KeyboardIconsSet.instance.loadIcons(context)
+        val view = MainKeyboardView(context, null).apply { id = R.id.keyboard_view }
+        val keyboard = buildKeyboard(context, KeyboardElement.ALPHABET)
+        view.setKeyboard(keyboard)
+        activity.setContentView(view)
+        shadowOf(Looper.getMainLooper()).idle()
+        assertTrue(RgbLighting.listensForPowerSave)
+        use(RgbSettings())
+        view.setKeyboard(keyboard)
+        assertEquals(RgbRun.Mode.OFF, RgbLighting.mode)
+        assertFalse(RgbLighting.listensForPowerSave, "switched off: nothing registered")
+        activity.finish()
+    }
+
+    @Test fun theShiftAccentIsTheBaseOfTheIconColour() {
+        prefs.edit().putBoolean(Settings.PREF_ACCENT_SHIFTED_ICON, true).commit()
+        reload()
+        val accent = colors.get(ColorType.SHIFT_KEY_ICON)
+        assertNotEquals(accent, colors.get(ColorType.KEY_ICON), "the accent is in use")
+        // background only, a weak light: the shifted icon keeps exactly its accent
+        use(lit.copy(areas = setOf(RgbArea.FUNCTIONAL), mix = 30))
+        val (keyboard, still) = render("rgb-shift-accent.png", KeyboardElement.ALPHABET_MANUAL_SHIFTED)
+        val shift = keyboard.key(KeyCode.SHIFT)
+        assertTrue(count(still, shift, accent) > 20, "accent kept")
+        // with the label layer the light is based on the accent, not on the plain icon colour
+        use(lit.copy(areas = setOf(RgbArea.FUNCTIONAL), mix = 30, layers = setOf(RgbLayer.KEY_BACKGROUND, RgbLayer.LABEL)))
+        val (_, picture) = render("rgb-shift-label.png", KeyboardElement.ALPHABET_MANUAL_SHIFTED)
+        val engine = RgbEngine(lit.copy(mix = 30)).apply { aspect = HEIGHT.toFloat() / WIDTH }
+        val light = engine.light(centreX(shift), centreY(shift), 0, 0)
+        val fill = RgbColors.over(RgbColors.applyLight(colors.get(ColorType.FUNCTIONAL_KEY_BACKGROUND), light), colors.get(ColorType.MAIN_BACKGROUND))
+        val fromAccent = RgbColors.label(accent, light, true, fill)
+        val fromIcon = RgbColors.label(colors.get(ColorType.KEY_ICON), light, true, fill)
+        assertNotEquals(fromAccent, fromIcon)
+        assertTrue(count(picture, shift, fromAccent) > 20, "lit accent")
+        assertEquals(0, count(picture, shift, fromIcon), "not the plain icon colour")
+    }
+
+    @Test fun semiTransparentLabelsAreReadableAsSeenAndMissingDrawablesAreSkipped() {
+        use(lit.copy(layers = setOf(RgbLayer.KEY_BACKGROUND, RgbLayer.LABEL)))
+        val (keyboard, _) = render("rgb-alpha.png")
+        val painter = assertNotNull(lastView.rgbPainter)
+        val q = keyboard.key("q")
+        painter.beginDraw(lastView)
+        painter.beginKey(q, q.drawX + lastView.paddingLeft, q.y + lastView.paddingTop)
+        val light = RgbEngine(lit).apply { aspect = HEIGHT.toFloat() / WIDTH }.light(centreX(q), centreY(q), 0, 0)
+        val behind = RgbColors.over(RgbColors.applyLight(colors.get(ColorType.KEY_BACKGROUND), light), colors.get(ColorType.MAIN_BACKGROUND))
+        for (alpha in listOf(0x99, 0xCC, 0xFF)) {
+            val label = painter.labelColor((alpha shl 24) or 0xFFFFFF)
+            assertEquals(alpha, RgbColors.alpha(label))
+            assertTrue(RgbColors.contrast(RgbColors.over(label, behind), behind) >= RgbColors.MIN_LABEL_CONTRAST, "alpha $alpha")
+        }
+        // a state list without a selected child: nothing to tint, no crash
+        val empty = StateListDrawable()
+        assertNull(empty.current)
+        painter.tintBackground(empty)
+        painter.restoreBackground()
+    }
+
+    @Test fun stripColoursComeBackWhenOnlyTheStripAreasAreDeselected() {
+        use(lit.copy(areas = setOf(RgbArea.LETTERS, RgbArea.SUGGESTIONS)))
+        val (strip, word) = stripWithWord()
+        val lit = word.currentTextColor
+        RgbStrip.paint(strip, false)
+        val original = word.currentTextColor
+        assertNotEquals(original, lit)
+        RgbLighting.onStripChanged(strip)
+        assertNotEquals(original, word.currentTextColor, "coloured again")
+        // the keys stay lit, the strip area is switched off: the next keyboard load restores the strip
+        use(this.lit.copy(areas = setOf(RgbArea.LETTERS)))
+        render("rgb-strip-off.png")
+        assertNotNull(lastView.rgbPainter, "keys still lit")
+        assertEquals(original, word.currentTextColor, "strip text has its own colour again")
+    }
+
+    @Test fun toolbarButtonsKeepTheirStates() {
+        use(lit.copy(areas = setOf(RgbArea.TOOLBAR)))
+        val (strip, _) = stripWithWord()
+        strip.setToolbarVisibility(true)
+        val toolbar = strip.findViewById<ViewGroup>(R.id.toolbar)
+        val button = (0 until toolbar.childCount).map { toolbar.getChildAt(it) }.filterIsInstance<ImageView>().first()
+        button.isActivated = false
+        val off = iconColour(button)
+        button.isActivated = true
+        val on = iconColour(button)
+        assertNotEquals(off, on, "the theme shows switched-off tools")
+        RgbStrip.paint(strip, true)
+        val litOn = iconColour(button)
+        assertNotEquals(on, litOn, "an active tool takes the light")
+        button.isActivated = false
+        assertEquals(off, iconColour(button), "a switched-off tool keeps its off colour")
+        button.isActivated = true
+        assertEquals(litOn, iconColour(button))
+        // the derived list keeps pressed colours of themes that have them, and the alpha of each state
+        val theme = android.content.res.ColorStateList(
+            arrayOf(intArrayOf(android.R.attr.state_pressed), intArrayOf()), intArrayOf(0x80FFFFFF.toInt(), 0x40AAAAAA))
+        val derived = RgbStrip.litTint(theme, 0x40FF0000)
+        assertEquals(0x80FFFFFF.toInt(), derived.getColorForState(intArrayOf(android.R.attr.state_pressed, android.R.attr.state_activated), 0))
+        assertEquals(0x80FFFFFF.toInt(), derived.getColorForState(intArrayOf(android.R.attr.state_pressed), 0))
+        assertEquals(0x40FF0000, derived.getColorForState(intArrayOf(android.R.attr.state_activated), 0))
+        assertEquals(0x40AAAAAA, derived.getColorForState(intArrayOf(), 0))
+        RgbStrip.paint(strip, false)
+        assertEquals(on, iconColour(button), "restored")
+        button.isActivated = false
+        assertEquals(off, iconColour(button))
     }
 
     @Test fun designProfilesCarryTheLightAndClampImports() {
@@ -290,7 +482,56 @@ class RgbLightingRenderTest {
         return n
     }
 
-    private fun render(fileName: String): Pair<Keyboard, Bitmap> {
+    /** The most common opaque colour of [button]'s icon as drawn in its current state. */
+    private fun iconColour(button: ImageView): Int {
+        val drawable: Drawable = button.drawable
+        drawable.state = button.drawableState
+        val size = 48
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        drawable.setBounds(0, 0, size, size)
+        drawable.draw(Canvas(bitmap))
+        val counts = HashMap<Int, Int>()
+        for (y in 0 until size) for (x in 0 until size) {
+            val p = bitmap.getPixel(x, y)
+            if (p ushr 24 == 0xFF) counts[p] = (counts[p] ?: 0) + 1
+        }
+        return counts.maxByOrNull { it.value }!!.key
+    }
+
+    /** A laid-out strip with the suggestion "Hallo", after the keyboard was loaded (settings read). */
+    private fun stripWithWord(): Pair<SuggestionStripView, TextView> {
+        val context = ContextThemeWrapper(latinIME, R.style.KeyboardTheme_Flat)
+        render("rgb-strip-base.png")
+        val container = LayoutInflater.from(context).inflate(R.layout.strip_container, null) as ViewGroup
+        val strip = container.findViewById<SuggestionStripView>(R.id.suggestion_strip_view)
+        strip.setToolbarVisibility(false)
+        fun layout() {
+            container.measure(View.MeasureSpec.makeMeasureSpec(WIDTH, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(130, View.MeasureSpec.EXACTLY))
+            container.layout(0, 0, WIDTH, 130)
+        }
+        layout()
+        val info = SuggestedWordInfo("Hallo", "", 1, SuggestedWordInfo.KIND_TYPED, null, -1, -1)
+        strip.setSuggestions(SuggestedWords(ArrayList(listOf(info)), null, info, true, false, false, 0, 0), false)
+        layout()
+        val words = strip.findViewById<ViewGroup>(R.id.suggestions_strip)
+        val word = (0 until words.childCount).map { words.getChildAt(it) }.filterIsInstance<TextView>().first { it.text.toString() == "Hallo" }
+        return strip to word
+    }
+
+    private fun buildKeyboard(context: Context, element: KeyboardElement): Keyboard {
+        val layoutParams = KeyboardLayoutSet.Params()
+        layoutParams.mode = KeyboardMode.TEXT
+        layoutParams.editorInfo = EditorInfo()
+        layoutParams.subtype = RichInputMethodSubtype.get(SubtypeUtilsAdditional.createEmojiCapableAdditionalSubtype(Locale.GERMANY, "qwertz", true))
+        layoutParams.keyboardWidth = WIDTH
+        layoutParams.keyboardHeight = HEIGHT
+        layoutParams.settingsValues = Settings.getValues()
+        val builder = KeyboardBuilder(context, KeyboardParams(UniqueKeysCache.NO_CACHE))
+        builder.load(KeyboardId(element, layoutParams))
+        return builder.build()
+    }
+
+    private fun render(fileName: String, element: KeyboardElement = KeyboardElement.ALPHABET): Pair<Keyboard, Bitmap> {
         reload()
         val context = ContextThemeWrapper(latinIME, R.style.KeyboardTheme_Flat)
         KeyboardIconsSet.instance.loadIcons(context)
@@ -302,9 +543,10 @@ class RgbLightingRenderTest {
         layoutParams.keyboardHeight = HEIGHT
         layoutParams.settingsValues = Settings.getValues()
         val builder = KeyboardBuilder(context, KeyboardParams(UniqueKeysCache.NO_CACHE))
-        builder.load(KeyboardId(KeyboardElement.ALPHABET, layoutParams))
+        builder.load(KeyboardId(element, layoutParams))
         val keyboard = builder.build()
         val view = MainKeyboardView(context, null)
+        view.id = R.id.keyboard_view // only the main keyboard is lit
         view.setKeyboard(keyboard)
         view.measure(View.MeasureSpec.makeMeasureSpec(WIDTH, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(HEIGHT, View.MeasureSpec.EXACTLY))
         view.layout(0, 0, WIDTH, HEIGHT)

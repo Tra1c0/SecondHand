@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.provider.Settings.Global
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import dev.agentkeyboard.core.RgbArea
@@ -119,6 +120,38 @@ class RgbSettingsScreenTest {
         val later = keyPixel()
         assertNotEquals(first, later, "the light moves")
         save(screenshot(), "rgb-preview.png")
+    }
+
+    @Test fun framesRedrawOnlyThePreview() {
+        RgbLighting.write(prefs, RgbSettings(enabled = true, periodMs = 2000))
+        compose.mainClock.autoAdvance = false
+        compose.setContent { Theme(true) { AgentRgbScreen {} } }
+        compose.mainClock.advanceTimeBy(100)
+        val first = keyPixel()
+        val before = helium314.keyboard.settings.screens.optionsCompositions
+        compose.mainClock.advanceTimeBy(1000) // about 30 frames
+        assertNotEquals(first, keyPixel(), "the preview moved")
+        val recomposed = helium314.keyboard.settings.screens.optionsCompositions - before
+        assertTrue(recomposed <= 1, "the option list was recomposed $recomposed times during one second of frames")
+    }
+
+    @Test fun aPreviewWithoutWidthDoesNotCrash() {
+        val engine = dev.agentkeyboard.core.RgbEngine(RgbSettings(enabled = true, pattern = RgbPattern.CIRCLE,
+            layers = setOf(RgbLayer.KEY_BACKGROUND, RgbLayer.KEYBOARD_BACKGROUND, RgbLayer.LABEL), areas = RgbArea.entries.toSet()))
+        compose.setContent {
+            Theme(true) {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val design = androidx.compose.runtime.remember { MyDesigns.newDesign(context, "") }
+                androidx.compose.foundation.layout.Row {
+                    helium314.keyboard.settings.screens.DesignPreview(design, null,
+                        androidx.compose.ui.Modifier.width(androidx.compose.ui.unit.Dp(0f)),
+                        light = helium314.keyboard.settings.screens.PreviewLight(engine, { 1000L }))
+                }
+            }
+        }
+        compose.waitForIdle()
+        screenshot() // draws the zero-width preview
+        assertEquals(0, compose.onNodeWithTag("agent_design_preview").fetchSemanticsNode().size.width)
     }
 
     @Test fun reactivePreviewLightsUpWhereTapped() {

@@ -144,3 +144,7 @@
   richtigem ersten Buchstaben, nach dem Leerzeichen nur genaue Wörter, und ein Sprachwort im
   Text eines Befehls (`@termin Treffen mit @sp`) bleibt Teil dieses Befehls. Noch auf keinem
   Gerät ausprobiert.
+- Behoben (nach Review, RGB-Beleuchtung): Das Licht startet auch beim ersten Öffnen der
+  Tastatur; Emoji- und Zwischenablage-Ansicht stören es nicht mehr; der Energiesparmodus wirkt
+  sofort; ausgeschaltete Werkzeuge in der Leiste bleiben grau; der Umschalt-Akzent bleibt;
+  halbdurchsichtige Beschriftungen bleiben lesbar; weniger Rechenarbeit je Bild.

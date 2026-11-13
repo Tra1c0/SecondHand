@@ -470,27 +470,34 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         installPreviewPlacerView();
-        helium314.keyboard.agent.RgbLighting.onVisibilityChanged(); // fork
+        helium314.keyboard.agent.RgbLighting.onVisibilityChanged(this); // fork
     }
 
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         mDrawingPreviewPlacerView.removeAllViews();
-        helium314.keyboard.agent.RgbLighting.onVisibilityChanged(); // fork
+        helium314.keyboard.agent.RgbLighting.onDetached(this); // fork
     }
 
     // fork: the RGB lighting runs only while this view is shown
     @Override
     protected void onVisibilityChanged(@NonNull final View changedView, final int visibility) {
         super.onVisibilityChanged(changedView, visibility);
-        helium314.keyboard.agent.RgbLighting.onVisibilityChanged();
+        helium314.keyboard.agent.RgbLighting.onVisibilityChanged(this);
     }
 
     @Override
     protected void onWindowVisibilityChanged(final int visibility) {
         super.onWindowVisibilityChanged(visibility);
-        helium314.keyboard.agent.RgbLighting.onVisibilityChanged();
+        helium314.keyboard.agent.RgbLighting.onVisibilityChanged(this);
+    }
+
+    // fork: the first layout gives the view its size; only then can the RGB lighting start
+    @Override
+    protected void onSizeChanged(final int w, final int h, final int oldw, final int oldh) {
+        super.onSizeChanged(w, h, oldw, oldh);
+        helium314.keyboard.agent.RgbLighting.onVisibilityChanged(this);
     }
 
     // Implements {@link DrawingProxy@showPopupKeysKeyboard(Key,PointerTracker)}.
@@ -642,7 +649,7 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
     }
 
     public void onHideWindow() {
-        helium314.keyboard.agent.RgbLighting.onHideWindow(); // fork
+        helium314.keyboard.agent.RgbLighting.onHideWindow(this); // fork
         onDismissPopupKeysPanel();
         final MainKeyboardAccessibilityDelegate accessibilityDelegate = mAccessibilityDelegate;
         if (accessibilityDelegate != null
@@ -860,8 +867,8 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
             paint.clearShadowLayer();
         }
         paint.setColor(mLanguageOnSpacebarTextColor);
-        if (mRgbPainter != null) paint.setColor(mRgbPainter.labelColor(mLanguageOnSpacebarTextColor)); // fork
         paint.setAlpha(mLanguageOnSpacebarAnimAlpha);
+        if (mRgbPainter != null) paint.setColor(mRgbPainter.labelColor(paint.getColor())); // fork: readable with the alpha actually drawn
         if (!fitsTextIntoWidth(width, spaceText, paint)) {
             final float textWidth = TypefaceUtils.getStringWidth(spaceText, paint);
             paint.setTextScaleX((width - mLanguageOnSpacebarHorizontalMargin * 2) / textWidth);

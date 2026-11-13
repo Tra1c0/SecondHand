@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.agent
 
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.os.PowerManager
 import android.os.SystemClock
@@ -15,6 +18,7 @@ import dev.agentkeyboard.core.RgbTapReaction
 import helium314.keyboard.keyboard.FlatStyle
 import helium314.keyboard.keyboard.Key
 import helium314.keyboard.keyboard.KeyboardView
+import helium314.keyboard.latin.R
 import helium314.keyboard.latin.utils.prefs
 import java.lang.ref.WeakReference
 
@@ -22,10 +26,14 @@ import java.lang.ref.WeakReference
  * RGB lighting of the keyboard (stage 26): settings, animation clock and frame loop. The maths
  * lives in agent-core ([RgbEngine]); drawing per key in [RgbKeyPainter], the strip in [RgbStrip].
  *
+ * Only the main keyboard view (R.id.keyboard_view in main_keyboard_frame) is lit; the bottom
+ * rows of the emoji and clipboard views are MainKeyboardViews too, but never get a painter.
+ *
  * Battery rules ([RgbRun.mode]): frames only while the keyboard view is shown, at most at the
- * configured rate ([RgbFramePacer]); one still frame when Android animations are off or (by
- * default) in power saving mode; reactive-only light only draws while an effect fades.
- * Everything runs on the UI thread. Nothing is logged.
+ * configured rate ([RgbFramePacer]; the next frame is only requested when it is due); one still
+ * frame when Android animations are off or (by default) in power saving mode; reactive-only light
+ * only draws while an effect fades. Power saving changes arrive by broadcast, the animator scale
+ * is read again whenever the keyboard is shown. Everything runs on the UI thread. Nothing is logged.
  */
 object RgbLighting {
     /** One preference with the whole configuration in [RgbSettings.encode] form. */
@@ -46,6 +54,8 @@ object RgbLighting {
         private set
 
     private var keyboardView: WeakReference<KeyboardView>? = null
+    /** The one keyboard view that is lit (tests). */
+    internal val controlledView: KeyboardView? get() = keyboardView?.get()
     private var strip: WeakReference<View>? = null
     /** The strip last reported by [onStripChanged] (tests). */
     internal val stripView: View? get() = strip?.get()
@@ -54,7 +64,22 @@ object RgbLighting {
     private var powerSave = false
     private var animationsOn = true
     private var lastSystemCheck = Long.MIN_VALUE
+    /** True while strip views may carry RGB colours, so restoring is only done when needed. */
+    private var stripLit = false
+    private var inFrame = false
     private val frameCallback = Choreographer.FrameCallback { onFrame(it) }
+
+    /** Application context the power-save receiver is registered with, null while unregistered. */
+    private var receiverContext: WeakReference<Context>? = null
+    private val powerSaveReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val view = keyboardView?.get() ?: return
+            checkSystem(view.context, force = true)
+            update()
+        }
+    }
+    /** Whether the power-save receiver is registered (tests). */
+    internal val listensForPowerSave: Boolean get() = receiverContext != null
 
     fun read(prefs: SharedPreferences): RgbSettings = RgbSettings.parse(prefs.getString(PREF, null))
 
@@ -71,14 +96,22 @@ object RgbLighting {
         settings = RgbSettings.parse(value)
         engine = RgbEngine(settings)
         pacer = RgbFramePacer(settings.fps)
+        // strip areas deselected while the keys stay lit: give the strip its own colours back
+        if (!settings.lightsStrip()) restoreStrip()
     }
+
+    /** True for the one view that may be lit: the keyboard of main_keyboard_frame. */
+    @JvmStatic
+    fun isMainKeyboard(view: View) = view.id == R.id.keyboard_view
 
     /**
      * Called by [helium314.keyboard.keyboard.MainKeyboardView.setKeyboard]: returns the painter
-     * the view should draw with (reusing [current]), or null when nothing on the keyboard is lit.
+     * the view should draw with (reusing [current]), or null when nothing on the keyboard is lit
+     * or [view] is not the main keyboard (emoji and clipboard bottom rows).
      */
     @JvmStatic
     fun painterFor(view: KeyboardView, current: RgbKeyPainter?): RgbKeyPainter? {
+        if (!isMainKeyboard(view)) return null
         load(view.context)
         keyboardView = WeakReference(view)
         // switched off: no system queries, no frames, upstream drawing
@@ -91,6 +124,7 @@ object RgbLighting {
     /** Key pressed on the main keyboard: starts tap effects (stage 26b). */
     @JvmStatic
     fun onKeyPressed(view: KeyboardView, key: Key) {
+        if (view !== keyboardView?.get()) return
         if (mode == RgbRun.Mode.OFF || mode == RgbRun.Mode.STATIC) return
         if (settings.tapReaction == RgbTapReaction.NONE && !settings.reactiveOnly) return
         val width = view.width.takeIf { it > 0 } ?: return
@@ -105,13 +139,35 @@ object RgbLighting {
         update()
     }
 
-    /** Visibility of the keyboard view or its window changed. */
+    /**
+     * Visibility, window visibility, attachment or size of the keyboard view changed (the first
+     * layout gives the view its size: only then can the light start). Becoming visible also reads
+     * power saving and the animator scale again.
+     */
     @JvmStatic
-    fun onVisibilityChanged() = update()
+    fun onVisibilityChanged(view: View) {
+        if (view !== keyboardView?.get()) return
+        if (settings.enabled && isVisible(view)) checkSystem(view.context, force = true)
+        update()
+    }
+
+    /**
+     * The keyboard view is being detached. It still counts as attached during
+     * View.onDetachedFromWindow, so this stops frames and the receiver explicitly.
+     */
+    @JvmStatic
+    fun onDetached(view: View) {
+        if (view !== keyboardView?.get()) return
+        stopFrames()
+        engine.clearTaps()
+        if (mode != RgbRun.Mode.OFF) mode = RgbRun.Mode.PAUSED
+        updateReceiver(null)
+    }
 
     /** The keyboard window was hidden: no more frames until it is shown again. */
     @JvmStatic
-    fun onHideWindow() {
+    fun onHideWindow(view: View) {
+        if (view !== keyboardView?.get()) return
         engine.clearTaps()
         stopFrames()
         mode = if (mode == RgbRun.Mode.OFF) RgbRun.Mode.OFF else RgbRun.Mode.PAUSED
@@ -125,7 +181,20 @@ object RgbLighting {
     @JvmStatic
     fun onStripChanged(view: View) {
         strip = WeakReference(view)
-        if (mode != RgbRun.Mode.OFF && settings.lightsStrip()) RgbStrip.paint(view, true)
+        RgbStrip.invalidate(view)
+        if (mode != RgbRun.Mode.OFF && settings.lightsStrip()) paintStrip(view) else restoreStrip()
+    }
+
+    private fun paintStrip(view: View) {
+        stripLit = true
+        RgbStrip.paint(view, true)
+    }
+
+    /** Gives the strip its own colours back if it may still carry light. */
+    private fun restoreStrip() {
+        if (!stripLit) return
+        stripLit = false
+        strip?.get()?.let { RgbStrip.paint(it, false) }
     }
 
     private fun isVisible(view: View?) = view != null && view.isAttachedToWindow && view.isShown &&
@@ -147,10 +216,11 @@ object RgbLighting {
         val newMode = RgbRun.mode(settings, isVisible(view), powerSave, animationsOn, effect)
         val old = mode
         mode = newMode
+        updateReceiver(view)
         when (newMode) {
             RgbRun.Mode.OFF -> {
                 stopFrames()
-                if (old != RgbRun.Mode.OFF) strip?.get()?.let { RgbStrip.paint(it, false) }
+                restoreStrip()
             }
             RgbRun.Mode.STATIC -> {
                 stopFrames()
@@ -170,15 +240,37 @@ object RgbLighting {
                     engine.resetClock()
                     pacer.reset()
                 }
-                scheduleFrame()
+                // inside a frame the next one is asked for after the pacer has seen this one
+                if (!inFrame) scheduleFrame()
             }
         }
     }
 
+    /**
+     * Listens for power saving changes while the light is on and the keyboard view is attached;
+     * unregisters as soon as either ends (application context, so no view or service leaks).
+     */
+    private fun updateReceiver(view: View?) {
+        val wanted = settings.enabled && view != null && view.isAttachedToWindow
+        val registered = receiverContext?.get()
+        if (wanted && registered == null) {
+            val app = view?.context?.applicationContext ?: return
+            // a protected system broadcast: no export flag needed
+            runCatching { app.registerReceiver(powerSaveReceiver, IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED)) }
+                .onSuccess { receiverContext = WeakReference(app) }
+        } else if (!wanted && registered != null) {
+            receiverContext = null
+            runCatching { registered.unregisterReceiver(powerSaveReceiver) }
+        }
+    }
+
+    /** Asks for the next frame only when the pacer will accept it, not on every vsync. */
     private fun scheduleFrame() {
         if (scheduled) return
         scheduled = true
-        Choreographer.getInstance().postFrameCallback(frameCallback)
+        val delayMs = pacer.nanosUntilDue(System.nanoTime()) / 1_000_000
+        if (delayMs > 0) Choreographer.getInstance().postFrameCallbackDelayed(frameCallback, delayMs)
+        else Choreographer.getInstance().postFrameCallback(frameCallback)
     }
 
     private fun stopFrames() {
@@ -191,15 +283,19 @@ object RgbLighting {
         scheduled = false
         val view = keyboardView?.get()
         if (view != null) checkSystem(view.context)
-        update()
-        if (mode != RgbRun.Mode.RUNNING || !pacer.shouldRender(frameNanos)) return
-        drawTimeMs = SystemClock.uptimeMillis()
-        engine.advance(drawTimeMs)
-        redraw(view)
+        inFrame = true
+        try { update() } finally { inFrame = false }
+        if (mode != RgbRun.Mode.RUNNING) return
+        if (pacer.shouldRender(frameNanos)) {
+            drawTimeMs = SystemClock.uptimeMillis()
+            engine.advance(drawTimeMs)
+            redraw(view)
+        }
+        scheduleFrame()
     }
 
     private fun redraw(view: KeyboardView?) {
         if (settings.lightsKeys()) view?.invalidateAllKeys()
-        if (settings.lightsStrip()) strip?.get()?.let { RgbStrip.paint(it, true) }
+        if (settings.lightsStrip()) strip?.get()?.let { paintStrip(it) } else restoreStrip()
     }
 }

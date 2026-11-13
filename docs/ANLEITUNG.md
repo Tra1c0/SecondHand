@@ -371,10 +371,16 @@ Vorschau; tippe darauf, um die Effekte beim Tippen auszuprobieren. Darunter:
 - Akku: 30 oder 60 Bilder pro Sekunde (30 spart Akku), „Im Energiesparmodus anhalten“ (an).
 
 Jede Änderung wird sofort gespeichert und gilt beim nächsten Öffnen der Tastatur. Die
-Beleuchtung läuft nur, solange die Tastatur sichtbar ist. Hast du in den Android-Einstellungen
-(Entwickleroptionen oder Bedienungshilfen) die Animationen ausgeschaltet, bleibt das Bild stehen
-und die Tipp-Effekte entfallen. Die Einstellung steht im Designprofil (Tastaturprofile →
-Design).
+Beleuchtung läuft nur, solange die Tastatur sichtbar ist; die untere Reihe der Emoji- und der
+Zwischenablage-Ansicht leuchtet nicht. Schaltest du den Energiesparmodus bei offener Tastatur
+ein oder aus, bleibt das Licht sofort stehen bzw. läuft weiter. Hast du in den
+Android-Einstellungen (Entwickleroptionen oder Bedienungshilfen) die Animationen ausgeschaltet,
+bleibt das Bild stehen (läuft es gerade, nach höchstens 2 s, sonst beim nächsten Einblenden der
+Tastatur) und die Tipp-Effekte entfallen.
+Leistenknöpfe: Nur eingeschaltete Werkzeuge leuchten, ausgeschaltete behalten ihre graue Farbe;
+der runde Knopf im flachen Look leuchtet nicht. Mit eigenem Hintergrundbild prüft die Tastatur
+die Lesbarkeit gegen die Hintergrundfarbe, nicht gegen das Bild. Die Einstellung steht im
+Designprofil (Tastaturprofile → Design).
 
 ## Aussehen: flacher Look
 

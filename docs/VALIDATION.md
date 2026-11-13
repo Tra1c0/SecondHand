@@ -1712,6 +1712,57 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   `tools/dev.py agent-tests` 547 Tests in 71 Klassen, 0 Fehler (`LanguageCommandTest` 14).
   `tools/dev.py lint` erfolgreich (186 Warnungen, 0 Fehler außerhalb der Baseline), kein Befund
   in den geänderten Dateien. Nicht geprüft: kein Gerät.
+- Prüfer zu 26 (zehn Befunde und ein kosmetischer, alle behoben):
+  1 (mittel) Untere Reihen von Emoji- und Zwischenablage-Ansicht übernahmen die Steuerung:
+  behoben, nur `R.id.keyboard_view` bekommt einen Painter; Tipps, Sichtbarkeit und Ausblenden
+  anderer Views werden ignoriert (Test `onlyTheMainKeyboardViewIsLit`).
+  2 (mittel) Beim ersten Öffnen blieb das Licht wegen Breite 0 stehen: behoben mit
+  `onSizeChanged` in `MainKeyboardView` (Test `theLightStartsAfterTheFirstLayout…`; ohne den
+  Hook schlägt er fehl, ausprobiert).
+  3 (mittel) Symbole wurden gegen die falsche Grundfarbe geprüft, der Umschalt-Akzent ging
+  verloren: behoben, `setKeyIconColor` gibt den gesetzten `ColorType` zurück (Test
+  `theShiftAccentIsTheBaseOfTheIconColour`).
+  4 (niedrig) Leiste blieb gefärbt, wenn nur die Leistenbereiche abgewählt wurden: behoben
+  (`restoreStrip`, Test `stripColoursComeBackWhenOnlyTheStripAreasAreDeselected`).
+  5 (niedrig) Farbfilter auf Leistenknöpfen überdeckte Zustände: behoben mit abgeleiteter
+  `ColorStateList`; nur „aktiviert“ leuchtet, ausgeschaltet und eigene Druckfarben bleiben,
+  Alpha je Zustand bleibt (Test `toolbarButtonsKeepTheirStates`). Der runde Knopf im flachen
+  Stil hat einen eigenen Filter auf der Drawable und bleibt jetzt unbeleuchtet.
+  6 (niedrig) Kontrast ohne Alpha, Hinweis-Symbole und „…“ ohne `labelColor`: behoben, Kontrast
+  mit der sichtbaren Mischfarbe, Sprachkürzel mit seinem Alpha, Hinweis-Symbol und „…“ über
+  `labelColor` (Tests `contrastCountsTheAlphaOfTheLabel`,
+  `semiTransparentLabelsAreReadableAsSeen…`). Hinweis-Symbole und das „…“ sind nur durch den
+  Code-Pfad abgedeckt, nicht durch ein Pixelbild. Nicht behoben: Mit Hintergrundbild wird weiter
+  gegen `MAIN_BACKGROUND` gerechnet; das steht jetzt ehrlich in ARCHITECTURE und ANLEITUNG.
+  7 (niedrig) Vorschau ohne Breite: behoben, `drawKeyboard` bricht ab, Engine und HSV werfen bei
+  NaN/Unendlich nicht (Tests `nanAndInfinityNeverThrow`, `aPreviewWithoutWidthDoesNotCrash`).
+  8 (niedrig) Kosten: (a) Bilder werden erst angefordert, wenn sie fällig sind
+  (`nanosUntilDue`, Test `pacerSaysWhenTheNextFrameIsDue`: 30 angeforderte = 30 gezeichnete
+  Bilder auf 120 Hz); (b) die Uhr der RGB-Seite wird nur beim Zeichnen gelesen (Test
+  `framesRedrawOnlyThePreview`: höchstens eine Neuzusammensetzung der Optionen in einer Sekunde,
+  vorher 31, ausprobiert); (c) die Leiste sammelt ihre Views einmal je Aufbau und erzeugt
+  Farbobjekte nur bei neuer Farbe; `getLocationInWindow` läuft weiter je Bild und View (ohne
+  Allokation).
+  9 (niedrig) Energiesparmodus im stehenden Licht nicht erkannt: behoben mit Broadcast-Empfänger
+  (nur angemeldet, solange an und angehängt; Abmeldung beim Ausschalten und beim Abhängen
+  geprüft), Animationsskala bei jedem Sichtbarwerden (Tests
+  `theLightStartsAfterTheFirstLayoutAndFollowsPowerSaving`, `theLightOffUnregistersTheReceiver`).
+  Dabei gefunden und behoben: während `onDetachedFromWindow` gilt die View noch als angehängt
+  (P63).
+  10 (niedrig) `background.current` konnte null sein: behoben (im Test oben mit leerer
+  `StateListDrawable`).
+  Kosmetisch: Licht auf durchsichtigem Tastenhintergrund wurde doppelt abgeschwächt: behoben,
+  `applyLight` mischt mit vormultipliziertem Alpha (Test
+  `lightOnATransparentThemeIsNotDarkenedTwice`).
+  Geprüft (JVM bzw. Robolectric, kein Gerät): `RgbLightingTest` 37, `RgbLightingRenderTest` 17,
+  `RgbSettingsScreenTest` 6, `tools/dev.py core-tests` (179) grün, danach `Flat*`, `Design*`
+  erneut grün. `tools/dev.py agent-tests`: 541 Tests, 49 Fehler, alle in `InputLogicTest` und
+  alle schon im Konstruktor (`UnsatisfiedLinkError` in `BinaryDictionary.openNative` über
+  `InputLogic.updateEmojiDictionary` beim Start von `LatinIME`, also beim Laden der eingebauten
+  Emoji-Wörterbücher, kein RGB-Code); auf dem Stand vor dieser Änderung nicht gegengeprüft,
+  bleibt offen. `tools/dev.py lint` ohne Fehler, an den RGB-Dateien nur `UseKtx`. Weiter offen: alles aus „Nicht geprüft“
+  außer dem Energiesparmodus-Wechsel bei offener Tastatur (jetzt im Robolectric-Test, nicht auf
+  einem Gerät).
 
 ## Gerätetest vor Meilensteinfreigabe
 

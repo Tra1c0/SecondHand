@@ -553,7 +553,8 @@ public class KeyboardView extends View {
             float adjustmentY = isFunctionalKeyAndRoundedStyle
                                       ? iconSize * 0.5f
                                       : params.mHintLabelVerticalAdjustment * iconSize;
-            hintIcon.setColorFilter(key.selectHintTextColor(params), PorterDuff.Mode.MULTIPLY);
+            final int hintIconColor = key.selectHintTextColor(params);
+            hintIcon.setColorFilter(mRgbPainter == null ? hintIconColor : mRgbPainter.labelColor(hintIconColor), PorterDuff.Mode.MULTIPLY); // fork: RGB
             drawIcon(canvas, hintIcon, (int)hintX, (int)(hintBaseline + adjustmentY), iconSize, iconSize);
         } else if (key.getPopupKeys() != null && ! key.hasNoPanelAutoPopupKey()
                         && (key.hasActionKeyBackground() || key.getBackgroundType() == Key.BACKGROUND_TYPE_FUNCTIONAL)) {
@@ -570,8 +571,8 @@ public class KeyboardView extends View {
                 ? keyHeight - iconHeight
                 : (keyHeight - iconHeight) / 2; // Align vertically center.
             int iconX = (keyWidth - iconWidth) / 2; // Align horizontally center.
-            setKeyIconColor(key, icon, keyboard);
-            if (mRgbPainter != null) mRgbPainter.tintIcon(key, icon); // fork
+            final ColorType iconColor = setKeyIconColor(key, icon, keyboard); // fork: returns the colour type
+            if (mRgbPainter != null) mRgbPainter.tintIcon(icon, mColors.get(iconColor)); // fork
             drawIcon(canvas, icon, iconX, iconY, iconWidth, iconHeight);
             if (mRgbPainter != null) mRgbPainter.restoreIcon(); // fork
         }
@@ -591,6 +592,7 @@ public class KeyboardView extends View {
         paint.setTypeface(params.mTypeface);
         paint.setTextSize(params.mHintLetterSize);
         paint.setColor(params.mHintLabelColor);
+        if (mRgbPainter != null) paint.setColor(mRgbPainter.labelColor(params.mHintLabelColor)); // fork
         paint.setTextAlign(Align.CENTER);
         if (mColors.getThemeStyle().equals(STYLE_ROUNDED)) {
             if (key.getBackgroundType() == Key.BACKGROUND_TYPE_SPACEBAR)
@@ -665,24 +667,28 @@ public class KeyboardView extends View {
         freeOffscreenBuffer();
     }
 
-    private void setKeyIconColor(Key key, Drawable icon, Keyboard keyboard) {
+    // fork: returns the colour type it set (for the RGB lighting)
+    private ColorType setKeyIconColor(Key key, Drawable icon, Keyboard keyboard) {
+        final ColorType type;
         if (key.hasActionKeyBackground()) {
-            mColors.setColor(icon, ColorType.ACTION_KEY_ICON);
+            type = ColorType.ACTION_KEY_ICON;
         } else if (key.isShift() && keyboard != null) {
             if (keyboard.mId.getElement().isAlphabetShifted())
-                mColors.setColor(icon, ColorType.SHIFT_KEY_ICON);
+                type = ColorType.SHIFT_KEY_ICON;
             else
-                mColors.setColor(icon, ColorType.KEY_ICON); // normal key if not shifted
+                type = ColorType.KEY_ICON; // normal key if not shifted
         } else if (key.getBackgroundType() != Key.BACKGROUND_TYPE_NORMAL) {
-            mColors.setColor(icon, ColorType.KEY_ICON);
+            type = ColorType.KEY_ICON;
         } else if (this instanceof PopupKeysKeyboardView) {
-            mColors.setColor(icon, ColorType.POPUP_KEY_ICON);
+            type = ColorType.POPUP_KEY_ICON;
         } else if (key.getCode() == Constants.CODE_SPACE || key.getCode() == KeyCode.ZWNJ) {
             // set color of default number pad space bar icon for Holo style, or for zero-width non-joiner (zwnj) on some layouts like nepal
-            mColors.setColor(icon, ColorType.KEY_ICON);
+            type = ColorType.KEY_ICON;
         } else {
-            mColors.setColor(icon, ColorType.KEY_TEXT);
+            type = ColorType.KEY_TEXT;
         }
+        mColors.setColor(icon, type);
+        return type;
     }
 
 }

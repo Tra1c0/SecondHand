@@ -25,7 +25,7 @@ import kotlin.math.roundToInt
  * Applies the RGB light while a [KeyboardView] draws (stage 26). The view calls, in this order:
  * [beginDraw] once per draw, [drawKeyboardBackground] after its own background, and per key
  * [beginKey], [tintBackground]/[restoreBackground] around the key background, [labelColor] for
- * label and hint colours and [tintIcon]/[restoreIcon] around the icon.
+ * label, hint (also hint icons and the popup hint) colours and [tintIcon]/[restoreIcon] around the icon.
  *
  * Cost per frame: one light value per key, one per cell of a small grid for the keyboard
  * background (at most 24 x 16 pixels, scaled up with filtering), and a colour filter object per
@@ -117,7 +117,7 @@ class RgbKeyPainter {
         if (!lit || !keyBackgroundLit || RgbColors.alpha(keyLight) == 0) return
         // the selected child of a state list, never the container: a container keeps a filter
         // for all children it selects later and would drop their tint (see ARCHITECTURE P60)
-        val target = background.current
+        val target = background.current ?: return
         var color = RgbColors.applyLight(keyTheme, keyLight)
         if (android.R.attr.state_pressed in background.state) color = RgbColors.pressed(color)
         tinted = target
@@ -141,12 +141,16 @@ class RgbKeyPainter {
         return RgbColors.label(themeColor, keyLight, labelLit, behind)
     }
 
-    fun tintIcon(key: Key, icon: Drawable?) {
+    /**
+     * [themeColor]: the colour the view has just given [icon] (KeyboardView.setKeyIconColor: action,
+     * shift (accent while shifted), key icon or key text colour). Without the label layer the icon
+     * keeps exactly that colour as long as it is readable; with it, the light is based on it.
+     */
+    fun tintIcon(icon: Drawable?, themeColor: Int) {
         if (icon == null || !lit) return
         // icons are coloured by a filter or a tint from the theme; replace that only when needed
-        val theme = colors.get(if (key.hasActionKeyBackground()) ColorType.ACTION_KEY_ICON else ColorType.KEY_ICON)
-        val color = labelColor(theme)
-        if (!labelLit && color == theme) return
+        val color = labelColor(themeColor)
+        if (!labelLit && color == themeColor) return
         tintedIcon = icon
         tintedIconFilter = icon.colorFilter
         icon.colorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN)
