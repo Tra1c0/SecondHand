@@ -122,3 +122,9 @@
   Tippen eines Worts siehst du dessen Vorschläge. Ist der Zwischenablageverlauf an, landet der
   Screenshot auch im Verlauf der Tastatur (nicht in der System-Zwischenablage). Noch auf keinem
   Gerät ausprobiert.
+- Neu: RGB-Beleuchtung (anfangs aus). Einstellungen → Aussehen → „RGB-Beleuchtung“: Muster
+  (Wellen, Kreis, Atmen, statischer Regenbogen), Verlauf (weich, Zickzack, Sägezahn, Stufen, An-
+  und Abstieg), Tempo, Richtung, Regenbogen oder eigene Farben, was leuchtet (Tasten,
+  Hintergrund, Beschriftung) und wo (auch Wortvorschläge und Leistenknöpfe), Effekte beim Tippen
+  und „Nur beim Tippen sichtbar“. Beschriftungen bleiben lesbar. Läuft nur bei sichtbarer
+  Tastatur, steht im Energiesparmodus still. Noch auf keinem Gerät ausprobiert.

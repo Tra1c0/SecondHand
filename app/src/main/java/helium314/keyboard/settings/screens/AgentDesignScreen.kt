@@ -167,6 +167,12 @@ fun AgentDesignScreen(onClickBack: () -> Unit) {
                 }
             }
             Preference(
+                name = stringResource(R.string.agent_rgb_title),
+                description = stringResource(R.string.agent_rgb_summary),
+                onClick = { SettingsDestination.navigateTo(SettingsDestination.AgentRgb) },
+                modifier = Modifier.padding(top = 8.dp).testTag("agent_design_rgb"),
+            )
+            Preference(
                 name = stringResource(R.string.agent_design_more),
                 onClick = { SettingsDestination.navigateTo(SettingsDestination.Appearance) },
                 modifier = Modifier.padding(top = 8.dp, bottom = 16.dp).testTag("agent_design_more"),

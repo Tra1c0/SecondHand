@@ -560,6 +560,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         toolbarExpandKey.setOnClickListener(if (!toolbarIsExpandable) null else this)
         pinnedKeys.visibility = if (flatStyle) VISIBLE else suggestionsStrip.visibility
         isExternalSuggestionVisible = false
+        helium314.keyboard.agent.RgbLighting.onStripChanged(this) // fork: RGB lighting of words and buttons
     }
 
     private fun addKeyToPinnedKeys(pinnedKey: ToolbarKey) {

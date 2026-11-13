@@ -292,6 +292,40 @@ Abstand gelten für das Hochformat. Ein Design schaltet „Automatischer Tag-/Na
 stellt Abstand und Tastenhöhe um; wählst du danach eine eingebaute Kachel, bleiben diese drei
 Einstellungen so, bis du sie selbst änderst.
 
+## RGB-Beleuchtung
+
+Einstellungen → Aussehen → „RGB-Beleuchtung“ (oder unten auf der Design-Seite). Oben läuft eine
+Vorschau; tippe darauf, um die Effekte beim Tippen auszuprobieren. Darunter:
+
+- „RGB-Beleuchtung an“ schaltet alles ein (anfangs aus).
+- Muster: Welle waagerecht, senkrecht oder diagonal, Kreis von der Mitte, Atmen (alle Tasten
+  gleich, heller und dunkler) oder statischer Regenbogen (steht still).
+- Verlauf: Sinus (weich hin und zurück), Dreieck (Zickzack), Sägezahn (läuft durch alle Farben
+  und fängt wieder an), Stufen (zackig, mit Regler für die Anzahl), An- und Abstieg (sanft hoch,
+  kurz halten, sanft runter, Pause).
+- Tempo und Richtung: Dauer eines Durchlaufs 0,5–30 s, „Richtung umkehren“, Wellenbreite (wie
+  viele Farbdurchläufe über die Tastatur passen).
+- Farben: „Regenbogen“ oder „Eigene Farben“ (Kreis antippen, Farbe wählen; 2 bis 6 Farben über
+  „Farbe hinzufügen“ und „Letzte Farbe entfernen“), Sättigung, Helligkeit und Deckkraft
+  gegenüber den Farben deines Designs (0 % = nur Design, 100 % = nur Licht).
+- Was leuchtet (mehrere wählbar): Tastenhintergrund, Tastaturhintergrund (hinter und zwischen
+  den Tasten), Beschriftung. Beschriftungen bleiben immer lesbar: Ist der Kontrast zum
+  Hintergrund kleiner als 3:1, werden sie heller oder dunkler.
+- Wo (mehrere wählbar): Buchstabentasten, Funktionstasten (Umschalt, Löschen, Enter, ?123,
+  Komma, Punkt), Leertaste, Zahlenreihe, Vorschlagsleiste (Text der Wortvorschläge),
+  Leistenknöpfe. In der Leiste ändert sich nur die Farbe von Text und Symbolen.
+- Beim Tippen: keine Reaktion, getippte Taste blitzt auf und verblasst, ein Ring breitet sich von
+  der Taste aus, oder Tippen beschleunigt kurz. „Nur beim Tippen sichtbar“: sonst ist das Licht
+  aus, nach jedem Tipp erscheint es und verblasst (mit „Taste blitzt auf“ nur an der getippten
+  Taste). „Nachleuchten“ stellt ein, wie lange das dauert (0,2–5 s).
+- Akku: 30 oder 60 Bilder pro Sekunde (30 spart Akku), „Im Energiesparmodus anhalten“ (an).
+
+Jede Änderung wird sofort gespeichert und gilt beim nächsten Öffnen der Tastatur. Die
+Beleuchtung läuft nur, solange die Tastatur sichtbar ist. Hast du in den Android-Einstellungen
+(Entwickleroptionen oder Bedienungshilfen) die Animationen ausgeschaltet, bleibt das Bild stehen
+und die Tipp-Effekte entfallen. Die Einstellung steht im Designprofil (Tastaturprofile →
+Design).
+
 ## Aussehen: flacher Look
 
 Einstellungen → Tastaturprofile → „Flacher Look (Vorlage)“ → „Vorlage anwenden“. Das stellt

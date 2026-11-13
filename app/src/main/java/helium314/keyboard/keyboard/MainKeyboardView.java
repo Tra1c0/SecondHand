@@ -312,6 +312,7 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
         mPopupKeysKeyboardCache.clear();
 
         mSpaceKey = keyboard.getKey(Constants.CODE_SPACE);
+        setRgbPainter(helium314.keyboard.agent.RgbLighting.painterFor(this, getRgbPainter())); // fork: RGB lighting
         final int keyHeight = keyboard.mMostCommonKeyHeight - keyboard.mVerticalGap;
         mLanguageOnSpacebarTextSize = keyHeight * mLanguageOnSpacebarTextRatio;
 
@@ -360,6 +361,7 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
     @Override
     public void onKeyPressed(@NonNull final Key key, final boolean withPreview) {
         key.onPressed();
+        helium314.keyboard.agent.RgbLighting.onKeyPressed(this, key); // fork: tap effects of the RGB lighting
         invalidateKey(key);
 
         final Keyboard keyboard = getKeyboard();
@@ -468,12 +470,27 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         installPreviewPlacerView();
+        helium314.keyboard.agent.RgbLighting.onVisibilityChanged(); // fork
     }
 
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         mDrawingPreviewPlacerView.removeAllViews();
+        helium314.keyboard.agent.RgbLighting.onVisibilityChanged(); // fork
+    }
+
+    // fork: the RGB lighting runs only while this view is shown
+    @Override
+    protected void onVisibilityChanged(@NonNull final View changedView, final int visibility) {
+        super.onVisibilityChanged(changedView, visibility);
+        helium314.keyboard.agent.RgbLighting.onVisibilityChanged();
+    }
+
+    @Override
+    protected void onWindowVisibilityChanged(final int visibility) {
+        super.onWindowVisibilityChanged(visibility);
+        helium314.keyboard.agent.RgbLighting.onVisibilityChanged();
     }
 
     // Implements {@link DrawingProxy@showPopupKeysKeyboard(Key,PointerTracker)}.
@@ -625,6 +642,7 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
     }
 
     public void onHideWindow() {
+        helium314.keyboard.agent.RgbLighting.onHideWindow(); // fork
         onDismissPopupKeysPanel();
         final MainKeyboardAccessibilityDelegate accessibilityDelegate = mAccessibilityDelegate;
         if (accessibilityDelegate != null
@@ -842,6 +860,7 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
             paint.clearShadowLayer();
         }
         paint.setColor(mLanguageOnSpacebarTextColor);
+        if (mRgbPainter != null) paint.setColor(mRgbPainter.labelColor(mLanguageOnSpacebarTextColor)); // fork
         paint.setAlpha(mLanguageOnSpacebarAnimAlpha);
         if (!fitsTextIntoWidth(width, spaceText, paint)) {
             final float textWidth = TypefaceUtils.getStringWidth(spaceText, paint);

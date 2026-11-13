@@ -1538,6 +1538,53 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   bei offener Symbolleiste wirkt, wie lange das Kopieren großer Screenshots in den Verlauf den
   Main-Thread braucht (wie im Upstream bei Bild-Clips), und das Zusammenspiel mit der
   Verlaufsansicht, wenn sie beim Screenshot offen ist. Kein Prüfer-Review (macht der Lead).
+## Etappe 26 — RGB-Beleuchtung (26a–26c)
+
+- Gebaut: Rechnen im Kern (`RgbLighting.kt`: Muster, Wellenformen, Paletten, Tipp-Effekte,
+  Akku-Regeln, Bildratenbegrenzung), Zeichnen über `RgbKeyPainter` in `KeyboardView`/
+  `MainKeyboardView` (26a Tastenhintergrund, Tastaturhintergrund, Beschriftung, Bereiche),
+  Tipp-Effekte über `MainKeyboardView.onKeyPressed` (26b), Wortvorschläge und Leistenknöpfe
+  über `RgbStrip` (26c), Seite „RGB-Beleuchtung“ mit bewegter Vorschau, Designprofil. Die drei
+  Teilpakete sind in einem Commit, weil sie dieselbe Engine, denselben Frame-Ablauf und dieselbe
+  Einstellungsseite teilen; jedes hat eigene Tests (unten).
+- Geprüft (JVM): `RgbLightingTest` (33): jede Wellenform (Werte, Symmetrie, Stufenzahl,
+  Halten/Pause), jedes Muster (waagerecht, senkrecht, diagonal, rund, Atmen, statisch),
+  Phase nach Dauer und ohne Sprung nach langer Pause, Richtung umkehren, Wellenbreite,
+  Regenbogen und eigene Palette (Interpolation, zyklisch/hin und zurück), Sättigung/Helligkeit,
+  Deckkraft, Blitz nur an der getippten Taste, „Nur beim Tippen“ mit Ausblenden, Ring wandert
+  rund nach außen, Tempo-Schub, höchstens acht Tipps, HSV, Mischung, Lesbarkeit 3:1, gedrückte
+  Tasten, Einstellungen (Vorgabe aus, Rundweg, feldweise Begrenzung kaputter Werte),
+  `RgbRun.mode` (aus, verborgen, Energiesparmodus, Animationen aus, reaktiv, statisch mit Effekt)
+  und `RgbFramePacer` (30/60 Bilder/s auf 30-, 60-, 90- und 120-Hz-Takt). Grobe Kostenmessung
+  (kein Benchmark): die aufwendigste Einstellung (Kreis, Ring mit acht Tipps) braucht für 474
+  Lichtwerte eines Bildes auf der Testmaschine etwa 0,24 ms; auf einem Telefon unbekannt.
+- Geprüft (Robolectric, native Grafik, kein Gerätetest, P29): `RgbLightingRenderTest` (10) mit
+  der echten `MainKeyboardView` im flachen Stil: ausgeschaltet, ohne Ebene oder ohne Bereich kein
+  Painter und pixelgleiches Bild; Tastenfarben genau aus der Engine; nur gewählte Bereiche;
+  Beschriftung in der Lichtfarbe mit mindestens 3:1; Tastaturhintergrund zwischen den Tasten;
+  „Nur beim Tippen“ mit Blitz nur an der gedrückten Taste, Ausblenden verwirft die Effekte;
+  Animationen aus = stehendes Bild ohne Tipp-Effekte; ohne Fenster keine Bilder; Leiste färbt
+  Wörter (auch neue Vorschläge ohne Bilder) und Knöpfe und stellt sie zurück; Designprofil
+  Rundweg, Begrenzung beim Import, altes Profil lässt die Beleuchtung unverändert, Zahl statt Text
+  wird abgelehnt, Zurücksetzen schaltet aus. `RgbSettingsScreenTest` (4): Eintrag auf der
+  Design-Seite, jede Option sofort gespeichert und genau so gelesen, Vorschau bewegt sich, Tipp
+  auf die Vorschau lässt die Taste aufleuchten. Bilder unter `app/build/reports/rgb-lighting/`.
+- Weiter grün: `tools/dev.py core-tests` (175), `tools/dev.py agent-tests` (521 Tests in 69
+  Klassen, 0 Fehler; danach geänderte Klassen erneut: `Rgb*`, `DesignEditorTest`,
+  `DesignTilesTest`, `FlatStyleRenderTest`, `KeyboardProfileStoreTest` grün), `InputTest` (6) und
+  `InputLogicTest` (138, nur der geerbte Fehler `insertLetterIntoWordHangulFails`). Der volle
+  Lauf `upstream-tests` wurde nicht ausgeführt. `tools/dev.py lint` ohne Fehler; neue Warnungen
+  nur `UseKtx` und `PluralsCandidate` wie im übrigen Agent-Code.
+- Akku und Kosten (nur begründet, nicht gemessen): Bilder gibt es nur im Modus `RUNNING`
+  (Tastatur angehängt, sichtbar, Fenster sichtbar, Muster bewegt sich oder ein Effekt
+  verblasst), begrenzt auf 30 bzw. 60 je Sekunde. Je Bild wird die Tastatur-View einmal ganz
+  neu gezeichnet (mit Hardware-Beschleunigung zeichnet sie ohnehin bei jedem Tastendruck alle
+  Tasten), dazu ein Farbfilter-Objekt je Taste und ein 24 × ≤16 Pixel großes Raster. Aus: kein
+  Painter, keine Systemabfrage, kein Frame-Callback.
+- Nicht geprüft: kein Gerät und kein Emulator. Offen: Flüssigkeit und Akkuverbrauch auf dem
+  Telefon, Aussehen im Holo-Stil (Bild-Tasten werden einfarbig), Wechsel des Energiesparmodus
+  während die Tastatur offen und das Licht stehend ist (greift erst beim nächsten Öffnen),
+  TalkBack auf der neuen Seite, Querformat.
 
 ## Gerätetest vor Meilensteinfreigabe
 
