@@ -33,8 +33,6 @@
     <string name="agent_ai_model">Modell-ID</string>
     <string name="agent_ai_save_model">Modell speichern</string>
     <string name="agent_ai_model_saved">Modell gespeichert. Es wurde keine API-Anfrage gesendet.</string>
-    <string name="agent_space_long_press">Leertaste halten öffnet das Rad</string>
-    <string name="agent_space_long_press_description">Optional. Wischgesten und eigene Popup-Tasten behalten ihre Aktionen. Zum Tastaturwechsel die Sprachtaste halten oder den Tastaturumschalter von Android verwenden.</string>
     <string name="agent_profiles_title">Tastaturprofile</string>
     <string name="agent_profiles_intro">Passe deine Tastatur in den vorhandenen Einstellungen an und sichere jeden Bereich als Profil. Beim Anwenden ändert sich nur dieser Bereich.</string>
     <string name="agent_profile_design">Design</string>

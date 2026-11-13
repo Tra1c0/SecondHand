@@ -16,6 +16,7 @@ import android.view.MotionEvent;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import helium314.keyboard.agent.SpaceGesture;
 import helium314.keyboard.event.HapticEvent;
 import helium314.keyboard.keyboard.internal.BatchInputArbiter;
 import helium314.keyboard.keyboard.internal.BatchInputArbiter.BatchInputArbiterListener;
@@ -145,6 +146,8 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
     private long mStartTime;
     private boolean mInHorizontalSwipe = false;
     private boolean mInVerticalSwipe = false;
+    // direction a space swipe started in; only read while mInHorizontalSwipe or mInVerticalSwipe is set
+    private SpaceGesture mSpaceSwipeGesture = SpaceGesture.SWIPE_RIGHT;
 
     // true if keyboard layout has been changed.
     private boolean mKeyboardLayoutHasBeenChanged;
@@ -766,8 +769,7 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
     private boolean isSwiper(final int code) {
         final SettingsValues sv = Settings.getValues();
         return switch (code) {
-            case Constants.CODE_SPACE -> sv.mSpaceSwipeHorizontal != KeyboardActionListener.SwipeAction.NONE
-                    || sv.mSpaceSwipeVertical != KeyboardActionListener.SwipeAction.NONE;
+            case Constants.CODE_SPACE -> sv.mSpaceGestures.hasSwipe();
             case KeyCode.DELETE -> sv.mDeleteSwipeEnabled;
             default -> false;
         };
@@ -931,11 +933,8 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         }
     }
 
-    private boolean oneShotSwipe(KeyboardActionListener.SwipeAction swipeSetting) {
-        return switch (swipeSetting) {
-            case NONE, TOGGLE_NUMPAD, TOGGLE_DPAD, HIDE_KEYBOARD -> true;
-            default -> false;
-        };
+    private static boolean oneShotSwipe(final SettingsValues sv, final SpaceGesture gesture) {
+        return !sv.mSpaceGestures.get(gesture).isContinuous();
     }
 
     private void onKeySwipe(final int code, final int x, final int y, final long eventTime) {
@@ -960,8 +959,9 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
                 if (!mInVerticalSwipe) {
                     sTimerProxy.cancelKeyTimersOf(this);
                     mInVerticalSwipe = true;
-                } else if (oneShotSwipe(sv.mSpaceSwipeVertical)) return;
-                if (sListener.onVerticalSpaceSwipe(stepsY)) {
+                    mSpaceSwipeGesture = stepsY < 0 ? SpaceGesture.SWIPE_UP : SpaceGesture.SWIPE_DOWN;
+                } else if (oneShotSwipe(sv, mSpaceSwipeGesture)) return;
+                if (sListener.onSpaceSwipe(mSpaceSwipeGesture, stepsY)) {
                     mStartY += stepsY * sPointerStep;
                 }
                 return;
@@ -973,8 +973,9 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
                 if (!mInHorizontalSwipe) {
                     sTimerProxy.cancelKeyTimersOf(this);
                     mInHorizontalSwipe = true;
-                } else if (oneShotSwipe(sv.mSpaceSwipeHorizontal)) return;
-                if (sListener.onHorizontalSpaceSwipe(stepsX)) {
+                    mSpaceSwipeGesture = stepsX < 0 ? SpaceGesture.SWIPE_LEFT : SpaceGesture.SWIPE_RIGHT;
+                } else if (oneShotSwipe(sv, mSpaceSwipeGesture)) return;
+                if (sListener.onSpaceSwipe(mSpaceSwipeGesture, stepsX)) {
                     mStartX += stepsX * sPointerStep;
                 }
             }
@@ -1172,7 +1173,7 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         }
         if (code == Constants.CODE_SPACE && key.getPopupKeys() == null
                 && getActivePointerTrackerCount() == 1
-                && sListener.onCustomRequest(KeyboardActionListener.CustomAction.SHOW_AGENT_WHEEL)) {
+                && sListener.onCustomRequest(KeyboardActionListener.CustomAction.SPACE_HOLD)) {
             // The new overlay may consume UP/CANCEL. Finish this pointer now,
             // including space-swipe/touchpad flags normally cleared on UP.
             sTimerProxy.cancelKeyTimersOf(this);

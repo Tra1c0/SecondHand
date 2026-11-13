@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Space bar gestures (own file so parallel work on agent_strings.xml does not collide). English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="agent_space_title">Space bar</string>
+    <string name="agent_space_summary">Actions for swiping, holding and double tapping the space bar</string>
+    <string name="agent_space_swipe_left">Swipe left</string>
+    <string name="agent_space_swipe_right">Swipe right</string>
+    <string name="agent_space_swipe_up">Swipe up</string>
+    <string name="agent_space_swipe_down">Swipe down</string>
+    <string name="agent_space_hold">Hold</string>
+    <string name="agent_space_double_tap">Double tap</string>
+    <string name="agent_space_double_tap_description">A single tap always types a space. With an action, a second tap right after the first runs it instead of typing another space, and “Double-space period” is paused.</string>
+    <string name="agent_space_action_none">Nothing</string>
+    <string name="agent_space_action_move_cursor">Move cursor</string>
+    <string name="agent_space_action_switch_language">Switch language</string>
+    <string name="agent_space_action_switch_input_method">Choose keyboard</string>
+    <string name="agent_space_action_wheel">Action wheel</string>
+    <string name="agent_space_action_panel">Action panel</string>
+    <string name="agent_space_action_dictation">Dictation</string>
+    <string name="agent_space_action_clipboard">Clipboard</string>
+    <string name="agent_space_action_emoji">Emoji</string>
+    <string name="agent_space_action_command_list">Command list (types the prefix)</string>
+    <string name="agent_space_action_undo">Undo</string>
+    <string name="agent_space_action_redo">Redo</string>
+    <string name="agent_space_action_select_all">Select all</string>
+    <string name="agent_space_action_numpad">Number pad on/off</string>
+    <string name="agent_space_action_symbols">Symbols on/off</string>
+    <string name="agent_space_action_dpad">Arrow keys on/off</string>
+    <string name="agent_space_action_touchpad">Touchpad mode</string>
+    <string name="agent_space_action_hide">Hide keyboard</string>
+</resources>

@@ -95,3 +95,9 @@
 - Neue Berechtigungen: Benachrichtigungen (nur für die tägliche Update-Suche) und „Apps
   installieren“ (nur für Updates, Android fragt jedes Mal).
 - Behoben: `@translate` beendet den Text erst beim letzten Anführungszeichen; Zitate im Text gehen.
+- Neu: Leertasten-Gesten frei belegen. Nach links, rechts, oben und unten wischen, Halten und
+  Doppeltippen bekommen je eine Aktion, z. B. Aktionsrad, Panel, Diktat, Zwischenablage, Emoji,
+  Befehlsliste, Rückgängig, Alles auswählen oder Tastatur ausblenden. Einstellungen → Erweitert →
+  Leertaste. Ohne eigene Wahl bleibt alles wie bisher; ein einzelner Tipp schreibt immer ein
+  Leerzeichen. Der Schalter „Leertaste halten öffnet das Rad“ ist jetzt die Geste „Halten“. Noch
+  auf keinem Gerät ausprobiert.

@@ -1372,6 +1372,35 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   tägliche Job laufen nur auf einem Gerät; der Workflow-Schritt ins öffentliche Repository ist
   nicht gelaufen.
 
+## Leertasten-Gesten (frei belegbar)
+
+- Gebaut: je eine Aktion für Wischen nach links, rechts, oben, unten, Halten und Doppeltippen
+  (`SpaceGestures`), Seite „Leertaste“ (Erweitert und Tastaturprofile → Gesten), Gestenprofil
+  mit `INHERIT`. Ohne eigene Wahl folgen die Gesten den alten Einstellungen; nichts wird
+  umgeschrieben. `PointerTracker` merkt die Startrichtung eines Wischs; Doppeltippen ersetzt bei
+  belegter Aktion „Punkt plus Leerzeichen“.
+- Geprüft (Robolectric): `SpaceGesturesTest` (7: Vorgaben wie vorher, Abbildung der
+  HeliBoard-Einstellungen und des Rad-Opt-ins, eigener Wert gewinnt, „Standard“, ungültige
+  Werte, Auswahllisten, Profile alt/neu und Version 1 ohne Rad-Einwilligung),
+  `AgentSpaceGestureTest` (echter PointerTracker, 4 neue: jede Richtung erreicht ihre Geste,
+  Rückwärtswischen bleibt bei der Startrichtung, Einmal-Aktion genau einmal pro Wisch und danach
+  wieder Leerzeichen, ohne Wischaktion kein Swiper; die 7 bisherigen Fälle laufen weiter),
+  `InputLogicTest.generatedSpace*` (7: „Punkt plus Leerzeichen“ ohne Aktion unverändert,
+  Doppeltippen mit Aktion statt Punkt, nicht nach Ablauf der Zeit, nach Cursorwechsel oder nach
+  einem Leerzeichen ohne Tastendruck; jede Aktion über ihren vorhandenen Tastencode bzw.
+  `toggleLayout` für Wischen und Halten; Befehlsliste nur bei eingeschalteten Befehlen und nicht
+  im Passwortfeld; Halten folgt dem eigenen Wert; Rad per Wischen blockiert weitere Schritte),
+  `KeyboardProfileStoreTest` unverändert grün. `tools/dev.py agent-tests` grün (468 Tests in
+  63 Klassen, 0 Fehler). `tools/dev.py upstream-tests`: 683 Tests, genau
+  die fünf geerbten Fehler plus `XLinkTest.layoutsLinksInternal` und `XLinkTest.otherLinks` (HTTP
+  403 vom Netzwerkfilter der Cloud-Umgebung). `tools/dev.py lint` ohne Fehler; neue Warnungen:
+  `UnusedResources` für die nicht mehr genutzten Upstream-Texte der alten Leertasten-Zeilen
+  (bewusst nicht gelöscht) und `UseKtx` wie im übrigen Agent-Code.
+- Nicht geprüft: kein Gerät und kein Emulator. Offen sind das Gefühl der Schwelle (erste
+  Wischstufe 10 dp, wie bisher), Overlays, die während eines Wischs aufgehen, TalkBack-Doppeltipps
+  auf der Leertaste, die Tastaturauswahl und die Einstellungsseite selbst (nur kompiliert, kein
+  UI-Test).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

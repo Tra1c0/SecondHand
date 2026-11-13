@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="agent_space_title">Leertaste</string>
+    <string name="agent_space_summary">Aktionen für Wischen, Halten und Doppeltippen auf der Leertaste</string>
+    <string name="agent_space_swipe_left">Nach links wischen</string>
+    <string name="agent_space_swipe_right">Nach rechts wischen</string>
+    <string name="agent_space_swipe_up">Nach oben wischen</string>
+    <string name="agent_space_swipe_down">Nach unten wischen</string>
+    <string name="agent_space_hold">Halten</string>
+    <string name="agent_space_double_tap">Doppeltippen</string>
+    <string name="agent_space_double_tap_description">Ein einzelner Tipp schreibt immer ein Leerzeichen. Mit einer Aktion führt ein zweiter Tipp direkt nach dem ersten sie aus, statt ein weiteres Leerzeichen zu schreiben, und „Punkt plus Leerzeichen“ ruht.</string>
+    <string name="agent_space_action_none">Nichts</string>
+    <string name="agent_space_action_move_cursor">Cursor bewegen</string>
+    <string name="agent_space_action_switch_language">Sprache wechseln</string>
+    <string name="agent_space_action_switch_input_method">Tastatur auswählen</string>
+    <string name="agent_space_action_wheel">Aktionsrad</string>
+    <string name="agent_space_action_panel">Aktionspanel</string>
+    <string name="agent_space_action_dictation">Diktat</string>
+    <string name="agent_space_action_clipboard">Zwischenablage</string>
+    <string name="agent_space_action_emoji">Emoji</string>
+    <string name="agent_space_action_command_list">Befehlsliste (tippt das Präfix)</string>
+    <string name="agent_space_action_undo">Rückgängig</string>
+    <string name="agent_space_action_redo">Wiederholen</string>
+    <string name="agent_space_action_select_all">Alles auswählen</string>
+    <string name="agent_space_action_numpad">Ziffernblock ein/aus</string>
+    <string name="agent_space_action_symbols">Symbole ein/aus</string>
+    <string name="agent_space_action_dpad">Pfeiltasten ein/aus</string>
+    <string name="agent_space_action_touchpad">Touchpad-Modus</string>
+    <string name="agent_space_action_hide">Tastatur ausblenden</string>
+</resources>

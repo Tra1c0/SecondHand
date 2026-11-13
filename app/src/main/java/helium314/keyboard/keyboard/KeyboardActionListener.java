@@ -11,6 +11,7 @@ import android.view.KeyEvent;
 import androidx.annotation.Nullable;
 import androidx.core.view.inputmethod.InputContentInfoCompat;
 
+import helium314.keyboard.agent.SpaceGesture;
 import helium314.keyboard.event.HapticEvent;
 import helium314.keyboard.keyboard.internal.LayoutDirective;
 import helium314.keyboard.latin.common.Constants;
@@ -112,11 +113,10 @@ public interface KeyboardActionListener {
     boolean onCustomRequest(CustomAction request);
 
     /**
-     * Called when the user performs a horizontal or vertical swipe gesture
-     * on the space bar.
+     * Called when the user performs a swipe gesture on the space bar. [gesture] is the direction the
+     * swipe started in and stays the same for the whole swipe; [steps] is signed along its axis.
      */
-    boolean onHorizontalSpaceSwipe(int steps);
-    boolean onVerticalSpaceSwipe(int steps);
+    boolean onSpaceSwipe(SpaceGesture gesture, int steps);
     void onEndSpaceSwipe();
     void toggleLayout(LayoutDirective.Utility layout, int autoCapsFlags, @Nullable RecapitalizeMode recapitalizeMode);
     void onLongPressAlphaSymbolForNumpad();
@@ -128,7 +128,8 @@ public interface KeyboardActionListener {
     KeyboardActionListener EMPTY_LISTENER = new Adapter();
 
     enum SwipeAction { NONE, MOVE_CURSOR, SWITCH_LANGUAGE, TOGGLE_NUMPAD, TOGGLE_DPAD, HIDE_KEYBOARD, TOUCHPAD_MODE }
-    enum CustomAction { SHOW_INPUT_METHOD_PICKER, TOUCHPAD_ON, TOUCHPAD_OFF, PERFORM_HAPTIC, SHOW_AGENT_WHEEL }
+    // SPACE_HOLD runs the hold action chosen for the space bar (SpaceGestures); false if nothing was done
+    enum CustomAction { SHOW_INPUT_METHOD_PICKER, TOUCHPAD_ON, TOUCHPAD_OFF, PERFORM_HAPTIC, SPACE_HOLD }
 
     class Adapter implements KeyboardActionListener {
         @Override
@@ -164,11 +165,7 @@ public interface KeyboardActionListener {
             return false;
         }
         @Override
-        public boolean onHorizontalSpaceSwipe(int steps) {
-            return false;
-        }
-        @Override
-        public boolean onVerticalSpaceSwipe(int steps) {
+        public boolean onSpaceSwipe(SpaceGesture gesture, int steps) {
             return false;
         }
         @Override

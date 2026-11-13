@@ -2,6 +2,9 @@
 package helium314.keyboard.latin
 
 import helium314.keyboard.agent.AgentPreferences
+import helium314.keyboard.agent.SpaceAction
+import helium314.keyboard.agent.SpaceGesture
+import helium314.keyboard.keyboard.internal.LayoutDirective
 import helium314.keyboard.agent.RejectedCorrections
 import helium314.keyboard.agent.TypoMemory
 import android.os.Handler
@@ -765,17 +768,17 @@ class InputLogicTest {
     @Test fun moveCursorHorizontally() {
         chainInput("hello")
         assertEquals(5, cursor)
-        latinIME.mKeyboardActionListener.onHorizontalSpaceSwipe(-2)
+        latinIME.mKeyboardActionListener.onSpaceSwipe(helium314.keyboard.agent.SpaceGesture.SWIPE_LEFT, -2)
         assertEquals(3, cursor)
-        latinIME.mKeyboardActionListener.onHorizontalSpaceSwipe(-5)
+        latinIME.mKeyboardActionListener.onSpaceSwipe(helium314.keyboard.agent.SpaceGesture.SWIPE_LEFT, -5)
         assertEquals(0, cursor)
-        latinIME.mKeyboardActionListener.onHorizontalSpaceSwipe(-1)
+        latinIME.mKeyboardActionListener.onSpaceSwipe(helium314.keyboard.agent.SpaceGesture.SWIPE_LEFT, -1)
         assertEquals(0, cursor)
-        latinIME.mKeyboardActionListener.onHorizontalSpaceSwipe(3)
+        latinIME.mKeyboardActionListener.onSpaceSwipe(helium314.keyboard.agent.SpaceGesture.SWIPE_RIGHT, 3)
         assertEquals(3, cursor)
-        latinIME.mKeyboardActionListener.onHorizontalSpaceSwipe(3)
+        latinIME.mKeyboardActionListener.onSpaceSwipe(helium314.keyboard.agent.SpaceGesture.SWIPE_RIGHT, 3)
         assertEquals(5, cursor)
-        latinIME.mKeyboardActionListener.onHorizontalSpaceSwipe(1)
+        latinIME.mKeyboardActionListener.onSpaceSwipe(helium314.keyboard.agent.SpaceGesture.SWIPE_RIGHT, 1)
         assertEquals(5, cursor)
     }
 
@@ -1014,7 +1017,7 @@ class InputLogicTest {
         latinIME.mKeyboardActionListener.onCodeInput(KeyCode.DELETE, -1, -1, false)
         latinIME.mKeyboardActionListener.onMoveDeletePointer(2)
         latinIME.mKeyboardActionListener.onUpWithDeletePointerActive()
-        latinIME.mKeyboardActionListener.onHorizontalSpaceSwipe(-1)
+        latinIME.mKeyboardActionListener.onSpaceSwipe(helium314.keyboard.agent.SpaceGesture.SWIPE_LEFT, -1)
         latinIME.onStartBatchInput()
         latinIME.onUpdateBatchInput(helium314.keyboard.latin.common.InputPointers(1))
         latinIME.onEndBatchInput(helium314.keyboard.latin.common.InputPointers(1))
@@ -1051,8 +1054,184 @@ class InputLogicTest {
         assertEquals(android.view.View.GONE, panel.visibility)
     }
 
+    private fun setSpaceGesture(gesture: SpaceGesture, action: SpaceAction) =
+        latinIME.prefs().edit { putString(gesture.key, action.name) }
+
+    /** A real tap on the space key as PointerTracker sends it: press, code (no coordinates off the letters), release. */
+    private fun spaceTap() {
+        val listener = latinIME.mKeyboardActionListener
+        listener.onPressKey(Constants.CODE_SPACE, 0, 1, helium314.keyboard.event.HapticEvent.KEY_PRESS)
+        listener.onCodeInput(Constants.CODE_SPACE, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+        listener.onReleaseKey(Constants.CODE_SPACE, false)
+        handleMessages()
+    }
+
+    private fun attachWheel(): helium314.keyboard.agent.AgentWheelView {
+        val root = android.widget.FrameLayout(latinIME)
+        val wheel = helium314.keyboard.agent.AgentWheelView(latinIME).apply { id = R.id.agent_wheel }
+        root.addView(wheel)
+        latinIME.agentEditorController.attach(root)
+        return wheel
+    }
+
+    @Test fun generatedSpaceDoubleTapKeepsTheDoubleSpacePeriodByDefault() {
+        chainInput("hello")
+        spaceTap(); spaceTap()
+        assertEquals("hello. ", text)
+        assertTrue(settingsValues.mUseDoubleSpacePeriod)
+    }
+
+    @Test fun generatedSpaceDoubleTapRunsItsActionInsteadOfThePeriod() {
+        setSpaceGesture(SpaceGesture.DOUBLE_TAP, SpaceAction.COMMAND_LIST)
+        assertFalse(settingsValues.mUseDoubleSpacePeriod)
+        chainInput("hello")
+        spaceTap()
+        assertEquals("hello ", text)
+        spaceTap()
+        assertEquals("hello @", text)
+        // the action's own key codes do not count as taps: the next tap is a plain space again
+        spaceTap()
+        assertEquals("hello @ ", text)
+    }
+
+    @Test fun generatedSpaceDoubleTapNeedsTheSameCursorWithinTheTimeout() {
+        setSpaceGesture(SpaceGesture.DOUBLE_TAP, SpaceAction.COMMAND_LIST)
+        chainInput("hello")
+        spaceTap()
+        org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofMillis(settingsValues.mDoubleSpacePeriodTimeout + 100))
+        spaceTap()
+        assertEquals("hello  ", text) // two spaces: no period, no action
+
+        setText("hello")
+        spaceTap()
+        setCursorPosition(2)
+        spaceTap()
+        assertFalse(text.contains('@'))
+
+        // a space code without a key press (strip, popup key, an action) is no tap and resets
+        setText("hello")
+        spaceTap()
+        latinIME.mKeyboardActionListener.onCodeInput(Constants.CODE_SPACE, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+        handleMessages()
+        spaceTap()
+        assertFalse(text.contains('@'))
+        latinIME.mKeyboardActionListener.onCodeInput(Constants.CODE_SPACE, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+        handleMessages()
+        assertFalse(text.contains('@'))
+    }
+
+    @Test fun generatedSpaceGestureActionsUseTheExistingKeyCodes() {
+        val spy = Mockito.spy(latinIME.mKeyboardActionListener as helium314.keyboard.keyboard.KeyboardActionListenerImpl)
+        Mockito.doNothing().`when`(spy).onCodeInput(Mockito.anyInt(), Mockito.anyInt(), Mockito.anyInt(), Mockito.anyBoolean())
+        Mockito.doNothing().`when`(spy).toggleLayout(Mockito.any(LayoutDirective.Utility::class.java) ?: LayoutDirective.Utility.NUMPAD, Mockito.anyInt(), Mockito.any())
+        val codes = mapOf(
+            SpaceAction.SWITCH_LANGUAGE to KeyCode.LANGUAGE_SWITCH,
+            SpaceAction.SWITCH_INPUT_METHOD to KeyCode.SYSTEM_INPUT_METHOD_PICKER,
+            SpaceAction.DICTATION to KeyCode.AGENT_DICTATE,
+            SpaceAction.CLIPBOARD to KeyCode.CLIPBOARD,
+            SpaceAction.EMOJI to KeyCode.EMOJI,
+            SpaceAction.UNDO to KeyCode.UNDO,
+            SpaceAction.REDO to KeyCode.REDO,
+            SpaceAction.SELECT_ALL to KeyCode.CLIPBOARD_SELECT_ALL,
+        )
+        val layouts = mapOf(
+            SpaceAction.TOGGLE_NUMPAD to LayoutDirective.Utility.NUMPAD,
+            SpaceAction.TOGGLE_SYMBOLS to LayoutDirective.Utility.SYMBOLS,
+            SpaceAction.TOGGLE_DPAD to LayoutDirective.Utility.DPAD,
+        )
+        val request = helium314.keyboard.keyboard.KeyboardActionListener.CustomAction.SPACE_HOLD
+        for (gesture in listOf(SpaceGesture.SWIPE_LEFT, SpaceGesture.SWIPE_DOWN, SpaceGesture.HOLD)) {
+            fun run(): Boolean = if (gesture == SpaceGesture.HOLD) spy.onCustomRequest(request) else spy.onSpaceSwipe(gesture, -1)
+            codes.forEach { (action, code) ->
+                // a swipe switches languages by distance; the input method picker on hold stays with PointerTracker
+                if (gesture.isSwipe && action == SpaceAction.SWITCH_LANGUAGE) return@forEach
+                setSpaceGesture(gesture, action)
+                Mockito.clearInvocations(spy)
+                val consumed = run()
+                if (gesture == SpaceGesture.HOLD && action == SpaceAction.SWITCH_INPUT_METHOD) {
+                    assertFalse(consumed)
+                    Mockito.verify(spy, Mockito.never()).onCodeInput(Mockito.anyInt(), Mockito.anyInt(), Mockito.anyInt(), Mockito.anyBoolean())
+                } else {
+                    assertTrue(consumed, "$gesture $action")
+                    Mockito.verify(spy).onCodeInput(code, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+                }
+            }
+            layouts.forEach { (action, layout) ->
+                setSpaceGesture(gesture, action)
+                Mockito.clearInvocations(spy)
+                assertTrue(run())
+                Mockito.verify(spy).toggleLayout(Mockito.eq(layout) ?: layout, Mockito.anyInt(), Mockito.any())
+            }
+            setSpaceGesture(gesture, SpaceAction.NONE)
+            Mockito.clearInvocations(spy)
+            assertFalse(run())
+            Mockito.verify(spy, Mockito.never()).onCodeInput(Mockito.anyInt(), Mockito.anyInt(), Mockito.anyInt(), Mockito.anyBoolean())
+        }
+    }
+
+    @Test fun generatedSpaceCommandListTypesThePrefixOnlyWhereCommandsWork() {
+        setSpaceGesture(SpaceGesture.SWIPE_UP, SpaceAction.COMMAND_LIST)
+        val listener = latinIME.mKeyboardActionListener
+        assertTrue(listener.onSpaceSwipe(SpaceGesture.SWIPE_UP, -1)); handleMessages()
+        assertEquals("@", text)
+        setText("hi")
+        assertTrue(listener.onSpaceSwipe(SpaceGesture.SWIPE_UP, -1)); handleMessages()
+        assertEquals("hi @", text)
+        setText("(")
+        assertTrue(listener.onSpaceSwipe(SpaceGesture.SWIPE_UP, -1)); handleMessages()
+        assertEquals("(@", text)
+
+        latinIME.prefs().edit { putBoolean(AgentPreferences.COMMANDS, false) }
+        setText("hi")
+        assertFalse(listener.onSpaceSwipe(SpaceGesture.SWIPE_UP, -1)); handleMessages()
+        assertEquals("hi", text)
+        latinIME.prefs().edit { putBoolean(AgentPreferences.COMMANDS, true) }
+        setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        assertFalse(listener.onSpaceSwipe(SpaceGesture.SWIPE_UP, -1)); handleMessages()
+        assertEquals("hi", text)
+    }
+
+    @Test fun generatedSpaceHoldFollowsItsOwnSetting() {
+        val request = helium314.keyboard.keyboard.KeyboardActionListener.CustomAction.SPACE_HOLD
+        val listener = latinIME.mKeyboardActionListener
+        val wheel = attachWheel()
+        assertTrue(settingsValues.mSpaceForLangChange) // default: HeliBoard's picker
+        // an own value wins over the older opt-in and picker settings
+        latinIME.prefs().edit { putBoolean(AgentPreferences.SPACE_LONG_PRESS, true) }
+        setSpaceGesture(SpaceGesture.HOLD, SpaceAction.NONE)
+        assertFalse(listener.onCustomRequest(request))
+        assertFalse(settingsValues.mSpaceForLangChange)
+        assertEquals(android.view.View.GONE, wheel.visibility)
+        latinIME.prefs().edit { putBoolean(Settings.PREF_SPACE_TO_CHANGE_LANG, false) }
+        setSpaceGesture(SpaceGesture.HOLD, SpaceAction.SWITCH_INPUT_METHOD)
+        assertFalse(listener.onCustomRequest(request)) // PointerTracker shows the picker
+        assertTrue(settingsValues.mSpaceForLangChange)
+        latinIME.prefs().edit { putBoolean(AgentPreferences.SPACE_LONG_PRESS, false) }
+        setSpaceGesture(SpaceGesture.HOLD, SpaceAction.ACTION_WHEEL)
+        assertFalse(settingsValues.mSpaceForLangChange)
+        assertTrue(listener.onCustomRequest(request))
+        assertEquals(android.view.View.VISIBLE, wheel.visibility)
+        latinIME.agentEditorController.close()
+    }
+
+    @Test fun generatedSpaceSwipeOpensTheWheelOnceAndBlocksFurtherSteps() {
+        setSpaceGesture(SpaceGesture.SWIPE_RIGHT, SpaceAction.ACTION_WHEEL)
+        chainInput("hello")
+        val wheel = attachWheel()
+        val listener = latinIME.mKeyboardActionListener
+        assertTrue(listener.onSpaceSwipe(SpaceGesture.SWIPE_RIGHT, 1))
+        assertEquals(android.view.View.VISIBLE, wheel.visibility)
+        val position = cursor
+        assertTrue(listener.onSpaceSwipe(SpaceGesture.SWIPE_LEFT, -2)) // consumed while the wheel blocks input
+        assertEquals(position, cursor)
+        latinIME.agentEditorController.close()
+        listener.onEndSpaceSwipe()
+        assertTrue(listener.onSpaceSwipe(SpaceGesture.SWIPE_LEFT, -2)) // left still moves the cursor
+        assertEquals(position - 2, cursor)
+    }
+
     @Test fun generatedSpaceLongPressRequiresOptInAndAnAvailableSurface() {
-        val request = helium314.keyboard.keyboard.KeyboardActionListener.CustomAction.SHOW_AGENT_WHEEL
+        val request = helium314.keyboard.keyboard.KeyboardActionListener.CustomAction.SPACE_HOLD
         val listener = latinIME.mKeyboardActionListener
         assertFalse(listener.onCustomRequest(request))
         latinIME.prefs().edit().putBoolean(helium314.keyboard.agent.AgentPreferences.SPACE_LONG_PRESS, true).commit()

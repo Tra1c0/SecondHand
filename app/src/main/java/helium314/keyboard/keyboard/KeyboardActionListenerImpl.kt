@@ -3,7 +3,10 @@ package helium314.keyboard.keyboard
 
 import helium314.keyboard.agent.TouchCalibration
 import android.text.InputType
-import helium314.keyboard.agent.AgentPreferences
+import helium314.keyboard.agent.KeyboardCommands
+import helium314.keyboard.agent.SpaceAction
+import helium314.keyboard.agent.SpaceGesture
+import android.os.SystemClock
 import android.util.SparseArray
 import android.view.KeyEvent
 import android.view.inputmethod.InputMethodSubtype
@@ -53,6 +56,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
 
     override fun onPressKey(primaryCode: Int, repeatCount: Int, pointerCount: Int, hapticEvent: HapticEvent) {
         if (latinIME.agentEditorController.isBlockingInput) return;
+        spaceKeyDown = primaryCode == Constants.CODE_SPACE
         latinIME.invalidateAgentEditor()
         metaOnPressKey(primaryCode)
         keyboardSwitcher.onPressKey(primaryCode, pointerCount, latinIME.currentAutoCapsState, latinIME.currentRecapitalizeState)
@@ -67,6 +71,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     }
 
     override fun onReleaseKey(primaryCode: Int, withSliding: Boolean) {
+        if (primaryCode == Constants.CODE_SPACE) spaceKeyDown = false
         metaOnReleaseKey(primaryCode)
         keyboardSwitcher.onReleaseKey(primaryCode, withSliding, latinIME.currentAutoCapsState, latinIME.currentRecapitalizeState)
     }
@@ -119,6 +124,9 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
             TouchCalibration.onKey(primaryCode, x, y, view.paddingLeft, view.paddingTop, keyboardSwitcher.keyboard)
         }
         latinIME.invalidateAgentEditor()
+        val spaceTap = primaryCode == Constants.CODE_SPACE && spaceKeyDown
+        spaceKeyDown = false // codes sent while handling this one are no taps
+        if (consumeSpaceDoubleTap(spaceTap)) return
         when (primaryCode) {
             KeyCode.AGENT_ACTIONS -> {
                 // the Flat style has the panel behind its pen key; the wheel stays on the space bar long press
@@ -175,6 +183,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         }
         latinIME.onEvent(event)
         metaAfterCodeInput(primaryCode)
+        if (spaceTap) rememberSpaceTap()
     }
 
     override fun onTextInput(text: String?) = latinIME.onTextInput(text)
@@ -206,9 +215,10 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         keyboardSwitcher.onFinishSlidingInput(latinIME.currentAutoCapsState, latinIME.currentRecapitalizeState)
 
     override fun onCustomRequest(request: KeyboardActionListener.CustomAction) = when (request) {
-        KeyboardActionListener.CustomAction.SHOW_AGENT_WHEEL ->
-            latinIME.prefs().getBoolean(AgentPreferences.SPACE_LONG_PRESS, false) &&
-                !latinIME.agentEditorController.isBlockingInput && latinIME.agentEditorController.openWheel()
+        // the input method picker stays with PointerTracker's existing fallback (mSpaceForLangChange)
+        KeyboardActionListener.CustomAction.SPACE_HOLD -> settings.current.mSpaceGestures[SpaceGesture.HOLD].let {
+            it != SpaceAction.SWITCH_INPUT_METHOD && runSpaceAction(it)
+        }
         KeyboardActionListener.CustomAction.SHOW_INPUT_METHOD_PICKER -> latinIME.showInputPickerDialog()
         KeyboardActionListener.CustomAction.TOUCHPAD_ON -> {
             keyboardSwitcher.mainKeyboardView?.alpha = 0.5f
@@ -224,36 +234,11 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         }
     }
 
-    override fun onHorizontalSpaceSwipe(steps: Int): Boolean = if (latinIME.agentEditorController.isBlockingInput) true else when (Settings.getValues().mSpaceSwipeHorizontal) {
-        KeyboardActionListener.SwipeAction.MOVE_CURSOR -> onMoveCursorHorizontally(steps)
-        KeyboardActionListener.SwipeAction.SWITCH_LANGUAGE -> onLanguageSlide(steps)
-        KeyboardActionListener.SwipeAction.TOGGLE_NUMPAD -> {
-            toggleLayout(LayoutDirective.Utility.NUMPAD, latinIME.currentAutoCapsState, latinIME.currentRecapitalizeState)
-            true
-        }
-        KeyboardActionListener.SwipeAction.TOGGLE_DPAD -> {
-            toggleLayout(LayoutDirective.Utility.DPAD, latinIME.currentAutoCapsState, latinIME.currentRecapitalizeState)
-            true
-        }
-        else -> false
-    }
-
-    override fun onVerticalSpaceSwipe(steps: Int): Boolean = if (latinIME.agentEditorController.isBlockingInput) true else when (Settings.getValues().mSpaceSwipeVertical) {
-        KeyboardActionListener.SwipeAction.MOVE_CURSOR -> onMoveCursorVertically(steps)
-        KeyboardActionListener.SwipeAction.SWITCH_LANGUAGE -> onLanguageSlide(steps)
-        KeyboardActionListener.SwipeAction.TOGGLE_NUMPAD -> {
-            toggleLayout(LayoutDirective.Utility.NUMPAD, latinIME.currentAutoCapsState, latinIME.currentRecapitalizeState)
-            true
-        }
-        KeyboardActionListener.SwipeAction.TOGGLE_DPAD -> {
-            toggleLayout(LayoutDirective.Utility.DPAD, latinIME.currentAutoCapsState, latinIME.currentRecapitalizeState)
-            true
-        }
-        KeyboardActionListener.SwipeAction.HIDE_KEYBOARD -> {
-            latinIME.requestHideSelf(0)
-            true
-        }
-        KeyboardActionListener.SwipeAction.TOUCHPAD_MODE -> {
+    override fun onSpaceSwipe(gesture: SpaceGesture, steps: Int): Boolean = if (latinIME.agentEditorController.isBlockingInput) true
+    else when (val action = settings.current.mSpaceGestures[gesture]) {
+        SpaceAction.MOVE_CURSOR -> if (gesture.isHorizontal) onMoveCursorHorizontally(steps) else onMoveCursorVertically(steps)
+        SpaceAction.SWITCH_LANGUAGE -> onLanguageSlide(steps)
+        SpaceAction.TOUCHPAD_MODE -> {
             // Activate touchpad mode - the actual cursor movement will be handled in PointerTracker
 
             // Activation and ensure enough room for navigation.
@@ -266,13 +251,93 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
                 false
             }
         }
-        else -> false
+        else -> runSpaceAction(action)
     }
 
     override fun onEndSpaceSwipe() {
         if (latinIME.agentEditorController.isBlockingInput) return;
         initialSubtype = null
         subtypeSwitchCount = 0
+    }
+
+    /**
+     * Runs a one-shot space bar action (swipe, hold or double tap) through the existing key codes and
+     * controller entry points, so locked device, password and incognito keep their restrictions.
+     * Returns whether something was done.
+     */
+    private fun runSpaceAction(action: SpaceAction): Boolean {
+        if (latinIME.agentEditorController.isBlockingInput) return false
+        fun code(code: Int): Boolean {
+            onCodeInput(code, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+            return true
+        }
+        fun toggle(layout: LayoutDirective.Utility): Boolean {
+            toggleLayout(layout, latinIME.currentAutoCapsState, latinIME.currentRecapitalizeState)
+            return true
+        }
+        return when (action) {
+            SpaceAction.NONE, SpaceAction.MOVE_CURSOR, SpaceAction.TOUCHPAD_MODE -> false
+            SpaceAction.SWITCH_LANGUAGE -> code(KeyCode.LANGUAGE_SWITCH)
+            SpaceAction.SWITCH_INPUT_METHOD -> code(KeyCode.SYSTEM_INPUT_METHOD_PICKER)
+            SpaceAction.ACTION_WHEEL -> latinIME.agentEditorController.openWheel()
+            SpaceAction.ACTION_PANEL -> { latinIME.agentEditorController.open(); true }
+            SpaceAction.DICTATION -> code(KeyCode.AGENT_DICTATE)
+            SpaceAction.CLIPBOARD -> code(KeyCode.CLIPBOARD)
+            SpaceAction.EMOJI -> code(KeyCode.EMOJI)
+            SpaceAction.COMMAND_LIST -> typeCommandPrefix()
+            SpaceAction.UNDO -> code(KeyCode.UNDO)
+            SpaceAction.REDO -> code(KeyCode.REDO)
+            SpaceAction.SELECT_ALL -> code(KeyCode.CLIPBOARD_SELECT_ALL)
+            SpaceAction.TOGGLE_NUMPAD -> toggle(LayoutDirective.Utility.NUMPAD)
+            SpaceAction.TOGGLE_SYMBOLS -> toggle(LayoutDirective.Utility.SYMBOLS)
+            SpaceAction.TOGGLE_DPAD -> toggle(LayoutDirective.Utility.DPAD)
+            SpaceAction.HIDE_KEYBOARD -> {
+                latinIME.requestHideSelf(0)
+                true
+            }
+        }
+    }
+
+    /**
+     * Types the command prefix at a word start (a space first if the cursor follows a word), so the
+     * strip lists all commands. Typed like keys, so commands see exactly what a user would type.
+     * Nothing happens where commands are off or blocked (password field, incognito, locked device).
+     */
+    private fun typeCommandPrefix(): Boolean {
+        if (!KeyboardCommands.isEnabled(latinIME) || KeyboardCommands.isBlocked(settings.current, latinIME.currentInputEditorInfo)) return false
+        if (connection.hasSelection()) return false
+        val before = connection.getTextBeforeCursor(1, 0) ?: return false
+        val last = before.lastOrNull()
+        if (last != null && !last.isWhitespace() && last != '(')
+            onCodeInput(Constants.CODE_SPACE, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+        onCodeInput(KeyboardCommands.prefix(latinIME).code, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+        return true
+    }
+
+    // double tap on space: the first tap types its space, a second tap at the same cursor within the
+    // double-space-period timeout runs the action instead of typing (double space period is off then).
+    // Only a code between onPressKey and onReleaseKey of the space key is a tap; the strip, popup
+    // keys and the actions' own codes never press a key.
+    private var spaceKeyDown = false
+    private var lastSpaceTapTime = 0L
+    private var lastSpaceTapCursor = -1
+
+    private fun consumeSpaceDoubleTap(spaceTap: Boolean): Boolean {
+        val previous = lastSpaceTapTime
+        lastSpaceTapTime = 0L
+        if (previous == 0L || !spaceTap) return false
+        val action = settings.current.mSpaceGestures[SpaceGesture.DOUBLE_TAP]
+        if (action == SpaceAction.NONE) return false
+        if (SystemClock.uptimeMillis() - previous >= settings.current.mDoubleSpacePeriodTimeout) return false
+        if (connection.hasSelection() || connection.expectedSelectionStart != lastSpaceTapCursor) return false
+        runSpaceAction(action)
+        return true
+    }
+
+    private fun rememberSpaceTap() {
+        if (settings.current.mSpaceGestures[SpaceGesture.DOUBLE_TAP] == SpaceAction.NONE) return
+        lastSpaceTapTime = SystemClock.uptimeMillis()
+        lastSpaceTapCursor = connection.expectedSelectionStart
     }
 
     override fun toggleLayout(layout: LayoutDirective.Utility, autoCapsFlags: Int, recapitalizeMode: RecapitalizeMode?) {
