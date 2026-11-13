@@ -883,6 +883,17 @@ class RgbFrameStats(private val windowMs: Long = 5000, private val capacity: Int
 
     @Synchronized fun clear() { uiCount = 0; uiNext = 0; bgCount = 0; bgNext = 0 }
 
+    /**
+     * Like [summary], but for the [windowMs] before the newest entry: the last seconds the keyboard
+     * was drawn with light, also when it is hidden now (the Diagnose page is opened afterwards).
+     */
+    @Synchronized fun summaryOfLastActivity(): Summary {
+        var newest = Long.MIN_VALUE
+        for (i in 0 until uiCount) if (uiAt[i] > newest) newest = uiAt[i]
+        for (i in 0 until bgCount) if (bgAt[i] > newest) newest = bgAt[i]
+        return summary(if (newest == Long.MIN_VALUE) 0L else newest)
+    }
+
     /** Average and maximum in ms over the entries of the last [windowMs] before [nowMs]. */
     @Synchronized fun summary(nowMs: Long): Summary {
         fun stats(at: LongArray, nanos: LongArray, count: Int): Triple<Int, Double, Double> {

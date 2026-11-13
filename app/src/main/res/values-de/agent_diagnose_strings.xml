@@ -77,4 +77,11 @@
     <string name="agent_diagnose_app">App-Version</string>
     <string name="agent_diagnose_android">Android</string>
     <string name="agent_diagnose_model">Modell</string>
+    <string name="agent_diagnose_lighting">RGB-Beleuchtung (letzte 5 s mit Licht)</string>
+    <string name="agent_diagnose_light_frames">Gemessene Bilder</string>
+    <string name="agent_diagnose_light_none">keine – Tastatur mit RGB öffnen und tippen, dann hier nachsehen</string>
+    <string name="agent_diagnose_light_ui">Licht im UI-Thread je Bild</string>
+    <string name="agent_diagnose_light_draw">Ganzes Zeichnen der Tastatur je Bild</string>
+    <string name="agent_diagnose_light_background">Raster im Hintergrund</string>
+    <string name="agent_diagnose_ms">Ø %1$.1f ms, max %2$.1f ms</string>
 </resources>

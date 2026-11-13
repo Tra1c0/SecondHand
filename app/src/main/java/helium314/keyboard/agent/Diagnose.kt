@@ -28,7 +28,7 @@ import java.util.Locale
  */
 object Diagnose {
     class Row(val label: String, val value: String)
-    enum class Part { HAPTICS, SYMBOLS, LANGUAGE, EMOJI_MIX, DEVICE }
+    enum class Part { HAPTICS, SYMBOLS, LANGUAGE, EMOJI_MIX, LIGHTING, DEVICE }
     class Section(val part: Part, val title: String, val rows: List<Row>)
 
     // --- haptics (HapticChain) ---
@@ -252,6 +252,22 @@ object Diagnose {
         EmojiMixClient.Reason.NOT_PNG, EmojiMixClient.Reason.TOO_LARGE -> R.string.agent_diagnose_failure_answer
         EmojiMixClient.Reason.NOT_ALLOWED, EmojiMixClient.Reason.STORAGE, EmojiMixClient.Reason.INTERNAL -> R.string.agent_diagnose_failure_internal
     })
+
+    // --- RGB lighting cost (build 14 feedback: the keyboard lagged) ---
+
+    /** What drawing the light cost in the last seconds the keyboard was lit ([RgbLighting.lastFrameWork]). */
+    fun lighting(context: Context, work: dev.agentkeyboard.core.RgbFrameStats.Summary): Section {
+        fun ms(avg: Double, max: Double) = context.getString(R.string.agent_diagnose_ms, avg, max)
+        val rows = if (work.frames == 0 && work.jobs == 0) listOf(Row(context.getString(R.string.agent_diagnose_light_frames),
+            context.getString(R.string.agent_diagnose_light_none)))
+        else listOf(
+            Row(context.getString(R.string.agent_diagnose_light_frames), work.frames.toString()),
+            Row(context.getString(R.string.agent_diagnose_light_ui), ms(work.uiAvgMs, work.uiMaxMs)),
+            Row(context.getString(R.string.agent_diagnose_light_draw), ms(work.drawAvgMs, work.drawMaxMs)),
+            Row(context.getString(R.string.agent_diagnose_light_background), "${work.jobs} · " + ms(work.backgroundAvgMs, work.backgroundMaxMs)),
+        )
+        return Section(Part.LIGHTING, context.getString(R.string.agent_diagnose_lighting), rows)
+    }
 
     // --- app and phone ---
 

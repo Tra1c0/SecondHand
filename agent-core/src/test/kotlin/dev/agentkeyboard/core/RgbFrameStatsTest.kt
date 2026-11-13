@@ -8,6 +8,22 @@ import kotlin.test.assertTrue
 
 /** Build-14 lag: the self-measurement of the lighting work and the engine state copy for background grids. */
 class RgbFrameStatsTest {
+    /** The Diagnose page is opened after the keyboard was hidden: it shows the last seconds with light. */
+    @Test fun theLastActivityIsSummedUpAlsoLaterOn() {
+        val stats = RgbFrameStats(windowMs = 5000)
+        assertEquals(0, stats.summaryOfLastActivity().frames)
+        stats.recordUi(10_000, 2_000_000, 8_000_000)
+        stats.recordUi(14_000, 4_000_000, 12_000_000)
+        stats.recordUi(20_000, 1_000_000, 6_000_000) // a later burst: only it counts
+        stats.recordBackground(19_500, 500_000)
+        val last = stats.summaryOfLastActivity()
+        assertEquals(1, last.frames)
+        assertEquals(1.0, last.uiAvgMs, 1e-9)
+        assertEquals(6.0, last.drawMaxMs, 1e-9)
+        assertEquals(1, last.jobs)
+        assertEquals(0, stats.summary(60_000).frames) // "now" a minute later: nothing
+    }
+
     @Test fun averageAndMaximumOverTheLastSeconds() {
         val stats = RgbFrameStats(windowMs = 5000, capacity = 8)
         assertEquals(RgbFrameStats.Summary(0, 0.0, 0.0, 0.0, 0.0, 0, 0.0, 0.0), stats.summary(1000))

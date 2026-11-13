@@ -131,6 +131,10 @@ object RgbLighting {
     @JvmStatic
     fun frameWork(): RgbFrameStats.Summary = frameStats.summary(SystemClock.uptimeMillis())
 
+    /** The same for the last seconds the keyboard was drawn with light (it may be hidden now). */
+    @JvmStatic
+    fun lastFrameWork(): RgbFrameStats.Summary = frameStats.summaryOfLastActivity()
+
     /** Low memory (LatinIME.onTrimMemory): drops the tiles; the next frame asks for them again. */
     @JvmStatic
     fun onTrimMemory() = RgbTiles.clear()

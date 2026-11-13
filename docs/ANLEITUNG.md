@@ -647,8 +647,9 @@ Einstellungen → „Diagnose“ (unter „Erweitert“) zeigt, was dein Telefon
 Schlüssel oder Kennungen: welche Haptik die Rastpunkte der Leertaste spielen, der leichte Tick und der letzte Punkt (Knopf
 „Test“ spielt den letzten Punkt),
 ob Symbole malen laufen kann, warum die Sprache zuletzt gewechselt hat (z. B. „Sprach-Hinweis der
-App → en-US“; nur seit dem Start der Tastatur, nichts wird gespeichert), den Stand von Emoji-Mix
-und die Versionen. „gstatic erreichbar?“ lädt nur bei diesem Tipp einmal ein Testbild von Google.
+App → en-US“; nur seit dem Start der Tastatur, nichts wird gespeichert), den Stand von Emoji-Mix,
+was die RGB-Beleuchtung in den letzten 5 Sekunden mit Licht je Bild gekostet hat (Tastatur mit
+RGB öffnen, kurz tippen, dann die Seite öffnen) und die Versionen. „gstatic erreichbar?“ lädt nur bei diesem Tipp einmal ein Testbild von Google.
 „Kopieren“ legt genau die angezeigten Werte in die Zwischenablage, zum Weitergeben; ein
 Screenshot geht auch.
 

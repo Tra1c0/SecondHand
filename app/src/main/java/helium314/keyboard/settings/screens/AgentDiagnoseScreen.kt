@@ -71,8 +71,9 @@ fun AgentDiagnoseScreen(onClickBack: () -> Unit) {
     val haptics = remember { Diagnose.haptics(context, device) }
     val languages = remember { Diagnose.languages(context, SubtypeSwitchLog.entries(), SystemClock.elapsedRealtime()) }
     val phone = remember { Diagnose.device(context) }
+    val lighting = remember { Diagnose.lighting(context, helium314.keyboard.agent.RgbLighting.lastFrameWork()) }
     val emojiMix = remember(table, tableRead, cache, reach) { Diagnose.emojiMix(context, table, tableRead, cache, reach) }
-    val sections = remember(symbols, emojiMix) { listOfNotNull(haptics, symbols, languages, emojiMix, phone) }
+    val sections = remember(symbols, emojiMix) { listOfNotNull(haptics, symbols, languages, emojiMix, lighting, phone) }
     SearchSettingsScreen(onClickBack, stringResource(R.string.agent_diagnose_title), emptyList()) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)) {

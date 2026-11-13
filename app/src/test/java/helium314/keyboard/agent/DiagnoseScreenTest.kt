@@ -115,6 +115,8 @@ class DiagnoseScreenTest {
         // Emoji-Mix: the real table, nothing loaded
         row("147000 Paare, 619 Emojis")
         row("nicht geprüft")
+        // RGB lighting cost: nothing measured in this test (the keyboard never drew with light)
+        row("Gemessene Bilder"); row("keine – Tastatur mit RGB öffnen")
         // app and phone: versions, no identifiers
         row("App-Version"); row("API 28")
         assertEquals(emptyList(), requests, "the page itself asks nobody")

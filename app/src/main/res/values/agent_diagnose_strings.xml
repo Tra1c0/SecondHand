@@ -78,4 +78,11 @@
     <string name="agent_diagnose_app">App version</string>
     <string name="agent_diagnose_android">Android</string>
     <string name="agent_diagnose_model">Model</string>
+    <string name="agent_diagnose_lighting">RGB lighting (last 5 s with light)</string>
+    <string name="agent_diagnose_light_frames">Measured frames</string>
+    <string name="agent_diagnose_light_none">none – open the keyboard with RGB on and type, then look here</string>
+    <string name="agent_diagnose_light_ui">Light on the UI thread per frame</string>
+    <string name="agent_diagnose_light_draw">Whole keyboard draw per frame</string>
+    <string name="agent_diagnose_light_background">Grids in the background</string>
+    <string name="agent_diagnose_ms">avg %1$.1f ms, max %2$.1f ms</string>
 </resources>

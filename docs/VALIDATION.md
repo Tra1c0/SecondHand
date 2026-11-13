@@ -2544,6 +2544,19 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
     volle Upstream-Suite, kein Prüfer für den neuen Hook in `KeyboardView.java`.
     `python3 -I scripts/docs_sync.py --check`: grün.
 
+## Diagnose: Kosten der RGB-Beleuchtung (Rückmeldung zu Build 14)
+
+- Der Owner meldete am Telefon Verzögerungen der Tastatur und Einbrüche im RGB-Menü. Die
+  Korrektur (`b9b1bfe`, `c1fd67b`) rechnet Raster und Kacheln im Hintergrund; auf der JVM bleibt das
+  Zeichnen des Lichts durch die Tastenmasken der größte Posten (2,5–6 ms, gedrehte Kachel 17–18 ms
+  in Robolectric-Software). Ob das am Telefon (GPU) reicht, zeigt erst eine Messung dort.
+- Gebaut: Abschnitt „RGB-Beleuchtung (letzte 5 s mit Licht)“ auf der Diagnose-Seite aus
+  `RgbLighting.lastFrameWork()` (`RgbFrameStats.summaryOfLastActivity`: die 5 s vor dem letzten
+  Eintrag, auch wenn die Tastatur jetzt verborgen ist): gemessene Bilder, Licht im UI-Thread,
+  ganzes Zeichnen der Tastatur, Raster im Hintergrund (jeweils Ø und max). Tests:
+  `RgbFrameStatsTest.theLastActivityIsSummedUpAlsoLaterOn`, `DiagnoseScreenTest` (Zeile ohne
+  Messung) grün.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

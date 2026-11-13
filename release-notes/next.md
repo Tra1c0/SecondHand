@@ -108,3 +108,6 @@
   Buchstaben zu verwerfen. Ein Tipp, der beim Loslassen auf die Nachbartaste rutscht, tippt die
   Taste, auf der er aufsetzte. Das Malfeld eigener Symbole nimmt jetzt genau so viele Punkte wie
   die Tastatur. Noch auf keinem Gerät ausprobiert.
+- Neu auf der Diagnose-Seite: was die RGB-Beleuchtung je Bild kostet (die letzten 5 Sekunden mit
+  Licht). Tastatur mit RGB öffnen, kurz tippen, dann Einstellungen → Diagnose → „Kopieren“ und mir
+  schicken.
