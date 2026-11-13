@@ -104,3 +104,8 @@
   `@zeichen` → „pfeile“ (alle Pfeile), `@emoji` → „tiere“, `@conv` → „oz in g“ (dann nur die
   Zahl tippen), `@datum` → „morgen“, `@termin` → „morgen 18 Uhr“, `@translate` → `spanisch "`.
   Ein Tipp schreibt nur die Vorlage hinter den Befehl.
+- Neu: Eigene Designs. Auf der Design-Seite oben „Meine Designs“ mit „+“: Tastenform,
+  Eckenrundung, Abstand, Tastenhöhe, sechs Farben, Schrift und ein eigenes Hintergrundbild, jede
+  Änderung sofort in einer Vorschau. Langes Drücken auf eine Kachel bearbeitet, löschen mit
+  Rückfrage. Eigene Farbsätze aus dem Farbeditor erscheinen jetzt auch als Kacheln. Noch auf
+  keinem Gerät ausprobiert.

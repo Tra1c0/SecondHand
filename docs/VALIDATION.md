@@ -1418,6 +1418,28 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   `tools/dev.py agent-tests` grün (461 Tests in 63 Klassen, 0 Fehler), `tools/dev.py lint` ohne Fehler und ohne Befunde in den geänderten Dateien (170 Warnungen wie bisher).
 - Nicht geprüft: kein Gerät (Aussehen der umrandeten Chips in beiden Stilen, TalkBack, ob die
   Leiste nach dem Tipp in echten Apps sofort die neuen Chips zeigt).
+## Etappe23f2 — Design-Editor und „Meine Designs“
+
+- Gebaut: `MyDesigns`, `DesignLook`, `AgentDesignEditor` mit Live-Vorschau, Abschnitt „Meine
+  Designs“ mit Kachel „+“, eigene HeliBoard-Farbsätze unter „Farben“, eigenes Hintergrundbild.
+  Upstream nur `KeyboardView.java` (ein Aufruf), dazu `FlatStyle.typeface` (Fork-Datei).
+- Geprüft (Robolectric): `MyDesignsTest` (12: Speichern schreibt nur Liste und Farbsatz, Auswahl
+  genau `selectionValues()` und HeliBoard liest die Farben, Ändern eines gewählten Designs
+  entfernt Rundung und Schrift, Speichern eines nicht gewählten Designs ändert die Tastatur
+  nicht, Löschen gewählt/nicht gewählt mit genauer Schlüsselliste, Bild ersetzt den Hintergrund
+  nur während der Auswahl und das eigene Bild kommt zurück, eingebaute Kachel nimmt Rundung,
+  Schrift und Bild zurück, neues Design vom aktuellen Look, ungültiges JSON, Eckenrundung an
+  echten Flat- und Rounded-Drawables mit Pillen, Schrift für alle Stile) und `DesignEditorTest`
+  (5: „+“ und gespeicherte Kacheln, Antippen wählt, langes Drücken und Stift öffnen den Editor,
+  Editor legt ein Design an und schreibt vor dem Speichern nichts, Löschen mit Rückfrage,
+  Vorschau-Pixel folgen Hintergrund- und Akzentfarbe, Höhe folgt der Tastenhöhe).
+  `DesignTilesTest` weiter grün. Bilder: `app/build/reports/design-editor/editor.png` und
+  `my-designs.png` (nicht versioniert, Roboto statt Systemschrift, P29).
+  `tools/dev.py agent-tests` grün (467 Tests in 64 Klassen, 0 Fehler), `tools/dev.py lint` ohne
+  Fehler (neue Warnung nur `PluralsCandidate` bei `agent_design_limit`).
+- Nicht geprüft: kein Gerätetest. Ob die echte Tastatur Rundung, Schrift und Bild so zeigt wie
+  die Vorschau, ist nur über den Unit-Test der Drawables belegt, nicht gerendert. Die
+  System-Dateiauswahl und der Farbwähler-Dialog wurden im Test nicht bedient.
 
 ## Gerätetest vor Meilensteinfreigabe
 

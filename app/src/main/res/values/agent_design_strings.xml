@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- Design editor and "My designs" (stage 23f2). English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="agent_design_section_mine">My designs</string>
+    <string name="agent_design_new">New design</string>
+    <string name="agent_design_new_name">My design %d</string>
+    <string name="agent_design_edit">Edit design</string>
+    <string name="agent_design_edit_named">Edit %s</string>
+    <string name="agent_design_name">Name</string>
+    <string name="agent_design_preview">Preview of the keyboard</string>
+    <string name="agent_design_group_shape">Keys</string>
+    <string name="agent_design_group_colors">Colors</string>
+    <string name="agent_design_group_font">Font</string>
+    <string name="agent_design_group_image">Background image</string>
+    <string name="agent_design_style">Key shape</string>
+    <string name="agent_design_style_material">Square</string>
+    <string name="agent_design_style_rounded">Rounded</string>
+    <string name="agent_design_style_flat">Flat</string>
+    <string name="agent_design_borders">Key backgrounds</string>
+    <string name="agent_design_corner_own">Own corner rounding</string>
+    <string name="agent_design_corner">Corner rounding: %1$d dp</string>
+    <string name="agent_design_gap">Gaps between keys: %1$d %%</string>
+    <string name="agent_design_height">Key height: %1$d %%</string>
+    <string name="agent_design_font_style">As the key shape</string>
+    <string name="agent_design_font_regular">Regular</string>
+    <string name="agent_design_font_medium">Medium</string>
+    <string name="agent_design_font_bold">Bold</string>
+    <string name="agent_design_color_functional">Function keys</string>
+    <string name="agent_design_color_accent">Accent and Enter</string>
+    <string name="agent_design_image_pick">Choose image</string>
+    <string name="agent_design_image_remove">Remove image</string>
+    <string name="agent_design_image_note">The image stays on this device. When you use the design it replaces the background image of the keyboard; your own image from before comes back when you choose another design.</string>
+    <string name="agent_design_image_error">The file could not be read as an image.</string>
+    <string name="agent_design_save">Save and use</string>
+    <string name="agent_design_cancel">Cancel</string>
+    <string name="agent_design_delete">Delete design</string>
+    <string name="agent_design_delete_confirm">Delete the design \"%s\"?</string>
+    <string name="agent_design_discard">Discard the changes?</string>
+    <string name="agent_design_limit">At most %d designs.</string>
+</resources>

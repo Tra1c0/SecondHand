@@ -50,9 +50,20 @@ object DesignTiles {
             add(Tile.Colors(KeyboardTheme.THEME_LIGHT))
             add(Tile.Colors(KeyboardTheme.THEME_DARK))
         }
-        val colors = available.filterNot { it in STANDARD }.map { Tile.Colors(it) }
+        val colors = available.filterNot { it in STANDARD }.map { Tile.Colors(it) } +
+            userColorSets(prefs).map { Tile.Colors(it) }
         return listOf(Section.STANDARD to standard, Section.TEMPLATES to listOf(Tile.Flat), Section.COLORS to colors)
     }
+
+    /**
+     * Colour sets the owner made with HeliBoard's colour editor (stage 23f2); the sets of "My
+     * designs" belong to their design tiles and are left out here.
+     */
+    fun userColorSets(prefs: SharedPreferences): List<String> = prefs.all.keys
+        .filter { it.startsWith(Settings.PREF_USER_COLORS_PREFIX) || it.startsWith(Settings.PREF_USER_ALL_COLORS_PREFIX) }
+        .map { it.removePrefix(Settings.PREF_USER_ALL_COLORS_PREFIX).removePrefix(Settings.PREF_USER_COLORS_PREFIX) }
+        .filterNot { it.startsWith(MyDesigns.THEME_PREFIX) }
+        .distinct().sorted()
 
     private fun dayNight(prefs: SharedPreferences) =
         prefs.getBoolean(Settings.PREF_THEME_DAY_NIGHT, Defaults.PREF_THEME_DAY_NIGHT)
@@ -85,6 +96,8 @@ object DesignTiles {
      */
     fun select(context: Context, tile: Tile) {
         val prefs = context.prefs()
+        // a built-in look has the radius and font of its style and no design image
+        MyDesigns.leaveDesign(context)
         when (tile) {
             is Tile.Flat -> {
                 FlatPreset(context).apply()

@@ -219,7 +219,9 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
   Buchstaben-Hinweise kommen bei `symbols_flat` weiter aus dem Standard-Layout `symbols`.
 - `LayoutParser.kt`: `parseLayout` nimmt optional einen festen Layoutnamen (für die Hinweise).
 - `KeyboardView.java`: Schrift für Beschriftung und Hinweise, rechtsbündige Hinweise,
-  angehobene Kleinbuchstaben, jeweils nur im flachen Stil.
+  angehobene Kleinbuchstaben, jeweils nur im flachen Stil. Dazu (23f2) ein Aufruf
+  `DesignLook.load` nach dem Laden der vier Tastenhintergründe (Rundung und Schrift eines
+  eigenen Designs, für alle Stile); `FlatStyle.typeface` nimmt zuerst die Design-Schrift.
 - `MainKeyboardView.java`: Sprachkürzel auf der Leertaste mit Punkt als Trenner und Schrift,
   nur im flachen Stil.
 - `KeyboardIconsSet.kt`: Icon-Satz für den Stil „Flat“ (Material plus `FlatStyle.iconOverrides`).
@@ -677,6 +679,24 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `K/settings/screens/AgentDesignScreen.kt` (Raster, Rahmen und Häkchen, TalkBack als
   Radio-Buttons; Kachelfarben neu bei geändertem Stil oder Tastenrahmen, `DesignTiles.look`); erreichbar über Aussehen → „Design“ und die Menü-Pille „Design“
   (`agent_design`). Test `AT/DesignTilesTest.kt` (Bild unter `app/build/reports/design-tiles/`).
+- Eigene Designs (23f2): `A/MyDesigns.kt` (Modell, JSON-Liste `agent_designs`, Speichern,
+  Auswählen, Löschen; ein Design ist ein HeliBoard-Farbsatz `user_colors_agent_design_<id>` plus
+  Werte für vorhandene Einstellungen, `selectionValues()` nennt genau die Schlüssel, die die
+  Auswahl schreibt oder entfernt; eigenes Bild in `agent_designs/` neben HeliBoards
+  Hintergrundbild, siehe `docs/STORAGE.md`), `A/DesignLook.kt` (Eckenrundung und Schrift aus
+  `agent_key_corner_radius`/`agent_key_font`, gelesen je `KeyboardView`; Pillen ab 100 dp Radius
+  bleiben Pillen; vor Android 7 keine Rundung, weil der Radius dort nicht lesbar ist) und
+  `K/settings/screens/AgentDesignEditor.kt` (Editor mit fester Live-Vorschau oben, die
+  `DesignPreview` mit Compose aus demselben `Colors`-Objekt zeichnet, das die Tastatur nutzt;
+  Farbwahl über HeliBoards `ColorPickerDialog`; Bild über die System-Dateiauswahl, bis zum
+  Speichern in `pending.img`). `AgentDesignScreen.kt` zeigt oben „Meine Designs“ mit Kachel „+“
+  (Antippen wählt, langes Drücken oder Stift öffnet den Editor, Löschen im Editor mit Rückfrage);
+  der Editor ersetzt die Seite ohne eigenes Navigationsziel. `DesignTiles` zeigt eigene
+  Farbsätze aus HeliBoards Farbeditor unter „Farben“ und nimmt beim Wählen einer eingebauten
+  Kachel Rundung, Schrift und Designbild zurück (`MyDesigns.leaveDesign`). Texte:
+  `agent_design_strings.xml`. Tests `AT/MyDesignsTest.kt` (genau geschriebene und entfernte
+  Schlüssel, Bild, Rundung, Schrift) und `AT/DesignEditorTest.kt` (Kacheln, Editor, Löschen mit
+  Rückfrage, Vorschau-Pixel; Bilder unter `app/build/reports/design-editor/`).
 
 ## Flacher Stil
 
@@ -1090,26 +1110,32 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   prüfen; die SHA-256 schützt nur gegen Übertragungsfehler, nicht gegen ein manipuliertes
   Release.
 
+- **P49** Ein Kotlin-Zugriff auf `Defaults.PREF_KEY_GAP_SCALE[0]` (bzw.
+  `PREF_KEYBOARD_HEIGHT_SCALE[0]`) aus einer anderen Datei ließ den Compiler ein ungültiges
+  `Defaults.<clinit>` erzeugen (`VerifyError: Bad local variable type`, jeder Robolectric-Test
+  bricht ab, auch bei vollem Neubau). `MyDesigns` nutzt deshalb `1f` (Standard im Hochformat).
+  Bei so einem `VerifyError` zuerst den letzten neuen Zugriff auf `Defaults` prüfen.
+
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (321 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (328 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (4): agent-apk, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (52): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (54): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
   AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand, ContactCommand,
-  ConvertCommand, CorrectionMemory, DateCommand, DesignTiles, Dictation, EmojiCommand,
+  ConvertCommand, CorrectionMemory, DateCommand, DesignLook, DesignTiles, Dictation, EmojiCommand,
   EncryptedActionRunStore, EventCommand, FlatMenuView, FlatPanelStyle, FlatPreset,
   JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore, LearningData,
-  LoadingDotsView, ManualWorkflowDraft, ModelSettings, OnDeviceSpeechEngine, PlaceCommand,
-  RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore, SkillLabels,
-  ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel, TypoMemory,
+  LoadingDotsView, ManualWorkflowDraft, ModelSettings, MyDesigns, OnDeviceSpeechEngine,
+  PlaceCommand, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore,
+  SkillLabels, ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel, TypoMemory,
   WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner,
   WorkflowInputSummary, WorkflowStore
 - `A/commands/` (13): AiCommandChips, AlarmCommand, AskCommand, ClipCommand, QrCommand,
@@ -1119,16 +1145,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (57): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (59): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, CalculatorViewTest, CalendarToolLauncherTest,
   ClipCommandTest, CommandReplaceTest, CommandTemplatesTest, ContactCommandTest,
-  CorrectionMemoryTest, DatePlaceCommandsTest, DebugPrivacyTest, DesignTilesTest,
+  CorrectionMemoryTest, DatePlaceCommandsTest, DebugPrivacyTest, DesignEditorTest, DesignTilesTest,
   DictationSessionTest, DictationUiTest, EncryptedActionRunStoreTest, EncryptedCredentialStoreTest,
   FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest,
   ForkIdentityTest, InsertAtCursorTest, JournaledModelCallTest, KeyboardCommandsTest,
   KeyboardProfileStoreTest, LearningDataTest, LoadingDotsViewTest, MainSettingsLookTest,
-  ManualWorkflowDraftTest, MoreCommandsTest, MoreProvidersTest, OpenAiProviderTest,
+  ManualWorkflowDraftTest, MoreCommandsTest, MoreProvidersTest, MyDesignsTest, OpenAiProviderTest,
   ScreenshotChipTest, SelectedTextCommitTest, SkillBindingStoreTest, SkillSettingsTest,
   SnipCommandTest, TestRunJournal, ToolRunnerTest, TouchModelTest, TypoMemoryTest, UpdateCheckTest,
   WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
@@ -1164,11 +1190,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/latin/suggestions/` (2): FlatStrip, SuggestionStripView
 - `K/latin/utils/` (1): ToolbarUtils
 - `K/settings/` (3): SearchScreen, SettingsActivity, SettingsNavHost
-- `K/settings/screens/` (18): AgentAiScreen, AgentCommandsScreen, AgentDesignScreen,
-  AgentDictationScreen, AgentLearningScreen, AgentMainSettings, AgentProfilesScreen, AgentRunStatus,
-  AgentScreenReaderSection, AgentScreenshotScreen, AgentSkillsScreen, AgentSnippetsSection,
-  AgentUpdatesScreen, AgentWorkflowsScreen, AppearanceScreen, MainSettingsScreen,
-  WorkflowBuilderDialog, WorkflowDraftProtection
+- `K/settings/screens/` (19): AgentAiScreen, AgentCommandsScreen, AgentDesignEditor,
+  AgentDesignScreen, AgentDictationScreen, AgentLearningScreen, AgentMainSettings,
+  AgentProfilesScreen, AgentRunStatus, AgentScreenReaderSection, AgentScreenshotScreen,
+  AgentSkillsScreen, AgentSnippetsSection, AgentUpdatesScreen, AgentWorkflowsScreen,
+  AppearanceScreen, MainSettingsScreen, WorkflowBuilderDialog, WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
 - `app/` (1): build.gradle
@@ -1188,9 +1214,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (3): agent_alarm_strings, agent_strings, agent_update_strings
-- `app/src/main/res/values/` (10): agent_alarm_strings, agent_attrs, agent_ids, agent_strings,
-  agent_update_strings, attrs, clip_provider, donottranslate, gesture_data, themes-flat
+- `app/src/main/res/values-de/` (4): agent_alarm_strings, agent_design_strings, agent_strings,
+  agent_update_strings
+- `app/src/main/res/values/` (11): agent_alarm_strings, agent_attrs, agent_design_strings,
+  agent_ids, agent_strings, agent_update_strings, attrs, clip_provider, donottranslate,
+  gesture_data, themes-flat
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (1): Shadows

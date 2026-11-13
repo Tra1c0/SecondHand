@@ -3,6 +3,18 @@ package helium314.keyboard.settings.screens
 
 import android.content.Context
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import helium314.keyboard.agent.MyDesigns
+import helium314.keyboard.latin.common.ColorType
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -85,12 +97,50 @@ fun AgentDesignScreen(onClickBack: () -> Unit) {
     // the settings activity reports every preference change; the counter covers taps without it (tests)
     val changed = (context.getActivity() as? SettingsActivity)?.prefChanged?.collectAsState()?.value ?: 0
     var taps by remember { mutableIntStateOf(0) }
+    // id of the design in the editor, NEW_DESIGN for a new one, null while the tiles are shown
+    var editing by rememberSaveable { mutableStateOf<String?>(null) }
     val selected = remember(changed, taps) { DesignTiles.selectedId(prefs) }
     val sections = remember(changed, taps) { DesignTiles.sections(prefs) }
+    val designs = remember(changed, taps) { MyDesigns.list(prefs) }
     // the tiles show the current style and key borders: recompute their colours when those change
     val look = remember(changed, taps) { DesignTiles.look(context) }
+    editing?.let { id ->
+        val newName = stringResource(R.string.agent_design_new_name, designs.size + 1)
+        val initial = remember(id) { if (id == NEW_DESIGN) MyDesigns.newDesign(context, newName) else MyDesigns.get(prefs, id) }
+        if (initial == null) {
+            editing = null
+            return
+        }
+        AgentDesignEditor(initial, isNew = id == NEW_DESIGN) {
+            editing = null
+            taps++
+        }
+        return
+    }
     SearchSettingsScreen(onClickBack, stringResource(R.string.agent_design_title), emptyList()) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
+            Text(
+                stringResource(R.string.agent_design_section_mine),
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(top = 20.dp, bottom = 10.dp),
+            )
+            val mine: List<MyDesigns.Design?> = listOf(null) + designs
+            mine.chunked(COLUMNS).forEach { row ->
+                Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    row.forEach { design ->
+                        if (design == null) AddTile(Modifier.weight(1f), enabled = designs.size < MyDesigns.MAX_DESIGNS) { editing = NEW_DESIGN }
+                        else MyDesignTile(design, design.themeName == selected, look, Modifier.weight(1f),
+                            onEdit = { editing = design.id }) {
+                            if (design.themeName != selected) {
+                                MyDesigns.select(context, design)
+                                taps++
+                            }
+                        }
+                    }
+                    repeat(COLUMNS - row.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
             sections.forEach { (section, tiles) ->
                 if (tiles.isEmpty()) return@forEach
                 Text(
@@ -126,6 +176,7 @@ fun AgentDesignScreen(onClickBack: () -> Unit) {
 }
 
 private const val COLUMNS = 3
+private const val NEW_DESIGN = "+"
 
 private fun sectionTitle(section: Section) = when (section) {
     Section.STANDARD -> R.string.agent_design_section_standard
@@ -211,5 +262,84 @@ private fun CheckMark(accent: Color, modifier: Modifier) {
             lineTo(size.width * 0.74f, size.height * 0.36f)
         }
         drawPath(path, onAccent, style = Stroke(width = size.width * 0.12f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+/** The "+" tile at the start of "My designs": opens the editor for a new design. */
+@Composable
+private fun AddTile(modifier: Modifier, enabled: Boolean, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(12.dp)
+    Column(
+        modifier.clickable(enabled = enabled, role = Role.Button, onClickLabel = stringResource(R.string.agent_design_new), onClick = onClick)
+            .testTag("agent_design_add"),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            Modifier.fillMaxWidth().aspectRatio(1.25f).clip(shape)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .border(1.dp, MaterialTheme.colorScheme.outline, shape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(painterResource(R.drawable.ic_plus), stringResource(R.string.agent_design_new),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(32.dp))
+        }
+        Text(
+            stringResource(if (enabled) R.string.agent_design_new else R.string.agent_design_limit, MyDesigns.MAX_DESIGNS),
+            style = MaterialTheme.typography.bodySmall,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+    }
+}
+
+/** A saved design: tap selects, long press or the pencil opens the editor. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun MyDesignTile(design: MyDesigns.Design, selected: Boolean, look: String, modifier: Modifier,
+                         onEdit: () -> Unit, onSelect: () -> Unit) {
+    val context = LocalContext.current
+    val swatch = remember(design, look) {
+        val colors = MyDesigns.colors(context, design)
+        DesignTiles.Swatch(colors.get(ColorType.MAIN_BACKGROUND), colors.get(ColorType.SPACE_BAR_BACKGROUND),
+            colors.get(ColorType.ACTION_KEY_BACKGROUND))
+    }
+    val accent = MaterialTheme.colorScheme.primary
+    val shape = RoundedCornerShape(12.dp)
+    val editLabel = stringResource(R.string.agent_design_edit_named, design.name)
+    Column(
+        modifier
+            .combinedClickable(role = Role.RadioButton, onLongClick = onEdit, onLongClickLabel = editLabel, onClick = onSelect)
+            .semantics { this.selected = selected }
+            .testTag("agent_design_tile_${design.themeName}"),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            Modifier.fillMaxWidth().aspectRatio(1.25f)
+                .then(if (selected) Modifier.border(3.dp, accent, shape) else Modifier)
+                .padding(if (selected) 3.dp else 0.dp)
+                .clip(RoundedCornerShape(if (selected) 9.dp else 12.dp))
+        ) {
+            Canvas(Modifier.fillMaxSize()) { drawTile(listOf(swatch)) }
+            if (selected) CheckMark(accent, Modifier.align(Alignment.TopEnd).padding(5.dp))
+            Box(
+                Modifier.align(Alignment.TopStart).padding(4.dp).size(28.dp).clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.45f))
+                    .clickable(role = Role.Button, onClickLabel = editLabel, onClick = onEdit)
+                    .testTag("agent_design_edit_${design.id}"),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(painterResource(R.drawable.ic_edit), editLabel, tint = Color.White, modifier = Modifier.size(16.dp))
+            }
+        }
+        Text(
+            design.name,
+            style = MaterialTheme.typography.bodySmall,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 6.dp),
+        )
     }
 }

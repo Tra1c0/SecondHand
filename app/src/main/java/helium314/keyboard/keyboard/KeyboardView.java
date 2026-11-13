@@ -122,6 +122,8 @@ public class KeyboardView extends View {
             mActionKeyBackground = mColors.selectAndColorDrawable(keyboardViewAttr, ColorType.ACTION_KEY_POPUP_KEYS_BACKGROUND);
         else
             mActionKeyBackground = mColors.selectAndColorDrawable(keyboardViewAttr, ColorType.ACTION_KEY_BACKGROUND);
+        // fork: corner radius and font of a user design (DesignLook)
+        helium314.keyboard.agent.DesignLook.load(context, mKeyBackground, mFunctionalKeyBackground, mSpacebarBackground, mActionKeyBackground);
 
         mSpacebarIconWidthRatio = keyboardViewAttr.getFloat(
                 R.styleable.KeyboardView_spacebarIconWidthRatio, 1.0f);
