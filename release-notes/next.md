@@ -36,3 +36,12 @@
   App das Bild wirklich angenommen hat; sonst bleiben sie stehen und ein Hinweis erscheint.
   Setzt eine App das Bild selbst an die Schreibmarke, heißt der Hinweis jetzt „Bild eingefügt …“
   statt „Text geändert“. Noch auf keinem Gerät ausprobiert.
+
+## Etappe 35
+
+- Neu: Emoji-Vorschläge in der Leiste treffen deutlich mehr. Wortformen („Katzen“ → 🐈),
+  Groß-/Kleinschreibung und Umlaute („KAESE“ → 🧀), Wortanfänge ab 4 Buchstaben („Schmetterl“
+  → 🦋), ein Tippfehler ab 4 Buchstaben („Kafee“ → ☕), Englisch beim deutschen Tippen
+  („party“ → 🎉) und eigene Synonyme („geil“ → 🔥). Höchstens zwei Emojis, hinter den ersten zwei
+  Wortvorschlägen, nie als Autokorrektur. Alles lokal; nicht in Passwortfeldern, bei Inkognito
+  oder bei gesperrtem Gerät. Noch auf keinem Gerät ausprobiert.

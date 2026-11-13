@@ -1049,6 +1049,73 @@ class InputLogicTest {
         }
     }
 
+    /** Stage 35: the real suggestion path (InputLogic -> Suggest) with the committed keyword table. */
+    private fun typedEmojiSuggestionsFor(word: String): List<String> {
+        setText("")
+        chainInput(word)
+        handleMessages()
+        // as InputLogic.getSuggestedWords, but synchronously (its handler thread does not run here)
+        val params = helium314.keyboard.keyboard.internal.KeyboardParams().apply {
+            GRID_HEIGHT = 1; GRID_WIDTH = 1
+            mId = helium314.keyboard.keyboard.KeyboardLayoutSet.getFakeKeyboardId(helium314.keyboard.keyboard.KeyboardElement.ALPHABET)
+        }
+        val words = inputLogic.mSuggest.getSuggestedWords(composer.copy(), NgramContext.EMPTY_PREV_WORDS_INFO,
+            helium314.keyboard.keyboard.Keyboard(params), settingsValues.mSettingsValuesForSuggestion,
+            settingsValues.mAutoCorrectEnabled, SuggestedWords.INPUT_STYLE_TYPING, SuggestedWords.NOT_A_SEQUENCE_NUMBER)
+        latinIME.setSuggestions(words)
+        handleMessages()
+        return inputLogic.mSuggestedWords.mSuggestedWordInfoList.map { it.mWord }
+    }
+
+    private fun withEmojiKeywords(body: () -> Unit) {
+        helium314.keyboard.agent.EmojiSuggestions.setTableForTest(
+            latinIME.assets.open("emoji_keywords.bin").use { dev.agentkeyboard.core.EmojiKeywords.read(it) })
+        try { body() } finally { helium314.keyboard.agent.EmojiSuggestions.setTableForTest(null) }
+    }
+
+    @Test fun typedEmojiSuggestionsAreTolerantAndNeverTypeThemselves() = withEmojiKeywords {
+        // word form, umlaut spelled out, word start, typo, English while typing German, synonym
+        for ((word, emoji) in listOf("Katzen" to "🐈", "Kaese" to "🧀", "Schmetterl" to "🦋", "Kafee" to "☕",
+                "party" to "🎉", "zocken" to "🎮")) {
+            val words = typedEmojiSuggestionsFor(word)
+            assertTrue(emoji in words, "$word: $words")
+            assertTrue(words.count { StringUtils.mightBeEmoji(it.codePointAt(0)) } <= 2, "$word: $words")
+            assertFalse(inputLogic.mSuggestedWords.mWillAutoCorrect)
+            assertEquals(word, text) // only offered, nothing typed
+        }
+        assertTrue(typedEmojiSuggestionsFor("und").none { StringUtils.mightBeEmoji(it.codePointAt(0)) })
+    }
+
+    @Test fun typedEmojiSuggestionsStayOffInPasswordFieldsIncognitoLockedAndWhenSwitchedOff() = withEmojiKeywords {
+        assertTrue("🐈" in typedEmojiSuggestionsFor("Katzen"))
+        latinIME.prefs().edit { putBoolean(Settings.PREF_SUGGEST_EMOJIS, false) }
+        assertFalse("🐈" in typedEmojiSuggestionsFor("Katzen"))
+        latinIME.prefs().edit { putBoolean(Settings.PREF_SUGGEST_EMOJIS, true) }
+        latinIME.prefs().edit { putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true) }
+        assertFalse("🐈" in typedEmojiSuggestionsFor("Katzen"))
+        latinIME.prefs().edit { putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, false) }
+        assertTrue("🐈" in typedEmojiSuggestionsFor("Katzen"))
+        val keyguard = org.robolectric.Shadows.shadowOf(latinIME.getSystemService(android.app.KeyguardManager::class.java))
+        keyguard.setIsDeviceLocked(true)
+        try { assertFalse("🐈" in typedEmojiSuggestionsFor("Katzen")) } finally { keyguard.setIsDeviceLocked(false) }
+        assertTrue("🐈" in typedEmojiSuggestionsFor("Katzen"))
+        // the app asks for no personalized learning (an incognito tab)
+        latinIME.mSettings.loadSettings(latinIME, settingsValues.mLocale, InputAttributes(
+            android.view.inputmethod.EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT
+                imeOptions = android.view.inputmethod.EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING },
+            false, latinIME.packageName))
+        assertTrue(settingsValues.mIncognitoModeEnabled)
+        assertFalse(helium314.keyboard.agent.EmojiSuggestions.isOn(settingsValues))
+        for (type in listOf(InputType.TYPE_TEXT_VARIATION_PASSWORD, InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD)) {
+            latinIME.mSettings.loadSettings(latinIME, settingsValues.mLocale, InputAttributes(
+                android.view.inputmethod.EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT or type }, false, latinIME.packageName))
+            assertTrue(settingsValues.mInputAttributes.mIsPasswordField)
+            assertFalse(helium314.keyboard.agent.EmojiSuggestions.isOn(settingsValues))
+        }
+        setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        assertFalse("🐈" in typedEmojiSuggestionsFor("Katzen"))
+    }
+
     /**
      * Stage 25a with the real host and the real image sink: the typed emojis go only after the field
      * took the image. A refusing app or blocked input keeps them; a rich-text editor that puts the
@@ -3224,6 +3291,7 @@ class InputLogicTest {
         currentScript = ScriptUtils.SCRIPT_LATIN
         ShadowInputMethodService.reset()
         helium314.keyboard.agent.ScreenshotChip.resetForTest()
+        helium314.keyboard.agent.EmojiSuggestions.setTableForTest(null) // no emojis unless a test loads the table
         lastAddedWord = ""
 
         // reset settings

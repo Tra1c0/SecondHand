@@ -528,6 +528,14 @@ herunterladen. „Emojis vorschlagen“, „Inline-Emoji-Suche“ (Emoji nach `:
 Emoji-Beschreibungen sind in HeliBoard standardmäßig an und wirken damit sofort. Abschalten unter
 Einstellungen → Textkorrektur. Für andere Sprachen gilt weiter der Hinweis mit dem Download-Link.
 
+Die Emojis in der Leiste sind tolerant: „Katzen“, „KATZE“, „Katz“ und „Kaze“ zeigen 🐈, „Kaese“
+zeigt 🧀, „party“ beim deutschen Tippen 🎉, „geil“ 🔥. Wortanfänge und Tippfehler zählen erst ab
+4 Buchstaben und nur, wenn das Getippte kein richtiges Wort ist („habe“ zeigt keinen Hasen).
+Wörter wie „und“, „die“ oder „ich“ bekommen nie ein Emoji. Es stehen höchstens zwei Emojis in der
+Leiste, rechts neben den Wortvorschlägen (das zweite oft erst unter dem Pfeil für weitere Vorschläge). Ein
+Emoji kommt nur durch deinen Tipp ins Feld. Aus mit „Emojis vorschlagen“; in Passwortfeldern,
+bei Inkognito und bei gesperrtem Gerät ohnehin nicht.
+
 ## Autokorrektur
 
 Einstellungen → Gelernte Wörter → Abschnitt „Autokorrektur“:

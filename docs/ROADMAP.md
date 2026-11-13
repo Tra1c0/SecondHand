@@ -67,6 +67,12 @@ Reihenfolge von oben nach unten.
   Lichtmuster (Farben, Formen, Bewegung) auf Basis der neuen Muster und der Kurve aus 29. (L)
 - **32 Emoji-Mix: zuletzt gemischt** (vom Owner gewünscht, 2026-11-13): Reihe der letzten
   Sticker im Mixer, aus dem Cache auf dem Gerät, ohne neuen Download. (S)
+- **35 Tolerantere Emoji-Vorschläge** (Auftrag des Owners vom 2026-11-13, eigener Branch neben
+  Build 13) ist gebaut (siehe FEATURES.md), mit Prüfer (`docs/VALIDATION.md` → Etappe 35). Vom
+  Owner gewählt: Wortformen, Groß/klein und Umlaute, Wortanfänge, Tippfehler, Deutsch/Englisch
+  gemischt, Synonyme; höchstens zwei Emojis hinter den ersten zwei Wörtern. Offen: Gerätetest
+  (Trefferqualität beim echten Tippen, Ladezeit auf dem Telefon), Gestenschreiben bekommt die
+  neuen Treffer noch nicht. (M)
 
 Ziel des Owners (2026-11-12): ein „Agentic Keyboard“, das aus dem Gesprächskontext erkennt, was
 du tun willst, und es mit einer Geste und einem Tipp erledigt, dazu eine lernfähige

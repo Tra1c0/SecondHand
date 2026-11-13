@@ -6,6 +6,7 @@
 package helium314.keyboard.latin
 
 import helium314.keyboard.agent.CorrectionGuard
+import helium314.keyboard.agent.EmojiSuggestions
 import helium314.keyboard.agent.RejectedCorrections
 import helium314.keyboard.agent.TypoMemory
 import android.text.TextUtils
@@ -118,6 +119,12 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         // fork, stage 20b: a typo the user corrected by hand three times is corrected automatically
         val hasAutoCorrection = applyLearnedCorrection(typedWordString, capsMode, ngramContext, suggestionResults,
             suggestionsContainer, isCorrectionEnabled, wordComposer) || guardedAutoCorrection
+        // fork, stage 35: tolerant emoji suggestions behind the first two words, never the autocorrection
+        if (typedWordString.isNotEmpty() && !resultsArePredictions) {
+            EmojiSuggestions.addTo(suggestionsContainer, typedWordString, mDictionaryFacilitator.mainLocale,
+                suggestionResults.any { it.mWord.equals(typedWordString, ignoreCase = true) && !it.isEmoji },
+                hasAutoCorrection, Settings.getValues(), Settings.getCurrentContext())
+        }
         val typedWordInfo = SuggestedWordInfo(typedWordString, "", SuggestedWordInfo.MAX_SCORE,
             SuggestedWordInfo.KIND_TYPED, typedWordFirstOccurrenceWordInfo?.mSourceDict ?: Dictionary.DICTIONARY_USER_TYPED,
             SuggestedWordInfo.NOT_AN_INDEX , SuggestedWordInfo.NOT_A_CONFIDENCE)
