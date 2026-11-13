@@ -62,8 +62,14 @@ object ScreenshotChip {
     const val DEBOUNCE_MILLIS = 500L
     /** A screenshot goes into the history only if a media change reported it this soon after it was taken. */
     const val HISTORY_MAX_AGE = 60_000L
-    /** Id of the last screenshot decided for the clipboard history (added, refused or excluded): each one once. */
+    /** Former single id of the last screenshot decided for the history; still read, see [HISTORY_DECIDED]. */
     private const val HISTORY_LAST = "agent_screenshot_history_id"
+    /** Ids of the screenshots decided for the clipboard history (added, refused or excluded): each one once. */
+    private const val HISTORY_DECIDED = "agent_screenshot_history_ids"
+    /** The newest ids are kept: more than can be taken within [RECENT_MILLIS] in practice. */
+    private const val HISTORY_DECIDED_KEEP = 32
+    /** At most this many screenshots from one query, newest first. */
+    private const val MAX_SHOTS = 10
     /** "entry id:timestamp" of the history entries made from screenshots, removed when the switch goes off. */
     private const val HISTORY_ENTRIES = "agent_screenshot_history_entries"
     /** Former tracking by file name, which could not tell a later copy of the same picture by the user. */
@@ -73,8 +79,15 @@ object ScreenshotChip {
 
     class Shot(val id: Long, val uri: Uri, val mimeType: String, val addedMillis: Long)
 
-    /** Replaced in tests, which have no media store. Runs on [background]. */
-    @JvmStatic var finder: (ContentResolver, Long) -> Shot? = ::newestScreenshot
+    /**
+     * The screenshots of the last [RECENT_MILLIS], newest first: several changes within the debounce
+     * time are one query, and each screenshot in it is decided for the history. Replaced in tests,
+     * which have no media store. Runs on [background].
+     */
+    @JvmStatic var finder: (ContentResolver, Long) -> List<Shot> = ::recentScreenshots
+
+    /** Tests: a finder that knows only the newest screenshot (or none). */
+    @JvmStatic fun findOnly(newest: (ContentResolver, Long) -> Shot?) { finder = { resolver, now -> listOfNotNull(newest(resolver, now)) } }
     /** Wall clock for ages and expiry; replaced in tests. */
     @JvmStatic var clock: () -> Long = { System.currentTimeMillis() }
 
@@ -97,12 +110,12 @@ object ScreenshotChip {
     private var observerFailed = false
     private var lastQuery = 0L
     @Volatile private var appContext: Context? = null
-    /** The newest screenshot seen so far; the history decision is made when a new one is first seen. */
-    private var lastSeenId = -1L
-    /** The screenshot that may go into the history, see [deliver]. */
-    private var historyCandidate = -1L
-    /** The screenshot whose copy for the history is being made. */
-    private var historyPending = -1L
+    /** The screenshots seen so far (of the last query); the history decision is made when one is first seen. */
+    private val seenIds = HashSet<Long>()
+    /** The screenshots that may go into the history, oldest first, see [deliver]. */
+    private val historyCandidates = ArrayList<Shot>()
+    /** The screenshots whose copy for the history is being made. */
+    private val historyPending = HashSet<Long>()
     private val historyFailures = HashMap<Long, Int>()
     /** Last media change while the history was not allowed (locked, incognito, unknown field): older screenshots never go in. */
     @Volatile private var privacyBlockMillis = 0L
@@ -231,7 +244,7 @@ object ScreenshotChip {
         lastQuery = now
         val resolver = context.contentResolver
         background.execute {
-            val found = try { finder(resolver, now) } catch (e: Exception) {
+            val found = try { finder(resolver, now).takeIf { it.isNotEmpty() } } catch (e: Exception) {
                 Log.w(TAG, "could not look for a screenshot", e)
                 null
             }
@@ -240,23 +253,30 @@ object ScreenshotChip {
     }
 
     /**
-     * Main thread: keeps the query result. A screenshot seen for the first time is decided for the
-     * history here, once: it may go in only if a media change reported it soon after it was taken,
+     * Main thread: keeps the query result (the newest is offered). Each screenshot seen for the first
+     * time is decided for the history here, once, also when several came within the debounce time:
+     * it may go in only if a media change reported it soon after it was taken,
      * no change since it was taken came while the history was not allowed, and the history is
      * allowed now ([privacyAllowsHistory]). Otherwise it is marked as handled for good, so that it
      * is not added later, e.g. after unlocking.
      */
-    private fun deliver(context: Context, found: Shot?, viaChange: Boolean) {
+    private fun deliver(context: Context, found: List<Shot>?, viaChange: Boolean) {
         querying = false
-        val changed = found?.id != cached?.id
-        cached = found
-        if (found != null && found.id != lastSeenId) {
-            lastSeenId = found.id
-            val age = clock() - found.addedMillis
-            val allowed = viaChange && age in 0..HISTORY_MAX_AGE && found.addedMillis > privacyBlockMillis
-                && privacyAllowsHistory(context, Settings.getValues())
-            historyCandidate = if (allowed) found.id else -1L
-            if (!allowed) context.prefs().edit().putLong(HISTORY_LAST, found.id).apply()
+        val newest = found?.first()
+        val changed = newest?.id != cached?.id
+        cached = newest
+        if (found != null) {
+            val fresh = found.filter { it.id !in seenIds }.sortedWith(compareBy({ it.addedMillis }, { it.id }))
+            seenIds.retainAll(found.mapTo(HashSet()) { it.id }) // older ones are out of the window for good
+            if (fresh.isNotEmpty()) {
+                val historyAllowed = viaChange && privacyAllowsHistory(context, Settings.getValues())
+                val now = clock()
+                for (shot in fresh) {
+                    seenIds += shot.id
+                    val allowed = historyAllowed && now - shot.addedMillis in 0..HISTORY_MAX_AGE && shot.addedMillis > privacyBlockMillis
+                    if (allowed) historyCandidates += shot else markDecided(context, shot.id)
+                }
+            }
         }
         if (changePending) { refresh(context, clock(), fromChange = true); return } // reported after the newer query
         if (viaChange || changed) postIn(notifier, 0L) // not in place: the caller may be building the strip
@@ -277,12 +297,25 @@ object ScreenshotChip {
     ): Boolean {
         if (dao == null || settings == null || !settings.mClipboardHistoryEnabled || settings.mIncognitoModeEnabled) return false
         if (!isEnabled(context) || !hasPermission(context) || helium314.keyboard.compat.isDeviceLocked(context)) return false
-        val shot = newest(context, now) ?: return false
-        if (shot.id != historyCandidate || shot.id == historyPending) return false
-        if (context.prefs().getLong(HISTORY_LAST, -1L) == shot.id) return false // also when it was removed from the history since
-        historyPending = shot.id
-        val pending = File(helium314.keyboard.latin.database.ClipboardDao.clipFilesDir.parentFile, PENDING_DIRECTORY)
+        newest(context, now) ?: return false
+        // too old to be offered: no longer copied either
+        historyCandidates.removeAll { now - it.addedMillis !in 0..RECENT_MILLIS }
+        val shots = historyCandidates.filter { it.id !in historyPending && !isDecided(context, it.id) } // also when removed from the history since
+        if (shots.isEmpty()) return false
+        val pending = pendingDirectory()
         val resolver = context.contentResolver
+        for (shot in shots) {
+            historyPending += shot.id
+            copyForHistory(context, dao, resolver, pending, shot, mayStore)
+        }
+        return true
+    }
+
+    /** One copy on [background], see [addToHistory]. */
+    private fun copyForHistory(
+        context: Context, dao: helium314.keyboard.latin.database.ClipboardDao, resolver: ContentResolver,
+        pending: File, shot: Shot, mayStore: (Uri) -> Boolean,
+    ) {
         background.execute {
             var file: File? = null
             var checksum: String? = null
@@ -306,7 +339,23 @@ object ScreenshotChip {
             val name = checksum
             onMain { finishHistory(context, dao, shot, copied, name, failed) }
         }
-        return true
+    }
+
+    private fun pendingDirectory() = File(helium314.keyboard.latin.database.ClipboardDao.clipFilesDir.parentFile, PENDING_DIRECTORY)
+
+    private fun isDecided(context: Context, id: Long): Boolean {
+        val prefs = context.prefs()
+        return prefs.getLong(HISTORY_LAST, -1L) == id || prefs.getStringSet(HISTORY_DECIDED, null).orEmpty().contains(id.toString())
+    }
+
+    /** Keeps [id] as decided for the history, also over a restart; only the newest ids are kept. */
+    private fun markDecided(context: Context, id: Long) {
+        historyCandidates.removeAll { it.id == id }
+        val prefs = context.prefs()
+        val ids = prefs.getStringSet(HISTORY_DECIDED, null).orEmpty().mapNotNullTo(HashSet()) { it.toLongOrNull() }
+        if (!ids.add(id)) return
+        val kept = ids.sortedDescending().take(HISTORY_DECIDED_KEEP).mapTo(HashSet()) { it.toString() }
+        prefs.edit().putStringSet(HISTORY_DECIDED, kept).apply()
     }
 
     /** Main thread: makes the history entry for the copy, see [addToHistory]. */
@@ -314,9 +363,9 @@ object ScreenshotChip {
         context: Context, dao: helium314.keyboard.latin.database.ClipboardDao,
         shot: Shot, copy: File?, checksum: String?, failed: Boolean,
     ) {
-        historyPending = -1L
+        historyPending -= shot.id
         val prefs = context.prefs()
-        fun handled() { prefs.edit().putLong(HISTORY_LAST, shot.id).apply() }
+        fun handled() = markDecided(context, shot.id)
         if (failed) {
             // tried once more on the next change; then given up
             val failures = (historyFailures[shot.id] ?: 0) + 1
@@ -438,13 +487,20 @@ object ScreenshotChip {
     /** The copies sit in the keyboard's device protected storage, so they are kept only briefly. */
     private fun directory(context: Context) = File(AgentStorageContexts.keyboard(context).filesDir, DIRECTORY)
 
-    /** Deletes copies older than [KEEP_MILLIS], or all of them with [all] (switch off). Lists files: not on the main thread in the keyboard. */
+    /**
+     * Deletes copies older than [KEEP_MILLIS], or all of them with [all] (switch off). Also deletes
+     * copies for the history left in [PENDING_DIRECTORY] (the keyboard stopped between copy and entry):
+     * a copy being made is far younger. Lists files: not on the main thread in the keyboard.
+     */
     fun cleanUp(context: Context, now: Long, all: Boolean = false) {
-        val files = directory(context).listFiles().orEmpty()
+        val files = directory(context).listFiles().orEmpty().toList() + pendingFiles()
         val old = files.filter { all || now - it.lastModified() > KEEP_MILLIS }
         old.forEach { it.delete() }
         copiesMayExist = files.size > old.size
     }
+
+    private fun pendingFiles(): List<File> =
+        try { pendingDirectory().listFiles().orEmpty().toList() } catch (_: UninitializedPropertyAccessException) { emptyList() } // no history yet
 
     /** [cleanUp] on [background], only while copies may be left. */
     private fun scheduleCleanUp(context: Context, all: Boolean = false) {
@@ -470,6 +526,20 @@ object ScreenshotChip {
         stale = true
     }
 
+    /**
+     * The keyboard is destroyed: no observer, no posted report or expiry and no handler are left
+     * behind. Entries and copies stay (the switch is still on); [start] watches again.
+     */
+    fun stop(context: Context) {
+        onChange = null
+        observer?.let { context.applicationContext.contentResolver.unregisterContentObserver(it) }
+        observer = null
+        stale = true
+        main.removeCallbacks(notifier)
+        main.removeCallbacks(settle)
+        main.removeCallbacks(expiry)
+    }
+
     private fun stopWatching(context: Context) {
         removeFromHistory(context)
         val current = observer
@@ -485,21 +555,25 @@ object ScreenshotChip {
         main.removeCallbacks(expiry)
     }
 
-    /** The newest image in a screenshot folder added within [RECENT_MILLIS] before [now]. */
-    private fun newestScreenshot(resolver: ContentResolver, now: Long): Shot? {
+    /** The images in a screenshot folder added within [RECENT_MILLIS] before [now], newest first. */
+    private fun recentScreenshots(resolver: ContentResolver, now: Long): List<Shot> {
         val collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
         @Suppress("DEPRECATION")
         val path = if (Build.VERSION.SDK_INT >= 29) MediaStore.Images.Media.RELATIVE_PATH else MediaStore.Images.Media.DATA
         val projection = arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.MIME_TYPE, MediaStore.Images.Media.DATE_ADDED)
         val selection = "${MediaStore.Images.Media.DATE_ADDED} >= ? AND $path LIKE ?"
         val arguments = arrayOf(((now - RECENT_MILLIS) / 1000).toString(), "%screenshot%")
-        resolver.query(collection, projection, selection, arguments, "${MediaStore.Images.Media.DATE_ADDED} DESC")?.use { cursor ->
-            if (!cursor.moveToFirst()) return null
-            val id = cursor.getLong(0)
-            val mimeType = cursor.getString(1) ?: "image/png"
-            return Shot(id, ContentUris.withAppendedId(collection, id), mimeType, cursor.getLong(2) * 1000)
+        val shots = ArrayList<Shot>()
+        // DATE_ADDED has whole seconds: the id orders screenshots taken within one second
+        resolver.query(collection, projection, selection, arguments,
+            "${MediaStore.Images.Media.DATE_ADDED} DESC, ${MediaStore.Images.Media._ID} DESC")?.use { cursor ->
+            while (shots.size < MAX_SHOTS && cursor.moveToNext()) {
+                val id = cursor.getLong(0)
+                val mimeType = cursor.getString(1) ?: "image/png"
+                shots += Shot(id, ContentUris.withAppendedId(collection, id), mimeType, cursor.getLong(2) * 1000)
+            }
         }
-        return null
+        return shots
     }
 
     /** Also makes [background] run in place, so that tests stay in step; tests of the threads set their own. */
@@ -512,14 +586,14 @@ object ScreenshotChip {
         observerFailed = false
         lastQuery = 0L
         appContext = null
-        lastSeenId = -1L
-        historyCandidate = -1L
-        historyPending = -1L
+        seenIds.clear()
+        historyCandidates.clear()
+        historyPending.clear()
         historyFailures.clear()
         privacyBlockMillis = 0L
         copiesMayExist = true
         expiringShot = null
-        finder = ::newestScreenshot
+        finder = ::recentScreenshots
         clock = { System.currentTimeMillis() }
         background = java.util.concurrent.Executor { it.run() }
         main.removeCallbacks(notifier)

@@ -2699,7 +2699,7 @@ class InputLogicTest {
         assertFalse(screenshotShown(strip))
         assertTrue(latinIME.isShowingInlineAutofill)
         var shot: helium314.keyboard.agent.ScreenshotChip.Shot? = screenshot(id = 21)
-        helium314.keyboard.agent.ScreenshotChip.finder = { _, _ -> shot }
+        helium314.keyboard.agent.ScreenshotChip.findOnly { _, _ -> shot }
         helium314.keyboard.agent.ScreenshotChip.mediaChanged()
         org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper())
             .idleFor(java.time.Duration.ofMillis(2 * helium314.keyboard.agent.ScreenshotChip.DEBOUNCE_MILLIS))
@@ -2766,7 +2766,7 @@ class InputLogicTest {
         latinIME.prefs().edit { putBoolean(AgentPreferences.SCREENSHOT_CHIP, true) }
         org.robolectric.Shadows.shadowOf(latinIME.application).grantPermissions(helium314.keyboard.agent.ScreenshotChip.permission())
         val fixed = screenshot()
-        helium314.keyboard.agent.ScreenshotChip.finder = { _, _ -> if (shot == null) fixed else shot() }
+        helium314.keyboard.agent.ScreenshotChip.findOnly { _, _ -> if (shot == null) fixed else shot() }
         helium314.keyboard.keyboard.internal.KeyboardIconsSet.instance.loadIcons(latinIME)
         val themed = android.view.ContextThemeWrapper(latinIME, R.style.KeyboardTheme_Flat)
         val root = android.widget.FrameLayout(themed)

@@ -1810,6 +1810,34 @@ Befunde eines lesenden Reviews der Befehle, behoben:
 - Nicht geprüft: ob die Ticks auf dem Xiaomi zu spüren und zu unterscheiden sind, welche Stufe
   das Telefon wirklich spielt (Primitive, Wellenform, Pulse), „Bitte nicht stören“ am Gerät.
 
+## Build 12: Befunde der Nachprüfung
+
+- Auftrag: die vier niedrigen Befunde der Nachprüfung von Build 11 (HANDOFF → Offene Punkte 0.3).
+- Gebaut: (1) `ScreenshotChip.finder` liefert alle Screenshots der letzten drei Minuten,
+  `deliver` entscheidet jeden zum ersten Mal gesehenen einzeln, `addToHistory` kopiert alle
+  offenen Kandidaten; entschiedene IDs als Menge `agent_screenshot_history_ids` (P81).
+  (2) `cleanUp` löscht Reste in `files/agent_screenshot_pending/` älter als 10 Minuten, beim
+  Ausschalten alle. (3) `ClipboardHistoryManager.onDestroy` ruft `ScreenshotChip.stop`
+  (Observer abmelden, Meldung, Entprellen und Ablauf entfernen). (4) `extractAssetsDictionary`
+  schreibt die Zwischendatei nach `files/dicts_extracting/` und löscht sie in `finally` (P80).
+  Geänderte Upstream-Dateien: `ClipboardHistoryManager.kt`, `DictionaryInfoUtils.kt` (beide
+  waren schon geändert und stehen in `map.sources`).
+- Geprüft (Robolectric): je ein neuer Test, jeder schlug mit dem alten Verhalten fehl
+  (ausprobiert: alle vier Korrekturen zurückgenommen, die vier Tests rot, die übrigen grün) und
+  ist mit der Korrektur grün: `ScreenshotChipTest.twoScreenshotsWithinTheDebounceTimeBothGoIntoTheHistory`
+  (beide Einträge, jeder einmal, nach Neustart keiner doppelt; beim Gegentest wurde das alte
+  Verhalten als „nur der neueste wird entschieden“ nachgebildet, weil der alte `finder` nur
+  einen Screenshot kannte), `ScreenshotChipTest.copiesForTheHistoryLeftByAStoppedKeyboardAreRemoved`,
+  `ScreenshotChipTest.theEndOfTheKeyboardStopsTheObserverAndEverythingPosted`,
+  `BundledEmojiDictTest.theTemporaryFileIsNeverInTheLocaleFolderAndIsRemovedOnFailure` (über
+  einen Test-Hook `extractedForTest` vor dem Umbenennen). Bestehende Tests nur auf `findOnly`
+  umgestellt, keine Assertion geändert. `ScreenshotChipTest` 13, `BundledEmojiDictTest` 6,
+  `InputLogicTest.screenshotChip*` 7, `FlatClipboardTest` 8 grün. `tools/dev.py agent-tests`:
+  580 Tests in 73 Klassen, 0 Fehler.
+- Nicht gelaufen: `upstream-tests`, `core-tests`, `lint`, Build (geteilte Maschine). Kein
+  Prüfer-Review, kein Gerät: ob echte Medienspeicher mehrere Screenshots in einer Sekunde mit
+  aufsteigender `_ID` liefern, ist ungeprüft.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

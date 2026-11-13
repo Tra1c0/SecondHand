@@ -55,6 +55,36 @@ class BundledEmojiDictTest {
         assertTrue(first.parentFile!!.listFiles()!!.none { it.name.endsWith(".tmp") })
     }
 
+    @Test fun theTemporaryFileIsNeverInTheLocaleFolderAndIsRemovedOnFailure() {
+        val localeDir = File(DictionaryInfoUtils.getCacheDirectoryForLocale(Locale.GERMANY, app)!!)
+        var seenInFolder: List<String>? = null
+        var temp: File? = null
+        DictionaryInfoUtils.extractedForTest = {
+            temp = it
+            seenInFolder = localeDir.list()!!.toList()
+        }
+        try {
+            assertNotNull(DictionaryInfoUtils.getCachedDictForLocaleAndType(Locale.GERMANY, Dictionary.TYPE_EMOJI, app))
+            // complete, just before the rename: the scanned locale folder holds nothing yet
+            assertEquals(emptyList(), seenInFolder)
+            assertFalse(temp!!.absolutePath.startsWith(DictionaryInfoUtils.getWordListCacheDirectory(app) + File.separator))
+            assertFalse(temp!!.exists())
+
+            // a failure after the copy (here an unexpected one) leaves no temporary file anywhere
+            File(DictionaryInfoUtils.getWordListCacheDirectory(app)).deleteRecursively()
+            DictionaryInfoUtils.extractedForTest = { temp = it; throw IllegalStateException("test") }
+            assertFailsWith<IllegalStateException> {
+                DictionaryInfoUtils.getCachedDictForLocaleAndType(Locale.GERMANY, Dictionary.TYPE_EMOJI, app)
+            }
+            assertFalse(temp!!.exists())
+            assertEquals(emptyList(), localeDir.list()!!.toList())
+            assertTrue(DictionaryInfoUtils.getCachedDictsForLocale(Locale.GERMANY, app).isEmpty())
+            assertFalse(helium314.keyboard.latin.utils.getDictionaryLocales(app).any { it.toLanguageTag() == "de-DE" })
+        } finally {
+            DictionaryInfoUtils.extractedForTest = null
+        }
+    }
+
     @Test fun bundledEmojiDictionariesAddNoLanguages() {
         DictionaryInfoUtils.getCachedDictForLocaleAndType(Locale.GERMANY, Dictionary.TYPE_EMOJI, app)
         val locales = helium314.keyboard.latin.utils.getDictionaryLocales(app)

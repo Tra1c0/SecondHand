@@ -68,7 +68,7 @@ class ClipboardHistoryManager(
 
     fun onDestroy() {
         clipboardManager.removePrimaryClipChangedListener(this)
-        helium314.keyboard.agent.ScreenshotChip.onChange = null
+        helium314.keyboard.agent.ScreenshotChip.stop(latinIME) // observer and posted reports, not only the callback
     }
 
     /**
