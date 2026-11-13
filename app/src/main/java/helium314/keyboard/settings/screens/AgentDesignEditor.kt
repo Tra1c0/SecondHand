@@ -29,7 +29,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -184,14 +183,14 @@ fun AgentDesignEditor(initial: Design, isNew: Boolean, onClose: () -> Unit) {
             }
             design.cornerRadius?.let { radius ->
                 SliderRow(stringResource(R.string.agent_design_corner, radius.roundToInt()), radius, MyDesigns.CORNER_RANGE,
-                    steps = MyDesigns.CORNER_RANGE.endInclusive.toInt() - 1, tag = "agent_design_corner") {
+                    steps = MyDesigns.CORNER_RANGE.endInclusive.toInt() - 1, default = defaultCornerRadius(design.style), tag = "agent_design_corner") {
                     design = design.copy(cornerRadius = it.roundToInt().toFloat())
                 }
             }
             SliderRow(stringResource(R.string.agent_design_gap, (design.keyGap * 100).roundToInt()), design.keyGap,
-                MyDesigns.GAP_RANGE, steps = 19, tag = "agent_design_gap") { design = design.copy(keyGap = round2(it)) }
+                MyDesigns.GAP_RANGE, steps = 19, default = 1f, tag = "agent_design_gap") { design = design.copy(keyGap = round2(it)) }
             SliderRow(stringResource(R.string.agent_design_height, (design.keyHeight * 100).roundToInt()), design.keyHeight,
-                MyDesigns.HEIGHT_RANGE, steps = 19, tag = "agent_design_height") { design = design.copy(keyHeight = round2(it)) }
+                MyDesigns.HEIGHT_RANGE, steps = 19, default = 1f, tag = "agent_design_height") { design = design.copy(keyHeight = round2(it)) }
 
             GroupTitle(R.string.agent_design_group_colors)
             val colors = remember(design) { MyDesigns.colors(context, design) }
@@ -308,10 +307,10 @@ private fun SwitchRow(res: Int, checked: Boolean, tag: String, onChange: (Boolea
 }
 
 @Composable
-private fun SliderRow(label: String, value: Float, range: ClosedFloatingPointRange<Float>, steps: Int, tag: String, onChange: (Float) -> Unit) {
+private fun SliderRow(label: String, value: Float, range: ClosedFloatingPointRange<Float>, steps: Int, default: Float, tag: String, onChange: (Float) -> Unit) {
     Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
         Text(label, style = MaterialTheme.typography.bodyMedium)
-        Slider(value.coerceIn(range), onChange, valueRange = range, steps = steps, modifier = Modifier.testTag(tag))
+        AgentSlider(value.coerceIn(range), onChange, valueRange = range, steps = steps, defaultValue = default, modifier = Modifier.testTag(tag))
     }
 }
 

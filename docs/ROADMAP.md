@@ -14,11 +14,12 @@ Reihenfolge von oben nach unten.
   Engine-Review (`docs/VALIDATION.md` → Build 12: Prüfer zu Etappe 27). Offen: Gerätetest
   (Erkennung mit echten Fingern, Schwellen, Spur, Tempo, Malfeld der eigenen Symbole) und die
   niedrigen Befunde dort.
-- **28 Haptik und Rastpunkte für alle Schieberegler** (Wunsch des Owners für die nächste
-  Runde, 2026-11-13). Jeder Schieberegler in den Einstellungen bekommt spürbare Ticks beim Ziehen und
-  Rastpunkte („attraction points“), an denen der Regler leicht einrastet (z. B. Standardwert,
-  runde Werte). Vor dem Bau klären: welche Rastpunkte je Regler, und ob die Ticks der
-  Tastenvibration oder der Android-Einstellung folgen. (M)
+- **28 Haptik und Rastpunkte für alle Schieberegler** ist gebaut (siehe FEATURES.md). Annahmen des
+  Leads, die der Owner ändern kann: Die Ticks folgen „Vibration bei Tastendruck“ (nicht der
+  Android-Einstellung für Berührungs-Haptik); Rastpunkte je Regler sind Standardwert, beide Enden
+  und runde Werte (Regel in `docs/ARCHITECTURE.md` → Einstellungen und Profile). Offen: Gerätetest
+  (Stärke der Impulse, Breite der Fangzone, Antippen des Reglers) und die RGB-Seite, die den
+  gemeinsamen Regler `AgentSlider` erst nach ihrer Überarbeitung (29) übernimmt.
 - **29 RGB-Beleuchtung überarbeiten** (Wunsch des Owners für die nächste Runde, 2026-11-13, mit sieben
   Referenzbildern im Chat; die Bilder liegen nicht im Repo). (L)
   - 29a Einstellungsseite und Vorschau moderner gestalten.
@@ -60,8 +61,8 @@ Reihenfolge von oben nach unten.
   Tastatur-Designs gibt es schon (Design-Seite → „Meine Designs“, seit Build 10). Annahme des
   Leads, vor dem Bau bestätigen: gemeint sind eigene RGB-Designs, also selbst gestaltete
   Lichtmuster (Farben, Formen, Bewegung) auf Basis der neuen Muster und der Kurve aus 29. (L)
-- **32 Emoji-Mix: zuletzt gemischt** (vom Owner gewünscht, 2026-11-13): Reihe der letzten
-  Sticker im Mixer, aus dem Cache auf dem Gerät, ohne neuen Download. (S)
+- **32 Emoji-Mix: zuletzt gemischt** ist gebaut (siehe FEATURES.md). Offen: Gerätetest (Höhe der
+  Reihe in der Emoji-Ansicht, Einfügen in WhatsApp/Telegram).
 
 Ziel des Owners (2026-11-12): ein „Agentic Keyboard“, das aus dem Gesprächskontext erkennt, was
 du tun willst, und es mit einer Geste und einem Tipp erledigt, dazu eine lernfähige

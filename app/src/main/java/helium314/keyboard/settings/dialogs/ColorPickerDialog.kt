@@ -36,10 +36,13 @@ import com.github.skydoves.colorpicker.compose.AlphaSlider
 import com.github.skydoves.colorpicker.compose.BrightnessSlider
 import com.github.skydoves.colorpicker.compose.HsvColorPicker
 import com.github.skydoves.colorpicker.compose.rememberColorPickerController
+import helium314.keyboard.agent.SliderFeel
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.utils.Theme
 import helium314.keyboard.latin.utils.previewDark
 import helium314.keyboard.settings.isWideScreen
+import helium314.keyboard.settings.screens.AgentSliderInput
+import kotlin.math.roundToInt
 
 @Composable
 fun ColorPickerDialog(
@@ -93,25 +96,38 @@ fun ColorPickerDialog(
             initialColor = Color(initialColor),
         )
     }
+    // fork (stage 28): both bars tick and snap like every settings slider, and TalkBack can set them
+    val alphaFeel = remember { SliderFeel(0f..1f) }
+    val brightnessFeel = remember { SliderFeel(0f..1f) }
+    val percent = { value: Float -> "${(value * 100).roundToInt()} %" }
     @Composable fun slidersAndTextField() {
-        AlphaSlider(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(10.dp)
-                .height(barHeight),
-            controller = controller,
-            initialColor = Color(initialColor),
-            wheelPaint = wheelPaint
-        )
-        BrightnessSlider(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(10.dp)
-                .height(barHeight),
-            controller = controller,
-            initialColor = Color(initialColor),
-            wheelPaint = wheelPaint
-        )
+        AgentSliderInput(alphaFeel, value = { controller.selectedColor.value.alpha }, onValue = { controller.setAlpha(it, true) },
+            label = stringResource(R.string.agent_slider_alpha), describe = percent) { input ->
+            AlphaSlider(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(10.dp)
+                    .height(barHeight)
+                    .then(input),
+                controller = controller,
+                initialColor = Color(initialColor),
+                wheelPaint = wheelPaint
+            )
+        }
+        AgentSliderInput(brightnessFeel, value = { controller.selectedColor.value.let { maxOf(it.red, it.green, it.blue) } },
+            onValue = { controller.setBrightness(it, true) },
+            label = stringResource(R.string.agent_slider_brightness), describe = percent) { input ->
+            BrightnessSlider(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(10.dp)
+                    .height(barHeight)
+                    .then(input),
+                controller = controller,
+                initialColor = Color(initialColor),
+                wheelPaint = wheelPaint
+            )
+        }
         TextField(
             value = textValue,
             keyboardOptions = KeyboardOptions(

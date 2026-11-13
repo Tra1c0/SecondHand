@@ -16,7 +16,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -39,6 +38,7 @@ import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.latin.utils.Theme
 import helium314.keyboard.settings.WithSmallTitle
 import helium314.keyboard.settings.dialogs.ThreeButtonAlertDialog
+import helium314.keyboard.settings.screens.AgentSlider
 import helium314.keyboard.latin.utils.previewDark
 import androidx.core.content.edit
 
@@ -131,10 +131,11 @@ private fun KeyboardScaleDialog(
                         // default animations make the dialog flash (see also DictionaryDialog)
                         AnimatedVisibility(visible, exit = fadeOut(), enter = fadeIn()) {
                             WithSmallTitle(variant.ifEmpty { stringResource(R.string.button_default) }) {
-                                Slider(
+                                AgentSlider(
                                     value = sliderPosition,
                                     onValueChange = { sliderPosition = it },
                                     valueRange = range,
+                                    defaultValue = defaultValues[i],
                                 )
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),

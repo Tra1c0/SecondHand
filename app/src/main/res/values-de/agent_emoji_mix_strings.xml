@@ -18,7 +18,7 @@
     <string name="agent_emoji_mix_title">Emoji-Mix</string>
     <string name="agent_emoji_mix_strip">Emoji-Mix in der Leiste anbieten</string>
     <string name="agent_emoji_mix_strip_description">Nach zwei getippten Emojis zeigt die Leiste einen Chip zum Mischen. Vor einem Tipp wird nichts geladen.</string>
-    <string name="agent_emoji_mix_privacy">Ein Tipp auf einen Mix-Chip oder die Wahl des zweiten Emojis im Mixer der Emoji-Tastatur sendet die Codepunkte der beiden Emojis an Google (www.gstatic.com), um das Bild zu laden. Sonst wird nichts gesendet, auch kein anderer Text aus dem Feld. Geladene Bilder bleiben auf dem Gerät (höchstens 20 MB, die ältesten gehen zuerst).</string>
+    <string name="agent_emoji_mix_privacy">Ein Tipp auf einen Mix-Chip oder die Wahl des zweiten Emojis im Mixer der Emoji-Tastatur sendet die Codepunkte der beiden Emojis an Google (www.gstatic.com), um das Bild zu laden. Sonst wird nichts gesendet, auch kein anderer Text aus dem Feld. Geladene Bilder bleiben auf dem Gerät (höchstens 20 MB, die ältesten gehen zuerst). Für die Reihe „Zuletzt gemischt“ im Mixer merkt sich die Tastatur die letzten 12 Paare, nicht im Inkognito-Modus.</string>
     <string name="agent_emoji_mix_cache">Gespeicherte Mischungen: %s</string>
     <string name="agent_emoji_mix_clear">Gespeicherte Mischungen löschen</string>
     <string name="agent_emoji_search_key">Emojis suchen</string>
@@ -34,4 +34,5 @@
     <string name="agent_emoji_mixer_remove">%s entfernen</string>
     <string name="agent_emoji_mixer_partner">Mit %s mischen</string>
     <string name="agent_emoji_mixer_blocked">Der Emoji-Mixer ist in diesem Feld aus</string>
+    <string name="agent_emoji_mixer_recent">Zuletzt gemischt</string>
 </resources>

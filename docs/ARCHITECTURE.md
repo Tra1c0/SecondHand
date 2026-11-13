@@ -422,6 +422,18 @@ Emoji-Ansicht (Emoji-Mix, 25a; Abschnitt „Befehle“):
   `EmojiMixPalette.toggleCurrent`. `KeyCode.kt`: `AGENT_EMOJI_MIXER = -12005` (in `checkAndConvertCode`
   durchgereicht).
 
+Schieberegler (Etappe 28, Abschnitt „Einstellungen und Profile“, P85–P87):
+
+- `SliderDialog.kt`: ein `AgentSlider` statt der zwei Material-Slider (mit und ohne Stufen);
+  neue Parameter `defaultValue` (Rastpunkt) und `integerValues` (Ticks und runde Werte ganzzahlig).
+- `SliderPreference.kt`: reicht `default` als `defaultValue` und `default is Int` als
+  `integerValues` an den Dialog; sonst unverändert (alle `SliderPreference` der Upstream-Seiten
+  bekommen so Ticks und Rasten, ohne dass ihre Seiten geändert sind).
+- `KeyboardScalePreference.kt`: `AgentSlider` mit dem Standardwert der jeweiligen Variante.
+- `ColorPickerDialog.kt`: Deckkraft- und Helligkeitsleiste der Bibliothek (colorpicker-compose)
+  bleiben, ihre Berührungen übernimmt `AgentSliderInput` (setzt `setAlpha`/`setBrightness` wie die
+  Bibliothek, mit `fromUser = true`); dazu Slider-Semantik für TalkBack (vorher keine).
+
 Update-Migrationen (Build 12, P84): `AppUpgrade.kt` läuft nach einem Update nur noch die Teile
 für jedes Update (entpackte Wörterbücher leeren, `upgradeToolbarPrefs`, Layout-Cache) und
 überspringt HeliBoards Versions-Migrationen (`FORK_UPGRADES_ONLY`); beim ersten Update von Build
@@ -927,10 +939,20 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     einmal je Wahl (`requestedKey`, zurückgesetzt bei jeder Änderung der Auswahl, P74); ist der
     Zustand danach aus dem Speicher verschwunden, lädt erst ein Tipp auf „Tippen, um … zu laden“.
     Gesperrt: `toggle` zeigt einen Toast, `onEmoji` beendet den Modus und lässt das Emoji normal
-    tippen, `load` (Partner, Wiederholen) beendet ihn ohne Anfrage. Einstellungen:
+    tippen, `load` (Partner, Wiederholen) beendet ihn ohne Anfrage. „Zuletzt gemischt“ (32,
+    P88–P89): `A/commands/EmojiMixRecents.kt` (Paarschlüssel in `agent_emoji_mix_recent`, höchstens
+    12, neueste zuerst; `record` aus `EmojiMixer.request` bei `Ready` (nur wenn beim Tipp und beim
+    Ergebnis `recording()`) und aus `deliver` nach Einfügen oder Teilen (Parameter `mix`);
+    `recording()` = nicht Inkognito (auch Passwort- und No-Learning-Felder), nicht gesperrt;
+    `shown` filtert auf Dateien im Cache, liest dabei kein Bild; `picture` dekodiert 160 px auf dem
+    Worker von `EmojiMixer` (`afterWork`, `thumbnail(file, maxPx)`) in eine eigene LRU, getrennt von
+    `states`; `clear` aus `EmojiMixer.clearCache`). Im Palette-Mixer `recentsRow` (letztes Kind
+    der Leiste, sichtbar bei weniger als zwei gewählten Emojis), Tipp = `insertRecent` (gesperrt:
+    Modus aus; sonst `deliver` mit der Cache-Datei). `EmojiMixer.changed` ist dafür `internal`.
+    Einstellungen:
     `K/settings/screens/AgentEmojiMixSection.kt`. Texte in `agent_emoji_mix_strings.xml`
     (`values/`, `values-de/`). Tests `CT/EmojiMixTest.kt`, `AT/commands/EmojiMixCommandTest.kt`,
-    `AT/EmojiMixPaletteTest.kt`, mit echtem Host
+    `AT/EmojiMixPaletteTest.kt`, `AT/EmojiMixRecentsTest.kt`, mit echtem Host
     `InputLogicTest.typedEmojiPairOffersTheMixAndReplacesItOnlyAfterTwoTaps` (P73) und
     `InputLogicTest.typedEmojiPairStaysWhenTheFieldDoesNotTakeTheImage` (echter Sink: Ablehnung,
     Bild als Objektzeichen an der Schreibmarke, blockierte Eingabe; P83).
@@ -1013,6 +1035,32 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   still). Die Vorschau ist `DesignPreview` aus `AgentDesignEditor.kt` mit `PreviewLight` (gleiche
   Engine und Farbregeln wie die Tastatur). Einträge auf der Design-Seite (`agent_design_rgb`) und
   unter Aussehen. Texte: `agent_rgb_strings.xml`. Test `AT/RgbSettingsScreenTest.kt`.
+- Schieberegler mit Ticks und Rastpunkten (28, P85–P87): `K/settings/screens/AgentSlider.kt`
+  (`AgentSlider`: Material-3-`Slider` über einen eigenen `SliderState`; nur Werte vom Finger
+  laufen durch `SliderDrag`, erkannt an `Finger.down` (Initial-Pass bis Final-Pass des Loslassens)
+  oder `SliderState.isDragging`; TalkBack und Tasten setzen den Wert genau. `AgentSliderInput`
+  für selbst gezeichnete Leisten: übernimmt die Berührungen eines Elements und gibt ihm
+  Slider-Semantik. `rememberSliderSink`), `A/SliderFeel.kt` (rein: `SliderFeel` mit Tick-Abstand,
+  runden Werten, Rastpunkten und Fangzone, `SliderDrag` je Zug mit Fangen, Halten, Loslassen,
+  Wiederscharfstellen und Ratenbegrenzung, `SliderDrag.clockForTest`) und `A/SliderHaptics.kt`
+  (Impulse wie die Haptik-Kette: ab API 30 `PRIMITIVE_TICK` 0,5 bzw. `PRIMITIVE_CLICK` 0,8, sonst
+  Einzelpuls mit Amplitude 70/180, sonst Puls 8/16 ms; nur mit „Vibration bei Tastendruck“ und
+  außerhalb von „Bitte nicht stören“ (außer erlaubt), gelesen einmal je Zug; ohne Usage-Attribute;
+  `deviceForTest`). Unabhängig von `HapticChain` (eigene Konstanten).
+  Regeln (Annahmen des Leads, vom Owner änderbar): Ticks bei festen Stufen auf jeder k-ten Stufe
+  (höchstens 40), sonst auf Vielfachen von 1, 2, 5 × 10^n mit 20–40 Ticks, höchstens alle 25 ms
+  (eine Rast darf direkt auf einen Tick folgen); Rastpunkte = Standardwert (wenn im Bereich),
+  beide Enden und Vielfache von 1 oder 5 × 10^n mit höchstens 11 Abständen (0..1 → 0,1;
+  0,3..1,5 → 0,5; 0..100 → 10; 100..700 → 100), bei festen Stufen mindestens vier Stufen
+  auseinander und auf eine Stufe gelegt; Fangzone 1,5 % des Bereichs je Seite; eine Rast, die der
+  Wert verlässt oder neben der ein Zug beginnt, fängt erst wieder nach dem doppelten Abstand; ein
+  Sprung über eine Rast gibt den Rast-Impuls ohne zu halten. Übernommen in `SliderDialog`
+  (alle `SliderPreference`), `KeyboardScalePreference`, `ColorPickerDialog` (siehe „Geänderte
+  Upstream-Dateien“) und im Design-Editor (`SliderRow`). Noch nicht in `AgentRgbScreen.kt`
+  (wird in 29 überarbeitet; dort `Slider` gegen `AgentSlider` tauschen, `defaultValue` aus
+  `RgbSettings`). Texte `agent_slider_strings.xml`. Tests `AT/SliderFeelTest.kt` (rein, eigene
+  Uhr) und `AT/AgentSliderTest.kt` (Compose: Ziehen, Ende, TalkBack, `SliderDialog` mit
+  Vibrator-Attrappe, Einstellungen, Stufen der Geräte).
 - `KeyboardProfileStore.kt`: das Designprofil enthält `agent_rgb_lighting` als Text
   (`Binding.freeText`); beim Lesen feldweise über `RgbSettings.parse` begrenzt, leer (Profile von
   vor 26) heißt „unverändert lassen“.
@@ -1780,19 +1828,49 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Impuls allein ist kein „längerer“ Impuls; ohne `PRIMITIVE_QUICK_RISE` nimmt der letzte
   Rastpunkt deshalb die Wellenform mit steigender Amplitude, und ohne Amplitudensteuerung einen
   langen Puls (P67).
+- **P85** Ein Material-3-`Slider` meldet Ziehen, Tippen, TalkBack (`setProgress`) und Tasten über
+  dasselbe `onValueChange`. Wer dort einrasten lässt, macht Werte neben einer Rast für TalkBack
+  unerreichbar. `AgentSlider` lässt deshalb nur Werte vom Finger durch `SliderDrag`. Erkannt wird
+  der Finger nicht über die `interactionSource` (deren `DragInteraction` kommt über einen Flow erst
+  nach den ersten Werten an), sondern über `SliderState.isDragging` (Ziehen; die letzten Schritte
+  kommen nach dem Loslassen) und einen eigenen Beobachter, der den Finger im Initial-Pass als
+  unten und erst im Final-Pass des Loslassens als oben zählt (ein Tipp meldet seinen Wert im
+  Main-Pass des Loslassens).
+- **P86** `SliderState` rechnet den Wert aus der Fingerposition (`rawOffset`), nicht aus dem
+  zuletzt gemeldeten Wert: Ein eingerasteter Wert verschiebt den Finger nicht, deshalb kann
+  `SliderDrag` halten und beim Weiterziehen wieder loslassen. Beim Ziehen hinkt der Wert dem
+  Finger um die Touch-Slop hinterher (der erste Schritt meldet nur den Überschuss); Tests folgen
+  deshalb dem Wert in kleinen Schritten statt fester Fingerpositionen. Ein Tipp auf die Leiste
+  erreicht unter Robolectric nicht einmal einen unveränderten Material-Slider; dieser Weg ist nur
+  am Gerät prüfbar.
+- **P87** Robolectric bewegt `SystemClock` nicht mit den Eingaben des Compose-Tests. Mit einer
+  stehenden Uhr würde die 25-ms-Grenze alle Impulse nach dem ersten schlucken; UI-Tests setzen
+  `SliderDrag.clockForTest`, die Grenze selbst prüft `SliderFeelTest` mit eigener Uhr. Eine
+  Rast auf Stufen muss genau auf einer Stufe liegen, sonst setzt `SliderState.value` den Wert auf
+  die nächste Stufe, während der Aufrufer einen anderen Wert hält.
+- **P88** „Zuletzt gemischt“ darf die Zustände von `EmojiMixer` nicht benutzen: höchstens 12 im
+  Speicher, und zwölf Bilder der Reihe plus das gewählte Paar würden sich bei jeder Neuzeichnung
+  gegenseitig verdrängen (Neuladen von der Platte ohne Ende, und das gewählte Paar fiele auf
+  „Tippen, um … zu laden“, P74). Die Reihe hat deshalb eine eigene Bild-LRU und liest nur Dateien,
+  die im Cache liegen (`shown` prüft nur, ob die Datei da ist); sie lädt nie aus dem Netz (P72).
+- **P89** Ein gespeicherter Paarschlüssel kann Codepunkte jenseits von Unicode enthalten (von Hand
+  geänderte Einstellungen, Sicherung); `EmojiClusters.fromCodepoints` wirft dann. `mixOf` fängt
+  das ab und behandelt das Paar als unbekannt. Ob gemerkt wird, entscheidet `recording()` beim
+  Tipp und beim Ergebnis: eine Mischung, die vor dem Inkognito-Wechsel angefragt wurde, wird nicht
+  gemerkt, wenn sie danach ankommt.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (397 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (410 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (5): agent-apk, agent-tests, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (63): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (65): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
   AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand, ContactCommand,
   ConvertCommand, CorrectionMemory, DateCommand, DesignLook, DesignTiles, Dictation, EmojiCommand,
@@ -1800,34 +1878,36 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   HapticChain, JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore,
   LearningData, LoadingDotsView, ManualWorkflowDraft, ModelSettings, MyDesigns,
   OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter, RgbLighting, RgbStrip, RunSubjectCodec,
-  SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore, SkillLabels, SpaceDetents,
-  SpaceGestures, SymbolDrawing, SymbolInk, ToolApprovalSummary, ToolLauncher, TouchCalibration,
-  TouchModel, TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract,
-  WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
-- `A/commands/` (17): AiCommandChips, AlarmCommand, AskCommand, ClipCommand, EmojiMixCommand,
-  EmojiMixer, LanguageCommand, QrCommand, ScreenReaderService, SensitiveClips, SnipCommand,
-  SnippetStore, SubtypeChoice, TimerCommand, TranslateCommand, UrlCommand, WorkflowCommand
+  SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore, SkillLabels, SliderFeel,
+  SliderHaptics, SpaceDetents, SpaceGestures, SymbolDrawing, SymbolInk, ToolApprovalSummary,
+  ToolLauncher, TouchCalibration, TouchModel, TypoMemory, WorkflowApprovalSummary,
+  WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
+  WorkflowStore
+- `A/commands/` (18): AiCommandChips, AlarmCommand, AskCommand, ClipCommand, EmojiMixCommand,
+  EmojiMixRecents, EmojiMixer, LanguageCommand, QrCommand, ScreenReaderService, SensitiveClips,
+  SnipCommand, SnippetStore, SubtypeChoice, TimerCommand, TranslateCommand, UrlCommand,
+  WorkflowCommand
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (69): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (72): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, ClipCommandTest, CommandReplaceTest, CommandTemplatesTest,
   ContactCommandTest, CorrectionMemoryTest, DatePlaceCommandsTest, DebugPrivacyTest,
   DesignEditorTest, DesignTilesTest, DictationSessionTest, DictationUiTest, EmojiMixPaletteTest,
-  EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, FlatClipboardTest, FlatMenuTest,
-  FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, ForkUpgradeTest,
-  HapticChainTest, InsertAtCursorTest, JournaledModelCallTest, KeyboardCommandsTest,
-  KeyboardProfileStoreTest, LearningDataTest, LoadingDotsViewTest, MainSettingsLookTest,
-  ManualWorkflowDraftTest, MoreCommandsTest, MoreProvidersTest, MyDesignsTest, OpenAiProviderTest,
-  RgbLightingRenderTest, RgbSettingsScreenTest, ScreenshotChipTest, SelectedTextCommitTest,
-  SkillBindingStoreTest, SkillSettingsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest,
-  SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest, TouchModelTest,
-  TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
-  WorkflowCommandTest, WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest,
-  WorkflowStoreTest
+  EmojiMixRecentsTest, EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, FlatClipboardTest,
+  FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest,
+  ForkUpgradeTest, HapticChainTest, InsertAtCursorTest, JournaledModelCallTest,
+  KeyboardCommandsTest, KeyboardProfileStoreTest, LearningDataTest, LoadingDotsViewTest,
+  MainSettingsLookTest, ManualWorkflowDraftTest, MoreCommandsTest, MoreProvidersTest, MyDesignsTest,
+  OpenAiProviderTest, RgbLightingRenderTest, RgbSettingsScreenTest, ScreenshotChipTest,
+  SelectedTextCommitTest, SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest, SnipCommandTest,
+  SpaceDetentsTest, SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal,
+  ToolRunnerTest, TouchModelTest, TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest,
+  WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
+  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (8): ClockCommandsTest, EmojiMixCommandTest, LanguageCommandTest, QrCommandTest,
   ScreenReaderServiceTest, SubtypeChoiceTest, TranslateCommandTest, UrlCommandTest
 - `C/` (33): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
@@ -1860,10 +1940,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/latin/suggestions/` (2): FlatStrip, SuggestionStripView
 - `K/latin/utils/` (3): DictionaryInfoUtils, DictionaryUtils, ToolbarUtils
 - `K/settings/` (4): SearchScreen, SettingsActivity, SettingsContainer, SettingsNavHost
-- `K/settings/screens/` (26): AdvancedScreen, AgentAiScreen, AgentCommandsScreen, AgentDesignEditor,
+- `K/settings/dialogs/` (2): ColorPickerDialog, SliderDialog
+- `K/settings/preferences/` (2): KeyboardScalePreference, SliderPreference
+- `K/settings/screens/` (27): AdvancedScreen, AgentAiScreen, AgentCommandsScreen, AgentDesignEditor,
   AgentDesignScreen, AgentDictationScreen, AgentEmojiMixSection, AgentLearningScreen,
   AgentMainSettings, AgentProfilesScreen, AgentRgbScreen, AgentRunStatus, AgentScreenReaderSection,
-  AgentScreenshotScreen, AgentSkillsScreen, AgentSnippetsSection, AgentSpaceScreen,
+  AgentScreenshotScreen, AgentSkillsScreen, AgentSlider, AgentSnippetsSection, AgentSpaceScreen,
   AgentSymbolsScreen, AgentUpdatesScreen, AgentWorkflowsScreen, AppearanceScreen, DictionaryScreen,
   GestureTypingScreen, MainSettingsScreen, WorkflowBuilderDialog, WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
@@ -1888,13 +1970,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (9): agent_alarm_strings, agent_design_strings,
-  agent_emoji_mix_strings, agent_language_strings, agent_rgb_strings, agent_space_strings,
-  agent_strings, agent_symbol_strings, agent_update_strings
-- `app/src/main/res/values/` (16): agent_alarm_strings, agent_attrs, agent_design_strings,
+- `app/src/main/res/values-de/` (10): agent_alarm_strings, agent_design_strings,
+  agent_emoji_mix_strings, agent_language_strings, agent_rgb_strings, agent_slider_strings,
+  agent_space_strings, agent_strings, agent_symbol_strings, agent_update_strings
+- `app/src/main/res/values/` (17): agent_alarm_strings, agent_attrs, agent_design_strings,
   agent_emoji_mix_strings, agent_ids, agent_language_strings, agent_rgb_strings,
-  agent_space_strings, agent_strings, agent_symbol_strings, agent_update_strings, attrs,
-  clip_provider, donottranslate, gesture_data, themes-flat
+  agent_slider_strings, agent_space_strings, agent_strings, agent_symbol_strings,
+  agent_update_strings, attrs, clip_provider, donottranslate, gesture_data, themes-flat
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (1): Shadows

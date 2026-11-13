@@ -22,7 +22,7 @@
     <string name="agent_emoji_mix_title">Emoji-Mix</string>
     <string name="agent_emoji_mix_strip">Offer Emoji-Mix in the strip</string>
     <string name="agent_emoji_mix_strip_description">After two typed emojis the strip shows a chip to mix them. Nothing is loaded before a tap.</string>
-    <string name="agent_emoji_mix_privacy">A tap on a mix chip, or choosing the second emoji in the mixer of the emoji keyboard, sends the code points of the two emojis to Google (www.gstatic.com) to load the image. Nothing else is sent, no other text of the field. Loaded images stay on this device (at most 20 MB, oldest first out).</string>
+    <string name="agent_emoji_mix_privacy">A tap on a mix chip, or choosing the second emoji in the mixer of the emoji keyboard, sends the code points of the two emojis to Google (www.gstatic.com) to load the image. Nothing else is sent, no other text of the field. Loaded images stay on this device (at most 20 MB, oldest first out). For the row \"Recently mixed\" in the mixer the keyboard remembers the last 12 pairs, not in incognito mode.</string>
     <!-- %s: size like "1.2 MB" -->
     <string name="agent_emoji_mix_cache">Stored mixes: %s</string>
     <string name="agent_emoji_mix_clear">Delete stored mixes</string>
@@ -40,4 +40,5 @@
     <string name="agent_emoji_mixer_remove">Remove %s</string>
     <string name="agent_emoji_mixer_partner">Mix with %s</string>
     <string name="agent_emoji_mixer_blocked">The emoji mixer is off in this field</string>
+    <string name="agent_emoji_mixer_recent">Recently mixed</string>
 </resources>

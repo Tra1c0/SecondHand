@@ -16,6 +16,7 @@ import android.widget.Toast
 import androidx.core.graphics.ColorUtils
 import dev.agentkeyboard.core.EmojiMix
 import dev.agentkeyboard.core.EmojiMixTable
+import helium314.keyboard.agent.commands.EmojiMixRecents
 import helium314.keyboard.agent.commands.EmojiMixer
 import helium314.keyboard.keyboard.FlatStyle
 import helium314.keyboard.latin.R
@@ -32,7 +33,9 @@ import java.lang.ref.WeakReference
  * comes from the device) and its sticker slides in; a tap on it inserts it (or shares it). A pair
  * without mix shows "Keine Mischung" and partners of the first emoji that have one (from the table,
  * offline). Leaving the mode or the palette clears the choice. Off in password fields, incognito
- * and on a locked device. Nothing is logged.
+ * and on a locked device. Nothing is logged. While no pair is chosen, the row "Zuletzt gemischt"
+ * (stage 32, [EmojiMixRecents]) shows the stickers mixed last that are still cached on the device;
+ * a tap inserts one like the sticker of a fresh mix, without any network.
  *
  * [palette] is the vertical palette view; the bar goes on top and [pager] gives up as much height
  * as the bar takes ([beforeMeasure]), so the palette keeps its size.
@@ -85,6 +88,20 @@ class EmojiMixPalette(private val palette: LinearLayout, private val pager: View
         setOnClickListener { insert() }
     }
     private val previewCaption = text(13f).apply { visibility = View.GONE }
+    private val recents = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+    /** "Zuletzt gemischt" (stage 32): GONE while a pair is chosen or no recent sticker is cached. */
+    val recentsRow: LinearLayout = LinearLayout(context).apply {
+        orientation = LinearLayout.VERTICAL
+        visibility = View.GONE
+        addView(text(12f).apply {
+            setText(R.string.agent_emoji_mixer_recent)
+            setTextColor(ColorUtils.setAlphaComponent(textColor, 0xCC))
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        addView(HorizontalScrollView(context).apply {
+            isHorizontalScrollBarEnabled = false
+            addView(recents)
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48f)))
+    }
 
     /** The bar; GONE while the mode is off. */
     val bar: LinearLayout = LinearLayout(context).apply {
@@ -110,6 +127,7 @@ class EmojiMixPalette(private val palette: LinearLayout, private val pager: View
             addView(previewCaption, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(12f) })
         }
         addView(previewRow, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        addView(recentsRow, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
     }
 
     init {
@@ -251,7 +269,55 @@ class EmojiMixPalette(private val palette: LinearLayout, private val pager: View
             }
         }
         showPreview(ready)
+        showRecents()
         palette.requestLayout()
+    }
+
+    /** The recent stickers that are on the device; read from the cache only, never loaded (P72). */
+    private fun showRecents() {
+        recents.removeAllViews()
+        val table = if (selection.size < 2) EmojiMixer.table(context) else null
+        val mixes = table?.let { EmojiMixRecents.shown(context, it) }.orEmpty()
+        recentsRow.visibility = if (mixes.isEmpty()) View.GONE else View.VISIBLE
+        if (mixes.isEmpty()) return
+        val inserts = ScreenshotChip.editorAccepts(field(), EmojiMixer.MIME_TYPE)
+        for (mix in mixes) {
+            val pair = context.getString(R.string.agent_emoji_mix_pair, mix.leftEmoji, mix.rightEmoji)
+            val picture = EmojiMixRecents.picture(context, mix)
+            // until the picture is read from the device, the two emojis stand in for it
+            val item: View = if (picture != null) ImageView(context).apply {
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                setImageBitmap(picture)
+            } else text(14f).apply { this.text = mix.leftEmoji + mix.rightEmoji; gravity = Gravity.CENTER }
+            item.background = chipBackground()
+            item.setPadding(dp(4f), dp(4f), dp(4f), dp(4f))
+            item.contentDescription = context.getString(
+                if (inserts) R.string.agent_emoji_mix_insert_description else R.string.agent_emoji_mix_share_description, pair)
+            item.isClickable = true
+            item.isFocusable = true
+            item.setOnClickListener { insertRecent(mix) }
+            val width = if (picture != null) dp(44f) else ViewGroup.LayoutParams.WRAP_CONTENT
+            recents.addView(item, LinearLayout.LayoutParams(width, dp(44f)).apply { marginEnd = dp(6f) })
+        }
+    }
+
+    /**
+     * A tap on a recent sticker: the same way into the field (or the share sheet) as a fresh mix,
+     * from the cached file; nothing in a blocked field (the mode ends then).
+     */
+    fun insertRecent(mix: EmojiMix): Boolean {
+        if (EmojiMixer.blocked(field())) {
+            setActive(false)
+            return false
+        }
+        val file = EmojiMixer.cache(context).file(mix)
+        if (!file.isFile) {
+            update()
+            return false
+        }
+        val target = EmojiMixer.latinIme(context) ?: context
+        val done = { selection.clear(); requestedKey = null; update() }
+        return EmojiMixer.deliver(target, field(), file, afterInsert = done, afterShare = done, mix = mix)
     }
 
     /** The only network path of the palette, always from a tap; never in a blocked field (the mode ends then). */
@@ -318,7 +384,7 @@ class EmojiMixPalette(private val palette: LinearLayout, private val pager: View
         val state = EmojiMixer.state(context, mix) as? EmojiMixer.State.Ready ?: return false
         val target = EmojiMixer.latinIme(context) ?: context
         val done = { selection.clear(); requestedKey = null; update() }
-        return EmojiMixer.deliver(target, field(), state.file, afterInsert = done, afterShare = done)
+        return EmojiMixer.deliver(target, field(), state.file, afterInsert = done, afterShare = done, mix = mix)
     }
 
     companion object {

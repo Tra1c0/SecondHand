@@ -47,3 +47,12 @@
   Rückgängig-Schritt. Noch auf keinem Gerät ausprobiert.
 - Neu: Bewegst du den Finger beim Halten der Leertaste deutlich nach links oder rechts, ist das
   Halten sofort vorbei; ein langsamer Wisch öffnet nie mehr die Halten-Aktion.
+- Neu: Alle Schieberegler der Einstellungen ticken beim Ziehen leicht und rasten am Standardwert,
+  an den Enden und an runden Werten (z. B. 100 %, Zehner bei Prozent und Millisekunden) mit einem
+  etwas stärkeren Impuls ein. Werte direkt neben einer Rast: etwas darüber hinaus und langsam
+  zurück ziehen. Gespürt nur mit „Vibration bei Tastendruck“. Die RGB-Seite folgt später. Noch auf
+  keinem Gerät ausprobiert.
+- Neu: Emoji-Mixer mit „Zuletzt gemischt“: Solange kein Paar gewählt ist, zeigt der Mixer die
+  letzten bis zu 12 Sticker, die noch auf dem Telefon liegen; ein Tipp fügt sie ohne Internet
+  ein. Im Inkognito-Modus wird nichts gemerkt; „Gespeicherte Mischungen löschen“ leert auch diese
+  Reihe. Noch auf keinem Gerät ausprobiert.
