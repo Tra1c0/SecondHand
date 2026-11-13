@@ -725,15 +725,19 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
             final int drawing = SymbolInk.getDrawingPointer();
             // stage 36 (review): only a tracker that still draws becomes a key; a stale drawing (its up
             // or cancel never came) is dropped, never typed as a ghost letter (P110)
+            // review M1: a stroke so far ends the drawing and writes it (nothing lost)
             final PointerTracker drawer = drawing != mPointerId ? getPointerTracker(drawing) : null;
-            if (drawer != null && drawer.mInInk && SymbolInk.onSecondFinger()) drawer.inkTapBecomesKey(eventTime);
-            else SymbolInk.cancel();
+            if (drawer != null && drawer.mInInk) {
+                if (SymbolInk.onSecondFinger()) drawer.inkTapBecomesKey(eventTime);
+            } else SymbolInk.cancel();
             return false;
         }
-        if (!SymbolInk.continuesInk() || !sGestureEnabler.shouldHandleGesture() || sInGesture
+        // stage 36 review H1: only near the waiting drawing (at least a key width around it)
+        if (!SymbolInk.isWaiting() || !sGestureEnabler.shouldHandleGesture() || sInGesture
                 || getActivePointerTrackerCount() > 0 || mKeyboard == null
                 || !mKeyboard.mId.getElement().isAlphabet() || key == null
-                || !SymbolInk.startsInkOn(key.getCode(), key.isModifier())) {
+                || !SymbolInk.startsInkOn(key.getCode(), key.isModifier())
+                || !SymbolInk.continuesInk(x, y, mKeyboard.mMostCommonKeyWidth)) {
             return false;
         }
         mInInk = true;

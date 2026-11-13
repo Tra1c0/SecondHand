@@ -10,14 +10,30 @@ import kotlin.test.assertTrue
 class PersonalInkSymbolsTest {
     private fun cloud(seed: Int) = InkCloud.of(listOf(InkStroke.of(0f, 0f, 100f, seed.toFloat())))!!
 
-    @Test fun atMostFivePerSymbolAndTheNewestWin() {
+    @Test fun atMostThreePerSymbolAndTheNewestWin() {
+        // review M2: 3 per symbol and 40 symbols (was 5 and 80), every template costs matching time
+        assertEquals(3, PersonalInkSymbols.PER_SYMBOL)
+        assertEquals(40, PersonalInkSymbols.MAX_SYMBOLS)
         var symbols = emptyList<OwnInkSymbols.Symbol>()
         repeat(7) { symbols = PersonalInkSymbols.add(symbols, "→", cloud(it)) }
         val arrow = symbols.single()
         assertEquals(PersonalInkSymbols.PER_SYMBOL, arrow.samples.size)
-        // the two oldest went: the last kept drawing is the newest
+        // the four oldest went: the last kept drawing is the newest
         assertEquals(cloud(6).ys.toList(), arrow.samples.last().ys.toList())
-        assertEquals(cloud(2).ys.toList(), arrow.samples.first().ys.toList())
+        assertEquals(cloud(4).ys.toList(), arrow.samples.first().ys.toList())
+    }
+
+    @Test fun aDrawingWithDotsIsKeptOnlyForASymbolWithDots() {
+        // review M3: a stray tap with a dash must not become a dash with a dot (InkDots, P113)
+        val dashWithDot = InkCloud.of(listOf(InkStroke.of(0f, 50f, 100f, 50f), InkStroke.of(50f, 10f)))!!
+        assertEquals(1, dashWithDot.dotCount)
+        assertTrue(PersonalInkSymbols.add(emptyList(), "–", dashWithDot).isEmpty())
+        assertTrue(PersonalInkSymbols.add(emptyList(), "–", dashWithDot, symbolHasDots = false).isEmpty())
+        assertEquals(listOf("÷"), PersonalInkSymbols.add(emptyList(), "÷", dashWithDot, symbolHasDots = true).map { it.text })
+        assertTrue(PersonalInkSymbols.hasDots(InkSymbols.templates, "÷"))
+        assertTrue(!PersonalInkSymbols.hasDots(InkSymbols.templates, "–"))
+        // a drawing without dots is kept for any symbol
+        assertEquals(1, PersonalInkSymbols.drawings(PersonalInkSymbols.add(emptyList(), "÷", cloud(1))))
     }
 
     @Test fun theSymbolChangedLongestAgoGoesFirst() {
@@ -34,11 +50,14 @@ class PersonalInkSymbolsTest {
         var symbols = emptyList<OwnInkSymbols.Symbol>()
         repeat(5) { symbols = PersonalInkSymbols.add(symbols, "≠", cloud(it)) }
         symbols = PersonalInkSymbols.add(symbols, "%", cloud(9)) // escaped in the format
-        val parsed = PersonalInkSymbols.parse(PersonalInkSymbols.encode(symbols))
-        assertEquals(listOf("≠" to 5, "%" to 1), parsed.map { it.text to it.samples.size })
-        assertTrue(InkRecognizer.greedyCloudMatch(symbols[0].samples[3], parsed[0].samples[3]) < 0.05f)
-        // own symbols keep their limit of three drawings: a personal line is not an own symbol
-        assertTrue(OwnInkSymbols.parse(PersonalInkSymbols.encode(symbols)).none { it.text == "≠" })
+        val encoded = PersonalInkSymbols.encode(symbols)
+        val parsed = PersonalInkSymbols.parse(encoded)
+        assertEquals(listOf("≠" to 3, "%" to 1), parsed.map { it.text to it.samples.size })
+        assertTrue(InkRecognizer.greedyCloudMatch(symbols[0].samples[2], parsed[0].samples[2]) < 0.05f)
+        // a line with more drawings than allowed was not written by this code: skipped, the rest kept
+        val line = encoded.lines()[1]
+        val tooMany = "v1\n" + line + "\t" + line.substringAfter('\t') + "\n" + encoded.lines()[2]
+        assertEquals(listOf("%"), PersonalInkSymbols.parse(tooMany).map { it.text })
         assertTrue(PersonalInkSymbols.parse("v1\n≠\tbroken").isEmpty())
         assertTrue(PersonalInkSymbols.parse(null).isEmpty())
     }

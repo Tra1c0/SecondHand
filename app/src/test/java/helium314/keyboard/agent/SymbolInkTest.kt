@@ -217,7 +217,7 @@ class SymbolInkTest {
         assertTrue(drawings.isEmpty())
     }
 
-    @Test fun secondFingerDropsTheDrawingAndIsHandledAsUsual() {
+    @Test fun secondFingerDuringAStrokeWritesTheDrawingAndIsHandledAsUsual() {
         stroke(*line(20f, 80f, 300f, 80f))
         touch(MotionEvent.ACTION_DOWN, 100f, 40f) // continuation stroke of pointer 0
         // stage 31 fix: a real stroke (farther than the tap slop); a mere tap would be a key (two thumbs)
@@ -233,11 +233,15 @@ class SymbolInkTest {
         }
         second(MotionEvent.ACTION_POINTER_DOWN)
         assertFalse(SymbolInk.isWaiting)
+        // review M1: the drawing with the stroke so far is written (before: dropped, nothing came out)
+        assertEquals(listOf("symbol"), log)
+        assertEquals(2, drawings.single().size)
         second(MotionEvent.ACTION_POINTER_UP)
         verify(listener, times(1)).onCodeInput(eq('a'.code), anyInt(), anyInt(), anyBoolean()) // the second finger typed
         touch(MotionEvent.ACTION_MOVE, 120f, 60f); touch(MotionEvent.ACTION_UP, 120f, 60f) // the first finger ends quietly
         pause()
-        assertTrue(drawings.isEmpty())
+        assertEquals(1, drawings.size)
+        assertEquals(listOf("symbol", "code ${'a'.code}"), log)
         verify(listener, times(1)).onCodeInput(anyInt(), anyInt(), anyInt(), anyBoolean())
     }
 
@@ -434,7 +438,7 @@ class SymbolInkTest {
     @Test fun aShortStrokeInThePauseIsAStrokeNotATap() {
         stroke(*line(20f, 80f, 300f, 80f))
         clearInvocations(listener)
-        stroke(40f, 30f, 43f, 30f, 46f, 30f) // 6 px, far from the dots of ÷: a tap with the old 10 dp, a stroke now
+        stroke(40f, 30f, 44f, 30f, 48f, 30f) // 8 px, far from the dots of ÷: a tap with the old 10 dp, a stroke now (6 dp)
         assertTrue(SymbolInk.isWaiting)
         assertTrue(log.isEmpty())
         pause()
@@ -519,7 +523,10 @@ class SymbolInkTest {
 
     @Test fun theWaitingDrawingIsShownAfterEveryStrokeAndDroppedWhenCancelled() {
         stroke(*line(20f, 80f, 300f, 80f))
+        assertTrue(waiting.isEmpty()) // review M2: only after a short quiet time
+        idle(SymbolInk.PREVIEW_DELAY_MILLIS + 10)
         stroke(260f, 40f, 280f, 60f, 300f, 80f, 280f, 100f, 260f, 120f)
+        idle(SymbolInk.PREVIEW_DELAY_MILLIS + 10)
         assertEquals(listOf(1, 2), waiting)
         touch(MotionEvent.ACTION_DOWN, 100f, 40f)
         touch(MotionEvent.ACTION_CANCEL, 100f, 40f)
@@ -545,5 +552,72 @@ class SymbolInkTest {
         verify(listener, times(2)).onPressKey(eq('a'.code), anyInt(), anyInt(), any())
         verify(listener, times(2)).onCodeInput(eq('a'.code), anyInt(), anyInt(), anyBoolean())
         assertTrue(drawings.isEmpty())
+    }
+
+    @Test fun strokesInQuickSuccessionGetOnePreview() {
+        // review M2: no matching on the main thread for every stroke while the hand is still drawing
+        stroke(*line(20f, 80f, 300f, 80f))
+        idle(60) // the main thread is free between two strokes, as on a phone
+        stroke(260f, 40f, 280f, 60f, 300f, 80f, 280f, 100f, 260f, 120f)
+        idle(60)
+        stroke(40f, 30f, 60f, 30f)
+        assertTrue(waiting.isEmpty())
+        idle(SymbolInk.PREVIEW_DELAY_MILLIS + 10)
+        assertEquals(listOf(3), waiting)
+    }
+
+    // review H1: typing right after a symbol, away from the drawing, is typed
+
+    /** Above y = 150: "3" for 250 <= x < 300, "." from x = 300, else the letter (only in these tests). */
+    private fun digitAndPeriod() {
+        val three = key('3'.code); val period = key('.'.code)
+        `when`(detector.detectHitKey(anyInt(), anyInt())).thenAnswer {
+            val x = it.getArgument<Int>(0); val y = it.getArgument<Int>(1)
+            if (y < 150) (if (x >= 300) period else if (x >= 250) three else letter) else if (x < 200) space else delete
+        }
+    }
+
+    @Test fun digitsAndPunctuationTypedAwayFromTheDrawingAreTyped() {
+        digitAndPeriod()
+        stroke(*line(20f, 40f, 120f, 40f)) // a small dash: its area reaches 60 px around it
+        clearInvocations(listener)
+        // a rolling finger (7 px) on "3" far from the dash: no stroke of the drawing, the symbol and then 3
+        touch(MotionEvent.ACTION_DOWN, 270f, 120f); touch(MotionEvent.ACTION_MOVE, 275f, 125f); touch(MotionEvent.ACTION_UP, 275f, 125f)
+        assertEquals(listOf("symbol", "code ${'3'.code}"), log)
+        assertEquals(1, drawings.single().size)
+        now += 1_000 // no fast typing before the next stroke (HeliBoard would then ask for a longer swipe)
+        stroke(*line(20f, 40f, 120f, 40f))
+        touch(MotionEvent.ACTION_DOWN, 330f, 40f); touch(MotionEvent.ACTION_MOVE, 336f, 44f); touch(MotionEvent.ACTION_UP, 336f, 44f)
+        assertEquals(listOf("symbol", "code ${'3'.code}", "symbol", "code ${'.'.code}"), log)
+        pause()
+        assertEquals(2, drawings.size)
+    }
+
+    @Test fun aShortStrokeNearTheDrawingStillJoinsAndARollingTapThereIsALetter() {
+        digitAndPeriod()
+        stroke(*line(20f, 40f, 120f, 40f))
+        stroke(60f, 75f, 65f, 75f, 70f, 75f) // 10 px inside the area: a further stroke
+        assertTrue(SymbolInk.isWaiting)
+        assertTrue(log.isEmpty())
+        // a tap rolling 5 px inside the area: below 6 dp, a tap (a letter, no dot of a dash there)
+        touch(MotionEvent.ACTION_DOWN, 150f, 90f); touch(MotionEvent.ACTION_MOVE, 153f, 94f); touch(MotionEvent.ACTION_UP, 153f, 94f)
+        assertEquals(listOf("symbol", "code ${'a'.code}"), log)
+        assertEquals(2, drawings.single().size)
+    }
+
+    @Test fun aSecondThumbAfterASlightlyMovedTapStillTypesBoth() {
+        // review M1: the first thumb moved 7 px (more than the 6 dp tap rule) before the second came
+        twoLetters()
+        stroke(*line(20f, 80f, 300f, 80f))
+        clearInvocations(listener)
+        touch(MotionEvent.ACTION_DOWN, 30f, 130f)
+        touch(MotionEvent.ACTION_MOVE, 36f, 134f)
+        val a = Triple(0, 36f, 134f); val b = Triple(1, 330f, 30f)
+        fingers(MotionEvent.ACTION_POINTER_DOWN, 1, a, b)
+        assertEquals(listOf("symbol"), log)
+        fingers(MotionEvent.ACTION_POINTER_UP, 0, a, b)
+        fingers(MotionEvent.ACTION_UP, 0, b)
+        assertEquals(listOf("symbol", "code ${'a'.code}", "code ${'b'.code}"), log)
+        assertEquals(1, drawings.single().size) // the tap is not part of it
     }
 }

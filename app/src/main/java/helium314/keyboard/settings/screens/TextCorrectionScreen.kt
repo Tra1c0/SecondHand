@@ -213,6 +213,8 @@ fun createCorrectionSettings(context: Context) = listOf(
                 onDismissRequest = { showConfirmDialog = false },
                 onConfirmed = {
                     prefs.edit { putBoolean(setting.key, false) }
+                    // fork (stage 36 review N4): learned data also means the personal symbol templates
+                    helium314.keyboard.agent.SymbolDrawing.clearPersonalSymbols(context)
                 },
                 content = { Text(stringResource(R.string.disable_personalized_dicts_message)) }
             )

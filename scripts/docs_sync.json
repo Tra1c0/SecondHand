@@ -61,6 +61,7 @@
       "app/src/main/java/helium314/keyboard/latin/utils/DictionaryUtils.kt",
       "app/src/main/java/helium314/keyboard/latin/utils/SubtypeUtils.kt",
       "app/src/main/java/helium314/keyboard/settings/screens/DictionaryScreen.kt",
+      "app/src/main/java/helium314/keyboard/settings/screens/TextCorrectionScreen.kt",
       "app/src/main/java/helium314/keyboard/latin/suggestions/{FlatStrip,SuggestionStripView}.kt",
       "app/src/main/java/helium314/keyboard/keyboard/clipboard/{ClipboardAdapter,ClipboardHistoryView,FlatClipboard}.kt",
       "app/src/main/java/helium314/keyboard/latin/{ClipboardHistoryEntry,ClipboardHistoryManager,ClipboardThumbnails}.kt",

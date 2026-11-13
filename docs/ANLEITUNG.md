@@ -394,13 +394,15 @@ langes Drücken für Sonderzeichen und das Wischen auf Leer- und Löschtaste ble
 - Ein Symbol aus mehreren Strichen: den nächsten Strich innerhalb der Pause ansetzen. Die Pause
   ist anfangs 0,9 Sekunden und passt sich deinem Tempo an (etwa 2,5-mal so lang wie deine übliche
   Lücke zwischen zwei Strichen, mindestens 0,6 und höchstens 1,5 Sekunden). Kurze Striche zählen
-  dann mit, auch wenn sie auf einer Satzzeichen- oder Zifferntaste beginnen; nur auf Leertaste,
-  Enter, Löschen, Umschalt und „?123“ beginnt kein Strich. Nach der Pause wird das Symbol
-  geschrieben; tippst du vorher eine andere Taste, kommt das Symbol zuerst.
-- Während du malst, zeigt die Leiste, was jetzt geschrieben würde: „✎ →“ und bis zu zwei andere
-  Symbole („✎ ?“, solange nichts passt). Ein Tipp darauf schreibt das Symbol sofort, ohne die Pause
+  dann mit, auch wenn sie auf einer Satzzeichen- oder Zifferntaste beginnen, aber nur in der Nähe
+  der Zeichnung (etwa ihre halbe Größe drumherum, mindestens eine Taste breit). Tippst du weiter
+  weg, kommt das Symbol und dann die Taste, so geht beim Weitertippen nichts verloren. Auf
+  Leertaste, Enter, Löschen, Umschalt und „?123“ beginnt nie ein Strich. Nach der Pause wird das
+  Symbol geschrieben; tippst du vorher eine andere Taste, kommt das Symbol zuerst.
+- Hältst du kurz inne (etwa eine Zehntelsekunde), zeigt die Leiste, was jetzt geschrieben würde:
+  „✎ →“ und bis zu zwei andere Symbole („✎ ?“, solange nichts passt). Ein Tipp darauf schreibt das Symbol sofort, ohne die Pause
   abzuwarten; ein Tipp auf ein anderes Symbol schreibt dieses.
-- Ein Tipp in dieser Pause (der Finger bewegt sich kaum, weniger als etwa 4 dp, so lange er auch
+- Ein Tipp in dieser Pause nahe der Zeichnung (der Finger bewegt sich kaum, weniger als etwa 6 dp, so lange er auch
   liegt) schreibt das Symbol und dann den Buchstaben. Bewegt er sich weiter, ist er ein Strich des
   Symbols. Als Punkt zählt der Tipp nur, wenn ein Symbol hier einen Punkt braucht: nach einem
   waagerechten Strich ungefähr senkrecht über oder unter seiner Mitte (÷), bei eigenen Symbolen mit
@@ -410,17 +412,20 @@ langes Drücken für Sonderzeichen und das Wischen auf Leer- und Löschtaste ble
   die Taste, auf der du aufgesetzt hast.
 - Tippst du in dieser Pause mit zwei Daumen (der zweite setzt auf, bevor der erste
   loslässt), kommt das Symbol und danach beide Buchstaben in deiner Reihenfolge. Ein solcher Tipp
-  ist nie ein Punkt.
+  ist nie ein Punkt. Malt der erste Finger gerade einen Strich, wenn der zweite aufsetzt, wird das
+  Symbol samt diesem Strich geschrieben.
 - Tippst du in dieser Pause einen Wortvorschlag an, kommt das Symbol zuerst und das Wort
   danach. Ersetzt der Vorschlag das Wort, das du vor dem Malen getippt hast, bleibt das Symbol
   dahinter.
 - Die Leiste zeigt danach bis zu drei andere Symbole; ein Tipp tauscht das geschriebene aus.
 - Persönliche Vorlagen: Einstellungen → „Symbole malen“ → „Aus meinen Korrekturen lernen“
   (anfangs aus). Ist es an und wählst du in der Leiste ein anderes Symbol (beim Malen oder
-  danach), merkt sich die Tastatur deine Zeichnung für dieses Symbol, bis zu fünf je Symbol, die
+  danach), merkt sich die Tastatur deine Zeichnung für dieses Symbol, bis zu drei je Symbol, die
   neuesten bleiben. Wählst du danach noch einmal um, wandert die Zeichnung mit; wählst du das
-  zuerst erkannte Symbol zurück, wird sie vergessen. Nicht im Inkognito-Modus, bei „Lernen
-  pausieren“ oder gesperrtem Telefon.
+  zuerst erkannte Symbol zurück, ist alles wie vorher. Eine Zeichnung mit einem Punkt merkt sie sich
+  nur für ein Symbol mit Punkten (÷). Nicht im Inkognito-Modus, bei „Lernen pausieren“ oder
+  gesperrtem Telefon. „Gelernte Wörter löschen“ (Einstellungen → Gelernte Wörter, dort steht auch
+  ihre Zahl) und das Ausschalten von „Personalisierte Vorschläge“ löschen sie mit.
 - „Kalibrieren“ (dieselbe Seite): Die Seite zeigt nacheinander jedes eingebaute Symbol; male es
   zweimal in das Feld, je „Weiter“. „Überspringen“ geht zum nächsten Symbol, „Fertig“ hört auf;
   was du schon gemalt hast, bleibt gespeichert. Unter „Persönliche Vorlagen“ stehen alle

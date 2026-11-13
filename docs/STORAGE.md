@@ -243,12 +243,14 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   werden übersprungen. Keine rohen Berührungspunkte. Nicht in HeliBoards Sicherung, kein Backup,
   kein Export.
 - Persönliche Vorlagen (36): dieselbe Datei `agent_symbols`, Schlüssel `personal`, dasselbe Format
-  `v1` (`PersonalInkSymbols`), aber höchstens 5 Zeichnungen je Symbol (die neuesten bleiben) und
-  80 Symbole (das am längsten nicht geänderte fällt zuerst weg). Geschrieben nur (a) beim
+  `v1` (`PersonalInkSymbols`), aber höchstens 3 Zeichnungen je Symbol (die neuesten bleiben) und
+  40 Symbole (das am längsten nicht geänderte fällt zuerst weg); eine Zeile mit mehr Zeichnungen
+  wird beim Lesen übersprungen. Eine Zeichnung mit Punkt nur für ein Symbol mit Punkten. Geschrieben nur (a) beim
   Kalibrieren auf der Einstellungsseite und (b) bei der Wahl einer Alternative in der Leiste, dann
   nur mit Schalter `agent_symbol_learning` (Tastatureinstellungen, Standard aus), ohne Lernpause
   (`agent_learning_paused`), ohne Inkognito, bei entsperrtem Gerät und nie aus einem Passwortfeld.
-  Löschen: einzeln oder alle auf der Seite „Symbole malen“. Keine rohen Berührungspunkte, nicht in
+  Löschen: einzeln oder alle auf der Seite „Symbole malen“, mit „Gelernte Wörter löschen“ und beim
+  Ausschalten von „Personalisierte Vorschläge“. Keine rohen Berührungspunkte, nicht in
   HeliBoards Sicherung, kein Backup, kein Export.
 - Die Pause zwischen zwei Strichen passt sich dem Tempo an (36): die letzten neun Lücken liegen nur
   im Speicher und gehen beim Beenden der Tastatur verloren.

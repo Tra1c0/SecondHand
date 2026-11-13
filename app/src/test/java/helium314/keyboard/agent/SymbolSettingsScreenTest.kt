@@ -275,4 +275,49 @@ class SymbolSettingsScreenTest {
         assertEquals(listOf("→" to 2, InkSymbols.all[2].text to 1), personal.map { it.text to it.samples.size })
         compose.onNodeWithTag("agent_symbol_personal_→").performScrollTo().assertExists()
     }
+
+    // review N4: personal templates are learned data
+
+    private fun somePersonalTemplates() {
+        var personal = dev.agentkeyboard.core.PersonalInkSymbols.add(emptyList(), "→", cloud(0f, 0f, 100f, 0f))
+        personal = dev.agentkeyboard.core.PersonalInkSymbols.add(personal, "≠", cloud(0f, 0f, 50f, 100f))
+        SymbolDrawing.savePersonalSymbols(app, personal)
+    }
+
+    @Test fun theLearnedDataPageCountsAndDeletesPersonalTemplates() {
+        somePersonalTemplates()
+        val nothingTyped = object : LearningSource {
+            override fun languages() = emptyList<String>()
+            override fun words(language: String) = emptyList<LearnedWord>()
+            override fun deleteAll() {}
+        }
+        compose.setContent { Theme(true) { helium314.keyboard.settings.screens.AgentLearningScreen(onClickBack = {}, sourceFactory = { nothingTyped }) } }
+        compose.waitForIdle()
+        compose.onNode(hasText("Persönliche Vorlagen von „Symbole malen“: 2 Zeichnungen", substring = true)).performScrollTo().assertExists()
+        compose.onNode(hasText("Gelernte Wörter löschen") and hasClickAction()).performScrollTo().performClick()
+        compose.waitForIdle()
+        compose.onAllNodes(hasText("Gelernte Wörter löschen") and hasClickAction()).onLast().performClick() // the confirmation
+        compose.waitForIdle()
+        compose.waitUntil(5_000) { SymbolDrawing.personalSymbols(app).isEmpty() }
+        compose.waitForIdle()
+        // the count on the page follows (unmerged: the dialog may still be closing in the merged tree)
+        compose.onNode(hasText("Persönliche Vorlagen von „Symbole malen“: 0 Zeichnungen", substring = true),
+            useUnmergedTree = true).assertExists()
+    }
+
+    @Test fun turningPersonalizedSuggestionsOffDeletesPersonalTemplates() {
+        somePersonalTemplates()
+        app.prefs().edit().putBoolean(helium314.keyboard.latin.settings.Settings.PREF_KEY_USE_PERSONALIZED_DICTS, true).commit()
+        helium314.keyboard.settings.SettingsActivity.settingsContainer = helium314.keyboard.settings.SettingsContainer(app)
+        compose.setContent { Theme(true) { helium314.keyboard.settings.screens.TextCorrectionScreen {} } }
+        compose.waitForIdle()
+        compose.onNode(hasText(app.getString(helium314.keyboard.latin.R.string.use_personalized_dicts)) and hasClickAction())
+            .performScrollTo().performClick()
+        compose.waitForIdle()
+        assertEquals(2, SymbolDrawing.personalSymbols(app).size) // asked first
+        compose.onNode(hasText(app.getString(android.R.string.ok))).performClick()
+        compose.waitForIdle()
+        assertTrue(SymbolDrawing.personalSymbols(app).isEmpty())
+        assertFalse(app.prefs().getBoolean(helium314.keyboard.latin.settings.Settings.PREF_KEY_USE_PERSONALIZED_DICTS, true))
+    }
 }

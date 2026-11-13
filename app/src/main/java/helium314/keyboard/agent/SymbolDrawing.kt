@@ -3,6 +3,9 @@ package helium314.keyboard.agent
 
 import android.content.Context
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
@@ -11,6 +14,7 @@ import dev.agentkeyboard.core.InkCloud
 import dev.agentkeyboard.core.InkDots
 import dev.agentkeyboard.core.InkRecognizer
 import dev.agentkeyboard.core.InkStroke
+import dev.agentkeyboard.core.InkTemplate
 import dev.agentkeyboard.core.InkSymbols
 import dev.agentkeyboard.core.OwnInkSymbols
 import dev.agentkeyboard.core.PersonalInkSymbols
@@ -20,6 +24,8 @@ import helium314.keyboard.latin.SuggestedWords
 import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.settings.SettingsActivity
 import java.lang.ref.WeakReference
+import java.util.concurrent.Executor
+import java.util.concurrent.Executors
 
 /**
  * Stage 27 "Symbole malen": what happens with a finished drawing ([SymbolInk]). The best match is
@@ -30,8 +36,8 @@ import java.lang.ref.WeakReference
  * erkannt" opens the own symbols.
  *
  * Stage 36: while a drawing waits for its next stroke, the strip shows what would be written now
- * (a preview chip with the best guess, "✎ →", and up to two alternatives); a tap writes that symbol
- * at once. With the learning switch on, picking an alternative (in the preview or after writing)
+ * (a preview chip with the best guess, "✎ →", and up to two alternatives; matched off the main thread
+ * once no stroke followed for [SymbolInk.PREVIEW_DELAY_MILLIS]); a tap writes that symbol at once. With the learning switch on, picking an alternative (in the preview or after writing)
  * keeps the drawing as a personal template of the picked symbol ([PersonalInkSymbols]), not in
  * incognito, while learning is paused or the device is locked. Drawings are never logged.
  */
@@ -49,10 +55,12 @@ object SymbolDrawing {
     private sealed class Shown(val cursor: Int)
     /**
      * A written symbol. [cloud] is its drawing, kept in memory for learning from a picked alternative;
-     * [learned] is the text it was learned for, so a second pick moves it instead of keeping two.
+     * [learnedOn] is non-null while the drawing is learned: the personal templates as they were before
+     * (review N4), so a second pick or picking [recognized] again restores them exactly, also a drawing
+     * the learning had pushed out.
      */
     private class Inserted(val text: String, val alternatives: List<String>, cursor: Int, val cloud: InkCloud?,
-        val recognized: String, val learned: String? = null) : Shown(cursor)
+        val recognized: String, val learnedOn: List<OwnInkSymbols.Symbol>? = null) : Shown(cursor)
     private class NotRecognized(cursor: Int) : Shown(cursor)
     /** Stage 36: a drawing that waits for its next stroke; [guess] is what would be written now. */
     private class Waiting(val guess: String?, val alternatives: List<String>) : Shown(-1)
@@ -60,7 +68,21 @@ object SymbolDrawing {
     private var shown: Shown? = null
     private var recognizer: InkRecognizer? = null
     private var dots: InkDots? = null
+    private var templates: List<InkTemplate> = emptyList()
     private var recognizerSource: Pair<String?, String?>? = null
+
+    /**
+     * Stage 36 review M2: the preview is matched off the main thread (up to some 300 templates); the
+     * result is shown only if nothing changed meanwhile ([previewGeneration]). Tests run it inline.
+     */
+    internal var previewExecutor: Executor = Executors.newSingleThreadExecutor { Thread(it, "symbol-preview").apply { isDaemon = true } }
+    private var previewGeneration = 0
+    private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
+
+    private fun setShown(state: Shown?) {
+        shown = state
+        previewGeneration++
+    }
 
     /**
      * Called once per keyboard service (KeyboardActionListenerImpl): drawings go to [ime], and a tap
@@ -79,14 +101,14 @@ object SymbolDrawing {
 
     /** Editor change: a waiting drawing and the chips are dropped. */
     @JvmStatic fun reset() {
-        shown = null // first: the dropped drawing then asks for no new strip (onWaiting)
+        setShown(null) // first: the dropped drawing then asks for no new strip (onWaiting)
         SymbolInk.cancel()
     }
 
     /** Another key: finish a waiting drawing first, and the chips of the last one are done. */
     @JvmStatic fun beforeOtherInput() {
         SymbolInk.flush()
-        shown = null
+        setShown(null)
     }
 
     /**
@@ -103,20 +125,19 @@ object SymbolDrawing {
 
     /** Writes the drawing: [chosen] (a chip of the preview) or the best match. */
     private fun write(ime: LatinIME, strokes: List<InkStroke>, chosen: String?) {
-        shown = null
+        setShown(null)
         if (ime.agentEditorController.isBlockingInput) return
         val cloud = InkCloud.of(strokes)
         val result = cloud?.let { recognizer(ime).recognize(it) }
         val best = result?.best?.text
         val text = chosen ?: best
         if (text == null) {
-            shown = NotRecognized(ime.agentCommandCursor)
+            setShown(NotRecognized(ime.agentCommandCursor))
         } else {
             ime.onTextInput(text)
             val others = (listOfNotNull(best) + result!!.alternatives.map { it.text }).filter { it != text }
-            var learned: String? = null
-            if (chosen != null && chosen != best && cloud != null && learn(ime, cloud, chosen, null)) learned = chosen
-            shown = Inserted(text, others.take(InkRecognizer.ALTERNATIVES), ime.agentCommandCursor, cloud, best ?: text, learned)
+            val learnedOn = if (chosen != null && chosen != best && cloud != null) learn(ime, cloud, chosen, null) else null
+            setShown(Inserted(text, others.take(InkRecognizer.ALTERNATIVES), ime.agentCommandCursor, cloud, best ?: text, learnedOn))
         }
         ime.setNeutralSuggestionStrip()
     }
@@ -124,17 +145,30 @@ object SymbolDrawing {
     /** Stage 36: the waiting drawing changed (a stroke more), or was dropped (empty). */
     internal fun onWaiting(ime: LatinIME, strokes: List<InkStroke>) {
         if (strokes.isEmpty()) {
+            previewGeneration++ // a preview still being matched is out of date
             if (shown !is Waiting) return
-            shown = null
+            setShown(null)
             // the strip gets back what it showed before the drawing (suggestions or the neutral strip)
             ime.mHandler.postUpdateSuggestionStrip(SuggestedWords.INPUT_STYLE_TYPING)
             return
         }
         if (ime.agentEditorController.isBlockingInput) return
-        val result = recognizer(ime).recognize(strokes)
-        val guess = result.best?.text
-        shown = Waiting(guess, (if (guess == null) emptyList() else result.alternatives.map { it.text }).take(2))
-        ime.setNeutralSuggestionStrip()
+        val matcher = recognizer(ime) // read on the main thread (preferences), matched on the worker
+        val generation = ++previewGeneration
+        val drawing = strokes.toList()
+        val ref = WeakReference(ime)
+        previewExecutor.execute {
+            val result = matcher.recognize(drawing)
+            // postAtTime, not post: tests replace posted messages of all handlers (P51)
+            mainHandler.postAtTime({
+                val keyboard = ref.get() ?: return@postAtTime
+                // a newer stroke, a written or dropped drawing, or a key in between: out of date
+                if (generation != previewGeneration || !SymbolInk.isWaiting) return@postAtTime
+                val guess = result.best?.text
+                setShown(Waiting(guess, (if (guess == null) emptyList() else result.alternatives.map { it.text }).take(2)))
+                keyboard.setNeutralSuggestionStrip()
+            }, SystemClock.uptimeMillis())
+        }
     }
 
     /** LatinIME: the chips of the last drawing, or null when there is nothing (left) to show. */
@@ -142,7 +176,7 @@ object SymbolDrawing {
         val state = shown ?: return null
         if (state is Waiting) {
             if (!SymbolInk.isWaiting) {
-                shown = null
+                setShown(null)
                 return null
             }
             val chips = ArrayList<KeyboardCommands.Chip>()
@@ -160,7 +194,7 @@ object SymbolDrawing {
         }
         val cursor = ime.agentCommandCursor
         if (cursor < 0 || cursor != state.cursor) {
-            shown = null
+            setShown(null)
             return null
         }
         val chips = when (state) {
@@ -169,7 +203,7 @@ object SymbolDrawing {
             is Inserted -> {
                 val before = ime.getAgentTextBeforeCursor(state.text.length)?.toString()
                 if (before != state.text) {
-                    shown = null
+                    setShown(null)
                     return null
                 }
                 state.alternatives.map { alternative ->
@@ -187,6 +221,8 @@ object SymbolDrawing {
     /** A preview chip: write the waiting drawing now, as [chosen] (null: the best match, i.e. none). */
     private fun takeWaiting(ime: LatinIME, chosen: String?) {
         if (shown !is Waiting) return
+        // review N3: while input is blocked the drawing stays where it is instead of being dropped
+        if (ime.agentEditorController.isBlockingInput) return
         // a stroke still on the keys, or nothing waits any more: the chip is out of date
         val strokes = SymbolInk.takeWaiting() ?: return
         write(ime, strokes, chosen)
@@ -196,24 +232,25 @@ object SymbolDrawing {
         if (shown !== state) return
         val outcome = ime.replaceCommandText(state.text, alternative, state.cursor)
         if (outcome == ApplyOutcome.SUBMITTED) {
-            // the drawing was meant as [alternative]: learn it (moving an earlier pick of the same drawing)
-            var learned = state.learned
-            if (state.cloud != null && (alternative != state.recognized || learned != null)) {
-                learned = if (learn(ime, state.cloud, alternative.takeIf { it != state.recognized }, state.learned))
-                    alternative.takeIf { it != state.recognized } else learned
+            // the drawing was meant as [alternative]: learn it on top of the templates as they were
+            // before this drawing was learned (a second pick moves it, the recognized one undoes it)
+            var learnedOn = state.learnedOn
+            val target = alternative.takeIf { it != state.recognized }
+            if (state.cloud != null && (target != null || learnedOn != null)) {
+                learn(ime, state.cloud, target, learnedOn)?.let { before -> learnedOn = if (target != null) before else null }
             }
             // the replaced symbol becomes an alternative itself
-            shown = Inserted(alternative, listOf(state.text) + state.alternatives.filter { it != alternative },
-                ime.agentCommandCursor, state.cloud, state.recognized, learned)
+            setShown(Inserted(alternative, listOf(state.text) + state.alternatives.filter { it != alternative },
+                ime.agentCommandCursor, state.cloud, state.recognized, learnedOn))
         } else {
-            shown = null
+            setShown(null)
             if (outcome == ApplyOutcome.REJECTED) Toast.makeText(ime, R.string.agent_command_expired, Toast.LENGTH_SHORT).show()
         }
         ime.setNeutralSuggestionStrip()
     }
 
     private fun openOwnSymbols(ime: LatinIME) {
-        shown = null
+        setShown(null)
         // never open the settings over the lock screen: the chip then only goes away
         if (helium314.keyboard.latin.settings.Settings.getValues()?.mIsLocked != false) {
             ime.setNeutralSuggestionStrip()
@@ -236,18 +273,19 @@ object SymbolDrawing {
     }
 
     /**
-     * Keeps [cloud] for [text] (null: for nothing) and drops the newest drawing of [previous], the
-     * text this drawing was learned for before. False when nothing may be learned now.
+     * Keeps [cloud] for [text] on top of [base] (the personal templates before this drawing was
+     * learned; null: as stored now); with [text] null only [base] is restored. A drawing with dots is
+     * kept only for a symbol with dots (review M3). Returns the templates it started from, or null when
+     * nothing may be learned now.
      */
-    private fun learn(ime: LatinIME, cloud: InkCloud, text: String?, previous: String?): Boolean {
-        if (!mayLearn(ime)) return false
-        var personal = personalSymbols(ime)
-        if (previous != null) personal = personal.mapNotNull { symbol ->
-            if (symbol.text != previous) symbol else symbol.samples.dropLast(1).takeIf { it.isNotEmpty() }?.let { OwnInkSymbols.Symbol(symbol.text, it) }
-        }
-        if (text != null) personal = PersonalInkSymbols.add(personal, text, cloud)
+    private fun learn(ime: LatinIME, cloud: InkCloud, text: String?, base: List<OwnInkSymbols.Symbol>?): List<OwnInkSymbols.Symbol>? {
+        if (!mayLearn(ime)) return null
+        val before = base ?: personalSymbols(ime)
+        recognizer(ime) // the templates of the symbol with or without dots
+        val personal = if (text == null) before
+            else PersonalInkSymbols.add(before, text, cloud, PersonalInkSymbols.hasDots(templates, text))
         savePersonalSymbols(ime, personal)
-        return true
+        return before
     }
 
     // --- templates ---
@@ -261,9 +299,9 @@ object SymbolDrawing {
         val source = prefs.getString(OWN_SYMBOLS, null) to prefs.getString(PERSONAL_SYMBOLS, null)
         val cached = recognizer
         if (cached != null && source == recognizerSource) return cached
-        val templates = OwnInkSymbols.parse(source.first).flatMap { it.templates() } +
+        val all = OwnInkSymbols.parse(source.first).flatMap { it.templates() } +
             PersonalInkSymbols.templates(PersonalInkSymbols.parse(source.second)) + InkSymbols.templates
-        return InkRecognizer(templates).also { dots = InkDots(templates, it); recognizer = it; recognizerSource = source }
+        return InkRecognizer(all).also { dots = InkDots(all, it); templates = all; recognizer = it; recognizerSource = source }
     }
 
     /** The keyboard's recognizer as it is now, if built; for tests (stage 31 fix, one match per tap). */
@@ -285,6 +323,9 @@ object SymbolDrawing {
     /** Stage 36: the personal templates, the symbol changed longest ago first. */
     @JvmStatic fun personalSymbols(context: Context): List<OwnInkSymbols.Symbol> =
         PersonalInkSymbols.parse(prefs(context).getString(PERSONAL_SYMBOLS, null))
+
+    /** Review N4: everything learned is deleted together ("Gelerntes löschen", personalized suggestions off). */
+    @JvmStatic fun clearPersonalSymbols(context: Context) = savePersonalSymbols(context, emptyList())
 
     @JvmStatic fun savePersonalSymbols(context: Context, symbols: List<OwnInkSymbols.Symbol>) {
         prefs(context).edit().apply {

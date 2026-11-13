@@ -2594,8 +2594,12 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   Hälften, € mit einem Balken, Proportionen zufällig), dann Reihenfolge und Richtung zufällig,
   Enden bis 12 % gekürzt, Biegung, Haken beim Absetzen (jeder fünfte Strich), Zittern, ungleiche
   Abtastung, Drehung bis ±15°, Streckung bis 25 % je Achse („hart“; „mild“: ±8°, 12 %, ohne
-  Kürzen, Haken und Umordnen). Die neuen Vorlagen decken dieselben Arten ab (nicht dieselben
-  Zufallswerte); der Vergleich misst also auch, dass Varianten jetzt Vorlagen haben. „Vorher“ ist
+  Kürzen, Haken und Umordnen). Die neuen Vorlagen decken dieselben Malarten ab (nicht dieselben
+  Zufallswerte): Kopf als Haken oder als zwei Striche, Pfeil ohne Absetzen, ⇒ mit Balken bis unter
+  einen hohen Kopf, zweiteiliges ♥, € mit einem Balken, flache und schmale °, ★ und ×, = mit
+  ungleichen Balken, ≠ mit flacherem Schrägstrich, ≈ und ~ mit kleinerer Welle, ≤ mit kürzerem
+  Winkel. Die 96,2 % sind also eine Messung innerhalb der Verteilung, für die die Vorlagen gebaut
+  wurden, keine Aussage über die Handschrift des Owners (Prüfer M4). „Vorher“ ist
   der Code von `ec91dac` (alter Erkenner und alte Vorlagen, vorübergehend in den Test kopiert, nicht
   eingecheckt).
   - Hart: vorher 1725/2000 (86,3 %), 91 nicht erkannt, 184 falsch; nachher 1924/2000 (96,2 %),
@@ -2610,7 +2614,8 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
     nachher: ↗→↑ 3, }→| 3, je 2 √→|, }→), ♥→°, ⇒→=, @→°, ≈→=, ↘→↓.
   - Paare (hart, vorher → nachher): ⇒→≠ 0 → 0 %, ≠→⇒ 0 → 0 %, →→↗ 0 → 0 %, ↗→→ 2 → 2 %,
     =→≈ 8 → 0 %, ≈→= 12 → 4 %, ≠→= 20 → 2 %, ⇒→→ 0 → 2 %, +↔× 0 → 0 %. Mild ≠→⇒ 2 → 0 %.
-  - ⇒ als ≠: Das Modell konnte die Verwechslung des Owners auch vorher kaum nachstellen. Eigener
+  - ⇒ als ≠: Die Verwechslung des Owners wurde nie nachgestellt (Prüfer M4): vorher 0 von je 50 ⇒ im
+    Benchmark (hart und mild) und 1 von 200 im eigenen Fall. Was sie verursacht hat, ist unbekannt. Eigener
     Fall „⇒ des Owners“ (Balken bis unter einen hohen, schmalen Kopf, der die Balken wie ein
     Schrägstrich kreuzt; wie der Owner wirklich malt, ist nicht bekannt), 200 Zeichnungen: vorher
     164 ⇒, 1 ≠; nachher 190 ⇒, 0 ≠. Ob ⇒ am Telefon nicht mehr zu ≠ wird, ist offen.
@@ -2680,6 +2685,71 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   beim Malen, Erkennung, ⇒/≠, Kalibrieren im Malfeld), keine echten Zeichnungen des Owners im
   Benchmark; kein Prüfer-Review der `PointerTracker`-Änderung (Pflicht). Annahme: „Aus meinen
   Korrekturen lernen“ ist opt-in (Regel in `CLAUDE.md`), der Owner muss es einschalten.
+- Prüfer und Korrekturen (Pflicht-Prüfer zu `f4bc806`, ein hoher, vier mittlere, mehrere
+  niedrige Befunde; korrigiert in der Arbeitskopie, nicht gepusht):
+  - H1 Normales Tippen im Wartefenster verlor Zeichen, jetzt auch Ziffern und Satzzeichen (jede
+    Zeichentaste begann einen Folgestrich, Tipp nur unter 4 dp, Fenster 0,9–1,5 s; „≈“, dann „3“
+    mit rollendem Finger: 3 weg, Symbol verändert). Jetzt beginnt ein Folgestrich nur nahe der
+    Zeichnung (`InkTap.nearDrawing`: Rechteck plus 0,6 ihrer längeren Seite, mindestens eine
+    Tastenbreite); weiter weg wird das Symbol geschrieben und die Taste normal getippt. Tipp-Grenze
+    6 dp statt 4 (P101: rollende Finger bewegen sich mehr als 4 dp). Modell `InkTimingTest`: 2,2 %
+    falsche Striche, 3,0 % falsche Tipps (4 dp: 7,1 % / 0 %); die Grenze im Test ist jetzt ≤ 3 %
+    falsche Striche statt < 12 % und ≤ 4 % falsche Tipps. Tests
+    `SymbolInkTest.digitsAndPunctuationTypedAwayFromTheDrawingAreTyped` (3 mit 7 px Rollen, „.“ mit
+    7 px, beide nach dem Symbol), `aShortStrokeNearTheDrawingStillJoinsAndARollingTapThereIsALetter`,
+    `InkTimingTest.furtherStrokesStartOnlyNearTheDrawing`. `aShortStrokeInThePauseIsAStrokeNotATap`
+    zieht jetzt 8 px statt 6 px (6 px sind mit „unter 6 dp“ gerade kein Tipp mehr; die Aussage bleibt).
+  - M1 Zweiter Finger: Ob der erste Finger ein Tipp war, entscheidet wieder die großzügige 10-dp-Grenze
+    (`InkTap.SECOND_FINGER_SLOP_DP`); war er ein Strich, wird die Zeichnung samt Strich geschrieben
+    statt verworfen, sein Loslassen bleibt still. Tests `aSecondThumbAfterASlightlyMovedTapStillTypesBoth`
+    (7 px), `secondFingerDuringAStrokeWritesTheDrawingAndIsHandledAsUsual` (vorher
+    `secondFingerDropsTheDrawingAndIsHandledAsUsual`, das das Verwerfen festschrieb: jetzt „Symbol“,
+    dann der Buchstabe des zweiten Fingers, die Zeichnung mit 2 Strichen; die übrigen Assertions
+    gleich). `InputLogicTest.symbolDrawPreviewChipDoesNothingWhileAStrokeIsDrawnAndGoesWithTheDrawing`
+    verwirft die Zeichnung jetzt über einen Abbruch statt über einen zweiten Finger.
+  - M2 Hauptthread: Die Vorschau kommt erst 120 ms nach dem letzten Strich und wird auf einem eigenen
+    Thread erkannt; das Ergebnis gilt nur ohne Zustandswechsel dazwischen. Persönliche Vorlagen
+    höchstens 3 je Symbol und 40 Symbole (vorher 5 und 80). Zeit-Test mit allen Vorlagen, die ein
+    Nutzer haben kann (105 eingebaute + 90 eigene + 120 persönliche = 315): 13,5 ms je Zeichnung auf
+    dem JVM, Grenze 40 ms (`recognitionWithEveryTemplateTheUserCanHaveFitsTheMainThread`); auf dem
+    Telefon nicht gemessen. Der Zähler-Test `symbolDrawTapInThePauseThatIsNoDotMatchesTheDrawingOnce`
+    erwartet wieder 1 (zwei schnelle Striche: noch keine Vorschau; Punkt-Check und Schreiben teilen
+    eine Erkennung). Vorschau-Tests warten 130 ms. Test `strokesInQuickSuccessionGetOnePreview`.
+  - M3 Lernen und Kalibrieren behalten eine Zeichnung mit Punkt nur für ein Symbol mit Punkten
+    (P113). Tests `PersonalInkSymbolsTest.aDrawingWithADotIsKeptOnlyForASymbolWithDots`,
+    `InputLogicTest.symbolDrawLearnsNoDrawingWithADotForASymbolWithoutDots`.
+  - M4 Aussagen in FEATURES, VALIDATION und Release-Notes abgeschwächt (oben: geteilte Malarten
+    aufgezählt, 96 % innerhalb der Verteilung, ⇒/≠ nie nachgestellt; „⇒ und ≠ sind getrennt“
+    gestrichen).
+  - N1 ARCHITECTURE: Schritt 2 der Punkt-Regel nennt die aktuelle Schwelle, P96/P104 die aktuellen
+    Grenzen. N3 Ein Tipp auf den Vorschau-Chip bei gesperrter Eingabe lässt die Zeichnung stehen
+    (Test `symbolDrawPreviewChipKeepsTheDrawingWhileInputIsBlocked`); das Umschalten der ausklappbaren
+    Werkzeugleiste ist unverändert (wie bei allen Chips). N4 Zurücknehmen stellt die persönlichen
+    Vorlagen von vor dem Lernen wieder her, auch eine verdrängte (`Inserted.learnedOn`, Test
+    `symbolDrawUndoingALearnedDrawingRestoresTheOneItPushedOut`); „Gelernte Wörter“ zeigt ihre Zahl
+    und „Gelernte Wörter löschen“ löscht sie mit, ebenso das Ausschalten von „Personalisierte
+    Vorschläge“ (neue Upstream-Änderung `TextCorrectionScreen.kt`, eine Zeile). Tests
+    `SymbolSettingsScreenTest.theLearnedDataPageCountsAndDeletesPersonalTemplates`,
+    `turningPersonalizedSuggestionsOffDeletesPersonalTemplates`.
+  - `PointerTracker`: `startsInk` prüft zuerst `SymbolInk.isWaiting`, zuletzt
+    `continuesInk(x, y, mMostCommonKeyWidth)`; der Zweig des zweiten Fingers ruft `onSecondFinger`
+    nur für einen zeichnenden Tracker und macht ihn nur bei einem Tipp zur Taste. `LatinIME`
+    unverändert.
+  - Gegenproben (in einem Lauf zugleich: kein Bereich, 4 dp, zweiter Finger mit 6 dp und Verwerfen,
+    Punkt-Zeichnungen für jedes Symbol, kein Sperr-Check am Chip, Lernen ohne gemerkten Stand, keine
+    Lösch-Zeilen): rot genau `aShortStrokeNearTheDrawing…`, `digitsAndPunctuation…`,
+    `aSecondThumbAfterASlightlyMovedTap…`, `secondFingerDuringAStroke…`, beide neuen
+    `SymbolSettingsScreenTest`, `symbolDrawUndoingALearnedDrawing…`, `symbolDrawLearnsNoDrawingWithADot…`,
+    `symbolDrawPreviewChipKeepsTheDrawing…` und `symbolDrawAlternativeAfterWritingIsLearnedAndMovesWithASecondPick`
+    (das nachgebaute alte Zurücknehmen). Die Vorschau sofort nach jedem Strich: zuerst blieb
+    `strokesInQuickSuccessionGetOnePreview` grün, weil der Test zwischen den Strichen den Hauptthread
+    nicht laufen ließ; nach 60 ms Leerlauf zwischen den Strichen rot. Danach alles wiederhergestellt.
+  - Läufe: `tools/dev.py core-tests` 300/0; `SymbolInkTest` 32, `SymbolSettingsScreenTest` 13,
+    `InputLogicTest.symbolDraw*` 22, alle grün. `tools/dev.py agent-tests`: erster Lauf 758 Tests,
+    1 Fehler: `theLearnedDataPageCountsAndDeletesPersonalTemplates` fand die Zeile „0 Zeichnungen“
+    nur im ungemergten Baum (allein grün); der Test sucht sie jetzt dort, nachdem er auf das Löschen
+    gewartet hat (die Prüfung der Daten selbst ist unverändert). Zweiter Lauf 758/0. Nicht gelaufen:
+    `upstream-tests`, `lint`, Build.
 
 ## Gerätetest vor Meilensteinfreigabe
 

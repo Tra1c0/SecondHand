@@ -40,6 +40,8 @@ fun AgentLearningScreen(onClickBack: () -> Unit, sourceFactory: (() -> LearningS
     val scope = rememberCoroutineScope()
     val enabled = context.prefs().getBoolean(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, Defaults.PREF_KEY_USE_PERSONALIZED_DICTS)
     var paused by remember { mutableStateOf(LearningData.isPaused(context)) }
+    var symbolDrawings by remember { mutableIntStateOf(dev.agentkeyboard.core.PersonalInkSymbols.drawings(
+        helium314.keyboard.agent.SymbolDrawing.personalSymbols(context))) }
     var counts by remember { mutableStateOf<Map<String, Int>?>(null) }
     var busy by remember { mutableStateOf(false) }
     var notice by remember { mutableIntStateOf(0) }
@@ -101,6 +103,8 @@ fun AgentLearningScreen(onClickBack: () -> Unit, sourceFactory: (() -> LearningS
                 }
             }) { Text(stringResource(R.string.agent_learning_export)) }
             Text(stringResource(R.string.agent_learning_export_description), style = MaterialTheme.typography.bodySmall)
+            // stage 36 review N4: the drawn symbols learned from corrections and the calibration
+            Text(stringResource(R.string.agent_learning_symbols, symbolDrawings), style = MaterialTheme.typography.bodySmall)
             Button(enabled = !busy, onClick = { confirmDelete = true }) { Text(stringResource(R.string.agent_learning_delete)) }
             if (notice != 0) Text(stringResource(notice))
             HorizontalDivider()
@@ -120,8 +124,10 @@ fun AgentLearningScreen(onClickBack: () -> Unit, sourceFactory: (() -> LearningS
                     TypoMemory.clear(context)
                     RejectedCorrections.clear(context)
                     TouchModel.clear(context)
+                    helium314.keyboard.agent.SymbolDrawing.clearPersonalSymbols(context)
                 }
                 counts = emptyMap()
+                symbolDrawings = 0
             }
         },
         content = { Text(stringResource(R.string.agent_learning_delete_confirm)) },

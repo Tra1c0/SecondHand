@@ -123,7 +123,9 @@ fun AgentSymbolsScreen(onClickBack: () -> Unit) {
                 }, modifier = Modifier.testTag("agent_symbol_personal_clear")) { Text(stringResource(R.string.agent_symbols_personal_delete_all)) }
                 if (calibrating) CalibrationCard(onDone = { calibrating = false }) { text, cloud ->
                     // saved at once: stopping half way keeps what was drawn
-                    personal = PersonalInkSymbols.add(SymbolDrawing.personalSymbols(context), text, cloud)
+                    // review M3: a drawing with dots only for a symbol with dots (else it is not kept)
+                    personal = PersonalInkSymbols.add(SymbolDrawing.personalSymbols(context), text, cloud,
+                        PersonalInkSymbols.hasDots(InkSymbols.templates, text))
                     SymbolDrawing.savePersonalSymbols(context, personal)
                 }
                 else {

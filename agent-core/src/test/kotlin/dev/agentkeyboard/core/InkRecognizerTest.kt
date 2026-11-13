@@ -8,6 +8,11 @@ import kotlin.random.Random
 import kotlin.test.*
 
 class InkRecognizerTest {
+    private companion object {
+        /** JVM on a shared machine; a phone is slower, docs/VALIDATION.md (stage 36 review M2). */
+        const val MAX_MILLIS_FULL = 40.0
+    }
+
     private val recognizer = InkRecognizer(InkSymbols.templates)
 
     /**
@@ -194,6 +199,29 @@ class InkRecognizerTest {
         assertEquals(20, recognizer.recognitions - before) // really matched, none from the memo
         println("ink: ${"%.1f".format(millis)} ms per drawing against ${InkSymbols.templates.size} templates")
         assertTrue(millis < 50, "$millis ms")
+    }
+
+    @Test fun recognitionWithEveryTemplateTheUserCanHaveFitsTheMainThread() {
+        // review M2: built-in, 30 own symbols drawn 3 times and 40 personal symbols with 3 drawings each
+        val random = Random(36)
+        val own = List(OwnInkSymbols.MAX_SYMBOLS * OwnInkSymbols.SAMPLES) { k ->
+            val scribble = InkStroke(FloatArray(2 * random.nextInt(4, 9)) { random.nextDouble(0.0, 100.0).toFloat() })
+            InkTemplate("o${k / OwnInkSymbols.SAMPLES}", InkCloud.of(listOf(scribble))!!, own = true)
+        }
+        val personal = List(PersonalInkSymbols.MAX_SYMBOLS * PersonalInkSymbols.PER_SYMBOL) { k ->
+            val symbol = InkSymbols.all[k / PersonalInkSymbols.PER_SYMBOL % InkSymbols.all.size]
+            InkTemplate(symbol.text, InkCloud.of(perturb(symbol.variants.first(), random))!!)
+        }
+        val all = own + personal + InkSymbols.templates
+        assertEquals(30 * 3 + 40 * 3 + InkSymbols.templates.size, all.size)
+        val full = InkRecognizer(all)
+        val drawings = List(25) { perturb(InkSymbols.all[it % InkSymbols.all.size].variants.first(), random) }
+        drawings.take(5).forEach { full.recognize(it) } // warm up
+        val start = System.nanoTime()
+        drawings.drop(5).forEach { full.recognize(it) }
+        val millis = (System.nanoTime() - start) / 20 / 1_000_000.0
+        println("ink: ${"%.1f".format(millis)} ms per drawing against ${all.size} templates (every template a user can have)")
+        assertTrue(millis < MAX_MILLIS_FULL, "$millis ms")
     }
 
     @Test fun emptyOrOverlongInputIsNoSymbol() {

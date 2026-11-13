@@ -3161,6 +3161,8 @@ class InputLogicTest {
     private val wStroke = arrayOf(floatArrayOf(0f, 0f, 75f, 300f, 150f, 120f, 225f, 300f, 300f, 0f))
 
     private fun enableSymbolDrawing() {
+        // stage 36 review M2: the preview is matched on a worker; here inline, its result still posted
+        helium314.keyboard.agent.SymbolDrawing.previewExecutor = java.util.concurrent.Executor { it.run() }
         latinIME.prefs().edit { putBoolean(AgentPreferences.SYMBOL_DRAWING, true) }
         latinIME.mSettings.loadSettings(latinIME, latinIME.mSettings.current.mLocale,
             InputAttributes(latinIME.currentInputEditorInfo, false, latinIME.packageName))
@@ -3282,8 +3284,8 @@ class InputLogicTest {
     @Test fun symbolDrawTapInThePauseThatIsNoDotMatchesTheDrawingOnce() {
         // review N2: the dot check (rule 4) and the written symbol share one match on the main thread
         enableSymbolDrawing()
-        // stage 36: the preview chip matches the drawing after each of its two strokes; the count
-        // starts before drawing: the dot check and the written symbol add no match
+        // stage 36: the count starts before drawing; the two strokes come quickly, so no preview is
+        // matched yet (review M2), and the dot check and the written symbol share one match
         val before = helium314.keyboard.agent.SymbolDrawing.currentRecognizer()
         val start = before?.recognitions ?: 0
         // shifted: the same arrow as in other tests of this class would already be in the recognizer's memo
@@ -3293,7 +3295,7 @@ class InputLogicTest {
         assertTrue(helium314.keyboard.agent.SymbolInk.onInkUp(0, 150, 40)) // a letter: the arrow is written now
         assertEquals("→", text)
         val after = helium314.keyboard.agent.SymbolDrawing.currentRecognizer()!!
-        assertEquals(2, after.recognitions - (if (after === before) start else 0))
+        assertEquals(1, after.recognitions - (if (after === before) start else 0))
     }
 
     @Test fun symbolDrawWaitingSymbolIsTypedBeforeTheNextKey() {
@@ -3402,12 +3404,22 @@ class InputLogicTest {
         reloadSettings()
     }
 
+    /** The preview comes a moment after the last stroke (review M2). */
+    private fun afterPreview() {
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper())
+            .idleFor(java.time.Duration.ofMillis(helium314.keyboard.agent.SymbolInk.PREVIEW_DELAY_MILLIS + 10))
+        handleMessages()
+    }
+
     @Test fun symbolDrawPreviewChipShowsTheGuessAndWritesItAtOnce() {
         enableSymbolDrawing()
         setText("a ")
         drawStrokes(arrowStrokes[0]) // the shaft so far
+        kotlin.test.assertNull(symbolChips()) // not while the hand may still be drawing
+        afterPreview()
         assertEquals(symbolDrawing.PREVIEW_MARK + "–", chipLabels(symbolChips()!!).first())
         drawStrokes(arrowStrokes[1])
+        afterPreview()
         val labels = chipLabels(symbolChips()!!)
         assertEquals(symbolDrawing.PREVIEW_MARK + "→", labels.first())
         assertTrue(labels.size in 1..3, "$labels")
@@ -3425,14 +3437,14 @@ class InputLogicTest {
     @Test fun symbolDrawPreviewChipDoesNothingWhileAStrokeIsDrawnAndGoesWithTheDrawing() {
         enableSymbolDrawing()
         drawStrokes(*arrowStrokes)
+        afterPreview()
         val chips = symbolChips()!!
         symbolInk.onInkDown(0, 20, 20) // a further stroke is on the keys
         tapStripChip(chips, symbolDrawing.PREVIEW_MARK + "→")
         handleMessages()
         assertEquals("", text)
         assertTrue(symbolInk.isWaiting)
-        symbolInk.onInkMove(0, 60, 60) // a real stroke
-        symbolInk.onSecondFinger() // a second finger during a stroke: the drawing is dropped
+        symbolInk.cancel() // a cancelled touch drops the drawing (a second finger writes it since review M1)
         assertFalse(symbolInk.isWaiting)
         kotlin.test.assertNull(symbolChips())
         afterThePause()
@@ -3446,6 +3458,7 @@ class InputLogicTest {
         enableSymbolDrawing()
         try {
             drawStrokes(*ownArrow)
+            afterPreview()
             val labels = chipLabels(symbolChips()!!)
             assertTrue(labels.size >= 2, "$labels")
             val alternative = labels[1]
@@ -3456,6 +3469,7 @@ class InputLogicTest {
             learnSymbols(true)
             setText("")
             drawStrokes(*ownArrow)
+            afterPreview()
             tapStripChip(symbolChips()!!, alternative)
             handleMessages()
             assertEquals(alternative, text)
@@ -3525,6 +3539,77 @@ class InputLogicTest {
             symbolDrawing.savePersonalSymbols(latinIME, emptyList())
             reloadSettings() // Settings is a process-wide singleton
             assertFalse(settingsValues.mIsLocked)
+        }
+    }
+
+    @Test fun symbolDrawPreviewChipKeepsTheDrawingWhileInputIsBlocked() {
+        // review N3: a tap while input is blocked must not drop the drawing silently
+        enableSymbolDrawing()
+        drawStrokes(*arrowStrokes)
+        afterPreview()
+        val chips = symbolChips()!!
+        latinIME.agentEditorController.onUnclearEdit()
+        try {
+            assertTrue(latinIME.agentEditorController.isBlockingInput)
+            tapStripChip(chips, symbolDrawing.PREVIEW_MARK + "→")
+            handleMessages()
+            assertTrue(symbolInk.isWaiting) // still there
+            assertEquals("", text)
+        } finally {
+            latinIME.agentEditorController.startEditor(latinIME.currentInputEditorInfo)
+        }
+        assertFalse(latinIME.agentEditorController.isBlockingInput)
+        tapStripChip(symbolChips()!!, symbolDrawing.PREVIEW_MARK + "→")
+        handleMessages()
+        assertEquals("→", text)
+    }
+
+    @Test fun symbolDrawLearnsNoDrawingWithADotForASymbolWithoutDots() {
+        // review M3: a stray dot with a dash must not become a personal "–" with a dot (P113)
+        enableSymbolDrawing()
+        learnSymbols(true)
+        try {
+            setText("")
+            drawSymbol(floatArrayOf(0f, 100f, 300f, 100f), floatArrayOf(150f, 10f)) // a dash and a dot above
+            val written = text
+            val labels = chipLabels(symbolChips()!!)
+            val withoutDots = labels.first { it != "÷" }
+            tapStripChip(symbolChips()!!, withoutDots)
+            handleMessages()
+            assertEquals(withoutDots, text, "written $written, chips $labels")
+            assertTrue(personalSymbols().isEmpty())
+        } finally {
+            symbolDrawing.savePersonalSymbols(latinIME, emptyList())
+        }
+    }
+
+    @Test fun symbolDrawUndoingALearnedDrawingRestoresTheOneItPushedOut() {
+        // review N4: picking the recognized symbol again restores the templates exactly as before
+        enableSymbolDrawing()
+        learnSymbols(true)
+        try {
+            setText("")
+            drawSymbol(*ownArrow)
+            val target = chipLabels(symbolChips()!!).first()
+            val w = dev.agentkeyboard.core.InkCloud.of(listOf(dev.agentkeyboard.core.InkStroke(wStroke[0])))!!
+            var full = emptyList<dev.agentkeyboard.core.OwnInkSymbols.Symbol>()
+            repeat(dev.agentkeyboard.core.PersonalInkSymbols.PER_SYMBOL) { full = dev.agentkeyboard.core.PersonalInkSymbols.add(full, target, w) }
+            symbolDrawing.savePersonalSymbols(latinIME, full)
+            setText("")
+            drawSymbol(*ownArrow)
+            assertEquals("→", text)
+            assertTrue(target in chipLabels(symbolChips()!!))
+            tapStripChip(symbolChips()!!, target)
+            handleMessages()
+            val learned = personalSymbols().single()
+            assertEquals(dev.agentkeyboard.core.PersonalInkSymbols.PER_SYMBOL, learned.samples.size) // the oldest W went
+            tapStripChip(symbolChips()!!, "→")
+            handleMessages()
+            val restored = personalSymbols().single()
+            assertEquals(dev.agentkeyboard.core.PersonalInkSymbols.PER_SYMBOL, restored.samples.size)
+            assertTrue(restored.samples.all { dev.agentkeyboard.core.InkRecognizer.greedyCloudMatch(it, w) < 0.05f }) // all three W again
+        } finally {
+            symbolDrawing.savePersonalSymbols(latinIME, emptyList())
         }
     }
 

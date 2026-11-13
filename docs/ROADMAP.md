@@ -29,12 +29,14 @@ Reihenfolge von oben nach unten.
   `PointerTracker`, Gerätetest.
 - **36 Symbole malen: Erkennung überarbeiten** (Rückmeldung des Owners zu Build 14) ist gebaut
   (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 36 (Erkennung Symbole malen)):
-  Tipp-Grenze 4 dp, Pause 0,9 s nach Tempo (0,6–1,5 s), Vorschau-Chip, Folgestriche auch auf
-  Satzzeichen-Tasten, Erkennung mit Strichrichtung und Strichzahl, mehr Vorlagen, persönliche
-  Vorlagen (Lernen aus Korrekturen, anfangs aus, und Kalibrieren). Offen: Prüfer-Review der
-  `PointerTracker`-Änderung (Pflicht), Gerätetest am Xiaomi (Erkennung mit echten Fingern, Tipp-
-  Grenze, Tempo der Pause, ob der Vorschau-Chip beim Malen stört), ob ⇒ → ≠ am Telefon weg ist
-  (das Finger-Modell konnte die Verwechslung schon vorher nicht nachstellen); Annahme des Leads:
+  Tipp-Grenze 6 dp, Folgestriche nur nahe der Zeichnung (auch auf Satzzeichen- und
+  Zifferntasten), Pause 0,9 s nach Tempo (0,6–1,5 s), Vorschau-Chip (nicht im Hauptthread),
+  Erkennung mit Strichrichtung und Strichzahl, mehr Vorlagen, persönliche Vorlagen (Lernen aus
+  Korrekturen, anfangs aus, und Kalibrieren). Prüfer-Befunde H1, M1–M4, N1, N3, N4 korrigiert
+  (`docs/VALIDATION.md`). Offen: erneutes Prüfer-Review der `PointerTracker`-Änderung (Pflicht),
+  Gerätetest am Xiaomi (Erkennung mit echten Fingern, Tipp-Grenze, Bereich um die Zeichnung, Tempo
+  der Pause, ob der Vorschau-Chip beim Malen stört, Zeit der Erkennung), ob ⇒ → ≠ am Telefon weg
+  ist (im Test nie nachgestellt); Annahme des Leads:
   „Aus meinen Korrekturen lernen“ ist opt-in (Regel in `CLAUDE.md`), der Owner schaltet es ein.
 - **33 Leertasten-Geste mit Rastpunkten** ist gebaut (siehe FEATURES.md, Nachweis in
   `docs/VALIDATION.md` → Etappe 33 (Leertasten-Rastpunkte)). Offen: Prüfer-Review der `PointerTracker`-Änderung

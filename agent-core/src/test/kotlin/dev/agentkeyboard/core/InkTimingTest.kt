@@ -12,11 +12,23 @@ import kotlin.test.assertTrue
 
 /** Stage 36: the tap rule in the pause and the pause that follows the user's pace. */
 class InkTimingTest {
-    @Test fun aTouchIsATapOnlyBelowFourDp() {
+    @Test fun aTouchIsATapOnlyBelowSixDp() {
+        // review H1: 6 dp (a rolling finger moves more than 4 dp, P101)
         assertTrue(InkTap.isTap(0f))
-        assertTrue(InkTap.isTap(3.9f))
-        assertFalse(InkTap.isTap(4f))
+        assertTrue(InkTap.isTap(5.9f))
+        assertFalse(InkTap.isTap(6f))
         assertFalse(InkTap.isTap(9f)) // was a tap with the old 10 dp
+    }
+
+    @Test fun furtherStrokesStartOnlyNearTheDrawing() {
+        // review H1: a 100 px dash; the area grows by 0.6 of its size (60), at least by a key width
+        val dash = listOf(InkStroke.of(100f, 300f, 200f, 300f))
+        assertTrue(InkTap.nearDrawing(dash, 150f, 300f, 36f))
+        assertTrue(InkTap.nearDrawing(dash, 259f, 240f, 36f))
+        assertFalse(InkTap.nearDrawing(dash, 261f, 300f, 36f))
+        assertFalse(InkTap.nearDrawing(dash, 150f, 361f, 36f))
+        assertTrue(InkTap.nearDrawing(dash, 150f, 379f, 80f)) // a wide key: at least one key width
+        assertFalse(InkTap.nearDrawing(emptyList(), 150f, 300f, 36f))
     }
 
     /**
@@ -41,18 +53,20 @@ class InkTimingTest {
         val rules = linkedMapOf<String, (Touch) -> Boolean>(
             "old (< 10 dp)" to { t -> t.moved <= 10f },
             "proposed (< 4 dp and < 180 ms)" to { t -> t.moved < 4f && t.millis < InkTap.QUICK_MILLIS },
-            "stage 36 (< 4 dp)" to { t -> InkTap.isTap(t.moved) },
-            "for comparison (< 6 dp)" to { t -> t.moved < 6f },
+            "stage 36 first version (< 4 dp)" to { t -> t.moved < 4f },
+            "stage 36 (< 6 dp)" to { t -> InkTap.isTap(t.moved) },
         )
         val rates = rules.mapValues { (_, isTap) ->
             taps.count { !isTap(it) }.toDouble() / taps.size to strokes.count { isTap(it) }.toDouble() / strokes.size
         }
         rates.forEach { (name, r) -> println("tap rule $name: false strokes ${"%.1f".format(100 * r.first)} %, false taps ${"%.1f".format(100 * r.second)} %") }
-        val chosen = rates.getValue("stage 36 (< 4 dp)")
+        val chosen = rates.getValue("stage 36 (< 6 dp)")
         val old = rates.getValue("old (< 10 dp)")
         assertTrue(chosen.second < old.second / 3, "short strokes are no longer taps: $chosen vs $old")
         assertTrue(chosen.first <= rates.getValue("proposed (< 4 dp and < 180 ms)").first)
-        assertTrue(chosen.first < 0.12, "$chosen")
+        // review H1: in this model at most 3 % of the letters tapped near a drawing in the pause become strokes
+        assertTrue(chosen.first < 0.03, "$chosen")
+        assertTrue(chosen.second < 0.04, "$chosen")
     }
 
     @Test fun thePauseStartsAt900MsAndFollowsTheMedianGap() {

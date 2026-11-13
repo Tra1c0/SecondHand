@@ -456,6 +456,13 @@ Symbole malen (Etappe 27, Touch-Verarbeitung, jede Änderung mit Prüfer; Detail
   Tastendruck, wenn dessen Tracker noch `mInInk` hat, sonst `SymbolInk.cancel`; `onCancelEvent`
   beendet auch einen Folgestrich eines anderen Trackers (`SymbolInk.isDrawing`, dessen `mInInk`
   aus); `moveInk` zeichnet nur für den Zeiger, der laut `SymbolInk.drawingPointer` malt.
+  36 nach Prüfer: `startsInk` prüft zuerst `SymbolInk.isWaiting` (ohne wartendes Symbol wie vorher
+  nichts) und zuletzt `SymbolInk.continuesInk(x, y, mKeyboard.mMostCommonKeyWidth)` (nur nahe der
+  Zeichnung, H1); bei zweitem Finger und zeichnendem Tracker ruft es `onSecondFinger` und macht den
+  Tracker nur bei einem Tipp zur Taste, ein Strich ist dann schon geschrieben (M1).
+- `TextCorrectionScreen.kt` (36, Prüfer N4): Bestätigt man das Ausschalten von „Personalisierte
+  Vorschläge“, löscht der Dialog auch die persönlichen Vorlagen von Symbole malen
+  (`SymbolDrawing.clearPersonalSymbols`), eine Zeile.
 - `KeyboardActionListenerImpl.kt`: die vier Batch-Methoden gehen bei eingeschaltetem
   `mSymbolDrawing` an `SymbolInk` statt an `LatinIME` (LatinIME, InputLogic und
   `PendingBatchGate` sehen davon nichts); `onPressKey`, `onCodeInput`, `onTextInput` rufen zuerst
@@ -1636,15 +1643,20 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Erster Strich: unveränderte Erkennung in `PointerTracker`, `onEndBatchInput` liefert alle
   Punkte seit dem Aufsetzen; `A/SymbolInk.kt` nimmt nur die Punkte des ersten Zeigers.
   Weitere Striche innerhalb der Pause: Hook `startsInk`, sofort Tinte, auch Punkte (÷), auf jeder
-  Taste, die ein Zeichen schreibt (36: auch Satzzeichen; Leertaste, Enter und Modifier nicht).
+  Taste, die ein Zeichen schreibt (36: auch Satzzeichen; Leertaste, Enter und Modifier nicht), aber
+  nur nahe der Zeichnung (Prüfer H1, `InkTap.nearDrawing`: ihr Rechteck, auf jeder Seite um 0,6 ihrer
+  längeren Seite vergrößert, mindestens um eine Tastenbreite `mMostCommonKeyWidth`). Eine Berührung
+  weiter weg beendet die Zeichnung und wird normal getippt (Ziffer, Satzzeichen, Buchstabe).
   Pause (36, `C/InkTiming.kt` `InkPace`): 900 ms, ab drei gemessenen Lücken (Loslassen bis
   nächstes Aufsetzen, nur innerhalb eines Symbols, `SystemClock.uptimeMillis`) 2,5 × Median der
   letzten neun, begrenzt auf 600–1500 ms; nur im Speicher. Vorher fest 500 ms (Rückmeldung zu
   Build 14: der Rest eines Symbols begann ein neues). Ein Tipp (36: Bewegung unter
-  `InkTap.SLOP_DP` = 4 dp vom Aufsetzpunkt, Dauer egal, P111; vorher 10 dp) ist nur dann ein
+  `InkTap.SLOP_DP` = 6 dp vom Aufsetzpunkt, Dauer egal, P111; vorher 10 dp, in der ersten Fassung
+  von 36 4 dp, Prüfer H1) ist nur dann ein
   Punkt, wenn `SymbolInk.dotCheck` zustimmt (31, `C/InkDots.kt`): (1) ein Symbol hat Punkte
   (eingebaut nur ÷, dazu eigene), (2) die bisherigen Striche ohne frühere Punkte gleichen dessen
-  punktlosem Teil (`$P` ≤ 1,3), (3) der Tipp liegt nach Deckung der Teile (gleiche Mitte, gleiche
+  punktlosem Teil (Abstand des Erkenners ≤ `ACCEPT_DISTANCE`, seit 36 1,8 mit Richtungs- und
+  Strukturterm, vorher `$P` ≤ 1,3), (3) der Tipp liegt nach Deckung der Teile (gleiche Mitte, gleiche
   längere Seite, ein schräger Strich bis 20° gerade gedreht) in Richtung eines seiner Punkte, von
   der Mitte des punktlosen Teils aus gesehen höchstens 0,12 Symbolgrößen seitlich und 0,25 näher
   oder weiter (bei ÷: ungefähr senkrecht über oder unter der Mitte des Strichs; Korrektur nach
@@ -1655,7 +1667,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   wird zum Punkt (etwa eine Taste je Nachbarreihe, P104). `SymbolDrawing.attach` setzt `dotCheck`
   mit den eigenen Symbolen (gleiche Vorlagen und derselbe `InkRecognizer` wie der Erkenner), sonst
   `builtInDotCheck`. Die Regel kostet nur bei Tipps im Fenster etwas (ca. 50 µs, mit Schritt 4
-  einmal die volle Erkennung, ca. 12 ms auf dem JVM); schreibt der Tipp danach das Symbol, liefert
+  einmal die volle Erkennung, ca. 5–14 ms auf dem JVM); schreibt der Tipp danach das Symbol, liefert
   `InkRecognizer` das Ergebnis von Schritt 4 aus seinem Merker für die letzte Zeichnung, ohne neu
   zu rechnen. Zwei Daumen im Fenster: P104. Bewusst so gelassen (Prüfer 30/31): Ein Finger im
   Fenster ist Tinte ohne Langdruck-Timer; langes Halten ohne Bewegung ist beim Loslassen ein Tipp
@@ -1664,11 +1676,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Ein Wortvorschlag im Fenster: `SymbolDrawing.beforeSuggestionPick` (P97). Nach der Pause (Timer per `postAtTime`, P51) oder vor jeder anderen Taste
   (`flush`) gehen die Striche an die Senke. Es wird nie sofort nach einem Strich geschrieben, weil
   jeder Strich der erste eines mehrstrichigen Symbols sein kann (– → =, ≠).
-- Vorschau (36): Nach jedem Strich meldet `SymbolInk` die wartende Zeichnung an
-  `Sink.onWaiting`; `SymbolDrawing` erkennt sie (derselbe Erkenner, das Schreiben nach der Pause
-  kommt aus dessen Merker, P112) und zeigt in der Leiste „✎ →“ plus bis zu zwei Alternativen
-  (`Waiting`). Ein Tipp schreibt sofort (`SymbolInk.takeWaiting`, nichts, solange ein Strich auf
-  den Tasten ist); eine Alternative ist eine Korrektur (Lernen, unten). Wird die Zeichnung
+- Vorschau (36): 120 ms nach einem Strich ohne neuen (`SymbolInk.PREVIEW_DELAY_MILLIS`, Prüfer M2)
+  meldet `SymbolInk` die wartende Zeichnung an `Sink.onWaiting`; `SymbolDrawing` liest den Erkenner
+  im Hauptthread, erkennt auf einem eigenen Thread (`previewExecutor`, in Tests direkt) und zeigt das
+  Ergebnis per `postAtTime` (P51) nur, wenn sich nichts geändert hat (`previewGeneration`, jede
+  Zustandsänderung über `setShown`): in der Leiste „✎ →“ plus bis zu zwei Alternativen
+  (`Waiting`). Derselbe Erkenner; das Schreiben nach der Pause kommt aus dessen Merker (P112). Ein
+  Tipp schreibt sofort (`SymbolInk.takeWaiting`, nichts, solange ein Strich auf den Tasten ist oder
+  die Eingabe gesperrt ist, Prüfer N3: die Zeichnung bleibt dann); eine Alternative ist eine
+  Korrektur (Lernen, unten). Bekannt, nicht geändert: im Modus „Werkzeugleiste ausklappbar“ wird die
+  Leiste bei jedem Wechsel zwischen Vorschau und Vorschlägen wie bei den übrigen Chips umgeschaltet.
+  Wird die Zeichnung
   verworfen, meldet `cancel` eine leere Liste und die Leiste holt ihre Vorschläge zurück
   (`postUpdateSuggestionStrip`); `reset` setzt den Zustand vor `SymbolInk.cancel` zurück (P112).
 - `A/SymbolDrawing.kt`: Erkennung (eingebaute plus eigene Vorlagen, neu gebaut, wenn sich der
@@ -1687,18 +1705,27 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   ≤ 2,3 mit 1,2-fachem Vorsprung, Alternativen bis 2,6 (P114). Vorlagen: 105 (vorher 73), dazu
   Fingervarianten (Kopf in einem Strich oder als zwei Striche, Pfeil ohne Absetzen, ⇒ mit Balken bis
   unter einen hohen Kopf, flache und schmale °, ★, ×, zweiteiliges ♥, € mit einem Balken).
-  Ca. 7 ms je Zeichnung auf dem JVM (geteilter Rechner), der alte Code 12 ms. Gewichte und Schwellen
+  Ca. 4–7 ms je Zeichnung gegen 105 Vorlagen auf dem JVM (geteilter Rechner), der alte Code 12 ms
+  gegen 73; mit allen Vorlagen, die ein Nutzer haben kann (105 + 90 eigene + 120 persönliche = 315),
+  13,5 ms (Test mit Grenze 40 ms; am Telefon langsamer, darum die Vorschau nicht im Hauptthread,
+  Prüfer M2). Gewichte und Schwellen
   aus dem Benchmark (`docs/VALIDATION.md` → Etappe 36).
 - Persönliche Vorlagen (36, `C/PersonalInkSymbols.kt`): Schlüssel `personal` in `agent_symbols`
-  (Format wie eigene Symbole, höchstens 5 Zeichnungen je Symbol, die neuesten bleiben, höchstens
-  80 Symbole). Quellen: (a) Wahl einer Alternative (Vorschau oder nach dem Schreiben), nur mit
+  (Format wie eigene Symbole, höchstens 3 Zeichnungen je Symbol, die neuesten bleiben, höchstens
+  40 Symbole; Prüfer M2, vorher 5 und 80). Eine Zeichnung mit Punkt wird nur für ein Symbol mit
+  Punkten behalten (`PersonalInkSymbols.hasDots` über alle Vorlagen des Symbols, Prüfer M3, P113).
+  Quellen: (a) Wahl einer Alternative (Vorschau oder nach dem Schreiben), nur mit
   Schalter `agent_symbol_learning` (Standard aus), ohne Lernpause, ohne Inkognito, entsperrt, kein
   Passwortfeld (`SymbolDrawing.mayLearn`). Die Wolke der Zeichnung liegt dafür im Speicher am
-  geschriebenen Symbol (`Inserted.cloud`); eine zweite Wahl verschiebt sie (neueste Zeichnung des
-  vorher gelernten Symbols weg), die Wahl des erkannten Symbols nimmt sie zurück. (b) Kalibrieren
+  geschriebenen Symbol (`Inserted.cloud`), dazu die persönlichen Vorlagen von vor dem Lernen
+  (`Inserted.learnedOn`, Prüfer N4): eine zweite Wahl lernt auf diesem Stand neu, die Wahl des
+  erkannten Symbols stellt ihn wieder her, auch eine dabei verdrängte Zeichnung. (b) Kalibrieren
   auf der Seite: jedes eingebaute Symbol zweimal (`CalibrationCard`, Überspringen, Fertig; jede
-  Zeichnung wird sofort gespeichert). Der Erkenner nimmt eigene, persönliche und eingebaute
-  Vorlagen und wird neu gebaut, wenn sich einer der beiden gespeicherten Texte ändert.
+  Zeichnung wird sofort gespeichert). Gelöscht werden sie auf der Seite, mit „Gelernte Wörter
+  löschen“ (`AgentLearningScreen`, zeigt auch ihre Zahl) und beim Ausschalten von „Personalisierte
+  Vorschläge“ (`TextCorrectionScreen`, `SymbolDrawing.clearPersonalSymbols`). Der Erkenner nimmt
+  eigene, persönliche und eingebaute Vorlagen und wird neu gebaut, wenn sich einer der beiden
+  gespeicherten Texte ändert.
 - Eigene Symbole: DE-SharedPreferences `agent_symbols`, Schlüssel `own` (Format in
   `docs/STORAGE.md`), Seite `K/settings/screens/AgentSymbolsScreen.kt` (Schalter, eigene
   Symbole dreimal malen in einer Karte `AddSymbolCard` auf der Seite, kein Dialog (P78), Liste
@@ -1707,6 +1734,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   über 4096 Punkten zeigt die Karte „Bitte neu malen“ (`agent_symbol_pad_limit`) und sperrt
   „Weiter“ (31). Texte in
   `agent_symbol_strings.xml`.
+- Tests 36 nach Prüfer: `SymbolInkTest` (Ziffer und Punkt neben der Zeichnung werden getippt,
+  kurzer Strich nahe der Zeichnung gehört dazu, rollender Tipp dort ist Buchstabe, zweiter Daumen
+  nach 7 px, Strich bei zweitem Finger wird geschrieben, eine Vorschau für schnelle Striche),
+  `InputLogicTest.symbolDraw*` (Chip bei gesperrter Eingabe, keine Punkt-Zeichnung für „–“,
+  Zurücknehmen stellt verdrängte Vorlage wieder her), `SymbolSettingsScreenTest` (Zahl und Löschen
+  auf „Gelernte Wörter“, Ausschalten der personalisierten Vorschläge), `InkRecognizerTest`
+  (315 Vorlagen), `PersonalInkSymbolsTest` (3/40, Punkte), `InkTimingTest` (6 dp, Bereich).
 - Tests 36: `CT/InkBenchmarkTest.kt` mit `CT/InkFingerModel.kt` (Finger-Modell, Nachweis),
   `CT/InkTimingTest.kt`, `CT/PersonalInkSymbolsTest.kt`; `AT/SymbolInkTest.kt` (kurzer Strich,
   schneller Strich ohne Bewegung, Strich nach 800 ms, Pause nach Tempo, still gehaltener Tipp,
@@ -2090,8 +2124,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   z. B. Großschreibung nach einem eigenen „.“) und erst danach die Taste ermittelt werden.
   `SymbolInk.onInkUp` schreibt das Symbol, `PointerTracker` holt den Down mit
   `onDownEventInternal` an der Aufsetzstelle nach (Tastendruck, Rückmeldung, Vorschau; nicht an der
-  Up-Stelle, sonst drückt ein Tipp, der bis 10 dp auf die Nachbartaste rutscht, z. B. Löschen,
-  diese) und lässt den normalen Up-Pfad die Taste senden. Kam ein zweiter Finger dazu, ist der Tipp
+  Up-Stelle, sonst drückt ein Tipp, der bis zur Tipp-Grenze (seit 36 unter 6 dp) auf die
+  Nachbartaste rutscht, z. B. Löschen, diese) und lässt den normalen Up-Pfad die Taste senden. Kam ein zweiter Finger dazu, ist der Tipp
   schon Taste (P104): `inkTapBecomesKey` hat `mInInk` gelöscht, `onUpEvent` ruft `onInkUp` dann
   gar nicht und der normale Pfad tippt ihn (Korrektur nach Prüfer zu 057a6d5).
 - **P97** Ein Wortvorschlag kann im Wartefenster zwei Dinge sein: ein neues Wort (Vorhersage) oder
@@ -2116,9 +2150,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `UninitializedPropertyAccessException`.
 - **P104** Zwei Daumen im Wartefenster von Symbole malen: Daumen A tippt (als Tinte, er könnte ein
   Punkt sein), Daumen B setzt auf, bevor A loslässt. `startsInk` von B fragt
-  `SymbolInk.onSecondFinger`: Ist As Strich noch ein Tipp (bis 10 dp), wird das Symbol sofort
+  `SymbolInk.onSecondFinger`: Ist As Strich noch ein Tipp (bei zweitem Finger unter 10 dp,
+  `InkTap.SECOND_FINGER_SLOP_DP`, großzügiger als die 6 dp beim Loslassen), wird das Symbol sofort
   geschrieben und A über `inkTapBecomesKey` ein normaler Tastendruck an seiner Aufsetzstelle (in
-  der Warteschlange vor B, also in Tipp-Reihenfolge); nur ein echter Strich wird verworfen. Ein Tipp
+  der Warteschlange vor B, also in Tipp-Reihenfolge); ein echter Strich endet mit der Zeichnung, die
+  samt ihm geschrieben wird (Prüfer M1, vorher verworfen); As Loslassen bleibt danach still. Ein Tipp
   mit zweitem Finger wird nie Punkt. Die Punkt-Zone (`InkDots`, Schritt 3) ist schmal und in
   Richtung des Punkts gestreckt; ein `$P`-Vergleich „Strich plus Tipp gleicht ÷ besser als –“
   taugt nicht als weitere Regel: mit einem Punkt ist er schief (ein erster Punkt unter dem Strich
@@ -2235,11 +2271,14 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Tastendruck, der nie losgelassen wird (Geisterbuchstabe). Deshalb: `onCancelEvent` beendet jeden
   laufenden Folgestrich (auch eines anderen Trackers), und `startsInk` macht nur einen Tracker mit
   `mInInk` zur Taste, sonst `SymbolInk.cancel`. Test `SymbolInkTest.aCancelThatReachesAnotherTrackerEndsTheInkStroke`.
-- **P111** Die Tipp-Regel im Wartefenster misst nur die Bewegung (unter 4 dp), nicht die Dauer.
+- **P111** Die Tipp-Regel im Wartefenster misst nur die Bewegung (unter 6 dp; die erste Fassung mit
+  4 dp verlor nach dem Modell 7 % der Buchstaben, Prüfer H1), nicht die Dauer.
   Eine still gehaltene Berührung hat keine Form; als Strich gezählt, fügte sie der Zeichnung einen
   Punkt hinzu und verlöre den Buchstaben (ein langsamer Tipp). Die vorgeschlagene Regel „unter
   4 dp und unter 180 ms“ ist im Nachweis gemessen und verworfen (`InkTimingTest`).
-- **P112** Die Vorschau erkennt nach jedem Strich; das Schreiben nach der Pause, der Punkt-Check
+- **P112** Die Vorschau erkennt 120 ms nach dem letzten Strich auf einem eigenen Thread; das
+  Ergebnis gilt nur, wenn sich der Zustand nicht geändert hat (jede Änderung über `setShown`, sonst
+  überschreibt eine späte Vorschau ein geschriebenes Symbol). Das Schreiben nach der Pause, der Punkt-Check
   (Schritt 4) und der Chip-Tipp müssen denselben `InkRecognizer` fragen, sonst rechnet der
   Hauptthread dieselbe Zeichnung mehrfach (`InputLogicTest.symbolDrawTapInThePauseThatIsNoDotMatchesTheDrawingOnce`
   zählt ab vor dem Malen). `SymbolDrawing.reset` setzt seinen Zustand vor `SymbolInk.cancel`
@@ -2260,7 +2299,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (437 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (438 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -2341,13 +2380,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/settings/` (4): SearchScreen, SettingsActivity, SettingsContainer, SettingsNavHost
 - `K/settings/dialogs/` (2): ColorPickerDialog, SliderDialog
 - `K/settings/preferences/` (2): KeyboardScalePreference, SliderPreference
-- `K/settings/screens/` (29): AdvancedScreen, AgentAiScreen, AgentCommandsScreen, AgentDesignEditor,
+- `K/settings/screens/` (30): AdvancedScreen, AgentAiScreen, AgentCommandsScreen, AgentDesignEditor,
   AgentDesignScreen, AgentDiagnoseScreen, AgentDictationScreen, AgentEmojiMixSection,
   AgentLearningScreen, AgentMainSettings, AgentProfilesScreen, AgentRgbCurveEditor, AgentRgbScreen,
   AgentRunStatus, AgentScreenReaderSection, AgentScreenshotScreen, AgentSkillsScreen, AgentSlider,
   AgentSnippetsSection, AgentSpaceScreen, AgentSymbolsScreen, AgentUpdatesScreen,
   AgentWorkflowsScreen, AppearanceScreen, DictionaryScreen, GestureTypingScreen, MainSettingsScreen,
-  WorkflowBuilderDialog, WorkflowDraftProtection
+  TextCorrectionScreen, WorkflowBuilderDialog, WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
 - `app/` (1): build.gradle

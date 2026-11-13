@@ -24,26 +24,27 @@ import java.lang.ref.WeakReference
  *   routed here by KeyboardActionListenerImpl ([onBatchStart], [onBatchEnd], [onBatchCancel]).
  * - While a symbol waits for its next stroke ([pauseMillis] after the last one, stage 36: 900 ms,
  *   then following the user's pace, [InkPace]), a touch that starts on a key that types a character
- *   (no space, no modifier) is ink right away (PointerTracker asks [continuesInk] and then reports
- *   [onInkDown]/[onInkMove]/[onInkUp]), so short strokes and dots (÷, ≠) count too.
- * - A touch in that pause that moves less than [InkTap.SLOP_DP] is a tap (stage 36: was 10 dp). It
+ *   (no space, no modifier) near the drawing (review H1, [InkTap.nearDrawing]) is ink right away
+ *   (PointerTracker asks [continuesInk] and then reports [onInkDown]/[onInkMove]/[onInkUp]), so short
+ *   strokes and dots (÷, ≠) count too. A touch farther away ends the drawing and is typed as usual.
+ * - A touch in that pause that moves less than [InkTap.SLOP_DP] is a tap (stage 36: 6 dp, was 10). It
  *   is a dot only where the drawing needs one ([dotCheck], [InkDots]); any other tap writes the
  *   waiting symbol and PointerTracker then types the tapped key (stage 31).
  * - After the pause the strokes go to [sink] (the keyboard: [SymbolDrawing]); any other key
- *   press first finishes a waiting symbol ([flush]). Stage 36: every stroke is also shown to the sink
- *   while it waits ([Sink.onWaiting]), for the preview chip in the strip.
+ *   press first finishes a waiting symbol ([flush]). Stage 36: the waiting drawing is also shown to
+ *   the sink ([Sink.onWaiting]) [PREVIEW_DELAY_MILLIS] after its last stroke, for the preview chip.
  *
  * Only the first finger draws: points of other pointers in a batch are dropped. A second finger
  * during a continuation stroke ends the drawing ([onSecondFinger], PointerTracker): a stroke that is
  * still a tap is a letter of two-thumb typing (the symbol is written, the tap becomes a key press),
- * a real stroke drops the drawing. Strokes live only in memory until they are recognized; nothing
+ * a real stroke ends the drawing with it (written, review M1). Strokes live only in memory until they are recognized; nothing
  * is stored or logged.
  */
 object SymbolInk {
     interface Sink {
         /** A finished drawing, to be recognized and written. */
         fun onDrawing(strokes: List<InkStroke>)
-        /** Stage 36: the waiting drawing so far (after each stroke); empty when it was dropped. */
+        /** Stage 36: the waiting drawing so far (shortly after a stroke); empty when it was dropped. */
         fun onWaiting(strokes: List<InkStroke>) {}
     }
 
@@ -58,6 +59,12 @@ object SymbolInk {
     private val handler by lazy { Handler(Looper.getMainLooper()) }
     private val token = Any()
     private val due = Runnable { finish() }
+    /** Stage 36 review M2: the preview follows only after [PREVIEW_DELAY_MILLIS] without a new stroke. */
+    private val previewToken = Any()
+    private val preview = Runnable { if (!group.isEmpty && inkPointer < 0) sink?.onWaiting(group.drawn) }
+
+    /** No preview while strokes follow each other quickly; it is matched off the main thread anyway. */
+    const val PREVIEW_DELAY_MILLIS = 120L
 
     /** Decides whether a quick tap is a dot of the waiting drawing (stage 31). */
     fun interface DotCheck { fun isDot(strokes: List<InkStroke>, x: Float, y: Float): Boolean }
@@ -101,6 +108,7 @@ object SymbolInk {
 
     @JvmStatic fun onBatchStart() {
         handler.removeCallbacksAndMessages(token)
+        handler.removeCallbacksAndMessages(previewToken)
     }
 
     /** The finished gesture: [pointers] holds all points since the touch went down. */
@@ -126,8 +134,13 @@ object SymbolInk {
 
     // --- further strokes of a waiting symbol, from PointerTracker ---
 
-    /** PointerTracker: a new touch on a character key continues the waiting symbol as ink. */
-    @JvmStatic fun continuesInk(): Boolean = isEnabled() && isWaiting && inkPointer < 0
+    /**
+     * PointerTracker: a new touch on a character key at ([x], [y]) continues the waiting symbol as ink
+     * when it starts near the drawing (stage 36 review H1, [InkTap.nearDrawing], at least [keyWidth]
+     * around it); a touch farther away ends the drawing and is typed as usual.
+     */
+    @JvmStatic fun continuesInk(x: Int, y: Int, keyWidth: Int): Boolean =
+        isEnabled() && isWaiting && inkPointer < 0 && InkTap.nearDrawing(group.drawn, x.toFloat(), y.toFloat(), keyWidth.toFloat())
 
     /**
      * True while a continuation stroke is drawn. A second finger then ends it ([onSecondFinger]);
@@ -140,25 +153,29 @@ object SymbolInk {
 
     /**
      * A second finger touches down while a continuation stroke is drawn (stage 31 fix, P104). When
-     * that stroke is still a tap (two thumbs typing in the pause), the waiting symbol is written now
-     * and true comes back: PointerTracker then presses the tapped key like any tap, and the second
-     * finger is handled as usual. A real stroke in progress drops the whole drawing (false).
+     * that stroke is still a tap (two thumbs typing in the pause; up to [InkTap.SECOND_FINGER_SLOP_DP],
+     * review M1), the waiting symbol is written now and true comes back: PointerTracker then presses
+     * the tapped key like any tap, and the second finger is handled as usual. A real stroke in progress
+     * ends the drawing with it and writes the symbol (false; review M1: before, it dropped the drawing).
+     * The first finger's up then ends quietly.
      */
     @JvmStatic fun onSecondFinger(): Boolean {
         if (inkPointer < 0) return false
         val stroke = InkStroke(points.copyOf(2 * pointCount))
         inkPointer = -1
         pointCount = 0
-        if (stroke.size > 0 && isTap(stroke)) {
+        if (stroke.size > 0 && moved(stroke) < InkTap.SECOND_FINGER_SLOP_DP) {
             finish()
             return true
         }
-        cancel()
+        if (stroke.size > 0) group.add(stroke, SystemClock.uptimeMillis()) // refused beyond the limits: written without it
+        finish()
         return false
     }
 
     @JvmStatic fun onInkDown(pointerId: Int, x: Int, y: Int) {
         handler.removeCallbacksAndMessages(token)
+        handler.removeCallbacksAndMessages(previewToken)
         inkGap = if (lastStrokeEnd >= 0) SystemClock.uptimeMillis() - lastStrokeEnd else -1
         inkPointer = pointerId
         pointCount = 0
@@ -191,12 +208,15 @@ object SymbolInk {
     }
 
     /** No point of [stroke] is [InkTap.SLOP_DP] or more away from where it went down. */
-    private fun isTap(stroke: InkStroke): Boolean {
+    private fun isTap(stroke: InkStroke): Boolean = InkTap.isTap(moved(stroke))
+
+    /** How far (dp) the farthest point of [stroke] is from where it went down. */
+    private fun moved(stroke: InkStroke): Float {
         val density = Resources.getSystem().displayMetrics.density
         var moved = 0.0
         for (i in 1 until stroke.size)
             moved = maxOf(moved, Math.hypot((stroke.x(i) - stroke.x(0)).toDouble(), (stroke.y(i) - stroke.y(0)).toDouble()))
-        return InkTap.isTap((moved / density).toFloat())
+        return (moved / density).toFloat()
     }
 
     private fun centreX(stroke: InkStroke) = (0 until stroke.size).map { stroke.x(it) }.average().toFloat()
@@ -216,6 +236,7 @@ object SymbolInk {
     @JvmStatic fun takeWaiting(): List<InkStroke>? {
         if (!isWaiting || inkPointer >= 0) return null
         handler.removeCallbacksAndMessages(token)
+        handler.removeCallbacksAndMessages(previewToken)
         lastStrokeEnd = -1
         return group.take()
     }
@@ -223,6 +244,7 @@ object SymbolInk {
     /** Drops everything (editor change, cancelled touch); nothing is recognized. */
     @JvmStatic fun cancel() {
         handler.removeCallbacksAndMessages(token)
+        handler.removeCallbacksAndMessages(previewToken)
         val hadStrokes = !group.isEmpty
         group.clear()
         inkPointer = -1
@@ -249,7 +271,8 @@ object SymbolInk {
         if (!group.add(stroke, now)) return cancel()
         lastStrokeEnd = now
         schedule()
-        sink?.onWaiting(group.drawn)
+        handler.removeCallbacksAndMessages(previewToken)
+        handler.postAtTime(preview, previewToken, now + PREVIEW_DELAY_MILLIS)
     }
 
     private fun schedule() {
@@ -261,6 +284,7 @@ object SymbolInk {
 
     private fun finish() {
         handler.removeCallbacksAndMessages(token)
+        handler.removeCallbacksAndMessages(previewToken)
         lastStrokeEnd = -1
         if (group.isEmpty) return
         val strokes = group.take()
