@@ -1484,6 +1484,16 @@ Befunde eines lesenden Reviews der Befehle, behoben:
 - Offen gelassen: Dateikopien beim Wählen eines Designs laufen auf dem Main-Thread (Ruckeln bei
   großen Bildern möglich, kein Absturz); Ansichtswechsel mitten im Wisch nur ohne Gerät geprüft.
 
+## Eingebaute Emoji-Wörterbücher
+
+- Gebaut: `emoji_de/en/es.dict` in `assets/dicts`; `DictionaryInfoUtils` entpackt sie bei Bedarf,
+  `DictionaryFactory` lädt sie nur bei eingeschalteter Emoji-Einstellung.
+- Geprüft (Robolectric): `BundledEmojiDictTest` (3: alle drei Dateien da; Deutsch und US-Englisch
+  bekommen die passende Datei, Japanisch keine, andere Typen werden so nicht entpackt; ohne
+  Emoji-Einstellung kein Emoji-Wörterbuch, mit ihr `emoji_de.dict`).
+- Nicht geprüft: echte Emoji-Vorschläge mit der nativen Wörterbuch-Bibliothek (gibt es in
+  Robolectric nicht) und der Dialog am Gerät.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

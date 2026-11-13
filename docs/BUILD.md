@@ -112,3 +112,17 @@ nutzen einen Debug-Schlüssel, der in jeder neuen Umgebung anders ist; sie sind 
 
 - `com.google.zxing:core` 3.5.4 (Apache-2.0, `LICENSE-Apache-2.0` im Wurzelverzeichnis): nur der
   QR-Encoder für `@qr`, kein Scanner, keine Kamera.
+
+## Mitgelieferte Emoji-Wörterbücher
+
+Aus `https://codeberg.org/Helium314/aosp-dictionaries`, Ordner `emoji_cldr_signal_dictionaries`
+(Stand 2026-09-22), unverändert nach `app/src/main/assets/dicts/` kopiert. Lizenz laut README des
+Repositorys: Unicode License V3 (CLDR) und AGPL-3.0 (Signal); mit der GPL-3.0 des Forks
+vereinbar (GPL-3.0 Abschnitt 13). Zum Aktualisieren die Dateien neu laden und die Summen hier
+ersetzen.
+
+| Datei | SHA-256 |
+| --- | --- |
+| `emoji_de.dict` | `d9a6c4b557c66ecc47e5cec965bd32976b69098fbfab32680a90d59c50e9c153` |
+| `emoji_en.dict` | `4102dd0cbed74fd1f81f69ce99ec07e6c474f257501f8273338cfb2725fd85c4` |
+| `emoji_es.dict` | `7f00955494a6f75047c4186dfd58584e61c0303ef1373ed3715a2d531864db04` |

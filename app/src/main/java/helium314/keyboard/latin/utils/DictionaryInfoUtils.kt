@@ -10,6 +10,7 @@ import android.text.TextUtils
 import com.android.inputmethod.latin.utils.BinaryDictionaryUtils
 import helium314.keyboard.latin.dictionary.Dictionary
 import helium314.keyboard.latin.common.FileUtils
+import helium314.keyboard.latin.common.LocaleUtils
 import helium314.keyboard.latin.common.LocaleUtils.constructLocale
 import helium314.keyboard.latin.common.loopOverCodePoints
 import helium314.keyboard.latin.define.DecoderSpecificConstants
@@ -111,6 +112,15 @@ object DictionaryInfoUtils {
     @JvmStatic
     fun getCachedDictForLocaleAndType(locale: Locale, type: String, context: Context): File? =
         getCachedDictsForLocale(locale, context).firstOrNull { it.name.substringBefore("_") == type }
+            ?: if (type == Dictionary.TYPE_EMOJI) extractBundledEmojiDict(locale, context) else null
+
+    /** Agent Keyboard bundles emoji dictionaries in assets; extract the best match on first use. */
+    private fun extractBundledEmojiDict(locale: Locale, context: Context): File? {
+        val candidates = getAssetsDictionaryList(context)?.filter { it.substringBefore("_") == Dictionary.TYPE_EMOJI }
+        if (candidates.isNullOrEmpty()) return null
+        val best = LocaleUtils.getBestMatch(locale, candidates) { extractLocaleFromAssetsDictionaryFile(it) } ?: return null
+        return extractAssetsDictionary(best, locale, context)
+    }
 
     fun getCachedDictsForLocale(locale: Locale, context: Context) =
         getCacheDirectoryForLocale(locale, context)?.let { File(it).listFiles() }.orEmpty()

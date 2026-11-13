@@ -313,6 +313,12 @@ dabei nicht gesichert.
 - Das Aktionsrad erreichst du im flachen Look über eine Leertasten-Geste, z. B. Halten
   (Einstellungen → Erweitert → Leertaste), die Stift-Taste öffnet das Panel.
 
+## Emoji-Vorschläge
+
+Einstellungen → Textkorrektur → „Emojis vorschlagen“ (bzw. „Inline-Emoji-Suche“) einschalten.
+Für Deutsch, Englisch und Spanisch ist das Emoji-Wörterbuch eingebaut; du musst nichts
+herunterladen. Für andere Sprachen gilt weiter der Hinweis mit dem Download-Link.
+
 ## Autokorrektur
 
 Einstellungen → Gelernte Wörter → Abschnitt „Autokorrektur“:

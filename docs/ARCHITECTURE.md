@@ -276,6 +276,15 @@ Speicher, Datenschutz und Identität:
   (`readAllWordProperties`, `clearAndWait`): Lernpause und Lerndaten, siehe „Lerndaten“.
 - `Defaults.kt`: personalisierte Wörterbücher, Zwischenablage-Vorschläge und
   Zwischenablageverlauf standardmäßig aus.
+- Emoji-Wörterbücher (Wunsch des Owners vom 2026-11-13): `assets/dicts/emoji_de.dict`,
+  `emoji_en.dict`, `emoji_es.dict`, unverändert aus `Helium314/aosp-dictionaries`
+  (`emoji_cldr_signal_dictionaries`, Stand 2026-09-22, Lizenz Unicode License V3 für CLDR und
+  AGPL-3.0 für die Signal-Daten; SHA-256 in `docs/BUILD.md`). `DictionaryInfoUtils.kt`:
+  `getCachedDictForLocaleAndType` entpackt für `emoji` die passendste mitgelieferte Datei, wenn
+  noch keine im Cache liegt (davon hängen Emoji-Vorschläge, Inline-Suche, Emoji-Suche und die
+  Warnung „Ein Emoji-Wörterbuch wird benötigt“ ab). `DictionaryFactory.kt`: mitgelieferte
+  Emoji-Wörterbücher werden nur geladen, wenn die Emoji-Einstellung an ist, wie heruntergeladene.
+  Test: `BundledEmojiDictTest`.
 - `DebugFlags.kt`: privater Crashhandler entfernt, damit keine rohen Fehlermeldungen oder
   LastLog automatisch in External/DE gespeichert werden. Androids Standardhandler bleibt.
 - `AndroidManifest.xml`: `INTERNET`, `RECORD_AUDIO` (nur für das Diktat, siehe „Diktat“),
@@ -1171,7 +1180,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (335 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (341 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -1195,21 +1204,21 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (60): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (61): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
-  ApprovedWorkflowRunnerTest, AskCommandTest, CalculatorViewTest, CalendarToolLauncherTest,
-  ClipCommandTest, CommandReplaceTest, CommandTemplatesTest, ContactCommandTest,
-  CorrectionMemoryTest, DatePlaceCommandsTest, DebugPrivacyTest, DesignEditorTest, DesignTilesTest,
-  DictationSessionTest, DictationUiTest, EncryptedActionRunStoreTest, EncryptedCredentialStoreTest,
-  FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest,
-  ForkIdentityTest, InsertAtCursorTest, JournaledModelCallTest, KeyboardCommandsTest,
-  KeyboardProfileStoreTest, LearningDataTest, LoadingDotsViewTest, MainSettingsLookTest,
-  ManualWorkflowDraftTest, MoreCommandsTest, MoreProvidersTest, MyDesignsTest, OpenAiProviderTest,
-  ScreenshotChipTest, SelectedTextCommitTest, SkillBindingStoreTest, SkillSettingsTest,
-  SnipCommandTest, SpaceGesturesTest, TestRunJournal, ToolRunnerTest, TouchModelTest,
-  TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
-  WorkflowCommandTest, WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest,
-  WorkflowStoreTest
+  ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
+  CalendarToolLauncherTest, ClipCommandTest, CommandReplaceTest, CommandTemplatesTest,
+  ContactCommandTest, CorrectionMemoryTest, DatePlaceCommandsTest, DebugPrivacyTest,
+  DesignEditorTest, DesignTilesTest, DictationSessionTest, DictationUiTest,
+  EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, FlatClipboardTest, FlatMenuTest,
+  FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, InsertAtCursorTest,
+  JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LearningDataTest,
+  LoadingDotsViewTest, MainSettingsLookTest, ManualWorkflowDraftTest, MoreCommandsTest,
+  MoreProvidersTest, MyDesignsTest, OpenAiProviderTest, ScreenshotChipTest, SelectedTextCommitTest,
+  SkillBindingStoreTest, SkillSettingsTest, SnipCommandTest, SpaceGesturesTest, TestRunJournal,
+  ToolRunnerTest, TouchModelTest, TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest,
+  WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
+  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (5): ClockCommandsTest, QrCommandTest, ScreenReaderServiceTest,
   TranslateCommandTest, UrlCommandTest
 - `C/` (27): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
@@ -1234,12 +1243,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   DictionaryFacilitatorImpl, InputView, LatinIME, RichInputConnection, Suggest
 - `K/latin/database/` (1): ClipboardDao
 - `K/latin/define/` (1): DebugFlags
-- `K/latin/dictionary/` (1): ExpandableBinaryDictionary
+- `K/latin/dictionary/` (2): DictionaryFactory, ExpandableBinaryDictionary
 - `K/latin/inputlogic/` (2): InputLogic, InputLogicHandler
 - `K/latin/settings/` (2): Defaults, SettingsValues
 - `K/latin/spellcheck/` (1): AndroidSpellCheckerService
 - `K/latin/suggestions/` (2): FlatStrip, SuggestionStripView
-- `K/latin/utils/` (1): ToolbarUtils
+- `K/latin/utils/` (2): DictionaryInfoUtils, ToolbarUtils
 - `K/settings/` (4): SearchScreen, SettingsActivity, SettingsContainer, SettingsNavHost
 - `K/settings/screens/` (21): AdvancedScreen, AgentAiScreen, AgentCommandsScreen, AgentDesignEditor,
   AgentDesignScreen, AgentDictationScreen, AgentLearningScreen, AgentMainSettings,
@@ -1253,6 +1262,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `app/src/debug/res/values/` (3): clip_provider, gesture_data, strings
 - `app/src/debugNoMinify/res/values/` (3): clip_provider, gesture_data, strings
 - `app/src/main/` (1): AndroidManifest
+- `app/src/main/assets/dicts/` (3): emoji_de, emoji_en, emoji_es
 - `app/src/main/assets/layouts/functional/` (1): functional_keys_flat
 - `app/src/main/assets/layouts/more_symbols/` (1): symbols_shifted_flat
 - `app/src/main/assets/layouts/symbols/` (1): symbols_flat

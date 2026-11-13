@@ -115,3 +115,5 @@
   Leertaste. Ohne eigene Wahl bleibt alles wie bisher; ein einzelner Tipp schreibt immer ein
   Leerzeichen. Der Schalter „Leertaste halten öffnet das Rad“ ist jetzt die Geste „Halten“. Noch
   auf keinem Gerät ausprobiert.
+- Neu: Emoji-Wörterbücher für Deutsch, Englisch und Spanisch sind eingebaut. Emoji-Vorschläge
+  und die Emoji-Suche gehen ohne Download (Einstellungen → Textkorrektur).
