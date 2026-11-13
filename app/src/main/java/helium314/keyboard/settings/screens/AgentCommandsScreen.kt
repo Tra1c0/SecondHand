@@ -99,6 +99,7 @@ fun AgentCommandsScreen(onClickBack: () -> Unit) {
             AgentScreenReaderSection(prefix) // stage 24e
             AgentSnippetsSection(prefix) // stage 24f
             if (KeyboardCommands.registry.any { it.name == PlaceCommand.name }) SavedPlacesSection()
+            AgentEmojiMixSection() // stage 25a
         }
     }
 }

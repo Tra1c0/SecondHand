@@ -197,7 +197,7 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
 - `main_keyboard_frame.xml`: Wurzel ist `AgentKeyboardFrame`, darin Tastatur, `FlatMenuView`, `AgentPanelView`,
   `AgentWheelView` und `CalculatorView` (24b).
 - `KeyCode.kt` (`AGENT_ACTIONS` = -12000, `SKILL_1`–`SKILL_3` = -12001…-12003,
-  `AGENT_DICTATE` = -12004),
+  `AGENT_DICTATE` = -12004, `AGENT_EMOJI_MIXER` = -12005 für 25a),
   `ToolbarUtils.kt` (Toolbar-Tasten `AGENT`, `SKILL_1`–`SKILL_3` und `DICTATE`; nur `AGENT` ist
   standardmäßig in der Toolbar), `KeyboardIconsSet.kt` (Symbole `ic_agent_actions.xml`,
   `ic_agent_dictate.xml` und
@@ -344,7 +344,8 @@ Speicher, Datenschutz und Identität:
   Klartextverkehr, Backups aus
   (`agent_data_extraction_rules.xml`), CE als Standard, eigener FileProvider, der
   AndroidX-Startup-Initializer für HTTP ist entfernt.
-- `res/xml/clipboard_provider_path.xml`: zusätzliche Pfade `agent_qr/` (`@qr`) und `agent_screenshot/` für die Kopien
+- `res/xml/clipboard_provider_path.xml`: zusätzliche Pfade `agent_qr/` (`@qr`), `agent_emoji_mix/`
+  (Emoji-Mix-Cache, 25a) und `agent_screenshot/` für die Kopien
   der Screenshot-Pille, getrennt von den Clip-Dateien (deren Aufräumen hielte ein Unterordner
   sonst für verwaist).
 - `SettingsNavHost.kt` und `MainSettingsScreen.kt`: Ziele und Menüeinträge der Agent-
@@ -393,6 +394,24 @@ Symbole malen (Etappe 27, Touch-Verarbeitung, jede Änderung mit Prüfer; Detail
   `SettingsNavHost.kt` (Ziel `agent_symbols`), `SettingsContainer.kt`
   (`createAgentSymbolSettings`), `GestureTypingScreen.kt` (Schalter und Eintrag oben, nur mit
   Gesten-Bibliothek sichtbar).
+Emoji-Ansicht (Emoji-Mix, 25a; Abschnitt „Befehle“):
+
+- `EmojiPalettesView.java`: erzeugt in `initialize` den `EmojiMixPalette` (Leiste als erstes Kind),
+  `startEmojiPalettes` meldet das Feld, `stopEmojiPalettes` beendet den Mixer-Modus, `onMeasure`
+  lässt die Seiten vorher um die Höhe der Leiste schrumpfen (`beforeMeasure`), `onReleaseKey`
+  gibt ein Emoji im Mixer-Modus an `onEmoji` statt es zu tippen (kein Verlauf „Zuletzt“, kein
+  Wechsel zurück zu den Buchstaben).
+- `assets/layouts/emoji_bottom/emoji_bottom_row.json` und `emoji_bottom_row_with_action.json`:
+  statt Lupe (0,15) und Leertaste zwei Tasten mit Breite -1 (teilen sich den Rest genau gleich,
+  `KeyboardParser.setReasonableWidths`): links `agent_emoji_search` (ohne Emoji-Wörterbuch die
+  Leertaste), rechts `agent_emoji_mixer`; Zurück, Löschen und Aktion bleiben. Gilt in allen
+  Stilen, der flache Stil hat keine eigene untere Emoji-Reihe. Ein eigenes Layout des Nutzers für
+  die untere Emoji-Reihe ersetzt die Datei und damit beide Tasten.
+- `KeyLabel.kt`: die beiden Namen werden zu Textbeschriftungen aus `agent_emoji_mix_strings.xml`
+  (`Settings.getCurrentContext`, Rückfall Englisch) mit `!code/key_emoji_search` bzw.
+  `!code/-12005`. `KeyboardActionListenerImpl.kt`: `AGENT_EMOJI_MIXER` →
+  `EmojiMixPalette.toggleCurrent`. `KeyCode.kt`: `AGENT_EMOJI_MIXER = -12005` (in `checkAndConvertCode`
+  durchgereicht).
 
 Geänderte Upstream-Tests (Leertasten-Gesten): `InputLogicTest.kt` ruft `onSpaceSwipe` statt
 `onHorizontalSpaceSwipe` und hat die Fälle `generatedSpace*`.
@@ -403,7 +422,7 @@ ersten n des Felds),
 `Shadows.kt` liefert außerdem `acceptedMimeTypes` und `currentImeOptions` im `EditorInfo` (23g),
 dazu `currentPackageName` und `currentFieldId` (Sprachbefehle, P66),
 `InputLogicTest.kt` (zusätzliche erzeugte Fälle, `typedCommand*` für 24a, `screenshotChip*` für
-23g, `symbolDraw*` für 27), `SuggestTest.kt` (Personalisierung im Test
+23g, `symbolDraw*` für 27, `typedEmoji*` für 25a), `SuggestTest.kt` (Personalisierung im Test
 ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 
 ## Editorzugriff, Panel und Rad
@@ -489,6 +508,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   und Cloud-Freigaben sind getrennt. Erzeugter oder eingefügter Text ist keine Einwilligung zum
   Stiltraining. Neue Agent-Dateien liegen in CE/`noBackupFilesDir`, Upstream-Dateien in DE.
   Keine versteckten Android-APIs, keine Credential-Exporte oder -Backups.
+- Emoji-Mix (25a): geladene Bilder in DE `files/agent_emoji_mix/` (LRU 20 MB, `EmojiMixCache`),
+  über den Clipboard-Provider freigegeben; Paartabelle als Asset. Details: `docs/STORAGE.md`.
 - Tests in `AT/`: `EncryptedCredentialStoreTest`, `AgentStorageContextsTest`,
   `AgentDocumentIOTest`.
 
@@ -821,6 +842,47 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `InputLogicTest.typedCommandLanguageChoiceSurvivesTheAppRestartingTheField` (de → es → en → de
     im geleerten Feld mit deutschem Hint und App-Subtyp, Popup-Tasten von „a“),
     `AT/commands/SubtypeChoiceTest.kt`.
+  - Emoji-Mix (25a, Fallstricke P70–P74): `C/EmojiMix.kt` (rein, ohne Netz): `EmojiMixTable.read`
+    liest die gzip-Tabelle aus `app/src/main/assets/emoji_mix_pairs.bin` (Format im Generator
+    `tools/emoji_mix_table.py`, Quelle und Lizenzstand `docs/BUILD.md`): 619 Emojis, Bitmap der
+    Paare (links, rechts) und ein Datumsindex je Paar, Rang über `rowStart`. `find` sucht in
+    Tabellenreihenfolge, sonst umgekehrt; `indexOf` vergleicht ohne FE0F/FE0E, dann ohne Hautton
+    (die Tabelle hat keine Hauttöne). `EmojiClusters.split` (Codepunkt plus Variationsselektor,
+    Hautton, Keycap, Tags, ZWJ-Folgen, Flaggenpaare). `EmojiMixUrls`: Bild-URL
+    `https://www.gstatic.com/android/keyboard/emojikitchen/<datum>/u<l>/u<l>_u<r>.png` (Codepunkte
+    mit „u“, durch „-“ verbunden; der Generator prüft das Muster an allen 293 586 Einträgen),
+    `isAllowed` nur genau diese Form. `EmojiMixCache` (LRU nach `lastModified`, 20 MB, schreibt
+    über `.tmp`), `PngCheck`, `EmojiMixTable.POPULAR` (Partnerliste).
+    `A/commands/EmojiMixer.kt`: gemeinsamer Zustand je Paar (`Loading`, `Ready` mit Vorschaubild,
+    `Missing` nach 404, `Failed`), höchstens 12 im Speicher (LRU), nur Main-Thread; Tabelle,
+    Platte und Netz auf einem Worker. `request` ist der einzige Netzweg und nur nach einem Tipp:
+    erst Cache, sonst genau ein `EmojiMixClient.fetch`; bei `Loading`/`Ready`/`Missing` nichts.
+    `state` liest ein gecachtes Bild ohne Netz nach. `listen("chips"|"palette")` baut nach jeder
+    Änderung neu. `deliver`: `ScreenshotChip.editorAccepts(…, image/png)` → `sink` (wie `@qr`
+    `onContent`), sonst Teilen über `launcher`; austauschbar `tableSource`, `calls`, `sink`,
+    `launcher`, `blocked`, `toMain` (Übergabe an den Main-Thread, P73). `EmojiMixClient` (eigenes OkHttp `EmojiMixHttp`: keine Weiterleitung,
+    kein Cookie, Zeitlimits 10/15/20 s): URL vor der Anfrage prüfen, 3xx = Fehler, 404 = `Missing`,
+    nur `image/png` mit PNG-Signatur, höchstens 2 MB.
+    `A/commands/EmojiMixCommand.kt` (`@mix`): ein Emoji → bis zu 6 Partner, zwei → Paar-Chip,
+    sonst ein Hinweis. `stripChips` (aus `KeyboardCommands.buildChips`, wenn kein Befehl vor der
+    Schreibmarke steht): nur bei eingeschalteten Befehlen und `STRIP_PREFERENCE`, letzte zwei
+    Cluster der letzten 32 Zeichen, nur Paare der Tabelle; Ersetzen über `Host.replace` mit einem
+    `CommandCall`, dessen `text` die zwei Emojis sind. `pairChips` je Zustand; vor dem Einfügen
+    muss der erwartete Text unverändert vor der Schreibmarke stehen, entfernt wird erst nach dem
+    Einfügen (P43); beim Teilen bleibt der Text der Leiste stehen, der Befehl geht. Vorschaubild
+    über `ImageSpan` im Chip-Text (keine Änderung an `chipRow`).
+    `A/EmojiMixPalette.kt`: Mixer-Modus der Emoji-Ansicht (Leiste, Auswahl höchstens 2, ein drittes
+    ersetzt das zweite, Partnerzeile bei fehlender Mischung, Vorschau mit Gleit- und
+    Skalier-Animation 220 ms, still bei `ANIMATOR_DURATION_SCALE` 0). Das zweite Emoji ist die
+    Anfrage: `load` (einziger Netzweg der Ansicht) nur bei unbekanntem Zustand und höchstens
+    einmal je Wahl (`requestedKey`, zurückgesetzt bei jeder Änderung der Auswahl, P74); ist der
+    Zustand danach aus dem Speicher verschwunden, lädt erst ein Tipp auf „Tippen, um … zu laden“.
+    Gesperrt: `toggle` zeigt einen Toast, `onEmoji` beendet den Modus und lässt das Emoji normal
+    tippen, `load` (Partner, Wiederholen) beendet ihn ohne Anfrage. Einstellungen:
+    `K/settings/screens/AgentEmojiMixSection.kt`. Texte in `agent_emoji_mix_strings.xml`
+    (`values/`, `values-de/`). Tests `CT/EmojiMixTest.kt`, `AT/commands/EmojiMixCommandTest.kt`,
+    `AT/EmojiMixPaletteTest.kt`, mit echtem Host
+    `InputLogicTest.typedEmojiPairOffersTheMixAndReplacesItOnlyAfterTwoTaps` (P73).
   - Tests: `CT/UrlDetectorTest.kt`, `CT/SymbolTableTest.kt`, `CT/UnitConversionTest.kt`,
     `CT/EventParserTest.kt`, `CT/DateFormattingTest.kt`, `CT/PlacesTest.kt`, `CT/AlarmParserTest.kt`,
     `CT/TimerParserTest.kt`, `AT/commands/ClockCommandsTest.kt`;
@@ -1313,9 +1375,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   enthaltenen ABIs, derzeit `…-universal.apk` (Fallstrick P19). `-Pandroid.injected.testOnly=false`
   verhindert, dass die APK als test-only markiert wird (Fallstrick P16). `agent-tests` läuft über
   `helium314.keyboard.agent.*`, die erzeugten `InputLogicTest`-Fälle (`generated*`,
-  `typedCommand*`, `screenshotChip*`, `symbolDraw*`) und `BatchDeliveryTest`.
+  `typedCommand*`, `typedEmoji*`, `screenshotChip*`, `symbolDraw*`) und `BatchDeliveryTest`.
   Toolchain und Einrichtung: `docs/BUILD.md`. UI-Tests schreiben gerenderte Vorschauen nach
   `app/build/agent-previews/` (z. B. `builder-send-review.png`, nicht versioniert).
+- `tools/emoji_mix_table.py` (25a): baut `app/src/main/assets/emoji_mix_pairs.bin` aus der
+  Emoji-Kitchen-Metadatei; Aufruf und Quelle in `docs/BUILD.md` → Emoji-Mix-Tabelle.
 - Baseline: `upstream-tests` endet mit genau fünf geerbten Fehlern, Liste in
   `docs/VALIDATION.md` und `docs/HANDOFF.md` → Offene Punkte. Jeder weitere Fehler ist neu.
 - CI: `.github/workflows/docs-check.yml` führt bei jedem Push den Docs-Check aus.
@@ -1597,43 +1661,64 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   (`AppNotIdleException`, auch mit angehaltener Testuhr), ein Textfeld auf einer normalen Seite
   schon. Abläufe mit Texteingabe, die getestet werden sollen, deshalb auf der Seite (Karte) statt
   im Dialog bauen (`AgentSymbolsScreen.AddSymbolCard`).
+- **P70** Assets mit der Endung `.gz` entpackt der Android-Build beim Zusammenführen und lässt
+  die Endung weg (`mergeDebugAssets`); `assets.open("….gz")` findet dann nichts. Die
+  Emoji-Mix-Tabelle heißt deshalb `emoji_mix_pairs.bin`, obwohl sie gzip-Daten enthält.
+- **P71** Emoji Kitchen speichert jedes Paar nur in einer Reihenfolge (links, rechts), und die
+  Codepunkte in der URL tragen FE0F so, wie die Tabelle sie kennt (`u2764-ufe0f`). Getippte
+  Emojis deshalb normalisiert suchen und die URL immer aus den Codepunkten der Tabelle bauen,
+  nie aus dem getippten Text; erst die umgekehrte Reihenfolge probieren, dann aufgeben.
+- **P72** Ein Netzweg darf nur aus einem Tipp entstehen: Chips und die Leiste rufen nur
+  `EmojiMixer.state` (Cache auf dem Gerät), nie `request`. Im Mixer der Emoji-Ansicht ist die
+  Wahl des zweiten Emojis der Tipp; `request` dort nur bei unbekanntem Zustand, sonst würde jede
+  Neuzeichnung nach einem Fehler erneut laden.
+- **P73** `InputLogicTest` ersetzt `Handler.sendMessage`/`sendMessageDelayed` durch einen Schatten,
+  der Nachrichten nur sammelt; ein `Handler.post` aus einem Hintergrund-Thread (hier die
+  Ergebnisse von `EmojiMixer`) kommt dort nie an, auch nicht über `ShadowLooper.idle`. Der Test
+  setzt deshalb `EmojiMixer.toMain` und führt die Übergaben selbst aus. Ein Laden, das vor dem
+  Austausch begonnen hat (z. B. die Tabelle über die Leiste beim Start des Felds), meldet sich
+  nie zurück; `resetForTest` erlaubt dann ein neues Laden der Tabelle.
+- **P74** Ein Zustand in `EmojiMixer` kann verschwinden (LRU mit 12 Paaren, „Gespeicherte
+  Mischungen löschen“), während die Emoji-Ansicht dieselbe Wahl zeigt. Jede Änderung irgendeines
+  Paars zeichnet den Mixer neu; ohne die Merkung `requestedKey` würde die Neuzeichnung dann ohne
+  Tipp erneut laden. Eine neue Anfrage für dieselbe Wahl kommt nur aus einem Tipp.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (376 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (392 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (4): agent-apk, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (61): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (62): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
   AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand, ContactCommand,
   ConvertCommand, CorrectionMemory, DateCommand, DesignLook, DesignTiles, Dictation, EmojiCommand,
-  EncryptedActionRunStore, EventCommand, FlatMenuView, FlatPanelStyle, FlatPreset, HapticChain,
-  JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore, LearningData,
-  LoadingDotsView, ManualWorkflowDraft, ModelSettings, MyDesigns, OnDeviceSpeechEngine,
-  PlaceCommand, RgbKeyPainter, RgbLighting, RgbStrip, RunSubjectCodec, SavedPlaces, ScreenshotChip,
-  SearchCommand, SkillBindingStore, SkillLabels, SpaceGestures, SymbolDrawing, SymbolInk,
-  ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel, TypoMemory,
-  WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner,
-  WorkflowInputSummary, WorkflowStore
-- `A/commands/` (15): AiCommandChips, AlarmCommand, AskCommand, ClipCommand, LanguageCommand,
-  QrCommand, ScreenReaderService, SensitiveClips, SnipCommand, SnippetStore, SubtypeChoice,
-  TimerCommand, TranslateCommand, UrlCommand, WorkflowCommand
+  EmojiMixPalette, EncryptedActionRunStore, EventCommand, FlatMenuView, FlatPanelStyle, FlatPreset,
+  HapticChain, JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore,
+  LearningData, LoadingDotsView, ManualWorkflowDraft, ModelSettings, MyDesigns,
+  OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter, RgbLighting, RgbStrip, RunSubjectCodec,
+  SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore, SkillLabels, SpaceGestures,
+  SymbolDrawing, SymbolInk, ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel,
+  TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary,
+  WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
+- `A/commands/` (17): AiCommandChips, AlarmCommand, AskCommand, ClipCommand, EmojiMixCommand,
+  EmojiMixer, LanguageCommand, QrCommand, ScreenReaderService, SensitiveClips, SnipCommand,
+  SnippetStore, SubtypeChoice, TimerCommand, TranslateCommand, UrlCommand, WorkflowCommand
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (66): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (67): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, ClipCommandTest, CommandReplaceTest, CommandTemplatesTest,
   ContactCommandTest, CorrectionMemoryTest, DatePlaceCommandsTest, DebugPrivacyTest,
-  DesignEditorTest, DesignTilesTest, DictationSessionTest, DictationUiTest,
+  DesignEditorTest, DesignTilesTest, DictationSessionTest, DictationUiTest, EmojiMixPaletteTest,
   EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, FlatClipboardTest, FlatMenuTest,
   FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, HapticChainTest,
   InsertAtCursorTest, JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest,
@@ -1644,26 +1729,27 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   TestRunJournal, ToolRunnerTest, TouchModelTest, TypoMemoryTest, UpdateCheckTest,
   WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
   WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
-- `AT/commands/` (7): ClockCommandsTest, LanguageCommandTest, QrCommandTest,
+- `AT/commands/` (8): ClockCommandsTest, EmojiMixCommandTest, LanguageCommandTest, QrCommandTest,
   ScreenReaderServiceTest, SubtypeChoiceTest, TranslateCommandTest, UrlCommandTest
-- `C/` (32): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
-  EditorSession, EmojiNames, EventParser, ExecutionPolicy, InkRecognizer, InkSymbols, LanguageNames,
-  LocalTextActions, MathExpression, ModelProvider, OwnInkSymbols, PendingBatchGate, Places,
-  Profiles, RgbLighting, SkillBinding, SpecialCharacters, StyledTranslation, SymbolTable,
+- `C/` (33): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
+  EditorSession, EmojiMix, EmojiNames, EventParser, ExecutionPolicy, InkRecognizer, InkSymbols,
+  LanguageNames, LocalTextActions, MathExpression, ModelProvider, OwnInkSymbols, PendingBatchGate,
+  Places, Profiles, RgbLighting, SkillBinding, SpecialCharacters, StyledTranslation, SymbolTable,
   TextCondition, TimerParser, Tool, UnitConversion, UpdateReleases, UrlDetector, Workflow
-- `CT/` (25): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
-  EditorPolicyTest, EventParserTest, InkRecognizerTest, InsertionAnchorTest, LanguageNamesTest,
-  LocalTextActionsTest, MathExpressionTest, OwnInkSymbolsTest, PendingBatchGateTest, PlacesTest,
-  QuestionCaptureTest, RgbLightingTest, SkillBindingTest, StyledTranslationTest, SymbolTableTest,
-  TimerParserTest, ToolTest, UnitConversionTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
+- `CT/` (26): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
+  EditorPolicyTest, EmojiMixTest, EventParserTest, InkRecognizerTest, InsertionAnchorTest,
+  LanguageNamesTest, LocalTextActionsTest, MathExpressionTest, OwnInkSymbolsTest,
+  PendingBatchGateTest, PlacesTest, QuestionCaptureTest, RgbLightingTest, SkillBindingTest,
+  StyledTranslationTest, SymbolTableTest, TimerParserTest, ToolTest, UnitConversionTest,
+  UpdateReleasesTest, UrlDetectorTest, WorkflowTest
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,
   KeyboardActionListenerImpl, KeyboardSwitcher, KeyboardTheme, KeyboardView, MainKeyboardView,
   PointerTracker
 - `K/keyboard/clipboard/` (3): ClipboardAdapter, ClipboardHistoryView, FlatClipboard
-- `K/keyboard/emoji/` (1): EmojiSearchActivity
+- `K/keyboard/emoji/` (2): EmojiPalettesView, EmojiSearchActivity
 - `K/keyboard/internal/` (1): KeyboardIconsSet
 - `K/keyboard/internal/keyboard_parser/` (2): KeyboardParser, LayoutParser
-- `K/keyboard/internal/keyboard_parser/floris/` (1): KeyCode
+- `K/keyboard/internal/keyboard_parser/floris/` (2): KeyCode, KeyLabel
 - `K/latin/` (9): App, ClipboardHistoryEntry, ClipboardHistoryManager, ClipboardThumbnails,
   DictionaryFacilitatorImpl, InputView, LatinIME, RichInputConnection, Suggest
 - `K/latin/database/` (1): ClipboardDao
@@ -1675,9 +1761,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/latin/suggestions/` (2): FlatStrip, SuggestionStripView
 - `K/latin/utils/` (3): DictionaryInfoUtils, DictionaryUtils, ToolbarUtils
 - `K/settings/` (4): SearchScreen, SettingsActivity, SettingsContainer, SettingsNavHost
-- `K/settings/screens/` (25): AdvancedScreen, AgentAiScreen, AgentCommandsScreen, AgentDesignEditor,
-  AgentDesignScreen, AgentDictationScreen, AgentLearningScreen, AgentMainSettings,
-  AgentProfilesScreen, AgentRgbScreen, AgentRunStatus, AgentScreenReaderSection,
+- `K/settings/screens/` (26): AdvancedScreen, AgentAiScreen, AgentCommandsScreen, AgentDesignEditor,
+  AgentDesignScreen, AgentDictationScreen, AgentEmojiMixSection, AgentLearningScreen,
+  AgentMainSettings, AgentProfilesScreen, AgentRgbScreen, AgentRunStatus, AgentScreenReaderSection,
   AgentScreenshotScreen, AgentSkillsScreen, AgentSnippetsSection, AgentSpaceScreen,
   AgentSymbolsScreen, AgentUpdatesScreen, AgentWorkflowsScreen, AppearanceScreen, DictionaryScreen,
   GestureTypingScreen, MainSettingsScreen, WorkflowBuilderDialog, WorkflowDraftProtection
@@ -1687,7 +1773,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `app/src/debug/res/values/` (3): clip_provider, gesture_data, strings
 - `app/src/debugNoMinify/res/values/` (3): clip_provider, gesture_data, strings
 - `app/src/main/` (1): AndroidManifest
+- `app/src/main/assets/` (1): emoji_mix_pairs
 - `app/src/main/assets/dicts/` (3): emoji_de, emoji_en, emoji_es
+- `app/src/main/assets/layouts/emoji_bottom/` (2): emoji_bottom_row, emoji_bottom_row_with_action
 - `app/src/main/assets/layouts/functional/` (1): functional_keys_flat
 - `app/src/main/assets/layouts/more_symbols/` (1): symbols_shifted_flat
 - `app/src/main/assets/layouts/symbols/` (1): symbols_flat
@@ -1701,20 +1789,20 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (8): agent_alarm_strings, agent_design_strings,
-  agent_language_strings, agent_rgb_strings, agent_space_strings, agent_strings,
-  agent_symbol_strings, agent_update_strings
-- `app/src/main/res/values/` (15): agent_alarm_strings, agent_attrs, agent_design_strings,
-  agent_ids, agent_language_strings, agent_rgb_strings, agent_space_strings, agent_strings,
-  agent_symbol_strings, agent_update_strings, attrs, clip_provider, donottranslate, gesture_data,
-  themes-flat
+- `app/src/main/res/values-de/` (9): agent_alarm_strings, agent_design_strings,
+  agent_emoji_mix_strings, agent_language_strings, agent_rgb_strings, agent_space_strings,
+  agent_strings, agent_symbol_strings, agent_update_strings
+- `app/src/main/res/values/` (16): agent_alarm_strings, agent_attrs, agent_design_strings,
+  agent_emoji_mix_strings, agent_ids, agent_language_strings, agent_rgb_strings,
+  agent_space_strings, agent_strings, agent_symbol_strings, agent_update_strings, attrs,
+  clip_provider, donottranslate, gesture_data, themes-flat
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (1): Shadows
 - `app/src/test/java/helium314/keyboard/latin/` (2): InputLogicTest, SuggestTest
 - `app/src/test/java/helium314/keyboard/latin/inputlogic/` (1): BatchDeliveryTest
 - `scripts/` (3): docs_sync, docs_sync, install-hooks
-- `tools/` (1): dev
+- `tools/` (2): dev, emoji_mix_table
 
 </details>
 <!-- /gen:inventory -->

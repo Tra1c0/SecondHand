@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Emoji-Mix (stage 25a): @mix, the strip chip and the mixer in the emoji palette. Own file so parallel work on agent_strings.xml does not collide. English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="agent_command_mix">Emoji-Mix: %1$smix 🐶🔥 combines two emojis into one sticker of Google\'s Emoji Kitchen; %1$smix 🐶 suggests partners. Which pairs exist is known on the device; only a tap on the chip loads that one image from Google (www.gstatic.com).</string>
+    <!-- %1$s and %2$s: the two emojis -->
+    <string name="agent_emoji_mix_pair">%1$s + %2$s</string>
+    <!-- %s: agent_emoji_mix_pair -->
+    <string name="agent_emoji_mix_offer">%s mix · Google</string>
+    <string name="agent_emoji_mix_offer_description">Load the mix of %s once from Google (www.gstatic.com). Only the two emojis are sent.</string>
+    <string name="agent_emoji_mix_loading">%s loading from Google</string>
+    <string name="agent_emoji_mix_none">No mix</string>
+    <string name="agent_emoji_mix_none_description">Google has no mix of %s.</string>
+    <string name="agent_emoji_mix_failed">%s: loading failed ↻</string>
+    <string name="agent_emoji_mix_insert">insert</string>
+    <string name="agent_emoji_mix_share">share</string>
+    <string name="agent_emoji_mix_insert_description">Insert the mix of %s</string>
+    <string name="agent_emoji_mix_share_description">Share the mix of %s</string>
+    <string name="agent_emoji_mix_label">Emoji mix</string>
+    <string name="agent_emoji_mix_table_loading">Emoji-Mix is starting …</string>
+    <string name="agent_emoji_mix_usage">Type one or two emojis, e.g. %smix 🐶🔥</string>
+    <!-- settings, Einstellungen → Befehle -->
+    <string name="agent_emoji_mix_title">Emoji-Mix</string>
+    <string name="agent_emoji_mix_strip">Offer Emoji-Mix in the strip</string>
+    <string name="agent_emoji_mix_strip_description">After two typed emojis the strip shows a chip to mix them. Nothing is loaded before a tap.</string>
+    <string name="agent_emoji_mix_privacy">A tap on a mix chip, or choosing the second emoji in the mixer of the emoji keyboard, sends the code points of the two emojis to Google (www.gstatic.com) to load the image. Nothing else is sent, no other text of the field. Loaded images stay on this device (at most 20 MB, oldest first out).</string>
+    <!-- %s: size like "1.2 MB" -->
+    <string name="agent_emoji_mix_cache">Stored mixes: %s</string>
+    <string name="agent_emoji_mix_clear">Delete stored mixes</string>
+    <!-- emoji palette -->
+    <string name="agent_emoji_search_key">Search emojis</string>
+    <string name="agent_emoji_mixer_key">Emoji mixer</string>
+    <string name="agent_emoji_mixer_hint">Choose 2 emojis</string>
+    <string name="agent_emoji_mixer_hint_second">Choose a second emoji</string>
+    <string name="agent_emoji_mixer_loading">loading from Google</string>
+    <string name="agent_emoji_mixer_none">No mix. Partners with a mix:</string>
+    <string name="agent_emoji_mixer_failed">Loading failed. Tap to try again.</string>
+    <string name="agent_emoji_mixer_tap_to_load">Tap to load the mix from Google</string>
+    <string name="agent_emoji_mixer_insert">Tap the sticker to insert it</string>
+    <string name="agent_emoji_mixer_share">Tap the sticker to share it</string>
+    <string name="agent_emoji_mixer_remove">Remove %s</string>
+    <string name="agent_emoji_mixer_partner">Mix with %s</string>
+    <string name="agent_emoji_mixer_blocked">The emoji mixer is off in this field</string>
+</resources>

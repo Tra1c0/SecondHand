@@ -43,6 +43,9 @@ object KeyLabel {
     const val ESCAPE = "esc"
     const val TIMESTAMP = "timestamp"
     const val EMOJI_SEARCH = "emoji_search"
+    // fork, stage 25a: the two halves of the emoji palette's bottom row, with text labels
+    const val AGENT_EMOJI_SEARCH = "agent_emoji_search"
+    const val AGENT_EMOJI_MIXER = "agent_emoji_mixer"
 
     /** to make sure a FlorisBoard label works when reading a JSON layout */
     // resulting special labels should be names of FunctionalKey enum, case insensitive
@@ -119,6 +122,8 @@ object KeyLabel {
             TAB -> "!icon/tab_key|!code/${KeyCode.TAB}"
             TIMESTAMP -> "⌚"
             EMOJI_SEARCH -> "!icon/search_key|!code/key_emoji_search"
+            AGENT_EMOJI_SEARCH -> "${agentLabel(helium314.keyboard.latin.R.string.agent_emoji_search_key, "Search emojis")}|!code/key_emoji_search"
+            AGENT_EMOJI_MIXER -> "${agentLabel(helium314.keyboard.latin.R.string.agent_emoji_mixer_key, "Emoji mixer")}|!code/${KeyCode.AGENT_EMOJI_MIXER}"
             else -> if (label in toolbarKeyStrings.values)
                 "!icon/$label|!code/${getCodeForToolbarKey(ToolbarKey.valueOf(label.uppercase(Locale.US)))}"
             else label
@@ -192,4 +197,8 @@ object KeyLabel {
         else
             replacement
     }
+
+    /** Fork: a text label from the app's strings (the layout files hold no translations). */
+    private fun agentLabel(id: Int, fallback: String): String =
+        runCatching { Settings.getCurrentContext()?.getString(id) }.getOrNull() ?: fallback
 }

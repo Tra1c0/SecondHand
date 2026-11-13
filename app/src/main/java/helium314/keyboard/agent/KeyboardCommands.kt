@@ -166,6 +166,7 @@ object KeyboardCommands {
         helium314.keyboard.agent.commands.AlarmCommand,
         helium314.keyboard.agent.commands.TimerCommand,
         helium314.keyboard.agent.commands.LanguageCommand,
+        helium314.keyboard.agent.commands.EmojiMixCommand,
     )
 
     /** Replaced in tests. */
@@ -323,7 +324,7 @@ object KeyboardCommands {
             else find(ime.getAgentTextBeforeCursor(CommandSyntax.LOOKBACK + 1), Settings.getValues(), ime.currentInputEditorInfo)
         if (context == null) {
             forget() // nothing a command found stays in memory once the command is gone
-            return null
+            if (position < 0) return null
         }
         val host = object : Host {
             override val context: Context get() = ime
@@ -362,6 +363,9 @@ object KeyboardCommands {
             override val currentSubtype: android.view.inputmethod.InputMethodSubtype?
                 get() = runCatching { helium314.keyboard.latin.RichInputMethodManager.getInstance().currentSubtype.rawSubtype }.getOrNull()
         }
+        // stage 25a: no command, but two typed emojis with a mix
+        if (context == null) return helium314.keyboard.agent.commands.EmojiMixCommand.stripChips(host,
+            ime.getAgentTextBeforeCursor(helium314.keyboard.agent.commands.EmojiMixCommand.LOOKBACK)).ifEmpty { null }
         return chipsFor(context, host)
     }
 

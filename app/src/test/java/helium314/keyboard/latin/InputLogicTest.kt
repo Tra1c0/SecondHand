@@ -980,6 +980,74 @@ class InputLogicTest {
         }
     }
 
+    /** Stage 25a with the real host: two typed emojis, a chip, one request after the tap, then the sticker replaces them. */
+    @Test fun typedEmojiPairOffersTheMixAndReplacesItOnlyAfterTwoTaps() {
+        val mixer = helium314.keyboard.agent.commands.EmojiMixer
+        val requests = java.util.Collections.synchronizedList(mutableListOf<String>())
+        val inserted = mutableListOf<String>()
+        val png = java.io.ByteArrayOutputStream().also {
+            android.graphics.Bitmap.createBitmap(64, 64, android.graphics.Bitmap.Config.ARGB_8888)
+                .apply { eraseColor(android.graphics.Color.RED) }.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+        }.toByteArray()
+        val http = okhttp3.OkHttpClient.Builder().addInterceptor { chain ->
+            requests += chain.request().url.toString()
+            okhttp3.Response.Builder().request(chain.request()).protocol(okhttp3.Protocol.HTTP_1_1).code(200).message("OK")
+                .body(with(okhttp3.ResponseBody.Companion) { png.toResponseBody(with(okhttp3.MediaType.Companion) { "image/png".toMediaType() }) }).build()
+        }.build()
+        // this test's shadow handler only collects messages: the worker's results are run here, on the test thread
+        val posted = java.util.Collections.synchronizedList(mutableListOf<() -> Unit>())
+        fun settle() {
+            val done = java.util.concurrent.CountDownLatch(1)
+            mixer.afterWork { done.countDown() }
+            assertTrue(done.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            val pending = synchronized(posted) { posted.toList().also { posted.clear() } }
+            pending.forEach { it() }
+        }
+        mixer.resetForTest()
+        try {
+            mixer.calls = { http }
+            mixer.toMain = { posted += it }
+            mixer.sink = helium314.keyboard.agent.commands.QrCommand.ContentSink { _, content -> inserted += content.contentUri.toString(); true }
+            mixer.cache(latinIME).clear()
+            ShadowInputMethodService.acceptedMimeTypes = arrayOf("image/png")
+            setText("")
+            helium314.keyboard.agent.KeyboardCommands.load(latinIME)
+            mixer.table(latinIME)
+            settle()
+            assertNotNull(mixer.table(latinIME))
+            chainInput("Na ")
+            input(0x1F436)
+            input(0x1F525)
+            assertEquals("Na 🐶🔥", text)
+            val strip = android.widget.FrameLayout(latinIME)
+            fun chip() = ((helium314.keyboard.agent.KeyboardCommands.createChipsView(latinIME, strip) as android.view.ViewGroup)
+                .getChildAt(0) as android.view.ViewGroup).let { assertEquals(1, it.childCount); it.getChildAt(0) as android.widget.TextView }
+            val offer = chip()
+            assertEquals(latinIME.getString(R.string.agent_emoji_mix_offer, "🐶 + 🔥"), offer.text.toString())
+            settle()
+            assertEquals(emptyList(), requests.toList(), "typing loads nothing")
+            offer.performClick()
+            settle()
+            assertEquals(listOf("https://www.gstatic.com/android/keyboard/emojikitchen/20211115/u1f436/u1f436_u1f525.png"), requests.toList())
+            assertEquals("Na 🐶🔥", text, "loading changes nothing in the field")
+            val sticker = chip()
+            assertTrue(sticker.text.toString().endsWith(latinIME.getString(R.string.agent_emoji_mix_insert)))
+            sticker.performClick()
+            assertEquals(1, inserted.size)
+            assertEquals("Na ", text) // the two emojis went in one commit, after the image
+            checkConnectionConsistency()
+            // a typed letter between the emojis: no chip, and still no request
+            input(0x1F436)
+            input('x')
+            input(0x1F525)
+            assertEquals(null, helium314.keyboard.agent.KeyboardCommands.createChipsView(latinIME, strip))
+            assertEquals(1, requests.size)
+        } finally {
+            mixer.cache(latinIME).clear()
+            mixer.resetForTest()
+        }
+    }
+
     @Test fun typedCommandLanguageChoiceSurvivesTheAppRestartingTheField() {
         // the owner's round trip: de -> es -> en -> de, each by a chip in an otherwise empty field
         val german = SubtypeSettings.getResourceSubtypesForLocale("de".constructLocale()).first()

@@ -1912,6 +1912,64 @@ Befunde eines lesenden Reviews der Befehle, behoben:
 - Nicht geprüft: kein Gerätetest (echte Finger, Tempo, ob HeliBoards Gestenerkennung langsames
   Malen als Geste startet, Spur, Schwellen, Malfeld der eigenen Symbole am Telefon, TalkBack);
   kein Prüfer-Review der `PointerTracker`-Änderung (Pflicht vor dem Merge).
+## 25a Emoji-Mix
+
+- Gebaut: Paartabelle als Asset (`tools/emoji_mix_table.py`, 48 690 Byte, aus `metadata.json`
+  mit SHA-256 `73a7a2a6…1804`, am 2026-11-13 erneut geladen und gleich), `C/EmojiMix.kt`,
+  `EmojiMixer`/`EmojiMixClient`, `@mix`, Leisten-Chip nach zwei Emojis, Mixer in der
+  Emoji-Ansicht (untere Reihe: „Emojis suchen“ und „Emoji-Mixer“ gleich breit), Einstellungen.
+  Geänderte Upstream-Dateien: `EmojiPalettesView.java`, `KeyLabel.kt` (neu geändert),
+  `emoji_bottom_row*.json` (neu geändert), `KeyCode.kt`, `KeyboardActionListenerImpl.kt`,
+  `clipboard_provider_path.xml`. Keine Änderung an `InputLogic`, `RichInputConnection` oder
+  `PointerTracker`; die Leiste ersetzt über den vorhandenen `replaceCommandText`.
+- Generator: prüft das URL-Muster an allen 293 586 `isLatest`-Einträgen (0 Abweichungen), zwei
+  Läufe ergeben dieselbe Datei (SHA-256 `28a06b84…a556`).
+- Geprüft (JVM): `CT/EmojiMixTest` (9: echte Tabelle 619/147 000, Reihenfolge und umgekehrtes
+  Paar 🐱🐶 → `u1f436_u1f431`, FE0F ❤/❤️, Hautton auf Basis, ZWJ 😮‍💨, Cluster, Partner, kaputte
+  Dateien, URL-Prüfung gegen fremde Hosts/HTTP/Query, LRU-Cache, PNG-Signatur).
+- Geprüft (Robolectric, nachgebauter Server per OkHttp-Interceptor): `AT/commands/EmojiMixCommandTest`
+  (10: Chips und Partner ohne Anfrage, ein Tipp = genau eine Anfrage ohne Cookie/Authorization,
+  zweiter Tipp während des Ladens nichts, Ergebnis-Chip mit Vorschaubild, Einfügen über den
+  Provider und erst danach Entfernen des Befehls, gecachtes Bild ohne Netz, Teilen, geänderter
+  Text → nichts, 404 → „Keine Mischung“ ohne zweite Anfrage, Fehler → nur neuer Tipp, Leisten-Chip
+  nur direkt an der Schreibmarke und nur für Paare der Tabelle, Ersetzen der zwei Emojis, Schalter,
+  gesperrte Felder/Inkognito/Sperre, Client: fremde Hosts nie angefragt, Weiterleitung nicht
+  verfolgt, falscher Typ, zu groß, 404, 500, Zeitlimit; echte Ein-Commit-Ersetzung der zwei
+  Emojis mit `RichInputConnection` für Surrogate, FE0F und ZWJ) und `AT/EmojiMixPaletteTest` (anfangs 7:
+  Leiste an/aus, Seiten geben ihre Höhe ab, Auswahl höchstens zwei, Laden genau einmal je Paar,
+  Vorschau und Einfügen, Partner ohne Netz, gesperrt bleibt aus; echte Emoji-Ansicht aus
+  `KeyboardSwitcher`: beide Hälften genau gleich breit, Zurück/Löschen bleiben, Taste schaltet den
+  Mixer, Verlassen beendet ihn; auch im flachen Stil).
+- Fertigstellung aus dem ungetesteten Zwischenstand `wip/emoji-mix` (Arbeitskopie, nach dem
+  Merge auf den Arbeitsbranch): Stand gelesen, kompiliert, die 9 + 10 + 7 Tests liefen schon grün.
+  Ergänzt: Der Mixer lädt je Wahl höchstens einmal ohne neuen Tipp (`requestedKey`, P74; vorher
+  hätte eine Neuzeichnung nach Verlust des Zustands erneut geladen) und prüft vor jeder Anfrage
+  aus Partner-Tipp und Wiederholen das Feld (gesperrt → Modus aus, keine Anfrage); neuer Text
+  „Tippen, um die Mischung von Google zu laden“. Testnaht `EmojiMixer.toMain` (P73). Schwache
+  Prüfung `requests.size <= 2` durch die genaue Liste ersetzt; die Hälften-Prüfung verlangt jetzt
+  die Taste „Emojis suchen“ (mit eingebautem Emoji-Wörterbuch) statt die Leertaste zuzulassen.
+- Neu geprüft (Robolectric): `AT/EmojiMixPaletteTest` jetzt 10 (neu: Neuzeichnung lädt dieselbe
+  Wahl nicht erneut, erst der Tipp; ein Emoji-Tipp in `EmojiPalettesView.onReleaseKey` wählt im
+  Mixer-Modus aus statt zu tippen, auch Emojis aus mehreren Codepunkten, nur `onReleaseKey` an den
+  Listener; gesperrt gewordenes Feld beendet den Mixer beim Partner-Tipp ohne Anfrage) und
+  `InputLogicTest.typedEmojiPairOffersTheMixAndReplacesItOnlyAfterTwoTaps` (echter Host über
+  `KeyboardCommands.createChipsView`: „Na 🐶🔥“ getippt → Chip ohne Anfrage → Tipp = genau die
+  eine URL, Feld unverändert → Sticker-Chip → Tipp fügt ein und entfernt die zwei Emojis in einem
+  Commit, Verbindung konsistent; „🐶x🔥“ → kein Chip, keine Anfrage). `agent-tests` nimmt
+  `InputLogicTest.typedEmoji*` jetzt mit.
+- Generator am 2026-11-13 erneut laufen lassen: Eingabe-SHA-256 gleich (`73a7a2a6…1804`,
+  98 873 872 Byte), Ausgabe Byte für Byte gleich dem Asset (`28a06b84…a556`).
+- Gesamtläufe: `tools/dev.py core-tests` grün (`EmojiMixTest` 9/9); `tools/dev.py agent-tests`
+  grün (597 Tests in 75 Klassen, 0 Fehler, 0 übersprungen); `tools/dev.py build` erfolgreich, die
+  APK enthält `assets/emoji_mix_pairs.bin` (48 690 Byte). `upstream-tests` (voller Lauf) und
+  `lint` nicht in dieser Arbeitskopie gelaufen (Auftrag: macht der Lead).
+- Nicht geprüft: www.gstatic.com ist aus der Cloud-Umgebung nicht erreichbar (Proxy lehnt ab,
+  am 2026-11-13 erneut versucht), es wurde also nie ein echtes Bild geladen (Muster nur gegen die
+  Metadatei geprüft); kein Gerätetest (Einfügen in echte Chat-Apps, Mixer-Leiste und Animation,
+  Lesbarkeit der Tastentexte, ob der Leisten-Chip nach Emojis aus der Emoji-Ansicht beim
+  Zurückwechseln erscheint, ob die Leiste nach getippten Emojis auf dem Gerät neu aufgebaut
+  wird – der Test ruft `createChipsView` direkt). Kein Prüfer gelesen. Lizenz der Paarliste: nur
+  mündliche Zustimmung, Lizenzdatei später zu prüfen (`docs/BUILD.md`).
 
 ## Gerätetest vor Meilensteinfreigabe
 

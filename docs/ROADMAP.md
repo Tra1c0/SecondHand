@@ -147,11 +147,11 @@ Folgende ist die Entscheidung des Leads.
   1024×1024), mit eigenem Konto und Token (BYOK), Ablauf wie `@ki` (Freigabe, Punkte, Bild-Chip,
   Einfügen wie `@qr`). Gemini-Bildmodelle haben laut Stand 2026-11 kein Gratis-Kontingent;
   Pollinations ohne Konto hat Wasserzeichen und ungeklärte Bedingungen. (M)
-- **U7** Emoji-Mix, animierte Emojis, Sticker-Ersteller (Wunsch des Owners vom 2026-11-13).
-  Bilder von Google laden ist erlaubt (Owner). Emoji-Mix (25a) soll in Build 12. Blockiert: Die
-  einzige Paarliste (`xsalazar/emoji-kitchen-backend`, `app/metadata.json`, 2026-11-13: 99 MB,
-  147 000 Paare, 43 Datumswerte, als gzip-Tabelle ca. 434 KB) hat keine Lizenz. Vor dem Bau
-  entscheidet der Owner: Autor um Lizenz bitten oder bewusst nur privat nutzen. (L)
+- **U7** Animierte Emojis (25b) und Sticker-Ersteller (25c) (Wunsch des Owners vom 2026-11-13).
+  Emoji-Mix (25a) ist gebaut (siehe FEATURES.md); Bilder von Google laden ist erlaubt (Owner).
+  Offen aus 25a: Lizenzdatei im Repository des Autors der Paarliste nachprüfen (Stand und Quelle:
+  `docs/BUILD.md` → Emoji-Mix-Tabelle); eine neue Paarliste von Google braucht einen neuen Lauf
+  des Generators. (L)
 - **U5** „Embeds“ (Frage des Owners vom 2026-11-12, noch nicht geklärt, was gemeint ist). Möglich
   sind nur Text und Inhalte über `commitContent`. Link-Vorschauen baut die Ziel-App selbst aus
   einem Link, Discord-Embeds dürfen nur Bots senden. Machbar wäre eine lokal gezeichnete
