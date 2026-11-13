@@ -26,19 +26,26 @@ class LearningDataTest {
         override fun deleteAll() { deleted++; data.clear() }
     }
 
-    @Before fun reset() { app.prefs().edit().clear().commit() }
+    @Before fun reset() {
+        app.prefs().edit().clear().commit()
+        // App.onCreate writes emoji_max_sdk from a background coroutine at an unknown moment; writing
+        // it here first makes the key set below independent of test order (the background then skips)
+        helium314.keyboard.keyboard.emoji.SupportedEmojis.load(app)
+    }
 
     @Test fun pauseIsOffByDefaultPersistsAndReachesTheEngineSettings() {
         assertFalse(LearningData.isPaused(app))
         Settings.getInstance().loadSettings(app)
         assertFalse(Settings.getValues().mLearningPaused)
         assertFalse(LearningData.blocksLearning(Settings.getValues().mLearningPaused))
+        val before = app.prefs().all.keys.toSet()
         LearningData.setPaused(app, true)
         assertTrue(LearningData.isPaused(app))
         Settings.getInstance().loadSettings(app)
         assertTrue(LearningData.blocksLearning(Settings.getValues().mLearningPaused))
         // Pausing is not the same switch as learning itself: that one deletes when turned off.
-        assertEquals(setOf(AgentPreferences.LEARNING_PAUSED), app.prefs().all.keys)
+        assertEquals(before + AgentPreferences.LEARNING_PAUSED, app.prefs().all.keys)
+        assertEquals(setOf(Settings.PREF_EMOJI_MAX_SDK), before) // nothing else was written before pausing
         LearningData.setPaused(app, false)
         Settings.getInstance().loadSettings(app)
         assertFalse(Settings.getValues().mLearningPaused)

@@ -2060,6 +2060,16 @@ Befunde eines lesenden Reviews der Befehle, behoben:
 - Offen (niedrig, unverändert): 7 Höhe der Mixer-Leiste im Layout; 8 eine Anfrage je Tipp (kein
   Bündeln); 9 englischer Ersatztext; 10 globaler Listener je Besitzer („chips“, „palette“).
 
+## Build 12: wackeliger Test `LearningDataTest.pauseIsOffByDefault…`
+
+- Im GitHub-Lauf 3 (Endstand 675fb38) und im ersten lokalen Lauf rot, einzeln grün. Ursache:
+  `App.onCreate` schreibt `emoji_max_sdk` aus einer Hintergrund-Coroutine
+  (`SupportedEmojis.load`) zu einem unbestimmten Zeitpunkt; der Test erwartete genau einen
+  Schlüssel. Behoben im Test: `@Before` ruft `SupportedEmojis.load` selbst (die Coroutine
+  überspringt danach), die Prüfung bleibt gleich streng (vorher genau `emoji_max_sdk`, danach
+  zusätzlich genau `agent_learning_paused`). Lokal grün; der nächste GitHub-Lauf prüft den vollen
+  Satz.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.
