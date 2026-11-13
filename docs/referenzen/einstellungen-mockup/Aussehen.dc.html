@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Aussehen</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#0B0B0F} a{color:inherit;text-decoration:none}</style>
+</helmet>
+<div style="width: 390px; min-height: 2000px; box-sizing: border-box; background: #0B0B0F; color: #F2F2F5; font-family: Inter, sans-serif; padding: 16px 16px 32px; display: flex; flex-direction: column; gap: 16px">
+  <div style="display: flex; align-items: center; gap: 8px">
+    <a href="Main.dc.html" aria-label="Zurück" style="width: 44px; height: 44px; border-radius: 22px; background: #1E1E24; display: flex; align-items: center; justify-content: center">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>
+    </a>
+    <span style="font-size: 13px; color: #A3A3AD">Einstellungen</span>
+  </div>
+  <div style="border-radius: 30px; padding: 22px 20px; background: linear-gradient(135deg,#FF4D8D,#FFB547); color: #0B0B0F; display: flex; flex-direction: column; gap: 6px">
+    <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 13px; opacity: 0.7">01</span>
+    <h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 34px; font-weight: 700; letter-spacing: -0.5px">Aussehen</h1>
+    <span style="font-size: 14px; font-weight: 500">Wie deine Tastatur aussieht und leuchtet.</span>
+  </div>
+
+  <div style="border-radius: 28px; background: #18181D; border: 1px solid #2A2A31; padding: 18px; display: flex; flex-direction: column; gap: 14px">
+    <div style="display: flex; justify-content: space-between; align-items: center">
+      <h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 20px">Designs</h2>
+      <span style="font-size: 13px; color: #A3A3AD">tippen = verwenden</span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">
+      <sc-for list="{{designs}}" as="d" hint-placeholder-count="6">
+        <button onClick="{{d.pick}}" aria-pressed="{{d.pressed}}" style="{{d.style}}">
+          <span style="{{d.swatch}}"></span>
+          <span style="font-size: 12.5px; font-weight: 600; color: #F2F2F5">{{d.name}}</span>
+        </button>
+      </sc-for>
+    </div>
+    <div style="display: flex; gap: 8px">
+      <button style="flex-grow: 1; min-height: 44px; border-radius: 22px; border: 0; background: #F2F2F5; color: #0B0B0F; font-weight: 600; font-size: 14px">+ Neues Design</button>
+      <button style="flex-grow: 1; min-height: 44px; border-radius: 22px; border: 1px solid #33333B; background: transparent; color: #F2F2F5; font-weight: 600; font-size: 14px">Bearbeiten</button>
+    </div>
+  </div>
+
+  <div style="border-radius: 28px; overflow: hidden; background: #18181D; border: 1px solid #2A2A31">
+    <div style="height: 96px; background: repeating-linear-gradient(115deg, rgba(255,255,255,0.18) 0 2px, transparent 2px 14px), linear-gradient(110deg,#00C2A8,#3D7BFF 40%,#8B5CF6 65%,#FF4D8D 85%,#FFB547)"></div>
+    <div style="padding: 16px 18px; display: flex; align-items: center; gap: 12px">
+      <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px">
+        <span style="font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700">RGB-Licht</span>
+        <span style="font-size: 13px; color: #A3A3AD">Höhenlinien · 30 Hz · Tasten &amp; Hintergrund</span>
+      </div>
+      <button onClick="{{toggleRgb}}" aria-pressed="{{rgbPressed}}" aria-label="RGB-Licht an oder aus" style="{{rgbSwitch}}"><span style="{{rgbKnob}}"></span></button>
+    </div>
+  </div>
+
+  <sc-for list="{{sections}}" as="s" hint-placeholder-count="3">
+    <div style="border-radius: 28px; background: #18181D; border: 1px solid #2A2A31; padding: 8px 8px 8px 8px; display: flex; flex-direction: column">
+      <h2 style="margin: 10px 12px 6px; font-family: 'Space Grotesk', sans-serif; font-size: 20px">{{s.title}}</h2>
+      <sc-for list="{{s.rows}}" as="r" hint-placeholder-count="3">
+        <a href="#" style="display: flex; align-items: center; gap: 12px; padding: 12px; min-height: 44px; border-radius: 18px">
+          <span style="{{r.dot}}"></span>
+          <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px">
+            <span style="font-size: 15px; font-weight: 600">{{r.t}}</span>
+            <span style="font-size: 12.5px; color: #A3A3AD">{{r.s}}</span>
+          </span>
+          <span style="font-size: 13px; color: #C9C9D1">{{r.v}}</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8E8E99" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+        </a>
+      </sc-for>
+    </div>
+  </sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":2000}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { picked: 'Abgerundet', rgb: true }; }
+  renderVals() {
+    const d = (name, a, b) => ({ name, pressed: this.state.picked === name ? 'true' : 'false',
+      pick: () => this.setState({ picked: name }),
+      style: 'display: flex; flex-direction: column; gap: 8px; padding: 8px; border-radius: 20px; background: #0F0F13; cursor: pointer; border: 2px solid ' + (this.state.picked === name ? '#FFB547' : '#26262D'),
+      swatch: 'display: block; height: 58px; border-radius: 14px; background: linear-gradient(160deg,' + a + ',' + b + ')' });
+    const row = (t, s, v, c) => ({ t, s, v, dot: 'width: 12px; height: 12px; border-radius: 6px; flex-shrink: 0; background: ' + c });
+    const on = this.state.rgb;
+    return {
+      designs: [d('Abgerundet','#3A3A42','#9C9CA6'), d('Flacher Look','#000000','#5C5C66'), d('Material','#263238','#80CBC4'), d('Nachtblau','#0D1B3D','#4C6FFF'), d('Pastell','#FFD6E8','#C3B5FF'), d('System','#1C1B1F','#D0BCFF')],
+      toggleRgb: () => this.setState({ rgb: !on }), rgbPressed: on ? 'true' : 'false',
+      rgbSwitch: 'width: 56px; height: 32px; border-radius: 16px; border: 0; padding: 4px; display: flex; justify-content: ' + (on ? 'flex-end' : 'flex-start') + '; background: ' + (on ? 'linear-gradient(90deg,#FF4D8D,#FFB547)' : '#3A3A42'),
+      rgbKnob: 'width: 24px; height: 24px; border-radius: 12px; background: #F2F2F5',
+      sections: [
+        { title: 'Größe & Form', rows: [row('Tastaturhöhe', 'Hoch, quer, eingeklappt', '100 %', '#FF6B8A'), row('Tastenabstand', 'Lücke zwischen den Tasten', '1,0', '#FF8A6B'), row('Ränder', 'Unten und seitlich', 'Standard', '#FFA35C'), row('Geteilte Tastatur', 'Im Querformat teilen', 'Aus', '#FFB547')] },
+        { title: 'Schrift & Emoji', rows: [row('Schriftgröße', 'Tasten und Hinweise', '100 %', '#FF6B8A'), row('Eigene Schrift', 'Aus Datei laden', 'Keine', '#FF8A6B'), row('Emoji', 'Größe, Hautton, Emoji-Schrift', 'Standard', '#FFB547')] },
+        { title: 'Hintergrund & Farben', rows: [row('Hintergrundbild', 'Hoch- und Querformat', 'Keins', '#FF6B8A'), row('Tag/Nacht automatisch', 'Folgt Android', 'Aus', '#FF8A6B'), row('Navigationsleiste einfärben', 'Unter der Tastatur', 'An', '#FFB547')] }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

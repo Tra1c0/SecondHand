@@ -54,7 +54,7 @@ Reihenfolge von oben nach unten.
   Fläche, je ein leuchtender Tropfen/Lichtpunkt als Visualisierung des Tempos (z. B. wandert er
   bei 60 Hz doppelt so schnell oder pulsiert); die gewählte Fläche hervorgehoben. „Im
   Energiesparmodus anhalten“ bleibt darunter. Gilt sinngemäß als Stil für ähnliche Auswahlen. (S)
-- **38 Großer Umbau der Einstellungen (Wunsch des Owners vom 2026-11-13, Umfang noch offen)**.
+- **38 Großer Umbau der Einstellungen — BESCHLOSSEN: 1:1 nach dem Mockup umsetzen (Owner, 2026-11-13).** Quelle der Wahrheit: `docs/referenzen/einstellungen-mockup/*.dc.html` (Kopie des Artifacts). Ursprünglicher Wunsch:
   Richtung wie bei 37: verspieltere, visuelle Auswahl statt Listen und Schalter, Karten mit
   Farbflächen und kleinen Animationen. Vor dem Bau klären: was stört heute (Struktur, Tiefe der
   Menüs, Optik), welche Seiten zuerst, Vorlagen/Skizzen des Owners. Großer Umbau und neue

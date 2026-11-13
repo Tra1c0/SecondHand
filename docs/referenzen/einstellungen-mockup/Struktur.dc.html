@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Neue Aufteilung der Einstellungen</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#0B0B0F}</style>
+</helmet>
+<div style="width: 1280px; height: 980px; box-sizing: border-box; background: #0B0B0F; color: #F2F2F5; font-family: Inter, sans-serif; padding: 48px; display: flex; flex-direction: column; gap: 28px">
+  <div style="display: flex; flex-direction: column; gap: 8px">
+    <h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 40px; font-weight: 700">22 Einträge → 7 Bereiche</h1>
+    <p style="margin: 0; font-size: 16px; color: #A3A3AD; max-width: 980px; line-height: 1.5">Heute stehen KI, Profile und Updates ganz oben, Design und RGB-Licht sind nur über „Aussehen“ zu finden, und Leertaste, Autokorrektur und Kalibrieren gibt es jeweils doppelt. Neu: sieben Bereiche nach dem, was du gerade tun willst – jeder mit eigener Farbe.</p>
+  </div>
+  <div style="display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 36px; flex-grow: 1">
+    <div style="border-radius: 28px; background: #141418; border: 1px solid #26262D; padding: 22px; display: flex; flex-direction: column; gap: 6px">
+      <span style="font-size: 13px; font-weight: 600; color: #A3A3AD; letter-spacing: 1px">HEUTE AUF DER STARTSEITE</span>
+      <sc-for list="{{old}}" as="o" hint-placeholder-count="22">
+        <div style="display: flex; align-items: center; gap: 10px; font-size: 14px; padding: 3px 0">
+          <span style="{{o.dot}}"></span>
+          <span style="flex-grow: 1; color: #D4D4DB">{{o.name}}</span>
+          <span style="font-size: 12px; color: #8E8E99">→ {{o.to}}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-content: start">
+      <sc-for list="{{areas}}" as="a" hint-placeholder-count="7">
+        <div style="{{a.style}}">
+          <div style="display: flex; align-items: baseline; gap: 10px">
+            <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 14px; opacity: 0.7">{{a.no}}</span>
+            <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 21px">{{a.title}}</span>
+          </div>
+          <span style="font-size: 13.5px; line-height: 1.5; font-weight: 500; white-space: pre-line">{{a.items}}</span>
+        </div>
+      </sc-for>
+      <div style="border-radius: 24px; background: #141418; border: 1px solid #26262D; padding: 18px; display: flex; flex-direction: column; gap: 8px; grid-column: span 2">
+        <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 19px">Aufgeräumt</span>
+        <span style="font-size: 13.5px; line-height: 1.55; color: #C9C9D1; white-space: pre-line">„Design“ gab es viermal (Aussehen, Design-Seite, Profil, Menü) → eine Seite „Designs“.
+„Leertaste“ zweimal (Textkorrektur, Leertasten-Gesten) → Leerzeichen-Regeln bei Tippen, Gesten bei Gesten.
+„Autokorrektur“ zweimal (Textkorrektur, Gelernte Wörter) → eine Seite.
+„Kalibrieren“ zweimal (Trefferzonen, Symbole) → beide unter „Gesten &amp; Gefühl“.
+„Symbolleiste“/„Werkzeugleiste“ → einheitlich „Leiste“. Titel „HeliBoard“ → „Agent Keyboard“.</span>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const c = { A: '#FF6B8A', T: '#2BD4B4', S: '#6E9BFF', G: '#B794F6', L: '#FFC94D', K: '#38D5EE', Y: '#B6C2D1' };
+    const n = { A: 'Aussehen', T: 'Tippen', S: 'Tasten', G: 'Gesten', L: 'Leiste', K: 'KI', Y: 'System' };
+    const old = [['KI-Anbieter','K'],['Skill-Tasten','K'],['Workflows','K'],['Diktat','K'],['Screenshots','L'],['Befehle','L'],['Gelernte Wörter','T'],['Tastaturprofile','Y'],['Updates','Y'],['Sprachen & Layouts','S'],['Optionen','S'],['Aussehen','A'],['Symbolleiste','L'],['Gesten-Tippen','G'],['Symbole malen','G'],['Gestendaten-Erfassung','Y'],['Textkorrektur','T'],['Sekundäre Layouts','S'],['Wörterbücher','T'],['Erweitert','Y'],['Diagnose','Y'],['Über','Y']]
+      .map(([name, k]) => ({ name, to: n[k], dot: 'width: 10px; height: 10px; border-radius: 5px; flex-shrink: 0; background: ' + c[k] }));
+    const card = (no, title, items, g) => ({ no, title, items, style: 'border-radius: 24px; padding: 18px; display: flex; flex-direction: column; gap: 10px; color: #0B0B0F; background: ' + g });
+    return {
+      old,
+      areas: [
+        card('01', 'Aussehen', 'Designs (eigene, Vorlagen, Farben)\nRGB-Licht\nGröße & Abstände\nSchrift & Emoji\nHintergrundbild, geteilte Tastatur', 'linear-gradient(135deg,#FF4D8D,#FFB547)'),
+        card('02', 'Tippen & Korrektur', 'Autokorrektur (alle Regeln an einem Ort)\nVorschläge & Emoji-Vorschläge\nLeerzeichen & Satzzeichen\nWörterbücher & persönliches Wörterbuch\nLernen & Privatsphäre', 'linear-gradient(135deg,#00C2A8,#7CF0C8)'),
+        card('03', 'Tasten & Sprachen', 'Sprachen & Layouts\nZahlenzeile & Zusatztasten\nPopups & Hinweise\nSekundäre Layouts\nWährungen, Rückkehr-Regeln', 'linear-gradient(135deg,#5B8CFF,#A9C7FF)'),
+        card('04', 'Gesten & Gefühl', 'Leertaste (Wischen, Halten, Rastpunkte)\nSymbole malen / Gestenschreiben\nVibration, Ton, Regler-Haptik\nTrefferzonen & Kalibrieren\nLöschen durch Wischen, Langdruck', 'linear-gradient(135deg,#A78BFA,#E9D5FF)'),
+        card('05', 'Leiste & Befehle', 'Leiste (Modus, Tasten, Anheften)\n@-Befehle mit Textbausteinen & Orten\nZwischenablage-Verlauf\nScreenshots\nEmoji-Mix', 'linear-gradient(135deg,#FFC94D,#FFE7A3)'),
+        card('06', 'KI & Automationen', 'KI-Anbieter & Schlüssel\nSkill-Tasten\nWorkflows\nDiktat\nAuftragsstatus', 'linear-gradient(135deg,#22D3EE,#A5B4FC)'),
+        card('07', 'System & Daten', 'Profile & Sichern/Wiederherstellen\nUpdates\nDiagnose\nExperimentell & Debug\nÜber', 'linear-gradient(135deg,#94A3B8,#E2E8F0)')
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

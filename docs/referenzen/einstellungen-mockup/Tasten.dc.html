@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Tasten und Sprachen</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#0B0B0F} a{color:inherit;text-decoration:none}</style>
+</helmet>
+<div style="width: 390px; min-height: 2000px; box-sizing: border-box; background: #0B0B0F; color: #F2F2F5; font-family: Inter, sans-serif; padding: 16px 16px 32px; display: flex; flex-direction: column; gap: 16px">
+  <div style="display: flex; align-items: center; gap: 8px">
+    <a href="Main.dc.html" aria-label="Zurück" style="width: 44px; height: 44px; border-radius: 22px; background: #1E1E24; display: flex; align-items: center; justify-content: center">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>
+    </a>
+    <span style="font-size: 13px; color: #A3A3AD">Einstellungen</span>
+  </div>
+  <div style="{{hero}}">
+    <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 13px; opacity: 0.7">{{no}}</span>
+    <h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 34px; font-weight: 700; letter-spacing: -0.5px">{{title}}</h1>
+    <span style="font-size: 14px; font-weight: 500">{{sub}}</span>
+  </div>
+
+  <div style="border-radius: 28px; background: #18181D; border: 1px solid #2A2A31; padding: 18px; display: flex; flex-direction: column; gap: 12px">
+    <h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 20px; letter-spacing: 1.5px">{{featTitle}}</h2>
+    <sc-for list="{{choices}}" as="c" hint-placeholder-count="3">
+      <button onClick="{{c.pick}}" aria-pressed="{{c.pressed}}" style="{{c.style}}">
+        <span style="{{c.glow}}"></span>
+        <span style="font-family: 'Space Grotesk', sans-serif; font-size: 19px; font-weight: 700; letter-spacing: 3px">{{c.label}}</span>
+        <span style="font-size: 12.5px; font-weight: 500; text-align: left">{{c.hint}}</span>
+      </button>
+    </sc-for>
+  </div>
+
+  <sc-for list="{{sections}}" as="s" hint-placeholder-count="3">
+    <div style="border-radius: 28px; background: #18181D; border: 1px solid #2A2A31; padding: 8px; display: flex; flex-direction: column">
+      <h2 style="margin: 10px 12px 6px; font-family: 'Space Grotesk', sans-serif; font-size: 20px">{{s.title}}</h2>
+      <sc-for list="{{s.rows}}" as="r" hint-placeholder-count="3">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 12px; min-height: 44px; border-radius: 18px">
+          <span style="{{r.dot}}"></span>
+          <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px">
+            <span style="font-size: 15px; font-weight: 600">{{r.t}}</span>
+            <span style="font-size: 12.5px; color: #A3A3AD">{{r.s}}</span>
+          </span>
+          <sc-if value="{{r.isSwitch}}" hint-placeholder-val="{{true}}">
+            <button onClick="{{r.toggle}}" aria-pressed="{{r.pressed}}" aria-label="{{r.t}}" style="{{r.sw}}"><span style="width: 22px; height: 22px; border-radius: 11px; background: #F2F2F5"></span></button>
+          </sc-if>
+          <sc-if value="{{r.isNav}}" hint-placeholder-val="{{false}}">
+            <a href="#" aria-label="{{r.t}} öffnen" style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #C9C9D1; min-height: 44px">{{r.v}}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8E8E99" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></a>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+  </sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":2000}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { pick: 0, on: {} }; }
+  renderVals() {
+    const P = this.page();
+    const choices = P.choices.map((c, i) => ({ ...c,
+      pressed: this.state.pick === i ? 'true' : 'false',
+      pick: () => this.setState({ pick: i }),
+      style: 'position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 18px; min-height: 92px; border-radius: 22px; border: 0; color: #0B0B0F; text-align: left; background: ' + c.bg + '; opacity: ' + (this.state.pick === i ? '1' : '0.55') + '; outline: ' + (this.state.pick === i ? '3px solid #F2F2F5' : 'none') + '; outline-offset: 2px',
+      glow: 'position: absolute; top: 14px; right: ' + (18 + i * 40) + 'px; width: 42px; height: 22px; border-radius: 11px; background: rgba(255,255,255,0.75); filter: blur(1px)' }));
+    const sections = P.sections.map((s) => ({ title: s.title, rows: s.rows.map((r) => {
+      const isSwitch = r[2] === true || r[2] === false;
+      const on = this.state.on[r[0]] ?? r[2];
+      return { t: r[0], s: r[1], v: isSwitch ? '' : r[2], isSwitch, isNav: !isSwitch, pressed: on ? 'true' : 'false',
+        toggle: () => this.setState({ on: { ...this.state.on, [r[0]]: !on } }),
+        dot: 'width: 12px; height: 12px; border-radius: 6px; flex-shrink: 0; background: ' + P.dot,
+        sw: 'width: 52px; height: 30px; flex-shrink: 0; border-radius: 15px; border: 0; padding: 4px; display: flex; justify-content: ' + (on ? 'flex-end' : 'flex-start') + '; background: ' + (on ? 'linear-gradient(90deg,' + P.grad[0] + ',' + P.grad[1] + ')' : '#3A3A42') };
+    }) }));
+    return { no: P.no, title: P.title, sub: P.sub, featTitle: P.featTitle, choices, sections,
+      hero: 'border-radius: 30px; padding: 22px 20px; color: #0B0B0F; display: flex; flex-direction: column; gap: 6px; background: linear-gradient(135deg,' + P.grad[0] + ',' + P.grad[1] + ')' };
+  }
+  page() {
+    return {
+      no: '03', title: 'Tasten & Sprachen', sub: 'Welche Tasten es gibt und in welchen Sprachen du schreibst.',
+      grad: ['#5B8CFF', '#A9C7FF'], dot: '#6E9BFF', featTitle: 'SPRACHEN',
+      choices: [
+        { label: 'DEUTSCH', hint: 'QWERTZ · Hauptwörterbuch · Emoji-Wörterbuch', bg: 'linear-gradient(120deg,#5B8CFF,#A9C7FF)' },
+        { label: 'ENGLISH (US)', hint: 'QWERTY · aktiv', bg: 'linear-gradient(120deg,#22D3EE,#A5F3FC)' },
+        { label: 'ESPAÑOL', hint: 'QWERTY · ñ auf eigener Taste', bg: 'linear-gradient(120deg,#FFB547,#FFE0A3)' }
+      ],
+      sections: [
+        { title: 'Sprachen', rows: [['Sprache hinzufügen', 'Layouts und Wörterbücher', '+'], ['Sprache pro App merken', 'Jede App behält ihre Sprache', false], ['Sprachwechseltaste', 'Sprache oder Tastatur wechseln', true]] },
+        { title: 'Zusatztasten', rows: [['Zahlenzeile', 'Immer über den Buchstaben', true], ['Emoji-Taste', 'Neben der Leertaste', true], ['Steuerkreuz-Taste', 'Pfeile zum Cursor-Bewegen', false], ['Währungen', '€ und bis zu 6 weitere', '€ $ £']] },
+        { title: 'Popups & Hinweise', rows: [['Tasten-Hinweise', 'Kleine Zeichen in der Ecke', true], ['Popup bei Tastendruck', 'Vergrößerte Taste', true], ['Reihenfolge der Popups', 'Sprache, Layout, Symbole', ''], ['Doppelte Popups weglassen', 'Was schon auf der Tastatur ist', false], ['Langdruck-Dauer', 'Bis das Popup kommt', '300 ms']] },
+        { title: 'Layouts', rows: [['Symbole, Zahlen, Ziffernblock', 'Sekundäre Layouts', ''], ['Zurück zu den Buchstaben', 'Nach Leertaste, Emoji, Zwischenablage', ''], ['Zeitstempel-Format', 'Für die Zeitstempel-Taste', 'HH:mm']] }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
