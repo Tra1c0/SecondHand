@@ -21,6 +21,7 @@ import helium314.keyboard.latin.ClipboardThumbnails
 import helium314.keyboard.latin.InputAttributes
 import helium314.keyboard.latin.LatinIME
 import helium314.keyboard.latin.R
+import helium314.keyboard.latin.database.ClipboardDao
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.prefs
 import org.junit.After
@@ -36,6 +37,7 @@ import java.io.File
 import java.util.Locale
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -177,6 +179,99 @@ class ScreenshotChipTest {
         val wait = System.currentTimeMillis() + 1_000
         while (System.currentTimeMillis() < wait) { Thread.sleep(10); shadowOf(android.os.Looper.getMainLooper()).idle() }
         assertEquals(1, inserted.size)
+    }
+
+    @Test fun mediaChangesAreReportedOnceAfterTheyHaveSettled() {
+        var changes = 0
+        ScreenshotChip.onChange = { changes++ }
+        val looper = shadowOf(android.os.Looper.getMainLooper())
+        repeat(4) { ScreenshotChip.mediaChanged() } // insert, then updates while the file is written
+        looper.idleFor(java.time.Duration.ofMillis(ScreenshotChip.DEBOUNCE_MILLIS - 100))
+        assertEquals(0, changes)
+        ScreenshotChip.mediaChanged()
+        looper.idleFor(java.time.Duration.ofMillis(ScreenshotChip.DEBOUNCE_MILLIS - 100))
+        assertEquals(0, changes) // each change starts the wait again
+        looper.idleFor(java.time.Duration.ofMillis(200))
+        assertEquals(1, changes)
+        // an offered screenshot reports itself again when it gets too old
+        ScreenshotChip.scheduleExpiry(shot(ScreenshotChip.RECENT_MILLIS - 1_000), now)
+        looper.idleFor(java.time.Duration.ofMillis(900))
+        assertEquals(1, changes)
+        looper.idleFor(java.time.Duration.ofMillis(300))
+        assertEquals(2, changes)
+        ScreenshotChip.onChange = null
+    }
+
+    @Test fun newScreenshotGoesIntoTheKeyboardHistoryOnlyWithTheHistoryOnAndNeverIntoTheSystemClipboard() {
+        val dao = assertNotNull(ClipboardDao.getInstance(latinIME))
+        dao.clear()
+        val system = latinIME.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        val systemClip = system.primaryClip
+        fun values() = Settings.getValues()
+        var shot = shot(1_000)
+        ScreenshotChip.finder = { _, _ -> shot }
+        enable()
+
+        assertFalse(ScreenshotChip.addToHistory(latinIME, values(), dao, now) { true }) // history is off by default
+        assertEquals(0, dao.count())
+        latinIME.prefs().edit().putBoolean(Settings.PREF_ENABLE_CLIPBOARD_HISTORY, true).commit()
+        latinIME.prefs().edit().putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true).commit()
+        load(text)
+        assertFalse(ScreenshotChip.addToHistory(latinIME, values(), dao, now) { true }) // not in incognito mode
+        latinIME.prefs().edit().putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, false).commit()
+        load(text)
+        val keyguard = latinIME.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+        shadowOf(keyguard).setIsDeviceLocked(true)
+        assertFalse(ScreenshotChip.addToHistory(latinIME, values(), dao, now) { true }) // not while locked
+        shadowOf(keyguard).setIsDeviceLocked(false)
+        assertEquals(0, dao.count())
+
+        assertTrue(ScreenshotChip.addToHistory(latinIME, values(), dao, now) { true })
+        val entry = dao.getAt(0)
+        assertEquals(listOf("image/png"), entry.mimeTypes)
+        assertEquals(shot.addedMillis, entry.timeStamp)
+        val copy = File(ClipboardDao.clipFilesDir, entry.filename!!)
+        assertEquals("clipboard", copy.parentFile!!.name)
+        // a private copy in the history's own folder, which the clipboard provider serves like any image clip
+        // (no FileProvider call here: it keeps the paths of the first test app for later tests)
+        assertContentEquals(image.readBytes(), copy.readBytes())
+        assertEquals(systemClip?.description?.label, system.primaryClip?.description?.label)
+        assertEquals(systemClip?.itemCount, system.primaryClip?.itemCount) // the system clipboard stays as it was
+        assertFalse(ScreenshotChip.addToHistory(latinIME, values(), dao, now) { true }) // each screenshot once
+        assertEquals(1, dao.count())
+
+        // the history's own rules: no files allowed or too large, nothing is stored
+        shot = shot(1_000, id = 8)
+        ScreenshotChip.mediaChanged()
+        assertFalse(ScreenshotChip.addToHistory(latinIME, values(), dao, now) { false })
+        assertEquals(1, dao.count())
+
+        // the history removes the copy with its entry, as for any image clip
+        dao.deleteClipAt(0)
+        assertFalse(copy.exists())
+
+        // switching the screenshots off removes their entries and copies, pinned ones stay
+        val second = File(latinIME.cacheDir, "Screenshot_second.png")
+        Bitmap.createBitmap(30, 60, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.RED) }
+            .let { bitmap -> second.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) } }
+        shot = shot(1_000, id = 9)
+        ScreenshotChip.mediaChanged()
+        assertTrue(ScreenshotChip.addToHistory(latinIME, values(), dao, now) { true })
+        shot = ScreenshotChip.Shot(10, Uri.fromFile(second), "image/png", now - 500)
+        ScreenshotChip.mediaChanged()
+        assertTrue(ScreenshotChip.addToHistory(latinIME, values(), dao, now) { true })
+        dao.addClip(now, false, "own text")
+        assertEquals(3, dao.count())
+        val pinned = dao.getAll().single { it.timeStamp == now - 500 }
+        dao.togglePinned(pinned.id)
+        val unpinnedCopy = File(ClipboardDao.clipFilesDir, dao.getAll().single { it.filename != null && !it.isPinned }.filename!!)
+        latinIME.prefs().edit().putBoolean(AgentPreferences.SCREENSHOT_CHIP, false).commit()
+        ScreenshotChip.removeFromHistory(latinIME)
+        assertEquals(2, dao.count())
+        assertTrue(dao.getAll().any { it.text == "own text" }) // other entries are left alone
+        assertFalse(unpinnedCopy.exists())
+        assertTrue(dao.getAll().single { it.filename != null }.isPinned)
+        dao.clear()
     }
 
     @Test fun sameFieldMeansSameAppFieldAndType() {

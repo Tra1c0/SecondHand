@@ -1493,6 +1493,44 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   Emoji-Einstellung kein Emoji-Wörterbuch, mit ihr `emoji_de.dict`).
 - Nicht geprüft: echte Emoji-Vorschläge mit der nativen Wörterbuch-Bibliothek (gibt es in
   Robolectric nicht) und der Dialog am Gerät.
+## 23g Screenshot zuerst
+
+- Gebaut: Ein neuer Screenshot meldet sich über den Observer entprellt (500 ms) auf dem
+  Main-Thread; die Pille erscheint ohne erneutes Tippen ins Feld, aber nur zwischen den Wörtern
+  (keine Komposition). Zwischen den Wörtern ersetzt sie Vorhersagen bzw. neutrale Leiste
+  (`LatinIME.setSuggestedWords` → `tryShowScreenshotChip`, nach den Befehlschips); beim Tippen
+  eines Worts zeigt die Leiste dessen Vorschläge. Ablauf nach drei Minuten bringt die normale
+  Leiste zurück. Mit eingeschaltetem Zwischenablageverlauf landet jeder neue Screenshot einmal
+  als Bild im Verlauf der Tastatur (`ClipboardDao.addClipUri`, eigene Kopie in
+  `files/clipboard/`), nie in der System-Zwischenablage, nicht bei gesperrtem Gerät oder im
+  Inkognito-Modus; Ausschalten der Pille löscht diese Einträge außer angehefteten. `InputLogic`
+  ist unverändert; geändert sind `LatinIME.java` (eine Methode, ein Aufruf),
+  `ClipboardHistoryManager.kt`, `ScreenshotChip.kt`, `AgentScreenshotScreen.kt`, Texte.
+  Nachträgliche Regel des Owners (2026-11-13): beim Tippen eines Worts normale Vorschläge, die
+  Pille nur an Wortgrenzen; so umgesetzt.
+- Geprüft (Robolectric): `InputLogicTest.screenshotChip*` (4: Pille im leeren Feld, weg beim
+  Komponieren, wieder nach Leerzeichen, Punkt und neuer Zeile, weg beim nächsten Buchstaben und
+  wieder nach dem nächsten Leerzeichen, nichts eingefügt; `InputLogic.mSuggestedWords` bleibt
+  die gelieferte Liste, Schließen bringt sofort die Wortvorschläge zurück und der Screenshot
+  kommt nicht wieder; getippter `@math`-Befehl zeigt seine Chips statt der Pille; neuer
+  Screenshot über `mediaChanged` erscheint nach dem Entprellen einmal und sofort, beim
+  Komponieren erst an der nächsten Wortgrenze, nach Ablauf verschwindet die Pille von selbst).
+  Die verzögerte Leistenaktualisierung läuft in `InputLogicTest` nicht; der Test liefert sie
+  selbst nach (getipptes Wort beim Komponieren, sonst neutrale Leiste). `ScreenshotChipTest`
+  (2 neu: Entprellen und Ablaufmeldung; Verlauf nur mit eingeschaltetem Verlauf, nicht im
+  Inkognito-Modus, nicht bei gesperrtem Gerät, Kopie im Verlaufsordner, System-Zwischenablage
+  unverändert, jeder Screenshot einmal, Größen-/Dateiregel des Verlaufs, Kopie verschwindet mit
+  dem Eintrag, Ausschalten entfernt Einträge und Kopien außer angehefteten; 4 bisherige Fälle
+  unverändert grün). `InputLogicTest` gesamt: 142 Tests, nur der geerbte
+  `insertLetterIntoWordHangulFails` schlägt fehl. `FlatClipboardTest` grün.
+  `tools/dev.py agent-tests` (jetzt mit `InputLogicTest.screenshotChip*`) grün: 513 Tests in 67
+  Klassen, 0 Fehler. `tools/dev.py lint` ohne Fehler (180 Warnungen, neue nur `UseKtx` in
+  `ScreenshotChip.kt` wie im übrigen Agent-Code). `upstream-tests` nicht gelaufen.
+- Nicht geprüft: kein Gerät und kein Emulator. Offen: ob der Medienspeicher auf echten Geräten
+  so meldet, dass 500 ms Entprellen reichen (ausstehende Dateien, `IS_PENDING`), wie die Pille
+  bei offener Symbolleiste wirkt, wie lange das Kopieren großer Screenshots in den Verlauf den
+  Main-Thread braucht (wie im Upstream bei Bild-Clips), und das Zusammenspiel mit der
+  Verlaufsansicht, wenn sie beim Screenshot offen ist. Kein Prüfer-Review (macht der Lead).
 
 ## Gerätetest vor Meilensteinfreigabe
 

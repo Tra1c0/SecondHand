@@ -117,3 +117,8 @@
   auf keinem Gerät ausprobiert.
 - Neu: Emoji-Wörterbücher für Deutsch, Englisch und Spanisch sind eingebaut. Emoji-Vorschläge
   und die Emoji-Suche gehen ohne Download (Einstellungen → Textkorrektur).
+- Neu: Screenshot zuerst. Ein neuer Screenshot erscheint sofort als Pille in der Leiste, ohne
+  dass du erneut ins Feld tippst, und steht zwischen den Wörtern vor den Vorschlägen; beim
+  Tippen eines Worts siehst du dessen Vorschläge. Ist der Zwischenablageverlauf an, landet der
+  Screenshot auch im Verlauf der Tastatur (nicht in der System-Zwischenablage). Noch auf keinem
+  Gerät ausprobiert.

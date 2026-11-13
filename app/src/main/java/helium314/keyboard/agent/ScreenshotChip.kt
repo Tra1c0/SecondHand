@@ -40,6 +40,11 @@ import java.io.File
  * the tap, and no chip appears in password or number fields, in incognito mode or while the
  * device is locked. The image is copied into the keyboard's own file provider, because the
  * receiving app may not be allowed to read the media store.
+ *
+ * Stage 23g: a new screenshot is reported to [onChange] on the main thread right away (debounced),
+ * so the strip can show the chip without a new tap into the field, and, only with the clipboard
+ * history switched on, it is added to the keyboard's own clipboard history ([addToHistory]). The
+ * system clipboard is never touched.
  */
 object ScreenshotChip {
     private const val TAG = "ScreenshotChip"
@@ -51,6 +56,12 @@ object ScreenshotChip {
     private const val DISMISSED = "agent_screenshot_dismissed"
     /** Without a working observer the media store is asked at most this often. */
     private const val MIN_QUERY_INTERVAL = 5_000L
+    /** The media store reports a screenshot several times while it is written. */
+    const val DEBOUNCE_MILLIS = 500L
+    /** Id of the last screenshot offered to the clipboard history: each one is tried once. */
+    private const val HISTORY_LAST = "agent_screenshot_history_id"
+    /** File names of the history entries made from screenshots, removed when the switch goes off. */
+    private const val HISTORY_FILES = "agent_screenshot_history_files"
 
     class Shot(val id: Long, val uri: Uri, val mimeType: String, val addedMillis: Long)
 
@@ -64,6 +75,36 @@ object ScreenshotChip {
     private var lastQuery = 0L
     private val worker = java.util.concurrent.Executors.newSingleThreadExecutor()
     private val main = android.os.Handler(android.os.Looper.getMainLooper())
+
+    /**
+     * Called on the main thread after the media store changed (debounced) and when an offered
+     * screenshot expires; set by the clipboard history manager of the running keyboard.
+     */
+    @JvmStatic var onChange: (() -> Unit)? = null
+    private val notifier = Runnable { onChange?.invoke() }
+    private val expiry = Runnable { onChange?.invoke() }
+
+    /** Posted with an absolute time, see [mediaChanged]. */
+    private fun postIn(runnable: Runnable, delay: Long) {
+        main.removeCallbacks(runnable)
+        main.postAtTime(runnable, android.os.SystemClock.uptimeMillis() + delay)
+    }
+
+    /** The observer saw a change: query again, and tell [onChange] once the changes have settled. */
+    fun mediaChanged() {
+        stale = true
+        postIn(notifier, DEBOUNCE_MILLIS)
+    }
+
+    /** Lets [onChange] remove the chip of [shot] when it gets too old to be offered. */
+    fun scheduleExpiry(shot: Shot, now: Long = System.currentTimeMillis()) {
+        postIn(expiry, (shot.addedMillis + RECENT_MILLIS - now).coerceAtLeast(0L) + 100L)
+    }
+
+    /** Starts watching when the keyboard starts, so that a new screenshot is noticed before the next tap. */
+    fun start(context: Context) {
+        if (isEnabled(context) && hasPermission(context)) watch(context)
+    }
 
     fun isEnabled(context: Context) = context.prefs().getBoolean(AgentPreferences.SCREENSHOT_CHIP, false)
 
@@ -95,6 +136,15 @@ object ScreenshotChip {
         cleanUp(context, System.currentTimeMillis()) // also when the permission was taken away
         if (!isEnabled(context) || !hasPermission(context)) { stopWatching(context); return null }
         if (isBlocked(Settings.getValues(), editorInfo)) return null
+        val shot = newest(context, now) ?: return null
+        if (!editorAccepts(editorInfo, shot.mimeType)) return null
+        // kept in the settings, so that a used screenshot does not come back after a restart
+        if (context.prefs().getLong(DISMISSED, -1L) == shot.id) return null
+        return shot
+    }
+
+    /** The newest screenshot within [RECENT_MILLIS], whatever the field; callers check switch and permission. */
+    private fun newest(context: Context, now: Long): Shot? {
         watch(context)
         if (observerFailed && now - lastQuery >= MIN_QUERY_INTERVAL) stale = true
         if (stale) {
@@ -106,10 +156,49 @@ object ScreenshotChip {
             }
         }
         val shot = cached ?: return null
-        if (now - shot.addedMillis !in 0..RECENT_MILLIS || !editorAccepts(editorInfo, shot.mimeType)) return null
-        // kept in the settings, so that a used screenshot does not come back after a restart
-        if (context.prefs().getLong(DISMISSED, -1L) == shot.id) return null
-        return shot
+        return if (now - shot.addedMillis in 0..RECENT_MILLIS) shot else null
+    }
+
+    /**
+     * Adds a new screenshot to the keyboard's own clipboard history, never to the system clipboard.
+     * Only with the screenshot switch, the permission and the clipboard history on, and not while
+     * the device is locked or the keyboard is in incognito mode. The history keeps its own copy of
+     * the file (served by the clipboard provider) and deletes it with the entry. [mayStore] applies
+     * the history's file settings (files allowed, size limit). Each screenshot is tried only once.
+     */
+    fun addToHistory(
+        context: Context, settings: SettingsValues?, dao: helium314.keyboard.latin.database.ClipboardDao?,
+        now: Long = System.currentTimeMillis(), mayStore: (Uri) -> Boolean,
+    ): Boolean {
+        if (dao == null || settings == null || !settings.mClipboardHistoryEnabled || settings.mIncognitoModeEnabled) return false
+        if (!isEnabled(context) || !hasPermission(context) || helium314.keyboard.compat.isDeviceLocked(context)) return false
+        val shot = newest(context, now) ?: return false
+        val prefs = context.prefs()
+        if (prefs.getLong(HISTORY_LAST, -1L) == shot.id) return false // also when it was removed from the history since
+        prefs.edit().putLong(HISTORY_LAST, shot.id).apply()
+        if (!mayStore(shot.uri)) return false
+        val before = dao.getAll().mapNotNullTo(HashSet()) { it.filename }
+        dao.addClipUri(shot.addedMillis, false, shot.uri,
+            ClipDescription(context.getString(R.string.agent_screenshot_chip), arrayOf(shot.mimeType)), context)
+        val present = dao.getAll().mapNotNullTo(HashSet()) { it.filename }
+        val added = present - before // the same picture already in the history stays an entry of its own
+        val tracked = prefs.getStringSet(HISTORY_FILES, null).orEmpty().filterTo(HashSet()) { it in present } + added
+        prefs.edit().putStringSet(HISTORY_FILES, tracked).apply()
+        return added.isNotEmpty()
+    }
+
+    /** Switch off: removes the history entries made from screenshots, and their files; pinned ones stay. */
+    fun removeFromHistory(context: Context) {
+        val prefs = context.prefs()
+        val names = prefs.getStringSet(HISTORY_FILES, null)
+        if (names.isNullOrEmpty()) return
+        val dao = helium314.keyboard.latin.database.ClipboardDao.getInstance(context) ?: return // locked: later
+        if (dao.listener != null) return // never while the history is shown, see ClipboardDao.clearOldClips
+        for (index in dao.count() - 1 downTo 0) {
+            val entry = dao.getAt(index)
+            if (entry.filename in names && !entry.isPinned) dao.deleteClipAt(index)
+        }
+        prefs.edit().remove(HISTORY_FILES).apply()
     }
 
     fun dismiss(context: Context, shot: Shot) { context.prefs().edit().putLong(DISMISSED, shot.id).apply() }
@@ -196,7 +285,7 @@ object ScreenshotChip {
     private fun watch(context: Context) {
         if (observer != null) return
         val newObserver = object : ContentObserver(null) {
-            override fun onChange(selfChange: Boolean) { stale = true }
+            override fun onChange(selfChange: Boolean) { mediaChanged() }
         }
         try {
             context.applicationContext.contentResolver.registerContentObserver(
@@ -210,6 +299,7 @@ object ScreenshotChip {
     }
 
     private fun stopWatching(context: Context) {
+        removeFromHistory(context)
         val current = observer
         if (current == null && cached == null) return
         cleanUp(context, System.currentTimeMillis(), all = true)
@@ -217,6 +307,8 @@ object ScreenshotChip {
         observer = null
         cached = null
         stale = true
+        main.removeCallbacks(notifier)
+        main.removeCallbacks(expiry)
     }
 
     /** The newest image in a screenshot folder added within [RECENT_MILLIS] before [now]. */
@@ -243,5 +335,7 @@ object ScreenshotChip {
         observerFailed = false
         lastQuery = 0L
         finder = ::newestScreenshot
+        main.removeCallbacks(notifier)
+        main.removeCallbacks(expiry)
     }
 }

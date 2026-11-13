@@ -255,8 +255,14 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
   (Kartenstil, quadratische Bilder), `ClipboardHistoryEntry.kt` und `ClipboardHistoryManager.kt`
   (Bilder über `ClipboardThumbnails`, Chip im flachen Stil), jeweils als Aufruf in
   `FlatClipboard`. `ClipboardHistoryManager.getClipboardSuggestionView` bietet zuerst einen
-  frischen Screenshot an (`ScreenshotChip`); `hideSuggestionView` blendet einen Chip aus, ohne
-  den Clip als erledigt zu markieren.
+  frischen Screenshot an (`getScreenshotSuggestionView`, nur ohne laufende Komposition, 23g);
+  `hideSuggestionView` blendet einen Chip aus, ohne den Clip als erledigt zu markieren.
+  `onCreate` setzt `ScreenshotChip.onChange` auf `onScreenshotChange` (Verlaufseintrag, dann Pille
+  sofort zeigen oder nach Ablauf entfernen) und startet den Observer.
+- `LatinIME.java` (23g): `setSuggestedWords` ruft nach `tryShowCommandChips` und nach
+  `mInputLogic.setSuggestedWords` `tryShowScreenshotChip`; die Pille ersetzt also nur die Anzeige,
+  die Vorschläge für die Autokorrektur bleiben in `InputLogic`. `InputLogic` selbst ist
+  unverändert.
 - `KeyboardActionListenerImpl.kt`: `KeyCode.AGENT_ACTIONS` öffnet im flachen Stil das Panel statt
   des Rads.
 - `InputView.java`: zählt `agent_menu` zu den Overlays. `SettingsActivity.kt`: Extra
@@ -323,7 +329,9 @@ Geänderte Upstream-Tests (Leertasten-Gesten): `InputLogicTest.kt` ruft `onSpace
 Geänderte Upstream-Tests: `Shadows.kt` (IME-Info aus `BuildConfig.APPLICATION_ID`;
 `getTextBeforeCursor(n)` liefert wie Android die letzten n Zeichen vor der Schreibmarke, nicht die
 ersten n des Felds),
-`InputLogicTest.kt` (zusätzliche erzeugte Fälle, `typedCommand*` für 24a), `SuggestTest.kt` (Personalisierung im Test
+`Shadows.kt` liefert außerdem `acceptedMimeTypes` und `currentImeOptions` im `EditorInfo` (23g),
+`InputLogicTest.kt` (zusätzliche erzeugte Fälle, `typedCommand*` für 24a, `screenshotChip*` für
+23g), `SuggestTest.kt` (Personalisierung im Test
 ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 
 ## Editorzugriff, Panel und Rad
@@ -829,6 +837,27 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Abfrage, beim Ausschalten werden alle gelöscht. Benutzt oder geschlossen, kommt derselbe
   Screenshot nicht wieder (ID in `agent_screenshot_dismissed`). Einstellungen und
   Berechtigung: `K/settings/screens/AgentScreenshotScreen.kt`. Test: `ScreenshotChipTest`.
+  Etappe 23g „Screenshot zuerst“: Der Observer ruft `mediaChanged` (setzt `stale`, meldet nach
+  `DEBOUNCE_MILLIS` = 500 ms Ruhe einmal `onChange` auf dem Main-Thread); `start` hängt ihn schon
+  beim Start der Tastatur an. `ClipboardHistoryManager.onScreenshotChange` zeigt die Pille nur bei
+  sichtbarer Tastatur und ohne Komposition (`InputLogic.hasActiveComposition`) über
+  `setNeutralSuggestionStrip` (Befehlschips zuerst); im Modus EXPANDABLE wird die Symbolleiste
+  eingeklappt wie bei Befehlschips. Während ein Wort komponiert wird, zeigt die Leiste dessen
+  Vorschläge; an der nächsten Wortgrenze ersetzt die Pille die Vorhersagen bzw. die neutrale
+  Leiste, bis sie benutzt, geschlossen oder zu alt ist. `scheduleExpiry` meldet den Ablauf nach
+  drei Minuten, dann kommt die normale Leiste zurück. Die Pillen-View wird für denselben
+  Screenshot wiederverwendet. Verlauf: `addToHistory` legt den neuesten Screenshot einmal
+  (`agent_screenshot_history_id`) über `ClipboardDao.addClipUri` als Bild in den Verlauf der
+  Tastatur, nur mit Schalter, Berechtigung und eingeschaltetem Verlauf, nicht im Inkognito-Modus
+  und nicht bei gesperrtem Gerät (live über `isDeviceLocked`, weil der Observer auch ohne
+  sichtbare Tastatur meldet), und nur, wenn der Verlauf Dateien dieser Größe nimmt
+  (`maySaveFromUri`). Die Kopie liegt wie jedes Bild-Clip in `files/clipboard/` (FileProvider
+  `clipboard_data`) und wird mit dem Eintrag gelöscht (Ablauf, Löschen, Leeren). Die Dateinamen
+  der so angelegten Einträge stehen in `agent_screenshot_history_files`; `removeFromHistory`
+  (Schalter aus in den Einstellungen oder `stopWatching`) löscht diese Einträge außer
+  angehefteten, nie während die Verlaufsansicht offen ist. Die System-Zwischenablage wird nie
+  gesetzt. Das Kopieren läuft wie bei `fetchPrimaryClip` auf dem Main-Thread. Tests:
+  `ScreenshotChipTest` (Entprellen, Ablauf, Verlauf), `InputLogicTest.screenshotChip*`.
 - Panel: `K/agent/FlatPanelStyle.kt` ändert nur Aussehen und Reihenfolge von `AgentPanelView`
   (IDs, View-Typen und Callbacks bleiben): Kopfzeile mit rundem Zurück- und Einstellungs-Knopf
   (Text als `contentDescription`), Ergebnisblock direkt unter Senden/Abbrechen, Beschreibung und
@@ -992,7 +1021,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   legt APK plus SHA-256 unter `artifacts/` ab (nicht versioniert); die Datei heißt nach den
   enthaltenen ABIs, derzeit `…-universal.apk` (Fallstrick P19). `-Pandroid.injected.testOnly=false`
   verhindert, dass die APK als test-only markiert wird (Fallstrick P16). `agent-tests` läuft über
-  `helium314.keyboard.agent.*`, die erzeugten `InputLogicTest`-Fälle und `BatchDeliveryTest`.
+  `helium314.keyboard.agent.*`, die erzeugten `InputLogicTest`-Fälle (`generated*`,
+  `typedCommand*`, `screenshotChip*`) und `BatchDeliveryTest`.
   Toolchain und Einrichtung: `docs/BUILD.md`. UI-Tests schreiben gerenderte Vorschauen nach
   `app/build/agent-previews/` (z. B. `builder-send-review.png`, nicht versioniert).
 - Baseline: `upstream-tests` endet mit genau fünf geerbten Fehlern, Liste in
@@ -1174,6 +1204,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `Defaults.<clinit>` erzeugen (`VerifyError: Bad local variable type`, jeder Robolectric-Test
   bricht ab, auch bei vollem Neubau). `MyDesigns` nutzt deshalb `1f` (Standard im Hochformat).
   Bei so einem `VerifyError` zuerst den letzten neuen Zugriff auf `Defaults` prüfen.
+- **P51** `InputLogicTest` ersetzt `Handler.sendMessage` und `sendMessageDelayed` für alle
+  Handler und gibt die Nachrichten an `LatinIME.mHandler`. Fork-Code, der dort läuft, plant
+  deshalb mit `postAtTime` (`ScreenshotChip.postIn`), sonst landet sein Runnable im falschen
+  Handler. In `apply { }` auf einem `EditorInfo` meint `contentMimeTypes` das Feld des
+  `EditorInfo` (wie P34); die Shadow-Variable heißt deshalb `acceptedMimeTypes`. Robolectric:
+  `FileProvider` merkt sich die Pfade der ersten Test-App; ein späterer Test derselben Klasse
+  bekommt dann für seine Dateien eine Ausnahme. In Tests nur einmal pro Klasse `getUriForFile`.
 
 ## Datei-Inventar
 

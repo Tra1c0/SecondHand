@@ -312,7 +312,7 @@
     <string name="agent_touch_reset_confirm">Forget all learned hit zones?</string>
     <string name="agent_screenshot_chip">Screenshot</string>
     <string name="agent_screenshot_title">Screenshots</string>
-    <string name="agent_screenshot_description">After you take a screenshot, the keyboard shows it as a small chip in the strip for three minutes. The chip only appears in fields that accept images; tapping it inserts the image there. Nothing is inserted without your tap. The chip does not appear in password and number fields, in incognito mode or while the device is locked. The keyboard only looks for new images in screenshot folders and sends nothing anywhere.</string>
+    <string name="agent_screenshot_description">After you take a screenshot, the keyboard shows it as a small chip in the strip for three minutes. The chip only appears in fields that accept images; tapping it inserts the image there. It shows up as soon as the screenshot is saved, between words instead of the next-word suggestions; while you type a word the strip keeps its suggestions. Nothing is inserted without your tap. If the clipboard history is on, the screenshot is also added to the keyboard\'s own clipboard history (not to the system clipboard). The chip does not appear in password and number fields, in incognito mode or while the device is locked. The keyboard only looks for new images in screenshot folders and sends nothing anywhere.</string>
     <string name="agent_screenshot_switch">Offer new screenshots in the strip</string>
     <string name="agent_screenshot_permission_granted">Access to images is allowed.</string>
     <string name="agent_screenshot_permission_missing">Access to images is not allowed yet. Without it there is no chip.</string>

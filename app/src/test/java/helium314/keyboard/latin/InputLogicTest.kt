@@ -2400,12 +2400,191 @@ class InputLogicTest {
         controller.destroy()
     }
 
+    // stage 23g: a fresh screenshot is offered between words, before next-word suggestions
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun screenshotChipShowsBetweenWordsAndSuggestionsWhileAWordIsTyped() {
+        val strip = screenshotStrip()
+        assertTrue(screenshotShown(strip)) // empty field: the chip right away
+        typeAndUpdate("Hal")
+        assertTrue(composer.isComposingWord)
+        assertFalse(screenshotShown(strip)) // a word is typed: its suggestions
+        typeAndUpdate(' ')
+        assertTrue(screenshotShown(strip)) // after the space
+        typeAndUpdate("du")
+        assertFalse(screenshotShown(strip)) // the first letter brings the suggestions back
+        typeAndUpdate('.')
+        assertTrue(screenshotShown(strip)) // after punctuation
+        typeAndUpdate("Ja")
+        assertFalse(screenshotShown(strip))
+        typeAndUpdate('\n')
+        assertTrue(screenshotShown(strip)) // after a new line
+        typeAndUpdate('x')
+        assertFalse(screenshotShown(strip))
+        typeAndUpdate(' ')
+        assertTrue(screenshotShown(strip)) // and again, until it is used, closed or too old
+        assertEquals("Hal du.Ja\nx ", text) // the chip never inserts anything by itself
+    }
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun screenshotChipOnlyChangesTheStripNotTheSuggestionsForAutocorrection() {
+        val strip = screenshotStrip()
+        val words = SuggestedWords(arrayListOf(SuggestedWordInfo("hallo", "", 100, SuggestedWordInfo.KIND_CORRECTION, null, 0, 0)),
+            null, null, false, false, false, SuggestedWords.INPUT_STYLE_PREDICTION, SuggestedWords.NOT_A_SEQUENCE_NUMBER)
+        latinIME.setSuggestions(words)
+        handleMessages()
+        assertTrue(screenshotShown(strip))
+        assertTrue(inputLogic.mSuggestedWords === words) // InputLogic still gets them
+        // the chip goes on closing, and the normal strip comes back at once
+        closeScreenshotChip(strip)
+        assertFalse(screenshotShown(strip))
+        latinIME.setSuggestions(words)
+        handleMessages()
+        assertFalse(screenshotShown(strip))
+        assertTrue(stripWords(strip).contains("hallo"))
+        typeAndUpdate("ok ")
+        assertFalse(screenshotShown(strip)) // a closed screenshot does not come back
+    }
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun screenshotChipGivesWayToTypedCommandChips() {
+        helium314.keyboard.agent.KeyboardCommands.load(latinIME)
+        val strip = screenshotStrip()
+        assertTrue(screenshotShown(strip))
+        typeAndUpdate("x @math 12*3 ")
+        assertFalse(composer.isComposingWord)
+        assertFalse(screenshotShown(strip))
+        assertNotNull(strip.findViewById<android.view.View>(R.id.agent_command_chips))
+    }
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun screenshotChipForANewScreenshotAppearsAtOnceBetweenWordsAndAtTheNextBoundaryWhileTyping() {
+        var shot: helium314.keyboard.agent.ScreenshotChip.Shot? = null
+        val strip = screenshotStrip { shot }
+        assertFalse(screenshotShown(strip))
+        val looper = org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper())
+        var changes = 0
+        val manager = helium314.keyboard.agent.ScreenshotChip.onChange
+        helium314.keyboard.agent.ScreenshotChip.onChange = { changes++; manager?.invoke() }
+        val debounce = helium314.keyboard.agent.ScreenshotChip.DEBOUNCE_MILLIS
+
+        // the media store reports one screenshot several times: one refresh, without a new tap into the field
+        shot = screenshot(id = 11)
+        repeat(3) { helium314.keyboard.agent.ScreenshotChip.mediaChanged() }
+        looper.idleFor(java.time.Duration.ofMillis(debounce / 2))
+        assertEquals(0, changes)
+        looper.idleFor(java.time.Duration.ofMillis(debounce))
+        handleMessages()
+        assertEquals(1, changes)
+        assertTrue(screenshotShown(strip))
+
+        // while a word is typed the next screenshot waits for the word boundary
+        typeAndUpdate("Hal")
+        shot = screenshot(id = 12)
+        helium314.keyboard.agent.ScreenshotChip.mediaChanged()
+        looper.idleFor(java.time.Duration.ofMillis(2 * debounce))
+        handleMessages()
+        assertEquals(2, changes)
+        assertFalse(screenshotShown(strip))
+        typeAndUpdate(' ')
+        assertTrue(screenshotShown(strip))
+
+        // when it gets too old, the normal strip comes back by itself
+        // (the age is checked against the wall clock, which the paused looper does not move)
+        shot = screenshot(id = 13, age = helium314.keyboard.agent.ScreenshotChip.RECENT_MILLIS - 1_500)
+        helium314.keyboard.agent.ScreenshotChip.mediaChanged()
+        looper.idleFor(java.time.Duration.ofMillis(2 * debounce))
+        handleMessages()
+        assertTrue(screenshotShown(strip))
+        Thread.sleep(1_700)
+        looper.idleFor(java.time.Duration.ofMillis(2_000))
+        handleMessages()
+        assertFalse(screenshotShown(strip))
+        typeAndUpdate("ok ")
+        assertFalse(screenshotShown(strip))
+    }
+
+    private lateinit var screenshotImage: java.io.File
+
+    /**
+     * Types and then delivers what the delayed strip update would (skipped by [handleMessages], and
+     * the suggestion thread does not run here): the typed word while composing, else the neutral strip.
+     */
+    private fun typeAndUpdate(typed: String) {
+        chainInput(typed)
+        if (composer.isComposingWord) latinIME.setSuggestions(SuggestedWords(arrayListOf(SuggestedWordInfo(composer.typedWord, "",
+            SuggestedWordInfo.MAX_SCORE, SuggestedWordInfo.KIND_TYPED, null, SuggestedWordInfo.NOT_AN_INDEX, SuggestedWordInfo.NOT_A_CONFIDENCE)),
+            null, null, true, false, false, SuggestedWords.INPUT_STYLE_TYPING, SuggestedWords.NOT_A_SEQUENCE_NUMBER))
+        else latinIME.setNeutralSuggestionStrip()
+        handleMessages()
+    }
+
+    private fun typeAndUpdate(typed: Char) = typeAndUpdate(typed.toString())
+
+    private fun screenshot(id: Long = 5, age: Long = 1_000) = helium314.keyboard.agent.ScreenshotChip.Shot(
+        id, android.net.Uri.fromFile(screenshotImage), "image/png", System.currentTimeMillis() - age)
+
+    /** A strip like the keyboard's, an image field, the screenshot switch with permission and [shot] as the newest one. */
+    private fun screenshotStrip(shot: (() -> helium314.keyboard.agent.ScreenshotChip.Shot?)? = null): helium314.keyboard.latin.suggestions.SuggestionStripView {
+        screenshotImage = java.io.File(latinIME.cacheDir, "Screenshot_test.png")
+        val bitmap = android.graphics.Bitmap.createBitmap(60, 120, android.graphics.Bitmap.Config.ARGB_8888)
+            .apply { eraseColor(android.graphics.Color.BLUE) }
+        screenshotImage.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+        ShadowInputMethodService.acceptedMimeTypes = arrayOf("image/*")
+        currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+        ShadowInputMethodService.currentImeOptions = EditorInfo.IME_ACTION_NONE // enter types a new line
+        latinIME.prefs().edit { putBoolean(AgentPreferences.SCREENSHOT_CHIP, true) }
+        org.robolectric.Shadows.shadowOf(latinIME.application).grantPermissions(helium314.keyboard.agent.ScreenshotChip.permission())
+        val fixed = screenshot()
+        helium314.keyboard.agent.ScreenshotChip.finder = { _, _ -> if (shot == null) fixed else shot() }
+        helium314.keyboard.keyboard.internal.KeyboardIconsSet.instance.loadIcons(latinIME)
+        val themed = android.view.ContextThemeWrapper(latinIME, R.style.KeyboardTheme_Flat)
+        val root = android.widget.FrameLayout(themed)
+        val container = android.view.LayoutInflater.from(themed).inflate(R.layout.strip_container, root, false) as android.view.ViewGroup
+        root.addView(container)
+        root.addView(MainKeyboardView(themed, null).apply { id = R.id.keyboard_view })
+        latinIME.updateSuggestionStripView(root)
+        setText("")
+        return container.findViewById(R.id.suggestion_strip_view)
+    }
+
+    private fun screenshotChipText(strip: android.view.View): android.widget.TextView? =
+        strip.findViewById<android.widget.TextView>(R.id.clipboard_suggestion_text)
+            ?.takeIf { it.text.toString() == latinIME.getString(R.string.agent_screenshot_chip) }
+
+    /** The chip is in the strip and nothing between them is hidden. */
+    private fun screenshotShown(strip: android.view.View): Boolean {
+        var view: android.view.View = screenshotChipText(strip) ?: return false
+        while (view !== strip) {
+            if (view.visibility != android.view.View.VISIBLE) return false
+            view = view.parent as? android.view.View ?: return false
+        }
+        return true
+    }
+
+    private fun stripWords(strip: android.view.View): List<String> {
+        val words = mutableListOf<String>()
+        fun collect(view: android.view.View) {
+            if (view is android.widget.TextView) words += view.text.toString()
+            if (view is android.view.ViewGroup) (0 until view.childCount).forEach { collect(view.getChildAt(it)) }
+        }
+        collect(strip.findViewById(R.id.suggestions_strip))
+        return words
+    }
+
+    private fun closeScreenshotChip(strip: android.view.View) {
+        val chip = screenshotChipText(strip)!!.parent as android.view.View
+        assertTrue(chip.findViewById<android.view.View>(R.id.clipboard_suggestion_close).performClick())
+        handleMessages()
+    }
+
     // should be called before every test, so the same state is guaranteed
     @BeforeTest
     fun reset() {
         // reset input connection & facilitator
         currentScript = ScriptUtils.SCRIPT_LATIN
         ShadowInputMethodService.reset()
+        helium314.keyboard.agent.ScreenshotChip.resetForTest()
         lastAddedWord = ""
 
         // reset settings

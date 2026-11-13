@@ -55,7 +55,10 @@ fun AgentScreenshotScreen(onClickBack: () -> Unit) {
                 Switch(checked = enabled, onCheckedChange = {
                     enabled = it
                     context.prefs().edit { putBoolean(AgentPreferences.SCREENSHOT_CHIP, it) }
-                    if (!it) ScreenshotChip.cleanUp(context, System.currentTimeMillis(), all = true)
+                    if (!it) {
+                        ScreenshotChip.cleanUp(context, System.currentTimeMillis(), all = true)
+                        ScreenshotChip.removeFromHistory(context)
+                    }
                     if (it && !allowed) request.launch(ScreenshotChip.permission())
                 })
             }
