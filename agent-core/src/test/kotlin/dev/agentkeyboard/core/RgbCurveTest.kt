@@ -164,6 +164,27 @@ class RgbCurveTest {
         assertEquals(RgbSettings.PERIOD_RANGE.last, RgbSettings.parse("sep=1;k.period=999999").forTarget(RgbTarget.KEYS).periodMs)
     }
 
+    /** Review of stage 29: a point squeezed between neighbours 2 × MIN_GAP apart must not crash. */
+    @Test fun aSqueezedPointCanBeDraggedWithoutACrash() {
+        var checked = 0
+        for (k in 0..980) {
+            val left = k / 1000f
+            val middle = left + RgbCurve.MIN_GAP
+            val right = middle + RgbCurve.MIN_GAP
+            val curve = RgbCurve.of(listOf(RgbCurve.Point(0f, 0f), RgbCurve.Point(left, 0.2f), RgbCurve.Point(middle, 0.5f),
+                RgbCurve.Point(right, 0.8f), RgbCurve.Point(1f, 1f))) ?: continue
+            val index = curve.points.indexOfFirst { it.x == middle }
+            if (index < 0) continue
+            for (target in listOf(0f, middle, 1f)) {
+                val moved = curve.move(index, target, 0.7f)
+                val p = moved.points[index]
+                assertTrue(p.x > moved.points[index - 1].x && p.x < moved.points[index + 1].x, "x=$target at $left")
+            }
+            checked++
+        }
+        assertTrue(checked > 500, "only $checked squeezed curves were built")
+    }
+
     @Test fun movesOnlyWhenSomethingLitMoves() {
         val still = RgbSettings(enabled = true, pattern = RgbPattern.STATIC_RAINBOW, layers = setOf(RgbLayer.KEY_BACKGROUND, RgbLayer.KEYBOARD_BACKGROUND))
         assertFalse(still.moves())

@@ -67,7 +67,13 @@ class RgbCurve private constructor(val points: List<Point>) {
         val nx = when (index) {
             0 -> 0f
             points.size - 1 -> 1f
-            else -> finite(x).coerceIn(points[index - 1].x + MIN_GAP, points[index + 1].x - MIN_GAP)
+            else -> {
+                // review: neighbours exactly 2 × MIN_GAP apart can make lo > hi by one ulp in float;
+                // coerceIn would throw inside the editor's pointer coroutine and take the keyboard down
+                val lo = points[index - 1].x + MIN_GAP
+                val hi = points[index + 1].x - MIN_GAP
+                if (lo >= hi) points[index].x else finite(x).coerceIn(lo, hi)
+            }
         }
         return of(points.toMutableList().also { it[index] = Point(nx, finite(y)) }) ?: this
     }

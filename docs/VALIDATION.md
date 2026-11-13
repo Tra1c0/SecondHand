@@ -2355,6 +2355,24 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   und `otherLinks` mit 403 vom Netzwerkfilter). Nicht geprüft: Gerätetest (Trefferqualität beim
   echten Tippen, Ladezeit und Speicher auf dem Telefon).
 
+## Etappe 29: Prüfer (lesend) und Sofort-Korrektur
+
+- Prüfer zu `b2783bb`: Absturz (mittel) beim Ziehen eines eingeklemmten Kurvenpunkts:
+  `RgbCurve.move` rief `coerceIn` mit Untergrenze > Obergrenze (1 ulp bei Nachbarn im Abstand
+  2 × `MIN_GAP`), die Ausnahme in der Zeiger-Coroutine hätte Einstellungen und Tastatur beendet.
+  Behoben: Bei leerem Bereich bleibt der Punkt stehen. Test
+  `RgbCurveTest.aSqueezedPointCanBeDraggedWithoutACrash` (751 echte Fälle; Gegenprobe ohne Fix:
+  `IllegalArgumentException`). `:agent-core:test` grün.
+- Die klötzchenhafte Live-Vorschau im Bild der Einstellungsseite kommt laut Prüfer von Robolectric
+  (SDK 28 setzt den Filter eines `BitmapShader` fest auf aus), nicht vom Code; der Tastatur-Test
+  mit SDK 36 ist weich. Die übrigen Befunde (Kacheln auf dem UI-Thread, Kachel-Cache zu klein,
+  Vorschaubilder bei jeder Änderung neu, Filter ab API 33 ausdrücklich setzen, Speicher,
+  TalkBack im Kurven-Editor, langes Drücken löscht sofort) werden in einer eigenen Korrektur
+  behoben.
+- Lokaler Agent-Lauf auf ceca94d: 698 Tests, 84 Fehler, alle `ZipException` beim Laden von
+  Klassen, weil der Lead währenddessen `agent-core` neu baute (Infrastrukturabbruch, kein
+  Befund). Maßgeblich ist der GitHub-Lauf.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.
