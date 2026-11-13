@@ -442,12 +442,14 @@ fun DesignPreview(design: Design, image: ImageBitmap?, modifier: Modifier = Modi
  * [timeMs] is read only while drawing, so an animation clock in a Compose state only redraws the
  * preview and does not recompose the page around it.
  */
-class PreviewLight(val engines: RgbEngines, val timeMs: () -> Long, val pendingTaps: MutableList<Offset> = mutableListOf()) {
+class PreviewLight(
+    val engines: RgbEngines, val timeMs: () -> Long, val pendingTaps: MutableList<Offset> = mutableListOf(),
+    // kept by the caller across changed engines: the grids come from the background and stay until the next one is ready
+    internal val background: RgbTexture = RgbTexture(), internal val keys: RgbTexture = RgbTexture(),
+) {
     val settings get() = engines.settings
     fun lit(area: RgbArea) = settings.enabled && area in settings.areas
     fun engine(target: RgbTarget): RgbEngine = engines.forTarget(target)
-    internal val background = RgbTexture()
-    internal val keys = RgbTexture()
 }
 
 private class PreviewKey(val label: String, val width: Float, val kind: Kind, val hint: String? = null) {

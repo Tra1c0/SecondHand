@@ -326,6 +326,44 @@ class RgbSettingsScreenTest {
         assertEquals(tiles, RgbTiles.builds, "the tiles stay cached")
     }
 
+    /**
+     * Build-14 lag: dragging a curve point recomposes neither the page nor the gallery per move;
+     * only the editor redraws and the preview follows at most once per frame.
+     */
+    @Test fun draggingACurvePointDoesNotRecomposeThePage() {
+        RgbLighting.write(prefs, RgbSettings(enabled = true))
+        stillPage()
+        click("agent_rgb_curve_add")
+        val p = curve().points[1]
+        val pages = helium314.keyboard.settings.screens.optionsCompositions
+        val engines = helium314.keyboard.settings.screens.previewEngines
+        val startMs = compose.mainClock.currentTime
+        val moves = 24
+        compose.onNodeWithTag("agent_rgb_curve").performTouchInput {
+            down(curveAt(p.x, p.y))
+            for (i in 1..moves / 2) moveTo(curveAt(p.x - i * 0.005f, p.y + i * 0.01f))
+        }
+        compose.waitForIdle()
+        // still held: the preview shows the dragged curve, the page was not composed for it
+        assertTrue(helium314.keyboard.settings.screens.previewEngines > engines, "the preview follows the finger")
+        // (the point was already selected by "+": the drag changes nothing the page shows)
+        assertEquals(0, helium314.keyboard.settings.screens.optionsCompositions - pages, "no page composition while dragging")
+        assertEquals(p, curve().points[1], "nothing saved before lifting")
+        compose.onNodeWithTag("agent_rgb_curve").performTouchInput {
+            for (i in moves / 2 + 1..moves) moveTo(curveAt(p.x - i * 0.005f, p.y + i * 0.01f))
+            up()
+        }
+        compose.waitForIdle()
+        assertEquals(p.x - moves * 0.005f, curve().points[1].x, 0.02f)
+        val pageCompositions = helium314.keyboard.settings.screens.optionsCompositions - pages
+        val previewChanges = helium314.keyboard.settings.screens.previewEngines - engines
+        val frames = ((compose.mainClock.currentTime - startMs) / 16 + 1).toInt()
+        println("drag of $moves moves over $frames frames: page composed $pageCompositions times, preview engines $previewChanges")
+        // only saving on lifting composes the page
+        assertTrue(pageCompositions <= 1, "the page was composed $pageCompositions times for $moves moves")
+        assertTrue(previewChanges <= frames + 1, "the preview made $previewChanges engines in $frames frames")
+    }
+
     private fun waitUntil(what: String, condition: () -> Boolean) {
         val end = System.currentTimeMillis() + 20_000
         while (!condition()) {

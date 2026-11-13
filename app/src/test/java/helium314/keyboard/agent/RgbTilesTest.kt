@@ -39,6 +39,7 @@ class RgbTilesTest {
 
     @Before @After fun reset() {
         RgbTiles.executor = null
+        RgbWork.executor = null
         RgbTiles.awaitIdle()
         RgbTiles.clear()
         app.prefs().edit().clear().commit()
@@ -50,9 +51,12 @@ class RgbTilesTest {
     @Test fun drawingNeverWaitsAndTheTileIsMadeOffTheMainThread() {
         val held = mutableListOf<Runnable>()
         RgbTiles.executor = Executor { held += it }
+        // the light grid comes from the background too (held here, so only the tile tells the listener)
+        val grids = mutableListOf<Runnable>()
+        RgbWork.executor = Executor { grids += it }
         var told = 0
         val listener = { told++; Unit }
-        RgbTiles.addListener(listener)
+        RgbWork.addListener(listener)
         try {
             val builds = RgbTiles.builds
             val texture = RgbTexture()
@@ -60,7 +64,8 @@ class RgbTilesTest {
             // first frames: the light is drawn without its detail, nothing is made on this thread
             texture.update(engine(RgbPattern.DIAMONDS), 0f, 0f, 400f, 260f, 0L, -1)
             texture.drawRect(canvas, 0f, 0f, 400f, 260f, 1f)
-            assertTrue(texture.hasField)
+            assertFalse(texture.hasField, "the grid is not computed while drawing either")
+            assertEquals(1, grids.size)
             assertFalse(texture.hasTile, "no tile before it is made")
             assertEquals(0, texture.tileMean)
             assertEquals(builds, RgbTiles.builds, "nothing was made while drawing")
@@ -87,7 +92,7 @@ class RgbTilesTest {
             texture.drawRect(canvas, 0f, 0f, 400f, 260f, 1f)
             assertEquals(1, held.size, "no second build")
         } finally {
-            RgbTiles.removeListener(listener)
+            RgbWork.removeListener(listener)
         }
     }
 

@@ -71,6 +71,9 @@ fun RgbCurveEditor(
     val select by rememberUpdatedState(onSelect)
     var dragging by remember { mutableIntStateOf(-1) }
     var outside by remember { mutableStateOf(false) }
+    // the curve while a point is dragged: read in drawing only, so a move redraws the editor and
+    // recomposes nothing (the page gets the intermediate curves with commit = false for its preview)
+    var live by remember { mutableStateOf<RgbCurve?>(null) }
     val measurer = rememberTextMeasurer()
     val upLabel = stringResource(R.string.agent_rgb_curve_up)
     val downLabel = stringResource(R.string.agent_rgb_curve_down)
@@ -163,6 +166,7 @@ fun RgbCurveEditor(
                                 c.consume()
                                 outside = isOutside(c.position) && moved.canRemove(index)
                                 moved = moved.move(index, toX(c.position.x), toY(c.position.y))
+                                live = moved
                                 change(moved, false)
                             }
                             if (outside) {
@@ -171,6 +175,7 @@ fun RgbCurveEditor(
                             } else change(moved, true)
                             dragging = -1
                             outside = false
+                            live = null
                         }
                         // a drag on empty space is left to the page (scrolling)
                     }
@@ -182,6 +187,7 @@ fun RgbCurveEditor(
         val h = size.height - 2 * pad
         if (w <= 0f || h <= 0f) return@Canvas
         fun at(x: Float, y: Float) = Offset(pad + x * w, pad + (1 - y) * h)
+        val curve = live ?: curve
         // light grid, then the two axes of the sketch
         val grid = axisColor.copy(alpha = 0.25f)
         for (i in 1..3) {

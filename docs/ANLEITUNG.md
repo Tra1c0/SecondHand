@@ -541,7 +541,9 @@ Animationen ausgeschaltet, bleibt das Bild stehen (läuft es gerade, nach höchs
 beim nächsten Einblenden der Tastatur) und die Tipp-Effekte entfallen.
 Bei Rauten, Lamellen, Raster, LED-Punkten und Höhenlinien können die feinen Linien und Punkte
 beim ersten Öffnen und nach einem Musterwechsel einen Augenblick später erscheinen als die Farben:
-Sie werden im Hintergrund vorbereitet, damit die Tastatur dabei nicht ruckelt. Die Bilder der
+Sie werden im Hintergrund vorbereitet, damit die Tastatur dabei nicht ruckelt. Ebenso werden
+die Farben im Hintergrund gerechnet: Beim Öffnen der Tastatur erscheint das Licht ein Bild später.
+Beim Ziehen eines Kurvenpunkts folgt nur die große Vorschau, gespeichert wird beim Loslassen. Die Bilder der
 Mustergalerie zeigen Muster und Farben, nicht deine Kurve oder dein Tempo.
 Leistenknöpfe: Nur eingeschaltete Werkzeuge leuchten, ausgeschaltete behalten ihre graue Farbe;
 der runde Knopf im flachen Look leuchtet nicht. Mit eigenem Hintergrundbild prüft die Tastatur

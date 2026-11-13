@@ -87,6 +87,12 @@
   anzuhalten. Die Mustergalerie der RGB-Seite rechnet nicht mehr bei jeder Bewegung eines
   Kurvenpunkts oder Reglers neu. Die Bewegung der Texturen springt auch nach langer Laufzeit
   nicht mehr.
+- Flüssiger (deine Rückmeldung zu Build 14): Die Farben der Beleuchtung werden jetzt im
+  Hintergrund gerechnet, die Tastatur übernimmt nur das fertige Bild; ein stehendes Muster
+  rechnet gar nicht mehr nach. Beim Ziehen eines Kurvenpunkts baut sich die RGB-Seite nicht mehr
+  bei jeder Bewegung neu auf, nur die Vorschau folgt. Beim Öffnen erscheint das Licht ein Bild
+  später. Noch auf keinem Gerät ausprobiert; ob es auf deinem Telefon jetzt flüssig ist, ist nicht
+  gemessen.
 - Noch auf keinem Gerät ausprobiert; Akkuverbrauch und Ruckelfreiheit auf dem Telefon sind nicht
   gemessen.
 - Neu: Emoji-Vorschläge in der Leiste treffen deutlich mehr. Wortformen („Katzen“ → 🐈),

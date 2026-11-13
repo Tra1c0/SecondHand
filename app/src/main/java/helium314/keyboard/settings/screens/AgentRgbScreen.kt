@@ -84,6 +84,7 @@ import helium314.keyboard.agent.MyDesigns
 import helium314.keyboard.agent.RgbLighting
 import helium314.keyboard.agent.RgbTexture
 import helium314.keyboard.agent.RgbTiles
+import helium314.keyboard.agent.RgbWork
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -137,43 +138,25 @@ fun AgentRgbScreen(onClickBack: () -> Unit) {
     val context = LocalContext.current
     val prefs = context.prefs()
     var settings by remember { mutableStateOf(RgbLighting.read(prefs)) }
-    /** Shown immediately; written to the preference unless [commit] is false (a curve point being dragged). */
+    // a curve point being dragged: only the preview reads this, so the page is not recomposed per
+    // move, and the preview at most once per frame (build-14 lag)
+    val draft = remember { mutableStateOf<RgbSettings?>(null) }
+    /** Shown immediately; written to the preference unless [commit] is false (a curve point being dragged: preview only). */
     fun change(value: RgbSettings, commit: Boolean = true) {
         val normalized = value.normalized()
+        if (!commit) {
+            draft.value = normalized
+            return
+        }
+        draft.value = null
         settings = normalized
-        if (commit) RgbLighting.write(prefs, normalized)
+        RgbLighting.write(prefs, normalized)
     }
     val design = remember { MyDesigns.newDesign(context, "") }
-    val previous = remember { arrayOfNulls<RgbEngines>(1) }
-    // a changed option goes on where the light was instead of starting over
-    val engines = remember(settings) { RgbEngines(settings).also { e -> previous[0]?.let { e.continueFrom(it) }; previous[0] = e } }
-    var time by remember { mutableLongStateOf(0L) }
-    val taps = remember(engines) { mutableListOf<Offset>() }
     val animate = settings.enabled && remember { FlatStyle.animationsEnabled(context) }
-    LaunchedEffect(engines, animate) {
-        if (!animate) return@LaunchedEffect
-        val pacer = RgbFramePacer(settings.fps)
-        while (true) withFrameNanos { nanos ->
-            if (pacer.shouldRender(nanos)) {
-                val ms = nanos / 1_000_000
-                engines.advance(ms)
-                time = ms
-            }
-        }
-    }
     var colorToPick by rememberSaveable { mutableStateOf<Int?>(null) }
     var targetIndex by rememberSaveable { mutableIntStateOf(0) }
     var selectedPoint by rememberSaveable { mutableIntStateOf(-1) }
-    // a tile made in the background: redraw the preview (read in its drawing only, like the clock)
-    var tilesMade by remember { mutableIntStateOf(0) }
-    DisposableEffect(Unit) {
-        val listener: () -> Unit = { tilesMade++ }
-        RgbTiles.addListener(listener)
-        onDispose {
-            RgbTiles.removeListener(listener)
-            lastPreviewLight = null
-        }
-    }
     val target = if (settings.separate) RgbTarget.entries[targetIndex] else RgbTarget.KEYS
     val look = settings.lookFor(target)
     fun changeLook(commit: Boolean = true, edit: (RgbLook) -> RgbLook) = change(settings.withLook(target, edit(settings.lookFor(target))), commit)
@@ -181,21 +164,7 @@ fun AgentRgbScreen(onClickBack: () -> Unit) {
     SearchSettingsScreen(onClickBack, stringResource(R.string.agent_rgb_title), emptyList()) {
         // the large live preview, fixed above the options
         Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-            Box(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
-                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(20.dp))
-            ) {
-                DesignPreview(design, null,
-                    Modifier.testTag("agent_rgb_preview").pointerInput(engines, animate) {
-                        detectTapGestures { offset ->
-                            if (!animate) return@detectTapGestures
-                            taps.add(offset)
-                            time = time + 1 // redraw now, even between frames
-                        }
-                    },
-                    // the clock is read inside the preview's drawing only: frames redraw the preview, not the options
-                    light = remember(engines) { PreviewLight(engines, { tilesMade; time }, taps).also { lastPreviewLight = it } })
-            }
+            LivePreview(design, { draft.value ?: settings }, animate)
             Text(
                 stringResource(if (settings.enabled && !animate) R.string.agent_rgb_static_note else R.string.agent_rgb_preview_label),
                 style = MaterialTheme.typography.labelMedium,
@@ -386,6 +355,69 @@ fun AgentRgbScreen(onClickBack: () -> Unit) {
     }
 }
 
+/** Engines the live preview has made (tests: a dragged curve point makes at most one per frame). */
+@VisibleForTesting
+internal var previewEngines = 0
+
+/**
+ * The large live preview of [AgentRgbScreen]: the same engines and textures as the keyboard; taps
+ * try the tap effects. [shown] is read here only, so a dragged curve point (a draft) recomposes the
+ * preview, at most once per frame, and not the page. The textures stay across changes (their grids
+ * come from the background, [RgbTexture]), so a change shows without a blank frame.
+ */
+@Composable
+private fun LivePreview(design: MyDesigns.Design, shown: () -> RgbSettings, animate: Boolean) {
+    val settings = shown()
+    val previous = remember { arrayOfNulls<RgbEngines>(1) }
+    // a changed option goes on where the light was instead of starting over
+    val engines = remember(settings) {
+        previewEngines++
+        RgbEngines(settings).also { e -> previous[0]?.let { e.continueFrom(it) }; previous[0] = e }
+    }
+    var time by remember { mutableLongStateOf(0L) }
+    val taps = remember(engines) { mutableListOf<Offset>() }
+    val fps = settings.fps
+    LaunchedEffect(engines, animate) {
+        if (!animate) return@LaunchedEffect
+        val pacer = RgbFramePacer(fps)
+        while (true) withFrameNanos { nanos ->
+            if (pacer.shouldRender(nanos)) {
+                val ms = nanos / 1_000_000
+                engines.advance(ms)
+                time = ms
+            }
+        }
+    }
+    // a grid or tile made in the background: redraw a still preview (running frames redraw anyway)
+    var made by remember { mutableIntStateOf(0) }
+    val still by androidx.compose.runtime.rememberUpdatedState(!animate)
+    DisposableEffect(Unit) {
+        val listener: () -> Unit = { if (still) made++ }
+        RgbWork.addListener(listener)
+        onDispose {
+            RgbWork.removeListener(listener)
+            lastPreviewLight = null
+        }
+    }
+    val background = remember { RgbTexture() }
+    val keys = remember { RgbTexture() }
+    Box(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(20.dp))
+    ) {
+        DesignPreview(design, null,
+            Modifier.testTag("agent_rgb_preview").pointerInput(engines, animate) {
+                detectTapGestures { offset ->
+                    if (!animate) return@detectTapGestures
+                    taps.add(offset)
+                    time = time + 1 // redraw now, even between frames
+                }
+            },
+            // the clock is read inside the preview's drawing only: frames redraw the preview, not the options
+            light = remember(engines) { PreviewLight(engines, { made; time }, taps, background, keys).also { lastPreviewLight = it } })
+    }
+}
+
 /**
  * The patterns as small still pictures in the colours of [look], the chosen one framed. Each picture
  * is the same light the keyboard draws (grid plus tile). The pictures depend on the pattern and the
@@ -473,7 +505,7 @@ private fun galleryPicture(key: GalleryKey): GalleryPicture {
     val bitmap = Bitmap.createBitmap(pixels, cols, rows, Bitmap.Config.ARGB_8888)
     val texture = if (dev.agentkeyboard.core.RgbOverlay.hasOverlay(key.pattern)) RgbTexture().also {
         // the tile at the size it has on a phone keyboard, scaled down with the picture
-        it.update(engine, 0f, 0f, 96f * 3f, 54f * 3f, t, -1, waitForTile = true)
+        it.update(engine, 0f, 0f, 96f * 3f, 54f * 3f, t, -1, wait = true)
     } else null
     return GalleryPicture(bitmap, texture)
 }

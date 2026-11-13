@@ -135,7 +135,8 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   das Raster, `FIELD_KEYS`, `keyFactor`/`keyHighlight`/`overlayStrength`; ohne Allokation je
   Aufruf), `RgbEngines` (eine Engine je verschiedenem Look, eine Uhr), `RgbColors` (ARGB, HSV,
   OKLab/OKLCH, `smoothTable`, Kontrast, `readable`/`label` für mindestens 3:1), `RgbRun.mode`
-  (Akku-Regeln) und `RgbFramePacer` (Bildrate). `RgbCurve.kt` (29d): eigene Kurve, monotone
+  (Akku-Regeln), `RgbFramePacer` (Bildrate), `RgbFrameStats` (Selbstmessung der Bildkosten) und
+  `RgbPaletteTables` (geteilte Palettentabellen). `RgbCurve.kt` (29d): eigene Kurve, monotone
   kubische Interpolation, Vorlagen (`RgbWaveform`), Text `x:y,…`, Migration von `wave=`.
   `RgbPatterns.kt` (29c): `RgbNoise` (periodisches Wertrauschen), `RgbPatterns.field` (Farbfeld
   der sechs Texturmuster), `RgbOverlay` (Detail-Kacheln und ihre Matrix), `RgbTile`. Details im
@@ -148,7 +149,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - Tests in `CT/`: `AiTextActionTest`, `EditorPolicyTest`, `LocalTextActionsTest`,
   `PendingBatchGateTest`, `SkillBindingTest`, `ToolTest`, `WorkflowTest`,
   `InsertionAnchorTest`, `StyledTranslationTest`, `UpdateReleasesTest`, `RgbLightingTest`,
-  `RgbCurveTest`, `RgbPatternsTest`.
+  `RgbCurveTest`, `RgbPatternsTest`, `RgbFrameStatsTest`.
   Befehl: `core-tests`.
 
 ## Geänderte Upstream-Dateien
@@ -318,7 +319,8 @@ ohne Einstellung ist der Painter `null` und das Zeichnen genau wie im Upstream):
   `onDrawKeyTopVisuals` `labelColor` für Beschriftung (nicht Emoji), Hinweis und Hinweis-Symbol,
   in `drawKeyPopupHint` für das „…“, sowie `tintIcon`/`restoreIcon` um das Symbol.
   `setKeyIconColor` gibt den gesetzten `ColorType` zurück, damit `tintIcon` die wirklich
-  gesetzte Farbe bekommt (Umschalt-Akzent, Tastentext).
+  gesetzte Farbe bekommt (Umschalt-Akzent, Tastentext). Am Ende von `onDrawKeyboard` `endDraw`
+  (Messung der Bildkosten, Rückmeldung zu Build 14).
 - `MainKeyboardView.java`: `setKeyboard` holt den Painter (`RgbLighting.painterFor`, liest dabei
   die Einstellung neu), `onKeyPressed` meldet die Taste (`RgbLighting.onKeyPressed`, nur Position
   der Taste, nichts aus `PointerTracker`), `onAttachedToWindow`/`onVisibilityChanged`/
@@ -1325,7 +1327,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `RgbPatterns.flowPeriod` des Musters zurück, wo sich das Farbfeld genau wiederholt (P107); die
   Phase selbst verliert ab 10⁶ Durchläufen ganze `RgbOverlay.DRIFT_PERIOD` (200), da wiederholen
   sich Farben und Kachel-Drift. Vorher sprang die Bewegung alle 4096 Durchläufe.
-- Ablauf: `A/RgbLighting.kt` (Singleton auf dem UI-Thread): Einstellung `agent_rgb_lighting`,
+- Ablauf: `A/RgbLighting.kt` (Singleton auf dem UI-Thread; Raster und Kacheln entstehen im
+  Hintergrund, siehe „Bild des Lichts“): Einstellung `agent_rgb_lighting`,
   `engines` (`engineFor`), Uhr (`drawTimeMs`, in `STATIC` eingefroren), Modus aus `RgbRun.mode`
   (läuft, wenn irgendein leuchtendes Element sich bewegt, `RgbSettings.moves`) und ein
   `Choreographer.FrameCallback`, der nur in `RUNNING` läuft und je erlaubtem Bild
@@ -1345,6 +1348,24 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - Bild des Lichts: `A/RgbTexture.kt` (Raster 48 × bis 32 aus `engine.base`/`effects`,
   `BitmapShader` mit Filter, ab API 33 ausdrücklich `FILTER_MODE_LINEAR` über
   `RgbTexture.bitmapShader`, P105; Kachel-Shader mit REPEAT). Genutzt von Tastatur und Vorschau.
+- Raster im Hintergrund (Rückmeldung zu Build 14, Ruckeln): `update` rechnet das Raster nicht
+  selbst. Es übernimmt das fertige Raster (Kopie von höchstens 48 × 32 Werten ins Bitmap) und
+  bestellt das nächste auf dem Thread `rgb-light` (`RgbWork.run`), nur wenn sich etwas geändert
+  hat (Engine, Phase, Fluss, Seitenverhältnis, Zeilen, Element, Uhr nur solange ein Tipp-Effekt
+  verblasst); ein stehendes Muster rechnet danach nichts mehr. Die Engine des Auftrags ist eine
+  Kopie (`RgbEngine.copyStateFrom`: Phase, Fluss, Seitenverhältnis, Tipps), die UI-Engine läuft
+  weiter. Doppelt gepuffert: Auftrag schreibt in einen Puffer, den der UI-Thread nicht zeigt
+  (`spare`), der UI-Thread tauscht; läuft noch ein Auftrag, bestellt das nächste Bild. Das Bild
+  liegt damit ein Raster hinter der Uhr (beim Laufen ein Bild); das allererste Bild eines
+  Elements hat noch kein Licht. Fertige Raster und Kacheln melden `RgbWork`-Zuhörer auf dem
+  Main-Thread: die Tastatur zeichnet nur neu, wenn keine Bilder laufen, die Vorschau nur, wenn
+  sie steht. `wait = true` rechnet alles auf dem aufrufenden Thread (Galeriebilder im
+  Hintergrund). Palettentabellen teilen Engines mit gleichen Farben (`RgbPaletteTables`, 16).
+- Selbstmessung (Rückmeldung zu Build 14): `RgbLighting.frameWork()` liefert
+  `RgbFrameStats.Summary` über die letzten 5 s: Bilder, Licht-Arbeit auf dem UI-Thread je Bild
+  (`beginDraw` plus `beginKey`/`drawOverBackground`) im Mittel und höchstens, das ganze
+  Zeichnen der Tastatur (`beginDraw` bis `endDraw`), Zahl und Dauer der Raster im Hintergrund.
+  Für die Diagnose-Seite gedacht, dort noch nicht angezeigt.
 - Kacheln (Prüfung 29): `RgbTiles` in derselben Datei macht sie auf einem eigenen
   Hintergrund-Thread (`rgb-tiles`, niedrige Priorität). `ready` blockiert nie: fehlt die Kachel,
   wird sie bestellt und das Bild ohne Detail gezeichnet; ist sie fertig, ruft `RgbTiles` auf dem
@@ -1394,13 +1415,24 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   und das Hochladen des kleinen Rasters. GPU-Kosten und Akku auf einem Telefon sind nicht
   gemessen. Kein Frame-Callback zwischen den fälligen Bildern. RGB-Seite: die Uhr der Vorschau
   wird nur beim Zeichnen gelesen (`PreviewLight.timeMs` ist eine Funktion), Bilder zeichnen also
-  nur die Vorschau neu.
+  nur die Vorschau neu. Messung auf dem UI-Thread (`RgbLightingRenderTest.uiThreadLightingWorkPerFrame`,
+  JVM mit Robolectric-Software-Zeichnen, Bilder ohne Pause): Vorbereitung je Bild vorher
+  0,15–0,9 ms (Tinte 0,9), jetzt 0,03–0,2 ms; das Zeichnen des Lichts durch die Tastenmasken
+  bleibt auf dem UI-Thread und kostet hier 2,5–6 ms, Lamellen und Raster (gedrehte Kachel)
+  17–18 ms, das ganze Zeichnen der Tastatur 7–45 ms. Robolectric rastert in Software; am
+  Telefon zeichnet die GPU, dort zeigt `RgbLighting.frameWork()` die echten Werte.
 - Datenschutz: liest keinen Text, speichert nur die Einstellung; Tipp-Positionen (höchstens
   acht) nur im Speicher, beim Ausblenden verworfen. Keine Logs.
 - Robustheit: `RgbEngine.aspect` ignoriert NaN/Unendlich und begrenzt auf 0,01–100,
   `light`, `paletteAt`, `RgbColors.hsv`, `lerp` und `RgbCurve.value` werfen bei NaN nicht;
   `RgbCurve.parse`/`of` lehnen kaputte Kurven ab (dann alter Verlauf oder Vorgabe); die
   Designvorschau zeichnet ohne Breite oder Höhe nichts.
+- RGB-Seite, Ziehen ohne Ruckeln (Rückmeldung zu Build 14): Zwischenstände einer gezogenen Kurve
+  (`commit = false`) landen in `draft`, das nur `LivePreview` liest: Die Seite wird beim Ziehen
+  nicht neu zusammengesetzt, die Vorschau höchstens einmal je Bild (Compose fasst Änderungen
+  eines Bildes zusammen), und der Editor zeichnet den gezogenen Punkt aus seinem eigenen Zustand
+  (`live`, nur beim Zeichnen gelesen). Die Vorschau behält ihre zwei `RgbTexture`s über neue
+  Engines hinweg (kein leeres Bild bei jeder Änderung). P109.
 - RGB-Seite: `K/settings/screens/AgentRgbScreen.kt` (29a: große Live-Vorschau oben mit runden
   Ecken, darunter flache Karten je Gruppe, Muster als Bildergalerie, „Gleiches Muster überall“
   mit Wahl des Elements, Kurven-Editor mit Vorlagen und Stufen-Regler; Änderungen gehen in der
@@ -1420,7 +1452,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Migration, eigene Looks), `CT/RgbPatternsTest.kt` (Bewegung, keine Sprünge in Ort und Zeit,
   Regenbogen ohne Kanten, OKLCH, Merkmale der sechs Muster, Kacheln nahtlos, Matrix, Kosten,
   Wiederholung des Flusses, kein Sprung am Umbruch von Fluss und Phase,
-  Bilder unter `agent-core/build/rgb-previews/`), `AT/RgbLightingRenderTest.kt` (echte
+  Bilder unter `agent-core/build/rgb-previews/`), `CT/RgbFrameStatsTest.kt` (Selbstmessung,
+  Kopie der Engine für das Hintergrund-Raster, geteilte Palettentabellen), `AT/RgbLightingRenderTest.kt` (echte
   `MainKeyboardView` im flachen Stil: aus = gleiche Pixel, einfarbige Tasten wie 26, weiches
   Licht gegen das gerechnete Raster, Texturen auf Tasten und Hintergrund, eigene Looks,
   Migration, Bereiche, Lesbarkeit, Blitz, Animationen aus, Leiste, nur die Haupttastatur,
@@ -1910,6 +1943,15 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Rauschzellen). Wer einen Zeitfaktor in `field` ändert, muss die Periode anpassen;
   `RgbPatternsTest.theFlowRepeatsExactlyAtItsPeriod` schlägt sonst fehl. Ebenso müssen alle
   Drift-Geschwindigkeiten in `RgbOverlay.transform` mal `DRIFT_PERIOD` ganzzahlig bleiben.
+- **P108** Das Licht kommt ein Bild später aus dem Hintergrund (`RgbWork`). Pixeltests zeichnen
+  deshalb zweimal: erstes Bild (bestellt Raster und Kacheln), `RgbWork.awaitIdle()`,
+  `RgbTiles.awaitIdle()`, Main-Looper laufen lassen, `invalidateAllKeys()`, zweites Bild. Ohne
+  `invalidateAllKeys` zeichnet die `KeyboardView` beim Software-Zeichnen nur ihren alten Puffer;
+  der Zuhörer übernimmt das im Betrieb nur für eine sichtbare Tastatur.
+- **P109** Liest eine Composable einen Zustand, wird sie bei jeder Änderung neu
+  zusammengesetzt. Beim Ziehen eines Kurvenpunkts darf deshalb nur die Vorschau den Zwischenstand
+  lesen (`draft` in `LivePreview`), nicht `AgentRgbScreen`; sonst baut jede Bewegung die ganze
+  Seite neu (`RgbSettingsScreenTest.draggingACurvePointDoesNotRecomposeThePage`).
 - **P66** Ein Chip, der Text entfernt und danach die Sprache umschaltet, leert oft das Feld; viele
   Apps starten die Eingabe dann im selben Feld neu. HeliBoards `onStartInputInternal` wendet dabei
   Hint-Locales und den gespeicherten App-Subtyp erneut an (`SubtypeState.getSubtypeForLocales`)
@@ -2098,7 +2140,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (429 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (430 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -2151,13 +2193,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   ModelProvider, OwnInkSymbols, PendingBatchGate, Places, Profiles, RgbCurve, RgbLighting,
   RgbPatterns, SkillBinding, SpecialCharacters, StyledTranslation, SymbolTable, TextCondition,
   TimerParser, Tool, UnitConversion, UpdateReleases, UrlDetector, Workflow
-- `CT/` (30): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
+- `CT/` (31): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
   EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest, EventParserTest, InkDotsTest,
   InkRecognizerTest, InsertionAnchorTest, LanguageNamesTest, LocalTextActionsTest,
   MathExpressionTest, OwnInkSymbolsTest, PendingBatchGateTest, PlacesTest, QuestionCaptureTest,
-  RgbCurveTest, RgbLightingTest, RgbPatternsTest, SkillBindingTest, StyledTranslationTest,
-  SymbolTableTest, TimerParserTest, ToolTest, UnitConversionTest, UpdateReleasesTest,
-  UrlDetectorTest, WorkflowTest
+  RgbCurveTest, RgbFrameStatsTest, RgbLightingTest, RgbPatternsTest, SkillBindingTest,
+  StyledTranslationTest, SymbolTableTest, TimerParserTest, ToolTest, UnitConversionTest,
+  UpdateReleasesTest, UrlDetectorTest, WorkflowTest
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,
   KeyboardActionListenerImpl, KeyboardSwitcher, KeyboardTheme, KeyboardView, MainKeyboardView,
   PointerTracker

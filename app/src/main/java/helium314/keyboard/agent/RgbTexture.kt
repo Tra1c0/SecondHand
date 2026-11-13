@@ -13,6 +13,7 @@ import android.os.Looper
 import android.util.SparseArray
 import androidx.annotation.VisibleForTesting
 import dev.agentkeyboard.core.RgbEngine
+import dev.agentkeyboard.core.RgbFrameStats
 import dev.agentkeyboard.core.RgbOverlay
 import dev.agentkeyboard.core.RgbPattern
 import java.util.concurrent.CopyOnWriteArrayList
@@ -22,18 +23,25 @@ import kotlin.math.roundToInt
 
 /**
  * The light of one element as a picture (stage 29b/29c): a small grid of light values ([COLUMNS]
- * x up to [MAX_ROWS], computed by the engine once per frame) stretched with bilinear filtering over
- * the element, plus the sharp detail tile of texture patterns ([RgbOverlay]) as a repeating shader
- * that only moves. Used by the keyboard ([RgbKeyPainter]) and the preview of the settings page, so
- * both look the same. Not thread-safe: one thread per instance (the UI thread, or a background
- * thread that hands the finished instance over, like the pattern gallery).
+ * x up to [MAX_ROWS]) stretched with bilinear filtering over the element, plus the sharp detail tile
+ * of texture patterns ([RgbOverlay]) as a repeating shader that only moves. Used by the keyboard
+ * ([RgbKeyPainter]) and the preview of the settings page, so both look the same. Call from one
+ * thread (the UI thread, or a background thread that hands the finished instance over, like the
+ * pattern gallery).
+ *
+ * The grid is computed on a background thread ([RgbWork], build-14 lag): [update] takes the grid
+ * that is ready (a copy of 48 x up to 32 values into the bitmap), and asks for the next one only if
+ * the light can have changed (phase, flow, size, taps); a still pattern costs nothing per frame.
+ * The picture is thus one grid behind the clock (one frame while running); the very first frame
+ * of an element draws no light, the finished grid redraws through [RgbWork]'s listeners.
+ * Double-buffered: the job writes a buffer the UI thread does not show, the UI thread swaps.
  *
  * Shaders are in view coordinates: [setArea] maps the grid onto the lit area once per frame; a key
  * is drawn through its alpha mask at its view position, so neighbouring keys and the background
  * continue each other without seams.
  *
  * Tiles come from [RgbTiles]: built on a background thread, so the first frames of a texture
- * pattern are drawn without its detail until the tile is ready (then [RgbTiles] asks for a redraw).
+ * pattern are drawn without its detail until the tile is ready (then a redraw is asked for).
  */
 class RgbTexture {
     private var bitmap: Bitmap? = null
@@ -61,32 +69,121 @@ class RgbTexture {
     /** True once a light grid was computed or copied ([updateTileOnly] alone leaves it false). */
     val hasField get() = bitmap != null
 
+    /** Where the time of background grids is counted (the keyboard's [RgbLighting.frameStats]); null: not counted. */
+    var stats: RgbFrameStats? = null
+
+    // background grid: guarded by [lock]; [job] and [spare] belong to the job while [inFlight]
+    private val lock = Any()
+    private var inFlight = false
+    private var ready: IntArray? = null
+    private var readyRows = 0
+    private var spare: IntArray? = null
+    private var job: RgbEngine? = null
+    private var jobSource: RgbEngine? = null
+    // what the last requested grid was made from: a new one only when one of these changes
+    private var askedEngine: RgbEngine? = null
+    private var askedPhase = Double.NaN
+    private var askedFlow = Double.NaN
+    private var askedAspect = Float.NaN
+    private var askedRows = -1
+    private var askedKeyId = Int.MIN_VALUE
+    private var askedNow = Long.MIN_VALUE
+    /** Grids made in the background for this texture (tests). */
+    @VisibleForTesting internal var gridsMade = 0; private set
+
     /**
-     * Computes the grid for [engine] at [nowMs] over a [width] x [height] area at ([left], [top]) of
-     * the canvas, for element [keyId] (-1 background and strip, [RgbEngine.FIELD_KEYS] under the keys).
-     * [waitForTile]: build a missing tile on this thread (never on the UI thread); otherwise it is
-     * requested in the background and drawn once ready.
+     * The grid for [engine] at [nowMs] over a [width] x [height] area at ([left], [top]) of the
+     * canvas, for element [keyId] (-1 background and strip, [RgbEngine.FIELD_KEYS] under the keys).
+     * By default the grid comes from the background (see the class comment); [wait]: computed and
+     * a missing tile built on this thread (background threads only: gallery pictures).
      */
-    fun update(engine: RgbEngine, left: Float, top: Float, width: Float, height: Float, nowMs: Long, keyId: Int, waitForTile: Boolean = false) {
+    fun update(engine: RgbEngine, left: Float, top: Float, width: Float, height: Float, nowMs: Long, keyId: Int, wait: Boolean = false) {
         val w = width.coerceAtLeast(1f)
         val h = height.coerceAtLeast(1f)
         val newRows = (COLUMNS * h / w).roundToInt().coerceIn(2, MAX_ROWS)
-        if (bitmap == null || newRows != rows) {
-            rows = newRows
+        if (wait) {
+            val grid = IntArray(COLUMNS * newRows)
+            computeGrid(engine, grid, newRows, keyId, nowMs)
+            show(grid, newRows)
+        } else {
+            takeReady()
+            // the effects depend on the clock only while a tap fades
+            val effectNow = if (engine.hasActiveEffect(nowMs)) nowMs else Long.MIN_VALUE
+            if (engine !== askedEngine || engine.phase != askedPhase || engine.flow != askedFlow || engine.aspect != askedAspect ||
+                newRows != askedRows || keyId != askedKeyId || effectNow != askedNow) ask(engine, newRows, keyId, nowMs, effectNow)
+        }
+        if (bitmap != null) setArea(left, top, w, h)
+        updateTile(engine, left, top, w, h, wait)
+    }
+
+    /** Shows the grid the background has finished, if any. */
+    private fun takeReady() {
+        val grid: IntArray
+        val gridRows: Int
+        synchronized(lock) {
+            grid = ready ?: return
+            gridRows = readyRows
+            ready = null
+            // the shown grid is free now: the next job writes there
+            if (pixels.size == COLUMNS * gridRows) spare = pixels
+        }
+        show(grid, gridRows)
+    }
+
+    private fun show(grid: IntArray, gridRows: Int) {
+        if (bitmap == null || gridRows != rows) {
+            rows = gridRows
             cols = COLUMNS
             bitmap = Bitmap.createBitmap(cols, rows, Bitmap.Config.ARGB_8888)
-            pixels = IntArray(cols * rows)
             fieldShader = bitmapShader(bitmap!!, Shader.TileMode.CLAMP)
             generation++
         }
-        for (r in 0 until rows) for (c in 0 until cols) {
-            val x = (c + 0.5f) / cols
-            val y = (r + 0.5f) / rows
-            pixels[r * cols + c] = engine.effects(engine.base(x, y), x, y, keyId, nowMs)
-        }
+        pixels = grid
         bitmap!!.setPixels(pixels, 0, cols, 0, 0, cols, rows)
-        setArea(left, top, w, h)
-        updateTile(engine, left, top, w, h, waitForTile)
+    }
+
+    /** Asks the background for the grid of [engine]'s present state, unless a grid is still being made (then the next update asks). */
+    private fun ask(engine: RgbEngine, gridRows: Int, keyId: Int, nowMs: Long, effectNow: Long) {
+        val copy: RgbEngine
+        val buffer: IntArray
+        synchronized(lock) {
+            if (inFlight) return
+            if (job == null || jobSource !== engine) {
+                job = RgbEngine(engine.settings)
+                jobSource = engine
+            }
+            copy = job!!
+            buffer = spare?.takeIf { it.size == COLUMNS * gridRows } ?: IntArray(COLUMNS * gridRows)
+            spare = null
+            inFlight = true
+        }
+        copy.copyStateFrom(engine)
+        askedEngine = engine; askedPhase = engine.phase; askedFlow = engine.flow; askedAspect = engine.aspect
+        askedRows = gridRows; askedKeyId = keyId; askedNow = effectNow
+        val sink = stats
+        RgbWork.run {
+            val start = System.nanoTime()
+            try {
+                computeGrid(copy, buffer, gridRows, keyId, nowMs)
+                synchronized(lock) {
+                    ready?.let { spare = it }
+                    ready = buffer
+                    readyRows = gridRows
+                    gridsMade++
+                }
+            } finally {
+                synchronized(lock) { inFlight = false }
+                sink?.recordBackground(android.os.SystemClock.uptimeMillis(), System.nanoTime() - start)
+            }
+        }
+    }
+
+    private fun computeGrid(engine: RgbEngine, grid: IntArray, gridRows: Int, keyId: Int, nowMs: Long) {
+        for (r in 0 until gridRows) for (c in 0 until COLUMNS) {
+            val x = (c + 0.5f) / COLUMNS
+            val y = (r + 0.5f) / gridRows
+            grid[r * COLUMNS + c] = engine.effects(engine.base(x, y), x, y, keyId, nowMs)
+        }
     }
 
     /** Only the tile and its position (keys in one colour each draw no grid, only the detail). */
@@ -108,10 +205,10 @@ class RgbTexture {
             rows = other.rows
             cols = other.cols
             bitmap = Bitmap.createBitmap(cols, rows, Bitmap.Config.ARGB_8888)
-            pixels = IntArray(cols * rows)
             fieldShader = bitmapShader(bitmap!!, Shader.TileMode.CLAMP)
             generation++
         }
+        if (pixels.size != other.pixels.size) pixels = IntArray(other.pixels.size)
         System.arraycopy(other.pixels, 0, pixels, 0, pixels.size)
         bitmap!!.setPixels(pixels, 0, cols, 0, 0, cols, rows)
         areaLeft = other.areaLeft; areaTop = other.areaTop; areaWidth = other.areaWidth; areaHeight = other.areaHeight
@@ -251,10 +348,65 @@ class RgbTexture {
 }
 
 /**
+ * Background work of the lighting (build-14 lag): the light grids of [RgbTexture] on their own
+ * thread, and the listeners told on the main thread when a grid or a tile ([RgbTiles]) is ready
+ * (the keyboard redraws when it has no running frames, the settings preview when it stands still).
+ */
+object RgbWork {
+    private val listeners = CopyOnWriteArrayList<() -> Unit>()
+    private val main by lazy { Handler(Looper.getMainLooper()) }
+    private val defaultExecutor: Executor by lazy {
+        Executors.newSingleThreadExecutor { r ->
+            Thread(r, "rgb-light").apply { isDaemon = true; priority = Thread.NORM_PRIORITY - 1 }
+        }
+    }
+    /** Where grids are computed (tests replace it). */
+    @VisibleForTesting internal var executor: Executor? = null
+    @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") private val lock = Object()
+    private var pending = 0
+    /** The thread the last grid was computed on (tests). */
+    @Volatile @VisibleForTesting internal var lastThread: Thread? = null
+        private set
+
+    /** Runs [work] on the lighting thread, then tells the listeners. */
+    fun run(work: () -> Unit) {
+        synchronized(lock) { pending++ }
+        (executor ?: defaultExecutor).execute {
+            try {
+                lastThread = Thread.currentThread()
+                work()
+            } finally {
+                synchronized(lock) { pending--; lock.notifyAll() }
+                notifyReady()
+            }
+        }
+    }
+
+    /** Tells every listener on the main thread that something made in the background is ready. */
+    fun notifyReady() { main.post { for (l in listeners) l() } }
+
+    fun addListener(listener: () -> Unit) { listeners.addIfAbsent(listener) }
+    fun removeListener(listener: () -> Unit) { listeners.remove(listener) }
+
+    /** Waits until no grid is being computed, at most [timeoutMs] (tests). */
+    @VisibleForTesting internal fun awaitIdle(timeoutMs: Long = 10_000): Boolean {
+        val end = System.currentTimeMillis() + timeoutMs
+        synchronized(lock) {
+            while (pending > 0) {
+                val left = end - System.currentTimeMillis()
+                if (left <= 0) return false
+                lock.wait(left)
+            }
+        }
+        return true
+    }
+}
+
+/**
  * The detail tiles of the texture patterns (stage 29c), one per pattern, made on a background
  * thread: a big tile takes 20–40 ms on a desktop JVM and more on a phone, too long for a frame on the
  * UI thread. [ready] never blocks: it returns the tile or asks for it and returns null; when a tile
- * is done, every listener is told on the main thread (the keyboard and the settings preview redraw).
+ * is done, [RgbWork]'s listeners are told on the main thread (the keyboard and the settings preview redraw).
  * The cache holds every tiled pattern (five, about 1.3 MB of bitmaps) and only the bitmap and its
  * mean colour, not the pixel array; [clear] empties it (light switched off, low memory).
  */
@@ -266,8 +418,6 @@ object RgbTiles {
     private val pending = HashSet<RgbPattern>()
     /** Raised by [clear]: a build that started before is not stored. */
     private var epoch = 0
-    private val listeners = CopyOnWriteArrayList<() -> Unit>()
-    private val main by lazy { Handler(Looper.getMainLooper()) }
     private val defaultExecutor: Executor by lazy {
         Executors.newSingleThreadExecutor { r ->
             Thread(r, "rgb-tiles").apply { isDaemon = true; priority = Thread.MIN_PRIORITY }
@@ -318,7 +468,7 @@ object RgbTiles {
             lock.notifyAll()
         }
         // also after a clear: whoever still draws asks again on the redraw
-        main.post { for (l in listeners) l() }
+        RgbWork.notifyReady()
     }
 
     private fun makeTile(pattern: RgbPattern): Tile? {
@@ -329,10 +479,6 @@ object RgbTiles {
         // the pixel array is dropped here: the bitmap and the mean colour are all drawing needs
         return Tile(bitmap, tile.mean)
     }
-
-    /** Called on the main thread after a tile was made. */
-    fun addListener(listener: () -> Unit) { listeners.addIfAbsent(listener) }
-    fun removeListener(listener: () -> Unit) { listeners.remove(listener) }
 
     /** Drops every tile (bitmaps still in use by a shader stay alive until it is replaced). */
     fun clear() {

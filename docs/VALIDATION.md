@@ -2422,7 +2422,48 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
     704 Tests, 1 Fehler:
     `SpaceGesturesTest.defaultsEqualTheBehaviorBeforePerGestureSettings` (leere Einstellungen
     erwartet; dieselbe Stelle wie der bekannte Wettlauf mit `SupportedEmojis.load`, siehe „Etappen
-    30 und 31“; allein wiederholt grün; die Ursache in diesem Lauf nicht nachgelesen). Kein Build, keine volle Upstream-Suite. `python3 -I scripts/docs_sync.py --check`: grün.
+    30 und 31“; allein wiederholt grün; die Ursache in diesem Lauf nicht nachgelesen). Kein
+    Build, keine volle Upstream-Suite. `python3 -I scripts/docs_sync.py --check`: grün.
+- Rückmeldung des Owners zu Build 14 (Xiaomi: Ruckeln im RGB-Menü, besonders beim Kurven-Editor;
+  Verzögerungen der Tastatur), in derselben Arbeitskopie umgesetzt, ohne Gerätetest:
+  - **Raster im Hintergrund:** `RgbTexture` rechnet das Raster auf dem Thread `rgb-light` aus
+    einer Kopie der Engine, doppelt gepuffert; der UI-Thread übernimmt nur fertige Raster und
+    bestellt neue nur bei Änderung (stehende Muster: keins je Bild). 30 Bilder/s sind schon
+    Vorgabe. Tests: `RgbTilesTest.drawingNeverWaitsAndTheTileIsMadeOffTheMainThread` (auch das
+    Raster nicht beim Zeichnen), `RgbLightingRenderTest.stillPatternsComputeNothingPerFrame`
+    (statischer Regenbogen 0 Raster in 10 Bildern, Welle eins je Bild, nicht auf dem
+    Main-Thread), `RgbFrameStatsTest.aCopiedEngineLightsLikeTheOriginal`. Gegenproben: Raster
+    wieder beim Zeichnen → „the grid is not computed while drawing either“ schlägt fehl; immer
+    neu bestellen → statischer Regenbogen 10 statt 0 Raster, schlägt fehl. Alle Pixeltests
+    (Weichheit gegen das bilineare Raster ±4, Texturen, eigene Looks) laufen unverändert auf dem
+    Hintergrund-Raster (P108).
+  - **Kurven-Editor:** Zwischenstände nur für die Vorschau (`draft`), Seite nicht neu
+    zusammengesetzt, Editor zeichnet den Punkt selbst, Palettentabellen geteilt
+    (`RgbFrameStatsTest.enginesWithTheSameColoursShareTheirPaletteTable`). Test
+    `RgbSettingsScreenTest.draggingACurvePointDoesNotRecomposeThePage`: 24 Bewegungen in 28
+    Bildern, Seite 1-mal (beim Loslassen), Vorschau 2 Engines, während des Haltens 0-mal. Gegenprobe
+    mit dem alten Weg (Zwischenstand in die Seite): „no page composition while dragging“ schlägt
+    fehl (1 statt 0).
+  - **Selbstmessung:** `RgbLighting.frameWork()` (`RgbFrameStats`, letzte 5 s: Licht auf dem
+    UI-Thread, ganzes Zeichnen der Tastatur über den neuen Hook `endDraw` in
+    `KeyboardView.onDrawKeyboard`, Raster im Hintergrund). Tests
+    `RgbFrameStatsTest.averageAndMaximumOverTheLastSeconds`, `uiThreadLightingWorkPerFrame`
+    (misst über die API). Nicht auf der Diagnose-Seite angezeigt (Auftrag).
+  - **Messung (JVM, Robolectric-Software-Zeichnen, nicht das Telefon)** mit
+    `uiThreadLightingWorkPerFrame`, 60 Bilder ohne Pause, alle zwölf Muster, Tasten, Hintergrund und
+    Beschriftung leuchten: Vorbereitung je Bild auf dem UI-Thread vorher (Raster auf dem
+    UI-Thread) 0,15–0,9 ms im Mittel (Tinte 0,91, Höhenlinien 0,57), jetzt 0,03–0,20 ms (Tinte
+    0,07); Raster im Hintergrund 0,11–0,9 ms (Tinte 0,89). Das Zeichnen des Lichts durch die
+    Tastenmasken bleibt auf dem UI-Thread: hier 2,5–6 ms je Bild, Lamellen und Raster 17–18 ms,
+    ganzes Zeichnen der Tastatur 7–45 ms, vorher wie nachher (Software-Rastern; am Telefon
+    rastert die GPU). Ob das am Telefon ruckelt, zeigt erst `frameWork()` auf dem Gerät.
+  - Nicht geprüft: jedes Gerät (Flüssigkeit beim Ziehen und Tippen, echte Bildkosten mit GPU,
+    Akku); das erste Bild ohne Licht und das um ein Bild verspätete Licht nicht angesehen.
+  - **Befehle auf dem Endstand:** `python3 tools/dev.py core-tests`: 279 Tests, 0 Fehler.
+    RGB-App-Tests: 42 Tests, 0 Fehler (Render 24, Seite 13, Kacheln 5).
+    `python3 tools/dev.py agent-tests`: 724 Tests, 0 Fehler (10 min 32 s). Kein Build, keine
+    volle Upstream-Suite, kein Prüfer für den neuen Hook in `KeyboardView.java`.
+    `python3 -I scripts/docs_sync.py --check`: grün.
 
 ## Gerätetest vor Meilensteinfreigabe
 

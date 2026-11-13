@@ -345,6 +345,7 @@ public class KeyboardView extends View {
 
         mInvalidatedKeys.clear();
         mInvalidateAllKeys = false;
+        if (mRgbPainter != null) mRgbPainter.endDraw(); // fork
     }
 
     private void onDrawKey(@NonNull final Key key, @NonNull final Canvas canvas,
