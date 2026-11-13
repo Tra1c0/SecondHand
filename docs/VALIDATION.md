@@ -2060,6 +2060,68 @@ Befunde eines lesenden Reviews der Befehle, behoben:
 - Offen (niedrig, unverändert): 7 Höhe der Mixer-Leiste im Layout; 8 eine Anfrage je Tipp (kein
   Bündeln); 9 englischer Ersatztext; 10 globaler Listener je Besitzer („chips“, „palette“).
 
+## Etappe 33 (Leertasten-Rastpunkte)
+
+- Auftrag: ROADMAP 33 (Rückmeldung des Owners zu Build 12 mit Skizze). Seitliche Leertasten-Wische
+  mit Einmal-Aktion laufen über drei Rastpunkte bei 0,8 / 1,6 / 2,65 Tastenbreiten ab dem
+  Aufsetzpunkt (`mMostCommonKeyWidth`, mindestens 20 dp); je ein leichter Tick, der letzte ein
+  stärkerer, längerer Impuls („Überdehnen“), erst dort die Aktion, einmal pro Wisch. Vorher
+  loslassen tut nichts; 0,2 Tastenbreiten hinter einen Punkt zurück und wieder vor tickt erneut.
+  Halten wird ab 6 dp klar seitlicher Bewegung abgebrochen, auch während der Schnelltipp-Sperre.
+  Senkrechte Wische und fortlaufende Aktionen unverändert. Die drei Ticks direkt nach
+  Rückgängig/Wiederholen (Build 12) sind entfernt, auch bei Halten und Doppeltippen.
+- Annahmen des Leads (vom Owner zu bestätigen): Abstände wie oben (Startpunkt plus drei
+  Rastpunkte); „den ganzen Text rückgängig“ = ein normaler Rückgängig-Schritt; Zurückziehen tickt
+  erneut statt abzubrechen; gilt für alle Einmal-Aktionen links/rechts (auch Rad, Emoji …); die
+  Richtung legt der erste 10-dp-Schritt fest (P100).
+- Gebaut: `A/SpaceDetents.kt` (neu), `A/HapticChain.kt` (umgebaut: `Feel.DETENT`/`STRETCH` statt
+  `Direction`), `KeyboardActionListenerImpl.onSpaceSwipeDistance`; Engine: `PointerTracker`
+  (`onKeySwipe`: seitliche Einmal-Wische melden den Abstand zum Aufsetzpunkt bei jeder Bewegung;
+  Abbruch des Haltens vor der Schnelltipp-Sperre), `KeyboardActionListener`
+  (`onSpaceSwipeDistance`, leere Vorgabe im `Adapter`). Fallstricke P100–P103.
+- Geprüft (JVM): `SpaceDetentsTest` (9: Skizze, vorwärts, einmal vollenden bis Loslassen, früh
+  loslassen, Rückweg mit Schwelle, schneller Sprung, Richtung, Einheit mit Untergrenze,
+  Abbruchregel des Haltens), `HapticChainTest` (7, neu geschrieben: Primitive mit THUD, THUD erst
+  ab API 31 und Klick als Ersatz, weicherer Klick ohne Tick, Wellenform statt schwerem Primitiv
+  ohne Anstieg, Wellenform mit Amplituden, Pulse ohne Amplitudensteuerung oder unter API 26, der
+  letzte Impuls auf jeder Stufe länger und nicht schwächer). Die fünf alten Fälle prüften die
+  entfernte Drei-Tick-Kette und sind ersetzt, nicht abgeschwächt.
+- Geprüft (Robolectric, echter `PointerTracker`): `AgentSpaceGestureTest` (15, davon 4 neu):
+  Abstand jeder Bewegung ab Aufsetzpunkt (auch nahe dem Start, Tastenbreite 50 übergeben, kein
+  `onSpaceSwipe`); echte `SpaceDetents` hinter dem Mock: Ticks bei 40/80 px, nach dem Rückweg
+  erneut, Vollendung bei 135 px, früh losgelassen keine Vollendung; Halten nach 7 px seitlich
+  abgebrochen, der Wisch zählt (Gegenproben im selben Test: 4 px und 7/8 px schräg halten weiter);
+  Halten auch während der Schnelltipp-Sperre abgebrochen. `oneShotSwipeActionRunsOncePerSwipe`
+  heißt jetzt `oneShotVerticalSwipeActionRunsOncePerSwipe` und prüft dieselben Zusicherungen mit
+  einem Wisch nach oben, weil der seitliche Einmal-Wisch absichtlich anders läuft.
+- Geprüft (Robolectric, echter `KeyboardActionListenerImpl`): `InputLogicTest.generatedSpace*`.
+  `generatedSpaceUndoAndRedoPlayTheirTickChainOnlyWithKeyVibration` heißt jetzt
+  `…PlayTheirDetentsOnlyWithKeyVibration`: statt drei Ticks nach der Aktion prüft er nichts vor
+  dem ersten Punkt, Tick, Tick, Vollendung (links und rechts), nichts danach; Toolbar-Taste und
+  Halten mit Rückgängig ohne Kette; Tastenvibration aus: nichts. Neu:
+  `generatedSpaceUndoAndRedoRunOnlyAtTheLastDetent` (Rückgängig erst am letzten Punkt, genau
+  einmal, früh loslassen nichts, Rückweg, Richtung, `NONE`),
+  `generatedSpaceSideSwipeRunsEveryOneShotActionAtTheLastDetent` (alle Tastencodes und
+  Layoutwechsel beider Seiten erst bei 2,7 statt 2,6),
+  `generatedSpaceSideSwipeOpensTheWheelAtTheLastDetentAndStopsThere` (offenes Rad blockiert,
+  danach wieder Rückgängig). `generatedSpaceGestureActionsUseTheExistingKeyCodes` unverändert
+  (prüft die Zuordnung über `onSpaceSwipe`, das `PointerTracker` seitlich nur noch für
+  fortlaufende Aktionen ruft).
+- Gegenproben (Code vorübergehend zurückgedreht, danach byte-gleich wiederhergestellt): ohne
+  Abbruch des Haltens und mit Aktion am ersten Rastpunkt scheitern die beiden Halten-Tests und
+  die drei neuen `InputLogicTest`-Fälle (5 rot); mit der Wischlogik aus Build 12 in
+  `PointerTracker` scheitern die drei neuen Wisch-Tests in `AgentSpaceGestureTest`; ohne
+  Rückweg-Schwelle und ohne Sperre nach der Vollendung scheitern die zwei passenden
+  `SpaceDetentsTest`-Fälle.
+- Gesamtläufe: `tools/dev.py agent-tests` grün (655 Tests, 79 Klassen, 0 Fehler).
+  `InputLogicTest` komplett: 165 Tests, nur der geerbte Fehler `insertLetterIntoWordHangulFails`.
+  Nicht gelaufen (gemeinsam genutzte Maschine): `upstream-tests`, `lint`, `build`, `core-tests`
+  (`agent-core` unverändert).
+- Nicht geprüft: kein Gerätetest. Ungeprüft sind das Gefühl der Rastpunkte (Abstände, ob Tick und
+  letzter Impuls unterscheidbar sind), welche Haptik-Stufe das Xiaomi spielt, ob 6 dp als
+  Abbruch des Haltens zu empfindlich ist, Querformat (breitere Tasten, längerer Weg). Kein
+  Prüfer-Review der `PointerTracker`-Änderung (Pflicht vor dem Merge).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

@@ -88,8 +88,21 @@ Einstellungen → Erweitert → **Leertaste** (oder Einstellungen → Tastaturpr
 
 - **Nach links / rechts / oben / unten wischen**: Wische auf der Leertaste los. Die Richtung des
   ersten Stücks entscheidet. „Cursor bewegen“, „Sprache wechseln“ und „Touchpad-Modus“ laufen
-  mit, solange du wischst (auch zurück); alle anderen Aktionen passieren einmal pro Wisch.
+  mit, solange du wischst (auch zurück); alle anderen Aktionen passieren einmal pro Wisch: nach
+  oben oder unten sofort, nach links oder rechts erst am letzten Rastpunkt (siehe unten).
+- **Rastpunkte beim Wischen nach links oder rechts** (z. B. Rückgängig nach links, Wiederholen
+  nach rechts): Auf dem Weg spürst du drei Rastpunkte, je einen leichten Tick bei etwa 0,8 und
+  1,6 Tastenbreiten, den letzten etwas weiter (gut eine Tastenbreite danach, bei etwa 2,65). Der
+  letzte fühlt sich wie Überdehnen an (stärker und länger) und führt erst dann die Aktion aus,
+  genau einmal pro Wisch. Lässt du vorher los, passiert nichts. Ziehst du ein Stück zurück und
+  wieder vor, tickt der Rastpunkt erneut. Rückgängig ist ein normaler Rückgängig-Schritt wie die
+  Rückgängig-Taste. Die Ticks kommen nur, wenn unter Einstellungen → Optionen „Vibration bei
+  Tastendruck“ an ist, und nicht bei „Bitte nicht stören“ (außer du hast Vibration dort
+  erlaubt); der Android-Schalter für Berührungs-Haptik spielt keine Rolle. Kann dein Telefon die
+  Stärke nicht steuern, ist der letzte Rastpunkt ein langer statt eines kurzen Pulses.
 - **Halten**: Leertaste lange drücken, z. B. für das Aktionsrad oder „Tastatur auswählen“.
+  Bewegst du den Finger dabei deutlich nach links oder rechts, ist das Halten sofort vorbei und
+  nur der Wisch zählt; auch ein langsamer Wisch löst das Halten nie aus.
 - **Doppeltippen**: Der erste Tipp schreibt wie immer ein Leerzeichen, ein zweiter Tipp direkt
   danach führt die Aktion aus statt ein zweites Leerzeichen zu schreiben. Solange Doppeltippen
   eine Aktion hat, ruht „Punkt plus Leerzeichen“.
@@ -98,16 +111,10 @@ Einstellungen → Erweitert → **Leertaste** (oder Einstellungen → Tastaturpr
   nichts.
 - **Standard** im Auswahlfenster stellt die Geste zurück: Sie macht dann wieder, was sie vor
   dieser Seite gemacht hat.
-- **Rückgängig** und **Wiederholen** spürst du als drei kurze Ticks pro Auslösung. Gewünscht war
-  „von links nach rechts“ und zurück; ein Telefon hat aber nur einen Vibrationsmotor. Deshalb
-  wird die Richtung zur Stärke: Wiederholen wird von Tick zu Tick stärker (wie links → rechts),
-  Rückgängig schwächer (rechts → links). Kann dein Telefon die Stärke nicht steuern, kommen drei
-  gleiche Ticks. Die Kette kommt nur, wenn unter Einstellungen → Optionen „Vibration bei
-  Tastendruck“ an ist, und nicht bei „Bitte nicht stören“ (außer du hast Vibration
-  dort erlaubt). Der Android-Schalter für Berührungs-Haptik spielt keine Rolle, genau wie bei der
-  Tastenvibration. Das gilt auch, wenn du Rückgängig/Wiederholen aufs Halten oder Doppeltippen
-  der Leertaste gelegt hast.
-  Die Rückgängig-/Wiederholen-Tasten in der Werkzeugleiste vibrieren wie jede andere Taste.
+- **Rückgängig** und **Wiederholen** auf Halten oder Doppeltippen der Leertaste vibrieren wie ein
+  normaler Tastendruck bzw. langer Druck, ohne eigene Ticks (die drei Ticks direkt nach der
+  Aktion aus Build 12 gibt es nicht mehr). Die Rückgängig-/Wiederholen-Tasten in der
+  Werkzeugleiste vibrieren wie jede andere Taste.
 
 Rad, Panel und Diktat behalten über jede Geste ihre Schutzregeln (Passwortfelder, Inkognito,
 gesperrtes Gerät). Ein einzelner Tipp schreibt immer ein Leerzeichen.

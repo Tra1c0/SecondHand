@@ -117,6 +117,12 @@ public interface KeyboardActionListener {
      * swipe started in and stays the same for the whole swipe; [steps] is signed along its axis.
      */
     boolean onSpaceSwipe(SpaceGesture gesture, int steps);
+    /**
+     * Fork (stage 33): a sideways space swipe whose action runs once moved. [distance] is the current
+     * x minus the touch-down x in px (signed), [keyWidth] the keyboard's most common key width in px.
+     * The action runs at the last detent (SpaceDetents); the swipe ends with onEndSpaceSwipe.
+     */
+    void onSpaceSwipeDistance(SpaceGesture gesture, int distance, int keyWidth);
     void onEndSpaceSwipe();
     void toggleLayout(LayoutDirective.Utility layout, int autoCapsFlags, @Nullable RecapitalizeMode recapitalizeMode);
     void onLongPressAlphaSymbolForNumpad();
@@ -168,6 +174,8 @@ public interface KeyboardActionListener {
         public boolean onSpaceSwipe(SpaceGesture gesture, int steps) {
             return false;
         }
+        @Override
+        public void onSpaceSwipeDistance(SpaceGesture gesture, int distance, int keyWidth) {}
         @Override
         public void toggleLayout(LayoutDirective.Utility layout, int autoCapsFlags, @Nullable RecapitalizeMode recapitalizeMode) {}
         @Override

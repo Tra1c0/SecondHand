@@ -45,19 +45,13 @@ Reihenfolge von oben nach unten.
   halben Sekunde nach einem Strich soll nicht verloren gehen; „Gestenschreiben“ ausgegraut, wenn
   Malen an ist; die übrigen niedrigen Befunde aus `docs/VALIDATION.md` → Build 12: Prüfer zu
   Etappe 27. (S)
-- **33 Leertasten-Geste mit Rastpunkten (Rückgängig/Wiederholen)** (Rückmeldung des Owners zu
-  Build 12, 2026-11-13, mit Skizze auf der Leertaste). Laut Skizze vier Rastpunkte, je etwa
-  0,8 Tastenbreiten auseinander, der letzte Abstand etwas länger (gut eine Tastenbreite); dieselben
-  Punkte für beide Richtungen. Build 12 spielt die
-  drei Ticks sofort nach dem Auslösen hintereinander ab. Gewünscht: Die Ticks hängen am
-  Wischweg. Jeder Tick ist ein Rastpunkt auf der Strecke; der letzte vollendet die Geste und macht
-  erst dann rückgängig (nach links) bzw. wiederholt (nach rechts). Bis dahin läuft die Geste weiter
-  und kann abgebrochen werden. Der letzte Punkt liegt etwas weiter und fühlt sich wie Überdehnen
-  bzw. mehr Widerstand an (stärkerer, längerer Impuls). Halten der Leertaste bricht sofort ab,
-  sobald sich der Finger klar nach links oder rechts bewegt; dann gilt die Wischgeste. Berührt
-  die Touch-Verarbeitung der Leertaste (Prüfer Pflicht). Vor dem Bau klären: Abstände der Punkte,
-  was „den ganzen Text rückgängig“ genau heißt (letzter Schritt oder alles), Abbruch durch
-  Zurückziehen. (M)
+- **33 Leertasten-Geste mit Rastpunkten** ist gebaut (siehe FEATURES.md, Nachweis in
+  `docs/VALIDATION.md` → Etappe 33 (Leertasten-Rastpunkte)). Offen: Prüfer-Review der `PointerTracker`-Änderung
+  (Pflicht vor dem Merge), Gerätetest (Gefühl und Unterscheidbarkeit der Ticks, Abstände am
+  Telefon, Stufe der Haptik am Xiaomi) und die Annahmen des Leads, vom Owner zu bestätigen:
+  Rastpunkte bei 0,8 / 1,6 / 2,65 Tastenbreiten (Startpunkt plus drei Punkte), „den ganzen Text
+  rückgängig“ = ein normaler Rückgängig-Schritt, Zurückziehen tickt erneut statt abzubrechen,
+  gilt für alle Einmal-Aktionen links/rechts.
 - **32 Emoji-Mix: zuletzt gemischt** (vom Owner gewünscht, 2026-11-13): Reihe der letzten
   Sticker im Mixer, aus dem Cache auf dem Gerät, ohne neuen Download. (S)
 

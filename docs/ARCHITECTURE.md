@@ -178,13 +178,22 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   `isSwiper` fragt `mSpaceGestures.hasSwipe()`; `onKeySwipe` merkt beim ersten Schritt die
   Startrichtung (`mSpaceSwipeGesture`, links/rechts bzw. oben/unten nach Vorzeichen) und meldet
   jeden Schritt als `onSpaceSwipe(Richtung, Schritte)`; `oneShotSwipe` fragt
-  `SpaceAction.isContinuous` der Startrichtung statt der alten `SwipeAction`-Liste. Schwelle,
-  Achsenwahl, Schnelltipp-Sperre, Ende über `onEndSpaceSwipe` und Gestentippen sind unverändert.
+  `SpaceAction.isContinuous` der Startrichtung statt der alten `SwipeAction`-Liste. Seit Etappe 33
+  meldet ein seitlicher Wisch mit Einmal-Aktion statt Schritten bei jeder Bewegung den Abstand zum
+  Aufsetzpunkt (`onSpaceSwipeDistance(Richtung, dX, mMostCommonKeyWidth)`, `mStartX` bleibt stehen,
+  auch unter einem Schritt nahe dem Start), die Aktion kommt erst am letzten Rastpunkt
+  (`SpaceDetents`, P100). Ganz vorn in `onKeySwipe`, noch vor der Schnelltipp-Sperre, beendet eine
+  klar seitliche Bewegung ab 6 dp (`sHoldCancelDistance`, `SpaceDetents.cancelsHold`) den
+  Langdruck-Timer der Leertaste (`cancelLongPressTimersOf`, P101). Schwelle, Achsenwahl,
+  senkrechte Wische, fortlaufende Aktionen, Schnelltipp-Sperre, Ende über `onEndSpaceSwipe` und
+  Gestentippen sind unverändert.
 - `KeyboardActionListener.java` (`CustomAction.SPACE_HOLD`, früher `SHOW_AGENT_WHEEL`;
-  `onSpaceSwipe(SpaceGesture, int)` ersetzt `onHorizontalSpaceSwipe`/`onVerticalSpaceSwipe`) und
+  `onSpaceSwipe(SpaceGesture, int)` ersetzt `onHorizontalSpaceSwipe`/`onVerticalSpaceSwipe`;
+  `onSpaceSwipeDistance(SpaceGesture, int, int)` für seitliche Einmal-Wische, Etappe 33) und
   `KeyboardActionListenerImpl.kt` (leitet Panel-, Rad-, Skill- und Diktat-Taste an den Controller,
   blockiert Eingabe während eines Overlays; Leertasten-Aktionen und Doppeltippen, siehe
-  „Editorzugriff, Panel und Rad“; Rückgängig/Wiederholen per Leertaste spielen `HapticChain`).
+  „Editorzugriff, Panel und Rad“; seitliche Einmal-Wische laufen über `SpaceDetents` und spielen
+  `HapticChain`).
 - `SettingsValues.java`: `mSpaceGestures` (aufgelöste Leertasten-Gesten) statt
   `mSpaceSwipeHorizontal`/`mSpaceSwipeVertical`; `mSpaceForLangChange` aus
   `SpaceGestures.holdShowsPicker`; `mUseDoubleSpacePeriod` ist aus, solange Doppeltippen eine
@@ -421,7 +430,8 @@ der alten Migration (1,75 bzw. 1,1 im Querformat): Hochformat bekommt den Abstan
 eigenen Designs, alle anderen ihren Standard; die Höhe bleibt. Test: `ForkUpgradeTest`.
 
 Geänderte Upstream-Tests (Leertasten-Gesten): `InputLogicTest.kt` ruft `onSpaceSwipe` statt
-`onHorizontalSpaceSwipe` und hat die Fälle `generatedSpace*`.
+`onHorizontalSpaceSwipe` und hat die Fälle `generatedSpace*` (seit Etappe 33 auch die
+Rastpunkte über `onSpaceSwipeDistance`).
 
 Geänderte Upstream-Tests: `Shadows.kt` (IME-Info aus `BuildConfig.APPLICATION_ID`;
 `getTextBeforeCursor(n)` liefert wie Android die letzten n Zeichen vor der Schreibmarke, nicht die
@@ -458,7 +468,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `A/SpaceGestures.kt`: Leertasten-Gesten. `SpaceGesture` (links, rechts, oben, unten wischen,
   Halten, Doppeltippen, je ein Schlüssel `agent_space_*`), `SpaceAction` (feste Liste, nur
   `MOVE_CURSOR`, `SWITCH_LANGUAGE`, `TOUCHPAD_MODE` laufen fortlaufend, alle anderen einmal pro
-  Wisch), `choices` je Geste, `resolve` = eigener Wert oder `inherited` aus den alten
+  Wisch: senkrecht beim ersten Schritt, seitlich am letzten Rastpunkt, siehe `SpaceDetents`),
+  `choices` je Geste, `resolve` = eigener Wert oder `inherited` aus den alten
   Einstellungen (HeliBoards horizontale/vertikale Wischaktion, „Leertaste lang drücken“,
   `SPACE_LONG_PRESS`). Es wird nichts umgeschrieben; „Standard“ entfernt den eigenen Wert.
   `KeyboardActionListenerImpl.runSpaceAction` führt die Einmal-Aktionen über die vorhandenen
@@ -469,18 +480,33 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Leertasten-Tipps (Code zwischen `onPressKey` und `onReleaseKey` der Leertaste) zählen; der zweite Tipp innerhalb von
   `mDoubleSpacePeriodTimeout` an derselben Schreibmarke ohne Auswahl führt die Aktion statt
   eines Leerzeichens aus, jeder andere Code setzt zurück (Fallstrick P49).
-- `A/HapticChain.kt`: drei kurze Ticks nach `UNDO` (fallend 1,0/0,6/0,3) und `REDO` (steigend),
-  50 ms Abstand, nur aus `runSpaceAction` (nicht für die Toolbar-Tasten, die schon den normalen
-  Tastendruck-Impuls haben). `pattern` und `plan` sind reine Funktionen: ab API 30
-  `VibrationEffect.Composition` mit `PRIMITIVE_TICK` (sonst `PRIMITIVE_CLICK`) und Skala je Tick,
-  wenn `areAllPrimitivesSupported`; sonst ab API 26 mit `hasAmplitudeControl` eine Wellenform
-  mit Amplituden; sonst drei gleiche Pulse von 12 ms. `play` nur mit `mVibrateOn` (Tastenvibration
-  an, Gerät hat Vibrator) und nicht bei „Bitte nicht stören“ (`zen_mode` wie LatinIME), außer
-  `mVibrateInDndMode`; ohne Usage-Attribute wie HeliBoards eigene Tastenvibration, damit der
-  System-Schalter für Berührungs-Haptik die Kette nicht stumm schaltet, solange die Tasten
-  vibrieren (Review Build 12). Auch Halten und Doppeltipp mit Rückgängig/Wiederholen spielen die
-  Kette, auch wenn nichts rückgängig zu machen ist. `Device` ist die Naht für Tests (`deviceForTest`); eine Ausnahme des
-  Vibrators wird geschluckt (P67).
+- `A/SpaceDetents.kt` (Etappe 33): Rastpunkte eines seitlichen Leertasten-Wischs mit
+  Einmal-Aktion, reine Zustandsmaschine ohne Android. Alle Abstände an einer Stelle:
+  `AT_KEY_WIDTHS` = 0,8 / 1,6 / 2,65 Tastenbreiten ab dem Aufsetzpunkt (Skizze des Owners),
+  `BACK_KEY_WIDTHS` = 0,2 (Rückweg, P102), `MIN_KEY_WIDTH_DP` = 20 (Untergrenze der Tastenbreite,
+  `unitPx` aus `mMostCommonKeyWidth` der Tastatur der Leertaste), `HOLD_CANCEL_DP` = 6 und
+  `cancelsHold` (Abbruch des Haltens, P101). `move(links, dX, Einheit)` liefert `DETENT` (ein
+  Tick je überquertem Rastpunkt, ein schneller Sprung über zwei tickt einmal), `COMPLETE` (letzter
+  Rastpunkt, genau einmal bis `end`) oder `NONE`; die Richtung ist die Startrichtung, die andere
+  Seite des Starts zählt nicht. `KeyboardActionListenerImpl.onSpaceSwipeDistance` hält eine
+  Instanz: `isBlockingInput` oder Aktion `NONE`/fortlaufend → nichts; `DETENT` →
+  `HapticChain` `DETENT`; `COMPLETE` → `STRETCH` und `runSpaceAction` (gleiche Wege und
+  Sperren wie bisher). `onEndSpaceSwipe` setzt sie vor der `isBlockingInput`-Prüfung zurück.
+- `A/HapticChain.kt`: das Gefühl der Rastpunkte (bis Build 12: drei Ticks direkt nach
+  Rückgängig/Wiederholen, mit Etappe 33 entfernt; Halten, Doppeltippen und die Toolbar-Tasten
+  haben nur noch ihren normalen Tasten-/Langdruck-Impuls). `plan(Feel, Device)` ist eine reine
+  Funktion, beste Stufe zuerst: `DETENT` ab API 30 `PRIMITIVE_TICK` 0,8 (sonst `PRIMITIVE_CLICK`
+  0,5), sonst ab API 26 mit `hasAmplitudeControl` 12 ms mit Amplitude 153, sonst ein Puls von
+  12 ms. `STRETCH` ab API 30 `PRIMITIVE_QUICK_RISE` 0,7 plus `PRIMITIVE_THUD` 1,0 (THUD erst ab
+  API 31 gefragt, sonst `PRIMITIVE_CLICK`), nur wenn der Anstieg da ist; sonst eine Wellenform
+  über 90 ms mit steigender Amplitude (63→255); sonst ein Puls von 70 ms (P103). `play` nur mit
+  `mVibrateOn` (Tastenvibration an, Gerät hat Vibrator) und nicht bei „Bitte nicht stören“
+  (`zen_mode` wie LatinIME), außer `mVibrateInDndMode`; ohne Usage-Attribute wie HeliBoards
+  eigene Tastenvibration, damit der System-Schalter für Berührungs-Haptik sie nicht stumm
+  schaltet, solange die Tasten vibrieren (Review Build 12). Der letzte Rastpunkt spielt den
+  Impuls auch, wenn die Aktion danach nichts tut (z. B. nichts rückgängig zu machen).
+  `Device` ist die Naht für Tests (`deviceForTest`); eine Ausnahme des Vibrators wird geschluckt
+  (P67).
 - `K/settings/screens/AgentSpaceScreen.kt`: Seite „Leertaste“ (eine `ListPreference` je Geste,
   Vorgabe = geerbter Wert, „Standard“ entfernt den eigenen Wert), erreichbar über Erweitert und
   Tastaturprofile → Gesten. Texte in `agent_space_strings.xml`.
@@ -490,7 +516,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Textfelder, daher bleibt die Ersetzung bei Unklarheit gesperrt. Kopieren prüft dieselbe
   Schutzgrenze. Der Ablauf von Aktion bis Übernahme steht unter „Grundlagen“.
 - Tests in `AT/`: `AgentPanelViewTest`, `AgentWheelViewTest`, `AgentSpaceGestureTest`,
-  `SpaceGesturesTest`, `HapticChainTest`,
+  `SpaceGesturesTest`, `SpaceDetentsTest`, `HapticChainTest`,
   `AndroidEditorAdapterTest`, `SelectedTextCommitTest`, `DebugPrivacyTest`,
   `InsertAtCursorTest`, `ForkIdentityTest`, dazu `BatchDeliveryTest.kt` in
   `app/src/test/java/helium314/keyboard/latin/inputlogic/`.
@@ -1577,11 +1603,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Der erste Tipp schreibt sein Leerzeichen sofort (kein Warten beim Tippen). Codes ohne
   Tastendruck (Leiste, Popup-Tasten, eigene Aktionen; kein `onPressKey` der Leertaste davor)
   zählen nicht als Tipp; Koordinaten taugen nicht dafür, weil PointerTracker sie außerhalb der
-  Buchstaben-Layouts weglässt. Einmal-Aktionen beim Wischen laufen beim ersten Schritt und danach
-  nicht mehr bis zum
+  Buchstaben-Layouts weglässt. Einmal-Aktionen beim senkrechten Wischen laufen beim ersten
+  Schritt, beim seitlichen am letzten Rastpunkt (Etappe 33), und danach nicht mehr bis zum
   Loslassen; eine Aktion, die ein Overlay öffnet, blockiert die restlichen Schritte über
   `isBlockingInput`. Ein Wisch endet ohne `onReleaseKey` (wie im Upstream); deshalb setzen
-  `onSpaceSwipe` und `SPACE_HOLD` den Doppeltipp-Zähler zurück.
+  `onSpaceSwipe`, `onSpaceSwipeDistance` und `SPACE_HOLD` den Doppeltipp-Zähler zurück.
 
 - **P50** Ein Kotlin-Zugriff auf `Defaults.PREF_KEY_GAP_SCALE[0]` (bzw.
   `PREF_KEYBOARD_HEIGHT_SCALE[0]`) aus einer anderen Datei ließ den Compiler ein ungültiges
@@ -1732,19 +1758,39 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Text bleibt stehen“. Ebenso darf der Sink nie „eingefügt“ melden, ohne die Antwort des Editors
   zu kennen: `KeyboardActionListenerImpl.onContent` und `RichInputConnection.commitContent` geben
   sie nicht weiter, `QrCommand.SYSTEM_SINK` committet deshalb selbst.
+- **P100** Seitlicher Leertasten-Wisch mit Einmal-Aktion (Etappe 33): Der Abstand zählt ab dem
+  Aufsetzpunkt, `PointerTracker` darf `mStartX` dafür nicht nachziehen (das tut nur
+  `onSpaceSwipe` bei fortlaufenden Aktionen). Gemeldet wird jede Bewegung, auch unter einem
+  10-dp-Schritt nahe dem Start; mit der alten Bedingung `stepsX != 0` ginge ein Zurückziehen
+  hinter den ersten Rastpunkt in einem Zug verloren. Die Richtung legt weiter der erste Schritt
+  fest; wer erst nach rechts zuckt und dann nach links zieht, löst links nichts aus.
+- **P101** Halten der Leertaste gegen langsames Wischen: Der Abbruch steht vor der
+  Schnelltipp-Sperre in `onKeySwipe`. Dahinter würde eine seitliche Bewegung in den ersten zwei
+  Dritteln der Langdruckzeit nach dem Tippen ignoriert; bleibt der Finger danach kurz liegen,
+  liefe die Halten-Aktion. Nur `cancelLongPressTimersOf`, nur klar seitlich (|dX| ≥ 6 dp und
+  größer als |dY|); senkrecht gilt weiter der erste 10-dp-Schritt.
+- **P102** Rastpunkte: Ein überquerter Punkt gilt erst 0,2 Tastenbreiten dahinter als verlassen,
+  sonst brummt ein ruhender Finger auf dem Punkt bei jedem Zittern. Nach dem letzten Punkt passiert
+  bis zum Loslassen nichts mehr (eine Aktion pro Wisch). `onEndSpaceSwipe` setzt die
+  Zustandsmaschine zurück, bevor es bei `isBlockingInput` aussteigt; sonst bliebe sie nach einem
+  geöffneten Rad „vollendet“ und schluckte den nächsten Wisch.
+- **P103** `PRIMITIVE_THUD` gibt es erst ab API 31: vorher nicht nach ihm fragen. Ein schwerer
+  Impuls allein ist kein „längerer“ Impuls; ohne `PRIMITIVE_QUICK_RISE` nimmt der letzte
+  Rastpunkt deshalb die Wellenform mit steigender Amplitude, und ohne Amplitudensteuerung einen
+  langen Puls (P67).
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (395 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (397 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (5): agent-apk, agent-tests, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (62): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (63): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
   AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand, ContactCommand,
   ConvertCommand, CorrectionMemory, DateCommand, DesignLook, DesignTiles, Dictation, EmojiCommand,
@@ -1752,10 +1798,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   HapticChain, JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore,
   LearningData, LoadingDotsView, ManualWorkflowDraft, ModelSettings, MyDesigns,
   OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter, RgbLighting, RgbStrip, RunSubjectCodec,
-  SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore, SkillLabels, SpaceGestures,
-  SymbolDrawing, SymbolInk, ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel,
-  TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary,
-  WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
+  SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore, SkillLabels, SpaceDetents,
+  SpaceGestures, SymbolDrawing, SymbolInk, ToolApprovalSummary, ToolLauncher, TouchCalibration,
+  TouchModel, TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract,
+  WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
 - `A/commands/` (17): AiCommandChips, AlarmCommand, AskCommand, ClipCommand, EmojiMixCommand,
   EmojiMixer, LanguageCommand, QrCommand, ScreenReaderService, SensitiveClips, SnipCommand,
   SnippetStore, SubtypeChoice, TimerCommand, TranslateCommand, UrlCommand, WorkflowCommand
@@ -1763,7 +1809,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (68): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (69): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, ClipCommandTest, CommandReplaceTest, CommandTemplatesTest,
@@ -1775,10 +1821,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   KeyboardProfileStoreTest, LearningDataTest, LoadingDotsViewTest, MainSettingsLookTest,
   ManualWorkflowDraftTest, MoreCommandsTest, MoreProvidersTest, MyDesignsTest, OpenAiProviderTest,
   RgbLightingRenderTest, RgbSettingsScreenTest, ScreenshotChipTest, SelectedTextCommitTest,
-  SkillBindingStoreTest, SkillSettingsTest, SnipCommandTest, SpaceGesturesTest, SymbolInkTest,
-  SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest, TouchModelTest, TypoMemoryTest,
-  UpdateCheckTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
-  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  SkillBindingStoreTest, SkillSettingsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest,
+  SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest, TouchModelTest,
+  TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
+  WorkflowCommandTest, WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest,
+  WorkflowStoreTest
 - `AT/commands/` (8): ClockCommandsTest, EmojiMixCommandTest, LanguageCommandTest, QrCommandTest,
   ScreenReaderServiceTest, SubtypeChoiceTest, TranslateCommandTest, UrlCommandTest
 - `C/` (33): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,

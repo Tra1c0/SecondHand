@@ -16,6 +16,7 @@ import android.view.MotionEvent;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import helium314.keyboard.agent.SpaceDetents;
 import helium314.keyboard.agent.SpaceGesture;
 import helium314.keyboard.agent.SymbolInk;
 import helium314.keyboard.event.HapticEvent;
@@ -105,6 +106,8 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
     // Parameters for pointer handling.
     private static PointerTrackerParams sParams;
     private static final int sPointerStep = KtxKt.dpToPx(10, Resources.getSystem());
+    // fork (stage 33): a sideways move this long ends the space hold before the first swipe step
+    private static final int sHoldCancelDistance = KtxKt.dpToPx(SpaceDetents.HOLD_CANCEL_DP, Resources.getSystem());
     private static GestureStrokeRecognitionParams sGestureStrokeRecognitionParams;
     private static GestureStrokeDrawingParams sGestureStrokeDrawingParams;
 
@@ -993,6 +996,12 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
 
     private void onKeySwipe(final int code, final int x, final int y, final long eventTime) {
         final SettingsValues sv = Settings.getValues();
+        // fork (stage 33): a clear sideways move ends the space hold at once, also while fast typing
+        // delays the swipe below, so a slow swipe never runs the hold action
+        if (code == Constants.CODE_SPACE && !mInHorizontalSwipe && !mInVerticalSwipe
+                && SpaceDetents.cancelsHold(x - mStartX, y - mStartY, sHoldCancelDistance)) {
+            sTimerProxy.cancelLongPressTimersOf(this);
+        }
         final int fastTypingTimeout = 2 * sv.mKeyLongpressTimeout / 3;
         // we don't want keyswipes to start immediately if the user is fast-typing,
         // see https://github.com/openboard-team/openboard/issues/411
@@ -1023,15 +1032,18 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
 
             // Horizontal movement
             int stepsX = dX / sPointerStep;
-            if (stepsX != 0 && !mInVerticalSwipe) {
-                if (!mInHorizontalSwipe) {
-                    sTimerProxy.cancelKeyTimersOf(this);
-                    mInHorizontalSwipe = true;
-                    mSpaceSwipeGesture = stepsX < 0 ? SpaceGesture.SWIPE_LEFT : SpaceGesture.SWIPE_RIGHT;
-                } else if (oneShotSwipe(sv, mSpaceSwipeGesture)) return;
-                if (sListener.onSpaceSwipe(mSpaceSwipeGesture, stepsX)) {
-                    mStartX += stepsX * sPointerStep;
-                }
+            if (stepsX != 0 && !mInVerticalSwipe && !mInHorizontalSwipe) {
+                sTimerProxy.cancelKeyTimersOf(this);
+                mInHorizontalSwipe = true;
+                mSpaceSwipeGesture = stepsX < 0 ? SpaceGesture.SWIPE_LEFT : SpaceGesture.SWIPE_RIGHT;
+            }
+            if (!mInHorizontalSwipe) return;
+            if (oneShotSwipe(sv, mSpaceSwipeGesture)) {
+                // fork (stage 33): a one-shot action runs at the last detent (SpaceDetents); every move,
+                // also back near the start, reports the distance from the touch-down point (mStartX stays)
+                sListener.onSpaceSwipeDistance(mSpaceSwipeGesture, dX, mKeyboard.mMostCommonKeyWidth);
+            } else if (stepsX != 0 && sListener.onSpaceSwipe(mSpaceSwipeGesture, stepsX)) {
+                mStartX += stepsX * sPointerStep;
             }
         } else if (code == KeyCode.DELETE) {
             // Delete slider

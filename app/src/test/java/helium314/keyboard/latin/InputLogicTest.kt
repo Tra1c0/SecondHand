@@ -1504,37 +1504,153 @@ class InputLogicTest {
         }
     }
 
-    @Test fun generatedSpaceUndoAndRedoPlayTheirTickChainOnlyWithKeyVibration() {
+    /** Key width for the detent tests; detents at 0.8, 1.6 and 2.65 of [detentUnit] from the touch-down point. */
+    private val detentKeyWidth = 50
+    private val detentUnit get() = helium314.keyboard.agent.SpaceDetents.unitPx(detentKeyWidth, latinIME.resources.displayMetrics.density)
+
+    /** A sideways one-shot swipe as PointerTracker reports it: the distance (in key widths, signed) of each move. */
+    private fun sideSwipe(listener: helium314.keyboard.keyboard.KeyboardActionListener, gesture: SpaceGesture, vararg keyWidths: Float, lift: Boolean = true) {
+        keyWidths.forEach { listener.onSpaceSwipeDistance(gesture, (it * detentUnit).toInt(), detentKeyWidth); handleMessages() }
+        if (lift) { listener.onEndSpaceSwipe(); handleMessages() }
+    }
+
+    // Until build 12 undo and redo by a space swipe played three ticks right after the action (falling
+    // for undo, rising for redo). Stage 33 replaced that by detents on the swipe path: this test now
+    // checks that the feedback comes at the detents, one light tick per detent and the stretch at the
+    // last, still only with key vibration, and that the undo key and hold play no chain any more.
+    @Test fun generatedSpaceUndoAndRedoPlayTheirDetentsOnlyWithKeyVibration() {
         val played = mutableListOf<helium314.keyboard.agent.HapticChain.Plan>()
-        helium314.keyboard.agent.HapticChain.deviceForTest = object : helium314.keyboard.agent.HapticChain.Device {
+        val device = object : helium314.keyboard.agent.HapticChain.Device {
             override val sdk = 30
             override val hasVibrator = true
             override val hasAmplitudeControl = true
             override fun supportsPrimitive(primitive: Int) = true
             override fun play(plan: helium314.keyboard.agent.HapticChain.Plan) { played += plan }
         }
+        helium314.keyboard.agent.HapticChain.deviceForTest = device
         try {
             val listener = latinIME.mKeyboardActionListener
-            fun scales() = (played.single() as helium314.keyboard.agent.HapticChain.Plan.Primitives).scales.also { played.clear() }
+            val detent = helium314.keyboard.agent.HapticChain.plan(helium314.keyboard.agent.HapticChain.Feel.DETENT, device)
+            val stretch = helium314.keyboard.agent.HapticChain.plan(helium314.keyboard.agent.HapticChain.Feel.STRETCH, device)
+            assertNotEquals(detent, stretch)
             latinIME.prefs().edit { putBoolean(Settings.PREF_VIBRATE_ON, true) }
             assertTrue(Settings.getValues().mVibrateOn)
             setSpaceGesture(SpaceGesture.SWIPE_LEFT, SpaceAction.UNDO)
-            assertTrue(listener.onSpaceSwipe(SpaceGesture.SWIPE_LEFT, -1)); handleMessages()
-            assertEquals(listOf(1f, 0.6f, 0.3f), scales()) // undo: falling
+            sideSwipe(listener, SpaceGesture.SWIPE_LEFT, -0.3f, -0.7f, lift = false)
+            assertTrue(played.isEmpty()) // before the first detent: nothing
+            sideSwipe(listener, SpaceGesture.SWIPE_LEFT, -0.85f, lift = false)
+            assertEquals(listOf(detent), played)
+            sideSwipe(listener, SpaceGesture.SWIPE_LEFT, -1.65f, -2.7f, -3.5f)
+            assertEquals(listOf(detent, detent, stretch), played) // nothing after the last detent
+            played.clear()
             setSpaceGesture(SpaceGesture.SWIPE_RIGHT, SpaceAction.REDO)
-            assertTrue(listener.onSpaceSwipe(SpaceGesture.SWIPE_RIGHT, 1)); handleMessages()
-            assertEquals(listOf(0.3f, 0.6f, 1f), scales()) // redo: rising
-            // the undo key (toolbar) keeps its normal key feedback only
+            sideSwipe(listener, SpaceGesture.SWIPE_RIGHT, 0.85f, 1.65f, 2.7f)
+            assertEquals(listOf(detent, detent, stretch), played)
+            played.clear()
+            // the undo key (toolbar) keeps its normal key feedback only; so does hold with undo now
             listener.onCodeInput(KeyCode.UNDO, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false); handleMessages()
+            setSpaceGesture(SpaceGesture.HOLD, SpaceAction.UNDO)
+            assertTrue(listener.onCustomRequest(helium314.keyboard.keyboard.KeyboardActionListener.CustomAction.SPACE_HOLD)); handleMessages()
             assertTrue(played.isEmpty())
-            // key vibration off in the keyboard settings: no chain
+            // key vibration off in the keyboard settings: no detents felt
             latinIME.prefs().edit { putBoolean(Settings.PREF_VIBRATE_ON, false) }
-            setSpaceGesture(SpaceGesture.SWIPE_LEFT, SpaceAction.UNDO)
-            assertTrue(listener.onSpaceSwipe(SpaceGesture.SWIPE_LEFT, -1)); handleMessages()
+            sideSwipe(listener, SpaceGesture.SWIPE_LEFT, -0.85f, -1.65f, -2.7f)
             assertTrue(played.isEmpty())
         } finally {
             helium314.keyboard.agent.HapticChain.deviceForTest = null
         }
+    }
+
+    @Test fun generatedSpaceUndoAndRedoRunOnlyAtTheLastDetent() {
+        val spy = Mockito.spy(latinIME.mKeyboardActionListener as helium314.keyboard.keyboard.KeyboardActionListenerImpl)
+        Mockito.doNothing().`when`(spy).onCodeInput(Mockito.anyInt(), Mockito.anyInt(), Mockito.anyInt(), Mockito.anyBoolean())
+        fun sent(code: Int) = Mockito.mockingDetails(spy).invocations.count { it.method.name == "onCodeInput" && it.arguments[0] == code }
+        setSpaceGesture(SpaceGesture.SWIPE_LEFT, SpaceAction.UNDO)
+        setSpaceGesture(SpaceGesture.SWIPE_RIGHT, SpaceAction.REDO)
+        // forward over the first two detents and just short of the last one: nothing yet
+        sideSwipe(spy, SpaceGesture.SWIPE_LEFT, -0.2f, -0.85f, -1.65f, -2.6f, lift = false)
+        assertEquals(0, sent(KeyCode.UNDO))
+        // the last detent: one undo step, and only one, however far the finger goes on or back
+        sideSwipe(spy, SpaceGesture.SWIPE_LEFT, -2.7f, -4f, -0.5f, -3f)
+        assertEquals(1, sent(KeyCode.UNDO))
+        // lifted before the last detent: nothing
+        sideSwipe(spy, SpaceGesture.SWIPE_LEFT, -0.85f, -1.65f, -2.6f)
+        assertEquals(1, sent(KeyCode.UNDO))
+        // moving back towards the start and forward again still needs the last detent
+        sideSwipe(spy, SpaceGesture.SWIPE_LEFT, -1.65f, -0.1f, 0.5f, -1.65f, lift = false)
+        assertEquals(1, sent(KeyCode.UNDO))
+        sideSwipe(spy, SpaceGesture.SWIPE_LEFT, -2.7f)
+        assertEquals(2, sent(KeyCode.UNDO))
+        // direction: a right swipe redoes; a right swipe moving left of its start does nothing
+        sideSwipe(spy, SpaceGesture.SWIPE_RIGHT, -1f, -3f)
+        assertEquals(0, sent(KeyCode.REDO))
+        sideSwipe(spy, SpaceGesture.SWIPE_RIGHT, 0.85f, 1.65f, 2.7f)
+        assertEquals(1, sent(KeyCode.REDO))
+        assertEquals(2, sent(KeyCode.UNDO))
+        // nothing assigned: no action at any distance
+        setSpaceGesture(SpaceGesture.SWIPE_LEFT, SpaceAction.NONE)
+        Mockito.clearInvocations(spy)
+        sideSwipe(spy, SpaceGesture.SWIPE_LEFT, -0.85f, -1.65f, -2.7f)
+        Mockito.verify(spy, Mockito.never()).onCodeInput(Mockito.anyInt(), Mockito.anyInt(), Mockito.anyInt(), Mockito.anyBoolean())
+    }
+
+    @Test fun generatedSpaceSideSwipeRunsEveryOneShotActionAtTheLastDetent() {
+        val spy = Mockito.spy(latinIME.mKeyboardActionListener as helium314.keyboard.keyboard.KeyboardActionListenerImpl)
+        Mockito.doNothing().`when`(spy).onCodeInput(Mockito.anyInt(), Mockito.anyInt(), Mockito.anyInt(), Mockito.anyBoolean())
+        Mockito.doNothing().`when`(spy).toggleLayout(Mockito.any(LayoutDirective.Utility::class.java) ?: LayoutDirective.Utility.NUMPAD, Mockito.anyInt(), Mockito.any())
+        val codes = mapOf(
+            SpaceAction.SWITCH_INPUT_METHOD to KeyCode.SYSTEM_INPUT_METHOD_PICKER,
+            SpaceAction.DICTATION to KeyCode.AGENT_DICTATE,
+            SpaceAction.CLIPBOARD to KeyCode.CLIPBOARD,
+            SpaceAction.EMOJI to KeyCode.EMOJI,
+            SpaceAction.UNDO to KeyCode.UNDO,
+            SpaceAction.REDO to KeyCode.REDO,
+            SpaceAction.SELECT_ALL to KeyCode.CLIPBOARD_SELECT_ALL,
+        )
+        val layouts = mapOf(
+            SpaceAction.TOGGLE_NUMPAD to LayoutDirective.Utility.NUMPAD,
+            SpaceAction.TOGGLE_SYMBOLS to LayoutDirective.Utility.SYMBOLS,
+            SpaceAction.TOGGLE_DPAD to LayoutDirective.Utility.DPAD,
+        )
+        for (gesture in listOf(SpaceGesture.SWIPE_LEFT, SpaceGesture.SWIPE_RIGHT)) {
+            val sign = if (gesture == SpaceGesture.SWIPE_LEFT) -1f else 1f
+            codes.forEach { (action, code) ->
+                setSpaceGesture(gesture, action)
+                Mockito.clearInvocations(spy)
+                sideSwipe(spy, gesture, sign * 0.85f, sign * 1.65f, sign * 2.6f, lift = false)
+                Mockito.verify(spy, Mockito.never()).onCodeInput(Mockito.anyInt(), Mockito.anyInt(), Mockito.anyInt(), Mockito.anyBoolean())
+                sideSwipe(spy, gesture, sign * 2.7f)
+                Mockito.verify(spy).onCodeInput(code, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+            }
+            layouts.forEach { (action, layout) ->
+                setSpaceGesture(gesture, action)
+                Mockito.clearInvocations(spy)
+                sideSwipe(spy, gesture, sign * 2.6f, lift = false)
+                Mockito.verify(spy, Mockito.never()).toggleLayout(Mockito.eq(layout) ?: layout, Mockito.anyInt(), Mockito.any())
+                sideSwipe(spy, gesture, sign * 2.7f)
+                Mockito.verify(spy).toggleLayout(Mockito.eq(layout) ?: layout, Mockito.anyInt(), Mockito.any())
+            }
+        }
+    }
+
+    @Test fun generatedSpaceSideSwipeOpensTheWheelAtTheLastDetentAndStopsThere() {
+        setSpaceGesture(SpaceGesture.SWIPE_RIGHT, SpaceAction.ACTION_WHEEL)
+        setSpaceGesture(SpaceGesture.SWIPE_LEFT, SpaceAction.UNDO)
+        chainInput("hello")
+        val wheel = attachWheel()
+        val spy = Mockito.spy(latinIME.mKeyboardActionListener as helium314.keyboard.keyboard.KeyboardActionListenerImpl)
+        Mockito.doNothing().`when`(spy).onCodeInput(Mockito.anyInt(), Mockito.anyInt(), Mockito.anyInt(), Mockito.anyBoolean())
+        sideSwipe(spy, SpaceGesture.SWIPE_RIGHT, 1.65f, lift = false)
+        assertEquals(android.view.View.GONE, wheel.visibility)
+        sideSwipe(spy, SpaceGesture.SWIPE_RIGHT, 2.7f, lift = false)
+        assertEquals(android.view.View.VISIBLE, wheel.visibility)
+        // the open wheel blocks input: a further swipe does not undo
+        sideSwipe(spy, SpaceGesture.SWIPE_RIGHT, 0f, 3f)
+        sideSwipe(spy, SpaceGesture.SWIPE_LEFT, -0.85f, -1.65f, -2.7f)
+        Mockito.verify(spy, Mockito.never()).onCodeInput(Mockito.anyInt(), Mockito.anyInt(), Mockito.anyInt(), Mockito.anyBoolean())
+        latinIME.agentEditorController.close()
+        sideSwipe(spy, SpaceGesture.SWIPE_LEFT, -0.85f, -1.65f, -2.7f)
+        Mockito.verify(spy).onCodeInput(KeyCode.UNDO, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
     }
 
     @Test fun generatedSpaceCommandListTypesThePrefixOnlyWhereCommandsWork() {
