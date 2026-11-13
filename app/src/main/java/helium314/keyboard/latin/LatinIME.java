@@ -30,6 +30,7 @@ import android.util.PrintWriterPrinter;
 import android.util.Printer;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.ViewParent;
 import android.view.Window;
 import android.view.inputmethod.CompletionInfo;
 import android.view.inputmethod.EditorInfo;
@@ -1433,13 +1434,29 @@ public class LatinIME extends InputMethodService implements
         }
 
         final View inlineSuggestionView = InlineAutofillUtils.createView(inlineSuggestions, mDisplayContext);
+        showInlineAutofill(inlineSuggestionView);
+        return true;
+    }
 
+    // the inline autofill view while it may be shown; the screenshot chip (stage 23g) leaves it in place
+    private View mInlineAutofillView;
+
+    void showInlineAutofill(final View inlineSuggestionView) {
+        mInlineAutofillView = inlineSuggestionView;
         // Without this function the inline autofill suggestions will not be visible
         mHandler.cancelResumeSuggestions();
 
         mSuggestionStripView.setExternalSuggestionView(inlineSuggestionView, true);
+    }
 
-        return true;
+    /** Whether the strip still shows the inline autofill suggestions (in their wrapper with the close button). */
+    boolean isShowingInlineAutofill() {
+        final View view = mInlineAutofillView;
+        if (view == null) return false;
+        final ViewParent wrapper = view.getParent();
+        if (wrapper != null && wrapper.getParent() != null) return true;
+        mInlineAutofillView = null;
+        return false;
     }
 
     public int getCurrentAutoCapsState() {
@@ -1689,6 +1706,9 @@ public class LatinIME extends InputMethodService implements
         final View view = mClipboardHistoryManager.getScreenshotSuggestionView(getCurrentInputEditorInfo(), mSuggestionStripView);
         if (view == null) return false;
         mSuggestionStripView.setExternalSuggestionView(view, false);
+        // like the clipboard chip in setNeutralSuggestionStrip
+        if (mSettings.getCurrent().mAutoHideToolbar)
+            mSuggestionStripView.setToolbarVisibility(false);
         return true;
     }
 
@@ -1728,6 +1748,7 @@ public class LatinIME extends InputMethodService implements
 
     @Override
     public void removeExternalSuggestions() {
+        mInlineAutofillView = null; // closed by the user
         setNeutralSuggestionStrip();
         mHandler.postResumeSuggestions(false);
     }

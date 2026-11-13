@@ -53,6 +53,8 @@ class ClipboardHistoryManager(
     // the screenshot chip (stage 23g) and the screenshot it shows, reused while the strip is rebuilt
     private var screenshotView: View? = null
     private var screenshotId = -1L
+    // the colours the chip was made with: a new theme or design makes a new chip
+    private var screenshotColors: helium314.keyboard.latin.common.Colors? = null
 
     fun onCreate() {
         clipboardManager = latinIME.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -75,18 +77,22 @@ class ClipboardHistoryManager(
      * boundary shows it (see [getScreenshotSuggestionView]).
      */
     internal fun onScreenshotChange() {
-        // on the main thread like fetchPrimaryClip, so the history view is only changed from here
+        // the copy and its checksum are made in the background, the entry on the main thread like
+        // fetchPrimaryClip, so the history view is only changed from here
         helium314.keyboard.agent.ScreenshotChip.addToHistory(latinIME, latinIME.mSettings.current, clipboardDao) {
             maySaveFromUri(it, latinIME)
         }
-        if (!latinIME.isInputViewShown || latinIME.mInputLogic.hasActiveComposition()) return
+        if (!latinIME.isInputViewShown) return
         val shown = screenshotView?.takeIf { it.parent != null && !it.isGone }
         val shot = helium314.keyboard.agent.ScreenshotChip.current(latinIME, latinIME.currentInputEditorInfo)
         if (shot == null) {
-            if (shown != null) hideSuggestionView(shown) // expired or deleted: the normal strip again
+            // expired or deleted: the strip as without the chip, through the normal update
+            // (hideSuggestionView resumes suggestions, which brings next-word predictions back)
+            if (shown != null) hideSuggestionView(shown)
             return
         }
         if (shown != null && screenshotId == shot.id) return
+        if (!screenshotMayReplaceStrip()) return
         latinIME.setNeutralSuggestionStrip() // typed command chips still come first
         // like the command chips: the chip lives in the suggestion area, which the toolbar may cover
         if (screenshotView?.parent != null && latinIME.mSettings.current.mToolbarMode == ToolbarMode.EXPANDABLE)
@@ -98,17 +104,37 @@ class ClipboardHistoryManager(
      * only between words: while a word is being typed the strip keeps its suggestions.
      */
     fun getScreenshotSuggestionView(editorInfo: EditorInfo?, parent: ViewGroup?): View? {
-        if (parent == null || latinIME.mInputLogic.hasActiveComposition()) return null
+        if (parent == null || !screenshotMayReplaceStrip()) return null
         val shot = helium314.keyboard.agent.ScreenshotChip.current(latinIME, editorInfo) ?: return null
-        val view = screenshotView?.takeIf { screenshotId == shot.id && !it.isGone }
+        val colors = latinIME.mSettings.current.mColors
+        val view = screenshotView?.takeIf { screenshotId == shot.id && !it.isGone && screenshotColors === colors }
             ?: helium314.keyboard.agent.ScreenshotChip.createView(latinIME, parent, shot, onDone = { hideSuggestionView() })
             ?: return null
         (view.parent as? ViewGroup)?.removeView(view)
         screenshotView = view
         screenshotId = shot.id
+        screenshotColors = colors
         clipboardSuggestionView = view
         helium314.keyboard.agent.ScreenshotChip.scheduleExpiry(shot)
         return view
+    }
+
+    /**
+     * Between words: no composition, and the field is empty before the cursor or the character
+     * before it is a space or a word separator. Composition alone is not enough: fields without
+     * suggestions, a cursor touching a word and languages without spaces do not compose. Inline
+     * autofill and the app's own completions are kept; the chip comes only without them.
+     */
+    private fun screenshotMayReplaceStrip(): Boolean {
+        val logic = latinIME.mInputLogic
+        if (logic.hasActiveComposition() || latinIME.isShowingInlineAutofill) return false
+        val settings = latinIME.mSettings.current
+        val words = logic.mSuggestedWords
+        if (settings.mInputAttributes.mApplicationSpecifiedCompletionOn && !words.isEmpty
+            && words.mInputStyle == helium314.keyboard.latin.SuggestedWords.INPUT_STYLE_APPLICATION_SPECIFIED) return false
+        val before = logic.mConnection.codePointBeforeCursor
+        return before == Constants.NOT_A_CODE || Character.isWhitespace(before)
+            || settings.mSpacingAndPunctuations.isWordSeparator(before)
     }
 
     override fun onPrimaryClipChanged() {

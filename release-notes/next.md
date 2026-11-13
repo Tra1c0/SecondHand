@@ -122,6 +122,12 @@
   Tippen eines Worts siehst du dessen Vorschläge. Ist der Zwischenablageverlauf an, landet der
   Screenshot auch im Verlauf der Tastatur (nicht in der System-Zwischenablage). Noch auf keinem
   Gerät ausprobiert.
+- Behoben (nach Review): Die Screenshot-Pille sucht und kopiert im Hintergrund, das Tippen wird
+  dabei nicht mehr aufgehalten. Ein Screenshot vom Sperrbildschirm oder aus einem Inkognito-Feld
+  kommt auch nach dem Entsperren nicht in den Verlauf. Autofill-Vorschläge und Vorschläge der App
+  bleiben vor der Pille; direkt hinter einem Wort bleibt die normale Leiste. Nach Ablauf kommen
+  die Wortvorhersagen zurück, nach einem Designwechsel hat die Pille die neuen Farben. Ein Bild,
+  das du selbst kopiert hast, bleibt beim Ausschalten der Pille im Verlauf.
 - Neu: RGB-Beleuchtung (anfangs aus). Einstellungen → Aussehen → „RGB-Beleuchtung“: Muster
   (Wellen, Kreis, Atmen, statischer Regenbogen), Verlauf (weich, Zickzack, Sägezahn, Stufen, An-
   und Abstieg), Tempo, Richtung, Regenbogen oder eigene Farben, was leuchtet (Tasten,

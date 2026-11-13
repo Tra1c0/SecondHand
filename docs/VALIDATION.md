@@ -1538,6 +1538,49 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   bei offener Symbolleiste wirkt, wie lange das Kopieren großer Screenshots in den Verlauf den
   Main-Thread braucht (wie im Upstream bei Bild-Clips), und das Zusammenspiel mit der
   Verlaufsansicht, wenn sie beim Screenshot offen ist. Kein Prüfer-Review (macht der Lead).
+- Prüfer zu 23g (2026-11-13), alle Befunde behoben:
+  M1 Abfrage des Medienspeichers lief bei `stale` synchron auf dem Main-Thread, dazu `listFiles`
+  bei jedem `current`: jetzt auf `ScreenshotChip.background`, der Main-Thread liest nur das
+  gemerkte Ergebnis, ein neues meldet `onChange` (Entprellen und Wortgrenze bleiben); Aufräumen
+  nur, solange Kopien liegen können. M2 Verlaufskopie (Größe, Kopie, SHA-256, `getAll`) lief
+  auf dem Main-Thread über `addClipUri`/`FileUtils` mit Latch auf `ExecutorUtils.KEYBOARD`:
+  jetzt Kopie und Prüfsumme auf dem eigenen Hintergrund-Thread, Eintrag auf dem Main-Thread
+  (`insertNewEntry`). M3 Sperre und Inkognito galten nur beim Aufruf, ein bei Sperre gemachter
+  Screenshot kam später hinein: jetzt Entscheidung beim ersten Sehen, ausgeschlossene IDs
+  bleiben draußen; bei ausgeblendeter Tastatur zählt das letzte Feld nur, wenn es bekannt und
+  nicht inkognito ist (sonst ausgeschlossen); eine Änderung bei unerlaubtem Zustand sperrt auch
+  ältere Aufnahmen, deren Abfrage scheiterte; der Screenshot beim Start der Tastatur (ohne
+  Medienänderung) kommt nicht hinein. N1 Ablauf plant neu, solange die Wanduhr den Screenshot
+  noch frisch nennt; danach holt der normale Weg (`postResumeSuggestions`) die Vorhersagen zurück
+  (das tat er schon, jetzt im Test belegt). N2 `tryShowScreenshotChip` blendet bei
+  `mAutoHideToolbar` die Symbolleiste aus wie der Zwischenablage-Chip (`setExternalSuggestionView`
+  tat das bereits; jetzt ausdrücklich und im Test). N3 App-Vorschläge und Inline-Autofill bleiben
+  vor der Pille. N4 „Zwischen den Wörtern“ heißt jetzt: keine Komposition und vor der
+  Schreibmarke nichts, Leerraum oder Worttrenner. N5 Verlaufseinträge werden über ID und Zeit
+  verfolgt, eine eigene Kopie desselben Bilds bleibt beim Ausschalten; ein Kopierfehler wird
+  einmal wiederholt. N6 Pillen-View nur mit denselben `Colors` wiederverwendet.
+  Geändert: `ScreenshotChip.kt`, `ClipboardHistoryManager.kt`, `LatinIME.java`
+  (`showInlineAutofill`, `isShowingInlineAutofill`, Toolbar in `tryShowScreenshotChip`).
+  Geprüft (Robolectric): `ScreenshotChipTest` 10 Tests grün (4 neu: Abfrage im Hintergrund mit
+  eigenem Executor, Verlaufskopie im Hintergrund und Eintrag auf dem Main-Thread, Sperre/
+  Inkognito/unbekanntes Feld/gescheiterte Abfrage/Start ohne Änderung beim ersten Sehen, eigene
+  Kopie bleibt und Wiederholung nach Fehler; der bisherige Verlaufstest sieht den Screenshot jetzt
+  über eine Medienänderung, und der Fall „Verlauf nimmt keine Dateien“ meldet den gestarteten
+  Versuch und prüft, dass kein Eintrag entsteht; der Ablauftest prüft zusätzlich die Neuplanung).
+  `InputLogicTest.screenshotChip*` 7 (3 neu: ohne Komposition nur nach Leerraum/Trenner, nicht
+  direkt hinter einem Wort; App-Vorschläge und Autofill bleiben; Toolbar bei
+  `mAutoHideToolbar` und neue View nach neuem `Colors`; Ablauf stößt `MSG_RESUME_SUGGESTIONS`
+  an). Infrastruktur: Auf dem Stand mit eingebauten Emoji-Wörterbüchern bricht `InputLogicTest`
+  schon im Konstruktor mit `UnsatisfiedLinkError` (`BinaryDictionary.openNative`, Kopfzeile
+  des entpackten `emoji.dict`) ab, auch ohne diese Änderung (geprüft auf `f7aaca0`). Mit einem
+  nur lokal eingefügten, nicht committeten `catch (UnsatisfiedLinkError)` in
+  `DictionaryInfoUtils.getDictionaryFileHeaderOrNull` lief `InputLogicTest` ganz: 145 Tests, nur
+  der geerbte `insertLetterIntoWordHangulFails` schlägt fehl. `FlatClipboardTest` 8 grün.
+  `tools/dev.py agent-tests` (ohne den lokalen Eingriff): 539 Tests in 70 Klassen, 52 Fehler,
+  alle der genannte `UnsatisfiedLinkError` in `InputLogicTest`; die übrigen 69 Klassen grün.
+  Nicht geprüft: kein Gerät; ob echte Medienspeicher-Abfragen und große Kopien auf dem
+  Hintergrund-Thread schnell genug sind, wie Inline-Autofill eines echten Passwortmanagers mit
+  der Pille zusammenspielt.
 ## Etappe 26 — RGB-Beleuchtung (26a–26c)
 
 - Gebaut: Rechnen im Kern (`RgbLighting.kt`: Muster, Wellenformen, Paletten, Tipp-Effekte,
