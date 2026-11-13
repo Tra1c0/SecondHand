@@ -193,11 +193,19 @@ object MyDesigns {
 
     /**
      * Build 12 fix (P84): updates up to build 12 ran HeliBoard's old migrations, which set the key
-     * gaps to 1.75. Puts back the gaps and the key height of the selected own design, once.
+     * gaps to exactly 1.75 (portrait, folded portrait) and 1.1 (landscape). Only a gap with exactly
+     * that value is repaired: portrait gets the selected own design's gap back, every other one its
+     * default. A gap changed by hand since then stays; the key height was never touched.
      */
-    fun repairAfterOldUpgrades(prefs: SharedPreferences) {
-        val design = selectedId(prefs)?.let { get(prefs, it) } ?: return
-        prefs.edit { putFloat(GAP_KEY, design.keyGap); putFloat(HEIGHT_KEY, design.keyHeight) }
+    fun repairKeyGapsAfterOldUpgrades(prefs: SharedPreferences) {
+        val design = selectedId(prefs)?.let { get(prefs, it) }
+        prefs.edit {
+            for ((index, migrated) in listOf(1.75f, 1.1f, 1.75f, 1.1f).withIndex()) {
+                val key = createPrefKeyForBooleanSettings(Settings.PREF_KEY_GAP_SCALE_PREFIX, index, 2)
+                if (!prefs.contains(key) || prefs.getFloat(key, 0f) != migrated) continue
+                if (index == 0 && design != null) putFloat(key, design.keyGap) else remove(key)
+            }
+        }
     }
 
     /** The design whose colour set the keyboard shows by day (day/night off), or null. */

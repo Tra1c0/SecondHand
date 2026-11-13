@@ -1993,13 +1993,25 @@ Befunde eines lesenden Reviews der Befehle, behoben:
 - Befund des Owners: Nach dem Update auf Test-Build 12 hatte sein eigenes Design große
   Tastenabstände. Ursache (P84): `AppUpgrade` lief bei jedem Update HeliBoards alte Migrationen;
   `oldVersion <= 3901` setzt die Abstände auf 1,75. Betraf jedes Update seit Build 1.
-- Behoben: `FORK_UPGRADES_ONLY` überspringt die Versions-Migrationen; einmalige Reparatur des
-  gewählten eigenen Designs (Abstände, Tastenhöhe) beim Update von Build 12 oder älter.
-- Geprüft: `ForkUpgradeTest` (2: Abstände bleiben bei einem Update; Reparatur beim ersten Update
-  nach Build 12, spätere Updates lassen von Hand geänderte Abstände stehen). Gegenproben: ohne
-  `FORK_UPGRADES_ONLY` und ohne die Reparatur jeweils rot. Andere Folgen der alten Migrationen
-  (z. B. Farben, Werkzeugleiste) nicht einzeln geprüft; die Reparatur betrifft nur Abstände und Höhe.
-  Kein Gerätetest.
+- Behoben: `FORK_UPGRADES_ONLY` überspringt die Versions-Migrationen; beim Update von Build 12
+  oder älter einmalige Reparatur der Abstände, die genau den Wert der Migration haben.
+- Der Owner bestätigte die Ursache: „Design bearbeiten, nichts ändern, Speichern“ stellte das
+  Aussehen wieder her (das gespeicherte Design war unverändert).
+- Prüfer (lesend) zu `3e2bba2` und `6059869`: kein hoher Befund. Mittel: Die Reparatur überschrieb
+  ohne Bedingung auch die Höhe und nur den Hochformat-Abstand; behoben (nur Werte 1,75/1,1, alle
+  vier Ausrichtungen, Höhe unberührt, ohne eigenes Design zurück auf Standard). Mittel: weitere
+  Schäden der alten Migrationen (angepinnte Leistenknöpfe zurückgesetzt, „Satzzeichen
+  vorschlagen“ umgestellt) sind nicht reparierbar; in P84 und den Release-Notes genannt.
+  Niedrig: „Bild eingefügt …“ erschien auch, wenn der Nutzer weitergetippt hatte; jetzt nur bei
+  einem Objektzeichen vor der Schreibmarke (Test-Fall in
+  `InputLogicTest.typedEmojiPairStaysWhenTheFieldDoesNotTakeTheImage`). Niedrig, nur
+  dokumentiert: Unter Android 7.1 meldet `commitContent` nur die Annahme der Aktion; alte
+  HeliBoard-Sicherungen; neue Upstream-Migrationen nach einem neuen Pin (P84).
+- Geprüft: `ForkUpgradeTest` (4: spätere Updates lassen alles stehen; erste Reparatur nur der
+  Migrationswerte; ohne eigenes Design Standard; von Hand geänderter Abstand bleibt),
+  `InputLogicTest.typedEmoji*`, `typedCommandImage*`, `QrCommandTest`, `EmojiMixCommandTest`
+  grün. Gegenproben: ohne Reparatur, ohne `FORK_UPGRADES_ONLY` und ohne die Objektzeichen-Bedingung
+  jeweils rot. Kein Gerätetest.
 
 ## Build 12: Prüfer zu Etappe 25a (Emoji-Mix)
 

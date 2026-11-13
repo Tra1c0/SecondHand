@@ -1113,13 +1113,26 @@ class InputLogicTest {
             assertEquals(2, commits.size)
             assertEquals("Na 🐶🔥￼", text)
             assertEquals(latinIME.getString(R.string.agent_image_inserted_text_kept), toast())
+            // review build 12: any other change before the cursor (typing on) is not "the app placed it"
+            setText("Na 🐶🔥")
+            ShadowInputMethodService.contentCommit = {
+                commits += it.contentUri.toString()
+                ShadowInputMethodService.text = textBeforeCursor + "x" + textAfterCursor
+                ShadowInputMethodService.selectionStart++
+                ShadowInputMethodService.selectionEnd++
+                true
+            }
+            chip().performClick()
+            assertEquals(3, commits.size)
+            assertEquals("Na 🐶🔥x", text)
+            assertTrue(toast() != latinIME.getString(R.string.agent_image_inserted_text_kept))
             // input blocked (an unclear edit waits for the editor): nothing is committed, the emojis stay
             setText("Na 🐶🔥")
             val again = chip()
             latinIME.agentEditorController.onUnclearEdit()
             assertTrue(latinIME.agentEditorController.isBlockingInput)
             again.performClick()
-            assertEquals(2, commits.size)
+            assertEquals(3, commits.size) // nothing new committed
             assertEquals("Na 🐶🔥", text)
             assertEquals(latinIME.getString(R.string.agent_image_not_inserted), toast())
         } finally {

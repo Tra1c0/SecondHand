@@ -29,7 +29,9 @@
   im Inkognito-Modus oder bei gesperrtem Gerät. Noch auf keinem Gerät ausprobiert.
 - Behoben: Nach einem Update hatte ein eigenes Design plötzlich große Tastenabstände (die App
   spielte bei jedem Update alte Umstellungen von HeliBoard ab). Beim Update auf diesen Build kommen
-  Abstände und Tastenhöhe deines gewählten Designs zurück.
+  die Abstände deines gewählten Designs zurück. Dieselben Umstellungen haben bei jedem Update auch
+  die angepinnten Knöpfe der Leiste zurückgesetzt und „Satzzeichen vorschlagen“ verstellt: Bitte
+  einmal prüfen und neu einstellen, ab jetzt bleibt es.
 - Behoben: Emoji-Mix und `@qr` löschen die getippten Emojis bzw. den Befehl nur noch, wenn die
   App das Bild wirklich angenommen hat; sonst bleiben sie stehen und ein Hinweis erscheint.
   Setzt eine App das Bild selbst an die Schreibmarke, heißt der Hinweis jetzt „Bild eingefügt …“

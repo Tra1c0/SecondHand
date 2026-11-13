@@ -416,8 +416,9 @@ Emoji-Ansicht (Emoji-Mix, 25a; Abschnitt „Befehle“):
 Update-Migrationen (Build 12, P84): `AppUpgrade.kt` läuft nach einem Update nur noch die Teile
 für jedes Update (entpackte Wörterbücher leeren, `upgradeToolbarPrefs`, Layout-Cache) und
 überspringt HeliBoards Versions-Migrationen (`FORK_UPGRADES_ONLY`); beim ersten Update von Build
-12 oder älter stellt `MyDesigns.repairAfterOldUpgrades` Abstände und Tastenhöhe des gewählten
-eigenen Designs wieder her. Test: `ForkUpgradeTest`.
+12 oder älter repariert `MyDesigns.repairKeyGapsAfterOldUpgrades` nur Abstände mit genau dem Wert
+der alten Migration (1,75 bzw. 1,1 im Querformat): Hochformat bekommt den Abstand des gewählten
+eigenen Designs, alle anderen ihren Standard; die Höhe bleibt. Test: `ForkUpgradeTest`.
 
 Geänderte Upstream-Tests (Leertasten-Gesten): `InputLogicTest.kt` ruft `onSpaceSwipe` statt
 `onHorizontalSpaceSwipe` und hat die Fälle `generatedSpace*`.
@@ -1672,7 +1673,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   HeliBoards Versionscodes. `AppUpgrade` lief deshalb bei jedem Update alle alten Migrationen
   (`oldVersion <= 3901` u. a.) erneut; eine davon setzt die Tastenabstände auf 1,75 und zerstörte
   so das eigene Design des Owners. Der Fork wird nie über HeliBoard installiert (eigenes Paket),
-  also gelten diese Migrationen nie: `FORK_UPGRADES_ONLY` überspringt sie.
+  also gelten diese Migrationen nie: `FORK_UPGRADES_ONLY` überspringt sie. Folgen: Eine neuere
+  Upstream-Version bringt neue Migrationen mit, die ebenfalls übersprungen werden; sie gehören dann
+  von Hand in den Fork-Zweig. Das Wiederherstellen einer alten HeliBoard-Sicherung
+  (`BackupRestorePreference` ruft `checkVersionUpgrade`) überführt deren alte Schlüssel nicht mehr.
+  Bis Build 12 setzte jedes Update außerdem die angepinnten Leistenknöpfe zurück (`<= 2000`) und
+  „Satzzeichen vorschlagen“ auf das Gegenteil der Wortvorhersage (`<= 3201`); das ist nicht
+  reparierbar, weil der vorige Wert unbekannt ist.
 - **P81** Der Medienspeicher meldet mehrere Screenshots im Entprellfenster als eine Änderung; eine
   Abfrage nur nach dem neuesten verliert die übrigen. `ScreenshotChip.finder` liefert deshalb
   eine Liste, und jeder Screenshot wird einzeln für den Verlauf entschieden. Dabei kommt nur in

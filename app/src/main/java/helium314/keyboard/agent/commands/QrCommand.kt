@@ -94,7 +94,9 @@ object QrCommand : KeyboardCommands.Command {
      */
     fun removeAfterInsert(host: KeyboardCommands.Host, text: String, replace: () -> Boolean) {
         val now = host.editorTextBeforeCursor(text.length)?.toString()
-        if (now != null && now != text) {
+        // only an object character means the editor placed the image there; any other change
+        // (typing on, a moved cursor) takes the normal "changed, nothing replaced" path of replace()
+        if (now != null && now != text && '\uFFFC' in now) {
             Toast.makeText(host.context, R.string.agent_image_inserted_text_kept, Toast.LENGTH_SHORT).show()
             return
         }

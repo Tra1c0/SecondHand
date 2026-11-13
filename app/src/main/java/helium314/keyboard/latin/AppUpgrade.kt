@@ -103,9 +103,10 @@ private object AppUpgrade {
         // and only ever stored the fork's own build numbers (1, 2, ...). The migrations below are
         // for HeliBoard's version codes; run again on every fork update they reset settings, e.g.
         // the key gaps of an own design (oldVersion <= 3901). Only what is meant for every update runs.
+        // A newer upstream pin brings new migrations: they are skipped too and must be added here.
         if (FORK_UPGRADES_ONLY) {
             // builds up to 12 had already run them on each update: give an own design its gaps back
-            if (oldVersion <= 12) helium314.keyboard.agent.MyDesigns.repairAfterOldUpgrades(prefs)
+            if (oldVersion <= 12) helium314.keyboard.agent.MyDesigns.repairKeyGapsAfterOldUpgrades(prefs)
             upgradeToolbarPrefs(prefs)
             LayoutUtilsCustom.onLayoutFileChanged()
             prefs.edit { putInt(Settings.PREF_VERSION_CODE, BuildConfig.VERSION_CODE) }
