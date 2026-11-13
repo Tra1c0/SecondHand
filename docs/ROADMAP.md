@@ -131,6 +131,13 @@ Folgende ist die Entscheidung des Leads.
 - **U1** Ein eigenes kleines Test-Editor-APK für reproduzierbare Gerätetests. (S)
 - **U2** Werkzeuge auch als Workflow-Schritt und auf Skill Keys. (M)
 - **U4** Diktiertes direkt an eine KI-Aktion weitergeben (z. B. diktieren und korrigieren). (M)
+- **U6** `@generate` (Frage des Owners vom 2026-11-13, „vielleicht später“): Bild aus Text über
+  Cloudflare Workers AI (FLUX.1 schnell, 10.000 Neurons pro Tag gratis, etwa 170 Bilder in
+  1024×1024), mit eigenem Konto und Token (BYOK), Ablauf wie `@ki` (Freigabe, Punkte, Bild-Chip,
+  Einfügen wie `@qr`). Gemini-Bildmodelle haben laut Stand 2026-11 kein Gratis-Kontingent;
+  Pollinations ohne Konto hat Wasserzeichen und ungeklärte Bedingungen. (M)
+- **U7** Emoji-Mix, animierte Emojis, Sticker-Ersteller (Wunsch des Owners vom 2026-11-13):
+  wartet auf die Entscheidung, ob der Emoji-Mix Bilder von Google laden darf. (L)
 - **U5** „Embeds“ (Frage des Owners vom 2026-11-12, noch nicht geklärt, was gemeint ist). Möglich
   sind nur Text und Inhalte über `commitContent`. Link-Vorschauen baut die Ziel-App selbst aus
   einem Link, Discord-Embeds dürfen nur Bots senden. Machbar wäre eine lokal gezeichnete
