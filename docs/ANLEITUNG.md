@@ -98,6 +98,14 @@ Einstellungen → Erweitert → **Leertaste** (oder Einstellungen → Tastaturpr
   nichts.
 - **Standard** im Auswahlfenster stellt die Geste zurück: Sie macht dann wieder, was sie vor
   dieser Seite gemacht hat.
+- **Rückgängig** und **Wiederholen** spürst du als drei kurze Ticks pro Auslösung. Gewünscht war
+  „von links nach rechts“ und zurück; ein Telefon hat aber nur einen Vibrationsmotor. Deshalb
+  wird die Richtung zur Stärke: Wiederholen wird von Tick zu Tick stärker (wie links → rechts),
+  Rückgängig schwächer (rechts → links). Kann dein Telefon die Stärke nicht steuern, kommen drei
+  gleiche Ticks. Die Kette kommt nur, wenn unter Einstellungen → Optionen „Vibration bei
+  Tastendruck“ an ist, und nicht bei „Bitte nicht stören“ (außer du hast Vibration
+  dort erlaubt). Ab Android 13 gilt auch die Stärke für Berührungen aus den Android-Einstellungen.
+  Die Rückgängig-/Wiederholen-Tasten in der Werkzeugleiste vibrieren wie jede andere Taste.
 
 Rad, Panel und Diktat behalten über jede Geste ihre Schutzregeln (Passwortfelder, Inkognito,
 gesperrtes Gerät). Ein einzelner Tipp schreibt immer ein Leerzeichen.
@@ -319,6 +327,9 @@ diese Sprache um.
 - Vertippte Befehlsnamen: `@mtah` oder `@tranlate` zeigt den richtigen Namen als Chip; ein Tipp
   vervollständigt ihn nur. Auch hier ab vier Buchstaben und mit richtigem ersten Buchstaben
   (`@matt`, `@uri` bleiben Erwähnungen).
+- Die gewählte Sprache bleibt, solange du im selben Feld bleibst, auch wenn die App das Feld
+  nach dem Löschen des Befehls neu startet. Wechselst du in ein anderes Feld, gilt dort wieder,
+  was die App oder „Sprache pro App merken“ vorgibt (wie bei der Sprachtaste).
 - Abschalten unter Einstellungen → Befehle → `@lang`; dort stehen auch die Kürzel deiner aktiven
   Sprachen.
 

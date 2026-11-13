@@ -1766,6 +1766,50 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   außer dem Energiesparmodus-Wechsel bei offener Tastatur (jetzt im Robolectric-Test, nicht auf
   einem Gerät).
 
+## 24g Korrektur: Sprachwahl übersteht den Neustart des Felds (nach Build 11)
+
+- Befund des Owners (Xiaomi, Build 11): Deutsch → Spanisch → Englisch per Befehl ging, zurück zu
+  Deutsch fehlte das „ä“ unter „a“.
+- Untersucht: Befehl und Sprachtaste schalten schon gleich um (`LatinIME.switchToSubtype` mit
+  einem Subtyp aus `SubtypeSettings.getEnabledSubtypes(true)`; `RichInputMethodManager`,
+  `SettingsValues` und Tastatur werden neu geladen). In Robolectric de → es → en → de per Chip:
+  Subtyp, `Settings.mLocale` und Popup-Tasten von „a“ (mit „ä“ nur bei Deutsch) stimmen, ohne
+  Neustart des Felds also kein Fehler. Unterschied: Der Chip löscht den Befehl und leert das
+  Feld; startet die App das Feld neu, wendet `onStartInputInternal` Hint-Locales und App-Subtyp
+  an. Nachgestellt mit Hint „de-DE“ und „Sprache pro App“: nach `@spanisch` und `@englisch`
+  sprang die Tastatur zurück (Test schlug vor der Korrektur bei „@spanisch after the restart“
+  fehl, ausprobiert). Welche Sprache die App auf dem Telefon vorgibt, ist unbekannt; mit Hint
+  „en“ entspräche das dem Befund.
+- Gebaut: `SubtypeChoice`, `LatinIME.switchToSubtypeByCommand`, Prüfung in
+  `onStartInputInternal` (P66).
+- Geprüft (Robolectric): `InputLogicTest.typedCommandLanguageChoiceSurvivesTheAppRestartingTheField`
+  (Rundweg, Popup-Tasten gleich wie über `switchToSubtype` direkt, anderes Feld folgt wieder dem
+  Hint), `SubtypeChoiceTest` (6), `LanguageCommandTest` (14) grün. Gesamtläufe siehe Abschnitt
+  zur Haptik-Kette unten.
+- Nicht geprüft: auf dem Telefon; ob Android/MIUI zusätzlich `onCurrentInputMethodSubtypeChanged`
+  mit einem anderen Subtyp ruft.
+
+## Haptik-Kette für Rückgängig/Wiederholen per Leertaste (nach Build 11)
+
+- Auftrag des Owners: „3 kurze haptische Klicks von links nach rechts pro Auslösung und
+  andersrum“. Umgesetzt als Stärkeverlauf (ein Motor, P67): Wiederholen steigend, Rückgängig
+  fallend, 50 ms Abstand. Nur Leertasten-Gesten; Toolbar-Tasten bewusst nicht (sie haben schon
+  den Tastendruck-Impuls, eine Kette dort wäre doppelt).
+- Gebaut: `A/HapticChain.kt`, zwei Zeilen in `KeyboardActionListenerImpl.runSpaceAction`.
+- Geprüft (JVM): `HapticChainTest` (5: Muster und Abstände, Primitive mit Skalen, Klick als
+  Ersatz, Wellenform mit Amplituden ohne Primitive und unter API 30, gleiche Pulse ohne
+  Amplitudensteuerung und unter API 26).
+- Geprüft (Robolectric): `InputLogicTest.generatedSpaceUndoAndRedoPlayTheirTickChainOnlyWithKeyVibration`
+  (Wischen mit Rückgängig spielt fallend, mit Wiederholen steigend; die Rückgängig-Taste selbst
+  keine Kette; Tastenvibration aus: keine Kette; mit Test-Vibrator).
+- Gesamtläufe (A und B): `tools/dev.py core-tests` grün; `tools/dev.py lint` ohne Fehler (eine
+  NewApi-Meldung in `HapticChain` behoben, keine Warnung an den neuen Dateien);
+  `tools/dev.py agent-tests` nach A grün (570 Tests); nach B die betroffenen Klassen grün
+  (`HapticChainTest`, `InputLogicTest.generatedSpace*`). Der volle Lauf `upstream-tests` nach B
+  war bei der Übergabe noch nicht fertig (offen).
+- Nicht geprüft: ob die Ticks auf dem Xiaomi zu spüren und zu unterscheiden sind, welche Stufe
+  das Telefon wirklich spielt (Primitive, Wellenform, Pulse), „Bitte nicht stören“ am Gerät.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

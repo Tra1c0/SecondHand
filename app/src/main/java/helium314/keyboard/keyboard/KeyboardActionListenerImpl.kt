@@ -3,6 +3,7 @@ package helium314.keyboard.keyboard
 
 import helium314.keyboard.agent.TouchCalibration
 import android.text.InputType
+import helium314.keyboard.agent.HapticChain
 import helium314.keyboard.agent.KeyboardCommands
 import helium314.keyboard.agent.SpaceAction
 import helium314.keyboard.agent.SpaceGesture
@@ -286,8 +287,9 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
             SpaceAction.CLIPBOARD -> code(KeyCode.CLIPBOARD)
             SpaceAction.EMOJI -> code(KeyCode.EMOJI)
             SpaceAction.COMMAND_LIST -> typeCommandPrefix()
-            SpaceAction.UNDO -> code(KeyCode.UNDO)
-            SpaceAction.REDO -> code(KeyCode.REDO)
+            // three ticks after the step: falling for undo, rising for redo (HapticChain)
+            SpaceAction.UNDO -> code(KeyCode.UNDO).also { HapticChain.play(latinIME, settings.current, HapticChain.Direction.FALLING) }
+            SpaceAction.REDO -> code(KeyCode.REDO).also { HapticChain.play(latinIME, settings.current, HapticChain.Direction.RISING) }
             SpaceAction.SELECT_ALL -> code(KeyCode.CLIPBOARD_SELECT_ALL)
             SpaceAction.TOGGLE_NUMPAD -> toggle(LayoutDirective.Utility.NUMPAD)
             SpaceAction.TOGGLE_SYMBOLS -> toggle(LayoutDirective.Utility.SYMBOLS)

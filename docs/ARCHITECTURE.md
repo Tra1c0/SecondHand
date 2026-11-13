@@ -145,7 +145,8 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lassen):
 
 - `LatinIME.java`: erzeugt `AgentEditorController`, meldet Editorstart/-ende, abgeschickten Text
-  und unterdrückte Lernhistorie. Engine-Speicher läuft über `AgentStorageContexts.keyboard`.
+  und unterdrückte Lernhistorie. `switchToSubtypeByCommand` (Sprachbefehle) und die Prüfung
+  `SubtypeChoice.holds` am Anfang von `onStartInputInternal` (P66). Engine-Speicher läuft über `AgentStorageContexts.keyboard`.
 - `InputLogic.java`: verwirft Caches und blockiert Eingabepfade nach einer unklaren Ersetzung
   (`ApplyOutcome.UNKNOWN`), unterdrückt Lernen nach generierter Übernahme. Ersetzen
   (`applyGeneratedText`) und Einfügen (`insertGeneratedText`) laufen durch dieselbe
@@ -177,7 +178,7 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   `onSpaceSwipe(SpaceGesture, int)` ersetzt `onHorizontalSpaceSwipe`/`onVerticalSpaceSwipe`) und
   `KeyboardActionListenerImpl.kt` (leitet Panel-, Rad-, Skill- und Diktat-Taste an den Controller,
   blockiert Eingabe während eines Overlays; Leertasten-Aktionen und Doppeltippen, siehe
-  „Editorzugriff, Panel und Rad“).
+  „Editorzugriff, Panel und Rad“; Rückgängig/Wiederholen per Leertaste spielen `HapticChain`).
 - `SettingsValues.java`: `mSpaceGestures` (aufgelöste Leertasten-Gesten) statt
   `mSpaceSwipeHorizontal`/`mSpaceSwipeVertical`; `mSpaceForLangChange` aus
   `SpaceGestures.holdShowsPicker`; `mUseDoubleSpacePeriod` ist aus, solange Doppeltippen eine
@@ -366,6 +367,7 @@ Geänderte Upstream-Tests: `Shadows.kt` (IME-Info aus `BuildConfig.APPLICATION_I
 `getTextBeforeCursor(n)` liefert wie Android die letzten n Zeichen vor der Schreibmarke, nicht die
 ersten n des Felds),
 `Shadows.kt` liefert außerdem `acceptedMimeTypes` und `currentImeOptions` im `EditorInfo` (23g),
+dazu `currentPackageName` und `currentFieldId` (Sprachbefehle, P66),
 `InputLogicTest.kt` (zusätzliche erzeugte Fälle, `typedCommand*` für 24a, `screenshotChip*` für
 23g), `SuggestTest.kt` (Personalisierung im Test
 ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
@@ -406,6 +408,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Leertasten-Tipps (Code zwischen `onPressKey` und `onReleaseKey` der Leertaste) zählen; der zweite Tipp innerhalb von
   `mDoubleSpacePeriodTimeout` an derselben Schreibmarke ohne Auswahl führt die Aktion statt
   eines Leerzeichens aus, jeder andere Code setzt zurück (Fallstrick P49).
+- `A/HapticChain.kt`: drei kurze Ticks nach `UNDO` (fallend 1,0/0,6/0,3) und `REDO` (steigend),
+  50 ms Abstand, nur aus `runSpaceAction` (nicht für die Toolbar-Tasten, die schon den normalen
+  Tastendruck-Impuls haben). `pattern` und `plan` sind reine Funktionen: ab API 30
+  `VibrationEffect.Composition` mit `PRIMITIVE_TICK` (sonst `PRIMITIVE_CLICK`) und Skala je Tick,
+  wenn `areAllPrimitivesSupported`; sonst ab API 26 mit `hasAmplitudeControl` eine Wellenform
+  mit Amplituden; sonst drei gleiche Pulse von 12 ms. `play` nur mit `mVibrateOn` (Tastenvibration
+  an, Gerät hat Vibrator) und nicht bei „Bitte nicht stören“ (`zen_mode` wie LatinIME), außer
+  `mVibrateInDndMode`; ab API 33 mit `USAGE_TOUCH`, damit die Stärke für Berührungen aus den
+  Android-Einstellungen gilt. `Device` ist die Naht für Tests (`deviceForTest`); eine Ausnahme des
+  Vibrators wird geschluckt (P67).
 - `K/settings/screens/AgentSpaceScreen.kt`: Seite „Leertaste“ (eine `ListPreference` je Geste,
   Vorgabe = geerbter Wert, „Standard“ entfernt den eigenen Wert), erreichbar über Erweitert und
   Tastaturprofile → Gesten. Texte in `agent_space_strings.xml`.
@@ -415,7 +427,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Textfelder, daher bleibt die Ersetzung bei Unklarheit gesperrt. Kopieren prüft dieselbe
   Schutzgrenze. Der Ablauf von Aktion bis Übernahme steht unter „Grundlagen“.
 - Tests in `AT/`: `AgentPanelViewTest`, `AgentWheelViewTest`, `AgentSpaceGestureTest`,
-  `SpaceGesturesTest`,
+  `SpaceGesturesTest`, `HapticChainTest`,
   `AndroidEditorAdapterTest`, `SelectedTextCommitTest`, `DebugPrivacyTest`,
   `InsertAtCursorTest`, `ForkIdentityTest`, dazu `BatchDeliveryTest.kt` in
   `app/src/test/java/helium314/keyboard/latin/inputlogic/`.
@@ -758,13 +770,21 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     aktiv: Deutsch (DE)“, dessen Tipp nichts tut. Nach dem Leerzeichen (`call.text` endet auf
     „ “) nur noch exakte Treffer (`exactOnly`). Tipp: erst prüfen, ob der Subtyp noch in
     `subtypes()` ist (sonst Toast, Text bleibt), dann `Host.replace(call, "")`, erst bei Erfolg
-    `Host.switchSubtype` → `LatinIME.switchToSubtype` (wie die Sprachtaste). `@lang` ohne
+    `Host.switchSubtype` → `LatinIME.switchToSubtypeByCommand`: derselbe `switchToSubtype` wie die
+    Sprachtaste, danach merkt sich `A/commands/SubtypeChoice.kt` (nur im Speicher) Feld (App,
+    `fieldId`, Eingabeklasse) und Subtyp. `LatinIME.onStartInputInternal` überspringt die
+    automatische Wahl nach Hint-Locales und App-Subtyp, solange dasselbe Feld neu startet und der
+    gewählte Subtyp noch in Benutzung ist; ein anderes Feld oder ein anderer Subtyp beendet die
+    Wahl (P66). `@lang` ohne
     Argument listet alle aktiven Sprachen als Chips (keine Vorlagen), mit Argument filtert er. Nur
     ein aktiver Subtyp: grauer Chip „Nur eine Sprache aktiv“ → Spracheinstellungen (`languages` in
     `AgentPreferences.SETTINGS_DESTINATIONS`). Texte in `agent_language_strings.xml` (`values/`,
     `values-de/`). Tests `CT/LanguageNamesTest.kt`, `CommandSyntaxTest` (Tippfehler, `claim`,
     Vorrang des früheren Befehls), `AT/commands/LanguageCommandTest.kt`,
-    `InputLogicTest.typedCommandLanguageChipRemovesTheCommandThenSwitches` (echter Host).
+    `InputLogicTest.typedCommandLanguageChipRemovesTheCommandThenSwitches` (echter Host),
+    `InputLogicTest.typedCommandLanguageChoiceSurvivesTheAppRestartingTheField` (de → es → en → de
+    im geleerten Feld mit deutschem Hint und App-Subtyp, Popup-Tasten von „a“),
+    `AT/commands/SubtypeChoiceTest.kt`.
   - Tests: `CT/UrlDetectorTest.kt`, `CT/SymbolTableTest.kt`, `CT/UnitConversionTest.kt`,
     `CT/EventParserTest.kt`, `CT/DateFormattingTest.kt`, `CT/PlacesTest.kt`, `CT/AlarmParserTest.kt`,
     `CT/TimerParserTest.kt`, `AT/commands/ClockCommandsTest.kt`;
@@ -1458,54 +1478,67 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P65** Emoji- und Zwischenablage-Ansicht enthalten je eine eigene `MainKeyboardView` für die
   untere Reihe (`bottom_row_keyboard`). Code in `MainKeyboardView` läuft also auch für diese
   Views; was nur für die Haupttastatur gilt, muss die View prüfen (`R.id.keyboard_view`).
+- **P66** Ein Chip, der Text entfernt und danach die Sprache umschaltet, leert oft das Feld; viele
+  Apps starten die Eingabe dann im selben Feld neu. HeliBoards `onStartInputInternal` wendet dabei
+  Hint-Locales und den gespeicherten App-Subtyp erneut an (`SubtypeState.getSubtypeForLocales`)
+  und schaltete sofort zurück, z. B. auf Englisch ohne „ä“ unter „a“. Die Sprachtaste leert kein
+  Feld und war deshalb nicht betroffen; der Umschaltweg selbst war schon derselbe. Deshalb gilt
+  eine Befehlswahl für dasselbe Feld (`SubtypeChoice`). Robolectric bildet nur den Neustart mit
+  Hint-Locale nach; ob das Xiaomi-Telefon genau so neu startet oder das System zusätzlich
+  `onCurrentInputMethodSubtypeChanged` ruft, ist ungeprüft.
+- **P67** Ein Telefon hat einen Vibrationsmotor: „links nach rechts“ ist nicht darstellbar, nur
+  Stärke und Rhythmus (`HapticChain`). In einer `VibrationEffect.Composition` zählt die
+  Verzögerung ab dem Ende des vorigen Primitivs, nicht ab dessen Start. Ohne Amplitudensteuerung
+  ignoriert Android Amplituden still; deshalb vorher `hasAmplitudeControl` fragen und sonst
+  gleich starke Pulse nehmen, statt eine Stärke vorzutäuschen.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (359 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (363 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (4): agent-apk, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (58): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (59): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
   AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand, ContactCommand,
   ConvertCommand, CorrectionMemory, DateCommand, DesignLook, DesignTiles, Dictation, EmojiCommand,
-  EncryptedActionRunStore, EventCommand, FlatMenuView, FlatPanelStyle, FlatPreset,
+  EncryptedActionRunStore, EventCommand, FlatMenuView, FlatPanelStyle, FlatPreset, HapticChain,
   JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore, LearningData,
   LoadingDotsView, ManualWorkflowDraft, ModelSettings, MyDesigns, OnDeviceSpeechEngine,
   PlaceCommand, RgbKeyPainter, RgbLighting, RgbStrip, RunSubjectCodec, SavedPlaces, ScreenshotChip,
   SearchCommand, SkillBindingStore, SkillLabels, SpaceGestures, ToolApprovalSummary, ToolLauncher,
   TouchCalibration, TouchModel, TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract,
   WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
-- `A/commands/` (14): AiCommandChips, AlarmCommand, AskCommand, ClipCommand, LanguageCommand,
-  QrCommand, ScreenReaderService, SensitiveClips, SnipCommand, SnippetStore, TimerCommand,
-  TranslateCommand, UrlCommand, WorkflowCommand
+- `A/commands/` (15): AiCommandChips, AlarmCommand, AskCommand, ClipCommand, LanguageCommand,
+  QrCommand, ScreenReaderService, SensitiveClips, SnipCommand, SnippetStore, SubtypeChoice,
+  TimerCommand, TranslateCommand, UrlCommand, WorkflowCommand
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (63): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (64): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, ClipCommandTest, CommandReplaceTest, CommandTemplatesTest,
   ContactCommandTest, CorrectionMemoryTest, DatePlaceCommandsTest, DebugPrivacyTest,
   DesignEditorTest, DesignTilesTest, DictationSessionTest, DictationUiTest,
   EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, FlatClipboardTest, FlatMenuTest,
-  FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, InsertAtCursorTest,
-  JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LearningDataTest,
-  LoadingDotsViewTest, MainSettingsLookTest, ManualWorkflowDraftTest, MoreCommandsTest,
-  MoreProvidersTest, MyDesignsTest, OpenAiProviderTest, RgbLightingRenderTest,
+  FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, HapticChainTest,
+  InsertAtCursorTest, JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest,
+  LearningDataTest, LoadingDotsViewTest, MainSettingsLookTest, ManualWorkflowDraftTest,
+  MoreCommandsTest, MoreProvidersTest, MyDesignsTest, OpenAiProviderTest, RgbLightingRenderTest,
   RgbSettingsScreenTest, ScreenshotChipTest, SelectedTextCommitTest, SkillBindingStoreTest,
   SkillSettingsTest, SnipCommandTest, SpaceGesturesTest, TestRunJournal, ToolRunnerTest,
   TouchModelTest, TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest,
   WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
   WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
-- `AT/commands/` (6): ClockCommandsTest, LanguageCommandTest, QrCommandTest,
-  ScreenReaderServiceTest, TranslateCommandTest, UrlCommandTest
+- `AT/commands/` (7): ClockCommandsTest, LanguageCommandTest, QrCommandTest,
+  ScreenReaderServiceTest, SubtypeChoiceTest, TranslateCommandTest, UrlCommandTest
 - `C/` (29): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
   EditorSession, EmojiNames, EventParser, ExecutionPolicy, LanguageNames, LocalTextActions,
   MathExpression, ModelProvider, PendingBatchGate, Places, Profiles, RgbLighting, SkillBinding,

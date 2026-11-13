@@ -980,6 +980,75 @@ class InputLogicTest {
         }
     }
 
+    @Test fun typedCommandLanguageChoiceSurvivesTheAppRestartingTheField() {
+        // the owner's round trip: de -> es -> en -> de, each by a chip in an otherwise empty field
+        val german = SubtypeSettings.getResourceSubtypesForLocale("de".constructLocale()).first()
+        val spanish = SubtypeSettings.getResourceSubtypesForLocale("es".constructLocale()).first()
+        val english = SubtypeSettings.getResourceSubtypesForLocale("en-US".constructLocale()).first()
+        // only the language's own popup keys, so "ä" comes from German alone; subtypes saved per app
+        latinIME.prefs().edit { putString(Settings.PREF_MORE_POPUP_KEYS, "normal"); putBoolean(Settings.PREF_SAVE_SUBTYPE_PER_APP, true) }
+        for (subtype in listOf(german, spanish, english)) SubtypeSettings.addEnabledSubtype(latinIME.prefs(), subtype)
+        // the app asks for German (hint locale), like an app in a German system
+        fun field(id: Int) = EditorInfo().apply {
+            inputType = currentInputType; packageName = "com.example"; fieldId = id
+            hintLocales = android.os.LocaleList(Locale.GERMANY)
+        }
+        ShadowInputMethodService.currentPackageName = "com.example"
+        ShadowInputMethodService.currentFieldId = 7
+        try {
+            helium314.keyboard.agent.KeyboardCommands.load(latinIME)
+            latinIME.switchToSubtype(english)
+            latinIME.switchToSubtype(german)
+            assertEquals("ä", popupsOfA().firstOrNull())
+            // one field of one app throughout; it is empty again after each chip
+            setText("")
+            latinIME.mHandler.onStartInput(field(7), false)
+            handleMessages()
+            assertEquals(german, RichInputMethodManager.getInstance().currentSubtype.rawSubtype)
+            for ((word, wanted) in listOf("@spanisch" to spanish, "@englisch" to english, "@deutsch" to german)) {
+                chainInput(word)
+                val strip = android.widget.FrameLayout(latinIME)
+                val chips = helium314.keyboard.agent.KeyboardCommands.createChipsView(latinIME, strip) as android.view.ViewGroup
+                (chips.getChildAt(0) as android.view.ViewGroup).getChildAt(0).performClick()
+                assertEquals("", text)
+                assertEquals(wanted, RichInputMethodManager.getInstance().currentSubtype.rawSubtype, word)
+                // the emptied field restarts: before the fix the German hint switched straight back
+                latinIME.mHandler.onStartInput(field(7), true)
+                latinIME.mHandler.onStartInputView(field(7), true)
+                handleMessages()
+                assertEquals(wanted, RichInputMethodManager.getInstance().currentSubtype.rawSubtype, "$word after the restart")
+                assertEquals(helium314.keyboard.latin.RichInputMethodSubtype.get(wanted).locale, Settings.getValues().mLocale)
+                assertEquals(wanted == german, "ä" in popupsOfA(), word)
+            }
+            // the same as the built-in switch: identical subtype, settings locale and popup keys
+            val viaCommand = popupsOfA()
+            latinIME.switchToSubtype(english)
+            latinIME.switchToSubtype(german)
+            assertEquals(viaCommand, popupsOfA())
+            // the same field restarting keeps a command's choice
+            latinIME.switchToSubtypeByCommand(spanish)
+            latinIME.mHandler.onStartInput(field(7), true)
+            handleMessages()
+            assertEquals(spanish, RichInputMethodManager.getInstance().currentSubtype.rawSubtype)
+            // another field is a new context again: its hint locale counts as before
+            latinIME.mHandler.onStartInput(field(8), false)
+            handleMessages()
+            assertEquals(german, RichInputMethodManager.getInstance().currentSubtype.rawSubtype)
+        } finally {
+            helium314.keyboard.agent.commands.SubtypeChoice.clear()
+            for (subtype in listOf(spanish, german)) SubtypeSettings.removeEnabledSubtype(latinIME, subtype)
+            helium314.keyboard.agent.KeyboardCommands.load(latinIME)
+        }
+    }
+
+    /** The popup keys of the "a" key on the alphabet keyboard the switcher loaded last. */
+    private fun popupsOfA(): List<String> {
+        val field = KeyboardSwitcher::class.java.getDeclaredField("mKeyboardLayoutSet").apply { isAccessible = true }
+        val set = field.get(KeyboardSwitcher.getInstance()) as helium314.keyboard.keyboard.KeyboardLayoutSet
+        val keyboard = set.getKeyboard(helium314.keyboard.keyboard.KeyboardElement.ALPHABET)
+        return keyboard.sortedKeys.first { it.code == 'a'.code }.popupKeys.orEmpty().mapNotNull { it.mLabel }
+    }
+
     @Test fun typedCommandIsKeptWhenTheEditorCursorMovedUnseen() {
         setText("x @ma")
         setCursorPosition(5)
@@ -1203,6 +1272,39 @@ class InputLogicTest {
             Mockito.clearInvocations(spy)
             assertFalse(run())
             Mockito.verify(spy, Mockito.never()).onCodeInput(Mockito.anyInt(), Mockito.anyInt(), Mockito.anyInt(), Mockito.anyBoolean())
+        }
+    }
+
+    @Test fun generatedSpaceUndoAndRedoPlayTheirTickChainOnlyWithKeyVibration() {
+        val played = mutableListOf<helium314.keyboard.agent.HapticChain.Plan>()
+        helium314.keyboard.agent.HapticChain.deviceForTest = object : helium314.keyboard.agent.HapticChain.Device {
+            override val sdk = 30
+            override val hasVibrator = true
+            override val hasAmplitudeControl = true
+            override fun supportsPrimitive(primitive: Int) = true
+            override fun play(plan: helium314.keyboard.agent.HapticChain.Plan) { played += plan }
+        }
+        try {
+            val listener = latinIME.mKeyboardActionListener
+            fun scales() = (played.single() as helium314.keyboard.agent.HapticChain.Plan.Primitives).scales.also { played.clear() }
+            latinIME.prefs().edit { putBoolean(Settings.PREF_VIBRATE_ON, true) }
+            assertTrue(Settings.getValues().mVibrateOn)
+            setSpaceGesture(SpaceGesture.SWIPE_LEFT, SpaceAction.UNDO)
+            assertTrue(listener.onSpaceSwipe(SpaceGesture.SWIPE_LEFT, -1)); handleMessages()
+            assertEquals(listOf(1f, 0.6f, 0.3f), scales()) // undo: falling
+            setSpaceGesture(SpaceGesture.SWIPE_RIGHT, SpaceAction.REDO)
+            assertTrue(listener.onSpaceSwipe(SpaceGesture.SWIPE_RIGHT, 1)); handleMessages()
+            assertEquals(listOf(0.3f, 0.6f, 1f), scales()) // redo: rising
+            // the undo key (toolbar) keeps its normal key feedback only
+            listener.onCodeInput(KeyCode.UNDO, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false); handleMessages()
+            assertTrue(played.isEmpty())
+            // key vibration off in the keyboard settings: no chain
+            latinIME.prefs().edit { putBoolean(Settings.PREF_VIBRATE_ON, false) }
+            setSpaceGesture(SpaceGesture.SWIPE_LEFT, SpaceAction.UNDO)
+            assertTrue(listener.onSpaceSwipe(SpaceGesture.SWIPE_LEFT, -1)); handleMessages()
+            assertTrue(played.isEmpty())
+        } finally {
+            helium314.keyboard.agent.HapticChain.deviceForTest = null
         }
     }
 
