@@ -9,21 +9,21 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 ## Aktueller Stand
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
-- Stand 2026-11-13 (Ende Runde Build 12): `main` = geprüfter Build 12 (wird als Build 13 des
-  Workflows gebaut). Neu: 25a Emoji-Mix, 27 Symbole malen, Sprachwahl-Fix mit Umlaut-Tests,
+- Stand 2026-11-13: `main` = Build 13 (geprüft; Nummer = Workflow-Lauf, siehe `CLAUDE.md` →
+  Build). Neu: 25a Emoji-Mix, 27 Symbole malen, Sprachwahl-Fix mit Umlaut-Tests,
   Haptik-Kette, vier Screenshot-/Wörterbuch-Fixes, Update-Migrationen (P84, Design-Abstände).
   Alles mit Prüfer, Nachprüfung der Fixes und vollem Testlauf (lokal und GitHub). Kein Gerätetest.
-- Test-Build 12 (Workflow-Lauf 12) ist beim Owner installiert; danach kamen die Prüferfixes.
-- Nächste Runde Build 13: ROADMAP 28–33 (Regler-Haptik, RGB-Überarbeitung, Diagnose,
+- Build 12 (Test-Build) ist beim Owner installiert; Build 13 bringt die Prüferfixes.
+- Nächste Runde: ROADMAP 28–33 (Regler-Haptik, RGB-Überarbeitung, Diagnose,
   Symbole-Feinschliff, zuletzt gemischt, Leertasten-Geste mit Rastpunkten). Der Owner stellt dafür
   Opus 5.5 mit Effort high ein; erst dann beginnen.
 - Kein Gerätetest für alles seit Build 10 außer den Rückmeldungen des Owners.
 
 ## Offene Punkte
 
-0. **Build 13 (ROADMAP 28–33).** Offene Fragen an den Owner stehen dort (Rastpunkte je Regler,
+0. **Nächste Runde (ROADMAP 28–33).** Offene Fragen an den Owner stehen dort (Rastpunkte je Regler,
    was die RGB-Kurve steuert, Punkte-Abstände und „ganzer Text rückgängig“ bei 33). Ablauf wie in
-   Build 12: Agenten je Etappe in Arbeitskopien, Fallstrick-Nummern vorab verteilen (ab P85),
+   der Runde davor: Agenten je Etappe in Arbeitskopien, Fallstrick-Nummern vorab verteilen (ab P85),
    Test-Build zuerst (`CLAUDE.md`), dann Prüfer und volle Läufe. Tests laufen auch auf GitHub
    (`agent-tests.yml`, bei jedem Code-Push auf `claude/**`, Ergebnis im Job-Summary).
    Offen aus Build 12 (alle niedrig, Liste in VALIDATION → „Build 12: …“): Emoji-Mix 7–10,
@@ -212,12 +212,12 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
   Code aktualisieren (`CLAUDE.md` → Docs aktuell halten).
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
-- Build 12 geprüft (Workflow-Lauf 13, von `main`): wie Test-Build 12 plus Prüferfixes (Emoji-Mix-
+- Build 13 (geprüft, von `main`): wie Build 12 plus Prüferfixes (Emoji-Mix-
   Senke, Symbol nach Ausblenden, Screenshot vor dem Start, Update-Migrationen P84); Upstream mit
   den 7 bekannten Fehlern (lokal, Stand 15b3c5a), Agent-Suite (lokal, ef4f172), GitHub-Lauf 4 auf
   dem Endstand eef5254 grün (Agent, Upstream ohne neue Fehler, Lint; Lauf 3 hatte den wackeligen
   `LearningDataTest`, behoben); kein Gerätetest.
-- Test-Build 12 (Workflow-Lauf 12, Arbeitsbranch 15b3c5a, vor Abschluss der Prüfer an den Owner):
+- Build 12 (Test-Build, Arbeitsbranch 15b3c5a, vor Abschluss der Prüfer an den Owner):
   Rückmeldung: Haptik-Kette spielt sofort statt an Rastpunkten (→ 33), eigenes Design nach dem
   Update verändert (→ P84, behoben).
 - Build 11 (signiert, Workflow vom Arbeitsbranch c2a91d2, auf Wunsch vor Abschluss der Prüfungen

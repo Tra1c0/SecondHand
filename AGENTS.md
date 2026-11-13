@@ -38,6 +38,9 @@ genannten Datei. `AGENTS.md` ist eine automatisch erzeugte Kopie dieser Datei f�
   APK aus dem Workflow `agent-apk.yml` (GitHub Actions, von Hand gestartet): signiert mit dem
   Schlüssel des Owners aus den Repository-Secrets, als Vorab-Release veröffentlicht, als Update
   installierbar (`docs/BUILD.md` → Installierbare APK).
+  Die Build-Nummer ist immer die Laufnummer des Workflows (Tag `build-<N>`, Datei
+  `AgentKeyboard-build-<N>.apk`), auch für Test-Builds. Runden werden ohne feste Nummer geplant
+  („nächste Runde“); eine Nummer nennt nur eine gebaute APK (Owner, 2026-11-13).
 - **Gerätetest**: eine Prüfung auf einem echten Android-Gerät oder Emulator. Robolectric-Tests
   sind keine Gerätetests.
 

@@ -14,12 +14,12 @@ Reihenfolge von oben nach unten.
   Engine-Review (`docs/VALIDATION.md` → Build 12: Prüfer zu Etappe 27). Offen: Gerätetest
   (Erkennung mit echten Fingern, Schwellen, Spur, Tempo, Malfeld der eigenen Symbole) und die
   niedrigen Befunde dort.
-- **28 Haptik und Rastpunkte für alle Schieberegler** (Wunsch des Owners für Build 13,
-  2026-11-13). Jeder Schieberegler in den Einstellungen bekommt spürbare Ticks beim Ziehen und
+- **28 Haptik und Rastpunkte für alle Schieberegler** (Wunsch des Owners für die nächste
+  Runde, 2026-11-13). Jeder Schieberegler in den Einstellungen bekommt spürbare Ticks beim Ziehen und
   Rastpunkte („attraction points“), an denen der Regler leicht einrastet (z. B. Standardwert,
   runde Werte). Vor dem Bau klären: welche Rastpunkte je Regler, und ob die Ticks der
   Tastenvibration oder der Android-Einstellung folgen. (M)
-- **29 RGB-Beleuchtung überarbeiten** (Wunsch des Owners für Build 13, 2026-11-13, mit sieben
+- **29 RGB-Beleuchtung überarbeiten** (Wunsch des Owners für die nächste Runde, 2026-11-13, mit sieben
   Referenzbildern im Chat; die Bilder liegen nicht im Repo). (L)
   - 29a Einstellungsseite und Vorschau moderner gestalten.
   - 29b Übergänge zwischen Farben weich (keine sichtbaren Sprünge, auch in der Animation).
@@ -38,7 +38,8 @@ Reihenfolge von oben nach unten.
     Kontrollpunkte (Kreise mit Kreuz), Punkte hinzufügen und entfernen. Annahme des Leads, vor dem
     Bau mit dem Owner bestätigen: x = Zeit bzw. Position im Muster, y = Helligkeit oder
     Farbposition.
-- **30 Diagnose-Seite** (Vorschlag des Leads, vom Owner für Build 13 gewünscht, 2026-11-13).
+- **30 Diagnose-Seite** (Vorschlag des Leads, vom Owner für die nächste Runde gewünscht,
+  2026-11-13).
   Einstellungen → Diagnose zeigt ohne Inhalte, was das Telefon wirklich macht: Stufe der
   Haptik-Kette (Primitive, Wellenform, Pulse), Hauptwörterbuch für Symbole malen vorhanden, Grund
   des letzten Sprachwechsels (Hint der App, Sprache pro App, Befehl, Sprachtaste, System; für das
@@ -61,7 +62,7 @@ Reihenfolge von oben nach unten.
   die Touch-Verarbeitung der Leertaste (Prüfer Pflicht). Vor dem Bau klären: Abstände der Punkte,
   was „den ganzen Text rückgängig“ genau heißt (letzter Schritt oder alles), Abbruch durch
   Zurückziehen. (M)
-- **34 Eigene Designs gestalten (Build 14)** (Wunsch des Owners vom 2026-11-13). Eigene
+- **34 Eigene Designs gestalten (übernächste Runde)** (Wunsch des Owners vom 2026-11-13). Eigene
   Tastatur-Designs gibt es schon (Design-Seite → „Meine Designs“, seit Build 10). Annahme des
   Leads, vor dem Bau bestätigen: gemeint sind eigene RGB-Designs, also selbst gestaltete
   Lichtmuster (Farben, Formen, Bewegung) auf Basis der neuen Muster und der Kurve aus 29. (L)
