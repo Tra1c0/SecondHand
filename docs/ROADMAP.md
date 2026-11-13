@@ -35,6 +35,18 @@ Reihenfolge von oben nach unten.
     Kontrollpunkte (Kreise mit Kreuz), Punkte hinzufügen und entfernen. Annahme des Leads, vor dem
     Bau mit dem Owner bestätigen: x = Zeit bzw. Position im Muster, y = Helligkeit oder
     Farbposition.
+- **30 Diagnose-Seite** (Vorschlag des Leads, vom Owner für Build 13 gewünscht, 2026-11-13).
+  Einstellungen → Diagnose zeigt ohne Inhalte, was das Telefon wirklich macht: Stufe der
+  Haptik-Kette (Primitive, Wellenform, Pulse), Hauptwörterbuch für Symbole malen vorhanden, Grund
+  des letzten Sprachwechsels (Hint der App, Sprache pro App, Befehl, Sprachtaste, System; für das
+  Umlaut-Rätsel am Xiaomi, P66), Erreichbarkeit von gstatic für Emoji-Mix nur auf Tipp. Zum
+  Teilen als Screenshot. (M)
+- **31 Feinschliff Symbole malen** (vom Owner gewünscht, 2026-11-13): Ein Buchstabentipp in der
+  halben Sekunde nach einem Strich soll nicht verloren gehen; „Gestenschreiben“ ausgegraut, wenn
+  Malen an ist; die übrigen niedrigen Befunde aus `docs/VALIDATION.md` → Build 12: Prüfer zu
+  Etappe 27. (S)
+- **32 Emoji-Mix: zuletzt gemischt** (vom Owner gewünscht, 2026-11-13): Reihe der letzten
+  Sticker im Mixer, aus dem Cache auf dem Gerät, ohne neuen Download. (S)
 
 Ziel des Owners (2026-11-12): ein „Agentic Keyboard“, das aus dem Gesprächskontext erkennt, was
 du tun willst, und es mit einer Geste und einem Tipp erledigt, dazu eine lernfähige

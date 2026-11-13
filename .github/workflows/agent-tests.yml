@@ -1,0 +1,106 @@
+# Runs the project's checks on GitHub in parallel to the lead's local work: the agent suite with the
+# core tests, the full upstream suite and lint, each in its own job. The upstream suite always has
+# known failures (docs/HANDOFF.md -> Offene Punkte 4); the summary step fails the job only on
+# failures outside that baseline. No secrets are used.
+name: Agent Keyboard Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ 'claude/**', main ]
+    paths:
+      - 'app/**'
+      - 'agent-core/**'
+      - 'tools/**'
+      - '*.gradle*'
+      - 'gradle/**'
+      - '.github/workflows/agent-tests.yml'
+
+concurrency:
+  group: agent-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [ agent, upstream, lint ]
+    steps:
+      - uses: actions/checkout@v4
+
+      # Java 21 starts the Robolectric test JVMs, Java 17 runs Gradle (docs/BUILD.md).
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: |
+            21
+            17
+
+      - uses: gradle/actions/setup-gradle@v3
+
+      - name: Gradle settings
+        run: |
+          mkdir -p ~/.gradle
+          echo "org.gradle.java.installations.fromEnv=JAVA_HOME_21_X64" >> ~/.gradle/gradle.properties
+
+      - name: Android SDK packages
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" 'platforms;android-37.0' 'build-tools;36.0.0' 'ndk;28.0.13004108' > /dev/null
+
+      - name: Run ${{ matrix.check }}
+        env:
+          LC_ALL: C.UTF-8
+          LANG: C.UTF-8
+        run: |
+          chmod +x gradlew
+          case "${{ matrix.check }}" in
+            agent) python3 tools/dev.py core-tests && python3 tools/dev.py agent-tests ;;
+            upstream) python3 tools/dev.py upstream-tests || true ;;  # judged by the summary below
+            lint) python3 tools/dev.py lint ;;
+          esac
+
+      - name: Summary of test results
+        if: ${{ always() && matrix.check != 'lint' }}
+        run: |
+          python3 - <<'EOF'
+          import glob, os, sys, xml.etree.ElementTree as ET
+          # The inherited baseline, plus the external link tests that depend on foreign servers.
+          known = {
+              "InputLogicTest.insertLetterIntoWordHangulFails",
+              "StringUtilsTest.detectEmojisAtEndFails",
+          }
+          total, failed = 0, []
+          for path in glob.glob("*/build/test-results/**/*.xml", recursive=True):
+              root = ET.parse(path).getroot()
+              total += int(root.get("tests", 0))
+              cls = root.get("name", "").split(".")[-1]
+              for case in root.iter("testcase"):
+                  if case.find("failure") is not None or case.find("error") is not None:
+                      failed.append(f"{cls}.{case.get('name')}")
+          new = [f for f in failed if f not in known and not f.startswith("XLinkTest.")]
+          lines = [f"Tests: {total}, failed: {len(failed)}, new (outside baseline): {len(new)}", ""]
+          lines += [f"- {'NEW ' if f in new else 'known '}{f}" for f in sorted(failed)]
+          text = "\n".join(lines)
+          print(text)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as out:
+              out.write("## ${{ matrix.check }}\n\n" + text + "\n")
+          sys.exit(1 if new or total == 0 else 0)
+          EOF
+
+      - name: Test reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-${{ matrix.check }}
+          path: |
+            */build/test-results
+            */build/reports
+          retention-days: 7

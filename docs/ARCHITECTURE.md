@@ -1383,6 +1383,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - Baseline: `upstream-tests` endet mit genau fünf geerbten Fehlern, Liste in
   `docs/VALIDATION.md` und `docs/HANDOFF.md` → Offene Punkte. Jeder weitere Fehler ist neu.
 - CI: `.github/workflows/docs-check.yml` führt bei jedem Push den Docs-Check aus.
+  `.github/workflows/agent-tests.yml` (seit Build 12) läuft bei Pushes auf `claude/**` und `main`,
+  die Code ändern, und von Hand: drei parallele Jobs `agent` (core- und agent-tests), `upstream`
+  (voller Lauf) und `lint`, je über `tools/dev.py`. Die Zusammenfassung (Job-Log und Step-Summary)
+  listet jeden Fehler als `known` oder `NEW`; nur `NEW` außerhalb der Baseline (Hangul, Emoji,
+  `XLinkTest.*`) lässt den Job scheitern. Berichte als Artefakt `reports-<job>` (7 Tage). Ein
+  neuer Push auf denselben Branch bricht den laufenden Lauf ab.
   `.github/workflows/agent-apk.yml` baut von Hand gestartet die installierbare, mit dem
   Schlüssel des Owners signierte APK (`docs/BUILD.md` → Installierbare APK); dafür liest
   `app/build.gradle.kts` `AGENT_KEYSTORE_FILE`, `AGENT_KEYSTORE_PASSWORD`, `AGENT_KEY_ALIAS` und
@@ -1688,11 +1694,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (392 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (393 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
-- `.github/workflows/` (4): agent-apk, build-debug-apk, build-test-auto, docs-check
+- `.github/workflows/` (5): agent-apk, agent-tests, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
 - `A/` (62): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
