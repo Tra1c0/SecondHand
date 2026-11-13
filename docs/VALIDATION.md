@@ -1667,6 +1667,51 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   geänderten Dateien.
 - Nicht geprüft: kein Gerät (ob das Umschalten in echten Apps ohne Flackern sofort greift, Chip-
   Darstellung mit 🌐, Android-ICU-Namen statt JDK-CLDR-Namen der Sprachen und Länder).
+- Prüfer zu 24g (sieben Befunde, alle behoben, Befund 5 nur dokumentiert):
+  1 (mittel) Sprachwort oder vertippter Name im Argument eines echten Befehls übernahm: behoben.
+  `CommandSyntax.parse` merkt sich schwache Treffer (`claim`, `CommandNames.fuzzy`) und gibt
+  einem früheren Befehl mit exaktem Namen auf derselben Zeile den Vorrang (P56); ein
+  beanspruchtes Wort mit Argument ist kein Befehl mehr. Tests: die vier Beispiele des Prüfers
+  (`@ki schreib an @isa`, `@termin Treffen mit @gerd`, `@translate "…" @es`, `@ki frag @matt`)
+  mit einem `claim`, der jedes Wort nimmt, plus echtem Matcher; `guardsTextBefore` schützt das
+  Argument von `@termin`/`@translate` weiter. 2 (mittel/niedrig) Fehltreffer bei Erwähnungen:
+  gemildert wie beschlossen. Zwei Zeichen nur exakt (Codes, Kürzel), Präfix ab 3, Tippfehler
+  ab 4 Zeichen auf beiden Seiten mit gleichem Anfangsbuchstaben und nur für Sprachnamen und
+  Kürzel (`AliasKind`), Länder exakt oder Präfix, Codes nur exakt, Ländercodes keine Aliasse
+  mehr; nach dem Leerzeichen nur exakte Treffer; ein beanspruchtes Wort mit Argument schaltet
+  nichts mehr ab. Zusätzlich (über den Beschluss hinaus): Die erlaubten Fehler richten sich nach
+  dem kürzeren Wort, und bis 4 Zeichen zählt nur ein Vertauschen zweier Nachbarn; sonst blieben
+  `@gerda`→german, `@lana`/`@lange`→lang, `@matt`→math, `@clio`→clip. Deutsche Umschrift
+  (`@oesterreich`) ist jetzt ein eigener Alias, weil Länder keine Tippfehler mehr bekommen. Kein
+  Treffer mehr: `@isa @gerd @gero @gerda @inge @ines @espen @den @uri @urs @lana @lange @matt
+  @clio` und `@us @ca @co @pe @pa @ar @ch @au @me @al @an @re @ge @ne @un @ve` (`@co` beginnt
+  weiter `@contact`/`@conv`, wie vor 24g). Weiter Treffer (Kompromiss, in P56 und der Anleitung
+  genannt): die Codes `@de @es @en` und Kürzel `@sp @uk` am Anfang jeder Erwähnung, die mit
+  ihnen beginnt; drei Buchstaben als Präfix während des Tippens (`@ger…`, `@ing…`, `@ale…`,
+  `@ang…`, `@col…`, `@per…`, `@ted…`, `@ver…`, `@bri…`, `@cas…`, `@ame…`); ganze Namen
+  `@alle` (Präfix von „allemand“), `@amelia` (Tippfehler von „america“), Zwischenstände wie
+  `@alexan` (Tippfehler von „aleman“) und `@peru` (Land, auch nach dem Leerzeichen). Alle
+  Owner-Beispiele (`@sp @spain @spanisch @spnaish @espanol @español @ger @deutsch @deustch
+  @germany @eng @english @englisch @inglés @usa`, `@mtah`, `@tranlate`) treffen weiter (Tests in
+  `LanguageNamesTest`, `CommandSyntaxTest`, `LanguageCommandTest`). 3 (niedrig/mittel) Matcher bei
+  jedem `onStartInputView` neu: behoben, zwischengespeichert nach Sprach-Tags der aktiven Subtypen
+  und Befehlsnamen (Test: zweimal laden = dieselbe Instanz, andere Sprachen oder Befehle = neu).
+  4 (niedrig) Chip für die aktive Sprache: behoben, `Host.currentSubtype`; nur sie getroffen →
+  grauer Chip „Schon aktiv: Deutsch (DE)“ ohne Wirkung (Test-Host und echter Host in
+  `InputLogicTest`). 5 (niedrig) nicht-lateinische Schriften: nicht im Code geändert, in
+  ARCHITECTURE (24g) und der Anleitung dokumentiert. 6 (niedrig) Subtyp beim Tipp nicht mehr
+  aktiv: behoben, Toast „Diese Sprache ist nicht mehr aktiv“, Text bleibt (Test). 7 (niedrig)
+  Aufräumen im `InputLogicTest`: behoben, `LanguageCommand.defaultSubtypes` (mit `runCatching`)
+  wird genau wiederhergestellt, auch in `LanguageCommandTest`.
+  Geprüft (JVM): `tools/dev.py core-tests` grün (192 Tests in 23 Klassen). Infrastruktur: Auf
+  diesem Stand mit eingebauten Emoji-Wörterbüchern bricht jeder `InputLogicTest` schon im
+  Konstruktor mit `UnsatisfiedLinkError` ab (wie bei der Screenshot-Prüfung festgehalten; ohne
+  Eingriff hier `typedCommand*` 9 von 9 so gescheitert). Mit dem nur lokal eingefügten, nicht
+  committeten `catch (UnsatisfiedLinkError)` in `DictionaryInfoUtils.getDictionaryFileHeaderOrNull`:
+  ganzer `InputLogicTest` 143 Tests, nur der geerbte `insertLetterIntoWordHangulFails` rot;
+  `tools/dev.py agent-tests` 547 Tests in 71 Klassen, 0 Fehler (`LanguageCommandTest` 14).
+  `tools/dev.py lint` erfolgreich (186 Warnungen, 0 Fehler außerhalb der Baseline), kein Befund
+  in den geänderten Dateien. Nicht geprüft: kein Gerät.
 
 ## Gerätetest vor Meilensteinfreigabe
 

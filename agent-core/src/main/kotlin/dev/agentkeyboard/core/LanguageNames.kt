@@ -50,7 +50,7 @@ object LanguageNames {
         return Normalizer.normalize(lower, Normalizer.Form.NFD).filter { it in 'a'..'z' }
     }
 
-    /** Typos allowed for an alias of [length] letters: none up to 2, one up to 5, two from 6. */
+    /** Typos allowed between words whose shorter one has [length] letters: none up to 2, one up to 5, two from 6. */
     fun allowedEdits(length: Int): Int = when {
         length <= 2 -> 0
         length <= 5 -> 1
@@ -74,61 +74,129 @@ object LanguageNames {
         return d[a.length][b.length]
     }
 
-    /** True if [typed] is [alias] with at most the typos [allowedEdits] grants the alias. */
+    /**
+     * True if [typed] is [alias] with at most the typos [allowedEdits] grants the shorter of both.
+     * Up to four letters only a swap of two neighbours counts (`mtah` → `math`, `gre` → `ger`):
+     * one other letter in a short word mostly makes another word or name (`matt`, `lana`, `lange`).
+     */
     fun isClose(typed: String, alias: String): Boolean {
-        val allowed = allowedEdits(alias.length)
-        if (allowed == 0 || kotlin.math.abs(typed.length - alias.length) > allowed) return typed == alias
+        if (typed == alias) return true
+        val shorter = minOf(typed.length, alias.length)
+        val allowed = allowedEdits(shorter)
+        if (allowed == 0 || kotlin.math.abs(typed.length - alias.length) > allowed) return false
+        if (shorter <= 4) return isSwap(typed, alias)
         return distance(typed, alias) <= allowed
     }
 
     /**
-     * The aliases of the language [languageTag] (e.g. "es" or "en-GB"), normalized: its codes, its
-     * name in [DISPLAY_LANGUAGES] and in itself, [SHORT_FORMS], and codes and names (English,
-     * German, own language) of its [COUNTRIES] and of the tag's own country. A language [Locale]
-     * does not know only has its code.
+     * The looser closeness of the first 24g build ([allowedEdits] of the longer word, any edit);
+     * keeps aliases near a command name out of prefix and typo matching ([LanguageMatcher]).
      */
-    fun aliases(languageTag: String, displayLanguages: Collection<String> = DISPLAY_LANGUAGES): Set<String> {
+    fun isNear(a: String, b: String): Boolean {
+        if (a == b) return true
+        val allowed = allowedEdits(maxOf(a.length, b.length))
+        return allowed > 0 && kotlin.math.abs(a.length - b.length) <= allowed && distance(a, b) <= allowed
+    }
+
+    private fun isSwap(a: String, b: String): Boolean {
+        if (a.length != b.length) return false
+        val diff = a.indices.filter { a[it] != b[it] }
+        return diff.size == 2 && diff[1] == diff[0] + 1 && a[diff[0]] == b[diff[1]] && a[diff[1]] == b[diff[0]]
+    }
+
+    /**
+     * A typo the keyboard accepts (stage 24g after review): both words have at least four letters,
+     * start with the same letter (real typos mostly keep it: `spnaish`, `deustch`, `englsih`) and
+     * are [isClose]. The rule for language names, short forms and command names alike.
+     */
+    fun isTypo(typed: String, alias: String): Boolean =
+        typed.length >= 4 && alias.length >= 4 && typed != alias && typed[0] == alias[0] && isClose(typed, alias)
+
+    /** The aliases of [languageTag] without their kinds; see [classifiedAliases]. */
+    fun aliases(languageTag: String, displayLanguages: Collection<String> = DISPLAY_LANGUAGES): Set<String> =
+        classifiedAliases(languageTag, displayLanguages).keys
+
+    /**
+     * The aliases of the language [languageTag] (e.g. "es" or "en-GB"), normalized, with how freely
+     * each matches ([AliasKind]): its ISO 639 codes, its name in [DISPLAY_LANGUAGES] and in itself,
+     * [SHORT_FORMS], and the names (English, German, own language) of its [COUNTRIES] and of the
+     * tag's own country. Country codes (`us`, `ca`, `ch`) are no aliases: they start too many
+     * mentions. A language [Locale] does not know only has its code. [normalize] keeps only a–z,
+     * so a name in another script (Русский) adds nothing: "in itself" only helps Latin scripts.
+     */
+    fun classifiedAliases(languageTag: String, displayLanguages: Collection<String> = DISPLAY_LANGUAGES): Map<String, AliasKind> {
         val locale = Locale.forLanguageTag(languageTag)
         val language = locale.language
-        if (language.isEmpty()) return emptySet()
-        val out = linkedSetOf<String>()
-        fun add(text: String) { normalize(text).takeIf { it.length >= 2 }?.let(out::add) }
-        add(language)
+        if (language.isEmpty()) return emptyMap()
+        val out = linkedMapOf<String, AliasKind>()
+        fun add(text: String, kind: AliasKind) {
+            val alias = normalize(text).takeIf { it.length >= 2 } ?: return
+            out[alias] = maxOf(kind, out[alias] ?: kind)
+            // the German spelling without umlauts ("oesterreich") is no typo but a second form
+            val lower = text.lowercase(Locale.ROOT)
+            if (lower.any { it in "äöü" }) add(lower.replace("ä", "ae").replace("ö", "oe").replace("ü", "ue"), kind)
+        }
+        add(language, AliasKind.CODE)
         val own = Locale.forLanguageTag(language)
         // a language Locale does not know is displayed as its code: nothing more to read
         if (normalize(own.getDisplayLanguage(Locale.ENGLISH)) == language) return out
-        runCatching { own.isO3Language }.getOrNull()?.let(::add)
-        for (display in displayLanguages + language) add(own.getDisplayLanguage(Locale.forLanguageTag(display)))
-        SHORT_FORMS[language]?.forEach(::add)
+        runCatching { own.isO3Language }.getOrNull()?.let { add(it, AliasKind.CODE) }
+        for (display in displayLanguages + language) add(own.getDisplayLanguage(Locale.forLanguageTag(display)), AliasKind.NAME)
+        SHORT_FORMS[language]?.forEach { add(it, AliasKind.SHORT) }
         val countries = COUNTRIES[language].orEmpty() + listOf(locale.country).filter { it.isNotEmpty() }
         for (country in countries.distinct()) {
-            add(country)
             val region = Locale.Builder().setRegion(country).build()
-            for (display in listOf("en", "de", language)) add(region.getDisplayCountry(Locale.forLanguageTag(display)))
+            for (display in listOf("en", "de", language))
+                add(region.getDisplayCountry(Locale.forLanguageTag(display)), AliasKind.COUNTRY)
         }
         return out
     }
 }
 
 /**
+ * How freely a typed word may match an alias (stage 24g after review), from strict to loose; an
+ * alias of two kinds keeps the looser one. Every kind matches exactly.
+ */
+enum class AliasKind {
+    /** ISO 639 code (`es`, `deu`): exact only. */
+    CODE,
+    /** Country name (`spain`, `osterreich`): exact or started from three letters, no typos. */
+    COUNTRY,
+    /** Short form from [LanguageNames.SHORT_FORMS] (`sp`, `ger`, `usa`): also typos ([LanguageNames.isTypo]). */
+    SHORT,
+    /** Language name (`spanisch`, `ingles`): exact, started from three letters, typos ([LanguageNames.isTypo]). */
+    NAME,
+}
+
+/**
  * Stage 24g: the languages a typed word names, best first. [languages] are the enabled keyboard
  * languages with their aliases; [reserved] are command names. An alias that equals or nearly
- * equals a reserved name is only matched exactly, so a typo of a command never turns into a language.
+ * equals a reserved name ([LanguageNames.isNear]) is only matched exactly, so a typo of a command
+ * never turns into a language.
  */
 class LanguageMatcher(languages: List<Language>, reserved: Collection<String> = emptyList()) {
-    /** One keyboard language, e.g. id "es" with the aliases from [LanguageNames.aliases]. */
-    class Language(val id: String, aliases: Collection<String>) {
-        val aliases: Set<String> = aliases.map { LanguageNames.normalize(it) }.filter { it.length >= 2 }.toSet()
+    /** One keyboard language, e.g. id "es" with the aliases from [LanguageNames.classifiedAliases]. */
+    class Language(val id: String, kinds: Map<String, AliasKind>) {
+        /** Plain aliases count as language names ([AliasKind.NAME]). */
+        constructor(id: String, aliases: Collection<String>) : this(id, aliases.associateWith { AliasKind.NAME })
+
+        val kinds: Map<String, AliasKind> = buildMap {
+            for ((alias, kind) in kinds) {
+                val normalized = LanguageNames.normalize(alias).takeIf { it.length >= 2 } ?: continue
+                put(normalized, maxOf(kind, get(normalized) ?: kind))
+            }
+        }
+        val aliases: Set<String> get() = kinds.keys
     }
 
-    private class Entry(val id: String, val exact: Set<String>, val loose: Set<String>)
+    private class Entry(val id: String, val exact: Set<String>, val loose: Map<String, AliasKind>)
 
     private val entries: List<Entry> = run {
         val names = reserved.map { LanguageNames.normalize(it) }.filter { it.isNotEmpty() }
         languages.map { language ->
-            Entry(language.id, language.aliases, language.aliases.filter { alias ->
-                names.none { it == alias || LanguageNames.isClose(it, alias) || LanguageNames.isClose(alias, it) }
-            }.toSet())
+            Entry(language.id, language.aliases, language.kinds.filter { (alias, kind) ->
+                kind != AliasKind.CODE && names.none { LanguageNames.isNear(it, alias) }
+            })
         }
     }
 
@@ -136,20 +204,22 @@ class LanguageMatcher(languages: List<Language>, reserved: Collection<String> = 
 
     /**
      * The ids of the languages [typed] names, best first, or empty. A generic word ("sprache")
-     * names all; an exact alias wins over everything else; otherwise an alias that starts with at
-     * least two typed letters or is within [LanguageNames.allowedEdits] typos (from three letters).
+     * names all; an exact alias wins over everything else. Two letters only match exactly (`es`,
+     * `sp`, `uk`), so `@ca`, `@me` or `@al` at the start of a mention name nothing. From three
+     * letters an alias that is no code may start with the word, from four letters a language name
+     * or short form may differ by a typo ([LanguageNames.isTypo]). With [exactOnly] only generic
+     * words and exact aliases count (a finished word, stage 24g after review).
      */
-    fun match(typed: String): List<String> {
+    fun match(typed: String, exactOnly: Boolean = false): List<String> {
         val word = LanguageNames.normalize(typed)
         if (word.length < 2) return emptyList()
         if (word in LanguageNames.GENERIC) return ids.distinct()
         val exact = entries.filter { word in it.exact }.map { it.id }.distinct()
-        if (exact.isNotEmpty()) return exact
+        if (exact.isNotEmpty() || exactOnly || word.length < 3) return exact
         val scored = entries.mapNotNull { entry ->
-            val prefix = if (entry.loose.any { it.length > word.length && it.startsWith(word) }) 1 else null
-            val typo = if (word.length < 3) null else entry.loose
-                .filter { LanguageNames.isClose(word, it) }
-                .minOfOrNull { 1 + LanguageNames.distance(word, it) }
+            val prefix = if (entry.loose.keys.any { it.length > word.length && it.startsWith(word) }) 1 else null
+            val typo = entry.loose.filter { (alias, kind) -> kind >= AliasKind.SHORT && LanguageNames.isTypo(word, alias) }
+                .keys.minOfOrNull { 1 + LanguageNames.distance(word, it) }
             listOfNotNull(prefix, typo).minOrNull()?.let { entry.id to it }
         }
         return scored.sortedBy { it.second }.map { it.first }.distinct()

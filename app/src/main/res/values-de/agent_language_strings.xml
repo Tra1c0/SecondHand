@@ -8,4 +8,6 @@
     <string name="agent_command_lang_switch">Tastatursprache auf %s umstellen</string>
     <string name="agent_command_lang_single">Nur eine Sprache aktiv</string>
     <string name="agent_command_lang_single_description">Es ist nur eine Tastatursprache aktiv. Öffnet die Spracheinstellungen, um eine hinzuzufügen.</string>
+    <string name="agent_command_lang_active">Schon aktiv: %s</string>
+    <string name="agent_command_lang_gone">Diese Sprache ist nicht mehr aktiv</string>
 </resources>

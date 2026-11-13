@@ -716,30 +716,51 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     höchstens `MAX_SECONDS` = 24 h). Berechtigung `SET_ALARM` im Manifest. Texte in eigener Datei
     `agent_alarm_strings.xml` (`values/`, `values-de/`).
   - Sprachbefehle (24g): `A/commands/LanguageCommand.kt` (`@lang`) und `C/LanguageNames.kt`
-    (`LanguageNames`: `normalize` ohne Akzente, ß→ss; `allowedEdits` 0/1/2 für Aliasse bis 2,
-    bis 5, ab 6 Zeichen; `distance` Damerau-Levenshtein (OSA); `aliases` aus `java.util.Locale`:
-    ISO-639-1/-3, Sprachname in `DISPLAY_LANGUAGES` (en, de, es, fr, it, pt) und in sich selbst,
-    `SHORT_FORMS` (Owner-Kürzel `sp`, `ger`, `eng`, dazu `usa`, `uk`, `england` …), Länder aus
-    `COUNTRIES` (kuratiert) und dem Land des Subtyps mit Code und Namen in en, de und der eigenen
-    Sprache. `LanguageMatcher`: allgemeine Wörter (`GENERIC`, z. B. „sprache“) = alle; sonst
-    exakter Alias vor Präfix (ab 2 Zeichen) und Tippfehler (ab 3 Zeichen); Aliasse gleich oder nah
-    an einem Befehlsnamen (`reserved`) nur exakt). Parser: `CommandSyntax.parse(…, fuzzyNames,
-    claim)`, beides nur aus `KeyboardCommands` (`Active.parse`, alle Leser gleich). Reihenfolge:
-    exakter Name, angefangener Name, Name mit Tippfehler (`closeNames`, `CommandNames.fuzzy`, nur
-    vervollständigen, nie ausführen, auch nicht mit Argument), dann `claim`. Nur ein `claim` darf
-    Nicht-ASCII-Buchstaben lesen (`@español`); `CommandCall.claimed` trägt das getippte Wort.
+    (`LanguageNames`: `normalize` ohne Akzente, ß→ss, nur a–z; `allowedEdits` 0/1/2 nach dem
+    kürzeren Wort (bis 2, bis 5, ab 6 Zeichen); `distance` Damerau-Levenshtein (OSA); `isClose`
+    (bis 4 Zeichen nur ein Vertauschen zweier Nachbarn); `isTypo` = `isClose` plus beide Wörter
+    ab 4 Zeichen und gleicher erster Buchstabe; `isNear` = die lockerere erste Regel, nur für
+    `reserved`. `classifiedAliases` aus `java.util.Locale` mit `AliasKind`: `CODE` (ISO-639-1/-3,
+    nur exakt), `COUNTRY` (Ländernamen aus `COUNTRIES` (kuratiert) und dem Land des Subtyps in en,
+    de und der eigenen Sprache; exakt oder Präfix, keine Tippfehler; Ländercodes wie `us`, `ca`
+    sind keine Aliasse), `SHORT` (`SHORT_FORMS`: Owner-Kürzel `sp`, `ger`, `eng`, dazu `usa`,
+    `uk`, `england` …), `NAME` (Sprachname in `DISPLAY_LANGUAGES` (en, de, es, fr, it, pt) und in
+    sich selbst); deutsche Umschrift ä/ö/ü → ae/oe/ue als zweite Form. „In sich selbst“ hilft nur
+    Sprachen in lateinischer Schrift: `normalize` macht „Русский“ zu nichts, solche Sprachen
+    treffen nur über Code und die Namen in den sechs Anzeigesprachen. `aliases` = nur die
+    Schlüssel. `LanguageMatcher`: allgemeine Wörter (`GENERIC`, z. B. „sprache“) = alle; exakter
+    Alias vor allem; 2 Zeichen nur exakt; ab 3 Zeichen Präfix (kein `CODE`); ab 4 Zeichen
+    Tippfehler (`isTypo`, nur `NAME`/`SHORT`); `match(…, exactOnly)` nur allgemein und exakt;
+    Aliasse gleich oder nah (`isNear`) an einem Befehlsnamen (`reserved`) nur exakt). Parser:
+    `CommandSyntax.parse(…, fuzzyNames, claim)`, beides nur aus `KeyboardCommands`
+    (`Active.parse`, alle Leser gleich). Reihenfolge: exakter Name, angefangener Name, Name mit
+    Tippfehler (`closeNames` mit `isTypo`, `CommandNames.fuzzy`, nur vervollständigen, nie
+    ausführen, auch nicht mit Argument), dann `claim`. Tippfehler und `claim` sind „schwach“: Die
+    Suche rückwärts merkt sich den ersten schwachen Treffer und sucht weiter; ein früherer Befehl
+    mit exaktem Namen auf derselben Zeile (innerhalb `LOOKBACK`, mit gültigem Argument) gewinnt
+    (`@ki frag @matt`, `@termin Treffen mit @sp`, `@translate "…" @es`), sonst bleibt der schwache
+    Treffer (P56). Ein beanspruchtes Wort nimmt kein Argument: `@sp hola` ist für den Parser kein
+    Befehl mehr (danach normale Autokorrektur). Nur ein `claim` darf Nicht-ASCII-Buchstaben lesen
+    (`@español`); `CommandCall.claimed` trägt das getippte Wort.
     `Command.claims(word)` (darf auf dem Vorschlags-Thread laufen) und `Command.load(context)`
     (aus `KeyboardCommands.load`, nur für eingeschaltete Befehle): `LanguageCommand` baut dort den
     Matcher aus den aktiven Subtypen (`SubtypeSettings.getEnabledSubtypes(true)`, austauschbar
-    `subtypes`; „zz“ ohne Aliasse) und hält ihn `@Volatile`. `isCommandWord` zählt beanspruchte
-    Wörter mit (nicht gelernt). Chips: je aktivem Subtyp der Sprache einer („🌐 Español (ES)“, mit
-    Layout, wenn dieselbe Locale mehrfach aktiv ist); Tipp = `Host.replace(call, "")`, erst bei
-    Erfolg `Host.switchSubtype` → `LatinIME.switchToSubtype` (wie die Sprachtaste). `@lang` ohne
-    Argument listet alle aktiven Sprachen als Chips (keine Vorlagen), mit Argument filtert er. Ein
-    Sprachwort mit Argument (`@sp hola`) zeigt nichts. Nur ein aktiver Subtyp: grauer Chip „Nur
-    eine Sprache aktiv“ → Spracheinstellungen (`languages` in `AgentPreferences.SETTINGS_DESTINATIONS`).
-    Texte in `agent_language_strings.xml` (`values/`, `values-de/`). Tests `CT/LanguageNamesTest.kt`,
-    `CommandSyntaxTest` (Tippfehler, `claim`), `AT/commands/LanguageCommandTest.kt`,
+    `subtypes`, Standard `defaultSubtypes` mit `runCatching`; „zz“ ohne Aliasse) und hält ihn
+    `@Volatile`, zwischengespeichert nach den Sprach-Tags der aktiven Subtypen plus den
+    Befehlsnamen der Registry (`matcherKey`; neu gebaut nur, wenn sich eins davon ändert).
+    `isCommandWord` zählt beanspruchte Wörter mit (nicht gelernt). Chips: je aktivem Subtyp der
+    Sprache einer („🌐 Español (ES)“, mit Layout, wenn dieselbe Locale mehrfach aktiv ist), ohne
+    den Subtyp in Benutzung (`Host.currentSubtype`, echter Host:
+    `RichInputMethodManager.currentSubtype.rawSubtype`); trifft nur dieser, ein grauer Chip „Schon
+    aktiv: Deutsch (DE)“, dessen Tipp nichts tut. Nach dem Leerzeichen (`call.text` endet auf
+    „ “) nur noch exakte Treffer (`exactOnly`). Tipp: erst prüfen, ob der Subtyp noch in
+    `subtypes()` ist (sonst Toast, Text bleibt), dann `Host.replace(call, "")`, erst bei Erfolg
+    `Host.switchSubtype` → `LatinIME.switchToSubtype` (wie die Sprachtaste). `@lang` ohne
+    Argument listet alle aktiven Sprachen als Chips (keine Vorlagen), mit Argument filtert er. Nur
+    ein aktiver Subtyp: grauer Chip „Nur eine Sprache aktiv“ → Spracheinstellungen (`languages` in
+    `AgentPreferences.SETTINGS_DESTINATIONS`). Texte in `agent_language_strings.xml` (`values/`,
+    `values-de/`). Tests `CT/LanguageNamesTest.kt`, `CommandSyntaxTest` (Tippfehler, `claim`,
+    Vorrang des früheren Befehls), `AT/commands/LanguageCommandTest.kt`,
     `InputLogicTest.typedCommandLanguageChipRemovesTheCommandThenSwitches` (echter Host).
   - Tests: `CT/UrlDetectorTest.kt`, `CT/SymbolTableTest.kt`, `CT/UnitConversionTest.kt`,
     `CT/EventParserTest.kt`, `CT/DateFormattingTest.kt`, `CT/PlacesTest.kt`, `CT/AlarmParserTest.kt`,
@@ -1355,7 +1376,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Sprachkürzel beginnt, schluckt es als angefangenen Namen (deshalb heißt der Befehl `@lang` und
   nicht `@sprache`, sonst zeigte `@sp` nur „@sprache“). Neue Befehlsnamen gegen `SHORT_FORMS` und
   ISO-Codes prüfen. Ein `claim` kommt immer zuletzt (nach exakt, Präfix, Tippfehler eines Namens),
-  und `LanguageMatcher` nimmt Aliasse nah an Befehlsnamen nur exakt.
+  `LanguageMatcher` nimmt Aliasse nah an Befehlsnamen nur exakt, und weder ein `claim` noch ein
+  Tippfehler übernimmt das Argument eines früheren echten Befehls (P56).
 - **P54** Sprache erst nach dem Entfernen umschalten: `LatinIME.switchToSubtype` ruft
   `InputLogic.onSubtypeChanged` (`finishInput`/`startInput`) und lädt die Tastatur neu. Der Tipp
   ersetzt deshalb zuerst den Befehl (ein Commit, Prüfung von Text und Schreibmarke) und schaltet
@@ -1363,6 +1385,15 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `switchToSubtype` braucht ein aktuelles `EditorInfo` (Robolectric ohne Eingabe: NPE in
   `saveSubtypeForApp`), daher prüft `LanguageCommandTest` den Wechsel über einen Test-Host und
   `InputLogicTest` den echten Weg.
+- **P56** Die Rückwärtssuche von `CommandSyntax.parse` nimmt sonst den letzten Treffer auf der
+  Zeile. Seit es unscharfe Treffer gibt (`claim`, Tippfehler eines Namens), fand sie im Argument
+  eines echten Befehls ein Sprachwort oder einen vertippten Namen (`@ki schreib an @isa`,
+  `@translate "…" @es`) und warf dessen Chips und `protectsArgument` weg. Schwache Treffer zählen
+  deshalb nur ohne früheren Befehl mit exaktem Namen auf derselben Zeile. Wer neue unscharfe
+  Treffer einführt, markiert sie in `isWeak`. Erwähnungen bleiben ein Kompromiss: Je lockerer
+  die Regeln, desto öfter blitzt beim Tippen eines Namens ein Chip auf (`@ale…` → Deutsch über
+  „alemán“); deshalb 2 Zeichen nur exakt, Präfix ab 3, Tippfehler ab 4 mit gleichem
+  Anfangsbuchstaben, keine Tippfehler für Länder und Codes, nach dem Leerzeichen nur exakt.
 - **P60** `DrawableContainer` (Zustandslisten wie `btn_keyboard_key_*.xml`) merkt sich nach
   `setColorFilter` – auch mit `null` – für immer, dass es einen Filter gibt, und gibt Kindern,
   die es später zum ersten Mal wählt, nur noch diesen Filter statt der Tönung. Einen Filter

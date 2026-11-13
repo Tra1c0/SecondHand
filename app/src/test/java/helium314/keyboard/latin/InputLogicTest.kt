@@ -964,8 +964,18 @@ class InputLogicTest {
             assertEquals("hola ", text) // the command went in one commit, in the field it was typed in
             assertEquals(spanish, RichInputMethodManager.getInstance().currentSubtype.rawSubtype)
             checkConnectionConsistency()
+            // the language in use now: a muted chip that keeps the text (real host, current subtype)
+            chainInput("@spain")
+            val again = helium314.keyboard.agent.KeyboardCommands.createChipsView(latinIME, strip) as android.view.ViewGroup
+            val active = (again.getChildAt(0) as android.view.ViewGroup).getChildAt(0) as android.widget.TextView
+            val expected = latinIME.getString(R.string.agent_command_lang_active, "Español")
+            kotlin.test.assertTrue(active.text.startsWith(expected), active.text.toString())
+            active.performClick()
+            assertEquals("hola @spain", text)
+            assertEquals(spanish, RichInputMethodManager.getInstance().currentSubtype.rawSubtype)
         } finally {
-            language.subtypes = { SubtypeSettings.getEnabledSubtypes(true) }
+            // exactly the default provider again (it catches a missing subtype list with runCatching)
+            language.subtypes = language.defaultSubtypes
             helium314.keyboard.agent.KeyboardCommands.load(latinIME)
         }
     }

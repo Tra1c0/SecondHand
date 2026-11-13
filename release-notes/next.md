@@ -137,5 +137,10 @@
 - Neu: Sprachbefehle. Tippe `@sp`, `@ger`, `@eng` oder eine Sprache bzw. ein Land deiner aktiven
   Tastatursprachen (`@spanisch`, `@español`, `@deutsch`, `@usa` …), auch mit Tippfehlern
   (`@spnaish`). Ein Tipp auf den Chip „🌐 Español (ES)“ löscht den Befehl und stellt die
-  Tastatur sofort um. `@lang` listet alle aktiven Sprachen. Vertippte Befehlsnamen (`@mtah`)
-  zeigen jetzt den richtigen Namen zum Vervollständigen. Noch auf keinem Gerät ausprobiert.
+  Tastatur sofort um. `@lang` listet alle aktiven Sprachen; die Sprache, die du gerade
+  benutzt, bekommt keinen Chip. Vertippte Befehlsnamen (`@mtah`) zeigen jetzt den richtigen
+  Namen zum Vervollständigen. Damit Erwähnungen wie `@isa`, `@gerd` oder `@matt` nichts
+  auslösen: zwei Buchstaben nur genau (`@sp`, `@es`), Tippfehler erst ab vier Buchstaben mit
+  richtigem ersten Buchstaben, nach dem Leerzeichen nur genaue Wörter, und ein Sprachwort im
+  Text eines Befehls (`@termin Treffen mit @sp`) bleibt Teil dieses Befehls. Noch auf keinem
+  Gerät ausprobiert.

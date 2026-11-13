@@ -11,4 +11,7 @@
     <string name="agent_command_lang_switch">Switch the keyboard language to %s</string>
     <string name="agent_command_lang_single">Only one language enabled</string>
     <string name="agent_command_lang_single_description">Only one keyboard language is enabled. Opens the language settings to add one.</string>
+    <!-- %s: the language in use, e.g. "Deutsch (DE)"; a tap does nothing -->
+    <string name="agent_command_lang_active">Already active: %s</string>
+    <string name="agent_command_lang_gone">This language is no longer enabled</string>
 </resources>

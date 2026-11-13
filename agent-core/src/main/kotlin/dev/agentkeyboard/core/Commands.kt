@@ -9,10 +9,12 @@ package dev.agentkeyboard.core
  * addresses (`a@b.de`) never count. The name consists of ASCII letters and is compared without
  * case. A known name may be followed by one space and an argument on the same line.
  *
- * Stage 24g, both opt-in: with `fuzzyNames` an unknown name within [LanguageNames.allowedEdits]
- * typos of a known one (`@mtah`) offers that name to complete, never runs it. With `claim` a
- * command may take an unknown word as its own (`@sp` for the language command); such a word may
- * contain any letters (`@español`). Order: exact name, started name, name with a typo, claim.
+ * Stage 24g, both opt-in: with `fuzzyNames` an unknown name that is a typo of a known one
+ * ([closeNames], `@mtah`) offers that name to complete, never runs it. With `claim` a command may
+ * take an unknown word as its own (`@sp` for the language command); such a word may contain any
+ * letters (`@español`) and takes no argument. Order: exact name, started name, name with a typo,
+ * claim. A typo or a claim inside the argument of an earlier command typed by its exact name on
+ * the same line never takes over from it (`@ki frag @matt`).
  */
 object CommandSyntax {
     /**
@@ -45,16 +47,27 @@ object CommandSyntax {
         val fieldStartsInWindow = before.length <= LOOKBACK
         var index = before.length - 1
         val lowest = maxOf(0, before.length - LOOKBACK)
+        // stage 24g after review: a claimed word or a typo of a name only counts when no command
+        // typed by its exact name is running earlier on the line (`@ki frag @matt`, `@translate … @es`)
+        var weak: CommandContext? = null
         while (index >= lowest) {
-            if (before[index] == '\n') return null // commands never span lines
+            if (before[index] == '\n') return weak // commands never span lines
             if (before[index] == prefix) {
                 val atBoundary = if (index == 0) fieldStartsInWindow else before[index - 1].isWhitespace() || before[index - 1] in OPENERS
-                if (atBoundary) parseAt(before, index, prefix, names, longArguments, fuzzyNames, claim)?.let { return it }
+                val found = if (atBoundary) parseAt(before, index, prefix, names, longArguments, fuzzyNames, claim) else null
+                when {
+                    found == null -> {}
+                    found.isWeak() -> if (weak == null) weak = found
+                    // the first exact command wins; behind a weak one only an exact call can take over
+                    weak == null || found is CommandCall -> return found
+                }
             }
             index--
         }
-        return null
+        return weak
     }
+
+    private fun CommandContext.isWeak() = (this is CommandNames && fuzzy) || (this is CommandCall && claimed != null)
 
     private fun parseAt(before: CharSequence, start: Int, prefix: Char, names: Collection<String>,
                         longArguments: Collection<String>, fuzzyNames: Boolean,
@@ -80,6 +93,8 @@ object CommandSyntax {
             claimed(typed, names, claim) ?: return null
         }
         val argument = before.substring(end + 1)
+        // a claimed word takes no argument: after "@sp hola" the line is text again (autocorrect on)
+        if (name != typed && argument.isNotEmpty()) return null
         val limit = if (name in longArguments) MAX_LONG_ARGUMENT else MAX_ARGUMENT
         if (argument.length > limit || argument.any { it == '\n' || it == '\r' }) return null
         return CommandCall(start, text, prefix, name, argument, claimed = typed.takeIf { name != typed })
@@ -91,12 +106,13 @@ object CommandSyntax {
     }
 
     /**
-     * Known names that [typed] (at least three letters) misses by at most [LanguageNames.allowedEdits]
-     * typos of the name, closest first; e.g. `mtah` → `math`.
+     * Known names that [typed] misses by a typo ([LanguageNames.isTypo]: both at least four letters,
+     * same first letter, up to four letters only a swap), closest first; e.g. `mtah` → `math`,
+     * `tranlate` → `translate`, but not `matt`, `uri` or `lana`.
      */
     fun closeNames(typed: String, names: Collection<String>): List<String> {
-        if (typed.length < 3 || typed.any { !it.isAsciiLetter() }) return emptyList()
-        return names.filter { it != typed && LanguageNames.isClose(typed, it) }
+        if (typed.any { !it.isAsciiLetter() }) return emptyList()
+        return names.filter { LanguageNames.isTypo(typed, it) }
             .sortedWith(compareBy({ LanguageNames.distance(typed, it) }, { it }))
     }
 
