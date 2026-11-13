@@ -86,6 +86,11 @@ object KeyboardCommands {
         fun refresh() {}
         /** Up to [length] characters of the field before the cursor (ending with the command), or null (stage 24d). */
         fun textBeforeCursor(length: Int): CharSequence? = null
+        /**
+         * Up to [length] characters before the cursor as the editor reports them now, not from the
+         * keyboard's cache; e.g. after an image went in (P83). By default [textBeforeCursor].
+         */
+        fun editorTextBeforeCursor(length: Int): CharSequence? = textBeforeCursor(length)
         /** Up to [length] characters of the field after the cursor, or null (stage 24d). */
         fun textAfterCursor(length: Int): CharSequence? = null
         /** Replaces the chips in the strip, e.g. after a read; false if the strip shows something else by now. */
@@ -342,6 +347,7 @@ object KeyboardCommands {
             override val cursor: Int get() = position
             override fun refresh() = onRefresh()
             override fun textBeforeCursor(length: Int) = ime.getAgentTextBeforeCursor(length)
+            override fun editorTextBeforeCursor(length: Int): CharSequence? = ime.currentInputConnection?.getTextBeforeCursor(length, 0)
             override fun textAfterCursor(length: Int): CharSequence? = ime.currentInputConnection?.getTextAfterCursor(length, 0)
             // e.g. after reading the screen: only while the strip still shows this command at this cursor
             override fun showChips(chips: List<Chip>): Boolean = ime.agentCommandCursor == position && onShow(chips)

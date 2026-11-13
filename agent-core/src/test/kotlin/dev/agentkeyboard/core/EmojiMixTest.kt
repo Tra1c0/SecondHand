@@ -124,6 +124,15 @@ class EmojiMixTest {
         assertFailsWith<IOException> { read("not gzip".toByteArray()) }
     }
 
+    @Test fun codePointsOutsideUnicodeRejectTheWholeTable() {
+        val pairs = listOf(Triple("1f525", "1f436", "20200101"))
+        assertEquals(1, read(table(listOf("1f436", "1f525", "10ffff"), pairs)).pairCount)
+        // beyond U+10FFFF or a lone surrogate would only fail later, when the URL or the emoji is built
+        for (bad in listOf("110000", "ffffff", "d800", "1f436-dfff")) {
+            assertFailsWith<IOException>(bad) { read(table(listOf("1f436", "1f525", bad), pairs)) }
+        }
+    }
+
     @Test fun urlsAreBuiltAndCheckedStrictly() {
         assertEquals("https://www.gstatic.com/android/keyboard/emojikitchen/20201001/u263a-ufe0f/u263a-ufe0f_u2615.png",
             EmojiMixUrls.url("20201001", "263a-fe0f", "2615"))

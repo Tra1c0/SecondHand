@@ -466,6 +466,8 @@
     <string name="agent_command_qr_label">QR-Code</string>
     <string name="agent_command_qr_failed">Der QR-Code konnte nicht erstellt werden.</string>
     <string name="agent_command_qr_none">Keine App kann den QR-Code teilen.</string>
+    <string name="agent_image_not_inserted">Das Bild wurde nicht eingefügt. Der Text bleibt stehen.</string>
+    <string name="agent_image_inserted_text_kept">Bild eingefügt. Die App hat es anders platziert, deshalb bleibt der getippte Text stehen.</string>
     <string name="agent_command_translate">Mit KI übersetzen: %1$stranslate \"Text\" Stil zeigt einen Chip mit deinem KI-Anbieter und dem Stil (z. B. natürliches Slang-Spanisch; ohne Stil natürliches Englisch). Erst ein Tipp darauf schickt genau den Text in Anführungszeichen und den Stil, sonst nichts aus dem Feld, an deinen eigenen KI-Anbieter (API-Schlüssel nötig). Die Übersetzung erscheint dann in der Vorschlagsleiste; erst ein Tipp darauf ersetzt den getippten Befehl durch sie. Bis 500 Zeichen nach dem Befehlsnamen.</string>
     <string name="agent_command_translate_hint">Text in \"…\" setzen</string>
     <string name="agent_command_translate_usage">Tippe %1$stranslate \"Text\" Stil, z. B. %1$stranslate \"bis morgen\" lockeres Spanisch</string>

@@ -12,6 +12,8 @@ import android.os.Looper
 import android.view.inputmethod.EditorInfo
 import android.widget.Toast
 import androidx.core.content.FileProvider
+import androidx.core.view.inputmethod.EditorInfoCompat
+import androidx.core.view.inputmethod.InputConnectionCompat
 import androidx.core.view.inputmethod.InputContentInfoCompat
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
@@ -58,15 +60,45 @@ object QrCommand : KeyboardCommands.Command {
     /** Long enough for the receiving app to read the file, see [cleanUp]. */
     const val KEEP_MILLIS = 10 * 60 * 1000L
 
-    /** Hands an image to the current field; false if it could not be handed over. */
+    /** Hands an image to the current field; true only if the field took it. */
     fun interface ContentSink {
         fun insert(context: Context, content: InputContentInfoCompat): Boolean
     }
 
+    /**
+     * Commits the image like the keyboard's own image keys (KeyboardActionListenerImpl.onContent),
+     * but reports the editor's answer: false while the keyboard blocks input (panel, wheel, an unclear
+     * edit), when the field does not declare the type, or when the app refuses the image. The caller
+     * removes typed text only after true.
+     */
     val SYSTEM_SINK = ContentSink { context, content ->
         val ime = context as? LatinIME ?: return@ContentSink false
-        ime.mKeyboardActionListener.onContent(content)
-        true
+        if (ime.agentEditorController.isBlockingInput) return@ContentSink false
+        val field = ime.currentInputEditorInfo ?: return@ContentSink false
+        if (EditorInfoCompat.getContentMimeTypes(field).none { content.description.hasMimeType(it) }) return@ContentSink false
+        val connection = ime.currentInputConnection ?: return@ContentSink false
+        ime.invalidateAgentEditor()
+        try {
+            InputConnectionCompat.commitContent(connection, field, content, InputConnectionCompat.INPUT_CONTENT_GRANT_READ_URI_PERMISSION, null)
+        } catch (e: RuntimeException) {
+            Log.w(TAG, "could not insert the image: ${e.javaClass.simpleName}")
+            false
+        }
+    }
+
+    /**
+     * After an inserted image: removes [text] (the typed command or emojis) by [replace] only if it
+     * still stands right before the editor's cursor. A rich-text editor may put the image there as an
+     * object character (P83); the image went in then, the text stays, and the toast says so instead
+     * of "changed, nothing replaced".
+     */
+    fun removeAfterInsert(host: KeyboardCommands.Host, text: String, replace: () -> Boolean) {
+        val now = host.editorTextBeforeCursor(text.length)?.toString()
+        if (now != null && now != text) {
+            Toast.makeText(host.context, R.string.agent_image_inserted_text_kept, Toast.LENGTH_SHORT).show()
+            return
+        }
+        replace()
     }
 
     /** Replaced in tests, which have no editor and no share sheet. */
@@ -119,7 +151,8 @@ object QrCommand : KeyboardCommands.Command {
                 // only into the field that was tapped in, and only if it still takes the image
                 val now = host.editorInfo
                 if (!ScreenshotChip.isSameField(field, now) || blocked(now) || !ScreenshotChip.editorAccepts(now, MIME_TYPE)) return@post
-                if (sink.insert(context, content)) host.replace(call, "")
+                if (sink.insert(context, content)) removeAfterInsert(host, call.text) { host.replace(call, "") }
+                else Toast.makeText(context, R.string.agent_image_not_inserted, Toast.LENGTH_SHORT).show()
             }
         }
     }

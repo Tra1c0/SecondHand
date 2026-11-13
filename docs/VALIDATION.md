@@ -1988,6 +1988,53 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   Hinweis bei mehr als 12 Strichen; Surrogates in manipulierten Prefs. Kein Test von Berührung bis
   Text in einem Stück (SymbolInkTest mit nachgebautem Listener, InputLogicTest ohne PointerTracker).
 
+## Build 12: Prüfer zu Etappe 25a (Emoji-Mix)
+
+- Prüfer (lesend) zu 25a: zwei mittlere, vier niedrige Befunde behoben, vier niedrige offen.
+  Keine Änderung an `InputLogic`, `RichInputConnection`, `PointerTracker` oder
+  `KeyboardActionListenerImpl`; geänderte Upstream-Dateien nur die schon geänderten Tests
+  `Shadows.kt` (`contentCommit`) und `InputLogicTest.kt`.
+- Mittel 1: Der Sink meldete immer „eingefügt“ (`onContent` gibt die Antwort des Editors nicht
+  weiter), auch bei blockierter Eingabe oder wenn die App das Bild ablehnte; danach wurden die
+  getippten Emojis bzw. `@mix …` gelöscht. `@qr` nutzte denselben Sink. Behoben:
+  `QrCommand.SYSTEM_SINK` committet selbst über `InputConnectionCompat.commitContent` und gibt die
+  Antwort zurück; bei false Toast „Das Bild wurde nicht eingefügt. Der Text bleibt stehen.“ (Emoji-Mix
+  und `@qr`). Tests `InputLogicTest.typedEmojiPairStaysWhenTheFieldDoesNotTakeTheImage` (echter
+  Host und Sink: ablehnender Editor → Text bleibt, Toast; blockierte Eingabe → kein Commit, Text
+  bleibt) und `InputLogicTest.typedCommandImageSinkReportsTheFieldsAnswer` (fremder Typ,
+  Annahme, Ablehnung, kein IME-Kontext, blockiert); `QrCommandTest` prüft den Toast.
+- Mittel 2: Ein Rich-Text-Editor, der das Bild als Objektzeichen an die Schreibmarke setzt, ließ
+  das folgende Ersetzen scheitern, mit „Text geändert, nichts ersetzt“. Behoben (P83):
+  `QrCommand.removeAfterInsert` liest beim Editor (`Host.editorTextBeforeCursor`); weicht der Text
+  ab, bleibt er stehen mit „Bild eingefügt. Die App hat es anders platziert, deshalb bleibt der
+  getippte Text stehen.“ Gilt für Emoji-Mix und `@qr`. Test im selben `InputLogicTest`.
+- Niedrig 3: Eine `RuntimeException` im Worker ließ das Paar für immer in `Loading`. Behoben:
+  jede Ausnahme → `Failed` (`Reason.INTERNAL`). Test
+  `EmojiMixCommandTest.anUnexpectedErrorFailsThePairInsteadOfLoadingForever`.
+- Niedrig 4: `clearCache` gegen eine eingereihte Anfrage (`Ready` auf gelöschter Datei) und ohne
+  Neuzeichnen. Behoben: Zähler `generation`, Ergebnisse älterer Arbeit werden verworfen, `changed()`
+  sofort. Test `EmojiMixCommandTest.clearingTheCacheDropsALoadStillQueuedAndRedrawsAtOnce`.
+- Niedrig 5: Vorschaubilder blieben 534 px groß (Abtastung 1). Behoben: Abtastung plus
+  Skalierung auf höchstens 320 px. Test `EmojiMixCommandTest.thumbnailsAreDecodedToTheirDisplaySize`
+  (534 → 320×320, 1400×700 → 320×160, 64 bleibt, kein Bild → null).
+- Niedrig 6: Codepunkte über 10FFFF oder Surrogate in der Tabelle wurden angenommen. Behoben in
+  `EmojiMixTable.read` (ganze Tabelle abgelehnt) und `tools/emoji_mix_table.py`
+  (`valid_codepoints`, von Hand mit gültigen und ungültigen Werten geprüft; der Generator selbst
+  nicht neu gelaufen, die Eingabedatei liegt nicht vor). Test
+  `EmojiMixTest.codePointsOutsideUnicodeRejectTheWholeTable`.
+- Gegenproben: jede Prüfung ohne ihre Korrektur rot. EmojiMix.kt zurückgesetzt → neuer
+  `EmojiMixTest` rot. Die vier Quelldateien (`EmojiMixer`, `QrCommand`, `EmojiMixCommand`,
+  `KeyboardCommands`) auf den alten Stand → die drei neuen `EmojiMixCommandTest`-Fälle, die zwei
+  neuen `InputLogicTest`-Fälle und der Toast in `QrCommandTest` rot. Nur die Prüfung in
+  `removeAfterInsert` ausgeschaltet → `typedEmojiPairStays…` rot mit genau dem alten Toast
+  „Der Text vor der Schreibmarke hat sich geändert …“.
+- Gesamtläufe: `tools/dev.py core-tests` grün (224 Tests); `tools/dev.py agent-tests` grün
+  (633 Tests, 0 Fehler, 0 übersprungen). Kein Build, kein voller `upstream-tests`-Lauf, kein
+  Gerätetest (gemeinsam genutzte Maschine); ob echte Apps `commitContent` mit false ablehnen oder
+  das Bild als Objektzeichen setzen, ist nur nachgebaut.
+- Offen (niedrig, unverändert): 7 Höhe der Mixer-Leiste im Layout; 8 eine Anfrage je Tipp (kein
+  Bündeln); 9 englischer Ersatztext; 10 globaler Listener je Besitzer („chips“, „palette“).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

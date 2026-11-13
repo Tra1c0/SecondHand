@@ -467,6 +467,8 @@
     <string name="agent_command_qr_label">QR code</string>
     <string name="agent_command_qr_failed">The QR code could not be made.</string>
     <string name="agent_command_qr_none">No app can share the QR code.</string>
+    <string name="agent_image_not_inserted">The image was not inserted. The text stays.</string>
+    <string name="agent_image_inserted_text_kept">Image inserted. The app placed it differently, so the typed text stays.</string>
     <string name="agent_command_translate">Translate with AI: %1$stranslate \"text\" style shows a chip that names your AI provider and the style (e.g. natural Spanish slang; without a style natural English). Only a tap on it sends exactly the text in quotes and the style, nothing else from the field, to your own AI provider (API key required). The translation then appears in the suggestion strip; only a tap on it replaces the typed command by it. Up to 500 characters after the command name.</string>
     <string name="agent_command_translate_hint">Put the text in \"…\"</string>
     <string name="agent_command_translate_usage">Type %1$stranslate \"text\" style, e.g. %1$stranslate \"see you tomorrow\" casual Spanish</string>

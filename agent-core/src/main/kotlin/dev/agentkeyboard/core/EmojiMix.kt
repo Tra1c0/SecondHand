@@ -178,6 +178,10 @@ class EmojiMixTable private constructor(
         /** More than the generator could ever write: a broken or foreign file fails fast. */
         private const val MAX_EMOJIS = 4096
 
+        /** Hex code points joined by "-", each a Unicode scalar value (at most 10FFFF, no surrogate). */
+        internal fun validCodepoints(codes: String): Boolean = CODEPOINTS.matches(codes) &&
+            codes.split('-').all { val cp = it.toInt(16); cp <= Character.MAX_CODE_POINT && cp !in 0xD800..0xDFFF }
+
         /** Reads the gzip'd table; throws [IOException] for anything that is not exactly the format. */
         fun read(input: InputStream): EmojiMixTable {
             val data = DataInputStream(GZIPInputStream(input.buffered()))
@@ -188,7 +192,7 @@ class EmojiMixTable private constructor(
                 if (count == 0 || count > MAX_EMOJIS) throw IOException("bad emoji count")
                 val emojis = List(count) {
                     val raw = ByteArray(data.readUnsignedByte()).also { data.readFully(it) }
-                    String(raw, Charsets.US_ASCII).also { if (!CODEPOINTS.matches(it)) throw IOException("bad code points") }
+                    String(raw, Charsets.US_ASCII).also { if (!validCodepoints(it)) throw IOException("bad code points") }
                 }
                 val dates = List(data.readUnsignedByte()) {
                     String(ByteArray(8).also { data.readFully(it) }, Charsets.US_ASCII)

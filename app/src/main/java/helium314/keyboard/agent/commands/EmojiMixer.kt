@@ -96,6 +96,8 @@ object EmojiMixer {
     private val cachedReads = HashSet<String>()
 
     private val listeners = LinkedHashMap<String, () -> Unit>()
+    /** Raised by [clearCache]: results of work queued before it are dropped (their file may be gone). */
+    private var generation = 0
 
     /**
      * [listener] is called on the main thread when the table is loaded or a state changes; one per
@@ -139,10 +141,15 @@ object EmojiMixer {
     fun state(context: Context, mix: EmojiMix): State? {
         states[mix.key]?.let { return it }
         val cache = cache(context)
+        val started = generation
         if (cache.file(mix).isFile && cachedReads.add(mix.key)) worker.execute {
-            val file = cache.get(mix)
+            val file = try { cache.get(mix) } catch (e: Exception) {
+                Log.w(TAG, "could not read the cached image: ${e.javaClass.simpleName}")
+                null
+            }
             val thumbnail = file?.let { thumbnail(it) }
             toMain {
+                if (started != generation) return@toMain
                 cachedReads.remove(mix.key)
                 if (file != null && thumbnail != null && states[mix.key] == null) {
                     states[mix.key] = State.Ready(file, thumbnail)
@@ -167,6 +174,7 @@ object EmojiMixer {
         val cache = cache(context)
         val app = context.applicationContext ?: context
         val callsFor = calls
+        val started = generation
         worker.execute {
             val result: State = try {
                 val cached = cache.get(mix)
@@ -182,8 +190,14 @@ object EmojiMixer {
             } catch (e: IOException) {
                 Log.w(TAG, "could not store the image: ${e.javaClass.simpleName}")
                 State.Failed(EmojiMixClient.Reason.STORAGE)
+            } catch (e: Exception) {
+                // anything else would leave the pair loading for good
+                Log.w(TAG, "could not load the image: ${e.javaClass.simpleName}")
+                State.Failed(EmojiMixClient.Reason.INTERNAL)
             }
             toMain {
+                // the cache was cleared meanwhile: the file may be gone, the pair starts unknown again
+                if (started != generation) return@toMain
                 states[mix.key] = result
                 changed()
             }
@@ -191,13 +205,24 @@ object EmojiMixer {
         return true
     }
 
-    /** A small bitmap of [file] for chips and the palette; null if it is no readable image. */
+    /**
+     * A small bitmap of [file] for chips and the palette, its longest side at most [THUMBNAIL_PX]
+     * (the images are 534 px, a sample size alone would keep them whole); null if it is no readable image.
+     */
     fun thumbnail(file: File): Bitmap? = try {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(file.path, bounds)
+        val longestSide = maxOf(bounds.outWidth, bounds.outHeight)
         var sample = 1
-        while (bounds.outWidth / (sample * 2) >= THUMBNAIL_PX && bounds.outHeight / (sample * 2) >= THUMBNAIL_PX) sample *= 2
-        BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })
+        while (longestSide / (sample * 2) >= THUMBNAIL_PX) sample *= 2
+        val decoded = BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })
+        val longest = decoded?.let { maxOf(it.width, it.height) } ?: 0
+        if (decoded == null || longest <= THUMBNAIL_PX) decoded
+        else {
+            val scale = THUMBNAIL_PX.toFloat() / longest
+            Bitmap.createScaledBitmap(decoded, maxOf(1, Math.round(decoded.width * scale)),
+                maxOf(1, Math.round(decoded.height * scale)), true).also { if (it !== decoded) decoded.recycle() }
+        }
     } catch (_: Exception) { null }
 
     fun uriFor(context: Context, file: File): Uri =
@@ -205,8 +230,9 @@ object EmojiMixer {
 
     /**
      * Hands the image of [file] to [field]: inserted if the field takes PNG images, otherwise the
-     * share sheet. [afterInsert] runs only after the image went out (e.g. removes the typed emojis
-     * or the command); [afterShare] after the share sheet started. False if nothing went out.
+     * share sheet. [afterInsert] runs only after the field took the image (e.g. removes the typed
+     * emojis or the command); [afterShare] after the share sheet started. False if nothing went out;
+     * a field that did not take the image says so in a toast, and the text stays.
      */
     fun deliver(context: Context, field: EditorInfo?, file: File, afterInsert: () -> Unit, afterShare: () -> Unit): Boolean {
         if (blocked(field) || !file.isFile) return false
@@ -216,7 +242,10 @@ object EmojiMixer {
         }
         if (helium314.keyboard.agent.ScreenshotChip.editorAccepts(field, MIME_TYPE)) {
             val content = InputContentInfoCompat(uri, ClipDescription(context.getString(R.string.agent_emoji_mix_label), arrayOf(MIME_TYPE)), null)
-            if (!sink.insert(context, content)) return false
+            if (!sink.insert(context, content)) {
+                android.widget.Toast.makeText(context, R.string.agent_image_not_inserted, android.widget.Toast.LENGTH_SHORT).show()
+                return false
+            }
             afterInsert()
             return true
         }
@@ -236,11 +265,14 @@ object EmojiMixer {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
 
-    /** Deletes every cached image (settings) and forgets the states. */
+    /** Deletes every cached image (settings) and forgets the states; what is loading now is dropped when it arrives. */
     fun clearCache(context: Context) {
         val cache = cache(context)
+        generation++
         states.clear()
+        cachedReads.clear()
         worker.execute { cache.clear() }
+        changed()
     }
 
     /** The keyboard service behind a view's context, or null. */
@@ -296,7 +328,7 @@ object EmojiMixHttp {
  * [MAX_BYTES], answered as `image/png` with a PNG signature. Blocking: call on a worker thread.
  */
 class EmojiMixClient(private val calls: Call.Factory) {
-    enum class Reason { NOT_ALLOWED, NETWORK, TIMEOUT, REDIRECT, SERVICE, NOT_PNG, TOO_LARGE, STORAGE }
+    enum class Reason { NOT_ALLOWED, NETWORK, TIMEOUT, REDIRECT, SERVICE, NOT_PNG, TOO_LARGE, STORAGE, INTERNAL }
 
     sealed interface Result {
         class Image(val bytes: ByteArray) : Result

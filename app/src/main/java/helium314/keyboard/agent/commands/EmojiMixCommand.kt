@@ -144,7 +144,7 @@ object EmojiMixCommand : KeyboardCommands.Command {
             Toast.makeText(context, R.string.agent_command_expired, Toast.LENGTH_SHORT).show()
             return
         }
-        EmojiMixer.deliver(context, host.editorInfo, state.file, afterInsert = { replace() },
+        EmojiMixer.deliver(context, host.editorInfo, state.file, afterInsert = { QrCommand.removeAfterInsert(host, expected, replace) },
             afterShare = { if (removeOnShare) replace() })
     }
 
