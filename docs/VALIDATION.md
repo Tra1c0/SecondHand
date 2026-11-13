@@ -1505,7 +1505,9 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   `ShadowBinaryDictionaryUtils.getHeaderWithOffsetAndLength` meldet „Format nicht lesbar“, und
   `InputLogicTest` nutzt diesen Shadow. Danach 146 Tests, nur der geerbte Fehler
   `insertLetterIntoWordHangulFails`. In der App gibt es die native Bibliothek; geändert hat sich
-  dort nichts.
+  dort nichts. Weil auch `InputTest` (und jede Klasse, die `LatinIME` startet) so abbrach, gilt
+  der Shadow seit Build 11 für alle Robolectric-Tests (`app/src/test/resources/robolectric.properties`,
+  `shadows=`); `SuggestTest` nutzte ihn schon vorher.
 
 ## 23g Screenshot zuerst
 
