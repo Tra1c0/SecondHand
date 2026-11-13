@@ -45,6 +45,15 @@ Reihenfolge von oben nach unten.
   Rastpunkte bei 0,8 / 1,6 / 2,65 Tastenbreiten (Startpunkt plus drei Punkte), „den ganzen Text
   rückgängig“ = ein normaler Rückgängig-Schritt, Zurückziehen tickt erneut statt abzubrechen,
   gilt für alle Einmal-Aktionen links/rechts.
+- **37 Bildwiederholrate als Karten (Wunsch des Owners vom 2026-11-13, mit Skizze)** — Vorlage:
+  [`docs/referenzen/2026-11-13-rgb-bildwiederholrate.jpg`](referenzen/2026-11-13-rgb-bildwiederholrate.jpg)
+  (Screenshot von Build 16, übermalt). Nicht als exakte Vorgabe, sondern als Richtung mit
+  Visualisierung: Auf der RGB-Seite ersetzt eine Karte „Bildwiederholrate“ die bisherige Auswahl.
+  Überschrift fett und gesperrt; darunter zwei große, abgerundete Farbflächen nebeneinander bzw.
+  untereinander, „30 Hertz“ (grün/türkis) und „60 Hertz“ (gelb/orange), Schrift gesperrt in der
+  Fläche, je ein leuchtender Tropfen/Lichtpunkt als Visualisierung des Tempos (z. B. wandert er
+  bei 60 Hz doppelt so schnell oder pulsiert); die gewählte Fläche hervorgehoben. „Im
+  Energiesparmodus anhalten“ bleibt darunter. Gilt sinngemäß als Stil für ähnliche Auswahlen. (S)
 - **34 Eigene Designs gestalten (übernächste Runde)** (Wunsch des Owners vom 2026-11-13). Eigene
   Tastatur-Designs gibt es schon (Design-Seite → „Meine Designs“, seit Build 10). Annahme des
   Leads, vor dem Bau bestätigen: gemeint sind eigene RGB-Designs, also selbst gestaltete

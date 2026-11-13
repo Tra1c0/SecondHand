@@ -27,7 +27,8 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
    durch Masken, sondern eine Ebene), Symbol-Erkennung (Tipp-Grenze 8 dp, Bereich 3 Tastenbreiten:
    Abwägung zwischen verlorenen Buchstaben neben der Zeichnung und abreißenden Symbolen; „glitcht“
    ungeklärt), Rastpunkte der Leertaste (Abstände, Gefühl), Regler-Ticks. Danach ROADMAP 34
-   (Annahme: eigene RGB-Designs) und die offenen niedrigen Befunde in VALIDATION (Etappen 28–36).
+   (Annahme: eigene RGB-Designs), ROADMAP 37 (Bildwiederholrate als Karten, Skizze unter
+   `docs/referenzen/`) und die offenen niedrigen Befunde in VALIDATION (Etappen 28–36).
    Arbeitsweise dieser Runde: Agenten je Etappe in Arbeitskopien mit eigenen Sicherungsordnern
    (`scratchpad/bak-<etappe>/`), Fallstrick-Nummern vorab verteilen (belegt bis P118, frei ab
    P119), nie `agent-core` neu bauen, während ein eigener App-Testlauf läuft
