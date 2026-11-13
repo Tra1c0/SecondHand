@@ -36,6 +36,8 @@ object MyDesigns {
     const val THEME_PREFIX = "agent_design_"
     const val IMAGE_DIR = "agent_designs"
     private const val BACKGROUND_BEFORE = "background_before"
+    /** SHA-256 of the image a design put on the background, to notice when the owner replaced it. */
+    private const val PREF_BACKGROUND_HASH = "agent_design_background_hash"
     const val MAX_DESIGNS = 30
 
     /** Styles the editor offers; Holo needs its own colour logic and is left out. */
@@ -250,12 +252,17 @@ object MyDesigns {
         val prefs = context.prefs()
         val background = Settings.getCustomBackgroundFile(context, false, false)
         val before = File(imageDir(context), BACKGROUND_BEFORE)
-        if (prefs.getString(PREF_BACKGROUND_FROM, null) == null && background.isFile) {
+        // The current file is the owner's own image unless it is exactly the one a design put there:
+        // a later own image or a restored backup must become the new backup, never be overwritten.
+        if (prefs.getString(PREF_BACKGROUND_FROM, null) == null || !isDesignImage(prefs, background)) {
             before.parentFile?.mkdirs()
-            background.copyTo(before, overwrite = true)
+            if (background.isFile) background.copyTo(before, overwrite = true) else before.delete()
         }
         imageFile(context, id).copyTo(background, overwrite = true)
-        prefs.edit { putString(PREF_BACKGROUND_FROM, id) }
+        prefs.edit {
+            putString(PREF_BACKGROUND_FROM, id)
+            putString(PREF_BACKGROUND_HASH, sha256(background))
+        }
         Settings.clearCachedBackgroundImages()
     }
 
@@ -265,12 +272,33 @@ object MyDesigns {
         if (prefs.getString(PREF_BACKGROUND_FROM, null) == null) return
         val background = Settings.getCustomBackgroundFile(context, false, false)
         val before = File(imageDir(context), BACKGROUND_BEFORE)
-        if (before.isFile) {
-            before.copyTo(background, overwrite = true)
-            before.delete()
-        } else background.delete()
-        prefs.edit { remove(PREF_BACKGROUND_FROM) }
+        if (isDesignImage(prefs, background)) {
+            if (before.isFile) before.copyTo(background, overwrite = true) else background.delete()
+        } // else the owner set another image meanwhile: it stays
+        before.delete()
+        prefs.edit {
+            remove(PREF_BACKGROUND_FROM)
+            remove(PREF_BACKGROUND_HASH)
+        }
         Settings.clearCachedBackgroundImages()
+    }
+
+    private fun isDesignImage(prefs: SharedPreferences, background: File): Boolean {
+        val hash = prefs.getString(PREF_BACKGROUND_HASH, null) ?: return false
+        return background.isFile && sha256(background) == hash
+    }
+
+    private fun sha256(file: File): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(8192)
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                digest.update(buffer, 0, read)
+            }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
     private fun reload() {

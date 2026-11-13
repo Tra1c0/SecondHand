@@ -1157,7 +1157,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Buchstaben-Layouts weglässt. Einmal-Aktionen beim Wischen laufen beim ersten Schritt und danach
   nicht mehr bis zum
   Loslassen; eine Aktion, die ein Overlay öffnet, blockiert die restlichen Schritte über
-  `isBlockingInput`.
+  `isBlockingInput`. Ein Wisch endet ohne `onReleaseKey` (wie im Upstream); deshalb setzen
+  `onSpaceSwipe` und `SPACE_HOLD` den Doppeltipp-Zähler zurück.
 
 - **P50** Ein Kotlin-Zugriff auf `Defaults.PREF_KEY_GAP_SCALE[0]` (bzw.
   `PREF_KEYBOARD_HEIGHT_SCALE[0]`) aus einer anderen Datei ließ den Compiler ein ungültiges

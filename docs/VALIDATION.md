@@ -1469,6 +1469,21 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   auf der Leertaste, die Tastaturauswahl und die Einstellungsseite selbst (nur kompiliert, kein
   UI-Test).
 
+## Prüfer zur Runde nach df80dbb (Vorlagen, Wecker/Timer, Design-Editor, Leertasten-Gesten)
+
+- Ein Prüfer hat die Änderungen df80dbb..4dd84dd gelesen, mit Schwerpunkt PointerTracker und
+  Leertasten-Gesten. Kein hoher Befund.
+- Behoben: (mittel) ein eigenes Hintergrundbild, das der Owner setzt, während ein Design mit Bild
+  gewählt ist, wurde beim nächsten Designwechsel überschrieben oder gelöscht; jetzt merkt sich
+  `MyDesigns` den Hash des eingesetzten Bildes und fasst ein geändertes Bild nicht an (neuer Test
+  `MyDesignsTest.anOwnImageSetWhileADesignIsUsedIsNeverOverwrittenOrDeleted`). (niedrig) Ein Wisch
+  oder Halten auf der Leertaste setzt den Doppeltipp-Zähler zurück. (niedrig) „Speichern und
+  verwenden“ wählt ein schon gewähltes Design nicht ein zweites Mal (doppelte Bildkopie).
+- In der Anleitung ergänzt: Was ein Design nach dem Verlassen an Einstellungen zurücklässt, und
+  dass eine Zahl direkt nach einer Timer-Dauer mitzählt.
+- Offen gelassen: Dateikopien beim Wählen eines Designs laufen auf dem Main-Thread (Ruckeln bei
+  großen Bildern möglich, kein Absturz); Ansichtswechsel mitten im Wisch nur ohne Gerät geprüft.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

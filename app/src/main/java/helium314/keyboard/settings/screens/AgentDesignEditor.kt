@@ -74,6 +74,7 @@ import helium314.keyboard.agent.DesignLook
 import helium314.keyboard.compat.locale
 import helium314.keyboard.agent.MyDesigns
 import helium314.keyboard.agent.MyDesigns.Design
+import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.keyboard.KeyboardTheme
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.common.ColorType
@@ -232,7 +233,8 @@ fun AgentDesignEditor(initial: Design, isNew: Boolean, onClose: () -> Unit) {
                 Button(
                     onClick = {
                         val saved = MyDesigns.save(context, design.copy(name = design.name.trim()), if (pendingImage) pendingFile else null)
-                        MyDesigns.select(context, saved)
+                        // save already re-selects a design that is in use
+                        if (MyDesigns.selectedId(context.prefs()) != saved.id) MyDesigns.select(context, saved)
                         close()
                     },
                     enabled = design.name.isNotBlank(),

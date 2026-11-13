@@ -217,6 +217,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     override fun onCustomRequest(request: KeyboardActionListener.CustomAction) = when (request) {
         // the input method picker stays with PointerTracker's existing fallback (mSpaceForLangChange)
         KeyboardActionListener.CustomAction.SPACE_HOLD -> settings.current.mSpaceGestures[SpaceGesture.HOLD].let {
+            lastSpaceTapTime = 0L // a hold is no tap and must not start a double tap
             it != SpaceAction.SWITCH_INPUT_METHOD && runSpaceAction(it)
         }
         KeyboardActionListener.CustomAction.SHOW_INPUT_METHOD_PICKER -> latinIME.showInputPickerDialog()
@@ -234,7 +235,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         }
     }
 
-    override fun onSpaceSwipe(gesture: SpaceGesture, steps: Int): Boolean = if (latinIME.agentEditorController.isBlockingInput) true
+    override fun onSpaceSwipe(gesture: SpaceGesture, steps: Int): Boolean = if (resetSpaceTap() && latinIME.agentEditorController.isBlockingInput) true
     else when (val action = settings.current.mSpaceGestures[gesture]) {
         SpaceAction.MOVE_CURSOR -> if (gesture.isHorizontal) onMoveCursorHorizontally(steps) else onMoveCursorVertically(steps)
         SpaceAction.SWITCH_LANGUAGE -> onLanguageSlide(steps)
@@ -320,6 +321,12 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     // keys and the actions' own codes never press a key.
     private var spaceKeyDown = false
     private var lastSpaceTapTime = 0L
+
+    /** A swipe is no tap: the next tap starts a new double tap. Always true. */
+    private fun resetSpaceTap(): Boolean {
+        lastSpaceTapTime = 0L
+        return true
+    }
     private var lastSpaceTapCursor = -1
 
     private fun consumeSpaceDoubleTap(spaceTap: Boolean): Boolean {

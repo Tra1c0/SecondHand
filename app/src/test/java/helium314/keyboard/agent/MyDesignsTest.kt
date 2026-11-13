@@ -202,6 +202,30 @@ class MyDesignsTest {
         assertFalse(MyDesigns.imageFile(app, "d1").exists())
     }
 
+    @Test fun anOwnImageSetWhileADesignIsUsedIsNeverOverwrittenOrDeleted() {
+        start()
+        val background = Settings.getCustomBackgroundFile(app, false, false)
+        background.parentFile!!.mkdirs()
+        background.writeText("old own image")
+        val first = MyDesigns.save(app, design("d1"), File(app.cacheDir, "a.img").apply { writeText("image one") })
+        val second = MyDesigns.save(app, design("d2"), File(app.cacheDir, "b.img").apply { writeText("image two") })
+        MyDesigns.select(app, first)
+        background.writeText("new own image") // set in HeliBoard's own settings meanwhile
+
+        MyDesigns.select(app, second)
+        assertEquals("image two", background.readText())
+        MyDesigns.leaveDesign(app)
+        assertEquals("new own image", background.readText(), "the newer own image is the one that comes back")
+
+        // without any own image before, an image set meanwhile stays when the design is left
+        background.delete()
+        MyDesigns.select(app, first)
+        background.writeText("set meanwhile")
+        MyDesigns.leaveDesign(app)
+        assertEquals("set meanwhile", background.readText())
+        assertFalse(prefs.contains(MyDesigns.PREF_BACKGROUND_FROM))
+    }
+
     @Test fun aBuiltInTileDropsRadiusFontAndImageOfADesign() {
         start()
         val picked = File(app.cacheDir, "picked.img").apply { writeText("design image") }

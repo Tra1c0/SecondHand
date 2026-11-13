@@ -132,12 +132,15 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   `theme_key_borders`, `theme_auto_day_night` = aus, `theme_colors`, den Farbsatz,
   `key_gap_scale_false_false`, `keyboard_height_scale_false_false` (Hochformat) und
   `agent_key_corner_radius`/`agent_key_font` (entfernt, wenn das Design sie nicht setzt).
-  `agent_design_background` merkt, welches Design gerade sein Bild als Hintergrund hat.
+  `agent_design_background` merkt, welches Design gerade sein Bild als Hintergrund hat,
+  `agent_design_background_hash` den SHA-256 dieses Bildes.
 - Bilder: `files/agent_designs/<id>.img` im geräteverschlüsselten Speicher (neben HeliBoards
   `custom_background_image`), Kopie der gewählten Datei. `pending.img` hält ein gewähltes Bild
   bis zum Speichern. Beim Auswählen wird das Bild über `custom_background_image` kopiert; ein
   eigenes Bild von vorher liegt solange als `background_before` daneben und kommt beim Wechsel
-  zurück. Löschen eines Designs entfernt Farbsatz, Listeneintrag und Bild.
+  zurück, aber nur, wenn der Hintergrund noch genau das Designbild ist (Hash). Hat der Owner
+  inzwischen ein eigenes Bild gesetzt, bleibt dieses und wird beim nächsten Design die neue
+  Sicherung. Löschen eines Designs entfernt Farbsatz, Listeneintrag und Bild.
 - HeliBoards Sicherung erfasst die Einstellungen, aber nicht den Ordner `agent_designs/`.
 
 ## Screenshot-Kopien (23d)

@@ -256,7 +256,9 @@ stehen unten. Noch auf keinem Gerät ausprobiert.
   übergeben, der Chip sagt dann „(Tag ignoriert)“.
 - `@timer 10 min Nudeln`, `@timer 90 s`, `@timer 1:30` (1 Minute 30), `@timer 1 h 20`,
   `@timer halbe Stunde`: Chip „⏱ Timer …“ antippen, in der Uhr-App starten. Eine Zahl ohne
-  Einheit am Anfang sind Minuten (`@timer 10 Nudeln`); höchstens 24 Stunden.
+  Einheit am Anfang sind Minuten (`@timer 10 Nudeln`); höchstens 24 Stunden. Achtung: Eine Zahl
+  direkt nach der Dauer zählt mit (`@timer 5 min 3 Eier` sind 5 Minuten 3 Sekunden); der Chip
+  zeigt die erkannte Dauer, bevor du tippst.
 
 ## Design auswählen
 
@@ -272,8 +274,11 @@ sofort; gespeichert wird erst mit „Speichern und verwenden“. „Abbrechen“
 nach Rückfrage. Später: Kachel antippen wählt das Design, langes Drücken oder der Stift oben
 links auf der Kachel öffnet den Editor, dort unten „Design löschen“ (mit Rückfrage). Ein
 Design mit Bild ersetzt dein bisheriges Hintergrundbild der Tastatur, solange es gewählt ist;
-wählst du ein anderes Design oder eine eingebaute Kachel, kommt dein altes Bild zurück.
-Größe und Abstand gelten für das Hochformat.
+wählst du ein anderes Design oder eine eingebaute Kachel, kommt dein altes Bild zurück. Setzt du
+währenddessen unter „Aussehen“ ein neues eigenes Bild, bleibt dieses neue Bild. Größe und
+Abstand gelten für das Hochformat. Ein Design schaltet „Automatischer Tag-/Nachtmodus“ aus und
+stellt Abstand und Tastenhöhe um; wählst du danach eine eingebaute Kachel, bleiben diese drei
+Einstellungen so, bis du sie selbst änderst.
 
 ## Aussehen: flacher Look
 
