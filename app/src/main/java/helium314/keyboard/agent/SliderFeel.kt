@@ -88,9 +88,14 @@ class SliderFeel(
         val values = mutableListOf(start, end)
         if (defaultValue != null && defaultValue >= range.start && defaultValue <= range.endInclusive)
             values += defaultValue.toDouble()
+        // review: a round value within the zones of an end or the default would hold the finger there,
+        // and the end beyond it (e.g. -1 = system default next to 0, 1001 = no limit next to 1000) could
+        // not be reached by dragging; the ends and the default win
+        val keep = values.toList()
         var i = ceil(start / round - EPSILON).toLong()
         while (i * round <= end + round * EPSILON) {
-            values += i * round
+            val value = i * round
+            if (keep.none { abs(it - value) <= 2.0 * span * ZONE && abs(it - value) > span * 1e-4 }) values += value
             i++
         }
         val placed = values.map { value ->
@@ -174,7 +179,21 @@ class SliderDrag(
         disarmed.removeAll { abs(raw - detents[it]) > feel.rearm }
         var entered = false
         val shown: Float
-        if (held >= 0 && abs(raw - detents[held]) <= feel.radius) {
+        // review: at an end of the range (the finger cannot go beyond it) the end always wins
+        val endIndex = when {
+            detents.isEmpty() -> -1
+            raw <= detents.first() && detents.first() == feel.range.start -> 0
+            raw >= detents.last() && detents.last() == feel.range.endInclusive -> detents.lastIndex
+            else -> -1
+        }
+        if (endIndex >= 0) {
+            if (held != endIndex) {
+                held = endIndex
+                entered = true
+                disarmed.remove(endIndex)
+            }
+            shown = detents[endIndex]
+        } else if (held >= 0 && abs(raw - detents[held]) <= feel.radius) {
             shown = detents[held]
         } else {
             if (held >= 0) {

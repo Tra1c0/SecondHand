@@ -22,6 +22,28 @@ class SliderFeelTest {
     private val sink = Recorder()
     private fun drag(feel: SliderFeel) = SliderDrag(feel, sink) { sink.now }
 
+    /** Review of stage 28: an end next to a round value ("system default", "no limit") is reachable by dragging. */
+    @Test fun anEndNextToARoundValueIsReachedByDragging() {
+        fun dragTo(feel: SliderFeel, from: Float, to: Float): Float {
+            val drag = drag(feel)
+            drag.begin(from)
+            var shown = from
+            val n = 200
+            for (k in 1..n) { sink.now += 30; shown = drag.next(from + (to - from) * k / n) }
+            return shown
+        }
+        // key vibration -1..100 ms: -1 = system default, not 0 ms
+        assertEquals(-1f, dragTo(SliderFeel(-1f..100f, defaultValue = -1f, integer = true), 50f, -1f))
+        // key sound volume -0.01..1: -0.01 = system default, not volume 0
+        assertEquals(-0.01f, dragTo(SliderFeel(-0.01f..1f, defaultValue = -0.01f), 0.5f, -0.01f))
+        // clipboard file size 1..1001: 1001 = no limit, not 1000
+        assertEquals(1001f, dragTo(SliderFeel(1f..1001f, defaultValue = 20f, integer = true), 500f, 1001f))
+        // starting on the neighbour of an end works too
+        assertEquals(1001f, dragTo(SliderFeel(1f..1001f, defaultValue = 20f, integer = true), 990f, 1001f))
+        // the end is felt as a detent
+        assertEquals(Impulse.DETENT, sink.last)
+    }
+
     @Test fun ticksAndDetentsFollowTheRangeOfEachSlider() {
         // touchpad sensitivity 0..100 (Int): ticks every 5, detents every 10
         SliderFeel(0f..100f, defaultValue = 50f, integer = true).let {
@@ -38,10 +60,11 @@ class SliderFeelTest {
         }
         // font scale 0.5..1.5 (shown in percent): every 10 %
         assertEquals((5..15).map { it / 10f }, SliderFeel(0.5f..1.5f, defaultValue = 1f).detents)
-        // key vibration -1..100 ms, default -1 (system): multiples of 10 ms, and -1
+        // key vibration -1..100 ms, default -1 (system): multiples of 10 ms and -1; 0 lies within the
+        // zones of -1 and would hold the finger before the end (review), so -1 wins
         SliderFeel(-1f..100f, defaultValue = -1f, integer = true).let {
             assertEquals(5f, it.tickStep)
-            assertEquals(listOf(-1f) + (0..10).map { i -> i * 10f }, it.detents)
+            assertEquals(listOf(-1f) + (1..10).map { i -> i * 10f }, it.detents)
         }
         // long press 100..700 ms: multiples of 100
         assertEquals(listOf(100f, 200f, 300f, 400f, 500f, 600f, 700f), SliderFeel(100f..700f, defaultValue = 300f, integer = true).detents)

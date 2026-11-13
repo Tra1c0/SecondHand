@@ -2252,6 +2252,24 @@ Upstream-Dateien“).
   echte Apps); kein Prüfer-Review der Hooks in `LatinIME` und `PointerTracker` (Pflicht).
   Der Punkt-Bound des Malfelds ist nur über den Hinweis geprüft, nicht über die Punktzahl.
 
+## Zusammenführung der Runde (Etappen 28–33 ohne 29)
+
+- Etappen 30/31 nach 33 gemergt: Die Diagnose-Seite nutzte noch die alte `HapticChain`-API
+  (`Direction`); angepasst an `Feel` (`Diagnose.chain`): Rastpunkt-Tick und letzter Rastpunkt mit
+  je eigener Stufe (der letzte braucht `quick_rise`/`thud` und kann tiefer liegen), „Test“ spielt
+  den letzten Rastpunkt. `DiagnoseScreenTest` an die neuen Texte angepasst (gleiche Prüfungen,
+  zusätzlich die Stufe des letzten Punkts) und grün.
+- Prüfer (lesend) zu `51ca775` (28, 32): kein hoher Befund. Behoben (mittel): Ein Bereichsende
+  neben einer runden Rast war per Ziehen nicht erreichbar (Vibrationsdauer −1 = Systemstandard,
+  Tastenton −0,01, Zwischenablage-Größe 1001 = kein Limit). Runde Rasten in der Fangzone eines
+  Endes oder des Standardwerts entfallen, und am Bereichsende gewinnt immer das Ende. Test
+  `SliderFeelTest.anEndNextToARoundValueIsReachedByDragging` (Gegenprobe ohne die Korrektur rot);
+  die Erwartung der Rasten von −1..100 ist entsprechend ohne 0. Offen, niedrig: Tipp auf die
+  Leiste am Gerät ungeprüft; jedes Merken in „Zuletzt gemischt“ lädt die Einstellungen neu
+  (`Settings.reloadOnChanged`); bis zu 12 Dateiprüfungen im Hauptthread; Testlücken (gesperrt,
+  No-Learning beim Merken).
+- Agent-Tests auf dem Stand vor 30/31 (9363dc3): grün.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.
