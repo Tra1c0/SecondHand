@@ -171,8 +171,10 @@ Sprach-Tastatur des Systems, falls eine installiert ist.
 3. Die Pille steht zwischen den Wörtern statt der Vorschläge: im leeren Feld, nach einem
    Leerzeichen, einem Satzzeichen oder einer neuen Zeile. Tippst du den ersten Buchstaben eines
    Worts, zeigt die Leiste wieder die Vorschläge für dieses Wort; nach dem nächsten Leerzeichen
-   ist die Pille wieder da. Ein getippter Befehl (z. B. `@math`) zeigt seine Chips statt der
-   Pille.
+   ist die Pille wieder da. Steht die Schreibmarke direkt hinter einem Wort, bleibt die normale
+   Leiste. Ein getippter Befehl (z. B. `@math`) zeigt seine Chips statt der Pille. Vorschläge des
+   Passwortmanagers (Autofill) und eigene Vorschläge der App bleiben stehen; die Pille kommt erst,
+   wenn sie weg sind.
 4. Pille antippen: Das Bild wird eingefügt. Die Pille erscheint nur in Feldern, die Bilder
    annehmen. Langes Drücken (im flachen Look) oder das Kreuz blendet die Pille aus; danach
    kommen sofort wieder die normalen Vorschläge.
@@ -183,9 +185,12 @@ bevor die Kopie fertig ist, wird nichts eingefügt.
 Zwischenablage: Ist „Zwischenablage-Verlauf aktivieren“ (Einstellungen → Optionen) an, legt die
 Tastatur jeden neuen Screenshot auch als Bild in ihren eigenen Verlauf (Zwischenablage-Taste).
 Die System-Zwischenablage bleibt unberührt, andere Apps sehen ihn dort nicht. Es gelten die
-Regeln des Verlaufs (Dateien erlaubt, Größengrenze, Aufbewahrungszeit, Anheften). Nicht bei
-gesperrtem Gerät und nicht im Inkognito-Modus. Schaltest du die Screenshot-Pille aus, löscht die
-Tastatur diese Einträge wieder; angeheftete bleiben. Noch auf keinem Gerät ausprobiert.
+Regeln des Verlaufs (Dateien erlaubt, Größengrenze, Aufbewahrungszeit, Anheften). Ein
+Screenshot, den du bei gesperrtem Gerät oder in einem Inkognito-Feld machst, kommt nie in den
+Verlauf, auch nicht nach dem Entsperren; ebenso keiner, solange die Tastatur noch in keinem Feld
+war. Schaltest du die Screenshot-Pille aus, löscht die Tastatur diese Einträge wieder;
+angeheftete bleiben, und ein Bild, das du danach selbst noch einmal kopiert hast, auch. Noch auf
+keinem Gerät ausprobiert.
 
 ## Befehle (z. B. Rechner)
 

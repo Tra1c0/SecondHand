@@ -58,6 +58,7 @@ class ScreenshotChipTest {
         latinIME.prefs().edit().clear().commit()
         latinIME.getSharedPreferences(FlatPreset.BACKUP_NAME, Context.MODE_PRIVATE).edit().clear().commit()
         ScreenshotChip.resetForTest()
+        ScreenshotChip.onChange = null // the keyboard's own handler would add to the history itself; the tests call it
         ClipboardThumbnails.clear()
         image = File(latinIME.cacheDir, "Screenshot_test.png")
         val bitmap = Bitmap.createBitmap(120, 240, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.rgb(30, 120, 220)) }
@@ -194,12 +195,212 @@ class ScreenshotChipTest {
         looper.idleFor(java.time.Duration.ofMillis(200))
         assertEquals(1, changes)
         // an offered screenshot reports itself again when it gets too old
+        val start = android.os.SystemClock.uptimeMillis()
+        ScreenshotChip.clock = { now + android.os.SystemClock.uptimeMillis() - start } // the wall clock goes on with the looper
         ScreenshotChip.scheduleExpiry(shot(ScreenshotChip.RECENT_MILLIS - 1_000), now)
         looper.idleFor(java.time.Duration.ofMillis(900))
         assertEquals(1, changes)
         looper.idleFor(java.time.Duration.ofMillis(300))
         assertEquals(2, changes)
+
+        // the wall clock lags behind the uptime the expiry was planned with: it waits again instead of giving up
+        ScreenshotChip.clock = { now }
+        ScreenshotChip.scheduleExpiry(shot(ScreenshotChip.RECENT_MILLIS - 1_000), now)
+        looper.idleFor(java.time.Duration.ofMillis(1_200))
+        assertEquals(2, changes) // still fresh by the wall clock: no report, planned again
+        ScreenshotChip.clock = { now + 1_100 }
+        looper.idleFor(java.time.Duration.ofMillis(1_200))
+        assertEquals(3, changes)
         ScreenshotChip.onChange = null
+    }
+
+    /** A media change, reported after the debounce; the background work runs in place unless a test set its own. */
+    private fun seeChange() {
+        ScreenshotChip.mediaChanged()
+        shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(ScreenshotChip.DEBOUNCE_MILLIS + 100))
+    }
+
+    /** Runs the queued background work on a thread of its own; what it posts to the main thread waits for the looper. */
+    private fun runInBackground(tasks: MutableList<Runnable>) {
+        val queued = tasks.toList()
+        tasks.clear()
+        Thread { queued.forEach { it.run() } }.apply { start(); join() }
+    }
+
+    /** The history switched on, the screenshots watched, the clock fixed at [now]. */
+    private fun historyOn(): ClipboardDao {
+        val dao = assertNotNull(ClipboardDao.getInstance(latinIME))
+        dao.clear()
+        enable()
+        latinIME.prefs().edit().putBoolean(Settings.PREF_ENABLE_CLIPBOARD_HISTORY, true).commit()
+        load(text)
+        ScreenshotChip.start(latinIME)
+        ScreenshotChip.clock = { now }
+        return dao
+    }
+
+    @Test fun theMediaStoreIsAskedInTheBackgroundAndANewScreenshotIsReportedToTheStrip() {
+        enable()
+        ScreenshotChip.clock = { now }
+        val tasks = mutableListOf<Runnable>()
+        ScreenshotChip.background = java.util.concurrent.Executor { tasks += it }
+        val mainThread = Thread.currentThread()
+        val queryThreads = mutableListOf<Thread>()
+        ScreenshotChip.finder = { _, _ -> queryThreads += Thread.currentThread(); shot(1_000) }
+        var changes = 0
+        ScreenshotChip.onChange = { changes++ }
+        val looper = shadowOf(android.os.Looper.getMainLooper())
+
+        assertNull(ScreenshotChip.current(latinIME, text, now)) // nothing known yet, and no query on this thread
+        assertNull(ScreenshotChip.current(latinIME, text, now)) // no second query while one is open
+        assertTrue(queryThreads.isEmpty())
+        assertEquals(2, tasks.size) // the query and one clean-up of old copies, both in the background
+        runInBackground(tasks)
+        assertEquals(1, queryThreads.size)
+        assertTrue(queryThreads.single() !== mainThread)
+        assertEquals(0, changes) // the result comes back to the main thread
+        looper.idle()
+        assertEquals(1, changes) // a new screenshot: the strip is told
+        assertEquals(7L, ScreenshotChip.current(latinIME, text, now)?.id)
+        assertTrue(tasks.isEmpty()) // no new query and no clean-up without a reason
+
+        // a media change: debounced, queried in the background, then reported
+        ScreenshotChip.finder = { _, _ -> queryThreads += Thread.currentThread(); shot(500, id = 8) }
+        repeat(3) { ScreenshotChip.mediaChanged() }
+        looper.idleFor(java.time.Duration.ofMillis(ScreenshotChip.DEBOUNCE_MILLIS + 100))
+        assertEquals(1, tasks.size)
+        assertEquals(1, changes)
+        assertEquals(7L, ScreenshotChip.current(latinIME, text, now)?.id) // the known one until the query is done
+        runInBackground(tasks)
+        looper.idle()
+        assertEquals(2, changes)
+        assertEquals(8L, ScreenshotChip.current(latinIME, text, now)?.id)
+        assertTrue(queryThreads.none { it === mainThread })
+        ScreenshotChip.onChange = null
+    }
+
+    @Test fun theCopyForTheHistoryIsMadeInTheBackgroundAndTheEntryOnTheMainThread() {
+        val dao = historyOn()
+        ScreenshotChip.finder = { _, _ -> shot(1_000) }
+        seeChange()
+        val tasks = mutableListOf<Runnable>()
+        ScreenshotChip.background = java.util.concurrent.Executor { tasks += it }
+        val mainThread = Thread.currentThread()
+        var storeThread: Thread? = null
+        assertTrue(ScreenshotChip.addToHistory(latinIME, Settings.getValues(), dao, now) { storeThread = Thread.currentThread(); true })
+        assertNull(storeThread) // size check, copy and checksum wait for the background
+        assertEquals(0, dao.count())
+        assertFalse(ScreenshotChip.addToHistory(latinIME, Settings.getValues(), dao, now) { true }) // not twice while it is made
+        runInBackground(tasks)
+        assertTrue(storeThread != null && storeThread !== mainThread)
+        assertEquals(0, dao.count()) // the entry is made on the main thread
+        shadowOf(android.os.Looper.getMainLooper()).idle()
+        assertEquals(1, dao.count())
+        assertEquals(helium314.keyboard.latin.utils.ChecksumCalculator.checksum(image) + ".png", dao.getAt(0).filename)
+        dao.clear()
+    }
+
+    @Test fun aScreenshotFirstSeenWhileLockedOrInAnIncognitoFieldNeverGoesIntoTheHistory() {
+        val dao = historyOn()
+        // each case at its own time, so that one case does not keep out the next
+        var time = now
+        ScreenshotChip.clock = { time }
+        fun add() = ScreenshotChip.addToHistory(latinIME, Settings.getValues(), dao, time) { true }
+        fun takenAt(id: Long, millis: Long) = ScreenshotChip.Shot(id, Uri.fromFile(image), "image/png", millis)
+        val keyguard = latinIME.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+
+        // taken while locked: also not after unlocking, on the next change or the expiry
+        shadowOf(keyguard).setIsDeviceLocked(true)
+        ScreenshotChip.finder = { _, _ -> takenAt(7, time - 500) }
+        seeChange()
+        shadowOf(keyguard).setIsDeviceLocked(false)
+        assertFalse(add())
+        time += 1_000
+        seeChange()
+        assertFalse(add())
+        ScreenshotChip.resetForTest() // nor after a restart of the keyboard
+        historyOn()
+        ScreenshotChip.clock = { time }
+        ScreenshotChip.finder = { _, _ -> takenAt(7, time - 1_500) }
+        seeChange()
+        assertFalse(add())
+
+        // first seen in a field without learning (counts as incognito)
+        time += 10_000
+        load(EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT
+            imeOptions = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
+        })
+        ScreenshotChip.finder = { _, _ -> takenAt(8, time - 500) }
+        seeChange()
+        load(text)
+        assertFalse(add())
+
+        // no known field (none since the keyboard started): not allowed either
+        time += 10_000
+        load(EditorInfo())
+        ScreenshotChip.finder = { _, _ -> takenAt(9, time - 500) }
+        seeChange()
+        load(text)
+        assertFalse(add())
+
+        // a change while locked whose query failed: what was taken before it stays out after unlocking
+        time += 10_000
+        shadowOf(keyguard).setIsDeviceLocked(true)
+        val lockedAt = time
+        ScreenshotChip.finder = { _, _ -> throw IllegalStateException("not readable while locked") }
+        seeChange()
+        shadowOf(keyguard).setIsDeviceLocked(false)
+        time += 1_000
+        ScreenshotChip.finder = { _, _ -> takenAt(10, lockedAt - 500) }
+        seeChange()
+        assertFalse(add())
+
+        // the screenshot found when the keyboard starts (not reported by a change) stays out too
+        time += 10_000
+        ScreenshotChip.resetForTest()
+        historyOn()
+        ScreenshotChip.clock = { time }
+        ScreenshotChip.finder = { _, _ -> takenAt(11, time - 500) }
+        assertNotNull(ScreenshotChip.current(latinIME, text, time))
+        assertFalse(add())
+        assertEquals(0, dao.count())
+
+        // taken later, unlocked, in a normal field and reported by a change: it goes in
+        time += 10_000
+        ScreenshotChip.finder = { _, _ -> takenAt(12, time - 500) }
+        seeChange()
+        assertTrue(add())
+        assertEquals(1, dao.count())
+        dao.clear()
+    }
+
+    @Test fun onlyEntriesMadeFromScreenshotsAreRemovedAndAFailedCopyIsTriedOnceMore() {
+        val dao = historyOn()
+        fun add() = ScreenshotChip.addToHistory(latinIME, Settings.getValues(), dao, now) { true }
+        val missing = File(latinIME.cacheDir, "Screenshot_missing.png").apply { delete() }
+        ScreenshotChip.finder = { _, _ -> ScreenshotChip.Shot(7, Uri.fromFile(missing), "image/png", now - 1_000) }
+        seeChange()
+        assertTrue(add()) // started, the copy fails
+        assertEquals(0, dao.count())
+        assertTrue(add()) // tried once more
+        assertFalse(add()) // then given up
+        assertEquals(0, dao.count())
+
+        ScreenshotChip.finder = { _, _ -> shot(1_000, id = 8) }
+        seeChange()
+        assertTrue(add())
+        assertEquals(1, dao.count())
+        val copy = File(ClipboardDao.clipFilesDir, dao.getAt(0).filename!!)
+        // the user copies the same picture later: the entry moves to that time and is the user's now
+        dao.addClipUri(now + 5_000, false, Uri.fromFile(image), android.content.ClipDescription("own", arrayOf("image/png")), latinIME)
+        assertEquals(1, dao.count())
+        assertEquals(now + 5_000, dao.getAt(0).timeStamp)
+        latinIME.prefs().edit().putBoolean(AgentPreferences.SCREENSHOT_CHIP, false).commit()
+        ScreenshotChip.removeFromHistory(latinIME)
+        assertEquals(1, dao.count())
+        assertTrue(copy.exists())
+        dao.clear()
     }
 
     @Test fun newScreenshotGoesIntoTheKeyboardHistoryOnlyWithTheHistoryOnAndNeverIntoTheSystemClipboard() {
@@ -211,6 +412,9 @@ class ScreenshotChipTest {
         var shot = shot(1_000)
         ScreenshotChip.finder = { _, _ -> shot }
         enable()
+        ScreenshotChip.start(latinIME)
+        ScreenshotChip.clock = { now }
+        seeChange() // a new screenshot, reported by the media store
 
         assertFalse(ScreenshotChip.addToHistory(latinIME, values(), dao, now) { true }) // history is off by default
         assertEquals(0, dao.count())
@@ -241,9 +445,12 @@ class ScreenshotChipTest {
         assertEquals(1, dao.count())
 
         // the history's own rules: no files allowed or too large, nothing is stored
+        // (checked in the background with the copy, so the attempt itself is started)
         shot = shot(1_000, id = 8)
-        ScreenshotChip.mediaChanged()
-        assertFalse(ScreenshotChip.addToHistory(latinIME, values(), dao, now) { false })
+        seeChange()
+        assertTrue(ScreenshotChip.addToHistory(latinIME, values(), dao, now) { false })
+        assertEquals(1, dao.count())
+        assertFalse(ScreenshotChip.addToHistory(latinIME, values(), dao, now) { true }) // decided once
         assertEquals(1, dao.count())
 
         // the history removes the copy with its entry, as for any image clip
@@ -255,10 +462,10 @@ class ScreenshotChipTest {
         Bitmap.createBitmap(30, 60, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.RED) }
             .let { bitmap -> second.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) } }
         shot = shot(1_000, id = 9)
-        ScreenshotChip.mediaChanged()
+        seeChange()
         assertTrue(ScreenshotChip.addToHistory(latinIME, values(), dao, now) { true })
         shot = ScreenshotChip.Shot(10, Uri.fromFile(second), "image/png", now - 500)
-        ScreenshotChip.mediaChanged()
+        seeChange()
         assertTrue(ScreenshotChip.addToHistory(latinIME, values(), dao, now) { true })
         dao.addClip(now, false, "own text")
         assertEquals(3, dao.count())

@@ -2498,10 +2498,101 @@ class InputLogicTest {
         assertTrue(screenshotShown(strip))
         Thread.sleep(1_700)
         looper.idleFor(java.time.Duration.ofMillis(2_000))
+        // gone through the normal update: resuming suggestions brings next-word predictions back
+        assertTrue(messages.any { it.what == 4 }) // MSG_RESUME_SUGGESTIONS
         handleMessages()
         assertFalse(screenshotShown(strip))
         typeAndUpdate("ok ")
         assertFalse(screenshotShown(strip))
+    }
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun screenshotChipOnlyBetweenWordsAlsoWithoutComposition() {
+        // a field without suggestions does not compose: the character before the cursor decides
+        val strip = screenshotStrip()
+        currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+        setText("")
+        latinIME.setNeutralSuggestionStrip()
+        handleMessages()
+        assertTrue(screenshotShown(strip)) // empty before the cursor
+        typeAndUpdate("Hal")
+        assertFalse(composer.isComposingWord)
+        assertFalse(screenshotShown(strip)) // in a word, although nothing is composed
+        typeAndUpdate(' ')
+        assertTrue(screenshotShown(strip))
+        typeAndUpdate("du")
+        assertFalse(screenshotShown(strip))
+        typeAndUpdate(',')
+        assertTrue(screenshotShown(strip)) // after a word separator
+        // the cursor put right after a word (no composition there either)
+        setText("Hallo")
+        assertFalse(composer.isComposingWord)
+        latinIME.setNeutralSuggestionStrip()
+        handleMessages()
+        assertFalse(screenshotShown(strip))
+        assertEquals("Hallo", text)
+    }
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun screenshotChipKeepsTheAppsCompletionsAndInlineAutofill() {
+        val strip = screenshotStrip()
+        assertTrue(screenshotShown(strip))
+        // completions of the app (fullscreen editor with auto complete)
+        currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_AUTO_COMPLETE
+        setText("")
+        latinIME.mSettings.loadSettings(latinIME, latinIME.mSettings.current.mLocale,
+            InputAttributes(latinIME.currentInputEditorInfo, true, latinIME.packageName))
+        assertTrue(latinIME.mSettings.current.mInputAttributes.mApplicationSpecifiedCompletionOn)
+        latinIME.onDisplayCompletions(arrayOf(android.view.inputmethod.CompletionInfo(1, 0, "Hallo")))
+        handleMessages()
+        assertFalse(screenshotShown(strip))
+        assertTrue(stripWords(strip).contains("Hallo"))
+        latinIME.onDisplayCompletions(null) // none any more: the chip
+        handleMessages()
+        assertTrue(screenshotShown(strip))
+
+        // inline autofill stays when a new screenshot is reported
+        currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+        setText("")
+        assertTrue(screenshotShown(strip))
+        val autofill = android.widget.TextView(latinIME).apply { text = "Autofill" }
+        latinIME.showInlineAutofill(autofill)
+        assertFalse(screenshotShown(strip))
+        assertTrue(latinIME.isShowingInlineAutofill)
+        var shot: helium314.keyboard.agent.ScreenshotChip.Shot? = screenshot(id = 21)
+        helium314.keyboard.agent.ScreenshotChip.finder = { _, _ -> shot }
+        helium314.keyboard.agent.ScreenshotChip.mediaChanged()
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper())
+            .idleFor(java.time.Duration.ofMillis(2 * helium314.keyboard.agent.ScreenshotChip.DEBOUNCE_MILLIS))
+        handleMessages()
+        assertFalse(screenshotShown(strip))
+        assertTrue(latinIME.isShowingInlineAutofill)
+        assertNotNull(autofill.parent?.parent)
+        latinIME.removeExternalSuggestions() // closed: now the chip
+        handleMessages()
+        assertFalse(latinIME.isShowingInlineAutofill)
+        assertTrue(screenshotShown(strip))
+        shot = null
+    }
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun screenshotChipHidesTheToolbarLikeTheClipboardChipAndIsMadeAnewForANewTheme() {
+        latinIME.prefs().edit { putBoolean(Settings.PREF_AUTO_HIDE_TOOLBAR, true) }
+        val strip = screenshotStrip()
+        typeAndUpdate("Hal")
+        strip.setToolbarVisibility(true) // opened while typing
+        typeAndUpdate(' ')
+        assertTrue(screenshotShown(strip)) // the toolbar went, as for the clipboard chip
+        val chip = screenshotChipText(strip)!!.parent
+        typeAndUpdate("du ")
+        kotlin.test.assertSame(chip, screenshotChipText(strip)!!.parent) // the same chip while nothing changed
+        // a new theme or design: new colours, a new chip
+        latinIME.mSettings.loadSettings(latinIME, latinIME.mSettings.current.mLocale,
+            InputAttributes(latinIME.currentInputEditorInfo, false, latinIME.packageName))
+        latinIME.setNeutralSuggestionStrip()
+        handleMessages()
+        assertTrue(screenshotShown(strip))
+        kotlin.test.assertNotSame(chip, screenshotChipText(strip)!!.parent)
     }
 
     private lateinit var screenshotImage: java.io.File

@@ -263,13 +263,17 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
   (Kartenstil, quadratische Bilder), `ClipboardHistoryEntry.kt` und `ClipboardHistoryManager.kt`
   (Bilder über `ClipboardThumbnails`, Chip im flachen Stil), jeweils als Aufruf in
   `FlatClipboard`. `ClipboardHistoryManager.getClipboardSuggestionView` bietet zuerst einen
-  frischen Screenshot an (`getScreenshotSuggestionView`, nur ohne laufende Komposition, 23g);
+  frischen Screenshot an (`getScreenshotSuggestionView`, nur zwischen den Wörtern nach
+  `screenshotMayReplaceStrip`, 23g);
   `hideSuggestionView` blendet einen Chip aus, ohne den Clip als erledigt zu markieren.
   `onCreate` setzt `ScreenshotChip.onChange` auf `onScreenshotChange` (Verlaufseintrag, dann Pille
   sofort zeigen oder nach Ablauf entfernen) und startet den Observer.
 - `LatinIME.java` (23g): `setSuggestedWords` ruft nach `tryShowCommandChips` und nach
-  `mInputLogic.setSuggestedWords` `tryShowScreenshotChip`; die Pille ersetzt also nur die Anzeige,
-  die Vorschläge für die Autokorrektur bleiben in `InputLogic`. `InputLogic` selbst ist
+  `mInputLogic.setSuggestedWords` `tryShowScreenshotChip` (blendet bei `mAutoHideToolbar` die
+  Symbolleiste aus wie der Zwischenablage-Chip); die Pille ersetzt also nur die Anzeige, die
+  Vorschläge für die Autokorrektur bleiben in `InputLogic`. `onInlineSuggestionsResponse` zeigt
+  Autofill über `showInlineAutofill` und merkt sich die View; `isShowingInlineAutofill` sagt, ob
+  sie noch in der Leiste hängt (`removeExternalSuggestions` vergisst sie). `InputLogic` selbst ist
   unverändert.
 - `KeyboardActionListenerImpl.kt`: `KeyCode.AGENT_ACTIONS` öffnet im flachen Stil das Panel statt
   des Rads.
@@ -876,27 +880,51 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Abfrage, beim Ausschalten werden alle gelöscht. Benutzt oder geschlossen, kommt derselbe
   Screenshot nicht wieder (ID in `agent_screenshot_dismissed`). Einstellungen und
   Berechtigung: `K/settings/screens/AgentScreenshotScreen.kt`. Test: `ScreenshotChipTest`.
-  Etappe 23g „Screenshot zuerst“: Der Observer ruft `mediaChanged` (setzt `stale`, meldet nach
-  `DEBOUNCE_MILLIS` = 500 ms Ruhe einmal `onChange` auf dem Main-Thread); `start` hängt ihn schon
-  beim Start der Tastatur an. `ClipboardHistoryManager.onScreenshotChange` zeigt die Pille nur bei
-  sichtbarer Tastatur und ohne Komposition (`InputLogic.hasActiveComposition`) über
-  `setNeutralSuggestionStrip` (Befehlschips zuerst); im Modus EXPANDABLE wird die Symbolleiste
-  eingeklappt wie bei Befehlschips. Während ein Wort komponiert wird, zeigt die Leiste dessen
-  Vorschläge; an der nächsten Wortgrenze ersetzt die Pille die Vorhersagen bzw. die neutrale
-  Leiste, bis sie benutzt, geschlossen oder zu alt ist. `scheduleExpiry` meldet den Ablauf nach
-  drei Minuten, dann kommt die normale Leiste zurück. Die Pillen-View wird für denselben
-  Screenshot wiederverwendet. Verlauf: `addToHistory` legt den neuesten Screenshot einmal
-  (`agent_screenshot_history_id`) über `ClipboardDao.addClipUri` als Bild in den Verlauf der
-  Tastatur, nur mit Schalter, Berechtigung und eingeschaltetem Verlauf, nicht im Inkognito-Modus
-  und nicht bei gesperrtem Gerät (live über `isDeviceLocked`, weil der Observer auch ohne
-  sichtbare Tastatur meldet), und nur, wenn der Verlauf Dateien dieser Größe nimmt
-  (`maySaveFromUri`). Die Kopie liegt wie jedes Bild-Clip in `files/clipboard/` (FileProvider
-  `clipboard_data`) und wird mit dem Eintrag gelöscht (Ablauf, Löschen, Leeren). Die Dateinamen
-  der so angelegten Einträge stehen in `agent_screenshot_history_files`; `removeFromHistory`
-  (Schalter aus in den Einstellungen oder `stopWatching`) löscht diese Einträge außer
-  angehefteten, nie während die Verlaufsansicht offen ist. Die System-Zwischenablage wird nie
-  gesetzt. Das Kopieren läuft wie bei `fetchPrimaryClip` auf dem Main-Thread. Tests:
-  `ScreenshotChipTest` (Entprellen, Ablauf, Verlauf), `InputLogicTest.screenshotChip*`.
+  Etappe 23g „Screenshot zuerst“: Der Observer ruft `mediaChanged` (setzt `stale`; nach
+  `DEBOUNCE_MILLIS` = 500 ms Ruhe startet `settle` die Abfrage, `deliver` meldet danach einmal
+  `onChange` auf dem Main-Thread); `start` hängt ihn schon beim Start der Tastatur an. Threads:
+  Abfrage (`finder`), Größenprüfung, Kopie und Prüfsumme für den Verlauf und das Aufräumen der
+  Kopien (`scheduleCleanUp`, nur solange `copiesMayExist`) laufen auf `background` (eigener
+  Einzel-Thread, nicht `ExecutorUtils.KEYBOARD`, auf den `FileUtils` mit einem Latch wartet);
+  `current`/`newest` lesen auf dem Main-Thread nur `cached` und stoßen bei `stale` eine Abfrage
+  an (`refresh`, nie zwei zugleich, eine Änderung währenddessen fragt danach noch einmal);
+  Ergebnisse kommen über `onMain` (`postAtTime`) zurück, ein neues Ergebnis meldet `onChange`.
+  `resetForTest` lässt `background` an Ort und Stelle laufen; `clock` ist die Wanduhr (Tests).
+  `ClipboardHistoryManager.onScreenshotChange` zeigt die Pille nur bei sichtbarer Tastatur und
+  zwischen den Wörtern über `setNeutralSuggestionStrip` (Befehlschips zuerst); im Modus
+  EXPANDABLE wird die Symbolleiste eingeklappt wie bei Befehlschips. „Zwischen den Wörtern“
+  (`screenshotMayReplaceStrip`): keine Komposition, vor der Schreibmarke nichts, ein Leerraum
+  oder ein Worttrenner (`isWordSeparator`), so auch in Feldern ohne Komposition; kein
+  Inline-Autofill (`LatinIME.isShowingInlineAutofill`) und keine nicht leeren App-Vorschläge
+  (`mApplicationSpecifiedCompletionOn`, Stil `INPUT_STYLE_APPLICATION_SPECIFIED`). Während ein
+  Wort getippt wird, zeigt die Leiste dessen Vorschläge; an der nächsten Wortgrenze ersetzt die
+  Pille die Vorhersagen bzw. die neutrale Leiste, bis sie benutzt, geschlossen oder zu alt ist.
+  `scheduleExpiry` meldet den Ablauf nach drei Minuten; ist der Screenshot nach der Wanduhr noch
+  frisch (Uptime und Wanduhr laufen auseinander), plant `expiry` neu. Danach blendet
+  `hideSuggestionView` die Pille aus und stößt `postResumeSuggestions` an, das über
+  `restartSuggestionsOnWordTouchedByCursor` die Wortvorhersagen zurückholt. Die Pillen-View wird
+  für denselben Screenshot nur mit denselben `Colors` wiederverwendet (neues Design oder neue
+  Einstellungen: neue View). Verlauf: Beim ersten Sehen eines Screenshots entscheidet `deliver`
+  einmal, ob er in den Verlauf darf: nur wenn eine Medienänderung ihn höchstens
+  `HISTORY_MAX_AGE` = 60 s nach der Aufnahme meldet, er nach der letzten Änderung bei
+  unerlaubtem Zustand aufgenommen wurde (`privacyBlockMillis`, gesetzt in `mediaChanged`) und
+  `privacyAllowsHistory` gilt (Gerät entsperrt, letztes Feld bekannt und nicht inkognito, auch
+  bei ausgeblendeter Tastatur). Sonst steht seine ID sofort in `agent_screenshot_history_id` und
+  er kommt nie hinein, auch nicht nach dem Entsperren oder einem Neustart. `addToHistory` prüft
+  dazu live Schalter, Berechtigung, Verlauf, Inkognito und Sperre, kopiert auf `background`
+  (`maySaveFromUri`, Kopie nach `files/agent_screenshot_pending/`, SHA-256) und legt den Eintrag
+  in `finishHistory` auf dem Main-Thread an (`ClipboardDao.insertNewEntry`, Datei umbenannt nach
+  `files/clipboard/<sha256>.<endung>` wie bei `addClipUri`). Liegt dasselbe Bild schon im
+  Verlauf, bleibt dieser Eintrag unberührt. Ein Fehler beim Kopieren wird einmal wiederholt, dann
+  aufgegeben. Die Kopie wird wie jedes Bild-Clip mit dem Eintrag gelöscht (FileProvider
+  `clipboard_data`). Angelegte Einträge stehen als „ID:Zeitstempel“ in
+  `agent_screenshot_history_entries`; `removeFromHistory` (Schalter aus in den Einstellungen oder
+  `stopWatching`) löscht nur Einträge mit unveränderter ID und Zeit, außer angehefteten, nie
+  während die Verlaufsansicht offen ist. Kopiert der Nutzer dasselbe Bild selbst, bekommt der
+  Eintrag eine neue Zeit und bleibt. Die System-Zwischenablage wird nie gesetzt. Tests:
+  `ScreenshotChipTest` (Entprellen, Ablauf mit Neuplanung, Threads von Abfrage und Kopie,
+  Sperre/Inkognito beim ersten Sehen, Verlauf, eigene Kopie bleibt, Wiederholung),
+  `InputLogicTest.screenshotChip*`.
 - Panel: `K/agent/FlatPanelStyle.kt` ändert nur Aussehen und Reihenfolge von `AgentPanelView`
   (IDs, View-Typen und Callbacks bleiben): Kopfzeile mit rundem Zurück- und Einstellungs-Knopf
   (Text als `contentDescription`), Ergebnisblock direkt unter Senden/Abbrechen, Beschreibung und
@@ -1286,8 +1314,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Bei so einem `VerifyError` zuerst den letzten neuen Zugriff auf `Defaults` prüfen.
 - **P51** `InputLogicTest` ersetzt `Handler.sendMessage` und `sendMessageDelayed` für alle
   Handler und gibt die Nachrichten an `LatinIME.mHandler`. Fork-Code, der dort läuft, plant
-  deshalb mit `postAtTime` (`ScreenshotChip.postIn`), sonst landet sein Runnable im falschen
-  Handler. In `apply { }` auf einem `EditorInfo` meint `contentMimeTypes` das Feld des
+  deshalb mit `postAtTime` (`ScreenshotChip.postIn`, auch `onMain` für Ergebnisse vom
+  Hintergrund-Thread), sonst landet sein Runnable im falschen Handler. In `apply { }` auf einem `EditorInfo` meint `contentMimeTypes` das Feld des
   `EditorInfo` (wie P34); die Shadow-Variable heißt deshalb `acceptedMimeTypes`. Robolectric:
   `FileProvider` merkt sich die Pfade der ersten Test-App; ein späterer Test derselben Klasse
   bekommt dann für seine Dateien eine Ausnahme. In Tests nur einmal pro Klasse `getUriForFile`.
