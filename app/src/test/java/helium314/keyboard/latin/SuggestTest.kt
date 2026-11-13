@@ -603,6 +603,16 @@ class SuggestTest {
         assertEquals(listOf("Kaze", "🐈", "🐱"), alone.mSuggestedWordInfoList.map { it.mWord })
     }
 
+    @Test fun emojiSuggestionsWithTheTypedWordInTheMiddle() {
+        currentTypingLocale = Locale.GERMAN
+        loadEmojiKeywords()
+        latinIME.prefs().edit { putBoolean(Settings.PREF_CENTER_SUGGESTION_TEXT_TO_ENTER, true) }
+        val result = getSuggestedWords(false, "Kaze", CapsMode.OFF)
+        assertFalse(result.mWillAutoCorrect)
+        // the typed word is shown in the middle, the emojis only beside it
+        assertEquals(listOf("Kaze", "Kaze", "🐈", "🐱"), result.mSuggestedWordInfoList.map { it.mWord })
+    }
+
     @Test fun emojiSuggestionsCountHeliBoardsOwnEmojis() {
         currentTypingLocale = Locale.GERMAN
         loadEmojiKeywords()

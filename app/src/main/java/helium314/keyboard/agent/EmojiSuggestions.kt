@@ -48,11 +48,29 @@ object EmojiSuggestions {
         }, "agent-emoji-keywords").apply { isDaemon = true; start() }
     }
 
-    /** Tests: use [keywords] (null = no table) and never load from assets. */
+    private const val LOCK_CHECK_MS = 2_000L
+    @Volatile private var lockCheckedAt = 0L
+    @Volatile private var locked = false
+
+    /** `KeyguardManager.isDeviceLocked` is a call into the system: asked at most every [LOCK_CHECK_MS]. */
+    private fun isLocked(context: Context): Boolean {
+        val now = android.os.SystemClock.uptimeMillis()
+        if (lockCheckedAt == 0L || now - lockCheckedAt >= LOCK_CHECK_MS) {
+            locked = helium314.keyboard.compat.isDeviceLocked(context)
+            lockCheckedAt = now
+        }
+        return locked
+    }
+
+    /** Tests: use [keywords] (null = no table) and never load from assets; forgets the lock state. */
     fun setTableForTest(keywords: EmojiKeywords?) {
         loadStarted.set(true)
         table = keywords
+        lockCheckedAt = 0L
     }
+
+    /** Tests: ask the lock state again on the next hit. */
+    fun forgetLockStateForTest() { lockCheckedAt = 0L }
 
     fun isOn(settings: SettingsValues): Boolean =
         settings.mSuggestEmojis && !settings.mIncognitoModeEnabled && !settings.mInputAttributes.mIsPasswordField
@@ -80,8 +98,8 @@ object EmojiSuggestions {
             .filter { emoji -> !SupportedEmojis.isUnsupported(emoji) && suggestions.none { it.mWord == emoji } }
             .take(wanted)
         if (found.isEmpty()) return
-        // locked device: nothing extra (asked only after a hit, so ordinary key presses pay nothing)
-        if (context != null && helium314.keyboard.compat.isDeviceLocked(context)) return
+        // locked device: nothing extra (asked only after a hit, at most every LOCK_CHECK_MS)
+        if (context != null && isLocked(context)) return
         var index = minOf(2, suggestions.size)
         // keep HeliBoard's own emojis first
         while (index < suggestions.size && suggestions[index].isEmoji) index++

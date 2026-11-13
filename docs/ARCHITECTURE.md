@@ -336,7 +336,7 @@ Speicher, Datenschutz und Identität:
   jedem Fehler; ein schon entpacktes `emoji.dict` wird wiederverwendet (Fallstrick P52). `DictionaryUtils.kt`
   (`getDictionaryLocales`, Aufräumen) und `DictionaryScreen.kt` zählen ein Emoji-Wörterbuch nicht
   als eigene Sprache bzw. als internes Hauptwörterbuch. Test: `BundledEmojiDictTest`.
-- Tolerante Emoji-Vorschläge (Etappe 35, Fallstricke P115–P117): `Suggest.kt`
+- Tolerante Emoji-Vorschläge (Etappe 35, Fallstricke P115–P118): `Suggest.kt`
   (`getSuggestedWordsForNonBatchInput`, nach der Entscheidung über die automatische Korrektur und
   vor dem Einfügen des getippten Worts) ruft `A/EmojiSuggestions.addTo`. Das setzt bis zu zwei
   Emojis (zusammen mit denen des Emoji-Wörterbuchs) an Index `min(2, size)` des Containers, hinter
@@ -344,17 +344,21 @@ Speicher, Datenschutz und Identität:
   bei anstehender Korrektur nie an Index 0. Quelle `EmojiSuggestions.DICTIONARY`
   (`PhonyDictionary` vom Typ `emoji`). Nur beim Tippen (nicht Gesten, nicht Vorhersagen nach dem
   Leerzeichen), nur mit „Emojis vorschlagen“, nicht in Passwortfeldern, bei Inkognito (auch
-  `IME_FLAG_NO_PERSONALIZED_LEARNING`), bei gesperrtem Gerät oder für ein Befehlswort.
-  „Echtes Wort“ (keine Wortanfänge, keine Tippfehler) heißt: die Ergebnisse des Wörterbuchs
-  enthalten das getippte Wort. `EmojiSuggestions` liest `assets/emoji_keywords.bin` einmal auf
+  `IME_FLAG_NO_PERSONALIZED_LEARNING`), bei gesperrtem Gerät (erst nach einem Treffer gefragt,
+  höchstens alle 2 s, weil `isDeviceLocked` ein Systemaufruf ist) oder für ein Befehlswort.
+  „Echtes Wort“ heißt: die Ergebnisse des Wörterbuchs enthalten das getippte Wort; dann keine
+  Wortanfänge, keine Tippfehler und nur die Hauptsprache (P118). `EmojiSuggestions` liest `assets/emoji_keywords.bin` einmal auf
   einem eigenen Daemon-Thread (`ensureLoading`, beim ersten getippten Wort über
   `Settings.getCurrentContext`); bis dahin kommt nichts dazu. `setTableForTest` für Tests.
   Kern: `C/EmojiKeywords.kt` (Format lesen, Index je Sprache: gefaltete Stichwörter mit Varianten
   „käse“/„kaese“, Stämme, sortierte Schlüssel; `suggest` in fünf Stufen exakt, Synonym, Wortform,
   Wortanfang ab 4 Buchstaben, ein Tippfehler ab 4 Buchstaben mit gleichem Anfangsbuchstaben;
-  Rangfolge: Name des Emojis oder sehr häufiges Emoji, dann `POPULAR`, Art des Treffers, wenige
-  Stichwörter, Reihenfolge der Emoji-Ansicht; `STOPWORDS`, allgemeine Stichwörter mit über 40
-  Emojis ohne eigenen Namen geben nichts), `C/EmojiSynonyms.kt` (feste Liste Umgangssprache und
+  Rangfolge `group`: zuerst das Emoji, das das Wort benennt, und ein sehr häufiges Emoji, in
+  dessen Namen das Wort steht; dann ganze Stichwörter (häufige zuerst), zuletzt Wörter aus
+  mehrteiligen Stichwörtern; danach `POPULAR`, wenige Stichwörter, Reihenfolge der Emoji-Ansicht.
+  Wörter aus mehrteiligen Stichwörtern („zu viel gegessen“) zählen nur exakt, ab 5 Buchstaben,
+  nie für Stämme, Wortanfänge oder Tippfehler (`strong`); `STOPWORDS` und allgemeine Stichwörter
+  mit über 40 Emojis ohne eigenen Namen geben nichts), `C/EmojiSynonyms.kt` (feste Liste Umgangssprache und
   Chat-Kürzel). Sprachen: Hauptsprache, dann Deutsch und Englisch. Generator
   `tools/emoji_keywords.py` (Quelle, Summen: `docs/BUILD.md` → Emoji-Stichwörter). Tests
   `CT/EmojiKeywordsTest.kt` (mit Zeitmessung), `SuggestTest.emoji*`,
@@ -1770,6 +1774,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   (`EmojiKeywords.STOPWORDS`) werden deshalb ungefaltet verglichen, sonst bekäme „schön“ nie ein
   Emoji. Der einfache Stammformer schneidet nur einmal ab, „maus“ wird zu „mau“, „mäuse“ zu
   „maus“; die Wortform-Stufe sucht den Stamm deshalb auch als ganzes Stichwort.
+- **P118** Deutsch und Englisch teilen viele Schreibweisen mit anderer Bedeutung („Tag“ 🏷️,
+  „Gift“ 🎁, „Art“ 🖼️). Ein Wort, das im Wörterbuch steht, fragt deshalb nur die Hauptsprache;
+  andere Sprachen nur für Wörter, die das Wörterbuch nicht kennt („love“ beim deutschen Tippen).
+  Ebenso fließen Wörter aus mehrteiligen Stichwörtern nicht in Stämme: sonst trafen „viel“
+  („zu viel gegessen“), „macht“ („sauber machen“) und „sagt“ („Säge“).
 
 ## Datei-Inventar
 

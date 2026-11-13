@@ -1097,7 +1097,9 @@ class InputLogicTest {
         assertTrue("🐈" in typedEmojiSuggestionsFor("Katzen"))
         val keyguard = org.robolectric.Shadows.shadowOf(latinIME.getSystemService(android.app.KeyguardManager::class.java))
         keyguard.setIsDeviceLocked(true)
+        helium314.keyboard.agent.EmojiSuggestions.forgetLockStateForTest()
         try { assertFalse("🐈" in typedEmojiSuggestionsFor("Katzen")) } finally { keyguard.setIsDeviceLocked(false) }
+        helium314.keyboard.agent.EmojiSuggestions.forgetLockStateForTest()
         assertTrue("🐈" in typedEmojiSuggestionsFor("Katzen"))
         // the app asks for no personalized learning (an incognito tab)
         latinIME.mSettings.loadSettings(latinIME, settingsValues.mLocale, InputAttributes(
