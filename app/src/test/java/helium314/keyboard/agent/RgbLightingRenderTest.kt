@@ -26,6 +26,7 @@ import dev.agentkeyboard.core.RgbPattern
 import dev.agentkeyboard.core.RgbRun
 import dev.agentkeyboard.core.RgbSettings
 import dev.agentkeyboard.core.RgbTapReaction
+import dev.agentkeyboard.core.RgbTarget
 import dev.agentkeyboard.core.ProfileGroup
 import helium314.keyboard.ShadowInputMethodManager2
 import helium314.keyboard.ShadowProximityInfo
@@ -68,6 +69,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -125,7 +127,8 @@ class RgbLightingRenderTest {
     }
 
     @Test fun keyBackgroundsTakeTheLightAtTheirCentre() {
-        use(lit)
+        // "one colour per key" (stage 26 behaviour, now an option): the whole key in its centre colour
+        use(lit.copy(solidKeys = true))
         val (keyboard, picture) = render("rgb-keys.png")
         assertNotNull(lastView.rgbPainter)
         val engine = RgbEngine(lit).apply { aspect = HEIGHT.toFloat() / WIDTH }
@@ -462,6 +465,147 @@ class RgbLightingRenderTest {
         // reset turns it off
         store.reset(ProfileGroup.DESIGN)
         assertFalse(RgbLighting.read(prefs).enabled)
+    }
+
+    // --- stage 29: smooth keys, textures, own looks per element ---
+
+    /** The smooth light under the keys (29b) as the test expects it: the 48-column grid, bilinear. */
+    private fun expectedSmooth(engine: RgbEngine, px: Int, py: Int): Int {
+        val cols = RgbTexture.COLUMNS
+        val rows = Math.round(cols * HEIGHT.toFloat() / WIDTH).coerceIn(2, RgbTexture.MAX_ROWS)
+        fun cell(c: Int, r: Int): Int {
+            val x = (c.coerceIn(0, cols - 1) + 0.5f) / cols
+            val y = (r.coerceIn(0, rows - 1) + 0.5f) / rows
+            return engine.effects(engine.base(x, y), x, y, RgbEngine.FIELD_KEYS, 0)
+        }
+        val gx = (px + 0.5f) / WIDTH * cols - 0.5f
+        val gy = (py + 0.5f) / HEIGHT * rows - 0.5f
+        val c0 = kotlin.math.floor(gx).toInt()
+        val r0 = kotlin.math.floor(gy).toInt()
+        val fx = gx - c0
+        val fy = gy - r0
+        // premultiplied, as the bitmap filter blends
+        fun pre(c: Int, shift: Int) = ((c shr shift) and 0xFF) * (c ushr 24) / 255f
+        fun mix(shift: Int): Float {
+            val top = pre(cell(c0, r0), shift) * (1 - fx) + pre(cell(c0 + 1, r0), shift) * fx
+            val bottom = pre(cell(c0, r0 + 1), shift) * (1 - fx) + pre(cell(c0 + 1, r0 + 1), shift) * fx
+            return top * (1 - fy) + bottom * fy
+        }
+        val aTop = (cell(c0, r0) ushr 24) * (1 - fx) + (cell(c0 + 1, r0) ushr 24) * fx
+        val aBottom = (cell(c0, r0 + 1) ushr 24) * (1 - fx) + (cell(c0 + 1, r0 + 1) ushr 24) * fx
+        val a = aTop * (1 - fy) + aBottom * fy
+        val theme = colors.get(ColorType.KEY_BACKGROUND)
+        fun ch(shift: Int) = Math.round(mix(shift) + ((theme shr shift) and 0xFF) * (1 - a / 255f))
+        return RgbColors.argb(255, ch(16), ch(8), ch(0))
+    }
+
+    private fun close(expected: Int, actual: Int, tolerance: Int = 4) =
+        listOf(16, 8, 0).all { kotlin.math.abs(((expected shr it) and 0xFF) - ((actual shr it) and 0xFF)) <= tolerance }
+
+    @Test fun smoothKeysRunTheLightAcrossEachKey() {
+        // 29b default: no single colour per key, the light runs on inside the key and across the gaps
+        use(lit)
+        val (keyboard, picture) = render("rgb-smooth-keys.png")
+        val engine = RgbEngine(lit).apply { aspect = HEIGHT.toFloat() / WIDTH }
+        val q = keyboard.key("q")
+        val left = picture.getPixel(q.x + 10, q.y + q.height - 12)
+        val right = picture.getPixel(q.x + q.width - 10, q.y + q.height - 12)
+        assertNotEquals(left, right, "colour changes inside the key")
+        for ((x, y) in listOf(q.x + 10 to q.y + q.height - 12, q.x + q.width - 10 to q.y + q.height - 12)) {
+            val expected = expectedSmooth(engine, x, y)
+            assertTrue(close(expected, picture.getPixel(x, y)), "at $x,$y expected ${hex(expected)} was ${hex(picture.getPixel(x, y))}")
+        }
+        // neighbouring keys continue each other: right edge of q close to the left edge of w
+        val w = keyboard.key("w")
+        val step = maxChannelStep(picture.getPixel(q.x + q.width - 6, q.y + q.height - 12), picture.getPixel(w.x + 6, w.y + w.height - 12))
+        val solidStep = maxChannelStep(RgbColors.applyLight(colors.get(ColorType.KEY_BACKGROUND), engine.light(centreX(q), centreY(q), 0, 0)),
+            RgbColors.applyLight(colors.get(ColorType.KEY_BACKGROUND), engine.light(centreX(w), centreY(w), 0, 0)))
+        assertTrue(step * 3 < solidStep, "edge step $step vs one colour per key $solidStep")
+        // the gaps stay the keyboard background: the light follows the key shape (mask)
+        assertEquals("#000000", hex(picture, q.x + q.width + 8, q.y + q.height / 2))
+        assertTrue(lastView.rgbPainter!!.maskCount > 0)
+    }
+
+    /** Ratio of the bright to the dark end (90th to 10th percentile) of luminance values: dots on a panel. */
+    private fun spread(values: List<Double>): Double {
+        val sorted = values.sorted()
+        return (sorted[sorted.size * 9 / 10] + 0.05) / (sorted[sorted.size / 10] + 0.05)
+    }
+
+    private fun maxChannelStep(a: Int, b: Int) = listOf(16, 8, 0).maxOf { kotlin.math.abs(((a shr it) and 0xFF) - ((b shr it) and 0xFF)) }
+
+    @Test fun texturePatternsDrawOnKeysAndBackground() {
+        val previews = File("build/agent-previews").apply { mkdirs() }
+        for (pattern in RgbPattern.entries.filter { it.textured }) {
+            use(RgbSettings(enabled = true, pattern = pattern, layers = setOf(RgbLayer.KEY_BACKGROUND, RgbLayer.KEYBOARD_BACKGROUND, RgbLayer.LABEL),
+                areas = RgbArea.entries.toSet()))
+            RgbLighting.load(latinIME)
+            val (keyboard, picture) = render("rgb-$pattern.png")
+            File("build/reports/rgb-lighting/rgb-$pattern.png").copyTo(File(previews, "rgb-keyboard-${pattern.name.lowercase()}.png"), overwrite = true)
+            val q = keyboard.key("q")
+            val g = keyboard.key("g")
+            // the light is there (not the Flat grey) on keys and in the gaps
+            assertNotEquals("#4C4C4C", hex(picture, q.x + 12, q.y + q.height - 12), "$pattern on keys")
+            // labels stay readable against what the painter counts as behind them
+            val painter = assertNotNull(lastView.rgbPainter)
+            painter.beginDraw(lastView)
+            painter.beginKey(g, g.drawX + lastView.paddingLeft, g.y + lastView.paddingTop)
+            assertNotEquals(Color.WHITE, painter.labelColor(Color.WHITE), "$pattern: the label takes the light")
+        }
+        // LED: the dark panel with holes shows on the keys and between them
+        use(RgbSettings(enabled = true, pattern = RgbPattern.LED, layers = setOf(RgbLayer.KEY_BACKGROUND, RgbLayer.KEYBOARD_BACKGROUND)))
+        val (keyboard, led) = render("rgb-led-check.png")
+        val k = keyboard.key("k")
+        val onKey = (k.y + 8 until k.y + k.height - 8).flatMap { y -> (k.x + 8 until k.x + k.width - 8).map { x -> RgbColors.luminance(led.getPixel(x, y)) } }
+        assertTrue(spread(onKey) > 4.0, "LED panel and lit dots on a key: ${spread(onKey)}")
+        // hatching: dark lines repeat along a row of a key
+        use(RgbSettings(enabled = true, pattern = RgbPattern.HATCH, areas = RgbArea.KEYS))
+        val (kb2, hatch) = render("rgb-hatch-check.png")
+        val h = kb2.key("h")
+        val row = (h.x + 6 until h.x + h.width - 6).map { RgbColors.luminance(hatch.getPixel(it, h.y + h.height - 14)) }
+        val minima = (1 until row.size - 1).count { row[it] < row[it - 1] && row[it] <= row[it + 1] }
+        assertTrue(minima >= 4, "hatching lines across the key: $minima")
+    }
+
+    @Test fun everyElementCanHaveItsOwnLook() {
+        val base = RgbSettings(enabled = true, pattern = RgbPattern.STATIC_RAINBOW,
+            layers = setOf(RgbLayer.KEY_BACKGROUND, RgbLayer.KEYBOARD_BACKGROUND), areas = RgbArea.entries.toSet()).withSeparate(true)
+        val own = base.withLook(RgbTarget.BACKGROUND, base.lookFor(RgbTarget.BACKGROUND).copy(pattern = RgbPattern.LED))
+            .withLook(RgbTarget.KEYS, base.lookFor(RgbTarget.KEYS).copy(pattern = RgbPattern.INK, rainbow = false,
+                palette = listOf(0xFF14B8A6.toInt(), 0xFFF5D90A.toInt(), 0xFFE11D2E.toInt())))
+        use(own)
+        val (keyboard, picture) = render("rgb-own-looks.png")
+        File("build/agent-previews").mkdirs()
+        File("build/reports/rgb-lighting/rgb-own-looks.png").copyTo(File("build/agent-previews/rgb-keyboard-own-looks.png"), overwrite = true)
+        assertNotSame(RgbLighting.engineFor(RgbTarget.KEYS), RgbLighting.engineFor(RgbTarget.BACKGROUND))
+        assertEquals(RgbPattern.INK, RgbLighting.engineFor(RgbTarget.KEYS).settings.pattern)
+        assertEquals(RgbPattern.LED, RgbLighting.engineFor(RgbTarget.BACKGROUND).settings.pattern)
+        // the gap below the top row shows the LED panel of the background, the keys do not
+        val q = keyboard.key("q")
+        // the gap right of q, along the whole key height
+        val gap = (q.y until q.y + q.height).map { RgbColors.luminance(picture.getPixel(q.x + q.width + 6, it)) }
+        assertTrue(spread(gap) > 4.0, "LED panel in the gap: ${spread(gap)}")
+        // ink keys only take colours of their own palette (teal, yellow, red and blends, darkened)
+        val a = keyboard.key("a")
+        for (x in a.x + 10 until a.x + a.width - 10 step 7) {
+            val p = picture.getPixel(x, a.y + a.height - 10)
+            val hue = RgbColors.toHsv(p)[0]
+            assertTrue(RgbColors.toHsv(p)[2] < 0.1f || hue !in 200f..330f, "no blue or violet from a teal-yellow-red palette: ${hex(p)}")
+        }
+        // one engine per distinct look (ink keys, LED background, the rest shared), all on the same clock
+        assertEquals(3, RgbLighting.engines.all.size)
+        assertSame(RgbLighting.engineFor(RgbTarget.LABELS), RgbLighting.engineFor(RgbTarget.SUGGESTIONS))
+    }
+
+    @Test fun aStageTwentySixSettingBecomesThePresetCurve() {
+        prefs.edit().putString(RgbLighting.PREF, "v=1;on=1;pattern=CIRCLE;wave=PULSE;steps=4;period=4000;reverse=0;width=1.0;" +
+            "palette=rainbow;colors=FF0050,00C8FF,9B4DFF;sat=100;bright=100;mix=100;layers=KEY_BACKGROUND;" +
+            "areas=LETTERS,FUNCTIONAL,SPACE,NUMBER_ROW;tap=NONE;reactive=0;glow=800;fps=30;saver=1").commit()
+        RgbLighting.load(latinIME)
+        assertEquals(dev.agentkeyboard.core.RgbCurve.preset(dev.agentkeyboard.core.RgbWaveform.PULSE), RgbLighting.settings.curve)
+        assertEquals(RgbPattern.CIRCLE, RgbLighting.settings.pattern)
+        render("rgb-migrated.png")
+        assertNotNull(lastView.rgbPainter, "still lit after the update")
     }
 
     // --- helpers ---

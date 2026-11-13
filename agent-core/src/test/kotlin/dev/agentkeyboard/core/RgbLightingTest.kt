@@ -3,6 +3,7 @@ package dev.agentkeyboard.core
 
 import org.junit.Test
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlin.test.*
 
 class RgbLightingTest {
@@ -10,56 +11,93 @@ class RgbLightingTest {
     private fun near(expected: Float, actual: Float, tolerance: Float = 0.01f) =
         assertTrue(abs(expected - actual) <= tolerance, "expected $expected but was $actual")
     private fun hue(c: Int) = RgbColors.toHsv(c)[0]
+    private fun hueDistance(a: Float, b: Float) = abs(((a - b) % 360f + 540f) % 360f - 180f)
 
-    // --- waveforms ---
+    // --- the stage 26 waveforms, now presets of the own curve (29d) ---
+
+    /** The fixed shapes exactly as stage 26 computed them, kept as the reference for the presets. */
+    private fun legacy(waveform: RgbWaveform, u: Float, steps: Int): Float {
+        val x = u - kotlin.math.floor(u)
+        fun smooth(t: Float): Float { val c = t.coerceIn(0f, 1f); return c * c * (3f - 2f * c) }
+        return when (waveform) {
+            RgbWaveform.SINE -> (0.5 - 0.5 * kotlin.math.cos(2 * Math.PI * x)).toFloat()
+            RgbWaveform.TRIANGLE -> 1f - abs(2f * x - 1f)
+            RgbWaveform.SAWTOOTH -> x
+            RgbWaveform.STEPS -> kotlin.math.min(kotlin.math.floor(x * steps) / steps, 1f)
+            RgbWaveform.PULSE -> when {
+                x < 0.3f -> smooth(x / 0.3f)
+                x < 0.45f -> 1f
+                x < 0.75f -> 1f - smooth((x - 0.45f) / 0.3f)
+                else -> 0f
+            }
+        }
+    }
+    private fun wave(w: RgbWaveform, u: Float, steps: Int = 4) = RgbCurve.preset(w, steps).value(u)
 
     @Test fun sineIsSoftAndSymmetric() {
-        near(0f, RgbWave.value(RgbWaveform.SINE, 0f, 4))
-        near(0.5f, RgbWave.value(RgbWaveform.SINE, 0.25f, 4))
-        near(1f, RgbWave.value(RgbWaveform.SINE, 0.5f, 4))
-        near(RgbWave.value(RgbWaveform.SINE, 0.2f, 4), RgbWave.value(RgbWaveform.SINE, 0.8f, 4))
+        near(0f, wave(RgbWaveform.SINE, 0f))
+        near(0.5f, wave(RgbWaveform.SINE, 0.25f))
+        near(1f, wave(RgbWaveform.SINE, 0.5f))
+        near(wave(RgbWaveform.SINE, 0.2f), wave(RgbWaveform.SINE, 0.8f))
         // soft: small change near the top
-        assertTrue(RgbWave.value(RgbWaveform.SINE, 0.5f, 4) - RgbWave.value(RgbWaveform.SINE, 0.45f, 4) < 0.03f)
+        assertTrue(wave(RgbWaveform.SINE, 0.5f) - wave(RgbWaveform.SINE, 0.45f) < 0.03f)
     }
 
     @Test fun triangleIsLinearZigzag() {
-        near(0f, RgbWave.value(RgbWaveform.TRIANGLE, 0f, 4))
-        near(0.5f, RgbWave.value(RgbWaveform.TRIANGLE, 0.25f, 4))
-        near(1f, RgbWave.value(RgbWaveform.TRIANGLE, 0.5f, 4))
-        near(0.5f, RgbWave.value(RgbWaveform.TRIANGLE, 0.75f, 4))
+        near(0f, wave(RgbWaveform.TRIANGLE, 0f))
+        near(0.5f, wave(RgbWaveform.TRIANGLE, 0.25f))
+        near(1f, wave(RgbWaveform.TRIANGLE, 0.5f))
+        near(0.5f, wave(RgbWaveform.TRIANGLE, 0.75f))
         // constant slope: equal steps give equal changes
-        val a = RgbWave.value(RgbWaveform.TRIANGLE, 0.1f, 4) - RgbWave.value(RgbWaveform.TRIANGLE, 0.05f, 4)
-        val b = RgbWave.value(RgbWaveform.TRIANGLE, 0.4f, 4) - RgbWave.value(RgbWaveform.TRIANGLE, 0.35f, 4)
+        val a = wave(RgbWaveform.TRIANGLE, 0.1f) - wave(RgbWaveform.TRIANGLE, 0.05f)
+        val b = wave(RgbWaveform.TRIANGLE, 0.4f) - wave(RgbWaveform.TRIANGLE, 0.35f)
         near(a, b, 0.001f)
     }
 
     @Test fun sawtoothRisesThenJumps() {
-        near(0f, RgbWave.value(RgbWaveform.SAWTOOTH, 0f, 4))
-        near(0.5f, RgbWave.value(RgbWaveform.SAWTOOTH, 0.5f, 4))
-        near(0.99f, RgbWave.value(RgbWaveform.SAWTOOTH, 0.99f, 4))
-        near(0f, RgbWave.value(RgbWaveform.SAWTOOTH, 1f, 4))
-        near(0.25f, RgbWave.value(RgbWaveform.SAWTOOTH, 2.25f, 4))
-        near(0.75f, RgbWave.value(RgbWaveform.SAWTOOTH, -0.25f, 4))
+        near(0f, wave(RgbWaveform.SAWTOOTH, 0f))
+        near(0.5f, wave(RgbWaveform.SAWTOOTH, 0.5f))
+        near(0.99f, wave(RgbWaveform.SAWTOOTH, 0.99f))
+        near(0f, wave(RgbWaveform.SAWTOOTH, 1f))
+        near(0.25f, wave(RgbWaveform.SAWTOOTH, 2.25f))
+        near(0.75f, wave(RgbWaveform.SAWTOOTH, -0.25f))
     }
 
-    @Test fun stepsHaveExactlyTheConfiguredLevels() {
-        for (steps in listOf(2, 4, 7)) {
-            val levels = (0 until 1000).map { RgbWave.value(RgbWaveform.STEPS, it / 1000f, steps) }.toSet()
-            assertEquals(steps, levels.size, "steps=$steps")
-            assertTrue(levels.all { it in 0f..1f })
+    @Test fun stepsHoldExactlyTheConfiguredLevels() {
+        // 29b: a step now rises within 1 % of the cycle instead of in zero time; between the
+        // risers the curve holds exactly the old levels
+        for (steps in listOf(2, 4, 7, 12)) {
+            val samples = (0 until 1000).map { it / 1000f }
+            val points = RgbCurve.preset(RgbWaveform.STEPS, steps).points
+            // the risers are the segments between point 2k-1 and 2k
+            val onLevel = samples.filter { u -> (1 until steps).none { k -> u > points[2 * k - 1].x && u < points[2 * k].x } &&
+                (1 until steps).none { k -> u >= points[2 * k - 1].x && u < k / steps.toFloat() } }
+            assertTrue(onLevel.size >= 1000 - steps * 11, "steps=$steps")
+            for (u in onLevel) // levels are stored with three decimals
+            assertEquals(legacy(RgbWaveform.STEPS, u, steps), wave(RgbWaveform.STEPS, u, steps), 1e-3f, "steps=$steps u=$u")
+            assertEquals(steps, onLevel.map { (wave(RgbWaveform.STEPS, it, steps) * 1000).roundToInt() }.toSet().size, "steps=$steps")
         }
-        near(0.5f, RgbWave.value(RgbWaveform.STEPS, 0.6f, 2))
+        near(0.5f, wave(RgbWaveform.STEPS, 0.6f, 2))
     }
 
     @Test fun pulseRisesHoldsFallsAndRests() {
-        near(0f, RgbWave.value(RgbWaveform.PULSE, 0f, 4))
-        near(1f, RgbWave.value(RgbWaveform.PULSE, 0.35f, 4))
-        near(1f, RgbWave.value(RgbWaveform.PULSE, 0.44f, 4))
-        assertTrue(RgbWave.value(RgbWaveform.PULSE, 0.6f, 4) in 0.1f..0.9f)
-        near(0f, RgbWave.value(RgbWaveform.PULSE, 0.8f, 4))
-        near(0f, RgbWave.value(RgbWaveform.PULSE, 0.99f, 4))
+        near(0f, wave(RgbWaveform.PULSE, 0f))
+        near(1f, wave(RgbWaveform.PULSE, 0.35f))
+        near(1f, wave(RgbWaveform.PULSE, 0.44f))
+        assertTrue(wave(RgbWaveform.PULSE, 0.6f) in 0.1f..0.9f)
+        near(0f, wave(RgbWaveform.PULSE, 0.8f))
+        near(0f, wave(RgbWaveform.PULSE, 0.99f))
         // eased: slow start
-        assertTrue(RgbWave.value(RgbWaveform.PULSE, 0.03f, 4) < 0.05f)
+        assertTrue(wave(RgbWaveform.PULSE, 0.03f) < 0.05f)
+    }
+
+    @Test fun presetsFollowTheOldShapes() {
+        // largest difference to stage 26 over 2000 samples (steps: outside the 1 % risers)
+        val limits = mapOf(RgbWaveform.SAWTOOTH to 1e-4f, RgbWaveform.PULSE to 1e-4f, RgbWaveform.SINE to 0.02f, RgbWaveform.TRIANGLE to 0.03f)
+        for ((w, limit) in limits) {
+            val worst = (0 until 2000).maxOf { abs(wave(w, it / 2000f) - legacy(w, it / 2000f, 4)) }
+            assertTrue(worst <= limit, "$w differs by $worst")
+        }
     }
 
     // --- patterns, direction, time ---
@@ -87,7 +125,7 @@ class RgbLightingTest {
     }
 
     @Test fun breatheIsTheSameEverywhereAndChangesStrength() {
-        val e = RgbEngine(on { copy(pattern = RgbPattern.BREATHE, waveform = RgbWaveform.SINE, periodMs = 1000) })
+        val e = RgbEngine(on { copy(pattern = RgbPattern.BREATHE, curve = RgbCurve.preset(RgbWaveform.SINE), periodMs = 1000) })
         assertEquals(e.light(0.1f, 0.1f, 1, 0), e.light(0.9f, 0.9f, 2, 0))
         val low = RgbColors.alpha(e.light(0.5f, 0.5f, 1, 0))
         e.advance(0); e.advance(100); e.advance(200); e.advance(300); e.advance(400); e.advance(500)
@@ -116,8 +154,8 @@ class RgbLightingTest {
     }
 
     @Test fun reverseMirrorsTheDirection() {
-        val fwd = RgbEngine(on { copy(waveform = RgbWaveform.SAWTOOTH) })
-        val rev = RgbEngine(on { copy(waveform = RgbWaveform.SAWTOOTH, reverse = true) })
+        val fwd = RgbEngine(on { copy(curve = RgbCurve.preset(RgbWaveform.SAWTOOTH)) })
+        val rev = RgbEngine(on { copy(curve = RgbCurve.preset(RgbWaveform.SAWTOOTH), reverse = true) })
         // forward: the colour at x moves to the right, so x+d later equals x now
         fwd.advance(0); for (t in 100L..1000L step 100) fwd.advance(t)
         rev.advance(0); for (t in 100L..1000L step 100) rev.advance(t)
@@ -137,9 +175,10 @@ class RgbLightingTest {
 
     @Test fun rainbowCyclicCoversAllHuesAndWraps() {
         val e = RgbEngine(on())
-        near(0f, hue(e.paletteAt(0f, true)), 1f)
-        near(120f, hue(e.paletteAt(1f / 3, true)), 2f)
-        near(240f, hue(e.paletteAt(2f / 3, true)), 2f)
+        // 29b: the rainbow corners are rounded; the primaries stay where they were
+        assertTrue(hueDistance(0f, hue(e.paletteAt(0f, true))) <= 1f, "red at 0")
+        assertTrue(hueDistance(120f, hue(e.paletteAt(1f / 3, true))) <= 2f, "green at 1/3")
+        assertTrue(hueDistance(240f, hue(e.paletteAt(2f / 3, true))) <= 2f, "blue at 2/3")
         assertEquals(e.paletteAt(0f, true), e.paletteAt(1f, true))
         // back-and-forth waveforms end on a different colour than they start
         assertNotEquals(e.paletteAt(0f, false), e.paletteAt(1f, false))
@@ -153,10 +192,11 @@ class RgbLightingTest {
         assertEquals(red, e.paletteAt(0f, false))
         assertEquals(blue, e.paletteAt(0.5f, false))
         assertEquals(green, e.paletteAt(1f, false))
-        assertEquals(RgbColors.lerp(red, blue, 0.5f), e.paletteAt(0.25f, false))
+        // 29b: blended in OKLCH, not in sRGB
+        assertEquals(RgbColors.mixOklch(red, blue, 0.5f), e.paletteAt(0.25f, false))
         // cyclic: three segments, the last one leads back to red
         assertEquals(blue, e.paletteAt(1f / 3, true))
-        assertEquals(RgbColors.lerp(green, red, 0.5f), e.paletteAt(5f / 6, true))
+        assertEquals(RgbColors.mixOklch(green, red, 0.5f), e.paletteAt(5f / 6, true))
         assertEquals(red, e.paletteAt(1f, true))
     }
 
@@ -339,11 +379,18 @@ class RgbLightingTest {
         assertEquals(RgbSettings.DEFAULT, RgbSettings.parse(null))
         assertEquals(RgbSettings.DEFAULT, RgbSettings.parse(""))
         assertEquals(RgbSettings.DEFAULT, RgbSettings.parse(RgbSettings.DEFAULT.encode()))
-        val custom = RgbSettings(true, RgbPattern.CIRCLE, RgbWaveform.STEPS, 6, 1500, true, 2.5f, false,
+        val custom = RgbSettings(true, RgbPattern.CIRCLE, RgbCurve.preset(RgbWaveform.STEPS, 6), 1500, true, 2.5f, false,
             listOf(0xFF112233.toInt(), 0xFFAABBCC.toInt(), 0xFFFFFFFF.toInt()), 40, 70, 55,
             setOf(RgbLayer.LABEL, RgbLayer.KEYBOARD_BACKGROUND), setOf(RgbArea.SPACE, RgbArea.TOOLBAR),
-            RgbTapReaction.RIPPLE, true, 1200, 60, false)
+            RgbTapReaction.RIPPLE, true, 1200, 60, false, solidKeys = true)
         assertEquals(custom, RgbSettings.parse(custom.encode()))
+        // own looks per element survive too
+        val own = custom.withSeparate(true).let { s ->
+            s.withLook(RgbTarget.BACKGROUND, s.lookFor(RgbTarget.BACKGROUND).copy(pattern = RgbPattern.INK, periodMs = 9000,
+                curve = RgbCurve.preset(RgbWaveform.PULSE), rainbow = true))
+        }
+        assertEquals(own, RgbSettings.parse(own.encode()))
+        assertTrue(own.encode().length < RgbSettings.MAX_ENCODED_LENGTH)
     }
 
     @Test fun invalidValuesClampOrFallBackPerField() {
@@ -351,7 +398,8 @@ class RgbLightingTest {
             "pattern=SPIRAL;wave=;colors=FF0000,nothex,#00FF00,123;layers=LABEL,BOGUS;areas=;tap=EXPLODE;reactive=yes")
         assertTrue(parsed.enabled)
         assertEquals(500, parsed.periodMs)
-        assertEquals(12, parsed.steps)
+        // "wave=" is empty: no preset to migrate, the default curve
+        assertEquals(RgbCurve.DEFAULT, parsed.curve)
         assertEquals(1f, parsed.waveWidth)
         assertEquals(0, parsed.saturation)
         assertEquals(RgbSettings.BRIGHTNESS_MIN, parsed.brightness)
@@ -359,7 +407,6 @@ class RgbLightingTest {
         assertEquals(5000, parsed.glowMs)
         assertEquals(60, parsed.fps)
         assertEquals(RgbPattern.WAVE_HORIZONTAL, parsed.pattern)
-        assertEquals(RgbWaveform.SAWTOOTH, parsed.waveform)
         assertEquals(listOf(0xFFFF0000.toInt(), 0xFF00FF00.toInt()), parsed.palette)
         assertEquals(setOf(RgbLayer.LABEL), parsed.layers)
         assertEquals(emptySet(), parsed.areas)

@@ -11,6 +11,8 @@ import android.os.SystemClock
 import android.view.Choreographer
 import android.view.View
 import dev.agentkeyboard.core.RgbEngine
+import dev.agentkeyboard.core.RgbEngines
+import dev.agentkeyboard.core.RgbTarget
 import dev.agentkeyboard.core.RgbRun
 import dev.agentkeyboard.core.RgbFramePacer
 import dev.agentkeyboard.core.RgbSettings
@@ -24,7 +26,8 @@ import java.lang.ref.WeakReference
 
 /**
  * RGB lighting of the keyboard (stage 26): settings, animation clock and frame loop. The maths
- * lives in agent-core ([RgbEngine]); drawing per key in [RgbKeyPainter], the strip in [RgbStrip].
+ * lives in agent-core ([RgbEngine], one per look: [RgbEngines]); drawing per key in [RgbKeyPainter],
+ * the strip in [RgbStrip], the light as a picture in [RgbTexture].
  *
  * Only the main keyboard view (R.id.keyboard_view in main_keyboard_frame) is lit; the bottom
  * rows of the emoji and clipboard views are MainKeyboardViews too, but never get a painter.
@@ -44,8 +47,12 @@ object RgbLighting {
     private var encoded: String? = null
     var settings: RgbSettings = RgbSettings.DEFAULT
         private set
-    var engine = RgbEngine(settings)
+    /** One engine per distinct look (stage 29), all on one clock. */
+    var engines = RgbEngines(settings)
         private set
+    /** Engine of the key backgrounds (the shared look unless the elements have own looks). */
+    val engine: RgbEngine get() = engines.forTarget(RgbTarget.KEYS)
+    fun engineFor(target: RgbTarget): RgbEngine = engines.forTarget(target)
 
     /** Animation time used for drawing; frozen in [RgbRun.Mode.STATIC]. */
     var drawTimeMs = 0L
@@ -94,7 +101,7 @@ object RgbLighting {
         if (value == encoded) return
         encoded = value
         settings = RgbSettings.parse(value)
-        engine = RgbEngine(settings)
+        engines = RgbEngines(settings)
         pacer = RgbFramePacer(settings.fps)
         // strip areas deselected while the keys stay lit: give the strip its own colours back
         if (!settings.lightsStrip()) restoreStrip()
@@ -131,10 +138,10 @@ object RgbLighting {
         val height = view.height.takeIf { it > 0 } ?: return
         val now = SystemClock.uptimeMillis()
         if (mode != RgbRun.Mode.RUNNING) {
-            engine.resetClock()
+            engines.resetClock()
             drawTimeMs = now
         }
-        engine.tap((key.x + key.width / 2f + view.paddingLeft) / width, (key.y + key.height / 2f + view.paddingTop) / height,
+        engines.tap((key.x + key.width / 2f + view.paddingLeft) / width, (key.y + key.height / 2f + view.paddingTop) / height,
             RgbKeyPainter.keyId(key), now)
         update()
     }
@@ -159,7 +166,7 @@ object RgbLighting {
     fun onDetached(view: View) {
         if (view !== keyboardView?.get()) return
         stopFrames()
-        engine.clearTaps()
+        engines.clearTaps()
         if (mode != RgbRun.Mode.OFF) mode = RgbRun.Mode.PAUSED
         updateReceiver(null)
     }
@@ -168,7 +175,7 @@ object RgbLighting {
     @JvmStatic
     fun onHideWindow(view: View) {
         if (view !== keyboardView?.get()) return
-        engine.clearTaps()
+        engines.clearTaps()
         stopFrames()
         mode = if (mode == RgbRun.Mode.OFF) RgbRun.Mode.OFF else RgbRun.Mode.PAUSED
     }
@@ -212,7 +219,7 @@ object RgbLighting {
     private fun update() {
         val view = keyboardView?.get()
         val now = SystemClock.uptimeMillis()
-        val effect = engine.hasActiveEffect(now)
+        val effect = engines.hasActiveEffect(now)
         val newMode = RgbRun.mode(settings, isVisible(view), powerSave, animationsOn, effect)
         val old = mode
         mode = newMode
@@ -224,7 +231,7 @@ object RgbLighting {
             }
             RgbRun.Mode.STATIC -> {
                 stopFrames()
-                engine.clearTaps()
+                engines.clearTaps()
                 if (old != RgbRun.Mode.STATIC) redraw(view)
             }
             RgbRun.Mode.PAUSED -> {
@@ -237,7 +244,7 @@ object RgbLighting {
             }
             RgbRun.Mode.RUNNING -> {
                 if (old != RgbRun.Mode.RUNNING) {
-                    engine.resetClock()
+                    engines.resetClock()
                     pacer.reset()
                 }
                 // inside a frame the next one is asked for after the pacer has seen this one
@@ -288,7 +295,7 @@ object RgbLighting {
         if (mode != RgbRun.Mode.RUNNING) return
         if (pacer.shouldRender(frameNanos)) {
             drawTimeMs = SystemClock.uptimeMillis()
-            engine.advance(drawTimeMs)
+            engines.advance(drawTimeMs)
             redraw(view)
         }
         scheduleFrame()

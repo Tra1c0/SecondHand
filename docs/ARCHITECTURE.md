@@ -35,7 +35,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - **Act Builder** – Natürliche Beschreibung → freigegebene Anfrage → streng validierter Workflow-Entwurf.
 - **Einstellungen und Profile** – Compose-Seiten der Agent-Funktionen sowie Design-, Layout- und Gestenprofile.
 - **Flacher Stil** – Tastenstil „Flat“, Farbsatz „Flach schwarz“ und die Vorlage, die beides mit Größen einstellt.
-- **RGB-Beleuchtung** – Animierte Farben für Tasten, Beschriftung, Hintergrund und Leiste (Etappe 26): Rechnen im Kern, Zeichnen über einen Painter.
+- **RGB-Beleuchtung** – Animierte Farben für Tasten, Beschriftung, Hintergrund und Leiste (Etappe 26, überarbeitet in 29): Rechnen im Kern, Zeichnen über einen Painter.
 - **Diktat** – Diktieren über den On-device-Erkenner des Systems: zuhören, Vorschau, Einfügen erst nach eigenem Klick.
 - **Lerndaten** – Was die Tastatur aus dem Tippen lernt: pausieren, zählen, exportieren, löschen. Alles auf dem Gerät.
 - **Updates** – Opt-in-Prüfung auf neue Builds im öffentlichen Release-Repository, Download und Installation nur nach eigenem Klick.
@@ -128,11 +128,17 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   benutzt (Fallstrick P5).
 - `UpdateReleases.kt`: Regeln der Update-Prüfung (Abschnitt „Updates“): `REPOSITORY`, Tag
   `build-<n>`, Asset-Namen, erwartete Download-URL, `newest`, `isNewer`, `parseChecksum`.
-- `RgbLighting.kt` (Etappe 26): `RgbSettings` (alle Optionen, `encode`/`parse` mit feldweiser
-  Begrenzung, nie eine Ausnahme), `RgbEngine` (Farbe und Stärke für Punkt, Taste und Zeit:
-  Muster × Wellenform × Palette, Tipp-Effekte, Phase mit Tempo-Schub; ohne Allokation je
-  Aufruf), `RgbWave`, `RgbColors` (ARGB, HSV, Mischung, Kontrast, `readable`/`label` für
-  mindestens 3:1), `RgbRun.mode` (Akku-Regeln) und `RgbFramePacer` (Bildrate). Details im
+- `RgbLighting.kt` (Etappe 26, überarbeitet 29): `RgbSettings` (alle Optionen, `encode`/`parse`
+  mit feldweiser Begrenzung, nie eine Ausnahme; gemeinsamer Look plus `looks` je `RgbTarget`,
+  `forTarget`, `lights`), `RgbLook`, `RgbEngine` (Farbe und Stärke für Punkt, Taste und Zeit:
+  Muster × Kurve × Palettentabelle, Tipp-Effekte, Phase mit Tempo-Schub; `base`/`effects` für
+  das Raster, `FIELD_KEYS`, `keyFactor`/`keyHighlight`/`overlayStrength`; ohne Allokation je
+  Aufruf), `RgbEngines` (eine Engine je verschiedenem Look, eine Uhr), `RgbColors` (ARGB, HSV,
+  OKLab/OKLCH, `smoothTable`, Kontrast, `readable`/`label` für mindestens 3:1), `RgbRun.mode`
+  (Akku-Regeln) und `RgbFramePacer` (Bildrate). `RgbCurve.kt` (29d): eigene Kurve, monotone
+  kubische Interpolation, Vorlagen (`RgbWaveform`), Text `x:y,…`, Migration von `wave=`.
+  `RgbPatterns.kt` (29c): `RgbNoise` (periodisches Wertrauschen), `RgbPatterns.field` (Farbfeld
+  der sechs Texturmuster), `RgbOverlay` (Detail-Kacheln und ihre Matrix), `RgbTile`. Details im
   Abschnitt „RGB-Beleuchtung“.
 - Symbole malen (Etappe 27, Abschnitt „Symbole malen“): `InkRecognizer.kt` (`InkStroke`,
   `InkCloud` mit 32 Punkten, `InkRecognizer` = `$P` mit ±10° Drehtoleranz, `InkResult` mit
@@ -141,7 +147,8 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   `v1`, `parse` wirft nie). Tests `InkRecognizerTest`, `OwnInkSymbolsTest`.
 - Tests in `CT/`: `AiTextActionTest`, `EditorPolicyTest`, `LocalTextActionsTest`,
   `PendingBatchGateTest`, `SkillBindingTest`, `ToolTest`, `WorkflowTest`,
-  `InsertionAnchorTest`, `StyledTranslationTest`, `UpdateReleasesTest`, `RgbLightingTest`.
+  `InsertionAnchorTest`, `StyledTranslationTest`, `UpdateReleasesTest`, `RgbLightingTest`,
+  `RgbCurveTest`, `RgbPatternsTest`.
   Befehl: `core-tests`.
 
 ## Geänderte Upstream-Dateien
@@ -306,6 +313,8 @@ ohne Einstellung ist der Painter `null` und das Zeichnen genau wie im Upstream):
 - `KeyboardView.java`: Feld `mRgbPainter` mit `setRgbPainter`/`getRgbPainter`; in
   `onDrawKeyboard` `beginDraw` und `drawKeyboardBackground` (voller und Teil-Neuzeichnen), in
   `onDrawKey` `beginKey` und `tintBackground`/`restoreBackground` um den Tastenhintergrund, in
+  `onDrawKeyBackground` direkt nach `background.draw` `drawOverBackground` (Licht und Textur durch
+  die Form der Taste, 29), in
   `onDrawKeyTopVisuals` `labelColor` für Beschriftung (nicht Emoji), Hinweis und Hinweis-Symbol,
   in `drawKeyPopupHint` für das „…“, sowie `tintIcon`/`restoreIcon` um das Symbol.
   `setKeyIconColor` gibt den gesetzten `ColorType` zurück, damit `tintIcon` die wirklich
@@ -1042,7 +1051,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Schlüssel, Bild, Rundung, Schrift) und `AT/DesignEditorTest.kt` (Kacheln, Editor, Löschen mit
   Rückfrage, Vorschau-Pixel; Bilder unter `app/build/reports/design-editor/`).
 
-- RGB-Seite (26): `K/settings/screens/AgentRgbScreen.kt` (alle Optionen, speichert jede Änderung
+- RGB-Seite (26, neu gestaltet 29a, Abschnitt „RGB-Beleuchtung“): `K/settings/screens/AgentRgbScreen.kt`
+  und `AgentRgbCurveEditor.kt` (alle Optionen, speichert jede Änderung
   sofort über `RgbLighting.write`, Vorschau oben mit `withFrameNanos` und `RgbFramePacer`,
   Tipp auf die Vorschau probiert die Effekte; bei ausgeschalteten Android-Animationen steht sie
   still). Die Vorschau ist `DesignPreview` aus `AgentDesignEditor.kt` mit `PreviewLight` (gleiche
@@ -1242,14 +1252,48 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 
 ## RGB-Beleuchtung
 
-> Animierte Farben für Tasten, Beschriftung, Hintergrund und Leiste (Etappe 26): Rechnen im Kern, Zeichnen über einen Painter.
+> Animierte Farben für Tasten, Beschriftung, Hintergrund und Leiste (Etappe 26, überarbeitet in 29): Rechnen im Kern, Zeichnen über einen Painter.
 
-- Rechnen: `C/RgbLighting.kt` (siehe „Kern“). Koordinaten 0..1 über die Tastatur-View,
-  `aspect` = Höhe/Breite hält Kreise rund; die Leiste liegt bei y = 0. Eine Lichtfarbe trägt die
-  Stärke im Alpha (Muster, Atmen, Effekte, Deckkraft), `RgbColors.applyLight` mischt sie mit der
-  Designfarbe.
+- Rechnen: `C/RgbLighting.kt`, `C/RgbCurve.kt`, `C/RgbPatterns.kt` (siehe „Kern“). Koordinaten
+  0..1 über die Tastatur-View, `aspect` = Höhe/Breite hält Kreise rund; die Leiste liegt bei
+  y = 0. Eine Lichtfarbe trägt die Stärke im Alpha (Muster, Atmen, Effekte, Deckkraft),
+  `RgbColors.applyLight` mischt sie mit der Designfarbe. Ablauf je Wert: Stelle im Durchlauf
+  (`phase` ± Ort; Texturmuster: `RgbPatterns.field` liefert Farbstelle, Helligkeit, Weiß- und
+  Grauanteil) → eigene Kurve (`RgbCurve.value`) → Palettentabelle (`paletteAt`).
+- Elemente (29, Wunsch des Owners): `RgbTarget` Tasten, Hintergrund, Beschriftung, Vorschläge,
+  Leistenknöpfe. Ob ein Element leuchtet, bleibt bei Ebenen und Bereichen (`lights`). Mit
+  „Gleiches Muster überall“ (Vorgabe, `separate` = 0) nutzen alle den gemeinsamen Look; sonst
+  hat jedes Element einen eigenen `RgbLook` (Muster, Kurve, Dauer, Richtung, Wellenbreite,
+  Farben, Sättigung, Helligkeit, Deckkraft). `RgbEngines` legt je verschiedenem Look eine Engine
+  an (gleiche Looks teilen eine), alle laufen auf derselben Uhr und bekommen jeden Tipp.
+- Kurve (29d): x = Stelle im Durchlauf (Zeit und Ort), y = Stelle in der Palette (bei „Atmen“
+  die Helligkeit), also genau, was die alten Verläufe waren (Annahme des Leads, mit dem Owner zu
+  bestätigen). 2–24 Punkte, x streng steigend mit mindestens 0,01 Abstand, Enden bei 0 und 1,
+  Werte auf 1/1000 gerundet. Monotone kubische Interpolation (Fritsch–Carlson): kein
+  Überschwingen, flache Stücke bleiben flach; gleich hohe Enden teilen ihre Steigung (Kurve
+  läuft ohne Knick weiter). Die Palette läuft im Kreis (letzte Farbe zurück zur ersten), wenn die
+  Enden mindestens 0,5 auseinanderliegen (Sägezahn, Stufen), sonst wie die alten Hin-und-zurück-
+  Verläufe über 300° bzw. erste bis letzte Farbe. Vorlagen: Sinus (9 Punkte, bis 0,02 genau),
+  Dreieck (7), Sägezahn (2, exakt), An- und Abstieg (5, exakt), Stufen (2 je Stufe, Anstieg in
+  1 % des Durchlaufs). Alte Texte ohne `curve` bekommen die passende Vorlage (`wave`, `steps`).
+- Weiche Farben (29b): Palettentabelle je Engine mit 256 Einträgen je Abschnitt (eigene Farben
+  liegen genau auf Einträgen). Eigene Farben werden in OKLCH gemischt (Mitte bleibt hell und
+  farbig; reines OKLab wird zwischen Gegenfarben grau), der Regenbogen ist HSV mit gerundeten
+  Ecken (`smoothTable`, zwei Box-Durchgänge über ±28 Einträge in sRGB, keine hellen Kanten bei
+  Gelb, Cyan, Magenta). Raster des Lichts 48 Spalten (vorher 24). Die Zeit kommt nur über die
+  Phase, die mit der echten Zeit zwischen Bildern wächst (Bildraten-unabhängig).
+- Texturmuster (29c): Tinte (verzerrtes Rauschen, schwarz ohne Tinte), Rauten (diagonaler
+  Regenbogen, Rauten-Rahmen als Kachel), Lamellen (zwei Farbwelten mit wanderndem Rand,
+  Lamellen-Schattierung als Streifenkachel), Raster (Regenbogen um eine wandernde Mitte, graue
+  Mitte, Vignette, Schraffur als Streifenkachel), LED-Punkte (fließender Regenbogen, Lochblende
+  als Kachel), Höhenlinien (weiche Hügel, Linien als Kachel). Das Farbfeld wird je Bild im Raster
+  gerechnet und gefiltert gestreckt; die feinen Details sind Kacheln (`RgbOverlay.tile`, einmal je
+  Muster, die großen 384 × 384 in etwa 20–40 ms auf dem Testrechner), die nur über eine Matrix
+  verschoben werden (`RgbOverlay.transform`, Drift über die Phase). Kein `RuntimeShader`: ein Weg
+  für alle Android-Versionen, alles auf der JVM prüfbar.
 - Ablauf: `A/RgbLighting.kt` (Singleton auf dem UI-Thread): Einstellung `agent_rgb_lighting`,
-  Engine, Uhr (`drawTimeMs`, in `STATIC` eingefroren), Modus aus `RgbRun.mode` und ein
+  `engines` (`engineFor`), Uhr (`drawTimeMs`, in `STATIC` eingefroren), Modus aus `RgbRun.mode`
+  (läuft, wenn irgendein leuchtendes Element sich bewegt, `RgbSettings.moves`) und ein
   `Choreographer.FrameCallback`, der nur in `RUNNING` läuft und je erlaubtem Bild
   `invalidateAllKeys` der Tastatur und `RgbStrip.paint` aufruft. Das nächste Bild wird erst
   angefordert, wenn es fällig ist (`RgbFramePacer.nanosUntilDue`, `postFrameCallbackDelayed`),
@@ -1264,58 +1308,72 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   bekommt einen Painter und steuert den Ablauf. Die unteren Reihen der Emoji- und
   Zwischenablage-Ansicht sind ebenfalls `MainKeyboardView`s (`bottom_row_keyboard`, P65); ihre
   `setKeyboard`, Tipps, Sichtbarkeit und `onHideWindow` werden ignoriert.
+- Bild des Lichts: `A/RgbTexture.kt` (Raster 48 × bis 32 aus `engine.base`/`effects`,
+  `BitmapShader` mit Filter, Kachel-Shader mit REPEAT; Kacheln als Bitmap in einem kleinen Cache,
+  höchstens drei). Genutzt von Tastatur und Vorschau.
 - Tasten: `A/RgbKeyPainter.kt`, einer für die Haupttastatur (andere `KeyboardView`s wie Popups,
-  Emoji-Seiten, untere Reihen und mehr Vorschläge bekommen nie einen). `areaOf` ordnet Tasten Bereichen zu
-  (Leertaste, Ziffern = Zahlenreihe, Funktions-/Aktionstasten, Umschalt, Komma und Punkt =
-  Funktionstasten, sonst Buchstaben). Der Tastenhintergrund bekommt einen
-  `PorterDuffColorFilter(SRC_IN)` auf dem gerade gewählten Kind des Zustands-Drawables (P60),
-  gedrückt etwas heller oder dunkler (`RgbColors.pressed`); danach kommt der alte Filter zurück.
-  Ohne gewähltes Kind (`current` null) bleibt die Taste ungefärbt. Ohne Tastenrahmen gilt die
-  Designfarbe als durchsichtig; `RgbColors.applyLight` mischt mit vormultipliziertem Alpha, das
-  Licht wird dort also nicht doppelt abgeschwächt. Der Tastaturhintergrund ist ein Raster von
-  24 × bis zu 16 Pixeln, gefiltert auf die View gestreckt. Beschriftung, Hinweise,
-  Hinweis-Symbole, das „…“ für weitere Zeichen, Symbole und das Sprachkürzel gehen durch
-  `labelColor`: mit Ebene „Beschriftung“ in der Lichtfarbe, immer mindestens 3:1 zum
-  (gemischten) Hintergrund dahinter, gerechnet mit der sichtbaren Farbe (Alpha des Textes über
-  dem Hintergrund); ist ein Text so durchsichtig, dass auch Schwarz oder Weiß 3:1 nicht
-  erreichen, wird er Schwarz oder Weiß. Symbole gehen von der Farbe aus, die
-  `setKeyIconColor` gesetzt hat (Umschalt-Akzent bleibt ohne Ebene „Beschriftung“ erhalten).
-  Grenze: Mit eigenem Hintergrundbild wird gegen die Farbe `MAIN_BACKGROUND` gerechnet, nicht
-  gegen das Bild; ohne Tastenrahmen kann eine Beschriftung über einem hellen oder bunten Bild
-  deshalb unter 3:1 liegen.
-- Leiste: `A/RgbStrip.kt` färbt die Wort-`TextView`s direkt in `suggestions_strip` und alle
-  `ImageView`s in Toolbar, angehefteten Tasten und der linken Taste. Chips (Zwischenablage,
-  Screenshot, Befehle) sind keine direkten `TextView`s und bleiben unverändert. Die
-  Originalfarbe liegt im Tag `agent_rgb_original`; hat die Leiste die Textfarbe inzwischen
-  selbst geändert, wird diese das neue Original. Leistenknöpfe mit Tönungsliste des Designs
-  (`TOOL_BAR_KEY`; die Liste liest eine Probe-Drawable einmal je Farbsatz, `Colors` hat keinen
-  Getter) bekommen eine abgeleitete `ColorStateList` (`RgbStrip.litTint`): nur „aktiviert“
-  (Werkzeug an) leuchtet, ausgeschaltete Werkzeuge und eigene Druckfarben bleiben in der
-  Designfarbe, Alpha je Zustand bleibt (P64). Knöpfe mit View-Farbfilter (Ausklapp-Taste)
-  bekommen das Licht als Filter; Knöpfe mit eigenem Filter auf der Drawable (runder Knopf im
-  flachen Stil) bleiben unverändert. Leiste: nur Text- und Symbolfarbe, unabhängig von den
-  Ebenen. Werden die Leistenbereiche abgewählt, während Tasten weiter leuchten, stellt das
-  nächste Laden der Einstellung die Leiste zurück (`restoreStrip`).
-- Kosten je Bild: etwa 45 Tasten × 2 Lichtwerte plus 384 Rasterwerte (Kern-Messung:
-  `RgbLightingTest.oneFrameOfLightIsCheap`), ein Farbfilter-Objekt je Taste, ein volles
-  Neuzeichnen der Tastatur-View (wie bei jedem Tastendruck mit Hardware-Beschleunigung).
-  Leiste: die Views werden einmal je Aufbau gesammelt (Tag `agent_rgb_strip_views` an der
-  Leiste, nichts Statisches hält Views; neu nur, wenn sich die Kinder ändern),
-  je View eine Positionsabfrage ohne Allokation und ein Lichtwert, ein neues Farbobjekt nur bei
-  geänderter Farbe. Kein Frame-Callback zwischen den fälligen Bildern. RGB-Seite: die Uhr der
-  Vorschau wird nur beim Zeichnen gelesen (`PreviewLight.timeMs` ist eine Funktion), Bilder
-  zeichnen also nur die Vorschau neu, die Optionsliste wird nicht neu zusammengesetzt.
+  Emoji-Seiten, untere Reihen und mehr Vorschläge bekommen nie einen). `areaOf` ordnet Tasten
+  Bereichen zu (Leertaste, Ziffern = Zahlenreihe, Funktions-/Aktionstasten, Umschalt, Komma und
+  Punkt = Funktionstasten, sonst Buchstaben). Vorgabe (29b): Die Taste wird normal in der
+  Designfarbe gezeichnet, danach `drawOverBackground` (Hook in `onDrawKeyBackground`) das weiche
+  Licht der Tasten durch eine Alpha-Maske ihrer Drawable (`RgbKeyMasks`: das gewählte Kind,
+  einmal je Drawable und Größe mit weißem SRC_IN-Filter als ALPHA_8 gezeichnet, P60), dann die
+  Textur-Kachel, Blitz (weiß) und Druck (heller/dunkler) durch dieselbe Maske. Die Maske liegt bei
+  (0, 0) des schon verschobenen Canvas, jede Taste hat eigene Shader-Objekte (P90). Mit „Jede Taste
+  einfarbig“ (`solidKeys`) wie in 26: `PorterDuffColorFilter(SRC_IN)` auf dem gewählten Kind mit
+  der Lichtfarbe der Mitte, gedrückt `RgbColors.pressed`; die Kachel kommt trotzdem über die Maske.
+  Reaktiver Blitz: Raster der Tasten ohne Tasten-Effekt (`FIELD_KEYS`), jede Taste mit ihrem
+  Faktor; sonst nutzen Tasten und Hintergrund mit gleicher Engine dasselbe Raster (`copyFrom`).
+  Ohne Tastenrahmen gilt die Designfarbe als durchsichtig. Beschriftung, Hinweise,
+  Hinweis-Symbole, das „…“ und Symbole gehen durch `labelColor`: mit Ebene „Beschriftung“ in der
+  Lichtfarbe der Beschriftungs-Engine an der Tastenmitte, immer mindestens 3:1 zum Hintergrund
+  dahinter; als Hintergrund zählt die Mitte von Taste und Tastaturhintergrund plus der
+  Mittelwert der Kachel (`RgbTile.mean`, z. B. dunkle LED-Blende). Grenze: Feine Details wechseln
+  innerhalb der Taste, die Lesbarkeit gilt gegen den Mittelwert; mit eigenem Hintergrundbild wird
+  gegen `MAIN_BACKGROUND` gerechnet, nicht gegen das Bild.
+- Leiste: `A/RgbStrip.kt` färbt die Wort-`TextView`s direkt in `suggestions_strip` (Engine der
+  Vorschläge) und alle `ImageView`s in Toolbar, angehefteten Tasten und der linken Taste (Engine
+  der Leistenknöpfe). Nur Farbe an der Stelle, keine Kachel. Chips (Zwischenablage, Screenshot,
+  Befehle) bleiben unverändert. Die Originalfarbe liegt im Tag `agent_rgb_original`; hat die
+  Leiste die Textfarbe inzwischen selbst geändert, wird diese das neue Original. Leistenknöpfe
+  mit Tönungsliste des Designs (`TOOL_BAR_KEY`) bekommen eine abgeleitete `ColorStateList`
+  (`RgbStrip.litTint`): nur „aktiviert“ leuchtet (P64). Knöpfe mit View-Farbfilter
+  (Ausklapp-Taste) bekommen das Licht als Filter; Knöpfe mit eigenem Filter auf der Drawable
+  (runder Knopf im flachen Stil) bleiben unverändert. Werden die Leistenbereiche abgewählt,
+  während Tasten weiter leuchten, stellt das nächste Laden der Einstellung die Leiste zurück.
+- Kosten je Bild (Kern-Messung `RgbPatternsTest.oneFrameOfEachPatternFitsTheBudget`, JVM des
+  Testrechners, 1634 Werte = Raster 48 × 32 plus 45 Tasten doppelt plus Leiste): Wellen
+  0,2–0,3 ms, Rauten/Lamellen/LED 0,35–0,4 ms, Raster 0,46 ms, Höhenlinien 0,67 ms, Tinte
+  1,0 ms; zwei verschiedene Raster (Tasten und Hintergrund mit eigenem Look) kosten das Doppelte.
+  Dazu je Taste bis zu vier Zeichenaufrufe mit Shader, ein volles Neuzeichnen der Tastatur-View
+  und das Hochladen des kleinen Rasters. GPU-Kosten und Akku auf einem Telefon sind nicht
+  gemessen. Kein Frame-Callback zwischen den fälligen Bildern. RGB-Seite: die Uhr der Vorschau
+  wird nur beim Zeichnen gelesen (`PreviewLight.timeMs` ist eine Funktion), Bilder zeichnen also
+  nur die Vorschau neu.
 - Datenschutz: liest keinen Text, speichert nur die Einstellung; Tipp-Positionen (höchstens
   acht) nur im Speicher, beim Ausblenden verworfen. Keine Logs.
 - Robustheit: `RgbEngine.aspect` ignoriert NaN/Unendlich und begrenzt auf 0,01–100,
-  `light`, `paletteAt`, `RgbColors.hsv` und `lerp` werfen bei NaN nicht; die Designvorschau
-  zeichnet ohne Breite oder Höhe nichts.
-- Tests: `CT/RgbLightingTest.kt`, `AT/RgbLightingRenderTest.kt` (echte `MainKeyboardView` im
-  flachen Stil: aus = gleiche Pixel, Tastenfarben aus der Engine, Bereiche, Lesbarkeit,
-  Tastaturhintergrund, Blitz bei „Nur beim Tippen“, Animationen aus, Leiste, nur die
-  Haupttastatur, Start nach dem ersten Layout, Energiesparmodus per Broadcast, Umschalt-Akzent,
-  Alpha, Knopfzustände, Designprofil), `AT/RgbSettingsScreenTest.kt`. Bilder unter
-  `app/build/reports/rgb-lighting/`.
+  `light`, `paletteAt`, `RgbColors.hsv`, `lerp` und `RgbCurve.value` werfen bei NaN nicht;
+  `RgbCurve.parse`/`of` lehnen kaputte Kurven ab (dann alter Verlauf oder Vorgabe); die
+  Designvorschau zeichnet ohne Breite oder Höhe nichts.
+- RGB-Seite: `K/settings/screens/AgentRgbScreen.kt` (29a: große Live-Vorschau oben mit runden
+  Ecken, darunter flache Karten je Gruppe, Muster als Bildergalerie, „Gleiches Muster überall“
+  mit Wahl des Elements, Kurven-Editor mit Vorlagen und Stufen-Regler; Änderungen gehen in der
+  Vorschau mit derselben Phase weiter, `RgbEngines.continueFrom`) und
+  `K/settings/screens/AgentRgbCurveEditor.kt` (Achsen, Kurve, Punkte als Kreise mit Kreuz;
+  Ziehen verschiebt, Tippen auf freie Fläche fügt hinzu, langes Drücken oder Hinausziehen
+  entfernt; Zwischenstände nur in der Vorschau, gespeichert beim Loslassen; eine Geste auf einem
+  Punkt gehört dem Editor, nicht dem Scrollen, P92).
+- Tests: `CT/RgbLightingTest.kt`, `CT/RgbCurveTest.kt` (Kurve, Grenzen, Text, Vorlagen,
+  Migration, eigene Looks), `CT/RgbPatternsTest.kt` (Bewegung, keine Sprünge in Ort und Zeit,
+  Regenbogen ohne Kanten, OKLCH, Merkmale der sechs Muster, Kacheln nahtlos, Matrix, Kosten,
+  Bilder unter `agent-core/build/rgb-previews/`), `AT/RgbLightingRenderTest.kt` (echte
+  `MainKeyboardView` im flachen Stil: aus = gleiche Pixel, einfarbige Tasten wie 26, weiches
+  Licht gegen das gerechnete Raster, Texturen auf Tasten und Hintergrund, eigene Looks,
+  Migration, Bereiche, Lesbarkeit, Blitz, Animationen aus, Leiste, nur die Haupttastatur,
+  Energiesparmodus, Designprofil), `AT/RgbSettingsScreenTest.kt` (Seite, Kurve per Touch,
+  eigene Looks, bewegte Vorschau der neuen Muster). Bilder unter `app/build/reports/rgb-lighting/`
+  und `app/build/agent-previews/`.
 
 ## Diktat
 
@@ -1765,6 +1823,25 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P65** Emoji- und Zwischenablage-Ansicht enthalten je eine eigene `MainKeyboardView` für die
   untere Reihe (`bottom_row_keyboard`). Code in `MainKeyboardView` läuft also auch für diese
   Views; was nur für die Haupttastatur gilt, muss die View prüfen (`R.id.keyboard_view`).
+- **P90** Ein Shader auf einem gezeichneten Bitmap (ALPHA_8-Maske mit `BitmapShader`) liegt bei
+  Skia im Raum des Bitmaps, nicht des Canvas: `drawBitmap(mask, x, y, paint)` verschob das Licht
+  im Test um genau die Tastenposition. Masken deshalb bei (0, 0) eines dorthin verschobenen
+  Canvas zeichnen und die Matrix des Shaders je Taste setzen; dann sind beide Deutungen gleich.
+  Weil eine Display-List einen Shader bis zum Zeichnen halten kann, bekommt jede Taste eigene
+  Shader-Objekte (`RgbTexture.drawMask`), nie einen gemeinsamen mit wechselnder Matrix.
+- **P91** `RgbNoise.noise` ist nur mit Zweierpotenzen als Periode periodisch (Bitmaske); eine
+  Kachel mit Periode 3 hatte eine sichtbare Naht. Kacheln aus Rauschen immer mit 2, 4, 8 … Zellen.
+- **P92** Im scrollbaren Inhalt nimmt die Seite eine Ziehbewegung, sobald die Bewegung die
+  Schwelle überschreitet und das Ereignis nicht verbraucht ist. Der Kurven-Editor verbraucht
+  deshalb jedes Ereignis einer Geste, die auf einem Punkt beginnt, schon vor der Schwelle;
+  sonst scrollt die Seite mit und der Punkt landet daneben.
+- **P93** Ein steiles Farbfeld (scharfe Ränder der Tinte) zeigt im 48er-Raster sichtbare Blöcke,
+  weil bilinear nur zwischen den Rasterpunkten mischt. Felder so glatt halten, dass Nachbarwerte
+  bei 96 Spalten höchstens etwa 45 von 255 auseinanderliegen (`texturesHaveNoJumpsInSpace`);
+  Feines gehört in eine Kachel.
+- **P94** OKLab-Mischung zwischen Gegenfarben (Rot–Blau) läuft durch Grau; Mischen in OKLCH
+  (Farbton über den kurzen Weg) hält die Mitte farbig. Glätten des Regenbogens in OKLab erzeugte
+  Farben außerhalb von sRGB, deren Abschneiden neue Kanten machte; deshalb in sRGB glätten.
 - **P66** Ein Chip, der Text entfernt und danach die Sprache umschaltet, leert oft das Feld; viele
   Apps starten die Eingabe dann im selben Feld neu. HeliBoards `onStartInputInternal` wendet dabei
   Hint-Locales und den gespeicherten App-Subtyp erneut an (`SubtypeState.getSubtypeForLocales`)
@@ -1932,20 +2009,20 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (418 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (424 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (5): agent-apk, agent-tests, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (67): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (68): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
   AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand, ContactCommand,
   ConvertCommand, CorrectionMemory, DateCommand, DesignLook, DesignTiles, Diagnose, Dictation,
   EmojiCommand, EmojiMixPalette, EncryptedActionRunStore, EventCommand, FlatMenuView,
   FlatPanelStyle, FlatPreset, HapticChain, JournaledModelCall, JournaledRun, KeyboardCommands,
   KeyboardProfileStore, LearningData, LoadingDotsView, ManualWorkflowDraft, ModelSettings,
-  MyDesigns, OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter, RgbLighting, RgbStrip,
+  MyDesigns, OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter, RgbLighting, RgbStrip, RgbTexture,
   RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore, SkillLabels,
   SliderFeel, SliderHaptics, SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing,
   SymbolInk, ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel, TypoMemory,
@@ -1979,18 +2056,18 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   WorkflowStoreTest
 - `AT/commands/` (8): ClockCommandsTest, EmojiMixCommandTest, LanguageCommandTest, QrCommandTest,
   ScreenReaderServiceTest, SubtypeChoiceTest, TranslateCommandTest, UrlCommandTest
-- `C/` (34): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
+- `C/` (36): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
   EditorSession, EmojiMix, EmojiNames, EventParser, ExecutionPolicy, InkDots, InkRecognizer,
   InkSymbols, LanguageNames, LocalTextActions, MathExpression, ModelProvider, OwnInkSymbols,
-  PendingBatchGate, Places, Profiles, RgbLighting, SkillBinding, SpecialCharacters,
-  StyledTranslation, SymbolTable, TextCondition, TimerParser, Tool, UnitConversion, UpdateReleases,
-  UrlDetector, Workflow
-- `CT/` (27): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
+  PendingBatchGate, Places, Profiles, RgbCurve, RgbLighting, RgbPatterns, SkillBinding,
+  SpecialCharacters, StyledTranslation, SymbolTable, TextCondition, TimerParser, Tool,
+  UnitConversion, UpdateReleases, UrlDetector, Workflow
+- `CT/` (29): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
   EditorPolicyTest, EmojiMixTest, EventParserTest, InkDotsTest, InkRecognizerTest,
   InsertionAnchorTest, LanguageNamesTest, LocalTextActionsTest, MathExpressionTest,
-  OwnInkSymbolsTest, PendingBatchGateTest, PlacesTest, QuestionCaptureTest, RgbLightingTest,
-  SkillBindingTest, StyledTranslationTest, SymbolTableTest, TimerParserTest, ToolTest,
-  UnitConversionTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
+  OwnInkSymbolsTest, PendingBatchGateTest, PlacesTest, QuestionCaptureTest, RgbCurveTest,
+  RgbLightingTest, RgbPatternsTest, SkillBindingTest, StyledTranslationTest, SymbolTableTest,
+  TimerParserTest, ToolTest, UnitConversionTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,
   KeyboardActionListenerImpl, KeyboardSwitcher, KeyboardTheme, KeyboardView, MainKeyboardView,
   PointerTracker
@@ -2012,10 +2089,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/settings/` (4): SearchScreen, SettingsActivity, SettingsContainer, SettingsNavHost
 - `K/settings/dialogs/` (2): ColorPickerDialog, SliderDialog
 - `K/settings/preferences/` (2): KeyboardScalePreference, SliderPreference
-- `K/settings/screens/` (28): AdvancedScreen, AgentAiScreen, AgentCommandsScreen, AgentDesignEditor,
+- `K/settings/screens/` (29): AdvancedScreen, AgentAiScreen, AgentCommandsScreen, AgentDesignEditor,
   AgentDesignScreen, AgentDiagnoseScreen, AgentDictationScreen, AgentEmojiMixSection,
-  AgentLearningScreen, AgentMainSettings, AgentProfilesScreen, AgentRgbScreen, AgentRunStatus,
-  AgentScreenReaderSection, AgentScreenshotScreen, AgentSkillsScreen, AgentSlider,
+  AgentLearningScreen, AgentMainSettings, AgentProfilesScreen, AgentRgbCurveEditor, AgentRgbScreen,
+  AgentRunStatus, AgentScreenReaderSection, AgentScreenshotScreen, AgentSkillsScreen, AgentSlider,
   AgentSnippetsSection, AgentSpaceScreen, AgentSymbolsScreen, AgentUpdatesScreen,
   AgentWorkflowsScreen, AppearanceScreen, DictionaryScreen, GestureTypingScreen, MainSettingsScreen,
   WorkflowBuilderDialog, WorkflowDraftProtection

@@ -20,25 +20,10 @@ Reihenfolge von oben nach unten.
   und runde Werte (Regel in `docs/ARCHITECTURE.md` → Einstellungen und Profile). Offen: Gerätetest
   (Stärke der Impulse, Breite der Fangzone, Antippen des Reglers) und die RGB-Seite, die den
   gemeinsamen Regler `AgentSlider` erst nach ihrer Überarbeitung (29) übernimmt.
-- **29 RGB-Beleuchtung überarbeiten** (Wunsch des Owners für die nächste Runde, 2026-11-13, mit sieben
-  Referenzbildern im Chat; die Bilder liegen nicht im Repo). (L)
-  - 29a Einstellungsseite und Vorschau moderner gestalten.
-  - 29b Übergänge zwischen Farben weich (keine sichtbaren Sprünge, auch in der Animation).
-  - 29c Neue animierte Muster nach den sechs Referenzbildern des Owners (alle gleichrangig):
-    fließende Farbschwaden wie Tinte in Wasser (türkis, grün, gelb, rot auf Schwarz);
-    diagonale Streifen mit Regenbogenverlauf und
-    überlagerten, leuchtenden Rauten-Rahmen; diagonale Lamellen mit hartem Farbwechsel grün/
-    orange zu violett; Regenbogen-Verlauf mit feinem Diagonal-Raster und dunkler Vignette;
-    Punkt-Raster (LED-Matrix) mit fließendem Regenbogen; Höhenlinien (Topografie) über weichem
-    Regenbogen. Alle Muster sind animiert (fließen, wandern) und lassen sich einzeln auf jedes
-    leuchtende Element legen: Tasten, Hintergrund, Beschriftung, Wortvorschläge, Leistenknöpfe
-    bekommen je ein eigenes Muster (Owner, 2026-11-13); Standard bleibt „überall dasselbe“.
-    Leistungsbudget wie bei 26 (nur sichtbar, Energiesparmodus).
-  - 29d Statt der festen Auswahl „Verlauf“ (weich, Zickzack, Sägezahn, Stufen …) ein eigener
-    Kurven-Regler wie in der Skizze des Owners: Achsen, eine Kurve durch verschiebbare
-    Kontrollpunkte (Kreise mit Kreuz), Punkte hinzufügen und entfernen. Annahme des Leads, vor dem
-    Bau mit dem Owner bestätigen: x = Zeit bzw. Position im Muster, y = Helligkeit oder
-    Farbposition.
+- **29 RGB-Beleuchtung überarbeiten** (Wunsch des Owners, 2026-11-13) ist gebaut (siehe
+  FEATURES.md): 29a neue Seite, 29b weiche Übergänge, 29c sechs bewegte Texturmuster, je Element
+  wählbar, 29d eigene Kurve. Offen: Gerätetest (Aussehen, Bildkosten, Akku) und die Bestätigung
+  der Annahme zur Kurve (x = Stelle im Durchlauf, y = Farbe bzw. Helligkeit bei „Atmen“).
 - **30 Diagnose-Seite** und **31 Feinschliff Symbole malen** sind gebaut (siehe FEATURES.md,
   `docs/VALIDATION.md` → Etappen 30 und 31). Offen: Engine-Review der Hooks in `LatinIME` und
   `PointerTracker`, Gerätetest.

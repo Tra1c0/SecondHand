@@ -394,6 +394,7 @@ public class KeyboardView extends View {
         background.setBounds(0, 0, bgWidth, bgHeight);
         canvas.translate(bgX, bgY);
         background.draw(canvas);
+        if (mRgbPainter != null) mRgbPainter.drawOverBackground(canvas, background, bgX, bgY); // fork: RGB light through the key shape
         canvas.translate(-bgX, -bgY);
     }
 

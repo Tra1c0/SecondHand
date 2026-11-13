@@ -8,28 +8,38 @@ import android.graphics.ColorFilter
 import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
-import android.graphics.Rect
 import android.graphics.drawable.Drawable
 import dev.agentkeyboard.core.RgbArea
 import dev.agentkeyboard.core.RgbColors
-import dev.agentkeyboard.core.RgbLayer
+import dev.agentkeyboard.core.RgbEngine
+import dev.agentkeyboard.core.RgbRun
+import dev.agentkeyboard.core.RgbTarget
 import helium314.keyboard.keyboard.Key
 import helium314.keyboard.keyboard.KeyboardView
 import helium314.keyboard.latin.common.ColorType
 import helium314.keyboard.latin.common.Colors
 import helium314.keyboard.latin.common.Constants
 import helium314.keyboard.latin.settings.Settings
-import kotlin.math.roundToInt
 
 /**
- * Applies the RGB light while a [KeyboardView] draws (stage 26). The view calls, in this order:
- * [beginDraw] once per draw, [drawKeyboardBackground] after its own background, and per key
- * [beginKey], [tintBackground]/[restoreBackground] around the key background, [labelColor] for
- * label, hint (also hint icons and the popup hint) colours and [tintIcon]/[restoreIcon] around the icon.
+ * Applies the RGB light while a [KeyboardView] draws (stage 26, smooth light and textures 29). The
+ * view calls, in this order: [beginDraw] once per draw, [drawKeyboardBackground] after its own
+ * background, and per key [beginKey], [tintBackground], [drawOverBackground] right after the key
+ * background, [restoreBackground], [labelColor] for label, hint (also hint icons and the popup
+ * hint) colours and [tintIcon]/[restoreIcon] around the icon.
  *
- * Cost per frame: one light value per key, one per cell of a small grid for the keyboard
- * background (at most 24 x 16 pixels, scaled up with filtering), and a colour filter object per
- * lit key. Shared drawables get their own colour filter back right after each key.
+ * Each element has its own engine ([RgbLighting.engineFor]): key backgrounds [RgbTarget.KEYS],
+ * keyboard background [RgbTarget.BACKGROUND], labels [RgbTarget.LABELS].
+ *
+ * Key backgrounds: by default (29b) the key shape is filled with the smooth light of the keys
+ * ([RgbTexture], bilinear over the whole keyboard) through an alpha mask of the key drawable, so the
+ * colours run across the keys without steps; with [dev.agentkeyboard.core.RgbSettings.solidKeys]
+ * every key gets one colour (its centre) by a colour filter, as in stage 26. Texture patterns add
+ * their detail tile through the same mask.
+ *
+ * Cost per frame: one grid per lit element (48 x up to 32 light values; shared when keys and
+ * background use the same engine), one light value per key and element, a few draw calls per key.
+ * Masks are made once per key drawable and size and cached.
  */
 class RgbKeyPainter {
     private var width = 1
@@ -38,12 +48,21 @@ class RgbKeyPainter {
     private var keyboardLayer = false
     private var backgroundLayer = false
     private var labelLayer = false
+    private var solid = false
+    private var now = 0L
+    private lateinit var keysEngine: RgbEngine
+    private lateinit var backEngine: RgbEngine
+    private lateinit var labelEngine: RgbEngine
 
     // current key
     private var lit = false
     private var keyBackgroundLit = false
     private var labelLit = false
+    private var keyId = 0
+    private var keyX = 0
+    private var keyY = 0
     private var keyLight = 0
+    private var labelLight = 0
     private var keyTheme = 0
     private var behind = 0
     private var tinted: Drawable? = null
@@ -51,45 +70,43 @@ class RgbKeyPainter {
     private var tintedIcon: Drawable? = null
     private var tintedIconFilter: ColorFilter? = null
 
-    // keyboard background grid
-    private var grid: Bitmap? = null
-    private var gridPixels = IntArray(0)
-    private val gridPaint = Paint(Paint.FILTER_BITMAP_FLAG)
-    private val gridDst = Rect()
+    /** Light behind and between the keys, and the smooth light under the keys. */
+    private val background = RgbTexture()
+    private val keys = RgbTexture()
+    private var backgroundDrawn = false
+    private var keysReady = false
+    private val masks = RgbKeyMasks()
+    private val effectPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     fun beginDraw(view: KeyboardView) {
         width = view.width.coerceAtLeast(1)
         height = view.height.coerceAtLeast(1)
         colors = Settings.getValues().mColors
         val s = RgbLighting.settings
-        val on = s.enabled && RgbLighting.mode != dev.agentkeyboard.core.RgbRun.Mode.OFF
-        keyboardLayer = on && RgbLayer.KEYBOARD_BACKGROUND in s.layers
-        backgroundLayer = on && RgbLayer.KEY_BACKGROUND in s.layers
-        labelLayer = on && RgbLayer.LABEL in s.layers
-        RgbLighting.engine.aspect = height.toFloat() / width
-        if (keyboardLayer) fillGrid() else grid = null
-    }
-
-    private fun fillGrid() {
-        val cols = GRID_COLUMNS
-        val rows = (cols * height.toFloat() / width).roundToInt().coerceIn(2, GRID_MAX_ROWS)
-        val bitmap = grid?.takeIf { it.width == cols && it.height == rows }
-            ?: Bitmap.createBitmap(cols, rows, Bitmap.Config.ARGB_8888).also {
-                grid = it
-                gridPixels = IntArray(cols * rows)
-            }
-        val engine = RgbLighting.engine
-        val now = RgbLighting.drawTimeMs
-        for (r in 0 until rows) for (c in 0 until cols)
-            gridPixels[r * cols + c] = engine.light((c + 0.5f) / cols, (r + 0.5f) / rows, -1, now)
-        bitmap.setPixels(gridPixels, 0, cols, 0, 0, cols, rows)
+        val on = s.enabled && RgbLighting.mode != RgbRun.Mode.OFF
+        keyboardLayer = on && s.lights(RgbTarget.BACKGROUND)
+        backgroundLayer = on && s.lights(RgbTarget.KEYS)
+        labelLayer = on && s.lights(RgbTarget.LABELS)
+        solid = s.solidKeys
+        now = RgbLighting.drawTimeMs
+        RgbLighting.engines.aspect = height.toFloat() / width
+        keysEngine = RgbLighting.engineFor(RgbTarget.KEYS)
+        backEngine = RgbLighting.engineFor(RgbTarget.BACKGROUND)
+        labelEngine = RgbLighting.engineFor(RgbTarget.LABELS)
+        backgroundDrawn = keyboardLayer
+        if (keyboardLayer) background.update(backEngine, 0f, 0f, width.toFloat(), height.toFloat(), now, -1)
+        keysReady = backgroundLayer
+        if (backgroundLayer) {
+            // the same engine and no per-key reactive flash: the keys use the background's grid
+            if (keyboardLayer && keysEngine === backEngine && keysEngine.keyFactor(-1, now) == 1f) keys.copyFrom(background)
+            else keys.update(keysEngine, 0f, 0f, width.toFloat(), height.toFloat(), now, RgbEngine.FIELD_KEYS)
+        }
     }
 
     /** Draws the lit keyboard background (its alpha is the strength) over what is already there. */
     fun drawKeyboardBackground(canvas: Canvas) {
-        val bitmap = grid ?: return
-        gridDst.set(0, 0, width, height)
-        canvas.drawBitmap(bitmap, null, gridDst, gridPaint)
+        if (!backgroundDrawn) return
+        background.drawRect(canvas, 0f, 0f, width.toFloat(), height.toFloat(), backEngine.overlayStrength(now))
     }
 
     /** [x], [y]: top left of the key in view coordinates. */
@@ -101,20 +118,27 @@ class RgbKeyPainter {
         // a lit keyboard background alone also needs readable labels (keys without borders)
         lit = area != null && (keyBackgroundLit || labelLit || keyboardLayer)
         if (!lit) return
+        keyId = keyId(key)
+        keyX = x
+        keyY = y
         val cx = (x + key.drawWidth / 2f) / width
         val cy = (y + key.height / 2f) / height
-        val now = RgbLighting.drawTimeMs
-        keyLight = if (keyBackgroundLit || labelLit) RgbLighting.engine.light(cx, cy, keyId(key), now) else 0
+        keyLight = if (keyBackgroundLit) keysEngine.light(cx, cy, keyId, now) else 0
+        labelLight = if (labelLit) labelEngine.light(cx, cy, keyId, now) else 0
         keyTheme = themeBackground(key)
-        val keyboardBack = colors.get(ColorType.MAIN_BACKGROUND).let {
-            if (keyboardLayer) RgbColors.applyLight(it or BLACK, RgbLighting.engine.light(cx, cy, -1, now)) else it
+        var keyboardBack = colors.get(ColorType.MAIN_BACKGROUND).let {
+            if (keyboardLayer) RgbColors.applyLight(it or BLACK, backEngine.light(cx, cy, -1, now)) else it
         }
+        if (keyboardLayer && background.hasTile) keyboardBack = RgbColors.over(scaleAlpha(background.tileMean, backEngine.overlayStrength(now)), keyboardBack or BLACK)
         val keyBack = if (keyBackgroundLit) RgbColors.applyLight(keyTheme, keyLight) else keyTheme
         behind = RgbColors.over(keyBack, keyboardBack)
+        // the detail of a texture over the key counts with its average colour
+        if (keyBackgroundLit && keys.hasTile && RgbColors.alpha(keyLight) > 0)
+            behind = RgbColors.over(scaleAlpha(keys.tileMean, RgbColors.alpha(keyLight) / 255f), behind)
     }
 
     fun tintBackground(background: Drawable) {
-        if (!lit || !keyBackgroundLit || RgbColors.alpha(keyLight) == 0) return
+        if (!lit || !keyBackgroundLit || !solid || RgbColors.alpha(keyLight) == 0) return
         // the selected child of a state list, never the container: a container keeps a filter
         // for all children it selects later and would drop their tint (see ARCHITECTURE P60)
         val target = background.current ?: return
@@ -125,6 +149,38 @@ class RgbKeyPainter {
         target.colorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN)
     }
 
+    /**
+     * Called right after the key background was drawn at ([bgX], [bgY]) relative to the key, with
+     * the canvas translated to that point: the smooth light (unless keys are solid), tap effects
+     * and the texture detail, all through the alpha mask of the key drawable.
+     */
+    fun drawOverBackground(canvas: Canvas, background: Drawable, bgX: Int, bgY: Int) {
+        if (!lit || !keyBackgroundLit) return
+        val strength = RgbColors.alpha(keyLight) / 255f
+        val fieldAlpha = if (solid) 0f else keysEngine.keyFactor(keyId, now)
+        val tileAlpha = if (keys.hasTile) strength else 0f
+        val highlight = if (solid) 0f else keysEngine.keyHighlight(keyId, now)
+        val pressed = !solid && android.R.attr.state_pressed in background.state && (fieldAlpha > 0f || strength > 0f)
+        if (fieldAlpha <= 0f && tileAlpha <= 0f && highlight <= 0f && !pressed) return
+        val mask = masks.maskOf(background) ?: return
+        // the canvas is at the top left of the key background: the mask goes at (0, 0)
+        val left = (keyX + bgX).toFloat()
+        val top = (keyY + bgY).toFloat()
+        keys.drawMask(canvas, mask, keyId, left, top, fieldAlpha, tileAlpha)
+        if (highlight > 0f) {
+            effectPaint.color = Color.WHITE
+            effectPaint.alpha = (highlight * 255).toInt().coerceIn(0, 255)
+            canvas.drawBitmap(mask, 0f, 0f, effectPaint)
+        }
+        if (pressed) {
+            // the same feedback as RgbColors.pressed: lighter on dark light, darker on bright light
+            val bright = RgbColors.luminance(RgbColors.applyLight(keyTheme or BLACK, keyLight)) > 0.4
+            effectPaint.color = if (bright) Color.BLACK else Color.WHITE
+            effectPaint.alpha = if (bright) 64 else 77
+            canvas.drawBitmap(mask, 0f, 0f, effectPaint)
+        }
+    }
+
     fun restoreBackground() {
         val target = tinted ?: return
         target.colorFilter = tintedFilter
@@ -133,12 +189,12 @@ class RgbKeyPainter {
     }
 
     /**
-     * Colour of a label, hint or icon of the current key: lit with the light if labels are a layer,
-     * and always readable against the (possibly lit) key background. Alpha of [themeColor] is kept.
+     * Colour of a label, hint or icon of the current key: lit with the label light if labels are a
+     * layer, and always readable against the (possibly lit) key background. Alpha of [themeColor] is kept.
      */
     fun labelColor(themeColor: Int): Int {
         if (!lit) return themeColor
-        return RgbColors.label(themeColor, keyLight, labelLit, behind)
+        return RgbColors.label(themeColor, labelLight, labelLit, behind)
     }
 
     /**
@@ -175,10 +231,17 @@ class RgbKeyPainter {
         return colors.get(type)
     }
 
+    private fun scaleAlpha(color: Int, factor: Float) =
+        (((color ushr 24) * factor.coerceIn(0f, 1f)).toInt() shl 24) or (color and 0xFFFFFF)
+
+    /** Number of cached key masks (tests). */
+    internal val maskCount get() = masks.size
+
     companion object {
         private const val BLACK = 0xFF000000.toInt()
-        const val GRID_COLUMNS = 24
-        const val GRID_MAX_ROWS = 16
+        /** Columns of the light grid (stage 26: 24, now [RgbTexture.COLUMNS]). */
+        const val GRID_COLUMNS = RgbTexture.COLUMNS
+        const val GRID_MAX_ROWS = RgbTexture.MAX_ROWS
 
         /** Stable id of a key within its keyboard, for flash effects. */
         fun keyId(key: Key) = System.identityHashCode(key) and 0x7FFFFFFF
@@ -195,5 +258,43 @@ class RgbKeyPainter {
                 else -> RgbArea.LETTERS
             }
         }
+    }
+}
+
+/**
+ * Alpha masks of key backgrounds (stage 29): the shape of the selected child of a key drawable at
+ * its current size, as an ALPHA_8 bitmap, drawn with a shader to fill exactly that shape. Made once
+ * per drawable and size; the drawable is drawn with a white SRC_IN filter so the theme colour (even a
+ * transparent one) does not change the shape, then its own filter comes back (P60: on the child).
+ */
+internal class RgbKeyMasks {
+    private class Entry(val drawable: Drawable, val width: Int, val height: Int, val mask: Bitmap)
+    private val entries = ArrayList<Entry>()
+    val size get() = entries.size
+
+    fun maskOf(background: Drawable): Bitmap? {
+        val target = background.current ?: return null
+        val bounds = target.bounds
+        val w = bounds.width()
+        val h = bounds.height()
+        if (w <= 0 || h <= 0) return null
+        for (i in entries.indices) {
+            val e = entries[i]
+            if (e.drawable === target && e.width == w && e.height == h) return e.mask
+        }
+        val mask = Bitmap.createBitmap(w, h, Bitmap.Config.ALPHA_8)
+        val canvas = Canvas(mask)
+        val filter = target.colorFilter
+        target.colorFilter = PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN)
+        canvas.translate(-bounds.left.toFloat(), -bounds.top.toFloat())
+        target.draw(canvas)
+        target.colorFilter = filter
+        entries.add(Entry(target, w, h, mask))
+        if (entries.size > MAX_MASKS) entries.removeAt(0)
+        return mask
+    }
+
+    private companion object {
+        const val MAX_MASKS = 32
     }
 }

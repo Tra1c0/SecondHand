@@ -486,22 +486,38 @@ Einstellungen so, bis du sie selbst änderst.
 ## RGB-Beleuchtung
 
 Einstellungen → Aussehen → „RGB-Beleuchtung“ (oder unten auf der Design-Seite). Oben läuft eine
-Vorschau; tippe darauf, um die Effekte beim Tippen auszuprobieren. Darunter:
+große Vorschau; tippe darauf, um die Effekte beim Tippen auszuprobieren. Darunter liegen die
+Einstellungen in Karten:
 
 - „RGB-Beleuchtung an“ schaltet alles ein (anfangs aus).
-- Muster: Welle waagerecht, senkrecht oder diagonal, Kreis von der Mitte, Atmen (alle Tasten
-  gleich, heller und dunkler) oder statischer Regenbogen (steht still).
-- Verlauf: Sinus (weich hin und zurück), Dreieck (Zickzack), Sägezahn (läuft durch alle Farben
-  und fängt wieder an), Stufen (zackig, mit Regler für die Anzahl), An- und Abstieg (sanft hoch,
-  kurz halten, sanft runter, Pause).
-- Tempo und Richtung: Dauer eines Durchlaufs 0,5–30 s, „Richtung umkehren“, Wellenbreite (wie
-  viele Farbdurchläufe über die Tastatur passen).
+- Muster: Tippe auf ein Bild. Welle waagerecht, senkrecht oder diagonal, Kreis von der Mitte,
+  Atmen (alle Tasten gleich, heller und dunkler), statischer Regenbogen (steht still) und die
+  bewegten Texturen Tinte, Rauten, Lamellen, Raster, LED-Punkte und Höhenlinien.
+- „Gleiches Muster überall“ (an): Alles leuchtet im selben Muster. Schaltest du es aus, erscheint
+  eine Auswahl Tasten, Hintergrund, Beschriftung, Vorschläge, Leistenknöpfe. Was du darunter
+  einstellst (Muster, Verlauf, Tempo, Farben), gilt nur für das gewählte Element; jedes startet
+  mit dem bisherigen gemeinsamen Muster. Ob ein Element überhaupt leuchtet, stellst du weiter
+  unter „Was leuchtet“ und „Wo“ ein; die Seite weist darauf hin, wenn es gerade aus ist.
+  Beschriftung und Leiste nehmen nur die Farbe an ihrer Stelle; Linien, Punkte und Raster sieht
+  man auf Tasten und Hintergrund.
+- Verlauf: eine Kurve. Waagerecht ist die Stelle im Durchlauf (Zeit und Ort zusammen),
+  senkrecht die Farbe im Farbverlauf (bei „Atmen“ die Helligkeit). Ziehe einen Punkt (Kreis mit
+  Kreuz), um ihn zu verschieben; die beiden Enden bleiben links und rechts und gehen nur hoch und
+  runter. Tippe auf eine freie Stelle für einen neuen Punkt oder auf „Punkt hinzufügen“ (kommt in
+  die größte Lücke). Drücke lang auf einen Punkt oder ziehe ihn aus dem Feld, um ihn zu entfernen,
+  oder wähle ihn und tippe „Punkt entfernen“. Mindestens zwei, höchstens 24 Punkte. Vorlagen:
+  Sinus (weich), Dreieck (Zickzack), Sägezahn, Stufen (mit Regler 2–12), An- und Abstieg; wer
+  vorher einen Verlauf gewählt hatte, findet ihn als passende Kurve wieder.
+- Tempo und Richtung: Dauer eines Durchlaufs 0,5–30 s (bei den Texturen auch das Tempo der
+  Bewegung), „Richtung umkehren“, Wellenbreite (wie viele Farbdurchläufe über die Tastatur passen).
 - Farben: „Regenbogen“ oder „Eigene Farben“ (Kreis antippen, Farbe wählen; 2 bis 6 Farben über
   „Farbe hinzufügen“ und „Letzte Farbe entfernen“), Sättigung, Helligkeit und Deckkraft
-  gegenüber den Farben deines Designs (0 % = nur Design, 100 % = nur Licht).
+  gegenüber den Farben deines Designs (0 % = nur Design, 100 % = nur Licht). Für die Tinte wie in
+  deiner Vorlage z. B. Türkis, Grün, Gelb und Rot als eigene Farben.
 - Was leuchtet (mehrere wählbar): Tastenhintergrund, Tastaturhintergrund (hinter und zwischen
   den Tasten), Beschriftung. Beschriftungen bleiben immer lesbar: Ist der Kontrast zum
-  Hintergrund kleiner als 3:1, werden sie heller oder dunkler.
+  Hintergrund kleiner als 3:1, werden sie heller oder dunkler. „Jede Taste einfarbig“: eine Farbe
+  pro Taste wie bei LED-Tastaturen; aus (Vorgabe) laufen die Farben weich über die Tasten.
 - Wo (mehrere wählbar): Buchstabentasten, Funktionstasten (Umschalt, Löschen, Enter, ?123,
   Komma, Punkt), Leertaste, Zahlenreihe, Vorschlagsleiste (Text der Wortvorschläge),
   Leistenknöpfe. In der Leiste ändert sich nur die Farbe von Text und Symbolen.
@@ -511,13 +527,13 @@ Vorschau; tippe darauf, um die Effekte beim Tippen auszuprobieren. Darunter:
   Taste). „Nachleuchten“ stellt ein, wie lange das dauert (0,2–5 s).
 - Akku: 30 oder 60 Bilder pro Sekunde (30 spart Akku), „Im Energiesparmodus anhalten“ (an).
 
-Jede Änderung wird sofort gespeichert und gilt beim nächsten Öffnen der Tastatur. Die
-Beleuchtung läuft nur, solange die Tastatur sichtbar ist; die untere Reihe der Emoji- und der
-Zwischenablage-Ansicht leuchtet nicht. Schaltest du den Energiesparmodus bei offener Tastatur
-ein oder aus, bleibt das Licht sofort stehen bzw. läuft weiter. Hast du in den
-Android-Einstellungen (Entwickleroptionen oder Bedienungshilfen) die Animationen ausgeschaltet,
-bleibt das Bild stehen (läuft es gerade, nach höchstens 2 s, sonst beim nächsten Einblenden der
-Tastatur) und die Tipp-Effekte entfallen.
+Jede Änderung wird sofort gespeichert (beim Ziehen eines Kurvenpunkts beim Loslassen) und gilt
+beim nächsten Öffnen der Tastatur. Die Beleuchtung läuft nur, solange die Tastatur sichtbar ist;
+die untere Reihe der Emoji- und der Zwischenablage-Ansicht leuchtet nicht. Schaltest du den
+Energiesparmodus bei offener Tastatur ein oder aus, bleibt das Licht sofort stehen bzw. läuft
+weiter. Hast du in den Android-Einstellungen (Entwickleroptionen oder Bedienungshilfen) die
+Animationen ausgeschaltet, bleibt das Bild stehen (läuft es gerade, nach höchstens 2 s, sonst
+beim nächsten Einblenden der Tastatur) und die Tipp-Effekte entfallen.
 Leistenknöpfe: Nur eingeschaltete Werkzeuge leuchten, ausgeschaltete behalten ihre graue Farbe;
 der runde Knopf im flachen Look leuchtet nicht. Mit eigenem Hintergrundbild prüft die Tastatur
 die Lesbarkeit gegen die Hintergrundfarbe, nicht gegen das Bild. Die Einstellung steht im
