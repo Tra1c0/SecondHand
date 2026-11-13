@@ -9,18 +9,17 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 ## Aktueller Stand
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
-- Stand 2026-11-13: Etappen 24a–24f (alle Befehle außer `@chord`), 23e, 23f1/23f2, Updates,
-  Befehlsvorlagen, `@wecker`/`@timer`, Design-Editor und Leertasten-Gesten sind gebaut, geprüft
-  (Robolectric, Prüfer) und in `main`. Installiert wird Build 10 aus `agent-apk.yml`.
-- Nichts davon seit 19 lief auf einem Gerät außer dem, was der Owner am Telefon gemeldet hat
-  (Befehle funktionieren, Rechner öffnet sich, `@translate` mit Gemini).
-- Wartet auf den Owner: Secret `RELEASES_TOKEN` (öffentliches Repo `Tra1c0/AgenticKeyboard`, erst
-  dann bekommt die Freundin Updates); Entscheidung, ob vertrauliche Clips aus dem Verlauf bleiben;
-  Entscheidung, ob der Emoji-Mix Bilder bei Google laden darf (Wunsch 2026-11-13: Emoji-Mix,
-  animierte Emojis, Sticker-Ersteller, noch nicht in der Roadmap).
-- Wackelige Tests im vollen Lauf: `SpaceGesturesTest.defaults…` und
-  `InputLogicTest.typedWorkflowChoiceIsDroppedWhenTheEditorChanges` fielen je einmal, einzeln
-  grün, im dritten Lauf grün; Ursache offen (vermutlich Zustand aus früheren Tests).
+- Stand 2026-11-13: Build 11 installiert beim Owner (vom Arbeitsbranch gebaut, danach geprüft und
+  nach `main`). Neu seit Build 10: 23g Screenshot zuerst, 26 RGB-Beleuchtung, 24g Sprachbefehle,
+  eingebaute Emoji-Wörterbücher (de/en/es); alle mit Prüfer und Nachprüfung. Kein Gerätetest.
+- Für Build 12 offen (Nachprüfung, alle niedrig): Screenshot-Verlauf verpasst im 500-ms-Fenster
+  einen Screenshot; Reste in `files/agent_screenshot_pending/`; `ClipboardHistoryManager.onDestroy`
+  stoppt Observer/Timer nicht; Temp-Datei beim Wörterbuch-Entpacken im Locale-Ordner sichtbar.
+- Emoji-Mix (25a) für Build 12 gewünscht, blockiert: Paarliste ohne Lizenz; Owner wählt „fragen“
+  (Issue bei xsalazar) oder „privat“. Danach 25b animierte Emojis, 25c Sticker-Ersteller.
+- Wartet auf den Owner: `RELEASES_TOKEN` (Updates für die Freundin), vertrauliche Clips im Verlauf.
+- Tests: Robolectric hat keine native Wörterbuch-Bibliothek; `ShadowBinaryDictionaryUtils` gilt
+  global (robolectric.properties). Wackelige Tests im vollen Lauf siehe Build-Log 10.
 
 ## Offene Punkte
 
@@ -190,6 +189,9 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
   Code aktualisieren (`CLAUDE.md` → Docs aktuell halten).
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
+- Build 11 (signiert, Workflow vom Arbeitsbranch c2a91d2, auf Wunsch vor Abschluss der Prüfungen
+  ausgegeben): Screenshot zuerst, RGB, Sprachbefehle, Emoji-Wörterbücher; danach Upstream 778 mit
+  den 7 bekannten Fehlern (nach globalem Test-Shadow), Agent-Suite, Lint, Build grün; kein Gerätetest.
 - Build 10 (signiert, Workflow): Vorlagen, `@wecker`/`@timer`, Design-Editor, Leertasten-Gesten,
   Prüferbefunde behoben; Agent-Suite grün, Upstream 722 mit den 7 bekannten Fehlern, Lint und
   Build grün; kein Gerätetest.
