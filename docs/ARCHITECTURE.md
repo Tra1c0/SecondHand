@@ -426,7 +426,8 @@ Geänderte Upstream-Tests: `Shadows.kt` (IME-Info aus `BuildConfig.APPLICATION_I
 `getTextBeforeCursor(n)` liefert wie Android die letzten n Zeichen vor der Schreibmarke, nicht die
 ersten n des Felds),
 `Shadows.kt` liefert außerdem `acceptedMimeTypes` und `currentImeOptions` im `EditorInfo` (23g),
-dazu `currentPackageName` und `currentFieldId` (Sprachbefehle, P66),
+dazu `currentPackageName` und `currentFieldId` (Sprachbefehle, P66) und `contentCommit` (Antwort
+des Felds auf `commitContent`, 25a),
 `InputLogicTest.kt` (zusätzliche erzeugte Fälle, `typedCommand*` für 24a, `screenshotChip*` für
 23g, `symbolDraw*` für 27, `typedEmoji*` für 25a), `SuggestTest.kt` (Personalisierung im Test
 ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
@@ -776,10 +777,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `InputLogicTest.typedTranslation*`.
   - `A/commands/QrCommand.kt` (`@qr`): ZXing `QRCodeWriter` (Fehlerkorrektur M, Ruhezone 4,
     512 px), erzeugt erst nach dem Tipp auf einem Hintergrund-Thread. Einfügen über
-    `ScreenshotChip.editorAccepts`/`isSameField` und `onContent` (Datei unter `files/agent_qr/`,
-    Pfad in `clipboard_provider_path.xml`), erst danach `Host.replace` (P43); sonst Teilen über die
+    `ScreenshotChip.editorAccepts`/`isSameField` und `SYSTEM_SINK` (Datei unter `files/agent_qr/`,
+    Pfad in `clipboard_provider_path.xml`), erst danach `removeAfterInsert` → `Host.replace` (P43,
+    P83); sonst Teilen über die
     Auswahl mit Leseberechtigung, Entfernen nach erfolgreichem Start. Austauschbar: `sink`,
-    `launcher`, `blocked`. Test `AT/commands/QrCommandTest.kt` (dekodiert den Code mit ZXing).
+    `launcher`, `blocked`. `SYSTEM_SINK` (auch für Emoji-Mix) committet wie
+    `KeyboardActionListenerImpl.onContent`, aber selbst über `InputConnectionCompat.commitContent`
+    und meldet die Antwort des Editors: false bei blockierter Eingabe, fremdem Typ oder Ablehnung
+    (dann Toast `agent_image_not_inserted`, Text bleibt). `removeAfterInsert` liest danach den Text
+    vor der Schreibmarke beim Editor (`Host.editorTextBeforeCursor`, nicht aus dem Cache) und
+    ersetzt nur, wenn er unverändert ist (P83). Test `AT/commands/QrCommandTest.kt` (dekodiert den Code mit ZXing),
+    mit echtem Host `InputLogicTest.typedCommandImageSinkReportsTheFieldsAnswer`.
     Robolectric: `FileProvider` merkt sich seine Wurzeln JVM-weit, der Test leert `sCache`.
   - `A/commands/AlarmCommand.kt` (`@wecker`) und `A/commands/TimerCommand.kt` (`@timer`), dazu
     `ClockCommands` (in `AlarmCommand.kt`: Start, dann Entfernen; Hinweis-Chip `MUTED`, dessen Tipp
@@ -848,10 +856,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `InputLogicTest.typedCommandLanguageChoiceSurvivesTheAppRestartingTheField` (de → es → en → de
     im geleerten Feld mit deutschem Hint und App-Subtyp, Popup-Tasten von „a“),
     `AT/commands/SubtypeChoiceTest.kt`.
-  - Emoji-Mix (25a, Fallstricke P70–P74): `C/EmojiMix.kt` (rein, ohne Netz): `EmojiMixTable.read`
+  - Emoji-Mix (25a, Fallstricke P70–P74, P83): `C/EmojiMix.kt` (rein, ohne Netz): `EmojiMixTable.read`
     liest die gzip-Tabelle aus `app/src/main/assets/emoji_mix_pairs.bin` (Format im Generator
     `tools/emoji_mix_table.py`, Quelle und Lizenzstand `docs/BUILD.md`): 619 Emojis, Bitmap der
-    Paare (links, rechts) und ein Datumsindex je Paar, Rang über `rowStart`. `find` sucht in
+    Paare (links, rechts) und ein Datumsindex je Paar, Rang über `rowStart`; jeder Codepunkt muss
+    ein Unicode-Skalarwert sein (≤ 10FFFF, kein Surrogat), sonst gilt die ganze Tabelle als kaputt
+    (ebenso im Generator). `find` sucht in
     Tabellenreihenfolge, sonst umgekehrt; `indexOf` vergleicht ohne FE0F/FE0E, dann ohne Hautton
     (die Tabelle hat keine Hauttöne). `EmojiClusters.split` (Codepunkt plus Variationsselektor,
     Hautton, Keycap, Tags, ZWJ-Folgen, Flaggenpaare). `EmojiMixUrls`: Bild-URL
@@ -862,10 +872,14 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `A/commands/EmojiMixer.kt`: gemeinsamer Zustand je Paar (`Loading`, `Ready` mit Vorschaubild,
     `Missing` nach 404, `Failed`), höchstens 12 im Speicher (LRU), nur Main-Thread; Tabelle,
     Platte und Netz auf einem Worker. `request` ist der einzige Netzweg und nur nach einem Tipp:
-    erst Cache, sonst genau ein `EmojiMixClient.fetch`; bei `Loading`/`Ready`/`Missing` nichts.
-    `state` liest ein gecachtes Bild ohne Netz nach. `listen("chips"|"palette")` baut nach jeder
-    Änderung neu. `deliver`: `ScreenshotChip.editorAccepts(…, image/png)` → `sink` (wie `@qr`
-    `onContent`), sonst Teilen über `launcher`; austauschbar `tableSource`, `calls`, `sink`,
+    erst Cache, sonst genau ein `EmojiMixClient.fetch`; bei `Loading`/`Ready`/`Missing` nichts;
+    jede Ausnahme im Worker endet in `Failed` (nie dauerhaft `Loading`). `state` liest ein
+    gecachtes Bild ohne Netz nach. `thumbnail` dekodiert auf höchstens `THUMBNAIL_PX` (320 px,
+    Abtastung plus Skalierung; die Bilder haben 534 px). `clearCache` erhöht `generation`: Ergebnisse
+    von vorher eingereihter Arbeit werden verworfen, und die Ansichten bauen sofort neu.
+    `listen("chips"|"palette")` baut nach jeder
+    Änderung neu. `deliver`: `ScreenshotChip.editorAccepts(…, image/png)` → `sink`
+    (`QrCommand.SYSTEM_SINK`; `afterInsert` nur nach true, sonst Toast), sonst Teilen über `launcher`; austauschbar `tableSource`, `calls`, `sink`,
     `launcher`, `blocked`, `toMain` (Übergabe an den Main-Thread, P73). `EmojiMixClient` (eigenes OkHttp `EmojiMixHttp`: keine Weiterleitung,
     kein Cookie, Zeitlimits 10/15/20 s): URL vor der Anfrage prüfen, 3xx = Fehler, 404 = `Missing`,
     nur `image/png` mit PNG-Signatur, höchstens 2 MB.
@@ -888,7 +902,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `K/settings/screens/AgentEmojiMixSection.kt`. Texte in `agent_emoji_mix_strings.xml`
     (`values/`, `values-de/`). Tests `CT/EmojiMixTest.kt`, `AT/commands/EmojiMixCommandTest.kt`,
     `AT/EmojiMixPaletteTest.kt`, mit echtem Host
-    `InputLogicTest.typedEmojiPairOffersTheMixAndReplacesItOnlyAfterTwoTaps` (P73).
+    `InputLogicTest.typedEmojiPairOffersTheMixAndReplacesItOnlyAfterTwoTaps` (P73) und
+    `InputLogicTest.typedEmojiPairStaysWhenTheFieldDoesNotTakeTheImage` (echter Sink: Ablehnung,
+    Bild als Objektzeichen an der Schreibmarke, blockierte Eingabe; P83).
   - Tests: `CT/UrlDetectorTest.kt`, `CT/SymbolTableTest.kt`, `CT/UnitConversionTest.kt`,
     `CT/EventParserTest.kt`, `CT/DateFormattingTest.kt`, `CT/PlacesTest.kt`, `CT/AlarmParserTest.kt`,
     `CT/TimerParserTest.kt`, `AT/commands/ClockCommandsTest.kt`;
@@ -1699,6 +1715,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Mischungen löschen“), während die Emoji-Ansicht dieselbe Wahl zeigt. Jede Änderung irgendeines
   Paars zeichnet den Mixer neu; ohne die Merkung `requestedKey` würde die Neuzeichnung dann ohne
   Tipp erneut laden. Eine neue Anfrage für dieselbe Wahl kommt nur aus einem Tipp.
+- **P83** Nach einem eingefügten Bild (Emoji-Mix, `@qr`) ist der Cache von `RichInputConnection`
+  veraltet: `commitContent` läuft an ihm vorbei, und ein Rich-Text-Editor kann das Bild als
+  Objektzeichen (U+FFFC) an die Schreibmarke setzen. Die Prüfung aus dem Cache besteht dann,
+  `replaceTextBeforeCursorIfUnchanged` liest beim Editor und lehnt ab, und der Nutzer sähe
+  „Text geändert, nichts ersetzt“, obwohl das Bild drin ist. Deshalb liest
+  `QrCommand.removeAfterInsert` den Text vor der Schreibmarke beim Editor
+  (`Host.editorTextBeforeCursor`) und meldet bei einer Abweichung „Bild eingefügt …, der getippte
+  Text bleibt stehen“. Ebenso darf der Sink nie „eingefügt“ melden, ohne die Antwort des Editors
+  zu kennen: `KeyboardActionListenerImpl.onContent` und `RichInputConnection.commitContent` geben
+  sie nicht weiter, `QrCommand.SYSTEM_SINK` committet deshalb selbst.
 
 ## Datei-Inventar
 

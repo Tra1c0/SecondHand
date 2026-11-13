@@ -1003,6 +1003,7 @@ class InputLogicTest {
             val pending = synchronized(posted) { posted.toList().also { posted.clear() } }
             pending.forEach { it() }
         }
+        forgetFileProviderRoots()
         mixer.resetForTest()
         try {
             mixer.calls = { http }
@@ -1046,6 +1047,109 @@ class InputLogicTest {
             mixer.cache(latinIME).clear()
             mixer.resetForTest()
         }
+    }
+
+    /**
+     * Stage 25a with the real host and the real image sink: the typed emojis go only after the field
+     * took the image. A refusing app or blocked input keeps them; a rich-text editor that puts the
+     * image at the cursor keeps them with a fitting message (P83).
+     */
+    @Test fun typedEmojiPairStaysWhenTheFieldDoesNotTakeTheImage() {
+        val mixer = helium314.keyboard.agent.commands.EmojiMixer
+        val png = java.io.ByteArrayOutputStream().also {
+            android.graphics.Bitmap.createBitmap(64, 64, android.graphics.Bitmap.Config.ARGB_8888)
+                .apply { eraseColor(android.graphics.Color.RED) }.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+        }.toByteArray()
+        val http = okhttp3.OkHttpClient.Builder().addInterceptor { chain ->
+            okhttp3.Response.Builder().request(chain.request()).protocol(okhttp3.Protocol.HTTP_1_1).code(200).message("OK")
+                .body(with(okhttp3.ResponseBody.Companion) { png.toResponseBody(with(okhttp3.MediaType.Companion) { "image/png".toMediaType() }) }).build()
+        }.build()
+        val posted = java.util.Collections.synchronizedList(mutableListOf<() -> Unit>())
+        fun settle() {
+            val done = java.util.concurrent.CountDownLatch(1)
+            mixer.afterWork { done.countDown() }
+            assertTrue(done.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            val pending = synchronized(posted) { posted.toList().also { posted.clear() } }
+            pending.forEach { it() }
+        }
+        fun toast() = org.robolectric.shadows.ShadowToast.getTextOfLatestToast()
+        forgetFileProviderRoots()
+        mixer.resetForTest() // the real sink: the field's own answer
+        try {
+            mixer.calls = { http }
+            mixer.toMain = { posted += it }
+            mixer.cache(latinIME).clear()
+            ShadowInputMethodService.acceptedMimeTypes = arrayOf("image/png")
+            setText("")
+            helium314.keyboard.agent.KeyboardCommands.load(latinIME)
+            mixer.table(latinIME)
+            settle()
+            chainInput("Na ")
+            input(0x1F436)
+            input(0x1F525)
+            val strip = android.widget.FrameLayout(latinIME)
+            fun chip() = ((helium314.keyboard.agent.KeyboardCommands.createChipsView(latinIME, strip) as android.view.ViewGroup)
+                .getChildAt(0) as android.view.ViewGroup).getChildAt(0) as android.widget.TextView
+            chip().performClick()
+            settle()
+            val commits = mutableListOf<String>()
+            // the app refuses the image: the emojis stay, and the toast says why
+            ShadowInputMethodService.contentCommit = { commits += it.contentUri.toString(); false }
+            val sticker = chip()
+            assertTrue(sticker.text.toString().endsWith(latinIME.getString(R.string.agent_emoji_mix_insert)))
+            sticker.performClick()
+            assertEquals(1, commits.size)
+            assertEquals("Na 🐶🔥", text)
+            assertEquals(latinIME.getString(R.string.agent_image_not_inserted), toast())
+            // a rich-text editor puts the image at the cursor as an object character: it went in, the emojis stay
+            ShadowInputMethodService.contentCommit = {
+                commits += it.contentUri.toString()
+                ShadowInputMethodService.text = textBeforeCursor + "￼" + textAfterCursor
+                ShadowInputMethodService.selectionStart++
+                ShadowInputMethodService.selectionEnd++
+                true
+            }
+            chip().performClick()
+            assertEquals(2, commits.size)
+            assertEquals("Na 🐶🔥￼", text)
+            assertEquals(latinIME.getString(R.string.agent_image_inserted_text_kept), toast())
+            // input blocked (an unclear edit waits for the editor): nothing is committed, the emojis stay
+            setText("Na 🐶🔥")
+            val again = chip()
+            latinIME.agentEditorController.onUnclearEdit()
+            assertTrue(latinIME.agentEditorController.isBlockingInput)
+            again.performClick()
+            assertEquals(2, commits.size)
+            assertEquals("Na 🐶🔥", text)
+            assertEquals(latinIME.getString(R.string.agent_image_not_inserted), toast())
+        } finally {
+            mixer.cache(latinIME).clear()
+            mixer.resetForTest()
+        }
+    }
+
+    /** `@qr` and Emoji-Mix share the real image sink: true only when the field took the image. */
+    @Test fun typedCommandImageSinkReportsTheFieldsAnswer() {
+        val sink = helium314.keyboard.agent.commands.QrCommand.SYSTEM_SINK
+        val content = androidx.core.view.inputmethod.InputContentInfoCompat(android.net.Uri.parse("content://test.provider/qr.png"),
+            android.content.ClipDescription("QR", arrayOf("image/png")), null)
+        val commits = mutableListOf<Boolean>()
+        var accepts = true
+        ShadowInputMethodService.contentCommit = { commits += accepts; accepts }
+        ShadowInputMethodService.acceptedMimeTypes = arrayOf("image/gif")
+        setText("@qr hi")
+        assertFalse(sink.insert(latinIME, content), "the field does not declare PNG")
+        assertEquals(emptyList(), commits)
+        ShadowInputMethodService.acceptedMimeTypes = arrayOf("image/png")
+        assertTrue(sink.insert(latinIME, content))
+        accepts = false
+        assertFalse(sink.insert(latinIME, content), "the app refused it")
+        assertEquals(listOf(true, false), commits)
+        assertFalse(sink.insert(android.content.ContextWrapper(latinIME), content), "not the keyboard")
+        accepts = true
+        latinIME.agentEditorController.onUnclearEdit()
+        assertFalse(sink.insert(latinIME, content), "input is blocked")
+        assertEquals(2, commits.size)
     }
 
     @Test fun typedCommandLanguageChoiceSurvivesTheAppRestartingTheField() {
@@ -3254,6 +3358,15 @@ class InputLogicTest {
         val info = SuggestedWordInfo(word, "", 0, 0, null, 0, 0)
         val sw = SuggestedWords(ArrayList(listOf(info)), null, info, true, false, false, 0, 0)
         latinIME.mInputLogic.onUpdateTailBatchInputCompleted(settingsValues, sw, KeyboardSwitcher.getInstance())
+    }
+
+    /**
+     * FileProvider caches its roots per authority for the whole JVM, but Robolectric gives each test
+     * its own data directory: forget the roots of an earlier test (as in EmojiMixCommandTest).
+     */
+    private fun forgetFileProviderRoots() {
+        androidx.core.content.FileProvider::class.java.getDeclaredField("sCache").apply { isAccessible = true }
+            .let { field -> (field.get(null) as MutableMap<*, *>).let { synchronized(it) { it.clear() } } }
     }
 
     private fun checkConnectionConsistency() {

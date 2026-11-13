@@ -348,7 +348,10 @@ von Google (www.gstatic.com); gesendet werden dabei nur die beiden Emojis, kein 
   Vorlagen (😂 🥰 🐶 🔥 ❤️).
 - Zwei Emojis direkt vor der Schreibmarke (z. B. du tippst 🐶🔥): Die Leiste bietet denselben
   Chip an. Nach dem Einfügen verschwinden die zwei Emojis, aber nur, wenn sie noch unverändert
-  vor der Schreibmarke stehen. Beim Teilen bleiben sie stehen. Abschalten: Einstellungen →
+  vor der Schreibmarke stehen. Beim Teilen bleiben sie stehen. Nimmt die App das Bild nicht an,
+  bleiben Emojis bzw. Befehl stehen („Das Bild wurde nicht eingefügt“); setzt eine App das Bild
+  selbst an die Schreibmarke, bleiben sie ebenfalls stehen („Bild eingefügt …“), dann von Hand
+  löschen. Dasselbe gilt für `@qr`. Abschalten: Einstellungen →
   Befehle → „Emoji-Mix in der Leiste anbieten“ (der Schalter gilt nur, solange Befehle an sind).
 - In der Emoji-Ansicht hat die untere Reihe statt Leertaste und Lupe zwei gleich breite Tasten:
   „Emojis suchen“ (wie bisher die Lupe; ohne Emoji-Wörterbuch steht dort die Leertaste) und

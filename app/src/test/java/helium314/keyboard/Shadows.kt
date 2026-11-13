@@ -146,6 +146,8 @@ class ShadowInputMethodService {
         /** The field's app and id, for tests that tell fields apart (none by default). */
         var currentPackageName: String? = null
         var currentFieldId = 0
+        /** How the field answers an image (commitContent); unset, a commit fails the test. */
+        var contentCommit: ((InputContentInfo) -> Boolean)? = null
 
         // convenience for access
         val textBeforeCursor get() = text.substring(0, selectionStart)
@@ -169,6 +171,7 @@ class ShadowInputMethodService {
             currentImeOptions = 0
             currentPackageName = null
             currentFieldId = 0
+            contentCommit = null
         }
     }
 
@@ -346,6 +349,7 @@ class ShadowInputMethodService {
         override fun performPrivateCommand(p0: String?, p1: Bundle?): Boolean = TODO("Not yet implemented")
         override fun getHandler(): Handler = TODO("Not yet implemented")
         override fun closeConnection() = TODO("Not yet implemented")
-        override fun commitContent(p0: InputContentInfo, p1: Int, p2: Bundle?): Boolean = TODO("Not yet implemented")
+        override fun commitContent(p0: InputContentInfo, p1: Int, p2: Bundle?): Boolean =
+            contentCommit?.invoke(p0) ?: TODO("Not yet implemented")
     }
 }

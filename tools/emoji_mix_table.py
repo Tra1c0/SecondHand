@@ -45,6 +45,14 @@ def expected_url(date: str, left: str, right: str) -> str:
     return f"{BASE}{date}/{path_part(left)}/{path_part(left)}_{path_part(right)}.png"
 
 
+def valid_codepoints(codepoints: str) -> bool:
+    """Lowercase hex joined by "-", 1 to 6 digits each, each a Unicode scalar value (as EmojiMixTable.read checks)."""
+    parts = codepoints.split("-")
+    if not codepoints or any(not 1 <= len(p) <= 6 or any(c not in "0123456789abcdef" for c in p) for p in parts):
+        return False
+    return all(int(p, 16) <= 0x10FFFF and not 0xD800 <= int(p, 16) <= 0xDFFF for p in parts)
+
+
 def sort_key(codepoints: str):
     return [int(part, 16) for part in codepoints.split("-")]
 
@@ -68,7 +76,7 @@ def build(metadata: dict) -> tuple[bytes, dict]:
                 pairs[(left, right)] = date
     emojis = sorted({code for pair in pairs for code in pair} | set(data.keys()), key=sort_key)
     for code in emojis:
-        if not code or any(c not in "0123456789abcdef-" for c in code) or len(code) > 255:
+        if not valid_codepoints(code) or len(code) > 255:
             raise SystemExit(f"unexpected code points: {code}")
     index = {code: i for i, code in enumerate(emojis)}
     dates = sorted(set(pairs.values()))

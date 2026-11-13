@@ -259,6 +259,59 @@ class EmojiMixCommandTest {
         assertTrue(send.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0)
     }
 
+    @Test fun anUnexpectedErrorFailsThePairInsteadOfLoadingForever() {
+        EmojiMixer.calls = { throw IllegalStateException("broken") }
+        chips("@mix 🐶🔥", plain).single().onTap()
+        settle()
+        val failed = chips("@mix 🐶🔥", plain).single()
+        assertEquals(KeyboardCommands.Chip.Kind.MUTED, failed.kind)
+        assertEquals(latinIME.getString(R.string.agent_emoji_mix_failed, "🐶 + 🔥"), failed.label.toString())
+        // a new tap tries again
+        EmojiMixer.calls = { http }
+        failed.onTap()
+        settle()
+        assertEquals(KeyboardCommands.Chip.Kind.RESULT, chips("@mix 🐶🔥", plain).single().kind)
+    }
+
+    @Test fun clearingTheCacheDropsALoadStillQueuedAndRedrawsAtOnce() {
+        var redrawn = 0
+        EmojiMixer.listen("test") { redrawn++ }
+        // the worker is busy, so the load is still queued when the cache is cleared
+        val gate = java.util.concurrent.CountDownLatch(1)
+        EmojiMixer.afterWork { gate.await(5, java.util.concurrent.TimeUnit.SECONDS) }
+        try {
+            assertTrue(EmojiMixer.request(latinIME, dogFire))
+            val before = redrawn
+            EmojiMixer.clearCache(latinIME)
+            assertTrue(redrawn > before, "the chips and the palette forget the pair at once")
+        } finally {
+            gate.countDown()
+        }
+        settle()
+        assertEquals(1, requests.size)
+        assertFalse(EmojiMixer.cache(latinIME).file(dogFire).isFile)
+        assertNull(EmojiMixer.state(latinIME, dogFire), "no ready state for a deleted file")
+        // a new tap loads it again
+        assertTrue(EmojiMixer.request(latinIME, dogFire))
+        settle()
+        assertIs<EmojiMixer.State.Ready>(EmojiMixer.state(latinIME, dogFire))
+        assertEquals(2, requests.size)
+    }
+
+    @Test fun thumbnailsAreDecodedToTheirDisplaySize() {
+        fun image(width: Int, height: Int) = java.io.File(latinIME.cacheDir, "mix-$width-$height.png").apply {
+            outputStream().use { Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).compress(Bitmap.CompressFormat.PNG, 100, it) }
+        }
+        // the server's images are 534 px: a sample size alone would keep them whole
+        val mix = EmojiMixer.thumbnail(java.io.File(latinIME.cacheDir, "mix.png").apply { writeBytes(pngBytes) })!!
+        assertEquals(EmojiMixer.THUMBNAIL_PX to EmojiMixer.THUMBNAIL_PX, mix.width to mix.height)
+        val wide = EmojiMixer.thumbnail(image(1400, 700))!!
+        assertEquals(EmojiMixer.THUMBNAIL_PX to EmojiMixer.THUMBNAIL_PX / 2, wide.width to wide.height)
+        val small = EmojiMixer.thumbnail(image(64, 64))!!
+        assertEquals(64 to 64, small.width to small.height)
+        assertNull(EmojiMixer.thumbnail(java.io.File(latinIME.cacheDir, "none.png").apply { writeText("no image") }))
+    }
+
     @Test fun missingAndFailedPairs() {
         answer = { response(it, 404, "<html>".toByteArray(), "text/html") }
         chips("@mix 🐶🔥", plain).single().onTap()

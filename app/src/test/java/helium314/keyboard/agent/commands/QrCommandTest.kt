@@ -215,6 +215,7 @@ class QrCommandTest {
         waitFor(300) { false }
         assertEquals(1, events.size) // handed over failed: the command stays
         assertTrue(events.single().startsWith("insert"))
+        assertEquals(latinIME.getString(R.string.agent_image_not_inserted), ShadowToast.getTextOfLatestToast())
 
         // blocked by the time the code is ready (e.g. locked): nothing leaves the keyboard
         events.clear()

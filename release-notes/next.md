@@ -30,3 +30,7 @@
 - Behoben: Nach einem Update hatte ein eigenes Design plötzlich große Tastenabstände (die App
   spielte bei jedem Update alte Umstellungen von HeliBoard ab). Beim Update auf diesen Build kommen
   Abstände und Tastenhöhe deines gewählten Designs zurück.
+- Behoben: Emoji-Mix und `@qr` löschen die getippten Emojis bzw. den Befehl nur noch, wenn die
+  App das Bild wirklich angenommen hat; sonst bleiben sie stehen und ein Hinweis erscheint.
+  Setzt eine App das Bild selbst an die Schreibmarke, heißt der Hinweis jetzt „Bild eingefügt …“
+  statt „Text geändert“. Noch auf keinem Gerät ausprobiert.
