@@ -115,3 +115,8 @@
   Leertaste. Ohne eigene Wahl bleibt alles wie bisher; ein einzelner Tipp schreibt immer ein
   Leerzeichen. Der Schalter „Leertaste halten öffnet das Rad“ ist jetzt die Geste „Halten“. Noch
   auf keinem Gerät ausprobiert.
+- Neu: Screenshot zuerst. Ein neuer Screenshot erscheint sofort als Pille in der Leiste, ohne
+  dass du erneut ins Feld tippst, und steht zwischen den Wörtern vor den Vorschlägen; beim
+  Tippen eines Worts siehst du dessen Vorschläge. Ist der Zwischenablageverlauf an, landet der
+  Screenshot auch im Verlauf der Tastatur (nicht in der System-Zwischenablage). Noch auf keinem
+  Gerät ausprobiert.

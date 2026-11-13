@@ -36,6 +36,7 @@ import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.InputTypeUtils
 import helium314.keyboard.latin.utils.Log
 import helium314.keyboard.latin.utils.ToolbarKey
+import helium314.keyboard.latin.utils.ToolbarMode
 import helium314.keyboard.latin.utils.prefs
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
@@ -49,6 +50,9 @@ class ClipboardHistoryManager(
     private var clipboardSuggestionView: View? = null
     private var clipboardDao: ClipboardDao? = null
     private var tempPrimaryClip = false
+    // the screenshot chip (stage 23g) and the screenshot it shows, reused while the strip is rebuilt
+    private var screenshotView: View? = null
+    private var screenshotId = -1L
 
     fun onCreate() {
         clipboardManager = latinIME.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -56,10 +60,55 @@ class ClipboardHistoryManager(
         clipboardDao = ClipboardDao.getInstance(latinIME)
         if (latinIME.mSettings.current.mClipboardHistoryEnabled)
             fetchPrimaryClip()
+        helium314.keyboard.agent.ScreenshotChip.onChange = { onScreenshotChange() }
+        helium314.keyboard.agent.ScreenshotChip.start(latinIME)
     }
 
     fun onDestroy() {
         clipboardManager.removePrimaryClipChangedListener(this)
+        helium314.keyboard.agent.ScreenshotChip.onChange = null
+    }
+
+    /**
+     * A new screenshot (or an offered one expired): add it to the history if that is on, and show
+     * or remove the chip right away, but only between words; while a word is typed the next word
+     * boundary shows it (see [getScreenshotSuggestionView]).
+     */
+    internal fun onScreenshotChange() {
+        // on the main thread like fetchPrimaryClip, so the history view is only changed from here
+        helium314.keyboard.agent.ScreenshotChip.addToHistory(latinIME, latinIME.mSettings.current, clipboardDao) {
+            maySaveFromUri(it, latinIME)
+        }
+        if (!latinIME.isInputViewShown || latinIME.mInputLogic.hasActiveComposition()) return
+        val shown = screenshotView?.takeIf { it.parent != null && !it.isGone }
+        val shot = helium314.keyboard.agent.ScreenshotChip.current(latinIME, latinIME.currentInputEditorInfo)
+        if (shot == null) {
+            if (shown != null) hideSuggestionView(shown) // expired or deleted: the normal strip again
+            return
+        }
+        if (shown != null && screenshotId == shot.id) return
+        latinIME.setNeutralSuggestionStrip() // typed command chips still come first
+        // like the command chips: the chip lives in the suggestion area, which the toolbar may cover
+        if (screenshotView?.parent != null && latinIME.mSettings.current.mToolbarMode == ToolbarMode.EXPANDABLE)
+            latinIME.showSuggestionStrip()
+    }
+
+    /**
+     * The chip for a fresh screenshot, shown before word suggestions and clipboard content, but
+     * only between words: while a word is being typed the strip keeps its suggestions.
+     */
+    fun getScreenshotSuggestionView(editorInfo: EditorInfo?, parent: ViewGroup?): View? {
+        if (parent == null || latinIME.mInputLogic.hasActiveComposition()) return null
+        val shot = helium314.keyboard.agent.ScreenshotChip.current(latinIME, editorInfo) ?: return null
+        val view = screenshotView?.takeIf { screenshotId == shot.id && !it.isGone }
+            ?: helium314.keyboard.agent.ScreenshotChip.createView(latinIME, parent, shot, onDone = { hideSuggestionView() })
+            ?: return null
+        (view.parent as? ViewGroup)?.removeView(view)
+        screenshotView = view
+        screenshotId = shot.id
+        clipboardSuggestionView = view
+        helium314.keyboard.agent.ScreenshotChip.scheduleExpiry(shot)
+        return view
     }
 
     override fun onPrimaryClipChanged() {
@@ -186,12 +235,7 @@ class ClipboardHistoryManager(
         // but a cache has to consider a few possible changes, so better don't implement without need
         clipboardSuggestionView = null
         // a fresh screenshot comes first (opt-in, see ScreenshotChip)
-        if (parent != null) helium314.keyboard.agent.ScreenshotChip.current(latinIME, editorInfo)?.let { shot ->
-            helium314.keyboard.agent.ScreenshotChip.createView(latinIME, parent, shot, onDone = { hideSuggestionView() })?.let {
-                clipboardSuggestionView = it
-                return it
-            }
-        }
+        getScreenshotSuggestionView(editorInfo, parent)?.let { return it }
 
         // get the content, or return null
         if (!latinIME.mSettings.current.mSuggestClipboardContent) return null
@@ -277,8 +321,8 @@ class ClipboardHistoryManager(
         hideSuggestionView()
     }
 
-    private fun hideSuggestionView() {
-        val csv = clipboardSuggestionView ?: return
+    private fun hideSuggestionView(view: View? = clipboardSuggestionView) {
+        val csv = view ?: return
         if (csv.parent != null && !csv.isGone) {
             // clipboard view is shown ->
             latinIME.setNeutralSuggestionStrip()

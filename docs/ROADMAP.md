@@ -64,6 +64,7 @@ Folgende ist die Entscheidung des Leads.
   - 23b ist gebaut (siehe FEATURES.md).
   - 23c ist gebaut (siehe FEATURES.md).
   - 23d ist gebaut (siehe FEATURES.md).
+  - 23g „Screenshot zuerst“ (Auftrag des Owners vom 2026-11-13) ist gebaut (siehe FEATURES.md).
   - 23e ist gebaut (siehe FEATURES.md). Vorlage war (Screenshot des Owners, nicht im Repo):
     - große Überschrift oben links, die beim Scrollen kleiner wird;
     - Hauptliste mit großen Einträgen: rundes oder flaches Icon links, Titel groß, keine

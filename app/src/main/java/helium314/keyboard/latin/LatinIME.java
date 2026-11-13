@@ -1609,6 +1609,9 @@ public class LatinIME extends InputMethodService implements
         }
         // a typed command shows its chips instead of word suggestions (stage 24)
         if (tryShowCommandChips()) return;
+        // between words a fresh screenshot comes before next-word suggestions (stage 23g); the
+        // suggestions above stay with InputLogic, so autocorrection is unchanged
+        if (tryShowScreenshotChip()) return;
 
         final boolean isEmptyApplicationSpecifiedCompletions =
                 currentSettingsValues.mInputAttributes.mApplicationSpecifiedCompletionOn
@@ -1678,6 +1681,15 @@ public class LatinIME extends InputMethodService implements
             return true;
         }
         return false;
+    }
+
+    /** Stage 23g: shows the screenshot chip, only between words (see ClipboardHistoryManager). */
+    private boolean tryShowScreenshotChip() {
+        if (!helium314.keyboard.agent.ScreenshotChip.INSTANCE.isEnabled(this)) return false;
+        final View view = mClipboardHistoryManager.getScreenshotSuggestionView(getCurrentInputEditorInfo(), mSuggestionStripView);
+        if (view == null) return false;
+        mSuggestionStripView.setExternalSuggestionView(view, false);
+        return true;
     }
 
     // This will first try showing a clipboard suggestion. On success, the toolbar will be hidden

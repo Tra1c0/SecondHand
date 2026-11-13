@@ -131,6 +131,9 @@ class ShadowInputMethodService {
         var composingStart = -1
         var composingEnd = -1
         var currentInputType = InputType.TYPE_CLASS_TEXT
+        /** Content types the field declares (e.g. images for the screenshot chip), none by default. */
+        var acceptedMimeTypes: Array<String>? = null
+        var currentImeOptions = 0
 
         // convenience for access
         val textBeforeCursor get() = text.substring(0, selectionStart)
@@ -150,12 +153,16 @@ class ShadowInputMethodService {
             composingStart = -1
             composingEnd = -1
             currentInputType = InputType.TYPE_CLASS_TEXT
+            acceptedMimeTypes = null
+            currentImeOptions = 0
         }
     }
 
     @Implementation
     fun getCurrentInputEditorInfo() = EditorInfo().apply {
         inputType = currentInputType
+        imeOptions = currentImeOptions
+        acceptedMimeTypes?.let { androidx.core.view.inputmethod.EditorInfoCompat.setContentMimeTypes(this, it) }
         // anything else?
     }
     @Implementation

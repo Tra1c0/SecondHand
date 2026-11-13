@@ -311,7 +311,7 @@
     <string name="agent_touch_reset_confirm">Alle gelernten Trefferzonen vergessen?</string>
     <string name="agent_screenshot_chip">Screenshot</string>
     <string name="agent_screenshot_title">Screenshots</string>
-    <string name="agent_screenshot_description">Nach einem Screenshot zeigt die Tastatur ihn drei Minuten lang als kleine Pille in der Leiste. Die Pille erscheint nur in Feldern, die Bilder annehmen; ein Tipp fügt das Bild dort ein. Ohne deinen Tipp wird nichts eingefügt. In Passwort- und Zahlenfeldern, im Inkognito-Modus und bei gesperrtem Gerät erscheint keine Pille. Die Tastatur sucht nur in Screenshot-Ordnern nach neuen Bildern und sendet nichts.</string>
+    <string name="agent_screenshot_description">Nach einem Screenshot zeigt die Tastatur ihn drei Minuten lang als kleine Pille in der Leiste. Die Pille erscheint nur in Feldern, die Bilder annehmen; ein Tipp fügt das Bild dort ein. Sie erscheint, sobald der Screenshot gespeichert ist, zwischen den Wörtern statt der Vorschläge für das nächste Wort; während du ein Wort tippst, bleiben die Vorschläge. Ohne deinen Tipp wird nichts eingefügt. Ist der Zwischenablageverlauf an, landet der Screenshot auch im Verlauf der Tastatur (nicht in der System-Zwischenablage). In Passwort- und Zahlenfeldern, im Inkognito-Modus und bei gesperrtem Gerät erscheint keine Pille. Die Tastatur sucht nur in Screenshot-Ordnern nach neuen Bildern und sendet nichts.</string>
     <string name="agent_screenshot_switch">Neue Screenshots in der Leiste anbieten</string>
     <string name="agent_screenshot_permission_granted">Der Zugriff auf Bilder ist erlaubt.</string>
     <string name="agent_screenshot_permission_missing">Der Zugriff auf Bilder ist noch nicht erlaubt. Ohne ihn gibt es keine Pille.</string>
