@@ -195,13 +195,12 @@ class DiagnoseScreenTest {
         compose.waitUntil(5_000) { compose.onAllNodes(hasText("nicht erreichbar: Netzwerkfehler", substring = true)).fetchSemanticsNodes().isNotEmpty() }
     }
 
+    // stage 38a: the start page leads to the page with its footer pill "Diagnose" (and System & Daten, SettingsStartScreenTest)
     @Test fun theSettingsListLeadsToThePage() {
-        compose.setContent { Theme(true) { helium314.keyboard.settings.screens.MainSettingsScreen({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
-            onClickAgentDiagnose = { opened = true }) } }
+        var route = ""
+        compose.setContent { Theme(true) { helium314.keyboard.settings.screens.MainSettingsScreen(onNavigate = { route = it }, onClickBack = {}) } }
         compose.waitForIdle()
         compose.onNode(hasText("Diagnose")).performScrollTo().performClick()
-        assertTrue(opened)
+        assertEquals(helium314.keyboard.settings.SettingsDestination.AgentDiagnose, route)
     }
-
-    private var opened = false
 }

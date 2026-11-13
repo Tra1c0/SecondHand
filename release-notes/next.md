@@ -124,3 +124,11 @@
   „Gelernte Wörter löschen“); das Lernen braucht zusätzlich „Personalisierte Vorschläge“. In einem künstlichen Test, dessen Malarten den neuen Vorlagen ähneln,
   96 % statt 86 % richtig; wie gut es deine Handschrift erkennt und ob ⇒ nicht mehr zu ≠ wird, ist
   offen. Noch auf keinem Gerät ausprobiert.
+- Neu: Die Einstellungen haben eine neue Startseite im dunklen Look der RGB-Seite (für jeden
+  Tastenstil): oben „Dein Look“ mit „Ändern“, darunter die Schnellschalter Inkognito, RGB-Licht,
+  Vibration und Symbole malen, dann sieben farbige Bereiche (Aussehen, Tippen & Korrektur, Tasten
+  & Sprachen, Gesten & Gefühl, Leiste & Befehle, KI & Automationen, System & Daten) und unten
+  Diagnose, Updates mit der Build-Nummer und Über. Die Lupe sucht wie bisher. Jeder Bereich führt
+  vorerst über eine Karte „Seiten“ zu den bisherigen Seiten; die Bereiche werden in den nächsten
+  Schritten einzeln nach dem Entwurf umgebaut. Welche alte Seite wo liegt, steht in der Anleitung
+  unter „Einstellungen finden“. Noch auf keinem Gerät ausprobiert.

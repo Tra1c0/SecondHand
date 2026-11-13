@@ -67,8 +67,16 @@ Reihenfolge von oben nach unten.
   Wörterbücher, Lernen), 3 Tasten & Sprachen, 4 Gesten & Gefühl (Leertaste, Symbole malen,
   Vibration/Ton, Trefferzonen), 5 Leiste & Befehle (Leiste, @-Befehle, Zwischenablage,
   Screenshots, Emoji-Mix), 6 KI & Automationen, 7 System & Daten (Profile, Sichern, Updates,
-  Diagnose, Experimentell, Über). Startseite mit Look-Vorschau und Schnellschaltern. Wartet auf
-  die Rückmeldung des Owners.
+  Diagnose, Experimentell, Über). Startseite mit Look-Vorschau und Schnellschaltern.
+  - 38a Grundlage und Startseite ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` →
+    Etappe 38a): Baukasten, neue Startseite, sieben Routen `area_*` mit vorläufiger Karte „Seiten“
+    zu den bisherigen Seiten. Annahme des Leads: Systemschrift statt Space Grotesk/Inter (keine
+    Schriftdateien im APK). Offen: Gerätetest.
+  - Je Bereichsseite eine Etappe, jeweils 1:1 nach ihrer `*.dc.html`, mit dem Baukasten aus 38a;
+    die Karte „Seiten“ fällt dabei für diesen Bereich weg, alles bisher Erreichbare bleibt
+    erreichbar: 38b Aussehen, 38c Tippen & Korrektur, 38d Tasten & Sprachen, 38e Gesten & Gefühl,
+    38f Leiste & Befehle (dort auch „Symbolleiste“/„Werkzeugleiste“ → „Leiste“), 38g KI &
+    Automationen, 38h System & Daten.
 - **34 Eigene Designs gestalten (übernächste Runde)** (Wunsch des Owners vom 2026-11-13). Eigene
   Tastatur-Designs gibt es schon (Design-Seite → „Meine Designs“, seit Build 10). Annahme des
   Leads, vor dem Bau bestätigen: gemeint sind eigene RGB-Designs, also selbst gestaltete

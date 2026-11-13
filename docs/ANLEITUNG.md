@@ -66,6 +66,27 @@ die installierte App.
 Die Einstellungen der Tastatur öffnest du über das App-Symbol „Agent Keyboard Lab Settings“ oder
 in der Tastatur über den Pfeil links in der Symbolleiste und dann das Zahnrad.
 
+## Einstellungen finden
+
+Die Startseite der Einstellungen (dunkel, mit farbigen Kacheln) hat oben die Lupe für die Suche,
+darunter „Dein Look“ mit „Ändern“ (öffnet Aussehen), die Schnellschalter Inkognito, RGB-Licht,
+Vibration und Symbole malen (ein Tipp schaltet um) und sieben Bereiche. Ganz unten: Diagnose,
+Updates (mit deiner Build-Nummer) und Über. Jeder Bereich zeigt vorerst eine Karte „Seiten“, die
+die bisherigen Seiten öffnet. Wo diese Anleitung „Einstellungen → X“ schreibt, liegt X jetzt in
+diesem Bereich:
+
+| Bereich | Seiten |
+| --- | --- |
+| 01 Aussehen | Design, RGB-Beleuchtung, Aussehen |
+| 02 Tippen & Korrektur | Textkorrektur, Gelernte Wörter, Wörterbücher |
+| 03 Tasten & Sprachen | Sprachen & Layouts, Optionen, Sekundäre Layouts |
+| 04 Gesten & Gefühl | Leertaste, Symbole malen, Gesten-Tippen (nur mit Bibliothek), Vibration & Ton (= Optionen) |
+| 05 Leiste & Befehle | Leiste (= Symbolleiste), Befehle, Screenshots |
+| 06 KI & Automationen | KI-Anbieter, Skill-Tasten, Workflows, Diktat |
+| 07 System & Daten | Tastaturprofile, Updates, Diagnose, Erweitert, Gestendaten-Erfassung (nur in der Sammelphase), Über |
+
+Zurück geht es mit dem runden Pfeil oben links oder der Zurück-Geste.
+
 ## Textaktionen (ohne Internet)
 
 1. Text im Textfeld markieren.

@@ -2801,6 +2801,41 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
     grün. `PointerTracker` und `LatinIME` in dieser Runde unverändert. Nicht gelaufen:
     `upstream-tests`, `lint`, Build. Kein Gerätetest.
 
+## Etappe 38a (Einstellungen: Grundlage und Start)
+
+- Auftrag (Lead, ROADMAP 38, beschlossen 1:1 nach `docs/referenzen/einstellungen-mockup/`):
+  Baukasten, neue Startseite, sieben Bereichs-Routen mit vorläufiger Zuordnung der bisherigen
+  Seiten nach `Struktur.dc.html`. Gebaut in einer Arbeitskopie, kein Prüfer-Review, kein Gerätetest.
+- Gebaut: `AgentSettingsKit.kt` (Tokens, `SettingsArea`, `cssGradient`, `AgentSettingsTheme`,
+  `BackHeader`, `AreaHero`, `SectionCard`, `FeatureCard`, `SettingRow`, `SettingSwitchRow`,
+  `GradientSwitch`, `ChoiceCards`, `ChipToggles`, `AreaTile`, `FooterPill`), `AgentStartScreen.kt`,
+  `AgentAreaScreen.kt` (`SettingsAreas`), `agent_settings_strings.xml` (Englisch, Deutsch).
+  Upstream: `SettingsNavHost.kt` (Routen `area_*`, Startseite), `MainSettingsScreen.kt` (nur noch
+  die neue Startseite). Entfernt: `AgentMainSettings.kt` (Look 23e nur mit Flat), neun nicht mehr
+  benutzte Icons `ic_agent_settings_*` (das Update-Icon bleibt), `MainSettingsLookTest.kt` (prüfte
+  die entfernte Liste). Entscheidung: Systemschrift statt Space Grotesk/Inter (keine Schriftdateien
+  im APK). Abweichungen vom Mockup für 44 dp Mindestgröße: Fußzeilen-Pillen und „Ändern“ sind
+  44 dp hoch (Mockup etwa 36 bzw. 41), die Befehls-Chips 44 statt 40 dp.
+- Tests (Robolectric, kein Gerätetest): `SettingsStartScreenTest` 10 Tests (Kacheln im Raster
+  und ihre Routen, exakte Texte, „Ändern“ → `area_look`, Schnellschalter schreiben die echten
+  Einstellungen und sind Schalter für TalkBack, Look-Karte „Abgerundet · Licht: Höhenlinien“,
+  „Updates · Build <VERSION_CODE>“, Suche findet „Vibration bei Tastendruck“, alles Anklickbare
+  ≥ 44 dp, alle 22 Einträge der alten Startseite und jedes Navigationsziel auf einer Bereichsseite
+  oder als Unterseite, jede Bereichsseite mit Held und klickbaren Zeilen, echter `SettingsNavHost`
+  mit Bereich → Über → Zurück und alter Route über `navigateTo`, Bilder mit Pixelprüfung) und
+  `SettingsKitTest` 4 Tests (Schalterzeile und eigener Schalter mit Role.Switch und Zustand,
+  Auswahlkarten als Radio-Buttons, Chips, Bild mit weißem Rahmen nur um die gewählte Karte und
+  55 % Deckkraft der anderen). `DiagnoseScreenTest.theSettingsListLeadsToThePage` ehrlich angepasst:
+  Pille „Diagnose“ der Startseite → Route `agent_diagnose`.
+- `python3 tools/dev.py agent-tests`: grün, 772 Tests in 86 Klassen, 0 Fehler (2026-11-13).
+  `python3 tools/dev.py build`: grün (Debug-APK lokal). `docs_sync --check`: grün.
+- Bilder (nicht versioniert): `app/build/agent-previews/settings-start.png`,
+  `settings-area_{look,typing,keys,gestures,bar,ai,system}.png`, `settings-kit.png`; vom Lead mit
+  `Main.dc.html` und `Gesten.dc.html` verglichen: Farben, Radien, Raster, Abstände stimmen; die
+  Systemschrift ist breiter als Inter, deshalb brechen die Schnellschalter wie im Mockup in zwei
+  Zeilen und die Halb-Kacheln umbrechen ihren Titel.
+- Offen: Prüfer-Review, Gerätetest (Aussehen am Telefon, TalkBack, Suche, Zurück), 38b–38h.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

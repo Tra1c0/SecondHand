@@ -594,7 +594,7 @@ private fun targetLabel(t: RgbTarget) = stringResource(when (t) {
 })
 
 @Composable
-private fun patternLabel(p: RgbPattern) = stringResource(when (p) {
+internal fun patternLabel(p: RgbPattern) = stringResource(when (p) {
     RgbPattern.WAVE_HORIZONTAL -> R.string.agent_rgb_pattern_wave_horizontal
     RgbPattern.WAVE_VERTICAL -> R.string.agent_rgb_pattern_wave_vertical
     RgbPattern.WAVE_DIAGONAL -> R.string.agent_rgb_pattern_wave_diagonal

@@ -411,11 +411,14 @@ Speicher, Datenschutz und Identität:
   (Emoji-Mix-Cache, 25a) und `agent_screenshot/` für die Kopien
   der Screenshot-Pille, getrennt von den Clip-Dateien (deren Aufräumen hielte ein Unterordner
   sonst für verwaist).
-- `SettingsNavHost.kt` und `MainSettingsScreen.kt`: Ziele und Menüeinträge der Agent-
-  Einstellungsseiten (dazu `agent_design`); `MainSettingsScreen` baut seine Einträge als Liste
-  und zeigt im Stil „Flat“ die moderne Liste aus `AgentMainSettings.kt` (23e).
+- `SettingsNavHost.kt` und `MainSettingsScreen.kt`: Ziele der Agent-Einstellungsseiten (dazu
+  `agent_design`) und seit 38a die sieben Bereichs-Routen `area_*` (`SettingsDestination.Area*`,
+  je ein `composable` aus `SettingsArea.entries`). `MainSettingsScreen(onNavigate, onClickBack)`
+  zeigt für jeden Tastenstil die neue Startseite `AgentStartScreen`; die Upstream-Liste der
+  Einträge gibt es nicht mehr, jeder Eintrag steht auf einer Bereichsseite (`SettingsAreas`).
 - `SearchScreen.kt` (23e): optionaler Parameter `largeTitle` vor `content` (Fallstrick P46) und
-  `LARGE_TITLE_BAR_TAG`; ohne ihn unverändert.
+  `LARGE_TITLE_BAR_TAG`; ohne ihn unverändert. Seit 38a nutzt ihn keine Seite mehr (blieb für
+  spätere Seiten stehen). `ExpandableSearchField` nutzt auch die neue Startseite.
 - `AppearanceScreen.kt` (23f1): Eintrag „Design“ als erstes Element. `KeyboardTheme.kt`:
   `getPreviewColors` für die Kacheln (`withBackgroundImage = false`: kein Dekodieren des
   Hintergrundbilds je Kachel).
@@ -1080,11 +1083,38 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `agent_ids.xml`, `agent_attrs.xml`.
 - Tests: `KeyboardProfileStoreTest`, `SkillSettingsTest`, `WorkflowSettingsTest`.
 
-- Moderne Hauptseite (23e): `K/settings/screens/AgentMainSettings.kt` (Einträge als Liste,
-  Weiche `isModern` = Tastenstil „Flat“, großer einklappender Titel über `SearchScreen(largeTitle)`,
-  Zeilen ≥ 76 dp ohne Trennlinien und Pfeile, Outline-Icons `ic_agent_settings_*.xml`, ab
-  Android 12 Systemfarben, darunter warm-dunkel); andere Stile behalten die Upstream-Liste. Test
-  `AT/MainSettingsLookTest.kt` (Bilder unter `app/build/reports/agent-settings/`).
+- Neue Einstellungen (38a, Grundlage für 38b–38h; Vorlage `docs/referenzen/einstellungen-mockup/`,
+  1 CSS-px = 1 dp/sp): `K/settings/screens/AgentSettingsKit.kt` ist der Baukasten:
+  `AgentSettingsTokens` (Farben, Radien Karte 28, Held 30, Kachel 26, Auswahlkarte 22, Zeile 18 dp,
+  Mindestgröße 44 dp, Schalter 52 × 30 mit Knopf 22), `AgentSettingsType` (Schriftstile),
+  `SettingsArea` (sieben Bereiche: Route, Nummer, Texte, Verlauf, Punktfarbe, breite Kachel),
+  `cssGradient` (CSS-Winkel und -Länge des Verlaufs), `AgentSettingsTheme` (dunkles Schema, auch
+  für die Upstream-Suchtreffer), `AgentLineIcon`/`AgentRoundButton` (Lupe, Zurück, Pfeil als
+  Canvas-Linien), `BackHeader`, `AreaHero`, `SectionCard` (Zeilenkarte, 8 dp innen),
+  `FeatureCard` (freie Karte, 18 dp innen, Titel optional gesperrt in Großbuchstaben),
+  `SettingRow` (Punkt, Titel, Untertitel, Wert, Pfeil; ganze Zeile ein Knopf, „… öffnen“),
+  `SettingSwitchRow` und `GradientSwitch` (Role.Switch, `toggleable`), `ChoiceCards` (große
+  Verlaufskarten mit Leucht-Pille, gewählt 100 % mit weißem Rahmen 3 dp in 2 dp Abstand, sonst
+  55 %; Radio-Buttons in einer `selectableGroup`), `ChipToggles` (hell wie auf der Startseite oder
+  im Bereichsverlauf wie die @-Befehle), `AreaTile`, `FooterPill`. Schriften: Systemschrift in
+  denselben Stärken statt Space Grotesk/Inter (beide OFL, aber keine Schriftdateien im APK;
+  Entscheidung des Leads, 38a). `K/settings/screens/AgentStartScreen.kt`: Startseite (Titel,
+  Lupe öffnet die bisherige Suche über `settingsContainer.filter`, Look-Karte mit
+  `lookName` = eigenes Design, „Flacher Look“ oder Tastenstil und Lichtmuster der Tasten,
+  „Ändern“ → `area_look`; Schnellschalter auf `always_incognito_mode`, `RgbSettings.enabled`
+  über `RgbLighting.write`, `vibrate_on`, `agent_symbol_drawing`; Kacheln 01 breit, 02/03, 04/05,
+  06 und 07 breit; Pillen Diagnose, „Updates · Build <VERSION_CODE>“, Über).
+  `K/settings/screens/AgentAreaScreen.kt`: Bereichsseite (Zurück, Held, Karte „Seiten“) und
+  `SettingsAreas.entries(area)`, die vorläufige Zuordnung der bisherigen Seiten nach
+  `Struktur.dc.html` (Aussehen: Design, RGB, Aussehen; Tippen: Textkorrektur, Gelernte Wörter,
+  Wörterbücher; Tasten: Sprachen, Optionen, Sekundäre Layouts; Gesten: Leertaste, Symbole malen,
+  Gestenschreiben (nur mit Bibliothek), Optionen als „Vibration & Ton“; Leiste: Symbolleiste
+  als „Leiste“, Befehle, Screenshots; KI: KI-Anbieter, Skill-Tasten, Workflows, Diktat; System:
+  Profile, Updates, Diagnose, Erweitert, Gestendaten (nur in der Sammelphase), Über). 38b–38h
+  ersetzen die Karte „Seiten“ je Bereich durch den Aufbau des Mockups. `patternLabel` in
+  `AgentRgbScreen.kt` ist dafür `internal`. Texte: `agent_settings_strings.xml`. Tests
+  `AT/SettingsStartScreenTest.kt` und `AT/SettingsKitTest.kt` (Bilder unter
+  `app/build/agent-previews/settings-*.png`).
 - Design-Seite (23f1): `A/DesignTiles.kt` (Abschnitte, Kacheln, Auswahl; schreibt genau die
   Schlüssel von Tag/Nacht-Schalter und Farbwähler, „Flacher Look“ über `FlatPreset.apply`) und
   `K/settings/screens/AgentDesignScreen.kt` (Raster, Rahmen und Häkchen, TalkBack als
@@ -2309,13 +2339,30 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   eines ändert, misst `InkBenchmarkTest` und `scribblesAreMostlyRejected` neu. `CUTOFF` muss über
   `ALTERNATIVE_DISTANCE` und `CLEAR_DISTANCE × CLEAR_MARGIN` bleiben: Kandidaten darüber stehen
   nur mit dem abgeschnittenen Wert in der Liste.
+- **P119** Jedes neue Ziel in `SettingsDestination` muss auf einer Bereichsseite stehen
+  (`SettingsAreas.entries`) oder in der Liste `subPages` von
+  `SettingsStartScreenTest.everyOldMainEntryAndEveryPageIsOnAnAreaPage` (Unterseiten mit
+  Argument); sonst ist es seit 38a von der Startseite aus nicht mehr erreichbar. Der Test liest
+  die Ziele per Reflexion und wird rot.
+- **P120** Robolectric ohne native Grafik misst Text fast ohne Breite: Ein Knopf nur aus Text und
+  Innenabstand war dort 35 dp breit. Knöpfe, Pillen und Chips der neuen Einstellungen haben
+  deshalb `heightIn`/`widthIn(min = 44.dp)` ausdrücklich (`everyClickableIsAtLeast44dp`).
+- **P121** Startseite und Bereiche lesen Einstellungen bei jeder Komposition und zählen dafür
+  `SettingsActivity.prefChanged` und einen eigenen Zähler (in Tests gibt es keine
+  `SettingsActivity`); ein Schnellschalter schreibt sofort, ohne Kopie im `remember`. Der
+  RGB-Schalter ändert nur `enabled` und schreibt über `RgbLighting.write` (normalisiert, bei
+  Standardwerten wird der Schlüssel entfernt), nie eine eigene Kodierung.
+- **P122** `Color` ist eine Value-Klasse und darf kein `vararg` sein (Kompilierfehler);
+  `cssGradient` nimmt zwei Farben oder eine Liste aus Stopps. Der CSS-Winkel zählt ab oben im
+  Uhrzeigersinn, die Länge der Verlaufslinie ist |b·sin| + |h·cos| wie in CSS, sonst sitzen die
+  Endfarben nicht in den Ecken.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (439 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (435 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -2342,7 +2389,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (74): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (75): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, ClipCommandTest, CommandReplaceTest, CommandTemplatesTest,
@@ -2352,9 +2399,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   EncryptedCredentialStoreTest, FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest,
   FlatStyleTest, ForkIdentityTest, ForkUpgradeTest, HapticChainTest, InsertAtCursorTest,
   JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LearningDataTest,
-  LoadingDotsViewTest, MainSettingsLookTest, ManualWorkflowDraftTest, MoreCommandsTest,
-  MoreProvidersTest, MyDesignsTest, OpenAiProviderTest, RgbLightingRenderTest,
-  RgbSettingsScreenTest, RgbTilesTest, ScreenshotChipTest, SelectedTextCommitTest,
+  LoadingDotsViewTest, ManualWorkflowDraftTest, MoreCommandsTest, MoreProvidersTest, MyDesignsTest,
+  OpenAiProviderTest, RgbLightingRenderTest, RgbSettingsScreenTest, RgbTilesTest,
+  ScreenshotChipTest, SelectedTextCommitTest, SettingsKitTest, SettingsStartScreenTest,
   SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest, SnipCommandTest, SpaceDetentsTest,
   SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest,
   TouchModelTest, TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest,
@@ -2397,13 +2444,14 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/settings/` (4): SearchScreen, SettingsActivity, SettingsContainer, SettingsNavHost
 - `K/settings/dialogs/` (2): ColorPickerDialog, SliderDialog
 - `K/settings/preferences/` (2): KeyboardScalePreference, SliderPreference
-- `K/settings/screens/` (30): AdvancedScreen, AgentAiScreen, AgentCommandsScreen, AgentDesignEditor,
-  AgentDesignScreen, AgentDiagnoseScreen, AgentDictationScreen, AgentEmojiMixSection,
-  AgentLearningScreen, AgentMainSettings, AgentProfilesScreen, AgentRgbCurveEditor, AgentRgbScreen,
-  AgentRunStatus, AgentScreenReaderSection, AgentScreenshotScreen, AgentSkillsScreen, AgentSlider,
-  AgentSnippetsSection, AgentSpaceScreen, AgentSymbolsScreen, AgentUpdatesScreen,
-  AgentWorkflowsScreen, AppearanceScreen, DictionaryScreen, GestureTypingScreen, MainSettingsScreen,
-  TextCorrectionScreen, WorkflowBuilderDialog, WorkflowDraftProtection
+- `K/settings/screens/` (32): AdvancedScreen, AgentAiScreen, AgentAreaScreen, AgentCommandsScreen,
+  AgentDesignEditor, AgentDesignScreen, AgentDiagnoseScreen, AgentDictationScreen,
+  AgentEmojiMixSection, AgentLearningScreen, AgentProfilesScreen, AgentRgbCurveEditor,
+  AgentRgbScreen, AgentRunStatus, AgentScreenReaderSection, AgentScreenshotScreen, AgentSettingsKit,
+  AgentSkillsScreen, AgentSlider, AgentSnippetsSection, AgentSpaceScreen, AgentStartScreen,
+  AgentSymbolsScreen, AgentUpdatesScreen, AgentWorkflowsScreen, AppearanceScreen, DictionaryScreen,
+  GestureTypingScreen, MainSettingsScreen, TextCorrectionScreen, WorkflowBuilderDialog,
+  WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
 - `app/` (1): build.gradle
@@ -2416,24 +2464,22 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `app/src/main/assets/layouts/functional/` (1): functional_keys_flat
 - `app/src/main/assets/layouts/more_symbols/` (1): symbols_shifted_flat
 - `app/src/main/assets/layouts/symbols/` (1): symbols_flat
-- `app/src/main/res/drawable/` (30): btn_keyboard_key_flat, btn_keyboard_key_flat_pill,
+- `app/src/main/res/drawable/` (21): btn_keyboard_key_flat, btn_keyboard_key_flat_pill,
   btn_keyboard_key_flat_rect, btn_keyboard_key_functional_flat, ic_agent_actions, ic_agent_dictate,
-  ic_agent_settings_ai, ic_agent_settings_commands, ic_agent_settings_layouts,
-  ic_agent_settings_learning, ic_agent_settings_profiles, ic_agent_settings_screenshot,
-  ic_agent_settings_skills, ic_agent_settings_toolbar, ic_agent_settings_updates,
-  ic_agent_settings_workflows, ic_skill_1, ic_skill_2, ic_skill_3, sym_keyboard_clipboard_flat,
+  ic_agent_settings_updates, ic_skill_1, ic_skill_2, ic_skill_3, sym_keyboard_clipboard_flat,
   sym_keyboard_delete_flat, sym_keyboard_go_flat, sym_keyboard_grid_flat, sym_keyboard_mic_flat,
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (11): agent_alarm_strings, agent_design_strings,
+- `app/src/main/res/values-de/` (12): agent_alarm_strings, agent_design_strings,
   agent_diagnose_strings, agent_emoji_mix_strings, agent_language_strings, agent_rgb_strings,
-  agent_slider_strings, agent_space_strings, agent_strings, agent_symbol_strings,
-  agent_update_strings
-- `app/src/main/res/values/` (18): agent_alarm_strings, agent_attrs, agent_design_strings,
+  agent_settings_strings, agent_slider_strings, agent_space_strings, agent_strings,
+  agent_symbol_strings, agent_update_strings
+- `app/src/main/res/values/` (19): agent_alarm_strings, agent_attrs, agent_design_strings,
   agent_diagnose_strings, agent_emoji_mix_strings, agent_ids, agent_language_strings,
-  agent_rgb_strings, agent_slider_strings, agent_space_strings, agent_strings, agent_symbol_strings,
-  agent_update_strings, attrs, clip_provider, donottranslate, gesture_data, themes-flat
+  agent_rgb_strings, agent_settings_strings, agent_slider_strings, agent_space_strings,
+  agent_strings, agent_symbol_strings, agent_update_strings, attrs, clip_provider, donottranslate,
+  gesture_data, themes-flat
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (1): Shadows
