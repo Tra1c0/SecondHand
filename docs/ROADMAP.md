@@ -29,8 +29,10 @@ Reihenfolge von oben nach unten.
     überlagerten, leuchtenden Rauten-Rahmen; diagonale Lamellen mit hartem Farbwechsel grün/
     orange zu violett; Regenbogen-Verlauf mit feinem Diagonal-Raster und dunkler Vignette;
     Punkt-Raster (LED-Matrix) mit fließendem Regenbogen; Höhenlinien (Topografie) über weichem
-    Regenbogen. Auf der Tastatur bedeutet das: das Muster liegt über Hintergrund bzw. Tasten und
-    bewegt sich; Leistungsbudget wie bei 26 (nur sichtbar, Energiesparmodus).
+    Regenbogen. Alle Muster sind animiert (fließen, wandern) und lassen sich einzeln auf jedes
+    leuchtende Element legen: Tasten, Hintergrund, Beschriftung, Wortvorschläge, Leistenknöpfe
+    bekommen je ein eigenes Muster (Owner, 2026-11-13); Standard bleibt „überall dasselbe“.
+    Leistungsbudget wie bei 26 (nur sichtbar, Energiesparmodus).
   - 29d Statt der festen Auswahl „Verlauf“ (weich, Zickzack, Sägezahn, Stufen …) ein eigener
     Kurven-Regler wie in der Skizze des Owners: Achsen, eine Kurve durch verschiebbare
     Kontrollpunkte (Kreise mit Kreuz), Punkte hinzufügen und entfernen. Annahme des Leads, vor dem
