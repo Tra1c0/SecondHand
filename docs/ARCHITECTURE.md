@@ -347,7 +347,8 @@ Speicher, Datenschutz und Identität:
   `IME_FLAG_NO_PERSONALIZED_LEARNING`), bei gesperrtem Gerät (erst nach einem Treffer gefragt,
   höchstens alle 2 s, weil `isDeviceLocked` ein Systemaufruf ist) oder für ein Befehlswort.
   „Echtes Wort“ heißt: die Ergebnisse des Wörterbuchs enthalten das getippte Wort; dann keine
-  Wortanfänge, keine Tippfehler und nur die Hauptsprache (P118). `EmojiSuggestions` liest `assets/emoji_keywords.bin` einmal auf
+  Wortanfänge, keine Tippfehler und nur die Sprache dieses Wörterbuchs (`mSourceDict.mLocale`,
+  P118). `EmojiSuggestions` liest `assets/emoji_keywords.bin` einmal auf
   einem eigenen Daemon-Thread (`ensureLoading`, beim ersten getippten Wort über
   `Settings.getCurrentContext`); bis dahin kommt nichts dazu. `setTableForTest` für Tests.
   Kern: `C/EmojiKeywords.kt` (Format lesen, Index je Sprache: gefaltete Stichwörter mit Varianten
@@ -1775,8 +1776,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Emoji. Der einfache Stammformer schneidet nur einmal ab, „maus“ wird zu „mau“, „mäuse“ zu
   „maus“; die Wortform-Stufe sucht den Stamm deshalb auch als ganzes Stichwort.
 - **P118** Deutsch und Englisch teilen viele Schreibweisen mit anderer Bedeutung („Tag“ 🏷️,
-  „Gift“ 🎁, „Art“ 🖼️). Ein Wort, das im Wörterbuch steht, fragt deshalb nur die Hauptsprache;
-  andere Sprachen nur für Wörter, die das Wörterbuch nicht kennt („love“ beim deutschen Tippen).
+  „Gift“ 🎁, „Art“ 🖼️). Ein Wort, das ein Wörterbuch kennt, fragt deshalb nur dessen Sprache
+  (nicht die Hauptsprache: beim mehrsprachigen Tippen kennt das englische Wörterbuch „love“);
+  Wörter, die kein Wörterbuch kennt, fragen Hauptsprache, Deutsch und Englisch.
   Ebenso fließen Wörter aus mehrteiligen Stichwörtern nicht in Stämme: sonst trafen „viel“
   („zu viel gegessen“), „macht“ („sauber machen“) und „sagt“ („Säge“).
 
