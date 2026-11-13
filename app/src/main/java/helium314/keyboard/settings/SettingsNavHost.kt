@@ -100,6 +100,7 @@ fun SettingsNavHost(
                 onClickAgentCommands = { navController.navigate(SettingsDestination.AgentCommands) },
                 onClickAgentUpdates = { navController.navigate(SettingsDestination.AgentUpdates) },
                 onClickAgentSymbols = { navController.navigate(SettingsDestination.AgentSymbols) },
+                onClickAgentDiagnose = { navController.navigate(SettingsDestination.AgentDiagnose) },
             )
         }
         composable(SettingsDestination.About) {
@@ -120,6 +121,7 @@ fun SettingsNavHost(
         composable(SettingsDestination.AgentSpace) { AgentSpaceScreen(onClickBack = ::goBack) }
         composable(SettingsDestination.AgentSymbols) { helium314.keyboard.settings.screens.AgentSymbolsScreen(onClickBack = ::goBack) }
         composable(SettingsDestination.AgentRgb) { helium314.keyboard.settings.screens.AgentRgbScreen(onClickBack = ::goBack) }
+        composable(SettingsDestination.AgentDiagnose) { helium314.keyboard.settings.screens.AgentDiagnoseScreen(onClickBack = ::goBack) }
         composable(SettingsDestination.TextCorrection) {
             TextCorrectionScreen(onClickBack = ::goBack)
         }
@@ -195,6 +197,7 @@ object SettingsDestination {
     const val AgentSpace = "agent_space"
     const val AgentRgb = "agent_rgb"
     const val AgentSymbols = helium314.keyboard.agent.SymbolDrawing.DESTINATION
+    const val AgentDiagnose = "agent_diagnose"
     const val About = "about"
     const val TextCorrection = "text_correction"
     const val Preferences = "preferences"

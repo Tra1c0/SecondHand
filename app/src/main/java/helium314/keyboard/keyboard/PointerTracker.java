@@ -734,6 +734,7 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
     }
 
     private void moveInk(final int x, final int y, final long eventTime, final MotionEvent me) {
+        if (!SymbolInk.isDrawing()) return; // stage 31: a second finger dropped the drawing, no more trail
         if (me != null) {
             final int pointerIndex = me.findPointerIndex(mPointerId);
             for (int h = 0; pointerIndex >= 0 && h < me.getHistorySize(); h++) {
@@ -1094,9 +1095,12 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         }
         if (mInInk) { // fork (stage 27): the stroke goes to the waiting symbol, no key is sent
             mInInk = false;
-            SymbolInk.onInkUp(mPointerId, x, y);
+            final boolean typesKey = SymbolInk.onInkUp(mPointerId, x, y);
             sDrawingProxy.showGestureTrail(this, false);
-            return;
+            if (!typesKey) return;
+            // stage 31: a quick tap that is no dot; the symbol is written, now the key is typed as a tap
+            sPointerTrackerQueue.add(this);
+            onDownEventInternal(x, y, eventTime);
         }
 
         sTimerProxy.cancelUpdateBatchInputTimer(this);

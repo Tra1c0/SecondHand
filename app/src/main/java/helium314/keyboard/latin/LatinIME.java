@@ -932,6 +932,7 @@ public class LatinIME extends InputMethodService implements
 
         if (DebugFlags.DEBUG_ENABLED)
             Log.d(TAG, "switching to subtype " + SettingsSubtype.Companion.toSettingsSubtype(subtype));
+        helium314.keyboard.agent.SubtypeSwitchLog.onSwitched(subtype); // stage 30: why, for the diagnose page
         mSubtypeState.onSubtypeChanged(oldSubtype, subtype);
         StatsUtils.onSubtypeChanged(oldSubtype, subtype);
         mRichImm.onSubtypeChanged(subtype);
@@ -946,6 +947,7 @@ public class LatinIME extends InputMethodService implements
 
     /** alias to onCurrentInputMethodSubtypeChanged with a better name, as it's also used for internal switching */
     public void switchToSubtype(final InputMethodSubtype subtype) {
+        helium314.keyboard.agent.SubtypeSwitchLog.internalSwitch(subtype); // stage 30: not the system
         onCurrentInputMethodSubtypeChanged(subtype);
     }
 
@@ -954,6 +956,7 @@ public class LatinIME extends InputMethodService implements
      * key, but the choice is kept when the app restarts this field (P66).
      */
     public void switchToSubtypeByCommand(final InputMethodSubtype subtype) {
+        helium314.keyboard.agent.SubtypeSwitchLog.expectCommand(subtype); // stage 30
         switchToSubtype(subtype);
         if (subtype.equals(mRichImm.getCurrentSubtype().getRawSubtype()))
             helium314.keyboard.agent.commands.SubtypeChoice.remember(getCurrentInputEditorInfo(), subtype);
@@ -974,6 +977,7 @@ public class LatinIME extends InputMethodService implements
             Log.d(TAG, "onStartInputInternal: hint locales " + hintLocales + ", found matching subtype: " + (subtypeForLocales != null));
         if (subtypeForLocales != null) {
             // found a better subtype using hint locales and saved-per-app subtype, that we should switch to.
+            helium314.keyboard.agent.SubtypeSwitchLog.expectFromStart(subtypeForLocales, subtypeForApp, hintLocales); // stage 30
             mHandler.postSwitchLanguage(subtypeForLocales);
         }
     }
@@ -1707,6 +1711,7 @@ public class LatinIME extends InputMethodService implements
     @Override
     public void pickSuggestionManually(final SuggestedWordInfo suggestionInfo) {
         if (mAgentEditorController.isBlockingInput()) return;
+        helium314.keyboard.agent.SymbolDrawing.beforeSuggestionPick(mInputLogic.hasActiveComposition()); // stage 31: drawn symbol keeps its place
         final InputTransaction completeInputTransaction = mInputLogic.onPickSuggestionManually(
                 mSettings.getCurrent(), suggestionInfo,
                 mKeyboardSwitcher.getKeyboardCapsMode(),

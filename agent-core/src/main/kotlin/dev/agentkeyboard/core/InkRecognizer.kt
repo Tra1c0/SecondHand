@@ -280,6 +280,9 @@ class InkGroup(val pauseMillis: Long = PAUSE_MILLIS) {
     /** The strokes so far; the group is empty afterwards. */
     fun take(): List<InkStroke> = strokes.toList().also { clear() }
 
+    /** The strokes so far, the group stays as it is (stage 31: is a tap a dot of them?). */
+    val drawn: List<InkStroke> get() = strokes.toList()
+
     fun clear() { strokes.clear(); points = 0; lastEnd = -1 }
 
     companion object {

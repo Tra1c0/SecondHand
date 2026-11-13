@@ -4,7 +4,7 @@
     <string name="agent_symbols_summary">Sonderzeichen auf die Buchstaben malen, statt Gestenschreiben</string>
     <string name="agent_symbols_switch">Symbole malen (statt Gestenschreiben)</string>
     <string name="agent_symbols_switch_summary">Wischen über die Buchstaben malt ein Symbol; Gestenschreiben ist aus. Tippen, langes Drücken und das Wischen auf Leer- und Löschtaste bleiben, wie sie sind.</string>
-    <string name="agent_symbols_how">Male auf die Buchstabentasten. Striche, die innerhalb einer halben Sekunde folgen, gehören zum selben Symbol (≠, ÷, €). Nach der Pause wird das Symbol geschrieben, die Leiste bietet bis zu drei andere an. Nicht in Passwortfeldern.</string>
+    <string name="agent_symbols_how">Male auf die Buchstabentasten. Striche, die innerhalb einer halben Sekunde folgen, gehören zum selben Symbol (≠, ÷, €). Nach der Pause wird das Symbol geschrieben, die Leiste bietet bis zu drei andere an. Ein kurzer Tipp in dieser halben Sekunde schreibt erst das Symbol und dann den Buchstaben; als Punkt zählt er nur, wo ein Symbol einen braucht (÷). Nicht in Passwortfeldern.</string>
     <string name="agent_symbols_local">Wird lokal auf dem Telefon erkannt. Nichts wird gesendet, Zeichnungen werden nicht gespeichert.</string>
     <string name="agent_symbols_not_recognized">Nicht erkannt</string>
     <string name="agent_symbols_alternative">Durch %1$s ersetzen</string>
@@ -15,7 +15,9 @@
     <string name="agent_symbols_add">Symbol hinzufügen</string>
     <string name="agent_symbols_full">Höchstens 30 eigene Symbole.</string>
     <string name="agent_symbols_drawing">Zeichnung %1$d von %2$d</string>
-    <string name="agent_symbols_draw_hint">Male das Symbol in das Feld, mit beliebig vielen Strichen.</string>
+    <string name="agent_symbols_draw_hint">Male das Symbol in das Feld, mit bis zu 12 Strichen.</string>
+    <string name="agent_symbols_too_many_strokes">Höchstens 12 Striche. Bitte neu malen.</string>
+    <string name="agent_symbols_too_long">Zu lange gemalt. Bitte neu malen.</string>
     <string name="agent_symbols_redraw">Neu malen</string>
     <string name="agent_symbols_next">Weiter</string>
     <string name="agent_symbols_text">Text, den es schreibt</string>
@@ -23,4 +25,5 @@
     <string name="agent_symbols_save">Speichern</string>
     <string name="agent_symbols_delete">%1$s löschen</string>
     <string name="agent_symbols_drawing_of">Zeichnung von %1$s</string>
+    <string name="agent_symbols_gesture_off">Aus, solange „Symbole malen“ an ist</string>
 </resources>

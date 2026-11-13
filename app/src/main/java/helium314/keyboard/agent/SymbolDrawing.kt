@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import dev.agentkeyboard.core.ApplyOutcome
+import dev.agentkeyboard.core.InkDots
 import dev.agentkeyboard.core.InkRecognizer
 import dev.agentkeyboard.core.InkStroke
 import dev.agentkeyboard.core.InkSymbols
@@ -37,11 +38,18 @@ object SymbolDrawing {
 
     private var shown: Shown? = null
     private var recognizer: InkRecognizer? = null
+    private var dots: InkDots? = null
     private var recognizerSource: String? = null
 
-    /** Called once per keyboard service (KeyboardActionListenerImpl): drawings go to [ime]. */
+    /**
+     * Called once per keyboard service (KeyboardActionListenerImpl): drawings go to [ime], and a tap
+     * is a dot also of the own symbols with dots (stage 31).
+     */
     @JvmStatic fun attach(ime: LatinIME): SymbolInk.Sink {
         val ref = WeakReference(ime)
+        SymbolInk.dotCheck = SymbolInk.DotCheck { strokes, x, y ->
+            ref.get()?.let { recognizer(it); dots?.isDot(strokes, x, y) } ?: SymbolInk.builtInDotCheck.isDot(strokes, x, y)
+        }
         return SymbolInk.Sink { strokes -> ref.get()?.let { onDrawing(it, strokes) } }.also { SymbolInk.sink = it }
     }
 
@@ -55,6 +63,16 @@ object SymbolDrawing {
     @JvmStatic fun beforeOtherInput() {
         SymbolInk.flush()
         shown = null
+    }
+
+    /**
+     * LatinIME: a word from the strip is picked while a drawing may wait (stage 31). Text appears in
+     * the order it was made: a picked word that is new (a prediction, nothing typed) comes after the
+     * drawn symbol, so the symbol is written first. A pick that replaces the word typed before the
+     * drawing changes that earlier word; the symbol then still follows it after the pause.
+     */
+    @JvmStatic fun beforeSuggestionPick(replacesTypedWord: Boolean) {
+        if (!replacesTypedWord) beforeOtherInput()
     }
 
     internal fun onDrawing(ime: LatinIME, strokes: List<InkStroke>) {
@@ -129,12 +147,14 @@ object SymbolDrawing {
 
     // --- templates ---
 
+    /** The recognizer of the built-in and own symbols; [dots] is rebuilt with it from the same templates. */
     private fun recognizer(context: Context): InkRecognizer {
         val raw = prefs(context).getString(OWN_SYMBOLS, null)
         val cached = recognizer
         if (cached != null && raw == recognizerSource) return cached
-        val own = OwnInkSymbols.parse(raw).flatMap { it.templates() }
-        return InkRecognizer(own + InkSymbols.templates).also { recognizer = it; recognizerSource = raw }
+        val templates = OwnInkSymbols.parse(raw).flatMap { it.templates() } + InkSymbols.templates
+        dots = InkDots(templates)
+        return InkRecognizer(templates).also { recognizer = it; recognizerSource = raw }
     }
 
     private fun prefs(context: Context) =

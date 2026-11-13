@@ -14,7 +14,8 @@ import android.view.inputmethod.InputMethodSubtype
  * switched the keyboard straight back, e.g. to English with English popup keys. The language key
  * never empties a field, so it was not affected. While the same field restarts and the chosen
  * subtype is still in use, [holds] tells `LatinIME.onStartInputInternal` to skip that automatic
- * switch. Any other field, or any other subtype in use, ends the choice. Memory only.
+ * switch. Any other field, or any other subtype in use, ends the choice. Memory only. A kept
+ * choice is noted in [helium314.keyboard.agent.SubtypeSwitchLog] (stage 30, diagnose page).
  */
 object SubtypeChoice {
     private data class Field(val packageName: String?, val fieldId: Int, val inputClass: Int)
@@ -44,6 +45,7 @@ object SubtypeChoice {
             clear()
             return false
         }
+        helium314.keyboard.agent.SubtypeSwitchLog.onKept(chosen) // stage 30: the diagnose page shows it
         return true
     }
 

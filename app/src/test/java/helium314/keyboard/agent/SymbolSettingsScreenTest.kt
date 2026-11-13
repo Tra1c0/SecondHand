@@ -99,6 +99,79 @@ class SymbolSettingsScreenTest {
         compose.onNodeWithTag("agent_symbol_own_0").assertDoesNotExist()
     }
 
+    // stage 31
+
+    @Test fun gestureTypingIsGreyedOutWithAHintWhileSymbolsAreDrawn() {
+        helium314.keyboard.latin.utils.JniUtils.sHaveGestureLib = true
+        try {
+            val title = app.getString(helium314.keyboard.latin.R.string.gesture_input)
+            app.prefs().edit().putBoolean(helium314.keyboard.latin.settings.Settings.PREF_GESTURE_INPUT, true)
+                .putBoolean(AgentPreferences.SYMBOL_DRAWING, true).commit()
+            helium314.keyboard.settings.SettingsActivity.settingsContainer = helium314.keyboard.settings.SettingsContainer(app)
+            compose.setContent { Theme(true) { helium314.keyboard.settings.screens.GestureTypingScreen {} } }
+            compose.waitForIdle()
+            compose.onNode(hasText(title) and hasClickAction()).assertIsNotEnabled()
+            compose.onNode(hasText("Aus, solange „Symbole malen“ an ist")).assertExists()
+            compose.onNode(hasText(title) and hasClickAction()).performClick() // does nothing
+            compose.waitForIdle()
+            assertTrue(app.prefs().getBoolean(helium314.keyboard.latin.settings.Settings.PREF_GESTURE_INPUT, false)) // the own value stays
+            // the gesture typing options are gone, the trail fade-out stays (the drawing's trail uses it)
+            compose.onNode(hasText(app.getString(helium314.keyboard.latin.R.string.gesture_preview_trail))).assertDoesNotExist()
+            compose.onNode(hasText(app.getString(helium314.keyboard.latin.R.string.gesture_trail_fadeout_duration))).assertExists()
+        } finally {
+            helium314.keyboard.latin.utils.JniUtils.sHaveGestureLib = false
+        }
+    }
+
+    @Test fun gestureTypingSwitchIsNormalWithoutSymbolDrawing() {
+        helium314.keyboard.latin.utils.JniUtils.sHaveGestureLib = true
+        try {
+            val title = app.getString(helium314.keyboard.latin.R.string.gesture_input)
+            helium314.keyboard.settings.SettingsActivity.settingsContainer = helium314.keyboard.settings.SettingsContainer(app)
+            compose.setContent { Theme(true) { helium314.keyboard.settings.screens.GestureTypingScreen {} } }
+            compose.waitForIdle()
+            compose.onNode(hasText(title) and hasClickAction()).assertIsEnabled()
+            compose.onNode(hasText("Aus, solange „Symbole malen“ an ist")).assertDoesNotExist()
+        } finally {
+            helium314.keyboard.latin.utils.JniUtils.sHaveGestureLib = false
+        }
+    }
+
+    @Test fun drawingPadAsksToRedrawAfterTwelveStrokes() {
+        page()
+        compose.onNodeWithTag("agent_symbol_add").performClick()
+        compose.waitForIdle()
+        fun dash(i: Int) = compose.onNodeWithTag("agent_symbol_pad").performScrollTo().performTouchInput {
+            down(Offset(width * 0.1f, height * (0.05f + 0.07f * i))); moveBy(Offset(width * 0.5f, 0f)); up()
+        }
+        repeat(12) { dash(it) }
+        compose.waitForIdle()
+        compose.onNodeWithTag("agent_symbol_pad_limit").assertDoesNotExist()
+        compose.onNodeWithText("Weiter").assertIsEnabled()
+        dash(12)
+        compose.waitForIdle()
+        compose.onNode(hasText("Höchstens 12 Striche. Bitte neu malen.")).assertExists()
+        compose.onNodeWithText("Weiter").assertIsNotEnabled()
+        compose.onNodeWithText("Neu malen").performScrollTo().performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag("agent_symbol_pad_limit").assertDoesNotExist()
+    }
+
+    @Test fun drawingPadKeepsAtMost4096Points() {
+        page()
+        compose.onNodeWithTag("agent_symbol_add").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag("agent_symbol_pad").performScrollTo().performTouchInput {
+            down(Offset(width * 0.1f, height * 0.1f))
+            // 4200 moves back and forth, each to a new point
+            for (i in 1..4200) moveTo(Offset(width * (0.1f + 0.8f * ((i % 200) / 200f)), height * (0.1f + 0.8f * (i / 4200f))))
+            up()
+        }
+        compose.waitForIdle()
+        compose.onNode(hasText("Zu lange gemalt. Bitte neu malen.")).assertExists()
+        compose.onNodeWithText("Weiter").assertIsNotEnabled()
+    }
+
     @Test fun cancelledAddingSavesNothing() {
         page()
         compose.onNodeWithTag("agent_symbol_add").performClick()

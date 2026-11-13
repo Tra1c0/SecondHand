@@ -11,9 +11,9 @@ Etappen aus dem ursprünglichen Auftrag; Teilpakete bekommen Buchstaben (15a, 15
 Reihenfolge von oben nach unten.
 
 - **27 Symbole malen** (Auftrag des Owners vom 2026-11-13) ist gebaut (siehe FEATURES.md), mit
-  Engine-Review (`docs/VALIDATION.md` → Build 12: Prüfer zu Etappe 27). Offen: Gerätetest
-  (Erkennung mit echten Fingern, Schwellen, Spur, Tempo, Malfeld der eigenen Symbole) und die
-  niedrigen Befunde dort.
+  Engine-Review (`docs/VALIDATION.md` → Build 12: Prüfer zu Etappe 27), die niedrigen Befunde in
+  31. Offen: Gerätetest (Erkennung mit echten Fingern, Schwellen, Spur, Tempo, Tipp-Regel,
+  Malfeld der eigenen Symbole).
 - **28 Haptik und Rastpunkte für alle Schieberegler** (Wunsch des Owners für Build 13,
   2026-11-13). Jeder Schieberegler in den Einstellungen bekommt spürbare Ticks beim Ziehen und
   Rastpunkte („attraction points“), an denen der Regler leicht einrastet (z. B. Standardwert,
@@ -35,16 +35,9 @@ Reihenfolge von oben nach unten.
     Kontrollpunkte (Kreise mit Kreuz), Punkte hinzufügen und entfernen. Annahme des Leads, vor dem
     Bau mit dem Owner bestätigen: x = Zeit bzw. Position im Muster, y = Helligkeit oder
     Farbposition.
-- **30 Diagnose-Seite** (Vorschlag des Leads, vom Owner für Build 13 gewünscht, 2026-11-13).
-  Einstellungen → Diagnose zeigt ohne Inhalte, was das Telefon wirklich macht: Stufe der
-  Haptik-Kette (Primitive, Wellenform, Pulse), Hauptwörterbuch für Symbole malen vorhanden, Grund
-  des letzten Sprachwechsels (Hint der App, Sprache pro App, Befehl, Sprachtaste, System; für das
-  Umlaut-Rätsel am Xiaomi, P66), Erreichbarkeit von gstatic für Emoji-Mix nur auf Tipp. Zum
-  Teilen als Screenshot. (M)
-- **31 Feinschliff Symbole malen** (vom Owner gewünscht, 2026-11-13): Ein Buchstabentipp in der
-  halben Sekunde nach einem Strich soll nicht verloren gehen; „Gestenschreiben“ ausgegraut, wenn
-  Malen an ist; die übrigen niedrigen Befunde aus `docs/VALIDATION.md` → Build 12: Prüfer zu
-  Etappe 27. (S)
+- **30 Diagnose-Seite** und **31 Feinschliff Symbole malen** sind gebaut (siehe FEATURES.md,
+  `docs/VALIDATION.md` → Etappen 30 und 31). Offen: Engine-Review der Hooks in `LatinIME` und
+  `PointerTracker`, Gerätetest.
 - **33 Leertasten-Geste mit Rastpunkten (Rückgängig/Wiederholen)** (Rückmeldung des Owners zu
   Build 12, 2026-11-13, mit Skizze auf der Leertaste). Laut Skizze vier Rastpunkte, je etwa
   0,8 Tastenbreiten auseinander, der letzte Abstand etwas länger (gut eine Tastenbreite); dieselben

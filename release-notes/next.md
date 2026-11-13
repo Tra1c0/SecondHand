@@ -36,3 +36,17 @@
   App das Bild wirklich angenommen hat; sonst bleiben sie stehen und ein Hinweis erscheint.
   Setzt eine App das Bild selbst an die Schreibmarke, heißt der Hinweis jetzt „Bild eingefügt …“
   statt „Text geändert“. Noch auf keinem Gerät ausprobiert.
+
+## Nächster Build
+
+- Neu: Einstellungen → „Diagnose“ zeigt, was dein Telefon wirklich macht, ohne Texte, Schlüssel
+  oder Kennungen: welche Vibration die Rückgängig/Wiederholen-Kette spielt (mit „Test“), ob
+  Symbole malen laufen kann (Wörterbuch, TalkBack), warum die Sprache zuletzt gewechselt hat (z. B.
+  „Sprach-Hinweis der App“ oder „Sprachbefehl“), den Stand von Emoji-Mix und die Versionen.
+  „gstatic erreichbar?“ lädt nur bei diesem Tipp einmal ein Testbild von Google. „Kopieren“ legt
+  die Werte in die Zwischenablage, zum Schicken. Noch auf keinem Gerät ausprobiert.
+- Behoben: Symbole malen: Ein Buchstabe, den du in der halben Sekunde nach einem Strich tippst,
+  geht nicht mehr verloren; erst kommt das Symbol, dann der Buchstabe. Als Punkt (÷) zählt ein
+  Tipp nur noch, wo ein Symbol einen Punkt braucht. Ein Wortvorschlag in dieser halben Sekunde
+  kommt nach dem Symbol. „Gestenschreiben“ ist ausgegraut, solange Symbole malen an ist. Noch auf
+  keinem Gerät ausprobiert.

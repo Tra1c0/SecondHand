@@ -3,9 +3,14 @@ package helium314.keyboard.settings.screens
 
 import android.content.Context
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import helium314.keyboard.keyboard.KeyboardSwitcher
@@ -19,6 +24,7 @@ import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.settings.Setting
 import helium314.keyboard.settings.SearchSettingsScreen
 import helium314.keyboard.settings.SettingsActivity
+import helium314.keyboard.settings.preferences.Preference
 import helium314.keyboard.settings.preferences.SliderPreference
 import helium314.keyboard.settings.preferences.SwitchPreference
 import helium314.keyboard.latin.utils.Theme
@@ -35,7 +41,9 @@ fun GestureTypingScreen(
     if ((b?.value ?: 0) < 0)
         Log.v("irrelevant", "stupid way to trigger recomposition on preference change")
     val gestureFloatingPreviewEnabled = prefs.getBoolean(Settings.PREF_GESTURE_FLOATING_PREVIEW_TEXT, Defaults.PREF_GESTURE_FLOATING_PREVIEW_TEXT)
-    val gestureEnabled = prefs.getBoolean(Settings.PREF_GESTURE_INPUT, Defaults.PREF_GESTURE_INPUT)
+    // fork (stage 31): while drawn symbols are on, gesture typing is off (SettingsValues), so its options go
+    val symbolDrawing = prefs.getBoolean(helium314.keyboard.agent.AgentPreferences.SYMBOL_DRAWING, false)
+    val gestureEnabled = prefs.getBoolean(Settings.PREF_GESTURE_INPUT, Defaults.PREF_GESTURE_INPUT) && !symbolDrawing
     val items = listOf(
         // fork (stage 27): drawn symbols replace gesture typing while on
         helium314.keyboard.agent.AgentPreferences.SYMBOL_DRAWING,
@@ -51,7 +59,7 @@ fun GestureTypingScreen(
             Settings.PREF_GESTURE_SPACE_AWARE else null,
         if (gestureEnabled)
             Settings.PREF_GESTURE_FAST_TYPING_COOLDOWN else null,
-        if (gestureEnabled &&
+        if (symbolDrawing || gestureEnabled && // the drawing's trail fades like the gesture trail
             (prefs.getBoolean(Settings.PREF_GESTURE_PREVIEW_TRAIL, Defaults.PREF_GESTURE_PREVIEW_TRAIL) || gestureFloatingPreviewEnabled))
             Settings.PREF_GESTURE_TRAIL_FADEOUT_DURATION else null
         )
@@ -64,7 +72,13 @@ fun GestureTypingScreen(
 
 fun createGestureTypingSettings(context: Context) = listOf(
     Setting(context, Settings.PREF_GESTURE_INPUT, R.string.gesture_input, R.string.gesture_input_summary) {
-        SwitchPreference(it, Defaults.PREF_GESTURE_INPUT)
+        // fork (stage 31): greyed out with a hint while drawn symbols replace gesture typing; the stored value stays
+        if (LocalContext.current.prefs().getBoolean(helium314.keyboard.agent.AgentPreferences.SYMBOL_DRAWING, false))
+            Preference(name = it.title, description = stringResource(R.string.agent_symbols_gesture_off), onClick = {},
+                modifier = Modifier.alpha(0.38f).semantics { disabled() }) {
+                Switch(checked = false, onCheckedChange = null, enabled = false)
+            }
+        else SwitchPreference(it, Defaults.PREF_GESTURE_INPUT)
     },
     Setting(context, Settings.PREF_GESTURE_PREVIEW_TRAIL, R.string.gesture_preview_trail) {
         SwitchPreference(it, Defaults.PREF_GESTURE_PREVIEW_TRAIL)

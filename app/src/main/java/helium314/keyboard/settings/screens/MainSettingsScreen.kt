@@ -54,6 +54,7 @@ fun MainSettingsScreen(
     onClickAgentCommands: () -> Unit = {},
     onClickAgentUpdates: () -> Unit = {},
     onClickAgentSymbols: () -> Unit = {},
+    onClickAgentDiagnose: () -> Unit = {},
 ) {
     val enabledSubtypes = SubtypeSettings.getEnabledSubtypes(true)
     // fork: entries as a list, rendered in the upstream or the modern look (AgentMainSettings)
@@ -96,6 +97,8 @@ fun MainSettingsScreen(
             modernIcon = R.drawable.ic_agent_settings_layouts),
         MainSettingsEntry(stringResource(R.string.dictionary_settings_category), R.drawable.ic_dictionary, onClickDictionaries),
         MainSettingsEntry(stringResource(R.string.settings_screen_advanced), R.drawable.ic_settings_advanced, onClickAdvanced),
+        // stage 30: what the phone really does, without contents
+        MainSettingsEntry(stringResource(R.string.agent_diagnose_title), R.drawable.ic_settings_about, onClickAgentDiagnose),
         MainSettingsEntry(stringResource(R.string.settings_screen_about), R.drawable.ic_settings_about, onClickAbout),
     )
     if (agentMainSettingsModern()) {

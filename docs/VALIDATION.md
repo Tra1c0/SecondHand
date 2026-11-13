@@ -2060,6 +2060,68 @@ Befunde eines lesenden Reviews der Befehle, behoben:
 - Offen (niedrig, unverändert): 7 Höhe der Mixer-Leiste im Layout; 8 eine Anfrage je Tipp (kein
   Bündeln); 9 englischer Ersatztext; 10 globaler Listener je Besitzer („chips“, „palette“).
 
+## Etappen 30 und 31
+
+- Auftrag (Lead, 2026-11-13): 30 Diagnose-Seite, 31 Feinschliff Symbole malen (niedrige Befunde aus
+  „Build 12: Prüfer zu Etappe 27“). Gebaut in einer Arbeitskopie, kein Prüfer-Review.
+- 30 gebaut: `A/Diagnose.kt`, `A/SubtypeSwitchLog.kt`, `K/settings/screens/AgentDiagnoseScreen.kt`,
+  `agent_diagnose_strings.xml`; Einträge in `MainSettingsScreen.kt` (nach „Erweitert“) und
+  `SettingsNavHost.kt`; `HapticChain.deviceFor` jetzt `internal`; `SubtypeChoice.holds` meldet
+  eine behaltene Wahl. Engine: vier Einzeilen-Hooks in `LatinIME` (P98). Der Sprachwechsel wird nur
+  im Speicher gehalten (Grund, Zeit, Sprach-Tag, letzte fünf), ohne Paketnamen. Kein
+  Schlüsselstatus auf der Seite, kein `FLAG_SECURE`.
+- 31 gebaut: Tipp-Regel `C/InkDots.kt` mit `SymbolInk.onInkUp` und zwei Zeilen in
+  `PointerTracker.onUpEvent` (Down nachholen, P96); `moveInk` zeichnet nach dem Verwerfen keine
+  Spur (eine Zeile); Wortvorschlag im Fenster `SymbolDrawing.beforeSuggestionPick` (eine Zeile in
+  `LatinIME.pickSuggestionManually`, P97); ausgegrauter Gestenschalter (`GestureTypingScreen.kt`);
+  `DrawingPad` mit 4096 Punkten und Hinweis über 12 Striche. Befund `mUpTime`: nicht geändert,
+  weil Upstream ihn nirgends setzt (gegen den Upstream-Commit geprüft, P95).
+- Regel der Tipps und Abwägung: ARCHITECTURE → Symbole malen. Kalibrierung (Versuch auf dem JVM,
+  nicht eingecheckt, Radius 0,3, Grenze 1,3, vor Schritt 4): erster Punkt von ÷ 390/400 und beide
+  Punkte 380/400 angenommen; zufällige Tipps rund um andere Symbole 106/7200 als Punkt, fast alle
+  nach nur dem ersten Strich (ein Strich) oder nach Pfeilen. Nach Schritt 4 nimmt
+  `InkDotsTest` Tipps an den ÷-Stellen nach fertigen →, ←, ↔, ⇒, =, ≠, ≈, ~ in höchstens 5 % als
+  Punkt (Test grün). Die volle Erkennung in Schritt 4 läuft nur für solche Kandidaten.
+- Geprüft (JVM): `CT/InkDotsTest` (7: ÷ ≥ 95 % beider Punkte, Tipps abseits der Punkte eines
+  Strichs, nach Symbolen ohne Striche ≤ 1 %, nach fertigen Strich-Symbolen ≤ 5 %, ohne
+  Punkt-Symbole nie, eigenes „!“ auch nach Speichern und Lesen, frühere Punkte zählen nicht zum
+  Strich), `InkRecognizerTest` 14 grün.
+- Geprüft (Robolectric): `SymbolInkTest` 16 (neu: Tipp im Fenster schreibt erst das Symbol, dann
+  den Buchstaben mit Tastendruck und Loslassen; Tipp nach → ist Buchstabe; ohne ÷ ist der Tipp an
+  der ÷-Stelle Buchstabe; keine Spur nach Verwerfen durch zweiten Finger; ÷ mit zwei Tipps weiter
+  ÷). `tooManyStrokesAreNoSymbol` bekam statt Tipps kurze Striche als Eingabe (Tipps sind jetzt
+  Buchstaben), die Assertions sind unverändert. `SymbolSettingsScreenTest` 7 (neu: Gestenschalter
+  ausgegraut mit Hinweis, Klick ändert nichts, eigener Wert bleibt, Optionen weg, Ausblendzeit
+  bleibt; ohne Malen normal; Malfeld: 12 Striche gehen, der 13. sperrt „Weiter“ mit Hinweis, „Neu
+  malen“ hebt ihn auf; 4200 Bewegungen zeigen „Zu lange gemalt“). `DiagnoseScreenTest` 6 (Werte mit
+  Test-Vibrator, Sprachbefehl als Grund, echte Paartabelle, keine Anfrage ohne Tipp, keine
+  Geheimnisse aus Zwischenablage und Einstellungen auf der Seite oder in der Kopie, kein
+  `FLAG_SECURE`; „Kopieren“ = genau die angezeigten Werte; „Test“ spielt einmal; „gstatic
+  erreichbar?“ = genau ein GET an www.gstatic.com ohne Cookie/Authorization, Bild nicht im Cache;
+  gesperrtes Netz → „nicht erreichbar: Netzwerkfehler“; Eintrag in der Hauptliste).
+  `InputLogicTest.symbolDraw*` neu 2 (Vorhersage im Fenster kommt nach dem Symbol; Korrektur des
+  Worts davor ersetzt es, Symbol dahinter), `InputLogicTest.subtypeSwitch*` 3 (Tastatur vs. System,
+  kein Eintrag ohne Wechsel, Sprachtaste; Befehl und behaltene Wahl bei zwei Neustarts als ein
+  Eintrag; App-Hinweis, Ende des Hinweises, Sprache pro App).
+- Gegenprobe (alle Korrekturen in einem Lauf zugleich zurückgenommen, danach wiederhergestellt):
+  Down-Nachholen in `PointerTracker`, `moveInk`-Zeile, `beforeSuggestionPick`, `internalSwitch`,
+  `expectFromStart`, `onKept`, Schritt 4 in `InkDots`. Rot wurden genau die neuen Tests:
+  `InkDotsTest` (Strich-Symbole), `SymbolInkTest` (Tipp im Fenster, Tipp nach →, Punkte nur mit
+  Punkt-Symbolen, keine Spur), `symbolDrawPredictionPicked…`, alle 3 `subtypeSwitch*`; die übrigen
+  blieben grün. Eine Zuordnung je Korrektur gibt es damit nicht.
+- Gesamtläufe: `InputLogicTest` komplett 167 Tests, nur der geerbte Fehler
+  `insertLetterIntoWordHangulFails`; `SubtypeChoiceTest` 6, `HapticChainTest` 5 grün.
+  `tools/dev.py agent-tests`: 656 Tests, 1 Fehler: `SpaceGesturesTest.defaultsEqualTheBehaviorBeforePerGestureSettings`
+  fand `emoji_max_sdk` in den Einstellungen (geschrieben von `SupportedEmojis.load` aus der
+  Hintergrund-Coroutine in `App.onCreate`, ein Wettlauf mit dem Leeren der Einstellungen im Test,
+  nicht von diesen Etappen); allein wiederholt grün, ebenso `DiagnoseScreenTest` 6.
+  `tools/dev.py core-tests` 231/0. Nicht gelaufen: `upstream-tests`, `lint`, Build (geteilte
+  Maschine, macht der Lead).
+- Nicht geprüft: kein Gerätetest (Tipp-Regel mit echten Fingern, Haptik-Stufe und „Test“ auf dem
+  Xiaomi, echter Sprachwechsel durch MIUI, echte Erreichbarkeit von www.gstatic.com, Kopieren in
+  echte Apps); kein Prüfer-Review der Hooks in `LatinIME` und `PointerTracker` (Pflicht).
+  Der Punkt-Bound des Malfelds ist nur über den Hinweis geprüft, nicht über die Punktzahl.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

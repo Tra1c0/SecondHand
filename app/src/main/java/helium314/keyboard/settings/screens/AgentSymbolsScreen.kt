@@ -25,6 +25,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.agentkeyboard.core.InkCloud
+import dev.agentkeyboard.core.InkGroup
 import dev.agentkeyboard.core.InkStroke
 import dev.agentkeyboard.core.InkSymbols
 import dev.agentkeyboard.core.OwnInkSymbols
@@ -120,6 +121,9 @@ private fun AddSymbolCard(onDismiss: () -> Unit, onSave: (OwnInkSymbols.Symbol) 
     var text by remember { mutableStateOf("") }
     val drawing = samples.size < OwnInkSymbols.SAMPLES
     val problem = OwnInkSymbols.textProblem(text)
+    // stage 31: the same limits as a drawing on the keyboard; such a drawing would be no symbol
+    val tooManyStrokes = strokes.size > InkCloud.MAX_STROKES
+    val tooLong = strokes.sumOf { it.size } >= MAX_PAD_POINTS
     Card(Modifier.fillMaxWidth().testTag("agent_symbol_card")) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.agent_symbols_add), style = MaterialTheme.typography.titleMedium)
@@ -127,6 +131,9 @@ private fun AddSymbolCard(onDismiss: () -> Unit, onSave: (OwnInkSymbols.Symbol) 
                 Text(stringResource(R.string.agent_symbols_drawing, samples.size + 1, OwnInkSymbols.SAMPLES))
                 Text(stringResource(R.string.agent_symbols_draw_hint), style = MaterialTheme.typography.bodySmall)
                 DrawingPad(strokes, { strokes = it }, Modifier.fillMaxWidth().aspectRatio(1f))
+                if (tooManyStrokes || tooLong) Text(stringResource(if (tooManyStrokes) R.string.agent_symbols_too_many_strokes
+                    else R.string.agent_symbols_too_long), color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.testTag("agent_symbol_pad_limit"))
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     samples.forEach { CloudPreview(it, Modifier.size(40.dp)) }
@@ -144,7 +151,7 @@ private fun AddSymbolCard(onDismiss: () -> Unit, onSave: (OwnInkSymbols.Symbol) 
                 if (drawing && strokes.isNotEmpty()) TextButton(onClick = { strokes = emptyList() }) {
                     Text(stringResource(R.string.agent_symbols_redraw))
                 }
-                if (drawing) TextButton(enabled = strokes.isNotEmpty(), onClick = {
+                if (drawing) TextButton(enabled = strokes.isNotEmpty() && !tooManyStrokes && !tooLong, onClick = {
                     InkCloud.of(strokes.map { stroke -> InkStroke(FloatArray(2 * stroke.size) { i -> if (i % 2 == 0) stroke[i / 2].x else stroke[i / 2].y }) })
                         ?.let { samples = samples + it }
                     strokes = emptyList()
@@ -157,7 +164,13 @@ private fun AddSymbolCard(onDismiss: () -> Unit, onSave: (OwnInkSymbols.Symbol) 
     }
 }
 
-/** A square to draw in with the finger; every touch from down to up is one stroke. */
+/** Points of all strokes of one drawing in [DrawingPad]; like [InkGroup.MAX_POINTS] on the keyboard. */
+private const val MAX_PAD_POINTS = InkGroup.MAX_POINTS
+
+/**
+ * A square to draw in with the finger; every touch from down to up is one stroke. Stops taking points
+ * at [MAX_PAD_POINTS] for all strokes together (the card then asks to draw again).
+ */
 @Composable
 private fun DrawingPad(strokes: List<List<Offset>>, onChange: (List<List<Offset>>) -> Unit, modifier: Modifier) {
     val current = rememberUpdatedState(strokes)
@@ -176,7 +189,8 @@ private fun DrawingPad(strokes: List<List<Offset>>, onChange: (List<List<Offset>
                 while (true) {
                     val event = awaitPointerEvent()
                     val pointer = event.changes.firstOrNull { it.id == down.id } ?: break
-                    if (pointer.position != points.last()) points = points + pointer.position
+                    if (pointer.position != points.last() && current.value.sumOf { it.size } + points.size < MAX_PAD_POINTS)
+                        points = points + pointer.position
                     pointer.consume()
                     live = points
                     if (!pointer.pressed) break
