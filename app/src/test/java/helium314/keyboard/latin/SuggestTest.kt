@@ -613,6 +613,20 @@ class SuggestTest {
         assertEquals(listOf("Kaze", "Kaze", "🐈", "🐱"), result.mSuggestedWordInfoList.map { it.mWord })
     }
 
+    @Test fun emojiSuggestionsAskTheLanguageOfTheDictionaryThatKnowsTheWord() {
+        currentTypingLocale = Locale.GERMAN
+        loadEmojiKeywords()
+        // German main language, the English dictionary knows "love": English keywords
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("love", 1500000, Locale.ENGLISH), suggestion("lobe", 900, Locale.GERMAN)))
+        assertTrue(getSuggestedWords(false, "love", CapsMode.OFF).mSuggestedWordInfoList.any { it.mWord == "❤️" })
+        // the German dictionary knows "Tag": no English price tag
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("Tag", 1500000, Locale.GERMAN), suggestion("Tage", 900, Locale.GERMAN)))
+        assertTrue(getSuggestedWords(false, "Tag", CapsMode.OFF).mSuggestedWordInfoList.none { it.mWord == "🏷️" })
+        // a word no dictionary knows asks German and English
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("Party", 900, Locale.GERMAN)))
+        assertTrue(getSuggestedWords(false, "partyy", CapsMode.OFF).mSuggestedWordInfoList.any { isEmoji(it.mWord) })
+    }
+
     @Test fun emojiSuggestionsCountHeliBoardsOwnEmojis() {
         currentTypingLocale = Locale.GERMAN
         loadEmojiKeywords()

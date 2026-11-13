@@ -34,7 +34,8 @@ class EmojiKeywords private constructor(private val languages: Map<String, Langu
      * Up to [limit] emojis for [word], best first; empty if nothing fits. [isWord] says the typed
      * word is a correct dictionary word: then word starts and typos are not tried ("kann" is not a
      * typed start of "Kanne", "habe" is not a typo of "Hase"), and only the first language of
-     * [languageOrder] is asked (German "Tag" is no English price tag; synonyms still count).
+     * [languageOrder] is asked, which the caller sets to the language of the dictionary that knows
+     * the word (German "Tag" is no English price tag, English "love" still is ❤️; synonyms always count).
      */
     fun suggest(word: String, languageOrder: List<String>, limit: Int = 2, isWord: Boolean = false): List<String> {
         if (limit <= 0) return emptyList()
@@ -225,6 +226,9 @@ class EmojiKeywords private constructor(private val languages: Map<String, Langu
                 words(row.name).let { if (it.size == 1) add(it[0], Hit(row, 0, true)) }
             }
             // the emoji the keyword names and the very popular ones first, then popular ones, then by kind
+            // known weakness: a popular emoji only loosely tied to a keyword can still come first
+            // ("Hut" -> 🥳 🤠); ordering loose hits by keyword count instead made common words worse
+            // ("Liebe" -> 🧡, "love" -> 🏩)
             val ranking = compareBy<Hit>({ group(it) }, { popularity(it.row.emoji) }, { it.kind },
                 { it.row.keywords.size }, { it.row.order })
             val exact = HashMap<String, List<String>>(hits.size * 2)
@@ -298,7 +302,9 @@ class EmojiKeywords private constructor(private val languages: Map<String, Langu
         /** Removes one inflection ending, keeping at least [MIN_STEM] letters: katzen, katze -> katz. */
         fun stem(folded: String): String {
             for (suffix in SUFFIXES) {
-                if (folded.endsWith(suffix) && folded.length - suffix.length >= MIN_STEM) {
+                // "-chen" only on longer words: "catchen" is no diminutive of "cat"
+                val keep = if (suffix == "chen") 4 else MIN_STEM
+                if (folded.endsWith(suffix) && folded.length - suffix.length >= keep) {
                     val base = folded.substring(0, folded.length - suffix.length)
                     return if (suffix == "ies") base + "y" else base
                 }

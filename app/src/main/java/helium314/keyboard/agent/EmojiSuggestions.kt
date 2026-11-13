@@ -80,12 +80,14 @@ object EmojiSuggestions {
         (listOfNotNull(mainLocale?.language?.takeIf { it.isNotEmpty() }) + listOf("de", "en")).distinct()
 
     /**
-     * Adds up to [MAX_EMOJIS] minus the emojis already in [suggestions] for [typedWord]. [typedIsWord]:
-     * the word is in a dictionary (no word starts, no typos). With [hasAutoCorrection] nothing is put
-     * at the first place, which would be the correction.
+     * Adds up to [MAX_EMOJIS] minus the emojis already in [suggestions] for [typedWord]. [wordLanguage]:
+     * the language of the dictionary that knows the typed word, null if none does; a known word gets
+     * no word starts or typos and is looked up only in its own language (German "Tag" is no price tag,
+     * English "love" typed among German is still ❤️). With [hasAutoCorrection] nothing is put at the
+     * first place, which would be the correction.
      */
     fun addTo(
-        suggestions: MutableList<SuggestedWordInfo>, typedWord: String, mainLocale: Locale?, typedIsWord: Boolean,
+        suggestions: MutableList<SuggestedWordInfo>, typedWord: String, mainLocale: Locale?, wordLanguage: String?,
         hasAutoCorrection: Boolean, settings: SettingsValues, context: Context?,
     ) {
         if (!isOn(settings) || typedWord.none { it.isLetter() }) return
@@ -94,7 +96,8 @@ object EmojiSuggestions {
         val present = suggestions.count { it.isEmoji }
         val wanted = MAX_EMOJIS - present
         if (wanted <= 0) return
-        val found = keywords.suggest(typedWord, languages(mainLocale), limit = MAX_EMOJIS + 2, isWord = typedIsWord)
+        val order = if (wordLanguage.isNullOrEmpty()) languages(mainLocale) else (listOf(wordLanguage) + languages(mainLocale)).distinct()
+        val found = keywords.suggest(typedWord, order, limit = MAX_EMOJIS + 2, isWord = wordLanguage != null)
             .filter { emoji -> !SupportedEmojis.isUnsupported(emoji) && suggestions.none { it.mWord == emoji } }
             .take(wanted)
         if (found.isEmpty()) return

@@ -121,8 +121,11 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
             suggestionsContainer, isCorrectionEnabled, wordComposer) || guardedAutoCorrection
         // fork, stage 35: tolerant emoji suggestions behind the first two words, never the autocorrection
         if (typedWordString.isNotEmpty() && !resultsArePredictions) {
-            EmojiSuggestions.addTo(suggestionsContainer, typedWordString, mDictionaryFacilitator.mainLocale,
-                suggestionResults.any { it.mWord.equals(typedWordString, ignoreCase = true) && !it.isEmoji },
+            val mainLocale = mDictionaryFacilitator.mainLocale
+            // the language of the dictionary that knows the typed word, if one does
+            val wordLanguage = suggestionResults.firstOrNull { it.mWord.equals(typedWordString, ignoreCase = true) && !it.isEmoji }
+                ?.let { it.mSourceDict.mLocale?.language ?: mainLocale.language }
+            EmojiSuggestions.addTo(suggestionsContainer, typedWordString, mainLocale, wordLanguage,
                 hasAutoCorrection, Settings.getValues(), Settings.getCurrentContext())
         }
         val typedWordInfo = SuggestedWordInfo(typedWordString, "", SuggestedWordInfo.MAX_SCORE,
