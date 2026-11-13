@@ -10,9 +10,31 @@ Etappen aus dem ursprünglichen Auftrag; Teilpakete bekommen Buchstaben (15a, 15
 
 Reihenfolge von oben nach unten.
 
-- **27 Symbole malen** (Auftrag des Owners vom 2026-11-13) ist gebaut (siehe FEATURES.md). Offen:
-  Gerätetest (Erkennung mit echten Fingern, Schwellen, Spur, Tempo, Malfeld der eigenen Symbole),
-  Prüfer-Review der PointerTracker-Hooks (Pflicht).
+- **27 Symbole malen** (Auftrag des Owners vom 2026-11-13) ist gebaut (siehe FEATURES.md), mit
+  Engine-Review (`docs/VALIDATION.md` → Build 12: Prüfer zu Etappe 27). Offen: Gerätetest
+  (Erkennung mit echten Fingern, Schwellen, Spur, Tempo, Malfeld der eigenen Symbole) und die
+  niedrigen Befunde dort.
+- **28 Haptik und Rastpunkte für alle Schieberegler** (Wunsch des Owners für Build 13,
+  2026-11-13). Jeder Schieberegler in den Einstellungen bekommt spürbare Ticks beim Ziehen und
+  Rastpunkte („attraction points“), an denen der Regler leicht einrastet (z. B. Standardwert,
+  runde Werte). Vor dem Bau klären: welche Rastpunkte je Regler, und ob die Ticks der
+  Tastenvibration oder der Android-Einstellung folgen. (M)
+- **29 RGB-Beleuchtung überarbeiten** (Wunsch des Owners für Build 13, 2026-11-13, mit sieben
+  Referenzbildern im Chat; die Bilder liegen nicht im Repo). (L)
+  - 29a Einstellungsseite und Vorschau moderner gestalten.
+  - 29b Übergänge zwischen Farben weich (keine sichtbaren Sprünge, auch in der Animation).
+  - 29c Neue animierte Muster nach den Referenzen: fließende Farbschwaden wie Tinte in Wasser
+    (türkis, grün, gelb, rot auf Schwarz); diagonale Streifen mit Regenbogenverlauf und
+    überlagerten, leuchtenden Rauten-Rahmen; diagonale Lamellen mit hartem Farbwechsel grün/
+    orange zu violett; Regenbogen-Verlauf mit feinem Diagonal-Raster und dunkler Vignette;
+    Punkt-Raster (LED-Matrix) mit fließendem Regenbogen; Höhenlinien (Topografie) über weichem
+    Regenbogen. Auf der Tastatur bedeutet das: das Muster liegt über Hintergrund bzw. Tasten und
+    bewegt sich; Leistungsbudget wie bei 26 (nur sichtbar, Energiesparmodus).
+  - 29d Statt der festen Auswahl „Verlauf“ (weich, Zickzack, Sägezahn, Stufen …) ein eigener
+    Kurven-Regler wie in der Skizze des Owners: Achsen, eine Kurve durch verschiebbare
+    Kontrollpunkte (Kreise mit Kreuz), Punkte hinzufügen und entfernen. Annahme des Leads, vor dem
+    Bau mit dem Owner bestätigen: x = Zeit bzw. Position im Muster, y = Helligkeit oder
+    Farbposition.
 
 Ziel des Owners (2026-11-12): ein „Agentic Keyboard“, das aus dem Gesprächskontext erkennt, was
 du tun willst, und es mit einer Geste und einem Tipp erledigt, dazu eine lernfähige
