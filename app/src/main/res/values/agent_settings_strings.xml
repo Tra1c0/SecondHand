@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 38a, new settings start page and the seven areas (own file so parallel work on the area pages does not collide). English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="agent_settings_title">Settings</string>
+    <string name="agent_settings_search">Search settings</string>
+    <string name="agent_settings_back">Back</string>
+    <string name="agent_settings_your_look">Your look</string>
+    <string name="agent_settings_look_value">%1$s · Light: %2$s</string>
+    <string name="agent_settings_light_off">off</string>
+    <string name="agent_settings_change">Change</string>
+    <string name="agent_settings_quick">Quick toggles</string>
+    <string name="agent_settings_quick_incognito">Incognito</string>
+    <string name="agent_settings_quick_rgb">RGB light</string>
+    <string name="agent_settings_quick_vibration">Vibration</string>
+    <string name="agent_settings_quick_symbols">Draw symbols</string>
+    <string name="agent_settings_footer_diagnose">Diagnostics</string>
+    <string name="agent_settings_footer_updates">Updates · Build %1$d</string>
+    <string name="agent_settings_footer_about">About</string>
+    <string name="agent_settings_open">Open %1$s</string>
+
+    <string name="agent_area_look">Appearance</string>
+    <string name="agent_area_look_tile">Designs, RGB light, size, font</string>
+    <string name="agent_area_look_sub">How your keyboard looks and glows.</string>
+    <string name="agent_area_typing">Typing &amp; correction</string>
+    <string name="agent_area_typing_tile">Autocorrect, suggestions, learning</string>
+    <string name="agent_area_typing_sub">What the keyboard corrects, suggests and learns.</string>
+    <string name="agent_area_keys">Keys &amp; languages</string>
+    <string name="agent_area_keys_tile">Languages, number row, popups</string>
+    <string name="agent_area_keys_sub">Which keys there are and which languages you write in.</string>
+    <string name="agent_area_gestures">Gestures &amp; feel</string>
+    <string name="agent_area_gestures_tile">Space bar, drawing, vibration, sound</string>
+    <string name="agent_area_gestures_sub">Swiping, drawing and what you feel and hear while doing it.</string>
+    <string name="agent_area_bar">Bar &amp; commands</string>
+    <string name="agent_area_bar_tile">Toolbar, @ commands, clipboard</string>
+    <string name="agent_area_bar_sub">The bar above the keys and what you call there with @.</string>
+    <string name="agent_area_ai">AI &amp; automations</string>
+    <string name="agent_area_ai_tile">Providers, skill keys, workflows, dictation</string>
+    <string name="agent_area_ai_sub">Only with your own key – nothing leaves without your tap.</string>
+    <string name="agent_area_system">System &amp; data</string>
+    <string name="agent_area_system_tile">Profiles, backup, updates, diagnostics</string>
+    <string name="agent_area_system_sub">Back up, restore, keep up to date, look things up.</string>
+
+    <string name="agent_area_pages">Pages</string>
+    <string name="agent_area_pages_note">This area is being redesigned step by step. Until then these rows open the existing pages.</string>
+    <string name="agent_area_row_design">Designs, own designs and colours</string>
+    <string name="agent_area_row_rgb">Animated light for keys and background</string>
+    <string name="agent_area_row_appearance">Style, size, font, background image</string>
+    <string name="agent_area_row_correction">Autocorrect, space and punctuation</string>
+    <string name="agent_area_row_learning">Learned corrections and privacy</string>
+    <string name="agent_area_row_dictionaries">Dictionaries and personal dictionary</string>
+    <string name="agent_area_row_options">Number row, popups, key hints</string>
+    <string name="agent_area_row_layouts">Symbols, numbers, functional keys</string>
+    <string name="agent_area_row_space">Swipe, hold and detents on the space bar</string>
+    <string name="agent_area_row_symbols">Draw → ≠ € ✓ ♥ and your own symbols</string>
+    <string name="agent_area_row_gesture_typing">Swipe words (needs the library)</string>
+    <string name="agent_area_row_feel">Vibration &amp; sound</string>
+    <string name="agent_area_row_feel_summary">Key press vibration, duration, sound</string>
+    <string name="agent_area_row_bar">Bar</string>
+    <string name="agent_area_row_bar_summary">Mode, keys, pinning, clipboard</string>
+    <string name="agent_area_row_commands">@ commands with snippets and places</string>
+    <string name="agent_area_row_screenshots">Screenshot pill above the keys</string>
+    <string name="agent_area_row_ai">Provider, key, model, run status</string>
+    <string name="agent_area_row_skills">Skill key slots</string>
+    <string name="agent_area_row_workflows">Your text workflows</string>
+    <string name="agent_area_row_dictation">Speak instead of typing</string>
+    <string name="agent_area_row_profiles">Profiles, back up and restore</string>
+    <string name="agent_area_row_updates">Check for new builds</string>
+    <string name="agent_area_row_diagnose">What the phone really does</string>
+    <string name="agent_area_row_advanced">Experimental and debug</string>
+    <string name="agent_area_row_gesture_data">Share gesture data</string>
+    <string name="agent_area_row_about">Version, licence, sources</string>
+</resources>

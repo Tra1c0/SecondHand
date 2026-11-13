@@ -76,32 +76,14 @@ fun SettingsNavHost(
         popEnterTransition = { slideInHorizontally(initialOffsetX = { -it * dir }, animationSpec = animation) },
         popExitTransition = { slideOutHorizontally(targetOffsetX = { +it * dir }, animationSpec = animation) }
     ) {
+        // fork (stage 38a): new start page with seven areas; the old entries are on the area pages
         composable(SettingsDestination.Settings) {
-            MainSettingsScreen(
-                onClickAbout = { navController.navigate(SettingsDestination.About) },
-                onClickTextCorrection = { navController.navigate(SettingsDestination.TextCorrection) },
-                onClickPreferences = { navController.navigate(SettingsDestination.Preferences) },
-                onClickToolbar = { navController.navigate(SettingsDestination.Toolbar) },
-                onClickGestureTyping = { navController.navigate(SettingsDestination.GestureTyping) },
-                onClickDataGathering = { navController.navigate(SettingsDestination.DataGathering) },
-                onClickAdvanced = { navController.navigate(SettingsDestination.Advanced) },
-                onClickAppearance = { navController.navigate(SettingsDestination.Appearance) },
-                onClickLanguage = { navController.navigate(SettingsDestination.Languages) },
-                onClickLayouts = { navController.navigate(SettingsDestination.Layouts) },
-                onClickDictionaries = { navController.navigate(SettingsDestination.Dictionaries) },
-                onClickBack = ::goBack,
-                onClickAgentProfiles = { navController.navigate(SettingsDestination.AgentProfiles) },
-                onClickAgentAi = { navController.navigate(SettingsDestination.AgentAi) },
-                onClickAgentSkills = { navController.navigate(SettingsDestination.AgentSkills) },
-                onClickAgentWorkflows = { navController.navigate(SettingsDestination.AgentWorkflows) },
-                onClickAgentLearning = { navController.navigate(SettingsDestination.AgentLearning) },
-                onClickAgentDictation = { navController.navigate(SettingsDestination.AgentDictation) },
-                onClickAgentScreenshots = { navController.navigate(SettingsDestination.AgentScreenshots) },
-                onClickAgentCommands = { navController.navigate(SettingsDestination.AgentCommands) },
-                onClickAgentUpdates = { navController.navigate(SettingsDestination.AgentUpdates) },
-                onClickAgentSymbols = { navController.navigate(SettingsDestination.AgentSymbols) },
-                onClickAgentDiagnose = { navController.navigate(SettingsDestination.AgentDiagnose) },
-            )
+            MainSettingsScreen(onNavigate = { navController.navigate(it) }, onClickBack = ::goBack)
+        }
+        helium314.keyboard.settings.screens.SettingsArea.entries.forEach { area ->
+            composable(area.route) {
+                helium314.keyboard.settings.screens.AgentAreaScreen(area, onNavigate = { navController.navigate(it) }, onClickBack = ::goBack)
+            }
         }
         composable(SettingsDestination.About) {
             AboutScreen(onClickBack = ::goBack)
@@ -198,6 +180,14 @@ object SettingsDestination {
     const val AgentRgb = "agent_rgb"
     const val AgentSymbols = helium314.keyboard.agent.SymbolDrawing.DESTINATION
     const val AgentDiagnose = "agent_diagnose"
+    // fork (stage 38a): the seven areas of the new settings
+    const val AreaLook = "area_look"
+    const val AreaTyping = "area_typing"
+    const val AreaKeys = "area_keys"
+    const val AreaGestures = "area_gestures"
+    const val AreaBar = "area_bar"
+    const val AreaAi = "area_ai"
+    const val AreaSystem = "area_system"
     const val About = "about"
     const val TextCorrection = "text_correction"
     const val Preferences = "preferences"
