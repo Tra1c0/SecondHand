@@ -200,6 +200,8 @@ public final class EmojiPalettesView extends LinearLayout
     private KeyboardActionListener mKeyboardActionListener = KeyboardActionListener.EMPTY_LISTENER;
     private final EmojiCategory mEmojiCategory;
     private ViewPager2 mPager;
+    // fork, stage 25a: mixer mode behind the "Emoji-Mixer" key of the bottom row
+    private helium314.keyboard.agent.EmojiMixPalette mMixer;
 
     public EmojiPalettesView(final Context context, final AttributeSet attrs) {
         this(context, attrs, R.attr.emojiPalettesViewStyle);
@@ -224,6 +226,7 @@ public final class EmojiPalettesView extends LinearLayout
 
     @Override
     protected void onMeasure(final int widthMeasureSpec, final int heightMeasureSpec) {
+        if (mMixer != null) mMixer.beforeMeasure(widthMeasureSpec); // the pages give up the mixer bar's height
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
         final Resources res = getContext().getResources();
         // The main keyboard expands to the entire this {@link KeyboardView}.
@@ -274,6 +277,7 @@ public final class EmojiPalettesView extends LinearLayout
         mEmojiLayoutParams.setCategoryPageIdViewProperties(mEmojiCategoryPageIndicatorView);
         setCurrentCategory(mEmojiCategory.getCurrentCategory(), true);
         mEmojiCategoryPageIndicatorView.setColors(mColors.get(ColorType.EMOJI_CATEGORY_SELECTED), mColors.get(ColorType.STRIP_BACKGROUND));
+        mMixer = new helium314.keyboard.agent.EmojiMixPalette(this, mPager);
         initialized = true;
     }
 
@@ -311,8 +315,16 @@ public final class EmojiPalettesView extends LinearLayout
      */
     @Override
     public void onReleaseKey(final Key key) {
-        addRecentKey(key);
         final int code = key.getCode();
+        // in mixer mode a tapped emoji is chosen for the mix, not typed
+        if (mMixer != null && mMixer.isActive() && (code > 0 || code == KeyCode.MULTIPLE_CODE_POINTS)) {
+            final String emoji = code > 0 ? new String(Character.toChars(code)) : key.getOutputText();
+            if (emoji != null && mMixer.onEmoji(emoji)) {
+                mKeyboardActionListener.onReleaseKey(code, false);
+                return;
+            }
+        }
+        addRecentKey(key);
         if (code == KeyCode.MULTIPLE_CODE_POINTS) {
             // todo: when we enter some emoticons, e.g. :-D, inline emoji search is triggered and emoji view is closed
             //  (one more instance of "emoji search should recognize emoticons", but in this case could be fixed in other ways)
@@ -364,6 +376,7 @@ public final class EmojiPalettesView extends LinearLayout
         initialize();
 
         setupBottomRowKeyboard(editorInfo, keyboardActionListener);
+        mMixer.start(editorInfo);
         final KeyDrawParams params = new KeyDrawParams();
         params.updateParams(mEmojiLayoutParams.getBottomRowKeyboardHeight(), keyVisualAttr);
         new EmojiLayoutParams(getResources()).setEmojiListProperties(mPager); // necessary when floating
@@ -421,6 +434,7 @@ public final class EmojiPalettesView extends LinearLayout
 
     public void stopEmojiPalettes() {
         if (!initialized) return;
+        mMixer.stop(); // leaving the palette clears the mixer's choice
         getRecentsKeyboard().flushPendingRecentKeys();
     }
 

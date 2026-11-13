@@ -11,4 +11,8 @@
     <files-path
         name="agent_qr"
         path="agent_qr/"/>
+    <!-- Emoji-Mix images (stage 25a), see EmojiMixer -->
+    <files-path
+        name="agent_emoji_mix"
+        path="agent_emoji_mix/"/>
 </paths>

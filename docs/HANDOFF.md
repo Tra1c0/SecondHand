@@ -12,9 +12,11 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 - Stand 2026-11-13 (Übergabe): `main` = Build 11 (beim Owner installiert). Arbeitsbranch
   `ccr-2b6708f5-qwv8ok` = Build 11 + Sprachwechsel-Fix (SubtypeChoice, P66) + Haptik-Kette
   Undo/Redo (HapticChain, P67), committet, aber ohne Prüfer und ohne vollen Testlauf.
-- Ungetestete Zwischenstände (gestoppte Agenten, Basis 4c08f98, NICHT gemergt):
-  `wip/emoji-mix` (25a: Tabelle, `@mix`, Leisten-Chip, Cache, Mixer im Emoji-Menü) und
+- Ungetesteter Zwischenstand (gestoppter Agent, Basis 4c08f98, NICHT gemergt):
   `wip/symbole-malen` (27: Symbole malen statt Gestenschreiben, $P-Erkenner, PointerTracker-Hook).
+- Emoji-Mix (25a) aus `wip/emoji-mix` fertiggestellt (`@mix`, Leisten-Chip, Emoji-Mixer in der
+  Emoji-Ansicht); Paarliste mit mündlicher Erlaubnis des Autors (Owner), gstatic hier nicht
+  erreichbar, kein Gerätetest, noch ohne Prüfer. Danach 25b animierte Emojis, 25c Sticker-Ersteller.
 - Nächste Schritte für Build 12: siehe Offene Punkte 0.
 - Kein Gerätetest für alles seit Build 10 außer den Rückmeldungen des Owners.
 
@@ -101,6 +103,14 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
     wird mit Roboto. Offen am Gerät: Gesamtbild, Abstand zur Navigationsleiste, Wechsel zwischen
     Werkzeugen und Wortvorschlägen, Menü-Aktionen, Zwischenablage mit echten Bildern, Balken im
     Panel, TalkBack. Liste je Etappe: `docs/VALIDATION.md` → Etappe19….
+
+16. **Emoji-Mix (25a): Lizenzdatei im Repo des Autors nachprüfen.** `xsalazar/emoji-kitchen-backend`
+    hat keine Lizenzdatei; Erlaubnis laut Owner mündlich am 2026-11-13, schriftlich ausstehend
+    (`docs/BUILD.md` → Emoji-Mix-Tabelle). Außerdem ungeprüft: echte Bilder von www.gstatic.com
+    (in der Cloud-Umgebung gesperrt), Einfügen in WhatsApp/Telegram, der Mixer in der
+    Emoji-Ansicht am Gerät (Leistenhöhe, Animation, Tastenbeschriftung „Emojis suchen“ /
+    „Emoji-Mixer“ in schmalen Tasten), ob die Leiste nach Emojis aus der Emoji-Ansicht den Chip
+    zeigt.
 
 ## Arbeitsweise
 

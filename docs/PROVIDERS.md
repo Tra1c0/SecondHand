@@ -147,3 +147,23 @@ nur name/steps vor; Provider und Modell der Schritte stammen aus der Freigabe,
 UUID/Revision1 aus der App. Entwürfe werden weder gespeichert noch ausgeführt.
 Modelle ohne Structured-Output-Unterstützung können den Auftrag ablehnen; kein
 stiller Rückfall auf schwächer validierte Ausgabe. Live-API-Prüfung steht aus.
+
+## Emoji-Mix-Bilder (www.gstatic.com, 25a)
+
+Kein KI-Anbieter, aber der einzige weitere Netzweg der Tastatur außer der Update-Prüfung.
+
+- Host fest `www.gstatic.com`, nur HTTPS, nur Pfade der Form
+  `/android/keyboard/emojikitchen/<JJJJMMTT>/u<links>/u<links>_u<rechts>.png` (`EmojiMixUrls.isAllowed`,
+  vor jeder Anfrage geprüft). Die URL entsteht nur aus der eingebauten Tabelle, nie aus getipptem
+  Text oder einer Antwort.
+- Genau ein `GET` je Tipp (Chip in der Leiste oder die Wahl des zweiten Emojis im Mixer der
+  Emoji-Ansicht), kein automatisches Wiederholen, kein Vorladen von Vorschaubildern. Gesendet
+  wird nur, was in der URL steht (Datum und Codepunkte der zwei Emojis), dazu `Accept: image/png` und
+  die üblichen Kopfzeilen von OkHttp (z. B. `User-Agent: okhttp/…`, `Accept-Encoding: gzip`); keine Cookies, kein
+  Schlüssel, kein Cache von OkHttp.
+- Antwort: 200 mit `Content-Type: image/png` und PNG-Signatur, höchstens 2 MB; 404 = „Keine
+  Mischung“; jede Weiterleitung (3xx) ist ein Fehler und wird nicht verfolgt. Zeitlimits: Verbinden
+  10 s, Lesen 15 s, gesamt 20 s.
+- Laut Owner (2026-11-13) erlaubt. Aus der Cloud-Umgebung „SecondHand“ ist der Host nicht
+  erreichbar; gegen den echten Server ist nichts geprüft (nur Tests mit nachgebautem Server).
+

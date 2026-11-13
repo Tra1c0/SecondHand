@@ -333,6 +333,37 @@ diese Sprache um.
 - Abschalten unter Einstellungen → Befehle → `@lang`; dort stehen auch die Kürzel deiner aktiven
   Sprachen.
 
+### Emoji-Mix
+
+Zwei Emojis werden zu einem Sticker aus Googles Emoji Kitchen gemischt (wie bei Gboard). Welche
+Paare es gibt, weiß die Tastatur ohne Internet. Das Bild selbst lädt sie erst nach deinem Tipp
+von Google (www.gstatic.com); gesendet werden dabei nur die beiden Emojis, kein anderer Text.
+
+- `@mix 🐶🔥` (auch `@mix 🐶 + 🔥`): Chip „🐶 + 🔥 mischen · Google“ antippen. Während des
+  Ladens wandern drei Punkte, dann erscheint der Sticker als Chip mit „einfügen“ (in Feldern,
+  die Bilder annehmen) oder „teilen“. Ein Tipp darauf fügt ihn ein und löscht danach den Befehl.
+- `@mix 🐶` schlägt bis zu sechs Partner vor, die es wirklich gibt; `@mix` allein bietet
+  Vorlagen (😂 🥰 🐶 🔥 ❤️).
+- Zwei Emojis direkt vor der Schreibmarke (z. B. du tippst 🐶🔥): Die Leiste bietet denselben
+  Chip an. Nach dem Einfügen verschwinden die zwei Emojis, aber nur, wenn sie noch unverändert
+  vor der Schreibmarke stehen. Beim Teilen bleiben sie stehen. Abschalten: Einstellungen →
+  Befehle → „Emoji-Mix in der Leiste anbieten“ (der Schalter gilt nur, solange Befehle an sind).
+- In der Emoji-Ansicht hat die untere Reihe statt Leertaste und Lupe zwei gleich breite Tasten:
+  „Emojis suchen“ (wie bisher die Lupe; ohne Emoji-Wörterbuch steht dort die Leertaste) und
+  „Emoji-Mixer“. Der Mixer blendet über den Emojis eine schmale Leiste ein („2 Emojis wählen“).
+  Tippe zwei Emojis an; sie werden dann nicht geschrieben. Mit dem zweiten lädt die Tastatur
+  die Mischung („lädt von Google“), der Sticker gleitet groß herein. Sticker antippen fügt ihn
+  ein (oder teilt ihn). Ein gewähltes Emoji antippen entfernt es; ein drittes ersetzt das
+  zweite. Gibt es keine Mischung, steht dort „Keine Mischung“ mit Partnern, die eine haben.
+  Nochmals „Emoji-Mixer“ oder das Verlassen der Emoji-Ansicht beendet den Mixer.
+- „Keine Mischung“ heißt: Google hat dieses Paar nicht. Bei „Laden fehlgeschlagen“ (kein Netz)
+  versucht ein neuer Tipp es noch einmal.
+- Geladene Sticker bleiben auf dem Gerät (höchstens 20 MB, die ältesten gehen zuerst) und
+  erscheinen beim nächsten Mal sofort ohne Internet. Löschen: Einstellungen → Befehle →
+  „Gespeicherte Mischungen löschen“.
+- Nicht in Passwortfeldern, im Inkognito-Modus oder bei gesperrtem Gerät; dort bleibt der
+  Mixer aus („Der Emoji-Mixer ist in diesem Feld aus“).
+
 ## Design auswählen
 
 Einstellungen → Aussehen → „Design“ oder im Tastaturmenü die Pille „Design“: Kachel antippen.

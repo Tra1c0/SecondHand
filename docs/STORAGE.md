@@ -226,3 +226,18 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   Schreibmarke steht.
 - `@qr`: `files/agent_qr/qr-<uuid>.png` im DE-Speicher der Tastatur, über den eigenen Provider nur
   per Leseberechtigung freigegeben, gelöscht nach 10 Minuten bzw. beim nächsten QR-Code.
+
+## Emoji-Mix (25a)
+
+- Paartabelle: Asset `app/src/main/assets/emoji_mix_pairs.bin` (48 690 Byte, gzip; Format im Kopf
+  von `tools/emoji_mix_table.py`), nur gelesen, einmal je Prozess im Hintergrund in den Speicher
+  (Bitmap 48 KB plus 147 000 Byte Datumsindex). Herkunft und Prüfsummen: `docs/BUILD.md`.
+- Geladene Bilder: `files/agent_emoji_mix/<links>_<rechts>.png` im DE-Speicher der Tastatur (die
+  Namen sind die Codepunkte des Paars, kein getippter Text), höchstens 20 MB, die am längsten
+  nicht benutzten zuerst gelöscht (`lastModified` bei jedem Lesen); Zwischendatei `.tmp`, beim
+  Aufräumen entfernt. Ein Bild höchstens 2 MB. Über den eigenen Provider nur für das Einfügen
+  bzw. Teilen mit Leseberechtigung freigegeben. Löschen: Einstellungen → Befehle →
+  „Gespeicherte Mischungen löschen“. Kein Backup (`allowBackup=false`), kein Export. DE, damit es
+  dieselbe Wurzel wie `@qr` und die Screenshot-Kopien hat; bei gesperrtem Gerät ist Emoji-Mix aus.
+- Im Speicher: Zustand der zuletzt angefragten 12 Paare samt kleinem Vorschaubild (höchstens 320
+  px), nicht auf der Platte. Einstellung `agent_emoji_mix_strip` (Tastatur-Einstellungen, Standard an).

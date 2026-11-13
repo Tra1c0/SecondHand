@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="agent_command_mix">Emoji-Mix: %1$smix 🐶🔥 mischt zwei Emojis zu einem Sticker aus Googles Emoji Kitchen; %1$smix 🐶 schlägt Partner vor. Welche Paare es gibt, weiß die Tastatur ohne Netz; erst ein Tipp auf den Chip lädt genau dieses Bild von Google (www.gstatic.com).</string>
+    <string name="agent_emoji_mix_pair">%1$s + %2$s</string>
+    <string name="agent_emoji_mix_offer">%s mischen · Google</string>
+    <string name="agent_emoji_mix_offer_description">Die Mischung von %s einmal von Google (www.gstatic.com) laden. Gesendet werden nur die beiden Emojis.</string>
+    <string name="agent_emoji_mix_loading">%s lädt von Google</string>
+    <string name="agent_emoji_mix_none">Keine Mischung</string>
+    <string name="agent_emoji_mix_none_description">Google hat keine Mischung von %s.</string>
+    <string name="agent_emoji_mix_failed">%s: Laden fehlgeschlagen ↻</string>
+    <string name="agent_emoji_mix_insert">einfügen</string>
+    <string name="agent_emoji_mix_share">teilen</string>
+    <string name="agent_emoji_mix_insert_description">Die Mischung von %s einfügen</string>
+    <string name="agent_emoji_mix_share_description">Die Mischung von %s teilen</string>
+    <string name="agent_emoji_mix_label">Emoji-Mix</string>
+    <string name="agent_emoji_mix_table_loading">Emoji-Mix startet …</string>
+    <string name="agent_emoji_mix_usage">Ein oder zwei Emojis eingeben, z. B. %smix 🐶🔥</string>
+    <string name="agent_emoji_mix_title">Emoji-Mix</string>
+    <string name="agent_emoji_mix_strip">Emoji-Mix in der Leiste anbieten</string>
+    <string name="agent_emoji_mix_strip_description">Nach zwei getippten Emojis zeigt die Leiste einen Chip zum Mischen. Vor einem Tipp wird nichts geladen.</string>
+    <string name="agent_emoji_mix_privacy">Ein Tipp auf einen Mix-Chip oder die Wahl des zweiten Emojis im Mixer der Emoji-Tastatur sendet die Codepunkte der beiden Emojis an Google (www.gstatic.com), um das Bild zu laden. Sonst wird nichts gesendet, auch kein anderer Text aus dem Feld. Geladene Bilder bleiben auf dem Gerät (höchstens 20 MB, die ältesten gehen zuerst).</string>
+    <string name="agent_emoji_mix_cache">Gespeicherte Mischungen: %s</string>
+    <string name="agent_emoji_mix_clear">Gespeicherte Mischungen löschen</string>
+    <string name="agent_emoji_search_key">Emojis suchen</string>
+    <string name="agent_emoji_mixer_key">Emoji-Mixer</string>
+    <string name="agent_emoji_mixer_hint">2 Emojis wählen</string>
+    <string name="agent_emoji_mixer_hint_second">Zweites Emoji wählen</string>
+    <string name="agent_emoji_mixer_loading">lädt von Google</string>
+    <string name="agent_emoji_mixer_none">Keine Mischung. Partner mit Mischung:</string>
+    <string name="agent_emoji_mixer_failed">Laden fehlgeschlagen. Tippen zum Wiederholen.</string>
+    <string name="agent_emoji_mixer_insert">Sticker antippen zum Einfügen</string>
+    <string name="agent_emoji_mixer_share">Sticker antippen zum Teilen</string>
+    <string name="agent_emoji_mixer_remove">%s entfernen</string>
+    <string name="agent_emoji_mixer_partner">Mit %s mischen</string>
+    <string name="agent_emoji_mixer_blocked">Der Emoji-Mixer ist in diesem Feld aus</string>
+</resources>
