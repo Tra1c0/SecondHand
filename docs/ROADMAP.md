@@ -27,6 +27,16 @@ Reihenfolge von oben nach unten.
 - **30 Diagnose-Seite** und **31 Feinschliff Symbole malen** sind gebaut (siehe FEATURES.md,
   `docs/VALIDATION.md` → Etappen 30 und 31). Offen: Engine-Review der Hooks in `LatinIME` und
   `PointerTracker`, Gerätetest.
+- **36 Symbole malen: Erkennung überarbeiten (dringend, vor dem geprüften Build)** (Rückmeldung
+  des Owners zu Build 14, 2026-11-13, am Xiaomi). Befunde: Ein Buchstaben-Tipp übernimmt das
+  Symbol bis dahin, alle weiteren Striche zählen als neues Zeichen (kurze Striche werden als Tipp
+  gewertet, Wartefenster 500 ms zu knapp); ⇒ wird zu ≠ ($P ignoriert Richtung und
+  Strichreihenfolge); Zeichen werden häufig nicht erkannt (wenige Vorlagen, nur synthetisch
+  geprüft); die Eingabe „glitcht“ teilweise (noch zu klären). Plan: Strich-Grenze für Tipps
+  niedriger, Wartefenster länger und an das Tempo angepasst, Vorschau des erkannten Symbols in der
+  Leiste beim Malen; Erkennung mit Richtung/Reihenfolge und mehr Vorlagen; Lernen aus der
+  Handschrift des Owners (Wahl einer Alternative merkt die Zeichnung als eigene Vorlage,
+  optionale Kalibrierung). (M)
 - **33 Leertasten-Geste mit Rastpunkten** ist gebaut (siehe FEATURES.md, Nachweis in
   `docs/VALIDATION.md` → Etappe 33 (Leertasten-Rastpunkte)). Offen: Prüfer-Review der `PointerTracker`-Änderung
   (Pflicht vor dem Merge), Gerätetest (Gefühl und Unterscheidbarkeit der Ticks, Abstände am
