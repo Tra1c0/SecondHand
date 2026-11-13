@@ -37,6 +37,9 @@ fun GestureTypingScreen(
     val gestureFloatingPreviewEnabled = prefs.getBoolean(Settings.PREF_GESTURE_FLOATING_PREVIEW_TEXT, Defaults.PREF_GESTURE_FLOATING_PREVIEW_TEXT)
     val gestureEnabled = prefs.getBoolean(Settings.PREF_GESTURE_INPUT, Defaults.PREF_GESTURE_INPUT)
     val items = listOf(
+        // fork (stage 27): drawn symbols replace gesture typing while on
+        helium314.keyboard.agent.AgentPreferences.SYMBOL_DRAWING,
+        AGENT_SYMBOLS_ENTRY,
         Settings.PREF_GESTURE_INPUT,
         if (gestureEnabled)
             Settings.PREF_GESTURE_PREVIEW_TRAIL else null,

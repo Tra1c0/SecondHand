@@ -14,7 +14,8 @@ object AgentPreferences {
     val SETTINGS_DESTINATIONS = setOf("appearance", "toolbar", "agent_design", COMMANDS_DESTINATION,
         "preferences", "agent_workflows", // stage 24f: clipboard history setting, workflows
         UPDATES_DESTINATION,
-        "languages") // stage 24g: @lang with only one enabled language
+        "languages", // stage 24g: @lang with only one enabled language
+        "agent_symbols") // stage 27: "Nicht erkannt" opens the own drawn symbols
     /** Keeps what was learned but adds nothing new. Different from switching learning off, which deletes. */
     const val LEARNING_PAUSED = "agent_learning_paused"
     /** Never replace a known word automatically (default off: known words may still be corrected when clearly wrong). */
@@ -36,6 +37,8 @@ object AgentPreferences {
     const val COMMANDS_DISABLED = "agent_commands_disabled"
     /** Last output format of the calculator, a MathExpression.Style name. */
     const val CALCULATOR_STYLE = "agent_calculator_style"
+    /** Stage 27: drawn symbols instead of gesture typing (default off). */
+    const val SYMBOL_DRAWING = "agent_symbol_drawing"
     /** privateImeOptions of the calibration field in the settings: the keyboard records touches there. */
     const val TOUCH_CALIBRATION_FIELD = "dev.personal.agentkeyboard.touchCalibration"
 }

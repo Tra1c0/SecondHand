@@ -1810,6 +1810,50 @@ Befunde eines lesenden Reviews der Befehle, behoben:
 - Nicht geprüft: ob die Ticks auf dem Xiaomi zu spüren und zu unterscheiden sind, welche Stufe
   das Telefon wirklich spielt (Primitive, Wellenform, Pulse), „Bitte nicht stören“ am Gerät.
 
+## Etappe 27 — Symbole malen
+
+- Auftrag des Owners (2026-11-13): Symbole malen ersetzt Gestenschreiben ganz (Einstellung,
+  Standard aus), lokale feste Liste plus eigene Symbole, kein ML Kit, kein Netz. Gebaut auf dem
+  ungetesteten Zwischenstand `wip/symbole-malen` (d924da2), in einer Arbeitskopie fertiggestellt.
+- Gebaut: `C/InkRecognizer.kt` (`$P`), `C/InkSymbols.kt` (40 Symbole, 73 Vorlagen),
+  `C/OwnInkSymbols.kt`, `A/SymbolInk.kt`, `A/SymbolDrawing.kt`, `AgentSymbolsScreen.kt`; Hooks in
+  `PointerTracker`, `KeyboardActionListenerImpl`, `LatinIME`, `SettingsValues`, Einträge in
+  `MainSettingsScreen`, `SettingsNavHost`, `SettingsContainer`, `GestureTypingScreen`.
+- Nachgetragen beim Fertigstellen: „Nicht erkannt“ öffnet bei gesperrtem Gerät keine
+  Einstellungen (P77); das Malen eigener Symbole ist eine Karte auf der Seite statt eines Dialogs,
+  weil ein Textfeld im Compose-Dialog in Robolectric nie „idle“ wird (P78; Ursache eingegrenzt:
+  ohne Textfeld wird der Dialog idle, mit angehaltener Testuhr kommt der Klick nicht an).
+- Geprüft (JVM, `tools/dev.py core-tests`, 214/0): `InkRecognizerTest` (14: jede eingebaute
+  Zeichnung erkennt sich selbst; 1825 künstlich verzerrte Zeichnungen 97,5 % richtig, 32
+  abgelehnt, alle bei %, schwächstes Symbol % 190/225; 20 von 300 zufälligen Kritzeleien
+  angenommen (Grenze 10 %); Reihenfolge und Richtung egal; Größe egal, Seitenverhältnis nicht;
+  u. a.), `OwnInkSymbolsTest` (4: Hin und zurück, kaputte Zeilen, Grenzen, Textregeln).
+  Laufzeit ca. 12 ms je Zeichnung gegen 73 Vorlagen (geteilter Rechner).
+- Geprüft (Robolectric): `SymbolInkTest` (12, echter `PointerTracker` mit synthetischen
+  Berührungen: Wischen ist Tinte, zwei Striche ergeben →, Tupfer gehören dazu (÷), andere Taste
+  schreibt zuerst das Symbol, langes Drücken, Leer- und Löschtaste wischen unverändert, zweiter
+  Finger verwirft, abgebrochene Berührung verwirft, Schalter aus = Gestenschreiben wie vorher,
+  Schalter an schaltet `mGestureInputEnabled` aus, Passwortfeld ohne Tinte, zu viele Striche
+  kein Symbol), `SymbolSettingsScreenTest` (3: Schalter Standard aus und gespeichert, alle
+  eingebauten Symbole gelistet; eigenes Symbol dreimal gemalt, Text über 8 Zeichen abgelehnt,
+  gespeichert, als eigenes Symbol erkannt, gelöscht; Abbrechen speichert nichts),
+  `InputLogicTest.symbolDraw*` (9, echte Weiterleitung über `KeyboardActionListenerImpl`: → nach
+  „Preis“ beendet das Wort ohne Gestenwort, Alternative ersetzt in einem Schritt und bietet das
+  alte Symbol an, Chips enden mit der nächsten Eingabe und alte Chips ersetzen nichts, „Nicht
+  erkannt“ schreibt nichts und öffnet die Seite, gesperrt öffnet es nichts, wartendes Symbol vor
+  der nächsten Taste, eigenes Symbol zusammen mit den eingebauten, neuer Editor verwirft).
+- Gesamtläufe: `tools/dev.py agent-tests` 600/0. Gezielt `InputLogicTest` komplett,
+  `AgentSpaceGestureTest`, `SymbolInkTest`, `BatchDeliveryTest`: 183 Tests, nur der geerbte
+  Fehler `insertLetterIntoWordHangulFails`. Ein Lauf davor (gleiche Klassen) hatte zusätzlich
+  `typedWorkflowChoiceIsDroppedWhenTheEditorChanges` rot (Senden-Knopf sichtbar), allein grün;
+  danach zwei Test-Lecks behoben (statischer Passwortmodus von `PointerTracker` aus
+  `SymbolInkTest`, gesperrte Werte im `Settings`-Singleton aus dem Sperr-Test), seitdem zweimal
+  grün. Ob eines der Lecks die Ursache war, ist nicht bewiesen. `tools/dev.py build`:
+  erfolgreich (ARM64, debugNoMinify). Die volle `upstream-tests`-Suite lief in dieser Arbeitskopie nicht (macht der Lead).
+- Nicht geprüft: kein Gerätetest (echte Finger, Tempo, ob HeliBoards Gestenerkennung langsames
+  Malen als Geste startet, Spur, Schwellen, Malfeld der eigenen Symbole am Telefon, TalkBack);
+  kein Prüfer-Review der `PointerTracker`-Änderung (Pflicht vor dem Merge).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

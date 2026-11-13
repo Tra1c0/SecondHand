@@ -333,6 +333,63 @@ diese Sprache um.
 - Abschalten unter Einstellungen → Befehle → `@lang`; dort stehen auch die Kürzel deiner aktiven
   Sprachen.
 
+## Symbole malen
+
+Statt Wörter zu wischen, malst du Sonderzeichen auf die Tastatur. Einschalten: Einstellungen →
+„Symbole malen“ → „Symbole malen (statt Gestenschreiben)“. Gestenschreiben ist dann aus; Tippen,
+langes Drücken für Sonderzeichen und das Wischen auf Leer- und Löschtaste bleiben wie vorher.
+
+- Male mit einem Finger auf den Buchstabentasten, zügig wie beim Wischen. Die Spur bleibt kurz
+  sichtbar.
+- Ein Symbol aus mehreren Strichen: den nächsten Strich innerhalb einer halben Sekunde ansetzen.
+  Kurze Striche und Tupfer zählen dann mit. Nach der Pause wird das Symbol geschrieben; tippst du
+  vorher eine andere Taste, kommt das Symbol zuerst.
+- Die Leiste zeigt danach bis zu drei andere Symbole; ein Tipp tauscht das geschriebene aus.
+- „Nicht erkannt“: nichts wurde geschrieben; ein Tipp öffnet die eigenen Symbole (bei gesperrtem
+  Telefon nicht, dann verschwindet nur der Chip).
+- Ein zweiter Finger während eines Strichs verwirft die Zeichnung. In Passwortfeldern geht Malen
+  nicht, ebenso wenig ohne Hauptwörterbuch für die Sprache (wie beim Gestenschreiben).
+
+Eingebaute Symbole (Reihenfolge der Striche und Richtung sind egal):
+
+| Symbol | So malen |
+| --- | --- |
+| → ← ↑ ↓ | Strich in Pfeilrichtung, dann die Spitze als Haken (oder in einem Zug) |
+| ↗ ↘ | schräger Strich, Spitze als rechter Winkel am Ende |
+| ↔ | waagerechter Strich mit Spitzen an beiden Enden |
+| ⇒ | zwei waagerechte Striche, dann eine große Spitze rechts |
+| = | zwei waagerechte Striche untereinander |
+| ≠ | = und ein Schrägstrich hindurch |
+| ≈ | zwei Wellen untereinander |
+| ~ | eine Welle |
+| ≤ ≥ | < bzw. > und darunter ein Strich |
+| + | senkrechter und waagerechter Strich |
+| ± | + und darunter ein Strich |
+| × | zwei Diagonalen (ein X) |
+| ÷ | waagerechter Strich, dann ein Tupfer darüber und einer darunter |
+| – | ein waagerechter Strich (Gedankenstrich) |
+| \| | ein senkrechter Strich |
+| ∞ | liegende Acht |
+| √ | kleiner Haken nach unten, dann lang nach oben und waagerecht nach rechts |
+| π | Querbalken, darunter zwei Beine |
+| ° | ein Kreis |
+| ✓ | Häkchen |
+| ♥ | Herz in einem Zug |
+| ★ | fünfzackiger Stern in einem Zug |
+| € | ein C, dann zwei kurze Querstriche |
+| $ | ein S, dann ein senkrechter Strich |
+| § | zwei S untereinander |
+| & | Und-Zeichen in einem Zug |
+| @ | kleiner Kreis und große Schlinge drumherum |
+| # | zwei senkrechte und zwei waagerechte Striche |
+| % | Kreis oben links, Schrägstrich, Kreis unten rechts |
+| ( ) [ ] { } | die Klammer, wie geschrieben |
+
+Eigene Symbole: Auf derselben Seite „Symbol hinzufügen“; darunter öffnet sich ein Malfeld. Das
+Symbol dreimal hineinmalen (je „Weiter“, „Neu malen“ wischt das Feld leer, „Abbrechen“ verwirft
+alles), dann den Text eingeben, den es schreiben soll (bis 8 Zeichen, auch Emoji), und
+„Speichern“. Höchstens 30. Löschen über „Löschen“ neben dem Symbol. Alles bleibt auf dem Telefon.
+
 ## Design auswählen
 
 Einstellungen → Aussehen → „Design“ oder im Tastaturmenü die Pille „Design“: Kachel antippen.

@@ -184,6 +184,16 @@ public class LatinIME extends InputMethodService implements
             mSuggestionStripView.setToolbarVisibility(false);
         return true;
     }
+    /** Stage 27: the alternatives (or "Nicht erkannt") of the symbol drawn last, while the cursor stays. */
+    private boolean tryShowSymbolChips() {
+        if (!hasSuggestionStripView() || !onEvaluateInputViewShown()) return false;
+        final View chips = helium314.keyboard.agent.SymbolDrawing.createChipsView(this, mSuggestionStripView);
+        if (chips == null) return false;
+        mSuggestionStripView.setExternalSuggestionView(chips, false);
+        if (mSettings.getCurrent().mToolbarMode == ToolbarMode.EXPANDABLE)
+            mSuggestionStripView.setToolbarVisibility(false);
+        return true;
+    }
     public void onAgentTextSubmitted() {
         mGestureConsumer = GestureConsumer.NULL_GESTURE_CONSUMER;
         setGestureDataGatheringMode(getCurrentInputEditorInfo(), true);
@@ -972,6 +982,7 @@ public class LatinIME extends InputMethodService implements
         // fork, stage 22: personal hit boxes, and the calibration field of our own settings
         helium314.keyboard.agent.TouchModel.load(this, mSettings.getCurrent());
         helium314.keyboard.agent.KeyboardCommands.load(this);
+        helium314.keyboard.agent.SymbolDrawing.reset(); // stage 27: no drawing carries over to another editor
         helium314.keyboard.agent.TouchCalibration.setActive(editorInfo != null
                 && getPackageName().equals(editorInfo.packageName)
                 && helium314.keyboard.agent.AgentPreferences.TOUCH_CALIBRATION_FIELD.equals(editorInfo.privateImeOptions));
@@ -1116,10 +1127,12 @@ public class LatinIME extends InputMethodService implements
         mainKeyboardView.setMainDictionaryAvailability(mDictionaryFacilitator.hasAtLeastOneInitializedMainDictionary());
         mainKeyboardView.setKeyPreviewPopupEnabled(currentSettingsValues.mKeyPreviewPopupOn);
         mainKeyboardView.setSlidingKeyInputPreviewEnabled(currentSettingsValues.mSlidingKeyInputPreviewEnabled);
+        // stage 27: drawn symbols use the gesture detection and always show their trail, but never
+        // the floating word preview (gesture typing is off then, see SettingsValues)
         mainKeyboardView.setGestureHandlingEnabledByUser(
-                currentSettingsValues.mGestureInputEnabled,
-                currentSettingsValues.mGestureTrailEnabled,
-                currentSettingsValues.mGestureFloatingPreviewTextEnabled);
+                currentSettingsValues.mGestureInputEnabled || currentSettingsValues.mSymbolDrawing,
+                currentSettingsValues.mGestureTrailEnabled || currentSettingsValues.mSymbolDrawing,
+                currentSettingsValues.mGestureFloatingPreviewTextEnabled && !currentSettingsValues.mSymbolDrawing);
 
         if (TRACE) Debug.startMethodTracing("/data/trace/latinime");
     }
@@ -1639,6 +1652,7 @@ public class LatinIME extends InputMethodService implements
         }
         // a typed command shows its chips instead of word suggestions (stage 24)
         if (tryShowCommandChips()) return;
+        if (tryShowSymbolChips()) return; // stage 27: alternatives of a drawn symbol
         // between words a fresh screenshot comes before next-word suggestions (stage 23g); the
         // suggestions above stay with InputLogic, so autocorrection is unchanged
         if (tryShowScreenshotChip()) return;
@@ -1734,6 +1748,7 @@ public class LatinIME extends InputMethodService implements
     public void setNeutralSuggestionStrip() {
         final SettingsValues currentSettings = mSettings.getCurrent();
         if (tryShowCommandChips()) return;
+        if (tryShowSymbolChips()) return;
         if (tryShowClipboardSuggestion()) {
             // clipboard suggestion has been set
             if (hasSuggestionStripView() && currentSettings.mAutoHideToolbar)

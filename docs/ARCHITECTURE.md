@@ -40,6 +40,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - **Lerndaten** – Was die Tastatur aus dem Tippen lernt: pausieren, zählen, exportieren, löschen. Alles auf dem Gerät.
 - **Updates** – Opt-in-Prüfung auf neue Builds im öffentlichen Release-Repository, Download und Installation nur nach eigenem Klick.
 - **Unveränderter Upstream** – Was ohne Änderung von HeliBoard übernommen ist; nur nach Ordnern beschrieben.
+- **Symbole malen** – Etappe 27: Sonderzeichen auf die Buchstaben malen statt Gestenschreiben, lokal erkannt.
 - **Build, Tests, CI, Docs-System** – Lokaler Build, Prüfbefehle, Workflows und die Docs-Prüfung.
 - **Fallstricke** – Fehler, die schon passiert sind oder nahelagen: bei jedem Review prüfen.
 - **Datei-Inventar** – Erzeugte Liste aller kartierten Dateien nach Ordner.
@@ -133,6 +134,11 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   Aufruf), `RgbWave`, `RgbColors` (ARGB, HSV, Mischung, Kontrast, `readable`/`label` für
   mindestens 3:1), `RgbRun.mode` (Akku-Regeln) und `RgbFramePacer` (Bildrate). Details im
   Abschnitt „RGB-Beleuchtung“.
+- Symbole malen (Etappe 27, Abschnitt „Symbole malen“): `InkRecognizer.kt` (`InkStroke`,
+  `InkCloud` mit 32 Punkten, `InkRecognizer` = `$P` mit ±10° Drehtoleranz, `InkResult` mit
+  Schwellen, `InkGroup` für mehrstrichige Symbole), `InkSymbols.kt` (40 eingebaute Symbole als
+  Striche im 100er-Feld, 73 Vorlagen), `OwnInkSymbols.kt` (eigene Symbole: Textregeln, Format
+  `v1`, `parse` wirft nie). Tests `InkRecognizerTest`, `OwnInkSymbolsTest`.
 - Tests in `CT/`: `AiTextActionTest`, `EditorPolicyTest`, `LocalTextActionsTest`,
   `PendingBatchGateTest`, `SkillBindingTest`, `ToolTest`, `WorkflowTest`,
   `InsertionAnchorTest`, `StyledTranslationTest`, `UpdateReleasesTest`, `RgbLightingTest`.
@@ -360,6 +366,32 @@ Speicher, Datenschutz und Identität:
   auch in `debug`/`debugNoMinify`), `donottranslate.xml` und `strings.xml` in
   `debug`/`debugNoMinify` (Namen „Agent Keyboard“ bzw. „Agent Keyboard Lab“).
 
+Symbole malen (Etappe 27, Touch-Verarbeitung, jede Änderung mit Prüfer; Details im Abschnitt
+„Symbole malen“):
+
+- `PointerTracker.java`: nur für Folgestriche eines wartenden Symbols. `onDownEvent` fragt nach
+  dem Rauschfilter `startsInk` (wartendes Symbol laut `SymbolInk.continuesInk`, Gestenerkennung
+  erlaubt, kein anderer Zeiger aktiv, Alphabet, Buchstabentaste): dann `mInInk`, kein
+  Tastendruck, kein Eintrag in die Zeigerwarteschlange, Spur über `showGestureTrail`.
+  `onMoveEvent` (`moveInk`, auch historische Punkte), `onUpEvent` und `onCancelEvent` prüfen
+  `mInInk` zuerst. Ein weiterer Finger während eines Folgestrichs verwirft die Zeichnung
+  (`SymbolInk.cancel`) und wird normal verarbeitet. Gestenerkennung, Batch-Aufrufe, P5-Sperre:
+  unverändert.
+- `KeyboardActionListenerImpl.kt`: die vier Batch-Methoden gehen bei eingeschaltetem
+  `mSymbolDrawing` an `SymbolInk` statt an `LatinIME` (LatinIME, InputLogic und
+  `PendingBatchGate` sehen davon nichts); `onPressKey`, `onCodeInput`, `onTextInput` rufen zuerst
+  `SymbolDrawing.beforeOtherInput`; Feld `symbolSink` hält die Senke stark.
+- `SettingsValues.java`: `mSymbolDrawing` (`AgentPreferences.SYMBOL_DRAWING`, Standard aus);
+  `mGestureInputEnabled` ist dann aus.
+- `LatinIME.java`: `setGestureHandlingEnabledByUser` mit `mGestureInputEnabled || mSymbolDrawing`
+  (Spur immer, schwebender Wort-Text nie beim Malen); `tryShowSymbolChips` nach den Befehlschips
+  in `setSuggestedWords` und `setNeutralSuggestionStrip`; `onStartInputViewInternal` ruft
+  `SymbolDrawing.reset`.
+- `MainSettingsScreen.kt` (Eintrag „Symbole malen“, auch ohne Gesten-Bibliothek),
+  `SettingsNavHost.kt` (Ziel `agent_symbols`), `SettingsContainer.kt`
+  (`createAgentSymbolSettings`), `GestureTypingScreen.kt` (Schalter und Eintrag oben, nur mit
+  Gesten-Bibliothek sichtbar).
+
 Geänderte Upstream-Tests (Leertasten-Gesten): `InputLogicTest.kt` ruft `onSpaceSwipe` statt
 `onHorizontalSpaceSwipe` und hat die Fälle `generatedSpace*`.
 
@@ -369,7 +401,7 @@ ersten n des Felds),
 `Shadows.kt` liefert außerdem `acceptedMimeTypes` und `currentImeOptions` im `EditorInfo` (23g),
 dazu `currentPackageName` und `currentFieldId` (Sprachbefehle, P66),
 `InputLogicTest.kt` (zusätzliche erzeugte Fälle, `typedCommand*` für 24a, `screenshotChip*` für
-23g), `SuggestTest.kt` (Personalisierung im Test
+23g, `symbolDraw*` für 27), `SuggestTest.kt` (Personalisierung im Test
 ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 
 ## Editorzugriff, Panel und Rad
@@ -1226,6 +1258,38 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - Upstream-Dokumente `README.md` (Fork-Hinweis oben), `layouts.md`, `CONTRIBUTING.md`,
   `AI_USAGE.md`, Lizenzen. Die Upstream-Tests in `app/src/test/` laufen mit `upstream-tests`.
 
+## Symbole malen
+
+> Etappe 27: Sonderzeichen auf die Buchstaben malen statt Gestenschreiben, lokal erkannt.
+
+- Ablauf: Schalter `agent_symbol_drawing` (Standard aus) → `mSymbolDrawing`, Gestenschreiben aus,
+  HeliBoards Gestenerkennung bleibt an (auch ohne Gesten-Bibliothek; nicht in Passwortfeldern,
+  ohne Hauptwörterbuch und mit TalkBack-Erkundung, weil `GestureEnabler` dann aus ist).
+  Erster Strich: unveränderte Erkennung in `PointerTracker`, `onEndBatchInput` liefert alle
+  Punkte seit dem Aufsetzen; `A/SymbolInk.kt` nimmt nur die Punkte des ersten Zeigers.
+  Weitere Striche innerhalb von 500 ms (`InkGroup.PAUSE_MILLIS`): Hook `startsInk`, sofort Tinte,
+  auch Punkte (÷). Nach der Pause (Timer per `postAtTime`, P51) oder vor jeder anderen Taste
+  (`flush`) gehen die Striche an die Senke. Es wird nie sofort nach einem Strich erkannt, weil
+  jeder Strich der erste eines mehrstrichigen Symbols sein kann (– → =, ≠).
+- `A/SymbolDrawing.kt`: Erkennung (eingebaute plus eigene Vorlagen, neu gebaut, wenn sich der
+  gespeicherte Text ändert), Einfügen über `LatinIME.onTextInput` (beendet das Wort wie ein
+  Satzzeichen, Autokorrektur des Worts davor wie dort), danach bis zu drei Alternativen als Chips
+  (`KeyboardCommands.chipRow`); ein Tipp ersetzt über `LatinIME.replaceCommandText` (ein Commit,
+  Prüfung von Text und Schreibmarke). Nichts erkannt: kein Text, gedämpfter Chip „Nicht erkannt“
+  öffnet die Seite (bei gesperrtem Gerät nicht, P77). Die Chips gelten nur, solange die Schreibmarke steht und der Text davor das
+  Symbol ist; jede Taste beendet sie. Nichts wird gespeichert oder geloggt.
+- Erkennung (`C/InkRecognizer.kt`): `$P`, Annahme bei Abstand ≤ 1,3 oder ≤ 2,0 mit 1,2-fachem
+  Vorsprung vor dem zweiten Treffer; Alternativen bis 2,2. Ca. 8–12 ms je Zeichnung auf dem JVM (73 Vorlagen).
+- Eigene Symbole: DE-SharedPreferences `agent_symbols`, Schlüssel `own` (Format in
+  `docs/STORAGE.md`), Seite `K/settings/screens/AgentSymbolsScreen.kt` (Schalter, eigene
+  Symbole dreimal malen in einer Karte `AddSymbolCard` auf der Seite, kein Dialog (P78), Liste
+  der eingebauten als kleine Zeichnungen). Texte in
+  `agent_symbol_strings.xml`.
+- Tests: `AT/SymbolInkTest.kt` (echter PointerTracker, auch Passwortfeld),
+  `AT/SymbolSettingsScreenTest.kt` (Schalter, Liste, eigenes Symbol dreimal malen, speichern,
+  löschen), `InputLogicTest.symbolDraw*` (echte Weiterleitung, Einfügen, Chips, Sperre), Kern
+  siehe oben.
+
 ## Build, Tests, CI, Docs-System
 
 > Lokaler Build, Prüfbefehle, Workflows und die Docs-Prüfung.
@@ -1236,7 +1300,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   enthaltenen ABIs, derzeit `…-universal.apk` (Fallstrick P19). `-Pandroid.injected.testOnly=false`
   verhindert, dass die APK als test-only markiert wird (Fallstrick P16). `agent-tests` läuft über
   `helium314.keyboard.agent.*`, die erzeugten `InputLogicTest`-Fälle (`generated*`,
-  `typedCommand*`, `screenshotChip*`) und `BatchDeliveryTest`.
+  `typedCommand*`, `screenshotChip*`, `symbolDraw*`) und `BatchDeliveryTest`.
   Toolchain und Einrichtung: `docs/BUILD.md`. UI-Tests schreiben gerenderte Vorschauen nach
   `app/build/agent-previews/` (z. B. `builder-send-review.png`, nicht versioniert).
 - Baseline: `upstream-tests` endet mit genau fünf geerbten Fehlern, Liste in
@@ -1491,19 +1555,34 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Verzögerung ab dem Ende des vorigen Primitivs, nicht ab dessen Start. Ohne Amplitudensteuerung
   ignoriert Android Amplituden still; deshalb vorher `hasAmplitudeControl` fragen und sonst
   gleich starke Pulse nehmen, statt eine Stärke vorzutäuschen.
+- **P75** Symbole malen braucht `GestureEnabler.shouldHandleGesture()`: Die Robolectric-Tests
+  müssen `PointerTracker.setKeyDetector` (Passwortmodus) und `AccessibilityUtils.init` aufrufen,
+  sonst erkennt der echte PointerTracker keine Geste und tippt einen Buchstaben. Ein Folgestrich
+  steht nicht in der Zeigerwarteschlange; deshalb verwirft ein zweiter Finger die Zeichnung, statt
+  zu warten, und ein hängender Strich kann die Tastatur nie blockieren.
+- **P76** Beim Malen nie `LatinIME.onStartBatchInput` erreichen: das startet die
+  Gestenwort-Verarbeitung und die P5-Sperre; die Weiterleitung steht allein in
+  `KeyboardActionListenerImpl`.
+- **P77** Ein Chip in der Leiste kann auch auf dem Sperrbildschirm angetippt werden. Was eine
+  Einstellungsseite öffnet („Nicht erkannt“ beim Symbole-Malen), prüft deshalb vorher
+  `SettingsValues.mIsLocked` und tut gesperrt nichts außer den Chip zu entfernen.
+- **P78** Ein Textfeld in einem Compose-`AlertDialog` wird in Robolectric nie „idle“
+  (`AppNotIdleException`, auch mit angehaltener Testuhr), ein Textfeld auf einer normalen Seite
+  schon. Abläufe mit Texteingabe, die getestet werden sollen, deshalb auf der Seite (Karte) statt
+  im Dialog bauen (`AgentSymbolsScreen.AddSymbolCard`).
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (363 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (376 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (4): agent-apk, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (59): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (61): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
   AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand, ContactCommand,
   ConvertCommand, CorrectionMemory, DateCommand, DesignLook, DesignTiles, Dictation, EmojiCommand,
@@ -1511,9 +1590,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore, LearningData,
   LoadingDotsView, ManualWorkflowDraft, ModelSettings, MyDesigns, OnDeviceSpeechEngine,
   PlaceCommand, RgbKeyPainter, RgbLighting, RgbStrip, RunSubjectCodec, SavedPlaces, ScreenshotChip,
-  SearchCommand, SkillBindingStore, SkillLabels, SpaceGestures, ToolApprovalSummary, ToolLauncher,
-  TouchCalibration, TouchModel, TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract,
-  WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
+  SearchCommand, SkillBindingStore, SkillLabels, SpaceGestures, SymbolDrawing, SymbolInk,
+  ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel, TypoMemory,
+  WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner,
+  WorkflowInputSummary, WorkflowStore
 - `A/commands/` (15): AiCommandChips, AlarmCommand, AskCommand, ClipCommand, LanguageCommand,
   QrCommand, ScreenReaderService, SensitiveClips, SnipCommand, SnippetStore, SubtypeChoice,
   TimerCommand, TranslateCommand, UrlCommand, WorkflowCommand
@@ -1521,7 +1601,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (64): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (66): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, ClipCommandTest, CommandReplaceTest, CommandTemplatesTest,
@@ -1533,22 +1613,22 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   LearningDataTest, LoadingDotsViewTest, MainSettingsLookTest, ManualWorkflowDraftTest,
   MoreCommandsTest, MoreProvidersTest, MyDesignsTest, OpenAiProviderTest, RgbLightingRenderTest,
   RgbSettingsScreenTest, ScreenshotChipTest, SelectedTextCommitTest, SkillBindingStoreTest,
-  SkillSettingsTest, SnipCommandTest, SpaceGesturesTest, TestRunJournal, ToolRunnerTest,
-  TouchModelTest, TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest,
-  WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
-  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  SkillSettingsTest, SnipCommandTest, SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest,
+  TestRunJournal, ToolRunnerTest, TouchModelTest, TypoMemoryTest, UpdateCheckTest,
+  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
+  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (7): ClockCommandsTest, LanguageCommandTest, QrCommandTest,
   ScreenReaderServiceTest, SubtypeChoiceTest, TranslateCommandTest, UrlCommandTest
-- `C/` (29): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
-  EditorSession, EmojiNames, EventParser, ExecutionPolicy, LanguageNames, LocalTextActions,
-  MathExpression, ModelProvider, PendingBatchGate, Places, Profiles, RgbLighting, SkillBinding,
-  SpecialCharacters, StyledTranslation, SymbolTable, TextCondition, TimerParser, Tool,
-  UnitConversion, UpdateReleases, UrlDetector, Workflow
-- `CT/` (23): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
-  EditorPolicyTest, EventParserTest, InsertionAnchorTest, LanguageNamesTest, LocalTextActionsTest,
-  MathExpressionTest, PendingBatchGateTest, PlacesTest, QuestionCaptureTest, RgbLightingTest,
-  SkillBindingTest, StyledTranslationTest, SymbolTableTest, TimerParserTest, ToolTest,
-  UnitConversionTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
+- `C/` (32): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
+  EditorSession, EmojiNames, EventParser, ExecutionPolicy, InkRecognizer, InkSymbols, LanguageNames,
+  LocalTextActions, MathExpression, ModelProvider, OwnInkSymbols, PendingBatchGate, Places,
+  Profiles, RgbLighting, SkillBinding, SpecialCharacters, StyledTranslation, SymbolTable,
+  TextCondition, TimerParser, Tool, UnitConversion, UpdateReleases, UrlDetector, Workflow
+- `CT/` (25): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
+  EditorPolicyTest, EventParserTest, InkRecognizerTest, InsertionAnchorTest, LanguageNamesTest,
+  LocalTextActionsTest, MathExpressionTest, OwnInkSymbolsTest, PendingBatchGateTest, PlacesTest,
+  QuestionCaptureTest, RgbLightingTest, SkillBindingTest, StyledTranslationTest, SymbolTableTest,
+  TimerParserTest, ToolTest, UnitConversionTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,
   KeyboardActionListenerImpl, KeyboardSwitcher, KeyboardTheme, KeyboardView, MainKeyboardView,
   PointerTracker
@@ -1568,12 +1648,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/latin/suggestions/` (2): FlatStrip, SuggestionStripView
 - `K/latin/utils/` (3): DictionaryInfoUtils, DictionaryUtils, ToolbarUtils
 - `K/settings/` (4): SearchScreen, SettingsActivity, SettingsContainer, SettingsNavHost
-- `K/settings/screens/` (23): AdvancedScreen, AgentAiScreen, AgentCommandsScreen, AgentDesignEditor,
+- `K/settings/screens/` (25): AdvancedScreen, AgentAiScreen, AgentCommandsScreen, AgentDesignEditor,
   AgentDesignScreen, AgentDictationScreen, AgentLearningScreen, AgentMainSettings,
   AgentProfilesScreen, AgentRgbScreen, AgentRunStatus, AgentScreenReaderSection,
   AgentScreenshotScreen, AgentSkillsScreen, AgentSnippetsSection, AgentSpaceScreen,
-  AgentUpdatesScreen, AgentWorkflowsScreen, AppearanceScreen, DictionaryScreen, MainSettingsScreen,
-  WorkflowBuilderDialog, WorkflowDraftProtection
+  AgentSymbolsScreen, AgentUpdatesScreen, AgentWorkflowsScreen, AppearanceScreen, DictionaryScreen,
+  GestureTypingScreen, MainSettingsScreen, WorkflowBuilderDialog, WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
 - `app/` (1): build.gradle
@@ -1594,12 +1674,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (7): agent_alarm_strings, agent_design_strings,
+- `app/src/main/res/values-de/` (8): agent_alarm_strings, agent_design_strings,
   agent_language_strings, agent_rgb_strings, agent_space_strings, agent_strings,
-  agent_update_strings
-- `app/src/main/res/values/` (14): agent_alarm_strings, agent_attrs, agent_design_strings,
+  agent_symbol_strings, agent_update_strings
+- `app/src/main/res/values/` (15): agent_alarm_strings, agent_attrs, agent_design_strings,
   agent_ids, agent_language_strings, agent_rgb_strings, agent_space_strings, agent_strings,
-  agent_update_strings, attrs, clip_provider, donottranslate, gesture_data, themes-flat
+  agent_symbol_strings, agent_update_strings, attrs, clip_provider, donottranslate, gesture_data,
+  themes-flat
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (1): Shadows

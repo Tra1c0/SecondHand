@@ -17,6 +17,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import helium314.keyboard.agent.SpaceGesture;
+import helium314.keyboard.agent.SymbolInk;
 import helium314.keyboard.event.HapticEvent;
 import helium314.keyboard.keyboard.internal.BatchInputArbiter;
 import helium314.keyboard.keyboard.internal.BatchInputArbiter.BatchInputArbiterListener;
@@ -123,6 +124,8 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
     private final BogusMoveEventDetector mBogusMoveEventDetector = new BogusMoveEventDetector();
 
     private boolean mIsDetectingGesture = false; // per PointerTracker.
+    // fork (stage 27): this pointer draws a further stroke of a waiting drawn symbol (SymbolInk)
+    private boolean mInInk = false;
     private static boolean sInGesture = false;
     private static TypingTimeRecorder sTypingTimeRecorder;
 
@@ -669,6 +672,7 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         }
 
         final Key key = getKeyOn(x, y);
+        if (startsInk(key, x, y, eventTime)) return;
         mBogusMoveEventDetector.onActualDownEvent(x, y);
         if (key != null && key.isModifier()) {
             if (sInGesture) {
@@ -699,6 +703,52 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
 
     /* package */ boolean isShowingPopupKeysPanel() {
         return (mPopupKeysPanel != null);
+    }
+
+    /**
+     * Fork (stage 27, "Symbole malen"): while a drawn symbol waits for its next stroke, a touch that
+     * starts on a letter key of the alphabet is ink at once (no key press, no gesture threshold), so
+     * short strokes and dots belong to the symbol. Only one finger draws: another touch while a
+     * stroke is drawn drops the drawing and is handled as usual. Without a waiting symbol, or with
+     * the setting off, nothing changes.
+     */
+    private boolean startsInk(final Key key, final int x, final int y, final long eventTime) {
+        mInInk = false;
+        if (SymbolInk.isDrawing()) {
+            SymbolInk.cancel();
+            return false;
+        }
+        if (!SymbolInk.continuesInk() || !sGestureEnabler.shouldHandleGesture() || sInGesture
+                || getActivePointerTrackerCount() > 0 || mKeyboard == null
+                || !mKeyboard.mId.getElement().isAlphabet() || key == null || !Character.isLetter(key.getCode())) {
+            return false;
+        }
+        mInInk = true;
+        mDownTime = eventTime;
+        mLastX = x;
+        mLastY = y;
+        mGestureStrokeDrawingPoints.onDownEvent(x, y, 0);
+        SymbolInk.onInkDown(mPointerId, x, y);
+        sDrawingProxy.showGestureTrail(this, false);
+        return true;
+    }
+
+    private void moveInk(final int x, final int y, final long eventTime, final MotionEvent me) {
+        if (me != null) {
+            final int pointerIndex = me.findPointerIndex(mPointerId);
+            for (int h = 0; pointerIndex >= 0 && h < me.getHistorySize(); h++) {
+                final int historicalX = (int)me.getHistoricalX(pointerIndex, h);
+                final int historicalY = (int)me.getHistoricalY(pointerIndex, h);
+                mGestureStrokeDrawingPoints.onMoveEvent(historicalX, historicalY,
+                        (int)(me.getHistoricalEventTime(h) - mDownTime));
+                SymbolInk.onInkMove(mPointerId, historicalX, historicalY);
+            }
+        }
+        mLastX = x;
+        mLastY = y;
+        mGestureStrokeDrawingPoints.onMoveEvent(x, y, (int)(eventTime - mDownTime));
+        SymbolInk.onInkMove(mPointerId, x, y);
+        sDrawingProxy.showGestureTrail(this, false);
     }
 
     private void dismissPopupKeysPanel() {
@@ -810,6 +860,10 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
     private void onMoveEvent(final int x, final int y, final long eventTime, final MotionEvent me) {
         if (DEBUG_MOVE_EVENT) {
             printTouchEvent("onMoveEvent:", x, y, eventTime);
+        }
+        if (mInInk) { // fork (stage 27)
+            moveInk(x, y, eventTime, me);
+            return;
         }
         if (mIsTrackingForActionDisabled) {
             return;
@@ -1038,6 +1092,12 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         if (DEBUG_EVENT) {
             printTouchEvent("onUpEvent  :", x, y, eventTime);
         }
+        if (mInInk) { // fork (stage 27): the stroke goes to the waiting symbol, no key is sent
+            mInInk = false;
+            SymbolInk.onInkUp(mPointerId, x, y);
+            sDrawingProxy.showGestureTrail(this, false);
+            return;
+        }
 
         sTimerProxy.cancelUpdateBatchInputTimer(this);
         if (!sInGesture) {
@@ -1228,6 +1288,10 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
     private void onCancelEvent(final int x, final int y, final long eventTime) {
         if (DEBUG_EVENT) {
             printTouchEvent("onCancelEvt:", x, y, eventTime);
+        }
+        if (mInInk) { // fork (stage 27): a cancelled stroke drops the drawing
+            mInInk = false;
+            SymbolInk.cancel();
         }
 
         cancelBatchInput();

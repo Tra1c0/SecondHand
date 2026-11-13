@@ -2734,6 +2734,165 @@ class InputLogicTest {
         kotlin.test.assertNotSame(chip, screenshotChipText(strip)!!.parent)
     }
 
+    // stage 27: drawn symbols through the real KeyboardActionListenerImpl, SymbolInk and SymbolDrawing
+
+    private val arrowStrokes = arrayOf(floatArrayOf(0f, 150f, 300f, 150f), floatArrayOf(216f, 78f, 300f, 150f, 216f, 222f))
+    private val wStroke = arrayOf(floatArrayOf(0f, 0f, 75f, 300f, 150f, 120f, 225f, 300f, 300f, 0f))
+
+    private fun enableSymbolDrawing() {
+        latinIME.prefs().edit { putBoolean(AgentPreferences.SYMBOL_DRAWING, true) }
+        latinIME.mSettings.loadSettings(latinIME, latinIME.mSettings.current.mLocale,
+            InputAttributes(latinIME.currentInputEditorInfo, false, latinIME.packageName))
+        assertTrue(settingsValues.mSymbolDrawing)
+    }
+
+    /** Strokes as PointerTracker reports gestures (the first finger only), without waiting for the pause. */
+    private fun drawStrokes(vararg strokes: FloatArray) {
+        val listener = latinIME.mKeyboardActionListener
+        for (stroke in strokes) {
+            listener.onStartBatchInput()
+            val pointers = helium314.keyboard.latin.common.InputPointers(64)
+            for (i in 0 until stroke.size / 2) pointers.addPointer(stroke[2 * i].toInt(), stroke[2 * i + 1].toInt(), 0, 10 * i)
+            pointers.addPointer(999, 999, 1, 0) // a second finger is ignored
+            listener.onUpdateBatchInput(pointers)
+            listener.onEndBatchInput(pointers)
+        }
+    }
+
+    private fun drawSymbol(vararg strokes: FloatArray) {
+        drawStrokes(*strokes)
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(600))
+        handleMessages()
+    }
+
+    private fun symbolChips(): android.view.ViewGroup? =
+        helium314.keyboard.agent.SymbolDrawing.createChipsView(latinIME, android.widget.FrameLayout(latinIME)) as android.view.ViewGroup?
+
+    @Test fun symbolDrawnArrowIsTypedAndEndsTheWordWithoutAGestureWord() {
+        enableSymbolDrawing()
+        chainInput("Preis")
+        assertTrue(composer.isComposingWord)
+        drawSymbol(*arrowStrokes)
+        assertEquals("Preis→", text)
+        assertFalse(composer.isComposingWord)
+        assertFalse(composer.isBatchMode)
+        assertFalse(helium314.keyboard.agent.SymbolInk.isWaiting)
+        checkConnectionConsistency()
+    }
+
+    @Test fun symbolDrawAlternativeChipReplacesTheSymbolInOneStep() {
+        enableSymbolDrawing()
+        setText("a ")
+        drawSymbol(*arrowStrokes)
+        assertEquals("a →", text)
+        val chips = symbolChips()!!
+        val labels = chipLabels(chips)
+        assertTrue(labels.size in 1..3, "$labels")
+        assertFalse("→" in labels)
+        tapStripChip(chips, labels.first())
+        handleMessages()
+        assertEquals("a " + labels.first(), text)
+        checkConnectionConsistency()
+        // the replaced symbol is offered back
+        assertTrue("→" in chipLabels(symbolChips()!!))
+    }
+
+    @Test fun symbolDrawChipsEndWithTheNextInputAndRefuseAChangedCursor() {
+        enableSymbolDrawing()
+        drawSymbol(*arrowStrokes)
+        val chips = symbolChips()!!
+        val label = chipLabels(chips).first()
+        chainInput("x")
+        kotlin.test.assertNull(symbolChips())
+        tapStripChip(chips, label) // an old chip: the cursor moved, nothing is replaced
+        handleMessages()
+        assertEquals("→x", text)
+    }
+
+    @Test fun symbolDrawNotRecognizedTypesNothingAndOffersOwnSymbols() {
+        enableSymbolDrawing()
+        setText("Hallo ")
+        drawSymbol(*wStroke)
+        assertEquals("Hallo ", text)
+        assertEquals(listOf(latinIME.getString(R.string.agent_symbols_not_recognized)), chipLabels(symbolChips()!!))
+        chainInput("a")
+        kotlin.test.assertNull(symbolChips())
+    }
+
+    @Test fun symbolDrawNotRecognizedChipOpensTheOwnSymbolsPage() {
+        enableSymbolDrawing()
+        val shadowApp = org.robolectric.Shadows.shadowOf(org.robolectric.RuntimeEnvironment.getApplication())
+        while (shadowApp.nextStartedActivity != null) { /* drop older starts */ }
+        drawSymbol(*wStroke)
+        tapStripChip(symbolChips()!!, latinIME.getString(R.string.agent_symbols_not_recognized))
+        val started = shadowApp.nextStartedActivity
+        kotlin.test.assertNotNull(started)
+        assertEquals(helium314.keyboard.agent.SymbolDrawing.DESTINATION,
+            started.getStringExtra(AgentPreferences.OPEN_SETTINGS_DESTINATION))
+        kotlin.test.assertNull(symbolChips())
+    }
+
+    @Test fun symbolDrawNotRecognizedChipOpensNothingWhileLocked() {
+        enableSymbolDrawing()
+        val keyguard = latinIME.getSystemService(android.content.Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+        org.robolectric.Shadows.shadowOf(keyguard).setIsDeviceLocked(true)
+        try {
+            latinIME.mSettings.loadSettings(latinIME, latinIME.mSettings.current.mLocale,
+                InputAttributes(latinIME.currentInputEditorInfo, false, latinIME.packageName))
+            assertTrue(settingsValues.mIsLocked)
+            val shadowApp = org.robolectric.Shadows.shadowOf(org.robolectric.RuntimeEnvironment.getApplication())
+            while (shadowApp.nextStartedActivity != null) { /* drop older starts */ }
+            setText("a ")
+            drawSymbol(*arrowStrokes)
+            assertEquals("a →", text) // drawing works like typing while locked
+            drawSymbol(*wStroke)
+            tapStripChip(symbolChips()!!, latinIME.getString(R.string.agent_symbols_not_recognized))
+            kotlin.test.assertNull(shadowApp.nextStartedActivity)
+            kotlin.test.assertNull(symbolChips())
+        } finally {
+            org.robolectric.Shadows.shadowOf(keyguard).setIsDeviceLocked(false)
+            // Settings is a process-wide singleton: no locked values may reach the next test
+            latinIME.mSettings.loadSettings(latinIME, latinIME.mSettings.current.mLocale,
+                InputAttributes(latinIME.currentInputEditorInfo, false, latinIME.packageName))
+            assertFalse(settingsValues.mIsLocked)
+        }
+    }
+
+    @Test fun symbolDrawWaitingSymbolIsTypedBeforeTheNextKey() {
+        enableSymbolDrawing()
+        drawStrokes(floatArrayOf(0f, 100f, 300f, 100f))
+        assertTrue(helium314.keyboard.agent.SymbolInk.isWaiting)
+        assertEquals("", text)
+        spaceTap()
+        assertEquals("– ", text)
+        assertFalse(helium314.keyboard.agent.SymbolInk.isWaiting)
+    }
+
+    @Test fun symbolDrawOwnSymbolIsRecognizedWithTheBuiltInOnes() {
+        enableSymbolDrawing()
+        val cloud = dev.agentkeyboard.core.InkCloud.of(listOf(dev.agentkeyboard.core.InkStroke(wStroke[0])))!!
+        helium314.keyboard.agent.SymbolDrawing.saveOwnSymbols(latinIME,
+            listOf(dev.agentkeyboard.core.OwnInkSymbols.Symbol("👋", listOf(cloud, cloud, cloud))))
+        drawSymbol(*wStroke)
+        assertEquals("👋", text)
+        drawSymbol(*arrowStrokes)
+        assertEquals("👋→", text)
+        helium314.keyboard.agent.SymbolDrawing.saveOwnSymbols(latinIME, emptyList())
+    }
+
+    @Test fun symbolDrawWaitingDrawingIsDroppedByANewEditor() {
+        enableSymbolDrawing()
+        drawStrokes(*arrowStrokes)
+        assertTrue(helium314.keyboard.agent.SymbolInk.isWaiting)
+        setText("neu") // a new editor start drops the waiting drawing
+        latinIME.onStartInputView(latinIME.currentInputEditorInfo, true)
+        handleMessages()
+        assertFalse(helium314.keyboard.agent.SymbolInk.isWaiting)
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(600))
+        handleMessages()
+        assertEquals("neu", text)
+    }
+
     private lateinit var screenshotImage: java.io.File
 
     /**
