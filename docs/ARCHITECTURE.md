@@ -357,6 +357,34 @@ Speicher, Datenschutz und Identität:
   jedem Fehler; ein schon entpacktes `emoji.dict` wird wiederverwendet (Fallstrick P52). `DictionaryUtils.kt`
   (`getDictionaryLocales`, Aufräumen) und `DictionaryScreen.kt` zählen ein Emoji-Wörterbuch nicht
   als eigene Sprache bzw. als internes Hauptwörterbuch. Test: `BundledEmojiDictTest`.
+- Tolerante Emoji-Vorschläge (Etappe 35, Fallstricke P115–P118): `Suggest.kt`
+  (`getSuggestedWordsForNonBatchInput`, nach der Entscheidung über die automatische Korrektur und
+  vor dem Einfügen des getippten Worts) ruft `A/EmojiSuggestions.addTo`. Das setzt bis zu zwei
+  Emojis (zusammen mit denen des Emoji-Wörterbuchs) an Index `min(2, size)` des Containers, hinter
+  HeliBoards eigene Emojis, also dorthin, wo `makeFirstTwoSuggestionsNonEmoji` Emojis hinschiebt;
+  bei anstehender Korrektur nie an Index 0. Quelle `EmojiSuggestions.DICTIONARY`
+  (`PhonyDictionary` vom Typ `emoji`). Nur beim Tippen (nicht Gesten, nicht Vorhersagen nach dem
+  Leerzeichen), nur mit „Emojis vorschlagen“, nicht in Passwortfeldern, bei Inkognito (auch
+  `IME_FLAG_NO_PERSONALIZED_LEARNING`), bei gesperrtem Gerät (erst nach einem Treffer gefragt,
+  höchstens alle 2 s, weil `isDeviceLocked` ein Systemaufruf ist) oder für ein Befehlswort.
+  „Echtes Wort“ heißt: die Ergebnisse des Wörterbuchs enthalten das getippte Wort; dann keine
+  Wortanfänge, keine Tippfehler und nur die Sprache dieses Wörterbuchs (`mSourceDict.mLocale`,
+  P118). `EmojiSuggestions` liest `assets/emoji_keywords.bin` einmal auf
+  einem eigenen Daemon-Thread (`ensureLoading`, beim ersten getippten Wort über
+  `Settings.getCurrentContext`); bis dahin kommt nichts dazu. `setTableForTest` für Tests.
+  Kern: `C/EmojiKeywords.kt` (Format lesen, Index je Sprache: gefaltete Stichwörter mit Varianten
+  „käse“/„kaese“, Stämme, sortierte Schlüssel; `suggest` in fünf Stufen exakt, Synonym, Wortform,
+  Wortanfang ab 4 Buchstaben, ein Tippfehler ab 4 Buchstaben mit gleichem Anfangsbuchstaben;
+  Rangfolge `group`: zuerst das Emoji, das das Wort benennt, und ein sehr häufiges Emoji, in
+  dessen Namen das Wort steht; dann ganze Stichwörter (häufige zuerst), zuletzt Wörter aus
+  mehrteiligen Stichwörtern; danach `POPULAR`, wenige Stichwörter, Reihenfolge der Emoji-Ansicht.
+  Wörter aus mehrteiligen Stichwörtern („zu viel gegessen“) zählen nur exakt, ab 5 Buchstaben,
+  nie für Stämme, Wortanfänge oder Tippfehler (`strong`); `STOPWORDS` und allgemeine Stichwörter
+  mit über 40 Emojis ohne eigenen Namen geben nichts), `C/EmojiSynonyms.kt` (feste Liste Umgangssprache und
+  Chat-Kürzel). Sprachen: Hauptsprache, dann Deutsch und Englisch. Generator
+  `tools/emoji_keywords.py` (Quelle, Summen: `docs/BUILD.md` → Emoji-Stichwörter). Tests
+  `CT/EmojiKeywordsTest.kt` (mit Zeitmessung), `SuggestTest.emoji*`,
+  `InputLogicTest.typedEmojiSuggestions*`.
 - `DebugFlags.kt`: privater Crashhandler entfernt, damit keine rohen Fehlermeldungen oder
   LastLog automatisch in External/DE gespeichert werden. Androids Standardhandler bleibt.
 - `AndroidManifest.xml`: `INTERNET`, `RECORD_AUDIO` (nur für das Diktat, siehe „Diktat“),
@@ -2003,31 +2031,52 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   das ab und behandelt das Paar als unbekannt. Ob gemerkt wird, entscheidet `recording()` beim
   Tipp und beim Ergebnis: eine Mischung, die vor dem Inkognito-Wechsel angefragt wurde, wird nicht
   gemerkt, wenn sie danach ankommt.
+- **P115** Ein Emoji aus `EmojiSuggestions` darf nie an der Stelle der automatischen Korrektur
+  stehen: Es wird erst nach `shouldBeAutoCorrected`, `guardAllows` und `applyLearnedCorrection`
+  eingefügt und bei anstehender Korrektur nie an Index 0 des Containers (sonst setzte die Leertaste
+  ein Emoji statt des Worts). Wer die Reihenfolge in `getSuggestedWordsForNonBatchInput` ändert,
+  prüft `SuggestTest.emojiSuggestionsNeverBecomeTheAutocorrection`.
+- **P116** Die Stichwort-Tabelle wird nie auf dem Tipp-Pfad geladen (etwa 0,1–0,3 s): erst ein
+  Daemon-Thread liest sie, bis dahin fügt `addTo` nichts hinzu. Tests, die genaue Vorschlagslisten
+  prüfen, setzen `EmojiSuggestions.setTableForTest(null)` (`SuggestTest`, `InputLogicTest`), sonst
+  hinge das Ergebnis davon ab, ob das Laden schon fertig ist. `InputLogicTest` holt Vorschläge
+  synchron über `mSuggest.getSuggestedWords`: `performUpdateSuggestionStripSync` wartet auf den
+  Handler-Thread, der in Robolectric nicht läuft, und liefert dort nichts.
+- **P117** Die Faltung macht aus „schön“ „schon“ und aus „für“ „fur“: Funktionswörter
+  (`EmojiKeywords.STOPWORDS`) werden deshalb ungefaltet verglichen, sonst bekäme „schön“ nie ein
+  Emoji. Der einfache Stammformer schneidet nur einmal ab, „maus“ wird zu „mau“, „mäuse“ zu
+  „maus“; die Wortform-Stufe sucht den Stamm deshalb auch als ganzes Stichwort.
+- **P118** Deutsch und Englisch teilen viele Schreibweisen mit anderer Bedeutung („Tag“ 🏷️,
+  „Gift“ 🎁, „Art“ 🖼️). Ein Wort, das ein Wörterbuch kennt, fragt deshalb nur dessen Sprache
+  (nicht die Hauptsprache: beim mehrsprachigen Tippen kennt das englische Wörterbuch „love“);
+  Wörter, die kein Wörterbuch kennt, fragen Hauptsprache, Deutsch und Englisch.
+  Ebenso fließen Wörter aus mehrteiligen Stichwörtern nicht in Stämme: sonst trafen „viel“
+  („zu viel gegessen“), „macht“ („sauber machen“) und „sagt“ („Säge“).
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (424 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (428 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (5): agent-apk, agent-tests, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (68): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (69): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
   AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand, ContactCommand,
   ConvertCommand, CorrectionMemory, DateCommand, DesignLook, DesignTiles, Diagnose, Dictation,
-  EmojiCommand, EmojiMixPalette, EncryptedActionRunStore, EventCommand, FlatMenuView,
-  FlatPanelStyle, FlatPreset, HapticChain, JournaledModelCall, JournaledRun, KeyboardCommands,
-  KeyboardProfileStore, LearningData, LoadingDotsView, ManualWorkflowDraft, ModelSettings,
-  MyDesigns, OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter, RgbLighting, RgbStrip, RgbTexture,
-  RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore, SkillLabels,
-  SliderFeel, SliderHaptics, SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing,
-  SymbolInk, ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel, TypoMemory,
-  WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner,
-  WorkflowInputSummary, WorkflowStore
+  EmojiCommand, EmojiMixPalette, EmojiSuggestions, EncryptedActionRunStore, EventCommand,
+  FlatMenuView, FlatPanelStyle, FlatPreset, HapticChain, JournaledModelCall, JournaledRun,
+  KeyboardCommands, KeyboardProfileStore, LearningData, LoadingDotsView, ManualWorkflowDraft,
+  ModelSettings, MyDesigns, OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter, RgbLighting,
+  RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand,
+  SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SpaceDetents, SpaceGestures,
+  SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary, ToolLauncher, TouchCalibration,
+  TouchModel, TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract,
+  WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
 - `A/commands/` (18): AiCommandChips, AlarmCommand, AskCommand, ClipCommand, EmojiMixCommand,
   EmojiMixRecents, EmojiMixer, LanguageCommand, QrCommand, ScreenReaderService, SensitiveClips,
   SnipCommand, SnippetStore, SubtypeChoice, TimerCommand, TranslateCommand, UrlCommand,
@@ -2056,18 +2105,19 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   WorkflowStoreTest
 - `AT/commands/` (8): ClockCommandsTest, EmojiMixCommandTest, LanguageCommandTest, QrCommandTest,
   ScreenReaderServiceTest, SubtypeChoiceTest, TranslateCommandTest, UrlCommandTest
-- `C/` (36): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
-  EditorSession, EmojiMix, EmojiNames, EventParser, ExecutionPolicy, InkDots, InkRecognizer,
-  InkSymbols, LanguageNames, LocalTextActions, MathExpression, ModelProvider, OwnInkSymbols,
-  PendingBatchGate, Places, Profiles, RgbCurve, RgbLighting, RgbPatterns, SkillBinding,
-  SpecialCharacters, StyledTranslation, SymbolTable, TextCondition, TimerParser, Tool,
-  UnitConversion, UpdateReleases, UrlDetector, Workflow
-- `CT/` (29): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
-  EditorPolicyTest, EmojiMixTest, EventParserTest, InkDotsTest, InkRecognizerTest,
-  InsertionAnchorTest, LanguageNamesTest, LocalTextActionsTest, MathExpressionTest,
-  OwnInkSymbolsTest, PendingBatchGateTest, PlacesTest, QuestionCaptureTest, RgbCurveTest,
-  RgbLightingTest, RgbPatternsTest, SkillBindingTest, StyledTranslationTest, SymbolTableTest,
-  TimerParserTest, ToolTest, UnitConversionTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
+- `C/` (38): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
+  EditorSession, EmojiKeywords, EmojiMix, EmojiNames, EmojiSynonyms, EventParser, ExecutionPolicy,
+  InkDots, InkRecognizer, InkSymbols, LanguageNames, LocalTextActions, MathExpression,
+  ModelProvider, OwnInkSymbols, PendingBatchGate, Places, Profiles, RgbCurve, RgbLighting,
+  RgbPatterns, SkillBinding, SpecialCharacters, StyledTranslation, SymbolTable, TextCondition,
+  TimerParser, Tool, UnitConversion, UpdateReleases, UrlDetector, Workflow
+- `CT/` (30): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
+  EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest, EventParserTest, InkDotsTest,
+  InkRecognizerTest, InsertionAnchorTest, LanguageNamesTest, LocalTextActionsTest,
+  MathExpressionTest, OwnInkSymbolsTest, PendingBatchGateTest, PlacesTest, QuestionCaptureTest,
+  RgbCurveTest, RgbLightingTest, RgbPatternsTest, SkillBindingTest, StyledTranslationTest,
+  SymbolTableTest, TimerParserTest, ToolTest, UnitConversionTest, UpdateReleasesTest,
+  UrlDetectorTest, WorkflowTest
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,
   KeyboardActionListenerImpl, KeyboardSwitcher, KeyboardTheme, KeyboardView, MainKeyboardView,
   PointerTracker

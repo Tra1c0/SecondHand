@@ -2320,6 +2320,41 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   Kurven-Editor), Android unter 10 (Shader-Verhalten des alten Renderers, P90), das Ziehen mit
   echten Fingern, Lesbarkeit über sehr feinen Mustern am Gerät.
 
+## Etappe 35: Tolerantere Emoji-Vorschläge
+
+- Gebaut (eigener Branch `ccr-6e6a4bdd-hhrd6w`, abgezweigt von `claude/build-12-completion-3unh51`
+  eef5254): lokale CLDR-Stichworttabelle (`emoji_keywords.bin`, Generator reproduzierbar, Summen in
+  `docs/BUILD.md`), Matcher `C/EmojiKeywords.kt` mit `C/EmojiSynonyms.kt`, Anbindung
+  `A/EmojiSuggestions.kt`, Haken in `Suggest.kt`. Vom Owner gewählte Fälle: Wortformen,
+  Groß/klein und Umlaute, Wortanfänge, Tippfehler, Deutsch/Englisch gemischt, Synonyme; höchstens
+  zwei Emojis hinter den ersten zwei Wörtern.
+- Geprüft (JVM): `CT/EmojiKeywordsTest` mit echten Fällen (Katzen, Mäuse, KAESE, Schmetterl,
+  Kafee, Hnud, party, geil, gatos; Funktionswörter und häufige Wörter leer; „Tag“/„Gift“ als
+  deutsches Wort ohne englische Treffer; Format, Faltung, Stamm, Editierabstand).
+- Geprüft (Robolectric): `SuggestTest.emoji*` (Platz hinter den ersten zwei Wörtern, nie
+  Autokorrektur, getipptes Wort in der Mitte, Zählung mit HeliBoards Emojis, Sprache des
+  Wörterbuchs, keine Vorhersagen, keine Tippfehler bei echten Wörtern) und
+  `InputLogicTest.typedEmojiSuggestions*` (echter Pfad InputLogic → Suggest; aus bei Schalter aus,
+  Inkognito, `IME_FLAG_NO_PERSONALIZED_LEARNING`, Passwortfeldern und gesperrtem Gerät; nichts wird
+  getippt).
+- Gemessen (Build-Rechner, JVM, nicht das Telefon): Suche im Mittel 7–12 µs, p99 50–120 µs je
+  Tastendruck über 303 Tastendrücke; Laden der Tabelle 125–135 ms (warm), einmalig auf einem
+  Hintergrund-Thread; laut Prüfer etwa 5 MB Heap insgesamt.
+- Prüfer: zwei Runden. Runde 1: kein hoher Befund; mittel behoben: Rangfolge (benanntes Emoji
+  zuerst), Fehltreffer bei häufigen Wörtern (Teilwörter mehrteiliger Stichwörter nur exakt,
+  mehr Funktionswörter), deutsch/englische Homographe; niedrig behoben: Ladegrenze im Test,
+  Sperrabfrage höchstens alle 2 s, Endung „-ungen“, Test „getipptes Wort in der Mitte“.
+  Runde 2: neuer mittlerer Befund behoben (englische Wörterbuchwörter beim mehrsprachigen Tippen:
+  jetzt fragt die Sprache des Wörterbuchs, das das Wort kennt), „-chen“ nur an längeren Wörtern.
+- Bewusst offen (niedrig): ein beliebtes, nur lose passendes Emoji kann vorn stehen („Hut“ → 🥳
+  vor 🤠, „happy“ → 😂); deutsche Stamm-Fehltreffer wie „Fall“ → 🪤; bis zu 2 s nach dem Sperren
+  noch Emojis; ein fehlgeschlagenes Laden der Tabelle wird bis zum Neustart nicht wiederholt;
+  Gestenschreiben bekommt die neuen Treffer nicht.
+- Gesamtläufe auf 6abe9ac: `core-tests` grün, `agent-tests` grün, `build` grün, `lint` grün,
+  `upstream-tests` 860 Tests mit genau den 7 bekannten Fehlern (5 Baseline, `XLinkTest.layoutsLinksInternal`
+  und `otherLinks` mit 403 vom Netzwerkfilter). Nicht geprüft: Gerätetest (Trefferqualität beim
+  echten Tippen, Ladezeit und Speicher auf dem Telefon).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

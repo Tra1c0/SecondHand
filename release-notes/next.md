@@ -81,3 +81,9 @@
   hat keine hellen Kanten mehr.
 - Noch auf keinem Gerät ausprobiert; Akkuverbrauch und Ruckelfreiheit auf dem Telefon sind nicht
   gemessen.
+- Neu: Emoji-Vorschläge in der Leiste treffen deutlich mehr. Wortformen („Katzen“ → 🐈),
+  Groß-/Kleinschreibung und Umlaute („KAESE“ → 🧀), Wortanfänge ab 4 Buchstaben („Schmetterl“
+  → 🦋), ein Tippfehler ab 4 Buchstaben („Kafee“ → ☕), Englisch beim deutschen Tippen
+  („party“ → 🎉) und eigene Synonyme („geil“ → 🔥). Höchstens zwei Emojis, hinter den ersten zwei
+  Wortvorschlägen, nie als Autokorrektur. Alles lokal; nicht in Passwortfeldern, bei Inkognito
+  oder bei gesperrtem Gerät. Noch auf keinem Gerät ausprobiert.

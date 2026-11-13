@@ -4,6 +4,7 @@ package helium314.keyboard.latin
 import androidx.core.content.edit
 import helium314.keyboard.ShadowBinaryDictionaryUtils
 import helium314.keyboard.agent.AgentPreferences
+import helium314.keyboard.agent.EmojiSuggestions
 import helium314.keyboard.agent.RejectedCorrections
 import helium314.keyboard.agent.TypoMemory
 import helium314.keyboard.ShadowInputMethodManager2
@@ -69,6 +70,7 @@ class SuggestTest {
         nextWordSuggestions = suggestionResults(emptyList())
         RejectedCorrections.clear(latinIME)
         TypoMemory.clear(latinIME)
+        EmojiSuggestions.setTableForTest(null) // no emojis unless a test loads the table
     }
 
     @Test fun `'on' to 'in' if 'in' was used before in this context`() {
@@ -560,6 +562,93 @@ class SuggestTest {
         val result2 = getSuggestedWords(false, "buT", CapsMode.MANUAL_LOCKED)
         assert(!result2.mWillAutoCorrect)
         assertEquals(listOf("buT", "BUT", "BUY", "BIT", "😢", "BUTTER"), result2.mSuggestedWordInfoList.map { it.mWord })
+    }
+
+    // fork, stage 35
+    private fun loadEmojiKeywords() = EmojiSuggestions.setTableForTest(
+        latinIME.assets.open("emoji_keywords.bin").use { dev.agentkeyboard.core.EmojiKeywords.read(it) })
+
+    private fun isEmoji(word: String) = StringUtils.mightBeEmoji(word.codePointAt(0))
+
+    @Test fun emojiSuggestionsGoBehindTheFirstTwoWords() {
+        currentTypingLocale = Locale.GERMAN
+        loadEmojiKeywords()
+        tapTypingSuggestions = suggestionResults(listOf(
+            suggestion("Katze", 1000), suggestion("Katzenfutter", 900), suggestion("Kater", 800)))
+        // typed word (not shown), two words, the emojis of the word form, the rest
+        assertEquals(listOf("Katzen", "Katze", "Katzenfutter", "🐈", "🐱", "Kater"),
+            getSuggestedWords(false, "Katzen", CapsMode.OFF).mSuggestedWordInfoList.map { it.mWord })
+        // without a table (not loaded yet) nothing changes
+        EmojiSuggestions.setTableForTest(null)
+        assertEquals(listOf("Katzen", "Katze", "Katzenfutter", "Kater"),
+            getSuggestedWords(false, "Katzen", CapsMode.OFF).mSuggestedWordInfoList.map { it.mWord })
+    }
+
+    @Test fun emojiSuggestionsNeverBecomeTheAutocorrection() {
+        loadEmojiKeywords()
+        enableAutocorrect(confidenceVeryAggressive)
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("hello", 650000)))
+        val result = getSuggestedWords(false, "helo", CapsMode.OFF) // a typo of the keyword "hello"
+        val words = result.mSuggestedWordInfoList.map { it.mWord }
+        assertTrue(result.mWillAutoCorrect)
+        assertEquals("hello", words[SuggestedWords.INDEX_OF_AUTO_CORRECTION])
+        assertTrue(words.any { isEmoji(it) }, "$words")
+        assertTrue(words.indexOfFirst { isEmoji(it) } > SuggestedWords.INDEX_OF_AUTO_CORRECTION + 1, "$words")
+
+        // only an emoji to offer: it is shown, but no autocorrection points at it
+        currentTypingLocale = Locale.GERMAN
+        tapTypingSuggestions = suggestionResults(emptyList())
+        val alone = getSuggestedWords(false, "Kaze", CapsMode.OFF)
+        assertFalse(alone.mWillAutoCorrect)
+        assertEquals(listOf("Kaze", "🐈", "🐱"), alone.mSuggestedWordInfoList.map { it.mWord })
+    }
+
+    @Test fun emojiSuggestionsWithTheTypedWordInTheMiddle() {
+        currentTypingLocale = Locale.GERMAN
+        loadEmojiKeywords()
+        latinIME.prefs().edit { putBoolean(Settings.PREF_CENTER_SUGGESTION_TEXT_TO_ENTER, true) }
+        val result = getSuggestedWords(false, "Kaze", CapsMode.OFF)
+        assertFalse(result.mWillAutoCorrect)
+        // the typed word is shown in the middle, the emojis only beside it
+        assertEquals(listOf("Kaze", "Kaze", "🐈", "🐱"), result.mSuggestedWordInfoList.map { it.mWord })
+    }
+
+    @Test fun emojiSuggestionsAskTheLanguageOfTheDictionaryThatKnowsTheWord() {
+        currentTypingLocale = Locale.GERMAN
+        loadEmojiKeywords()
+        // German main language, the English dictionary knows "love": English keywords
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("love", 1500000, Locale.ENGLISH), suggestion("lobe", 900, Locale.GERMAN)))
+        assertTrue(getSuggestedWords(false, "love", CapsMode.OFF).mSuggestedWordInfoList.any { it.mWord == "❤️" })
+        // the German dictionary knows "Tag": no English price tag
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("Tag", 1500000, Locale.GERMAN), suggestion("Tage", 900, Locale.GERMAN)))
+        assertTrue(getSuggestedWords(false, "Tag", CapsMode.OFF).mSuggestedWordInfoList.none { it.mWord == "🏷️" })
+        // a word no dictionary knows asks German and English
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("Party", 900, Locale.GERMAN)))
+        assertTrue(getSuggestedWords(false, "partyy", CapsMode.OFF).mSuggestedWordInfoList.any { isEmoji(it.mWord) })
+    }
+
+    @Test fun emojiSuggestionsCountHeliBoardsOwnEmojis() {
+        currentTypingLocale = Locale.GERMAN
+        loadEmojiKeywords()
+        tapTypingSuggestions = suggestionResults(listOf(
+            suggestion("Katze", 1000), suggestion("Katzenfutter", 900), suggestion("🐱", 700)))
+        val words = getSuggestedWords(false, "Katzen", CapsMode.OFF).mSuggestedWordInfoList.map { it.mWord }
+        assertEquals(listOf("Katzen", "Katze", "Katzenfutter", "🐱", "🐈"), words) // at most two, the dictionary's first
+        tapTypingSuggestions = suggestionResults(listOf(
+            suggestion("Katze", 1000), suggestion("🐱", 700), suggestion("😺", 600)))
+        assertEquals(2, getSuggestedWords(false, "Katzen", CapsMode.OFF).mSuggestedWordInfoList.count { isEmoji(it.mWord) })
+    }
+
+    @Test fun emojiSuggestionsNotForPredictionsAndNotForRealWordsByTypo() {
+        currentTypingLocale = Locale.GERMAN
+        loadEmojiKeywords()
+        nextWordSuggestions = suggestionResults(listOf(suggestion("Katze", 100)))
+        assertTrue(getSuggestedWords(false, "", CapsMode.OFF).mSuggestedWordInfoList.none { isEmoji(it.mWord) })
+        // "habe" is a dictionary word: no typo guess "Hase"
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("habe", 1500000), suggestion("haben", 900)))
+        assertTrue(getSuggestedWords(false, "habe", CapsMode.OFF).mSuggestedWordInfoList.none { isEmoji(it.mWord) })
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("Hase", 900)))
+        assertTrue(getSuggestedWords(false, "Hade", CapsMode.OFF).mSuggestedWordInfoList.any { isEmoji(it.mWord) })
     }
 
     // fork, stage 20a
