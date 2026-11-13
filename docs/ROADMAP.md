@@ -59,6 +59,16 @@ Reihenfolge von oben nach unten.
   Farbflächen und kleinen Animationen. Vor dem Bau klären: was stört heute (Struktur, Tiefe der
   Menüs, Optik), welche Seiten zuerst, Vorlagen/Skizzen des Owners. Großer Umbau und neue
   Funktionen als getrennte Etappen (CLAUDE.md). (L)
+  Vorschlag des Leads vom 2026-11-13 als Mockup (Artifact „Einstellungen neu gedacht“,
+  https://claude.ai/artifact/KnkKpiePakdG3UGsh3F9Nk, privat beim Owner): Stil der RGB-Seite
+  (dunkel, große runde Karten, Verlaufsflächen je Bereich, Auswahl als große Farbkarten wie in 37);
+  22 Einträge der Startseite → 7 Bereiche: 1 Aussehen (Designs, RGB-Licht, Größe, Schrift,
+  Hintergrund), 2 Tippen & Korrektur (Autokorrektur an einem Ort, Vorschläge, Leerzeichen,
+  Wörterbücher, Lernen), 3 Tasten & Sprachen, 4 Gesten & Gefühl (Leertaste, Symbole malen,
+  Vibration/Ton, Trefferzonen), 5 Leiste & Befehle (Leiste, @-Befehle, Zwischenablage,
+  Screenshots, Emoji-Mix), 6 KI & Automationen, 7 System & Daten (Profile, Sichern, Updates,
+  Diagnose, Experimentell, Über). Startseite mit Look-Vorschau und Schnellschaltern. Wartet auf
+  die Rückmeldung des Owners.
 - **34 Eigene Designs gestalten (übernächste Runde)** (Wunsch des Owners vom 2026-11-13). Eigene
   Tastatur-Designs gibt es schon (Design-Seite → „Meine Designs“, seit Build 10). Annahme des
   Leads, vor dem Bau bestätigen: gemeint sind eigene RGB-Designs, also selbst gestaltete
