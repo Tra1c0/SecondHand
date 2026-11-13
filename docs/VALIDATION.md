@@ -1789,6 +1789,27 @@ Befunde eines lesenden Reviews der Befehle, behoben:
 - Nicht geprüft: auf dem Telefon; ob Android/MIUI zusätzlich `onCurrentInputMethodSubtypeChanged`
   mit einem anderen Subtyp ruft.
 
+## Haptik-Kette für Rückgängig/Wiederholen per Leertaste (nach Build 11)
+
+- Auftrag des Owners: „3 kurze haptische Klicks von links nach rechts pro Auslösung und
+  andersrum“. Umgesetzt als Stärkeverlauf (ein Motor, P67): Wiederholen steigend, Rückgängig
+  fallend, 50 ms Abstand. Nur Leertasten-Gesten; Toolbar-Tasten bewusst nicht (sie haben schon
+  den Tastendruck-Impuls, eine Kette dort wäre doppelt).
+- Gebaut: `A/HapticChain.kt`, zwei Zeilen in `KeyboardActionListenerImpl.runSpaceAction`.
+- Geprüft (JVM): `HapticChainTest` (5: Muster und Abstände, Primitive mit Skalen, Klick als
+  Ersatz, Wellenform mit Amplituden ohne Primitive und unter API 30, gleiche Pulse ohne
+  Amplitudensteuerung und unter API 26).
+- Geprüft (Robolectric): `InputLogicTest.generatedSpaceUndoAndRedoPlayTheirTickChainOnlyWithKeyVibration`
+  (Wischen mit Rückgängig spielt fallend, mit Wiederholen steigend; die Rückgängig-Taste selbst
+  keine Kette; Tastenvibration aus: keine Kette; mit Test-Vibrator).
+- Gesamtläufe (A und B): `tools/dev.py core-tests` grün; `tools/dev.py lint` ohne Fehler (eine
+  NewApi-Meldung in `HapticChain` behoben, keine Warnung an den neuen Dateien);
+  `tools/dev.py agent-tests` nach A grün (570 Tests); nach B die betroffenen Klassen grün
+  (`HapticChainTest`, `InputLogicTest.generatedSpace*`). Der volle Lauf `upstream-tests` nach B
+  war bei der Übergabe noch nicht fertig (offen).
+- Nicht geprüft: ob die Ticks auf dem Xiaomi zu spüren und zu unterscheiden sind, welche Stufe
+  das Telefon wirklich spielt (Primitive, Wellenform, Pulse), „Bitte nicht stören“ am Gerät.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

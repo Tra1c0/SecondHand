@@ -1275,6 +1275,39 @@ class InputLogicTest {
         }
     }
 
+    @Test fun generatedSpaceUndoAndRedoPlayTheirTickChainOnlyWithKeyVibration() {
+        val played = mutableListOf<helium314.keyboard.agent.HapticChain.Plan>()
+        helium314.keyboard.agent.HapticChain.deviceForTest = object : helium314.keyboard.agent.HapticChain.Device {
+            override val sdk = 30
+            override val hasVibrator = true
+            override val hasAmplitudeControl = true
+            override fun supportsPrimitive(primitive: Int) = true
+            override fun play(plan: helium314.keyboard.agent.HapticChain.Plan) { played += plan }
+        }
+        try {
+            val listener = latinIME.mKeyboardActionListener
+            fun scales() = (played.single() as helium314.keyboard.agent.HapticChain.Plan.Primitives).scales.also { played.clear() }
+            latinIME.prefs().edit { putBoolean(Settings.PREF_VIBRATE_ON, true) }
+            assertTrue(Settings.getValues().mVibrateOn)
+            setSpaceGesture(SpaceGesture.SWIPE_LEFT, SpaceAction.UNDO)
+            assertTrue(listener.onSpaceSwipe(SpaceGesture.SWIPE_LEFT, -1)); handleMessages()
+            assertEquals(listOf(1f, 0.6f, 0.3f), scales()) // undo: falling
+            setSpaceGesture(SpaceGesture.SWIPE_RIGHT, SpaceAction.REDO)
+            assertTrue(listener.onSpaceSwipe(SpaceGesture.SWIPE_RIGHT, 1)); handleMessages()
+            assertEquals(listOf(0.3f, 0.6f, 1f), scales()) // redo: rising
+            // the undo key (toolbar) keeps its normal key feedback only
+            listener.onCodeInput(KeyCode.UNDO, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false); handleMessages()
+            assertTrue(played.isEmpty())
+            // key vibration off in the keyboard settings: no chain
+            latinIME.prefs().edit { putBoolean(Settings.PREF_VIBRATE_ON, false) }
+            setSpaceGesture(SpaceGesture.SWIPE_LEFT, SpaceAction.UNDO)
+            assertTrue(listener.onSpaceSwipe(SpaceGesture.SWIPE_LEFT, -1)); handleMessages()
+            assertTrue(played.isEmpty())
+        } finally {
+            helium314.keyboard.agent.HapticChain.deviceForTest = null
+        }
+    }
+
     @Test fun generatedSpaceCommandListTypesThePrefixOnlyWhereCommandsWork() {
         setSpaceGesture(SpaceGesture.SWIPE_UP, SpaceAction.COMMAND_LIST)
         val listener = latinIME.mKeyboardActionListener

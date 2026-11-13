@@ -178,7 +178,7 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   `onSpaceSwipe(SpaceGesture, int)` ersetzt `onHorizontalSpaceSwipe`/`onVerticalSpaceSwipe`) und
   `KeyboardActionListenerImpl.kt` (leitet Panel-, Rad-, Skill- und Diktat-Taste an den Controller,
   blockiert Eingabe während eines Overlays; Leertasten-Aktionen und Doppeltippen, siehe
-  „Editorzugriff, Panel und Rad“).
+  „Editorzugriff, Panel und Rad“; Rückgängig/Wiederholen per Leertaste spielen `HapticChain`).
 - `SettingsValues.java`: `mSpaceGestures` (aufgelöste Leertasten-Gesten) statt
   `mSpaceSwipeHorizontal`/`mSpaceSwipeVertical`; `mSpaceForLangChange` aus
   `SpaceGestures.holdShowsPicker`; `mUseDoubleSpacePeriod` ist aus, solange Doppeltippen eine
@@ -408,6 +408,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Leertasten-Tipps (Code zwischen `onPressKey` und `onReleaseKey` der Leertaste) zählen; der zweite Tipp innerhalb von
   `mDoubleSpacePeriodTimeout` an derselben Schreibmarke ohne Auswahl führt die Aktion statt
   eines Leerzeichens aus, jeder andere Code setzt zurück (Fallstrick P49).
+- `A/HapticChain.kt`: drei kurze Ticks nach `UNDO` (fallend 1,0/0,6/0,3) und `REDO` (steigend),
+  50 ms Abstand, nur aus `runSpaceAction` (nicht für die Toolbar-Tasten, die schon den normalen
+  Tastendruck-Impuls haben). `pattern` und `plan` sind reine Funktionen: ab API 30
+  `VibrationEffect.Composition` mit `PRIMITIVE_TICK` (sonst `PRIMITIVE_CLICK`) und Skala je Tick,
+  wenn `areAllPrimitivesSupported`; sonst ab API 26 mit `hasAmplitudeControl` eine Wellenform
+  mit Amplituden; sonst drei gleiche Pulse von 12 ms. `play` nur mit `mVibrateOn` (Tastenvibration
+  an, Gerät hat Vibrator) und nicht bei „Bitte nicht stören“ (`zen_mode` wie LatinIME), außer
+  `mVibrateInDndMode`; ab API 33 mit `USAGE_TOUCH`, damit die Stärke für Berührungen aus den
+  Android-Einstellungen gilt. `Device` ist die Naht für Tests (`deviceForTest`); eine Ausnahme des
+  Vibrators wird geschluckt (P67).
 - `K/settings/screens/AgentSpaceScreen.kt`: Seite „Leertaste“ (eine `ListPreference` je Geste,
   Vorgabe = geerbter Wert, „Standard“ entfernt den eigenen Wert), erreichbar über Erweitert und
   Tastaturprofile → Gesten. Texte in `agent_space_strings.xml`.
@@ -417,7 +427,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Textfelder, daher bleibt die Ersetzung bei Unklarheit gesperrt. Kopieren prüft dieselbe
   Schutzgrenze. Der Ablauf von Aktion bis Übernahme steht unter „Grundlagen“.
 - Tests in `AT/`: `AgentPanelViewTest`, `AgentWheelViewTest`, `AgentSpaceGestureTest`,
-  `SpaceGesturesTest`,
+  `SpaceGesturesTest`, `HapticChainTest`,
   `AndroidEditorAdapterTest`, `SelectedTextCommitTest`, `DebugPrivacyTest`,
   `InsertAtCursorTest`, `ForkIdentityTest`, dazu `BatchDeliveryTest.kt` in
   `app/src/test/java/helium314/keyboard/latin/inputlogic/`.
@@ -1476,23 +1486,28 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   eine Befehlswahl für dasselbe Feld (`SubtypeChoice`). Robolectric bildet nur den Neustart mit
   Hint-Locale nach; ob das Xiaomi-Telefon genau so neu startet oder das System zusätzlich
   `onCurrentInputMethodSubtypeChanged` ruft, ist ungeprüft.
+- **P67** Ein Telefon hat einen Vibrationsmotor: „links nach rechts“ ist nicht darstellbar, nur
+  Stärke und Rhythmus (`HapticChain`). In einer `VibrationEffect.Composition` zählt die
+  Verzögerung ab dem Ende des vorigen Primitivs, nicht ab dessen Start. Ohne Amplitudensteuerung
+  ignoriert Android Amplituden still; deshalb vorher `hasAmplitudeControl` fragen und sonst
+  gleich starke Pulse nehmen, statt eine Stärke vorzutäuschen.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (361 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (363 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (4): agent-apk, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (58): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (59): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
   AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand, ContactCommand,
   ConvertCommand, CorrectionMemory, DateCommand, DesignLook, DesignTiles, Dictation, EmojiCommand,
-  EncryptedActionRunStore, EventCommand, FlatMenuView, FlatPanelStyle, FlatPreset,
+  EncryptedActionRunStore, EventCommand, FlatMenuView, FlatPanelStyle, FlatPreset, HapticChain,
   JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore, LearningData,
   LoadingDotsView, ManualWorkflowDraft, ModelSettings, MyDesigns, OnDeviceSpeechEngine,
   PlaceCommand, RgbKeyPainter, RgbLighting, RgbStrip, RunSubjectCodec, SavedPlaces, ScreenshotChip,
@@ -1506,17 +1521,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (63): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (64): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, ClipCommandTest, CommandReplaceTest, CommandTemplatesTest,
   ContactCommandTest, CorrectionMemoryTest, DatePlaceCommandsTest, DebugPrivacyTest,
   DesignEditorTest, DesignTilesTest, DictationSessionTest, DictationUiTest,
   EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, FlatClipboardTest, FlatMenuTest,
-  FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, InsertAtCursorTest,
-  JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LearningDataTest,
-  LoadingDotsViewTest, MainSettingsLookTest, ManualWorkflowDraftTest, MoreCommandsTest,
-  MoreProvidersTest, MyDesignsTest, OpenAiProviderTest, RgbLightingRenderTest,
+  FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, HapticChainTest,
+  InsertAtCursorTest, JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest,
+  LearningDataTest, LoadingDotsViewTest, MainSettingsLookTest, ManualWorkflowDraftTest,
+  MoreCommandsTest, MoreProvidersTest, MyDesignsTest, OpenAiProviderTest, RgbLightingRenderTest,
   RgbSettingsScreenTest, ScreenshotChipTest, SelectedTextCommitTest, SkillBindingStoreTest,
   SkillSettingsTest, SnipCommandTest, SpaceGesturesTest, TestRunJournal, ToolRunnerTest,
   TouchModelTest, TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest,
