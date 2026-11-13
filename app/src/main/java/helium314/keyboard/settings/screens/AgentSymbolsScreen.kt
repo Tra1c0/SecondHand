@@ -123,7 +123,7 @@ private fun AddSymbolCard(onDismiss: () -> Unit, onSave: (OwnInkSymbols.Symbol) 
     val problem = OwnInkSymbols.textProblem(text)
     // stage 31: the same limits as a drawing on the keyboard; such a drawing would be no symbol
     val tooManyStrokes = strokes.size > InkCloud.MAX_STROKES
-    val tooLong = strokes.sumOf { it.size } >= MAX_PAD_POINTS
+    val tooLong = strokes.sumOf { it.size } > MAX_PAD_POINTS
     Card(Modifier.fillMaxWidth().testTag("agent_symbol_card")) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.agent_symbols_add), style = MaterialTheme.typography.titleMedium)
@@ -169,7 +169,8 @@ private const val MAX_PAD_POINTS = InkGroup.MAX_POINTS
 
 /**
  * A square to draw in with the finger; every touch from down to up is one stroke. Stops taking points
- * at [MAX_PAD_POINTS] for all strokes together (the card then asks to draw again).
+ * one after [MAX_PAD_POINTS] for all strokes together: exactly that many are a drawing, like on the
+ * keyboard (InkGroup), one more is too long and the card asks to draw again (stage 31 fix).
  */
 @Composable
 private fun DrawingPad(strokes: List<List<Offset>>, onChange: (List<List<Offset>>) -> Unit, modifier: Modifier) {
@@ -189,7 +190,7 @@ private fun DrawingPad(strokes: List<List<Offset>>, onChange: (List<List<Offset>
                 while (true) {
                     val event = awaitPointerEvent()
                     val pointer = event.changes.firstOrNull { it.id == down.id } ?: break
-                    if (pointer.position != points.last() && current.value.sumOf { it.size } + points.size < MAX_PAD_POINTS)
+                    if (pointer.position != points.last() && current.value.sumOf { it.size } + points.size <= MAX_PAD_POINTS)
                         points = points + pointer.position
                     pointer.consume()
                     live = points

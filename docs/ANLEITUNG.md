@@ -396,17 +396,22 @@ langes Drücken für Sonderzeichen und das Wischen auf Leer- und Löschtaste ble
   eine andere Taste, kommt das Symbol zuerst.
 - Ein kurzer Tipp auf einen Buchstaben in dieser halben Sekunde schreibt das Symbol und dann den
   Buchstaben. Als Punkt zählt der Tipp nur, wenn ein Symbol hier einen Punkt braucht: nach einem
-  waagerechten Strich ungefähr über oder unter seiner Mitte (÷), bei eigenen Symbolen mit Punkten
-  dort, wo du den Punkt gemalt hast. Darum wird ein Buchstabe, den du direkt über oder unter die
-  Mitte eines gemalten Strichs tippst, zum Punkt.
+  waagerechten Strich ungefähr senkrecht über oder unter seiner Mitte (÷), bei eigenen Symbolen mit
+  Punkten dort, wo du den Punkt gemalt hast. Darum wird ein Buchstabe, den du direkt über oder
+  unter die Mitte eines gemalten Strichs tippst, zum Punkt; die Tasten daneben bleiben Buchstaben.
+  Rutscht der Tipp beim Loslassen ein kleines Stück auf die Nachbartaste (z. B. Löschen), zählt
+  die Taste, auf der du aufgesetzt hast.
+- Tippst du in dieser halben Sekunde mit zwei Daumen (der zweite setzt auf, bevor der erste
+  loslässt), kommt das Symbol und danach beide Buchstaben in deiner Reihenfolge. Ein solcher Tipp
+  ist nie ein Punkt.
 - Tippst du in dieser halben Sekunde einen Wortvorschlag an, kommt das Symbol zuerst und das Wort
   danach. Ersetzt der Vorschlag das Wort, das du vor dem Malen getippt hast, bleibt das Symbol
   dahinter.
 - Die Leiste zeigt danach bis zu drei andere Symbole; ein Tipp tauscht das geschriebene aus.
 - „Nicht erkannt“: nichts wurde geschrieben; ein Tipp öffnet die eigenen Symbole (bei gesperrtem
   Telefon nicht, dann verschwindet nur der Chip).
-- Ein zweiter Finger während eines Strichs verwirft die Zeichnung; ihre Spur malt dann nicht
-  weiter. In Passwortfeldern geht Malen nicht, ebenso wenig ohne Hauptwörterbuch für die Sprache
+- Ein zweiter Finger während eines Strichs (nicht eines Tipps) verwirft die Zeichnung; ihre Spur
+  malt dann nicht weiter. In Passwortfeldern geht Malen nicht, ebenso wenig ohne Hauptwörterbuch für die Sprache
   (wie beim Gestenschreiben). Ob beides passt, zeigt Einstellungen → Diagnose.
 - Unter Einstellungen → Gestenschreiben ist der Schalter „Gestenschreiben“ ausgegraut, solange
   Symbole malen an ist („Aus, solange „Symbole malen“ an ist“); dein Wert bleibt gespeichert.

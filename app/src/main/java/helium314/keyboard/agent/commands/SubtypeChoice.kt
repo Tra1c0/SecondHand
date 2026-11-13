@@ -36,16 +36,20 @@ object SubtypeChoice {
 
     /**
      * Whether the input starting in [editorInfo] must keep [current] instead of switching by hint
-     * locales or the per-app subtype. Forgets the choice once it no longer applies.
+     * locales or the per-app subtype. Forgets the choice once it no longer applies. [wouldSwitchTo]
+     * tells, without changing anything, what the field's hints or the per-app subtype would switch
+     * to (LatinIME: SubtypeState.getSubtypeForLocales with peek); only when that is another subtype
+     * the choice really was kept, and only then the diagnose page notes it (stage 30 fix).
      */
-    @JvmStatic
-    fun holds(editorInfo: EditorInfo?, current: InputMethodSubtype?): Boolean {
+    @JvmStatic @JvmOverloads
+    fun holds(editorInfo: EditorInfo?, current: InputMethodSubtype?, wouldSwitchTo: () -> InputMethodSubtype? = { null }): Boolean {
         val chosen = subtype ?: return false
         if (editorInfo == null || current != chosen || fieldOf(editorInfo) != field) {
             clear()
             return false
         }
-        helium314.keyboard.agent.SubtypeSwitchLog.onKept(chosen) // stage 30: the diagnose page shows it
+        val other = wouldSwitchTo()
+        if (other != null && other != chosen) helium314.keyboard.agent.SubtypeSwitchLog.onKept(chosen) // stage 30: the diagnose page shows it
         return true
     }
 

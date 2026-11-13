@@ -29,9 +29,11 @@ import java.lang.ref.WeakReference
  * - After the pause the strokes go to [sink] (the keyboard: [SymbolDrawing]); any other key
  *   press first finishes a waiting symbol ([flush]).
  *
- * Only the first finger draws: points of other pointers in a batch are dropped, and a second
- * finger during a continuation stroke drops the drawing (PointerTracker). Strokes live only in memory
- * until they are recognized; nothing is stored or logged.
+ * Only the first finger draws: points of other pointers in a batch are dropped. A second finger
+ * during a continuation stroke ends the drawing ([onSecondFinger], PointerTracker): a stroke that is
+ * still a tap is a letter of two-thumb typing (the symbol is written, the tap becomes a key press),
+ * a real stroke drops the drawing. Strokes live only in memory until they are recognized; nothing
+ * is stored or logged.
  */
 object SymbolInk {
     fun interface Sink { fun onDrawing(strokes: List<InkStroke>) }
@@ -100,10 +102,32 @@ object SymbolInk {
     @JvmStatic fun continuesInk(): Boolean = isEnabled() && isWaiting && inkPointer < 0
 
     /**
-     * True while a continuation stroke is drawn. A second finger drops the drawing instead
-     * (PointerTracker); the first finger's moves then draw no more trail.
+     * True while a continuation stroke is drawn. A second finger then ends it ([onSecondFinger]);
+     * the first finger's moves draw no more trail.
      */
     @JvmStatic fun isDrawing(): Boolean = inkPointer >= 0
+
+    /** The pointer that draws the continuation stroke, or -1. */
+    @JvmStatic val drawingPointer: Int get() = inkPointer
+
+    /**
+     * A second finger touches down while a continuation stroke is drawn (stage 31 fix, P104). When
+     * that stroke is still a tap (two thumbs typing in the pause), the waiting symbol is written now
+     * and true comes back: PointerTracker then presses the tapped key like any tap, and the second
+     * finger is handled as usual. A real stroke in progress drops the whole drawing (false).
+     */
+    @JvmStatic fun onSecondFinger(): Boolean {
+        if (inkPointer < 0) return false
+        val stroke = InkStroke(points.copyOf(2 * pointCount))
+        inkPointer = -1
+        pointCount = 0
+        if (stroke.size > 0 && isTap(stroke)) {
+            finish()
+            return true
+        }
+        cancel()
+        return false
+    }
 
     @JvmStatic fun onInkDown(pointerId: Int, x: Int, y: Int) {
         handler.removeCallbacksAndMessages(token)

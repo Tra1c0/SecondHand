@@ -3,6 +3,7 @@ package helium314.keyboard.agent
 
 import android.content.Context
 import android.os.Build
+import android.os.Looper
 import android.text.format.Formatter
 import android.view.accessibility.AccessibilityManager
 import dev.agentkeyboard.core.EmojiMixTable
@@ -122,8 +123,19 @@ object Diagnose {
     private fun currentLocale(context: Context): Locale? =
         runCatching { SubtypeSettings.getSelectedSubtype(context.prefs()).locale() }.getOrNull()
 
-    /** An internal or user-added main dictionary for [locale], as the dictionary page counts them. */
+    /** How often [hasMainDictionary] listed the files, and whether the last time was on the main thread; for tests. */
+    @Volatile internal var dictionaryLookups = 0
+        private set
+    @Volatile internal var dictionaryLookupOnMainThread = false
+        private set
+
+    /**
+     * An internal or user-added main dictionary for [locale], as the dictionary page counts them.
+     * Lists files: the page asks once, off the main thread (stage 30 fix).
+     */
     private fun hasMainDictionary(context: Context, locale: Locale): Boolean = runCatching {
+        dictionaryLookups++
+        dictionaryLookupOnMainThread = Looper.myLooper() == Looper.getMainLooper()
         val (userDicts, internal) = getUserAndInternalDictionaries(context, locale)
         internal || userDicts.any { it.name.startsWith(helium314.keyboard.latin.dictionary.Dictionary.TYPE_MAIN) }
     }.getOrDefault(false)

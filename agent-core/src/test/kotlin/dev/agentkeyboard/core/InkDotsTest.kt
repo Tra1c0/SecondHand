@@ -125,6 +125,87 @@ class InkDotsTest {
             .recognize(stroke + InkStroke(floatArrayOf(302f, 300f))).best?.text)
     }
 
+    // stage 31 fix (review M2): fast typing right after a drawn dash ("E-Mail") must not lose letters
+
+    /** A phone keyboard: 10 keys of 36 dp per row, rows of 55 dp; the centre of key [k] in row [row]. */
+    private fun keyX(k: Int) = 18f + 36 * k
+    private fun rowY(row: Int) = 27.5f + 55 * row
+
+    /** A hand-drawn dash from ([x0], [y0]), [length] long, slightly tilted and wobbly. */
+    private fun dash(random: Random, x0: Float, y0: Float, length: Float): InkStroke {
+        val n = 20; val angle = random.nextDouble(-0.08, 0.08)
+        return InkStroke(FloatArray(2 * (n + 1)) { k ->
+            val t = (k / 2).toFloat() / n
+            if (k % 2 == 0) (x0 + t * length * cos(angle) + random.nextDouble(-1.5, 1.5)).toFloat()
+            else (y0 + t * length * sin(angle) + random.nextDouble(-1.5, 1.5)).toFloat()
+        })
+    }
+
+    @Test fun lettersBesideTheMiddleOfADashAreLetters() {
+        // a dash over four keys of the middle row (90..234, middle 162 = the centre of key 4)
+        val drawn = listOf(line(90, rowY(2), 234, rowY(2)))
+        for (row in listOf(1, 3)) {
+            // the neighbours of the key right above or below the middle, and every key further out
+            for (k in (0..9) - 4) assertFalse(dots.isDot(drawn, keyX(k), rowY(row)), "key $k in row $row")
+            // the key straight above or below the middle stays a dot: that is where ÷ has its dots
+            assertTrue(dots.isDot(drawn, keyX(4), rowY(row)), "middle key in row $row")
+        }
+        // two rows away is no dot either
+        assertFalse(dots.isDot(listOf(line(90, rowY(1), 234, rowY(1))), keyX(4), rowY(3)))
+    }
+
+    @Test fun lettersTappedAroundADrawnDashAreRarelyDots() {
+        val random = Random(30)
+        var dotted = 0; var total = 0
+        repeat(400) {
+            // a dash over three to six keys in the second or third row, letters tapped in the rows next to it
+            val row = 1 + random.nextInt(2)
+            val y0 = rowY(row) + random.nextDouble(-10.0, 10.0).toFloat()
+            val length = (3 + random.nextInt(4)) * 36f + random.nextDouble(-15.0, 15.0).toFloat()
+            val x0 = random.nextDouble(5.0, (355 - length).toDouble()).toFloat()
+            val drawn = listOf(dash(random, x0, y0, length))
+            for (tapRow in listOf(row - 1, row + 1)) for (k in 0..9) {
+                total++
+                if (dots.isDot(drawn, keyX(k) + random.nextDouble(-8.0, 8.0).toFloat(),
+                        rowY(tapRow) + random.nextDouble(-8.0, 8.0).toFloat())) dotted++
+            }
+        }
+        // about one key per row stays a dot (the one straight above or below the middle): 826 of 8000;
+        // with the 0.3 circle before the fix 1972 of 8000
+        assertTrue(dotted <= total * 12 / 100, "$dotted of $total taps became dots")
+    }
+
+    @Test fun aDivisionSignDrawnOverTheKeysKeepsBothDots() {
+        val random = Random(31)
+        var both = 0; var lowerFirst = 0; val n = 300
+        repeat(n) {
+            val length = random.nextDouble(100.0, 220.0).toFloat(); val x0 = random.nextDouble(0.0, 140.0).toFloat(); val y0 = 110f
+            val drawn = dash(random, x0, y0, length)
+            val middle = x0 + length / 2
+            val off = random.nextDouble(0.25, 0.5).toFloat() * length
+            val upper = InkStroke(floatArrayOf(middle + random.nextDouble(-0.1, 0.1).toFloat() * length, y0 - off))
+            val lower = InkStroke(floatArrayOf(middle + random.nextDouble(-0.1, 0.1).toFloat() * length, y0 + off))
+            if (dots.isDot(listOf(drawn), upper.x(0), upper.y(0)) && dots.isDot(listOf(drawn, upper), lower.x(0), lower.y(0))) both++
+            // the other order counts the same
+            if (dots.isDot(listOf(drawn), lower.x(0), lower.y(0)) && dots.isDot(listOf(drawn, lower), upper.x(0), upper.y(0))) lowerFirst++
+        }
+        assertTrue(both >= n * 0.95 && lowerFirst >= n * 0.95, "both dots $both, lower dot first $lowerFirst of $n")
+    }
+
+    @Test fun aTapThatIsNoDotIsRecognizedOnceAndTheWrittenDrawingIsFree() {
+        // review N2: rule 4 asks for the very drawing that is written when the tap is a letter
+        val recognizer = InkRecognizer(InkSymbols.templates)
+        val dots = InkDots(InkSymbols.templates, recognizer)
+        val arrow = listOf(line(100, 300, 400, 300), InkStroke(floatArrayOf(340f, 240f, 400f, 300f, 340f, 360f)))
+        assertFalse(dots.isDot(arrow, 250f, 190f)) // where ÷ has a dot, but the drawing is an arrow
+        assertEquals(1, recognizer.recognitions)
+        assertEquals("→", recognizer.recognize(arrow).best?.text) // what SymbolInk.finish then writes
+        assertEquals(1, recognizer.recognitions)
+        // another drawing is matched as before
+        recognizer.recognize(listOf(line(100, 300, 400, 300)))
+        assertEquals(2, recognizer.recognitions)
+    }
+
     @Test fun earlierDotsAreNotPartOfTheLine() {
         val dash = line(100, 300, 400, 300)
         val upper = InkStroke(floatArrayOf(250f, 190f))

@@ -2251,6 +2251,81 @@ Upstream-Dateien“).
   Xiaomi, echter Sprachwechsel durch MIUI, echte Erreichbarkeit von www.gstatic.com, Kopieren in
   echte Apps); kein Prüfer-Review der Hooks in `LatinIME` und `PointerTracker` (Pflicht).
   Der Punkt-Bound des Malfelds ist nur über den Hinweis geprüft, nicht über die Punktzahl.
+- Prüfer und Korrekturen (2026-11-13): Ein lesender Engine-Prüfer las 30/31 (Stand `e083b61`),
+  zwei mittlere und fünf niedrige Befunde; korrigiert in einer Arbeitskopie, nicht gepusht.
+  - M1 Zwei Daumen im Wartefenster: Daumen B setzte auf, bevor der Tipp von Daumen A (Tinte)
+    losließ; `startsInk` verwarf die ganze Zeichnung und A tippte nichts. Jetzt
+    `SymbolInk.onSecondFinger`: Ist As Strich noch ein Tipp (≤ 10 dp), wird das Symbol sofort
+    geschrieben und A über `PointerTracker.inkTapBecomesKey` ein normaler Tastendruck an seiner
+    Aufsetzstelle; nur ein echter Strich wird verworfen (P104). Tests
+    `SymbolInkTest.twoThumbsInThePauseTypeBothLettersAfterTheSymbol` (A hebt zuerst ab: Symbol, a, b)
+    und `…KeepTheirOrderWhenTheSecondLiftsFirst` (B zuerst: weiter Symbol, a, b; A einmal gedrückt).
+    `secondFingerDropsTheDrawingAndIsHandledAsUsual` lässt den ersten Finger jetzt vor dem zweiten
+    21 px weit ziehen (ein echter Strich); ohne das wäre er nach der neuen Regel ein Tastendruck.
+    Seine Assertions sind unverändert.
+  - M2 Punkt-Zone zu groß: statt eines Kreises mit 0,3 Symbolgrößen jetzt in Richtung des Punkts
+    höchstens 0,12 seitlich und 0,25 näher oder weiter, ein schräger Strich bis 20° gerade gedreht
+    (ohne Drehung fiel der bestehende ÷-Test mit ±8° Neigung auf 263/300). Messung mit festem Seed
+    (`InkDotsTest`, Tastatur 10 × 36 dp, Reihen 55 dp, Striche über 3–6 Tasten, Tipps auf alle
+    Tasten der Nachbarreihen ±8 dp): 826/8000 Tipps werden Punkt, vorher 1972/8000; was bleibt, ist
+    die Taste genau über oder unter der Mitte (die Abwägung bleibt). ÷ auf diesen Maßen 294/300 mit
+    beiden Punkten, in umgekehrter Reihenfolge ebenso 294/300; der bestehende verzerrte ÷-Test 297
+    erster Punkt, 294 beide (Grenze ≥ 95 % unverändert). Die übrigen Raten: nach Symbolen ohne
+    Striche 0/1720, nach fertigen Strich-Symbolen 0/960. Nicht umgesetzt, weil sie nicht trägt: die
+    vorgeschlagene dritte Bedingung „Strich plus Tipp gleicht ÷ klar besser als –“. Mit `$P` ist sie
+    schief: Strich plus Tipp darüber ÷ 0,45 vor – 0,66, darunter – 0,65 vor ÷ 0,89, also wäre jeder
+    erste Punkt unter dem Strich ein Buchstabe. Auch mit Teilvorlagen (Strich plus ein Punkt) und
+    Faktor 1 nahm sie mit unterem Punkt zuerst nur 185/300 ÷ an und sortierte kaum Buchstaben aus
+    (809 statt 827/8000 im Versuch, nicht eingecheckt); Faktor 1,5 bzw. 2 nahm unten zuerst 1 bzw. 0
+    an. Neue Tests: `lettersBesideTheMiddleOfADashAreLetters` (Nachbartasten der Mitte in beiden
+    Nachbarreihen Buchstaben, die Taste genau darüber Punkt), `lettersTappedAroundADrawnDashAreRarelyDots`
+    (≤ 12 %), `aDivisionSignDrawnOverTheKeysKeepsBothDots` (beide Reihenfolgen ≥ 95 %).
+  - N1 Der nachgeholte Down nahm die Taste an der Up-Stelle; ein Tipp, der bis 10 dp auf die
+    Löschtaste rutschte, löschte. Jetzt die Aufsetzstelle (`mInkDownX/Y`). Test
+    `aTapThatSlidesALittleTypesTheKeyWhereItTouchedDown`.
+  - N2 Ein in Schritt 4 abgelehnter Tipp rechnete zwei volle Erkennungen im Hauptthread.
+    `InkRecognizer` merkt sich die letzte Zeichnung mit Ergebnis, und `SymbolDrawing` gibt `InkDots`
+    seinen eigenen Erkenner; das Schreiben danach rechnet nicht neu. Zähler `recognitions`; Tests
+    `InkDotsTest.aTapThatIsNoDotIsRecognizedOnceAndTheWrittenDrawingIsFree` und
+    `InputLogicTest.symbolDrawTapInThePauseThatIsNoDotMatchesTheDrawingOnce` (echte Verdrahtung, 1
+    statt 2; die Zeichnung ist verschoben, weil derselbe Pfeil aus einem anderen Test der Klasse
+    sonst schon im Merker läge).
+  - N3 „Behalten“ wurde bei jedem Neustart notiert, auch wenn die App gar nicht umgeschaltet hätte.
+    Jetzt nur, wenn `getSubtypeForLocales` einen anderen Subtyp liefert. Gefragt wird mit dem neuen
+    Parameter `peek` (Upstream-Datei `SubtypeUtils.kt`, zwei Zeilen), denn der normale Aufruf
+    setzt `overriddenByLocale` und schaltete später zurück (P98). In `LatinIME` bleibt es die eine
+    bestehende Prüfung, sie bekommt nur die Abfrage als dritten Wert. Test
+    `InputLogicTest.subtypeSwitchLogNotesAKeptChoiceOnlyWhenTheFieldWouldHaveSwitched` (ohne
+    Hinweis und mit spanischem Hinweis kein Eintrag, mit deutschem einer; danach Sprachtaste und
+    Feld ohne Hinweis: keine Rückschaltung).
+  - N4 Die Diagnose-Seite baute alle Abschnitte bei jeder Neuzusammensetzung neu, samt Auflisten
+    der Wörterbuch-Dateien im Hauptthread. Jetzt einmal, „Symbole malen“ über `Dispatchers.IO`.
+    Test `DiagnoseScreenTest.theSectionsAreBuiltOnceAndTheDictionaryFilesListedOffTheMainThread`
+    (eine Abfrage trotz gstatic-Prüfung, nicht im Hauptthread).
+  - N5 Das Malfeld meldete schon bei genau 4096 Punkten „Zu lange gemalt“, die Tastatur nimmt 4096.
+    Jetzt nimmt das Feld bis 4097 auf und meldet erst über 4096. Test
+    `SymbolSettingsScreenTest.drawingPadTakesExactlyAsManyPointsAsTheKeyboard` (4096 gehen, 4097
+    nicht). Damit ist der Punkt-Bound jetzt auch über die Punktzahl geprüft.
+  - Bewusst unverändert, dokumentiert in ARCHITECTURE → Symbole malen: der Randfall eines
+    Wortvorschlags im Fenster bei einbuchstabiger Vorhersage bzw. Satzzeichen-Leiste; langes Halten
+    eines Buchstabens im Fenster tippt beim Loslassen den Grundbuchstaben (Tinte hat keinen
+    Langdruck-Timer).
+  - Gegenproben: Alter `PointerTracker` ganz: rot genau die beiden Zwei-Daumen-Tests und der
+    Rutsch-Test. Nur die Zeile der Aufsetzstelle zurück: rot nur der Rutsch-Test. Alte
+    `InkDots`/`InkRecognizer` (nur mit Zähler und Konstruktor, damit der Test übersetzt): rot genau
+    die beiden Buchstaben-Tests (Taste 3 in Reihe 1 Punkt; 1972/8000) und der Zähler-Test (2 statt 1).
+    In einem Lauf zugleich der Merker aus, `onKept` ohne Bedingung, alte Diagnose-Seite und altes
+    Malfeld: rot genau die vier neuen Tests dazu (N2 App, N3, N4, N5), die übrigen grün.
+  - Läufe: `SymbolInkTest` 19, `SymbolSettingsScreenTest` 8, `DiagnoseScreenTest` 7,
+    `SubtypeChoiceTest` 6, `InputLogicTest.symbolDraw*` und `subtypeSwitch*` zusammen 17, alle grün.
+    `tools/dev.py core-tests` 235/0. `tools/dev.py agent-tests` 704 Tests, 1 Fehler: wieder
+    `SpaceGesturesTest.defaultsEqualTheBehaviorBeforePerGestureSettings` (`emoji_max_sdk`, derselbe
+    Wettlauf wie oben, nicht von diesen Korrekturen); allein wiederholt 7/7 grün. Nicht gelaufen:
+    `upstream-tests`, `lint`, Build
+    (geteilte Maschine).
+  - Nicht geprüft: kein Gerätetest (zwei Daumen, Punkt-Zone mit echten Fingern); kein
+    Prüfer-Review der neuen Änderungen in `PointerTracker` (`startsInk`, `inkTapBecomesKey`,
+    Aufsetzstelle), `LatinIME` (dritter Wert der `holds`-Prüfung) und `SubtypeUtils.kt` (Pflicht).
 
 ## Zusammenführung der Runde (Etappen 28–33 ohne 29)
 
