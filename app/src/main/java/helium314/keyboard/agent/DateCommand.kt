@@ -39,6 +39,13 @@ object DateCommand : KeyboardCommands.Command {
         return DateFormatting.variants(found.date, time, lang)
     }
 
+    /** Days in the keyboard language as [EventParser] reads them; German for other languages. */
+    override fun templates(host: KeyboardCommands.Host) = when (DateFormatting.Language.of(host.language)) {
+        DateFormatting.Language.EN -> listOf("today", "tomorrow", "+7", "friday")
+        DateFormatting.Language.ES -> listOf("hoy", "mañana", "+7", "viernes")
+        else -> listOf("heute", "morgen", "übermorgen", "+7", "freitag")
+    }.map { KeyboardCommands.Template(it) }
+
     override fun chips(host: KeyboardCommands.Host, call: CommandCall): List<KeyboardCommands.Chip> =
         texts(call.argument, host.language).map { text ->
             KeyboardCommands.Chip(text, host.context.getString(R.string.agent_command_insert_text, text)) { host.replace(call, text) }

@@ -91,5 +91,44 @@ object SpecialCharacters {
         e("¡", "Ausrufezeichen umgekehrt", "inverted exclamation mark"),
         e("ß", "Eszett", "scharfes s", "sharp s"),
         e("ẞ", "Eszett groß", "capital sharp s"),
-    ))
+        // added with the templates (groups below); names chosen so earlier searches stay as they were
+        e("↕", "auf und ab", "up down arrow"),
+        e("↗", "schräg hoch", "up right arrow"),
+        e("↘", "schräg runter", "down right arrow"),
+        e("↩", "zurück", "return arrow"),
+        e("⇐", "Doppelpfeil links", "left double arrow"),
+        e("₹", "Rupie", "rupee"),
+        e("₽", "Rubel", "ruble", "rouble"),
+        e("₩", "Won"),
+        e("₺", "Lira"),
+        e("₿", "Bitcoin"),
+        e("‚", "einfaches Anführungszeichen unten", "single low quote"),
+        e("‘", "einfaches Anführungszeichen oben", "single left quote"),
+        e("›", "Guillemet einfach rechts", "single guillemet right"),
+        e("‹", "Guillemet einfach links", "single guillemet left"),
+        e("☐", "Kästchen", "ballot box"),
+        e("☑", "Kästchen angehakt", "ballot box checked"),
+        e("☒", "Kästchen gekreuzt", "ballot box x"),
+        e("δ", "delta klein", "small delta"),
+        e("ε", "epsilon"),
+        e("θ", "theta"),
+        e("φ", "phi"),
+        e("ω", "omega klein", "small omega"),
+    ), GROUPS)
+
+    /** Groups offered as templates of `@zeichen` (`table.groups`), e.g. `@zeichen pfeile` shows all arrows; a getter, so the table may use it before this line. */
+    private val GROUPS: List<SymbolTable.Group> get() = listOf(
+        SymbolTable.Group("pfeile", listOf("arrows"), listOf("→", "←", "↑", "↓", "↔", "↕", "↗", "↘", "↩", "⇒", "⇐", "⇔")),
+        SymbolTable.Group("mathe", listOf("mathematik", "math", "maths"), listOf("≠", "≈", "±", "∞", "≤", "≥", "×", "÷", "√",
+            "∛", "π", "∑", "∅", "∈", "∀", "∃", "¬", "°", "²", "³", "¹", "½", "⅓", "¼", "¾", "‰")),
+        SymbolTable.Group("währung", listOf("währungen", "geld", "currency", "currencies"),
+            listOf("€", "$", "£", "¥", "¢", "₹", "₽", "₩", "₺", "₿")),
+        SymbolTable.Group("anführungszeichen", listOf("quotes"), listOf("„", "“", "”", "‚", "‘", "’", "»", "«", "›", "‹")),
+        SymbolTable.Group("häkchen", listOf("checks", "ticks"), listOf("✓", "✔", "✗", "✘", "☐", "☑", "☒")),
+        SymbolTable.Group("typografie", listOf("typographie", "typography"), listOf("–", "—", "…", "·", "•", "’", "¿", "¡", "ß", "ẞ")),
+        SymbolTable.Group("symbole", listOf("symbols"), listOf("§", "©", "®", "™", "°", "‰", "¶", "†", "♥", "★", "☆", "♪",
+            "♀", "♂", "☎", "✉", "☀")),
+        SymbolTable.Group("griechisch", listOf("griechische", "greek"), listOf("α", "β", "γ", "δ", "ε", "θ", "λ", "µ", "π", "σ",
+            "φ", "ω", "Δ", "Ω")),
+    )
 }

@@ -69,4 +69,30 @@ class UnitConversionTest {
         assertEquals(Measure.KMH, UnitConversion.measure("km/h"))
         assertNull(UnitConversion.measure(""))
     }
+
+    @Test fun aPairWithoutANumberConvertsOneUnitAndTakesTheNumberTypedAfterIt() {
+        // the @conv templates: "oz in g " is written, then the user types the number
+        assertEquals(listOf("1 oz = 28,35 g"), texts("oz in g "))
+        assertEquals(listOf("5 oz = 141,7 g"), texts("oz in g 5"))
+        assertEquals(listOf("2,5 oz = 70,87 g"), texts("oz in g 2,5"))
+        assertEquals(listOf("2 oz = 56,7 g"), texts("oz in g 2,")) // a decimal mark while typing
+        assertEquals(listOf("1 °F = −17,22 °C"), texts("°F in °C"))
+        assertEquals(listOf("−40 °F = −40 °C"), texts("°F in °C -40"))
+        assertEquals(listOf("1 mi = 1,609 km"), texts("mi in km"))
+        assertEquals(listOf("1 cup = 236,6 ml"), texts("cup in ml"))
+        assertEquals(listOf("3 lb = 1,361 kg"), texts("lb in kg 3"))
+        assertEquals(listOf("1 in = 2,54 cm"), texts("in in cm"))
+        assertEquals(listOf("12 in = 30,48 cm"), texts("in in cm 12"))
+        assertEquals(listOf("1 ft = 0,3048 m"), texts("ft in m"))
+        assertEquals(listOf("100 km/h = 62,14 mph"), texts("km/h in mph 100"))
+        // the classic order still works, and nonsense still finds nothing
+        assertEquals(listOf("5 oz = 141,7 g"), texts("5 oz in g"))
+        assertEquals(listOf("5 in = 12,7 cm"), texts("5 in in cm"))
+        assertTrue(texts("oz in km").isEmpty())
+        assertTrue(texts("oz in g fünf").isEmpty())
+        assertTrue(texts("oz").isEmpty())
+        assertTrue(texts("hallo in g 5").isEmpty())
+        assertTrue(texts("-500 °C in °F").isEmpty())
+        assertTrue(texts("°C in °F -500").isEmpty()) // below absolute zero in either order
+    }
 }

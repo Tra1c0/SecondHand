@@ -100,3 +100,7 @@
   `halb acht` ist beim Wecker 7:30. Einen Tag (z. B. Montag) kann die Uhr-App nicht übernehmen,
   der Chip sagt dann „Tag ignoriert“.
 - Neue Berechtigung: „Wecker stellen“ (ohne Nachfrage, nur für `@wecker` und `@timer`).
+- Neu: Befehlsvorlagen. Ein Befehl ohne Argument zeigt in der Leiste umrandete Vorlagen, z. B.
+  `@zeichen` → „pfeile“ (alle Pfeile), `@emoji` → „tiere“, `@conv` → „oz in g“ (dann nur die
+  Zahl tippen), `@datum` → „morgen“, `@termin` → „morgen 18 Uhr“, `@translate` → `spanisch "`.
+  Ein Tipp schreibt nur die Vorlage hinter den Befehl.

@@ -1396,6 +1396,28 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   `tools/dev.py lint` erfolgreich (170 Warnungen, 0 neue Fehler), kein Befund in den neuen oder geänderten Dateien.
 - Nicht geprüft: kein Gerät und keine echte Uhr-App (ob die Uhr-App Bezeichnung und Länge
   übernimmt, ob sie den Wecker trotz `EXTRA_SKIP_UI = false` sofort stellt, Verhalten am Xiaomi).
+## Befehlsvorlagen
+
+- Gebaut: `Command.templates`, `KeyboardCommands.Template`, `Chip.Kind.TEMPLATE` (umrandet,
+  „Vorlage: …“ für TalkBack); bei leerem Argument erst die eigenen Chips, dann die Vorlagen; ein
+  Tipp ersetzt nur den getippten Befehl durch „@name Vorlage“. Gruppen in `SymbolTable`
+  (`SpecialCharacters` 8, `EmojiNames` 10, einige Zeichen und drei Emojis neu), `@conv` rechnet
+  ein Paar ohne Zahl als 1 Einheit und nimmt eine Zahl dahinter als Wert. Keine Änderung an
+  `InputLogic`, `RichInputConnection`, `Suggest`, `PointerTracker`.
+- Geprüft (JVM): `:agent-core:test` grün, neu `SymbolTableTest.groups…`/`everyGroup…` (Gruppen
+  vollständig, nur Zeichen der Tabelle, eindeutige Namen, Namenssuche unverändert) und
+  `UnitConversionTest.aPairWithoutANumber…` (alle acht Paare, Zahl dahinter, Dezimalzeichen beim
+  Tippen, alte Reihenfolge, Unsinn, unter dem absoluten Nullpunkt).
+- Geprüft (Robolectric): `CommandTemplatesTest` (11: Vorlagen je Befehl, Tipp ersetzt genau den
+  Befehlstext und führt nichts aus, Ergebnis-Chips danach für `@zeichen`, `@emoji`, `@conv`,
+  `@datum` und `@termin` in de/en/es, `@translate spanisch "` zeigt den Hinweis, mit
+  geschlossenem Text den Senden-Chip, `@math` mit „Rechner“ zuerst, Namens-Chip führt zu den
+  Vorlagen, anderes Präfix, keine Vorlagen bei Argument oder in Passwortfeldern, Darstellung).
+  Angepasst, weil leere Argumente jetzt Vorlagen zeigen (eigene Chips weiter genau geprüft):
+  `MoreCommandsTest`, `DatePlaceCommandsTest`, `KeyboardCommandsTest`, `TranslateCommandTest`.
+  `tools/dev.py agent-tests` grün (461 Tests in 63 Klassen, 0 Fehler), `tools/dev.py lint` ohne Fehler und ohne Befunde in den geänderten Dateien (170 Warnungen wie bisher).
+- Nicht geprüft: kein Gerät (Aussehen der umrandeten Chips in beiden Stilen, TalkBack, ob die
+  Leiste nach dem Tipp in echten Apps sofort die neuen Chips zeigt).
 
 ## Gerätetest vor Meilensteinfreigabe
 

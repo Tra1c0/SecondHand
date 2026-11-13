@@ -68,6 +68,8 @@ class MoreCommandsTest {
     private fun call(before: String) = KeyboardCommands.find(before, Settings.getValues(), text) as CommandCall
     private fun chips(before: String) = KeyboardCommands.chipsFor(call(before), host)
     private fun labels(before: String) = chips(before).map { it.label.toString() }
+    /** The command's own chips, without the templates shown after them while the argument is empty. */
+    private fun own(before: String) = chips(before).filter { it.kind != KeyboardCommands.Chip.Kind.TEMPLATE }
 
     @Test fun commandsAreBuiltInWithDescriptionsAndProtectTheirArgument() {
         val names = KeyboardCommands.BUILT_IN.map { it.name }
@@ -137,7 +139,7 @@ class MoreCommandsTest {
         assertEquals("°", labels("@zeichen Grad").first())
         assertEquals(listOf("≠"), labels("@zeichen ungleich"))
         assertTrue(chips("@zeichen gibtsnicht").isEmpty())
-        assertTrue(chips("@zeichen").isEmpty())
+        assertTrue(own("@zeichen").isEmpty()) // only templates (CommandTemplatesTest)
     }
 
     @Test fun emojisAreOfferedByKeywordAndReplaceTheCommandOnTap() {
@@ -161,6 +163,6 @@ class MoreCommandsTest {
         host.language = "en"
         assertEquals(listOf("100 °F = 37.78 °C"), labels("@conv 100 f"))
         assertTrue(chips("@conv 5 €").isEmpty()) // no currencies
-        assertTrue(chips("@conv").isEmpty())
+        assertTrue(own("@conv").isEmpty()) // only templates (CommandTemplatesTest)
     }
 }

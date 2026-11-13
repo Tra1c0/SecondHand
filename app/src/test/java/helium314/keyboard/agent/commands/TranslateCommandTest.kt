@@ -108,7 +108,8 @@ class TranslateCommandTest {
 
     @Test fun withoutQuotesOnlyAHintThatRunsNothing() {
         for (typed in listOf("@translate", "@translate wann treffen wir uns spanisch", "@translate \"wann treffen", "@translate \"\" spanisch")) {
-            val chips = KeyboardCommands.chipsFor(call(typed), host)
+            // without an argument the templates follow the hint (CommandTemplatesTest)
+            val chips = KeyboardCommands.chipsFor(call(typed), host).filter { it.kind != KeyboardCommands.Chip.Kind.TEMPLATE }
             assertEquals(listOf(latinIME.getString(R.string.agent_command_translate_hint)), chips.map { it.label.toString() }, typed)
             chips.single().onTap()
         }

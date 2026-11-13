@@ -79,4 +79,53 @@ class SymbolTableTest {
         assertEquals("pfeilrechts", SymbolTable.fold("Pfeil rechts"))
         assertEquals("grossergleich", SymbolTable.fold("größer gleich"))
     }
+
+    @Test fun groupsShowAllTheirSymbolsFirstThenNameMatches() {
+        val arrows = SpecialCharacters.table.search("pfeile").map { it.symbol }
+        assertEquals(listOf("→", "←", "↑", "↓", "↔", "↕", "↗", "↘", "↩", "⇒", "⇐", "⇔"), arrows)
+        assertEquals(arrows, SpecialCharacters.table.search("Arrows").map { it.symbol })
+        assertEquals(listOf("€", "$", "£", "¥", "¢", "₹", "₽", "₩", "₺", "₿"), SpecialCharacters.table.search("Währung").map { it.symbol })
+        assertEquals(SpecialCharacters.table.search("währung").map { it.symbol }, SpecialCharacters.table.search("wahrung").map { it.symbol })
+        val typography = SpecialCharacters.table.search("typografie").map { it.symbol }
+        assertTrue(typography.containsAll(listOf("–", "—", "…", "·", "•")))
+        val symbols = SpecialCharacters.table.search("symbole").map { it.symbol }
+        assertTrue(symbols.containsAll(listOf("§", "©", "®", "™", "°", "‰")))
+        assertTrue(SpecialCharacters.table.search("griechisch").map { it.symbol }.containsAll(listOf("α", "β", "π", "Ω", "θ")))
+        // a group name that is also a symbol name: the whole group, then nothing twice
+        val ticks = SpecialCharacters.table.search("häkchen").map { it.symbol }
+        assertEquals(listOf("✓", "✔", "✗", "✘", "☐", "☑", "☒"), ticks)
+        val quotes = SpecialCharacters.table.search("anführungszeichen").map { it.symbol }
+        assertEquals(quotes.distinct(), quotes)
+        assertTrue(quotes.containsAll(listOf("„", "“", "”", "»", "«", "‚", "‘")))
+        // a word that is no group: the name search as before
+        assertEquals(chars("pfeil"), SpecialCharacters.table.search("pfeil").map { it.symbol })
+        assertTrue(SpecialCharacters.table.group("").isEmpty())
+        assertTrue(SpecialCharacters.table.group("pfei").isEmpty()) // groups only by their full name
+
+        assertEquals(listOf("🐶", "🐱", "🐭"), EmojiNames.table.search("tiere").take(3).map { it.symbol })
+        assertEquals(18, EmojiNames.table.group("tiere").size)
+        assertTrue("❤️" in EmojiNames.table.search("herzen").map { it.symbol })
+        assertEquals(EmojiNames.table.search("hände"), EmojiNames.table.search("haende"))
+        assertTrue("🍕" in EmojiNames.table.search("essen").map { it.symbol })
+        assertTrue("⛅" in EmojiNames.table.search("wetter").map { it.symbol })
+    }
+
+    @Test fun everyGroupNamesOnlySymbolsOfItsTableAndIsUnique() {
+        val expected = mapOf(
+            SpecialCharacters.table to listOf("pfeile", "mathe", "währung", "anführungszeichen", "häkchen", "typografie", "symbole", "griechisch"),
+            EmojiNames.table to listOf("gesichter", "herzen", "hände", "tiere", "essen", "natur", "wetter", "sport", "reisen", "symbole"),
+        )
+        for ((table, names) in expected) {
+            assertEquals(names, table.groups.map { it.name })
+            val symbols = table.entries.map { it.symbol }.toSet()
+            for (group in table.groups) {
+                assertTrue(group.symbols.isNotEmpty(), group.name)
+                assertEquals(group.symbols.distinct(), group.symbols, group.name)
+                assertEquals(emptyList(), group.symbols.filter { it !in symbols }, group.name)
+                assertEquals(group.symbols, table.group(group.name).map { it.symbol }, group.name)
+            }
+            val keys = table.groups.flatMap { it.keys }
+            assertEquals(keys.distinct(), keys)
+        }
+    }
 }

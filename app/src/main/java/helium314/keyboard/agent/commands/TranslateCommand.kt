@@ -41,6 +41,13 @@ object TranslateCommand : KeyboardCommands.Command {
             { provider -> context.getString(R.string.agent_command_translate_open, provider, parsed.style) })
     }
 
+    /**
+     * A style and the opening quote: the user types the text and closes the quote, then the send
+     * chip appears (until then the hint chip). The styles are free text for the model.
+     */
+    override fun templates(host: KeyboardCommands.Host) =
+        listOf("spanisch", "englisch", "natürliches slang spanisch", "deutsch").map { KeyboardCommands.Template("$it \"…\"", "$it \"") }
+
     /** No command typed any more: a request sent from the strip is cancelled and its answer dropped. */
     override fun reset() = KeyboardCommands.dropAiRequests()
 }

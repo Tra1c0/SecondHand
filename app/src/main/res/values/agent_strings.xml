@@ -502,4 +502,5 @@
     <string name="agent_command_ai_failed">Request failed · details</string>
     <string name="agent_command_ai_answer_expired">The field changed. Nothing was inserted; send the question again.</string>
     <string name="agent_command_ai_translation_expired">The field changed. Nothing was inserted; send the translation again.</string>
+    <string name="agent_command_template">Template: %s</string>
 </resources>
