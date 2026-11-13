@@ -46,7 +46,9 @@ Reihenfolge von oben nach unten.
   Malen an ist; die übrigen niedrigen Befunde aus `docs/VALIDATION.md` → Build 12: Prüfer zu
   Etappe 27. (S)
 - **33 Leertasten-Geste mit Rastpunkten (Rückgängig/Wiederholen)** (Rückmeldung des Owners zu
-  Build 12, 2026-11-13; eine Skizze ist angekündigt, liegt aber nicht vor). Build 12 spielt die
+  Build 12, 2026-11-13, mit Skizze auf der Leertaste). Laut Skizze vier Rastpunkte, je etwa
+  0,8 Tastenbreiten auseinander, der letzte Abstand etwas länger (gut eine Tastenbreite); dieselben
+  Punkte für beide Richtungen. Build 12 spielt die
   drei Ticks sofort nach dem Auslösen hintereinander ab. Gewünscht: Die Ticks hängen am
   Wischweg. Jeder Tick ist ein Rastpunkt auf der Strecke; der letzte vollendet die Geste und macht
   erst dann rückgängig (nach links) bzw. wiederholt (nach rechts). Bis dahin läuft die Geste weiter
