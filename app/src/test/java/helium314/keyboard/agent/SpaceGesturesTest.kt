@@ -30,6 +30,7 @@ class SpaceGesturesTest {
     }
 
     @Test fun defaultsEqualTheBehaviorBeforePerGestureSettings() {
+        assertEquals(emptyMap(), prefs.all, "preferences left by an earlier test or an app listener")
         assertEquals(SpaceAction.MOVE_CURSOR, resolve(SpaceGesture.SWIPE_LEFT))
         assertEquals(SpaceAction.MOVE_CURSOR, resolve(SpaceGesture.SWIPE_RIGHT))
         assertEquals(SpaceAction.NONE, resolve(SpaceGesture.SWIPE_UP))
@@ -39,7 +40,7 @@ class SpaceGesturesTest {
         assertTrue(SpaceGestures.holdShowsPicker(prefs))
         assertFalse(SpaceGestures.doubleTapAssigned(prefs))
         assertTrue(SpaceGestures.read(prefs).hasSwipe())
-        assertTrue(prefs.all.isEmpty()) // reading writes nothing
+        assertEquals(emptyMap(), prefs.all, "reading writes nothing")
     }
 
     @Test fun existingHeliBoardSettingsMapOntoTheGestures() {
