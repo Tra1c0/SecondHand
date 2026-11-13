@@ -95,3 +95,8 @@
 - Neue Berechtigungen: Benachrichtigungen (nur für die tägliche Update-Suche) und „Apps
   installieren“ (nur für Updates, Android fragt jedes Mal).
 - Behoben: `@translate` beendet den Text erst beim letzten Anführungszeichen; Zitate im Text gehen.
+- Neu: Eigene Designs. Auf der Design-Seite oben „Meine Designs“ mit „+“: Tastenform,
+  Eckenrundung, Abstand, Tastenhöhe, sechs Farben, Schrift und ein eigenes Hintergrundbild, jede
+  Änderung sofort in einer Vorschau. Langes Drücken auf eine Kachel bearbeitet, löschen mit
+  Rückfrage. Eigene Farbsätze aus dem Farbeditor erscheinen jetzt auch als Kacheln. Noch auf
+  keinem Gerät ausprobiert.

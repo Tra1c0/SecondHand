@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<resources>
+    <string name="agent_design_section_mine">Meine Designs</string>
+    <string name="agent_design_new">Neues Design</string>
+    <string name="agent_design_new_name">Mein Design %d</string>
+    <string name="agent_design_edit">Design bearbeiten</string>
+    <string name="agent_design_edit_named">%s bearbeiten</string>
+    <string name="agent_design_name">Name</string>
+    <string name="agent_design_preview">Vorschau der Tastatur</string>
+    <string name="agent_design_group_shape">Tasten</string>
+    <string name="agent_design_group_colors">Farben</string>
+    <string name="agent_design_group_font">Schrift</string>
+    <string name="agent_design_group_image">Hintergrundbild</string>
+    <string name="agent_design_style">Tastenform</string>
+    <string name="agent_design_style_material">Eckig</string>
+    <string name="agent_design_style_rounded">Abgerundet</string>
+    <string name="agent_design_style_flat">Flach</string>
+    <string name="agent_design_borders">Tastenhintergrund</string>
+    <string name="agent_design_corner_own">Eigene Eckenrundung</string>
+    <string name="agent_design_corner">Eckenrundung: %1$d dp</string>
+    <string name="agent_design_gap">Abstand zwischen den Tasten: %1$d %%</string>
+    <string name="agent_design_height">Tastenhöhe: %1$d %%</string>
+    <string name="agent_design_font_style">Wie die Tastenform</string>
+    <string name="agent_design_font_regular">Normal</string>
+    <string name="agent_design_font_medium">Mittel</string>
+    <string name="agent_design_font_bold">Fett</string>
+    <string name="agent_design_color_functional">Funktionstasten</string>
+    <string name="agent_design_color_accent">Akzent und Enter</string>
+    <string name="agent_design_image_pick">Bild wählen</string>
+    <string name="agent_design_image_remove">Bild entfernen</string>
+    <string name="agent_design_image_note">Das Bild bleibt auf diesem Gerät. Benutzt du das Design, ersetzt es das Hintergrundbild der Tastatur; dein eigenes Bild von vorher kommt zurück, sobald du ein anderes Design wählst.</string>
+    <string name="agent_design_image_error">Die Datei ließ sich nicht als Bild lesen.</string>
+    <string name="agent_design_save">Speichern und verwenden</string>
+    <string name="agent_design_cancel">Abbrechen</string>
+    <string name="agent_design_delete">Design löschen</string>
+    <string name="agent_design_delete_confirm">Das Design „%s“ löschen?</string>
+    <string name="agent_design_discard">Änderungen verwerfen?</string>
+    <string name="agent_design_limit">Höchstens %d Designs.</string>
+</resources>

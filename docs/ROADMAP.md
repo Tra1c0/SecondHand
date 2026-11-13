@@ -76,8 +76,8 @@ Folgende ist die Entscheidung des Leads.
     Betrifft vor allem `MainSettingsScreen.kt` und die gemeinsamen Compose-Bausteine
     (`Preference`, `SearchSettingsScreen`). Upstream-Dateien nur eng ändern, besser eigene
     Bausteine mit Weiche auf den flachen Stil.
-  - 23f1 ist gebaut (siehe FEATURES.md). Offen 23f2: Editor mit Live-Vorschau, „Meine Designs“ mit
-    Kachel „+“, eigene Farbsätze als Kacheln, eigenes Hintergrundbild. Ursprünglich: Vorlage: ein Raster aus Kacheln, jede eine kleine
+  - 23f1 und 23f2 sind gebaut (siehe FEATURES.md). Offen nur noch der Gerätetest (Rundung,
+    Schrift und Hintergrundbild auf einem echten Telefon ansehen). Ursprünglich: Vorlage: ein Raster aus Kacheln, jede eine kleine
     gerenderte Tastatur im jeweiligen Design (Farben, Tastenform), Antippen wählt das Design.
     Der Owner will darüber hinaus mehr Optionen als Gboard (Farben, Rundung, Abstände,
     Schrift, Hintergrund), jeweils mit Live-Vorschau beim Ändern. Beobachtet auf dem Screenshot

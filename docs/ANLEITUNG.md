@@ -227,6 +227,17 @@ Einstellungen → Aussehen → „Design“ oder im Tastaturmenü die Pille „D
 „Flacher Look“ setzt auch Reihen, Größen und Leiste; zurück geht es unter Tastaturprofile.
 Mit dem flachen Tastenstil sehen auch die Einstellungen moderner aus.
 
+Eigenes Design: oben unter „Meine Designs“ die Kachel „+“ antippen. Oben siehst du die Vorschau,
+darunter stellst du ein: Tastenform, Tastenhintergrund, „Eigene Eckenrundung“, Abstand,
+Tastenhöhe, die Farben (Kreis antippen, Farbe wählen, OK), die Schrift und unter
+„Hintergrundbild“ → „Bild wählen“ ein Bild aus deinen Dateien. Jede Änderung zeigt die Vorschau
+sofort; gespeichert wird erst mit „Speichern und verwenden“. „Abbrechen“ oder Zurück verwirft
+nach Rückfrage. Später: Kachel antippen wählt das Design, langes Drücken oder der Stift oben
+links auf der Kachel öffnet den Editor, dort unten „Design löschen“ (mit Rückfrage). Ein
+Design mit Bild ersetzt dein bisheriges Hintergrundbild der Tastatur, solange es gewählt ist;
+wählst du ein anderes Design oder eine eingebaute Kachel, kommt dein altes Bild zurück.
+Größe und Abstand gelten für das Hochformat.
+
 ## Aussehen: flacher Look
 
 Einstellungen → Tastaturprofile → „Flacher Look (Vorlage)“ → „Vorlage anwenden“. Das stellt

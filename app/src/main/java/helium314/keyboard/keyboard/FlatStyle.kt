@@ -119,9 +119,13 @@ object FlatStyle {
     @JvmStatic
     fun isActive(colors: Colors): Boolean = colors.themeStyle == KeyboardTheme.STYLE_FLAT
 
-    /** Labels, hints and the space bar text use [labelTypeface] in this style. */
+    /**
+     * Labels, hints and the space bar text use [labelTypeface] in this style. A font chosen in a
+     * user design ([helium314.keyboard.agent.DesignLook]) applies to every style.
+     */
     @JvmStatic
-    fun typeface(colors: Colors, fallback: Typeface): Typeface = if (isActive(colors)) labelTypeface else fallback
+    fun typeface(colors: Colors, fallback: Typeface): Typeface =
+        helium314.keyboard.agent.DesignLook.typeface() ?: if (isActive(colors)) labelTypeface else fallback
 
     /**
      * A single lowercase letter sits a little higher than a capital letter or digit, which are

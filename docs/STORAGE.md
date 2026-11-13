@@ -117,6 +117,29 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
 - Nur Darstellungs- und Layout-Einstellungen (Liste: `FlatPreset.values()`), keine Texte,
   Lerndaten oder Zugangsdaten. Wird beim Wiederherstellen geleert.
 
+## Eigene Designs (23f2)
+
+- Liste: Einstellung `agent_designs` in den Tastatureinstellungen (geräteverschlüsselter
+  Speicher wie alle Tastatureinstellungen), ein JSON-Array mit höchstens 30 Einträgen: `id`
+  (`d1`, `d2`, …), `name`, `style`, `keyBorders`, `colors` (Farbname → ARGB-Zahl für
+  `background`, `keys`, `functional_keys`, `text`, `hint_text`, `accent`), `cornerRadius` (dp
+  oder fehlt), `keyGap`, `keyHeight`, `font` (oder fehlt), `hasImage`. Ungültige Einträge
+  (fremder Stil, unbekannte Farbe oder Schrift, ID mit anderen Zeichen) werden beim Lesen
+  verworfen.
+- Farbsatz: HeliBoards Format `user_colors_agent_design_<id>` (Liste von `ColorSetting`); er
+  erscheint deshalb auch im Farbwähler von HeliBoard.
+- Auswahl schreibt genau `MyDesigns.selectionValues()`: `theme_style`, `icon_style`,
+  `theme_key_borders`, `theme_auto_day_night` = aus, `theme_colors`, den Farbsatz,
+  `key_gap_scale_false_false`, `keyboard_height_scale_false_false` (Hochformat) und
+  `agent_key_corner_radius`/`agent_key_font` (entfernt, wenn das Design sie nicht setzt).
+  `agent_design_background` merkt, welches Design gerade sein Bild als Hintergrund hat.
+- Bilder: `files/agent_designs/<id>.img` im geräteverschlüsselten Speicher (neben HeliBoards
+  `custom_background_image`), Kopie der gewählten Datei. `pending.img` hält ein gewähltes Bild
+  bis zum Speichern. Beim Auswählen wird das Bild über `custom_background_image` kopiert; ein
+  eigenes Bild von vorher liegt solange als `background_before` daneben und kommt beim Wechsel
+  zurück. Löschen eines Designs entfernt Farbsatz, Listeneintrag und Bild.
+- HeliBoards Sicherung erfasst die Einstellungen, aber nicht den Ordner `agent_designs/`.
+
 ## Screenshot-Kopien (23d)
 
 - Ort: `files/agent_screenshot/screenshot-<ID>.<Endung>` im gerätegeschützten Speicher (DE) der
