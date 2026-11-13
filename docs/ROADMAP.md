@@ -69,6 +69,20 @@ Reihenfolge von oben nach unten.
   Screenshots, Emoji-Mix), 6 KI & Automationen, 7 System & Daten (Profile, Sichern, Updates,
   Diagnose, Experimentell, Über). Startseite mit Look-Vorschau und Schnellschaltern. Wartet auf
   die Rückmeldung des Owners.
+- **39 Text-Stile (Wunsch des Owners vom 2026-11-13)**. Alles lokal, Einfügen nur per Tipp.
+  `@style Text` zeigt Chips mit Unicode-Varianten (𝓢𝓬𝓱𝓻𝓲𝓯𝓽, 𝗙𝗲𝘁𝘁, 𝘒𝘶𝘳𝘴𝘪𝘷, ꜱᴍᴀʟʟ ᴄᴀᴘꜱ, Ⓚⓡⓔⓘⓢ,
+  d̶u̶r̶c̶h̶, umgedreht); Hinweis, dass Screenreader solche Zeichen schlecht vorlesen. Formatierung
+  für Messenger: *fett*, _kursiv_, ~durch~, `Code`, Spoiler (WhatsApp/Telegram/Discord) als Chips
+  für markierten Text. `@kaomoji` mit eigener, lokaler Bibliothek ((╯°□°)╯︵ ┻━┻, ¯\_(ツ)_/¯ …,
+  Suche nach Stichwort). Typografie aufräumen: „deutsche Anführungszeichen“, Gedankenstrich –,
+  Auslassung …, doppelte Leerzeichen. (M)
+- **40 Smart Paste (Wunsch des Owners vom 2026-11-13)**. Lokal, ohne Netz. Erkennt im Kopierten
+  bzw. in der Zwischenablage-Pille Typen und bietet Chips: Adresse → in Karten öffnen / als
+  `@ort` speichern; Telefonnummer → anrufen / Kontakt; IBAN → formatiert einfügen (Prüfziffer
+  prüfen); Sendungsnummer → Link des Paketdienstes; Datum/Uhrzeit → `@termin`; E-Mail; Link →
+  Tracking-Parameter entfernen (utm_*, fbclid, gclid …) vor dem Einfügen; Code aus SMS
+  (Einmalcode) nur aus der Zwischenablage, nie aus Benachrichtigungen. Nicht in Passwortfeldern,
+  Inkognito, gesperrt; vertrauliche Clips nie. (M)
 - **34 Eigene Designs gestalten (übernächste Runde)** (Wunsch des Owners vom 2026-11-13). Eigene
   Tastatur-Designs gibt es schon (Design-Seite → „Meine Designs“, seit Build 10). Annahme des
   Leads, vor dem Bau bestätigen: gemeint sind eigene RGB-Designs, also selbst gestaltete
