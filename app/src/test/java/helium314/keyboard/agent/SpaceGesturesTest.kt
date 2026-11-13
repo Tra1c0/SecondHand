@@ -25,6 +25,10 @@ class SpaceGesturesTest {
     private fun resolve(gesture: SpaceGesture) = SpaceGestures.resolve(prefs, gesture)
 
     @Before fun clear() {
+        // App.onCreate writes emoji_max_sdk once from a background coroutine (SupportedEmojis.load);
+        // wait for that single write so it cannot land between the clear below and the assertions
+        val until = System.currentTimeMillis() + 5_000
+        while (!prefs.contains(Settings.PREF_EMOJI_MAX_SDK) && System.currentTimeMillis() < until) Thread.sleep(10)
         prefs.edit().clear().commit()
         app.getSharedPreferences(KeyboardProfileStore.STORAGE_NAME, Context.MODE_PRIVATE).edit().clear().commit()
     }

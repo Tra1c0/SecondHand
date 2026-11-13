@@ -2069,6 +2069,10 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   überspringt danach), die Prüfung bleibt gleich streng (vorher genau `emoji_max_sdk`, danach
   zusätzlich genau `agent_learning_paused`). Lokal grün; der nächste GitHub-Lauf prüft den vollen
   Satz.
+- Gleiche Ursache bei `SpaceGesturesTest.defaultsEqualTheBehaviorBeforePerGestureSettings`
+  (erwartet leere Einstellungen, fand `emoji_max_sdk`): `@Before` wartet jetzt bis zu 5 s auf den
+  einmaligen Schreibvorgang der Start-Coroutine und leert erst dann; die Assertions sind
+  unverändert. Klasse grün.
 ## Etappe 33 (Leertasten-Rastpunkte)
 
 - Auftrag: ROADMAP 33 (Rückmeldung des Owners zu Build 12 mit Skizze). Seitliche Leertasten-Wische
