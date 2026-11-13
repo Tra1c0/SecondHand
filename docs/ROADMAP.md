@@ -10,6 +10,10 @@ Etappen aus dem ursprünglichen Auftrag; Teilpakete bekommen Buchstaben (15a, 15
 
 Reihenfolge von oben nach unten.
 
+- **27 Symbole malen** (Auftrag des Owners vom 2026-11-13) ist gebaut (siehe FEATURES.md). Offen:
+  Gerätetest (Erkennung mit echten Fingern, Schwellen, Spur, Tempo, Malfeld der eigenen Symbole),
+  Prüfer-Review der PointerTracker-Hooks (Pflicht).
+
 Ziel des Owners (2026-11-12): ein „Agentic Keyboard“, das aus dem Gesprächskontext erkennt, was
 du tun willst, und es mit einer Geste und einem Tipp erledigt, dazu eine lernfähige
 Autokorrektur. Der Owner hat die Entscheidung über Machbarkeit und Reihenfolge abgegeben; das

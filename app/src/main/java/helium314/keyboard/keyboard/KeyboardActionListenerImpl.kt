@@ -7,6 +7,7 @@ import helium314.keyboard.agent.HapticChain
 import helium314.keyboard.agent.KeyboardCommands
 import helium314.keyboard.agent.SpaceAction
 import helium314.keyboard.agent.SpaceGesture
+import helium314.keyboard.agent.SymbolInk
 import android.os.SystemClock
 import android.util.SparseArray
 import android.view.KeyEvent
@@ -51,12 +52,16 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     private val settings = Settings.getInstance()
     private val audioAndHapticFeedbackManager = AudioAndHapticFeedbackManager.getInstance()
 
+    // stage 27: finished drawings go to this keyboard (SymbolDrawing), held weakly by SymbolInk
+    private val symbolSink = helium314.keyboard.agent.SymbolDrawing.attach(latinIME)
+
     // language slide state
     private var initialSubtype: InputMethodSubtype? = null
     private var subtypeSwitchCount = 0
 
     override fun onPressKey(primaryCode: Int, repeatCount: Int, pointerCount: Int, hapticEvent: HapticEvent) {
         if (latinIME.agentEditorController.isBlockingInput) return;
+        helium314.keyboard.agent.SymbolDrawing.beforeOtherInput() // a waiting drawn symbol comes first (stage 27)
         spaceKeyDown = primaryCode == Constants.CODE_SPACE
         latinIME.invalidateAgentEditor()
         metaOnPressKey(primaryCode)
@@ -120,6 +125,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
 
     override fun onCodeInput(primaryCode: Int, x: Int, y: Int, isKeyRepeat: Boolean) {
         if (latinIME.agentEditorController.isBlockingInput) return;
+        helium314.keyboard.agent.SymbolDrawing.beforeOtherInput() // codes without a key press, e.g. from the strip
         if (TouchCalibration.active) keyboardSwitcher.mainKeyboardView?.let { view ->
             // view to keyboard coordinates, as KeyDetector does
             TouchCalibration.onKey(primaryCode, x, y, view.paddingLeft, view.paddingTop, keyboardSwitcher.keyboard)
@@ -187,7 +193,10 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         if (spaceTap) rememberSpaceTap()
     }
 
-    override fun onTextInput(text: String?) = latinIME.onTextInput(text)
+    override fun onTextInput(text: String?) {
+        helium314.keyboard.agent.SymbolDrawing.beforeOtherInput()
+        latinIME.onTextInput(text)
+    }
 
     override fun onContent(content: InputContentInfoCompat) {
         if (latinIME.agentEditorController.isBlockingInput) return;
@@ -201,13 +210,25 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         }
     }
 
-    override fun onStartBatchInput() = latinIME.onStartBatchInput()
+    // stage 27: with "Symbole malen" the gesture is ink for SymbolInk, never a gesture-typed word;
+    // LatinIME, InputLogic and the batch gate (P5) see nothing of it
+    override fun onStartBatchInput() {
+        if (!SymbolInk.isEnabled()) return latinIME.onStartBatchInput()
+        if (!latinIME.agentEditorController.isBlockingInput) SymbolInk.onBatchStart()
+    }
 
-    override fun onUpdateBatchInput(batchPointers: InputPointers?) = latinIME.onUpdateBatchInput(batchPointers)
+    override fun onUpdateBatchInput(batchPointers: InputPointers?) {
+        if (!SymbolInk.isEnabled()) latinIME.onUpdateBatchInput(batchPointers)
+    }
 
-    override fun onEndBatchInput(batchPointers: InputPointers?) = latinIME.onEndBatchInput(batchPointers)
+    override fun onEndBatchInput(batchPointers: InputPointers?) {
+        if (!SymbolInk.isEnabled()) return latinIME.onEndBatchInput(batchPointers)
+        if (!latinIME.agentEditorController.isBlockingInput) SymbolInk.onBatchEnd(batchPointers)
+    }
 
-    override fun onCancelBatchInput() = latinIME.onCancelBatchInput()
+    override fun onCancelBatchInput() {
+        if (SymbolInk.isEnabled()) SymbolInk.onBatchCancel() else latinIME.onCancelBatchInput()
+    }
 
     // User released a finger outside any key
     override fun onCancelInput() { }

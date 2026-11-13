@@ -14,3 +14,7 @@
   und beim Beenden der Tastatur hört sie auch wirklich auf, nach Screenshots zu schauen.
 - Behoben: Beim Entpacken der mitgelieferten Emoji-Wörterbücher liegt die Zwischendatei nicht
   mehr im Wörterbuchordner und wird bei einem Fehler gelöscht.
+- Neu: Symbole malen (anfangs aus). Einstellungen → „Symbole malen“: Wischen über die Buchstaben
+  malt ein Sonderzeichen (→ ≠ € ✓ ♥ und 35 weitere) statt eines Gestenworts; eigene Symbole
+  malst du dreimal und gibst den Text dazu ein. Erkennung nur auf dem Telefon. Auf einem Gerät
+  noch nicht ausprobiert.

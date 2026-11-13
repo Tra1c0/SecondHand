@@ -1,0 +1,114 @@
+// SPDX-License-Identifier: GPL-3.0-only
+package helium314.keyboard.agent
+
+import android.app.Application
+import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.*
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.geometry.Offset
+import dev.agentkeyboard.core.InkRecognizer
+import dev.agentkeyboard.core.InkStroke
+import dev.agentkeyboard.core.InkSymbols
+import helium314.keyboard.latin.utils.Theme
+import helium314.keyboard.latin.utils.prefs
+import helium314.keyboard.settings.screens.AgentSymbolsScreen
+import org.junit.After
+import org.junit.Before
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.LooperMode
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+/** The page "Symbole malen" (stage 27): switch, built-in list and own symbols drawn three times. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [28], qualifiers = "de-w411dp-h1000dp")
+@LooperMode(LooperMode.Mode.PAUSED)
+class SymbolSettingsScreenTest {
+    @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+    private val app: Application = RuntimeEnvironment.getApplication()
+
+    @Before @After fun clear() {
+        app.prefs().edit().clear().commit()
+        SymbolDrawing.saveOwnSymbols(app, emptyList())
+    }
+
+    private fun page() {
+        compose.setContent { Theme(true) { AgentSymbolsScreen {} } }
+        compose.waitForIdle()
+    }
+
+    @Test fun switchIsOffByDefaultAndSaved() {
+        page()
+        assertFalse(app.prefs().getBoolean(AgentPreferences.SYMBOL_DRAWING, false))
+        compose.onNode(hasText("Symbole malen (statt Gestenschreiben)")).performClick()
+        compose.waitForIdle()
+        assertTrue(app.prefs().getBoolean(AgentPreferences.SYMBOL_DRAWING, false))
+        // every built-in symbol is listed
+        InkSymbols.all.forEach { compose.onAllNodes(hasText(it.text, substring = false)).onFirst().assertExists() }
+    }
+
+    @Test fun ownSymbolIsDrawnThreeTimesSavedAndDeleted() {
+        page()
+        compose.onNodeWithTag("agent_symbol_add").performClick()
+        compose.waitForIdle()
+        repeat(3) { round ->
+            compose.onNode(hasText("Zeichnung ${round + 1} von 3")).assertExists()
+            compose.onNodeWithText("Weiter").assertIsNotEnabled() // nothing drawn yet
+            compose.onNodeWithTag("agent_symbol_pad").performScrollTo().performTouchInput {
+                // a "W" in one stroke
+                down(Offset(width * 0.1f, height * 0.1f))
+                moveTo(Offset(width * 0.3f, height * 0.9f))
+                moveTo(Offset(width * 0.5f, height * 0.4f))
+                moveTo(Offset(width * 0.7f, height * 0.9f))
+                moveTo(Offset(width * 0.9f, height * 0.1f))
+                up()
+            }
+            compose.waitForIdle()
+            compose.onNodeWithText("Weiter").performScrollTo().assertIsEnabled().performClick()
+            compose.waitForIdle()
+        }
+        compose.onNodeWithText("Speichern").assertIsNotEnabled() // no text yet
+        compose.onNodeWithTag("agent_symbol_text").performTextInput("123456789")
+        compose.waitForIdle()
+        compose.onNodeWithText("Speichern").assertIsNotEnabled() // more than 8 characters
+        compose.onNodeWithTag("agent_symbol_text").performTextClearance()
+        compose.onNodeWithTag("agent_symbol_text").performTextInput("👋")
+        compose.waitForIdle()
+        compose.onNodeWithText("Speichern").performScrollTo().assertIsEnabled().performClick()
+        compose.waitForIdle()
+
+        val saved = SymbolDrawing.ownSymbols(app)
+        assertEquals(1, saved.size)
+        assertEquals("👋", saved[0].text)
+        assertEquals(3, saved[0].samples.size)
+        // the saved drawing is recognized as the own symbol
+        val w = InkStroke.of(0f, 0f, 75f, 300f, 150f, 120f, 225f, 300f, 300f, 0f)
+        val recognizer = InkRecognizer(saved.flatMap { it.templates() } + InkSymbols.templates)
+        assertEquals("👋", recognizer.recognize(listOf(w)).best?.text)
+        compose.onNodeWithTag("agent_symbol_own_0").assertExists()
+
+        compose.onNode(hasContentDescription("👋 löschen")).performScrollTo().performClick()
+        compose.waitForIdle()
+        assertTrue(SymbolDrawing.ownSymbols(app).isEmpty())
+        compose.onNodeWithTag("agent_symbol_own_0").assertDoesNotExist()
+    }
+
+    @Test fun cancelledAddingSavesNothing() {
+        page()
+        compose.onNodeWithTag("agent_symbol_add").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag("agent_symbol_pad").performScrollTo().performTouchInput { down(center); moveBy(Offset(50f, 0f)); up() }
+        compose.waitForIdle()
+        compose.onNode(hasText("Abbrechen") or hasText("Cancel")).performScrollTo().performClick()
+        compose.waitForIdle()
+        assertTrue(SymbolDrawing.ownSymbols(app).isEmpty())
+        compose.onNodeWithTag("agent_symbol_card").assertDoesNotExist()
+        compose.onNodeWithTag("agent_symbol_add").assertExists()
+    }
+}

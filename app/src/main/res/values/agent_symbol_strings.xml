@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 27, drawn symbols (own file so parallel work on agent_strings.xml does not collide). English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <item type="id" name="agent_symbol_chips" />
+    <string name="agent_symbols_title">Draw symbols</string>
+    <string name="agent_symbols_summary">Draw special characters on the letters instead of gesture typing</string>
+    <string name="agent_symbols_switch">Draw symbols (instead of gesture typing)</string>
+    <string name="agent_symbols_switch_summary">Swiping across the letters draws a symbol; gesture typing is off. Taps, long presses and the space and delete swipes stay as they are.</string>
+    <string name="agent_symbols_how">Draw on the letter keys. Strokes that follow within half a second belong to the same symbol (≠, ÷, €). The symbol is typed after the pause; the strip offers up to three alternatives. Not in password fields.</string>
+    <string name="agent_symbols_local">Recognized locally on the phone. Nothing is sent, drawings are not saved.</string>
+    <string name="agent_symbols_not_recognized">Not recognized</string>
+    <string name="agent_symbols_alternative">Replace with %1$s</string>
+    <string name="agent_symbols_builtin">Built-in symbols</string>
+    <string name="agent_symbols_own">Own symbols</string>
+    <string name="agent_symbols_own_description">Draw a symbol three times and choose the text it types (up to 8 characters, emoji too). Own symbols are recognized together with the built-in ones.</string>
+    <string name="agent_symbols_own_empty">No own symbols yet.</string>
+    <string name="agent_symbols_add">Add symbol</string>
+    <string name="agent_symbols_full">At most 30 own symbols.</string>
+    <string name="agent_symbols_drawing">Drawing %1$d of %2$d</string>
+    <string name="agent_symbols_draw_hint">Draw the symbol in the box, with as many strokes as you like.</string>
+    <string name="agent_symbols_redraw">Draw again</string>
+    <string name="agent_symbols_next">Next</string>
+    <string name="agent_symbols_text">Text it types</string>
+    <string name="agent_symbols_text_too_long">At most 8 characters.</string>
+    <string name="agent_symbols_save">Save</string>
+    <string name="agent_symbols_delete">Delete %1$s</string>
+    <string name="agent_symbols_drawing_of">Drawing of %1$s</string>
+</resources>

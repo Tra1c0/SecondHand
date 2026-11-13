@@ -63,7 +63,7 @@
       "app/src/main/java/helium314/keyboard/latin/Suggest.kt",
       "app/src/main/java/helium314/keyboard/keyboard/{KeyDetector,KeyboardSwitcher}.java",
       "app/src/main/java/helium314/keyboard/settings/{SettingsActivity,SettingsNavHost,SettingsContainer}.kt",
-      "app/src/main/java/helium314/keyboard/settings/screens/{MainSettingsScreen,AppearanceScreen,AdvancedScreen}.kt",
+      "app/src/main/java/helium314/keyboard/settings/screens/{MainSettingsScreen,AppearanceScreen,AdvancedScreen,GestureTypingScreen}.kt",
       "app/src/main/java/helium314/keyboard/settings/SearchScreen.kt",
       "app/src/main/java/helium314/keyboard/settings/screens/gesturedata/Share.kt",
       "app/src/test/java/helium314/keyboard/Shadows.kt",
