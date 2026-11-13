@@ -54,6 +54,11 @@ Reihenfolge von oben nach unten.
   Fläche, je ein leuchtender Tropfen/Lichtpunkt als Visualisierung des Tempos (z. B. wandert er
   bei 60 Hz doppelt so schnell oder pulsiert); die gewählte Fläche hervorgehoben. „Im
   Energiesparmodus anhalten“ bleibt darunter. Gilt sinngemäß als Stil für ähnliche Auswahlen. (S)
+- **38 Großer Umbau der Einstellungen (Wunsch des Owners vom 2026-11-13, Umfang noch offen)**.
+  Richtung wie bei 37: verspieltere, visuelle Auswahl statt Listen und Schalter, Karten mit
+  Farbflächen und kleinen Animationen. Vor dem Bau klären: was stört heute (Struktur, Tiefe der
+  Menüs, Optik), welche Seiten zuerst, Vorlagen/Skizzen des Owners. Großer Umbau und neue
+  Funktionen als getrennte Etappen (CLAUDE.md). (L)
 - **34 Eigene Designs gestalten (übernächste Runde)** (Wunsch des Owners vom 2026-11-13). Eigene
   Tastatur-Designs gibt es schon (Design-Seite → „Meine Designs“, seit Build 10). Annahme des
   Leads, vor dem Bau bestätigen: gemeint sind eigene RGB-Designs, also selbst gestaltete
