@@ -2,7 +2,7 @@
 package dev.agentkeyboard.core
 
 import kotlin.math.abs
-import kotlin.math.cos
+import kotlin.math.cbrt
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
@@ -10,21 +10,24 @@ import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
-/** Spatial shape of the light (stage 26). */
-enum class RgbPattern { WAVE_HORIZONTAL, WAVE_VERTICAL, WAVE_DIAGONAL, CIRCLE, BREATHE, STATIC_RAINBOW }
+/** Spatial shape of the light: the stage 26 waves and the animated textures of stage 29c. */
+enum class RgbPattern {
+    WAVE_HORIZONTAL, WAVE_VERTICAL, WAVE_DIAGONAL, CIRCLE, BREATHE, STATIC_RAINBOW,
+    /** Ink swirling in water (domain-warped noise), dark where there is no ink. */
+    INK,
+    /** Diagonal rainbow with glowing diamond outlines. */
+    DIAMONDS,
+    /** Diagonal slats with a hard colour change along a wandering line. */
+    SLATS,
+    /** Rainbow around the centre with fine diagonal hatching and a dark vignette. */
+    HATCH,
+    /** LED dot matrix with a flowing rainbow. */
+    LED,
+    /** Contour lines over soft rainbow hills. */
+    TOPO;
 
-/** Temporal shape: how the colour moves through the palette during one cycle. */
-enum class RgbWaveform(val cyclic: Boolean) {
-    /** Soft back and forth through the palette. */
-    SINE(false),
-    /** Linear back and forth (zigzag). */
-    TRIANGLE(false),
-    /** Rises through the whole palette, then starts over. */
-    SAWTOOTH(true),
-    /** Like [SAWTOOTH], but in hard steps. */
-    STEPS(true),
-    /** Eased rise, short hold, eased fall, rest. */
-    PULSE(false),
+    /** Texture patterns (29c) compute a colour field and may have a detail tile ([RgbOverlay]). */
+    val textured: Boolean get() = ordinal >= INK.ordinal
 }
 
 /** What the light colours. */
@@ -39,18 +42,53 @@ enum class RgbArea(val inStrip: Boolean = false) {
     }
 }
 
+/**
+ * The elements that can each have their own look (stage 29, wish of the owner): key backgrounds,
+ * keyboard background, key labels, word suggestions and strip buttons. [code] prefixes the fields
+ * of an own look in the stored text.
+ */
+enum class RgbTarget(val code: String) {
+    KEYS("k"), BACKGROUND("b"), LABELS("l"), SUGGESTIONS("s"), TOOLBAR("t");
+}
+
 /** What a key press does to the light. */
 enum class RgbTapReaction { NONE, FLASH, RIPPLE, SPEED_UP }
+
+/** The part of the settings one element can have on its own (stage 29): pattern, curve, speed, colours. */
+data class RgbLook(
+    val pattern: RgbPattern = RgbPattern.WAVE_HORIZONTAL,
+    val curve: RgbCurve = RgbCurve.DEFAULT,
+    val periodMs: Int = 4000,
+    val reverse: Boolean = false,
+    val waveWidth: Float = 1f,
+    val rainbow: Boolean = true,
+    val palette: List<Int> = RgbSettings.DEFAULT_PALETTE,
+    val saturation: Int = 100,
+    val brightness: Int = 100,
+    val mix: Int = 100,
+) {
+    fun applyTo(settings: RgbSettings) = settings.copy(pattern = pattern, curve = curve, periodMs = periodMs, reverse = reverse,
+        waveWidth = waveWidth, rainbow = rainbow, palette = palette, saturation = saturation, brightness = brightness, mix = mix)
+
+    companion object {
+        fun of(s: RgbSettings) = RgbLook(s.pattern, s.curve, s.periodMs, s.reverse, s.waveWidth, s.rainbow, s.palette,
+            s.saturation, s.brightness, s.mix)
+    }
+}
 
 /**
  * Every option of the RGB lighting. Construct only through [normalized] values: [parse] never
  * throws and clamps every number, so an imported or damaged value can never break drawing.
+ *
+ * The look fields ([pattern] to [mix]) are the shared look. With [separate] each [RgbTarget] uses
+ * its entry in [looks] instead (a missing entry uses the shared look); [forTarget] gives the
+ * settings an element is drawn with. Whether an element is lit at all stays in [layers] and [areas].
  */
 data class RgbSettings(
     val enabled: Boolean = false,
     val pattern: RgbPattern = RgbPattern.WAVE_HORIZONTAL,
-    val waveform: RgbWaveform = RgbWaveform.SAWTOOTH,
-    val steps: Int = 4,
+    /** Own "Verlauf" (stage 29d); replaces the fixed waveform of stage 26. */
+    val curve: RgbCurve = RgbCurve.DEFAULT,
     val periodMs: Int = 4000,
     val reverse: Boolean = false,
     /** Colour cycles across the keyboard width (or height, or radius). */
@@ -71,41 +109,64 @@ data class RgbSettings(
     val glowMs: Int = 800,
     val fps: Int = 30,
     val pauseInPowerSave: Boolean = true,
+    /** Every key in one colour (its centre), as in stage 26; otherwise the light runs smoothly across the keys (29b). */
+    val solidKeys: Boolean = false,
+    /** Each element has its own look (from [looks]) instead of the shared one. */
+    val separate: Boolean = false,
+    val looks: Map<RgbTarget, RgbLook> = emptyMap(),
 ) {
-    fun normalized(): RgbSettings = copy(
-        steps = steps.coerceIn(STEPS_RANGE),
+    fun normalized(): RgbSettings = normalLook().copy(
+        glowMs = glowMs.coerceIn(GLOW_RANGE),
+        fps = if (fps >= 60) 60 else 30,
+        looks = looks.mapValues { (_, look) -> RgbLook.of(look.applyTo(this).normalLook()) },
+    )
+
+    private fun normalLook(): RgbSettings = copy(
         periodMs = periodMs.coerceIn(PERIOD_RANGE),
         waveWidth = (if (waveWidth.isFinite()) waveWidth else 1f).coerceIn(WIDTH_MIN, WIDTH_MAX),
         palette = palette.map { it or OPAQUE }.take(MAX_COLORS).let { if (it.size < MIN_COLORS) DEFAULT_PALETTE else it },
         saturation = saturation.coerceIn(0, 100),
         brightness = brightness.coerceIn(BRIGHTNESS_MIN, 100),
         mix = mix.coerceIn(0, 100),
-        glowMs = glowMs.coerceIn(GLOW_RANGE),
-        fps = if (fps >= 60) 60 else 30,
     )
+
+    /** The look [target] uses: its own one when [separate], otherwise the shared one. */
+    fun lookFor(target: RgbTarget): RgbLook = if (separate) looks[target] ?: RgbLook.of(this) else RgbLook.of(this)
+
+    /** These settings with the look of [target] in the look fields (what the engine for that element runs). */
+    fun forTarget(target: RgbTarget): RgbSettings = if (!separate) this else lookFor(target).applyTo(this)
+
+    /** These settings with [look] for [target] (the shared look unless [separate]). */
+    fun withLook(target: RgbTarget, look: RgbLook): RgbSettings =
+        if (!separate) look.applyTo(this) else copy(looks = looks + (target to look))
+
+    /** Switches [separate]; switching on gives every element without an own look a copy of the shared one. */
+    fun withSeparate(on: Boolean): RgbSettings = if (!on) copy(separate = false) else
+        copy(separate = true, looks = RgbTarget.entries.associateWith { looks[it] ?: RgbLook.of(this) })
+
+    /** True when [target] is lit at all (light on, its layer or strip area chosen, and some keys for key targets). */
+    fun lights(target: RgbTarget): Boolean = enabled && when (target) {
+        RgbTarget.KEYS -> RgbLayer.KEY_BACKGROUND in layers && areas.any { !it.inStrip }
+        RgbTarget.BACKGROUND -> RgbLayer.KEYBOARD_BACKGROUND in layers
+        RgbTarget.LABELS -> RgbLayer.LABEL in layers && areas.any { !it.inStrip }
+        RgbTarget.SUGGESTIONS -> RgbArea.SUGGESTIONS in areas
+        RgbTarget.TOOLBAR -> RgbArea.TOOLBAR in areas
+    }
 
     /** True when anything on the keyboard view is lit (the keyboard background does not depend on the areas). */
     fun lightsKeys(): Boolean = enabled && (RgbLayer.KEYBOARD_BACKGROUND in layers ||
         (layers.any { it != RgbLayer.KEYBOARD_BACKGROUND } && areas.any { !it.inStrip }))
     fun lightsStrip(): Boolean = enabled && areas.any { it.inStrip }
 
+    /** True if some lit element moves by itself (not only a still rainbow or light that waits for taps). */
+    fun moves(): Boolean = !reactiveOnly && RgbTarget.entries.any { lights(it) && lookFor(it).pattern != RgbPattern.STATIC_RAINBOW }
+
     /** Compact, stable text form for one preference and for profiles. */
     fun encode(): String {
         val n = normalized()
-        return listOf(
-            "v" to "1",
-            "on" to flag(n.enabled),
-            "pattern" to n.pattern.name,
-            "wave" to n.waveform.name,
-            "steps" to n.steps.toString(),
-            "period" to n.periodMs.toString(),
-            "reverse" to flag(n.reverse),
-            "width" to ((n.waveWidth * 100).roundToInt() / 100f).toString(),
-            "palette" to if (n.rainbow) "rainbow" else "own",
-            "colors" to n.palette.joinToString(",") { hex(it) },
-            "sat" to n.saturation.toString(),
-            "bright" to n.brightness.toString(),
-            "mix" to n.mix.toString(),
+        val fields = mutableListOf("v" to "2", "on" to flag(n.enabled))
+        fields += lookFields("", RgbLook.of(n))
+        fields += listOf(
             "layers" to RgbLayer.entries.filter { it in n.layers }.joinToString(",") { it.name },
             "areas" to RgbArea.entries.filter { it in n.areas }.joinToString(",") { it.name },
             "tap" to n.tapReaction.name,
@@ -113,11 +174,16 @@ data class RgbSettings(
             "glow" to n.glowMs.toString(),
             "fps" to n.fps.toString(),
             "saver" to flag(n.pauseInPowerSave),
-        ).joinToString(";") { (k, v) -> "$k=$v" }
+            "keys" to if (n.solidKeys) "solid" else "smooth",
+            "sep" to flag(n.separate),
+        )
+        for (target in RgbTarget.entries) n.looks[target]?.let { fields += lookFields(target.code + ".", it) }
+        return fields.joinToString(";") { (k, v) -> "$k=$v" }
     }
 
     companion object {
         val DEFAULT_PALETTE = listOf(0xFFFF0050.toInt(), 0xFF00C8FF.toInt(), 0xFF9B4DFF.toInt())
+        /** Steps of the "Stufen" preset (and of `steps=` in stage 26 text). */
         val STEPS_RANGE = 2..12
         val PERIOD_RANGE = 500..30_000
         val GLOW_RANGE = 200..5_000
@@ -126,14 +192,30 @@ data class RgbSettings(
         const val BRIGHTNESS_MIN = 10
         const val MIN_COLORS = 2
         const val MAX_COLORS = 6
-        const val MAX_ENCODED_LENGTH = 1024
+        /** Room for the shared look and five own looks with full curves. */
+        const val MAX_ENCODED_LENGTH = 4096
         private const val OPAQUE = 0xFF000000.toInt()
         /** Declared after [DEFAULT_PALETTE]: companion values initialise in order. */
         val DEFAULT = RgbSettings()
 
+        private fun lookFields(prefix: String, look: RgbLook) = listOf(
+            "pattern" to look.pattern.name,
+            "curve" to look.curve.encode(),
+            "period" to look.periodMs.toString(),
+            "reverse" to flag(look.reverse),
+            "width" to ((look.waveWidth * 100).roundToInt() / 100f).toString(),
+            "palette" to if (look.rainbow) "rainbow" else "own",
+            "colors" to look.palette.joinToString(",") { hex(it) },
+            "sat" to look.saturation.toString(),
+            "bright" to look.brightness.toString(),
+            "mix" to look.mix.toString(),
+        ).map { (k, v) -> prefix + k to v }
+
         /**
          * Reads [encoded]; anything missing, unknown or out of range falls back to the default of
          * that one field (numbers are clamped). Null, empty or oversized text gives [DEFAULT].
+         * Stage 26 text has no `curve`: its `wave` (and `steps`) becomes the matching preset curve,
+         * and its one look becomes the shared look of every element.
          */
         fun parse(encoded: String?): RgbSettings {
             if (encoded.isNullOrBlank() || encoded.length > MAX_ENCODED_LENGTH) return DEFAULT
@@ -144,19 +226,13 @@ data class RgbSettings(
             val d = DEFAULT
             fun bool(key: String, default: Boolean) = when (map[key]) { "1" -> true; "0" -> false; else -> default }
             fun int(key: String, default: Int) = map[key]?.toIntOrNull() ?: default
-            return RgbSettings(
+            val shared = readLook(map, "", RgbLook.of(d))
+            val looks = RgbTarget.entries.mapNotNull { target ->
+                val prefix = target.code + "."
+                if (map.keys.none { it.startsWith(prefix) }) null else target to readLook(map, prefix, shared)
+            }.toMap()
+            return shared.applyTo(RgbSettings(
                 enabled = bool("on", d.enabled),
-                pattern = enumOr(map["pattern"], d.pattern),
-                waveform = enumOr(map["wave"], d.waveform),
-                steps = int("steps", d.steps),
-                periodMs = int("period", d.periodMs),
-                reverse = bool("reverse", d.reverse),
-                waveWidth = map["width"]?.toFloatOrNull()?.takeIf { it.isFinite() } ?: d.waveWidth,
-                rainbow = when (map["palette"]) { "own" -> false; "rainbow" -> true; else -> d.rainbow },
-                palette = map["colors"]?.split(',')?.mapNotNull { parseHex(it) } ?: d.palette,
-                saturation = int("sat", d.saturation),
-                brightness = int("bright", d.brightness),
-                mix = int("mix", d.mix),
                 layers = map["layers"]?.let { enumSet<RgbLayer>(it) } ?: d.layers,
                 areas = map["areas"]?.let { enumSet<RgbArea>(it) } ?: d.areas,
                 tapReaction = enumOr(map["tap"], d.tapReaction),
@@ -164,7 +240,32 @@ data class RgbSettings(
                 glowMs = int("glow", d.glowMs),
                 fps = int("fps", d.fps),
                 pauseInPowerSave = bool("saver", d.pauseInPowerSave),
-            ).normalized()
+                solidKeys = when (map["keys"]) { "solid" -> true; "smooth" -> false; else -> d.solidKeys },
+                separate = bool("sep", d.separate),
+                looks = looks,
+            )).normalized()
+        }
+
+        /** One look from the fields with [prefix]; missing or broken fields come from [base]. */
+        private fun readLook(map: Map<String, String>, prefix: String, base: RgbLook): RgbLook {
+            fun get(key: String) = map[prefix + key]
+            fun int(key: String, default: Int) = get(key)?.toIntOrNull() ?: default
+            val curve = RgbCurve.parse(get("curve"))
+                ?: get("wave")?.let { name -> RgbWaveform.entries.firstOrNull { it.name == name } }
+                    ?.let { RgbCurve.preset(it, int("steps", 4).coerceIn(STEPS_RANGE)) }
+                ?: base.curve
+            return RgbLook(
+                pattern = enumOr(get("pattern"), base.pattern),
+                curve = curve,
+                periodMs = int("period", base.periodMs),
+                reverse = when (get("reverse")) { "1" -> true; "0" -> false; else -> base.reverse },
+                waveWidth = get("width")?.toFloatOrNull()?.takeIf { it.isFinite() } ?: base.waveWidth,
+                rainbow = when (get("palette")) { "own" -> false; "rainbow" -> true; else -> base.rainbow },
+                palette = get("colors")?.split(',')?.mapNotNull { parseHex(it) } ?: base.palette,
+                saturation = int("sat", base.saturation),
+                brightness = int("bright", base.brightness),
+                mix = int("mix", base.mix),
+            )
         }
 
         private fun flag(value: Boolean) = if (value) "1" else "0"
@@ -311,33 +412,117 @@ object RgbColors {
         val a = c and BLACK
         return if (luminance(c) > 0.4) lerp(c, a, 0.25f) else lerp(c, 0xFFFFFF or a, 0.3f)
     }
-}
 
-/** The value of a waveform at cycle position [u] (0..1), result 0..1. */
-object RgbWave {
-    fun value(waveform: RgbWaveform, u: Float, steps: Int): Float {
-        val x = u - floor(u)
-        return when (waveform) {
-            RgbWaveform.SINE -> (0.5 - 0.5 * cos(2 * Math.PI * x)).toFloat()
-            RgbWaveform.TRIANGLE -> 1f - abs(2f * x - 1f)
-            RgbWaveform.SAWTOOTH -> x
-            RgbWaveform.STEPS -> min(floor(x * steps) / steps, 1f)
-            RgbWaveform.PULSE -> when {
-                x < 0.3f -> smooth(x / 0.3f)
-                x < 0.45f -> 1f
-                x < 0.75f -> 1f - smooth((x - 0.45f) / 0.3f)
-                else -> 0f
-            }
-        }
+    // --- OKLab and OKLCH (stage 29b): perceptual blending without grey or dark middles ---
+
+    private val toLinear = FloatArray(256) { i ->
+        val v = i / 255f
+        if (v <= 0.04045f) v / 12.92f else ((v + 0.055f) / 1.055f).pow(2.4f)
     }
 
-    fun smooth(t: Float): Float { val c = t.coerceIn(0f, 1f); return c * c * (3f - 2f * c) }
+    private fun fromLinear(v: Float): Int {
+        val c = v.coerceIn(0f, 1f)
+        val s = if (c <= 0.0031308f) c * 12.92f else 1.055f * c.pow(1f / 2.4f) - 0.055f
+        return (s * 255f).roundToInt().coerceIn(0, 255)
+    }
+
+    /** L, a, b of the opaque colour [c] written to [out] (index [at]..[at]+2). */
+    fun toOklab(c: Int, out: FloatArray, at: Int = 0) {
+        val r = toLinear[red(c)]
+        val g = toLinear[green(c)]
+        val b = toLinear[blue(c)]
+        val l = cbrt(0.4122214708f * r + 0.5363325363f * g + 0.0514459929f * b)
+        val m = cbrt(0.2119034982f * r + 0.6806995451f * g + 0.1073969566f * b)
+        val s = cbrt(0.0883024619f * r + 0.2817188376f * g + 0.6299787005f * b)
+        out[at] = 0.2104542553f * l + 0.7936177850f * m - 0.0040720468f * s
+        out[at + 1] = 1.9779984951f * l - 2.4285922050f * m + 0.4505937099f * s
+        out[at + 2] = 0.0259040371f * l + 0.7827717662f * m - 0.8086757660f * s
+    }
+
+    /** Opaque colour from OKLab; out-of-gamut values are clipped per channel. */
+    fun fromOklab(lightness: Float, a: Float, b: Float): Int {
+        val l = lightness + 0.3963377774f * a + 0.2158037573f * b
+        val m = lightness - 0.1055613458f * a - 0.0638541728f * b
+        val s = lightness - 0.0894841775f * a - 1.2914855480f * b
+        val l3 = l * l * l
+        val m3 = m * m * m
+        val s3 = s * s * s
+        val r = 4.0767416621f * l3 - 3.3077115913f * m3 + 0.2309699292f * s3
+        val g = -1.2684380046f * l3 + 2.6097574011f * m3 - 0.3413193965f * s3
+        val bl = -0.0041960863f * l3 - 0.7034186147f * m3 + 1.7076147010f * s3
+        return argb(255, fromLinear(r), fromLinear(g), fromLinear(bl))
+    }
+
+    /**
+     * Blend of the opaque colours [a] and [b] in OKLCH (lightness, chroma and hue of OKLab, hue the
+     * short way round): the middle keeps its colour and brightness, unlike sRGB (dark) or plain
+     * OKLab (greyish between opposite colours). [t] 0 gives exactly [a], 1 exactly [b].
+     */
+    fun mixOklch(a: Int, b: Int, t: Float): Int {
+        val f = if (t.isNaN()) 0f else t.coerceIn(0f, 1f)
+        if (f <= 0f) return a or BLACK
+        if (f >= 1f) return b or BLACK
+        val x = FloatArray(6)
+        toOklab(a, x, 0)
+        toOklab(b, x, 3)
+        val ca = sqrt(x[1] * x[1] + x[2] * x[2])
+        val cb = sqrt(x[4] * x[4] + x[5] * x[5])
+        val lightness = x[0] + (x[3] - x[0]) * f
+        // a grey end has no hue of its own: it takes the hue of the other end
+        if (ca < GREY_CHROMA || cb < GREY_CHROMA)
+            return fromOklab(lightness, x[1] + (x[4] - x[1]) * f, x[2] + (x[5] - x[2]) * f)
+        val ha = kotlin.math.atan2(x[2], x[1])
+        var dh = kotlin.math.atan2(x[5], x[4]) - ha
+        if (dh > Math.PI) dh -= (2 * Math.PI).toFloat()
+        if (dh < -Math.PI) dh += (2 * Math.PI).toFloat()
+        val h = ha + dh * f
+        val c = ca + (cb - ca) * f
+        return fromOklab(lightness, c * kotlin.math.cos(h), c * kotlin.math.sin(h))
+    }
+
+    private const val GREY_CHROMA = 0.02f
+
+    /**
+     * [colors] (a colour table) smoothed with two box passes of [radius] entries per sRGB channel:
+     * the corners of the HSV rainbow at yellow, cyan and magenta become round (no bright creases),
+     * and every value stays a real colour. [cyclic] tables wrap (their last entry repeats the first).
+     */
+    fun smoothTable(colors: IntArray, radius: Int, cyclic: Boolean): IntArray {
+        val n = colors.size
+        if (n < 3 || radius < 1) return colors.copyOf()
+        val count = if (cyclic) n - 1 else n
+        var ch = FloatArray(count * 3)
+        for (i in 0 until count) { ch[i * 3] = red(colors[i]).toFloat(); ch[i * 3 + 1] = green(colors[i]).toFloat(); ch[i * 3 + 2] = blue(colors[i]).toFloat() }
+        repeat(2) {
+            val next = FloatArray(count * 3)
+            for (i in 0 until count) for (c in 0..2) {
+                var sum = 0f
+                for (k in -radius..radius) {
+                    val j = if (cyclic) Math.floorMod(i + k, count) else (i + k).coerceIn(0, count - 1)
+                    sum += ch[j * 3 + c]
+                }
+                next[i * 3 + c] = sum / (2 * radius + 1)
+            }
+            ch = next
+        }
+        return IntArray(n) { i ->
+            val j = if (cyclic && i == n - 1) 0 else i
+            argb(255, ch[j * 3].roundToInt(), ch[j * 3 + 1].roundToInt(), ch[j * 3 + 2].roundToInt())
+        }
+    }
 }
 
 /**
  * Colour of the light for every point and time. Coordinates are 0..1 across the lit area
  * ([aspect] = height / width keeps circles round). Single-threaded: call from the UI thread.
- * Allocation-free per call, so it can run for every key in every frame.
+ * Allocation-free per call, so it can run for every key and every cell of the background grid in
+ * every frame.
+ *
+ * Smoothness (stage 29b): the cycle position goes through the own curve ([RgbCurve], monotone, no
+ * jumps unless drawn), colours come from a palette table made once per engine: own colours are
+ * blended in OKLCH (no grey or dark middle between two colours), the rainbow is HSV with rounded
+ * corners (no bright creases at yellow, cyan and magenta). Time only enters through [phase], which
+ * grows with the real time between frames, so the speed does not depend on the frame rate.
  */
 class RgbEngine(settings: RgbSettings) {
     val settings: RgbSettings = settings.normalized()
@@ -355,6 +540,7 @@ class RgbEngine(settings: RgbSettings) {
     private val tapKey = IntArray(MAX_TAPS)
     private val tapTime = LongArray(MAX_TAPS) { Long.MIN_VALUE }
     private var nextTap = 0
+    private val sample = RgbPatterns.Sample()
 
     private val palette: IntArray = this.settings.let { s ->
         s.palette.map { c ->
@@ -362,6 +548,8 @@ class RgbEngine(settings: RgbSettings) {
             RgbColors.hsv(hsv[0], hsv[1] * s.saturation / 100f, hsv[2] * s.brightness / 100f)
         }.toIntArray()
     }
+    private val tableCyclic: IntArray by lazy { table(true) }
+    private val tableOpen: IntArray by lazy { table(false) }
 
     /** Moves the animation to [nowMs]. Long gaps (paused keyboard) do not jump. */
     fun advance(nowMs: Long) {
@@ -376,6 +564,9 @@ class RgbEngine(settings: RgbSettings) {
 
     /** Restarts timing without changing the phase (after a pause). */
     fun resetClock() { lastAdvanceMs = Long.MIN_VALUE }
+
+    /** Takes over the phase of [other] (a changed setting goes on where the light was, no restart). */
+    fun continueFrom(other: RgbEngine) { if (settings.pattern != RgbPattern.STATIC_RAINBOW) phase = other.phase }
 
     fun tap(x: Float, y: Float, keyId: Int, nowMs: Long) {
         tapX[nextTap] = x
@@ -393,35 +584,63 @@ class RgbEngine(settings: RgbSettings) {
             tapTime.any { it != Long.MIN_VALUE && nowMs - it in 0 until settings.glowMs }
 
     /**
-     * The light at ([x], [y]) for element [keyId] (a key's id, or -1 for the keyboard background
-     * and the strip). The colour is opaque RGB in the low bits; alpha is the strength 0..255
-     * including the mix setting. Alpha 0 means "theme colour unchanged".
+     * The light at ([x0], [y0]) for element [keyId] (a key's id, -1 for the keyboard background
+     * and the strip, [FIELD_KEYS] for the smooth light under all keys). The colour is opaque RGB in
+     * the low bits; alpha is the strength 0..255 including the mix setting. Alpha 0 means "theme
+     * colour unchanged".
      */
     fun light(x0: Float, y0: Float, keyId: Int, nowMs: Long): Int {
-        val s = settings
-        if (!s.enabled) return 0
+        if (!settings.enabled) return 0
         // never throws: a position from a view without size (NaN, infinite) counts as 0
         val x = if (x0.isFinite()) x0 else 0f
         val y = if (y0.isFinite()) y0 else 0f
-        val spatial = when (s.pattern) {
-            RgbPattern.WAVE_HORIZONTAL, RgbPattern.STATIC_RAINBOW -> x
-            RgbPattern.WAVE_VERTICAL -> y
-            RgbPattern.WAVE_DIAGONAL -> (x + y) / 2f
-            RgbPattern.CIRCLE -> {
-                val dx = x - 0.5f
-                val dy = (y - 0.5f) * aspect
-                sqrt(dx * dx + dy * dy) / sqrt(0.25f + 0.25f * aspect * aspect)
-            }
-            RgbPattern.BREATHE -> 0f
-        } * s.waveWidth
-        // forward: the colours travel towards +x (+y, outwards); reverse: the other way
-        val raw = if (s.reverse) phase + spatial else phase - spatial
-        val u = (raw - floor(raw)).toFloat()
-        val v = RgbWave.value(s.waveform, u, s.steps)
-        var color = paletteAt(v, s.waveform.cyclic)
-        var strength = if (s.pattern == RgbPattern.BREATHE) 0.1f + 0.9f * v else 1f
+        return effects(base(x, y), x, y, keyId, nowMs)
+    }
+
+    /** Pattern colour and strength (alpha, before the mix) at ([x], [y]), without tap effects; [effects] finishes it. */
+    fun base(x: Float, y: Float): Int {
+        val s = settings
+        if (!s.enabled) return 0
+        val color: Int
+        var strength = 1f
+        if (s.pattern.textured) {
+            val fp = (phase - floor(phase)).toFloat()
+            val time = ((phase % FLOW_WRAP).toFloat()) * (if (s.reverse) -1f else 1f)
+            RgbPatterns.field(s.pattern, x, y, aspect, time, if (s.reverse) fp else -fp, s.waveWidth, sample)
+            val u = sample.u
+            var c = paletteAt(s.curve.value(u - floor(u)), s.curve.cyclic)
+            if (sample.grey > 0f) c = RgbColors.lerp(c, GREY, sample.grey)
+            if (sample.whiten > 0f) c = RgbColors.lerp(c, RgbColors.WHITE, sample.whiten)
+            if (sample.brightness < 1f) c = RgbColors.lerp(RgbColors.BLACK, c, sample.brightness)
+            color = c
+        } else {
+            val spatial = when (s.pattern) {
+                RgbPattern.WAVE_VERTICAL -> y
+                RgbPattern.WAVE_DIAGONAL -> (x + y) / 2f
+                RgbPattern.CIRCLE -> {
+                    val dx = x - 0.5f
+                    val dy = (y - 0.5f) * aspect
+                    sqrt(dx * dx + dy * dy) / sqrt(0.25f + 0.25f * aspect * aspect)
+                }
+                RgbPattern.BREATHE -> 0f
+                else -> x
+            } * s.waveWidth
+            // forward: the colours travel towards +x (+y, outwards); reverse: the other way
+            val raw = if (s.reverse) phase + spatial else phase - spatial
+            val v = s.curve.value((raw - floor(raw)).toFloat())
+            color = paletteAt(v, s.curve.cyclic)
+            if (s.pattern == RgbPattern.BREATHE) strength = 0.1f + 0.9f * v
+        }
+        return ((strength * 255f).roundToInt().coerceIn(0, 255) shl 24) or (color and 0xFFFFFF)
+    }
+
+    /** [base] with the tap effects for element [keyId] at ([x], [y]) (see [light]). */
+    fun effects(base: Int, x: Float, y: Float, keyId: Int, nowMs: Long): Int {
+        val s = settings
+        var color = base and 0xFFFFFF
+        var strength = RgbColors.alpha(base) / 255f
         when (s.tapReaction) {
-            RgbTapReaction.FLASH -> {
+            RgbTapReaction.FLASH -> if (keyId != FIELD_KEYS) {
                 val f = keyFade(keyId, nowMs)
                 if (s.reactiveOnly) strength *= f
                 else if (f > 0f) {
@@ -443,21 +662,61 @@ class RgbEngine(settings: RgbSettings) {
         return (alpha shl 24) or (color and 0xFFFFFF)
     }
 
+    /** For the smooth light under the keys ([FIELD_KEYS]): strength factor of key [keyId] (reactive flash). */
+    fun keyFactor(keyId: Int, nowMs: Long): Float =
+        if (settings.reactiveOnly && settings.tapReaction == RgbTapReaction.FLASH) keyFade(keyId, nowMs) else 1f
+
+    /** For the smooth light under the keys: share of white over key [keyId] (flash without reactive-only). */
+    fun keyHighlight(keyId: Int, nowMs: Long): Float =
+        if (!settings.reactiveOnly && settings.tapReaction == RgbTapReaction.FLASH) keyFade(keyId, nowMs) * HIGHLIGHT else 0f
+
+    /** Strength 0..1 of the detail tile over the keyboard background (mix, reactive-only fade). */
+    fun overlayStrength(nowMs: Long): Float {
+        if (!settings.enabled) return 0f
+        val mix = settings.mix / 100f
+        if (!settings.reactiveOnly) return mix
+        return when (settings.tapReaction) {
+            RgbTapReaction.NONE, RgbTapReaction.SPEED_UP -> mix * globalFade(nowMs)
+            else -> 0f
+        }
+    }
+
     /** Palette colour at [pos] 0..1: cyclic wraps last to first, otherwise first to last. */
     fun paletteAt(pos: Float, cyclic: Boolean): Int {
         val p = if (pos.isNaN()) 0f else pos.coerceIn(0f, 1f)
-        if (settings.rainbow)
-            return RgbColors.hsv(p * (if (cyclic) 360f else 300f), settings.saturation / 100f, settings.brightness / 100f)
-        val n = palette.size
-        val segments = if (cyclic) n else n - 1
-        val scaled = p * segments
-        val i = min(floor(scaled).toInt(), segments - 1).coerceAtLeast(0)
-        return RgbColors.lerp(palette[i % n], palette[(i + 1) % n], scaled - i)
+        val t = if (cyclic) tableCyclic else tableOpen
+        val scaled = p * (t.size - 1)
+        val i = min(floor(scaled).toInt(), t.size - 2)
+        val f = scaled - i
+        return if (f <= 0f) t[i] else RgbColors.lerp(t[i], t[i + 1], f)
+    }
+
+    /**
+     * The palette as a table with [SEGMENT] entries per segment, so every own colour sits exactly
+     * on an entry. Own colours: OKLCH blend. Rainbow: HSV (cyclic 360°, otherwise 300° as in stage
+     * 26) with its corners rounded over about ±4 % of the cycle.
+     */
+    private fun table(cyclic: Boolean): IntArray {
+        val s = settings
+        if (s.rainbow) {
+            val range = if (cyclic) 360f else 300f
+            val n = (if (cyclic) 6 else 5) * SEGMENT + 1
+            val raw = IntArray(n) { RgbColors.hsv(it * range / (n - 1), s.saturation / 100f, s.brightness / 100f) }
+            return RgbColors.smoothTable(raw, SMOOTH_RADIUS, cyclic)
+        }
+        val k = palette.size
+        val segments = if (cyclic) k else k - 1
+        return IntArray(segments * SEGMENT + 1) { i ->
+            val seg = min(i / SEGMENT, segments - 1)
+            val f = (i - seg * SEGMENT) / SEGMENT.toFloat()
+            RgbColors.mixOklch(palette[seg % k], palette[(seg + 1) % k], f)
+        }
     }
 
     private fun fade(age: Long): Float {
         if (age < 0 || age >= settings.glowMs) return 0f
-        return RgbWave.smooth(1f - age.toFloat() / settings.glowMs)
+        val t = (1f - age.toFloat() / settings.glowMs).coerceIn(0f, 1f)
+        return t * t * (3f - 2f * t)
     }
 
     private fun globalFade(nowMs: Long): Float {
@@ -500,7 +759,49 @@ class RgbEngine(settings: RgbSettings) {
         const val RING_WIDTH = 0.12f
         const val ASPECT_MIN = 0.01f
         const val ASPECT_MAX = 100f
+        /** Element id of the smooth light under all keys: per-key flashes are drawn per key ([keyFactor], [keyHighlight]). */
+        const val FIELD_KEYS = -2
+        /** Palette table entries per palette segment (per 60° of the rainbow). */
+        const val SEGMENT = 256
+        /** Rainbow smoothing radius in table entries (about ±2 % of the cycle in two passes). */
+        private const val SMOOTH_RADIUS = 28
+        private const val GREY = 0xFF8A8A8A.toInt()
+        /** The flow of texture patterns repeats after this many cycles (float precision). */
+        private const val FLOW_WRAP = 4096.0
     }
+}
+
+/**
+ * One engine per distinct look (stage 29): the elements that share a look share an engine, so a
+ * pattern is computed once per frame however many elements use it. All engines run on one clock
+ * and get every tap.
+ */
+class RgbEngines(settings: RgbSettings) {
+    val settings: RgbSettings = settings.normalized()
+    private val byTarget: Map<RgbTarget, RgbEngine>
+    /** Every distinct engine once. */
+    val all: List<RgbEngine>
+
+    init {
+        val cache = HashMap<RgbSettings, RgbEngine>()
+        byTarget = RgbTarget.entries.associateWith { t -> this.settings.forTarget(t).let { s -> cache.getOrPut(s) { RgbEngine(s) } } }
+        all = cache.values.toList()
+    }
+
+    fun forTarget(target: RgbTarget): RgbEngine = byTarget.getValue(target)
+
+    var aspect: Float
+        get() = all.first().aspect
+        set(value) { for (e in all) e.aspect = value }
+
+    fun advance(nowMs: Long) { for (e in all) e.advance(nowMs) }
+    fun resetClock() { for (e in all) e.resetClock() }
+    fun tap(x: Float, y: Float, keyId: Int, nowMs: Long) { for (e in all) e.tap(x, y, keyId, nowMs) }
+    fun clearTaps() { for (e in all) e.clearTaps() }
+    fun hasActiveEffect(nowMs: Long) = all.any { it.hasActiveEffect(nowMs) }
+
+    /** Every element goes on with the phase it had in [old] (the settings page while options change). */
+    fun continueFrom(old: RgbEngines) { for (t in RgbTarget.entries) forTarget(t).continueFrom(old.forTarget(t)) }
 }
 
 /** Whether and how the light runs, from the outside state. Pure, so the battery rules are testable. */
@@ -520,8 +821,7 @@ object RgbRun {
         if (!settings.enabled || (!settings.lightsKeys() && !settings.lightsStrip())) return Mode.OFF
         if (!animationsOn || (powerSave && settings.pauseInPowerSave)) return Mode.STATIC
         if (!visible) return Mode.PAUSED
-        val moves = settings.pattern != RgbPattern.STATIC_RAINBOW && !settings.reactiveOnly
-        return if (moves || effectActive) Mode.RUNNING else Mode.PAUSED
+        return if (settings.moves() || effectActive) Mode.RUNNING else Mode.PAUSED
     }
 }
 

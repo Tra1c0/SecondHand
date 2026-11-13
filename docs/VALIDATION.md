@@ -2060,6 +2060,57 @@ Befunde eines lesenden Reviews der Befehle, behoben:
 - Offen (niedrig, unverändert): 7 Höhe der Mixer-Leiste im Layout; 8 eine Anfrage je Tipp (kein
   Bündeln); 9 englischer Ersatztext; 10 globaler Listener je Besitzer („chips“, „palette“).
 
+## Etappe 29 (RGB-Überarbeitung)
+
+Auftrag des Owners vom 2026-11-13 (ROADMAP 29a–29d mit Referenzbildern; Nachträge: alle sechs
+Muster bewegt und Pflicht, Muster je Element wählbar mit „Gleiches Muster überall“ als Vorgabe).
+Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätetest.
+
+- **29a Seite:** große Live-Vorschau oben (runde Ecken), Karten je Gruppe, Muster als
+  Bildergalerie, Kurven-Editor, Wahl des Elements. Geprüft in Robolectric
+  (`RgbSettingsScreenTest`: alle bisherigen Optionen speichern weiter, Kurve per Touch, eigene
+  Looks, bewegte Vorschau aller sechs neuen Muster) und durch Ansehen der Bilder
+  `app/build/agent-previews/rgb-settings-top.png` und `rgb-settings-curve.png`.
+- **29b Weichheit:** gemessen in `RgbPatternsTest`: größter Sprung zwischen benachbarten Werten
+  bei 96 Spalten (von 255) Rauten 12, Raster 11, Höhenlinien 19, Lamellen 22 (ohne ihre gewollte
+  Kante), LED 25, Tinte 43; je Bild bei 30 s Dauer alle Muster höchstens 3, Lamellen an der
+  wandernden Kante 8. Regenbogen: zweite Differenz der Kanäle bei 3°-Schritten 3 statt 13 (HSV).
+  Rot–Blau in OKLCH heller und farbiger als in sRGB. Render-Test: weiches Licht in der Taste
+  entspricht dem gerechneten Raster (±4 je Kanal), Kantensprung zwischen q und w kleiner als ein
+  Drittel des Sprungs bei einfarbigen Tasten.
+- **29c Muster:** sechs Texturmuster, deterministisch, bewegt (Kern- und Vorschau-Test), mit
+  Merkmalstests (Tinte mit dunklen und hellen Flächen, Lamellen mit Farbwechsel > 90° an der
+  Kante, Raster mit dunklen Ecken und Schraffur auf der Taste, LED-Blende auf Tasten und im
+  Spalt, Kacheln nahtlos). Selbst mit den Referenzbildern verglichen (Bilder unten): Rauten,
+  Lamellen, Raster, LED-Punkte und Höhenlinien kommen den Vorlagen nahe; die Tinte ist weicher
+  und gröber als die Vorlage, weil das Farbfeld nur im 48er-Raster gerechnet wird (schärfere
+  Ränder zeigten Blöcke, P93). Ein Kachel-Versuch für feinen Rauch sah wie Risse aus und wurde
+  verworfen.
+- **29d Kurve:** `RgbCurveTest` (Punkte, kein Überschwingen, keine Sprünge, Grenzen, Text,
+  Vorlagen, Migration aller fünf alten Verläufe aus dem Text von Etappe 26, eigene Looks), Vorlagen
+  gegen die alten Formen (Sägezahn und An- und Abstieg exakt, Sinus ≤ 0,02, Dreieck ≤ 0,03,
+  Stufen außerhalb der 1-%-Anstiege exakt auf drei Nachkommastellen). Compose-Test: Tippen fügt
+  hinzu, Ziehen verschiebt, Ende nur senkrecht, langes Drücken und Hinausziehen entfernen, „+“ und
+  „Punkt entfernen“, Vorlagen, Stufen-Regler. Annahme zur Bedeutung der Achsen ist mit dem Owner
+  noch zu bestätigen.
+- **Kosten je Bild** (`RgbPatternsTest.oneFrameOfEachPatternFitsTheBudget`, JVM des geteilten
+  Testrechners, 1634 Werte): Wellen 0,19–0,27 ms, Rauten 0,37, Lamellen 0,36, LED 0,35,
+  Raster 0,46, Höhenlinien 0,67, Tinte 1,03 ms; Kacheln einmalig 21 ms (Rauten) und 38 ms
+  (Höhenlinien). Nicht gemessen: Telefon, GPU, Akku.
+- **Befehle:** `python3 tools/dev.py core-tests`-Äquivalent (`:agent-core:test`): 245 Tests,
+  0 Fehler. RGB-App-Tests (`--tests 'helium314.keyboard.agent.Rgb*'`): 30 Tests, 0 Fehler.
+  Agent-Tests (dieselben Filter wie `python3 tools/dev.py agent-tests`): 644 Tests, 0 Fehler
+  (9 min 48 s, zwei Worker). Volle Upstream-Suite nicht lokal (geteilter Rechner; GitHub-CI).
+  `python3 tools/dev.py build`: erfolgreich (Debug-APK unter `artifacts/`, nicht versioniert).
+  `python3 -I scripts/docs_sync.py --check`: grün.
+- **Geändert am Upstream:** nur eine Zeile in `KeyboardView.java` (`drawOverBackground`), die
+  Datei war schon geändert.
+- **Bilder** (nicht im Repo): `app/build/agent-previews/rgb-keyboard-{ink,diamonds,slats,hatch,led,topo,own-looks}.png`,
+  `rgb-preview-*.png`, `rgb-settings-*.png`, `agent-core/build/rgb-previews/*.png`.
+- **Nicht geprüft:** jedes Gerät (Aussehen, Flüssigkeit, Bildkosten, Akku, TalkBack im
+  Kurven-Editor), Android unter 10 (Shader-Verhalten des alten Renderers, P90), das Ziehen mit
+  echten Fingern, Lesbarkeit über sehr feinen Mustern am Gerät.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

@@ -143,24 +143,38 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   Sicherung. Löschen eines Designs entfernt Farbsatz, Listeneintrag und Bild.
 - HeliBoards Sicherung erfasst die Einstellungen, aber nicht den Ordner `agent_designs/`.
 
-## RGB-Beleuchtung (26)
+## RGB-Beleuchtung (26, 29)
 
 - Eine Einstellung `agent_rgb_lighting` in den Tastatureinstellungen (geräteverschlüsselt wie
   alle Tastatureinstellungen). Fehlt sie, gilt die Vorgabe (aus); die Einstellungsseite entfernt
   sie, wenn alles wieder auf der Vorgabe steht.
-- Format: Text `schlüssel=wert` durch `;` getrennt, höchstens 1024 Zeichen, z. B.
-  `v=1;on=1;pattern=WAVE_HORIZONTAL;wave=SAWTOOTH;steps=4;period=4000;reverse=0;width=1.0;`
-  `palette=rainbow;colors=FF0050,00C8FF,9B4DFF;sat=100;bright=100;mix=100;layers=KEY_BACKGROUND;`
-  `areas=LETTERS,FUNCTIONAL,SPACE,NUMBER_ROW;tap=NONE;reactive=0;glow=800;fps=30;saver=1`
-  (`RgbSettings.encode`). Gelesen wird feldweise (`RgbSettings.parse`): Fehlendes, Unbekanntes
-  und Ungültiges bekommt die Vorgabe dieses Feldes, Zahlen werden begrenzt (Dauer 0,5–30 s,
-  Nachleuchten 0,2–5 s, Wellenbreite 0,25–4, Stufen 2–12, Helligkeit 10–100 %, 2–6 Farben,
-  Bildrate 30 oder 60).
+- Format seit Etappe 29 (`v=2`): Text `schlüssel=wert` durch `;` getrennt, höchstens 4096 Zeichen
+  (vorher 1024), z. B.
+  `v=2;on=1;pattern=WAVE_HORIZONTAL;curve=0:0,1:1;period=4000;reverse=0;width=1.0;palette=rainbow;`
+  `colors=FF0050,00C8FF,9B4DFF;sat=100;bright=100;mix=100;layers=KEY_BACKGROUND;`
+  `areas=LETTERS,FUNCTIONAL,SPACE,NUMBER_ROW;tap=NONE;reactive=0;glow=800;fps=30;saver=1;keys=smooth;sep=0`
+  (`RgbSettings.encode`). Neu: `curve` (Kurve als `x:y`-Paare mit `,`, höchstens drei
+  Nachkommastellen, 2–24 Punkte, x streng steigend mit mindestens 0,01 Abstand, Enden 0 und 1,
+  Werte 0–1), `keys` (`smooth` oder `solid` = jede Taste einfarbig), `sep` (1 = eigene Looks je
+  Element) und je Element mit eigenem Look dieselben Look-Felder mit Vorsilbe `k.` (Tasten),
+  `b.` (Hintergrund), `l.` (Beschriftung), `s.` (Vorschläge), `t.` (Leistenknöpfe), z. B.
+  `b.pattern=INK;b.curve=…;b.period=12000`. Muster neu: `INK`, `DIAMONDS`, `SLATS`, `HATCH`,
+  `LED`, `TOPO`.
+- Gelesen wird feldweise (`RgbSettings.parse`): Fehlendes, Unbekanntes und Ungültiges bekommt die
+  Vorgabe dieses Feldes (in einem eigenen Look: den Wert des gemeinsamen Looks), Zahlen werden
+  begrenzt (Dauer 0,5–30 s, Nachleuchten 0,2–5 s, Wellenbreite 0,25–4, Helligkeit 10–100 %,
+  2–6 Farben, Bildrate 30 oder 60). Eine kaputte Kurve (zu viele Punkte, NaN, unlesbar) wird
+  verworfen.
+- Übernahme alter Einstellungen (Etappe 26, `v=1`): Ohne `curve` wird `wave` (und `steps`,
+  2–12) zur passenden Vorlage-Kurve; der eine Look gilt für alle Elemente, Tasten weich. Die
+  Einstellung wird dabei nicht umgeschrieben, erst die nächste Änderung auf der Seite speichert
+  das neue Format.
 - Designprofil: derselbe Text als Wert `agent_rgb_lighting`; beim Import feldweise begrenzt.
   Ein Designprofil von vor Etappe 26 hat den Wert leer und lässt die Beleuchtung unverändert;
   „Zurücksetzen“ schaltet sie aus.
 - Sonst speichert die Beleuchtung nichts: Tipp-Positionen der Effekte (höchstens acht) liegen nur
-  im Speicher und verfallen nach der Nachleuchtzeit und beim Ausblenden der Tastatur. Keine Texte,
+  im Speicher und verfallen nach der Nachleuchtzeit und beim Ausblenden der Tastatur. Die
+  Muster-Kacheln entstehen im Speicher und werden nicht auf die Platte geschrieben. Keine Texte,
   keine Logs.
 
 ## Screenshot-Kopien (23d)

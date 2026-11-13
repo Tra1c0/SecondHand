@@ -15,6 +15,7 @@ import android.widget.TextView
 import androidx.core.graphics.drawable.DrawableCompat
 import dev.agentkeyboard.core.RgbArea
 import dev.agentkeyboard.core.RgbColors
+import dev.agentkeyboard.core.RgbTarget
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.common.ColorType
 import helium314.keyboard.latin.common.Colors
@@ -169,10 +170,11 @@ object RgbStrip {
         override fun getOpacity() = PixelFormat.TRANSLUCENT
     }
 
-    private fun light(view: View, strip: View): Int {
+    /** Light for [view] from the engine of [target] (words: suggestions, buttons: toolbar; stage 29). */
+    private fun light(view: View, strip: View, target: RgbTarget): Int {
         view.getLocationInWindow(viewLocation)
         val x = (viewLocation[0] - stripLocation[0] + view.width / 2f) / strip.width.coerceAtLeast(1)
-        return RgbLighting.engine.light(x.coerceIn(0f, 1f), 0f, -1, RgbLighting.drawTimeMs)
+        return RgbLighting.engineFor(target).light(x.coerceIn(0f, 1f), 0f, -1, RgbLighting.drawTimeMs)
     }
 
     private fun paintText(view: TextView, strip: View, background: Int) {
@@ -182,7 +184,7 @@ object RgbStrip {
             view.setTag(R.id.agent_rgb_original, original)
         }
         val theme = original.text?.defaultColor ?: view.currentTextColor
-        val color = RgbColors.label(theme, light(view, strip), true, background)
+        val color = RgbColors.label(theme, light(view, strip, RgbTarget.SUGGESTIONS), true, background)
         original.lastColor = color
         if (view.currentTextColor != color) view.setTextColor(color)
     }
@@ -198,7 +200,7 @@ object RgbStrip {
             original = Original(null, view.colorFilter, if (useFilter) null else tint)
             view.setTag(R.id.agent_rgb_original, original)
         }
-        val light = light(view, strip)
+        val light = light(view, strip, RgbTarget.TOOLBAR)
         if (useFilter) {
             val color = RgbColors.label(filterColor, light, true, background)
             if (!force && original.lastFilter != null && original.lastColor == color) return

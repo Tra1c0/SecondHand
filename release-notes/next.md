@@ -36,3 +36,20 @@
   App das Bild wirklich angenommen hat; sonst bleiben sie stehen und ein Hinweis erscheint.
   Setzt eine App das Bild selbst an die Schreibmarke, heißt der Hinweis jetzt „Bild eingefügt …“
   statt „Text geändert“. Noch auf keinem Gerät ausprobiert.
+
+## Nächster Build
+
+- Neu: RGB-Beleuchtung überarbeitet. Die Seite (Einstellungen → Aussehen → „RGB-Beleuchtung“)
+  hat oben eine große Live-Vorschau und darunter Karten; die Muster wählst du als Bilder.
+- Neu: sechs bewegte Muster nach deinen Vorlagen: Tinte, Rauten, Lamellen, Raster, LED-Punkte,
+  Höhenlinien. Sie fließen bzw. wandern langsam (Tempo über „Dauer eines Durchlaufs“).
+- Neu: Schaltest du „Gleiches Muster überall“ aus, bekommen Tasten, Hintergrund, Beschriftung,
+  Vorschläge und Leistenknöpfe je ein eigenes Muster mit eigenem Verlauf, Tempo und eigenen Farben.
+- Neu: Der Verlauf ist eine eigene Kurve: Punkte ziehen, durch Tippen hinzufügen, durch langes
+  Drücken oder Hinausziehen entfernen. Die bisherigen Verläufe gibt es als Vorlagen; deine
+  bisherige Wahl wird automatisch zur passenden Kurve.
+- Weicher: Die Farben laufen jetzt ohne Stufen über die Tasten („Jede Taste einfarbig“ stellt
+  das alte Verhalten wieder her), eigene Farben werden ohne graue Mitte gemischt, der Regenbogen
+  hat keine hellen Kanten mehr.
+- Noch auf keinem Gerät ausprobiert; Akkuverbrauch und Ruckelfreiheit auf dem Telefon sind nicht
+  gemessen.

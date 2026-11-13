@@ -8,6 +8,8 @@ import android.provider.Settings.Global
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.test.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import dev.agentkeyboard.core.RgbArea
 import dev.agentkeyboard.core.RgbLayer
@@ -136,7 +138,7 @@ class RgbSettingsScreenTest {
     }
 
     @Test fun aPreviewWithoutWidthDoesNotCrash() {
-        val engine = dev.agentkeyboard.core.RgbEngine(RgbSettings(enabled = true, pattern = RgbPattern.CIRCLE,
+        val engine = dev.agentkeyboard.core.RgbEngines(RgbSettings(enabled = true, pattern = RgbPattern.CIRCLE,
             layers = setOf(RgbLayer.KEY_BACKGROUND, RgbLayer.KEYBOARD_BACKGROUND, RgbLayer.LABEL), areas = RgbArea.entries.toSet()))
         compose.setContent {
             Theme(true) {
@@ -166,6 +168,143 @@ class RgbSettingsScreenTest {
         compose.mainClock.advanceTimeBy(100)
         val after = keyPixel()
         assertNotEquals(before, after, "tapped key lights up")
+    }
+
+    // --- stage 29 ---
+
+    /** Position of curve point ([x], [y]) inside the curve editor node, in its own pixels. */
+    private fun curveAt(x: Float, y: Float): androidx.compose.ui.geometry.Offset {
+        val node = compose.onNodeWithTag("agent_rgb_curve").fetchSemanticsNode()
+        val pad = 22f * app.resources.displayMetrics.density
+        return androidx.compose.ui.geometry.Offset(pad + x * (node.size.width - 2 * pad), pad + (1 - y) * (node.size.height - 2 * pad))
+    }
+
+    private fun curve() = saved.curve
+
+    @Test fun theCurveIsEditedByTouch() {
+        RgbLighting.write(prefs, RgbSettings(enabled = true))
+        stillPage()
+        compose.onNodeWithTag("agent_rgb_curve").performScrollTo()
+        compose.onNodeWithTag("agent_rgb_wave_SAWTOOTH").assertIsSelected()
+        assertEquals(2, curve().points.size)
+        // tap on an empty spot: a new point exactly there
+        compose.onNodeWithTag("agent_rgb_curve").performTouchInput { click(curveAt(0.5f, 0.85f)) }
+        compose.waitForIdle()
+        assertEquals(3, curve().points.size)
+        assertEquals(0.5f, curve().points[1].x, 0.02f)
+        assertEquals(0.85f, curve().points[1].y, 0.02f)
+        compose.onNodeWithTag("agent_rgb_wave_SAWTOOTH").assertIsNotSelected()
+        compose.onNode(hasText("Eigene Kurve")).assertExists()
+        // drag it: saved when the finger lifts, ends keep their place
+        compose.onNodeWithTag("agent_rgb_curve").performTouchInput {
+            down(curveAt(0.5f, 0.85f)); moveTo(curveAt(0.4f, 0.6f)); moveTo(curveAt(0.3f, 0.2f)); up()
+        }
+        compose.waitForIdle()
+        assertEquals(0.3f, curve().points[1].x, 0.02f)
+        assertEquals(0.2f, curve().points[1].y, 0.02f)
+        assertEquals(0f, curve().points.first().x)
+        assertEquals(1f, curve().points.last().x)
+        // the left end moves only up and down
+        compose.onNodeWithTag("agent_rgb_curve").performTouchInput { down(curveAt(0f, 0f)); moveTo(curveAt(0.2f, 0.4f)); moveTo(curveAt(0.25f, 0.5f)); up() }
+        compose.waitForIdle()
+        assertEquals(0f, curve().points.first().x)
+        assertEquals(0.5f, curve().points.first().y, 0.02f)
+        // long press removes a middle point, never an end
+        compose.onNodeWithTag("agent_rgb_curve").performTouchInput { longClick(curveAt(0.3f, 0.2f)) }
+        compose.waitForIdle()
+        assertEquals(2, curve().points.size)
+        compose.onNodeWithTag("agent_rgb_curve").performTouchInput { longClick(curveAt(1f, 1f)) }
+        compose.waitForIdle()
+        assertEquals(2, curve().points.size, "the end stays")
+        // "+" adds a point on the curve in the widest gap and selects it; dragged out of the area it is gone
+        click("agent_rgb_curve_add")
+        assertEquals(3, curve().points.size)
+        val added = curve().points[1]
+        assertEquals(0.5f, added.x, 0.001f)
+        compose.onNodeWithTag("agent_rgb_curve_remove").assertIsEnabled()
+        compose.onNodeWithTag("agent_rgb_curve").performTouchInput {
+            down(curveAt(added.x, added.y)); moveTo(curveAt(added.x, -0.4f)); moveTo(curveAt(added.x, -1.2f)); up()
+        }
+        compose.waitForIdle()
+        assertEquals(2, curve().points.size, "dragged out: removed")
+        // the remove button acts on the selected point
+        click("agent_rgb_curve_add")
+        click("agent_rgb_curve_remove")
+        assertEquals(2, curve().points.size)
+        compose.onNodeWithTag("agent_rgb_curve_remove").assertIsNotEnabled()
+        // presets load their points; steps get their slider
+        click("agent_rgb_wave_PULSE")
+        assertEquals(dev.agentkeyboard.core.RgbCurve.preset(dev.agentkeyboard.core.RgbWaveform.PULSE), curve())
+        compose.onNodeWithTag("agent_rgb_steps").assertDoesNotExist()
+        click("agent_rgb_wave_STEPS")
+        assertEquals(4, dev.agentkeyboard.core.RgbCurve.stepCount(curve()))
+        compose.onNodeWithTag("agent_rgb_steps").assertExists()
+        // the keyboard reads exactly what the page wrote
+        assertEquals(saved, RgbSettings.parse(prefs.getString(RgbLighting.PREF, null)))
+        saveNode("agent_rgb_options", "rgb-settings-curve.png")
+    }
+
+    @Test fun everyElementGetsItsOwnLook() {
+        RgbLighting.write(prefs, RgbSettings(enabled = true))
+        stillPage()
+        compose.onNodeWithTag("agent_rgb_target_KEYS").assertDoesNotExist()
+        click("agent_rgb_same_everywhere")
+        assertTrue(saved.separate)
+        click("agent_rgb_target_BACKGROUND")
+        // the background is not lit yet: the page says so
+        compose.onNode(hasText("„Hintergrund“ leuchtet gerade nicht.", substring = true)).assertExists()
+        click("agent_rgb_pattern_INK")
+        click("agent_rgb_wave_SINE")
+        assertEquals(RgbPattern.INK, saved.forTarget(dev.agentkeyboard.core.RgbTarget.BACKGROUND).pattern)
+        assertEquals(dev.agentkeyboard.core.RgbCurve.preset(dev.agentkeyboard.core.RgbWaveform.SINE), saved.forTarget(dev.agentkeyboard.core.RgbTarget.BACKGROUND).curve)
+        assertEquals(RgbPattern.WAVE_HORIZONTAL, saved.forTarget(dev.agentkeyboard.core.RgbTarget.KEYS).pattern, "the keys keep theirs")
+        click("agent_rgb_target_KEYS")
+        compose.onNodeWithTag("agent_rgb_pattern_WAVE_HORIZONTAL").assertIsSelected()
+        click("agent_rgb_pattern_LED")
+        assertEquals(RgbPattern.LED, saved.forTarget(dev.agentkeyboard.core.RgbTarget.KEYS).pattern)
+        // back to one look for everything: the shared one (the own looks stay stored)
+        click("agent_rgb_same_everywhere")
+        assertFalse(saved.separate)
+        assertEquals(RgbPattern.WAVE_HORIZONTAL, saved.forTarget(dev.agentkeyboard.core.RgbTarget.BACKGROUND).pattern)
+        click("agent_rgb_pattern_TOPO")
+        assertEquals(RgbPattern.TOPO, saved.pattern)
+        click("agent_rgb_solid_keys")
+        assertTrue(saved.solidKeys)
+    }
+
+    @Test fun theNewPatternsMoveInThePreview() {
+        val previews = File("build/agent-previews").apply { mkdirs() }
+        // one page, opened again for each pattern (the page reads the preference when it opens)
+        var shown by androidx.compose.runtime.mutableStateOf(RgbPattern.INK)
+        compose.mainClock.autoAdvance = false
+        fun write(p: RgbPattern) = RgbLighting.write(prefs, RgbSettings(enabled = true, pattern = p, periodMs = 3000,
+            layers = setOf(RgbLayer.KEY_BACKGROUND, RgbLayer.KEYBOARD_BACKGROUND), areas = RgbArea.entries.toSet()))
+        write(shown)
+        compose.setContent { Theme(true) { androidx.compose.runtime.key(shown) { AgentRgbScreen {} } } }
+        for (pattern in RgbPattern.entries.filter { it.textured }) {
+            write(pattern)
+            shown = pattern
+            compose.mainClock.advanceTimeBy(1500)
+            val first = previewPicture()
+            compose.mainClock.advanceTimeBy(600)
+            val later = previewPicture()
+            assertFalse(first.sameAs(later), "$pattern moves")
+            File(previews, "rgb-preview-${pattern.name.lowercase()}.png").outputStream().use { later.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        }
+        saveNode("agent_rgb_options", "rgb-settings-top.png")
+    }
+
+    private fun previewPicture(): Bitmap {
+        val bounds = compose.onNodeWithTag("agent_rgb_preview").fetchSemanticsNode().boundsInRoot
+        val full = screenshot()
+        return Bitmap.createBitmap(full, bounds.left.roundToInt(), bounds.top.roundToInt(), bounds.width.roundToInt(), bounds.height.roundToInt())
+    }
+
+    private fun saveNode(@Suppress("SameParameterValue") tag: String, name: String) {
+        val full = screenshot()
+        File("build/agent-previews").mkdirs()
+        File("build/agent-previews/$name").outputStream().use { full.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        compose.onNodeWithTag(tag).assertExists()
     }
 
     // a point inside the "y" key of the third row: 3/22 of the width, 2.5 rows (plus padding) from the bottom

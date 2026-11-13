@@ -19,22 +19,10 @@ Reihenfolge von oben nach unten.
   Rastpunkte („attraction points“), an denen der Regler leicht einrastet (z. B. Standardwert,
   runde Werte). Vor dem Bau klären: welche Rastpunkte je Regler, und ob die Ticks der
   Tastenvibration oder der Android-Einstellung folgen. (M)
-- **29 RGB-Beleuchtung überarbeiten** (Wunsch des Owners für Build 13, 2026-11-13, mit sieben
-  Referenzbildern im Chat; die Bilder liegen nicht im Repo). (L)
-  - 29a Einstellungsseite und Vorschau moderner gestalten.
-  - 29b Übergänge zwischen Farben weich (keine sichtbaren Sprünge, auch in der Animation).
-  - 29c Neue animierte Muster nach den Referenzen: fließende Farbschwaden wie Tinte in Wasser
-    (türkis, grün, gelb, rot auf Schwarz); diagonale Streifen mit Regenbogenverlauf und
-    überlagerten, leuchtenden Rauten-Rahmen; diagonale Lamellen mit hartem Farbwechsel grün/
-    orange zu violett; Regenbogen-Verlauf mit feinem Diagonal-Raster und dunkler Vignette;
-    Punkt-Raster (LED-Matrix) mit fließendem Regenbogen; Höhenlinien (Topografie) über weichem
-    Regenbogen. Auf der Tastatur bedeutet das: das Muster liegt über Hintergrund bzw. Tasten und
-    bewegt sich; Leistungsbudget wie bei 26 (nur sichtbar, Energiesparmodus).
-  - 29d Statt der festen Auswahl „Verlauf“ (weich, Zickzack, Sägezahn, Stufen …) ein eigener
-    Kurven-Regler wie in der Skizze des Owners: Achsen, eine Kurve durch verschiebbare
-    Kontrollpunkte (Kreise mit Kreuz), Punkte hinzufügen und entfernen. Annahme des Leads, vor dem
-    Bau mit dem Owner bestätigen: x = Zeit bzw. Position im Muster, y = Helligkeit oder
-    Farbposition.
+- **29 RGB-Beleuchtung überarbeiten** (Wunsch des Owners, 2026-11-13) ist gebaut (siehe
+  FEATURES.md): 29a neue Seite, 29b weiche Übergänge, 29c sechs bewegte Texturmuster, je Element
+  wählbar, 29d eigene Kurve. Offen: Gerätetest (Aussehen, Bildkosten, Akku) und die Bestätigung
+  der Annahme zur Kurve (x = Stelle im Durchlauf, y = Farbe bzw. Helligkeit bei „Atmen“).
 - **30 Diagnose-Seite** (Vorschlag des Leads, vom Owner für Build 13 gewünscht, 2026-11-13).
   Einstellungen → Diagnose zeigt ohne Inhalte, was das Telefon wirklich macht: Stufe der
   Haptik-Kette (Primitive, Wellenform, Pulse), Hauptwörterbuch für Symbole malen vorhanden, Grund
