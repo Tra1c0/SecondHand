@@ -415,8 +415,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   wenn `areAllPrimitivesSupported`; sonst ab API 26 mit `hasAmplitudeControl` eine Wellenform
   mit Amplituden; sonst drei gleiche Pulse von 12 ms. `play` nur mit `mVibrateOn` (Tastenvibration
   an, Gerät hat Vibrator) und nicht bei „Bitte nicht stören“ (`zen_mode` wie LatinIME), außer
-  `mVibrateInDndMode`; ab API 33 mit `USAGE_TOUCH`, damit die Stärke für Berührungen aus den
-  Android-Einstellungen gilt. `Device` ist die Naht für Tests (`deviceForTest`); eine Ausnahme des
+  `mVibrateInDndMode`; ohne Usage-Attribute wie HeliBoards eigene Tastenvibration, damit der
+  System-Schalter für Berührungs-Haptik die Kette nicht stumm schaltet, solange die Tasten
+  vibrieren (Review Build 12). Auch Halten und Doppeltipp mit Rückgängig/Wiederholen spielen die
+  Kette, auch wenn nichts rückgängig zu machen ist. `Device` ist die Naht für Tests (`deviceForTest`); eine Ausnahme des
   Vibrators wird geschluckt (P67).
 - `K/settings/screens/AgentSpaceScreen.kt`: Seite „Leertaste“ (eine `ListPreference` je Geste,
   Vorgabe = geerbter Wert, „Standard“ entfernt den eigenen Wert), erreichbar über Erweitert und
@@ -1485,7 +1487,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Feld und war deshalb nicht betroffen; der Umschaltweg selbst war schon derselbe. Deshalb gilt
   eine Befehlswahl für dasselbe Feld (`SubtypeChoice`). Robolectric bildet nur den Neustart mit
   Hint-Locale nach; ob das Xiaomi-Telefon genau so neu startet oder das System zusätzlich
-  `onCurrentInputMethodSubtypeChanged` ruft, ist ungeprüft.
+  `onCurrentInputMethodSubtypeChanged` ruft, ist ungeprüft. Grenze: Die Feldidentität ist Paket,
+  `fieldId` und Eingabeklasse; viele Felder (Compose, WebView, Chats) teilen `fieldId` 0 bzw. eine
+  ID über alle Chats, dort hält die Wahl auch im nächsten Chat derselben App. Ein Drehen des
+  Bildschirms kann über `onStartInputInternal(null, …)` die Wahl löschen (altes Verhalten).
 - **P67** Ein Telefon hat einen Vibrationsmotor: „links nach rechts“ ist nicht darstellbar, nur
   Stärke und Rhythmus (`HapticChain`). In einer `VibrationEffect.Composition` zählt die
   Verzögerung ab dem Ende des vorigen Primitivs, nicht ab dessen Start. Ohne Amplitudensteuerung

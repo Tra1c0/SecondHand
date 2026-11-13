@@ -1810,6 +1810,25 @@ Befunde eines lesenden Reviews der Befehle, behoben:
 - Nicht geprüft: ob die Ticks auf dem Xiaomi zu spüren und zu unterscheiden sind, welche Stufe
   das Telefon wirklich spielt (Primitive, Wellenform, Pulse), „Bitte nicht stören“ am Gerät.
 
+## Build 12: Prüfer zu Sprachwahl-Korrektur und Haptik-Kette
+
+- Prüfer (lesend, Engine-Review Pflicht) zu `e5c3be0` und `a56cdab`: kein hoher Befund. Der
+  Eingriff in `onStartInputInternal` ist eng begrenzt, Threading und Lebensdauer der Wahl halten.
+- 1 (mittel) Ursache der fehlenden Umlaute nur Hypothese; Test bildete nur „Sprache pro App“ an
+  mit Hint `de` ab: neuer Test `InputLogicTest.typedCommandGermanChoiceKeepsUmlautsWithAnEnglishHintAndNoPerAppLanguage`
+  (Einstellung aus, Hint `en`, `@deutsch`, Neustart des Felds → Deutsch mit ä, ö, ü, ß). Der
+  bestehende Test prüft jetzt nach `@deutsch` ä, ö, ü, ß statt nur ä. Gegenprobe: Mit
+  ausgeschaltetem `holds`-Rücksprung scheitern beide Tests, mit ihm laufen sie. Am Xiaomi
+  unbestätigt (kein Gerätetest), ebenso ob MIUI zusätzlich `onCurrentInputMethodSubtypeChanged` ruft.
+- 2, 3 (niedrig) grobe Feldidentität (`fieldId` 0, Chats) und Drehen des Bildschirms: in P66
+  dokumentiert, nicht geändert.
+- 5 (mittel) Kette folgte dem System-Schalter für Berührungs-Haptik, die Tastenvibration nicht:
+  behoben, `HapticChain` vibriert ohne Usage-Attribute wie `AudioAndHapticFeedbackManager.vibrate`.
+- 7 (niedrig) Kette auch bei Halten/Doppeltipp und ohne etwas zum Rückgängigmachen: dokumentiert
+  (ARCHITECTURE, ANLEITUNG). 6 (Tick 0,3 evtl. kaum spürbar): nur am Gerät prüfbar. 8, 9: belassen.
+- Geprüft: `InputLogicTest.typedCommand*`, `InputLogicTest.generatedSpaceUndo*`,
+  `SubtypeChoiceTest`, `HapticChainTest` grün. Volle Läufe: siehe Abschluss von Build 12.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

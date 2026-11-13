@@ -1019,6 +1019,10 @@ class InputLogicTest {
                 assertEquals(wanted, RichInputMethodManager.getInstance().currentSubtype.rawSubtype, "$word after the restart")
                 assertEquals(helium314.keyboard.latin.RichInputMethodSubtype.get(wanted).locale, Settings.getValues().mLocale)
                 assertEquals(wanted == german, "ä" in popupsOfA(), word)
+                // the owner missed the umlauts after en -> de: all German letters must be back
+                // (Spanish has its own "ü", so only the German side is checked for every letter)
+                if (wanted == german) for ((letter, umlaut) in listOf('a' to "ä", 'o' to "ö", 'u' to "ü", 's' to "ß"))
+                    assertTrue(umlaut in popupsOf(letter), "$word: $umlaut on $letter")
             }
             // the same as the built-in switch: identical subtype, settings locale and popup keys
             val viaCommand = popupsOfA()
@@ -1041,12 +1045,52 @@ class InputLogicTest {
         }
     }
 
+    @Test fun typedCommandGermanChoiceKeepsUmlautsWithAnEnglishHintAndNoPerAppLanguage() {
+        // the likely setup on the owner's phone: "language per app" off (default), the app hints English
+        val german = SubtypeSettings.getResourceSubtypesForLocale("de".constructLocale()).first()
+        val english = SubtypeSettings.getResourceSubtypesForLocale("en-US".constructLocale()).first()
+        latinIME.prefs().edit { putString(Settings.PREF_MORE_POPUP_KEYS, "normal"); putBoolean(Settings.PREF_SAVE_SUBTYPE_PER_APP, false) }
+        for (subtype in listOf(german, english)) SubtypeSettings.addEnabledSubtype(latinIME.prefs(), subtype)
+        fun field() = EditorInfo().apply {
+            inputType = currentInputType; packageName = "com.example"; fieldId = 9
+            hintLocales = android.os.LocaleList(Locale.US)
+        }
+        ShadowInputMethodService.currentPackageName = "com.example"
+        ShadowInputMethodService.currentFieldId = 9
+        try {
+            helium314.keyboard.agent.KeyboardCommands.load(latinIME)
+            latinIME.switchToSubtype(english)
+            setText("")
+            latinIME.mHandler.onStartInput(field(), false)
+            handleMessages()
+            assertEquals(english, RichInputMethodManager.getInstance().currentSubtype.rawSubtype)
+            chainInput("@deutsch")
+            val strip = android.widget.FrameLayout(latinIME)
+            val chips = helium314.keyboard.agent.KeyboardCommands.createChipsView(latinIME, strip) as android.view.ViewGroup
+            (chips.getChildAt(0) as android.view.ViewGroup).getChildAt(0).performClick()
+            assertEquals(german, RichInputMethodManager.getInstance().currentSubtype.rawSubtype)
+            latinIME.mHandler.onStartInput(field(), true)
+            latinIME.mHandler.onStartInputView(field(), true)
+            handleMessages()
+            assertEquals(german, RichInputMethodManager.getInstance().currentSubtype.rawSubtype)
+            for ((letter, umlaut) in listOf('a' to "ä", 'o' to "ö", 'u' to "ü", 's' to "ß"))
+                assertTrue(umlaut in popupsOf(letter), "$umlaut on $letter")
+        } finally {
+            helium314.keyboard.agent.commands.SubtypeChoice.clear()
+            SubtypeSettings.removeEnabledSubtype(latinIME, german)
+            helium314.keyboard.agent.KeyboardCommands.load(latinIME)
+        }
+    }
+
     /** The popup keys of the "a" key on the alphabet keyboard the switcher loaded last. */
-    private fun popupsOfA(): List<String> {
+    private fun popupsOfA(): List<String> = popupsOf('a')
+
+    /** The popup keys of [letter] on the alphabet keyboard the switcher loaded last. */
+    private fun popupsOf(letter: Char): List<String> {
         val field = KeyboardSwitcher::class.java.getDeclaredField("mKeyboardLayoutSet").apply { isAccessible = true }
         val set = field.get(KeyboardSwitcher.getInstance()) as helium314.keyboard.keyboard.KeyboardLayoutSet
         val keyboard = set.getKeyboard(helium314.keyboard.keyboard.KeyboardElement.ALPHABET)
-        return keyboard.sortedKeys.first { it.code == 'a'.code }.popupKeys.orEmpty().mapNotNull { it.mLabel }
+        return keyboard.sortedKeys.first { it.code == letter.code }.popupKeys.orEmpty().mapNotNull { it.mLabel }
     }
 
     @Test fun typedCommandIsKeptWhenTheEditorCursorMovedUnseen() {

@@ -2,9 +2,7 @@
 package helium314.keyboard.agent
 
 import android.content.Context
-import android.media.AudioAttributes
 import android.os.Build
-import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.Vibrator
 import helium314.keyboard.latin.settings.SettingsValues
@@ -88,8 +86,8 @@ object HapticChain {
     /**
      * Plays the chain if key vibration is on in the keyboard settings (which also means the phone
      * has a vibrator), and not in Do Not Disturb unless vibrating there is allowed, like
-     * HeliBoard's key vibration. Where Android knows touch feedback (API 33+), its intensity
-     * setting applies, so "off" there stays off.
+     * HeliBoard's key vibration. Like that vibration it ignores the system's touch-feedback
+     * switch: the keyboard's own setting decides.
      */
     fun play(context: Context, settings: SettingsValues?, direction: Direction, device: Device? = null) {
         if (!allowed(context, settings)) return
@@ -144,12 +142,9 @@ object HapticChain {
                 is Plan.Waveform -> VibrationEffect.createWaveform(plan.timings, plan.amplitudes, -1)
                 is Plan.Pulses -> VibrationEffect.createWaveform(plan.timings, -1)
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                vibrator.vibrate(effect, VibrationAttributes.createForUsage(VibrationAttributes.USAGE_TOUCH))
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator.vibrate(effect, AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION).build())
-            }
+            // No touch usage: like the keyboard's own key vibration (AudioAndHapticFeedbackManager.vibrate),
+            // the chain follows the keyboard's vibration setting, not the system's touch-feedback switch.
+            vibrator.vibrate(effect)
         }
     }
 }
