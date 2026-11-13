@@ -50,4 +50,5 @@
     <item type="id" name="agent_clipboard_section" />
     <item type="id" name="agent_strip_emojis" />
     <item name="agent_rgb_original" type="id" />
+    <item name="agent_rgb_strip_views" type="id" />
 </resources>

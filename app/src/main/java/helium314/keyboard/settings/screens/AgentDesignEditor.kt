@@ -436,9 +436,11 @@ fun DesignPreview(design: Design, image: ImageBitmap?, modifier: Modifier = Modi
 /**
  * RGB light for the preview (stage 26): the same engine and colour rules as the keyboard
  * ([helium314.keyboard.agent.RgbKeyPainter]). [pendingTaps] are taps in preview pixels; drawing
- * hands each to the engine with the key under it and removes it.
+ * hands each to the engine with the key under it and removes it. [timeMs] is read only while
+ * drawing, so an animation clock in a Compose state only redraws the preview and does not
+ * recompose the page around it.
  */
-class PreviewLight(val engine: RgbEngine, val timeMs: Long, val pendingTaps: MutableList<Offset> = mutableListOf()) {
+class PreviewLight(val engine: RgbEngine, val timeMs: () -> Long, val pendingTaps: MutableList<Offset> = mutableListOf()) {
     val settings get() = engine.settings
     fun lit(area: RgbArea) = settings.enabled && area in settings.areas
 }
@@ -462,13 +464,15 @@ private val ROWS = listOf(
 
 private fun DrawScope.drawKeyboard(look: PreviewLook, image: ImageBitmap?, measurer: TextMeasurer, language: String,
                                    light: PreviewLight? = null) {
+    // not laid out yet (or squeezed to nothing): positions would divide by zero
+    if (size.width <= 0f || size.height <= 0f) return
     drawRect(Color(look.background))
     if (image != null) drawCover(image)
     else drawRect(Color(look.strip), size = Size(size.width, STRIP_DP.dp.toPx()))
     val stripHeight = STRIP_DP.dp.toPx()
     val keysHeight = (size.height - stripHeight).coerceAtLeast(1f)
     val engine = light?.engine
-    val now = light?.timeMs ?: 0L
+    val now = light?.timeMs?.invoke() ?: 0L
     engine?.aspect = keysHeight / size.width
     val keyboardLayer = light != null && light.settings.enabled && RgbLayer.KEYBOARD_BACKGROUND in light.settings.layers
     val backgroundLayer = light != null && light.settings.enabled && RgbLayer.KEY_BACKGROUND in light.settings.layers

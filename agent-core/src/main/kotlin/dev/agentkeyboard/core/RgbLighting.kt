@@ -199,16 +199,16 @@ object RgbColors {
 
     /** Linear blend of all four channels; [t] 0 gives [a], 1 gives [b]. */
     fun lerp(a: Int, b: Int, t: Float): Int {
-        val f = t.coerceIn(0f, 1f)
+        val f = if (t.isNaN()) 0f else t.coerceIn(0f, 1f)
         fun ch(x: Int, y: Int) = (x + (y - x) * f).roundToInt()
         return argb(ch(alpha(a), alpha(b)), ch(red(a), red(b)), ch(green(a), green(b)), ch(blue(a), blue(b)))
     }
 
-    /** [h] in degrees, [s] and [v] 0..1; opaque. */
+    /** [h] in degrees, [s] and [v] 0..1; opaque. Never throws: NaN or infinite input counts as 0. */
     fun hsv(h: Float, s: Float, v: Float): Int {
-        val hue = ((h % 360f) + 360f) % 360f / 60f
-        val sat = s.coerceIn(0f, 1f)
-        val value = v.coerceIn(0f, 1f)
+        val hue = ((finite(h) % 360f) + 360f) % 360f / 60f
+        val sat = finite(s).coerceIn(0f, 1f)
+        val value = finite(v).coerceIn(0f, 1f)
         val i = floor(hue).toInt()
         val f = hue - i
         val p = value * (1 - sat)
@@ -242,13 +242,26 @@ object RgbColors {
         return floatArrayOf((h + 360f) % 360f, if (mx == 0f) 0f else d / mx, mx)
     }
 
+    private fun finite(x: Float) = if (x.isFinite()) x else 0f
+
     /** [top] painted over an opaque [bottom]; the result is opaque. */
     fun over(top: Int, bottom: Int): Int = lerp(bottom or BLACK, top or BLACK, alpha(top) / 255f)
 
-    /** A light value from [RgbEngine.light] (alpha = strength) applied on top of a theme colour. */
+    /**
+     * A light value from [RgbEngine.light] (alpha = strength) applied on top of a theme colour.
+     * A (semi-)transparent theme colour is blended with premultiplied alpha, so painting the result
+     * over a background gives the same as the light over the theme over that background: a
+     * transparent theme colour gives the light itself with the strength as alpha (not darkened).
+     */
     fun applyLight(theme: Int, light: Int): Int {
         val strength = alpha(light) / 255f
-        return if (strength <= 0f) theme else lerp(theme, light or BLACK, strength)
+        if (strength <= 0f) return theme
+        val themeAlpha = alpha(theme)
+        if (themeAlpha == 255) return lerp(theme, light or BLACK, strength)
+        val ta = themeAlpha / 255f
+        val a = ta + (1f - ta) * strength
+        fun ch(t: Int, l: Int) = ((t * ta * (1f - strength) + l * strength) / a).roundToInt()
+        return argb((a * 255f).roundToInt(), ch(red(theme), red(light)), ch(green(theme), green(light)), ch(blue(theme), blue(light)))
     }
 
     fun luminance(c: Int): Double {
@@ -264,28 +277,33 @@ object RgbColors {
 
     /**
      * [fg] moved towards black or white (whichever contrasts more with [bg]) just far enough to
-     * reach [minContrast] against the opaque [bg]. Alpha of [fg] is kept.
+     * reach [minContrast] against the opaque [bg]. Alpha of [fg] is kept, and the contrast is that
+     * of the colour actually seen: [fg] with its alpha painted over [bg]. A fully transparent [fg]
+     * is returned unchanged; one so transparent that even black or white cannot reach
+     * [minContrast] becomes black or white (the best possible with that alpha).
      */
     fun readable(fg: Int, bg: Int, minContrast: Double = MIN_LABEL_CONTRAST): Int {
         val back = bg or BLACK
-        if (contrast(fg or BLACK, back) >= minContrast) return fg
+        if (alpha(fg) == 0) return fg
+        fun seen(rgb: Int) = over((rgb and 0xFFFFFF) or (fg and BLACK), back)
+        if (contrast(seen(fg), back) >= minContrast) return fg
         val target = if (contrast(WHITE, back) >= contrast(BLACK, back)) WHITE else BLACK
         var lo = 0f
         var hi = 1f
         repeat(10) {
             val mid = (lo + hi) / 2
-            if (contrast(lerp(fg or BLACK, target, mid), back) >= minContrast) hi = mid else lo = mid
+            if (contrast(seen(lerp(fg or BLACK, target, mid)), back) >= minContrast) hi = mid else lo = mid
         }
         return (lerp(fg or BLACK, target, hi) and 0xFFFFFF) or (fg and BLACK)
     }
 
     /**
      * Colour of a label (or icon) in front of the opaque [behind]: lit with [light] when labels are
-     * a layer ([labelLayer]), then made readable. Alpha of [theme] is kept.
+     * a layer ([labelLayer]), then made readable as seen with its alpha. Alpha of [theme] is kept.
      */
     fun label(theme: Int, light: Int, labelLayer: Boolean, behind: Int): Int {
         val color = if (labelLayer) applyLight(theme or BLACK, light) else theme or BLACK
-        return (readable(color, behind) and 0xFFFFFF) or (theme and BLACK)
+        return readable((color and 0xFFFFFF) or (theme and BLACK), behind)
     }
 
     /** Visible feedback for a pressed key whose colour comes from the light. */
@@ -323,7 +341,9 @@ object RgbWave {
  */
 class RgbEngine(settings: RgbSettings) {
     val settings: RgbSettings = settings.normalized()
+    /** Height / width of the lit area; NaN or infinite values (a view without size) are ignored, others clamped. */
     var aspect = 0.45f
+        set(value) { if (value.isFinite()) field = value.coerceIn(ASPECT_MIN, ASPECT_MAX) }
 
     /** Position in cycles; grows with time (and faster after a tap with [RgbTapReaction.SPEED_UP]). */
     var phase = 0.0
@@ -377,9 +397,12 @@ class RgbEngine(settings: RgbSettings) {
      * and the strip). The colour is opaque RGB in the low bits; alpha is the strength 0..255
      * including the mix setting. Alpha 0 means "theme colour unchanged".
      */
-    fun light(x: Float, y: Float, keyId: Int, nowMs: Long): Int {
+    fun light(x0: Float, y0: Float, keyId: Int, nowMs: Long): Int {
         val s = settings
         if (!s.enabled) return 0
+        // never throws: a position from a view without size (NaN, infinite) counts as 0
+        val x = if (x0.isFinite()) x0 else 0f
+        val y = if (y0.isFinite()) y0 else 0f
         val spatial = when (s.pattern) {
             RgbPattern.WAVE_HORIZONTAL, RgbPattern.STATIC_RAINBOW -> x
             RgbPattern.WAVE_VERTICAL -> y
@@ -422,7 +445,7 @@ class RgbEngine(settings: RgbSettings) {
 
     /** Palette colour at [pos] 0..1: cyclic wraps last to first, otherwise first to last. */
     fun paletteAt(pos: Float, cyclic: Boolean): Int {
-        val p = pos.coerceIn(0f, 1f)
+        val p = if (pos.isNaN()) 0f else pos.coerceIn(0f, 1f)
         if (settings.rainbow)
             return RgbColors.hsv(p * (if (cyclic) 360f else 300f), settings.saturation / 100f, settings.brightness / 100f)
         val n = palette.size
@@ -475,6 +498,8 @@ class RgbEngine(settings: RgbSettings) {
         /** Distance in keyboard widths a ripple travels during the fade time. */
         const val RIPPLE_REACH = 1.2f
         const val RING_WIDTH = 0.12f
+        const val ASPECT_MIN = 0.01f
+        const val ASPECT_MAX = 100f
     }
 }
 
@@ -513,6 +538,13 @@ class RgbFramePacer(fps: Int) {
     }
 
     fun reset() { lastNanos = Long.MIN_VALUE }
+
+    /**
+     * Time from [nowNanos] until the next frame [shouldRender] would accept (0 = the next frame).
+     * The caller asks for its next frame only then instead of on every vsync.
+     */
+    fun nanosUntilDue(nowNanos: Long): Long =
+        if (lastNanos == Long.MIN_VALUE) 0L else (lastNanos + intervalNanos - SLACK_NANOS - nowNanos).coerceAtLeast(0L)
 
     companion object {
         const val SLACK_NANOS = 4_000_000L

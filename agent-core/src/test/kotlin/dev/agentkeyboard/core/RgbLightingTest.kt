@@ -268,6 +268,65 @@ class RgbLightingTest {
         assertEquals(0x80, RgbColors.alpha(RgbColors.readable(0x80FFFFFF.toInt(), yellow)))
     }
 
+    @Test fun lightOnATransparentThemeIsNotDarkenedTwice() {
+        val light = 0x80FF0000.toInt()
+        // without key borders the theme colour is transparent: the light itself, strength as alpha
+        assertEquals(light, RgbColors.applyLight(0, light))
+        // painted over any background it looks like the light painted directly over that background
+        for (back in listOf(0xFF000000.toInt(), 0xFF4C4C4C.toInt(), 0xFFFFFFFF.toInt())) {
+            val seen = RgbColors.over(RgbColors.applyLight(0, light), back)
+            val direct = RgbColors.applyLight(back, light)
+            for (shift in listOf(0, 8, 16)) assertTrue(abs(((seen shr shift) and 0xFF) - ((direct shr shift) and 0xFF)) <= 1, RgbSettings.hex(back))
+        }
+        // a half transparent theme colour: the same as theme over background, then the light
+        val half = 0x800000FF.toInt()
+        val back = 0xFF000000.toInt()
+        val seen = RgbColors.over(RgbColors.applyLight(half, light), back)
+        val expected = RgbColors.applyLight(RgbColors.over(half, back), light)
+        for (shift in listOf(0, 8, 16)) assertTrue(abs(((seen shr shift) and 0xFF) - ((expected shr shift) and 0xFF)) <= 1)
+        // opaque theme colours as before
+        assertEquals(0xFF800000.toInt(), RgbColors.applyLight(0xFF000000.toInt(), light))
+    }
+
+    @Test fun contrastCountsTheAlphaOfTheLabel() {
+        val black = 0xFF000000.toInt()
+        // grey at half alpha on black is seen as dark grey: below 3:1, although the opaque grey is above
+        val dim = 0x80808080.toInt()
+        assertTrue(RgbColors.contrast(dim or black, black) >= RgbColors.MIN_LABEL_CONTRAST)
+        assertTrue(RgbColors.contrast(RgbColors.over(dim, black), black) < RgbColors.MIN_LABEL_CONTRAST)
+        val fixed = RgbColors.readable(dim, black)
+        assertEquals(0x80, RgbColors.alpha(fixed), "alpha kept")
+        assertTrue(RgbColors.contrast(RgbColors.over(fixed, black), black) >= RgbColors.MIN_LABEL_CONTRAST)
+        // the same through label()
+        val label = RgbColors.label(dim, 0, false, black)
+        assertTrue(RgbColors.contrast(RgbColors.over(label, black), black) >= RgbColors.MIN_LABEL_CONTRAST)
+        // invisible stays invisible; too transparent for 3:1 becomes the best possible
+        assertEquals(0, RgbColors.readable(0, black))
+        assertEquals(0x10FFFFFF, RgbColors.readable(0x10808080, black))
+    }
+
+    @Test fun nanAndInfinityNeverThrow() {
+        // a preview or view without width gives aspect = h / 0 and positions x / 0
+        for (pattern in RgbPattern.entries) for (rainbow in listOf(true, false)) {
+            val e = RgbEngine(on { copy(pattern = pattern, rainbow = rainbow, tapReaction = RgbTapReaction.RIPPLE) })
+            e.aspect = Float.NaN
+            assertEquals(0.45f, e.aspect, "NaN ignored")
+            e.aspect = Float.POSITIVE_INFINITY
+            assertEquals(0.45f, e.aspect, "infinity ignored")
+            e.aspect = 0f
+            assertEquals(RgbEngine.ASPECT_MIN, e.aspect)
+            e.tap(Float.NaN, Float.NEGATIVE_INFINITY, 1, 0)
+            for (v in listOf(Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, 0.5f)) {
+                e.light(v, v, 1, 10)
+                e.light(v, 0.5f, -1, 10)
+            }
+            e.paletteAt(Float.NaN, true)
+        }
+        assertEquals(RgbColors.hsv(0f, 0f, 0f), RgbColors.hsv(Float.NaN, Float.NaN, Float.NaN))
+        RgbColors.hsv(Float.POSITIVE_INFINITY, 1f, 1f)
+        assertEquals(0xFF000000.toInt(), RgbColors.lerp(0xFF000000.toInt(), -1, Float.NaN))
+    }
+
     @Test fun pressedKeysStayVisiblyDifferent() {
         for (c in listOf(0xFFFFFF00.toInt(), 0xFF101010.toInt(), 0xFFFF0000.toInt()))
             assertNotEquals(c, RgbColors.pressed(c))
@@ -360,6 +419,35 @@ class RgbLightingTest {
         assertFalse(pacer.shouldRender(16_000_000))
         pacer.reset()
         assertTrue(pacer.shouldRender(16_000_000))
+    }
+
+    @Test fun pacerSaysWhenTheNextFrameIsDue() {
+        val pacer = RgbFramePacer(30)
+        assertEquals(0L, pacer.nanosUntilDue(123), "first frame at once")
+        assertTrue(pacer.shouldRender(0))
+        val due = pacer.intervalNanos - RgbFramePacer.SLACK_NANOS
+        assertEquals(due, pacer.nanosUntilDue(0))
+        assertEquals(due - 5_000_000, pacer.nanosUntilDue(5_000_000))
+        // a frame at the due time is accepted, one before it is not
+        assertFalse(pacer.shouldRender(due - 1))
+        assertEquals(1L, pacer.nanosUntilDue(due - 1))
+        assertEquals(0L, pacer.nanosUntilDue(due + 50_000_000), "late: at once")
+        assertTrue(pacer.shouldRender(due))
+        // on a 120 Hz display only the due frames are asked for: 30 per second, not 120
+        val p = RgbFramePacer(30)
+        val vsync = 1_000_000_000L / 120
+        var requested = 0
+        var rendered = 0
+        var t = 0L
+        while (t < 990_000_000L) { // one second of vsyncs (the last at 991.7 ms)
+            requested++
+            if (p.shouldRender(t)) rendered++
+            // next vsync at or after the due time
+            val wait = p.nanosUntilDue(t + 1_000_000) + 1_000_000
+            t += ((wait + vsync - 1) / vsync).coerceAtLeast(1) * vsync
+        }
+        assertEquals(30, rendered)
+        assertEquals(rendered, requested, "no frame requested only to be dropped")
     }
 
     /**

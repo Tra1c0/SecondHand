@@ -2,6 +2,7 @@
 package helium314.keyboard.settings.screens
 
 import android.content.Context
+import androidx.annotation.VisibleForTesting
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -65,6 +67,10 @@ import helium314.keyboard.settings.dialogs.ColorPickerDialog
 import helium314.keyboard.settings.preferences.Preference
 import java.util.Locale
 import kotlin.math.roundToInt
+
+/** How often the option list of [AgentRgbScreen] was composed (tests: frames must not recompose it). */
+@VisibleForTesting
+internal var optionsCompositions = 0
 
 /** Key of the entry on the appearance page that opens [AgentRgbScreen]. */
 const val AGENT_RGB_SETTING = "agent_rgb_lighting_entry"
@@ -122,11 +128,13 @@ fun AgentRgbScreen(onClickBack: () -> Unit) {
                     time = time + 1 // redraw now, even between frames
                 }
             },
-            light = PreviewLight(engine, time, taps))
+            // the clock is read inside the preview's drawing only: frames redraw the preview, not the options
+            light = remember(engine) { PreviewLight(engine, { time }, taps) })
         Column(
             Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)
                 .testTag("agent_rgb_options")
         ) {
+            SideEffect { optionsCompositions++ }
             SwitchRow(stringResource(R.string.agent_rgb_enabled), settings.enabled, "agent_rgb_enabled") { change(settings.copy(enabled = it)) }
             Note(stringResource(if (settings.enabled && !animate) R.string.agent_rgb_static_note else R.string.agent_rgb_preview_hint))
 

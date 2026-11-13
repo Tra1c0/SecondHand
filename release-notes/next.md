@@ -128,3 +128,7 @@
   Hintergrund, Beschriftung) und wo (auch Wortvorschläge und Leistenknöpfe), Effekte beim Tippen
   und „Nur beim Tippen sichtbar“. Beschriftungen bleiben lesbar. Läuft nur bei sichtbarer
   Tastatur, steht im Energiesparmodus still. Noch auf keinem Gerät ausprobiert.
+- Behoben (nach Review, RGB-Beleuchtung): Das Licht startet auch beim ersten Öffnen der
+  Tastatur; Emoji- und Zwischenablage-Ansicht stören es nicht mehr; der Energiesparmodus wirkt
+  sofort; ausgeschaltete Werkzeuge in der Leiste bleiben grau; der Umschalt-Akzent bleibt;
+  halbdurchsichtige Beschriftungen bleiben lesbar; weniger Rechenarbeit je Bild.
