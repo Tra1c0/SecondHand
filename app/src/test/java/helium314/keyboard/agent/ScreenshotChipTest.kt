@@ -87,7 +87,7 @@ class ScreenshotChipTest {
 
     @Test fun offersOnlyAFreshScreenshotWithSwitchAndPermission() {
         var queries = 0
-        ScreenshotChip.finder = { _, _ -> queries++; shot(10_000) }
+        ScreenshotChip.findOnly { _, _ -> queries++; shot(10_000) }
         assertNull(ScreenshotChip.current(latinIME, text, now)) // off by default
         latinIME.prefs().edit().putBoolean(AgentPreferences.SCREENSHOT_CHIP, true).commit()
         assertNull(ScreenshotChip.current(latinIME, text, now)) // no permission yet
@@ -103,13 +103,13 @@ class ScreenshotChipTest {
         ScreenshotChip.dismiss(latinIME, shot(10_000))
         assertNull(ScreenshotChip.current(latinIME, text, now)) // a used or closed screenshot does not return
         ScreenshotChip.resetForTest() // also after a restart of the keyboard
-        ScreenshotChip.finder = { _, _ -> shot(10_000) }
+        ScreenshotChip.findOnly { _, _ -> shot(10_000) }
         assertNull(ScreenshotChip.current(latinIME, text, now))
     }
 
     @Test fun neverInPasswordOrNumberFieldsIncognitoOrLocked() {
         enable()
-        ScreenshotChip.finder = { _, _ -> shot(1_000) }
+        ScreenshotChip.findOnly { _, _ -> shot(1_000) }
         assertNotNull(ScreenshotChip.current(latinIME, text, now))
         for (type in listOf(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD,
             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD, InputType.TYPE_CLASS_NUMBER)) {
@@ -128,7 +128,7 @@ class ScreenshotChipTest {
         FlatPreset(latinIME).apply()
         load(text)
         val shot = shot(1_000)
-        ScreenshotChip.finder = { _, _ -> shot }
+        ScreenshotChip.findOnly { _, _ -> shot }
         var field: EditorInfo = text
         val parent = LinearLayout(ContextThemeWrapper(latinIME, R.style.KeyboardTheme_Flat))
         var done = 0
@@ -165,7 +165,7 @@ class ScreenshotChipTest {
         ScreenshotChip.resetForTest()
         enable()
         val other = shot(1_000, id = 8)
-        ScreenshotChip.finder = { _, _ -> other }
+        ScreenshotChip.findOnly { _, _ -> other }
         val second = ScreenshotChip.createView(latinIME, parent, other, { done++ }, { inserted += it }, { field }) as ViewGroup
         assertTrue(second.findViewById<TextView>(R.id.clipboard_suggestion_text).performLongClick())
         assertEquals(2, done)
@@ -246,7 +246,7 @@ class ScreenshotChipTest {
         ScreenshotChip.background = java.util.concurrent.Executor { tasks += it }
         val mainThread = Thread.currentThread()
         val queryThreads = mutableListOf<Thread>()
-        ScreenshotChip.finder = { _, _ -> queryThreads += Thread.currentThread(); shot(1_000) }
+        ScreenshotChip.findOnly { _, _ -> queryThreads += Thread.currentThread(); shot(1_000) }
         var changes = 0
         ScreenshotChip.onChange = { changes++ }
         val looper = shadowOf(android.os.Looper.getMainLooper())
@@ -265,7 +265,7 @@ class ScreenshotChipTest {
         assertTrue(tasks.isEmpty()) // no new query and no clean-up without a reason
 
         // a media change: debounced, queried in the background, then reported
-        ScreenshotChip.finder = { _, _ -> queryThreads += Thread.currentThread(); shot(500, id = 8) }
+        ScreenshotChip.findOnly { _, _ -> queryThreads += Thread.currentThread(); shot(500, id = 8) }
         repeat(3) { ScreenshotChip.mediaChanged() }
         looper.idleFor(java.time.Duration.ofMillis(ScreenshotChip.DEBOUNCE_MILLIS + 100))
         assertEquals(1, tasks.size)
@@ -281,7 +281,7 @@ class ScreenshotChipTest {
 
     @Test fun theCopyForTheHistoryIsMadeInTheBackgroundAndTheEntryOnTheMainThread() {
         val dao = historyOn()
-        ScreenshotChip.finder = { _, _ -> shot(1_000) }
+        ScreenshotChip.findOnly { _, _ -> shot(1_000) }
         seeChange()
         val tasks = mutableListOf<Runnable>()
         ScreenshotChip.background = java.util.concurrent.Executor { tasks += it }
@@ -311,7 +311,7 @@ class ScreenshotChipTest {
 
         // taken while locked: also not after unlocking, on the next change or the expiry
         shadowOf(keyguard).setIsDeviceLocked(true)
-        ScreenshotChip.finder = { _, _ -> takenAt(7, time - 500) }
+        ScreenshotChip.findOnly { _, _ -> takenAt(7, time - 500) }
         seeChange()
         shadowOf(keyguard).setIsDeviceLocked(false)
         assertFalse(add())
@@ -321,7 +321,7 @@ class ScreenshotChipTest {
         ScreenshotChip.resetForTest() // nor after a restart of the keyboard
         historyOn()
         ScreenshotChip.clock = { time }
-        ScreenshotChip.finder = { _, _ -> takenAt(7, time - 1_500) }
+        ScreenshotChip.findOnly { _, _ -> takenAt(7, time - 1_500) }
         seeChange()
         assertFalse(add())
 
@@ -331,7 +331,7 @@ class ScreenshotChipTest {
             inputType = InputType.TYPE_CLASS_TEXT
             imeOptions = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
         })
-        ScreenshotChip.finder = { _, _ -> takenAt(8, time - 500) }
+        ScreenshotChip.findOnly { _, _ -> takenAt(8, time - 500) }
         seeChange()
         load(text)
         assertFalse(add())
@@ -339,7 +339,7 @@ class ScreenshotChipTest {
         // no known field (none since the keyboard started): not allowed either
         time += 10_000
         load(EditorInfo())
-        ScreenshotChip.finder = { _, _ -> takenAt(9, time - 500) }
+        ScreenshotChip.findOnly { _, _ -> takenAt(9, time - 500) }
         seeChange()
         load(text)
         assertFalse(add())
@@ -348,11 +348,11 @@ class ScreenshotChipTest {
         time += 10_000
         shadowOf(keyguard).setIsDeviceLocked(true)
         val lockedAt = time
-        ScreenshotChip.finder = { _, _ -> throw IllegalStateException("not readable while locked") }
+        ScreenshotChip.findOnly { _, _ -> throw IllegalStateException("not readable while locked") }
         seeChange()
         shadowOf(keyguard).setIsDeviceLocked(false)
         time += 1_000
-        ScreenshotChip.finder = { _, _ -> takenAt(10, lockedAt - 500) }
+        ScreenshotChip.findOnly { _, _ -> takenAt(10, lockedAt - 500) }
         seeChange()
         assertFalse(add())
 
@@ -361,14 +361,14 @@ class ScreenshotChipTest {
         ScreenshotChip.resetForTest()
         historyOn()
         ScreenshotChip.clock = { time }
-        ScreenshotChip.finder = { _, _ -> takenAt(11, time - 500) }
+        ScreenshotChip.findOnly { _, _ -> takenAt(11, time - 500) }
         assertNotNull(ScreenshotChip.current(latinIME, text, time))
         assertFalse(add())
         assertEquals(0, dao.count())
 
         // taken later, unlocked, in a normal field and reported by a change: it goes in
         time += 10_000
-        ScreenshotChip.finder = { _, _ -> takenAt(12, time - 500) }
+        ScreenshotChip.findOnly { _, _ -> takenAt(12, time - 500) }
         seeChange()
         assertTrue(add())
         assertEquals(1, dao.count())
@@ -379,7 +379,7 @@ class ScreenshotChipTest {
         val dao = historyOn()
         fun add() = ScreenshotChip.addToHistory(latinIME, Settings.getValues(), dao, now) { true }
         val missing = File(latinIME.cacheDir, "Screenshot_missing.png").apply { delete() }
-        ScreenshotChip.finder = { _, _ -> ScreenshotChip.Shot(7, Uri.fromFile(missing), "image/png", now - 1_000) }
+        ScreenshotChip.findOnly { _, _ -> ScreenshotChip.Shot(7, Uri.fromFile(missing), "image/png", now - 1_000) }
         seeChange()
         assertTrue(add()) // started, the copy fails
         assertEquals(0, dao.count())
@@ -387,7 +387,7 @@ class ScreenshotChipTest {
         assertFalse(add()) // then given up
         assertEquals(0, dao.count())
 
-        ScreenshotChip.finder = { _, _ -> shot(1_000, id = 8) }
+        ScreenshotChip.findOnly { _, _ -> shot(1_000, id = 8) }
         seeChange()
         assertTrue(add())
         assertEquals(1, dao.count())
@@ -410,7 +410,7 @@ class ScreenshotChipTest {
         val systemClip = system.primaryClip
         fun values() = Settings.getValues()
         var shot = shot(1_000)
-        ScreenshotChip.finder = { _, _ -> shot }
+        ScreenshotChip.findOnly { _, _ -> shot }
         enable()
         ScreenshotChip.start(latinIME)
         ScreenshotChip.clock = { now }
@@ -487,5 +487,74 @@ class ScreenshotChipTest {
         assertTrue(!ScreenshotChip.isSameField(a, EditorInfo().apply { packageName = "other"; fieldId = 1; inputType = InputType.TYPE_CLASS_TEXT }))
         assertTrue(!ScreenshotChip.isSameField(a, EditorInfo().apply { packageName = "app"; fieldId = 2; inputType = InputType.TYPE_CLASS_TEXT }))
         assertTrue(!ScreenshotChip.isSameField(a, null))
+    }
+
+    @Test fun twoScreenshotsWithinTheDebounceTimeBothGoIntoTheHistory() {
+        val dao = historyOn()
+        fun add() = ScreenshotChip.addToHistory(latinIME, Settings.getValues(), dao, now) { true }
+        val second = File(latinIME.cacheDir, "Screenshot_second.png")
+        Bitmap.createBitmap(30, 60, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.RED) }
+            .let { bitmap -> second.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) } }
+        val first = ScreenshotChip.Shot(20, Uri.fromFile(image), "image/png", now - 700)
+        val next = ScreenshotChip.Shot(21, Uri.fromFile(second), "image/png", now - 400)
+        var shots = listOf(first)
+        ScreenshotChip.finder = { _, _ -> shots }
+        ScreenshotChip.mediaChanged() // the first screenshot
+        shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(ScreenshotChip.DEBOUNCE_MILLIS - 200))
+        shots = listOf(next, first) // the second one, before the first change has settled: one query finds both
+        seeChange()
+        assertEquals(21L, ScreenshotChip.current(latinIME, text, now)?.id) // the newest is offered
+        assertTrue(add())
+        assertEquals(2, dao.count())
+        assertEquals(setOf(now - 700, now - 400), dao.getAll().mapTo(HashSet()) { it.timeStamp })
+        assertFalse(add()) // each one once
+
+        // both stay decided over a restart: reported again, neither goes in a second time
+        dao.clear()
+        ScreenshotChip.resetForTest()
+        historyOn()
+        ScreenshotChip.finder = { _, _ -> shots }
+        seeChange()
+        assertFalse(add())
+        assertEquals(0, dao.count())
+    }
+
+    @Test fun copiesForTheHistoryLeftByAStoppedKeyboardAreRemoved() {
+        historyOn()
+        ScreenshotChip.findOnly { _, _ -> null }
+        val pending = File(ClipboardDao.clipFilesDir.parentFile, "agent_screenshot_pending").apply { mkdirs() }
+        val wallClock = System.currentTimeMillis() // the clean-up uses the real time, like the file system
+        val left = File(pending, "screenshot-5").apply { writeText("x"); setLastModified(wallClock - ScreenshotChip.KEEP_MILLIS - 60_000) }
+        val inProgress = File(pending, "screenshot-6").apply { writeText("x"); setLastModified(wallClock) }
+        ScreenshotChip.current(latinIME, text, now) // the first look after the start cleans up
+        assertFalse(left.exists())
+        assertTrue(inProgress.exists()) // a copy being made is young
+        // switched off: everything goes
+        latinIME.prefs().edit().putBoolean(AgentPreferences.SCREENSHOT_CHIP, false).commit()
+        ScreenshotChip.current(latinIME, text, now)
+        assertFalse(inProgress.exists())
+    }
+
+    @Test fun theEndOfTheKeyboardStopsTheObserverAndEverythingPosted() {
+        enable()
+        ScreenshotChip.clock = { now }
+        var queries = 0
+        ScreenshotChip.findOnly { _, _ -> queries++; null }
+        val resolver = shadowOf(latinIME.application.contentResolver)
+        val images = android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        val manager = helium314.keyboard.latin.ClipboardHistoryManager(latinIME)
+        manager.onCreate()
+        assertEquals(1, resolver.getContentObservers(images).size)
+        ScreenshotChip.mediaChanged() // a report and an expiry are waiting
+        ScreenshotChip.scheduleExpiry(shot(1_000), now)
+        manager.onDestroy()
+        assertTrue(resolver.getContentObservers(images).isEmpty())
+        // the next keyboard sets its own handler: nothing of the old one may reach it
+        var changes = 0
+        ScreenshotChip.onChange = { changes++ }
+        shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(ScreenshotChip.RECENT_MILLIS + 1_000))
+        assertEquals(0, queries)
+        assertEquals(0, changes)
+        ScreenshotChip.onChange = null
     }
 }

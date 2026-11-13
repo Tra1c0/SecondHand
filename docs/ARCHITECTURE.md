@@ -268,7 +268,8 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
   `screenshotMayReplaceStrip`, 23g);
   `hideSuggestionView` blendet einen Chip aus, ohne den Clip als erledigt zu markieren.
   `onCreate` setzt `ScreenshotChip.onChange` auf `onScreenshotChange` (Verlaufseintrag, dann Pille
-  sofort zeigen oder nach Ablauf entfernen) und startet den Observer.
+  sofort zeigen oder nach Ablauf entfernen) und startet den Observer; `onDestroy` ruft
+  `ScreenshotChip.stop` (Observer abmelden, ausstehende Meldung, Entprellen und Ablauf entfernen).
 - `LatinIME.java` (23g): `setSuggestedWords` ruft nach `tryShowCommandChips` und nach
   `mInputLogic.setSuggestedWords` `tryShowScreenshotChip` (blendet bei `mAutoHideToolbar` die
   Symbolleiste aus wie der Zwischenablage-Chip); die Pille ersetzt also nur die Anzeige, die
@@ -324,8 +325,9 @@ Speicher, Datenschutz und Identität:
   noch keine im Cache liegt (davon hängen Emoji-Vorschläge, Inline-Suche, Emoji-Suche und die
   Warnung „Ein Emoji-Wörterbuch wird benötigt“ ab). `DictionaryFactory.kt`: mitgelieferte
   Emoji-Wörterbücher werden nur geladen, wenn die Emoji-Einstellung an ist, wie heruntergeladene.
-  `extractAssetsDictionary` schreibt jetzt in eine temporäre Datei und benennt sie um; ein schon
-  entpacktes `emoji.dict` wird wiederverwendet (Fallstrick P52). `DictionaryUtils.kt`
+  `extractAssetsDictionary` schreibt jetzt in eine temporäre Datei unter `files/dicts_extracting/`
+  (außerhalb der durchsuchten Locale-Ordner, P80) und benennt sie um; `finally` löscht sie bei
+  jedem Fehler; ein schon entpacktes `emoji.dict` wird wiederverwendet (Fallstrick P52). `DictionaryUtils.kt`
   (`getDictionaryLocales`, Aufräumen) und `DictionaryScreen.kt` zählen ein Emoji-Wörterbuch nicht
   als eigene Sprache bzw. als internes Hauptwörterbuch. Test: `BundledEmojiDictTest`.
 - `DebugFlags.kt`: privater Crashhandler entfernt, damit keine rohen Fehlermeldungen oder
@@ -994,6 +996,15 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `stopWatching`) löscht nur Einträge mit unveränderter ID und Zeit, außer angehefteten, nie
   während die Verlaufsansicht offen ist. Kopiert der Nutzer dasselbe Bild selbst, bekommt der
   Eintrag eine neue Zeit und bleibt. Die System-Zwischenablage wird nie gesetzt. Tests:
+  Build 12 (Nachprüfung): `finder` liefert alle Screenshots der letzten drei Minuten (neueste
+  zuerst, höchstens 10, sortiert nach `DATE_ADDED` und `_ID`); `deliver` entscheidet jeden zum
+  ersten Mal gesehenen einzeln (`seenIds`), erlaubte kommen in `historyCandidates`, und
+  `addToHistory` kopiert alle offenen Kandidaten, so geht ein zweiter Screenshot im
+  Entprellfenster nicht verloren (P81). Entschiedene IDs stehen in `agent_screenshot_history_ids`
+  (die neuesten 32; die alte Einzel-ID `agent_screenshot_history_id` wird weiter gelesen).
+  `cleanUp` löscht auch Reste in `files/agent_screenshot_pending/`, die älter als 10 Minuten sind
+  (beim Ausschalten alle). `stop` (aus `ClipboardHistoryManager.onDestroy`) meldet den Observer ab
+  und entfernt alle geposteten Runnables. Tests mit nur einem Screenshot setzen `findOnly`.
   `ScreenshotChipTest` (Entprellen, Ablauf mit Neuplanung, Threads von Abfrage und Kopie,
   Sperre/Inkognito beim ersten Sehen, Verlauf, eigene Kopie bleibt, Wiederholung),
   `InputLogicTest.screenshotChip*`.
@@ -1496,6 +1507,14 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Verzögerung ab dem Ende des vorigen Primitivs, nicht ab dessen Start. Ohne Amplitudensteuerung
   ignoriert Android Amplituden still; deshalb vorher `hasAmplitudeControl` fragen und sonst
   gleich starke Pulse nehmen, statt eine Stärke vorzutäuschen.
+- **P80** Die Locale-Ordner unter `files/dicts/` werden nach Wörterbüchern durchsucht
+  (`getCachedDictsForLocale`, `getDictionaryLocales`, `DictionaryFactory`): jede Datei darin zählt,
+  auch eine halb geschriebene. Temporäre Dateien beim Entpacken gehören deshalb nach
+  `files/dicts_extracting/` (selbes Volume, also `renameTo` möglich), nicht in den Zielordner und
+  auch nicht als Unterordner von `files/dicts/` (der würde als Sprache gezählt).
+- **P81** Der Medienspeicher meldet mehrere Screenshots im Entprellfenster als eine Änderung; eine
+  Abfrage nur nach dem neuesten verliert die übrigen. `ScreenshotChip.finder` liefert deshalb
+  eine Liste, und jeder Screenshot wird einzeln für den Verlauf entschieden.
 
 ## Datei-Inventar
 

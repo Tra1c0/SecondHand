@@ -8,3 +8,9 @@
   Wiederholen wird stärker, Rückgängig schwächer. „Links nach rechts“ geht nicht, weil das
   Telefon nur einen Vibrationsmotor hat. Nur mit eingeschalteter Tastenvibration. Noch auf keinem
   Gerät ausprobiert.
+- Behoben: Zwei Screenshots kurz nacheinander (innerhalb einer halben Sekunde) landen jetzt
+  beide im Zwischenablageverlauf, nicht nur der zweite. Noch auf keinem Gerät ausprobiert.
+- Behoben: Reste halb kopierter Screenshots für den Verlauf werden nach 10 Minuten gelöscht,
+  und beim Beenden der Tastatur hört sie auch wirklich auf, nach Screenshots zu schauen.
+- Behoben: Beim Entpacken der mitgelieferten Emoji-Wörterbücher liegt die Zwischendatei nicht
+  mehr im Wörterbuchordner und wird bei einem Fehler gelöscht.

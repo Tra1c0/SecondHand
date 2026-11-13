@@ -174,6 +174,17 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   einem Entwurf), findet es nicht mehr. Kein Backup, kein Protokoll.
 - Einstellungen: `agent_screenshot_chip` (Schalter) und `agent_screenshot_dismissed` (ID des
   zuletzt benutzten oder geschlossenen Screenshots).
+- Verlauf (23g, Build 12): Kopie zuerst nach `files/agent_screenshot_pending/screenshot-<ID>`,
+  dann umbenannt nach `files/clipboard/`. Reste dort (Tastatur mitten im Kopieren beendet) löscht
+  dieselbe Prüfung, sobald sie älter als 10 Minuten sind, beim Ausschalten alle. Einstellung
+  `agent_screenshot_history_ids`: IDs der schon für den Verlauf entschiedenen Screenshots
+  (höchstens die neuesten 32); die frühere Einzel-ID `agent_screenshot_history_id` wird noch
+  gelesen.
+
+## Entpacken mitgelieferter Wörterbücher (Build 12)
+
+- Temporäre Datei `files/dicts_extracting/<typ>.dict.<Thread>.tmp`, danach umbenannt nach
+  `files/dicts/<Locale>/<typ>.dict`; bei einem Fehler gelöscht. Nie im Locale-Ordner (P80).
 
 ## Gemerkte Autokorrekturen (20a)
 

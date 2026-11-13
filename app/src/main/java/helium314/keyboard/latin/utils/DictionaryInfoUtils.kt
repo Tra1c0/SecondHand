@@ -151,23 +151,33 @@ object DictionaryInfoUtils {
         return dictionaryFileName.substringAfter("_").substringBefore(".").constructLocale()
     }
 
+    /** Below filesDir, not below the dictionary cache directory: no locale folder ever holds a half written file. */
+    private const val EXTRACTION_TEMP_FOLDER = "dicts_extracting"
+    /** Tests only: called with the complete temporary file before it is renamed. */
+    internal var extractedForTest: ((File) -> Unit)? = null
+
     // actually we could extract assets dicts to unprotected storage
     fun extractAssetsDictionary(dictionaryFileName: String, locale: Locale, context: Context): File? {
         val cacheDir = getCacheDirectoryForLocale(locale, context) ?: return null
         val targetFile = File(cacheDir, "${dictionaryFileName.substringBefore("_")}.dict")
         // write to a temporary file and rename it, so a reader never sees a half written file and a
-        // dictionary that has the old file mapped keeps its (unchanged) inode
-        val tempFile = File(cacheDir, "${targetFile.name}.${Thread.currentThread().id}.tmp")
+        // dictionary that has the old file mapped keeps its (unchanged) inode; the temporary file is
+        // outside the locale folders, which are scanned for dictionaries, and on the same volume
+        val tempDir = File(context.filesDir, EXTRACTION_TEMP_FOLDER)
+        val tempFile = File(tempDir, "${targetFile.name}.${Thread.currentThread().id}.tmp")
         try {
+            tempDir.mkdirs()
             FileUtils.copyStreamToNewFile(
                 context.assets.open(ASSETS_DICTIONARY_FOLDER + File.separator + dictionaryFileName),
                 tempFile
             )
+            extractedForTest?.invoke(tempFile)
             if (!tempFile.renameTo(targetFile)) throw IOException("rename failed")
         } catch (e: IOException) {
-            tempFile.delete()
             Log.e(TAG, "Could not extract assets dictionary $dictionaryFileName", e)
             return null
+        } finally {
+            tempFile.delete() // gone after the rename; left over only on failure
         }
         return targetFile
     }
