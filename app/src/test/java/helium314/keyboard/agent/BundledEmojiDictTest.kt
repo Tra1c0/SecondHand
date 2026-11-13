@@ -44,6 +44,25 @@ class BundledEmojiDictTest {
         assertNull(DictionaryInfoUtils.getCachedDictForLocaleAndType(Locale.GERMANY, Dictionary.TYPE_MAIN, app))
     }
 
+    @Test fun anExtractedEmojiDictionaryIsReusedNotRewritten() {
+        val first = DictionaryInfoUtils.getCachedDictForLocaleAndType(Locale.GERMANY, Dictionary.TYPE_EMOJI, app)!!
+        first.setLastModified(1_000_000L)
+        repeat(3) {
+            val again = DictionaryInfoUtils.getCachedDictForLocaleAndType(Locale.GERMANY, Dictionary.TYPE_EMOJI, app)
+            assertEquals(first, again)
+        }
+        assertEquals(1_000_000L, first.lastModified(), "the mapped file must not be written again")
+        assertTrue(first.parentFile!!.listFiles()!!.none { it.name.endsWith(".tmp") })
+    }
+
+    @Test fun bundledEmojiDictionariesAddNoLanguages() {
+        DictionaryInfoUtils.getCachedDictForLocaleAndType(Locale.GERMANY, Dictionary.TYPE_EMOJI, app)
+        val locales = helium314.keyboard.latin.utils.getDictionaryLocales(app)
+        // only main dictionaries count: the cache folder holding just the extracted emoji.dict adds nothing
+        assertFalse(locales.any { it.toLanguageTag() == "de-DE" })
+        assertTrue(locales.any { it.language == "de" })
+    }
+
     @Test fun bundledEmojiDictionariesFollowTheEmojiSetting() {
         val (_, withoutEmoji) = DictionaryFactory.getAvailableDictsForLocale(Locale.GERMANY, app, false)
         assertTrue(withoutEmoji.none { it.startsWith("emoji_") })

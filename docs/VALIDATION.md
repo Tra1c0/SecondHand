@@ -1493,6 +1493,12 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   Emoji-Einstellung kein Emoji-Wörterbuch, mit ihr `emoji_de.dict`).
 - Nicht geprüft: echte Emoji-Vorschläge mit der nativen Wörterbuch-Bibliothek (gibt es in
   Robolectric nicht) und der Dialog am Gerät.
+- Prüfer: ein hoher Befund behoben. Das entpackte `emoji.dict` wurde bei jedem Aufruf neu
+  geschrieben, auch auf dem Main-Thread und während ein geladenes Wörterbuch es per mmap hielt.
+  Jetzt wird es wiederverwendet und nur atomar geschrieben (P52, Tests
+  `anExtractedEmojiDictionaryIsReusedNotRewritten`). Ebenfalls behoben (niedrig): Emoji-Dateien
+  erzeugten zusätzliche Sprachen in der Wörterbuchliste (`bundledEmojiDictionariesAddNoLanguages`).
+  Anleitung korrigiert: Die Emoji-Schalter sind standardmäßig an. `BundledEmojiDictTest` 5/5 grün.
 
 ## 23g Screenshot zuerst
 

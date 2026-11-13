@@ -116,6 +116,10 @@ object DictionaryInfoUtils {
 
     /** Agent Keyboard bundles emoji dictionaries in assets; extract the best match on first use. */
     private fun extractBundledEmojiDict(locale: Locale, context: Context): File? {
+        // an extracted asset is named "emoji.dict", which the lookup above does not match:
+        // reuse it, never rewrite a file a loaded dictionary may have mapped
+        val cacheDir = getCacheDirectoryForLocale(locale, context) ?: return null
+        File(cacheDir, Dictionary.TYPE_EMOJI + ".dict").takeIf { it.isFile && it.length() > 0 }?.let { return it }
         val candidates = getAssetsDictionaryList(context)?.filter { it.substringBefore("_") == Dictionary.TYPE_EMOJI }
         if (candidates.isNullOrEmpty()) return null
         val best = LocaleUtils.getBestMatch(locale, candidates) { extractLocaleFromAssetsDictionaryFile(it) } ?: return null
@@ -151,12 +155,17 @@ object DictionaryInfoUtils {
     fun extractAssetsDictionary(dictionaryFileName: String, locale: Locale, context: Context): File? {
         val cacheDir = getCacheDirectoryForLocale(locale, context) ?: return null
         val targetFile = File(cacheDir, "${dictionaryFileName.substringBefore("_")}.dict")
+        // write to a temporary file and rename it, so a reader never sees a half written file and a
+        // dictionary that has the old file mapped keeps its (unchanged) inode
+        val tempFile = File(cacheDir, "${targetFile.name}.${Thread.currentThread().id}.tmp")
         try {
             FileUtils.copyStreamToNewFile(
                 context.assets.open(ASSETS_DICTIONARY_FOLDER + File.separator + dictionaryFileName),
-                targetFile
+                tempFile
             )
+            if (!tempFile.renameTo(targetFile)) throw IOException("rename failed")
         } catch (e: IOException) {
+            tempFile.delete()
             Log.e(TAG, "Could not extract assets dictionary $dictionaryFileName", e)
             return null
         }

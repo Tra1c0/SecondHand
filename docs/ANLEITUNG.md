@@ -327,9 +327,10 @@ dabei nicht gesichert.
 
 ## Emoji-Vorschläge
 
-Einstellungen → Textkorrektur → „Emojis vorschlagen“ (bzw. „Inline-Emoji-Suche“) einschalten.
 Für Deutsch, Englisch und Spanisch ist das Emoji-Wörterbuch eingebaut; du musst nichts
-herunterladen. Für andere Sprachen gilt weiter der Hinweis mit dem Download-Link.
+herunterladen. „Emojis vorschlagen“, „Inline-Emoji-Suche“ (Emoji nach `:`, z. B. `:herz`) und die
+Emoji-Beschreibungen sind in HeliBoard standardmäßig an und wirken damit sofort. Abschalten unter
+Einstellungen → Textkorrektur. Für andere Sprachen gilt weiter der Hinweis mit dem Download-Link.
 
 ## Autokorrektur
 

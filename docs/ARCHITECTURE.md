@@ -290,7 +290,10 @@ Speicher, Datenschutz und Identität:
   noch keine im Cache liegt (davon hängen Emoji-Vorschläge, Inline-Suche, Emoji-Suche und die
   Warnung „Ein Emoji-Wörterbuch wird benötigt“ ab). `DictionaryFactory.kt`: mitgelieferte
   Emoji-Wörterbücher werden nur geladen, wenn die Emoji-Einstellung an ist, wie heruntergeladene.
-  Test: `BundledEmojiDictTest`.
+  `extractAssetsDictionary` schreibt jetzt in eine temporäre Datei und benennt sie um; ein schon
+  entpacktes `emoji.dict` wird wiederverwendet (Fallstrick P52). `DictionaryUtils.kt`
+  (`getDictionaryLocales`, Aufräumen) und `DictionaryScreen.kt` zählen ein Emoji-Wörterbuch nicht
+  als eigene Sprache bzw. als internes Hauptwörterbuch. Test: `BundledEmojiDictTest`.
 - `DebugFlags.kt`: privater Crashhandler entfernt, damit keine rohen Fehlermeldungen oder
   LastLog automatisch in External/DE gespeichert werden. Androids Standardhandler bleibt.
 - `AndroidManifest.xml`: `INTERNET`, `RECORD_AUDIO` (nur für das Diktat, siehe „Diktat“),
@@ -1211,13 +1214,18 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `EditorInfo` (wie P34); die Shadow-Variable heißt deshalb `acceptedMimeTypes`. Robolectric:
   `FileProvider` merkt sich die Pfade der ersten Test-App; ein späterer Test derselben Klasse
   bekommt dann für seine Dateien eine Ausnahme. In Tests nur einmal pro Klasse `getUriForFile`.
+- **P52** Ein aus `assets` entpacktes Wörterbuch heißt `<typ>.dict` (ohne `_`); die Suche
+  `getCachedDictForLocaleAndType` vergleicht `name.substringBefore("_")` und findet es deshalb
+  nicht. Wer bei „nicht gefunden“ entpackt, schreibt sonst bei jedem Aufruf eine Datei neu, die
+  ein geladenes Wörterbuch per mmap hält (SIGBUS-Gefahr). Vorher auf `<typ>.dict` prüfen und nur
+  über temporäre Datei plus Umbenennen schreiben.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (341 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (343 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -1285,14 +1293,14 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/latin/settings/` (2): Defaults, SettingsValues
 - `K/latin/spellcheck/` (1): AndroidSpellCheckerService
 - `K/latin/suggestions/` (2): FlatStrip, SuggestionStripView
-- `K/latin/utils/` (2): DictionaryInfoUtils, ToolbarUtils
+- `K/latin/utils/` (3): DictionaryInfoUtils, DictionaryUtils, ToolbarUtils
 - `K/settings/` (4): SearchScreen, SettingsActivity, SettingsContainer, SettingsNavHost
-- `K/settings/screens/` (21): AdvancedScreen, AgentAiScreen, AgentCommandsScreen, AgentDesignEditor,
+- `K/settings/screens/` (22): AdvancedScreen, AgentAiScreen, AgentCommandsScreen, AgentDesignEditor,
   AgentDesignScreen, AgentDictationScreen, AgentLearningScreen, AgentMainSettings,
   AgentProfilesScreen, AgentRunStatus, AgentScreenReaderSection, AgentScreenshotScreen,
   AgentSkillsScreen, AgentSnippetsSection, AgentSpaceScreen, AgentUpdatesScreen,
-  AgentWorkflowsScreen, AppearanceScreen, MainSettingsScreen, WorkflowBuilderDialog,
-  WorkflowDraftProtection
+  AgentWorkflowsScreen, AppearanceScreen, DictionaryScreen, MainSettingsScreen,
+  WorkflowBuilderDialog, WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
 - `app/` (1): build.gradle

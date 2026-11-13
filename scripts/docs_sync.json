@@ -55,6 +55,8 @@
       "app/src/main/java/helium314/keyboard/latin/utils/DictionaryInfoUtils.kt",
       "app/src/main/java/helium314/keyboard/latin/dictionary/DictionaryFactory.kt",
       "app/src/main/assets/dicts/emoji_*.dict",
+      "app/src/main/java/helium314/keyboard/latin/utils/DictionaryUtils.kt",
+      "app/src/main/java/helium314/keyboard/settings/screens/DictionaryScreen.kt",
       "app/src/main/java/helium314/keyboard/latin/suggestions/{FlatStrip,SuggestionStripView}.kt",
       "app/src/main/java/helium314/keyboard/keyboard/clipboard/{ClipboardAdapter,ClipboardHistoryView,FlatClipboard}.kt",
       "app/src/main/java/helium314/keyboard/latin/{ClipboardHistoryEntry,ClipboardHistoryManager,ClipboardThumbnails}.kt",
