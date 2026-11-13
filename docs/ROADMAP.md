@@ -23,9 +23,8 @@ Reihenfolge von oben nach unten.
   Referenzbildern im Chat; die Bilder liegen nicht im Repo). (L)
   - 29a Einstellungsseite und Vorschau moderner gestalten.
   - 29b Übergänge zwischen Farben weich (keine sichtbaren Sprünge, auch in der Animation).
-  - 29c Neue animierte Muster nach den Referenzen (am 2026-11-13 zweimal geschickt; die zweite
-    Sendung mit fünf Bildern gilt als Hauptvorlage, die Tinten-Schwaden nur aus der ersten):
-    fließende Farbschwaden wie Tinte in Wasser (türkis, grün, gelb, rot auf Schwarz, nachrangig);
+  - 29c Neue animierte Muster nach den sechs Referenzbildern des Owners (alle gleichrangig):
+    fließende Farbschwaden wie Tinte in Wasser (türkis, grün, gelb, rot auf Schwarz);
     diagonale Streifen mit Regenbogenverlauf und
     überlagerten, leuchtenden Rauten-Rahmen; diagonale Lamellen mit hartem Farbwechsel grün/
     orange zu violett; Regenbogen-Verlauf mit feinem Diagonal-Raster und dunkler Vignette;
