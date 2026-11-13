@@ -39,6 +39,8 @@ object AgentPreferences {
     const val CALCULATOR_STYLE = "agent_calculator_style"
     /** Stage 27: drawn symbols instead of gesture typing (default off). */
     const val SYMBOL_DRAWING = "agent_symbol_drawing"
+    /** Stage 36: a picked alternative keeps the drawing as a personal template (learning, default off). */
+    const val SYMBOL_LEARNING = "agent_symbol_learning"
     /** privateImeOptions of the calibration field in the settings: the keyboard records touches there. */
     const val TOUCH_CALIBRATION_FIELD = "dev.personal.agentkeyboard.touchCalibration"
 }

@@ -4,8 +4,8 @@
     <string name="agent_symbols_summary">Sonderzeichen auf die Buchstaben malen, statt Gestenschreiben</string>
     <string name="agent_symbols_switch">Symbole malen (statt Gestenschreiben)</string>
     <string name="agent_symbols_switch_summary">Wischen über die Buchstaben malt ein Symbol; Gestenschreiben ist aus. Tippen, langes Drücken und das Wischen auf Leer- und Löschtaste bleiben, wie sie sind.</string>
-    <string name="agent_symbols_how">Male auf die Buchstabentasten. Striche, die innerhalb einer halben Sekunde folgen, gehören zum selben Symbol (≠, ÷, €). Nach der Pause wird das Symbol geschrieben, die Leiste bietet bis zu drei andere an. Ein kurzer Tipp in dieser halben Sekunde schreibt erst das Symbol und dann den Buchstaben; als Punkt zählt er nur, wo ein Symbol einen braucht (÷). Nicht in Passwortfeldern.</string>
-    <string name="agent_symbols_local">Wird lokal auf dem Telefon erkannt. Nichts wird gesendet, Zeichnungen werden nicht gespeichert.</string>
+    <string name="agent_symbols_how">Male auf die Buchstabentasten. Striche, die innerhalb einer kurzen Pause folgen, gehören zum selben Symbol (≠, ÷, €); die Pause beginnt bei 0,9 Sekunden und passt sich deinem Tempo an (0,6 bis 1,5 Sekunden). Während du malst, zeigt die Leiste das Symbol, das jetzt geschrieben würde; ein Tipp darauf schreibt es sofort. Nach der Pause wird das Symbol geschrieben, die Leiste bietet bis zu drei andere an. Ein Tipp, der sich kaum bewegt, schreibt erst das Symbol und dann den Buchstaben; als Punkt zählt er nur, wo ein Symbol einen braucht (÷). Weitere Striche dürfen auch auf Satzzeichen-Tasten beginnen. Nicht in Passwortfeldern.</string>
+    <string name="agent_symbols_local">Wird lokal auf dem Telefon erkannt. Nichts wird gesendet. Zeichnungen werden nur als persönliche Vorlagen gespeichert, wenn du kalibrierst oder unten das Lernen einschaltest.</string>
     <string name="agent_symbols_not_recognized">Nicht erkannt</string>
     <string name="agent_symbols_alternative">Durch %1$s ersetzen</string>
     <string name="agent_symbols_builtin">Eingebaute Symbole</string>
@@ -26,4 +26,20 @@
     <string name="agent_symbols_delete">%1$s löschen</string>
     <string name="agent_symbols_drawing_of">Zeichnung von %1$s</string>
     <string name="agent_symbols_gesture_off">Aus, solange „Symbole malen“ an ist</string>
+    <!-- Etappe 36 -->
+    <string name="agent_symbols_preview">%1$s jetzt schreiben</string>
+    <string name="agent_symbols_preview_unknown">Noch nicht erkannt; Zeichnung jetzt beenden</string>
+    <string name="agent_symbols_preview_instead">Stattdessen %1$s schreiben</string>
+    <string name="agent_symbols_learning">Aus meinen Korrekturen lernen</string>
+    <string name="agent_symbols_learning_summary">Wählst du in der Leiste ein anderes Symbol, wird die Zeichnung als persönliche Vorlage dieses Symbols behalten (bis zu 5 je Symbol, die neuesten bleiben). Nur lokal; nicht im Inkognito-Modus, bei pausiertem Lernen oder gesperrtem Gerät.</string>
+    <string name="agent_symbols_personal">Persönliche Vorlagen</string>
+    <string name="agent_symbols_personal_description">Deine Handschrift bekannter Symbole, aus der Kalibrierung und aus deinen Korrekturen. Sie werden zusammen mit den eingebauten erkannt.</string>
+    <string name="agent_symbols_personal_empty">Noch keine persönlichen Vorlagen.</string>
+    <string name="agent_symbols_personal_count">%1$d Zeichnungen</string>
+    <string name="agent_symbols_personal_delete_all">Alle persönlichen Vorlagen löschen</string>
+    <string name="agent_symbols_calibrate">Kalibrieren</string>
+    <string name="agent_symbols_calibrate_description">Male jedes eingebaute Symbol zweimal in deiner Handschrift. Du kannst ein Symbol überspringen oder jederzeit aufhören; was du schon gemalt hast, bleibt.</string>
+    <string name="agent_symbols_calibrate_step">Male %1$s (%2$d von %3$d), Symbol %4$d von %5$d</string>
+    <string name="agent_symbols_calibrate_skip">Überspringen</string>
+    <string name="agent_symbols_calibrate_done">Fertig</string>
 </resources>

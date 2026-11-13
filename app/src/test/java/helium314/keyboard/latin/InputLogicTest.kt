@@ -3182,7 +3182,7 @@ class InputLogicTest {
 
     private fun drawSymbol(vararg strokes: FloatArray) {
         drawStrokes(*strokes)
-        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(600))
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(helium314.keyboard.agent.SymbolInk.MAX_PAUSE_MILLIS + 100))
         handleMessages()
     }
 
@@ -3282,16 +3282,18 @@ class InputLogicTest {
     @Test fun symbolDrawTapInThePauseThatIsNoDotMatchesTheDrawingOnce() {
         // review N2: the dot check (rule 4) and the written symbol share one match on the main thread
         enableSymbolDrawing()
-        // shifted: the same arrow as in other tests of this class would already be in the recognizer's memo
-        drawStrokes(*arrowStrokes.map { s -> FloatArray(s.size) { s[it] + 3 + (it % 2) * 2 } }.toTypedArray())
+        // stage 36: the preview chip matches the drawing after each of its two strokes; the count
+        // starts before drawing: the dot check and the written symbol add no match
         val before = helium314.keyboard.agent.SymbolDrawing.currentRecognizer()
         val start = before?.recognitions ?: 0
+        // shifted: the same arrow as in other tests of this class would already be in the recognizer's memo
+        drawStrokes(*arrowStrokes.map { s -> FloatArray(s.size) { s[it] + 3 + (it % 2) * 2 } }.toTypedArray())
         // a tap above the middle of the arrow's line, where ÷ has a dot, as PointerTracker reports it
         helium314.keyboard.agent.SymbolInk.onInkDown(0, 150, 40)
         assertTrue(helium314.keyboard.agent.SymbolInk.onInkUp(0, 150, 40)) // a letter: the arrow is written now
         assertEquals("→", text)
         val after = helium314.keyboard.agent.SymbolDrawing.currentRecognizer()!!
-        assertEquals(1, after.recognitions - (if (after === before) start else 0))
+        assertEquals(2, after.recognitions - (if (after === before) start else 0))
     }
 
     @Test fun symbolDrawWaitingSymbolIsTypedBeforeTheNextKey() {
@@ -3324,7 +3326,7 @@ class InputLogicTest {
         latinIME.onStartInputView(latinIME.currentInputEditorInfo, true)
         handleMessages()
         assertFalse(helium314.keyboard.agent.SymbolInk.isWaiting)
-        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(600))
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(helium314.keyboard.agent.SymbolInk.MAX_PAUSE_MILLIS + 100))
         handleMessages()
         assertEquals("neu", text)
     }
@@ -3337,7 +3339,7 @@ class InputLogicTest {
         assertTrue(helium314.keyboard.agent.SymbolInk.isWaiting)
         latinIME.onFinishInputView(false)
         assertFalse(helium314.keyboard.agent.SymbolInk.isWaiting)
-        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(600))
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(helium314.keyboard.agent.SymbolInk.MAX_PAUSE_MILLIS + 100))
         handleMessages()
         assertEquals("alt", text)
         // and the end of the input itself
@@ -3345,13 +3347,13 @@ class InputLogicTest {
         assertTrue(helium314.keyboard.agent.SymbolInk.isWaiting)
         latinIME.onFinishInput()
         assertFalse(helium314.keyboard.agent.SymbolInk.isWaiting)
-        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(600))
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(helium314.keyboard.agent.SymbolInk.MAX_PAUSE_MILLIS + 100))
         handleMessages()
         assertEquals("alt", text)
     }
 
     private fun afterThePause() {
-        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(600))
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(helium314.keyboard.agent.SymbolInk.MAX_PAUSE_MILLIS + 100))
         handleMessages()
     }
 
@@ -3384,6 +3386,160 @@ class InputLogicTest {
         assertTrue(text.trimEnd().endsWith("→"), text)
         assertEquals(1, text.count { it == '→' }, text)
         checkConnectionConsistency()
+    }
+
+    // stage 36: the preview chip while a drawing waits, and learning from a picked alternative
+
+    private val symbolInk = helium314.keyboard.agent.SymbolInk
+    private val symbolDrawing = helium314.keyboard.agent.SymbolDrawing
+    private fun personalSymbols() = symbolDrawing.personalSymbols(latinIME)
+
+    private fun reloadSettings() = latinIME.mSettings.loadSettings(latinIME, latinIME.mSettings.current.mLocale,
+        InputAttributes(latinIME.currentInputEditorInfo, false, latinIME.packageName))
+
+    private fun learnSymbols(on: Boolean) {
+        latinIME.prefs().edit { putBoolean(AgentPreferences.SYMBOL_LEARNING, on) }
+        reloadSettings()
+    }
+
+    @Test fun symbolDrawPreviewChipShowsTheGuessAndWritesItAtOnce() {
+        enableSymbolDrawing()
+        setText("a ")
+        drawStrokes(arrowStrokes[0]) // the shaft so far
+        assertEquals(symbolDrawing.PREVIEW_MARK + "–", chipLabels(symbolChips()!!).first())
+        drawStrokes(arrowStrokes[1])
+        val labels = chipLabels(symbolChips()!!)
+        assertEquals(symbolDrawing.PREVIEW_MARK + "→", labels.first())
+        assertTrue(labels.size in 1..3, "$labels")
+        assertEquals("a ", text) // nothing written while the drawing waits
+        tapStripChip(symbolChips()!!, symbolDrawing.PREVIEW_MARK + "→")
+        handleMessages()
+        assertEquals("a →", text)
+        assertFalse(symbolInk.isWaiting)
+        afterThePause()
+        assertEquals("a →", text) // written once
+        assertFalse(chipLabels(symbolChips()!!).any { it.startsWith(symbolDrawing.PREVIEW_MARK) }) // now the alternatives
+        checkConnectionConsistency()
+    }
+
+    @Test fun symbolDrawPreviewChipDoesNothingWhileAStrokeIsDrawnAndGoesWithTheDrawing() {
+        enableSymbolDrawing()
+        drawStrokes(*arrowStrokes)
+        val chips = symbolChips()!!
+        symbolInk.onInkDown(0, 20, 20) // a further stroke is on the keys
+        tapStripChip(chips, symbolDrawing.PREVIEW_MARK + "→")
+        handleMessages()
+        assertEquals("", text)
+        assertTrue(symbolInk.isWaiting)
+        symbolInk.onInkMove(0, 60, 60) // a real stroke
+        symbolInk.onSecondFinger() // a second finger during a stroke: the drawing is dropped
+        assertFalse(symbolInk.isWaiting)
+        kotlin.test.assertNull(symbolChips())
+        afterThePause()
+        assertEquals("", text)
+    }
+
+    /** An arrow that is no built-in template itself (a learned copy of it must not tie with one). */
+    private val ownArrow = arrayOf(floatArrayOf(0f, 150f, 300f, 150f), floatArrayOf(230f, 95f, 300f, 150f, 225f, 210f))
+
+    @Test fun symbolDrawPreviewAlternativeIsWrittenAndLearnedOnlyWithTheSwitch() {
+        enableSymbolDrawing()
+        try {
+            drawStrokes(*ownArrow)
+            val labels = chipLabels(symbolChips()!!)
+            assertTrue(labels.size >= 2, "$labels")
+            val alternative = labels[1]
+            tapStripChip(symbolChips()!!, alternative)
+            handleMessages()
+            assertEquals(alternative, text)
+            assertTrue(personalSymbols().isEmpty()) // learning is off by default (opt-in)
+            learnSymbols(true)
+            setText("")
+            drawStrokes(*ownArrow)
+            tapStripChip(symbolChips()!!, alternative)
+            handleMessages()
+            assertEquals(alternative, text)
+            assertEquals(listOf(alternative), personalSymbols().map { it.text })
+            assertEquals(1, personalSymbols().single().samples.size)
+            // the same drawing is now that symbol
+            setText("")
+            drawSymbol(*ownArrow)
+            assertEquals(alternative, text)
+        } finally {
+            symbolDrawing.savePersonalSymbols(latinIME, emptyList())
+        }
+    }
+
+    @Test fun symbolDrawAlternativeAfterWritingIsLearnedAndMovesWithASecondPick() {
+        enableSymbolDrawing()
+        learnSymbols(true)
+        try {
+            setText("")
+            drawSymbol(*arrowStrokes)
+            assertEquals("→", text)
+            val labels = chipLabels(symbolChips()!!)
+            assertTrue(labels.size >= 2, "$labels")
+            tapStripChip(symbolChips()!!, labels[0])
+            handleMessages()
+            assertEquals(labels[0], text)
+            assertEquals(listOf(labels[0]), personalSymbols().map { it.text })
+            // a second pick moves the drawing, it is not kept twice
+            tapStripChip(symbolChips()!!, labels[1])
+            handleMessages()
+            assertEquals(labels[1], text)
+            assertEquals(listOf(labels[1]), personalSymbols().map { it.text })
+            assertEquals(1, personalSymbols().single().samples.size)
+            // back to what was recognized: nothing is kept
+            tapStripChip(symbolChips()!!, "→")
+            handleMessages()
+            assertEquals("→", text)
+            assertTrue(personalSymbols().isEmpty())
+            checkConnectionConsistency()
+        } finally {
+            symbolDrawing.savePersonalSymbols(latinIME, emptyList())
+        }
+    }
+
+    @Test fun symbolDrawLearnsNothingInIncognitoWhilePausedOrLocked() {
+        enableSymbolDrawing()
+        learnSymbols(true)
+        val keyguard = latinIME.getSystemService(android.content.Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+        try {
+            for (case in listOf("incognito", "paused", "locked")) {
+                when (case) {
+                    "incognito" -> latinIME.prefs().edit { putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true) }
+                    "paused" -> latinIME.prefs().edit { putBoolean(AgentPreferences.LEARNING_PAUSED, true) }
+                    else -> org.robolectric.Shadows.shadowOf(keyguard).setIsDeviceLocked(true)
+                }
+                reloadSettings()
+                setText("")
+                drawSymbol(*arrowStrokes)
+                tapStripChip(symbolChips()!!, chipLabels(symbolChips()!!)[0])
+                handleMessages()
+                assertTrue(personalSymbols().isEmpty(), case)
+                latinIME.prefs().edit { putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, false); putBoolean(AgentPreferences.LEARNING_PAUSED, false) }
+                org.robolectric.Shadows.shadowOf(keyguard).setIsDeviceLocked(false)
+            }
+        } finally {
+            org.robolectric.Shadows.shadowOf(keyguard).setIsDeviceLocked(false)
+            symbolDrawing.savePersonalSymbols(latinIME, emptyList())
+            reloadSettings() // Settings is a process-wide singleton
+            assertFalse(settingsValues.mIsLocked)
+        }
+    }
+
+    @Test fun symbolDrawPersonalTemplateIsRecognizedByTheKeyboard() {
+        enableSymbolDrawing()
+        try {
+            drawSymbol(*wStroke)
+            assertEquals("", text) // a "W" is no built-in symbol
+            val cloud = dev.agentkeyboard.core.InkCloud.of(listOf(dev.agentkeyboard.core.InkStroke(wStroke[0])))!!
+            symbolDrawing.savePersonalSymbols(latinIME, dev.agentkeyboard.core.PersonalInkSymbols.add(emptyList(), "★", cloud))
+            drawSymbol(*wStroke)
+            assertEquals("★", text)
+        } finally {
+            symbolDrawing.savePersonalSymbols(latinIME, emptyList())
+        }
     }
 
     // stage 30: why the language changed, for the diagnose page (SubtypeSwitchLog through LatinIME's hooks)

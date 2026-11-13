@@ -712,7 +712,8 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
 
     /**
      * Fork (stage 27, "Symbole malen"): while a drawn symbol waits for its next stroke, a touch that
-     * starts on a letter key of the alphabet is ink at once (no key press, no gesture threshold), so
+     * starts on a key of the alphabet that types a character (stage 36: not only letters; no space,
+     * no modifier) is ink at once (no key press, no gesture threshold), so
      * short strokes and dots belong to the symbol. Only one finger draws: another touch while a
      * stroke is drawn ends it (a tap so far becomes a key press, a real stroke drops the drawing)
      * and is handled as usual. Without a waiting symbol, or with
@@ -722,13 +723,17 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         mInInk = false;
         if (SymbolInk.isDrawing()) { // a second finger: a tap so far is a key (two thumbs), a stroke is dropped (P104)
             final int drawing = SymbolInk.getDrawingPointer();
-            if (drawing != mPointerId && SymbolInk.onSecondFinger()) getPointerTracker(drawing).inkTapBecomesKey(eventTime);
+            // stage 36 (review): only a tracker that still draws becomes a key; a stale drawing (its up
+            // or cancel never came) is dropped, never typed as a ghost letter (P110)
+            final PointerTracker drawer = drawing != mPointerId ? getPointerTracker(drawing) : null;
+            if (drawer != null && drawer.mInInk && SymbolInk.onSecondFinger()) drawer.inkTapBecomesKey(eventTime);
             else SymbolInk.cancel();
             return false;
         }
         if (!SymbolInk.continuesInk() || !sGestureEnabler.shouldHandleGesture() || sInGesture
                 || getActivePointerTrackerCount() > 0 || mKeyboard == null
-                || !mKeyboard.mId.getElement().isAlphabet() || key == null || !Character.isLetter(key.getCode())) {
+                || !mKeyboard.mId.getElement().isAlphabet() || key == null
+                || !SymbolInk.startsInkOn(key.getCode(), key.isModifier())) {
             return false;
         }
         mInInk = true;
@@ -750,7 +755,9 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
     }
 
     private void moveInk(final int x, final int y, final long eventTime, final MotionEvent me) {
-        if (!SymbolInk.isDrawing()) return; // stage 31: a second finger dropped the drawing, no more trail
+        // stage 31: a second finger dropped the drawing, no more trail; stage 36: nor for a stroke that
+        // was dropped while another finger now draws
+        if (SymbolInk.getDrawingPointer() != mPointerId) return;
         if (me != null) {
             final int pointerIndex = me.findPointerIndex(mPointerId);
             for (int h = 0; pointerIndex >= 0 && h < me.getHistorySize(); h++) {
@@ -1319,7 +1326,10 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         if (DEBUG_EVENT) {
             printTouchEvent("onCancelEvt:", x, y, eventTime);
         }
-        if (mInInk) { // fork (stage 27): a cancelled stroke drops the drawing
+        if (mInInk || SymbolInk.isDrawing()) { // fork (stage 27): a cancelled stroke drops the drawing
+            // stage 36 (review): ACTION_CANCEL reaches only one tracker, and the ink tracker is not in
+            // the pointer queue that cancelAllPointerTrackers walks: end its stroke here too (P110)
+            if (SymbolInk.isDrawing()) getPointerTracker(SymbolInk.getDrawingPointer()).mInInk = false;
             mInInk = false;
             SymbolInk.cancel();
         }

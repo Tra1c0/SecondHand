@@ -36,6 +36,7 @@ class SymbolSettingsScreenTest {
     @Before @After fun clear() {
         app.prefs().edit().clear().commit()
         SymbolDrawing.saveOwnSymbols(app, emptyList())
+        SymbolDrawing.savePersonalSymbols(app, emptyList())
     }
 
     private fun page() {
@@ -206,5 +207,72 @@ class SymbolSettingsScreenTest {
         assertTrue(SymbolDrawing.ownSymbols(app).isEmpty())
         compose.onNodeWithTag("agent_symbol_card").assertDoesNotExist()
         compose.onNodeWithTag("agent_symbol_add").assertExists()
+    }
+
+    // stage 36: personal templates (learning switch, list, calibration)
+
+    private fun cloud(vararg xy: Float) = dev.agentkeyboard.core.InkCloud.of(listOf(InkStroke(xy)))!!
+
+    @Test fun learningIsOffByDefaultAndSaved() {
+        page()
+        assertFalse(app.prefs().getBoolean(AgentPreferences.SYMBOL_LEARNING, false))
+        compose.onNode(hasText("Aus meinen Korrekturen lernen")).performScrollTo().performClick()
+        compose.waitForIdle()
+        assertTrue(app.prefs().getBoolean(AgentPreferences.SYMBOL_LEARNING, false))
+    }
+
+    @Test fun personalTemplatesAreListedAndDeleted() {
+        var personal = dev.agentkeyboard.core.PersonalInkSymbols.add(emptyList(), "→", cloud(0f, 0f, 100f, 0f))
+        personal = dev.agentkeyboard.core.PersonalInkSymbols.add(personal, "→", cloud(0f, 0f, 100f, 3f))
+        personal = dev.agentkeyboard.core.PersonalInkSymbols.add(personal, "≠", cloud(0f, 0f, 50f, 100f))
+        SymbolDrawing.savePersonalSymbols(app, personal)
+        page()
+        compose.onNodeWithTag("agent_symbol_personal_→").performScrollTo().assertExists()
+        compose.onNode(hasText("2 Zeichnungen")).assertExists()
+        compose.onNode(hasText("1 Zeichnungen")).assertExists()
+        compose.onNode(hasContentDescription("→ löschen")).performScrollTo().performClick()
+        compose.waitForIdle()
+        assertEquals(listOf("≠"), SymbolDrawing.personalSymbols(app).map { it.text })
+        compose.onNodeWithTag("agent_symbol_personal_→").assertDoesNotExist()
+        compose.onNodeWithTag("agent_symbol_personal_clear").performScrollTo().performClick()
+        compose.waitForIdle()
+        assertTrue(SymbolDrawing.personalSymbols(app).isEmpty())
+        compose.onNode(hasText("Noch keine persönlichen Vorlagen.")).assertExists()
+    }
+
+    private fun drawOnPad() {
+        compose.onNodeWithTag("agent_symbol_pad").performScrollTo().performTouchInput {
+            down(Offset(width * 0.1f, height * 0.5f)); moveTo(Offset(width * 0.5f, height * 0.5f)); moveTo(Offset(width * 0.9f, height * 0.5f)); up()
+        }
+        compose.waitForIdle()
+    }
+
+    private fun next() {
+        compose.onNodeWithText("Weiter").performScrollTo().assertIsEnabled().performClick()
+        compose.waitForIdle()
+    }
+
+    @Test fun calibrationKeepsEveryDrawingAndCanSkipAndStop() {
+        page()
+        val total = InkSymbols.all.size
+        compose.onNodeWithTag("agent_symbol_calibrate").performScrollTo().performClick()
+        compose.waitForIdle()
+        compose.onNode(hasText("Male → (1 von 2), Symbol 1 von $total")).assertExists()
+        compose.onNodeWithText("Weiter").assertIsNotEnabled() // nothing drawn yet
+        drawOnPad(); next()
+        compose.onNode(hasText("Male → (2 von 2), Symbol 1 von $total")).assertExists()
+        assertEquals(1, SymbolDrawing.personalSymbols(app).single().samples.size) // kept at once
+        drawOnPad(); next()
+        compose.onNode(hasText("Male ← (1 von 2), Symbol 2 von $total")).assertExists()
+        compose.onNodeWithText("Überspringen").performScrollTo().performClick()
+        compose.waitForIdle()
+        compose.onNode(hasText("Male ${InkSymbols.all[2].text} (1 von 2), Symbol 3 von $total")).assertExists()
+        drawOnPad(); next()
+        compose.onNodeWithText("Fertig").performScrollTo().performClick() // stop half way: what was drawn stays
+        compose.waitForIdle()
+        compose.onNodeWithTag("agent_symbol_calibration").assertDoesNotExist()
+        val personal = SymbolDrawing.personalSymbols(app)
+        assertEquals(listOf("→" to 2, InkSymbols.all[2].text to 1), personal.map { it.text to it.samples.size })
+        compose.onNodeWithTag("agent_symbol_personal_→").performScrollTo().assertExists()
     }
 }

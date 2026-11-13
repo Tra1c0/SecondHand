@@ -2452,6 +2452,130 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   Klassen, weil der Lead währenddessen `agent-core` neu baute (Infrastrukturabbruch, kein
   Befund). Maßgeblich ist der GitHub-Lauf.
 
+## Etappe 36 (Erkennung Symbole malen)
+
+- Auftrag (Lead, dringend, Rückmeldung des Owners zu Build 14 am Xiaomi): (1) ein Tipp übernimmt
+  das Symbol bis dahin, der Rest wird ein neues Zeichen; (2) ⇒ wird zu ≠; (3) Zeichen werden oft
+  nicht erkannt; (4) die Eingabe „glitcht“. Dazu drei niedrige Befunde des Prüfers zu `057a6d5`
+  (N-a, N-b, N-c). Gebaut in einer Arbeitskopie, kein Prüfer-Review, kein Gerätetest.
+- Gebaut (Kern): `C/InkTiming.kt` (`InkTap`: Tipp unter 4 dp; `InkPace`: Pause 900 ms, dann
+  2,5 × Median der letzten neun Lücken, 600–1500 ms), `C/PersonalInkSymbols.kt` (persönliche
+  Vorlagen, 5 je Symbol, 80 Symbole, Format der eigenen Symbole), `InkRecognizer` mit Richtungs-
+  und Strukturterm (`InkCloud.angles`, `lineCount`, `dotCount`, `Tuning`), Drehung nur für nahe
+  Vorlagen, `CUTOFF`, neue Schwellen 1,8 / 2,3 / 2,6; `InkSymbols` 105 statt 73 Vorlagen
+  (Fingervarianten), `OwnInkSymbols.encode/parse` mit Grenzen als Parameter.
+- Gebaut (App): `SymbolInk` (neue Tipp-Regel, Pause nach Tempo, nur Lücken vor echten Strichen
+  zählen, `Sink.onWaiting`, `takeWaiting`, `startsInkOn`), `SymbolDrawing` (Vorschau-Chip
+  „✎ →“ plus zwei Alternativen, Lernen aus Korrekturen mit Verschieben und Zurücknehmen,
+  persönliche Vorlagen im Erkenner), `AgentSymbolsScreen` (Schalter „Aus meinen Korrekturen
+  lernen“, Liste mit Löschen, „Kalibrieren“ als Karte), `AgentPreferences.SYMBOL_LEARNING`, Texte
+  in `agent_symbol_strings.xml`. `PointerTracker.java` (Touch-Verarbeitung, Prüfer Pflicht):
+  `startsInk` mit `SymbolInk.startsInkOn` statt `Character.isLetter`; zweiter Finger macht den
+  zeichnenden Tracker nur mit `mInInk` zur Taste, sonst `SymbolInk.cancel` (N-a); `onCancelEvent`
+  beendet auch den Folgestrich eines anderen Trackers (N-a); `moveInk` nur für den malenden Zeiger.
+  `LatinIME` unverändert.
+- Ursachen, soweit im Code zu finden (Gerät nicht verfügbar): (1) Die Pause von 500 ms ist für
+  einen Finger knapp; nach ihr geht der nächste Strich durch HeliBoards Gestenstart, und ein kurzer
+  Strich wird dort ein Buchstabe. Zusätzlich begann ein Folgestrich auf einer Satzzeichen-Taste
+  (Komma, Punkt; etwa der Strich unter ≤ oder der Kopf von ⇒ in der unteren Reihe) keine Tinte:
+  das Symbol wurde geschrieben, der Strich war das erste eines neuen. Die 10-dp-Tipp-Grenze traf
+  nur Striche unter 10 dp. (2) `$P` sieht nur Punktwolken. (3) wenige Vorlagen, Drehtoleranz
+  ±10°. (4) Gefundene Zustandsfehler: N-a (Geisterbuchstabe nach `ACTION_CANCEL` an einem anderen
+  Tracker), Spur eines verworfenen Strichs, während ein anderer Finger malt, Satzzeichen-Taste
+  (oben). Was der Owner mit „glitcht“ meinte, bleibt ungeklärt.
+- Benchmark (`CT/InkBenchmarkTest.kt` mit `CT/InkFingerModel.kt`, feste Seeds, 50 Zeichnungen je
+  Symbol): Die Formen sind im Test neu geschrieben, nicht aus `InkSymbols` übernommen; je Symbol
+  mehrere Arten zu malen (Kopf als Haken oder zwei Striche, Pfeil ohne Absetzen, ♥ in zwei
+  Hälften, € mit einem Balken, Proportionen zufällig), dann Reihenfolge und Richtung zufällig,
+  Enden bis 12 % gekürzt, Biegung, Haken beim Absetzen (jeder fünfte Strich), Zittern, ungleiche
+  Abtastung, Drehung bis ±15°, Streckung bis 25 % je Achse („hart“; „mild“: ±8°, 12 %, ohne
+  Kürzen, Haken und Umordnen). Die neuen Vorlagen decken dieselben Arten ab (nicht dieselben
+  Zufallswerte); der Vergleich misst also auch, dass Varianten jetzt Vorlagen haben. „Vorher“ ist
+  der Code von `ec91dac` (alter Erkenner und alte Vorlagen, vorübergehend in den Test kopiert, nicht
+  eingecheckt).
+  - Hart: vorher 1725/2000 (86,3 %), 91 nicht erkannt, 184 falsch; nachher 1924/2000 (96,2 %),
+    43 nicht erkannt, 33 falsch. Mild: vorher 1979/2000 (99,0 %), nachher 1998/2000 (99,9 %).
+  - Je Symbol hart (vorher → nachher, %): → 98→98, ← 98→98, ↓ 98→100, ↑ 98→100, ↗ 92→92,
+    ↘ 92→90, ↔ 78→90, ⇒ 60→88, = 74→92, ≠ 76→90, ≈ 78→82, ~ 82→98, ≤ 96→100, ≥ 92→100,
+    + 98→100, ± 98→100, × 72→100, ÷ 80→100, – 100→100, | 100→100, ∞ 90→96, √ 96→94, π 96→98,
+    ° 50→98, ✓ 92→98, ♥ 86→80, ★ 52→98, € 86→98, $ 90→100, § 98→98, & 82→96, @ 98→94, # 100→100,
+    % 100→100, ( 98→98, ) 100→100, [ 60→100, ] 64→100, { 80→96, } 72→88. Schlechter: ↘, √, @
+    (je 2 Zeichnungen) und ♥ (3, vor allem nicht erkannt).
+  - Häufigste Verwechslungen vorher: ⇒→= 17, [→( 10, ≠→= 10, ÷→– 10, [→{ 9, }→| 9, ]→} 9, ★→# 7;
+    nachher: ↗→↑ 3, }→| 3, je 2 √→|, }→), ♥→°, ⇒→=, @→°, ≈→=, ↘→↓.
+  - Paare (hart, vorher → nachher): ⇒→≠ 0 → 0 %, ≠→⇒ 0 → 0 %, →→↗ 0 → 0 %, ↗→→ 2 → 2 %,
+    =→≈ 8 → 0 %, ≈→= 12 → 4 %, ≠→= 20 → 2 %, ⇒→→ 0 → 2 %, +↔× 0 → 0 %. Mild ≠→⇒ 2 → 0 %.
+  - ⇒ als ≠: Das Modell konnte die Verwechslung des Owners auch vorher kaum nachstellen. Eigener
+    Fall „⇒ des Owners“ (Balken bis unter einen hohen, schmalen Kopf, der die Balken wie ein
+    Schrägstrich kreuzt; wie der Owner wirklich malt, ist nicht bekannt), 200 Zeichnungen: vorher
+    164 ⇒, 1 ≠; nachher 190 ⇒, 0 ≠. Ob ⇒ am Telefon nicht mehr zu ≠ wird, ist offen.
+  - Kritzeleien (`InkRecognizerTest`, 300 zufällige Linienzüge): vorher 20 angenommen, nachher
+    10. Alter Test mit künstlich verzerrten eingebauten Zeichnungen: 2583/2625 (98,4 %; vorher
+    97,5 %), schwächstes Symbol wieder % (185/225, Grenze 80 %).
+  - Zeit je Zeichnung (€, verschiedene Zeichnungen, JVM, geteilter Rechner): vorher 12,4 ms gegen
+    73 Vorlagen, nachher 6,8 ms gegen 105 (Drehung nur für Vorlagen bis 1,6-mal die beste, im
+    Benchmark ohne Unterschied in der Trefferzahl gegenüber Drehung für alle).
+  - Gewichte und Schwellen aus einem Lauf über Richtungsgewicht 0–0,3, Strichgewicht 0–0,35,
+    Punktgewicht 0/0,3 und Annahme 1,3–1,9 (je 30 Zeichnungen, Seed 99, nicht eingecheckt): ohne
+    Richtung und Struktur, mit den neuen Vorlagen (Zwischenstand, 103) 90,4 % bei 1,3 und 74 von
+    500 Kritzeleien angenommen; gewählt 0,25 / 0,25 / 0,3 mit 1,8 / 2,3 (96,5 %, 32 von 500; 1,9
+    gab 97,1 % und 33, die kleinere Schwelle gewählt).
+- Tipp-Regel (`CT/InkTimingTest.kt`, synthetisches Modell, keine echten Finger: Tipps 90 ms
+  Median, 1,2 dp Bewegung je Achse, jeder sechste „gerollt“ mit 3 dp; absichtliche kurze Striche
+  5–40 dp bei 100–600 dp/s). Falsche Striche = Tipps, die als Strich zählen (Buchstabe fehlt, die
+  Zeichnung bekommt einen Strich); falsche Tipps = kurze Striche, die als Tipp zählen:
+  alt (≤ 10 dp) 0,1 % / 14,4 %; vorgeschlagen (< 4 dp und < 180 ms) 12,6 % / 0,0 %; gewählt
+  (< 4 dp, Dauer egal) 7,1 % / 0,0 %; zum Vergleich < 6 dp 2,2 % / 3,0 %. Die Dauer wird nicht
+  verwendet (P111): Eine still gehaltene Berührung hat keine Form, als Strich wäre sie ein
+  verirrter Punkt und der Buchstabe fehlte. Die 7,1 % hängen ganz am angenommenen Anteil gerollter
+  Tipps; am Telefon zu prüfen, ob 4 dp Buchstaben kostet (dann 6 dp).
+- Geprüft (JVM, `tools/dev.py core-tests` 290/0): `InkBenchmarkTest` 3 (hart ≥ 95 %, je Symbol
+  ≥ 70 %, Paare ≤ 8 %, falsch ≤ 3 %; mild ≥ 98 %; ⇒ des Owners ≥ 90 % und ≤ 2 % ≠),
+  `InkTimingTest` 4 (Grenze 4 dp, Raten der Regeln, Pause 900 → 2,5 × Median, 600/1500, ein
+  Ausreißer verschiebt nichts), `PersonalInkSymbolsTest` 5 (5 je Symbol, neueste bleiben,
+  80 Symbole, Format hin und zurück, eigene Symbole lesen keine 5er-Zeile, Textregeln, eine
+  persönliche Vorlage gewinnt), `InkRecognizerTest` 15 (neu: Richtung ohne Vorzeichen, Punkte ohne
+  Richtung, Strich- und Punktzahl; der Zeit-Test nimmt jetzt 20 verschiedene Zeichnungen, weil
+  dieselbe seit 31 aus dem Merker kam und 0,1 ms maß), `InkDotsTest` unverändert grün.
+- Geprüft (Robolectric): `SymbolInkTest` 28 (neu: 6-px-Strich ist Strich, Strich ohne
+  Bewegungen, Strich nach 800 ms gehört dazu, Pause nach Tempo 600 ms, Buchstaben setzen die Pause
+  nicht, still gehaltener Tipp ist Buchstabe, Strich ab der Punkt-Taste und Tipp darauf, Vorschau
+  nach jedem Strich und leer beim Abbruch, Abbruch an anderem Tracker ohne Geisterbuchstabe);
+  `InputLogicTest.symbolDraw*` 19 (neu: Vorschau-Chip „✎ –“ → „✎ →“, Tipp schreibt sofort und nur
+  einmal; Chip während eines Strichs tut nichts, Verwerfen nimmt ihn weg; Alternative der Vorschau
+  wird geschrieben, gelernt nur mit Schalter, danach erkennt die Tastatur die Zeichnung als sie;
+  Alternative nach dem Schreiben gelernt, zweite Wahl verschiebt, Rückwahl nimmt zurück; kein
+  Lernen bei Inkognito, Lernpause, Sperre; persönliche Vorlage in der Tastatur);
+  `SymbolSettingsScreenTest` 11 (neu: Lernschalter Standard aus und gespeichert; Liste mit Anzahl,
+  einzeln und alle löschen; Kalibrieren: zwei Zeichnungen, Überspringen, Fertig, sofort
+  gespeichert).
+- Angepasste Tests (alte Regeln, ehrlich offengelegt): Alle Wartezeiten von 600 ms in
+  `SymbolInkTest` und `InputLogicTest` warten jetzt die längste Pause plus 100 ms
+  (`SymbolInk.MAX_PAUSE_MILLIS`); sie kodierten die 500 ms. `aTapThatSlidesALittleTypesTheKeyWhereItTouchedDown`
+  rutscht jetzt 3 px statt 8 px (8 px sind nach der neuen Regel ein Strich); Aussage und
+  Assertions gleich. `symbolDrawTapInThePauseThatIsNoDotMatchesTheDrawingOnce` zählt jetzt ab vor
+  dem Malen und erwartet 2 (eine Erkennung je Strich für die Vorschau; Punkt-Check und Schreiben
+  fügen keine hinzu), vorher 1 ab nach dem Malen. Keine Assertion entfernt.
+- Gegenproben: (a) in einem Lauf zugleich alte Tipp-Grenze 10 dp, feste Pause 500 ms, Folgestriche
+  nur auf Buchstaben, alter `onCancelEvent`, Lernen auch bei Inkognito: rot genau
+  `aStrokeMayStartOnThePeriodKeyAndATapThereTypesIt`, `thePauseFollowsThePaceOfTheStrokes`,
+  `aCancelThatReachesAnotherTrackerEndsTheInkStroke`, `aStrokeAfterMoreThanHalfASecondStillBelongsToTheSymbol`,
+  `symbolDrawLearnsNothingInIncognitoWhilePausedOrLocked`; `aShortStrokeInThePauseIsAStrokeNotATap`
+  blieb grün, weil der Strich in der ÷-Punktzone lag; verschoben, danach mit nur der 10-dp-Grenze
+  rot. (b) Lücke schon beim Aufsetzen gezählt: rot `lettersTypedInThePauseDoNotSetThePace`.
+  (c) Richtungs-, Strich- und Punktgewicht 0: rot `fingerDrawingsHard` (92,4 %, 153 falsch),
+  `theOwnersDoubleArrowIsNoNotEquals` (168 ⇒, 1 ≠), `scribblesAreMostlyRejected` (295/300). Danach
+  alles wiederhergestellt und grün.
+- Fallstrick P113 entstand hier: ein zusätzliches ÷ mit Punkten bei 25/75 machte einen Tipp genau
+  auf den Strich zum Punkt (`InkDotsTest.tapsAwayFromTheDotsOfADashAreLetters` rot); entfernt.
+- Gesamtläufe: `tools/dev.py core-tests` 290/0, `tools/dev.py agent-tests` 737/0 (auch der
+  früher wackelige `SpaceGesturesTest` grün).
+  Nicht gelaufen: `upstream-tests`, `lint`, Build (geteilte Maschine, macht der Lead).
+- Nicht geprüft: kein Gerätetest (echte Finger am Xiaomi: Tipp-Grenze, Pause und Tempo, Vorschau
+  beim Malen, Erkennung, ⇒/≠, Kalibrieren im Malfeld), keine echten Zeichnungen des Owners im
+  Benchmark; kein Prüfer-Review der `PointerTracker`-Änderung (Pflicht). Annahme: „Aus meinen
+  Korrekturen lernen“ ist opt-in (Regel in `CLAUDE.md`), der Owner muss es einschalten.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

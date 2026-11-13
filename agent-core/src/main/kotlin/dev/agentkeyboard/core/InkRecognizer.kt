@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package dev.agentkeyboard.core
 
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.atan2
 import kotlin.math.floor
 import kotlin.math.hypot
 import kotlin.math.max
@@ -12,8 +15,10 @@ import kotlin.math.sqrt
 /**
  * Drawn symbols (stage 27): a local `$P` point-cloud recognizer (Vatavu, Anthony, Wobbrock 2012).
  * A drawing is one or more strokes; the recognizer ignores stroke order and direction and compares
- * clouds of [InkCloud.SIZE] points. No network, no learning: the templates are the built-in list
- * ([InkSymbols]) plus the own symbols the user drew in the settings.
+ * clouds of [InkCloud.SIZE] points. No network: the templates are the built-in list ([InkSymbols]),
+ * the own symbols the user drew in the settings and, stage 36, the personal templates
+ * ([PersonalInkSymbols]: calibration and picked alternatives). Stage 36 adds stroke directions and
+ * the stroke count to the match ([InkRecognizer]).
  */
 
 /** One stroke as raw coordinates (x0, y0, x1, y1, …), screen orientation (y grows downward). */
@@ -43,12 +48,45 @@ class InkStroke(val coordinates: FloatArray) {
 class InkCloud internal constructor(val xs: FloatArray, val ys: FloatArray, val strokes: IntArray) {
     init { require(xs.size == SIZE && ys.size == SIZE && strokes.size == SIZE) }
 
+    /**
+     * Stage 36: the direction of the stroke at every point, without its sense (a line drawn either
+     * way has the same), in [0, π); NaN where the stroke does not move (a dot). Computed from the
+     * neighbours in the same stroke, so a stored cloud gets it too.
+     */
+    val angles: FloatArray by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        FloatArray(SIZE) { i ->
+            val a = if (i > 0 && strokes[i - 1] == strokes[i]) i - 1 else i
+            val b = if (i < SIZE - 1 && strokes[i + 1] == strokes[i]) i + 1 else i
+            val dx = xs[b] - xs[a]; val dy = ys[b] - ys[a]
+            if (dx * dx + dy * dy < 1e-6f) Float.NaN
+            else atan2(dy, dx).let { if (it < 0f) it + PI_F else it }.let { if (it >= PI_F) it - PI_F else it }
+        }
+    }
+
+    /** Stage 36: strokes that are lines (not dots) and dots, for the structure term of the match. */
+    val lineCount: Int get() = counts.first
+    val dotCount: Int get() = counts.second
+    private val counts: Pair<Int, Int> by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        var lines = 0; var dots = 0
+        var start = 0
+        for (i in 1..SIZE) if (i == SIZE || strokes[i] != strokes[start]) {
+            var minX = Float.MAX_VALUE; var maxX = -Float.MAX_VALUE; var minY = Float.MAX_VALUE; var maxY = -Float.MAX_VALUE
+            for (k in start until i) { minX = min(minX, xs[k]); maxX = max(maxX, xs[k]); minY = min(minY, ys[k]); maxY = max(maxY, ys[k]) }
+            if (max(maxX - minX, maxY - minY) <= DOT_EXTENT) dots++ else lines++
+            start = i
+        }
+        lines to dots
+    }
+
     companion object {
         const val SIZE = 32
         /** At most this many strokes count; a symbol with more is not a symbol. */
         const val MAX_STROKES = 12
         /** A short stroke or a dot still gets this share of the points, so dots (÷) count. */
         private const val MIN_SHARE = 0.06f
+        /** A stroke whose larger side is at most this share of the cloud counts as a dot (like [InkDots.DOT_EXTENT]). */
+        const val DOT_EXTENT = 0.08f
+        private const val PI_F = PI.toFloat()
 
         /** The cloud of [strokes], or null without points or with more than [MAX_STROKES] strokes. */
         fun of(strokes: List<InkStroke>): InkCloud? {
@@ -163,8 +201,32 @@ class InkResult(val candidates: List<InkMatch>) {
         else candidates.drop(1).filter { it.distance <= InkRecognizer.ALTERNATIVE_DISTANCE }.take(InkRecognizer.ALTERNATIVES)
 }
 
-class InkRecognizer(templates: List<InkTemplate>) {
+/**
+ * Stage 36: `$P` alone ignores stroke order and direction, so ⇒ (two bars and a head) and ≠ (two
+ * bars and a slash) only differ where the points lie. The match now also compares (1) the direction
+ * of the stroke at every point, without its sense (`$P+`-like: a head's barbs run at ±45°, a slash
+ * steeply, a bar flat), and (2) the structure: how many strokes are lines and how many are dots.
+ * Order and direction of the strokes still do not matter. [Tuning] holds the weights; the defaults are
+ * calibrated with the finger benchmark (InkBenchmarkTest, docs/VALIDATION.md, stage 36).
+ */
+class InkRecognizer(templates: List<InkTemplate>, private val tuning: Tuning = Tuning.DEFAULT) {
     private val templates = templates.toList()
+
+    /** The weights of the match; only tests change them. */
+    class Tuning(
+        /** Cost of a point whose stroke runs at right angles to its partner's, in units of the unit box. */
+        val angleWeight: Float = 0.25f,
+        /** Cost per line stroke more or fewer than the template has (after the `$P` sum). */
+        val lineWeight: Float = 0.25f,
+        /** Cost per dot more or fewer than the template has. */
+        val dotWeight: Float = 0.30f,
+        /** Degrees the drawing is also turned by before matching. */
+        val rotations: List<Float> = listOf(-12f, 0f, 12f),
+        /** Only templates at most this many times as far as the nearest one (upright) are also turned. */
+        val turnNear: Float = 1.6f,
+    ) {
+        companion object { val DEFAULT = Tuning() }
+    }
 
     /** All texts ranked by their closest template, at most one entry per text. */
     fun recognize(strokes: List<InkStroke>): InkResult {
@@ -175,7 +237,8 @@ class InkRecognizer(templates: List<InkTemplate>) {
     /**
      * The last cloud and its result (stage 31 fix): a tap in the pause that is no dot makes [InkDots]
      * (rule 4) match the drawing, and then the very same drawing is written; that second question is
-     * answered from here instead of matching again on the main thread.
+     * answered from here instead of matching again on the main thread. Stage 36: the preview chip
+     * matches the drawing after every stroke, and the drawing written after the pause is that last one.
      */
     @Volatile private var last: Pair<InkCloud, InkResult>? = null
 
@@ -192,15 +255,39 @@ class InkRecognizer(templates: List<InkTemplate>) {
 
     private fun match(cloud: InkCloud): InkResult {
         val best = LinkedHashMap<String, InkMatch>()
-        // a hand rarely draws exactly upright: also try the drawing slightly turned (pure $P has no
-        // rotation tolerance); far less than the 45° between → and ↗ or + and ×
-        val turned = TOLERATED_ROTATIONS.map { if (it == 0f) cloud else InkCloud.rotated(cloud, it) }
-        for (template in templates) {
-            var d = Float.MAX_VALUE
-            for (candidate in turned) d = min(d, greedyCloudMatch(candidate, template.cloud, d))
+        fun note(template: InkTemplate, d: Float) {
             val known = best[template.text]
             // an own symbol with the same text as a built-in one is the same candidate
             if (known == null || d < known.distance) best[template.text] = InkMatch(template.text, d, template.own)
+        }
+        // nothing farther than CUTOFF changes the result: stop summing there (stage 36, speed)
+        fun limit(template: InkTemplate) = min(best[template.text]?.distance ?: Float.MAX_VALUE, CUTOFF)
+        val structure = FloatArray(templates.size) { k ->
+            val t = templates[k].cloud
+            tuning.lineWeight * abs(cloud.lineCount - t.lineCount) + tuning.dotWeight * abs(cloud.dotCount - t.dotCount)
+        }
+        // upright first, every template
+        val upright = FloatArray(templates.size)
+        var nearest = Float.MAX_VALUE
+        for ((k, template) in templates.withIndex()) {
+            val limit = limit(template)
+            upright[k] = if (structure[k] >= limit) limit
+                else structure[k] + greedyCloudMatch(cloud, template.cloud, limit - structure[k], tuning.angleWeight)
+            note(template, upright[k])
+            nearest = min(nearest, upright[k])
+        }
+        // a hand rarely draws exactly upright: also try the drawing slightly turned (pure $P has no
+        // rotation tolerance), far less than the 45° between → and ↗ or + and ×; stage 36: only for
+        // templates that came close upright (turning gains far less than [Tuning.turnNear] times)
+        val turned = tuning.rotations.filter { it != 0f }.map { InkCloud.rotated(cloud, it) }
+        if (turned.isEmpty()) return InkResult(best.values.sortedBy { it.distance })
+        val near = min(nearest * tuning.turnNear, CUTOFF)
+        for ((k, template) in templates.withIndex()) {
+            if (upright[k] > near) continue
+            var d = min(limit(template), upright[k]) - structure[k]
+            if (d <= 0f) continue
+            for (candidate in turned) d = min(d, greedyCloudMatch(candidate, template.cloud, d, tuning.angleWeight))
+            note(template, d + structure[k])
         }
         return InkResult(best.values.sortedBy { it.distance })
     }
@@ -208,34 +295,56 @@ class InkRecognizer(templates: List<InkTemplate>) {
     companion object {
         /**
          * The best match must be at least this close. Calibrated with [InkSymbols] (see
-         * InkRecognizerTest): perturbed built-in drawings stay well below, random scribbles above.
+         * InkRecognizerTest and InkBenchmarkTest): drawings of the symbols stay below, scribbles above.
+         * Stage 36: 1.8 instead of 1.3, because every point now also pays for its direction.
          */
-        const val ACCEPT_DISTANCE = 1.3f
+        const val ACCEPT_DISTANCE = 1.8f
         /** Further away, the best match still counts when the next one is [CLEAR_MARGIN] times as far. */
-        const val CLEAR_DISTANCE = 2.0f
+        const val CLEAR_DISTANCE = 2.3f
         const val CLEAR_MARGIN = 1.2f
         /** Alternatives further away than this are not offered (they would only be noise). */
-        const val ALTERNATIVE_DISTANCE = 2.2f
+        const val ALTERNATIVE_DISTANCE = 2.6f
         const val ALTERNATIVES = 3
-        /** Degrees the drawing is also turned by before matching. */
-        val TOLERATED_ROTATIONS = floatArrayOf(-10f, 0f, 10f).toList()
+        /**
+         * Stage 36, speed: a template is not summed beyond this distance, no decision depends on it
+         * (above [ALTERNATIVE_DISTANCE] and [CLEAR_DISTANCE] × [CLEAR_MARGIN]); such a candidate is
+         * listed with this distance.
+         */
+        const val CUTOFF = 2.8f
+        /** The default rotations. */
+        val TOLERATED_ROTATIONS: List<Float> get() = Tuning.DEFAULT.rotations
 
-        /** `$P` GreedyCloudMatch with epsilon 0.5: both directions from every `step`-th start. */
-        fun greedyCloudMatch(a: InkCloud, b: InkCloud, bound: Float = Float.MAX_VALUE): Float {
+        /**
+         * `$P` GreedyCloudMatch with epsilon 0.5: both directions from every `step`-th start. With
+         * [angleWeight] > 0 every point also pays for the difference in stroke direction (stage 36).
+         */
+        fun greedyCloudMatch(a: InkCloud, b: InkCloud, bound: Float = Float.MAX_VALUE, angleWeight: Float = Tuning.DEFAULT.angleWeight): Float {
             val n = InkCloud.SIZE
             val step = floor(n.toDouble().pow(0.5)).toInt()
             var best = bound
             var start = 0
             while (start < n) {
-                best = min(best, min(cloudDistance(a, b, start, best), cloudDistance(b, a, start, best)))
+                best = min(best, min(cloudDistance(a, b, start, best, angleWeight), cloudDistance(b, a, start, best, angleWeight)))
                 start += step
             }
             return best
         }
 
-        private fun cloudDistance(a: InkCloud, b: InkCloud, start: Int, bound: Float): Float {
+        private const val HALF_PI = (PI / 2).toFloat()
+        private const val PI_F = PI.toFloat()
+
+        /** 0 for the same direction, 1 at right angles; a dot against a line costs half. */
+        private fun angleCost(a: Float, b: Float): Float {
+            if (a.isNaN() || b.isNaN()) return if (a.isNaN() && b.isNaN()) 0f else 0.5f
+            val d = abs(a - b)
+            return min(d, PI_F - d) / HALF_PI
+        }
+
+        private fun cloudDistance(a: InkCloud, b: InkCloud, start: Int, bound: Float, angleWeight: Float): Float {
             val n = InkCloud.SIZE
             val matched = BooleanArray(n)
+            val aa = if (angleWeight > 0f) a.angles else null
+            val ba = if (angleWeight > 0f) b.angles else null
             var sum = 0f
             var i = start
             var weightIndex = 0
@@ -244,12 +353,13 @@ class InkRecognizer(templates: List<InkTemplate>) {
                 var nearestDistance = Float.MAX_VALUE
                 for (j in 0 until n) if (!matched[j]) {
                     val dx = a.xs[i] - b.xs[j]; val dy = a.ys[i] - b.ys[j]
-                    val d = dx * dx + dy * dy
+                    var d = sqrt(dx * dx + dy * dy)
+                    if (aa != null && d < nearestDistance) d += angleWeight * angleCost(aa[i], ba!![j])
                     if (d < nearestDistance) { nearestDistance = d; nearest = j }
                 }
                 matched[nearest] = true
                 val weight = 1f - weightIndex.toFloat() / n
-                sum += weight * sqrt(nearestDistance)
+                sum += weight * nearestDistance
                 if (sum >= bound) return sum // cannot beat the best start any more
                 weightIndex++
                 i = (i + 1) % n
@@ -304,7 +414,8 @@ class InkGroup(val pauseMillis: Long = PAUSE_MILLIS) {
     fun clear() { strokes.clear(); points = 0; lastEnd = -1 }
 
     companion object {
-        const val PAUSE_MILLIS = 500L
+        /** Stage 36: the keyboard waits [InkPace.pauseMillis]; this is only the default of a bare group. */
+        const val PAUSE_MILLIS = InkPace.DEFAULT_MILLIS
         const val MAX_POINTS = 4096
     }
 }

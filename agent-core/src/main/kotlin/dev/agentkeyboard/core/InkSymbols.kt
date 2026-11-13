@@ -67,31 +67,43 @@ object InkSymbols {
 
     // --- shapes ---
 
+    // stage 36: finger variants besides the shapes (a head in one stroke or as two barbs, a whole
+    // arrow without lifting the finger, other proportions); the recognizer counts strokes now
     private val rightArrows = listOf(
         listOf(line(0, 50, 100, 50), poly(72, 26, 100, 50, 72, 74)),
         listOf(line(0, 50, 100, 50), poly(84, 38, 100, 50, 84, 62)),
+        listOf(line(0, 50, 100, 50), line(76, 30, 100, 50), line(76, 70, 100, 50)),
+        listOf(poly(0, 50, 100, 50, 76, 30, 100, 50, 76, 70)),
     )
     private val upRightArrows = listOf(
         listOf(line(0, 100, 100, 0), poly(50, 0, 100, 0, 100, 50)),
         listOf(line(0, 100, 100, 0), poly(66, 0, 100, 0, 100, 34)),
+        listOf(line(0, 100, 100, 0), line(60, 0, 100, 0), line(100, 40, 100, 0)),
     )
     private val bothArrows = listOf(
         listOf(line(0, 50, 100, 50), poly(76, 30, 100, 50, 76, 70), poly(24, 30, 0, 50, 24, 70)),
+        listOf(line(0, 50, 100, 50), line(78, 30, 100, 50), line(78, 70, 100, 50), line(22, 30, 0, 50), line(22, 70, 0, 50)),
     )
     private val doubleArrows = listOf(
         listOf(line(0, 36, 80, 36), line(0, 64, 80, 64), poly(66, 12, 100, 50, 66, 88)),
+        // the owner's ⇒ (build 14): bars up to under a tall head
+        listOf(line(0, 38, 92, 38), line(0, 62, 92, 62), poly(70, 5, 100, 50, 70, 95)),
+        listOf(line(0, 36, 80, 36), line(0, 64, 80, 64), line(66, 12, 100, 50), line(66, 88, 100, 50)),
     )
     private val equals = listOf(
         listOf(line(0, 34, 100, 34), line(0, 66, 100, 66)),
         listOf(line(0, 40, 100, 40), line(0, 60, 100, 60)),
+        listOf(line(0, 30, 100, 30), line(8, 70, 92, 70)),
     )
     private val notEquals = listOf(
         listOf(line(0, 34, 100, 34), line(0, 66, 100, 66), line(30, 100, 70, 0)),
         listOf(line(0, 38, 100, 38), line(0, 62, 100, 62), line(40, 95, 60, 5)),
+        listOf(line(0, 35, 100, 35), line(0, 65, 100, 65), line(22, 95, 78, 5)),
     )
     private val lessEqual = listOf(
         listOf(poly(90, 0, 10, 38, 90, 76), line(10, 100, 90, 100)),
         listOf(poly(90, 0, 10, 38, 90, 76), line(10, 90, 90, 100)),
+        listOf(poly(90, 0, 10, 32, 90, 64), line(10, 100, 90, 100)),
     )
     private val plus = listOf(listOf(line(50, 0, 50, 100), line(0, 50, 100, 50)))
     private val plusMinus = listOf(
@@ -118,18 +130,21 @@ object InkSymbols {
         listOf(line(0, 12, 100, 12), line(32, 12, 26, 100), poly(68, 12, 70, 90, 84, 100)),
         listOf(line(0, 12, 100, 12), line(32, 12, 32, 100), line(68, 12, 68, 100)),
     )
-    private val degree = listOf(listOf(arc(50, 50, 50, 50, 0, 360)))
+    private val degree = listOf(listOf(arc(50, 50, 50, 50, 0, 360)), listOf(arc(50, 50, 50, 50, -90, 250)))
     private val check = listOf(
         listOf(poly(0, 55, 35, 100, 100, 0)),
         listOf(poly(0, 70, 25, 100, 100, 0)),
     )
+    private val heartLine = InkStroke(FloatArray(2 * 41) { k ->
+        val t = 2 * PI * (k / 2) / 40
+        val x = 16 * sin(t).let { it * it * it }
+        val y = 13 * cos(t) - 5 * cos(2 * t) - 2 * cos(3 * t) - cos(4 * t)
+        if (k % 2 == 0) (50 + x * 3).toFloat() else (45 - y * 3).toFloat()
+    })
     private val heart = listOf(
-        listOf(InkStroke(FloatArray(2 * 41) { k ->
-            val t = 2 * PI * (k / 2) / 40
-            val x = 16 * sin(t).let { it * it * it }
-            val y = 13 * cos(t) - 5 * cos(2 * t) - 2 * cos(3 * t) - cos(4 * t)
-            if (k % 2 == 0) (50 + x * 3).toFloat() else (45 - y * 3).toFloat()
-        })),
+        listOf(heartLine),
+        // stage 36: in two halves, lifting the finger at the tip
+        listOf(InkStroke(heartLine.coordinates.copyOfRange(0, 42)), InkStroke(heartLine.coordinates.copyOfRange(40, 82))),
     )
     private val star = listOf(
         listOf(InkStroke(FloatArray(2 * 6) { k ->
@@ -140,6 +155,7 @@ object InkSymbols {
     private val euro = listOf(
         listOf(arc(60, 50, 45, 50, 320, 40), line(0, 40, 66, 40), line(0, 60, 66, 60)),
         listOf(arc(60, 50, 45, 50, 315, 45), line(5, 38, 70, 38), line(5, 58, 60, 58)),
+        listOf(arc(60, 50, 45, 50, 320, 40), line(0, 50, 70, 50)),
     )
     private val sShape = joined(arcPoints(50, 28, 34, 22, 335, 90), arcPoints(50, 72, 34, 22, 270, 515))
     private val dollar = listOf(
@@ -168,7 +184,7 @@ object InkSymbols {
         listOf(arc(15, 15, 12, 12, 0, 360), line(80, 5, 20, 95), arc(85, 85, 12, 12, 0, 360)),
     )
     private val leftParen = listOf(listOf(arc(75, 50, 40, 50, 240, 120)), listOf(arc(70, 50, 30, 50, 250, 110)))
-    private val leftBracket = listOf(listOf(poly(70, 0, 30, 0, 30, 100, 70, 100)))
+    private val leftBracket = listOf(listOf(poly(70, 0, 30, 0, 30, 100, 70, 100)), listOf(poly(60, 0, 35, 0, 35, 100, 60, 100)))
     private val leftBrace = listOf(listOf(poly(72, 0, 54, 4, 50, 18, 50, 40, 30, 50, 50, 60, 50, 82, 54, 96, 72, 100)))
 
     val all: List<Symbol> = listOf(
@@ -182,23 +198,23 @@ object InkSymbols {
         Symbol("⇒", doubleArrows),
         Symbol("=", equals),
         Symbol("≠", notEquals),
-        Symbol("≈", listOf(listOf(wave(32.0, 10.0), wave(68.0, 10.0)))),
-        Symbol("~", listOf(listOf(wave(50.0, 16.0)))),
+        Symbol("≈", listOf(listOf(wave(32.0, 10.0), wave(68.0, 10.0)), listOf(wave(36.0, 6.0), wave(64.0, 6.0)))),
+        Symbol("~", listOf(listOf(wave(50.0, 16.0)), listOf(wave(50.0, 9.0)))),
         Symbol("≤", lessEqual),
         Symbol("≥", lessEqual.map { it.mirrorX() }),
         Symbol("+", plus),
         Symbol("±", plusMinus),
-        Symbol("×", times),
+        Symbol("×", times.withSqueezed()),
         Symbol("÷", divide),
         Symbol("–", listOf(listOf(line(0, 50, 100, 50)))),
         Symbol("|", listOf(listOf(line(50, 0, 50, 100)))),
         Symbol("∞", infinity),
         Symbol("√", root),
         Symbol("π", pi),
-        Symbol("°", degree),
+        Symbol("°", degree.withSqueezed()),
         Symbol("✓", check),
         Symbol("♥", heart),
-        Symbol("★", star),
+        Symbol("★", star.withSqueezed()),
         Symbol("€", euro),
         Symbol("$", dollar),
         Symbol("§", section),

@@ -391,23 +391,41 @@ langes Drücken für Sonderzeichen und das Wischen auf Leer- und Löschtaste ble
 
 - Male mit einem Finger auf den Buchstabentasten, zügig wie beim Wischen. Die Spur bleibt kurz
   sichtbar.
-- Ein Symbol aus mehreren Strichen: den nächsten Strich innerhalb einer halben Sekunde ansetzen.
-  Kurze Striche zählen dann mit. Nach der Pause wird das Symbol geschrieben; tippst du vorher
-  eine andere Taste, kommt das Symbol zuerst.
-- Ein kurzer Tipp auf einen Buchstaben in dieser halben Sekunde schreibt das Symbol und dann den
-  Buchstaben. Als Punkt zählt der Tipp nur, wenn ein Symbol hier einen Punkt braucht: nach einem
+- Ein Symbol aus mehreren Strichen: den nächsten Strich innerhalb der Pause ansetzen. Die Pause
+  ist anfangs 0,9 Sekunden und passt sich deinem Tempo an (etwa 2,5-mal so lang wie deine übliche
+  Lücke zwischen zwei Strichen, mindestens 0,6 und höchstens 1,5 Sekunden). Kurze Striche zählen
+  dann mit, auch wenn sie auf einer Satzzeichen- oder Zifferntaste beginnen; nur auf Leertaste,
+  Enter, Löschen, Umschalt und „?123“ beginnt kein Strich. Nach der Pause wird das Symbol
+  geschrieben; tippst du vorher eine andere Taste, kommt das Symbol zuerst.
+- Während du malst, zeigt die Leiste, was jetzt geschrieben würde: „✎ →“ und bis zu zwei andere
+  Symbole („✎ ?“, solange nichts passt). Ein Tipp darauf schreibt das Symbol sofort, ohne die Pause
+  abzuwarten; ein Tipp auf ein anderes Symbol schreibt dieses.
+- Ein Tipp in dieser Pause (der Finger bewegt sich kaum, weniger als etwa 4 dp, so lange er auch
+  liegt) schreibt das Symbol und dann den Buchstaben. Bewegt er sich weiter, ist er ein Strich des
+  Symbols. Als Punkt zählt der Tipp nur, wenn ein Symbol hier einen Punkt braucht: nach einem
   waagerechten Strich ungefähr senkrecht über oder unter seiner Mitte (÷), bei eigenen Symbolen mit
   Punkten dort, wo du den Punkt gemalt hast. Darum wird ein Buchstabe, den du direkt über oder
   unter die Mitte eines gemalten Strichs tippst, zum Punkt; die Tasten daneben bleiben Buchstaben.
   Rutscht der Tipp beim Loslassen ein kleines Stück auf die Nachbartaste (z. B. Löschen), zählt
   die Taste, auf der du aufgesetzt hast.
-- Tippst du in dieser halben Sekunde mit zwei Daumen (der zweite setzt auf, bevor der erste
+- Tippst du in dieser Pause mit zwei Daumen (der zweite setzt auf, bevor der erste
   loslässt), kommt das Symbol und danach beide Buchstaben in deiner Reihenfolge. Ein solcher Tipp
   ist nie ein Punkt.
-- Tippst du in dieser halben Sekunde einen Wortvorschlag an, kommt das Symbol zuerst und das Wort
+- Tippst du in dieser Pause einen Wortvorschlag an, kommt das Symbol zuerst und das Wort
   danach. Ersetzt der Vorschlag das Wort, das du vor dem Malen getippt hast, bleibt das Symbol
   dahinter.
 - Die Leiste zeigt danach bis zu drei andere Symbole; ein Tipp tauscht das geschriebene aus.
+- Persönliche Vorlagen: Einstellungen → „Symbole malen“ → „Aus meinen Korrekturen lernen“
+  (anfangs aus). Ist es an und wählst du in der Leiste ein anderes Symbol (beim Malen oder
+  danach), merkt sich die Tastatur deine Zeichnung für dieses Symbol, bis zu fünf je Symbol, die
+  neuesten bleiben. Wählst du danach noch einmal um, wandert die Zeichnung mit; wählst du das
+  zuerst erkannte Symbol zurück, wird sie vergessen. Nicht im Inkognito-Modus, bei „Lernen
+  pausieren“ oder gesperrtem Telefon.
+- „Kalibrieren“ (dieselbe Seite): Die Seite zeigt nacheinander jedes eingebaute Symbol; male es
+  zweimal in das Feld, je „Weiter“. „Überspringen“ geht zum nächsten Symbol, „Fertig“ hört auf;
+  was du schon gemalt hast, bleibt gespeichert. Unter „Persönliche Vorlagen“ stehen alle
+  gemerkten Zeichnungen mit Anzahl; „Löschen“ entfernt ein Symbol, „Alle persönlichen Vorlagen
+  löschen“ alle.
 - „Nicht erkannt“: nichts wurde geschrieben; ein Tipp öffnet die eigenen Symbole (bei gesperrtem
   Telefon nicht, dann verschwindet nur der Chip).
 - Ein zweiter Finger während eines Strichs (nicht eines Tipps) verwirft die Zeichnung; ihre Spur
@@ -416,7 +434,8 @@ langes Drücken für Sonderzeichen und das Wischen auf Leer- und Löschtaste ble
 - Unter Einstellungen → Gestenschreiben ist der Schalter „Gestenschreiben“ ausgegraut, solange
   Symbole malen an ist („Aus, solange „Symbole malen“ an ist“); dein Wert bleibt gespeichert.
 
-Eingebaute Symbole (Reihenfolge der Striche und Richtung sind egal):
+Eingebaute Symbole (Reihenfolge und Richtung der Striche sind egal; die Form jedes Strichs zählt,
+eine Pfeilspitze darf ein Haken oder zwei einzelne Striche sein):
 
 | Symbol | So malen |
 | --- | --- |

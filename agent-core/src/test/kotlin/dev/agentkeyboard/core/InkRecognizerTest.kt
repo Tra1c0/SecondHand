@@ -115,6 +115,18 @@ class InkRecognizerTest {
         assertEquals("≠", recognizer.recognize(reversed).best?.text)
     }
 
+    @Test fun aStrokeHasTheSameDirectionBothWaysAndDotsHaveNone() {
+        // stage 36: the direction term does not care which way a line was drawn
+        val there = InkCloud.of(listOf(InkStroke.of(0f, 0f, 100f, 100f)))!!
+        val back = InkCloud.of(listOf(InkStroke.of(100f, 100f, 0f, 0f)))!!
+        for (i in 0 until InkCloud.SIZE) assertEquals(there.angles[i], back.angles[i], 1e-3f)
+        assertEquals(Math.PI.toFloat() / 4, there.angles[5], 1e-3f) // y grows downward: 45°
+        val divide = InkCloud.of(listOf(InkStroke.of(0f, 50f, 100f, 50f), InkStroke.of(50f, 10f), InkStroke.of(51f, 90f)))!!
+        assertEquals(1, divide.lineCount)
+        assertEquals(2, divide.dotCount)
+        assertTrue(divide.angles.count { it.isNaN() } >= 2)
+    }
+
     @Test fun sizeAndPositionDoNotMatterButAspectDoes() {
         val horizontal = listOf(InkStroke.of(300f, 900f, 700f, 905f))
         val vertical = listOf(InkStroke.of(40f, 10f, 42f, 210f))
@@ -171,11 +183,15 @@ class InkRecognizerTest {
     }
 
     @Test fun recognitionIsFastEnoughForTheMainThread() {
-        val drawing = InkSymbols.all.first { it.text == "€" }.variants.first()
-        repeat(5) { recognizer.recognize(drawing) } // warm up
+        // stage 36: 20 different drawings; the same one again would come from the memo (stage 31)
+        val random = Random(20)
+        val drawings = List(25) { perturb(InkSymbols.all.first { it.text == "€" }.variants.first(), random) }
+        drawings.take(5).forEach { recognizer.recognize(it) } // warm up
+        val before = recognizer.recognitions
         val start = System.nanoTime()
-        repeat(20) { recognizer.recognize(drawing) }
+        drawings.drop(5).forEach { recognizer.recognize(it) }
         val millis = (System.nanoTime() - start) / 20 / 1_000_000.0
+        assertEquals(20, recognizer.recognitions - before) // really matched, none from the memo
         println("ink: ${"%.1f".format(millis)} ms per drawing against ${InkSymbols.templates.size} templates")
         assertTrue(millis < 50, "$millis ms")
     }
