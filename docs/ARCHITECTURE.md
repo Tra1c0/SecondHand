@@ -413,6 +413,12 @@ Emoji-Ansicht (Emoji-Mix, 25a; Abschnitt „Befehle“):
   `EmojiMixPalette.toggleCurrent`. `KeyCode.kt`: `AGENT_EMOJI_MIXER = -12005` (in `checkAndConvertCode`
   durchgereicht).
 
+Update-Migrationen (Build 12, P84): `AppUpgrade.kt` läuft nach einem Update nur noch die Teile
+für jedes Update (entpackte Wörterbücher leeren, `upgradeToolbarPrefs`, Layout-Cache) und
+überspringt HeliBoards Versions-Migrationen (`FORK_UPGRADES_ONLY`); beim ersten Update von Build
+12 oder älter stellt `MyDesigns.repairAfterOldUpgrades` Abstände und Tastenhöhe des gewählten
+eigenen Designs wieder her. Test: `ForkUpgradeTest`.
+
 Geänderte Upstream-Tests (Leertasten-Gesten): `InputLogicTest.kt` ruft `onSpaceSwipe` statt
 `onHorizontalSpaceSwipe` und hat die Fälle `generatedSpace*`.
 
@@ -1646,6 +1652,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   auch eine halb geschriebene. Temporäre Dateien beim Entpacken gehören deshalb nach
   `files/dicts_extracting/` (selbes Volume, also `renameTo` möglich), nicht in den Zielordner und
   auch nicht als Unterordner von `files/dicts/` (der würde als Sprache gezählt).
+- **P84** Die Versionsnummer des Forks ist die Laufnummer des Workflows (1, 2, …), weit unter
+  HeliBoards Versionscodes. `AppUpgrade` lief deshalb bei jedem Update alle alten Migrationen
+  (`oldVersion <= 3901` u. a.) erneut; eine davon setzt die Tastenabstände auf 1,75 und zerstörte
+  so das eigene Design des Owners. Der Fork wird nie über HeliBoard installiert (eigenes Paket),
+  also gelten diese Migrationen nie: `FORK_UPGRADES_ONLY` überspringt sie.
 - **P81** Der Medienspeicher meldet mehrere Screenshots im Entprellfenster als eine Änderung; eine
   Abfrage nur nach dem neuesten verliert die übrigen. `ScreenshotChip.finder` liefert deshalb
   eine Liste, und jeder Screenshot wird einzeln für den Verlauf entschieden. Dabei kommt nur in
@@ -1694,7 +1705,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (393 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (395 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -1719,21 +1730,21 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (67): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (68): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, ClipCommandTest, CommandReplaceTest, CommandTemplatesTest,
   ContactCommandTest, CorrectionMemoryTest, DatePlaceCommandsTest, DebugPrivacyTest,
   DesignEditorTest, DesignTilesTest, DictationSessionTest, DictationUiTest, EmojiMixPaletteTest,
   EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, FlatClipboardTest, FlatMenuTest,
-  FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, HapticChainTest,
-  InsertAtCursorTest, JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest,
-  LearningDataTest, LoadingDotsViewTest, MainSettingsLookTest, ManualWorkflowDraftTest,
-  MoreCommandsTest, MoreProvidersTest, MyDesignsTest, OpenAiProviderTest, RgbLightingRenderTest,
-  RgbSettingsScreenTest, ScreenshotChipTest, SelectedTextCommitTest, SkillBindingStoreTest,
-  SkillSettingsTest, SnipCommandTest, SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest,
-  TestRunJournal, ToolRunnerTest, TouchModelTest, TypoMemoryTest, UpdateCheckTest,
-  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
+  FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, ForkUpgradeTest,
+  HapticChainTest, InsertAtCursorTest, JournaledModelCallTest, KeyboardCommandsTest,
+  KeyboardProfileStoreTest, LearningDataTest, LoadingDotsViewTest, MainSettingsLookTest,
+  ManualWorkflowDraftTest, MoreCommandsTest, MoreProvidersTest, MyDesignsTest, OpenAiProviderTest,
+  RgbLightingRenderTest, RgbSettingsScreenTest, ScreenshotChipTest, SelectedTextCommitTest,
+  SkillBindingStoreTest, SkillSettingsTest, SnipCommandTest, SpaceGesturesTest, SymbolInkTest,
+  SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest, TouchModelTest, TypoMemoryTest,
+  UpdateCheckTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
   WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (8): ClockCommandsTest, EmojiMixCommandTest, LanguageCommandTest, QrCommandTest,
   ScreenReaderServiceTest, SubtypeChoiceTest, TranslateCommandTest, UrlCommandTest
@@ -1756,8 +1767,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/keyboard/internal/` (1): KeyboardIconsSet
 - `K/keyboard/internal/keyboard_parser/` (2): KeyboardParser, LayoutParser
 - `K/keyboard/internal/keyboard_parser/floris/` (2): KeyCode, KeyLabel
-- `K/latin/` (9): App, ClipboardHistoryEntry, ClipboardHistoryManager, ClipboardThumbnails,
-  DictionaryFacilitatorImpl, InputView, LatinIME, RichInputConnection, Suggest
+- `K/latin/` (10): App, AppUpgrade, ClipboardHistoryEntry, ClipboardHistoryManager,
+  ClipboardThumbnails, DictionaryFacilitatorImpl, InputView, LatinIME, RichInputConnection, Suggest
 - `K/latin/database/` (1): ClipboardDao
 - `K/latin/define/` (1): DebugFlags
 - `K/latin/dictionary/` (2): DictionaryFactory, ExpandableBinaryDictionary

@@ -63,6 +63,7 @@
       "app/src/main/java/helium314/keyboard/latin/suggestions/{FlatStrip,SuggestionStripView}.kt",
       "app/src/main/java/helium314/keyboard/keyboard/clipboard/{ClipboardAdapter,ClipboardHistoryView,FlatClipboard}.kt",
       "app/src/main/java/helium314/keyboard/latin/{ClipboardHistoryEntry,ClipboardHistoryManager,ClipboardThumbnails}.kt",
+      "app/src/main/java/helium314/keyboard/latin/AppUpgrade.kt",
       "app/src/main/java/helium314/keyboard/latin/Suggest.kt",
       "app/src/main/java/helium314/keyboard/keyboard/{KeyDetector,KeyboardSwitcher}.java",
       "app/src/main/java/helium314/keyboard/settings/{SettingsActivity,SettingsNavHost,SettingsContainer}.kt",

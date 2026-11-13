@@ -1988,6 +1988,19 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   Hinweis bei mehr als 12 Strichen; Surrogates in manipulierten Prefs. Kein Test von Berührung bis
   Text in einem Stück (SymbolInkTest mit nachgebautem Listener, InputLogicTest ohne PointerTracker).
 
+## Build 12: Layout nach dem Update (Rückmeldung des Owners)
+
+- Befund des Owners: Nach dem Update auf Test-Build 12 hatte sein eigenes Design große
+  Tastenabstände. Ursache (P84): `AppUpgrade` lief bei jedem Update HeliBoards alte Migrationen;
+  `oldVersion <= 3901` setzt die Abstände auf 1,75. Betraf jedes Update seit Build 1.
+- Behoben: `FORK_UPGRADES_ONLY` überspringt die Versions-Migrationen; einmalige Reparatur des
+  gewählten eigenen Designs (Abstände, Tastenhöhe) beim Update von Build 12 oder älter.
+- Geprüft: `ForkUpgradeTest` (2: Abstände bleiben bei einem Update; Reparatur beim ersten Update
+  nach Build 12, spätere Updates lassen von Hand geänderte Abstände stehen). Gegenproben: ohne
+  `FORK_UPGRADES_ONLY` und ohne die Reparatur jeweils rot. Andere Folgen der alten Migrationen
+  (z. B. Farben, Werkzeugleiste) nicht einzeln geprüft; die Reparatur betrifft nur Abstände und Höhe.
+  Kein Gerätetest.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

@@ -27,3 +27,6 @@
   Gerät (höchstens 20 MB). Gesendet werden nur die beiden Emojis. Einstellungen → Befehle
   („Emoji-Mix in der Leiste anbieten“, gespeicherte Mischungen löschen). Nicht in Passwortfeldern,
   im Inkognito-Modus oder bei gesperrtem Gerät. Noch auf keinem Gerät ausprobiert.
+- Behoben: Nach einem Update hatte ein eigenes Design plötzlich große Tastenabstände (die App
+  spielte bei jedem Update alte Umstellungen von HeliBoard ab). Beim Update auf diesen Build kommen
+  Abstände und Tastenhöhe deines gewählten Designs zurück.

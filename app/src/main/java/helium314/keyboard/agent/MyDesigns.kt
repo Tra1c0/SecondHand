@@ -191,6 +191,15 @@ object MyDesigns {
         reload()
     }
 
+    /**
+     * Build 12 fix (P84): updates up to build 12 ran HeliBoard's old migrations, which set the key
+     * gaps to 1.75. Puts back the gaps and the key height of the selected own design, once.
+     */
+    fun repairAfterOldUpgrades(prefs: SharedPreferences) {
+        val design = selectedId(prefs)?.let { get(prefs, it) } ?: return
+        prefs.edit { putFloat(GAP_KEY, design.keyGap); putFloat(HEIGHT_KEY, design.keyHeight) }
+    }
+
     /** The design whose colour set the keyboard shows by day (day/night off), or null. */
     fun selectedId(prefs: SharedPreferences): String? {
         if (prefs.getBoolean(Settings.PREF_THEME_DAY_NIGHT, Defaults.PREF_THEME_DAY_NIGHT)) return null

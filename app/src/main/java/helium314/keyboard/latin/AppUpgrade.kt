@@ -81,6 +81,9 @@ fun transferOldPinnedClips(context: Context) {
 }
 
 private object AppUpgrade {
+    /** Fork: skip HeliBoard's version migrations (see onUpgrade). */
+    const val FORK_UPGRADES_ONLY = true
+
     fun onUpgrade(context: Context) {
         val prefs = context.prefs()
         val oldVersion = prefs.getInt(Settings.PREF_VERSION_CODE, 0)
@@ -95,6 +98,18 @@ private object AppUpgrade {
                 if (!file.name.endsWith(USER_DICTIONARY_SUFFIX))
                     file.delete()
             }
+        }
+        // fork (build 12 fix, P84): this app has its own package, so it was always installed fresh
+        // and only ever stored the fork's own build numbers (1, 2, ...). The migrations below are
+        // for HeliBoard's version codes; run again on every fork update they reset settings, e.g.
+        // the key gaps of an own design (oldVersion <= 3901). Only what is meant for every update runs.
+        if (FORK_UPGRADES_ONLY) {
+            // builds up to 12 had already run them on each update: give an own design its gaps back
+            if (oldVersion <= 12) helium314.keyboard.agent.MyDesigns.repairAfterOldUpgrades(prefs)
+            upgradeToolbarPrefs(prefs)
+            LayoutUtilsCustom.onLayoutFileChanged()
+            prefs.edit { putInt(Settings.PREF_VERSION_CODE, BuildConfig.VERSION_CODE) }
+            return
         }
         if (oldVersion <= 1000) { // upgrade old custom layouts name
             val oldShiftSymbolsFile = getCustomLayoutFile("custom.shift_symbols", context)
