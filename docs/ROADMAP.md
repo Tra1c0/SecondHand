@@ -23,8 +23,10 @@ Reihenfolge von oben nach unten.
   Referenzbildern im Chat; die Bilder liegen nicht im Repo). (L)
   - 29a Einstellungsseite und Vorschau moderner gestalten.
   - 29b Übergänge zwischen Farben weich (keine sichtbaren Sprünge, auch in der Animation).
-  - 29c Neue animierte Muster nach den Referenzen: fließende Farbschwaden wie Tinte in Wasser
-    (türkis, grün, gelb, rot auf Schwarz); diagonale Streifen mit Regenbogenverlauf und
+  - 29c Neue animierte Muster nach den Referenzen (am 2026-11-13 zweimal geschickt; die zweite
+    Sendung mit fünf Bildern gilt als Hauptvorlage, die Tinten-Schwaden nur aus der ersten):
+    fließende Farbschwaden wie Tinte in Wasser (türkis, grün, gelb, rot auf Schwarz, nachrangig);
+    diagonale Streifen mit Regenbogenverlauf und
     überlagerten, leuchtenden Rauten-Rahmen; diagonale Lamellen mit hartem Farbwechsel grün/
     orange zu violett; Regenbogen-Verlauf mit feinem Diagonal-Raster und dunkler Vignette;
     Punkt-Raster (LED-Matrix) mit fließendem Regenbogen; Höhenlinien (Topografie) über weichem
@@ -58,6 +60,10 @@ Reihenfolge von oben nach unten.
   die Touch-Verarbeitung der Leertaste (Prüfer Pflicht). Vor dem Bau klären: Abstände der Punkte,
   was „den ganzen Text rückgängig“ genau heißt (letzter Schritt oder alles), Abbruch durch
   Zurückziehen. (M)
+- **34 Eigene Designs gestalten (Build 14)** (Wunsch des Owners vom 2026-11-13). Eigene
+  Tastatur-Designs gibt es schon (Design-Seite → „Meine Designs“, seit Build 10). Annahme des
+  Leads, vor dem Bau bestätigen: gemeint sind eigene RGB-Designs, also selbst gestaltete
+  Lichtmuster (Farben, Formen, Bewegung) auf Basis der neuen Muster und der Kurve aus 29. (L)
 - **32 Emoji-Mix: zuletzt gemischt** (vom Owner gewünscht, 2026-11-13): Reihe der letzten
   Sticker im Mixer, aus dem Cache auf dem Gerät, ohne neuen Download. (S)
 
