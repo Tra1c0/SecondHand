@@ -1514,7 +1514,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   auch nicht als Unterordner von `files/dicts/` (der würde als Sprache gezählt).
 - **P81** Der Medienspeicher meldet mehrere Screenshots im Entprellfenster als eine Änderung; eine
   Abfrage nur nach dem neuesten verliert die übrigen. `ScreenshotChip.finder` liefert deshalb
-  eine Liste, und jeder Screenshot wird einzeln für den Verlauf entschieden.
+  eine Liste, und jeder Screenshot wird einzeln für den Verlauf entschieden. Dabei kommt nur in
+  den Verlauf, was nach dem Start des aktuellen Observers entstand (`watchingSinceMillis`, auf
+  Sekunden abgerundet wie `DATE_ADDED`): Ein älterer, nie gesehener Screenshot (z. B. vom
+  Sperrbildschirm, während die Tastatur nicht lief) wurde nie gegen Sperre und Feld geprüft.
 
 ## Datei-Inventar
 

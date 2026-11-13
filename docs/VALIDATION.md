@@ -1857,6 +1857,19 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   Prüfer-Review, kein Gerät: ob echte Medienspeicher mehrere Screenshots in einer Sekunde mit
   aufsteigender `_ID` liefern, ist ungeprüft.
 
+- Prüfer (lesend) zu `029c7b4`: 1 (mittel, Datenschutz) Nach einem Neustart der Tastatur kam ein
+  älterer, nie gesehener Screenshot (Sperrbildschirm, Tastatur lief nicht) mit einem neuen in den
+  Verlauf: behoben, nur Screenshots nach dem Start des Observers (`watchingSinceMillis`). Test
+  `ScreenshotChipTest.aScreenshotFromBeforeTheKeyboardWatchedNeverGoesIntoTheHistory`; Gegenprobe:
+  ohne die Bedingung rot, mit ihr grün. `historyOn` im Test startet den Observer jetzt 30 s vor
+  `now` (vorher zufällig mit der echten Uhr). `ScreenshotChipTest`, `FlatClipboardTest`,
+  `InputLogicTest.screenshotChip*` grün.
+- Nicht geändert (niedrig): ein `onChange` auf dem Binder-Thread kann kurz nach `stop` noch eine
+  Abfrage auslösen (folgenlos, `onChange` ist null); ist der Schalter schon beim Start aus, bleiben
+  junge Reste in `agent_screenshot_pending/` bis zu 10 Minuten; Aufräumen aus den Einstellungen
+  parallel zu einer Kopie (kein Eintrag, kein Leck); nach einem Prozessende zwischen Kopie und
+  Umbenennen bleiben `*.tmp` in `files/dicts_extracting/` liegen und gehen ins Backup.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

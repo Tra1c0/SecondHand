@@ -119,6 +119,12 @@ object ScreenshotChip {
     private val historyFailures = HashMap<Long, Int>()
     /** Last media change while the history was not allowed (locked, incognito, unknown field): older screenshots never go in. */
     @Volatile private var privacyBlockMillis = 0L
+    /**
+     * Start of the current observer, floored to the second like MediaStore's DATE_ADDED: a
+     * screenshot from before it was never checked against the lock or the field (the keyboard
+     * was not watching), so it never goes into the history (review build 12).
+     */
+    private var watchingSinceMillis = Long.MAX_VALUE
     /** Unknown at the start; false after a clean-up left no copy, so [current] need not look again. */
     @Volatile private var copiesMayExist = true
     private var expiringShot: Shot? = null
@@ -273,7 +279,7 @@ object ScreenshotChip {
                 val now = clock()
                 for (shot in fresh) {
                     seenIds += shot.id
-                    val allowed = historyAllowed && now - shot.addedMillis in 0..HISTORY_MAX_AGE && shot.addedMillis > privacyBlockMillis
+                    val allowed = historyAllowed && now - shot.addedMillis in 0..HISTORY_MAX_AGE && shot.addedMillis > privacyBlockMillis && shot.addedMillis >= watchingSinceMillis
                     if (allowed) historyCandidates += shot else markDecided(context, shot.id)
                 }
             }
@@ -519,6 +525,7 @@ object ScreenshotChip {
             context.applicationContext.contentResolver.registerContentObserver(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI, true, newObserver)
             observer = newObserver
+            watchingSinceMillis = clock() / 1000 * 1000
         } catch (e: Exception) {
             Log.w(TAG, "could not watch for screenshots", e)
             observerFailed = true
@@ -591,6 +598,7 @@ object ScreenshotChip {
         historyPending.clear()
         historyFailures.clear()
         privacyBlockMillis = 0L
+        watchingSinceMillis = Long.MAX_VALUE
         copiesMayExist = true
         expiringShot = null
         finder = ::recentScreenshots

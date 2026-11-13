@@ -234,9 +234,28 @@ class ScreenshotChipTest {
         enable()
         latinIME.prefs().edit().putBoolean(Settings.PREF_ENABLE_CLIPBOARD_HISTORY, true).commit()
         load(text)
+        ScreenshotChip.clock = { now - 30_000 } // the keyboard started watching half a minute ago
         ScreenshotChip.start(latinIME)
         ScreenshotChip.clock = { now }
         return dao
+    }
+
+    @Test fun aScreenshotFromBeforeTheKeyboardWatchedNeverGoesIntoTheHistory() {
+        // review build 12: taken on the lock screen while the keyboard was not running, never seen
+        // by an observer, then found together with a new screenshot after the start
+        val dao = historyOn()
+        fun add() = ScreenshotChip.addToHistory(latinIME, Settings.getValues(), dao, now) { true }
+        val unseen = ScreenshotChip.Shot(30, Uri.fromFile(image), "image/png", now - 45_000) // within the history age, before the start
+        val second = File(latinIME.cacheDir, "Screenshot_new.png")
+        Bitmap.createBitmap(30, 60, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.RED) }
+            .let { bitmap -> second.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) } }
+        val fresh = ScreenshotChip.Shot(31, Uri.fromFile(second), "image/png", now - 1_000)
+        ScreenshotChip.finder = { _, _ -> listOf(fresh, unseen) }
+        seeChange()
+        assertEquals(31L, ScreenshotChip.current(latinIME, text, now)?.id)
+        assertTrue(add())
+        assertEquals(listOf(now - 1_000), dao.getAll().map { it.timeStamp }) // only the new one
+        assertFalse(add())
     }
 
     @Test fun theMediaStoreIsAskedInTheBackgroundAndANewScreenshotIsReportedToTheStrip() {
