@@ -155,6 +155,12 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
 
 ### Release (nur Lead)
 
+0. Test-Build (Wunsch des Owners vom 2026-11-13, gilt immer): Sind alle Funktionen der Runde auf
+   dem Arbeitsbranch, kompiliert und die Agent-Tests grün, den Workflow „Agent Keyboard APK“ auf
+   dem Arbeitsbranch starten und die APK als Datei an den Owner schicken (Download aus dem
+   Release: `https://api.github.com/repos/Tra1c0/SecondHand/releases/assets/<id>` mit
+   `Accept: application/octet-stream` geht über den Proxy). Dem Owner sagen, was noch ungeprüft
+   ist. Dann Prüfer, volle Tests und Korrekturen; danach die Schritte unten und ein zweiter Build.
 1. Runde auf `main` zusammenführen, dort bauen und prüfen.
 2. Docs laut `CLAUDE.md` → „Docs aktuell halten“ im selben Push aktualisieren.
    `release-notes/next.md` durch die Notizen dieses Pushs ersetzen.

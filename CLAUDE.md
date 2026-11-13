@@ -66,6 +66,10 @@ genannten Datei. `AGENTS.md` ist eine automatisch erzeugte Kopie dieser Datei f�
   `python3 -I scripts/docs_sync.py --check` grün bekommen (`--write` erzeugt die generierten
   Blöcke und `AGENTS.md` neu).
 - Setze Status-Buchstaben in `docs/FEATURES.md` nur nach dem, was wirklich geprüft wurde.
+- Gib dem Owner zuerst einen Test-Build: Sobald alle Funktionen einer Runde auf dem Arbeitsbranch
+  liegen, kompilieren und die Agent-Tests bestehen, startet der Lead den signierten Build und
+  schickt die APK als Datei. Prüfer, volle Tests und Korrekturen laufen danach weiter; der
+  geprüfte Build folgt als eigener, höherer Build (Ablauf: `docs/HANDOFF.md` → Release).
 
 ## Don't
 
