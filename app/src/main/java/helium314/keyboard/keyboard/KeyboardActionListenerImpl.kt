@@ -290,10 +290,8 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         val unit = SpaceDetents.unitPx(keyWidth, latinIME.resources.displayMetrics.density)
         when (spaceDetents.move(gesture == SpaceGesture.SWIPE_LEFT, distance, unit)) {
             SpaceDetents.Event.DETENT -> HapticChain.play(latinIME, settings.current, HapticChain.Feel.DETENT)
-            SpaceDetents.Event.COMPLETE -> {
-                HapticChain.play(latinIME, settings.current, HapticChain.Feel.STRETCH)
-                runSpaceAction(action)
-            }
+            // the strong impulse says "done": only when the action really did something (review)
+            SpaceDetents.Event.COMPLETE -> if (runSpaceAction(action)) HapticChain.play(latinIME, settings.current, HapticChain.Feel.STRETCH)
             SpaceDetents.Event.NONE -> Unit
         }
     }

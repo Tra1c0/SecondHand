@@ -88,7 +88,15 @@ class SpaceDetentsTest {
         assertFalse(SpaceDetents.cancelsHold(5, 0, 6)) // too short
         assertFalse(SpaceDetents.cancelsHold(7, 7, 6)) // as much up or down: not clearly sideways
         assertFalse(SpaceDetents.cancelsHold(0, 30, 6)) // vertical swipes keep their own rule
-        // shorter than PointerTracker's 10 dp swipe step
-        assertTrue(SpaceDetents.HOLD_CANCEL_DP < 10)
+        // review: as long as PointerTracker's 10 dp swipe step (6 dp ended holds by a rolling finger);
+        // it still acts before the fast-typing guard, where the swipe itself waits
+        assertEquals(10, SpaceDetents.HOLD_CANCEL_DP)
+    }
+
+    @Test fun theDetentsCountInLetterKeyWidthsAlsoOnNumberPads() {
+        assertEquals(108, SpaceDetents.keyWidth(108, 1080)) // letters (10 per row): unchanged
+        assertEquals(98, SpaceDetents.keyWidth(98, 1080)) // 11 per row: unchanged
+        assertEquals(154, SpaceDetents.keyWidth(250, 1080)) // number/phone pad: wide keys capped at a seventh
+        assertEquals(250, SpaceDetents.keyWidth(250, 0)) // no width known yet: unchanged
     }
 }

@@ -259,7 +259,7 @@ class AgentSpaceGestureTest {
     @Test fun aClearSidewaysMoveCancelsTheHoldSoASlowSwipeNeverHolds() {
         setGesture(SpaceGesture.SWIPE_RIGHT, SpaceAction.REDO)
         touch(MotionEvent.ACTION_DOWN)
-        touch(MotionEvent.ACTION_MOVE, 107f) // 7 px: shorter than the 10 px swipe step
+        touch(MotionEvent.ACTION_MOVE, 110f) // 10 px (10 dp here): the hold ends at once
         hold()
         verify(listener, never()).onCustomRequest(CustomAction.SPACE_HOLD)
         verify(listener, never()).onCustomRequest(CustomAction.SHOW_INPUT_METHOD_PICKER)
@@ -268,10 +268,11 @@ class AgentSpaceGestureTest {
         touch(MotionEvent.ACTION_MOVE, 160f); touch(MotionEvent.ACTION_UP, 160f)
         verify(listener).onSpaceSwipeDistance(SpaceGesture.SWIPE_RIGHT, 60, 50)
         verify(listener, never()).onCodeInput(anyInt(), anyInt(), anyInt(), anyBoolean())
-        // counter-checks: a small wiggle, and a move as much down as sideways, keep the hold
-        touch(MotionEvent.ACTION_DOWN); touch(MotionEvent.ACTION_MOVE, 104f); hold()
+        // counter-checks: a wiggle below 10 dp (a rolling finger, review), and a move as much down as
+        // sideways, keep the hold
+        touch(MotionEvent.ACTION_DOWN); touch(MotionEvent.ACTION_MOVE, 108f); hold()
         verify(listener, times(1)).onCustomRequest(CustomAction.SPACE_HOLD)
-        touch(MotionEvent.ACTION_UP, 104f)
+        touch(MotionEvent.ACTION_UP, 108f)
         touch(MotionEvent.ACTION_DOWN); touch(MotionEvent.ACTION_MOVE, 107f, y = 108f); hold()
         verify(listener, times(2)).onCustomRequest(CustomAction.SPACE_HOLD)
         touch(MotionEvent.ACTION_UP, 107f, y = 108f)

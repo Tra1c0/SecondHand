@@ -1041,7 +1041,8 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
             if (oneShotSwipe(sv, mSpaceSwipeGesture)) {
                 // fork (stage 33): a one-shot action runs at the last detent (SpaceDetents); every move,
                 // also back near the start, reports the distance from the touch-down point (mStartX stays)
-                sListener.onSpaceSwipeDistance(mSpaceSwipeGesture, dX, mKeyboard.mMostCommonKeyWidth);
+                sListener.onSpaceSwipeDistance(mSpaceSwipeGesture, dX,
+                        SpaceDetents.keyWidth(mKeyboard.mMostCommonKeyWidth, mKeyboard.mOccupiedWidth));
             } else if (stepsX != 0 && sListener.onSpaceSwipe(mSpaceSwipeGesture, stepsX)) {
                 mStartX += stepsX * sPointerStep;
             }

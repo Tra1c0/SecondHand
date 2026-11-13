@@ -180,10 +180,10 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   jeden Schritt als `onSpaceSwipe(Richtung, Schritte)`; `oneShotSwipe` fragt
   `SpaceAction.isContinuous` der Startrichtung statt der alten `SwipeAction`-Liste. Seit Etappe 33
   meldet ein seitlicher Wisch mit Einmal-Aktion statt Schritten bei jeder Bewegung den Abstand zum
-  Aufsetzpunkt (`onSpaceSwipeDistance(Richtung, dX, mMostCommonKeyWidth)`, `mStartX` bleibt stehen,
+  Aufsetzpunkt (`onSpaceSwipeDistance(Richtung, dX, SpaceDetents.keyWidth(mMostCommonKeyWidth, mOccupiedWidth))`, `mStartX` bleibt stehen,
   auch unter einem Schritt nahe dem Start), die Aktion kommt erst am letzten Rastpunkt
   (`SpaceDetents`, P100). Ganz vorn in `onKeySwipe`, noch vor der Schnelltipp-Sperre, beendet eine
-  klar seitliche Bewegung ab 6 dp (`sHoldCancelDistance`, `SpaceDetents.cancelsHold`) den
+  klar seitliche Bewegung ab 10 dp (`sHoldCancelDistance`, `SpaceDetents.cancelsHold`) den
   Langdruck-Timer der Leertaste (`cancelLongPressTimersOf`, P101). Schwelle, Achsenwahl,
   senkrechte Wische, fortlaufende Aktionen, Schnelltipp-Sperre, Ende über `onEndSpaceSwipe` und
   Gestentippen sind unverändert.
@@ -484,14 +484,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Einmal-Aktion, reine Zustandsmaschine ohne Android. Alle Abstände an einer Stelle:
   `AT_KEY_WIDTHS` = 0,8 / 1,6 / 2,65 Tastenbreiten ab dem Aufsetzpunkt (Skizze des Owners),
   `BACK_KEY_WIDTHS` = 0,2 (Rückweg, P102), `MIN_KEY_WIDTH_DP` = 20 (Untergrenze der Tastenbreite,
-  `unitPx` aus `mMostCommonKeyWidth` der Tastatur der Leertaste), `HOLD_CANCEL_DP` = 6 und
+  `unitPx`; die Breite liefert `keyWidth`: `mMostCommonKeyWidth`, höchstens ein Siebtel der
+  Tastatur, weil Ziffern-, Telefon- und Zahlenblock Tasten von etwa einem Viertel der Breite
+  haben), `HOLD_CANCEL_DP` = 10 (unter 10 dp beendete ein rollender Finger das Halten) und
   `cancelsHold` (Abbruch des Haltens, P101). `move(links, dX, Einheit)` liefert `DETENT` (ein
   Tick je überquertem Rastpunkt, ein schneller Sprung über zwei tickt einmal), `COMPLETE` (letzter
   Rastpunkt, genau einmal bis `end`) oder `NONE`; die Richtung ist die Startrichtung, die andere
   Seite des Starts zählt nicht. `KeyboardActionListenerImpl.onSpaceSwipeDistance` hält eine
   Instanz: `isBlockingInput` oder Aktion `NONE`/fortlaufend → nichts; `DETENT` →
-  `HapticChain` `DETENT`; `COMPLETE` → `STRETCH` und `runSpaceAction` (gleiche Wege und
-  Sperren wie bisher). `onEndSpaceSwipe` setzt sie vor der `isBlockingInput`-Prüfung zurück.
+  `HapticChain` `DETENT`; `COMPLETE` → `runSpaceAction` (gleiche Wege und Sperren wie bisher)
+  und nur wenn sie etwas getan hat `STRETCH`. `onEndSpaceSwipe` setzt sie vor der `isBlockingInput`-Prüfung zurück.
 - `A/HapticChain.kt`: das Gefühl der Rastpunkte (bis Build 12: drei Ticks direkt nach
   Rückgängig/Wiederholen, mit Etappe 33 entfernt; Halten, Doppeltippen und die Toolbar-Tasten
   haben nur noch ihren normalen Tasten-/Langdruck-Impuls). `plan(Feel, Device)` ist eine reine
@@ -1767,7 +1769,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P101** Halten der Leertaste gegen langsames Wischen: Der Abbruch steht vor der
   Schnelltipp-Sperre in `onKeySwipe`. Dahinter würde eine seitliche Bewegung in den ersten zwei
   Dritteln der Langdruckzeit nach dem Tippen ignoriert; bleibt der Finger danach kurz liegen,
-  liefe die Halten-Aktion. Nur `cancelLongPressTimersOf`, nur klar seitlich (|dX| ≥ 6 dp und
+  liefe die Halten-Aktion. Nur `cancelLongPressTimersOf`, nur klar seitlich (|dX| ≥ 10 dp und
   größer als |dY|); senkrecht gilt weiter der erste 10-dp-Schritt.
 - **P102** Rastpunkte: Ein überquerter Punkt gilt erst 0,2 Tastenbreiten dahinter als verlassen,
   sonst brummt ein ruhender Finger auf dem Punkt bei jedem Zittern. Nach dem letzten Punkt passiert

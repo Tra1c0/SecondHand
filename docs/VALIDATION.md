@@ -2131,6 +2131,20 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   Abbruch des Haltens zu empfindlich ist, Querformat (breitere Tasten, längerer Weg). Kein
   Prüfer-Review der `PointerTracker`-Änderung (Pflicht vor dem Merge).
 
+
+- Prüfer (lesend, Engine-Review Pflicht) zu `2779492`: kein hoher Befund; `PointerTracker` für alles
+  außer seitlichen Einmal-Wischen auf der Leertaste verhaltensgleich. Behoben: (mittel) In
+  Ziffern-, Telefon- und Zahlenblock (Tasten ≈ ¼ der Breite) lag der letzte Rastpunkt bei ⅔ der
+  Bildschirmbreite: Tastenbreite jetzt höchstens ein Siebtel der Tastatur (`SpaceDetents.keyWidth`,
+  Test `theDetentsCountInLetterKeyWidthsAlsoOnNumberPads`). Ein Rechtswisch von der Leertaste am
+  rechten Rand des Ziffernblocks bleibt aus Platzgründen kaum möglich. (mittel/niedrig) Abbruch
+  des Haltens erst ab 10 dp statt 6 dp (rollender Finger); `AgentSpaceGestureTest` angepasst (10 px
+  bricht ab, 8 px behält das Halten). (niedrig) Der starke Impuls kommt nur, wenn die Aktion etwas
+  getan hat (Test mit ausgeschalteten Befehlen; Gegenprobe ohne die Bedingung rot). Offen,
+  niedrig: ein gemeinsamer Zustand für zwei gleichzeitig wischende Finger; Zustand nach Ausblenden
+  ohne Finger-hoch bis zum nächsten Loslassen; Dichte zweimal gelesen; Testlücken (Mehrfinger,
+  Abbruch mitten im Wisch, RTL, geteilte Tastatur). Geprüft: `SpaceDetentsTest`, `HapticChainTest`,
+  `AgentSpaceGestureTest`, `InputLogicTest.generatedSpace*` grün.
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

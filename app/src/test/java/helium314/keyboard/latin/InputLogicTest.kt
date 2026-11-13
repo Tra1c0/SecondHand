@@ -1547,6 +1547,13 @@ class InputLogicTest {
             sideSwipe(listener, SpaceGesture.SWIPE_RIGHT, 0.85f, 1.65f, 2.7f)
             assertEquals(listOf(detent, detent, stretch), played)
             played.clear()
+            // review: an action that does nothing (commands off) gets no "done" impulse at the last detent
+            latinIME.prefs().edit { putBoolean(AgentPreferences.COMMANDS, false) }
+            setSpaceGesture(SpaceGesture.SWIPE_RIGHT, SpaceAction.COMMAND_LIST)
+            sideSwipe(listener, SpaceGesture.SWIPE_RIGHT, 0.85f, 1.65f, 2.7f)
+            assertEquals(listOf(detent, detent), played)
+            latinIME.prefs().edit { putBoolean(AgentPreferences.COMMANDS, true) }
+            played.clear()
             // the undo key (toolbar) keeps its normal key feedback only; so does hold with undo now
             listener.onCodeInput(KeyCode.UNDO, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false); handleMessages()
             setSpaceGesture(SpaceGesture.HOLD, SpaceAction.UNDO)

@@ -71,7 +71,16 @@ class SpaceDetents {
          * A sideways move this long (dp) while holding space cancels the hold at once, before the
          * swipe starts (PointerTracker's first step is 10 dp): a slow swipe never runs the hold action.
          */
-        const val HOLD_CANCEL_DP = 6
+        const val HOLD_CANCEL_DP = 10 // review: 6 dp (below Android's touch slop) ended holds by a rolling finger
+
+        /**
+         * The key width the detents count in: the most common key width, but at most a seventh of the
+         * keyboard. Letter rows have 9 to 11 keys and stay untouched; number, phone and numpad layouts
+         * have keys of about a quarter of the width, where the last detent would otherwise need two
+         * thirds of the screen (review of stage 33).
+         */
+        @JvmStatic fun keyWidth(mostCommonKeyWidthPx: Int, keyboardWidthPx: Int): Int =
+            if (keyboardWidthPx <= 0) mostCommonKeyWidthPx else minOf(mostCommonKeyWidthPx, keyboardWidthPx / 7)
 
         /** One key width in px for [move]: the keyboard's most common key width, at least [MIN_KEY_WIDTH_DP]. */
         @JvmStatic fun unitPx(keyWidthPx: Int, density: Float): Float = max(keyWidthPx.toFloat(), MIN_KEY_WIDTH_DP * density)
