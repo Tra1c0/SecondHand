@@ -36,3 +36,14 @@
   App das Bild wirklich angenommen hat; sonst bleiben sie stehen und ein Hinweis erscheint.
   Setzt eine App das Bild selbst an die Schreibmarke, heißt der Hinweis jetzt „Bild eingefügt …“
   statt „Text geändert“. Noch auf keinem Gerät ausprobiert.
+
+## Nächster Build
+
+- Neu: Wischen auf der Leertaste nach links oder rechts (z. B. Rückgängig, Wiederholen) hat jetzt
+  Rastpunkte auf dem Weg: ein leichter Tick bei etwa 0,8 und 1,6 Tastenbreiten, der letzte etwas
+  weiter fühlt sich wie Überdehnen an (stärker, länger) und führt erst dann die Aktion aus, einmal
+  pro Wisch. Vorher loslassen tut nichts, zurück und wieder vor tickt erneut. Die drei Ticks
+  direkt nach Rückgängig/Wiederholen gibt es nicht mehr. Rückgängig ist ein normaler
+  Rückgängig-Schritt. Noch auf keinem Gerät ausprobiert.
+- Neu: Bewegst du den Finger beim Halten der Leertaste deutlich nach links oder rechts, ist das
+  Halten sofort vorbei; ein langsamer Wisch öffnet nie mehr die Halten-Aktion.

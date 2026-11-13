@@ -8,39 +8,50 @@ import android.os.Vibrator
 import helium314.keyboard.latin.settings.SettingsValues
 
 /**
- * Three short ticks after undo or redo by a space gesture. The owner asked for "left to right" and
- * back; a phone has one vibration motor, so the direction is felt as strength instead: redo rises
- * (weak, medium, strong), undo falls. The pattern ([pattern]) and the choice of what the vibrator
- * can play ([plan]) are plain functions; [Device] is the seam for tests.
+ * The feel of the space bar detents (stage 33, [SpaceDetents]): a light tick at each detent and a
+ * stronger, longer "stretch" at the last one, where the swipe's action runs. A phone has one motor
+ * (P67), so the two differ in strength and length only. Until build 12 this object played three
+ * ticks right after undo or redo; the owner wanted the ticks on the swipe path instead.
+ * The choice of what the vibrator can play ([plan]) is a plain function, best first: haptic
+ * primitives (API 30+), a waveform with amplitudes (API 26+ with amplitude control), plain on/off
+ * pulses. [Device] is the seam for tests.
  */
 object HapticChain {
-    enum class Direction { RISING, FALLING }
-
-    /** Milliseconds between the starts of two ticks. */
-    const val GAP_MS = 50L
-    /** Length of one tick where it is a plain pulse. */
-    const val PULSE_MS = 12L
-    /** Strength of the ticks from first to last, 0..1. */
-    private val RISING = floatArrayOf(0.3f, 0.6f, 1f)
-
-    /** One tick: when it starts (ms after the first) and how strong it is (0..1). */
-    data class Tick(val atMs: Long, val strength: Float)
-
-    fun pattern(direction: Direction): List<Tick> {
-        val strengths = if (direction == Direction.RISING) RISING.toList() else RISING.reversed()
-        return strengths.mapIndexed { i, strength -> Tick(i * GAP_MS, strength) }
+    enum class Feel {
+        /** A detent on the way: one light, short tick. */
+        DETENT,
+        /** The last detent, where the action runs: rising strength into a heavy impulse, clearly longer. */
+        STRETCH,
     }
+
+    /** `VibrationEffect.Composition` primitives as constants for any API; THUD exists from API 31 on. */
+    const val PRIMITIVE_CLICK = 1
+    const val PRIMITIVE_THUD = 2
+    const val PRIMITIVE_QUICK_RISE = 4
+    const val PRIMITIVE_TICK = 7
+
+    /** Length of a detent tick where it is a pulse or a waveform. */
+    const val TICK_MS = 12L
+    /** Strength of a detent tick where the strength can be set, 0..1. */
+    const val TICK_STRENGTH = 0.6f
+    /** The stretch where only on/off works: one long pulse. */
+    const val STRETCH_MS = 70L
+    /** The stretch as a waveform: four parts (ms, strength 0..1) rising to full strength, 90 ms in all. */
+    private val STRETCH_RAMP = listOf(20L to 0.25f, 20L to 0.45f, 20L to 0.7f, 30L to 1f)
+
+    /** One haptic primitive with its scale (0..1) and the delay after the end of the previous one (P67). */
+    data class Step(val primitive: Int, val scale: Float, val delayMs: Int = 0)
 
     /** What the vibrator can play, best first. */
     sealed class Plan {
-        /** API 30+: haptic primitives with a scale each, [delaysMs] before each primitive. */
-        data class Primitives(val primitive: Int, val scales: List<Float>, val delaysMs: List<Int>) : Plan()
-        /** API 26+ with amplitude control: a waveform, off/on timings with amplitudes 1..255. */
+        /** API 30+: haptic primitives. */
+        data class Primitives(val steps: List<Step>) : Plan()
+        /** API 26+ with amplitude control: a waveform, off/on timings with amplitudes 0..255. */
         data class Waveform(val timings: LongArray, val amplitudes: IntArray) : Plan() {
             override fun equals(other: Any?) = other is Waveform && timings.contentEquals(other.timings) && amplitudes.contentEquals(other.amplitudes)
             override fun hashCode() = timings.contentHashCode() * 31 + amplitudes.contentHashCode()
         }
-        /** Anything else: three equal pulses (off/on timings, the first is the start delay). */
+        /** Anything else: plain pulses (off/on timings, the first is the start delay). */
         data class Pulses(val timings: LongArray) : Plan() {
             override fun equals(other: Any?) = other is Pulses && timings.contentEquals(other.timings)
             override fun hashCode() = timings.contentHashCode()
@@ -52,48 +63,58 @@ object HapticChain {
         val sdk: Int
         val hasVibrator: Boolean
         val hasAmplitudeControl: Boolean
-        /** Only asked from API 30 on. */
+        /** Only asked from API 30 on (THUD from API 31 on). */
         fun supportsPrimitive(primitive: Int): Boolean
         fun play(plan: Plan)
     }
 
-    /** `VibrationEffect.Composition.PRIMITIVE_TICK` / `PRIMITIVE_CLICK` (API 30), as constants for any API. */
-    const val PRIMITIVE_CLICK = 1
-    const val PRIMITIVE_TICK = 7
+    fun plan(feel: Feel, device: Device): Plan = when (feel) {
+        Feel.DETENT -> detent(device)
+        Feel.STRETCH -> stretch(device)
+    }
 
-    fun plan(direction: Direction, device: Device): Plan {
-        val ticks = pattern(direction)
+    private fun amplitude(strength: Float) = (strength * 255).toInt().coerceIn(1, 255)
+
+    private fun detent(device: Device): Plan {
         if (device.sdk >= Build.VERSION_CODES.R) {
-            // the tick is the lightest primitive; a click is the fallback where the tick is missing
-            val primitive = listOf(PRIMITIVE_TICK, PRIMITIVE_CLICK).firstOrNull { device.supportsPrimitive(it) }
-            if (primitive != null) {
-                // a delay counts from the end of the previous primitive; a tick lasts about 10 ms,
-                // so the gap is a little shorter than GAP_MS (close enough to feel the same rhythm)
-                val delays = ticks.mapIndexed { i, _ -> if (i == 0) 0 else (GAP_MS - PULSE_MS).toInt() }
-                return Plan.Primitives(primitive, ticks.map { it.strength }, delays)
-            }
+            // the tick is the lightest primitive; a softer click where the tick is missing
+            if (device.supportsPrimitive(PRIMITIVE_TICK)) return Plan.Primitives(listOf(Step(PRIMITIVE_TICK, 0.8f)))
+            if (device.supportsPrimitive(PRIMITIVE_CLICK)) return Plan.Primitives(listOf(Step(PRIMITIVE_CLICK, 0.5f)))
         }
-        val timings = LongArray(ticks.size * 2) { i -> if (i == 0) 0L else if (i % 2 == 1) PULSE_MS else GAP_MS - PULSE_MS }
-        if (device.sdk >= Build.VERSION_CODES.O && device.hasAmplitudeControl) {
-            val amplitudes = IntArray(timings.size) { i ->
-                if (i % 2 == 0) 0 else (ticks[i / 2].strength * 255).toInt().coerceIn(1, 255)
+        if (device.sdk >= Build.VERSION_CODES.O && device.hasAmplitudeControl)
+            return Plan.Waveform(longArrayOf(0, TICK_MS), intArrayOf(0, amplitude(TICK_STRENGTH)))
+        return Plan.Pulses(longArrayOf(0, TICK_MS))
+    }
+
+    private fun stretch(device: Device): Plan {
+        if (device.sdk >= Build.VERSION_CODES.R && device.supportsPrimitive(PRIMITIVE_QUICK_RISE)) {
+            // the rise is the resistance, the heavy impulse the give at the end; without both the waveform is closer
+            val heavy = when {
+                device.sdk >= Build.VERSION_CODES.S && device.supportsPrimitive(PRIMITIVE_THUD) -> PRIMITIVE_THUD
+                device.supportsPrimitive(PRIMITIVE_CLICK) -> PRIMITIVE_CLICK
+                else -> null
             }
+            if (heavy != null) return Plan.Primitives(listOf(Step(PRIMITIVE_QUICK_RISE, 0.7f), Step(heavy, 1f)))
+        }
+        if (device.sdk >= Build.VERSION_CODES.O && device.hasAmplitudeControl) {
+            val timings = LongArray(STRETCH_RAMP.size + 1) { i -> if (i == 0) 0L else STRETCH_RAMP[i - 1].first }
+            val amplitudes = IntArray(STRETCH_RAMP.size + 1) { i -> if (i == 0) 0 else amplitude(STRETCH_RAMP[i - 1].second) }
             return Plan.Waveform(timings, amplitudes)
         }
-        return Plan.Pulses(timings)
+        return Plan.Pulses(longArrayOf(0, STRETCH_MS))
     }
 
     /**
-     * Plays the chain if key vibration is on in the keyboard settings (which also means the phone
-     * has a vibrator), and not in Do Not Disturb unless vibrating there is allowed, like
-     * HeliBoard's key vibration. Like that vibration it ignores the system's touch-feedback
-     * switch: the keyboard's own setting decides.
+     * Plays [feel] if key vibration is on in the keyboard settings (which also means the phone has a
+     * vibrator), and not in Do Not Disturb unless vibrating there is allowed, like HeliBoard's key
+     * vibration. Like that vibration it ignores the system's touch-feedback switch: the keyboard's
+     * own setting decides.
      */
-    fun play(context: Context, settings: SettingsValues?, direction: Direction, device: Device? = null) {
+    fun play(context: Context, settings: SettingsValues?, feel: Feel, device: Device? = null) {
         if (!allowed(context, settings)) return
         val target = device ?: deviceFor(context) ?: return
         if (!target.hasVibrator) return
-        runCatching { target.play(plan(direction, target)) } // a vendor vibrator may refuse: no feedback then
+        runCatching { target.play(plan(feel, target)) } // a vendor vibrator may refuse: no feedback then
     }
 
     internal fun allowed(context: Context, settings: SettingsValues?): Boolean {
@@ -105,7 +126,7 @@ object HapticChain {
     private fun doNotDisturb(context: Context) =
         runCatching { android.provider.Settings.Global.getInt(context.contentResolver, "zen_mode") != 0 }.getOrDefault(false)
 
-    /** Replaced in tests: the vibrator the chain plays on. */
+    /** Replaced in tests: the vibrator the feedback plays on. */
     @JvmStatic var deviceForTest: Device? = null
 
     private fun deviceFor(context: Context): Device? {
@@ -136,14 +157,14 @@ object HapticChain {
                 is Plan.Primitives -> {
                     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
                     val composition = VibrationEffect.startComposition()
-                    plan.scales.forEachIndexed { i, scale -> composition.addPrimitive(plan.primitive, scale, plan.delaysMs[i]) }
+                    plan.steps.forEach { composition.addPrimitive(it.primitive, it.scale, it.delayMs) }
                     composition.compose()
                 }
                 is Plan.Waveform -> VibrationEffect.createWaveform(plan.timings, plan.amplitudes, -1)
                 is Plan.Pulses -> VibrationEffect.createWaveform(plan.timings, -1)
             }
             // No touch usage: like the keyboard's own key vibration (AudioAndHapticFeedbackManager.vibrate),
-            // the chain follows the keyboard's vibration setting, not the system's touch-feedback switch.
+            // the feedback follows the keyboard's vibration setting, not the system's touch-feedback switch.
             vibrator.vibrate(effect)
         }
     }

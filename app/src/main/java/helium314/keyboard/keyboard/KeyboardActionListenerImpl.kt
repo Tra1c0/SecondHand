@@ -6,6 +6,7 @@ import android.text.InputType
 import helium314.keyboard.agent.HapticChain
 import helium314.keyboard.agent.KeyboardCommands
 import helium314.keyboard.agent.SpaceAction
+import helium314.keyboard.agent.SpaceDetents
 import helium314.keyboard.agent.SpaceGesture
 import helium314.keyboard.agent.SymbolInk
 import android.os.SystemClock
@@ -278,7 +279,27 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         else -> runSpaceAction(action)
     }
 
+    // stage 33: a sideways swipe with a one-shot action (undo, redo, …) runs it at the last detent
+    private val spaceDetents = SpaceDetents()
+
+    override fun onSpaceSwipeDistance(gesture: SpaceGesture, distance: Int, keyWidth: Int) {
+        resetSpaceTap()
+        if (latinIME.agentEditorController.isBlockingInput) return
+        val action = settings.current.mSpaceGestures[gesture]
+        if (action == SpaceAction.NONE || action.isContinuous) return
+        val unit = SpaceDetents.unitPx(keyWidth, latinIME.resources.displayMetrics.density)
+        when (spaceDetents.move(gesture == SpaceGesture.SWIPE_LEFT, distance, unit)) {
+            SpaceDetents.Event.DETENT -> HapticChain.play(latinIME, settings.current, HapticChain.Feel.DETENT)
+            SpaceDetents.Event.COMPLETE -> {
+                HapticChain.play(latinIME, settings.current, HapticChain.Feel.STRETCH)
+                runSpaceAction(action)
+            }
+            SpaceDetents.Event.NONE -> Unit
+        }
+    }
+
     override fun onEndSpaceSwipe() {
+        spaceDetents.end() // lifted before the last detent: nothing happened
         if (latinIME.agentEditorController.isBlockingInput) return;
         initialSubtype = null
         subtypeSwitchCount = 0
@@ -309,9 +330,8 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
             SpaceAction.CLIPBOARD -> code(KeyCode.CLIPBOARD)
             SpaceAction.EMOJI -> code(KeyCode.EMOJI)
             SpaceAction.COMMAND_LIST -> typeCommandPrefix()
-            // three ticks after the step: falling for undo, rising for redo (HapticChain)
-            SpaceAction.UNDO -> code(KeyCode.UNDO).also { HapticChain.play(latinIME, settings.current, HapticChain.Direction.FALLING) }
-            SpaceAction.REDO -> code(KeyCode.REDO).also { HapticChain.play(latinIME, settings.current, HapticChain.Direction.RISING) }
+            SpaceAction.UNDO -> code(KeyCode.UNDO)
+            SpaceAction.REDO -> code(KeyCode.REDO)
             SpaceAction.SELECT_ALL -> code(KeyCode.CLIPBOARD_SELECT_ALL)
             SpaceAction.TOGGLE_NUMPAD -> toggle(LayoutDirective.Utility.NUMPAD)
             SpaceAction.TOGGLE_SYMBOLS -> toggle(LayoutDirective.Utility.SYMBOLS)
