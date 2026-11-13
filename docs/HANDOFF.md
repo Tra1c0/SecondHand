@@ -9,45 +9,29 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 ## Aktueller Stand
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
-- Stand 2026-11-13 (Übergabe): `main` = Build 11 (beim Owner installiert). Arbeitsbranch
-  `ccr-2b6708f5-qwv8ok` = Build 11 + Sprachwechsel-Fix (SubtypeChoice, P66) + Haptik-Kette
-  Undo/Redo (HapticChain, P67), committet, aber ohne Prüfer und ohne vollen Testlauf.
-- Ungetesteter Zwischenstand (gestoppter Agent, Basis 4c08f98, NICHT gemergt):
-  `wip/symbole-malen` (27: Symbole malen statt Gestenschreiben, $P-Erkenner, PointerTracker-Hook).
-- Emoji-Mix (25a) aus `wip/emoji-mix` fertiggestellt (`@mix`, Leisten-Chip, Emoji-Mixer in der
-  Emoji-Ansicht); Paarliste mit mündlicher Erlaubnis des Autors (Owner), gstatic hier nicht
-  erreichbar, kein Gerätetest, noch ohne Prüfer. Danach 25b animierte Emojis, 25c Sticker-Ersteller.
-- Nächste Schritte für Build 12: siehe Offene Punkte 0.
+- Stand 2026-11-13 (Ende Runde Build 12): `main` = geprüfter Build 12 (wird als Build 13 des
+  Workflows gebaut). Neu: 25a Emoji-Mix, 27 Symbole malen, Sprachwahl-Fix mit Umlaut-Tests,
+  Haptik-Kette, vier Screenshot-/Wörterbuch-Fixes, Update-Migrationen (P84, Design-Abstände).
+  Alles mit Prüfer, Nachprüfung der Fixes und vollem Testlauf (lokal und GitHub). Kein Gerätetest.
+- Test-Build 12 (Workflow-Lauf 12) ist beim Owner installiert; danach kamen die Prüferfixes.
+- Nächste Runde Build 13: ROADMAP 28–33 (Regler-Haptik, RGB-Überarbeitung, Diagnose,
+  Symbole-Feinschliff, zuletzt gemischt, Leertasten-Geste mit Rastpunkten). Der Owner stellt dafür
+  Opus 5.5 mit Effort high ein; erst dann beginnen.
 - Kein Gerätetest für alles seit Build 10 außer den Rückmeldungen des Owners.
 
 ## Offene Punkte
 
-0. **Build 12 fertigstellen (Reihenfolge):**
-   1. Prüfer für den Arbeitsbranch: `LatinIME.switchToSubtypeByCommand`/`SubtypeChoice.holds` in
-      `onStartInputInternal` (Engine-Datei, Pflicht) und `HapticChain`. Volle `upstream-tests`
-      und `agent-tests` (nach Commit B nicht komplett gelaufen). Test zum Sprachwechsel auf
-      ö, ü, ß erweitern (Owner meinte: deutsches Layout ohne Umlaute im Lange-Druck-Popup nach
-      en → de; Ursache in Robolectric nur mit Hint-Locale nachgestellt, am Xiaomi unbestätigt).
-   2. `wip/emoji-mix` und `wip/symbole-malen` je in einer Arbeitskopie fertigstellen (Stand lesen,
-      Tests laufen lassen, fehlende Teile ergänzen, Docs), dann auf den Arbeitsbranch mergen.
-      Aufträge des Owners: Emoji-Mix wie Gboard (Paare, Laden von gstatic erst nach Tipp bzw.
-      im Mixer-Modus nach Wahl des 2. Emojis; im Emoji-Menü statt Leertaste+Suche zwei exakt
-      gleich breite Felder „Emojis suchen“ und „Emoji-Mixer“, vergrößerte Vorschau gleitet
-      herein). Lizenz der Paarliste (xsalazar/emoji-kitchen-backend): Autor hat laut Owner am
-      2026-11-13 mündlich zugestimmt, Lizenzdatei fehlt noch; in BUILD.md festhalten, später
-      prüfen. Symbole malen: ersetzt Gestenschreiben ganz (Einstellung, Standard aus), lokale
-      feste Liste + eigene Symbole, kein ML Kit. Berührt PointerTracker: Prüfer Pflicht.
-   3. Die vier niedrigen Punkte der Nachprüfung von Build 11 (Screenshot-Verlauf im
-      500-ms-Fenster, Reste in `agent_screenshot_pending/`, `ClipboardHistoryManager.onDestroy`
-      stoppt Observer/Timer nicht, Temp-Datei beim Wörterbuch-Entpacken im Locale-Ordner).
-   4. Volle Prüfungen, Build über `agent-apk.yml`, APK per Datei an den Owner (Browser-Download
-      aus dem privaten Repo hängt auf seinem Handy), danach `main`.
-   Danach offen: 25b animierte Emojis (Noto, CC BY 4.0), 25c Sticker-Ersteller, U6 `@generate`.
-   Wartet auf den Owner: Secret `RELEASES_TOKEN` (öffentliche Updates für die Freundin);
-   Entscheidung, ob vertrauliche Clips aus dem normalen Zwischenablageverlauf bleiben.
-   Sitzungs-Hinweis: Diese Sitzung lief sehr lang; mehrere parallele Agenten in Arbeitskopien
-   haben sich bewährt, Docs-Konflikte (VALIDATION, release-notes, ARCHITECTURE-Fallstricke) beim
-   Mergen beide Seiten behalten, Fallstrick-Nummern vorab je Agent verteilen.
+0. **Build 13 (ROADMAP 28–33).** Offene Fragen an den Owner stehen dort (Rastpunkte je Regler,
+   was die RGB-Kurve steuert, Punkte-Abstände und „ganzer Text rückgängig“ bei 33). Ablauf wie in
+   Build 12: Agenten je Etappe in Arbeitskopien, Fallstrick-Nummern vorab verteilen (ab P85),
+   Test-Build zuerst (`CLAUDE.md`), dann Prüfer und volle Läufe. Tests laufen auch auf GitHub
+   (`agent-tests.yml`, bei jedem Code-Push auf `claude/**`, Ergebnis im Job-Summary).
+   Offen aus Build 12 (alle niedrig, Liste in VALIDATION → „Build 12: …“): Emoji-Mix 7–10,
+   Symbole malen (Tupfer-Regel, Spur, Gestenschalter), Screenshot-Reste beim Start mit Schalter aus,
+   `dicts_extracting`-Reste. Lizenzdatei der Emoji-Kitchen-Paarliste nachprüfen (BUILD.md).
+   Danach offen: 25b animierte Emojis, 25c Sticker-Ersteller, U6 `@generate`.
+   Wartet auf den Owner: Secret `RELEASES_TOKEN` (kommt später); Entscheidung, ob vertrauliche
+   Clips aus dem normalen Zwischenablageverlauf bleiben.
 
 1. **Gerätetest teilweise erledigt (G1).** Im Emulator geprüft und in Ordnung: Installation,
    Tippen, Löschen, Rad, Panel, Ersetzen, Schutz bei geänderter Auswahl, Passwortfeld,
@@ -203,6 +187,11 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
   `https://maven-central.storage-download.googleapis.com/maven2/` als zusätzlichem Repository
   anlegen (nicht ins Repo); die Robolectric-Laufzeiten (`android-all-instrumented`
   `16-robolectric-13921718-i7` und `9-robolectric-4913185-2-i7`) von dort nach `~/.m2` legen.
+- **Gradle-Init-Skript mit Spiegel (2026-11-13):** Der Spiegel muss VOR Maven Central stehen
+  (`repositories.addFirst` in `beforeSettings`/`allprojects`), sonst drosselt Maven Central schon
+  beim Konfigurieren (429). Robolectric-Laufzeiten `16-…-i7` und `9-…-2-i7` per `curl` vom Spiegel
+  nach `~/.m2` legen, bevor Tests laufen. Toolchain: `apt-get install openjdk-17-jdk-headless`,
+  cmdline-tools 16111833, `sdkmanager --sdk_root=… 'platforms;android-37.0' …` ging mit `;`.
 - **Maven Central drosselt (HTTP 429)** bei vielen parallelen Downloads; Build wiederholen.
   Robolectric konnte die Android-16-Laufzeit nicht selbst laden: die Datei
   `android-all-instrumented-16-robolectric-13921718-i7.jar` samt `.pom` und `.sha512` per `curl`
@@ -223,6 +212,13 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
   Code aktualisieren (`CLAUDE.md` → Docs aktuell halten).
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
+- Build 12 geprüft (Workflow-Lauf 13, von `main`): wie Test-Build 12 plus Prüferfixes (Emoji-Mix-
+  Senke, Symbol nach Ausblenden, Screenshot vor dem Start, Update-Migrationen P84); Upstream mit
+  den 7 bekannten Fehlern (lokal, Stand 15b3c5a), Agent-Suite (lokal, ef4f172), Lint, GitHub-Läufe
+  1–2 grün; Lauf 3 auf dem Endstand 675fb38 bei diesem Commit noch offen; kein Gerätetest.
+- Test-Build 12 (Workflow-Lauf 12, Arbeitsbranch 15b3c5a, vor Abschluss der Prüfer an den Owner):
+  Rückmeldung: Haptik-Kette spielt sofort statt an Rastpunkten (→ 33), eigenes Design nach dem
+  Update verändert (→ P84, behoben).
 - Build 11 (signiert, Workflow vom Arbeitsbranch c2a91d2, auf Wunsch vor Abschluss der Prüfungen
   ausgegeben): Screenshot zuerst, RGB, Sprachbefehle, Emoji-Wörterbücher; danach Upstream 778 mit
   den 7 bekannten Fehlern (nach globalem Test-Shadow), Agent-Suite, Lint, Build grün; kein Gerätetest.
