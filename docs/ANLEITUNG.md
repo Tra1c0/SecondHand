@@ -282,18 +282,38 @@ diese Sprache um.
   `@de`, `@en`.
 - Sprache: `@spanisch`, `@spanish`, `@español`/`@espanol`, `@castellano`; `@deutsch`, `@german`;
   `@englisch`, `@english`, `@inglés`.
-- Land: `@spain`, `@spanien`, `@españa`, `@mexico`; `@germany`, `@deutschland`, `@österreich`,
-  `@schweiz`; `@usa`, `@uk`, `@england`.
-- Tippfehler gehen auch: `@spnaish`, `@deustch`, `@englsih`. Angefangene Wörter ab zwei Buchstaben
-  ebenfalls (`@spa`, `@deu`).
-- `@lang` zeigt alle aktiven Sprachen als Chips; `@lang spa` nur die passenden.
+- Land: `@spain`, `@spanien`, `@españa`, `@mexico`; `@germany`, `@deutschland`, `@österreich`
+  (auch `@oesterreich`), `@schweiz`; `@usa`, `@uk`, `@england`. Ländercodes wie `@us`, `@ch`
+  oder `@mx` zählen nicht, weil viele Namen so anfangen.
+- Zwei Buchstaben zählen nur genau: `@sp`, `@es`, `@de`, `@en`, `@uk`. Ab drei Buchstaben
+  reicht der Anfang eines Sprach- oder Ländernamens (`@spa`, `@deu`, `@mex`).
+- Tippfehler ab vier Buchstaben, nur bei Sprachnamen und Kürzeln (nicht bei Ländern und Codes),
+  und der erste Buchstabe muss stimmen: `@spnaish`, `@deustch`, `@englsih` gehen, `@psanish`
+  nicht. Bis vier Buchstaben zählt nur ein Vertauschen zweier Nachbarn.
+- Nach dem Leerzeichen bleibt der Chip nur für ein genaues Wort (`@sp `, `@spain `), nicht für
+  einen Anfang oder Tippfehler (`@spnaish ` zeigt dann nichts mehr). Tippst du danach ein
+  weiteres Wort (`@sp hola`), verschwindet der Chip und die Autokorrektur arbeitet normal.
+- `@lang` zeigt alle aktiven Sprachen als Chips; `@lang spa` nur die passenden. Die Sprache, die
+  du gerade benutzt, bekommt keinen Chip; trifft nur sie, steht da grau „Schon aktiv: Deutsch
+  (DE)“, und ein Tipp darauf ändert nichts.
 - Hat eine Sprache mehrere Layouts, gibt es einen Chip je Layout (z. B. „· QWERTY“).
 - Nur Sprachen, die unter Einstellungen → Sprachen & Layouts aktiv sind. Ist nur eine aktiv,
-  zeigt die Leiste „Nur eine Sprache aktiv“; ein Tipp öffnet die Spracheinstellungen.
-- Befehlsnamen haben Vorrang: `@url`, `@ki` usw. bleiben Befehle. Erwähnungen wie `@lewin` lösen
-  nichts aus. Tippst du danach ein weiteres Wort (`@sp hola`), verschwindet der Chip.
+  zeigt die Leiste „Nur eine Sprache aktiv“; ein Tipp öffnet die Spracheinstellungen. Schaltest
+  du eine Sprache ab, während ihr Chip noch zu sehen ist, meldet ein Tipp „Diese Sprache ist
+  nicht mehr aktiv“, und der Text bleibt.
+- Sprachen in anderer Schrift (z. B. Russisch) erkennt die Tastatur nur über ihren Code und
+  ihren Namen auf Englisch, Deutsch, Spanisch, Französisch, Italienisch oder Portugiesisch
+  (`@russisch`, `@ru`), nicht in ihrer eigenen Schrift.
+- Befehlsnamen haben Vorrang: `@url`, `@ki` usw. bleiben Befehle. Ein Sprachwort im Text eines
+  Befehls (`@termin Treffen mit @sp`) bleibt Teil dieses Befehls. Erwähnungen wie `@lewin`,
+  `@isa`, `@gerd` oder `@matt` lösen nichts aus. Beim Tippen mancher Namen blitzt nach drei
+  Buchstaben kurz ein Sprach-Chip auf (`@ale…` über „alemán“, `@ing…` über „inglés“, `@col…`
+  über „Colombia“, `@alle` über „allemand“); meist ist er mit dem nächsten Buchstaben,
+  spätestens mit dem Leerzeichen wieder weg. Nur ein Name, der genau ein Sprach- oder
+  Ländername ist (`@peru`), behält ihn.
 - Vertippte Befehlsnamen: `@mtah` oder `@tranlate` zeigt den richtigen Namen als Chip; ein Tipp
-  vervollständigt ihn nur.
+  vervollständigt ihn nur. Auch hier ab vier Buchstaben und mit richtigem ersten Buchstaben
+  (`@matt`, `@uri` bleiben Erwähnungen).
 - Abschalten unter Einstellungen → Befehle → `@lang`; dort stehen auch die Kürzel deiner aktiven
   Sprachen.
 

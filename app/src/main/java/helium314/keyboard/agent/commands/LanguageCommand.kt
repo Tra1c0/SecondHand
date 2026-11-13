@@ -3,6 +3,7 @@ package helium314.keyboard.agent.commands
 
 import android.content.Context
 import android.view.inputmethod.InputMethodSubtype
+import dev.agentkeyboard.core.AliasKind
 import dev.agentkeyboard.core.CommandCall
 import dev.agentkeyboard.core.LanguageMatcher
 import dev.agentkeyboard.core.LanguageNames
@@ -26,13 +27,21 @@ import helium314.keyboard.settings.SettingsDestination
 object LanguageCommand : KeyboardCommands.Command {
     override val name = "lang"
 
-    /** The enabled keyboard subtypes, in the order of the language settings; replaced in tests. */
-    @JvmStatic var subtypes: () -> List<InputMethodSubtype> = {
+    /** The real source of [subtypes]; tests put it back with this. */
+    internal val defaultSubtypes: () -> List<InputMethodSubtype> = {
         runCatching { SubtypeSettings.getEnabledSubtypes(true) }.getOrDefault(emptyList())
     }
 
+    /** The enabled keyboard subtypes, in the order of the language settings; replaced in tests. */
+    @JvmStatic var subtypes: () -> List<InputMethodSubtype> = defaultSubtypes
+
     /** Built from the enabled languages when the keyboard reads its settings; read by the suggestion thread too. */
     @Volatile private var matcher: LanguageMatcher? = null
+    /** What [matcher] was built from: the enabled language tags and the command names. */
+    @Volatile private var matcherKey: Pair<List<String>, List<String>>? = null
+
+    /** The matcher in use, for tests. */
+    internal val currentMatcher: LanguageMatcher? get() = matcher
 
     override fun description(context: Context): String {
         val enabled = subtypes().map { it.locale().language }.filter { it != SubtypeLocaleUtils.NO_LANGUAGE }.distinct()
@@ -44,24 +53,34 @@ object LanguageCommand : KeyboardCommands.Command {
     }
 
     override fun load(context: Context) {
-        val languages = subtypes().map { it.locale() }.filter { it.language != SubtypeLocaleUtils.NO_LANGUAGE }
-            .groupBy { it.language }
-            .map { (language, locales) ->
-                // a subtype's own country (en-GB, es-MX) adds its names
-                LanguageMatcher.Language(language, locales.flatMap { LanguageNames.aliases(it.toLanguageTag()) })
-            }
-        matcher = LanguageMatcher(languages, KeyboardCommands.registry.map { it.name })
+        val locales = subtypes().map { it.locale() }.filter { it.language != SubtypeLocaleUtils.NO_LANGUAGE }
+        val names = KeyboardCommands.registry.map { it.name }
+        // ICU names and the closeness of every alias to every command name cost time on the main
+        // thread: build again only when the enabled languages or the commands changed
+        val key = locales.map { it.toLanguageTag() } to names
+        if (key == matcherKey && matcher != null) return
+        val languages = locales.groupBy { it.language }.map { (language, sameLanguage) ->
+            // a subtype's own country (en-GB, es-MX) adds its names
+            val kinds = mutableMapOf<String, AliasKind>()
+            for (locale in sameLanguage) for ((alias, kind) in LanguageNames.classifiedAliases(locale.toLanguageTag()))
+                kinds[alias] = maxOf(kind, kinds[alias] ?: kind)
+            LanguageMatcher.Language(language, kinds)
+        }
+        matcher = LanguageMatcher(languages, names)
+        matcherKey = key
     }
 
     override fun claims(word: String): Boolean = matcher?.match(word)?.isNotEmpty() == true
 
     override fun chips(host: KeyboardCommands.Host, call: CommandCall): List<KeyboardCommands.Chip> {
         if (KeyboardCommands.isBlocked(Settings.getValues(), host.editorInfo)) return emptyList()
-        // the language words take no argument: "@sp hola" is text again
+        // the language words take no argument: "@sp hola" is text again (the parser no longer offers it)
         if (call.claimed != null && call.argument.isNotBlank()) return emptyList()
         val enabled = subtypes()
         val word = call.claimed ?: call.argument.trim()
-        val languages = if (word.isEmpty()) null else matcher?.match(word).orEmpty()
+        // after the space a word is finished: only an exact name keeps its chip ("@sp ", not "@spnaish " or "@ale ")
+        val finished = call.claimed != null && call.text.endsWith(' ')
+        val languages = if (word.isEmpty()) null else matcher?.match(word, exactOnly = finished).orEmpty()
         val chosen = enabled.filter { languages == null || it.locale().language in languages }
         if (chosen.isEmpty()) return emptyList()
         val context = host.context
@@ -69,11 +88,25 @@ object LanguageCommand : KeyboardCommands.Command {
             context.getString(R.string.agent_command_lang_single_description), KeyboardCommands.Chip.Kind.MUTED) {
             SnipCommand.openSettings(context, SettingsDestination.Languages)
         })
+        // the language in use gets no chip: its tap would only delete the text
+        val current = host.currentSubtype
+        val others = chosen.filter { it != current }
+        if (others.isEmpty()) {
+            val label = label(context, chosen.first(), enabled).removePrefix("🌐 ")
+            val text = context.getString(R.string.agent_command_lang_active, label)
+            // a tap keeps the text and changes nothing
+            return listOf(KeyboardCommands.Chip(text, text, KeyboardCommands.Chip.Kind.MUTED) {})
+        }
         // the order of the matched languages, then of the settings
-        val ordered = if (languages == null) chosen else chosen.sortedBy { languages.indexOf(it.locale().language) }
+        val ordered = if (languages == null) others else others.sortedBy { languages.indexOf(it.locale().language) }
         return ordered.map { subtype ->
             val label = label(context, subtype, enabled)
             KeyboardCommands.Chip(label, context.getString(R.string.agent_command_lang_switch, label.removePrefix("🌐 "))) {
+                // the language may have been switched off since the chip was built: then nothing happens
+                if (subtype !in subtypes()) {
+                    android.widget.Toast.makeText(context, R.string.agent_command_lang_gone, android.widget.Toast.LENGTH_SHORT).show()
+                    return@Chip
+                }
                 // first the command goes, in the editor it was typed in; then the keyboard switches
                 if (host.replace(call, "")) host.switchSubtype(subtype)
             }

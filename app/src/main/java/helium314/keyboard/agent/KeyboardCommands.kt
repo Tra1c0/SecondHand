@@ -114,6 +114,8 @@ object KeyboardCommands {
         fun aiDetails(command: CommandCall): Boolean = false
         /** Switches the keyboard to the enabled [subtype] (stage 24g), like the language key; false if it cannot. */
         fun switchSubtype(subtype: android.view.inputmethod.InputMethodSubtype): Boolean = false
+        /** The subtype the keyboard uses now (stage 24g), or null when unknown; it gets no switch chip. */
+        val currentSubtype: android.view.inputmethod.InputMethodSubtype? get() = null
     }
 
     /** A built-in command. Commands never come from files or models. */
@@ -357,6 +359,8 @@ object KeyboardCommands {
                 ime.switchToSubtype(subtype)
                 return true
             }
+            override val currentSubtype: android.view.inputmethod.InputMethodSubtype?
+                get() = runCatching { helium314.keyboard.latin.RichInputMethodManager.getInstance().currentSubtype.rawSubtype }.getOrNull()
         }
         return chipsFor(context, host)
     }

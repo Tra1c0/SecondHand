@@ -76,8 +76,8 @@ class CommandSyntaxTest {
     }
 
     // stage 24g
-    private val all = listOf("math", "contact", "conv", "url", "translate", "lang", "ki")
-    private val languages = LanguageMatcher(listOf("de", "en", "es").map { LanguageMatcher.Language(it, LanguageNames.aliases(it)) }, all)
+    private val all = listOf("math", "contact", "conv", "url", "translate", "lang", "ki", "termin", "clip")
+    private val languages = LanguageMatcher(listOf("de", "en", "es").map { LanguageMatcher.Language(it, LanguageNames.classifiedAliases(it)) }, all)
     private val claim: (String) -> String? = { word -> "lang".takeIf { languages.match(word).isNotEmpty() } }
     private fun extended(text: String) = CommandSyntax.parse(text, '@', all, fuzzyNames = true, claim = claim)
 
@@ -95,6 +95,38 @@ class CommandSyntaxTest {
         assertEquals(listOf("math"), CommandSyntax.closeNames("mtah", all))
         assertTrue(CommandSyntax.closeNames("ma", all).isEmpty())
         assertTrue(CommandSyntax.closeNames("math", listOf("math")).isEmpty()) // the name itself is no typo
+        // after review: from four letters, same first letter, up to four letters only a swap
+        for (mention in listOf("uri", "urs", "lana", "lange", "matt", "clio", "mathe", "ahtm", "urlx"))
+            assertTrue(CommandSyntax.closeNames(mention, all).isEmpty(), mention)
+        assertNull(extended("@matt"))
+        assertNull(extended("@uri"))
+        assertEquals(listOf("clip"), CommandSyntax.closeNames("cilp", all))
+    }
+
+    @Test fun aClaimOrTypoInsideTheArgumentOfARealCommandNeverTakesOver() {
+        // the reviewer's examples, with a claim that takes every word, so they hold whatever the matcher says
+        val greedy: (String) -> String? = { "lang" }
+        fun parse(text: String) = CommandSyntax.parse(text, '@', all, longArguments = listOf("translate"), fuzzyNames = true, claim = greedy)
+        assertEquals(CommandCall(0, "@ki schreib an @isa", '@', "ki", "schreib an @isa"), parse("@ki schreib an @isa"))
+        assertEquals(CommandCall(0, "@termin Treffen mit @gerd", '@', "termin", "Treffen mit @gerd"), parse("@termin Treffen mit @gerd"))
+        assertEquals(CommandCall(0, "@translate \"hola\" @es", '@', "translate", "\"hola\" @es"), parse("@translate \"hola\" @es"))
+        assertEquals("ki", (parse("@ki frag @matt") as CommandCall).name)
+        assertEquals("ki", (parse("@ki frag @mtah") as CommandCall).name) // a typo of a name inside the argument too
+        assertEquals("ki", (parse("x @ki frag @sp hola") as CommandCall).name)
+        // with the real language matcher as well
+        assertEquals("translate", (CommandSyntax.parse("@translate \"hola\" @es", '@', all, listOf("translate"), true, claim) as CommandCall).name)
+        assertEquals("termin", (extended("@termin Essen @sp") as CommandCall).name)
+        // without an earlier command, or on a new line, the claim and the typo stay
+        assertEquals("sp", (parse("Hallo @sp") as CommandCall).claimed)
+        assertEquals("sp", (parse("@ki frag\n@sp") as CommandCall).claimed)
+        assertTrue((parse("x @mtah") as CommandNames).fuzzy)
+        assertEquals("sp", (parse("@sp @ger @sp") as CommandCall).claimed) // claims never take over from each other
+        // a command typed by its name later on the line still wins, as before
+        assertEquals("math", (parse("@ki frag @math") as CommandCall).name)
+        assertEquals(listOf("math"), (parse("@ki frag @ma") as CommandNames).candidates)
+        // an earlier command whose argument is too long is no command: the claim stays
+        val long = "@ki " + "x".repeat(CommandSyntax.MAX_ARGUMENT) + " @sp"
+        assertEquals("sp", (parse(long) as CommandCall).claimed)
     }
 
     @Test fun aCommandMayClaimUnknownWords() {
@@ -104,7 +136,9 @@ class CommandSyntaxTest {
                 "eng", "english", "englisch", "inglés", "usa", "Österreich"))
             assertEquals("lang", (extended("@$typed") as CommandCall).name, typed)
         assertEquals("español", (extended("@Español") as CommandCall).claimed)
-        assertEquals("hola", (extended("@sp hola") as CommandCall).argument)
+        // a claimed word takes no argument: another word makes the line text again
+        assertNull(extended("@sp hola"))
+        assertNull(extended("@sp  "))
         // the command's own name stays a normal call
         assertEquals(CommandCall(0, "@lang", '@', "lang", ""), extended("@lang"))
         // mail addresses, mentions and other punctuation never count
@@ -124,8 +158,9 @@ class CommandSyntaxTest {
         assertEquals(CommandCall(0, "@ki", '@', "ki", ""), extended("@ki"))
         // a claim that would take a typo of a command name loses to the name
         val greedy: (String) -> String? = { "lang" }
-        assertEquals(listOf("math"), (CommandSyntax.parse("@mathe", '@', all, fuzzyNames = true, claim = greedy) as CommandNames).candidates)
-        assertNull(CommandSyntax.parse("@mathe 2", '@', all, fuzzyNames = true, claim = greedy))
+        assertEquals(listOf("math"), (CommandSyntax.parse("@mtah", '@', all, fuzzyNames = true, claim = greedy) as CommandNames).candidates)
+        assertNull(CommandSyntax.parse("@mtah 2", '@', all, fuzzyNames = true, claim = greedy))
+        assertEquals(listOf("translate"), (CommandSyntax.parse("@tranlsate", '@', all, fuzzyNames = true, claim = greedy) as CommandNames).candidates)
         assertEquals("lang", (CommandSyntax.parse("@kino", '@', all, fuzzyNames = true, claim = greedy) as CommandCall).name)
     }
 

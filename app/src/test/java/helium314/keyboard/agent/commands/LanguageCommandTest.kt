@@ -44,6 +44,7 @@ class LanguageCommandTest {
     private val events = mutableListOf<String>()
     private var replaceWorks = true
     private val switched = mutableListOf<InputMethodSubtype>()
+    private var current: InputMethodSubtype? = null
 
     private fun resource(tag: String): InputMethodSubtype = SubtypeSettings.getResourceSubtypesForLocale(tag.constructLocale()).first()
     private val german by lazy { resource("de") }
@@ -66,6 +67,7 @@ class LanguageCommandTest {
             switched += subtype
             return true
         }
+        override val currentSubtype: InputMethodSubtype? get() = current
     }
 
     @Before fun setUp() {
@@ -74,7 +76,7 @@ class LanguageCommandTest {
     }
 
     @After fun tearDown() {
-        LanguageCommand.subtypes = { runCatching { SubtypeSettings.getEnabledSubtypes(true) }.getOrDefault(emptyList()) }
+        LanguageCommand.subtypes = LanguageCommand.defaultSubtypes
         KeyboardCommands.registry = KeyboardCommands.BUILT_IN
         KeyboardCommands.load(latinIME)
     }
@@ -105,9 +107,15 @@ class LanguageCommandTest {
             assertTrue(labels("x @$typed").single().startsWith("🌐 Deutsch ("), typed)
         for (typed in listOf("eng", "english", "englisch", "inglés", "usa"))
             assertEquals(listOf("🌐 English (US)"), labels("x @$typed"), typed)
-        // a trailing space still offers the chip; another word makes it text again
+        // a trailing space still offers the chip for an exact word; another word makes it text again
         assertEquals(listOf(spanishLabel), labels("x @sp "))
+        assertEquals(listOf(spanishLabel), labels("x @spain "))
+        assertEquals(listOf(spanishLabel), labels("x @español "))
         assertTrue(labels("x @sp hola").isEmpty())
+        assertNull(find("x @sp hola"))
+        // after the space a started word or a typo offers nothing any more
+        for (typed in listOf("spnaish", "spani", "deustch", "ale", "alle"))
+            assertTrue(labels("x @$typed ").isEmpty(), typed)
         assertTrue(events.isEmpty()) // nothing happens before the tap
     }
 
@@ -136,6 +144,76 @@ class LanguageCommandTest {
         val all = (find("@") as CommandNames).candidates
         assertTrue("lang" in all)
         assertTrue(listOf("sp", "ger", "eng", "deutsch", "spain").none { it in all })
+    }
+
+    @Test fun theReviewersMentionsAreNoCommands() {
+        for (typed in listOf("isa", "gerd", "gero", "gerda", "inge", "ines", "espen", "den", "uri", "urs", "lana", "lange",
+                "matt", "clio", "us", "ca", "co", "pe", "pa", "ar", "ch", "au", "me", "al", "an", "re", "ge", "ne", "un", "ve"))
+            find("Hallo @$typed").let { found ->
+                // "@co" still starts "@contact" and "@conv", as before stage 24g
+                assertTrue(found == null || (found is CommandNames && !found.fuzzy), "$typed: $found")
+            }
+        // the owner's words still work
+        for (typed in listOf("sp", "spain", "spanisch", "spnaish", "espanol", "español", "ger", "deutsch", "deustch",
+                "germany", "eng", "english", "englisch", "inglés", "usa"))
+            assertTrue(labels("x @$typed").isNotEmpty(), typed)
+        assertEquals(listOf("math"), (find("@mtah") as CommandNames).candidates)
+        assertEquals(listOf("translate"), (find("@tranlate") as CommandNames).candidates)
+    }
+
+    @Test fun aLanguageWordInsideTheArgumentOfACommandLeavesTheCommand() {
+        val event = find("@termin Treffen mit @sp") as CommandCall
+        assertEquals("termin", event.name)
+        assertEquals("Treffen mit @sp", event.argument)
+        assertTrue(KeyboardCommands.guardsTextBefore("@termin Treffen mit @sp")) // @termin still protects its argument
+        assertTrue(KeyboardCommands.guardsTextBefore("@translate \"hola\" @es"))
+        assertEquals("translate", (find("@translate \"hola\" @es") as CommandCall).name)
+        assertEquals("ki", (find("@ki schreib an @deutsch") as CommandCall).name)
+        assertEquals("ki", (find("@ki frag @mtah") as CommandCall).name)
+        assertTrue(labels("@termin Treffen mit @sp").none { it.startsWith("🌐") })
+        // after a claimed word and a space, the next word is plain text: nothing guards it
+        assertFalse(KeyboardCommands.guardsTextBefore("x @sp h"))
+        KeyboardCommands.updateGuard("x @sp hola")
+        assertFalse(KeyboardCommands.suppressesCorrection())
+        KeyboardCommands.updateGuard("x @spnaish")
+        assertTrue(KeyboardCommands.suppressesCorrection()) // the claimed word itself stays protected
+    }
+
+    @Test fun theMatcherIsBuiltAgainOnlyWhenLanguagesOrCommandsChange() {
+        val first = LanguageCommand.currentMatcher
+        assertNotNull(first)
+        KeyboardCommands.load(latinIME)
+        KeyboardCommands.load(latinIME)
+        assertSame(first, LanguageCommand.currentMatcher)
+        enable(german, english) // other languages
+        val second = LanguageCommand.currentMatcher
+        assertNotSame(first, second)
+        assertNull(find("@sp"))
+        KeyboardCommands.registry = KeyboardCommands.BUILT_IN.filter { it != SnipCommand } // other commands
+        KeyboardCommands.load(latinIME)
+        assertNotSame(second, LanguageCommand.currentMatcher)
+    }
+
+    @Test fun theLanguageInUseGetsNoChip() {
+        current = german
+        assertEquals(2, labels("@lang").size)
+        assertTrue(labels("@lang").none { it.startsWith("🌐 Deutsch") })
+        val active = chips("x @deutsch").single()
+        assertEquals(KeyboardCommands.Chip.Kind.MUTED, active.kind)
+        val prefix = latinIME.getString(R.string.agent_command_lang_active, "Deutsch")
+        assertTrue(active.label.toString().startsWith(prefix), active.label.toString())
+        active.onTap()
+        assertTrue(events.isEmpty()) // the text stays, nothing switches
+        assertTrue(labels("x @sp").single().startsWith("🌐 Español"))
+    }
+
+    @Test fun aLanguageSwitchedOffSinceTheChipWasBuiltKeepsTheText() {
+        val chip = chips("x @sp").single()
+        LanguageCommand.subtypes = { listOf(german, english) }
+        chip.onTap()
+        assertTrue(events.isEmpty())
+        assertTrue(switched.isEmpty())
+        assertEquals(latinIME.getString(R.string.agent_command_lang_gone), org.robolectric.shadows.ShadowToast.getTextOfLatestToast())
     }
 
     @Test fun typosOfCommandNamesOnlyComplete() {
