@@ -470,6 +470,15 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `Host.replace` nur seinen eigenen Text ersetzen, und nur wenn der Editor ihn unverändert vor
   der Schreibmarke zeigt. Die Leiste zeigt die Chips über `setExternalSuggestionView`; der
   nächste normale Vorschlag ersetzt sie.
+- Vorlagen: `Command.templates(host)` liefert `Template(label, text)` (Standard: keine). Bei
+  `CommandCall` mit leerem Argument hängt `chipsFor` nach den eigenen Chips des Befehls
+  `templateChips` an (`Chip.Kind.TEMPLATE`: umrandet, Text leicht gedämpft, Beschreibung
+  `agent_command_template` „Vorlage: …“; leer in gesperrten Feldern). Ein Tipp ersetzt über
+  `Host.replace` genau den getippten Befehl durch „Präfix + Name + Leerzeichen + `text`“; die
+  normale Leistenaktualisierung nach dem Ersetzen zeigt dann die Chips für das Argument. Vorlagen
+  haben `@math` (√, π), `@zeichen`/`@emoji` (Gruppen aus `SymbolTable.groups`), `@conv`
+  (`ConvertCommand.PAIRS`), `@datum`/`@termin` (nach `DateFormatting.Language`) und
+  `@translate`.
 - Schutz vor Korrektur und Lernen: Ohne URL-Erkennung gehört das Präfix nicht zum getippten
   Wort, die Engine sieht nur `math`. `guardsTextBefore` entscheidet deshalb nach dem Text vor der
   Schreibmarke (Name angefangen oder vollständig ohne Argument, oder Argument eines Befehls mit
@@ -509,7 +518,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `editor.captureAnchor` und `editor.insert` wie das Diktat (Prüfung von Token, Position,
   Schutzgrenzen; generierter Text, also ohne Lernen). `isBlockingInput` gilt, solange der Rechner
   offen ist; `close()` und jeder Editorwechsel schließen ihn.
-- Tests: `CommandSyntaxTest` und `MathExpressionTest` (`CT/`), `KeyboardCommandsTest`, `CommandReplaceTest` und
+- Tests: `CommandSyntaxTest` und `MathExpressionTest` (`CT/`), `KeyboardCommandsTest`, `CommandTemplatesTest`, `CommandReplaceTest` und
   `CalculatorViewTest` (`AT/`), `InputLogicTest.typedCommand*`.
 
 - Weitere Befehle (Etappe 24c–24f), jeder in einer eigenen Datei, Reihenfolge in `BUILT_IN`:
@@ -537,8 +546,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `launcher`), `A/CharacterCommand.kt` (`@zeichen`, `C/SpecialCharacters.kt`),
     `A/EmojiCommand.kt` (`@emoji`, `C/EmojiNames.kt`; HeliBoards Emoji-Suche braucht ein
     nachzuladendes Wörterbuch), beide über `C/SymbolTable.kt` (ä→a, ß→ss, exakt vor Präfix,
-    höchstens 12); `A/ConvertCommand.kt` (`@conv`, `C/UnitConversion.kt`, exakt mit `BigDecimal`,
-    US-Maße, „Pfund“ = lb).
+    höchstens 12; `search` zeigt zuerst eine ganze Gruppe, `Group` mit Name und Aliassen, nur
+    über den vollen Namen); `A/ConvertCommand.kt` (`@conv`, `C/UnitConversion.kt`, exakt mit `BigDecimal`,
+    US-Maße, „Pfund“ = lb; ein Paar ohne Zahl wie „oz in g“ rechnet 1 Einheit, eine Zahl
+    dahinter ist der Wert: „oz in g 5“).
   - `A/commands/SnipCommand.kt` und `A/commands/SnippetStore.kt` (`@snip`, CE-Datei,
     Einstellungen `K/settings/screens/AgentSnippetsSection.kt`), `A/commands/ClipCommand.kt`
     (`@clip`, nur mit eingeschaltetem Verlauf, nur Text; überspringt den aktuellen vertraulichen Clip
@@ -1069,7 +1080,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (311 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (312 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -1092,20 +1103,20 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (56): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (57): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, CalculatorViewTest, CalendarToolLauncherTest,
-  ClipCommandTest, CommandReplaceTest, ContactCommandTest, CorrectionMemoryTest,
-  DatePlaceCommandsTest, DebugPrivacyTest, DesignTilesTest, DictationSessionTest, DictationUiTest,
-  EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, FlatClipboardTest, FlatMenuTest,
-  FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, InsertAtCursorTest,
-  JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LearningDataTest,
-  LoadingDotsViewTest, MainSettingsLookTest, ManualWorkflowDraftTest, MoreCommandsTest,
-  MoreProvidersTest, OpenAiProviderTest, ScreenshotChipTest, SelectedTextCommitTest,
-  SkillBindingStoreTest, SkillSettingsTest, SnipCommandTest, TestRunJournal, ToolRunnerTest,
-  TouchModelTest, TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest,
-  WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
-  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  ClipCommandTest, CommandReplaceTest, CommandTemplatesTest, ContactCommandTest,
+  CorrectionMemoryTest, DatePlaceCommandsTest, DebugPrivacyTest, DesignTilesTest,
+  DictationSessionTest, DictationUiTest, EncryptedActionRunStoreTest, EncryptedCredentialStoreTest,
+  FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest,
+  ForkIdentityTest, InsertAtCursorTest, JournaledModelCallTest, KeyboardCommandsTest,
+  KeyboardProfileStoreTest, LearningDataTest, LoadingDotsViewTest, MainSettingsLookTest,
+  ManualWorkflowDraftTest, MoreCommandsTest, MoreProvidersTest, OpenAiProviderTest,
+  ScreenshotChipTest, SelectedTextCommitTest, SkillBindingStoreTest, SkillSettingsTest,
+  SnipCommandTest, TestRunJournal, ToolRunnerTest, TouchModelTest, TypoMemoryTest, UpdateCheckTest,
+  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
+  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (4): QrCommandTest, ScreenReaderServiceTest, TranslateCommandTest, UrlCommandTest
 - `C/` (25): AiTextAction, ApplyOutcome, CivilDate, Commands, DateFormatting, EditorSession,
   EmojiNames, EventParser, ExecutionPolicy, LocalTextActions, MathExpression, ModelProvider,

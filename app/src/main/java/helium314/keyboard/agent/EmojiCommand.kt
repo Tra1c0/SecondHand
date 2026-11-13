@@ -19,4 +19,7 @@ object EmojiCommand : KeyboardCommands.Command {
 
     override fun chips(host: KeyboardCommands.Host, call: CommandCall) =
         CharacterCommand.symbolChips(host, call, EmojiNames.table)
+
+    /** The groups of the table, e.g. "tiere": `@emoji tiere` then shows all animals. */
+    override fun templates(host: KeyboardCommands.Host) = CharacterCommand.groupTemplates(EmojiNames.table)
 }

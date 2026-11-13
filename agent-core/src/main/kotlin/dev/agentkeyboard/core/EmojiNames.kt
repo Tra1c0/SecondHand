@@ -204,5 +204,30 @@ object EmojiNames {
         e("🍷", "Wein", "wine"),
         e("🥂", "anstoßen", "Sekt", "prost", "cheers"),
         e("🍾", "Champagner", "Sekt", "champagne"),
-    ))
+        // added with the templates (groups below)
+        e("⛅", "bewölkt", "Wolke", "cloudy", "cloud"),
+        e("🎾", "Tennis"),
+        e("🏊", "schwimmen", "swim", "swimming"),
+    ), GROUPS)
+
+    /** Groups offered as templates of `@emoji` (`table.groups`), e.g. `@emoji tiere`; a getter, so the table may use it before this line. */
+    private val GROUPS: List<SymbolTable.Group> get() = listOf(
+        SymbolTable.Group("gesichter", listOf("smileys", "faces"), listOf("😀", "😂", "🤣", "😊", "🥰", "😍", "😘", "😉",
+            "😎", "🤔", "😅", "😢", "😭", "😡", "😤", "😱", "😴", "🙄", "😇", "🥳", "🤗", "😬", "🤯", "😏", "🙃", "😐", "😮",
+            "🤢", "🤒", "😷", "🥺", "😋", "🤤", "🤪", "😜", "🤐", "😌", "🤓", "🥶", "🥵", "🤡", "👻", "💀", "💩", "🤖", "👽")),
+        SymbolTable.Group("herzen", listOf("hearts"), listOf("❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "💔", "💕", "🥰", "😍")),
+        SymbolTable.Group("hände", listOf("haende", "hands"), listOf("👍", "👎", "👌", "👏", "🙏", "👋", "🤝", "💪", "✌️",
+            "🤞", "🙌", "✋", "👉", "👆", "🤷", "🤦")),
+        SymbolTable.Group("tiere", listOf("animals"), listOf("🐶", "🐱", "🐭", "🐰", "🦊", "🐻", "🐼", "🐷", "🐸", "🐵",
+            "🐔", "🐧", "🐦", "🦄", "🐝", "🦋", "🐟", "🙈")),
+        SymbolTable.Group("essen", listOf("trinken", "food", "drinks"), listOf("🍕", "🍔", "🍟", "🍝", "🍣", "🍰", "🍦",
+            "🍫", "🍎", "🍌", "🍓", "🥑", "🥨", "🎂", "☕", "🍵", "🍺", "🍷", "🥂", "🍾")),
+        SymbolTable.Group("natur", listOf("nature"), listOf("🌸", "🌹", "🌳", "🍀", "🌍", "🌈", "🌙", "☀️", "🦋")),
+        SymbolTable.Group("wetter", listOf("weather"), listOf("☀️", "⛅", "🌧️", "⛈️", "❄️", "🌈", "⚡", "🌙", "🥶", "🥵")),
+        SymbolTable.Group("sport", listOf("sports"), listOf("⚽", "🏀", "🎾", "🏊", "🏃", "🚲", "🧘", "🏆", "🥇")),
+        SymbolTable.Group("reisen", listOf("reise", "travel"), listOf("✈️", "🚆", "🚗", "🚲", "🚀", "⛽", "🏖️", "🏠", "🏢",
+            "🌍", "🇩🇪")),
+        SymbolTable.Group("symbole", listOf("symbols"), listOf("✅", "❌", "⚠️", "⛔", "❓", "❗", "➕", "➖", "➡️", "🆗", "🆒",
+            "💯", "🔥", "✨", "⭐", "🌟", "💥", "💤", "🔔")),
+    )
 }

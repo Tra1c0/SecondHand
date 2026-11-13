@@ -78,6 +78,8 @@ class DatePlaceCommandsTest {
     private fun call(before: String, editor: EditorInfo = text) = KeyboardCommands.find(before, Settings.getValues(), editor) as CommandCall
     private fun chips(before: String) = KeyboardCommands.chipsFor(call(before), host)
     private fun labels(before: String) = chips(before).map { it.label.toString() }
+    /** The command's own chips, without the templates shown after them while the argument is empty. */
+    private fun own(before: String) = chips(before).filter { it.kind != KeyboardCommands.Chip.Kind.TEMPLATE }.map { it.label.toString() }
 
     @Test fun commandsAreBuiltInWithDescriptionsAndProtectTheirArgument() {
         for (name in listOf("datum", "termin", "ort")) {
@@ -93,12 +95,12 @@ class DatePlaceCommandsTest {
 
     @Test fun dateOffersTodayInTheFormatsOfTheKeyboardLanguage() {
         val expected = listOf("12.11.2026", "Donnerstag, 12. November 2026", "2026-11-12", "18:45", "12.11.2026, 18:45")
-        assertEquals(expected, labels("Heute ist @datum"))
-        assertEquals(expected, labels("@datum "))
+        assertEquals(expected, own("Heute ist @datum"))
+        assertEquals(expected, own("@datum "))
         host.language = "en"
-        assertEquals(listOf("11/12/2026", "Thursday, November 12, 2026", "2026-11-12", "6:45 PM", "11/12/2026, 6:45 PM"), labels("@datum"))
+        assertEquals(listOf("11/12/2026", "Thursday, November 12, 2026", "2026-11-12", "6:45 PM", "11/12/2026, 6:45 PM"), own("@datum"))
         host.language = "es"
-        assertEquals(listOf("12/11/2026", "jueves, 12 de noviembre de 2026", "2026-11-12", "18:45", "12/11/2026, 18:45"), labels("@datum"))
+        assertEquals(listOf("12/11/2026", "jueves, 12 de noviembre de 2026", "2026-11-12", "18:45", "12/11/2026, 18:45"), own("@datum"))
     }
 
     @Test fun dateTapReplacesExactlyTheCommandText() {
@@ -170,7 +172,7 @@ class DatePlaceCommandsTest {
     }
 
     @Test fun eventWithoutDateOrWithAnImpossibleOneShowsNothing() {
-        assertTrue(chips("@termin").isEmpty())
+        assertTrue(own("@termin").isEmpty()) // only templates (CommandTemplatesTest)
         assertTrue(chips("@termin Zahnarzt").isEmpty())
         assertTrue(chips("@termin 31.2. Feier").isEmpty())
         assertTrue(chips("@termin morgen 25 Uhr Feier").isEmpty())

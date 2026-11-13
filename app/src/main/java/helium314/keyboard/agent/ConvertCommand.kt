@@ -26,4 +26,13 @@ object ConvertCommand : KeyboardCommands.Command {
             KeyboardCommands.Chip(text, host.context.getString(R.string.agent_command_insert_text, text)) { host.replace(call, text) }
         }
     }
+
+    /**
+     * Frequent pairs. The template writes "oz in g " and the strip shows "1 oz = 28,35 g"; the
+     * number typed after it is the value ("oz in g 5" = 5 oz), so the cursor never has to move
+     * in front of the units ([UnitConversion.conversions]).
+     */
+    override fun templates(host: KeyboardCommands.Host) = PAIRS.map { KeyboardCommands.Template(it, "$it ") }
+
+    val PAIRS = listOf("oz in g", "°F in °C", "mi in km", "cup in ml", "lb in kg", "in in cm", "ft in m", "km/h in mph")
 }

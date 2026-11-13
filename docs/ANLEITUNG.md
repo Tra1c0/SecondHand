@@ -186,7 +186,14 @@ stehen unten. Noch auf keinem Gerät ausprobiert.
   speichert nichts. Er liest auch Apps mit Bildschirmschutz (z. B. Banking-Apps), Passwortfelder
   aber nie. Vor Android 14 erkennt er andere vertrauliche Felder wie Einmalcodes nicht; tippe den
   Chip dort nicht an.
-- `@such Begriff`, `@zeichen pfeil`, `@emoji herz`, `@conv 5 oz` (auch `@conv 5 oz in g`).
+- Vorlagen: Tippst du einen Befehl ohne Argument (oder tippst in der `@`-Liste auf einen Namen),
+  zeigt die Leiste nach den Chips des Befehls umrandete Vorlagen. Ein Tipp schreibt die Vorlage
+  hinter den Befehl, sonst passiert nichts. Beispiele: `@zeichen` → „pfeile“ zeigt alle Pfeile;
+  `@emoji` → „tiere“; `@conv` → „oz in g“ zeigt „1 oz = 28,35 g“, tippe dann die Zahl, z. B. `5`
+  („5 oz = 141,7 g“); `@datum` → „morgen“; `@termin` → „morgen 18 Uhr“, danach den Titel tippen;
+  `@translate` → `spanisch "`, dann den Text und das schließende `"` tippen.
+- `@such Begriff`, `@zeichen pfeil`, `@emoji herz`, `@conv 5 oz` (auch `@conv 5 oz in g` oder
+  `@conv oz in g 5`).
 - `@snip name`: Bausteine legst du unter Einstellungen → Befehle → „Textbausteine“ an.
 - `@clip wort`: braucht Einstellungen → Optionen → Zwischenablage-Verlauf. Einträge, die als
   vertraulich markiert waren oder in einem Passwortfeld kopiert wurden, zeigt er nicht. Ausnahme:

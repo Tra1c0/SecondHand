@@ -7,7 +7,7 @@ import dev.agentkeyboard.core.SpecialCharacters
 import dev.agentkeyboard.core.SymbolTable
 import helium314.keyboard.latin.R
 
-/** `@zeichen Wort` (stage 24f): special characters found by German or English name, on the device. */
+/** `@zeichen Wort` (stage 24f): special characters found by German or English name or by group (`pfeile`), on the device. */
 object CharacterCommand : KeyboardCommands.Command {
     override val name = "zeichen"
     override val protectsArgument = true
@@ -17,9 +17,17 @@ object CharacterCommand : KeyboardCommands.Command {
 
     override fun chips(host: KeyboardCommands.Host, call: CommandCall) = symbolChips(host, call, SpecialCharacters.table)
 
-    /** One chip per symbol whose name matches the argument; a tap replaces the command by the symbol. */
+    /** The groups of the table, e.g. "pfeile": `@zeichen pfeile` then shows all arrows. */
+    override fun templates(host: KeyboardCommands.Host) = groupTemplates(SpecialCharacters.table)
+
+    internal fun groupTemplates(table: SymbolTable) = table.groups.map { KeyboardCommands.Template(it.name) }
+
+    /**
+     * One chip per symbol of the group named by the argument (all of them) and per symbol whose
+     * name matches it; a tap replaces the command by the symbol.
+     */
     internal fun symbolChips(host: KeyboardCommands.Host, call: CommandCall, table: SymbolTable): List<KeyboardCommands.Chip> =
-        table.find(call.argument).map { entry ->
+        table.search(call.argument).map { entry ->
             val description = host.context.getString(R.string.agent_command_symbol_insert, entry.symbol, entry.label)
             KeyboardCommands.Chip(entry.symbol, description) { host.replace(call, entry.symbol) }
         }

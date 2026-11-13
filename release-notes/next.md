@@ -95,3 +95,7 @@
 - Neue Berechtigungen: Benachrichtigungen (nur für die tägliche Update-Suche) und „Apps
   installieren“ (nur für Updates, Android fragt jedes Mal).
 - Behoben: `@translate` beendet den Text erst beim letzten Anführungszeichen; Zitate im Text gehen.
+- Neu: Befehlsvorlagen. Ein Befehl ohne Argument zeigt in der Leiste umrandete Vorlagen, z. B.
+  `@zeichen` → „pfeile“ (alle Pfeile), `@emoji` → „tiere“, `@conv` → „oz in g“ (dann nur die
+  Zahl tippen), `@datum` → „morgen“, `@termin` → „morgen 18 Uhr“, `@translate` → `spanisch "`.
+  Ein Tipp schreibt nur die Vorlage hinter den Befehl.

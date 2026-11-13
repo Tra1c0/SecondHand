@@ -12,6 +12,10 @@ import java.math.RoundingMode
  * Input: a number (comma or point as decimal mark, optional sign) and a unit, e.g. "5 oz",
  * "100 f", "2,5 Pfund"; optionally a target after "in", "to", "nach", "->", "→" or "=",
  * e.g. "5 oz in g". Without a target, up to three usual targets are offered.
+ *
+ * A pair without a leading number ("oz in g", the template of `@conv`) converts 1 unit, and a
+ * number typed after it counts as the value ("oz in g 5" = 5 oz in g): after tapping the template
+ * the user only types the number, the cursor never has to move in front of the units.
  */
 object UnitConversion {
     enum class Dimension { LENGTH, MASS, VOLUME, TEMPERATURE, SPEED }
@@ -79,6 +83,8 @@ object UnitConversion {
     )
 
     private val QUANTITY = Regex("""^([+\-−]?)(\d{1,12})(?:[.,](\d{1,10}))?\s*(\S.*)$""")
+    /** A target unit, optionally followed by the number ("g 5", "°C -40", "cm 2,5"; a trailing decimal mark while typing is fine). */
+    private val TRAILING_NUMBER = Regex("""^(.*?)(?:\s+([+\-−]?)(\d{1,12})(?:[.,](\d{0,10}))?)?$""")
     private val TARGET_SEPARATOR = Regex("""\s+(?:in|to|nach|->|→|=)(?=\s)""", RegexOption.IGNORE_CASE)
     private val CALC = MathContext.DECIMAL64
     private val ABSOLUTE_ZERO_C = BigDecimal("-273.15")
@@ -108,13 +114,26 @@ object UnitConversion {
         val input = text.trim()
         // an explicit target, e.g. "5 oz in g"; "5 in" alone stays a length in inches
         for (match in TARGET_SEPARATOR.findAll(input)) {
-            val quantity = quantity(input.substring(0, match.range.first)) ?: continue
-            val target = measure(input.substring(match.range.last + 1)) ?: continue
-            if (target.dimension != quantity.second.dimension) continue
-            return listOfNotNull(convert(quantity.first, quantity.second, target))
+            val before = input.substring(0, match.range.first)
+            val after = input.substring(match.range.last + 1)
+            val (value, from, target) = quantity(before)?.let { (value, from) -> measure(after)?.let { Triple(value, from, it) } }
+                ?: unitPair(before, after)
+                ?: continue
+            if (target.dimension != from.dimension) continue
+            return listOfNotNull(convert(value, from, target))
         }
         val (value, from) = quantity(input) ?: return emptyList()
         return TARGETS[from].orEmpty().mapNotNull { convert(value, from, it) }
+    }
+
+    /** "oz in g" (1 oz) or "oz in g 5" (5 oz): the units of the `@conv` template with the number typed after them. */
+    private fun unitPair(before: String, after: String): Triple<BigDecimal, Measure, Measure>? {
+        val from = measure(before) ?: return null
+        val match = TRAILING_NUMBER.matchEntire(after.trim()) ?: return null
+        val (unit, sign, whole, fraction) = match.destructured
+        val to = measure(unit) ?: return null
+        val number = if (whole.isEmpty()) BigDecimal.ONE else BigDecimal(whole + (if (fraction.isEmpty()) "" else ".$fraction"))
+        return Triple(if (sign.isEmpty() || sign == "+") number else number.negate(), from, to)
     }
 
     private fun quantity(text: String): Pair<BigDecimal, Measure>? {

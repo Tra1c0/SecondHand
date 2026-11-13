@@ -51,8 +51,17 @@ object KeyboardCommands {
             LOADING,
             /** An answer: as wide as its label (the row scrolls), a tap inserts it. */
             RESULT,
+            /** A template of the command ([Template]): outlined; a tap only writes it after the command name. */
+            TEMPLATE,
         }
     }
+
+    /**
+     * An argument pattern a command accepts, shown after the command's own chips while its argument
+     * is empty. [text] is what a tap writes after "@name " (e.g. "pfeile", "oz in g ", `spanisch "`);
+     * nothing runs and nothing is sent, the strip then shows the command's chips for that argument.
+     */
+    class Template(val label: String, val text: String = label)
 
     /** The controller that runs typed AI requests from the strip; set by the controller of the running keyboard. */
     internal var aiRequests: java.lang.ref.WeakReference<AgentEditorController>? = null
@@ -121,6 +130,8 @@ object KeyboardCommands {
         val permission: String? get() = null
         /** Forgets what the command keeps in memory; called when no command is typed any more. */
         fun reset() {}
+        /** The argument patterns offered while the argument is empty ([Template]); none by default. */
+        fun templates(host: Host): List<Template> = emptyList()
     }
 
     /** Built-in commands in the order of the settings page; each stage adds its own. */
@@ -330,7 +341,24 @@ object KeyboardCommands {
             val word = "${context.prefix}$name"
             Chip(word, host.context.getString(R.string.agent_command_complete, word)) { host.replace(context, "$word ") }
         }
-        is CommandCall -> registry.firstOrNull { it.name == context.name }?.chips(host, context).orEmpty()
+        is CommandCall -> registry.firstOrNull { it.name == context.name }?.let { command ->
+            val own = command.chips(host, context)
+            if (context.argument.isNotBlank()) own else own + templateChips(command, context, host)
+        }.orEmpty()
+    }
+
+    /**
+     * The templates of [command] for a call without argument: a tap replaces the typed command
+     * (e.g. "@zeichen" or "@zeichen ") by "@zeichen pfeile" in one commit, nothing else.
+     */
+    internal fun templateChips(command: Command, call: CommandCall, host: Host): List<Chip> {
+        // like the commands themselves: nothing in a protected field (find() already refuses those)
+        if (isBlocked(Settings.getValues(), host.editorInfo)) return emptyList()
+        return command.templates(host).map { template ->
+            Chip(template.label, host.context.getString(R.string.agent_command_template, template.label), Chip.Kind.TEMPLATE) {
+                host.replace(call, "${call.prefix}${command.name} ${template.text}")
+            }
+        }
     }
 
     internal fun chipRow(parent: ViewGroup, chips: List<Chip>): View {
@@ -350,13 +378,15 @@ object KeyboardCommands {
         val accent = if (flat) FlatStyle.ACCENT else colors.get(ColorType.ACTION_KEY_BACKGROUND)
         for (chip in chips) {
             val muted = chip.kind == Chip.Kind.MUTED
+            val template = chip.kind == Chip.Kind.TEMPLATE
             val label = TextView(context).apply {
                 text = chip.label
                 setSingleLine()
                 ellipsize = TextUtils.TruncateAt.END
                 // an answer is as wide as its (already shortened) label: the row scrolls instead
                 maxWidth = if (chip.kind == Chip.Kind.RESULT) Int.MAX_VALUE else context.resources.displayMetrics.widthPixels * 2 / 3
-                setTextColor(if (muted) ColorUtils.setAlphaComponent(textColor, 0x99) else textColor)
+                setTextColor(if (muted) ColorUtils.setAlphaComponent(textColor, 0x99)
+                    else if (template) ColorUtils.setAlphaComponent(textColor, 0xCC) else textColor)
                 setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15f)
                 if (flat) typeface = FlatStyle.labelTypeface
                 gravity = Gravity.START or Gravity.CENTER_VERTICAL // centred single lines do not draw in render tests (P40)
@@ -374,7 +404,11 @@ object KeyboardCommands {
                 setPadding(dp(14f), 0, dp(14f), 0)
                 background = GradientDrawable().apply {
                     cornerRadius = dp(17f).toFloat()
-                    setColor(if (muted) ColorUtils.setAlphaComponent(chipColor, Color.alpha(chipColor) / 2) else chipColor)
+                    // a template is outlined, so it stands apart from results and actions
+                    if (template) {
+                        setColor(Color.TRANSPARENT)
+                        setStroke(dp(1f), ColorUtils.setAlphaComponent(textColor, 0x66))
+                    } else setColor(if (muted) ColorUtils.setAlphaComponent(chipColor, Color.alpha(chipColor) / 2) else chipColor)
                 }
                 if (chip.kind != Chip.Kind.LOADING) {
                     isClickable = true
@@ -416,4 +450,7 @@ object MathCommand : KeyboardCommands.Command {
         }
         return chips
     }
+
+    /** Characters that are not on the letter keys: tapped, the user types the number after them. */
+    override fun templates(host: KeyboardCommands.Host) = listOf(KeyboardCommands.Template("√"), KeyboardCommands.Template("π"))
 }

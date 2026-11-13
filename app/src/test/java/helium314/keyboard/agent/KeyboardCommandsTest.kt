@@ -153,9 +153,9 @@ class KeyboardCommandsTest {
         latinIME.prefs().edit().putString(AgentPreferences.CALCULATOR_STYLE, "LATEX").commit()
         assertEquals("12 \\cdot 3{,}5 = 42", KeyboardCommands.chipsFor(call, host)[0].label.toString())
         assertEquals(1, KeyboardCommands.chipsFor(find("@math 12*") as CommandCall, host).size)
-        assertEquals(1, KeyboardCommands.chipsFor(find("@math") as CommandCall, host).size)
+        assertEquals(1, KeyboardCommands.chipsFor(find("@math") as CommandCall, host).count { it.kind != KeyboardCommands.Chip.Kind.TEMPLATE })
         // without a calculator (or while input is blocked) there is no calculator chip
         host.canOpenCalculator = false
-        assertTrue(KeyboardCommands.chipsFor(find("@math") as CommandCall, host).isEmpty())
+        assertTrue(KeyboardCommands.chipsFor(find("@math") as CommandCall, host).none { it.kind != KeyboardCommands.Chip.Kind.TEMPLATE }) // templates only
     }
 }

@@ -38,6 +38,13 @@ object EventCommand : KeyboardCommands.Command {
         return CalendarToolLauncher.eventDraft(found.title, begin, end, allDay = found.time == null)
     }
 
+    /** A day and a time in the keyboard language ([EventParser]); the user types the title after it. German for other languages. */
+    override fun templates(host: KeyboardCommands.Host) = when (DateFormatting.Language.of(host.language)) {
+        DateFormatting.Language.EN -> listOf("tomorrow 6pm", "tonight", "saturday half past seven")
+        DateFormatting.Language.ES -> listOf("mañana a las 18", "esta noche", "sábado a las siete y media")
+        else -> listOf("morgen 18 Uhr", "heute abend", "samstag halb acht")
+    }.map { KeyboardCommands.Template(it, "$it ") }
+
     override fun chips(host: KeyboardCommands.Host, call: CommandCall): List<KeyboardCommands.Chip> {
         if (call.argument.isBlank()) return emptyList()
         val now = LocalMoment.of(DateCommand.clock(), DateCommand.zone())
