@@ -27,6 +27,9 @@ import helium314.keyboard.latin.R
  */
 object AlarmCommand : KeyboardCommands.Command {
     override val name = "wecker"
+
+    override fun templates(host: KeyboardCommands.Host) =
+        listOf("6:30", "7 Uhr", "halb sieben").map { KeyboardCommands.Template(it, "$it ") }
     override val protectsArgument = true
 
     /** Replaced in tests, so that they need no clock app. */

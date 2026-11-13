@@ -19,6 +19,9 @@ import helium314.keyboard.latin.R
  */
 object TimerCommand : KeyboardCommands.Command {
     override val name = "timer"
+
+    override fun templates(host: KeyboardCommands.Host) =
+        listOf("5 min", "10 min", "halbe Stunde", "1 h").map { KeyboardCommands.Template(it, "$it ") }
     override val protectsArgument = true
 
     /** Replaced in tests, so that they need no clock app. */

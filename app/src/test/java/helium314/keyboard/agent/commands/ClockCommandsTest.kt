@@ -169,8 +169,9 @@ class ClockCommandsTest {
     }
 
     @Test fun withoutATimeOrDurationOnlyAMutedHintThatChangesNothing() {
-        assertTrue(chips("@wecker ").isEmpty())
-        assertTrue(chips("@timer ").isEmpty())
+        // an empty argument offers only templates, nothing that starts the clock app
+        assertTrue(chips("@wecker ").all { it.kind == KeyboardCommands.Chip.Kind.TEMPLATE } && chips("@wecker ").isNotEmpty())
+        assertTrue(chips("@timer ").all { it.kind == KeyboardCommands.Chip.Kind.TEMPLATE } && chips("@timer ").isNotEmpty())
         for ((typed, hint, usage) in listOf(
             Triple("@wecker Training", R.string.agent_command_alarm_hint, R.string.agent_command_alarm_usage),
             Triple("@wecker 25 Uhr", R.string.agent_command_alarm_hint, R.string.agent_command_alarm_usage),
@@ -195,5 +196,16 @@ class ClockCommandsTest {
 
     companion object {
         const val NOW = 1_794_505_500_000L // 2026-11-12T17:45Z, 18:45 in Berlin
+    }
+
+    @Test fun templatesLeadToRealChips() {
+        for (template in AlarmCommand.templates(host)) {
+            val call = dev.agentkeyboard.core.CommandCall(0, "@wecker " + template.text, '@', "wecker", template.text)
+            assertTrue(AlarmCommand.chips(host, call).first().label.toString().startsWith("⏰"), template.text)
+        }
+        for (template in TimerCommand.templates(host)) {
+            val call = dev.agentkeyboard.core.CommandCall(0, "@timer " + template.text, '@', "timer", template.text)
+            assertTrue(TimerCommand.chips(host, call).first().label.toString().startsWith("⏱"), template.text)
+        }
     }
 }

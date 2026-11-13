@@ -227,6 +227,8 @@ stehen unten. Noch auf keinem Gerät ausprobiert.
   `viertel nach acht`, `dreiviertel acht`, `zehn nach acht`, `Mittag`; eine nackte Zahl nur mit
   `um`/`gegen` davor oder `Uhr` dahinter), dazu `abends`/`nachmittags`. Auch Englisch und Spanisch.
   Der Rest wird der Titel. Ohne Uhrzeit ein Ganztagstermin, sonst eine Stunde lang.
+- `@wecker` allein bietet die Vorlagen `6:30`, `7 Uhr`, `halb sieben`, `@timer` allein `5 min`, `10 min`,
+  `halbe Stunde`, `1 h`.
 - `@wecker 6:30 Training` oder `@wecker halb acht`: Chip „⏰ Wecker …“ antippen, die Uhr-App zeigt
   den neuen Wecker, dort bestätigen. Uhrzeiten wie bei `@termin`, dazu eine nackte Zahl
   (`@wecker 7`); `halb acht` ist hier 7:30, für 19:30 `abends halb acht` oder `19:30`. Die Uhr-App
