@@ -157,11 +157,27 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   `replaceTextBeforeCursorIfUnchanged` (24a) ersetzt einen getippten Befehl direkt vor der
   Schreibmarke: liest den Text aus dem Editor (nicht aus dem Cache), dann `setComposingRegion`
   plus `commitText` als ein Commit. Nur über `InputLogic.replaceCommandText` aufrufen.
-- `PointerTracker.java`: Leertasten-Langdruck öffnet das Rad über
-  `CustomAction.SHOW_AGENT_WHEEL` und beendet den laufenden Zeiger samt Swipe/Touchpad-Flags.
-- `KeyboardActionListener.java` (neue `CustomAction.SHOW_AGENT_WHEEL`) und
+- `PointerTracker.java`: Leertasten-Langdruck fragt `CustomAction.SPACE_HOLD` (die eingestellte
+  Halten-Aktion); ist sie verbraucht, endet der laufende Zeiger samt Swipe/Touchpad-Flags, sonst
+  bleibt HeliBoards Tastaturwahl über `mSpaceForLangChange` der Rückfall. Leertasten-Gesten:
+  `isSwiper` fragt `mSpaceGestures.hasSwipe()`; `onKeySwipe` merkt beim ersten Schritt die
+  Startrichtung (`mSpaceSwipeGesture`, links/rechts bzw. oben/unten nach Vorzeichen) und meldet
+  jeden Schritt als `onSpaceSwipe(Richtung, Schritte)`; `oneShotSwipe` fragt
+  `SpaceAction.isContinuous` der Startrichtung statt der alten `SwipeAction`-Liste. Schwelle,
+  Achsenwahl, Schnelltipp-Sperre, Ende über `onEndSpaceSwipe` und Gestentippen sind unverändert.
+- `KeyboardActionListener.java` (`CustomAction.SPACE_HOLD`, früher `SHOW_AGENT_WHEEL`;
+  `onSpaceSwipe(SpaceGesture, int)` ersetzt `onHorizontalSpaceSwipe`/`onVerticalSpaceSwipe`) und
   `KeyboardActionListenerImpl.kt` (leitet Panel-, Rad-, Skill- und Diktat-Taste an den Controller,
-  blockiert Eingabe während eines Overlays).
+  blockiert Eingabe während eines Overlays; Leertasten-Aktionen und Doppeltippen, siehe
+  „Editorzugriff, Panel und Rad“).
+- `SettingsValues.java`: `mSpaceGestures` (aufgelöste Leertasten-Gesten) statt
+  `mSpaceSwipeHorizontal`/`mSpaceSwipeVertical`; `mSpaceForLangChange` aus
+  `SpaceGestures.holdShowsPicker`; `mUseDoubleSpacePeriod` ist aus, solange Doppeltippen eine
+  Aktion hat.
+- `AdvancedScreen.kt`: statt der Zeilen „Horizontales/Vertikales Wischen auf der Leertaste“ und
+  „Leertaste lang drücken …“ ein Eintrag „Leertaste“ (`AGENT_SPACE_ENTRY`); Sprach-Wischdistanz
+  und Touchpad-Regler stehen jetzt auf der Seite „Leertaste“. `SettingsContainer.kt`:
+  `createAgentSpaceSettings` für Suche und Seite. `SettingsNavHost.kt`: Ziel `agent_space`.
 - `InputView.java`: leitet Touch und Hover an sichtbare Overlays (Panel, Rad, Rechner).
 - `main_keyboard_frame.xml`: Wurzel ist `AgentKeyboardFrame`, darin Tastatur, `FlatMenuView`, `AgentPanelView`,
   `AgentWheelView` und `CalculatorView` (24b).
@@ -292,6 +308,9 @@ Speicher, Datenschutz und Identität:
   auch in `debug`/`debugNoMinify`), `donottranslate.xml` und `strings.xml` in
   `debug`/`debugNoMinify` (Namen „Agent Keyboard“ bzw. „Agent Keyboard Lab“).
 
+Geänderte Upstream-Tests (Leertasten-Gesten): `InputLogicTest.kt` ruft `onSpaceSwipe` statt
+`onHorizontalSpaceSwipe` und hat die Fälle `generatedSpace*`.
+
 Geänderte Upstream-Tests: `Shadows.kt` (IME-Info aus `BuildConfig.APPLICATION_ID`;
 `getTextBeforeCursor(n)` liefert wie Android die letzten n Zeichen vor der Schreibmarke, nicht die
 ersten n des Felds),
@@ -318,14 +337,32 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `AgentWheelView.kt`: radiales Aktionsrad aus echten Buttons (Tastaturnavigation, TalkBack). Eine
   Auswahl bereitet nur eine Vorschau vor.
 - `SkillLabels.kt`: Titel und Toolbar-Tasten der Skills.
-- `AgentPreferences.kt`: Schlüssel der Leertastengeste, der Lernpause und des Extras für die
-  KI-Einstellungen.
+- `AgentPreferences.kt`: Schlüssel der Lernpause, des Extras für die KI-Einstellungen und das
+  alte Opt-in `SPACE_LONG_PRESS` (nur noch gelesen, solange „Halten“ keinen eigenen Wert hat).
+- `A/SpaceGestures.kt`: Leertasten-Gesten. `SpaceGesture` (links, rechts, oben, unten wischen,
+  Halten, Doppeltippen, je ein Schlüssel `agent_space_*`), `SpaceAction` (feste Liste, nur
+  `MOVE_CURSOR`, `SWITCH_LANGUAGE`, `TOUCHPAD_MODE` laufen fortlaufend, alle anderen einmal pro
+  Wisch), `choices` je Geste, `resolve` = eigener Wert oder `inherited` aus den alten
+  Einstellungen (HeliBoards horizontale/vertikale Wischaktion, „Leertaste lang drücken“,
+  `SPACE_LONG_PRESS`). Es wird nichts umgeschrieben; „Standard“ entfernt den eigenen Wert.
+  `KeyboardActionListenerImpl.runSpaceAction` führt die Einmal-Aktionen über die vorhandenen
+  Wege aus: Tastencodes per `onCodeInput` (Sperre bei gesperrtem Gerät greift dort),
+  `toggleLayout`, `openWheel`/`open` des Controllers (eigene Schutzprüfungen),
+  `requestHideSelf`; `COMMAND_LIST` tippt das Befehlspräfix (vorher ein Leerzeichen nach einem
+  Wort), nur wenn `KeyboardCommands` an und nicht gesperrt ist. Doppeltippen: Nur echte
+  Leertasten-Tipps (Code zwischen `onPressKey` und `onReleaseKey` der Leertaste) zählen; der zweite Tipp innerhalb von
+  `mDoubleSpacePeriodTimeout` an derselben Schreibmarke ohne Auswahl führt die Aktion statt
+  eines Leerzeichens aus, jeder andere Code setzt zurück (Fallstrick P49).
+- `K/settings/screens/AgentSpaceScreen.kt`: Seite „Leertaste“ (eine `ListPreference` je Geste,
+  Vorgabe = geerbter Wert, „Standard“ entfernt den eigenen Wert), erreichbar über Erweitert und
+  Tastaturprofile → Gesten. Texte in `agent_space_strings.xml`.
 - Regeln: Ohne zuverlässig bestimmbare Auswahl wird nicht ersetzt. Editorwechsel, Neustart,
   geänderte Auswahl und zwischenzeitliche Eingaben machen eine ausstehende Ersetzung ungültig,
   auch wenn der Text gleich aussieht. Android hat kein universelles Compare-and-swap für fremde
   Textfelder, daher bleibt die Ersetzung bei Unklarheit gesperrt. Kopieren prüft dieselbe
   Schutzgrenze. Der Ablauf von Aktion bis Übernahme steht unter „Grundlagen“.
 - Tests in `AT/`: `AgentPanelViewTest`, `AgentWheelViewTest`, `AgentSpaceGestureTest`,
+  `SpaceGesturesTest`,
   `AndroidEditorAdapterTest`, `SelectedTextCommitTest`, `DebugPrivacyTest`,
   `InsertAtCursorTest`, `ForkIdentityTest`, dazu `BatchDeliveryTest.kt` in
   `app/src/test/java/helium314/keyboard/latin/inputlogic/`.
@@ -665,6 +702,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/settings/screens/AgentProfilesScreen.kt` mit `KeyboardProfileStore.kt`: getrennte Design-,
   Layout- und Gestenprofile. Profile enthalten nur erlaubte Einstellungen, nie Berechtigungen,
   Geheimnisse, Lernverläufe oder Code. Ungültige Importe werden vor jeder Änderung verworfen.
+  Das Gestenprofil enthält die sechs Leertasten-Gesten; `INHERIT` heißt „kein eigener Wert“
+  (beim Anwenden wird der Schlüssel entfernt), ältere Profile ohne diese Schlüssel bekommen beim
+  Lesen überall `INHERIT`.
 - Texte: `agent_strings.xml` (Englisch in `values/`, Deutsch in `values-de/`), IDs und Attribute:
   `agent_ids.xml`, `agent_attrs.xml`.
 - Tests: `KeyboardProfileStoreTest`, `SkillSettingsTest`, `WorkflowSettingsTest`.
@@ -1109,8 +1149,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   und vor der Installation immer Paketname und Signaturzertifikate gegen die installierte App
   prüfen; die SHA-256 schützt nur gegen Übertragungsfehler, nicht gegen ein manipuliertes
   Release.
+- **P49** Leertaste: Doppeltippen und „Punkt plus Leerzeichen“ dürfen nie beide laufen; deshalb
+  schaltet eine Doppeltipp-Aktion `mUseDoubleSpacePeriod` ab, statt in `InputLogic` einzugreifen.
+  Der erste Tipp schreibt sein Leerzeichen sofort (kein Warten beim Tippen). Codes ohne
+  Tastendruck (Leiste, Popup-Tasten, eigene Aktionen; kein `onPressKey` der Leertaste davor)
+  zählen nicht als Tipp; Koordinaten taugen nicht dafür, weil PointerTracker sie außerhalb der
+  Buchstaben-Layouts weglässt. Einmal-Aktionen beim Wischen laufen beim ersten Schritt und danach
+  nicht mehr bis zum
+  Loslassen; eine Aktion, die ein Overlay öffnet, blockiert die restlichen Schritte über
+  `isBlockingInput`.
 
-- **P49** Ein Kotlin-Zugriff auf `Defaults.PREF_KEY_GAP_SCALE[0]` (bzw.
+- **P50** Ein Kotlin-Zugriff auf `Defaults.PREF_KEY_GAP_SCALE[0]` (bzw.
   `PREF_KEYBOARD_HEIGHT_SCALE[0]`) aus einer anderen Datei ließ den Compiler ein ungültiges
   `Defaults.<clinit>` erzeugen (`VerifyError: Bad local variable type`, jeder Robolectric-Test
   bricht ab, auch bei vollem Neubau). `MyDesigns` nutzt deshalb `1f` (Standard im Hochformat).
@@ -1121,13 +1170,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (328 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (335 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (4): agent-apk, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (54): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (55): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
   AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand, ContactCommand,
   ConvertCommand, CorrectionMemory, DateCommand, DesignLook, DesignTiles, Dictation, EmojiCommand,
@@ -1135,9 +1184,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore, LearningData,
   LoadingDotsView, ManualWorkflowDraft, ModelSettings, MyDesigns, OnDeviceSpeechEngine,
   PlaceCommand, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore,
-  SkillLabels, ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel, TypoMemory,
-  WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner,
-  WorkflowInputSummary, WorkflowStore
+  SkillLabels, SpaceGestures, ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel,
+  TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary,
+  WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
 - `A/commands/` (13): AiCommandChips, AlarmCommand, AskCommand, ClipCommand, QrCommand,
   ScreenReaderService, SensitiveClips, SnipCommand, SnippetStore, TimerCommand, TranslateCommand,
   UrlCommand, WorkflowCommand
@@ -1145,7 +1194,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (59): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
+- `AT/` (60): AgentDocumentIOTest, AgentPanelViewTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, CalculatorViewTest, CalendarToolLauncherTest,
   ClipCommandTest, CommandReplaceTest, CommandTemplatesTest, ContactCommandTest,
@@ -1156,9 +1205,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   KeyboardProfileStoreTest, LearningDataTest, LoadingDotsViewTest, MainSettingsLookTest,
   ManualWorkflowDraftTest, MoreCommandsTest, MoreProvidersTest, MyDesignsTest, OpenAiProviderTest,
   ScreenshotChipTest, SelectedTextCommitTest, SkillBindingStoreTest, SkillSettingsTest,
-  SnipCommandTest, TestRunJournal, ToolRunnerTest, TouchModelTest, TypoMemoryTest, UpdateCheckTest,
-  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
-  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  SnipCommandTest, SpaceGesturesTest, TestRunJournal, ToolRunnerTest, TouchModelTest,
+  TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
+  WorkflowCommandTest, WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest,
+  WorkflowStoreTest
 - `AT/commands/` (5): ClockCommandsTest, QrCommandTest, ScreenReaderServiceTest,
   TranslateCommandTest, UrlCommandTest
 - `C/` (27): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
@@ -1189,12 +1239,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/latin/spellcheck/` (1): AndroidSpellCheckerService
 - `K/latin/suggestions/` (2): FlatStrip, SuggestionStripView
 - `K/latin/utils/` (1): ToolbarUtils
-- `K/settings/` (3): SearchScreen, SettingsActivity, SettingsNavHost
-- `K/settings/screens/` (19): AgentAiScreen, AgentCommandsScreen, AgentDesignEditor,
+- `K/settings/` (4): SearchScreen, SettingsActivity, SettingsContainer, SettingsNavHost
+- `K/settings/screens/` (21): AdvancedScreen, AgentAiScreen, AgentCommandsScreen, AgentDesignEditor,
   AgentDesignScreen, AgentDictationScreen, AgentLearningScreen, AgentMainSettings,
   AgentProfilesScreen, AgentRunStatus, AgentScreenReaderSection, AgentScreenshotScreen,
-  AgentSkillsScreen, AgentSnippetsSection, AgentUpdatesScreen, AgentWorkflowsScreen,
-  AppearanceScreen, MainSettingsScreen, WorkflowBuilderDialog, WorkflowDraftProtection
+  AgentSkillsScreen, AgentSnippetsSection, AgentSpaceScreen, AgentUpdatesScreen,
+  AgentWorkflowsScreen, AppearanceScreen, MainSettingsScreen, WorkflowBuilderDialog,
+  WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
 - `app/` (1): build.gradle
@@ -1214,11 +1265,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (4): agent_alarm_strings, agent_design_strings, agent_strings,
-  agent_update_strings
-- `app/src/main/res/values/` (11): agent_alarm_strings, agent_attrs, agent_design_strings,
-  agent_ids, agent_strings, agent_update_strings, attrs, clip_provider, donottranslate,
-  gesture_data, themes-flat
+- `app/src/main/res/values-de/` (5): agent_alarm_strings, agent_design_strings, agent_space_strings,
+  agent_strings, agent_update_strings
+- `app/src/main/res/values/` (12): agent_alarm_strings, agent_attrs, agent_design_strings,
+  agent_ids, agent_space_strings, agent_strings, agent_update_strings, attrs, clip_provider,
+  donottranslate, gesture_data, themes-flat
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (1): Shadows

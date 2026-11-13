@@ -16,11 +16,10 @@ import androidx.compose.ui.unit.dp
 import dev.agentkeyboard.core.ProfileGroup
 import helium314.keyboard.agent.FlatPreset
 import helium314.keyboard.agent.KeyboardProfileStore
-import helium314.keyboard.agent.AgentPreferences
 import helium314.keyboard.agent.AgentDocumentIO
-import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.latin.R
 import helium314.keyboard.settings.SearchSettingsScreen
+import helium314.keyboard.settings.SettingsDestination
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -98,14 +97,10 @@ fun AgentProfilesScreen(onClickBack: () -> Unit) {
                             Text(stringResource(group.titleResource()), style = MaterialTheme.typography.titleMedium)
                             Text(stringResource(group.descriptionResource()), style = MaterialTheme.typography.bodyMedium)
                             if (group == ProfileGroup.GESTURES) {
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text(stringResource(R.string.agent_space_long_press), Modifier.weight(1f))
-                                    Switch(checked = context.prefs().getBoolean(AgentPreferences.SPACE_LONG_PRESS, false),
-                                        onCheckedChange = { enabled -> runChange {
-                                            check(context.prefs().edit().putBoolean(AgentPreferences.SPACE_LONG_PRESS, enabled).commit())
-                                        } })
+                                // all space bar gestures, including the opt-in wheel on hold
+                                TextButton(onClick = { SettingsDestination.navigateTo(SettingsDestination.AgentSpace) }) {
+                                    Text(stringResource(R.string.agent_space_title))
                                 }
-                                Text(stringResource(R.string.agent_space_long_press_description), style = MaterialTheme.typography.bodySmall)
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 TextButton(enabled = !busy, onClick = {

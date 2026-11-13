@@ -47,7 +47,13 @@ class KeyboardProfileStore(context: Context) : ProfileStore {
             Settings.PREF_SPACE_VERTICAL_SWIPE to Binding(PreferenceValue.Choice(Defaults.PREF_SPACE_VERTICAL_SWIPE),
                 SwipeAction.entries.map { it.name }.toSet()),
             Settings.PREF_DELETE_SWIPE to Binding(PreferenceValue.Flag(Defaults.PREF_DELETE_SWIPE)),
-        ),
+        ).apply {
+            // INHERIT = no own value: the gesture follows the older settings above
+            SpaceGesture.entries.forEach { gesture ->
+                put(gesture.key, Binding(PreferenceValue.Choice(SpaceGestures.INHERIT),
+                    SpaceGestures.choices(gesture).map { it.name }.toSet() + SpaceGestures.INHERIT))
+            }
+        },
     )
 
     val availableGroups: List<ProfileGroup> get() = bindings.keys.toList()
@@ -91,7 +97,9 @@ class KeyboardProfileStore(context: Context) : ProfileStore {
         profile.values.forEach { (key, value) ->
             when (value) {
                 is PreferenceValue.Flag -> edit.putBoolean(key, value.value)
-                is PreferenceValue.Choice -> edit.putString(key, value.value)
+                is PreferenceValue.Choice ->
+                    if (key in SpaceGestures.keys && value.value == SpaceGestures.INHERIT) edit.remove(key)
+                    else edit.putString(key, value.value)
                 is PreferenceValue.Scale -> edit.putFloat(key, value.value)
             }
         }
@@ -149,8 +157,12 @@ class KeyboardProfileStore(context: Context) : ProfileStore {
         }
         if (version.int == 1 && group == ProfileGroup.GESTURES) {
             // Version 1 predates the opt-in wheel gesture. Never infer consent.
-            require(values.keys == bindings.getValue(group).keys - AgentPreferences.SPACE_LONG_PRESS)
+            require(values.keys == bindings.getValue(group).keys - AgentPreferences.SPACE_LONG_PRESS - SpaceGestures.keys)
             values = values + (AgentPreferences.SPACE_LONG_PRESS to PreferenceValue.Flag(false))
+        }
+        if (group == ProfileGroup.GESTURES && values.keys == bindings.getValue(group).keys - SpaceGestures.keys) {
+            // Saved before the per-gesture space settings: every gesture keeps following the older settings.
+            values = values + SpaceGestures.keys.associateWith { PreferenceValue.Choice(SpaceGestures.INHERIT) }
         }
         return ConfigurationProfile(group = group, values = values).also(::validate)
     }

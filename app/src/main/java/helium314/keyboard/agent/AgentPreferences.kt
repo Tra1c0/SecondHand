@@ -2,6 +2,7 @@
 package helium314.keyboard.agent
 
 object AgentPreferences {
+    /** Opt-in wheel on space hold from before the per-gesture settings; read only while [SpaceGesture.HOLD] has no own value. */
     const val SPACE_LONG_PRESS = "agent_space_long_press"
     const val OPEN_AI_SETTINGS = "agent_open_ai_settings"
     /** Intent extra: one of [SETTINGS_DESTINATIONS], opened instead of the settings start page. */

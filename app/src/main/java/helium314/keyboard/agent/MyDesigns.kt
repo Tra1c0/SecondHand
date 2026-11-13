@@ -110,7 +110,7 @@ object MyDesigns {
             ),
             cornerRadius = null,
             // 1f is the portrait default of both scales; reading Defaults.PREF_KEY_GAP_SCALE[0] here made
-            // the compiler emit an invalid Defaults.<clinit> (VerifyError, see ARCHITECTURE.md P49)
+            // the compiler emit an invalid Defaults.<clinit> (VerifyError, see ARCHITECTURE.md P50)
             keyGap = prefs.getFloat(GAP_KEY, 1f),
             keyHeight = prefs.getFloat(HEIGHT_KEY, 1f),
             font = null,

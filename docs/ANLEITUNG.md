@@ -79,8 +79,28 @@ verwirft die Tastatur das Ergebnis. Das ist Absicht: Öffne die Textaktionen dan
 
 In Passwortfeldern, im Inkognitomodus und bei gesperrtem Gerät sind alle Aktionen aus.
 
-Optional: Unter Einstellungen → Tastaturprofile → Gesten lässt sich „Leertaste halten öffnet das
-Rad“ einschalten.
+Optional: Die Leertaste kann das Rad öffnen, z. B. beim Halten (siehe „Leertaste“).
+
+## Leertaste
+
+Einstellungen → Erweitert → **Leertaste** (oder Einstellungen → Tastaturprofile → Gesten →
+„Leertaste“). Für jede Geste wählst du eine Aktion:
+
+- **Nach links / rechts / oben / unten wischen**: Wische auf der Leertaste los. Die Richtung des
+  ersten Stücks entscheidet. „Cursor bewegen“, „Sprache wechseln“ und „Touchpad-Modus“ laufen
+  mit, solange du wischst (auch zurück); alle anderen Aktionen passieren einmal pro Wisch.
+- **Halten**: Leertaste lange drücken, z. B. für das Aktionsrad oder „Tastatur auswählen“.
+- **Doppeltippen**: Der erste Tipp schreibt wie immer ein Leerzeichen, ein zweiter Tipp direkt
+  danach führt die Aktion aus statt ein zweites Leerzeichen zu schreiben. Solange Doppeltippen
+  eine Aktion hat, ruht „Punkt plus Leerzeichen“.
+- **Befehlsliste** tippt das Befehlspräfix (z. B. `@`) an einen Wortanfang; die Leiste zeigt dann
+  alle Befehle. In Passwortfeldern, im Inkognito-Modus und bei ausgeschalteten Befehlen passiert
+  nichts.
+- **Standard** im Auswahlfenster stellt die Geste zurück: Sie macht dann wieder, was sie vor
+  dieser Seite gemacht hat.
+
+Rad, Panel und Diktat behalten über jede Geste ihre Schutzregeln (Passwortfelder, Inkognito,
+gesperrtes Gerät). Ein einzelner Tipp schreibt immer ein Leerzeichen.
 
 ## KI-Aktionen (mit eigenem Schlüssel)
 
@@ -285,8 +305,8 @@ dabei nicht gesichert.
 - Die Pille mit kopiertem Text oder Bild in der Leiste erscheint nur, wenn
   „Zwischenablagen-Inhalt vorschlagen“ (Einstellungen → Textkorrektur) an ist. Antippen fügt ein, lange
   drücken blendet sie aus.
-- Das Aktionsrad erreichst du im flachen Look über den Leertasten-Langdruck (Einstellungen →
-  Tastaturprofile → Gesten), die Stift-Taste öffnet das Panel.
+- Das Aktionsrad erreichst du im flachen Look über eine Leertasten-Geste, z. B. Halten
+  (Einstellungen → Erweitert → Leertaste), die Stift-Taste öffnet das Panel.
 
 ## Autokorrektur
 

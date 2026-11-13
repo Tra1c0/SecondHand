@@ -109,3 +109,9 @@
   Änderung sofort in einer Vorschau. Langes Drücken auf eine Kachel bearbeitet, löschen mit
   Rückfrage. Eigene Farbsätze aus dem Farbeditor erscheinen jetzt auch als Kacheln. Noch auf
   keinem Gerät ausprobiert.
+- Neu: Leertasten-Gesten frei belegen. Nach links, rechts, oben und unten wischen, Halten und
+  Doppeltippen bekommen je eine Aktion, z. B. Aktionsrad, Panel, Diktat, Zwischenablage, Emoji,
+  Befehlsliste, Rückgängig, Alles auswählen oder Tastatur ausblenden. Einstellungen → Erweitert →
+  Leertaste. Ohne eigene Wahl bleibt alles wie bisher; ein einzelner Tipp schreibt immer ein
+  Leerzeichen. Der Schalter „Leertaste halten öffnet das Rad“ ist jetzt die Geste „Halten“. Noch
+  auf keinem Gerät ausprobiert.

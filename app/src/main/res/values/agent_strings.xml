@@ -34,8 +34,6 @@
     <string name="agent_ai_model">Model ID</string>
     <string name="agent_ai_save_model">Save model</string>
     <string name="agent_ai_model_saved">Model saved. No API request was sent.</string>
-    <string name="agent_space_long_press">Hold space to open the wheel</string>
-    <string name="agent_space_long_press_description">Optional. Space swipes and custom popup keys keep their actions. Hold the language key to switch keyboards, or use Android’s keyboard switcher.</string>
     <string name="agent_profiles_title">Keyboard profiles</string>
     <string name="agent_profiles_intro">Customize your keyboard in the existing settings, then save a profile for each area. Applying a profile changes only that area.</string>
     <string name="agent_profile_design">Design</string>
