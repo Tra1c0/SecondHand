@@ -9,7 +9,7 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 ## Aktueller Stand
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
-- Stand 2026-11-13 (Ende der Runde): `main` = Build 16 (geprüft, sobald der GitHub-Lauf grün ist). Neu seit Build 13: 28
+- Stand 2026-11-13 (Ende der Runde): `main` = Build 16 (geprüft). Neu seit Build 13: 28
   Regler-Haptik, 29 RGB-Überarbeitung (sechs bewegte Muster je Element, Kurven-Editor, Leistung),
   30 Diagnose (mit Lichtkosten), 31/36 Symbole malen (Feinschliff, neue Erkennung, Lernen opt-in),
   32 zuletzt gemischt, 33 Leertasten-Rastpunkte, 35 tolerantere Emoji-Vorschläge. Alle Etappen mit
@@ -216,8 +216,8 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
   Code aktualisieren (`CLAUDE.md` → Docs aktuell halten).
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
-- Build 16 (geprüft, von `main`, in Vorbereitung): Etappen 28–33, 35, 36 mit allen
-  Prüferkorrekturen; GitHub-Lauf auf 9f097dd bei diesem Commit noch offen; kein Gerätetest.
+- Build 16 (geprüft, von `main`): Etappen 28–33, 35, 36 mit allen Prüferkorrekturen; GitHub-Lauf
+  auf 9f097dd grün (Agent, Upstream ohne neue Fehler, Lint); kein Gerätetest.
 - Build 15 (Test, Arbeitsbranch 7818560): RGB-Leistung (Hintergrund-Raster, Kacheln), Korrekturen
   zu 30/31, Lichtkosten auf der Diagnose-Seite; noch alte Symbol-Erkennung.
 - Build 14 (Test, Arbeitsbranch caeca49): 28–33 und 35. Rückmeldung: Symbol-Erkennung schlecht,
