@@ -40,12 +40,16 @@ object EventParser {
     fun parse(text: String, nowMillis: Long, zone: TimeZone, language: String): Result? =
         parse(text, LocalMoment.of(nowMillis, zone), language)
 
-    /** [language] is the keyboard language; it only decides 12/24 vs. 24/12 and "am" (German "am" is not a.m.). */
-    fun parse(text: String, now: LocalMoment, language: String): Result? {
+    /**
+     * [language] is the keyboard language; it only decides 12/24 vs. 24/12 and "am" (German "am" is not a.m.).
+     * [alarm] reads the text as an alarm time ([AlarmParser]): colloquial times stay in the morning
+     * ("halb sieben" is 6:30, not 18:30) and a bare number is an hour ("7 Training").
+     */
+    fun parse(text: String, now: LocalMoment, language: String, alarm: Boolean = false): Result? {
         if (text.length > MAX_INPUT) return null
         val tokens = text.trim().split(WHITESPACE).filter { it.isNotEmpty() }.map { Token(it, keyOf(it)) }
         if (tokens.isEmpty()) return null
-        return Scan(tokens, now, language.lowercase().substringBefore('_').substringBefore('-')).run()
+        return Scan(tokens, now, language.lowercase().substringBefore('_').substringBefore('-'), alarm).run()
     }
 
     private val WHITESPACE = Regex("\\s+")
@@ -182,7 +186,7 @@ object EventParser {
     /** Thrown for something that looks like a date or time but cannot be one; the whole text then gives no result. */
     private class Impossible : Exception()
 
-    private class Scan(val tokens: List<Token>, val now: LocalMoment, val language: String) {
+    private class Scan(val tokens: List<Token>, val now: LocalMoment, val language: String, val alarm: Boolean) {
         val used = BooleanArray(tokens.size)
         var date: DatePart? = null
         var weekday: Int? = null
@@ -437,7 +441,7 @@ object EventParser {
                 next == "menos" && key(j + 2) == "cuarto" -> if (setTime(before(hour), 45, true)) j + 3 else -1
                 next == "y" && minuteNumber(key(j + 2)) != null && introduced ->
                     if (setTime(hour, minuteNumber(key(j + 2))!!, true)) j + 3 else -1
-                introduced -> if (setTime(hour, 0, colloquial = true)) j + 1 else -1
+                introduced || alarm && !word -> if (setTime(hour, 0, colloquial = true)) j + 1 else -1
                 else -> -1
             }
         }
@@ -454,7 +458,7 @@ object EventParser {
                 period == Period.NIGHT -> if (hour in 6..11) hour += 12
                 period == Period.NOON -> if (hour in 1..5) hour += 12
                 period == Period.MORNING -> {}
-                pending.colloquial -> if (hour in 1..7) hour += 12
+                pending.colloquial -> if (!alarm && hour in 1..7) hour += 12
             }
             return ClockTime(hour, pending.minute)
         }

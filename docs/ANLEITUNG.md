@@ -220,6 +220,14 @@ stehen unten. Noch auf keinem Gerät ausprobiert.
   `viertel nach acht`, `dreiviertel acht`, `zehn nach acht`, `Mittag`; eine nackte Zahl nur mit
   `um`/`gegen` davor oder `Uhr` dahinter), dazu `abends`/`nachmittags`. Auch Englisch und Spanisch.
   Der Rest wird der Titel. Ohne Uhrzeit ein Ganztagstermin, sonst eine Stunde lang.
+- `@wecker 6:30 Training` oder `@wecker halb acht`: Chip „⏰ Wecker …“ antippen, die Uhr-App zeigt
+  den neuen Wecker, dort bestätigen. Uhrzeiten wie bei `@termin`, dazu eine nackte Zahl
+  (`@wecker 7`); `halb acht` ist hier 7:30, für 19:30 `abends halb acht` oder `19:30`. Die Uhr-App
+  stellt immer das nächste Mal dieser Uhrzeit; ein anderer Tag (`@wecker Montag 7:00`) wird nicht
+  übergeben, der Chip sagt dann „(Tag ignoriert)“.
+- `@timer 10 min Nudeln`, `@timer 90 s`, `@timer 1:30` (1 Minute 30), `@timer 1 h 20`,
+  `@timer halbe Stunde`: Chip „⏱ Timer …“ antippen, in der Uhr-App starten. Eine Zahl ohne
+  Einheit am Anfang sind Minuten (`@timer 10 Nudeln`); höchstens 24 Stunden.
 
 ## Design auswählen
 

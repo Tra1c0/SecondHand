@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="agent_command_alarm">Wecker: %1$swecker 6:30 Training erkennt die Uhrzeit auf dem Gerät (auch 7 Uhr, halb acht, 6pm) und öffnet deine Uhr-App mit einem neuen Wecker und den übrigen Wörtern als Bezeichnung. Die Uhr-App zeigt ihn an; gestellt ist er erst, wenn du dort bestätigst. Übergeben werden nur Stunde und Minute: Ein Tag lässt sich nicht stellen und wird als ignoriert angezeigt.</string>
+    <string name="agent_command_alarm_chip">⏰ Wecker %1$s – %2$s</string>
+    <string name="agent_command_alarm_chip_untitled">⏰ Wecker %s</string>
+    <string name="agent_command_alarm_chip_day_ignored">%s (Tag ignoriert)</string>
+    <string name="agent_command_alarm_open">Neuen Wecker in der Uhr-App öffnen: %s</string>
+    <string name="agent_command_alarm_day_note">Die Uhr-App stellt den nächsten Termin um %s; der getippte Tag wurde nicht übergeben.</string>
+    <string name="agent_command_alarm_hint">Keine Uhrzeit erkannt</string>
+    <string name="agent_command_alarm_usage">Tippe eine Uhrzeit, z. B. %1$swecker 6:30 Training oder %1$swecker halb acht</string>
+    <string name="agent_command_timer">Timer: %1$stimer 10 min Nudeln erkennt die Dauer auf dem Gerät (auch 90 s, 1:30, 1 h 20, halbe Stunde; Deutsch, Englisch, Spanisch; höchstens 24 Stunden) und öffnet deine Uhr-App mit einem neuen Timer und den übrigen Wörtern als Bezeichnung. Die Uhr-App zeigt ihn an; er läuft erst, wenn du dort bestätigst.</string>
+    <string name="agent_command_timer_chip">⏱ Timer %1$s – %2$s</string>
+    <string name="agent_command_timer_chip_untitled">⏱ Timer %s</string>
+    <string name="agent_command_timer_open">Neuen Timer in der Uhr-App öffnen: %s</string>
+    <string name="agent_command_timer_hint">Keine Dauer erkannt</string>
+    <string name="agent_command_timer_usage">Tippe eine Dauer bis 24 Stunden, z. B. %1$stimer 10 min Nudeln oder %1$stimer 1 h 20</string>
+    <string name="agent_command_clock_none">Keine Uhr-App gefunden</string>
+</resources>

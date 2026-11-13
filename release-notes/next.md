@@ -95,3 +95,8 @@
 - Neue Berechtigungen: Benachrichtigungen (nur für die tägliche Update-Suche) und „Apps
   installieren“ (nur für Updates, Android fragt jedes Mal).
 - Behoben: `@translate` beendet den Text erst beim letzten Anführungszeichen; Zitate im Text gehen.
+- Neu: `@wecker 6:30 Training` und `@timer 10 min Nudeln`. Ein Tipp auf den Chip öffnet deine
+  Uhr-App mit dem neuen Wecker bzw. Timer; gestellt ist er erst, wenn du dort bestätigst.
+  `halb acht` ist beim Wecker 7:30. Einen Tag (z. B. Montag) kann die Uhr-App nicht übernehmen,
+  der Chip sagt dann „Tag ignoriert“.
+- Neue Berechtigung: „Wecker stellen“ (ohne Nachfrage, nur für `@wecker` und `@timer`).

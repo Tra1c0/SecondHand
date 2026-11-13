@@ -1372,6 +1372,31 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   tägliche Job laufen nur auf einem Gerät; der Workflow-Schritt ins öffentliche Repository ist
   nicht gelaufen.
 
+## 24f `@wecker` und `@timer`
+
+- Gebaut: `AlarmCommand` (`ACTION_SET_ALARM`) und `TimerCommand` (`ACTION_SET_TIMER`), beide mit
+  `EXTRA_SKIP_UI = false`, `FLAG_ACTIVITY_NEW_TASK`, `protectsArgument`, Entfernen erst nach
+  erfolgreichem Start; `AlarmParser` (über `EventParser.parse(…, alarm = true)`) und `TimerParser`
+  in agent-core; Berechtigung `SET_ALARM` im Manifest. Entscheidung zum Tag: nicht übergeben, der
+  Chip zeigt „(Tag ignoriert)“, nach dem Start ein Toast; kein `EXTRA_DAYS` (das wäre ein
+  wiederkehrender Wecker). Keine Änderung an `InputLogic`, `RichInputConnection`, `Suggest`,
+  `PointerTracker`.
+- Geprüft (JVM): `:agent-core:test` grün (139 Tests in 21 Klassen), darin `AlarmParserTest` (4:
+  Beispiele, morgendliche Lesart, nackte Zahl, `abends`, en/es, `EventParser` unverändert für
+  `@termin`, Tag passt oder wird ignoriert, ungültige Eingaben) und `TimerParserTest` (6: Einheiten
+  de/en/es, zusammengeschriebene Formen, Hälften, mehrere Teile, nackte Zahlen, `h:mm:ss`, 24-h-
+  Grenze, ungültige Eingaben, gescheiterte Teile hinterlassen nichts, Format).
+- Geprüft (Robolectric): `ClockCommandsTest` (9: eingebaut, Beschreibung mit Präfix, Schutz;
+  Wecker- und Timer-Intent mit genau den Extras über austauschbaren `launcher`, nichts vor dem
+  Tipp, Text erst nach erfolgreichem Start entfernt; Fehlstart: Toast „Keine Uhr-App gefunden“,
+  Text bleibt; Hinweis-Chip `MUTED` ohne Start und ohne Ersetzen; Tag ignoriert; Passwortfeld ohne
+  Befehl). `tools/dev.py agent-tests`: 459 Tests in 63 Klassen, 1 Fehler in
+  `OpenAiProviderTest.serviceRetryAfterZeroDoesNotReplayThePost` (Loopback, `NETWORK` statt
+  `SERVICE`, während vier Builds parallel liefen); die Klasse allein danach grün (8/8).
+  `tools/dev.py lint` erfolgreich (170 Warnungen, 0 neue Fehler), kein Befund in den neuen oder geänderten Dateien.
+- Nicht geprüft: kein Gerät und keine echte Uhr-App (ob die Uhr-App Bezeichnung und Länge
+  übernimmt, ob sie den Wecker trotz `EXTRA_SKIP_UI = false` sofort stellt, Verhalten am Xiaomi).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.
