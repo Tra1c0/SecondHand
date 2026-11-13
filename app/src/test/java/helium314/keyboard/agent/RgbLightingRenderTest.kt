@@ -567,6 +567,94 @@ class RgbLightingRenderTest {
         assertTrue(minima >= 4, "hatching lines across the key: $minima")
     }
 
+    /** Review 29 (L2): keys in one colour each compute no light grid under the keys, only the tile moves. */
+    @Test fun solidKeysComputeNoGridUnderTheKeys() {
+        use(RgbSettings(enabled = true, pattern = RgbPattern.LED, solidKeys = true, layers = setOf(RgbLayer.KEY_BACKGROUND)))
+        val (keyboard, picture) = render("rgb-solid-led.png")
+        val keys = assertNotNull(lastView.rgbPainter).keysTexture
+        assertFalse(keys.hasField, "no grid under solid keys")
+        assertTrue(keys.hasTile, "the LED panel still lies over the keys")
+        // still one colour per key under the panel: the light at the key centre, the panel darkens around the dots
+        val k = keyboard.key("k")
+        val onKey = (k.y + 8 until k.y + k.height - 8).flatMap { y -> (k.x + 8 until k.x + k.width - 8).map { x -> RgbColors.luminance(picture.getPixel(x, y)) } }
+        assertTrue(spread(onKey) > 4.0, "LED panel on a solid key: ${spread(onKey)}")
+        // soft keys compute the grid
+        use(RgbSettings(enabled = true, pattern = RgbPattern.LED, layers = setOf(RgbLayer.KEY_BACKGROUND)))
+        render("rgb-soft-led.png")
+        assertTrue(assertNotNull(lastView.rgbPainter).keysTexture.hasField)
+    }
+
+    /**
+     * Owner feedback on build 14 (lag): UI-thread lighting work per frame, measured on this JVM
+     * (not a phone): the painter's per-frame preparation (taken alone) and a whole keyboard draw
+     * (all keys, with the preparation again and the per-key light), every pattern with keys,
+     * background and labels lit, 60 frames after 20 warm-up frames, frames back to back (the
+     * background thread then skips grids it cannot finish in time). Writes
+     * build/reports/rgb-lighting/ui-thread-cost.txt.
+     */
+    @Test fun uiThreadLightingWorkPerFrame() {
+        val report = StringBuilder()
+        for (pattern in RgbPattern.entries) {
+            use(RgbSettings(enabled = true, pattern = pattern, layers = setOf(RgbLayer.KEY_BACKGROUND, RgbLayer.KEYBOARD_BACKGROUND, RgbLayer.LABEL),
+                areas = RgbArea.entries.toSet()))
+            render("rgb-cost.png")
+            val view = lastView
+            val painter = assertNotNull(view.rgbPainter)
+            val canvas = Canvas(Bitmap.createBitmap(WIDTH, HEIGHT, Bitmap.Config.ARGB_8888))
+            var t = 0L
+            RgbLighting.engines.advance(t)
+            fun frame(): Pair<Long, Long> {
+                t += 33
+                RgbLighting.engines.advance(t)
+                val a = System.nanoTime()
+                painter.beginDraw(view)
+                val b = System.nanoTime()
+                view.invalidateAllKeys()
+                view.draw(canvas)
+                return (b - a) to (System.nanoTime() - b)
+            }
+            repeat(20) { frame() }
+            RgbLighting.frameStats.clear()
+            val samples = List(60) { frame() }
+            val prepAvg = samples.map { it.first }.average() / 1e6
+            val prepMax = samples.maxOf { it.first } / 1e6
+            val drawAvg = samples.map { it.second }.average() / 1e6
+            settle()
+            // the self-measurement (Diagnose API) saw these frames: UI share and background grids
+            val work = RgbLighting.frameStats.summary(android.os.SystemClock.uptimeMillis())
+            assertTrue(work.frames > 0, "$pattern: frames measured")
+            report.append("$pattern: prepare avg ${"%.2f".format(prepAvg)} ms, max ${"%.2f".format(prepMax)} ms; whole draw avg " +
+                "${"%.2f".format(drawAvg)} ms; measured lighting on UI avg ${"%.2f".format(work.uiAvgMs)} max ${"%.2f".format(work.uiMaxMs)} ms " +
+                "of keyboard draw avg ${"%.2f".format(work.drawAvgMs)} max ${"%.2f".format(work.drawMaxMs)} ms, " +
+                "background grids ${work.jobs} avg ${"%.2f".format(work.backgroundAvgMs)} max ${"%.2f".format(work.backgroundMaxMs)} ms\n")
+        }
+        println("UI-thread lighting work per frame (JVM):\n$report")
+        File("build/reports/rgb-lighting").apply { mkdirs() }.resolve("ui-thread-cost.txt").writeText(report.toString())
+    }
+
+    /** Build-14 lag: a still pattern makes its grid once; a moving one per frame, on the lighting thread. */
+    @Test fun stillPatternsComputeNothingPerFrame() {
+        for ((pattern, still) in listOf(RgbPattern.STATIC_RAINBOW to true, RgbPattern.WAVE_HORIZONTAL to false)) {
+            use(RgbSettings(enabled = true, pattern = pattern, layers = setOf(RgbLayer.KEY_BACKGROUND, RgbLayer.KEYBOARD_BACKGROUND)))
+            render("rgb-still-$pattern.png")
+            val painter = assertNotNull(lastView.rgbPainter)
+            val grids = painter.backgroundTexture.gridsMade
+            assertTrue(grids >= 1)
+            var t = 0L
+            RgbLighting.engines.advance(t)
+            repeat(10) {
+                t += 33
+                RgbLighting.engines.advance(t)
+                lastView.invalidateAllKeys()
+                draw(lastView)
+                settle()
+            }
+            val made = painter.backgroundTexture.gridsMade - grids
+            if (still) assertEquals(0, made, "$pattern: no grid per frame") else assertTrue(made >= 9, "$pattern: a grid per frame ($made)")
+            assertNotSame(Looper.getMainLooper().thread, RgbWork.lastThread, "grids are made off the main thread")
+        }
+    }
+
     @Test fun everyElementCanHaveItsOwnLook() {
         val base = RgbSettings(enabled = true, pattern = RgbPattern.STATIC_RAINBOW,
             layers = setOf(RgbLayer.KEY_BACKGROUND, RgbLayer.KEYBOARD_BACKGROUND), areas = RgbArea.entries.toSet()).withSeparate(true)
@@ -695,11 +783,27 @@ class RgbLightingRenderTest {
         view.measure(View.MeasureSpec.makeMeasureSpec(WIDTH, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(HEIGHT, View.MeasureSpec.EXACTLY))
         view.layout(0, 0, WIDTH, HEIGHT)
         lastView = view
+        // light grids and texture tiles are made in the background (review 29, build-14 lag): the first
+        // frame asks for them, the picture is the frame after they are there
+        draw(view)
+        settle()
         val picture = draw(view)
         File("build/reports/rgb-lighting").apply { mkdirs() }.resolve(fileName).outputStream().use {
             picture.compress(Bitmap.CompressFormat.PNG, 100, it)
         }
         return keyboard to picture
+    }
+
+    /**
+     * Waits for the background (grids, tiles), runs what it posted to the main thread and marks
+     * the keys for redrawing, as the lighting's listener does for a keyboard on screen (this view
+     * is not attached, so the listener leaves it alone).
+     */
+    private fun settle() {
+        assertTrue(RgbWork.awaitIdle())
+        assertTrue(RgbTiles.awaitIdle())
+        shadowOf(Looper.getMainLooper()).idle()
+        lastView.invalidateAllKeys()
     }
 
     private fun draw(view: View): Bitmap {

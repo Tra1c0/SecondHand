@@ -66,7 +66,7 @@ class RgbPatternsTest {
     private fun slatEdge(e: RgbEngine, y: Float): Float = (0..200).minByOrNull { lum(e.light(it / 200f, y, -1, 0)) }!! / 200f
     // the hatch rainbow turns around a centre: the colours meet there
     private fun near(x: Float, yy: Float, e: RgbEngine): Boolean {
-        val t = (e.phase % 4096.0).toFloat()
+        val t = e.flow.toFloat()
         val cx = 0.5f + 0.07f * kotlin.math.sin(t * 0.9f)
         val cy = 0.5f * 0.65f + 0.05f * kotlin.math.cos(t * 0.7f)
         return (x - cx) * (x - cx) + (yy - cy) * (yy - cy) < 0.04f
@@ -89,6 +89,100 @@ class RgbPatternsTest {
             }
             println("$p: largest change per frame at 30 s per cycle: $worst of 255")
             assertTrue(worst <= 8, "$p jumps by $worst in one frame")
+        }
+    }
+
+    /** Review 29 (L5): the flow time wraps where the field repeats exactly, so the wrap is invisible. */
+    @Test fun theFlowRepeatsExactlyAtItsPeriod() {
+        val a = RgbPatterns.Sample()
+        val b = RgbPatterns.Sample()
+        for (p in textures) {
+            val period = RgbPatterns.flowPeriod(p)
+            var worst = 0f
+            for (time in listOf(0.0, 0.37, 1.9)) for (i in 0 until 60) {
+                val x = (i % 10) / 10f + 0.03f
+                val y = (i / 10) / 6f + 0.05f
+                RgbPatterns.field(p, x, y, 0.65f, time.toFloat(), 0.2f, 1.5f, a)
+                RgbPatterns.field(p, x, y, 0.65f, (time + period).toFloat(), 0.2f, 1.5f, b)
+                worst = maxOf(worst, abs(a.u - b.u), abs(a.brightness - b.brightness), abs(a.whiten - b.whiten), abs(a.grey - b.grey))
+            }
+            println("$p: flow period ${"%.3f".format(period)} cycles, largest difference after one period $worst")
+            assertTrue(worst < 0.002f, "$p repeats after its period: difference $worst")
+        }
+    }
+
+    /** Review 29 (L5): across the wrap of the flow (and of the phase after very long runs) no frame jumps. */
+    @Test fun noJumpAcrossTheWrapOfTheFlow() {
+        for (p in textures) for (reverse in listOf(false, true)) {
+            val e = RgbEngine(on(p) { copy(periodMs = 30_000, reverse = reverse) }).apply { aspect = 0.65f }
+            val period = RgbPatterns.flowPeriod(p)
+            // ten frames before the wrap (30 frames per second, 1/900 cycle per frame)
+            e.jumpTo(period * 3 - 10.0 / 900)
+            e.advance(0)
+            val points = List(30) { (it % 6) / 6f + 0.05f to (it / 6) / 5f + 0.1f }
+            var before = points.map { e.light(it.first, it.second, -1, 0) }
+            var worst = 0
+            var t = 0L
+            var wrapped = false
+            repeat(30) {
+                t += 33
+                val flowBefore = e.flow
+                e.advance(t)
+                if (e.flow < flowBefore) wrapped = true
+                val now = points.map { e.light(it.first, it.second, -1, t) }
+                for (i in now.indices) worst = max(worst, maxChannelDelta(now[i], before[i]))
+                before = now
+            }
+            assertTrue(wrapped, "$p: the flow wrapped during the test")
+            assertTrue(worst <= 8, "$p (reverse $reverse) jumps by $worst at the wrap of the flow")
+        }
+        // the phase: after 10^6 cycles whole drift periods come off; colours and tile drift go on
+        for (p in RgbPattern.entries - RgbPattern.STATIC_RAINBOW) {
+            val e = RgbEngine(on(p) { copy(periodMs = 30_000) }).apply { aspect = 0.65f }
+            e.jumpTo(1e6 - 5.0 / 900)
+            e.advance(0)
+            var light = e.light(0.3f, 0.4f, -1, 0)
+            var matrix = RgbOverlay.transform(p, 1080f, 700f, e.phase, false)
+            val tile = RgbOverlay.tile(p)
+            var t = 0L
+            repeat(10) {
+                t += 33
+                e.advance(t)
+                val nextLight = e.light(0.3f, 0.4f, -1, t)
+                val nextMatrix = RgbOverlay.transform(p, 1080f, 700f, e.phase, false)
+                assertTrue(maxChannelDelta(light, nextLight) <= 8, "$p colour at the phase wrap")
+                // the tile moves by less than a tile pixel per frame (or by whole tiles, which look the same)
+                if (tile != null) {
+                    val (ux, uy) = tileShift(matrix, nextMatrix)
+                    for ((u, size) in listOf(ux to tile.width, uy to tile.height)) {
+                        val rest = Math.floorMod(Math.round(u * 16), size * 16) / 16f
+                        assertTrue(rest < 1f || size - rest < 1f, "$p tile drift at the phase wrap: $u tile pixels")
+                    }
+                }
+                light = nextLight
+                matrix = nextMatrix
+            }
+            assertTrue(e.phase < 1e6, "$p: the phase was wrapped (${e.phase})")
+        }
+    }
+
+    // the change of the translation between two matrices, in tile pixels
+    private fun tileShift(m: FloatArray, n: FloatArray): Pair<Float, Float> {
+        val d2 = n[2] - m[2]
+        val d5 = n[5] - m[5]
+        val det = m[0] * m[4] - m[1] * m[3]
+        return (m[4] * d2 - m[1] * d5) / det to (-m[3] * d2 + m[0] * d5) / det
+    }
+
+    /** Review 29 (L4): the per-frame matrix into a reused array is the same, and the drift repeats after [RgbOverlay.DRIFT_PERIOD]. */
+    @Test fun theTileMatrixIsReusedAndItsDriftRepeats() {
+        val out = FloatArray(9)
+        for (p in RgbPattern.entries) for (phase in listOf(0.31, 17.9, 123456.7)) for (reverse in listOf(false, true)) {
+            val fresh = RgbOverlay.transform(p, 1080f, 700f, phase, reverse)
+            assertSame(out, RgbOverlay.transform(p, 1080f, 700f, phase, reverse, out))
+            assertContentEquals(fresh, out, "$p at $phase")
+            val later = RgbOverlay.transform(p, 1080f, 700f, phase + RgbOverlay.DRIFT_PERIOD * 3, reverse)
+            for (k in 0 until 9) assertEquals(fresh[k], later[k], 0.05f, "$p drift repeats ($k)")
         }
     }
 

@@ -36,6 +36,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -81,6 +83,11 @@ import dev.agentkeyboard.core.RgbWaveform
 import helium314.keyboard.agent.MyDesigns
 import helium314.keyboard.agent.RgbLighting
 import helium314.keyboard.agent.RgbTexture
+import helium314.keyboard.agent.RgbTiles
+import helium314.keyboard.agent.RgbWork
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import helium314.keyboard.keyboard.FlatStyle
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.utils.prefs
@@ -90,11 +97,20 @@ import helium314.keyboard.settings.SettingsDestination
 import helium314.keyboard.settings.dialogs.ColorPickerDialog
 import helium314.keyboard.settings.preferences.Preference
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.roundToInt
 
 /** How often the option list of [AgentRgbScreen] was composed (tests: frames must not recompose it). */
 @VisibleForTesting
 internal var optionsCompositions = 0
+
+/** Pictures of the pattern gallery made so far (tests: dragging a curve point makes none). */
+@VisibleForTesting
+internal val galleryPictures = AtomicInteger()
+
+/** The light of the last shown preview (tests compare its pixels with the grid). */
+@VisibleForTesting
+internal var lastPreviewLight: PreviewLight? = null
 
 /** Key of the entry on the appearance page that opens [AgentRgbScreen]. */
 const val AGENT_RGB_SETTING = "agent_rgb_lighting_entry"
@@ -122,33 +138,25 @@ fun AgentRgbScreen(onClickBack: () -> Unit) {
     val context = LocalContext.current
     val prefs = context.prefs()
     var settings by remember { mutableStateOf(RgbLighting.read(prefs)) }
-    /** Shown immediately; written to the preference unless [commit] is false (a curve point being dragged). */
+    // a curve point being dragged: only the preview reads this, so the page is not recomposed per
+    // move, and the preview at most once per frame (build-14 lag)
+    val draft = remember { mutableStateOf<RgbSettings?>(null) }
+    /** Shown immediately; written to the preference unless [commit] is false (a curve point being dragged: preview only). */
     fun change(value: RgbSettings, commit: Boolean = true) {
         val normalized = value.normalized()
+        if (!commit) {
+            draft.value = normalized
+            return
+        }
+        draft.value = null
         settings = normalized
-        if (commit) RgbLighting.write(prefs, normalized)
+        RgbLighting.write(prefs, normalized)
     }
     val design = remember { MyDesigns.newDesign(context, "") }
-    val previous = remember { arrayOfNulls<RgbEngines>(1) }
-    // a changed option goes on where the light was instead of starting over
-    val engines = remember(settings) { RgbEngines(settings).also { e -> previous[0]?.let { e.continueFrom(it) }; previous[0] = e } }
-    var time by remember { mutableLongStateOf(0L) }
-    val taps = remember(engines) { mutableListOf<Offset>() }
     val animate = settings.enabled && remember { FlatStyle.animationsEnabled(context) }
-    LaunchedEffect(engines, animate) {
-        if (!animate) return@LaunchedEffect
-        val pacer = RgbFramePacer(settings.fps)
-        while (true) withFrameNanos { nanos ->
-            if (pacer.shouldRender(nanos)) {
-                val ms = nanos / 1_000_000
-                engines.advance(ms)
-                time = ms
-            }
-        }
-    }
     var colorToPick by rememberSaveable { mutableStateOf<Int?>(null) }
     var targetIndex by rememberSaveable { mutableIntStateOf(0) }
-    var selectedPoint by remember { mutableIntStateOf(-1) }
+    var selectedPoint by rememberSaveable { mutableIntStateOf(-1) }
     val target = if (settings.separate) RgbTarget.entries[targetIndex] else RgbTarget.KEYS
     val look = settings.lookFor(target)
     fun changeLook(commit: Boolean = true, edit: (RgbLook) -> RgbLook) = change(settings.withLook(target, edit(settings.lookFor(target))), commit)
@@ -156,21 +164,7 @@ fun AgentRgbScreen(onClickBack: () -> Unit) {
     SearchSettingsScreen(onClickBack, stringResource(R.string.agent_rgb_title), emptyList()) {
         // the large live preview, fixed above the options
         Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-            Box(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
-                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(20.dp))
-            ) {
-                DesignPreview(design, null,
-                    Modifier.testTag("agent_rgb_preview").pointerInput(engines, animate) {
-                        detectTapGestures { offset ->
-                            if (!animate) return@detectTapGestures
-                            taps.add(offset)
-                            time = time + 1 // redraw now, even between frames
-                        }
-                    },
-                    // the clock is read inside the preview's drawing only: frames redraw the preview, not the options
-                    light = remember(engines) { PreviewLight(engines, { time }, taps) })
-            }
+            LivePreview(design, { draft.value ?: settings }, animate)
             Text(
                 stringResource(if (settings.enabled && !animate) R.string.agent_rgb_static_note else R.string.agent_rgb_preview_label),
                 style = MaterialTheme.typography.labelMedium,
@@ -205,7 +199,7 @@ fun AgentRgbScreen(onClickBack: () -> Unit) {
                         Note(stringResource(R.string.agent_rgb_target_point_note))
                 }
                 Spacer(Modifier.height(12.dp))
-                PatternGallery(look, settings.reverse) { changeLook { l -> l.copy(pattern = it) } }
+                PatternGallery(look, look.reverse) { changeLook { l -> l.copy(pattern = it) } }
             }
 
             SectionCard(R.string.agent_rgb_group_wave) {
@@ -361,13 +355,80 @@ fun AgentRgbScreen(onClickBack: () -> Unit) {
     }
 }
 
+/** Engines the live preview has made (tests: a dragged curve point makes at most one per frame). */
+@VisibleForTesting
+internal var previewEngines = 0
+
 /**
- * The patterns as small still pictures in the colours of [look] (made off the frame loop, once per
- * look), the chosen one framed. Each picture is the same light the keyboard draws: grid plus tile.
+ * The large live preview of [AgentRgbScreen]: the same engines and textures as the keyboard; taps
+ * try the tap effects. [shown] is read here only, so a dragged curve point (a draft) recomposes the
+ * preview, at most once per frame, and not the page. The textures stay across changes (their grids
+ * come from the background, [RgbTexture]), so a change shows without a blank frame.
+ */
+@Composable
+private fun LivePreview(design: MyDesigns.Design, shown: () -> RgbSettings, animate: Boolean) {
+    val settings = shown()
+    val previous = remember { arrayOfNulls<RgbEngines>(1) }
+    // a changed option goes on where the light was instead of starting over
+    val engines = remember(settings) {
+        previewEngines++
+        RgbEngines(settings).also { e -> previous[0]?.let { e.continueFrom(it) }; previous[0] = e }
+    }
+    var time by remember { mutableLongStateOf(0L) }
+    val taps = remember(engines) { mutableListOf<Offset>() }
+    val fps = settings.fps
+    LaunchedEffect(engines, animate) {
+        if (!animate) return@LaunchedEffect
+        val pacer = RgbFramePacer(fps)
+        while (true) withFrameNanos { nanos ->
+            if (pacer.shouldRender(nanos)) {
+                val ms = nanos / 1_000_000
+                engines.advance(ms)
+                time = ms
+            }
+        }
+    }
+    // a grid or tile made in the background: redraw a still preview (running frames redraw anyway)
+    var made by remember { mutableIntStateOf(0) }
+    val still by androidx.compose.runtime.rememberUpdatedState(!animate)
+    DisposableEffect(Unit) {
+        val listener: () -> Unit = { if (still) made++ }
+        RgbWork.addListener(listener)
+        onDispose {
+            RgbWork.removeListener(listener)
+            lastPreviewLight = null
+        }
+    }
+    val background = remember { RgbTexture() }
+    val keys = remember { RgbTexture() }
+    Box(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(20.dp))
+    ) {
+        DesignPreview(design, null,
+            Modifier.testTag("agent_rgb_preview").pointerInput(engines, animate) {
+                detectTapGestures { offset ->
+                    if (!animate) return@detectTapGestures
+                    taps.add(offset)
+                    time = time + 1 // redraw now, even between frames
+                }
+            },
+            // the clock is read inside the preview's drawing only: frames redraw the preview, not the options
+            light = remember(engines) { PreviewLight(engines, { made; time }, taps, background, keys).also { lastPreviewLight = it } })
+    }
+}
+
+/**
+ * The patterns as small still pictures in the colours of [look], the chosen one framed. Each picture
+ * is the same light the keyboard draws (grid plus tile). The pictures depend on the pattern and the
+ * colours only ([GalleryKey]: not on the curve, the speed or the wave width), are made on a
+ * background thread after the colours have rested for a moment (a slider being dragged makes none)
+ * and are kept for the page; until a new one is ready the old one stays.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PatternGallery(look: RgbLook, reverse: Boolean, onPick: (RgbPattern) -> Unit) {
+    val cache = remember { HashMap<GalleryKey, GalleryPicture>() }
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         RgbPattern.entries.forEach { pattern ->
             val selected = look.pattern == pattern
@@ -378,15 +439,25 @@ private fun PatternGallery(look: RgbLook, reverse: Boolean, onPick: (RgbPattern)
                     .testTag("agent_rgb_pattern_$pattern"),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                val thumb = remember(look.copy(pattern = pattern), reverse) { thumbnail(look.copy(pattern = pattern)) }
+                val key = GalleryKey(pattern, look.rainbow, look.palette, look.saturation, look.brightness, look.mix, reverse)
+                val thumb by produceState(cache[key], key) {
+                    cache[key]?.let { value = it; return@produceState }
+                    // the first pictures at once, later ones once the colours rest
+                    if (value != null) delay(GALLERY_DEBOUNCE_MS)
+                    val made = withContext(Dispatchers.Default) { galleryPicture(key) }
+                    if (cache.size >= GALLERY_KEEP) cache.clear()
+                    cache[key] = made
+                    value = made
+                }
                 Canvas(
                     Modifier.fillMaxWidth().height(54.dp).clip(shape)
                         .border(if (selected) 3.dp else 1.dp,
                             if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, shape)
                 ) {
                     drawRect(Color.Black)
-                    drawImage(thumb.first.asImageBitmap(), dstSize = IntSize(size.width.toInt(), size.height.toInt()))
-                    thumb.second?.let { texture -> drawIntoCanvas { texture.drawTileRect(it.nativeCanvas, 0f, 0f, size.width, size.height, 1f) } }
+                    val picture = thumb ?: return@Canvas
+                    drawImage(picture.field.asImageBitmap(), dstSize = IntSize(size.width.toInt(), size.height.toInt()))
+                    picture.texture?.let { texture -> drawIntoCanvas { texture.drawTileRect(it.nativeCanvas, 0f, 0f, size.width, size.height, 1f) } }
                 }
                 Text(
                     patternLabel(pattern),
@@ -402,8 +473,24 @@ private fun PatternGallery(look: RgbLook, reverse: Boolean, onPick: (RgbPattern)
     }
 }
 
-/** A still picture of [look] after a moment of motion: 32 x 18 light values; texture tile in thumbnail scale. */
-private fun thumbnail(look: RgbLook): Pair<Bitmap, RgbTexture?> {
+/** What a gallery picture depends on: the pattern and the colours. */
+private data class GalleryKey(val pattern: RgbPattern, val rainbow: Boolean, val palette: List<Int>, val saturation: Int,
+                              val brightness: Int, val mix: Int, val reverse: Boolean)
+
+private class GalleryPicture(val field: Bitmap, val texture: RgbTexture?)
+
+private const val GALLERY_DEBOUNCE_MS = 250L
+/** Twelve patterns: two sets of colours. */
+private const val GALLERY_KEEP = 24
+
+/**
+ * A still picture of [key] after a moment of motion (default curve, speed and width): 32 x 18
+ * light values; texture tile in thumbnail scale. Background thread only (the tile may be made here).
+ */
+private fun galleryPicture(key: GalleryKey): GalleryPicture {
+    galleryPictures.incrementAndGet()
+    val look = RgbLook(pattern = key.pattern, reverse = key.reverse, rainbow = key.rainbow, palette = key.palette,
+        saturation = key.saturation, brightness = key.brightness, mix = key.mix)
     val engine = RgbEngine(look.applyTo(RgbSettings(enabled = true)))
     engine.aspect = 54f / 96f
     engine.advance(0)
@@ -416,11 +503,11 @@ private fun thumbnail(look: RgbLook): Pair<Bitmap, RgbTexture?> {
         dev.agentkeyboard.core.RgbColors.applyLight(0xFF000000.toInt(), light)
     }
     val bitmap = Bitmap.createBitmap(pixels, cols, rows, Bitmap.Config.ARGB_8888)
-    val texture = if (dev.agentkeyboard.core.RgbOverlay.hasOverlay(look.pattern)) RgbTexture().also {
+    val texture = if (dev.agentkeyboard.core.RgbOverlay.hasOverlay(key.pattern)) RgbTexture().also {
         // the tile at the size it has on a phone keyboard, scaled down with the picture
-        it.update(engine, 0f, 0f, 96f * 3f, 54f * 3f, t, -1)
+        it.update(engine, 0f, 0f, 96f * 3f, 54f * 3f, t, -1, wait = true)
     } else null
-    return bitmap to texture
+    return GalleryPicture(bitmap, texture)
 }
 
 private fun <T> Set<T>.toggle(item: T) = if (item in this) this - item else this + item

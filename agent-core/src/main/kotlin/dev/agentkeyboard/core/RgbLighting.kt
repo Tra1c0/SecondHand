@@ -533,6 +533,13 @@ class RgbEngine(settings: RgbSettings) {
     /** Position in cycles; grows with time (and faster after a tap with [RgbTapReaction.SPEED_UP]). */
     var phase = 0.0
         private set
+    /**
+     * Time of the flow of texture patterns in cycles: grows like [phase], but wraps at the
+     * pattern's [RgbPatterns.flowPeriod], where the flow repeats exactly (no jump at the wrap).
+     */
+    var flow = 0.0
+        private set
+    private val flowPeriod = RgbPatterns.flowPeriod(this.settings.pattern)
     private var lastAdvanceMs = Long.MIN_VALUE
 
     private val tapX = FloatArray(MAX_TAPS)
@@ -548,8 +555,32 @@ class RgbEngine(settings: RgbSettings) {
             RgbColors.hsv(hsv[0], hsv[1] * s.saturation / 100f, hsv[2] * s.brightness / 100f)
         }.toIntArray()
     }
-    private val tableCyclic: IntArray by lazy { table(true) }
-    private val tableOpen: IntArray by lazy { table(false) }
+    // shared between engines with the same colours (a curve point being dragged makes a new engine per frame)
+    private val tableCyclic: IntArray by lazy { RgbPaletteTables.get(tableKey(true)) { table(true) } }
+    private val tableOpen: IntArray by lazy { RgbPaletteTables.get(tableKey(false)) { table(false) } }
+
+    private fun tableKey(cyclic: Boolean): List<Any> = settings.let { s ->
+        listOf(cyclic, s.rainbow, s.saturation, s.brightness) + (if (s.rainbow) emptyList() else s.palette)
+    }
+
+    /**
+     * Takes over the moving state of [other] (same settings): phase, flow, aspect and taps. The
+     * light of this engine is then the light of [other] at that moment; used to compute the light
+     * grid on a background thread from a copy while the UI thread keeps advancing [other].
+     */
+    fun copyStateFrom(other: RgbEngine) {
+        phase = other.phase
+        flow = other.flow
+        aspect = other.aspect
+        System.arraycopy(other.tapX, 0, tapX, 0, MAX_TAPS)
+        System.arraycopy(other.tapY, 0, tapY, 0, MAX_TAPS)
+        System.arraycopy(other.tapKey, 0, tapKey, 0, MAX_TAPS)
+        System.arraycopy(other.tapTime, 0, tapTime, 0, MAX_TAPS)
+        nextTap = other.nextTap
+    }
+
+    /** True if the light (without tap effects) changes over time: phase or flow move. */
+    val moves: Boolean get() = settings.enabled && settings.pattern != RgbPattern.STATIC_RAINBOW
 
     /** Moves the animation to [nowMs]. Long gaps (paused keyboard) do not jump. */
     fun advance(nowMs: Long) {
@@ -558,15 +589,30 @@ class RgbEngine(settings: RgbSettings) {
         if (last == Long.MIN_VALUE || settings.pattern == RgbPattern.STATIC_RAINBOW) return
         val dt = (nowMs - last).coerceIn(0L, MAX_STEP_MS)
         val boost = if (settings.tapReaction == RgbTapReaction.SPEED_UP) 1f + SPEED_BOOST * globalFade(nowMs) else 1f
-        phase += dt.toDouble() / settings.periodMs * boost
-        if (phase > 1e6) phase -= floor(phase)
+        val step = dt.toDouble() / settings.periodMs * boost
+        phase += step
+        // whole drift periods only: colours (whole cycles) and tile drift go on without a jump
+        if (phase > PHASE_WRAP_AT) phase -= floor(phase / RgbOverlay.DRIFT_PERIOD) * RgbOverlay.DRIFT_PERIOD
+        flow += step
+        if (flow >= flowPeriod) flow -= flowPeriod * floor(flow / flowPeriod)
     }
 
     /** Restarts timing without changing the phase (after a pause). */
     fun resetClock() { lastAdvanceMs = Long.MIN_VALUE }
 
     /** Takes over the phase of [other] (a changed setting goes on where the light was, no restart). */
-    fun continueFrom(other: RgbEngine) { if (settings.pattern != RgbPattern.STATIC_RAINBOW) phase = other.phase }
+    fun continueFrom(other: RgbEngine) {
+        if (settings.pattern == RgbPattern.STATIC_RAINBOW) return
+        phase = other.phase
+        // the same pattern goes on exactly; another pattern has another period (it changes anyway)
+        flow = other.flow % flowPeriod
+    }
+
+    /** Puts the clock at [cycles] of phase and flow (tests: the wraps after hours of running). */
+    internal fun jumpTo(cycles: Double) {
+        phase = cycles
+        flow = cycles % flowPeriod
+    }
 
     fun tap(x: Float, y: Float, keyId: Int, nowMs: Long) {
         tapX[nextTap] = x
@@ -605,7 +651,7 @@ class RgbEngine(settings: RgbSettings) {
         var strength = 1f
         if (s.pattern.textured) {
             val fp = (phase - floor(phase)).toFloat()
-            val time = ((phase % FLOW_WRAP).toFloat()) * (if (s.reverse) -1f else 1f)
+            val time = flow.toFloat() * (if (s.reverse) -1f else 1f)
             RgbPatterns.field(s.pattern, x, y, aspect, time, if (s.reverse) fp else -fp, s.waveWidth, sample)
             val u = sample.u
             var c = paletteAt(s.curve.value(u - floor(u)), s.curve.cyclic)
@@ -766,8 +812,88 @@ class RgbEngine(settings: RgbSettings) {
         /** Rainbow smoothing radius in table entries (about ±2 % of the cycle in two passes). */
         private const val SMOOTH_RADIUS = 28
         private const val GREY = 0xFF8A8A8A.toInt()
-        /** The flow of texture patterns repeats after this many cycles (float precision). */
-        private const val FLOW_WRAP = 4096.0
+        /** Above this many cycles whole [RgbOverlay.DRIFT_PERIOD]s are taken off the phase (double precision). */
+        private const val PHASE_WRAP_AT = 1e6
+    }
+}
+
+/**
+ * Palette tables shared by engines with the same colours (build-14 lag: a new engine per frame
+ * while a curve point is dragged rebuilt the table each time). Thread-safe; tables are never
+ * changed after they are made.
+ */
+object RgbPaletteTables {
+    private const val KEEP = 16
+    private val tables = object : LinkedHashMap<List<Any>, IntArray>(KEEP, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<List<Any>, IntArray>?) = size > KEEP
+    }
+    /** Tables made so far (tests). */
+    @Volatile var made = 0
+        private set
+
+    fun get(key: List<Any>, make: () -> IntArray): IntArray {
+        synchronized(tables) { tables[key]?.let { return it } }
+        val table = make()
+        synchronized(tables) {
+            tables[key]?.let { return it }
+            tables[key] = table
+            made++
+        }
+        return table
+    }
+}
+
+/**
+ * How much lighting work the keyboard does per frame (build-14 lag): the UI thread's share and the
+ * background grid, averaged and at most over the last [windowMs]. Thread-safe; [summary] is the
+ * small API the Diagnose page can show. Times are given by the caller, so it is testable on the JVM.
+ */
+class RgbFrameStats(private val windowMs: Long = 5000, private val capacity: Int = 512) {
+    /**
+     * [uiAvgMs]/[uiMaxMs]: lighting work on the UI thread per frame; [drawAvgMs]/[drawMaxMs]: the
+     * whole keyboard draw of those frames (keys, labels and light); [jobs] grids made in the
+     * background, [backgroundAvgMs]/[backgroundMaxMs] their time on the lighting thread.
+     */
+    data class Summary(val frames: Int, val uiAvgMs: Double, val uiMaxMs: Double, val drawAvgMs: Double, val drawMaxMs: Double,
+                       val jobs: Int, val backgroundAvgMs: Double, val backgroundMaxMs: Double)
+
+    private val uiAt = LongArray(capacity)
+    private val uiNanos = LongArray(capacity)
+    private val drawNanos = LongArray(capacity)
+    private var uiCount = 0
+    private var uiNext = 0
+    private val bgAt = LongArray(capacity)
+    private val bgNanos = LongArray(capacity)
+    private var bgCount = 0
+    private var bgNext = 0
+
+    /** UI-thread lighting work of one frame, [nanos] long, in a keyboard draw of [drawNanos], finished at [atMs]. */
+    @Synchronized fun recordUi(atMs: Long, nanos: Long, drawNanos: Long = nanos) {
+        uiAt[uiNext] = atMs; uiNanos[uiNext] = nanos; this.drawNanos[uiNext] = drawNanos
+        uiNext = (uiNext + 1) % capacity
+        if (uiCount < capacity) uiCount++
+    }
+
+    /** One light grid made in the background, [nanos] long, finished at [atMs]. */
+    @Synchronized fun recordBackground(atMs: Long, nanos: Long) {
+        bgAt[bgNext] = atMs; bgNanos[bgNext] = nanos
+        bgNext = (bgNext + 1) % capacity
+        if (bgCount < capacity) bgCount++
+    }
+
+    @Synchronized fun clear() { uiCount = 0; uiNext = 0; bgCount = 0; bgNext = 0 }
+
+    /** Average and maximum in ms over the entries of the last [windowMs] before [nowMs]. */
+    @Synchronized fun summary(nowMs: Long): Summary {
+        fun stats(at: LongArray, nanos: LongArray, count: Int): Triple<Int, Double, Double> {
+            var n = 0; var sum = 0L; var max = 0L
+            for (i in 0 until count) if (nowMs - at[i] in 0..windowMs) { n++; sum += nanos[i]; if (nanos[i] > max) max = nanos[i] }
+            return Triple(n, if (n == 0) 0.0 else sum / 1e6 / n, max / 1e6)
+        }
+        val ui = stats(uiAt, uiNanos, uiCount)
+        val draw = stats(uiAt, drawNanos, uiCount)
+        val bg = stats(bgAt, bgNanos, bgCount)
+        return Summary(ui.first, ui.second, ui.third, draw.second, draw.third, bg.first, bg.second, bg.third)
     }
 }
 

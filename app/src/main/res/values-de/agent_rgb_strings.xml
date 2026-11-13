@@ -75,7 +75,7 @@
     <string name="agent_rgb_pattern_hatch">Raster</string>
     <string name="agent_rgb_pattern_led">LED-Punkte</string>
     <string name="agent_rgb_pattern_topo">Höhenlinien</string>
-    <string name="agent_rgb_curve_summary">Waagerecht: Stelle im Durchlauf (Zeit und Ort), senkrecht: Farbe im Farbverlauf (bei „Atmen“ die Helligkeit). Ziehe einen Punkt, tippe auf eine freie Stelle für einen neuen, drücke lang oder ziehe ihn hinaus zum Entfernen. Die Enden bleiben links und rechts.</string>
+    <string name="agent_rgb_curve_summary">Waagerecht: Stelle im Durchlauf (Zeit und Ort), senkrecht: Farbe im Farbverlauf (bei „Atmen“ die Helligkeit). Ziehe einen Punkt, tippe auf eine freie Stelle für einen neuen. Tippen oder langes Drücken wählt einen Punkt; entfernen mit „Punkt entfernen“ oder durch Hinausziehen. Die Enden bleiben links und rechts.</string>
     <string name="agent_rgb_curve_presets">Vorlagen</string>
     <string name="agent_rgb_curve_own">Eigene Kurve</string>
     <string name="agent_rgb_curve_add">Punkt hinzufügen</string>
@@ -85,4 +85,9 @@
     <string name="agent_rgb_axis_y">Farbe</string>
     <string name="agent_rgb_solid_keys">Jede Taste einfarbig</string>
     <string name="agent_rgb_solid_keys_summary">Wie bei LED-Tastaturen eine Farbe pro Taste. Aus: Die Farben laufen weich über die Tasten.</string>
+    <string name="agent_rgb_curve_up">Punkt nach oben</string>
+    <string name="agent_rgb_curve_down">Punkt nach unten</string>
+    <string name="agent_rgb_curve_left">Punkt nach links</string>
+    <string name="agent_rgb_curve_right">Punkt nach rechts</string>
+    <string name="agent_rgb_curve_selected">Punkt %1$d gewählt</string>
 </resources>

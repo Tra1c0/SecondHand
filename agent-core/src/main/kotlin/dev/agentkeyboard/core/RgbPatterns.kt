@@ -168,6 +168,26 @@ object RgbPatterns {
         }
     }
 
+    /**
+     * The flow of [pattern]'s [field] repeats after this many cycles: every time term above is a
+     * whole number of turns (sines) or of noise periods (64 lattice cells) after it. The engine wraps
+     * its flow time there, so the wrap is invisible (an arbitrary wrap jumped). Change it together
+     * with the time factors in [field]; `RgbPatternsTest.theFlowRepeatsExactlyAtItsPeriod` checks it.
+     */
+    fun flowPeriod(pattern: RgbPattern): Double = when (pattern) {
+        // t = 0.3 time; noise shifts 0.4, 0.15, 0.25, 0.3, 0.2, 0.1 t: all multiples of 64 at t = 1280
+        RgbPattern.INK -> 1280.0 / 0.3
+        // sines with 0.6 and 0.4 time: 6 pi and 4 pi turns at 10 pi
+        RgbPattern.DIAMONDS -> 10.0 * PI
+        // sin(2 pi 0.12 time): one turn
+        RgbPattern.SLATS -> 1.0 / 0.12
+        // sin 0.9 time, cos 0.7 time (hatch); 2.2, 1.5, 0.9 time (LED): whole turns at 20 pi
+        RgbPattern.HATCH, RgbPattern.LED -> 20.0 * PI
+        // t = 0.12 time; noise shifts 1, 0.7, 0.6, 0.5 t: all multiples of 64 at t = 640
+        RgbPattern.TOPO -> 640.0 / 0.12
+        else -> 4096.0
+    }
+
     fun smooth(e0: Float, e1: Float, x: Float): Float {
         val t = ((x - e0) / (e1 - e0)).coerceIn(0f, 1f)
         return t * t * (3f - 2f * t)
@@ -222,31 +242,50 @@ object RgbOverlay {
     }
 
     /**
+     * The drift of every tile repeats after this many cycles of the phase (all drift speeds below
+     * times 200 are whole numbers), so the engine may take whole multiples of it off its phase.
+     */
+    const val DRIFT_PERIOD = 200.0
+
+    /**
      * Matrix (android.graphics.Matrix value order, 9 values) that maps tile pixels to view pixels
      * for a [viewWidth] x [viewHeight] view at [phase] (cycles; the drift wraps with the tile).
      */
-    fun transform(pattern: RgbPattern, viewWidth: Float, viewHeight: Float, phase: Double, reverse: Boolean): FloatArray {
+    fun transform(pattern: RgbPattern, viewWidth: Float, viewHeight: Float, phase: Double, reverse: Boolean): FloatArray =
+        transform(pattern, viewWidth, viewHeight, phase, reverse, FloatArray(9))
+
+    /** [transform] into [out] (9 values), allocation-free for the per-frame path; returns [out]. */
+    fun transform(pattern: RgbPattern, viewWidth: Float, viewHeight: Float, phase: Double, reverse: Boolean, out: FloatArray): FloatArray {
         val w = if (viewWidth.isFinite() && viewWidth > 1f) viewWidth else 1f
         val dir = if (reverse) -1.0 else 1.0
-        fun drift(speed: Double): Float = ((phase * speed * dir) - floor(phase * speed * dir)).toFloat()
-        // (tile pixel size on screen, rotation in degrees, drift in tile widths along x and y)
-        val (scale, degrees, dx, dy) = when (pattern) {
-            RgbPattern.LED -> Quad(w / 34f / LED_TILE, 0f, 0f, 0f)
-            RgbPattern.HATCH -> Quad(max(4f, w / 165f) / HATCH_TILE, -123f, drift(0.25) * HATCH_TILE, 0f)
-            RgbPattern.SLATS -> Quad(w / 13f / SLAT_TILE, -125f, drift(0.2) * SLAT_TILE, 0f)
-            RgbPattern.TOPO -> Quad(w * 0.8f / BIG_TILE, 0f, drift(0.035) * BIG_TILE, drift(0.025) * BIG_TILE)
-            RgbPattern.DIAMONDS -> Quad(w * 0.7f / BIG_TILE, 0f, drift(0.03) * BIG_TILE, -drift(0.03) * BIG_TILE)
-            else -> Quad(1f, 0f, 0f, 0f)
+        // tile pixel size on screen, rotation in degrees, drift in tile pixels along x and y
+        val scale: Float
+        val degrees: Float
+        var dx = 0f
+        var dy = 0f
+        when (pattern) {
+            RgbPattern.LED -> { scale = w / 34f / LED_TILE; degrees = 0f }
+            RgbPattern.HATCH -> { scale = max(4f, w / 165f) / HATCH_TILE; degrees = -123f; dx = drift(phase, 0.25, dir) * HATCH_TILE }
+            RgbPattern.SLATS -> { scale = w / 13f / SLAT_TILE; degrees = -125f; dx = drift(phase, 0.2, dir) * SLAT_TILE }
+            RgbPattern.TOPO -> { scale = w * 0.8f / BIG_TILE; degrees = 0f; dx = drift(phase, 0.035, dir) * BIG_TILE; dy = drift(phase, 0.025, dir) * BIG_TILE }
+            RgbPattern.DIAMONDS -> { scale = w * 0.7f / BIG_TILE; degrees = 0f; dx = drift(phase, 0.03, dir) * BIG_TILE; dy = -drift(phase, 0.03, dir) * BIG_TILE }
+            else -> { scale = 1f; degrees = 0f }
         }
         val rad = Math.toRadians(degrees.toDouble())
         val a = (scale * cos(rad)).toFloat()
         val b = (-scale * sin(rad)).toFloat()
         val d = (scale * sin(rad)).toFloat()
         val e = (scale * cos(rad)).toFloat()
-        return floatArrayOf(a, b, a * -dx + b * -dy, d, e, d * -dx + e * -dy, 0f, 0f, 1f)
+        out[0] = a; out[1] = b; out[2] = a * -dx + b * -dy
+        out[3] = d; out[4] = e; out[5] = d * -dx + e * -dy
+        out[6] = 0f; out[7] = 0f; out[8] = 1f
+        return out
     }
 
-    private data class Quad(val a: Float, val b: Float, val c: Float, val d: Float)
+    private fun drift(phase: Double, speed: Double, dir: Double): Float {
+        val v = phase * speed * dir
+        return (v - floor(v)).toFloat()
+    }
 
     private fun argb(alpha: Float, rgb: Int) = ((alpha.coerceIn(0f, 1f) * 255f).roundToInt() shl 24) or (rgb and 0xFFFFFF)
 

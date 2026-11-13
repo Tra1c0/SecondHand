@@ -71,14 +71,38 @@ class RgbKeyPainter {
     private var tintedIconFilter: ColorFilter? = null
 
     /** Light behind and between the keys, and the smooth light under the keys. */
-    private val background = RgbTexture()
-    private val keys = RgbTexture()
+    private val background = RgbTexture().apply { stats = RgbLighting.frameStats }
+    private val keys = RgbTexture().apply { stats = RgbLighting.frameStats }
+    /** UI-thread lighting work of the frame being drawn (prepare plus per-key calls), recorded at [endDraw]. */
+    private var frameNanos = 0L
+    private var drawStart = 0L
+    private var measuring = false
     private var backgroundDrawn = false
     private var keysReady = false
     private val masks = RgbKeyMasks()
     private val effectPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     fun beginDraw(view: KeyboardView) {
+        val start = System.nanoTime()
+        drawStart = start
+        frameNanos = 0L
+        try { prepare(view) } finally {
+            frameNanos += System.nanoTime() - start
+            measuring = backgroundLayer || keyboardLayer || labelLayer
+        }
+    }
+
+    /**
+     * End of the keyboard's draw (hook at the end of KeyboardView.onDrawKeyboard): records the
+     * lighting share of this frame and the whole keyboard draw ([RgbLighting.frameWork]).
+     */
+    fun endDraw() {
+        if (!measuring) return
+        measuring = false
+        RgbLighting.frameStats.recordUi(android.os.SystemClock.uptimeMillis(), frameNanos, System.nanoTime() - drawStart)
+    }
+
+    private fun prepare(view: KeyboardView) {
         width = view.width.coerceAtLeast(1)
         height = view.height.coerceAtLeast(1)
         colors = Settings.getValues().mColors
@@ -97,8 +121,10 @@ class RgbKeyPainter {
         if (keyboardLayer) background.update(backEngine, 0f, 0f, width.toFloat(), height.toFloat(), now, -1)
         keysReady = backgroundLayer
         if (backgroundLayer) {
+            // one colour per key: the grid under the keys is never drawn, only the tile
+            if (solid) keys.updateTileOnly(keysEngine, 0f, 0f, width.toFloat(), height.toFloat())
             // the same engine and no per-key reactive flash: the keys use the background's grid
-            if (keyboardLayer && keysEngine === backEngine && keysEngine.keyFactor(-1, now) == 1f) keys.copyFrom(background)
+            else if (keyboardLayer && keysEngine === backEngine && keysEngine.keyFactor(-1, now) == 1f) keys.copyFrom(background)
             else keys.update(keysEngine, 0f, 0f, width.toFloat(), height.toFloat(), now, RgbEngine.FIELD_KEYS)
         }
     }
@@ -111,6 +137,11 @@ class RgbKeyPainter {
 
     /** [x], [y]: top left of the key in view coordinates. */
     fun beginKey(key: Key, x: Int, y: Int) {
+        val start = System.nanoTime()
+        try { startKey(key, x, y) } finally { frameNanos += System.nanoTime() - start }
+    }
+
+    private fun startKey(key: Key, x: Int, y: Int) {
         val area = areaOf(key)
         val inArea = area != null && area in RgbLighting.settings.areas
         keyBackgroundLit = inArea && backgroundLayer
@@ -156,6 +187,11 @@ class RgbKeyPainter {
      */
     fun drawOverBackground(canvas: Canvas, background: Drawable, bgX: Int, bgY: Int) {
         if (!lit || !keyBackgroundLit) return
+        val start = System.nanoTime()
+        try { drawLight(canvas, background, bgX, bgY) } finally { frameNanos += System.nanoTime() - start }
+    }
+
+    private fun drawLight(canvas: Canvas, background: Drawable, bgX: Int, bgY: Int) {
         val strength = RgbColors.alpha(keyLight) / 255f
         val fieldAlpha = if (solid) 0f else keysEngine.keyFactor(keyId, now)
         val tileAlpha = if (keys.hasTile) strength else 0f
@@ -236,6 +272,9 @@ class RgbKeyPainter {
 
     /** Number of cached key masks (tests). */
     internal val maskCount get() = masks.size
+    /** The light under the keys and behind them (tests). */
+    internal val keysTexture get() = keys
+    internal val backgroundTexture get() = background
 
     companion object {
         private const val BLACK = 0xFF000000.toInt()

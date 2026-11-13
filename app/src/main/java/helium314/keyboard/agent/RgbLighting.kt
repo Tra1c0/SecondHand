@@ -15,6 +15,7 @@ import dev.agentkeyboard.core.RgbEngines
 import dev.agentkeyboard.core.RgbTarget
 import dev.agentkeyboard.core.RgbRun
 import dev.agentkeyboard.core.RgbFramePacer
+import dev.agentkeyboard.core.RgbFrameStats
 import dev.agentkeyboard.core.RgbSettings
 import dev.agentkeyboard.core.RgbTapReaction
 import helium314.keyboard.keyboard.FlatStyle
@@ -36,7 +37,9 @@ import java.lang.ref.WeakReference
  * configured rate ([RgbFramePacer]; the next frame is only requested when it is due); one still
  * frame when Android animations are off or (by default) in power saving mode; reactive-only light
  * only draws while an effect fades. Power saving changes arrive by broadcast, the animator scale
- * is read again whenever the keyboard is shown. Everything runs on the UI thread. Nothing is logged.
+ * is read again whenever the keyboard is shown. The light grids and tiles are computed on a
+ * background thread ([RgbWork]); the UI thread only advances the clock, takes finished grids and
+ * draws. [frameWork] tells how long that takes per frame. Nothing is logged.
  */
 object RgbLighting {
     /** One preference with the whole configuration in [RgbSettings.encode] form. */
@@ -103,9 +106,34 @@ object RgbLighting {
         settings = RgbSettings.parse(value)
         engines = RgbEngines(settings)
         pacer = RgbFramePacer(settings.fps)
+        // tiles are made in the background ahead of the first frame; switched off they are dropped
+        if (settings.enabled) {
+            RgbWork.addListener(onTilesReady)
+            RgbTiles.request(engines.all.map { it.settings.pattern })
+        } else RgbTiles.clear()
         // strip areas deselected while the keys stay lit: give the strip its own colours back
         if (!settings.lightsStrip()) restoreStrip()
     }
+
+    /**
+     * A tile or a light grid was made in the background: draw it now when no frames run (still
+     * light, an effect that just faded, the first picture); running frames pick it up anyway.
+     */
+    private val onTilesReady: () -> Unit = {
+        val view = keyboardView?.get()
+        if (mode != RgbRun.Mode.OFF && mode != RgbRun.Mode.RUNNING && isVisible(view) && settings.lightsKeys()) view?.invalidateAllKeys()
+    }
+
+    /** Lighting work of the keyboard per frame: UI thread and background grids (build-14 lag). */
+    val frameStats = RgbFrameStats()
+
+    /** Average and maximum lighting work per frame over the last seconds, for the Diagnose page. */
+    @JvmStatic
+    fun frameWork(): RgbFrameStats.Summary = frameStats.summary(SystemClock.uptimeMillis())
+
+    /** Low memory (LatinIME.onTrimMemory): drops the tiles; the next frame asks for them again. */
+    @JvmStatic
+    fun onTrimMemory() = RgbTiles.clear()
 
     /** True for the one view that may be lit: the keyboard of main_keyboard_frame. */
     @JvmStatic
