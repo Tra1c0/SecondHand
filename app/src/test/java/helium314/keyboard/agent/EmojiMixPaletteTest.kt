@@ -179,8 +179,84 @@ class EmojiMixPaletteTest {
         mixer.remove(0)
         assertEquals(listOf("🐶"), mixer.selected)
         settle()
-        // the pair 😂😂 was chosen in between and therefore requested; 🐶 alone is not
-        assertTrue(requests.size <= 2)
+        // each chosen pair with a mix in the table was one request (😂😂 and, if it exists, 😂🐶); 🐶 alone is none
+        val table = EmojiMixer.table(latinIME)!!
+        val expected = listOfNotNull(table.find("😂", "😂"), table.find("😂", "🐶")).map { it.url }
+        assertTrue(expected.isNotEmpty())
+        assertEquals(expected, requests.map { it.url.toString() })
+    }
+
+    @Test fun aRedrawNeverRequestsTheSameChoiceAgain() {
+        mixer.toggle()
+        answer = { throw java.io.IOException("offline") }
+        mixer.onEmoji("🐶")
+        mixer.onEmoji("🔥")
+        settle()
+        assertEquals(1, requests.size)
+        assertEquals(latinIME.getString(R.string.agent_emoji_mixer_failed), mixer.status.text.toString())
+        // the states are dropped (e.g. "Gespeicherte Mischungen löschen" in the settings); the next change redraws the mixer
+        EmojiMixer.clearCache(latinIME)
+        settle()
+        val table = EmojiMixer.table(latinIME)!!
+        assertNull(EmojiMixer.state(latinIME, table.find("🐶", "🔥")!!), "the failed state is gone")
+        // another pair loads (e.g. a strip chip): every state change redraws the mixer
+        val dogFire = table.find("🐶", "🔥")!!.url
+        EmojiMixer.request(latinIME, table.find("😂", "😂")!!)
+        settle()
+        assertEquals(2, requests.size)
+        assertEquals(1, requests.count { it.url.toString() == dogFire }, "a redraw does not ask again for the same choice")
+        assertEquals(latinIME.getString(R.string.agent_emoji_mixer_tap_to_load), mixer.status.text.toString())
+        // the tap on the status is the new request
+        answer = { response(it, 200, pngBytes) }
+        assertTrue(mixer.status.performClick())
+        settle()
+        assertEquals(3, requests.size)
+        assertEquals(dogFire, requests.last().url.toString())
+        assertEquals(View.VISIBLE, mixer.preview.visibility)
+    }
+
+    @Test fun inTheMixerModeATappedEmojiKeyIsChosenNotTyped() {
+        val listener = org.mockito.Mockito.mock(helium314.keyboard.keyboard.KeyboardActionListener::class.java)
+        val view = startPalette(listener)
+        view.setKeyboardActionListener(listener) // the switcher sets it for the real palette
+        val dog = org.mockito.Mockito.mock(helium314.keyboard.keyboard.Key::class.java)
+        org.mockito.Mockito.`when`(dog.code).thenReturn(0x1F436)
+        val heart = org.mockito.Mockito.mock(helium314.keyboard.keyboard.Key::class.java)
+        org.mockito.Mockito.`when`(heart.code).thenReturn(KeyCode.MULTIPLE_CODE_POINTS)
+        org.mockito.Mockito.`when`(heart.outputText).thenReturn("❤️")
+        val mixer = EmojiMixPalette.current()!!
+        EmojiMixPalette.toggleCurrent()
+        assertTrue(mixer.isActive)
+        view.onReleaseKey(dog)
+        view.onReleaseKey(heart)
+        assertEquals(listOf("🐶", "❤️"), mixer.selected)
+        org.mockito.Mockito.verify(listener, org.mockito.Mockito.never()).onCodeInput(org.mockito.ArgumentMatchers.anyInt(),
+            org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyBoolean())
+        org.mockito.Mockito.verify(listener, org.mockito.Mockito.never()).onTextInput(org.mockito.ArgumentMatchers.any())
+        org.mockito.Mockito.verify(listener).onReleaseKey(0x1F436, false)
+        // leaving the mode clears the choice (typing outside the mode is the unchanged upstream path)
+        EmojiMixPalette.toggleCurrent()
+        assertFalse(mixer.isActive)
+        assertEquals(emptyList(), mixer.selected)
+        settle()
+        // the chosen pair was the only request (if the table has a mix for it)
+        assertEquals(listOfNotNull(EmojiMixer.table(latinIME)!!.find("🐶", "❤️")?.url), requests.map { it.url.toString() })
+        view.stopEmojiPalettes()
+    }
+
+    @Test fun aFieldThatBecomesBlockedStopsTheMixerBeforeAnyRequest() {
+        mixer.toggle()
+        mixer.onEmoji("🐶")
+        mixer.onEmoji("🌮")
+        settle()
+        val partners = (mixer.bar.getChildAt(1) as ViewGroup).getChildAt(0) as LinearLayout
+        assertTrue(partners.childCount > 0)
+        // e.g. the device locked while the palette was open: a partner tap requests nothing and ends the mode
+        EmojiMixer.blocked = { true }
+        partners.getChildAt(0).performClick()
+        settle()
+        assertFalse(mixer.isActive)
+        assertEquals(emptyList(), requests)
     }
 
     @Test fun pairWithoutMixSuggestsPartnersOffline() {
@@ -227,17 +303,24 @@ class EmojiMixPaletteTest {
         checkHalves()
     }
 
-    private fun checkHalves() {
+    private fun startPalette(listener: helium314.keyboard.keyboard.KeyboardActionListener): EmojiPalettesView {
         val switcher = KeyboardSwitcher.getInstance()
         val input = switcher.onCreateInputView(latinIME, true)
         switcher.reloadMainKeyboard()
         val view = input.findViewById<EmojiPalettesView>(R.id.emoji_palettes_view)
-        view.startEmojiPalettes(switcher.mainKeyboardView!!.keyVisualAttribute, images, latinIME.mKeyboardActionListener)
+        view.startEmojiPalettes(switcher.mainKeyboardView!!.keyVisualAttribute, images, listener)
+        return view
+    }
+
+    private fun checkHalves() {
+        val view = startPalette(latinIME.mKeyboardActionListener)
         val keyboard = view.findViewById<MainKeyboardView>(R.id.bottom_row_keyboard).keyboard!!
         val keys = keyboard.sortedKeys
         val mixerKey = keys.single { it.code == KeyCode.AGENT_EMOJI_MIXER }
-        // left half: the emoji search, or a space bar where no emoji dictionary is there to search
+        // left half: the emoji search (the bundled emoji dictionaries make it available for German), or a
+        // space bar where no emoji dictionary is there to search (layout fallback, not reachable here)
         val left = keys.single { it.code == KeyCode.EMOJI_SEARCH || it.code == Constants.CODE_SPACE }
+        assertEquals(KeyCode.EMOJI_SEARCH, left.code)
         assertEquals(left.width, mixerKey.width)
         assertTrue(left.x < mixerKey.x)
         assertEquals(latinIME.getString(R.string.agent_emoji_mixer_key), mixerKey.label)

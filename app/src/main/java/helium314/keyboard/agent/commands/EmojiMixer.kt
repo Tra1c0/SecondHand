@@ -80,6 +80,8 @@ object EmojiMixer {
 
     private val worker = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
+    /** How the worker hands results to the main thread; replaced in tests whose shadow handler only collects messages. */
+    @Volatile @JvmStatic var toMain: (() -> Unit) -> Unit = { block -> main.post(block) }
 
     @Volatile private var table: EmojiMixTable? = null
     private var tableLoading = false
@@ -119,7 +121,7 @@ object EmojiMixer {
                 Log.w(TAG, "could not read the pair table: ${e.javaClass.simpleName}")
                 null
             }
-            main.post {
+            toMain {
                 tableLoading = false
                 if (loaded == null) tableFailed = true else table = loaded
                 changed()
@@ -140,7 +142,7 @@ object EmojiMixer {
         if (cache.file(mix).isFile && cachedReads.add(mix.key)) worker.execute {
             val file = cache.get(mix)
             val thumbnail = file?.let { thumbnail(it) }
-            main.post {
+            toMain {
                 cachedReads.remove(mix.key)
                 if (file != null && thumbnail != null && states[mix.key] == null) {
                     states[mix.key] = State.Ready(file, thumbnail)
@@ -181,7 +183,7 @@ object EmojiMixer {
                 Log.w(TAG, "could not store the image: ${e.javaClass.simpleName}")
                 State.Failed(EmojiMixClient.Reason.STORAGE)
             }
-            main.post {
+            toMain {
                 states[mix.key] = result
                 changed()
             }
@@ -260,10 +262,13 @@ object EmojiMixer {
         sink = QrCommand.SYSTEM_SINK
         launcher = SearchCommand.SYSTEM_LAUNCHER
         blocked = { KeyboardCommands.isBlocked(Settings.getValues(), it) }
+        toMain = { block -> main.post(block) }
         states.clear()
         cachedReads.clear()
         listeners.clear()
         tableFailed = false
+        // a load started under another toMain may never report back (a test's shadow handler): allow a new one
+        if (table == null) tableLoading = false
     }
 }
 

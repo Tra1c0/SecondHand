@@ -377,7 +377,8 @@ Emoji-Ansicht (Emoji-Mix, 25a; Abschnitt „Befehle“):
 - `KeyLabel.kt`: die beiden Namen werden zu Textbeschriftungen aus `agent_emoji_mix_strings.xml`
   (`Settings.getCurrentContext`, Rückfall Englisch) mit `!code/key_emoji_search` bzw.
   `!code/-12005`. `KeyboardActionListenerImpl.kt`: `AGENT_EMOJI_MIXER` →
-  `EmojiMixPalette.toggleCurrent`.
+  `EmojiMixPalette.toggleCurrent`. `KeyCode.kt`: `AGENT_EMOJI_MIXER = -12005` (in `checkAndConvertCode`
+  durchgereicht).
 
 Geänderte Upstream-Tests (Leertasten-Gesten): `InputLogicTest.kt` ruft `onSpaceSwipe` statt
 `onHorizontalSpaceSwipe` und hat die Fälle `generatedSpace*`.
@@ -388,7 +389,7 @@ ersten n des Felds),
 `Shadows.kt` liefert außerdem `acceptedMimeTypes` und `currentImeOptions` im `EditorInfo` (23g),
 dazu `currentPackageName` und `currentFieldId` (Sprachbefehle, P66),
 `InputLogicTest.kt` (zusätzliche erzeugte Fälle, `typedCommand*` für 24a, `screenshotChip*` für
-23g), `SuggestTest.kt` (Personalisierung im Test
+23g, `typedEmoji*` für 25a), `SuggestTest.kt` (Personalisierung im Test
 ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 
 ## Editorzugriff, Panel und Rad
@@ -806,7 +807,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `InputLogicTest.typedCommandLanguageChoiceSurvivesTheAppRestartingTheField` (de → es → en → de
     im geleerten Feld mit deutschem Hint und App-Subtyp, Popup-Tasten von „a“),
     `AT/commands/SubtypeChoiceTest.kt`.
-  - Emoji-Mix (25a, Fallstricke P70–P72): `C/EmojiMix.kt` (rein, ohne Netz): `EmojiMixTable.read`
+  - Emoji-Mix (25a, Fallstricke P70–P74): `C/EmojiMix.kt` (rein, ohne Netz): `EmojiMixTable.read`
     liest die gzip-Tabelle aus `app/src/main/assets/emoji_mix_pairs.bin` (Format im Generator
     `tools/emoji_mix_table.py`, Quelle und Lizenzstand `docs/BUILD.md`): 619 Emojis, Bitmap der
     Paare (links, rechts) und ein Datumsindex je Paar, Rang über `rowStart`. `find` sucht in
@@ -824,7 +825,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `state` liest ein gecachtes Bild ohne Netz nach. `listen("chips"|"palette")` baut nach jeder
     Änderung neu. `deliver`: `ScreenshotChip.editorAccepts(…, image/png)` → `sink` (wie `@qr`
     `onContent`), sonst Teilen über `launcher`; austauschbar `tableSource`, `calls`, `sink`,
-    `launcher`, `blocked`. `EmojiMixClient` (eigenes OkHttp `EmojiMixHttp`: keine Weiterleitung,
+    `launcher`, `blocked`, `toMain` (Übergabe an den Main-Thread, P73). `EmojiMixClient` (eigenes OkHttp `EmojiMixHttp`: keine Weiterleitung,
     kein Cookie, Zeitlimits 10/15/20 s): URL vor der Anfrage prüfen, 3xx = Fehler, 404 = `Missing`,
     nur `image/png` mit PNG-Signatur, höchstens 2 MB.
     `A/commands/EmojiMixCommand.kt` (`@mix`): ein Emoji → bis zu 6 Partner, zwei → Paar-Chip,
@@ -838,11 +839,15 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `A/EmojiMixPalette.kt`: Mixer-Modus der Emoji-Ansicht (Leiste, Auswahl höchstens 2, ein drittes
     ersetzt das zweite, Partnerzeile bei fehlender Mischung, Vorschau mit Gleit- und
     Skalier-Animation 220 ms, still bei `ANIMATOR_DURATION_SCALE` 0). Das zweite Emoji ist die
-    Anfrage (`request` nur bei unbekanntem Zustand). Gesperrt: `toggle` zeigt einen Toast,
-    `onEmoji` beendet den Modus und lässt das Emoji normal tippen. Einstellungen:
+    Anfrage: `load` (einziger Netzweg der Ansicht) nur bei unbekanntem Zustand und höchstens
+    einmal je Wahl (`requestedKey`, zurückgesetzt bei jeder Änderung der Auswahl, P74); ist der
+    Zustand danach aus dem Speicher verschwunden, lädt erst ein Tipp auf „Tippen, um … zu laden“.
+    Gesperrt: `toggle` zeigt einen Toast, `onEmoji` beendet den Modus und lässt das Emoji normal
+    tippen, `load` (Partner, Wiederholen) beendet ihn ohne Anfrage. Einstellungen:
     `K/settings/screens/AgentEmojiMixSection.kt`. Texte in `agent_emoji_mix_strings.xml`
     (`values/`, `values-de/`). Tests `CT/EmojiMixTest.kt`, `AT/commands/EmojiMixCommandTest.kt`,
-    `AT/EmojiMixPaletteTest.kt`.
+    `AT/EmojiMixPaletteTest.kt`, mit echtem Host
+    `InputLogicTest.typedEmojiPairOffersTheMixAndReplacesItOnlyAfterTwoTaps` (P73).
   - Tests: `CT/UrlDetectorTest.kt`, `CT/SymbolTableTest.kt`, `CT/UnitConversionTest.kt`,
     `CT/EventParserTest.kt`, `CT/DateFormattingTest.kt`, `CT/PlacesTest.kt`, `CT/AlarmParserTest.kt`,
     `CT/TimerParserTest.kt`, `AT/commands/ClockCommandsTest.kt`;
@@ -1294,7 +1299,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   enthaltenen ABIs, derzeit `…-universal.apk` (Fallstrick P19). `-Pandroid.injected.testOnly=false`
   verhindert, dass die APK als test-only markiert wird (Fallstrick P16). `agent-tests` läuft über
   `helium314.keyboard.agent.*`, die erzeugten `InputLogicTest`-Fälle (`generated*`,
-  `typedCommand*`, `screenshotChip*`) und `BatchDeliveryTest`.
+  `typedCommand*`, `typedEmoji*`, `screenshotChip*`) und `BatchDeliveryTest`.
   Toolchain und Einrichtung: `docs/BUILD.md`. UI-Tests schreiben gerenderte Vorschauen nach
   `app/build/agent-previews/` (z. B. `builder-send-review.png`, nicht versioniert).
 - `tools/emoji_mix_table.py` (25a): baut `app/src/main/assets/emoji_mix_pairs.bin` aus der
@@ -1562,6 +1567,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `EmojiMixer.state` (Cache auf dem Gerät), nie `request`. Im Mixer der Emoji-Ansicht ist die
   Wahl des zweiten Emojis der Tipp; `request` dort nur bei unbekanntem Zustand, sonst würde jede
   Neuzeichnung nach einem Fehler erneut laden.
+- **P73** `InputLogicTest` ersetzt `Handler.sendMessage`/`sendMessageDelayed` durch einen Schatten,
+  der Nachrichten nur sammelt; ein `Handler.post` aus einem Hintergrund-Thread (hier die
+  Ergebnisse von `EmojiMixer`) kommt dort nie an, auch nicht über `ShadowLooper.idle`. Der Test
+  setzt deshalb `EmojiMixer.toMain` und führt die Übergaben selbst aus. Ein Laden, das vor dem
+  Austausch begonnen hat (z. B. die Tabelle über die Leiste beim Start des Felds), meldet sich
+  nie zurück; `resetForTest` erlaubt dann ein neues Laden der Tabelle.
+- **P74** Ein Zustand in `EmojiMixer` kann verschwinden (LRU mit 12 Paaren, „Gespeicherte
+  Mischungen löschen“), während die Emoji-Ansicht dieselbe Wahl zeigt. Jede Änderung irgendeines
+  Paars zeichnet den Mixer neu; ohne die Merkung `requestedKey` würde die Neuzeichnung dann ohne
+  Tipp erneut laden. Eine neue Anfrage für dieselbe Wahl kommt nur aus einem Tipp.
 
 ## Datei-Inventar
 

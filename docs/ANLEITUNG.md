@@ -357,7 +357,8 @@ von Google (www.gstatic.com); gesendet werden dabei nur die beiden Emojis, kein 
   zweite. Gibt es keine Mischung, steht dort „Keine Mischung“ mit Partnern, die eine haben.
   Nochmals „Emoji-Mixer“ oder das Verlassen der Emoji-Ansicht beendet den Mixer.
 - „Keine Mischung“ heißt: Google hat dieses Paar nicht. Bei „Laden fehlgeschlagen“ (kein Netz)
-  versucht ein neuer Tipp es noch einmal.
+  versucht ein neuer Tipp es noch einmal. Steht im Mixer „Tippen, um die Mischung von Google zu
+  laden“ (z. B. nachdem du die gespeicherten Mischungen gelöscht hast), lädt erst dieser Tipp.
 - Geladene Sticker bleiben auf dem Gerät (höchstens 20 MB, die ältesten gehen zuerst) und
   erscheinen beim nächsten Mal sofort ohne Internet. Löschen: Einstellungen → Befehle →
   „Gespeicherte Mischungen löschen“.

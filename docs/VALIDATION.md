@@ -1833,17 +1833,41 @@ Befunde eines lesenden Reviews der Befehle, behoben:
   nur direkt an der Schreibmarke und nur für Paare der Tabelle, Ersetzen der zwei Emojis, Schalter,
   gesperrte Felder/Inkognito/Sperre, Client: fremde Hosts nie angefragt, Weiterleitung nicht
   verfolgt, falscher Typ, zu groß, 404, 500, Zeitlimit; echte Ein-Commit-Ersetzung der zwei
-  Emojis mit `RichInputConnection` für Surrogate, FE0F und ZWJ) und `AT/EmojiMixPaletteTest` (7:
+  Emojis mit `RichInputConnection` für Surrogate, FE0F und ZWJ) und `AT/EmojiMixPaletteTest` (anfangs 7:
   Leiste an/aus, Seiten geben ihre Höhe ab, Auswahl höchstens zwei, Laden genau einmal je Paar,
   Vorschau und Einfügen, Partner ohne Netz, gesperrt bleibt aus; echte Emoji-Ansicht aus
   `KeyboardSwitcher`: beide Hälften genau gleich breit, Zurück/Löschen bleiben, Taste schaltet den
   Mixer, Verlassen beendet ihn; auch im flachen Stil).
-- Gesamtläufe: siehe unten (wird beim Abschluss eingetragen).
-- Nicht geprüft: www.gstatic.com ist aus der Cloud-Umgebung nicht erreichbar, es wurde also nie ein
-  echtes Bild geladen (Muster nur gegen die Metadatei geprüft); kein Gerätetest (Einfügen in echte
-  Chat-Apps, Mixer-Leiste und Animation, Lesbarkeit der Tastentexte, ob der Leisten-Chip nach
-  Emojis aus der Emoji-Ansicht beim Zurückwechseln erscheint). Lizenz der Paarliste schriftlich
-  ausstehend (`docs/BUILD.md`).
+- Fertigstellung aus dem ungetesteten Zwischenstand `wip/emoji-mix` (Arbeitskopie, nach dem
+  Merge auf den Arbeitsbranch): Stand gelesen, kompiliert, die 9 + 10 + 7 Tests liefen schon grün.
+  Ergänzt: Der Mixer lädt je Wahl höchstens einmal ohne neuen Tipp (`requestedKey`, P74; vorher
+  hätte eine Neuzeichnung nach Verlust des Zustands erneut geladen) und prüft vor jeder Anfrage
+  aus Partner-Tipp und Wiederholen das Feld (gesperrt → Modus aus, keine Anfrage); neuer Text
+  „Tippen, um die Mischung von Google zu laden“. Testnaht `EmojiMixer.toMain` (P73). Schwache
+  Prüfung `requests.size <= 2` durch die genaue Liste ersetzt; die Hälften-Prüfung verlangt jetzt
+  die Taste „Emojis suchen“ (mit eingebautem Emoji-Wörterbuch) statt die Leertaste zuzulassen.
+- Neu geprüft (Robolectric): `AT/EmojiMixPaletteTest` jetzt 10 (neu: Neuzeichnung lädt dieselbe
+  Wahl nicht erneut, erst der Tipp; ein Emoji-Tipp in `EmojiPalettesView.onReleaseKey` wählt im
+  Mixer-Modus aus statt zu tippen, auch Emojis aus mehreren Codepunkten, nur `onReleaseKey` an den
+  Listener; gesperrt gewordenes Feld beendet den Mixer beim Partner-Tipp ohne Anfrage) und
+  `InputLogicTest.typedEmojiPairOffersTheMixAndReplacesItOnlyAfterTwoTaps` (echter Host über
+  `KeyboardCommands.createChipsView`: „Na 🐶🔥“ getippt → Chip ohne Anfrage → Tipp = genau die
+  eine URL, Feld unverändert → Sticker-Chip → Tipp fügt ein und entfernt die zwei Emojis in einem
+  Commit, Verbindung konsistent; „🐶x🔥“ → kein Chip, keine Anfrage). `agent-tests` nimmt
+  `InputLogicTest.typedEmoji*` jetzt mit.
+- Generator am 2026-11-13 erneut laufen lassen: Eingabe-SHA-256 gleich (`73a7a2a6…1804`,
+  98 873 872 Byte), Ausgabe Byte für Byte gleich dem Asset (`28a06b84…a556`).
+- Gesamtläufe: `tools/dev.py core-tests` grün (`EmojiMixTest` 9/9); `tools/dev.py agent-tests`
+  grün (597 Tests in 75 Klassen, 0 Fehler, 0 übersprungen); `tools/dev.py build` erfolgreich, die
+  APK enthält `assets/emoji_mix_pairs.bin` (48 690 Byte). `upstream-tests` (voller Lauf) und
+  `lint` nicht in dieser Arbeitskopie gelaufen (Auftrag: macht der Lead).
+- Nicht geprüft: www.gstatic.com ist aus der Cloud-Umgebung nicht erreichbar (Proxy lehnt ab,
+  am 2026-11-13 erneut versucht), es wurde also nie ein echtes Bild geladen (Muster nur gegen die
+  Metadatei geprüft); kein Gerätetest (Einfügen in echte Chat-Apps, Mixer-Leiste und Animation,
+  Lesbarkeit der Tastentexte, ob der Leisten-Chip nach Emojis aus der Emoji-Ansicht beim
+  Zurückwechseln erscheint, ob die Leiste nach getippten Emojis auf dem Gerät neu aufgebaut
+  wird – der Test ruft `createChipsView` direkt). Kein Prüfer gelesen. Lizenz der Paarliste: nur
+  mündliche Zustimmung, Lizenzdatei später zu prüfen (`docs/BUILD.md`).
 
 ## Gerätetest vor Meilensteinfreigabe
 

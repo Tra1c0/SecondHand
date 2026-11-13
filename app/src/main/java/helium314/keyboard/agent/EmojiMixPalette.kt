@@ -43,6 +43,8 @@ class EmojiMixPalette(private val palette: LinearLayout, private val pager: View
     private var editorInfo: EditorInfo? = null
     private var baseHeight = -1
     private var shownFile: File? = null
+    /** The pair the current choice already requested: a redraw (any state change) never asks again (P72). */
+    private var requestedKey: String? = null
 
     var isActive = false
         private set
@@ -138,6 +140,7 @@ class EmojiMixPalette(private val palette: LinearLayout, private val pager: View
         if (on == isActive) return
         isActive = on
         selection.clear()
+        requestedKey = null
         shownFile = null
         if (on) {
             baseHeight = pager.layoutParams?.height ?: -1
@@ -161,6 +164,7 @@ class EmojiMixPalette(private val palette: LinearLayout, private val pager: View
             return false
         }
         if (selection.size < 2) selection += emoji else selection[1] = emoji
+        requestedKey = null
         update()
         return true
     }
@@ -168,6 +172,7 @@ class EmojiMixPalette(private val palette: LinearLayout, private val pager: View
     fun remove(index: Int) {
         if (index !in selection.indices) return
         selection.removeAt(index)
+        requestedKey = null
         update()
     }
 
@@ -213,11 +218,20 @@ class EmojiMixPalette(private val palette: LinearLayout, private val pager: View
                     table == null -> { dots.visibility = View.VISIBLE; status.text = "" }
                     mix == null -> showPartners(table)
                     else -> {
-                        // choosing the second emoji is the request: once per pair, a cached mix needs no network
+                        // choosing the second emoji is the request: once per choice, a cached mix needs no network
                         var state = EmojiMixer.state(context, mix)
-                        if (state == null && EmojiMixer.request(context, mix)) state = EmojiMixer.state(context, mix)
+                        if (state == null && requestedKey != mix.key) {
+                            requestedKey = mix.key
+                            if (load(mix)) state = EmojiMixer.state(context, mix)
+                        }
                         when (state) {
-                            null, EmojiMixer.State.Loading -> {
+                            null -> {
+                                // requested before, but the state was dropped from memory meanwhile: only a new tap loads
+                                status.setText(R.string.agent_emoji_mixer_tap_to_load)
+                                status.isClickable = true
+                                status.setOnClickListener { load(mix) }
+                            }
+                            EmojiMixer.State.Loading -> {
                                 dots.visibility = View.VISIBLE
                                 status.setText(R.string.agent_emoji_mixer_loading)
                             }
@@ -225,7 +239,7 @@ class EmojiMixPalette(private val palette: LinearLayout, private val pager: View
                             is EmojiMixer.State.Failed -> {
                                 status.setText(R.string.agent_emoji_mixer_failed)
                                 status.isClickable = true
-                                status.setOnClickListener { EmojiMixer.request(context, mix) }
+                                status.setOnClickListener { load(mix) }
                             }
                             is EmojiMixer.State.Ready -> {
                                 ready = state
@@ -238,6 +252,15 @@ class EmojiMixPalette(private val palette: LinearLayout, private val pager: View
         }
         showPreview(ready)
         palette.requestLayout()
+    }
+
+    /** The only network path of the palette, always from a tap; never in a blocked field (the mode ends then). */
+    private fun load(mix: EmojiMix): Boolean {
+        if (EmojiMixer.blocked(field())) {
+            setActive(false)
+            return false
+        }
+        return EmojiMixer.request(context, mix)
     }
 
     private fun showPartners(table: EmojiMixTable) {
@@ -254,6 +277,7 @@ class EmojiMixPalette(private val palette: LinearLayout, private val pager: View
                 isClickable = true
                 setOnClickListener {
                     if (selection.size == 2) selection[1] = partner else selection += partner
+                    requestedKey = null
                     update()
                 }
             }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT))
@@ -293,7 +317,7 @@ class EmojiMixPalette(private val palette: LinearLayout, private val pager: View
         val mix = currentMix() ?: return false
         val state = EmojiMixer.state(context, mix) as? EmojiMixer.State.Ready ?: return false
         val target = EmojiMixer.latinIme(context) ?: context
-        val done = { selection.clear(); update() }
+        val done = { selection.clear(); requestedKey = null; update() }
         return EmojiMixer.deliver(target, field(), state.file, afterInsert = done, afterShare = done)
     }
 

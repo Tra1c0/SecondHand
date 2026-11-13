@@ -134,9 +134,12 @@ abgerufen am 2026-11-13, 98 873 872 Byte, SHA-256
 `73a7a2a6fbeb620f13ed6622b344cc0dfd21dfe07aca8ce46c564afe54e21804` (am selben Tag zweimal
 geladen, gleiche Summe). Die Datei ist nicht im Repository.
 
-Lizenzstand: Das Repository des Autors hat keine Lizenzdatei. Erlaubnis des Autors laut Owner
-mündlich am 2026-11-13, schriftliche Lizenz ausstehend. Der Owner hat entschieden, dass wir die
-Liste verwenden. Offen: Lizenzdatei im Repository des Autors nachprüfen (`docs/HANDOFF.md`).
+Lizenzstand (**später zu prüfen**): Das Repository des Autors (`xsalazar/emoji-kitchen-backend`)
+hat keine Lizenzdatei. Der Autor hat laut Owner am 2026-11-13 mündlich zugestimmt; eine
+Lizenzdatei oder schriftliche Erlaubnis fehlt noch. Der Owner hat entschieden, dass wir die Liste
+verwenden. Offen: später nachprüfen, ob eine Lizenzdatei im Repository des Autors liegt, und
+das Ergebnis hier eintragen (`docs/HANDOFF.md`, `docs/ROADMAP.md` → U7). Am 2026-11-13 erneut
+erzeugt: gleiche Eingabe-Summe, gleiche Ausgabe Byte für Byte.
 Die Bilder selbst lädt die App erst auf dem Telefon von Google (www.gstatic.com), sie sind nicht
 in der APK.
 

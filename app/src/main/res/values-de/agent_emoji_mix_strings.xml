@@ -28,6 +28,7 @@
     <string name="agent_emoji_mixer_loading">lädt von Google</string>
     <string name="agent_emoji_mixer_none">Keine Mischung. Partner mit Mischung:</string>
     <string name="agent_emoji_mixer_failed">Laden fehlgeschlagen. Tippen zum Wiederholen.</string>
+    <string name="agent_emoji_mixer_tap_to_load">Tippen, um die Mischung von Google zu laden</string>
     <string name="agent_emoji_mixer_insert">Sticker antippen zum Einfügen</string>
     <string name="agent_emoji_mixer_share">Sticker antippen zum Teilen</string>
     <string name="agent_emoji_mixer_remove">%s entfernen</string>

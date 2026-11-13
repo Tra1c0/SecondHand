@@ -34,6 +34,7 @@
     <string name="agent_emoji_mixer_loading">loading from Google</string>
     <string name="agent_emoji_mixer_none">No mix. Partners with a mix:</string>
     <string name="agent_emoji_mixer_failed">Loading failed. Tap to try again.</string>
+    <string name="agent_emoji_mixer_tap_to_load">Tap to load the mix from Google</string>
     <string name="agent_emoji_mixer_insert">Tap the sticker to insert it</string>
     <string name="agent_emoji_mixer_share">Tap the sticker to share it</string>
     <string name="agent_emoji_mixer_remove">Remove %s</string>
