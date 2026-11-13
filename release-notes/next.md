@@ -94,3 +94,4 @@
   Freunde installieren die APK einmal von github.com/Tra1c0/AgenticKeyboard/releases.
 - Neue Berechtigungen: Benachrichtigungen (nur für die tägliche Update-Suche) und „Apps
   installieren“ (nur für Updates, Android fragt jedes Mal).
+- Behoben: `@translate` beendet den Text erst beim letzten Anführungszeichen; Zitate im Text gehen.

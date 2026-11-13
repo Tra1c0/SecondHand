@@ -203,7 +203,9 @@ stehen unten. Noch auf keinem Gerät ausprobiert.
   öffnet bei fehlendem Schlüssel die KI-Einstellungen, sonst das Panel mit dem Grund.
 - `@translate "Text" Stil`: z. B. `@translate "wann treffen wir uns morgen" natürliches slang
   spanisch`. Der Text steht in Anführungszeichen ("…", „…“, “…”, «…», »…«, '…'), alles danach
-  ist der Stil (Sprache, Ton, Slang); ohne Stil wird es natürliches Englisch. Chip „🌐 Übersetzen
+  ist der Stil (Sprache, Ton, Slang); ohne Stil wird es natürliches Englisch. Der Text endet beim
+  letzten passenden Anführungszeichen, Zitate im Text gehen also („… funktioniert "@translate"
+  super“); im Stil dann keine Anführungszeichen derselben Art verwenden. Chip „🌐 Übersetzen
   mit Anbieter: Stil“ antippen – das sendet genau Stil und Text (eigener Schlüssel nötig); danach
   wie bei `@ki`: „Übersetze …“, dann die Übersetzung als Chip antippen, um den Befehl zu ersetzen. Höchstens 500 Zeichen nach
   `@translate`; bei mehr verschwindet der Chip und die Autokorrektur greift wieder. Für längere
@@ -213,6 +215,11 @@ stehen unten. Noch auf keinem Gerät ausprobiert.
 - `@datum`, `@datum morgen`; `@termin Samstag halb acht Kino` öffnet einen Kalenderentwurf (gespeichert
   ist er erst in der Kalender-App); `@ort Bahnhofstraße 1 Köln` oder `@ort zuhause` (Orte unter
   Einstellungen → Befehle → „Gespeicherte Orte“).
+  `@termin` versteht Tage (`heute`, `morgen`, `übermorgen`, `+3`, `in 3 Tagen`, Wochentage,
+  `24.12.`, `24. Dezember`, `2026-12-24`) und Uhrzeiten (`18:30`, `18 Uhr`, `6pm`, `halb acht`,
+  `viertel nach acht`, `dreiviertel acht`, `zehn nach acht`, `Mittag`; eine nackte Zahl nur mit
+  `um`/`gegen` davor oder `Uhr` dahinter), dazu `abends`/`nachmittags`. Auch Englisch und Spanisch.
+  Der Rest wird der Titel. Ohne Uhrzeit ein Ganztagstermin, sonst eine Stunde lang.
 
 ## Design auswählen
 

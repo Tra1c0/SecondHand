@@ -46,8 +46,17 @@ class StyledTranslationTest {
         assertEquals(StyledTranslation.Parsed("hallo", StyledTranslation.DEFAULT_STYLE, true), parse("\"hallo\"   "))
     }
 
-    @Test fun quotesInTheStyleStayInTheStyleAndTextBeforeTheQuoteCounts() {
-        assertEquals(StyledTranslation.Parsed("hi", "wie \"Tarantino\" auf Spanisch", false), parse("\"hi\" wie \"Tarantino\" auf Spanisch"))
+    @Test fun quotesInsideTheTextEndOnlyAtTheLastClosingQuote() {
+        // owner's case: quotes of the same kind inside the text belong to the text
+        assertEquals(StyledTranslation.Parsed("abgesehen davon, funktioniert \"@translate\" super", "spanisch", false),
+            parse("\"abgesehen davon, funktioniert \"@translate\" super\" spanisch"))
+        assertEquals("sie sagte „ja“ und „nein“", parse("„sie sagte „ja“ und „nein““ Englisch")?.text)
+        // so the style must not use the same kind of quote; another kind is fine
+        assertEquals("hi\" wie \"Tarantino", parse("\"hi\" wie \"Tarantino\" auf Spanisch")?.text)
+        assertEquals(StyledTranslation.Parsed("hi", "wie «Tarantino» auf Spanisch", false), parse("\"hi\" wie «Tarantino» auf Spanisch"))
+    }
+
+    @Test fun textBeforeTheQuoteCountsAsStyle() {
         assertEquals(StyledTranslation.Parsed("hola", "auf Deutsch förmlich", false), parse("auf Deutsch \"hola\" förmlich"))
     }
 

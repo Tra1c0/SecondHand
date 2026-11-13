@@ -29,9 +29,11 @@ object StyledTranslation {
     private const val APOSTROPHES = "'’‘‚"
 
     /**
-     * The text inside the first pair of quotes and the style around it, or null without a closed,
-     * non-blank quote. A quote that is also an apostrophe opens only after a space or at the start,
-     * and closes only before a space, punctuation or the end.
+     * The text from the first opening quote to the LAST matching closing quote, and the style around
+     * it, or null without a closed, non-blank quote. Taking the last closer keeps quotes inside the
+     * text ("abgesehen davon funktioniert "@translate" super"); the style after it therefore must not
+     * use the same kind of quote. A quote that is also an apostrophe opens only after a space or at
+     * the start, and closes only before a space, punctuation or the end.
      */
     fun parse(argument: String): Parsed? {
         if (argument.any { it == '\n' || it == '\r' }) return null
@@ -46,7 +48,7 @@ object StyledTranslation {
         if (open < 0) return null
         val closers = CLOSERS.getValue(argument[open])
         var close = -1
-        for (j in open + 1 until argument.length) {
+        for (j in argument.length - 1 downTo open + 1) {
             val c = argument[j]
             if (c !in closers) continue
             if (c in APOSTROPHES && j + 1 < argument.length && argument[j + 1].isLetterOrDigit()) continue
