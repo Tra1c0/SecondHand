@@ -187,6 +187,7 @@ Reihenfolge von oben nach unten.
   nur in einer Szene), gedämpft und begrenzt; vorheriger Stand wiederherstellbar. Szenen auf der
   Seite Trefferzonen sichtbar und löschbar. Engine-Änderung (`KeyDetector`-Hook), Prüfer Pflicht.
   (L)
+- **48 Autokorrektur: getipptes Wort vorne, keine ungewollte Großschreibung (Rückmeldung des Owners
   vom 2026-11-14)** ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 48).
   Offen: Prüfer-Review (Engine-Änderung, Pflicht) und Gerätetest. Zu entscheiden (Owner): Felder,
   die selbst „jedes Wort groß“ verlangen (Namen, manche Betreff- und Suchfelder), bekommen weiter
