@@ -19,6 +19,11 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
   (Owner: „ruckelt tatsächlich nichts“, Messwerte Build 19: Tastatur Ø 2,7 / max 6,3 ms je Bild).
 - Owner zu Build 21 (2026-11-14): „Läuft alles top.“ Neu: ROADMAP 51 (Autokorrektur folgt der
   Sprache, Spanisch im Kontext).
+- Laufende Runde (2026-11-14): gebaut und gemergt 37 (Bildwiederholrate-Karten), 40 (Smart Paste,
+  ohne Prüfer). Abgebrochen am Wochenlimit (bis 2026-11-18 20:00 UTC), Stand als lokale WIP-Commits
+  in den Arbeitskopien: 51 (`worktree-agent-a2097cf2c32d1265f`), 53 (`worktree-agent-a77289555b6908440`);
+  die 37-Korrektur (Kontrast, Farbtausch 30 = gelb, 60 = grün, echte 30/60-fps-Taktung, Punkte
+  übereinander) hatte noch nichts geändert. Offen: Prüfer für 40, 52, 34 (XL, bestätigt).
 - Nächste Sitzung: Rückmeldungen zu Build 20/21 (Symbole mit Punkten, Malen nach dem Tippen,
   Link-Chip, Code-Felder, Gedächtnis, Trefferzonen); offene Owner-Fragen in ROADMAP 44–50; dann
   ROADMAP 34, 37, 39, 40.
