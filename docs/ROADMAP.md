@@ -194,6 +194,13 @@ Reihenfolge von oben nach unten.
   „Trefferzonen an mich anpassen“. Offen: Engine-Review (`KeyboardActionListenerImpl.onCodeInput`,
   `LatinIME.onStartInputViewInternal`), Gerätetest (Schwellen mit echten Fingern, Tageszeiten,
   Beförderung über mehrere Tage).
+- **51 Autokorrektur folgt der Sprache, Spanisch im Kontext (Rückmeldung des Owners zu Build 21,
+  2026-11-14)** — beschlossen, nächste Runde. (a) Beim Umstellen der Sprache muss die Autokorrektur
+  mit umstellen (Ursache vor dem Bau eingrenzen: Sprachtaste, Wischen auf der Leertaste,
+  `@deutsch`/`@sp`, „Sprache pro App“, Wörterbücher und die gelernten Daten aus 46/48/49 je Sprache).
+  (b) Spanische Wörter sollen im Kontext erkannt werden (nicht wegkorrigiert, passende Vorschläge),
+  auch in deutschem Text; Bezug zu HeliBoards „Mehrsprachiges Tippen“ und zur Regel „fur“ aus 49.
+  Genaues Verhalten mit dem Owner klären. Engine-Änderung, Prüfer Pflicht.
 - **47 KI-Kontext im Hintergrund — verworfen (Owner, 2026-11-14):** „Dann lassen wir das.“ Alles
   lokal; die Tastatur lernt selbst dazu (45, 46).
 - **Verworfen (Owner, 2026-11-14):** Mail-Anbindung (Gmail/IMAP) und Codes aus Benachrichtigungen.
