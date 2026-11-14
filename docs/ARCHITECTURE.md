@@ -226,36 +226,57 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   `contextLength`. Test `CT/clip/PrivateRangesTest.kt`.
 - Smart Paste (Etappe 40, Paket `dev.agentkeyboard.core.clip`, P203–P205): `SmartPaste.kt`
   (`SmartAction`: `OpenMap`, `SavePlace`, `Dial`, `AddContact`, `InsertIban`, `IbanInvalid`, `Track`,
-  `CreateEvent`, `WriteMail`, `InsertClean`, `InsertCode`, `inserts`; `toString` ohne Text;
+  `CreateEvent`, `WriteMail`, `InsertClean`, `InsertCode`, `inserts`, `insertsPrivately` = nur
+  `InsertCode` und `InsertIban`, P206; `toString` ohne Text;
   `SmartPaste.recognize(text, markedSensitive, region, now, language)` = `ClipGuard.classify` plus
-  `actions(text, verdict, …)`: markiert, SECRET, leer oder über `MAX_TEXT` = 2000 Zeichen → nichts;
-  ADDRESS → Karte und Ort (Zeilen mit „, “ verbunden, Ort nur bis `Places.MAX_ADDRESS`); PHONE →
-  Wählen und Kontakt; IBAN → `IbanCheck.normalize` (wie ClipGuard, auch „IBAN:“), falsche
-  Prüfziffer `IbanInvalid`, richtige `InsertIban(group)`, schon so geschrieben nichts; EMAIL →
-  Mail (ohne `mailto:`); LINK → `LinkCleaner.clean`; OTP nur `inText` → die Ziffern; TEXT →
-  `TrackingNumbers.find`, `ClipDates.find`, `LinkCleaner.cleanText`; höchstens `MAX_ACTIONS` = 3;
-  `placeName` = erster Teil der Adresse, höchstens `Places.MAX_NAME`, bei Gleichstand „ 2“, „ 3“ …).
+  `actions(text, verdict, region, now, language)`: markiert, SECRET, leer oder über `MAX_TEXT` =
+  2000 Zeichen → nichts; ADDRESS → `AddressQuery.of` (Nachprüfung 40, B7; interne Klasse in
+  `SmartPaste.kt`: Teile nach Zeilen, dann Kommas, eine bloße Hausnummer bleibt bei ihrer Straße;
+  Bezeichnungen „…adresse:“/„Anschrift:“ fallen weg, Teile mit Telefon-, Mail- oder Web-Wort, `@`
+  oder nur Ziffern auch, Namen, Firmen und Länder ebenso; übrig bleiben nur Straßen- und
+  PLZ-Ort-Teile, `place` = true; steht ein Straßen- oder PLZ-Treffer mitten in anderem Text,
+  Fließtext: erste Straße (`ClipGuard.STREET_DE/ES/EN`, `internal`) plus erste PLZ mit Ort, `place`
+  = false) → Karte, Ort nur mit `place` und bis `Places.MAX_ADDRESS`; PHONE → Wählen und Kontakt
+  nur, wenn der Text mit „+“, „00“ oder „0“ beginnt (auch nach „(“), mit `PhoneFormat.e164`
+  (Nachprüfung 40, B1), sonst wie TEXT; IBAN → `IbanCheck.normalize` (wie ClipGuard, auch
+  „IBAN:“), falsche Prüfziffer `IbanInvalid`, richtige `InsertIban(group)`, schon so geschrieben
+  nichts; EMAIL → Mail (ohne `mailto:`); LINK → `LinkCleaner.clean`; OTP nur `inText` → die
+  Ziffern; TEXT → `TrackingNumbers.find`, `ClipDates.find`, `LinkCleaner.cleanText`; höchstens
+  `MAX_ACTIONS` = 3; `placeName` = erster Teil der Adresse, höchstens `Places.MAX_NAME`, bei
+  Gleichstand „ 2“, „ 3“ …). `ClipGuard` selbst sortiert unverändert: „4500012345“ bleibt PHONE
+  (Beschriftung „Telefon“ im Verlauf, Feld-Vorschläge 45), nur Smart Paste wählt sie nicht.
+  `C/format/PhoneFormat.kt`: `e164(text, region)` (gültig wie `isValid`, sonst null).
   `TrackingNumbers.kt`: `Carrier` (DHL, DEUTSCHE_POST, HERMES, DPD, GLS, UPS) mit fester Seite je
   Dienst, `trackingUrl` nimmt nur 8–35 Großbuchstaben und Ziffern; `Tracking` (Dienst, Nummer,
   `url`, `toString` ohne Nummer); `find` bis `MAX_LENGTH` = 300 Zeichen: Wörter ohne Satzzeichen
   (mit Ziffer und höchstens vier Buchstaben in Großbuchstaben), ein kurzer Clip (≤ 40 Zeichen aus
-  Buchstaben, Ziffern, Leerzeichen) auch ohne Leerzeichen; ohne Namen nur UPS `1Z` + 16 mit
+  Buchstaben, Ziffern, Leerzeichen) auch ohne Leerzeichen; kein Kandidat direkt hinter `LABELLED`
+  (Kunden-, Bestell-, Auftrags-, Rechnungs-, Vertrags-, Steuer-, Kontonummer/-Nr., „Bestellung“,
+  „Rechnung“, customer/order/invoice number, pedido, factura …, bis 40 Zeichen davor, Nachprüfung
+  40, B5); ohne Namen nur UPS `1Z` + 16 mit
   `upsValid`, S10 `XX` + 9 Ziffern + `DE` mit `s10Valid`, DHL `JJD`/`JVGL` + 12–22 Ziffern, DHL
   `00340434` + 12 Ziffern mit `gs1Valid` (SSCC), Hermes `H` + 19 Ziffern; mit dem Namen im Text
   (ganzes Wort, in Textreihenfolge) DHL 12 oder 20, Hermes 14 oder 16, DPD 14, GLS 11–12 Ziffern
-  oder 8 Zeichen aus Großbuchstaben und Ziffern. `LinkCleaner.kt`: `clean` (nur über
+  oder 8 Zeichen aus Großbuchstaben und Ziffern, diese nur mit „Track-ID“/„TrackID“ bis 20 Zeichen
+  davor und nie in BIC-Form (`[A-Z]{6}[A-Z0-9]{2}`). `LinkCleaner.kt`: `clean` (nur über
   `UrlDetector.isUrl`, auch ohne Schema) und `cleanText` (jede `http(s)://`-Adresse bis zum
   Leerraum, schließende Satzzeichen wie in `UrlDetector.find`, bis `MAX_TEXT` = 4000) entfernen nur
   Query-Parameter aus `NAMES`, mit Präfix `utm_` (ohne Groß-/Kleinschreibung) und `si` nur auf
-  youtube.com, youtu.be, spotify.com samt Subdomains; Reihenfolge, Kodierung, leere Werte und das
+  youtube.com, youtu.be, spotify.com samt Subdomains; geteilt wird nur an `&`, ein Teil mit `;`
+  bleibt ganz (Nachprüfung 40, B6); Reihenfolge, Kodierung, leere Werte, leere Teile („&&“) und das
   Fragment bleiben; null, wenn nichts zu entfernen ist. `ClipDates.kt`: Tor vor `EventParser.parse`
   (bis 200 Zeichen, 4 Zeilen; „Guten Morgen“ fällt weg, ein Punkt hinter Datum, Uhrzeit oder „Uhr“
-  am Satzende auch): Kalenderdatum (mit Jahr, ISO, `/` mit Jahr, `DD.MM.`, `am 3.12.`, Tag +
+  am Satzende auch; Öffnungszeiten und Erreichbarkeit (`HOURS`, `WEEKDAY_RANGE`: „Öffnungszeiten“,
+  „erreichbar“, „Hotline“, „täglich“, „Mo-Fr“, „Montag bis Freitag“, opening hours, horario …) →
+  nichts): Kalenderdatum (mit Jahr, ISO, `/` mit Jahr, `DD.MM.`, `am 3.12.`, Tag +
   ausgeschriebener Monat, englisch Monat in Großschreibung + Tag) genügt; Tageswort oder gar kein
   Datum nur mit Uhrzeit, Uhrzeit ohne Tag nur mit Marke („Uhr“, am/pm, `um`/`at`/`a las`/`gegen`,
   halb/viertel); `D.M` ohne Punkt am Ende (Version, Betrag) ohne `am`/`on`/`el` davor macht den
-  ganzen Text zu keinem Datum; vergangene Tage und Daten ohne Jahr mehr als 300 Tage voraus nie.
-  Test `CT/clip/SmartPasteTest.kt` (Prüfziffern der Beispiele getrennt berechnet).
+  ganzen Text zu keinem Datum, ebenso `D.M.YY` mit einstelligem Tag oder Monat ohne solches Wort
+  („PHP 8.3.28“) und jede Zahl mit Punkten direkt nach `VERSION_WORDS` (Version, Update, Release,
+  v, Firmware, Build, Patch …; Nachprüfung 40, B3); vergangene Tage und Daten ohne Jahr mehr als
+  300 Tage voraus nie. Test `CT/clip/SmartPasteTest.kt` (Prüfziffern der Beispiele getrennt
+  berechnet).
 - `C/suggest/ContextSuggest.kt` (Etappe 45, Paket `dev.agentkeyboard.core.suggest`, P161–P163):
   `SuggestKind` (EMAIL, PHONE, IBAN, ADDRESS, NAME, OTP, LINK), `AppCategory.of(packageName)`
   (MESSENGER/MAIL/BROWSER/OTHER nach Paket-Präfix), `FieldClass`, `FieldSignals` (Klasse,
@@ -648,8 +669,9 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
   blendet diese Reihe aus (`shownView`), nicht nur die Pille; ein einfügender Chip ruft danach
   `removeClipboardSuggestion`. `ClipboardAdapter.setContent` ruft für jede Karte
   `SmartPasteChips.bindHistoryRow` (Feld `smartPaste`), `ClipboardHistoryView.startClipboardHistory`
-  setzt dafür eine `SmartPasteChips.History` für das Feld dieser Ansicht (`onSmartInsert`: wie
-  `onVaultPick` über `onPrivateTextInput`, P178), `stopClipboardHistory` nimmt sie weg. Keine neue
+  setzt dafür eine `SmartPasteChips.History` für das Feld dieser Ansicht (`onSmartInsert(text,
+  privateText)`: Code und IBAN wie `onVaultPick` über `onPrivateTextInput`, P178, ein bereinigter
+  Link wie `onKeyUp` einer Karte über `onTextInput`, P206), `stopClipboardHistory` nimmt sie weg. Keine neue
   Upstream-Datei, kein Layout geändert (die Reihe entsteht im Code in der Textspalte der Karte).
 - `LatinIME.java` (23g): `setSuggestedWords` ruft nach `tryShowCommandChips` und nach
   `mInputLogic.setSuggestedWords` `tryShowScreenshotChip` (blendet bei `mAutoHideToolbar` die
@@ -1574,18 +1596,23 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `EventCommand.intent` (`ACTION_INSERT` auf `Events.CONTENT_URI`, keine Kalender-Berechtigung);
     alle mit `FLAG_ACTIVITY_NEW_TASK`, gestartet über `launcher` (`SearchCommand.Launcher`,
     fehlende App → Toast). `<queries>` braucht es nicht: `startActivity` fragt keine Sichtbarkeit
-    ab, und das Manifest hat ohnehin `action *`. `perform`: einfügende Aktionen über `insert`, „Als
+    ab, und das Manifest hat ohnehin `action *`. `perform`: einfügende Aktionen über `insert(text,
+    action.insertsPrivately)` (`insertOrSay`: abgelehnt → Toast `agent_smart_insert_refused`), „Als
     Ort“ über `SavedPlaces` (nur `available`; dieselbe Adresse → Toast mit ihrem Namen, sonst
     `SmartPaste.placeName` gegen die vorhandenen Namen; voll/gesperrt → Toast), `IbanInvalid` nur
-    Toast. Leiste: `StripHost` (`imeHost`: Feld, für das die Pille gebaut wurde; `insertPrivate`
-    nur bei derselben Schreibmarke ohne Auswahl und `canReplaceAgentCommand`, dann
-    `LatinIME.onPrivateTextInput` wie Feld-Vorschläge, P162/P178); `stripChips` baut
-    `KeyboardCommands.Chip`s (Hinweis `MUTED`), jeder einmal (`used`) und erst nach erneuter
-    Prüfung von Schalter, Feld und Sperre; `stripRow` nimmt `KeyboardCommands.chipRow`, setzt die
+    Toast. Leiste: `StripHost` (`imeHost`: Feld, für das die Pille gebaut wurde; `insert(text,
+    privateText)` nur bei derselben Schreibmarke ohne Auswahl und `canReplaceAgentCommand`, dann
+    Code und IBAN über `LatinIME.onPrivateTextInput` wie Feld-Vorschläge, P162/P178, ein
+    bereinigter Link über `onTextInput` wie die Pille, P206); `stripChips` baut
+    `KeyboardCommands.Chip`s (Hinweis `MUTED`), jeder wirkt einmal (`used`) und erst nach erneuter
+    Prüfung von Schalter, Feld und Sperre; ein Tipp, der nichts tat (gesperrt, abgelehnt, keine
+    App, voll), setzt `used` zurück (Nachprüfung 40, B8); `stripRow` nimmt `KeyboardCommands.chipRow`, setzt die
     Pille an Index 0, nimmt der Zeile die Kennung `agent_command_chips` und begrenzt den Pillentext
     auf 2/5 der Breite. Verlauf: `History` je Besuch (Urteil je Eintrags-ID gemerkt, gesperrt beim
-    Öffnen: keine Chips), ein Tipp prüft das Feld erneut. Texte `agent_smart_paste_strings.xml`
-    (`values/`, `values-de/`). Test `AT/SmartPasteChipsTest.kt`.
+    Öffnen: keine Chips; `marked` = `SensitiveClips.matcher` einmal je Besuch wie
+    `ClipCommand.History`, also auch alte angeheftete Einträge aus dem Protokoll von 24f, Nachprüfung
+    40, B4), ein Tipp prüft das Feld erneut, auch dort setzt ein Tipp ohne Wirkung `used` zurück.
+    Texte `agent_smart_paste_strings.xml` (`values/`, `values-de/`). Test `AT/SmartPasteChipsTest.kt`.
   - Tests: `CT/UrlDetectorTest.kt`, `CT/SymbolTableTest.kt`, `CT/UnitConversionTest.kt`,
     `CT/EventParserTest.kt`, `CT/DateFormattingTest.kt`, `CT/PlacesTest.kt`, `CT/AlarmParserTest.kt`,
     `CT/TimerParserTest.kt`, `AT/commands/ClockCommandsTest.kt`;
@@ -3959,17 +3986,50 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sie −1, darum testet `SmartPasteChipsTest` das Einfügen über einen eigenen `StripHost` und den
   echten Weg nur bis zum Chip. Die Kartenreihe entsteht im Code in der Textspalte der Karte
   (`text.parent`); ein geändertes Upstream-Layout `clipboard_entry_key.xml` mit anderer Spalte
-  zeigt still keine Chips mehr.
+  zeigt still keine Chips mehr. Ein Tipp ohne Wirkung (Schreibmarke verschoben, gesperrt, keine
+  App) macht den Chip nicht tot: `used` gilt nur nach einer Wirkung (Nachprüfung 40, B8). Die Karten
+  fragen `SensitiveClips.matcher` einmal je Besuch, denn `ClipVault.isSecretClip` kennt nur die
+  Hashes im Speicher, nicht das Protokoll von 24f für alte angeheftete Einträge (B4).
 - **P205** Erkennung bewusst vorsichtig, und `EventParser` allein ist dafür zu großzügig: er liest
   „Guten Morgen“ als morgen, „Version 2.1“ als 2. Januar, „4h“ als 4 Uhr und „Abfahrt 18:30“ als
   Termin; `ClipDates` sperrt das vorher (Tests `versionNumbersAndAmountsAreNoDates`,
-  `dayWordsAloneUnmarkedTimesAndGreetingsAreNoDates`). Sendungsnummern: 12 bis 16 Ziffern sind auch
-  Kunden-, Bestell- und Kontonummern, deshalb ohne Namen des Dienstes nur die Formate mit Präfix und
-  Prüfziffer. Die Seiten der Dienste (`Carrier`) sind ohne Netz nicht geprüft: Ändert ein Dienst
+  `dayWordsAloneUnmarkedTimesAndGreetingsAreNoDates`, `openingHoursAndAvailabilityAreNoEvents`).
+  Nachprüfung 40 (B3): „PHP 8.3.28“, „Version 2.10.27“ und „Firmware 3.1.99“ las das Tor als Datum
+  mit Jahr; `D.M.YY` braucht jetzt „am“/„vom“/„on“/„el“ … davor oder zweistellige Tag und Monat,
+  nach Version/Update/Release/v/Firmware/Build gilt keine Zahl mit Punkten, und Öffnungszeiten
+  („Montag bis Freitag 9 bis 18 Uhr“, „Hotline ab 8 Uhr erreichbar“) sind kein Termin. Bekannt
+  offen: „Tabelle 10.11.30“ (zweistellig) und „Preis 12.12.“ gelten weiter als Datum.
+  Sendungsnummern: 12 bis 16 Ziffern sind auch Kunden-, Bestell- und Kontonummern, deshalb ohne
+  Namen des Dienstes nur die Formate mit Präfix und Prüfziffer, und auch mit Namen nichts direkt
+  hinter einer Kunden-, Bestell- oder Rechnungsnummer (B5); eine Kundennummer ohne Bezeichnung
+  neben „DHL“ gilt weiter als Sendung. GLS-IDs aus 8 Zeichen sehen aus wie BICs („GENODEM1“ der GLS
+  Bank) und wie beliebige Referenzen, darum nur mit „Track-ID“ davor und nie in BIC-Form.
+  Telefon (B1): libphonenumber nimmt in DE fast jede Ziffernfolge von 7 bis 12 Stellen als gültige
+  Nummer ohne Vorwahl-Null (Ortsnetz ohne 0), so wurden DHL-Paketnummern („340434161094“) und
+  SAP-Bestellnummern („4500012345“) zu „Anrufen“. Smart Paste wählt nur Text mit „+“, „00“ oder
+  „0“ am Anfang und gibt `tel:` und `Insert.PHONE` die E.164-Form; `ClipGuard` bleibt dabei (die
+  Beschriftung „Telefon“ im Verlauf und Feld-Vorschläge 45 sehen solche Folgen weiter als Nummer).
+  In Ländern ohne Vorwahl-Null (Spanien) und für US-Nummern ohne „1“ gibt es so nur mit „+“/„00“
+  einen Anruf-Chip. Adressen (B7): die Suche nimmt nur Straßen- und PLZ-Ort-Teile, Fließtext bekommt
+  nur „In Karten öffnen“ mit herausgesuchter Straße und PLZ; Straßennamen aus mehreren Wörtern vor
+  einem zusammengesetzten Straßenwort („Termin Hauptstraße 5“) gelten als Fließtext. `;` in Links
+  (B6): manche Server teilen auch an `;`; ein Teil mit `;` bleibt deshalb ganz, sonst ginge mit
+  „utm_source=x;id=2“ auch `id=2` verloren. Die Seiten der Dienste (`Carrier`) sind ohne Netz nicht
+  geprüft: Ändert ein Dienst
   seine Adresse, öffnet der Chip eine Fehlerseite (Gerätetest offen). `si` ist nur bei YouTube und
   Spotify ein Share-Parameter; anderswo kann er gebraucht werden und bleibt. Smart Paste liest nur
   Clips bis 2000 Zeichen und sortiert jeden Clip ein zweites Mal (`isSecretClip`, dann
   `recognize`); die Karten merken sich das Ergebnis je Eintrag.
+- **P206** Ein Feld hat höchstens `PrivateRanges.MAX` = 3 Marken für private Texte; jede weitere
+  verdrängt die älteste, auch die eines Tresor-Geheimnisses (P185). Smart Paste fügte anfangs alles
+  privat ein, drei bereinigte Links nach einem Geheimnis nahmen ihm so die Marke (Nachprüfung 40,
+  B2). Privat sind nur noch Code und IBAN (`SmartAction.insertsPrivately`: der Code wie aus dem
+  Tresor, die IBAN wie derselbe Clip als Feld-Vorschlag 45); ein bereinigter Link geht wie die Pille
+  über `onTextInput` (wird also wie jeder eingefügte Text danach wieder bearbeitbar und kann wie bei
+  der Pille gelernt werden). Drei Codes oder IBANs nach einem Geheimnis verdrängen es weiterhin
+  (bekannte Grenze von `PrivateRanges`). Test `SmartPasteChipsTest.aVaultSecretKeepsItsPrivateMarkAfterThreeSmartPasteInserts`
+  (mit echtem `PrivateRanges`, gefüttert wie `InputLogic`; der echte Weg über `InputLogic` ist für
+  Smart Paste nicht geprüft, P204).
 - **P194** Robolectric-Tests mit Feld müssen `latinIME.onStartInput`/`onStartInputView` aufrufen,
   nicht `latinIME.mHandler.onStartInput…` wie `InputLogicTest`: Nur `LatinIME` startet die
   Editor-Sitzung des Controllers (`startEditor`); sonst meldet `editor.protection()` `NO_EDITOR` und

@@ -934,29 +934,40 @@ eingefügt: erst dein Tipp auf den Chip fügt ein, genau einmal.
 
 Kopierst du eine Adresse, Nummer, IBAN, Sendungsnummer, ein Datum, eine E-Mail-Adresse oder einen
 Link, bietet die Tastatur passende Chips an. Nichts passiert von selbst: Jeder Chip wirkt erst auf
-deinen Tipp und genau einmal. Die Pille selbst und ein Tipp auf eine Karte fügen weiter den Clip so
-ein, wie er ist.
+deinen Tipp und genau einmal. Tat ein Tipp nichts (Schreibmarke inzwischen verschoben, Gerät gerade
+gesperrt, keine passende App), bleibt der Chip nutzbar; beim Einfügen sagt ein Hinweis „Gerade nicht
+einfügbar“. Die Pille selbst und ein Tipp auf eine Karte fügen weiter den Clip so ein, wie er ist.
 
 - Wo: in der Leiste hinter der Zwischenablage-Pille (nur wenn „Zwischenablagen-Inhalt vorschlagen“
   unter Einstellungen → Textkorrektur an ist, in den ersten 3 Minuten nach dem Kopieren) und als
   kleine Chips unten auf den Karten der Zwischenablage-Ansicht (höchstens zwei je Karte).
-- Adresse: „📍 In Karten öffnen“ öffnet deine Karten-App mit der Suche. „💾 Als Ort speichern“ legt
-  sie als Ort für `@ort` an, benannt nach Straße und Hausnummer (z. B. `@ort musterstraße 12`);
-  umbenennen unter Einstellungen → Leiste & Befehle → „Alle Befehls-Einstellungen“ → Orte. Dieselbe
-  Adresse wird nur einmal gespeichert, höchstens 10 Orte.
+- Adresse: „📍 In Karten öffnen“ öffnet deine Karten-App mit der Suche nach Straße und Hausnummer,
+  PLZ und Ort; ein Name, „Lieferadresse:“, Telefon- und Mail-Zeilen kommen nicht mit. „💾 Als Ort
+  speichern“ legt sie als Ort für `@ort` an, benannt nach Straße und Hausnummer (z. B. `@ort
+  musterstraße 12`); umbenennen unter Einstellungen → Leiste & Befehle → „Alle Befehls-Einstellungen“
+  → Orte. Dieselbe Adresse wird nur einmal gespeichert, höchstens 10 Orte. Steht die Adresse mitten
+  in einem Satz („Treffen am Marktplatz 5, 10115 Berlin“), gibt es nur „In Karten öffnen“.
 - Telefonnummer: „📞 Anrufen“ öffnet die Telefon-App mit der Nummer; angerufen wird erst, wenn du
-  dort auf Anrufen tippst. „👤 Kontakt anlegen“ öffnet einen neuen Kontakt in der Kontakte-App.
+  dort auf Anrufen tippst. „👤 Kontakt anlegen“ öffnet einen neuen Kontakt in der Kontakte-App. Beide
+  bekommen die Nummer in internationaler Form („+49 30 12345678“ → „+493012345678“). Nur für
+  Nummern, die mit „+“, „00“ oder „0“ beginnen; eine bloße Ziffernfolge (Paket-, Bestell- oder
+  Kundennummer) bekommt keinen Anruf-Chip, auch wenn der Verlauf sie „Telefon“ nennt.
 - IBAN: „🏦 Formatiert einfügen“ fügt sie in Viererblöcken ein, nur wenn die Prüfziffer stimmt.
   Stimmt sie nicht, steht dort „⚠️ IBAN-Prüfziffer falsch“ und nichts wird eingefügt.
 - Sendungsnummer: „📦 DHL: Sendung verfolgen“ (ebenso Deutsche Post, Hermes, DPD, GLS, UPS) öffnet
-  die Sendungsverfolgung im Browser. Die Seiten sind fest in der App, aus dem Kopierten kommt nur
-  die geprüfte Nummer. Eindeutige Nummern erkennt sie allein (UPS „1Z…“, Deutsche Post „…DE“, DHL
-  „JJD…“ oder „00340434…“, Hermes „H…“); eine reine Ziffernfolge nur, wenn der Paketdienst im Text
-  steht, z. B. „DPD Paketnummer 01234567890123“.
+  die Seite des Paketdienstes im Browser; dabei geht die Nummer an den Dienst. Die Seiten sind fest
+  in der App, aus dem Kopierten kommt nur die geprüfte Nummer. Eindeutige Nummern erkennt sie allein
+  (UPS „1Z…“, Deutsche Post „…DE“, DHL „JJD…“ oder „00340434…“, Hermes „H…“); eine reine
+  Ziffernfolge nur, wenn der Paketdienst im Text steht, z. B. „DPD Paketnummer 01234567890123“, und
+  nie direkt hinter „Kundennummer“, „Bestellung“, „Auftrags-“ oder „Rechnungsnummer“. Ein
+  GLS-Kürzel aus 8 Zeichen nur mit „Track-ID“ davor.
 - Datum oder Uhrzeit: „📅 Termin: So 15.11. 18:00“ öffnet den Entwurf in deiner Kalender-App wie
   `@termin`; gespeichert wird erst dort. Erkannt werden z. B. „am 15.03.2027 um 14:30“, „morgen um
-  18 Uhr“, „15. Dezember“, „tomorrow at 6pm“, „mañana a las 9“. Versionsnummern („2.1“), Preise,
-  „bis morgen“, „Guten Morgen“ und vergangene Daten bekommen keinen Chip.
+  18 Uhr“, „15. Dezember“, „tomorrow at 6pm“, „mañana a las 9“. Keinen Chip bekommen
+  Versionsnummern („2.1“, „1.2.30“, „PHP 8.3.28“, alles direkt nach „Version“, „Update“, „Release“
+  oder „Firmware“), Öffnungszeiten und Erreichbarkeit („Montag bis Freitag 9 bis 18 Uhr“, „Hotline
+  ab 8 Uhr erreichbar“), Preise, „bis morgen“, „Guten Morgen“ und vergangene Daten. Eine Zahl mit
+  zweistelligem Tag und Monat („10.11.30“) gilt weiter als Datum.
 - E-Mail-Adresse: „✉️ Mail schreiben“ öffnet deine Mail-App mit der Adresse als Empfänger.
 - Link mit Tracking-Anhängseln (`utm_…`, `fbclid`, `gclid`, `mc_eid`, `igshid`, bei YouTube und
   Spotify `si` …): „🧹 Ohne Tracking einfügen“ fügt den Link ohne sie ein, alles andere bleibt genau
@@ -965,9 +976,12 @@ ein, wie er ist.
   kommen nur aus der Zwischenablage, nie aus Benachrichtigungen.
 - Zeigt die Leiste schon einen Feld-Vorschlag (z. B. den Code im Code-Feld), kommen Pille und Smart
   Paste nicht dazu.
-- Nie für Geheimnisse und als vertraulich markierte Clips, nie in Passwortfeldern, im
+- Nie für Geheimnisse und als vertraulich markierte Clips (im Verlauf auch nicht für alte
+  angeheftete Einträge, die beim Kopieren vertraulich waren), nie in Passwortfeldern, im
   Inkognito-Modus, in Feldern ohne Lernen, in Zahlen- und Telefonfeldern oder bei gesperrtem Gerät.
-  Eingefügtes lernt die Tastatur nicht. Alles lokal, ohne Netz, ohne neue Berechtigung.
+  Codes und IBANs fügt die Tastatur als privaten Text ein (nie gelernt, nie in der Leiste gezeigt),
+  einen bereinigten Link wie die Pille. Die Erkennung läuft lokal, die Tastatur selbst sendet
+  nichts; nur „Sendung verfolgen“ öffnet eine Seite im Netz. Keine neue Berechtigung.
 - Ausschalten: Einstellungen → Leiste & Befehle → Zwischenablage & Bilder → „Smart Paste“.
 
 ## Emoji-Vorschläge

@@ -39,6 +39,7 @@
     <string name="agent_smart_place_full">Kein Platz mehr: höchstens 10 Orte</string>
     <string name="agent_smart_place_unavailable">Orte lassen sich erst nach dem Entsperren speichern</string>
     <string name="agent_smart_iban_invalid_toast">Die Prüfziffer dieser IBAN stimmt nicht</string>
+    <string name="agent_smart_insert_refused">Gerade nicht einfügbar (Schreibmarke verschoben?)</string>
     <string name="agent_smart_paste_setting">Smart Paste</string>
     <string name="agent_smart_paste_setting_sub">Aktionen für Kopiertes: Karte, Anrufen, IBAN, Sendung, Termin, Link ohne Tracking</string>
     <string name="agent_smart_paste_setting_no_pill">Im Verlauf; in der Leiste nur mit „Zwischenablagen-Inhalt vorschlagen“</string>

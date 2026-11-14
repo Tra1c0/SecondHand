@@ -38,10 +38,13 @@ import helium314.keyboard.latin.utils.prefs
  * mail app (mailto:); link → inserted without tracking parameters; one-time code of a copied
  * message → its digits. The pill and a tap on a card still insert the clip as it is.
  *
- * Nothing runs by itself: each chip acts once, on its own tap, after checking the field again.
- * Never for secrets ([ClipVault.isSecretClip]: marked, copied in a password field, sorted as a
- * secret), never in password, incognito or no-learning fields, outside text fields or while the
- * device is locked. Inserted text goes in as private text (never composed or learned, P178).
+ * Nothing runs by itself: each chip acts once, on its own tap, after checking the field again; a
+ * tap that did nothing (refused, blocked, no app) leaves the chip usable. Never for secrets
+ * ([ClipVault.isSecretClip]: marked, copied in a password field, sorted as a secret; on history
+ * cards also the marks of [helium314.keyboard.agent.commands.SensitiveClips.matcher]), never in
+ * password, incognito or no-learning fields, outside text fields or while the device is locked.
+ * A code and an IBAN go in as private text (never composed or learned, P178), a link without
+ * tracking like the pill ([SmartAction.insertsPrivately], review of stage 40, B2).
  * Nothing is logged; the clip is read only where the pill or the history already shows it.
  */
 object SmartPasteChips {
@@ -97,13 +100,14 @@ object SmartPasteChips {
     }
 
     /**
-     * Runs [action] after the user's tap: [insert] puts private text at the cursor, an app is
-     * started through [launcher], a place is saved. True if it happened.
+     * Runs [action] after the user's tap: [insert] puts text at the cursor (as private text when its
+     * second argument is true, [SmartAction.insertsPrivately]), an app is started through
+     * [launcher], a place is saved. True if it happened; a refused insertion shows a toast.
      */
-    fun perform(context: Context, action: SmartAction, insert: (String) -> Boolean): Boolean = when (action) {
-        is SmartAction.InsertIban -> insert(action.grouped)
-        is SmartAction.InsertClean -> insert(action.text)
-        is SmartAction.InsertCode -> insert(action.code)
+    fun perform(context: Context, action: SmartAction, insert: (String, Boolean) -> Boolean): Boolean = when (action) {
+        is SmartAction.InsertIban -> insertOrSay(context, action, action.grouped, insert)
+        is SmartAction.InsertClean -> insertOrSay(context, action, action.text, insert)
+        is SmartAction.InsertCode -> insertOrSay(context, action, action.code, insert)
         is SmartAction.SavePlace -> savePlace(context, action.address)
         SmartAction.IbanInvalid -> { toast(context, context.getString(R.string.agent_smart_iban_invalid_toast)); false }
         else -> {
@@ -111,6 +115,13 @@ object SmartPasteChips {
             if (intent != null && launcher.start(context, intent)) true
             else { toast(context, context.getString(R.string.agent_smart_none)); false }
         }
+    }
+
+    /** Review of stage 40 (B8): a refused insertion (the cursor moved, the editor is busy) says so; the chip stays usable. */
+    private fun insertOrSay(context: Context, action: SmartAction, text: String, insert: (String, Boolean) -> Boolean): Boolean {
+        if (insert(text, action.insertsPrivately)) return true
+        toast(context, context.getString(R.string.agent_smart_insert_refused))
+        return false
     }
 
     /** Saves [address] as a place of `@ort`, named after its first part; an address saved before keeps its name. */
@@ -179,8 +190,11 @@ object SmartPasteChips {
         val context: Context
         /** The field the chips are for (checked again at tap time with the settings and lock state then). */
         val editorInfo: EditorInfo?
-        /** Inserts [text] as private text at the cursor the chips were built for; false if it cannot now. */
-        fun insertPrivate(text: String): Boolean
+        /**
+         * Inserts [text] at the cursor the chips were built for, as private text when [privateText]
+         * (a code, an IBAN), else like the clipboard pill; false if it cannot now.
+         */
+        fun insert(text: String, privateText: Boolean): Boolean
     }
 
     /**
@@ -193,9 +207,10 @@ object SmartPasteChips {
         return object : StripHost {
             override val context: Context get() = ime
             override val editorInfo: EditorInfo? = editorInfo
-            override fun insertPrivate(text: String): Boolean {
+            override fun insert(text: String, privateText: Boolean): Boolean {
                 if (text.isEmpty() || position < 0 || !ime.canReplaceAgentCommand() || ime.agentCommandCursor != position) return false
-                ime.onPrivateTextInput(text) // never composed or learned (P178)
+                if (privateText) ime.onPrivateTextInput(text) // never composed or learned (P178)
+                else ime.onTextInput(text) // like the pill: no private-text mark of the field used up (review B2)
                 return true
             }
         }
@@ -213,13 +228,14 @@ object SmartPasteChips {
             var used = false
             KeyboardCommands.Chip(label(context, action, short = false), description(context, action),
                 if (action == SmartAction.IbanInvalid) KeyboardCommands.Chip.Kind.MUTED else KeyboardCommands.Chip.Kind.ACTION) {
-                // one tap, one attempt; the field is checked again (locked, incognito, password by now?)
+                // acts once; the field is checked again (locked, incognito, password by now?); a tap
+                // that did nothing leaves the chip usable (review B8)
                 if (!used) {
                     used = true
-                    if (isEnabled(context) && !isBlocked(context, Settings.getValues(), host.editorInfo)) {
-                        val done = perform(context, action, host::insertPrivate)
-                        if (done && action.inserts) onInserted()
-                    }
+                    val done = isEnabled(context) && !isBlocked(context, Settings.getValues(), host.editorInfo) &&
+                        perform(context, action, host::insert)
+                    if (done && action.inserts) onInserted()
+                    if (!done) used = false
                 }
             }
         }
@@ -248,15 +264,22 @@ object SmartPasteChips {
 
     /**
      * One visit of the clipboard history view: the actions per entry (sorted once), and what a tap
-     * does. [editorInfo] is the field the view inserts into; [insert] puts private text there.
+     * does. [editorInfo] is the field the view inserts into; [insert] puts text there, as private
+     * text when its second argument is true.
      */
-    class History(private val context: Context, private val editorInfo: () -> EditorInfo?, private val insert: (String) -> Boolean) {
+    class History(private val context: Context, private val editorInfo: () -> EditorInfo?, private val insert: (String, Boolean) -> Boolean) {
         private val cache = HashMap<Long, List<SmartAction>>()
         private val allowed = isEnabled(context) && !isBlocked(context, Settings.getValues(), editorInfo())
+        /**
+         * Review of stage 40 (B4): the history keeps no sensitive mark; like `@clip`
+         * ([helium314.keyboard.agent.commands.ClipCommand.History]) the texts copied sensitive are
+         * asked here, also those of entries pinned before stage 44 (the stage 24f record). Once per visit.
+         */
+        private val wasSensitive by lazy { helium314.keyboard.agent.commands.SensitiveClips.matcher(context) }
 
         fun actions(id: Long, text: String, copiedAt: Long): List<SmartAction> {
             if (!allowed) return emptyList()
-            return cache.getOrPut(id) { actions(context, text, copiedAt, false, Settings.getValues()).take(MAX_HISTORY_CHIPS) }
+            return cache.getOrPut(id) { actions(context, text, copiedAt, wasSensitive(text), Settings.getValues()).take(MAX_HISTORY_CHIPS) }
         }
 
         /** The tap on a card chip: the field is checked again first. */
@@ -306,8 +329,8 @@ object SmartPasteChips {
                 if (action == SmartAction.IbanInvalid) alpha = 0.7f
                 isClickable = true
                 isFocusable = true
-                // one tap, one attempt, like the chips in the strip
-                setOnClickListener { if (!used) { used = true; history?.perform(action) } }
+                // acts once, like the chips in the strip; a tap that did nothing leaves it usable (review B8)
+                setOnClickListener { if (!used) { used = true; if (history?.perform(action) != true) used = false } }
             }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = column.dp(4f) })
         }
     }

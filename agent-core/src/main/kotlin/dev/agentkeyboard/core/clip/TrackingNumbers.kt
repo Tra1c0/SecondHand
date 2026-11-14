@@ -37,7 +37,10 @@ class Tracking(val carrier: Carrier, val number: String) {
  * DHL's 20-digit `00340434…` (GS1 SSCC check digit) and Hermes `H` plus 19 digits. Plain digit
  * runs (12 digits DHL, 14 digits DPD or Hermes, 11–12 digits GLS) are only taken when the carrier
  * is named ("DPD", "Hermes", …): a customer, order or account number alone stays a number.
- * Postcodes, phone numbers and amounts never match (too short, other characters).
+ * Postcodes, phone numbers and amounts never match (too short, other characters). Review of stage
+ * 40 (B5): no number right after a customer, order, invoice or tax number label ("Kundennummer",
+ * "Bestellung", "Rechnungs-Nr.", "order number", …), and GLS's 8-character id only near
+ * "Track-ID" and never in the form of a BIC ("GENODEM1").
  */
 object TrackingNumbers {
     /** Longer clips are no shipping message; nothing is looked for. */
@@ -64,32 +67,63 @@ object TrackingNumbers {
         Carrier.DPD to Regex("\\d{14}"),
         Carrier.GLS to Regex("\\d{11,12}|(?=[A-Z0-9]{8}$)(?=.*\\d)(?=.*[A-Z])[A-Z0-9]{8}"),
     )
+    private val GLS_ID = Regex("[A-Z0-9]{8}")
+    /** A BIC ("GENODEM1"): six letters and two letters or digits; never a GLS id. */
+    private val BIC = Regex("[A-Z]{6}[A-Z0-9]{2}")
+    /** GLS's 8-character id counts only with this label at most [TRACK_ID_REACH] characters before it ("GLS Track-ID ZFG2D3K1"). */
+    private val TRACK_ID = Regex("(?i)(?<![\\p{L}])track(?:ing)?[\\s-]?id(?![\\p{L}])")
+    private const val TRACK_ID_REACH = 20
+    /** A customer, order, invoice, contract or tax number label right before the number: it is that number, no parcel. */
+    private val LABELLED = Regex(
+        "(?i)(?<![\\p{L}])(?:(?:kunden|bestell|auftrags|rechnungs|vertrags|mitglieds|steuer|konto|referenz|kd\\.?|best\\.?)[\\s-]?" +
+            "(?:nummer|nr\\.?)|kunde|bestellung|auftrag|rechnung|" +
+            "(?:customer|order|invoice|account|reference)(?:\\s+(?:number|no\\.?|nr\\.?|id|#))?|" +
+            "n[º°o]\\.?\\s*de\\s+(?:pedido|cliente|factura)|pedido|factura|cliente)\\s*(?:[:#.]\\s*)*$"
+    )
+    private const val LABEL_REACH = 40
 
     private const val TRIM = ".,;:!?()[]{}\"'«»„“”‚‘’<>"
+    private val WORD = Regex("\\S+")
+
+    /** A possible number and where it starts in the text. */
+    private class Candidate(val number: String, val start: Int)
 
     /** The tracking number in [text], or null. */
     fun find(text: String): Tracking? {
         val t = text.trim()
         if (t.isEmpty() || t.length > MAX_LENGTH) return null
-        val candidates = candidates(t)
-        for (candidate in candidates) distinctive(candidate)?.let { return Tracking(it, candidate) }
+        val candidates = candidates(t).filter { !LABELLED.containsMatchIn(t.substring(maxOf(0, it.start - LABEL_REACH), it.start)) }
+        for (candidate in candidates) distinctive(candidate.number)?.let { return Tracking(it, candidate.number) }
         // the carrier named in the text, in the order of the text
         val named = NAMES.mapNotNull { (carrier, name) -> name.find(t)?.let { carrier to it.range.first } }.sortedBy { it.second }
         for ((carrier, _) in named) {
             val pattern = NAMED.getValue(carrier)
-            candidates.firstOrNull { pattern.matches(it) }?.let { return Tracking(carrier, it) }
+            candidates.firstOrNull { pattern.matches(it.number) && (carrier != Carrier.GLS || glsTaken(t, it)) }
+                ?.let { return Tracking(carrier, it.number) }
         }
         return null
     }
 
+    /** GLS digits always; the 8-character id only near "Track-ID" and never in the form of a BIC. */
+    private fun glsTaken(t: String, c: Candidate): Boolean {
+        if (!GLS_ID.matches(c.number) || c.number.all { it.isDigit() }) return true
+        return !BIC.matches(c.number) && TRACK_ID.containsMatchIn(t.substring(maxOf(0, c.start - TRACK_ID_REACH), c.start))
+    }
+
     /** Words of the text without surrounding punctuation, plus the whole short clip without its spaces. */
-    private fun candidates(t: String): List<String> {
-        val words = t.split(Regex("\\s+")).map { it.trim { c -> c in TRIM } }.filter { it.length in 8..35 }
-        val grouped = if (t.length <= MAX_GROUPED && ' ' in t && t.all { it.isLetterOrDigit() || it == ' ' })
-            listOf(t.replace(" ", "")) else emptyList()
+    private fun candidates(t: String): List<Candidate> {
+        val found = ArrayList<Candidate>()
+        if (t.length <= MAX_GROUPED && ' ' in t && t.all { it.isLetterOrDigit() || it == ' ' }) found += Candidate(t.replace(" ", ""), 0)
+        for (m in WORD.findAll(t)) {
+            var start = m.range.first
+            var end = m.range.last + 1
+            while (start < end && t[start] in TRIM) start++
+            while (end > start && t[end - 1] in TRIM) end--
+            if (end - start in 8..35) found += Candidate(t.substring(start, end), start)
+        }
         // capitals as written: "1z…" or "rr…de" in a sentence are taken in capitals, "Hermes" stays a word
-        return (grouped + words).map { if (it.any { c -> c.isDigit() } && it.count { c -> c.isLetter() } <= 4) it.uppercase() else it }
-            .filter { it.all { c -> c in 'A'..'Z' || c in '0'..'9' } }.distinct()
+        return found.map { c -> if (c.number.any { it.isDigit() } && c.number.count { it.isLetter() } <= 4) Candidate(c.number.uppercase(), c.start) else c }
+            .filter { c -> c.number.all { it in 'A'..'Z' || it in '0'..'9' } }.distinctBy { it.number }
     }
 
     private fun distinctive(n: String): Carrier? = when {

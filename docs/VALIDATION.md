@@ -4399,6 +4399,91 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Offen: Prüfer-Review, Gerätetest (die sechs Tracking-Seiten wirklich öffnen; Karten-, Telefon-,
   Kontakte-, Mail- und Kalender-App; Leiste mit langer Pille und drei Chips, Karten mit zwei
   Chips im flachen Look; TalkBack; Start aus der Tastatur heraus auf Android 14/15).
+
+## Nachprüfung 40 (Prüfer-Befunde zu 4bd6893, 2026-11-14)
+
+- Grundlage: die Befunde B1–B9 des Prüfers und seine Eingaben (Probe-Skript über die Kern-Klassen).
+  Alle Eingaben der Befunde laufen jetzt als Tests; das Skript gegen den Stand vor der Korrektur
+  zeigte die beanstandeten Ergebnisse, gegen den neuen Stand die erwarteten (Ausgaben nur in der
+  Arbeitskopie, nicht versioniert).
+- B1 (mittel): bloße Ziffernfolgen (DHL-Paketnummer 340434161094, SAP 4500012345, 3012345678,
+  9876543210, 15123456789, „30 12345678“) wurden zu „Anrufen“/„Kontakt“. Jetzt nur, wenn der Text
+  mit „+“, „00“ oder „0“ beginnt (auch nach „(“), und `tel:` wie `Insert.PHONE` bekommen die
+  E.164-Form (`PhoneFormat.e164`, neu). Sonst sucht Smart Paste wie in Text (Sendung, Datum, Link).
+  `ClipGuard` unverändert (Beschriftung „Telefon“ im Verlauf und Feld-Vorschläge 45 bleiben, P205).
+  Tests `aPhoneNumberDialsOrMakesAContact` (Erwartung auf E.164 umgestellt, Grund: Befund),
+  `bareDigitRunsAreNoNumbersToCall`; `SmartPasteChipsTest.intentsAreStandardAndNeedNoPermission`
+  (`tel:`/`Insert.PHONE` = „+4915123456789“, „(030) 12345678“ → „+493012345678“, die sechs
+  Ziffernfolgen ohne Anruf-Chip).
+- B2 (mittel): jedes Einfügen von Smart Paste ging als privater Text ein und nahm eine der drei
+  Marken des Felds (`PrivateRanges.MAX`), drei bereinigte Links verdrängten so die Marke eines
+  Tresor-Geheimnisses. Jetzt `SmartAction.insertsPrivately` nur für Code und IBAN (IBAN: dieselbe
+  Entscheidung wie für denselben Clip als Feld-Vorschlag 45, personenbezogen, in Blöcken sonst
+  bearbeitbar); ein bereinigter Link geht in der Leiste über `onTextInput` wie die Pille, im Verlauf
+  über `onTextInput` wie ein Tipp auf die Karte (`StripHost.insert(text, privateText)`,
+  `History`-Rückruf mit zweitem Argument, `ClipboardHistoryView.onSmartInsert(text, privateText)`).
+  P206 neu. Tests `aVaultSecretKeepsItsPrivateMarkAfterThreeSmartPasteInserts` (Geheimnis, drei
+  Smart-Paste-Links im selben Feld, echtes `PrivateRanges` gefüttert wie `InputLogic`: die Marke
+  bleibt; Gegenprobe im Test: drei Codes verdrängen sie, bekannte Grenze),
+  `theOpenHistoryViewInsertsALinkLikeACardAndACodePrivately` (echte Verlaufsansicht),
+  `insertOnlyOnATapAndOnce` (privat = IBAN ja, Link nein, Code ja),
+  `onlyCodesAndIbansGoInAsPrivateText` (Kern). Der echte Weg über `InputLogic` ist für Smart Paste
+  weiter nicht geprüft (P204).
+- B3 (niedrig): „PHP 8.3.28 ist erschienen“, „Version 1.2.30“, „Version 2.10.27“, „App 2.3.27
+  released“, „Firmware 3.1.99“, „Öffnungszeiten: Montag bis Freitag 9 bis 18 Uhr“ und „Hotline ab
+  8 Uhr erreichbar“ ergaben ein Datum. Jetzt: `D.M.YY` mit einstelligem Tag oder Monat nur nach
+  `DATE_LEADS` („am“, „vom“, „bis zum“, „on“, „el“ …), keine Zahl mit Punkten direkt nach
+  `VERSION_WORDS` (Version, Update, Release, v, Firmware, Build, Patch …), Öffnungszeiten und
+  Erreichbarkeit (`HOURS`, `WEEKDAY_RANGE`, ohne Groß-/Kleinschreibung auch für Umlaute) geben
+  nichts. Tests `versionNumbersAndAmountsAreNoDates` (erweitert, positiv „am 8.3.28 um 10 Uhr“,
+  „Termin 08.03.28“, „Update am 3.12.“), `openingHoursAndAvailabilityAreNoEvents` (de/en/es).
+  Bekannt offen (P205): „Tabelle 10.11.30“, „Preis 12.12.“.
+- B4 (niedrig): Karten übergaben `marked = false`; ein vor Etappe 44 angehefteter, beim Kopieren
+  vertraulicher Eintrag (Protokoll von 24f) bekam Chips. Jetzt holt `History` einmal je Besuch
+  `SensitiveClips.matcher` und übergibt `wasSensitive(text)` wie `ClipCommand.History`. Test
+  `anOldPinnedEntryCopiedSensitiveGetsNoCardChips` (angehefteter Eintrag mit altem Hash: keine
+  Chips; ohne Hash: „Anrufen“, „Kontakt“).
+- B5 (niedrig): „GLS Bank BIC GENODEM1“, „GLS Ref AB12CD34“, „ab12cd34 GLS“, „DHL Kundennummer
+  123456789012“, „Bestellung 123456789012 wird mit DHL versendet“ ergaben Sendungen. Jetzt keine
+  BIC-Form als GLS-Kürzel, das 8-Zeichen-Kürzel nur mit „Track-ID“/„TrackID“ bis 20 Zeichen davor,
+  kein Kandidat direkt hinter Kunden-/Bestell-/Auftrags-/Rechnungs-/Vertrags-/Steuernummer,
+  „Bestellung“, „Rechnung“, customer/order/invoice number, pedido, factura. Test
+  `customerOrderAndInvoiceNumbersAndBicsAreNoParcelNumbers` (auch UPS hinter „Order number“, eine
+  weiter vorn stehende Kundennummer stört nicht). `FEATURES.md` sagte „Kunden- und Bestellnummern
+  nie“; das stimmt so nicht (ohne Bezeichnung neben dem Dienstnamen gilt eine Nummer weiter als
+  Sendung) und ist korrigiert.
+- B6 (niedrig): „https://example.com/a?utm_source=x;id=2“ verlor `id=2`. Jetzt bleibt ein Teil mit
+  `;` ganz, leere Teile bleiben („id=1&&&b=2“ statt „id=1&b=2“), ganz leer fällt das „?“ weg. Test
+  `aPartWithASemicolonStaysWholeEmptyPartsStay`.
+- B7 (niedrig): die Kartensuche nahm den ganzen Clip („Lieferadresse: …, Tel. 0151 …“) und Fließtext
+  wurde als Ort gespeichert. Jetzt `AddressQuery` (in `SmartPaste.kt`): nur Straßen- und
+  PLZ-Ort-Teile, Bezeichnungen, Telefon-, Mail-, Namens- und Länderzeilen fallen weg; Fließtext
+  bekommt nur „In Karten öffnen“ mit herausgesuchter Straße und PLZ. Tests
+  `anAddressSearchHoldsOnlyStreetAndPostcodeRunningTextGetsNoPlace` (die drei Beispiele des
+  Prüfers und weitere), `anAddressOpensTheMapOrBecomesAPlace` (Erwartung für „Max Mustermann\n
+  Hauptstr. 5a\n80331 München“ auf „Hauptstr. 5a, 80331 München“ umgestellt, Grund: Befund).
+- B8 (niedrig): `used` stand vor `perform`; ein abgelehntes Einfügen ließ einen toten Chip. Jetzt
+  setzt jeder Tipp ohne Wirkung (abgelehnt, gesperrt, keine App, voll) `used` zurück, in der Leiste
+  und auf Karten; ein abgelehntes Einfügen zeigt den Toast `agent_smart_insert_refused` (neu, de/en).
+  Test `aTapThatDidNothingLeavesTheChipUsable`.
+- B9 (Doku): FEATURES, ANLEITUNG und `release-notes/next.md` sagen jetzt „die Tastatur sendet
+  nichts; „Sendung verfolgen“ öffnet die Seite des Dienstes im Browser“ statt „ohne Netz“, nennen
+  die Grenzen bei Kunden- und Bestellnummern und die ausgeschlossenen Versionsformen genau; dazu
+  ARCHITECTURE (Kern, Upstream-Abschnitt, Befehle → Smart Paste, P204, P205, P206) und ROADMAP 40.
+- Keine Assertion entfernt oder abgeschwächt. Zwei Erwartungen geändert, weil der Befund das
+  Verhalten ändert (Telefon in E.164, Adresssuche ohne Namen); `chipsPerKind`,
+  `insertOnlyOnATapAndOnce` und `historyCardsGetShortChipsThatInsertPrivately` laufen unverändert
+  mit (nur ergänzt). Geänderte, schon geänderte Upstream-Datei: `ClipboardHistoryView.kt`
+  (`onSmartInsert` mit `privateText`). `InputLogic`, `RichInputConnection`, `PointerTracker`,
+  `LatinIME` unverändert; `map.sources` unverändert.
+- Gelaufen (2026-11-14, `--max-workers=1`): `./gradlew :agent-core:test` grün (503 Tests, davon
+  `clip.SmartPasteTest` 27, vorher 21); `:app:testDebugUnitTest` mit `SmartPasteChipsTest` (15,
+  vorher 11), `ClipVaultTest` (21), `FieldSuggestionChipsTest` (21) grün. Gegenprobe: mit
+  `insertsPrivately` für alle Einfügungen, `marked = false` auf Karten und ohne Zurücksetzen von
+  `used` schlugen 5 der 15 `SmartPasteChipsTest` fehl (die vier neuen und `insertOnlyOnATapAndOnce`).
+  Nicht gelaufen: volle Suite, `InputLogicTest`, Agent-Tests über `tools/dev.py`, Lint, Build
+  (geteilte Maschine, Anweisung des Leads), Gerätetest. Offen: erneute Prüfung durch einen Prüfer.
+
 ## Etappe 53 (Zeichen-Kunst-Fenster)
 
 - Auftrag: `docs/ROADMAP.md` → 53 (Owner, 2026-11-14), schließt 39 (Text-Stile) ein. Annahmen des

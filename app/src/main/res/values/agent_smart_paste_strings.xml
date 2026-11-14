@@ -53,6 +53,7 @@
     <string name="agent_smart_place_full">No room: at most 10 places</string>
     <string name="agent_smart_place_unavailable">Places can be saved after unlocking</string>
     <string name="agent_smart_iban_invalid_toast">The check digits of this IBAN are wrong</string>
+    <string name="agent_smart_insert_refused">Could not insert here right now (cursor moved?)</string>
     <!-- settings: Bar &amp; commands, section Clipboard &amp; images -->
     <string name="agent_smart_paste_setting">Smart Paste</string>
     <string name="agent_smart_paste_setting_sub">Actions for copied text: map, call, IBAN, parcel, event, link without tracking</string>

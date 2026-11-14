@@ -48,6 +48,17 @@ object PhoneFormat {
         return util.isValidNumber(number)
     }
 
+    /**
+     * The E.164 form ("+493012345678") of [text] if it is a valid number for [region] (or with a
+     * country code), written only with the characters of a typed number; else null. Stage 40 hands
+     * this form to the dialer and the contacts app.
+     */
+    fun e164(text: String, region: String): String? {
+        if (!isValid(text, region)) return null
+        val number = try { util.parse(text, region) } catch (_: NumberParseException) { return null }
+        return util.format(number, PhoneNumberUtil.PhoneNumberFormat.E164)
+    }
+
     /** The international format of [text] if it is a valid number and looks different, else null. */
     fun suggest(text: String, region: String): String? {
         if (text.any { it !in ALLOWED }) return null

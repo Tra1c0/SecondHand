@@ -223,14 +223,17 @@ class ClipboardHistoryView @JvmOverloads constructor(
         listHeightWithoutVault = clipboardRecyclerView.layoutParams.height
         helium314.keyboard.agent.ClipVault.onChange = { post { refreshVault() } }
         refreshVault()
-        // stage 40: Smart Paste chips on the cards; inserted text goes in like a vault pick (private)
-        clipboardAdapter.smartPaste = helium314.keyboard.agent.SmartPasteChips.History(context, { this.editorInfo }) { onSmartInsert(it) }
+        // stage 40: Smart Paste chips on the cards; a code or an IBAN goes in like a vault pick (private), a link like a card
+        clipboardAdapter.smartPaste = helium314.keyboard.agent.SmartPasteChips.History(context, { this.editorInfo }) { text, private ->
+            onSmartInsert(text, private)
+        }
     }
 
-    /** Stage 40: the tap on an inserting Smart Paste chip of a card, like a tap on a vault chip. */
-    private fun onSmartInsert(text: String): Boolean {
+    /** Stage 40: the tap on an inserting Smart Paste chip of a card, like a tap on a vault chip ([privateText]) or on the card. */
+    private fun onSmartInsert(text: String, privateText: Boolean): Boolean {
         keyboardActionListener.onPressKey(KeyCode.NOT_SPECIFIED, 0, 1, HapticEvent.KEY_PRESS)
-        keyboardActionListener.onPrivateTextInput(text) // never composed or learned (P178)
+        if (privateText) keyboardActionListener.onPrivateTextInput(text) // never composed or learned (P178)
+        else keyboardActionListener.onTextInput(text) // like onKeyUp of a card (review of stage 40, B2)
         keyboardActionListener.onReleaseKey(KeyCode.NOT_SPECIFIED, false)
         if (Settings.getValues().mAlphaAfterClipHistoryEntry)
             keyboardActionListener.onCodeInput(KeyCode.ALPHA, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)

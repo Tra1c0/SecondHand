@@ -31,14 +31,70 @@ class SmartPasteTest {
     @Test fun anAddressOpensTheMapOrBecomesAPlace() {
         assertEquals(listOf(SmartAction.OpenMap("Musterstraße 12, 10115 Berlin"), SmartAction.SavePlace("Musterstraße 12, 10115 Berlin")),
             actions("Musterstraße 12, 10115 Berlin"))
-        // lines become one search line
-        assertEquals(SmartAction.OpenMap("Max Mustermann, Hauptstr. 5a, 80331 München"),
-            actions("Max Mustermann\nHauptstr. 5a\n80331 München").first())
+        // lines become one search line of street and postcode with city (review B7: the name line stays out)
+        assertEquals(listOf(SmartAction.OpenMap("Hauptstr. 5a, 80331 München"), SmartAction.SavePlace("Hauptstr. 5a, 80331 München")),
+            actions("Max Mustermann\nHauptstr. 5a\n80331 München"))
+    }
+
+    @Test fun anAddressSearchHoldsOnlyStreetAndPostcodeRunningTextGetsNoPlace() {
+        // review of stage 40 (B7): labels, phone and mail lines stay out of the search and the place
+        val delivery = "Musterweg 12, 12345 Musterstadt"
+        assertEquals(listOf(SmartAction.OpenMap(delivery), SmartAction.SavePlace(delivery)),
+            actions("Lieferadresse: Musterweg 12\n12345 Musterstadt\nTel. 0151 23456789"))
+        assertEquals(listOf(SmartAction.OpenMap(delivery), SmartAction.SavePlace(delivery)),
+            actions("Rechnungsadresse:\nFirma GmbH\nMusterweg 12\n12345 Musterstadt"))
+        assertEquals(listOf(SmartAction.OpenMap(delivery), SmartAction.SavePlace(delivery)),
+            actions("Adresse: Musterweg 12, 12345 Musterstadt, E-Mail info@example.com"))
+        // street names as written, the city with more words, a country line left out
+        for ((clip, query) in listOf(
+            "Am Marktplatz 5, 10115 Berlin" to "Am Marktplatz 5, 10115 Berlin",
+            "Berliner Straße 5\n10115 Berlin\nDeutschland" to "Berliner Straße 5, 10115 Berlin",
+            "Am Alten Markt 3\n06108 Halle (Saale)" to "Am Alten Markt 3, 06108 Halle (Saale)",
+            "Hauptstraße 5\n60311 Frankfurt am Main" to "Hauptstraße 5, 60311 Frankfurt am Main",
+            "Konrad-Adenauer-Straße 12-14, 53113 Bonn" to "Konrad-Adenauer-Straße 12-14, 53113 Bonn",
+            "Musterstraße 12 10115 Berlin" to "Musterstraße 12, 10115 Berlin",
+            "Calle Mayor, 5, 28013 Madrid" to "Calle Mayor, 5, 28013 Madrid",
+            "123 Main Street, Springfield, IL 62704" to "123 Main Street, Springfield, IL 62704",
+        )) assertEquals(listOf(SmartAction.OpenMap(query), SmartAction.SavePlace(query)), actions(clip), clip)
+        // running text: only the map, with the street and the postcode picked out, never a place
+        for ((clip, query) in listOf(
+            "Treffen am Marktplatz 5, 10115 Berlin" to "Marktplatz 5, 10115 Berlin",
+            "Ich wohne in der Hauptstraße 5 seit 10 Jahren in 10115 Berlin" to "Hauptstraße 5, 10115 Berlin",
+            "Kommst du morgen zur Musterstraße 12 in 10115 Berlin?" to "Musterstraße 12, 10115 Berlin",
+            "Wir treffen uns in der Berliner Straße 5, 10115 Berlin" to "Berliner Straße 5, 10115 Berlin",
+            "Termin Hauptstraße 5, 10115 Berlin" to "Hauptstraße 5, 10115 Berlin",
+        )) assertEquals(listOf<SmartAction>(SmartAction.OpenMap(query)), actions(clip), clip)
     }
 
     @Test fun aPhoneNumberDialsOrMakesAContact() {
-        assertEquals(listOf(SmartAction.Dial("+49 151 23456789"), SmartAction.AddContact("+49 151 23456789")), actions("+49 151 23456789"))
-        assertEquals(SmartAction.Dial("030/12345678"), actions(" 030/12345678 ").first())
+        // review of stage 40 (B1): the E.164 form goes to the dialer and the contacts app
+        assertEquals(listOf(SmartAction.Dial("+4915123456789"), SmartAction.AddContact("+4915123456789")), actions("+49 151 23456789"))
+        for (clip in listOf(" 030/12345678 ", "(030) 12345678", "0049 30 12345678", "+49 30 12345678"))
+            assertEquals(listOf(SmartAction.Dial("+493012345678"), SmartAction.AddContact("+493012345678")), actions(clip), clip)
+        assertEquals("+4915123456789", dev.agentkeyboard.core.format.PhoneFormat.e164("0151 23456789", "DE"))
+        assertNull(dev.agentkeyboard.core.format.PhoneFormat.e164("12345", "DE"))
+    }
+
+    @Test fun bareDigitRunsAreNoNumbersToCall() {
+        // review of stage 40 (B1): a DHL piece code, an SAP order number, digits without "+", "00" or "0"
+        for (clip in listOf("340434161094", "4500012345", "3012345678", "9876543210", "15123456789", "30 12345678")) {
+            val found = actions(clip)
+            assertTrue(found.none { it is SmartAction.Dial || it is SmartAction.AddContact }, "$clip: $found")
+        }
+        // the guard's verdict stays (its label in the history, stage 44); only the call chips need a number written as one
+        assertEquals(ClipKind.PHONE, ClipGuard.classify("4500012345").kind)
+        // with the carrier named, the piece code is a parcel number
+        assertEquals(listOf<SmartAction>(SmartAction.Track(Tracking(Carrier.DHL, "340434161094"))), actions("DHL Sendung 340434161094"))
+    }
+
+    @Test fun onlyCodesAndIbansGoInAsPrivateText() {
+        // review of stage 40 (B2): a link without tracking goes in like the pill and takes no private-text mark
+        assertTrue(SmartAction.InsertCode("123456").insertsPrivately)
+        assertTrue(SmartAction.InsertIban("DE89 3704 0044 0532 0130 00").insertsPrivately)
+        assertFalse(SmartAction.InsertClean("https://example.com").insertsPrivately)
+        assertTrue(SmartAction.InsertClean("https://example.com").inserts)
+        for (action in listOf(SmartAction.OpenMap("x"), SmartAction.Dial("+4930"), SmartAction.IbanInvalid))
+            assertFalse(action.insertsPrivately, action.toString())
     }
 
     @Test fun anIbanIsInsertedInBlocksOnlyWithRightCheckDigits() {
@@ -151,6 +207,21 @@ class SmartPasteTest {
         assertNull(track("GLS Track-ID zfg2d3k1"))
     }
 
+    @Test fun customerOrderAndInvoiceNumbersAndBicsAreNoParcelNumbers() {
+        // review of stage 40 (B5): a number right after its label is that number, also with the carrier named
+        for (text in listOf("DHL Kundennummer 123456789012", "Bestellung 123456789012 wird mit DHL versendet",
+            "DHL Kunden-Nr. 123456789012", "Hermes Auftragsnummer: 01234567890123", "DPD Rechnungsnummer 01234567890123",
+            "DHL customer number 123456789012", "GLS order no. 12345678901", "Order number 1Z999AA10123456784",
+            "Kundennummer: 1Z999AA10123456784", "Rechnung RR123456785DE")) assertNull(track(text), text)
+        // GLS's 8-character id: only near "Track-ID", never a BIC
+        for (text in listOf("GLS Bank BIC GENODEM1", "GLS Ref AB12CD34", "ab12cd34 GLS", "GLS Track-ID GENODEM1"))
+            assertNull(track(text), text)
+        assertEquals(Tracking(Carrier.GLS, "ZFG2D3K1"), track("GLS TrackID: ZFG2D3K1"))
+        // a label further back does not count
+        assertEquals(Tracking(Carrier.DHL, "340434161094"), track("Kundennummer 12345, DHL Sendungsnummer 340434161094"))
+        assertEquals(Tracking(Carrier.UPS, "1Z999AA10123456784"), track("Your parcel 1Z999AA10123456784"))
+    }
+
     @Test fun postcodesPhoneNumbersAndAmountsAreNoParcelNumbers() {
         assertNull(track("10115 Berlin"))
         assertNull(track("PLZ 80331, DHL Packstation 123"))
@@ -203,6 +274,25 @@ class SmartPasteTest {
         for (text in listOf("Version 2.1", "Update 1.2.3 ist da", "Android 14.1.2", "Kapitel 3.2.", "Preis 3.10 €", "Preis: 12.50",
             "Version 2.1 um 18 Uhr fertig", "v2.1.0 released", "Seite 4.11")) assertNull(date(text), text)
         assertNull(actions("Version 2.1").firstOrNull { it is SmartAction.CreateEvent })
+        // review of stage 40 (B3): three parts with a two-digit last one are a version without "am"/"on"/"el" before them
+        for (text in listOf("PHP 8.3.28 ist erschienen", "Version 1.2.30", "Version 2.10.27", "App 2.3.27 released", "Firmware 3.1.99",
+            "Update 1.12.28 ist da", "Release 1.10.26", "Version 10.11.30", "Update 03.12.", "Build 12.11.2027"))
+            assertNull(date(text), text)
+        assertEquals(emptyList(), actions("Version 1.2.30"))
+        // a date written so is still one with "am" before it, or with two digits for day and month
+        assertEquals(CivilDate(2028, 3, 8) to ClockTime(10, 0), date("am 8.3.28 um 10 Uhr")?.let { it.date to it.time })
+        assertEquals(CivilDate(2028, 3, 8), date("Termin 08.03.28")?.date)
+        assertEquals(CivilDate(2026, 12, 3), date("Update am 3.12.")?.date)
+    }
+
+    @Test fun openingHoursAndAvailabilityAreNoEvents() {
+        // review of stage 40 (B3)
+        for (text in listOf("Öffnungszeiten: Montag bis Freitag 9 bis 18 Uhr", "Hotline ab 8 Uhr erreichbar", "Mo-Fr 9-18 Uhr",
+            "Sa bis So Flohmarkt um 10 Uhr", "Sprechzeiten morgen 8 bis 12 Uhr", "Wir sind täglich ab 9 Uhr für Sie da",
+            "ÖFFNUNGSZEITEN heute bis 20 Uhr", "Morgen um 9 Uhr GEÖFFNET"))
+            assertNull(date(text), text)
+        assertNull(date("Opening hours Mon to Fri 9am to 5pm", "en"))
+        assertNull(date("Horario de lunes a viernes a las 9", "es"))
     }
 
     @Test fun dayWordsAloneUnmarkedTimesAndGreetingsAreNoDates() {
@@ -240,6 +330,15 @@ class SmartPasteTest {
         assertNull(LinkCleaner.clean("https://example.com/plain"))
         assertNull(LinkCleaner.clean("javascript:alert(1)?utm_source=x"))
         assertNull(LinkCleaner.clean("keine Adresse"))
+    }
+
+    @Test fun aPartWithASemicolonStaysWholeEmptyPartsStay() {
+        // review of stage 40 (B6): "utm_source=x;id=2" may hold the needed id=2 (servers that split at ';')
+        assertNull(LinkCleaner.clean("https://example.com/a?utm_source=x;id=2"))
+        assertEquals("https://example.com/a?id=1;utm_medium=y", LinkCleaner.clean("https://example.com/a?utm_source=x&id=1;utm_medium=y"))
+        // the other parts as written, empty ones too; nothing left: no "?"
+        assertEquals("https://example.com/a?id=1&&&b=2", LinkCleaner.clean("https://example.com/a?id=1&&utm_source=x&&b=2"))
+        assertEquals("https://example.com/a", LinkCleaner.clean("https://example.com/a?&utm_source=x&"))
     }
 
     @Test fun linksInTextAreCleanedTheRestStays() {
