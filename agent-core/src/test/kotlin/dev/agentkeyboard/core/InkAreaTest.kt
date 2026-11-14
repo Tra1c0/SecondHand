@@ -46,12 +46,22 @@ class InkAreaTest {
         assertTrue(outside.isEmpty(), outside.joinToString())
     }
 
+    /**
+     * Stage 43: a lone tap is typed, it never starts a drawing; so a drawing the finger model begins with
+     * a dot (! ? ‰ ÷ in random order) begins with its first stroke, and the dots before it come after.
+     */
+    private fun startingWithAStroke(strokes: List<InkStroke>): List<InkStroke> {
+        val first = strokes.indexOfFirst { it.size > 1 }
+        if (first <= 0) return strokes
+        return listOf(strokes[first]) + strokes.filterIndexed { i, _ -> i != first }
+    }
+
     @Test fun furtherStrokesOfFingerDrawingsInAnyOrderMostlyStartInsideTheArea() {
         val random = Random(36)
         val needs = ArrayList<Float>()
         val worst = HashMap<String, Int>()
         for (rows in listOf(2f, 2.5f, 3f)) for (text in InkFingerModel.symbols) repeat(40) {
-            val need = needed(scaled(InkFingerModel.draw(text, random, hard = true), rows * ROW))
+            val need = needed(scaled(startingWithAStroke(InkFingerModel.draw(text, random, hard = true)), rows * ROW))
             needs += need
             if (need > InkTap.KEY_MARGIN) worst.merge(text, 1, Int::plus)
         }

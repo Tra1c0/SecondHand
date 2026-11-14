@@ -533,6 +533,13 @@ Symbole malen (Etappe 27, Touch-Verarbeitung, jede Änderung mit Prüfer; Detail
   nichts) und zuletzt `SymbolInk.continuesInk(x, y, mKeyboard.mMostCommonKeyWidth)` (nur nahe der
   Zeichnung, H1); bei zweitem Finger und zeichnendem Tracker ruft es `onSecondFinger` und macht den
   Tracker nur bei einem Tipp zur Taste, ein Strich ist dann schon geschrieben (M1).
+  43: `init` setzt `SymbolInk.tapper` auf das statische `typeInkTap` (ein möglicher Punkt, der
+  Buchstabe ist: Druck, Code, Loslassen über den Listener, ohne Tracker-Zustand, P151).
+  `onDownEvent` gibt bei Symbole malen `SymbolInk.gestureTypingTime` statt der letzten
+  Tippzeit an `addDownEventPoint` (HeliBoards Schnelltipp-Sperre aus) und merkt
+  `mInkAfterTyping`/`mGestureDownX/Y`; `onGestureMoveEvent` startet dann erst ab
+  `SymbolInk.startsAfterTyping` (0,75 Tastenbreiten vom Aufsetzpunkt, P153). Ohne Symbole malen
+  unverändert; `GestureStrokeRecognitionPoints`/`-Params` unverändert.
 - `TextCorrectionScreen.kt` (36, Prüfer N4): Bestätigt man das Ausschalten von „Personalisierte
   Vorschläge“, löscht der Dialog auch die persönlichen Vorlagen von Symbole malen
   (`SymbolDrawing.clearPersonalSymbols`), eine Zeile.
@@ -1981,15 +1988,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `InkTap.SLOP_DP` = 8 dp wie Androids Touch-Slop (Nachprüfer F3; 6 dp nach dem ersten Prüfer) vom
   Aufsetzpunkt, Dauer egal, P111; vorher 10 dp, in der ersten Fassung
   von 36 4 dp, Prüfer H1) ist nur dann ein
-  Punkt, wenn `SymbolInk.dotCheck` zustimmt (31, `C/InkDots.kt`): (1) ein Symbol hat Punkte
-  (eingebaut nur ÷, dazu eigene), (2) die bisherigen Striche ohne frühere Punkte gleichen dessen
+  (seit 43: möglicher, siehe „Punkte (43)“) Punkt, wenn `SymbolInk.dotCheck` zustimmt (31, `C/InkDots.kt`): (1) ein Symbol hat Punkte
+  (eingebaut bis 43 nur ÷, dazu eigene), (2) die bisherigen Striche ohne frühere Punkte gleichen dessen
   punktlosem Teil (Abstand des Erkenners ≤ `ACCEPT_DISTANCE`, seit 36 1,8 mit Richtungs- und
   Strukturterm, vorher `$P` ≤ 1,3), (3) der Tipp liegt nach Deckung der Teile (gleiche Mitte, gleiche
   längere Seite, ein schräger Strich bis 20° gerade gedreht) in Richtung eines seiner Punkte, von
   der Mitte des punktlosen Teils aus gesehen höchstens 0,12 Symbolgrößen seitlich und 0,25 näher
   oder weiter (bei ÷: ungefähr senkrecht über oder unter der Mitte des Strichs; Korrektur nach
   Prüfer, vorher ein Kreis mit 0,3), (4) kein ganzes Symbol passt klar besser (Faktor 1,25 plus
-  0,1; ein fertiges → ist nah an einem Strich, bleibt aber ein Pfeil).
+  0,1; ein fertiges → ist nah an einem Strich, bleibt aber ein Pfeil). Seit 43 ist (3) ein Kreis
+  `InkDots.DOT_REACH` 0,5 um einen Punkt, (2) erlaubt `BASE_DISTANCE` = `CLEAR_DISTANCE` 2,3 und
+  verlangt weniger Punkte in der Zeichnung als im Symbol, (4) vergleicht nur mit Symbolen ohne Punkte.
   Sonst schreibt `SymbolInk` das wartende Symbol sofort, und `PointerTracker` tippt die Taste wie
   einen Tipp (P96). Abwägung: ein Buchstabe direkt über oder unter der Mitte eines gemalten Strichs
   wird zum Punkt (etwa eine Taste je Nachbarreihe, P104). `SymbolDrawing.attach` setzt `dotCheck`
@@ -2004,6 +2013,33 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Ein Wortvorschlag im Fenster: `SymbolDrawing.beforeSuggestionPick` (P97). Nach der Pause (Timer per `postAtTime`, P51) oder vor jeder anderen Taste
   (`flush`) gehen die Striche an die Senke. Es wird nie sofort nach einem Strich geschrieben, weil
   jeder Strich der erste eines mehrstrichigen Symbols sein kann (– → =, ≠).
+- Punkte (43, Rückmeldung zu Build 19: ÷/% verloren oder Symbol plus Buchstabe): Ein Tipp, dem
+  `isDot` zustimmt, ist ein möglicher Punkt: `SymbolInk.onInkUp` legt ihn als einen Punkt (seine
+  Mitte) in die Gruppe, merkt Index, Zeiger, Aufsetzpunkt und Lücke (`Possible`) und tippt nichts.
+  `SymbolInk.resolve` (in `finish` und `takeWaiting`) fragt `DotCheck.keeps`: `InkDots.keeps` nimmt
+  die Punkte nur, wenn `InkRecognizer.best` der ganzen Zeichnung ein Symbol ist, dessen Vorlage mit
+  Punkten genau so viele Punkte hat, und jeder Punkt nach Deckung (wie (3)) höchstens
+  `KEEP_REACH` 0,35 von einem eigenen Punkt der Vorlage liegt (der Erkenner allein sieht kaum, wo 2
+  von 32 Punkten liegen). Dann zählen ihre Lücken fürs Tempo. Sonst geht die Zeichnung ohne sie an
+  die Senke, danach tippt `SymbolInk.tapper` (`PointerTracker.typeInkTap`, gesetzt in
+  `PointerTracker.init`) jeden als Taste am Aufsetzpunkt auf der jetzigen Tastatur, in Reihenfolge
+  (P151). Ein späterer Tipp, der kein möglicher Punkt ist, schreibt so erst Symbol und mögliche
+  Punkte, dann sich selbst. Die Vorschau entscheidet auf dem Worker genauso (`Sink.onWaiting` mit
+  `possibleDots`, `SymbolDrawing.onWaiting`). Neue Vorlagen (`InkSymbols`): % mit Strich und zwei
+  Punkten (gestaucht wie die übrigen), ‰ (Kreise oder Punkte), ! ¡ ? ¿; in Vorlagen mit Punkten steht
+  der Strich zuerst (P152). Abwägung: ein möglicher Punkt erscheint als Buchstabe erst nach der
+  Pause; verloren ist ein Buchstabe nur als Teil eines Punkt-Symbols (zwei Buchstaben über und
+  unter der Mitte eines Strichs: ÷; einer unter einem senkrechten Strich: !). `cancel` verwirft
+  mögliche Punkte mit der Zeichnung. Zahlen: `docs/VALIDATION.md` → Etappe 43.
+- Start direkt nach dem Tippen (43): HeliBoard setzt nach einem getippten Buchstaben 500 ms
+  (`mGestureFastTypingCooldown`) `mAfterFastTyping`; dann verlangt `isStartOfAGesture` von 6 auf
+  0,35 Tastenbreiten über 450 ms fallend, so dass ein Symbolstrich direkt nach einem Wort ein Tipp
+  blieb. Mit Symbole malen gibt `PointerTracker.onDownEvent` `SymbolInk.gestureTypingTime`
+  (`eventTime − Int.MAX_VALUE`, Sperre aus) weiter und merkt `mInkAfterTyping`
+  (`InkTap.isAfterTyping`, 500 ms); `onGestureMoveEvent` startet dann erst ab
+  `InkTap.START_AFTER_TYPING_KEYS` 0,75 Tastenbreiten vom Aufsetzpunkt (`mGestureDownX/Y`). Ohne
+  Symbole malen unverändert; die Einstellung „Schnelltipp-Sperre“ wirkt beim Malen nicht und ist
+  dann auf der Gestenseite (wie bisher) ausgeblendet (P153).
 - Vorschau (36): 120 ms nach einem Strich ohne neuen (`SymbolInk.PREVIEW_DELAY_MILLIS`, Prüfer M2)
   meldet `SymbolInk` die wartende Zeichnung an `Sink.onWaiting`; `SymbolDrawing` liest den Erkenner
   im Hauptthread, erkennt auf einem eigenen Thread (`previewExecutor`, in Tests direkt) und zeigt das
@@ -2067,6 +2103,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   über 4096 Punkten zeigt die Karte „Bitte neu malen“ (`agent_symbol_pad_limit`) und sperrt
   „Weiter“ (31). Texte in
   `agent_symbol_strings.xml`.
+- Tests 43: `CT/InkDotFlowTest.kt` (ganzer Weg durch die Pause mit dem Finger-Modell: Punkt-Symbole,
+  Buchstaben nach Symbolen ohne Punkte), `InkFingerModel.drawDotted`, `InkDotsTest` (mögliche
+  Punkte und `keeps`), `SymbolInkTest` (möglicher Punkt wird Buchstabe, Reihenfolge, ÷ beide
+  Reihenfolgen, ÷ mit seitlichen Punkten, % mit Punkten und kleinem Kreis, ! und ?, Malen
+  100/200/400 ms nach einem Wort, rutschender Tipp beim schnellen Tippen, ohne Malen bleibt die
+  Sperre), `InputLogicTest.symbolDraw*` (Buchstabe nach dem Symbol, ÷ aus zwei Tipps, Vorschau-Chip
+  mit möglichem Punkt).
 - Tests 36 nach Prüfer: `SymbolInkTest` (Ziffer und Punkt neben der Zeichnung werden getippt,
   kurzer Strich nahe der Zeichnung gehört dazu, rollender Tipp dort ist Buchstabe, zweiter Daumen
   nach 7 px, Strich bei zweitem Finger wird geschrieben, eine Vorschau für schnelle Striche),
@@ -2800,6 +2843,25 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   „abgelaufen“-Hinweis; ein zweites Enter geht weiter. Ließe es Enter durch, schickte die App
   „@snip name Feld: Wert“. Grenze: Wächst der Wert über 500 Zeichen (z. B. durch Einfügen), ist
   der Text kein Befehl mehr, und das nächste Enter geht an die App (im Chat: Senden).
+- **P151** Ein möglicher Punkt (43) wird erst beim Schreiben der Zeichnung zur Taste, oft mitten in
+  einem anderen Touch (der nächste Tipp, `flush` aus `onPressKey` einer anderen Taste). Darum tippt
+  `PointerTracker.typeInkTap` statisch über den Listener und fasst keinen Tracker-Zustand an
+  (`mCurrentKey`, Warteschlange); `beforeOtherInput` steht in `onPressKey` vor allem anderen, so
+  dass der verschachtelte Tastendruck vor der äußeren Taste fertig ist. Kein Haptik-Ereignis, keine
+  Tastenvorschau. Die Taste wird an der Aufsetzstelle auf der Tastatur nach dem Symbol bestimmt
+  (P96). P113 (`DOT_ALONG`) gilt seit 43 nicht mehr: die Lage prüft `KEEP_REACH` beim Schreiben;
+  `InkDots.BASE_DISTANCE` (P114) ist seit 43 `CLEAR_DISTANCE` statt der Annahme.
+- **P152** Eine Vorlage, die mit einem Punkt beginnt, sprengt `InkAreaTest` (der Bereich wächst ab
+  einem Punkt nur um 3 Tasten) und kommt am Telefon nie vor: ein Tipp allein ist ein Buchstabe. In
+  Vorlagen mit Punkten steht der Strich zuerst; der Finger-Bereichstest zieht Punkte am Anfang
+  hinter den ersten Strich. Kleine Kreise (r 9–12) als Vorlage scheitern am Rauschen von
+  `InkRecognizerTest.perturb` fast immer (Zitter je Punkt, Richtungsterm); gemischte %-Vorlagen
+  (ein Kreis, ein Punkt) wurden darum wieder entfernt.
+- **P153** Die Schnelltipp-Sperre beim Malen (43) hängt am Abstand vom Aufsetzpunkt, nicht an
+  HeliBoards Abstand ab der „schnellen Bewegung“: ein rutschender Tipp von 0,7 Tasten erreicht nach
+  dem Tippen nie den Start, ohne Tippen davor startet er wie bisher ab 0,35 Tasten ab dem Punkt,
+  wo er schnell wurde. `gestureTypingTime` darf nicht 0 liefern (`(int)` von großen Uptime-Werten
+  wird negativ, dann wäre die Sperre an).
 - **P150** Jede neue Textdatei `values/agent_*strings.xml` braucht
   `tools:ignore="MissingTranslation"` am `<resources>`-Tag (der Fork liefert nur Englisch und
   Deutsch); sonst bricht `lintDebugNoMinify` mit Fehlern für alle Upstream-Sprachen ab. Die
@@ -2832,7 +2894,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (489 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (490 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -2891,14 +2953,14 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Workflow
 - `C/clip/` (1): ClipGuard
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
-- `CT/` (37): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
+- `CT/` (38): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
   EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest, EventParserTest, InkAreaTest, InkBenchmarkTest,
-  InkDotsTest, InkFingerModel, InkRecognizerTest, InkTimingTest, InsertionAnchorTest,
-  LanguageNamesTest, LocalTextActionsTest, MathExpressionTest, OwnInkSymbolsTest,
-  PendingBatchGateTest, PersonalInkSymbolsTest, PlacesTest, QuestionCaptureTest, RgbCurveTest,
-  RgbFrameStatsTest, RgbLightingTest, RgbPatternsTest, SkillBindingTest, SnippetTemplateTest,
-  StyledTranslationTest, SymbolTableTest, TimerParserTest, ToolTest, UnitConversionTest,
-  UpdateReleasesTest, UrlDetectorTest, WorkflowTest
+  InkDotFlowTest, InkDotsTest, InkFingerModel, InkRecognizerTest, InkTimingTest,
+  InsertionAnchorTest, LanguageNamesTest, LocalTextActionsTest, MathExpressionTest,
+  OwnInkSymbolsTest, PendingBatchGateTest, PersonalInkSymbolsTest, PlacesTest, QuestionCaptureTest,
+  RgbCurveTest, RgbFrameStatsTest, RgbLightingTest, RgbPatternsTest, SkillBindingTest,
+  SnippetTemplateTest, StyledTranslationTest, SymbolTableTest, TimerParserTest, ToolTest,
+  UnitConversionTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
 - `CT/clip/` (1): ClipGuardTest
 - `CT/format/` (1): FormatGuardTest
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,

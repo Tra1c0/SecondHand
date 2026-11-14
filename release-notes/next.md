@@ -214,3 +214,12 @@
   Domains anderer Länder (`hotmail.fr`, `posteo.at`) bleiben ohne Hinweis; Telefonnummern ohne
   Vorwahl liest er auch nach dem Land deiner Systemsprache. Nie in Passwortfeldern, in Feldern
   ohne Lernen, im Inkognito-Modus oder bei gesperrtem Gerät. Noch auf keinem Gerät ausprobiert.
+- Behoben: Symbole malen (deine Rückmeldung zu Build 19). Getippte Punkte gehen nicht mehr
+  verloren: Ein Tipp ungefähr dort, wo ein Symbol einen Punkt hat, wartet als möglicher Punkt;
+  nach der Pause entscheidet die ganze Zeichnung. Ergibt sie kein Symbol mit Punkten, kommt das
+  Symbol und danach der Buchstabe (dann erst nach der Pause). % geht jetzt auch mit zwei Tupfern
+  statt Kreisen (erst der Schrägstrich), neu sind ‰, !, ¡, ? und ¿. Direkt nach dem Tippen eines
+  Worts beginnt ein Strich jetzt als Zeichnung, sobald er etwa eine Dreivierteltaste lang ist;
+  ein beim schnellen Tippen rutschender Tipp bleibt Buchstabe. Im künstlichen Finger-Test ÷ 99 %
+  statt 71 %, % mit Tupfern 98 % statt 0 %, mit winzigen Kreisen erst 53 %. Noch auf keinem Gerät
+  ausprobiert.

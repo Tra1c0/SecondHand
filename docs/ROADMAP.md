@@ -38,6 +38,14 @@ Reihenfolge von oben nach unten.
   der Pause, ob der Vorschau-Chip beim Malen stört, Zeit der Erkennung), ob ⇒ → ≠ am Telefon weg
   ist (im Test nie nachgestellt); Annahme des Leads:
   „Aus meinen Korrekturen lernen“ ist opt-in (Regel in `CLAUDE.md`), der Owner schaltet es ein.
+- **43 Symbole malen: Punkte und Start nach dem Tippen** (Rückmeldung des Owners zu Build 19: bei
+  ÷, % und allen Symbolen mit einem getippten Punkt ging das Symbol verloren oder kam mit
+  Buchstabe; direkt nach dem Tippen begann oft keine Zeichnung) ist gebaut (siehe FEATURES.md,
+  Nachweis in `docs/VALIDATION.md` → Etappe 43): mögliche Punkte mit Entscheidung beim Schreiben,
+  sonst Symbol und danach die Buchstaben; Punkt-Vorlagen für %, neu ‰ ! ¡ ? ¿; HeliBoards
+  Schnelltipp-Sperre beim Malen ersetzt durch 0,75 Tastenbreiten direkt nach dem Tippen. Offen:
+  Prüfer-Review der `PointerTracker`-Änderung (Pflicht), Gerätetest am Xiaomi (Punkte mit echten
+  Fingern, ob die verzögerten Buchstaben stören, Malen direkt nach dem Tippen, rutschende Tipps).
 - **33 Leertasten-Geste mit Rastpunkten** ist gebaut (siehe FEATURES.md, Nachweis in
   `docs/VALIDATION.md` → Etappe 33 (Leertasten-Rastpunkte)). Offen: Prüfer-Review der `PointerTracker`-Änderung
   (Pflicht vor dem Merge), Gerätetest (Gefühl und Unterscheidbarkeit der Ticks, Abstände am

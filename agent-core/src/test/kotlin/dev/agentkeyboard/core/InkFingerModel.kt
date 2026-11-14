@@ -152,6 +152,13 @@ object InkFingerModel {
             listOf(seg(32 + s, 0, 32 - s, 100), seg(68 + s, 0, 68 - s, 100), seg(0, 32, 100, 32), seg(0, 68, 100, 68)) },
         "%" to { r -> val rr = r.nextDouble(12.0, 20.0)
             listOf(circle(rr, rr, rr, rr, r), seg(85, 0, 15, 100), circle(100 - rr, 100 - rr, rr, rr, r)) },
+        // stage 43: symbols with dots, the dots placed by hand
+        "‰" to { r -> val rr = r.nextDouble(10.0, 15.0)
+            listOf(circle(rr + 2, rr + 2, rr, rr, r), seg(68, 0, 18, 100), circle(52.0, 100 - rr, rr, rr, r), circle(100 - rr, 100 - rr, rr, rr, r)) },
+        "!" to { r -> exclamation(r) },
+        "¡" to { r -> exclamation(r).mirrorY() },
+        "?" to { r -> question(r) },
+        "¿" to { r -> question(r).mirrorX().mirrorY() },
         "(" to { r -> listOf(arc(75.0, 50.0, r.nextDouble(30.0, 45.0), 50.0, 245.0, 115.0)) },
         ")" to { r -> listOf(arc(25.0, 50.0, r.nextDouble(30.0, 45.0), 50.0, -65.0, 65.0)) },
         "[" to { _ -> listOf(seg(70, 0, 30, 0, 30, 100, 70, 100)) },
@@ -161,6 +168,58 @@ object InkFingerModel {
     )
 
     val symbols: Set<String> get() = shapes.keys
+
+    // --- stage 43: symbols with dots, drawn with the dots tapped ---
+
+    /** A dot as a finger taps it, or (with [circles]) now and then a tiny circle of up to 3 units. */
+    private fun dotOrCircle(cx: Double, cy: Double, r: Random, circles: Boolean): Path =
+        if (circles && r.nextBoolean()) circle(cx, cy, r.nextDouble(1.0, 3.0), r.nextDouble(1.0, 3.0), r) else seg(cx, cy)
+
+    private fun exclamation(r: Random): List<Path> {
+        val x = r.nextDouble(45.0, 55.0)
+        return listOf(seg(50, 0, x, r.nextDouble(60.0, 82.0)), seg(x + r.nextDouble(-6.0, 6.0), r.nextDouble(90.0, 100.0)))
+    }
+
+    private fun question(r: Random): List<Path> {
+        val hook = arc(50.0, 27.0, r.nextDouble(24.0, 32.0), r.nextDouble(20.0, 27.0), r.nextDouble(185.0, 210.0), r.nextDouble(390.0, 430.0))
+        val x = r.nextDouble(44.0, 56.0)
+        return listOf(hook + seg(x, r.nextDouble(56.0, 62.0), x, r.nextDouble(68.0, 80.0)), seg(x + r.nextDouble(-6.0, 6.0), r.nextDouble(90.0, 100.0)))
+    }
+
+    private fun percent(r: Random, circles: Boolean): List<Path> = listOf(seg(85, 0, 15, 100),
+        dotOrCircle(r.nextDouble(10.0, 26.0), r.nextDouble(10.0, 26.0), r, circles),
+        dotOrCircle(r.nextDouble(74.0, 90.0), r.nextDouble(74.0, 90.0), r, circles))
+
+    private fun perMille(r: Random, circles: Boolean): List<Path> = listOf(seg(68, 0, 18, 100),
+        dotOrCircle(r.nextDouble(10.0, 24.0), r.nextDouble(10.0, 24.0), r, circles),
+        dotOrCircle(r.nextDouble(46.0, 58.0), r.nextDouble(78.0, 90.0), r, circles),
+        dotOrCircle(r.nextDouble(78.0, 90.0), r.nextDouble(78.0, 90.0), r, circles))
+
+    private val dotted: Map<String, (Random) -> List<Path>> = linkedMapOf(
+        "÷" to shapes.getValue("÷"),
+        "%" to { r -> percent(r, false) },
+        // the same with a tiny circle instead of a dot now and then (expected: %)
+        "%○" to { r -> percent(r, true) },
+        "‰" to { r -> perMille(r, false) },
+        "!" to ::exclamation,
+        "¡" to { r -> exclamation(r).mirrorY() },
+        "?" to ::question,
+        "¿" to { r -> question(r).mirrorX().mirrorY() },
+    )
+
+    /** Stage 43: what [drawDotted] knows; its first character is the symbol ("%○": % with tiny circles). */
+    val dottedSymbols: Set<String> get() = dotted.keys
+
+    /**
+     * Stage 43: [text] drawn with its dots tapped (% and ‰ now and then with tiny circles instead):
+     * the strokes first in random order (a drawing starts with a stroke, a lone tap is a letter), then
+     * the dots in random order. Otherwise as noisy as [draw] with `hard`.
+     */
+    fun drawDotted(text: String, r: Random): List<InkStroke> {
+        val paths = dotted.getValue(text)(r)
+        val (dots, lines) = paths.partition { path -> path.maxOf { it.x } - path.minOf { it.x } <= 8 && path.maxOf { it.y } - path.minOf { it.y } <= 8 }
+        return noisy(lines.shuffled(r) + dots.shuffled(r), r, hard = true, keepOrder = true)
+    }
 
     /** One finger drawing of [text] in screen pixels; the strokes in the order they were drawn. */
     fun draw(text: String, r: Random, hard: Boolean = true): List<InkStroke> = noisy(shapes.getValue(text)(r), r, hard)
@@ -180,13 +239,13 @@ object InkFingerModel {
         return noisy(bars + head, r, true)
     }
 
-    private fun noisy(strokes: List<Path>, r: Random, hard: Boolean): List<InkStroke> {
+    private fun noisy(strokes: List<Path>, r: Random, hard: Boolean, keepOrder: Boolean = false): List<InkStroke> {
         val rotation = Math.toRadians(r.nextDouble(-1.0, 1.0) * if (hard) 15.0 else 8.0)
         val stretch = if (hard) 0.25 else 0.12
         val sx = r.nextDouble(1 - stretch, 1 + stretch); val sy = r.nextDouble(1 - stretch, 1 + stretch)
         val size = r.nextDouble(1.2, 4.0)
         val ox = r.nextDouble(0.0, 600.0); val oy = r.nextDouble(0.0, 300.0)
-        val ordered = if (hard && r.nextBoolean()) strokes.shuffled(r) else strokes
+        val ordered = if (hard && !keepOrder && r.nextBoolean()) strokes.shuffled(r) else strokes
         return ordered.map { path ->
             var s = if (hard && r.nextBoolean()) path.reversed() else path
             if (s.size > 1 && hard) s = trimmed(s, r)

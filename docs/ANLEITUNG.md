@@ -577,7 +577,9 @@ malen“ der Schalter „Symbole malen (statt Gestenschreiben)“). Gestenschrei
 langes Drücken für Sonderzeichen und das Wischen auf Leer- und Löschtaste bleiben wie vorher.
 
 - Male mit einem Finger auf den Buchstabentasten, zügig wie beim Wischen. Die Spur bleibt kurz
-  sichtbar.
+  sichtbar. Direkt nach dem Tippen eines Worts darfst du sofort malen: Der erste Strich zählt,
+  sobald er etwa eine Dreivierteltaste vom Aufsetzpunkt weg ist; ein Tipp, der beim schnellen
+  Tippen nur ein Stück rutscht, bleibt ein Buchstabe.
 - Ein Symbol aus mehreren Strichen: den nächsten Strich innerhalb der Pause ansetzen. Die Pause
   ist anfangs 0,9 Sekunden und passt sich deinem Tempo an (etwa 2,5-mal so lang wie deine übliche
   Lücke zwischen zwei Strichen, mindestens 0,6 und höchstens 1,5 Sekunden). Kurze Striche zählen
@@ -594,10 +596,15 @@ langes Drücken für Sonderzeichen und das Wischen auf Leer- und Löschtaste ble
   abzuwarten; ein Tipp auf ein anderes Symbol schreibt dieses.
 - Ein Tipp in dieser Pause nahe der Zeichnung (der Finger bewegt sich kaum, weniger als etwa 8 dp, so lange er auch
   liegt) schreibt das Symbol und dann den Buchstaben. Bewegt er sich weiter, ist er ein Strich des
-  Symbols. Als Punkt zählt der Tipp nur, wenn ein Symbol hier einen Punkt braucht: nach einem
-  waagerechten Strich ungefähr senkrecht über oder unter seiner Mitte (÷), bei eigenen Symbolen mit
-  Punkten dort, wo du den Punkt gemalt hast. Darum wird ein Buchstabe, den du direkt über oder
-  unter die Mitte eines gemalten Strichs tippst, zum Punkt; die Tasten daneben bleiben Buchstaben.
+  Symbols. Punkte tippst du einfach: Liegt der Tipp ungefähr dort, wo ein Symbol einen Punkt hat
+  (÷ über und unter dem Strich, % oben links und unten rechts vom Schrägstrich, ‰, ! und ? unter dem
+  Strich, ¡ und ¿ darüber; bei eigenen Symbolen dort, wo du den Punkt gemalt hast), wartet er als
+  möglicher Punkt. Nach der Pause entscheidet die ganze Zeichnung: Ergibt sie ein Symbol mit genau
+  so vielen Punkten an ihren Plätzen, bleiben es Punkte; sonst kommt das Symbol ohne sie und danach
+  die getippten Buchstaben in deiner Reihenfolge (sie erscheinen dann erst nach der Pause). Male
+  den Strich zuerst, ein Tipp allein ist immer ein Buchstabe. Zwei Buchstaben direkt über und unter
+  der Mitte eines gemalten Strichs werden zu ÷, ein Buchstabe direkt unter einem senkrechten Strich
+  zu !.
   Rutscht der Tipp beim Loslassen ein kleines Stück auf die Nachbartaste (z. B. Löschen), zählt
   die Taste, auf der du aufgesetzt hast.
 - Tippst du in dieser Pause mit zwei Daumen (der zweite setzt auf, bevor der erste
@@ -646,7 +653,7 @@ eine Pfeilspitze darf ein Haken oder zwei einzelne Striche sein):
 | + | senkrechter und waagerechter Strich |
 | ± | + und darunter ein Strich |
 | × | zwei Diagonalen (ein X) |
-| ÷ | waagerechter Strich, dann ein Tupfer darüber und einer darunter |
+| ÷ | waagerechter Strich, dann ein Tupfer darüber und einer darunter (Reihenfolge egal) |
 | – | ein waagerechter Strich (Gedankenstrich) |
 | \| | ein senkrechter Strich |
 | ∞ | liegende Acht |
@@ -662,7 +669,10 @@ eine Pfeilspitze darf ein Haken oder zwei einzelne Striche sein):
 | & | Und-Zeichen in einem Zug |
 | @ | kleiner Kreis und große Schlinge drumherum |
 | # | zwei senkrechte und zwei waagerechte Striche |
-| % | Kreis oben links, Schrägstrich, Kreis unten rechts |
+| % | Kreis oben links, Schrägstrich, Kreis unten rechts; oder erst der Schrägstrich und die Kreise als zwei Tupfer |
+| ‰ | wie %, unten rechts zwei Kreise (oder Schrägstrich und drei Tupfer) |
+| ! ¡ | senkrechter Strich, dann ein Tupfer darunter (!) bzw. darüber (¡) |
+| ? ¿ | Haken wie geschrieben, dann ein Tupfer darunter (?); ¿ auf dem Kopf |
 | ( ) [ ] { } | die Klammer, wie geschrieben |
 
 Eigene Symbole: Auf derselben Seite „Symbol hinzufügen“; darunter öffnet sich ein Malfeld. Das

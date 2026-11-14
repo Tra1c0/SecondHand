@@ -9,9 +9,28 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** Stage 31: a quick tap in the pause is a dot only where a symbol with dots needs one. */
+/**
+ * Stage 31: a quick tap in the pause is a dot only where a symbol with dots needs one. Stage 43: a tap
+ * near a dot of such a symbol is a possible dot ([InkDots.isDot]); it stays a dot only when the whole
+ * drawing is a symbol with that many dots ([InkDots.keeps]), else it is typed after the symbol.
+ */
 class InkDotsTest {
     private val dots = InkDots(InkSymbols.templates)
+
+    /**
+     * Stage 43: whether all [taps] end as dots of [strokes], as SymbolInk decides it: every tap a possible
+     * dot when it comes (joining as one point), and the whole drawing keeps them when it is written.
+     */
+    private fun endsAsDots(strokes: List<InkStroke>, vararg taps: Pair<Number, Number>): Boolean {
+        val drawing = strokes.toMutableList()
+        val possible = ArrayList<Int>()
+        for ((x, y) in taps) {
+            if (!dots.isDot(drawing, x.toFloat(), y.toFloat())) return false
+            possible += drawing.size
+            drawing += InkStroke(floatArrayOf(x.toFloat(), y.toFloat()))
+        }
+        return dots.keeps(drawing, possible)
+    }
 
     /** A hand-drawn stroke: [stroke] in the 100 box, turned, stretched, wobbled, at [size] px per 100 and offset. */
     private fun hand(strokes: List<InkStroke>, random: Random): List<InkStroke> {
@@ -63,10 +82,15 @@ class InkDotsTest {
         val dash = listOf(line(100, 300, 400, 300))
         assertTrue(dots.isDot(dash, 250f, 190f)) // above the middle, where ÷ has its dot
         assertTrue(dots.isDot(dash, 255f, 410f)) // below
-        assertFalse(dots.isDot(dash, 110f, 200f)) // above the left end
-        assertFalse(dots.isDot(dash, 400f, 420f)) // below the right end
-        assertFalse(dots.isDot(dash, 250f, 300f)) // on the line
-        assertFalse(dots.isDot(dash, 700f, 300f)) // far to the side
+        assertTrue(endsAsDots(dash, 250 to 190, 255 to 410)) // both: ÷
+        // stage 43: a tap away from the dots may wait as a possible dot, but it ends as a letter, also
+        // together with a right dot on the other side (before: no possible dot at all)
+        assertFalse(endsAsDots(dash, 110 to 200, 255 to 410)) // above the left end
+        assertFalse(endsAsDots(dash, 250 to 190, 400 to 420)) // below the right end
+        assertFalse(endsAsDots(dash, 250 to 300, 255 to 410)) // on the line
+        assertFalse(dots.isDot(dash, 700f, 300f)) // far to the side: not even a possible dot
+        // one dot is never ÷: a single letter above or below the middle of a dash is typed after it
+        assertFalse(endsAsDots(dash, 250 to 190))
     }
 
     @Test fun afterSymbolsWithoutDotsATapIsALetter() {
@@ -104,25 +128,30 @@ class InkDotsTest {
     }
 
     @Test fun withoutSymbolsWithDotsEveryTapIsALetter() {
-        val none = InkDots(InkSymbols.templates.filter { it.text != "÷" })
+        // stage 43: more built-in symbols have dots (%, ‰, !, ¡, ?, ¿); before only ÷
+        val none = InkDots(InkSymbols.templates.filter { it.cloud.dotCount == 0 })
         assertTrue(none.isEmpty)
         assertFalse(none.isDot(listOf(line(100, 300, 400, 300)), 250f, 190f))
         assertFalse(InkDots(emptyList()).isDot(listOf(line(100, 300, 400, 300)), 250f, 190f))
     }
 
     @Test fun ownSymbolsWithDotsCount() {
-        // an own "!" (line and a dot below), drawn three times like on the settings page
-        val samples = List(3) { InkCloud.of(listOf(line(50, 0, 50, 75), InkStroke(floatArrayOf(50f, 100f))))!! }
-        val own = InkDots(OwnInkSymbols.Symbol("!", samples).templates() + InkSymbols.templates)
-        val stroke = listOf(line(300, 100, 300, 250))
-        assertTrue(own.isDot(stroke, 302f, 300f)) // below the line
-        assertFalse(own.isDot(stroke, 302f, 50f)) // above it
-        assertFalse(dots.isDot(stroke, 302f, 300f)) // without the own symbol: a letter
+        // an own "⊙" (a circle and a dot in it), drawn three times like on the settings page; stage 43:
+        // was an own "!", which is built in now
+        fun ring(cx: Int, cy: Int, r: Int) = InkStroke(FloatArray(2 * 37) { k ->
+            val a = Math.toRadians(10.0 * (k / 2)); if (k % 2 == 0) (cx + r * cos(a)).toFloat() else (cy + r * sin(a)).toFloat() })
+        val samples = List(3) { InkCloud.of(listOf(ring(50, 50, 50), InkStroke(floatArrayOf(50f, 50f))))!! }
+        val own = InkDots(OwnInkSymbols.Symbol("⊙", samples).templates() + InkSymbols.templates)
+        val stroke = listOf(ring(300, 200, 100))
+        assertTrue(own.isDot(stroke, 302f, 205f)) // in the middle
+        assertFalse(own.isDot(stroke, 302f, 450f)) // far below it
+        assertFalse(dots.isDot(stroke, 302f, 205f)) // without the own symbol: a letter
         // stored and read again, the dot is still known
-        val again = OwnInkSymbols.parse(OwnInkSymbols.encode(listOf(OwnInkSymbols.Symbol("!", samples))))
-        assertTrue(InkDots(again.flatMap { it.templates() }).isDot(stroke, 302f, 300f))
-        assertEquals("!", InkRecognizer(own.let { OwnInkSymbols.Symbol("!", samples).templates() } + InkSymbols.templates)
-            .recognize(stroke + InkStroke(floatArrayOf(302f, 300f))).best?.text)
+        val again = OwnInkSymbols.parse(OwnInkSymbols.encode(listOf(OwnInkSymbols.Symbol("⊙", samples))))
+        assertTrue(InkDots(again.flatMap { it.templates() }).isDot(stroke, 302f, 205f))
+        val drawing = stroke + InkStroke(floatArrayOf(302f, 205f))
+        assertEquals("⊙", InkRecognizer(OwnInkSymbols.Symbol("⊙", samples).templates() + InkSymbols.templates).recognize(drawing).best?.text)
+        assertTrue(own.keeps(drawing, listOf(1)))
     }
 
     // stage 31 fix (review M2): fast typing right after a drawn dash ("E-Mail") must not lose letters
@@ -144,19 +173,22 @@ class InkDotsTest {
     @Test fun lettersBesideTheMiddleOfADashAreLetters() {
         // a dash over four keys of the middle row (90..234, middle 162 = the centre of key 4)
         val drawn = listOf(line(90, rowY(2), 234, rowY(2)))
-        for (row in listOf(1, 3)) {
-            // the neighbours of the key right above or below the middle, and every key further out
-            for (k in (0..9) - 4) assertFalse(dots.isDot(drawn, keyX(k), rowY(row)), "key $k in row $row")
-            // the key straight above or below the middle stays a dot: that is where ÷ has its dots
-            assertTrue(dots.isDot(drawn, keyX(4), rowY(row)), "middle key in row $row")
-        }
-        // two rows away is no dot either
-        assertFalse(dots.isDot(listOf(line(90, rowY(1), 234, rowY(1))), keyX(4), rowY(3)))
+        // stage 43: two letters, one in the row above and one in the row below (the only way letters can
+        // become the two dots of ÷): with either of them two keys or more beside the middle, both are letters
+        for (k in 0..9) for (m in 0..9) if (maxOf(kotlin.math.abs(k - 4), kotlin.math.abs(m - 4)) >= 2)
+            assertFalse(endsAsDots(drawn, keyX(k) to rowY(1), keyX(m) to rowY(3)), "keys $k above and $m below")
+        // the keys straight above and below the middle are ÷: that is where it has its dots
+        assertTrue(endsAsDots(drawn, keyX(4) to rowY(1), keyX(4) to rowY(3)))
+        // a single letter there is typed after the dash: ÷ has two dots
+        for (row in listOf(1, 3)) assertFalse(endsAsDots(drawn, keyX(4) to rowY(row)), "middle key in row $row")
+        // two rows away is no dot either (stage 43: it may wait as a possible dot, but with the right dot
+        // in the row above it is no ÷)
+        assertFalse(endsAsDots(listOf(line(90, rowY(1), 234, rowY(1))), keyX(4) to rowY(0), keyX(4) to rowY(3)))
     }
 
     @Test fun lettersTappedAroundADrawnDashAreRarelyDots() {
         val random = Random(30)
-        var dotted = 0; var total = 0
+        var dotted = 0; var total = 0; var possible = 0
         repeat(400) {
             // a dash over three to six keys in the second or third row, letters tapped in the rows next to it
             val row = 1 + random.nextInt(2)
@@ -164,15 +196,21 @@ class InkDotsTest {
             val length = (3 + random.nextInt(4)) * 36f + random.nextDouble(-15.0, 15.0).toFloat()
             val x0 = random.nextDouble(5.0, (355 - length).toDouble()).toFloat()
             val drawn = listOf(dash(random, x0, y0, length))
-            for (tapRow in listOf(row - 1, row + 1)) for (k in 0..9) {
-                total++
-                if (dots.isDot(drawn, keyX(k) + random.nextDouble(-8.0, 8.0).toFloat(),
-                        rowY(tapRow) + random.nextDouble(-8.0, 8.0).toFloat())) dotted++
+            // stage 43: a letter is lost only as one of two dots, so letters come in pairs here: one key in
+            // the row above, one in the row below (every key of one row with a random key of the other)
+            for (k in 0..9) {
+                val above = keyX(k) + random.nextDouble(-8.0, 8.0).toFloat() to rowY(row - 1) + random.nextDouble(-8.0, 8.0).toFloat()
+                val below = keyX(random.nextInt(10)) + random.nextDouble(-8.0, 8.0).toFloat() to rowY(row + 1) + random.nextDouble(-8.0, 8.0).toFloat()
+                total += 2
+                if (dots.isDot(drawn, above.first, above.second)) possible++
+                if (endsAsDots(drawn, above, below)) dotted += 2
             }
         }
-        // about one key per row stays a dot (the one straight above or below the middle): 826 of 8000;
-        // with the 0.3 circle before the fix 1972 of 8000
-        assertTrue(dotted <= total * 12 / 100, "$dotted of $total taps became dots")
+        println("dots: $possible of ${total / 2} first letters wait as possible dots, $dotted of $total letters became dots")
+        // stage 31: about one key per row became a dot (the one straight above or below the middle): 826
+        // of 8000 single taps, each a lost letter; stage 43: only a pair straight above and below is ÷
+        // (the worst case: every letter has a partner on the other side; 770 of 8000 in stage 43)
+        assertTrue(dotted <= total * 11 / 100, "$dotted of $total taps became dots")
     }
 
     @Test fun aDivisionSignDrawnOverTheKeysKeepsBothDots() {
@@ -210,6 +248,9 @@ class InkDotsTest {
         val dash = line(100, 300, 400, 300)
         val upper = InkStroke(floatArrayOf(250f, 190f))
         assertTrue(dots.isDot(listOf(dash, upper), 252f, 412f))
-        assertFalse(dots.isDot(listOf(dash, upper), 110f, 420f))
+        // stage 43: a possible dot, but no ÷ in the end (before: no possible dot)
+        assertFalse(endsAsDots(listOf(dash), 250 to 190, 110 to 420))
+        // all dots of ÷ are there: a third tap is a letter at once
+        assertFalse(dots.isDot(listOf(dash, upper, InkStroke(floatArrayOf(252f, 412f))), 250f, 150f))
     }
 }
