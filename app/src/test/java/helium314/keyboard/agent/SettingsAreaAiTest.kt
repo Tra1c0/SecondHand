@@ -300,7 +300,7 @@ class SettingsAreaAiTest {
         assertEquals(listOf(SettingsDestination.AgentDictation), routes)
     }
 
-    @Test fun dictationIsReadyOnlyWithRecognizerAndPermission() {
+    @Test fun dictationAsksForThePermissionWhenOnlyTheRecognizerIsThere() {
         page(dictation = { true })
         compose.onNodeWithTag(AREA_ROW_TAG + SettingsDestination.AgentDictation).assert(hasText("Erlauben"))
             .assert(hasText("Mikrofon nicht erlaubt · ab Android 12"))

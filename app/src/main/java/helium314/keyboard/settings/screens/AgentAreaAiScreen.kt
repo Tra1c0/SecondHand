@@ -107,9 +107,8 @@ fun AgentAreaAiScreen(onNavigate: (String) -> Unit, onClickBack: () -> Unit, dic
     }
     val window = context.activity()?.window
     DisposableEffect(window) {
-        val wasSecure = window?.attributes?.flags?.and(WindowManager.LayoutParams.FLAG_SECURE) != 0
-        window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        onDispose { if (!wasSecure) window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
+        SecureWindow.acquire(window)
+        onDispose { SecureWindow.release(window) }
     }
     val area = SettingsArea.AI
     AgentSettingsTheme {

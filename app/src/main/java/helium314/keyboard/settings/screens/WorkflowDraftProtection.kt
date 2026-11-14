@@ -29,8 +29,7 @@ internal fun ProtectWorkflowDraft(onRevoke: () -> Unit) {
     val currentRevoke by rememberUpdatedState(onRevoke)
     val window = context.draftActivity()?.window
     DisposableEffect(context, lifecycle, preferences, window) {
-        val wasSecure = window?.attributes?.flags?.and(WindowManager.LayoutParams.FLAG_SECURE) != 0
-        window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        SecureWindow.acquire(window)
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) currentRevoke()
         }
@@ -44,7 +43,7 @@ internal fun ProtectWorkflowDraft(onRevoke: () -> Unit) {
         onDispose {
             lifecycle.removeObserver(observer)
             preferences.unregisterOnSharedPreferenceChangeListener(listener)
-            if (!wasSecure) window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            SecureWindow.release(window)
         }
     }
     LaunchedEffect(context, lifecycle) { if (!workflowDraftAllowed(context, lifecycle)) currentRevoke() }

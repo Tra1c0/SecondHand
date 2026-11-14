@@ -283,7 +283,7 @@ fun AgentAreaKeysScreen(onNavigate: (String) -> Unit, onClickBack: () -> Unit) {
                     if (format.length > 10) "$sub · $format" else sub, format.takeIf { it.length <= 10 }) { dialog = KeysDialog.TIMESTAMP }
             }
 
-            // until Leiste (38f) and Gesten (38e) are rebuilt: clipboard, vibration and sound of the old options page
+            // the old options page for everything not on an area page (vibration/sound: 38e, clipboard: 38f)
             SectionCard(null) {
                 Nav(AREA_ROW_TAG + SettingsDestination.Preferences, stringResource(R.string.agent_keys_more_options),
                     stringResource(R.string.agent_keys_more_options_sub), null) { onNavigate(SettingsDestination.Preferences) }

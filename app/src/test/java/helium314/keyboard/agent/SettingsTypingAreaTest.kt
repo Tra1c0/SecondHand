@@ -241,7 +241,7 @@ class SettingsTypingAreaTest {
             Settings.PREF_SHOW_SUGGESTIONS, Settings.PREF_SUGGEST_EMOJIS,
             // a space gesture owns the double tap
             Settings.PREF_KEY_USE_DOUBLE_SPACE_PERIOD).forEach { switch(it).assertIsNotEnabled() }
-        compose.onNodeWithTag(TYPING_SWITCH_TAG + Settings.PREF_SHOW_SUGGESTIONS).assert(hasText("Nur mit Vorschlagsleiste in der Leiste"))
+        compose.onNodeWithTag(TYPING_SWITCH_TAG + Settings.PREF_SHOW_SUGGESTIONS).assert(hasText("Nur, wenn die Leiste Vorschläge zeigt (Leiste & Befehle)"))
         listOf(Settings.PREF_AUTO_CAP, Settings.PREF_BIGRAM_PREDICTIONS, Settings.PREF_SUGGEST_PUNCTUATION,
             Settings.PREF_AUTOSPACE_AFTER_PUNCTUATION, Settings.PREF_ALWAYS_INCOGNITO_MODE).forEach { switch(it).assertIsEnabled() }
         // switching autocorrect on with a card enables its rules

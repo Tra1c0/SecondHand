@@ -35,5 +35,5 @@
     <string name="agent_keys_timestamp">Zeitstempel-Format</string>
     <string name="agent_keys_timestamp_sub">Für die Zeitstempel-Taste</string>
     <string name="agent_keys_more_options">Weitere Optionen</string>
-    <string name="agent_keys_more_options_sub">Zwischenablage, Vibration und Ton (bis Leiste und Gesten neu sind)</string>
+    <string name="agent_keys_more_options_sub">Alle Optionen, z. B. angeheftete Einträge zuerst, Dateigröße</string>
 </resources>

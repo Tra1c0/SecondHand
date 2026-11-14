@@ -49,6 +49,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import dev.agentkeyboard.core.RgbTarget
+import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.agent.AgentPreferences
 import helium314.keyboard.agent.DesignTiles
 import helium314.keyboard.agent.MyDesigns
@@ -131,7 +132,7 @@ private fun StartContent(onNavigate: (String) -> Unit, onSearch: () -> Unit) {
             ChipToggles(listOf(
                 ChipItem(stringResource(R.string.agent_settings_quick_incognito),
                     prefs.getBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, Defaults.PREF_ALWAYS_INCOGNITO_MODE),
-                    { toggle(Settings.PREF_ALWAYS_INCOGNITO_MODE, it) }, QUICK_INCOGNITO),
+                    { toggle(Settings.PREF_ALWAYS_INCOGNITO_MODE, it); KeyboardSwitcher.getInstance().setThemeNeedsReload() }, QUICK_INCOGNITO),
                 ChipItem(stringResource(R.string.agent_settings_quick_rgb), rgb.enabled,
                     { RgbLighting.write(prefs, rgb.copy(enabled = it).normalized()); written++ }, QUICK_RGB),
                 ChipItem(stringResource(R.string.agent_settings_quick_vibration),

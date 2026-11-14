@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.settings.screens
 
+import android.os.Vibrator
 import android.content.Context
 import android.content.SharedPreferences
 import android.media.AudioManager
-import android.os.Vibrator
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -286,7 +287,7 @@ private fun SymbolSection(
 @NonSkippableComposable
 @Composable
 private fun FeelSection(context: Context, prefs: SharedPreferences, area: SettingsArea, putBoolean: (String, Boolean) -> Unit, onDialog: (String) -> Unit) {
-    val hasVibrator = remember { runCatching { context.getSystemService(Vibrator::class.java)?.hasVibrator() == true }.getOrDefault(false) }
+    val hasVibrator = remember { ContextCompat.getSystemService(context, Vibrator::class.java)?.hasVibrator() == true } // ContextCompat: also on API 21/22
     val vibrate = prefs.getBoolean(Settings.PREF_VIBRATE_ON, Defaults.PREF_VIBRATE_ON)
     val sound = prefs.getBoolean(Settings.PREF_SOUND_ON, Defaults.PREF_SOUND_ON)
     SectionCard(stringResource(R.string.agent_gestures_feel)) {

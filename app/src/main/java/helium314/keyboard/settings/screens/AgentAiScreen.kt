@@ -88,11 +88,10 @@ private fun AgentAiUnlockedScreen(onClickBack: () -> Unit) {
         onDispose { lifecycle.removeObserver(observer) }
     }
     DisposableEffect(window) {
-        val wasSecure = window?.attributes?.flags?.and(WindowManager.LayoutParams.FLAG_SECURE) != 0
-        window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        SecureWindow.acquire(window)
         onDispose {
             apiKey = ""
-            if (!wasSecure) window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            SecureWindow.release(window)
         }
     }
     LaunchedEffect(store, provider) {

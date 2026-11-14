@@ -35,5 +35,5 @@
     <string name="agent_keys_timestamp">Timestamp format</string>
     <string name="agent_keys_timestamp_sub">For the timestamp key</string>
     <string name="agent_keys_more_options">More options</string>
-    <string name="agent_keys_more_options_sub">Clipboard, vibration and sound (until the bar and gesture pages are rebuilt)</string>
+    <string name="agent_keys_more_options_sub">All options, e.g. pinned clips first, file size</string>
 </resources>

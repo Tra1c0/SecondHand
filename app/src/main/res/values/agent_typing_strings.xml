@@ -21,7 +21,7 @@
     <string name="agent_typing_suggestions">Suggestions</string>
     <string name="agent_typing_show_suggestions">Word suggestions</string>
     <string name="agent_typing_show_suggestions_sub">While you type</string>
-    <string name="agent_typing_show_suggestions_hidden">Only with the suggestion strip in the bar</string>
+    <string name="agent_typing_show_suggestions_hidden">Only when the bar shows suggestions (Bar &amp; commands)</string>
     <string name="agent_typing_next_word">Suggest the next word</string>
     <string name="agent_typing_next_word_sub">From the previous word</string>
     <string name="agent_typing_emoji">Emoji suggestions</string>

@@ -250,7 +250,9 @@ fun AgentAreaTypingScreen(onNavigate: (String) -> Unit, onClickBack: () -> Unit)
                     written++
                 }
                 PrefSwitch(R.string.agent_typing_incognito, stringResource(R.string.agent_typing_incognito_sub),
-                    Settings.PREF_ALWAYS_INCOGNITO_MODE, Defaults.PREF_ALWAYS_INCOGNITO_MODE, true, null, ::bool, ::put)
+                    Settings.PREF_ALWAYS_INCOGNITO_MODE, Defaults.PREF_ALWAYS_INCOGNITO_MODE, true, null, ::bool) { key, value ->
+                        put(key, value, reload = true) // like the old Advanced page
+                    }
             }
 
             SectionCard(null) {

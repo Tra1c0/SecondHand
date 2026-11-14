@@ -21,7 +21,7 @@
     <string name="agent_typing_suggestions">Vorschläge</string>
     <string name="agent_typing_show_suggestions">Wortvorschläge</string>
     <string name="agent_typing_show_suggestions_sub">Während du tippst</string>
-    <string name="agent_typing_show_suggestions_hidden">Nur mit Vorschlagsleiste in der Leiste</string>
+    <string name="agent_typing_show_suggestions_hidden">Nur, wenn die Leiste Vorschläge zeigt (Leiste &amp; Befehle)</string>
     <string name="agent_typing_next_word">Nächstes Wort vorschlagen</string>
     <string name="agent_typing_next_word_sub">Aus dem vorigen Wort</string>
     <string name="agent_typing_emoji">Emoji-Vorschläge</string>

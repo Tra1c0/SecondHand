@@ -1117,7 +1117,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `SettingsAreas.entries(area)`, die vorläufige Zuordnung der bisherigen Seiten nach
   `Struktur.dc.html` (Aussehen: Design, RGB, Aussehen; Tippen: Textkorrektur, Gelernte Wörter,
   Wörterbücher; Tasten: Sprachen, Optionen, Sekundäre Layouts; Gesten: Leertaste, Symbole malen,
-  Gestenschreiben (nur mit Bibliothek), Optionen als „Vibration & Ton“; Leiste: Leiste
+  Gestenschreiben (nur mit Bibliothek), Optionen als „Vibration & Ton“ (seit 38e nur noch Symbole
+  malen und Gestenschreiben, siehe unten); Leiste: Leiste
   (früher „Symbolleiste“), Befehle, Screenshots, seit 38f Zeilen der neuen Seite; KI: KI-Anbieter,
   Skill-Tasten, Workflows, Diktat; System:
   Profile, Updates, Diagnose, Erweitert, Gestendaten (nur in der Sammelphase), Über). 38b–38h
@@ -1162,6 +1163,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   (Symbole malen, Gestenschreiben); `agent_space` ist Unterseite (Erweitert, Suche). Texte
   `agent_gestures_strings.xml`. Test `AT/SettingsAreaGesturesTest.kt` (Bild
   `app/build/agent-previews/settings-area_gestures-full.png`, ganze Seite).
+  Bewusste Abweichung von den alten Seiten (Mockup 1:1): „Spur anzeigen“ und
+  „Touchpad-Empfindlichkeit“ stehen immer da, auch ohne Symbole malen/Gestenschreiben bzw. ohne
+  Wischgeste „Touchpad“; der Wert wirkt erst, wenn die Funktion an ist.
 - Bereich Tasten & Sprachen (38d, Vorlage `Tasten.dc.html`, P128–P129):
   `K/settings/screens/AgentAreaKeysScreen.kt`; `AgentAreaScreen` leitet `SettingsArea.KEYS` mit
   einer Zeile dorthin. `languageCards` baut je eingeschaltetem Subtyp (`getEnabledSubtypes(true)`)
@@ -1178,6 +1182,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Seiten, die diese Seite öffnet (Zeilen mit `AREA_ROW_TAG + route`, P119). Texte:
   `agent_settings_keys_strings.xml`. Test `AT/SettingsKeysScreenTest.kt` (Bild
   `app/build/agent-previews/settings-area_keys-full.png`).
+- `K/settings/screens/SecureWindow.kt`: FLAG_SECURE mit Zähler je Fenster für geschützte Seiten
+  (KI & Automationen, KI-Anbieter, Workflow-Entwurf), P144. Test `AT/SecureWindowTest.kt`.
 - Bereich Leiste & Befehle (38f, P132–P133): `K/settings/screens/AgentAreaBarScreen.kt`,
   aufgerufen von `AgentAreaScreen` für `SettingsArea.BAR` (eine Zeile). `BarModes` ordnet die
   drei Karten HeliBoards `toolbar_mode` zu: TASTEN + VORSCHLÄGE = `EXPANDABLE`, NUR VORSCHLÄGE =
@@ -2543,13 +2549,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   ersten Buchstaben ab (im Bild „JPDATES“, „Zuletzt“ ohne „Z“). Die klickbare Überschrift der
   Update-Karte hat deshalb keinen Clip. `DateUtils.getRelativeTimeSpanString` schreibt deutsch
   „Vor 2 Stunden“ groß; mitten im Satz wird der erste Buchstabe klein gemacht.
+- **P144** Geschützte Seiten (FLAG_SECURE) können verschachtelt sein (KI & Automationen →
+  KI-Anbieter), und der NavHost animiert: Die neue Seite startet, bevor die alte entsorgt ist. Ein
+  „wasSecure“-Schnappschuss je Seite löscht das Flag dann unter der neuen Seite. Immer
+  `SecureWindow.acquire/release` (Zähler je Fenster) benutzen, nie `addFlags/clearFlags` direkt.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (462 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (463 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -2576,7 +2586,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (81): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (82): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, ClipCommandTest, CommandReplaceTest, CommandTemplatesTest,
@@ -2588,13 +2598,14 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LearningDataTest,
   LoadingDotsViewTest, ManualWorkflowDraftTest, MoreCommandsTest, MoreProvidersTest, MyDesignsTest,
   OpenAiProviderTest, RgbLightingRenderTest, RgbSettingsScreenTest, RgbTilesTest,
-  ScreenshotChipTest, SelectedTextCommitTest, SettingsAreaAiTest, SettingsAreaGesturesTest,
-  SettingsBarAreaTest, SettingsKeysScreenTest, SettingsKitTest, SettingsStartScreenTest,
-  SettingsSystemAreaTest, SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest,
-  SliderFeelTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest, SymbolInkTest,
-  SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest, TouchModelTest, TypoMemoryTest,
-  UpdateCheckTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
-  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest, SettingsAreaAiTest,
+  SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest, SettingsKitTest,
+  SettingsStartScreenTest, SettingsSystemAreaTest, SettingsTypingAreaTest, SkillBindingStoreTest,
+  SkillSettingsTest, SliderFeelTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest,
+  SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest, TouchModelTest,
+  TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
+  WorkflowCommandTest, WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest,
+  WorkflowStoreTest
 - `AT/commands/` (8): ClockCommandsTest, EmojiMixCommandTest, LanguageCommandTest, QrCommandTest,
   ScreenReaderServiceTest, SubtypeChoiceTest, TranslateCommandTest, UrlCommandTest
 - `C/` (40): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,

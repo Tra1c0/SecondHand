@@ -136,8 +136,9 @@ mit weißem Rahmen und „aktiv“. Ein Tipp auf eine Karte öffnet die Seite di
 weitere Sprachen, Wörterbücher). „Sprache hinzufügen“ öffnet Sprachen & Layouts. Darunter die
 Schalter und Zeilen der früheren Seite Optionen (Zahlenzeile, Emoji-Taste, Popups, Hinweise …)
 und aus Erweitert Langdruck-Dauer, Währungen, Zeitstempel-Format und „Zurück zu den Buchstaben“
-(ein Tipp klappt die vier Schalter auf). Zwischenablage, Vibration und Ton findest du dort unter
-„Weitere Optionen“, bis die Bereiche Leiste und Gesten neu sind.
+(ein Tipp klappt die vier Schalter auf). Alles Übrige der alten Seite Optionen steht unter
+„Weitere Optionen“; Vibration und Ton liegen bei Gesten & Gefühl, die Zwischenablage bei
+Leiste & Befehle.
 
 ### Leiste & Befehle
 
