@@ -8,9 +8,11 @@ import dev.agentkeyboard.core.KeyBox
 import helium314.keyboard.keyboard.Keyboard
 import helium314.keyboard.latin.DictionaryFacilitator
 import helium314.keyboard.latin.RichInputConnection
+import helium314.keyboard.latin.common.Constants
 import helium314.keyboard.latin.settings.SettingsValues
 import org.json.JSONArray
 import org.json.JSONObject
+import java.text.Normalizer
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
 
@@ -37,18 +39,44 @@ class FieldCorrectionWatcher {
     private var reference: Snapshot? = null
     private val autoCorrections = ArrayDeque<AutoCorrection>()
     private var session = nextSession()
+    // review N1: the field positions the user's own input (letters, delete, a picked suggestion)
+    // touched since the reference, as one range: without a cursor move (a checkpoint) the input
+    // stays at one place. Changes outside it were made by the app.
+    private var ownFrom = -1
+    private var ownTo = -1
+    // review N2: the letters of the last alphabet keyboard, also while symbols or the numpad show
+    private var adjacencyKeyboard: Keyboard? = null
+    private var layoutAdjacency: KeyAdjacency? = null
 
     /** Input starts in a field: everything of the previous field is forgotten. */
     fun start() {
         reference = null
         autoCorrections.clear()
         session = nextSession()
+        clearOwnEdits()
     }
 
-    /** Text was pasted or inserted, or text is typed over a selection: this change is not learned. */
+    /**
+     * Text was pasted or inserted, text is typed over a selection, or undo/redo let the app change the
+     * text: this change is not learned.
+     */
     fun untrusted() {
         reference = null
+        clearOwnEdits()
     }
+
+    /**
+     * Review N1: the user's own input (a character key, delete, a picked suggestion) at field position
+     * [position], before it is applied. Only changes of a word touching such positions count.
+     */
+    fun ownEdit(position: Int) {
+        if (reference == null || position < 0) return
+        if (ownFrom < 0) { ownFrom = position; ownTo = position; return }
+        ownFrom = minOf(ownFrom, position)
+        ownTo = maxOf(ownTo, position)
+    }
+
+    private fun clearOwnEdits() { ownFrom = -1; ownTo = -1 }
 
     /** [typed] was automatically replaced by [corrected] in this field. */
     fun autoCorrected(typed: String, corrected: String, settings: SettingsValues) {
@@ -60,23 +88,40 @@ class FieldCorrectionWatcher {
     /**
      * Compare the field with the previous checkpoint. [atCommit]: a word was just committed and the
      * cursor stands right after it; if it is at the end of the field, the text that followed the word
-     * before may have been deleted to fix it.
+     * before may have been deleted to fix it. [committedFrom] -> [committedTo]: the keyboard's own
+     * automatic correction of the word just committed, never the user's change (review M1).
+     * [composing]: a word is being composed; then nothing is compared and no reference is taken, a
+     * half-typed word is no state of the field (review M1).
      */
     fun checkpoint(context: Context, connection: RichInputConnection, settings: SettingsValues,
-                   dictionary: DictionaryFacilitator, historySuppressed: Boolean, atCommit: Boolean) {
+                   dictionary: DictionaryFacilitator, historySuppressed: Boolean, atCommit: Boolean,
+                   composing: Boolean, committedFrom: String?, committedTo: String?) {
         if (!mayObserve(settings, historySuppressed)) {
             reference = null
             autoCorrections.clear()
+            clearOwnEdits()
             return
         }
+        if (composing) return // the last reference stays, the next checkpoint compares
         val cursor = connection.expectedSelectionStart
-        if (cursor < 0 || connection.hasSelection()) { reference = null; return }
-        val before = connection.getTextBeforeCursor(LIMIT, 0)?.toString()
-        val after = connection.getTextAfterCursor(LIMIT, 0)?.toString()
-        if (before == null || after == null) { reference = null; return }
-        val now = Snapshot(cursor - before.length, before + after, after.length < LIMIT)
+        // review M2: a slow app gets no extra reads; nothing is learned there
+        if (cursor < 0 || connection.hasSelection() || connection.hasSlowInputConnection()) { untrusted(); return }
+        val before = connection.getTextBeforeCursor(LIMIT_BEFORE, 0)?.toString()
+        val after = connection.getTextAfterCursor(LIMIT_AFTER, 0)?.toString()
+        if (before == null || after == null) { untrusted(); return }
+        val now = Snapshot(cursor - before.length, before + after, after.length < LIMIT_AFTER)
         val old = reference
+        val ownRange = if (ownFrom < 0) null else ownFrom..ownTo
         reference = now
+        clearOwnEdits()
+        if (now.text.isEmpty()) {
+            // review N3: the field was emptied (a messenger after sending): the next message is another place
+            if (old == null || old.text.isNotEmpty()) {
+                session = nextSession()
+                autoCorrections.clear()
+            }
+            return
+        }
         if (old == null) return
         val from = maxOf(old.offset, now.offset)
         if (from - old.offset > old.text.length || from - now.offset > now.text.length) return
@@ -84,6 +129,13 @@ class FieldCorrectionWatcher {
             old.endComplete, now.endComplete, tailMayBeDeleted = atCommit && after.isEmpty())
         if (diff !is CorrectionRules.Diff.Single) return
         val change = diff.change
+        // review N1: only a word the user's own input touched; the app's autocorrect, autofill or a
+        // collaborator change words without that
+        val wordStart = from + change.start
+        if (ownRange == null || ownRange.first > wordStart + change.new.length || ownRange.last < wordStart) return
+        // review M1: the keyboard's own automatic correction of the word just committed
+        if (committedFrom != null && committedTo != null && change.old.equals(committedFrom, ignoreCase = true)
+            && change.new == committedTo) return
         // X -> Y automatically, now Y -> X by the user: do not correct X to Y any more, from the first time
         val reverted = autoCorrections.lastOrNull {
             it.corrected.equals(change.old, ignoreCase = true) && it.typed.equals(change.new, ignoreCase = true)
@@ -94,33 +146,60 @@ class FieldCorrectionWatcher {
             return
         }
         if (!TypoMemory.mayLearn(settings)) return
+        // review M1: finishing a word ("Bahnho" -> "Bahnhof", also "Mad" -> "Mädchen") is a completion
+        if (isCompletion(change.old, change.new)) return
         fun real(word: String) = dictionary.isValidSpellingWord(word)
             || dictionary.isValidSpellingWord(word.lowercase(settings.mLocale ?: Locale.ROOT))
-        val kind = CorrectionRules.classify(change.old, change.new, real(change.old), real(change.new), adjacency(settings))
+        val keyboard: Keyboard? = runCatching { helium314.keyboard.keyboard.KeyboardSwitcher.getInstance().keyboard }.getOrNull()
+        val kind = CorrectionRules.classify(change.old, change.new, real(change.old), real(change.new), adjacency(keyboard, settings))
         if (kind != CorrectionRules.Kind.TYPO) return
         // a capital that only comes from the sentence start is not kept ("Ihc" -> "Ich" means "ich")
         val lower = change.new.lowercase(settings.mLocale ?: Locale.ROOT)
         val form = if (change.new.first().isUpperCase() && change.old.first().isUpperCase() && lower != change.new && real(lower))
             lower else change.new
-        FieldCorrectionMemory.observed(context, change.old, form, session, from + change.start, settings)
+        FieldCorrectionMemory.observed(context, change.old, form, session, wordStart, settings)
     }
 
-    private fun adjacency(settings: SettingsValues): KeyAdjacency {
-        val keyboard: Keyboard? = runCatching { helium314.keyboard.keyboard.KeyboardSwitcher.getInstance().keyboard }.getOrNull()
-        val keys = keyboard?.sortedKeys.orEmpty().filter { it.code > 0 && Character.isLetter(it.code) && it.code < 0x10000 }
-            .map { KeyBox(it.code.toChar(), it.x + it.width / 2f, it.y + it.height / 2f, it.width.toFloat(), it.height.toFloat()) }
-        if (keys.size >= MIN_LAYOUT_KEYS) return KeyAdjacency.fromKeys(keys)
-        // no keyboard shown (tests, hardware keyboard): the phone layout of the language
+    /**
+     * The neighbouring keys of the last alphabet keyboard (review N2): the symbols keyboard or the
+     * numpad shown at a checkpoint keeps the letters of the layout typed on. Without any (tests, a
+     * hardware keyboard) the phone layout of the language.
+     */
+    internal fun adjacency(keyboard: Keyboard?, settings: SettingsValues): KeyAdjacency {
+        if (keyboard != null && keyboard !== adjacencyKeyboard && keyboard.mId?.element?.isAlphabet == true) {
+            val keys = keyboard.sortedKeys.filter { it.code > 0 && Character.isLetter(it.code) && it.code < 0x10000 }
+                .map { KeyBox(it.code.toChar(), it.x + it.width / 2f, it.y + it.height / 2f, it.width.toFloat(), it.height.toFloat()) }
+            adjacencyKeyboard = keyboard
+            layoutAdjacency = if (keys.size >= MIN_LAYOUT_KEYS) KeyAdjacency.fromKeys(keys) else null
+        }
+        layoutAdjacency?.let { return it }
         return if (settings.mLocale?.language == "de") KeyAdjacency.QWERTZ else KeyAdjacency.QWERTY
     }
 
     companion object {
-        /** Characters before and after the cursor that are compared; longer fields are compared in this window. */
-        const val LIMIT = 2000
+        /**
+         * Characters before the cursor that are compared: at most what the connection keeps cached
+         * (review M2), so a checkpoint usually reads nothing from the app there.
+         */
+        const val LIMIT_BEFORE = Constants.EDITOR_CONTENTS_CACHE_SIZE
+        /** Characters after the cursor that are compared (one read from the app, review M2). */
+        const val LIMIT_AFTER = 300
         const val MAX_AUTO_CORRECTIONS = 200
         private const val MIN_LAYOUT_KEYS = 10
         private val sessions = AtomicLong(System.currentTimeMillis())
         private fun nextSession() = sessions.incrementAndGet()
+
+        private fun plain(word: String) =
+            Normalizer.normalize(word.lowercase(Locale.ROOT).replace("ß", "ss"), Normalizer.Form.NFD)
+                .filter { Character.getType(it) != Character.NON_SPACING_MARK.toInt() }
+
+        /** [new] goes on where [old] ends, accents ignored: a finished word, no typo fix (as in [TypoMemory.confirm]). */
+        @JvmStatic
+        fun isCompletion(old: String, new: String): Boolean {
+            val a = plain(old)
+            val b = plain(new)
+            return b.length > a.length && b.startsWith(a)
+        }
 
         @JvmStatic
         fun mayObserve(settings: SettingsValues, historySuppressed: Boolean): Boolean =

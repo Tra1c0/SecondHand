@@ -400,12 +400,21 @@ Autokorrektur (Etappe 20a, Details im Abschnitt „Lerndaten“):
   `commitChosenWord` mit erlaubtem gelöschtem Rest); `commitCurrentAutoCorrection` → `autoCorrected`
   (nur Tipp-Eingabe, wie 48); `untrusted` (Vergleichsstand verwerfen) am Anfang von `onCodeInput`
   bei Markierung, am Ende von `onTextInput`, in `paste` und in `applyGenerated` nach erfolgreichem
-  Commit. Sonst unverändert; `RichInputConnection` nicht geändert, gelesen nur über
-  `getTextBeforeCursor`/`getTextAfterCursor`/`hasSelection`/`getExpectedSelectionStart`.
+  Commit. Nachprüfung 49: `checkpoint` bekommt `composing` (in `onUpdateSelection`
+  `mWordComposer.isComposingWord()`: dann kein Vergleich und kein neuer Stand) und das Paar
+  getippt → abgeschickt einer Autokorrektur (`commitChosenWord` bei `COMMIT_TYPE_DECIDED_WORD`,
+  vor `commitWord` gelesen); `ownEdit(Schreibmarke)` am Anfang von `onCodeInput` (ohne Markierung,
+  nur Zeichen und Löschtaste) und von `onPickSuggestionManually`; `untrusted` bei `UNDO`/`REDO`.
+  Sonst unverändert; `RichInputConnection` nicht geändert, gelesen nur über
+  `getTextBeforeCursor`/`getTextAfterCursor`/`hasSelection`/`getExpectedSelectionStart`/
+  `hasSlowInputConnection`.
 - `CapsModeUtils.java` (48): im Zustand WORD (Wort direkt vor dem Punkt, ohne inneren Punkt) und
   am Textanfang fragt `getCapsMode` `K/agent/Abbreviations.isAbbreviation`; eine bekannte Abkürzung
   (Deutsch bei `mUsesGermanRules`, Englisch bei `mUsesAmericanTypography`) oder ein einzelner
-  Buchstabe nach „x. “ („z. B.“) gibt keine Satz-Großschreibung. Alles andere wie upstream.
+  Buchstabe nach „x. “ („z. B.“) gibt keine Satz-Großschreibung. Seit der Nachprüfung 49 gelten
+  die bekannten Paare (z. B., d. h., u. a., o. ä., s. o., s. u., v. a., u. U., i. d. R.) in jeder
+  Schreibung („Z. B.“ am Satzanfang), andere Buchstabenpaare nur, wenn nicht beide groß sind
+  (Initialen „J. K.“ schreiben groß weiter). Alles andere wie upstream.
 
 Gedächtnis (Etappe 46, Details im Abschnitt „Lerndaten“ → Gedächtnis, P174–P177):
 
@@ -2129,9 +2138,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - Korrekturen im ganzen Feld (49): Regeln rein in `C/CorrectionRules.kt` (`diff`: genau ein Wort
   geändert, Rest gleich oder bei einem gerade abgeschickten Wort am Feldende gelöscht; `classify`:
   TYPO nur bei Nicht-Wort → echtem Wort mit 1–2 Vertipp-Schritten, bis 4 Buchstaben 1;
-  `KeyAdjacency` aus den Tasten der aktuellen Tastatur, ohne Tastatur QWERTZ/QWERTY nach Sprache).
+  `KeyAdjacency` aus den Tasten der letzten Buchstaben-Tastatur, auch während Symbole oder Ziffern
+  zu sehen sind, ohne Tastatur QWERTZ/QWERTY nach Sprache, Nachprüfung 49 N2).
   `K/agent/FieldCorrections.kt`: `FieldCorrectionWatcher` (je `InputLogic`, Feldtext nur im
-  Speicher, je 2000 Zeichen um die Schreibmarke, „echt“ = `isValidSpellingWord` auch klein,
+  Speicher, bis 1024 Zeichen vor und 300 nach der Schreibmarke (P184), nur Wörter, die eigene
+  Eingabe berührt hat (P183), keine Wortvervollständigung (`isCompletion`), „echt“ = `isValidSpellingWord` auch klein,
   also Wörterbuch, persönliches Wörterbuch, Kontakte, Lernverlauf) und `FieldCorrectionMemory`
   (Datei `agent_field_corrections`, Kandidat → gelernt beim zweiten Vorkommen mit anderer
   Feldnummer oder Stelle). Wirkung über `TypoMemory.meantWord` (gelerntes Paar nur, wenn das
@@ -3246,14 +3257,28 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   vor dem Prüfpunkt zurück; so bleibt der Stand vor dem Zurücklöschen erhalten und „Hsus und“ →
   Löschen → „Haus“ wird erkannt. Wer den Prüfpunkt vor das frühe `return` legt, verliert das.
   Eine Änderung, die erst beim nächsten Prüfpunkt sichtbar wird, gilt für das ganze dazwischen.
+  Solange ein Wort komponiert wird (Tipp ins komponierte Wort, Apps mit verkürzter Komposition,
+  upstream #1141), vergleicht der Prüfpunkt nichts und nimmt keinen Stand auf, der alte bleibt;
+  sonst würde ein halb getipptes Wort zum Stand und jedes fertige Wort zum Kandidaten. Die
+  Autokorrektur des gerade abgeschickten Worts (getippt → abgeschickt) und Vervollständigungen
+  („Bahnho“ → „Bahnhof“, ohne Akzente Anfang des neuen Worts, wie `TypoMemory.confirm`) zählen nie.
+  Der Stand am Commit-Prüfpunkt endet vor dem Trennzeichen; eine Änderung, die die App direkt
+  danach macht, ist bis zum nächsten Prüfpunkt deshalb oft „mehrere Änderungen“. Leert die App das
+  Feld (vor und nach der Schreibmarke leer, Messenger nach dem Senden), beginnt eine neue
+  Feldnummer: dieselbe Stelle in der nächsten Nachricht ist „eine andere Stelle“.
 - **P170** Markieren, Einfügen und eingefügter Text verwerfen den Vergleichsstand (`untrusted`, bei
   Markierung im Prüfpunkt selbst): Der nächste Prüfpunkt nimmt nur einen neuen Stand auf. Neue Wege,
   auf denen Text ohne Tippen ins Feld kommt (Werkzeuge, Bausteine, Chips), müssen `untrusted` rufen
   oder über `applyGenerated` laufen, sonst kann ein eingefügtes Einzelwort als Korrektur zählen.
+  Das gilt auch, wenn die App selbst Text ändert, auf Wunsch der Tastatur: `UNDO`/`REDO` schicken
+  Strg+Z an die App und rufen deshalb `untrusted`. Seit der Nachprüfung 49 wirkt zusätzlich P183.
 - **P171** In `InputLogicTest` ersetzt `LatinIME` bei jedem `onStartInputView` den Wörterbuch-Zugang
   von `InputLogic` (`setFacilitator`, Gesten-Datensammlung). Die Stufe-49-Tests setzen ihren
   gestellten Zugang deshalb in `setText` neu (`installRealWords`); ohne das ist jedes Wort „unecht“
-  und nichts wird gelernt.
+  und nichts wird gelernt. Eine Änderung durch die App spielt `appChangesText` nach (Text und
+  Auswahl im Schatten setzen, dann `onUpdateSelection`). Ein langsamer Zugang lässt sich nur mit
+  `mLastSlowInputConnectionTime` weit in der Zukunft halten: jeder schnelle Aufruf kürzt den
+  Zustand upstream um 5 min.
 - **P150** Jede neue Textdatei `values/agent_*strings.xml` braucht
   `tools:ignore="MissingTranslation"` am `<resources>`-Tag (der Fork liefert nur Englisch und
   Deutsch); sonst bricht `lintDebugNoMinify` mit Fehlern für alle Upstream-Sprachen ab. Die
@@ -3314,6 +3339,23 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Änderung der angewandten Basis, Beobachtungen geleert). Kennt der Prozess noch keine Regionen
   (seit dem Start kein Wort mit dynamischen Zonen), gilt für alle Regionen der Mittelwert über alle
   Buchstaben mit Basis. Eine neue Stelle, die `dx`/`dy`/`count` setzt, braucht denselben Schritt.
+- **P183** Nur ein Wort, das eigene Eingabe seit dem letzten Stand berührt hat, kann eine Korrektur
+  sein: `onCodeInput` (Zeichen, Löschtaste) und `onPickSuggestionManually` melden die Schreibmarke
+  vor der Eingabe (`ownEdit`), der Wächter hält daraus einen Bereich, den jeder Prüfpunkt leert.
+  Ein Bereich reicht, weil die Schreibmarke zwischen zwei Prüfpunkten nur durch eigene Eingabe
+  wandert. Autokorrektur und Autofill der App, gemeinsames Bearbeiten und Rückgängig liegen außerhalb
+  und zählen nicht. Gestenschreiben meldet selbst nichts (ein per Geste ersetztes Wort zählt nur, wenn danach eine
+  Taste direkt am Wort folgt, etwa das Leerzeichen);
+  ein neuer Eingabeweg, der Wörter des Nutzers ändert, muss `ownEdit` rufen. Der Bereich gilt als
+  berührt, wenn er das neue Wort einschließlich seiner Ränder schneidet.
+- **P184** `checkpoint` liest höchstens `Constants.EDITOR_CONTENTS_CACHE_SIZE` (1024) Zeichen vor
+  der Schreibmarke (meist aus dem Zwischenspeicher von `RichInputConnection`, ein Lesen bei der App
+  nur, wenn der Speicher kürzer ist) und 300 danach (immer ein Aufruf bei der App), im Hauptthread
+  und innerhalb der Batch-Bearbeitung. Bei `hasSlowInputConnection()` liest er nichts und verwirft
+  den Stand (nichts gelernt, solange die App als langsam gilt). Wer die Grenzen hebt, riskiert, dass
+  `getTextBeforeCursorAndDetectLaggyConnection` mitten im Commit die Caches neu lädt und die
+  Tastatur 10 min als langsam gilt. Die Nachbartasten (`adjacency`) kommen aus der letzten
+  Buchstaben-Tastatur (`KeyboardId.element.isAlphabet`), zwischengespeichert je `Keyboard`-Objekt.
 - **P182** `updateRegions` vergleicht die Geometrie aller Buchstabentasten, nicht das
   `Keyboard`-Objekt: Umschalten erzeugt ein anderes Objekt mit gleicher Geometrie und darf die
   Sitzung nicht beenden. Symbol-Layouts mit einzelnen Buchstaben (µ) liegen unter

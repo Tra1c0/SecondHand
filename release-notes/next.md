@@ -281,8 +281,12 @@
   lernen“): nach weiteren Wörtern, nach Zurücklöschen, über einen Vorschlag oder nach Tippen ins
   Wort, solange du im Feld bleibst. Nur echte Vertipper eines Nicht-Worts zu einem echten Wort
   zählen (Nachbartaste, fehlender, doppelter oder vertauschter Buchstabe, Umlaut); „das“ → „dass“,
-  Markieren und Überschreiben oder Einfügen nie. Beim ersten Mal nur gemerkt, beim zweiten Mal an
-  anderer Stelle gelernt, danach korrigiert die Autokorrektur das Wort. Machst du eine
+  Markieren und Überschreiben, Einfügen, ein fertig geschriebenes Wort („Bahnho“ → „Bahnhof“),
+  die Autokorrektur selbst und Änderungen der App (ihre Autokorrektur, Autofill, Rückgängig) nie,
+  nur Wörter, an denen du selbst getippt oder gelöscht hast. In langsamen Apps liest die Tastatur
+  dafür nichts. Beim ersten Mal nur gemerkt, beim zweiten Mal an anderer Stelle gelernt (leert ein
+  Messenger das Feld nach dem Senden, ist die nächste Nachricht eine andere Stelle), danach
+  korrigiert die Autokorrektur das Wort. Machst du eine
   Autokorrektur später rückgängig, wird sie mit „Rückgängig gemachte Korrekturen merken“ sofort
   nicht mehr angewendet. Alles sehen, übernehmen und löschen: Einstellungen → Tippen & Korrektur →
   „Was ich mir gemerkt habe“. Keine Rückfragen beim Tippen; nie in Passwortfeldern, Inkognito,
@@ -291,5 +295,6 @@
   „kind“ und ähnliche Wörter wieder zu „Hand“, „Name“ …; nur ein Wort, das deine Sprache selbst
   klein kennt („essen“), bleibt. Nach „Fr.“, „Jh.“, „Jr.“ und Initialen („J. K. Rowling“) schreibt
   die Tastatur wieder groß weiter, nach „bzgl.“, „insb.“, „lt.“, „mind.“, „ugs.“, „eigtl.“ nicht.
-  Nach einem geleerten Feld zeigt die Leiste kein altes getipptes Wort mehr. Noch auf keinem Gerät
-  ausprobiert.
+  Nach einem geleerten Feld zeigt die Leiste kein altes getipptes Wort mehr. „Z. B.“, „D. h.“,
+  „U. a.“ und „I. d. R.“ am Satzanfang schreiben das nächste Wort wieder klein. Noch auf keinem
+  Gerät ausprobiert.

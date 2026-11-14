@@ -126,6 +126,18 @@ class TypedWordFirstTest {
         assertTrue(sentenceCaps("Von J. K. ", german))
     }
 
+    // stage 49 review N4: the known letter abbreviations also at a sentence start, initials keep capitals
+    @Test fun letterAbbreviationsAtASentenceStart() {
+        val german = spacing(Locale.GERMAN)
+        listOf("Z. B. ", "D. h. ", "U. a. ", "O. ä. ", "S. o. ", "S. u. ", "V. a. ", "U. U. ", "I. d. R. ", "Das ist i. d. R. ",
+            "Gut. Z. B. ", "Das ist z. B. ", "Das ist u. U. ")
+            .forEach { assertFalse(sentenceCaps(it, german), it) }
+        listOf("J. K. ", "Von J. K. ", "Gut. J. K. ", "Von A. B. ").forEach { assertTrue(sentenceCaps(it, german), it) }
+        val english = spacing(Locale.ENGLISH)
+        assertTrue(sentenceCaps("J. K. ", english))
+        assertFalse(sentenceCaps("Z. B. ", english))
+    }
+
     // stage 48 review N1/N4
     @Test fun aCommitAtTheSamePlaceForgetsTheOldCorrection() {
         val memory = TypedWordFirst()

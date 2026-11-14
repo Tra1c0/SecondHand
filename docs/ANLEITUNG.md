@@ -902,7 +902,10 @@ Einstellungen → Gelernte Wörter → Abschnitt „Autokorrektur“:
   Wörtern, nach Löschen zurück über Leerzeichen, über einen Vorschlag oder nach Tippen ins Wort
   (dann die Schreibmarke wieder wegsetzen oder weitertippen). Nur echte Vertipper eines
   Nicht-Worts zu einem echten Wort zählen; „das“ → „dass“, Markieren und Überschreiben oder
-  Einfügen nie. Beim ersten Mal ist es ein Kandidat, beim zweiten Mal an anderer Stelle gelernt.
+  Einfügen nie. Auch nicht: ein Wort fertig schreiben („Bahnho“ → „Bahnhof“), Änderungen der App
+  selbst (ihre Autokorrektur oder Autofill), Rückgängig/Wiederholen und alles, solange die App als
+  langsam gilt. Beim ersten Mal ist es ein Kandidat, beim zweiten Mal an anderer Stelle gelernt;
+  leert ein Messenger das Feld nach dem Senden, zählt die nächste Nachricht als andere Stelle.
   Einstellungen → Tippen & Korrektur → „Was ich mir gemerkt habe“ zeigt beides: „Übernehmen“
   lernt einen Kandidaten sofort, „Löschen“ entfernt einen Eintrag. „Gelernte Wörter löschen“
   leert die Seite mit. Machst du eine Autokorrektur später im Feld rückgängig, gilt mit

@@ -3893,6 +3893,46 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   persönliche Wörterbuch des Telefons das Kürzel, auch mit mehreren Wörtern, annimmt; Dauer von
   Lesen und Schreiben bei 2000 Folgen; Bausteine mit `{cursor}`), Zusammenführen der Seite mit
   „Was ich mir gemerkt habe“ (49).
+### Nachprüfung 49 (Prüfer-Befunde zu f983cd7 und eine Regression aus 76155ed)
+
+- Behoben (Arbeitskopie, Lead-Auftrag 2026-11-14), Engine-Änderung in `InputLogic.java` eng an den
+  49er-Haken, erneutes Prüfer-Review nötig:
+  - M1: In `onUpdateSelection` kein Vergleich und kein neuer Stand, solange ein Wort komponiert wird
+    (`checkpoint(..., composing = mWordComposer.isComposingWord())`, der alte Stand bleibt);
+    Vervollständigungen zählen nicht (`isCompletion`, ohne Akzente Anfang des neuen Worts, wie
+    `TypoMemory.confirm`); die Autokorrektur des gerade abgeschickten Worts zählt nicht
+    (`commitChosenWord` gibt bei `COMMIT_TYPE_DECIDED_WORD` getippt → abgeschickt mit).
+  - M2: Bei `hasSlowInputConnection()` liest der Prüfpunkt nichts und verwirft den Stand; gelesen
+    werden höchstens 1024 Zeichen davor (Zwischenspeicher-Größe) und 300 danach. Das Verschieben
+    des Commit-Prüfpunkts hinter `endBatchEdit` ist nicht gemacht.
+  - N1: Nur ein Wort, das eigene Eingabe seit dem Stand berührt hat (`ownEdit` aus `onCodeInput`
+    für Zeichen und Löschtaste, aus `onPickSuggestionManually`); `UNDO`/`REDO` rufen `untrusted`.
+  - N2: Nachbartasten aus der letzten Buchstaben-Tastatur, zwischengespeichert je `Keyboard`.
+  - N3: Ist das Feld vor und nach der Schreibmarke leer, beginnt eine neue Feldnummer.
+  - N4 (Regression aus 76155ed): `Abbreviations.isAbbreviation` kennt die Buchstabenpaare z. B.,
+    d. h., u. a., o. ä., s. o., s. u., v. a., u. U., i. d. R. in jeder Schreibung; Initialen nur,
+    wenn beide Buchstaben groß sind und kein bekanntes Paar („Z. B. das“ klein, „J. K. Rowling“ groß).
+- Nur festgehalten (N5–N7):
+  - N5: „Echt“ schließt den Lernverlauf ein; ab wann HeliBoard ein dort gelerntes Wort als gültig
+    meldet (Schwelle von `isValidSpellingWord` für den Verlauf), ist nur auf einem Gerät prüfbar.
+    Ein oft getippter Tippfehler kann so „echt“ werden und wird dann nie gelernt. Kein Gerätetest.
+  - N6: „fur“ gilt mit Deutsch und Englisch als echt (jede aktive Sprache zählt), also wird
+    „fur“ → „für“ hier nie gelernt. Das ist die dokumentierte Annahme (ROADMAP 49) und bewusst
+    anders als 48 M1, wo `guardAllows` eine andere Sprache nicht zählen lässt.
+  - N7: Gelernte Feld-Paare laufen über `TypoMemory.meantWord` und `Suggest.applyLearnedCorrection`,
+    nicht über `guardAllows`; sie greifen nur, wenn das Getippte kein Hauptwörterbuch-Wort ist. Die
+    48-Regel gegen reine Groß-/Klein-Korrekturen betrifft sie nicht, weil `classify` eine reine
+    Groß-/Klein-Änderung als Überarbeitung wertet.
+- Tests (Robolectric, echte `InputLogic`, kein Gerätetest): `InputLogicTest` neu 6 („stage 49“:
+  kein Stand im komponierten Wort, Vervollständigung, eigene Autokorrektur, langsamer Zugang,
+  Änderung der App und Rückgängig, vom Messenger geleertes Feld), `FieldCorrectionMemoryTest` neu 1
+  (AZERTY-Nachbarn bleiben bei Symbolen), `TypedWordFirstTest` neu 1 (Buchstabenpaare am
+  Satzanfang, Initialen). Gegenprobe: mit zurückgenommenen Korrekturen in `FieldCorrections.kt`
+  schlagen die neuen 49er-Tests fehl (6 InputLogicTest-Fälle und der Nachbartasten-Test; Rückgängig über den UNDO-Haken in InputLogic nicht einzeln gegengeprüft). Gelaufen (`--max-workers=1`, 2026-11-14):
+  `:agent-core:test` 417/417; `:app:testDebugUnitTest` mit `*InputLogicTest`,
+  `FieldCorrectionMemoryTest`, `TypedWordFirstTest`, `*SuggestTest`: 270 Tests, 1 Fehler = geerbt
+  (`InputLogicTest.insertLetterIntoWordHangulFails`). Nicht gelaufen: `tools/dev.py agent-tests`,
+  volle Suite, Lint, Build, Gerätetest.
 
 ## Gerätetest vor Meilensteinfreigabe
 
