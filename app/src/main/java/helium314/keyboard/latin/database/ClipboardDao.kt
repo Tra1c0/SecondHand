@@ -231,6 +231,9 @@ class ClipboardDao private constructor(private val db: Database) {
      * `secure_delete` leave no trace. On [maintenance], without the lock of this object, and only
      * while the file (which also holds the gesture data) is at most [COMPACT_MAX_BYTES]: a larger
      * one would keep the database busy for long; its old free pages stay until SQLite reuses them.
+     * Third review: `VACUUM` holds the writing connection of the pool, so a clip inserted or deleted
+     * on the main thread meanwhile still waits for it (at most one rewrite of a small file). It runs
+     * only after a one-time cleanup (old secrets once per app version), which keeps that rare.
      */
     fun compactInBackground() {
         runCatching {

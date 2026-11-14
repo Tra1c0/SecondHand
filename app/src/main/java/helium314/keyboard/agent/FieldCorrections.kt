@@ -32,8 +32,16 @@ import java.util.concurrent.atomic.AtomicLong
  * no incognito, no password or no-learning field, not locked, no generated text in this session),
  * dropped when input starts in a field and never stored or logged. A selection, a paste or inserted
  * text drops the reference state, so select-and-overtype and pasting are never learned.
+ *
+ * [privateText] (third review 44/45/49): whether a private text the user inserted (vault, code,
+ * "Meine Daten", see `PrivateRanges`) overlaps or borders the absolute field positions [from, to];
+ * a change there is never observed, so no fragment of such a value becomes a candidate or a
+ * rejected correction.
  */
-class FieldCorrectionWatcher {
+class FieldCorrectionWatcher @JvmOverloads constructor(private val privateText: PrivateText? = null) {
+    /** See [FieldCorrectionWatcher]. */
+    fun interface PrivateText { fun touches(from: Int, to: Int): Boolean }
+
     private class Snapshot(val offset: Int, val text: String, val endComplete: Boolean)
     private class AutoCorrection(val typed: String, val corrected: String)
 
@@ -140,6 +148,8 @@ class FieldCorrectionWatcher {
         // collaborator change words without that
         val wordStart = from + change.start
         if (ownRange == null || ownRange.first > wordStart + change.new.length || ownRange.last < wordStart) return
+        // third review: a word in or at a private text ("Mustr" -> "Muster" in an inserted name)
+        if (privateText?.touches(wordStart, wordStart + maxOf(change.old.length, change.new.length)) == true) return
         // review M1: the keyboard's own automatic correction of the word just committed
         if (committedFrom != null && committedTo != null && change.old.equals(committedFrom, ignoreCase = true)
             && change.new == committedTo) return

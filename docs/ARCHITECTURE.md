@@ -189,7 +189,8 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   passwd, contraseña, WLAN-Schlüssel, auch „WLAN-Passwort“) mit Wert direkt danach (nach „:“/„=“
   ein Wert ab 6 Zeichen mit Ziffer oder Sonderzeichen, nach „:“/„=“ auch nur Buchstaben in Groß-
   und Kleinschreibung, wenn auf der Zeile kein weiteres Wort folgt (zweite Nachprüfung N8:
-  „Passwort: bitte beim Admin erfragen“ bleibt Text); nicht nach „one-time“/„einmal“; ≤ 300
+  „Passwort: bitte beim Admin erfragen“ bleibt Text; dritte Nachprüfung: auch kein einziges,
+  „Passwort: Erfragen Sie“ bleibt Text, Komma oder Semikolon danach beenden den Wert); nicht nach „one-time“/„einmal“; ≤ 300
   Zeichen) ist ebenfalls `PASSWORD`; nie Hex (Git-Hashes, Prüfsummen, UUIDs, Farben), Pfade, `@`/`#`-Namen,
   `data:`-URIs, Zahlen, Daten, Wörter, Text mit Leerzeichen, längere Blobs. Code im Satz (≤ 300
   Zeichen, Schlüsselwort de/en/es nur als ganzes Wort mit eigenen Grenzen statt `\b`: Code,
@@ -207,11 +208,17 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - `C/clip/PrivateRanges.kt` (zweite Nachprüfung 44/45, P178, P185): wo eingefügte private Texte im
   Editor stehen, ohne Text: je Wert Start, Länge und ein gesalzener Hash der ersten `HEAD` = 32
   Zeichen, höchstens `MAX` = 3 Werte (der älteste fällt). `Editor` (Schreibmarke, Text davor/danach),
-  `add`, `edited(removeFrom, removeTo, inserted)` (verschiebt Werte hinter einer Bearbeitung,
-  kürzt einen angeschnittenen Wert; Einfügen an seinem Ende gehört nicht dazu), `touches(from, to)`
+  `add`, `beforeEdit(from, to)` (dritte Nachprüfung: prüft vor einer Bearbeitung der Tastatur einen
+  Wert, dessen Kopf höchstens `HEAD` Zeichen entfernt ist, und findet ihn nach einer ungemeldeten
+  Verschiebung wieder), `edited(removeFrom, removeTo, inserted)` (verschiebt Werte hinter einer
+  Bearbeitung ohne Lesen und ohne neuen Hash, kürzt einen angeschnittenen Wert; nur eine
+  Bearbeitung im Kopf hasht ihn neu; Einfügen an seinem Ende gehört nicht dazu), `touches(from, to)`
   (überlappt oder grenzt an; prüft den Hash, sucht einen verschobenen Wert per rollendem Hash bis
-  `WINDOW` = 1024 Zeichen plus seine Länge um die Schreibmarke, vergisst ihn nur, wenn er dort nicht
-  mehr steht; Schreibmarke unbekannt oder Auswahl: `true`), `touchesLearningContext(editor, words)`
+  `WINDOW` = 1024 Zeichen um seine letzte Stelle, unter `MIN_RELOCATE` = 8 Zeichen nur
+  `SHORT_WINDOW` = 64; steht er dort mehrmals, gelten alle Fundstellen als privat (`ambiguous`);
+  vergisst ihn nur nach einem vollständigen Lesen ohne Fund; nicht lesbar, zu kurz gelesen oder
+  weiter als `READ_LIMIT` = 8192 Zeichen: `true`, nichts vergessen; Schreibmarke unbekannt oder
+  Auswahl: `true`), `touchesLearningContext(editor, words)`
   (die letzten `words` Wörter vor der Schreibmarke, höchstens `CONTEXT_LIMIT` = 512 Zeichen),
   `contextLength`. Test `CT/clip/PrivateRangesTest.kt`.
 - `C/suggest/ContextSuggest.kt` (Etappe 45, Paket `dev.agentkeyboard.core.suggest`, P161–P163):
@@ -324,13 +331,16 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   der TLD-Behandlung) und `markPrivateText(text)` (Chip-Pfad, Text endet an der Schreibmarke) gehen
   über `markPrivateBeforeCursor`, das zugleich `mLastComposedWord`, `mEnteredText` und
   `mWordBeingCorrectedByCursor` leert. `onCodeInput` (Zeicheneingaben und Rücktaste) und
-  `onTextInput` melden ihre Bearbeitung an der Schreibmarke (`privateTextEdited`, Auswahl davor und
-  Schreibmarke danach). `privateTextAtCursor(davor, danach)` sperrt: `restartSuggestionsOnWordTouchedByCursor`
+  `onTextInput` melden ihre Bearbeitung an der Schreibmarke (`privateTextBeforeEdit` vorher,
+  dritte Nachprüfung; `privateTextEdited` danach, Auswahl davor und Schreibmarke danach). `privateTextAtCursor(davor, danach)` sperrt: `restartSuggestionsOnWordTouchedByCursor`
   (mit dem Wortbereich), den Neustart in `handleNonSeparatorEvent` (Wort bis zum letzten Leerraum)
   und das Merken von `mWordBeingCorrectedByCursor` in `onCodeInput` (entschieden beim Merken, nicht
   beim Lernen an der neuen Schreibmarke). `performAdditionToUserHistoryDictionary` lernt nichts,
   solange das Wort oder seine N-Gramm-Vorgänger (`MAX_PREV_WORD_COUNT_FOR_N_GRAM` + 1 Wörter vor der
-  Schreibmarke) einen privaten Text berühren; `onFreshEditorSession` vergisst alle.
+  Schreibmarke) einen privaten Text berühren, außer für `mWordBeingCorrectedByCursor` (Überladung
+  mit `privateDecided`, beim Merken entschieden, ohne N-Gramm-Kontext; `Memory.onWordCommitted`
+  prüft auch dann an der neuen Schreibmarke, dritte Nachprüfung); `mFieldCorrections` bekommt
+  `mPrivateRanges.touches` als `FieldCorrectionWatcher.PrivateText`; `onFreshEditorSession` vergisst alle.
 - `InputLogicHandler.java`: hält Worker- und UI-Teil eines Swipe-Batches über
   `PendingBatchGate` gemeinsam gesperrt.
 - `RichInputConnection.java`: native Ersetzung als genau ein Commit, Ergebnis als `ApplyOutcome`
@@ -435,7 +445,10 @@ Autokorrektur (Etappe 20a, Details im Abschnitt „Lerndaten“):
   `KeyboardActionListenerImpl.onMoveCursorHorizontally` nach `finishInput` und vor `setSelection`;
   das Paar getippt → abgeschickt nur, wenn sich das Wort genau (Groß/klein) geändert hat
   (`FieldCorrectionWatcher.keyboardCorrectionFrom`). `KeyboardActionListenerImpl.onKeyDown` ruft
-  bei Hardware-Strg+Z/Strg+Y `untrusted`. Sonst unverändert; `RichInputConnection` nicht geändert, gelesen nur über
+  bei Hardware-Strg+Z/Strg+Y `untrusted`. Dritte Nachprüfung 44/45/49: `FieldCorrectionWatcher`
+  bekommt im Konstruktor `PrivateText` (aus `InputLogic`: `mPrivateRanges.touches`), `checkpoint`
+  verwirft eine Änderung, deren Wort `[wordStart, wordStart + max(alt, neu)]` einen privaten Text
+  berührt. Sonst unverändert; `RichInputConnection` nicht geändert, gelesen nur über
   `getTextBeforeCursor`/`getTextAfterCursor`/`hasSelection`/`getExpectedSelectionStart`/
   `hasSlowInputConnection`.
 - `CapsModeUtils.java` (48): im Zustand WORD (Wort direkt vor dem Punkt, ohne inneren Punkt) und
@@ -3481,19 +3494,28 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   als Kompositionswort ein (jetzt wird `mLastComposedWord` geleert), und der Neustart in
   `handleNonSeparatorEvent` nach einem Wortverbinder fragte nicht. Bearbeitungen der Tastatur vor
   dem Text verschieben die Marke (`privateTextEdited`), andere (Gesten, gewählte Vorschläge, die App)
-  findet `PrivateRanges.touches` über den Hash wieder (P185). Ein normaler Clip aus dem Verlauf geht
+  findet `PrivateRanges.touches` über den Hash wieder (P185). Dritte Nachprüfung: eine Korrektur in
+  einem privaten Text („Mustr“ → „Muster“ in einem Namen aus „Meine Daten“) wird nie ein Kandidat
+  von Etappe 49 (`FieldCorrectionWatcher.PrivateText`), und ein beim Merken geprüftes
+  `mWordBeingCorrectedByCursor` lernt auch an einer Schreibmarke neben einem privaten Text. Ein normaler Clip aus dem Verlauf geht
   weiter über `onTextInput` (Upstream). Tests `InputLogicTest.aPrivateTextIsNeverComposedShownOrLearned`,
   `aWordTouchingAPrivateTextIsNotLearnedWhenTheCursorLeaves`,
   `aBackspaceAfterAPickThatEndedACorrectedWordDoesNotComposeIt`,
   `severalPrivateTextsAreKeptAndFollowEditsBeforeThem`, `learningResumesOnceThePrivateTextIsNoLongerContext`,
-  `aLongPrivateTextIsMarkedAsCommitted`.
+  `aLongPrivateTextIsMarkedAsCommitted`, `aPickedSuggestionBeforeAPrivateTextKeepsItsMarkOnIt`,
+  `aFixInAPrivateTextIsNoFieldCorrection`, `aWordTakenAwayFromAPrivateTextIsLearnedNextToOne`.
 - **P179** `PRAGMA secure_delete` gilt je Verbindung. `SQLiteDatabase` hat einen Verbindungs-Pool;
   ein `rawQuery` außerhalb einer Transaktion kann auf einer Lese-Verbindung landen. Darum setzt
   `ClipboardDao.deleteRows` es innerhalb der Lösch-Transaktion (dort hält der Thread die
   schreibende Verbindung). PRAGMAs, die eine Zeile liefern, gehen nur über `rawQuery`, nicht
   `execSQL`. `secure_delete` wirkt nicht rückwirkend: Darum `VACUUM` nach einer Bereinigung beim
   Start (`compactInBackground`, nicht in einer Transaktion, auf dem Thread `maintenance`, ohne
-  `synchronized(this)`, damit Einfügen und Löschen auf dem Hauptthread nicht auf die Sperre warten).
+  `synchronized(this)`, damit Einfügen und Löschen auf dem Hauptthread nicht auf diese Sperre
+  warten). Blockierfrei ist das nicht (dritte Nachprüfung): `VACUUM` hält die schreibende Verbindung
+  des Pools, ein Einfügen oder Löschen auf dem Hauptthread wartet währenddessen dort. Beschlossen:
+  so lassen, weil `compactInBackground` nur nach einer einmaligen Bereinigung läuft (alte
+  Geheimnisse einmal je Versionscode, `SensitiveClips.migrateLegacy`) und die Datei höchstens 8 MiB
+  hat; kein Aufschieben bis zum Ausblenden der Tastatur. `runCatching` bleibt.
   `GESTURE_DATA` liegt in derselben Datei und kann groß sein: Über `COMPACT_MAX_BYTES` = 8 MiB läuft
   kein `VACUUM` (die Datenbank wäre lange belegt); alte freie Seiten bleiben dann, bis SQLite sie
   wiederverwendet. Der WAL-Checkpoint nach dem Löschen läuft ebenfalls auf `maintenance` (zweite
@@ -3542,8 +3564,18 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   (Zeichen, Rücktaste) und `onTextInput` melden sie als „Auswahl davor entfernt, bis zur Schreibmarke
   danach eingefügt“; das stimmt für alles hinter der Bearbeitungsstelle und für die Rücktaste im
   Text. Gesten, gewählte Vorschläge und Änderungen der App verschieben ihn ungemeldet; dann sucht
-  `touches` den Hash bis 1024 Zeichen plus Länge um die Schreibmarke und vergisst ihn erst, wenn er
-  dort nicht steht. Rest-Risiko: eine ungemeldete Verschiebung um mehr als dieses Fenster. Werte
+  `touches` den Hash bis 1024 Zeichen um seine letzte Stelle und vergisst ihn erst nach einem
+  vollständigen Lesen ohne Fund. Dritte Nachprüfung: Eine Bearbeitung vor dem Wert verschiebt nur
+  und behält den Hash (kein Lesen je Taste); neu gehasht wird nur nach einer Bearbeitung in den
+  ersten 32 Zeichen, und davor prüft `beforeEdit` den Wert an seiner Stelle. Früher hashte jede
+  Verschiebung neu an der errechneten Stelle; nach einer ungemeldeten Verschiebung war das der
+  falsche Text, der Hash passte dann immer, und die Marke lag dauerhaft daneben. `null` oder ein zu
+  kurz gelesener Text vor der Schreibmarke gilt als nicht lesbar (gesperrt, nichts vergessen); kommt
+  nach der Schreibmarke weniger zurück, gilt das als Feldende. Ein Wert unter 8 Zeichen wird nur
+  64 Zeichen um seine Stelle gesucht, damit er nicht auf gleichen Text weiter weg springt; steht
+  der Kopf im Fenster mehrmals (Duplikate, kurze Werte), gelten alle Fundstellen als privat, bis
+  nur noch eine übrig ist. Rest-Risiko: eine ungemeldete Verschiebung um mehr als das Fenster
+  (bei kurzen Werten 64 Zeichen) oder um mehr als 32 Zeichen direkt vor einer Bearbeitung im Kopf. Werte
   weiter als das Fenster von der gefragten Stelle werden nicht geprüft (sie können sie nicht
   berühren). Die Prüfung beim Lernen zählt Wörter nach Leerraum (wie `NgramContextUtils`), nicht
   Zeichen: Das vierte Wort nach dem Text wird wieder gelernt. Unbekannte Schreibmarke oder Auswahl:

@@ -112,7 +112,9 @@ public final class InputLogic {
     // fork, stage 48: automatic corrections of this field, for the typed word first in the strip
     public final helium314.keyboard.agent.TypedWordFirst mTypedWordFirst = new helium314.keyboard.agent.TypedWordFirst();
     // fork, stage 49: later corrections anywhere in this field
-    public final helium314.keyboard.agent.FieldCorrectionWatcher mFieldCorrections = new helium314.keyboard.agent.FieldCorrectionWatcher();
+    // fork, third review 44/45/49: a change in or at a private text is never a correction to learn
+    public final helium314.keyboard.agent.FieldCorrectionWatcher mFieldCorrections = new helium314.keyboard.agent.FieldCorrectionWatcher(
+            (from, to) -> this.mPrivateRanges.touches(from, to, this.mPrivateEditor));
     // This has package visibility so it can be accessed from InputLogicHandler.
     /* package */ final WordComposer mWordComposer;
     public final RichInputConnection mConnection;
@@ -161,6 +163,15 @@ public final class InputLogic {
         mLastComposedWord = LastComposedWord.NOT_A_COMPOSED_WORD;
         mEnteredText = null;
         mWordBeingCorrectedByCursor = null;
+    }
+
+    /**
+     * The keyboard is about to edit at [selStart, selEnd) (third review): a private text whose head is
+     * right there is checked first, so the edit hashes the right text after an unreported shift.
+     */
+    private void privateTextBeforeEdit(final int selStart, final int selEnd) {
+        if (mPrivateRanges.isEmpty() || selStart < 0 || selEnd < selStart || mConnection.hasSelection()) return;
+        mPrivateRanges.beforeEdit(selStart, selEnd, mPrivateEditor);
     }
 
     /** The keyboard edited at the cursor: was [selStart, selEnd) before, the cursor is now at [cursorAfter]. */
@@ -402,6 +413,7 @@ public final class InputLogic {
                 getActualCapsMode(settingsValues, keyboardCapsMode));
         mConnection.beginBatchEdit();
         final int privateSelStart = mConnection.getExpectedSelectionStart(), privateSelEnd = mConnection.getExpectedSelectionEnd(); // fork (B4)
+        privateTextBeforeEdit(privateSelStart, privateSelEnd); // fork, third review 44/45
         if (GestureDataGatheringKt.useBackgroundGathering && mConnection.hasSelection())
             BackgroundGatheringCache.INSTANCE.onEditSelection(mConnection.getSelectedText(0), mConnection.getTextBeforeCursor(40, 0), mConnection.getTextAfterCursor(40, 0));
         if (mWordComposer.isComposingWord()) {
@@ -631,7 +643,7 @@ public final class InputLogic {
             // the cursor away.
             if (!TextUtils.isEmpty(mWordBeingCorrectedByCursor)) {
                 performAdditionToUserHistoryDictionary(settingsValues, mWordBeingCorrectedByCursor,
-                        NgramContext.EMPTY_PREV_WORDS_INFO);
+                        NgramContext.EMPTY_PREV_WORDS_INFO, true);
             }
         } else {
             // resetEntireInputState calls resetCachesUponCursorMove, but forcing the
@@ -708,6 +720,8 @@ public final class InputLogic {
         mLastKeyTime = inputTransaction.getTimestamp();
         mConnection.beginBatchEdit();
         final int privateSelStart = mConnection.getExpectedSelectionStart(), privateSelEnd = mConnection.getExpectedSelectionEnd(); // fork (B4)
+        if (!processedEvent.isFunctionalKeyEvent() || processedEvent.getKeyCode() == KeyCode.DELETE)
+            privateTextBeforeEdit(privateSelStart, privateSelEnd); // fork, third review 44/45
         if (!mWordComposer.isComposingWord()) {
             // TODO: is this useful? It doesn't look like it should be done here, but rather after
             // a word is committed.
@@ -1917,10 +1931,21 @@ public final class InputLogic {
 
     private void performAdditionToUserHistoryDictionary(final SettingsValues settingsValues,
             final String suggestion, @NonNull final NgramContext ngramContext) {
+        performAdditionToUserHistoryDictionary(settingsValues, suggestion, ngramContext, false);
+    }
+
+    /**
+     * [privateDecided] (fork, third review 44/45): the word was checked against private texts when it
+     * was taken ({@link #mWordBeingCorrectedByCursor}, learned without n-gram context), so the text at
+     * the new cursor does not block it; the memory still checks there, it reads that text.
+     */
+    private void performAdditionToUserHistoryDictionary(final SettingsValues settingsValues,
+            final String suggestion, @NonNull final NgramContext ngramContext, final boolean privateDecided) {
         if (mAgentHistorySuppressed) return;
         // fork (B4, second review): neither a private text nor a word whose n-gram context it is (the
         // word before the cursor and the ones before it) is learned
-        if (mPrivateRanges.touchesLearningContext(mPrivateEditor, helium314.keyboard.latin.define.DecoderSpecificConstants.MAX_PREV_WORD_COUNT_FOR_N_GRAM + 1)) return;
+        final boolean privateContext = mPrivateRanges.touchesLearningContext(mPrivateEditor, helium314.keyboard.latin.define.DecoderSpecificConstants.MAX_PREV_WORD_COUNT_FOR_N_GRAM + 1);
+        if (privateContext && !privateDecided) return;
         // a typed command (e.g. "@math") is no word of the user's
         if (helium314.keyboard.agent.KeyboardCommands.isCommandWord(suggestion)
                 || helium314.keyboard.agent.KeyboardCommands.guardsTextBefore(
@@ -1947,7 +1972,7 @@ public final class InputLogic {
             return;
         }
         // fork, stage 46: the memory learns phrases, own words and abbreviations from the same committed words (opt-in, see Memory)
-        helium314.keyboard.agent.Memory.onWordCommitted(mLatinIME, settingsValues, mLatinIME.getCurrentInputEditorInfo(), word,
+        if (!privateContext) helium314.keyboard.agent.Memory.onWordCommitted(mLatinIME, settingsValues, mLatinIME.getCurrentInputEditorInfo(), word,
                 mWordComposer.isComposingWord() && !mWordComposer.isBatchMode() && !mWordComposer.isResumed() ? mWordComposer.getTypedWord() : null,
                 () -> mConnection.getTextBeforeCursor(helium314.keyboard.agent.Memory.LOOKBACK, 0), mConnection.getExpectedSelectionStart());
         final int timeStampInSeconds = (int)TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());

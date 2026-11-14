@@ -208,6 +208,14 @@ class ClipGuardTest {
             assertEquals(SecretReason.PASSWORD, reason(text), text)
     }
 
+    @Test fun aLettersOnlyPasswordValueMustEndItsLine() {
+        // third review of stage 44: not even one more word may follow a letters-only value
+        for (text in listOf("Passwort: Erfragen Sie", "Kennwort = Frag Peter", "Password: Ask him"))
+            assertEquals(ClipKind.TEXT, kind(text), text)
+        for (text in listOf("Passwort: Sommerwiese", "Passwort: Sommerwiese\nRaum 3", "Passwort: Sommerwiese; Raum 3", "Password: x7Kq9mZ2 now"))
+            assertEquals(SecretReason.PASSWORD, reason(text), text)
+    }
+
     @Test fun moreKeyFormatsAndIdentifiersThatAreNone() {
         // review of stage 44 (B9)
         val telegram = "123456789" + ":" + "AAHx" + "dqTcvCH1vGWJxfSeofSAs0K5PALDsaw"
