@@ -66,13 +66,26 @@ data class RgbLook(
     val saturation: Int = 100,
     val brightness: Int = 100,
     val mix: Int = 100,
+    /**
+     * Own pattern of stage 34 instead of [pattern] (which stays as the fallback when the own one is
+     * deleted). Its curve, colours and shapes are its own; [curve], [rainbow], [palette] and
+     * [waveWidth] of the look do not apply then, [periodMs], [reverse], [saturation], [brightness]
+     * and [mix] do.
+     */
+    val own: RgbOwnPattern? = null,
 ) {
     fun applyTo(settings: RgbSettings) = settings.copy(pattern = pattern, curve = curve, periodMs = periodMs, reverse = reverse,
-        waveWidth = waveWidth, rainbow = rainbow, palette = palette, saturation = saturation, brightness = brightness, mix = mix)
+        waveWidth = waveWidth, rainbow = rainbow, palette = palette, saturation = saturation, brightness = brightness, mix = mix, own = own)
+
+    /** True when the own pattern is there and has layers (a bare reference draws [pattern]). */
+    val usesOwn: Boolean get() = own?.usable == true
+
+    /** True if this look changes by itself. */
+    fun moves(): Boolean = if (usesOwn) own!!.moves else pattern != RgbPattern.STATIC_RAINBOW
 
     companion object {
         fun of(s: RgbSettings) = RgbLook(s.pattern, s.curve, s.periodMs, s.reverse, s.waveWidth, s.rainbow, s.palette,
-            s.saturation, s.brightness, s.mix)
+            s.saturation, s.brightness, s.mix, s.own)
     }
 }
 
@@ -114,6 +127,8 @@ data class RgbSettings(
     /** Each element has its own look (from [looks]) instead of the shared one. */
     val separate: Boolean = false,
     val looks: Map<RgbTarget, RgbLook> = emptyMap(),
+    /** Own pattern of the shared look (stage 34, see [RgbLook.own]); stored as its id only. */
+    val own: RgbOwnPattern? = null,
 ) {
     fun normalized(): RgbSettings = normalLook().copy(
         glowMs = glowMs.coerceIn(GLOW_RANGE),
@@ -128,6 +143,7 @@ data class RgbSettings(
         saturation = saturation.coerceIn(0, 100),
         brightness = brightness.coerceIn(BRIGHTNESS_MIN, 100),
         mix = mix.coerceIn(0, 100),
+        own = own?.takeIf { RgbOwnPattern.validId(it.id) }?.let { if (it.usable) it.normalized() else it },
     )
 
     /** The look [target] uses: its own one when [separate], otherwise the shared one. */
@@ -159,7 +175,24 @@ data class RgbSettings(
     fun lightsStrip(): Boolean = enabled && areas.any { it.inStrip }
 
     /** True if some lit element moves by itself (not only a still rainbow or light that waits for taps). */
-    fun moves(): Boolean = !reactiveOnly && RgbTarget.entries.any { lights(it) && lookFor(it).pattern != RgbPattern.STATIC_RAINBOW }
+    fun moves(): Boolean = !reactiveOnly && RgbTarget.entries.any { lights(it) && lookFor(it).moves() }
+
+    /** True if a key press can change the light: a tap reaction, reactive-only light or a lit own pattern that uses taps (34). */
+    fun reactsToTaps(): Boolean = tapReaction != RgbTapReaction.NONE || reactiveOnly ||
+        RgbTarget.entries.any { lights(it) && lookFor(it).let { l -> l.usesOwn && l.own!!.usesTaps } }
+
+    /**
+     * These settings with every own pattern (stage 34) taken from [library] by its id: the settings
+     * text only names the id. An id the library does not have (deleted, or a profile from another
+     * phone) is dropped, so the element draws its built-in [pattern] again.
+     */
+    fun resolve(library: RgbPatternLibrary): RgbSettings {
+        fun look(o: RgbOwnPattern?) = o?.let { library[it.id] }
+        return copy(own = look(own), looks = looks.mapValues { (_, l) -> l.copy(own = look(l.own)) })
+    }
+
+    /** The ids of all own patterns these settings use. */
+    fun ownIds(): Set<String> = (listOfNotNull(own) + looks.values.mapNotNull { it.own }).map { it.id }.toSet()
 
     /** Compact, stable text form for one preference and for profiles. */
     fun encode(): String {
@@ -209,7 +242,7 @@ data class RgbSettings(
             "sat" to look.saturation.toString(),
             "bright" to look.brightness.toString(),
             "mix" to look.mix.toString(),
-        ).map { (k, v) -> prefix + k to v }
+        ).let { if (look.own != null) it + ("own" to look.own.id) else it }.map { (k, v) -> prefix + k to v }
 
         /**
          * Reads [encoded]; anything missing, unknown or out of range falls back to the default of
@@ -265,6 +298,8 @@ data class RgbSettings(
                 saturation = int("sat", base.saturation),
                 brightness = int("bright", base.brightness),
                 mix = int("mix", base.mix),
+                // never inherited: an element without `own` draws its built-in pattern
+                own = get("own")?.takeIf { RgbOwnPattern.validId(it) }?.let { RgbOwnPattern.reference(it) },
             )
         }
 
@@ -541,6 +576,12 @@ class RgbEngine(settings: RgbSettings) {
         private set
     private val flowPeriod = RgbPatterns.flowPeriod(this.settings.pattern)
     private var lastAdvanceMs = Long.MIN_VALUE
+    /** The own pattern of stage 34, compiled (null: the built-in [RgbSettings.pattern]). */
+    val own: RgbOwnRenderer? = this.settings.own?.takeIf { it.usable }?.let { RgbOwnRenderer(it, this.settings.saturation, this.settings.brightness) }
+    /** True if phase and flow move by themselves (not a still rainbow or a still own pattern). */
+    private val animated: Boolean = own?.moves ?: (this.settings.pattern != RgbPattern.STATIC_RAINBOW)
+    /** The built-in pattern whose detail tile is drawn over the light; null for own patterns (no tile). */
+    val tilePattern: RgbPattern? get() = if (own != null) null else settings.pattern
 
     private val tapX = FloatArray(MAX_TAPS)
     private val tapY = FloatArray(MAX_TAPS)
@@ -580,13 +621,13 @@ class RgbEngine(settings: RgbSettings) {
     }
 
     /** True if the light (without tap effects) changes over time: phase or flow move. */
-    val moves: Boolean get() = settings.enabled && settings.pattern != RgbPattern.STATIC_RAINBOW
+    val moves: Boolean get() = settings.enabled && animated
 
     /** Moves the animation to [nowMs]. Long gaps (paused keyboard) do not jump. */
     fun advance(nowMs: Long) {
         val last = lastAdvanceMs
         lastAdvanceMs = nowMs
-        if (last == Long.MIN_VALUE || settings.pattern == RgbPattern.STATIC_RAINBOW) return
+        if (last == Long.MIN_VALUE || !animated) return
         val dt = (nowMs - last).coerceIn(0L, MAX_STEP_MS)
         val boost = if (settings.tapReaction == RgbTapReaction.SPEED_UP) 1f + SPEED_BOOST * globalFade(nowMs) else 1f
         val step = dt.toDouble() / settings.periodMs * boost
@@ -602,7 +643,7 @@ class RgbEngine(settings: RgbSettings) {
 
     /** Takes over the phase of [other] (a changed setting goes on where the light was, no restart). */
     fun continueFrom(other: RgbEngine) {
-        if (settings.pattern == RgbPattern.STATIC_RAINBOW) return
+        if (!animated) return
         phase = other.phase
         // the same pattern goes on exactly; another pattern has another period (it changes anyway)
         flow = other.flow % flowPeriod
@@ -626,8 +667,9 @@ class RgbEngine(settings: RgbSettings) {
 
     /** True while any tap effect is still fading. */
     fun hasActiveEffect(nowMs: Long): Boolean =
-        (settings.tapReaction != RgbTapReaction.NONE || settings.reactiveOnly) &&
-            tapTime.any { it != Long.MIN_VALUE && nowMs - it in 0 until settings.glowMs }
+        ((settings.tapReaction != RgbTapReaction.NONE || settings.reactiveOnly) &&
+            tapTime.any { it != Long.MIN_VALUE && nowMs - it in 0 until settings.glowMs }) ||
+            own?.tapActive(nowMs, tapTime, settings.glowMs) == true
 
     /**
      * The light at ([x0], [y0]) for element [keyId] (a key's id, -1 for the keyboard background
@@ -640,13 +682,18 @@ class RgbEngine(settings: RgbSettings) {
         // never throws: a position from a view without size (NaN, infinite) counts as 0
         val x = if (x0.isFinite()) x0 else 0f
         val y = if (y0.isFinite()) y0 else 0f
-        return effects(base(x, y), x, y, keyId, nowMs)
+        return effects(base(x, y, nowMs), x, y, keyId, nowMs)
     }
 
-    /** Pattern colour and strength (alpha, before the mix) at ([x], [y]), without tap effects; [effects] finishes it. */
-    fun base(x: Float, y: Float): Int {
+    /**
+     * Pattern colour and strength (alpha, before the mix) at ([x], [y]), without the tap effects of
+     * the settings; [effects] finishes it. [nowMs] is only read by own patterns whose layers react
+     * to taps (34); the default sees no tap.
+     */
+    fun base(x: Float, y: Float, nowMs: Long = Long.MIN_VALUE): Int {
         val s = settings
         if (!s.enabled) return 0
+        own?.let { return it.sample(x, y, aspect, phase, s.reverse, nowMs, tapX, tapY, tapTime, s.glowMs) }
         val color: Int
         var strength = 1f
         if (s.pattern.textured) {
