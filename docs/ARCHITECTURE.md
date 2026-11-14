@@ -3581,6 +3581,14 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Zeichen: Das vierte Wort nach dem Text wird wieder gelernt. Unbekannte Schreibmarke oder Auswahl:
   gesperrt, nichts vergessen. Unit-Test `CT/clip/PrivateRangesTest.kt`; die Testverbindung von
   `InputLogicTest` liest höchstens 100 Zeichen, lange Werte (PEM) prüft nur der Unit-Test.
+  Vierte Prüfung (Lead): Eine nach der Schreibmarke gekürzte Antwort, die vor dem bekannten Kopf
+  endet und nicht leer ist, gilt als „nicht lesbar“ (nichts wird vergessen), nicht mehr als Feldende
+  (`PrivateRangesTest.aReadCutShortAfterTheCursorForgetsNothing`). Bekannte Restkosten: bis 32
+  Zeichen vor einem Wert liest `beforeEdit` je Taste einmal nach der Schreibmarke (IPC, ≤ ~64
+  Zeichen); mehrdeutige Werte und lange Werte (PEM) lesen bei `touches` über den Cache hinaus; Werte
+  über 8192 Zeichen sperren die 1024 Zeichen danach für die Sitzung (vorsichtig, übersperrend);
+  eine ungemeldete Verschiebung über 32 Zeichen plus eine Bearbeitung im Kopf, Überschreiben einer
+  Auswahl im Kopf und das neue Hashen nach `headUnread` können den Wert noch vergessen (selten).
 - **P186** Die nachträgliche Bereinigung alter Geheimnisse im Verlauf läuft einmal je Versionscode,
   nicht bei jedem Start: Seit Etappe 44 kommen neue Geheimnisse nie in den Verlauf, und jeder Start
   löschte sonst Einträge neu nach den aktuellen Regeln (Regeländerungen wirken mit dem nächsten

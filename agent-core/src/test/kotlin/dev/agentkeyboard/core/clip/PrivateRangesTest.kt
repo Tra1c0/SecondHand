@@ -57,6 +57,22 @@ class PrivateRangesTest {
         assertTrue(ranges.isEmpty)
     }
 
+    @Test fun aReadCutShortAfterTheCursorForgetsNothing() {
+        // review 79a66c8, finding 1: the value lies far after the cursor and the app answers at most 500 characters
+        val field = Field("a".repeat(900) + "Geheim42xyz" + " Rest")
+        val ranges = PrivateRanges(salt = 7)
+        assertTrue(ranges.add(900, 11, field))
+        field.unseen(0, "neu ") // an unreported shift, so the hash at the stored place no longer matches
+        field.cursor = 0
+        field.limit = 500
+        ranges.touchesAt(field, 904)
+        assertFalse(ranges.isEmpty, "a short answer is no proof that the value is gone")
+        // with the whole field readable again, the value is found at its new place
+        field.limit = Int.MAX_VALUE
+        field.cursor = field.text.length
+        assertTrue(ranges.touchesAt(field, 908))
+    }
+
     @Test fun editsBeforeTheValueMoveItAndDeletingInItShortensIt() {
         val field = Field("Geheim42x")
         val ranges = PrivateRanges(salt = 11)

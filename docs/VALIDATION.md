@@ -4203,6 +4203,16 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   (`InputLogicTest.insertLetterIntoWordHangulFails`). `docs_sync --check`: grün.
 - Nicht gelaufen: `tools/dev.py agent-tests`, volle Suite, Lint, Build, Gerätetest.
 
+## Vierte Prüfung Privattext (Prüfer und Lead, 2026-11-14)
+
+- Prüfer (nur Lesen) zu 79a66c8 und Merge 13b5526: kein hoher Befund; Schutz für den geprüften Build
+  schlüssig und vollständig genug; Memory-Hook nach dem Merge korrekt (`!privateContext` plus Lambda).
+  Mittel: gekürzte Antwort nach der Schreibmarke wurde als Feldende gewertet und vergaß den Wert. Vom
+  Lead behoben (`PrivateRanges.find`), Test `aReadCutShortAfterTheCursorForgetsNothing`, Gegenprobe:
+  ohne die Zeile rot. Niedrige Befunde als Restrisiken in P185 festgehalten; Doku-Präzisierung: „kein
+  Lesen je Taste“ gilt nur weit vor einem Wert. Lauf: `:agent-core:test --tests PrivateRangesTest`
+  12/12 grün.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

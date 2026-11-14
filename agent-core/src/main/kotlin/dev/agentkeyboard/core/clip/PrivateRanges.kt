@@ -180,7 +180,10 @@ class PrivateRanges(private val salt: Long = SecureRandom().nextLong()) {
         if (upper > cursor) {
             val from = maxOf(lower, cursor) - cursor
             val after = editor.after(upper - cursor) ?: return null
-            // fewer characters after the cursor: the field ends there (a complete read)
+            // fewer characters after the cursor: the field ends there, unless the answer stops before the
+            // value's last known head and is not empty — then the app cut the read short (some apps limit
+            // getTextAfterCursor): not readable, forget nothing (review 79a66c8, finding 1)
+            if (after.length < upper - cursor && after.isNotEmpty() && cursor + after.length < range.start + n) return null
             if (after.length > from) text.append(after, from, after.length)
         }
         if (text.length < n) return emptyList()
