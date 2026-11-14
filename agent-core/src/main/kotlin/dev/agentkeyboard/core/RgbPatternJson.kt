@@ -67,6 +67,20 @@ object RgbPatternJson {
             "{\"id\":${quote(p.id)},\"name\":${quote(p.name)},\"layers\":${layers(p.layers)}}"
         } + "]}"
 
+    /**
+     * The content check of [layers] for the settings text (`own=<id>.<check>`, stage 34): 64-bit
+     * FNV-1a over the layers as stored, the low [RgbOwnPattern.CHECK_LENGTH] hex digits. The name
+     * is not part of it, so a renamed pattern keeps its references.
+     */
+    fun fingerprint(layers: List<RgbPatternLayer>): String {
+        var h = -0x340d631b7bdddcdbL // FNV offset basis 0xcbf29ce484222325
+        for (c in layers(layers.map { it.normalized() })) {
+            h = h xor c.code.toLong()
+            h *= 0x100000001b3L
+        }
+        return java.lang.Long.toHexString(h).padStart(16, '0').takeLast(RgbOwnPattern.CHECK_LENGTH)
+    }
+
     private fun layers(list: List<RgbPatternLayer>) = list.joinToString(",", "[", "]") { l ->
         "{\"generator\":\"${l.generator}\",\"blend\":\"${l.blend}\",\"speed\":${num(l.speed)},\"angle\":${l.angle}," +
             "\"scale\":${num(l.scale)},\"offsetX\":${num(l.offsetX)},\"offsetY\":${num(l.offsetY)},\"opacity\":${l.opacity}," +
@@ -109,16 +123,22 @@ object RgbPatternJson {
         }
     }
 
+    /** Reads the stored library as [readLibrary] does; a text that cannot be read as a whole gives an empty library. */
+    fun decodeLibrary(text: String?): RgbPatternLibrary = readLibrary(text) ?: RgbPatternLibrary.EMPTY
+
     /**
-     * Reads the stored library; a broken entry is skipped (the others stay), a broken or foreign
-     * text gives an empty library. Ids must be unique and valid, at most [RgbPatternLibrary.MAX_PATTERNS].
+     * Reads the stored library; a broken entry is skipped (the others stay). Null (not empty) for
+     * a text that cannot be read as a whole: too long, not strict JSON, foreign, from a newer
+     * version. The app then keeps that text and refuses to write over it (N6 of the review).
+     * Ids must be unique and valid, at most [RgbPatternLibrary.MAX_PATTERNS]. No text: empty.
      */
-    fun decodeLibrary(text: String?): RgbPatternLibrary {
-        if (text.isNullOrBlank() || text.length > MAX_LIBRARY_BYTES) return RgbPatternLibrary.EMPTY
-        val root = try { StrictJson.parse(text) } catch (_: StrictJson.Invalid) { return RgbPatternLibrary.EMPTY }
-        if (root !is Map<*, *> || root["format"] != LIBRARY_FORMAT) return RgbPatternLibrary.EMPTY
-        try { version(root["version"]); fields(root, LIBRARY_FIELDS) } catch (_: Refused) { return RgbPatternLibrary.EMPTY }
-        val entries = root["patterns"] as? List<*> ?: return RgbPatternLibrary.EMPTY
+    fun readLibrary(text: String?): RgbPatternLibrary? {
+        if (text.isNullOrBlank()) return RgbPatternLibrary.EMPTY
+        if (text.length > MAX_LIBRARY_BYTES) return null
+        val root = try { StrictJson.parse(text) } catch (_: StrictJson.Invalid) { return null }
+        if (root !is Map<*, *> || root["format"] != LIBRARY_FORMAT) return null
+        try { version(root["version"]); fields(root, LIBRARY_FIELDS) } catch (_: Refused) { return null }
+        val entries = root["patterns"] as? List<*> ?: return null
         val out = ArrayList<RgbOwnPattern>()
         for (entry in entries) {
             if (out.size >= RgbPatternLibrary.MAX_PATTERNS) break
@@ -163,11 +183,11 @@ object RgbPatternJson {
             generator = enum(m["generator"], d.generator),
             stops = readStops(m["stops"]),
             blend = enum(m["blend"], d.blend),
-            speed = number(m["speed"], d.speed.toDouble()).toFloat(),
+            speed = float(m["speed"], d.speed),
             angle = number(m["angle"], d.angle.toDouble()).let { Math.floorMod(it.roundToLong(), 360L).toInt() },
-            scale = number(m["scale"], d.scale.toDouble()).toFloat(),
-            offsetX = number(m["offsetX"], 0.0).toFloat(),
-            offsetY = number(m["offsetY"], 0.0).toFloat(),
+            scale = float(m["scale"], d.scale),
+            offsetX = float(m["offsetX"], 0f),
+            offsetY = float(m["offsetY"], 0f),
             opacity = number(m["opacity"], 100.0).coerceIn(0.0, 100.0).roundToInt(),
             curve = m["curve"]?.let { RgbCurve.parse(it as? String ?: throw Refused(RgbPatternError.BAD_VALUE)) ?: throw Refused(RgbPatternError.BAD_VALUE) }
                 ?: d.curve,
@@ -177,6 +197,10 @@ object RgbPatternJson {
     }
 
     private fun Double.roundToLong(): Long = Math.round(this.coerceIn(-1e9, 1e9))
+
+    /** A number clamped while still a double: 1e300 would be infinite as a float and fall back to the default instead of the limit. */
+    private fun float(value: Any?, default: Float): Float = number(value, default.toDouble()).coerceIn(-FLOAT_LIMIT, FLOAT_LIMIT).toFloat()
+    private const val FLOAT_LIMIT = 1e6
 
     private fun readStops(value: Any?): List<RgbStop> {
         val list = value as? List<*> ?: throw Refused(RgbPatternError.BAD_VALUE)
@@ -317,8 +341,10 @@ object StrictJson {
                             'r' -> b.append('\r')
                             't' -> b.append('\t')
                             'u' -> {
-                                if (i + 4 > s.length) throw Invalid("escape")
-                                val code = s.substring(i, i + 4).toIntOrNull(16) ?: throw Invalid("escape")
+                                // exactly four hex digits (toIntOrNull would also take a sign: "\\u+04a")
+                                if (i + 4 > s.length || (i until i + 4).any { s[it] !in '0'..'9' && s[it].lowercaseChar() !in 'a'..'f' })
+                                    throw Invalid("escape")
+                                val code = s.substring(i, i + 4).toInt(16)
                                 b.append(code.toChar())
                                 i += 4
                             }

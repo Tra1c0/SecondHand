@@ -76,7 +76,8 @@ fun AgentDiagnoseScreen(onClickBack: () -> Unit) {
     var lightPatterns by remember { mutableStateOf(emptyList<Diagnose.Row>()) }
     LaunchedEffect(Unit) {
         val settings = helium314.keyboard.agent.RgbLighting.read(context.prefs())
-        lightPatterns = withContext(Dispatchers.Default) { Diagnose.lightPatterns(context, settings) }
+        val library = helium314.keyboard.agent.RgbOwnPatterns.library(context.prefs())
+        lightPatterns = withContext(Dispatchers.Default) { Diagnose.lightPatterns(context, settings, library) }
     }
     val lighting = remember(lightPatterns) { Diagnose.lighting(context, helium314.keyboard.agent.RgbLighting.lastFrameWork(), lightPatterns) }
     val emojiMix = remember(table, tableRead, cache, reach) { Diagnose.emojiMix(context, table, tableRead, cache, reach) }

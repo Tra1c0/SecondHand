@@ -148,10 +148,11 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   `RgbPatterns.kt` (29c): `RgbNoise` (periodisches Wertrauschen), `RgbPatterns.field` (Farbfeld
   der sechs Texturmuster), `RgbOverlay` (Detail-Kacheln und ihre Matrix), `RgbTile`. Details im
   Abschnitt „RGB-Beleuchtung“.
-- Eigene RGB-Lichtmuster (Etappe 34, Abschnitt „RGB-Beleuchtung“ → Eigene Muster, P214–P218):
+- Eigene RGB-Lichtmuster (Etappe 34, Abschnitt „RGB-Beleuchtung“ → Eigene Muster, P214–P218, P222–P223):
   `RgbOwnPattern.kt` (`RgbGenerator` mit zwölf Formen, `RgbBlend`, `RgbLayerReaction`,
   `RgbPaletteMode`, `RgbStop`, `RgbPatternLayer` mit `normalized`, `RgbOwnPattern` mit `reference`,
-  `cleanName` und `from` (Ausgangspunkt aus einem eingebauten Look), `RgbPatternLibrary` (IDs,
+  `parseReference`, `fingerprint`, `cleanName`, `fitName` und `from` (Ausgangspunkt aus einem
+  eingebauten Look), `RgbPatternLibrary` (zufällige IDs, `match` mit Inhaltsprüfung, `withNewIds`,
   eindeutige Namen, höchstens 24), `RgbOwnRenderer` (kompilierte Form je Engine: Stopp-Tabellen über
   `RgbPaletteTables`, Richtung als Sinus/Kosinus, `sample` ohne Allokation, `tapActive`, `stopTable`,
   `lookup`, `blend`, `hash`)), `RgbPatternJson.kt` (`RgbPatternJson` Export-Datei und gespeicherte
@@ -2446,36 +2447,58 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Ebenen (`RgbOwnPattern.from`). Alle Formen sind reine Funktionen von Ort, Phase, Uhr und den
   höchstens acht Tipps der Engine, ganze Durchläufe wiederholen sich genau.
 - Eigene Muster im Ablauf: `RgbLook.own`/`RgbSettings.own` (je Element oder gemeinsam) ersetzt
-  `pattern`, das als Rückfall bleibt; der Text der Einstellung nennt nur die ID (`own=p3`, P217),
-  `RgbLighting.read` löst sie über `A/RgbOwnPatterns.kt` (Einstellung `agent_rgb_patterns`) auf,
-  `RgbLighting.load` liest neu, wenn sich eine der beiden Einstellungen ändert. `RgbEngine` baut
+  `pattern`, das als Rückfall bleibt; der Text der Einstellung nennt nur ID und Inhaltsprüfung
+  (`own=<id>.<prüfung>`, P217, P222), `RgbLighting.read` löst sie über `A/RgbOwnPatterns.kt`
+  (Einstellung `agent_rgb_patterns`) mit `RgbSettings.resolve` auf, `RgbLighting.load` liest neu,
+  wenn sich eine der beiden Einstellungen ändert, und ruft bei geänderter Liste vorher
+  `RgbOwnPatterns.migrate` (alte IDs `p1` … werden zufällig). `RgbOwnPatterns.write` ist der einzige
+  Schreibweg der Liste: Er lässt Beleuchtung und gespeichertes Designprofil
+  (`KeyboardProfileStore.updateSavedRgb`) über `RgbSettings.restamp` mitziehen und schreibt nichts,
+  solange die gespeicherte Liste unlesbar ist (`locked`, `RgbPatternJson.readLibrary` gibt null). `RgbEngine` baut
   daraus einen `RgbOwnRenderer` (null für eine bloße Referenz); `base(x, y, nowMs)` fragt ihn,
   `effects` (Mischung, Tipp-Effekte der Seite) bleibt gleich. Kein Detail-Bild: `tilePattern` ist
   null, `RgbTexture.updateTile` und `RgbTiles.request` überspringen eigene Muster. `RgbTexture`
   rechnet das Raster wie bisher im Hintergrund, jetzt mit `base(x, y, nowMs)` (P216);
   `hasActiveEffect` hält Raster nach, solange ein Spot gleitet (180 ms) oder eine Reaktion
   verblasst. `RgbSettings.reactsToTaps` lässt Tipps zur Engine durch, wenn ein leuchtendes eigenes
-  Muster sie braucht, auch ohne Tipp-Reaktion der Seite; `moves` folgt `RgbLook.moves`.
+  Muster sie braucht, auch ohne Tipp-Reaktion der Seite; `moves` folgt `RgbLook.moves`. Keine Tipps
+  in Passwort-/PIN-Feldern und im Inkognito-Modus, neue `SettingsValues` (anderes Feld) verwerfen
+  die alten (`RgbLighting.privateField`, `forgetTapsOfAnotherField`, P223).
 - Eigene Muster, Seite: `K/settings/screens/AgentRgbScreen.kt` zeigt unter der Galerie „Eigene
-  Muster“ (`OwnGallery`, Bilder 32 × 18 im Hintergrund, Tags `agent_rgb_own_<id>`), „Eigenes Muster
-  aus …“ (`agent_rgb_own_new`, aus dem gewählten Look oder als Kopie des eigenen), „Bearbeiten“
-  und „Importieren“; ein eingebautes Muster wählen setzt `own` zurück. Mit eigenem Muster sind
+  Muster“ (`OwnGallery`, Bilder 32 × 18 im Hintergrund, Schlüssel ohne Namen, nach dem ersten Bild
+  erst nach `GALLERY_DEBOUNCE_MS` Ruhe, abbrechbar je Zeile, Zähler `ownPictures`; Tags
+  `agent_rgb_own_<id>`), „Eigenes Muster aus …“ (`agent_rgb_own_new`, aus dem gewählten Look
+  „… (eigen)“ oder als Kopie des eigenen „… (Kopie)“, `RgbOwnPattern.fitName` kürzt auf 32
+  Zeichen; Rückfallname übersetzt über `agent_rgb_own_default_name`), „Bearbeiten“ und
+  „Importieren“; ein eingebautes Muster wählen setzt `own` zurück. Unlesbare gespeicherte Liste:
+  Hinweis `agent_rgb_own_locked` statt Galerie und Knöpfen. Farbkreise der Seite und Farbstopps
+  des Editors: `ColorSwatch` (Kreis 36 dp in 48 dp Tippfläche, Name „Farbe n, #RRGGBB“ bzw.
+  „Farbstopp n, #RRGGBB“). Mit eigenem Muster sind
   Kurve, Farben und Wellenbreite der Seite ausgeblendet. Der Editor
   (`K/settings/screens/AgentRgbPatternEditor.kt`, `RgbPatternEditor`) steht an Stelle der Seite
   (`editing`, Zurück über `BackHandler`), mit derselben `LivePreview` (Einstellungen der Seite mit
   dem Muster für alle Elemente, `previewWith`, echte Bildrate) und den Bausteinen der Seite
   (`RgbSection`, `RgbChips`, `RgbNote`, `RgbLabel` jetzt `internal`), Farbwähler
-  `ColorPickerDialog`, Kurven-Editor `RgbCurveEditor`. Regler (`DraftSlider`) und Kurvenpunkte
-  ändern beim Ziehen nur einen Entwurf, den nur die Vorschau liest; gespeichert wird beim
-  Loslassen (P218). Dateien über `AgentDocumentIO` (nur `content://`, Lesegrenze 16 KiB) mit
-  `CreateDocument`/`OpenDocument`; Meldungen als Toast auf dem Main-Thread. Diagnose:
-  `Diagnose.lightPatterns` (benutzte Muster, eigene mit Namen, und ein Raster 48 × 32 je Engine
-  gemessen, im Hintergrund beim Öffnen) hängt an „RGB-Beleuchtung“.
+  `ColorPickerDialog`, Kurven-Editor `RgbCurveEditor`. Regler (`DraftSlider`, TalkBack-Name =
+  Beschriftung mit Wert; Tempo und Größe in Schritten von 0,05, Verschiebung 0,01) und
+  Kurvenpunkte ändern beim Ziehen nur einen Entwurf, den nur die Vorschau liest; gespeichert wird
+  beim Loslassen (P218), ein verschobener Farbstopp bleibt nach dem Sortieren gewählt
+  (`stopAfterSort`). Der Name bleibt beim Tippen im Feld und wird bei „Fertig“, Fokusverlust,
+  Zurück, Duplizieren und Exportieren gespeichert (`onRename` gibt den gespeicherten Namen
+  zurück). „Mischen“ fehlt bei Ebene 1. Dateien über `AgentDocumentIO` (nur `content://`, Lesegrenze 16 KiB) mit
+  `CreateDocument`/`OpenDocument`; Import liest selbst (`openInputStream` null oder `IOException`:
+  „nicht lesbar“, `SecurityException`/`FileNotFoundException`: „kein Zugriff“, Grenze überschritten:
+  „zu groß“); Meldungen als Toast auf dem Main-Thread. Diagnose: `Diagnose.lightPatterns`
+  (benutzte Muster, eigene nur als „eigenes Muster n“ nach ihrem Platz in der Liste, nie mit dem
+  Namen des Nutzers, und ein Raster 48 × 32 je Engine gemessen, im Hintergrund beim Öffnen) hängt
+  an „RGB-Beleuchtung“.
 - Kosten eigener Muster (`CT/RgbOwnPatternTest.ownPatternsStayWithinTheBudget`, dieselben 1634 Werte
   je Bild wie oben, Testrechner, bestes von drei Läufen, zwei Läufe): Tinte 0,68 ms, eine lineare
   Ebene 0,20–0,22 ms, Plasma + Funkeln + Ringe + Spot 0,64–0,67 ms, vier Höhenlinien mit Farbkreis
   0,84–0,89 ms, vier Rauschen 1,04–1,11 ms (Grenze im Test: höchstens doppelt so viel wie Tinte im selben Lauf und unter 4 ms).
-  `sample` alloziert nichts (gemessen mit `ThreadMXBean`, unter 64 KiB auf 100 000 Werte).
+  `sample` alloziert nichts (gemessen mit `ThreadMXBean`, unter 64 KiB auf 100 000 Werte über alle
+  zwölf Formen, alle Mischarten, Reaktionen und Farbmodi mit verblassenden Tipps).
+  `RgbPaletteTables` hält 64 Tabellen (eigene Muster bringen bis zu vier je Muster).
 - Tests: `CT/RgbLightingTest.kt`, `CT/RgbCurveTest.kt` (Kurve, Grenzen, Text, Vorlagen,
   Migration, eigene Looks), `CT/RgbPatternsTest.kt` (Bewegung, keine Sprünge in Ort und Zeit,
   Regenbogen ohne Kanten, OKLCH, Merkmale der sechs Muster, Kacheln nahtlos, Matrix, Kosten,
@@ -2491,15 +2514,23 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `AT/RgbTilesTest.kt` (Kachel im Hintergrund, Zeichnen wartet nicht, Cache mit allen Mustern,
   Leeren), `CT/RgbOwnPatternTest.kt` (34: Goldwerte je Form, W3C-Formeln je Mischart, Kurve,
   Stopp-Tabellen, Farbkreis, Reaktionen als reine Funktionen der Tipps, Wiederholung über ganze
-  Durchläufe und den Phasenumbruch, Begrenzung, ID in der Einstellung, Rückfall, Ausgangspunkte,
-  Bibliothek, Kosten, keine Allokation; Bericht `agent-core/build/rgb-previews/own-pattern-cost.txt`),
-  `CT/RgbPatternJsonTest.kt` (Rundreise, Vorgaben und Begrenzung, Ablehnungen mit Grund, Liste
-  überspringt kaputte Einträge, strenger JSON-Leser), `AT/RgbPatternEditorTest.kt` (anlegen aus dem
-  gewählten Muster, jede Option, Regler beim Loslassen, Ebenen, umbenennen, duplizieren, löschen
-  mit Rückfall; Wahl je Element; laufende Vorschau mit 60 Hz und Bild
-  `app/build/agent-previews/rgb-pattern-editor.png`; Export und Import über ein Test-Register für
-  Dateiwähler, Ablehnung mit Grund; Raster ohne Kachel, Neuladen bei geänderter Liste, Rückfall;
-  Diagnose), `AT/RgbFrameRateCardTest.kt` (37: Karte mit Überschrift darin, Texte und Reihenfolge,
+  Durchläufe und den Phasenumbruch, Begrenzung, ID und Prüfung in der Einstellung, Rückfall bei
+  anderem Inhalt, zufällige IDs auch nach Löschen des neuesten, Umstellung alter IDs mit
+  `restamp`, Namen kürzen, Trenner und Surrogate, Ausgangspunkte (diagonal auf quadratischer
+  Fläche), Bibliothek, Kosten, keine Allokation; Bericht
+  `agent-core/build/rgb-previews/own-pattern-cost.txt`), `CT/RgbPatternJsonTest.kt` (Rundreise,
+  Vorgaben und Begrenzung auch für `1e300`, Ablehnungen mit Grund, `\u` genau vier Hexziffern,
+  Namen mit Trennern, Prüfung nur über die Ebenen, Liste überspringt kaputte Einträge, unlesbare
+  Liste ist null, strenger JSON-Leser), `AT/RgbPatternEditorTest.kt` (anlegen aus dem gewählten
+  Muster, jede Option, Einstellung folgt, Farbstopp 48 dp mit Namen und gewählt nach dem Sortieren,
+  feine Regler mit TalkBack-Namen, Mischen erst ab Ebene 2, Name erst bei „Fertig“, duplizieren als
+  „(Kopie)“, löschen mit Rückfall; Galerie ohne Bild beim Umbenennen und erst nach Ruhe; Wahl je
+  Element; laufende Vorschau mit 60 Hz und Bild `app/build/agent-previews/rgb-pattern-editor.png`;
+  Export und Import über ein Test-Register für Dateiwähler, Ablehnung mit Grund, kein Zugriff,
+  nicht lesbar; Raster ohne Kachel, Neuladen bei geänderter Liste, Rückfall; alte IDs umgestellt mit
+  Einstellung und Designprofil, Profil von einem anderen Telefon; unlesbare Liste bleibt; Diagnose
+  ohne Namen), `AT/RgbLightingRenderTest.privateFieldsFeedNoTapsAndANewFieldDropsThem` (Passwort,
+  PIN, Inkognito, neues Feld), `AT/RgbFrameRateCardTest.kt` (37: Karte mit Überschrift darin, Texte und Reihenfolge,
   echte Einstellung, Auswahl folgt, Energiesparschalter bleibt, 44 dp, Überschrift eine Zeile bei
   390 dp in 21 sp, bei 360 dp mit Schrift 130 % ganz, mit 200 % kleiner (Breite gegen
   `TextMeasurer`, das Layout-Ergebnis nennt die Größe des Stils, nicht die Auto-Größe), eine Uhr,
@@ -4586,13 +4617,22 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Muster brauchen `base(x, y, nowMs)` (so in `RgbTexture.computeGrid` und `light`). Ein neues
   Raster wird nur bestellt, solange `hasActiveEffect` gilt; darum deckt `RgbOwnRenderer.tapActive`
   Nachleuchten und Gleiten (180 ms) ab, sonst bliebe das Raster mitten im Gleiten stehen.
-- **P217** Die Einstellung nennt ein eigenes Muster nur über seine ID: `RgbSettings.parse` gibt eine
-  Referenz ohne Ebenen, die wie das eingebaute `pattern` zeichnet. Wer zeichnet oder eine
-  Zusammenfassung zeigt, liest über `RgbLighting.read` (löst auf). `own` wird nie vom gemeinsamen
-  Look geerbt (`readLook`), sonst bekäme ein Element ohne eigenes Muster das des gemeinsamen Looks.
-- **P218** Editor: Regler und Kurvenpunkte ändern beim Ziehen nur einen Entwurf für die Vorschau.
-  Bei jedem Schritt zu speichern hieße, `agent_rgb_patterns` (und damit die Tastatur) neu zu laden
-  und Engines neu zu bauen. Nach Datei-Arbeit auf `Dispatchers.IO` geht es mit
+- **P217** Die Einstellung nennt ein eigenes Muster nur über ID und Inhaltsprüfung: `RgbSettings.parse`
+  gibt eine Referenz ohne Ebenen (`check` gesetzt), die wie das eingebaute `pattern` zeichnet. Wer
+  zeichnet oder eine Zusammenfassung zeigt, liest über `RgbLighting.read` (löst mit `resolve` auf).
+  Drei Wege, nicht vertauschen: `resolve` (Text aus Einstellung oder Profil, prüft ID und Inhalt),
+  `refresh` (Einstellungen, die schon Muster dieses Telefons halten, nach einer Änderung der
+  eigenen Liste: nur nach ID; `resolve` würde hier das gerade bearbeitete Muster verwerfen, weil
+  sein Inhalt neu ist), `restamp` (gespeicherten Text auf eine geänderte Liste umschreiben). `own`
+  wird nie vom gemeinsamen Look geerbt (`readLook`), sonst bekäme ein Element ohne eigenes Muster
+  das des gemeinsamen Looks.
+- **P218** Editor: Regler und Kurvenpunkte ändern beim Ziehen nur einen Entwurf für die Vorschau,
+  der Name nur das Feld (gespeichert bei „Fertig“, Fokusverlust, Zurück, Duplizieren, Exportieren).
+  Bei jedem Schritt oder Buchstaben zu speichern hieße, die ganze Liste zu kodieren, Beleuchtung und
+  Designprofil umzuschreiben, `agent_rgb_patterns` (und damit die Tastatur) neu zu laden und Engines
+  neu zu bauen, alles auf dem Main-Thread. Wer Duplizieren oder Exportieren anfasst: erst den Namen
+  speichern, dann den aktuellen Stand aus `library` lesen (nicht das beim Zeichnen gefangene
+  `edited`). Nach Datei-Arbeit auf `Dispatchers.IO` geht es mit
   `withContext(Dispatchers.Main)` zurück: In Robolectric lief die Fortsetzung sonst auf dem
   IO-Thread („Can't toast on a thread that has not called Looper.prepare()“).
 - **P219** Sprache im Feld bei ausgeschalteter „Sprache pro App“ (Nachprüfung 52): Hat eine App eine
@@ -4631,6 +4671,24 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   oder das Feld ändert, legt sie in `after`. Das Schreiben von `FORMAT_GUARD`, `MEMORY` und
   `PREF_ENABLE_CLIPBOARD_HISTORY` lädt die Einstellungen neu (`Settings.onSharedPreferenceChanged`),
   bevor der Befehl entfernt wird; das ändert die Eingabeverbindung nicht.
+
+- **P222** IDs eigener Muster (34, Nachprüfung): nie wieder hochzählen (`max + 1`). Mit `p1`, `p2` …
+  bekam ein neues Muster nach dem Löschen des neuesten dessen ID, und ein Designprofil, das nur
+  `own=<id>` speichert, zeigte still ein anderes Muster; Profile von einem anderen Telefon trafen
+  lokale IDs. Darum: zufällige ID mit 12 Zeichen (`RgbPatternLibrary.newId`, `SecureRandom`) und im
+  Text die Inhaltsprüfung (`<id>.<prüfung>`, FNV-1a über die Ebenen ohne Namen), die
+  `RgbPatternLibrary.match` vergleicht; passt sie nicht, gilt das eingebaute Muster. Weil eine
+  Bearbeitung die Prüfung ändert, muss jeder Schreibweg der Liste über `RgbOwnPatterns.write` gehen
+  (zieht Beleuchtung und Designprofil nach). Ein Wert ohne Prüfung gilt nur für eine alte, kurze ID;
+  `migrate` ersetzt diese einmal, danach findet ein alter Profiltext nichts mehr.
+- **P223** Tipps und Privatsphäre (34, Nachprüfung): Ringe, Spot und Aufleuchten zeigen die
+  getippte Taste. `RgbLighting.onKeyPressed` nimmt in Passwort-/PIN-Feldern
+  (`KeyboardId.isPasswordInput`, `InputAttributes`) und bei Inkognito (`mIncognitoModeEnabled`,
+  schließt „keine Personalisierung“ ein) keine Tipps an. Einen eigenen Haken in `onStartInputView`
+  gibt es nicht (LatinIME bleibt unberührt): LatinIME lädt für jedes andere Feld neue
+  `SettingsValues`, bevor es die Tastatur setzt; `painterFor` und `onKeyPressed` vergleichen die
+  Instanz (`WeakReference`) und rufen bei einer neuen `clearTaps`. Wer das Laden der Einstellungen
+  ändert, muss diesen Wechsel erhalten.
 
 ## Datei-Inventar
 

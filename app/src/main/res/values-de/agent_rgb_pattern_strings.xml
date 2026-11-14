@@ -21,11 +21,18 @@
     <string name="agent_rgb_own_error_no_layers">hat keine Ebenen</string>
     <string name="agent_rgb_own_error_too_many_layers">hat mehr als vier Ebenen</string>
     <string name="agent_rgb_own_error_bad_name">hat einen ungültigen Namen</string>
-    <string name="agent_rgb_own_copy_name">%1$s (eigen)</string>
+    <string name="agent_rgb_own_copy_name">%1$s (Kopie)</string>
+    <string name="agent_rgb_own_from_builtin_name">%1$s (eigen)</string>
+    <string name="agent_rgb_own_default_name">Muster</string>
+    <string name="agent_rgb_own_error_unreadable">Datei nicht lesbar</string>
+    <string name="agent_rgb_own_error_no_access">kein Zugriff auf die Datei (verschoben, gelöscht oder nicht erlaubt)</string>
+    <string name="agent_rgb_own_locked">Die gespeicherten eigenen Muster stammen von einer neueren Version oder sind beschädigt. Sie bleiben unverändert; neue, geänderte oder importierte Muster werden nicht gespeichert.</string>
+    <string name="agent_rgb_color_description">Farbe %1$d, #%2$s</string>
 
     <string name="agent_rgb_pattern_editor_title">Lichtmuster bearbeiten</string>
     <string name="agent_rgb_pattern_preview_label">Live-Vorschau mit %1$d Hz: tippe darauf, um die Tipp-Reaktionen auszuprobieren</string>
     <string name="agent_rgb_pattern_name">Name</string>
+    <string name="agent_rgb_pattern_name_label">Name des Musters</string>
     <string name="agent_rgb_pattern_name_invalid">1–32 Zeichen, keine Zeilenumbrüche, Auszeichnungen oder Adressen</string>
     <string name="agent_rgb_pattern_duplicate">Duplizieren</string>
     <string name="agent_rgb_pattern_export">Exportieren</string>
@@ -44,6 +51,7 @@
     <string name="agent_rgb_pattern_blend">Mischen mit den Ebenen darunter</string>
     <string name="agent_rgb_pattern_group_colors">Farben</string>
     <string name="agent_rgb_pattern_stop_n">Farbstopp %1$d</string>
+    <string name="agent_rgb_pattern_stop_description">Farbstopp %1$d, #%2$s</string>
     <string name="agent_rgb_pattern_stop_color">Farbe ändern</string>
     <string name="agent_rgb_pattern_stop_add">Stopp hinzufügen</string>
     <string name="agent_rgb_pattern_stop_remove">Stopp entfernen</string>
@@ -83,6 +91,6 @@
     <string name="agent_rgb_reaction_key_glow">Getippte Taste leuchtet auf</string>
 
     <string name="agent_diagnose_light_patterns">Benutzte Muster</string>
-    <string name="agent_diagnose_light_own">eigen</string>
+    <string name="agent_diagnose_light_own_n">eigenes Muster %1$d</string>
     <string name="agent_diagnose_light_grid">Raster 48 × 32 „%1$s“ (jetzt gemessen)</string>
 </resources>

@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -44,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -51,6 +53,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -83,6 +87,8 @@ import helium314.keyboard.latin.R
 import helium314.keyboard.settings.SearchSettingsScreen
 import helium314.keyboard.settings.dialogs.ColorPickerDialog
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
@@ -94,6 +100,8 @@ import kotlin.math.roundToInt
  * (speed, direction, scale, offset, opacity and the curve editor of stage 29) and the reaction to
  * typing. Every finished change is saved at once ([onChange]); while a slider or a curve point is
  * dragged only the preview follows (a draft), so neither the page nor the setting changes per move.
+ * The name is kept in the field while typed and saved on "Done", when the field loses focus, on
+ * back and before duplicating or exporting ([onRename] gives the stored, unique name or null).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -103,13 +111,12 @@ internal fun RgbPatternEditor(
     design: MyDesigns.Design,
     animate: Boolean,
     onChange: (RgbOwnPattern) -> Unit,
-    onRename: (String) -> Boolean,
+    onRename: (String) -> String?,
     onDuplicate: () -> Unit,
     onExport: () -> Unit,
     onDelete: () -> Unit,
     onBack: () -> Unit,
 ) {
-    BackHandler(onBack = onBack)
     // the pattern being dragged: read only by the preview
     val draft = remember(pattern.id) { mutableStateOf<RgbOwnPattern?>(null) }
     var layerIndex by rememberSaveable(pattern.id) { mutableIntStateOf(0) }
@@ -117,10 +124,20 @@ internal fun RgbPatternEditor(
     var selectedPoint by rememberSaveable(pattern.id) { mutableIntStateOf(-1) }
     var colorToPick by rememberSaveable { mutableStateOf<Int?>(null) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
+    // the name as typed: saved only when finished (every keystroke would store the library and reload the keyboard)
+    var name by rememberSaveable(pattern.id) { mutableStateOf(pattern.name) }
+    val invalid = RgbOwnPattern.cleanName(name) == null
     val li = layerIndex.coerceIn(0, pattern.layers.size - 1)
     val layer = pattern.layers[li]
     val si = stopIndex.coerceIn(0, layer.stops.size - 1)
 
+    /** Saves a finished name and shows the stored one ("Name 2" when taken); a name that is not allowed goes back to the stored one. */
+    fun commitName() {
+        if (name == pattern.name) return
+        name = (if (invalid) null else onRename(name)) ?: pattern.name
+    }
+    fun back() { commitName(); onBack() }
+    BackHandler(onBack = ::back)
     fun commit(p: RgbOwnPattern) {
         draft.value = null
         onChange(p.normalized())
@@ -131,7 +148,7 @@ internal fun RgbPatternEditor(
     fun dragLayer(edit: (RgbPatternLayer) -> RgbPatternLayer) { draft.value = withLayer(edit) }
     fun finishDrag() { draft.value?.let { commit(it) } }
 
-    SearchSettingsScreen(onBack, stringResource(R.string.agent_rgb_pattern_editor_title), emptyList()) {
+    SearchSettingsScreen(::back, stringResource(R.string.agent_rgb_pattern_editor_title), emptyList()) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
             LivePreview(design, { preview(draft.value ?: pattern) }, animate)
             RgbNote(stringResource(R.string.agent_rgb_pattern_preview_label, preview(pattern).fps))
@@ -141,23 +158,28 @@ internal fun RgbPatternEditor(
                 .testTag("agent_rgb_pattern_editor")
         ) {
             RgbSection(R.string.agent_rgb_pattern_name) {
-                var name by remember(pattern.id) { mutableStateOf(pattern.name) }
-                var invalid by remember(pattern.id) { mutableStateOf(false) }
+                var focused by remember { mutableStateOf(false) }
                 OutlinedTextField(
                     value = name,
-                    onValueChange = { text ->
-                        name = text
-                        invalid = !onRename(text)
-                    },
+                    onValueChange = { name = it },
+                    label = { Text(stringResource(R.string.agent_rgb_pattern_name_label)) },
                     singleLine = true,
                     isError = invalid,
                     supportingText = if (invalid) { { Text(stringResource(R.string.agent_rgb_pattern_name_invalid)) } } else null,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    modifier = Modifier.fillMaxWidth().testTag("agent_rgb_pattern_name"),
+                    keyboardActions = KeyboardActions(onDone = { commitName() }),
+                    modifier = Modifier.fillMaxWidth().testTag("agent_rgb_pattern_name").onFocusChanged {
+                        if (focused && !it.isFocused) commitName()
+                        focused = it.isFocused
+                    },
                 )
                 FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilledTonalButton(onDuplicate, Modifier.testTag("agent_rgb_pattern_duplicate")) { Text(stringResource(R.string.agent_rgb_pattern_duplicate)) }
-                    OutlinedButton(onExport, Modifier.testTag("agent_rgb_pattern_export")) { Text(stringResource(R.string.agent_rgb_pattern_export)) }
+                    FilledTonalButton({ commitName(); onDuplicate() }, Modifier.testTag("agent_rgb_pattern_duplicate")) {
+                        Text(stringResource(R.string.agent_rgb_pattern_duplicate))
+                    }
+                    OutlinedButton({ commitName(); onExport() }, Modifier.testTag("agent_rgb_pattern_export")) {
+                        Text(stringResource(R.string.agent_rgb_pattern_export))
+                    }
                     TextButton({ confirmDelete = true }, Modifier.testTag("agent_rgb_pattern_delete")) {
                         Text(stringResource(R.string.agent_rgb_pattern_delete), color = MaterialTheme.colorScheme.error)
                     }
@@ -191,22 +213,22 @@ internal fun RgbPatternEditor(
                 RgbChips(RgbGenerator.entries, { it == layer.generator }, { generatorLabel(it) }, "agent_rgb_pattern_gen_") { g ->
                     editLayer { it.copy(generator = g) }
                 }
-                RgbLabel(stringResource(R.string.agent_rgb_pattern_blend))
-                RgbChips(RgbBlend.entries, { it == layer.blend }, { blendLabel(it) }, "agent_rgb_pattern_blend_") { b -> editLayer { it.copy(blend = b) } }
+                // the lowest layer has nothing below it to blend with (its blend mode changes nothing)
+                if (li > 0) {
+                    RgbLabel(stringResource(R.string.agent_rgb_pattern_blend))
+                    RgbChips(RgbBlend.entries, { it == layer.blend }, { blendLabel(it) }, "agent_rgb_pattern_blend_") { b -> editLayer { it.copy(blend = b) } }
+                }
             }
 
             RgbSection(R.string.agent_rgb_pattern_group_colors) {
                 StopBar(layer)
-                Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
+                FlowRow(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                     layer.stops.forEachIndexed { i, stop ->
                         val chosen = i == si
-                        val label = stringResource(R.string.agent_rgb_pattern_stop_n, i + 1)
-                        Spacer(Modifier.size(36.dp).background(Color(stop.color), CircleShape)
-                            .border(if (chosen) 3.dp else 1.dp, if (chosen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, CircleShape)
-                            .clickable(onClickLabel = label) { if (chosen) colorToPick = i else stopIndex = i }
-                            .semantics { role = Role.Button; selected = chosen }
-                            .testTag("agent_rgb_pattern_stop_$i"))
+                        ColorSwatch(stop.color, stringResource(R.string.agent_rgb_pattern_stop_description, i + 1, RgbSettings.hex(stop.color)),
+                            stringResource(R.string.agent_rgb_pattern_stop_n, i + 1), chosen, "agent_rgb_pattern_stop_$i") {
+                            if (chosen) colorToPick = i else stopIndex = i
+                        }
                     }
                 }
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -230,7 +252,13 @@ internal fun RgbPatternEditor(
                 val stop = layer.stops[si]
                 DraftSlider({ stringResource(R.string.agent_rgb_pattern_stop_position, si + 1, (it * 100).roundToInt()) }, stop.position, 0f..1f, 99,
                     "agent_rgb_pattern_stop_position", { v -> dragLayer { l -> l.copy(stops = l.stops.toMutableList().also { s -> s[si] = s[si].copy(position = v) }) } },
-                    ::finishDrag)
+                    {
+                        // the stops are sorted by position: the moved one stays chosen at its new place
+                        val moved = draft.value?.layers?.getOrNull(li)?.stops
+                        val at = moved?.let { stopAfterSort(it, si, layer.stops) }
+                        finishDrag()
+                        if (at != null) stopIndex = at
+                    })
                 RgbChips(RgbPaletteMode.entries, { it == layer.palette }, { paletteLabel(it) }, "agent_rgb_pattern_palette_") { m ->
                     editLayer { it.copy(palette = m) }
                 }
@@ -238,14 +266,14 @@ internal fun RgbPatternEditor(
 
             RgbSection(R.string.agent_rgb_pattern_group_motion) {
                 DraftSlider({ stringResource(R.string.agent_rgb_pattern_speed, decimal(it)) }, layer.speed, -RgbPatternLayer.MAX_SPEED..RgbPatternLayer.MAX_SPEED,
-                    31, "agent_rgb_pattern_speed", { v -> dragLayer { it.copy(speed = v) } }, ::finishDrag)
+                    steps(2 * RgbPatternLayer.MAX_SPEED, RgbPatternLayer.SPEED_STEP), "agent_rgb_pattern_speed", { v -> dragLayer { it.copy(speed = v) } }, ::finishDrag)
                 DraftSlider({ stringResource(R.string.agent_rgb_pattern_angle, it.roundToInt()) }, layer.angle.toFloat(), 0f..355f, 70,
                     "agent_rgb_pattern_angle", { v -> dragLayer { it.copy(angle = v.roundToInt()) } }, ::finishDrag)
                 DraftSlider({ stringResource(R.string.agent_rgb_pattern_scale, decimal(it)) }, layer.scale, RgbPatternLayer.MIN_SCALE..RgbPatternLayer.MAX_SCALE,
-                    30, "agent_rgb_pattern_scale", { v -> dragLayer { it.copy(scale = v) } }, ::finishDrag)
-                DraftSlider({ stringResource(R.string.agent_rgb_pattern_offset_x, (it * 100).roundToInt()) }, layer.offsetX, -1f..1f, 39,
+                    steps(RgbPatternLayer.MAX_SCALE - RgbPatternLayer.MIN_SCALE, RgbPatternLayer.SCALE_STEP), "agent_rgb_pattern_scale", { v -> dragLayer { it.copy(scale = v) } }, ::finishDrag)
+                DraftSlider({ stringResource(R.string.agent_rgb_pattern_offset_x, (it * 100).roundToInt()) }, layer.offsetX, -1f..1f, steps(2f, RgbPatternLayer.OFFSET_STEP),
                     "agent_rgb_pattern_offset_x", { v -> dragLayer { it.copy(offsetX = v) } }, ::finishDrag)
-                DraftSlider({ stringResource(R.string.agent_rgb_pattern_offset_y, (it * 100).roundToInt()) }, layer.offsetY, -1f..1f, 39,
+                DraftSlider({ stringResource(R.string.agent_rgb_pattern_offset_y, (it * 100).roundToInt()) }, layer.offsetY, -1f..1f, steps(2f, RgbPatternLayer.OFFSET_STEP),
                     "agent_rgb_pattern_offset_y", { v -> dragLayer { it.copy(offsetY = v) } }, ::finishDrag)
                 DraftSlider({ stringResource(R.string.agent_rgb_pattern_opacity, it.roundToInt()) }, layer.opacity.toFloat(), 0f..100f, 19,
                     "agent_rgb_pattern_opacity", { v -> dragLayer { it.copy(opacity = v.roundToInt()) } }, ::finishDrag)
@@ -310,17 +338,32 @@ internal fun RgbPatternEditor(
 
 /**
  * A slider that keeps its value while dragged ([onDrag] goes to the preview only) and reports
- * [onDone] once on release: the editor around it is not recomposed per move.
+ * [onDone] once on release: the editor around it is not recomposed per move. TalkBack reads the
+ * label with the value as the slider's name.
  */
 @Composable
 private fun DraftSlider(label: @Composable (Float) -> String, value: Float, range: ClosedFloatingPointRange<Float>, steps: Int, tag: String,
                         onDrag: (Float) -> Unit, onDone: () -> Unit) {
     var local by remember(value) { mutableFloatStateOf(value) }
     Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
-        Text(label(local), style = MaterialTheme.typography.bodyMedium)
+        val text = label(local)
+        Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.clearAndSetSemantics {})
         Slider(local.coerceIn(range), { local = it; onDrag(it) }, valueRange = range, steps = steps, onValueChangeFinished = onDone,
-            modifier = Modifier.testTag(tag))
+            modifier = Modifier.semantics { contentDescription = text }.testTag(tag))
     }
+}
+
+/** Slider steps between the ends of a [span] in steps of [step] (the stored rounding of [RgbPatternLayer.normalized]). */
+private fun steps(span: Float, step: Float) = (span / step).roundToInt() - 1
+
+/**
+ * Where the stop at [index] of [before] ended up in [sorted] (the same stops, that one moved and
+ * all sorted by position): the one place that is not one of the other stops.
+ */
+internal fun stopAfterSort(sorted: List<RgbStop>, index: Int, before: List<RgbStop>): Int {
+    val others = before.filterIndexed { i, _ -> i != index }.toMutableList()
+    for ((i, s) in sorted.withIndex()) if (!others.remove(s)) return i
+    return index.coerceIn(0, sorted.size - 1)
 }
 
 /** The colour stops of [layer] as the table the light uses (OKLCH blend), with a mark per stop. */
@@ -396,10 +439,13 @@ internal fun OwnGallery(library: RgbPatternLibrary, look: RgbLook, onPick: (RgbO
                     .testTag("agent_rgb_own_${pattern.id}"),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                val key = OwnPictureKey(pattern, look.saturation, look.brightness, look.mix, look.reverse)
+                // the picture does not depend on the name (renaming draws nothing new)
+                val key = OwnPictureKey(pattern.layers, look.saturation, look.brightness, look.mix, look.reverse)
                 val picture by produceState(cache[key], key) {
                     cache[key]?.let { value = it; return@produceState }
-                    val made = withContext(Dispatchers.Default) { ownPicture(key) }
+                    // like the built-in gallery: the first pictures at once, later ones once the colours rest (a slider being dragged makes none)
+                    if (value != null) delay(GALLERY_DEBOUNCE_MS)
+                    val made = withContext(Dispatchers.Default) { ownPicture(key) { ensureActive() } }
                     if (cache.size >= 2 * RgbPatternLibrary.MAX_PATTERNS) cache.clear()
                     cache[key] = made
                     value = made
@@ -427,23 +473,33 @@ internal fun OwnGallery(library: RgbPatternLibrary, look: RgbLook, onPick: (RgbO
     }
 }
 
-private data class OwnPictureKey(val pattern: RgbOwnPattern, val saturation: Int, val brightness: Int, val mix: Int, val reverse: Boolean)
+private data class OwnPictureKey(val layers: List<RgbPatternLayer>, val saturation: Int, val brightness: Int, val mix: Int, val reverse: Boolean)
 
-/** A still picture of an own pattern after a moment of motion: 32 x 18 light values over black (background thread). */
-private fun ownPicture(key: OwnPictureKey): Bitmap {
-    val engine = RgbEngine(RgbSettings(enabled = true, own = key.pattern, saturation = key.saturation, brightness = key.brightness,
-        mix = key.mix, reverse = key.reverse))
+/**
+ * A still picture of an own pattern after a moment of motion: 32 x 18 light values over black
+ * (background thread). [check] runs before every row: a cancelled job (the colours changed again)
+ * stops there instead of finishing a picture nobody will see.
+ */
+private fun ownPicture(key: OwnPictureKey, check: () -> Unit): Bitmap {
+    ownPictures.incrementAndGet()
+    val engine = RgbEngine(RgbSettings(enabled = true, own = RgbOwnPattern("gallery", "", key.layers), saturation = key.saturation,
+        brightness = key.brightness, mix = key.mix, reverse = key.reverse))
     engine.aspect = 54f / 96f
     engine.advance(0)
     var t = 0L
     while (t < 1200) { t += 100; engine.advance(t) }
     val cols = 32
     val rows = 18
-    val pixels = IntArray(cols * rows) { i ->
-        RgbColors.applyLight(0xFF000000.toInt(), engine.light((i % cols + 0.5f) / cols, (i / cols + 0.5f) / rows, -1, t))
+    val pixels = IntArray(cols * rows)
+    for (r in 0 until rows) {
+        check()
+        for (c in 0 until cols) pixels[r * cols + c] = RgbColors.applyLight(0xFF000000.toInt(), engine.light((c + 0.5f) / cols, (r + 0.5f) / rows, -1, t))
     }
     return Bitmap.createBitmap(pixels, cols, rows, Bitmap.Config.ARGB_8888)
 }
+
+/** Own gallery pictures made so far (tests: renaming makes none). */
+internal val ownPictures = java.util.concurrent.atomic.AtomicInteger()
 
 /**
  * What the editor's preview shows: the page's settings with [pattern] as the look of [target] for

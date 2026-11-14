@@ -988,7 +988,9 @@ Einstellungen in Karten:
 - Beim Tippen: keine Reaktion, getippte Taste blitzt auf und verblasst, ein Ring breitet sich von
   der Taste aus, oder Tippen beschleunigt kurz. „Nur beim Tippen sichtbar“: sonst ist das Licht
   aus, nach jedem Tipp erscheint es und verblasst (mit „Taste blitzt auf“ nur an der getippten
-  Taste). „Nachleuchten“ stellt ein, wie lange das dauert (0,2–5 s).
+  Taste). „Nachleuchten“ stellt ein, wie lange das dauert (0,2–5 s). In Passwort- und PIN-Feldern
+  und im Inkognito-Modus gibt es keine Reaktion aufs Tippen (das Licht soll nicht zeigen, welche
+  Taste es war); in einem neuen Feld beginnt sie frisch.
 - Bildwiederholrate: zwei Farbflächen untereinander, „30 HERTZ“ (gelb-orange, 30 Bilder pro
   Sekunde, spart Akku) und „60 HERTZ“ (türkis-grün, flüssiger). Tippe auf eine; die gewählte hat
   einen Rahmen und volle Farbe, die andere ist blasser, ihre Schrift bleibt gut lesbar. In jeder
@@ -1021,34 +1023,44 @@ Designprofil (Tastaturprofile → Design).
 Auf der RGB-Seite unter der Mustergalerie, Abschnitt „Eigene Muster“:
 
 - „Eigenes Muster aus „…““ macht aus dem gerade gewählten Muster ein eigenes (Wellen und Kreis
-  genau, die Texturen angenähert; bei einem eigenen Muster eine Kopie) und öffnet den Editor. Das
-  neue Muster ist gleich für das gewählte Element eingestellt.
+  genau, die Texturen angenähert; Name „… (eigen)“; bei einem eigenen Muster eine Kopie „… (Kopie)“,
+  der Name wird so gekürzt, dass er in 32 Zeichen passt) und öffnet den Editor. Das neue Muster ist
+  gleich für das gewählte Element eingestellt.
 - Bild antippen wählt ein eigenes Muster, „Bearbeiten“ öffnet das gewählte im Editor.
 - „Importieren“ liest eine Musterdatei (`.json`, höchstens 16 KB). Sie bekommt einen eigenen Namen,
   falls es den schon gibt („Name 2“). Eine Datei mit unbekannten Feldern, falschen Werten oder
   einer Adresse im Namen wird ganz abgelehnt; die Meldung sagt, warum. Zu große oder zu kleine
-  Zahlen werden auf den erlaubten Bereich gesetzt.
+  Zahlen werden auf den erlaubten Bereich gesetzt. Kann die Datei nicht gelesen werden („Datei
+  nicht lesbar“) oder hat die App keinen Zugriff mehr (verschoben, gelöscht), sagt die Meldung das.
+- Stammen die gespeicherten eigenen Muster von einer neueren Version (oder sind sie beschädigt),
+  steht dort ein Hinweis statt der Bilder; sie bleiben unverändert, Neuanlegen und Importieren
+  fehlen, bis eine passende Version sie lesen kann.
 
 Im Editor (Zurück führt zur RGB-Seite):
 
 - Oben die Live-Vorschau mit deiner Bildwiederholrate; tippe darauf, um die Reaktionen aufs Tippen
   zu sehen.
-- Name (1–32 Zeichen, ohne Zeilenumbruch, `<`, `>` oder Adressen), „Duplizieren“, „Exportieren“
-  (du wählst, wo die Datei hin soll), „Löschen“ (mit Rückfrage; Elemente mit diesem Muster zeigen
-  wieder ihr eingebautes Muster).
+- Name (1–32 Zeichen, ohne Zeilenumbruch, `<`, `>` oder Adressen): gespeichert wird er bei
+  „Fertig“ auf der Tastatur, beim Verlassen des Feldes, mit Zurück und vor „Duplizieren“ oder
+  „Exportieren“. Gibt es den Namen schon, steht danach „Name 2“ im Feld; ein ungültiger Name geht
+  auf den gespeicherten zurück. „Duplizieren“, „Exportieren“ (du wählst, wo die Datei hin soll),
+  „Löschen“ (mit Rückfrage; Elemente mit diesem Muster zeigen wieder ihr eingebautes Muster).
 - Ebenen: bis zu vier, Ebene 1 liegt unten. „Ebene hinzufügen“ legt ein weißes Funkeln obenauf,
   „Nach oben“/„Nach unten“ ändern die Reihenfolge, „Ebene entfernen“ (mindestens eine bleibt).
 - Form der gewählten Ebene: Fläche (eine Farbe, die durch die Stopps läuft), linearer, radialer
   oder Kegelverlauf, Wellen, Plasma, Rauschen, Streifen, Ringe vom Tippen (nur nach einem Tipp
   sichtbar), Spot auf der letzten Taste (gleitet zur zuletzt getippten Taste), Höhenlinien,
-  Funkeln. „Mischen mit den Ebenen darunter“: Normal, Addieren, Multiplizieren, Aufhellen.
-- Farben: der Streifen zeigt den Verlauf, darunter die Farbstopps als Kreise. Antippen wählt einen
-  Stopp, noch einmal antippen (oder „Farbe ändern“) öffnet den Farbwähler; „Stopp hinzufügen“ setzt
-  einen zwischen den gewählten und den nächsten, „Stopp entfernen“ (2–8 Stopps), der Regler setzt
-  die Position. „Wie gewählt“ oder „Farbkreis-Durchlauf“ (die Farben drehen sich einmal je Dauer).
-- Bewegung: Tempo (−4 bis 4, mal die „Dauer“ der RGB-Seite; minus läuft rückwärts, 0 steht),
-  Richtung in Grad, Größe (wie oft sich die Form wiederholt), seitlich und hoch/runter verschieben,
-  Deckkraft, die Bewegungskurve wie beim Verlauf der RGB-Seite.
+  Funkeln. „Mischen mit den Ebenen darunter“ (ab Ebene 2; Ebene 1 hat nichts darunter): Normal,
+  Addieren, Multiplizieren, Aufhellen.
+- Farben: der Streifen zeigt den Verlauf, darunter die Farbstopps als Kreise (TalkBack liest
+  „Farbstopp 1, #FF0050“). Antippen wählt einen Stopp, noch einmal antippen (oder „Farbe ändern“)
+  öffnet den Farbwähler; „Stopp hinzufügen“ setzt einen zwischen den gewählten und den nächsten,
+  „Stopp entfernen“ (2–8 Stopps), der Regler setzt die Position (schiebst du den Stopp an einem
+  anderen vorbei, bleibt er gewählt). „Wie gewählt“ oder „Farbkreis-Durchlauf“ (die Farben drehen sich einmal je Dauer).
+- Bewegung: Tempo (−4 bis 4 in Schritten von 0,05, mal die „Dauer“ der RGB-Seite; minus läuft
+  rückwärts, 0 steht), Richtung in Grad, Größe (0,25 bis 8 in Schritten von 0,05: wie oft sich die
+  Form wiederholt), seitlich und hoch/runter verschieben (in Schritten von 1 %), Deckkraft, die
+  Bewegungskurve wie beim Verlauf der RGB-Seite.
 - Tippen: keine, Puls bei jeder Taste, Ring von der Taste, getippte Taste leuchtet auf. Die Ebene
   ist dann nur während des Nachleuchtens zu sehen (Länge: „Nachleuchten“ auf der RGB-Seite).
 
@@ -1057,7 +1069,11 @@ nur die Vorschau). Dauer, Rückwärts, Sättigung, Helligkeit und Deckkraft der 
 für eigene Muster; Verlauf, Farben und Wellenbreite der RGB-Seite sind für ein eigenes Muster
 ausgeblendet. Eigene Muster haben keine feinen Linien und Punkte wie die eingebauten Texturen:
 Höhenlinien und Funken sind weicher. Höchstens 24 eigene Muster. Alles lokal; ein Designprofil
-merkt sich nur, welches eigene Muster gewählt war, nicht das Muster selbst.
+merkt sich nur, welches eigene Muster gewählt war, nicht das Muster selbst. Bearbeitest du das
+Muster, zieht das gespeicherte Designprofil mit; ein Profil von einem anderen Telefon oder mit
+einem inzwischen gelöschten Muster zeigt das eingebaute Muster, nie ein anderes eigenes. Ringe,
+Spot und Reaktionen eigener Muster ruhen wie die übrigen Tipp-Reaktionen in Passwortfeldern und im
+Inkognito-Modus.
 
 ## Aussehen: flacher Look
 

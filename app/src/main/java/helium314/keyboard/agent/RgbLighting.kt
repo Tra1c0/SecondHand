@@ -21,6 +21,9 @@ import helium314.keyboard.keyboard.FlatStyle
 import helium314.keyboard.keyboard.Key
 import helium314.keyboard.keyboard.KeyboardView
 import helium314.keyboard.latin.R
+import helium314.keyboard.latin.settings.Settings
+import helium314.keyboard.latin.settings.SettingsValues
+import helium314.keyboard.latin.utils.InputTypeUtils
 import helium314.keyboard.latin.utils.prefs
 import java.lang.ref.WeakReference
 
@@ -104,9 +107,15 @@ object RgbLighting {
     /** Re-reads the preference; a changed configuration starts with a new engine. */
     fun load(context: Context) {
         val prefs = context.prefs()
-        val value = prefs.getString(PREF, null)
-        val patterns = prefs.getString(RgbOwnPatterns.PREF, null)
+        var value = prefs.getString(PREF, null)
+        var patterns = prefs.getString(RgbOwnPatterns.PREF, null)
         if (value == encoded && patterns == encodedPatterns) return
+        if (patterns != encodedPatterns && patterns != null) {
+            // own patterns of the first build of stage 34 get random ids once (the setting follows)
+            RgbOwnPatterns.migrate(context)
+            value = prefs.getString(PREF, null)
+            patterns = prefs.getString(RgbOwnPatterns.PREF, null)
+        }
         encoded = value
         encodedPatterns = patterns
         settings = read(prefs)
@@ -159,6 +168,7 @@ object RgbLighting {
         if (!isMainKeyboard(view)) return null
         load(view.context)
         keyboardView = WeakReference(view)
+        forgetTapsOfAnotherField()
         // switched off: no system queries, no frames, upstream drawing
         if (settings.enabled) checkSystem(view.context, force = true)
         update()
@@ -172,6 +182,9 @@ object RgbLighting {
         if (view !== keyboardView?.get()) return
         if (mode == RgbRun.Mode.OFF || mode == RgbRun.Mode.STATIC) return
         if (!settings.reactsToTaps()) return
+        forgetTapsOfAnotherField()
+        // password fields and incognito: the light never shows which key was typed (ring, spot, glow)
+        if (privateField(view)) return
         val width = view.width.takeIf { it > 0 } ?: return
         val height = view.height.takeIf { it > 0 } ?: return
         val now = SystemClock.uptimeMillis()
@@ -182,6 +195,29 @@ object RgbLighting {
         engines.tap((key.x + key.width / 2f + view.paddingLeft) / width, (key.y + key.height / 2f + view.paddingTop) / height,
             RgbKeyPainter.keyId(key), now)
         update()
+    }
+
+    /** The settings of the field the taps belong to: new ones (another field, onStartInputView) drop the old taps. */
+    private var tapField = WeakReference<SettingsValues>(null)
+
+    /**
+     * Drops the taps of the previous field. LatinIME loads new [SettingsValues] for every other
+     * field before it sets the keyboard, so a new instance means a new field (or new settings):
+     * a spot or ring of the last field never shows in the next one.
+     */
+    private fun forgetTapsOfAnotherField() {
+        val values: SettingsValues? = Settings.getValues()
+        if (values === tapField.get()) return
+        tapField = WeakReference(values)
+        engines.clearTaps()
+    }
+
+    /** True in a password field or in incognito (also fields that ask for no learning). */
+    private fun privateField(view: KeyboardView): Boolean {
+        if (view.keyboard?.mId?.isPasswordInput == true) return true
+        val values: SettingsValues = Settings.getValues() ?: return false
+        return values.mIncognitoModeEnabled || values.mInputAttributes.mIsPasswordField ||
+            InputTypeUtils.isAnyPasswordInputType(values.mInputAttributes.mInputType)
     }
 
     /**

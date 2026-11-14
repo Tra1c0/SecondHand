@@ -191,18 +191,30 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
 - Einstellung `agent_rgb_patterns` in den Tastatureinstellungen (geräteverschlüsselt, neben
   `agent_rgb_lighting`), fehlt ohne eigene Muster. Inhalt: JSON
   `{"format":"agent-keyboard-rgb-patterns","version":1,"patterns":[…]}`, höchstens 24 Muster, Text
-  höchstens 128 KiB (`RgbPatternJson.encodeLibrary`/`decodeLibrary`). Je Muster `id` (`p1`, `p2` …;
-  Kleinbuchstaben und Ziffern, 1–12 Zeichen, eindeutig, eine neue ID nimmt nie eine benutzte),
-  `name` und `layers` wie in der Datei unten. Beim Lesen wird ein kaputter Eintrag übersprungen
-  (ungültige oder doppelte ID, unbekanntes Feld, falscher Wert), ein kaputter oder fremder Text
-  ergibt eine leere Liste. Mit HeliBoards Einstellungs-Sicherung wird sie wie alle
-  Tastatureinstellungen mitgesichert.
-- Die Beleuchtung (`agent_rgb_lighting`) nennt ein eigenes Muster nur über seine ID: Feld `own`
-  im gemeinsamen Look bzw. `k.own`, `b.own`, `l.own`, `s.own`, `t.own` je Element, z. B.
-  `…;mix=100;own=p3;layers=…`. `own` wird nie vom gemeinsamen Look geerbt. Fehlt die ID in der
-  Liste (gelöscht, Designprofil von einem anderen Telefon), zeigt das Element sein eingebautes
-  `pattern`; Löschen im Editor schreibt die Einstellung ohne die ID neu. Designprofile enthalten
-  deshalb nur die ID, nicht das Muster.
+  höchstens 128 KiB (`RgbPatternJson.encodeLibrary`/`readLibrary`). Je Muster `id`, `name` und
+  `layers` wie in der Datei unten. Eine neue ID ist zufällig: 12 Zeichen aus `a–z0–9`
+  (`SecureRandom`), eindeutig in der Liste; sie hängt nicht von den vorhandenen IDs ab, Löschen des
+  neuesten Musters und Neuanlegen gibt also nicht dieselbe ID. Gelesen werden IDs aus
+  Kleinbuchstaben und Ziffern mit 1–12 Zeichen; kürzere IDs (`p1`, `p2` … aus dem ersten Build von
+  34, hochgezählt) bekommt `RgbOwnPatterns.migrate` einmal neue zufällige IDs (beim ersten Laden
+  der Tastatur oder der RGB-Seite), die Beleuchtung und das gespeicherte Designprofil ziehen mit.
+  Beim Lesen wird ein kaputter Eintrag übersprungen (ungültige oder doppelte ID, unbekanntes Feld,
+  falscher Wert). Ein Text, der als Ganzes nicht lesbar ist (zu groß, kein strenges JSON, fremdes
+  Format, `version` > 1), wird nicht überschrieben: Die Seite zeigt einen Hinweis, Schreiben,
+  Neuanlegen und Import sind gesperrt, gezeichnet wird das eingebaute Muster. Mit HeliBoards
+  Einstellungs-Sicherung wird sie wie alle Tastatureinstellungen mitgesichert.
+- Die Beleuchtung (`agent_rgb_lighting`) nennt ein eigenes Muster nur über seine ID und eine
+  Inhaltsprüfung: Feld `own` im gemeinsamen Look bzw. `k.own`, `b.own`, `l.own`, `s.own`, `t.own`
+  je Element, Wert `<id>.<prüfung>`, z. B. `…;mix=100;own=k3j9x0a1b2c3.1f2e3d4c;layers=…`. Die
+  Prüfung sind 8 Hexziffern eines 64-Bit-FNV-1a über die Ebenen, wie sie in der Liste stehen
+  (`RgbPatternJson.fingerprint`, ohne Namen: Umbenennen ändert sie nicht). `own` wird nie vom
+  gemeinsamen Look geerbt. Fehlt die ID in der Liste oder passt die Prüfung nicht (gelöscht,
+  neu angelegt, Designprofil von einem anderen Telefon), zeigt das Element sein eingebautes
+  `pattern`, nie ein anderes eigenes Muster. Ein Wert ohne Prüfung (`own=p3`, erster Build von 34)
+  gilt nur, solange die Liste diese alte ID noch hat. Jede Änderung der Liste
+  (`RgbOwnPatterns.write`) schreibt die Beleuchtung und das gespeicherte Designprofil
+  (`agent_keyboard_profiles`, Gruppe `DESIGN`) mit der neuen Prüfung bzw. ID neu; ein gelöschtes
+  Muster fällt dort heraus. Designprofile enthalten deshalb nur ID und Prüfung, nicht das Muster.
 - Exportdatei (vom Nutzer gewähltes Dokument, `AgentDocumentIO`, nur `content://`): UTF-8-JSON,
   höchstens 16 KiB, ohne ID:
   `{"format":"agent-keyboard-rgb-pattern","version":1,"name":"Polarlicht","layers":[{"generator":"NOISE",`
@@ -214,16 +226,19 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   0,05), `offsetX`/`offsetY` (−1…1, Schritte 0,01), `opacity` (0…100), `curve` (Text wie in
   `agent_rgb_lighting`), `reaction` (`NONE`, `PULSE`, `RIPPLE`, `KEY_GLOW`), `palette` (`FIXED`,
   `HUE_CYCLE`), `stops` (2–8 mit `at` 0…1 und `color` `#RRGGBB`). Pflicht: `format`, `version`,
-  `name` (1–32 Zeichen, keine Steuer- oder Formatzeichen, kein `<`/`>`, kein `://` oder `www.`),
+  `name` (1–32 Zeichen, keine Steuer- oder Formatzeichen, keine Zeilen- oder Absatztrenner
+  U+2028/U+2029, keine einzelnen Surrogate, kein `<`/`>`, kein `://` oder `www.`),
   `layers` (1–4), in jeder Ebene `stops`; sonst gilt die Vorgabe. Streng (`StrictJson`): keine
   Kommentare, kein Komma am Ende, keine doppelten Schlüssel, höchstens 8 Ebenen tief, 512 Zeichen je
-  Text, 256 Einträge je Liste. Abgelehnt wird die ganze Datei bei unbekanntem Feld (auf jeder Ebene),
+  Text, 256 Einträge je Liste, `\u` mit genau vier Hexziffern. Abgelehnt wird die ganze Datei bei unbekanntem Feld (auf jeder Ebene),
   falschem Typ, unbekanntem Namen, kaputter Farbe oder Kurve, zu vielen oder zu wenigen Ebenen oder
-  Stopps, ungültigem Namen und `version` > 1; Zahlen werden begrenzt und gerundet. Eine Datei kann
+  Stopps, ungültigem Namen und `version` > 1; Zahlen werden begrenzt (schon als Double, `1e300`
+  wird zur Obergrenze, nicht zur Vorgabe) und gerundet. Eine Datei kann
   damit keinen Code, keine Adresse, kein Werkzeug, keinen Anbieter und keine Berechtigung
   mitbringen.
 - Sonst nichts: Tipp-Positionen der Reaktionen und des Spots liegen wie bei 26/29 nur im Speicher
-  (höchstens acht). Keine Logs.
+  (höchstens acht), werden in Passwortfeldern und im Inkognito-Modus gar nicht erst aufgenommen und
+  beim Wechsel in ein anderes Feld verworfen. Keine Logs.
 
 ## Screenshot-Kopien (23d)
 
