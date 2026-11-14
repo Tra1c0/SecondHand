@@ -198,6 +198,8 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   Zwischenablage oder null, Felder; `Expansion` mit Cursor-Index in UTF-16), `Issue` (`UNKNOWN`,
   `UNCLOSED`, `EXTRA_CURSOR`) für die Warnungen im Editor, `language` (en/es folgen der Tastatur,
   sonst Deutsch); `SnippetApps` (Paketnamen, höchstens 20, `allows`). Test `CT/SnippetTemplateTest.kt`.
+- `TouchDynamics.kt` (Etappe 50): Kurzzeitschicht und Szeneprofile der Trefferzonen, ohne Android
+  (Details im Abschnitt „Lerndaten“ → Dynamische Trefferzonen). Test `CT/TouchDynamicsTest.kt`.
 - Tests in `CT/`: `AiTextActionTest`, `EditorPolicyTest`, `LocalTextActionsTest`,
   `PendingBatchGateTest`, `SkillBindingTest`, `ToolTest`, `WorkflowTest`,
   `InsertionAnchorTest`, `StyledTranslationTest`, `UpdateReleasesTest`, `RgbLightingTest`,
@@ -298,7 +300,14 @@ Trefferzonen (Etappe 22a, Touch-Verarbeitung, jede Änderung mit Prüfer):
 - `KeyboardActionListenerImpl.kt`: `onCodeInput` meldet Tasten an `TouchCalibration`, solange
   das Kalibrierfeld den Fokus hat (Ansicht- in Tastatur-Koordinaten über das Padding).
 - `LatinIME.java`: `onStartInputViewInternal` lädt `TouchModel` und schaltet die Kalibrierung
-  nur für das eigene Feld mit `AgentPreferences.TOUCH_CALIBRATION_FIELD` ein.
+  nur für das eigene Feld mit `AgentPreferences.TOUCH_CALIBRATION_FIELD` ein. Etappe 50: der
+  Aufruf bekommt zusätzlich `editorInfo` und `restarting` (`TouchModel.load(…, editorInfo,
+  restarting)`), weil die Einstellungen an dieser Stelle noch die des vorigen Felds sind (P165).
+- `KeyboardActionListenerImpl.kt` (50): `onCodeInput` meldet jeden Code an
+  `TouchModel.onKeyInput`, direkt nach dem Kalibrier-Hook und vor der Verarbeitung (Löschtaste
+  verwirft die Berührungen des zuletzt abgeschickten Worts, jede andere Taste bestätigt sie).
+- `KeyDetector.java` bleibt in 50 unverändert: `TouchModel.adjust` rechnet über `offsetX`/`offsetY`
+  jetzt Basis plus Kurzzeitschicht.
 
 Befehle (Etappe 24a, Details im Abschnitt „Befehle“):
 
@@ -1916,6 +1925,42 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   speichert alle zehn Wörter. Der Wörterbuch-Decoder bekommt weiter die rohen Koordinaten und
   rechnet mit den normalen Tastenpositionen. Oberfläche: Abschnitt „Trefferzonen“ in `AgentLearningScreen.kt`.
   Tests: `TouchModelTest`.
+- Dynamische Trefferzonen (50, Schalter `AgentPreferences.ADAPT_TOUCH_DYNAMIC`, Standard aus, wirkt
+  nur zusammen mit „Trefferzonen an mich anpassen“). Drei Schichten:
+  - Basis: die Werte aus 22a (Kalibrierung, Lernen von vor 50). Mit dem Schalter lernt sie nicht
+    mehr aus Wörtern („bleibt wie kalibriert“), nur über eine Beförderung (unten).
+  - Kurzzeit: `C/TouchDynamics.kt` hält Residuen (Abweichung vom Mittelpunkt der gemeinten Taste
+    minus Basis) als gleitende Mittel: global (Gewicht 0,1, nach 30 Tipps rund 95 %) und je
+    Region (3 Reihen × 3 Spalten der Buchstaben, Gewicht 0,2, zählt halb ab 8 Tipps der Region).
+    Ein Tipp bewegt die Schicht höchstens 0,03 Taste; Schicht allein und Summe mit der Basis je
+    höchstens ein Drittel Taste. Nie gespeichert. Ende der Sitzung (Schicht auf null): Pause über
+    5 Minuten, andere App, eingeschränktes Feld; ein anderes Feld derselben App halbiert sie.
+  - Szenen: Am Sitzungsende (ab 40 Tipps) gilt eine Abweichung als anhaltend bei mittlerer
+    Verschiebung ≥ 0,12 Taste, ≥ 3 Standardfehler und ≥ 75 % der 20er-Blöcke in dieselbe Richtung,
+    oder Streuung ≥ 1,3 × und +0,04 über dem Bezug, oder Korrekturrate (Löschtasten je Buchstabe)
+    ≥ 1,5 × und +0,04 über dem Bezug. Bezug = gleitendes Mittel unauffälliger Sitzungen. Eine
+    Szene hält Region-Mittel, Verschiebung, Streuung, Tempo (Buchstaben pro Minute aus Abständen
+    unter 2 s), Korrekturrate, Tageszeit (morgens 5–11, tagsüber 11–17, abends 17–22, nachts) und
+    Tag; höchstens 8, ähnliche werden gemittelt. Nach 15 Tipps einer neuen Sitzung: liegt eine
+    Szene nah genug (gewichteter Abstand der Merkmale, Tageszeit als Zuschlag ≤ 4), startet die
+    Kurzzeitschicht dort.
+  - Beförderung: nur verschobene Sitzungen zählen (`Observation`, 30 Tage, höchstens 60). Liegen
+    ≥ 5 davon innerhalb 0,08 Taste beieinander, an ≥ 3 Tagen und in ≥ 2 Tageszeiten („nicht nur in
+    einer Szene“), wandert die Basis jeder Region um die Hälfte, höchstens 0,06 Taste je Achse
+    (`MAX_PROMOTION`); die Szenen werden um denselben Schritt zurückgerechnet. Vorher sichert
+    `TouchModel` die Basis (`previous`, auch vor jeder Kalibrierung), „Auf vorherige Kalibrierung
+    zurücksetzen“ stellt sie wieder her (ein Schritt).
+  - Gegen Rückkopplung: Lernen nur aus Wörtern, die `InputLogic` schon heute an `learnFromWord`
+    gibt (getippt wie abgeschickt oder aus der Leiste gewählt, keine Autokorrektur); die Berührungen
+    warten auf die nächste Taste (`onKeyInput`): Löschtaste oder Feldwechsel verwirft sie. Nur
+    Berührungen innerhalb der normalen Taste (`IN_KEY` = 0,5) zählen, so treibt eine verschobene
+    Zone sich nicht selbst weiter (P166). Nie in Passwortfeldern, Inkognito, Feldern ohne Lernen,
+    bei pausiertem Lernen, gesperrt oder im Kalibrierfeld; dort gilt auch keine Kurzzeitschicht.
+  - Oberfläche: Abschnitt „Trefferzonen“ in `AgentLearningScreen.kt` (Schalter, Szenen in Worten
+    über `describeScene`, „Szene löschen“, „Auf vorherige Kalibrierung zurücksetzen“), Texte in
+    `agent_touch_strings.xml` (`values/`, `values-de/`). Tests: `CT/TouchDynamicsTest.kt`
+    (Modell), `AT/TouchZonesDynamicTest.kt` (Hook, Bestätigung, gesperrte Felder, Beförderung),
+    `AT/TouchScenesScreenTest.kt` (Seite).
 
 ## Updates
 
@@ -2888,13 +2933,26 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Abschnittstitel „Letzte“ (Index 0). `FlatClipboardTest` erwartet ohne Tresor den Titel als
   erstes Kind; die Liste wird um die Höhe der Reihen kürzer, höchstens auf ein Drittel. Der
   Tresor lebt im Prozess der Tastatur: Ein Neustart des Prozesses vergisst alles (gewollt).
+- **P165** `TouchModel.load` steht in `onStartInputViewInternal` vor `loadSettings`: die
+  `SettingsValues` sind dort noch die des vorigen Felds. Was zum neuen Feld gehört (Passwort,
+  `IME_FLAG_NO_PERSONALIZED_LEARNING`, Paket, Feld-ID), liest Etappe 50 aus `editorInfo`, die
+  Schalter (Inkognito, Pause) aus den Einstellungen selbst; `learnFromWord` und `onKeyInput`
+  prüfen beim Lernen zusätzlich die dann aktuellen `SettingsValues`.
+- **P166** Die Kurzzeitschicht darf nur Berührungen innerhalb der normalen Taste lernen
+  (`TouchDynamics.IN_KEY`). Mit der alten Grenze `OUTLIER` = 0,9 trägt sich eine verschobene Zone
+  selbst (Simulation in `movedZonesDoNotTeachThemselves`: Restverschiebung etwa 0,05 statt 0,01).
+- **P167** Sitzungen enden erst beim nächsten Ereignis (Tipp, Taste, Feldstart), nicht per Timer;
+  eine Szene oder Beförderung entsteht also beim ersten Tippen nach der Pause. Die Wanduhr darf
+  dabei nicht rückwärts laufen (Tests: Sitzungen chronologisch, sonst gilt die Pause nicht).
+- **P168** `TouchModel.replace` und jede Beförderung überschreiben `previous`: „Auf vorherige
+  Kalibrierung zurücksetzen“ geht genau einen Schritt zurück, nicht bis zur ersten Kalibrierung.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (490 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (496 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -2922,7 +2980,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (85): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (87): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, ClipCommandTest, ClipVaultTest, CommandReplaceTest,
@@ -2939,28 +2997,28 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   SettingsKitTest, SettingsLookScreenTest, SettingsStartScreenTest, SettingsSystemAreaTest,
   SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest, SnipCommandTest,
   SpaceDetentsTest, SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal,
-  ToolRunnerTest, TouchModelTest, TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest,
-  WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
-  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  ToolRunnerTest, TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypoMemoryTest,
+  UpdateCheckTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
+  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (8): ClockCommandsTest, EmojiMixCommandTest, LanguageCommandTest, QrCommandTest,
   ScreenReaderServiceTest, SubtypeChoiceTest, TranslateCommandTest, UrlCommandTest
-- `C/` (41): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
+- `C/` (42): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
   EditorSession, EmojiKeywords, EmojiMix, EmojiNames, EmojiSynonyms, EventParser, ExecutionPolicy,
   InkDots, InkRecognizer, InkSymbols, InkTiming, LanguageNames, LocalTextActions, MathExpression,
   ModelProvider, OwnInkSymbols, PendingBatchGate, PersonalInkSymbols, Places, Profiles, RgbCurve,
   RgbLighting, RgbPatterns, SkillBinding, SnippetTemplate, SpecialCharacters, StyledTranslation,
-  SymbolTable, TextCondition, TimerParser, Tool, UnitConversion, UpdateReleases, UrlDetector,
-  Workflow
+  SymbolTable, TextCondition, TimerParser, Tool, TouchDynamics, UnitConversion, UpdateReleases,
+  UrlDetector, Workflow
 - `C/clip/` (1): ClipGuard
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
-- `CT/` (38): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
+- `CT/` (39): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
   EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest, EventParserTest, InkAreaTest, InkBenchmarkTest,
   InkDotFlowTest, InkDotsTest, InkFingerModel, InkRecognizerTest, InkTimingTest,
   InsertionAnchorTest, LanguageNamesTest, LocalTextActionsTest, MathExpressionTest,
   OwnInkSymbolsTest, PendingBatchGateTest, PersonalInkSymbolsTest, PlacesTest, QuestionCaptureTest,
   RgbCurveTest, RgbFrameStatsTest, RgbLightingTest, RgbPatternsTest, SkillBindingTest,
   SnippetTemplateTest, StyledTranslationTest, SymbolTableTest, TimerParserTest, ToolTest,
-  UnitConversionTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
+  TouchDynamicsTest, UnitConversionTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
 - `CT/clip/` (1): ClipGuardTest
 - `CT/format/` (1): FormatGuardTest
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,
@@ -3013,20 +3071,21 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (23): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
+- `app/src/main/res/values-de/` (24): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
   agent_clipvault_strings, agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings,
   agent_format_strings, agent_gestures_strings, agent_language_strings, agent_rgb_strings,
   agent_settings_keys_strings, agent_settings_look_strings, agent_settings_strings,
   agent_settings_system_strings, agent_slider_strings, agent_snippet_strings, agent_space_strings,
-  agent_strings, agent_symbol_strings, agent_typing_strings, agent_update_strings, strings
-- `app/src/main/res/values/` (29): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+  agent_strings, agent_symbol_strings, agent_touch_strings, agent_typing_strings,
+  agent_update_strings, strings
+- `app/src/main/res/values/` (30): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
   agent_bar_strings, agent_clipvault_strings, agent_design_strings, agent_diagnose_strings,
   agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_ids,
   agent_language_strings, agent_rgb_strings, agent_settings_keys_strings,
   agent_settings_look_strings, agent_settings_strings, agent_settings_system_strings,
   agent_slider_strings, agent_snippet_strings, agent_space_strings, agent_strings,
-  agent_symbol_strings, agent_typing_strings, agent_update_strings, attrs, clip_provider,
-  donottranslate, gesture_data, themes-flat
+  agent_symbol_strings, agent_touch_strings, agent_typing_strings, agent_update_strings, attrs,
+  clip_provider, donottranslate, gesture_data, themes-flat
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (1): Shadows

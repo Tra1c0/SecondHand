@@ -28,6 +28,8 @@ object AgentPreferences {
     const val AUTOCORRECT_LEARN_TYPOS = "agent_autocorrect_learn_typos"
     /** Opt-in: personal hit boxes for letter keys (stage 22). */
     const val ADAPT_TOUCH = "agent_adapt_touch"
+    /** Opt-in on top of [ADAPT_TOUCH]: short-term layer and scene profiles of the hit zones (stage 50). */
+    const val ADAPT_TOUCH_DYNAMIC = "agent_adapt_touch_dynamic"
     const val SCREENSHOT_CHIP = "agent_screenshot_chip"
     /** Stage 41: hint chips for e-mail, phone, IBAN and decimal fields (default on). */
     const val FORMAT_GUARD = "agent_format_guard"

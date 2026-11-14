@@ -3436,6 +3436,45 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   `onGestureMoveEvent`). `InputLogic`, `RichInputConnection`, `GestureStrokeRecognitionParams` und
   `GestureStrokeRecognitionPoints` unverändert.
 
+## Etappe 50 (Dynamische Trefferzonen mit Szeneprofilen)
+
+- Auftrag: `docs/ROADMAP.md` → 50 (Owner, 2026-11-14). Drei Schichten: Basis (bleibt wie
+  kalibriert), Kurzzeit, Szenen; Beförderung nur bei Regelmäßigkeit. Annahme des Leads (vom Owner
+  änderbar): eigener Schalter „Dynamisch anpassen (Szenen)“, Standard aus, wirkt nur mit
+  „Trefferzonen an mich anpassen“ (Lernen bleibt opt-in, `CLAUDE.md`); ausgeschaltet bleibt das
+  Verhalten von 22a/22b genau gleich.
+- Schwellen: Kurzzeit global Gewicht 0,1, je Region (3 × 3) 0,2, Schritt ≤ 0,03 Taste, Schicht und
+  Summe ≤ ⅓ Taste; Ende nach 5 Minuten Pause oder in anderer App, anderes Feld halbiert. Szene am
+  Sitzungsende ab 40 Tipps: Verschiebung ≥ 0,12 Taste, ≥ 3 Standardfehler, ≥ 75 % der 20er-Blöcke
+  gleichgerichtet; oder Streuung ≥ 1,3 × (+0,04); oder Korrekturrate ≥ 1,5 × (+0,04). Erkennung
+  nach 15 Tipps (Abstand ≤ 4). Beförderung: ≥ 5 Sitzungen innerhalb 0,08 Taste, ≥ 3 Tage,
+  ≥ 2 Tageszeiten, Schritt = halbe Abweichung, ≤ 0,06 Taste je Achse; vorherige Basis gesichert.
+- Gegen Rückkopplung: nur Wörter, die `InputLogic` schon an `learnFromWord` gibt; Berührungen
+  zählen erst nach der nächsten Taste (Löschtaste oder Feldwechsel verwirft); nur Berührungen in der
+  normalen Taste. Gegenprobe (2026-11-14, im Arbeitsbaum, nicht committet): mit `IN_KEY` = 0,9
+  bleibt in `movedZonesDoNotTeachThemselves` eine Restverschiebung von 0,053, mit 0,5 von 0,013;
+  die Grenze im Test ist 0,03.
+- Neue Tests: `CT/TouchDynamicsTest.kt` (10: Anpassung in 30 Tipps, Pause/App/Feld, kurze
+  Sitzungen ändern nichts, Szene entsteht und wird wiedererkannt, Szene aus Korrekturrate,
+  Beförderung nur mit Regel (ein Tag / nur abends / Regel erfüllt), Grenzen und Schrittweite,
+  Rückkopplungs-Simulation, Löschen, Tageszeiten), `AT/TouchZonesDynamicTest.kt` (5: Hook mit
+  `KeyDetector` und Basis unverändert, gelöschtes Wort lernt nichts, Passwort/sichtbares
+  Passwort/ohne Lernen/Inkognito/Pause/gesperrt/Schalter aus, Beförderung über `TouchModel` samt
+  Neustart und Zurücksetzen, Kalibrierung sichert die vorherige Basis), `AT/TouchScenesScreenTest.kt`
+  (3: Schalter, Szene in Worten und löschen, Zurücksetzen). `TouchModelTest` unverändert.
+- Gelaufen (2026-11-14, `--max-workers=1`): `./gradlew :agent-core:test` grün (381 Tests);
+  `:app:testDebugUnitTest --tests 'helium314.keyboard.agent.TouchModelTest'
+  --tests 'helium314.keyboard.agent.TouchZonesDynamicTest' --tests
+  'helium314.keyboard.agent.TouchScenesScreenTest'` grün (17); `SettingsAreaGesturesTest`,
+  `SymbolSettingsScreenTest`, `InputLogicTest` grün bis auf das geerbte
+  `InputLogicTest.insertLetterIntoWordHangulFails`. `docs_sync --check` grün. Nicht gelaufen:
+  volle Suite, Agent-Tests über `tools/dev.py`, Lint, Build, Gerätetest (Schwellen mit echten
+  Fingern, Tageszeiten, Akku).
+- Engine-Änderungen (Prüfer Pflicht): `KeyboardActionListenerImpl.kt` (`onCodeInput`: ein Aufruf
+  `TouchModel.onKeyInput`), `LatinIME.java` (`onStartInputViewInternal`: `TouchModel.load` mit
+  `editorInfo`, `restarting`). `KeyDetector.java` unverändert (rechnet über `TouchModel.adjust`
+  jetzt Basis plus Kurzzeit). `InputLogic`, `RichInputConnection`, `PointerTracker` unverändert.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

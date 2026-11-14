@@ -997,7 +997,7 @@ public class LatinIME extends InputMethodService implements
 
     void onStartInputViewInternal(final EditorInfo editorInfo, final boolean restarting) {
         // fork, stage 22: personal hit boxes, and the calibration field of our own settings
-        helium314.keyboard.agent.TouchModel.load(this, mSettings.getCurrent());
+        helium314.keyboard.agent.TouchModel.load(this, mSettings.getCurrent(), editorInfo, restarting); // stage 50: field and app for the dynamic zones
         helium314.keyboard.agent.KeyboardCommands.load(this);
         helium314.keyboard.agent.SymbolDrawing.reset(); // stage 27: no drawing carries over to another editor
         helium314.keyboard.agent.TouchCalibration.setActive(editorInfo != null

@@ -223,6 +223,18 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   JSON-Objekt Buchstabencode → `[dx, dy, Anzahl]`, dx und dy in Tastengrößen. Keine Texte, keine
   Reihenfolge von Berührungen. Die Kalibrierung hält ihre Rohdaten nur im Speicher und verwirft
   sie beim Schließen.
+- Etappe 50, dieselbe Datei: Schlüssel `previous` (Basis vor der letzten Kalibrierung oder
+  Beförderung, Format wie `offsets`; „Auf vorherige Kalibrierung zurücksetzen“ liest und löscht
+  ihn). Schlüssel `dynamics`: JSON `{v: 1, next, promotions, spreadRef, speedRef, correctionRef,
+  scenes: [{id, bucket, sessions, first, last, rx[9], ry[9], rn[9], dx, dy, spread, speed,
+  corrections}], observations: [{day, bucket, scene, dx, dy, rx[9], ry[9], rn[9]}]}`. Offsets in
+  Tastengrößen relativ zur Basis, je Region (3 × 3 Buchstabenbereich), `rn` Anzahl Berührungen,
+  `bucket` MORNING/DAY/EVENING/NIGHT, `first`/`last`/`day` lokale Tagesnummer (Tage seit 1970),
+  `speed` Buchstaben pro Minute, `corrections` Löschtasten je Buchstabe; fehlende Werte fehlen im
+  JSON. Höchstens 8 Szenen und 60 Beobachtungen (30 Tage). Keine Texte, keine Buchstaben, keine
+  Reihenfolge, kein Ort, keine App. Die Kurzzeitschicht und die wartenden Berührungen des letzten
+  Worts liegen nur im Speicher. Schalter `agent_adapt_touch_dynamic` in den Tastatureinstellungen
+  (Standard aus). „Trefferzonen zurücksetzen“ und „Gelernte Wörter löschen“ leeren die Datei.
 
 ## Befehle (24a, 24b)
 

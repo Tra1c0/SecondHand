@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 50, dynamic hit zones with scene profiles (section "Hit zones" of the learned-words page). English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="agent_touch_dynamic">Adapt to the moment (scenes)</string>
+    <string name="agent_touch_dynamic_description">On top of the zones above, the keyboard follows how you type right now within a few dozen taps (lying down, on the move) and forgets it after a five-minute pause or in another app. Deviations that last are kept as scenes: time of day, speed, precision, corrections and shift, never text or location. The calibrated zones change only when the same deviation returns on several days and at different times of day, and then only a little. Nothing in password fields, incognito, fields without learning, with learning paused or on a locked device.</string>
+    <string name="agent_touch_scenes_title">Scenes</string>
+    <string name="agent_touch_scenes_none">No scenes yet.</string>
+    <string name="agent_touch_scene">%1$s (seen in %2$d sessions)</string>
+    <string name="agent_touch_scene_delete">Delete scene</string>
+    <string name="agent_touch_bucket_morning">mornings</string>
+    <string name="agent_touch_bucket_day">during the day</string>
+    <string name="agent_touch_bucket_evening">evenings</string>
+    <string name="agent_touch_bucket_night">at night</string>
+    <string name="agent_touch_trait_less_precise">less precise</string>
+    <string name="agent_touch_trait_more_precise">more precise</string>
+    <string name="agent_touch_trait_lower">hits lower</string>
+    <string name="agent_touch_trait_higher">hits higher</string>
+    <string name="agent_touch_trait_left">hits further left</string>
+    <string name="agent_touch_trait_right">hits further right</string>
+    <string name="agent_touch_trait_faster">faster</string>
+    <string name="agent_touch_trait_slower">slower</string>
+    <string name="agent_touch_trait_corrections">more corrections</string>
+    <string name="agent_touch_promotions">Automatic adjustments of the calibrated zones: %d</string>
+    <string name="agent_touch_restore_previous">Reset to previous calibration</string>
+    <string name="agent_touch_restore_previous_confirm">Put the hit zones back to how they were before the last calibration or automatic adjustment? Scenes stay.</string>
+</resources>
