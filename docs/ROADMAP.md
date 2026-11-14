@@ -203,16 +203,34 @@ Reihenfolge von oben nach unten.
   einer anderen aktiven Sprache, das der Owner schon einmal geschrieben hat, wird nicht mehr
   wegkorrigiert und kommt als Vorschlag (Bezug: eigene Wörter aus 46, Regel „fur“ aus 49,
   HeliBoards „Mehrsprachiges Tippen“). Engine-Änderung, Prüfer Pflicht.
-- **52 Erweiterte Befehle (Wunsch des Owners vom 2026-11-14)** — beschlossen, nächste Runde, noch
-  nicht anfangen. Sinnvolle Befehle bekommen Unterbefehle und Argumente, Beispiele des Owners:
-  `@lang set &duolingo spanish` (Sprache für eine App festlegen; App- und Sprachnamen mit Toleranz
-  wie im Wörterbuch, also auch „span“, „spanisch“, „duo“), `@lang list &&apps lang` (alle Apps mit
-  ihrer Sprache auflisten), `@lang del &whatsapp lang ; set &whatsapp ger` (mehrere Schritte mit
-  „;“). Vorschlag des Leads vor dem Bau mit dem Owner abstimmen: eine kleine, einheitliche Syntax
-  (Unterbefehl, `&App`, Wert; `;` für Ketten), Vorschau in der Leiste vor dem Ausführen, ein Tipp
-  führt aus; die Zuordnung App → Sprache nutzt den vorhandenen Speicher von „Sprache pro App“
-  (wirkt dann für diese Apps, auch wenn der allgemeine Schalter aus ist?). Weitere Befehle, die
-  davon profitieren, sammeln (z. B. `@snip`, `@clip`, Formatwächter an/aus je App).
+- **52 Einheitliches Befehlssystem (mit dem Owner festgelegt, 2026-11-14)** — beschlossen, nächste
+  Runde, noch nicht anfangen. Ausgangspunkt waren die Beispiele des Owners (`@lang set &duolingo
+  spanish`, `@lang list &&apps lang`, `@lang del &whatsapp lang ; set &whatsapp ger`); der Owner wollte
+  ausdrücklich einen eigenen, global sinnvollen Vorschlag. Festgelegt:
+  - Aufbau `@<bereich> [aktion] [angaben …]`. Keine Ziel-Markierungen (`&`, `&&`): jeder Befehl
+    kennt seine Plätze und ihren Typ (App, Sprache, Text, Zahl, an/aus); die Tastatur ordnet die
+    Wörter mit Toleranz zu (gleiches Toleranzfenster wie die Wörterbuch-Toleranz), Reihenfolge egal.
+    Mehrdeutig → beide Deutungen als Chips; `app:` erzwingt eine App.
+  - Englisch zuerst, Deutsch geht auch, beide mit derselben Toleranz. Aktionen: ohne Aktion =
+    zeigen (ohne Wert) bzw. setzen (mit Wert, überschreibt); `list`/`?` (zeig), `del`/`-` (weg),
+    `on`/`off` (an/aus), `add`/`+` (neu). Bereiche: `@lang` (sprache), `@snip` (baustein), `@clip`
+    (ablage), `@guard` (wächter), `@mem` (gedächtnis), `@group` (gruppe); `@deutsch`, `@sp` … bleiben
+    als Kurzform für `@lang <sprache>` im aktuellen Feld.
+  - Gruppen: `all`/`apps` (alle), eigene mit `@group messenger whatsapp signal`.
+  - Ketten: `;`, ebenso `dann`/`then` und `→`; der Bereich gilt weiter bis zum nächsten `@`.
+  - Ausführen: Vorschau in Klartext in der Leiste, ein Tipp führt aus; Enter nur bei genau einer,
+    harmlosen Deutung; Löschen und `all` nur per Tipp; danach einige Sekunden „Undo“. `@?` listet
+    die Bereiche, `@lang ?` die Plätze; Vorschläge je Platz (Apps, Sprachen, Bausteine).
+  - Eine per Befehl festgelegte App-Sprache gilt auch, wenn „Sprache pro App“ aus ist.
+  - Farben wie im Code-Editor: Bereich, Aktion, Ziel/Gruppe, Wert, Trenner und Unbekanntes je eigene
+    Farbe. Sicher machbar in der Vorschau der Leiste. Im Textfeld selbst nur, solange der Befehl
+    als Kompositionstext mit Farb-Spans steht, und nur in Apps, die solche Spans anzeigen (normale
+    Textfelder ja, manche Web- und eigene Editoren nicht) — „so gut die App es zulässt“; das ist eine
+    Engine-Änderung (Komposition über Leerzeichen hinweg), Prüfer Pflicht, vorher eng abgrenzen.
+  - Grenzen wie bisher: Befehle ändern nur eigene Einstellungen und Daten, nie Werkzeuge, URLs,
+    Provider oder Berechtigungen; nicht in Passwortfeldern, Inkognito, gesperrt.
+  - Beispiele: `@lang duolingo spanish`, `@lang apps`, `@lang whatsapp german` (ersetzt
+    `del …; set …`), `@lang whatsapp german; duolingo spanish; @guard banking off`.
 - **47 KI-Kontext im Hintergrund — verworfen (Owner, 2026-11-14):** „Dann lassen wir das.“ Alles
   lokal; die Tastatur lernt selbst dazu (45, 46).
 - **Verworfen (Owner, 2026-11-14):** Mail-Anbindung (Gmail/IMAP) und Codes aus Benachrichtigungen.
