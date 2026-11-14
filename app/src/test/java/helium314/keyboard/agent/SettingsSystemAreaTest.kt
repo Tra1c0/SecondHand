@@ -479,7 +479,7 @@ class SettingsSystemAreaTest {
         assertTrue(near(0xFF1B3A2E.toInt(), green), "updates card #%08X".format(green))
         val end = bitmap.getPixel(card.right.toInt() - 20, card.bottom.toInt() - 20)
         assertTrue(near(0xFF18181D.toInt(), end), "updates card end #%08X".format(end))
-        // the flat look card at 55 % over the card colour, the hero in the area grey
+        // the hero in the area grey
         val hero = compose.onNodeWithTag(HERO_TAG).fetchSemanticsNode().boundsInRoot
         val heroPixel = bitmap.getPixel(hero.left.toInt() + 6, hero.top.toInt() + 40)
         assertTrue(near(0xFF94A3B8.toInt(), heroPixel), "hero #%08X".format(heroPixel))

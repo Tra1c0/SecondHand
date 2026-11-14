@@ -9,7 +9,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -37,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -49,7 +49,9 @@ import androidx.compose.ui.graphics.Shader
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -61,6 +63,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -69,6 +72,7 @@ import helium314.keyboard.settings.SettingsDestination
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /*
@@ -397,10 +401,95 @@ fun GradientSwitch(
 /** One big card of [ChoiceCards]; a card that is not [enabled] cannot be chosen (38e: gesture typing without its library). */
 class Choice(val label: String, val hint: String, val from: Color, val to: Color, val tag: String = label, val enabled: Boolean = true)
 
+/** Least opacity of the gradient of a choice that is not chosen; see [choiceDim]. */
+const val CHOICE_DIM_ALPHA = 0.7f
+
+/** Opacity of a whole choice that cannot be chosen, text included (WCAG 1.4.3 exempts inactive controls). */
+const val CHOICE_DISABLED_ALPHA = 0.35f
+
+/** Contrast the dark text of a choice keeps on its gradient: WCAG AA for the 12.5 sp hint (the label needs 3:1). */
+const val CHOICE_MIN_CONTRAST = 4.5f
+
+/** Aimed above [CHOICE_MIN_CONTRAST]: the drawn colours are rounded to 8 bits per channel. */
+private const val CONTRAST_MARGIN = 0.1f
+
+/** WCAG 2 contrast ratio of two opaque colours. */
+fun contrastRatio(a: Color, b: Color): Float {
+    val la = a.luminance()
+    val lb = b.luminance()
+    return (maxOf(la, lb) + 0.05f) / (minOf(la, lb) + 0.05f)
+}
+
+/** The least contrast of [text] on the gradient [from] → [to] drawn at [alpha] over [base] (sampled, interpolated in sRGB like the shader). */
+private fun leastContrast(from: Color, to: Color, alpha: Float, base: Color, text: Color): Float {
+    var least = Float.MAX_VALUE
+    for (i in 0..20) {
+        val t = i / 20f
+        val c = Color(from.red + (to.red - from.red) * t, from.green + (to.green - from.green) * t, from.blue + (to.blue - from.blue) * t)
+        least = minOf(least, contrastRatio(text, c.copy(alpha = alpha).compositeOver(base)))
+    }
+    return least
+}
+
+/**
+ * Opacity of the gradient of a choice card over [base] (the card behind it). Chosen or not
+ * [enabled]: 1 (an inactive card fades as a whole, [choiceSurface]). Otherwise [CHOICE_DIM_ALPHA],
+ * raised in steps of 0.01 until [text] keeps [CHOICE_MIN_CONTRAST] (plus a margin for rounding)
+ * on every point of the gradient; 1 if even full opacity does not reach it (a gradient too dark
+ * for dark text is not dimmed further). The text itself is never dimmed.
+ */
+fun choiceDim(selected: Boolean, from: Color, to: Color, base: Color, enabled: Boolean = true, text: Color = AgentSettingsTokens.OnGradient): Float {
+    if (selected || !enabled) return 1f
+    for (percent in (CHOICE_DIM_ALPHA * 100).roundToInt()..100) {
+        val alpha = percent / 100f
+        if (leastContrast(from, to, alpha, base, text) >= CHOICE_MIN_CONTRAST + CONTRAST_MARGIN) return alpha
+    }
+    return 1f
+}
+
+/**
+ * The surface of a choice card ([ChoiceCards], the frame rate of the RGB page, profile and
+ * language cards): the 120° gradient in [ChoiceRadius][AgentSettingsTokens.ChoiceRadius], chosen
+ * at full opacity with a 3 dp outline in [outline] 2 dp outside (CSS outline-offset, drawn before
+ * the clip), otherwise the gradient alone at [choiceDim] over [base] while the text above stays
+ * opaque (no alpha layer). A card that is not [enabled] fades as a whole to [CHOICE_DISABLED_ALPHA].
+ * [glow]: slot of the glowing pill (42 × 22 dp, 14 dp from the top, 18 + 40 dp × slot from the
+ * end), dimmed like the gradient; null for none.
+ */
+fun Modifier.choiceSurface(
+    selected: Boolean,
+    from: Color,
+    to: Color,
+    outline: Color,
+    base: Color = AgentSettingsTokens.Card,
+    enabled: Boolean = true,
+    glow: Int? = null,
+): Modifier {
+    val dim = choiceDim(selected, from, to, base, enabled)
+    return drawWithContent {
+        drawContent()
+        if (selected) {
+            val w = 3.dp.toPx(); val off = 2.dp.toPx() + w / 2
+            drawRoundRect(outline, topLeft = Offset(-off, -off), size = Size(size.width + 2 * off, size.height + 2 * off),
+                cornerRadius = CornerRadius(AgentSettingsTokens.ChoiceRadius.toPx() + off), style = Stroke(w))
+        }
+    }
+        .then(if (enabled) Modifier else Modifier.alpha(CHOICE_DISABLED_ALPHA))
+        .clip(RoundedCornerShape(AgentSettingsTokens.ChoiceRadius))
+        .background(cssGradient(120f, from, to), alpha = dim)
+        .then(if (glow == null) Modifier else Modifier.drawBehind {
+            val w = 42.dp.toPx()
+            val end = (18.dp + 40.dp * glow).toPx()
+            val x = if (layoutDirection == LayoutDirection.Rtl) end else size.width - end - w
+            drawRoundRect(Color.White.copy(alpha = 0.75f * dim), topLeft = Offset(x, 14.dp.toPx()), size = Size(w, 22.dp.toPx()),
+                cornerRadius = CornerRadius(11.dp.toPx()))
+        })
+}
+
 /**
  * A choice as big gradient cards (owner's sketch of the frame rate, ROADMAP 37): spaced capital
- * label, hint, a glowing pill; the chosen card at full opacity with a white outline, the others at
- * 55 %. TalkBack: radio buttons in one group.
+ * label, hint, a glowing pill; the chosen card at full opacity with a white outline, the others
+ * dimmed with readable text ([choiceSurface]). TalkBack: radio buttons in one group.
  */
 @Composable
 fun ChoiceCards(
@@ -421,38 +510,18 @@ fun ChoiceCards(
 
 @Composable
 private fun ChoiceCard(choice: Choice, index: Int, selected: Boolean, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(AgentSettingsTokens.ChoiceRadius)
-    val outline = AgentSettingsTokens.Text
     Box(
         Modifier.fillMaxWidth()
-            // outline 3 dp, 2 dp outside the card (CSS outline-offset), drawn before the clip
-            .drawWithContent {
-                drawContent()
-                if (selected) {
-                    val w = 3.dp.toPx(); val off = 2.dp.toPx() + w / 2
-                    drawRoundRect(outline, topLeft = Offset(-off, -off), size = Size(size.width + 2 * off, size.height + 2 * off),
-                        cornerRadius = CornerRadius(AgentSettingsTokens.ChoiceRadius.toPx() + off), style = Stroke(w))
-                }
-            }
-            .alpha(if (selected) 1f else if (choice.enabled) 0.55f else 0.35f)
-            .clip(shape).background(cssGradient(120f, choice.from, choice.to))
+            .choiceSurface(selected, choice.from, choice.to, AgentSettingsTokens.Text, enabled = choice.enabled, glow = index)
             .selectable(selected = selected, enabled = choice.enabled, role = Role.RadioButton, onClick = onClick)
             .heightIn(min = 92.dp).testTag(CHOICE_TAG + choice.tag),
     ) {
-        Glow(index)
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(choice.label.uppercase(Locale.getDefault()), style = AgentSettingsType.ChoiceLabel, color = AgentSettingsTokens.OnGradient)
             Text(choice.hint, style = AgentSettingsType.Small.copy(fontWeight = FontWeight.Medium), color = AgentSettingsTokens.OnGradient,
                 textAlign = TextAlign.Start)
         }
     }
-}
-
-/** The glowing pill: 42 × 22 dp, 14 dp from the top, 18 + 40 dp × index from the right. */
-@Composable
-private fun BoxScope.Glow(index: Int) {
-    Box(Modifier.align(Alignment.TopEnd).padding(top = 14.dp, end = 18.dp + 40.dp * index).size(42.dp, 22.dp)
-        .clip(RoundedCornerShape(11.dp)).background(Color.White.copy(alpha = 0.75f)))
 }
 
 /** One chip of [ChipToggles]. */

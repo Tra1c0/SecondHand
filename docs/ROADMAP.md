@@ -57,12 +57,18 @@ Reihenfolge von oben nach unten.
   [`docs/referenzen/2026-11-13-rgb-bildwiederholrate.jpg`](referenzen/2026-11-13-rgb-bildwiederholrate.jpg))
   ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 37 (Bildwiederholrate
   als Karten)): Karte „Bildwiederholrate“ mit zwei Farbflächen untereinander (nebeneinander wären
-  sie bei 390 dp zu schmal für die gesperrte Schrift), wandernder Lichttropfen, bei 60 Hz doppelt
-  so schnell; still ohne Android-Animationen, im Energiesparmodus und außer Sicht. Annahmen des
-  Leads, vom Owner zu bestätigen: Großbuchstaben „30 HERTZ“ wie die Auswahlkarten von 38 (die
-  Skizze schreibt „30 Hertz“), Zusatzzeile „30 Bilder/s · spart Akku“ bzw. „60 Bilder/s ·
-  flüssiger“, der Tropfen wandert hin und her mit kurzer Leuchtspur. Offen: Gerätetest (Aussehen,
-  Tempo des Tropfens, ob er stört). Weitere Auswahlen der RGB-Seite, die in diesen Stil passen
+  sie bei 390 dp zu schmal für die gesperrte Schrift), wandernder Lichttropfen; still ohne
+  Android-Animationen (beim Öffnen gelesen), im Energiesparmodus (live) und außer Sicht.
+  Entscheidung des Owners vom 2026-11-14 (ersetzt den Vorschlag „60 Hz doppelt so schnell“):
+  30 HERTZ gelb-orange, 60 HERTZ türkis-grün (Farben getauscht); beide Tropfen gleich schnell auf
+  derselben Bahn und aus derselben Uhr genau übereinander, der 30-Hz-Tropfen springt sichtbar in
+  Schritten von 33 ms (30 Bilder/s), der 60-Hz-Tropfen in 17 ms (60 Bilder/s), unabhängig von der
+  Bildrate des Displays (60/90/120 Hz). Nachprüfung (Prüfer-Befunde): Schrift der nicht gewählten
+  Fläche bleibt voll deckend und lesbar, Überschrift eine Zeile auch bei 360 dp und Schrift 130 %.
+  Annahmen des Leads, vom Owner zu bestätigen: Großbuchstaben „30 HERTZ“ wie die Auswahlkarten
+  von 38 (die Skizze schreibt „30 Hertz“), Zusatzzeile „30 Bilder/s · spart Akku“ bzw. „60
+  Bilder/s · flüssiger“, der Tropfen wandert hin und her mit kurzer Leuchtspur. Offen: Gerätetest
+  (Aussehen, ob das Springen bei 30 Hz am Telefon deutlich genug ist, ob der Tropfen stört). Weitere Auswahlen der RGB-Seite, die in diesen Stil passen
   (nicht umgebaut, Vorschlag): „Regenbogen“/„Eigene Farben“ (zwei Karten mit Farbverlauf bzw. den
   eigenen Farben), „Beim Tippen“ (vier Karten, jede zeigt ihren Effekt: nichts, Blitz, Ring,
   schneller), „Jede Taste einfarbig“ als Wahl „weich“/„einfarbig“ mit kleinem Tastenbild.

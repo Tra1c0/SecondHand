@@ -18,7 +18,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -27,7 +26,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -50,12 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -370,43 +363,21 @@ private fun profileCards(context: Context, store: KeyboardProfileStore, flat: Fl
 /** A profile card in the look of [ChoiceCards], but a button (an action, P136). */
 @Composable
 private fun ProfileCard(card: ProfileCardInfo, index: Int, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(AgentSettingsTokens.ChoiceRadius)
-    val outline = AgentSettingsTokens.Text
     val activeText = stringResource(R.string.agent_system_profile_active)
     val label = if (card.isNew) stringResource(R.string.agent_settings_open, stringResource(R.string.agent_profiles_title))
         else stringResource(R.string.agent_system_apply_title, card.label)
     Box(
         Modifier.fillMaxWidth()
-            .drawWithContent {
-                drawContent()
-                if (card.active) {
-                    val w = 3.dp.toPx(); val off = 2.dp.toPx() + w / 2
-                    drawRoundRect(outline, topLeft = Offset(-off, -off), size = Size(size.width + 2 * off, size.height + 2 * off),
-                        cornerRadius = CornerRadius(AgentSettingsTokens.ChoiceRadius.toPx() + off), style = Stroke(w))
-                }
-            }
-            .alpha(if (card.active) 1f else 0.55f)
-            .clip(shape).background(cssGradient(120f, card.colors.first, card.colors.second))
+            .choiceSurface(card.active, card.colors.first, card.colors.second, AgentSettingsTokens.Text, glow = index % 3)
             .clickable(role = Role.Button, onClickLabel = label, onClick = onClick)
             .then(if (card.active) Modifier.semantics { stateDescription = activeText } else Modifier)
             .heightIn(min = 92.dp).testTag(card.tag),
     ) {
-        ProfileGlow(index)
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(card.label.uppercase(Locale.getDefault()), style = AgentSettingsType.ChoiceLabel, color = AgentSettingsTokens.OnGradient)
             Text(card.hint, style = AgentSettingsType.Small.copy(fontWeight = FontWeight.Medium), color = AgentSettingsTokens.OnGradient)
         }
     }
-}
-
-/**
- * The glowing pill of the mockup: 42 × 22 dp, 14 dp from the top, 18 + 40 dp × (index mod 3) from
- * the right (the mockup has three cards; further cards repeat, so the pill never reaches the title).
- */
-@Composable
-private fun BoxScope.ProfileGlow(index: Int) {
-    Box(Modifier.align(Alignment.TopEnd).padding(top = 14.dp, end = 18.dp + 40.dp * (index % 3)).size(42.dp, 22.dp)
-        .clip(RoundedCornerShape(11.dp)).background(Color.White.copy(alpha = 0.75f)))
 }
 
 /**

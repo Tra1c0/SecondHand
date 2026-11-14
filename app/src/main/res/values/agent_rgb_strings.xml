@@ -55,7 +55,8 @@
     <string name="agent_rgb_reactive_summary">Otherwise the light is off; after each tap it appears and fades.</string>
     <string name="agent_rgb_glow">Fade time: %1$s s</string>
     <string name="agent_rgb_fps">Frame rate</string>
-    <string name="agent_rgb_fps_value">%1$d frames/s</string>
+    <!-- extra line of a frame rate area: rate, then agent_rgb_fps_30_hint or _60_hint -->
+    <string name="agent_rgb_fps_line">%1$d frames/s · %2$s</string>
     <string name="agent_rgb_fps_hertz">%1$d Hertz</string>
     <string name="agent_rgb_fps_30_hint">saves battery</string>
     <string name="agent_rgb_fps_60_hint">smoother</string>

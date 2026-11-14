@@ -1596,8 +1596,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `FeatureCard` (freie Karte, 18 dp innen, Titel optional gesperrt in Großbuchstaben),
   `SettingRow` (Punkt, Titel, Untertitel, Wert, Pfeil; ganze Zeile ein Knopf, „… öffnen“),
   `SettingSwitchRow` und `GradientSwitch` (Role.Switch, `toggleable`), `ChoiceCards` (große
-  Verlaufskarten mit Leucht-Pille, gewählt 100 % mit weißem Rahmen 3 dp in 2 dp Abstand, sonst
-  55 %; Radio-Buttons in einer `selectableGroup`), `ChipToggles` (hell wie auf der Startseite oder
+  Verlaufskarten mit Leucht-Pille; Radio-Buttons in einer `selectableGroup`). Ihre Fläche ist
+  `Modifier.choiceSurface(selected, from, to, outline, base, enabled, glow)` (Nachprüfung 37, auch
+  für Bildwiederholrate, Profil- und Sprachkarten): Verlauf 120°, gewählt voll mit Rahmen 3 dp
+  in 2 dp Abstand, sonst nur der Verlauf (und die Pille) mit `choiceDim` über `base` (die Karte
+  dahinter), ohne Alpha-Ebene, die Schrift bleibt deckend. `choiceDim` = `CHOICE_DIM_ALPHA` 0,7,
+  in Schritten von 0,01 erhöht, bis `OnGradient` auf jedem Punkt des Verlaufs
+  `CHOICE_MIN_CONTRAST` 4,5:1 plus 0,1 Reserve für die 8-Bit-Rundung hat (`contrastRatio`, WCAG,
+  sRGB-Mischung wie der Shader); reicht auch 1 nicht (die grauen Karten #3A3A42 …, offen), bleibt
+  1. Nicht wählbar (`enabled = false`): die ganze Karte 35 % (`CHOICE_DISABLED_ALPHA`, inaktiv).
+  `ChipToggles` (hell wie auf der Startseite oder
   im Bereichsverlauf wie die @-Befehle), `AreaTile`, `FooterPill`. Schriften: Systemschrift in
   denselben Stärken statt Space Grotesk/Inter (beide OFL, aber keine Schriftdateien im APK;
   Entscheidung des Leads, 38a). `K/settings/screens/AgentStartScreen.kt`: Startseite (Titel,
@@ -2168,20 +2176,30 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Farben 250 ms nicht geändert haben) und für die Seite gemerkt; bis dahin bleibt das alte Bild.
 - Bildwiederholrate (37, Skizze des Owners `docs/referenzen/2026-11-13-rgb-bildwiederholrate.jpg`):
   `K/settings/screens/AgentRgbFrameRate.kt` (`FrameRateCard`) ersetzt die Chips 30/60 als letzte
-  Karte der RGB-Seite. Überschrift „Bildwiederholrate“ (`agent_rgb_fps`) fett und gesperrt, zwei
-  Farbflächen untereinander (türkis, orange; `cssGradient` und Maße aus dem Baukasten), Auswahl wie
-  `ChoiceCards` (voll mit Rahmen in `onSurface`, sonst 55 %), Radiobuttons in einer
-  `selectableGroup`, Tags `agent_rgb_fps_30`/`_60` wie vorher die Chips. Schreibt wie bisher nur
+  Karte der RGB-Seite. Überschrift „Bildwiederholrate“ (`agent_rgb_fps`, Tag
+  `agent_rgb_fps_heading`) fett, gesperrt in em, eine Zeile mit `TextAutoSize.StepBased` 12–21 sp
+  (wo 21 sp nicht passen kleiner statt mitten im Wort umgebrochen; bei 360 dp und Schrift 130 %
+  passen sie noch, weil Compose große Schrift nichtlinear skaliert, bei 200 % nicht), zwei Farbflächen
+  untereinander (`FRAME_RATE_COLOURS`: 30 Hz gelb-orange, 60 Hz türkis-grün, Entscheidung des
+  Owners 2026-11-14), Fläche `choiceSurface` mit Rahmen in `onSurface` über
+  `surfaceContainerHigh` (heller und dunkler Theme), Zusatzzeile aus einem Format
+  `agent_rgb_fps_line`, Radiobuttons in einer `selectableGroup`, Tags `agent_rgb_fps_30`/`_60`
+  wie vorher die Chips. Schreibt wie bisher nur
   `fps` über `change` → `RgbLighting.write` (Einstellung `agent_rgb_lighting`, Vorgabe 30 = Eintrag
   entfernt). Darunter über den Platz `below` der Schalter „Im Energiesparmodus anhalten“ und der
   Hinweis. Licht: ein `rememberInfiniteTransition` (eine Runde 2,4 s ab `STILL_PHASE`, kein
   Sprung beim Anlaufen) für beide Flächen, gelesen nur in `drawBehind` (Bilder zeichnen die zwei
-  Flächen neu, nichts wird zusammengesetzt); der Tropfen wandert hin und her (Kosinus), 60 Hz mit
-  doppelter Phase, fünf blassere Ovale als Spur, ein pulsierender Hof; nur Ovale, keine Shader.
+  Flächen neu, nichts wird zusammengesetzt); der Tropfen wandert hin und her (Kosinus), beide aus
+  derselben Phase gleich schnell auf derselben Bahn (Flächen gleich breit), `lightPhase(phase,
+  rate)` rastet sie auf ganze Bilder der Rate (72 bzw. 144 Stellen je Runde, 33 bzw. 17 ms),
+  unabhängig von der Bildrate des Displays; Spur aus fünf blasseren Ovalen je ein 30-Hz-Bild
+  (1/72) zurück, ein pulsierender Hof; auf der nicht gewählten Fläche mit `choiceDim` blasser;
+  nur Ovale, keine Shader.
   Die Transition gibt es nur, solange die Flächen im Bild sind (`onGloballyPositioned`,
   `boundsInWindow` ist im Scroll-Container beschnitten) und Bewegung erlaubt ist
-  (`FlatStyle.animationsEnabled` beim Öffnen, Energiesparmodus über
-  `ACTION_POWER_SAVE_MODE_CHANGED`, angemeldet am Application-Kontext, solange die Karte da ist);
+  (`FlatStyle.animationsEnabled` beim Öffnen, Energiesparmodus live über
+  `ACTION_POWER_SAVE_MODE_CHANGED`, angemeldet am Application-Kontext, solange die Karte da ist,
+  nach dem Anmelden noch einmal gelesen);
   sonst steht der Tropfen bei `STILL_PHASE`. Im Hintergrund pausiert Compose die Bilder ohnehin.
   Texte in `agent_rgb_strings.xml`. P198.
 - Tests: `CT/RgbLightingTest.kt`, `CT/RgbCurveTest.kt` (Kurve, Grenzen, Text, Vorlagen,
@@ -2197,10 +2215,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   (Seite, Kurve per Touch, TalkBack-Aktionen, eigene Looks, bewegte Vorschau der neuen Muster und
   weiche Vorschau gegen das bilineare Raster mit SDK 36, Galerie ohne Neubau beim Ziehen),
   `AT/RgbTilesTest.kt` (Kachel im Hintergrund, Zeichnen wartet nicht, Cache mit allen Mustern,
-  Leeren), `AT/RgbFrameRateCardTest.kt` (37: Karte, Texte und Reihenfolge, echte Einstellung,
-  Auswahl folgt, Energiesparschalter bleibt, 44 dp, Tempo 1 : 2, nichts zusammengesetzt, still ohne
-  Animationen, im Energiesparmodus und außer Sicht, Bild
-  `app/build/agent-previews/rgb-framerate-card.png` mit Pixelprüfung). Bilder unter
+  Leeren), `AT/RgbFrameRateCardTest.kt` (37: Karte mit Überschrift darin, Texte und Reihenfolge,
+  echte Einstellung, Auswahl folgt, Energiesparschalter bleibt, 44 dp, Überschrift eine Zeile bei
+  390 dp in 21 sp, bei 360 dp mit Schrift 130 % ganz, mit 200 % kleiner (Breite gegen
+  `TextMeasurer`, das Layout-Ergebnis nennt die Größe des Stils, nicht die Auto-Größe), eine Uhr,
+  gleiches Tempo,
+  30 Hz in Schritten von 1/72 und nie zwei Bilder nacheinander, 60 Hz in Schritten von 1/144,
+  nichts zusammengesetzt, still ohne Animationen, im Energiesparmodus und außer Sicht, Empfänger
+  mit der Karte abgemeldet, Kontrast beider Flächen in hellem und dunklem Schema gerechnet und im
+  Bild gemessen, Bild `app/build/agent-previews/rgb-framerate-card.png` mit Pixelprüfung, Tropfen
+  übereinander). Bilder unter
   `app/build/reports/rgb-lighting/` und `app/build/agent-previews/`.
 
 ## Diktat
@@ -3749,7 +3773,15 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Robolectric legt beim Weiterstellen der Uhr weder Layout noch Zeichnen an: Ein Scrollen erreicht
   `onGloballyPositioned` nicht, Werte aus dem Zeichnen (`frameRateTrips`) bleiben alt. Die Tests
   von 37 zeichnen deshalb je Bild einmal `decorView.draw` in ein 1-×-1-Bitmap (Layout und alle
-  Zeichenaufrufe laufen) und lassen dazwischen den Main-Looper laufen.
+  Zeichenaufrufe laufen) und lassen dazwischen den Main-Looper laufen. Die Testuhr macht Bilder
+  nur alle 16 ms: Schritte von 16,7 ms (60 Hz) lassen sich so nicht einzeln treffen, darum prüft
+  der Test, dass der 60-Hz-Tropfen in fast jedem Bild einen Schritt von 1/144 macht und der
+  30-Hz-Tropfen nie in zwei Bildern nacheinander. Ob der Empfänger beim Entfernen der Karte
+  abgemeldet wird, zeigt `shadowOf(app).registeredReceivers`. Text mit `autoSize`: das
+  `TextLayoutResult` aus `GetTextLayoutResult` nennt in `layoutInput.style.fontSize` die Größe des
+  Stils, nicht die gewählte; geprüft wird über die Breite (`getLineRight`) gegen `TextMeasurer`.
+  `Density(dichte, fontScale)` skaliert große Schrift nichtlinear wie Android 14 (21 sp bei 1,3
+  nur etwa × 1,13), auch unter SDK 28.
 - **P203** Smart Paste in der Leiste ist keine eigene Leistenansicht, sondern hängt an der Pille:
   `getClipboardSuggestionView` gibt dann die Reihe (`HorizontalScrollView` aus
   `KeyboardCommands.chipRow`) statt der Pille zurück. Wer dort etwas ausblendet, muss die Reihe
