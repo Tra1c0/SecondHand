@@ -5196,6 +5196,16 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Engine-Änderungen: keine. `LatinIME`, `InputLogic`, `RichInputConnection`, `PointerTracker`
   unverändert; nur Fork-Dateien und Tests.
 
+### Lint und Zeitbudget vor Build 23 (Lead, 2026-11-14)
+
+- GitHub-Lauf 65 (db39eed) rot: Lint 4 Fehler (`removeIf` in `FieldCorrections.kt` braucht API 24,
+  `remember` ohne Rückgabe in `AgentRgbScreen.kt`, BOM-Zeichen als Literal in `RgbOwnPatterns.kt`)
+  und `RgbOwnPatternTest.ownPatternsStayWithinTheBudget` (4 × Rauschen über 2 × Tinte, auch ohne
+  Parallellast). Behoben in 1a739da: `removeAll`, `remember` mit Wert, `"\uFEFF"`; Rauschen und
+  Höhenlinien rechnen `cos`/`sin` der Ebenenzeit einmal je Bild statt je Punkt (gleiche Werte).
+- Lokal danach: Lint grün; 4 × Rauschen 0,94 ms gegen Tinte 0,70 ms (vorher ≈ 1,2 gegen 0,7);
+  `RgbOwnPatternTest`, `*FieldCorrection*`, `*Rgb*`, `*TypoMemory*` grün. Assertion unverändert.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.
