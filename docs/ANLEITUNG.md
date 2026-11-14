@@ -899,12 +899,16 @@ Einstellungen → Gelernte Wörter → Abschnitt „Autokorrektur“:
   diesen Tippfehler selbst. Gibt es das getippte Wort wirklich (mochte), lernt sie es nur für
   das Wort davor (ich möchte). „Gelernte Tippfehler vergessen“ löscht alles.
   Mit diesem Schalter zählen auch Tippfehler, die du später im Feld verbesserst: nach weiteren
-  Wörtern, nach Löschen zurück über Leerzeichen, über einen Vorschlag oder nach Tippen ins Wort
-  (dann die Schreibmarke wieder wegsetzen oder weitertippen). Nur echte Vertipper eines
-  Nicht-Worts zu einem echten Wort zählen; „das“ → „dass“, Markieren und Überschreiben oder
-  Einfügen nie. Auch nicht: ein Wort fertig schreiben („Bahnho“ → „Bahnhof“), Änderungen der App
-  selbst (ihre Autokorrektur oder Autofill), Rückgängig/Wiederholen und alles, solange die App als
-  langsam gilt. Beim ersten Mal ist es ein Kandidat, beim zweiten Mal an anderer Stelle gelernt;
+  Wörtern, nach Löschen zurück über Leerzeichen, über einen Vorschlag, nach Tippen ins Wort oder
+  nach Wischen auf der Leertaste zum Wort (dann die Schreibmarke wieder wegsetzen oder
+  weitertippen). Nur echte Vertipper eines Nicht-Worts zu einem echten Wort zählen; „das“ →
+  „dass“, Markieren und Überschreiben oder Einfügen nie. Auch nicht: ein Wort fertig schreiben
+  („Bahnho“ → „Bahnhof“; darum lernt sie fehlende Endbuchstaben wie „nich“ → „nicht“ nie),
+  Korrekturen über das Rechtschreib-Menü der App, Änderungen der App selbst (ihre Autokorrektur
+  oder Autofill), Rückgängig/Wiederholen (auch Strg+Z/Strg+Y einer Hardware-Tastatur) und alles,
+  solange die App als langsam gilt. Ändert die App genau das Wort, an dem du gerade tippst, kann
+  das trotzdem als deine Korrektur zählen. Ein per Gestenschreiben ersetztes Wort zählt nur, wenn
+  du danach direkt am Wort eine Taste drückst (etwa das Leerzeichen). Beim ersten Mal ist es ein Kandidat, beim zweiten Mal an anderer Stelle gelernt;
   leert ein Messenger das Feld nach dem Senden, zählt die nächste Nachricht als andere Stelle.
   Einstellungen → Tippen & Korrektur → „Was ich mir gemerkt habe“ zeigt beides: „Übernehmen“
   lernt einen Kandidaten sofort, „Löschen“ entfernt einen Eintrag. „Gelernte Wörter löschen“

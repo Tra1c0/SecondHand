@@ -12,6 +12,7 @@ import helium314.keyboard.latin.common.Constants
 import helium314.keyboard.latin.settings.SettingsValues
 import org.json.JSONArray
 import org.json.JSONObject
+import java.lang.ref.WeakReference
 import java.text.Normalizer
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
@@ -44,8 +45,10 @@ class FieldCorrectionWatcher {
     // stays at one place. Changes outside it were made by the app.
     private var ownFrom = -1
     private var ownTo = -1
-    // review N2: the letters of the last alphabet keyboard, also while symbols or the numpad show
-    private var adjacencyKeyboard: Keyboard? = null
+    // review N2: the letters of the last alphabet keyboard, also while symbols or the numpad show.
+    // Second review: only the key positions are kept; the keyboard (its id holds the editor info with
+    // the field's initial text) only weakly, to see a language or layout change.
+    private var adjacencySource: WeakReference<Keyboard>? = null
     private var layoutAdjacency: KeyAdjacency? = null
 
     /** Input starts in a field: everything of the previous field is forgotten. */
@@ -54,6 +57,8 @@ class FieldCorrectionWatcher {
         autoCorrections.clear()
         session = nextSession()
         clearOwnEdits()
+        adjacencySource = null
+        layoutAdjacency = null
     }
 
     /**
@@ -102,6 +107,8 @@ class FieldCorrectionWatcher {
             clearOwnEdits()
             return
         }
+        // second review: the keyboard shown now, so a language or layout change is seen (cheap when unchanged)
+        noteKeyboard(runCatching { helium314.keyboard.keyboard.KeyboardSwitcher.getInstance().keyboard }.getOrNull())
         if (composing) return // the last reference stays, the next checkpoint compares
         val cursor = connection.expectedSelectionStart
         // review M2: a slow app gets no extra reads; nothing is learned there
@@ -150,8 +157,7 @@ class FieldCorrectionWatcher {
         if (isCompletion(change.old, change.new)) return
         fun real(word: String) = dictionary.isValidSpellingWord(word)
             || dictionary.isValidSpellingWord(word.lowercase(settings.mLocale ?: Locale.ROOT))
-        val keyboard: Keyboard? = runCatching { helium314.keyboard.keyboard.KeyboardSwitcher.getInstance().keyboard }.getOrNull()
-        val kind = CorrectionRules.classify(change.old, change.new, real(change.old), real(change.new), adjacency(keyboard, settings))
+        val kind = CorrectionRules.classify(change.old, change.new, real(change.old), real(change.new), adjacency(null, settings))
         if (kind != CorrectionRules.Kind.TYPO) return
         // a capital that only comes from the sentence start is not kept ("Ihc" -> "Ich" means "ich")
         val lower = change.new.lowercase(settings.mLocale ?: Locale.ROOT)
@@ -166,14 +172,18 @@ class FieldCorrectionWatcher {
      * hardware keyboard) the phone layout of the language.
      */
     internal fun adjacency(keyboard: Keyboard?, settings: SettingsValues): KeyAdjacency {
-        if (keyboard != null && keyboard !== adjacencyKeyboard && keyboard.mId?.element?.isAlphabet == true) {
-            val keys = keyboard.sortedKeys.filter { it.code > 0 && Character.isLetter(it.code) && it.code < 0x10000 }
-                .map { KeyBox(it.code.toChar(), it.x + it.width / 2f, it.y + it.height / 2f, it.width.toFloat(), it.height.toFloat()) }
-            adjacencyKeyboard = keyboard
-            layoutAdjacency = if (keys.size >= MIN_LAYOUT_KEYS) KeyAdjacency.fromKeys(keys) else null
-        }
+        noteKeyboard(keyboard)
         layoutAdjacency?.let { return it }
         return if (settings.mLocale?.language == "de") KeyAdjacency.QWERTZ else KeyAdjacency.QWERTY
+    }
+
+    /** Takes the key positions of [keyboard] when it is another alphabet keyboard than the last one. */
+    private fun noteKeyboard(keyboard: Keyboard?) {
+        if (keyboard == null || keyboard === adjacencySource?.get() || keyboard.mId?.element?.isAlphabet != true) return
+        val keys = keyboard.sortedKeys.filter { it.code > 0 && Character.isLetter(it.code) && it.code < 0x10000 }
+            .map { KeyBox(it.code.toChar(), it.x + it.width / 2f, it.y + it.height / 2f, it.width.toFloat(), it.height.toFloat()) }
+        adjacencySource = WeakReference(keyboard)
+        layoutAdjacency = if (keys.size >= MIN_LAYOUT_KEYS) KeyAdjacency.fromKeys(keys) else null
     }
 
     companion object {
@@ -194,6 +204,15 @@ class FieldCorrectionWatcher {
                 .filter { Character.getType(it) != Character.NON_SPACING_MARK.toInt() }
 
         /** [new] goes on where [old] ends, accents ignored: a finished word, no typo fix (as in [TypoMemory.confirm]). */
+        /**
+         * The typed word when the commit was the keyboard's own automatic correction ([decided]) that
+         * really changed it, exact case (second review: changing an automatic "Ich" back to "ich" is
+         * no automatic correction of the keyboard, though the letters are the same); else null.
+         */
+        @JvmStatic
+        fun keyboardCorrectionFrom(decided: Boolean, typed: String, chosen: String): String? =
+            if (decided && typed != chosen) typed else null
+
         @JvmStatic
         fun isCompletion(old: String, new: String): Boolean {
             val a = plain(old)

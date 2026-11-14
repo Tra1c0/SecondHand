@@ -1128,6 +1128,53 @@ class InputLogicTest {
         assertEquals(listOf(Triple("hsus", "Haus", true)), fieldEntries(), "the same position in the next message is another place")
     }
 
+    /** Space bar swipe by [steps] characters, as the touch handling reports it. */
+    private fun spaceSwipe(steps: Int) {
+        latinIME.mKeyboardActionListener.onSpaceSwipe(if (steps < 0) SpaceGesture.SWIPE_LEFT else SpaceGesture.SWIPE_RIGHT, steps)
+        handleMessages()
+    }
+
+    // stage 49 second review, finding 1: the keyboard's own cursor moves are checkpoints too
+    @Test fun `stage 49 a typo fixed after swiping back with the space bar counts, the app's change does not`() =
+        withRealWords("ein", "Haus", "und", "dann", "mehr") {
+            chainInput("ein Hsus und dann ")
+            spaceSwipe(-12)
+            assertEquals(6, cursor)
+            functionalKeyPress(KeyCode.DELETE)
+            input('a')
+            assertEquals("ein Haus und dann ", text)
+            spaceSwipe(12)
+            assertEquals(18, cursor)
+            chainInput("mehr ")
+            assertEquals("ein Haus und dann mehr ", text)
+            assertEquals(listOf(Triple("hsus", "Haus", false)), fieldEntries())
+            // the app changes the word while the cursor is there after a swipe: not the user's correction
+            fieldMemory.clear(latinIME)
+            setText("")
+            chainInput("ein Hsus und dann ")
+            spaceSwipe(-12)
+            appChangesText("ein Haus und dann ", 6)
+            spaceSwipe(12)
+            chainInput("mehr ")
+            assertEquals("ein Haus und dann mehr ", text)
+            assertEquals(emptyList(), fieldEntries())
+        }
+
+    // stage 49 second review, finding 5: undo of a hardware keyboard lets the app change the text
+    @Test fun `stage 49 hardware ctrl z drops the reference`() = withRealWords("ein", "Haus", "und") {
+        chainInput("ein Hsus und ")
+        setCursorPosition(6)
+        functionalKeyPress(KeyCode.DELETE)
+        assertEquals("ein Hus und ", text)
+        val z = android.view.KeyEvent(0L, 0L, android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_Z, 0,
+            android.view.KeyEvent.META_CTRL_ON or android.view.KeyEvent.META_CTRL_LEFT_ON)
+        latinIME.mKeyboardActionListener.onKeyDown(android.view.KeyEvent.KEYCODE_Z, z)
+        handleMessages()
+        appChangesText("ein Haus und ") // the app's undo history, not the user's typing
+        setCursorPosition(text.length)
+        assertEquals(emptyList(), fieldEntries())
+    }
+
     private var suggestionThread = false
 
     /**

@@ -3806,6 +3806,44 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   (`InputLogicTest.insertLetterIntoWordHangulFails`). Nicht gelaufen: `tools/dev.py agent-tests`,
   volle Suite, Lint, Build, Gerätetest.
 
+### Zweite Nachprüfung 49 (Prüfer-Befunde zu 4f2c8b9)
+
+- Behoben (Arbeitskopie, Lead-Auftrag 2026-11-14). Engine-Änderung eng, erneutes Prüfer-Review
+  nötig: `InputLogic.java` (neue Methode `checkpointFieldCorrectionsBeforeOwnCursorMove`, eine
+  Zeile in `commitChosenWord`), `KeyboardActionListenerImpl.kt` (je ein Aufruf in
+  `onMoveCursorHorizontally` und `onKeyDown`). `RichInputConnection`, `PointerTracker` unverändert.
+  - 1 (mittel): Leertasten-Wischen setzt die Schreibmarke selbst, die Auswahl-Meldung ist erwartet
+    und kehrte vor dem Prüfpunkt zurück; eine Korrektur nach dem Zurückwischen ging verloren
+    (mehrere Änderungen) und der eigene Bereich wurde zu breit. Jetzt Prüfpunkt nach `finishInput`
+    und vor `setSelection` (`composing` wie in `onUpdateSelection`).
+  - 2 (gering): Das Paar getippt → abgeschickt geht nur noch an den Prüfpunkt, wenn sich das Wort
+    genau geändert hat (`FieldCorrectionWatcher.keyboardCorrectionFrom`). Wirkung heute ohne
+    sichtbare Folge: reine Groß-/Klein-Paare speichern `RejectedCorrections.remember` und
+    `TypoMemory.confirm` ohnehin nicht (Regel aus 48); „als zurückgenommen gemerkt“ wird „ich“ ←
+    „Ich“ darum auch jetzt nicht, nur die Rücknahme-Erkennung wird erreicht.
+  - 3 (gering): Kein `Keyboard` mehr fest gehalten (sein `KeyboardId` hält `editorInfo` mit
+    `initialSurroundingText`): nur die `KeyAdjacency` und eine `WeakReference` als Kennung, in
+    `start` geleert, an jedem Prüfpunkt mit der gezeigten Tastatur verglichen (neu gebaut nur bei
+    einer anderen Buchstaben-Tastatur).
+  - 4, 5 (Doku): P183 sagt jetzt, dass eine Änderung der App am gerade getippten Wort (Rand
+    eingeschlossen) zählt, dass Gestenschreiben kein `ownEdit` ruft und Korrekturen über das
+    Rechtschreib-Menü der App (`SuggestionSpan`) nie zählen. Hardware-Strg+Z/Strg+Y rufen jetzt
+    `untrusted` (vor der Abfrage „Hardware-Tastatur“, beide Wege geben die Taste an die App).
+    Strg mit Z auf der Bildschirmtastatur nicht geprüft.
+  - 6 (Doku): FEATURES/ANLEITUNG nennen die Grenze: fehlende Endbuchstaben („nich“ → „nicht“) sind
+    eine Vervollständigung und werden nie gelernt.
+- Tests (Robolectric, echte `InputLogic`, kein Gerätetest): `InputLogicTest` neu 2 (Korrektur nach
+  Zurückwischen mit der Leertaste wird Kandidat, Änderung der App dazwischen nicht; Hardware-Strg+Z
+  verwirft den Stand), `FieldCorrectionMemoryTest` neu 2 (Layoutwechsel AZERTY → QWERTY, Symbole
+  behalten QWERTY, `start` vergisst das Layout, kein Feld vom Typ `Keyboard` oder `EditorInfo`;
+  `keyboardCorrectionFrom` mit „ich“/„ich“). Gegenprobe: ohne die beiden Aufrufe in
+  `KeyboardActionListenerImpl.kt` schlagen beide neuen `InputLogicTest`-Fälle fehl. Der Test zu
+  Befund 2 prüft nur die Hilfsfunktion (keine sichtbare Wirkung, siehe oben). Gelaufen
+  (`--max-workers=1`, 2026-11-14): `:app:testDebugUnitTest` mit `*InputLogicTest`,
+  `FieldCorrectionMemoryTest`, `SpaceGesturesTest`: 241 Tests, 1 Fehler = geerbt
+  (`InputLogicTest.insertLetterIntoWordHangulFails`); `:agent-core:test` 438/438. `docs_sync --check`: grün. Nicht gelaufen:
+  `tools/dev.py agent-tests`, volle Suite, Lint, Build, Gerätetest.
+
 ## Nachprüfung 44/45 (Prüfer-Befunde zu Etappe 44 und 45, 2026-11-14)
 
 - B1 (mittel): Eine im Passwortfeld kopierte PIN kam über den Live-Clip als Code in Code- und

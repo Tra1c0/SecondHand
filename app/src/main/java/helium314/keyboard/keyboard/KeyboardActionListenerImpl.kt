@@ -116,6 +116,9 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
             if (agentEnterDown) return true
         }
         emojiAltPhysicalKeyDetector.onKeyDown(keyEvent)
+        // fork, stage 49 second review: Ctrl+Z / Ctrl+Y of a hardware keyboard let the app change the text
+        if (keyEvent.isCtrlPressed && (keyCode == KeyEvent.KEYCODE_Z || keyCode == KeyEvent.KEYCODE_Y))
+            inputLogic.mFieldCorrections.untrusted()
         if (!settings.current.mEnableHardwareKeyboard)
             return false
 
@@ -552,6 +555,8 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         }
 
         inputLogic.finishInput()
+        // fork, stage 49 second review: the selection update of this move is expected and skips the checkpoint
+        inputLogic.checkpointFieldCorrectionsBeforeOwnCursorMove(settings.current)
         val newPosition = connection.expectedSelectionStart + moveSteps
         connection.setSelection(newPosition, newPosition)
         inputLogic.restartSuggestionsOnWordTouchedByCursor(settings.current, keyboardSwitcher.currentKeyboardScript)
