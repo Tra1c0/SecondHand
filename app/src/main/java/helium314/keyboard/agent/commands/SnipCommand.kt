@@ -236,6 +236,9 @@ object SnipCommand : KeyboardCommands.Command {
             val text = clip.getItemAt(0)?.coerceToText(context)?.toString()
             if (text.isNullOrEmpty()) return ClipRead.Missing(ClipRead.Reason.EMPTY)
             if (SensitiveClips.matcher(context)(text)) return ClipRead.Missing(ClipRead.Reason.SENSITIVE)
+            // stage 44: a clip the guard sorts as secret is never put into a snippet
+            if (dev.agentkeyboard.core.clip.ClipGuard.classify(text).category == dev.agentkeyboard.core.clip.ClipCategory.SECRET)
+                return ClipRead.Missing(ClipRead.Reason.SENSITIVE)
             if (text.length > SnippetStore.MAX_TEXT) return ClipRead.Missing(ClipRead.Reason.TOO_LONG)
             return ClipRead.Text(text)
         }

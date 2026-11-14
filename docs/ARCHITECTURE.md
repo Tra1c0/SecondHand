@@ -165,6 +165,34 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   Sprache, sonst `ZZ` = nur mit Ländervorwahl; Format `INTERNATIONAL`), `DecimalHint.kt` (Komma-
   und Punkt-Sprachen, drei Nachkommastellen gelten als Tausender, nie eine Ersetzung).
   Test `CT/format/FormatGuardTest.kt`.
+- `C/clip/ClipGuard.kt` (Etappe 44, Paket `dev.agentkeyboard.core.clip`, P154–P157):
+  `ClipGuard.classify(text, markedSensitive, region)` → `ClipClass` (`ClipKind` SECRET, OTP, IBAN,
+  PHONE, EMAIL, ADDRESS, LINK, TEXT; `ClipCategory` SECRET/OTP/PERSONAL/NORMAL; `code` = Ziffern
+  eines Einmalcodes; `SecretReason`; `toString` ohne Text), `mask` (bekanntes Präfix plus die
+  letzten vier Zeichen ab 20 Zeichen, sonst `HIDDEN`), `entropy`, `SECRET_MILLIS` = 2 min,
+  `OTP_MILLIS` = 10 min. Reihenfolge und Entscheidungen: markiert → SECRET; Block
+  `-----BEGIN … PRIVATE KEY-----`; bekannte Schlüssel (`sk-`, `sk-proj-`, `sk-ant-`, `sk_live_`,
+  `ghp_`/`gho_`/…, `github_pat_`, `AKIA`/`ASIA`, `xox?-`, `AIza`, `glpat-`, `hf_`, `npm_`) und
+  JWT überall im Clip bis `MAX_SCAN` = 64 KiB (auch `KEY=sk-…` und Code); danach nur bis
+  `MAX_LENGTH` = 4096 Zeichen: nur Ziffern 4–8 (auch 3+3/4+4 mit Leerzeichen oder Strich) = OTP,
+  außer einer Jahreszahl 1900–2099; IBAN über `IbanCheck.normalize` (auch „IBAN:“ davor);
+  E-Mail (ganzer Clip); Telefon über `PhoneFormat.isValid` (neu, bis 30 Zeichen, kein Datum);
+  Link über `UrlDetector.isUrl`; ein einzelnes Token als Geheimnis nur bei starkem Signal:
+  20–200 Zeichen aus Base64/URL-Zeichen mit Groß- und Kleinbuchstaben, mindestens 2 Ziffern und
+  höchstens 5 Kleinbuchstaben am Stück (ab 32 Zeichen 3 Ziffern, 8 am Stück) und Entropie
+  ≥ 3,5 Bit/Zeichen (`TOKEN`), oder 8–32 ASCII-Zeichen mit allen vier Zeichenklassen, einer Ziffer
+  direkt an einem Buchstaben, höchstens 5 Kleinbuchstaben am Stück, ohne Dateiendung
+  (`PASSWORD`); nie Hex (Git-Hashes, Prüfsummen, UUIDs, Farben), Pfade, `@`/`#`-Namen,
+  `data:`-URIs, Zahlen, Daten, Wörter, Text mit Leerzeichen, längere Blobs. Code im Satz (≤ 300
+  Zeichen, Schlüsselwort de/en/es wie Code, código, clave, TAN, PIN, Bestätigung, verification,
+  einmal, one-time): der Kandidat direkt nach dem Schlüsselwort, sonst der einzige; Daten,
+  Uhrzeiten, Beträge, an Buchstaben klebende Ziffern und gruppierte Nummern (Telefon) zählen
+  nicht. Adresse (≤ 200 Zeichen, ≤ 4 Zeilen): PLZ (4–5 Ziffern) plus Ort und Straße mit
+  Hausnummer (de/at: -straße, -str., -weg, -gasse, -platz, Ring …; es: Calle, Avenida, Plaza …),
+  oder englisch Hausnummer + Street/Road/… plus ZIP. Zweifel bleiben normal: ein übersehenes
+  Geheimnis landet im Verlauf, den der Nutzer eingeschaltet hat, ein falsches verlässt ihn nur
+  zwei Minuten früher. Test `CT/clip/ClipGuardTest.kt` (Beispielschlüssel aus Stücken
+  zusammengesetzt, damit die Datei keinen schlüsselförmigen String enthält).
 - `SnippetTemplate.kt` (Etappe 42): Vorlagensprache von `@snip` (`parse` wirft nie, `literal` für
   Bausteine von vor 42, `expand` mit `Values` = Datum, Uhrzeit, `DateFormatting.Language`,
   Zwischenablage oder null, Felder; `Expansion` mit Cursor-Index in UTF-16), `Issue` (`UNKNOWN`,
@@ -173,7 +201,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - Tests in `CT/`: `AiTextActionTest`, `EditorPolicyTest`, `LocalTextActionsTest`,
   `PendingBatchGateTest`, `SkillBindingTest`, `ToolTest`, `WorkflowTest`,
   `InsertionAnchorTest`, `StyledTranslationTest`, `UpdateReleasesTest`, `RgbLightingTest`,
-  `RgbCurveTest`, `RgbPatternsTest`, `RgbFrameStatsTest`.
+  `RgbCurveTest`, `RgbPatternsTest`, `RgbFrameStatsTest`, `clip/ClipGuardTest`.
   Befehl: `core-tests`.
 
 ## Geänderte Upstream-Dateien
@@ -331,6 +359,17 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
   `onCreate` setzt `ScreenshotChip.onChange` auf `onScreenshotChange` (Verlaufseintrag, dann Pille
   sofort zeigen oder nach Ablauf entfernen) und startet den Observer; `onDestroy` ruft
   `ScreenshotChip.stop` (Observer abmelden, ausstehende Meldung, Entprellen und Ablauf entfernen).
+  Etappe 44 (Zwischenablage-Wächter, Abschnitt „Speicher, Zugangsdaten und Datenschutz“):
+  `ClipboardHistoryManager.fetchPrimaryClip` gibt jeden Text-Clip zuerst an `ClipVault.offer`
+  (vertraulich = `IS_SENSITIVE` oder Passwortfeld) und schreibt `SECRET`/`OTP` nie in
+  `ClipboardDao`; `getClipboardSuggestionView` zeigt für ein Geheimnis keinen Chip (vorher Sternchen);
+  `prepareClipboardHistory` entfernt alte nicht angeheftete Geheimnisse und Codes
+  (`removeVaultClipsFromHistory`, auch per `SensitiveClips`-Hash); `clearHistory` leert den
+  Tresor; `onCreate` setzt `ClipVault.currentClip`. `ClipboardHistoryView.startClipboardHistory`
+  ruft `refreshVault` (Tresorreihen über der Liste, Liste um ihre Höhe kürzer, `ClipVault.onChange`
+  bis `stopClipboardHistory`), `onVaultPick` fügt per `onTextInput` ein. `ClipboardAdapter.setContent`
+  beschriftet persönliche Clips und verdeckt alte angeheftete Geheimnisse
+  (`ClipVaultSection.historyText`, Urteil je Eintrags-ID gemerkt).
 - `LatinIME.java` (23g): `setSuggestedWords` ruft nach `tryShowCommandChips` und nach
   `mInputLogic.setSuggestedWords` `tryShowScreenshotChip` (blendet bei `mAutoHideToolbar` die
   Leiste aus wie der Zwischenablage-Chip); die Pille ersetzt also nur die Anzeige, die
@@ -683,6 +722,25 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Keine versteckten Android-APIs, keine Credential-Exporte oder -Backups.
 - Emoji-Mix (25a): geladene Bilder in DE `files/agent_emoji_mix/` (LRU 20 MB, `EmojiMixCache`),
   über den Clipboard-Provider freigegeben; Paartabelle als Asset. Details: `docs/STORAGE.md`.
+- Zwischenablage-Wächter und Tresor (Etappe 44): `A/ClipVault.kt` (Objekt, nur im Speicher):
+  `offer(text, markedSensitive, copiedAt, region, allowed)` sortiert über `ClipGuard` und behält den
+  Clip nur mit `allowed` (`mayKeep`: entsperrt, kein Inkognito; Passwortfelder zählen als
+  Inkognito, P155) und solange er jünger als seine Lebensdauer ist (`lifetime`: Geheimnis 2 min,
+  Code 10 min, andere `FRESH_MILLIS` = 10 min; Alter ab Zeitstempel des Clips, P154), höchstens
+  `MAX_ITEMS` = 20. `secrets`/`codes` (neueste zuerst, abgelaufene vorher entfernt), `take` (ein
+  Geheimnis verlässt den Tresor beim ersten Einfügen, seine Kopierzeit steht in `used`, damit
+  derselbe Clip beim Neustart nicht zurückkommt; ein Code bleibt), `freshest(context, kind,
+  maxAge)` für Etappe 45 (nie ein Geheimnis; mit Verlauf aus nur der aktuelle Clip über
+  `currentClip`, live gelesen, nie behalten), `isBlocked` (gesperrt, Inkognito, Passwortfeld,
+  unbekanntes Feld), `clearSystemClip` (P156), `clock` (Tests), `onChange` (Ablauf bei offener
+  Ansicht, ein `Handler` weckt beim nächsten Ablauf). `Item.toString`/`Fresh.toString` ohne Text,
+  nichts geloggt. `A/ClipVaultSection.kt`: Reihen „Tresor“ und „Einmalcodes“ (Tags
+  `TAG_SECTION`, `TAG_SECRET_ROW`, `TAG_CODE_ROW`) als erstes Kind der Verlaufsansicht, nur wenn
+  etwas da ist (P157); Chip-Text und TalkBack-Beschreibung nur `Item.shown` (verdeckt bzw. der
+  Code); `historyText`/`label` für die Beschriftung persönlicher Clips (IBAN, Telefon, E-Mail,
+  Adresse) in der Liste. Texte in `agent_clipvault_strings.xml` (`values/`, `values-de/`).
+  `ClipCommand` (`@clip`) und `SnipCommand.SystemClipboard` (`{zwischenablage}`) behandeln ein
+  Geheimnis wie einen vertraulichen Clip. Speicher: `docs/STORAGE.md`. Test `AT/ClipVaultTest.kt`.
 - Tests in `AT/`: `EncryptedCredentialStoreTest`, `AgentStorageContextsTest`,
   `AgentDocumentIOTest`.
 
@@ -2746,31 +2804,54 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `tools:ignore="MissingTranslation"` am `<resources>`-Tag (der Fork liefert nur Englisch und
   Deutsch); sonst bricht `lintDebugNoMinify` mit Fehlern für alle Upstream-Sprachen ab. Die
   Robolectric-Tests merken davon nichts, nur der Lint-Job auf GitHub.
+- **P154** Robolectric stempelt Clips mit `SystemClock.uptimeMillis()`, ein Gerät mit der Wanduhr
+  (`ClipboardService`). `ClipVault` misst das Alter ab dem Zeitstempel des Clips; `ClipVaultTest`
+  setzt `ClipVault.clock` deshalb auf die Uptime, und für den Leisten-Chip (vergleicht mit
+  `System.currentTimeMillis()`) setzt `stampNow` den Zeitstempel per Reflexion. Vor Android 8 hat ein
+  Clip keine Zeit: dann gilt „jetzt“, ein Neustart der Tastatur innerhalb von 2 min kann ein
+  schon eingefügtes Geheimnis wieder in den Tresor holen (bekannte Lücke).
+- **P155** Passwortfelder zählen als Inkognito (`InputAttributes.mNoLearning`). Ein Clip, der
+  kopiert wird, während ein Passwortfeld den Fokus hat, ist ein Geheimnis und landet nirgends,
+  weder im Verlauf noch im Tresor. Im Passwortfeld selbst gibt es keinen Tresor (Auftrag); dort
+  bleibt nur das Einfügen des Systems bzw. die Einfüge-Taste mit dem aktuellen Clip.
+- **P156** Leeren der System-Zwischenablage nach dem Einfügen eines Geheimnisses
+  (`ClipVault.clearSystemClip`): nur wenn sie noch genau diesen Clip hält (Text und, ab Android 8,
+  Zeitstempel). Laut AOSP-`ClipboardService` (Stand `main`, gelesen 2026-11-14) braucht
+  `clearPrimaryClip` wie `setPrimaryClip` nur `OP_WRITE_CLIPBOARD` („Writing is allowed without
+  focus“), keinen Fokus und keine Rolle als Standard-IME; eine Ablehnung (AppOps) ist still, darum
+  liest die Funktion danach zurück. Vor Android 9 setzt `ClipboardManagerCompat` einen leeren Clip
+  (kann eine „Kopiert“-Meldung zeigen). Eigene Verläufe anderer Apps (Samsung, Gboard-Sync) leert
+  das nicht. Auf keinem Gerät geprüft.
+- **P157** Die Tresorreihen entstehen erst, wenn etwas darin steht, und sitzen dann vor dem
+  Abschnittstitel „Letzte“ (Index 0). `FlatClipboardTest` erwartet ohne Tresor den Titel als
+  erstes Kind; die Liste wird um die Höhe der Reihen kürzer, höchstens auf ein Drittel. Der
+  Tresor lebt im Prozess der Tastatur: Ein Neustart des Prozesses vergisst alles (gewollt).
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (482 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (489 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (5): agent-apk, agent-tests, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (70): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (72): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
-  AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand, ContactCommand,
-  ConvertCommand, CorrectionMemory, DateCommand, DesignLook, DesignTiles, Diagnose, Dictation,
-  EmojiCommand, EmojiMixPalette, EmojiSuggestions, EncryptedActionRunStore, EventCommand,
-  FlatMenuView, FlatPanelStyle, FlatPreset, FormatGuardChips, HapticChain, JournaledModelCall,
-  JournaledRun, KeyboardCommands, KeyboardProfileStore, LearningData, LoadingDotsView,
-  ManualWorkflowDraft, ModelSettings, MyDesigns, OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter,
-  RgbLighting, RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand,
-  SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SpaceDetents, SpaceGestures,
-  SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary, ToolLauncher, TouchCalibration,
-  TouchModel, TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract,
-  WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
+  AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand, ClipVault,
+  ClipVaultSection, ContactCommand, ConvertCommand, CorrectionMemory, DateCommand, DesignLook,
+  DesignTiles, Diagnose, Dictation, EmojiCommand, EmojiMixPalette, EmojiSuggestions,
+  EncryptedActionRunStore, EventCommand, FlatMenuView, FlatPanelStyle, FlatPreset, FormatGuardChips,
+  HapticChain, JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore,
+  LearningData, LoadingDotsView, ManualWorkflowDraft, ModelSettings, MyDesigns,
+  OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter, RgbLighting, RgbStrip, RgbTexture,
+  RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore, SkillLabels,
+  SliderFeel, SliderHaptics, SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing,
+  SymbolInk, ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel, TypoMemory,
+  WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner,
+  WorkflowInputSummary, WorkflowStore
 - `A/commands/` (18): AiCommandChips, AlarmCommand, AskCommand, ClipCommand, EmojiMixCommand,
   EmojiMixRecents, EmojiMixer, LanguageCommand, QrCommand, ScreenReaderService, SensitiveClips,
   SnipCommand, SnippetStore, SubtypeChoice, TimerCommand, TranslateCommand, UrlCommand,
@@ -2779,13 +2860,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (84): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (85): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
-  CalendarToolLauncherTest, ClipCommandTest, CommandReplaceTest, CommandTemplatesTest,
-  ContactCommandTest, CorrectionMemoryTest, DatePlaceCommandsTest, DebugPrivacyTest,
-  DesignEditorTest, DesignTilesTest, DiagnoseScreenTest, DictationSessionTest, DictationUiTest,
-  EmojiMixPaletteTest, EmojiMixRecentsTest, EncryptedActionRunStoreTest,
+  CalendarToolLauncherTest, ClipCommandTest, ClipVaultTest, CommandReplaceTest,
+  CommandTemplatesTest, ContactCommandTest, CorrectionMemoryTest, DatePlaceCommandsTest,
+  DebugPrivacyTest, DesignEditorTest, DesignTilesTest, DiagnoseScreenTest, DictationSessionTest,
+  DictationUiTest, EmojiMixPaletteTest, EmojiMixRecentsTest, EncryptedActionRunStoreTest,
   EncryptedCredentialStoreTest, FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest,
   FlatStyleTest, ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest,
   InsertAtCursorTest, JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest,
@@ -2808,6 +2889,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   RgbLighting, RgbPatterns, SkillBinding, SnippetTemplate, SpecialCharacters, StyledTranslation,
   SymbolTable, TextCondition, TimerParser, Tool, UnitConversion, UpdateReleases, UrlDetector,
   Workflow
+- `C/clip/` (1): ClipGuard
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `CT/` (37): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
   EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest, EventParserTest, InkAreaTest, InkBenchmarkTest,
@@ -2817,6 +2899,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   RgbFrameStatsTest, RgbLightingTest, RgbPatternsTest, SkillBindingTest, SnippetTemplateTest,
   StyledTranslationTest, SymbolTableTest, TimerParserTest, ToolTest, UnitConversionTest,
   UpdateReleasesTest, UrlDetectorTest, WorkflowTest
+- `CT/clip/` (1): ClipGuardTest
 - `CT/format/` (1): FormatGuardTest
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,
   KeyboardActionListenerImpl, KeyboardSwitcher, KeyboardTheme, KeyboardView, MainKeyboardView,
@@ -2868,20 +2951,20 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (22): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
-  agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings, agent_format_strings,
-  agent_gestures_strings, agent_language_strings, agent_rgb_strings, agent_settings_keys_strings,
+- `app/src/main/res/values-de/` (23): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
+  agent_clipvault_strings, agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings,
+  agent_format_strings, agent_gestures_strings, agent_language_strings, agent_rgb_strings,
+  agent_settings_keys_strings, agent_settings_look_strings, agent_settings_strings,
+  agent_settings_system_strings, agent_slider_strings, agent_snippet_strings, agent_space_strings,
+  agent_strings, agent_symbol_strings, agent_typing_strings, agent_update_strings, strings
+- `app/src/main/res/values/` (29): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+  agent_bar_strings, agent_clipvault_strings, agent_design_strings, agent_diagnose_strings,
+  agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_ids,
+  agent_language_strings, agent_rgb_strings, agent_settings_keys_strings,
   agent_settings_look_strings, agent_settings_strings, agent_settings_system_strings,
   agent_slider_strings, agent_snippet_strings, agent_space_strings, agent_strings,
-  agent_symbol_strings, agent_typing_strings, agent_update_strings, strings
-- `app/src/main/res/values/` (28): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
-  agent_bar_strings, agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings,
-  agent_format_strings, agent_gestures_strings, agent_ids, agent_language_strings,
-  agent_rgb_strings, agent_settings_keys_strings, agent_settings_look_strings,
-  agent_settings_strings, agent_settings_system_strings, agent_slider_strings,
-  agent_snippet_strings, agent_space_strings, agent_strings, agent_symbol_strings,
-  agent_typing_strings, agent_update_strings, attrs, clip_provider, donottranslate, gesture_data,
-  themes-flat
+  agent_symbol_strings, agent_typing_strings, agent_update_strings, attrs, clip_provider,
+  donottranslate, gesture_data, themes-flat
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (1): Shadows

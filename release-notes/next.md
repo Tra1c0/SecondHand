@@ -39,6 +39,16 @@
 
 ## Nächster Build
 
+- Neu: Zwischenablage-Wächter und Tresor (nur mit eingeschaltetem Zwischenablage-Verlauf).
+  Kopierte Passwörter, API-Schlüssel und Tokens landen nicht mehr im Verlauf, sondern oben in der
+  Zwischenablage-Ansicht unter „Tresor“, verdeckt (z. B. „sk-proj-…7f3a“): ein Tipp fügt sie
+  einmal ein, dann sind sie weg und die System-Zwischenablage wird geleert, spätestens nach
+  2 Minuten verschwinden sie. Einmalcodes (auch aus kopierten SMS wie „Dein Code lautet 123456“)
+  stehen 10 Minuten unter „Einmalcodes“, ein Tipp fügt nur die Ziffern ein. IBAN, Telefon, E-Mail
+  und Adresse bekommen im Verlauf eine Beschriftung. Ältere Passwörter und Codes im Verlauf
+  verschwinden beim nächsten Öffnen (angeheftete bleiben, verdeckt). Nicht in Passwortfeldern,
+  im Inkognito-Modus oder bei gesperrtem Gerät. Alles lokal. Noch auf keinem Gerät ausprobiert.
+
 - Neu: Textbausteine 2.0. In `@snip`-Bausteinen gehen jetzt Platzhalter: `{datum}`,
   `{datum+2t}`, `{uhrzeit}`, `{wochentag}`, `{zwischenablage}`, Ausfüllfelder `{?Name}` (die
   Leiste fragt den Wert ab, Enter springt weiter, auch das einer Hardware-Tastatur, und schickt

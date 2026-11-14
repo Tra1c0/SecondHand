@@ -3285,6 +3285,69 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - GitHub-Lauf auf dd28d93: Agent und Upstream grün, Lint rot (MissingTranslation in fünf neuen
   Textdateien der Bereichsseiten, P150). Behoben mit `tools:ignore`; `lintDebugNoMinify` lokal grün.
 
+## Etappe 44 (Zwischenablage-Wächter und Tresor)
+
+- Auftrag (Lead, ROADMAP 44, Owner 2026-11-14): jeden neuen Clip ohne Rückfrage sortieren
+  (Geheimnis, Einmalcode, persönliche Daten, normal), reiner Klassifikator in `agent-core`,
+  Bereich „Tresor“ und „Einmalcodes“ in der Verlaufsansicht, Geheimnisse und Codes nur im
+  Speicher. Gebaut in einer Arbeitskopie, kein Prüfer-Review, kein Gerätetest.
+- Entscheidet die offene Frage aus `docs/HANDOFF.md` „vertrauliche Clips im normalen Verlauf“:
+  nein. Vertraulich markierte Clips, Clips aus Passwortfeldern und alles, was der Wächter als
+  Geheimnis oder Code erkennt, kommen nie in `ClipboardDao`; vorher gespeicherte, nicht
+  angeheftete werden beim Öffnen der Ansicht gelöscht (Handoff-Eintrag aktualisiert der Lead).
+- Vorher geprüft: Verlauf heute. `ClipboardHistoryManager.fetchPrimaryClip` schrieb jeden
+  Text-Clip ohne Blick auf `IS_SENSITIVE` in die Datenbank (DE, Tabelle `CLIPBOARD`, Cache
+  `ClipboardDao.cache`); vertraulich war nur die Anzeige im Leisten-Chip (Sternchen) und der Hash in
+  `SensitiveClips` für `@clip`. Jetzt entscheidet `ClipVault.offer` vor `addClip`.
+- System-Zwischenablage leeren (Frage vor dem Bau): AOSP `ClipboardService.java` (Spiegel
+  `aosp-mirror/platform_frameworks_base`, Zweig `main`, gelesen 2026-11-14, `android.googlesource.com`
+  war aus der Sitzung nicht erreichbar): `clearPrimaryClip` prüft `clipboardAccessAllowed(
+  OP_WRITE_CLIPBOARD, …)`, dort „Writing is allowed without focus. allowed = true“, danach nur
+  AppOps; eine Ablehnung gibt still zurück. Upstream ruft `clearPrimaryClip` schon bei „Verlauf
+  leeren“ aus der Tastatur auf. Gebaut eng: nur nach einem Tipp auf ein Geheimnis im Tresor, nur
+  wenn die Zwischenablage noch denselben Text (ab Android 8 denselben Zeitstempel) hält, danach
+  zurückgelesen (P156). Auf Android 16 nicht auf einem Gerät geprüft; ob Hersteller-Verläufe
+  (Samsung, Gboard-Sync) den Clip behalten, ist offen.
+- Entscheidungen des Klassifikators (konservativ, Einzelheiten in `docs/ARCHITECTURE.md` →
+  Kern): Geheimnis nur bei starkem Signal (Markierung, privater Schlüssel, bekannte
+  Schlüsselformate und JWT überall im Clip, ein einzelnes zufälliges Token, ein passwortartiges
+  Wort); Hex (Git-Hashes, SHA-256, MD5, UUIDs, Farben), Pfade, Links, E-Mail, Namen mit `@`/`#`,
+  `data:`-URIs, lange Base64-Blobs (über 200 Zeichen) und Text mit Leerzeichen bleiben normal.
+  Kurze Base64-Werte mit Ziffern (Schlüssel) sind Geheimnisse. Einmalcode: 4–8 Ziffern allein
+  (keine Jahreszahl 1900–2099) oder in einem Satz bis 300 Zeichen mit Schlüsselwort (de/en/es).
+  Bekannte Grenzen: passwortartige Produktnamen wie „iPhone15-Pro!“ gelten als Geheimnis; eine
+  kopierte fünfstellige PLZ allein gilt als Code; zufällige Tokens mit wenigen Ziffern werden
+  übersehen (dann normaler Verlauf).
+- `./gradlew :agent-core:test`: grün, 369 Tests, 0 Fehler, darin neu `clip.ClipGuardTest` 21
+  (Schlüsselformate OpenAI/Anthropic/GitHub/AWS/Slack/Google/Stripe auch in Zeilen und Code, JWT,
+  privater Schlüssel, Markierung; Tokens und Passwörter; deutsche Wörter, Komposita und
+  Kennungen; Links; Git-Hashes, SHA-256, MD5, UUID, Pfade, Dateinamen; Code ohne Schlüssel;
+  Base64 kurz/lang/`data:`; Codes allein und in Sätzen de/en/es; Sätze ohne klaren Code
+  (Datum, Telefon, Preis, zwei Zahlen, „Spinne“); IBAN DE/AT/ES mit und ohne Leerzeichen;
+  Telefon DE/AT/ES; E-Mail; Adressen de/at/es/en; Maske zeigt höchstens vier Zeichen des
+  Geheimnisses; `toString` ohne Text; sehr lange Clips) und `format.FormatGuardTest` unverändert
+  grün (`PhoneFormat.isValid` neu).
+- `./gradlew :app:testDebugUnitTest` gezielt (`--max-workers=1`, 2026-11-14): neu `ClipVaultTest` 16
+  (Geheimnisse, Codes und markierte Clips nie in der Datenbank, IBAN und Text schon; Clip aus dem
+  Passwortfeld nirgends; Verlauf aus: nichts behalten, `freshest` liest nur den aktuellen Clip, nie
+  ein Geheimnis; gesperrt und Inkognito behalten nichts; alte Geheimnisse und Codes verlassen den
+  Verlauf, angeheftete bleiben; Ablauf 2 min/10 min mit Testuhr, kein Zurückkommen beim erneuten
+  Lesen; erstes Einfügen entfernt das Geheimnis, der Code bleibt; Etappe-45-Abfrage nach Art und
+  Alter; Maske auf dem Bildschirm und in allen `contentDescription`s, kein Teil des Schlüssels in
+  der Ansicht; Tipp fügt das Geheimnis einmal ein und leert dieselbe System-Zwischenablage, einen
+  anderen Clip nicht; Tipp auf einen Code fügt nur die Ziffern ein; kein Tresor in Passwortfeld,
+  Inkognito, gesperrt, Tipp nach dem Sperren fügt nichts ein; Ablauf bei offener Ansicht;
+  Beschriftungen; kein Leisten-Chip für Geheimnisse), dazu unverändert grün `ClipCommandTest` 10,
+  `FlatClipboardTest` 8, `ScreenshotChipTest` 14, `SnipCommandTest` 24, `FlatStyleRenderTest` 5,
+  `InputLogicTest.screenshotChip*` und `generated*Copy*` 9.
+- Nicht gelaufen: `tools/dev.py agent-tests`, volle Suite und Build (geteilte Maschine, Anweisung
+  des Leads), Lint. Keine Engine-Datei geändert (`InputLogic`, `RichInputConnection`,
+  `PointerTracker` unverändert); geändert nur schon geänderte Upstream-Dateien
+  (`ClipboardHistoryManager.kt`, `ClipboardHistoryView.kt`, `ClipboardAdapter.kt`).
+  `docs_sync --check`: grün.
+- Offen: Prüfer-Review, Gerätetest (Leeren der Zwischenablage auf Android 16, TalkBack in der
+  Ansicht, echte SMS-Codes und Passwortmanager, Höhe der Liste mit zwei Tresorreihen).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

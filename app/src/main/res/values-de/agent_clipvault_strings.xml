@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="agent_vault_title">Tresor</string>
+    <string name="agent_vault_codes">Einmalcodes</string>
+    <string name="agent_vault_secret_description">Geheimnis %s, ein Tipp fügt es einmal ein</string>
+    <string name="agent_vault_code_description">Einmalcode %s, ein Tipp fügt ihn ein</string>
+    <string name="agent_vault_label_iban">IBAN</string>
+    <string name="agent_vault_label_phone">Telefon</string>
+    <string name="agent_vault_label_email">E-Mail</string>
+    <string name="agent_vault_label_address">Adresse</string>
+    <string name="agent_vault_labelled_description">%1$s: %2$s</string>
+    <string name="agent_vault_hidden_entry">Geheimnis %s</string>
+</resources>
