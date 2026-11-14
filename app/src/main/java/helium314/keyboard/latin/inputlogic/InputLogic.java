@@ -118,6 +118,8 @@ public final class InputLogic {
     private boolean mAgentHistorySuppressed;
 
     public boolean hasActiveComposition() { return mWordComposer.isComposingWord() || mInputLogicHandler.hasPendingBatchInput(); }
+    /** Stage 42: a gesture is still being processed; {@link #replaceCommandText} refuses until it is done. */
+    public boolean hasPendingBatchInput() { return mInputLogicHandler.hasPendingBatchInput(); }
     public boolean acceptsTailBatchResult(long generation) { return mInputLogicHandler.acceptsTail(generation); }
     public void completeTailBatchResult(long generation) { mInputLogicHandler.completeTail(generation); }
     public boolean isAgentHistorySuppressed() { return mAgentHistorySuppressed; }

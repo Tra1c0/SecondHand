@@ -953,6 +953,49 @@ class InputLogicTest {
         }
     }
 
+    @Test fun hardwareEnterDuringASnippetFieldMovesOnInsteadOfSending() {
+        // review of stage 42 (P142): a hardware Enter went to the app and sent "@snip name Field: value"
+        helium314.keyboard.agent.KeyboardCommands.load(latinIME)
+        val snip = helium314.keyboard.agent.commands.SnipCommand
+        snip.source = helium314.keyboard.agent.commands.SnipCommand.Source {
+            listOf(helium314.keyboard.agent.commands.Snippet("einladung", "Hallo {?Name}, bis {?Tag}!"))
+        }
+        val enter = android.view.KeyEvent.KEYCODE_ENTER
+        fun down(repeat: Int = 0) = android.view.KeyEvent(0L, 0L, android.view.KeyEvent.ACTION_DOWN, enter, repeat)
+        val up = android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, enter)
+        try {
+            chainInput("x @snip ein")
+            val strip = android.widget.FrameLayout(latinIME)
+            fun labels() = (helium314.keyboard.agent.KeyboardCommands.createChipsView(latinIME, strip) as android.view.ViewGroup)
+                .let { chips -> (chips.getChildAt(0) as android.view.ViewGroup).let { row -> (0 until row.childCount).map { row.getChildAt(it) as android.widget.TextView } } }
+            labels().single().performClick()
+            handleMessages()
+            chainInput("Lena")
+            assertTrue(latinIME.onKeyDown(enter, down()))
+            handleMessages()
+            assertEquals("x @snip einladung Tag: ", text) // the next field, nothing sent or typed
+            // a held key moves on only once; its key up is taken too
+            assertTrue(latinIME.onKeyDown(enter, down(repeat = 1)))
+            handleMessages()
+            assertEquals("x @snip einladung Tag: ", text)
+            assertTrue(latinIME.onKeyUp(enter, up))
+            checkConnectionConsistency()
+            chainInput("Montag")
+            assertTrue(latinIME.onKeyDown(enter, down()))
+            handleMessages()
+            assertTrue(latinIME.onKeyUp(enter, up))
+            assertEquals("x Hallo Lena, bis Montag!", text)
+            checkConnectionConsistency()
+            // without a field asked the key is left alone: with the hardware keyboard setting off the app gets it
+            assertFalse(latinIME.onKeyDown(enter, down()))
+            assertFalse(latinIME.onKeyUp(enter, up))
+            assertEquals("x Hallo Lena, bis Montag!", text)
+        } finally {
+            snip.source = helium314.keyboard.agent.commands.SnipCommand.Source { helium314.keyboard.agent.commands.SnippetStore(it).read() }
+            snip.reset()
+        }
+    }
+
     @Test fun typedCommandCalculatorInsertsAtTheCursorWhenTheCommandIsGone() {
         helium314.keyboard.agent.KeyboardCommands.load(latinIME)
         val root = android.widget.FrameLayout(latinIME)

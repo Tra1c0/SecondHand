@@ -8,7 +8,8 @@ import java.util.Locale
 /**
  * Phone numbers (stage 41) through libphonenumber (Apache-2.0, metadata in the library, no
  * network): a valid number in another form gets its international format, e.g. "0151 23456789" in
- * Germany → "+49 151 23456789", "0043 1 234567" → "+43 1 234567".
+ * Germany → "+49 1512 3456789", "0043 1 234567" → "+43 1 234567". The metadata is read on the first
+ * call (on the thread that asks, P140).
  */
 object PhoneFormat {
     /** Characters a typed number may contain; anything else (letters, `*`, `#`, `;`) is left alone. */

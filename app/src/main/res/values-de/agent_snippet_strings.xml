@@ -4,6 +4,7 @@
     <string name="agent_snip_field_next">Weiter ⏎</string>
     <string name="agent_snip_field_insert">Einfügen ⏎</string>
     <string name="agent_snip_field_cancel">Abbrechen</string>
+    <string name="agent_snip_field_room">(noch %d Zeichen)</string>
     <string name="agent_snip_field_description">%1$s für den Baustein %2$s eintippen, dann Enter</string>
     <string name="agent_snip_too_long">Der Baustein wäre zu lang; nichts eingefügt.</string>
     <string name="agent_snip_clip_history_off">{zwischenablage} blieb leer: Der Zwischenablageverlauf ist aus.</string>

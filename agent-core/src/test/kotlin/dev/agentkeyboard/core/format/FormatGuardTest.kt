@@ -41,6 +41,27 @@ class FormatGuardTest {
             assertEquals(emptyList(), email(text), text)
     }
 
+    @Test fun realDomainsOfOtherCountriesOrServicesGetNoHint() {
+        // review of stage 41: these were offered as typos of a provider
+        for (domain in listOf("hotmail.at", "hotmail.ch", "hotmail.fr", "hotmail.it", "outlook.at", "outlook.fr",
+            "outlook.it", "posteo.at", "posteo.net", "online.de", "mail.com", "proton.ch", "yahoo.fr", "yahoo.it",
+            "yahoo.ca", "HOTMAIL.FR", "mail.de", "gmail.de", "live.at", "yahoo.co.uk", "hotmail.co.uk"))
+            assertEquals(emptyList(), email("x@$domain"), domain)
+        // a real TLD is kept: a provider name with another country's TLD is not "corrected" to .de/.com
+        for (domain in listOf("gmx.it", "web.fr", "gmail.nl", "outlook.pl", "freenet.eu", "gmx.co"))
+            assertEquals(emptyList(), email("x@$domain"), domain)
+        // still a typo: of the name with the same TLD, or of the TLD itself
+        assertEquals(listOf("x@hotmail.de"), domains("x@hotmial.de"))
+        assertEquals(listOf("x@gmail.com"), domains("x@gmail.cpm"))
+        assertEquals(listOf("x@gmail.com"), domains("x@gmail.comm"))
+        assertEquals(listOf("x@web.de"), domains("x@web.ed"))
+        assertEquals(listOf("x@gmx.net"), domains("x@gmx.nte"))
+        // an unknown TLD that is no typo of a provider TLD: nothing to say
+        assertEquals(emptyList(), email("x@gmail.qqq"))
+        assertTrue(EmailCheck.KNOWN_DOMAINS.containsAll(EmailCheck.PROVIDERS))
+        for (domain in EmailCheck.KNOWN_DOMAINS) assertEquals(emptyList(), EmailCheck.domains(domain), domain)
+    }
+
     @Test fun upperCaseIsCompared() {
         assertEquals(emptyList(), email("Max@GMAIL.COM"))
         assertEquals(listOf("Max@gmail.com"), domains("Max@GMIAL.COM"))

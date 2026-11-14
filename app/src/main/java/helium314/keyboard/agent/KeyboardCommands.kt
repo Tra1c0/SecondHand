@@ -123,6 +123,8 @@ object KeyboardCommands {
         val currentSubtype: android.view.inputmethod.InputMethodSubtype? get() = null
         /** Stage 42: moves the plain cursor [count] characters back, right after a replacement; false if it cannot. */
         fun moveCursorBack(count: Int): Boolean = false
+        /** Stage 42 after review: false while [replace] would be refused for now (a gesture still being processed). */
+        val canReplaceNow: Boolean get() = true
     }
 
     /** A built-in command. Commands never come from files or models. */
@@ -331,7 +333,8 @@ object KeyboardCommands {
     }
 
     /**
-     * Stage 42: the soft Enter key, before the engine sees it. Only a command that is before a plain
+     * Stage 42: the Enter key (soft key in `LatinIME.onEvent`, hardware key in
+     * `KeyboardActionListenerImpl.onKeyDown`), before the engine sees it. Only a command that is before a plain
      * cursor and wants the key ([Command.onEnter]) takes it; otherwise false and Enter works as usual.
      */
     @JvmStatic fun onEnter(ime: LatinIME): Boolean {
@@ -401,6 +404,7 @@ object KeyboardCommands {
             override val currentSubtype: android.view.inputmethod.InputMethodSubtype?
                 get() = runCatching { helium314.keyboard.latin.RichInputMethodManager.getInstance().currentSubtype.rawSubtype }.getOrNull()
             override fun moveCursorBack(count: Int) = ime.moveAgentCursorBack(count)
+            override val canReplaceNow: Boolean get() = ime.canReplaceAgentCommand()
         }
 
     /** Name candidates complete the name; a complete command asks the command. */

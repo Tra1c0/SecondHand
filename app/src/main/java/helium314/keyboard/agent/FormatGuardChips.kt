@@ -12,6 +12,7 @@ import dev.agentkeyboard.core.format.FieldKind
 import dev.agentkeyboard.core.format.FormatGuard
 import dev.agentkeyboard.core.format.FormatHint
 import helium314.keyboard.compat.EditorInfoCompatUtils
+import helium314.keyboard.compat.locale
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.settings.SettingsValues
@@ -52,12 +53,32 @@ object FormatGuardChips {
         }
     }
 
-    /** No hints without settings, in incognito (also no-learning and password fields) or while the device is locked. */
+    /**
+     * No hints without settings, in incognito (also no-learning and password fields) or while the
+     * device is locked. `InputAttributes` folds the no-learning flag into incognito only for text
+     * fields, so it is checked here again for phone and number fields.
+     */
     fun isBlocked(settings: SettingsValues?, editorInfo: EditorInfo?): Boolean {
         if (settings == null || settings.mIncognitoModeEnabled || settings.mIsLocked) return true
         val type = editorInfo?.inputType ?: return true
+        if (editorInfo.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING != 0) return true
         return InputTypeUtils.isAnyPasswordInputType(type)
     }
+
+    /** The country of the system language (e.g. "AT" for de-AT); replaced in tests. */
+    @JvmStatic var systemCountry: () -> String = {
+        android.content.res.Resources.getSystem().configuration.locale().country.orEmpty()
+    }
+
+    /**
+     * The country for phone numbers without a country code: the field's hint locale, then the
+     * keyboard language's country (subtype, e.g. de-CH), then the system language's; empty if none
+     * has one (then [FormatGuard] guesses from the language).
+     */
+    fun country(hintLocale: java.util.Locale?, settings: SettingsValues?): String =
+        hintLocale?.country?.takeIf { it.isNotEmpty() }
+            ?: settings?.mLocale?.country?.takeIf { it.isNotEmpty() }
+            ?: runCatching { systemCountry() }.getOrNull().orEmpty()
 
     /**
      * The chips for the field of [host], or an empty list. Reads at most [LOOKBACK] characters before
@@ -71,7 +92,7 @@ object FormatGuardChips {
         if (before.isEmpty() || before.length > FormatGuard.MAX_LENGTH) return emptyList()
         val locale = EditorInfoCompatUtils.getHintLocales(host.editorInfo).firstOrNull()
         val language = locale?.language?.takeIf { it.isNotEmpty() } ?: host.language
-        val country = locale?.country?.takeIf { it.isNotEmpty() } ?: settings?.mLocale?.country.orEmpty()
+        val country = country(locale, settings)
         val hints = FormatGuard.check(kind, before, language, country)
         if (hints.isEmpty()) return emptyList()
         // the whole field only: text after the cursor (or an unknown one) means no hint
@@ -83,7 +104,8 @@ object FormatGuardChips {
 
     private fun chip(context: Context, host: KeyboardCommands.Host, call: CommandCall, hint: FormatHint): KeyboardCommands.Chip {
         val replacement = hint.replacement
-        val apply: () -> Unit = { if (replacement != null) host.replace(call, replacement) }
+        // the field may have grown behind the cursor since the chips were built: only the whole field (P138)
+        val apply: () -> Unit = { if (replacement != null && host.textAfterCursor(1)?.isEmpty() == true) host.replace(call, replacement) }
         val action = KeyboardCommands.Chip.Kind.ACTION
         val muted = KeyboardCommands.Chip.Kind.MUTED
         return when (hint) {

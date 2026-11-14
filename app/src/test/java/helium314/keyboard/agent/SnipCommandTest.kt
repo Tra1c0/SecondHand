@@ -44,6 +44,7 @@ class SnipCommandTest {
     private var editor = EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }
     private val replaced = mutableListOf<Pair<String, String>>()
     private var replaceSucceeds = true
+    private var canReplace = true
 
     private val address = Snippet("adresse", "Anna Müller\nHauptstraße 1\n10115 Berlin")
     private val iban = Snippet("iban", "DE02 1203 0000 0000 2020 51")
@@ -63,6 +64,7 @@ class SnipCommandTest {
         override fun openCalculator(command: CommandCall) = false
         override val canOpenCalculator = false
         override fun moveCursorBack(count: Int): Boolean { moved += count; return true }
+        override val canReplaceNow: Boolean get() = canReplace
     }
     private val moved = mutableListOf<Int>()
     private var clip: SnipCommand.ClipRead = SnipCommand.ClipRead.Missing(SnipCommand.ClipRead.Reason.EMPTY)
@@ -99,6 +101,7 @@ class SnipCommandTest {
     @Test fun isBuiltInAndProtectsItsArgument() {
         assertTrue(SnipCommand in KeyboardCommands.BUILT_IN)
         assertTrue(SnipCommand.protectsArgument)
+        assertTrue(SnipCommand.longArgument) // room for field values (review of stage 42)
         assertTrue(KeyboardCommands.guardsTextBefore("Hi @snip adr"))
         assertTrue(SnipCommand.description(latinIME).contains("@snip"))
     }
@@ -261,6 +264,44 @@ class SnipCommandTest {
             .single { it.label == latinIME.getString(R.string.agent_snip_field_cancel) }.onTap()
         assertEquals("@snip termin Name: Anna" to "@snip termin", replaced.last())
         assertFalse(SnipCommand.onEnter(host, call("@snip termin Name: Anna")))
+    }
+
+    @Test fun enterDuringAGestureIsTakenButChangesNothing() {
+        // review of stage 42: the replacement would be refused (gesture still being processed); Enter must
+        // neither reach the app (it would send the command text) nor lose the field
+        snippets = listOf(Snippet("termin", "{?Name} in {?Ort}"))
+        KeyboardCommands.chipsFor(call("@snip termin"), host).single().onTap()
+        replaced.clear()
+        canReplace = false
+        assertTrue(SnipCommand.onEnter(host, call("@snip termin Name: Anna")))
+        assertTrue(replaced.isEmpty())
+        assertNull(ShadowToast.getLatestToast()) // no "expired" note: nothing went wrong
+        assertEquals("Name (1/2): Anna", labels(KeyboardCommands.chipsFor(call("@snip termin Name: Anna"), host))[0])
+        // once the gesture is done, the next Enter moves on
+        canReplace = true
+        assertTrue(SnipCommand.onEnter(host, call("@snip termin Name: Anna")))
+        assertEquals("@snip termin Name: Anna" to "@snip termin Ort: ", replaced.single())
+    }
+
+    @Test fun longFieldValuesStayACommandAndTheChipShowsTheRoomLeft() {
+        // review of stage 42: values longer than the normal argument limit (200) dropped the command
+        snippets = listOf(Snippet("brief", "Text: {?Inhalt}"))
+        KeyboardCommands.chipsFor(call("@snip brief"), host).single().onTap()
+        val start = SnipCommand.argumentStart("brief", "Inhalt")
+        val long = "x".repeat(dev.agentkeyboard.core.CommandSyntax.MAX_ARGUMENT + 50)
+        val typed = call("@snip $start$long")
+        assertEquals("$start$long", typed.argument)
+        val label = labels(KeyboardCommands.chipsFor(typed, host))[0]
+        assertFalse(label.contains(latinIME.getString(R.string.agent_snip_field_room, SnipCommand.roomLeft(typed.argument))), label)
+        assertEquals("Inhalt (1/1): …" + "x".repeat(SnipCommand.LABEL_VALUE), label) // only the end of a long value
+        // near the limit the chip says how much room is left
+        val room = SnipCommand.ROOM_WARNING - 10
+        val nearly = "y".repeat(dev.agentkeyboard.core.CommandSyntax.MAX_LONG_ARGUMENT - start.length - room)
+        val full = call("@snip $start$nearly")
+        assertEquals(room, SnipCommand.roomLeft(full.argument))
+        assertTrue(labels(KeyboardCommands.chipsFor(full, host))[0].endsWith(" " + latinIME.getString(R.string.agent_snip_field_room, room)))
+        assertTrue(SnipCommand.onEnter(host, full))
+        assertEquals("Text: $nearly", replaced.last().second)
     }
 
     @Test fun enterWorksAsUsualWithoutAFieldAndForgottenCommandsDropTheValues() {

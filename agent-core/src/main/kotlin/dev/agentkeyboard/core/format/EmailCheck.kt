@@ -17,6 +17,35 @@ object EmailCheck {
         "telefonica.net",
     )
 
+    /**
+     * Real domains that look like a typo of a provider (review of stage 41): other countries of a
+     * provider, and other services one or two letters away (`online.de` is no `t-online.de`,
+     * `mail.com` no `gmail.com`). Never a hint for these.
+     */
+    val KNOWN_DOMAINS: Set<String> = PROVIDERS.toSet() + setOf(
+        "hotmail.at", "hotmail.ch", "hotmail.fr", "hotmail.it", "hotmail.co.uk", "outlook.at", "outlook.fr",
+        "outlook.it", "live.at", "live.fr", "live.it", "posteo.at", "posteo.ch", "posteo.net", "posteo.eu",
+        "online.de", "mail.com", "mail.de", "email.de", "gmail.de", "proton.ch", "protonmail.ch",
+        "yahoo.fr", "yahoo.it", "yahoo.ca", "yahoo.co.uk", "aol.de", "gmx.li", "gmx.fr", "web.at",
+    )
+
+    /** The top-level domains of [PROVIDERS]; a typed TLD may be a typo only of one of these. */
+    val COMMON_TLDS: Set<String> = PROVIDERS.map { it.substringAfterLast('.') }.toSet()
+
+    /**
+     * Real top-level domains (country codes of Europe and the Americas and the usual generic ones):
+     * a domain with one of them is compared only with providers of the same TLD, `hotmail.fr` is
+     * never `hotmail.de`.
+     */
+    val VALID_TLDS: Set<String> = COMMON_TLDS + setOf(
+        "ad", "al", "ar", "au", "ba", "be", "bg", "bo", "br", "by", "ca", "cl", "cn", "co", "cr", "cu", "cy",
+        "cz", "dk", "do", "ec", "ee", "eu", "fi", "fr", "gr", "gt", "hn", "hr", "hu", "ie", "il", "in", "io",
+        "is", "it", "jp", "kr", "li", "lt", "lu", "lv", "mc", "md", "mk", "mt", "mx", "ni", "nl", "no", "nz",
+        "pa", "pe", "pl", "pr", "pt", "py", "ro", "rs", "ru", "se", "si", "sk", "sm", "sv", "tr", "ua", "uk",
+        "us", "uy", "va", "ve", "za", "biz", "edu", "gov", "info", "int", "mil", "name", "pro", "app", "dev",
+        "email", "online", "shop", "tech", "xyz",
+    )
+
     /** At most this many domain suggestions (equally close providers). */
     const val MAX_SUGGESTIONS = 2
 
@@ -36,18 +65,26 @@ object EmailCheck {
         return domains(text.substring(at + 1)).map { FormatHint.EmailDomain(it, "$local@$it") }
     }
 
-    /** The providers the typed [domain] most likely means; empty for a provider, an unknown domain or one still being typed. */
+    /**
+     * The providers the typed [domain] most likely means; empty for a known domain, an unknown one
+     * or one still being typed. A real TLD ([VALID_TLDS]) is kept: only providers with the same TLD
+     * are compared. Another TLD counts only as a typo of a provider TLD (`con`, `cmo`, `nte`, `ed`).
+     */
     fun domains(domain: String): List<String> {
         val lower = domain.lowercase(Locale.ROOT)
         val trimmed = lower.trimEnd('.')
         // a trailing dot after a known provider: the provider without it
         if (trimmed != lower && trimmed in PROVIDERS) return listOf(trimmed)
-        if (lower in PROVIDERS) return emptyList()
+        if (trimmed in KNOWN_DOMAINS) return emptyList()
         // still typing ("gmail.co" on the way to "gmail.com"), or no dot yet: no hint
         if ('.' !in trimmed || PROVIDERS.any { it.startsWith(trimmed) }) return emptyList()
+        val tld = trimmed.substringAfterLast('.')
+        val tlds = if (tld in VALID_TLDS) setOf(tld) else COMMON_TLDS.filter { distance(tld, it) <= 1 }.toSet()
+        if (tlds.isEmpty()) return emptyList()
         var best = Int.MAX_VALUE
         val found = mutableListOf<String>()
         for (provider in PROVIDERS) {
+            if (provider.substringAfterLast('.') !in tlds) continue
             val d = distance(trimmed, provider)
             if (d > maxEdits(provider) || d > best) continue
             if (d < best) { best = d; found.clear() }

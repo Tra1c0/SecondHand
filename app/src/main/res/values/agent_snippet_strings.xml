@@ -4,6 +4,8 @@
     <string name="agent_snip_field_next">Next ⏎</string>
     <string name="agent_snip_field_insert">Insert ⏎</string>
     <string name="agent_snip_field_cancel">Cancel</string>
+    <!-- %d: characters a field value may still grow by -->
+    <string name="agent_snip_field_room">(%d characters left)</string>
     <!-- %1$s: field name, %2$s: snippet name -->
     <string name="agent_snip_field_description">Type %1$s for the snippet %2$s, then Enter</string>
     <string name="agent_snip_too_long">The snippet would be too long; nothing was inserted.</string>

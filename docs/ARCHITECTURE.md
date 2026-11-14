@@ -154,9 +154,12 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   `FormatGuard.kt` (`FieldKind` EMAIL/PHONE/DECIMAL/TEXT, `FormatHint` mit `replacement` = ganzer
   neuer Feldtext oder null für einen reinen Hinweis, `FormatGuard.check`: höchstens
   `MAX_LENGTH` = 100 Zeichen), `EmailCheck.kt` (Leerzeichen, Domain-Tippfehler gegen `PROVIDERS`
-  mit OSA-Abstand, 1 Fehler bis 7 Zeichen, sonst 2, höchstens zwei gleich nahe Treffer; ohne
-  Hinweis bei bekanntem Anbieter, bei Domain ohne Punkt oder als Anfang eines Anbieters (noch beim
-  Tippen); Punkt am Ende nur nach einem Anbieter; fehlendes `@` nur vor einem Anbieter),
+  mit OSA-Abstand, 1 Fehler bis 7 Zeichen, sonst 2, höchstens zwei gleich nahe Treffer; eine TLD
+  aus `VALID_TLDS` vergleicht nur mit Anbietern derselben TLD, eine andere nur als Tippfehler
+  (Abstand 1) einer Anbieter-TLD (`COMMON_TLDS`), P148; ohne Hinweis bei `KNOWN_DOMAINS`
+  (Anbieter plus echte Varianten wie `hotmail.fr`, `online.de`, `mail.com`), bei Domain ohne Punkt
+  oder als Anfang eines Anbieters (noch beim Tippen); Punkt am Ende nur nach einem Anbieter;
+  fehlendes `@` nur vor einem Anbieter),
   `IbanCheck.kt` (Längen je Land, Modulo 97 ohne große Zahlen, nur volle Länge, Leerzeichen nur
   einzeln zwischen Blöcken, `group`), `PhoneFormat.kt` (libphonenumber, `region` aus Land, sonst
   Sprache, sonst `ZZ` = nur mit Ländervorwahl; Format `INTERNATIONAL`), `DecimalHint.kt` (Komma-
@@ -278,7 +281,12 @@ Befehle (Etappe 24a, Details im Abschnitt „Befehle“):
   `SensitiveClips.attach` an die Zwischenablage (eigener Listener, der Verlauf bleibt unverändert).
   Etappe 42: `onEvent` gibt die Bildschirm-Enter-Taste zuerst an `KeyboardCommands.onEnter` (nur
   ein Befehl, der gerade ein Feld abfragt, nimmt sie; sonst unverändert), `moveAgentCursorBack`
-  setzt nach einem Baustein die Schreibmarke über `RichInputConnection.setSelection` zurück.
+  setzt nach einem Baustein die Schreibmarke über `RichInputConnection.setSelection` zurück (eigener
+  Batch nach dem Ersetzen, P147), `canReplaceAgentCommand` (keine blockierte Eingabe, keine laufende
+  Geste über den Getter `InputLogic.hasPendingBatchInput`) für `Host.canReplaceNow`.
+  `KeyboardActionListenerImpl.kt` (42): `onKeyDown` gibt Hardware-Enter ohne Modifikator zuerst an
+  `KeyboardCommands.onEnter`, noch vor der Hardware-Tastatur-Einstellung; nimmt der Befehl sie,
+  werden Wiederholungen und `onKeyUp` derselben Taste mit verschluckt (`agentEnterDown`, P142).
 - `Suggest.kt`: keine automatische Korrektur für ein Befehlswort und, solange ein vollständiger
   Befehl vor der Schreibmarke steht, für die Wörter seines Arguments
   (`KeyboardCommands.suppressesCorrection`); ebenso keine gelernte Korrektur.
@@ -887,15 +895,20 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `{?Name}`: Der Tipp ersetzt den Befehl durch „@snip name Feld: “ (`argumentStart`), der Wert
     ist das Argument (geschützt, nicht korrigiert, nicht gelernt); `Filling` hält Werte und Index
     nur im Speicher, solange genau dieser Befehl vor der Schreibmarke steht (`reset`). Enter
-    (`Command.onEnter`, `KeyboardCommands.onEnter` aus `LatinIME.onEvent`) oder „Weiter“ fragt das
-    nächste Feld, das letzte fügt ein; „Abbrechen“ stellt „@snip name“ her. `{cursor}`:
+    (`Command.onEnter`, `KeyboardCommands.onEnter` aus `LatinIME.onEvent` und, für Hardware-Enter,
+    `KeyboardActionListenerImpl.onKeyDown`) oder „Weiter“ fragt das nächste Feld, das letzte fügt
+    ein; „Abbrechen“ stellt „@snip name“ her. Enter während einer Feldabfrage wird immer genommen,
+    `next` aber nur bei `Host.canReplaceNow` (P149). `longArgument`: Name, Feld und Wert bis
+    `MAX_LONG_ARGUMENT` (500), ab `ROOM_WARNING` (40) Restzeichen „(noch N Zeichen)“ im Feld-Chip
+    (`roomLeft`), vom Wert nur die letzten `LABEL_VALUE` (40) Zeichen; darüber ist es kein Befehl
+    mehr und die Werte sind weg. `{cursor}`:
     `Host.moveCursorBack` nach erfolgreichem `replace`. `apps` filtert nach
     `EditorInfo.packageName` (`SnippetApps.allows`). Alte Bausteine (`storageVersion` 1) sind
     `literal` und werden wörtlich eingefügt, bis sie im Editor gespeichert werden. Editor:
     `SnippetEditor` mit Platzhalter-Reihe (fügt an der Auswahl ein), Warnungen aus `issues`,
     Live-Vorschau `SnipCommand.editorPreview` (Felder als ‹Name›, Zwischenablage nur als
-    Platzhaltertext, nie gelesen), Apps aus `AppsManager.getPackagesWithNameAndIcon` (auf IO) oder
-    getippt. Texte in `agent_snippet_strings.xml` (`values/`, `values-de/`). Tests
+    Platzhaltertext, nie gelesen), Apps über `PackageManager.queryIntentActivities` (Launcher,
+    nur Paketname und Name, keine Symbole, auf IO) oder getippt. Texte in `agent_snippet_strings.xml` (`values/`, `values-de/`). Tests
     `AT/SnipCommandTest.kt` (mit `SnippetStoreTest`),
     `InputLogicTest.typedSnippetFieldTakesEnterThenInsertsAndPlacesTheCursor`. `A/commands/ClipCommand.kt`
     (`@clip`, nur mit eingeschaltetem Verlauf, nur Text; überspringt den aktuellen vertraulichen Clip
@@ -1091,14 +1104,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `InputLogicTest.typedEmojiPairOffersTheMixAndReplacesItOnlyAfterTwoTaps` (P73) und
     `InputLogicTest.typedEmojiPairStaysWhenTheFieldDoesNotTakeTheImage` (echter Sink: Ablehnung,
     Bild als Objektzeichen an der Schreibmarke, blockierte Eingabe; P83).
-  - Formatwächter (41, P138–P140): `A/FormatGuardChips.kt`. `KeyboardCommands.buildChips` fragt
+  - Formatwächter (41, P138–P140, P148): `A/FormatGuardChips.kt`. `KeyboardCommands.buildChips` fragt
     ihn, wenn kein Befehl vor der Schreibmarke steht, vor dem Emoji-Mix (eine Zeile). `fieldKind`
     aus `EditorInfo.inputType` (E-Mail-Varianten, `TYPE_CLASS_PHONE`, Zahl mit
     `TYPE_NUMBER_FLAG_DECIMAL`, sonstiger Text nur für die IBAN; URI und alle Passworttypen nie),
     eigenes `isBlocked` (keine Einstellungen, `mIncognitoModeEnabled` inklusive No-Learning und
-    Passwort, `mIsLocked`, Passworttyp), Schalter `AgentPreferences.FORMAT_GUARD` (an). Sprache
-    aus `hintLocales` des Felds, sonst Tastatur; Land aus `hintLocales`, sonst `mLocale`. Ein Chip
-    mit `replacement` ersetzt über `Host.replace` mit einem `CommandCall`, dessen `text` der ganze
+    Passwort, `mIsLocked`, `IME_FLAG_NO_PERSONALIZED_LEARNING` selbst geprüft, Passworttyp; P139),
+    Schalter `AgentPreferences.FORMAT_GUARD` (an). Sprache aus `hintLocales` des Felds, sonst
+    Tastatur; Land (`country`) aus `hintLocales`, sonst `mLocale` (Subtyp), sonst `systemCountry`
+    (Land der Systemsprache aus `Resources.getSystem()`), sonst rät `PhoneFormat.region` nach der
+    Sprache. Ein Chip mit `replacement` prüft beim Tipp erneut, dass hinter der Schreibmarke nichts
+    steht (P138), und ersetzt über `Host.replace` mit einem `CommandCall`, dessen `text` der ganze
     geprüfte Feldtext ist (`replaceCommandText`: nur wenn er unverändert vor der Schreibmarke
     steht, also genau einmal); Hinweise (`MUTED`) tun beim Tipp nichts. IBAN-Punkt als
     `ForegroundColorSpan` (grün 34C759, rot FF453A). Schalter auf der Seite Tippen & Korrektur
@@ -2665,31 +2681,58 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   unbekannter) heißt kein Hinweis, sonst würde ein Tipp nur den Teil vor der Schreibmarke
   ersetzen. `textAfterCursor` geht an die App (IPC); `FormatGuardChips.stripChips` fragt es deshalb
   erst, wenn `FormatGuard.check` etwas gefunden hat, denn die Prüfung läuft bei jeder
-  Leistenaktualisierung in jedem Textfeld (IBAN-Prüfung).
+  Leistenaktualisierung in jedem Textfeld (IBAN-Prüfung). Der Tipp auf einen Chip fragt es noch
+  einmal: `replaceCommandText` prüft nur den Text vor der Schreibmarke, Text, der seit dem Bau
+  dahinter dazukam, bliebe sonst stehen.
 - **P139** `KeyboardCommands.isBlocked`/`find` weisen alle Felder außer `TYPE_CLASS_TEXT` ab;
   Telefon- und Zahlenfelder kommen trotzdem bis `buildChips` (Befehl = null). Der Formatwächter hat
   deshalb eine eigene Sperre (Inkognito, gesperrt, Passworttypen inklusive
   `TYPE_NUMBER_VARIATION_PASSWORD`); wer sie auf `KeyboardCommands.isBlocked` umstellt, verliert
-  Telefon und Zahlen. Mit Auswahl (`agentCommandCursor` < 0) gibt `buildChips` vorher null zurück.
+  Telefon und Zahlen. `InputAttributes` zählt `IME_FLAG_NO_PERSONALIZED_LEARNING` nur in
+  `TYPE_CLASS_TEXT` als Inkognito; die Sperre prüft das Flag deshalb selbst, sonst bekämen
+  Telefon- und Zahlenfelder ohne Lernen Hinweise. Mit Auswahl (`agentCommandCursor` < 0) gibt `buildChips` vorher null zurück.
 - **P140** libphonenumber formatiert nach seinen Metadaten, nicht nach Gefühl: deutsche
   Mobilnummern als `+49 1512 3456789`. Ein Update der Bibliothek kann das Format einzelner Länder
   ändern; dann die erwarteten Texte in `FormatGuardTest` an die neue Ausgabe anpassen, nicht die
   Prüfung lockern. Die Metadaten liegen als Java-Ressourcen im Jar und werden beim ersten Aufruf
-  geladen (`PhoneNumberUtil.getInstance`, lazy); ein minifizierter Build muss sie behalten.
+  geladen (`PhoneNumberUtil.getInstance`, lazy); ein minifizierter Build muss sie behalten. Der
+  erste Aufruf kommt aus dem Leistenbau im Hauptthread; ein Vorladen im Hintergrund müsste danach
+  die Leiste neu anstoßen (`Host.refresh` hilft nicht, solange keine Chips gezeigt werden). Die
+  Dauer auf einem Gerät ist offen.
 - **P141** `@snip`-Felder: `SnipCommand` setzt `filling` (bzw. den nächsten Index) vor
   `Host.replace` und nimmt es bei Misserfolg zurück. Der echte Host baut die Leiste schon während
   des Ersetzens neu (`setNeutralSuggestionStrip`); wäre der Zustand erst danach gesetzt, sähe der
   Neuaufbau „@snip name Feld: “ ohne Feld und zeigte den normalen Streifen.
-- **P142** Enter wird nur in `LatinIME.onEvent` abgefangen (Bildschirmtastatur). Eine
-  Hardware-Tastatur geht über `KeyboardActionListenerImpl.onKeyDown` direkt an `InputLogic` und
-  löst während der Feldabfrage die Editor-Aktion aus (z. B. Senden des Befehlstexts); dort hilft
-  nur „Weiter“. `onEnter` darf nur `true` liefern, wenn ein Feld wirklich abgefragt wird, sonst
-  wäre Enter in jedem `@snip`-Text tot.
+- **P142** Enter wird an zwei Stellen abgefangen: `LatinIME.onEvent` (Bildschirmtastatur) und
+  `KeyboardActionListenerImpl.onKeyDown` (Hardware-Tastatur, `KEYCODE_ENTER`/`NUMPAD_ENTER` ohne
+  Modifikator). Dort steht die Abfrage vor der Prüfung `mEnableHardwareKeyboard`: Ist die
+  Einstellung aus (Standard), bekäme sonst die App die Taste und schickte den Befehlstext. Nimmt
+  der Befehl die Taste, muss auch `onKeyUp` sie nehmen (`agentEnterDown`), denn `TextView.onKeyUp`
+  springt bei Enter in einzeiligen Feldern sonst zum nächsten Feld; Wiederholungen eines
+  gehaltenen Enter fragen kein weiteres Feld ab. `onEnter` darf nur `true` liefern, wenn ein Feld
+  wirklich abgefragt wird, sonst wäre Enter in jedem `@snip`-Text tot.
 - **P143** `{zwischenablage}` liest die Zwischenablage erst beim Einfügen und nie in den
   Einstellungen: Die Vorschau zeigt nur „‹Zwischenablage›“. Vertraulich prüft `SystemClipboard`
   mit derselben Umwandlung wie Verlauf und `SensitiveClips` (`coerceToText`), sonst passt der
   Hash nicht. Bausteine aus `storageVersion` 1 bleiben `literal`; wer `decode` ändert, darf sie
   nicht als Vorlage lesen (`{{` oder `{datum}` in altem Text würden sich sonst ändern).
+- **P147** `{cursor}` setzt die Schreibmarke in einem zweiten Batch nach dem Ersetzen
+  (`LatinIME.moveAgentCursorBack` über `RichInputConnection.setSelection`); der Editor meldet also
+  zwei Auswahländerungen. Im selben Batch ginge es nur über `commitText(…, 1 - back)` in
+  `replaceTextBeforeCursorIfUnchanged`, deren Nachprüfung (Text und Schreibmarke am Ende der
+  Ersetzung) und Cache-Pflege dann mit umgebaut werden müssten; das ist kein enger Eingriff. Im
+  Robolectric-Test ist `checkConnectionConsistency` grün; ob ein Editor (Messenger mit eigener
+  Auswahlbehandlung) die zweite Meldung anders verarbeitet, ist ein Gerätetest-Punkt.
+- **P148** Der Formatwächter schlägt nie eine andere echte TLD vor: `hotmail.fr` ist kein
+  `hotmail.de`. Eine typisierte TLD aus `EmailCheck.VALID_TLDS` vergleicht nur mit Anbietern
+  derselben TLD; eine unbekannte nur, wenn sie ein Tippfehler (Abstand 1) einer Anbieter-TLD ist.
+  Echte Domains, die einem Anbieter nahe sind (`online.de` ↔ `t-online.de`, `mail.com` ↔
+  `gmail.com`), stehen in `KNOWN_DOMAINS`; wer `PROVIDERS` erweitert, prüft solche Nachbarn.
+- **P149** Enter während einer `@snip`-Feldabfrage wird immer genommen, auch wenn das Ersetzen
+  gerade nicht geht (laufende Geste: `replaceCommandText` lehnt ab). Dann ruft `SnipCommand.onEnter`
+  `next` gar nicht auf (`Host.canReplaceNow`), das Feld bleibt gefragt und es kommt kein
+  „abgelaufen“-Hinweis; ein zweites Enter geht weiter. Ließe es Enter durch, schickte die App
+  „@snip name Feld: Wert“.
 
 ## Datei-Inventar
 
