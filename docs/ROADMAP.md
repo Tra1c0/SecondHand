@@ -281,6 +281,19 @@ Reihenfolge von oben nach unten.
     speicherbar. Alles lokal. Grenzen: Screenreader lesen Zeichen-Kunst als Zeichensalat; sehr kleine
     Bildschirme oder große Schrift beim Empfänger können umbrechen. Offen beim Owner: Standardstil
     (Vorschlag Braille) und Haupt-Apps.
+- **54 Update-Fenster mit „Was ist neu“ (Wunsch des Owners vom 2026-11-14)** — beschlossen, diese
+  Runde. Owner: „Neue Updates werden sofort in der App angezeigt, zusammen mit einem kurzen Dialog,
+  was neu ist.“ Vorschlag des Leads: (1) Beim Öffnen der Einstellungen erscheint, wenn die letzte
+  Prüfung einen neueren Build fand, ein Dialog „Build N ist da“ mit den Release-Notizen dieses
+  Builds (kurz, aufklappbar) und „Installieren“ / „Später“; „Später“ blendet ihn für diesen Build
+  aus. (2) Nach dem Installieren eines neuen Builds einmal „Neu in Build N“ mit den Notizen aus der
+  APK (offline, aus `release-notes/next.md` beim Bauen eingebettet). (3) Optional einmal ein
+  dezenter Chip in der Leiste „Build N verfügbar“ (nicht in Passwort-/Inkognito-Feldern, nicht
+  gesperrt). Prüfung weiter nur mit dem bestehenden Schalter „täglich automatisch“ bzw. auf Tipp.
+  Voraussetzung: Die Prüfung liest das Release-Repository `Tra1c0/AgenticKeyboard`; dort landen
+  Builds nur mit dem Secret `RELEASES_TOKEN`, das fehlt (Workflow-Warnung). Alternative (Owner
+  entscheidet): direkt die Releases dieses Repositorys lesen (öffentlich, kein Secret nötig, dann
+  auch Test-Builds; Kanal „nur geprüfte“ / „auch Test-Builds“ wählbar). (M)
 - **47 KI-Kontext im Hintergrund — verworfen (Owner, 2026-11-14):** „Dann lassen wir das.“ Alles
   lokal; die Tastatur lernt selbst dazu (45, 46).
 - **Verworfen (Owner, 2026-11-14):** Mail-Anbindung (Gmail/IMAP) und Codes aus Benachrichtigungen.
