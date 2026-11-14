@@ -47,7 +47,7 @@
       "app/src/main/assets/emoji_mix_pairs.bin",
       "app/src/main/java/helium314/keyboard/keyboard/internal/KeyboardIconsSet.kt",
       "app/src/main/java/helium314/keyboard/keyboard/internal/keyboard_parser/floris/KeyCode.kt",
-      "app/src/main/java/helium314/keyboard/latin/{App.kt,InputView.java,LatinIME.java,RichInputConnection.java}",
+      "app/src/main/java/helium314/keyboard/latin/{App.kt,InputAttributes.java,InputView.java,LatinIME.java,RichInputConnection.java}",
       "app/src/main/java/helium314/keyboard/latin/database/ClipboardDao.kt",
       "app/src/main/java/helium314/keyboard/latin/define/DebugFlags.kt",
       "app/src/main/java/helium314/keyboard/latin/inputlogic/{InputLogic,InputLogicHandler}.java",

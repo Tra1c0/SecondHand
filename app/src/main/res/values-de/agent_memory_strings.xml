@@ -1,8 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Stage 46, the memory (phrases, own words, abbreviation offers, snippet chip). -->
 <resources>
-    <string name="agent_memory_title">Gedächtnis</string>
-    <string name="agent_memory_row_sub">Wortfolgen, eigene Wörter, Abkürzungen</string>
+    <string name="agent_memory_title">Was ich mir gemerkt habe</string>
+    <string name="agent_memory_sub">Korrekturen, Wortfolgen, eigene Wörter, Abkürzungen</string>
+    <string name="agent_memory_description">Was die Tastatur aus deinem Tippen behält, nur auf diesem Gerät. Die Listen gibt es nur hier.</string>
+    <string name="agent_memory_corrections">Korrekturen</string>
+    <string name="agent_memory_corrections_description">Tippfehler, die du später im Feld verbessert hast, auch nach weiteren Wörtern oder wenn du in das Wort zurückgehst. Nur wenn aus einem Nicht-Wort durch einen Vertipper ein echtes Wort wurde (Nachbartaste, Buchstabe fehlt, doppelt oder vertauscht, Umlaut). Wird ein echtes Wort zu einem anderen, lernt die Tastatur nichts. Braucht „Meine Tippfehler lernen“.</string>
+    <string name="agent_memory_learned">Gelernt: wird automatisch korrigiert</string>
+    <string name="agent_memory_candidates">Kandidaten</string>
+    <string name="agent_memory_candidates_description">Einmal gesehen. Gelernt, wenn du denselben Tippfehler an anderer Stelle wieder verbesserst oder ihn hier übernimmst.</string>
+    <string name="agent_memory_none">Noch keine</string>
+    <string name="agent_memory_pair">%1$s → %2$s</string>
+    <string name="agent_memory_adopt">Übernehmen</string>
+    <string name="agent_memory_delete">Löschen</string>
+    <!-- stage 46 -->
+    <string name="agent_memory_section">Gedächtnis</string>
     <string name="agent_memory_switch">Merken, wie ich schreibe</string>
     <string name="agent_memory_switch_sub">Lokal, nur auf diesem Gerät. Lernt Wortfolgen aus deinen eigenen Sätzen, Umgangssprache, die du behältst, und Abkürzungen, die du selbst ausschreibst. Nichts in Passwortfeldern, im Inkognito-Modus, in Feldern ohne Lernen, in ausgeschlossenen Apps, bei pausiertem Lernen oder gesperrtem Gerät. Ändert nie deinen Text: Ein Tipp auf einen Chip hängt nur den Rest hinter der Schreibmarke an.</string>
     <string name="agent_memory_snippets">Passende Textbausteine vorschlagen</string>
@@ -13,7 +24,6 @@
     <string name="agent_memory_phrase_pinned">%1$s · angepinnt</string>
     <string name="agent_memory_pin">Anpinnen</string>
     <string name="agent_memory_unpin">Lösen</string>
-    <string name="agent_memory_delete">Löschen</string>
     <string name="agent_memory_own_words">Eigene Wörter</string>
     <string name="agent_memory_own_words_sub">Wörter, die du dreimal so abgeschickt hast, wie du sie getippt hast, obwohl die Tastatur sie nicht kannte, oder nach dem Rückgängigmachen ihrer Korrektur. Sie werden nicht mehr korrigiert und beim Tippen ihres Anfangs angeboten.</string>
     <string name="agent_memory_own_words_none">Noch keine eigenen Wörter.</string>

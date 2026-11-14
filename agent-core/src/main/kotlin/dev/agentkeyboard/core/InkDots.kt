@@ -104,6 +104,10 @@ class InkDots(templates: List<InkTemplate>, private val whole: InkRecognizer = I
      * as many dots, and every dot of the drawing lies within [KEEP_REACH] of its own dot of that drawing
      * (the recognizer alone hardly sees where two of 32 points lie: two letters anywhere above and below
      * a dash were ÷). False: the drawing is written without them, and they are typed as letters.
+     *
+     * Review N7: "the dots of the drawing" are all its small strokes (Parts.dots: every stroke whose
+     * larger side is at most [DOT_EXTENT] of the whole, tapped dots and tiny circles alike), not only
+     * [taps]; [taps] only says whether there is anything to decide (empty: true).
      */
     fun keeps(strokes: List<InkStroke>, taps: Collection<Int>): Boolean {
         if (taps.isEmpty()) return true

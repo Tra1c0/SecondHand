@@ -221,7 +221,7 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
 
 - Datei: SharedPreferences `agent_phrase_memory` im gerätegeschützten Speicher (Direct Boot), wie
   die Lernwörterbücher. Bewusst lesbarer Text, keine Hashes: Der Owner sieht und löscht die
-  Einträge auf der Seite „Gedächtnis“.
+  Einträge auf der Seite „Was ich mir gemerkt habe“ (Abschnitt „Gedächtnis“).
   - `phrases`: erste Zeile `v1`, dann je Wortfolge `Gewicht;Tag;0|1;Text` (Gewicht mit drei
     Nachkommastellen, Stand am Tag der letzten Nutzung; Tag = Tage seit 1970 in UTC; `1` =
     angepinnt; Text 2–8 Wörter wie zuletzt getippt, mit Kommas, je Wort höchstens 32 Zeichen).
@@ -247,6 +247,20 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   schließt Backups aus), kein Protokoll, kein Export. „Alles vergessen“ leert `phrases`,
   `own_words` und `shortcuts`.
 
+## Korrekturen im ganzen Feld (49)
+
+- Datei: SharedPreferences `agent_field_corrections`, gerätegeschützter Speicher. Schlüssel
+  `data`: JSON `{candidates: [{typed, meant, session, position, seen}], learned: [{typed, meant,
+  seen}]}`; `typed` kleingeschrieben, `meant` in der zu setzenden Schreibung, `session` eine
+  Zufalls-/Zeitnummer des Felds (kein App-Name), `position` die Stelle im Feld, `seen` Zeit in ms.
+  Höchstens 200 Kandidaten und 500 gelernte Paare, älteste zuerst verworfen.
+- Entsteht nur mit „Meine Tippfehler lernen“, ohne Lernpause, Inkognito, Passwort- oder
+  Nicht-lernen-Feld und bei entsperrtem Gerät. Kein Backup, kein Protokoll. Löschen: Seite „Was ich
+  mir gemerkt habe“ (einzeln) oder „Gelernte Wörter löschen“ (alles); die Löschtaste nach einer
+  Korrektur aus einem gelernten Paar entfernt es (`TypoMemory.forget`).
+- Der Feldtext, mit dem verglichen wird (höchstens je 2000 Zeichen vor und nach der Schreibmarke),
+  liegt nur im Arbeitsspeicher und wird beim Feldwechsel verworfen, nie gespeichert.
+
 ## Trefferzonen (22a)
 
 - Datei: SharedPreferences `agent_touch_model`, gerätegeschützter Speicher. Schlüssel `offsets`:
@@ -261,7 +275,11 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   Tastengrößen relativ zur Basis, je Region (3 × 3 Buchstabenbereich), `rn` Anzahl Berührungen,
   `bucket` MORNING/DAY/EVENING/NIGHT, `first`/`last`/`day` lokale Tagesnummer (Tage seit 1970),
   `speed` Buchstaben pro Minute, `corrections` Löschtasten je Buchstabe; fehlende Werte fehlen im
-  JSON. Höchstens 8 Szenen und 60 Beobachtungen (30 Tage). Keine Texte, keine Buchstaben, keine
+  JSON. Kommazahlen mit höchstens 3 Nachkommastellen (seit der Nachprüfung 50; ältere Werte werden
+  unverändert gelesen). Geschrieben wird nur, wenn sich etwas geändert hat (Szene erkannt,
+  Sitzungsende, Szene gelöscht, Kalibrierung), nicht bei jeder Taste. Eine Kalibrierung und
+  „Auf vorherige Kalibrierung zurücksetzen“ rechnen die Szenen auf die neue Basis um und leeren
+  `observations`. Höchstens 8 Szenen und 60 Beobachtungen (30 Tage). Keine Texte, keine Buchstaben, keine
   Reihenfolge, kein Ort, keine App. Die Kurzzeitschicht und die wartenden Berührungen des letzten
   Worts liegen nur im Speicher. Schalter `agent_adapt_touch_dynamic` in den Tastatureinstellungen
   (Standard aus). „Trefferzonen zurücksetzen“ und „Gelernte Wörter löschen“ leeren die Datei.
@@ -315,20 +333,28 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   `SnippetStoreTest.version1FilesStayReadableAndTheirSnippetsLiteral`.
 - `@ort`: CE-SharedPreferences `agent_places`, Schlüssel `places` (JSON-Array `{name, address}`,
   höchstens 10), nur entsperrt, nicht in Exporten.
-- `@clip`, vertrauliche Clips: DE-SharedPreferences `agent_sensitive_clips` (Tastatur-Kontext),
-  Schlüssel `salt` (16 Zufallsbytes, hex) und `hashes` (kommagetrennte SHA-256 über Salt und
-  Cliptext, höchstens 200, älteste zuerst verdrängt). Ein Eintrag entsteht nur bei eingeschaltetem
-  Zwischenablage-Verlauf für einen neuen Clip, der als vertraulich markiert ist oder in einem
-  Passwortfeld kopiert wurde; nie der Text selbst. DE wie die Verlaufsdatenbank, die den Text im
-  Klartext hält: der Hash macht nichts lesbar, was dort nicht schon steht. Nur im Speicher reichte
-  nicht, weil der Verlauf einen Neustart der Tastatur überdauert. Kein Backup (`allowBackup=false`),
-  kein Export; „Verlauf löschen“ lässt die Hashes stehen (sie verfallen durch die Grenze).
+- `@clip`, vertrauliche Clips (`SensitiveClips`): seit der Nachprüfung 44/45 nur im Speicher des
+  Tastaturprozesses, SHA-256 über ein je Prozess zufälliges Salt und den Cliptext, höchstens 200,
+  älteste zuerst verdrängt; für jeden neuen Clip, der als vertraulich markiert ist oder in einem
+  Passwortfeld kopiert wurde, auch mit Verlauf aus. Ein Neustart vergisst sie; das genügt, weil
+  solche Clips seit Etappe 44 nie in die Verlaufsdatenbank kommen (der Tresor sortiert sie als
+  Geheimnis), nur der aktuelle System-Clip kann noch einer sein. Alt (Etappe 24f bis 45):
+  DE-SharedPreferences `agent_sensitive_clips` (Tastatur-Kontext), Schlüssel `salt` (16 Bytes, hex)
+  und `hashes` (kommagetrennt). Beim ersten Start danach (`SensitiveClips.migrateLegacy` in
+  `ClipboardHistoryManager.onCreate`) löscht die Tastatur die nicht angehefteten Verlaufseinträge,
+  zu denen ein Hash passt, behält nur die Hashes angehefteter Einträge (deren Text steht ohnehin
+  daneben in der Datenbank) und löscht alle anderen samt Datei, sobald keiner mehr übrig ist; neue
+  schreibt sie nie. Kein Backup (`allowBackup=false`), kein Export.
 - Zwischenablage-Wächter und Tresor (Etappe 44): nichts gespeichert. `ClipVault` hält Geheimnisse
   (höchstens 2 min, bis zum ersten Einfügen), Einmalcodes (10 min) und für Etappe 45 die übrigen
   neuen Clips (10 min) nur im Speicher des Tastaturprozesses, höchstens 20, dazu die Kopierzeiten
-  schon eingefügter Geheimnisse (Zahlen, kein Text). Geheimnisse und Codes gehen nie in die
-  Verlaufsdatenbank (`ClipboardDao`, DE, Tabelle `CLIPBOARD`); vor Etappe 44 gespeicherte, nicht
-  angeheftete werden beim Öffnen der Ansicht daraus gelöscht. Mit Verlauf aus, bei gesperrtem
+  schon eingefügter und als Geheimnis sortierter Clips (Zahlen, kein Text). Geheimnisse und Codes
+  allein gehen nie in die Verlaufsdatenbank (`ClipboardDao`, DE, Tabelle `CLIPBOARD`); eine
+  Nachricht mit Code bleibt dort als Text. Vor Etappe 44 gespeicherte, nicht angeheftete Geheimnisse
+  werden beim Start der Tastatur (Verlauf an) und beim Öffnen der Ansicht daraus gelöscht. Gelöschte
+  Zeilen überschreibt SQLite mit Nullen (`PRAGMA secure_delete = ON` auf der schreibenden
+  Verbindung), danach wird das WAL gekürzt (`wal_checkpoint(TRUNCATE)`); nach einer solchen
+  Bereinigung beim Start schreibt `VACUUM` die Datei einmal neu (im Hintergrund). Mit Verlauf aus, bei gesperrtem
   Gerät, im Inkognito-Modus oder in Passwortfeldern wird nichts behalten. Ein Neustart des
   Prozesses vergisst alles. Kein Format, kein Export, kein Backup.
 - Meine Daten (Etappe 45): Datei `agent_my_data/data.sealed` in CE `noBackupFilesDir`
@@ -339,7 +365,8 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   "addresses":[…],"ibans":[…]}`, je Liste höchstens 3 Einträge zu höchstens 200 Zeichen, eine Zeile.
   Leere Daten löschen die Datei; eine unlesbare oder veränderte Datei bleibt liegen und gilt als
   nicht lesbar. Die Tastatur liest sie erst, wenn ein Feld oder ein Hinweiswort eigene Daten
-  braucht, und hält sie nur im Speicher, solange das Gerät entsperrt ist. Kein Backup
+  braucht, und hält sie nur im Speicher, solange das Gerät entsperrt ist und die Tastatur zu sehen
+  ist (`onFinishInputView` verwirft sie). Kein Backup
   (`allowBackup=false`, `noBackupFilesDir`), kein Export, nie in Profilen oder Tastatureinstellungen.
   Schalter „Feld- und Kontext-Vorschläge“: Tastatureinstellung `agent_field_suggestions` (Boolean,
   Vorgabe an, keine Daten).
@@ -349,8 +376,8 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   `SuggestKind`; Zahl −0,4 bis 0,4 mit vier Nachkommastellen), höchstens 4096 Zeichen, also höchstens
   63 Einträge. Kein getippter Text, kein Clip, keine App, kein Feld. Geschrieben nur mit
   „Personalisierte Vorschläge“ an, ohne Lernpause, ohne Inkognito, entsperrt; Gewichte verblassen mit
-  30 Tagen Halbwertszeit. „Gelernte Wörter löschen“ leert die Datei; das Ausschalten von
-  „Personalisierte Vorschläge“ lässt sie stehen, benutzt sie aber nicht. Kein Backup, kein Export.
+  30 Tagen Halbwertszeit. „Gelernte Wörter löschen“ leert die Datei, ebenso (seit der
+  Nachprüfung 44/45) das bestätigte Ausschalten von „Personalisierte Vorschläge“. Kein Backup, kein Export.
 - `@contact`, `@url`, `@clip`, Bildschirmlesen: nichts gespeichert. Gefundene Kontakte, Adressen,
   Clip-Texte und gelesener Bildschirmtext liegen nur im Speicher, solange der Befehl vor der
   Schreibmarke steht.

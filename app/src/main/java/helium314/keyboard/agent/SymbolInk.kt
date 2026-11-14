@@ -54,6 +54,11 @@ object SymbolInk {
         fun onWaiting(strokes: List<InkStroke>, possibleDots: List<Int>) {}
         /** Follow-up review F1: a further stroke begins; a preview shown so far is out of date. */
         fun onStrokeStarted() {}
+        /**
+         * Stage 43 review M1: whether a drawing would be written as a symbol (not "Nicht erkannt"); asked
+         * only for a single stroke right after typing, which is otherwise typed as its key ([onStartAfterTyping]).
+         */
+        fun recognizes(strokes: List<InkStroke>): Boolean = true
     }
 
     private var sinkRef: WeakReference<Sink>? = null
@@ -69,7 +74,13 @@ object SymbolInk {
     private val due = Runnable { finish() }
     /** Stage 36 review M2: the preview follows only after [PREVIEW_DELAY_MILLIS] without a new stroke. */
     private val previewToken = Any()
-    private val preview = Runnable { if (!group.isEmpty && inkPointer < 0) sink?.onWaiting(group.drawn, possible.map { it.index }) }
+    private val preview = Runnable { if (!group.isEmpty && inkPointer < 0 && !isSlidTapSoFar()) sink?.onWaiting(group.drawn, possible.map { it.index }) }
+
+    /** Stage 43 review M1: no preview chip for a drawing that would be typed as a sliding tap now. */
+    private fun isSlidTapSoFar(): Boolean {
+        val typed = afterTyping ?: return false
+        return group.size == 1 && possible.isEmpty() && InkTap.isSlidTap(group.drawn[0], typed.keyWidth.toFloat())
+    }
 
     /** No preview while strokes follow each other quickly; it is matched off the main thread anyway. */
     const val PREVIEW_DELAY_MILLIS = 120L
@@ -99,6 +110,10 @@ object SymbolInk {
     /** Stage 43: a possible dot: its index in the group, where it touched down, and its gap for the pace. */
     private class Possible(val index: Int, val pointerId: Int, val x: Int, val y: Int, val gap: Long)
     private val possible = ArrayList<Possible>()
+
+    /** Stage 43 review M1: the first stroke started right after typing: its pointer, down point and key width. */
+    private class AfterTyping(val pointerId: Int, val x: Int, val y: Int, val keyWidth: Int)
+    private var afterTyping: AfterTyping? = null
 
     /** The continuation stroke being drawn: its pointer and points, or -1. */
     private var inkPointer = -1
@@ -151,6 +166,17 @@ object SymbolInk {
     @JvmStatic fun onBatchStart() {
         handler.removeCallbacksAndMessages(token)
         handler.removeCallbacksAndMessages(previewToken)
+        afterTyping = null
+    }
+
+    /**
+     * Stage 43 review M1, PointerTracker: the drawing that starts now ([onBatchStart] came just before)
+     * started right after typing, at ([x], [y]). Ends it as its only stroke, a short straight line
+     * ([InkTap.isSlidTap]) or not recognized ([Sink.recognizes]), it was a fast tap that slid: [finish]
+     * then types the key there ([tapper]) instead of a symbol. A further stroke or a dot keeps it a drawing.
+     */
+    @JvmStatic fun onStartAfterTyping(pointerId: Int, x: Int, y: Int, keyWidth: Int) {
+        if (group.isEmpty) afterTyping = AfterTyping(pointerId, x, y, keyWidth)
     }
 
     /** The finished gesture: [pointers] holds all points since the touch went down. */
@@ -291,7 +317,8 @@ object SymbolInk {
         handler.removeCallbacksAndMessages(token)
         handler.removeCallbacksAndMessages(previewToken)
         lastStrokeEnd = -1
-        resolve(write)
+        afterTyping = null // the chip was picked: a symbol
+        resolve(null, write)
         return true
     }
 
@@ -302,6 +329,7 @@ object SymbolInk {
         val hadStrokes = !group.isEmpty
         group.clear()
         possible.clear()
+        afterTyping = null
         inkPointer = -1
         pointCount = 0
         lastStrokeEnd = -1
@@ -341,26 +369,39 @@ object SymbolInk {
         handler.removeCallbacksAndMessages(token)
         handler.removeCallbacksAndMessages(previewToken)
         lastStrokeEnd = -1
+        val typed = afterTyping
+        afterTyping = null
         if (group.isEmpty) return
-        resolve { strokes, _ -> sink?.onDrawing(strokes) }
+        resolve(typed) { strokes, _ -> sink?.onDrawing(strokes) }
     }
 
     /**
      * Stage 43: takes the drawing and decides about its possible dots ([DotCheck.keeps]). Kept: the whole
      * drawing goes to [write], and their gaps count for the pace. Else the drawing without them goes to
      * [write], and then each is typed as the letter where it touched down, in the order they came.
+     * Review M1: [typed] is set when the drawing started right after typing; is what would be written
+     * then a single stroke that is a sliding tap ([InkTap.isSlidTap]) or not recognized
+     * ([Sink.recognizes]), nothing is written: that tap's key is typed, then the possible dots.
      */
-    private fun resolve(write: (strokes: List<InkStroke>, drawn: Int) -> Unit) {
+    private fun resolve(typed: AfterTyping? = null, write: (strokes: List<InkStroke>, drawn: Int) -> Unit) {
         val strokes = group.take()
         val taps = possible.toList()
         possible.clear()
-        if (taps.isEmpty()) return write(strokes, strokes.size)
-        if (dotCheck.keeps(strokes, taps.map { it.index })) {
+        val kept = taps.isEmpty() || dotCheck.keeps(strokes, taps.map { it.index })
+        val letters = if (kept) emptySet() else taps.map { it.index }.toSet()
+        val drawing = if (kept) strokes else strokes.filterIndexed { i, _ -> i !in letters }
+        if (typed != null && drawing.size == 1
+            && (InkTap.isSlidTap(drawing[0], typed.keyWidth.toFloat()) || sink?.recognizes(drawing) == false)) {
+            sink?.onWaiting(emptyList(), emptyList()) // a preview shown so far goes
+            tapper?.type(typed.pointerId, typed.x, typed.y)
+            for (tap in taps) tapper?.type(tap.pointerId, tap.x, tap.y)
+            return
+        }
+        if (kept) {
             for (tap in taps) if (tap.gap >= 0) pace.onGap(tap.gap)
             return write(strokes, strokes.size)
         }
-        val letters = taps.map { it.index }.toSet()
-        write(strokes.filterIndexed { i, _ -> i !in letters }, strokes.size)
+        write(drawing, strokes.size)
         for (tap in taps) tapper?.type(tap.pointerId, tap.x, tap.y)
     }
 }

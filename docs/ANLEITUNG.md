@@ -109,7 +109,9 @@ Schalter wirkt gerade nicht (die Regeln brauchen die Autokorrektur, „Wortvorsc
 Vorschlagsleiste, „Doppeltipp = Punkt“ eine Leertaste ohne Doppeltipp-Geste). „Kontakte und
 App-Namen“, „Alle Korrektur-Einstellungen“ (Stärke als Regler, personalisierte Vorschläge,
 anstößige Wörter …), „Wörterbücher“, „Persönliches Wörterbuch“ und „Gelernte Wörter“ öffnen die
-bisherigen Seiten, „Gedächtnis“ die Seite des Gedächtnisses (Abschnitt „Gedächtnis“ unten). „Lernen pausieren“ behält das Gelernte; Lernen ganz ausschalten (und löschen)
+bisherigen Seiten, „Was ich mir gemerkt habe“ die Korrekturen und das Gedächtnis (Abschnitte
+„Autokorrektur“ und „Gedächtnis“ unten). „Lernen pausieren“ behält das Gelernte; Lernen ganz
+ausschalten (und löschen)
 geht unter „Alle Korrektur-Einstellungen“ → „Personalisierte Vorschläge“.
 
 Unter „Regeln“ steht auch **Formatwächter** (anfangs an). Er prüft E-Mail-, Telefon- und
@@ -581,7 +583,13 @@ langes Drücken für Sonderzeichen und das Wischen auf Leer- und Löschtaste ble
 - Male mit einem Finger auf den Buchstabentasten, zügig wie beim Wischen. Die Spur bleibt kurz
   sichtbar. Direkt nach dem Tippen eines Worts darfst du sofort malen: Der erste Strich zählt,
   sobald er etwa eine Dreivierteltaste vom Aufsetzpunkt weg ist; ein Tipp, der beim schnellen
-  Tippen nur ein Stück rutscht, bleibt ein Buchstabe.
+  Tippen nur ein Stück rutscht, bleibt ein Buchstabe. Ist so ein erster Strich direkt nach dem
+  Tippen kürzer als anderthalb Tasten und gerade, und folgt kein weiterer Strich, war es ein
+  gerutschter Tipp: Es kommt der Buchstabe, auf dem du aufgesetzt hast, kein „–“ oder „/“. Dasselbe
+  gilt, wenn so ein einzelner Strich nicht erkannt wird (statt „Nicht erkannt“). Einen kurzen
+  Strich direkt nach einem Wort malst du darum etwas länger oder mit einem zweiten Strich (=).
+  Liegt dabei ein zweiter Finger auf der Tastatur (zwei Daumen), beginnt direkt nach dem Tippen
+  keine Zeichnung, beide Buchstaben kommen.
 - Ein Symbol aus mehreren Strichen: den nächsten Strich innerhalb der Pause ansetzen. Die Pause
   ist anfangs 0,9 Sekunden und passt sich deinem Tempo an (etwa 2,5-mal so lang wie deine übliche
   Lücke zwischen zwei Strichen, mindestens 0,6 und höchstens 1,5 Sekunden). Kurze Striche zählen
@@ -603,7 +611,9 @@ langes Drücken für Sonderzeichen und das Wischen auf Leer- und Löschtaste ble
   Strich, ¡ und ¿ darüber; bei eigenen Symbolen dort, wo du den Punkt gemalt hast), wartet er als
   möglicher Punkt. Nach der Pause entscheidet die ganze Zeichnung: Ergibt sie ein Symbol mit genau
   so vielen Punkten an ihren Plätzen, bleiben es Punkte; sonst kommt das Symbol ohne sie und danach
-  die getippten Buchstaben in deiner Reihenfolge (sie erscheinen dann erst nach der Pause). Male
+  die getippten Buchstaben in deiner Reihenfolge (sie erscheinen dann erst nach der Pause oder vor
+  der nächsten Taste, ohne Tastenvorschau, Vibration und Ton; ebenso der Buchstabe eines gerutschten
+  Tipps direkt nach dem Tippen). Male
   den Strich zuerst, ein Tipp allein ist immer ein Buchstabe. Zwei Buchstaben direkt über und unter
   der Mitte eines gemalten Strichs werden zu ÷, ein Buchstabe direkt unter einem senkrechten Strich
   zu !.
@@ -815,7 +825,9 @@ dabei nicht gesichert.
   einmal ein; danach ist es weg, und die Tastatur leert die System-Zwischenablage, wenn dort noch
   genau dieses Geheimnis liegt. Nach 2 Minuten verschwindet es von selbst. Darunter
   „Einmalcodes“: ein kopierter Code oder eine kopierte SMS mit Code; Antippen fügt nur die Ziffern
-  ein, nach 10 Minuten weg. IBAN, Telefonnummer, E-Mail und Adresse stehen normal im Verlauf, mit
+  ein, nach 10 Minuten weg. Die kopierte SMS selbst bleibt als Text im Verlauf, ein Code allein
+  nicht. Was du in einem Passwortfeld kopierst, schlägt die Tastatur nirgends vor. Eingefügte
+  Geheimnisse und Codes lernt die Tastatur nicht. IBAN, Telefonnummer, E-Mail und Adresse stehen normal im Verlauf, mit
   einer kleinen Beschriftung darüber. Kein Tresor in Passwortfeldern, im Inkognito-Modus und bei
   gesperrtem Gerät. Geheimnisse erscheinen nie als Pille in der Leiste. Am Ende der Tresor-Reihen öffnet
   „Meine Daten“ die Seite „Meine Daten & Vorschläge“.
@@ -843,7 +855,8 @@ eingefügt: erst dein Tipp auf den Chip fügt ein, genau einmal.
   Spanisch). Die Tastatur wägt Hinweiswort, wie frisch der Clip ist, App und Feld ab; ohne
   Hinweiswort erscheint nichts.
 - Nie in Passwortfeldern, im Inkognito-Modus, in Feldern, die Lernen verbieten, und bei gesperrtem
-  Gerät; nie Geheimnisse aus dem Tresor.
+  Gerät; nie Geheimnisse aus dem Tresor. Eingefügte Werte lernt die Tastatur nicht, und was du auf
+  der Seite „Meine Daten“ eintippst, auch nicht.
 - Einstellungen → Leiste & Befehle → „Meine Daten & Vorschläge“ (auch über den Chip „Meine Daten“
   im Tresor der Zwischenablage-Ansicht): Schalter „Feld- und Kontext-Vorschläge“ und die Karte
   „Meine Daten“ mit Name, je zwei E-Mails, Telefonnummern, Adressen und IBANs. Freiwillig, anfangs
@@ -885,6 +898,15 @@ Einstellungen → Gelernte Wörter → Abschnitt „Autokorrektur“:
   Vorschlagsleiste antippst, merkt sich die Tastatur das. Nach dem dritten Mal korrigiert sie
   diesen Tippfehler selbst. Gibt es das getippte Wort wirklich (mochte), lernt sie es nur für
   das Wort davor (ich möchte). „Gelernte Tippfehler vergessen“ löscht alles.
+  Mit diesem Schalter zählen auch Tippfehler, die du später im Feld verbesserst: nach weiteren
+  Wörtern, nach Löschen zurück über Leerzeichen, über einen Vorschlag oder nach Tippen ins Wort
+  (dann die Schreibmarke wieder wegsetzen oder weitertippen). Nur echte Vertipper eines
+  Nicht-Worts zu einem echten Wort zählen; „das“ → „dass“, Markieren und Überschreiben oder
+  Einfügen nie. Beim ersten Mal ist es ein Kandidat, beim zweiten Mal an anderer Stelle gelernt.
+  Einstellungen → Tippen & Korrektur → „Was ich mir gemerkt habe“ zeigt beides: „Übernehmen“
+  lernt einen Kandidaten sofort, „Löschen“ entfernt einen Eintrag. „Gelernte Wörter löschen“
+  leert die Seite mit. Machst du eine Autokorrektur später im Feld rückgängig, gilt mit
+  „Rückgängig gemachte Korrekturen merken“ dasselbe wie die Löschtaste direkt danach.
 
 Getipptes Wort zurückholen: Drückst du direkt nach einer Korrektur die Löschtaste oder tippst du
 später in das korrigierte Wort, steht dein getipptes Wort in der Leiste ganz links (in deiner
@@ -907,6 +929,11 @@ auch wenn du einen Vertipper über die Vorschlagsleiste korrigierst. Gespeichert
 Wörter; wird die Tastatur vorher beendet, gehen bis zu neun Wörter verloren. „Trefferzonen zurücksetzen“ löscht alles. Umlaute werden nur vermessen,
 wenn sie eigene Tasten haben (Layout QWERTZ+); ß hat keine eigene Taste.
 
+„Auf vorherige Kalibrierung zurücksetzen“ erscheint unter den Knöpfen, sobald es einen Schritt
+zurück gibt (nach einer Kalibrierung oder einer automatischen Anpassung, siehe unten), auch ohne
+„Dynamisch anpassen“. Es nimmt genau den letzten Schritt zurück; danach verschwindet der Knopf,
+bis du wieder kalibrierst.
+
 ### Dynamisch anpassen (Szenen)
 
 Im selben Abschnitt, unter den Knöpfen: „Dynamisch anpassen (Szenen)“ einschalten (geht nur,
@@ -916,22 +943,32 @@ wenn „Trefferzonen an mich anpassen“ an ist; anfangs aus).
   das nach fünf Minuten Pause oder in einer anderen App. Ein anderes Feld derselben App halbiert
   die Anpassung.
 - Ein Wort zählt erst, wenn du danach eine andere Taste als die Löschtaste drückst. Korrigierst du
-  es sofort, lernt die Tastatur nichts daraus. Automatische Korrekturen zählen nie.
+  es sofort (Löschtaste, Rückgängig oder Ausschneiden), lernt die Tastatur nichts daraus.
+  Automatische Korrekturen zählen nie. Hältst du die Löschtaste gedrückt, zählt das als eine
+  Korrektur. Tippst du nur in den Text, um die Schreibmarke zu versetzen, merkt die Tastatur das
+  nicht: dann entscheidet die nächste Taste über das Wort.
+- Drehst du das Telefon, schaltest du auf Einhand- oder geteilte Tastatur oder auf ein anderes
+  Layout, beginnt die Anpassung neu (wie nach einer Pause). Ein Wechsel zu Zahlen und Symbolen
+  zählt nicht.
 - Die kalibrierten Zonen lernen in diesem Modus nicht mehr bei jedem Wort. Sie wandern nur, wenn
   dieselbe Abweichung in mindestens fünf längeren Sitzungen an drei verschiedenen Tagen und zu
   zwei verschiedenen Tageszeiten auftritt, und dann nur ein kleines Stück.
 - „Szenen“ listet, was sich die Tastatur gemerkt hat, z. B. „abends, ungenauer, trifft tiefer (in
   3 Sitzungen gesehen)“. „Szene löschen“ entfernt eine Szene samt ihren Sitzungen.
 - „Auf vorherige Kalibrierung zurücksetzen“ nimmt den letzten Schritt zurück: die letzte
-  Kalibrierung oder die letzte automatische Anpassung. Die Szenen bleiben.
+  Kalibrierung oder die letzte automatische Anpassung. Die Szenen bleiben und werden mit den Zonen
+  zurückgerechnet (wie auch nach einer neuen Kalibrierung); die gesammelten Hinweise für die
+  nächste automatische Anpassung beginnen neu.
+- Schaltest du „Dynamisch anpassen“ oder „Trefferzonen an mich anpassen“ aus, wird die laufende
+  Sitzung beim nächsten Feld verworfen: keine Szene, keine Anpassung der Zonen.
 - „Trefferzonen zurücksetzen“ und „Gelernte Wörter löschen“ löschen auch die Szenen.
 - Nichts davon in Passwortfeldern, im Inkognito-Modus, in Feldern, die kein Lernen erlauben, bei
   pausiertem Lernen oder bei gesperrtem Gerät.
 
 ## Gedächtnis
 
-Einstellungen → Tippen & Korrektur → Wörter & Lernen → „Gedächtnis“. Alles lokal, nur auf dem
-Gerät, nichts davon geht ins Internet.
+Einstellungen → Tippen & Korrektur → Wörter & Lernen → „Was ich mir gemerkt habe“, Abschnitt
+„Gedächtnis“ unter den Korrekturen. Alles lokal, nur auf dem Gerät, nichts davon geht ins Internet.
 
 - „Merken, wie ich schreibe“ (anfangs aus) schaltet das Lernen ein. Danach merkt sich die
   Tastatur Wortfolgen aus deinen eigenen, getippten Sätzen. Hast du eine Folge oft genug

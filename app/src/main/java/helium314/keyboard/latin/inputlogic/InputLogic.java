@@ -111,6 +111,8 @@ public final class InputLogic {
     public LastComposedWord mLastComposedWord = LastComposedWord.NOT_A_COMPOSED_WORD;
     // fork, stage 48: automatic corrections of this field, for the typed word first in the strip
     public final helium314.keyboard.agent.TypedWordFirst mTypedWordFirst = new helium314.keyboard.agent.TypedWordFirst();
+    // fork, stage 49: later corrections anywhere in this field
+    public final helium314.keyboard.agent.FieldCorrectionWatcher mFieldCorrections = new helium314.keyboard.agent.FieldCorrectionWatcher();
     // This has package visibility so it can be accessed from InputLogicHandler.
     /* package */ final WordComposer mWordComposer;
     public final RichInputConnection mConnection;
@@ -125,7 +127,47 @@ public final class InputLogic {
     public boolean acceptsTailBatchResult(long generation) { return mInputLogicHandler.acceptsTail(generation); }
     public void completeTailBatchResult(long generation) { mInputLogicHandler.completeTail(generation); }
     public boolean isAgentHistorySuppressed() { return mAgentHistorySuppressed; }
-    public void onFreshEditorSession() { mAgentHistorySuppressed = false; }
+    public void onFreshEditorSession() { mAgentHistorySuppressed = false; mPrivateText = null; }
+
+    // fork, review of stages 44/45 (B4): a vault secret, code or "Meine Daten" value the user
+    // inserted, and where it starts; it never becomes the composing word and is never learned
+    private String mPrivateText;
+    private int mPrivateStart = -1;
+    /** Learning stays off while the cursor is at most this many characters after the private text (the next words' n-gram context). */
+    private static final int PRIVATE_LEARNING_DISTANCE = 64;
+
+    /** Remembers [text], which the user just inserted and which ends at the cursor, as private. */
+    public void markPrivateText(final String text) {
+        final int cursor = mConnection.getExpectedSelectionStart();
+        if (TextUtils.isEmpty(text) || cursor < text.length() || mConnection.hasSelection()) { mPrivateText = null; return; }
+        final CharSequence before = mConnection.getTextBeforeCursor(text.length(), 0);
+        if (before == null || !TextUtils.equals(before, text)) { mPrivateText = null; return; }
+        mPrivateText = text;
+        mPrivateStart = cursor - text.length();
+    }
+
+    /**
+     * True while the cursor is in the private text (or at its start) or at most [after] characters
+     * behind it, and the editor still shows it there (also with characters deleted from its end).
+     */
+    private boolean nearPrivateText(final int after) {
+        final String text = mPrivateText;
+        if (text == null) return false;
+        final int cursor = mConnection.getExpectedSelectionStart();
+        final int distance = cursor - mPrivateStart;
+        if (cursor < 0 || distance < 0 || distance > text.length() + after) return false;
+        if (distance == 0) {
+            final CharSequence following = mConnection.getTextAfterCursor(Math.min(text.length(), 48), 0);
+            return following != null && following.length() > 0 && text.startsWith(following.toString());
+        }
+        final CharSequence before = mConnection.getTextBeforeCursor(distance, 0);
+        if (before == null || before.length() != distance) return false;
+        final String shown = before.toString();
+        final int shared = Math.min(shown.length(), text.length());
+        if (shown.regionMatches(0, text, 0, shared)) return true;
+        mPrivateText = null; // changed by now: forget it
+        return false;
+    }
     public boolean refreshAgentEditorCaches(final int start, final int end) {
         resetComposingState(true);
         return mConnection.resetCachesUponCursorMoveAndReturnSuccess(start, end, false);
@@ -203,6 +245,7 @@ public final class InputLogic {
             mAgentHistorySuppressed = previouslySuppressed;
             return outcome;
         }
+        mFieldCorrections.untrusted(); // fork, stage 49: inserted text is never a correction of the user
         resetComposingState(true);
         mInputLogicHandler.reset();
         mEnteredText = null;
@@ -268,6 +311,7 @@ public final class InputLogic {
         mEnteredText = null;
         mWordBeingCorrectedByCursor = null;
         mTypedWordFirst.clear(); // fork, stage 48
+        mFieldCorrections.start(); // fork, stage 49
         mConnection.onStartInput();
         if (!mWordComposer.getTypedWord().isEmpty()) {
             // For messaging apps that offer send button, the IME does not get the opportunity
@@ -378,6 +422,7 @@ public final class InputLogic {
         mSpaceState = SpaceState.NONE;
         mEnteredText = text;
         mWordBeingCorrectedByCursor = null;
+        mFieldCorrections.untrusted(); // fork, stage 49: inserted or pasted text is not learned
         inputTransaction.setDidAffectContents();
         inputTransaction.requireShiftUpdate(InputTransaction.SHIFT_UPDATE_NOW);
         return inputTransaction;
@@ -585,6 +630,8 @@ public final class InputLogic {
                     newSelStart, newSelEnd, false /* shouldFinishComposition */);
         }
 
+        // fork, stage 49: the user moved the cursor, maybe after changing a word earlier in the field
+        mFieldCorrections.checkpoint(mLatinIME, mConnection, settingsValues, mDictionaryFacilitator, mAgentHistorySuppressed, false);
         // The cursor has been moved : we now accept to perform recapitalization
         mRecapitalizeStatus.enable();
         // We moved the cursor. If we are touching a word, we need to resume suggestion.
@@ -615,6 +662,7 @@ public final class InputLogic {
     public InputTransaction onCodeInput(SettingsValues settingsValues, @NonNull Event event,
             CapsMode keyboardCapsMode, String currentKeyboardScript, LatinIME.UIHandler handler) {
         mLatinIME.invalidateAgentEditor();
+        if (mConnection.hasSelection()) mFieldCorrections.untrusted(); // fork, stage 49: typing over a selection
         mWordBeingCorrectedByCursor = null;
         mJustRevertedACommit = false;
 
@@ -1832,6 +1880,8 @@ public final class InputLogic {
     private void performAdditionToUserHistoryDictionary(final SettingsValues settingsValues,
             final String suggestion, @NonNull final NgramContext ngramContext) {
         if (mAgentHistorySuppressed) return;
+        // fork (B4): neither the private text nor a word right after it (its n-gram context) is learned
+        if (nearPrivateText(PRIVATE_LEARNING_DISTANCE)) return;
         // a typed command (e.g. "@math") is no word of the user's
         if (helium314.keyboard.agent.KeyboardCommands.isCommandWord(suggestion)
                 || helium314.keyboard.agent.KeyboardCommands.guardsTextBefore(
@@ -1970,7 +2020,9 @@ public final class InputLogic {
                 // If the cursor is not touching a word, or if there is a selection, return right away.
                 || mConnection.hasSelection()
                 // If we don't know the cursor location, return.
-                || mConnection.getExpectedSelectionStart() < 0) {
+                || mConnection.getExpectedSelectionStart() < 0
+                // fork (B4): a private text the user inserted never becomes the composing word
+                || nearPrivateText(0)) {
             mSuggestionStripViewAccessor.setNeutralSuggestionStrip();
             return;
         }
@@ -2570,6 +2622,8 @@ public final class InputLogic {
                 // fork, stage 48: remember the typed form for going back to the word (tap typing only)
                 if (!isBatchMode) mTypedWordFirst.corrected(
                         mConnection.getExpectedSelectionEnd() - stringToCommit.length(), stringToCommit, typedWord);
+                // fork, stage 49: changing it back later remembers "do not correct" like backspace
+                if (!isBatchMode) mFieldCorrections.autoCorrected(typedWord, stringToCommit, settingsValues);
                 // This will make the correction flash for a short while as a visual clue
                 // to the user that auto-correction happened. It has no other effect; in particular
                 // note that this won't affect the text inside the text field AT ALL: it only makes
@@ -2655,6 +2709,10 @@ public final class InputLogic {
                 || chosenWord.equalsIgnoreCase(mWordComposer.getTypedWord());
         final String typedForTouch = tapTyped && confirmedWord && settingsValues.mAdaptTouch ? mWordComposer.getTypedWord() : null;
         mLastComposedWord = mWordComposer.commitWord(commitType, chosenWord, separatorString, ngramContext);
+        // fork, stage 48 review N1: a remembered correction at this start belongs to text that is gone
+        mTypedWordFirst.committedAt(mConnection.getExpectedSelectionEnd() - chosenWord.length());
+        // fork, stage 49: compare the field with the last checkpoint (a word fixed earlier in the field)
+        mFieldCorrections.checkpoint(mLatinIME, mConnection, settingsValues, mDictionaryFacilitator, mAgentHistorySuppressed, true);
         if (typedForTouch != null) {
             final InputPointers pointers = mLastComposedWord.mInputPointers; // keyboard coordinates already
             helium314.keyboard.agent.TouchModel.learnFromWord(mLatinIME, typedForTouch, chosenWord,
@@ -2857,6 +2915,7 @@ public final class InputLogic {
         // we try to deal with this by committing the text if the clipboard content is simply text,
         // and use KeyEvent.KEYCODE_PASTE otherwise except for apps that are known to ignore it
         String primaryClip = mLatinIME.getClipboardHistoryManager().getPrimaryClipIfText();
+        mFieldCorrections.untrusted(); // fork, stage 49: pasted text is not learned
         if (primaryClip != null) {
             mConnection.commitText(primaryClip, 1);
             return;

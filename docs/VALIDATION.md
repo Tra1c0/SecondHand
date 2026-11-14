@@ -3435,6 +3435,63 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   `typeInkTap`, `onDownEvent` mit `gestureTypingTime` und `mInkAfterTyping`, Bedingung in
   `onGestureMoveEvent`). `InputLogic`, `RichInputConnection`, `GestureStrokeRecognitionParams` und
   `GestureStrokeRecognitionPoints` unverändert.
+
+### Nachprüfung 43 (Prüfer-Befunde zu 357c9d0, 2026-11-14)
+
+- Auftrag (Lead): Befunde M1, N1–N8 des Prüfers beheben, in einer Arbeitskopie. Kein Gerätetest.
+- M1 (Buchstabenverlust nach dem Tippen, verifiziert): Ohne Sperre startete ein schneller Tipp, der
+  0,75 Tasten rutscht, eine Zeichnung, der Buchstabe kam als „–“/„/“/„|“ oder gar nicht; setzte ein
+  zweiter Daumen den Strich, während der erste lag, endete dessen Loslassen im `sInGesture`-Zweig
+  ohne Code. Behoben: (a) liegt bei einem Aufsetzen schon ein weiterer Zeiger auf, bleibt HeliBoards
+  Sperre (`onDownEvent`), und mit `mInkAfterTyping` startet eine Zeichnung nur allein
+  (`onGestureMoveEvent`); (b) eine so direkt nach dem Tippen begonnene Zeichnung, die beim Schreiben
+  nur ein Strich ist (mögliche Punkte, die Buchstaben werden, nicht mitgezählt) und
+  `InkTap.isSlidTap` ist (weitester Punkt ≤ `SLID_TAP_KEYS` 1,5 Tastenbreiten vom Aufsetzpunkt, keine
+  Abweichung über `SLID_TAP_BEND` 0,25 dieser Strecke) oder vom Erkenner nicht angenommen wird
+  (`Sink.recognizes`), wird nicht geschrieben: `typeInkTap` tippt die Taste am Aufsetzpunkt, dann die
+  möglichen Punkte. Die Vorschau zeigt für so einen Strich keinen Chip (sonst blitzte beim
+  schnellen Tippen „✎ –“ auf); nur wenn er nicht erkannt wird, kann „✎ ?“ erscheinen. Ein Tipp auf
+  einen Vorschau-Chip schreibt weiter das Symbol.
+- M1c Messung (`CT/InkDotFlowTest`, neu, Rutschmodell angenommen, nicht gemessen: vier von fünf
+  Tipps |N(0; 0,1)| Tastenbreiten, einer von fünf rollt 0,2–1,2 Tasten, ±35° zur Reihe, leicht
+  gebogen, 1 dp Zittern; 10 000 Tipps): ab 0,35 Tasten 1727 (HeliBoards Start ohne Sperre), ab 0,75
+  Tasten 923 (9,2 %, starten nach 43 eine Zeichnung), davon kommen mit (b) alle 923 als Buchstabe
+  zurück (vorher 923 verloren; vor 43 wegen der Sperre 0). Preis von (b), einstrichige Symbole des
+  Finger-Modells direkt nach dem Tippen, je Größe (je 680): 0,75–1 Taste 212 als Buchstabe (– und |
+  80 von 80), 1–1,5 Tasten 200 (78 von 80), 1,5–2,3 Tasten 1, 2,3–4,6 Tasten (übliche Größe) 0. Bei
+  üblicher Größe nicht erkannt (jetzt Buchstabe statt „Nicht erkannt“): 9 von 680. Abwägung: Ein
+  kurzer – oder | direkt nach einem Wort braucht 1,5 Tasten Länge oder einen zweiten Strich.
+  Offene Restlücke: Rutscht auch der nächste Tipp nahe der Zeichnung 8 dp oder mehr (im Modell 2206
+  von 10 000), ist er ein zweiter Strich (P111), und beide Buchstaben werden ein Symbol; grob
+  9,2 % × 22 % ≈ 2 von 1000 schnellen Tipps im Modell (nur geschätzt, nicht als Ablauf gemessen).
+- N1: `typeInkTap` tippt nur, was `SymbolInk.startsInkOn` erlaubt (sonst nichts). N2: `onPressKey`
+  mit festem Zeigerzähler 1 (vorher `getActivePointerTrackerCount()`, im Test 0 beim Ende über einen
+  zweiten Finger). N3: P151 und KDoc präzisiert (schreibt die Tippzeit beim Schreiben, kein
+  `startTypingStateTimer`, keine Haptik/Ton/Vorschau). N5: `withoutDrawnSymbolsTheFastTypingCooldownStays`
+  prüft jetzt auch, dass derselbe Strich 2 s später einen Batch startet (Gestenerkennung also an).
+  N6: `InkDotFlowTest` meldet Verluste nur für Tipps innerhalb von `nearDrawing`: 2 von 597 (Grenze
+  1 %). N7: KDoc von `InkDots.keeps` (zählt alle kleinen Striche, nicht nur die Tipps). N8:
+  FEATURES/ANLEITUNG sagen, dass solche Buchstaben erst nach der Pause oder vor der nächsten Taste
+  und ohne Tastenvorschau, Vibration und Ton erscheinen.
+- Neue Tests: `SymbolInkTest` (7, echter PointerTracker): gerutschter Tipp 0,8 Tasten → Buchstabe
+  (ein Zeiger, keine Vorschau), dann nächster Buchstabe fern und nah in Reihenfolge, kurzer Strich mit zweitem
+  Strich → „=“ und 1,6 Tasten → „–“, nicht erkannter Strich nach dem Tippen → Buchstabe (2 s später
+  an die Senke), zwei Daumen (zweiter bzw. erster rutscht) → beide Buchstaben, möglicher Punkt auf
+  jetzt Löschtaste → nichts, möglicher Punkt beim Ende über zweiten Finger → `onPressKey` mit 1.
+  `InputLogicTest` (3, echter `KeyboardActionListenerImpl`/`InputLogic`, Tapper-Ersatz „x“):
+  möglicher Punkt, dann ferne Taste → „a –xb“ samt `checkConnectionConsistency`; gerutschter Tipp
+  nach „Ha“ → „Hax“, Wort läuft weiter, kein Vorschau-Chip und keine Chips danach; nicht erkannter Strich nach dem Tippen → „Hax“,
+  ein Pfeil danach → „Hax→“. `InkDotFlowTest` (2 neu, N6-Grenze im bestehenden). Gegenprobe: mit
+  zurückgenommenen Änderungen (M1a, M1b, N1, N2) scheitern 6 der 7 neuen `SymbolInkTest`-Tests;
+  der =/–-Test ist absichtlich in beiden Fällen grün. Keine Prüfung entfernt oder abgeschwächt.
+- Gelaufen (2026-11-14, `--max-workers=1`): `./gradlew :agent-core:test` grün;
+  `:app:testDebugUnitTest --tests 'helium314.keyboard.agent.SymbolInkTest' --tests '*InputLogicTest'`:
+  alle grün bis auf das geerbte `InputLogicTest.insertLetterIntoWordHangulFails`. Nicht gelaufen:
+  volle Suite, Agent-Tests über `tools/dev.py`, Lint, Build, Gerätetest.
+- Engine-Änderungen (Prüfer Pflicht): `PointerTracker.java` `onDownEvent` (Sperre bleibt bei
+  weiterem Zeiger), `onGestureMoveEvent` (nach dem Tippen nur allein, `SymbolInk.onStartAfterTyping`),
+  `typeInkTap` (N1-Wächter, Zeigerzähler 1, tote Zweige für `MULTIPLE_CODE_POINTS`/`NOT_SPECIFIED`
+  entfernt). `InputLogic`, `RichInputConnection`, `GestureStrokeRecognition*` unverändert.
 ## Etappe 48 (Autokorrektur: getipptes Wort vorne, keine ungewollte Großschreibung)
 
 - Auftrag (Lead, ROADMAP 48, Rückmeldung des Owners vom 2026-11-14): (a) nach dem Zurückgehen zu
@@ -3539,6 +3596,49 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   `editorInfo`, `restarting`). `KeyDetector.java` unverändert (rechnet über `TouchModel.adjust`
   jetzt Basis plus Kurzzeit). `InputLogic`, `RichInputConnection`, `PointerTracker` unverändert.
 
+## Nachprüfung 50 (Prüfer-Befunde zu Etappe 50, 2026-11-14)
+
+- M1: Ausgeschaltet („Dynamisch anpassen“ oder „Trefferzonen an mich anpassen“) verwirft der
+  nächste Feldstart die Sitzung mit `TouchDynamics.discardSession` statt sie auszuwerten (keine
+  Szene, keine Beobachtung, keine Beförderung, kein Bezug). Die Gesten-Seite setzt
+  `TouchModel.dynamic` jetzt mit. Tests `switchedOffTheNextFieldLooksAtNothing` (beide Schalter,
+  fünfte Sitzung wäre befördert worden), `aDiscardedSessionLeavesNoTrace`,
+  `SettingsAreaGesturesTest.switchesWriteTheRealPreferences` (erweitert).
+- M2: Entscheidung: Szenen werden umgerechnet, nicht gelöscht. `replace` und `restorePrevious`
+  rechnen die Szenen je Region um die mittlere Änderung der angewandten Basis zurück
+  (`TouchModel.rebaseScenes` → `TouchDynamics.rebase`), Beobachtungen werden geleert, die laufende
+  Sitzung verworfen (P181). Dialogtext und ANLEITUNG angepasst. Tests
+  `aCalibrationAndTheStepBackMoveTheScenesWithTheBase`, `aMovedBaseRebasesScenesAndDropsObservations`.
+- N1: `onKeyInput(code, isKeyRepeat, keyboard)`; Wiederholungen werden ignoriert, eine gehaltene
+  Löschtaste zählt einmal. N2: `UNDO` und `CLIPBOARD_CUT` verwerfen das Wort wie die Löschtaste
+  (zählen aber nicht als Löschtaste). Versetzen der Schreibmarke ohne Feldstart: dokumentiert,
+  Engine unverändert. Test `aHeldDeleteCountsOnceAndUndoOrCutDropTheWord`.
+- N3: `updateRegions` vergleicht die Geometrie der Buchstabentasten; ein Wechsel (Drehung, Einhand,
+  geteilt, Layout) beendet die Sitzung und verwirft das wartende Wort, Umschalten und Symbole
+  nicht. Ausrichtung bewusst kein Szenemerkmal (P182). Test `anotherKeyboardGeometryEndsTheSession`.
+- N4: Szenezahlen mit 3 Nachkommastellen gespeichert; geschrieben wird weiterhin nur bei Änderung
+  (Erkennung, Sitzungsende, Löschen, Kalibrierung), nicht je Taste; kein Hintergrund-Thread (die
+  Datei ist klein, `apply()` schreibt asynchron). Test `storedSceneNumbersAreRounded`.
+- N5: Beförderung nur für trainierte Buchstaben (Basis ab 15 oder 15 bestätigte Kurzzeit-Berührungen
+  seit Prozessstart); nie getippte behalten Basis und Anzahl. Dokumentiert: die Basis nähert sich
+  einer dauerhaften Abweichung nur bis etwa 0,12 Taste. Test: erweiterte Beförderungsprüfung
+  (`samples('e')` = 45, `y` bleibt 0).
+- N6: Nach einer Beförderung werden die übrigen Beobachtungen wie die Szenen verschoben. Test
+  `observationsLeftAfterAPromotionMoveWithTheBase`.
+- N7: „Auf vorherige Kalibrierung zurücksetzen“ erscheint nur, wenn `previous` existiert
+  (`TouchScenesScreenTest`: vorher `assertIsNotEnabled`, jetzt `assertDoesNotExist`); ANLEITUNG
+  erwähnt den Knopf auch außerhalb des Abschnitts „Dynamisch anpassen“.
+  `restrictedFieldsAndStatesTeachAndMoveNothing` prüft zusätzlich die Kurzzeitschicht selbst
+  (alle Regionen und global null), die Basis (`samples`, `baseOffsetY`) und dass im nächsten
+  normalen Feld nichts nachwirkt (keine Szene, keine Beobachtung). Keine Assertion entfernt.
+- Gelaufen (2026-11-14, `--max-workers=1`): `./gradlew :agent-core:test` grün (417 Tests, davon
+  `TouchDynamicsTest` 13); `:app:testDebugUnitTest` mit `TouchModelTest`, `TouchZonesDynamicTest`,
+  `TouchScenesScreenTest`, `SettingsAreaGesturesTest` grün (33). Nicht gelaufen: volle Suite,
+  `InputLogicTest`, Agent-Tests über `tools/dev.py`, Lint, Build, Gerätetest.
+- Engine-Änderungen (Prüfer Pflicht): `KeyboardActionListenerImpl.kt` (`onCodeInput`: Aufruf
+  `TouchModel.onKeyInput(primaryCode, isKeyRepeat, keyboardSwitcher.keyboard)`). `InputLogic`,
+  `RichInputConnection`, `PointerTracker`, `KeyDetector`, `LatinIME` unverändert.
+
 ## Etappe 45 (Feld- und Kontext-Vorschläge)
 
 - Auftrag (Lead, ROADMAP 45, Owner 2026-11-14): aus Feld (Typ, Hinweistext, App) und Text vor der
@@ -3601,6 +3701,124 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Offen: Prüfer-Review (`KeyboardCommands`-Host `insertAtCursor` über `onTextInput`,
   `ClipVaultSection`), Gerätetest (Code-Felder echter Apps und Browser, Hinweistexte in Messengern,
   TalkBack auf den Chips, Keystore beim ersten Speichern, Seite bei gesperrtem Gerät).
+## Nachprüfung 48 (Prüfer-Befunde zu Etappe 48, 2026-11-14)
+
+- Behoben: M1 `Suggest.guardAllows` blockierte eine reine Groß-/Klein-Korrektur, sobald irgendein
+  Wörterbuch die getippte Form kannte, auch eine andere aktive Sprache („hand“ → „Hand“, „name“,
+  „bank“ mit Deutsch und Englisch); jetzt nur Hauptwörterbuch oder Lernverlauf der Sprache der
+  Korrektur mit genau der getippten Form. N1 `TypedWordFirst.committedAt` (aus `commitChosenWord`)
+  verwirft alte Einträge am selben Start. N2 Abkürzungen: entfernt „fr“, „jh“, „jhd“ (Deutsch),
+  „ms“, „st“, „jr“, „sr“ (Englisch), neu „bzgl“, „insb“, „insbes“, „lt“, „gem“, „mind“, „allg“,
+  „ugs“, „eigtl“. N3 Einzelbuchstaben-Regel nur nach einem Kleinbuchstaben mit Punkt („z. B“,
+  „o. ä“), nicht bei Initialen („J. K. Rowling“). N4 `reverted` merkt nur, wo eine Korrektur gemerkt
+  ist (Gestenwörter werden nie gemerkt, also auch nicht zurückgenommen); keine Änderung in
+  `revertCommit` nötig.
+- N5 dokumentiert (P158, bekannte Grenzen): ohne weiteren Vorschlag steht das getippte Wort breit
+  in der Mitte; Leisten mit 5 Plätzen nicht geprüft; RTL rechts, ohne Gerätetest.
+- Tests: `SuggestTest` Fall „a known word never gets only another case“ erweitert („hand“ mit
+  deutschem „Hand“ und englischem „hand“ → automatisch; beides deutsch → nicht), `TypedWordFirstTest`
+  neu 2 (Abkürzungsliste mit Gegenproben und Initialen; Commit am selben Start, Rücknahme ohne
+  gemerkte Korrektur), `InputLogicTest` neu 1 („a correction of text deleted since …“: gegen den
+  Stand ohne `committedAt` rot, mit grün). Gelaufen gezielt `*InputLogicTest`, `*SuggestTest`,
+  `*TypedWordFirstTest`, `*CorrectionMemoryTest`, `*TypoMemoryTest`, `*StringUtilsTest`
+  (`--max-workers=1`, 2026-11-14): 289 Tests, 2 Fehler = geerbt
+  (`InputLogicTest.insertLetterIntoWordHangulFails`, `StringUtilsTest.detectEmojisAtEndFails`).
+  Nicht gelaufen: volle Suite, Build, Gerätetest. Erneute Prüfung durch einen Prüfer steht aus.
+
+## Etappe 49 (Korrekturen merken über das ganze Feld)
+
+- Auftrag (Lead, ROADMAP 49, Regeln mit dem Owner vom 2026-11-14): spätere Korrekturen im ganzen
+  Feld; Tippfehler nur bei Nicht-Wort → echtem Wort mit Vertipp-Schritten (Nachbartaste auf dem
+  aktuellen Layout, fehlender/doppelter/vertauschter Buchstabe, Umlaut/Akzent; ≤ 2, bis 4 Buchstaben
+  ≤ 1), nur dieses Wort geändert; alles andere Überarbeitung; Kandidat → gelernt beim zweiten
+  Vorkommen an anderer Stelle; zurückgenommene Autokorrektur sofort „nicht mehr“; Seite „Was ich mir
+  gemerkt habe“. Gebaut in einer Arbeitskopie, kein Prüfer-Review, kein Gerätetest.
+- Gebaut: `C/CorrectionRules.kt` (`diff`, `classify`, `mistypingSteps`, `KeyAdjacency`),
+  `K/agent/FieldCorrections.kt` (`FieldCorrectionWatcher`, `FieldCorrectionMemory`, Datei
+  `agent_field_corrections`), `TypoMemory.meantWord`/`forget` greifen auf die gelernten Paare zu,
+  `K/settings/screens/AgentMemoryScreen.kt` mit Ziel `agent_memory`, Zeile auf „Tippen & Korrektur“,
+  „Gelernte Wörter löschen“ leert mit. Engine: `InputLogic.java` (Feld `mFieldCorrections`;
+  `startInput` → `start`; `commitChosenWord` und `onUpdateSelection` → `checkpoint`;
+  `commitCurrentAutoCorrection` → `autoCorrected`; `untrusted` in `onCodeInput` bei Markierung,
+  `onTextInput`, `paste`, `applyGenerated`). Nicht geändert: `RichInputConnection`, `Suggest.kt`,
+  `PointerTracker`, `KeyDetector`, `TouchModel`. Kein bisher unverändertes Upstream-File neu
+  geändert.
+- Tests (Robolectric, echte `InputLogic` mit gestelltem „echt“ über `isValidSpellingWord`, kein
+  Gerätetest): `CorrectionRulesTest` neu 10 (Hsus → Haus, teh → the, fur → für, Haaus, Strase →
+  Straße, Montag → Freitag, das → dass, Kurzwörter, Layout-Nachbarn, Diff mit einem/mehreren
+  Wörtern, gelöschtem Rest, abgeschnittenem Text), `FieldCorrectionMemoryTest` neu 5 (zweites
+  Vorkommen, gleiche Stelle bleibt Kandidat, andere Bedeutung, ohne Erlaubnis nichts, Löschtaste
+  vergisst, Seite zeigt/übernimmt/löscht), `InputLogicTest` neu 6 („stage 49“: Korrektur nach fünf
+  weiteren Wörtern und gelernt im zweiten Feld, nach Löschen über Leerzeichen, über einen Vorschlag
+  im Wort und für ein per Vorschlag abgeschicktes Wort, Überarbeitungen inkl. das → dass,
+  Montag → Freitag, Markieren und Überschreiben, spätere Rücknahme einer Autokorrektur, nichts bei
+  Passwortfeld, Inkognito, Pause, Schalter aus). Gelaufen gezielt `:agent-core:test --tests
+  '*CorrectionRulesTest*'` (10/10) und `:app:testDebugUnitTest` mit `*InputLogicTest`,
+  `*SuggestTest`, `*TypoMemoryTest`, `*CorrectionMemoryTest`, `*TypedWordFirstTest`,
+  `*FieldCorrectionMemoryTest`, `*SettingsTypingAreaTest`, `*SettingsStartScreenTest`,
+  `*SymbolSettingsScreenTest` (`--max-workers=1`, 2026-11-14): 300 Tests, 1 Fehler = geerbt
+  (`InputLogicTest.insertLetterIntoWordHangulFails`). Nicht gelaufen: `tools/dev.py agent-tests`,
+  volle Suite, Lint, Build, Gerätetest. `docs_sync --check`: grün.
+- Bekannte Grenzen: Ein zusätzlicher Buchstabe zählt nur, wenn er einen Nachbarbuchstaben
+  verdoppelt (Regel „doppelt“ wörtlich). Ein Wort, das nur im Lernverlauf steht, zählt als echt.
+  Der Vergleich deckt je 2000 Zeichen um die Schreibmarke ab. Eine Korrektur, nach der ohne
+  Prüfpunkt markiert oder eingefügt wird, geht verloren (vorsichtig). Mehrere Sprachen: „echt“ in
+  irgendeiner aktiven Sprache. Rücknahme-Regel erkennt das Paar am Wort, nicht an der Stelle.
+
+## Nachprüfung 44/45 (Prüfer-Befunde zu Etappe 44 und 45, 2026-11-14)
+
+- B1 (mittel): Eine im Passwortfeld kopierte PIN kam über den Live-Clip als Code in Code- und
+  Zahlenfelder und als Leisten-Chip. Jetzt fragt `ClipVault.isSecretClip` (Markierung,
+  `SensitiveClips`, vom Tresor als Geheimnis sortierte Kopierzeit, Inhalt); `SensitiveClips` hört
+  auch mit Verlauf aus mit. Tests `ClipVaultTest.aPinCopiedInAPasswordFieldIsNeverOfferedWithTheHistoryOn`
+  /`…Off`, `aClipTheVaultSortedAsSecretIsNotOfferedFromTheLiveClip`.
+- B2 (mittel): Code-Schlüsselwörter nur als ganze Wörter bzw. benannte Komposita; eine Nachricht mit
+  Code bleibt Verlaufstext (`ClipClass.inText`, `keepsOutOfHistory`), nachträglich gelöscht werden
+  nur Geheimnisse. Negativtests „noch einmal … 2023114“, „Bestätigung Ihrer Bestellung 12345678“,
+  „Barcode 40071234“, „QR-Code“, „Promo-Code“ in `ClipGuardTest.codeWordsCountOnlyAsWholeWords`.
+  Geänderte Erwartungen (gewolltes neues Verhalten, keine Abschwächung): `ClipVaultTest` erwartet
+  „Dein Code lautet 551177“ und ein altes „123456“ jetzt im Verlauf; der Inkognito-Fall prüft einen
+  Code allein.
+- B3 (mittel): `SensitiveClips` nur im Speicher (je Prozess gesalzen); die alte DE-Datei wird einmal
+  zum Aufräumen des Verlaufs benutzt und gelöscht, nur Hashes angehefteter Einträge bleiben.
+  `ClipCommandTest` erwartet jetzt keine Datei mehr (statt „Hash vorhanden“) und
+  `theOldHashFileIsUsedOnceAndThenOnlyForPinnedEntries`. Speicher statt Keystore-HMAC, weil
+  solche Clips seit Etappe 44 nie in den Verlauf kommen.
+- B4 (mittel): `LatinIME.onPrivateTextInput`, `InputLogic.markPrivateText`/`nearPrivateText`
+  (Tresor, Code-Chip im leeren Feld, ersetzte Werte über `Host.markPrivate`). Test
+  `InputLogicTest.aPrivateTextIsNeverComposedShownOrLearned` (Leerzeichen, nächstes Wort,
+  Rücktaste: nichts gelernt, nichts komponiert, Leiste ohne Geheimnis; ein normales `onTextInput`
+  wird weiter komponiert).
+- B5: Felder von „Meine Daten“ mit `NO_LEARNING_FIELD`, `InputAttributes` zählt es
+  (`FieldSuggestionChipsTest.theMyDataFieldsAreNoLearningFields`; dass Compose die Kennung wirklich
+  in `EditorInfo.privateImeOptions` schreibt, ist nicht getestet).
+- B6: Passwort-Wort plus Wert = `SECRET` (`aPasswordWordWithItsValueIsASecret`; die alte Erwartung
+  „Das WLAN-Passwort lautet Sommer2024“ = Text ist bewusst auf Geheimnis umgestellt).
+- B7: `MyDataCache.drop` in `onFinishInputView` (`hidingTheKeyboardDropsTheDecryptedData`).
+- B8: `secure_delete` + `wal_checkpoint(TRUNCATE)` beim Löschen, Bereinigung auch beim Start, danach
+  einmal `VACUUM`. Nur indirekt getestet (bestehende Lösch-Tests grün); ob die Seiten auf einem Gerät
+  wirklich überschrieben werden, ist nicht geprüft.
+- B9: Telegram-Bot-Token, Bearer-Token, Namen wie „B2B-Shop“/„Win11-Pro“/„camelCase2_x“ bleiben
+  normal (`moreKeyFormatsAndIdentifiersThatAreNone`); alte Passwort-Positive grün.
+- B10: P154 um den Prozess-Neustart ergänzt (bewusst offen).
+- B11: Ausschalten von „Personalisierte Vorschläge“ löscht auch die Kontext-Gewichte (eine Zeile,
+  ohne eigenen Test).
+- B12: Tipp prüft Sperre, Inkognito, Passwortfeld und Text hinter der Schreibmarke erneut
+  (`FieldSuggestionChipsTest.aTapChecksTheFieldAgainAndMarksTheValuePrivate`); schwacher Code im
+  reinen Zahlenfeld bleibt (höchstens 3 min), dokumentiert.
+- Geprüft: `./gradlew :agent-core:test` grün; `:app:testDebugUnitTest` mit `ClipVaultTest` (20),
+  `FieldSuggestionChipsTest` (21), `MyData*` (7), `ClipCommandTest` (11), `SnipCommandTest` (24)
+  grün; `InputLogicTest` (207), `FlatClipboardTest`, `ScreenshotChipTest`, `FormatGuardChipsTest`,
+  `TouchModelTest`, `EmojiMixPaletteTest` grün bis auf das geerbte
+  `InputLogicTest.insertLetterIntoWordHangulFails`. Nicht gelaufen: volle Suite, Agent-Tests über
+  `tools/dev.py`, Lint, Build, Gerätetest.
+- Engine-Änderungen (Prüfer Pflicht): `InputLogic.java` (`markPrivateText`, `nearPrivateText`, je
+  eine Bedingung in `restartSuggestionsOnWordTouchedByCursor` und
+  `performAdditionToUserHistoryDictionary`, `onFreshEditorSession`), `LatinIME.java`
+  (`onPrivateTextInput`, `markAgentPrivateText`, eine Zeile in `onFinishInputView`),
+  `KeyboardActionListener.java`/`KeyboardActionListenerImpl.kt` (`onPrivateTextInput`),
+  `InputAttributes.java` (bisher unverändert), `ClipboardDao.kt`. `RichInputConnection`,
+  `PointerTracker` unverändert.
 
 ## Etappe 46 (Gedächtnis)
 
@@ -3661,7 +3879,7 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   `MemoryScreenTest` 3 (Schalter anfangs aus und gespeichert; Anpinnen und Lösen, Löschen entfernt
   auch längere Folgen und steht sofort im Speicher; eigenes Wort und ausgeschlossene App
   entfernen). Unverändert grün: `SettingsTypingAreaTest` 9 (öffnet jede Seite aus
-  `SettingsAreas`, jetzt auch „Gedächtnis“), `SettingsStartScreenTest` 10, `KeyboardCommandsTest` 5,
+  `SettingsAreas`), `SettingsStartScreenTest` 10, `KeyboardCommandsTest` 5,
   `FieldSuggestionChipsTest` 18, `FormatGuardChipsTest` 12, `SnipCommandTest` 24,
   `CorrectionMemoryTest` 4, `TypoMemoryTest` 9.
 - Nicht gelaufen: `tools/dev.py agent-tests`, volle Suite, Build und Lint (geteilte Maschine,

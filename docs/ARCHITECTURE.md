@@ -168,12 +168,14 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - `C/clip/ClipGuard.kt` (Etappe 44, Paket `dev.agentkeyboard.core.clip`, P154–P157):
   `ClipGuard.classify(text, markedSensitive, region)` → `ClipClass` (`ClipKind` SECRET, OTP, IBAN,
   PHONE, EMAIL, ADDRESS, LINK, TEXT; `ClipCategory` SECRET/OTP/PERSONAL/NORMAL; `code` = Ziffern
-  eines Einmalcodes; `SecretReason`; `toString` ohne Text), `mask` (bekanntes Präfix plus die
+  eines Einmalcodes; `inText` = Code in einer Nachricht, `keepsOutOfHistory` = Geheimnis oder Code
+  allein; `SecretReason`; `toString` ohne Text), `mask` (bekanntes Präfix plus die
   letzten vier Zeichen ab 20 Zeichen, sonst `HIDDEN`), `entropy`, `SECRET_MILLIS` = 2 min,
   `OTP_MILLIS` = 10 min. Reihenfolge und Entscheidungen: markiert → SECRET; Block
   `-----BEGIN … PRIVATE KEY-----`; bekannte Schlüssel (`sk-`, `sk-proj-`, `sk-ant-`, `sk_live_`,
-  `ghp_`/`gho_`/…, `github_pat_`, `AKIA`/`ASIA`, `xox?-`, `AIza`, `glpat-`, `hf_`, `npm_`) und
-  JWT überall im Clip bis `MAX_SCAN` = 64 KiB (auch `KEY=sk-…` und Code); danach nur bis
+  `ghp_`/`gho_`/…, `github_pat_`, `AKIA`/`ASIA`, `xox?-`, `AIza`, `glpat-`, `hf_`, `npm_`,
+  Telegram-Bot-Token `8–10 Ziffern:35 Zeichen`, `Bearer` + mindestens 20 Token-Zeichen mit einer
+  Ziffer) und JWT überall im Clip bis `MAX_SCAN` = 64 KiB (auch `KEY=sk-…` und Code); danach nur bis
   `MAX_LENGTH` = 4096 Zeichen: nur Ziffern 4–8 (auch 3+3/4+4 mit Leerzeichen oder Strich) = OTP,
   außer einer Jahreszahl 1900–2099; IBAN über `IbanCheck.normalize` (auch „IBAN:“ davor);
   E-Mail (ganzer Clip); Telefon über `PhoneFormat.isValid` (neu, bis 30 Zeichen, kein Datum);
@@ -181,11 +183,18 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   20–200 Zeichen aus Base64/URL-Zeichen mit Groß- und Kleinbuchstaben, mindestens 2 Ziffern und
   höchstens 5 Kleinbuchstaben am Stück (ab 32 Zeichen 3 Ziffern, 8 am Stück) und Entropie
   ≥ 3,5 Bit/Zeichen (`TOKEN`), oder 8–32 ASCII-Zeichen mit allen vier Zeichenklassen, einer Ziffer
-  direkt an einem Buchstaben, höchstens 5 Kleinbuchstaben am Stück, ohne Dateiendung
-  (`PASSWORD`); nie Hex (Git-Hashes, Prüfsummen, UUIDs, Farben), Pfade, `@`/`#`-Namen,
+  direkt an einem Buchstaben, höchstens 5 Kleinbuchstaben am Stück, ohne Dateiendung und nicht nur
+  mit `-`/`_`/`.` zwischen Buchstaben oder Ziffern (`separatedName`: „B2B-Shop“, „Win11-Pro“,
+  „camelCase2_x“ bleiben normal) (`PASSWORD`); ein Passwort-Wort (Passwort, Kennwort, password,
+  passwd, contraseña, WLAN-Schlüssel, auch „WLAN-Passwort“) mit Wert direkt danach (nach „:“/„=“
+  jeder, nach ist/lautet/heißt/is/es nur mit Ziffer oder Sonderzeichen, nicht nach „one-time“/
+  „einmal“; ≤ 300 Zeichen) ist ebenfalls `PASSWORD`; nie Hex (Git-Hashes, Prüfsummen, UUIDs, Farben), Pfade, `@`/`#`-Namen,
   `data:`-URIs, Zahlen, Daten, Wörter, Text mit Leerzeichen, längere Blobs. Code im Satz (≤ 300
-  Zeichen, Schlüsselwort de/en/es wie Code, código, clave, TAN, PIN, Bestätigung, verification,
-  einmal, one-time): der Kandidat direkt nach dem Schlüsselwort, sonst der einzige; Daten,
+  Zeichen, Schlüsselwort de/en/es nur als ganzes Wort mit eigenen Grenzen statt `\b`: Code,
+  Komposita aus einer Liste (Bestätigungs-, Sicherheits-, Zugangs-, SMS-, Einmal-, PIN-…code) oder
+  „X-Code“ außer QR, Bar, Promo, Rabatt, Gutschein, Post …; código, clave, OTP, passcode, (m)TAN,
+  PIN, one-time, Einmalpasswort/-kennwort/-PIN/-TAN; nie „Barcode“, „noch einmal“, „Bestätigung“
+  oder „Verifizierung“ allein): der Kandidat direkt nach dem Schlüsselwort, sonst der einzige; Daten,
   Uhrzeiten, Beträge, an Buchstaben klebende Ziffern und gruppierte Nummern (Telefon) zählen
   nicht. Adresse (≤ 200 Zeichen, ≤ 4 Zeilen): PLZ (4–5 Ziffern) plus Ort und Straße mit
   Hausnummer (de/at: -straße, -str., -weg, -gasse, -platz, Ring …; es: Calle, Avenida, Plaza …),
@@ -291,6 +300,12 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   ohne das Lernen für den Rest der Sitzung abzuschalten. `performAdditionToUserHistoryDictionary`
   lernt kein Befehlswort (`KeyboardCommands.isCommandWord`). Die Überladung mit `generated = true`
   (`@ki`) stoppt das Lernen für den Rest der Sitzung wie bei anderen KI-Übernahmen.
+  Nachprüfung 44/45 (P178): `markPrivateText` merkt Text und Startposition eines eingefügten
+  Tresor-Geheimnisses, Codes oder Werts aus „Meine Daten“; `nearPrivateText` hält
+  `restartSuggestionsOnWordTouchedByCursor` davon fern (Schreibmarke darin, an seinem Anfang oder
+  Ende) und `performAdditionToUserHistoryDictionary` lernt nichts, solange die Schreibmarke höchstens
+  `PRIVATE_LEARNING_DISTANCE` = 64 Zeichen dahinter steht und der Text noch dasteht (auch hinten
+  gekürzt); `onFreshEditorSession` vergisst ihn.
 - `InputLogicHandler.java`: hält Worker- und UI-Teil eines Swipe-Batches über
   `PendingBatchGate` gemeinsam gesperrt.
 - `RichInputConnection.java`: native Ersetzung als genau ein Commit, Ergebnis als `ApplyOutcome`
@@ -315,13 +330,18 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   Langdruck-Timer der Leertaste (`cancelLongPressTimersOf`, P101). Schwelle, Achsenwahl,
   senkrechte Wische, fortlaufende Aktionen, Schnelltipp-Sperre, Ende über `onEndSpaceSwipe` und
   Gestentippen sind unverändert.
-- `KeyboardActionListener.java` (`CustomAction.SPACE_HOLD`, früher `SHOW_AGENT_WHEEL`;
+- `KeyboardActionListener.java` (Nachprüfung 44/45: `onPrivateTextInput`, Vorgabe `onTextInput`,
+  `KeyboardActionListenerImpl` ruft `LatinIME.onPrivateTextInput`; `CustomAction.SPACE_HOLD`, früher `SHOW_AGENT_WHEEL`;
   `onSpaceSwipe(SpaceGesture, int)` ersetzt `onHorizontalSpaceSwipe`/`onVerticalSpaceSwipe`;
   `onSpaceSwipeDistance(SpaceGesture, int, int)` für seitliche Einmal-Wische, Etappe 33) und
   `KeyboardActionListenerImpl.kt` (leitet Panel-, Rad-, Skill- und Diktat-Taste an den Controller,
   blockiert Eingabe während eines Overlays; Leertasten-Aktionen und Doppeltippen, siehe
   „Editorzugriff, Panel und Rad“; seitliche Einmal-Wische laufen über `SpaceDetents` und spielen
   `HapticChain`).
+- `InputAttributes.java` (Nachprüfung 45, P180): `mNoLearning` auch für Felder mit
+  `privateImeOptions` = `AgentPreferences.NO_LEARNING_FIELD` (die Felder von „Meine Daten“), in
+  jeder Feldklasse und API-Stufe; daraus wird wie beim Flag `IME_FLAG_NO_PERSONALIZED_LEARNING`
+  Inkognito.
 - `SettingsValues.java`: `mSpaceGestures` (aufgelöste Leertasten-Gesten) statt
   `mSpaceSwipeHorizontal`/`mSpaceSwipeVertical`; `mSpaceForLangChange` aus
   `SpaceGestures.holdShowsPicker`; `mUseDoubleSpacePeriod` ist aus, solange Doppeltippen eine
@@ -356,7 +376,10 @@ Autokorrektur (Etappe 20a, Details im Abschnitt „Lerndaten“):
 - Getipptes Wort vorne (Etappe 48, P158–P160): `InputLogic.java` hält `mTypedWordFirst`
   (`K/agent/TypedWordFirst.kt`), `startInput` leert es. `commitCurrentAutoCorrection` merkt nach
   dem Commit Start, korrigiertes und getipptes Wort (nicht beim Gestenschreiben), `revertCommit`
-  vor dem Commit des getippten Worts dessen Start (nur Sprachen mit Leerzeichen).
+  vor dem Commit des getippten Worts dessen Start (nur Sprachen mit Leerzeichen; `reverted` merkt
+  nur, wo eine Korrektur gemerkt ist, also nie bei Gesten). `commitChosenWord` ruft nach
+  `commitWord` `committedAt(Start)` und verwirft so einen alten Eintrag an derselben Stelle
+  (Feld per Löschtaste oder von der App geleert, Nachprüfung 48).
   `restartSuggestions` fragt `resumed(Start, Wort)` und ordnet die Span-Liste mit `arrange`;
   `getSuggestedWords` ordnet das Ergebnis von `Suggest`, solange der wiederaufgenommene Kompositions-
   text unverändert ist (`typedFor`). `onPickSuggestionManually`: Tipp auf die getippte Form eines
@@ -364,10 +387,21 @@ Autokorrektur (Etappe 20a, Details im Abschnitt „Lerndaten“):
   `TypoMemory.forget` wie bei der Löschtaste; `TypoMemory.confirm` greift bei wiederaufgenommenen
   Wörtern ohnehin nicht.
 - `Suggest.kt` (48): `guardAllows` blockiert eine reine Groß-/Klein-Korrektur
-  (`CorrectionGuard.changesOnlyCase`), sobald ein Wörterbuch die getippte Form kennt
-  (`typedWordFirstOccurrenceWordInfo`), außer die Korrektur ist `KIND_WHITELIST` („i“ → „I“).
+  (`CorrectionGuard.changesOnlyCase`), sobald Hauptwörterbuch oder Lernverlauf der Sprache der
+  Korrektur genau die getippte Form kennt (in `suggestionResults`; eine andere aktive Sprache zählt
+  nicht, „hand“ → „Hand“ bleibt automatisch, Nachprüfung 48), außer die Korrektur ist
+  `KIND_WHITELIST` („i“ → „I“).
   `correctToCapitalizedWord` (Umschalttaste nach dem Wort mit „Vorgeschlagene Großschreibung
   automatisch korrigieren“) läuft daran vorbei und bleibt.
+- Korrekturen im ganzen Feld (Etappe 49, P169–P171): `InputLogic.java` hält `mFieldCorrections`
+  (`K/agent/FieldCorrections.kt`, `FieldCorrectionWatcher`). `startInput` → `start` (Feld vergessen);
+  `commitChosenWord` nach `commitWord` und `onUpdateSelection` nach dem Zurücksetzen der Caches
+  (vor `mRecapitalizeStatus.enable`) → `checkpoint` (Feld mit dem letzten Stand vergleichen, bei
+  `commitChosenWord` mit erlaubtem gelöschtem Rest); `commitCurrentAutoCorrection` → `autoCorrected`
+  (nur Tipp-Eingabe, wie 48); `untrusted` (Vergleichsstand verwerfen) am Anfang von `onCodeInput`
+  bei Markierung, am Ende von `onTextInput`, in `paste` und in `applyGenerated` nach erfolgreichem
+  Commit. Sonst unverändert; `RichInputConnection` nicht geändert, gelesen nur über
+  `getTextBeforeCursor`/`getTextAfterCursor`/`hasSelection`/`getExpectedSelectionStart`.
 - `CapsModeUtils.java` (48): im Zustand WORD (Wort direkt vor dem Punkt, ohne inneren Punkt) und
   am Textanfang fragt `getCapsMode` `K/agent/Abbreviations.isAbbreviation`; eine bekannte Abkürzung
   (Deutsch bei `mUsesGermanRules`, Englisch bei `mUsesAmericanTypography`) oder ein einzelner
@@ -400,8 +434,10 @@ Trefferzonen (Etappe 22a, Touch-Verarbeitung, jede Änderung mit Prüfer):
   Aufruf bekommt zusätzlich `editorInfo` und `restarting` (`TouchModel.load(…, editorInfo,
   restarting)`), weil die Einstellungen an dieser Stelle noch die des vorigen Felds sind (P165).
 - `KeyboardActionListenerImpl.kt` (50): `onCodeInput` meldet jeden Code an
-  `TouchModel.onKeyInput`, direkt nach dem Kalibrier-Hook und vor der Verarbeitung (Löschtaste
-  verwirft die Berührungen des zuletzt abgeschickten Worts, jede andere Taste bestätigt sie).
+  `TouchModel.onKeyInput`, direkt nach dem Kalibrier-Hook und vor der Verarbeitung (Löschtaste,
+  Rückgängig und Ausschneiden verwerfen die Berührungen des zuletzt abgeschickten Worts, jede andere
+  Taste bestätigt sie). Seit der Nachprüfung 50 mit `isKeyRepeat` (gehaltene Löschtaste zählt
+  einmal) und `keyboardSwitcher.keyboard` (Geometriewechsel, P182).
 - `KeyDetector.java` bleibt in 50 unverändert: `TouchModel.adjust` rechnet über `offsetX`/`offsetY`
   jetzt Basis plus Kurzzeitschicht.
 
@@ -412,6 +448,9 @@ Befehle (Etappe 24a, Details im Abschnitt „Befehle“):
   `getAgentCommandCursor`, `replaceCommandText` für `KeyboardCommands`;
   `onStartInputViewInternal` lädt die Befehlseinstellungen; `onCreate`/`onDestroy` hängen
   `SensitiveClips.attach` an die Zwischenablage (eigener Listener, der Verlauf bleibt unverändert).
+  Nachprüfung 44/45: `onPrivateTextInput` (wie `onTextInput`, merkt den Text danach über
+  `InputLogic.markPrivateText`, P178) und `markAgentPrivateText`; `onFinishInputView` verwirft
+  `MyDataCache` (eine Zeile).
   Etappe 42: `onEvent` gibt die Bildschirm-Enter-Taste zuerst an `KeyboardCommands.onEnter` (nur
   ein Befehl, der gerade ein Feld abfragt, nimmt sie; sonst unverändert), `moveAgentCursorBack`
   setzt nach einem Baustein die Schreibmarke über `RichInputConnection.setSelection` zurück (eigener
@@ -466,13 +505,20 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
   `ScreenshotChip.stop` (Observer abmelden, ausstehende Meldung, Entprellen und Ablauf entfernen).
   Etappe 44 (Zwischenablage-Wächter, Abschnitt „Speicher, Zugangsdaten und Datenschutz“):
   `ClipboardHistoryManager.fetchPrimaryClip` gibt jeden Text-Clip zuerst an `ClipVault.offer`
-  (vertraulich = `IS_SENSITIVE` oder Passwortfeld) und schreibt `SECRET`/`OTP` nie in
-  `ClipboardDao`; `getClipboardSuggestionView` zeigt für ein Geheimnis keinen Chip (vorher Sternchen);
-  `prepareClipboardHistory` entfernt alte nicht angeheftete Geheimnisse und Codes
-  (`removeVaultClipsFromHistory`, auch per `SensitiveClips`-Hash); `clearHistory` leert den
-  Tresor; `onCreate` setzt `ClipVault.currentClip`. `ClipboardHistoryView.startClipboardHistory`
+  (vertraulich = `IS_SENSITIVE` oder Passwortfeld) und schreibt, was `ClipClass.keepsOutOfHistory`
+  sagt (Geheimnis, Code allein), nie in `ClipboardDao`; eine Nachricht mit Code bleibt Verlaufstext.
+  `getClipboardSuggestionView` zeigt keinen Chip, wenn `ClipVault.isSecretClip` (Markierung,
+  `SensitiveClips`, vom Tresor als Geheimnis sortierte Kopierzeit, Inhalt) zutrifft (vorher
+  Sternchen); `prepareClipboardHistory` und, bei eingeschaltetem Verlauf, `onCreate` entfernen alte
+  nicht angeheftete Geheimnisse (`removeVaultClipsFromHistory`, auch per `SensitiveClips`; Codes
+  bleiben); `onCreate` ruft vorher `SensitiveClips.migrateLegacy` und nach einer Löschung
+  `ClipboardDao.compactInBackground`; `clearHistory` leert den Tresor; `onCreate` setzt
+  `ClipVault.currentClip`. `ClipboardDao.delete`/`clear` löschen über `deleteRows`
+  (`PRAGMA secure_delete = ON` in derselben Transaktion, danach `wal_checkpoint(TRUNCATE)`),
+  `compactInBackground` = einmal `VACUUM` in einem Thread (Nachprüfung 44/45, P179).
+  `ClipboardHistoryView.startClipboardHistory`
   ruft `refreshVault` (Tresorreihen über der Liste, Liste um ihre Höhe kürzer, `ClipVault.onChange`
-  bis `stopClipboardHistory`), `onVaultPick` fügt per `onTextInput` ein. `ClipboardAdapter.setContent`
+  bis `stopClipboardHistory`), `onVaultPick` fügt per `onPrivateTextInput` ein (P178). `ClipboardAdapter.setContent`
   beschriftet persönliche Clips und verdeckt alte angeheftete Geheimnisse
   (`ClipVaultSection.historyText`, Urteil je Eintrags-ID gemerkt).
 - `LatinIME.java` (23g): `setSuggestedWords` ruft nach `tryShowCommandChips` und nach
@@ -647,9 +693,16 @@ Symbole malen (Etappe 27, Touch-Verarbeitung, jede Änderung mit Prüfer; Detail
   `mInkAfterTyping`/`mGestureDownX/Y`; `onGestureMoveEvent` startet dann erst ab
   `SymbolInk.startsAfterTyping` (0,75 Tastenbreiten vom Aufsetzpunkt, P153). Ohne Symbole malen
   unverändert; `GestureStrokeRecognitionPoints`/`-Params` unverändert.
+  43 nach Prüfer: `onDownEvent` lässt die Sperre an und `mInkAfterTyping` aus, wenn ein weiterer
+  Zeiger in der Warteschlange ist (zwei Daumen, M1a); `onGestureMoveEvent` startet mit
+  `mInkAfterTyping` nur allein und meldet den Start mit `SymbolInk.onStartAfterTyping` (Zeiger,
+  Aufsetzpunkt, Tastenbreite, M1b). `typeInkTap` tippt nur Tasten laut `SymbolInk.startsInkOn`
+  (N1; damit entfallen die Zweige für `MULTIPLE_CODE_POINTS`/`NOT_SPECIFIED`, deren Codes ≤ 0
+  sind) und meldet `onPressKey` immer mit einem Zeiger (N2).
 - `TextCorrectionScreen.kt` (36, Prüfer N4): Bestätigt man das Ausschalten von „Personalisierte
   Vorschläge“, löscht der Dialog auch die persönlichen Vorlagen von Symbole malen
-  (`SymbolDrawing.clearPersonalSymbols`), eine Zeile.
+  (`SymbolDrawing.clearPersonalSymbols`), eine Zeile; seit der Nachprüfung 44/45 auch die Gewichte
+  der Kontext-Vorschläge (`ContextLearning.clear`), eine Zeile.
 - `KeyboardActionListenerImpl.kt`: die vier Batch-Methoden gehen bei eingeschaltetem
   `mSymbolDrawing` an `SymbolInk` statt an `LatinIME` (LatinIME, InputLogic und
   `PendingBatchGate` sehen davon nichts); `onPressKey`, `onCodeInput`, `onTextInput` rufen zuerst
@@ -844,8 +897,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `MAX_ITEMS` = 20. `secrets`/`codes` (neueste zuerst, abgelaufene vorher entfernt), `take` (ein
   Geheimnis verlässt den Tresor beim ersten Einfügen, seine Kopierzeit steht in `used`, damit
   derselbe Clip beim Neustart nicht zurückkommt; ein Code bleibt), `freshest(context, kind,
-  maxAge)` für Etappe 45 (nie ein Geheimnis; mit Verlauf aus nur der aktuelle Clip über
-  `currentClip`, live gelesen, nie behalten), `isBlocked` (gesperrt, Inkognito, Passwortfeld,
+  maxAge)` für Etappe 45 (nie ein Geheimnis; ohne passenden Tresor-Eintrag und mit Verlauf aus nur
+  der aktuelle Clip über `currentClip`, live gelesen, nie behalten, und nie, wenn `isSecretClip`
+  zutrifft), `isSecretClip(text, copiedAt, marked)` (markiert, von `SensitiveClips` als im
+  Passwortfeld kopiert vermerkt, Kopierzeit in `secretStamps` = von `offer` als Geheimnis sortiert,
+  auch nicht behalten, höchstens 20, oder Geheimnis nach Inhalt; auch für den Leisten-Chip),
+  `isBlocked` (gesperrt, Inkognito, Passwortfeld,
   unbekanntes Feld), `clearSystemClip` (P156), `clock` (Tests), `onChange` (Ablauf bei offener
   Ansicht, ein `Handler` weckt beim nächsten Ablauf). `Item.toString`/`Fresh.toString` ohne Text,
   nichts geloggt. `A/ClipVaultSection.kt`: Reihen „Tresor“ und „Einmalcodes“ (Tags
@@ -854,7 +911,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Code); `historyText`/`label` für die Beschriftung persönlicher Clips (IBAN, Telefon, E-Mail,
   Adresse) in der Liste. Texte in `agent_clipvault_strings.xml` (`values/`, `values-de/`).
   `ClipCommand` (`@clip`) und `SnipCommand.SystemClipboard` (`{zwischenablage}`) behandeln ein
-  Geheimnis wie einen vertraulichen Clip. Speicher: `docs/STORAGE.md`. Test `AT/ClipVaultTest.kt`.
+  Geheimnis wie einen vertraulichen Clip. `A/commands/SensitiveClips.kt` (seit der Nachprüfung
+  44/45 nur im Speicher, je Prozess gesalzene Hashes, auch mit Verlauf aus; `isSensitive`,
+  `matcher` mit den Hashes angehefteter Einträge aus der alten Datei, `migrateLegacy`, P155). Speicher: `docs/STORAGE.md`. Test `AT/ClipVaultTest.kt`.
   Etappe 45: Am Ende der letzten Tresor-Reihe öffnet der Chip „Meine Daten“ (`TAG_MY_DATA`, kein
   Tresor-Eintrag) über `SnipCommand.openSettings` die Seite `agent_my_data`.
 - Meine Daten (Etappe 45, P164): `A/MyData.kt`. `MyData` (Name, Listen E-Mail, Telefon, Adresse,
@@ -865,11 +924,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   16 KiB, `checkAccess` (`credentialAccessAllowed`, sonst `LOCKED` vor jedem Datei- und
   Schlüsselzugriff), manipulierte Datei = `UNAVAILABLE` ohne Löschen, leere Daten löschen die
   Datei. `MyDataCache`: gelesen erst, wenn ein Feld oder Hinweis eigene Daten braucht; bei
-  gesperrtem Gerät verworfen, nach Speichern und Löschen verworfen. `ContextLearning` siehe
+  gesperrtem Gerät verworfen, nach Speichern und Löschen verworfen, und in
+  `LatinIME.onFinishInputView` (Bildschirm aus und Sperre blenden die Tastatur vorher aus). `ContextLearning` siehe
   „Lerndaten“. `K/settings/screens/AgentMyDataScreen.kt`: Seite „Meine Daten & Vorschläge“ (Route
   `agent_my_data`, auch in `SETTINGS_DESTINATIONS`): Schalter (Tastatur-Einstellungen, keine
   Daten), Karte mit neun Feldern (Name, je zwei E-Mail, Telefon, Adresse, IBAN; IBAN-Hinweis über
-  `IbanCheck`), Speichern, Alles löschen. `MyDataStore` entsteht nur im entsperrten Inhalt
+  `IbanCheck`; jedes Feld mit `PlatformImeOptions(AgentPreferences.NO_LEARNING_FIELD)`, die Tastatur
+  lernt dort nichts, P180), Speichern, Alles löschen. `MyDataStore` entsteht nur im entsperrten Inhalt
   (P134/P145), `ON_STOP` verwirft ihn, `SecureWindow` solange die Karte steht, nichts in Saved
   State. Zeile auf Leiste & Befehle (`SettingsAreas.entries(BAR)`). Tests `AT/MyDataStoreTest.kt`,
   `AT/MyDataScreenTest.kt`.
@@ -1104,8 +1165,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     (`@clip`, nur mit eingeschaltetem Verlauf, nur Text; überspringt den aktuellen vertraulichen Clip
     und alles, was `A/commands/SensitiveClips.kt` als vertraulich kopiert vermerkt hat: eigener
     Zwischenablage-Listener aus `LatinIME`, Markierung `IS_SENSITIVE` oder Passwortfeld als
-    aktueller Editor, gesalzene SHA-256 in DE-Einstellungen, Speicher: `docs/STORAGE.md`; vor
-    diesem Stand kopierte Clips bleiben unerkannt), `A/commands/WorkflowCommand.kt` (`@wf`,
+    aktueller Editor, gesalzene SHA-256 nur im Speicher seit der Nachprüfung 44/45, vorher in
+    DE-Einstellungen, Speicher: `docs/STORAGE.md`; vor Etappe 24f kopierte Clips bleiben unerkannt), `A/commands/WorkflowCommand.kt` (`@wf`,
     `Host.openWorkflow` → `AgentEditorController.openWorkflow`; ändert das Feld nicht; `false`
     ergibt einen Toast). Ohne Auswahl (`NO_SELECTION`/`COMPOSITION`, `WAITS_FOR_SELECTION`) merkt
     sich der Controller nur die ID (`chosenWorkflowId`) und zeigt „Workflow vorgemerkt“; das
@@ -1331,11 +1392,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `ContextLearning.weights`, nur ab Schwelle, nicht schon im Text, höchstens 2. Chip-Text
     `label` (🔗 `shortLink` = Host plus „/…“, ✉️, 📞, 🏦 erste und letzte vier Zeichen, 🏠, 👤, 🔢),
     Beschreibung „… aus Meine Daten“ bzw. „gerade kopiert“. Tipp genau einmal (`used`): leeres Feld
-    `Host.insertAtCursor` (echter Host: `LatinIME.onTextInput` wie das Einfügen aus der
-    Zwischenablage-Ansicht, nur bei `canReplaceAgentCommand` und unveränderter Schreibmarke, P162),
+    `Host.insertAtCursor` (echter Host: `LatinIME.onPrivateTextInput` wie das Einfügen aus dem
+    Tresor, nur bei `canReplaceAgentCommand` und unveränderter Schreibmarke, P162, P178),
     angefangener Feldtext `Host.replace` (Text → Wert), Kontext `Host.replace` der letzten bis zu 24
     Zeichen durch sich selbst plus Wert (nach „:“ mit Leerzeichen; `replaceCommandText` prüft, dass
-    sie unverändert vor der Schreibmarke stehen). Lernen: `shown` hält die gezeigten Angebote
+    sie unverändert vor der Schreibmarke stehen). Beim Tipp prüft `insert` das Feld erneut
+    (`isBlocked` mit den aktuellen Einstellungen und live gesperrt; im leeren Feld nichts vor oder
+    hinter der Schreibmarke) und meldet einen ersetzten Wert über `Host.markPrivate`
+    (`LatinIME.markAgentPrivateText`, P178). Ein Zahlenfeld ohne Code-Hinweis bekommt einen Code
+    bewusst trotzdem (`weak`), aber nur bis 3 min alt: ein PIN- oder Betragsfeld ohne Hinweis kann so
+    einen frischen Code angeboten bekommen, nie ohne Tipp. Lernen: `shown` hält die gezeigten Angebote
     (Hinweis-`id`, Art, App und Feld-ID, nur im Speicher); verschwindet eines ohne Tipp, zählt es
     einmal als übergangen, ein Tipp als angenommen (`ContextLearning.record`, P163). Texte in
     `agent_suggest_strings.xml` (`values/`, `values-de/`). Tests `AT/FieldSuggestionChipsTest.kt`,
@@ -2060,6 +2126,22 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Korrekturen, kein Lernspeicher), `K/agent/Abbreviations.kt` (feste Listen, keine Lerndaten);
   Einbindung im Abschnitt „Geänderte Upstream-Dateien“ → Autokorrektur. Tests:
   `TypedWordFirstTest`, Fälle „stage 48“ in `SuggestTest` und `InputLogicTest`.
+- Korrekturen im ganzen Feld (49): Regeln rein in `C/CorrectionRules.kt` (`diff`: genau ein Wort
+  geändert, Rest gleich oder bei einem gerade abgeschickten Wort am Feldende gelöscht; `classify`:
+  TYPO nur bei Nicht-Wort → echtem Wort mit 1–2 Vertipp-Schritten, bis 4 Buchstaben 1;
+  `KeyAdjacency` aus den Tasten der aktuellen Tastatur, ohne Tastatur QWERTZ/QWERTY nach Sprache).
+  `K/agent/FieldCorrections.kt`: `FieldCorrectionWatcher` (je `InputLogic`, Feldtext nur im
+  Speicher, je 2000 Zeichen um die Schreibmarke, „echt“ = `isValidSpellingWord` auch klein,
+  also Wörterbuch, persönliches Wörterbuch, Kontakte, Lernverlauf) und `FieldCorrectionMemory`
+  (Datei `agent_field_corrections`, Kandidat → gelernt beim zweiten Vorkommen mit anderer
+  Feldnummer oder Stelle). Wirkung über `TypoMemory.meantWord` (gelerntes Paar nur, wenn das
+  Getippte kein Hauptwörterbuch-Wort ist; danach wie 20b über `Suggest.applyLearnedCorrection`),
+  `TypoMemory.forget` löscht mit. Zurückgenommene Autokorrektur → `RejectedCorrections.remember`.
+  Seite `K/settings/screens/AgentMemoryScreen.kt` („Was ich mir gemerkt habe“, eine Liste von
+  Abschnitten, 46 ergänzt seinen; Ziel `agent_memory`, Zeile in `AgentAreaTypingScreen.kt` und
+  Eintrag in `SettingsAreas`), Texte `values{,-de}/agent_memory_strings.xml`. Tests:
+  `CT/CorrectionRulesTest.kt`, `AT/FieldCorrectionMemoryTest.kt` (Speicher und Seite), Fälle
+  „stage 49“ in `InputLogicTest`.
 - Trefferzonen (22a): `K/agent/TouchModel.kt` hält pro Buchstabe (Code unter U+0250) den
   gleitenden Mittelwert der Abweichung vom Tastenmittelpunkt in Tastenbreiten und -höhen und die
   Anzahl, Datei `agent_touch_model` (gerätegeschützt). Wirksam erst ab 15 Treffern, gedämpft und
@@ -2098,10 +2180,31 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     einer Szene“), wandert die Basis jeder Region um die Hälfte, höchstens 0,06 Taste je Achse
     (`MAX_PROMOTION`); die Szenen werden um denselben Schritt zurückgerechnet. Vorher sichert
     `TouchModel` die Basis (`previous`, auch vor jeder Kalibrierung), „Auf vorherige Kalibrierung
-    zurücksetzen“ stellt sie wieder her (ein Schritt).
+    zurücksetzen“ stellt sie wieder her (ein Schritt; der Knopf erscheint nur, wenn `previous`
+    existiert). Befördert werden nur trainierte Buchstaben (Basis ab 15 Treffern oder 15 bestätigte
+    Kurzzeit-Berührungen seit Prozessstart, `dynamicTouches`, nie gespeichert); nie getippte
+    Buchstaben behalten Basis und Anzahl. Die übrigen Beobachtungen werden wie die Szenen
+    zurückgerechnet. Weil nur Abweichungen ab 0,12 Taste beobachtet werden, nähert sich die Basis
+    einer dauerhaften Abweichung nur bis auf etwa 0,12 Taste, den Rest trägt die Kurzzeitschicht.
+  - Kalibrierung (`replace`) und „Auf vorherige Kalibrierung zurücksetzen“ (`restorePrevious`)
+    verschieben die Basis außerhalb der Beförderung: `rebaseScenes` rechnet die Szenen je Region um
+    die mittlere Änderung der angewandten Basis zurück (`TouchDynamics.rebase`), leert die
+    Beobachtungen und verwirft die laufende Sitzung (P181).
+  - Ausgeschaltet („Dynamisch anpassen“ oder „Trefferzonen an mich anpassen“ aus, auch über die
+    Gesten-Seite, die `TouchModel.dynamic` mitsetzt): der nächste Feldstart verwirft die Sitzung
+    ungesehen (`discardSession`), damit sich die Basis nicht mehr ändert (genau 22a/22b).
+  - Tastaturgeometrie: `updateRegions` merkt sich Code, Lage und Größe jeder Buchstabentaste.
+    Weicht sie ab (Drehung, Einhand, geteilt, anderes Layout), endet die Sitzung und die Regionen
+    entstehen neu; normale und Umschalt-Tastatur haben dieselbe Geometrie, Tastaturen mit weniger
+    als 10 Buchstaben (Symbole) zählen nicht. Geprüft beim Lernen eines Worts und bei jeder Taste
+    (`onKeyInput` bekommt `keyboardSwitcher.keyboard`). Die Ausrichtung ist kein Szenemerkmal:
+    eine Szene entsteht immer in einer Geometrie, gespeichert wird sie ohne (P182).
   - Gegen Rückkopplung: Lernen nur aus Wörtern, die `InputLogic` schon heute an `learnFromWord`
     gibt (getippt wie abgeschickt oder aus der Leiste gewählt, keine Autokorrektur); die Berührungen
-    warten auf die nächste Taste (`onKeyInput`): Löschtaste oder Feldwechsel verwirft sie. Nur
+    warten auf die nächste Taste (`onKeyInput`): Löschtaste, Rückgängig (`UNDO`), Ausschneiden
+    (`CLIPBOARD_CUT`) oder Feldwechsel verwirft sie; eine gehaltene Löschtaste (`isKeyRepeat`)
+    zählt nur einmal als Korrektur. Ein Versetzen der Schreibmarke ohne neues Feld sieht der Hook
+    nicht, dann entscheidet die nächste Taste (bewusst, kein Eingriff in die Engine). Nur
     Berührungen innerhalb der normalen Taste (`IN_KEY` = 0,5) zählen, so treibt eine verschobene
     Zone sich nicht selbst weiter (P166). Nie in Passwortfeldern, Inkognito, Feldern ohne Lernen,
     bei pausiertem Lernen, gesperrt oder im Kalibrierfeld; dort gilt auch keine Kurzzeitschicht.
@@ -2114,8 +2217,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Zahl) in `agent_context_weights` (gerätegeschützt, Schlüssel `weights`), im Speicher
   zwischengespeichert. `record` nur bei `mayLearn` („Personalisierte Vorschläge“ an, keine
   Lernpause, kein Inkognito, nicht gesperrt), `weights` nur mit eingeschaltetem Schalter (sonst
-  keine). „Gelernte Wörter löschen“ ruft `clear`. Das Ausschalten von „Personalisierte
-  Vorschläge“ löscht sie nicht, sie werden dann nur nicht benutzt.
+  keine). „Gelernte Wörter löschen“ ruft `clear`, ebenso das bestätigte Ausschalten von
+  „Personalisierte Vorschläge“ (`TextCorrectionScreen`, Nachprüfung 44/45).
 - Gedächtnis (46, P174–P177): `A/Memory.kt` (Schalter `AgentPreferences.MEMORY`, Standard aus;
   `MEMORY_SNIPPETS`, Standard an). Hält `PhraseBook`, `OwnWordBook`, `ShortcutBook` unter einer Sperre,
   eigene Wörter zusätzlich als Menge für den Vorschlags-Thread; schreibt höchstens alle 30 s beim
@@ -2138,13 +2241,14 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `LatinIME.pickSuggestionManually`). Jeder Chip fügt nur über `Host.insertAtCursor` an der
   Schreibmarke ein, für die er gebaut wurde, einmal, und nur wenn der Text davor noch derselbe ist
   (P177). Bausteinindex im Speicher, neu bei anderer `SnipCommand.source` oder `SnippetStore.version`.
-  `AgentEditorController.suggestedWords` gibt den Chips die Vorschläge der Engine. Seite
-  `K/settings/screens/AgentMemoryScreen.kt` („Gedächtnis“, Zeile in Tippen & Korrektur → Wörter &
-  Lernen und in `SettingsAreas`): `MemorySections` (Schalter, Wortfolgen ab 3 Wörtern, die 100
-  stärksten, Anpinnen/Löschen, eigene Wörter, Abkürzungen Anlegen/Verwerfen, ausgeschlossene Apps
-  über `AppChooser` aus `AgentSnippetsSection.kt`, „Alles vergessen“), bei gesperrtem Gerät nur ein
-  Hinweis; gedacht zum Einbinden in die Seite „Was ich mir gemerkt habe“ aus 49. Texte in
-  `agent_memory_strings.xml` (`values/`, `values-de/`). Tests: Fälle „stage 46“ in `InputLogicTest`
+  `AgentEditorController.suggestedWords` gibt den Chips die Vorschläge der Engine. Auf der Seite
+  „Was ich mir gemerkt habe“ (`K/settings/screens/AgentMemoryScreen.kt`, aus 49) ist
+  `MemorySections` der zweite Eintrag von `memorySections`, unter den Korrekturen: Überschrift
+  „Gedächtnis“, Schalter, Wortfolgen ab 3 Wörtern (die 100 stärksten, Anpinnen/Löschen, Tags
+  `MEMORY_PIN_TAG`/`MEMORY_PHRASE_DELETE_TAG` + Zeile), eigene Wörter, Abkürzungen
+  Anlegen/Verwerfen, ausgeschlossene Apps über `AppChooser` aus `AgentSnippetsSection.kt`, „Alles
+  vergessen“; bei gesperrtem Gerät nur ein Hinweis. Texte in `agent_memory_strings.xml` (`values/`,
+  `values-de/`, gemeinsam mit 49). Tests: Fälle „stage 46“ in `InputLogicTest`
   (Chip hängt nur auf Tipp an, gesperrte Felder, eigene Wörter, Abkürzung, Baustein) und
   `SuggestTest` (eigenes Wort nicht korrigiert), `AT/MemoryScreenTest.kt` (Seite).
 
@@ -2270,7 +2374,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   (`InkTap.isAfterTyping`, 500 ms); `onGestureMoveEvent` startet dann erst ab
   `InkTap.START_AFTER_TYPING_KEYS` 0,75 Tastenbreiten vom Aufsetzpunkt (`mGestureDownX/Y`). Ohne
   Symbole malen unverändert; die Einstellung „Schnelltipp-Sperre“ wirkt beim Malen nicht und ist
-  dann auf der Gestenseite (wie bisher) ausgeblendet (P153).
+  dann auf der Gestenseite (wie bisher) ausgeblendet (P153). Nach Prüfer (M1): Mit einem weiteren
+  Finger auf der Tastatur bleibt HeliBoards Sperre. Startet die Zeichnung so direkt nach dem Tippen
+  (`SymbolInk.onStartAfterTyping`, `AfterTyping`), entscheidet `SymbolInk.resolve` beim Schreiben
+  nach der Pause oder vor einer Taste (nicht beim Chip, `takeWaiting`): Ist das, was geschrieben
+  würde (ohne mögliche Punkte, die Buchstaben werden), ein einziger Strich und
+  `InkTap.isSlidTap` (weitester Punkt höchstens `SLID_TAP_KEYS` 1,5 Tastenbreiten vom Aufsetzpunkt,
+  kein Punkt weiter als `SLID_TAP_BEND` 0,25 dieser Strecke von der Linie dorthin) oder sagt
+  `Sink.recognizes` nein (`SymbolDrawing`: gleicher Erkenner, `best == null`), schreibt es nichts,
+  meldet `Sink.onWaiting` leer und tippt über `tapper` die Taste am Aufsetzpunkt, danach die
+  möglichen Punkte. Ein zweiter Strich oder behaltene Punkte lassen es eine Zeichnung (=, ÷).
+  Für so einen Strich zeigt die Vorschau keinen Chip (`isSlidTapSoFar`).
 - Vorschau (36): 120 ms nach einem Strich ohne neuen (`SymbolInk.PREVIEW_DELAY_MILLIS`, Prüfer M2)
   meldet `SymbolInk` die wartende Zeichnung an `Sink.onWaiting`; `SymbolDrawing` liest den Erkenner
   im Hauptthread, erkennt auf einem eigenen Thread (`previewExecutor`, in Tests direkt) und zeigt das
@@ -3075,12 +3189,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   „@snip name Feld: Wert“. Grenze: Wächst der Wert über 500 Zeichen (z. B. durch Einfügen), ist
   der Text kein Befehl mehr, und das nächste Enter geht an die App (im Chat: Senden).
 - **P151** Ein möglicher Punkt (43) wird erst beim Schreiben der Zeichnung zur Taste, oft mitten in
-  einem anderen Touch (der nächste Tipp, `flush` aus `onPressKey` einer anderen Taste). Darum tippt
+  einem anderen Touch (der nächste Tipp, `flush` aus `onPressKey` einer anderen Taste); ebenso seit
+  der Nachprüfung der gerutschte Tipp direkt nach dem Tippen (P153). Darum tippt
   `PointerTracker.typeInkTap` statisch über den Listener und fasst keinen Tracker-Zustand an
   (`mCurrentKey`, Warteschlange); `beforeOtherInput` steht in `onPressKey` vor allem anderen, so
-  dass der verschachtelte Tastendruck vor der äußeren Taste fertig ist. Kein Haptik-Ereignis, keine
-  Tastenvorschau. Die Taste wird an der Aufsetzstelle auf der Tastatur nach dem Symbol bestimmt
-  (P96). P113 (`DOT_ALONG`) gilt seit 43 nicht mehr: die Lage prüft `KEEP_REACH` beim Schreiben;
+  dass der verschachtelte Tastendruck vor der äußeren Taste fertig ist. Nicht zustandslos: es
+  schreibt `sTypingTimeRecorder.onCodeInput` mit der Zeit des Schreibens (nicht des Tipps), startet
+  aber keinen `startTypingStateTimer`; kein Haptik-Ereignis, kein Ton, keine Tastenvorschau.
+  `onPressKey` bekommt immer einen Zeiger (Prüfer N2: mit zwei hätte die Akkord-Regel die
+  Auto-Großschreibung aufgehoben). Die Taste wird an der Aufsetzstelle auf der Tastatur nach dem
+  Symbol bestimmt (P96) und nur getippt, wenn sie laut `SymbolInk.startsInkOn` ein Zeichen schreibt
+  (N1: Leertaste, Enter, Löschen nie). P113 (`DOT_ALONG`) gilt seit 43 nicht mehr: die Lage prüft `KEEP_REACH` beim Schreiben;
   `InkDots.BASE_DISTANCE` (P114) ist seit 43 `CLEAR_DISTANCE` statt der Annahme.
 - **P152** Eine Vorlage, die mit einem Punkt beginnt, sprengt `InkAreaTest` (der Bereich wächst ab
   einem Punkt nur um 3 Tasten) und kommt am Telefon nie vor: ein Tipp allein ist ein Buchstabe. In
@@ -3092,13 +3211,24 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   HeliBoards Abstand ab der „schnellen Bewegung“: ein rutschender Tipp von 0,7 Tasten erreicht nach
   dem Tippen nie den Start, ohne Tippen davor startet er wie bisher ab 0,35 Tasten ab dem Punkt,
   wo er schnell wurde. `gestureTypingTime` darf nicht 0 liefern (`(int)` von großen Uptime-Werten
-  wird negativ, dann wäre die Sperre an).
+  wird negativ, dann wäre die Sperre an). Nach Prüfer (M1): Ohne Sperre startet ein schneller Tipp,
+  der 0,75 Tasten rutscht, eine Zeichnung (im angenommenen Rutschmodell 923 von 10 000 Tipps,
+  `InkDotFlowTest`); `InkTap.isSlidTap` gibt sie als Buchstaben zurück, wenn kein zweiter Strich
+  folgt. Wer `SLID_TAP_KEYS` senkt, verliert solche Buchstaben als „–“, „/“ oder „|“; wer ihn hebt,
+  macht kurze Striche nach dem Tippen zu Buchstaben. Ein zweiter, ebenfalls rutschender Tipp nahe
+  der Zeichnung (ab 8 dp) bleibt ein Strich und macht beide zu einem Symbol (P111). Liegt ein
+  zweiter Finger auf, gilt HeliBoards Sperre: sonst endete das Loslassen des anderen Fingers im
+  `sInGesture`-Zweig ohne Code.
 - **P158** Das getippte Wort steht in `TypedWordFirst.arrange` auf Index 2 und das Ergebnis im
   Tippstil (`INPUT_STYLE_TYPING`): Nur dort blendet `SuggestionStripLayoutHelper` Index 0 (das Wort
   im Editor) aus und setzt Index 1 in die Mitte, Index 2 links daneben (in RTL rechts). Im
   Recorrection-Stil stünde Index 0 in der Mitte. Wer die Leistenreihenfolge oder
   `getPositionInSuggestionStrip` ändert, prüft die Stufe-48-Tests (`stripSlots`). Anstehende
   Autokorrektur, Vorhersagen, Satzzeichen und Gesten ordnet `arrange` nie um.
+  Bekannte Grenzen (Nachprüfung 48): Gibt es keinen weiteren Vorschlag, steht das getippte Wort
+  allein und damit breit in der Mitte. Leisten mit 5 Vorschlagsplätzen sind
+  nicht geprüft; die Rechnung gilt für 3 Plätze. In RTL steht es rechts, wie HeliBoards getipptes
+  Wort; ein Gerätetest dazu fehlt.
 - **P159** Nach der Löschtaste kommen die Vorschläge zweimal: `restartSuggestions` und danach die
   verzögerte Aktualisierung (`setRequiresUpdateSuggestions` in `revertCommit`,
   `performUpdateSuggestionStripSync`). Beide laufen über `InputLogic.getSuggestedWords`; deshalb
@@ -3108,7 +3238,22 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P160** `TypedWordFirst` erkennt ein korrigiertes Wort an Startposition und Wort im Editor. Ändert
   sich Text davor, passt der Start nicht mehr, und das getippte Wort fehlt (gewollt, kein
   Fehlgriff auf ein gleiches Wort an anderer Stelle). Einträge nur im Speicher, nie loggen; neue
-  Aufrufer von `corrected` nur für automatische Korrekturen der Tipp-Eingabe.
+  Aufrufer von `corrected` nur für automatische Korrekturen der Tipp-Eingabe. Jeder Commit an
+  einem Start löscht dort alte Einträge (`committedAt` vor `corrected`); ein neuer Commit-Weg, der
+  nicht über `commitChosenWord` läuft, muss das selbst tun.
+- **P169** `FieldCorrectionWatcher` vergleicht nur an Prüfpunkten (Wort abgeschickt, Schreibmarke vom
+  Nutzer bewegt). Erwartete Auswahl-Meldungen (Tippen, Löschtaste) kehren in `onUpdateSelection`
+  vor dem Prüfpunkt zurück; so bleibt der Stand vor dem Zurücklöschen erhalten und „Hsus und“ →
+  Löschen → „Haus“ wird erkannt. Wer den Prüfpunkt vor das frühe `return` legt, verliert das.
+  Eine Änderung, die erst beim nächsten Prüfpunkt sichtbar wird, gilt für das ganze dazwischen.
+- **P170** Markieren, Einfügen und eingefügter Text verwerfen den Vergleichsstand (`untrusted`, bei
+  Markierung im Prüfpunkt selbst): Der nächste Prüfpunkt nimmt nur einen neuen Stand auf. Neue Wege,
+  auf denen Text ohne Tippen ins Feld kommt (Werkzeuge, Bausteine, Chips), müssen `untrusted` rufen
+  oder über `applyGenerated` laufen, sonst kann ein eingefügtes Einzelwort als Korrektur zählen.
+- **P171** In `InputLogicTest` ersetzt `LatinIME` bei jedem `onStartInputView` den Wörterbuch-Zugang
+  von `InputLogic` (`setFacilitator`, Gesten-Datensammlung). Die Stufe-49-Tests setzen ihren
+  gestellten Zugang deshalb in `setText` neu (`installRealWords`); ohne das ist jedes Wort „unecht“
+  und nichts wird gelernt.
 - **P150** Jede neue Textdatei `values/agent_*strings.xml` braucht
   `tools:ignore="MissingTranslation"` am `<resources>`-Tag (der Fork liefert nur Englisch und
   Deutsch); sonst bricht `lintDebugNoMinify` mit Fehlern für alle Upstream-Sprachen ab. Die
@@ -3118,11 +3263,21 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   setzt `ClipVault.clock` deshalb auf die Uptime, und für den Leisten-Chip (vergleicht mit
   `System.currentTimeMillis()`) setzt `stampNow` den Zeitstempel per Reflexion. Vor Android 8 hat ein
   Clip keine Zeit: dann gilt „jetzt“, ein Neustart der Tastatur innerhalb von 2 min kann ein
-  schon eingefügtes Geheimnis wieder in den Tresor holen (bekannte Lücke).
+  schon eingefügtes Geheimnis wieder in den Tresor holen (bekannte Lücke). Dasselbe gilt ab
+  Android 8 nach einem Neustart des Prozesses: `used` liegt nur im Speicher, `onCreate` liest den
+  aktuellen Clip wieder ein, und solange er jünger als 2 min ist, steht das Geheimnis wieder im
+  Tresor. Das passiert nur, wenn `clearSystemClip` den Clip nicht leeren konnte (oder durfte); sonst
+  ist nichts mehr da. Bewusst offen: eine Liste eingefügter Clips auf der Platte wäre eine neue Spur.
 - **P155** Passwortfelder zählen als Inkognito (`InputAttributes.mNoLearning`). Ein Clip, der
   kopiert wird, während ein Passwortfeld den Fokus hat, ist ein Geheimnis und landet nirgends,
   weder im Verlauf noch im Tresor. Im Passwortfeld selbst gibt es keinen Tresor (Auftrag); dort
-  bleibt nur das Einfügen des Systems bzw. die Einfüge-Taste mit dem aktuellen Clip.
+  bleibt nur das Einfügen des Systems bzw. die Einfüge-Taste mit dem aktuellen Clip. Der System-Clip
+  trägt diese Herkunft nicht: Wer den aktuellen Clip live liest (Feld-Vorschläge, Leisten-Chip),
+  fragt `ClipVault.isSecretClip`, das `SensitiveClips` (hört seit der Nachprüfung 44/45 auch mit
+  Verlauf aus mit, nur im Speicher) und die vom Tresor als Geheimnis sortierten Kopierzeiten kennt.
+  Nur nach `ClipGuard.classify(text, IS_SENSITIVE)` zu fragen, bot eine im Passwortfeld kopierte
+  PIN als Code an (`ClipVaultTest.aPinCopiedInAPasswordFieldIsNeverOffered*`). Kopiert man denselben
+  Text danach in einem normalen Feld, bleibt er bis zum Neustart vertraulich (Hash des Textes).
 - **P156** Leeren der System-Zwischenablage nach dem Einfügen eines Geheimnisses
   (`ClipVault.clearSystemClip`): nur wenn sie noch genau diesen Clip hält (Text und, ab Android 8,
   Zeitstempel). Laut AOSP-`ClipboardService` (Stand `main`, gelesen 2026-11-14) braucht
@@ -3134,20 +3289,37 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P157** Die Tresorreihen entstehen erst, wenn etwas darin steht, und sitzen dann vor dem
   Abschnittstitel „Letzte“ (Index 0). `FlatClipboardTest` erwartet ohne Tresor den Titel als
   erstes Kind; die Liste wird um die Höhe der Reihen kürzer, höchstens auf ein Drittel. Der
-  Tresor lebt im Prozess der Tastatur: Ein Neustart des Prozesses vergisst alles (gewollt).
+  Tresor lebt im Prozess der Tastatur: Ein Neustart des Prozesses vergisst alles (gewollt; zum
+  aktuellen Clip siehe P154).
 - **P165** `TouchModel.load` steht in `onStartInputViewInternal` vor `loadSettings`: die
   `SettingsValues` sind dort noch die des vorigen Felds. Was zum neuen Feld gehört (Passwort,
   `IME_FLAG_NO_PERSONALIZED_LEARNING`, Paket, Feld-ID), liest Etappe 50 aus `editorInfo`, die
-  Schalter (Inkognito, Pause) aus den Einstellungen selbst; `learnFromWord` und `onKeyInput`
-  prüfen beim Lernen zusätzlich die dann aktuellen `SettingsValues`.
+  Schalter (Inkognito, Pause, beide Trefferzonen-Schalter) aus den Einstellungen selbst;
+  `learnFromWord` und `onKeyInput` prüfen beim Lernen zusätzlich die dann aktuellen
+  `SettingsValues`. Mit ausgeschaltetem Schalter ruft `load` `discardSession`, nie `endSession`:
+  `endSession` wertet die Sitzung aus und kann befördern, also die Basis ändern.
 - **P166** Die Kurzzeitschicht darf nur Berührungen innerhalb der normalen Taste lernen
   (`TouchDynamics.IN_KEY`). Mit der alten Grenze `OUTLIER` = 0,9 trägt sich eine verschobene Zone
   selbst (Simulation in `movedZonesDoNotTeachThemselves`: Restverschiebung etwa 0,05 statt 0,01).
-- **P167** Sitzungen enden erst beim nächsten Ereignis (Tipp, Taste, Feldstart), nicht per Timer;
-  eine Szene oder Beförderung entsteht also beim ersten Tippen nach der Pause. Die Wanduhr darf
+- **P167** Sitzungen enden erst beim nächsten Ereignis (Tipp, Taste, Feldstart, andere
+  Tastaturgeometrie), nicht per Timer; eine Szene oder Beförderung entsteht also beim ersten
+  Tippen nach der Pause. Wiederholte Tasten (`isKeyRepeat`) sind kein Ereignis. Die Wanduhr darf
   dabei nicht rückwärts laufen (Tests: Sitzungen chronologisch, sonst gilt die Pause nicht).
 - **P168** `TouchModel.replace` und jede Beförderung überschreiben `previous`: „Auf vorherige
   Kalibrierung zurücksetzen“ geht genau einen Schritt zurück, nicht bis zur ersten Kalibrierung.
+  Danach fehlt `previous`, der Knopf verschwindet.
+- **P181** Szenen und Beobachtungen sind relativ zur Basis. Jede Änderung der Basis muss sie
+  mitnehmen: die Beförderung im Modell (Szenen und übrige Beobachtungen um den Schritt),
+  Kalibrierung und Zurücksetzen über `TouchModel.rebaseScenes` (Szenen je Region um die mittlere
+  Änderung der angewandten Basis, Beobachtungen geleert). Kennt der Prozess noch keine Regionen
+  (seit dem Start kein Wort mit dynamischen Zonen), gilt für alle Regionen der Mittelwert über alle
+  Buchstaben mit Basis. Eine neue Stelle, die `dx`/`dy`/`count` setzt, braucht denselben Schritt.
+- **P182** `updateRegions` vergleicht die Geometrie aller Buchstabentasten, nicht das
+  `Keyboard`-Objekt: Umschalten erzeugt ein anderes Objekt mit gleicher Geometrie und darf die
+  Sitzung nicht beenden. Symbol-Layouts mit einzelnen Buchstaben (µ) liegen unter
+  `MIN_LETTER_KEYS` = 10 und lassen die Regionen stehen. Die Szenezahlen werden auf 3
+  Nachkommastellen gerundet gespeichert; Tests, die gespeicherte Szenen vergleichen, brauchen eine
+  Toleranz von 1e-3.
 - **P161** `EditorInfo` trägt keine Autofill-Kennungen (`autofillHints` gibt es nur in
   `ViewStructure` für Autofill-Dienste, Inline-Vorschläge kommen vom Autofill-Dienst). Ein Code-Feld
   erkennt die Tastatur nur an Hinweistext, `label`, `fieldName` und Typ; `FieldSignals.autofillHints`
@@ -3156,7 +3328,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `ContextSuggestTest.codeLikeFieldsThatAreNoCodeFields`.
 - **P162** Einfügen in ein leeres Feld nicht über `AndroidEditorAdapter.insert`: dessen Policy lehnt
   Nicht-Text-Felder ab (`UNSUPPORTED_EDITOR`), Telefon- und Zahlenfelder bekämen so nie ihren Code.
-  Der echte Host nimmt deshalb `LatinIME.onTextInput` (wie die Zwischenablage-Ansicht), nur bei
+  Der echte Host nimmt deshalb `LatinIME.onPrivateTextInput` (wie der Tresor, P178), nur bei
   unveränderter Schreibmarke; Text vor der Schreibmarke geht über `replaceCommandText`, das das
   getippte Wort abschließt, ohne zu korrigieren. `insertGeneratedText` würde außerdem das Lernen
   für die ganze Sitzung abschalten.
@@ -3171,7 +3343,30 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   liest und den Zwischenspeicher verwirft; `FieldSuggestionChips` fragt es erst nach allen
   Sperrprüfungen (`FieldSuggestionChipsTest.neverInPasswordFieldsIncognitoNoLearningOrLocked`
   zählt die Lesezugriffe). Robolectric hat keinen AndroidKeyStore: Tests geben `AesGcmSecretCipher`
-  mit eigenem Schlüssel.
+  mit eigenem Schlüssel. Der Zwischenspeicher fällt in `onFinishInputView`; es gibt keinen eigenen
+  Empfänger für `ACTION_SCREEN_OFF` (die Tastatur wird vorher ausgeblendet). Nachprüfung 44/45.
+- **P178** Ein eingefügter privater Text (Tresor-Geheimnis, Code, Wert aus „Meine Daten“) darf nie
+  das bearbeitete Wort werden: `LatinIME.onTextInput` ruft danach
+  `restartSuggestionsOnWordTouchedByCursor`, das das Wort an der Schreibmarke zum Kompositionswort
+  macht; die Leiste zeigte es dann im Klartext, und das nächste Leerzeichen lernte es ins
+  Nutzerwörterbuch (das in manuellen Sicherungen steckt). Deshalb `onPrivateTextInput` und
+  `InputLogic.markPrivateText`: kein Neustart der Vorschläge darauf (auch nach Rücktaste oder
+  Antippen), kein Lernen bis 64 Zeichen dahinter (das Wort danach hätte es als N-Gramm-Kontext). Die
+  Prüfung liest den Editortext ab der gemerkten Startposition; steht dort etwas anderes, ist die
+  Marke vergessen. Ein normaler Clip aus dem Verlauf geht weiter über `onTextInput` (Upstream).
+  Test `InputLogicTest.aPrivateTextIsNeverComposedShownOrLearned`.
+- **P179** `PRAGMA secure_delete` gilt je Verbindung. `SQLiteDatabase` hat einen Verbindungs-Pool;
+  ein `rawQuery` außerhalb einer Transaktion kann auf einer Lese-Verbindung landen. Darum setzt
+  `ClipboardDao.deleteRows` es innerhalb der Lösch-Transaktion (dort hält der Thread die
+  schreibende Verbindung). PRAGMAs, die eine Zeile liefern, gehen nur über `rawQuery`, nicht
+  `execSQL`. `secure_delete` wirkt nicht rückwirkend: Darum `VACUUM` nach einer Bereinigung beim
+  Start (`compactInBackground`, nicht in einer Transaktion, eigener Thread, weil `GESTURE_DATA` in
+  derselben Datei groß sein kann). Auf keinem Gerät geprüft.
+- **P180** Compose-Textfelder können `IME_FLAG_NO_PERSONALIZED_LEARNING` nicht setzen; die Felder von
+  „Meine Daten“ tragen deshalb `privateImeOptions` = `AgentPreferences.NO_LEARNING_FIELD`, und
+  `InputAttributes` zählt das als `mNoLearning` (damit Inkognito) in jeder Feldklasse und auf jeder
+  API-Stufe, anders als das System-Flag (nur Text, ab Android 8, P139). Wer ein weiteres eigenes Feld
+  ohne Lernen braucht, setzt dieselbe Kennung.
 - **P174** Das Gedächtnis lernt nur über den Hook in `performAdditionToUserHistoryDictionary`, also
   nur Wörter, die die Engine selbst lernen würde (kein Befehl, kein KI-Text, kein eingefügter Text:
   `onTextInput` lernt nicht, auch nicht der angehängte Rest eines Chips). Die `SettingsValues` können
@@ -3203,25 +3398,25 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (523 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (528 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (5): agent-apk, agent-tests, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (79): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (80): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand,
   ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand, CorrectionMemory,
   DateCommand, DesignLook, DesignTiles, Diagnose, Dictation, EmojiCommand, EmojiMixPalette,
-  EmojiSuggestions, EncryptedActionRunStore, EventCommand, FieldSuggestionChips, FlatMenuView,
-  FlatPanelStyle, FlatPreset, FormatGuardChips, HapticChain, JournaledModelCall, JournaledRun,
-  KeyboardCommands, KeyboardProfileStore, LearningData, LoadingDotsView, ManualWorkflowDraft,
-  Memory, MemoryChips, ModelSettings, MyData, MyDesigns, OnDeviceSpeechEngine, PlaceCommand,
-  RgbKeyPainter, RgbLighting, RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip,
-  SearchCommand, SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SpaceDetents,
-  SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary, ToolLauncher,
-  TouchCalibration, TouchModel, TypedWordFirst, TypoMemory, WorkflowApprovalSummary,
+  EmojiSuggestions, EncryptedActionRunStore, EventCommand, FieldCorrections, FieldSuggestionChips,
+  FlatMenuView, FlatPanelStyle, FlatPreset, FormatGuardChips, HapticChain, JournaledModelCall,
+  JournaledRun, KeyboardCommands, KeyboardProfileStore, LearningData, LoadingDotsView,
+  ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData, MyDesigns, OnDeviceSpeechEngine,
+  PlaceCommand, RgbKeyPainter, RgbLighting, RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces,
+  ScreenshotChip, SearchCommand, SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics,
+  SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary,
+  ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst, TypoMemory, WorkflowApprovalSummary,
   WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
   WorkflowStore
 - `A/commands/` (18): AiCommandChips, AlarmCommand, AskCommand, ClipCommand, EmojiMixCommand,
@@ -3232,44 +3427,45 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (92): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (93): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, ClipCommandTest, ClipVaultTest, CommandReplaceTest,
   CommandTemplatesTest, ContactCommandTest, CorrectionMemoryTest, DatePlaceCommandsTest,
   DebugPrivacyTest, DesignEditorTest, DesignTilesTest, DiagnoseScreenTest, DictationSessionTest,
   DictationUiTest, EmojiMixPaletteTest, EmojiMixRecentsTest, EncryptedActionRunStoreTest,
-  EncryptedCredentialStoreTest, FieldSuggestionChipsTest, FlatClipboardTest, FlatMenuTest,
-  FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, ForkUpgradeTest,
-  FormatGuardChipsTest, HapticChainTest, InsertAtCursorTest, JournaledModelCallTest,
-  KeyboardCommandsTest, KeyboardProfileStoreTest, LearningDataTest, LoadingDotsViewTest,
-  ManualWorkflowDraftTest, MemoryScreenTest, MoreCommandsTest, MoreProvidersTest, MyDataScreenTest,
-  MyDataStoreTest, MyDesignsTest, OpenAiProviderTest, RgbLightingRenderTest, RgbSettingsScreenTest,
-  RgbTilesTest, ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest, SettingsAreaAiTest,
-  SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest, SettingsKitTest,
-  SettingsLookScreenTest, SettingsStartScreenTest, SettingsSystemAreaTest, SettingsTypingAreaTest,
-  SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest, SnipCommandTest, SpaceDetentsTest,
-  SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest,
-  TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest, TypoMemoryTest,
-  UpdateCheckTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
+  EncryptedCredentialStoreTest, FieldCorrectionMemoryTest, FieldSuggestionChipsTest,
+  FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest,
+  ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest, InsertAtCursorTest,
+  JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LearningDataTest,
+  LoadingDotsViewTest, ManualWorkflowDraftTest, MemoryScreenTest, MoreCommandsTest,
+  MoreProvidersTest, MyDataScreenTest, MyDataStoreTest, MyDesignsTest, OpenAiProviderTest,
+  RgbLightingRenderTest, RgbSettingsScreenTest, RgbTilesTest, ScreenshotChipTest, SecureWindowTest,
+  SelectedTextCommitTest, SettingsAreaAiTest, SettingsAreaGesturesTest, SettingsBarAreaTest,
+  SettingsKeysScreenTest, SettingsKitTest, SettingsLookScreenTest, SettingsStartScreenTest,
+  SettingsSystemAreaTest, SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest,
+  SliderFeelTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest, SymbolInkTest,
+  SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest, TouchModelTest, TouchScenesScreenTest,
+  TouchZonesDynamicTest, TypedWordFirstTest, TypoMemoryTest, UpdateCheckTest,
+  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
   WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (8): ClockCommandsTest, EmojiMixCommandTest, LanguageCommandTest, QrCommandTest,
   ScreenReaderServiceTest, SubtypeChoiceTest, TranslateCommandTest, UrlCommandTest
-- `C/` (42): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
-  EditorSession, EmojiKeywords, EmojiMix, EmojiNames, EmojiSynonyms, EventParser, ExecutionPolicy,
-  InkDots, InkRecognizer, InkSymbols, InkTiming, LanguageNames, LocalTextActions, MathExpression,
-  ModelProvider, OwnInkSymbols, PendingBatchGate, PersonalInkSymbols, Places, Profiles, RgbCurve,
-  RgbLighting, RgbPatterns, SkillBinding, SnippetTemplate, SpecialCharacters, StyledTranslation,
-  SymbolTable, TextCondition, TimerParser, Tool, TouchDynamics, UnitConversion, UpdateReleases,
-  UrlDetector, Workflow
+- `C/` (43): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, CorrectionRules,
+  DateFormatting, EditorSession, EmojiKeywords, EmojiMix, EmojiNames, EmojiSynonyms, EventParser,
+  ExecutionPolicy, InkDots, InkRecognizer, InkSymbols, InkTiming, LanguageNames, LocalTextActions,
+  MathExpression, ModelProvider, OwnInkSymbols, PendingBatchGate, PersonalInkSymbols, Places,
+  Profiles, RgbCurve, RgbLighting, RgbPatterns, SkillBinding, SnippetTemplate, SpecialCharacters,
+  StyledTranslation, SymbolTable, TextCondition, TimerParser, Tool, TouchDynamics, UnitConversion,
+  UpdateReleases, UrlDetector, Workflow
 - `C/clip/` (1): ClipGuard
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `C/memory/` (4): OwnWords, PhraseMemory, ShortcutOffers, SnippetMatcher
 - `C/suggest/` (1): ContextSuggest
-- `CT/` (39): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
-  EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest, EventParserTest, InkAreaTest, InkBenchmarkTest,
-  InkDotFlowTest, InkDotsTest, InkFingerModel, InkRecognizerTest, InkTimingTest,
-  InsertionAnchorTest, LanguageNamesTest, LocalTextActionsTest, MathExpressionTest,
+- `CT/` (40): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, CorrectionRulesTest,
+  DateFormattingTest, EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest, EventParserTest,
+  InkAreaTest, InkBenchmarkTest, InkDotFlowTest, InkDotsTest, InkFingerModel, InkRecognizerTest,
+  InkTimingTest, InsertionAnchorTest, LanguageNamesTest, LocalTextActionsTest, MathExpressionTest,
   OwnInkSymbolsTest, PendingBatchGateTest, PersonalInkSymbolsTest, PlacesTest, QuestionCaptureTest,
   RgbCurveTest, RgbFrameStatsTest, RgbLightingTest, RgbPatternsTest, SkillBindingTest,
   SnippetTemplateTest, StyledTranslationTest, SymbolTableTest, TimerParserTest, ToolTest,
@@ -3286,8 +3482,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/keyboard/internal/` (1): KeyboardIconsSet
 - `K/keyboard/internal/keyboard_parser/` (2): KeyboardParser, LayoutParser
 - `K/keyboard/internal/keyboard_parser/floris/` (2): KeyCode, KeyLabel
-- `K/latin/` (10): App, AppUpgrade, ClipboardHistoryEntry, ClipboardHistoryManager,
-  ClipboardThumbnails, DictionaryFacilitatorImpl, InputView, LatinIME, RichInputConnection, Suggest
+- `K/latin/` (11): App, AppUpgrade, ClipboardHistoryEntry, ClipboardHistoryManager,
+  ClipboardThumbnails, DictionaryFacilitatorImpl, InputAttributes, InputView, LatinIME,
+  RichInputConnection, Suggest
 - `K/latin/database/` (1): ClipboardDao
 - `K/latin/define/` (1): DebugFlags
 - `K/latin/dictionary/` (2): DictionaryFactory, ExpandableBinaryDictionary

@@ -56,6 +56,7 @@ import kotlin.test.assertTrue
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 @RunWith(RobolectricTestRunner::class)
 @Config(shadows = [
@@ -788,6 +789,20 @@ class InputLogicTest {
         RejectedCorrections.clear(latinIME)
     }
 
+    // stage 48 review N1: the field emptied by backspace, the same word typed again without a correction
+    @Test fun `a correction of text deleted since is not shown for a new word at the same place`() = withSimilarWords("hello", "hull") {
+        chainInput("hullo")
+        getAutocorrectedWithSpaceAfter("hello", "hullo")
+        chainInput("there ")
+        assertEquals("hello there ", text)
+        while (text.isNotEmpty()) functionalKeyPress(KeyCode.DELETE)
+        chainInput("hello")
+        pickSuggestion("hello") // committed as typed at the old start
+        chainInput("x ")
+        setCursorPosition(2)
+        assertFalse("hullo" in stripSlots())
+    }
+
     @Test fun `a word the cursor goes back to without a correction shows no extra word`() = withSimilarWords("hello", "hull") {
         chainInput("hello world ")
         setCursorPosition(2)
@@ -837,6 +852,170 @@ class InputLogicTest {
         currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
         setText("max ")
         assertTrue(inputLogic.getCurrentAutoCapsState(settingsValues) and android.text.TextUtils.CAP_MODE_WORDS != 0)
+    }
+
+    // fork, stage 49: corrections made later anywhere in the field
+    private val fieldMemory = helium314.keyboard.agent.FieldCorrectionMemory
+
+    /** Stage 49: the only real words (dictionary or own words) while set; LatinIME sets its own facilitator per field. */
+    private var realWordsOnly: Set<String>? = null
+
+    private fun installRealWords() {
+        val words = realWordsOnly ?: return
+        val real = inputLogic.mDictionaryFacilitator
+        inputLogic.mDictionaryFacilitator = java.lang.reflect.Proxy.newProxyInstance(DictionaryFacilitator::class.java.classLoader,
+            arrayOf(DictionaryFacilitator::class.java)) { _, method, args ->
+            if (method.name == "isValidSpellingWord") (args!![0] as String) in words
+            else method.invoke(real, *(args ?: emptyArray()))
+        } as DictionaryFacilitator
+    }
+
+    /** The engine with [words] as the only real words, learning typos switched on (or not with [learn] false). */
+    private fun withRealWords(vararg words: String, learn: Boolean = true, body: () -> Unit) {
+        fieldMemory.clear(latinIME)
+        TypoMemory.clear(latinIME)
+        if (learn) latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_LEARN_TYPOS, true) }
+        realWordsOnly = words.toSet()
+        setText("")
+        try { body() } finally {
+            realWordsOnly = null
+            fieldMemory.clear(latinIME)
+            TypoMemory.clear(latinIME)
+            RejectedCorrections.clear(latinIME)
+        }
+    }
+
+    private fun fieldEntries() = fieldMemory.all(latinIME).map { Triple(it.typed, it.meant, it.learned) }
+
+    /** Cursor behind the letter at [index], delete it, type [replacement]. */
+    private fun replaceLetter(index: Int, replacement: Char) {
+        setCursorPosition(index + 1)
+        functionalKeyPress(KeyCode.DELETE)
+        input(replacement)
+    }
+
+    @Test fun `stage 49 a typo fixed five words later becomes a candidate, the second time at another place it is learned`() =
+        withRealWords("ein", "Haus", "und", "dann", "noch", "mehr", "Text") {
+            chainInput("ein Hsus und dann noch mehr Text ")
+            replaceLetter(5, 'a') // "Hsus" -> "Haus"
+            assertEquals("ein Haus und dann noch mehr Text ", text)
+            assertEquals(emptyList(), fieldEntries()) // the cursor is still in the word
+            setCursorPosition(text.length)
+            assertEquals(listOf(Triple("hsus", "Haus", false)), fieldEntries())
+            assertNull(TypoMemory.meantWord(latinIME, "Hsus", null, false), "a candidate does not correct")
+            // back to "Hsus" (a revision) and the same fix at the same place again: still a candidate
+            replaceLetter(5, 's'); setCursorPosition(text.length)
+            replaceLetter(5, 'a'); setCursorPosition(text.length)
+            assertEquals(listOf(Triple("hsus", "Haus", false)), fieldEntries())
+            // another field: learned
+            setText("")
+            chainInput("Hsus ")
+            replaceLetter(1, 'a')
+            setCursorPosition(text.length)
+            assertEquals("Haus ", text)
+            assertEquals(listOf(Triple("hsus", "Haus", true)), fieldEntries())
+            assertEquals("Haus", TypoMemory.meantWord(latinIME, "hsus", null, false))
+            assertNull(TypoMemory.meantWord(latinIME, "hsus", null, true), "never for a typed form that is a word")
+        }
+
+    @Test fun `stage 49 a typo fixed after backspacing over spaces counts`() = withRealWords("ein", "Haus", "und") {
+        chainInput("ein Hsus und ")
+        repeat(7) { functionalKeyPress(KeyCode.DELETE) } // " und " and "us"
+        assertEquals("ein Hs", text)
+        functionalKeyPress(KeyCode.DELETE)
+        chainInput("aus ")
+        assertEquals("ein Haus ", text)
+        assertEquals(listOf(Triple("hsus", "Haus", false)), fieldEntries())
+    }
+
+    @Test fun `stage 49 a typo fixed by picking a suggestion in the word counts, also for a picked word`() =
+        withRealWords("ein", "Haus", "und", "dann") {
+            chainInput("ein Hsus und dann")
+            setCursorPosition(6)
+            pickSuggestion("Haus")
+            assertEquals("ein Haus und dann", text)
+            assertEquals(listOf(Triple("hsus", "Haus", false)), fieldEntries())
+            // a word committed by a pick, fixed later in another field: learned
+            setText("")
+            chainInput("Hsus")
+            pickSuggestion("Hsus")
+            chainInput("und dann ")
+            assertEquals("Hsus und dann ", text)
+            replaceLetter(1, 'a')
+            setCursorPosition(text.length)
+            assertEquals(listOf(Triple("hsus", "Haus", true)), fieldEntries())
+        }
+
+    @Test fun `stage 49 revisions are never learned`() = withRealWords("das", "dass", "ein", "Haus", "und", "am", "Montag", "Freitag") {
+        chainInput("das ist ")
+        setCursorPosition(3)
+        chainInput("s")
+        setCursorPosition(text.length)
+        assertEquals("dass ist ", text)
+        // a real word to another one
+        setText("am Montag ")
+        setCursorPosition(9)
+        repeat(6) { functionalKeyPress(KeyCode.DELETE) }
+        chainInput("Freitag")
+        setCursorPosition(text.length)
+        assertEquals("am Freitag ", text)
+        // select and type over
+        setText("")
+        chainInput("ein Hsus und ")
+        setCursorPosition(4, 8)
+        chainInput("Haus")
+        setCursorPosition(text.length)
+        assertEquals("ein Haus und ", text)
+        assertEquals(emptyList(), fieldEntries())
+    }
+
+    @Test fun `stage 49 changing an automatic correction back later remembers it from the first time`() =
+        withRealWords("hello", "world", "and", "more") {
+            latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_REMEMBER_REJECTED, true) }
+            setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT) // autocorrect needs the flag
+            chainInput("hullo")
+            getAutocorrectedWithSpaceAfter("hello", "hullo")
+            chainInput("world and more ")
+            assertEquals("hello world and more ", text)
+            replaceLetter(1, 'u') // "hello" -> "hullo"
+            setCursorPosition(text.length)
+            assertEquals("hullo world and more ", text)
+            assertTrue(RejectedCorrections.contains(latinIME, "hullo", "hello"))
+            assertEquals(emptyList(), fieldEntries(), "hello -> hullo is no typo fix")
+        }
+
+    @Test fun `stage 49 nothing is kept in password fields, incognito, while paused or with learning off`() {
+        fun fixTypo() {
+            chainInput("ein Hsus und ")
+            replaceLetter(5, 'a')
+            setCursorPosition(text.length)
+            assertEquals("ein Haus und ", text)
+        }
+        withRealWords("ein", "Haus", "und", learn = false) { fixTypo(); assertEquals(emptyList(), fieldEntries()) }
+        withRealWords("ein", "Haus", "und") {
+            setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+            fixTypo()
+            assertEquals(emptyList(), fieldEntries())
+        }
+        currentInputType = InputType.TYPE_CLASS_TEXT
+        withRealWords("ein", "Haus", "und") {
+            latinIME.prefs().edit { putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true) }
+            setText("")
+            fixTypo()
+            assertEquals(emptyList(), fieldEntries())
+        }
+        latinIME.prefs().edit { putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, false) }
+        withRealWords("ein", "Haus", "und") {
+            latinIME.prefs().edit { putBoolean(AgentPreferences.LEARNING_PAUSED, true) }
+            setText("")
+            fixTypo()
+            assertEquals(emptyList(), fieldEntries())
+            // allowed again: the same fix becomes a candidate
+            latinIME.prefs().edit { putBoolean(AgentPreferences.LEARNING_PAUSED, false) }
+            setText("")
+            fixTypo()
+            assertEquals(listOf(Triple("hsus", "Haus", false)), fieldEntries())
+        }
     }
 
     private var suggestionThread = false
@@ -3799,6 +3978,64 @@ class InputLogicTest {
         checkConnectionConsistency()
     }
 
+    @Test fun symbolDrawPossibleDotAndThenAKeyFarAwayComeInOrder() = withTapper {
+        // review N4: the next key writes the dash, then the possible dot's letter, then itself
+        enableSymbolDrawing()
+        setText("a ")
+        drawStrokes(floatArrayOf(0f, 100f, 300f, 100f))
+        symbolInk.onInkDown(0, 150, 40); assertFalse(symbolInk.onInkUp(0, 150, 40))
+        assertEquals("a ", text)
+        val listener = latinIME.mKeyboardActionListener
+        listener.onPressKey('b'.code, 0, 1, helium314.keyboard.event.HapticEvent.KEY_PRESS)
+        listener.onCodeInput('b'.code, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+        listener.onReleaseKey('b'.code, false)
+        handleMessages()
+        assertEquals("a –xb", text)
+        assertFalse(symbolInk.isWaiting)
+        checkConnectionConsistency()
+        afterThePause()
+        assertEquals("a –xb", text) // written once
+    }
+
+    /** Stage 43 review M1: a first stroke as PointerTracker starts it right after typing a letter. */
+    private fun drawAfterTyping(stroke: FloatArray) {
+        val listener = latinIME.mKeyboardActionListener
+        listener.onStartBatchInput()
+        symbolInk.onStartAfterTyping(0, stroke[0].toInt(), stroke[1].toInt(), 100)
+        val pointers = helium314.keyboard.latin.common.InputPointers(64)
+        for (i in 0 until stroke.size / 2) pointers.addPointer(stroke[2 * i].toInt(), stroke[2 * i + 1].toInt(), 0, 10 * i)
+        listener.onUpdateBatchInput(pointers)
+        listener.onEndBatchInput(pointers)
+    }
+
+    @Test fun symbolDrawSlidTapRightAfterTypingIsItsLetter() = withTapper {
+        enableSymbolDrawing()
+        chainInput("Ha")
+        drawAfterTyping(floatArrayOf(100f, 100f, 120f, 100f, 180f, 100f)) // 0.8 keys: a sliding tap
+        afterPreview()
+        kotlin.test.assertNull(symbolChips()) // no preview chip for it
+        afterThePause()
+        assertEquals("Hax", text)
+        assertTrue(composer.isComposingWord) // typed like a letter, the word goes on
+        kotlin.test.assertNull(symbolChips())
+        checkConnectionConsistency()
+    }
+
+    @Test fun symbolDrawNotRecognizedRightAfterTypingIsItsLetter() = withTapper {
+        enableSymbolDrawing()
+        chainInput("Ha")
+        drawAfterTyping(wStroke[0]) // not recognized: the letter instead of "Nicht erkannt"
+        afterThePause()
+        assertEquals("Hax", text)
+        kotlin.test.assertNull(symbolChips())
+        // an arrow right after typing is a symbol
+        drawAfterTyping(arrowStrokes[0])
+        drawStrokes(arrowStrokes[1])
+        afterThePause()
+        assertEquals("Hax→", text)
+        checkConnectionConsistency()
+    }
+
     @Test fun symbolDrawTwoTappedDotsMakeADivisionSign() = withTapper {
         enableSymbolDrawing()
         setText("a ")
@@ -4272,6 +4509,41 @@ class InputLogicTest {
         kotlin.test.assertNull(chips())
     }
 
+    @Test fun aPrivateTextIsNeverComposedShownOrLearned() {
+        // review of stages 44/45 (B4): a vault secret inserted at the cursor, then space and the next words
+        fun noSecretInStrip() = assertFalse(inputLogic.mSuggestedWords.mSuggestedWordInfoList.any { it.mWord.contains("Geheim") },
+            inputLogic.mSuggestedWords.toString())
+        chainInput("hallo ")
+        assertEquals("hallo", lastAddedWord) // learning is on in this test
+        setText("")
+        lastAddedWord = ""
+        latinIME.onPrivateTextInput("Geheim42x")
+        handleMessages()
+        assertEquals("Geheim42x", text)
+        assertEquals("", composingText)
+        noSecretInStrip()
+        chainInput(" ")
+        assertEquals("", lastAddedWord)
+        chainInput("und ")
+        assertEquals("", lastAddedWord) // also not the word right after it (its n-gram context)
+        assertEquals("Geheim42x und ", text)
+        // a backspace into it does not make it the composing word either
+        setText("")
+        latinIME.onPrivateTextInput("Geheim42x")
+        handleMessages()
+        functionalKeyPress(KeyCode.DELETE)
+        assertEquals("Geheim42", text)
+        assertEquals("", composingText)
+        noSecretInStrip()
+        chainInput(" ")
+        assertEquals("", lastAddedWord)
+        // an ordinary insertion is still composed again (the upstream behaviour is unchanged)
+        setText("")
+        latinIME.onTextInput("Rechnung")
+        handleMessages()
+        assertEquals("Rechnung", composingText)
+    }
+
     @Test fun fieldSuggestionChipInsertsOnlyOnATapAndOnce() {
         // stage 45 with the real host: the empty field takes the entry at the cursor, cue words get it after them
         val defaultData = helium314.keyboard.agent.FieldSuggestionChips.myData
@@ -4730,6 +5002,7 @@ class InputLogicTest {
         latinIME.mHandler.onStartInput(ei, false)
         latinIME.mHandler.onStartInputView(ei, false)
         handleMessages() // this is important so the composing span is set correctly
+        installRealWords() // stage 49 tests only
         checkConnectionConsistency()
     }
 

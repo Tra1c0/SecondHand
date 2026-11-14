@@ -242,7 +242,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
         if (vault.isBlocked(context, Settings.getValues(), editorInfo)) { refreshVault(); return }
         val taken = vault.take(item.id) ?: run { refreshVault(); return }
         keyboardActionListener.onPressKey(KeyCode.NOT_SPECIFIED, 0, 1, HapticEvent.KEY_PRESS)
-        keyboardActionListener.onTextInput(taken.insertText)
+        keyboardActionListener.onPrivateTextInput(taken.insertText) // never composed or learned (review B4)
         keyboardActionListener.onReleaseKey(KeyCode.NOT_SPECIFIED, false)
         if (taken.kind == dev.agentkeyboard.core.clip.ClipKind.SECRET) vault.clearSystemClip(context, taken)
         refreshVault()

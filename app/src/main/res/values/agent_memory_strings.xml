@@ -1,8 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Stage 46, the memory (phrases, own words, abbreviation offers, snippet chip). English and German only. -->
+<!-- Stages 49 and 46, page "What I remembered" (corrections; phrases, own words, abbreviations). English and German only. -->
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
-    <string name="agent_memory_title">Memory</string>
-    <string name="agent_memory_row_sub">Phrases, own words, abbreviations</string>
+    <string name="agent_memory_title">What I remembered</string>
+    <string name="agent_memory_sub">Corrections, phrases, own words, abbreviations</string>
+    <string name="agent_memory_description">What the keyboard keeps from your typing, only on this device. The lists are only here.</string>
+    <string name="agent_memory_corrections">Corrections</string>
+    <string name="agent_memory_corrections_description">Typos you fixed later in a field, also after more words or after going back into the word. Only when a non-word became a real word by a slip of a finger (a neighbouring key, a missing, doubled or swapped letter, an umlaut). Changing a real word into another one is never learned. Needs \"Learn my typos\".</string>
+    <string name="agent_memory_learned">Learned: corrected automatically</string>
+    <string name="agent_memory_candidates">Candidates</string>
+    <string name="agent_memory_candidates_description">Seen once. Learned when you fix the same typo again in another place, or when you adopt it here.</string>
+    <string name="agent_memory_none">None yet</string>
+    <string name="agent_memory_pair">%1$s → %2$s</string>
+    <string name="agent_memory_adopt">Adopt</string>
+    <string name="agent_memory_delete">Delete</string>
+    <!-- stage 46 -->
+    <string name="agent_memory_section">Memory</string>
     <string name="agent_memory_switch">Remember how I write</string>
     <string name="agent_memory_switch_sub">Local, only on this device. Learns word sequences from your own sentences, slang you keep and abbreviations you expand by hand. Nothing in password fields, incognito, fields without learning, excluded apps, with learning paused or on a locked device. It never changes your text: a tap on a chip only adds the rest after the cursor.</string>
     <string name="agent_memory_snippets">Suggest fitting snippets</string>
@@ -13,7 +25,6 @@
     <string name="agent_memory_phrase_pinned">%1$s · pinned</string>
     <string name="agent_memory_pin">Pin</string>
     <string name="agent_memory_unpin">Unpin</string>
-    <string name="agent_memory_delete">Delete</string>
     <string name="agent_memory_own_words">Own words</string>
     <string name="agent_memory_own_words_sub">Words you committed three times as typed although the keyboard did not know them, or after undoing their correction. They are not corrected any more and are offered while you type their start.</string>
     <string name="agent_memory_own_words_none">No own words yet.</string>

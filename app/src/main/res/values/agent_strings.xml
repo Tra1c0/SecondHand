@@ -288,7 +288,7 @@
     <string name="agent_autocorrect_clear">Forget remembered pairs</string>
     <string name="agent_autocorrect_clear_confirm">Forget all remembered corrections? They can be corrected automatically again.</string>
     <string name="agent_autocorrect_learn">Learn my typos</string>
-    <string name="agent_autocorrect_learn_description">If you pick a different word from the suggestion strip after typing, the keyboard counts this pair. After three equal picks it corrects it automatically; a word that exists itself only after the same previous word. Stored only on this device.</string>
+    <string name="agent_autocorrect_learn_description">If you pick a different word from the suggestion strip after typing, the keyboard counts this pair. After three equal picks it corrects it automatically; a word that exists itself only after the same previous word. Typos you fix later in a field (after more words, or by going back into the word) are learned when you fix them a second time in another place, see \"What I remembered\". Stored only on this device.</string>
     <string name="agent_autocorrect_typos">Learned typos: %1$d, confirmed at least three times: %2$d</string>
     <string name="agent_autocorrect_typos_clear">Forget learned typos</string>
     <string name="agent_autocorrect_typos_clear_confirm">Forget all learned typos?</string>

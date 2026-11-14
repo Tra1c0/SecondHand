@@ -54,7 +54,7 @@ class TouchDynamics(private val local: (Long) -> Stamp = { Stamp(Math.floorDiv(i
 
     /** One session that clearly moved the touches; evidence for a promotion. */
     class Observation(
-        val day: Long, val bucket: Bucket, val sceneId: Int, val dx: Float, val dy: Float,
+        val day: Long, val bucket: Bucket, val sceneId: Int, var dx: Float, var dy: Float,
         val regionDx: FloatArray, val regionDy: FloatArray, val regionN: IntArray,
     )
 
@@ -95,6 +95,8 @@ class TouchDynamics(private val local: (Long) -> Stamp = { Stamp(Math.floorDiv(i
     /** The scene the current session started from, or -1. */
     val currentScene: Int get() = session?.sceneId ?: -1
     val sessionTaps: Int get() = session?.n ?: 0
+    /** Deletes counted for the correction rate of the running session. */
+    val sessionDeletes: Int get() = session?.deletes ?: 0
 
     /** Short-term offset of [region] in key widths (any other region: the global value). */
     fun shortX(region: Int): Float = short(region, gx, rx)
@@ -215,6 +217,32 @@ class TouchDynamics(private val local: (Long) -> Stamp = { Stamp(Math.floorDiv(i
         dirty = true
     }
 
+    /**
+     * Drops the running session and the short-term layer without looking at them: no scene, no observation,
+     * no promotion, no reference. For a switch that was turned off, which must leave the base exactly as it is.
+     */
+    fun discardSession() {
+        session = null
+        resetShort()
+    }
+
+    /**
+     * The base moved outside this class (a calibration, or back to the previous one) by [regionDx]/[regionDy]
+     * per region and [dx]/[dy] on average. Scenes are relative to the base, so they move back by the same
+     * amount and keep describing the same touches. Observations are dropped: they were evidence against the
+     * old base. The running session and the short-term layer are relative to the old base too and end
+     * without being looked at.
+     */
+    fun rebase(regionDx: FloatArray, regionDy: FloatArray, dx: Float, dy: Float) {
+        scenes.forEach { scene ->
+            scene.dx -= dx; scene.dy -= dy
+            for (r in 0 until REGIONS) { scene.regionDx[r] -= regionDx[r]; scene.regionDy[r] -= regionDy[r] }
+        }
+        observations.clear()
+        discardSession()
+        dirty = true
+    }
+
     /** Ends the session: the short-term layer is gone, a sustained deviation becomes a scene. */
     fun endSession() {
         val s = session ?: return
@@ -289,11 +317,15 @@ class TouchDynamics(private val local: (Long) -> Stamp = { Stamp(Math.floorDiv(i
             py[r] = step(if (total >= MIN_REGION_EVIDENCE) cluster.sumOf { it.regionDy[r].toDouble() * it.regionN[r] }.toFloat() / total else gdy)
         }
         observations.removeAll(cluster.toSet())
-        // the scenes are relative to the base, which just moved
+        // scenes and the remaining observations are relative to the base, which just moved
         val sx = step(gdx); val sy = step(gdy)
         scenes.forEach { scene ->
             scene.dx -= sx; scene.dy -= sy
             for (r in 0 until REGIONS) { scene.regionDx[r] -= px[r]; scene.regionDy[r] -= py[r] }
+        }
+        observations.forEach { o ->
+            o.dx -= sx; o.dy -= sy
+            for (r in 0 until REGIONS) { o.regionDx[r] -= px[r]; o.regionDy[r] -= py[r] }
         }
         promotions++
         dirty = true

@@ -246,8 +246,7 @@ fun AgentAreaTypingScreen(onNavigate: (String) -> Unit, onClickBack: () -> Unit)
                     Modifier.testTag(AREA_ROW_TAG + SettingsDestination.PersonalDictionaries), value = counts?.personalWords?.toString())
                 SettingRow(stringResource(R.string.agent_typing_learned), stringResource(R.string.agent_typing_learned_sub), area.dot,
                     { onNavigate(SettingsDestination.AgentLearning) }, Modifier.testTag(AREA_ROW_TAG + SettingsDestination.AgentLearning))
-                // stage 46: the memory (phrases, own words, abbreviations)
-                SettingRow(stringResource(R.string.agent_memory_title), stringResource(R.string.agent_memory_row_sub), area.dot,
+                SettingRow(stringResource(R.string.agent_memory_title), stringResource(R.string.agent_memory_sub), area.dot,
                     { onNavigate(SettingsDestination.AgentMemory) }, Modifier.testTag(AREA_ROW_TAG + SettingsDestination.AgentMemory))
                 // pausing keeps what was learned (no deletion warning); switching learning off stays on the correction page
                 TypingSwitchRow(stringResource(R.string.agent_learning_pause), stringResource(R.string.agent_typing_pause_sub),

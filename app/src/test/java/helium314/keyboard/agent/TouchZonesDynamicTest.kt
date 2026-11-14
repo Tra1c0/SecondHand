@@ -64,17 +64,18 @@ class TouchZonesDynamicTest {
         shadowOf(latinIME.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager).setIsDeviceLocked(false)
     }
 
-    private val keyboard: Keyboard by lazy {
+    private fun build(element: KeyboardElement = KeyboardElement.ALPHABET, width: Int = 1080): Keyboard {
         val layoutParams = KeyboardLayoutSet.Params()
         layoutParams.editorInfo = EditorInfo()
         layoutParams.subtype = RichInputMethodSubtype.get(SubtypeUtilsAdditional.createEmojiCapableAdditionalSubtype(Locale.GERMANY, "qwertz", true))
-        layoutParams.keyboardWidth = 1080
+        layoutParams.keyboardWidth = width
         layoutParams.keyboardHeight = 700
         layoutParams.settingsValues = Settings.getValues()
         val builder = KeyboardBuilder(ContextThemeWrapper(latinIME, R.style.KeyboardTheme_LXX_Base_Border), KeyboardParams(UniqueKeysCache.NO_CACHE))
-        builder.load(KeyboardId(KeyboardElement.ALPHABET, layoutParams))
-        builder.build()
+        builder.load(KeyboardId(element, layoutParams))
+        return builder.build()
     }
+    private val keyboard: Keyboard by lazy { build() }
     private fun key(c: Char) = keyboard.sortedKeys.single { it.code == c.code }
     private val detector by lazy { KeyDetector().also { it.setKeyboard(this.keyboard, 0f, 0f) } }
 
@@ -156,6 +157,21 @@ class TouchZonesDynamicTest {
             TouchModel.onKeyInput('a'.code)
             assertEquals(0, TouchModel.engine.sessionTaps)
             assertEquals(0f, TouchModel.offsetY('e'.code))
+            // the layer itself did not move (offsetY alone reads only the base in such a field) ...
+            for (r in -1 until dev.agentkeyboard.core.TouchDynamics.REGIONS) {
+                assertEquals(0f, TouchModel.engine.shortX(r), "region $r")
+                assertEquals(0f, TouchModel.engine.shortY(r), "region $r")
+            }
+            // ... the base learned nothing either (stage 22b would have counted every touch) ...
+            assertEquals(0, TouchModel.samples('e'.code))
+            assertEquals(0f, TouchModel.baseOffsetY('e'.code))
+            // ... and nothing waits for the next normal field: there the zones start unmoved
+            now += 1000
+            open(field(app = "org.other"))
+            assertEquals(0f, TouchModel.offsetY('e'.code))
+            TouchModel.onKeyInput('a'.code)
+            assertEquals(0, TouchModel.engine.sessionTaps)
+            assertTrue(TouchModel.engine.scenes.isEmpty() && TouchModel.engine.observations.isEmpty())
         }
         nothingIn(field(type = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD))
         nothingIn(field(type = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD))
@@ -198,6 +214,13 @@ class TouchZonesDynamicTest {
         open(field())
         assertEquals(1, TouchModel.promotions())
         val promoted = TouchModel.baseOffsetY('e'.code)
+        // only typed letters move; a letter never typed keeps no base and no count
+        assertEquals(3 * TouchModel.MIN_SAMPLES, TouchModel.samples('e'.code))
+        for (untyped in listOf('y')) { // the only letter of the qwertz layout missing in the words
+            assertTrue(untyped.code in keyboard.sortedKeys.map { it.code }, "$untyped on the keyboard")
+            assertEquals(0, TouchModel.samples(untyped.code), "$untyped")
+            assertEquals(0f, TouchModel.baseOffsetY(untyped.code), "$untyped")
+        }
         assertTrue(promoted in 0.05f..0.07f, "base after the promotion: $promoted") // half of 0.25, at most 0.06 per step
         assertTrue(abs(TouchModel.baseOffsetX('e'.code)) < 0.03f)
         assertTrue(TouchModel.scenes().isNotEmpty())
@@ -226,6 +249,138 @@ class TouchZonesDynamicTest {
         assertTrue(TouchModel.offsetX('e'.code) > 0.1f) // the first calibration again
         TouchModel.clear(latinIME)
         assertFalse(TouchModel.hasPrevious(latinIME))
+    }
+
+    /** Four shifted sessions and a fifth one that is still running: its end would promote. */
+    private fun almostPromoted() {
+        listOf(1 to 8, 1 to 20, 2 to 9, 3 to 8, 3 to 19).forEach { (day, hour) ->
+            now = time(day, hour)
+            open(field())
+            typeWords(10, 0.25f)
+            TouchModel.onKeyInput('a'.code)
+        }
+        assertEquals(0, TouchModel.promotions())
+        assertTrue(TouchModel.engine.sessionTaps >= dev.agentkeyboard.core.TouchDynamics.MIN_SESSION)
+    }
+
+    @Test fun switchedOffTheNextFieldLooksAtNothing() {
+        for (switch in listOf(AgentPreferences.ADAPT_TOUCH_DYNAMIC, AgentPreferences.ADAPT_TOUCH)) {
+            TouchModel.clear(latinIME)
+            latinIME.prefs().edit().putBoolean(AgentPreferences.ADAPT_TOUCH, true).putBoolean(AgentPreferences.ADAPT_TOUCH_DYNAMIC, true).commit()
+            almostPromoted()
+            val scenes = TouchModel.engine.scenes.size
+            val observations = TouchModel.engine.observations.size
+            val spreadRef = TouchModel.engine.spreadRef
+            latinIME.prefs().edit().putBoolean(switch, false).commit()
+            now += 10 * 60_000L
+            open(field())
+            assertFalse(TouchModel.dynamic, switch)
+            assertEquals(0, TouchModel.promotions(), switch)
+            assertEquals(0, TouchModel.samples('e'.code), switch)
+            assertEquals(0f, TouchModel.baseOffsetY('e'.code), switch)
+            assertFalse(TouchModel.hasPrevious(latinIME), switch)
+            assertEquals(scenes, TouchModel.engine.scenes.size, switch)
+            assertEquals(observations, TouchModel.engine.observations.size, switch)
+            assertEquals(spreadRef, TouchModel.engine.spreadRef, switch)
+            assertEquals(0, TouchModel.engine.sessionTaps, switch) // dropped, not ended
+            // switched on again: the dropped session never comes back
+            latinIME.prefs().edit().putBoolean(switch, true).commit()
+            now += 10 * 60_000L
+            open(field())
+            assertEquals(0, TouchModel.promotions(), switch)
+            assertEquals(observations, TouchModel.engine.observations.size, switch)
+        }
+    }
+
+    @Test fun aHeldDeleteCountsOnceAndUndoOrCutDropTheWord() {
+        open(field())
+        type("wert", 0.3f)
+        TouchModel.onKeyInput(KeyCode.DELETE)
+        repeat(10) { TouchModel.onKeyInput(KeyCode.DELETE, true); now += 50 }
+        assertEquals(1, TouchModel.engine.sessionDeletes)
+        assertEquals(0, TouchModel.engine.sessionTaps)
+        for (code in listOf(KeyCode.UNDO, KeyCode.CLIPBOARD_CUT)) {
+            type("haus", 0.3f)
+            TouchModel.onKeyInput(code)
+            assertEquals(0, TouchModel.engine.sessionTaps, "$code")
+        }
+        assertEquals(1, TouchModel.engine.sessionDeletes) // undo and cut drop the word but are no deletes
+        type("haus", 0.3f)
+        TouchModel.onKeyInput('x'.code)
+        assertEquals(4, TouchModel.engine.sessionTaps)
+    }
+
+    @Test fun anotherKeyboardGeometryEndsTheSession() {
+        open(field())
+        typeWords(8, 0.3f)
+        TouchModel.onKeyInput('a'.code, false, keyboard)
+        val taps = TouchModel.engine.sessionTaps
+        assertTrue(taps >= 30 && TouchModel.offsetY('e'.code) > 0.15f)
+        // the shifted keyboard has the same geometry: nothing changes
+        val shifted = build(KeyboardElement.ALPHABET_MANUAL_SHIFTED)
+        assertNotSame(keyboard, shifted)
+        TouchModel.onKeyInput('a'.code, false, shifted)
+        assertEquals(taps, TouchModel.engine.sessionTaps)
+        // symbols have no letters: the regions stay
+        TouchModel.onKeyInput('1'.code, false, build(KeyboardElement.SYMBOLS))
+        assertEquals(taps, TouchModel.engine.sessionTaps)
+        val region = TouchModel.region('p'.code)
+        // narrower (one-handed, another orientation): the session ends, the layer is gone, regions are new
+        val narrow = build(width = 700)
+        TouchModel.onKeyInput('a'.code, false, narrow)
+        assertEquals(0, TouchModel.engine.sessionTaps)
+        assertEquals(0f, TouchModel.offsetY('e'.code))
+        assertEquals(region, TouchModel.region('p'.code)) // same layout: same region, made from the new keyboard
+        // a word typed on the wide keyboard waits; the next key comes from the narrow one: the word is dropped
+        type("wert", 0.3f)
+        TouchModel.onKeyInput('a'.code, false, narrow)
+        assertEquals(0, TouchModel.engine.sessionTaps)
+    }
+
+    @Test fun aCalibrationAndTheStepBackMoveTheScenesWithTheBase() {
+        open(field())
+        TouchModel.onKeyInput('a'.code, false, keyboard) // regions of this keyboard
+        val engine = TouchModel.engine
+        engine.scenes += dev.agentkeyboard.core.TouchDynamics.Scene(3, dev.agentkeyboard.core.TouchDynamics.Bucket.EVENING, 2, 1, 2,
+            FloatArray(9) { 0.2f }, FloatArray(9) { 0.2f }, IntArray(9) { 10 }, 0.2f, 0.2f, 0.1f, Float.NaN, Float.NaN)
+        engine.observations += dev.agentkeyboard.core.TouchDynamics.Observation(1, dev.agentkeyboard.core.TouchDynamics.Bucket.EVENING, 3,
+            0.2f, 0.2f, FloatArray(9) { 0.2f }, FloatArray(9) { 0.2f }, IntArray(9) { 10 })
+        // every letter calibrated 0.2 lower: applied 0.2 * 45 / 60 = 0.15
+        val letters = keyboard.sortedKeys.map { it.code }.filter { Character.isLetter(it) }.distinct()
+        TouchModel.replace(latinIME, letters.associateWith { Triple(0f, 0.2f, 45) })
+        assertEquals(0.15f, TouchModel.baseOffsetY('e'.code), 1e-5f)
+        val scene = engine.scenes.single()
+        assertEquals(0.05f, scene.dy, 1e-4f) // the same touches, now relative to the new base
+        assertEquals(0.2f, scene.dx, 1e-4f)
+        scene.regionDy.forEach { assertEquals(0.05f, it, 1e-4f) }
+        scene.regionDx.forEach { assertEquals(0.2f, it, 1e-4f) }
+        assertTrue(engine.observations.isEmpty()) // evidence against the old base
+        // stored like that
+        TouchModel.resetForTest(); TouchModel.loadStored(latinIME)
+        assertEquals(0.05f, TouchModel.engine.scenes.single().dy, 1e-3f)
+        // back to the previous calibration (none): the scenes move back as well
+        open(field())
+        TouchModel.onKeyInput('a'.code, false, keyboard)
+        assertTrue(TouchModel.restorePrevious(latinIME))
+        assertEquals(0f, TouchModel.baseOffsetY('e'.code))
+        val back = TouchModel.engine.scenes.single()
+        assertEquals(0.2f, back.dy, 1e-3f)
+        back.regionDy.forEach { assertEquals(0.2f, it, 1e-3f) }
+    }
+
+    @Test fun storedSceneNumbersAreRounded() {
+        TouchModel.loadStored(latinIME)
+        TouchModel.engine.scenes += dev.agentkeyboard.core.TouchDynamics.Scene(4, dev.agentkeyboard.core.TouchDynamics.Bucket.DAY, 1, 1, 1,
+            FloatArray(9) { 0.123456f }, FloatArray(9) { -0.0004f }, IntArray(9) { 1 }, 0.123456f, 0f, 0.1f, 123.4567f, Float.NaN)
+        TouchModel.deleteScene(latinIME, 99) // marks the state as changed and saves it
+        val text = latinIME.getSharedPreferences(TouchModel.FILE, Context.MODE_PRIVATE).getString("dynamics", null)!!
+        assertTrue("0.123," in text || "0.123]" in text, text)
+        assertFalse("0.123456" in text, text)
+        TouchModel.resetForTest(); TouchModel.loadStored(latinIME)
+        val scene = TouchModel.engine.scenes.single()
+        assertEquals(0.123f, scene.dx, 1e-6f)
+        assertEquals(123.457f, scene.speed, 1e-3f)
+        assertTrue(scene.corrections.isNaN())
     }
 
     private fun abs(v: Float) = kotlin.math.abs(v)

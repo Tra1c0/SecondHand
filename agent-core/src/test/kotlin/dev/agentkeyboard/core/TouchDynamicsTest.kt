@@ -212,6 +212,53 @@ class TouchDynamicsTest {
         assertNull(e.scenes.firstOrNull())
     }
 
+    @Test fun aDiscardedSessionLeavesNoTrace() {
+        val e = engine()
+        e.startField("chat", false, at(1, 20))
+        type(e, at(1, 20), 80, dy = 0.25f)
+        assertTrue(e.sessionTaps >= 80 && meanShortY(e) > 0.1f)
+        e.dirty = false
+        e.discardSession()
+        assertEquals(0, e.sessionTaps)
+        assertEquals(0f, meanShortY(e))
+        assertTrue(e.scenes.isEmpty() && e.observations.isEmpty())
+        assertTrue(e.spreadRef.isNaN() && e.correctionRef.isNaN())
+        assertFalse(e.dirty)
+        e.endSession() // nothing left to evaluate
+        assertTrue(e.scenes.isEmpty() && e.observations.isEmpty() && promoted.isEmpty())
+    }
+
+    @Test fun aMovedBaseRebasesScenesAndDropsObservations() {
+        val e = engine()
+        session(e, at(1, 20), dy = 0.2f)
+        val scene = e.scenes.single()
+        val before = scene.dy; val regionBefore = scene.regionDy.copyOf()
+        assertEquals(1, e.observations.size)
+        e.startField("chat", false, at(2, 20))
+        type(e, at(2, 20), 20, dy = 0.2f)
+        val step = FloatArray(TouchDynamics.REGIONS) { 0.01f * it }
+        e.rebase(FloatArray(TouchDynamics.REGIONS), step, 0f, 0.05f)
+        assertEquals(before - 0.05f, scene.dy, 1e-6f)
+        for (r in 0 until TouchDynamics.REGIONS) assertEquals(regionBefore[r] - step[r], scene.regionDy[r], 1e-6f)
+        assertTrue(e.observations.isEmpty())
+        assertEquals(0, e.sessionTaps) // the session was relative to the old base
+        assertEquals(0f, meanShortY(e))
+        assertTrue(e.dirty)
+    }
+
+    @Test fun observationsLeftAfterAPromotionMoveWithTheBase() {
+        val e = engine()
+        session(e, at(1, 12), dx = -0.25f) // another deviation: stays as an observation
+        val other = e.observations.single()
+        val otherDy = other.dy; val otherRegionDy = other.regionDy.copyOf()
+        listOf(at(1, 8), at(1, 20), at(2, 9), at(3, 19), at(3, 8)).forEach { session(e, it, dy = 0.2f) }
+        assertEquals(1, promoted.size)
+        assertEquals(listOf(other), e.observations)
+        val p = promoted.single()
+        assertTrue(abs(other.dy - (otherDy - TouchDynamics.MAX_PROMOTION)) < 1e-4f, "${other.dy}")
+        for (r in 0 until TouchDynamics.REGIONS) assertEquals(otherRegionDy[r] - p.regionDy[r], other.regionDy[r], 1e-6f)
+    }
+
     @Test fun bucketsFollowTheHour() {
         assertEquals(Bucket.MORNING, Bucket.of(5))
         assertEquals(Bucket.DAY, Bucket.of(11))

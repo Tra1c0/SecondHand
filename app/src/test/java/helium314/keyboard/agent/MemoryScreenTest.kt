@@ -20,7 +20,7 @@ import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.settings.initPreview
 import helium314.keyboard.settings.screens.AgentMemoryScreen
 import helium314.keyboard.settings.screens.MEMORY_APP_TAG
-import helium314.keyboard.settings.screens.MEMORY_DELETE_TAG
+import helium314.keyboard.settings.screens.MEMORY_PHRASE_DELETE_TAG
 import helium314.keyboard.settings.screens.MEMORY_OWN_TAG
 import helium314.keyboard.settings.screens.MEMORY_PHRASE_TAG
 import helium314.keyboard.settings.screens.MEMORY_PIN_TAG
@@ -97,7 +97,7 @@ class MemoryScreenTest {
 
         val before = Memory.phrases(app, 2).size
         val first = Memory.phrases(app).first()
-        compose.onNodeWithTag(MEMORY_DELETE_TAG + 0).performScrollTo().performClick()
+        compose.onNodeWithTag(MEMORY_PHRASE_DELETE_TAG + 0).performScrollTo().performClick()
         compose.waitForIdle()
         Memory.resetForTest()
         val after = Memory.phrases(app, 2)

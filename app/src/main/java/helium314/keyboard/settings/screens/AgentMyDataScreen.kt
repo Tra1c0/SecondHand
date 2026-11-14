@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PlatformImeOptions
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
@@ -137,7 +138,9 @@ private fun MyDataCard(storeFactory: ((Context) -> MyDataStore)?) {
             label = { Text(if (slot.number == 0) stringResource(slot.label) else stringResource(slot.label, slot.number)) },
             singleLine = true,
             enabled = !busy && loaded,
-            keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = slot.keyboard),
+            // the keyboard never learns what is typed here (review of stage 45, B5)
+            keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = slot.keyboard,
+                platformImeOptions = PlatformImeOptions(AgentPreferences.NO_LEARNING_FIELD)),
             modifier = Modifier.fillMaxWidth().testTag(MY_DATA_FIELD_TAG + index),
         )
     }

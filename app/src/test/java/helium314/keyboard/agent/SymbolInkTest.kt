@@ -56,7 +56,10 @@ class SymbolInkTest {
     private val sink = object : SymbolInk.Sink {
         override fun onDrawing(strokes: List<InkStroke>) { drawings += strokes; log += "symbol" }
         override fun onWaiting(strokes: List<InkStroke>, possibleDots: List<Int>) { waiting += strokes.size }
+        override fun recognizes(strokes: List<InkStroke>) = recognizable
     }
+    /** Stage 43 review M1: what the sink says about a single stroke right after typing. */
+    private var recognizable = true
     private val recognizer = InkRecognizer(InkSymbols.templates)
 
     private fun key(code: Int) = mock(Key::class.java).also {
@@ -764,5 +767,149 @@ class SymbolInkTest {
         now += 100
         stroke(*line(60f, 80f, 200f, 80f)) // too short for HeliBoard right after typing: a tap, no gesture
         verify(listener, never()).onStartBatchInput()
+        // review N5: the same stroke well after typing starts a batch, so gesture detection is on here
+        now += 2_000
+        stroke(*line(60f, 80f, 200f, 80f))
+        verify(listener, times(1)).onStartBatchInput()
+        assertEquals(listOf("word start", "word end"), log.filter { it.startsWith("word") })
+        assertFalse(SymbolInk.isWaiting)
+    }
+
+    // stage 43 review M1: a fast tap right after typing that slides far enough to start a drawing
+
+    /** A tap at ([x], 60) that slides 40 px (0.8 keys) to the right in 30 ms, right after [typeAWord]. */
+    private fun slidingTap(x: Float) {
+        touch(MotionEvent.ACTION_DOWN, x, 60f); touch(MotionEvent.ACTION_MOVE, x + 12, 60f); touch(MotionEvent.ACTION_MOVE, x + 25, 60f)
+        touch(MotionEvent.ACTION_MOVE, x + 40, 60f); touch(MotionEvent.ACTION_UP, x + 40, 60f)
+    }
+
+    @Test fun aTapSlidingAKeyRightAfterTypingIsItsLetter() {
+        typeAWord()
+        log.clear()
+        clearInvocations(listener)
+        now += 20
+        slidingTap(100f)
+        verify(listener, times(1)).onStartBatchInput() // it started a drawing
+        assertTrue(SymbolInk.isWaiting)
+        clearInvocations(listener) // the press at the down point
+        pause()
+        // a short straight line alone right after typing: the tap's letter, no "–"
+        assertEquals(listOf("code ${'a'.code}"), log)
+        assertTrue(drawings.isEmpty())
+        assertTrue(waiting.none { it > 0 }, "$waiting") // no preview chip for it
+        verify(listener, times(1)).onPressKey(eq('a'.code), anyInt(), eq(1), any())
+        verify(listener, times(1)).onReleaseKey(eq('a'.code), eq(false))
+    }
+
+    @Test fun aSlidTapRightAfterTypingComesBeforeTheNextLetter() {
+        twoLetters()
+        for (next in listOf(Pair(330f, 140f), Pair(250f, 60f))) { // far from the line, and near it (ink, a tap)
+            now += 2_000
+            typeAWord()
+            log.clear()
+            now += 20
+            slidingTap(100f)
+            assertTrue(SymbolInk.isWaiting)
+            tap(next.first, next.second)
+            assertEquals(listOf("code ${'a'.code}", "code ${'b'.code}"), log, "next at $next")
+            assertFalse(SymbolInk.isWaiting)
+        }
+        pause()
+        assertTrue(drawings.isEmpty())
+    }
+
+    @Test fun aDashRightAfterTypingWithAFurtherStrokeOrLongEnoughIsASymbol() {
+        typeAWord()
+        log.clear()
+        now += 20
+        slidingTap(100f) // as short as a sliding tap, but a second bar follows: =
+        stroke(100f, 75f, 112f, 75f, 125f, 75f, 140f, 75f)
+        pause()
+        assertEquals(listOf("symbol"), log)
+        assertEquals(2, drawings.single().size)
+        assertEquals("=", recognizer.recognize(drawings.single()).best?.text)
+        // 1.6 keys long alone: a dash
+        now += 1_000
+        typeAWord()
+        log.clear()
+        now += 20
+        stroke(100f, 60f, 120f, 60f, 140f, 60f, 160f, 60f, 180f, 60f)
+        pause()
+        assertEquals(listOf("symbol"), log)
+        assertEquals("–", recognizer.recognize(drawings.last()).best?.text)
+    }
+
+    @Test fun aStrokeRightAfterTypingThatIsNotRecognizedIsItsLetter() {
+        typeAWord()
+        log.clear()
+        now += 20
+        recognizable = false
+        stroke(*line(100f, 60f, 250f, 60f)) // long, but the sink would show "Nicht erkannt"
+        pause()
+        assertEquals(listOf("code ${'a'.code}"), log)
+        // the same well after typing: the sink gets it (not recognized there, nothing typed)
+        now += 2_000
+        log.clear()
+        stroke(*line(100f, 60f, 250f, 60f))
+        pause()
+        assertEquals(listOf("symbol"), log)
+    }
+
+    @Test fun twoThumbsRightAfterTypingTypeBothLetters() {
+        twoLetters()
+        typeAWord()
+        log.clear()
+        clearInvocations(listener)
+        now += 20
+        // the second thumb slides 0.8 keys while the first is down: HeliBoard's cooldown stays
+        touch(MotionEvent.ACTION_DOWN, 60f, 60f)
+        var a = Triple(0, 60f, 60f)
+        fingers(MotionEvent.ACTION_POINTER_DOWN, 1, a, Triple(1, 250f, 60f))
+        for (x in listOf(262f, 275f, 290f)) fingers(MotionEvent.ACTION_MOVE, 1, a, Triple(1, x, 60f))
+        fingers(MotionEvent.ACTION_POINTER_UP, 0, a, Triple(1, 290f, 60f))
+        fingers(MotionEvent.ACTION_UP, 0, Triple(1, 290f, 60f))
+        verify(listener, never()).onStartBatchInput()
+        assertEquals(listOf("code ${'a'.code}", "code ${'b'.code}"), log)
+        // the first thumb slides while the second is down: no drawing either
+        now += 300
+        log.clear()
+        touch(MotionEvent.ACTION_DOWN, 60f, 60f)
+        val b = Triple(1, 250f, 60f)
+        fingers(MotionEvent.ACTION_POINTER_DOWN, 1, a, b)
+        for (x in listOf(72f, 85f, 100f)) { a = Triple(0, x, 60f); fingers(MotionEvent.ACTION_MOVE, 0, a, b) }
+        fingers(MotionEvent.ACTION_POINTER_UP, 0, a, b)
+        fingers(MotionEvent.ACTION_UP, 0, b)
+        verify(listener, never()).onStartBatchInput()
+        assertEquals(listOf("code ${'a'.code}", "code ${'b'.code}"), log)
+        assertFalse(SymbolInk.isWaiting)
+    }
+
+    @Test fun aPossibleDotOnAKeyThatTypesNoCharacterNowIsNotTyped() {
+        // review N1: the key at the down point is looked up on the keyboard as it is when the drawing is
+        // written; one that types no character there (space, enter, delete) types nothing
+        stroke(*line(20f, 80f, 300f, 80f))
+        tap(40f, 30f) // a possible dot
+        assertTrue(log.isEmpty())
+        `when`(detector.detectHitKey(anyInt(), anyInt())).thenReturn(delete)
+        pause()
+        assertEquals(listOf("symbol"), log)
+        verify(listener, never()).onPressKey(eq(KeyCode.DELETE), anyInt(), anyInt(), any())
+        verify(listener, never()).onCodeInput(eq(KeyCode.DELETE), anyInt(), anyInt(), anyBoolean())
+    }
+
+    @Test fun aPossibleDotTypedWhileAnotherFingerComesDownIsOnePointer() {
+        // review N2: the letter of a possible dot is typed as one pointer, whatever else is down
+        twoLetters()
+        stroke(*line(20f, 80f, 300f, 80f))
+        tap(40f, 30f) // a possible dot
+        clearInvocations(listener)
+        touch(MotionEvent.ACTION_DOWN, 100f, 120f) // a further stroke near the line
+        touch(MotionEvent.ACTION_MOVE, 130f, 120f)
+        val a = Triple(0, 130f, 120f); val b = Triple(1, 330f, 30f)
+        fingers(MotionEvent.ACTION_POINTER_DOWN, 1, a, b) // ends the drawing: written, then the dot's letter
+        verify(listener, times(1)).onPressKey(eq('a'.code), anyInt(), eq(1), any())
+        fingers(MotionEvent.ACTION_POINTER_UP, 0, a, b)
+        fingers(MotionEvent.ACTION_UP, 0, b)
+        assertEquals(listOf("symbol", "code ${'a'.code}", "code ${'b'.code}"), log)
     }
 }

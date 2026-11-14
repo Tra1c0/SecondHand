@@ -159,24 +159,20 @@ Reihenfolge von oben nach unten.
   (anfangs aus); Chips wie in 45 nur nach dem Leerzeichen; der Rest einer Folge als Chip erst ab
   dreimal und 70 % (gemessen), dadurch braucht eine Folge etwa zehn Wiederholungen; eigene Wörter
   ab drei Nutzungen ohne Korrektur; Abkürzungs-Angebot ab zwei eigenen Ersetzungen, nur einmal in
-  der Leiste; „Passende Textbausteine“ anfangs an (lernt nichts). Seite „Gedächtnis“ unter Tippen &
-  Korrektur → Wörter & Lernen, mit `MemorySections` für die Seite „Was ich mir gemerkt habe“ aus
-  49. Offen: Prüfer-Review (Engine: `InputLogic`, `Suggest`), Gerätetest (Chips beim echten Tippen,
+  der Leiste; „Passende Textbausteine“ anfangs an (lernt nichts). Abschnitte (`MemorySections`)
+  auf der Seite „Was ich mir gemerkt habe“ aus 49 (Tippen & Korrektur → Wörter & Lernen). Offen: Prüfer-Review (Engine: `InputLogic`, `Suggest`), Gerätetest (Chips beim echten Tippen,
   Abkürzungen mit echter Löschtaste, Kürzel im persönlichen Wörterbuch, Speicherzeit bei 2000
   Folgen, Bausteine mit `{cursor}`).
-- **49 Korrekturen merken über das ganze Feld (Regeln mit dem Owner festgelegt, 2026-11-14)** —
-  beschlossen, nach 48 (gleiche Engine-Stelle). Auch spätere Korrekturen zählen (nach weiteren
-  Wörtern, nach Backspace über Leerzeichen, nach einem gewählten Vorschlag), solange der Owner im
-  Feld ist. Tippfehler-Korrektur nur, wenn alles zutrifft: altes Wort kein echtes Wort (Wörterbuch
-  oder eigene Wörter), Änderung sieht nach Vertippen aus (Nachbartaste, Buchstabe fehlt/doppelt,
-  vertauscht, Umlaut; höchstens 2 Schritte, bei kurzen Wörtern 1), nur dieses Wort geändert, neues
-  Wort echt. Immer Überarbeitung, nie gelernt: echtes Wort → echtes Wort (auch „das“ → „dass“),
-  Markieren und Überschreiben, Einfügen, mehrere Wörter, kaum Ähnlichkeit. Erkannte Korrekturen
-  sind erst Kandidaten, gelernt ab dem zweiten Vorkommen an anderer Stelle. Zurückgenommene
-  Autokorrektur X→Y→X: ab dem ersten Mal „X nicht mehr zu Y korrigieren“. Wirkt nur auf künftige
-  Einzelwort-Korrekturen; nie in Passwortfeldern, Inkognito, bei verbotenem Lernen, gesperrt oder
-  pausiert. Kandidaten und Gelerntes auf „Was ich mir gemerkt habe“ (löschen, Kandidat übernehmen),
-  keine Rückfragen beim Tippen. (M–L)
+- **49 Korrekturen merken über das ganze Feld (Regeln mit dem Owner festgelegt, 2026-11-14)** ist
+  gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 49), nach den Regeln des
+  Owners. Annahmen des Leads, die der Owner ändern kann: hängt am Schalter „Meine Tippfehler
+  lernen“ (die Rücknahme-Regel an „Rückgängig gemachte Korrekturen merken“), kein eigener Schalter;
+  „echtes Wort“ heißt jedes aktive Wörterbuch einschließlich persönlichem Wörterbuch, Kontakten und
+  Lernverlauf (mit Deutsch und Englisch gilt „fur“ als echt); ein zusätzlicher Buchstabe zählt nur
+  als Vertipper, wenn er einen Nachbarbuchstaben verdoppelt („Haaus“, nicht „Hasus“); „andere
+  Stelle“ = anderes Feld oder andere Position; der Vergleich reicht je 2000 Zeichen um die
+  Schreibmarke. Seite „Was ich mir gemerkt habe“ ist für 46 vorbereitet (Abschnitte). Offen:
+  Prüfer-Review (Engine-Änderung, Pflicht) und Gerätetest. (M–L)
 - **48 Autokorrektur: getipptes Wort vorne, keine ungewollte Großschreibung (Rückmeldung des Owners
   vom 2026-11-14)** ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 48).
   Offen: Prüfer-Review (Engine-Änderung, Pflicht) und Gerätetest. Zu entscheiden (Owner): Felder,

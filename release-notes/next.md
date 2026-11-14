@@ -39,8 +39,8 @@
 
 ## Nächster Build
 
-- Neu: Gedächtnis (anfangs aus). Einstellungen → Tippen & Korrektur → Wörter & Lernen →
-  „Gedächtnis“ → „Merken, wie ich schreibe“. Die Tastatur merkt sich Wortfolgen aus deinen eigenen
+- Neu: Gedächtnis (anfangs aus). Einstellungen → Tippen & Korrektur → Wörter & Lernen → „Was
+  ich mir gemerkt habe“ → Abschnitt „Gedächtnis“ → „Merken, wie ich schreibe“. Die Tastatur merkt sich Wortfolgen aus deinen eigenen
   Sätzen; schreibst du eine oft, bietet die Leiste nach den ersten Wörtern den ganzen Rest als
   einen Chip an („… sobald ich mehr weiß“), ein Tipp hängt ihn hinter der Schreibmarke an.
   Umgangssprache, die du dreimal so abschickst, wird dein Wort und nicht mehr korrigiert.
@@ -56,9 +56,12 @@
   fünf Minuten Pause oder in einer anderen App. Länger anhaltende Abweichungen merkt sich die
   Tastatur als Szenen („abends, ungenauer, trifft tiefer“) und startet dort, wenn du wieder so
   tippst. Deine Kalibrierung bleibt; nur was an mehreren Tagen und Tageszeiten wiederkommt,
-  verschiebt sie ein kleines Stück, „Auf vorherige Kalibrierung zurücksetzen“ nimmt das zurück.
-  Nie Text, nie Ort; nichts in Passwortfeldern, im Inkognito-Modus oder bei gesperrtem Gerät.
-  Noch auf keinem Gerät ausprobiert.
+  verschiebt sie ein kleines Stück, „Auf vorherige Kalibrierung zurücksetzen“ nimmt das zurück
+  (der Knopf erscheint nur, wenn es einen Schritt zurück gibt). Ausgeschaltet ändert sich nichts
+  mehr an deinen Zonen. Eine gehaltene Löschtaste zählt als eine Korrektur, Rückgängig und
+  Ausschneiden verwerfen das Wort wie die Löschtaste, Drehen oder Einhand-Modus beginnt neu, und
+  eine neue Kalibrierung rechnet die Szenen mit um. Nie Text, nie Ort; nichts in Passwortfeldern,
+  im Inkognito-Modus oder bei gesperrtem Gerät. Noch auf keinem Gerät ausprobiert.
 
 - Neu: Zwischenablage-Wächter und Tresor (nur mit eingeschaltetem Zwischenablage-Verlauf).
   Kopierte Passwörter, API-Schlüssel und Tokens landen nicht mehr im Verlauf, sondern oben in der
@@ -66,9 +69,14 @@
   einmal ein, dann sind sie weg und die System-Zwischenablage wird geleert, spätestens nach
   2 Minuten verschwinden sie. Einmalcodes (auch aus kopierten SMS wie „Dein Code lautet 123456“)
   stehen 10 Minuten unter „Einmalcodes“, ein Tipp fügt nur die Ziffern ein. IBAN, Telefon, E-Mail
-  und Adresse bekommen im Verlauf eine Beschriftung. Ältere Passwörter und Codes im Verlauf
-  verschwinden beim nächsten Öffnen (angeheftete bleiben, verdeckt). Nicht in Passwortfeldern,
-  im Inkognito-Modus oder bei gesperrtem Gerät. Alles lokal. Noch auf keinem Gerät ausprobiert.
+  und Adresse bekommen im Verlauf eine Beschriftung. Eine kopierte Nachricht mit Code bleibt als
+  Text im Verlauf, ein Code allein nicht; Wörter wie „noch einmal“ oder „Barcode“ machen aus einer
+  Zahl keinen Code mehr. „Das WLAN-Passwort ist …“ gilt als Geheimnis. Ältere Passwörter im
+  Verlauf verschwinden beim Start der Tastatur (angeheftete bleiben, verdeckt), gelöschte Einträge
+  werden in der Datenbank überschrieben. Was du in einem Passwortfeld kopierst, wird nirgends
+  vorgeschlagen; eingefügte Geheimnisse und Codes werden nie gelernt. Die Tastatur speichert keine
+  Hashes vertraulicher Clips mehr auf dem Gerät. Nicht in Passwortfeldern, im Inkognito-Modus oder
+  bei gesperrtem Gerät. Alles lokal. Noch auf keinem Gerät ausprobiert.
 - Neu: Feld- und Kontext-Vorschläge. Die Leiste schlägt vor, was zum Feld passt, und erst dein
   Tipp fügt es ein: im E-Mail-Feld deine Adresse oder eine gerade kopierte, im Code-Feld den frisch
   kopierten Einmalcode (nur die Ziffern), in Telefon- und IBAN-Feldern deinen Eintrag oder einen
@@ -77,8 +85,10 @@
   Deine eigenen Daten trägst du unter Einstellungen → Leiste & Befehle → „Meine Daten &
   Vorschläge“ ein (freiwillig, anfangs leer, verschlüsselt nur auf dem Gerät); dort schaltest du
   die Vorschläge auch ab. Mit eingeschaltetem Lernen merkt sich die Tastatur, welche Vorschläge du
-  nimmst, nur als Zahlen ohne Text. Nie in Passwortfeldern, im Inkognito-Modus oder bei gesperrtem
-  Gerät, nie Geheimnisse aus dem Tresor. Alles lokal. Noch auf keinem Gerät ausprobiert.
+  nimmst, nur als Zahlen ohne Text (gelöscht auch beim Ausschalten von „Personalisierte
+  Vorschläge“). Eingefügte Werte und was du auf der Seite „Meine Daten“ tippst, lernt die Tastatur
+  nicht. Nie in Passwortfeldern, im Inkognito-Modus oder bei gesperrtem Gerät, nie Geheimnisse aus
+  dem Tresor. Alles lokal. Noch auf keinem Gerät ausprobiert.
 
 - Neu: Textbausteine 2.0. In `@snip`-Bausteinen gehen jetzt Platzhalter: `{datum}`,
   `{datum+2t}`, `{uhrzeit}`, `{wochentag}`, `{zwischenablage}`, Ausfüllfelder `{?Name}` (die
@@ -251,9 +261,14 @@
   Symbol und danach der Buchstabe (dann erst nach der Pause). % geht jetzt auch mit zwei Tupfern
   statt Kreisen (erst der Schrägstrich), neu sind ‰, !, ¡, ? und ¿. Direkt nach dem Tippen eines
   Worts beginnt ein Strich jetzt als Zeichnung, sobald er etwa eine Dreivierteltaste lang ist;
-  ein beim schnellen Tippen rutschender Tipp bleibt Buchstabe. Im künstlichen Finger-Test ÷ 99 %
-  statt 71 %, % mit Tupfern 98 % statt 0 %, mit winzigen Kreisen erst 53 %. Noch auf keinem Gerät
-  ausprobiert.
+  ein beim schnellen Tippen rutschender Tipp bleibt Buchstabe. Rutscht er doch so weit, aber
+  bleibt es ein kurzer gerader Strich (unter anderthalb Tasten) ohne zweiten Strich, kommt der
+  Buchstabe, auf dem du aufgesetzt hast, statt „–“ oder „/“; einen kurzen Strich direkt nach einem
+  Wort malst du darum etwas länger oder mit zweitem Strich (=). Liegt ein zweiter Daumen auf,
+  beginnt direkt nach dem Tippen keine Zeichnung. Solche Buchstaben und die möglicher Punkte
+  erscheinen erst nach der Pause oder vor der nächsten Taste, ohne Tastenvorschau, Vibration und
+  Ton. Im künstlichen Finger-Test ÷ 99 % statt 71 %, % mit Tupfern 98 % statt 0 %, mit winzigen
+  Kreisen erst 53 %. Noch auf keinem Gerät ausprobiert.
 - Neu: Gehst du zu einem automatisch korrigierten Wort zurück (Löschtaste direkt danach oder
   Schreibmarke ins Wort), steht dein getipptes Wort ganz links in der Leiste, in deiner Groß- und
   Kleinschreibung; Mitte und rechts ähnliche Wörter. Ein Tipp setzt es ein und zählt wie die
@@ -262,3 +277,19 @@
   Großschreibung („essen“ bleibt, „Essen“ steht als Vorschlag da). Nach „ca.“, „bzw.“, „vgl.“,
   „z. B.“ und ähnlichen Abkürzungen schreibt die Tastatur nicht mehr groß weiter. Noch auf keinem
   Gerät ausprobiert.
+- Neu: Die Tastatur lernt auch Tippfehler, die du später verbesserst (mit „Meine Tippfehler
+  lernen“): nach weiteren Wörtern, nach Zurücklöschen, über einen Vorschlag oder nach Tippen ins
+  Wort, solange du im Feld bleibst. Nur echte Vertipper eines Nicht-Worts zu einem echten Wort
+  zählen (Nachbartaste, fehlender, doppelter oder vertauschter Buchstabe, Umlaut); „das“ → „dass“,
+  Markieren und Überschreiben oder Einfügen nie. Beim ersten Mal nur gemerkt, beim zweiten Mal an
+  anderer Stelle gelernt, danach korrigiert die Autokorrektur das Wort. Machst du eine
+  Autokorrektur später rückgängig, wird sie mit „Rückgängig gemachte Korrekturen merken“ sofort
+  nicht mehr angewendet. Alles sehen, übernehmen und löschen: Einstellungen → Tippen & Korrektur →
+  „Was ich mir gemerkt habe“. Keine Rückfragen beim Tippen; nie in Passwortfeldern, Inkognito,
+  bei Lernpause oder gesperrtem Gerät. Noch auf keinem Gerät ausprobiert.
+- Behoben: Tippst du Deutsch und Englisch, korrigiert die Autokorrektur „hand“, „name“, „bank“,
+  „kind“ und ähnliche Wörter wieder zu „Hand“, „Name“ …; nur ein Wort, das deine Sprache selbst
+  klein kennt („essen“), bleibt. Nach „Fr.“, „Jh.“, „Jr.“ und Initialen („J. K. Rowling“) schreibt
+  die Tastatur wieder groß weiter, nach „bzgl.“, „insb.“, „lt.“, „mind.“, „ugs.“, „eigtl.“ nicht.
+  Nach einem geleerten Feld zeigt die Leiste kein altes getipptes Wort mehr. Noch auf keinem Gerät
+  ausprobiert.

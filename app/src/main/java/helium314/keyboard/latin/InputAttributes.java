@@ -81,7 +81,7 @@ public final class InputAttributes {
             mShouldShowVoiceInputKey = false;
             mDisableGestureFloatingPreviewText = false;
             mIsGeneralTextInput = false;
-            mNoLearning = false;
+            mNoLearning = isAgentNoLearningField(editorInfo);
             return;
         }
 
@@ -132,9 +132,15 @@ public final class InputAttributes {
 
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-            mNoLearning = (editorInfo.imeOptions & EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) != 0;
+            mNoLearning = (editorInfo.imeOptions & EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) != 0
+                    || isAgentNoLearningField(editorInfo);
         else
-            mNoLearning = false;
+            mNoLearning = isAgentNoLearningField(editorInfo);
+    }
+
+    /** Fork (review of stage 45): the keyboard's own fields for "Meine Daten" are never learned, on every API level and field class. */
+    private static boolean isAgentNoLearningField(final EditorInfo editorInfo) {
+        return inPrivateImeOptions(null, helium314.keyboard.agent.AgentPreferences.NO_LEARNING_FIELD, editorInfo);
     }
 
     public boolean isTypeNull() {

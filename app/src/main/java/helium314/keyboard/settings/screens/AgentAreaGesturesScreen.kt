@@ -317,7 +317,9 @@ private fun TouchSection(context: Context, prefs: SharedPreferences, area: Setti
     SectionCard(stringResource(R.string.agent_gestures_touch)) {
         SettingSwitchRow(stringResource(R.string.agent_gestures_adapt), stringResource(R.string.agent_gestures_adapt_summary), area.dot,
             prefs.getBoolean(AgentPreferences.ADAPT_TOUCH, false),
-            { putBoolean(AgentPreferences.ADAPT_TOUCH, it); TouchModel.enabled = it }, area.from, area.to,
+            { putBoolean(AgentPreferences.ADAPT_TOUCH, it); TouchModel.enabled = it
+                // stage 50: the dynamic zones work only together with this switch, as on the learning page
+                TouchModel.dynamic = it && prefs.getBoolean(AgentPreferences.ADAPT_TOUCH_DYNAMIC, false) }, area.from, area.to,
             Modifier.testTag(ROW_TAG + AgentPreferences.ADAPT_TOUCH))
         SettingRow(stringResource(R.string.agent_gestures_touch_calibrate), stringResource(R.string.agent_gestures_touch_calibrate_summary), area.dot,
             {

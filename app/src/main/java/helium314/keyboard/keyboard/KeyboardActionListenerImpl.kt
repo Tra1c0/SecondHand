@@ -151,7 +151,8 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
             // view to keyboard coordinates, as KeyDetector does
             TouchCalibration.onKey(primaryCode, x, y, view.paddingLeft, view.paddingTop, keyboardSwitcher.keyboard)
         }
-        helium314.keyboard.agent.TouchModel.onKeyInput(primaryCode) // stage 50: a delete drops the last word's touches
+        // stage 50: a delete drops the last word's touches; a held delete counts once; the keyboard shows geometry changes
+        helium314.keyboard.agent.TouchModel.onKeyInput(primaryCode, isKeyRepeat, keyboardSwitcher.keyboard)
         latinIME.invalidateAgentEditor()
         val spaceTap = primaryCode == Constants.CODE_SPACE && spaceKeyDown
         spaceKeyDown = false // codes sent while handling this one are no taps
@@ -219,6 +220,11 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     override fun onTextInput(text: String?) {
         helium314.keyboard.agent.SymbolDrawing.beforeOtherInput()
         latinIME.onTextInput(text)
+    }
+
+    override fun onPrivateTextInput(text: String?) {
+        helium314.keyboard.agent.SymbolDrawing.beforeOtherInput()
+        latinIME.onPrivateTextInput(text)
     }
 
     override fun onContent(content: InputContentInfoCompat) {
