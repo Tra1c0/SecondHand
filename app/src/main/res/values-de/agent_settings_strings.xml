@@ -30,7 +30,7 @@
     <string name="agent_area_gestures_tile">Leertaste, Malen, Vibration, Ton</string>
     <string name="agent_area_gestures_sub">Wischen, Malen und was du dabei spürst und hörst.</string>
     <string name="agent_area_bar">Leiste &amp; Befehle</string>
-    <string name="agent_area_bar_tile">Symbolleiste, @-Befehle, Zwischenablage</string>
+    <string name="agent_area_bar_tile">Leiste, @-Befehle, Zwischenablage</string>
     <string name="agent_area_bar_sub">Die Leiste über den Tasten und was du dort mit @ aufrufst.</string>
     <string name="agent_area_ai">KI &amp; Automationen</string>
     <string name="agent_area_ai_tile">Anbieter, Skill-Tasten, Workflows, Diktat</string>

@@ -64,7 +64,7 @@ die installierte App.
 3. Zurück zur alten Tastatur kommst du jederzeit über dasselbe Symbol.
 
 Die Einstellungen der Tastatur öffnest du über das App-Symbol „Agent Keyboard Lab Settings“ oder
-in der Tastatur über den Pfeil links in der Symbolleiste und dann das Zahnrad.
+in der Tastatur über den Pfeil links in der Leiste und dann das Zahnrad.
 
 ## Einstellungen finden
 
@@ -81,7 +81,7 @@ diesem Bereich:
 | 02 Tippen & Korrektur | eigene Seite (siehe unten); Textkorrektur = „Alle Korrektur-Einstellungen“, Gelernte Wörter, Wörterbücher, Persönliches Wörterbuch |
 | 03 Tasten & Sprachen | Sprachen & Layouts, Optionen, Sekundäre Layouts |
 | 04 Gesten & Gefühl | Leertaste, Symbole malen, Gesten-Tippen (nur mit Bibliothek), Vibration & Ton (= Optionen) |
-| 05 Leiste & Befehle | Leiste (= Symbolleiste), Befehle, Screenshots |
+| 05 Leiste & Befehle | eigene Seite (siehe unten); Leiste = „Knöpfe wählen und sortieren“, Befehle = „Alle Befehls-Einstellungen“, Screenshots |
 | 06 KI & Automationen | KI-Anbieter, Skill-Tasten, Workflows, Diktat |
 | 07 System & Daten | Tastaturprofile, Updates, Diagnose, Erweitert, Gestendaten-Erfassung (nur in der Sammelphase), Über |
 
@@ -107,10 +107,32 @@ anstößige Wörter …), „Wörterbücher“, „Persönliches Wörterbuch“ 
 bisherigen Seiten. „Lernen pausieren“ behält das Gelernte; Lernen ganz ausschalten (und löschen)
 geht unter „Alle Korrektur-Einstellungen“ → „Personalisierte Vorschläge“.
 
+### Leiste & Befehle
+
+„Leiste“ heißt hier, was HeliBoard „Symbolleiste“ nannte: die Zeile über den Tasten. Oben wählst
+du in einem Tipp, was sie zeigt:
+
+- **TASTEN + VORSCHLÄGE**: ausklappbar, angeheftete Knöpfe bleiben (HeliBoard: „Leisten-Tasten und
+  Vorschläge“).
+- **NUR VORSCHLÄGE**: nur Vorschläge und angeheftete Knöpfe.
+- **VERSTECKT**: keine Leiste, mehr Platz für Tasten.
+
+Steht „Eigene Einstellung“ darunter, ist der vierte Modus „Nur Leisten-Tasten“ gewählt (unter
+„Knöpfe wählen und sortieren“ → „Leisten-Modus“). Die Karte „@-Befehle“ zeigt das Präfix und alle
+Befehle; ein Tipp auf einen Befehl schaltet ihn einzeln an oder aus, der Schalter oben rechts
+schaltet das Erkennen getippter Befehle ganz aus. `@contact` fragt beim Einschalten nach dem
+Zugriff auf Kontakte. Darunter: „Knöpfe wählen und sortieren“ (die bisherige Leisten-Seite mit
+Modus, Tasten, angehefteten Tasten, Zwischenablage-Tasten), „Automatisch zeigen“ (nur bei TASTEN +
+VORSCHLÄGE), „Wischen blendet aus“, „Skill-Tasten anheften“ (zeigt, wie viele der drei angeheftet
+sind) sowie Zwischenablage-Verlauf, Aufbewahrung (Regler), Bilder und Dateien, Screenshots
+anbieten (fragt nach dem Zugriff auf Bilder) und Emoji-Mix in der Leiste. Präfix, Textbausteine,
+Orte, Bildschirm lesen und den Emoji-Mix-Speicher findest du unter „Alle Befehls-Einstellungen“,
+angeheftete Einträge zuerst und Dateigröße unter „Weitere Zwischenablage-Einstellungen“.
+
 ## Textaktionen (ohne Internet)
 
 1. Text im Textfeld markieren.
-2. Die Taste mit dem Stern rechts oben in der Symbolleiste antippen. Es öffnet sich das Aktionsrad.
+2. Die Taste mit dem Stern rechts oben in der Leiste antippen. Es öffnet sich das Aktionsrad.
 3. „Großschrift“, „Kleinschrift“ oder „Abstände“ zeigt das Ergebnis als Vorschau im Panel.
    „Textaktionen“ öffnet das Panel mit allen Aktionen.
 4. Erst „Auswahl ersetzen“ ändert den Text. „Ergebnis kopieren“ legt ihn in die Zwischenablage.
@@ -155,7 +177,7 @@ Einstellungen → Erweitert → **Leertaste** (oder Einstellungen → Tastaturpr
 - **Rückgängig** und **Wiederholen** auf Halten oder Doppeltippen der Leertaste vibrieren wie ein
   normaler Tastendruck bzw. langer Druck, ohne eigene Ticks (die drei Ticks direkt nach der
   Aktion aus Build 12 gibt es nicht mehr). Die Rückgängig-/Wiederholen-Tasten in der
-  Werkzeugleiste vibrieren wie jede andere Taste.
+  Leiste vibrieren wie jede andere Taste.
 
 Rad, Panel und Diktat behalten über jede Geste ihre Schutzregeln (Passwortfelder, Inkognito,
 gesperrtes Gerät). Ein einzelner Tipp schreibt immer ein Leerzeichen.
@@ -183,7 +205,7 @@ Unter KI-Anbieter stehen auch die Zielsprache fürs Übersetzen, der Ton fürs U
 
 - Einstellungen → Skill-Tasten: drei Tasten mit je einer lokalen Aktion, einer KI-Aktion oder
   einem Workflow belegen. Damit sie in der Tastatur erscheinen, unter Einstellungen →
-  Symbolleiste die Tasten „Skill-Taste 1–3“ einschalten.
+  Leiste & Befehle → „Skill-Tasten anheften“ einschalten (oder unter „Knöpfe wählen und sortieren“).
 - Einstellungen → Workflows: eigene Abläufe aus bis zu acht Schritten anlegen, z. B. erst Abstände
   aufräumen, dann korrigieren, dann übersetzen. Jeder KI-Schritt nennt Anbieter und Modell.
   Beim Start zeigt die Tastatur alle Schritte und fragt einmal nach der Freigabe.
@@ -208,7 +230,7 @@ Im Panel unter „Werkzeuge“:
 2. Schreibmarke dorthin setzen, wo der Text hin soll. Es darf nichts markiert sein, und ein
    angefangenes Wort muss beendet sein (z. B. mit einem Leerzeichen).
 3. Im Panel „Diktieren (auf diesem Gerät)“ antippen. Wer oft diktiert, schaltet unter
-   Einstellungen → Symbolleiste die Taste „Diktieren (auf dem Gerät)“ ein.
+   Einstellungen → Leiste & Befehle → „Knöpfe wählen und sortieren“ die Taste „Diktieren (auf dem Gerät)“ ein.
 4. Sprechen, dann „Fertig – Text anzeigen“.
 5. Text prüfen und „An Schreibmarke einfügen“.
 
@@ -221,7 +243,8 @@ Sprach-Tastatur des Systems, falls eine installiert ist.
 
 ## Screenshot einfügen
 
-1. Einstellungen → Screenshots → „Neue Screenshots in der Leiste anbieten“ einschalten und den
+1. Einstellungen → Leiste & Befehle → „Screenshots anbieten“ einschalten (oder Einstellungen →
+   Screenshots → „Neue Screenshots in der Leiste anbieten“) und den
    Zugriff auf Bilder erlauben. Wählst du nur „ausgewählte Fotos“, sieht die Tastatur neue
    Screenshots nicht.
 2. Screenshot machen. Ist die Tastatur offen, steht er sofort als Pille in der Leiste, sonst
@@ -240,7 +263,7 @@ Sprach-Tastatur des Systems, falls eine installiert ist.
 Die Tastatur gibt der App eine Kopie, die nach 10 Minuten gelöscht wird. Wechselst du das Feld,
 bevor die Kopie fertig ist, wird nichts eingefügt.
 
-Zwischenablage: Ist „Zwischenablage-Verlauf aktivieren“ (Einstellungen → Optionen) an, legt die
+Zwischenablage: Ist der Zwischenablage-Verlauf (Einstellungen → Leiste & Befehle) an, legt die
 Tastatur jeden neuen Screenshot auch als Bild in ihren eigenen Verlauf (Zwischenablage-Taste).
 Die System-Zwischenablage bleibt unberührt, andere Apps sehen ihn dort nicht. Es gelten die
 Regeln des Verlaufs (Dateien erlaubt, Größengrenze, Aufbewahrungszeit, Anheften). Ein
@@ -290,7 +313,7 @@ stehen unten. Noch auf keinem Gerät ausprobiert.
 - `@such Begriff`, `@zeichen pfeil`, `@emoji herz`, `@conv 5 oz` (auch `@conv 5 oz in g` oder
   `@conv oz in g 5`).
 - `@snip name`: Bausteine legst du unter Einstellungen → Befehle → „Textbausteine“ an.
-- `@clip wort`: braucht Einstellungen → Optionen → Zwischenablage-Verlauf. Einträge, die als
+- `@clip wort`: braucht Einstellungen → Leiste & Befehle → Zwischenablage-Verlauf. Einträge, die als
   vertraulich markiert waren oder in einem Passwortfeld kopiert wurden, zeigt er nicht. Ausnahme:
   vor diesem Update kopierte Einträge, die die Tastatur nicht mehr als aktuellen Clip sieht.
 - `@wf name`: Workflow antippen; das Panel sagt „Workflow vorgemerkt“. Panel schließen, Text
@@ -400,7 +423,7 @@ von Google (www.gstatic.com); gesendet werden dabei nur die beiden Emojis, kein 
   bleiben Emojis bzw. Befehl stehen („Das Bild wurde nicht eingefügt“); setzt eine App das Bild
   selbst an die Schreibmarke, bleiben sie ebenfalls stehen („Bild eingefügt …“), dann von Hand
   löschen. Dasselbe gilt für `@qr`. Abschalten: Einstellungen →
-  Befehle → „Emoji-Mix in der Leiste anbieten“ (der Schalter gilt nur, solange Befehle an sind).
+  Leiste & Befehle → „Emoji-Mix in der Leiste“ (der Schalter gilt nur, solange Befehle an sind).
 - In der Emoji-Ansicht hat die untere Reihe statt Leertaste und Lupe zwei gleich breite Tasten:
   „Emojis suchen“ (wie bisher die Lupe; ohne Emoji-Wörterbuch steht dort die Leertaste) und
   „Emoji-Mixer“. Der Mixer blendet über den Emojis eine schmale Leiste ein („2 Emojis wählen“).
@@ -640,14 +663,14 @@ dabei nicht gesichert.
 - Stil „Flach“ und Farben „Flach schwarz“ lassen sich unter Aussehen auch einzeln wählen.
 - Leiste über den Tasten, von links: Menü (Raster), Zwischenablage, Emoji, Aktionen (Stift,
   öffnet das Aktionspanel) und im Kreis das Diktat. Beim Tippen stehen in der Mitte die
-  Wortvorschläge. Welche Tasten dort liegen, änderst du unter Einstellungen → Symbolleiste oder
+  Wortvorschläge. Welche Tasten dort liegen, änderst du unter Einstellungen → Leiste & Befehle → „Knöpfe wählen und sortieren“ oder
   über den Stift-Knopf im Menü.
 - Menü: Raster antippen. Design öffnet die Einstellungen zum Aussehen, die anderen Pillen
   schalten Rückgängig, Einhandmodus, Emoji, Inkognito und die frei verschiebbare Tastatur.
   Das X schließt das Menü.
 - Die Zwischenablage-Taste fügt den aktuellen Inhalt der Zwischenablage an der Schreibmarke
   ein, solange der Zwischenablageverlauf aus ist (so ist er anfangs). Erst mit eingeschaltetem
-  Verlauf (Einstellungen → Optionen → „Zwischenablage-Verlauf aktivieren“) öffnet sie die
+  Verlauf (Einstellungen → Leiste & Befehle → „Zwischenablage-Verlauf“) öffnet sie die
   Zwischenablage-Ansicht. In der Ansicht: Karte antippen fügt ein, lange drücken heftet an, zur Seite wischen entfernt. Oben
   links geht es zurück zu den Tasten, oben rechts leerst du den Verlauf.
 - Die Pille mit kopiertem Text oder Bild in der Leiste erscheint nur, wenn
