@@ -13,7 +13,7 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
   Bildwiederholrate-Karten, 40 Smart Paste, 51 Autokorrektur folgt der Sprache und Wörter aus
   anderen Sprachen, 52 einheitliches Befehlssystem, 53 Zeichen-Kunst, 54 Update-Fenster und
   Update-Chip, 34 eigene RGB-Lichtmuster (XL), graue Karten mit heller Schrift. Jede Etappe mit
-  Prüfer und Nachprüfung (52 zweimal); volle Agent-Suite lokal und auf GitHub grün; kein Gerätetest.
+  Prüfer und Nachprüfung (52 viermal); volle Agent-Suite lokal und auf GitHub grün; kein Gerätetest.
 - Releases: nur Builds von `main` erscheinen in `Tra1c0/SecondHandAgenticKeyboard` (Owner-Wahl A,
   Secret `RELEASES_TOKEN` gesetzt). Build 21 und älter suchen noch im alten Repository: Build 23
   einmal von Hand installieren.
@@ -23,8 +23,8 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 
 ## Offene Punkte
 
-0. **Nächste Runde.** Zuerst Rückmeldung zu Build 22/23. Fallstricke belegt bis P230, frei ab
-   P231. Offen niedrig: 40 Telefonnummern in ES/US nur mit +/00, PrivateRanges höchstens 3 Werte,
+0. **Nächste Runde.** Zuerst Rückmeldung zu Build 22/23. Fallstricke belegt bis P231, frei ab
+   P232. Offen niedrig: 40 Telefonnummern in ES/US nur mit +/00, PrivateRanges höchstens 3 Werte,
    `RgbOwnPatternTest.ownPatternsStayWithinTheBudget` misst Zeit und fällt unter paralleler Last
    (allein grün, Verhältnis ≈ 1,7 von erlaubten 2). Davor offen: Rückmeldung zu Build 20/21 und die Owner-Fragen: Großschreibung in
    Feldern mit „jedes Wort groß“ (48), Kürzel-Chip als einzige Ersetzung (46), Passwortfeld-Kopien
@@ -238,8 +238,8 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
 - Build 23 (geprüft, von `main`): 34, 37, 40, 51–54, graue Karten mit allen Prüferkorrekturen;
-  Agent-Suite lokal grün (567 Kern, 1103 App), GitHub-Lauf siehe Actions; erster Build im neuen
-  Release-Repository; kein Gerätetest.
+  Agent-Suite lokal grün (570 Kern, 1106 App), GitHub-Lauf 68 grün (Agent, Upstream, Lint); Befehle
+  viermal nachgeprüft; erster Build im neuen Release-Repository; kein Gerätetest.
 - Build 22 (Test, Arbeitsbranch 4ee743c): 37, 40, 51–54, graue Karten, ohne 34 und vor der
   zweiten Prüferrunde zu 52.
 - Build 21 (geprüft, von `main`): 43–46, 48–50 mit allen Prüferkorrekturen und Nachprüfungen;
