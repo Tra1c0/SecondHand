@@ -55,12 +55,10 @@ object SettingsAreas {
             AreaEntry(SettingsDestination.Preferences, R.string.settings_screen_preferences, R.string.agent_area_row_options),
             AreaEntry(SettingsDestination.Layouts, R.string.settings_screen_secondary_layouts, R.string.agent_area_row_layouts),
         )
+        // 38e: the pages the gesture page opens (AgentAreaGesturesScreen); space bar, vibration and sound are on it
         SettingsArea.GESTURES -> listOf(
-            AreaEntry(SettingsDestination.AgentSpace, R.string.agent_space_title, R.string.agent_area_row_space),
-            AreaEntry(SettingsDestination.AgentSymbols, R.string.agent_symbols_title, R.string.agent_area_row_symbols),
-            AreaEntry(SettingsDestination.GestureTyping, R.string.settings_screen_gesture, R.string.agent_area_row_gesture_typing, hasGestureLib),
-            // vibration and sound live on the options page until 38e
-            AreaEntry(SettingsDestination.Preferences, R.string.agent_area_row_feel, R.string.agent_area_row_feel_summary),
+            AreaEntry(SettingsDestination.AgentSymbols, R.string.agent_gestures_own, R.string.agent_gestures_own_summary),
+            AreaEntry(SettingsDestination.GestureTyping, R.string.agent_gestures_gesture_options, R.string.agent_gestures_gesture_options_summary, hasGestureLib),
         )
         SettingsArea.BAR -> listOf(
             AreaEntry(SettingsDestination.Toolbar, R.string.agent_area_row_bar, R.string.agent_area_row_bar_summary),
@@ -91,6 +89,7 @@ object SettingsAreas {
 @Composable
 fun AgentAreaScreen(area: SettingsArea, onNavigate: (String) -> Unit, onClickBack: () -> Unit) {
     if (area == SettingsArea.TYPING) return AgentAreaTypingScreen(onNavigate, onClickBack) // stage 38c
+    if (area == SettingsArea.GESTURES) return AgentAreaGesturesScreen(onNavigate, onClickBack) // 38e
     AgentSettingsTheme {
         Column(
             Modifier.fillMaxSize().background(AgentSettingsTokens.Background).windowInsetsPadding(WindowInsets.safeDrawing)

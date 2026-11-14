@@ -241,7 +241,7 @@ private fun TouchSection(busy: Boolean) {
 }
 
 @Composable
-private fun CalibrationDialog(onDone: () -> Unit) {
+internal fun CalibrationDialog(onDone: () -> Unit) {
     val context = LocalContext.current
     var touches by remember { mutableIntStateOf(0) }
     var result by remember { mutableStateOf<Map<Int, Triple<Float, Float, Int>>?>(null) }

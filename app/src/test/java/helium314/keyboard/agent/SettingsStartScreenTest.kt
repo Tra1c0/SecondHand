@@ -200,7 +200,9 @@ class SettingsStartScreenTest {
     /** Pages that only open from another page (with an argument or as a sub-page), not from the start. */
     private val subPages = setOf(SettingsDestination.Settings, SettingsDestination.DataReview, SettingsDestination.Debug,
         SettingsDestination.Colors, SettingsDestination.ColorsNight, SettingsDestination.PersonalDictionaries,
-        SettingsDestination.PersonalDictionary, SettingsDestination.Subtype)
+        SettingsDestination.PersonalDictionary, SettingsDestination.Subtype,
+        // 38e: everything of the space bar page is on the gesture page; the page itself opens from Advanced
+        SettingsDestination.AgentSpace)
 
     @Test fun everyOldMainEntryAndEveryPageIsOnAnAreaPage() {
         assertEquals(22, oldMainList.size)
@@ -231,7 +233,10 @@ class SettingsStartScreenTest {
                 .assert(hasText(app.getString(a.subtitle)))
             routes.clear()
             val visible = SettingsAreas.entries(a).filter { it.visible() }
-            assertTrue(visible.size >= 3, "${a.route}: ${visible.size} rows")
+            // 38e: the gesture page is built from the mockup and opens fewer pages (SettingsAreaGesturesTest checks its rows)
+            if (a == SettingsArea.GESTURES) assertEquals(listOfNotNull(SettingsDestination.AgentSymbols,
+                SettingsDestination.GestureTyping.takeIf { helium314.keyboard.latin.utils.JniUtils.sHaveGestureLib }), visible.map { it.route })
+            else assertTrue(visible.size >= 3, "${a.route}: ${visible.size} rows")
             visible.forEach { compose.onNodeWithTag(AREA_ROW_TAG + it.route).performScrollTo().performClick() }
             assertEquals(visible.map { it.route }, routes, a.route)
         }
