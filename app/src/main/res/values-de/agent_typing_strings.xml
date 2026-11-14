@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 38c, area page "Tippen & Korrektur". -->
+<resources>
+    <string name="agent_typing_autocorrect">Autokorrektur</string>
+    <string name="agent_typing_level_off">Aus</string>
+    <string name="agent_typing_level_off_hint">Nur Vorschläge, nie automatisch</string>
+    <string name="agent_typing_level_gentle">Behutsam</string>
+    <string name="agent_typing_level_gentle_hint">Nur Wörter, die es nicht gibt · Umlaute bleiben</string>
+    <string name="agent_typing_level_bold">Mutig</string>
+    <string name="agent_typing_level_bold_hint">Korrigiert auch knappe Fälle</string>
+    <string name="agent_typing_level_custom">Eigene Einstellung: Keine Stufe passt genau. Tippe eine an, um sie zu setzen.</string>
+    <string name="agent_typing_rules">Regeln</string>
+    <string name="agent_typing_keep_umlaut_sub">mochte bleibt mochte</string>
+    <string name="agent_typing_remember_sub">Löschtaste direkt danach</string>
+    <string name="agent_typing_learn_sub">Nach dreimaliger Wahl</string>
+    <string name="agent_typing_auto_cap">Großschreibung am Satzanfang</string>
+    <string name="agent_typing_auto_cap_sub">Automatisch</string>
+    <string name="agent_typing_shortcuts">Abkürzungen erweitern</string>
+    <string name="agent_typing_shortcuts_sub">Aus dem persönlichen Wörterbuch</string>
+    <string name="agent_typing_needs_autocorrect">Nur mit Autokorrektur</string>
+    <string name="agent_typing_suggestions">Vorschläge</string>
+    <string name="agent_typing_show_suggestions">Wortvorschläge</string>
+    <string name="agent_typing_show_suggestions_sub">Während du tippst</string>
+    <string name="agent_typing_show_suggestions_hidden">Nur mit Vorschlagsleiste in der Leiste</string>
+    <string name="agent_typing_next_word">Nächstes Wort vorschlagen</string>
+    <string name="agent_typing_next_word_sub">Aus dem vorigen Wort</string>
+    <string name="agent_typing_emoji">Emoji-Vorschläge</string>
+    <string name="agent_typing_emoji_sub">Tolerant: Wortformen, Tippfehler</string>
+    <string name="agent_typing_emoji_off">Nur mit Wortvorschlägen oder Autokorrektur</string>
+    <string name="agent_typing_punctuation">Satzzeichen vorschlagen</string>
+    <string name="agent_typing_punctuation_sub">Wenn nichts anderes passt</string>
+    <string name="agent_typing_names">Kontakte und App-Namen</string>
+    <string name="agent_typing_names_sub">Namen erkennen</string>
+    <string name="agent_typing_names_contacts">Kontakte</string>
+    <string name="agent_typing_names_apps">Apps</string>
+    <string name="agent_typing_names_off">Aus</string>
+    <string name="agent_typing_space">Leerzeichen &amp; Satzzeichen</string>
+    <string name="agent_typing_double_space">Doppeltipp = Punkt</string>
+    <string name="agent_typing_double_space_sub">Punkt und Leerzeichen</string>
+    <string name="agent_typing_double_space_gesture">Doppeltipp auf die Leertaste ist eine Geste (Gesten &amp; Gefühl → Leertaste)</string>
+    <string name="agent_typing_space_after_period">Leerzeichen nach Punkt</string>
+    <string name="agent_typing_space_after_period_sub">Automatisch</string>
+    <string name="agent_typing_space_after_suggestion">Leerzeichen nach Vorschlag</string>
+    <string name="agent_typing_space_after_suggestion_sub">Beim Antippen</string>
+    <string name="agent_typing_words">Wörter &amp; Lernen</string>
+    <string name="agent_typing_dictionaries">Wörterbücher</string>
+    <string name="agent_typing_dictionaries_none">Kein Wörterbuch für deine Sprachen</string>
+    <string name="agent_typing_personal">Persönliches Wörterbuch</string>
+    <string name="agent_typing_personal_sub">Eigene Wörter</string>
+    <string name="agent_typing_learned">Gelernte Wörter</string>
+    <string name="agent_typing_learned_sub">Zählen, exportieren, löschen</string>
+    <string name="agent_typing_pause_sub">Nichts Neues merken</string>
+    <string name="agent_typing_incognito">Inkognito erzwingen</string>
+    <string name="agent_typing_incognito_sub">Nie lernen</string>
+    <string name="agent_typing_all">Alle Korrektur-Einstellungen</string>
+    <string name="agent_typing_all_sub">Stärke, anstößige Wörter, Leerzeichen bei Gesten, Zwischenablage, personalisierte Vorschläge und mehr</string>
+</resources>

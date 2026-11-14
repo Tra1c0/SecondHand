@@ -283,7 +283,8 @@ class SettingsStartScreenTest {
         for (a in SettingsArea.entries) {
             area = a
             compose.waitForIdle()
-            val page = capture("settings-${a.route}")
+            // 38c: SettingsTypingAreaTest writes the whole typing page as settings-area_typing.png
+            val page = capture(if (a == SettingsArea.TYPING) "settings-area_typing-top" else "settings-${a.route}")
             val hero = compose.onNodeWithTag(HERO_TAG).fetchSemanticsNode().boundsInRoot
             assertClose(a.from.toArgb(), page.getPixel(hero.left.toInt() + 24, hero.top.toInt() + 24), 40)
         }

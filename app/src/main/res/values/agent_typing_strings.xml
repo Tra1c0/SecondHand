@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 38c, area page "Typing & correction" (own file so parallel work on the other area pages does not collide). English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="agent_typing_autocorrect">Autocorrect</string>
+    <string name="agent_typing_level_off">Off</string>
+    <string name="agent_typing_level_off_hint">Only suggestions, never automatic</string>
+    <string name="agent_typing_level_gentle">Gentle</string>
+    <string name="agent_typing_level_gentle_hint">Only words that do not exist · umlauts stay</string>
+    <string name="agent_typing_level_bold">Bold</string>
+    <string name="agent_typing_level_bold_hint">Also corrects close calls</string>
+    <string name="agent_typing_level_custom">Custom setting: no level matches exactly. Pick one to set it.</string>
+    <string name="agent_typing_rules">Rules</string>
+    <string name="agent_typing_keep_umlaut_sub">mochte stays mochte</string>
+    <string name="agent_typing_remember_sub">Backspace right after</string>
+    <string name="agent_typing_learn_sub">After picking it three times</string>
+    <string name="agent_typing_auto_cap">Capitalise sentence starts</string>
+    <string name="agent_typing_auto_cap_sub">Automatic</string>
+    <string name="agent_typing_shortcuts">Expand shortcuts</string>
+    <string name="agent_typing_shortcuts_sub">From the personal dictionary</string>
+    <string name="agent_typing_needs_autocorrect">Only with autocorrect</string>
+    <string name="agent_typing_suggestions">Suggestions</string>
+    <string name="agent_typing_show_suggestions">Word suggestions</string>
+    <string name="agent_typing_show_suggestions_sub">While you type</string>
+    <string name="agent_typing_show_suggestions_hidden">Only with the suggestion strip in the bar</string>
+    <string name="agent_typing_next_word">Suggest the next word</string>
+    <string name="agent_typing_next_word_sub">From the previous word</string>
+    <string name="agent_typing_emoji">Emoji suggestions</string>
+    <string name="agent_typing_emoji_sub">Tolerant: word forms, typos</string>
+    <string name="agent_typing_emoji_off">Only with word suggestions or autocorrect</string>
+    <string name="agent_typing_punctuation">Suggest punctuation</string>
+    <string name="agent_typing_punctuation_sub">When nothing else fits</string>
+    <string name="agent_typing_names">Contacts and app names</string>
+    <string name="agent_typing_names_sub">Recognise names</string>
+    <string name="agent_typing_names_contacts">Contacts</string>
+    <string name="agent_typing_names_apps">Apps</string>
+    <string name="agent_typing_names_off">Off</string>
+    <string name="agent_typing_space">Spaces &amp; punctuation</string>
+    <string name="agent_typing_double_space">Double tap = period</string>
+    <string name="agent_typing_double_space_sub">Period and space</string>
+    <string name="agent_typing_double_space_gesture">Double tap on space is a gesture (Gestures &amp; feel → Space bar)</string>
+    <string name="agent_typing_space_after_period">Space after period</string>
+    <string name="agent_typing_space_after_period_sub">Automatic</string>
+    <string name="agent_typing_space_after_suggestion">Space after suggestion</string>
+    <string name="agent_typing_space_after_suggestion_sub">When tapped</string>
+    <string name="agent_typing_words">Words &amp; learning</string>
+    <string name="agent_typing_dictionaries">Dictionaries</string>
+    <string name="agent_typing_dictionaries_none">No dictionary for your languages</string>
+    <string name="agent_typing_personal">Personal dictionary</string>
+    <string name="agent_typing_personal_sub">Your own words</string>
+    <string name="agent_typing_learned">Learned words</string>
+    <string name="agent_typing_learned_sub">Count, export, delete</string>
+    <string name="agent_typing_pause_sub">Remember nothing new</string>
+    <string name="agent_typing_incognito">Force incognito</string>
+    <string name="agent_typing_incognito_sub">Never learn</string>
+    <string name="agent_typing_all">All correction settings</string>
+    <string name="agent_typing_all_sub">Strength, offensive words, spaces with gestures, clipboard, personalised suggestions and more</string>
+</resources>
