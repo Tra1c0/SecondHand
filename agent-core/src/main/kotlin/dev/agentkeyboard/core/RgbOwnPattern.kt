@@ -397,6 +397,17 @@ class RgbOwnRenderer(val pattern: RgbOwnPattern, saturation: Int = 100, brightne
     // hue turn of the present phase, per frame (not per sample)
     private var huePhase = Double.NaN
     private val hue = FloatArray(9)
+    // orbit of the noise layers at the layer time t, per frame (two trig calls per layer, not per sample)
+    private val orbitT = FloatArray(n) { Float.NaN }
+    private val orbitX = FloatArray(n)
+    private val orbitY = FloatArray(n)
+
+    private fun orbit(i: Int, t: Float) {
+        if (orbitT[i] == t) return
+        orbitT[i] = t
+        orbitX[i] = NOISE_ORBIT * cos(TWO_PI * t)
+        orbitY[i] = NOISE_ORBIT * sin(TWO_PI * t)
+    }
 
     val moves: Boolean = pattern.moves
     val usesTaps: Boolean = pattern.usesTaps
@@ -451,7 +462,8 @@ class RgbOwnRenderer(val pattern: RgbOwnPattern, saturation: Int = 100, brightne
                     u = 0.5f + v / 8f
                 }
                 RgbGenerator.NOISE -> {
-                    val f = RgbNoise.fbm(a * s * 3f + NOISE_ORBIT * cos(TWO_PI * t) + 40f, b * s * 3f + NOISE_ORBIT * sin(TWO_PI * t) + 40f)
+                    orbit(i, t)
+                    val f = RgbNoise.fbm(a * s * 3f + orbitX[i] + 40f, b * s * 3f + orbitY[i] + 40f)
                     u = (f - 0.5f) * 2.2f + 0.5f
                 }
                 RgbGenerator.STRIPES -> {
@@ -474,7 +486,8 @@ class RgbOwnRenderer(val pattern: RgbOwnPattern, saturation: Int = 100, brightne
                     u = t - d * 0.5f
                 }
                 RgbGenerator.CONTOUR -> {
-                    val h = RgbNoise.fbm(a * s * 2.2f + NOISE_ORBIT * cos(TWO_PI * t) + 20f, b * s * 2.2f + NOISE_ORBIT * sin(TWO_PI * t) + 20f)
+                    orbit(i, t)
+                    val h = RgbNoise.fbm(a * s * 2.2f + orbitX[i] + 20f, b * s * 2.2f + orbitY[i] + 20f)
                     val level = h * CONTOUR_LEVELS
                     val f = level - floor(level)
                     val dl = min(f, 1f - f)

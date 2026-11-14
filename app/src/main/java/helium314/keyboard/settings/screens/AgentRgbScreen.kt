@@ -149,7 +149,7 @@ fun AgentRgbScreen(onClickBack: () -> Unit) {
     val context = LocalContext.current
     val prefs = context.prefs()
     // own patterns of the first build of stage 34 get random ids before anything is read (stage 34 review, M1)
-    remember { RgbOwnPatterns.migrate(context) }
+    @Suppress("UNUSED_VARIABLE") val migrated = remember { RgbOwnPatterns.migrate(context); true }
     var settings by remember { mutableStateOf(RgbLighting.read(prefs)) }
     // a curve point being dragged: only the preview reads this, so the page is not recomposed per
     // move, and the preview at most once per frame (build-14 lag)

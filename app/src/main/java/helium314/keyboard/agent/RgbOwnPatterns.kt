@@ -116,7 +116,7 @@ object RgbOwnPatterns {
         }
         val text = try {
             Charsets.UTF_8.newDecoder().onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
-                .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT).decode(java.nio.ByteBuffer.wrap(bytes)).toString().removePrefix("﻿")
+                .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT).decode(java.nio.ByteBuffer.wrap(bytes)).toString().removePrefix("\uFEFF")
         } catch (_: java.nio.charset.CharacterCodingException) {
             return Imported.Refused(RgbPatternError.NOT_JSON)
         }

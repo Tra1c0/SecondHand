@@ -390,8 +390,8 @@ object FieldCorrectionMemory {
             val t = typed.lowercase(Locale.ROOT)
             var changed = false
             val l = LinkedHashMap(learned)
-            if (l.entries.removeIf { typedOf(it.key) == t && it.value.meant.equals(meant, ignoreCase = true) }) { learned = l; changed = true }
-            if (c.entries.removeIf { typedOf(it.key) == t && it.value.meant.equals(meant, ignoreCase = true) }) changed = true
+            if (l.entries.removeAll { typedOf(it.key) == t && it.value.meant.equals(meant, ignoreCase = true) }) { learned = l; changed = true }
+            if (c.entries.removeAll { typedOf(it.key) == t && it.value.meant.equals(meant, ignoreCase = true) }) changed = true
             if (changed) save(context)
         }
     }
