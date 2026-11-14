@@ -9,24 +9,28 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 ## Aktueller Stand
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
-- Stand 2026-11-14 (Ende der Runde): `main` = Build 19 (geprüft). Neu seit Build 16: 38a–38h
-  Einstellungen 1:1 nach dem Mockup (Startseite und sieben Bereichsseiten, alte Seiten bleiben
-  erreichbar, „Leiste“ statt „Symbolleiste“), 41 Formatwächter (libphonenumber), 42 Textbausteine
-  2.0 (Platzhalter, Ausfüllfelder, Enter-Hook auch für Hardware-Enter). Alle Etappen mit Prüfer
-  und Nachprüfung; volle Agent-Suite lokal grün; kein Gerätetest.
-- Beim Owner: Build 18 (Test, gleiche Funktionen, noch ohne Prüferkorrekturen) und Build 19.
-- RGB-Messung des Owners (Build 19, Xiaomi 24129PN74G, Android 16, Diagnose, 5 s mit Licht):
-  138 Bilder (≈ 28/s bei 30 Hz Licht); Licht im UI-Thread Ø 0,3 / max 0,7 ms; ganzes Zeichnen der
-  Tastatur Ø 2,7 / max 6,3 ms; Raster im Hintergrund 133× Ø 4,5 / max 11,9 ms. Damit ist das
-  Zeichnen der Tastatur kein Engpass (Budget bei 120 Hz: 8,3 ms). Owner (2026-11-14): „ruckelt
-  tatsächlich nichts“ – RGB-Leistung erledigt.
-- Nächste Sitzung: Rückmeldungen zu Build 17–19 (Einstellungen am Gerät, Formatwächter,
-  Textbausteine) und weiter offen zu Build 16 (RGB-Diagnosewerte, Symbol-Erkennung); dann ROADMAP
-  34, 37, 39, 40.
+- Stand 2026-11-14 (Ende der Runde): `main` = Build 21 (geprüft). Neu seit Build 19: 43 Symbole
+  (Punkte, Start direkt nach dem Tippen), 44 Zwischenablage-Wächter und Tresor, 45 Feld- und
+  Kontext-Vorschläge mit „Meine Daten“, 46 Gedächtnis, 48 Autokorrektur (getipptes Wort links,
+  keine ungewollte Großschreibung), 49 Korrekturen merken (Regeln mit dem Owner), 50 dynamische
+  Trefferzonen mit Szenen. Jede Etappe mit Prüfer und mehreren Nachprüfungen (Privattext viermal);
+  volle Agent-Suite lokal und auf GitHub grün; kein Gerätetest.
+- Beim Owner: Build 20 (Test, ohne die Prüferkorrekturen) und Build 21. RGB-Leistung erledigt
+  (Owner: „ruckelt tatsächlich nichts“, Messwerte Build 19: Tastatur Ø 2,7 / max 6,3 ms je Bild).
+- Nächste Sitzung: Rückmeldungen zu Build 20/21 (Symbole mit Punkten, Malen nach dem Tippen,
+  Link-Chip, Code-Felder, Gedächtnis, Trefferzonen); offene Owner-Fragen in ROADMAP 44–50; dann
+  ROADMAP 34, 37, 39, 40.
 
 ## Offene Punkte
 
-0. **Nächste Runde.** Zuerst Rückmeldung zu Build 18/19: Einstellungen am Gerät (alle sieben
+0. **Nächste Runde.** Zuerst Rückmeldung zu Build 20/21 und die Owner-Fragen: Großschreibung in
+   Feldern mit „jedes Wort groß“ (48), Kürzel-Chip als einzige Ersetzung (46), Passwortfeld-Kopien
+   nirgends gespeichert (44), Annahmen 41/42/45/46/49/50 in der ROADMAP. Offen niedrig: Kürzel-Chip
+   prüft private Werte nicht (46 #5), Restrisiken P185, Gerätetests (Zwischenablage leeren auf
+   Android 16, Direct Boot, VACUUM). Fallstricke belegt bis P190, frei ab P191. Arbeitsweise dieser
+   Runde: höchstens drei Agenten mit Gradle gleichzeitig (`--max-workers=1 -Xmx1536m`); Agenten auf
+   alter Basis zusammenführen ist der teuerste Teil, Merge-Helfer des Leads ist im Scratchpad.
+   Davor offen von Build 18/19: Einstellungen am Gerät (alle sieben
    Bereiche, Schalter wirken, Design- und Profilkarten, FLAG_SECURE auf KI-Seiten, Direct Boot),
    Formatwächter (Chips in echten E-Mail-, Telefon-, IBAN-Feldern), Textbausteine 2.0 (Feldabfrage
    in Messengern, Schreibmarke nach `{cursor}`, P147). Annahmen des Leads aus 41/42 bestätigen
@@ -230,6 +234,11 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
   Code aktualisieren (`CLAUDE.md` → Docs aktuell halten).
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
+- Build 21 (geprüft, von `main`): 43–46, 48–50 mit allen Prüferkorrekturen und Nachprüfungen;
+  Agent-Suite lokal grün (1008 Tests), GitHub-Lauf grün (Agent, Upstream ohne neue Fehler, Lint);
+  kein Gerätetest.
+- Build 20 (Test, Arbeitsbranch 2417070): 43–46, 48–50 vor den Prüferkorrekturen (Privattext-Lücke,
+  Gedächtnis-Löschen, Kürzel im Systemwörterbuch, falsche Kandidaten in 49).
 - Build 19 (geprüft, von `main`): 38a–38h, 41, 42 mit allen Prüferkorrekturen und
   Nachprüfungen; Agent-Suite lokal grün (889, plus gezielte Läufe der letzten Korrekturen), GitHub-
   Lauf siehe Actions; kein Gerätetest.
