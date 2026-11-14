@@ -194,13 +194,25 @@ Reihenfolge von oben nach unten.
   „Trefferzonen an mich anpassen“. Offen: Engine-Review (`KeyboardActionListenerImpl.onCodeInput`,
   `LatinIME.onStartInputViewInternal`), Gerätetest (Schwellen mit echten Fingern, Tageszeiten,
   Beförderung über mehrere Tage).
-- **51 Autokorrektur folgt der Sprache, Spanisch im Kontext (Rückmeldung des Owners zu Build 21,
-  2026-11-14)** — beschlossen, nächste Runde. (a) Beim Umstellen der Sprache muss die Autokorrektur
-  mit umstellen (Ursache vor dem Bau eingrenzen: Sprachtaste, Wischen auf der Leertaste,
-  `@deutsch`/`@sp`, „Sprache pro App“, Wörterbücher und die gelernten Daten aus 46/48/49 je Sprache).
-  (b) Spanische Wörter sollen im Kontext erkannt werden (nicht wegkorrigiert, passende Vorschläge),
-  auch in deutschem Text; Bezug zu HeliBoards „Mehrsprachiges Tippen“ und zur Regel „fur“ aus 49.
-  Genaues Verhalten mit dem Owner klären. Engine-Änderung, Prüfer Pflicht.
+- **51 Autokorrektur folgt der Sprache, andere Sprachen im Kontext (Rückmeldung des Owners zu
+  Build 21, 2026-11-14)** — beschlossen, nächste Runde, noch nicht anfangen. Owner: „Sprache pro App“
+  ist aus, umgeschaltet wird mit Befehlen (`@deutsch`, `@sp` …). (a) Nach dem Umschalten per Befehl
+  muss die Autokorrektur die neue Sprache benutzen (Ursache eingrenzen: Wörterbuch/Suggest-Locale
+  nach dem Befehl, gelernte Daten aus 46/48/49 je Sprache). (b) Owner: „dass anderssprachige Wörter,
+  wenn vorher bereits geschrieben, erkannt werden und die Tastatur sich dies merkt“ — also ein Wort
+  einer anderen aktiven Sprache, das der Owner schon einmal geschrieben hat, wird nicht mehr
+  wegkorrigiert und kommt als Vorschlag (Bezug: eigene Wörter aus 46, Regel „fur“ aus 49,
+  HeliBoards „Mehrsprachiges Tippen“). Engine-Änderung, Prüfer Pflicht.
+- **52 Erweiterte Befehle (Wunsch des Owners vom 2026-11-14)** — beschlossen, nächste Runde, noch
+  nicht anfangen. Sinnvolle Befehle bekommen Unterbefehle und Argumente, Beispiele des Owners:
+  `@lang set &duolingo spanish` (Sprache für eine App festlegen; App- und Sprachnamen mit Toleranz
+  wie im Wörterbuch, also auch „span“, „spanisch“, „duo“), `@lang list &&apps lang` (alle Apps mit
+  ihrer Sprache auflisten), `@lang del &whatsapp lang ; set &whatsapp ger` (mehrere Schritte mit
+  „;“). Vorschlag des Leads vor dem Bau mit dem Owner abstimmen: eine kleine, einheitliche Syntax
+  (Unterbefehl, `&App`, Wert; `;` für Ketten), Vorschau in der Leiste vor dem Ausführen, ein Tipp
+  führt aus; die Zuordnung App → Sprache nutzt den vorhandenen Speicher von „Sprache pro App“
+  (wirkt dann für diese Apps, auch wenn der allgemeine Schalter aus ist?). Weitere Befehle, die
+  davon profitieren, sammeln (z. B. `@snip`, `@clip`, Formatwächter an/aus je App).
 - **47 KI-Kontext im Hintergrund — verworfen (Owner, 2026-11-14):** „Dann lassen wir das.“ Alles
   lokal; die Tastatur lernt selbst dazu (45, 46).
 - **Verworfen (Owner, 2026-11-14):** Mail-Anbindung (Gmail/IMAP) und Codes aus Benachrichtigungen.
