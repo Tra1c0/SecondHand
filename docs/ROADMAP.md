@@ -130,7 +130,8 @@ Reihenfolge von oben nach unten.
   markierte Clips) in einen Bereich „Tresor“, verdeckt angezeigt, nie in normalen Vorschlägen,
   kurz gültig; Einmalcodes eigener Bereich, ca. 10 min; persönliche Daten (IBAN, Telefon, E-Mail,
   Adresse) beschriftet. Entscheidet die offene Frage „vertrauliche Clips im normalen Verlauf“:
-  nein. Offen beim Owner: Ablaufzeit der Geheimnisse. Vor dem Bau prüfen: darf die Tastatur auf
+  nein. Ablaufzeit (Annahme des Leads): nach dem ersten Einfügen, spätestens nach 2 Minuten.
+  Vor dem Bau prüfen: darf die Tastatur auf
   Android 16 die System-Zwischenablage nach dem Einfügen leeren? Lokal, nichts geloggt. (M)
 - **45 Feld- und Kontext-Vorschläge (Wunsch des Owners vom 2026-11-14)** — beschlossen. Aus dem
   aktuellen Feld (Typ, Hinweistext, Autofill-Kennung, App) und dem Text vor der Schreibmarke
@@ -140,7 +141,9 @@ Reihenfolge von oben nach unten.
   Feld), Beispiel des Owners: „guck mal, hier dieses Video“ → Chip mit dem gerade kopierten Link;
   ebenso „meine Nummer ist“, „IBAN:“, „Adresse:“. Die Tastatur sieht nur das fokussierte Feld,
   nicht den ganzen Bildschirm. Dauerhafte Passwörter speichert sie nicht (Passwortmanager).
-  Offen beim Owner: feste Karte „Meine Daten“ (verschlüsselt) ja/nein. (M–L)
+  Karte „Meine Daten“ (Annahme des Leads): optional, anfangs leer, verschlüsselt. Lernt lokal,
+  welche Vorschläge der Owner annimmt oder übergeht, und passt die Gewichte an (Kontext-Lernen).
+  (M–L)
 - **46 Gedächtnis (Wunsch des Owners vom 2026-11-14)** — beschlossen. Lokal, opt-in wie das
   übrige Lernen: Wortfolgen und ganze Satzteile aus den eigenen Sätzen (Frische und Häufigkeit
   gewichtet, Verblassen), erst nächstes Wort, bei sicherem Treffer die ganze Folge als ein Chip;
@@ -148,14 +151,12 @@ Reihenfolge von oben nach unten.
   Lernfunktionen zusammenführen); Abkürzungen: ersetzt der Owner sie wiederholt selbst, einmaliger
   Vorschlag, die Erweiterung anzulegen. Seite „Was ich mir gemerkt habe“ (löschen, anpinnen),
   Ausschluss je App, nie in Passwortfeldern, Inkognito oder bei verbotenem Lernen. Ganz neue Sätze
-  vorhersagen kann das nicht (siehe 47). (L)
-- **47 KI-Kontext (Idee des Owners vom 2026-11-14, nicht entschieden)** — Die Tastatur versteht
-  grob, was gerade geschrieben wird, und schlägt Angebrachtes vor, notfalls über die eigene
-  Gemini-Schnittstelle des Owners (BYOK). Widerspricht in der Form „im Hintergrund“ der Regel
-  „normales Tippen offline, Cloud nur nach Freigabe des angezeigten Inhalts“ (`CLAUDE.md`); eine
-  Änderung dieser Regel entscheidet nur der Owner. Vorschlag des Leads: zuerst 45/46 lokal, KI nur
-  auf Abruf mit angezeigtem Inhalt; danach prüfen, ob ein Modell auf dem Gerät (z. B. Gemini Nano,
-  falls das Telefon es hat; nicht geprüft) reicht.
+  vorhersagen kann das nicht. Textbausteine finden über lokale Ähnlichkeit (Vektoren aus
+  Zeichen- und Wortteilen, ohne Modell-Download), passender Baustein als Chip. Grenze (Owner,
+  2026-11-14): Das Gedächtnis macht nie aus einem Satz einen anderen; es hängt nur auf Tipp hinter
+  der Schreibmarke an und ersetzt nichts, die Autokorrektur bleibt bei einem Wort. (L)
+- **47 KI-Kontext im Hintergrund — verworfen (Owner, 2026-11-14):** „Dann lassen wir das.“ Alles
+  lokal; die Tastatur lernt selbst dazu (45, 46).
 - **Verworfen (Owner, 2026-11-14):** Mail-Anbindung (Gmail/IMAP) und Codes aus Benachrichtigungen.
   Einmalcodes kommen nur über die Zwischenablage (44).
 - **34 Eigene Designs gestalten (übernächste Runde)** (Wunsch des Owners vom 2026-11-13). Eigene
