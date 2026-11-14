@@ -977,7 +977,8 @@ wenn „Trefferzonen an mich anpassen“ an ist; anfangs aus).
 Einstellungen → Tippen & Korrektur → Wörter & Lernen → „Was ich mir gemerkt habe“, Abschnitt
 „Gedächtnis“ unter den Korrekturen. Alles lokal, nur auf dem Gerät, nichts davon geht ins Internet.
 
-- „Merken, wie ich schreibe“ (anfangs aus) schaltet das Lernen ein. Danach merkt sich die
+- „Merken, wie ich schreibe“ (anfangs aus) schaltet das Lernen ein; gelernt wird nur, wenn auch
+  „Personalisierte Vorschläge“ an ist (Alle Korrektur-Einstellungen). Danach merkt sich die
   Tastatur Wortfolgen aus deinen eigenen, getippten Sätzen. Hast du eine Folge oft genug
   geschrieben, erscheint nach dem Leerzeichen hinter den ersten zwei, drei Wörtern ein Chip mit
   dem ganzen Rest, z. B. nach „Ich melde mich “ der Chip „… sobald ich mehr weiß“. Erst dein Tipp
@@ -989,18 +990,20 @@ Einstellungen → Tippen & Korrektur → Wörter & Lernen → „Was ich mir gem
   bewusste Schreibweise), dreimal so ab, wie du es getippt hast, oder machst du seine Korrektur
   dreimal mit der Löschtaste rückgängig und lässt es danach stehen (du schreibst einfach weiter),
   wird es dein Wort: Es wird nicht mehr automatisch korrigiert und beim Tippen seines Anfangs
-  angeboten. Dieselbe Rücknahme an derselben Stelle zählt nur einmal. Die Autokorrektur ändert
+  angeboten. Dieselbe Rücknahme an derselben Stelle zählt nur einmal, und nur, wenn das Wort
+  genau dort stehen bleibt. Die Autokorrektur ändert
   weiter immer nur ein einzelnes Wort.
 - Abkürzungen: Ersetzt du eine Kurzform zweimal selbst durch das ganze Wort (zum Beispiel „vlt“
   löschen und „vielleicht“ tippen), bietet die Leiste einmal den Chip „Kürzel vlt → vielleicht
   merken?“ an. Ein Tipp merkt sich das Kürzel im Gedächtnis; ins persönliche Wörterbuch wird
   nichts geschrieben. Danach steht nach „vlt “ der Chip „vlt → vielleicht“ in der Leiste; erst
-  dein Tipp ersetzt genau das Wort „vlt“ (am Satzanfang „Vlt“ → „Vielleicht“), von allein wird
-  nie etwas erweitert, und „vlt“ wird nicht mehr automatisch korrigiert. Tippst du nicht auf das
+  dein Tipp ersetzt genau das gerade getippte Wort „vlt“ (am Satzanfang „Vlt“ → „Vielleicht“;
+  mitten im Satz bleibt „Telefon“ groß, „mfg“ wird zu „mit freundlichen Grüßen“, auch wenn du es
+  nur am Satzanfang gelernt hast), von allein wird nie etwas erweitert, und „vlt“ wird nicht mehr automatisch korrigiert. Tippst du nicht auf das
   Angebot, kommt es nicht wieder und steht nur noch auf der Seite unter „Abkürzungen“ („Merken“
   oder „Verwerfen“; „Verwerfen“ nimmt auch ein gemerktes Kürzel wieder heraus). Ein Wort, das du
   nur weiterschreibst („Haus“ → „Hausaufgaben“), und eine Kurzform, die das Wörterbuch kennt,
-  zählen nicht als Abkürzung.
+  zählen nicht als Abkürzung; „Mo“ → „Montag“ oder „Tel“ → „Telefon“ schon.
 - Textbausteine: „Passende Textbausteine vorschlagen“ (anfangs an, lernt nichts) zeigt nach dem
   Leerzeichen einen Chip „📋 Name: …“, wenn deine letzten Wörter klar zu einem deiner `@snip`-
   Bausteine passen (z. B. „Schick mir deine Adresse “). Ein Tipp fügt ihn an der Schreibmarke

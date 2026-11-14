@@ -4873,7 +4873,11 @@ class InputLogicTest {
         helium314.keyboard.agent.Memory.resetForTest()
         helium314.keyboard.agent.MemoryChips.forget()
         // no capital at the sentence start, so the typed text is exactly what the test types
-        latinIME.prefs().edit { putBoolean(AgentPreferences.MEMORY, on); putBoolean(Settings.PREF_AUTO_CAP, false) }
+        latinIME.prefs().edit {
+            putBoolean(AgentPreferences.MEMORY, on); putBoolean(Settings.PREF_AUTO_CAP, false)
+            putBoolean(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, true) // the memory learns only with it (second review)
+        }
+        reloadSettings()
     }
     /** As the delayed strip update would: the real Suggest for the word being typed, synchronously. */
     private fun updateSuggestions() {
@@ -4960,7 +4964,7 @@ class InputLogicTest {
     @Test fun memoryLearnsNothingInBlockedFields() {
         val keyguard = latinIME.getSystemService(android.content.Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
         try {
-            for (case in listOf("off", "password", "incognito", "no learning", "paused", "excluded", "locked")) {
+            for (case in listOf("off", "password", "incognito", "no learning", "paused", "excluded", "locked", "not personalized")) {
                 startMemory(on = case != "off")
                 currentInputType = InputType.TYPE_CLASS_TEXT
                 when (case) {
@@ -4969,6 +4973,7 @@ class InputLogicTest {
                     "paused" -> latinIME.prefs().edit { putBoolean(AgentPreferences.LEARNING_PAUSED, true) }
                     "excluded" -> assertTrue(helium314.keyboard.agent.Memory.setExcluded(latinIME, "com.example.chat", true))
                     "locked" -> org.robolectric.Shadows.shadowOf(keyguard).setIsDeviceLocked(true)
+                    "not personalized" -> latinIME.prefs().edit { putBoolean(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, false) }
                 }
                 typeSentences(8, "krass wir sehen uns morgen") {
                     startField(if (case == "excluded") "com.example.chat" else null,
@@ -5012,12 +5017,14 @@ class InputLogicTest {
             assertTrue(text.endsWith("kraft "), text)
             functionalKeyPress(KeyCode.DELETE)
             assertTrue(text.endsWith("krass"), text)
-            // review M3: the same undo reported a second time (as the field checkpoint of stage 49 does) counts nothing
-            RejectedCorrections.remember(latinIME, "krass", "kraft", settingsValues)
+            // review M3: the same undo reported a second time at the same place (as the field checkpoint of
+            // stage 49 does) counts nothing
+            val at = text.length - "krass".length
+            RejectedCorrections.remember(latinIME, "krass", "kraft", settingsValues, at)
             assertTrue(helium314.keyboard.agent.Memory.candidates(latinIME).none { it.first == "krass" && it.second > round },
                 "counted only when the next word comes")
             chainInput(" gut ")
-            RejectedCorrections.remember(latinIME, "krass", "kraft", settingsValues)
+            RejectedCorrections.remember(latinIME, "krass", "kraft", settingsValues, at)
             if (round < 2) {
                 assertTrue(helium314.keyboard.agent.Memory.ownWords(latinIME).isEmpty(), "round $round")
                 assertEquals(listOf("krass" to round + 1), helium314.keyboard.agent.Memory.candidates(latinIME), "once per undo")
@@ -5054,6 +5061,41 @@ class InputLogicTest {
         }
         assertTrue(helium314.keyboard.agent.Memory.candidates(latinIME).none { it.first == "krass" })
         assertTrue(helium314.keyboard.agent.Memory.ownWords(latinIME).isEmpty())
+    }
+
+    @Test fun anUndoCountsOnlyAtItsPlaceWithAKnownCursorAndWithPersonalizedSuggestions() {
+        startMemory()
+        val memory = helium314.keyboard.agent.Memory
+        fun undoThenType(at: Int) {
+            setText("das krass")
+            RejectedCorrections.remember(latinIME, "krass", "kraft", settingsValues, at)
+            chainInput(" gut ")
+        }
+        // second review: another place (the same word somewhere else) and no known place count nothing
+        undoThenType(5)
+        undoThenType(-1)
+        RejectedCorrections.remember(latinIME, "krass", "kraft", settingsValues) // a path without a place
+        chainInput("und ")
+        assertTrue(memory.candidates(latinIME).none { it.first == "krass" }, memory.candidates(latinIME).toString())
+        // exactly where the typed word was put back
+        undoThenType(4)
+        assertEquals(listOf("krass" to 1), memory.candidates(latinIME))
+        // without "Personalisierte Vorschläge" nothing is counted (its switch-off clears the memory)
+        latinIME.prefs().edit { putBoolean(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, false) }
+        reloadSettings()
+        assertFalse(memory.mayLearn(latinIME, settingsValues, EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }))
+        undoThenType(4)
+        assertEquals(listOf("krass" to 1), memory.candidates(latinIME))
+    }
+
+    @Test fun theFieldEndingWritesWhatWasLearnedAtOnce() {
+        startMemory()
+        helium314.keyboard.agent.Memory.dropBackgroundWritesForTest()
+        setText("")
+        typeSentences(3, "wir sehen uns morgen")
+        latinIME.onFinishInputView(true)
+        assertTrue(helium314.keyboard.agent.Memory.stored(latinIME).orEmpty().contains("wir sehen uns"),
+            "written on the calling thread when the field ends (second review)")
     }
 
     @Test fun slangCommittedAsTypedThreeTimesBecomesOwn() = withSimilarWords("kraft", "kress") {
@@ -5140,13 +5182,46 @@ class InputLogicTest {
         setText("")
         // review M2: "Haus" continued to "Hausaufgaben" in place is no abbreviation (a new field each time:
         // the test connection reads 100 characters at most)
-        repeat(2) { setText(""); expandByHand("ich mache ", "haus", "hausaufgaben") }
+        // (second review: rejected because "haus" is a word of a main dictionary)
+        repeat(2) { setText(""); expandByHand("ich mache ", "haus", "hausaufgaben", known = true) }
         // a short form a main dictionary knows is no abbreviation either ("das" -> "dein alter Schatz")
         repeat(2) { setText(""); expandByHand("bis ", "das", "dein alter Schatz", known = true) }
         assertTrue(helium314.keyboard.agent.Memory.offers(latinIME).isEmpty(), helium314.keyboard.agent.Memory.offers(latinIME).toString())
         // the same expansion of a form no main dictionary knows is offered
         repeat(2) { setText(""); expandByHand("bis ", "das", "dein alter Schatz", known = false) }
         assertEquals(listOf("das"), helium314.keyboard.agent.Memory.offers(latinIME).map { it.short })
+    }
+
+    @Test fun aRememberedExpansionKeepsItsOwnCaseOrFollowsTheTypedShortForm() {
+        startMemory()
+        val memory = helium314.keyboard.agent.Memory
+        // second review: a short form that is no word may start its expansion; a noun after a lower-case short form
+        // (each in a new field as the keyboard sees one: the test's setText starts no field for the memory)
+        fun newField() { setText(""); memory.onFieldChanged(latinIME) }
+        repeat(2) { newField(); expandByHand("ruf mich am ", "tel", "Telefon", known = false) }
+        // recorded only at sentence starts, after a capitalised short form
+        repeat(2) { newField(); expandByHand("Danke. ", "Mfg", "Mit freundlichen Gruessen", known = false) }
+        assertEquals(setOf("tel", "mfg"), memory.offers(latinIME).map { it.short }.toSet())
+        memory.offers(latinIME).forEach { memory.acceptOffer(latinIME, it) }
+        try {
+            // a dictionary knows "telefon" and "mit" in lower case
+            realWordsOnly = setOf("telefon", "mit")
+            setText("mein tel ")
+            assertEquals("tel → Telefon", chipTexts(memoryChips()).first { it.contains("→") }, "its own capital stays")
+            setText("Tel ")
+            assertEquals("Tel → Telefon", chipTexts(memoryChips()).first { it.contains("→") })
+            setText("ich sage mfg ")
+            tapChip(memoryChips()!!, "mfg → mit freundlichen Gruessen")
+            assertEquals("ich sage mit freundlichen Gruessen ", getTextFromConnection(), "lower case mid-sentence")
+            setText("Mfg ")
+            assertEquals("Mfg → Mit freundlichen Gruessen", chipTexts(memoryChips()).first { it.contains("→") })
+            // no dictionary knows the lower-case first word: the stored capital stays
+            realWordsOnly = emptySet()
+            setText("ich sage mfg ")
+            assertEquals("mfg → Mit freundlichen Gruessen", chipTexts(memoryChips()).first { it.contains("→") })
+        } finally {
+            realWordsOnly = null
+        }
     }
 
     @Test fun anIgnoredAbbreviationOfferIsNotShownAgain() {

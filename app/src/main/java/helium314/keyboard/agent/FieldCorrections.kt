@@ -148,7 +148,7 @@ class FieldCorrectionWatcher {
             it.corrected.equals(change.old, ignoreCase = true) && it.typed.equals(change.new, ignoreCase = true)
         }
         if (reverted != null) {
-            RejectedCorrections.remember(context, reverted.typed, reverted.corrected, settings)
+            RejectedCorrections.remember(context, reverted.typed, reverted.corrected, settings, at = wordStart) // the typed word starts there
             TypoMemory.forget(context, reverted.typed, reverted.corrected)
             return
         }

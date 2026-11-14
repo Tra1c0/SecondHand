@@ -21,16 +21,18 @@ object ShortcutRules {
      * Whether [expansion] plausibly expands [short]: X is 2–6 letters, Y has 1–5 words and at least
      * two characters more; one word must contain the letters of X in order starting with its first
      * letter ("vlt" → "vielleicht"), several words must have X as initials ("mfg" → "mit freundlichen
-     * Grüßen"). Typo fixes ("nciht" → "nicht") are no expansions, nor is a word the owner simply
-     * continued (review M2: "Haus" → "Hausaufgaben", "wie" → "wieder"): Y must not start with X.
-     * Whether X is a word of a main dictionary only the app knows; it checks that as well.
+     * Grüßen"). Typo fixes ("nciht" → "nicht") are no expansions, nor is a real word the owner simply
+     * continued (review M2: "Haus" → "Hausaufgaben", "wie" → "wieder"): with [shortIsWord] (X is a
+     * word of a main dictionary, which only the app knows) Y must not start with X. A short form that
+     * is no word may be the start of its expansion (second review: "Mo" → "Montag", "Tel" → "Telefon",
+     * "Prof" → "Professor"). The app learns no short form a main dictionary knows at all.
      */
-    fun plausible(short: String, expansion: String): Boolean {
+    fun plausible(short: String, expansion: String, shortIsWord: Boolean = false): Boolean {
         val x = short.lowercase(Locale.ROOT)
         if (x.length !in MIN_SHORT..MAX_SHORT || !x.all { it.isLetter() }) return false
         val y = expansion.trim()
         if (y.length > MAX_EXPANSION || y.length < x.length + 2) return false
-        if (y.lowercase(Locale.ROOT).startsWith(x)) return false
+        if (shortIsWord && y.lowercase(Locale.ROOT).startsWith(x)) return false
         val words = y.lowercase(Locale.ROOT).split(' ').filter { it.isNotEmpty() }
         if (words.isEmpty() || words.size > MAX_EXPANSION_WORDS) return false
         if (words.any { w -> w.trimEnd(',', '.', '!', '?').let { it.isEmpty() || !it.all { c -> c.isLetter() || c == '-' || c == '\'' } } }) return false
@@ -112,19 +114,38 @@ class ShortcutBook private constructor(private val pairs: LinkedHashMap<String, 
         override fun toString() = "Offer(${short.length} → ${expansion.length} chars, $count, $state)" // never the texts
     }
 
-    private class Entry(val short: String, var expansion: String, var count: Int, var state: State)
+    /**
+     * A remembered abbreviation: its [expansion] as stored and whether it was recorded only after a
+     * capitalised short form ([fromCapitalShort], e.g. "Mfg" → "Mit freundlichen Grüßen" at a sentence
+     * start), so that its first capital may be the sentence start's and not the word's own.
+     */
+    class Remembered(val expansion: String, val fromCapitalShort: Boolean) {
+        override fun toString() = "Remembered(${expansion.length} chars, $fromCapitalShort)" // never the text
+    }
+
+    /** [capitalShort]: the stored expansion was recorded after a capitalised short form. */
+    private class Entry(val short: String, var expansion: String, var count: Int, var state: State, var capitalShort: Boolean)
 
     constructor() : this(LinkedHashMap())
 
     private fun key(short: String, expansion: String) = short.lowercase(Locale.ROOT) + '\u0000' + expansion.lowercase(Locale.ROOT)
 
-    /** One more time the owner expanded [short] to [expansion] by hand; true when the offer is now due. */
-    fun note(short: String, expansion: String): Boolean {
-        if (!ShortcutRules.plausible(short, expansion)) return false
+    /**
+     * One more time the owner expanded [short] to [expansion] by hand; true when the offer is now due.
+     * The stored form of the expansion (second review): once remembered ([State.CREATED]) it never
+     * changes; before that a form typed after a lower-case short form wins over one typed after a
+     * capitalised short form (a sentence start), which only replaces a form of its own kind.
+     */
+    fun note(short: String, expansion: String, shortIsWord: Boolean = false): Boolean {
+        if (!ShortcutRules.plausible(short, expansion, shortIsWord)) return false
         val key = key(short, expansion)
-        val entry = pairs.remove(key) ?: Entry(short.lowercase(Locale.ROOT), expansion, 0, State.COUNTING)
+        val capital = short.first().isUpperCase()
+        val entry = pairs.remove(key) ?: Entry(short.lowercase(Locale.ROOT), expansion, 0, State.COUNTING, capital)
         entry.count = (entry.count + 1).coerceAtMost(9999)
-        entry.expansion = expansion
+        if (entry.state != State.CREATED && (!capital || entry.capitalShort)) {
+            entry.expansion = expansion
+            entry.capitalShort = capital
+        }
         val due = entry.state == State.COUNTING && entry.count >= OFFER_AT
         if (due) entry.state = State.READY
         pairs[key] = entry
@@ -147,9 +168,12 @@ class ShortcutBook private constructor(private val pairs: LinkedHashMap<String, 
     fun remove(short: String, expansion: String) { pairs.remove(key(short, expansion)) }
 
     /** The expansion of the remembered abbreviation [short] (the most recent one), or null. */
-    fun expansionOf(short: String): String? {
+    fun expansionOf(short: String): String? = rememberedOf(short)?.expansion
+
+    /** The remembered abbreviation [short] (the most recent one) and how it was recorded, or null. */
+    fun rememberedOf(short: String): Remembered? {
         val x = short.lowercase(Locale.ROOT)
-        return pairs.values.lastOrNull { it.state == State.CREATED && it.short == x }?.expansion
+        return pairs.values.lastOrNull { it.state == State.CREATED && it.short == x }?.let { Remembered(it.expansion, it.capitalShort) }
     }
 
     /** The short forms of all remembered abbreviations, lower case. */
@@ -157,14 +181,21 @@ class ShortcutBook private constructor(private val pairs: LinkedHashMap<String, 
 
     fun clear() = pairs.clear()
 
-    /** "v1", then "count;STATE;short;expansion" per pair. */
+    /**
+     * "v2", then "count;STATE;case;short;expansion" per pair; case is "C" when the expansion was
+     * recorded after a capitalised short form, else "l". "v1" (without case) is still read, as "l".
+     */
     fun encode(): String = buildString {
         append(VERSION)
-        pairs.values.forEach { append('\n').append(it.count).append(';').append(it.state.name).append(';').append(it.short).append(';').append(it.expansion) }
+        pairs.values.forEach {
+            append('\n').append(it.count).append(';').append(it.state.name).append(';').append(if (it.capitalShort) 'C' else 'l')
+                .append(';').append(it.short).append(';').append(it.expansion)
+        }
     }
 
     companion object {
-        const val VERSION = "v1"
+        const val VERSION = "v2"
+        private const val VERSION_1 = "v1"
         const val OFFER_AT = 2
         const val MAX_PAIRS = 200
 
@@ -172,14 +203,19 @@ class ShortcutBook private constructor(private val pairs: LinkedHashMap<String, 
             val book = ShortcutBook()
             if (text == null) return book
             val lines = text.lineSequence().iterator()
-            if (!lines.hasNext() || lines.next() != VERSION) return book
+            if (!lines.hasNext()) return book
+            val withCase = when (lines.next()) { VERSION -> true; VERSION_1 -> false; else -> return book }
+            val fields = if (withCase) 5 else 4
             for (line in lines) {
-                val parts = line.split(';', limit = 4)
-                if (parts.size != 4) continue
+                val parts = line.split(';', limit = fields)
+                if (parts.size != fields) continue
                 val count = parts[0].toIntOrNull()?.takeIf { it > 0 } ?: continue
                 val state = runCatching { State.valueOf(parts[1]) }.getOrNull() ?: continue
-                if (!ShortcutRules.plausible(parts[2], parts[3]) || book.pairs.size >= MAX_PAIRS) continue
-                book.pairs[book.key(parts[2], parts[3])] = Entry(parts[2].lowercase(Locale.ROOT), parts[3], count, state)
+                val capital = if (!withCase) false else when (parts[2]) { "C" -> true; "l" -> false; else -> continue }
+                val short = parts[fields - 2]
+                val expansion = parts[fields - 1]
+                if (!ShortcutRules.plausible(short, expansion) || book.pairs.size >= MAX_PAIRS) continue
+                book.pairs[book.key(short, expansion)] = Entry(short.lowercase(Locale.ROOT), expansion, count, state, capital)
             }
             return book
         }

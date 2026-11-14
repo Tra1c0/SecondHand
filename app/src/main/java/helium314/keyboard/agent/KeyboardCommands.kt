@@ -137,6 +137,8 @@ object KeyboardCommands {
         fun predictions(max: Int): List<String> = emptyList()
         /** Stage 46: picks [word] like a tap on it in the normal strip; false if it cannot now. */
         fun pickPrediction(word: String): Boolean = false
+        /** Stage 46, second review: whether a dictionary of the keyboard knows [word] as written; false if unknown. */
+        fun isKnownWord(word: String): Boolean = false
         /**
          * Review of stages 44/45 (B4): [text] was just put before the cursor from "Meine Daten" or a
          * fresh clip; it must not become the composing word and is not learned.
@@ -450,6 +452,7 @@ object KeyboardCommands {
                 ime.pickSuggestionManually(info)
                 return true
             }
+            override fun isKnownWord(word: String) = ime.agentEditorController.isKnownWord(word)
             override fun markPrivate(text: String) = ime.markAgentPrivateText(text)
         }
 

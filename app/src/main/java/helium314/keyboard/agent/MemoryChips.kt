@@ -45,8 +45,8 @@ object MemoryChips {
     private class Index(val source: SnipCommand.Source, val version: Int, val matcher: SnippetMatcher, val snippets: Map<String, Snippet>)
     @Volatile private var index: Index? = null
 
-    /** The offer shown now and the cursor it was shown at: it stays while the cursor does. */
-    private var showing: Pair<ShortcutBook.Offer, Int>? = null
+    /** The offer shown now and the cursor it was shown at: it stays while the cursor does. Also cleared from other threads ([forget]). */
+    @Volatile private var showing: Pair<ShortcutBook.Offer, Int>? = null
 
     /** Drops what is held in memory (the snippet index, the shown offer); a new field or a locked device. */
     fun forget() { index = null; showing = null }
@@ -163,9 +163,8 @@ object MemoryChips {
         if (short.length !in ShortcutRules.MIN_SHORT..ShortcutRules.MAX_SHORT) return null
         // a whole word: nothing word-like glued to its front
         if (start > 0 && !(before[start - 1].isWhitespace() || before[start - 1] in OPENING)) return null
-        val stored = Memory.expansionOf(context, short) ?: return null
-        // "Mfg" at the start of a sentence: the expansion starts with a capital, nothing else changes
-        val expansion = if (short.first().isUpperCase() && stored.first().isLowerCase()) stored.replaceFirstChar { it.uppercaseChar() } else stored
+        val remembered = Memory.rememberedOf(context, short) ?: return null
+        val expansion = expansionCase(host, short, remembered)
         val tail = before.substring(end)
         var used = false
         return KeyboardCommands.Chip(context.getString(R.string.agent_memory_chip_expand, short, ellipsize(expansion)),
@@ -175,6 +174,22 @@ object MemoryChips {
                     name = "", argument = ""), expansion + tail)
             }
         }
+    }
+
+    /**
+     * The case of the expansion for the typed [short] (second review). "Mfg" at the start of a
+     * sentence: the expansion starts with a capital, nothing else changes. A lower-case short form
+     * keeps the expansion's own case when it was recorded after a lower-case short form ("tel" →
+     * "Telefon" stays a noun); recorded only after a capitalised one ("Mfg" → "Mit freundlichen
+     * Grüßen"), its first letter goes lower case when a dictionary knows the first word that way.
+     */
+    internal fun expansionCase(host: KeyboardCommands.Host, short: String, remembered: ShortcutBook.Remembered): String {
+        val stored = remembered.expansion
+        if (short.first().isUpperCase()) return if (stored.first().isLowerCase()) stored.replaceFirstChar { it.uppercaseChar() } else stored
+        if (!stored.first().isUpperCase() || !remembered.fromCapitalShort) return stored
+        val lowered = stored.replaceFirstChar { it.lowercaseChar() }
+        val firstWord = lowered.substringBefore(' ').trimEnd(',', '.', '!', '?')
+        return if (host.isKnownWord(firstWord)) lowered else stored
     }
 
     /** Characters that may stand right before an abbreviation (an opening bracket or quote). */

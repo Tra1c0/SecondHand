@@ -90,10 +90,12 @@ object Memory {
      * Review M3: an undone correction waits for the next commit in the field and counts only if the
      * typed word is still there. [countedAt] holds the uses counted in this field as "word@position",
      * so the same word at the same place counts once, however many paths report its undo (backspace,
-     * the pick of stage 48, the field checkpoint of stage 49).
+     * the pick of stage 48, the field checkpoint of stage 49). Second review: the undo says where the
+     * restored word starts, and only a word at exactly that place counts; insertion-ordered, so the
+     * oldest are dropped first.
      */
-    private var pendingUndone: String? = null
-    private val countedAt = HashSet<String>()
+    private var pendingUndone: Pair<String, Int>? = null
+    private val countedAt = LinkedHashSet<String>()
 
     private fun today() = clock() / DAY_MILLIS
     private fun prefs(context: Context) = AgentStorageContexts.keyboard(context).getSharedPreferences(FILE, Context.MODE_PRIVATE)
@@ -131,10 +133,13 @@ object Memory {
         return isExcluded(context, packageName)
     }
 
-    /** Learning additionally needs the switch, no pause and the live lock state. */
+    /**
+     * Learning additionally needs the switch, "Personalisierte Vorschläge" (whose switch-off clears the
+     * memory, second review), no pause and the live lock state.
+     */
     fun mayLearn(context: Context, settings: SettingsValues?, editorInfo: EditorInfo?): Boolean =
-        isEnabled(context) && settings != null && !settings.mLearningPaused && !isBlocked(context, settings, editorInfo) &&
-            !deviceLocked(context)
+        isEnabled(context) && settings != null && settings.mUsePersonalizedDicts && !settings.mLearningPaused &&
+            !isBlocked(context, settings, editorInfo) && !deviceLocked(context)
 
     // ---- loading and saving ----
 
@@ -184,13 +189,30 @@ object Memory {
     /** Writes what was learned (the field was left or the keyboard closes). */
     @JvmStatic fun flush(context: Context) = synchronized(lock) { if (phrases != null) save(context) }
 
-    /** A new field starts, or the field ends: the run of words and the in-field replacement follow start again. */
-    @JvmStatic fun onFieldChanged(context: Context) {
+    /**
+     * A new field starts, or the field ends ([finishing]): the run of words and the in-field
+     * replacement follow start again. When the field ends what was learned is handed to the
+     * preferences at once on this thread (second review: no 30-second window in memory only while the
+     * keyboard is closed); otherwise on [saver].
+     */
+    @JvmStatic fun onFieldChanged(context: Context, finishing: Boolean = false) {
         synchronized(lock) {
             resetField()
-            if (phrases != null) save(context)
+            if (phrases != null) { if (finishing) saveNow(context) else save(context) }
         }
         MemoryChips.forget()
+    }
+
+    /** Under [lock]: like [save], but written here; older pending writes become void (they hold less). */
+    private fun saveNow(context: Context) {
+        if (!dirty) return
+        val text = phrases!!.encode()
+        val own = ownWords!!.encode()
+        val short = shortcuts!!.encode()
+        generation++
+        dirty = false
+        lastSave = clock()
+        runCatching { prefs(context).edit { putString(PHRASES, text); putString(OWN_WORDS, own); putString(SHORTCUTS, short) } }
     }
 
     /** Under [lock]: nothing of the field carries over. */
@@ -229,10 +251,11 @@ object Memory {
             val offset = if (cursor >= 0) cursor - text.length else 0
             // review M3: an undone correction counts once the next word comes and the typed word is still
             // there (this commit may be the restored word itself), once per word and place
-            pendingUndone?.let { undone ->
+            // (second review) only at the place the undo reported, and only with a known cursor
+            pendingUndone?.let { (undone, at) ->
                 pendingUndone = null
-                val at = lastWordAt(text, undone)
-                if (at >= 0 && countedAt.add(lower(undone) + '@' + (offset + at))) ownChanged = ownWords!!.noteUse(undone, today)
+                if (cursor >= 0 && isWordAt(text, undone, at - offset) && countedAt.add(lower(undone) + '@' + at))
+                    ownChanged = ownWords!!.noteUse(undone, today)
             }
             // phrases: the longest run of the owner's commits that the text before the cursor still ends with
             val tokens = PhraseText.currentSentence(text)
@@ -255,36 +278,36 @@ object Memory {
             while (countedAt.size > MAX_COUNTED) countedAt.remove(countedAt.first())
             // abbreviations: replaced in place by a plausible expansion, and no main dictionary knows the short form (review M2)
             if (cursor >= 0) tracker.onCommit(word, cursor, text)?.let { (short, expansion) ->
-                if (lower(short) in unknownCommits) shortcuts!!.note(short, expansion)
+                // only short forms no main dictionary knows reach the book, so none is a word continued (second review)
+                if (lower(short) in unknownCommits) shortcuts!!.note(short, expansion, shortIsWord = false)
             }
             changed(context, words = ownChanged)
         }
     }
 
-    /** Where the last whole-word occurrence of [word] in [text] starts, or -1. */
-    private fun lastWordAt(text: String, word: String): Int {
-        var at = text.lastIndexOf(word)
-        while (at >= 0) {
-            val end = at + word.length
-            val startOk = at == 0 || !text[at - 1].isLetterOrDigit()
-            val endOk = end == text.length || !(text[end].isLetterOrDigit() || text[end] == '\'' || text[end] == '-')
-            if (startOk && endOk) return at
-            at = if (at == 0) -1 else text.lastIndexOf(word, at - 1)
-        }
-        return -1
+    /** Whether [word] stands in [text] as a whole word starting at [at]. */
+    private fun isWordAt(text: String, word: String, at: Int): Boolean {
+        if (at < 0 || !text.startsWith(word, at)) return false
+        val end = at + word.length
+        val startOk = at == 0 || !text[at - 1].isLetterOrDigit()
+        val endOk = end == text.length || !(text[end].isLetterOrDigit() || text[end] == '\'' || text[end] == '-')
+        return startOk && endOk
     }
 
     /**
      * An automatic correction from [typed] was undone (backspace, a tap on the typed word, or changed
-     * back later in the field): one use of it as an own word, counted at the next commit if the word
-     * is still there (review M3), and only once even when two paths report the same undo.
+     * back later in the field) and the typed word now starts at field position [at]: one use of it as
+     * an own word, counted at the next commit if the word is still at exactly that place (review M3,
+     * second review), and only once even when two paths report the same undo. Without a known place
+     * ([at] < 0) nothing counts.
      */
-    @JvmStatic fun onCorrectionUndone(context: Context, typed: String, settings: SettingsValues?) {
-        if (!isEnabled(context) || settings == null || settings.mLearningPaused || isBlocked(context, settings) || deviceLocked(context)) return
+    @JvmStatic fun onCorrectionUndone(context: Context, typed: String, settings: SettingsValues?, at: Int) {
+        if (at < 0 || !isEnabled(context) || settings == null || !settings.mUsePersonalizedDicts || settings.mLearningPaused ||
+            isBlocked(context, settings) || deviceLocked(context)) return
         if (!OwnWordBook.isCandidate(typed)) return
         synchronized(lock) {
             // a second report before the next commit is the same undo; one already counted is caught by its place
-            pendingUndone = typed
+            pendingUndone = typed to at
         }
     }
 
@@ -366,8 +389,11 @@ object Memory {
     }
 
     /** The expansion of the remembered abbreviation [short], or null (off or none). */
-    fun expansionOf(context: Context, short: String): String? =
-        if (!isEnabled(context)) null else locked(context) { shortcuts!!.expansionOf(short) }
+    fun expansionOf(context: Context, short: String): String? = rememberedOf(context, short)?.expansion
+
+    /** The remembered abbreviation [short] and how its expansion was recorded, or null (off or none). */
+    fun rememberedOf(context: Context, short: String): ShortcutBook.Remembered? =
+        if (!isEnabled(context)) null else locked(context) { shortcuts!!.rememberedOf(short) }
 
     // ---- the page ----
 
@@ -424,6 +450,9 @@ object Memory {
 
     /** Tests only: counted uses of words that are not own yet. */
     internal fun candidates(context: Context): List<Pair<String, Int>> = locked(context) { ownWords!!.candidates }
+
+    /** Tests only: writes handed to [saver] are dropped, so only a write on the calling thread reaches storage. */
+    internal fun dropBackgroundWritesForTest() = synchronized(lock) { saver = Executor { } }
 
     /** Tests only: forget what is held in memory so the next access reads storage again; writes run at once. */
     internal fun resetForTest() = synchronized(lock) {

@@ -154,15 +154,20 @@ Reihenfolge von oben nach unten.
   TalkBack), Prüfer-Review (Änderungen an `KeyboardCommands`, `ClipVaultSection`). (M–L)
 - **46 Gedächtnis (Wunsch des Owners vom 2026-11-14)** ist gebaut (siehe FEATURES.md, Nachweis in
   `docs/VALIDATION.md` → Etappe 46). Grenze des Owners eingehalten: Das Gedächtnis hängt nur auf
-  Tipp hinter der Schreibmarke an und ersetzt nichts, die Autokorrektur bleibt bei einem Wort.
-  Annahmen des Leads, die der Owner ändern kann: eigener Schalter „Merken, wie ich schreibe“
-  (anfangs aus); Chips wie in 45 nur nach dem Leerzeichen; der Rest einer Folge als Chip erst ab
+  Tipp hinter der Schreibmarke an und ersetzt nichts, die Autokorrektur bleibt bei einem Wort;
+  einzige Ersetzung: das gerade getippte Kürzelwort, nur auf Tipp (Chip einer gemerkten Abkürzung).
+  Annahmen des Leads, die der Owner ändern kann: diese eine Ersetzung; eigener Schalter „Merken, wie
+  ich schreibe“ (anfangs aus), gelernt nur mit „Personalisierte Vorschläge“ an (wie Kontext- und
+  Symbol-Lernen, dessen Ausschalten das Gedächtnis löscht); Chips wie in 45 nur nach dem Leerzeichen; der Rest einer Folge als Chip erst ab
   dreimal und 70 % (gemessen), dadurch braucht eine Folge etwa zehn Wiederholungen; eigene Wörter
   ab drei Nutzungen ohne Korrektur; Abkürzungs-Angebot ab zwei eigenen Ersetzungen, nur einmal in
   der Leiste; „Passende Textbausteine“ anfangs an (lernt nichts). Abschnitte (`MemorySections`)
   auf der Seite „Was ich mir gemerkt habe“ aus 49 (Tippen & Korrektur → Wörter & Lernen). Prüfer-Befunde
   behoben (`docs/VALIDATION.md` → Nachprüfung 46): gemerkte Abkürzungen nur im Gedächtnis und nur auf
-  Tipp, nie im persönlichen Wörterbuch. Offen: erneute Prüfung (Engine: `InputLogic`, `Suggest`),
+  Tipp, nie im persönlichen Wörterbuch. Zweite Nachprüfung behoben (`docs/VALIDATION.md` → Zweite
+  Nachprüfung 46): Schreibung der Erweiterung, „Mo“ → „Montag“ lernbar, Rücknahme nur an ihrer Stelle,
+  Schreiben beim Verlassen des Felds sofort. Offen: keine Chips direkt hinter privatem Text (wartet auf
+  eine öffentliche Abfrage in `InputLogic`, parallele Arbeit), erneute Prüfung (Engine: `InputLogic`, `Suggest`),
   Gerätetest (Chips beim echten Tippen, Abkürzungen mit echter Löschtaste und Erweiterungs-Chip,
   Speicherzeit bei 2000 Folgen, Bausteine mit `{cursor}`).
 - **49 Korrekturen merken über das ganze Feld (Regeln mit dem Owner festgelegt, 2026-11-14)** ist

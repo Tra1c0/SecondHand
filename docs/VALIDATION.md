@@ -4141,6 +4141,61 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Nicht gelaufen: `tools/dev.py agent-tests`, volle Suite, Build, Lint (Speicher, Anweisung des
   Leads). Gerätetest offen (Erweiterungs-Chip mit echter Leiste, Speicherzeit auf dem Gerät).
 
+## Zweite Nachprüfung 46 (Prüfer-Befunde zum Stand 8e14a9e, 2026-11-14)
+
+- Vor den Korrekturen hat der Lead auf dem Merge 8e14a9e `InputLogicTest` (einziger Fehler
+  `insertLetterIntoWordHangulFails`, geerbt), `SuggestTest`, `MemoryScreenTest`, `ClipVaultTest`,
+  `FieldSuggestionChipsTest`, `SymbolSettingsScreenTest` und `:agent-core:test` laufen lassen: grün.
+- 1 entschieden (Annahme des Leads, Owner kann ändern): Die einzige Ersetzung des Gedächtnisses ist
+  der Chip einer gemerkten Abkürzung, genau das gerade getippte Kürzelwort, nur auf Tipp (ROADMAP 46,
+  FEATURES, ANLEITUNG, P177).
+- 2 behoben: `Memory.mayLearn` und `onCorrectionUndone` verlangen `mUsePersonalizedDicts` (wie
+  `ContextLearning` und `SymbolDrawing`; das Ausschalten löscht das Gedächtnis). Tests:
+  `memoryLearnsNothingInBlockedFields` mit neuem Fall „not personalized“,
+  `anUndoCountsOnlyAtItsPlaceWithAKnownCursorAndWithPersonalizedSuggestions` (ohne den Schalter:
+  `mayLearn` falsch, Rücknahme zählt nicht). `startMemory` schaltet ihn für die Gedächtnis-Tests an.
+- 3 behoben: `ShortcutBook.note` überschreibt die Erweiterung nach `CREATED` nie, eine nach kleiner
+  Kurzform aufgezeichnete Form gewinnt, die Fall-Spalte merkt „nur nach großer Kurzform“ (`v2`, `v1`
+  lesbar); `MemoryChips.expansionCase`: kleine Kurzform behält die eigene Schreibung, nur am
+  Satzanfang gelernt wird der Anfang klein, wenn ein Wörterbuch das erste Wort klein kennt
+  (`Host.isKnownWord`). Tests: `MemoryRulesTest.theStoredExpansionKeepsTheFormOfALowerCaseShortFormAndNeverChangesOnceRemembered`,
+  `InputLogicTest.aRememberedExpansionKeepsItsOwnCaseOrFollowsTheTypedShortForm` („tel “ → „Telefon“,
+  „Tel “ → „Telefon“, „mfg “ → „mit freundlichen Gruessen“ eingesetzt, „Mfg “ → „Mit …“, ohne
+  bekanntes „mit“ bleibt „Mit …“).
+- 4 behoben: `plausible(…, shortIsWord)` lehnt „Erweiterung beginnt mit der Kurzform“ nur für echte
+  Wörter ab; die App gibt dem Buch ohnehin nur Kurzformen, die kein Hauptwörterbuch kennt. Tests:
+  `MemoryRulesTest.continuingAWordIsNoAbbreviation` („Haus“, „Wo“, „wie“, „wo“ mit
+  `shortIsWord` abgelehnt; „Mo“ → „Montag“, „tel“ → „Telefon“, „Prof“ → „Professor“ plausibel,
+  „tel“ zweimal: Angebot), `continuedWordsAndDictionaryWordsAreNoAbbreviations` („haus“ jetzt als
+  bekanntes Wort gemeldet, wie es ein Hauptwörterbuch täte). Geändert nach Entscheidung des Leads:
+  Die Assertions, dass „Haus“ → „Hausaufgaben“ schon `plausible` und der `ReplacementTracker`
+  ablehnen und dass das Lesen „wie;wieder“ verwirft, gelten jetzt nur mit `shortIsWord` bzw. über
+  `unknownCommits` (keine Abschwächung der Regel für echte Wörter).
+- 5 nicht umgesetzt: keine Chips direkt hinter privatem Text. `InputLogic.privateTextAtCursor` ist
+  privat und wird parallel umgebaut (`PrivateRanges`, `mPrivate*`); ein `Host`-Zugang ohne
+  öffentliche Abfrage ginge nur über eine Änderung dort. Offen für den Lead nach dem Merge.
+- 6 behoben: `RejectedCorrections.remember(…, at)` gibt die Stelle des getippten Worts weiter
+  (`revertCommit`, Tipp von 48, Feldvergleich 49); `Memory` zählt nur ein ganzes Wort genau dort,
+  nie bei unbekannter Schreibmarke oder ohne Stelle; `countedAt` ist ein `LinkedHashSet`. Tests:
+  `anUndoCountsOnlyAtItsPlaceWithAKnownCursorAndWithPersonalizedSuggestions` (Stelle 5 und −1 und
+  ein Weg ohne Stelle: nichts; Stelle 4: eins), `slangBecomesOwnAfterThreeUndoneCorrectionsAndIsOfferedWhileTyped`
+  (die doppelte Meldung jetzt mit derselben Stelle: zählt nichts).
+- 7 behoben: Rest-Risiko „bis zu 30 s nur im Speicher“ in STORAGE und ARCHITECTURE; beim
+  Verlassen des Felds (`finishEditor`) schreibt `saveNow` sofort auf dem Aufrufer-Thread. Test
+  `theFieldEndingWritesWhatWasLearnedAtOnce` (Hintergrund-Schreiben verworfen, nach
+  `onFinishInputView` steht die Folge im Speicher).
+- 8 behoben: `MemoryChips.showing` ist `@Volatile`. Kein eigener Test.
+- 9 behoben: Satzreste am Ende von P177 entfernt; der Satz zu „Meine Daten“ steht jetzt in P178.
+- `./gradlew :agent-core:test`: grün (`memory.MemoryRulesTest` 11).
+- `./gradlew :app:testDebugUnitTest` gezielt (`--max-workers=1`): `InputLogicTest` 238, einziger
+  Fehler `insertLetterIntoWordHangulFails` (geerbt); `SuggestTest` 44, `MemoryScreenTest` 3,
+  `CorrectionMemoryTest` 4, `FieldCorrectionMemoryTest` 8: grün.
+- Engine: `InputLogic.java` nur die zwei Aufrufe von `RejectedCorrections.remember` (Stelle
+  zusätzlich), sonst nichts; `Suggest.kt`, `RichInputConnection`, `PointerTracker`, `LatinIME`
+  unverändert. `FieldCorrections.kt` eine Zeile (Stelle an `remember`). Prüfer-Review nötig.
+- Nicht gelaufen: `tools/dev.py agent-tests`, volle Suite, Build, Lint (Speicher, Anweisung des
+  Leads). Gerätetest offen.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

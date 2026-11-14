@@ -180,9 +180,11 @@ class AgentEditorController @JvmOverloads constructor(
     fun invalidate() = editor.invalidate()
     /** Stage 46: the suggestions the engine holds for the strip now (the memory's chip row shows its predictions). */
     internal val suggestedWords: helium314.keyboard.latin.SuggestedWords get() = inputLogic.mSuggestedWords
+    /** Stage 46, second review: whether a dictionary of the keyboard knows [word] as written (the case of a remembered expansion). */
+    internal fun isKnownWord(word: String): Boolean = runCatching { inputLogic.mDictionaryFacilitator?.isValidSpellingWord(word) == true }.getOrDefault(false)
     fun finishEditor() {
         close()
-        Memory.onFieldChanged(ime) // stage 46: and what was learned is written
+        Memory.onFieldChanged(ime, finishing = true) // stage 46: and what was learned is written, at once (second review)
         chosenWorkflowId = null
         needsCursorRefresh = false
         editor.finishEditor()
