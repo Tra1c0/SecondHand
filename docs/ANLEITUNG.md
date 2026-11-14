@@ -71,14 +71,14 @@ in der Tastatur über den Pfeil links in der Symbolleiste und dann das Zahnrad.
 Die Startseite der Einstellungen (dunkel, mit farbigen Kacheln) hat oben die Lupe für die Suche,
 darunter „Dein Look“ mit „Ändern“ (öffnet Aussehen), die Schnellschalter Inkognito, RGB-Licht,
 Vibration und Symbole malen (ein Tipp schaltet um) und sieben Bereiche. Ganz unten: Diagnose,
-Updates (mit deiner Build-Nummer) und Über. Jeder Bereich zeigt vorerst eine Karte „Seiten“, die
-die bisherigen Seiten öffnet. Wo diese Anleitung „Einstellungen → X“ schreibt, liegt X jetzt in
+Updates (mit deiner Build-Nummer) und Über. Jeder Bereich außer Tippen & Korrektur zeigt vorerst
+eine Karte „Seiten“, die die bisherigen Seiten öffnet. Wo diese Anleitung „Einstellungen → X“ schreibt, liegt X jetzt in
 diesem Bereich:
 
 | Bereich | Seiten |
 | --- | --- |
 | 01 Aussehen | Design, RGB-Beleuchtung, Aussehen |
-| 02 Tippen & Korrektur | Textkorrektur, Gelernte Wörter, Wörterbücher |
+| 02 Tippen & Korrektur | eigene Seite (siehe unten); Textkorrektur = „Alle Korrektur-Einstellungen“, Gelernte Wörter, Wörterbücher, Persönliches Wörterbuch |
 | 03 Tasten & Sprachen | Sprachen & Layouts, Optionen, Sekundäre Layouts |
 | 04 Gesten & Gefühl | Leertaste, Symbole malen, Gesten-Tippen (nur mit Bibliothek), Vibration & Ton (= Optionen) |
 | 05 Leiste & Befehle | Leiste (= Symbolleiste), Befehle, Screenshots |
@@ -86,6 +86,26 @@ diesem Bereich:
 | 07 System & Daten | Tastaturprofile, Updates, Diagnose, Erweitert, Gestendaten-Erfassung (nur in der Sammelphase), Über |
 
 Zurück geht es mit dem runden Pfeil oben links oder der Zurück-Geste.
+
+### Tippen & Korrektur
+
+Oben wählst du die Autokorrektur in einem Tipp:
+
+- **AUS**: nur Vorschläge, nie automatisch (schaltet „Autokorrektur“ aus).
+- **BEHUTSAM**: korrigiert nur Wörter, die es nicht gibt, und lässt Umlaut-Wörter stehen
+  (Autokorrektur an, „Richtige Wörter nie ändern“ und „Umlaut-Wörter behalten“ an, Stärke „Mäßig“).
+- **MUTIG**: korrigiert auch knappe Fälle (Autokorrektur an, „Richtige Wörter nie ändern“ aus,
+  Stärke „Sehr stark“).
+
+Hervorgehoben ist die Stufe, die zu deinen Einstellungen passt. Passt keine (zum Beispiel nach dem
+Installieren oder wenn du einen Schalter darunter änderst), steht „Eigene Einstellung“ darunter.
+Darunter schalten Regeln, Vorschläge, Leerzeichen und Lernen direkt um. Ausgegraut heißt: Der
+Schalter wirkt gerade nicht (die Regeln brauchen die Autokorrektur, „Wortvorschläge“ die
+Vorschlagsleiste, „Doppeltipp = Punkt“ eine Leertaste ohne Doppeltipp-Geste). „Kontakte und
+App-Namen“, „Alle Korrektur-Einstellungen“ (Stärke als Regler, personalisierte Vorschläge,
+anstößige Wörter …), „Wörterbücher“, „Persönliches Wörterbuch“ und „Gelernte Wörter“ öffnen die
+bisherigen Seiten. „Lernen pausieren“ behält das Gelernte; Lernen ganz ausschalten (und löschen)
+geht unter „Alle Korrektur-Einstellungen“ → „Personalisierte Vorschläge“.
 
 ## Textaktionen (ohne Internet)
 

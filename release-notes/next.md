@@ -132,3 +132,10 @@
   vorerst über eine Karte „Seiten“ zu den bisherigen Seiten; die Bereiche werden in den nächsten
   Schritten einzeln nach dem Entwurf umgebaut. Welche alte Seite wo liegt, steht in der Anleitung
   unter „Einstellungen finden“. Noch auf keinem Gerät ausprobiert.
+- Neu: Einstellungen → „Tippen & Korrektur“ ist jetzt eine eigene Seite im neuen Look. Oben wählst
+  du die Autokorrektur mit einem Tipp: AUS (nur Vorschläge), BEHUTSAM (nur Wörter, die es nicht
+  gibt, Umlaut-Wörter bleiben) oder MUTIG (korrigiert auch knappe Fälle). Passt keine Stufe zu
+  deinen Einstellungen, steht dort „Eigene Einstellung“. Darunter die Schalter für Regeln,
+  Vorschläge, Leerzeichen und Lernen, die Wörterbücher mit Zahl, das persönliche Wörterbuch und die
+  gelernten Wörter. Alles Weitere der bisherigen Textkorrektur unter „Alle Korrektur-Einstellungen“.
+  Noch auf keinem Gerät ausprobiert.

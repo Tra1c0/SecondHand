@@ -1115,6 +1115,28 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `AgentRgbScreen.kt` ist dafür `internal`. Texte: `agent_settings_strings.xml`. Tests
   `AT/SettingsStartScreenTest.kt` und `AT/SettingsKitTest.kt` (Bilder unter
   `app/build/agent-previews/settings-*.png`).
+- Bereich Tippen & Korrektur (38c, P126–P127): `K/settings/screens/AgentAreaTypingScreen.kt`,
+  aufgerufen von `AgentAreaScreen` für `SettingsArea.TYPING` (eine Zeile). `TypingAutocorrect`
+  ordnet die drei Auswahlkarten vorhandenen Einstellungen zu (Annahme des Leads): AUS =
+  `auto_correction` aus (Rest bleibt); BEHUTSAM = `auto_correction` an,
+  `agent_autocorrect_keep_valid_words` an, `agent_autocorrect_keep_umlaut_variants` an,
+  `auto_correct_confidence` ≤ 0,40 (HeliBoards Stufe „Mäßig“; außerhalb wird 0,24 geschrieben);
+  MUTIG = `auto_correction` an, `keep_valid_words` aus, Stärke > 0,80 („Sehr stark“; außerhalb
+  wird 0,9 geschrieben), die Umlaut-Regel bleibt. `current` liest die Stufe zurück, jede andere
+  Kombination (auch HeliBoards Standard) ist `null` = keine Karte und „Eigene Einstellung“.
+  Schalter schreiben die echten Schlüssel (Regeln, Vorschläge, Leerzeichen, Inkognito;
+  „Nächstes Wort“ und „Satzzeichen“ mit `setThemeNeedsReload` wie die alte Seite; Emoji wie
+  `SwitchPreferenceWithEmojiDictWarning`; Pause über `LearningData.setPaused`) und sind ausgegraut
+  wie die alte Seite sie ausblendet (Korrektur-Regeln ohne Autokorrektur, Wortvorschläge ohne
+  Vorschlagsleiste, Emoji ohne beides, Doppeltipp-Punkt bei belegter Leertasten-Geste
+  `SpaceGestures.doubleTapAssigned`). „Personalisierte Vorschläge“ (Löschwarnung), Kontakte (Berechtigung)
+  und der Rest bleiben auf `TextCorrectionScreen` („Alle Korrektur-Einstellungen“, „Kontakte und
+  App-Namen“). `WordCounts` liest Wörterbücher der eingeschalteten Sprachen
+  (`getDictionaryLocales`) und die Wortzahl von `UserDictionary` einmal über `Dispatchers.IO`.
+  Zeilen zu Seiten tragen `AREA_ROW_TAG` + Route; die Routen von `SettingsAreas.entries(TYPING)`
+  bleiben als Liste für P119. Texte `agent_typing_strings.xml`. Test
+  `AT/SettingsTypingAreaTest.kt` (Bild `app/build/agent-previews/settings-area_typing.png`, ganze
+  Seite; `SettingsStartScreenTest` schreibt für diesen Bereich `settings-area_typing-top.png`).
 - Design-Seite (23f1): `A/DesignTiles.kt` (Abschnitte, Kacheln, Auswahl; schreibt genau die
   Schlüssel von Tag/Nacht-Schalter und Farbwähler, „Flacher Look“ über `FlatPreset.apply`) und
   `K/settings/screens/AgentDesignScreen.kt` (Raster, Rahmen und Häkchen, TalkBack als
@@ -2356,13 +2378,21 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `cssGradient` nimmt zwei Farben oder eine Liste aus Stopps. Der CSS-Winkel zählt ab oben im
   Uhrzeigersinn, die Länge der Verlaufslinie ist |b·sin| + |h·cos| wie in CSS, sonst sitzen die
   Endfarben nicht in den Ecken.
+- **P126** Eine Zeile der Tippen-Seite muss die Einstellung in ihrem eigenen Composable lesen
+  (`TypingSwitchRow` ruft `checked()` auf, `bool()` liest dabei beide Zähler aus P121). Liest der
+  Aufrufer den Wert und reicht nur Schlüssel und Funktionsreferenzen weiter, überspringt Compose
+  die Zeile nach dem Schreiben (gleiche Parameter), Einstellung und Schalter laufen auseinander.
+- **P127** Die Stufen der Autokorrektur sind Bänder, keine festen Werte: Eine Stufe schreibt die
+  Stärke nur, wenn sie außerhalb ihres Bands liegt (≤ 0,40 bzw. > 0,80, wie die Texte „Mäßig“ und
+  „Sehr stark“ von `TextCorrectionScreen`). Wer die Bänder oder die Texte dort ändert, ändert
+  beide und `SettingsTypingAreaTest.mappingReadsAndWritesTheRealPreferences`.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (435 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (439 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -2389,7 +2419,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (75): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (76): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, ClipCommandTest, CommandReplaceTest, CommandTemplatesTest,
@@ -2402,9 +2432,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   LoadingDotsViewTest, ManualWorkflowDraftTest, MoreCommandsTest, MoreProvidersTest, MyDesignsTest,
   OpenAiProviderTest, RgbLightingRenderTest, RgbSettingsScreenTest, RgbTilesTest,
   ScreenshotChipTest, SelectedTextCommitTest, SettingsKitTest, SettingsStartScreenTest,
-  SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest, SnipCommandTest, SpaceDetentsTest,
-  SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest,
-  TouchModelTest, TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest,
+  SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest, SnipCommandTest,
+  SpaceDetentsTest, SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal,
+  ToolRunnerTest, TouchModelTest, TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest,
   WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
   WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (8): ClockCommandsTest, EmojiMixCommandTest, LanguageCommandTest, QrCommandTest,
@@ -2444,14 +2474,14 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/settings/` (4): SearchScreen, SettingsActivity, SettingsContainer, SettingsNavHost
 - `K/settings/dialogs/` (2): ColorPickerDialog, SliderDialog
 - `K/settings/preferences/` (2): KeyboardScalePreference, SliderPreference
-- `K/settings/screens/` (32): AdvancedScreen, AgentAiScreen, AgentAreaScreen, AgentCommandsScreen,
-  AgentDesignEditor, AgentDesignScreen, AgentDiagnoseScreen, AgentDictationScreen,
-  AgentEmojiMixSection, AgentLearningScreen, AgentProfilesScreen, AgentRgbCurveEditor,
-  AgentRgbScreen, AgentRunStatus, AgentScreenReaderSection, AgentScreenshotScreen, AgentSettingsKit,
-  AgentSkillsScreen, AgentSlider, AgentSnippetsSection, AgentSpaceScreen, AgentStartScreen,
-  AgentSymbolsScreen, AgentUpdatesScreen, AgentWorkflowsScreen, AppearanceScreen, DictionaryScreen,
-  GestureTypingScreen, MainSettingsScreen, TextCorrectionScreen, WorkflowBuilderDialog,
-  WorkflowDraftProtection
+- `K/settings/screens/` (33): AdvancedScreen, AgentAiScreen, AgentAreaScreen, AgentAreaTypingScreen,
+  AgentCommandsScreen, AgentDesignEditor, AgentDesignScreen, AgentDiagnoseScreen,
+  AgentDictationScreen, AgentEmojiMixSection, AgentLearningScreen, AgentProfilesScreen,
+  AgentRgbCurveEditor, AgentRgbScreen, AgentRunStatus, AgentScreenReaderSection,
+  AgentScreenshotScreen, AgentSettingsKit, AgentSkillsScreen, AgentSlider, AgentSnippetsSection,
+  AgentSpaceScreen, AgentStartScreen, AgentSymbolsScreen, AgentUpdatesScreen, AgentWorkflowsScreen,
+  AppearanceScreen, DictionaryScreen, GestureTypingScreen, MainSettingsScreen, TextCorrectionScreen,
+  WorkflowBuilderDialog, WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
 - `app/` (1): build.gradle
@@ -2471,15 +2501,15 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (12): agent_alarm_strings, agent_design_strings,
+- `app/src/main/res/values-de/` (13): agent_alarm_strings, agent_design_strings,
   agent_diagnose_strings, agent_emoji_mix_strings, agent_language_strings, agent_rgb_strings,
   agent_settings_strings, agent_slider_strings, agent_space_strings, agent_strings,
-  agent_symbol_strings, agent_update_strings
-- `app/src/main/res/values/` (19): agent_alarm_strings, agent_attrs, agent_design_strings,
+  agent_symbol_strings, agent_typing_strings, agent_update_strings
+- `app/src/main/res/values/` (20): agent_alarm_strings, agent_attrs, agent_design_strings,
   agent_diagnose_strings, agent_emoji_mix_strings, agent_ids, agent_language_strings,
   agent_rgb_strings, agent_settings_strings, agent_slider_strings, agent_space_strings,
-  agent_strings, agent_symbol_strings, agent_update_strings, attrs, clip_provider, donottranslate,
-  gesture_data, themes-flat
+  agent_strings, agent_symbol_strings, agent_typing_strings, agent_update_strings, attrs,
+  clip_provider, donottranslate, gesture_data, themes-flat
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (1): Shadows

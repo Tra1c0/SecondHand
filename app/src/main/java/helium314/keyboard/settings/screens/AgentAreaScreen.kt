@@ -90,6 +90,7 @@ object SettingsAreas {
  */
 @Composable
 fun AgentAreaScreen(area: SettingsArea, onNavigate: (String) -> Unit, onClickBack: () -> Unit) {
+    if (area == SettingsArea.TYPING) return AgentAreaTypingScreen(onNavigate, onClickBack) // stage 38c
     AgentSettingsTheme {
         Column(
             Modifier.fillMaxSize().background(AgentSettingsTokens.Background).windowInsetsPadding(WindowInsets.safeDrawing)

@@ -2836,6 +2836,38 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   Zeilen und die Halb-Kacheln umbrechen ihren Titel.
 - Offen: Prüfer-Review, Gerätetest (Aussehen am Telefon, TalkBack, Suche, Zurück), 38b–38h.
 
+## Etappe 38c (Einstellungen: Tippen & Korrektur)
+
+- Auftrag (Lead, ROADMAP 38c): Bereichsseite „Tippen & Korrektur“ 1:1 nach `Tippen.dc.html` mit
+  dem Baukasten aus 38a, in eigener Datei; Stufen AUS/BEHUTSAM/MUTIG auf vorhandene Einstellungen.
+  Gebaut in einer Arbeitskopie parallel zu anderen Bereichen, kein Prüfer-Review, kein Gerätetest.
+- Gebaut: `AgentAreaTypingScreen.kt` (`TypingAutocorrect`, Seite, `WordCounts`),
+  `agent_typing_strings.xml` (Englisch, Deutsch), eine Zeile in `AgentAreaScreen.kt`.
+  Zuordnung der Stufen: ARCHITECTURE.md → Einstellungen und Profile (Annahme des Leads).
+  Abweichungen vom Mockup: zusätzliche Karte „Alle Korrektur-Einstellungen“ am Ende (Rest der
+  alten Textkorrektur, auch „Personalisierte Vorschläge“ mit Löschwarnung); „Kontakte und
+  App-Namen“ ist eine Zeile zur Korrekturseite (Berechtigung), ihr Wert nennt, was an ist;
+  ausgegraute Zeilen zeigen statt des Untertitels den Grund; „Eigene Einstellung“ unter den
+  Karten, wenn keine Stufe passt (im Mockup ist immer eine gewählt). Ohne Inhaltsanbieter (Tests)
+  zeigt „Persönliches Wörterbuch“ keine Zahl.
+- Tests (Robolectric, kein Gerätetest): `SettingsTypingAreaTest` 9 Tests (Zuordnung in beide
+  Richtungen samt Bandgrenzen 0,40/0,41/0,80/0,81 und behaltener Stärke; Tipp auf eine Karte
+  schreibt die Einstellungen und wählt sie, ein Regel-Schalter macht daraus „Eigene Einstellung“;
+  von außen gesetzte Einstellungen wählen MUTIG; 13 Schalter schreiben ihren Schlüssel und zeigen
+  den Zustand, Pause über `LearningData`, `use_personalized_dicts` bleibt unberührt; ausgegraute
+  Schalter ohne Autokorrektur, ohne Vorschlagsleiste und mit Doppeltipp-Geste; Zeilen öffnen
+  ihre Seiten mit echten Werten (12 Wörter über einen Test-Inhaltsanbieter, Wörterbücher wie
+  `WordCounts`, „Apps“); alle Texte des Mockups; alles Anklickbare ≥ 44 dp; Bild mit Pixelprüfung).
+  `SettingsStartScreenTest` 10 Tests grün (P119: die Routen von `SettingsAreas.entries(TYPING)`
+  sind Zeilen der neuen Seite; Bild dieses Bereichs jetzt `settings-area_typing-top.png`).
+- `python3 tools/dev.py agent-tests`: grün, 781 Tests in 87 Klassen, 0 Fehler (2026-11-14). Kein Build (geteilte Maschine).
+  `docs_sync --check`: grün.
+- Bild (nicht versioniert): `app/build/agent-previews/settings-area_typing.png` (ganze Seite,
+  390 × 2400 dp), mit `Tippen.dc.html` verglichen: Held, Karten, Reihenfolge, Texte, Punkte und
+  Schalterfarben stimmen; gewählt ist BEHUTSAM wie im Mockup. Abweichend: die Schalterzustände
+  sind die echten Standardwerte (Mockup: Beispielwerte), Systemschrift (38a).
+- Offen: Prüfer-Review, Gerätetest (Stufen am Telefon, TalkBack, Emoji-Hinweis ohne Wörterbuch).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.
