@@ -14,7 +14,12 @@ import dev.agentkeyboard.core.LocalMoment
  *   time; a time without a day only with a mark (`18 Uhr`, `um 18:30`, `6pm`, `a las 8`). "bis
  *   morgen", "Samstag" or "Abfahrt 18:30" alone give nothing; "Guten Morgen" is no date.
  * - Numbers that may be versions or amounts make the text no date at all: `2.1`, `3.10` without
- *   "am"/"on"/"el" before them (a version, a price); `1.2.3` never matches a date.
+ *   "am"/"on"/"el" before them (a version, a price); `1.2.3` never matches a date. Review of stage
+ *   40 (B3): `8.3.28` (a two-digit year with a one-digit day or month) counts only after such a word
+ *   ("am 8.3.28"), else it is a version ("PHP 8.3.28"); no date-like number right after
+ *   [VERSION_WORDS] ("Version 10.11.30").
+ * - Opening hours and availability ("Öffnungszeiten", "Montag bis Freitag", "Mo-Fr", "erreichbar",
+ *   "Hotline", "opening hours", "horario") are no event: the text gives nothing.
  * - Past dates, and year-less dates more than [MAX_AHEAD_WITHOUT_YEAR] days ahead (most likely just
  *   passed: "Rechnung vom 03.11."), give nothing.
  */
@@ -54,6 +59,23 @@ object ClipDates {
     )
     /** Words before a date that make "3.12" a date ("am 3.12", "on 3.12", "el 3.12"). */
     private val DATE_LEADS = setOf("am", "an", "den", "vom", "zum", "bis", "ab", "on", "el", "from", "until", "till", "desde", "hasta")
+    /** Words after which a number with dots is a version, never a date ("Version 1.2.30", "Firmware 3.1.99", "v 2.10.27"). */
+    private val VERSION_WORDS = setOf(
+        "version", "versión", "versao", "versão", "ver", "ver.", "v", "v.", "update", "upgrade", "release", "firmware", "build",
+        "patch", "rev", "rev.", "revision", "software",
+    )
+    private val DOTTED = Regex("^v?\\d{1,4}(\\.\\d{1,4})+\\.?$")
+    /** Opening hours and availability: a schedule, no event (review of stage 40, B3). */
+    private val HOURS = Regex(
+        "(?iu)(?<![\\p{L}])(?:öffnungszeit\\p{L}*|oeffnungszeit\\p{L}*|geöffnet|geoeffnet|sprechzeit\\p{L}*|sprechstunde\\p{L}*|" +
+            "servicezeit\\p{L}*|geschäftszeit\\p{L}*|geschaeftszeit\\p{L}*|erreichbar\\p{L}*|hotline|werktags|täglich|taeglich|" +
+            "rund um die uhr|opening hours|opening times|business hours|office hours|open daily|weekdays|daily|" +
+            "horario\\p{L}*|abierto|atención al cliente|atencion al cliente)(?![\\p{L}])"
+    )
+    private const val WEEKDAY = "(?:mo|di|mi|do|fr|sa|so|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|mon|tue|wed|thu|fri|sat|sun|" +
+        "monday|tuesday|wednesday|thursday|friday|saturday|sunday|lu|ma|ju|vi|lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo)"
+    /** A range of weekdays: "Montag bis Freitag", "Mo-Fr", "Mo.–Sa.", "Mon to Fri", "lunes a viernes". */
+    private val WEEKDAY_RANGE = Regex("(?iu)(?<![\\p{L}])$WEEKDAY\\.?\\s*(?:-|–|—|bis|to|until|through|a|al|hasta)\\s*$WEEKDAY\\.?(?![\\p{L}])")
     private val TIME_LEADS = setOf("um", "at", "gegen", "ab", "las", "around", "circa", "ca.", "hacia", "sobre")
     private val TIME_MARKS = setOf("uhr", "o'clock", "oclock", "am", "pm", "a.m.", "p.m.", "a.m", "p.m")
     private val TIME_WORDS = setOf("halb", "viertel", "dreiviertel", "half", "quarter", "mittag", "noon", "mediodía", "mediodia")
@@ -66,6 +88,7 @@ object ClipDates {
         val t = text.trim()
         if (t.isEmpty() || t.length > MAX_LENGTH || t.lines().size > MAX_LINES) return null
         val flat = SENTENCE_END.replace(GREETING.replace(t.replace(Regex("\\s+"), " "), " "), "$1").trim()
+        if (HOURS.containsMatchIn(flat) || WEEKDAY_RANGE.containsMatchIn(flat)) return null
         val raws = flat.split(' ').filter { it.isNotEmpty() }
         val keys = raws.map { keyOf(it) }
         if (keys.isEmpty()) return null
@@ -77,7 +100,17 @@ object ClipDates {
             val k = keys[i]
             val before = keys.getOrNull(i - 1)
             val after = keys.getOrNull(i + 1)
-            WITH_YEAR.matchEntire(k)?.let { if (validDayMonth(it.groupValues[1], it.groupValues[2])) { strong = true; hasYear = true } }
+            // "Version 1.2.30", "Update 03.12.": a version number, the text names no date
+            if (before in VERSION_WORDS && DOTTED.matches(k)) return null
+            WITH_YEAR.matchEntire(k)?.let {
+                val (day, month, year) = it.destructured
+                if (validDayMonth(day, month)) {
+                    // "8.3.28" is a version ("PHP 8.3.28") unless "am"/"vom"/"on"… comes before it; "08.03.28" is a date
+                    if (year.length == 2 && (day.length == 1 || month.length == 1) && before !in DATE_LEADS) return null
+                    strong = true
+                    hasYear = true
+                }
+            }
             DOT_NO_YEAR.matchEntire(k)?.let {
                 if (validDayMonth(it.groupValues[1], it.groupValues[2]) &&
                     ((it.groupValues[1].length == 2 && it.groupValues[2].length == 2) || before in DATE_LEADS)) strong = true

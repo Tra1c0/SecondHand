@@ -132,18 +132,19 @@ object ClipGuard {
     /** A code in a sentence: 4–8 digits, or 3+3 / 4+4 with one space or dash. */
     private val OTP_IN_TEXT = Regex("(?<![\\d+\\p{L}])(\\d{3}[ -]\\d{3}|\\d{4}[ -]\\d{4}|\\d{4,8})(?![\\d\\p{L}])")
 
-    private val POSTCODE_CITY = Regex("(?<![\\d\\p{L}])\\d{4,5}\\s+\\p{Lu}[\\p{L}\\-]+")
-    private val STREET_DE = Regex(
+    // internal: Smart Paste (stage 40) picks the street and the postcode out of an address with them
+    internal val POSTCODE_CITY = Regex("(?<![\\d\\p{L}])\\d{4,5}\\s+\\p{Lu}[\\p{L}\\-]+")
+    internal val STREET_DE = Regex(
         "(?i)(?<![\\p{L}])\\p{L}*(straße|strasse|str\\.|weg|gasse|platz|allee|ring|damm|ufer|steig|chaussee|" +
             "markt|graben|kai|zeile|promenade)\\s*\\d{1,4}\\s?[a-z]?(?![\\d\\p{L}])"
     )
-    private val STREET_ES = Regex(
+    internal val STREET_ES = Regex(
         "(?i)(?<![\\p{L}])(calle|c/|avenida|avda\\.?|plaza|pza\\.|paseo|carrer|camino|ronda|travesía)\\s*[\\p{L} .'\\-]{2,40}?,?\\s*(n[ºo°.]\\s*)?\\d{1,4}(?!\\d)"
     )
-    private val STREET_EN = Regex(
+    internal val STREET_EN = Regex(
         "(?i)(?<![\\d\\p{L}])\\d{1,5}\\s+[\\p{L} .'\\-]{2,40}?\\s(street|st\\.?|avenue|ave\\.?|road|rd\\.?|lane|ln\\.?|drive|dr\\.?|boulevard|blvd\\.?)(?![\\p{L}])"
     )
-    private val ZIP_EN = Regex("(?<!\\d)\\d{5}(?!\\d)|\\b[A-Z]{1,2}\\d[A-Z\\d]? \\d[A-Z]{2}\\b")
+    internal val ZIP_EN = Regex("(?<!\\d)\\d{5}(?!\\d)|\\b[A-Z]{1,2}\\d[A-Z\\d]? \\d[A-Z]{2}\\b")
 
     /**
      * Sorts [text]. [markedSensitive]: the copying app marked the clip (`EXTRA_IS_SENSITIVE`) or it

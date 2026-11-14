@@ -10,7 +10,9 @@ import dev.agentkeyboard.core.UrlDetector
  * (`mc_eid`, `mc_cid`, `_hsenc`, `_hsmi`, `mkt_tok`, `oly_anon_id`, `oly_enc_id`, `vero_id`),
  * Instagram (`igshid`, `igsh`), Google (`_gl`, `srsltid`) and, only on YouTube and Spotify, the share
  * id `si`. Everything else stays as written and in its order: path, other parameters (`v=`, `t=`,
- * `id=`, `q=`, `page=`), their encoding and the fragment. Nothing is added and nothing is opened.
+ * `id=`, `q=`, `page=`), their encoding, empty parts and the fragment. Parameters are split at `&`
+ * only; a part with a `;` in it stays whole (it may hold more than one parameter). Nothing is added
+ * and nothing is opened.
  */
 object LinkCleaner {
     /** Longer texts are left alone. */
@@ -84,10 +86,12 @@ object LinkCleaner {
         val hostNames = HOST_NAMES.entries.filter { (domain, _) -> host == domain || host.endsWith(".$domain") }.flatMap { it.value }.toSet()
         val kept = parts.filter { part ->
             val name = part.substringBefore('=').lowercase()
-            !(name.startsWith(PREFIX) || name in NAMES || name in hostNames)
+            // review of stage 40 (B6): some servers also split at ';' ("utm_source=x;id=2"), so such a part stays whole
+            ';' in part || !(name.startsWith(PREFIX) || name in NAMES || name in hostNames)
         }
         if (kept.size == parts.size) return null
-        val query = kept.filter { it.isNotEmpty() }.joinToString("&")
+        // the other parts stay as written, empty ones too ("id=1&&b=2"); only nothing at all drops the "?"
+        val query = if (kept.all { it.isEmpty() }) "" else kept.joinToString("&")
         return base + (if (query.isEmpty()) "" else "?$query") + fragment
     }
 

@@ -18,6 +18,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import dev.agentkeyboard.core.clip.PrivateRanges
 import dev.agentkeyboard.core.clip.SmartAction
 import helium314.keyboard.ShadowInputMethodManager2
 import helium314.keyboard.ShadowProximityInfo
@@ -120,19 +121,43 @@ class SmartPasteChipsTest {
 
     // --- the strip -------------------------------------------------------------------------------
 
-    /** A fake keyboard: records what a chip inserts, refuses while [canInsert] is false. */
+    /** A fake keyboard: records what a chip inserts (and whether as private text), refuses while [canInsert] is false. */
     private inner class Host(override var editorInfo: EditorInfo? = textField) : SmartPasteChips.StripHost {
         override val context: Context get() = latinIME
         val inserted = mutableListOf<String>()
+        val privately = mutableListOf<Boolean>()
         var canInsert = true
-        override fun insertPrivate(text: String): Boolean {
+        override fun insert(text: String, privateText: Boolean): Boolean {
             if (!canInsert) return false
             inserted += text
+            privately += privateText
             return true
         }
     }
 
-    private fun stripChips(text: String, host: Host = Host(), marked: Boolean = false, onInserted: () -> Unit = {}) =
+    /**
+     * A field with the private-text marks the keyboard keeps for it (agent-core [PrivateRanges], fed
+     * the way InputLogic feeds it: a private insertion adds a mark, any other insertion is reported as an edit).
+     */
+    private inner class MarkedField : SmartPasteChips.StripHost {
+        override val context: Context get() = latinIME
+        override val editorInfo: EditorInfo = textField
+        val text = StringBuilder()
+        val marks = PrivateRanges()
+        val editor = object : PrivateRanges.Editor {
+            override val cursor get() = text.length
+            override fun before(n: Int): CharSequence = text.substring(maxOf(0, text.length - n))
+            override fun after(n: Int): CharSequence = ""
+        }
+        fun type(value: String, privateText: Boolean) {
+            val start = text.length
+            text.append(value)
+            if (privateText) assertTrue(marks.add(start, value.length, editor)) else marks.edited(start, start, value.length, editor)
+        }
+        override fun insert(text: String, privateText: Boolean): Boolean { type(text, privateText); return true }
+    }
+
+    private fun stripChips(text: String, host: SmartPasteChips.StripHost = Host(), marked: Boolean = false, onInserted: () -> Unit = {}) =
         SmartPasteChips.stripChips(host, text, System.currentTimeMillis(), marked, onInserted)
 
     private fun labels(text: String) = stripChips(text).map { it.label.toString() }
@@ -195,16 +220,21 @@ class SmartPasteChipsTest {
             assertEquals(Intent.ACTION_VIEW, it.action)
             assertEquals("geo:0,0?q=Musterstra%C3%9Fe%2012%2C%2010115%20Berlin", it.dataString)
         }
+        // review of stage 40 (B1): the E.164 form from libphonenumber
         tap("+49 151 23456789").let {
             assertEquals(Intent.ACTION_DIAL, it.action) // the dialer: the user calls there, no CALL_PHONE
             assertEquals("tel", it.data?.scheme)
-            assertEquals("+49 151 23456789", it.data?.schemeSpecificPart)
+            assertEquals("+4915123456789", it.data?.schemeSpecificPart)
         }
         tap("+49 151 23456789", 1).let {
             assertEquals(ContactsContract.Intents.Insert.ACTION, it.action) // the contacts app saves, no WRITE_CONTACTS
             assertEquals(ContactsContract.RawContacts.CONTENT_TYPE, it.type)
-            assertEquals("+49 151 23456789", it.getStringExtra(ContactsContract.Intents.Insert.PHONE))
+            assertEquals("+4915123456789", it.getStringExtra(ContactsContract.Intents.Insert.PHONE))
         }
+        assertEquals("+493012345678", tap("(030) 12345678").data?.schemeSpecificPart)
+        // a bare digit run (a DHL piece code, an SAP order number) gets no call chip
+        for (text in listOf("340434161094", "4500012345", "3012345678", "9876543210", "15123456789", "30 12345678"))
+            assertTrue(labels(text).none { it == s(R.string.agent_smart_call) || it == s(R.string.agent_smart_contact) }, text)
         tap("max.mustermann@example.com").let {
             assertEquals(Intent.ACTION_SENDTO, it.action)
             assertEquals("mailto", it.data?.scheme)
@@ -250,6 +280,8 @@ class SmartPasteChipsTest {
         stripChips("https://shop.example.de/p?id=5&utm_source=newsletter", host).single().onTap()
         stripChips("Ihr Bestätigungscode: 482913. Gültig für 10 Minuten.", host).single().onTap()
         assertEquals(listOf("DE89 3704 0044 0532 0130 00", "https://shop.example.de/p?id=5", "482913"), host.inserted)
+        // review B2: the IBAN and the code as private text, the link like the pill
+        assertEquals(listOf(true, false, true), host.privately)
         // the hint inserts nothing
         stripChips("DE88370400440532013000", host).single().onTap()
         assertEquals(3, host.inserted.size)
@@ -264,6 +296,70 @@ class SmartPasteChipsTest {
         locked = true
         late.onTap()
         assertEquals(3, host.inserted.size)
+    }
+
+    @Test fun aTapThatDidNothingLeavesTheChipUsable() {
+        // review of stage 40 (B8): a refused insertion says so, and the same chip can be tapped again
+        val host = Host().apply { canInsert = false }
+        var dismissed = 0
+        val chip = stripChips("https://shop.example.de/p?id=5&utm_source=newsletter", host) { dismissed++ }.single()
+        chip.onTap()
+        assertEquals(s(R.string.agent_smart_insert_refused), org.robolectric.shadows.ShadowToast.getTextOfLatestToast())
+        assertTrue(host.inserted.isEmpty())
+        assertEquals(0, dismissed)
+        host.canInsert = true
+        chip.onTap()
+        chip.onTap()
+        assertEquals(listOf("https://shop.example.de/p?id=5"), host.inserted)
+        assertEquals(1, dismissed)
+        // blocked at the tap (locked by now), then unlocked: the same chip acts once
+        val late = stripChips("DE89370400440532013000", host).single()
+        locked = true
+        late.onTap()
+        locked = false
+        late.onTap()
+        late.onTap()
+        assertEquals(listOf("https://shop.example.de/p?id=5", "DE89 3704 0044 0532 0130 00"), host.inserted)
+        // a missing app: a toast, and the chip stays usable as well
+        SmartPasteChips.launcher = SearchCommand.Launcher { _, _ -> false }
+        val call = stripChips("+49 151 23456789", host)[0]
+        call.onTap()
+        SmartPasteChips.launcher = SearchCommand.Launcher { _, intent -> started += intent; true }
+        call.onTap()
+        call.onTap()
+        assertEquals(1, started.size)
+        // a card chip as well
+        add("Musterstraße 12, 10115 Berlin")
+        started.clear()
+        val map = cardChips(card("Musterstraße 12, 10115 Berlin")).first()
+        locked = true
+        map.performClick()
+        locked = false
+        map.performClick()
+        map.performClick()
+        assertEquals(listOf("geo"), started.map { it.data?.scheme })
+    }
+
+    @Test fun aVaultSecretKeepsItsPrivateMarkAfterThreeSmartPasteInserts() {
+        // review of stage 40 (B2): a field keeps three private-text marks; links without tracking take none of them
+        val field = MarkedField()
+        field.type("Geheim42x", privateText = true) // a secret picked from the vault (onPrivateTextInput)
+        field.type(" ", privateText = false)
+        for (n in 1..3) {
+            stripChips("https://shop.example.de/p?id=$n&utm_source=newsletter", field).single().onTap()
+            field.type(" ", privateText = false)
+        }
+        assertEquals("Geheim42x https://shop.example.de/p?id=1 https://shop.example.de/p?id=2 https://shop.example.de/p?id=3 ",
+            field.text.toString())
+        assertTrue(field.marks.touches(3, 3, field.editor), "the secret is still private text")
+        assertEquals(1, field.marks.size)
+        // the check is real: three private insertions (codes) do take the three marks, and the oldest goes
+        for (n in 1..3) {
+            stripChips("Dein Code lautet 12345$n", field).single().onTap()
+            field.type(" ", privateText = false)
+        }
+        assertEquals(PrivateRanges.MAX, field.marks.size)
+        assertFalse(field.marks.touches(3, 3, field.editor))
     }
 
     @Test fun nothingForSecretsOrInProtectedFields() {
@@ -355,7 +451,10 @@ class SmartPasteChipsTest {
             override fun onKeyUp(clipId: Long) {}
         })
         adapter.clipboardHistoryManager = historyManager
-        adapter.smartPaste = SmartPasteChips.History(latinIME, { editor }) { typed.onPrivateTextInput(it); true }
+        adapter.smartPaste = SmartPasteChips.History(latinIME, { editor }) { text, privateText ->
+            if (privateText) typed.onPrivateTextInput(text) else typed.onTextInput(text)
+            true
+        }
         val position = (0 until historyManager.getHistorySize()).first { historyManager.getHistoryEntry(it)?.text == text }
         val holder = adapter.onCreateViewHolder(list(), 0)
         adapter.onBindViewHolder(holder, position)
@@ -435,6 +534,58 @@ class SmartPasteChipsTest {
         view.stopClipboardHistory()
         assertNull(adapter.smartPaste)
         assertTrue(typed.texts.isEmpty() && typed.private.isEmpty())
+    }
+
+    @Test fun theOpenHistoryViewInsertsALinkLikeACardAndACodePrivately() {
+        // review of stage 40 (B2): through the real view; only the code takes a private-text mark
+        add("Ihr Bestätigungscode: 482913. Gültig für 10 Minuten.")
+        add("https://shop.example.de/p?id=5&utm_source=newsletter")
+        val container = LayoutInflater.from(latinIME).inflate(R.layout.strip_container, null) as ViewGroup
+        KeyboardSwitcher::class.java.getDeclaredField("mClipboardStripView").apply { isAccessible = true }
+            .set(KeyboardSwitcher.getInstance(), container.findViewById<LinearLayout>(R.id.clipboard_strip))
+        val view = LayoutInflater.from(latinIME).inflate(R.layout.clipboard_history_view, FrameLayout(latinIME), false) as ClipboardHistoryView
+        val typed = Typed()
+        view.keyboardActionListener = typed
+        val historyManager = historyManager()
+        view.startClipboardHistory(historyManager, null, textField, typed)
+        val adapter = view.findViewById<RecyclerView>(R.id.clipboard_list).adapter as ClipboardAdapter
+        fun chipOf(text: String): TextView {
+            val holder = adapter.onCreateViewHolder(view.findViewById(R.id.clipboard_list), 0)
+            adapter.onBindViewHolder(holder, (0 until historyManager.getHistorySize()).first { historyManager.getHistoryEntry(it)?.text == text })
+            return cardChips(holder.itemView).single()
+        }
+        chipOf("https://shop.example.de/p?id=5&utm_source=newsletter").performClick()
+        assertEquals(listOf<String?>("https://shop.example.de/p?id=5"), typed.texts)
+        assertTrue(typed.private.isEmpty())
+        chipOf("Ihr Bestätigungscode: 482913. Gültig für 10 Minuten.").performClick()
+        assertEquals(listOf<String?>("482913"), typed.private)
+        assertEquals(1, typed.texts.size)
+        view.stopClipboardHistory()
+    }
+
+    private fun legacyHash(salt: String, text: String): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        digest.update(salt.toByteArray(Charsets.UTF_8))
+        digest.update(0)
+        return digest.digest(text.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
+    }
+
+    @Test fun anOldPinnedEntryCopiedSensitiveGetsNoCardChips() {
+        // review of stage 40 (B4): pinned before stage 44 and recorded as sensitive by stage 24f, like @clip reads it
+        val prefs = AgentStorageContexts.keyboard(latinIME).getSharedPreferences(
+            helium314.keyboard.agent.commands.SensitiveClips.FILE, Context.MODE_PRIVATE)
+        try {
+            val salt = "0011223344556677"
+            prefs.edit().putString("salt", salt).putString("hashes", legacyHash(salt, "+49 151 23456789")).commit()
+            ClipboardDao.getInstance(latinIME)!!.addClip(System.currentTimeMillis(), true, "+49 151 23456789")
+            assertTrue(cardChips(card("+49 151 23456789")).isEmpty())
+            // the same pinned entry without the record: call and contact
+            prefs.edit().clear().commit()
+            assertEquals(listOf(s(R.string.agent_smart_call_short), s(R.string.agent_smart_contact_short)),
+                cardChips(card("+49 151 23456789")).map { it.text.toString() })
+        } finally {
+            prefs.edit().clear().commit()
+        }
     }
 
     @Test fun actionsShowNoClipTextInLogsOrNames() {

@@ -329,14 +329,20 @@
 - Neu: Smart Paste (anfangs an, Einstellungen → Leiste & Befehle → Zwischenablage & Bilder). Hast
   du etwas kopiert, stehen hinter der Zwischenablage-Pille (wenn „Zwischenablagen-Inhalt
   vorschlagen“ an ist) und auf den Karten der Zwischenablage-Ansicht passende Chips: Adresse → in
-  Karten öffnen oder als `@ort`-Ort speichern; Telefonnummer → Telefon-App mit der Nummer oder neuer
-  Kontakt; IBAN → in Viererblöcken einfügen, nur mit richtiger Prüfziffer (sonst ein Hinweis);
-  Sendungsnummer von DHL, Deutsche Post, Hermes, DPD, GLS oder UPS → Sendungsverfolgung; Datum oder
-  Uhrzeit → Termin-Entwurf im Kalender; E-Mail-Adresse → Mail schreiben; Link → ohne
-  Tracking-Anhängsel (`utm_…`, `fbclid`, `si` …) einfügen; kopierte SMS mit Code → nur den Code
-  einfügen. Nichts passiert von selbst, jeder Chip wirkt nur auf deinen Tipp. Nie für Geheimnisse,
-  nie in Passwortfeldern, im Inkognito-Modus oder bei gesperrtem Gerät. Lokal, ohne Netz, ohne neue
-  Berechtigung. Noch auf keinem Gerät ausprobiert.
+  Karten öffnen (gesucht wird nur mit Straße, PLZ und Ort) oder als `@ort`-Ort speichern (nicht,
+  wenn die Adresse mitten in einem Satz steht); Telefonnummer, die mit „+“, „00“ oder „0“ beginnt →
+  Telefon-App mit der Nummer oder neuer Kontakt (eine bloße Ziffernfolge wie eine Paket- oder
+  Bestellnummer bekommt keinen Anruf-Chip); IBAN → in Viererblöcken einfügen, nur mit richtiger
+  Prüfziffer (sonst ein Hinweis); Sendungsnummer von DHL, Deutsche Post, Hermes, DPD, GLS oder UPS
+  → Sendungsverfolgung (nichts direkt hinter „Kundennummer“, „Bestellung“ oder
+  „Rechnungsnummer“); Datum oder Uhrzeit → Termin-Entwurf im Kalender (nicht für Versionsnummern
+  wie „1.2.30“ oder „PHP 8.3.28“ und nicht für Öffnungszeiten); E-Mail-Adresse → Mail schreiben;
+  Link → ohne Tracking-Anhängsel (`utm_…`, `fbclid`, `si` …) einfügen; kopierte SMS mit Code → nur
+  den Code einfügen. Nichts passiert von selbst, jeder Chip wirkt nur auf deinen Tipp; tat ein Tipp
+  nichts, kannst du ihn wiederholen. Nie für Geheimnisse, nie in Passwortfeldern, im
+  Inkognito-Modus oder bei gesperrtem Gerät. Die Erkennung läuft lokal, die Tastatur sendet nichts;
+  „Sendung verfolgen“ öffnet die Seite des Paketdienstes im Browser. Keine neue Berechtigung. Noch
+  auf keinem Gerät ausprobiert.
 
 - Neu: Zeichen-Kunst. Emoji-Taste lange drücken → Stift „✎“: Statt der Tasten erscheint ein
   Fenster, das aus deiner Zeichnung, einem Foto oder Screenshot als Vorlage, dem Text aus dem Feld

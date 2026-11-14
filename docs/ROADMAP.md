@@ -128,8 +128,10 @@ Reihenfolge von oben nach unten.
   14 DPD/Hermes, 11–12 GLS) nur, wenn der Paketdienst im Text steht; Deutsche Post nur mit „DE“
   am Ende; ein Datum ohne Jahr, das mehr als 300 Tage voraus läge, gilt als gerade vergangen;
   `si` wird nur bei YouTube und Spotify entfernt; ein Code allein bekommt keinen Chip (die Pille
-  fügt ihn ein). Offen: Prüfer-Review, Gerätetest (Tracking-Seiten der sechs Dienste am Gerät,
-  Karten-, Telefon-, Kontakte-, Mail- und Kalender-App, TalkBack, Leiste mit langer Pille).
+  fügt ihn ein). Nach dem Prüfer-Review (Nachprüfung 40): Anruf-Chips nur mit „+“, „00“ oder „0“
+  am Anfang; nur Code und IBAN gehen als privater Text ein. Offen: erneute Prüfung der
+  Nachprüfung, Gerätetest (Tracking-Seiten der sechs Dienste am Gerät, Karten-, Telefon-,
+  Kontakte-, Mail- und Kalender-App, TalkBack, Leiste mit langer Pille).
 - **39 Text-Stile** — in 53 aufgegangen und mit 53 gebaut (siehe FEATURES.md → Zeichen-Kunst-Fenster):
   Unicode-Stile (Schreibschrift, fett, kursiv, Kapitälchen, Kreise, durchgestrichen, kopfüber …,
   kombinierbar) im Reiter Text, Hinweis auf Screenreader in der Vorschau. Noch offen aus dem
