@@ -161,6 +161,30 @@ Reihenfolge von oben nach unten.
   ähnliche Wörter. (b) Wörter werden nicht groß geschrieben, nur weil ein neues Wort beginnt;
   Ursache vor dem Bau eingrenzen (Groß-Korrektur durch die Autokorrektur, z. B. Substantiv aus dem
   Wörterbuch, oder Auto-Großschreibung an falscher Stelle). Engine-Änderung, Prüfer Pflicht. (M)
+- **49 Korrekturen merken über das ganze Feld (Regeln mit dem Owner festgelegt, 2026-11-14)** —
+  beschlossen, nach 48 (gleiche Engine-Stelle). Auch spätere Korrekturen zählen (nach weiteren
+  Wörtern, nach Backspace über Leerzeichen, nach einem gewählten Vorschlag), solange der Owner im
+  Feld ist. Tippfehler-Korrektur nur, wenn alles zutrifft: altes Wort kein echtes Wort (Wörterbuch
+  oder eigene Wörter), Änderung sieht nach Vertippen aus (Nachbartaste, Buchstabe fehlt/doppelt,
+  vertauscht, Umlaut; höchstens 2 Schritte, bei kurzen Wörtern 1), nur dieses Wort geändert, neues
+  Wort echt. Immer Überarbeitung, nie gelernt: echtes Wort → echtes Wort (auch „das“ → „dass“),
+  Markieren und Überschreiben, Einfügen, mehrere Wörter, kaum Ähnlichkeit. Erkannte Korrekturen
+  sind erst Kandidaten, gelernt ab dem zweiten Vorkommen an anderer Stelle. Zurückgenommene
+  Autokorrektur X→Y→X: ab dem ersten Mal „X nicht mehr zu Y korrigieren“. Wirkt nur auf künftige
+  Einzelwort-Korrekturen; nie in Passwortfeldern, Inkognito, bei verbotenem Lernen, gesperrt oder
+  pausiert. Kandidaten und Gelerntes auf „Was ich mir gemerkt habe“ (löschen, Kandidat übernehmen),
+  keine Rückfragen beim Tippen. (M–L)
+- **50 Dynamische Trefferzonen mit Szeneprofilen (Wunsch des Owners vom 2026-11-14)** —
+  beschlossen. Baut auf 22a/22b (`TouchModel`: Mittelwert je Taste, ab 15 Treffern, höchstens ein
+  Drittel Taste, Lernen aus abgeschickten Wörtern). Drei Schichten: Basis (Kalibrierung plus
+  Langzeit, bleibt wie kalibriert), Kurzzeit (passt sich innerhalb weniger Dutzend Tipps an,
+  verblasst nach einer Pause oder beim Feldwechsel), Szeneprofile (Zusammenfassungen von
+  Abweichungen mit Merkmalen wie Tageszeit, Tempo, Streuung, Korrekturrate; nie Text, nie Ort).
+  Ähnelt eine neue Sitzung einer Szene, startet die Kurzzeitschicht dort. Basis ändert sich nur,
+  wenn dieselbe Abweichung regelmäßig auftritt (mehrere Sitzungen an verschiedenen Tagen und nicht
+  nur in einer Szene), gedämpft und begrenzt; vorheriger Stand wiederherstellbar. Szenen auf der
+  Seite Trefferzonen sichtbar und löschbar. Engine-Änderung (`KeyDetector`-Hook), Prüfer Pflicht.
+  (L)
 - **47 KI-Kontext im Hintergrund — verworfen (Owner, 2026-11-14):** „Dann lassen wir das.“ Alles
   lokal; die Tastatur lernt selbst dazu (45, 46).
 - **Verworfen (Owner, 2026-11-14):** Mail-Anbindung (Gmail/IMAP) und Codes aus Benachrichtigungen.
