@@ -4450,6 +4450,41 @@ class InputLogicTest {
         kotlin.test.assertNull(chips())
     }
 
+    @Test fun aPrivateTextIsNeverComposedShownOrLearned() {
+        // review of stages 44/45 (B4): a vault secret inserted at the cursor, then space and the next words
+        fun noSecretInStrip() = assertFalse(inputLogic.mSuggestedWords.mSuggestedWordInfoList.any { it.mWord.contains("Geheim") },
+            inputLogic.mSuggestedWords.toString())
+        chainInput("hallo ")
+        assertEquals("hallo", lastAddedWord) // learning is on in this test
+        setText("")
+        lastAddedWord = ""
+        latinIME.onPrivateTextInput("Geheim42x")
+        handleMessages()
+        assertEquals("Geheim42x", text)
+        assertEquals("", composingText)
+        noSecretInStrip()
+        chainInput(" ")
+        assertEquals("", lastAddedWord)
+        chainInput("und ")
+        assertEquals("", lastAddedWord) // also not the word right after it (its n-gram context)
+        assertEquals("Geheim42x und ", text)
+        // a backspace into it does not make it the composing word either
+        setText("")
+        latinIME.onPrivateTextInput("Geheim42x")
+        handleMessages()
+        functionalKeyPress(KeyCode.DELETE)
+        assertEquals("Geheim42", text)
+        assertEquals("", composingText)
+        noSecretInStrip()
+        chainInput(" ")
+        assertEquals("", lastAddedWord)
+        // an ordinary insertion is still composed again (the upstream behaviour is unchanged)
+        setText("")
+        latinIME.onTextInput("Rechnung")
+        handleMessages()
+        assertEquals("Rechnung", composingText)
+    }
+
     @Test fun fieldSuggestionChipInsertsOnlyOnATapAndOnce() {
         // stage 45 with the real host: the empty field takes the entry at the cursor, cue words get it after them
         val defaultData = helium314.keyboard.agent.FieldSuggestionChips.myData

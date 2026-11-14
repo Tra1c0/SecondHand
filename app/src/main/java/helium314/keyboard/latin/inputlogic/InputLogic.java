@@ -127,7 +127,47 @@ public final class InputLogic {
     public boolean acceptsTailBatchResult(long generation) { return mInputLogicHandler.acceptsTail(generation); }
     public void completeTailBatchResult(long generation) { mInputLogicHandler.completeTail(generation); }
     public boolean isAgentHistorySuppressed() { return mAgentHistorySuppressed; }
-    public void onFreshEditorSession() { mAgentHistorySuppressed = false; }
+    public void onFreshEditorSession() { mAgentHistorySuppressed = false; mPrivateText = null; }
+
+    // fork, review of stages 44/45 (B4): a vault secret, code or "Meine Daten" value the user
+    // inserted, and where it starts; it never becomes the composing word and is never learned
+    private String mPrivateText;
+    private int mPrivateStart = -1;
+    /** Learning stays off while the cursor is at most this many characters after the private text (the next words' n-gram context). */
+    private static final int PRIVATE_LEARNING_DISTANCE = 64;
+
+    /** Remembers [text], which the user just inserted and which ends at the cursor, as private. */
+    public void markPrivateText(final String text) {
+        final int cursor = mConnection.getExpectedSelectionStart();
+        if (TextUtils.isEmpty(text) || cursor < text.length() || mConnection.hasSelection()) { mPrivateText = null; return; }
+        final CharSequence before = mConnection.getTextBeforeCursor(text.length(), 0);
+        if (before == null || !TextUtils.equals(before, text)) { mPrivateText = null; return; }
+        mPrivateText = text;
+        mPrivateStart = cursor - text.length();
+    }
+
+    /**
+     * True while the cursor is in the private text (or at its start) or at most [after] characters
+     * behind it, and the editor still shows it there (also with characters deleted from its end).
+     */
+    private boolean nearPrivateText(final int after) {
+        final String text = mPrivateText;
+        if (text == null) return false;
+        final int cursor = mConnection.getExpectedSelectionStart();
+        final int distance = cursor - mPrivateStart;
+        if (cursor < 0 || distance < 0 || distance > text.length() + after) return false;
+        if (distance == 0) {
+            final CharSequence following = mConnection.getTextAfterCursor(Math.min(text.length(), 48), 0);
+            return following != null && following.length() > 0 && text.startsWith(following.toString());
+        }
+        final CharSequence before = mConnection.getTextBeforeCursor(distance, 0);
+        if (before == null || before.length() != distance) return false;
+        final String shown = before.toString();
+        final int shared = Math.min(shown.length(), text.length());
+        if (shown.regionMatches(0, text, 0, shared)) return true;
+        mPrivateText = null; // changed by now: forget it
+        return false;
+    }
     public boolean refreshAgentEditorCaches(final int start, final int end) {
         resetComposingState(true);
         return mConnection.resetCachesUponCursorMoveAndReturnSuccess(start, end, false);
@@ -1840,6 +1880,8 @@ public final class InputLogic {
     private void performAdditionToUserHistoryDictionary(final SettingsValues settingsValues,
             final String suggestion, @NonNull final NgramContext ngramContext) {
         if (mAgentHistorySuppressed) return;
+        // fork (B4): neither the private text nor a word right after it (its n-gram context) is learned
+        if (nearPrivateText(PRIVATE_LEARNING_DISTANCE)) return;
         // a typed command (e.g. "@math") is no word of the user's
         if (helium314.keyboard.agent.KeyboardCommands.isCommandWord(suggestion)
                 || helium314.keyboard.agent.KeyboardCommands.guardsTextBefore(
@@ -1974,7 +2016,9 @@ public final class InputLogic {
                 // If the cursor is not touching a word, or if there is a selection, return right away.
                 || mConnection.hasSelection()
                 // If we don't know the cursor location, return.
-                || mConnection.getExpectedSelectionStart() < 0) {
+                || mConnection.getExpectedSelectionStart() < 0
+                // fork (B4): a private text the user inserted never becomes the composing word
+                || nearPrivateText(0)) {
             mSuggestionStripViewAccessor.setNeutralSuggestionStrip();
             return;
         }

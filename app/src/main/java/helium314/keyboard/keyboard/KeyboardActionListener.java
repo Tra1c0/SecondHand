@@ -73,6 +73,9 @@ public interface KeyboardActionListener {
      */
     void onTextInput(String text);
 
+    /** Fork (review of stages 44/45): a vault secret or code the user picked; never composed or learned. */
+    default void onPrivateTextInput(String text) { onTextInput(text); }
+
     /** sends content (URI and description) */
     void onContent(InputContentInfoCompat content);
 

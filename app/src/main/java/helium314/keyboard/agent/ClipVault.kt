@@ -72,6 +72,8 @@ object ClipVault {
     private val items = ArrayList<Item>()
     /** Copy times of secrets already pasted from the vault, so that re-reading the same clip does not bring them back. */
     private val used = LinkedHashSet<Long>()
+    /** Copy times of clips sorted as secrets (kept or not), so that [freshest] never offers them from the live clip. */
+    private val secretStamps = LinkedHashSet<Long>()
     private var nextId = 1L
     private val handler by lazy { Handler(Looper.getMainLooper()) }
     private val expire = Runnable { if (prune()) onChange?.invoke() ; schedule() }
@@ -95,6 +97,10 @@ object ClipVault {
     fun offer(text: String, markedSensitive: Boolean, copiedAt: Long, region: String, allowed: Boolean): ClipClass {
         val result = ClipGuard.classify(text, markedSensitive, region)
         prune()
+        if (result.kind == ClipKind.SECRET) {
+            secretStamps.add(copiedAt)
+            while (secretStamps.size > MAX_ITEMS) secretStamps.remove(secretStamps.first())
+        }
         if (!allowed || text.isBlank()) return result
         val now = clock()
         if (now - copiedAt >= lifetime(result.kind)) return result // e.g. the old clip read again when the keyboard starts
@@ -144,9 +150,23 @@ object ClipVault {
         }
         val (text, copiedAt, marked) = runCatching { currentClip?.invoke() }.getOrNull() ?: return null
         if (now - copiedAt > maxAgeMillis) return null
-        val result = ClipGuard.classify(text, marked)
+        // the live clip has only the app's mark: a clip copied in a password field, or one the vault
+        // sorted as secret (kept, pasted or not), is never offered (review of stage 44, B1)
+        if (isSecretClip(text, copiedAt, marked)) return null
+        val result = ClipGuard.classify(text, false)
         if (result.kind != kind) return null
         return Fresh(kind, if (kind == ClipKind.OTP) result.code ?: text else text, now - copiedAt)
+    }
+
+    /**
+     * Whether the clip [text] copied at [copiedAt] is a secret: marked by the app ([marked]), copied
+     * in a password field ([helium314.keyboard.agent.commands.SensitiveClips]), sorted as secret by
+     * [offer] before, or a secret by its content. For the live clip (field suggestions, strip chip).
+     */
+    fun isSecretClip(text: String, copiedAt: Long, marked: Boolean): Boolean {
+        if (marked || helium314.keyboard.agent.commands.SensitiveClips.isSensitive(text)) return true
+        if (synchronized(this) { copiedAt in secretStamps }) return true
+        return ClipGuard.classify(text).kind == ClipKind.SECRET
     }
 
     /**
@@ -187,6 +207,7 @@ object ClipVault {
     @Synchronized fun clear() {
         items.clear()
         used.clear()
+        secretStamps.clear()
         handler.removeCallbacks(expire)
     }
 

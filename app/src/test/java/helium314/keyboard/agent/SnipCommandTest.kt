@@ -354,7 +354,7 @@ class SnipCommandTest {
         Settings.getInstance().loadSettings(latinIME, Settings.getValues().mLocale, helium314.keyboard.latin.InputAttributes(editor, false, latinIME.packageName))
         assertEquals("öffentlich", (read() as SnipCommand.ClipRead.Text).text)
         // copied as sensitive earlier (password field or marked): never inserted
-        SensitiveClips.remember(latinIME, "öffentlich")
+        SensitiveClips.remember("öffentlich")
         assertEquals(SnipCommand.ClipRead.Missing(SnipCommand.ClipRead.Reason.SENSITIVE), read())
         SensitiveClips.clear(latinIME)
         // marked sensitive by the copying app

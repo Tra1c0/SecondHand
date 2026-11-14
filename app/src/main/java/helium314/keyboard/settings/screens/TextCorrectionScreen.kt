@@ -215,6 +215,8 @@ fun createCorrectionSettings(context: Context) = listOf(
                     prefs.edit { putBoolean(setting.key, false) }
                     // fork (stage 36 review N4): learned data also means the personal symbol templates
                     helium314.keyboard.agent.SymbolDrawing.clearPersonalSymbols(context)
+                    // fork (review of stage 45, B11): and the weights of the context suggestions
+                    helium314.keyboard.agent.ContextLearning.clear(context)
                 },
                 content = { Text(stringResource(R.string.disable_personalized_dicts_message)) }
             )

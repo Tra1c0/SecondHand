@@ -55,9 +55,14 @@
   einmal ein, dann sind sie weg und die System-Zwischenablage wird geleert, spätestens nach
   2 Minuten verschwinden sie. Einmalcodes (auch aus kopierten SMS wie „Dein Code lautet 123456“)
   stehen 10 Minuten unter „Einmalcodes“, ein Tipp fügt nur die Ziffern ein. IBAN, Telefon, E-Mail
-  und Adresse bekommen im Verlauf eine Beschriftung. Ältere Passwörter und Codes im Verlauf
-  verschwinden beim nächsten Öffnen (angeheftete bleiben, verdeckt). Nicht in Passwortfeldern,
-  im Inkognito-Modus oder bei gesperrtem Gerät. Alles lokal. Noch auf keinem Gerät ausprobiert.
+  und Adresse bekommen im Verlauf eine Beschriftung. Eine kopierte Nachricht mit Code bleibt als
+  Text im Verlauf, ein Code allein nicht; Wörter wie „noch einmal“ oder „Barcode“ machen aus einer
+  Zahl keinen Code mehr. „Das WLAN-Passwort ist …“ gilt als Geheimnis. Ältere Passwörter im
+  Verlauf verschwinden beim Start der Tastatur (angeheftete bleiben, verdeckt), gelöschte Einträge
+  werden in der Datenbank überschrieben. Was du in einem Passwortfeld kopierst, wird nirgends
+  vorgeschlagen; eingefügte Geheimnisse und Codes werden nie gelernt. Die Tastatur speichert keine
+  Hashes vertraulicher Clips mehr auf dem Gerät. Nicht in Passwortfeldern, im Inkognito-Modus oder
+  bei gesperrtem Gerät. Alles lokal. Noch auf keinem Gerät ausprobiert.
 - Neu: Feld- und Kontext-Vorschläge. Die Leiste schlägt vor, was zum Feld passt, und erst dein
   Tipp fügt es ein: im E-Mail-Feld deine Adresse oder eine gerade kopierte, im Code-Feld den frisch
   kopierten Einmalcode (nur die Ziffern), in Telefon- und IBAN-Feldern deinen Eintrag oder einen
@@ -66,8 +71,10 @@
   Deine eigenen Daten trägst du unter Einstellungen → Leiste & Befehle → „Meine Daten &
   Vorschläge“ ein (freiwillig, anfangs leer, verschlüsselt nur auf dem Gerät); dort schaltest du
   die Vorschläge auch ab. Mit eingeschaltetem Lernen merkt sich die Tastatur, welche Vorschläge du
-  nimmst, nur als Zahlen ohne Text. Nie in Passwortfeldern, im Inkognito-Modus oder bei gesperrtem
-  Gerät, nie Geheimnisse aus dem Tresor. Alles lokal. Noch auf keinem Gerät ausprobiert.
+  nimmst, nur als Zahlen ohne Text (gelöscht auch beim Ausschalten von „Personalisierte
+  Vorschläge“). Eingefügte Werte und was du auf der Seite „Meine Daten“ tippst, lernt die Tastatur
+  nicht. Nie in Passwortfeldern, im Inkognito-Modus oder bei gesperrtem Gerät, nie Geheimnisse aus
+  dem Tresor. Alles lokal. Noch auf keinem Gerät ausprobiert.
 
 - Neu: Textbausteine 2.0. In `@snip`-Bausteinen gehen jetzt Platzhalter: `{datum}`,
   `{datum+2t}`, `{uhrzeit}`, `{wochentag}`, `{zwischenablage}`, Ausfüllfelder `{?Name}` (die

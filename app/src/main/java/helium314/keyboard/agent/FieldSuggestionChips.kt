@@ -222,13 +222,26 @@ object FieldSuggestionChips {
      * after a colon.
      */
     private fun insert(host: KeyboardCommands.Host, before: String, typed: String, value: String): Boolean {
-        if (typed.isEmpty() && before.isEmpty()) return host.insertAtCursor(value)
-        if (typed.isNotEmpty()) return host.replace(call(host.context, typed), value)
-        var anchor = before.takeLast(ANCHOR)
-        if (anchor.isNotEmpty() && Character.isLowSurrogate(anchor[0])) anchor = anchor.drop(1)
-        if (anchor.isEmpty()) return false
-        val separator = if (anchor.last().isWhitespace()) "" else " "
-        return host.replace(call(host.context, anchor), anchor + separator + value)
+        // at tap time again (review B12): the field may be blocked by now (locked, incognito, password)
+        if (isBlocked(host.context, Settings.getValues(), host.editorInfo)) return false
+        val done = when {
+            typed.isEmpty() && before.isEmpty() -> {
+                // still an empty field: nothing before or after the cursor
+                if (host.textAfterCursor(1)?.isNotEmpty() == true || host.textBeforeCursor(1)?.isNotEmpty() == true) return false
+                return host.insertAtCursor(value) // inserted as private text by the host
+            }
+            typed.isNotEmpty() -> host.replace(call(host.context, typed), value)
+            else -> {
+                var anchor = before.takeLast(ANCHOR)
+                if (anchor.isNotEmpty() && Character.isLowSurrogate(anchor[0])) anchor = anchor.drop(1)
+                if (anchor.isEmpty()) return false
+                val separator = if (anchor.last().isWhitespace()) "" else " "
+                host.replace(call(host.context, anchor), anchor + separator + value)
+            }
+        }
+        // the value is the owner's data or a fresh clip: never composed or learned (review B4)
+        if (done) host.markPrivate(value)
+        return done
     }
 
     private fun call(context: Context, text: String) =

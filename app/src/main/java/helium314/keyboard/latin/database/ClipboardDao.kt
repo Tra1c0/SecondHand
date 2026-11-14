@@ -183,8 +183,34 @@ class ClipboardDao private constructor(private val db: Database) {
     private fun delete(entries: List<ClipboardHistoryEntry>) = synchronized(this) {
         if (entries.isEmpty()) return@synchronized
         cache.removeAll(entries)
-        db.writableDatabase.delete(TABLE, "$COLUMN_ID IN (${entries.joinToString(",") { it.id.toString() }})", null)
+        deleteRows("$COLUMN_ID IN (${entries.joinToString(",") { it.id.toString() }})")
         entries.forEach { if (it.filename != null) File(clipFilesDir, it.filename).delete() }
+    }
+
+    /**
+     * Fork, review of stages 44/45 (B8): a deleted clip may hold a secret. SQLite overwrites the
+     * freed content with zeros (`secure_delete`, set on the writing connection inside the
+     * transaction, it stays on for that connection) and the write-ahead log is truncated afterwards,
+     * so the text stays neither in free pages nor in the journal.
+     */
+    private fun deleteRows(where: String?) {
+        val writable = db.writableDatabase
+        writable.beginTransaction()
+        try {
+            runCatching { writable.rawQuery("PRAGMA secure_delete = ON", null).use { it.moveToFirst() } }
+            writable.delete(TABLE, where, null)
+            writable.setTransactionSuccessful()
+        } finally {
+            writable.endTransaction()
+        }
+        runCatching { writable.rawQuery("PRAGMA wal_checkpoint(TRUNCATE)", null).use { it.moveToFirst() } }
+    }
+
+    /** Fork (B8): rewrites the database file once, so that rows deleted before `secure_delete` leave no trace. */
+    fun compactInBackground() {
+        Thread {
+            synchronized(this) { runCatching { db.writableDatabase.execSQL("VACUUM") } }
+        }.start()
     }
 
     fun clearOldClips(now: Boolean = false) {
@@ -217,7 +243,7 @@ class ClipboardDao private constructor(private val db: Database) {
         if (count() == 0) return
         cache.clear()
         listener?.onClipsRemoved(0, count())
-        db.writableDatabase.delete(TABLE, null, null)
+        deleteRows(null)
     }
 
     fun cleanupFiles(prefs: SharedPreferences) {

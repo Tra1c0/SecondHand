@@ -150,10 +150,67 @@ class ClipGuardTest {
         assertEquals(ClipKind.TEXT, kind("Ruf mich an: +49 151 23456789, Code folgt"))
         assertEquals(ClipKind.TEXT, kind("Der Preis beträgt 1299,00 € inkl. Versand"))
         assertEquals(ClipKind.TEXT, kind("Ich habe 1234 Fotos und 5678 Videos"))
-        assertEquals(ClipKind.TEXT, kind("Das WLAN-Passwort lautet Sommer2024"))
         assertEquals(ClipKind.TEXT, kind("Die Spinne lief 1234 Meter weit"))
         val long = "Code 123456 " + "bla ".repeat(80)
         assertEquals(ClipKind.TEXT, kind(long))
+    }
+
+    @Test fun codeWordsCountOnlyAsWholeWords() {
+        // review of stage 44 (B2): substrings of ordinary words announced a code before
+        for (text in listOf(
+            "Kannst du noch einmal die Rechnung 2023114 prüfen?",
+            "Bestätigung Ihrer Bestellung 12345678",
+            "Barcode 40071234",
+            "Der QR-Code 12345678 hängt an der Tür",
+            "Promo-Code 2024 gilt bis Freitag",
+            "Verifizierung der Kundennummer 5551234 läuft",
+            "Spinnenclave 4821", "Encode 123456 as base64",
+        )) assertEquals(ClipKind.TEXT, kind(text), text)
+        // compounds that do announce a code
+        assertEquals("482913", code("Ihr Sicherheitscode 482913"))
+        assertEquals("482913", code("Dein SMS-Code: 482913"))
+        assertEquals("903172", code("Dein WhatsApp-Code: 903-172"))
+        assertEquals("4711", code("Einmal-PIN 4711, gültig 5 Minuten"))
+        assertEquals("552190", code("Your one-time password is 552190"))
+    }
+
+    @Test fun aCodeInAMessageStaysInTheHistoryABareCodeDoesNot() {
+        val inText = ClipGuard.classify("Dein Code lautet 123456")
+        assertTrue(inText.inText)
+        assertFalse(inText.keepsOutOfHistory)
+        assertFalse(ClipGuard.classify("123456").inText)
+        assertTrue(ClipGuard.classify("123456").keepsOutOfHistory)
+        assertTrue(ClipGuard.classify("P@ssw0rd!").keepsOutOfHistory)
+        assertFalse(ClipGuard.classify("Hallo").keepsOutOfHistory)
+        assertFalse(inText.toString().contains("123456"))
+    }
+
+    @Test fun aPasswordWordWithItsValueIsASecret() {
+        // review of stage 44 (B6): masked secret instead of a code in plain text
+        for (text in listOf(
+            "Das WLAN-Passwort ist 84736291", "Das WLAN-Passwort lautet Sommer2024", "Passwort: Sommerwiese",
+            "password=hunter2x", "Mi contraseña es gato_77", "Kennwort lautet Xk9#mP2q.",
+        )) assertEquals(SecretReason.PASSWORD, reason(text), text)
+        assertEquals(ClipGuard.HIDDEN, ClipGuard.mask("Das WLAN-Passwort ist 84736291"))
+        for (text in listOf(
+            "Das Passwort ist falsch", "Ich habe mein Passwort vergessen", "Das Passwort ist 12 Zeichen lang",
+            "Passwort ist mindestens acht Zeichen lang",
+        )) assertEquals(ClipKind.TEXT, kind(text), text)
+    }
+
+    @Test fun moreKeyFormatsAndIdentifiersThatAreNone() {
+        // review of stage 44 (B9)
+        val telegram = "123456789" + ":" + "AAHx" + "dqTcvCH1vGWJxfSeofSAs0K5PALDsaw"
+        assertEquals(SecretReason.API_KEY, reason(telegram))
+        assertEquals(ClipKind.SECRET, kind("TOKEN=$telegram"))
+        val bearer = "Authorization: Bearer " + "abc123DEF456ghi789JKL0mn"
+        assertEquals(SecretReason.API_KEY, reason(bearer))
+        assertEquals(ClipKind.TEXT, kind("Bearer tokens are explained in the docs"))
+        for (text in listOf("B2B-Shop", "camelCase2_x", "Win11-Pro", "iPhone15-Pro", "Q3_2024-report"))
+            assertTrue(kind(text) != ClipKind.SECRET, text)
+        // the password positives stay
+        assertEquals(SecretReason.PASSWORD, reason("Tr0ub4dor&3"))
+        assertEquals(SecretReason.PASSWORD, reason("x7#Kq9!mZ"))
     }
 
     // --- personal data -----------------------------------------------------------------------
