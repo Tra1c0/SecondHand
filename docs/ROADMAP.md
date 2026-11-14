@@ -170,8 +170,10 @@ Reihenfolge von oben nach unten.
   „echtes Wort“ heißt jedes aktive Wörterbuch einschließlich persönlichem Wörterbuch, Kontakten und
   Lernverlauf (mit Deutsch und Englisch gilt „fur“ als echt); ein zusätzlicher Buchstabe zählt nur
   als Vertipper, wenn er einen Nachbarbuchstaben verdoppelt („Haaus“, nicht „Hasus“); „andere
-  Stelle“ = anderes Feld oder andere Position; der Vergleich reicht je 2000 Zeichen um die
-  Schreibmarke. Seite „Was ich mir gemerkt habe“ ist für 46 vorbereitet (Abschnitte). Offen:
+  Stelle“ = anderes Feld oder andere Position (ein vom Messenger geleertes Feld beginnt neu);
+  der Vergleich reicht 1024 Zeichen vor und 300 nach der Schreibmarke; es zählt nur ein Wort, das
+  eigene Eingabe (Tasten, Löschtaste, Vorschlag) berührt hat, keine Vervollständigung; in langsamen
+  Apps nichts (Nachprüfung 49). Seite „Was ich mir gemerkt habe“ ist für 46 vorbereitet (Abschnitte). Offen:
   Prüfer-Review (Engine-Änderung, Pflicht) und Gerätetest. (M–L)
 - **50 Dynamische Trefferzonen mit Szeneprofilen (Wunsch des Owners vom 2026-11-14)** —
   beschlossen. Baut auf 22a/22b (`TouchModel`: Mittelwert je Taste, ab 15 Treffern, höchstens ein

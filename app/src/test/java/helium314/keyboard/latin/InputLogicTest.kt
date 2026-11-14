@@ -1017,6 +1017,116 @@ class InputLogicTest {
         }
     }
 
+    /** The app itself replaces the field with [newText] and the cursor at [cursorAt], no keyboard input involved. */
+    private fun appChangesText(newText: String, cursorAt: Int = newText.length) {
+        val oldStart = selectionStart
+        val oldEnd = selectionEnd
+        ShadowInputMethodService.text = newText
+        selectionStart = cursorAt
+        selectionEnd = cursorAt
+        composingStart = -1
+        composingEnd = -1
+        latinIME.onUpdateSelection(oldStart, oldEnd, cursorAt, cursorAt, -1, -1)
+        handleMessages()
+    }
+
+    // stage 49 review M1
+    @Test fun `stage 49 a reference is never taken inside a composing word`() = withRealWords("ein", "Bahnhof") {
+        chainInput("ein Bahnhpf")
+        setCursorPosition(9) // tapped into the composing word: no reference with the half-typed word
+        setCursorPosition(11)
+        repeat(2) { functionalKeyPress(KeyCode.DELETE) }
+        chainInput("of ")
+        assertEquals("ein Bahnhof ", text)
+        assertEquals(emptyList(), fieldEntries())
+    }
+
+    @Test fun `stage 49 finishing a word later is a completion, not a typo`() = withRealWords("ein", "Bahnhof", "und", "Haus") {
+        chainInput("ein Bahnho und ")
+        setCursorPosition(10)
+        input('f')
+        setCursorPosition(text.length)
+        assertEquals("ein Bahnhof und ", text)
+        setText("")
+        chainInput("ein Hau und ")
+        setCursorPosition(7)
+        input('s')
+        setCursorPosition(text.length)
+        assertEquals("ein Haus und ", text)
+        assertEquals(emptyList(), fieldEntries())
+    }
+
+    @Test fun `stage 49 the keyboard's own automatic correction is no correction of the user`() = withRealWords("ein", "Haus") {
+        setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT) // autocorrect needs the flag
+        appChangesText("ein Hsus") // a draft the app restored
+        setCursorPosition(6) // reference with "Hsus", the word is resumed
+        setCursorPosition(8)
+        getAutocorrectedWithSpaceAfter("Haus", "Hsus")
+        assertEquals("ein Haus ", text)
+        assertEquals(emptyList(), fieldEntries())
+    }
+
+    // stage 49 review M2
+    @Test fun `stage 49 a slow connection reads nothing and learns nothing`() = withRealWords("ein", "Haus", "und") {
+        val slow = RichInputConnection::class.java.getDeclaredField("mLastSlowInputConnectionTime").apply { isAccessible = true }
+        chainInput("ein Hsus und ")
+        // slow until the end of this step: each fast call of the connection shortens the slow state by 5 min
+        slow.setLong(connection, android.os.SystemClock.uptimeMillis() + java.util.concurrent.TimeUnit.DAYS.toMillis(1))
+        assertTrue(connection.hasSlowInputConnection())
+        replaceLetter(5, 'a')
+        setCursorPosition(text.length)
+        assertEquals("ein Haus und ", text)
+        assertTrue(connection.hasSlowInputConnection())
+        assertEquals(emptyList(), fieldEntries())
+        // fast again: the next fix counts
+        slow.setLong(connection, -java.util.concurrent.TimeUnit.MINUTES.toMillis(10))
+        setCursorPosition(text.length)
+        chainInput("Hsus ")
+        replaceLetter(14, 'a')
+        setCursorPosition(text.length)
+        assertEquals("ein Haus und Haus ", text)
+        assertEquals(listOf(Triple("hsus", "Haus", false)), fieldEntries())
+    }
+
+    // stage 49 review N1
+    @Test fun `stage 49 changes made by the app or by undo are not the user's corrections`() = withRealWords("Max", "und", "dann", "ein", "Haus") {
+        chainInput("Mx und dann ")
+        setCursorPosition(3)
+        setCursorPosition(text.length) // reference "Mx und dann "
+        appChangesText("Max und dann ") // the app's own autocorrect or autofill
+        chainInput("mehr ")
+        setCursorPosition(text.length)
+        assertEquals("Max und dann mehr ", text)
+        assertEquals(emptyList(), fieldEntries())
+        // undo: the app restores or changes text, the reference is dropped
+        setText("")
+        chainInput("ein Hsus und ")
+        replaceLetter(5, 'a')
+        functionalKeyPress(KeyCode.UNDO)
+        setCursorPosition(text.length)
+        assertEquals(emptyList(), fieldEntries())
+        // the same fix without undo counts
+        setText("")
+        chainInput("ein Hsus und ")
+        replaceLetter(5, 'a')
+        setCursorPosition(text.length)
+        assertEquals(listOf(Triple("hsus", "Haus", false)), fieldEntries())
+    }
+
+    // stage 49 review N3
+    @Test fun `stage 49 a field emptied by the app starts a new message`() = withRealWords("ein", "Haus") {
+        chainInput("ein Hsus ")
+        replaceLetter(5, 'a')
+        setCursorPosition(text.length)
+        assertEquals(listOf(Triple("hsus", "Haus", false)), fieldEntries())
+        appChangesText("") // sent: the messenger empties the field, no new field starts
+        chainInput("ein Hsus ")
+        replaceLetter(5, 'a')
+        setCursorPosition(text.length)
+        assertEquals("ein Haus ", text)
+        assertEquals(listOf(Triple("hsus", "Haus", true)), fieldEntries(), "the same position in the next message is another place")
+    }
+
     private var suggestionThread = false
 
     /**

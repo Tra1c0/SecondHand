@@ -128,4 +128,33 @@ class FieldCorrectionMemoryTest {
         compose.onAllNodesWithText("Noch keine").assertCountEquals(2)
         assertNull(TypoMemory.meantWord(app, "hsus", null, false))
     }
+
+    private fun keyboard(element: helium314.keyboard.keyboard.KeyboardElement, locale: Locale, layout: String): helium314.keyboard.keyboard.Keyboard {
+        val params = helium314.keyboard.keyboard.KeyboardLayoutSet.Params()
+        params.editorInfo = EditorInfo()
+        params.subtype = helium314.keyboard.latin.RichInputMethodSubtype.get(
+            helium314.keyboard.latin.utils.SubtypeUtilsAdditional.createEmojiCapableAdditionalSubtype(locale, layout, true))
+        params.keyboardWidth = 1080
+        params.keyboardHeight = 700
+        params.settingsValues = Settings.getValues()
+        val builder = helium314.keyboard.keyboard.internal.KeyboardBuilder(
+            android.view.ContextThemeWrapper(app, helium314.keyboard.latin.R.style.KeyboardTheme_LXX_Base_Border),
+            helium314.keyboard.keyboard.internal.KeyboardParams(helium314.keyboard.keyboard.internal.UniqueKeysCache.NO_CACHE))
+        builder.load(helium314.keyboard.keyboard.KeyboardId(element, params))
+        return builder.build()
+    }
+
+    // review N2: the neighbours come from the last alphabet keyboard, also while symbols are shown
+    @Config(shadows = [helium314.keyboard.ShadowProximityInfo::class, helium314.keyboard.ShadowInputMethodManager2::class])
+    @Test fun neighboursOfTheLastAlphabetKeyboard() {
+        val s = settings(on) // German: without a keyboard QWERTZ
+        val azerty = keyboard(helium314.keyboard.keyboard.KeyboardElement.ALPHABET, Locale.FRANCE, "azerty")
+        val symbols = keyboard(helium314.keyboard.keyboard.KeyboardElement.SYMBOLS, Locale.FRANCE, "azerty")
+        assertFalse(FieldCorrectionWatcher().adjacency(symbols, s).adjacent('a', 'z'), "no alphabet keyboard yet: QWERTZ")
+        val watcher = FieldCorrectionWatcher()
+        assertTrue(watcher.adjacency(azerty, s).adjacent('a', 'z'))
+        assertTrue(watcher.adjacency(symbols, s).adjacent('a', 'z'), "symbols shown: still AZERTY")
+        assertTrue(watcher.adjacency(null, s).adjacent('a', 'z'))
+        assertFalse(watcher.adjacency(symbols, s).adjacent('a', 'p'))
+    }
 }
