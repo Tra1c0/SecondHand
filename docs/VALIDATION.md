@@ -2836,6 +2836,46 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   Zeilen und die Halb-Kacheln umbrechen ihren Titel.
 - Offen: Prüfer-Review, Gerätetest (Aussehen am Telefon, TalkBack, Suche, Zurück), 38b–38h.
 
+## Etappe 38e (Einstellungen: Gesten & Gefühl)
+
+- Auftrag (Lead, ROADMAP 38, 1:1 nach `docs/referenzen/einstellungen-mockup/Gesten.dc.html`): die
+  Bereichsseite 04 mit dem Baukasten aus 38a, echte Werte, bisherige Dialoge. Gebaut in einer
+  Arbeitskopie, kein Prüfer-Review, kein Gerätetest.
+- Gebaut: `AgentAreaGesturesScreen.kt` (Held, Karte „Leertaste“ mit `SpaceDetentBar` und sechs
+  Gesten-Knöpfen, Auswahlkarten „Über die Buchstaben wischen“, Abschnitte „Symbole malen“,
+  „Vibration & Ton“, „Treffen & Wischen“, `GestureSlider`), `agent_gestures_strings.xml` (Englisch,
+  Deutsch). Klein geändert: `AgentAreaScreen.kt` (eine Zeile Weiche, `SettingsAreas` für Gesten
+  nur noch Symbole malen und Gestenschreiben), `AgentSettingsKit.kt` (`Choice.enabled`, gesperrte
+  Karte 35 % und nicht wählbar), `AgentSpaceScreen.kt` (`titleResource`/`labelResource` `internal`),
+  `AgentLearningScreen.kt` (`CalibrationDialog` `internal`).
+- Zuordnung: Nichts = `agent_symbol_drawing` und `gesture_input` aus; Symbole malen =
+  `agent_symbol_drawing` an (`gesture_input` bleibt gespeichert); Gestenschreiben = `gesture_input`
+  an, Symbole aus, nur mit Bibliothek. Gesten-Werte über `SpaceGestures.resolve`, die Liste wie auf
+  der Leertasten-Seite. Regler mit Schlüssel, Standard, Bereich, Schritten und Live-Ton/-Vibration
+  der alten Zeilen.
+- Abweichungen vom Mockup: Werte sind echt (z. B. „Spur anzeigen“ 0,9 s statt 0,6 s, Doppeltipp
+  „Punkt + Leer“ nur bei „Punkt plus Leerzeichen“), Vibrationsdauer und „Bitte nicht stören“ nur
+  bei eingeschalteter Vibration, „Lautstärke“ als eigene Zeile bei eingeschaltetem Ton,
+  Touchpad-Rand und Wischweite für Sprachwechsel nur bei belegter Aktion (wie auf den alten
+  Seiten), Zeile „Gestenschreiben“ unter den Karten nur mit Bibliothek, „Kalibrieren“ (Symbole)
+  öffnet die Seite „Symbole malen“, nicht direkt die Kalibrierung. Langdruck-Dauer bleibt bei
+  Tasten & Sprachen (38d). Systemschrift wie in 38a.
+- Tests (Robolectric, kein Gerätetest): `SettingsAreaGesturesTest` 11 Tests (Aufbau und Texte des
+  Mockups, Gesten im 2er-Raster mit echten Aktionen, Liste öffnet, wählt, „Standard“, Doppeltipp
+  „Punkt + Leer“/„Nichts“, Auswahlkarten auf beiden Schaltern mit und ohne Bibliothek, Schalter
+  schreiben die Einstellungen und zeigen den neuen Zustand, Reglerwerte und alte Dialoge mit
+  „Standard“, bedingte Zeilen, Zeilen zu Symbole malen und Trefferzonen-Kalibrierung, alles
+  Anklickbare ≥ 44 dp, Bild mit Pixelprüfung von Held, Leiste, Punkten und Leuchten).
+  `SettingsStartScreenTest`: `agent_space` als Unterseite (P119), Gesten-Bereich prüft genau seine
+  Zeilen statt „mindestens drei“. Alle 25 Tests von `Settings*` grün.
+- `python3 tools/dev.py agent-tests`: grün, 681 Tests in 84 Klassen laut Ergebnisdateien, 0 Fehler
+  (2026-11-14). Kein Build, keine Upstream-Suite (geteilte Maschine). `docs_sync --check`: grün.
+- Bilder (nicht versioniert): `app/build/agent-previews/settings-area_gestures-full.png` (ganze
+  Seite, 390 × 2200 dp) und `settings-area_gestures.png` (oberer Teil aus
+  `SettingsStartScreenTest`); mit `Gesten.dc.html` verglichen: Reihenfolge, Farben, Radien, Raster
+  und Punkte stimmen; wie im Mockup liegt der 42-%-Punkt am Rand von „Deutsch“.
+- Offen: Prüfer-Review, Gerätetest (Dialoge, Vibration/Ton, TalkBack, Bibliothek geladen).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

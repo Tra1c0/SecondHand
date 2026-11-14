@@ -132,3 +132,11 @@
   vorerst über eine Karte „Seiten“ zu den bisherigen Seiten; die Bereiche werden in den nächsten
   Schritten einzeln nach dem Entwurf umgebaut. Welche alte Seite wo liegt, steht in der Anleitung
   unter „Einstellungen finden“. Noch auf keinem Gerät ausprobiert.
+- Neu: Einstellungen → „Gesten & Gefühl“ ist nach dem Entwurf umgebaut. Oben die Leertaste als
+  Bild (Tick, Tick, am letzten Punkt die Aktion) und darunter die sechs Gesten mit ihrer
+  aktuellen Aktion; ein Tipp ändert sie. Darunter wählst du mit großen Karten, was Wischen über
+  die Buchstaben tut: nichts, Symbole malen oder Gestenschreiben (nur mit Gesten-Bibliothek).
+  Dann „Symbole malen“ (eigene Symbole, lernen, kalibrieren, wie lange die Spur bleibt),
+  „Vibration & Ton“ und „Treffen & Wischen“ (Trefferzonen, Löschen durch Wischen,
+  Touchpad-Empfindlichkeit). Alles schaltet deine echten Einstellungen; die bisherigen Seiten
+  gibt es weiter. Noch auf keinem Gerät ausprobiert.

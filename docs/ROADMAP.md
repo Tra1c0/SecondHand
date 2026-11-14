@@ -77,6 +77,8 @@ Reihenfolge von oben nach unten.
     erreichbar: 38b Aussehen, 38c Tippen & Korrektur, 38d Tasten & Sprachen, 38e Gesten & Gefühl,
     38f Leiste & Befehle (dort auch „Symbolleiste“/„Werkzeugleiste“ → „Leiste“), 38g KI &
     Automationen, 38h System & Daten.
+  - 38e Gesten & Gefühl ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` →
+    Etappe 38e). Offen: Gerätetest.
 - **39 Text-Stile (Wunsch des Owners vom 2026-11-13)**. Alles lokal, Einfügen nur per Tipp.
   `@style Text` zeigt Chips mit Unicode-Varianten (𝓢𝓬𝓱𝓻𝓲𝓯𝓽, 𝗙𝗲𝘁𝘁, 𝘒𝘶𝘳𝘴𝘪𝘷, ꜱᴍᴀʟʟ ᴄᴀᴘꜱ, Ⓚⓡⓔⓘⓢ,
   d̶u̶r̶c̶h̶, umgedreht); Hinweis, dass Screenreader solche Zeichen schlecht vorlesen. Formatierung

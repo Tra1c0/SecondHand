@@ -71,21 +71,41 @@ in der Tastatur über den Pfeil links in der Symbolleiste und dann das Zahnrad.
 Die Startseite der Einstellungen (dunkel, mit farbigen Kacheln) hat oben die Lupe für die Suche,
 darunter „Dein Look“ mit „Ändern“ (öffnet Aussehen), die Schnellschalter Inkognito, RGB-Licht,
 Vibration und Symbole malen (ein Tipp schaltet um) und sieben Bereiche. Ganz unten: Diagnose,
-Updates (mit deiner Build-Nummer) und Über. Jeder Bereich zeigt vorerst eine Karte „Seiten“, die
-die bisherigen Seiten öffnet. Wo diese Anleitung „Einstellungen → X“ schreibt, liegt X jetzt in
-diesem Bereich:
+Updates (mit deiner Build-Nummer) und Über. Die Bereiche ohne eigenen Aufbau zeigen vorerst eine
+Karte „Seiten“, die die bisherigen Seiten öffnet. Wo diese Anleitung „Einstellungen → X“ schreibt,
+liegt X jetzt in diesem Bereich:
 
 | Bereich | Seiten |
 | --- | --- |
 | 01 Aussehen | Design, RGB-Beleuchtung, Aussehen |
 | 02 Tippen & Korrektur | Textkorrektur, Gelernte Wörter, Wörterbücher |
 | 03 Tasten & Sprachen | Sprachen & Layouts, Optionen, Sekundäre Layouts |
-| 04 Gesten & Gefühl | Leertaste, Symbole malen, Gesten-Tippen (nur mit Bibliothek), Vibration & Ton (= Optionen) |
+| 04 Gesten & Gefühl | eigene Seite (siehe unten): Leertaste, Wischen über die Buchstaben, Symbole malen, Vibration & Ton, Treffen & Wischen |
 | 05 Leiste & Befehle | Leiste (= Symbolleiste), Befehle, Screenshots |
 | 06 KI & Automationen | KI-Anbieter, Skill-Tasten, Workflows, Diktat |
 | 07 System & Daten | Tastaturprofile, Updates, Diagnose, Erweitert, Gestendaten-Erfassung (nur in der Sammelphase), Über |
 
 Zurück geht es mit dem runden Pfeil oben links oder der Zurück-Geste.
+
+**04 Gesten & Gefühl** hat seinen eigenen Aufbau, alle Werte sind deine echten Einstellungen:
+
+- Karte „Leertaste“: Das Bild zeigt die Rastpunkte eines seitlichen Wischs (Tick, Tick, am
+  letzten Punkt die Aktion). Darunter die sechs Gesten (← → ↑ ↓ Wischen, Halten, Doppeltipp) mit
+  ihrer Aktion; ein Tipp öffnet dieselbe Liste wie die bisherige Seite „Leertaste“, „Standard“
+  nimmt die eigene Wahl zurück. Doppeltipp ohne Aktion zeigt „Punkt + Leer“, wenn
+  „Punkt plus Leerzeichen“ (Textkorrektur) an ist.
+- „Über die Buchstaben wischen“: **Nichts** (Symbole malen und Gestenschreiben aus),
+  **Symbole malen** oder **Gestenschreiben** (nur mit geladener Gesten-Bibliothek; sonst
+  ausgegraut mit Hinweis auf System & Daten → Erweitert). Mit Bibliothek führt die Zeile
+  „Gestenschreiben“ darunter zu Spur, Vorschau und Tempo.
+- „Symbole malen“: Eigene Symbole (mit Anzahl) und Kalibrieren öffnen die Seite „Symbole malen“,
+  „Aus Korrekturen lernen“ ist ein Schalter, „Spur anzeigen“ stellt ein, wie lange die Spur bleibt.
+- „Vibration & Ton“: Vibration bei Tastendruck; solange sie an ist, Vibrationsdauer und „Auch bei
+  ‚Bitte nicht stören‘“; Ton bei Tastendruck, solange er an ist mit „Lautstärke“.
+- „Treffen & Wischen“: Trefferzonen anpassen, Trefferzonen kalibrieren (öffnet das Abtippen wie
+  unter „Trefferzonen“), Löschen durch Wischen, Touchpad-Empfindlichkeit; liegt „Touchpad-Modus“
+  bzw. „Sprache wechseln“ auf einem Leertasten-Wisch, auch „Scrollen am Touchpad-Rand“ bzw.
+  „Wischweite für Sprachwechsel“.
 
 ## Textaktionen (ohne Internet)
 
@@ -104,8 +124,9 @@ Optional: Die Leertaste kann das Rad öffnen, z. B. beim Halten (siehe „Leerta
 
 ## Leertaste
 
-Einstellungen → Erweitert → **Leertaste** (oder Einstellungen → Tastaturprofile → Gesten →
-„Leertaste“). Für jede Geste wählst du eine Aktion:
+Einstellungen → Gesten & Gefühl → Karte **Leertaste** (die bisherige Seite gibt es weiter unter
+System & Daten → Erweitert → „Leertaste“ und Tastaturprofile → Gesten). Für jede Geste wählst du
+eine Aktion:
 
 - **Nach links / rechts / oben / unten wischen**: Wische auf der Leertaste los. Die Richtung des
   ersten Stücks entscheidet. „Cursor bewegen“, „Sprache wechseln“ und „Touchpad-Modus“ laufen
@@ -407,7 +428,8 @@ von Google (www.gstatic.com); gesendet werden dabei nur die beiden Emojis, kein 
 ## Symbole malen
 
 Statt Wörter zu wischen, malst du Sonderzeichen auf die Tastatur. Einschalten: Einstellungen →
-„Symbole malen“ → „Symbole malen (statt Gestenschreiben)“. Gestenschreiben ist dann aus; Tippen,
+Gesten & Gefühl → „Über die Buchstaben wischen“ → **Symbole malen** (oder auf der Seite „Symbole
+malen“ der Schalter „Symbole malen (statt Gestenschreiben)“). Gestenschreiben ist dann aus; Tippen,
 langes Drücken für Sonderzeichen und das Wischen auf Leer- und Löschtaste bleiben wie vorher.
 
 - Male mit einem Finger auf den Buchstabentasten, zügig wie beim Wischen. Die Spur bleibt kurz
@@ -634,7 +656,7 @@ dabei nicht gesichert.
   „Zwischenablagen-Inhalt vorschlagen“ (Einstellungen → Textkorrektur) an ist. Antippen fügt ein, lange
   drücken blendet sie aus.
 - Das Aktionsrad erreichst du im flachen Look über eine Leertasten-Geste, z. B. Halten
-  (Einstellungen → Erweitert → Leertaste), die Stift-Taste öffnet das Panel.
+  (Einstellungen → Gesten & Gefühl → Leertaste), die Stift-Taste öffnet das Panel.
 
 ## Emoji-Vorschläge
 
@@ -670,7 +692,8 @@ Einstellungen → Gelernte Wörter → Abschnitt „Autokorrektur“:
 
 ## Trefferzonen
 
-Einstellungen → Gelernte Wörter → Abschnitt „Trefferzonen“:
+Einstellungen → Gelernte Wörter → Abschnitt „Trefferzonen“ (Schalter und Kalibrieren auch unter
+Gesten & Gefühl → „Treffen & Wischen“):
 
 1. „Trefferzonen an mich anpassen“ einschalten.
 2. „Kalibrieren“ antippen und den angezeigten Text so abtippen, wie du sonst tippst. Tippfehler

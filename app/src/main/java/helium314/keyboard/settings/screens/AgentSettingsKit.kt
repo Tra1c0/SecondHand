@@ -394,8 +394,8 @@ fun GradientSwitch(
     }
 }
 
-/** One big card of [ChoiceCards]. */
-class Choice(val label: String, val hint: String, val from: Color, val to: Color, val tag: String = label)
+/** One big card of [ChoiceCards]; a card that is not [enabled] cannot be chosen (38e: gesture typing without its library). */
+class Choice(val label: String, val hint: String, val from: Color, val to: Color, val tag: String = label, val enabled: Boolean = true)
 
 /**
  * A choice as big gradient cards (owner's sketch of the frame rate, ROADMAP 37): spaced capital
@@ -434,9 +434,9 @@ private fun ChoiceCard(choice: Choice, index: Int, selected: Boolean, onClick: (
                         cornerRadius = CornerRadius(AgentSettingsTokens.ChoiceRadius.toPx() + off), style = Stroke(w))
                 }
             }
-            .alpha(if (selected) 1f else 0.55f)
+            .alpha(if (selected) 1f else if (choice.enabled) 0.55f else 0.35f)
             .clip(shape).background(cssGradient(120f, choice.from, choice.to))
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .selectable(selected = selected, enabled = choice.enabled, role = Role.RadioButton, onClick = onClick)
             .heightIn(min = 92.dp).testTag(CHOICE_TAG + choice.tag),
     ) {
         Glow(index)

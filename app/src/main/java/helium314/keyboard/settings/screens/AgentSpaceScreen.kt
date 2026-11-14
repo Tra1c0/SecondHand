@@ -62,7 +62,7 @@ fun createAgentSpaceSettings(context: Context) = SpaceGesture.entries.map { gest
     ) { NextScreenIcon() }
 }
 
-private fun SpaceGesture.titleResource() = when (this) {
+internal fun SpaceGesture.titleResource() = when (this) {
     SpaceGesture.SWIPE_LEFT -> R.string.agent_space_swipe_left
     SpaceGesture.SWIPE_RIGHT -> R.string.agent_space_swipe_right
     SpaceGesture.SWIPE_UP -> R.string.agent_space_swipe_up
@@ -71,7 +71,7 @@ private fun SpaceGesture.titleResource() = when (this) {
     SpaceGesture.DOUBLE_TAP -> R.string.agent_space_double_tap
 }
 
-private fun SpaceAction.labelResource() = when (this) {
+internal fun SpaceAction.labelResource() = when (this) {
     SpaceAction.NONE -> R.string.agent_space_action_none
     SpaceAction.MOVE_CURSOR -> R.string.agent_space_action_move_cursor
     SpaceAction.SWITCH_LANGUAGE -> R.string.agent_space_action_switch_language
