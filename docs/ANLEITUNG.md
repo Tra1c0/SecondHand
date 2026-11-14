@@ -772,7 +772,11 @@ Einstellungen in Karten:
   der Taste aus, oder Tippen beschleunigt kurz. „Nur beim Tippen sichtbar“: sonst ist das Licht
   aus, nach jedem Tipp erscheint es und verblasst (mit „Taste blitzt auf“ nur an der getippten
   Taste). „Nachleuchten“ stellt ein, wie lange das dauert (0,2–5 s).
-- Akku: 30 oder 60 Bilder pro Sekunde (30 spart Akku), „Im Energiesparmodus anhalten“ (an).
+- Bildwiederholrate: zwei Farbflächen, „30 HERTZ“ (türkis, 30 Bilder pro Sekunde, spart Akku)
+  und „60 HERTZ“ (orange, flüssiger). Tippe auf eine; die gewählte leuchtet voll und hat einen
+  Rahmen. Der leuchtende Tropfen zeigt das Tempo, bei 60 Hz wandert er doppelt so schnell. Er
+  steht still, wenn die Android-Animationen aus sind oder der Energiesparmodus an ist. Darunter
+  „Im Energiesparmodus anhalten“ (an).
 
 Jede Änderung wird sofort gespeichert (beim Ziehen eines Kurvenpunkts beim Loslassen) und gilt
 beim nächsten Öffnen der Tastatur. Die Beleuchtung läuft nur, solange die Tastatur sichtbar ist;

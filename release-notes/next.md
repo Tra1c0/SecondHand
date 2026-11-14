@@ -315,3 +315,9 @@
   Nach einem geleerten Feld zeigt die Leiste kein altes getipptes Wort mehr. „Z. B.“, „D. h.“,
   „U. a.“ und „I. d. R.“ am Satzanfang schreiben das nächste Wort wieder klein. Noch auf keinem
   Gerät ausprobiert.
+- Neu: Auf der RGB-Seite ist die Bildrate jetzt die Karte „Bildwiederholrate“ nach deiner Skizze:
+  zwei große Farbflächen „30 HERTZ“ (türkis, spart Akku) und „60 HERTZ“ (orange, flüssiger), in
+  jeder wandert ein leuchtender Tropfen hin und her, bei 60 Hz doppelt so schnell. Die gewählte
+  Fläche leuchtet voll und hat einen Rahmen. Ohne Android-Animationen und im Energiesparmodus steht
+  der Tropfen still. „Im Energiesparmodus anhalten“ steht darunter. Die Einstellung selbst ist
+  dieselbe wie vorher. Noch auf keinem Gerät ausprobiert.

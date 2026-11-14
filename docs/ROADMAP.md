@@ -53,15 +53,19 @@ Reihenfolge von oben nach unten.
   Rastpunkte bei 0,8 / 1,6 / 2,65 Tastenbreiten (Startpunkt plus drei Punkte), „den ganzen Text
   rückgängig“ = ein normaler Rückgängig-Schritt, Zurückziehen tickt erneut statt abzubrechen,
   gilt für alle Einmal-Aktionen links/rechts.
-- **37 Bildwiederholrate als Karten (Wunsch des Owners vom 2026-11-13, mit Skizze)** — Vorlage:
-  [`docs/referenzen/2026-11-13-rgb-bildwiederholrate.jpg`](referenzen/2026-11-13-rgb-bildwiederholrate.jpg)
-  (Screenshot von Build 16, übermalt). Nicht als exakte Vorgabe, sondern als Richtung mit
-  Visualisierung: Auf der RGB-Seite ersetzt eine Karte „Bildwiederholrate“ die bisherige Auswahl.
-  Überschrift fett und gesperrt; darunter zwei große, abgerundete Farbflächen nebeneinander bzw.
-  untereinander, „30 Hertz“ (grün/türkis) und „60 Hertz“ (gelb/orange), Schrift gesperrt in der
-  Fläche, je ein leuchtender Tropfen/Lichtpunkt als Visualisierung des Tempos (z. B. wandert er
-  bei 60 Hz doppelt so schnell oder pulsiert); die gewählte Fläche hervorgehoben. „Im
-  Energiesparmodus anhalten“ bleibt darunter. Gilt sinngemäß als Stil für ähnliche Auswahlen. (S)
+- **37 Bildwiederholrate als Karten** (Wunsch des Owners vom 2026-11-13, Skizze
+  [`docs/referenzen/2026-11-13-rgb-bildwiederholrate.jpg`](referenzen/2026-11-13-rgb-bildwiederholrate.jpg))
+  ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 37 (Bildwiederholrate
+  als Karten)): Karte „Bildwiederholrate“ mit zwei Farbflächen untereinander (nebeneinander wären
+  sie bei 390 dp zu schmal für die gesperrte Schrift), wandernder Lichttropfen, bei 60 Hz doppelt
+  so schnell; still ohne Android-Animationen, im Energiesparmodus und außer Sicht. Annahmen des
+  Leads, vom Owner zu bestätigen: Großbuchstaben „30 HERTZ“ wie die Auswahlkarten von 38 (die
+  Skizze schreibt „30 Hertz“), Zusatzzeile „30 Bilder/s · spart Akku“ bzw. „60 Bilder/s ·
+  flüssiger“, der Tropfen wandert hin und her mit kurzer Leuchtspur. Offen: Gerätetest (Aussehen,
+  Tempo des Tropfens, ob er stört). Weitere Auswahlen der RGB-Seite, die in diesen Stil passen
+  (nicht umgebaut, Vorschlag): „Regenbogen“/„Eigene Farben“ (zwei Karten mit Farbverlauf bzw. den
+  eigenen Farben), „Beim Tippen“ (vier Karten, jede zeigt ihren Effekt: nichts, Blitz, Ring,
+  schneller), „Jede Taste einfarbig“ als Wahl „weich“/„einfarbig“ mit kleinem Tastenbild.
 - **38 Großer Umbau der Einstellungen — BESCHLOSSEN: 1:1 nach dem Mockup umsetzen (Owner, 2026-11-13).** Quelle der Wahrheit: `docs/referenzen/einstellungen-mockup/*.dc.html` (Kopie des Artifacts). Ursprünglicher Wunsch:
   Richtung wie bei 37: verspieltere, visuelle Auswahl statt Listen und Schalter, Karten mit
   Farbflächen und kleinen Animationen. Vor dem Bau klären: was stört heute (Struktur, Tiefe der

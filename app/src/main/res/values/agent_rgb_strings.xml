@@ -13,7 +13,6 @@
     <string name="agent_rgb_group_layers">What lights up</string>
     <string name="agent_rgb_group_areas">Where</string>
     <string name="agent_rgb_group_tap">When typing</string>
-    <string name="agent_rgb_group_battery">Battery</string>
     <string name="agent_rgb_pattern_wave_horizontal">Wave horizontal</string>
     <string name="agent_rgb_pattern_wave_vertical">Wave vertical</string>
     <string name="agent_rgb_pattern_wave_diagonal">Wave diagonal</string>
@@ -57,6 +56,9 @@
     <string name="agent_rgb_glow">Fade time: %1$s s</string>
     <string name="agent_rgb_fps">Frame rate</string>
     <string name="agent_rgb_fps_value">%1$d frames/s</string>
+    <string name="agent_rgb_fps_hertz">%1$d Hertz</string>
+    <string name="agent_rgb_fps_30_hint">saves battery</string>
+    <string name="agent_rgb_fps_60_hint">smoother</string>
     <string name="agent_rgb_power_save">Pause in power saving mode</string>
     <string name="agent_rgb_battery_note">Runs only while the keyboard is visible. With Android animations off the picture stands still.</string>
     <string name="agent_rgb_preview_label">Live preview: tap it to try the tap effects</string>

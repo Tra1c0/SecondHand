@@ -1730,8 +1730,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sofort über `RgbLighting.write`, Vorschau oben mit `withFrameNanos` und `RgbFramePacer`,
   Tipp auf die Vorschau probiert die Effekte; bei ausgeschalteten Android-Animationen steht sie
   still). Die Vorschau ist `DesignPreview` aus `AgentDesignEditor.kt` mit `PreviewLight` (gleiche
-  Engine und Farbregeln wie die Tastatur). Einträge auf der Design-Seite (`agent_design_rgb`) und
-  unter Aussehen. Texte: `agent_rgb_strings.xml`. Test `AT/RgbSettingsScreenTest.kt`.
+  Engine und Farbregeln wie die Tastatur). Bildwiederholrate als Karte mit zwei Farbflächen (37,
+  `AgentRgbFrameRate.kt`). Einträge auf der Design-Seite (`agent_design_rgb`) und
+  unter Aussehen. Texte: `agent_rgb_strings.xml`. Tests `AT/RgbSettingsScreenTest.kt`,
+  `AT/RgbFrameRateCardTest.kt`.
 - Schieberegler mit Ticks und Rastpunkten (28, P85–P87): `K/settings/screens/AgentSlider.kt`
   (`AgentSlider`: Material-3-`Slider` über einen eigenen `SliderState`; nur Werte vom Finger
   laufen durch `SliderDrag`, erkannt an `Finger.down` (Initial-Pass bis Final-Pass des Loslassens)
@@ -2093,6 +2095,24 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Helligkeit, Deckkraft, Richtung des gewählten Looks; nicht Kurve, Dauer, Wellenbreite), werden
   über `produceState` auf `Dispatchers.Default` gemacht (nach der ersten Runde erst, wenn sich die
   Farben 250 ms nicht geändert haben) und für die Seite gemerkt; bis dahin bleibt das alte Bild.
+- Bildwiederholrate (37, Skizze des Owners `docs/referenzen/2026-11-13-rgb-bildwiederholrate.jpg`):
+  `K/settings/screens/AgentRgbFrameRate.kt` (`FrameRateCard`) ersetzt die Chips 30/60 als letzte
+  Karte der RGB-Seite. Überschrift „Bildwiederholrate“ (`agent_rgb_fps`) fett und gesperrt, zwei
+  Farbflächen untereinander (türkis, orange; `cssGradient` und Maße aus dem Baukasten), Auswahl wie
+  `ChoiceCards` (voll mit Rahmen in `onSurface`, sonst 55 %), Radiobuttons in einer
+  `selectableGroup`, Tags `agent_rgb_fps_30`/`_60` wie vorher die Chips. Schreibt wie bisher nur
+  `fps` über `change` → `RgbLighting.write` (Einstellung `agent_rgb_lighting`, Vorgabe 30 = Eintrag
+  entfernt). Darunter über den Platz `below` der Schalter „Im Energiesparmodus anhalten“ und der
+  Hinweis. Licht: ein `rememberInfiniteTransition` (eine Runde 2,4 s ab `STILL_PHASE`, kein
+  Sprung beim Anlaufen) für beide Flächen, gelesen nur in `drawBehind` (Bilder zeichnen die zwei
+  Flächen neu, nichts wird zusammengesetzt); der Tropfen wandert hin und her (Kosinus), 60 Hz mit
+  doppelter Phase, fünf blassere Ovale als Spur, ein pulsierender Hof; nur Ovale, keine Shader.
+  Die Transition gibt es nur, solange die Flächen im Bild sind (`onGloballyPositioned`,
+  `boundsInWindow` ist im Scroll-Container beschnitten) und Bewegung erlaubt ist
+  (`FlatStyle.animationsEnabled` beim Öffnen, Energiesparmodus über
+  `ACTION_POWER_SAVE_MODE_CHANGED`, angemeldet am Application-Kontext, solange die Karte da ist);
+  sonst steht der Tropfen bei `STILL_PHASE`. Im Hintergrund pausiert Compose die Bilder ohnehin.
+  Texte in `agent_rgb_strings.xml`. P198.
 - Tests: `CT/RgbLightingTest.kt`, `CT/RgbCurveTest.kt` (Kurve, Grenzen, Text, Vorlagen,
   Migration, eigene Looks), `CT/RgbPatternsTest.kt` (Bewegung, keine Sprünge in Ort und Zeit,
   Regenbogen ohne Kanten, OKLCH, Merkmale der sechs Muster, Kacheln nahtlos, Matrix, Kosten,
@@ -2106,7 +2126,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   (Seite, Kurve per Touch, TalkBack-Aktionen, eigene Looks, bewegte Vorschau der neuen Muster und
   weiche Vorschau gegen das bilineare Raster mit SDK 36, Galerie ohne Neubau beim Ziehen),
   `AT/RgbTilesTest.kt` (Kachel im Hintergrund, Zeichnen wartet nicht, Cache mit allen Mustern,
-  Leeren). Bilder unter `app/build/reports/rgb-lighting/` und `app/build/agent-previews/`.
+  Leeren), `AT/RgbFrameRateCardTest.kt` (37: Karte, Texte und Reihenfolge, echte Einstellung,
+  Auswahl folgt, Energiesparschalter bleibt, 44 dp, Tempo 1 : 2, nichts zusammengesetzt, still ohne
+  Animationen, im Energiesparmodus und außer Sicht, Bild
+  `app/build/agent-previews/rgb-framerate-card.png` mit Pixelprüfung). Bilder unter
+  `app/build/reports/rgb-lighting/` und `app/build/agent-previews/`.
 
 ## Diktat
 
@@ -3645,13 +3669,23 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Wort genau an dieser Stelle und nur mit bekannter Schreibmarke, ein Weg ohne Stelle zählt nichts. Wird das Feld vorher verlassen, zählt
   die Rücknahme nicht (vorsichtig). Nach `revertCommit` ist das Wort wieder Kompositionswort; das
   Leerzeichen danach schickt es ab.
+- **P198** Endlose Compose-Animationen (`rememberInfiniteTransition`, alles über
+  `withInfiniteAnimationFrameNanos`) laufen im Compose-Test nur mit `mainClock.autoAdvance = false`.
+  Mit automatisch laufender Uhr bricht die Testumgebung sie ab (`CancellationException` „Infinite
+  animations are disabled on tests“), der Wert bleibt beim Startwert und startet auch nach dem
+  Umschalten der Uhr nicht neu. Tests der Bewegung schalten die Uhr vor `setContent` auf manuell
+  (anders als P62: eine eigene `withFrameNanos`-Schleife läuft weiter und hält `waitForIdle` auf).
+  Robolectric legt beim Weiterstellen der Uhr weder Layout noch Zeichnen an: Ein Scrollen erreicht
+  `onGloballyPositioned` nicht, Werte aus dem Zeichnen (`frameRateTrips`) bleiben alt. Die Tests
+  von 37 zeichnen deshalb je Bild einmal `decorView.draw` in ein 1-×-1-Bitmap (Layout und alle
+  Zeichenaufrufe laufen) und lassen dazwischen den Main-Looper laufen.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (530 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (532 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -3680,7 +3714,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (93): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (94): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, ClipCommandTest, ClipVaultTest, CommandReplaceTest,
@@ -3693,14 +3727,14 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LearningDataTest,
   LoadingDotsViewTest, ManualWorkflowDraftTest, MemoryScreenTest, MoreCommandsTest,
   MoreProvidersTest, MyDataScreenTest, MyDataStoreTest, MyDesignsTest, OpenAiProviderTest,
-  RgbLightingRenderTest, RgbSettingsScreenTest, RgbTilesTest, ScreenshotChipTest, SecureWindowTest,
-  SelectedTextCommitTest, SettingsAreaAiTest, SettingsAreaGesturesTest, SettingsBarAreaTest,
-  SettingsKeysScreenTest, SettingsKitTest, SettingsLookScreenTest, SettingsStartScreenTest,
-  SettingsSystemAreaTest, SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest,
-  SliderFeelTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest, SymbolInkTest,
-  SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest, TouchModelTest, TouchScenesScreenTest,
-  TouchZonesDynamicTest, TypedWordFirstTest, TypoMemoryTest, UpdateCheckTest,
-  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
+  RgbFrameRateCardTest, RgbLightingRenderTest, RgbSettingsScreenTest, RgbTilesTest,
+  ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest, SettingsAreaAiTest,
+  SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest, SettingsKitTest,
+  SettingsLookScreenTest, SettingsStartScreenTest, SettingsSystemAreaTest, SettingsTypingAreaTest,
+  SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest, SnipCommandTest, SpaceDetentsTest,
+  SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest,
+  TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest, TypoMemoryTest,
+  UpdateCheckTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
   WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (8): ClockCommandsTest, EmojiMixCommandTest, LanguageCommandTest, QrCommandTest,
   ScreenReaderServiceTest, SubtypeChoiceTest, TranslateCommandTest, UrlCommandTest
@@ -3751,12 +3785,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/settings/dialogs/` (2): ColorPickerDialog, SliderDialog
 - `K/settings/preferences/` (5): BackupRestorePreference, CustomFontPreference,
   KeyboardScalePreference, LoadGestureLibPreference, SliderPreference
-- `K/settings/screens/` (41): AdvancedScreen, AgentAiScreen, AgentAreaAiScreen, AgentAreaBarScreen,
+- `K/settings/screens/` (42): AdvancedScreen, AgentAiScreen, AgentAreaAiScreen, AgentAreaBarScreen,
   AgentAreaGesturesScreen, AgentAreaKeysScreen, AgentAreaLookScreen, AgentAreaScreen,
   AgentAreaSystemScreen, AgentAreaTypingScreen, AgentCommandsScreen, AgentDesignEditor,
   AgentDesignScreen, AgentDiagnoseScreen, AgentDictationScreen, AgentEmojiMixSection,
   AgentLearningScreen, AgentMemoryScreen, AgentMyDataScreen, AgentProfilesScreen,
-  AgentRgbCurveEditor, AgentRgbScreen, AgentRunStatus, AgentScreenReaderSection,
+  AgentRgbCurveEditor, AgentRgbFrameRate, AgentRgbScreen, AgentRunStatus, AgentScreenReaderSection,
   AgentScreenshotScreen, AgentSettingsKit, AgentSkillsScreen, AgentSlider, AgentSnippetsSection,
   AgentSpaceScreen, AgentStartScreen, AgentSymbolsScreen, AgentUpdatesScreen, AgentWorkflowsScreen,
   AppearanceScreen, DictionaryScreen, GestureTypingScreen, MainSettingsScreen, TextCorrectionScreen,

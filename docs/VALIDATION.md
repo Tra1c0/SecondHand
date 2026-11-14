@@ -4268,6 +4268,55 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Nicht gelaufen: `tools/dev.py agent-tests`, volle Suite, Build, Lint (Speicher, Anweisung des
   Leads). Gerätetest offen.
 
+## Etappe 37 (Bildwiederholrate als Karten)
+
+- Auftrag (Lead, ROADMAP 37, Skizze `docs/referenzen/2026-11-13-rgb-bildwiederholrate.jpg`, „nicht
+  als exakte Vorgabe, sondern mit Visualisierung“): Auf der RGB-Seite wird die Wahl 30/60 eine
+  Karte „Bildwiederholrate“ mit zwei Farbflächen, leuchtendem Tropfen als Tempo (60 Hz doppelt so
+  schnell), gewählte Fläche hervorgehoben, „Im Energiesparmodus anhalten“ darunter; dieselbe
+  Einstellung wie bisher; Animation billig, still ohne Animationen, im Energiesparmodus und außer
+  Sicht. Gebaut in einer Arbeitskopie, kein Prüfer-Review, kein Gerätetest.
+- Gebaut: `AgentRgbFrameRate.kt` (`FrameRateCard`, neu). Geändert: `AgentRgbScreen.kt` (Karte
+  „Akku“ mit Chips → `FrameRateCard`, Schalter und Hinweis im Platz `below`),
+  `agent_rgb_strings.xml` (Englisch, Deutsch: `agent_rgb_fps` deutsch „Bildwiederholrate“, neu
+  `agent_rgb_fps_hertz`, `agent_rgb_fps_30_hint`, `agent_rgb_fps_60_hint`; das nicht mehr
+  genutzte `agent_rgb_group_battery` entfernt). Keine Upstream-Datei, kein Kern, keine neue
+  Einstellung: geschrieben wird wie bisher `fps` in `agent_rgb_lighting` über `RgbLighting.write`.
+- Umsetzung: Flächen untereinander (nebeneinander je etwa 157 dp, zu schmal für „30 HERTZ“ in
+  19 sp mit Sperrung), Auswahl wie `ChoiceCards` (Rahmen 3 dp in `onSurface`, die andere 55 %),
+  Radiobuttons. Ein `rememberInfiniteTransition` für beide Flächen, nur in `drawBehind` gelesen;
+  es gibt ihn nur, solange die Flächen im Bild sind und Bewegung erlaubt ist. Abweichungen von der
+  Skizze (Annahmen, in ROADMAP 37 genannt): Großbuchstaben, Zusatzzeile „30 Bilder/s · spart
+  Akku“ bzw. „60 Bilder/s · flüssiger“, die nicht gewählte Fläche blasser, der Tropfen wandert hin
+  und her mit Spur und pulsierendem Hof.
+- Tests (Robolectric, kein Gerätetest): `RgbFrameRateCardTest` 7 Tests: Karte mit Überschrift
+  (Überschrift für TalkBack), beide Flächen als Radiobuttons mit „30 Hertz“/„60 Hertz“, Zusatzzeilen,
+  Vorgabe 30 gewählt, Energiesparschalter in der Karte unter beiden Flächen, Flächen untereinander
+  in voller Breite, Flächen und Schalterzeile ≥ 44 dp; Tipp auf 60 schreibt genau
+  `RgbSettings.DEFAULT.copy(fps = 60)` (sonst nichts geändert), Taktgeber 1/60 s, Auswahl folgt,
+  Tipp auf 30 entfernt die Einstellung wieder (Vorgabe, wie bisher), Energiesparschalter schreibt
+  weiter; Bewegung mit manueller Uhr: in 300 ms ein Achtel der Runde (±0,02), 60 Hz doppelt so
+  weit (±0,02), Bild ändert sich, Karte wird dabei nicht neu zusammengesetzt; Animationsskala 0
+  und Energiesparmodus: keine Transition, Bild nach 1 s gleich, Tropfen an der Ruhestelle; Ende des
+  Energiesparmodus (Broadcast) startet die Bewegung; außer Sicht (3000 dp weiter unten) keine
+  Transition, hineingescrollt läuft sie, wieder hinaus steht sie; Bild mit Pixelprüfung (Rahmen
+  um die gewählte, keiner um die andere, volle bzw. 55-%-Farbe, Tropfen fast weiß an der
+  erwarteten Stelle). Gegenprobe: mit Transition auch außer Sicht und gleichem Tempo für beide
+  schlugen 4 der 7 Tests fehl. `RgbSettingsScreenTest` (13) unverändert grün, auch
+  `everyOptionIsSavedAtOnce` (Tag `agent_rgb_fps_60` jetzt auf der Fläche) und
+  `framesRedrawOnlyThePreview`.
+- Gezielt (Robolectric, 2026-11-14): `RgbSettingsScreenTest` 13, `RgbFrameRateCardTest` 7 – 20
+  Tests, 0 Fehler. Kein voller Lauf, kein `agent-tests`, kein Build (geteilte Maschine, Auftrag);
+  beides macht der Lead. `docs_sync --check`: grün.
+- Bild (nicht versioniert): `app/build/agent-previews/rgb-framerate-card.png` (390 dp breit, dunkel,
+  Animationen aus), mit der Skizze verglichen: Überschrift fett und gesperrt, zwei runde Flächen
+  untereinander in Türkis und Gelb-Orange, gesperrte Schrift in der Fläche, leuchtender Tropfen
+  oben, Schalter „Im Energiesparmodus anhalten“ darunter stimmen; anders als die Skizze ist die
+  nicht gewählte Fläche blasser und die Schrift dunkel statt weiß (Lesbarkeit auf den hellen
+  Flächen).
+- Offen: Prüfer-Review, Gerätetest (Aussehen, Tempo und Wirkung des Tropfens, Bildkosten am
+  Telefon, Energiesparmodus live, TalkBack).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

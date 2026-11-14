@@ -129,7 +129,8 @@ fun createAgentRgbSetting(context: Context) =
  * "RGB lighting" (stage 26, new look 29a): a large live preview at the top that uses the same
  * engines as the keyboard (taps on it try the tap effects), below it grouped cards with every
  * option of [RgbSettings], saved on each change. Pattern choice as a gallery of small pictures,
- * the own curve (29d) as an editor, and with "Same pattern everywhere" off a look per element.
+ * the own curve (29d) as an editor, and with "Same pattern everywhere" off a look per element,
+ * the frame rate as two colour areas with a moving light (37, [FrameRateCard]).
  * With Android animations off the preview stands still, like the keyboard.
  */
 @OptIn(ExperimentalLayoutApi::class)
@@ -326,11 +327,8 @@ fun AgentRgbScreen(onClickBack: () -> Unit) {
                     "agent_rgb_glow") { change(settings.copy(glowMs = (it * 5).roundToInt() * 200)) }
             }
 
-            SectionCard(R.string.agent_rgb_group_battery) {
-                Label(stringResource(R.string.agent_rgb_fps))
-                Chips(listOf(30, 60), { settings.fps == it }, { stringResource(R.string.agent_rgb_fps_value, it) }, "agent_rgb_fps_") {
-                    change(settings.copy(fps = it))
-                }
+            // the frame rate as two colour areas with a moving light (stage 37), the battery option below
+            FrameRateCard(settings.fps, { change(settings.copy(fps = it)) }) {
                 SwitchRow(stringResource(R.string.agent_rgb_power_save), settings.pauseInPowerSave, "agent_rgb_power_save") {
                     change(settings.copy(pauseInPowerSave = it))
                 }
