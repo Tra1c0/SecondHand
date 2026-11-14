@@ -9,19 +9,26 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 ## Aktueller Stand
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
-- Stand 2026-11-13 (Ende der Runde): `main` = Build 16 (geprüft). Neu seit Build 13: 28
-  Regler-Haptik, 29 RGB-Überarbeitung (sechs bewegte Muster je Element, Kurven-Editor, Leistung),
-  30 Diagnose (mit Lichtkosten), 31/36 Symbole malen (Feinschliff, neue Erkennung, Lernen opt-in),
-  32 zuletzt gemischt, 33 Leertasten-Rastpunkte, 35 tolerantere Emoji-Vorschläge. Alle Etappen mit
-  Prüfer und Nachprüfung; GitHub-Läufe grün. Kein Gerätetest außer den Rückmeldungen des Owners.
-- Beim Owner: Build 15 (Test). Rückmeldungen zu Build 14: Symbol-Erkennung schlecht (→ 36),
-  RGB-Menü und Tastatur ruckeln (→ Hintergrund-Rechnung; Messung auf der Diagnose-Seite steht aus).
-- Nächste Sitzung: Diagnose-Werte des Owners zur RGB-Leistung und Rückmeldung zur neuen
-  Erkennung abwarten; dann 34 (eigene Designs/RGB-Designs, Annahme bestätigen).
+- Stand 2026-11-14 (Ende der Runde): `main` = Build 19 (geprüft). Neu seit Build 16: 38a–38h
+  Einstellungen 1:1 nach dem Mockup (Startseite und sieben Bereichsseiten, alte Seiten bleiben
+  erreichbar, „Leiste“ statt „Symbolleiste“), 41 Formatwächter (libphonenumber), 42 Textbausteine
+  2.0 (Platzhalter, Ausfüllfelder, Enter-Hook auch für Hardware-Enter). Alle Etappen mit Prüfer
+  und Nachprüfung; volle Agent-Suite lokal grün; kein Gerätetest.
+- Beim Owner: Build 18 (Test, gleiche Funktionen, noch ohne Prüferkorrekturen) und Build 19.
+- Nächste Sitzung: Rückmeldungen zu Build 17–19 (Einstellungen am Gerät, Formatwächter,
+  Textbausteine) und weiter offen zu Build 16 (RGB-Diagnosewerte, Symbol-Erkennung); dann ROADMAP
+  34, 37, 39, 40.
 
 ## Offene Punkte
 
-0. **Nächste Runde.** Zuerst Rückmeldung zu Build 16: RGB-Leistung am Xiaomi (Diagnose → „RGB-
+0. **Nächste Runde.** Zuerst Rückmeldung zu Build 18/19: Einstellungen am Gerät (alle sieben
+   Bereiche, Schalter wirken, Design- und Profilkarten, FLAG_SECURE auf KI-Seiten, Direct Boot),
+   Formatwächter (Chips in echten E-Mail-, Telefon-, IBAN-Feldern), Textbausteine 2.0 (Feldabfrage
+   in Messengern, Schreibmarke nach `{cursor}`, P147). Annahmen des Leads aus 41/42 bestätigen
+   (ROADMAP). Offene niedrige Befunde: VALIDATION 38b–42. Fallstricke belegt bis P149, frei ab
+   P150. Bewährt: Agenten mit `--max-workers=1 -Xmx1536m`; mehr als zwei parallele Gradle-Läufe
+   brachten den Container zum Neustart (Arbeitskopien überlebten, Agenten per SendMessage
+   fortgesetzt). Weiter offen von Build 16: RGB-Leistung am Xiaomi (Diagnose → „RGB-
    Beleuchtung“; größter Posten laut JVM ist das Zeichnen des Lichts durch die Tastenmasken, 2,5–18
    ms je Bild in Robolectric-Software, am Gerät unbekannt; nächster Kandidat: Licht nicht je Taste
    durch Masken, sondern eine Ebene), Symbol-Erkennung (Tipp-Grenze 8 dp, Bereich 3 Tastenbreiten:
@@ -217,6 +224,12 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
   Code aktualisieren (`CLAUDE.md` → Docs aktuell halten).
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
+- Build 19 (geprüft, von `main`): 38a–38h, 41, 42 mit allen Prüferkorrekturen und
+  Nachprüfungen; Agent-Suite lokal grün (889, plus gezielte Läufe der letzten Korrekturen), GitHub-
+  Lauf siehe Actions; kein Gerätetest.
+- Build 18 (Test, Arbeitsbranch 5e8086c): 38a–38h, 41, 42 vor den Prüferkorrekturen
+  (E-Mail-Hinweise bei echten Domains, Inkognito-Lücke in Zahlenfeldern, Hardware-Enter).
+- Build 17 (Test, Arbeitsbranch 601c703): Einstellungen-Startseite 38a.
 - Build 16 (geprüft, von `main`): Etappen 28–33, 35, 36 mit allen Prüferkorrekturen; GitHub-Lauf
   auf 9f097dd grün (Agent, Upstream ohne neue Fehler, Lint); kein Gerätetest.
 - Build 15 (Test, Arbeitsbranch 7818560): RGB-Leistung (Hintergrund-Raster, Kacheln), Korrekturen
