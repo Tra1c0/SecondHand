@@ -2093,6 +2093,7 @@ public class LatinIME extends InputMethodService implements
                 KeyboardLayoutSet.Companion.onSystemLocaleChanged(); // clears caches, nothing else
                 mKeyboardSwitcher.trimMemory();
                 helium314.keyboard.agent.RgbLighting.onTrimMemory();
+                helium314.keyboard.agent.ForeignWords.closeDictionaries(); // fork, review of stage 51 (N3)
             }
             // deallocateMemory always called on hiding, and should not be called when showing
         }

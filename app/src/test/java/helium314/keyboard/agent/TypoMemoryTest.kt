@@ -97,7 +97,7 @@ class TypoMemoryTest {
         assertEquals(0, TypoMemory.all(app).size)
         listOf("aaa", "bbb", "ccc", "ddd", "eee", "fff").forEachIndexed { i, w -> repeat(i + 1) { confirm("xyq", w, s = s) } }
         assertEquals(5, TypoMemory.all(app).size) // at most five meanings per typed form, the rarest goes
-        assertEquals(setOf("bbb", "ccc", "ddd", "eee", "fff"), TypoMemory.all(app).map { it.second }.toSet())
+        assertEquals(setOf("bbb", "ccc", "ddd", "eee", "fff"), TypoMemory.all(app).map { it.meant }.toSet())
     }
 
     @Test fun anUndoneCorrectionDropsThePair() {
@@ -121,7 +121,7 @@ class TypoMemoryTest {
         repeat(3) { confirm("nciht", "nicht", "das", s) }
         TypoMemory.resetForTest()
         assertEquals("nicht", TypoMemory.meantWord(app, "nciht", "das", false))
-        assertEquals(Triple("nciht", "nicht", 3), TypoMemory.all(app).first()) // most recent first
+        assertEquals(TypoMemory.Entry("nciht", "nicht", 3, "de"), TypoMemory.all(app).first()) // most recent first
     }
 
     // stage 51: a pair belongs to the keyboard language it was learned in
@@ -134,6 +134,8 @@ class TypoMemoryTest {
         repeat(3) { confirm("dnake", "dante", s = Settings.getValues()) } // the same letters mean another word in Spanish
         assertEquals("dante", TypoMemory.meantWord(app, "dnake", null, false, "es"))
         assertEquals("danke", TypoMemory.meantWord(app, "dnake", null, false, "de"))
+        // review N10: the list keeps the language
+        assertEquals(listOf(TypoMemory.Entry("dnake", "dante", 3, "es"), TypoMemory.Entry("dnake", "danke", 3, "de")), TypoMemory.all(app))
         TypoMemory.resetForTest()
         assertEquals("danke", TypoMemory.meantWord(app, "dnake", null, false, "de"), "the language survives a restart")
         // an undo drops the pair in every language
@@ -148,6 +150,34 @@ class TypoMemoryTest {
         TypoMemory.resetForTest()
         assertEquals("nicht", TypoMemory.meantWord(app, "nciht", null, false, "de") { it == "nicht" })
         assertNull(TypoMemory.meantWord(app, "nciht", null, false, "es") { false })
-        assertEquals(listOf(Triple("nciht", "nicht", 3)), TypoMemory.all(app))
+        assertEquals(listOf(TypoMemory.Entry("nciht", "nicht", 3, "")), TypoMemory.all(app)) // from before stage 51: no language
+    }
+
+    // review of stage 51 (M2): another word picked for a word of another language kept here forgets it, only in this language
+    @Test fun pickingAnotherWordForgetsAWordOfAnotherLanguageKeptHere() {
+        fun inTextField(vararg flags: Pair<String, Boolean>): SettingsValues {
+            settings(*flags)
+            Settings.getInstance().loadSettings(app, Locale.GERMANY, InputAttributes(
+                EditorInfo().apply { inputType = android.text.InputType.TYPE_CLASS_TEXT }, false, app.packageName))
+            return Settings.getValues()
+        }
+        AgentStorageContexts.keyboard(app).getSharedPreferences(ForeignWords.FILE, android.content.Context.MODE_PRIVATE).edit()
+            .putString("data", """{"candidates":[],"remembered":[{"lang":"de","word":"hola","from":"es","seen":1},""" +
+                """{"lang":"en","word":"hola","from":"es","seen":1}]}""").commit()
+        ForeignWords.resetForTest()
+        fun kept() = ForeignWords.all(app).map { it.language }.sorted()
+        try {
+            confirm("hola", "Hola", s = inTextField()) // a change of case
+            confirm("hola", "holanda", s = inTextField()) // a word finished
+            confirm("hola", "hold", s = inTextField(AgentPreferences.LEARNING_PAUSED to true)) // paused: nothing changes
+            assertEquals(listOf("de", "en"), kept())
+            confirm("hola", "hold", s = inTextField()) // also without "Meine Tippfehler lernen"
+            assertEquals(listOf("en"), kept())
+            assertEquals(0, TypoMemory.all(app).size)
+            ForeignWords.resetForTest()
+            assertEquals(listOf("en"), kept(), "forgotten in storage too")
+        } finally {
+            ForeignWords.clear(app)
+        }
     }
 }

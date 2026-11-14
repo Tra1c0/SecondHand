@@ -943,6 +943,37 @@ class SuggestTest {
         }
     }
 
+    // review of stage 51 (N5): results of another main language (a language command switched the settings,
+    // the dictionaries follow later) tell nothing about the keyboard language: the word counts as known
+    @Test fun `stage 51 review results of another main language never make a word of another language`() {
+        enableAutocorrect(confidenceVeryAggressive)
+        latinIME.prefs().edit { putBoolean(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, true) }
+        latinIME.mSettings.loadSettings(latinIME, Locale.GERMAN, InputAttributes(
+            android.view.inputmethod.EditorInfo().apply { inputType = android.text.InputType.TYPE_CLASS_TEXT }, false, latinIME.packageName))
+        val foreign = helium314.keyboard.agent.ForeignWords
+        val worker = foreign.worker
+        var checks = 0
+        foreign.worker = java.util.concurrent.Executor { checks++ } // only counted
+        fun committed(): Int {
+            tapTypingSuggestions = suggestionResults(listOf(suggestion("gracias", 1500000, Locale.forLanguageTag("es"))))
+            getSuggestedWords(false, "gracias", CapsMode.OFF)
+            val before = checks
+            foreign.onWordCommitted(latinIME, Settings.getValues(), android.view.inputmethod.EditorInfo().apply {
+                inputType = android.text.InputType.TYPE_CLASS_TEXT; packageName = latinIME.packageName }, "gracias", "gracias", { "gracias" }, 7)
+            return checks - before
+        }
+        try {
+            foreign.clear(latinIME)
+            currentTypingLocale = Locale.ENGLISH // the facilitator is still on English, the keyboard on German
+            assertEquals(0, committed()) // before: checked as a word German does not know
+            currentTypingLocale = Locale.GERMAN
+            assertEquals(1, committed())
+        } finally {
+            foreign.worker = worker
+            foreign.clear(latinIME)
+        }
+    }
+
     // review of stage 46 (M1): a remembered abbreviation is never corrected (nor expanded) automatically
     @Test fun `remembered abbreviation stays as typed`() {
         enableAutocorrect(confidenceVeryAggressive)

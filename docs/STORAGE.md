@@ -285,14 +285,20 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   behalten wurde, `from` die Sprache, deren Wörterbuch es kennt, `word` in der Schreibung dieses
   Wörterbuchs, `session` eine Zeitnummer des Felds (kein App-Name), `position` die Stelle im Feld,
   `seen` Zeit in ms. Höchstens 200 Kandidaten und 500 gemerkte Wörter, älteste zuerst verworfen.
+  Seit der Nachprüfung 51 erneuert ein erneut benutztes gemerktes Wort `seen` (und seinen Platz in
+  der Reihenfolge) nur im Arbeitsspeicher; geschrieben wird beim nächsten Feldwechsel bzw. beim
+  Schließen der Tastatur (wie beim Gedächtnis). Neue Kandidaten, neu gemerkte, gelöschte und durch
+  ein anderes Wort ersetzte (vergessene) Wörter werden sofort geschrieben.
 - Entsteht nur mit „Personalisierte Vorschläge“, ohne Lernpause, nicht in Inkognito, Passwort- oder
   Nicht-lernen-Feldern, nicht in vom Gedächtnis ausgeschlossenen Apps und nur bei entsperrtem Gerät.
   Kein Backup, kein Protokoll, kein Export. Löschen: Seite „Was ich mir gemerkt habe“ (einzeln),
   „Gelernte Wörter löschen“ und das bestätigte Ausschalten von „Personalisierte Vorschläge“ (alles).
 - Nur im Arbeitsspeicher: das zuletzt getippte Wort mit Sprache und ob die Tastatursprache es kennt,
   eine wartende Rücknahme (Wort und Stelle, beim Feldwechsel verworfen) und die geöffneten
-  Hauptwörterbücher der anderen aktiven Sprachen (nur lesend, aus `files/dicts` bzw. den
-  mitgelieferten Wörterbüchern wie bei zweiten Sprachen).
+  Hauptwörterbücher (nur lesend, aus `files/dicts` bzw. den mitgelieferten Wörterbüchern wie bei
+  zweiten Sprachen): das der Tastatursprache und die der anderen aktiven Sprachen, je Sprache
+  einmal, offen über einen Wechsel der Tastatursprache hinweg; geschlossen, wenn die Sprache nicht
+  mehr aktiv ist, bei knappem Speicher, beim Beenden der Tastatur und mit dem Löschen.
 
 ## Trefferzonen (22a)
 

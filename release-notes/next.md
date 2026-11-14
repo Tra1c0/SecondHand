@@ -359,6 +359,10 @@
   „hola“ in einer deutschen Nachricht und nimmst die Korrektur einmal mit der Löschtaste zurück,
   bleibt „hola“ auf Deutsch ab dann stehen und wird beim Tippen von „ho…“ vorgeschlagen, nie
   automatisch eingesetzt. Ohne Korrektur reicht das zweite Mal an anderer Stelle. Gilt nur für
-  die Sprache, in der du das Wort behalten hast. Liste mit „Löschen“ unter „Was ich mir gemerkt
-  habe“ → „Wörter aus anderen Sprachen“. Alles lokal; nichts in Passwortfeldern, im
-  Inkognito-Modus, bei Lernpause oder gesperrtem Gerät. Noch auf keinem Gerät ausprobiert.
+  die Sprache, in der du das Wort behalten hast. Ein Wort, das die Sprache in anderer Groß- oder
+  Kleinschreibung kennt („hand“/„Hand“), wird nie gemerkt; ersetzt du ein gemerktes Wort durch ein
+  anderes, ist es wieder vergessen. Die zweite Sprache der gerade benutzten zählt nicht mit (die
+  kennt die Tastatur dort ohnehin). Liste mit „Löschen“ unter „Was ich mir gemerkt habe“ → „Wörter
+  aus anderen Sprachen“; unter „Korrekturen“ steht jetzt die Sprache dabei. Alles lokal; nichts in
+  Passwortfeldern, im Inkognito-Modus, bei Lernpause oder gesperrtem Gerät. Noch auf keinem Gerät
+  ausprobiert.

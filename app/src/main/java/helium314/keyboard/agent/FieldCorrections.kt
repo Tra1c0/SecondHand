@@ -48,6 +48,13 @@ class FieldCorrectionWatcher @JvmOverloads constructor(private val privateText: 
     private var reference: Snapshot? = null
     private val autoCorrections = ArrayDeque<AutoCorrection>()
     private var session = nextSession()
+    // review of stage 51 (N7): the keyboard language of this field, and whether it changed since; after a
+    // switch the text may be of either language, so no pair is learned here until another field or an
+    // emptied one. Tied to the editor's field ([ForeignWords.fieldSession]), not to [start]: a switch of
+    // the keyboard language restarts the input logic (InputLogic.onSubtypeChanged), not the field.
+    private var languageField = 0L
+    private var sessionLanguage: String? = null
+    private var languageSwitched = false
     // review N1: the field positions the user's own input (letters, delete, a picked suggestion)
     // touched since the reference, as one range: without a cursor move (a checkpoint) the input
     // stays at one place. Changes outside it were made by the app.
@@ -117,6 +124,14 @@ class FieldCorrectionWatcher @JvmOverloads constructor(private val privateText: 
         }
         // second review: the keyboard shown now, so a language or layout change is seen (cheap when unchanged)
         noteKeyboard(runCatching { helium314.keyboard.keyboard.KeyboardSwitcher.getInstance().keyboard }.getOrNull())
+        // review of stage 51 (N7): a pair belongs to the language the field was typed in
+        val language = TypoMemory.languageOf(settings)
+        val field = ForeignWords.fieldSession
+        if (field != languageField || sessionLanguage == null) {
+            languageField = field
+            sessionLanguage = language
+            languageSwitched = false
+        } else if (sessionLanguage != language) languageSwitched = true
         if (composing) return // the last reference stays, the next checkpoint compares
         val cursor = connection.expectedSelectionStart
         // review M2: a slow app gets no extra reads; nothing is learned there
@@ -134,6 +149,8 @@ class FieldCorrectionWatcher @JvmOverloads constructor(private val privateText: 
             if (old == null || old.text.isNotEmpty()) {
                 session = nextSession()
                 autoCorrections.clear()
+                sessionLanguage = language // the next message is typed in the language in use now
+                languageSwitched = false
             }
             return
         }
@@ -162,7 +179,9 @@ class FieldCorrectionWatcher @JvmOverloads constructor(private val privateText: 
             TypoMemory.forget(context, reverted.typed, reverted.corrected)
             return
         }
-        if (!TypoMemory.mayLearn(settings)) return
+        // review of stage 51 (M2): a word of another language kept for this one, replaced by the user
+        ForeignWords.onReplaced(context, settings, change.old, change.new)
+        if (!TypoMemory.mayLearn(settings) || languageSwitched) return
         // review M1: finishing a word ("Bahnho" -> "Bahnhof", also "Mad" -> "Mädchen") is a completion
         if (isCompletion(change.old, change.new)) return
         fun real(word: String) = dictionary.isValidSpellingWord(word)

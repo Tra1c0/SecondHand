@@ -4544,7 +4544,9 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   Sprache das gemeinte Wort kennt. Sprachneutral: `RejectedCorrections` (verhindert nur, das Paar ist
   sprachspezifisch), eigene Wörter, Wortfolgen, Kürzel des Gedächtnisses (Namen und Slang des Owners,
   wirken nur als Schutz oder auf Tipp), `TypedWordFirst` (nur im Speicher je Feld). HeliBoards
-  Lernverlauf und Sperrliste sind je Sprache; seit Ursache 1 lernt der Verlauf in der Hauptsprache.
+  Lernverlauf und Sperrliste sind je Sprache; seit Ursache 1 lernt der Verlauf bei gleicher Konfidenz
+  in der Hauptsprache (nicht getestet: `ShadowFacilitator2` schattet `addToUserHistory`, kein Test
+  prüft, in welche Gruppe gelernt wird; Nachprüfung 51).
 - (b) Annahmen des Leads: hängt an „Personalisierte Vorschläge“ (HeliBoards Lernschalter), nicht am
   Gedächtnis-Schalter. Schwelle: sofort bei ausdrücklichem Behalten (Rücknahme der Korrektur), sonst
   beim zweiten Commit an anderer Stelle und nur in Feldern mit Autokorrektur. Begründung
@@ -4581,6 +4583,78 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   Sprache, `guardAllows`, `addForeignWord`). `InputLogic`, `RichInputConnection`, `PointerTracker`,
   `LatinIME` unverändert; gelernt wird über die vorhandenen Hooks (`Memory.onWordCommitted`,
   `RejectedCorrections.remember`, `AgentEditorController.startEditor`/`finishEditor`).
+
+### Nachprüfung 51 (Prüfer-Befunde zu f262aa4, 2026-11-14)
+
+- Behoben (Arbeitskopie, Lead-Auftrag 2026-11-14):
+  - M1 (mittel): Nach einer späteren Änderung im Feld (49) und nach dem Antippen der getippten Form
+    (48) fehlte die Frage, ob die Tastatursprache das Wort in anderer Schreibung kennt (nur der Weg
+    über die Löschtaste hatte sie über `lastTyped`). Variante a: `ForeignWords.Dictionaries.find`
+    prüft auf dem Worker zuerst das Hauptwörterbuch der Tastatursprache (getippt, klein, mit großem
+    Anfang) und verwirft bekannte Wörter; fehlt dieses Wörterbuch, wird nichts gemerkt.
+  - M2 (mittel): Ein gemerktes Wort, das der Owner durch ein anderes ersetzt, ist für diese Sprache
+    vergessen (`ForeignWords.onReplaced` → `forget`, auch ein Kandidat): aus `TypoMemory.confirm`
+    (anderer Vorschlag statt des getippten Worts, auch ohne „Meine Tippfehler lernen“) und aus
+    `FieldCorrectionWatcher.checkpoint` (eigene Änderung im Feld). Nicht bei reiner
+    Groß-/Kleinänderung, fertig geschriebenem Wort, Lernpause, gesperrtem Feld oder Gerät.
+  - N1: Mit „Anstößige Wörter sperren“ zählt keine Form, deren Häufigkeit im anderen Wörterbuch 0
+    ist (wie HeliBoards `addWordToUserHistory`).
+  - N2: Ein erneut benutztes gemerktes Wort bekommt seine Zeit nur im Speicher (`dirty`), geschrieben
+    bei `onFieldChanged(context)` (Feldwechsel, Ende der Eingabe, `destroy`), ohne Prüfung auf dem
+    Worker. Die zweiten Sprachen des benutzten Subtyps (`mSecondaryLocales`) zählen nicht.
+  - N3: Wörterbücher je Locale (`Dictionaries`), offen über einen Wechsel der Tastatursprache;
+    geschlossen bei einer nicht mehr aktiven Sprache, in `LatinIME.onTrimMemory` (eine Zeile neben
+    `RgbLighting.onTrimMemory`), in `AgentEditorController.destroy` und mit `clear`.
+  - N4: Jede Aufgabe auf dem Worker in `runCatching`.
+  - N5: `Suggest.addForeignWord` meldet ein Wort als bekannt, solange die Hauptsprache des
+    Facilitators nicht die Tastatursprache ist oder kein Hauptwörterbuch geladen ist.
+  - N6: `find` probiert auch die Form mit großem Anfang und merkt die Schreibung des Wörterbuchs
+    („haus“ in spanischem Text → deutsch „Haus“).
+  - N7: Variante „nichts lernen nach einem Wechsel“: `FieldCorrectionWatcher` hängt die Sprache an
+    das Feld des Editors (`ForeignWords.fieldSession`, nicht an `start`, das ein Sprachwechsel über
+    `InputLogic.onSubtypeChanged` auch ruft) und lernt nach einem Wechsel im selben Feld kein Paar
+    mehr. Lücke (P208): startet die App das Feld nach dem Wechsel neu, gilt es als neues Feld.
+  - N8: Der Commit, der eine wartende Rücknahme verbraucht, zählt sein eigenes Wort zusätzlich. Fall
+    „direkt abgeschickt“ in `docs/ANLEITUNG.md` beschrieben (nach der Löschtaste genügt ein
+    Leerzeichen, sonst braucht es ein weiteres Wort).
+  - N9: `docs/ANLEITUNG.md` (Hauptsprache: gewinnt den Gleichstand der Konfidenz, Großschreibung,
+    gelernte Tippfehler; gleich häufige Wörter können direkt nach dem Umschalten aus der zweiten
+    Sprache kommen, darum keine Behauptung „bevorzugt“ und kein Test mit gleicher Häufigkeit),
+    Etappe 51 oben („lernt in der Hauptsprache“ als ungetestet markiert), `docs/ROADMAP.md` (Regel
+    „fur“: einmal behalten oder zweimal unkorrigiert an verschiedenen Stellen).
+  - N10: „Was ich mir gemerkt habe“ zeigt bei jeder Korrektur von 49 die Sprache
+    (`agent_memory_pair_in`, alte ohne Sprache wie bisher), Testmarken je Sprache
+    (`memoryEntryTag`, z. B. `de_hsus`, auch bei den Wörtern aus anderen Sprachen);
+    `TypoMemory.all` liefert `TypoMemory.Entry` mit Sprache.
+- Neue Tests: `InputLogicTest` „stage 51 review“ (9: M1 über 49 und 48, M2 über Feld und Leiste,
+  N8 über Löschtaste und Feld, N2 zweite Sprache, N2 Schreiben erst beim Feldwechsel, N1, N3, N6,
+  N7), `SuggestTest` (1: N5), `TypoMemoryTest` (1: M2 auf Ebene von `confirm`, Pause, Groß/klein,
+  fertig geschriebenes Wort; 1 bestehender um die Sprache in `all` ergänzt),
+  `FieldCorrectionMemoryTest` (1: Sprache auf der Seite, gleiche Form in zwei Sprachen, alter
+  Eintrag; der bestehende Seitentest mit Sprache in Text und Marken). `WordListDictionaries.kt`:
+  `WordLists.offensive` (Häufigkeit 0), `WordLists.opened` mit Thread. Keine Assertion geschwächt;
+  geänderte bestehende Assertions vergleichen jetzt zusätzlich die Sprache.
+- Gegenprobe (2026-11-14): Mit der alten `ForeignWords.kt` (nur um die neuen Aufrufe als leere
+  Stummel ergänzt) scheitern 8 der 9 neuen `InputLogicTest`-Fälle und der neue `TypoMemoryTest`
+  an der jeweils gemeinten Stelle (M1 am 49er-Weg mit `(de, hand, en)`, N8 am 49er-Weg ohne
+  „gracias“); der 48er-Weg von M1 läuft dahinter und ist nicht einzeln gegengeprüft. N7 scheiterte
+  mit der alten `FieldCorrections.kt` (`(en, hpld)` gelernt), N5 mit dem alten `Suggest.kt`. Der
+  erste Teil des N8-Tests (Löschtaste) war schon vorher grün: Dort verbraucht das Leerzeichen nach
+  dem zurückgeholten Wort die Rücknahme.
+- Gelaufen (2026-11-14, `--max-workers=1 -Xmx1536m`): `:app:testDebugUnitTest` gezielt mit
+  `*InputLogicTest`, `*SuggestTest`, `TypoMemoryTest`, `FieldCorrectionMemoryTest`,
+  `MemoryScreenTest`: 330 Tests (`InputLogicTest` 258, `SuggestTest` 46, `TypoMemoryTest` 12,
+  `FieldCorrectionMemoryTest` 10, `MemoryScreenTest` 4), 1 Fehler = geerbt
+  (`insertLetterIntoWordHangulFails`). In einem früheren Lauf derselben Klassen scheiterte
+  zusätzlich das bekannte reihenfolgeabhängige `typedWorkflowChoiceIsDroppedWhenTheEditorChanges`
+  (Senden-Knopf sichtbar, siehe Etappe 48), im Lauf davor und danach grün. `docs_sync --check` grün.
+  Nicht gelaufen: `:agent-core:test` (unverändert), `tools/dev.py
+  agent-tests`, volle Suite, Lint, Build (Speicher, parallele Agenten), Gerätetest (echte
+  Wörterbücher, zusätzlicher Speicher des doppelt geöffneten Wörterbuchs der Tastatursprache,
+  Verhalten nach `onTrimMemory`).
+- Engine-Änderungen (erneutes Prüfer-Review Pflicht): `Suggest.kt` (`addForeignWord`, N5),
+  `LatinIME.java` (`onTrimMemory`, eine Zeile). `InputLogic`, `RichInputConnection`,
+  `PointerTracker`, `DictionaryFacilitatorImpl` unverändert.
 
 ## Gerätetest vor Meilensteinfreigabe
 

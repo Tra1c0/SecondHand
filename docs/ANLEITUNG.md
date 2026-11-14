@@ -530,7 +530,12 @@ diese Sprache um.
 - Mit der Sprache stellt auch die Autokorrektur um: Wörterbuch, Vorschläge und gelernte Tippfehler
   sind ab dem nächsten Wort die der neuen Sprache (die ersten Buchstaben nach dem Umschalten
   können noch ohne Korrektur bleiben, solange das Wörterbuch lädt). Das gilt auch für Sprachen mit
-  zweiter Sprache („Mehrsprachiges Tippen“): Die gewählte Sprache ist die bevorzugte.
+  zweiter Sprache („Mehrsprachiges Tippen“): Die gewählte Sprache ist die Hauptsprache. Nach dem
+  Umschalten zählen beide Sprachen gleich viel, bei Gleichstand gewinnt die Hauptsprache; ihre
+  Regeln gelten für die Großschreibung, und gelernte Tippfehler gehören zu ihr. Welche Sprache
+  danach vorne liegt, entscheidet wie bei HeliBoard, in welcher du zuletzt Wörter geschrieben hast;
+  dorthin lernt auch der Lernverlauf. Ein Wort, das in beiden Sprachen etwa gleich häufig ist,
+  kann deshalb direkt nach dem Umschalten auch aus der zweiten Sprache kommen.
 - Die gewählte Sprache bleibt, solange du im selben Feld bleibst, auch wenn die App das Feld
   nach dem Löschen des Befehls neu startet. Wechselst du in ein anderes Feld, gilt dort wieder,
   was die App oder „Sprache pro App merken“ vorgibt (wie bei der Sprachtaste).
@@ -1033,10 +1038,21 @@ Löschtaste (oder tippe das getippte Wort in der Leiste an). Ab dann bleibt „h
 stehen und wird beim Tippen von „ho…“ vorgeschlagen, hinter der Korrektur, nie als Korrektur. Kam
 gar keine Korrektur, merkt sich die Tastatur das Wort beim zweiten Mal an anderer Stelle (anderes
 Feld oder andere Stelle im Text). Das gilt nur für die Sprache, in der du es behalten hast; Wörter,
-die es in dieser Sprache in anderer Groß-/Kleinschreibung gibt („hand“/„Hand“), zählen nie. Nichts
-davon in Inkognito, Passwortfeldern, „Meine Daten“, bei Lernpause oder gesperrtem Gerät.
+die es in dieser Sprache in anderer Groß-/Kleinschreibung gibt („hand“/„Hand“), zählen nie. Gemerkt
+wird das Wort so, wie das Wörterbuch der anderen Sprache es schreibt („haus“ in spanischem Text
+wird zu „Haus“). Die zweite Sprache der gerade benutzten Sprache („Mehrsprachiges Tippen“) zählt
+nicht als andere Sprache, ihre Wörter kennt die Tastatur dort ohnehin. Wörter, die das Wörterbuch
+als möglicherweise anstößig markiert, merkt sie sich nur, wenn „Anstößige Wörter sperren“ aus
+ist. Ersetzt du ein gemerktes Wort durch ein anderes (anderen Vorschlag in der Leiste antippen oder
+später im Feld ändern), vergisst sie es für diese Sprache wieder. Eine zurückgeholte Korrektur zählt
+erst, wenn du danach weiterschreibst (nach der Löschtaste genügt ein Leerzeichen, nach dem Antippen
+oder einer späteren Änderung im Feld braucht es ein weiteres Wort). Schickst du die Nachricht
+direkt danach ab, merkt sich die Tastatur das Wort diesmal nicht. Nichts davon in Inkognito,
+Passwortfeldern, „Meine Daten“, bei Lernpause oder gesperrtem Gerät.
 „Was ich mir gemerkt habe“ → „Wörter aus anderen Sprachen“ zeigt die Wörter mit „Löschen“;
-„Gelernte Wörter löschen“ und das Ausschalten von „Personalisierte Vorschläge“ löschen alle.
+„Gelernte Wörter löschen“ und das Ausschalten von „Personalisierte Vorschläge“ löschen alle. Unter
+„Korrekturen“ steht bei jeder Korrektur die Sprache, in der sie gilt (ältere ohne Sprache gelten
+überall, wo das Wörterbuch das gemeinte Wort kennt).
 
 Getipptes Wort zurückholen: Drückst du direkt nach einer Korrektur die Löschtaste oder tippst du
 später in das korrigierte Wort, steht dein getipptes Wort in der Leiste ganz links (in deiner

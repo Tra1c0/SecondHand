@@ -23,21 +23,23 @@ import java.util.concurrent.CopyOnWriteArrayList
  */
 object WordLists {
     @Volatile var lists: Map<String, Map<String, Int>> = emptyMap()
-    /** The locales main dictionaries were created for, in order (also those without a list). */
-    val opened = CopyOnWriteArrayList<Locale>()
+    /** Words reported with frequency 0, which the engine reads as "possibly offensive" (review of stage 51). */
+    @Volatile var offensive: Set<String> = emptySet()
+    /** The locales main dictionaries were created for, in order (also those without a list), and the thread that opened them. */
+    val opened = CopyOnWriteArrayList<Pair<Locale, Thread>>()
 
     /** [words] with frequency 0, or "word:frequency". */
     fun of(vararg words: String): Map<String, Int> =
         words.associate { if (':' in it) it.substringBefore(':') to it.substringAfter(':').toInt() else it to 0 }
 
-    fun reset() { lists = emptyMap(); opened.clear() }
+    fun reset() { lists = emptyMap(); offensive = emptySet(); opened.clear() }
 }
 
 @Implements(DictionaryFactory::class)
 class ShadowWordListDictionaries {
     @Implementation
     fun createMainDictionaryCollection(context: Context, locale: Locale, useEmojiDict: Boolean): DictionaryCollection {
-        WordLists.opened += locale
+        WordLists.opened += locale to Thread.currentThread()
         val dictionaries = WordLists.lists[locale.language]?.let { listOf(WordListDictionary(locale, it)) }.orEmpty()
         return DictionaryCollection(Dictionary.TYPE_MAIN, locale, dictionaries, FloatArray(dictionaries.size) { 1f })
     }
@@ -76,8 +78,9 @@ class WordListDictionary(locale: Locale, private val words: Map<String, Int>) : 
 
     override fun isInDictionary(word: String): Boolean = word in words
 
-    // never 0, the engine reads 0 as "possibly offensive"
-    override fun getFrequency(word: String): Int = words[word]?.coerceAtLeast(1) ?: NOT_A_PROBABILITY
+    // never 0, the engine reads 0 as "possibly offensive" (only the words in [WordLists.offensive])
+    override fun getFrequency(word: String): Int =
+        words[word]?.let { if (word in WordLists.offensive) 0 else it.coerceAtLeast(1) } ?: NOT_A_PROBABILITY
 
     override fun getMaxFrequencyOfExactMatches(word: String): Int = getFrequency(word)
 
