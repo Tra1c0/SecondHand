@@ -4,11 +4,11 @@ package dev.agentkeyboard.core
 /** One file attached to a GitHub release, as listed by the releases API. */
 data class ReleaseAsset(val name: String, val size: Long, val downloadUrl: String)
 
-/** The parts of a GitHub release the update check looks at. */
-data class ReleaseInfo(val tag: String, val draft: Boolean, val assets: List<ReleaseAsset>)
+/** The parts of a GitHub release the update check looks at; [body] is its Markdown text ("" without one). */
+data class ReleaseInfo(val tag: String, val draft: Boolean, val assets: List<ReleaseAsset>, val body: String = "")
 
-/** A published build with both of its files: the APK and its SHA-256 line. */
-data class AvailableBuild(val number: Long, val apk: ReleaseAsset, val checksum: ReleaseAsset)
+/** A published build with both of its files: the APK and its SHA-256 line, and its release text (stage 54). */
+data class AvailableBuild(val number: Long, val apk: ReleaseAsset, val checksum: ReleaseAsset, val notes: String = "")
 
 /**
  * Rules of the opt-in update check. Pure and deterministic: the app supplies the parsed
@@ -47,7 +47,7 @@ object UpdateReleases {
         val apk = asset(apkName(number)) ?: return@mapNotNull null
         val checksum = asset(checksumName(number)) ?: return@mapNotNull null
         if (apk.size !in 1..MAX_APK_BYTES || checksum.size !in 1..MAX_CHECKSUM_BYTES) return@mapNotNull null
-        AvailableBuild(number, apk, checksum)
+        AvailableBuild(number, apk, checksum, release.body)
     }.maxByOrNull { it.number }
 
     /** True only for a strictly higher build: Android refuses equal or lower version codes. */

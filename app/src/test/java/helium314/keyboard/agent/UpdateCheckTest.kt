@@ -30,10 +30,11 @@ class UpdateCheckTest {
 
     private fun sha(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 
-    private fun releasesJson(vararg numbers: Long, apkSize: Long = apkBytes.size.toLong()) = buildJsonArray {
+    private fun releasesJson(vararg numbers: Long, apkSize: Long = apkBytes.size.toLong(),
+                             body: (Long) -> String = { "notes of build-$it" }) = buildJsonArray {
         for (n in numbers) add(buildJsonObject {
             put("tag_name", "build-$n"); put("draft", false); put("prerelease", false)
-            put("body", "notes are ignored")
+            put("body", body(n))
             put("assets", buildJsonArray {
                 for ((name, size) in listOf(UpdateReleases.apkName(n) to apkSize, UpdateReleases.checksumName(n) to 100L))
                     add(buildJsonObject {
@@ -73,7 +74,7 @@ class UpdateCheckTest {
     private fun inspector(identity: ApkIdentity?) = ApkInspector { identity }
 
     @Before fun reset() {
-        UpdateSettings(app).apply { daily = false; status = UpdateStatus.Unknown; notifiedBuild = 0 }
+        UpdateSettings(app).apply { daily = false; status = UpdateStatus.Unknown; notifiedBuild = 0; remember(null, 0) }
         UpdateScheduler.cancel(app)
     }
 
@@ -88,6 +89,41 @@ class UpdateCheckTest {
         assertEquals("application/vnd.github+json", request.header("Accept"))
         assertEquals(GitHubUpdateClient.API_VERSION, request.header("X-GitHub-Api-Version"))
         assertEquals(UpdateStatus.Current(7), Updates.check(app, { client() }, installed = 7))
+    }
+
+    /** Stage 54: the dialog and the keyboard chip read what the check stored, never the network. */
+    @Test fun checkStoresTheNotesOfTheNewestBuildAndTheVersionItComparedWith() {
+        Updates.check(app, { client() }, installed = 6)
+        UpdateSettings(app).let {
+            assertEquals(7L, it.knownBuild)
+            assertEquals("notes of build-7", it.knownNotes)
+            assertFalse(it.knownNotesTruncated)
+            assertEquals(6L, it.comparedVersion)
+            assertEquals(7L, it.newerBuild(6))
+            assertNull(it.newerBuild(7))
+        }
+        // a failed check knows nothing new: build, notes and compared version stay
+        assertEquals(UpdateStatus.Failed(UpdateError.INVALID_RESPONSE), Updates.check(app, { client(releases = "[broken") }, installed = 6))
+        UpdateSettings(app).let { assertEquals(7L, it.knownBuild); assertEquals("notes of build-7", it.knownNotes); assertEquals(6L, it.comparedVersion) }
+        // a long body is capped
+        Updates.check(app, { client(releases = releasesJson(9, 7, body = { "- Punkt $it\n".repeat(5000) })) }, installed = 6)
+        UpdateSettings(app).let {
+            assertEquals(9L, it.knownBuild)
+            assertTrue(it.knownNotesTruncated)
+            assertTrue(it.knownNotes.toByteArray().size <= dev.agentkeyboard.core.ReleaseNotes.MAX_STORED_BYTES)
+            assertTrue(it.knownNotes.startsWith("- Punkt 9"))
+        }
+        // nothing newer than the installed build: forgotten, with the new compared version
+        assertEquals(UpdateStatus.Current(9), Updates.check(app, { client(releases = releasesJson(9)) }, installed = 9))
+        UpdateSettings(app).let { assertEquals(0L, it.knownBuild); assertEquals("", it.knownNotes); assertEquals(9L, it.comparedVersion) }
+        // a release without text or with null is no text; any other type fails the whole check
+        val withoutBody = releasesJson(3).replace(""""body":"notes of build-3",""", "")
+        assertEquals("", GitHubUpdateClient.parseReleases(withoutBody).single().body)
+        assertEquals("", GitHubUpdateClient.parseReleases(releasesJson(3).replace(""""notes of build-3"""", "null")).single().body)
+        assertEquals(UpdateError.INVALID_RESPONSE, assertFailsWith<UpdateFailure> {
+            GitHubUpdateClient.parseReleases(releasesJson(3).replace(""""notes of build-3"""", "5"))
+        }.error)
+        assertEquals(4, requests.size, "only the four checks asked")
     }
 
     @Test fun parsingIsStrictAndErrorsBecomeNeutralStatus() {

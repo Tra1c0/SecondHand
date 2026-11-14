@@ -8,6 +8,7 @@ import dev.agentkeyboard.core.ReleaseInfo
 import dev.agentkeyboard.core.UpdateReleases
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
@@ -182,6 +183,11 @@ class GitHubUpdateClient(private val calls: Call.Factory) {
                             size = (asset["size"] as JsonPrimitive).longOrNull!!,
                             downloadUrl = asset.string("browser_download_url"),
                         )
+                    },
+                    // stage 54: the release text for the update dialog; absent or null is no text, anything else fails
+                    body = when (val body = release["body"]) {
+                        null, JsonNull -> ""
+                        else -> (body as JsonPrimitive).also { require(it.isString) }.content
                     },
                 )
             }

@@ -4806,6 +4806,46 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   `RichInputConnection`, `PointerTracker`, `Settings.java` unverändert. Sonst nur Fork-Dateien
   (`KeyboardCommands`, `FormatGuardChips`: Eintrag der App vor dem Schalter).
 
+## Etappe 54 (Update-Fenster)
+
+- Auftrag: `docs/ROADMAP.md` → 54 (Owner, 2026-11-14): Variante A (Release-Repository
+  `Tra1c0/SecondHandAgenticKeyboard`, nur Builds von `main`), Chip in der Tastatur immer, solange
+  ein neuerer Build bekannt ist, dazu der Dialog in der App. Netz weiter nur über den bestehenden
+  Schalter „täglich automatisch“ und „Jetzt prüfen“.
+- Entscheidung Chip-Platz: nur auf dem neutralen Streifen (`LatinIME.setNeutralSuggestionStrip`,
+  nach Befehls-Chips, Symbol-Chips und Zwischenablage-Pille, statt Satzzeichen oder leer), nie in
+  `setSuggestedWords`; Wortvorschläge und Vorhersagen verdeckt er nie. Auch in Passwortfeldern und
+  Inkognito (nur die Build-Nummer), nie bei gesperrtem Gerät (`mIsLocked`, live
+  `credentialAccessAllowed`, beim Tipp erneut).
+- Entscheidung „Installieren“: öffnet die Seite Updates und startet dort einmal `startInstall`
+  (dieselben Prüfungen wie der Knopf); die Seite zeigt den Knopf seit 54 auch nach einem
+  fehlgeschlagenen Download für den bekannten Build.
+- Neue Tests: `CT/ReleaseNotesTest.kt` (5: Release-Text des neuesten Builds, Steuerzeichen,
+  Kappung an 8 KiB an einer Zeile und nie in einem Codepunkt, einfaches Markdown),
+  `AT/UpdatePromptsTest.kt` (8: Asset gleich `release-notes/next.md`, „Neu in“ einmal und nicht
+  nach frischer Installation, „Build N ist da“ je Build, „Später“ je Build, weg nach der
+  Installation, nicht auf der Seite Updates selbst, gesperrt und vor dem ersten Entsperren nichts,
+  Compose-Dialoge mit Notizen, „Später“, „Installieren“ und Aufklappen, gekürzte Notizen mit
+  Hinweis, kein `checkedAt` und kein Job), `AT/UpdateChipTest.kt` (3: Chip bei bekanntem neuerem
+  Build, bleibt nach fehlgeschlagener Prüfung, weg nach Installation und nach einer Prüfung ohne
+  neueren Build, gesperrt nicht, Tipp öffnet nur `SettingsActivity` mit `agent_updates`, gesperrt
+  beim Tipp nichts, keine Prüfung), `InputLogicTest.updateChipShowsOnlyOnTheNeutralStripWhileANewerBuildIsKnown`
+  (echte Leiste: neutral mit Chip, Wortvorschläge ohne, Befehls-Chips vor dem Chip, gesperrt ohne).
+  `UpdateCheckTest` (+1: Release-Text, Kappung, verglichene Version, Fehlschlag behält, `body`
+  fehlt/`null`/falscher Typ; die Fake-Releases tragen jetzt je Build einen eigenen Text statt
+  „notes are ignored“, keine Assertion geändert).
+- Gelaufen (2026-11-14, `--max-workers=1 -Xmx1536m`): `./gradlew :agent-core:test` grün (508
+  Tests); `:app:testDebugUnitTest` mit `UpdatePromptsTest` (8), `UpdateChipTest` (3),
+  `UpdateCheckTest` (12), `SettingsSystemAreaTest` (12), `KeyboardCommandsTest` (5) und
+  `InputLogicTest.updateChip*`, `screenshotChip*`, `formatGuardChip*` (9) grün. Der Task
+  `embedDebugReleaseNotes` lief dabei vor `mergeDebugAssets`. `docs_sync --check` grün.
+- Engine-nahe Änderung (Prüfer Pflicht): `LatinIME.java` (`tryShowUpdateChip`, eine Zeile in
+  `setNeutralSuggestionStrip`). Dazu `SettingsActivity.kt` (ein Zweig), `app/build.gradle.kts`
+  (Task `EmbedReleaseNotes`). `InputLogic`, `RichInputConnection`, `PointerTracker`,
+  `KeyboardCommands` unverändert.
+- Nicht gelaufen: volle Suite, Agent-Tests über `tools/dev.py`, Lint, Build, Gerätetest (Dialog
+  nach einem echten Update, Chip in der Leiste auf dem Telefon, Notizen eines echten Releases).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

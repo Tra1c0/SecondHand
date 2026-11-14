@@ -131,6 +131,10 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   benutzt (Fallstrick P5).
 - `UpdateReleases.kt`: Regeln der Update-Prüfung (Abschnitt „Updates“): `REPOSITORY`, Tag
   `build-<n>`, Asset-Namen, erwartete Download-URL, `newest`, `isNewer`, `parseChecksum`.
+  `ReleaseInfo.body`/`AvailableBuild.notes` (54): Release-Text des Builds.
+- `ReleaseNotes.kt` (54): `clean`, `cap` (höchstens `MAX_STORED_BYTES` = 8 KiB UTF-8, Schnitt an
+  einer Zeile oder einem Codepunkt) und `blocks` (einfaches Markdown: Überschrift, Listenpunkt,
+  Absatz; `**`, `__`, Backticks weg, Links als ihr Text) für die Update-Dialoge.
 - `RgbLighting.kt` (Etappe 26, überarbeitet 29): `RgbSettings` (alle Optionen, `encode`/`parse`
   mit feldweiser Begrenzung, nie eine Ausnahme; gemeinsamer Look plus `looks` je `RgbTarget`,
   `forTarget`, `lights`), `RgbLook`, `RgbEngine` (Farbe und Stärke für Punkt, Taste und Zeit:
@@ -809,6 +813,12 @@ Speicher, Datenschutz und Identität:
   `UpdateCheckJobService` (`BIND_JOB_SERVICE`) und Empfänger `UpdateInstallReceiver`, beide nicht
   exportiert und nicht `directBootAware`. `SettingsNavHost.kt`/`MainSettingsScreen.kt`: Ziel und
   Eintrag „Updates“ (`agent_updates`, auch in `AgentPreferences.SETTINGS_DESTINATIONS`).
+- Update-Fenster (54, Abschnitt „Updates“): `LatinIME.java` `tryShowUpdateChip` (eine Zeile in
+  `setNeutralSuggestionStrip` nach der Zwischenablage-Pille, sonst wie `tryShowScreenshotChip`);
+  `SettingsActivity.kt` ein Zweig `AgentUpdatePrompts(onUpdatesPage = …)` nach Willkommen und
+  Absturzberichten, vor der Gestendaten-Erinnerung; `app/build.gradle.kts` Task
+  `EmbedReleaseNotes` (je Variante `embed<Variante>ReleaseNotes`, über
+  `variant.sources.assets.addGeneratedSourceDirectory`).
 - `SettingsNavHost.kt` (45): Ziel `agent_my_data` (`SettingsDestination.AgentMyData`, Seite
   „Meine Daten & Vorschläge“, auch in `AgentPreferences.SETTINGS_DESTINATIONS`).
 - App-Identität: `app/build.gradle.kts` (App-ID `dev.personal.agentkeyboard`, Version 0.1.0,
@@ -1243,6 +1253,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `Host.replace` nur seinen eigenen Text ersetzen, und nur wenn der Editor ihn unverändert vor
   der Schreibmarke zeigt. Die Leiste zeigt die Chips über `setExternalSuggestionView`; der
   nächste normale Vorschlag ersetzt sie.
+- Leiste, Reihenfolge in `LatinIME.setNeutralSuggestionStrip`: Befehls-Chips (mit Formatwächter
+  41, Feld-Vorschlägen 45, Gedächtnis 46, Emoji-Mix aus `KeyboardCommands.buildChips`), Symbol-Chips
+  (27), Zwischenablage-Pille mit Smart Paste (40), dann der Update-Chip (54, `UpdateChip`), zuletzt
+  Satzzeichen oder leer. In `setSuggestedWords` kommt der Update-Chip nicht vor: Wortvorschläge und
+  Vorhersagen verdeckt er nie (Entscheidung des Leads, P212).
 - Vorlagen: `Command.templates(host)` liefert `Template(label, text)` (Standard: keine). Bei
   `CommandCall` mit leerem Argument hängt `chipsFor` nach den eigenen Chips des Befehls
   `templateChips` an (`Chip.Kind.TEMPLATE`: umrandet, Text leicht gedämpft, Beschreibung
@@ -2723,9 +2738,41 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/settings/screens/AgentUpdatesScreen.kt`: Seite „Updates“ (Schalter, „Jetzt prüfen“, Ergebnis,
   Download-Knopf mit Fortschritt und Abbrechen, Weg zu „Unbekannte Apps installieren“, Hinweis
   für Freunde). Texte in `agent_update_strings.xml`, Icon `ic_agent_settings_updates.xml`.
+  Seit 54 zeigt sie den Download-Knopf auch für `knownBuild` nach einem fehlgeschlagenen Download
+  (`downloadAndInstall` fragt die API ohnehin erneut) und startet `startInstall` einmal, wenn
+  `UpdatePrompts.takeInstallRequest` für diesen Build zutrifft.
+- Update-Fenster (54): `Updates.check` speichert nach jeder erfolgreichen Prüfung über
+  `UpdateSettings.remember` den neueren Build (`known_build`), seinen Release-Text
+  (`ReleaseNotes.cap`, `known_notes`, `known_notes_truncated`) und die verglichene Versionsnummer
+  (`compared_version`); eine fehlgeschlagene Prüfung und ein fehlgeschlagener Download ändern das
+  nicht (P211). `GitHubUpdateClient.parseReleases` liest `body` (fehlt oder `null` = leer, jeder
+  andere Typ lässt die Prüfung scheitern). `newerBuild(installed)` gilt nur über der installierten
+  Version. `A/updates/UpdatePrompts.kt`: `UpdatePrompts.next` (gesperrt nichts; erst „Neu in“, wenn
+  die installierte Version über `seen_version` liegt, nach einer frischen Installation
+  (`firstInstallTime == lastUpdateTime`) nur merken; dann „Build N ist da“ bis `later_build`;
+  `available = false` auf der Seite Updates selbst), `markSeen`, `later`, `embeddedNotes` (Asset
+  `NOTES_ASSET` im Ordner `agent` der Assets, höchstens 256 KiB), `requestInstall`/`takeInstallRequest` (einmal je
+  Build, jeder Blick löscht). `UpdateChip`: `build` (`mIsLocked` zuerst, dann CE-Einstellungen in
+  `runCatching`, erst bei einem Kandidaten live `locked`, austauschbar wie `installed`, das je
+  Prozess einmal gelesen wird), `createView` (`KeyboardCommands.chipRow` mit einem Chip, ohne die
+  Kennung `agent_command_chips`, Tag `TAG`), `open` (prüft die Sperre erneut, dann
+  `UpdateNotifier.pageIntent`). `K/settings/screens/AgentUpdatePrompts.kt`: `AgentUpdatePrompts`
+  (gibt true zurück, solange ein Dialog steht; „Neu in“ gilt beim Zeigen als gesehen, „OK“ holt den
+  nächsten, „Installieren“ = `requestInstall` + `SettingsDestination.navigateTo(AgentUpdates)`,
+  Zurück schließt „Build N ist da“ nur für jetzt), `ReleaseNotesText` (6 Blöcke, dann „Alle
+  Notizen anzeigen“, höchstens 420 dp hoch, scrollt; gekürzt mit Link-Text zur Release-Seite).
+  Texte `agent_update_prompt_strings.xml` (`values/`, `values-de/`). Asset aus
+  `release-notes/next.md` beim Bauen (Task `EmbedReleaseNotes` in `app/build.gradle.kts`, auch
+  lokal und in den Unit-Tests). Chip-Platz: siehe „Befehle“ → Leiste.
 - Tests: `AT/UpdateCheckTest.kt` (Anfrage ohne Zugangsdaten, strenges Parsen, Redirect nur
   HTTPS, Prüfsummen-, Paket- und Zertifikatsfehler, Größen, Schalter und Job, Benachrichtigung
-  einmal je Build), `CT/UpdateReleasesTest.kt`.
+  einmal je Build; seit 54 Release-Text, Kappung, verglichene Version, Fehlschlag behält),
+  `CT/UpdateReleasesTest.kt`, `CT/ReleaseNotesTest.kt` (54), `AT/UpdatePromptsTest.kt` (54:
+  eingebettete Notizen = `release-notes/next.md`, „Neu in“ einmal und nicht nach frischer
+  Installation, „Build N ist da“ je Build mit „Später“, weg nach der Installation, gesperrt nichts,
+  Dialoge in Compose, keine Prüfung und kein Job), `AT/UpdateChipTest.kt` (54: Chip nur bei
+  bekanntem neuerem Build, weg nach der Installation, gesperrt nicht, Tipp öffnet nur die Seite),
+  `InputLogicTest.updateChipShowsOnlyOnTheNeutralStripWhileANewerBuildIsKnown` (echte Leiste).
 
 ## Unveränderter Upstream
 
@@ -4295,13 +4342,32 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Schreibmarke selbst (`mComposingText`, erwartete Auswahl), und ein fremder Kompositionsbereich
   setzt in `onUpdateSelection` den Composer zurück. Dazu Löschtaste, Gesten und Enter-Hook. Das ist
   kein enger Eingriff; die Farben stehen deshalb nur in der Vorschau der Leiste.
+- **P211** Chip und Dialog „Build N ist da“ lesen `UpdateSettings.knownBuild`, nicht `status`: Ein
+  fehlgeschlagener Download schreibt `status = Failed` (Seite Updates), und vorher verschwand damit
+  jeder Hinweis auf den Build, obwohl er noch da ist. Nur `Updates.check` schreibt `known_build`
+  (über `remember`), und nur nach einer erfolgreichen Prüfung; wer einen neuen Schreibweg baut, hält
+  das ein. Ob der Build neuer ist, entscheidet immer die gerade installierte Version
+  (`newerBuild(installed)`), nie `compared_version`: Nach einem Update ist der gespeicherte Build
+  sonst noch „neu“.
+- **P212** Der Update-Chip gehört nur in `setNeutralSuggestionStrip` (nach der Pille), nie in
+  `setSuggestedWords`/`tryShowCommandChips`: Dort würde er Wortvorschläge oder Befehle verdecken.
+  `createView` liest bei jedem neutralen Streifen; `mIsLocked` und der gespeicherte Wert kommen
+  zuerst, die Sperre (Binder-Aufrufe) wird live erst gefragt, wenn ein neuerer Build bekannt ist,
+  und beim Tipp noch einmal. Die Zeile trägt nicht die Kennung `agent_command_chips`, sonst hielte
+  Code, der Befehls-Chips sucht, sie für einen Befehl.
+- **P213** `AgentUpdatePrompts` gibt einen Wert zurück und ist deshalb nicht neu startbar: Sein
+  Zustand macht die aufrufende Lambda in `SettingsActivity` ungültig, nur so prüft die
+  `else if`-Kette nach dem Schließen weiter (Gestendaten-Erinnerung). Wer es in eine
+  `Unit`-Funktion umbaut, muss den Zustand heben. „Neu in Build N“ zählt beim Zeigen als gesehen
+  (`LaunchedEffect`), sonst käme es nach jeder Drehung oder einem abgebrochenen Start wieder.
+  Tests geben `freshInstall` vor, statt sich auf die Installationszeiten von Robolectric zu verlassen.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (571 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (579 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -4330,8 +4396,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
-- `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (96): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `A/updates/` (6): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdatePrompts,
+  UpdateSettings, Updates
+- `AT/` (98): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, CharArtWindowTest, ClipCommandTest, ClipVaultTest, CommandReplaceTest,
@@ -4351,32 +4418,33 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest, SmartPasteChipsTest, SnipCommandTest,
   SpaceDetentsTest, SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal,
   ToolRunnerTest, TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest,
-  TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
-  WorkflowCommandTest, WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest,
-  WorkflowStoreTest
+  TypoMemoryTest, UpdateCheckTest, UpdateChipTest, UpdatePromptsTest, WorkflowBuilderContractTest,
+  WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
+  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (9): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
   TranslateCommandTest, UrlCommandTest
-- `C/` (44): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
+- `C/` (45): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
   CorrectionRules, DateFormatting, EditorSession, EmojiKeywords, EmojiMix, EmojiNames,
   EmojiSynonyms, EventParser, ExecutionPolicy, InkDots, InkRecognizer, InkSymbols, InkTiming,
   LanguageNames, LocalTextActions, MathExpression, ModelProvider, OwnInkSymbols, PendingBatchGate,
-  PersonalInkSymbols, Places, Profiles, RgbCurve, RgbLighting, RgbPatterns, SkillBinding,
-  SnippetTemplate, SpecialCharacters, StyledTranslation, SymbolTable, TextCondition, TimerParser,
-  Tool, TouchDynamics, UnitConversion, UpdateReleases, UrlDetector, Workflow
+  PersonalInkSymbols, Places, Profiles, ReleaseNotes, RgbCurve, RgbLighting, RgbPatterns,
+  SkillBinding, SnippetTemplate, SpecialCharacters, StyledTranslation, SymbolTable, TextCondition,
+  TimerParser, Tool, TouchDynamics, UnitConversion, UpdateReleases, UrlDetector, Workflow
 - `C/charart/` (6): BigFont, CharArt, Raster, Sketch, TextColumns, UnicodeStyle
 - `C/clip/` (6): ClipDates, ClipGuard, LinkCleaner, PrivateRanges, SmartPaste, TrackingNumbers
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `C/memory/` (4): OwnWords, PhraseMemory, ShortcutOffers, SnippetMatcher
 - `C/suggest/` (1): ContextSuggest
-- `CT/` (41): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
+- `CT/` (42): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
   CorrectionRulesTest, DateFormattingTest, EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest,
   EventParserTest, InkAreaTest, InkBenchmarkTest, InkDotFlowTest, InkDotsTest, InkFingerModel,
   InkRecognizerTest, InkTimingTest, InsertionAnchorTest, LanguageNamesTest, LocalTextActionsTest,
   MathExpressionTest, OwnInkSymbolsTest, PendingBatchGateTest, PersonalInkSymbolsTest, PlacesTest,
-  QuestionCaptureTest, RgbCurveTest, RgbFrameStatsTest, RgbLightingTest, RgbPatternsTest,
-  SkillBindingTest, SnippetTemplateTest, StyledTranslationTest, SymbolTableTest, TimerParserTest,
-  ToolTest, TouchDynamicsTest, UnitConversionTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
+  QuestionCaptureTest, ReleaseNotesTest, RgbCurveTest, RgbFrameStatsTest, RgbLightingTest,
+  RgbPatternsTest, SkillBindingTest, SnippetTemplateTest, StyledTranslationTest, SymbolTableTest,
+  TimerParserTest, ToolTest, TouchDynamicsTest, UnitConversionTest, UpdateReleasesTest,
+  UrlDetectorTest, WorkflowTest
 - `CT/charart/` (2): CharArtTest, SketchTest
 - `CT/clip/` (3): ClipGuardTest, PrivateRangesTest, SmartPasteTest
 - `CT/format/` (1): FormatGuardTest
@@ -4406,16 +4474,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/settings/dialogs/` (2): ColorPickerDialog, SliderDialog
 - `K/settings/preferences/` (5): BackupRestorePreference, CustomFontPreference,
   KeyboardScalePreference, LoadGestureLibPreference, SliderPreference
-- `K/settings/screens/` (42): AdvancedScreen, AgentAiScreen, AgentAreaAiScreen, AgentAreaBarScreen,
+- `K/settings/screens/` (43): AdvancedScreen, AgentAiScreen, AgentAreaAiScreen, AgentAreaBarScreen,
   AgentAreaGesturesScreen, AgentAreaKeysScreen, AgentAreaLookScreen, AgentAreaScreen,
   AgentAreaSystemScreen, AgentAreaTypingScreen, AgentCommandsScreen, AgentDesignEditor,
   AgentDesignScreen, AgentDiagnoseScreen, AgentDictationScreen, AgentEmojiMixSection,
   AgentLearningScreen, AgentMemoryScreen, AgentMyDataScreen, AgentProfilesScreen,
   AgentRgbCurveEditor, AgentRgbFrameRate, AgentRgbScreen, AgentRunStatus, AgentScreenReaderSection,
   AgentScreenshotScreen, AgentSettingsKit, AgentSkillsScreen, AgentSlider, AgentSnippetsSection,
-  AgentSpaceScreen, AgentStartScreen, AgentSymbolsScreen, AgentUpdatesScreen, AgentWorkflowsScreen,
-  AppearanceScreen, DictionaryScreen, GestureTypingScreen, MainSettingsScreen, TextCorrectionScreen,
-  WorkflowBuilderDialog, WorkflowDraftProtection
+  AgentSpaceScreen, AgentStartScreen, AgentSymbolsScreen, AgentUpdatePrompts, AgentUpdatesScreen,
+  AgentWorkflowsScreen, AppearanceScreen, DictionaryScreen, GestureTypingScreen, MainSettingsScreen,
+  TextCorrectionScreen, WorkflowBuilderDialog, WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
 - `app/` (1): build.gradle
@@ -4435,15 +4503,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (29): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
+- `app/src/main/res/values-de/` (30): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
   agent_charart_strings, agent_clipvault_strings, agent_command_system_strings,
   agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings, agent_format_strings,
   agent_gestures_strings, agent_language_strings, agent_memory_strings, agent_rgb_strings,
   agent_settings_keys_strings, agent_settings_look_strings, agent_settings_strings,
   agent_settings_system_strings, agent_slider_strings, agent_smart_paste_strings,
   agent_snippet_strings, agent_space_strings, agent_strings, agent_suggest_strings,
-  agent_symbol_strings, agent_touch_strings, agent_typing_strings, agent_update_strings, strings
-- `app/src/main/res/values/` (36): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+  agent_symbol_strings, agent_touch_strings, agent_typing_strings, agent_update_prompt_strings,
+  agent_update_strings, strings
+- `app/src/main/res/values/` (37): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
   agent_bar_strings, agent_charart_ids, agent_charart_strings, agent_clipvault_strings,
   agent_command_system_strings, agent_design_strings, agent_diagnose_strings,
   agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_ids,
@@ -4451,8 +4520,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   agent_settings_look_strings, agent_settings_strings, agent_settings_system_strings,
   agent_slider_strings, agent_smart_paste_strings, agent_snippet_strings, agent_space_strings,
   agent_strings, agent_suggest_strings, agent_symbol_strings, agent_touch_strings,
-  agent_typing_strings, agent_update_strings, attrs, clip_provider, donottranslate, gesture_data,
-  themes-flat
+  agent_typing_strings, agent_update_prompt_strings, agent_update_strings, attrs, clip_provider,
+  donottranslate, gesture_data, themes-flat
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (2): KeyboardParserTest, Shadows

@@ -31,6 +31,7 @@ import helium314.keyboard.agent.updates.PackageInstallerSession
 import helium314.keyboard.agent.updates.UpdateError
 import helium314.keyboard.agent.updates.UpdateFailure
 import helium314.keyboard.agent.updates.UpdateHttp
+import helium314.keyboard.agent.updates.UpdatePrompts
 import helium314.keyboard.agent.updates.UpdateSettings
 import helium314.keyboard.agent.updates.UpdateStatus
 import helium314.keyboard.agent.updates.Updates
@@ -91,6 +92,38 @@ private fun AgentUpdatesUnlockedScreen(onClickBack: () -> Unit, resumed: Int) {
         if (!busy) status = runCatching { settings.status }.getOrDefault(status)
         withContext(Dispatchers.IO) { Updates.cleanup(context) }
     }
+    // download, verify and hand to the installer; only after the user's click (here or "Installieren" in the dialog)
+    fun startInstall() {
+        busy = true; message = 0; progress = 0L to 0L
+        work = scope.launch {
+            val job = coroutineContext
+            try {
+                withContext(Dispatchers.IO) {
+                    val inspector = AndroidApkInspector(context)
+                    Updates.downloadAndInstall(context, GitHubUpdateClient(UpdateHttp.calls(context)), inspector,
+                        inspector.installed(), PackageInstallerSession(context), { job.ensureActive() }) { done, total ->
+                        // snapshot state may be written from this IO thread
+                        progress = done to total; verifying = total > 0 && done >= total
+                    }
+                }
+                message = R.string.agent_updates_install_started
+            } catch (failure: UpdateFailure) {
+                status = UpdateStatus.Failed(failure.error)
+                runCatching { settings.status = status }
+            } catch (failure: Exception) {
+                if (failure is kotlinx.coroutines.CancellationException) throw failure
+                status = UpdateStatus.Failed(UpdateError.INSTALL)
+            } finally { busy = false; progress = null; verifying = false }
+        }
+    }
+    // stage 54: the build the last successful check found stays installable after a failed download
+    val knownNewer = remember(status) { runCatching { settings.newerBuild(installed) }.getOrNull() }
+    val availableBuild = (status as? UpdateStatus.Available)?.build?.takeIf { it > installed } ?: knownNewer
+    LaunchedEffect(Unit) {
+        // stage 54: "Installieren" in the dialog "Build N ist da" starts the download once for that build
+        val requested = UpdatePrompts.takeInstallRequest(availableBuild ?: 0L)
+        if (requested && installAllowed && !busy) startInstall()
+    }
     val notificationRequest = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         notificationsRefused = !it
     }
@@ -126,8 +159,7 @@ private fun AgentUpdatesUnlockedScreen(onClickBack: () -> Unit, resumed: Int) {
                 }
             }) { Text(stringResource(if (busy && progress == null && !verifying) R.string.agent_updates_checking else R.string.agent_updates_check_now)) }
             Text(statusText(status), style = MaterialTheme.typography.titleMedium)
-            val available = status as? UpdateStatus.Available
-            if (available != null && available.build > installed) {
+            if (availableBuild != null) {
                 if (!installAllowed) {
                     Text(stringResource(R.string.agent_updates_install_permission))
                     OutlinedButton(onClick = {
@@ -137,29 +169,9 @@ private fun AgentUpdatesUnlockedScreen(onClickBack: () -> Unit, resumed: Int) {
                         }
                     }) { Text(stringResource(R.string.agent_updates_install_permission_open)) }
                 }
-                Button(enabled = !busy && installAllowed, modifier = Modifier.fillMaxWidth(), onClick = {
-                    busy = true; message = 0; progress = 0L to 0L
-                    work = scope.launch {
-                        val job = coroutineContext
-                        try {
-                            withContext(Dispatchers.IO) {
-                                val inspector = AndroidApkInspector(context)
-                                Updates.downloadAndInstall(context, GitHubUpdateClient(UpdateHttp.calls(context)), inspector,
-                                    inspector.installed(), PackageInstallerSession(context), { job.ensureActive() }) { done, total ->
-                                    // snapshot state may be written from this IO thread
-                                    progress = done to total; verifying = total > 0 && done >= total
-                                }
-                            }
-                            message = R.string.agent_updates_install_started
-                        } catch (failure: UpdateFailure) {
-                            status = UpdateStatus.Failed(failure.error)
-                            runCatching { settings.status = status }
-                        } catch (failure: Exception) {
-                            if (failure is kotlinx.coroutines.CancellationException) throw failure
-                            status = UpdateStatus.Failed(UpdateError.INSTALL)
-                        } finally { busy = false; progress = null; verifying = false }
-                    }
-                }) { Text(stringResource(R.string.agent_updates_install, available.build)) }
+                Button(enabled = !busy && installAllowed, modifier = Modifier.fillMaxWidth(), onClick = ::startInstall) {
+                    Text(stringResource(R.string.agent_updates_install, availableBuild))
+                }
             }
             progress?.let { (done, total) ->
                 if (verifying) Text(stringResource(R.string.agent_updates_verifying))

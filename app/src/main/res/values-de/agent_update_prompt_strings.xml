@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="agent_update_chip">⬆ Build %d verfügbar</string>
+    <string name="agent_update_chip_description">Build %d ist verfügbar. Öffnet die Seite Updates.</string>
+    <string name="agent_update_dialog_title">Build %d ist da</string>
+    <string name="agent_update_dialog_install">Installieren</string>
+    <string name="agent_update_dialog_later">Später</string>
+    <string name="agent_update_whats_new_title">Neu in Build %d</string>
+    <string name="agent_update_whats_new_ok">OK</string>
+    <string name="agent_update_notes_more">Alle Notizen anzeigen</string>
+    <string name="agent_update_notes_less">Weniger anzeigen</string>
+    <string name="agent_update_notes_none">Keine Notizen zu diesem Build.</string>
+    <string name="agent_update_notes_truncated">Gekürzt. Alle Notizen: %s</string>
+</resources>

@@ -20,13 +20,21 @@ object Updates {
 
     /** Checks once, stores and returns the result. Never throws. */
     fun check(context: Context, client: () -> GitHubUpdateClient, installed: Long = installedVersion(context)): UpdateStatus {
+        var newer: AvailableBuild? = null
         val status = try {
-            val newest = client().newest()
-            if (newest != null && UpdateReleases.isNewer(newest, installed)) UpdateStatus.Available(newest.number)
-            else UpdateStatus.Current(installed)
+            newer = client().newest()?.takeIf { UpdateReleases.isNewer(it, installed) }
+            newer?.let { UpdateStatus.Available(it.number) } ?: UpdateStatus.Current(installed)
         } catch (failure: UpdateFailure) { UpdateStatus.Failed(failure.error) }
         catch (_: Exception) { UpdateStatus.Failed(UpdateError.SERVICE) }
-        runCatching { UpdateSettings(context).let { it.status = status; it.checkedAt = System.currentTimeMillis() } }
+        runCatching {
+            UpdateSettings(context).let {
+                it.status = status
+                it.checkedAt = System.currentTimeMillis()
+                // stage 54: build, release text and compared version for the dialog and the keyboard chip;
+                // a failed check knows nothing new and keeps what the last successful one found
+                if (status !is UpdateStatus.Failed) it.remember(newer, installed)
+            }
+        }
         return status
     }
 

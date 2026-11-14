@@ -144,6 +144,9 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
                                 },
                                 content = { Text("Crash report files found") },
                             )
+                        } else if (helium314.keyboard.settings.screens.AgentUpdatePrompts(onUpdatesPage = intent?.getStringExtra(
+                                helium314.keyboard.agent.AgentPreferences.OPEN_SETTINGS_DESTINATION) == SettingsDestination.AgentUpdates)) {
+                            // stage 54: "Neu in Build N" or "Build N ist da" is shown, other reminders wait
                         } else if (JniUtils.sHaveGestureLib && System.currentTimeMillis() < END_DATE_EPOCH_MILLIS + TWO_WEEKS_IN_MILLIS) {
                             GestureDataGatheringSettings.GestureDataPromotionReminderDialog()
                         }

@@ -4272,6 +4272,65 @@ class InputLogicTest {
         assertNotNull(strip.findViewById<android.view.View>(R.id.agent_command_chips))
     }
 
+    /** Stage 54: the update chip takes only the neutral strip of the real keyboard, never word suggestions, never locked. */
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun updateChipShowsOnlyOnTheNeutralStripWhileANewerBuildIsKnown() {
+        helium314.keyboard.keyboard.internal.KeyboardIconsSet.instance.loadIcons(latinIME)
+        val themed = android.view.ContextThemeWrapper(latinIME, R.style.KeyboardTheme_Flat)
+        val root = android.widget.FrameLayout(themed)
+        val container = android.view.LayoutInflater.from(themed).inflate(R.layout.strip_container, root, false) as android.view.ViewGroup
+        root.addView(container)
+        root.addView(MainKeyboardView(themed, null).apply { id = R.id.keyboard_view })
+        latinIME.updateSuggestionStripView(root)
+        val strip = container.findViewById<android.view.View>(R.id.suggestion_strip_view)
+        fun chip() = strip.findViewWithTag<android.view.View>(helium314.keyboard.agent.updates.UpdateChip.TAG)
+        val chips = helium314.keyboard.agent.updates.UpdateChip
+        val defaults = chips.locked to chips.installed
+        var locked = false
+        chips.locked = { locked }
+        chips.installed = { 20L }
+        val asset = { name: String -> dev.agentkeyboard.core.ReleaseAsset(name, 100, dev.agentkeyboard.core.UpdateReleases.downloadUrl("build-22", name)) }
+        try {
+            setText("")
+            latinIME.setNeutralSuggestionStrip()
+            handleMessages()
+            kotlin.test.assertNull(chip(), "nothing known")
+            helium314.keyboard.agent.updates.UpdateSettings(latinIME).remember(dev.agentkeyboard.core.AvailableBuild(22,
+                asset(dev.agentkeyboard.core.UpdateReleases.apkName(22)), asset(dev.agentkeyboard.core.UpdateReleases.checksumName(22))), 20)
+            latinIME.setNeutralSuggestionStrip()
+            handleMessages()
+            assertNotNull(chip())
+            assertTrue(stripWords(strip).contains(latinIME.getString(R.string.agent_update_chip, 22L)))
+            // word suggestions take the strip; the chip never hides them
+            val words = SuggestedWords(arrayListOf(SuggestedWordInfo("hallo", "", 100, SuggestedWordInfo.KIND_CORRECTION, null, 0, 0)),
+                null, null, false, false, false, SuggestedWords.INPUT_STYLE_PREDICTION, SuggestedWords.NOT_A_SEQUENCE_NUMBER)
+            latinIME.setSuggestions(words)
+            handleMessages()
+            kotlin.test.assertNull(chip())
+            assertTrue(stripWords(strip).contains("hallo"))
+            // typed command chips come first
+            helium314.keyboard.agent.KeyboardCommands.load(latinIME)
+            typeAndUpdate("@math 12*3")
+            latinIME.setNeutralSuggestionStrip()
+            handleMessages()
+            kotlin.test.assertNull(chip())
+            assertNotNull(strip.findViewById<android.view.View>(R.id.agent_command_chips))
+            setText("")
+            latinIME.setNeutralSuggestionStrip()
+            handleMessages()
+            assertNotNull(chip())
+            // locked: no chip
+            locked = true
+            latinIME.setNeutralSuggestionStrip()
+            handleMessages()
+            kotlin.test.assertNull(chip())
+            assertEquals(0L, helium314.keyboard.agent.updates.UpdateSettings(latinIME).checkedAt, "the keyboard never checks")
+        } finally {
+            chips.locked = defaults.first
+            chips.installed = defaults.second
+        }
+    }
+
     @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
     @Test fun screenshotChipForANewScreenshotAppearsAtOnceBetweenWordsAndAtTheNextBoundaryWhileTyping() {
         var shot: helium314.keyboard.agent.ScreenshotChip.Shot? = null

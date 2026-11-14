@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 54: update dialogs in the settings and the update chip in the keyboard (own file for parallel work). English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="agent_update_chip">⬆ Build %d available</string>
+    <string name="agent_update_chip_description">Build %d is available. Opens the Updates page.</string>
+    <string name="agent_update_dialog_title">Build %d is here</string>
+    <string name="agent_update_dialog_install">Install</string>
+    <string name="agent_update_dialog_later">Later</string>
+    <string name="agent_update_whats_new_title">New in build %d</string>
+    <string name="agent_update_whats_new_ok">OK</string>
+    <string name="agent_update_notes_more">Show all notes</string>
+    <string name="agent_update_notes_less">Show less</string>
+    <string name="agent_update_notes_none">No notes for this build.</string>
+    <string name="agent_update_notes_truncated">Shortened. All notes: %s</string>
+</resources>

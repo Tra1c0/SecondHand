@@ -132,6 +132,31 @@ android {
     }
 }
 
+// Stage 54: the release notes of this build inside the APK (asset agent/release_notes.md), for the
+// one-time "Neu in Build N" dialog after an update. Offline; local builds get it too.
+abstract class EmbedReleaseNotes : DefaultTask() {
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val notes: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val output: DirectoryProperty
+
+    @TaskAction
+    fun embed() {
+        val directory = output.get().asFile.resolve("agent")
+        directory.mkdirs()
+        notes.get().asFile.copyTo(directory.resolve("release_notes.md"), overwrite = true)
+    }
+}
+
+androidComponents.onVariants { variant ->
+    val embed = tasks.register<EmbedReleaseNotes>("embed${variant.name.replaceFirstChar { it.uppercase() }}ReleaseNotes") {
+        notes.set(rootProject.layout.projectDirectory.file("release-notes/next.md"))
+    }
+    variant.sources.assets?.addGeneratedSourceDirectory(embed, EmbedReleaseNotes::output)
+}
+
 // SDK 36's Robolectric sandbox needs Java 21. Keep compilation at Java 17.
 tasks.withType<Test>().configureEach {
     // Robolectric retains per-test app directories until its worker exits.

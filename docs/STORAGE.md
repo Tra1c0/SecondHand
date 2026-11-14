@@ -43,6 +43,14 @@ interne Kopien in Android/HTTP lassen sich nicht zuverlässig aus dem RAM lösch
   das letzte Ergebnis (`status`, `status_number`, `status_error`: nur Art, Build-Nummer oder
   Fehlercode, nie eine Antwort von GitHub) mit dem Zeitpunkt der letzten Prüfung (`checked_at`,
   Millisekunden, 0 = nie; seit 38h, für die Karte „Updates“ in System & Daten).
+- Seit 54 dort auch: der neuere Build der letzten erfolgreichen Prüfung (`known_build`, 0 = keiner),
+  sein Release-Text als Markdown ohne Steuerzeichen (`known_notes`, höchstens 8 KiB UTF-8,
+  `known_notes_truncated`), die installierte Versionsnummer, mit der diese Prüfung verglich
+  (`compared_version`), „Später“ für den Dialog (`later_build`) und die Version, deren „Neu in
+  Build N“ gezeigt wurde (`seen_version`). Der Release-Text ist der öffentliche Text des Releases,
+  nichts Persönliches; er wird nur angezeigt, nie geloggt oder weitergegeben.
+- In der APK (54): Asset `agent/release_notes.md`, beim Bauen aus `release-notes/next.md` kopiert;
+  gelesen nur für „Neu in Build N“ (höchstens 256 KiB).
 - Download nach `cacheDir/agent_update/update.apk` im CE-Kontext, höchstens 120 MB, Prüfsumme
   höchstens 4 KiB, Release-Liste höchstens 2 MiB. Die Datei wird nach der Übergabe an den
   Installer, bei jedem Fehler und beim nächsten Öffnen der Seite oder Lauf des Jobs gelöscht.

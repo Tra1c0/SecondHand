@@ -294,8 +294,16 @@ Reihenfolge von oben nach unten.
     speicherbar. Alles lokal. Grenzen: Screenreader lesen Zeichen-Kunst als Zeichensalat; sehr kleine
     Bildschirme oder große Schrift beim Empfänger können umbrechen. Offen beim Owner: Standardstil
     (Vorschlag Braille) und Haupt-Apps.
-- **54 Update-Fenster mit „Was ist neu“ (Wunsch des Owners vom 2026-11-14)** — beschlossen, diese
-  Runde. Owner: „Neue Updates werden sofort in der App angezeigt, zusammen mit einem kurzen Dialog,
+- **54 Update-Fenster mit „Was ist neu“** ist gebaut (siehe FEATURES.md, Nachweis in
+  `docs/VALIDATION.md` → Etappe 54). Entscheidung des Leads zum Chip: Er steht nur in der sonst
+  leeren Leiste (nach Befehls-Chips, gemaltem Symbol und Zwischenablage-Pille, statt
+  Satzzeichen-Vorschlägen), nie statt Wortvorschlägen; so ist er „immer da“, sobald die Leiste
+  frei ist (Feldanfang, nach dem Löschen), ohne beim Tippen zu stören. Auch in Passwortfeldern und
+  Inkognito (verrät nur die Build-Nummer), nie bei gesperrtem Gerät. „Installieren“ im Dialog öffnet
+  die Seite Updates und startet dort den Download einmal. Offen: Prüfer-Review (Hook in
+  `LatinIME.setNeutralSuggestionStrip`, `SettingsActivity`), Gerätetest (Dialog nach echtem
+  Update, Chip in der Leiste, Notizen eines echten Releases von GitHub).
+  Ursprünglicher Wunsch (Owner, 2026-11-14). Owner: „Neue Updates werden sofort in der App angezeigt, zusammen mit einem kurzen Dialog,
   was neu ist.“ Vorschlag des Leads: (1) Beim Öffnen der Einstellungen erscheint, wenn die letzte
   Prüfung einen neueren Build fand, ein Dialog „Build N ist da“ mit den Release-Notizen dieses
   Builds (kurz, aufklappbar) und „Installieren“ / „Später“; „Später“ blendet ihn für diesen Build
