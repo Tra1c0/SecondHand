@@ -179,9 +179,12 @@ class FieldCorrectionWatcher @JvmOverloads constructor(private val privateText: 
             TypoMemory.forget(context, reverted.typed, reverted.corrected)
             return
         }
+        // a language switch in this field: the text before may be in the old language (N7); nothing is
+        // learned or forgotten for the language in use now (second review of stage 51, e)
+        if (languageSwitched) return
         // review of stage 51 (M2): a word of another language kept for this one, replaced by the user
         ForeignWords.onReplaced(context, settings, change.old, change.new)
-        if (!TypoMemory.mayLearn(settings) || languageSwitched) return
+        if (!TypoMemory.mayLearn(settings)) return
         // review M1: finishing a word ("Bahnho" -> "Bahnhof", also "Mad" -> "Mädchen") is a completion
         if (isCompletion(change.old, change.new)) return
         fun real(word: String) = dictionary.isValidSpellingWord(word)

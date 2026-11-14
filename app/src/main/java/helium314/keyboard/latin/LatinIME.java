@@ -791,6 +791,7 @@ public class LatinIME extends InputMethodService implements
         mKeyboardSwitcher.setThemeNeedsReload(); // necessary for emoji search
         EmojiPalettesView.closeDictionaryFacilitator();
         EmojiSearchActivity.Companion.closeDictionaryFacilitator();
+        helium314.keyboard.agent.ForeignWords.closeDictionaries(); // fork, second review of stage 51: a dictionary was added or removed
     }
 
     // used for debug
@@ -958,6 +959,8 @@ public class LatinIME extends InputMethodService implements
             mSuggestionStripView.setRtl(mRichImm.getCurrentSubtype().isRtlSubtype());
         }
         mSettings.saveSubtypeForApp(mRichImm.getCurrentSubtype(), getCurrentInputEditorInfo().packageName);
+        // fork, review of stage 52 (P219): with "language per app" off, a switch in a field of an app with a command language survives the app restarting that field
+        helium314.keyboard.agent.commands.CommandAppSettings.onSwitchedInField(this, getCurrentInputEditorInfo(), subtype);
     }
 
     /** alias to onCurrentInputMethodSubtypeChanged with a better name, as it's also used for internal switching */
@@ -2109,6 +2112,8 @@ public class LatinIME extends InputMethodService implements
                 helium314.keyboard.agent.RgbLighting.onTrimMemory();
                 helium314.keyboard.agent.ForeignWords.closeDictionaries(); // fork, review of stage 51 (N3)
             }
+            // fork, second review of stage 51: Android 14+ hardly sends the levels above any more
+            case TRIM_MEMORY_BACKGROUND -> helium314.keyboard.agent.ForeignWords.closeDictionaries();
             // deallocateMemory always called on hiding, and should not be called when showing
         }
     }

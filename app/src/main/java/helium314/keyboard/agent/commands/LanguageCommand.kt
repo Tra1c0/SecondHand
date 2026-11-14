@@ -33,6 +33,8 @@ object LanguageCommand : KeyboardCommands.Command {
     override val aliases: List<String> get() = CommandSystem.ALIASES[name].orEmpty()
     /** Stage 52: app and language words are not corrected. */
     override val protectsArgument = true
+    /** Review of stage 52: only words that read as a command (`@lang xyz` is text and corrected as usual). */
+    override fun protects(context: Context, call: CommandCall) = CommandSystem.protects(context, call)
 
     /** The real source of [subtypes]; tests put it back with this. */
     internal val defaultSubtypes: () -> List<InputMethodSubtype> = {
@@ -90,12 +92,35 @@ object LanguageCommand : KeyboardCommands.Command {
         return enabled.firstOrNull { it == current } ?: enabled.firstOrNull()
     }
 
+    /**
+     * Stage 52: a language word (`@deutsch`, `@lang spanisch`) with exactly one chip switches like its
+     * tap. Review: only an exact name of the language (`@Fran`, `@Dan` may be names and are sent as
+     * usual); when it is in use already, or has several layouts, Enter is taken and says so.
+     */
     override fun onEnter(host: KeyboardCommands.Host, call: CommandCall): Boolean {
         CommandSystem.onEnter(host, call)?.let { return it }
-        // stage 52: a language word (`@deutsch`, `@lang spanisch`) with exactly one chip switches like its tap
+        if (KeyboardCommands.isBlocked(Settings.getValues(), host.editorInfo)) return false
         if (call.claimed == null && call.argument.isBlank()) return false
-        val chip = chips(host, call).singleOrNull()?.takeIf { it.kind == KeyboardCommands.Chip.Kind.ACTION } ?: return false
-        if (host.canReplaceNow) chip.onTap()
+        // words after "@lang" that read as no command are text
+        if (!CommandSystem.isLegacy(host, call)) return false
+        val languages = matchLanguages(call.claimed ?: call.argument.trim(), exactOnly = true)
+        if (languages.isEmpty()) return false
+        val chips = chips(host, call)
+        if (chips.isEmpty()) return false
+        val current = host.currentSubtype
+        val inUse = current != null && current.locale().language in languages
+        val chip = chips.singleOrNull()?.takeIf { it.kind == KeyboardCommands.Chip.Kind.ACTION }
+        if (chip != null && !inUse) {
+            if (host.canReplaceNow) chip.onTap()
+            return true
+        }
+        // already in use (another layout of it is no switch on Enter), the only language, or several layouts: the text stays
+        val hint = when {
+            inUse -> host.context.getString(R.string.agent_command_lang_active, label(host.context, current!!, subtypes()).removePrefix("🌐 "))
+            chips.size > 1 -> host.context.getString(R.string.agent_unified_lang_choose)
+            else -> chips.first().description.toString()
+        }
+        android.widget.Toast.makeText(host.context, hint, android.widget.Toast.LENGTH_SHORT).show()
         return true
     }
 

@@ -2060,6 +2060,86 @@ class InputLogicTest {
         assertFalse(latinIME.prefs().getBoolean(Settings.PREF_SAVE_SUBTYPE_PER_APP, true))
     }
 
+    @Test fun unifiedCommandTextAfterAnAreaWordKeepsEnterAndTheSnippetFields() = withUnifiedCommands { _, _, _ ->
+        // review of stage 52 (findings 1-3) with the real host and engine
+        val commands = helium314.keyboard.agent.KeyboardCommands
+        val snip = helium314.keyboard.agent.commands.SnipCommand
+        snip.source = helium314.keyboard.agent.commands.SnipCommand.Source {
+            listOf(helium314.keyboard.agent.commands.Snippet("adr", "{?Name} in {?Ort}"))
+        }
+        try {
+            // normal text after an area word: Enter is the engine's, the words are not kept from the correction
+            chainInput("Hallo @gruppe wer kommt heute")
+            assertFalse(commands.guardsTextBefore(text)) // what the strip update gives the guard (suppressesCorrection)
+            assertFalse(commands.onEnter(latinIME))
+            setText("")
+            chainInput("@mem")
+            assertFalse(commands.onEnter(latinIME))
+            // an unknown app before a language: Enter is taken, nothing is sent or run
+            setText("")
+            chainInput("@lang foo spanish")
+            assertTrue(commands.guardsTextBefore(text))
+            latinIME.onEvent(Event.createEventForCodePointFromUnknownSource(Constants.CODE_ENTER))
+            handleMessages()
+            assertEquals("@lang foo spanish", text)
+            assertTrue(helium314.keyboard.agent.commands.CommandAppSettings.languages(latinIME).isEmpty())
+            // an area word earlier on the line does not take the snippet: its fields work with Enter (stage 42)
+            setText("")
+            chainInput("@gruppe hey, hier meine Adresse: @snip adr")
+            stripChips().single().performClick()
+            handleMessages()
+            assertEquals("@gruppe hey, hier meine Adresse: @snip adr Name: ", text)
+            chainInput("Anna")
+            latinIME.onEvent(Event.createEventForCodePointFromUnknownSource(Constants.CODE_ENTER))
+            handleMessages()
+            assertEquals("@gruppe hey, hier meine Adresse: @snip adr Ort: ", text)
+            chainInput("Rom")
+            latinIME.onEvent(Event.createEventForCodePointFromUnknownSource(Constants.CODE_ENTER))
+            handleMessages()
+            assertEquals("@gruppe hey, hier meine Adresse: Anna in Rom", text)
+            checkConnectionConsistency()
+        } finally {
+            snip.source = helium314.keyboard.agent.commands.SnipCommand.Source { helium314.keyboard.agent.commands.SnippetStore(it).read() }
+            snip.reset()
+        }
+    }
+
+    @Test fun unifiedCommandLanguageKeySwitchInTheAppSurvivesARestartOfTheField() = withUnifiedCommands { german, spanish, _ ->
+        // review of stage 52 (finding 4, P219): "Sprache pro App" off, the app has a command language
+        latinIME.prefs().edit { putBoolean(Settings.PREF_SAVE_SUBTYPE_PER_APP, false) }
+        helium314.keyboard.agent.commands.CommandAppSettings.setLanguage(latinIME, "com.example",
+            with(helium314.keyboard.latin.settings.SettingsSubtype) { spanish.toSettingsSubtype() }.toPref())
+        fun field(id: Int) = EditorInfo().apply { inputType = currentInputType; packageName = "com.example"; fieldId = id }
+        fun current() = RichInputMethodManager.getInstance().currentSubtype.rawSubtype
+        ShadowInputMethodService.currentPackageName = "com.example"
+        ShadowInputMethodService.currentFieldId = 3
+        setText("")
+        latinIME.mHandler.onStartInput(field(3), false)
+        handleMessages()
+        assertEquals(spanish, current())
+        // the language key in the field (the way of HeliBoard's own switch), then the app restarts the field after sending
+        latinIME.switchToNextSubtype()
+        handleMessages()
+        val chosen = current()
+        assertNotEquals(spanish, chosen)
+        latinIME.mHandler.onStartInput(field(3), true)
+        handleMessages()
+        assertEquals(chosen, current()) // kept, not the app's language again
+        latinIME.mHandler.onStartInput(field(3), false)
+        handleMessages()
+        assertEquals(chosen, current()) // the same field started again
+        // another field of the app starts in its language again
+        latinIME.mHandler.onStartInput(field(5), false)
+        handleMessages()
+        assertEquals(spanish, current())
+        // a switch to the app's own language keeps nothing: a restart stays there
+        latinIME.switchToSubtype(german)
+        latinIME.switchToSubtype(spanish)
+        latinIME.mHandler.onStartInput(field(5), true)
+        handleMessages()
+        assertEquals(spanish, current())
+    }
+
     // ---- fork, stage 51: the autocorrection follows the language, words of other languages ----
 
     private val germanSubtype get() = SubtypeSettings.getResourceSubtypesForLocale("de".constructLocale()).first()
@@ -2553,6 +2633,86 @@ class InputLogicTest {
             assertEquals("es", again.firstOrNull(), again.toString())
             assertTrue("de" in again, again.toString())
             assertEquals(listOf(Triple("es", "danke", "de")), foreignWords())
+        }
+
+    // second review of stage 51 (a-c): closed in the background, after long idle time and when a dictionary
+    // changes; a dictionary that cannot be loaded is not tried at every check
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 51 second review the dictionaries close in the background, when idle and on a dictionary change`() =
+        withLanguages(mapOf("de" to WordLists.of("danke", "gut"), "es" to WordLists.of("hola")), germanSubtype, spanishSubtype, englishSubtype) {
+            val foreign = helium314.keyboard.agent.ForeignWords
+            val here = Thread.currentThread()
+            fun opened(language: String) = WordLists.opened.count { it.second === here && it.first.language == language }
+            typeWord("xyzzy") // known nowhere: every dictionary is asked, English has none
+            assertEquals(1, opened("de"))
+            assertEquals(1, opened("en"))
+            newField()
+            typeWord("qwxyz")
+            assertEquals(1, opened("de")) // kept open
+            assertEquals(1, opened("en")) // (c) before: tried again at every check
+            // (a) the keyboard in the background (Android 14+ hardly sends the low-memory levels)
+            latinIME.onTrimMemory(android.content.ComponentCallbacks2.TRIM_MEMORY_BACKGROUND)
+            newField()
+            typeWord("xyzzy")
+            assertEquals(2, opened("de"))
+            assertEquals(2, opened("en"))
+            // (a) unused for long: closed at the next field change
+            val clock = foreign.clock
+            try {
+                val later = System.currentTimeMillis() + foreign.IDLE_MILLIS
+                foreign.clock = { later }
+                newField()
+                typeWord("qwxyz")
+                assertEquals(3, opened("de"))
+            } finally {
+                foreign.clock = clock
+            }
+            // (b) a dictionary added or removed: HeliBoard reloads its own, the foreign check reopens too
+            latinIME.resetSuggestMainDict()
+            newField()
+            typeWord("xyzzy")
+            assertEquals(4, opened("de"))
+            assertEquals(4, opened("en"))
+        }
+
+    // second review of stage 51 (d): a check still waiting does not bring back a word forgotten meanwhile
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 51 second review a forgotten word is not added again by a waiting check`() =
+        withLanguages(wordsDeEs, germanSubtype, spanishSubtype) {
+            val foreign = helium314.keyboard.agent.ForeignWords
+            val queued = ArrayList<Runnable>()
+            foreign.worker = java.util.concurrent.Executor { queued += it }
+            typeWord("gracias")
+            newField()
+            typeWord("gracias") // the second place: its check would remember it
+            assertEquals(2, queued.size)
+            queued.removeAt(0).run()
+            assertEquals(listOf(Triple("de", "gracias", "es")), foreignWords(withCandidates = true))
+            foreign.forget(latinIME, "de", "gracias") // e.g. replaced by the owner, or deleted on the page
+            queued.removeAt(0).run()
+            assertEquals(emptyList(), foreignWords(withCandidates = true)) // before: remembered
+            foreign.worker = java.util.concurrent.Executor { it.run() }
+            // later checks count again
+            newField(); typeWord("gracias")
+            newField(); typeWord("gracias")
+            assertEquals(listOf(Triple("de", "gracias", "es")), foreignWords())
+        }
+
+    // second review of stage 51 (e): after a language switch in the field, a replaced word is not forgotten for the new language
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 51 second review a word replaced after a language switch in the field stays remembered`() =
+        withLanguages(wordsDeEs, germanSubtype, englishSubtype) {
+            latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_LEARN_TYPOS, true) }
+            setInputType(InputType.TYPE_CLASS_TEXT) // no autocorrection
+            newField()
+            remembered(Triple("de", "hola", "es"), Triple("en", "hola", "es"))
+            chainInput("hola danke ")
+            switchByCommand("@eng")
+            assertEquals("en", settingsValues.mLocale.language)
+            replaceLetter(3, 'd')
+            setCursorPosition(text.length)
+            assertEquals("hold danke ", text)
+            assertEquals(setOf(Triple("de", "hola", "es"), Triple("en", "hola", "es")), foreignWords().toSet()) // before: ("en", "hola") gone
         }
 
     // review N6: a word is kept as the other dictionary writes it ("haus" in Spanish text is German "Haus")

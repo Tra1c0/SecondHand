@@ -167,7 +167,8 @@ class CommandSystemTest {
         assertEquals(KeyboardCommands.Chip.Kind.MUTED, unknown.kind)
         assertEquals(colour(Role.UNKNOWN), colourOf(unknown.label, "banking?"))
         unknown.onTap()
-        assertEquals(string(R.string.agent_unified_unknown_toast, "banking"), ShadowToast.getTextOfLatestToast())
+        // review of stage 52: where an app can stand, the hint says it may not be installed or not read yet
+        assertEquals(string(R.string.agent_unified_unknown_app_toast, "banking"), ShadowToast.getTextOfLatestToast())
         assertTrue(replaced.isEmpty())
         assertTrue(CommandAppSettings.guards(latinIME).isEmpty())
     }
@@ -219,11 +220,15 @@ class CommandSystemTest {
         assertEquals(listOf("@lang whatsapp german" to ""), replaced)
         assertEquals(stored(german), CommandAppSettings.language(latinIME, whatsapp.packageName))
         // deleting, all apps, two readings, switching learning on: Enter only says to tap
-        for (typed in listOf("@lang whatsapp del", "@lang all german", "@lang whatsap spanish", "@mem whatsapp on",
-                "@guard all off", "@clip on", "@lang whatsapp", "@lang ?", "@guard banking off")) {
+        val tap = string(R.string.agent_unified_tap_to_run)
+        // review of stage 52: showing and unknown words have hints of their own
+        val shows = string(R.string.agent_unified_show_only_toast)
+        for ((typed, hint) in listOf("@lang whatsapp del" to tap, "@lang all german" to tap, "@lang whatsap spanish" to tap,
+                "@mem whatsapp on" to tap, "@guard all off" to tap, "@clip on" to tap, "@lang whatsapp" to shows, "@lang ?" to shows,
+                "@guard banking off" to string(R.string.agent_unified_unknown_app_toast, "banking"))) {
             ShadowToast.reset()
             assertEquals(true, enter(typed), typed)
-            assertEquals(string(R.string.agent_unified_tap_to_run), ShadowToast.getTextOfLatestToast(), typed)
+            assertEquals(hint, ShadowToast.getTextOfLatestToast(), typed)
         }
         assertEquals(1, replaced.size)
         assertEquals(stored(german), CommandAppSettings.language(latinIME, whatsapp.packageName))
@@ -432,5 +437,182 @@ class CommandSystemTest {
         assertNull(find("@guard signal off"))
         assertFalse(KeyboardCommands.isCommandWord("@wächter"))
         assertFalse("guard" in (find("@?") as CommandNames).candidates)
+    }
+
+    // ---- review of stage 52 ----
+
+    @Test fun textThatOnlyStartsWithAnAreaWordIsSentAndCorrected() {
+        // finding 1: Enter is the app's, the words are corrected as usual
+        for (typed in listOf("Hallo @gruppe wer kommt heute?", "@group", "@mem", "@gruppe wer", "@guard das ist gut", "@lang foo bar german")) {
+            ShadowToast.reset()
+            assertEquals(false, enter(typed), typed)
+            assertNull(ShadowToast.getTextOfLatestToast(), typed)
+        }
+        assertFalse(KeyboardCommands.guardsTextBefore("Hallo @gruppe wer kommt"))
+        assertFalse(KeyboardCommands.guardsTextBefore("@guard das ist"))
+        assertFalse(KeyboardCommands.guardsTextBefore("@lang xyz abc"))
+        assertTrue(replaced.isEmpty())
+        assertTrue(CommandAppSettings.groups(latinIME).isEmpty())
+        // commands keep their words: an area word alone, the first word (an app or group being typed, a
+        // new group before its apps, an app not read yet), a language, apps
+        for (typed in listOf("@gruppe ", "@gruppe arbeit", "@gruppe wer", "@lang xyz", "@gruppe arbeit whats", "@lang spanisch",
+                "@mem whatsapp off", "@lang foo german"))
+            assertTrue(KeyboardCommands.guardsTextBefore(typed), typed)
+        // finding 2: an unknown app before a language is no old command: grey, and Enter is taken with a hint
+        assertEquals(KeyboardCommands.Chip.Kind.MUTED, chips("@lang foo german").first().kind)
+        ShadowToast.reset()
+        assertEquals(true, enter("@lang foo german"))
+        assertEquals(string(R.string.agent_unified_unknown_app_toast, "foo"), ShadowToast.getTextOfLatestToast())
+        // before the apps are read a real app is unknown the same way, and nothing is sent
+        InstalledApps.source = InstalledApps.Source { emptyList() }
+        try {
+            assertEquals(true, enter("@lang whatsapp german"))
+            assertEquals(string(R.string.agent_unified_unknown_app_toast, "whatsapp"), ShadowToast.getTextOfLatestToast())
+        } finally {
+            InstalledApps.source = InstalledApps.Source { listOf(whatsapp, business, duolingo, signal, chat) }
+            KeyboardCommands.load(latinIME)
+        }
+        assertTrue(replaced.isEmpty())
+        assertTrue(CommandAppSettings.languages(latinIME).isEmpty())
+    }
+
+    @Test fun aChainNeedsASeparatorOrACompleteCommandBefore() {
+        // finding 3: an area word earlier on the line does not take a later snippet
+        SnippetStore(latinIME) { true }.put(Snippet("adr", "{?Name} in {?Ort}"))
+        SnipCommand.reset()
+        val text = "@gruppe hey, hier meine Adresse: "
+        assertEquals("@snip adr", call("$text@snip adr").text)
+        assertEquals("snip", call("$text@snip adr").name)
+        chips("$text@snip adr").single().onTap()
+        assertEquals("@snip adr" to "@snip adr Name: ", replaced.last())
+        // the fields of the snippet work, Enter moves on (stage 42)
+        assertEquals(true, enter("$text@snip adr Name: Anna"))
+        assertEquals("@snip adr Name: Anna" to "@snip adr Ort: ", replaced.last())
+        SnipCommand.reset()
+        // a chain: after a separator, or after a complete command without unknown words
+        assertEquals("lang", call("@lang whatsapp german @guard signal off").name)
+        assertEquals("lang", call("@lang foo german; @guard signal off").name)
+        assertEquals("@guard signal off", call("@lang foo german @guard signal off").text)
+        assertEquals("@guard signal off", call("Hallo @gruppe wer kommt @guard signal off").text)
+        // inserting or showing in a chain: grey with a hint; neither a tap nor Enter deletes the text
+        replaced.clear()
+        val chain = string(R.string.agent_unified_chain_toast)
+        for (typed in listOf("@lang whatsapp german; @snip adr", "@lang whatsapp german; @clip termin", "@lang whatsapp; @guard signal off")) {
+            val preview = chips(typed).first()
+            assertEquals(KeyboardCommands.Chip.Kind.MUTED, preview.kind, typed)
+            ShadowToast.reset()
+            preview.onTap()
+            assertEquals(chain, ShadowToast.getTextOfLatestToast(), typed)
+            ShadowToast.reset()
+            assertEquals(true, enter(typed), typed)
+            assertEquals(chain, ShadowToast.getTextOfLatestToast(), typed)
+        }
+        assertTrue(replaced.isEmpty())
+        assertTrue(CommandAppSettings.languages(latinIME).isEmpty())
+        assertTrue(CommandAppSettings.guards(latinIME).isEmpty())
+        // finding 8: a clip search keeps its separators
+        assertEquals("clip", call("@clip bis dann").name)
+        assertTrue(labels("@clip bis dann").isNotEmpty()) // the old search (here: the switch to the history setting)
+    }
+
+    @Test fun limitsAreCheckedBeforeAnythingRunsAndAFailedStepPutsEverythingBack() {
+        val limit = { max: Int -> string(R.string.agent_unified_limit_toast, max) }
+        fun refused(typed: String, max: Int) {
+            val preview = chips(typed).first()
+            assertEquals(KeyboardCommands.Chip.Kind.MUTED, preview.kind, typed)
+            ShadowToast.reset()
+            preview.onTap()
+            assertEquals(limit(max), ShadowToast.getTextOfLatestToast(), typed)
+            ShadowToast.reset()
+            assertEquals(true, enter(typed), typed)
+            assertEquals(limit(max), ShadowToast.getTextOfLatestToast(), typed)
+        }
+        // 50 snippets
+        val store = SnippetStore(latinIME) { true }
+        for (index in 1..SnippetStore.MAX_SNIPPETS) store.put(Snippet("s" + "x".repeat(index % 20) + ('a' + index / 20) + ('a' + index % 26), "t"))
+        assertEquals(SnippetStore.MAX_SNIPPETS, store.read().size)
+        SnipCommand.reset()
+        refused("@snip add neuer Hallo", SnippetStore.MAX_SNIPPETS)
+        // replacing one still works
+        val name = store.read().first().name
+        chips("@snip add $name Neu").single().onTap()
+        assertEquals("Neu", SnippetStore(latinIME) { true }.read().first { it.name == name }.text)
+        replaced.clear()
+        // 20 groups
+        for (index in 0 until CommandAppSettings.MAX_GROUPS) assertTrue(CommandAppSettings.setGroup(latinIME, "g" + ('a' + index) + "x", listOf(signal.packageName)))
+        refused("@group team whatsapp signal", CommandAppSettings.MAX_GROUPS)
+        // 100 apps with an own language
+        for (index in 0 until CommandAppSettings.MAX_APPS) assertTrue(CommandAppSettings.setLanguage(latinIME, "com.example.app$index", stored(german)))
+        refused("@lang whatsapp german", CommandAppSettings.MAX_APPS)
+        assertTrue(replaced.isEmpty())
+        assertNull(CommandAppSettings.language(latinIME, whatsapp.packageName))
+        // one that has an entry already can change it
+        CommandAppSettings.setLanguage(latinIME, "com.example.app0", null)
+        CommandAppSettings.setLanguage(latinIME, whatsapp.packageName, stored(english))
+        assertEquals(true, enter("@lang whatsapp german"))
+        assertEquals(stored(german), CommandAppSettings.language(latinIME, whatsapp.packageName))
+        CommandAppSettings.clearForTest(latinIME)
+        store.read().forEach { store.delete(it.name) }
+        SnipCommand.reset()
+        replaced.clear()
+        CommandSystem.dropUndo() // the undo of the runs above
+        // finding 5: a step that fails when it runs puts back the ones before it, and the text stays
+        CommandSystem.snippetStore = { SnippetStore(it) { true }.also { _ -> throw IllegalStateException("full") } }
+        ShadowToast.reset()
+        chips("@lang whatsapp german; @snip add gruss Hallo").single().onTap()
+        assertEquals(string(R.string.agent_unified_failed), ShadowToast.getTextOfLatestToast())
+        assertTrue(replaced.isEmpty())
+        assertTrue(CommandAppSettings.languages(latinIME).isEmpty())
+        assertTrue(CommandSystem.undoChips(host).isEmpty())
+        // a field that changed in between: the settings are put back too
+        CommandSystem.snippetStore = { SnippetStore(it) { true } }
+        canReplace = false
+        chips("@lang whatsapp german; @guard signal off").single().onTap()
+        assertTrue(CommandAppSettings.languages(latinIME).isEmpty())
+        assertTrue(CommandAppSettings.guards(latinIME).isEmpty())
+    }
+
+    @Test fun overwritingAGroupOnEnterOnlyWhenItKeepsEveryApp() {
+        chips("@group messenger whatsapp signal").single().onTap()
+        ShadowToast.reset()
+        // finding 6: fewer apps need the tap
+        assertEquals(true, enter("@group messenger whatsapp"))
+        assertEquals(string(R.string.agent_unified_tap_to_run), ShadowToast.getTextOfLatestToast())
+        assertEquals(listOf(whatsapp.packageName, signal.packageName), CommandAppSettings.groups(latinIME).getValue("messenger"))
+        // more apps, or a new group, run on Enter
+        assertEquals(true, enter("@group messenger whatsapp signal duolingo"))
+        assertEquals(3, CommandAppSettings.groups(latinIME).getValue("messenger").size)
+        assertEquals(true, enter("@group arbeit signal"))
+        assertEquals(listOf(signal.packageName), CommandAppSettings.groups(latinIME).getValue("arbeit"))
+    }
+
+    @Test fun enterOnALanguageWordOnlyForItsExactNameAndNeverSendsAnActiveOne() {
+        // finding 7: a started name is no switch on Enter ("@Fran", "@Dan" may be names)
+        for (typed in listOf("@deutsc", "@spanis", "@lang spanis", "@deutsh")) {
+            assertTrue(chips(typed).isNotEmpty(), typed) // the chips still offer it
+            ShadowToast.reset()
+            assertEquals(false, enter(typed), typed)
+        }
+        assertTrue(switched.isEmpty())
+        // finding 12: the language in use: Enter is taken and says so, nothing is sent or switched
+        current = german
+        ShadowToast.reset()
+        assertEquals(true, enter("@deutsch"))
+        assertEquals(string(R.string.agent_command_lang_active, label(german)), ShadowToast.getTextOfLatestToast())
+        assertTrue(switched.isEmpty())
+        assertTrue(replaced.isEmpty())
+        // several layouts of the language: Enter is taken, the strip shows them
+        val layouts = SubtypeSettings.getResourceSubtypesForLocale("de".constructLocale())
+        assertTrue(layouts.size > 1, "German has several layouts")
+        LanguageCommand.subtypes = { layouts.take(2) + listOf(english, spanish) }
+        KeyboardCommands.load(latinIME)
+        current = english
+        ShadowToast.reset()
+        assertEquals(true, enter("@deutsch"))
+        assertEquals(string(R.string.agent_unified_lang_choose), ShadowToast.getTextOfLatestToast())
+        assertTrue(switched.isEmpty())
+        // exactly one other: Enter switches as before
+        assertEquals(true, enter("@spanisch"))
+        assertEquals(listOf(spanish), switched)
     }
 }

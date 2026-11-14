@@ -11,7 +11,8 @@ import java.util.concurrent.Executors
  * Stage 52: the apps a command can name (`@lang whatsapp german`): package name and label of every
  * app with a launcher entry, like the app chooser of the snippet editor. Read on a background thread
  * when the keyboard loads the commands, at most every [MAX_AGE_MILLIS]; only in memory, never logged.
- * Until the first read is done a typed app name is unknown.
+ * Until the first read is done a typed app name is unknown. Review of stage 52: each [AppName] keeps
+ * its normalized name, so the names are normalized once per read, not at every typed word.
  */
 object InstalledApps {
     private const val TAG = "InstalledApps"

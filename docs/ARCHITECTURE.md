@@ -391,6 +391,8 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   `SubtypeChoice.holds` und Wahl nach Hint-Locales) über `CommandAppSettings.subtypeForApp(this,
   mSettings, packageName)` statt `mSettings.getSubtypeForApp`: zuerst HeliBoards eigene Sprache
   pro App (nur mit dem Schalter), dann die per Befehl gesetzte, dann die für alle Apps (P199).
+  Nachprüfung 52: `onCurrentInputMethodSubtypeChanged` ruft nach `saveSubtypeForApp`
+  `CommandAppSettings.onSwitchedInField` (eine Zeile, P219).
 - `InputLogic.java`: verwirft Caches und blockiert Eingabepfade nach einer unklaren Ersetzung
   (`ApplyOutcome.UNKNOWN`), unterdrückt Lernen nach generierter Übernahme. Ersetzen
   (`applyGeneratedText`) und Einfügen (`insertGeneratedText`) laufen durch dieselbe
@@ -556,7 +558,8 @@ Autokorrektur folgt der Sprache (Etappe 51, Details im Abschnitt „Lerndaten“
   des Tippens; nie als Korrektur.
 - `LatinIME.java` (Nachprüfung 51 N3): `onTrimMemory` ruft bei knappem Speicher zusätzlich
   `ForeignWords.closeDictionaries` (neben `RgbLighting.onTrimMemory`); beim Beenden schließt
-  `AgentEditorController.destroy` sie.
+  `AgentEditorController.destroy` sie. Zweite Nachprüfung 51: auch bei `TRIM_MEMORY_BACKGROUND`
+  (eigener Fall) und in `resetSuggestMainDict` (Wörterbuch hinzugefügt oder entfernt), P207.
 - Nicht geändert: `InputLogic`, `RichInputConnection`, `PointerTracker`. Die Sprachbefehle schalten
   weiter über `switchToSubtype` (wie die Sprachtaste); gelernt wird über den Hook von 46
   (`Memory.onWordCommitted` reicht jedes Wort zuerst an `ForeignWords` weiter, vor den eigenen
@@ -1672,8 +1675,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `MAX_READINGS` = 3, nur die mit den wenigsten unbekannten Wörtern und den geringsten Kosten).
     Segmente beginnen mit einem Bereichswort (`areas`: Namen und normalisierte zweite Namen) oder
     einem beanspruchten Sprachwort (`claim`, `@deutsch` = Wert); Schritte teilen sich an
-    `SEPARATORS` (`;`, `then`, `dann`, `→`, `->`), außer in `@snip` (dort gehört alles bis zum
-    nächsten Bereichswort zum Text, nur `;`/`→`/`->` direkt davor fallen weg). Jeder Bereich kennt
+    `SEPARATORS` (`;`, `then`, `dann`, `→`, `->`), außer in `@snip` und `@clip` (`freeText`, seit
+    Nachprüfung 52 auch die Suche von `@clip`: dort gehört alles bis zum nächsten Bereichswort zum
+    Text, nur `;`/`→`/`->` direkt davor fallen weg). `endsWithSeparator` für die Ketten (P220). Jeder Bereich kennt
     seine Aktionen (`ACTIONS`) und Plätze: `@lang`/`@guard`/`@mem` Ziele (App, Gruppe, `ALL_WORDS`
     = alle; leer = die App des Felds) und bei `@lang` eine Sprache, `@group` Name (erstes Wort ohne
     Aktion; eigene Gruppe auch mit Tippfehler oder neuer Name, `isValidGroupName`) und Apps,
@@ -1685,11 +1689,20 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     Nachbarwörter, die zusammen genau ein App-Name sind, gelten als eins („google maps“);
     `APP_PREFIX` (`app:`) erzwingt eine App. Jede Bedeutung mit den geringsten Kosten bleibt
     (gleichstand = mehrere Deutungen), ein Wort ohne Platz kostet 3 (`Role.UNKNOWN`). `Step.legacy`
-    = die alte Form des Bereichs (`@lang spanisch`, `@deutsch`, `@snip adr`, `@clip Termin`).
+    = die alte Form des Bereichs (`@lang spanisch`, `@deutsch`, `@snip adr`, `@clip Termin`); bei
+    `@lang` seit Nachprüfung 52 nur mit höchstens einem Wort oder ohne unbekanntes Wort
+    (`@lang foo german` ist neu und rot). `Step.looksLikeCommand`/`Reading.looksLikeCommand`
+    (P220): mindestens ein Wort mit bekannter Rolle (ein neuer Gruppenname allein zählt nicht) und
+    das erste Wort bekannt oder höchstens ein unbekanntes. `AppName.normalized`/`parts` halten den
+    normalisierten Namen je App (einmal je Lesen der Apps, nicht je getipptem Wort).
     `Word`s geben jedem Wort eine `Role` (Bereich, Aktion, Ziel, Wert, Trenner, Unbekannt).
   - `A/KeyboardCommands.kt`: `Active.parse` verlängert einen Bereichsbefehl rückwärts über frühere
     Bereichsbefehle derselben Zeile (`MAX_CHAIN` = 8) zu einem `CommandCall` über die ganze Kette
-    (Name des ersten Bereichs, Argument bis zur Schreibmarke); alle Leser parsen gleich. `aliases`
+    (Name des ersten Bereichs, Argument bis zur Schreibmarke); alle Leser parsen gleich. Seit
+    Nachprüfung 52 nur über einen Trenner oder hinter einem vollständigen Befehl
+    (`CommandSystem.continuesChain`, P220); `Active` hält dafür den App-Kontext.
+    `Command.protects(context, call)` (Standard `protectsArgument`) entscheidet je getipptem Befehl,
+    ob seine Wörter vor der Autokorrektur geschützt sind (`guardsTextBefore`). `aliases`
     und `help` (die eingeschalteten Bereiche) gehen an `CommandSyntax.parse`. `chipsFor` gibt für
     `@?` `CommandSystem.helpChips`; `buildChips` fragt ohne Befehl zuerst `CommandSystem.undoChips`.
     `chipBackground` ist die Chipfarbe (auch für `CommandColors`), `activeNames` die
@@ -1699,17 +1712,26 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     zeigt seine alten Chips; ein Schritt, der nur zeigt oder auflistet, gibt Einträge als
     `TEMPLATE`-Chips, die „@bereich wort “ schreiben, bei `?` davor den Aufbau (`syntaxChip`);
     sonst je Deutung ein Vorschau-Chip in Klartext, farbig über `Words`; dahinter Vorschläge je
-    Platz (`suggestions`, höchstens 4). `Plan`/`StepPlan`: Text, Wirkung, `complete`, `harmless`.
-    Ein Tipp (`execute`, einmal je Chip) prüft Sperren, entfernt erst den ganzen Befehl
-    (`Host.replace(call, "")`, scheitert das, passiert nichts) und führt dann jeden Schritt aus;
-    jede Wirkung gibt ihre Rücknahme zurück. `Undo` (Text, App, Schreibmarke nach dem Entfernen,
+    Platz (`suggestions`, höchstens 4). `Plan`/`StepPlan`: Text, Wirkung (`Effect` → `Done` mit
+    `undo` und `after`), `complete`, `harmless`, `problem` (Grenze, Kette), `showOnly`; `Plan.hint`
+    sagt, warum Enter oder der graue Chip nicht ausführt. In einer Kette ist ein Schritt, der nur
+    zeigt oder einfügt (alte `@snip`/`@clip`), unvollständig (`agent_unified_chain_toast`). Die
+    Grenzen (`MAX_APPS`, `Memory.MAX_EXCLUDED`, `MAX_GROUPS`, `MAX_MEMBERS`,
+    `SnippetStore.MAX_SNIPPETS`) prüft der Plan vorher (`agent_unified_limit_toast`). Ein Tipp
+    (`execute`, einmal je Chip) prüft Sperren, führt seit Nachprüfung 52 erst jede Wirkung aus,
+    entfernt dann den ganzen Befehl (`Host.replace(call, "")`) und erst danach `after` (Sprache
+    umschalten, Verlauf leeren); scheitert eine Wirkung oder das Entfernen, werden die schon
+    gelaufenen zurückgenommen und der Text bleibt (P221). `Undo` (Text, App, Schreibmarke nach dem Entfernen,
     `UNDO_MILLIS` = 8 s) zeigt „↶ Rückgängig“ nur an genau dieser Schreibmarke in derselben App;
     `schedule` baut die Leiste nach Ablauf neu (`Undo.refresh` = `Host.refresh` der zuletzt
     gebauten Leiste). `onEnter`: genau eine Deutung, ausführbar und harmlos → wie ein Tipp (bei
-    `canReplaceNow`); jede andere Deutung im neuen Aufbau nimmt Enter mit dem Hinweis
-    `agent_unified_tap_to_run`, der Text bleibt (P200); alte Form → null. Harmlos ist nicht:
+    `canReplaceNow`); jede andere Deutung im neuen Aufbau nimmt Enter mit `Plan.hint`, der Text
+    bleibt (P200); alte Form und Wörter, die nicht wie ein Befehl aussehen → null (P220).
+    `protects`: geschützt, solange die Wörter wie ein Befehl aussehen oder nur ein Wort hinter dem
+    Bereichswort steht. Harmlos ist nicht:
     Löschen, `all`, Gedächtnis an, Zwischenablage-Schalter (räumt wie der Einstellungsschalter
-    ungepinnte Einträge, `clearNonPinned`), einen Baustein überschreiben. Wirkungen: Sprache je App
+    ungepinnte Einträge, `clearNonPinned`), einen Baustein überschreiben, eine Gruppe mit weniger
+    Apps überschreiben (harmlos nur neu oder mit allen bisherigen Apps). Wirkungen: Sprache je App
     (setzt und entfernt HeliBoards Eintrag der App; die App des Felds schaltet sofort um; `all` =
     alle eigenen Einträge weg, Eintrag `ALL`), Formatwächter je App (`all` = Schalter
     `FORMAT_GUARD` und keine Einträge), Gedächtnis (`Memory.setExcluded`; `all on` = Schalter an und
@@ -1719,9 +1741,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     Austauschbar `clock`, `schedule`, `snippetStore`.
   - `A/commands/CommandAppSettings.kt`: eigene DE-Datei `agent_command_settings` (kein Neuladen
     der Tastatur beim Schreiben), Schlüssel `language:<paket|*>`, `guard:<paket>`,
-    `group:<name>` (`docs/STORAGE.md`); `subtypeForApp` (P199), `resolve` (wie HeliBoard:
+    `group:<name>` (`docs/STORAGE.md`); `subtypeForApp` (P199), `onSwitchedInField` (P219, aus
+    `LatinIME.onCurrentInputMethodSubtypeChanged`), `resolve` (wie HeliBoard:
     gleicher Subtyp, sonst einer der Sprache), `guardAllows` (Eintrag der App vor dem Schalter,
-    aus `FormatGuardChips.stripChips`), Grenzen `MAX_APPS` 100, `MAX_GROUPS` 20, `MAX_MEMBERS` 30.
+    aus `FormatGuardChips.stripChips`; `guard` liest seit Nachprüfung 52 nur den einen Schlüssel),
+    Grenzen `MAX_APPS` 100, `MAX_GROUPS` 20, `MAX_MEMBERS` 30.
   - `A/commands/InstalledApps.kt`: Paketname und Name aller Apps mit Launcher-Eintrag, auf einem
     eigenen Thread höchstens alle 10 min gelesen (`refresh` aus `Command.load` von `@lang`,
     `@guard`, `@mem`, `@group`), nur im Speicher; bis dahin sind App-Wörter unbekannt (P201).
@@ -1730,16 +1754,20 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `GroupCommand` (neu in `BUILT_IN`, hinter `@mix`); `LanguageCommand`, `SnipCommand` und
     `ClipCommand` fragen zuerst `CommandSystem.chips`/`onEnter` und behalten ihre alten Chips
     (`SnipCommand.listChips`, `ClipCommand.listChips` auch für `list`). `LanguageCommand`:
-    `protectsArgument` jetzt an, `subtypeFor`, `matchLanguages`, Enter für ein Sprachwort mit genau
-    einem Chip (wie dessen Tipp); die zweiten Namen sind für den Sprach-Matcher reserviert.
+    `protects` über `CommandSystem.protects` (auch `AreaCommand`; `@snip`/`@clip` schützen weiter
+    immer), `subtypeFor`, `matchLanguages`, Enter für ein Sprachwort mit genau einem Chip (wie
+    dessen Tipp), seit Nachprüfung 52 nur für einen genauen Namen der Sprache (`exactOnly`); ist sie
+    schon aktiv oder hat sie mehrere Layouts, nimmt Enter die Taste und sagt es (P200); die zweiten
+    Namen sind für den Sprach-Matcher reserviert.
   - Farben im Textfeld selbst (Komposition mit Farb-Spans über Leerzeichen hinweg) sind nicht
     gebaut (P202, ROADMAP 52).
   - Texte in `agent_command_system_strings.xml` (`values/`, `values-de/`). Tests
     `CT/CommandGrammarTest.kt`, `CommandSyntaxTest` (zweite Namen, `@?`),
     `AT/commands/CommandSystemTest.kt`, mit echtem Host `InputLogicTest.unifiedCommand*`
     (Farben der Vorschau, ein Tipp genau einmal, Rückgängig, Enter-Regeln auch mit Hardware-Enter,
-    Passwortfeld, Sprache pro App beim Feldstart mit ausgeschaltetem Schalter),
-    `SettingsBarAreaTest` (23 Befehle).
+    Passwortfeld, Sprache pro App beim Feldstart mit ausgeschaltetem Schalter; Nachprüfung 52:
+    Text hinter einem Bereichswort, Bausteinfelder hinter `@gruppe …`, Sprachtaste im Feld und
+    Neustart des Felds), `SettingsBarAreaTest` (23 Befehle).
 
 ## Act Builder
 
@@ -2692,13 +2720,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   (`DictionaryFactory.createMainDictionaryCollection`, nur lesend wie zweite Sprachen), je Locale
   einmal: das der Tastatursprache und die der anderen Sprachen; sie bleiben über einen Wechsel der
   Tastatursprache offen, eine nicht mehr aktive Sprache wird bei der nächsten Prüfung geschlossen,
-  alle mit `closeDictionaries` (`LatinIME.onTrimMemory` bei knappem Speicher,
-  `AgentEditorController.destroy`, `clear`). Mit „Anstößige Wörter sperren“
+  alle mit `closeDictionaries` (`LatinIME.onTrimMemory` bei knappem Speicher und im Hintergrund,
+  nach `IDLE_MILLIS` = 10 min ohne Prüfung beim nächsten Feldwechsel, `LatinIME.resetSuggestMainDict`
+  nach einer Wörterbuchänderung, `AgentEditorController.destroy`, `clear`; P207). Mit „Anstößige Wörter sperren“
   (`mBlockPotentiallyOffensive`) zählt keine Form mit Häufigkeit 0 (wie HeliBoards Lernverlauf).
   Ersetzt der Owner ein gemerktes Wort (oder einen Kandidaten) durch ein anderes, ist es für die
   Tastatursprache vergessen (`onReplaced`: aus `TypoMemory.confirm`, also Vorschlag statt getipptem
   Wort, und aus `FieldCorrectionWatcher.checkpoint` für eine eigene Änderung im Feld; nicht bei
-  Groß-/Kleinänderung, fertig geschriebenem Wort, Lernpause, gesperrtem Feld oder Gerät). Gelernt
+  Groß-/Kleinänderung, fertig geschriebenem Wort, Lernpause, gesperrtem Feld oder Gerät, und nach
+  einem Sprachwechsel im Feld nicht über den Feldweg, P208). `forget` erhöht je Wort einen Zähler
+  (`forgotten`): eine Prüfung, die davor geplant wurde, legt das Wort nicht wieder an. Gelernt
   wird nur mit „Personalisierte Vorschläge“ (`mUsePersonalizedDicts`), ohne Lernpause, nicht in
   gesperrten Feldern (`Memory.isBlocked`: Inkognito, Passwort, `NO_LEARNING_FIELD`, vom Gedächtnis
   ausgeschlossene Apps) und nicht bei gesperrtem Gerät; angeboten wird nur ungesperrt und nicht in
@@ -4457,9 +4488,15 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   werden zusätzlich zu denen des Facilitators geöffnet (das der Tastatursprache doppelt, Speicher wie
   zweite Sprachen, Gerätetest offen) und bleiben über einen Wechsel der Tastatursprache offen;
   geschlossen werden sie nur bei einer Prüfung nach dem Abschalten einer Sprache, in
-  `LatinIME.onTrimMemory` (knapper Speicher), in `AgentEditorController.destroy` und mit `clear`.
-  Ein Wörterbuch, das nicht geladen werden konnte, wird nicht gemerkt und bei der nächsten Prüfung neu
-  versucht. Ein gemerktes Wort, das wieder benutzt wird, schreibt nichts (`dirty`); erst
+  `LatinIME.onTrimMemory` (knapper Speicher; seit der zweiten Nachprüfung 51 auch
+  `TRIM_MEMORY_BACKGROUND`, weil Android 14+ die Stufen für knappen Speicher kaum noch schickt),
+  beim ersten Feldwechsel nach `IDLE_MILLIS` (10 min) ohne Prüfung (`lastCheck`, ohne Timer: ein
+  verzögerter Handler liefe in den Robolectric-Tests mitten in `handleMessages`), in
+  `LatinIME.resetSuggestMainDict` (ein Wörterbuch kam dazu oder fiel weg; HeliBoard lädt dort seine
+  eigenen neu), in `AgentEditorController.destroy` und mit `clear`. Ein Wörterbuch, das nicht
+  geladen werden konnte, wird je Locale gemerkt (`failed`) und erst nach einem dieser Schließen
+  wieder versucht (vorher bei jeder Prüfung). Wer einen neuen Weg baut, auf dem Wörterbücher dazukommen,
+  ruft `closeDictionaries`. Ein gemerktes Wort, das wieder benutzt wird, schreibt nichts (`dirty`); erst
   `onFieldChanged(context)` schreibt; wer einen neuen Weg zum Feldwechsel baut, ruft es mit Kontext
   (ohne Kontext bleibt die neue Zeit bis zum nächsten Aufruf mit Kontext nur im Speicher). Jede Aufgabe auf dem Worker läuft in `runCatching`: Ein Fehler in einem Wörterbuch darf den
   Tastatur-Prozess nicht beenden. In Tests läuft der Worker auf dem Test-Thread; `WordLists.opened`
@@ -4472,8 +4509,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `AgentEditorController.startEditor`/`finishEditor`), nicht `start`: Ein Sprachwechsel ruft
   `InputLogic.onSubtypeChanged` → `startInput` → `start`, das Feld bleibt aber dasselbe. Wer die
   Sprache an `start` hängt, verliert den Wechsel. Ein von der App geleertes Feld beginnt in der
-  Sprache von jetzt neu. Rücknahmen (`RejectedCorrections`) und `ForeignWords.onReplaced` laufen
-  weiter. Lücke: Startet die App das Feld nach dem Sprachwechsel neu (`onStartInputView`, z. B. nach
+  Sprache von jetzt neu. Rücknahmen (`RejectedCorrections`) laufen weiter; `ForeignWords.onReplaced`
+  seit der zweiten Nachprüfung 51 nicht mehr (das ersetzte Wort kann in der alten Sprache stehen,
+  vergessen würde es aber für die neue). Lücke: Startet die App das Feld nach dem Sprachwechsel neu (`onStartInputView`, z. B. nach
   dem Löschen eines Befehls), ist es ein neues Feld in der neuen Sprache; eine Verbesserung im alten
   Text gilt dann für die neue Sprache, wenn deren Wörterbuch das gemeinte Wort kennt (sonst ist es
   kein Tippfehler im Sinn von `CorrectionRules.classify`). In `InputLogicTest` ruft nur `newField`
@@ -4490,15 +4528,24 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   eingeschaltetem Schalter die letzte Wahl gilt; die Rücknahme stellt ihn wieder her. Hint-Locales
   des Felds gehen wie bei HeliBoards eigener App-Sprache vor (`SubtypeState.getSubtypeForLocales`).
   Die eigene Datei verhindert, dass jedes Setzen über `onSharedPreferenceChanged` die Tastatur neu
-  lädt; die Schlüssel `saved_app_subtype_…` lösen dort kein Neuladen aus.
+  lädt; die Schlüssel `saved_app_subtype_…` lösen dort kein Neuladen aus. Mit ausgeschaltetem
+  Schalter gewänne die Befehlssprache auch gegen einen Wechsel im Feld, sobald die App das Feld
+  neu startet (P219).
 - **P200** Enter bei einem Befehl im neuen Aufbau, der nicht genau eine harmlose Deutung hat, wird
-  genommen und nur mit einem Hinweis beantwortet: sonst schickte ein Messenger „@lang whatsapp del“
-  als Nachricht ab. Die alte Form behält ihr Enter (`@lang`, `@snip name`, `@clip wort`; ein
-  Sprachwort mit genau einem Chip schaltet um). `onEnter` liefert dafür null für die alte Form.
+  genommen und nur mit einem Hinweis beantwortet (`Plan.hint`: unbekanntes Wort, auch „App
+  unbekannt oder noch nicht geladen“, Grenze, Kette, nur Anzeige, unvollständig, sonst „Tippe auf
+  die Vorschau“): sonst schickte ein Messenger „@lang whatsapp del“ als Nachricht ab. Seit
+  Nachprüfung 52 nur, wenn die Wörter wie ein Befehl aussehen (P220); sonst gehört Enter der App
+  („Hallo @gruppe wer kommt heute?“, ein bloßes `@mem`). Die alte Form behält ihr Enter (`@lang`,
+  `@snip name`, `@clip wort`); ein Sprachwort schaltet mit Enter nur um, wenn es genau ein Name der
+  Sprache ist (`matchLanguages(…, exactOnly = true)`: `@Fran`, `@Dan` können Namen sein) und genau
+  einen Chip hat; ist die Sprache schon aktiv oder hat sie mehrere Layouts, nimmt Enter die Taste
+  und sagt es. `onEnter` liefert null für die alte Form und für Text.
 - **P201** App-Namen kommen aus `PackageManager.queryIntentActivities` (Launcher), auf einem
   eigenen Thread; im ersten Augenblick nach dem Start der Tastatur kennt die Leiste noch keine App
-  (das Wort ist rot „unbekannt“, nichts läuft). Robolectric liest mit der Systemquelle
-  gleichzeitig zum Test; Tests setzen `InstalledApps.source` und danach wieder `SYSTEM`.
+  (das Wort ist rot „unbekannt“, nichts läuft; Enter und der graue Chip sagen „App unbekannt oder
+  noch nicht geladen“, `@lang whatsapp german` ist dann keine alte Form, P200). Robolectric liest mit
+  der Systemquelle gleichzeitig zum Test; Tests setzen `InstalledApps.source` und danach wieder `SYSTEM`.
   Testhosts müssen die Schreibmarke beim Ersetzen mitführen (Rückgängig gilt nur an der
   Schreibmarke nach dem Entfernen) und groß genug starten (negativ = unbekannt).
 - **P202** Farben im Textfeld wären Kompositionstext über Leerzeichen hinweg: `InputLogic`
@@ -4506,7 +4553,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Autokorrektur, Autoleerzeichen, Satzzeichen-Tausch), `RichInputConnection` führt Komposition und
   Schreibmarke selbst (`mComposingText`, erwartete Auswahl), und ein fremder Kompositionsbereich
   setzt in `onUpdateSelection` den Composer zurück. Dazu Löschtaste, Gesten und Enter-Hook. Das ist
-  kein enger Eingriff; die Farben stehen deshalb nur in der Vorschau der Leiste.
+  kein enger Eingriff; die Farben stehen deshalb nur in der Vorschau der Leiste. Unverändert in
+  der Nachprüfung 52.
 - **P211** Chip und Dialog „Build N ist da“ lesen `UpdateSettings.knownBuild`, nicht `status`: Ein
   fehlgeschlagener Download schreibt `status = Failed` (Seite Updates), und vorher verschwand damit
   jeder Hinweis auf den Build, obwohl er noch da ist. Nur `Updates.check` schreibt `known_build`
@@ -4547,6 +4595,42 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   und Engines neu zu bauen. Nach Datei-Arbeit auf `Dispatchers.IO` geht es mit
   `withContext(Dispatchers.Main)` zurück: In Robolectric lief die Fortsetzung sonst auf dem
   IO-Thread („Can't toast on a thread that has not called Looper.prepare()“).
+- **P219** Sprache im Feld bei ausgeschalteter „Sprache pro App“ (Nachprüfung 52): Hat eine App eine
+  Befehlssprache, setzte `onStartInputInternal` sie bei jedem Start eines Felds dieser App, auch wenn
+  die App dasselbe Feld nur neu startet (`restarting`, z. B. nach dem Senden im Messenger); ein
+  Wechsel mit der Sprachtaste im Feld war dann weg. `CommandAppSettings.onSwitchedInField` (aus
+  `LatinIME.onCurrentInputMethodSubtypeChanged`, nach `saveSubtypeForApp`) merkt einen solchen
+  Wechsel wie die Wahl eines Sprachbefehls (`SubtypeChoice.remember`), nur bei ausgeschaltetem
+  Schalter, nur wenn für die App (oder alle) eine Befehlssprache gilt und nur, wenn der Wechsel
+  nicht zu ihr selbst ging. Ein anderes Feld der App beginnt wieder in ihrer Sprache
+  (`SubtypeChoice.holds` vergleicht das Feld). Nicht einfach `restarting` überspringen: Dann bliebe
+  beim ersten Start eines neu geöffneten Felds, das die App als Neustart meldet, die Sprache von
+  vorher. Auch der automatische Wechsel beim Feldstart (Hint-Locales) läuft hier durch und wird
+  gemerkt, wenn er nicht zur Befehlssprache geht; das ist dieselbe Wahl, die der Neustart wieder
+  träfe.
+- **P220** Text hinter einem Bereichswort ist kein Befehl (Nachprüfung 52): „Hallo @gruppe wer kommt
+  heute?“ war ein `@group`-Befehl mit unbekannten Wörtern; Enter wurde geschluckt und die
+  Autokorrektur war für den ganzen Rest der Zeile aus. `Step.looksLikeCommand` entscheidet für
+  `CommandSystem.onEnter` (null = Enter der App) und `CommandSystem.protects` (`Command.protects`,
+  aus `KeyboardCommands.guardsTextBefore`; zusätzlich geschützt, solange nur ein Wort hinter dem
+  Bereichswort steht, das kann eine App sein, die gerade getippt wird oder noch nicht geladen ist).
+  Ketten (`Active.parse`) nur über einen Trenner am Ende des früheren Teils oder hinter einem
+  vollständigen früheren Befehl ohne unbekannte Wörter (`continuesChain`; eine alte Form zählt nur
+  als `@lang`-Sprachwechsel): sonst nahm ein früheres Bereichswort ein späteres `@snip adr` in seine
+  Kette, und der Enter-Hook der Bausteinfelder (Etappe 42) bekam es nie. `continuesChain` parst den
+  früheren Teil bei jedem Lesen des Texts vor der Schreibmarke neu; nur wenn wirklich ein weiterer
+  Bereichsbefehl davor steht.
+- **P221** Wirkungen vor dem Entfernen des Texts (Nachprüfung 52): Vorher entfernte ein Tipp erst den
+  Befehl und scheiterte dann z. B. an einer vollen Liste; der Text war weg und nichts geändert.
+  `execute` führt jetzt jede Wirkung aus (`Effect.run` → `Done`), entfernt dann den Befehl und erst
+  danach `Done.after` (Sprache umschalten, ungepinnte Einträge des Verlaufs löschen); scheitert eine
+  Wirkung oder das Entfernen (Feld geändert), nimmt es die gelaufenen zurück (`undo`) und der Text
+  bleibt. Eine Wirkung, die mittendrin scheitert (`languageEffect`, `guardEffect`, `memoryEffect`
+  bei `all`), stellt selbst her, was sie schon geschrieben hat, und prüft die Grenze vor dem ersten
+  Schreiben. Wer eine Wirkung baut, die nicht zurückzunehmen ist (Daten löschen) oder die Tastatur
+  oder das Feld ändert, legt sie in `after`. Das Schreiben von `FORMAT_GUARD`, `MEMORY` und
+  `PREF_ENABLE_CLIPBOARD_HISTORY` lädt die Einstellungen neu (`Settings.onSharedPreferenceChanged`),
+  bevor der Befehl entfernt wird; das ändert die Eingabeverbindung nicht.
 
 ## Datei-Inventar
 

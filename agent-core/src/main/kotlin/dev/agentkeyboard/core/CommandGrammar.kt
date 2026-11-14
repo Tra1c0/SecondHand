@@ -61,6 +61,10 @@ object CommandGrammar {
 
     /** An installed app: [label] is what the user types. [toString] names nothing private. */
     class AppName(val packageName: String, val label: String) {
+        /** Review of stage 52: [label] normalized once per app, not at every typed word. */
+        val normalized: String by lazy { LanguageNames.normalize(label) }
+        /** The words of [label] (two letters or more), normalized. */
+        internal val parts: List<String> by lazy { NameMatch.parts(label) }
         override fun equals(other: Any?) = other is AppName && other.packageName == packageName
         override fun hashCode() = packageName.hashCode()
         override fun toString() = "AppName(${label.length} chars)"
@@ -112,6 +116,24 @@ object CommandGrammar {
     ) {
         /** True for a step that names every app. */
         val all: Boolean get() = targets.any { it == Target.All }
+
+        /** A group name that is no group yet, read as this step's target. */
+        private val freshName: Boolean get() = area == Area.GROUP && name != null && !nameExists && words.any { it.role == Role.TARGET }
+
+        /**
+         * Review of stage 52: whether the words after the area word read as a command rather than as
+         * text that happens to follow one ("Hallo @gruppe wer kommt heute?"): at least one word has a
+         * known role (an action, a target or a value; a new group name alone is none), and the first
+         * word is known or at most one word is unknown (`@lang foo german`: an app that is not
+         * installed or not loaded yet).
+         */
+        val looksLikeCommand: Boolean get() {
+            val known = words.count { it.role in KNOWN_ROLES } - (if (freshName) 1 else 0)
+            if (known < 1) return false
+            val first = words.first()
+            val firstKnown = first.role in KNOWN_ROLES && !(freshName && first.role == Role.TARGET)
+            return firstKnown || unknown.size <= 1
+        }
         override fun toString() = "Step($area, $action, ${targets.size} targets, language=$language, unknown=${unknown.size}, legacy=$legacy)"
     }
 
@@ -120,6 +142,8 @@ object CommandGrammar {
         val unknownCount: Int get() = steps.sumOf { it.unknown.size }
         /** A single step in the old syntax of its area. */
         val legacy: Boolean get() = steps.size == 1 && steps[0].legacy
+        /** Review of stage 52: some step reads as a command ([Step.looksLikeCommand]). */
+        val looksLikeCommand: Boolean get() = steps.any { it.looksLikeCommand }
         override fun toString() = "Reading($steps, score=$score)"
     }
 
@@ -157,6 +181,15 @@ object CommandGrammar {
 
     private fun isSeparator(token: Token) = token.text.lowercase() in SEPARATORS
 
+    /** The roles of words that name something; unknown words, areas and separators do not. */
+    private val KNOWN_ROLES = setOf(Role.ACTION, Role.TARGET, Role.VALUE)
+
+    /** Areas with free text: `;`, `then` and `dann` belong to it (the [Area.SNIP] text, the [Area.CLIP] search). */
+    private fun freeText(area: Area) = area == Area.SNIP || area == Area.CLIP
+
+    /** Review of stage 52: true when the last word of [text] is a separator (`… german;`, `… dann`), an explicit chain. */
+    fun endsWithSeparator(text: CharSequence): Boolean = tokenize(text).lastOrNull()?.let { isSeparator(it) } == true
+
     /** [word] as an action word (exact; from four letters also a typo), or null. */
     fun action(word: String): Action? {
         val raw = word.lowercase()
@@ -188,7 +221,7 @@ object CommandGrammar {
         for (segment in segments) {
             // a claimed word (`@deutsch`) is the language itself
             fixedWords += Word(segment.head.start, segment.head.end, if (segment.claimed) Role.VALUE else Role.AREA)
-            val (steps, separators) = if (segment.area == Area.SNIP) listOf(segment.words.toList()) to emptyList() else split(segment.words)
+            val (steps, separators) = if (freeText(segment.area)) listOf(segment.words.toList()) to emptyList() else split(segment.words)
             separators.forEach { fixedWords += Word(it.start, it.end, Role.SEPARATOR) }
             segment.trailing.forEach { fixedWords += Word(it.start, it.end, Role.SEPARATOR) }
             for ((index, words) in steps.withIndex()) {
@@ -227,9 +260,9 @@ object CommandGrammar {
                 continue
             }
             out.lastOrNull()?.let { last ->
-                // in a snippet's text only `;`, `→` and `->` end it ("bis dann" stays text)
+                // in a snippet's text or a clip search only `;`, `→` and `->` end it ("bis dann" stays text)
                 while (last.words.isNotEmpty() && isSeparator(last.words.last()) &&
-                    (last.area != Area.SNIP || last.words.last().text.none { it.isLetter() }))
+                    (!freeText(last.area) || last.words.last().text.none { it.isLetter() }))
                     last.trailing.add(0, last.words.removeAt(last.words.lastIndex))
             }
             out += Segment(head.first, token, head.second)
@@ -289,7 +322,7 @@ object CommandGrammar {
 
     /** Joins neighbouring words that together are the name of an app; `app:` forces an app. */
     private fun units(tokens: List<Token>, apps: List<AppName>): List<Unit> {
-        val labels = apps.map { LanguageNames.normalize(it.label) }.filter { it.isNotEmpty() }.toSet()
+        val labels = apps.mapTo(HashSet()) { it.normalized }.apply { remove("") }
         val out = ArrayList<Unit>()
         var index = 0
         while (index < tokens.size) {
@@ -310,7 +343,7 @@ object CommandGrammar {
     }
 
     private fun appMeanings(word: String, apps: List<AppName>): List<Meaning> =
-        apps.mapNotNull { app -> NameMatch.score(word, app.label)?.let { Meaning.To(Target.App(app), it) } }
+        LanguageNames.normalize(word).let { typed -> apps.mapNotNull { app -> NameMatch.score(typed, app)?.let { Meaning.To(Target.App(app), it) } } }
 
     private fun groupMeanings(word: String, groups: Map<String, List<String>>): List<Meaning> =
         groups.mapNotNull { (name, packages) -> NameMatch.score(word, name)?.let { Meaning.To(Target.Group(name, packages), it) } }
@@ -389,7 +422,8 @@ object CommandGrammar {
                 }
                 language = null
             }
-            val legacy = area == Area.LANG && action == null && targets.isEmpty()
+            // review of stage 52: "@lang foo german" (an app not known, or not loaded yet) is no old command
+            val legacy = area == Area.LANG && action == null && targets.isEmpty() && (tokens.size <= 1 || unknown.isEmpty())
             Step(area, action, targets.distinct(), language, unknown = unknown, words = words, legacy = legacy, score = score)
         }.distinctBy { listOf(it.action, it.targets, it.language, it.unknown) }
     }
@@ -507,7 +541,7 @@ object CommandGrammar {
     /** The longest snippet name ([dev.agentkeyboard.core] mirror of the snippet store's limit). */
     const val MAX_SNIPPET_NAME = 24
 
-    /** `@clip on`, `@clip aus`, `@clip list`: one action word; anything else is the old search. */
+    /** `@clip on`, `@clip aus`, `@clip list`: one action word; anything else is the old search (separators included). */
     private fun clipStep(tokens: List<Token>): Step {
         val single = tokens.singleOrNull()
         val action = single?.let { action(it.text) }?.takeIf { it in ACTIONS.getValue(Area.CLIP) && isExactAction(single.text) }
@@ -525,12 +559,17 @@ object CommandGrammar {
 object NameMatch {
     private val WORD_BREAK = Regex("[^\\p{L}\\p{N}]+")
 
-    fun score(typed: String, name: String): Int? {
-        val word = LanguageNames.normalize(typed)
-        val full = LanguageNames.normalize(name)
+    fun score(typed: String, name: String): Int? = score(LanguageNames.normalize(typed), LanguageNames.normalize(name), parts(name))
+
+    /** [score] for an app, with its name normalized once ([CommandGrammar.AppName.normalized]); [word] is normalized already. */
+    internal fun score(word: String, app: CommandGrammar.AppName): Int? = score(word, app.normalized, app.parts)
+
+    /** The words of [name] with two letters or more, normalized. */
+    internal fun parts(name: String): List<String> = name.split(WORD_BREAK).map { LanguageNames.normalize(it) }.filter { it.length >= 2 }
+
+    private fun score(word: String, full: String, parts: List<String>): Int? {
         if (word.isEmpty() || full.isEmpty()) return null
         if (word == full) return 0
-        val parts = name.split(WORD_BREAK).map { LanguageNames.normalize(it) }.filter { it.length >= 2 }
         if (word.length >= 3 && full.startsWith(word)) return 1
         if (parts.size > 1 && parts.any { it == word || (word.length >= 3 && it.startsWith(word)) }) return 1
         // a typo only of the whole name: a typo of one word would match every app that shares it

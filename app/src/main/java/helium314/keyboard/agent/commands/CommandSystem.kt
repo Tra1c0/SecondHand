@@ -112,16 +112,51 @@ object CommandSystem {
     }
 
     /** The readings of [call] (the whole chain from its first area word), best first. */
-    fun readings(host: Host, call: CommandCall): List<Reading> {
+    fun readings(host: Host, call: CommandCall): List<Reading> = readings(host.context, call.text, call.prefix)
+
+    private fun readings(context: Context, text: String, prefix: Char): List<Reading> {
         val areas = areaWords()
         if (areas.isEmpty()) return emptyList()
         val langOn = "lang" in KeyboardCommands.activeNames()
-        return CommandGrammar.parse(call.text, call.prefix, areas, vocabulary(host.context),
+        return CommandGrammar.parse(text, prefix, areas, vocabulary(context),
             claim = { word -> if (langOn && LanguageCommand.claims(word)) Area.LANG else null })
     }
 
     /** True when [readings] is the old syntax of its area only, which the area's own chips handle. */
     private fun isLegacy(readings: List<Reading>) = readings.isEmpty() || readings.all { it.legacy }
+
+    /** True when [call] is the old syntax of its area (`@lang spanisch`, `@deutsch`, `@snip adr`). */
+    fun isLegacy(host: Host, call: CommandCall): Boolean = isLegacy(readings(host, call))
+
+    /**
+     * Review of stage 52: whether the words of [call] are kept from the autocorrection
+     * ([KeyboardCommands.Command.protects]): while they read as a command, and while only one word
+     * follows the area word (an app or group name being typed, `@lang whatsap`, `@gruppe arbeit`, or
+     * one the keyboard does not know yet). Text that only happens to follow an area word ("Hallo
+     * @gruppe wer kommt heute?") is corrected as usual from its second word on.
+     */
+    fun protects(context: Context, call: CommandCall): Boolean {
+        if (call.argument.isBlank()) return true
+        return readings(context, call.text, call.prefix).any { reading ->
+            reading.looksLikeCommand || reading.steps.singleOrNull()?.let { it.words.size <= 1 } == true
+        }
+    }
+
+    /**
+     * Review of stage 52: whether the area command [earlier] (up to the next area word on the same
+     * line) starts a chain with it: when it ends in a separator (`…; @guard …`), or when it is a
+     * complete reading of its own without unknown words and without an old-syntax step that does not
+     * change anything (an old `@lang spanisch` switches the field and counts). Otherwise the later
+     * command stands alone ("@gruppe hey, hier meine Adresse: @snip adr" is the snippet).
+     */
+    fun continuesChain(context: Context, prefix: Char, earlier: String): Boolean {
+        if (CommandGrammar.endsWithSeparator(earlier)) return true
+        val readings = readings(context, earlier, prefix)
+        return readings.isNotEmpty() && readings.all { reading ->
+            reading.unknownCount == 0 && reading.looksLikeCommand &&
+                reading.steps.all { !it.legacy || (it.area == Area.LANG && it.language != null) }
+        }
+    }
 
     // ---- chips ----
 
@@ -138,7 +173,7 @@ object CommandSystem {
         val plans = readings.map { plan(host, it, dark) }
         val single = readings.singleOrNull()?.steps?.singleOrNull()
         val chips = ArrayList<Chip>()
-        if (single != null && single.unknown.isEmpty() && plans.single().steps.single().effect == null) {
+        if (single != null && single.unknown.isEmpty() && plans.single().steps.single().showOnly) {
             // one step that only shows or lists: its entries instead of a preview ("@lang ?" also its slots)
             if (single.action == Action.LIST && call.text.trimEnd().endsWith("?")) chips += syntaxChip(context, single.area, call.prefix, dark)
             chips += entries(host, call, single, dark, list)
@@ -149,20 +184,24 @@ object CommandSystem {
 
     /**
      * Enter while [call] is typed (stage 52): runs exactly one harmless, complete reading like a tap
-     * and takes the key; any other reading of the unified syntax takes the key and only tells to tap
-     * (the command is never sent to the app); null for the old syntax (the area decides).
+     * and takes the key; any other reading of the unified syntax takes the key and only says why
+     * ([Plan.hint]; the command is never sent to the app). Null for the old syntax (the area decides)
+     * and, since the review, for words that do not read as a command ([Reading.looksLikeCommand]):
+     * "Hallo @gruppe wer kommt heute?" or a bare "@mem" is sent as usual.
      */
     fun onEnter(host: Host, call: CommandCall): Boolean? {
         if (KeyboardCommands.isBlocked(Settings.getValues(), host.editorInfo)) return null
         val readings = readings(host, call)
-        if (isLegacy(readings)) return null
-        val plan = readings.singleOrNull()?.let { plan(host, it, dark = true) }
+        if (isLegacy(readings) || readings.none { it.looksLikeCommand }) return null
+        val plans = readings.map { plan(host, it, dark = true) }
+        val plan = plans.singleOrNull()
         if (plan != null && plan.runnable && plan.harmless) {
             // a gesture still being processed: the key is taken, a second Enter runs it (P149)
             if (host.canReplaceNow) execute(host, call, plan)
             return true
         }
-        Toast.makeText(host.context, R.string.agent_unified_tap_to_run, Toast.LENGTH_SHORT).show()
+        val hint = if (plan == null) host.context.getString(R.string.agent_unified_tap_to_run) else plan.hint(host.context)
+        Toast.makeText(host.context, hint, Toast.LENGTH_SHORT).show()
         return true
     }
 
@@ -205,18 +244,58 @@ object CommandSystem {
 
     // ---- plans: what a reading does ----
 
-    /** What one step does: its words in the preview, and its effect (null: it only shows something). */
-    private class StepPlan(val text: CharSequence, val plain: String, val effect: ((Host) -> ((Host) -> Unit)?)?,
-                           val complete: Boolean, val harmless: Boolean)
+    /**
+     * What an effect did: [undo] puts it back; [after] runs once the command text is gone (switching
+     * the keyboard's language, emptying the clipboard history), so that nothing in it has to be put
+     * back when the text cannot be removed.
+     */
+    private class Done(val undo: (Host) -> Unit, val after: ((Host) -> Unit)? = null)
+
+    /** Changes a setting and says how to undo it, or returns null with nothing changed. */
+    private fun interface Effect { fun run(host: Host): Done? }
+
+    /**
+     * What one step does: its words in the preview, and its effect (null: it only shows something).
+     * [problem] says why a step cannot run although every word is known (a limit, a chain).
+     */
+    private class StepPlan(val text: CharSequence, val plain: String, val effect: Effect?,
+                           val complete: Boolean, val harmless: Boolean, val problem: String? = null) {
+        /** A step that only shows or lists something, and can. */
+        val showOnly get() = effect == null && complete && problem == null
+    }
 
     private class Plan(val reading: Reading, val steps: List<StepPlan>, val label: CharSequence, val plain: String) {
         val hasEffect get() = steps.any { it.effect != null }
         val runnable get() = hasEffect && reading.unknownCount == 0 && steps.all { it.complete }
         val harmless get() = steps.all { it.harmless }
+
+        /** Why this reading does not run on Enter (or on a tap of its grey chip). */
+        fun hint(context: Context): String {
+            val unknown = reading.steps.flatMap { it.unknown }
+            if (unknown.isNotEmpty()) {
+                // an unknown word where an app can stand: maybe not installed, maybe the apps are not read yet (P201)
+                val apps = reading.steps.any { it.unknown.isNotEmpty() && it.area in APP_AREAS }
+                return context.getString(if (apps) R.string.agent_unified_unknown_app_toast else R.string.agent_unified_unknown_toast,
+                    unknown.joinToString(", "))
+            }
+            steps.firstNotNullOfOrNull { it.problem }?.let { return it }
+            if (!steps.all { it.complete }) return context.getString(R.string.agent_unified_incomplete_toast)
+            if (!hasEffect) return context.getString(R.string.agent_unified_show_only_toast)
+            return context.getString(R.string.agent_unified_tap_to_run)
+        }
     }
 
+    /** Areas whose words can name apps. */
+    private val APP_AREAS = setOf(Area.LANG, Area.GUARD, Area.MEM, Area.GROUP)
+
     private fun plan(host: Host, reading: Reading, dark: Boolean): Plan {
-        val steps = reading.steps.map { stepPlan(host, it, dark) }
+        var steps = reading.steps.map { stepPlan(host, it, dark) }
+        if (steps.size > 1) {
+            // review of stage 52: in a chain every step changes something; inserting (the old @snip
+            // name, @clip word) and showing work only on their own, else a tap would only delete the text
+            val chain = host.context.getString(R.string.agent_unified_chain_toast)
+            steps = steps.map { if (it.showOnly) StepPlan(it.text, it.plain, null, false, it.harmless, chain) else it }
+        }
         val label = Words(dark)
         steps.forEachIndexed { index, step ->
             if (index > 0) label.add(" ; ", Role.SEPARATOR)
@@ -225,24 +304,33 @@ object CommandSystem {
         return Plan(reading, steps, label.text, steps.joinToString(" ; ") { it.plain })
     }
 
-    /** A tap on a preview: removes the command, then runs every step; offers "Undo". */
+    /**
+     * A tap on a preview: runs every step, then removes the command, then what has to wait for that
+     * (a language switch); offers "Undo". Review of stage 52: when a step fails, or the command cannot
+     * be removed (the field changed), every step that ran is put back and the text stays.
+     */
     private fun execute(host: Host, call: CommandCall, plan: Plan): Boolean {
         if (KeyboardCommands.isBlocked(Settings.getValues(), host.editorInfo) || !plan.runnable) return false
-        // first the command goes, in the field it was typed in; nothing changes when that fails
         val at = host.cursor
-        if (!host.replace(call, "")) return false
-        val undos = ArrayList<(Host) -> Unit>()
-        var failed = false
+        val done = ArrayList<Done>()
+        fun putBack() { for (step in done.asReversed()) runCatching { step.undo(host) } }
         for (step in plan.steps) {
             val effect = step.effect ?: continue
-            val back = runCatching { effect(host) }.getOrNull()
-            if (back == null) failed = true else undos += back
+            val result = runCatching { effect.run(host) }.getOrNull()
+            if (result == null) {
+                putBack()
+                Toast.makeText(host.context, R.string.agent_unified_failed, Toast.LENGTH_SHORT).show()
+                return false
+            }
+            done += result
         }
-        if (failed) Toast.makeText(host.context, R.string.agent_unified_failed, Toast.LENGTH_SHORT).show()
-        if (undos.isNotEmpty()) {
+        // the command goes, in the field it was typed in; when that fails nothing stays changed
+        if (!host.replace(call, "")) { putBack(); return false }
+        for (step in done) step.after?.let { runCatching { it(host) } }
+        if (done.isNotEmpty()) {
             // the cursor the strip is built for once the command is gone
             val state = Undo(plan.plain, host.editorInfo?.packageName, if (at < 0) -1 else at - call.text.length,
-                clock() + UNDO_MILLIS, undos)
+                clock() + UNDO_MILLIS, done.map { it.undo })
             undo = state
             schedule(UNDO_MILLIS) { if (undo === state) { undo = null; state.refresh?.invoke() } }
         }
@@ -253,9 +341,7 @@ object CommandSystem {
         val context = host.context
         val plain = if (count > 1) context.getString(R.string.agent_unified_reading, index + 1, count, plan.plain) else plan.plain
         if (!plan.runnable) return Chip(plan.label, context.getString(R.string.agent_unified_cannot, plain), Chip.Kind.MUTED) {
-            val unknown = plan.reading.steps.flatMap { it.unknown }
-            Toast.makeText(context, if (unknown.isNotEmpty()) context.getString(R.string.agent_unified_unknown_toast, unknown.joinToString(", "))
-                else context.getString(R.string.agent_unified_incomplete_toast), Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, plan.hint(context), Toast.LENGTH_SHORT).show()
         }
         var used = false
         return Chip(plan.label, context.getString(R.string.agent_unified_run, plain)) {
@@ -270,10 +356,15 @@ object CommandSystem {
         val context = host.context
         val words = Words(dark)
         fun unknown() { for (word in step.unknown) words.plain(" ").add("$word?", Role.UNKNOWN) }
-        fun done(effect: ((Host) -> ((Host) -> Unit)?)?, complete: Boolean, harmless: Boolean): StepPlan {
+        fun done(effect: Effect?, complete: Boolean, harmless: Boolean, problem: String? = null): StepPlan {
             unknown()
-            return StepPlan(words.text, words.text.toString(), effect, complete, harmless)
+            // review of stage 52: a limit is checked here, before anything runs or the text goes
+            return StepPlan(words.text, words.text.toString(), effect.takeIf { problem == null }, complete && problem == null, harmless, problem)
         }
+        fun limit(max: Int) = context.getString(R.string.agent_unified_limit_toast, max)
+        /** The problem when [adding] more entries than [existing] has room for, up to [max]. */
+        fun room(existing: Collection<String>, adding: List<String>?, max: Int): String? =
+            if (adding != null && (existing + adding).toSet().size > max && adding.any { it !in existing }) limit(max) else null
         words.add(areaLabel(context, step.area), Role.AREA)
         val here = host.editorInfo?.packageName
         val packages: List<String>? = when {
@@ -311,7 +402,8 @@ object CommandSystem {
                     }
                     step.language != null || step.action == Action.SET -> {
                         targets(); arrow(subtype?.let { languageLabel(context, it) } ?: context.getString(R.string.agent_unified_missing), Role.VALUE)
-                        done(subtype?.let { languageEffect(context, packages, it) }, subtype != null && (packages == null || packages.isNotEmpty()), !step.all)
+                        done(subtype?.let { languageEffect(context, packages, it) }, subtype != null && (packages == null || packages.isNotEmpty()), !step.all,
+                            room(CommandAppSettings.languages(context).keys, packages, CommandAppSettings.MAX_APPS))
                     }
                     else -> {
                         targets(); words.plain(": ").add(currentLanguages(context, packages), Role.VALUE)
@@ -327,8 +419,10 @@ object CommandSystem {
                         val on = step.action == Action.ON
                         targets(); arrow(context.getString(if (on) R.string.agent_unified_on else R.string.agent_unified_off), Role.ACTION)
                         val effect = if (memory) memoryEffect(context, packages, on) else guardEffect(context, packages, on)
+                        val problem = if (memory) room(Memory.excludedApps(context), packages.takeIf { !on }, Memory.MAX_EXCLUDED)
+                            else room(CommandAppSettings.guards(context).keys, packages, CommandAppSettings.MAX_APPS)
                         // switching learning on, or anything for all apps, needs the tap
-                        done(effect, packages == null || packages.isNotEmpty(), !step.all && !(memory && on))
+                        done(effect, packages == null || packages.isNotEmpty(), !step.all && !(memory && on), problem)
                     }
                     Action.DELETE -> {
                         targets(); arrow(context.getString(R.string.agent_unified_default), Role.ACTION)
@@ -341,8 +435,8 @@ object CommandSystem {
                     }
                 }
             }
-            Area.GROUP -> groupPlan(context, step, words, ::done)
-            Area.SNIP -> snipPlan(context, step, words, ::done)
+            Area.GROUP -> groupPlan(context, step, words, ::done, ::limit)
+            Area.SNIP -> snipPlan(context, step, words, ::done, ::limit)
             Area.CLIP -> when (step.action) {
                 Action.ON, Action.OFF -> {
                     val on = step.action == Action.ON
@@ -356,42 +450,48 @@ object CommandSystem {
     }
 
     private fun groupPlan(context: Context, step: Step, words: Words,
-                          done: (((Host) -> ((Host) -> Unit)?)?, Boolean, Boolean) -> StepPlan): StepPlan {
+                          done: (Effect?, Boolean, Boolean, String?) -> StepPlan, limit: (Int) -> String): StepPlan {
         val name = step.name
         val members = step.members.map { it.packageName }
-        val existing = name?.let { CommandAppSettings.groups(context)[it] }
+        val groups = CommandAppSettings.groups(context)
+        val existing = name?.let { groups[it] }
         fun memberText(packages: List<String>) = packages.joinToString(", ") { InstalledApps.label(it) }
         if (step.action == Action.LIST || name == null) {
             words.plain(": ").add(listSummary(context, Area.GROUP), Role.VALUE)
-            return done(null, true, true)
+            return done(null, true, true, null)
         }
         words.plain(" ").add(name, Role.TARGET)
         return when {
             step.action == Action.DELETE && members.isEmpty() -> {
                 words.plain(" → ").add(context.getString(R.string.agent_unified_delete), Role.ACTION)
-                done(groupEffect(context, name, null), existing != null, false)
+                done(groupEffect(context, name, null), existing != null, false, null)
             }
             step.action == Action.DELETE -> {
                 words.plain(" − ").add(memberText(members), Role.VALUE)
                 val left = existing.orEmpty().filter { it !in members }
-                done(groupEffect(context, name, left.ifEmpty { null }), existing != null, false)
+                done(groupEffect(context, name, left.ifEmpty { null }), existing != null, false, null)
             }
             step.action == Action.ADD || ((step.action == null || step.action == Action.SET) && members.isNotEmpty()) -> {
                 val add = step.action == Action.ADD
                 words.plain(if (add) " + " else " = ").add(memberText(members).ifEmpty { context.getString(R.string.agent_unified_missing) }, Role.VALUE)
-                val result = if (add) (existing.orEmpty() + members).distinct() else members
-                val fits = members.isNotEmpty() && result.size <= CommandAppSettings.MAX_MEMBERS
-                done(if (fits) groupEffect(context, name, result) else null, fits, true)
+                val result = if (add) (existing.orEmpty() + members).distinct() else members.distinct()
+                // review of stage 52: the limits before anything runs; overwriting is harmless only when it keeps every app
+                val problem = when {
+                    existing == null && groups.size >= CommandAppSettings.MAX_GROUPS -> limit(CommandAppSettings.MAX_GROUPS)
+                    result.size > CommandAppSettings.MAX_MEMBERS -> limit(CommandAppSettings.MAX_MEMBERS)
+                    else -> null
+                }
+                done(groupEffect(context, name, result), members.isNotEmpty(), existing == null || result.containsAll(existing), problem)
             }
             else -> {
                 words.plain(": ").add(existing?.let { memberText(it) } ?: context.getString(R.string.agent_unified_missing), Role.VALUE)
-                done(null, existing != null, true)
+                done(null, existing != null, true, null)
             }
         }
     }
 
     private fun snipPlan(context: Context, step: Step, words: Words,
-                         done: (((Host) -> ((Host) -> Unit)?)?, Boolean, Boolean) -> StepPlan): StepPlan {
+                         done: (Effect?, Boolean, Boolean, String?) -> StepPlan, limit: (Int) -> String): StepPlan {
         val name = step.name
         return when (step.action) {
             Action.ADD -> {
@@ -400,102 +500,121 @@ object CommandSystem {
                 words.plain(" = ").add(text?.let { "„${SnipCommand.preview(it, 24)}“" } ?: context.getString(R.string.agent_unified_missing), Role.VALUE)
                 if (step.nameExists) words.plain(" ").add(context.getString(R.string.agent_unified_replaces), null)
                 val valid = name != null && text != null && SnippetStore.isValidName(name) && SnippetStore.isValidText(text)
-                done(if (valid) snippetEffect(context, name!!, text) else null, valid, !step.nameExists)
+                val full = !step.nameExists && SnipCommand.names(context).size >= SnippetStore.MAX_SNIPPETS
+                done(if (valid) snippetEffect(context, name!!, text) else null, valid, !step.nameExists,
+                    if (valid && full) limit(SnippetStore.MAX_SNIPPETS) else null)
             }
             Action.DELETE -> {
                 words.plain(" ").add(name ?: context.getString(R.string.agent_unified_missing), Role.TARGET)
                 words.plain(" → ").add(context.getString(R.string.agent_unified_delete), Role.ACTION)
-                done(if (name != null && step.nameExists) snippetEffect(context, name, null) else null, step.nameExists, false)
+                done(if (name != null && step.nameExists) snippetEffect(context, name, null) else null, step.nameExists, false, null)
             }
-            else -> done(null, true, true)
+            else -> done(null, true, true, null)
         }
     }
 
-    // ---- effects; each returns how to undo it, or null when it failed ----
+    // ---- effects; each returns how to undo it, or null with nothing changed ----
 
-    private fun switchEffect(subtype: InputMethodSubtype): (Host) -> ((Host) -> Unit)? = { host ->
+    private fun switchEffect(subtype: InputMethodSubtype) = Effect { host ->
         val before = host.currentSubtype
         if (subtype !in LanguageCommand.subtypes()) null
-        else if (subtype == before || host.switchSubtype(subtype)) { back: Host -> if (before != null && before != subtype) back.switchSubtype(before) }
-        else null
+        else Done(undo = { back -> if (before != null && before != subtype && before in LanguageCommand.subtypes()) back.switchSubtype(before) },
+            after = { now -> if (subtype != before) now.switchSubtype(subtype) })
     }
 
-    /** Sets (or with [subtype] null removes) the language of [packages], or of all apps with null. */
-    private fun languageEffect(context: Context, packages: List<String>?, subtype: InputMethodSubtype?): (Host) -> ((Host) -> Unit)? = { target ->
+    /**
+     * Sets (or with [subtype] null removes) the language of [packages], or of all apps with null.
+     * Review of stage 52: the room is checked before anything is written, and a write that fails
+     * puts back the ones before it.
+     */
+    private fun languageEffect(context: Context, packages: List<String>?, subtype: InputMethodSubtype?) = Effect { target ->
         val stored = subtype?.toSettingsSubtype()?.toPref()
-        val apps = packages ?: (CommandAppSettings.languages(context).keys + CommandAppSettings.savedSubtypeApps(context)).toList()
+        val own = CommandAppSettings.languages(context)
+        if (packages != null && subtype != null && (own.keys + packages).toSet().size > CommandAppSettings.MAX_APPS) return@Effect null
+        val apps = packages ?: (own.keys + CommandAppSettings.savedSubtypeApps(context)).toList()
         // what was there, for the undo: the command's own entries and HeliBoard's per-app record
         val before = apps.associateWith { CommandAppSettings.language(context, it) to CommandAppSettings.savedSubtype(context, it) }
         val allBefore = CommandAppSettings.language(context, CommandAppSettings.ALL)
-        var ok = true
-        for (app in apps) {
-            if (app != CommandAppSettings.ALL) CommandAppSettings.setSavedSubtype(context, app, null) // the latest choice wins
-            ok = CommandAppSettings.setLanguage(context, app, if (packages == null) null else stored) && ok
-        }
-        if (packages == null) ok = CommandAppSettings.setLanguage(context, CommandAppSettings.ALL, stored) && ok
-        // the app typed in gets the language at once, as at the next start of its field
-        val here = target.editorInfo?.packageName
-        val current = target.currentSubtype
-        val switchNow = subtype != null && subtype != current && (packages == null || here in packages)
-        if (switchNow) target.switchSubtype(subtype!!)
-        if (!ok) null else { back: Host ->
+        fun restore() {
             for ((app, values) in before) {
                 CommandAppSettings.setLanguage(context, app, values.first)
                 CommandAppSettings.setSavedSubtype(context, app, values.second)
             }
             if (packages == null) CommandAppSettings.setLanguage(context, CommandAppSettings.ALL, allBefore)
-            if (switchNow && current != null && current in LanguageCommand.subtypes()) back.switchSubtype(current)
         }
+        var ok = true
+        for (app in apps) {
+            if (app != CommandAppSettings.ALL) CommandAppSettings.setSavedSubtype(context, app, null) // the latest choice wins
+            ok = CommandAppSettings.setLanguage(context, app, if (packages == null) null else stored) && ok
+            if (!ok) break
+        }
+        if (ok && packages == null) ok = CommandAppSettings.setLanguage(context, CommandAppSettings.ALL, stored)
+        if (!ok) { restore(); return@Effect null }
+        // the app typed in gets the language at once, as at the next start of its field
+        val here = target.editorInfo?.packageName
+        val current = target.currentSubtype
+        val switchNow = subtype != null && subtype != current && (packages == null || here in packages)
+        Done(undo = { back ->
+            restore()
+            if (switchNow && current != null && current in LanguageCommand.subtypes()) back.switchSubtype(current)
+        }, after = if (switchNow) { now -> now.switchSubtype(subtype!!) } else null)
     }
 
     /** On/off ([on]) or back to the switch (null) for [packages]; for all apps the switch itself and no entries. */
-    private fun guardEffect(context: Context, packages: List<String>?, on: Boolean?): (Host) -> ((Host) -> Unit)? = { _ ->
+    private fun guardEffect(context: Context, packages: List<String>?, on: Boolean?) = Effect { _ ->
         val entries = CommandAppSettings.guards(context)
+        if (packages != null && on != null && (entries.keys + packages).toSet().size > CommandAppSettings.MAX_APPS) return@Effect null
         val switch = helium314.keyboard.agent.FormatGuardChips.isEnabled(context)
-        var ok = true
-        if (packages == null) {
-            entries.keys.forEach { ok = CommandAppSettings.setGuard(context, it, null) && ok }
-            if (on != null) context.prefs().edit { putBoolean(AgentPreferences.FORMAT_GUARD, on) }
-        } else packages.forEach { ok = CommandAppSettings.setGuard(context, it, on) && ok }
-        if (!ok) null else { _: Host ->
+        fun restore() {
             for (app in packages ?: entries.keys.toList()) CommandAppSettings.setGuard(context, app, entries[app])
             if (packages == null) context.prefs().edit { putBoolean(AgentPreferences.FORMAT_GUARD, switch) }
         }
+        var ok = true
+        for (app in packages ?: entries.keys.toList()) {
+            ok = CommandAppSettings.setGuard(context, app, if (packages == null) null else on)
+            if (!ok) break
+        }
+        if (!ok) { restore(); return@Effect null }
+        if (packages == null && on != null) context.prefs().edit { putBoolean(AgentPreferences.FORMAT_GUARD, on) }
+        Done(undo = { _ -> restore() })
     }
 
     /**
      * Memory on or off for [packages] (the memory's own excluded apps); for all apps the memory's
      * switch, and "on" also takes every app back in. [reset]: back to the switch (no exclusion).
      */
-    private fun memoryEffect(context: Context, packages: List<String>?, on: Boolean, reset: Boolean = false): (Host) -> ((Host) -> Unit)? = { _ ->
+    private fun memoryEffect(context: Context, packages: List<String>?, on: Boolean, reset: Boolean = false) = Effect { _ ->
         val excluded = Memory.excludedApps(context)
+        if (packages != null && !on && (excluded + packages).size > Memory.MAX_EXCLUDED) return@Effect null
         val switch = Memory.isEnabled(context)
-        var ok = true
-        if (packages == null) {
-            if (on) excluded.forEach { ok = Memory.setExcluded(context, it, false) && ok }
-            if (!reset) context.prefs().edit { putBoolean(AgentPreferences.MEMORY, on) }
-        } else packages.forEach { ok = Memory.setExcluded(context, it, !on) && ok }
-        if (!ok) null else { _: Host ->
+        fun restore() {
             val now = Memory.excludedApps(context)
             (now - excluded).forEach { Memory.setExcluded(context, it, false) }
             (excluded - now).forEach { Memory.setExcluded(context, it, true) }
             if (packages == null) context.prefs().edit { putBoolean(AgentPreferences.MEMORY, switch) }
         }
+        var ok = true
+        if (packages == null) {
+            if (on) for (app in excluded) { ok = Memory.setExcluded(context, app, false); if (!ok) break }
+            if (ok && !reset) context.prefs().edit { putBoolean(AgentPreferences.MEMORY, on) }
+        } else for (app in packages) { ok = Memory.setExcluded(context, app, !on); if (!ok) break }
+        if (!ok) { restore(); return@Effect null }
+        Done(undo = { _ -> restore() })
     }
 
-    private fun groupEffect(context: Context, name: String, packages: List<String>?): (Host) -> ((Host) -> Unit)? = { _ ->
+    private fun groupEffect(context: Context, name: String, packages: List<String>?) = Effect { _ ->
         val before = CommandAppSettings.groups(context)[name]
         if (!CommandAppSettings.setGroup(context, name, packages)) null
-        else { _: Host -> CommandAppSettings.setGroup(context, name, before) }
+        else Done(undo = { _ -> CommandAppSettings.setGroup(context, name, before) })
     }
 
     /** Stores [text] as the snippet [name] (replacing one of that name, its apps kept), or deletes it with null. */
-    private fun snippetEffect(context: Context, name: String, text: String?): (Host) -> ((Host) -> Unit)? = { _ ->
+    private fun snippetEffect(context: Context, name: String, text: String?) = Effect { _ ->
         val store = snippetStore(context)
         val old = store.read().firstOrNull { it.name.equals(name, ignoreCase = true) }
         if (text == null) store.delete(name) else store.put(Snippet(old?.name ?: name, text, old?.apps.orEmpty()), old?.name)
         SnipCommand.reset()
-        val back: (Host) -> Unit = { _: Host ->
+        Done(undo = { _ ->
             val again = snippetStore(context)
             val now = again.read().firstOrNull { it.name.equals(name, ignoreCase = true) }
             when {
@@ -504,17 +623,15 @@ object CommandSystem {
                 else -> again.put(old, now.name)
             }
             SnipCommand.reset()
-        }
-        back
+        })
     }
 
-    /** The clipboard history switch, with the same cleanup as the switch on the settings page. */
-    private fun clipEffect(context: Context, on: Boolean): (Host) -> ((Host) -> Unit)? = { _ ->
+    /** The clipboard history switch, with the same cleanup as the switch on the settings page (once the command is gone). */
+    private fun clipEffect(context: Context, on: Boolean) = Effect { _ ->
         val before = ClipCommand.historyEnabled(context)
         context.prefs().edit { putBoolean(Settings.PREF_ENABLE_CLIPBOARD_HISTORY, on) }
-        if (before != on) ClipboardDao.getInstance(context)?.clearNonPinned()
-        val back: (Host) -> Unit = { _: Host -> context.prefs().edit { putBoolean(Settings.PREF_ENABLE_CLIPBOARD_HISTORY, before) } }
-        back
+        Done(undo = { _ -> context.prefs().edit { putBoolean(Settings.PREF_ENABLE_CLIPBOARD_HISTORY, before) } },
+            after = { _ -> if (before != on) ClipboardDao.getInstance(context)?.clearNonPinned() })
     }
 
     // ---- shown values ----
@@ -594,7 +711,7 @@ object CommandSystem {
             }
         }
         fun appWord(packageName: String) = if (packageName == CommandAppSettings.ALL) "all"
-            else InstalledApps.apps.firstOrNull { it.packageName == packageName }?.let { LanguageNames.normalize(it.label).ifEmpty { null } }
+            else InstalledApps.apps.firstOrNull { it.packageName == packageName }?.let { it.normalized.ifEmpty { null } }
                 ?.let { "app:$it" } ?: packageName
         fun appLabel(packageName: String) = if (packageName == CommandAppSettings.ALL) context.getString(R.string.agent_unified_all) else InstalledApps.label(packageName)
         val here = host.editorInfo?.packageName
@@ -668,7 +785,7 @@ object CommandSystem {
         val typed = if (text.isEmpty() || text.last().isWhitespace()) "" else text.substring(text.indexOfLast { it.isWhitespace() } + 1)
         if (typed.startsWith(call.prefix) || typed.any { !it.isLetter() && it != ':' }) return emptyList()
         val options = ArrayList<Pair<String, String>>() // shown, written
-        fun apps() = InstalledApps.apps.forEach { options += it.label to LanguageNames.normalize(it.label) }
+        fun apps() = InstalledApps.apps.forEach { options += it.label to it.normalized }
         fun groups() = CommandAppSettings.groups(context).keys.forEach { options += it to it }
         fun languages() = LanguageCommand.subtypes().distinctBy { it.locale().language }.forEach { subtype ->
             val name = LanguageCommand.nativeName(subtype.locale().language)

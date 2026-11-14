@@ -73,6 +73,17 @@ object ForeignWords {
     private val lock = Any()
     /** Raised by [clear]: checks scheduled before are dropped. */
     @Volatile private var generation = 0
+    /**
+     * Second review of stage 51 (d): per word, raised by [forget]; a check scheduled before does not
+     * bring the word back. Under [lock]; the oldest are dropped beyond [MAX_FORGOTTEN].
+     */
+    private val forgotten = LinkedHashMap<String, Int>()
+    private var forgetCount = 0
+    private const val MAX_FORGOTTEN = 256
+    /** Second review of stage 51 (a): dictionaries unused this long are closed at the next field change. */
+    const val IDLE_MILLIS = 10 * 60 * 1000L
+    /** When a check last asked the dictionaries; 0 when none is open since the last close. */
+    @Volatile private var lastCheck = 0L
     /** Review N2: a remembered word was used again; written with the next field change (like [Memory]). Under [lock]. */
     private var dirty = false
 
@@ -130,6 +141,9 @@ object ForeignWords {
             if (context != null && dirty) save(context)
         }
         session = sessions.incrementAndGet()
+        // second review (a): Android 14+ hardly sends low-memory levels any more; dictionaries unused for long are closed
+        val last = lastCheck
+        if (last != 0L && clock() - last >= IDLE_MILLIS) closeDictionaries()
     }
 
     /**
@@ -167,6 +181,10 @@ object ForeignWords {
         synchronized(lock) {
             val c = loaded(context)
             val k = key(language, word)
+            // second review (d): a check still waiting for this word must not add it again
+            forgotten.remove(k)
+            forgotten[k] = ++forgetCount
+            while (forgotten.size > MAX_FORGOTTEN) forgotten.remove(forgotten.keys.first())
             var changed = c.remove(k) != null
             if (remembered.containsKey(k)) {
                 remembered = LinkedHashMap(remembered).apply { remove(k) }
@@ -216,9 +234,11 @@ object ForeignWords {
         val blockOffensive = settings.mBlockPotentiallyOffensive
         val field = session
         val scheduled = generation
+        val forgottenAt = synchronized(lock) { forgotten[key(language, word)] ?: 0 }
+        lastCheck = clock()
         // review N4: nothing on the worker may end the keyboard's process
         worker.execute {
-            runCatching { check(context, current, language, word, explicit, field, place, locales, excluded, blockOffensive, scheduled) }
+            runCatching { check(context, current, language, word, explicit, field, place, locales, excluded, blockOffensive, scheduled, forgottenAt) }
         }
     }
 
@@ -251,10 +271,12 @@ object ForeignWords {
 
     /** On [worker]: [word] counts if another enabled language has it and the current one does not. */
     private fun check(context: Context, current: Locale, language: String, word: String, explicit: Boolean, field: Long,
-                      position: Int, locales: List<Locale>, excluded: Set<String>, blockOffensive: Boolean, scheduled: Int) {
+                      position: Int, locales: List<Locale>, excluded: Set<String>, blockOffensive: Boolean, scheduled: Int,
+                      forgottenAt: Int) {
         val (from, form) = Dictionaries.find(context, current, word, locales, excluded, blockOffensive) ?: return
         synchronized(lock) {
             if (scheduled != generation) return // cleared in between
+            if ((forgotten[key(language, word)] ?: 0) != forgottenAt) return // forgotten in between (second review d)
             val c = loaded(context)
             val k = key(language, form)
             val now = clock()
@@ -383,13 +405,19 @@ object ForeignWords {
         closeDictionaries()
     }
 
-    /** Review N3: closes the opened dictionaries (low memory, the keyboard ends); a later check opens what it needs again. */
+    /**
+     * Review N3: closes the opened dictionaries (low memory, the keyboard hidden in the background, long
+     * unused, a dictionary added or removed, the keyboard ends); a later check opens what it needs again.
+     * Also forgets which could not be loaded (second review c).
+     */
     @JvmStatic fun closeDictionaries() {
+        lastCheck = 0L
         runCatching { worker.execute { runCatching { Dictionaries.close() } } }
     }
 
     internal fun resetForTest() = synchronized(lock) {
         candidates = null; remembered = LinkedHashMap(); lookup = emptyMap(); pending = null; lastTyped = null; dirty = false
+        forgotten.clear()
     }
 
     /**
@@ -399,11 +427,15 @@ object ForeignWords {
      */
     private object Dictionaries {
         private val open = HashMap<Locale, Dictionary>()
+        /** Second review (c): locales whose dictionary could not be loaded; not tried again until [close]. */
+        private val failed = HashSet<Locale>()
 
         private fun of(context: Context, locale: Locale): Dictionary? {
             open[locale]?.let { return it }
+            if (locale in failed) return null
             val dictionary = runCatching { DictionaryFactory.createMainDictionaryCollection(context, locale, false) }.getOrNull()
-                ?.takeIf { it.isInitialized || run { runCatching { it.close() }; false } } ?: return null
+                ?.takeIf { it.isInitialized || run { runCatching { it.close() }; false } }
+            if (dictionary == null) { failed += locale; return null }
             open[locale] = dictionary
             return dictionary
         }
@@ -424,6 +456,7 @@ object ForeignWords {
             // a language no longer enabled is closed; the others stay open
             val keep = enabled.toSet() + current
             open.keys.filter { it !in keep }.forEach { locale -> open.remove(locale)?.let { runCatching { it.close() } } }
+            failed.retainAll(keep)
             val own = of(context, current) ?: return null // unknown whether the current language has it
             if (forms(word, current).any { own.isValidWord(it) }) return null
             for (locale in enabled) {
@@ -439,6 +472,7 @@ object ForeignWords {
         fun close() {
             open.values.forEach { runCatching { it.close() } }
             open.clear()
+            failed.clear()
         }
     }
 }

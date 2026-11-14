@@ -231,8 +231,9 @@ Reihenfolge von oben nach unten.
   verschiedenen Stellen unkorrigiert stehen bleibt; ersetzt du ein gemerktes Wort durch ein anderes,
   ist es für diese Sprache wieder vergessen; Rückgängig gemachte Korrekturen, eigene Wörter,
   Wortfolgen und Kürzel bleiben sprachübergreifend. Prüfer-Review: Befunde behoben (Nachprüfung 51 in
-  `docs/VALIDATION.md`), erneute Prüfung offen (Engine: `DictionaryFacilitatorImpl`, `Suggest`,
-  `LatinIME.onTrimMemory`, Pflicht). Offen: Gerätetest (echte Wörterbücher, Speicher der zusätzlich
+  `docs/VALIDATION.md`), Restpunkte der zweiten Prüfung behoben (Zweite Nachprüfung 51), erneute
+  Prüfung offen (Engine: `DictionaryFacilitatorImpl`, `Suggest`, `LatinIME.onTrimMemory`,
+  `LatinIME.resetSuggestMainDict`, Pflicht). Offen: Gerätetest (echte Wörterbücher, Speicher der zusätzlich
   geöffneten Wörterbücher, Sprachtaste und Wischen auf der Leertaste).
 - **52 Einheitliches Befehlssystem (mit dem Owner festgelegt, 2026-11-14)** ist gebaut (siehe
   FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 52), nach den Festlegungen des Owners
@@ -260,8 +261,15 @@ Reihenfolge von oben nach unten.
   Leerzeichen hinweg; `InputLogic` schließt das Wort an jedem Leerzeichen ab (Autokorrektur,
   Autoleerzeichen) und `RichInputConnection` führt Komposition und Schreibmarke selbst, das wäre
   kein enger Eingriff in die Engine (P202). Mögliche Etappe, wenn der Owner sie will: ein eigener
-  Kompositionsmodus nur für Befehle, mit Prüfer. Offen: Prüfer-Review (`LatinIME.onStartInputInternal`,
-  Pflicht), Gerätetest (App-Namen echter Apps, Sprache beim Feldstart in WhatsApp/Duolingo,
+  Kompositionsmodus nur für Befehle, mit Prüfer. Prüfer-Befunde behoben (Nachprüfung 52 in
+  `docs/VALIDATION.md`); Annahmen des Leads dabei: Text hinter einem Bereichswort ist nur ein
+  Befehl, wenn ein Wort eine bekannte Rolle hat und das erste Wort passt oder höchstens eines
+  unbekannt ist; geschützt vor der Autokorrektur ist dann auch das erste Wort allein (es kann eine
+  App sein, die noch getippt wird); Ketten ohne Trenner nur hinter einem vollständigen Befehl;
+  Enter auf einem Sprachwort nur beim genauen Namen; eine fehlgeschlagene Wirkung nimmt alles
+  zurück und lässt den Text stehen (statt ihn neu einzufügen); ein Sprachwechsel im Feld einer App
+  mit Befehlssprache bleibt im Feld (Schalter aus). Offen: erneuter Prüfer-Lauf
+  (`LatinIME.onStartInputInternal`, `onCurrentInputMethodSubtypeChanged`, Pflicht), Gerätetest (App-Namen echter Apps, Sprache beim Feldstart in WhatsApp/Duolingo,
   Farben auf hellem und dunklem Design, Enter in Messengern, Hardware-Enter).
 - **53 Zeichen-Kunst-Fenster** ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` →
   Etappe 53). Annahmen des Leads, die der Owner ändern kann: Standardstil Braille; Profile WhatsApp,
