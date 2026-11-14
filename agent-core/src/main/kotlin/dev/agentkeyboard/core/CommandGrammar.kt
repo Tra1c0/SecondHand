@@ -394,8 +394,13 @@ object CommandGrammar {
         return out
     }
 
+    // fourth review of stage 52: a common sentence word ([TEXT_WORDS]) names an app only by its whole
+    // name, not as the start of one ("das" is not Dashlane, "wir" not Wire), so the sentence stays text
     private fun appMeanings(word: String, apps: List<AppName>): List<Meaning> =
-        LanguageNames.normalize(word).let { typed -> apps.mapNotNull { app -> NameMatch.score(typed, app)?.let { Meaning.To(Target.App(app), it) } } }
+        LanguageNames.normalize(word).let { typed ->
+            val textWord = typed in TEXT_WORDS
+            apps.mapNotNull { app -> NameMatch.score(typed, app)?.takeIf { !textWord || it == 0 }?.let { Meaning.To(Target.App(app), it) } }
+        }
 
     private fun groupMeanings(word: String, groups: Map<String, List<String>>): List<Meaning> =
         groups.mapNotNull { (name, packages) -> NameMatch.score(word, name)?.let { Meaning.To(Target.Group(name, packages), it) } }

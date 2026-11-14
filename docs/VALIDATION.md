@@ -5246,6 +5246,22 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Engine-Änderungen: keine. `LatinIME`, `InputLogic`, `RichInputConnection`, `PointerTracker`
   unverändert.
 
+### Nachprüfung 52, vierte Runde (Prüfung zu 7966766, Lead, 2026-11-14)
+
+- Befund 1 (mittel, behoben): Ein Satzwort, das eine installierte App nur anschneidet („das“ →
+  Dashlane, „wir“ → Wire), galt als bekanntes erstes Wort; „@guard das ist gut“ schluckte Enter.
+  Jetzt nennt ein Wort aus `TEXT_WORDS` eine App nur mit ihrem ganzen Namen (P231). Test
+  `CommandGrammarTest.aSentenceWordNamesAnAppOnlyByItsWholeName`.
+- Befund 3 (niedrig, behoben): Ein unklares Entfernen (UNKNOWN), das zurückgenommen wird, zeigt jetzt
+  „agent_command_expired“ wie REJECTED.
+- Befund 5 (niedrig, behoben): Speichern als Baustein aus der Zeichen-Kunst ruft
+  `SnipCommand.reset()` (im Hauptthread).
+- Befund 2 (niedrig, so gelassen): Vor dem Lesen der Apps sind App-Namen aus Satzwörtern („Die Zeit“)
+  und mehr als drei unbekannte App-Wörter Text; im Zweifel Text ist die gewollte Richtung (Enter geht
+  an die App, wie vor Etappe 52). Befund 4 (niedrig, so gelassen): zufällig gleicher Text vor dem
+  Befehl oder eine in Millisekunden verschobene Schreibmarke beim Nachlesen; sehr selten.
+- Tests: siehe nächster Eintrag des Leads bzw. Build-Log.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

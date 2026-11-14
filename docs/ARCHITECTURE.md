@@ -4733,8 +4733,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Wort einen Befehl, mit höchstens drei unbekannten Wörtern in einem Stück, und kein unbekanntes Wort
   darf in `CommandGrammar.TEXT_WORDS` stehen (sonst wären „@sprache ist weg“ und „@mem ich bin aus
   Berlin“ wegen höchstens eines bzw. eines genauen Worts Befehle). Nachgeschlagen werden nur
-  unbekannte Wörter; eine App, die so heißt und gelesen ist, ist vorher ein Ziel. Wer die Liste
-  erweitert, nimmt keine Aktions- oder Trennwörter auf.
+  unbekannte Wörter; eine App, die genau so heißt und gelesen ist, ist vorher ein Ziel. Vierte
+  Nachprüfung: Ein Satzwort nennt eine App nur mit ihrem ganzen Namen, nicht als Anfang, Namensteil
+  oder Tippfehler (`CommandGrammar.appMeanings`; „das“ ist nicht Dashlane, „wir“ nicht Wire), sonst
+  wäre es ein bekanntes erstes Wort und der Satz ein Befehl. Wer die Liste erweitert, nimmt keine
+  Aktions- oder Trennwörter auf.
 
 - **P222** IDs eigener Muster (34, Nachprüfung): nie wieder hochzählen (`max + 1`). Mit `p1`, `p2` …
   bekam ein neues Muster nach dem Löschen des neuesten dessen ID, und ein Designprofil, das nur

@@ -306,6 +306,25 @@ class CommandGrammarTest {
         assertTrue(parse("@lang foo german").all { it.looksLikeCommand })
     }
 
+    @Test fun aSentenceWordNamesAnAppOnlyByItsWholeName() {
+        // fourth review: "das" starts Dashlane, "wir" Wire; as the first word they made the sentence a command
+        val dashlane = AppName("com.dashlane", "Dashlane")
+        val wire = AppName("com.wire", "Wire")
+        val die = AppName("de.zeit.online", "Die")
+        val withApps = object : CommandGrammar.Vocabulary {
+            override val apps = listOf(dashlane, wire, die, whatsapp)
+            override fun languages(word: String, exactOnly: Boolean) = matcher.match(word, exactOnly)
+        }
+        fun parseWith(text: String) = CommandGrammar.parse(text, '@', areas, withApps)
+        for (text in listOf("@guard das ist gut", "@mem wir sind aus Berlin", "@guard das ist aus"))
+            assertFalse(parseWith(text).any { it.looksLikeCommand }, text)
+        // the app names themselves and a sentence word that is a whole app name still work
+        assertTrue(parseWith("@guard dashlane off").all { it.looksLikeCommand })
+        assertTrue(parseWith("@mem wire aus").all { it.looksLikeCommand })
+        assertTrue(parseWith("@guard die off").all { it.looksLikeCommand })
+        assertTrue(parseWith("@lang whatsapp german").all { it.looksLikeCommand })
+    }
+
     @Test fun onlyAnExactClaimedLanguageWordIsACommandWord() {
         // third review: "@spanis" (a started name) claims the language but is no command word
         assertTrue(parse("@spanis").isNotEmpty())

@@ -581,7 +581,11 @@ class AgentEditorController @JvmOverloads constructor(
                     R.string.agent_char_art_snippet_saved
                 }
             }.getOrDefault(R.string.agent_char_art_snippet_failed)
-            mainHandler.post { Toast.makeText(ime, ime.getString(message, name), Toast.LENGTH_SHORT).show() }
+            mainHandler.post {
+                // the commands read the names again, on the main thread like every other reader (fourth review of 52)
+                if (message == R.string.agent_char_art_snippet_saved) helium314.keyboard.agent.commands.SnipCommand.reset()
+                Toast.makeText(ime, ime.getString(message, name), Toast.LENGTH_SHORT).show()
+            }
         })
     }
 

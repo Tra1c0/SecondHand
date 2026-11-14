@@ -388,7 +388,13 @@ object CommandSystem {
         }
         dropReadings() // groups and snippets may have changed
         // the command goes, in the field it was typed in; when that is refused nothing stays changed
-        if (!removed(host, call, host.replaceOutcome(call, ""))) { if (!putBack()) notAllBack(); return false }
+        val outcome = host.replaceOutcome(call, "")
+        if (!removed(host, call, outcome)) {
+            if (!putBack()) notAllBack()
+            // the host already said so for REJECTED; an unclear removal put back says it too (fourth review)
+            else if (outcome == ApplyOutcome.UNKNOWN) Toast.makeText(host.context, R.string.agent_command_expired, Toast.LENGTH_SHORT).show()
+            return false
+        }
         for (step in done) step.after?.let { after -> step.afterRan = true; runCatching { after(host) } }
         if (done.isNotEmpty()) {
             // the cursor the strip is built for once the command is gone
