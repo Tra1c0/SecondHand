@@ -316,7 +316,7 @@ Reihenfolge von oben nach unten.
   lokal; die Tastatur lernt selbst dazu (45, 46).
 - **Verworfen (Owner, 2026-11-14):** Mail-Anbindung (Gmail/IMAP) und Codes aus Benachrichtigungen.
   Einmalcodes kommen nur über die Zwischenablage (44).
-- **34 Eigene RGB-Lichtmuster gestalten — bestätigt (Owner, 2026-11-14): „eigene rgb lichtmuster. Vollständig customizable.“ Owner: „wahrscheinlich eher XL“. (XL). Owner, 2026-11-14: nicht in Build 22, „kommt im Release 23“ — also erst nach dieser Runde.** (Wunsch des Owners vom 2026-11-13). Eigene
+- **34 Eigene RGB-Lichtmuster gestalten — bestätigt (Owner, 2026-11-14): „eigene rgb lichtmuster. Vollständig customizable.“ Owner: „wahrscheinlich eher XL“. (XL). Owner, 2026-11-14: nicht in den Test-Build 22, sondern direkt in den geprüften Build 23 (mit eigenem Prüfer vor 23).** (Wunsch des Owners vom 2026-11-13). Eigene
   Tastatur-Designs gibt es schon (Design-Seite → „Meine Designs“, seit Build 10). Annahme des
   Leads, vor dem Bau bestätigen: gemeint sind eigene RGB-Designs, also selbst gestaltete
   Lichtmuster (Farben, Formen, Bewegung) auf Basis der neuen Muster und der Kurve aus 29. (L)
