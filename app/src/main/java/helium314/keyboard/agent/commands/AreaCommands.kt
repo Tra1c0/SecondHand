@@ -13,6 +13,8 @@ import helium314.keyboard.latin.R
  */
 abstract class AreaCommand(final override val name: String, private val description: Int) : KeyboardCommands.Command {
     override val protectsArgument = true
+    /** Review of stage 52: only words that read as a command; other text after the area word is corrected as usual. */
+    override fun protects(context: Context, call: CommandCall) = CommandSystem.protects(context, call)
     override val aliases: List<String> get() = CommandSystem.ALIASES[name].orEmpty()
     override fun description(context: Context) = context.getString(description, KeyboardCommands.prefix(context).toString())
     override fun chips(host: KeyboardCommands.Host, call: CommandCall) = CommandSystem.chips(host, call).orEmpty()

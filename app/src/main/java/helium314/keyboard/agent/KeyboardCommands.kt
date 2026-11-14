@@ -154,6 +154,8 @@ object KeyboardCommands {
         fun description(context: Context): String
         /** True if the words of the argument are text the user writes and must not be autocorrected. */
         val protectsArgument: Boolean get() = false
+        /** Review of stage 52: whether the words of this typed [call] are kept from the autocorrection; [protectsArgument] by default. */
+        fun protects(context: Context, call: CommandCall): Boolean = protectsArgument
         /** True if the argument may be up to [CommandSyntax.MAX_LONG_ARGUMENT] characters instead of [CommandSyntax.MAX_ARGUMENT]. */
         val longArgument: Boolean get() = false
         /** The chips for a complete command; empty to show nothing (then the normal strip stays). */
@@ -219,7 +221,7 @@ object KeyboardCommands {
     @Volatile private var inCommand = false
 
     private class Active(val prefix: Char, val names: Set<String>, val longNames: Set<String>, val claimers: List<Command>,
-                         val aliases: Map<String, String>) {
+                         val aliases: Map<String, String>, val context: Context) {
         /** Stage 24g: the enabled command that takes an unknown word as its own, or null. */
         val claim: (String) -> String? = { word -> claimers.firstOrNull { it.claims(word) }?.name }
 
@@ -232,7 +234,9 @@ object KeyboardCommands {
         /**
          * Typos of names offer the name to complete (stage 24g); every reader parses the same way.
          * Stage 52: an area command right after another one on the same line continues its chain
-         * (`@lang whatsapp german; @guard banking off`): the call then spans the whole chain.
+         * (`@lang whatsapp german; @guard banking off`): the call then spans the whole chain. Review:
+         * only across a separator or after a complete command ([CommandSystem.continuesChain]), so
+         * "@gruppe hey, hier meine Adresse: @snip adr" is the snippet, not a chain of the group.
          */
         fun parse(before: CharSequence): CommandContext? {
             val found = syntax(before)
@@ -243,6 +247,8 @@ object KeyboardCommands {
                 val earlier = syntax(before.subSequence(0, first.start)) as? CommandCall ?: break
                 // a window cut by the caller does not tell what precedes its first character
                 if (earlier.name !in areas || (earlier.start == 0 && before.length > CommandSyntax.LOOKBACK)) break
+                if (!helium314.keyboard.agent.commands.CommandSystem.continuesChain(context, prefix,
+                        before.substring(earlier.start, first.start))) break
                 first = earlier
             }
             if (first === found) return found
@@ -293,7 +299,8 @@ object KeyboardCommands {
         val enabled = registry.filter { it.name in names }
         val aliases = enabled.flatMap { command -> command.aliases.map { it to command.name } }.toMap()
         // stage 52: the areas read the enabled command names (and the language words) while they load
-        active = if (isEnabled(context) && names.isNotEmpty()) Active(prefix(context), names, longNames, enabled, aliases) else null
+        active = if (isEnabled(context) && names.isNotEmpty())
+            Active(prefix(context), names, longNames, enabled, aliases, context.applicationContext ?: context) else null
         if (isEnabled(context)) enabled.forEach { it.load(context) }
         inCommand = false
         forget()
@@ -329,7 +336,7 @@ object KeyboardCommands {
             null -> false
             is CommandNames -> true
             is CommandCall -> context.argument.isBlank() ||
-                registry.firstOrNull { it.name == context.name }?.protectsArgument == true
+                registry.firstOrNull { it.name == context.name }?.protects(current.context, context) == true
         }
     }
 

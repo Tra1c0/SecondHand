@@ -243,5 +243,60 @@ class CommandGrammarTest {
         assertNull(NameMatch.score("wh", "WhatsApp")) // too short to start a name
         assertNull(NameMatch.score("signl", "Telegram"))
         assertEquals(listOf("WhatsApp", "WhatsApp Business"), NameMatch.started("wh", listOf("WhatsApp Business", "WhatsApp", "Signal")))
+        // an app's name is normalized once and scores the same as the plain name
+        for (typed in listOf("whatsapp", "whats", "whtasapp", "business", "wh"))
+            assertEquals(NameMatch.score(typed, business.label), NameMatch.score(LanguageNames.normalize(typed), business), typed)
+        assertEquals("whatsappbusiness", business.normalized)
+    }
+
+    // ---- review of stage 52 ----
+
+    @Test fun textAfterAnAreaWordIsACommandOnlyWhenItReadsAsOne() {
+        // normal text that starts with an area word
+        for (text in listOf("@gruppe wer kommt heute?", "@group", "@mem", "@gruppe wer", "@guard das ist gut", "@gruppe alle eingeladen"))
+            assertFalse(parse(text).any { it.looksLikeCommand }, text)
+        // commands
+        for (text in listOf("@group messenger whatsapp signal", "@group social telegram signal", "@guard banking off",
+                "@lang ?", "@mem whatsapp off", "@lang whatsapp", "@lang spanisch", "@snip add gruss Hallo", "@clip on",
+                "@group list", "@gruppe neu arbeit telegram", "@lang foo german"))
+            assertTrue(parse(text).all { it.looksLikeCommand }, text)
+        // the first word unknown and more than one unknown word: text
+        assertFalse(parse("@lang foo bar german").any { it.looksLikeCommand })
+        assertFalse(parse("@mem kann whatsapp nicht").any { it.looksLikeCommand })
+    }
+
+    @Test fun anUnknownAppBeforeALanguageIsNoOldCommand() {
+        val unknown = step("@lang foo german")
+        assertFalse(unknown.legacy)
+        assertEquals("de", unknown.language)
+        assertEquals(listOf("foo"), unknown.unknown)
+        // before the apps are read, a real app name is unknown in the same way
+        val empty = CommandGrammar.parse("@lang whatsapp german", '@', areas, object : CommandGrammar.Vocabulary {
+            override val apps = emptyList<AppName>()
+            override fun languages(word: String, exactOnly: Boolean) = matcher.match(word, exactOnly)
+        }).single().steps.single()
+        assertFalse(empty.legacy)
+        assertEquals(listOf("whatsapp"), empty.unknown)
+        // one word stays the old command, also unknown; no unknown word too
+        assertTrue(step("@lang xyz").legacy)
+        assertTrue(step("@lang spanisch").legacy)
+    }
+
+    @Test fun aClipSearchIsNotSplitAtSeparators() {
+        val search = step("@clip bis dann")
+        assertTrue(search.legacy)
+        assertEquals("bis dann", search.text)
+        assertEquals(1, single("@clip termin; morgen").steps.size)
+        assertTrue(single("@clip termin; morgen").legacy)
+        // a new area word still ends it, a separator right before it starts nothing
+        assertEquals(listOf(Area.CLIP, Area.LANG), single("@clip on; @lang whatsapp german").steps.map { it.area })
+        assertEquals(Action.ON, single("@clip on; @lang whatsapp german").steps[0].action)
+    }
+
+    @Test fun anExplicitChainEndsInASeparator() {
+        for (text in listOf("@lang whatsapp german;", "@lang whatsapp german ; ", "@lang a then ", "@lang a dann", "@lang a →", "@lang a ->"))
+            assertTrue(CommandGrammar.endsWithSeparator(text), text)
+        for (text in listOf("@lang whatsapp german ", "@gruppe hey, hier meine Adresse: ", "@lang danny "))
+            assertFalse(CommandGrammar.endsWithSeparator(text), text)
     }
 }

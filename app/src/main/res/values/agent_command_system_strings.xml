@@ -34,6 +34,12 @@
     <string name="agent_unified_unknown_toast">Unknown: %1$s</string>
     <string name="agent_unified_incomplete_toast">Something is still missing in this command</string>
     <string name="agent_unified_tap_to_run">Tap the preview to run the command</string>
+    <!-- review of stage 52: why Enter (or a tap on a grey preview) does not run it; %1$s: the unknown words, %1$d: the limit -->
+    <string name="agent_unified_unknown_app_toast">Unknown: %1$s (no app, group or language of that name, or the apps are not read yet)</string>
+    <string name="agent_unified_show_only_toast">This only shows; tap an entry to change it</string>
+    <string name="agent_unified_chain_toast">Inserting (@snip name, @clip word) and showing work only on their own, not in a chain</string>
+    <string name="agent_unified_limit_toast">Too many entries: at most %1$d</string>
+    <string name="agent_unified_lang_choose">Several layouts: tap one in the strip</string>
     <string name="agent_unified_undo">↶ Undo</string>
     <string name="agent_unified_undo_description">Undo: %1$s</string>
     <string name="agent_unified_undone">Undone</string>

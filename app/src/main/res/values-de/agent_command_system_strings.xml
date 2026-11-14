@@ -32,6 +32,11 @@
     <string name="agent_unified_unknown_toast">Unbekannt: %1$s</string>
     <string name="agent_unified_incomplete_toast">In diesem Befehl fehlt noch etwas</string>
     <string name="agent_unified_tap_to_run">Tippe auf die Vorschau, um den Befehl auszuführen</string>
+    <string name="agent_unified_unknown_app_toast">Unbekannt: %1$s (keine App, Gruppe oder Sprache dieses Namens, oder die Apps sind noch nicht geladen)</string>
+    <string name="agent_unified_show_only_toast">Das zeigt nur an; tippe auf einen Eintrag, um ihn zu ändern</string>
+    <string name="agent_unified_chain_toast">Einfügen (@snip name, @clip wort) und Anzeigen gehen nur einzeln, nicht in einer Kette</string>
+    <string name="agent_unified_limit_toast">Zu viele Einträge: höchstens %1$d</string>
+    <string name="agent_unified_lang_choose">Mehrere Layouts: tippe auf eines in der Leiste</string>
     <string name="agent_unified_undo">↶ Rückgängig</string>
     <string name="agent_unified_undo_description">Rückgängig: %1$s</string>
     <string name="agent_unified_undone">Rückgängig gemacht</string>

@@ -403,9 +403,15 @@
   Enter schickt den Befehl dann nicht ab. `@?` zeigt alle Bereiche, `@lang ?` den Aufbau; beim
   Tippen schlägt die Leiste Apps, Sprachen und Bausteine vor. Die alten Befehle (`@deutsch`,
   `@lang spanisch`, `@snip adr`, `@clip Termin`) gehen wie bisher; `@deutsch` schaltet jetzt auch
-  mit Enter um. Ändert nur deine eigenen Einstellungen und Daten; nie in Passwortfeldern, im
-  Inkognito-Modus oder bei gesperrtem Gerät. Die Farben gibt es nur in der Leiste, nicht im
-  Textfeld. Noch auf keinem Gerät ausprobiert.
+  mit Enter um (nur mit dem genauen Namen der Sprache; ist sie schon aktiv, sagt Enter das nur).
+  Normaler Text, der bloß mit einem Bereichswort beginnt („Hallo @gruppe wer kommt heute?“),
+  ist kein Befehl: Enter schickt ihn ab, die Autokorrektur arbeitet. Ohne `;` geht eine Kette nur
+  hinter einem vollständigen Befehl weiter, `@snip adr` hinter anderem Text bleibt ein Baustein.
+  Ist eine Liste voll oder lässt sich etwas nicht ändern, bleibt der Befehlstext stehen und nichts
+  ist halb geändert. Hat eine App eine Befehlssprache, bleibt ein Wechsel mit der Sprachtaste im
+  Feld auch nach dem Senden (mit „Sprache pro App merken“ aus). Ändert nur deine eigenen
+  Einstellungen und Daten; nie in Passwortfeldern, im Inkognito-Modus oder bei gesperrtem Gerät.
+  Die Farben gibt es nur in der Leiste, nicht im Textfeld. Noch auf keinem Gerät ausprobiert.
 - Neu: Update-Fenster. Hat „Jetzt prüfen“ oder die tägliche Suche einen neuen Build gefunden,
   zeigen die Einstellungen beim Öffnen „Build N ist da“ mit seinen Notizen; „Installieren“ öffnet
   die Seite Updates und startet dort den Download, „Später“ fragt für diesen Build nicht mehr. In

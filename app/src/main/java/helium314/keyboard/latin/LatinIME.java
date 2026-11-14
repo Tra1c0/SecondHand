@@ -958,6 +958,8 @@ public class LatinIME extends InputMethodService implements
             mSuggestionStripView.setRtl(mRichImm.getCurrentSubtype().isRtlSubtype());
         }
         mSettings.saveSubtypeForApp(mRichImm.getCurrentSubtype(), getCurrentInputEditorInfo().packageName);
+        // fork, review of stage 52 (P219): with "language per app" off, a switch in a field of an app with a command language survives the app restarting that field
+        helium314.keyboard.agent.commands.CommandAppSettings.onSwitchedInField(this, getCurrentInputEditorInfo(), subtype);
     }
 
     /** alias to onCurrentInputMethodSubtypeChanged with a better name, as it's also used for internal switching */

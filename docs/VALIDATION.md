@@ -4807,6 +4807,7 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Engine-Änderungen (erneutes Prüfer-Review Pflicht): `Suggest.kt` (`addForeignWord`, N5),
   `LatinIME.java` (`onTrimMemory`, eine Zeile). `InputLogic`, `RichInputConnection`,
   `PointerTracker`, `DictionaryFacilitatorImpl` unverändert.
+
 ## Etappe 52 (Einheitliches Befehlssystem)
 
 - Auftrag: `docs/ROADMAP.md` → 52 (mit dem Owner festgelegt, 2026-11-14): Aufbau
@@ -4872,6 +4873,76 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   Sprache der App an beiden Stellen über `CommandAppSettings.subtypeForApp`). `InputLogic`,
   `RichInputConnection`, `PointerTracker`, `Settings.java` unverändert. Sonst nur Fork-Dateien
   (`KeyboardCommands`, `FormatGuardChips`: Eintrag der App vor dem Schalter).
+
+### Nachprüfung 52 (Prüfer-Befunde zu 494339b, 2026-11-14)
+
+- Behoben (Arbeitskopie, Lead-Auftrag 2026-11-14):
+  - 1 (mittel): Text, der nur mit einem Bereichswort beginnt („Hallo @gruppe wer kommt heute?“,
+    bloßes `@group`/`@mem`), schluckte Enter und war vor der Autokorrektur geschützt. Jetzt
+    `Step.looksLikeCommand` (mindestens ein Wort mit bekannter Rolle, ein neuer Gruppenname allein
+    zählt nicht; das erste Wort bekannt oder höchstens ein Wort unbekannt): sonst gibt
+    `CommandSystem.onEnter` null (Enter der App), und `Command.protects` (neu, Standard
+    `protectsArgument`) schützt nur Befehle; Annahme des Leads: dazu bleibt ein einzelnes Wort
+    hinter dem Bereichswort geschützt (eine App, die noch getippt wird oder noch nicht geladen ist),
+    ab dem zweiten Wort korrigiert die Autokorrektur Text wieder (P220).
+  - 2 (mittel): `@lang foo german` (auch `@lang whatsapp german`, bevor die Apps geladen sind) galt
+    als alte Form, ohne Chip, Enter schickte es ab. Alte Form jetzt nur mit höchstens einem Wort oder
+    ohne unbekanntes Wort; sonst graue Vorschau, Enter genommen mit „Unbekannt: … (… oder die Apps
+    sind noch nicht geladen)“ (`agent_unified_unknown_app_toast`).
+  - 3 (mittel): Ketten nur noch über einen Trenner oder hinter einem vollständigen früheren Befehl
+    ohne unbekannte Wörter (`CommandSystem.continuesChain` in `Active.parse`); „@gruppe hey, hier
+    meine Adresse: @snip adr“ ist der Baustein, seine Felder gehen mit Enter weiter (Etappe 42). In
+    einer Kette sind Schritte, die nur einfügen (alte `@snip`/`@clip`) oder zeigen, unvollständig,
+    mit Hinweis (`agent_unified_chain_toast`); vorher löschte ein Tipp den Text und tat nichts.
+  - 4 (mittel): Mit Befehlssprache und „Sprache pro App“ aus setzte ein Neustart desselben Felds
+    (`onStartInput` mit `restarting`, z. B. nach dem Senden) die App-Sprache gegen einen Wechsel mit
+    der Sprachtaste durch. `CommandAppSettings.onSwitchedInField` aus
+    `LatinIME.onCurrentInputMethodSubtypeChanged` merkt den Wechsel für dieses Feld wie
+    `SubtypeChoice.remember` (P219); kein Überspringen bei `restarting`. `docs/ANLEITUNG.md` ergänzt.
+  - 5 (mittel): Text weg, wenn eine Wirkung scheiterte. Die Grenzen (100 Apps, 50 ausgeschlossene
+    Apps, 20 Gruppen, 30 Apps je Gruppe, 50 Bausteine) prüft jetzt der Plan (`complete = false`,
+    `agent_unified_limit_toast`). Statt den Text danach wieder einzufügen, führt `execute` die
+    Wirkungen jetzt vor dem Entfernen aus und nimmt bei einem Fehler (auch beim Entfernen) die
+    gelaufenen zurück; der Text bleibt einfach stehen. Sprachwechsel und das Leeren des Verlaufs
+    laufen erst danach (`Done.after`, P221). Annahme des Leads: gleichwertig zum Wiedereinfügen und
+    ohne neuen Weg durch die Engine.
+  - 6 (gering): Eine Gruppe überschreiben ist nur harmlos, wenn sie neu ist oder alle bisherigen
+    Apps behält; sonst nur per Tipp.
+  - 7 (gering): Enter auf einem Sprachwort nur bei einem genauen Namen (`exactOnly`); `@deutsc`,
+    `@spanis`, `@deutsh` (Chips bleiben) schickt Enter als Text ab.
+  - 8 (gering): `@clip` teilt seine Suche nicht mehr an Trennern (wie `@snip`).
+  - 9 (gering): Eigener Hinweis für Deutungen, die nur zeigen (`agent_unified_show_only_toast`).
+  - 10 (gering): `languageEffect`, `guardEffect`, `memoryEffect` prüfen die Grenze vor dem ersten
+    Schreiben und stellen bei einem Fehler mittendrin her, was sie schon geschrieben haben.
+  - 11 (gering): `CommandAppSettings.guard` liest nur den einen Schlüssel (`contains`/`getBoolean`);
+    `AppName.normalized`/`parts` halten den normalisierten Namen je App (einmal je Lesen der Apps).
+  - 12 (gering): `@deutsch` + Enter, wenn Deutsch schon aktiv ist oder mehrere Layouts hat: Enter
+    genommen, Hinweis „Schon aktiv: …“ bzw. „Mehrere Layouts: tippe auf eines in der Leiste“.
+- Neue Tests: `CT/CommandGrammarTest` (+4: Text oder Befehl, unbekannte App vor einer Sprache, Suche
+  von `@clip` mit Trennern, Ketten-Trenner am Ende; dazu `NameMatch` mit `AppName`),
+  `AT/commands/CommandSystemTest` (+5: Text hinter Bereichswort und Schutz, Ketten und
+  Bausteinfelder hinter `@gruppe …`, Grenzen 50/20/100 und Rücknahme bei Fehler und geändertem Feld,
+  Gruppe überschreiben, Enter auf Sprachwörtern), `InputLogicTest` (+2, echter Host und Engine:
+  Text hinter Bereichswort mit Enter, `@lang foo spanish` mit Enter, Bausteinfelder hinter
+  `@gruppe …` mit Enter; Sprachtaste im Feld und `onStartInput(…, restarting = true)`).
+  Angepasst, nicht abgeschwächt: `enterRunsOnlyExactlyOneHarmlessReading` erwartet für
+  `@lang whatsapp`, `@lang ?` den neuen Hinweis „zeigt nur an“ und für `@guard banking off` den
+  Hinweis mit unbekannter App statt „Tippe auf die Vorschau“; `aChainIsOne…` erwartet beim Tipp auf
+  den grauen Chip denselben Hinweis mit unbekannter App.
+- Gegenprobe (2026-11-14): ohne die Zeile in `onCurrentInputMethodSubtypeChanged` ist
+  `unifiedCommandLanguageKeySwitchInTheAppSurvivesARestartOfTheField` rot (nach dem Neustart wieder
+  die App-Sprache); mit `continuesChain` immer wahr sind `aChainNeedsASeparatorOrACompleteCommandBefore`
+  (`@gruppe hey, …: @snip adr` als ein Befehl) und `unifiedCommandTextAfterAnAreaWordKeepsEnterAndTheSnippetFields`
+  (das Feld des Bausteins wird nicht gefragt) rot. Die übrigen Befunde nicht einzeln gegengeprüft.
+- Gelaufen (2026-11-14, `--max-workers=1 -Xmx1536m`): `./gradlew :agent-core:test` (532 Tests,
+  0 Fehler); `:app:testDebugUnitTest` mit `*InputLogicTest`, `agent.commands.*`, `*SuggestTest`,
+  `SettingsBarAreaTest`: 416 Tests, 1 Fehler = geerbt (`insertLetterIntoWordHangulFails`); dazu
+  `agent.*Command*` und `FormatGuardChipsTest`: 203 Tests, 0 Fehler. `docs_sync --check` grün. Nicht
+  gelaufen: `tools/dev.py agent-tests`, volle Suite, Lint, Build (Speicher, parallele Agenten),
+  Gerätetest (wie Etappe 52, dazu: Sprachtaste und Senden in WhatsApp, `TRIM_MEMORY`-Stufen).
+- Engine-Änderungen (erneutes Prüfer-Review Pflicht): `LatinIME.java`
+  (`onCurrentInputMethodSubtypeChanged`, eine Zeile). `InputLogic`, `RichInputConnection`,
+  `PointerTracker`, `Settings.java` unverändert.
 
 ## Etappe 54 (Update-Fenster)
 

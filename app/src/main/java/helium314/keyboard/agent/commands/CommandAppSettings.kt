@@ -96,6 +96,23 @@ object CommandAppSettings {
         return resolve(stored)
     }
 
+    /**
+     * Review of stage 52 (P219): the keyboard switched to [subtype] in the field [editorInfo] (language
+     * key, space bar swipe, system picker). With "Sprache pro App" on HeliBoard records that for the app
+     * itself. With the switch off, a language a command set for the app would win again when the app
+     * restarts the same field (e.g. after sending in a messenger, `onStartInput` with restarting): the
+     * switch is kept for this field like a language command's ([SubtypeChoice.remember]); a new field of
+     * the app starts in the app's language again. Not when the switch went to that language itself.
+     */
+    @JvmStatic fun onSwitchedInField(context: Context, editorInfo: android.view.inputmethod.EditorInfo?,
+                                     subtype: android.view.inputmethod.InputMethodSubtype) {
+        val packageName = editorInfo?.packageName?.takeIf { it.isNotEmpty() } ?: return
+        if (context.prefs().getBoolean(Settings.PREF_SAVE_SUBTYPE_PER_APP, helium314.keyboard.latin.settings.Defaults.PREF_SAVE_SUBTYPE_PER_APP)) return
+        val stored = language(context, packageName) ?: language(context, ALL) ?: return
+        if (resolve(stored)?.rawSubtype == subtype) return
+        SubtypeChoice.remember(editorInfo, subtype)
+    }
+
     /** The enabled subtype a stored one stands for: the same, else one of its language (as HeliBoard does). */
     fun resolve(stored: String): RichInputMethodSubtype? = runCatching {
         val subtype = stored.toSettingsSubtype()
@@ -108,7 +125,11 @@ object CommandAppSettings {
     fun guards(context: Context): Map<String, Boolean> =
         entries(context, GUARD).mapNotNull { (key, value) -> (value as? Boolean)?.let { key to it } }.toMap()
 
-    fun guard(context: Context, packageName: String): Boolean? = guards(context)[packageName]
+    /** One app's entry, read as one key (review of stage 52: asked for every strip, no copy of the store). */
+    fun guard(context: Context, packageName: String): Boolean? = runCatching {
+        val store = store(context)
+        if (store.contains(GUARD + packageName)) store.getBoolean(GUARD + packageName, true) else null
+    }.getOrNull()
 
     fun setGuard(context: Context, packageName: String, on: Boolean?): Boolean {
         if (packageName == ALL || !isAppKey(packageName)) return false

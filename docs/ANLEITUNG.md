@@ -549,6 +549,10 @@ diese Sprache um.
   nach dem Löschen des Befehls neu startet. Wechselst du in ein anderes Feld, gilt dort wieder,
   was die App, „Sprache pro App merken“ oder eine mit `@lang app sprache` gesetzte Sprache
   vorgibt (wie bei der Sprachtaste).
+- Hat eine App eine mit `@lang app sprache` gesetzte Sprache und ist „Sprache pro App merken“ aus,
+  bleibt ein Wechsel mit der Sprachtaste (oder einem Sprachbefehl) in einem Feld dieser App
+  ebenfalls in diesem Feld, auch wenn die App es nach dem Senden neu startet. Erst ein anderes Feld
+  der App beginnt wieder in ihrer Sprache.
 - Abschalten unter Einstellungen → Befehle → `@lang`; dort stehen auch die Kürzel deiner aktiven
   Sprachen.
 
@@ -575,10 +579,21 @@ So läuft es ab:
    (`@lang app:english deutsch`, wenn eine App „English …“ heißt).
 4. Enter führt nur aus, wenn es genau eine Deutung gibt und sie harmlos ist (z. B. eine Sprache
    für eine App setzen, Formatwächter für eine App aus). Löschen, alles mit `all`, Gedächtnis an,
-   der Zwischenablage-Schalter und das Überschreiben eines Bausteins gehen nur per Tipp; Enter
-   zeigt dann „Tippe auf die Vorschau, um den Befehl auszuführen“ und schickt nichts ab.
-5. Ein graues Vorschau-Chip heißt: noch nicht ausführbar (ein Wort ist unbekannt oder es fehlt
-   etwas). Ein Tipp sagt, was fehlt.
+   der Zwischenablage-Schalter, das Überschreiben eines Bausteins und das Überschreiben einer
+   Gruppe mit weniger Apps gehen nur per Tipp; Enter zeigt dann „Tippe auf die Vorschau, um den
+   Befehl auszuführen“ und schickt nichts ab. Ist ein Wort unbekannt, zeigt nur an oder ist eine
+   Liste voll, sagt Enter das (z. B. „Unbekannt: foo (… oder die Apps sind noch nicht geladen)“,
+   „Das zeigt nur an; tippe auf einen Eintrag“) und schickt ebenfalls nichts ab.
+5. Ein graues Vorschau-Chip heißt: noch nicht ausführbar (ein Wort ist unbekannt, es fehlt etwas
+   oder eine Liste ist voll: höchstens 100 Apps mit eigener Sprache oder eigenem Formatwächter,
+   50 ausgeschlossene Apps, 20 Gruppen mit je 30 Apps, 50 Bausteine). Ein Tipp sagt, was fehlt.
+   Lässt sich beim Ausführen etwas nicht ändern, wird alles schon Geänderte zurückgenommen und der
+   Befehlstext bleibt stehen.
+6. Normaler Text, der nur mit einem Bereichswort beginnt („Hallo @gruppe wer kommt heute?“, ein
+   bloßes `@mem`), ist kein Befehl: Enter schickt ihn wie gewohnt ab, und die Autokorrektur
+   arbeitet ab dem zweiten Wort hinter dem Bereichswort. Ein Befehl ist es, sobald ein Wort eine
+   App, Gruppe, Sprache oder Aktion ist und das erste Wort dazu passt oder höchstens ein Wort
+   unbekannt ist (`@lang foo german` ist rot und Enter schickt es nicht ab).
 
 Aktionen (Englisch zuerst, Deutsch geht genauso):
 
@@ -601,7 +616,7 @@ Alle Befehle:
 | Befehl | Was er macht |
 | --- | --- |
 | `@lang` | wie bisher: deine aktiven Sprachen als Chips |
-| `@lang spanisch`, `@deutsch`, `@sp` | wie bisher: dieses Feld auf die Sprache umstellen; mit genau einem Chip auch per Enter |
+| `@lang spanisch`, `@deutsch`, `@sp` | wie bisher: dieses Feld auf die Sprache umstellen; per Enter nur mit einem genauen Namen der Sprache (`@deutsch`, nicht `@deu`; angefangene Wörter wie `@Fran` schickt Enter als Text ab) und genau einem Chip; ist sie schon aktiv oder gibt es mehrere Layouts, sagt Enter das nur und schickt nichts ab |
 | `@lang duolingo spanish` | Duolingo startet ab jetzt auf Spanisch (bei jedem neuen Feld der App), auch wenn „Sprache pro App merken“ aus ist |
 | `@lang whatsapp german` | ersetzt die Sprache von WhatsApp; tippst du das in WhatsApp selbst, stellt die Tastatur sofort um |
 | `@lang whatsapp` | zeigt die Sprache von WhatsApp („keine eigene“, wenn keine festgelegt ist) |
@@ -619,7 +634,7 @@ Alle Befehle:
 | `@mem whatsapp on` | wieder einschließen (nur per Tipp, weil es das Lernen einschaltet) |
 | `@mem all off`, `@mem all on` | der Schalter „Merken, wie ich schreibe“; `all on` nimmt auch alle ausgeschlossenen Apps zurück (nur per Tipp) |
 | `@mem list` | Schalter und ausgeschlossene Apps |
-| `@group messenger whatsapp signal` | legt die Gruppe „messenger“ an oder ersetzt ihre Apps |
+| `@group messenger whatsapp signal` | legt die Gruppe „messenger“ an oder ersetzt ihre Apps (fallen dabei Apps weg, nur per Tipp) |
 | `@group messenger add telegram` | Telegram dazu |
 | `@group messenger del signal` | Signal raus (nur per Tipp) |
 | `@group messenger del` | Gruppe löschen (nur per Tipp) |
@@ -639,7 +654,12 @@ telegram`.
 Ketten: Mehrere Befehle in einer Zeile, getrennt durch `;`, `then`, `dann` oder `→` (auch `->`).
 Der Bereich gilt weiter bis zum nächsten `@`: `@lang whatsapp german; duolingo spanish; @guard
 banking off` sind drei Schritte in einer Vorschau, ein Tipp führt alle aus, ein „Rückgängig“ nimmt
-alle zurück. Bei `@snip add` gehört alles bis zum nächsten `@` zum Text (auch „; bis dann“).
+alle zurück. Bei `@snip add` und bei der Suche `@clip wort` gehört alles bis zum nächsten `@` zum
+Text (auch „; bis dann“). Ohne Trenner geht eine Kette nur weiter, wenn der Teil davor schon ein
+vollständiger Befehl ohne unbekanntes Wort ist; in „@gruppe hey, hier meine Adresse: @snip adr“
+ist nur `@snip adr` der Befehl (und seine Felder gehen mit Enter weiter). Einfügen (`@snip name`,
+`@clip wort`) und Anzeigen (`@lang whatsapp`) gehen nur einzeln, nicht in einer Kette; die
+Vorschau ist dann grau.
 
 Vorschläge: Beim Tippen zeigt die Leiste hinter der Vorschau passende Apps, Gruppen und Sprachen
 (`@lang whats` → „WhatsApp“, „WhatsApp Business“), nach einer App mit Leerzeichen deine Sprachen,
