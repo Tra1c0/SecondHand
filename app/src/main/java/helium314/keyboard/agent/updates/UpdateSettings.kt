@@ -29,6 +29,11 @@ class UpdateSettings(context: Context) {
         get() = storage.getLong("notified_build", 0)
         set(value) { check(storage.edit().putLong("notified_build", value).commit()) }
 
+    /** When the last check finished (epoch milliseconds, also for a failed one), 0 = never. Shown on "System & Daten". */
+    var checkedAt: Long
+        get() = storage.getLong("checked_at", 0)
+        set(value) { check(storage.edit().putLong("checked_at", value).commit()) }
+
     var status: UpdateStatus
         get() {
             val number = storage.getLong("status_number", 0)

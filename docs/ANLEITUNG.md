@@ -35,7 +35,9 @@ Jeder Build erscheint zusätzlich im öffentlichen Repository
 (Einrichtung einmalig: `docs/BUILD.md` → Installierbare APK). Die App braucht dafür kein Konto
 und keinen Token.
 
-1. Einstellungen → „Updates“. Die Seite zeigt den installierten Build und das Repository.
+1. Einstellungen → „Updates“ (unten auf der Startseite) oder System & Daten → Überschrift der
+   Karte „Updates“. Die Seite zeigt den installierten Build und das Repository. „Jetzt prüfen“
+   gibt es auch direkt auf der Karte in System & Daten.
 2. „Jetzt prüfen“: Darunter steht „Aktuell: Build 6“, „Build 7 verfügbar“ oder eine Meldung.
 3. Ist ein neuer Build da, tippe „Build 7 herunterladen und installieren“. Darf die App noch
    keine Apps installieren, zeigt die Seite „Einstellung öffnen“: dort „Agent Keyboard Lab“
@@ -89,7 +91,7 @@ liegt X jetzt in diesem Bereich:
 | 04 Gesten & Gefühl | Leertaste, Symbole malen, Gesten-Tippen (nur mit Bibliothek), Vibration & Ton (= Optionen) |
 | 05 Leiste & Befehle | Leiste (= Symbolleiste), Befehle, Screenshots |
 | 06 KI & Automationen | KI-Anbieter, Skill-Tasten, Workflows, Diktat |
-| 07 System & Daten | Tastaturprofile, Updates, Diagnose, Erweitert, Gestendaten-Erfassung (nur in der Sammelphase), Über |
+| 07 System & Daten | eigene Seite (siehe unten): Updates, Profile, Sichern, Für Fortgeschrittene, Über; dazu Tastaturprofile, Updates, Diagnose, Erweitert („Alle erweiterten Einstellungen“), Gestendaten-Erfassung (nur in der Sammelphase), Über („Alle Infos und Links“) |
 
 Zurück geht es mit dem runden Pfeil oben links oder der Zurück-Geste.
 
@@ -139,6 +141,29 @@ Schalter und Zeilen der früheren Seite Optionen (Zahlenzeile, Emoji-Taste, Popu
 und aus Erweitert Langdruck-Dauer, Währungen, Zeitstempel-Format und „Zurück zu den Buchstaben“
 (ein Tipp klappt die vier Schalter auf). Zwischenablage, Vibration und Ton findest du dort unter
 „Weitere Optionen“, bis die Bereiche Leiste und Gesten neu sind.
+
+### System & Daten
+
+- Karte **UPDATES**: zeigt das letzte Ergebnis („Build 16 ist aktuell“, „Build 17 verfügbar“,
+  „Noch nicht geprüft“ oder „Prüfung fehlgeschlagen“ mit Grund), wann zuletzt geprüft wurde und ob
+  täglich automatisch geprüft wird. „Jetzt prüfen“ fragt GitHub, nur bei diesem Tipp. „Diagnose“
+  öffnet die Diagnose-Seite. Ein Tipp auf die Überschrift öffnet die Seite „Updates“ (Schalter
+  „Täglich nach Updates suchen“); ist ein neuer Build da, führt „Build 17 installieren“ dorthin
+  zum Laden. Bei gesperrtem Gerät steht dort nur der Hinweis zum Entsperren.
+- Karte **PROFILE**: je gesicherter Bereich (Design, Tastenanordnung, Gesten) eine Karte, dazu
+  „Flacher Look“ und „+ Neues Profil“. Ein Tipp auf eine Profilkarte fragt nach und wendet sie mit
+  „Anwenden“ an. Hell mit weißem Rahmen ist eine Karte, solange deine Einstellungen ihr
+  entsprechen. „+ Neues Profil“ öffnet Tastaturprofile (sichern, exportieren, importieren,
+  zurücksetzen, Flacher Look zurücknehmen).
+- **Sichern**: „Sichern und Wiederherstellen“ (alle Einstellungen als Datei, derselbe Dialog wie
+  bisher), „Profile exportieren“ (öffnet Tastaturprofile).
+- **Für Fortgeschrittene**: Emoji-Version, URL-Erkennung, Hardware-Tastatur, Gesten-Bibliothek
+  laden, Debug-Einstellungen (nur wenn freigeschaltet), Gestendaten (nur in der Sammelphase) und
+  „Alle erweiterten Einstellungen“ für den Rest der alten Seite Erweitert (Symbole-Taste für den
+  Ziffernblock, Emoji-Taste der Hardware-Tastatur, App-Symbol …).
+- **Über**: Agent Keyboard mit Version und Build (fünfmal tippen schaltet die
+  Debug-Einstellungen frei), Lizenz, Versteckte Funktionen, Protokoll speichern und „Alle Infos und
+  Links“ (Wiki, Community, Quellcode).
 
 ## Textaktionen (ohne Internet)
 

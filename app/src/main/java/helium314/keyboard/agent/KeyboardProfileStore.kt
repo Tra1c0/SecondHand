@@ -89,6 +89,18 @@ class KeyboardProfileStore(context: Context) : ProfileStore {
 
     fun saveCurrent(group: ProfileGroup) = write(capture(group))
 
+    /**
+     * True when the saved profile of [group] equals the current settings (stage 38h highlights its
+     * card). An empty RGB text (profiles from before stage 26) leaves the light alone, so it matches.
+     */
+    fun matchesCurrent(group: ProfileGroup): Boolean {
+        val saved = runCatching { read(group) }.getOrNull() ?: return false
+        val current = capture(group).values
+        return saved.values.all { (key, value) ->
+            (key == RgbLighting.PREF && value is PreferenceValue.Choice && value.value.isEmpty()) || current[key] == value
+        }
+    }
+
     fun restoreSaved(group: ProfileGroup) {
         apply(requireNotNull(read(group)))
     }

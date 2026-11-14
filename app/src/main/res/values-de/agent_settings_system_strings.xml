@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 38h: area page "System & Daten" (mockup System.dc.html) -->
+<resources>
+    <string name="agent_system_updates_label">UPDATES</string>
+    <string name="agent_system_updates_current">Build %d ist aktuell</string>
+    <string name="agent_system_updates_available">Build %d verfügbar</string>
+    <string name="agent_system_updates_installed">Build %d installiert</string>
+    <string name="agent_system_updates_never">Noch nicht geprüft</string>
+    <string name="agent_system_updates_failed">Prüfung fehlgeschlagen</string>
+    <string name="agent_system_updates_checked">Zuletzt geprüft %s</string>
+    <string name="agent_system_updates_daily_on">täglich automatisch</string>
+    <string name="agent_system_updates_daily_off">automatische Prüfung aus</string>
+    <string name="agent_system_updates_install">Build %d installieren</string>
+    <string name="agent_system_diagnose">Diagnose</string>
+    <string name="agent_system_profiles">Profile</string>
+    <string name="agent_system_profile_saved_hint">Gesicherter Stand · antippen zum Anwenden</string>
+    <string name="agent_system_profile_active">entspricht den aktuellen Einstellungen</string>
+    <string name="agent_system_flat">Flacher Look</string>
+    <string name="agent_system_flat_hint">Vorlage nach deinen Screenshots</string>
+    <string name="agent_system_new_profile">+ Neues Profil</string>
+    <string name="agent_system_new_profile_hint">Aktuellen Stand sichern</string>
+    <string name="agent_system_apply_title">%s anwenden?</string>
+    <string name="agent_system_apply_flat">Setzt Stil, Farben, Leiste, Layouts und Größen des flachen Looks. Auf der Seite „Tastaturprofile“ lässt sich der vorherige Look wiederherstellen.</string>
+    <string name="agent_system_apply_saved">Setzt die gesicherten Werte dieses Bereichs und ersetzt die aktuellen.</string>
+    <string name="agent_system_apply">Anwenden</string>
+    <string name="agent_system_section_backup">Sichern</string>
+    <string name="agent_system_backup">Sichern und Wiederherstellen</string>
+    <string name="agent_system_backup_sub">Alle Einstellungen als Datei</string>
+    <string name="agent_system_export">Profile exportieren</string>
+    <string name="agent_system_export_sub">Design, Tasten, Gesten einzeln</string>
+    <string name="agent_system_section_advanced">Für Fortgeschrittene</string>
+    <string name="agent_system_emoji">Emoji-Version</string>
+    <string name="agent_system_emoji_sub">Welche Emojis angeboten werden</string>
+    <string name="agent_system_emoji_unknown">unbekannt</string>
+    <string name="agent_system_url">URL-Erkennung</string>
+    <string name="agent_system_url_sub">Adressen als ein Wort</string>
+    <string name="agent_system_hardware">Hardware-Tastatur</string>
+    <string name="agent_system_hardware_sub">Unterstützung für externe Tastaturen</string>
+    <string name="agent_system_gesture_lib">Gesten-Bibliothek laden</string>
+    <string name="agent_system_gesture_lib_sub">Für Gestenschreiben</string>
+    <string name="agent_system_debug">Debug-Einstellungen</string>
+    <string name="agent_system_debug_sub">Nach 5× auf „Version“</string>
+    <string name="agent_system_all_advanced">Alle erweiterten Einstellungen</string>
+    <string name="agent_system_all_advanced_sub">Ziffernblock-Symbole, Emoji-Taste der Hardware-Tastatur und mehr</string>
+    <string name="agent_system_section_about">Über</string>
+    <string name="agent_system_version">Version %1$s · Build %2$d</string>
+    <string name="agent_system_license">Lizenz</string>
+    <string name="agent_system_license_sub">GNU GPL v3.0 · basiert auf HeliBoard</string>
+    <string name="agent_system_hidden">Versteckte Funktionen</string>
+    <string name="agent_system_hidden_sub">Was man leicht übersieht</string>
+    <string name="agent_system_log_sub">Für Fehlermeldungen</string>
+    <string name="agent_system_about_all">Alle Infos und Links</string>
+    <string name="agent_system_about_all_sub">Wiki, Community, Quellcode</string>
+</resources>
