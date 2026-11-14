@@ -111,6 +111,8 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
     private var editing: Editing? = null
     private var snippetName = ""
     private var canReplace = false
+    /** "Replace" puts the art in place of the selection (review of stage 53, N8), not of the whole field text. */
+    private var replacesSelection = false
     private var german = true
     /** What the preview shows and the buttons would insert. */
     var result: ArtResult = CharArt.render(null, null)
@@ -118,7 +120,12 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
     /** While true, the insert button takes back the last insertion. */
     var offersUndo = false
         private set
-    private var pictureGeneration = 0
+    /** Counts window sessions: a strip or picture read for an earlier opening is dropped. */
+    private var pictureSession = 0
+    /** Counts picks: only the last picked picture becomes the template. */
+    private var pickGeneration = 0
+    /** The strip was read (or is being read) in this window session; it is read again only after reopening (N12). */
+    private var picturesRequested = false
     private var renderPosted = false
 
     private val dp = resources.displayMetrics.density
@@ -130,10 +137,15 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
     private var textColor = 0
     private var accentTextColor = 0
 
+    private val header = LinearLayout(context)
     private val tabRow = LinearLayout(context)
     private val textRow = TextView(context)
     private val optionsRow = LinearLayout(context)
+    private val optionsScroll = HorizontalScrollView(context)
     private val middle = LinearLayout(context)
+    private val bottom = LinearLayout(context)
+    /** While typing, the header gives its row to the keys too when the window is very low (landscape, M2). */
+    private var headerHiddenForKeys = false
     private val canvas = CharArtCanvas(context, sketch)
     private val keys = CharArtKeys(context)
     private val photoStrip = LinearLayout(context)
@@ -159,7 +171,7 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
         val padding = (4 * dp).toInt()
         setPadding(padding, padding, padding, padding)
 
-        val header = LinearLayout(context).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        header.apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         tabRow.orientation = HORIZONTAL
         tabRow.id = R.id.agent_char_art_tabs
         header.addView(HorizontalScrollView(context).apply { isHorizontalScrollBarEnabled = false; addView(tabRow) },
@@ -185,7 +197,7 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
         optionsRow.orientation = HORIZONTAL
         optionsRow.id = R.id.agent_char_art_options
         optionsRow.gravity = Gravity.CENTER_VERTICAL
-        addView(HorizontalScrollView(context).apply { isHorizontalScrollBarEnabled = false; addView(optionsRow) },
+        addView(optionsScroll.apply { isHorizontalScrollBarEnabled = false; addView(optionsRow) },
             LayoutParams(LayoutParams.MATCH_PARENT, (34 * dp).toInt()))
 
         // the middle: work area (drawing, keys, pictures, width) and the preview
@@ -224,7 +236,7 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
         middle.addView(previewBox, LayoutParams(0, LayoutParams.MATCH_PARENT, 1f).apply { marginStart = (4 * dp).toInt() })
         addView(middle, LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f))
 
-        val bottom = LinearLayout(context).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; isBaselineAligned = false }
+        bottom.apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; isBaselineAligned = false }
         status.apply {
             id = R.id.agent_char_art_status
             setTextColor(textColor)
@@ -242,7 +254,7 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
             if (editing == Editing.NAME) saveSnippet() else if (!result.isEmpty) startEditing(Editing.NAME)
         }
         replaceButton = button(context.getString(R.string.agent_char_art_replace), R.id.agent_char_art_replace, functional = true) {
-            if (offersUndo) return@button
+            if (offersUndo || !canReplace) return@button
             if (!result.isEmpty) onReplace?.invoke(result.text)
         }
         insertButton = button(context.getString(R.string.agent_char_art_insert), R.id.agent_char_art_insert, accent = true) {
@@ -354,12 +366,13 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
             id = R.id.agent_char_art_width
             max = CharArt.MAX_WIDTH - CharArt.MIN_WIDTH
             contentDescription = context.getString(R.string.agent_char_art_width_description)
+            // while dragging only the art follows; the width is written once the finger lifts (review of stage 53, N13)
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(bar: SeekBar, progress: Int, fromUser: Boolean) {
-                    if (fromUser) setWidth(progress + CharArt.MIN_WIDTH)
+                    if (fromUser) setWidth(progress + CharArt.MIN_WIDTH, remember = false)
                 }
                 override fun onStartTrackingTouch(bar: SeekBar) {}
-                override fun onStopTrackingTouch(bar: SeekBar) {}
+                override fun onStopTrackingTouch(bar: SeekBar) { rememberWidth() }
             })
         }
         appPanel.addView(widthBar, LayoutParams(LayoutParams.MATCH_PARENT, (32 * dp).toInt()))
@@ -379,31 +392,32 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
 
     /**
      * Opens the window with [fieldText] as the text. [replaceable]: the whole field before the cursor
-     * was read and nothing follows it, so "Replace" can put the art in its place. [app] is the
-     * profile of the field's app, if known; otherwise the last chosen one.
+     * was read and nothing follows it (or, with [selection], exactly the selection was read), so
+     * "Replace" can put the art in its place. [app] is the profile of the field's app; an app without
+     * a profile gets "Other" (review of stage 53, M1: no WhatsApp code block in an unknown app).
      */
-    fun show(fieldText: String, replaceable: Boolean, app: TargetApp?, language: String) {
+    fun show(fieldText: String, replaceable: Boolean, app: TargetApp?, language: String, selection: Boolean = false) {
         resetContent()
         german = language == "de"
         keys.german = german
         text = fieldText.take(MAX_TEXT)
+        replacesSelection = selection
         canReplace = replaceable && text.isNotBlank()
+        replaceButton.text = string(if (selection) R.string.agent_char_art_replace_selection else R.string.agent_char_art_replace)
         textMode = if (text.length <= 12 && !text.contains('\n')) TextMode.BIG else TextMode.UNICODE
-        val prefs = context.prefs()
-        val stored = runCatching { ArtStyle.valueOf(prefs.getString(AgentPreferences.CHAR_ART_STYLE, null) ?: "") }.getOrNull()
+        val stored = runCatching { ArtStyle.valueOf(context.prefs().getString(AgentPreferences.CHAR_ART_STYLE, null) ?: "") }.getOrNull()
         look = Look(style = stored ?: ArtStyle.BRAILLE)
         textLook = Look(style = stored ?: ArtStyle.BRAILLE)
-        val chosen = app ?: runCatching { TargetApp.valueOf(prefs.getString(AgentPreferences.CHAR_ART_APP, null) ?: "") }.getOrNull()
-            ?: TargetApp.WHATSAPP
-        useApp(chosen, remember = false)
+        useApp(app ?: TargetApp.GENERIC)
         tab = Tab.DRAW
         visibility = View.VISIBLE
         update()
         announceForAccessibility(context.getString(R.string.agent_char_art_title))
     }
 
-    /** Closes the window and forgets drawing, picture and text. */
+    /** Closes the window and forgets drawing, picture and text; nothing to do while it is closed (N9). */
     fun hide() {
+        if (visibility != View.VISIBLE) return
         visibility = View.GONE
         resetContent()
     }
@@ -413,7 +427,10 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
         handler.removeCallbacksAndMessages(RENDER_TOKEN)
         renderPosted = false
         offersUndo = false
-        pictureGeneration++
+        pictureSession++
+        pickGeneration++
+        picturesRequested = false
+        replacesSelection = false
         sketch.clear()
         canvas.reset()
         raster = canvas.raster
@@ -475,20 +492,28 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
         update()
     }
 
-    private fun useApp(app: TargetApp, remember: Boolean) {
+    /** The profile of [app] with its remembered width; a choice in the window holds only while it is open. */
+    private fun useApp(app: TargetApp) {
         val width = context.prefs().getInt(widthKey(app), app.defaultWidth).coerceIn(CharArt.MIN_WIDTH, CharArt.MAX_WIDTH)
         output = OutputOptions(app, width, app.codeBlockDefault, output.brailleBlanks)
-        if (remember) context.prefs().edit { putString(AgentPreferences.CHAR_ART_APP, app.name) }
     }
 
     private fun widthKey(app: TargetApp) = AgentPreferences.CHAR_ART_WIDTH_PREFIX + app.name.lowercase()
 
-    internal fun setWidth(width: Int) {
+    /** The width for the art; [remember] writes it for the app (the slider does that only when the finger lifts). */
+    internal fun setWidth(width: Int, remember: Boolean = true) {
         val bounded = width.coerceIn(CharArt.MIN_WIDTH, CharArt.MAX_WIDTH)
-        if (bounded == output.width) return
-        output = output.copy(width = bounded)
-        context.prefs().edit { putInt(widthKey(output.app), bounded) }
-        render()
+        if (bounded != output.width) {
+            output = output.copy(width = bounded)
+            render()
+        }
+        if (remember) rememberWidth()
+    }
+
+    private fun rememberWidth() {
+        val key = widthKey(output.app)
+        val prefs = context.prefs()
+        if (prefs.getInt(key, -1) != output.width) prefs.edit { putInt(key, output.width) }
     }
 
     private fun setStyle(style: ArtStyle) {
@@ -565,50 +590,49 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
         update()
     }
 
+    /**
+     * The strip of the newest pictures, read once per window session (review of stage 53, N12): the
+     * tab shows the same strip again, a new opening reads it again (for new pictures or a permission
+     * given meanwhile).
+     */
     private fun loadPictures() {
+        if (picturesRequested) return
+        picturesRequested = true
         photoList.removeAllViews()
         if (!images.allowed()) {
-            photoList.addView(TextView(context).apply {
-                setText(R.string.agent_char_art_photo_none)
-                setTextColor(textColor)
-                setTextSize(TypedValue.COMPLEX_UNIT_DIP, 11f)
-                maxLines = 3
-                maxWidth = (220 * dp).toInt()
-                gravity = Gravity.CENTER_VERTICAL
-            }, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT))
+            photoList.addView(stripNote(R.string.agent_char_art_photo_none).apply { maxWidth = (220 * dp).toInt() },
+                LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT))
             photoList.addView(button(context.getString(R.string.agent_char_art_photo_allow), functional = true) { onAllowPictures?.invoke() },
                 LayoutParams(LayoutParams.WRAP_CONTENT, (34 * dp).toInt()).apply { gravity = Gravity.CENTER_VERTICAL; marginStart = (6 * dp).toInt() })
             return
         }
-        photoList.addView(TextView(context).apply {
-            setText(R.string.agent_char_art_photo_loading)
-            setTextColor(textColor)
-            setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12f)
-            gravity = Gravity.CENTER_VERTICAL
-        }, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT))
-        val generation = ++pictureGeneration
+        photoList.addView(stripNote(R.string.agent_char_art_photo_loading), LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT))
+        val session = pictureSession
         val source = images
         val thumbPx = (48 * dp).toInt()
         background(Runnable {
             val found = runCatching { source.recent(MAX_PICTURES).mapNotNull { uri -> source.load(uri, thumbPx)?.let { uri to it } } }
                 .getOrDefault(emptyList())
             handler.post {
-                if (generation != pictureGeneration || visibility != View.VISIBLE) return@post
+                if (session != pictureSession || visibility != View.VISIBLE) return@post
                 showPictures(found)
             }
         })
     }
 
+    private fun stripNote(message: Int) = TextView(context).apply {
+        setText(message)
+        setTextColor(textColor)
+        setTextSize(TypedValue.COMPLEX_UNIT_DIP, 11f)
+        maxLines = 3
+        gravity = Gravity.CENTER_VERTICAL
+    }
+
     private fun showPictures(found: List<Pair<android.net.Uri, Bitmap>>) {
         photoList.removeAllViews()
         if (found.isEmpty()) {
-            photoList.addView(TextView(context).apply {
-                setText(R.string.agent_char_art_photo_none)
-                setTextColor(textColor)
-                setTextSize(TypedValue.COMPLEX_UNIT_DIP, 11f)
-                maxLines = 3
-                gravity = Gravity.CENTER_VERTICAL
-            }, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT))
+            // allowed, but there is nothing to show
+            photoList.addView(stripNote(R.string.agent_char_art_photo_empty), LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT))
             return
         }
         found.forEachIndexed { index, (uri, thumbnail) ->
@@ -623,12 +647,12 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
     }
 
     private fun pickPicture(uri: android.net.Uri) {
-        val generation = ++pictureGeneration
+        val generation = ++pickGeneration
         val source = images
         background(Runnable {
             val bitmap = runCatching { source.load(uri, PHOTO_PX) }.getOrNull()
             handler.post {
-                if (generation != pictureGeneration || visibility != View.VISIBLE || bitmap == null) return@post
+                if (generation != pickGeneration || visibility != View.VISIBLE || bitmap == null) return@post
                 usePhoto(bitmap)
             }
         })
@@ -654,9 +678,18 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
         appPanel.visibility = if (!typing && tab == Tab.APP) View.VISIBLE else View.GONE
         canvas.visibility = if (!typing && tab != Tab.APP) View.VISIBLE else View.INVISIBLE
         photoStrip.visibility = if (!typing && tab == Tab.PHOTO) View.VISIBLE else View.GONE
+        // typing (review of stage 53, M2): the keys take the whole width and everything below the
+        // text line; options, preview and buttons come back with "Done"
+        optionsScroll.visibility = if (typing) View.GONE else View.VISIBLE
+        previewBox.visibility = if (typing) View.GONE else View.VISIBLE
+        bottom.visibility = if (typing) View.GONE else View.VISIBLE
+        header.visibility = if (typing && headerHiddenForKeys) View.GONE else View.VISIBLE
         canvas.photoShownFaint = !photoOptions.use
         render()
     }
+
+    /** Whether the window is being typed in with its own keys (the preview and the options are hidden then). */
+    internal val isTyping: Boolean get() = editing != null
 
     private fun buildTabs() {
         tabRow.removeAllViews()
@@ -781,7 +814,7 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
                 addChip(row, string(R.string.agent_char_art_mirror), layoutOptions.mirror) { layoutOptions = layoutOptions.copy(mirror = !layoutOptions.mirror); update() }
             }
             Tab.APP -> {
-                for ((app, title) in APPS) addChip(row, string(title), output.app == app) { useApp(app, remember = true); update() }
+                for ((app, title) in APPS) addChip(row, string(title), output.app == app) { useApp(app); update() }
                 if (output.app.codeBlock != null)
                     addChip(row, string(R.string.agent_char_art_code_block), output.codeBlock) { output = output.copy(codeBlock = !output.codeBlock); update() }
                 addChip(row, string(R.string.agent_char_art_braille_blanks), output.brailleBlanks) {
@@ -806,10 +839,10 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
             else PictureElement(raster, photo, photoOptions, look, pictureSize, crop)
         val textElement = if (text.isBlank() || !textShown) null else TextElement(text, textMode, unicode, font, letterSize, textLook)
         result = CharArt.render(picture, textElement, frame, layoutOptions, output)
-        val code = output.codeBlock && output.app.codeBlock != null
         val body = result.lines.joinToString("\n")
-        preview.typeface = if (code) Typeface.MONOSPACE else Typeface.DEFAULT
-        preview.text = body
+        preview.typeface = if (result.codeBlock) Typeface.MONOSPACE else Typeface.DEFAULT
+        // exactly what "Insert" puts into the field, the backticks of a code block included (review of stage 53, M1)
+        preview.text = result.text
         fitPreview()
         preview.contentDescription = string(R.string.agent_char_art_preview_description, result.lines.size, string(R.string.agent_char_art_screen_reader))
         status.text = statusText()
@@ -837,6 +870,7 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
                 ArtWarning.STYLE_APPROXIMATED -> string(R.string.agent_char_art_warn_approximated)
                 ArtWarning.EMOJI_LETTERS -> string(R.string.agent_char_art_warn_emoji_letters)
                 ArtWarning.UNSUPPORTED_CHARACTERS -> string(R.string.agent_char_art_warn_unsupported)
+                ArtWarning.TOO_LARGE -> string(R.string.agent_char_art_warn_too_large, CharArt.MAX_BIG_LINES)
             }
         }
         return if (parts.isEmpty()) string(R.string.agent_char_art_fits, result.columns) else "⚠ " + parts.joinToString(" · ")
@@ -848,6 +882,8 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
         insertButton.isEnabled = usable || offersUndo
         insertButton.alpha = if (insertButton.isEnabled) 1f else 0.5f
         replaceButton.visibility = if (canReplace && !offersUndo) View.VISIBLE else View.GONE
+        // with a selection there is no cursor to insert at: "Replace selection" takes the place of "Insert"
+        insertButton.visibility = if (replacesSelection && canReplace && !offersUndo) View.GONE else View.VISIBLE
         replaceButton.isEnabled = usable
         copyButton.isEnabled = usable
         snippetButton.isEnabled = usable
@@ -861,8 +897,9 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
         val availableHeight = previewBox.height - preview.paddingTop - preview.paddingBottom
         if (available <= 0 || availableHeight <= 0 || result.isEmpty) return
         val paint = Paint().apply { typeface = preview.typeface; textSize = 10 * resources.displayMetrics.scaledDensity }
-        val widest = result.lines.maxOf { paint.measureText(it) }.coerceAtLeast(1f)
-        val tallest = (paint.fontSpacing * result.lines.size).coerceAtLeast(1f)
+        val shown = result.text.split('\n') // with the backticks, as the preview shows it
+        val widest = shown.maxOf { paint.measureText(it) }.coerceAtLeast(1f)
+        val tallest = (paint.fontSpacing * shown.size).coerceAtLeast(1f)
         val size = min(10f * available / widest, 10f * availableHeight / tallest).coerceIn(4f, 14f)
         preview.setTextSize(TypedValue.COMPLEX_UNIT_SP, size)
     }
@@ -881,6 +918,13 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         // tall enough: drawing area above the preview as in the owner's sketch; otherwise side by side
         val height = MeasureSpec.getSize(heightMeasureSpec)
+        // typing in a low window (landscape): the keys also take the header's row, so each of their
+        // rows stays at least KEY_ROW_MIN_DP high (review of stage 53, M2)
+        val keysWithHeader = height / dp - CHROME_TYPING_DP
+        val hideHeader = keysWithHeader < KEY_ROWS * KEY_ROW_MIN_DP
+        if (hideHeader != headerHiddenForKeys) headerHiddenForKeys = hideHeader
+        val headerShown = !(isTyping && headerHiddenForKeys)
+        if ((header.visibility == View.VISIBLE) != headerShown) header.visibility = if (headerShown) View.VISIBLE else View.GONE
         val vertical = height / dp >= STACK_MIN_DP
         val wanted = if (vertical) VERTICAL else HORIZONTAL
         if (middle.orientation != wanted) {
@@ -908,6 +952,12 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
         const val LIVE_RENDER_MILLIS = 40L
         /** From this height of the window on, the preview goes below the drawing area. */
         const val STACK_MIN_DP = 380
+        /** Rows of the window's keys (three of letters or signs, one with space and "Done"). */
+        const val KEY_ROWS = 4
+        /** The least height of a row of the window's keys while the header can give way. */
+        const val KEY_ROW_MIN_DP = 36
+        /** What stays above the keys while typing: padding, header and text line. */
+        private const val CHROME_TYPING_DP = 4 + 4 + 34 + 28
         private val RENDER_TOKEN = Any()
         private val CONTRASTS = floatArrayOf(0.5f, 0.75f, 1f, 1.5f, 2f)
         private val THRESHOLDS = floatArrayOf(0.3f, 0.4f, 0.5f, 0.6f, 0.7f)

@@ -432,19 +432,32 @@ private fun leastContrast(from: Color, to: Color, alpha: Float, base: Color, tex
 }
 
 /**
- * Opacity of the gradient of a choice card over [base] (the card behind it). Chosen or not
- * [enabled]: 1 (an inactive card fades as a whole, [choiceSurface]). Otherwise [CHOICE_DIM_ALPHA],
- * raised in steps of 0.01 until [text] keeps [CHOICE_MIN_CONTRAST] (plus a margin for rounding)
- * on every point of the gradient; 1 if even full opacity does not reach it (a gradient too dark
- * for dark text is not dimmed further). The text itself is never dimmed.
+ * The text colour of a choice card on its gradient [from] → [to]: the dark
+ * [OnGradient][AgentSettingsTokens.OnGradient] where it keeps [CHOICE_MIN_CONTRAST] (plus the
+ * rounding margin) on the whole gradient at full opacity, otherwise the light
+ * [Text][AgentSettingsTokens.Text]. The grey cards of the mockup (AUS, NICHTS, AUSGEBLENDET,
+ * FLACHER LOOK) reach only 1.74:1 with dark text; they get light text (owner, 2026-11-14).
  */
-fun choiceDim(selected: Boolean, from: Color, to: Color, base: Color, enabled: Boolean = true, text: Color = AgentSettingsTokens.OnGradient): Float {
+fun choiceText(from: Color, to: Color): Color =
+    if (leastContrast(from, to, 1f, from, AgentSettingsTokens.OnGradient) >= CHOICE_MIN_CONTRAST + CONTRAST_MARGIN) AgentSettingsTokens.OnGradient
+    else AgentSettingsTokens.Text
+
+/**
+ * Opacity of the gradient of a choice card over [base] (the card behind it). Chosen or not
+ * [enabled]: 1 (an inactive card fades as a whole, [choiceSurface]). Otherwise the first opacity
+ * from [CHOICE_DIM_ALPHA] up in steps of 0.01 at which [text] keeps [CHOICE_MIN_CONTRAST] (plus a
+ * margin for rounding) on every point of the gradient. If no opacity reaches it, the one that comes
+ * closest on the dark card: 1 for dark text (a gradient too dark for it is not dimmed further),
+ * [CHOICE_DIM_ALPHA] for light text ([choiceText] of a grey card), which gains contrast the more
+ * the dark card shows through. The text itself is never dimmed.
+ */
+fun choiceDim(selected: Boolean, from: Color, to: Color, base: Color, enabled: Boolean = true, text: Color = choiceText(from, to)): Float {
     if (selected || !enabled) return 1f
     for (percent in (CHOICE_DIM_ALPHA * 100).roundToInt()..100) {
         val alpha = percent / 100f
         if (leastContrast(from, to, alpha, base, text) >= CHOICE_MIN_CONTRAST + CONTRAST_MARGIN) return alpha
     }
-    return 1f
+    return if (text.luminance() > 0.5f) CHOICE_DIM_ALPHA else 1f
 }
 
 /**
@@ -452,7 +465,8 @@ fun choiceDim(selected: Boolean, from: Color, to: Color, base: Color, enabled: B
  * language cards): the 120° gradient in [ChoiceRadius][AgentSettingsTokens.ChoiceRadius], chosen
  * at full opacity with a 3 dp outline in [outline] 2 dp outside (CSS outline-offset, drawn before
  * the clip), otherwise the gradient alone at [choiceDim] over [base] while the text above stays
- * opaque (no alpha layer). A card that is not [enabled] fades as a whole to [CHOICE_DISABLED_ALPHA].
+ * opaque (no alpha layer); the text on it is [choiceText] of the same gradient. A card that is not
+ * [enabled] fades as a whole to [CHOICE_DISABLED_ALPHA].
  * [glow]: slot of the glowing pill (42 × 22 dp, 14 dp from the top, 18 + 40 dp × slot from the
  * end), dimmed like the gradient; null for none.
  */
@@ -516,9 +530,10 @@ private fun ChoiceCard(choice: Choice, index: Int, selected: Boolean, onClick: (
             .selectable(selected = selected, enabled = choice.enabled, role = Role.RadioButton, onClick = onClick)
             .heightIn(min = 92.dp).testTag(CHOICE_TAG + choice.tag),
     ) {
+        val text = choiceText(choice.from, choice.to)
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(choice.label.uppercase(Locale.getDefault()), style = AgentSettingsType.ChoiceLabel, color = AgentSettingsTokens.OnGradient)
-            Text(choice.hint, style = AgentSettingsType.Small.copy(fontWeight = FontWeight.Medium), color = AgentSettingsTokens.OnGradient,
+            Text(choice.label.uppercase(Locale.getDefault()), style = AgentSettingsType.ChoiceLabel, color = text)
+            Text(choice.hint, style = AgentSettingsType.Small.copy(fontWeight = FontWeight.Medium), color = text,
                 textAlign = TextAlign.Start)
         }
     }

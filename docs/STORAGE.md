@@ -368,10 +368,12 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
 ## Zeichen-Kunst (53)
 
 - Nur Einstellungen in den normalen Einstellungen der Tastatur (DE, ohne Inhalt):
-  `agent_char_art_style` (zuletzt gewählter Stil, ein `ArtStyle`-Name), `agent_char_art_app`
-  (zuletzt gewählte Ziel-App, gilt nur, wenn die App des Felds kein Profil hat) und
-  `agent_char_art_width_<app>` (gewählte Breite je Ziel-App, Zahl 8–60). Mit HeliBoards
-  Einstellungs-Sicherung werden sie wie alle Tastatur-Einstellungen mitgesichert.
+  `agent_char_art_style` (zuletzt gewählter Stil, ein `ArtStyle`-Name) und
+  `agent_char_art_width_<app>` (gewählte Breite je Ziel-App, Zahl 8–60, geschrieben beim Loslassen
+  des Reglers). Mit HeliBoards Einstellungs-Sicherung werden sie wie alle Tastatur-Einstellungen
+  mitgesichert. `agent_char_art_app` (zuletzt gewählte Ziel-App) wird seit der Nachprüfung 53 weder
+  geschrieben noch gelesen: eine App ohne Profil bekommt immer „Andere“; ein alter Wert bleibt
+  ungenutzt liegen.
 - Zeichnung, Fotovorlage (höchstens 256 Pixel, nie kopiert), Vorschaubilder der Bilderleiste, der
   gelesene Feldtext und das Ergebnis liegen nur im Speicher, solange das Fenster offen ist;
   Schließen, Feldwechsel und das Ausblenden der Tastatur verwerfen sie. Nichts davon wird

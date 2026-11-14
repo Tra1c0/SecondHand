@@ -373,6 +373,8 @@ class AgentEditorController @JvmOverloads constructor(
 
     /** Stage 53: the whole field text before the cursor when the window opened (nothing after it), or null. */
     private var charArtField: String? = null
+    /** The selection read when the window opened, which "Replace selection" replaces (review of stage 53, N8), or null. */
+    private var charArtSelection: TextSnapshot? = null
     /** Whether "Replace" would replace [charArtField] now: not after an insertion until it is undone. */
     private var charArtFieldInPlace = false
     /** The last insertion of the window: the art in the field and what it replaced ("" for an insertion). */
@@ -407,20 +409,47 @@ class AgentEditorController @JvmOverloads constructor(
         target.rootView.findViewById<SuggestionStripView>(R.id.suggestion_strip_view)?.dismissMoreSuggestionsPanel()
         val limit = helium314.keyboard.agent.charart.CharArtView.MAX_TEXT
         val connection = ime.currentInputConnection
-        val selected = runCatching { connection?.getSelectedText(0)?.toString() }.getOrNull().orEmpty()
-        val before = if (selected.isEmpty()) runCatching { connection?.getTextBeforeCursor(limit + 1, 0)?.toString() }.getOrNull().orEmpty() else ""
-        val after = if (selected.isEmpty()) runCatching { connection?.getTextAfterCursor(limit, 0)?.toString() }.getOrNull().orEmpty() else ""
-        val whole = selected.isEmpty() && after.isEmpty() && before.isNotBlank() && before.length <= limit
-        charArtField = if (whole) before else null
+        var text = ""
+        var whole = false
+        charArtSelection = null
+        if (inputLogic.mConnection.hasSelection()) {
+            // through the capture of the panel (review of stage 53, N8): the selection is read only
+            // up to the policy's limit, and the snapshot is what "Replace selection" may replace
+            when (val captured = editor.capture()) {
+                is CaptureResult.Captured -> {
+                    text = captured.snapshot.text.take(limit)
+                    // replace only what the window shows: a longer selection is only read in part
+                    if (captured.snapshot.text.length <= limit && captured.snapshot.text.isNotBlank()) charArtSelection = captured.snapshot
+                }
+                is CaptureResult.Denied -> if (captured.reason == DenialReason.TOO_LARGE)
+                    Toast.makeText(ime, R.string.agent_char_art_selection_too_long, Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            val before = runCatching { connection?.getTextBeforeCursor(limit + 1, 0)?.toString() }.getOrNull().orEmpty()
+            val after = runCatching { connection?.getTextAfterCursor(limit, 0)?.toString() }.getOrNull().orEmpty()
+            // the whole field before the cursor, and the cursor where the keyboard expects it (N2)
+            whole = after.isEmpty() && before.isNotBlank() && before.length <= limit &&
+                inputLogic.mConnection.expectedSelectionStart == before.length
+            text = (before.takeLast(limit) + after).take(limit)
+        }
+        charArtField = if (whole) text else null
         charArtFieldInPlace = whole
-        val text = if (selected.isNotEmpty()) selected.take(limit) else (before.takeLast(limit) + after).take(limit)
         val app = dev.agentkeyboard.core.charart.TargetApp.forPackage(ime.currentInputEditorInfo?.packageName)
-        target.show(text, whole, app, Settings.getValues()?.mLocale?.language.orEmpty())
+        val selection = charArtSelection != null
+        target.show(text, whole || selection, app, Settings.getValues()?.mLocale?.language.orEmpty(), selection)
+        return true
+    }
+
+    /** Art longer than the editor accepts in one commit: said as that, not as "the field changed" (N7). */
+    private fun charArtTooLarge(art: String): Boolean {
+        if (art.length <= editor.policy.maxSelectionChars) return false
+        Toast.makeText(ime, ime.getString(R.string.agent_char_art_too_large, editor.policy.maxSelectionChars), Toast.LENGTH_LONG).show()
         return true
     }
 
     /** The tap on "Insert": once, at the cursor as it is now, through the same checks as the calculator. */
     private fun insertCharArt(art: String) {
+        if (charArtTooLarge(art)) return
         when (val captured = editor.captureAnchor()) {
             is AnchorResult.Captured -> when (editor.insert(captured.anchor, art)) {
                 ApplyOutcome.SUBMITTED -> charArtInserted(art, "")
@@ -435,17 +464,48 @@ class AgentEditorController @JvmOverloads constructor(
         }
     }
 
-    /** The tap on "Replace": the field text read at opening, if it is still exactly that, becomes the art in one commit. */
+    /**
+     * The tap on "Replace": the field text read at opening, if it is still exactly that with the
+     * cursor right after it and nothing behind it (review of stage 53, N2), becomes the art in one
+     * commit; with a selection, the selection read at opening ("Replace selection", N8).
+     */
     private fun replaceWithCharArt(art: String) {
+        charArtSelection?.let { replaceSelectionWithCharArt(it, art); return }
         val original = charArtField?.takeIf { charArtFieldInPlace } ?: return
         if (editor.protection() != null) {
             Toast.makeText(ime, R.string.agent_char_art_protected, Toast.LENGTH_SHORT).show()
             return
         }
-        when (inputLogic.replaceCommandText(original, art, inputLogic.mConnection.expectedSelectionStart, true)) {
+        if (charArtTooLarge(art)) return
+        val position = inputLogic.mConnection.expectedSelectionStart
+        val after = runCatching { ime.currentInputConnection?.getTextAfterCursor(1, 0) }.getOrNull()
+        val outcome = if (position != original.length || after == null || after.isNotEmpty()) ApplyOutcome.REJECTED
+            else inputLogic.replaceCommandText(original, art, position, true)
+        if (outcome != ApplyOutcome.REJECTED) ime.onAgentTextSubmitted() // N3, like the other paths
+        when (outcome) {
             ApplyOutcome.SUBMITTED -> charArtInserted(art, original)
             ApplyOutcome.REJECTED -> {
                 charArtFieldInPlace = false
+                charArt?.setReplaceable(false)
+                Toast.makeText(ime, R.string.agent_char_art_expired, Toast.LENGTH_SHORT).show()
+            }
+            ApplyOutcome.UNKNOWN -> charArtUnclear()
+        }
+    }
+
+    /** "Replace selection": the selection read at opening, while it is unchanged, becomes the art (generated text, one commit). */
+    private fun replaceSelectionWithCharArt(selection: TextSnapshot, art: String) {
+        if (editor.protection() != null) {
+            Toast.makeText(ime, R.string.agent_char_art_protected, Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (charArtTooLarge(art)) return
+        // one tap, one attempt: the snapshot is used up either way
+        charArtSelection = null
+        // the editor adapter checks the selection again and calls onAgentTextSubmitted (commitSelection)
+        when (editor.apply(selection, art)) {
+            ApplyOutcome.SUBMITTED -> charArtInserted(art, selection.text)
+            ApplyOutcome.REJECTED -> {
                 charArt?.setReplaceable(false)
                 Toast.makeText(ime, R.string.agent_char_art_expired, Toast.LENGTH_SHORT).show()
             }
@@ -470,7 +530,9 @@ class AgentEditorController @JvmOverloads constructor(
             Toast.makeText(ime, R.string.agent_char_art_undo_failed, Toast.LENGTH_SHORT).show()
             return
         }
-        when (inputLogic.replaceCommandText(art, replaced, position)) {
+        val outcome = inputLogic.replaceCommandText(art, replaced, position)
+        if (outcome != ApplyOutcome.REJECTED) ime.onAgentTextSubmitted() // N3, like the other paths
+        when (outcome) {
             ApplyOutcome.SUBMITTED -> {
                 Toast.makeText(ime, R.string.agent_char_art_undone, Toast.LENGTH_SHORT).show()
                 // the field is as it was when the window opened: "Replace" works again
@@ -498,6 +560,11 @@ class AgentEditorController @JvmOverloads constructor(
 
     /** Saves the art as a snippet ([name] letters only), inserted as it is (`literal`), off the main thread. */
     private fun saveCharArtSnippet(name: String, art: String) {
+        // like copying and inserting: nothing is saved once the field forbids it (locked, incognito …), N10
+        if (editor.protection() != null) {
+            Toast.makeText(ime, R.string.agent_char_art_protected, Toast.LENGTH_SHORT).show()
+            return
+        }
         val store = helium314.keyboard.agent.commands.SnippetStore
         if (art.length > store.MAX_TEXT) {
             Toast.makeText(ime, ime.getString(R.string.agent_char_art_snippet_too_long, store.MAX_TEXT), Toast.LENGTH_SHORT).show()
@@ -1105,6 +1172,7 @@ class AgentEditorController @JvmOverloads constructor(
         calculatorCommand = null
         charArt?.hide()
         charArtField = null
+        charArtSelection = null
         charArtFieldInPlace = false
         charArtUndo = null
         charArtUndoEnd = -1

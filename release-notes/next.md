@@ -355,6 +355,19 @@
   „Rückgängig“; außerdem Kopieren und als Textbaustein speichern. Alles auf dem Telefon, ohne
   Internet; nie in Passwortfeldern, im Inkognito-Modus oder bei gesperrtem Gerät. Screenreader
   lesen Zeichen-Kunst als Zeichensalat. Noch auf keinem Gerät ausprobiert.
+- Verbessert (deine Entscheidung): Die grauen Auswahlkarten in den Einstellungen (AUS, NICHTS,
+  AUSGEBLENDET, FLACHER LOOK) haben jetzt helle Schrift und sind gut lesbar, auch wenn sie nicht
+  gewählt sind. Noch auf keinem Gerät ausprobiert.
+- Verbessert (Prüfung der Zeichen-Kunst): In Apps ohne eigenes Profil gilt „Andere“ statt
+  WhatsApp, und reiner Text in Unicode-Stilen (𝐟𝐞𝐭𝐭 …) bekommt nie mehr einen Codeblock; die
+  Vorschau zeigt genau das, was eingefügt wird, samt ```. Beim Tippen im Fenster nehmen die Tasten
+  die ganze Breite ein (auch im Querformat groß genug). Malen bleibt flüssig, auch mit vielen
+  Strichen; Füllen rechnet erst beim Loslassen. Hochkant fotografierte Bilder stehen aufrecht.
+  Mit markiertem Text gibt es „Markierung ersetzen“. „Ersetzen“ prüft, dass sich das Feld nicht
+  geändert hat. Durchgestrichener Text bricht sauber um, Kopfüber lässt Emojis ganz, Rahmen werden
+  nie breiter als eingestellt, Groß-Schrift endet nach 80 Zeilen, zu große Kunst sagt es statt
+  „Das Feld hat sich geändert“. Umschalt + ß ergibt ẞ. TalkBack nennt den Stift. Das kleine „✎“
+  auf der Emoji-Taste bleibt als Hinweis auf den Langdruck. Noch auf keinem Gerät ausprobiert.
 - Behoben (deine Rückmeldung zu Build 21): Die Autokorrektur stellt mit der Sprache um. Nach
   `@sp` korrigiert sie spanisch, nach `@deutsch` wieder deutsch. Bei Sprachen mit zweiter Sprache
   („Mehrsprachiges Tippen“, z. B. Spanisch mit Deutsch) blieb bisher oft die andere Sprache die

@@ -32,16 +32,20 @@ data class UnicodeStyle(
         val out = StringBuilder()
         for (line in source.split('\n').withIndex()) {
             if (line.index > 0) out.append('\n')
-            val decomposed = Normalizer.normalize(line.value, Normalizer.Form.NFD)
-            var index = 0
-            while (index < decomposed.length) {
-                val codePoint = decomposed.codePointAt(index)
-                index += Character.charCount(codePoint)
-                if (Character.getType(codePoint) == Character.NON_SPACING_MARK.toInt()) { out.appendCodePoint(codePoint); continue }
-                out.append(alphabet.map(codePoint))
-                // marks after the letter and its own accents; none after a line's end
-                if (strike) out.append('̶')
-                if (underline) out.append('̲')
+            for (grapheme in TextColumns.graphemes(line.value)) {
+                // an emoji stays whole: a mark inside it would break its joiners, skin tone or VS16
+                if (TextColumns.isEmoji(grapheme)) { out.append(grapheme); continue }
+                val decomposed = Normalizer.normalize(grapheme, Normalizer.Form.NFD)
+                var index = 0
+                while (index < decomposed.length) {
+                    val codePoint = decomposed.codePointAt(index)
+                    index += Character.charCount(codePoint)
+                    if (Character.getType(codePoint) == Character.NON_SPACING_MARK.toInt()) { out.appendCodePoint(codePoint); continue }
+                    out.append(alphabet.map(codePoint))
+                    // marks after the letter and its own accents; none after a line's end
+                    if (strike) out.append('̶')
+                    if (underline) out.append('̲')
+                }
             }
         }
         val composed = Normalizer.normalize(out.toString(), Normalizer.Form.NFC)
@@ -137,10 +141,18 @@ data class UnicodeStyle(
             put('<', ">"); put('>', "<"); put('_', "‾"); put('&', "⅋")
         }
 
-        /** Each line turned by 180°: characters reversed and flipped where Unicode has a flipped form. */
+        /**
+         * Each line turned by 180°: characters reversed and flipped where Unicode has a flipped form.
+         * Reversed by grapheme (review of stage 53, N5): an emoji keeps its VS16, skin tone and
+         * joined parts in their order; letters lose their accents, which would sit on the wrong side.
+         */
         fun upsideDown(text: String): String = text.split('\n').joinToString("\n") { line ->
-            val plain = Normalizer.normalize(line, Normalizer.Form.NFD).filter { Character.getType(it) != Character.NON_SPACING_MARK.toInt() }
-            plain.reversed().map { UPSIDE_DOWN[it] ?: it.toString() }.joinToString("")
+            TextColumns.graphemes(line).asReversed().joinToString("") { grapheme ->
+                if (TextColumns.isEmoji(grapheme) || grapheme.codePointAt(0) > 0xFFFF) grapheme
+                else Normalizer.normalize(grapheme, Normalizer.Form.NFD)
+                    .filter { Character.getType(it) != Character.NON_SPACING_MARK.toInt() }
+                    .reversed().map { UPSIDE_DOWN[it] ?: it.toString() }.joinToString("")
+            }
         }
     }
 }

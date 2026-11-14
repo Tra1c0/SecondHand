@@ -3,6 +3,7 @@ package helium314.keyboard.agent.charart
 
 import android.content.Context
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.InsetDrawable
 import android.util.TypedValue
 import android.view.View
 import android.widget.LinearLayout
@@ -57,7 +58,7 @@ class CharArtKeys(context: Context) : LinearLayout(context) {
                 shift = !shift; build()
             }, weight(1.3f))
             for (char in letters) {
-                val label = if (shift && !symbols) char.uppercase() else char.toString()
+                val label = if (shift && !symbols) capital(char) else char.toString()
                 row.addView(key(label) { onText?.invoke(label); if (shift) { shift = false; build() } }, weight(1f))
             }
             if (index == rows.lastIndex) row.addView(key("⌫", functional = true, description = R.string.agent_char_art_keys_delete) { onDelete?.invoke() }, weight(1.3f))
@@ -76,10 +77,8 @@ class CharArtKeys(context: Context) : LinearLayout(context) {
         addView(bottom, LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f))
     }
 
-    private fun weight(weight: Float) = LayoutParams(0, LayoutParams.MATCH_PARENT, weight).apply {
-        val margin = (2 * dp).toInt()
-        setMargins(margin, margin, margin, margin)
-    }
+    /** One key's share of its row; no margins, so the gap between keys still belongs to a key's touch area. */
+    private fun weight(weight: Float) = LayoutParams(0, LayoutParams.MATCH_PARENT, weight)
 
     private fun key(label: String, functional: Boolean = false, accent: Boolean = false, description: Int = 0,
                     enabled: Boolean = true, action: () -> Unit) = TextView(context).apply {
@@ -88,10 +87,11 @@ class CharArtKeys(context: Context) : LinearLayout(context) {
         gravity = android.view.Gravity.CENTER
         setTextSize(TypedValue.COMPLEX_UNIT_DIP, if (label.length > 2) 13f else 17f)
         setTextColor(if (accent) accentTextColor else textColor)
-        background = GradientDrawable().apply {
+        // the visible key is inset by 2 dp, the touch area is the whole cell (review of stage 53, M2)
+        background = InsetDrawable(GradientDrawable().apply {
             cornerRadius = 6 * dp
             setColor(if (accent) accentColor else if (functional) functionalColor else keyColor)
-        }
+        }, (2 * dp).toInt())
         isEnabled = enabled
         alpha = if (enabled) 1f else 0.35f
         isClickable = true
@@ -101,6 +101,9 @@ class CharArtKeys(context: Context) : LinearLayout(context) {
     }
 
     companion object {
+        /** The capital of [char]; ß becomes the capital sharp s ẞ, not "SS" (review of stage 53, N13). */
+        internal fun capital(char: Char): String = if (char == 'ß') "ẞ" else char.uppercase()
+
         private val GERMAN = listOf("qwertzuiopü", "asdfghjklöä", "yxcvbnmß")
         private val ENGLISH = listOf("qwertyuiop", "asdfghjkl", "zxcvbnm")
         /** Signs, and the shades for own art characters. */

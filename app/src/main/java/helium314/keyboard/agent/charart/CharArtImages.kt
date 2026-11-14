@@ -6,6 +6,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.graphics.Matrix
 import android.net.Uri
 import android.provider.MediaStore
 import dev.agentkeyboard.core.charart.Raster
@@ -54,11 +55,31 @@ interface CharArtImages {
             val decoded = context.contentResolver.openInputStream(uri)?.use {
                 BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample })
             } ?: return@runCatching null
-            scaledDown(decoded, maxPx)
+            // a photo taken upright with the phone turned is stored sideways plus its orientation
+            // (EXIF); MediaStore has it as degrees (review of stage 53, M4)
+            rotated(scaledDown(decoded, maxPx), orientation(uri))
         }.getOrNull()
+
+        /** The clockwise turn MediaStore knows for [uri] (0, 90, 180, 270), 0 if it knows none. */
+        private fun orientation(uri: Uri): Int = runCatching {
+            context.contentResolver.query(uri, arrayOf(ORIENTATION), null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getInt(0) else 0
+            } ?: 0
+        }.getOrDefault(0)
     }
 
     companion object {
+        /** MediaStore's column of the orientation in degrees, the same name on every Android version. */
+        private const val ORIENTATION = "orientation"
+
+        /** [bitmap] turned clockwise by [degrees] (a multiple of 90); the same bitmap without a turn. */
+        fun rotated(bitmap: Bitmap, degrees: Int): Bitmap {
+            val turn = ((degrees % 360) + 360) % 360
+            if (turn == 0) return bitmap
+            val matrix = Matrix().apply { postRotate(turn.toFloat()) }
+            return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        }
+
         /** [bitmap] at most [maxPx] per side (the same bitmap when it is small enough). */
         fun scaledDown(bitmap: Bitmap, maxPx: Int): Bitmap {
             val longest = max(bitmap.width, bitmap.height)

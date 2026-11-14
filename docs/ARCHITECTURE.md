@@ -905,12 +905,18 @@ Zeichen-Kunst (Etappe 53, Abschnitt „Zeichen-Kunst“; kein `InputLogic`, `Ric
   eigenes Popup der Taste wird angehängt (`merge`), nicht ersetzt. Langdruck, Popup-Anzeige und
   Auswahl laufen unverändert durch HeliBoards `PointerTracker`/`PopupKeysKeyboardView`.
 - `KeyCode.kt`: `AGENT_CHAR_ART` = -12006 (in `checkAndConvertCode` durchgereicht).
+- `KeyCodeDescriptionMapper.kt` (bis Nachprüfung 53 unverändert): TalkBack-Beschreibungen für
+  `AGENT_ACTIONS` („Textaktionen“), `AGENT_DICTATE`, `AGENT_EMOJI_MIXER` und `AGENT_CHAR_ART`
+  (`agent_char_art_key_description`); ohne sie las TalkBack den Stift als „✎“. Die Skill-Tasten
+  behalten ihr eigenes Label, das den Skill nennt.
 - `KeyboardActionListenerImpl.kt`: `onCodeInput` mit `AGENT_CHAR_ART` →
   `AgentEditorController.openCharArt` (eine Zeile neben den anderen Agent-Codes).
 - `InputView.java`: `agent_char_art` zählt als Overlay (Touch und Hover gehen an das Fenster).
 - `main_keyboard_frame.xml`: `CharArtView` als weiteres Kind von `AgentKeyboardFrame`.
 - Geänderter Upstream-Test `KeyboardParserTest.kt` (bis dahin unverändert): `emojiKey` erwartet jetzt
-  genau das Popup „✎“ mit `AGENT_CHAR_ART` (vorher keines).
+  genau das Popup „✎“ mit `AGENT_CHAR_ART` (vorher keines). Das Popup macht „✎“ auch zum
+  Hinweis-Label jeder Emoji-Taste (mit „Tasten-Hinweise anzeigen“); Entscheidung des Leads in der
+  Nachprüfung: bleibt, es zeigt den Langdruck an (P196).
 
 Emoji-Ansicht (Emoji-Mix, 25a; Abschnitt „Befehle“):
 
@@ -1781,8 +1787,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   dahinter), ohne Alpha-Ebene, die Schrift bleibt deckend. `choiceDim` = `CHOICE_DIM_ALPHA` 0,7,
   in Schritten von 0,01 erhöht, bis `OnGradient` auf jedem Punkt des Verlaufs
   `CHOICE_MIN_CONTRAST` 4,5:1 plus 0,1 Reserve für die 8-Bit-Rundung hat (`contrastRatio`, WCAG,
-  sRGB-Mischung wie der Shader); reicht auch 1 nicht (die grauen Karten #3A3A42 …, offen), bleibt
-  1. Nicht wählbar (`enabled = false`): die ganze Karte 35 % (`CHOICE_DISABLED_ALPHA`, inaktiv).
+  sRGB-Mischung wie der Shader); reicht auch 1 nicht, bleibt 1 (bei heller Schrift 0,7). Die
+  Schriftfarbe wählt `choiceText(from, to)`: `OnGradient`, wo sie auf dem ganzen Verlauf voll
+  4,5:1 hält, sonst hell `Text` (#F2F2F5). So bekommen die grauen Karten AUS, NICHTS, AUSGEBLENDET
+  und FLACHER LOOK (#3A3A42→#6B6B76; der flache Look endet dafür dunkler als im Mockup, #9C9CA6
+  hielte mit heller Schrift nur 2,4:1) helle Schrift, gewählt 4,71:1, gedimmt 6,92:1 (Owner,
+  2026-11-14). `ChoiceCard`, Profil- und Sprachkarten nehmen `choiceText`. Nicht wählbar (`enabled = false`): die ganze Karte 35 % (`CHOICE_DISABLED_ALPHA`, inaktiv).
   `ChipToggles` (hell wie auf der Startseite oder
   im Bereichsverlauf wie die @-Befehle), `AreaTile`, `FooterPill`. Schriften: Systemschrift in
   denselben Stärken statt Space Grotesk/Inter (beide OFL, aber keine Schriftdateien im APK;
@@ -2981,20 +2991,25 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `Bits` (Schwarzweiß; `outline` = Tinte mit Papier an einer der vier Seiten, `inverted`,
     `mirrored`, `scaled`, `placed`, `stack`).
   - `Sketch.kt`: die Zeichnung als Liste von Schritten in 0..1-Koordinaten (`SketchOp`: Stroke
-    mit Radierer-Flag, Line, Ellipse als Umriss, Fill als 4er-Flutfüllung bis zur Tinte), bei jeder
-    Änderung neu gezeichnet auf `SIZE` = 160 Pixel; `undo`, höchstens 400 Schritte und 2000 Punkte
-    je Strich. `SketchRaster`: `ink` und `erased` (der Radierer nimmt auch das Foto weg),
-    `inkBounds`.
+    mit Radierer-Flag, Line, Ellipse als Umriss, Fill als 4er-Flutfüllung bis zur Tinte auf den
+    Pixel-Indizes, ohne Paare), gezeichnet auf `SIZE` = 160 Pixel; `undo`, höchstens 400 Schritte
+    und 2000 Punkte je Strich. Nachprüfung 53 (M3): `rasterize()` gibt das behaltene Raster der
+    fertigen Schritte (`add` zeichnet nur den neuen Schritt auf eine Kopie, `undo` einmal alles neu),
+    `preview(op)` den laufenden Schritt darüber in einem wiederverwendeten Puffer; ein Strich, der
+    den zuletzt gezeigten fortsetzt, zeichnet nur seine neuen Punkte (P209). `SketchRaster`: `ink`
+    und `erased` (der Radierer nimmt auch das Foto weg), `inkBounds`.
   - `BigFont.kt`: drei eigene Pixel-Schriften (FIGlet-artig, aber als Pixel, damit jeder Stil sie
     zeichnet): `MINI` 3×5, `STANDARD` 5×7, `BOLD` (Standard, jeder Strich ein Pixel breiter).
-    Großbuchstaben, Ziffern, Ä Ö Ü, Satzzeichen und ♥; ß → SS, Akzente fallen auf den Buchstaben
-    zurück (É → E), anderes wird „?“ und gemeldet.
+    Großbuchstaben, Ziffern, Ä Ö Ü, Satzzeichen und ♥; ß und ẞ → SS, Akzente fallen auf den
+    Buchstaben zurück (É → E), anderes wird „?“ und gemeldet.
   - `UnicodeStyle.kt`: Familie (Serif, Serifenlos, Schreibschrift, Fraktur, Doppelstrich,
     Monospace, Kreise, Quadrate, Kapitälchen, Kopfüber) plus fett, kursiv, durchgestrichen
     (U+0336) und unterstrichen (U+0332), frei kombinierbar; die Lücken der mathematischen
     Alphabete (ℎ, ℬ, ℭ, ℂ …) als Ausnahmen; Umlaute als Buchstabe plus Trema (NFD/NFC); fehlt eine
     Kombination in Unicode, nimmt `resolve` die nächste und meldet `approximated`; fett plus
-    Quadrate = negative Quadrate, deren A B O P als Emojis erscheinen (`emojiLetters`).
+    Quadrate = negative Quadrate, deren A B O P als Emojis erscheinen (`emojiLetters`). Seit der
+    Nachprüfung arbeitet `apply` je Graphem: ein Emoji bleibt ganz (keine Striche in ZWJ-Folgen,
+    Hautfarben, VS16), Kopfüber dreht Grapheme statt UTF-16-Zeichen (N5).
   - `TextColumns.kt`: geschätzte Spalten (Emoji und breite CJK 2, Zeichen mit Kombination 0, sonst
     1) und eigene Graphem-Zerlegung (Hautfarben, ZWJ-Folgen, Flaggen, Tastenkappen), weil
     `BreakIterator` auf älteren JVMs sie trennt; `isArt`, `isStyledLetter`, `isEmoji`.
@@ -3016,14 +3031,24 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     am Ende U+2800 oder Leerzeichen; Braille behält seine leeren Zellen (U+2800) immer, eigene
     Leerzeichen im Text bleiben Leerzeichen. Ohne Rahmen fallen Leerstellen am Zeilenende weg,
     leere Zeilen oben und unten immer. Codeblock: WhatsApp „```…```“ ohne Zeilenumbruch,
-    Telegram und Discord mit. `ArtResult` mit `warnings` (`ArtWarning`: zu breit fürs Handy, zu
-    lang für die App, Rahmen/Nebeneinander ohne Codeblock, gemischte Breiten in einer Zeile,
-    Emojis oder Schrift-Stile im Codeblock, Leerzeichen gehen verloren, Stil nur teilweise,
-    Emoji-Buchstaben, Zeichen fehlen in der Groß-Schrift).
+    Telegram und Discord mit, und nur, wo gleiche Breiten zählen: Bild, Groß-Schrift, Rahmen oder
+    nebeneinander; Text in Unicode-Stilen oder normal allein nie (`ArtResult.codeBlock`, P210).
+    Rahmen bleiben in der Breite (N6): ein Emoji-Rahmen hält sein Inneres auf ganze Emojis, bei
+    kleiner Breite gibt zuerst der Innenabstand nach (`framed` mit der Breite). Groß-Schrift hat
+    höchstens `MAX_BIG_LINES` = 80 Zeilen (ganze große Zeilen, Rest weg, `TOO_LARGE`). `wrap`
+    trennt an Leerzeichen-Graphemen: das Leerzeichen eines durchgestrichenen oder
+    unterstrichenen Texts geht samt Strich, kein Strich steht am Zeilenanfang (N4). `ArtResult`
+    mit `warnings` (`ArtWarning`: zu breit fürs Handy, zu lang für die App, Rahmen/Nebeneinander
+    ohne Codeblock, gemischte Breiten in einer Zeile, Emojis oder Schrift-Stile im Codeblock,
+    Leerzeichen gehen verloren, Stil nur teilweise, Emoji-Buchstaben, Zeichen fehlen in der
+    Groß-Schrift, Groß-Schrift gekürzt).
   - Tests `CT/charart/CharArtTest.kt` (Golden-Ausgaben je Stil, Breiten, Groß-Schrift, Schriften,
     Unicode-Stile samt Kombinationen, U+2800, Rahmen, Anordnung, Spiegeln, Ziel-Apps und
-    Warnungen, Spalten), `CT/charart/SketchTest.kt` (Werkzeuge, Rückgängig, Füllen, Radierer über
-    dem Foto, Dithering, Fotovorlage).
+    Warnungen, Spalten; Nachprüfung: Codeblock nur für Kunst, Umbruch ohne Strich am
+    Zeilenanfang, Kopfüber mit Emojis, Rahmen bei allen Breiten 8–33, 80 Zeilen),
+    `CT/charart/SketchTest.kt` (Werkzeuge, Rückgängig, Füllen, Radierer über dem Foto, Dithering,
+    Fotovorlage; Nachprüfung: behaltenes Raster und Vorschau gleich dem Neuzeichnen, Zeitgrenze für
+    einen Strich aus 2000 Punkten über 399 Schritten).
 - App `A/charart/`:
   - `CharArtKey.kt`: das Popup der Emoji-Taste (`LABEL` „✎“, `popupKeys`), siehe „Geänderte
     Upstream-Dateien“.
@@ -3034,16 +3059,32 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     Breite mit Chatblase) und die Vorschau (Schrift passt sich der Größe an, 4–14 sp, im
     Codeblock Monospace), unten Hinweise und Kopieren, Baustein, Ersetzen, Einfügen. Ab 380 dp
     Höhe steht die Vorschau unter der Zeichenfläche, sonst daneben (`STACK_MIN_DP`). Jede Änderung
-    ruft `render` (beim Malen höchstens alle 40 ms, beim Loslassen sofort). `show` liest Stil, App
-    und Breite je App aus den Einstellungen, `hide` vergisst Zeichnung, Foto und Text.
+    ruft `render` (beim Malen höchstens alle 40 ms, beim Loslassen sofort). `show` liest Stil und
+    Breite je App aus den Einstellungen; die App ist die des Felds, ohne Profil „Andere“
+    (Nachprüfung 53, M1: vorher die zuletzt gewählte, anfangs WhatsApp mit Codeblock); eine Wahl im
+    Reiter App gilt nur, solange das Fenster offen ist. Die Vorschau zeigt `result.text`, also genau
+    das, was „Einfügen“ einsetzt, samt Backticks. Tippen mit den Fenster-Tasten (`isTyping`, M2):
+    Optionen, Vorschau und die untere Reihe sind weg, die Tasten nehmen die ganze Breite und alles
+    unter der Textzeile; ist die Reihe dann unter `KEY_ROW_MIN_DP` = 36 dp hoch (Querformat), gibt
+    auch die Kopfzeile Platz (`onMeasure`). `hide` tut bei geschlossenem Fenster nichts (N9), sonst
+    vergisst es Zeichnung, Foto und Text. Die Bilderleiste wird je Öffnen einmal gelesen
+    (`picturesRequested`, N12); erlaubt, aber leer, sagt „Keine Fotos oder Screenshots gefunden.“
+    Der Breitenregler rendert beim Ziehen und schreibt die Breite erst beim Loslassen (N13). Mit
+    einer Markierung heißt „Ersetzen“ „Markierung ersetzen“ und steht statt „Einfügen“ da (N8).
     `offerUndo` macht „Einfügen“ für `UNDO_MILLIS` = 8 s zu „Rückgängig“; der zweite Tipp ist also
     nie eine zweite Einfügung. Die Chatblase im Reiter App ist so breit, dass die Handy-Breite der
     App in Braille hineinpasst, und bricht um wie im Chat.
   - `CharArtCanvas.kt`: die quadratische Zeichenfläche; zeigt die Pixel der Zeichnung (so grob wie
     das Ergebnis) über dem Foto (blasser, wenn es nur Vorlage ist), Werkzeuge Stift, Radierer
-    (doppelt breit), Linie, Kreis, Füllen, drei Stärken; meldet jede Änderung an das Fenster.
+    (doppelt breit), Linie, Kreis, Füllen, drei Stärken; meldet jede Änderung an das Fenster. Ein
+    Zug zeichnet über `Sketch.preview` nur Neues, Füllen rechnet erst beim Loslassen, ein Strich
+    nimmt höchstens `Sketch.MAX_POINTS` Punkte und keinen näher als einen halben Pixel am vorigen
+    (M3, P209).
   - `CharArtKeys.kt`: die eigenen Tasten des Fensters (QWERTZ mit Umlauten und ß bei Deutsch,
-    sonst QWERTY; Ziffern und Zeichen; Umschalt, Löschen, neue Zeile, Fertig). Entscheidung des
+    sonst QWERTY; Ziffern und Zeichen; Umschalt, Löschen, neue Zeile, Fertig; Umschalt + ß = ẞ).
+    Ohne Außenabstände: die sichtbare Taste ist um 2 dp eingerückt (`InsetDrawable`), getippt wird
+    auf die ganze Zelle (bei 360 dp Breite 32 dp je Buchstabe in der deutschen Reihe, 35 dp in der
+    englischen, Reihen 44 dp hoch; im Querformat bei 640 × 200 dp 63 dp breit, 41 dp hoch). Entscheidung des
     Leads statt einer internen `InputConnection`: Die Tastatur-Tasten liegen unter dem Fenster, und
     sie in ein eigenes Feld umzuleiten hätte `InputLogic`/`LatinIME` (Komposition, Autokorrektur,
     Umschalt-Zustand, Gesten) berührt. Die Fenster-Tasten ändern nur den Text des Fensters, nichts
@@ -3051,29 +3092,46 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   - `CharArtImages.kt`: die neuesten 12 Bilder (Fotos und Screenshots) über `MediaStore`, nur mit
     der Bild-Berechtigung der Screenshot-Pille oder „nur ausgewählte Fotos“, gelesen erst im
     Reiter Bild und auf einem eigenen Thread; Vorlage höchstens 256 Pixel, als Dunkelheit
-    (`darkness`). Kein System-Picker: eine Activity würde die Tastatur und damit das Fenster
-    schließen. Ohne Berechtigung öffnet „Bilder erlauben“ die App-Seite der Systemeinstellungen.
+    (`darkness`), gedreht nach der Spalte `orientation` von MediaStore (`rotated` mit einer
+    `Matrix`; ein hochkant fotografiertes Bild liegt sonst quer, M4). Kein System-Picker: eine
+    Activity würde die Tastatur und damit das Fenster schließen. Ohne Berechtigung öffnet „Bilder
+    erlauben“ die App-Seite der Systemeinstellungen.
   - Controller (`AgentEditorController`): `openCharArt` öffnet nur, wenn `editor.protection()` nichts
     meldet (sonst Hinweis, nichts gelesen); ein Wort in Komposition wird wie beim Öffnen der
     Einstellungen so abgeschlossen, wie es dasteht (`InputLogic.commitTyped`, kein Gestenrest), dann
-    liest es bis zu `CharArtView.MAX_TEXT` = 300 Zeichen vor und nach der Schreibmarke (oder die
-    Auswahl) direkt aus dem Editor. „Ersetzen“ gibt es nur, wenn das ganze Feld vor der Schreibmarke
-    gelesen wurde und dahinter nichts steht. Einfügen über `editor.captureAnchor`/`editor.insert`
+    liest es bis zu `CharArtView.MAX_TEXT` = 300 Zeichen vor und nach der Schreibmarke direkt aus
+    dem Editor. Eine Markierung liest es über `editor.capture()` wie das Panel (Länge vorher
+    geprüft, höchstens `maxSelectionChars`, sonst Hinweis und kein Text; N8); bis 300 Zeichen wird
+    der Schnappschuss zu „Markierung ersetzen“ über `editor.apply` (generierter Text, ein Commit,
+    `commitSelection` meldet `onAgentTextSubmitted`). „Ersetzen“ ohne Markierung gibt es nur, wenn
+    das ganze Feld vor der Schreibmarke gelesen wurde, dahinter nichts steht und
+    `expectedSelectionStart` der gelesenen Länge entspricht; beim Tipp prüft es erneut Schreibmarke
+    = Länge und nichts dahinter (N2, P197). Einfügen über `editor.captureAnchor`/`editor.insert`
     wie der Rechner (generierter Text, ein Commit, kein Lernen); Ersetzen über
     `InputLogic.replaceCommandText(Feldtext, Kunst, Schreibmarke, generated = true)`, das den Text
     vorher im Editor vergleicht; Rückgängig über `replaceCommandText(Kunst, vorher, Schreibmarke)`,
-    nur an derselben Schreibmarke direkt danach. UNKNOWN sperrt wie beim Rechner die Eingabe bis
-    zur Rückmeldung des Editors. Kopieren ohne Vertraulich-Markierung (die Kunst ist kein
-    Geheimnis); „Baustein“ fragt in der Textzeile nach dem Namen und speichert über `SnippetStore`
-    als `literal` (so eingefügt, wie sie ist), auf `charArtWorker`. `isBlockingInput` gilt, solange
-    das Fenster offen ist; `close()` und jeder Editorwechsel schließen es.
+    nur an derselben Schreibmarke direkt danach; beide melden danach wie die anderen Wege
+    `ime.onAgentTextSubmitted()` (N3). Kunst über `policy.maxSelectionChars` (8192 Zeichen) lehnen
+    Einfügen und Ersetzen mit eigenem Hinweis ab (`charArtTooLarge`, N7), nicht mit „Das Feld hat
+    sich geändert“. UNKNOWN sperrt wie beim Rechner die Eingabe bis zur Rückmeldung des Editors.
+    Kopieren ohne Vertraulich-Markierung (die Kunst ist kein Geheimnis); „Baustein“ fragt in der
+    Textzeile nach dem Namen und speichert über `SnippetStore` als `literal` (so eingefügt, wie sie
+    ist), auf `charArtWorker`, und wie Kopieren nur ohne `editor.protection()` (N10).
+    `isBlockingInput` gilt, solange das Fenster offen ist; `close()` und jeder Editorwechsel
+    schließen es (auch Zurück, Drehen, ein Wechsel des Designs: die Tastatur baut ihre Ansicht neu,
+    Zeichnung und Text sind weg, N11).
   - Texte `agent_charart_strings.xml` (`values/`, `values-de/`), IDs `agent_charart_ids.xml`,
-    Einstellungen `AgentPreferences.CHAR_ART_STYLE`, `CHAR_ART_APP`, `CHAR_ART_WIDTH_PREFIX`
-    (`docs/STORAGE.md`).
+    Einstellungen `AgentPreferences.CHAR_ART_STYLE`, `CHAR_ART_WIDTH_PREFIX` (`docs/STORAGE.md`;
+    `agent_char_art_app` wird seit der Nachprüfung nicht mehr gelesen).
   - Tests `AT/CharArtWindowTest.kt` (echter Langdruck auf die Emoji-Taste und Loslassen auf dem
     Stift, Popup-Code, Feldtext, Passwort/ohne Lernen/Inkognito/gesperrt, Malen aktualisiert die
     Vorschau, Einfügen nur per Tipp und genau einmal mit Rückgängig, Ersetzen und zurück, Fenster-
-    Tasten, Baustein, App des Felds, Fotovorlage, Vorschaubild `app/build/agent-previews/charart-window.png`).
+    Tasten, Baustein, App des Felds, Fotovorlage, Vorschaubild `app/build/agent-previews/charart-window.png`;
+    Nachprüfung: „Andere“ für unbekannte Apps, kein Codeblock um Text-Stile, Vorschau = Einfügen,
+    Tippen hochkant und quer mit `charart-typing-portrait.png`/`charart-typing-landscape.png`,
+    Füllen erst beim Loslassen, gedrehtes Foto über einen eigenen `media`-Provider, kurzer Tipp
+    öffnet weiter die Emojis, Ersetzen nur bei unverändertem Feld, Markierung ersetzen, zu große
+    Kunst, Bilderleiste je Öffnen, ẞ, Regler, TalkBack).
 
 ## Build, Tests, CI, Docs-System
 
@@ -4224,19 +4282,58 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P194** Robolectric-Tests mit Feld müssen `latinIME.onStartInput`/`onStartInputView` aufrufen,
   nicht `latinIME.mHandler.onStartInput…` wie `InputLogicTest`: Nur `LatinIME` startet die
   Editor-Sitzung des Controllers (`startEditor`); sonst meldet `editor.protection()` `NO_EDITOR` und
-  das Zeichen-Kunst-Fenster (wie Panel und Rechner) öffnet nie.
+  das Zeichen-Kunst-Fenster (wie Panel und Rechner) öffnet nie. Eine Markierung braucht im Test
+  `initialSelStart`/`initialSelEnd` im `EditorInfo` und dieselbe Auswahl in
+  `ShadowInputMethodService`, sonst kennen Adapter und `RichInputConnection` sie nicht (N8).
+  `KeyboardSwitcher.isShowingEmojiPalettes` ist in Robolectric immer falsch (`isShown` braucht ein
+  Fenster); Tests prüfen die Sichtbarkeit von `emoji_palettes_view` und der Tastenansicht.
+  Robolectric hat einen eigenen `FakeMediaProvider` für `media`: `ShadowContentResolver.setCursor`
+  greift dort nicht, ein Test der Drehung registriert einen eigenen Provider
+  (`Robolectric.setupContentProvider`, Bilddaten weiter über `registerInputStreamSupplier`, M4).
 - **P195** Eine Zeichenfläche, die ihre Fläche nur in `onDraw` berechnet, ignoriert jede Berührung,
   solange sie nicht gezeichnet wurde (in Tests nie, auf dem Gerät vor dem ersten Bild).
-  `CharArtCanvas` setzt die Fläche deshalb schon in `onSizeChanged`.
+  `CharArtCanvas` setzt die Fläche deshalb schon in `onSizeChanged`. Füllen hat während des Zugs
+  keinen vorläufigen Schritt (`provisional` gibt `null`): die Flutfüllung läuft einmal beim
+  Loslassen (Nachprüfung 53, M3).
 - **P196** Das Popup der Emoji-Taste kommt aus `TextKeyData` für jedes Label „emoji“, also auch aus
   eigenen Funktionslayouts; ein eigenes Popup wird angehängt. Die Tastatur-Ebene kennt nur Passwort,
   „ohne Lernen“ und gesperrt (`KeyboardId`); die Einstellung Inkognito kennt sie nicht, die prüft
   erst `openCharArt` beim Tipp. Der Stift ist ein Text-Label: ein Icon bräuchte Einträge in allen
-  vier Icon-Sätzen von `KeyboardIconsSet`.
+  vier Icon-Sätzen von `KeyboardIconsSet`. Das erste Popup-Label wird bei „Tasten-Hinweise
+  anzeigen“ (Standard an) zum Hinweis der Taste (`findPopupHintLabelOrIcon`): jede Emoji-Taste zeigt
+  klein „✎“. Entscheidung des Leads (Nachprüfung 53, N1): bleibt, es zeigt den Langdruck an; ein
+  kurzer Tipp öffnet weiter die Emojis (Test `aShortTapOnTheEmojiKeyStillOpensTheEmojis`). TalkBack
+  liest den Stift über `KeyCodeDescriptionMapper` als „Stift in der Emoji-Taste: Zeichen-Kunst“.
 - **P197** Rückgängig nach dem Einfügen entfernt genau die Kunst vor der Schreibmarke. Hat
   `insertGeneratedText` ein ausstehendes automatisches Leerzeichen davor gesetzt, bleibt dieses
   stehen. Rückgängig geht nur, solange die Schreibmarke dort steht, wo sie nach dem Einfügen stand
   (`charArtUndoEnd`), und der Text dort unverändert ist; sonst ein Hinweis und nichts passiert.
+  Nach „Markierung ersetzen“ steht die Kunst ebenso vor der Schreibmarke; Rückgängig setzt den
+  markierten Text wieder ein, aber nicht die Markierung, und bietet kein zweites Ersetzen an.
+  „Ersetzen“ ohne Markierung verlässt sich nicht auf `replaceCommandText` allein: das vergleicht
+  nur den Text vor der Schreibmarke. Beim Öffnen muss `expectedSelectionStart` der gelesenen Länge
+  entsprechen, beim Tipp die Schreibmarke wieder dort stehen und dahinter nichts (eine App, die
+  inzwischen Text hinter der Schreibmarke ergänzt hat, hätte sonst Text vor einem Rest ersetzt, N2).
+  Beide Wege und Rückgängig melden `onAgentTextSubmitted` (Umschalt-Zustand, Gestenrest), N3.
+- **P209** `Sketch.rasterize()` gibt das behaltene Raster der fertigen Schritte zurück, nicht jedes
+  Mal ein neues: wer es ändert, ändert die Zeichnung für alle. `add` zeichnet den neuen Schritt
+  deshalb auf eine Kopie (ein früher geholtes Raster bleibt, wie es war), `undo` und `clear`
+  verwerfen es. `preview(op)` gibt einen Puffer, den der nächste `preview` überschreibt: nur sofort
+  lesen (Fenster und Zeichenfläche lesen ihn auf dem Hauptthread vor dem nächsten Zug). Ein Strich
+  gilt als fortgesetzt, wenn Grundraster, Stärke und Radierer gleich sind und sein zuletzt
+  gezeichneter Punkt noch an derselben Stelle der Liste steht; nur dann kommen allein die neuen
+  Punkte dazu. Das ist gleich dem Neuzeichnen, weil ein Strich jedes Pixel gleich setzt, egal wie
+  oft er es trifft; Linie und Kreis werden je Zug aus dem Grundraster neu gezeichnet (Test
+  `keptRasterAndPreviewMatchDrawingEverythingAgain`). Vorher zeichnete jeder Zug alle bis zu 400
+  Schritte und den ganzen Strich neu auf dem Hauptthread (Nachprüfung 53, M3).
+- **P210** Ein Codeblock nur um Kunst (Bild, Groß-Schrift), Rahmen oder Nebeneinander, nie um Text
+  in Unicode-Stilen oder normal allein: WhatsApp zeigte „𝐇𝐚𝐥𝐥𝐨“ sonst als Monospace mit
+  Backticks, und in Apps ohne Profil galt WhatsApp als Standard (Nachprüfung 53, M1). Ohne Profil
+  ist die App jetzt „Andere“ (kein Codeblock); die frühere Einstellung `agent_char_art_app` wird
+  nicht mehr gelesen. Die Vorschau zeigt `ArtResult.text` mit den Backticks, die Chatblase im Reiter
+  App weiter nur die Zeilen (so sieht es im Chat aus). Der Test
+  `replaceTakesThePlaceOfTheFieldTextAndUndoBringsItBack` erwartet darum jetzt genau „𝐇𝐚𝐥𝐥𝐨“ statt
+  „𝐇𝐚𝐥𝐥𝐨“ ohne umgebende Backticks; das ist strenger, keine Abschwächung.
 - **P191** HeliBoards Facilitator erkennt die Sprache, in der getippt wird, an der ersten Gruppe
   (`mainLocale`, Großschreibung) und an der Konfidenz (`currentLocale`, Gewichte, Lernverlauf; bei
   Gleichstand gewinnt die erste Gruppe). Darum muss `getUsedLocales` die Hauptsprache zuerst liefern
@@ -4367,7 +4464,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (579 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (580 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -4450,6 +4547,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `CT/format/` (1): FormatGuardTest
 - `CT/memory/` (2): MemoryRulesTest, PhraseMemoryTest
 - `CT/suggest/` (1): ContextSuggestTest
+- `K/accessibility/` (1): KeyCodeDescriptionMapper
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,
   KeyboardActionListenerImpl, KeyboardSwitcher, KeyboardTheme, KeyboardView, MainKeyboardView,
   PointerTracker

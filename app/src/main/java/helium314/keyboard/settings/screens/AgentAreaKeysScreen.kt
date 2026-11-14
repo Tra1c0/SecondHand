@@ -439,9 +439,10 @@ private fun LanguageCard(card: LanguageCardInfo, index: Int, onClick: () -> Unit
             .then(if (card.active) Modifier.semantics { stateDescription = activeText } else Modifier)
             .heightIn(min = 92.dp).testTag(LANGUAGE_CARD_TAG + index),
     ) {
+        val text = choiceText(from, to)
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(card.label.uppercase(Locale.getDefault()), style = AgentSettingsType.ChoiceLabel, color = AgentSettingsTokens.OnGradient)
-            Text(card.hint, style = AgentSettingsType.Small.copy(fontWeight = FontWeight.Medium), color = AgentSettingsTokens.OnGradient)
+            Text(card.label.uppercase(Locale.getDefault()), style = AgentSettingsType.ChoiceLabel, color = text)
+            Text(card.hint, style = AgentSettingsType.Small.copy(fontWeight = FontWeight.Medium), color = text)
         }
     }
 }

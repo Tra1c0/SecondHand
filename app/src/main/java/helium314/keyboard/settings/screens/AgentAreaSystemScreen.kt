@@ -107,9 +107,13 @@ import java.util.Locale
  * and Über with their own dialogs. The old pages stay reachable (rows tagged AREA_ROW_TAG + route).
  */
 
-/** Gradients of the profile cards, from the mockup: saved profiles, the flat look, a new profile. */
+/**
+ * Gradients of the profile cards, from the mockup: saved profiles, the flat look, a new profile.
+ * The flat look ends darker than in the mockup (#9C9CA6): its light text keeps 4.5:1 only up to
+ * the grey of the other grey cards (owner, 2026-11-14: light text on the grey cards).
+ */
 private val savedGradient = Color(0xFF94A3B8) to Color(0xFFE2E8F0)
-private val flatGradient = Color(0xFF3A3A42) to Color(0xFF9C9CA6)
+internal val flatProfileGradient = Color(0xFF3A3A42) to Color(0xFF6B6B76)
 private val newGradient = Color(0xFF22D3EE) to Color(0xFFA5F3FC)
 
 /** Text colour of the "UPDATES" label and the start colour of the card gradient (mockup). */
@@ -354,7 +358,7 @@ private fun profileCards(context: Context, store: KeyboardProfileStore, flat: Fl
     }
     return saved + listOf(
         ProfileCardInfo(PROFILE_CARD_TAG + "FLAT", res.getString(R.string.agent_system_flat), res.getString(R.string.agent_system_flat_hint),
-            flatGradient, runCatching { flat.isApplied() }.getOrDefault(false)),
+            flatProfileGradient, runCatching { flat.isApplied() }.getOrDefault(false)),
         ProfileCardInfo(AREA_ROW_TAG + SettingsDestination.AgentProfiles, res.getString(R.string.agent_system_new_profile),
             res.getString(R.string.agent_system_new_profile_hint), newGradient, false, isNew = true),
     )
@@ -373,9 +377,11 @@ private fun ProfileCard(card: ProfileCardInfo, index: Int, onClick: () -> Unit) 
             .then(if (card.active) Modifier.semantics { stateDescription = activeText } else Modifier)
             .heightIn(min = 92.dp).testTag(card.tag),
     ) {
+        // light text on the grey flat look card (owner, 2026-11-14), dark on the others
+        val text = choiceText(card.colors.first, card.colors.second)
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(card.label.uppercase(Locale.getDefault()), style = AgentSettingsType.ChoiceLabel, color = AgentSettingsTokens.OnGradient)
-            Text(card.hint, style = AgentSettingsType.Small.copy(fontWeight = FontWeight.Medium), color = AgentSettingsTokens.OnGradient)
+            Text(card.label.uppercase(Locale.getDefault()), style = AgentSettingsType.ChoiceLabel, color = text)
+            Text(card.hint, style = AgentSettingsType.Small.copy(fontWeight = FontWeight.Medium), color = text)
         }
     }
 }
