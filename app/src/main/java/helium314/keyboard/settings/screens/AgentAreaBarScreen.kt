@@ -217,6 +217,9 @@ fun AgentAreaBarScreen(onNavigate: (String) -> Unit, onClickBack: () -> Unit) {
                     value = stringResource(if (permissions.screenshots) R.string.agent_bar_screenshot_allowed else R.string.agent_bar_screenshot_missing))
                 SettingRow(stringResource(R.string.agent_bar_more_clipboard), stringResource(R.string.agent_bar_more_clipboard_sub), area.dot,
                     { onNavigate(SettingsDestination.Preferences) }, Modifier.testTag(AREA_ROW_TAG + SettingsDestination.Preferences))
+                // stage 45: one row to the suggestions switch and "Meine Daten"
+                SettingRow(stringResource(R.string.agent_my_data_title), stringResource(R.string.agent_my_data_row_sub), area.dot,
+                    { onNavigate(SettingsDestination.AgentMyData) }, Modifier.testTag(AREA_ROW_TAG + SettingsDestination.AgentMyData))
             }
         }
         if (showSkills) SkillPinDialog(prefs, { showSkills = false }) { written++ }

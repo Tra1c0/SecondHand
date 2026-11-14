@@ -3539,6 +3539,69 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   `editorInfo`, `restarting`). `KeyDetector.java` unverändert (rechnet über `TouchModel.adjust`
   jetzt Basis plus Kurzzeit). `InputLogic`, `RichInputConnection`, `PointerTracker` unverändert.
 
+## Etappe 45 (Feld- und Kontext-Vorschläge)
+
+- Auftrag (Lead, ROADMAP 45, Owner 2026-11-14): aus Feld (Typ, Hinweistext, App) und Text vor der
+  Schreibmarke passende Chips; E-Mail, Einmalcode, IBAN, Telefon, Adresse, Name; Kontext über eine
+  lokale Gewichtung mit Schwelle; Kontext-Lernen als begrenzte Gewichte; Karte „Meine Daten“
+  verschlüsselt. Gebaut in einer Arbeitskopie, kein Prüfer-Review, kein Gerätetest.
+- Vorher geprüft: `EditorInfo` hat `hintText`, `label`, `fieldName`, `packageName`, aber auf keiner
+  API-Stufe Autofill-Kennungen (P161). `AndroidEditorAdapter.insert` lehnt Nicht-Text-Felder ab
+  (`ExecutionPolicy.editorDenial` → `UNSUPPORTED_EDITOR`); der erste Versuch, leere Felder darüber
+  zu füllen, schlug im echten Host fehl (`InputLogicTest`), deshalb `LatinIME.onTextInput` wie die
+  Zwischenablage-Ansicht (P162). Speicher wie die KI-Schlüssel (`EncryptedCredentialStore`,
+  `credentialContext`, `credentialAccessAllowed`, P134/P145).
+- `./gradlew :agent-core:test`: grün, 390 Tests, 0 Fehler, darin neu `suggest.ContextSuggestTest` 21
+  (Owner-Beispiel „guck mal, hier dieses Video “ mit Link von vor 2 Minuten, en/es; Hinweise je
+  Sprache und Art; nichts mitten im Wort, Datenwort nur mit Doppelpunkt, keine Teilwörter, „E-Mail“
+  ≠ „Mail“; Datenhinweise direkt vor der Schreibmarke, Nähe senkt Link-Hinweise; schon Getipptes
+  nicht noch einmal; nur die letzte Zeile; Stärke begrenzt; Frische fällt und endet nach
+  10 Minuten; ein frischer Clip allein erreicht die Schwelle nie, auch nicht mit Messenger und
+  Kurznachricht; alter Link plus schwacher Hinweis nicht, Browser senkt, Messenger hebt; eigene
+  Daten mit klarem Hinweis, Art muss passen; App-Kategorien; Feldziele aus Typ, Hinweis, Feldname
+  und Autofill-Kennung; „Postleitzahl / ZIP code“, „Gutscheincode“, „Promo code“, „Código postal“,
+  „Benutzername“, „Passwort für E-Mail“, „Vorname“ ohne Ziel; `fits`; Annehmen hebt, Übergehen
+  senkt, beides innerhalb ±0,4, unbekannte Kennungen werden nicht gespeichert; Übergehen kleiner
+  als Annehmen; gelernte Gewichte entscheiden Grenzfälle; Halbwertszeit 30/60 Tage, rückwärts
+  laufende Uhr; Kodierung nur Kennungen und Zahlen; kaputte Daten werden verworfen).
+- `./gradlew :app:testDebugUnitTest` gezielt (`--max-workers=1`, 2026-11-14): neu
+  `FieldSuggestionChipsTest` 18 (Feldklassen, Passwort/URI/Datum nie; leeres E-Mail-Feld: eigene
+  und frisch kopierte Adresse, Tipp fügt genau einmal ein, zweiter Tipp nichts, vor dem Tipp
+  nichts; angefangener Text wird ersetzt, fremder Text und Text hinter der Schreibmarke ohne Chip;
+  Code-Feld (Hinweis, Feldname, Telefonfeld mit „OTP“) bekommt nur die Ziffern aus dem Tresor,
+  nie eigene Daten; Zahlenfeld nur bis 3 Minuten, mit Hinweis bis zum Ablauf nach 10 Minuten;
+  Telefon, IBAN, Name, Adresse; ohne Meine Daten nur frische Clips; Owner-Beispiel im Messenger
+  und in einer anderen App, ein Tipp hängt den Link genau einmal an; ohne Hinweis, mitten im Wort,
+  alter Link, schon getippter Link: nichts; „meine Nummer ist “, „IBAN:“ (Leerzeichen nach dem
+  Doppelpunkt), „Adresse: “, „meine Mail ist “; „Code: “ mit frischem Code; Geheimnisse aus dem
+  Tresor in keinem Feld und nach keinem Hinweis; Passwortfelder, Inkognito, No-Learning auch für
+  Telefon- und Zahlenfelder, gesperrt, ohne Einstellungen: nichts, Meine Daten dabei nicht
+  gelesen; Schalter aus; Lernen: Tipp hebt, Übergehen senkt einmal, gespeichert nur
+  „v1;Tag;id:ART=Zahl“ ohne Text, Link oder App, Löschen leert; mit Lernen aus oder pausiert
+  nichts gespeichert; gelernte Gewichte entscheiden „hier “, mit Lernen aus nicht benutzt;
+  Beschriftungen), `MyDataStoreTest` 5 (anfangs leer, verschlüsselt in CE `noBackupFilesDir`,
+  kein Wert im Klartext der Datei oder in den Tastatureinstellungen, bereinigt; gesperrt: `LOCKED`
+  vor jedem Krypto-Aufruf, Zwischenspeicher verworfen und nicht neu gelesen; Speichern und Löschen
+  verwerfen ihn, leere Daten löschen die Datei; manipulierte und zu große Datei: nicht lesbar,
+  bleibt liegen; Grenzen, `toString` ohne Werte), `MyDataScreenTest` 2 (Eintragen und Speichern
+  verschlüsselt; gesperrt nur der Hinweis, kein Store erzeugt, Schalter bedienbar),
+  `ClipVaultTest` 17 (neu: Chip „Meine Daten“ am Ende der letzten Reihe öffnet die Seite, ist
+  kein Tresor-Eintrag; Hilfsfunktion `chips` lässt ihn aus, keine Assertion geändert),
+  `InputLogicTest` 190 mit neu `fieldSuggestionChipInsertsOnlyOnATapAndOnce` (echter Host: leeres
+  E-Mail-Feld, Hinweis „meine Nummer ist “, je zweiter Tipp ändert nichts, Passwortfeld ohne Chip);
+  einziger Fehler `insertLetterIntoWordHangulFails` (geerbte Baseline). Unverändert grün:
+  `FormatGuardChipsTest` 12, `KeyboardCommandsTest` 5, `EmojiMixCommandTest` 13, `ClipCommandTest`
+  10, `UrlCommandTest` 13, `SettingsStartScreenTest` 10, `SettingsBarAreaTest` 11 (erwartete
+  Zeilenliste um `agent_my_data` ergänzt), `SettingsTypingAreaTest` 9, `SymbolSettingsScreenTest`
+  13, `EncryptedCredentialStoreTest` 11.
+- Nicht gelaufen: `tools/dev.py agent-tests`, volle Suite und Build (geteilte Maschine, Anweisung
+  des Leads), Lint. Keine Engine-Datei geändert (`InputLogic`, `RichInputConnection`,
+  `PointerTracker`, `LatinIME` unverändert); geändert nur die schon geänderte Upstream-Datei
+  `SettingsNavHost.kt` (Ziel). `docs_sync --check`: grün.
+- Offen: Prüfer-Review (`KeyboardCommands`-Host `insertAtCursor` über `onTextInput`,
+  `ClipVaultSection`), Gerätetest (Code-Felder echter Apps und Browser, Hinweistexte in Messengern,
+  TalkBack auf den Chips, Keystore beim ersten Speichern, Seite bei gesperrtem Gerät).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

@@ -104,6 +104,7 @@ fun SettingsNavHost(
         composable(SettingsDestination.AgentSymbols) { helium314.keyboard.settings.screens.AgentSymbolsScreen(onClickBack = ::goBack) }
         composable(SettingsDestination.AgentRgb) { helium314.keyboard.settings.screens.AgentRgbScreen(onClickBack = ::goBack) }
         composable(SettingsDestination.AgentDiagnose) { helium314.keyboard.settings.screens.AgentDiagnoseScreen(onClickBack = ::goBack) }
+        composable(SettingsDestination.AgentMyData) { helium314.keyboard.settings.screens.AgentMyDataScreen(onClickBack = ::goBack) }
         composable(SettingsDestination.TextCorrection) {
             TextCorrectionScreen(onClickBack = ::goBack)
         }
@@ -180,6 +181,7 @@ object SettingsDestination {
     const val AgentRgb = "agent_rgb"
     const val AgentSymbols = helium314.keyboard.agent.SymbolDrawing.DESTINATION
     const val AgentDiagnose = "agent_diagnose"
+    const val AgentMyData = helium314.keyboard.agent.AgentPreferences.MY_DATA_DESTINATION
     // fork (stage 38a): the seven areas of the new settings
     const val AreaLook = "area_look"
     const val AreaTyping = "area_typing"

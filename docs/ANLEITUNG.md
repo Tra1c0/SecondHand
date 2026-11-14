@@ -171,7 +171,9 @@ VORSCHLÄGE), „Wischen blendet aus“, „Skill-Tasten anheften“ (zeigt, wie
 sind) sowie Zwischenablage-Verlauf, Aufbewahrung (Regler), Bilder und Dateien, Screenshots
 anbieten (fragt nach dem Zugriff auf Bilder) und Emoji-Mix in der Leiste. Präfix, Textbausteine,
 Orte, Bildschirm lesen und den Emoji-Mix-Speicher findest du unter „Alle Befehls-Einstellungen“,
-angeheftete Einträge zuerst und Dateigröße unter „Weitere Zwischenablage-Einstellungen“.
+angeheftete Einträge zuerst und Dateigröße unter „Weitere Zwischenablage-Einstellungen“. „Meine
+Daten & Vorschläge“ schaltet die Feld- und Kontext-Vorschläge und enthält deine eigenen Daten (siehe
+„Vorschläge fürs Feld und Meine Daten“).
 
 **06 KI & Automationen** hat seinen eigenen Aufbau, alle Werte sind deine echten Einstellungen.
 Wie die Seite „KI-Anbieter“ lässt sie keine Bildschirmfotos zu. Bei gesperrtem Gerät zeigt sie nur
@@ -815,12 +817,42 @@ dabei nicht gesichert.
   „Einmalcodes“: ein kopierter Code oder eine kopierte SMS mit Code; Antippen fügt nur die Ziffern
   ein, nach 10 Minuten weg. IBAN, Telefonnummer, E-Mail und Adresse stehen normal im Verlauf, mit
   einer kleinen Beschriftung darüber. Kein Tresor in Passwortfeldern, im Inkognito-Modus und bei
-  gesperrtem Gerät. Geheimnisse erscheinen nie als Pille in der Leiste.
+  gesperrtem Gerät. Geheimnisse erscheinen nie als Pille in der Leiste. Am Ende der Tresor-Reihen öffnet
+  „Meine Daten“ die Seite „Meine Daten & Vorschläge“.
 - Die Pille mit kopiertem Text oder Bild in der Leiste erscheint nur, wenn
   „Zwischenablagen-Inhalt vorschlagen“ (Einstellungen → Textkorrektur) an ist. Antippen fügt ein, lange
   drücken blendet sie aus.
 - Das Aktionsrad erreichst du im flachen Look über eine Leertasten-Geste, z. B. Halten
   (Einstellungen → Gesten & Gefühl → Leertaste), die Stift-Taste öffnet das Panel.
+
+## Vorschläge fürs Feld und Meine Daten
+
+Die Leiste schlägt vor, was zum Feld passt, immer als Chip. Es wird nie etwas von selbst
+eingefügt: erst dein Tipp auf den Chip fügt ein, genau einmal.
+
+- E-Mail-Feld: deine Adresse aus „Meine Daten“ und eine gerade kopierte E-Mail-Adresse. Hast du
+  schon angefangen („Ma“), steht nur, was dazu passt.
+- Code-Feld (z. B. Hinweis „Bestätigungscode“, „Code“, „OTP“): der frisch kopierte Einmalcode aus
+  dem Tresor, nur die Ziffern. Ein Zahlenfeld ohne solchen Hinweis bekommt ihn nur, wenn er höchstens
+  3 Minuten alt ist.
+- Telefon-, IBAN-, Adress- und Namensfelder: dein Eintrag aus „Meine Daten“ oder ein passender
+  frisch kopierter Clip.
+- In normalen Textfeldern nach Hinweiswörtern, z. B. „guck mal, hier dieses Video “: Hast du gerade
+  einen Link kopiert, erscheint nach dem Leerzeichen „🔗 youtube.com/…“, ein Tipp hängt den Link an.
+  Ebenso „meine Nummer ist “, „IBAN:“, „Adresse:“, „Code:“, „meine Mail ist “ (auch Englisch und
+  Spanisch). Die Tastatur wägt Hinweiswort, wie frisch der Clip ist, App und Feld ab; ohne
+  Hinweiswort erscheint nichts.
+- Nie in Passwortfeldern, im Inkognito-Modus, in Feldern, die Lernen verbieten, und bei gesperrtem
+  Gerät; nie Geheimnisse aus dem Tresor.
+- Einstellungen → Leiste & Befehle → „Meine Daten & Vorschläge“ (auch über den Chip „Meine Daten“
+  im Tresor der Zwischenablage-Ansicht): Schalter „Feld- und Kontext-Vorschläge“ und die Karte
+  „Meine Daten“ mit Name, je zwei E-Mails, Telefonnummern, Adressen und IBANs. Freiwillig, anfangs
+  leer, „Speichern“ legt sie verschlüsselt nur auf diesem Gerät ab (nicht in Sicherungen), „Alles
+  löschen“ entfernt sie. Bei gesperrtem Gerät zeigt die Karte nur einen Hinweis. Keine Passwörter
+  eintragen.
+- Ist das Lernen an („Personalisierte Vorschläge“ unter Tippen & Korrektur → „Alle
+  Korrektur-Einstellungen“, nicht pausiert), merkt sich die Tastatur, welche Vorschläge du antippst oder übergehst, nur als kleine
+  Zahlen ohne Text; „Gelernte Wörter löschen“ entfernt sie.
 
 ## Emoji-Vorschläge
 

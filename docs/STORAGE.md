@@ -301,6 +301,26 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   angeheftete werden beim Öffnen der Ansicht daraus gelöscht. Mit Verlauf aus, bei gesperrtem
   Gerät, im Inkognito-Modus oder in Passwortfeldern wird nichts behalten. Ein Neustart des
   Prozesses vergisst alles. Kein Format, kein Export, kein Backup.
+- Meine Daten (Etappe 45): Datei `agent_my_data/data.sealed` in CE `noBackupFilesDir`
+  (`credentialContext`, nie vor dem ersten Entsperren), höchstens 16 KiB, atomar geschrieben
+  (`AtomicFile`). Format: Version 1 (Byte `1`) + 12 Byte IV + AES-256-GCM-Chiffrat mit AAD
+  „AgentKeyboard/MyData/v1“, Schlüssel im Android Keystore (Alias `agent.mydata.v1`, nur angelegt,
+  solange der Ordner leer ist). Klartext: JSON `{"v":1,"name":"…","emails":[…],"phones":[…],
+  "addresses":[…],"ibans":[…]}`, je Liste höchstens 3 Einträge zu höchstens 200 Zeichen, eine Zeile.
+  Leere Daten löschen die Datei; eine unlesbare oder veränderte Datei bleibt liegen und gilt als
+  nicht lesbar. Die Tastatur liest sie erst, wenn ein Feld oder ein Hinweiswort eigene Daten
+  braucht, und hält sie nur im Speicher, solange das Gerät entsperrt ist. Kein Backup
+  (`allowBackup=false`, `noBackupFilesDir`), kein Export, nie in Profilen oder Tastatureinstellungen.
+  Schalter „Feld- und Kontext-Vorschläge“: Tastatureinstellung `agent_field_suggestions` (Boolean,
+  Vorgabe an, keine Daten).
+- Kontext-Lernen (Etappe 45): DE-SharedPreferences `agent_context_weights` (Tastatur-Kontext),
+  Schlüssel `weights`, Text `v1;<Tag>;<id>:<ART>=<Zahl>;…` (Tag = Tage seit 1970; `id` nur aus der
+  festen Hinweis-Tabelle: look, here, media, phone, email, iban, address, code, name; ART aus
+  `SuggestKind`; Zahl −0,4 bis 0,4 mit vier Nachkommastellen), höchstens 4096 Zeichen, also höchstens
+  63 Einträge. Kein getippter Text, kein Clip, keine App, kein Feld. Geschrieben nur mit
+  „Personalisierte Vorschläge“ an, ohne Lernpause, ohne Inkognito, entsperrt; Gewichte verblassen mit
+  30 Tagen Halbwertszeit. „Gelernte Wörter löschen“ leert die Datei; das Ausschalten von
+  „Personalisierte Vorschläge“ lässt sie stehen, benutzt sie aber nicht. Kein Backup, kein Export.
 - `@contact`, `@url`, `@clip`, Bildschirmlesen: nichts gespeichert. Gefundene Kontakte, Adressen,
   Clip-Texte und gelesener Bildschirmtext liegen nur im Speicher, solange der Befehl vor der
   Schreibmarke steht.

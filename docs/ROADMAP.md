@@ -141,17 +141,17 @@ Reihenfolge von oben nach unten.
   darf die Tastatur sie ohne Fokus leeren; sie tut es nur nach dem Einfügen aus dem Tresor und nur,
   wenn noch genau dieser Clip darin liegt. Offen: Gerätetest (Leeren auf Android 16, TalkBack,
   echte SMS-Codes, Passwortmanager), Prüfer-Review. (M)
-- **45 Feld- und Kontext-Vorschläge (Wunsch des Owners vom 2026-11-14)** — beschlossen. Aus dem
-  aktuellen Feld (Typ, Hinweistext, Autofill-Kennung, App) und dem Text vor der Schreibmarke
-  schlägt die Leiste Passendes vor, immer als Chip, ein Tipp übernimmt: E-Mail-Feld → Adresse,
-  Code-Feld → frischer Einmalcode aus dem Tresor, IBAN/Telefon → gespeicherter Eintrag oder
-  passender Clip. Kontext lokal über Gewichtung (Hinweiswörter, Frische und Art des Clips, App,
-  Feld), Beispiel des Owners: „guck mal, hier dieses Video“ → Chip mit dem gerade kopierten Link;
-  ebenso „meine Nummer ist“, „IBAN:“, „Adresse:“. Die Tastatur sieht nur das fokussierte Feld,
-  nicht den ganzen Bildschirm. Dauerhafte Passwörter speichert sie nicht (Passwortmanager).
-  Karte „Meine Daten“ (Annahme des Leads): optional, anfangs leer, verschlüsselt. Lernt lokal,
-  welche Vorschläge der Owner annimmt oder übergeht, und passt die Gewichte an (Kontext-Lernen).
-  (M–L)
+- **45 Feld- und Kontext-Vorschläge** ist gebaut (siehe FEATURES.md, Nachweis in
+  `docs/VALIDATION.md` → Etappe 45). Annahmen des Leads, die der Owner ändern kann: Kontext-Chips
+  erst nach dem Leerzeichen oder Doppelpunkt, nicht mitten im Wort (sonst verdecken sie die
+  Wortvorschläge); ein einzelnes Datenwort („Mail“, „Code“, „IBAN“) zählt nur mit Doppelpunkt;
+  höchstens zwei Kontext- und drei Feld-Chips; ein reines Zahlenfeld ohne Code-Hinweis bekommt nur
+  einen Code bis 3 Minuten; „Meine Daten“ mit je zwei Einträgen, erreichbar über Leiste & Befehle
+  und den Tresor; das Kontext-Lernen hängt am Schalter „Personalisierte Vorschläge“ (anfangs aus)
+  und an der Lernpause. Android gibt Tastaturen keine Autofill-Kennungen; genutzt werden Typ,
+  Hinweistext, Beschriftung, Feldname und App. Einfügen in ein leeres Feld geht wie das Einfügen
+  aus der Zwischenablage-Ansicht. Offen: Gerätetest (Code-Felder echter Apps, Messenger, Browser,
+  TalkBack), Prüfer-Review (Änderungen an `KeyboardCommands`, `ClipVaultSection`). (M–L)
 - **46 Gedächtnis (Wunsch des Owners vom 2026-11-14)** — beschlossen. Lokal, opt-in wie das
   übrige Lernen: Wortfolgen und ganze Satzteile aus den eigenen Sätzen (Frische und Häufigkeit
   gewichtet, Verblassen), erst nächstes Wort, bei sicherem Treffer die ganze Folge als ein Chip;

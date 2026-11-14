@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 45 field and context suggestions, "My data" (own file so parallel work on other string files does not collide). English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <!-- %1$s: kind like "E-mail", %2$s: the value -->
+    <string name="agent_suggest_insert_own">%1$s from My data: %2$s, tap inserts it</string>
+    <string name="agent_suggest_insert_clip">%1$s just copied: %2$s, tap inserts it</string>
+    <string name="agent_suggest_kind_name">Name</string>
+    <string name="agent_suggest_kind_code">One-time code</string>
+    <string name="agent_suggest_kind_link">Link</string>
+    <string name="agent_my_data_title">My data &amp; suggestions</string>
+    <string name="agent_my_data_row_sub">Own e-mail, number or IBAN as a chip in matching fields</string>
+    <string name="agent_my_data_switch">Field and context suggestions</string>
+    <string name="agent_my_data_switch_sub">The strip offers what fits the field (e-mail, code, phone, IBAN) and after words like “look, this video” or “my number is”: a fresh clip or your own entry. A tap inserts it. Local, never in password fields, incognito or while the device is locked.</string>
+    <string name="agent_my_data_learning">Context learning: while learning is on (Typing → Learned words), the keyboard notes which suggestions you tap or pass by, only as small numbers without any text. “Delete learned words” removes them.</string>
+    <string name="agent_my_data_card">My data</string>
+    <string name="agent_my_data_description">Optional and empty at first. Stored encrypted on this device only, never in backups. Never put passwords here; a password manager is the right place for them.</string>
+    <string name="agent_my_data_unlock">Unlock the device to see or change My data.</string>
+    <string name="agent_my_data_name">Name</string>
+    <!-- %d: 1 or 2 -->
+    <string name="agent_my_data_email">E-mail %d</string>
+    <string name="agent_my_data_phone">Phone %d</string>
+    <string name="agent_my_data_address">Address %d</string>
+    <string name="agent_my_data_iban">IBAN %d</string>
+    <string name="agent_my_data_iban_invalid">IBAN %d does not look valid; it is saved as typed.</string>
+    <string name="agent_my_data_save">Save</string>
+    <string name="agent_my_data_saved">Saved</string>
+    <string name="agent_my_data_delete">Delete all</string>
+    <string name="agent_my_data_deleted">Deleted</string>
+    <string name="agent_my_data_delete_confirm">Delete all of My data from this device?</string>
+    <string name="agent_my_data_failed">My data could not be read or saved.</string>
+    <!-- chip at the end of the vault rows in the clipboard view -->
+    <string name="agent_vault_my_data">My data</string>
+</resources>
