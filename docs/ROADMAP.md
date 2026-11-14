@@ -103,7 +103,7 @@ Reihenfolge von oben nach unten.
   - 38h System & Daten ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` →
     Etappe 38h). Annahme des Leads: Profilkarten sind Aktionen (Anwenden nach Rückfrage),
     hervorgehoben ist, was den aktuellen Einstellungen entspricht. Offen: Prüfer-Review, Gerätetest.
-- **39 Text-Stile (Wunsch des Owners vom 2026-11-13)**. Alles lokal, Einfügen nur per Tipp.
+- **39 Text-Stile (Wunsch des Owners vom 2026-11-13)** — geht in 53 auf (Owner, 2026-11-14). Alles lokal, Einfügen nur per Tipp.
   `@style Text` zeigt Chips mit Unicode-Varianten (𝓢𝓬𝓱𝓻𝓲𝓯𝓽, 𝗙𝗲𝘁𝘁, 𝘒𝘶𝘳𝘴𝘪𝘷, ꜱᴍᴀʟʟ ᴄᴀᴘꜱ, Ⓚⓡⓔⓘⓢ,
   d̶u̶r̶c̶h̶, umgedreht); Hinweis, dass Screenreader solche Zeichen schlecht vorlesen. Formatierung
   für Messenger: *fett*, _kursiv_, ~durch~, `Code`, Spoiler (WhatsApp/Telegram/Discord) als Chips
@@ -231,6 +231,27 @@ Reihenfolge von oben nach unten.
     Provider oder Berechtigungen; nicht in Passwortfeldern, Inkognito, gesperrt.
   - Beispiele: `@lang duolingo spanish`, `@lang apps`, `@lang whatsapp german` (ersetzt
     `del …; set …`), `@lang whatsapp german; duolingo spanish; @guard banking off`.
+- **53 Zeichen-Kunst-Fenster (Wunsch des Owners vom 2026-11-14)** — beschlossen, nächste Runde,
+  schließt 39 (Text-Stile) ein. Öffnen: Emoji-Taste lange drücken → Stift im Popup. Fenster: oben
+  der vorhandene Feldtext (bearbeitbar), Mitte freie Zeichenfläche (Stift, Radierer, Linie, Kreis,
+  Füllen, Rückgängig; auch Foto/Screenshot als Vorlage), unten Live-Vorschau als Text aus Zeichen.
+  Owner: nicht „entweder oder“, sondern alles per Auswahl frei kombinierbar und selbstständig neu
+  formatiert wie die bekannten Unicode-/ASCII-/Braille-Art-Generatoren:
+  - Jedes Element (Zeichnung, Bildvorlage, Textzeilen, Rahmen) hat eigene Optionen: Stil (Braille,
+    Blöcke, Halbblöcke, ASCII klassisch, Emoji-Pixel, eigene Zeichenmenge), Schwelle/Kontrast,
+    Umkehren, Dithering, Kontur oder Fläche; Text als Groß-Schrift (FIGlet-artige Zeichenschriften),
+    in Unicode-Stilen (fett, kursiv, Schreibschrift, Fraktur, Doppelstrich, Kreise, Quadrate,
+    durchgestrichen, unterstrichen, kombinierbar) oder normal.
+  - Anordnung: Elemente neben-/untereinander, zentriert, mit Rahmen (Linien-, Doppel-, Runde-,
+    Emoji-Rahmen), Abstand; Spiegeln.
+  - Jede Änderung (Stil, Breite, Element, Ziel-App) formatiert das Ganze sofort neu.
+  - Ziel-App-Profil: Breite (Chatblase etwa 20–30 Zeichen, Regler mit Vorschau „passt auf ein
+    Handy“), Codeblock wo möglich (WhatsApp, Discord), Leerstellen als `⠀` (U+2800) statt Leerzeichen,
+    damit nichts verrutscht; Warnung, wenn die gewählte Kombination in der App vermutlich zerfällt.
+  - Ergebnis nur per Tipp ins Feld (danach kurz „Rückgängig“) oder kopieren; als Textbaustein
+    speicherbar. Alles lokal. Grenzen: Screenreader lesen Zeichen-Kunst als Zeichensalat; sehr kleine
+    Bildschirme oder große Schrift beim Empfänger können umbrechen. Offen beim Owner: Standardstil
+    (Vorschlag Braille) und Haupt-Apps.
 - **47 KI-Kontext im Hintergrund — verworfen (Owner, 2026-11-14):** „Dann lassen wir das.“ Alles
   lokal; die Tastatur lernt selbst dazu (45, 46).
 - **Verworfen (Owner, 2026-11-14):** Mail-Anbindung (Gmail/IMAP) und Codes aus Benachrichtigungen.
