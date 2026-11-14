@@ -355,6 +355,9 @@
   „Rückgängig“; außerdem Kopieren und als Textbaustein speichern. Alles auf dem Telefon, ohne
   Internet; nie in Passwortfeldern, im Inkognito-Modus oder bei gesperrtem Gerät. Screenreader
   lesen Zeichen-Kunst als Zeichensalat. Noch auf keinem Gerät ausprobiert.
+- Verbessert (deine Entscheidung): Die grauen Auswahlkarten in den Einstellungen (AUS, NICHTS,
+  AUSGEBLENDET, FLACHER LOOK) haben jetzt helle Schrift und sind gut lesbar, auch wenn sie nicht
+  gewählt sind. Noch auf keinem Gerät ausprobiert.
 - Verbessert (Prüfung der Zeichen-Kunst): In Apps ohne eigenes Profil gilt „Andere“ statt
   WhatsApp, und reiner Text in Unicode-Stilen (𝐟𝐞𝐭𝐭 …) bekommt nie mehr einen Codeblock; die
   Vorschau zeigt genau das, was eingefügt wird, samt ```. Beim Tippen im Fenster nehmen die Tasten

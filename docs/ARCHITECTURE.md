@@ -1681,8 +1681,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   dahinter), ohne Alpha-Ebene, die Schrift bleibt deckend. `choiceDim` = `CHOICE_DIM_ALPHA` 0,7,
   in Schritten von 0,01 erhöht, bis `OnGradient` auf jedem Punkt des Verlaufs
   `CHOICE_MIN_CONTRAST` 4,5:1 plus 0,1 Reserve für die 8-Bit-Rundung hat (`contrastRatio`, WCAG,
-  sRGB-Mischung wie der Shader); reicht auch 1 nicht (die grauen Karten #3A3A42 …, offen), bleibt
-  1. Nicht wählbar (`enabled = false`): die ganze Karte 35 % (`CHOICE_DISABLED_ALPHA`, inaktiv).
+  sRGB-Mischung wie der Shader); reicht auch 1 nicht, bleibt 1 (bei heller Schrift 0,7). Die
+  Schriftfarbe wählt `choiceText(from, to)`: `OnGradient`, wo sie auf dem ganzen Verlauf voll
+  4,5:1 hält, sonst hell `Text` (#F2F2F5). So bekommen die grauen Karten AUS, NICHTS, AUSGEBLENDET
+  und FLACHER LOOK (#3A3A42→#6B6B76; der flache Look endet dafür dunkler als im Mockup, #9C9CA6
+  hielte mit heller Schrift nur 2,4:1) helle Schrift, gewählt 4,71:1, gedimmt 6,92:1 (Owner,
+  2026-11-14). `ChoiceCard`, Profil- und Sprachkarten nehmen `choiceText`. Nicht wählbar (`enabled = false`): die ganze Karte 35 % (`CHOICE_DISABLED_ALPHA`, inaktiv).
   `ChipToggles` (hell wie auf der Startseite oder
   im Bereichsverlauf wie die @-Befehle), `AreaTile`, `FooterPill`. Schriften: Systemschrift in
   denselben Stärken statt Space Grotesk/Inter (beide OFL, aber keine Schriftdateien im APK;

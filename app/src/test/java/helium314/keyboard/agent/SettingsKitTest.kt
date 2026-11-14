@@ -50,6 +50,8 @@ import helium314.keyboard.settings.screens.SettingRow
 import helium314.keyboard.settings.screens.SettingSwitchRow
 import helium314.keyboard.settings.screens.SettingsArea
 import helium314.keyboard.settings.screens.choiceDim
+import helium314.keyboard.settings.screens.choiceText
+import helium314.keyboard.settings.screens.flatProfileGradient
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -180,6 +182,14 @@ class SettingsKitTest {
         val darkest = (hint.left.toInt() until hint.right.toInt()).flatMap { x -> (hint.top.toInt() until hint.bottom.toInt()).map { y -> image.getPixel(x, y) } }
             .minBy { (it shr 16 and 0xFF) + (it shr 8 and 0xFF) + (it and 0xFF) }
         assertClose(AgentSettingsTokens.OnGradient.toArgb(), darkest, 3)
+        // the grey card NICHTS (owner, 2026-11-14): light text, its gradient dimmed like the others
+        val grey = compose.onNodeWithTag(CHOICE_TAG + "none").fetchSemanticsNode().boundsInRoot
+        val greyStart = image.getPixel(grey.left.toInt() + (6 * px).toInt(), grey.bottom.toInt() - (30 * px).toInt())
+        assertClose(blend(0xFF3A3A42.toInt(), AgentSettingsTokens.Card.toArgb(), CHOICE_DIM_ALPHA), greyStart, 40)
+        val greyHint = compose.onNode(hasText("Wischen über Buchstaben tut nichts"), useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val brightest = (greyHint.left.toInt() until greyHint.right.toInt()).flatMap { x -> (greyHint.top.toInt() until greyHint.bottom.toInt()).map { y -> image.getPixel(x, y) } }
+            .maxBy { (it shr 16 and 0xFF) + (it shr 8 and 0xFF) + (it and 0xFF) }
+        assertClose(AgentSettingsTokens.Text.toArgb(), brightest, 3)
     }
 
     /**
@@ -204,15 +214,42 @@ class SettingsKitTest {
             println("contrast kit #%08X %s at %.2f: %.2f".format(from, if (selected) "chosen" else "not chosen", alpha, least))
             assertTrue(least >= 4.5, "#%08X chosen $selected at $alpha: contrast $least".format(from))
         }
-        // the grey cards (AUS, NICHTS, AUSGEBLENDET, FLACHER LOOK): dark text stays below 4.5:1 even at
-        // full opacity (open point, VALIDATION "Nachprüfung 37"), so they are not dimmed at all
-        for ((from, to) in listOf(0xFF3A3A42 to 0xFF6B6B76, 0xFF3A3A42 to 0xFF9C9CA6)) {
-            assertEquals(1f, choiceDim(false, Color(from), Color(to), Color(card)))
-            val least = (0..20).minOf { contrast(AgentSettingsTokens.OnGradient.toArgb(), mix(from.toInt(), to.toInt(), it / 20f)) }
-            println("contrast kit grey #%08X → #%08X at full opacity: %.2f".format(from, to, least))
-        }
+        // every coloured gradient keeps the dark text
+        for ((from, to) in gradients) assertEquals(AgentSettingsTokens.OnGradient, choiceText(Color(from), Color(to)))
         // a card that cannot be chosen fades as a whole (inactive), its gradient is not dimmed on top
         assertEquals(1f, choiceDim(false, Color(0xFF5B8CFF), Color(0xFFA9C7FF), Color(card), enabled = false))
+    }
+
+    /**
+     * The grey cards (AUS, NICHTS, AUSGEBLENDET, FLACHER LOOK): dark text reaches only 1.74:1 on them
+     * even at full opacity (open point of VALIDATION "Nachprüfung 37"); since the owner's decision
+     * (2026-11-14) they have light text, which keeps 4.5:1 chosen and dimmed. The flat look card ends
+     * in the same grey as the others: light text on the mockup's #9C9CA6 would stay below 4.5:1.
+     */
+    @Test fun greyCardsHaveLightTextWithEnoughContrast() {
+        val card = AgentSettingsTokens.Card.toArgb()
+        fun argb(color: Color): Long = color.toArgb().toLong() and 0xFFFFFFFFL
+        // AUS, NICHTS, AUSGEBLENDET; FLACHER LOOK
+        val greys = listOf(0xFF3A3A42 to 0xFF6B6B76, argb(flatProfileGradient.first) to argb(flatProfileGradient.second))
+        for ((from, to) in greys) {
+            // dark text would fail on them: that is why they get the light one
+            val dark = (0..20).minOf { contrast(AgentSettingsTokens.OnGradient.toArgb(), mix(from.toInt(), to.toInt(), it / 20f)) }
+            assertTrue(dark < 4.5, "dark text on grey #%08X: $dark".format(from))
+            assertEquals(AgentSettingsTokens.Text, choiceText(Color(from), Color(to)))
+            for (selected in listOf(true, false)) {
+                val alpha = choiceDim(selected, Color(from), Color(to), Color(card))
+                if (!selected) assertEquals(CHOICE_DIM_ALPHA, alpha, "a grey card is dimmed like the others")
+                val least = (0..20).minOf { contrast(AgentSettingsTokens.Text.toArgb(), blend(mix(from.toInt(), to.toInt(), it / 20f), card, alpha)) }
+                println("contrast kit grey #%08X → #%08X %s at %.2f, light text: %.2f".format(from, to, if (selected) "chosen" else "not chosen", alpha, least))
+                assertTrue(least >= 4.5, "light text on grey #%08X chosen $selected at $alpha: contrast $least".format(from))
+            }
+        }
+        assertEquals(Color(0xFF6B6B76), flatProfileGradient.second)
+        // the mockup's lighter end of the flat look would not do with light text
+        val mockupEnd = contrast(AgentSettingsTokens.Text.toArgb(), 0xFF9C9CA6.toInt())
+        assertTrue(mockupEnd < 4.5, "light text on #9C9CA6: $mockupEnd")
+        // dark text keeps choosing full opacity where nothing reaches 4.5:1 (unchanged rule for dark text)
+        assertEquals(1f, choiceDim(false, Color(0xFF3A3A42), Color(0xFF6B6B76), Color(card), text = AgentSettingsTokens.OnGradient))
     }
 
     /** sRGB channels from [from] to [to] at [t], as the gradient shader mixes them. */

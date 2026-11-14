@@ -4378,6 +4378,16 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   - Offen: Prüfer-Review dieser Nachprüfung, Gerätetest (ob das Springen bei 30 Hz am Telefon
     deutlich ist, auch bei 90/120 Hz; Lesbarkeit hell/dunkel; dynamische Farben ab Android 12),
     die grauen Karten.
+- Graue Karten (Owner, 2026-11-14: „Ja“, helle Schrift): `choiceText` wählt helle Schrift
+  (`Text` #F2F2F5), wo die dunkle auf dem Verlauf keine 4,5:1 hält; `choiceDim` dimmt die grauen
+  Karten dann wie die anderen auf 0,7. FLACHER LOOK endet jetzt wie die übrigen grauen Karten in
+  #6B6B76 statt #9C9CA6 (helle Schrift hätte dort 2,4:1). Gemessen (Test
+  `greyCardsHaveLightTextWithEnoughContrast`): gewählt 4,71:1, nicht gewählt 6,92:1; dunkle Schrift
+  bleibt unter 4,5:1 (darum die Wahl). Render-Test `renderKitAndCheckTheChosenCard` prüft die helle
+  Schrift und den gedimmten Verlauf der Karte NICHTS. Gelaufen (2026-11-14, `--max-workers=1
+  -Xmx1536m`): `:app:testDebugUnitTest` mit `helium314.keyboard.agent.Settings*` und
+  `RgbFrameRateCardTest`: 114 Tests, 0 Fehler. Nicht gelaufen: volle Suite, Build, Gerätetest
+  (Lesbarkeit auf dem Telefon).
 
 ## Etappe 40 (Smart Paste)
 
