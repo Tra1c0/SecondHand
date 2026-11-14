@@ -9,28 +9,24 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 ## Aktueller Stand
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
-- Stand 2026-11-14 (Ende der Runde): `main` = Build 21 (geprüft). Neu seit Build 19: 43 Symbole
-  (Punkte, Start direkt nach dem Tippen), 44 Zwischenablage-Wächter und Tresor, 45 Feld- und
-  Kontext-Vorschläge mit „Meine Daten“, 46 Gedächtnis, 48 Autokorrektur (getipptes Wort links,
-  keine ungewollte Großschreibung), 49 Korrekturen merken (Regeln mit dem Owner), 50 dynamische
-  Trefferzonen mit Szenen. Jede Etappe mit Prüfer und mehreren Nachprüfungen (Privattext viermal);
-  volle Agent-Suite lokal und auf GitHub grün; kein Gerätetest.
-- Beim Owner: Build 20 (Test, ohne die Prüferkorrekturen) und Build 21. RGB-Leistung erledigt
-  (Owner: „ruckelt tatsächlich nichts“, Messwerte Build 19: Tastatur Ø 2,7 / max 6,3 ms je Bild).
-- Owner zu Build 21 (2026-11-14): „Läuft alles top.“ Neu: ROADMAP 51 (Autokorrektur folgt der
-  Sprache, Spanisch im Kontext).
-- Laufende Runde (2026-11-14): gebaut und gemergt 37 (Bildwiederholrate-Karten), 40 (Smart Paste,
-  ohne Prüfer). Abgebrochen am Wochenlimit (bis 2026-11-18 20:00 UTC), Stand als lokale WIP-Commits
-  in den Arbeitskopien: 51 (`worktree-agent-a2097cf2c32d1265f`), 53 (`worktree-agent-a77289555b6908440`);
-  die 37-Korrektur (Kontrast, Farbtausch 30 = gelb, 60 = grün, echte 30/60-fps-Taktung, Punkte
-  übereinander) hatte noch nichts geändert. Offen: Prüfer für 40, 52, 34 (XL, bestätigt).
-- Nächste Sitzung: Rückmeldungen zu Build 20/21 (Symbole mit Punkten, Malen nach dem Tippen,
-  Link-Chip, Code-Felder, Gedächtnis, Trefferzonen); offene Owner-Fragen in ROADMAP 44–50; dann
-  ROADMAP 34, 37, 39, 40.
+- Stand 2026-11-14 (Ende der Runde): `main` = Build 23 (geprüft). Neu seit Build 21: 37
+  Bildwiederholrate-Karten, 40 Smart Paste, 51 Autokorrektur folgt der Sprache und Wörter aus
+  anderen Sprachen, 52 einheitliches Befehlssystem, 53 Zeichen-Kunst, 54 Update-Fenster und
+  Update-Chip, 34 eigene RGB-Lichtmuster (XL), graue Karten mit heller Schrift. Jede Etappe mit
+  Prüfer und Nachprüfung (52 zweimal); volle Agent-Suite lokal und auf GitHub grün; kein Gerätetest.
+- Releases: nur Builds von `main` erscheinen in `Tra1c0/SecondHandAgenticKeyboard` (Owner-Wahl A,
+  Secret `RELEASES_TOKEN` gesetzt). Build 21 und älter suchen noch im alten Repository: Build 23
+  einmal von Hand installieren.
+- Beim Owner: Build 21, Test-Build 22 (ohne 34 und ohne die Prüferkorrekturen zu 52).
+- Nächste Sitzung: Rückmeldung zu Build 22/23 (Befehle, Zeichen-Kunst, Smart Paste, Lichtmuster,
+  Update-Chip); ROADMAP 52 Farben im Textfeld (bräuchte Engine-Eingriff) noch offen.
 
 ## Offene Punkte
 
-0. **Nächste Runde.** Zuerst Rückmeldung zu Build 20/21 und die Owner-Fragen: Großschreibung in
+0. **Nächste Runde.** Zuerst Rückmeldung zu Build 22/23. Fallstricke belegt bis P230, frei ab
+   P231. Offen niedrig: 40 Telefonnummern in ES/US nur mit +/00, PrivateRanges höchstens 3 Werte,
+   `RgbOwnPatternTest.ownPatternsStayWithinTheBudget` misst Zeit und fällt unter paralleler Last
+   (allein grün, Verhältnis ≈ 1,7 von erlaubten 2). Davor offen: Rückmeldung zu Build 20/21 und die Owner-Fragen: Großschreibung in
    Feldern mit „jedes Wort groß“ (48), Kürzel-Chip als einzige Ersetzung (46), Passwortfeld-Kopien
    nirgends gespeichert (44), Annahmen 41/42/45/46/49/50 in der ROADMAP. Offen niedrig: Kürzel-Chip
    prüft private Werte nicht (46 #5), Restrisiken P185, Gerätetests (Zwischenablage leeren auf
@@ -241,6 +237,11 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
   Code aktualisieren (`CLAUDE.md` → Docs aktuell halten).
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
+- Build 23 (geprüft, von `main`): 34, 37, 40, 51–54, graue Karten mit allen Prüferkorrekturen;
+  Agent-Suite lokal grün (567 Kern, 1103 App), GitHub-Lauf siehe Actions; erster Build im neuen
+  Release-Repository; kein Gerätetest.
+- Build 22 (Test, Arbeitsbranch 4ee743c): 37, 40, 51–54, graue Karten, ohne 34 und vor der
+  zweiten Prüferrunde zu 52.
 - Build 21 (geprüft, von `main`): 43–46, 48–50 mit allen Prüferkorrekturen und Nachprüfungen;
   Agent-Suite lokal grün (1008 Tests), GitHub-Lauf grün (Agent, Upstream ohne neue Fehler, Lint);
   kein Gerätetest.
