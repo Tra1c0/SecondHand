@@ -579,7 +579,13 @@ langes Drücken für Sonderzeichen und das Wischen auf Leer- und Löschtaste ble
 - Male mit einem Finger auf den Buchstabentasten, zügig wie beim Wischen. Die Spur bleibt kurz
   sichtbar. Direkt nach dem Tippen eines Worts darfst du sofort malen: Der erste Strich zählt,
   sobald er etwa eine Dreivierteltaste vom Aufsetzpunkt weg ist; ein Tipp, der beim schnellen
-  Tippen nur ein Stück rutscht, bleibt ein Buchstabe.
+  Tippen nur ein Stück rutscht, bleibt ein Buchstabe. Ist so ein erster Strich direkt nach dem
+  Tippen kürzer als anderthalb Tasten und gerade, und folgt kein weiterer Strich, war es ein
+  gerutschter Tipp: Es kommt der Buchstabe, auf dem du aufgesetzt hast, kein „–“ oder „/“. Dasselbe
+  gilt, wenn so ein einzelner Strich nicht erkannt wird (statt „Nicht erkannt“). Einen kurzen
+  Strich direkt nach einem Wort malst du darum etwas länger oder mit einem zweiten Strich (=).
+  Liegt dabei ein zweiter Finger auf der Tastatur (zwei Daumen), beginnt direkt nach dem Tippen
+  keine Zeichnung, beide Buchstaben kommen.
 - Ein Symbol aus mehreren Strichen: den nächsten Strich innerhalb der Pause ansetzen. Die Pause
   ist anfangs 0,9 Sekunden und passt sich deinem Tempo an (etwa 2,5-mal so lang wie deine übliche
   Lücke zwischen zwei Strichen, mindestens 0,6 und höchstens 1,5 Sekunden). Kurze Striche zählen
@@ -601,7 +607,9 @@ langes Drücken für Sonderzeichen und das Wischen auf Leer- und Löschtaste ble
   Strich, ¡ und ¿ darüber; bei eigenen Symbolen dort, wo du den Punkt gemalt hast), wartet er als
   möglicher Punkt. Nach der Pause entscheidet die ganze Zeichnung: Ergibt sie ein Symbol mit genau
   so vielen Punkten an ihren Plätzen, bleiben es Punkte; sonst kommt das Symbol ohne sie und danach
-  die getippten Buchstaben in deiner Reihenfolge (sie erscheinen dann erst nach der Pause). Male
+  die getippten Buchstaben in deiner Reihenfolge (sie erscheinen dann erst nach der Pause oder vor
+  der nächsten Taste, ohne Tastenvorschau, Vibration und Ton; ebenso der Buchstabe eines gerutschten
+  Tipps direkt nach dem Tippen). Male
   den Strich zuerst, ein Tipp allein ist immer ein Buchstabe. Zwei Buchstaben direkt über und unter
   der Mitte eines gemalten Strichs werden zu ÷, ein Buchstabe direkt unter einem senkrechten Strich
   zu !.

@@ -230,9 +230,14 @@
   Symbol und danach der Buchstabe (dann erst nach der Pause). % geht jetzt auch mit zwei Tupfern
   statt Kreisen (erst der Schrägstrich), neu sind ‰, !, ¡, ? und ¿. Direkt nach dem Tippen eines
   Worts beginnt ein Strich jetzt als Zeichnung, sobald er etwa eine Dreivierteltaste lang ist;
-  ein beim schnellen Tippen rutschender Tipp bleibt Buchstabe. Im künstlichen Finger-Test ÷ 99 %
-  statt 71 %, % mit Tupfern 98 % statt 0 %, mit winzigen Kreisen erst 53 %. Noch auf keinem Gerät
-  ausprobiert.
+  ein beim schnellen Tippen rutschender Tipp bleibt Buchstabe. Rutscht er doch so weit, aber
+  bleibt es ein kurzer gerader Strich (unter anderthalb Tasten) ohne zweiten Strich, kommt der
+  Buchstabe, auf dem du aufgesetzt hast, statt „–“ oder „/“; einen kurzen Strich direkt nach einem
+  Wort malst du darum etwas länger oder mit zweitem Strich (=). Liegt ein zweiter Daumen auf,
+  beginnt direkt nach dem Tippen keine Zeichnung. Solche Buchstaben und die möglicher Punkte
+  erscheinen erst nach der Pause oder vor der nächsten Taste, ohne Tastenvorschau, Vibration und
+  Ton. Im künstlichen Finger-Test ÷ 99 % statt 71 %, % mit Tupfern 98 % statt 0 %, mit winzigen
+  Kreisen erst 53 %. Noch auf keinem Gerät ausprobiert.
 - Neu: Gehst du zu einem automatisch korrigierten Wort zurück (Löschtaste direkt danach oder
   Schreibmarke ins Wort), steht dein getipptes Wort ganz links in der Leiste, in deiner Groß- und
   Kleinschreibung; Mitte und rechts ähnliche Wörter. Ein Tipp setzt es ein und zählt wie die

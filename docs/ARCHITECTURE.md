@@ -568,6 +568,12 @@ Symbole malen (Etappe 27, Touch-Verarbeitung, jede Änderung mit Prüfer; Detail
   `mInkAfterTyping`/`mGestureDownX/Y`; `onGestureMoveEvent` startet dann erst ab
   `SymbolInk.startsAfterTyping` (0,75 Tastenbreiten vom Aufsetzpunkt, P153). Ohne Symbole malen
   unverändert; `GestureStrokeRecognitionPoints`/`-Params` unverändert.
+  43 nach Prüfer: `onDownEvent` lässt die Sperre an und `mInkAfterTyping` aus, wenn ein weiterer
+  Zeiger in der Warteschlange ist (zwei Daumen, M1a); `onGestureMoveEvent` startet mit
+  `mInkAfterTyping` nur allein und meldet den Start mit `SymbolInk.onStartAfterTyping` (Zeiger,
+  Aufsetzpunkt, Tastenbreite, M1b). `typeInkTap` tippt nur Tasten laut `SymbolInk.startsInkOn`
+  (N1; damit entfallen die Zweige für `MULTIPLE_CODE_POINTS`/`NOT_SPECIFIED`, deren Codes ≤ 0
+  sind) und meldet `onPressKey` immer mit einem Zeiger (N2).
 - `TextCorrectionScreen.kt` (36, Prüfer N4): Bestätigt man das Ausschalten von „Personalisierte
   Vorschläge“, löscht der Dialog auch die persönlichen Vorlagen von Symbole malen
   (`SymbolDrawing.clearPersonalSymbols`), eine Zeile.
@@ -2107,7 +2113,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   (`InkTap.isAfterTyping`, 500 ms); `onGestureMoveEvent` startet dann erst ab
   `InkTap.START_AFTER_TYPING_KEYS` 0,75 Tastenbreiten vom Aufsetzpunkt (`mGestureDownX/Y`). Ohne
   Symbole malen unverändert; die Einstellung „Schnelltipp-Sperre“ wirkt beim Malen nicht und ist
-  dann auf der Gestenseite (wie bisher) ausgeblendet (P153).
+  dann auf der Gestenseite (wie bisher) ausgeblendet (P153). Nach Prüfer (M1): Mit einem weiteren
+  Finger auf der Tastatur bleibt HeliBoards Sperre. Startet die Zeichnung so direkt nach dem Tippen
+  (`SymbolInk.onStartAfterTyping`, `AfterTyping`), entscheidet `SymbolInk.resolve` beim Schreiben
+  nach der Pause oder vor einer Taste (nicht beim Chip, `takeWaiting`): Ist das, was geschrieben
+  würde (ohne mögliche Punkte, die Buchstaben werden), ein einziger Strich und
+  `InkTap.isSlidTap` (weitester Punkt höchstens `SLID_TAP_KEYS` 1,5 Tastenbreiten vom Aufsetzpunkt,
+  kein Punkt weiter als `SLID_TAP_BEND` 0,25 dieser Strecke von der Linie dorthin) oder sagt
+  `Sink.recognizes` nein (`SymbolDrawing`: gleicher Erkenner, `best == null`), schreibt es nichts,
+  meldet `Sink.onWaiting` leer und tippt über `tapper` die Taste am Aufsetzpunkt, danach die
+  möglichen Punkte. Ein zweiter Strich oder behaltene Punkte lassen es eine Zeichnung (=, ÷).
+  Für so einen Strich zeigt die Vorschau keinen Chip (`isSlidTapSoFar`).
 - Vorschau (36): 120 ms nach einem Strich ohne neuen (`SymbolInk.PREVIEW_DELAY_MILLIS`, Prüfer M2)
   meldet `SymbolInk` die wartende Zeichnung an `Sink.onWaiting`; `SymbolDrawing` liest den Erkenner
   im Hauptthread, erkennt auf einem eigenen Thread (`previewExecutor`, in Tests direkt) und zeigt das
@@ -2912,12 +2928,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   „@snip name Feld: Wert“. Grenze: Wächst der Wert über 500 Zeichen (z. B. durch Einfügen), ist
   der Text kein Befehl mehr, und das nächste Enter geht an die App (im Chat: Senden).
 - **P151** Ein möglicher Punkt (43) wird erst beim Schreiben der Zeichnung zur Taste, oft mitten in
-  einem anderen Touch (der nächste Tipp, `flush` aus `onPressKey` einer anderen Taste). Darum tippt
+  einem anderen Touch (der nächste Tipp, `flush` aus `onPressKey` einer anderen Taste); ebenso seit
+  der Nachprüfung der gerutschte Tipp direkt nach dem Tippen (P153). Darum tippt
   `PointerTracker.typeInkTap` statisch über den Listener und fasst keinen Tracker-Zustand an
   (`mCurrentKey`, Warteschlange); `beforeOtherInput` steht in `onPressKey` vor allem anderen, so
-  dass der verschachtelte Tastendruck vor der äußeren Taste fertig ist. Kein Haptik-Ereignis, keine
-  Tastenvorschau. Die Taste wird an der Aufsetzstelle auf der Tastatur nach dem Symbol bestimmt
-  (P96). P113 (`DOT_ALONG`) gilt seit 43 nicht mehr: die Lage prüft `KEEP_REACH` beim Schreiben;
+  dass der verschachtelte Tastendruck vor der äußeren Taste fertig ist. Nicht zustandslos: es
+  schreibt `sTypingTimeRecorder.onCodeInput` mit der Zeit des Schreibens (nicht des Tipps), startet
+  aber keinen `startTypingStateTimer`; kein Haptik-Ereignis, kein Ton, keine Tastenvorschau.
+  `onPressKey` bekommt immer einen Zeiger (Prüfer N2: mit zwei hätte die Akkord-Regel die
+  Auto-Großschreibung aufgehoben). Die Taste wird an der Aufsetzstelle auf der Tastatur nach dem
+  Symbol bestimmt (P96) und nur getippt, wenn sie laut `SymbolInk.startsInkOn` ein Zeichen schreibt
+  (N1: Leertaste, Enter, Löschen nie). P113 (`DOT_ALONG`) gilt seit 43 nicht mehr: die Lage prüft `KEEP_REACH` beim Schreiben;
   `InkDots.BASE_DISTANCE` (P114) ist seit 43 `CLEAR_DISTANCE` statt der Annahme.
 - **P152** Eine Vorlage, die mit einem Punkt beginnt, sprengt `InkAreaTest` (der Bereich wächst ab
   einem Punkt nur um 3 Tasten) und kommt am Telefon nie vor: ein Tipp allein ist ein Buchstabe. In
@@ -2929,7 +2950,14 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   HeliBoards Abstand ab der „schnellen Bewegung“: ein rutschender Tipp von 0,7 Tasten erreicht nach
   dem Tippen nie den Start, ohne Tippen davor startet er wie bisher ab 0,35 Tasten ab dem Punkt,
   wo er schnell wurde. `gestureTypingTime` darf nicht 0 liefern (`(int)` von großen Uptime-Werten
-  wird negativ, dann wäre die Sperre an).
+  wird negativ, dann wäre die Sperre an). Nach Prüfer (M1): Ohne Sperre startet ein schneller Tipp,
+  der 0,75 Tasten rutscht, eine Zeichnung (im angenommenen Rutschmodell 923 von 10 000 Tipps,
+  `InkDotFlowTest`); `InkTap.isSlidTap` gibt sie als Buchstaben zurück, wenn kein zweiter Strich
+  folgt. Wer `SLID_TAP_KEYS` senkt, verliert solche Buchstaben als „–“, „/“ oder „|“; wer ihn hebt,
+  macht kurze Striche nach dem Tippen zu Buchstaben. Ein zweiter, ebenfalls rutschender Tipp nahe
+  der Zeichnung (ab 8 dp) bleibt ein Strich und macht beide zu einem Symbol (P111). Liegt ein
+  zweiter Finger auf, gilt HeliBoards Sperre: sonst endete das Loslassen des anderen Fingers im
+  `sInGesture`-Zweig ohne Code.
 - **P158** Das getippte Wort steht in `TypedWordFirst.arrange` auf Index 2 und das Ergebnis im
   Tippstil (`INPUT_STYLE_TYPING`): Nur dort blendet `SuggestionStripLayoutHelper` Index 0 (das Wort
   im Editor) aus und setzt Index 1 in die Mitte, Index 2 links daneben (in RTL rechts). Im

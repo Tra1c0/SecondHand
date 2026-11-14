@@ -106,6 +106,9 @@ object SymbolDrawing {
             override fun onDrawing(strokes: List<InkStroke>) { ref.get()?.let { onDrawing(it, strokes) } }
             override fun onWaiting(strokes: List<InkStroke>, possibleDots: List<Int>) { ref.get()?.let { onWaiting(it, strokes, possibleDots) } }
             override fun onStrokeStarted() { this@SymbolDrawing.onStrokeStarted() }
+            // stage 43 review M1: the same recognizer as write; its memo answers write without matching again
+            override fun recognizes(strokes: List<InkStroke>) =
+                ref.get()?.let { ime -> InkCloud.of(strokes)?.let { recognizer(ime).recognize(it).best != null } ?: false } ?: true
         }.also { SymbolInk.sink = it }
     }
 
