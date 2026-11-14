@@ -88,6 +88,12 @@ nutzen einen Debug-Schlüssel, der in jeder neuen Umgebung anders ist; sie sind 
   nimmt die Signatur nur, wenn `AGENT_KEYSTORE_FILE` gesetzt ist; sonst bleibt es beim
   Debug-Schlüssel.
 - Versionsnummer: `AGENT_VERSION_CODE` = Laufnummer des Workflows, also steigend.
+- Notizen in der APK (54): Der Gradle-Task `embed<Variante>ReleaseNotes` (`EmbedReleaseNotes` in
+  `app/build.gradle.kts`) kopiert `release-notes/next.md` bei jedem Build als Asset
+  `agent/release_notes.md` in die APK, auch lokal und für die Unit-Tests (`mergeDebugAssets`). Die
+  App zeigt sie nach einem Update einmal als „Neu in Build N“, offline. Dieselbe Datei ist der Text
+  des Releases (`--notes-file`); die In-App-Prüfung speichert davon höchstens 8 KiB für „Build N
+  ist da“. Darum gehört in `next.md` das Wichtigste nach oben.
 - Zertifikat des Owners (SHA-256):
   `D5:6E:8F:00:11:D7:80:63:37:90:8C:FA:A7:36:E5:D4:F8:FE:25:49:14:5A:5B:37:5D:FB:BB:1D:18:63:60:2A`.
   Der Workflow gibt das Zertifikat der APK im Log aus.

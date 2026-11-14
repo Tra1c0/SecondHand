@@ -1775,6 +1775,18 @@ public class LatinIME extends InputMethodService implements
         return false;
     }
 
+    /** Stage 54: "⬆ Build N verfügbar" while the last update check knows a newer build, never while locked. */
+    private boolean tryShowUpdateChip() {
+        if (!hasSuggestionStripView()) return false;
+        final View view = helium314.keyboard.agent.updates.UpdateChip.createView(this, mSuggestionStripView);
+        if (view == null) return false;
+        mSuggestionStripView.setExternalSuggestionView(view, false);
+        // like the clipboard chip above
+        if (mSettings.getCurrent().mAutoHideToolbar)
+            mSuggestionStripView.setToolbarVisibility(false);
+        return true;
+    }
+
     /** Stage 23g: shows the screenshot chip, only between words (see ClipboardHistoryManager). */
     private boolean tryShowScreenshotChip() {
         if (!helium314.keyboard.agent.ScreenshotChip.INSTANCE.isEnabled(this)) return false;
@@ -1803,6 +1815,7 @@ public class LatinIME extends InputMethodService implements
                 mSuggestionStripView.setToolbarVisibility(false);
             return;
         }
+        if (tryShowUpdateChip()) return; // stage 54: only on the neutral strip, never instead of word suggestions
         final SuggestedWords neutralSuggestions = currentSettings.mSuggestPunctuation
                 ? currentSettings.mPunctuationSuggestions
                 : SuggestedWords.getEmptyInstance();

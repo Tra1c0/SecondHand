@@ -372,3 +372,10 @@
   aus anderen Sprachen“; unter „Korrekturen“ steht jetzt die Sprache dabei. Alles lokal; nichts in
   Passwortfeldern, im Inkognito-Modus, bei Lernpause oder gesperrtem Gerät. Noch auf keinem Gerät
   ausprobiert.
+- Neu: Update-Fenster. Hat „Jetzt prüfen“ oder die tägliche Suche einen neuen Build gefunden,
+  zeigen die Einstellungen beim Öffnen „Build N ist da“ mit seinen Notizen; „Installieren“ öffnet
+  die Seite Updates und startet dort den Download, „Später“ fragt für diesen Build nicht mehr. In
+  der leeren Leiste der Tastatur steht dann „⬆ Build N verfügbar“ (nie statt Wortvorschlägen, nie
+  bei gesperrtem Gerät), ein Tipp öffnet die Seite Updates. Nach dem Update kommt einmal „Neu in
+  Build N“ mit den Notizen aus der App selbst, ohne Netz. Gesucht wird weiter nur auf deinen Tipp
+  oder mit „täglich automatisch“. Noch auf keinem Gerät ausprobiert.

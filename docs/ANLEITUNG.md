@@ -49,6 +49,15 @@ und keinen Token.
    Benachrichtigungen zeigen darf. Ein neuer Build meldet sich einmal als „Agent Keyboard: Build 7
    verfügbar“; ein Tipp öffnet die Seite „Updates“, geladen wird erst nach deinem Tipp dort.
    Ausschalten beendet die tägliche Suche sofort.
+5. Hat eine Prüfung einen neuen Build gefunden, erscheint beim nächsten Öffnen der Einstellungen
+   „Build 7 ist da“ mit seinen Notizen („Alle Notizen anzeigen“ klappt lange Notizen auf).
+   „Installieren“ öffnet die Seite „Updates“ und startet dort gleich den Download (weiter wie in
+   Schritt 3); „Später“ fragt für diesen Build nicht mehr, erst für einen neueren wieder.
+6. In der Tastatur steht dann in der leeren Leiste „⬆ Build 7 verfügbar“ (am Feldanfang oder
+   nachdem du alles gelöscht hast; beim Tippen haben die Wortvorschläge Vorrang). Ein Tipp öffnet
+   die Seite „Updates“. Bei gesperrtem Gerät fehlt der Chip. Nach der Installation verschwindet er.
+7. Nach dem Update zeigen die Einstellungen beim ersten Öffnen einmal „Neu in Build 7“ mit den
+   Notizen, die in der APK stecken (kein Netz nötig). „OK“ schließt den Dialog für immer.
 
 Für Freunde: Die APK einmal von der Release-Seite oben im Browser des Telefons herunterladen und
 installieren (Android fragt, ob der Browser Apps installieren darf). Danach kommen Updates wie
