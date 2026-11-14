@@ -294,7 +294,10 @@ Autokorrektur (Etappe 20a, Details im Abschnitt „Lerndaten“):
 - Getipptes Wort vorne (Etappe 48, P158–P160): `InputLogic.java` hält `mTypedWordFirst`
   (`K/agent/TypedWordFirst.kt`), `startInput` leert es. `commitCurrentAutoCorrection` merkt nach
   dem Commit Start, korrigiertes und getipptes Wort (nicht beim Gestenschreiben), `revertCommit`
-  vor dem Commit des getippten Worts dessen Start (nur Sprachen mit Leerzeichen).
+  vor dem Commit des getippten Worts dessen Start (nur Sprachen mit Leerzeichen; `reverted` merkt
+  nur, wo eine Korrektur gemerkt ist, also nie bei Gesten). `commitChosenWord` ruft nach
+  `commitWord` `committedAt(Start)` und verwirft so einen alten Eintrag an derselben Stelle
+  (Feld per Löschtaste oder von der App geleert, Nachprüfung 48).
   `restartSuggestions` fragt `resumed(Start, Wort)` und ordnet die Span-Liste mit `arrange`;
   `getSuggestedWords` ordnet das Ergebnis von `Suggest`, solange der wiederaufgenommene Kompositions-
   text unverändert ist (`typedFor`). `onPickSuggestionManually`: Tipp auf die getippte Form eines
@@ -302,8 +305,10 @@ Autokorrektur (Etappe 20a, Details im Abschnitt „Lerndaten“):
   `TypoMemory.forget` wie bei der Löschtaste; `TypoMemory.confirm` greift bei wiederaufgenommenen
   Wörtern ohnehin nicht.
 - `Suggest.kt` (48): `guardAllows` blockiert eine reine Groß-/Klein-Korrektur
-  (`CorrectionGuard.changesOnlyCase`), sobald ein Wörterbuch die getippte Form kennt
-  (`typedWordFirstOccurrenceWordInfo`), außer die Korrektur ist `KIND_WHITELIST` („i“ → „I“).
+  (`CorrectionGuard.changesOnlyCase`), sobald Hauptwörterbuch oder Lernverlauf der Sprache der
+  Korrektur genau die getippte Form kennt (in `suggestionResults`; eine andere aktive Sprache zählt
+  nicht, „hand“ → „Hand“ bleibt automatisch, Nachprüfung 48), außer die Korrektur ist
+  `KIND_WHITELIST` („i“ → „I“).
   `correctToCapitalizedWord` (Umschalttaste nach dem Wort mit „Vorgeschlagene Großschreibung
   automatisch korrigieren“) läuft daran vorbei und bleibt.
 - Korrekturen im ganzen Feld (Etappe 49, P169–P171): `InputLogic.java` hält `mFieldCorrections`
@@ -2916,6 +2921,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Recorrection-Stil stünde Index 0 in der Mitte. Wer die Leistenreihenfolge oder
   `getPositionInSuggestionStrip` ändert, prüft die Stufe-48-Tests (`stripSlots`). Anstehende
   Autokorrektur, Vorhersagen, Satzzeichen und Gesten ordnet `arrange` nie um.
+  Bekannte Grenzen (Nachprüfung 48): Gibt es keinen weiteren Vorschlag, steht das getippte Wort
+  allein und damit breit in der Mitte. Leisten mit 5 Vorschlagsplätzen sind
+  nicht geprüft; die Rechnung gilt für 3 Plätze. In RTL steht es rechts, wie HeliBoards getipptes
+  Wort; ein Gerätetest dazu fehlt.
 - **P159** Nach der Löschtaste kommen die Vorschläge zweimal: `restartSuggestions` und danach die
   verzögerte Aktualisierung (`setRequiresUpdateSuggestions` in `revertCommit`,
   `performUpdateSuggestionStripSync`). Beide laufen über `InputLogic.getSuggestedWords`; deshalb
@@ -2925,7 +2934,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P160** `TypedWordFirst` erkennt ein korrigiertes Wort an Startposition und Wort im Editor. Ändert
   sich Text davor, passt der Start nicht mehr, und das getippte Wort fehlt (gewollt, kein
   Fehlgriff auf ein gleiches Wort an anderer Stelle). Einträge nur im Speicher, nie loggen; neue
-  Aufrufer von `corrected` nur für automatische Korrekturen der Tipp-Eingabe.
+  Aufrufer von `corrected` nur für automatische Korrekturen der Tipp-Eingabe. Jeder Commit an
+  einem Start löscht dort alte Einträge (`committedAt` vor `corrected`); ein neuer Commit-Weg, der
+  nicht über `commitChosenWord` läuft, muss das selbst tun.
 - **P169** `FieldCorrectionWatcher` vergleicht nur an Prüfpunkten (Wort abgeschickt, Schreibmarke vom
   Nutzer bewegt). Erwartete Auswahl-Meldungen (Tippen, Löschtaste) kehren in `onUpdateSelection`
   vor dem Prüfpunkt zurück; so bleibt der Stand vor dem Zurücklöschen erhalten und „Hsus und“ →

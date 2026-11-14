@@ -241,3 +241,9 @@
   nicht mehr angewendet. Alles sehen, übernehmen und löschen: Einstellungen → Tippen & Korrektur →
   „Was ich mir gemerkt habe“. Keine Rückfragen beim Tippen; nie in Passwortfeldern, Inkognito,
   bei Lernpause oder gesperrtem Gerät. Noch auf keinem Gerät ausprobiert.
+- Behoben: Tippst du Deutsch und Englisch, korrigiert die Autokorrektur „hand“, „name“, „bank“,
+  „kind“ und ähnliche Wörter wieder zu „Hand“, „Name“ …; nur ein Wort, das deine Sprache selbst
+  klein kennt („essen“), bleibt. Nach „Fr.“, „Jh.“, „Jr.“ und Initialen („J. K. Rowling“) schreibt
+  die Tastatur wieder groß weiter, nach „bzgl.“, „insb.“, „lt.“, „mind.“, „ugs.“, „eigtl.“ nicht.
+  Nach einem geleerten Feld zeigt die Leiste kein altes getipptes Wort mehr. Noch auf keinem Gerät
+  ausprobiert.

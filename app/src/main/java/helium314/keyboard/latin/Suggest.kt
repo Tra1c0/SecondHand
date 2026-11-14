@@ -115,7 +115,7 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         )
         // fork, stage 20a: protect known words and corrections the user undid before
         val guardedAutoCorrection = rawHasAutoCorrection && guardAllows(typedWordString, suggestionsContainer.firstOrNull(),
-            typedWordFirstOccurrenceWordInfo)
+            typedWordFirstOccurrenceWordInfo, suggestionResults)
         // fork, stage 20b: a typo the user corrected by hand three times is corrected automatically
         val hasAutoCorrection = applyLearnedCorrection(typedWordString, capsMode, ngramContext, suggestionResults,
             suggestionsContainer, isCorrectionEnabled, wordComposer) || guardedAutoCorrection
@@ -212,18 +212,23 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
      * The typed word counts as known only if it is in a main dictionary of the same language as the
      * correction: a word from another active language, the typing history, contacts or the personal
      * dictionary does not protect it (e.g. English "fur" must not keep German "für" from being set).
-     * Exception (stage 48): a correction that changes only the case is blocked as soon as any
-     * dictionary knows the typed form, unless the dictionary itself demands it (whitelist, "i" -> "I").
+     * Exception (stage 48): a correction that changes only the case is blocked as soon as the main
+     * dictionary or the typing history of the correction's language knows the exact typed form, unless
+     * the dictionary itself demands it (whitelist, "i" -> "I"). Another active language does not count
+     * (English "hand" must not keep German "Hand" from being set).
      */
-    private fun guardAllows(typed: String, first: SuggestedWordInfo?, typedInfo: SuggestedWordInfo?): Boolean {
+    private fun guardAllows(typed: String, first: SuggestedWordInfo?, typedInfo: SuggestedWordInfo?,
+                            results: Collection<SuggestedWordInfo>): Boolean {
         val correction = first?.mWord ?: return true
         val typedIsDictionaryWord = typedInfo != null && typedInfo.mSourceDict.mDictType == Dictionary.TYPE_MAIN
             && typedInfo.mSourceDict.mLocale == first.mSourceDict.mLocale
         val settings = Settings.getValues()
         val context = Settings.getCurrentContext()
         // stage 48: a known word never gets only another case automatically ("essen" stays, "Essen" is offered)
-        if (typedInfo != null && !first.isKindOf(SuggestedWordInfo.KIND_WHITELIST)
-            && CorrectionGuard.changesOnlyCase(typed, correction)) return false
+        if (!first.isKindOf(SuggestedWordInfo.KIND_WHITELIST) && CorrectionGuard.changesOnlyCase(typed, correction)
+            && results.any { it.mWord == typed && it.mSourceDict.mLocale == first.mSourceDict.mLocale
+                && (it.mSourceDict.mDictType == Dictionary.TYPE_MAIN || it.mSourceDict.mDictType == Dictionary.TYPE_USER_HISTORY) })
+            return false
         return CorrectionGuard.allowsAutoCorrection(typed, correction, typedIsDictionaryWord,
             settings.mKeepValidWords, settings.mKeepUmlautVariants
         ) { t, c -> settings.mRememberRejectedCorrections && context != null && RejectedCorrections.contains(context, t, c) }

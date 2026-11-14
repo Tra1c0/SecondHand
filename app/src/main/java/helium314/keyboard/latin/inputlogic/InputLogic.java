@@ -2661,6 +2661,8 @@ public final class InputLogic {
                 || chosenWord.equalsIgnoreCase(mWordComposer.getTypedWord());
         final String typedForTouch = tapTyped && confirmedWord && settingsValues.mAdaptTouch ? mWordComposer.getTypedWord() : null;
         mLastComposedWord = mWordComposer.commitWord(commitType, chosenWord, separatorString, ngramContext);
+        // fork, stage 48 review N1: a remembered correction at this start belongs to text that is gone
+        mTypedWordFirst.committedAt(mConnection.getExpectedSelectionEnd() - chosenWord.length());
         // fork, stage 49: compare the field with the last checkpoint (a word fixed earlier in the field)
         mFieldCorrections.checkpoint(mLatinIME, mConnection, settingsValues, mDictionaryFacilitator, mAgentHistorySuppressed, true);
         if (typedForTouch != null) {

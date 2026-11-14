@@ -788,6 +788,20 @@ class InputLogicTest {
         RejectedCorrections.clear(latinIME)
     }
 
+    // stage 48 review N1: the field emptied by backspace, the same word typed again without a correction
+    @Test fun `a correction of text deleted since is not shown for a new word at the same place`() = withSimilarWords("hello", "hull") {
+        chainInput("hullo")
+        getAutocorrectedWithSpaceAfter("hello", "hullo")
+        chainInput("there ")
+        assertEquals("hello there ", text)
+        while (text.isNotEmpty()) functionalKeyPress(KeyCode.DELETE)
+        chainInput("hello")
+        pickSuggestion("hello") // committed as typed at the old start
+        chainInput("x ")
+        setCursorPosition(2)
+        assertFalse("hullo" in stripSlots())
+    }
+
     @Test fun `a word the cursor goes back to without a correction shows no extra word`() = withSimilarWords("hello", "hull") {
         chainInput("hello world ")
         setCursorPosition(2)

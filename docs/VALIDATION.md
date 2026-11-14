@@ -3500,6 +3500,30 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   korrigierte Wort nicht aus dem Lernverlauf (`unlearnWord` nur bei der Löschtaste wie bisher).
   Abkürzungsliste fest (Deutsch/Englisch), „usw.“/„etc.“ bewusst nicht.
 
+## Nachprüfung 48 (Prüfer-Befunde zu Etappe 48, 2026-11-14)
+
+- Behoben: M1 `Suggest.guardAllows` blockierte eine reine Groß-/Klein-Korrektur, sobald irgendein
+  Wörterbuch die getippte Form kannte, auch eine andere aktive Sprache („hand“ → „Hand“, „name“,
+  „bank“ mit Deutsch und Englisch); jetzt nur Hauptwörterbuch oder Lernverlauf der Sprache der
+  Korrektur mit genau der getippten Form. N1 `TypedWordFirst.committedAt` (aus `commitChosenWord`)
+  verwirft alte Einträge am selben Start. N2 Abkürzungen: entfernt „fr“, „jh“, „jhd“ (Deutsch),
+  „ms“, „st“, „jr“, „sr“ (Englisch), neu „bzgl“, „insb“, „insbes“, „lt“, „gem“, „mind“, „allg“,
+  „ugs“, „eigtl“. N3 Einzelbuchstaben-Regel nur nach einem Kleinbuchstaben mit Punkt („z. B“,
+  „o. ä“), nicht bei Initialen („J. K. Rowling“). N4 `reverted` merkt nur, wo eine Korrektur gemerkt
+  ist (Gestenwörter werden nie gemerkt, also auch nicht zurückgenommen); keine Änderung in
+  `revertCommit` nötig.
+- N5 dokumentiert (P158, bekannte Grenzen): ohne weiteren Vorschlag steht das getippte Wort breit
+  in der Mitte; Leisten mit 5 Plätzen nicht geprüft; RTL rechts, ohne Gerätetest.
+- Tests: `SuggestTest` Fall „a known word never gets only another case“ erweitert („hand“ mit
+  deutschem „Hand“ und englischem „hand“ → automatisch; beides deutsch → nicht), `TypedWordFirstTest`
+  neu 2 (Abkürzungsliste mit Gegenproben und Initialen; Commit am selben Start, Rücknahme ohne
+  gemerkte Korrektur), `InputLogicTest` neu 1 („a correction of text deleted since …“: gegen den
+  Stand ohne `committedAt` rot, mit grün). Gelaufen gezielt `*InputLogicTest`, `*SuggestTest`,
+  `*TypedWordFirstTest`, `*CorrectionMemoryTest`, `*TypoMemoryTest`, `*StringUtilsTest`
+  (`--max-workers=1`, 2026-11-14): 289 Tests, 2 Fehler = geerbt
+  (`InputLogicTest.insertLetterIntoWordHangulFails`, `StringUtilsTest.detectEmojisAtEndFails`).
+  Nicht gelaufen: volle Suite, Build, Gerätetest. Erneute Prüfung durch einen Prüfer steht aus.
+
 ## Etappe 49 (Korrekturen merken über das ganze Feld)
 
 - Auftrag (Lead, ROADMAP 49, Regeln mit dem Owner vom 2026-11-14): spätere Korrekturen im ganzen

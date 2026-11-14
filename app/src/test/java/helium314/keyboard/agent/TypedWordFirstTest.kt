@@ -110,4 +110,35 @@ class TypedWordFirstTest {
         // the German words are not abbreviations in English: "Nr. " does not stop capitals there
         assertTrue(sentenceCaps("Haus Nr. ", english))
     }
+
+    // stage 48 review N2/N3
+    @Test fun abbreviationListAfterReview() {
+        val german = spacing(Locale.GERMAN)
+        listOf("Termin bzgl. ", "Das gilt insb. ", "Das gilt insbes. ", "Das ist lt. ", "Das ist gem. ", "Das sind mind. ",
+            "Das ist allg. ", "Das ist ugs. ", "Das ist eigtl. ", "Das ist o. ä. ", "Das sind u. a. ")
+            .forEach { assertFalse(sentenceCaps(it, german), it) }
+        // often the end of a sentence: capitals stay
+        listOf("Bis Fr. ", "Im 19. Jh. ", "Im 19. Jhd. ").forEach { assertTrue(sentenceCaps(it, german), it) }
+        val english = spacing(Locale.ENGLISH)
+        listOf("John Smith Jr. ", "John Smith Sr. ", "Main St. ", "Dear Ms. ").forEach { assertTrue(sentenceCaps(it, english), it) }
+        // initials keep their capitals, in both languages
+        assertTrue(sentenceCaps("Von J. K. ", english))
+        assertTrue(sentenceCaps("Von J. K. ", german))
+    }
+
+    // stage 48 review N1/N4
+    @Test fun aCommitAtTheSamePlaceForgetsTheOldCorrection() {
+        val memory = TypedWordFirst()
+        memory.corrected(0, "hello", "hullo")
+        // the field was cleared and another word committed at the same start
+        memory.committedAt(0)
+        assertNull(memory.resumed(0, "hello"))
+        // a new correction there is remembered again (committedAt runs before corrected)
+        memory.committedAt(0)
+        memory.corrected(0, "hello", "hullo")
+        assertEquals("hullo", memory.resumed(0, "hello"))
+        // a revert without a remembered correction (a gesture word) adds nothing
+        memory.reverted(10, "Hello")
+        assertNull(memory.resumed(10, "Hello"))
+    }
 }
