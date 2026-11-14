@@ -41,7 +41,8 @@
 
 - Neu: Textbausteine 2.0. In `@snip`-Bausteinen gehen jetzt Platzhalter: `{datum}`,
   `{datum+2t}`, `{uhrzeit}`, `{wochentag}`, `{zwischenablage}`, Ausfüllfelder `{?Name}` (die
-  Leiste fragt den Wert ab, Enter springt weiter) und `{cursor}` für die Schreibmarke danach. Ein
+  Leiste fragt den Wert ab, Enter springt weiter, auch das einer Hardware-Tastatur, und schickt
+  nie den Befehl ab) und `{cursor}` für die Schreibmarke danach. Ein
   Baustein kann auf bestimmte Apps beschränkt werden. Der Editor zeigt eine Vorschau, Knöpfe für
   die Platzhalter und warnt bei unbekannten. Alles lokal; die Zwischenablage nur mit Verlauf an
   und nie vertrauliche Clips. Alte Bausteine bleiben, wie sie sind, bis du sie neu speicherst.
@@ -198,5 +199,7 @@
   „gmail.com?“), ebenso bei fehlendem `@` oder Leerzeichen; in Telefonfeldern das internationale
   Format (`0151 23456789` → „+49 1512 3456789“); bei einer IBAN zeigt ein grüner oder roter Punkt,
   ob die Prüfziffer stimmt, ein Tipp setzt Viererblöcke; in Kommazahl-Feldern ein Hinweis, wenn
-  Punkt und Komma nicht zur Sprache passen. Nichts ändert sich von selbst, erst dein Tipp. Nie in
-  Passwortfeldern, im Inkognito-Modus oder bei gesperrtem Gerät. Noch auf keinem Gerät ausprobiert.
+  Punkt und Komma nicht zur Sprache passen. Nichts ändert sich von selbst, erst dein Tipp. Echte
+  Domains anderer Länder (`hotmail.fr`, `posteo.at`) bleiben ohne Hinweis; Telefonnummern ohne
+  Vorwahl liest er auch nach dem Land deiner Systemsprache. Nie in Passwortfeldern, in Feldern
+  ohne Lernen, im Inkognito-Modus oder bei gesperrtem Gerät. Noch auf keinem Gerät ausprobiert.

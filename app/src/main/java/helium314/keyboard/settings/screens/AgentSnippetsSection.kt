@@ -39,7 +39,6 @@ import dev.agentkeyboard.core.SnippetTemplate
 import helium314.keyboard.agent.commands.SnipCommand
 import helium314.keyboard.agent.commands.Snippet
 import helium314.keyboard.agent.commands.SnippetStore
-import helium314.keyboard.latin.AppsManager
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.settings.Settings
 import kotlinx.coroutines.Dispatchers
@@ -221,9 +220,14 @@ private fun SnippetEditor(original: Snippet, all: List<Snippet>, store: SnippetS
 }
 
 /** Installed apps with a launcher entry (package to label), by label; read off the main thread. */
+/** Package name and label of every app with a launcher entry; labels only, no icons are loaded. */
 private suspend fun launchableApps(context: Context): List<Pair<String, String>> = withContext(Dispatchers.IO) {
-    runCatching { AppsManager(context).getPackagesWithNameAndIcon().map { it.first to it.second } }.getOrDefault(emptyList())
-        .sortedBy { it.second.lowercase() }
+    runCatching {
+        val manager = context.packageManager
+        val launcher = android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_LAUNCHER)
+        manager.queryIntentActivities(launcher, 0).distinctBy { it.activityInfo.packageName }
+            .map { it.activityInfo.packageName to it.activityInfo.loadLabel(manager).toString() }
+    }.getOrDefault(emptyList()).sortedBy { it.second.lowercase() }
 }
 
 @Composable

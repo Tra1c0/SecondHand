@@ -113,14 +113,17 @@ Reihenfolge von oben nach unten.
   41). Telefonnummern über libphonenumber (Messung: etwa 0,35 MB, unter der Grenze von 1,5 MB).
   Annahmen des Leads: Hinweise nur, wenn das ganze Feld geprüft werden kann (Schreibmarke am Ende,
   höchstens 100 Zeichen); IBAN nur in normalen Textfeldern und nur in voller Länge des Landes;
-  Telefon schlägt das internationale Format vor. Offen: Gerätetest (Leiste in Telefon- und
-  Zahlenfeldern echter Apps, Ersetzen in Bank-Apps).
+  Telefon schlägt das internationale Format vor. Prüfer-Befunde behoben (Nachprüfung in
+  `docs/VALIDATION.md`). Offen: Gerätetest (Leiste in Telefon- und Zahlenfeldern echter Apps,
+  Ersetzen in Bank-Apps, Dauer des ersten Telefon-Hinweises, P140).
 - **42 Textbausteine 2.0** ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` →
   Etappe 42). Annahmen des Leads, die der Owner ändern kann: Platzhalter nur mit deutschen Namen;
   Tastatursprachen außer Englisch und Spanisch formatieren deutsch; alte Bausteine bleiben
-  wörtlich, bis sie neu gespeichert werden. Offen: Prüfer-Review (Enter-Hook in `LatinIME`),
-  Gerätetest (Feldabfrage in Messengern, Schreibmarke, App-Auswahl), Enter einer
-  Hardware-Tastatur.
+  wörtlich, bis sie neu gespeichert werden. Prüfer-Befunde behoben (Nachprüfung in
+  `docs/VALIDATION.md`), die Änderungen an `LatinIME`, `InputLogic` (Getter) und
+  `KeyboardActionListenerImpl` brauchen noch einen Prüfer. Offen: Gerätetest (Feldabfrage in
+  Messengern, Schreibmarke nach `{cursor}` in einem Editor, der zwei Auswahl-Meldungen anders
+  verarbeitet (P147), App-Auswahl, Enter einer echten Hardware-Tastatur).
 - **34 Eigene Designs gestalten (übernächste Runde)** (Wunsch des Owners vom 2026-11-13). Eigene
   Tastatur-Designs gibt es schon (Design-Seite → „Meine Designs“, seit Build 10). Annahme des
   Leads, vor dem Bau bestätigen: gemeint sind eigene RGB-Designs, also selbst gestaltete

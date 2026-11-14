@@ -3157,6 +3157,22 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   `InputLogic.replaceCommandText`. `docs_sync --check`: grün.
 - Offen: Prüfer-Review, Gerätetest (Leiste in Telefon- und Zahlenfeldern echter Apps, Ersetzen in
   Bank- und Anmeldefeldern, TalkBack).
+- Nachprüfung (Prüfer-Befunde, 2026-11-14): M1 `FormatGuardChips.isBlocked` prüft
+  `IME_FLAG_NO_PERSONALIZED_LEARNING` selbst (InputAttributes zählt es nur in Textfeldern als
+  Inkognito); M2 `EmailCheck`: echte TLD bleibt (nur Anbieter mit derselben TLD werden
+  verglichen), eine andere TLD nur als Tippfehler einer Anbieter-TLD, Liste `KNOWN_DOMAINS` echter
+  Varianten (`online.de`, `mail.com`, `hotmail.fr` …) nie mit Hinweis; N5 der Tipp prüft vor dem
+  Ersetzen erneut, dass hinter der Schreibmarke nichts steht; N6 Land für Telefon: Feld, dann
+  Tastatur-Subtyp, dann Systemsprache (`FormatGuardChips.country`, `systemCountry`), dann
+  Sprache; N7 KDoc-Beispiel korrigiert, App-Liste im Baustein-Editor ohne Symbole. Metadaten von
+  libphonenumber werden weiter beim ersten Telefon-Hinweis im Hauptthread geladen (ein
+  Vorladen im Hintergrund bräuchte eine neue Leisten-Aktualisierung danach; offen als Gerätetest,
+  P140). Tests: `FormatGuardTest` 29 (neu `realDomainsOfOtherCountriesOrServicesGetNoHint`: alle
+  gemeldeten Domains, echte TLDs anderer Länder, TLD-Tippfehler `.cpm`/`.comm`/`.ed`/`.nte`, jede
+  bekannte Domain ohne Hinweis; alle bisherigen Positivfälle unverändert grün),
+  `FormatGuardChipsTest` 12 (neu: No-Learning in Telefon- und Kommazahlfeld, Land aus Subtyp,
+  System (AT mit `0664`) und Feld, Tipp nach Text hinter der Schreibmarke). Befehle siehe
+  Nachprüfung von Etappe 42.
 
 ## Etappe 42 (Textbausteine 2.0)
 
@@ -3195,6 +3211,31 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Offen: Prüfer-Review (Enter-Hook, P141–P143), Gerätetest (Feldabfrage und Enter in Messengern
   mit Senden-Taste, Schreibmarke in WhatsApp/Telegram, App-Auswahl und Paketsichtbarkeit,
   Zwischenablage mit vertraulichem Clip), Enter einer Hardware-Tastatur (P142).
+- Nachprüfung (Prüfer-Befunde, 2026-11-14): N2 `SnipCommand.onEnter` nimmt Enter während einer
+  Feldabfrage immer (sonst schickte die App den Befehlstext), ruft aber nur `next`, wenn
+  `Host.canReplaceNow` (echter Host: `LatinIME.canReplaceAgentCommand` = keine blockierte Eingabe
+  und keine laufende Geste, neuer Getter `InputLogic.hasPendingBatchInput`); sonst bleibt das Feld
+  gefragt, kein Hinweis „abgelaufen“. N3 Hardware-Enter (`KEYCODE_ENTER`/`NUMPAD_ENTER` ohne
+  Modifikator) fragt in `KeyboardActionListenerImpl.onKeyDown` zuerst `KeyboardCommands.onEnter`,
+  auch bei ausgeschalteter Hardware-Tastatur-Einstellung; Wiederholungen und das Loslassen
+  derselben Taste werden mit verschluckt (P142). N4 `SnipCommand.longArgument` (500 statt 200
+  Zeichen), ab 40 Restzeichen „(noch N Zeichen)“ im Feld-Chip. N1 nicht geändert: das Setzen der
+  Schreibmarke nach `{cursor}` im selben Batch wie das Ersetzen bräuchte einen Umbau von
+  `RichInputConnection.replaceTextBeforeCursorIfUnchanged` (Prüfung nach dem Commit); bleibt zwei
+  Schritte, Gerätetest-Punkt (P147). Tests: `SnipCommandTest` 24 (neu: Enter während einer Geste
+  genommen ohne Änderung, danach weiter; lange Werte bleiben Befehl, Rest-Hinweis, Einfügen),
+  `InputLogicTest.hardwareEnterDuringASnippetFieldMovesOnInsteadOfSending` (echter Host: Enter
+  über `LatinIME.onKeyDown` springt weiter und fügt ein, Wiederholung nur einmal, Loslassen
+  genommen, ohne Feld bleibt die Taste bei der App, `checkConnectionConsistency`). Gelaufen:
+  `./gradlew :agent-core:test --tests 'dev.agentkeyboard.core.format.*'` und gezielt
+  `:app:testDebugUnitTest` mit `FormatGuard*`, `SnipCommandTest`, `SnippetStoreTest`,
+  `*InputLogicTest`, `KeyboardCommandsTest` (`--max-workers=1`, 2026-11-14): `agent-core`-Format
+  grün; App 238 Tests, 1 Fehler = geerbtes `InputLogicTest.insertLetterIntoWordHangulFails`; nach
+  der letzten Änderung am Feld-Chip `SnipCommandTest` 24, `FormatGuardChipsTest` 12 und die drei
+  `InputLogicTest`-Fälle (Hardware-Enter, Baustein, Formatwächter) erneut grün. Nicht gelaufen:
+  volle Suite, Build, Gerätetest. Engine-Änderungen (Prüfer nötig): `InputLogic.java` (nur der
+  Getter), `LatinIME.java` (`canReplaceAgentCommand`), `KeyboardActionListenerImpl.kt`
+  (Hardware-Enter).
 
 ## Gerätetest vor Meilensteinfreigabe
 

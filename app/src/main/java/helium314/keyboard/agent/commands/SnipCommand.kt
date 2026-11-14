@@ -77,11 +77,21 @@ object SnipCommand : KeyboardCommands.Command {
 
     override val name = "snip"
     override val protectsArgument = true
+    /** Room for field values: "name Field: value" may be up to [dev.agentkeyboard.core.CommandSyntax.MAX_LONG_ARGUMENT] characters. */
+    override val longArgument = true
+
+    /** From this many characters left for a value on, the field chip shows how many remain. */
+    const val ROOM_WARNING = 40
+    /** The field chip shows at most the last this many characters of the value. */
+    const val LABEL_VALUE = 40
 
     override fun description(context: Context) =
         context.getString(R.string.agent_command_snip, KeyboardCommands.prefix(context).toString())
 
     override fun reset() { cached = null; filling = null }
+
+    /** Characters a field value may still grow by before "@snip name Field: value" is no command any more. */
+    fun roomLeft(argument: String) = dev.agentkeyboard.core.CommandSyntax.MAX_LONG_ARGUMENT - argument.length
 
     /** The argument that asks [field] of [snippetName]. */
     fun argumentStart(snippetName: String, field: String) = "$snippetName $field: "
@@ -102,11 +112,16 @@ object SnipCommand : KeyboardCommands.Command {
         }
     }
 
-    /** Stage 42: Enter while a field is asked moves on like "Next"; otherwise the key works as usual. */
+    /**
+     * Stage 42: Enter while a field is asked moves on like "Next"; otherwise the key works as usual.
+     * While a field is asked Enter is always taken, so the app never gets "@snip name Field: value"
+     * (e.g. sent in a chat): if the field cannot be changed right now (a gesture still being processed)
+     * nothing happens and the field stays asked; a second Enter moves on.
+     */
     override fun onEnter(host: KeyboardCommands.Host, call: CommandCall): Boolean {
         if (KeyboardCommands.isBlocked(Settings.getValues(), host.editorInfo)) { reset(); return false }
         val state = currentFilling(call) ?: return false
-        next(host, call, state)
+        if (host.canReplaceNow) next(host, call, state)
         return true
     }
 
@@ -122,7 +137,11 @@ object SnipCommand : KeyboardCommands.Command {
         val context = host.context
         val value = call.argument.substring(state.argumentStart.length)
         val count = state.template.fields.size
-        val label = "${state.field} (${state.index + 1}/$count): ${value.ifEmpty { "…" }}"
+        val room = roomLeft(call.argument)
+        // a long value: its end, where the user types
+        val shown = if (value.length > LABEL_VALUE) "…" + value.takeLast(LABEL_VALUE) else value.ifEmpty { "…" }
+        val label = "${state.field} (${state.index + 1}/$count): $shown" +
+            if (room <= ROOM_WARNING) " " + context.getString(R.string.agent_snip_field_room, room) else ""
         val nextLabel = context.getString(if (state.isLast) R.string.agent_snip_field_insert else R.string.agent_snip_field_next)
         return listOf(
             KeyboardCommands.Chip(label, context.getString(R.string.agent_snip_field_description, state.field, state.snippet.name),

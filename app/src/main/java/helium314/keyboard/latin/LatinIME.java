@@ -170,6 +170,10 @@ public class LatinIME extends InputMethodService implements
         if (outcome == ApplyOutcome.UNKNOWN) mAgentEditorController.onUnclearEdit();
         return outcome;
     }
+    /** Stage 42 after review: false while replaceCommandText would refuse for now (blocked input, a gesture still being processed). */
+    public boolean canReplaceAgentCommand() {
+        return !mAgentEditorController.isBlockingInput() && !mInputLogic.hasPendingBatchInput();
+    }
     /** Stage 42: moves the plain cursor back by count characters, e.g. to the cursor mark of a snippet just inserted. */
     public boolean moveAgentCursorBack(final int count) {
         final RichInputConnection connection = mInputLogic.mConnection;

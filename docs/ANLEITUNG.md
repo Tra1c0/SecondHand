@@ -117,8 +117,11 @@ Kommazahl-Felder sowie Textfelder, in denen nur eine IBAN steht, sobald die Schr
 steht, und zeigt dann einen Chip in der Leiste, zum Beispiel „gmail.com?“ bei `max@gmial.com`,
 „📞 +49 1512 3456789“ bei `0151 23456789`, „● IBAN gültig · in Viererblöcke“ (grüner Punkt; roter
 Punkt: „IBAN-Prüfziffer falsch“) oder „Üblich: 12,5“. Erst dein Tipp auf den Chip ersetzt den Text
-im Feld; graue Chips sind nur Hinweise und ändern nichts. In Passwortfeldern, im Inkognito-Modus
-und bei gesperrtem Gerät bleibt er still.
+im Feld; graue Chips sind nur Hinweise und ändern nichts. Echte Domains anderer Länder wie
+`hotmail.fr` oder `posteo.at` lässt er stehen. Telefonnummern ohne Ländervorwahl liest er nach dem
+Land der Tastatursprache, sonst nach dem Land deiner Systemsprache (in Österreich also `0664 …` →
+`+43 664 …`). In Passwortfeldern, in Feldern ohne Lernen, im Inkognito-Modus und bei gesperrtem
+Gerät bleibt er still.
 **04 Gesten & Gefühl** hat seinen eigenen Aufbau, alle Werte sind deine echten Einstellungen:
 
 - Karte „Leertaste“: Das Bild zeigt die Rastpunkte eines seitlichen Wischs (Tick, Tick, am
@@ -424,7 +427,8 @@ stehen unten. Noch auf keinem Gerät ausprobiert.
   {datum+2t}, leider kann ich nicht. {cursor}“. Hat ein Baustein `{?…}`-Felder, wird der Befehl
   nach dem Tipp zu „@snip name Name: “: Wert tippen, Enter (oder „Weiter“/„Einfügen“ in der
   Leiste) springt zum nächsten Feld, nach dem letzten wird eingefügt; gleiche Namen fragt er
-  einmal. „Abbrechen“ fügt nichts ein. Mit einer Hardware-Tastatur nimm „Weiter“ statt Enter.
+  einmal. „Abbrechen“ fügt nichts ein. Enter einer Hardware-Tastatur springt genauso weiter. Ein
+  langer Wert geht bis etwa 450 Zeichen; kurz davor zeigt der Chip „(noch N Zeichen)“.
   `{zwischenablage}` setzt den aktuellen Clip nur ein, wenn der Zwischenablage-Verlauf an ist und
   der Clip nicht vertraulich war; sonst bleibt die Stelle leer und ein Hinweis erscheint. Unter
   „Nur in diesen Apps“ wählst du Apps („App wählen“) oder tippst Paketnamen; der Baustein

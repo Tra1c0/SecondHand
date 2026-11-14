@@ -83,7 +83,11 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         keyboardSwitcher.onReleaseKey(primaryCode, withSliding, latinIME.currentAutoCapsState, latinIME.currentRecapitalizeState)
     }
 
+    /** Stage 42: the hardware Enter whose key down a snippet field took; its key up must not reach the app either. */
+    private var agentEnterDown = false
+
     override fun onKeyUp(keyCode: Int, keyEvent: KeyEvent): Boolean {
+        if (agentEnterDown && isPlainEnter(keyCode, keyEvent)) { agentEnterDown = false; return true }
         emojiAltPhysicalKeyDetector.onKeyUp(keyEvent)
         if (!settings.current.mEnableHardwareKeyboard)
             return false
@@ -97,6 +101,14 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         if (latinIME.agentEditorController.isBlockingInput) {
             latinIME.requestHideSelf(0)
             return false // Let the host handle hardware keys while the IME reconnects.
+        }
+        // stage 42 (P142): while a snippet field is asked, Enter moves on instead of sending the command
+        // text; also with the hardware keyboard setting off, where the app would get the key itself
+        if (isPlainEnter(keyCode, keyEvent)) {
+            // a held key: its repeats belong to the press the field took, never one field per repeat
+            if (keyEvent.repeatCount > 0 && agentEnterDown) return true
+            agentEnterDown = keyEvent.repeatCount == 0 && KeyboardCommands.onEnter(latinIME)
+            if (agentEnterDown) return true
         }
         emojiAltPhysicalKeyDetector.onKeyDown(keyEvent)
         if (!settings.current.mEnableHardwareKeyboard)
@@ -123,6 +135,9 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         }
         return false
     }
+
+    private fun isPlainEnter(keyCode: Int, keyEvent: KeyEvent) =
+        (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) && keyEvent.hasNoModifiers()
 
     override fun onCodeInput(primaryCode: Int, x: Int, y: Int, isKeyRepeat: Boolean) {
         if (latinIME.agentEditorController.isBlockingInput) return;

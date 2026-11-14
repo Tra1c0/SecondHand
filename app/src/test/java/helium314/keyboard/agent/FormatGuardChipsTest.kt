@@ -62,18 +62,21 @@ class FormatGuardChipsTest {
         override fun textAfterCursor(length: Int): CharSequence = after.take(length)
     }
 
+    private val defaultSystemCountry = FormatGuardChips.systemCountry
+
     @After fun tearDown() {
+        FormatGuardChips.systemCountry = defaultSystemCountry
         latinIME.prefs().edit().clear().commit()
         val keyguard = latinIME.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
         shadowOf(keyguard).setIsDeviceLocked(false)
     }
 
-    private fun load(editorInfo: EditorInfo) {
-        Settings.getInstance().loadSettings(latinIME, Locale.GERMANY, InputAttributes(editorInfo, false, latinIME.packageName))
+    private fun load(editorInfo: EditorInfo, locale: Locale = Locale.GERMANY) {
+        Settings.getInstance().loadSettings(latinIME, locale, InputAttributes(editorInfo, false, latinIME.packageName))
     }
 
-    private fun chips(typed: String, editor: EditorInfo, behind: String = ""): List<KeyboardCommands.Chip> {
-        load(editor)
+    private fun chips(typed: String, editor: EditorInfo, behind: String = "", locale: Locale = Locale.GERMANY): List<KeyboardCommands.Chip> {
+        load(editor, locale)
         host.editorInfo = editor
         before = typed
         after = behind
@@ -136,6 +139,37 @@ class FormatGuardChipsTest {
         assertEquals(emptyList(), FormatGuardChips.stripChips(host, null))
     }
 
+    @Test fun noLearningFlagBlocksPhoneAndNumberFieldsToo() {
+        // review of stage 41: InputAttributes folds the flag into incognito only for text fields
+        val phoneNoLearning = field(InputType.TYPE_CLASS_PHONE).apply { imeOptions = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING }
+        val decimalNoLearning = field(decimal.inputType).apply { imeOptions = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING }
+        assertEquals(emptyList(), chips("015123456789", phoneNoLearning))
+        assertTrue(FormatGuardChips.isBlocked(Settings.getValues(), phoneNoLearning))
+        assertEquals(emptyList(), chips("12.5", decimalNoLearning))
+        assertTrue(FormatGuardChips.isBlocked(Settings.getValues(), decimalNoLearning))
+        // the same fields without the flag still get their hint
+        assertEquals(1, chips("015123456789", phone).size)
+        assertFalse(FormatGuardChips.isBlocked(Settings.getValues(), phone))
+        assertEquals(1, chips("12.5", decimal).size)
+    }
+
+    @Test fun phoneCountryFromTheSubtypeThenTheSystemThenTheLanguage() {
+        // a German keyboard without a country on an Austrian system: an Austrian mobile number
+        FormatGuardChips.systemCountry = { "AT" }
+        assertEquals(listOf("\uD83D\uDCDE +43 664 1234567"), labels(chips("0664 1234567", phone, locale = Locale.GERMAN)))
+        // the keyboard's own country wins over the system's
+        assertEquals(listOf("\uD83D\uDCDE +41 44 668 18 00"), labels(chips("044 668 18 00", phone, locale = Locale("de", "CH"))))
+        // and the field's hint locale over both
+        val swiss = field(phone.inputType).apply { hintLocales = android.os.LocaleList(Locale("de", "CH")) }
+        assertEquals(listOf("\uD83D\uDCDE +41 44 668 18 00"), labels(chips("044 668 18 00", swiss, locale = Locale("de", "AT"))))
+        // no country anywhere: the language decides (German: Germany)
+        FormatGuardChips.systemCountry = { "" }
+        assertEquals(listOf("\uD83D\uDCDE +49 1512 3456789"), labels(chips("015123456789", phone, locale = Locale.GERMAN)))
+        load(phone, Locale("de", "AT"))
+        assertEquals("AT", FormatGuardChips.country(null, Settings.getValues()))
+        assertEquals("", FormatGuardChips.country(null, null))
+    }
+
     @Test fun switchOffShowsNothing() {
         latinIME.prefs().edit().putBoolean(AgentPreferences.FORMAT_GUARD, false).commit()
         assertEquals(emptyList(), chips("max@gmial.com", email))
@@ -160,6 +194,17 @@ class FormatGuardChipsTest {
         assertEquals(listOf("max@gmail.com"), replaced)
         assertEquals("max@gmail.com", before)
         assertEquals(emptyList(), FormatGuardChips.stripChips(host))
+    }
+
+    @Test fun aTapAfterTextWasAddedBehindTheCursorChangesNothing() {
+        val shown = chips("max@gmial.com", email)
+        after = " und mehr" // e.g. pasted behind the cursor after the chips were built
+        shown.single().onTap()
+        assertEquals(emptyList(), replaced)
+        assertEquals("max@gmial.com", before)
+        after = ""
+        shown.single().onTap()
+        assertEquals(listOf("max@gmail.com"), replaced)
     }
 
     @Test fun ibanDotIsGreenOrRedAndOnlyAValidOneGroups() {
