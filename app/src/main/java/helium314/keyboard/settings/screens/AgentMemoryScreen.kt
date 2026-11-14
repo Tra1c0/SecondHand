@@ -81,7 +81,7 @@ private fun CorrectionsSection() {
     learned.forEach { entry ->
         EntryRow(entry) {
             TextButton(onClick = { runCatching { FieldCorrectionMemory.delete(context, entry) }; reload() },
-                Modifier.testTag(MEMORY_DELETE_TAG + entry.typed)) { Text(stringResource(R.string.agent_memory_delete)) }
+                Modifier.testTag(MEMORY_DELETE_TAG + entry.tag)) { Text(stringResource(R.string.agent_memory_delete)) }
         }
     }
     Text(stringResource(R.string.agent_memory_candidates), style = MaterialTheme.typography.titleSmall)
@@ -90,9 +90,9 @@ private fun CorrectionsSection() {
     candidates.forEach { entry ->
         EntryRow(entry) {
             TextButton(onClick = { runCatching { FieldCorrectionMemory.adopt(context, entry) }; reload() },
-                Modifier.testTag(MEMORY_ADOPT_TAG + entry.typed)) { Text(stringResource(R.string.agent_memory_adopt)) }
+                Modifier.testTag(MEMORY_ADOPT_TAG + entry.tag)) { Text(stringResource(R.string.agent_memory_adopt)) }
             TextButton(onClick = { runCatching { FieldCorrectionMemory.delete(context, entry) }; reload() },
-                Modifier.testTag(MEMORY_DELETE_TAG + entry.typed)) { Text(stringResource(R.string.agent_memory_delete)) }
+                Modifier.testTag(MEMORY_DELETE_TAG + entry.tag)) { Text(stringResource(R.string.agent_memory_delete)) }
         }
     }
 }
@@ -113,7 +113,7 @@ private fun ForeignWordsSection() {
     }
     if (entries.isEmpty()) Text(stringResource(R.string.agent_memory_foreign_none), style = MaterialTheme.typography.bodySmall)
     entries.forEach { entry ->
-        val tag = entry.language + "_" + entry.word
+        val tag = memoryEntryTag(entry.language, entry.word)
         Row(Modifier.fillMaxWidth().testTag(MEMORY_FOREIGN_TAG + tag), verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.agent_memory_foreign_entry, entry.word, languageName(entry.from), languageName(entry.language)),
                 Modifier.weight(1f))
@@ -133,10 +133,17 @@ private fun languageName(language: String): String {
     return java.util.Locale.forLanguageTag(language).getDisplayLanguage(shown).ifEmpty { language }
 }
 
+/** Review of stage 51 (N10): the test tag part of an entry kept per keyboard [language] ("" before stage 51), e.g. "de_hsus". */
+fun memoryEntryTag(language: String, word: String) = language + "_" + word
+
+private val FieldCorrectionMemory.Entry.tag get() = memoryEntryTag(language, typed)
+
+/** A correction with the language it applies in (none for one from before stage 51, which applies where its word is known). */
 @Composable
 private fun EntryRow(entry: FieldCorrectionMemory.Entry, actions: @Composable () -> Unit) {
-    Row(Modifier.fillMaxWidth().testTag(MEMORY_ENTRY_TAG + entry.typed), verticalAlignment = Alignment.CenterVertically) {
-        Text(stringResource(R.string.agent_memory_pair, entry.typed, entry.meant), Modifier.weight(1f))
+    Row(Modifier.fillMaxWidth().testTag(MEMORY_ENTRY_TAG + entry.tag), verticalAlignment = Alignment.CenterVertically) {
+        Text(if (entry.language.isEmpty()) stringResource(R.string.agent_memory_pair, entry.typed, entry.meant)
+            else stringResource(R.string.agent_memory_pair_in, entry.typed, entry.meant, languageName(entry.language)), Modifier.weight(1f))
         actions()
     }
 }

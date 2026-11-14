@@ -104,6 +104,8 @@ object TypoMemory {
     /** The user typed [typed] and then picked [meant] from the strip. [previous] is the word before, if any. */
     @JvmStatic
     fun confirm(context: Context, typed: String, meant: String, previous: String?, settings: SettingsValues) {
+        // review of stage 51 (M2): a word of another language kept for this one is no longer wanted there
+        ForeignWords.onReplaced(context, settings, typed, meant)
         if (!mayLearn(settings)) return
         if (typed.length < 2 || typed.length > MAX_WORD || meant.isBlank() || meant.length > MAX_WORD) return
         if (typed.equals(meant, ignoreCase = true) || typed.any { it.isDigit() || it.isWhitespace() }) return
@@ -194,9 +196,14 @@ object TypoMemory {
         return best.key.takeIf { best.value >= MIN_CONFIRMATIONS && best.value >= DOMINANCE * sum }
     }
 
-    /** For the settings page: typed form, meant word and confirmations, most recent first. */
-    fun all(context: Context): List<Triple<String, String, Int>> = synchronized(lock) {
-        loaded(context).entries.reversed().flatMap { (k, targets) -> targets.map { Triple(typedOf(k), it.key, it.value.total) } }
+    /** A learned pair for the settings page: [language] is the keyboard language it belongs to ("" before stage 51). */
+    data class Entry(val typed: String, val meant: String, val total: Int, val language: String)
+
+    /** For the settings page: typed form, meant word, confirmations and language, most recent first. */
+    fun all(context: Context): List<Entry> = synchronized(lock) {
+        loaded(context).entries.reversed().flatMap { (k, targets) ->
+            targets.map { Entry(typedOf(k), it.key, it.value.total, k.substringBefore(SEPARATOR)) }
+        }
     }
 
     fun clear(context: Context) {

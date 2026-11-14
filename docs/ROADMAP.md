@@ -225,11 +225,15 @@ Reihenfolge von oben nach unten.
   Lernen nur getippte Wörter merken); gemerkt sofort nach einer rückgängig gemachten Korrektur,
   sonst erst beim zweiten Mal an anderer Stelle (ein einzelnes unkorrigiertes Wort kann ein
   Vertipper sein, der zufällig in einer anderen Sprache existiert, z. B. „fur“, „ser“ statt „der“);
-  „andere Sprache“ = jede aktive Sprache und ihre zweiten Sprachen; die Regel „fur“ (49) gilt, bis
-  du „fur“ einmal behältst; Rückgängig gemachte Korrekturen, eigene Wörter, Wortfolgen und Kürzel
-  bleiben sprachübergreifend. Offen: Prüfer-Review (Engine: `DictionaryFacilitatorImpl`, `Suggest`,
-  Pflicht), Gerätetest (echte Wörterbücher, Speicher der zusätzlich geöffneten Wörterbücher,
-  Sprachtaste und Wischen auf der Leertaste).
+  „andere Sprache“ = jede aktive Sprache und ihre zweiten Sprachen, außer den zweiten Sprachen der
+  gerade benutzten (die deckt HeliBoards mehrsprachiges Tippen ab, Nachprüfung 51); die Regel „fur“
+  (49) gilt, bis du „fur“ gegen die Korrektur behältst (einmal rückgängig gemacht) oder es zweimal an
+  verschiedenen Stellen unkorrigiert stehen bleibt; ersetzt du ein gemerktes Wort durch ein anderes,
+  ist es für diese Sprache wieder vergessen; Rückgängig gemachte Korrekturen, eigene Wörter,
+  Wortfolgen und Kürzel bleiben sprachübergreifend. Prüfer-Review: Befunde behoben (Nachprüfung 51 in
+  `docs/VALIDATION.md`), erneute Prüfung offen (Engine: `DictionaryFacilitatorImpl`, `Suggest`,
+  `LatinIME.onTrimMemory`, Pflicht). Offen: Gerätetest (echte Wörterbücher, Speicher der zusätzlich
+  geöffneten Wörterbücher, Sprachtaste und Wischen auf der Leertaste).
 - **52 Einheitliches Befehlssystem (mit dem Owner festgelegt, 2026-11-14)** — beschlossen, nächste
   Runde, noch nicht anfangen. Ausgangspunkt waren die Beispiele des Owners (`@lang set &duolingo
   spanish`, `@lang list &&apps lang`, `@lang del &whatsapp lang ; set &whatsapp ger`); der Owner wollte

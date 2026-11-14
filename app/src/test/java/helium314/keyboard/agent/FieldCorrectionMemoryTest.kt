@@ -109,24 +109,43 @@ class FieldCorrectionMemoryTest {
         page()
         compose.onNodeWithText("Was ich mir gemerkt habe").assertExists()
         compose.onNodeWithText("Korrekturen").performScrollTo()
-        compose.onNodeWithTag(MEMORY_ENTRY_TAG + "hsus").performScrollTo()
-        compose.onNodeWithText("hsus → Haus").assertExists()
-        compose.onNodeWithTag(MEMORY_ENTRY_TAG + "nciht").performScrollTo()
-        compose.onNodeWithText("nciht → nicht").assertExists()
-        compose.onNodeWithTag(MEMORY_ADOPT_TAG + "hsus").assertDoesNotExist() // learned: only delete
+        compose.onNodeWithTag(MEMORY_ENTRY_TAG + "de_hsus").performScrollTo()
+        compose.onNodeWithText("hsus → Haus (Deutsch)").assertExists()
+        compose.onNodeWithTag(MEMORY_ENTRY_TAG + "de_nciht").performScrollTo()
+        compose.onNodeWithText("nciht → nicht (Deutsch)").assertExists()
+        compose.onNodeWithTag(MEMORY_ADOPT_TAG + "de_hsus").assertDoesNotExist() // learned: only delete
         // adopt the candidate
-        compose.onNodeWithTag(MEMORY_ADOPT_TAG + "nciht").performScrollTo().performClick()
+        compose.onNodeWithTag(MEMORY_ADOPT_TAG + "de_nciht").performScrollTo().performClick()
         compose.waitForIdle()
         assertEquals(setOf(Triple("hsus", "Haus", true), Triple("nciht", "nicht", true)), entries().toSet())
-        compose.onNodeWithTag(MEMORY_ADOPT_TAG + "nciht").assertDoesNotExist()
+        compose.onNodeWithTag(MEMORY_ADOPT_TAG + "de_nciht").assertDoesNotExist()
         assertEquals("nicht", TypoMemory.meantWord(app, "nciht", null, false))
         // delete both
-        compose.onNodeWithTag(MEMORY_DELETE_TAG + "hsus").performScrollTo().performClick()
-        compose.onNodeWithTag(MEMORY_DELETE_TAG + "nciht").performScrollTo().performClick()
+        compose.onNodeWithTag(MEMORY_DELETE_TAG + "de_hsus").performScrollTo().performClick()
+        compose.onNodeWithTag(MEMORY_DELETE_TAG + "de_nciht").performScrollTo().performClick()
         compose.waitForIdle()
         assertEquals(emptyList(), entries())
         compose.onAllNodesWithText("Noch keine").assertCountEquals(2)
         assertNull(TypoMemory.meantWord(app, "hsus", null, false))
+    }
+
+    // review of stage 51 (N10): the page shows the language of each correction; the same typed form in two languages are two rows
+    @Test fun pageShowsTheLanguageOfEachCorrection() {
+        AgentStorageContexts.keyboard(app).getSharedPreferences(FieldCorrectionMemory.FILE, android.content.Context.MODE_PRIVATE).edit()
+            .putString("data", """{"candidates":[],"learned":[{"typed":"dnake","lang":"de","meant":"danke","seen":3},""" +
+                """{"typed":"dnake","lang":"es","meant":"dante","seen":2},{"typed":"teh","meant":"the","seen":1}]}""").commit()
+        FieldCorrectionMemory.resetForTest()
+        settings(on)
+        page()
+        compose.onNodeWithTag(MEMORY_ENTRY_TAG + "de_dnake").performScrollTo()
+        compose.onNodeWithText("dnake → danke (Deutsch)").assertExists()
+        compose.onNodeWithTag(MEMORY_ENTRY_TAG + "es_dnake").performScrollTo()
+        compose.onNodeWithText("dnake → dante (Spanisch)").assertExists()
+        compose.onNodeWithTag(MEMORY_ENTRY_TAG + "_teh").performScrollTo()
+        compose.onNodeWithText("teh → the").assertExists() // from before stage 51: no language
+        compose.onNodeWithTag(MEMORY_DELETE_TAG + "es_dnake").performScrollTo().performClick()
+        compose.waitForIdle()
+        assertEquals(listOf("de" to "danke", "" to "the"), FieldCorrectionMemory.all(app).map { it.language to it.meant })
     }
 
     private fun keyboard(element: helium314.keyboard.keyboard.KeyboardElement, locale: Locale, layout: String): helium314.keyboard.keyboard.Keyboard {

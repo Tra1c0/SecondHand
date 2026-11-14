@@ -10,6 +10,7 @@
     <string name="agent_memory_candidates_description">Einmal gesehen. Gelernt, wenn du denselben Tippfehler an anderer Stelle wieder verbesserst oder ihn hier übernimmst.</string>
     <string name="agent_memory_none">Noch keine</string>
     <string name="agent_memory_pair">%1$s → %2$s</string>
+    <string name="agent_memory_pair_in">%1$s → %2$s (%3$s)</string>
     <string name="agent_memory_adopt">Übernehmen</string>
     <string name="agent_memory_delete">Löschen</string>
     <!-- stage 46 -->

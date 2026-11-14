@@ -178,7 +178,7 @@ private fun AutocorrectSection(busy: Boolean) {
     toggle(R.string.agent_autocorrect_learn, R.string.agent_autocorrect_learn_description,
         learnTypos, AgentPreferences.AUTOCORRECT_LEARN_TYPOS) { learnTypos = it }
     Text(stringResource(R.string.agent_autocorrect_typos, typos.size,
-        typos.count { it.third >= TypoMemory.MIN_CONFIRMATIONS }))
+        typos.count { it.total >= TypoMemory.MIN_CONFIRMATIONS }))
     OutlinedButton(enabled = !busy && typos.isNotEmpty(), onClick = { confirmClearTypos = true }) {
         Text(stringResource(R.string.agent_autocorrect_typos_clear))
     }

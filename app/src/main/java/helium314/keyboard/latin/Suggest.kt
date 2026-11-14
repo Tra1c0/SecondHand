@@ -262,7 +262,10 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         if (typed.isEmpty() || predictions) return
         val settings = Settings.getValues()
         val language = ForeignWords.languageOf(settings)
-        ForeignWords.onTyped(typed, language, results.any { it.mSourceDict.mDictType == Dictionary.TYPE_MAIN
+        // review N5: only when these results come from the keyboard language with a loaded main dictionary;
+        // otherwise (a language command just switched, the dictionary still loads) treated as known
+        val canTell = mDictionaryFacilitator.mainLocale.language == language && mDictionaryFacilitator.hasAtLeastOneInitializedMainDictionary()
+        ForeignWords.onTyped(typed, language, !canTell || results.any { it.mSourceDict.mDictType == Dictionary.TYPE_MAIN
             && it.mSourceDict.mLocale?.language == language && it.mWord.equals(typed, ignoreCase = true) })
         val word = ForeignWords.completion(Settings.getCurrentContext(), settings, language, typed) ?: return
         val mainLocale = mDictionaryFacilitator.mainLocale

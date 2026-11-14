@@ -11,6 +11,7 @@
     <string name="agent_memory_candidates_description">Seen once. Learned when you fix the same typo again in another place, or when you adopt it here.</string>
     <string name="agent_memory_none">None yet</string>
     <string name="agent_memory_pair">%1$s → %2$s</string>
+    <string name="agent_memory_pair_in">%1$s → %2$s (%3$s)</string>
     <string name="agent_memory_adopt">Adopt</string>
     <string name="agent_memory_delete">Delete</string>
     <!-- stage 46 -->
