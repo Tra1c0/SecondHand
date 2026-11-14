@@ -73,6 +73,7 @@ object SettingsAreas {
             AreaEntry(SettingsDestination.AgentWorkflows, R.string.agent_workflows_title, R.string.agent_area_row_workflows),
             AreaEntry(SettingsDestination.AgentDictation, R.string.agent_dictation_title, R.string.agent_area_row_dictation),
         )
+        // 38h: the pages AgentAreaSystemScreen opens (rows, card and buttons tagged AREA_ROW_TAG + route)
         SettingsArea.SYSTEM -> listOf(
             AreaEntry(SettingsDestination.AgentProfiles, R.string.agent_profiles_title, R.string.agent_area_row_profiles),
             AreaEntry(SettingsDestination.AgentUpdates, R.string.agent_updates_title, R.string.agent_area_row_updates),
@@ -95,6 +96,7 @@ fun AgentAreaScreen(area: SettingsArea, onNavigate: (String) -> Unit, onClickBac
     if (area == SettingsArea.KEYS) return AgentAreaKeysScreen(onNavigate, onClickBack) // 38d, built from Tasten.dc.html
     if (area == SettingsArea.BAR) return AgentAreaBarScreen(onNavigate, onClickBack) // stage 38f
     if (area == SettingsArea.AI) return AgentAreaAiScreen(onNavigate, onClickBack) // 38g
+    if (area == SettingsArea.SYSTEM) return AgentAreaSystemScreen(onNavigate, onClickBack) // 38h, built from System.dc.html
     AgentSettingsTheme {
         Column(
             Modifier.fillMaxSize().background(AgentSettingsTokens.Background).windowInsetsPadding(WindowInsets.safeDrawing)

@@ -3030,6 +3030,49 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   am Ende von „GOOGLE GEMINI“.
 - Offen: Prüfer-Review, Gerätetest (FLAG_SECURE, Sperre und Entsperren mit offener Seite,
   echter Schlüssel, Diktat mit On-device-Erkenner, TalkBack).
+## Etappe 38h (Einstellungen: System & Daten)
+
+- Auftrag (Lead, ROADMAP 38): Bereich 07 1:1 nach `System.dc.html` mit dem Baukasten aus 38a, in
+  eigener Datei, alles bisher Erreichbare bleibt erreichbar. Gebaut in einer Arbeitskopie, kein
+  Prüfer-Review, kein Gerätetest.
+- Gebaut: `AgentAreaSystemScreen.kt`, `agent_settings_system_strings.xml` (Englisch, Deutsch),
+  eine Zeile in `AgentAreaScreen.kt`; `UpdateSettings.checkedAt` (geschrieben von `Updates.check`),
+  `FlatPreset.isApplied`, `KeyboardProfileStore.matchesCurrent`, `updateErrorText` aus
+  `AgentUpdatesScreen.kt` herausgezogen; Upstream: Parameter `row` in `BackupRestorePreference` und
+  `LoadGestureLibPreference`.
+- Zuordnung (Annahme des Leads): Profilkarten = gesicherte Bereiche (Design, Tastenanordnung,
+  Gesten; nur vorhandene), Flacher Look, „+ Neues Profil“ (→ Tastaturprofile); Knöpfe mit
+  Rückfrage, hervorgehoben solange die Einstellungen ihnen entsprechen (P136). Die Mockup-Karte
+  „ALLTAG“ (ein Profil über alle Bereiche) gibt es nicht, weil der Speicher nur getrennte Bereiche
+  kennt. Abweichungen vom Mockup: Pfeil neben „UPDATES“ (Überschrift öffnet die Seite Updates),
+  Knopf „Build N installieren“ nur bei einem neueren Build, zusätzliche Zeilen „Alle erweiterten
+  Einstellungen“, „Alle Infos und Links“, Gestendaten (nur in der Sammelphase); Titel der
+  App-Zeile ist der App-Name (im Debug-Build „Agent Keyboard Lab“).
+- Tests (Robolectric, kein Gerätetest): `SettingsSystemAreaTest` 10 Tests (Texte und
+  Abschnittsfolge des Mockups, keine Karte „Seiten“; `updateCardText` für Unbekannt, Aktuell,
+  Verfügbar, veraltetes Ergebnis nach Update und Fehler; Karte zeigt den gespeicherten Stand, beim
+  Öffnen kein Client und keine Anfrage, „Jetzt prüfen“ genau eine Anfrage an die Releases-API ohne
+  `Authorization` über die Attrappe, Ergebnis und Zeit gespeichert, „Build N installieren“ →
+  Updates; gesperrt nur Hinweis und Diagnose, kein Client; Profilkarten Role.Button ohne
+  Auswahl, Flacher Look und gesichertes Design nach Rückfrage angewandt, Abbrechen ändert nichts,
+  Hervorhebung folgt den Einstellungen, „+ Neues Profil“ → Tastaturprofile; URL-Erkennung und
+  Hardware-Tastatur schreiben die echten Schlüssel; Emoji-Version zeigt „Android 14“, Dialog mit
+  „Standard“ entfernt den Schlüssel; Dialoge Sichern/Wiederherstellen, Gesten-Bibliothek und
+  Versteckte Funktionen öffnen; alle Seiten aus `SettingsAreas.entries(SYSTEM)` plus Debug und
+  Export öffnen ihre Route; Weiterleitung aus `AgentAreaScreen`; alles Anklickbare ≥ 44 dp; Bild
+  mit Pixelprüfung). `SettingsStartScreenTest` (P119), `UpdateCheckTest`,
+  `KeyboardProfileStoreTest`, `FlatStyleTest` unverändert grün. Nicht geprüft: fünf Tipps auf die
+  Version (im Debug-Test sind die Debug-Einstellungen immer sichtbar), Protokoll speichern und
+  Lizenz-Link (Systemdialoge), Sperrwechsel während die Seite offen ist.
+- `python3 tools/dev.py agent-tests`: grün, 811 Tests in 90 Klassen, 0 Fehler (2026-11-14). Kein
+  Build, keine volle Upstream-Suite (geteilte Maschine). `docs_sync --check`: grün.
+- Bild (nicht versioniert): `app/build/agent-previews/settings-area_system-full.png`; mit
+  `System.dc.html` verglichen: Held, grün getönte Update-Karte mit hellem und umrandetem Knopf,
+  Karte PROFILE mit Verlaufskarten und Leucht-Pillen, drei Zeilenkarten mit Punkten, Schaltern und
+  Wert „Android …“ stimmen. Erster Entwurf schnitt Buchstaben am linken Rand ab (P137), behoben.
+  Systemschrift statt Space Grotesk/Inter.
+- Offen: Prüfer-Review (berührt keine Eingabepfade), Gerätetest (Aussehen, TalkBack, Dialoge im
+  dunklen Schema, echte Update-Prüfung).
 
 ## Gerätetest vor Meilensteinfreigabe
 

@@ -28,9 +28,10 @@ import java.io.IOException
 import androidx.core.content.edit
 import helium314.keyboard.latin.utils.IntentUtils
 
+// fork (38h): [row] draws the entry, so the area page "System & Daten" opens the same dialog from its own row
 @SuppressLint("ApplySharedPref")
 @Composable
-fun LoadGestureLibPreference(setting: Setting) {
+fun LoadGestureLibPreference(setting: Setting, row: @Composable (onClick: () -> Unit) -> Unit = { Preference(name = setting.title, onClick = it) }) {
     var showDialog by rememberSaveable { mutableStateOf(false) }
     val ctx = LocalContext.current
     val prefs = ctx.protectedPrefs()
@@ -71,10 +72,7 @@ fun LoadGestureLibPreference(setting: Setting) {
             // should inform user, but probably the issues will only come when reading the library
         }
     }
-    Preference(
-        name = setting.title,
-        onClick = { showDialog = true }
-    )
+    row { showDialog = true }
     if (showDialog) {
         ConfirmationDialog(
             onDismissRequest = { showDialog = false },

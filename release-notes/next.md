@@ -168,3 +168,12 @@
   und Tonfall, deine Workflows (mit Anzahl) sowie Diktat (Bereit/Erlauben/Nicht verfügbar) und
   Auftragsstatus. Bei gesperrtem Gerät zeigt die Seite nur den Hinweis zum Entsperren. Die
   bisherigen Seiten gibt es weiter. Noch auf keinem Gerät ausprobiert.
+- Neu: Einstellungen → „System & Daten“ ist nach dem Entwurf umgebaut. Oben die Karte „Updates“:
+  welcher Build aktuell oder verfügbar ist, wann zuletzt geprüft wurde und ob täglich automatisch;
+  „Jetzt prüfen“ fragt GitHub nur bei diesem Tipp, „Diagnose“ öffnet die Diagnose. Darunter
+  „Profile“: gesicherte Profile und der flache Look als große Karten, ein Tipp wendet sie nach
+  Rückfrage an; hell ist, was gerade eingestellt ist; „+ Neues Profil“ öffnet die Tastaturprofile.
+  Dann Sichern, Für Fortgeschrittene (Emoji-Version, URL-Erkennung, Hardware-Tastatur,
+  Gesten-Bibliothek …) und Über (Version, Lizenz, Versteckte Funktionen, Protokoll speichern). Der
+  Rest von „Erweitert“ liegt unter „Alle erweiterten Einstellungen“. Noch auf keinem Gerät
+  ausprobiert.

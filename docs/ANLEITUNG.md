@@ -35,7 +35,9 @@ Jeder Build erscheint zusätzlich im öffentlichen Repository
 (Einrichtung einmalig: `docs/BUILD.md` → Installierbare APK). Die App braucht dafür kein Konto
 und keinen Token.
 
-1. Einstellungen → „Updates“. Die Seite zeigt den installierten Build und das Repository.
+1. Einstellungen → „Updates“ (unten auf der Startseite) oder System & Daten → Überschrift der
+   Karte „Updates“. Die Seite zeigt den installierten Build und das Repository. „Jetzt prüfen“
+   gibt es auch direkt auf der Karte in System & Daten.
 2. „Jetzt prüfen“: Darunter steht „Aktuell: Build 6“, „Build 7 verfügbar“ oder eine Meldung.
 3. Ist ein neuer Build da, tippe „Build 7 herunterladen und installieren“. Darf die App noch
    keine Apps installieren, zeigt die Seite „Einstellung öffnen“: dort „Agent Keyboard Lab“
@@ -82,14 +84,11 @@ liegt X jetzt in diesem Bereich:
 | --- | --- |
 | 01 Aussehen | Design, RGB-Beleuchtung, Aussehen |
 | 02 Tippen & Korrektur | eigene Seite (siehe unten); Textkorrektur = „Alle Korrektur-Einstellungen“, Gelernte Wörter, Wörterbücher, Persönliches Wörterbuch |
-| 03 Tasten & Sprachen | Sprachen & Layouts, Optionen, Sekundäre Layouts |
+| 03 Tasten & Sprachen | eigene Seite (siehe unten): Sprachen & Layouts, Sekundäre Layouts, Optionen (über „Weitere Optionen“) |
 | 04 Gesten & Gefühl | eigene Seite (siehe unten): Leertaste, Wischen über die Buchstaben, Symbole malen, Vibration & Ton, Treffen & Wischen |
-| 02 Tippen & Korrektur | Textkorrektur, Gelernte Wörter, Wörterbücher |
-| 03 Tasten & Sprachen | schon neu gestaltet (siehe unten): Sprachen & Layouts, Sekundäre Layouts, Optionen (über „Weitere Optionen“) |
-| 04 Gesten & Gefühl | Leertaste, Symbole malen, Gesten-Tippen (nur mit Bibliothek), Vibration & Ton (= Optionen) |
 | 05 Leiste & Befehle | eigene Seite (siehe unten); Leiste = „Knöpfe wählen und sortieren“, Befehle = „Alle Befehls-Einstellungen“, Screenshots |
 | 06 KI & Automationen | eigene Seite (siehe unten): Anbieter und Schlüsselstatus, Skill-Tasten, Texte, Workflows, Diktat & Verlauf |
-| 07 System & Daten | Tastaturprofile, Updates, Diagnose, Erweitert, Gestendaten-Erfassung (nur in der Sammelphase), Über |
+| 07 System & Daten | eigene Seite (siehe unten): Updates, Profile, Sichern, Für Fortgeschrittene, Über; dazu Tastaturprofile, Updates, Diagnose, Erweitert („Alle erweiterten Einstellungen“), Gestendaten-Erfassung (nur in der Sammelphase), Über („Alle Infos und Links“) |
 
 Zurück geht es mit dem runden Pfeil oben links oder der Zurück-Geste.
 
@@ -180,6 +179,28 @@ Wie die Seite „KI-Anbieter“ lässt sie keine Bildschirmfotos zu. Bei gesperr
 - „Diktat & Verlauf“: „Diktat auf dem Gerät“ zeigt „Bereit“, „Erlauben“ (Mikrofon fehlt) oder
   „Nicht verfügbar“ (kein On-device-Erkenner, vor Android 12) und öffnet die Seite „Diktat“;
   „Auftragsstatus“ öffnet die Seite „KI-Anbieter“, wo die Liste unten steht.
+### System & Daten
+
+- Karte **UPDATES**: zeigt das letzte Ergebnis („Build 16 ist aktuell“, „Build 17 verfügbar“,
+  „Noch nicht geprüft“ oder „Prüfung fehlgeschlagen“ mit Grund), wann zuletzt geprüft wurde und ob
+  täglich automatisch geprüft wird. „Jetzt prüfen“ fragt GitHub, nur bei diesem Tipp. „Diagnose“
+  öffnet die Diagnose-Seite. Ein Tipp auf die Überschrift öffnet die Seite „Updates“ (Schalter
+  „Täglich nach Updates suchen“); ist ein neuer Build da, führt „Build 17 installieren“ dorthin
+  zum Laden. Bei gesperrtem Gerät steht dort nur der Hinweis zum Entsperren.
+- Karte **PROFILE**: je gesicherter Bereich (Design, Tastenanordnung, Gesten) eine Karte, dazu
+  „Flacher Look“ und „+ Neues Profil“. Ein Tipp auf eine Profilkarte fragt nach und wendet sie mit
+  „Anwenden“ an. Hell mit weißem Rahmen ist eine Karte, solange deine Einstellungen ihr
+  entsprechen. „+ Neues Profil“ öffnet Tastaturprofile (sichern, exportieren, importieren,
+  zurücksetzen, Flacher Look zurücknehmen).
+- **Sichern**: „Sichern und Wiederherstellen“ (alle Einstellungen als Datei, derselbe Dialog wie
+  bisher), „Profile exportieren“ (öffnet Tastaturprofile).
+- **Für Fortgeschrittene**: Emoji-Version, URL-Erkennung, Hardware-Tastatur, Gesten-Bibliothek
+  laden, Debug-Einstellungen (nur wenn freigeschaltet), Gestendaten (nur in der Sammelphase) und
+  „Alle erweiterten Einstellungen“ für den Rest der alten Seite Erweitert (Symbole-Taste für den
+  Ziffernblock, Emoji-Taste der Hardware-Tastatur, App-Symbol …).
+- **Über**: Agent Keyboard mit Version und Build (fünfmal tippen schaltet die
+  Debug-Einstellungen frei), Lizenz, Versteckte Funktionen, Protokoll speichern und „Alle Infos und
+  Links“ (Wiki, Community, Quellcode).
 
 ## Textaktionen (ohne Internet)
 

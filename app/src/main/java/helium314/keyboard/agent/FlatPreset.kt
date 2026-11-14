@@ -60,6 +60,15 @@ class FlatPreset(private val context: Context) {
 
     val canRestore: Boolean get() = backup.getBoolean(BACKUP_PRESENT, false)
 
+    /** True while every value of the preset is set as [apply] writes it (stage 38h highlights the card). */
+    fun isApplied(): Boolean {
+        val current = keyboardPrefs.all
+        return values().all { (key, value) ->
+            val now = current[key]
+            if (value is Float) now is Float && kotlin.math.abs(now - value) < 1e-4f else now == value
+        }
+    }
+
     fun apply() {
         val values = values()
         saveBackup(values.keys)

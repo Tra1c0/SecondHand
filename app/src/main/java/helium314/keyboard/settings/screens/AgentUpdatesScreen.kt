@@ -180,20 +180,23 @@ private fun statusText(status: UpdateStatus): String = when (status) {
     UpdateStatus.Unknown -> stringResource(R.string.agent_updates_status_none)
     is UpdateStatus.Current -> stringResource(R.string.agent_updates_status_current, status.installed)
     is UpdateStatus.Available -> stringResource(R.string.agent_updates_status_available, status.build)
-    is UpdateStatus.Failed -> stringResource(when (status.error) {
-        UpdateError.LOCKED -> R.string.agent_updates_error_locked
-        UpdateError.NOT_FOUND -> R.string.agent_updates_error_not_found
-        UpdateError.RATE_LIMIT -> R.string.agent_updates_error_rate_limit
-        UpdateError.SERVICE -> R.string.agent_updates_error_service
-        UpdateError.NETWORK -> R.string.agent_updates_error_network
-        UpdateError.TIMEOUT -> R.string.agent_updates_error_timeout
-        UpdateError.INVALID_RESPONSE -> R.string.agent_updates_error_invalid_response
-        UpdateError.TOO_LARGE -> R.string.agent_updates_error_too_large
-        UpdateError.STORAGE -> R.string.agent_updates_error_storage
-        UpdateError.CHECKSUM -> R.string.agent_updates_error_checksum
-        UpdateError.WRONG_PACKAGE -> R.string.agent_updates_error_wrong_package
-        UpdateError.WRONG_SIGNATURE -> R.string.agent_updates_error_wrong_signature
-        UpdateError.NOT_NEWER -> R.string.agent_updates_error_not_newer
-        UpdateError.INSTALL -> R.string.agent_updates_error_install
-    })
+    is UpdateStatus.Failed -> stringResource(updateErrorText(status.error))
+}
+
+/** The text of one update error (also used by the area page "System & Daten"). */
+internal fun updateErrorText(error: UpdateError): Int = when (error) {
+    UpdateError.LOCKED -> R.string.agent_updates_error_locked
+    UpdateError.NOT_FOUND -> R.string.agent_updates_error_not_found
+    UpdateError.RATE_LIMIT -> R.string.agent_updates_error_rate_limit
+    UpdateError.SERVICE -> R.string.agent_updates_error_service
+    UpdateError.NETWORK -> R.string.agent_updates_error_network
+    UpdateError.TIMEOUT -> R.string.agent_updates_error_timeout
+    UpdateError.INVALID_RESPONSE -> R.string.agent_updates_error_invalid_response
+    UpdateError.TOO_LARGE -> R.string.agent_updates_error_too_large
+    UpdateError.STORAGE -> R.string.agent_updates_error_storage
+    UpdateError.CHECKSUM -> R.string.agent_updates_error_checksum
+    UpdateError.WRONG_PACKAGE -> R.string.agent_updates_error_wrong_package
+    UpdateError.WRONG_SIGNATURE -> R.string.agent_updates_error_wrong_signature
+    UpdateError.NOT_NEWER -> R.string.agent_updates_error_not_newer
+    UpdateError.INSTALL -> R.string.agent_updates_error_install
 }

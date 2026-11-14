@@ -51,14 +51,15 @@ import helium314.keyboard.latin.checkVersionUpgrade
 import helium314.keyboard.latin.transferOldPinnedClips
 import helium314.keyboard.latin.utils.IntentUtils
 
+// fork (38h): [row] draws the entry, so the area page "System & Daten" opens the same dialog from its own row
 @Composable
-fun BackupRestorePreference(setting: Setting) {
+fun BackupRestorePreference(setting: Setting, row: @Composable (onClick: () -> Unit) -> Unit = { Preference(name = setting.title, onClick = it) }) {
     var showDialog by rememberSaveable { mutableStateOf(false) }
     val ctx = LocalContext.current
     var error: String? by rememberSaveable { mutableStateOf(null) }
     val backupLauncher = backupLauncher { error = it }
     val restoreLauncher = restoreLauncher { error = it }
-    Preference(name = setting.title, onClick = { showDialog = true })
+    row { showDialog = true }
     if (showDialog) {
         ConfirmationDialog(
             onDismissRequest = { showDialog = false },

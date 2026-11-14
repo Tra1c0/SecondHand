@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 38h: area page "System & data" (mockup System.dc.html) -->
+<resources>
+    <string name="agent_system_updates_label">UPDATES</string>
+    <string name="agent_system_updates_current">Build %d is up to date</string>
+    <string name="agent_system_updates_available">Build %d available</string>
+    <string name="agent_system_updates_installed">Build %d installed</string>
+    <string name="agent_system_updates_never">Not checked yet</string>
+    <string name="agent_system_updates_failed">Check failed</string>
+    <string name="agent_system_updates_checked">Last checked %s</string>
+    <string name="agent_system_updates_daily_on">daily automatically</string>
+    <string name="agent_system_updates_daily_off">automatic check off</string>
+    <string name="agent_system_updates_install">Install build %d</string>
+    <string name="agent_system_diagnose">Diagnosis</string>
+    <string name="agent_system_profiles">Profiles</string>
+    <string name="agent_system_profile_saved_hint">Saved state · tap to apply</string>
+    <string name="agent_system_profile_active">matches the current settings</string>
+    <string name="agent_system_flat">Flat look</string>
+    <string name="agent_system_flat_hint">Preset after your screenshots</string>
+    <string name="agent_system_new_profile">+ New profile</string>
+    <string name="agent_system_new_profile_hint">Save the current state</string>
+    <string name="agent_system_apply_title">Apply %s?</string>
+    <string name="agent_system_apply_flat">Sets style, colours, bar, layouts and sizes of the flat look. The page “Keyboard profiles” can restore the previous look.</string>
+    <string name="agent_system_apply_saved">Sets the saved values of this area and replaces the current ones.</string>
+    <string name="agent_system_apply">Apply</string>
+    <string name="agent_system_section_backup">Back up</string>
+    <string name="agent_system_backup">Back up and restore</string>
+    <string name="agent_system_backup_sub">All settings as a file</string>
+    <string name="agent_system_export">Export profiles</string>
+    <string name="agent_system_export_sub">Design, keys, gestures one by one</string>
+    <string name="agent_system_section_advanced">For advanced users</string>
+    <string name="agent_system_emoji">Emoji version</string>
+    <string name="agent_system_emoji_sub">Which emojis are offered</string>
+    <string name="agent_system_emoji_unknown">unknown</string>
+    <string name="agent_system_url">URL detection</string>
+    <string name="agent_system_url_sub">Addresses as one word</string>
+    <string name="agent_system_hardware">Hardware keyboard</string>
+    <string name="agent_system_hardware_sub">Support for external keyboards</string>
+    <string name="agent_system_gesture_lib">Load gesture library</string>
+    <string name="agent_system_gesture_lib_sub">For gesture typing</string>
+    <string name="agent_system_debug">Debug settings</string>
+    <string name="agent_system_debug_sub">After 5 taps on “Version”</string>
+    <string name="agent_system_all_advanced">All advanced settings</string>
+    <string name="agent_system_all_advanced_sub">Numpad symbols, emoji key on physical keyboards and more</string>
+    <string name="agent_system_section_about">About</string>
+    <string name="agent_system_version">Version %1$s · Build %2$d</string>
+    <string name="agent_system_license">Licence</string>
+    <string name="agent_system_license_sub">GNU GPL v3.0 · based on HeliBoard</string>
+    <string name="agent_system_hidden">Hidden features</string>
+    <string name="agent_system_hidden_sub">What is easy to miss</string>
+    <string name="agent_system_log_sub">For bug reports</string>
+    <string name="agent_system_about_all">All info and links</string>
+    <string name="agent_system_about_all_sub">Wiki, community, source code</string>
+</resources>

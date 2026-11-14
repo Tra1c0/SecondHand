@@ -520,6 +520,12 @@ Schieberegler (Etappe 28, Abschnitt „Einstellungen und Profile“, P85–P87):
   bleiben, ihre Berührungen übernimmt `AgentSliderInput` (setzt `setAlpha`/`setBrightness` wie die
   Bibliothek, mit `fromUser = true`); dazu Slider-Semantik für TalkBack (vorher keine).
 
+Einstellungen System & Daten (38h, Abschnitt „Einstellungen und Profile“):
+
+- `BackupRestorePreference.kt`, `LoadGestureLibPreference.kt`: optionaler letzter Parameter
+  `row` zeichnet den Eintrag (Standard: die bisherige `Preference`); so öffnet die Bereichsseite
+  denselben Dialog mit denselben Launchern aus ihrer eigenen Zeile. Sonst unverändert.
+
 Update-Migrationen (Build 12, P84): `AppUpgrade.kt` läuft nach einem Update nur noch die Teile
 für jedes Update (entpackte Wörterbücher leeren, `upgradeToolbarPrefs`, Layout-Cache) und
 überspringt HeliBoards Versions-Migrationen (`FORK_UPGRADES_ONLY`); beim ersten Update von Build
@@ -1216,6 +1222,30 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   „Ändern“, Kachel 1, „Meine Workflows“ und Diktat tragen `AREA_ROW_TAG` + Route. Texte
   `agent_ai_area_strings.xml`. Test `AT/SettingsAreaAiTest.kt` (Bild
   `app/build/agent-previews/settings-area_ai-full.png`, ganze Seite).
+- Bereich System & Daten (38h, Vorlage `System.dc.html`, P136–P137):
+  `K/settings/screens/AgentAreaSystemScreen.kt`; `AgentAreaScreen` leitet `SettingsArea.SYSTEM` mit
+  einer Zeile dorthin. Karte „Updates“ (`UpdatesCard`): bei gesperrtem Gerät
+  (`credentialAccessAllowed`, neu gelesen bei `ON_RESUME`) nur `agent_updates_unlock` und
+  „Diagnose“ wie die alte Seite; sonst `updateCardText` aus `UpdateSettings.status`,
+  `checkedAt`, `daily` und `Updates.installedVersion` („verfügbar“ nur für einen neueren Build,
+  „ist aktuell“ nur, wenn die Prüfung auf diesem Build lief, Fehlertext über `updateErrorText`
+  aus `AgentUpdatesScreen.kt`). „Jetzt prüfen“ ruft `Updates.check` auf `Dispatchers.IO` mit dem
+  Client aus dem Parameter `updateClient` (Tests: Attrappe), erst bei diesem Tipp; Überschrift und
+  „Build N installieren“ öffnen `AgentUpdates` (Schalter, Download). Karte „PROFILE“
+  (`profileCards`): je `KeyboardProfileStore.hasSaved` eine Karte, dann Flacher Look, dann
+  „+ Neues Profil“ (→ `AgentProfiles`); Knöpfe mit Rückfrage, die `restoreSaved` bzw.
+  `FlatPreset.apply` aufrufen; hervorgehoben (100 %, Rahmen, stateDescription), solange
+  `KeyboardProfileStore.matchesCurrent` bzw. `FlatPreset.isApplied` gilt. Sichern:
+  `BackupRestorePreference`, Für Fortgeschrittene: Emoji-Version (`SliderDialog` mit Bereich,
+  Standard und Nebenwirkungen der alten `SliderPreference`), URL-Erkennung, Hardware-Tastatur,
+  `LoadGestureLibPreference` (nicht in `nouserlib`), Debug (wie Erweitert nur `DEBUG` oder
+  freigeschaltet), Gestendaten (Bedingung aus `SettingsAreas`), „Alle erweiterten Einstellungen“;
+  Über (`AboutRows`): Version mit fünf Tipps wie `AboutScreen`, Lizenz, Versteckte Funktionen
+  (derselbe `AlertDialog`), Protokoll speichern (derselbe Export), „Alle Infos und Links“ → About.
+  Wer dort eine Nebenwirkung ändert, ändert sie hier mit. `SettingsAreas.entries(SYSTEM)` bleibt
+  die Liste der Seiten, die diese Seite öffnet (Tags `AREA_ROW_TAG + route`, P119). Texte
+  `agent_settings_system_strings.xml`. Test `AT/SettingsSystemAreaTest.kt` (Bild
+  `app/build/agent-previews/settings-area_system-full.png`).
 - Design-Seite (23f1): `A/DesignTiles.kt` (Abschnitte, Kacheln, Auswahl; schreibt genau die
   Schlüssel von Tag/Nacht-Schalter und Farbwähler, „Flacher Look“ über `FlatPreset.apply`) und
   `K/settings/screens/AgentDesignScreen.kt` (Raster, Rahmen und Häkchen, TalkBack als
@@ -1745,7 +1775,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `A/updates/UpdateCheckJob.kt`: `UpdateScheduler` (JobScheduler, 24 h, Netz nötig, persistiert),
   `UpdateCheckJobService`, `UpdateNotifier` (Kanal „Updates“, öffnet nur die Seite über
   `OPEN_SETTINGS_DESTINATION` mit `FLAG_ACTIVITY_CLEAR_TASK`, P39).
-- `A/updates/UpdateSettings.kt`: CE-Einstellungen `agent_updates` (`UpdateStatus`).
+- `A/updates/UpdateSettings.kt`: CE-Einstellungen `agent_updates` (`UpdateStatus`, seit 38h
+  `checkedAt`, von `Updates.check` mit jedem Ergebnis geschrieben).
 - `K/settings/screens/AgentUpdatesScreen.kt`: Seite „Updates“ (Schalter, „Jetzt prüfen“, Ergebnis,
   Download-Knopf mit Fortschritt und Abbrechen, Weg zu „Unbekannte Apps installieren“, Hinweis
   für Freunde). Texte in `agent_update_strings.xml`, Icon `ic_agent_settings_updates.xml`.
@@ -2502,13 +2533,23 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   dieser Reihenfolge. Auf der KI-Seite öffnen mehrere Elemente dieselbe Seite (drei Kacheln,
   drei Workflow-Zeilen, „Ändern“ und Auftragsstatus): nur je eines trägt den Tag, die anderen
   `SKILL_TAG`/`AI_ROW_TAG`, sonst ist der Knoten nicht eindeutig und der Test wird rot.
+- **P136** Profilkarten auf System & Daten sind Aktionen, keine Auswahl: `ChoiceCards` ist eine
+  Radio-Gruppe mit genau einer Wahl, hier können mehrere Karten gleichzeitig „aktiv“ sein (Design
+  und Gesten passen) oder keine. Deshalb eigene Knöpfe (Role.Button, stateDescription); die
+  Hervorhebung rechnet `FlatPreset.isApplied`/`KeyboardProfileStore.matchesCurrent` bei jeder
+  Komposition neu. Wer `FlatPreset.values` oder die Profil-Bindungen ändert, ändert damit, wann
+  eine Karte hell ist (`SettingsSystemAreaTest.profileCardsAreButtonsThatApplyTheRealProfiles`).
+- **P137** Ein `clip` mit runden Ecken auf einer klickbaren Fläche ohne Innenabstand schneidet die
+  ersten Buchstaben ab (im Bild „JPDATES“, „Zuletzt“ ohne „Z“). Die klickbare Überschrift der
+  Update-Karte hat deshalb keinen Clip. `DateUtils.getRelativeTimeSpanString` schreibt deutsch
+  „Vor 2 Stunden“ groß; mitten im Satz wird der erste Buchstabe klein gemacht.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (456 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (462 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -2535,7 +2576,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (80): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (81): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, ClipCommandTest, CommandReplaceTest, CommandTemplatesTest,
@@ -2549,11 +2590,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProviderTest, RgbLightingRenderTest, RgbSettingsScreenTest, RgbTilesTest,
   ScreenshotChipTest, SelectedTextCommitTest, SettingsAreaAiTest, SettingsAreaGesturesTest,
   SettingsBarAreaTest, SettingsKeysScreenTest, SettingsKitTest, SettingsStartScreenTest,
-  SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest, SnipCommandTest,
-  SpaceDetentsTest, SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal,
-  ToolRunnerTest, TouchModelTest, TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest,
-  WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
-  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  SettingsSystemAreaTest, SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest,
+  SliderFeelTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest, SymbolInkTest,
+  SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest, TouchModelTest, TypoMemoryTest,
+  UpdateCheckTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
+  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (8): ClockCommandsTest, EmojiMixCommandTest, LanguageCommandTest, QrCommandTest,
   ScreenReaderServiceTest, SubtypeChoiceTest, TranslateCommandTest, UrlCommandTest
 - `C/` (40): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
@@ -2590,16 +2631,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/latin/utils/` (4): DictionaryInfoUtils, DictionaryUtils, SubtypeUtils, ToolbarUtils
 - `K/settings/` (4): SearchScreen, SettingsActivity, SettingsContainer, SettingsNavHost
 - `K/settings/dialogs/` (2): ColorPickerDialog, SliderDialog
-- `K/settings/preferences/` (2): KeyboardScalePreference, SliderPreference
-- `K/settings/screens/` (37): AdvancedScreen, AgentAiScreen, AgentAreaAiScreen, AgentAreaBarScreen,
-  AgentAreaGesturesScreen, AgentAreaKeysScreen, AgentAreaScreen, AgentAreaTypingScreen,
-  AgentCommandsScreen, AgentDesignEditor, AgentDesignScreen, AgentDiagnoseScreen,
-  AgentDictationScreen, AgentEmojiMixSection, AgentLearningScreen, AgentProfilesScreen,
-  AgentRgbCurveEditor, AgentRgbScreen, AgentRunStatus, AgentScreenReaderSection,
-  AgentScreenshotScreen, AgentSettingsKit, AgentSkillsScreen, AgentSlider, AgentSnippetsSection,
-  AgentSpaceScreen, AgentStartScreen, AgentSymbolsScreen, AgentUpdatesScreen, AgentWorkflowsScreen,
-  AppearanceScreen, DictionaryScreen, GestureTypingScreen, MainSettingsScreen, TextCorrectionScreen,
-  WorkflowBuilderDialog, WorkflowDraftProtection
+- `K/settings/preferences/` (4): BackupRestorePreference, KeyboardScalePreference,
+  LoadGestureLibPreference, SliderPreference
+- `K/settings/screens/` (38): AdvancedScreen, AgentAiScreen, AgentAreaAiScreen, AgentAreaBarScreen,
+  AgentAreaGesturesScreen, AgentAreaKeysScreen, AgentAreaScreen, AgentAreaSystemScreen,
+  AgentAreaTypingScreen, AgentCommandsScreen, AgentDesignEditor, AgentDesignScreen,
+  AgentDiagnoseScreen, AgentDictationScreen, AgentEmojiMixSection, AgentLearningScreen,
+  AgentProfilesScreen, AgentRgbCurveEditor, AgentRgbScreen, AgentRunStatus,
+  AgentScreenReaderSection, AgentScreenshotScreen, AgentSettingsKit, AgentSkillsScreen, AgentSlider,
+  AgentSnippetsSection, AgentSpaceScreen, AgentStartScreen, AgentSymbolsScreen, AgentUpdatesScreen,
+  AgentWorkflowsScreen, AppearanceScreen, DictionaryScreen, GestureTypingScreen, MainSettingsScreen,
+  TextCorrectionScreen, WorkflowBuilderDialog, WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
 - `app/` (1): build.gradle
@@ -2619,17 +2661,18 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (18): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
+- `app/src/main/res/values-de/` (19): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
   agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings, agent_gestures_strings,
   agent_language_strings, agent_rgb_strings, agent_settings_keys_strings, agent_settings_strings,
-  agent_slider_strings, agent_space_strings, agent_strings, agent_symbol_strings,
-  agent_typing_strings, agent_update_strings, strings
-- `app/src/main/res/values/` (24): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+  agent_settings_system_strings, agent_slider_strings, agent_space_strings, agent_strings,
+  agent_symbol_strings, agent_typing_strings, agent_update_strings, strings
+- `app/src/main/res/values/` (25): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
   agent_bar_strings, agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings,
   agent_gestures_strings, agent_ids, agent_language_strings, agent_rgb_strings,
-  agent_settings_keys_strings, agent_settings_strings, agent_slider_strings, agent_space_strings,
-  agent_strings, agent_symbol_strings, agent_typing_strings, agent_update_strings, attrs,
-  clip_provider, donottranslate, gesture_data, themes-flat
+  agent_settings_keys_strings, agent_settings_strings, agent_settings_system_strings,
+  agent_slider_strings, agent_space_strings, agent_strings, agent_symbol_strings,
+  agent_typing_strings, agent_update_strings, attrs, clip_provider, donottranslate, gesture_data,
+  themes-flat
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (1): Shadows

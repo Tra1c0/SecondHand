@@ -26,7 +26,7 @@ object Updates {
             else UpdateStatus.Current(installed)
         } catch (failure: UpdateFailure) { UpdateStatus.Failed(failure.error) }
         catch (_: Exception) { UpdateStatus.Failed(UpdateError.SERVICE) }
-        runCatching { UpdateSettings(context).status = status }
+        runCatching { UpdateSettings(context).let { it.status = status; it.checkedAt = System.currentTimeMillis() } }
         return status
     }
 
