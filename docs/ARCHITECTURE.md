@@ -353,6 +353,10 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   Korrektur nach Prüfer (30/31): Die Prüfung `SubtypeChoice.holds` bekommt als dritten Wert eine
   Funktion, die `SubtypeState.getSubtypeForLocales(…, peek = true)` fragt; „behalten“ wird nur
   notiert, wenn die App wirklich umgeschaltet hätte (P98).
+  Etappe 52: `onStartInputInternal` holt die Sprache der App an beiden Stellen (Prüfung
+  `SubtypeChoice.holds` und Wahl nach Hint-Locales) über `CommandAppSettings.subtypeForApp(this,
+  mSettings, packageName)` statt `mSettings.getSubtypeForApp`: zuerst HeliBoards eigene Sprache
+  pro App (nur mit dem Schalter), dann die per Befehl gesetzte, dann die für alle Apps (P199).
 - `InputLogic.java`: verwirft Caches und blockiert Eingabepfade nach einer unklaren Ersetzung
   (`ApplyOutcome.UNKNOWN`), unterdrückt Lernen nach generierter Übernahme. Ersetzen
   (`applyGeneratedText`) und Einfügen (`insertGeneratedText`) laufen durch dieselbe
@@ -1194,7 +1198,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `parse(…, longArguments)`). `LOOKBACK` richtet sich nach der langen Grenze, alle Leser
   (`guardsTextBefore`, `updateGuard`, Chips) lesen deshalb bis zu 519 Zeichen. Erlaubte Präfixe
   (`ALLOWED_PREFIXES`) sind nur Zeichen, die in `symbols_word_separators` fehlen; sonst wäre der
-  Befehl beim Tippen kein einzelnes Wort und die Autokorrektur könnte ihn ändern.
+  Befehl beim Tippen kein einzelnes Wort und die Autokorrektur könnte ihn ändern. Etappe 52:
+  `aliases` (zweite Namen, nur ganz, nach `LanguageNames.normalize`, Umlaute auch als ae/oe/ue,
+  nie angefangen, damit `@sp` Spanisch bleibt; `CommandCall.alias` trägt das getippte Wort, anders
+  als `claimed` mit Argument) und `help` (`@?` am Wortanfang ergibt `CommandNames` mit `typed` =
+  `CommandSyntax.HELP`); `isCommandWord` kennt die zweiten Namen.
 - `A/KeyboardCommands.kt`: Einstellungen (`AgentPreferences.COMMANDS`, `COMMAND_PREFIX`,
   `COMMANDS_DISABLED`), die Liste der eingebauten Befehle (`BUILT_IN`, je Etappe einer; Befehle
   kommen nie aus Dateien oder Modellen), `find` (aus in Passwortfeldern, im Inkognito-Modus, bei
@@ -1592,6 +1600,83 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `AT/ContactCommandTest.kt`, `AT/MoreCommandsTest.kt`, `AT/SnipCommandTest.kt`,
     `AT/ClipCommandTest.kt`, `AT/DatePlaceCommandsTest.kt`, `UrlCommandTest` und
     `ScreenReaderServiceTest` (`AT/commands/`), `InputLogicTest.typed*`.
+
+- Einheitliches Befehlssystem (Etappe 52, P199–P202): `@<bereich> [aktion] [angaben …]` für die
+  Bereiche `@lang`, `@snip`, `@clip`, `@guard`, `@mem`, `@group` (zweite Namen `@sprache`,
+  `@baustein`, `@ablage`, `@wächter`, `@gedächtnis`, `@gruppe` über `Command.aliases`).
+  - `C/CommandGrammar.kt` (rein): `tokenize` (Leerraum; `;`, `→`, `->` auch angeklebt eigene
+    Wörter), `parse(text, prefix, areas, vocabulary, claim)` → `Reading`s (höchstens
+    `MAX_READINGS` = 3, nur die mit den wenigsten unbekannten Wörtern und den geringsten Kosten).
+    Segmente beginnen mit einem Bereichswort (`areas`: Namen und normalisierte zweite Namen) oder
+    einem beanspruchten Sprachwort (`claim`, `@deutsch` = Wert); Schritte teilen sich an
+    `SEPARATORS` (`;`, `then`, `dann`, `→`, `->`), außer in `@snip` (dort gehört alles bis zum
+    nächsten Bereichswort zum Text, nur `;`/`→`/`->` direkt davor fallen weg). Jeder Bereich kennt
+    seine Aktionen (`ACTIONS`) und Plätze: `@lang`/`@guard`/`@mem` Ziele (App, Gruppe, `ALL_WORDS`
+    = alle; leer = die App des Felds) und bei `@lang` eine Sprache, `@group` Name (erstes Wort ohne
+    Aktion; eigene Gruppe auch mit Tippfehler oder neuer Name, `isValidGroupName`) und Apps,
+    `@snip` Aktion als erstes Wort, dann Name und Text, `@clip` genau ein Aktionswort.
+    `ACTION_WORDS` Englisch zuerst, dann Deutsch; Aktionen genau oder ab vier Buchstaben mit
+    Tippfehler. Wörter: genau (0), angefangen ab drei Buchstaben oder ganzes Wort eines längeren
+    Namens (1), Tippfehler des ganzen Namens (2) über `NameMatch` mit den Regeln von
+    `LanguageNames` (`isTypo`, `allowedEdits`); Sprachen über `LanguageMatcher` (genau 0, sonst 1);
+    Nachbarwörter, die zusammen genau ein App-Name sind, gelten als eins („google maps“);
+    `APP_PREFIX` (`app:`) erzwingt eine App. Jede Bedeutung mit den geringsten Kosten bleibt
+    (gleichstand = mehrere Deutungen), ein Wort ohne Platz kostet 3 (`Role.UNKNOWN`). `Step.legacy`
+    = die alte Form des Bereichs (`@lang spanisch`, `@deutsch`, `@snip adr`, `@clip Termin`).
+    `Word`s geben jedem Wort eine `Role` (Bereich, Aktion, Ziel, Wert, Trenner, Unbekannt).
+  - `A/KeyboardCommands.kt`: `Active.parse` verlängert einen Bereichsbefehl rückwärts über frühere
+    Bereichsbefehle derselben Zeile (`MAX_CHAIN` = 8) zu einem `CommandCall` über die ganze Kette
+    (Name des ersten Bereichs, Argument bis zur Schreibmarke); alle Leser parsen gleich. `aliases`
+    und `help` (die eingeschalteten Bereiche) gehen an `CommandSyntax.parse`. `chipsFor` gibt für
+    `@?` `CommandSystem.helpChips`; `buildChips` fragt ohne Befehl zuerst `CommandSystem.undoChips`.
+    `chipBackground` ist die Chipfarbe (auch für `CommandColors`), `activeNames` die
+    eingeschalteten Befehle. `load` setzt `active` jetzt vor den `Command.load`-Aufrufen.
+  - `A/commands/CommandSystem.kt`: `readings` (Wortschatz aus `InstalledApps`, `CommandAppSettings.groups`,
+    `SnipCommand.names`, `LanguageCommand.matchLanguages`), `chips` (null = alte Form, der Bereich
+    zeigt seine alten Chips; ein Schritt, der nur zeigt oder auflistet, gibt Einträge als
+    `TEMPLATE`-Chips, die „@bereich wort “ schreiben, bei `?` davor den Aufbau (`syntaxChip`);
+    sonst je Deutung ein Vorschau-Chip in Klartext, farbig über `Words`; dahinter Vorschläge je
+    Platz (`suggestions`, höchstens 4). `Plan`/`StepPlan`: Text, Wirkung, `complete`, `harmless`.
+    Ein Tipp (`execute`, einmal je Chip) prüft Sperren, entfernt erst den ganzen Befehl
+    (`Host.replace(call, "")`, scheitert das, passiert nichts) und führt dann jeden Schritt aus;
+    jede Wirkung gibt ihre Rücknahme zurück. `Undo` (Text, App, Schreibmarke nach dem Entfernen,
+    `UNDO_MILLIS` = 8 s) zeigt „↶ Rückgängig“ nur an genau dieser Schreibmarke in derselben App;
+    `schedule` baut die Leiste nach Ablauf neu (`Undo.refresh` = `Host.refresh` der zuletzt
+    gebauten Leiste). `onEnter`: genau eine Deutung, ausführbar und harmlos → wie ein Tipp (bei
+    `canReplaceNow`); jede andere Deutung im neuen Aufbau nimmt Enter mit dem Hinweis
+    `agent_unified_tap_to_run`, der Text bleibt (P200); alte Form → null. Harmlos ist nicht:
+    Löschen, `all`, Gedächtnis an, Zwischenablage-Schalter (räumt wie der Einstellungsschalter
+    ungepinnte Einträge, `clearNonPinned`), einen Baustein überschreiben. Wirkungen: Sprache je App
+    (setzt und entfernt HeliBoards Eintrag der App; die App des Felds schaltet sofort um; `all` =
+    alle eigenen Einträge weg, Eintrag `ALL`), Formatwächter je App (`all` = Schalter
+    `FORMAT_GUARD` und keine Einträge), Gedächtnis (`Memory.setExcluded`; `all on` = Schalter an und
+    keine Ausnahmen, `all off` = Schalter aus), Gruppen, Bausteine (`snippetStore`, austauschbar),
+    Zwischenablage-Verlauf, Sprache des Felds (alte Form in einer Kette, `Host.switchSubtype`).
+    `CommandColors`: je Rolle eine Farbe, zwei Paletten nach `isDark(chipBackground())`.
+    Austauschbar `clock`, `schedule`, `snippetStore`.
+  - `A/commands/CommandAppSettings.kt`: eigene DE-Datei `agent_command_settings` (kein Neuladen
+    der Tastatur beim Schreiben), Schlüssel `language:<paket|*>`, `guard:<paket>`,
+    `group:<name>` (`docs/STORAGE.md`); `subtypeForApp` (P199), `resolve` (wie HeliBoard:
+    gleicher Subtyp, sonst einer der Sprache), `guardAllows` (Eintrag der App vor dem Schalter,
+    aus `FormatGuardChips.stripChips`), Grenzen `MAX_APPS` 100, `MAX_GROUPS` 20, `MAX_MEMBERS` 30.
+  - `A/commands/InstalledApps.kt`: Paketname und Name aller Apps mit Launcher-Eintrag, auf einem
+    eigenen Thread höchstens alle 10 min gelesen (`refresh` aus `Command.load` von `@lang`,
+    `@guard`, `@mem`, `@group`), nur im Speicher; bis dahin sind App-Wörter unbekannt (P201).
+    Austauschbar `source` (Tests lesen sofort).
+  - `A/commands/AreaCommands.kt`: `AreaCommand` und `GuardCommand`, `MemoryCommand`,
+    `GroupCommand` (neu in `BUILT_IN`, hinter `@mix`); `LanguageCommand`, `SnipCommand` und
+    `ClipCommand` fragen zuerst `CommandSystem.chips`/`onEnter` und behalten ihre alten Chips
+    (`SnipCommand.listChips`, `ClipCommand.listChips` auch für `list`). `LanguageCommand`:
+    `protectsArgument` jetzt an, `subtypeFor`, `matchLanguages`, Enter für ein Sprachwort mit genau
+    einem Chip (wie dessen Tipp); die zweiten Namen sind für den Sprach-Matcher reserviert.
+  - Farben im Textfeld selbst (Komposition mit Farb-Spans über Leerzeichen hinweg) sind nicht
+    gebaut (P202, ROADMAP 52).
+  - Texte in `agent_command_system_strings.xml` (`values/`, `values-de/`). Tests
+    `CT/CommandGrammarTest.kt`, `CommandSyntaxTest` (zweite Namen, `@?`),
+    `AT/commands/CommandSystemTest.kt`, mit echtem Host `InputLogicTest.unifiedCommand*`
+    (Farben der Vorschau, ein Tipp genau einmal, Rückgängig, Enter-Regeln auch mit Hardware-Enter,
+    Passwortfeld, Sprache pro App beim Feldstart mit ausgeschaltetem Schalter),
+    `SettingsBarAreaTest` (23 Befehle).
 
 ## Act Builder
 
@@ -4022,13 +4107,38 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   dort deren Hauptwörterbücher (Speicher wie zweite Sprachen); Tests setzen `worker` auf direkt,
   `enabledLocales` ist austauschbar. Gemerkte Wörter sind nie die automatische Korrektur, nur
   Vervollständigung hinter ihr.
+- **P199** Sprache pro App (52): HeliBoard liest seine eigene App-Sprache nur mit „Sprache pro App“
+  an (`Settings.getSubtypeForApp`) und speichert sie bei jedem Sprachwechsel in der App neu. Die
+  Befehlssprache liegt darum getrennt in `CommandAppSettings`, und `LatinIME.onStartInputInternal`
+  fragt `subtypeForApp` an beiden Stellen (auch im Blick von `SubtypeChoice.holds`, sonst hält eine
+  Feldwahl gegen die falsche Sprache). Ein Befehl entfernt HeliBoards Eintrag der App, damit mit
+  eingeschaltetem Schalter die letzte Wahl gilt; die Rücknahme stellt ihn wieder her. Hint-Locales
+  des Felds gehen wie bei HeliBoards eigener App-Sprache vor (`SubtypeState.getSubtypeForLocales`).
+  Die eigene Datei verhindert, dass jedes Setzen über `onSharedPreferenceChanged` die Tastatur neu
+  lädt; die Schlüssel `saved_app_subtype_…` lösen dort kein Neuladen aus.
+- **P200** Enter bei einem Befehl im neuen Aufbau, der nicht genau eine harmlose Deutung hat, wird
+  genommen und nur mit einem Hinweis beantwortet: sonst schickte ein Messenger „@lang whatsapp del“
+  als Nachricht ab. Die alte Form behält ihr Enter (`@lang`, `@snip name`, `@clip wort`; ein
+  Sprachwort mit genau einem Chip schaltet um). `onEnter` liefert dafür null für die alte Form.
+- **P201** App-Namen kommen aus `PackageManager.queryIntentActivities` (Launcher), auf einem
+  eigenen Thread; im ersten Augenblick nach dem Start der Tastatur kennt die Leiste noch keine App
+  (das Wort ist rot „unbekannt“, nichts läuft). Robolectric liest mit der Systemquelle
+  gleichzeitig zum Test; Tests setzen `InstalledApps.source` und danach wieder `SYSTEM`.
+  Testhosts müssen die Schreibmarke beim Ersetzen mitführen (Rückgängig gilt nur an der
+  Schreibmarke nach dem Entfernen) und groß genug starten (negativ = unbekannt).
+- **P202** Farben im Textfeld wären Kompositionstext über Leerzeichen hinweg: `InputLogic`
+  schließt das Wort an jedem Leerzeichen und Trenner ab (`handleSeparatorEvent` → `commitTyped`,
+  Autokorrektur, Autoleerzeichen, Satzzeichen-Tausch), `RichInputConnection` führt Komposition und
+  Schreibmarke selbst (`mComposingText`, erwartete Auswahl), und ein fremder Kompositionsbereich
+  setzt in `onUpdateSelection` den Composer zurück. Dazu Löschtaste, Gesten und Enter-Hook. Das ist
+  kein enger Eingriff; die Farben stehen deshalb nur in der Vorschau der Leiste.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (562 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (571 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -4050,10 +4160,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   TypedWordFirst, TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract,
   WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
 - `A/charart/` (5): CharArtCanvas, CharArtImages, CharArtKey, CharArtKeys, CharArtView
-- `A/commands/` (18): AiCommandChips, AlarmCommand, AskCommand, ClipCommand, EmojiMixCommand,
-  EmojiMixRecents, EmojiMixer, LanguageCommand, QrCommand, ScreenReaderService, SensitiveClips,
-  SnipCommand, SnippetStore, SubtypeChoice, TimerCommand, TranslateCommand, UrlCommand,
-  WorkflowCommand
+- `A/commands/` (22): AiCommandChips, AlarmCommand, AreaCommands, AskCommand, ClipCommand,
+  CommandAppSettings, CommandSystem, EmojiMixCommand, EmojiMixRecents, EmojiMixer, InstalledApps,
+  LanguageCommand, QrCommand, ScreenReaderService, SensitiveClips, SnipCommand, SnippetStore,
+  SubtypeChoice, TimerCommand, TranslateCommand, UrlCommand, WorkflowCommand
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
@@ -4081,28 +4191,29 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
   WorkflowCommandTest, WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest,
   WorkflowStoreTest
-- `AT/commands/` (8): ClockCommandsTest, EmojiMixCommandTest, LanguageCommandTest, QrCommandTest,
-  ScreenReaderServiceTest, SubtypeChoiceTest, TranslateCommandTest, UrlCommandTest
-- `C/` (43): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, CorrectionRules,
-  DateFormatting, EditorSession, EmojiKeywords, EmojiMix, EmojiNames, EmojiSynonyms, EventParser,
-  ExecutionPolicy, InkDots, InkRecognizer, InkSymbols, InkTiming, LanguageNames, LocalTextActions,
-  MathExpression, ModelProvider, OwnInkSymbols, PendingBatchGate, PersonalInkSymbols, Places,
-  Profiles, RgbCurve, RgbLighting, RgbPatterns, SkillBinding, SnippetTemplate, SpecialCharacters,
-  StyledTranslation, SymbolTable, TextCondition, TimerParser, Tool, TouchDynamics, UnitConversion,
-  UpdateReleases, UrlDetector, Workflow
+- `AT/commands/` (9): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
+  LanguageCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
+  TranslateCommandTest, UrlCommandTest
+- `C/` (44): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
+  CorrectionRules, DateFormatting, EditorSession, EmojiKeywords, EmojiMix, EmojiNames,
+  EmojiSynonyms, EventParser, ExecutionPolicy, InkDots, InkRecognizer, InkSymbols, InkTiming,
+  LanguageNames, LocalTextActions, MathExpression, ModelProvider, OwnInkSymbols, PendingBatchGate,
+  PersonalInkSymbols, Places, Profiles, RgbCurve, RgbLighting, RgbPatterns, SkillBinding,
+  SnippetTemplate, SpecialCharacters, StyledTranslation, SymbolTable, TextCondition, TimerParser,
+  Tool, TouchDynamics, UnitConversion, UpdateReleases, UrlDetector, Workflow
 - `C/charart/` (6): BigFont, CharArt, Raster, Sketch, TextColumns, UnicodeStyle
 - `C/clip/` (6): ClipDates, ClipGuard, LinkCleaner, PrivateRanges, SmartPaste, TrackingNumbers
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `C/memory/` (4): OwnWords, PhraseMemory, ShortcutOffers, SnippetMatcher
 - `C/suggest/` (1): ContextSuggest
-- `CT/` (40): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, CorrectionRulesTest,
-  DateFormattingTest, EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest, EventParserTest,
-  InkAreaTest, InkBenchmarkTest, InkDotFlowTest, InkDotsTest, InkFingerModel, InkRecognizerTest,
-  InkTimingTest, InsertionAnchorTest, LanguageNamesTest, LocalTextActionsTest, MathExpressionTest,
-  OwnInkSymbolsTest, PendingBatchGateTest, PersonalInkSymbolsTest, PlacesTest, QuestionCaptureTest,
-  RgbCurveTest, RgbFrameStatsTest, RgbLightingTest, RgbPatternsTest, SkillBindingTest,
-  SnippetTemplateTest, StyledTranslationTest, SymbolTableTest, TimerParserTest, ToolTest,
-  TouchDynamicsTest, UnitConversionTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
+- `CT/` (41): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
+  CorrectionRulesTest, DateFormattingTest, EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest,
+  EventParserTest, InkAreaTest, InkBenchmarkTest, InkDotFlowTest, InkDotsTest, InkFingerModel,
+  InkRecognizerTest, InkTimingTest, InsertionAnchorTest, LanguageNamesTest, LocalTextActionsTest,
+  MathExpressionTest, OwnInkSymbolsTest, PendingBatchGateTest, PersonalInkSymbolsTest, PlacesTest,
+  QuestionCaptureTest, RgbCurveTest, RgbFrameStatsTest, RgbLightingTest, RgbPatternsTest,
+  SkillBindingTest, SnippetTemplateTest, StyledTranslationTest, SymbolTableTest, TimerParserTest,
+  ToolTest, TouchDynamicsTest, UnitConversionTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
 - `CT/charart/` (2): CharArtTest, SketchTest
 - `CT/clip/` (3): ClipGuardTest, PrivateRangesTest, SmartPasteTest
 - `CT/format/` (1): FormatGuardTest
@@ -4161,23 +4272,24 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (28): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
-  agent_charart_strings, agent_clipvault_strings, agent_design_strings, agent_diagnose_strings,
-  agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_language_strings,
-  agent_memory_strings, agent_rgb_strings, agent_settings_keys_strings, agent_settings_look_strings,
-  agent_settings_strings, agent_settings_system_strings, agent_slider_strings,
-  agent_smart_paste_strings, agent_snippet_strings, agent_space_strings, agent_strings,
-  agent_suggest_strings, agent_symbol_strings, agent_touch_strings, agent_typing_strings,
-  agent_update_strings, strings
-- `app/src/main/res/values/` (35): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
-  agent_bar_strings, agent_charart_ids, agent_charart_strings, agent_clipvault_strings,
+- `app/src/main/res/values-de/` (29): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
+  agent_charart_strings, agent_clipvault_strings, agent_command_system_strings,
   agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings, agent_format_strings,
-  agent_gestures_strings, agent_ids, agent_language_strings, agent_memory_strings,
-  agent_rgb_strings, agent_settings_keys_strings, agent_settings_look_strings,
-  agent_settings_strings, agent_settings_system_strings, agent_slider_strings,
-  agent_smart_paste_strings, agent_snippet_strings, agent_space_strings, agent_strings,
-  agent_suggest_strings, agent_symbol_strings, agent_touch_strings, agent_typing_strings,
-  agent_update_strings, attrs, clip_provider, donottranslate, gesture_data, themes-flat
+  agent_gestures_strings, agent_language_strings, agent_memory_strings, agent_rgb_strings,
+  agent_settings_keys_strings, agent_settings_look_strings, agent_settings_strings,
+  agent_settings_system_strings, agent_slider_strings, agent_smart_paste_strings,
+  agent_snippet_strings, agent_space_strings, agent_strings, agent_suggest_strings,
+  agent_symbol_strings, agent_touch_strings, agent_typing_strings, agent_update_strings, strings
+- `app/src/main/res/values/` (36): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+  agent_bar_strings, agent_charart_ids, agent_charart_strings, agent_clipvault_strings,
+  agent_command_system_strings, agent_design_strings, agent_diagnose_strings,
+  agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_ids,
+  agent_language_strings, agent_memory_strings, agent_rgb_strings, agent_settings_keys_strings,
+  agent_settings_look_strings, agent_settings_strings, agent_settings_system_strings,
+  agent_slider_strings, agent_smart_paste_strings, agent_snippet_strings, agent_space_strings,
+  agent_strings, agent_suggest_strings, agent_symbol_strings, agent_touch_strings,
+  agent_typing_strings, agent_update_strings, attrs, clip_provider, donottranslate, gesture_data,
+  themes-flat
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (2): KeyboardParserTest, Shadows

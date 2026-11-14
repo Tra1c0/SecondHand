@@ -222,34 +222,35 @@ Reihenfolge von oben nach unten.
   bleiben sprachübergreifend. Offen: Prüfer-Review (Engine: `DictionaryFacilitatorImpl`, `Suggest`,
   Pflicht), Gerätetest (echte Wörterbücher, Speicher der zusätzlich geöffneten Wörterbücher,
   Sprachtaste und Wischen auf der Leertaste).
-- **52 Einheitliches Befehlssystem (mit dem Owner festgelegt, 2026-11-14)** — beschlossen, nächste
-  Runde, noch nicht anfangen. Ausgangspunkt waren die Beispiele des Owners (`@lang set &duolingo
-  spanish`, `@lang list &&apps lang`, `@lang del &whatsapp lang ; set &whatsapp ger`); der Owner wollte
-  ausdrücklich einen eigenen, global sinnvollen Vorschlag. Festgelegt:
-  - Aufbau `@<bereich> [aktion] [angaben …]`. Keine Ziel-Markierungen (`&`, `&&`): jeder Befehl
-    kennt seine Plätze und ihren Typ (App, Sprache, Text, Zahl, an/aus); die Tastatur ordnet die
-    Wörter mit Toleranz zu (gleiches Toleranzfenster wie die Wörterbuch-Toleranz), Reihenfolge egal.
-    Mehrdeutig → beide Deutungen als Chips; `app:` erzwingt eine App.
-  - Englisch zuerst, Deutsch geht auch, beide mit derselben Toleranz. Aktionen: ohne Aktion =
-    zeigen (ohne Wert) bzw. setzen (mit Wert, überschreibt); `list`/`?` (zeig), `del`/`-` (weg),
-    `on`/`off` (an/aus), `add`/`+` (neu). Bereiche: `@lang` (sprache), `@snip` (baustein), `@clip`
-    (ablage), `@guard` (wächter), `@mem` (gedächtnis), `@group` (gruppe); `@deutsch`, `@sp` … bleiben
-    als Kurzform für `@lang <sprache>` im aktuellen Feld.
-  - Gruppen: `all`/`apps` (alle), eigene mit `@group messenger whatsapp signal`.
-  - Ketten: `;`, ebenso `dann`/`then` und `→`; der Bereich gilt weiter bis zum nächsten `@`.
-  - Ausführen: Vorschau in Klartext in der Leiste, ein Tipp führt aus; Enter nur bei genau einer,
-    harmlosen Deutung; Löschen und `all` nur per Tipp; danach einige Sekunden „Undo“. `@?` listet
-    die Bereiche, `@lang ?` die Plätze; Vorschläge je Platz (Apps, Sprachen, Bausteine).
-  - Eine per Befehl festgelegte App-Sprache gilt auch, wenn „Sprache pro App“ aus ist.
-  - Farben wie im Code-Editor: Bereich, Aktion, Ziel/Gruppe, Wert, Trenner und Unbekanntes je eigene
-    Farbe. Sicher machbar in der Vorschau der Leiste. Im Textfeld selbst nur, solange der Befehl
-    als Kompositionstext mit Farb-Spans steht, und nur in Apps, die solche Spans anzeigen (normale
-    Textfelder ja, manche Web- und eigene Editoren nicht) — „so gut die App es zulässt“; das ist eine
-    Engine-Änderung (Komposition über Leerzeichen hinweg), Prüfer Pflicht, vorher eng abgrenzen.
-  - Grenzen wie bisher: Befehle ändern nur eigene Einstellungen und Daten, nie Werkzeuge, URLs,
-    Provider oder Berechtigungen; nicht in Passwortfeldern, Inkognito, gesperrt.
-  - Beispiele: `@lang duolingo spanish`, `@lang apps`, `@lang whatsapp german` (ersetzt
-    `del …; set …`), `@lang whatsapp german; duolingo spanish; @guard banking off`.
+- **52 Einheitliches Befehlssystem (mit dem Owner festgelegt, 2026-11-14)** ist gebaut (siehe
+  FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 52), nach den Festlegungen des Owners
+  (Aufbau `@bereich [aktion] [angaben …]` ohne `&`, Plätze mit Toleranz in beliebiger Reihenfolge,
+  zwei Deutungen als zwei Chips, `app:`, Englisch zuerst und Deutsch, Gruppen, Ketten mit `;`,
+  `then`/`dann`, `→`, Vorschau in Klartext, Tipp führt aus, Enter nur bei genau einer harmlosen
+  Deutung, Löschen und `all` nur per Tipp, „Rückgängig“, `@?` und `@lang ?`, Vorschläge je Platz,
+  App-Sprache auch mit „Sprache pro App“ aus, Farben in der Vorschau). Annahmen des Leads, die der
+  Owner ändern kann: `all` setzt für jede App denselben Wert und löscht dabei die eigenen Einträge
+  (Sprache: Eintrag für alle Apps; Formatwächter und Gedächtnis: der Schalter in den
+  Einstellungen; `@mem all off` behält die ausgeschlossenen Apps); ohne App gilt die App des
+  Felds (`@guard off`), bei `@lang` mit Sprache wie bisher nur das Feld (`@lang spanisch`);
+  `@lang whatsapp german` in WhatsApp selbst stellt sofort um; das Ziel einer App gilt vor dem
+  Schalter (`@guard banking on` zeigt dort Hinweise, auch wenn der Formatwächter sonst aus ist);
+  mit eingeschalteter „Sprache pro App“ gilt die letzte Wahl (Befehl oder Sprachtaste in der App);
+  Hint-Locales eines Felds gehen wie bei HeliBoards eigener App-Sprache vor; nicht harmlos (nur per
+  Tipp) sind außer Löschen und `all` auch Gedächtnis an, der Zwischenablage-Schalter (räumt wie
+  der Einstellungsschalter ungepinnte Einträge, die Rücknahme stellt nur den Schalter zurück) und
+  das Überschreiben eines Bausteins; Enter bei einer anderen Deutung im neuen Aufbau sendet nichts,
+  sondern zeigt „Tippe auf die Vorschau“; ein Sprachwort mit genau einem Chip (`@deutsch`) schaltet
+  jetzt auch mit Enter um; „Rückgängig“ 8 s; in `@snip add` gehören `;` und `dann` zum Text, die
+  Kette geht mit dem nächsten `@` weiter; Gruppen bis 20 mit je 30 Apps, Gruppenname a–z; eine
+  Sprache mit mehreren Layouts nimmt für eine App das gerade benutzte, sonst das erste.
+  Nicht gebaut: Farben im Textfeld selbst. Das bräuchte den ganzen Befehl als Kompositionstext über
+  Leerzeichen hinweg; `InputLogic` schließt das Wort an jedem Leerzeichen ab (Autokorrektur,
+  Autoleerzeichen) und `RichInputConnection` führt Komposition und Schreibmarke selbst, das wäre
+  kein enger Eingriff in die Engine (P202). Mögliche Etappe, wenn der Owner sie will: ein eigener
+  Kompositionsmodus nur für Befehle, mit Prüfer. Offen: Prüfer-Review (`LatinIME.onStartInputInternal`,
+  Pflicht), Gerätetest (App-Namen echter Apps, Sprache beim Feldstart in WhatsApp/Duolingo,
+  Farben auf hellem und dunklem Design, Enter in Messengern, Hardware-Enter).
 - **53 Zeichen-Kunst-Fenster** ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` →
   Etappe 53). Annahmen des Leads, die der Owner ändern kann: Standardstil Braille; Profile WhatsApp,
   Telegram, Discord, Signal, Andere (Breiten 26/28/32/26/26, Codeblock bei WhatsApp und Discord an,

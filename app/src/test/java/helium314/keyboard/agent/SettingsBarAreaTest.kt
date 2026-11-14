@@ -142,7 +142,7 @@ class SettingsBarAreaTest {
         KeyboardCommands.setCommandEnabled(app, "mix", false)
         show()
         val names = KeyboardCommands.registry.map { it.name }
-        assertEquals(20, names.size)
+        assertEquals(23, names.size) // the twenty of the mockup and the three areas of stage 52
         for (name in names) {
             val tag = BAR_COMMAND_TAG + name
             node(tag).assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Switch)).assert(hasText("@$name"))
@@ -278,9 +278,9 @@ class SettingsBarAreaTest {
             "Bilder und Dateien", "Screenshots anbieten", "Neue Screenshots als Pille",
             "Emoji-Mix in der Leiste", "Nach zwei getippten Emojis", "Alle Befehls-Einstellungen")
             .forEach { assertTrue(compose.onAllNodesWithText(it, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty(), "missing text: $it") }
-        // all twenty commands of the mockup, in its order
+        // all twenty commands of the mockup, in its order, then the three areas of stage 52 (unified command system)
         assertEquals(listOf("math", "contact", "url", "such", "zeichen", "emoji", "conv", "snip", "clip", "wf", "ki", "datum", "termin",
-            "ort", "qr", "translate", "wecker", "timer", "lang", "mix"), KeyboardCommands.registry.map { it.name })
+            "ort", "qr", "translate", "wecker", "timer", "lang", "mix", "guard", "mem", "group"), KeyboardCommands.registry.map { it.name })
     }
 
     @Test fun everyClickableIsAtLeast44dp() {

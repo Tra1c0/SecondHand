@@ -176,6 +176,11 @@ object KeyboardCommands {
          * (it is then neither typed nor sent to the app); false lets Enter work as usual (the default).
          */
         fun onEnter(host: Host, call: CommandCall): Boolean = false
+        /**
+         * Stage 52: second names typed like the name (`@sprache` for `@lang`, `@wächter` for `@guard`);
+         * whole words only, compared without case, accents and umlauts.
+         */
+        val aliases: List<String> get() = emptyList()
     }
 
     /** Built-in commands in the order of the settings page; each stage adds its own. */
@@ -200,6 +205,10 @@ object KeyboardCommands {
         helium314.keyboard.agent.commands.TimerCommand,
         helium314.keyboard.agent.commands.LanguageCommand,
         helium314.keyboard.agent.commands.EmojiMixCommand,
+        // stage 52: the areas of the unified command system without an older command
+        helium314.keyboard.agent.commands.GuardCommand,
+        helium314.keyboard.agent.commands.MemoryCommand,
+        helium314.keyboard.agent.commands.GroupCommand,
     )
 
     /** Replaced in tests. */
@@ -209,14 +218,44 @@ object KeyboardCommands {
     /** True while the text before the cursor is a complete command: its words are not autocorrected. */
     @Volatile private var inCommand = false
 
-    private class Active(val prefix: Char, val names: Set<String>, val longNames: Set<String>, val claimers: List<Command>) {
+    private class Active(val prefix: Char, val names: Set<String>, val longNames: Set<String>, val claimers: List<Command>,
+                         val aliases: Map<String, String>) {
         /** Stage 24g: the enabled command that takes an unknown word as its own, or null. */
         val claim: (String) -> String? = { word -> claimers.firstOrNull { it.claims(word) }?.name }
 
-        /** Typos of names offer the name to complete (stage 24g); every reader parses the same way. */
-        fun parse(before: CharSequence) = CommandSyntax.parse(before, prefix, names, longNames, fuzzyNames = true,
-            claim = claim.takeIf { claimers.isNotEmpty() })
+        /** Stage 52: the enabled areas of the unified command system, in their order; `@?` lists them. */
+        val areas: List<String> = helium314.keyboard.agent.commands.CommandSystem.AREAS.keys.filter { it in names }
+
+        private fun syntax(before: CharSequence) = CommandSyntax.parse(before, prefix, names, longNames, fuzzyNames = true,
+            claim = claim.takeIf { claimers.isNotEmpty() }, aliases = aliases, help = areas.ifEmpty { null })
+
+        /**
+         * Typos of names offer the name to complete (stage 24g); every reader parses the same way.
+         * Stage 52: an area command right after another one on the same line continues its chain
+         * (`@lang whatsapp german; @guard banking off`): the call then spans the whole chain.
+         */
+        fun parse(before: CharSequence): CommandContext? {
+            val found = syntax(before)
+            if (found !is CommandCall || found.name !in areas) return found
+            var first: CommandCall = found
+            for (step in 1 until MAX_CHAIN) {
+                if (first.start == 0) break
+                val earlier = syntax(before.subSequence(0, first.start)) as? CommandCall ?: break
+                // a window cut by the caller does not tell what precedes its first character
+                if (earlier.name !in areas || (earlier.start == 0 && before.length > CommandSyntax.LOOKBACK)) break
+                first = earlier
+            }
+            if (first === found) return found
+            val text = before.substring(first.start)
+            return first.copy(text = text, argument = first.argument + found.text)
+        }
     }
+
+    /** Stage 52: at most this many area commands in one chain. */
+    const val MAX_CHAIN = 8
+
+    /** Stage 52: the names of the enabled commands (empty while commands are off). */
+    fun activeNames(): Set<String> = active?.names.orEmpty()
 
     fun isEnabled(context: Context) = context.prefs().getBoolean(AgentPreferences.COMMANDS, true)
 
@@ -252,8 +291,10 @@ object KeyboardCommands {
         val names = registry.map { it.name }.filter { isCommandEnabled(context, it) }.toSet()
         val longNames = registry.filter { it.longArgument && it.name in names }.map { it.name }.toSet()
         val enabled = registry.filter { it.name in names }
+        val aliases = enabled.flatMap { command -> command.aliases.map { it to command.name } }.toMap()
+        // stage 52: the areas read the enabled command names (and the language words) while they load
+        active = if (isEnabled(context) && names.isNotEmpty()) Active(prefix(context), names, longNames, enabled, aliases) else null
         if (isEnabled(context)) enabled.forEach { it.load(context) }
-        active = if (isEnabled(context) && names.isNotEmpty()) Active(prefix(context), names, longNames, enabled) else null
         inCommand = false
         forget()
     }
@@ -268,7 +309,8 @@ object KeyboardCommands {
         val current = active ?: return false
         if (word.isNullOrEmpty()) return false
         val trimmed = word.trimEnd { !it.isLetter() }
-        return CommandSyntax.isCommandWord(trimmed, current.prefix, current.names, current.claim.takeIf { current.claimers.isNotEmpty() })
+        return CommandSyntax.isCommandWord(trimmed, current.prefix, current.names, current.claim.takeIf { current.claimers.isNotEmpty() },
+            current.aliases)
     }
 
     /**
@@ -375,6 +417,8 @@ object KeyboardCommands {
             if (position < 0) return null
         }
         val host = host(ime, position, onRefresh, onShow)
+        // stage 52: a command just ran here: "Undo" for a few seconds
+        if (context == null) helium314.keyboard.agent.commands.CommandSystem.undoChips(host).let { if (it.isNotEmpty()) return it }
         // stage 41: no command, but a hint for a field with an unambiguous type (e-mail, phone, IBAN, decimal)
         if (context == null) FormatGuardChips.stripChips(host).let { if (it.isNotEmpty()) return it }
         // stage 45: no command, but the field asks for something or cue words announce a fresh clip or own data
@@ -458,7 +502,9 @@ object KeyboardCommands {
 
     /** Name candidates complete the name; a complete command asks the command. */
     fun chipsFor(context: CommandContext, host: Host): List<Chip> = when (context) {
-        is CommandNames -> context.candidates.map { name ->
+        // stage 52: "@?" lists the areas of the unified command system
+        is CommandNames -> if (context.typed == CommandSyntax.HELP) helium314.keyboard.agent.commands.CommandSystem.helpChips(host, context)
+        else context.candidates.map { name ->
             val word = "${context.prefix}$name"
             Chip(word, host.context.getString(R.string.agent_command_complete, word)) { host.replace(context, "$word ") }
         }
@@ -482,11 +528,17 @@ object KeyboardCommands {
         }
     }
 
+    /** The background of a chip in the strip (stage 52: the command colours are chosen for it). */
+    fun chipBackground(): Int {
+        val colors = Settings.getValues()?.mColors ?: return 0xFF191919.toInt()
+        return if (FlatStyle.isActive(colors)) 0xFF191919.toInt() else colors.get(ColorType.KEY_BACKGROUND)
+    }
+
     internal fun chipRow(parent: ViewGroup, chips: List<Chip>): View {
         val context = parent.context
         val colors = Settings.getValues().mColors
         val flat = FlatStyle.isActive(colors)
-        val chipColor = if (flat) 0xFF191919.toInt() else colors.get(ColorType.KEY_BACKGROUND)
+        val chipColor = chipBackground()
         val textColor = if (flat) FlatStyle.LABEL else colors.get(ColorType.KEY_TEXT)
         fun dp(value: Float) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value, context.resources.displayMetrics).toInt()
         val row = LinearLayout(context).apply {

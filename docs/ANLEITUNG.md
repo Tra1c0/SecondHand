@@ -533,9 +533,111 @@ diese Sprache um.
   zweiter Sprache („Mehrsprachiges Tippen“): Die gewählte Sprache ist die bevorzugte.
 - Die gewählte Sprache bleibt, solange du im selben Feld bleibst, auch wenn die App das Feld
   nach dem Löschen des Befehls neu startet. Wechselst du in ein anderes Feld, gilt dort wieder,
-  was die App oder „Sprache pro App merken“ vorgibt (wie bei der Sprachtaste).
+  was die App, „Sprache pro App merken“ oder eine mit `@lang app sprache` gesetzte Sprache
+  vorgibt (wie bei der Sprachtaste).
 - Abschalten unter Einstellungen → Befehle → `@lang`; dort stehen auch die Kürzel deiner aktiven
   Sprachen.
+
+### Einheitliches Befehlssystem
+
+Sechs Bereiche, ein Aufbau: `@bereich [aktion] [angaben …]`. Damit änderst du deine eigenen
+Einstellungen und Daten direkt beim Tippen. Du brauchst keine Zeichen wie `&`: Die Tastatur
+weiß, welche Angaben ein Bereich hat (App, Gruppe, Sprache, Name, Text, an/aus), und ordnet deine
+Wörter zu, in beliebiger Reihenfolge und mit Tippfehlern (dieselbe Toleranz wie bei den
+Sprachwörtern: ab drei Buchstaben reicht der Anfang, ab vier ein Tippfehler mit richtigem ersten
+Buchstaben). App-Namen sind die Namen auf dem Startbildschirm (`whatsapp`, `duolingo`,
+`google maps`).
+
+So läuft es ab:
+
+1. Tippe z. B. `@lang whatsapp german`. Die Leiste zeigt in Klartext, was passieren würde:
+   „Sprache WhatsApp → Deutsch (DE)“, farbig wie in einem Code-Editor: Bereich blau, Aktion lila,
+   Ziel gelb, Wert grün, Trenner türkis, Unbekanntes rot mit „?“ (auf hellem Design dunklere
+   Töne).
+2. Ein Tipp auf die Vorschau führt aus und löscht den Befehlstext. Danach steht 8 Sekunden lang
+   „↶ Rückgängig“ in der Leiste; ein Tipp stellt alles wieder her (der Text kommt nicht zurück).
+3. Passt ein Wort zu zwei Dingen (`@lang whatsap german` bei WhatsApp und WhatsApp Business),
+   zeigt die Leiste beide Deutungen; du tippst die richtige an. `app:` erzwingt eine App
+   (`@lang app:english deutsch`, wenn eine App „English …“ heißt).
+4. Enter führt nur aus, wenn es genau eine Deutung gibt und sie harmlos ist (z. B. eine Sprache
+   für eine App setzen, Formatwächter für eine App aus). Löschen, alles mit `all`, Gedächtnis an,
+   der Zwischenablage-Schalter und das Überschreiben eines Bausteins gehen nur per Tipp; Enter
+   zeigt dann „Tippe auf die Vorschau, um den Befehl auszuführen“ und schickt nichts ab.
+5. Ein graues Vorschau-Chip heißt: noch nicht ausführbar (ein Wort ist unbekannt oder es fehlt
+   etwas). Ein Tipp sagt, was fehlt.
+
+Aktionen (Englisch zuerst, Deutsch geht genauso):
+
+| Aktion | Englisch | Deutsch | Bedeutung |
+| --- | --- | --- | --- |
+| zeigen | (keine) | (keine) | ohne Wert: zeigt, was gilt (`@lang whatsapp`) |
+| setzen | (keine) oder `set` | (keine) oder `setze` | mit Wert: setzt und überschreibt (`@lang whatsapp german`) |
+| auflisten | `list` oder `?` | `zeig`, `zeige`, `liste` | alles, was festgelegt ist; `?` zeigt zuerst den Aufbau |
+| löschen | `del`, `delete`, `remove` oder `-` | `weg`, `lösch`, `löschen`, `entfernen` | zurück auf normal (nur per Tipp) |
+| an / aus | `on` / `off` | `an` / `aus` | schaltet etwas für eine App oder alle an oder aus |
+| dazu | `add`, `new` oder `+` | `neu`, `dazu` | neuer Baustein, Apps zu einer Gruppe |
+
+Ziele: eine App (`whatsapp`), eine eigene Gruppe (`messenger`), alle Apps (`all`, `apps`, `alle`,
+`überall`). Ohne Ziel gilt die App, in der du gerade tippst. Mit `all` setzt du für jede App
+denselben Wert; eigene Einträge der Apps fallen dabei weg (nur per Tipp, Rückgängig holt sie
+zurück).
+
+Alle Befehle:
+
+| Befehl | Was er macht |
+| --- | --- |
+| `@lang` | wie bisher: deine aktiven Sprachen als Chips |
+| `@lang spanisch`, `@deutsch`, `@sp` | wie bisher: dieses Feld auf die Sprache umstellen; mit genau einem Chip auch per Enter |
+| `@lang duolingo spanish` | Duolingo startet ab jetzt auf Spanisch (bei jedem neuen Feld der App), auch wenn „Sprache pro App merken“ aus ist |
+| `@lang whatsapp german` | ersetzt die Sprache von WhatsApp; tippst du das in WhatsApp selbst, stellt die Tastatur sofort um |
+| `@lang whatsapp` | zeigt die Sprache von WhatsApp („keine eigene“, wenn keine festgelegt ist) |
+| `@lang apps`, `@lang list`, `@lang ?` | alle festgelegten Sprachen je App; ein Tipp auf einen Eintrag schreibt `@lang app:… `, du tippst die neue Sprache dahinter |
+| `@lang whatsapp del` | WhatsApp hat wieder keine eigene Sprache (nur per Tipp) |
+| `@lang all german` | jede App startet auf Deutsch, eigene Einträge fallen weg (nur per Tipp) |
+| `@lang messenger german` | alle Apps der Gruppe „messenger“ auf Deutsch |
+| `@guard banking off` | Formatwächter in der Banking-App aus (keine Hinweise für E-Mail, Telefon, IBAN dort) |
+| `@guard banking on` | dort wieder an, auch wenn der Formatwächter in den Einstellungen aus ist |
+| `@guard off`, `@guard on` | für die App, in der du tippst |
+| `@guard all off`, `@guard all on` | der Schalter in den Einstellungen; eigene Einträge fallen weg (nur per Tipp) |
+| `@guard banking del` | Banking folgt wieder dem Schalter (nur per Tipp) |
+| `@guard list` | Schalter und alle Apps mit eigenem Eintrag |
+| `@mem whatsapp off` | das Gedächtnis lernt in WhatsApp nicht und zeigt dort nichts (wie „Apps ausschließen“) |
+| `@mem whatsapp on` | wieder einschließen (nur per Tipp, weil es das Lernen einschaltet) |
+| `@mem all off`, `@mem all on` | der Schalter „Merken, wie ich schreibe“; `all on` nimmt auch alle ausgeschlossenen Apps zurück (nur per Tipp) |
+| `@mem list` | Schalter und ausgeschlossene Apps |
+| `@group messenger whatsapp signal` | legt die Gruppe „messenger“ an oder ersetzt ihre Apps |
+| `@group messenger add telegram` | Telegram dazu |
+| `@group messenger del signal` | Signal raus (nur per Tipp) |
+| `@group messenger del` | Gruppe löschen (nur per Tipp) |
+| `@group messenger`, `@group list` | Apps einer Gruppe, alle Gruppen |
+| `@snip add gruss Viele Grüße, Lewin` | neuer Baustein „gruss“ mit diesem Text (Platzhalter wie `{datum}` gehen); gibt es den Namen schon, ersetzt er ihn (nur per Tipp) |
+| `@snip del gruss` | Baustein löschen (nur per Tipp, Rückgängig holt ihn zurück) |
+| `@snip list`, `@snip ?` | alle Bausteine wie `@snip`; ein Tipp fügt einen ein |
+| `@snip gruss` | wie bisher: einfügen (heißt ein Baustein wie eine Aktion, z. B. „neu“, gewinnt der Baustein) |
+| `@clip on`, `@clip off` | Zwischenablage-Verlauf an oder aus, wie der Schalter in den Einstellungen (ungepinnte Einträge gehen dabei; nur per Tipp) |
+| `@clip`, `@clip wort`, `@clip list` | wie bisher: Verlauf durchsuchen |
+| `@?` | alle Bereiche; ein Tipp schreibt `@lang ` usw. |
+
+Deutsche Namen der Bereiche: `@sprache`, `@baustein`, `@ablage`, `@wächter` (auch
+`@waechter`), `@gedächtnis`, `@gruppe`; z. B. `@wächter banking aus` oder `@gruppe messenger neu
+telegram`.
+
+Ketten: Mehrere Befehle in einer Zeile, getrennt durch `;`, `then`, `dann` oder `→` (auch `->`).
+Der Bereich gilt weiter bis zum nächsten `@`: `@lang whatsapp german; duolingo spanish; @guard
+banking off` sind drei Schritte in einer Vorschau, ein Tipp führt alle aus, ein „Rückgängig“ nimmt
+alle zurück. Bei `@snip add` gehört alles bis zum nächsten `@` zum Text (auch „; bis dann“).
+
+Vorschläge: Beim Tippen zeigt die Leiste hinter der Vorschau passende Apps, Gruppen und Sprachen
+(`@lang whats` → „WhatsApp“, „WhatsApp Business“), nach einer App mit Leerzeichen deine Sprachen,
+bei `@guard`/`@mem` nach der App „on“ und „off“, bei `@snip del` deine Bausteine. Ein Tipp
+vervollständigt nur das Wort.
+
+Grenzen: Befehle ändern nur deine eigenen Einstellungen und Daten, nie Werkzeuge, Adressen,
+Anbieter oder Berechtigungen. Nichts in Passwortfeldern, im Inkognito-Modus oder bei gesperrtem
+Gerät. Die Farben stehen nur in der Leiste, nicht im Textfeld. Direkt nach dem Start der Tastatur
+kennt sie die App-Namen einen Augenblick lang noch nicht (das Wort ist dann rot). Abschalten
+einzeln unter Einstellungen → Leiste & Befehle (`@guard`, `@mem`, `@group` sind neu). Noch auf
+keinem Gerät ausprobiert.
 
 ### Emoji-Mix
 

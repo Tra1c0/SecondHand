@@ -325,6 +325,32 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
 - Getippte Befehle, Rechnungen und Ergebnisse werden nicht gespeichert und nicht protokolliert.
   Der Rechner hält seine Eingabe nur im Speicher und leert sie beim Schließen.
 
+## Einheitliches Befehlssystem (52)
+
+- Datei: SharedPreferences `agent_command_settings` im gerätegeschützten Speicher (Direct Boot,
+  `AgentStorageContexts.keyboard`), nicht in den Tastatur-Einstellungen, damit ein Setzen die
+  Tastatur nicht neu lädt. Kein Backup (`allowBackup=false`), kein Export, nicht in HeliBoards
+  Einstellungs-Sicherung. Geschrieben nur nach einem Tipp (oder Enter bei einer harmlosen Deutung)
+  auf einen getippten Befehl, gelesen beim Start jedes Felds. Schlüssel:
+  - `language:<paket>` und `language:*` (alle Apps ohne eigenen Eintrag): die Sprache als
+    HeliBoard-Subtyp (`SettingsSubtype.toPref`, Sprach-Tag und Layout), höchstens 100 Apps.
+  - `guard:<paket>`: Formatwächter in dieser App an oder aus (Boolean), höchstens 100 Apps; ohne
+    Eintrag gilt der Schalter `agent_format_guard`.
+  - `group:<name>`: eigene Gruppe, Paketnamen durch Kommas getrennt; Name 2–16 Buchstaben a–z,
+    höchstens 20 Gruppen mit je höchstens 30 Apps.
+  Nur Paketnamen, Namen und Sprachen, kein getippter Text. Ungültige Paketnamen werden beim
+  Schreiben abgelehnt und beim Lesen übergangen.
+- Andere Speicher, die die Befehle ändern: HeliBoards Sprache pro App `saved_app_subtype_<paket>`
+  (Tastatur-Einstellungen; ein Sprachbefehl entfernt den Eintrag seiner App, die Rücknahme stellt
+  ihn wieder her), die ausgeschlossenen Apps des Gedächtnisses (`excluded_apps` in
+  `agent_phrase_memory`, Abschnitt Gedächtnis), die Schalter `agent_format_guard`, `agent_memory` und
+  `enable_clipboard_history` (wie der Schalter in den Einstellungen räumt ein Umschalten ungepinnte
+  Einträge des Verlaufs), und `@snip add`/`del` schreiben `agent_snippets.json` (Abschnitt
+  „Daten der Befehle 24c–24f“; bisher schrieb nur die Einstellungsseite).
+- Nur im Speicher: die Liste der Apps mit Launcher-Eintrag (Paketname und Name, höchstens alle
+  10 Minuten neu gelesen) und die Rücknahme des letzten Befehls (8 Sekunden, mit den alten Werten).
+  Nichts davon wird protokolliert.
+
 ## Zeichen-Kunst (53)
 
 - Nur Einstellungen in den normalen Einstellungen der Tastatur (DE, ohne Inhalt):

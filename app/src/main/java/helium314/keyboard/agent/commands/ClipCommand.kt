@@ -45,6 +45,10 @@ object ClipCommand : KeyboardCommands.Command {
 
     override val name = "clip"
     override val protectsArgument = true
+    /** Stage 52: also `@ablage`; `@clip on`/`off` switches the history, `@clip list` lists ([CommandSystem]). */
+    override val aliases: List<String> get() = CommandSystem.ALIASES[name].orEmpty()
+
+    override fun onEnter(host: KeyboardCommands.Host, call: CommandCall) = CommandSystem.onEnter(host, call) ?: false
 
     override fun description(context: Context) =
         context.getString(R.string.agent_command_clip, KeyboardCommands.prefix(context).toString())
@@ -59,6 +63,14 @@ object ClipCommand : KeyboardCommands.Command {
         // find() already refuses these fields; checked again so that nothing is read there
         if (KeyboardCommands.isBlocked(Settings.getValues(), host.editorInfo)) { reset(); return emptyList() }
         val context = host.context
+        // stage 52: "@clip on" / "@clip aus" switch the history; "@clip list" is the old list
+        CommandSystem.chips(host, call) { query -> listChips(host, call, query) }?.let { return it }
+        return listChips(host, call, call.argument)
+    }
+
+    /** The clips for [query] as chips, or the chip to the setting while the history is off. */
+    private fun listChips(host: KeyboardCommands.Host, call: CommandCall, query: String): List<KeyboardCommands.Chip> {
+        val context = host.context
         if (!historyEnabled(context)) {
             reset()
             return listOf(KeyboardCommands.Chip(context.getString(R.string.agent_command_clip_enable),
@@ -67,7 +79,7 @@ object ClipCommand : KeyboardCommands.Command {
             })
         }
         val clips = cached ?: read(context).also { cached = it }
-        return match(call.argument, clips).map { clip ->
+        return match(query, clips).map { clip ->
             KeyboardCommands.Chip(SnipCommand.preview(clip.text),
                 context.getString(R.string.agent_command_clip_insert, SnipCommand.preview(clip.text, 60))) {
                 if (host.replace(call, clip.text)) reset()

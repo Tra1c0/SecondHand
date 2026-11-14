@@ -982,11 +982,12 @@ public class LatinIME extends InputMethodService implements
 
         // fork, stage 24g fix (P66): a language command's choice survives the app restarting the same field
         if (helium314.keyboard.agent.commands.SubtypeChoice.holds(editorInfo, mRichImm.getCurrentSubtype().getRawSubtype(), () -> mSubtypeState.getSubtypeForLocales(
-                mRichImm, EditorInfoCompatUtils.getHintLocales(editorInfo), mSettings.getSubtypeForApp(editorInfo.packageName), true))) // stage 30 fix: peek, for the diagnose page
+                mRichImm, EditorInfoCompatUtils.getHintLocales(editorInfo), helium314.keyboard.agent.commands.CommandAppSettings.subtypeForApp(this, mSettings, editorInfo.packageName), true))) // stage 30 fix: peek, for the diagnose page
             return;
         RichInputMethodSubtype subtypeForApp = editorInfo == null
             ? null :
-            mSettings.getSubtypeForApp(editorInfo.packageName);
+            // fork, stage 52: a language a command set for the app applies also with "language per app" off
+            helium314.keyboard.agent.commands.CommandAppSettings.subtypeForApp(this, mSettings, editorInfo.packageName);
         List<Locale> hintLocales = EditorInfoCompatUtils.getHintLocales(editorInfo);
         InputMethodSubtype subtypeForLocales = mSubtypeState.getSubtypeForLocales(mRichImm, hintLocales, subtypeForApp);
         if (DebugFlags.DEBUG_ENABLED)

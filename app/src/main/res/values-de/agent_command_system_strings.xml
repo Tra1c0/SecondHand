@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 52 unified command system (own file so parallel work on agent_strings.xml does not collide). English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <!-- %1$s: the command prefix -->
+    <string name="agent_command_guard">Formatwächter je App: %1$sguard banking off schaltet die Hinweise des Formatwächters in einer App aus, %1$sguard banking on wieder an, %1$sguard all off überall (der Schalter in den Einstellungen); %1$sguard list zeigt, was festgelegt ist. Deutsch: %1$swächter, an, aus.</string>
+    <string name="agent_command_mem">Gedächtnis je App: %1$smem whatsapp off hält das Gedächtnis aus einer App heraus, %1$smem whatsapp on lässt es dort wieder lernen, %1$smem list zeigt die ausgeschlossenen Apps. Deutsch: %1$sgedächtnis, an, aus.</string>
+    <string name="agent_command_group">Eigene App-Gruppen: %1$sgroup messenger whatsapp signal legt die Gruppe an, danach gilt %1$slang messenger german für alle ihre Apps; %1$sgroup messenger add telegram, del signal, %1$sgroup list. Deutsch: %1$sgruppe, neu, weg.</string>
+
+    <string name="agent_unified_area_lang">Sprache</string>
+    <string name="agent_unified_area_snip">Baustein</string>
+    <string name="agent_unified_area_clip">Zwischenablage-Verlauf</string>
+    <string name="agent_unified_area_guard">Formatwächter</string>
+    <string name="agent_unified_area_mem">Gedächtnis</string>
+    <string name="agent_unified_area_group">Gruppe</string>
+
+    <string name="agent_unified_all">alle Apps</string>
+    <string name="agent_unified_this_app">diese App (%1$s)</string>
+    <string name="agent_unified_this_field">dieses Feld</string>
+    <string name="agent_unified_on">an</string>
+    <string name="agent_unified_off">aus</string>
+    <string name="agent_unified_delete">löschen</string>
+    <string name="agent_unified_default">wie der Hauptschalter</string>
+    <string name="agent_unified_none">keine eigene</string>
+    <string name="agent_unified_main_switch">Hauptschalter</string>
+    <string name="agent_unified_replaces">(ersetzt)</string>
+    <string name="agent_unified_clears">(ungepinnte Einträge gehen, wie beim Schalter)</string>
+    <string name="agent_unified_missing">…</string>
+
+    <string name="agent_unified_reading">Deutung %1$d von %2$d: %3$s</string>
+    <string name="agent_unified_run">Ausführen: %1$s</string>
+    <string name="agent_unified_cannot">Noch nicht ausführbar: %1$s</string>
+    <string name="agent_unified_unknown_toast">Unbekannt: %1$s</string>
+    <string name="agent_unified_incomplete_toast">In diesem Befehl fehlt noch etwas</string>
+    <string name="agent_unified_tap_to_run">Tippe auf die Vorschau, um den Befehl auszuführen</string>
+    <string name="agent_unified_undo">↶ Rückgängig</string>
+    <string name="agent_unified_undo_description">Rückgängig: %1$s</string>
+    <string name="agent_unified_undone">Rückgängig gemacht</string>
+    <string name="agent_unified_failed">Nicht alles ließ sich ändern</string>
+    <string name="agent_unified_nothing_set">Noch nichts festgelegt</string>
+    <string name="agent_unified_no_groups">Noch keine Gruppen</string>
+    <string name="agent_unified_entry_description">%1$s ändern</string>
+    <string name="agent_unified_language_gone">Diese Sprache ist nicht mehr aktiv</string>
+
+    <string name="agent_unified_help_area">%1$s beginnen (%2$s)</string>
+    <string name="agent_unified_help_syntax">So schreibst du %1$s</string>
+    <string name="agent_unified_slot_targets">[App|Gruppe|all]</string>
+    <string name="agent_unified_slot_language">[Sprache]</string>
+    <string name="agent_unified_slot_name">[Name]</string>
+    <string name="agent_unified_slot_text">[Text]</string>
+    <string name="agent_unified_slot_apps">[Apps …]</string>
+</resources>

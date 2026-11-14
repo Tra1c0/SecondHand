@@ -77,6 +77,8 @@ object SnipCommand : KeyboardCommands.Command {
 
     override val name = "snip"
     override val protectsArgument = true
+    /** Stage 52: also `@baustein`; `@snip add name text`, `@snip del name`, `@snip list` ([CommandSystem]). */
+    override val aliases: List<String> get() = CommandSystem.ALIASES[name].orEmpty()
     /** Room for field values: "name Field: value" may be up to [dev.agentkeyboard.core.CommandSyntax.MAX_LONG_ARGUMENT] characters. */
     override val longArgument = true
 
@@ -101,12 +103,24 @@ object SnipCommand : KeyboardCommands.Command {
         if (KeyboardCommands.isBlocked(Settings.getValues(), host.editorInfo)) { reset(); return emptyList() }
         val context = host.context
         currentFilling(call)?.let { return fieldChips(host, call, it) }
+        // stage 52: add, delete and list; the list is the old one, for the words after "list"
+        CommandSystem.chips(host, call) { query -> listChips(host, call, query) }?.let { return it }
+        return listChips(host, call, call.argument)
+    }
+
+    /** Stage 52: the names of the snippets, read once per typed command; empty when unreadable. */
+    fun names(context: Context): List<String> =
+        (cached ?: read(context)?.also { cached = it }).orEmpty().map { it.name }
+
+    /** The snippets for [query] as chips; a tap inserts one in place of [call]. */
+    private fun listChips(host: KeyboardCommands.Host, call: CommandCall, query: String): List<KeyboardCommands.Chip> {
+        val context = host.context
         // unreadable (e.g. locked) storage shows nothing, not an invitation to add snippets
         val snippets = cached ?: (read(context) ?: return emptyList()).also { cached = it }
         if (snippets.isEmpty()) return listOf(KeyboardCommands.Chip(context.getString(R.string.agent_command_snip_add),
             context.getString(R.string.agent_command_snip_add_description)) { openSettings(context, SettingsDestination.AgentCommands) })
         val app = host.editorInfo?.packageName
-        return match(call.argument, snippets.filter { SnippetApps.allows(it.apps, app) }).map { snippet ->
+        return match(query, snippets.filter { SnippetApps.allows(it.apps, app) }).map { snippet ->
             KeyboardCommands.Chip("${snippet.name}: ${preview(snippet.text)}",
                 context.getString(R.string.agent_command_snip_insert, snippet.name)) { start(host, call, snippet) }
         }
@@ -120,7 +134,8 @@ object SnipCommand : KeyboardCommands.Command {
      */
     override fun onEnter(host: KeyboardCommands.Host, call: CommandCall): Boolean {
         if (KeyboardCommands.isBlocked(Settings.getValues(), host.editorInfo)) { reset(); return false }
-        val state = currentFilling(call) ?: return false
+        // stage 52: "@snip add …" runs on Enter when that is harmless; the old "@snip name" leaves Enter alone
+        val state = currentFilling(call) ?: return CommandSystem.onEnter(host, call) ?: false
         if (host.canReplaceNow) next(host, call, state)
         return true
     }

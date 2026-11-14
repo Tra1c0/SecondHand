@@ -1918,6 +1918,148 @@ class InputLogicTest {
         }
     }
 
+    // ---- fork, stage 52: the unified command system with the real host ----
+
+    /** German, Spanish and English enabled, two apps known, nothing set; [block] runs in the app "com.other". */
+    private fun withUnifiedCommands(block: (german: InputMethodSubtype, spanish: InputMethodSubtype, english: InputMethodSubtype) -> Unit) {
+        val german = SubtypeSettings.getResourceSubtypesForLocale("de".constructLocale()).first()
+        val spanish = SubtypeSettings.getResourceSubtypesForLocale("es".constructLocale()).first()
+        val english = SubtypeSettings.getResourceSubtypesForLocale("en-US".constructLocale()).first()
+        val language = helium314.keyboard.agent.commands.LanguageCommand
+        val apps = helium314.keyboard.agent.commands.InstalledApps
+        val system = helium314.keyboard.agent.commands.CommandSystem
+        val schedule = system.schedule
+        for (subtype in listOf(german, spanish, english)) SubtypeSettings.addEnabledSubtype(latinIME.prefs(), subtype)
+        language.subtypes = { listOf(german, spanish, english) }
+        apps.source = helium314.keyboard.agent.commands.InstalledApps.Source {
+            listOf(dev.agentkeyboard.core.CommandGrammar.AppName("com.example", "Example"),
+                dev.agentkeyboard.core.CommandGrammar.AppName("com.duolingo", "Duolingo"))
+        }
+        system.schedule = { _, _ -> } // the undo ends by the clock here; the test handler would run it at once
+        helium314.keyboard.agent.commands.CommandAppSettings.clearForTest(latinIME)
+        ShadowInputMethodService.currentPackageName = "com.other"
+        ShadowInputMethodService.currentFieldId = 4
+        try {
+            latinIME.switchToSubtype(english)
+            helium314.keyboard.agent.KeyboardCommands.load(latinIME)
+            block(german, spanish, english)
+        } finally {
+            system.dropUndo()
+            system.schedule = schedule
+            helium314.keyboard.agent.commands.CommandAppSettings.clearForTest(latinIME)
+            helium314.keyboard.agent.commands.SubtypeChoice.clear()
+            apps.source = helium314.keyboard.agent.commands.InstalledApps.SYSTEM
+            language.subtypes = language.defaultSubtypes
+            for (subtype in listOf(german, spanish)) SubtypeSettings.removeEnabledSubtype(latinIME, subtype)
+            helium314.keyboard.agent.KeyboardCommands.load(latinIME)
+        }
+    }
+
+    /** The chips the real strip shows now. */
+    private fun stripChips(): List<android.widget.TextView> {
+        val chips = helium314.keyboard.agent.KeyboardCommands.createChipsView(latinIME, android.widget.FrameLayout(latinIME))
+            as? android.view.ViewGroup ?: return emptyList()
+        val row = chips.getChildAt(0) as android.view.ViewGroup
+        return (0 until row.childCount).map { row.getChildAt(it) as android.widget.TextView }
+    }
+
+    private fun colourOver(text: CharSequence, part: String): Int? {
+        val spanned = text as android.text.Spanned
+        val start = text.toString().indexOf(part)
+        assertTrue(start >= 0, "$part in $text")
+        return spanned.getSpans(start, start + part.length, android.text.style.ForegroundColorSpan::class.java)
+            .firstOrNull { spanned.getSpanStart(it) <= start && spanned.getSpanEnd(it) >= start + part.length }?.foregroundColor
+    }
+
+    @Test fun unifiedCommandPreviewIsColouredAndATapRunsItOnceWithUndo() = withUnifiedCommands { _, spanish, _ ->
+        val settings = helium314.keyboard.agent.commands.CommandAppSettings
+        val typed = "@lang example spanish; @guard duolingo off"
+        chainInput("hi $typed")
+        assertEquals("hi $typed", text) // nothing corrected
+        val preview = stripChips().single()
+        val dark = helium314.keyboard.agent.commands.CommandColors.isDark(helium314.keyboard.agent.KeyboardCommands.chipBackground())
+        fun colour(role: dev.agentkeyboard.core.CommandGrammar.Role) = helium314.keyboard.agent.commands.CommandColors.of(role, dark)
+        assertEquals(colour(dev.agentkeyboard.core.CommandGrammar.Role.AREA), colourOver(preview.text, latinIME.getString(R.string.agent_unified_area_lang)))
+        assertEquals(colour(dev.agentkeyboard.core.CommandGrammar.Role.TARGET), colourOver(preview.text, "Example"))
+        assertEquals(colour(dev.agentkeyboard.core.CommandGrammar.Role.VALUE), colourOver(preview.text, "Español (ES)"))
+        assertEquals(colour(dev.agentkeyboard.core.CommandGrammar.Role.SEPARATOR), colourOver(preview.text, ";"))
+        assertEquals(colour(dev.agentkeyboard.core.CommandGrammar.Role.ACTION), colourOver(preview.text, latinIME.getString(R.string.agent_unified_off)))
+        assertTrue(settings.languages(latinIME).isEmpty()) // nothing before the tap
+        preview.performClick()
+        handleMessages()
+        assertEquals("hi ", text) // the whole chain went in one commit
+        checkConnectionConsistency()
+        assertEquals(spanish, settings.language(latinIME, "com.example")?.let { settings.resolve(it)?.rawSubtype })
+        assertEquals(false, settings.guard(latinIME, "com.duolingo"))
+        preview.performClick() // a second tap does nothing
+        assertEquals("hi ", text)
+        // "Undo" where the command was; it changes the settings back, the text stays
+        val undo = stripChips().single()
+        assertEquals(latinIME.getString(R.string.agent_unified_undo), undo.text.toString())
+        undo.performClick()
+        handleMessages()
+        assertTrue(settings.languages(latinIME).isEmpty())
+        assertTrue(settings.guards(latinIME).isEmpty())
+        assertEquals("hi ", text)
+        assertTrue(stripChips().none { it.text.toString() == latinIME.getString(R.string.agent_unified_undo) })
+    }
+
+    @Test fun unifiedCommandEnterRunsOnlyOneHarmlessReading() = withUnifiedCommands { _, spanish, _ ->
+        val settings = helium314.keyboard.agent.commands.CommandAppSettings
+        fun enter() {
+            latinIME.onEvent(Event.createEventForCodePointFromUnknownSource(Constants.CODE_ENTER))
+            handleMessages()
+        }
+        chainInput("@lang example spanish")
+        enter()
+        assertEquals("", text) // run; Enter neither typed nor sent
+        checkConnectionConsistency()
+        assertEquals(spanish, settings.language(latinIME, "com.example")?.let { settings.resolve(it)?.rawSubtype })
+        // deleting needs the tap: Enter is taken, the command stays, nothing changes
+        chainInput("@lang example del")
+        enter()
+        assertEquals("@lang example del", text)
+        assertNotNull(settings.language(latinIME, "com.example"))
+        // a hardware Enter too
+        val down = android.view.KeyEvent(0L, 0L, android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_ENTER, 0)
+        assertTrue(latinIME.onKeyDown(android.view.KeyEvent.KEYCODE_ENTER, down))
+        assertEquals("@lang example del", text)
+        assertNotNull(settings.language(latinIME, "com.example"))
+        // in a password field there is no command: Enter is the engine's
+        setText("")
+        currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        latinIME.mHandler.onStartInput(EditorInfo().apply { inputType = currentInputType; packageName = "com.other" }, true)
+        handleMessages()
+        setText("@lang example del")
+        assertFalse(helium314.keyboard.agent.KeyboardCommands.onEnter(latinIME))
+        assertTrue(stripChips().isEmpty())
+    }
+
+    @Test fun unifiedCommandLanguagePerAppAppliesWithTheSwitchOff() = withUnifiedCommands { _, spanish, english ->
+        // "Sprache pro App" off, as on the owner's phone
+        latinIME.prefs().edit { putBoolean(Settings.PREF_SAVE_SUBTYPE_PER_APP, false) }
+        fun field(pkg: String, id: Int) = EditorInfo().apply { inputType = currentInputType; packageName = pkg; fieldId = id }
+        setText("")
+        latinIME.mHandler.onStartInput(field("com.other", 4), false)
+        handleMessages()
+        chainInput("@lang example spanish")
+        stripChips().single().performClick()
+        handleMessages()
+        assertEquals("", text)
+        assertEquals(english, RichInputMethodManager.getInstance().currentSubtype.rawSubtype) // another app: no switch here
+        // a field of that app starts: its language
+        ShadowInputMethodService.currentPackageName = "com.example"
+        latinIME.mHandler.onStartInput(field("com.example", 3), false)
+        handleMessages()
+        assertEquals(spanish, RichInputMethodManager.getInstance().currentSubtype.rawSubtype)
+        // an app without one gets the language from before, as HeliBoard does for its own per-app language
+        ShadowInputMethodService.currentPackageName = "com.other"
+        latinIME.mHandler.onStartInput(field("com.other", 4), false)
+        handleMessages()
+        assertEquals(english, RichInputMethodManager.getInstance().currentSubtype.rawSubtype)
+        assertFalse(latinIME.prefs().getBoolean(Settings.PREF_SAVE_SUBTYPE_PER_APP, true))
+    }
+
     // ---- fork, stage 51: the autocorrection follows the language, words of other languages ----
 
     private val germanSubtype get() = SubtypeSettings.getResourceSubtypesForLocale("de".constructLocale()).first()

@@ -357,3 +357,21 @@
   die Sprache, in der du das Wort behalten hast. Liste mit „Löschen“ unter „Was ich mir gemerkt
   habe“ → „Wörter aus anderen Sprachen“. Alles lokal; nichts in Passwortfeldern, im
   Inkognito-Modus, bei Lernpause oder gesperrtem Gerät. Noch auf keinem Gerät ausprobiert.
+- Neu: Einheitliches Befehlssystem. Ein Aufbau für deine eigenen Einstellungen, ohne `&`:
+  `@lang duolingo spanish` (Duolingo startet ab jetzt auf Spanisch, auch wenn „Sprache pro App
+  merken“ aus ist), `@lang whatsapp german`, `@lang apps` (alle Sprachen je App), `@lang whatsapp
+  del`, `@guard banking off` (Formatwächter je App), `@mem whatsapp off` (Gedächtnis bleibt aus
+  der App heraus), `@group messenger whatsapp signal` und danach `@lang messenger german`,
+  `@snip add gruss Viele Grüße`, `@snip del gruss`, `@clip on`/`off`. Die Wörter dürfen in jeder
+  Reihenfolge und mit Tippfehlern kommen; Deutsch geht auch (`@sprache`, `@wächter`,
+  `@gedächtnis`, `@gruppe`, `@baustein`, `@ablage`; `zeig`, `weg`, `an`, `aus`, `neu`). Mehrere
+  Befehle hintereinander mit `;`, `dann`/`then` oder `→`: `@lang whatsapp german; duolingo
+  spanish; @guard banking off`. Die Leiste zeigt vorher in Klartext und farbig wie im Code-Editor,
+  was passiert; bei zwei Deutungen zwei Chips. Erst dein Tipp führt aus, danach 8 Sekunden
+  „↶ Rückgängig“. Enter führt nur genau eine harmlose Deutung aus; Löschen und `all` nur per Tipp,
+  Enter schickt den Befehl dann nicht ab. `@?` zeigt alle Bereiche, `@lang ?` den Aufbau; beim
+  Tippen schlägt die Leiste Apps, Sprachen und Bausteine vor. Die alten Befehle (`@deutsch`,
+  `@lang spanisch`, `@snip adr`, `@clip Termin`) gehen wie bisher; `@deutsch` schaltet jetzt auch
+  mit Enter um. Ändert nur deine eigenen Einstellungen und Daten; nie in Passwortfeldern, im
+  Inkognito-Modus oder bei gesperrtem Gerät. Die Farben gibt es nur in der Leiste, nicht im
+  Textfeld. Noch auf keinem Gerät ausprobiert.
