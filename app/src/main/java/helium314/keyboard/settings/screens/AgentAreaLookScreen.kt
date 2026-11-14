@@ -317,7 +317,7 @@ private fun rgbSummary(rgb: RgbSettings): String {
         1 -> lit[0]
         else -> stringResource(R.string.agent_look_and, lit.dropLast(1).joinToString(", "), lit.last())
     }
-    return stringResource(R.string.agent_look_rgb_summary, patternLabel(rgb.lookFor(RgbTarget.KEYS).pattern), rgb.fps, targets)
+    return stringResource(R.string.agent_look_rgb_summary, lookLabel(rgb.lookFor(RgbTarget.KEYS)), rgb.fps, targets)
 }
 
 /** The banner of the mockup: thin white stripes at 115° over the light gradient at 110°. */

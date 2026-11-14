@@ -3,6 +3,9 @@ package helium314.keyboard.settings.screens
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.VisibleForTesting
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -38,6 +41,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -75,6 +79,9 @@ import dev.agentkeyboard.core.RgbEngines
 import dev.agentkeyboard.core.RgbFramePacer
 import dev.agentkeyboard.core.RgbLayer
 import dev.agentkeyboard.core.RgbLook
+import dev.agentkeyboard.core.RgbOwnPattern
+import dev.agentkeyboard.core.RgbPatternError
+import dev.agentkeyboard.core.RgbPatternLibrary
 import dev.agentkeyboard.core.RgbPattern
 import dev.agentkeyboard.core.RgbSettings
 import dev.agentkeyboard.core.RgbTapReaction
@@ -82,11 +89,13 @@ import dev.agentkeyboard.core.RgbTarget
 import dev.agentkeyboard.core.RgbWaveform
 import helium314.keyboard.agent.MyDesigns
 import helium314.keyboard.agent.RgbLighting
+import helium314.keyboard.agent.RgbOwnPatterns
 import helium314.keyboard.agent.RgbTexture
 import helium314.keyboard.agent.RgbTiles
 import helium314.keyboard.agent.RgbWork
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import helium314.keyboard.keyboard.FlatStyle
 import helium314.keyboard.latin.R
@@ -154,13 +163,95 @@ fun AgentRgbScreen(onClickBack: () -> Unit) {
         RgbLighting.write(prefs, normalized)
     }
     val design = remember { MyDesigns.newDesign(context, "") }
-    val animate = settings.enabled && remember { FlatStyle.animationsEnabled(context) }
+    val animationsOn = remember { FlatStyle.animationsEnabled(context) }
+    val animate = settings.enabled && animationsOn
     var colorToPick by rememberSaveable { mutableStateOf<Int?>(null) }
     var targetIndex by rememberSaveable { mutableIntStateOf(0) }
     var selectedPoint by rememberSaveable { mutableIntStateOf(-1) }
     val target = if (settings.separate) RgbTarget.entries[targetIndex] else RgbTarget.KEYS
     val look = settings.lookFor(target)
     fun changeLook(commit: Boolean = true, edit: (RgbLook) -> RgbLook) = change(settings.withLook(target, edit(settings.lookFor(target))), commit)
+
+    // own patterns (stage 34): the library, the one being edited, the file flows
+    var library by remember { mutableStateOf(RgbOwnPatterns.library(prefs)) }
+    var editing by rememberSaveable { mutableStateOf<String?>(null) }
+    var exportId by rememberSaveable { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    fun toast(text: String) = Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
+    /** The library changed: stored at once; the page's settings take the new definitions (a deleted one falls back). */
+    fun changeLibrary(changed: RgbPatternLibrary) {
+        library = changed
+        RgbOwnPatterns.write(prefs, changed)
+        settings = settings.resolve(changed)
+    }
+    fun open(pattern: RgbOwnPattern) {
+        editing = pattern.id
+        changeLook { it.copy(own = pattern) }
+    }
+    val errorText = errorLabels()
+    val fullText = stringResource(R.string.agent_rgb_own_full, RgbPatternLibrary.MAX_PATTERNS)
+    val importedText = stringResource(R.string.agent_rgb_own_imported, "%s")
+    val exportedText = stringResource(R.string.agent_rgb_own_exported, "%s")
+    val failedText = stringResource(R.string.agent_rgb_own_failed, "%s")
+    val writeFailedText = stringResource(R.string.agent_rgb_own_write_failed)
+    val saveFile = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        val pattern = exportId?.let { library[it] }
+        exportId = null
+        if (uri == null || pattern == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val ok = withContext(Dispatchers.IO) { runCatching { RgbOwnPatterns.exportFile(context, uri, pattern) }.isSuccess }
+            withContext(Dispatchers.Main) { toast(if (ok) exportedText.format(pattern.name) else writeFailedText) }
+        }
+    }
+    val openFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching { RgbOwnPatterns.importFile(context, uri) }.getOrDefault(RgbOwnPatterns.Imported.Refused(RgbPatternError.NOT_JSON))
+            }
+            withContext(Dispatchers.Main) {
+                library = RgbOwnPatterns.library(prefs)
+                toast(when (result) {
+                    is RgbOwnPatterns.Imported.Added -> importedText.format(result.pattern.name)
+                    is RgbOwnPatterns.Imported.Refused -> failedText.format(errorText.getValue(result.error))
+                    RgbOwnPatterns.Imported.Full -> fullText
+                })
+            }
+        }
+    }
+    fun export(pattern: RgbOwnPattern) {
+        exportId = pattern.id
+        saveFile.launch(fileName(pattern.name))
+    }
+    val copyName = stringResource(R.string.agent_rgb_own_copy_name, "%s")
+    /** A new own pattern from [source] (a built-in look or an own pattern), opened in the editor. */
+    fun create(source: RgbOwnPattern) {
+        val (changed, made) = library.add(source) ?: run { toast(fullText); return }
+        changeLibrary(changed)
+        open(made)
+    }
+
+    val edited = editing?.let { library[it] }
+    if (edited != null) {
+        RgbPatternEditor(
+            pattern = edited,
+            preview = { previewWith(settings, target, it) },
+            design = design,
+            animate = animationsOn,
+            onChange = { changeLibrary(library.replace(it)) },
+            onRename = { name -> library.rename(edited.id, name)?.let { changeLibrary(it); true } ?: false },
+            onDuplicate = { create(edited.copy(name = copyName.format(edited.name))) },
+            onExport = { export(edited) },
+            onDelete = {
+                editing = null
+                RgbOwnPatterns.delete(prefs, edited.id)
+                library = RgbOwnPatterns.library(prefs)
+                settings = RgbLighting.read(prefs)
+            },
+            onBack = { editing = null },
+        )
+        return
+    }
 
     SearchSettingsScreen(onClickBack, stringResource(R.string.agent_rgb_title), emptyList()) {
         // the large live preview, fixed above the options
@@ -178,33 +269,50 @@ fun AgentRgbScreen(onClickBack: () -> Unit) {
                 .testTag("agent_rgb_options")
         ) {
             SideEffect { optionsCompositions++ }
-            SectionCard {
-                SwitchRow(stringResource(R.string.agent_rgb_enabled), settings.enabled, "agent_rgb_enabled", strong = true) {
+            RgbSection {
+                RgbSwitch(stringResource(R.string.agent_rgb_enabled), settings.enabled, "agent_rgb_enabled", strong = true) {
                     change(settings.copy(enabled = it))
                 }
             }
 
-            SectionCard(R.string.agent_rgb_group_look) {
-                SwitchRow(stringResource(R.string.agent_rgb_same_everywhere), !settings.separate, "agent_rgb_same_everywhere") {
+            RgbSection(R.string.agent_rgb_group_look) {
+                RgbSwitch(stringResource(R.string.agent_rgb_same_everywhere), !settings.separate, "agent_rgb_same_everywhere") {
                     change(settings.withSeparate(!it))
                 }
-                Note(stringResource(R.string.agent_rgb_same_everywhere_summary))
+                RgbNote(stringResource(R.string.agent_rgb_same_everywhere_summary))
                 if (settings.separate) {
                     Spacer(Modifier.height(8.dp))
-                    Chips(RgbTarget.entries, { it == target }, { targetLabel(it) }, "agent_rgb_target_") {
+                    RgbChips(RgbTarget.entries, { it == target }, { targetLabel(it) }, "agent_rgb_target_") {
                         targetIndex = it.ordinal
                         selectedPoint = -1
                     }
-                    if (!settings.lights(target)) Note(stringResource(R.string.agent_rgb_target_off, targetLabel(target)))
+                    if (!settings.lights(target)) RgbNote(stringResource(R.string.agent_rgb_target_off, targetLabel(target)))
                     if (target == RgbTarget.LABELS || target == RgbTarget.SUGGESTIONS || target == RgbTarget.TOOLBAR)
-                        Note(stringResource(R.string.agent_rgb_target_point_note))
+                        RgbNote(stringResource(R.string.agent_rgb_target_point_note))
                 }
                 Spacer(Modifier.height(12.dp))
-                PatternGallery(look, look.reverse) { changeLook { l -> l.copy(pattern = it) } }
+                PatternGallery(look, look.reverse) { changeLook { l -> l.copy(pattern = it, own = null) } }
+                // own patterns (stage 34): next to the built-in ones, chosen per element the same way
+                RgbLabel(stringResource(R.string.agent_rgb_own_title))
+                if (library.patterns.isEmpty()) RgbNote(stringResource(R.string.agent_rgb_own_empty))
+                else OwnGallery(library, look) { p -> changeLook { it.copy(own = p) } }
+                FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val own = look.own?.takeIf { look.usesOwn }
+                    val sourceName = own?.name ?: patternLabel(look.pattern)
+                    FilledTonalButton({
+                        create(own?.copy(name = copyName.format(own.name)) ?: RgbOwnPattern.from(look, "", copyName.format(sourceName)))
+                    }, Modifier.testTag("agent_rgb_own_new")) { Text(stringResource(R.string.agent_rgb_own_new, sourceName)) }
+                    if (own != null) OutlinedButton({ editing = own.id }, Modifier.testTag("agent_rgb_own_edit")) {
+                        Text(stringResource(R.string.agent_rgb_own_edit))
+                    }
+                    TextButton({ openFile.launch(arrayOf("application/json", "text/*", "application/octet-stream")) },
+                        Modifier.testTag("agent_rgb_own_import")) { Text(stringResource(R.string.agent_rgb_own_import)) }
+                }
+                if (look.usesOwn) RgbNote(stringResource(R.string.agent_rgb_own_note))
             }
 
-            SectionCard(R.string.agent_rgb_group_wave) {
-                Note(stringResource(R.string.agent_rgb_curve_summary))
+            if (!look.usesOwn) RgbSection(R.string.agent_rgb_group_wave) {
+                RgbNote(stringResource(R.string.agent_rgb_curve_summary))
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = MaterialTheme.colorScheme.surface,
@@ -239,15 +347,15 @@ fun AgentRgbScreen(onClickBack: () -> Unit) {
                         modifier = Modifier.testTag("agent_rgb_curve_remove"),
                     ) { Text(stringResource(R.string.agent_rgb_curve_remove)) }
                 }
-                Label(stringResource(R.string.agent_rgb_curve_presets))
+                RgbLabel(stringResource(R.string.agent_rgb_curve_presets))
                 val preset = RgbCurve.presetOf(look.curve)
-                Chips(RgbWaveform.entries, { preset == it }, { waveLabel(it) }, "agent_rgb_wave_") { w ->
+                RgbChips(RgbWaveform.entries, { preset == it }, { waveLabel(it) }, "agent_rgb_wave_") { w ->
                     changeLook { it.copy(curve = RgbCurve.preset(w)) }
                     selectedPoint = -1
                 }
-                if (preset == null) Note(stringResource(R.string.agent_rgb_curve_own))
+                if (preset == null) RgbNote(stringResource(R.string.agent_rgb_curve_own))
                 RgbCurve.stepCount(look.curve)?.let { steps ->
-                    SliderRow(stringResource(R.string.agent_rgb_steps, steps), steps.toFloat(),
+                    RgbSlider(stringResource(R.string.agent_rgb_steps, steps), steps.toFloat(),
                         RgbSettings.STEPS_RANGE.first.toFloat()..RgbSettings.STEPS_RANGE.last.toFloat(),
                         RgbSettings.STEPS_RANGE.last - RgbSettings.STEPS_RANGE.first - 1, "agent_rgb_steps") { v ->
                         changeLook { it.copy(curve = RgbCurve.preset(RgbWaveform.STEPS, v.roundToInt())) }
@@ -255,24 +363,24 @@ fun AgentRgbScreen(onClickBack: () -> Unit) {
                 }
             }
 
-            SectionCard(R.string.agent_rgb_group_speed) {
-                SliderRow(stringResource(R.string.agent_rgb_period, seconds(look.periodMs)), look.periodMs / 1000f,
+            RgbSection(R.string.agent_rgb_group_speed) {
+                RgbSlider(stringResource(R.string.agent_rgb_period, seconds(look.periodMs)), look.periodMs / 1000f,
                     0.5f..30f, 58, "agent_rgb_period") { v -> changeLook { it.copy(periodMs = (v * 2).roundToInt() * 500) } }
-                SwitchRow(stringResource(R.string.agent_rgb_reverse), look.reverse, "agent_rgb_reverse") { v -> changeLook { it.copy(reverse = v) } }
-                SliderRow(stringResource(R.string.agent_rgb_width, decimal(look.waveWidth)), look.waveWidth,
+                RgbSwitch(stringResource(R.string.agent_rgb_reverse), look.reverse, "agent_rgb_reverse") { v -> changeLook { it.copy(reverse = v) } }
+                if (!look.usesOwn) RgbSlider(stringResource(R.string.agent_rgb_width, decimal(look.waveWidth)), look.waveWidth,
                     RgbSettings.WIDTH_MIN..RgbSettings.WIDTH_MAX, 14, "agent_rgb_width") { v ->
                     changeLook { it.copy(waveWidth = (v * 4).roundToInt() / 4f) }
                 }
             }
 
-            SectionCard(R.string.agent_rgb_group_colors) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            RgbSection(R.string.agent_rgb_group_colors) {
+                if (!look.usesOwn) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(look.rainbow, { changeLook { it.copy(rainbow = true) } }, { Text(stringResource(R.string.agent_rgb_palette_rainbow)) },
                         Modifier.testTag("agent_rgb_palette_rainbow"))
                     FilterChip(!look.rainbow, { changeLook { it.copy(rainbow = false) } }, { Text(stringResource(R.string.agent_rgb_palette_own)) },
                         Modifier.testTag("agent_rgb_palette_own"))
                 }
-                if (!look.rainbow) {
+                if (!look.rainbow && !look.usesOwn) {
                     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically) {
                         look.palette.forEachIndexed { i, color ->
@@ -293,46 +401,46 @@ fun AgentRgbScreen(onClickBack: () -> Unit) {
                                 Modifier.testTag("agent_rgb_color_remove")) { Text(stringResource(R.string.agent_rgb_color_remove)) }
                     }
                 }
-                SliderRow(stringResource(R.string.agent_rgb_saturation, look.saturation), look.saturation.toFloat(), 0f..100f, 19,
+                RgbSlider(stringResource(R.string.agent_rgb_saturation, look.saturation), look.saturation.toFloat(), 0f..100f, 19,
                     "agent_rgb_saturation") { v -> changeLook { it.copy(saturation = v.roundToInt()) } }
-                SliderRow(stringResource(R.string.agent_rgb_brightness, look.brightness), look.brightness.toFloat(),
+                RgbSlider(stringResource(R.string.agent_rgb_brightness, look.brightness), look.brightness.toFloat(),
                     RgbSettings.BRIGHTNESS_MIN.toFloat()..100f, 17, "agent_rgb_brightness") { v -> changeLook { it.copy(brightness = v.roundToInt()) } }
-                SliderRow(stringResource(R.string.agent_rgb_mix, look.mix), look.mix.toFloat(), 0f..100f, 19,
+                RgbSlider(stringResource(R.string.agent_rgb_mix, look.mix), look.mix.toFloat(), 0f..100f, 19,
                     "agent_rgb_mix") { v -> changeLook { it.copy(mix = v.roundToInt()) } }
             }
 
-            SectionCard(R.string.agent_rgb_group_layers) {
-                Chips(RgbLayer.entries, { it in settings.layers }, { layerLabel(it) }, "agent_rgb_layer_") {
+            RgbSection(R.string.agent_rgb_group_layers) {
+                RgbChips(RgbLayer.entries, { it in settings.layers }, { layerLabel(it) }, "agent_rgb_layer_") {
                     change(settings.copy(layers = settings.layers.toggle(it)))
                 }
-                Note(stringResource(R.string.agent_rgb_contrast_note))
-                SwitchRow(stringResource(R.string.agent_rgb_solid_keys), settings.solidKeys, "agent_rgb_solid_keys") {
+                RgbNote(stringResource(R.string.agent_rgb_contrast_note))
+                RgbSwitch(stringResource(R.string.agent_rgb_solid_keys), settings.solidKeys, "agent_rgb_solid_keys") {
                     change(settings.copy(solidKeys = it))
                 }
-                Note(stringResource(R.string.agent_rgb_solid_keys_summary))
+                RgbNote(stringResource(R.string.agent_rgb_solid_keys_summary))
             }
 
-            SectionCard(R.string.agent_rgb_group_areas) {
-                Chips(RgbArea.entries, { it in settings.areas }, { areaLabel(it) }, "agent_rgb_area_") {
+            RgbSection(R.string.agent_rgb_group_areas) {
+                RgbChips(RgbArea.entries, { it in settings.areas }, { areaLabel(it) }, "agent_rgb_area_") {
                     change(settings.copy(areas = settings.areas.toggle(it)))
                 }
-                Note(stringResource(R.string.agent_rgb_strip_note))
+                RgbNote(stringResource(R.string.agent_rgb_strip_note))
             }
 
-            SectionCard(R.string.agent_rgb_group_tap) {
-                Chips(RgbTapReaction.entries, { settings.tapReaction == it }, { tapLabel(it) }, "agent_rgb_tap_") { change(settings.copy(tapReaction = it)) }
-                SwitchRow(stringResource(R.string.agent_rgb_reactive), settings.reactiveOnly, "agent_rgb_reactive") { change(settings.copy(reactiveOnly = it)) }
-                Note(stringResource(R.string.agent_rgb_reactive_summary))
-                SliderRow(stringResource(R.string.agent_rgb_glow, seconds(settings.glowMs)), settings.glowMs / 1000f, 0.2f..5f, 23,
+            RgbSection(R.string.agent_rgb_group_tap) {
+                RgbChips(RgbTapReaction.entries, { settings.tapReaction == it }, { tapLabel(it) }, "agent_rgb_tap_") { change(settings.copy(tapReaction = it)) }
+                RgbSwitch(stringResource(R.string.agent_rgb_reactive), settings.reactiveOnly, "agent_rgb_reactive") { change(settings.copy(reactiveOnly = it)) }
+                RgbNote(stringResource(R.string.agent_rgb_reactive_summary))
+                RgbSlider(stringResource(R.string.agent_rgb_glow, seconds(settings.glowMs)), settings.glowMs / 1000f, 0.2f..5f, 23,
                     "agent_rgb_glow") { change(settings.copy(glowMs = (it * 5).roundToInt() * 200)) }
             }
 
             // the frame rate as two colour areas with a moving light (stage 37), the battery option below
             FrameRateCard(settings.fps, { change(settings.copy(fps = it)) }) {
-                SwitchRow(stringResource(R.string.agent_rgb_power_save), settings.pauseInPowerSave, "agent_rgb_power_save") {
+                RgbSwitch(stringResource(R.string.agent_rgb_power_save), settings.pauseInPowerSave, "agent_rgb_power_save") {
                     change(settings.copy(pauseInPowerSave = it))
                 }
-                Note(stringResource(R.string.agent_rgb_battery_note))
+                RgbNote(stringResource(R.string.agent_rgb_battery_note))
             }
             Spacer(Modifier.size(24.dp))
         }
@@ -364,7 +472,7 @@ internal var previewEngines = 0
  * come from the background, [RgbTexture]), so a change shows without a blank frame.
  */
 @Composable
-private fun LivePreview(design: MyDesigns.Design, shown: () -> RgbSettings, animate: Boolean) {
+internal fun LivePreview(design: MyDesigns.Design, shown: () -> RgbSettings, animate: Boolean) {
     val settings = shown()
     val previous = remember { arrayOfNulls<RgbEngines>(1) }
     // a changed option goes on where the light was instead of starting over
@@ -429,7 +537,7 @@ private fun PatternGallery(look: RgbLook, reverse: Boolean, onPick: (RgbPattern)
     val cache = remember { HashMap<GalleryKey, GalleryPicture>() }
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         RgbPattern.entries.forEach { pattern ->
-            val selected = look.pattern == pattern
+            val selected = !look.usesOwn && look.pattern == pattern
             val shape = RoundedCornerShape(12.dp)
             Column(
                 Modifier.width(96.dp).clip(shape).clickable { onPick(pattern) }
@@ -511,7 +619,7 @@ private fun galleryPicture(key: GalleryKey): GalleryPicture {
 private fun <T> Set<T>.toggle(item: T) = if (item in this) this - item else this + item
 
 private fun seconds(ms: Int) = decimal(ms / 1000f)
-private fun decimal(value: Float): String {
+internal fun decimal(value: Float): String {
     val hundredths = (value * 100).roundToInt()
     val pattern = when { hundredths % 100 == 0 -> "%.0f"; hundredths % 10 == 0 -> "%.1f"; else -> "%.2f" }
     return String.format(Locale.getDefault(), pattern, hundredths / 100f)
@@ -519,7 +627,7 @@ private fun decimal(value: Float): String {
 
 /** One group of options as a flat card (29a): title, then the options. */
 @Composable
-private fun SectionCard(title: Int? = null, content: @Composable ColumnScope.() -> Unit) {
+internal fun RgbSection(title: Int? = null, content: @Composable ColumnScope.() -> Unit) {
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -539,7 +647,7 @@ private fun SectionCard(title: Int? = null, content: @Composable ColumnScope.() 
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun <T> Chips(items: List<T>, selected: (T) -> Boolean, label: @Composable (T) -> String, tagPrefix: String, onClick: (T) -> Unit) {
+internal fun <T> RgbChips(items: List<T>, selected: (T) -> Boolean, label: @Composable (T) -> String, tagPrefix: String, onClick: (T) -> Unit) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         items.forEach { item ->
             FilterChip(
@@ -553,18 +661,18 @@ private fun <T> Chips(items: List<T>, selected: (T) -> Boolean, label: @Composab
 }
 
 @Composable
-private fun Label(text: String) {
+internal fun RgbLabel(text: String) {
     Text(text, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
 }
 
 @Composable
-private fun Note(text: String) {
+internal fun RgbNote(text: String) {
     Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(top = 4.dp))
 }
 
 @Composable
-private fun SwitchRow(label: String, checked: Boolean, tag: String, strong: Boolean = false, onChange: (Boolean) -> Unit) {
+internal fun RgbSwitch(label: String, checked: Boolean, tag: String, strong: Boolean = false, onChange: (Boolean) -> Unit) {
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onChange(!checked) }.padding(vertical = 4.dp).testTag(tag),
         verticalAlignment = Alignment.CenterVertically,
@@ -575,7 +683,7 @@ private fun SwitchRow(label: String, checked: Boolean, tag: String, strong: Bool
 }
 
 @Composable
-private fun SliderRow(label: String, value: Float, range: ClosedFloatingPointRange<Float>, steps: Int, tag: String, onChange: (Float) -> Unit) {
+internal fun RgbSlider(label: String, value: Float, range: ClosedFloatingPointRange<Float>, steps: Int, tag: String, onChange: (Float) -> Unit) {
     Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
         Text(label, style = MaterialTheme.typography.bodyMedium)
         Slider(value.coerceIn(range), onChange, valueRange = range, steps = steps, modifier = Modifier.testTag(tag))
@@ -592,7 +700,10 @@ internal fun targetLabel(t: RgbTarget) = stringResource(when (t) {
 })
 
 @Composable
-internal fun patternLabel(p: RgbPattern) = stringResource(when (p) {
+internal fun patternLabel(p: RgbPattern) = stringResource(patternLabelRes(p))
+
+/** The label of a built-in pattern (also for the Diagnose page, outside Compose). */
+fun patternLabelRes(p: RgbPattern) = when (p) {
     RgbPattern.WAVE_HORIZONTAL -> R.string.agent_rgb_pattern_wave_horizontal
     RgbPattern.WAVE_VERTICAL -> R.string.agent_rgb_pattern_wave_vertical
     RgbPattern.WAVE_DIAGONAL -> R.string.agent_rgb_pattern_wave_diagonal
@@ -605,10 +716,10 @@ internal fun patternLabel(p: RgbPattern) = stringResource(when (p) {
     RgbPattern.HATCH -> R.string.agent_rgb_pattern_hatch
     RgbPattern.LED -> R.string.agent_rgb_pattern_led
     RgbPattern.TOPO -> R.string.agent_rgb_pattern_topo
-})
+}
 
 @Composable
-private fun waveLabel(w: RgbWaveform) = stringResource(when (w) {
+internal fun waveLabel(w: RgbWaveform) = stringResource(when (w) {
     RgbWaveform.SINE -> R.string.agent_rgb_wave_sine
     RgbWaveform.TRIANGLE -> R.string.agent_rgb_wave_triangle
     RgbWaveform.SAWTOOTH -> R.string.agent_rgb_wave_sawtooth

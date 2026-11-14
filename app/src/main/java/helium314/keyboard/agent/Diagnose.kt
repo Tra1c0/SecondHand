@@ -7,6 +7,11 @@ import android.os.Looper
 import android.text.format.Formatter
 import android.view.accessibility.AccessibilityManager
 import dev.agentkeyboard.core.EmojiMixTable
+import dev.agentkeyboard.core.RgbEngine
+import dev.agentkeyboard.core.RgbEngines
+import dev.agentkeyboard.core.RgbLook
+import dev.agentkeyboard.core.RgbSettings
+import dev.agentkeyboard.core.RgbTarget
 import helium314.keyboard.agent.commands.EmojiMixClient
 import helium314.keyboard.agent.commands.EmojiMixer
 import helium314.keyboard.latin.BuildConfig
@@ -256,7 +261,7 @@ object Diagnose {
     // --- RGB lighting cost (build 14 feedback: the keyboard lagged) ---
 
     /** What drawing the light cost in the last seconds the keyboard was lit ([RgbLighting.lastFrameWork]). */
-    fun lighting(context: Context, work: dev.agentkeyboard.core.RgbFrameStats.Summary): Section {
+    fun lighting(context: Context, work: dev.agentkeyboard.core.RgbFrameStats.Summary, patterns: List<Row> = emptyList()): Section {
         fun ms(avg: Double, max: Double) = context.getString(R.string.agent_diagnose_ms, avg, max)
         val rows = if (work.frames == 0 && work.jobs == 0) listOf(Row(context.getString(R.string.agent_diagnose_light_frames),
             context.getString(R.string.agent_diagnose_light_none)))
@@ -266,7 +271,48 @@ object Diagnose {
             Row(context.getString(R.string.agent_diagnose_light_draw), ms(work.drawAvgMs, work.drawMaxMs)),
             Row(context.getString(R.string.agent_diagnose_light_background), "${work.jobs} · " + ms(work.backgroundAvgMs, work.backgroundMaxMs)),
         )
-        return Section(Part.LIGHTING, context.getString(R.string.agent_diagnose_lighting), rows)
+        return Section(Part.LIGHTING, context.getString(R.string.agent_diagnose_lighting), rows + patterns)
+    }
+
+    /**
+     * The patterns the lit elements use (stage 34: own patterns by name, marked "own") and what one
+     * light grid of each costs on this phone, measured now (48 x 32 values, the best of three).
+     * Measure off the main thread; reads only the setting, no text.
+     */
+    fun lightPatterns(context: Context, settings: RgbSettings): List<Row> {
+        if (!settings.enabled) return emptyList()
+        val lit = RgbTarget.entries.filter { settings.lights(it) }
+        if (lit.isEmpty()) return emptyList()
+        fun name(look: RgbLook) = if (look.usesOwn) "${look.own!!.name} (${context.getString(R.string.agent_diagnose_light_own)})"
+            else context.getString(helium314.keyboard.settings.screens.patternLabelRes(look.pattern))
+        val engines = RgbEngines(settings)
+        val rows = mutableListOf(Row(context.getString(R.string.agent_diagnose_light_patterns),
+            lit.map { name(settings.lookFor(it)) }.distinct().joinToString(", ")))
+        val measured = HashSet<RgbEngine>()
+        for (target in lit) {
+            val engine = engines.forTarget(target)
+            if (!measured.add(engine)) continue
+            val ms = gridMs(engine)
+            rows += Row(context.getString(R.string.agent_diagnose_light_grid, name(settings.lookFor(target))),
+                String.format(Locale.getDefault(), "%.2f ms", ms))
+        }
+        return rows
+    }
+
+    /** Time of one 48 x 32 light grid of [engine] in ms, the best of three after a warm-up. */
+    fun gridMs(engine: RgbEngine): Double {
+        engine.aspect = 0.45f
+        engine.advance(0)
+        engine.advance(40)
+        var sink = 0
+        var best = Double.MAX_VALUE
+        repeat(4) { round ->
+            val start = System.nanoTime()
+            for (r in 0 until 32) for (c in 0 until 48) sink += engine.light((c + 0.5f) / 48, (r + 0.5f) / 32, -1, 40)
+            if (round > 0) best = minOf(best, (System.nanoTime() - start) / 1e6)
+        }
+        if (sink == Int.MIN_VALUE) best = 0.0
+        return best
     }
 
     // --- app and phone ---

@@ -230,7 +230,7 @@ internal fun lookName(context: Context, prefs: SharedPreferences): String {
 @Composable
 private fun lightName(prefs: SharedPreferences): String {
     val rgb = RgbLighting.read(prefs)
-    return if (rgb.enabled) patternLabel(rgb.lookFor(RgbTarget.KEYS).pattern) else stringResource(R.string.agent_settings_light_off)
+    return if (rgb.enabled) lookLabel(rgb.lookFor(RgbTarget.KEYS)) else stringResource(R.string.agent_settings_light_off)
 }
 
 private val LOOK_GRADIENT = cssGradient(120f, listOf(
