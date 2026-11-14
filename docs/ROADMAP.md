@@ -155,6 +155,12 @@ Reihenfolge von oben nach unten.
   Zeichen- und Wortteilen, ohne Modell-Download), passender Baustein als Chip. Grenze (Owner,
   2026-11-14): Das Gedächtnis macht nie aus einem Satz einen anderen; es hängt nur auf Tipp hinter
   der Schreibmarke an und ersetzt nichts, die Autokorrektur bleibt bei einem Wort. (L)
+- **48 Autokorrektur: getipptes Wort vorne, keine ungewollte Großschreibung (Rückmeldung des Owners
+  vom 2026-11-14)** — beschlossen. (a) Nach dem Zurücknehmen einer Korrektur steht das wirklich
+  getippte Wort in der Leiste ganz links, in der getippten Groß-/Kleinschreibung; Mitte und rechts
+  ähnliche Wörter. (b) Wörter werden nicht groß geschrieben, nur weil ein neues Wort beginnt;
+  Ursache vor dem Bau eingrenzen (Groß-Korrektur durch die Autokorrektur, z. B. Substantiv aus dem
+  Wörterbuch, oder Auto-Großschreibung an falscher Stelle). Engine-Änderung, Prüfer Pflicht. (M)
 - **47 KI-Kontext im Hintergrund — verworfen (Owner, 2026-11-14):** „Dann lassen wir das.“ Alles
   lokal; die Tastatur lernt selbst dazu (45, 46).
 - **Verworfen (Owner, 2026-11-14):** Mail-Anbindung (Gmail/IMAP) und Codes aus Benachrichtigungen.
