@@ -2941,6 +2941,52 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   Systemschrift breiter als Inter, einige Titel brechen um.
 - Offen: Prüfer-Review, Gerätetest (Aussehen, TalkBack, Dialoge im dunklen Schema).
 
+## Etappe 38f (Einstellungen: Leiste & Befehle)
+
+- Auftrag (Lead, ROADMAP 38f): Bereichsseite „Leiste & Befehle“ 1:1 nach `Leiste.dc.html` mit
+  dem Baukasten aus 38a, in eigener Datei; „Symbolleiste“/„Werkzeugleiste“ → „Leiste“ in den
+  deutschen Texten. Gebaut in einer Arbeitskopie parallel zu anderen Bereichen, kein
+  Prüfer-Review, kein Gerätetest.
+- Gebaut: `AgentAreaBarScreen.kt` (`BarModes`, Seite, Befehls-Karte, Skill-Dialog),
+  `agent_bar_strings.xml` (Englisch, Deutsch), eine Zeile in `AgentAreaScreen.kt`; Umbenennung in
+  `values-de/strings.xml` (25 HeliBoard-Texte, nur Wortlaut), `values-de/agent_strings.xml`
+  (Skill-Seite, Diktat, flacher Look) und `values-de/agent_settings_strings.xml` (Kachel
+  „Leiste, @-Befehle, Zwischenablage“; das Mockup der Startseite sagt dort noch „Symbolleiste“).
+  Zuordnung der Karten: ARCHITECTURE.md → Einstellungen und Profile (Annahme des Leads).
+  Abweichungen vom Mockup: Hauptschalter „Getippte Befehle erkennen“ im Kopf der Karte
+  „@-Befehle“ (im Mockup fehlt er), bei aus sind die Chips gesperrt und der Text darunter sagt es;
+  eine Zeile „… braucht Zugriff auf Kontakte“ unter den Chips, solange `@contact` an ist und die
+  Berechtigung fehlt; „Eigene Einstellung“ unter den Karten bei „Nur Leisten-Tasten“;
+  ausgegraute Zeilen zeigen den Grund; „Knöpfe wählen und sortieren“ öffnet die bisherige
+  Leisten-Seite (dort die Dialoge für Tasten, angeheftete Tasten, Zwischenablage-Tasten, Keycodes),
+  „Skill-Tasten anheften“ einen eigenen Dialog mit drei Schaltern; zusätzliche Karte am Ende mit
+  „Alle Befehls-Einstellungen“, „Screenshots“ (Zugriff erlaubt/fehlt) und „Weitere
+  Zwischenablage-Einstellungen“ (Optionen).
+- Tests (Robolectric, kein Gerätetest): `SettingsBarAreaTest` 11 Tests (Zuordnung in beide
+  Richtungen samt `TOOLBAR_KEYS` = keine Karte; Tipp auf eine Karte schreibt `toolbar_mode` und
+  wählt sie; „Eigene Einstellung“ verschwindet nach einer Wahl; 20 Befehls-Chips als Schalter mit
+  echtem Zustand, Tipp schreibt `agent_commands_disabled`, von außen gesetzter Wert, Hauptschalter
+  sperrt die Chips und behält ihren Zustand; vier Schalter, „Bilder und Dateien“ und Screenshots
+  schreiben ihren Schlüssel; ausgegraute Zeilen je Modus und ohne Verlauf; „2 von 3“ und „60 min“
+  aus echten Werten, Dialog heftet Skill-Taste 2 an und 3 ab, Aufbewahrung „Standard“ entfernt den
+  Schlüssel; die Routen von `SettingsAreas.entries(BAR)` plus Optionen sind Zeilen (P119); alle
+  Texte des Mockups und die 20 Befehle in seiner Reihenfolge; alles Anklickbare ≥ 44 dp; Bild mit
+  Pixelprüfung). `SettingsStartScreenTest` 10 Tests grün (Kacheltext „Leiste, @-Befehle,
+  Zwischenablage“; die Leisten-Zeile heißt „Knöpfe wählen und sortieren“ und die alte Seite
+  „Leiste“; Bild dieses Bereichs jetzt `settings-area_bar-top.png`). `SettingsTypingAreaTest`
+  9 Tests grün.
+- `python3 tools/dev.py agent-tests` (2026-11-14): 792 Tests, 1 Fehler, `RgbSettingsScreenTest.thePreviewLightIsSmoothLikeTheGrid` (`ArrayIndexOutOfBounds` in
+  `RgbTexture.gridPixel`, leeres Raster; berührt 38f nicht). Die Klasse allein danach: 13 Tests
+  grün. Vermutlich reihenfolge- oder lastabhängig auf der geteilten Maschine, nicht geklärt. Kein Build (geteilte Maschine).
+  `docs_sync --check`: grün.
+- Bild (nicht versioniert): `app/build/agent-previews/settings-area_bar.png` (ganze Seite,
+  390 × 2400 dp), mit `Leiste.dc.html` verglichen: Held, Karten, Chips, Reihenfolge, Texte, Punkte
+  und Schalterfarben stimmen; gewählt ist TASTEN + VORSCHLÄGE wie im Mockup. Abweichend: echte
+  Werte (z. B. „0 von 3“ statt „2 von 3“), Schalter im Kopf der Befehls-Karte, Kontakte-Zeile
+  (Robolectric ohne Berechtigung), Karte am Ende, Systemschrift (38a).
+- Offen: Prüfer-Review, Gerätetest (Karten am Telefon, Berechtigungsdialoge für Kontakte und
+  Bilder, TalkBack, Skill-Dialog).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

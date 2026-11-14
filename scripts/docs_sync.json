@@ -37,6 +37,7 @@
       "app/src/main/java/helium314/keyboard/keyboard/{FlatStyle.kt,Key.java,KeyboardTheme.kt,KeyboardView.java,MainKeyboardView.java}",
       "app/src/main/java/helium314/keyboard/keyboard/internal/keyboard_parser/{KeyboardParser,LayoutParser}.kt",
       "app/src/main/res/values/{attrs,themes-flat}.xml",
+      "app/src/main/res/values-de/strings.xml",
       "app/src/main/res/drawable/{btn_keyboard_key,sym_keyboard}_*flat*.xml",
       "app/src/main/assets/layouts/functional/functional_keys_flat.json",
       "app/src/main/assets/layouts/{symbols/symbols_flat,more_symbols/symbols_shifted_flat}.txt",

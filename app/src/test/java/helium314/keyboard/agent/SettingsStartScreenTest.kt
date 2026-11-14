@@ -112,7 +112,7 @@ class SettingsStartScreenTest {
         // the exact texts of the mockup
         listOf("Aussehen", "Designs, RGB-Licht, Größe, Schrift", "Tippen & Korrektur", "Autokorrektur, Vorschläge, Lernen",
             "Tasten & Sprachen", "Sprachen, Zahlenzeile, Popups", "Gesten & Gefühl", "Leertaste, Malen, Vibration, Ton",
-            "Leiste & Befehle", "Symbolleiste, @-Befehle, Zwischenablage", "KI & Automationen",
+            "Leiste & Befehle", "Leiste, @-Befehle, Zwischenablage", "KI & Automationen",
             "Anbieter, Skill-Tasten, Workflows, Diktat", "System & Daten", "Profile, Sicherung, Updates, Diagnose",
             "Einstellungen", "Schnell umschalten", "Dein Look", "Ändern")
             .forEach { assertTrue(compose.onAllNodesWithText(it).fetchSemanticsNodes().isNotEmpty(), "missing text: $it") }
@@ -242,10 +242,11 @@ class SettingsStartScreenTest {
         }
         compose.onNodeWithTag(BACK_TAG).performScrollTo().performClick()
         assertEquals(1, back)
-        // the toolbar row says "Leiste" as in the mockup
+        // 38f: "Symbolleiste" is "Leiste" everywhere; the bar page opens the toolbar page from "Knöpfe wählen und sortieren"
         area = SettingsArea.BAR
         compose.waitForIdle()
-        compose.onNodeWithTag(AREA_ROW_TAG + SettingsDestination.Toolbar).assert(hasText("Leiste"))
+        compose.onNodeWithTag(AREA_ROW_TAG + SettingsDestination.Toolbar).assert(hasText("Knöpfe wählen und sortieren"))
+        assertEquals("Leiste", app.getString(R.string.settings_screen_toolbar))
     }
 
     @Test fun theNavigationHostOpensAreasAndKeepsOldRoutes() {
@@ -288,8 +289,8 @@ class SettingsStartScreenTest {
         for (a in SettingsArea.entries) {
             area = a
             compose.waitForIdle()
-            // 38c: SettingsTypingAreaTest writes the whole typing page as settings-area_typing.png
-            val page = capture(if (a == SettingsArea.TYPING) "settings-area_typing-top" else "settings-${a.route}")
+            // 38c/38f: SettingsTypingAreaTest and SettingsBarAreaTest write their whole pages as settings-<route>.png
+            val page = capture(if (a == SettingsArea.TYPING || a == SettingsArea.BAR) "settings-${a.route}-top" else "settings-${a.route}")
             val hero = compose.onNodeWithTag(HERO_TAG).fetchSemanticsNode().boundsInRoot
             assertClose(a.from.toArgb(), page.getPixel(hero.left.toInt() + 24, hero.top.toInt() + 24), 40)
         }

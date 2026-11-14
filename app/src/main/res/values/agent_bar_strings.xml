@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 38f, area page "Bar & commands" (own file so parallel work on the other area pages does not collide). English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="agent_bar_mode">Bar</string>
+    <string name="agent_bar_mode_expandable">Keys + suggestions</string>
+    <string name="agent_bar_mode_expandable_hint">Expandable, pinned buttons stay</string>
+    <string name="agent_bar_mode_suggestions">Suggestions only</string>
+    <string name="agent_bar_mode_suggestions_hint">Buttons only when tapped</string>
+    <string name="agent_bar_mode_hidden">Hidden</string>
+    <string name="agent_bar_mode_hidden_hint">More room for keys</string>
+    <string name="agent_bar_mode_custom">Custom setting: \"%1$s\". Pick a card to change it.</string>
+    <string name="agent_bar_commands">\@ commands</string>
+    <string name="agent_bar_prefix">Prefix %1$s</string>
+    <string name="agent_bar_commands_caption">Tap to switch each on or off. Snippets, places and screen reading are with their command.</string>
+    <string name="agent_bar_commands_off">Typed commands are off. The switch above turns them on.</string>
+    <string name="agent_bar_permission">%1$s needs access to contacts. Tap to allow.</string>
+    <string name="agent_bar_section">Bar</string>
+    <string name="agent_bar_keys">Choose and sort buttons</string>
+    <string name="agent_bar_keys_sub">Tools, pinning, clipboard</string>
+    <string name="agent_bar_auto_show">Show automatically</string>
+    <string name="agent_bar_auto_show_sub">On input or selection</string>
+    <string name="agent_bar_auto_show_off">Only with keys + suggestions</string>
+    <string name="agent_bar_swipe">Swipe hides</string>
+    <string name="agent_bar_swipe_sub">Down on the bar</string>
+    <string name="agent_bar_swipe_off">Not with a hidden bar</string>
+    <string name="agent_bar_skills">Pin skill keys</string>
+    <string name="agent_bar_skills_sub">The three own actions</string>
+    <string name="agent_bar_skills_off">Pinned buttons only show in a bar with suggestions</string>
+    <string name="agent_bar_skills_value">%1$d of 3</string>
+    <string name="agent_bar_clipboard">Clipboard &amp; images</string>
+    <string name="agent_bar_history">Clipboard history</string>
+    <string name="agent_bar_history_sub">Find copied items again</string>
+    <string name="agent_bar_retention">Keep for</string>
+    <string name="agent_bar_retention_sub">How long entries stay</string>
+    <string name="agent_bar_needs_history">Only with clipboard history</string>
+    <string name="agent_bar_files">Images and files</string>
+    <string name="agent_bar_files_sub">Remember images too</string>
+    <string name="agent_bar_screenshots">Offer screenshots</string>
+    <string name="agent_bar_screenshots_sub">New screenshots as a pill</string>
+    <string name="agent_bar_screenshots_missing">Access to images is missing: no pill yet</string>
+    <string name="agent_bar_mix">Emoji mix in the bar</string>
+    <string name="agent_bar_mix_sub">After two typed emojis</string>
+    <string name="agent_bar_all_commands">All command settings</string>
+    <string name="agent_bar_all_commands_sub">Prefix, snippets, places, screen reading, emoji mix</string>
+    <string name="agent_bar_screenshot_page">Screenshots</string>
+    <string name="agent_bar_screenshot_page_sub">Access to images</string>
+    <string name="agent_bar_screenshot_allowed">allowed</string>
+    <string name="agent_bar_screenshot_missing">missing</string>
+    <string name="agent_bar_more_clipboard">More clipboard settings</string>
+    <string name="agent_bar_more_clipboard_sub">Pinned first, file size</string>
+</resources>

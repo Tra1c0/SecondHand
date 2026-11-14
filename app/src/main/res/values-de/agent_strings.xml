@@ -89,11 +89,11 @@
     <string name="skill_2">Skill-Taste 2</string>
     <string name="skill_3">Skill-Taste 3</string>
     <string name="agent_skills_title">Skill-Tasten</string>
-    <string name="agent_skills_intro">Aktionen den drei nummerierten Tasten zuweisen und an die Werkzeugleiste heften. Bei ausgeblendeter Leiste diese unter Werkzeugleiste aktivieren. Jede Taste bereitet eine Vorschau vor; KI braucht weiterhin eine separate Sendefreigabe. Sprache, Tonfall und Modell stammen aus den KI-Einstellungen.</string>
+    <string name="agent_skills_intro">Aktionen den drei nummerierten Tasten zuweisen und an die Leiste heften. Bei ausgeblendeter Leiste diese unter Einstellungen → Leiste aktivieren. Jede Taste bereitet eine Vorschau vor; KI braucht weiterhin eine separate Sendefreigabe. Sprache, Tonfall und Modell stammen aus den KI-Einstellungen.</string>
     <string name="agent_skill_slot">Skill-Taste %1$d</string>
     <string name="agent_skill_label">Name (bis zu 32 Zeichen)</string>
     <string name="agent_skill_none">Nicht belegt</string>
-    <string name="agent_skill_pin">An Werkzeugleiste heften</string>
+    <string name="agent_skill_pin">An die Leiste heften</string>
     <string name="agent_skill_save">Belegung speichern</string>
     <string name="agent_skill_error">Tasten konnten nicht gelesen oder gespeichert werden. Gerät entsperren und Seite erneut öffnen. Ein ungültiger Import verändert keine Belegung.</string>
     <string name="agent_skill_loading">Skill wird geladen…</string>
@@ -239,7 +239,7 @@
     <string name="agent_dictation_permission_missing">Das Mikrofon ist noch nicht erlaubt.</string>
     <string name="agent_dictation_allow">Mikrofon erlauben</string>
     <string name="agent_dictation_permission_refused">Android hat das Mikrofon nicht freigegeben. Falls kein Dialog erschien, erlaube es in den Systemeinstellungen dieser App (Berechtigungen → Mikrofon).</string>
-    <string name="agent_dictation_howto">Starte das Diktat mit dem Knopf „Diktieren“ in den Textaktionen oder füge unter „Symbolleiste“ die Taste „Diktieren (auf dem Gerät)“ hinzu. Setze die Schreibmarke dorthin, wo der Text hin soll, ohne etwas zu markieren. Die Sprache folgt der Tastatursprache; ihr Sprachpaket muss in den Spracheinstellungen des Systems installiert sein.</string>
+    <string name="agent_dictation_howto">Starte das Diktat mit dem Knopf „Diktieren“ in den Textaktionen oder füge unter „Leiste“ die Taste „Diktieren (auf dem Gerät)“ hinzu. Setze die Schreibmarke dorthin, wo der Text hin soll, ohne etwas zu markieren. Die Sprache folgt der Tastatursprache; ihr Sprachpaket muss in den Spracheinstellungen des Systems installiert sein.</string>
     <string name="agent_dictation_start">Diktieren (auf diesem Gerät)</string>
     <string name="agent_dictation_listening">Ich höre zu, auf diesem Gerät … Tippe auf „Fertig“, wenn du zu Ende gesprochen hast. Noch wird nichts eingefügt.</string>
     <string name="agent_dictation_done">Fertig – Text anzeigen</string>
@@ -363,7 +363,7 @@
     <string name="agent_design_section_colors">Farben</string>
     <string name="agent_design_system">Systemeinstellung</string>
     <string name="agent_design_flat">Flacher Look</string>
-    <string name="agent_design_flat_note">Der flache Look setzt auch Reihen, Größen und die Werkzeugleiste. Unter Tastaturprofile lässt sich der Look von vorher wiederherstellen.</string>
+    <string name="agent_design_flat_note">Der flache Look setzt auch Reihen, Größen und die Leiste. Unter Tastaturprofile lässt sich der Look von vorher wiederherstellen.</string>
     <string name="agent_design_more">Weitere Einstellungen zum Aussehen</string>
     <string name="agent_command_search">Websuche: %ssuch Begriff öffnet eine Websuche nach dem Begriff in der Standard-Such-App oder im Browser (sonst DuckDuckGo). Erst nach einem Tipp auf den Chip; der Begriff verlässt dann die Tastatur.</string>
     <string name="agent_command_search_chip">Im Web suchen: %s</string>

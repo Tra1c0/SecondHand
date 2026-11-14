@@ -153,3 +153,11 @@
   und den gewohnten Dialogen, dazu aus „Erweitert“ Langdruck-Dauer, Währungen, Zeitstempel-Format
   und „Zurück zu den Buchstaben“. Zwischenablage, Vibration und Ton liegen vorerst unter „Weitere
   Optionen“. Noch auf keinem Gerät ausprobiert.
+- Neu: Einstellungen → „Leiste & Befehle“ ist jetzt eine eigene Seite im neuen Look. Oben wählst
+  du mit einem Tipp, was die Leiste zeigt: TASTEN + VORSCHLÄGE, NUR VORSCHLÄGE oder VERSTECKT.
+  Darunter alle @-Befehle als Chips (Antippen schaltet einen Befehl an oder aus, der Schalter
+  oben schaltet alle ab), dann Knöpfe wählen und sortieren, Automatisch zeigen, Wischen blendet
+  aus, Skill-Tasten anheften („2 von 3“), Zwischenablage-Verlauf, Aufbewahrung, Bilder und
+  Dateien, Screenshots anbieten und Emoji-Mix in der Leiste. Textbausteine, Orte, Bildschirm lesen
+  und das Präfix unter „Alle Befehls-Einstellungen“. „Symbolleiste“ und „Werkzeugleiste“ heißen
+  überall „Leiste“. Noch auf keinem Gerät ausprobiert.

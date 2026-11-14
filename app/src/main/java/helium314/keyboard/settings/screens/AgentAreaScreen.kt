@@ -92,6 +92,7 @@ fun AgentAreaScreen(area: SettingsArea, onNavigate: (String) -> Unit, onClickBac
     if (area == SettingsArea.TYPING) return AgentAreaTypingScreen(onNavigate, onClickBack) // stage 38c
     if (area == SettingsArea.GESTURES) return AgentAreaGesturesScreen(onNavigate, onClickBack) // 38e
     if (area == SettingsArea.KEYS) return AgentAreaKeysScreen(onNavigate, onClickBack) // 38d, built from Tasten.dc.html
+    if (area == SettingsArea.BAR) return AgentAreaBarScreen(onNavigate, onClickBack) // stage 38f
     AgentSettingsTheme {
         Column(
             Modifier.fillMaxSize().background(AgentSettingsTokens.Background).windowInsetsPadding(WindowInsets.safeDrawing)

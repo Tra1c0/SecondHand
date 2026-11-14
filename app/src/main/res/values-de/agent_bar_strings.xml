@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 38f, area page "Leiste & Befehle". -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="agent_bar_mode">Leiste</string>
+    <string name="agent_bar_mode_expandable">Tasten + Vorschläge</string>
+    <string name="agent_bar_mode_expandable_hint">Ausklappbar, angeheftete Knöpfe bleiben</string>
+    <string name="agent_bar_mode_suggestions">Nur Vorschläge</string>
+    <string name="agent_bar_mode_suggestions_hint">Knöpfe nur beim Antippen</string>
+    <string name="agent_bar_mode_hidden">Versteckt</string>
+    <string name="agent_bar_mode_hidden_hint">Mehr Platz für Tasten</string>
+    <string name="agent_bar_mode_custom">Eigene Einstellung: „%1$s“. Eine Karte wählen, um es zu ändern.</string>
+    <string name="agent_bar_commands">\@-Befehle</string>
+    <string name="agent_bar_prefix">Präfix %1$s</string>
+    <string name="agent_bar_commands_caption">Antippen schaltet einzeln an/aus. Textbausteine, Orte und Bildschirm-Lesen stehen beim jeweiligen Befehl.</string>
+    <string name="agent_bar_commands_off">Getippte Befehle sind aus. Der Schalter oben schaltet sie ein.</string>
+    <string name="agent_bar_permission">%1$s braucht Zugriff auf Kontakte. Antippen zum Erlauben.</string>
+    <string name="agent_bar_section">Leiste</string>
+    <string name="agent_bar_keys">Knöpfe wählen und sortieren</string>
+    <string name="agent_bar_keys_sub">Werkzeuge, Anheften, Zwischenablage</string>
+    <string name="agent_bar_auto_show">Automatisch zeigen</string>
+    <string name="agent_bar_auto_show_sub">Bei Eingabe oder Auswahl</string>
+    <string name="agent_bar_auto_show_off">Nur mit Tasten + Vorschläge</string>
+    <string name="agent_bar_swipe">Wischen blendet aus</string>
+    <string name="agent_bar_swipe_sub">Auf der Leiste nach unten</string>
+    <string name="agent_bar_swipe_off">Nicht bei versteckter Leiste</string>
+    <string name="agent_bar_skills">Skill-Tasten anheften</string>
+    <string name="agent_bar_skills_sub">Die drei eigenen Aktionen</string>
+    <string name="agent_bar_skills_off">Angeheftete Knöpfe zeigt nur die Leiste mit Vorschlägen</string>
+    <string name="agent_bar_skills_value">%1$d von 3</string>
+    <string name="agent_bar_clipboard">Zwischenablage &amp; Bilder</string>
+    <string name="agent_bar_history">Zwischenablage-Verlauf</string>
+    <string name="agent_bar_history_sub">Kopiertes wiederfinden</string>
+    <string name="agent_bar_retention">Aufbewahrung</string>
+    <string name="agent_bar_retention_sub">Wie lange Einträge bleiben</string>
+    <string name="agent_bar_needs_history">Nur mit Zwischenablage-Verlauf</string>
+    <string name="agent_bar_files">Bilder und Dateien</string>
+    <string name="agent_bar_files_sub">Auch Bilder merken</string>
+    <string name="agent_bar_screenshots">Screenshots anbieten</string>
+    <string name="agent_bar_screenshots_sub">Neue Screenshots als Pille</string>
+    <string name="agent_bar_screenshots_missing">Zugriff auf Bilder fehlt: noch keine Pille</string>
+    <string name="agent_bar_mix">Emoji-Mix in der Leiste</string>
+    <string name="agent_bar_mix_sub">Nach zwei getippten Emojis</string>
+    <string name="agent_bar_all_commands">Alle Befehls-Einstellungen</string>
+    <string name="agent_bar_all_commands_sub">Präfix, Textbausteine, Orte, Bildschirm lesen, Emoji-Mix</string>
+    <string name="agent_bar_screenshot_page">Screenshots</string>
+    <string name="agent_bar_screenshot_page_sub">Zugriff auf Bilder</string>
+    <string name="agent_bar_screenshot_allowed">erlaubt</string>
+    <string name="agent_bar_screenshot_missing">fehlt</string>
+    <string name="agent_bar_more_clipboard">Weitere Zwischenablage-Einstellungen</string>
+    <string name="agent_bar_more_clipboard_sub">Angeheftete zuerst, Dateigröße</string>
+</resources>

@@ -305,7 +305,7 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
   `ScreenshotChip.stop` (Observer abmelden, ausstehende Meldung, Entprellen und Ablauf entfernen).
 - `LatinIME.java` (23g): `setSuggestedWords` ruft nach `tryShowCommandChips` und nach
   `mInputLogic.setSuggestedWords` `tryShowScreenshotChip` (blendet bei `mAutoHideToolbar` die
-  Symbolleiste aus wie der Zwischenablage-Chip); die Pille ersetzt also nur die Anzeige, die
+  Leiste aus wie der Zwischenablage-Chip); die Pille ersetzt also nur die Anzeige, die
   Vorschläge für die Autokorrektur bleiben in `InputLogic`. `onInlineSuggestionsResponse` zeigt
   Autofill über `showInlineAutofill` und merkt sich die View; `isShowingInlineAutofill` sagt, ob
   sie noch in der Leiste hängt (`removeExternalSuggestions` vergisst sie). `InputLogic` selbst ist
@@ -434,6 +434,9 @@ Speicher, Datenschutz und Identität:
   (`:agent-core`), `clip_provider.xml` und `gesture_data.xml` (eigene Provider-Authorities,
   auch in `debug`/`debugNoMinify`), `donottranslate.xml` und `strings.xml` in
   `debug`/`debugNoMinify` (Namen „Agent Keyboard“ bzw. „Agent Keyboard Lab“).
+- `values-de/strings.xml` (38f): deutsche Texte von HeliBoard sagen „Leiste“ statt „Symbolleiste“
+  (Modus, Tasten, Anheften, Hinweise, Gestendaten); nur Wortlaut, keine neuen oder entfernten
+  Schlüssel. Englisch unverändert.
 
 Symbole malen (Etappe 27, Touch-Verarbeitung, jede Änderung mit Prüfer; Details im Abschnitt
 „Symbole malen“):
@@ -1108,8 +1111,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `SettingsAreas.entries(area)`, die vorläufige Zuordnung der bisherigen Seiten nach
   `Struktur.dc.html` (Aussehen: Design, RGB, Aussehen; Tippen: Textkorrektur, Gelernte Wörter,
   Wörterbücher; Tasten: Sprachen, Optionen, Sekundäre Layouts; Gesten: Leertaste, Symbole malen,
-  Gestenschreiben (nur mit Bibliothek), Optionen als „Vibration & Ton“; Leiste: Symbolleiste
-  als „Leiste“, Befehle, Screenshots; KI: KI-Anbieter, Skill-Tasten, Workflows, Diktat; System:
+  Gestenschreiben (nur mit Bibliothek), Optionen als „Vibration & Ton“; Leiste: Leiste
+  (früher „Symbolleiste“), Befehle, Screenshots, seit 38f Zeilen der neuen Seite; KI: KI-Anbieter,
+  Skill-Tasten, Workflows, Diktat; System:
   Profile, Updates, Diagnose, Erweitert, Gestendaten (nur in der Sammelphase), Über). 38b–38h
   ersetzen die Karte „Seiten“ je Bereich durch den Aufbau des Mockups. `patternLabel` in
   `AgentRgbScreen.kt` ist dafür `internal`. Texte: `agent_settings_strings.xml`. Tests
@@ -1168,6 +1172,32 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Seiten, die diese Seite öffnet (Zeilen mit `AREA_ROW_TAG + route`, P119). Texte:
   `agent_settings_keys_strings.xml`. Test `AT/SettingsKeysScreenTest.kt` (Bild
   `app/build/agent-previews/settings-area_keys-full.png`).
+- Bereich Leiste & Befehle (38f, P132–P133): `K/settings/screens/AgentAreaBarScreen.kt`,
+  aufgerufen von `AgentAreaScreen` für `SettingsArea.BAR` (eine Zeile). `BarModes` ordnet die
+  drei Karten HeliBoards `toolbar_mode` zu: TASTEN + VORSCHLÄGE = `EXPANDABLE`, NUR VORSCHLÄGE =
+  `SUGGESTION_STRIP`, VERSTECKT = `HIDDEN`; `TOOLBAR_KEYS` („Nur Leisten-Tasten“) ist keine Karte
+  und „Eigene Einstellung“. Schreiben wie die alte Liste (mit `setThemeNeedsReload`).
+  `pinnedSkills` zählt `SKILL_1..3` in `getPinnedToolbarKeys`. Karte „@-Befehle“: Kopf mit Titel,
+  „Präfix <Zeichen>“ und dem Hauptschalter (`KeyboardCommands.setEnabled`, Beschreibung „Getippte
+  Befehle erkennen“); je Befehl aus `KeyboardCommands.registry` ein Chip auf
+  `isCommandEnabled`/`setCommandEnabled` (eigene Chips statt `ChipToggles`, weil sie bei
+  ausgeschaltetem Hauptschalter gesperrt sein müssen); fehlt einem eingeschalteten Befehl die
+  Berechtigung (`@contact`), fragt der Chip beim Einschalten und eine Zeile darunter auf Tipp.
+  Abschnitt Leiste: „Knöpfe wählen und sortieren“ öffnet die alte Leisten-Seite (`ToolbarScreen`
+  mit ihren Dialogen), Schalter `auto_show_toolbar` (nur bei `EXPANDABLE`) und
+  `toolbar_swipe_down_to_hide` (nicht bei `HIDDEN`), „Skill-Tasten anheften“ öffnet einen Dialog
+  mit drei Schaltern (`addPinnedKey`/`removePinnedKey` wie die Skill-Seite). Abschnitt
+  Zwischenablage & Bilder: Verlauf (mit `ClipboardDao.clearNonPinned` wie der alte Schalter),
+  Aufbewahrung über HeliBoards `SliderDialog` (1–121, über 120 „Keine Begrenzung“,
+  `clearOldClips`), Bilder und Dateien (`cleanupFiles`), beide nur mit Verlauf; Screenshots wie
+  `AgentScreenshotScreen` (Aufräumen beim Ausschalten, Berechtigung beim Einschalten);
+  Emoji-Mix über `EmojiMixCommand.setStripEnabled`. Karte am Ende: „Alle Befehls-Einstellungen“
+  (`AgentCommandsScreen`: Präfix, Textbausteine, Orte, Bildschirm lesen, Emoji-Mix-Speicher),
+  „Screenshots“ (Berechtigung erlaubt/fehlt) und „Weitere Zwischenablage-Einstellungen“
+  (Optionen: angeheftete zuerst, Dateigröße). Berechtigungen liest `rememberPermissions` beim
+  Öffnen und bei `ON_RESUME`. Texte `agent_bar_strings.xml`. Test `AT/SettingsBarAreaTest.kt`
+  (Bild `app/build/agent-previews/settings-area_bar.png`, ganze Seite; `SettingsStartScreenTest`
+  schreibt für diesen Bereich `settings-area_bar-top.png`).
 - Design-Seite (23f1): `A/DesignTiles.kt` (Abschnitte, Kacheln, Auswahl; schreibt genau die
   Schlüssel von Tag/Nacht-Schalter und Farbwähler, „Flacher Look“ über `FlatPreset.apply`) und
   `K/settings/screens/AgentDesignScreen.kt` (Raster, Rahmen und Häkchen, TalkBack als
@@ -1309,7 +1339,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Android 8 gar nicht gemerkt. `styleChip` richtet die Beschriftung links aus (die Ansicht
   umschließt den Text, also sieht es aus wie zentriert; einzeilig zentrierter Text wird in
   Robolectric nicht gezeichnet). Die Kopfzeile zeigt höchstens drei Tasten und nie „Schließen“;
-  ohne sichtbare Leiste (Symbolleiste ausgeblendet) bleibt die Ansicht beim alten Aufbau mit
+  ohne sichtbare Leiste (Leiste ausgeblendet) bleibt die Ansicht beim alten Aufbau mit
   unterer Tastenreihe.
 - Screenshot-Pille: `K/agent/ScreenshotChip.kt`, opt-in (`AgentPreferences.SCREENSHOT_CHIP`,
   aus) und nur mit Bildberechtigung. `current` sucht das neueste Bild mit „screenshot“ im
@@ -1339,7 +1369,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `resetForTest` lässt `background` an Ort und Stelle laufen; `clock` ist die Wanduhr (Tests).
   `ClipboardHistoryManager.onScreenshotChange` zeigt die Pille nur bei sichtbarer Tastatur und
   zwischen den Wörtern über `setNeutralSuggestionStrip` (Befehlschips zuerst); im Modus
-  EXPANDABLE wird die Symbolleiste eingeklappt wie bei Befehlschips. „Zwischen den Wörtern“
+  EXPANDABLE wird die Leiste eingeklappt wie bei Befehlschips. „Zwischen den Wörtern“
   (`screenshotMayReplaceStrip`): keine Komposition, vor der Schreibmarke nichts, ein Leerraum
   oder ein Worttrenner (`isWordSeparator`), so auch in Feldern ohne Komposition; kein
   Inline-Autofill (`LatinIME.isShowingInlineAutofill`) und keine nicht leeren App-Vorschläge
@@ -1775,7 +1805,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Schreiben nach der Pause kommt aus dessen Merker (P112). Ein
   Tipp schreibt sofort (`SymbolInk.takeWaiting`, nichts, solange ein Strich auf den Tasten ist oder
   die Eingabe gesperrt ist, Prüfer N3: die Zeichnung bleibt dann); eine Alternative ist eine
-  Korrektur (Lernen, unten). Bekannt, nicht geändert: im Modus „Werkzeugleiste ausklappbar“ wird die
+  Korrektur (Lernen, unten). Bekannt, nicht geändert: im Modus „Leisten-Tasten und Vorschläge“ (EXPANDABLE) wird die
   Leiste bei jedem Wechsel zwischen Vorschau und Vorschlägen wie bei den übrigen Chips umgeschaltet.
   Wird die Zeichnung
   verworfen, meldet `cancel` eine leere Liste und die Leiste holt ihre Vorschläge zurück
@@ -2435,13 +2465,20 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `yyyy-MM-dd HH:mm:ss`, Sätze wie bei „Mehr Buchstaben …“) drückt den Titel auf einen Buchstaben
   Breite. Lange Werte gehören in den Untertitel (Seite Tasten & Sprachen: Zeitstempel über 10
   Zeichen, Verhalten der Sprachwechseltaste, mehr Popup-Buchstaben).
+- **P132** Die Befehls-Chips der Leiste-Seite sind keine `ChipToggles` des Baukastens: Bei
+  ausgeschaltetem Hauptschalter müssen sie gesperrt sein (`toggleable(enabled = false)`), sonst
+  schaltet ein Tipp still einen Befehl, der ohnehin nicht erkannt wird. Wer `ChipToggles` um
+  `enabled` erweitert, kann sie dort einsetzen.
+- **P133** Die Karte „@-Befehle“ liest Hauptschalter, Präfix und Chip-Zustände in ihrem eigenen
+  Composable und ruft dafür `observe()` (beide Zähler aus P121); sonst überspringt Compose sie
+  nach einem Tipp (P126), Chip und Einstellung laufen auseinander.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (447 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (452 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -2468,7 +2505,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (78): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (79): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, ClipCommandTest, CommandReplaceTest, CommandTemplatesTest,
@@ -2480,13 +2517,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LearningDataTest,
   LoadingDotsViewTest, ManualWorkflowDraftTest, MoreCommandsTest, MoreProvidersTest, MyDesignsTest,
   OpenAiProviderTest, RgbLightingRenderTest, RgbSettingsScreenTest, RgbTilesTest,
-  ScreenshotChipTest, SelectedTextCommitTest, SettingsAreaGesturesTest, SettingsKeysScreenTest,
-  SettingsKitTest, SettingsStartScreenTest, SettingsTypingAreaTest, SkillBindingStoreTest,
-  SkillSettingsTest, SliderFeelTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest,
-  SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest, TouchModelTest,
-  TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
-  WorkflowCommandTest, WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest,
-  WorkflowStoreTest
+  ScreenshotChipTest, SelectedTextCommitTest, SettingsAreaGesturesTest, SettingsBarAreaTest,
+  SettingsKeysScreenTest, SettingsKitTest, SettingsStartScreenTest, SettingsTypingAreaTest,
+  SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest, SnipCommandTest, SpaceDetentsTest,
+  SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest,
+  TouchModelTest, TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest,
+  WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
+  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (8): ClockCommandsTest, EmojiMixCommandTest, LanguageCommandTest, QrCommandTest,
   ScreenReaderServiceTest, SubtypeChoiceTest, TranslateCommandTest, UrlCommandTest
 - `C/` (40): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
@@ -2524,15 +2561,15 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/settings/` (4): SearchScreen, SettingsActivity, SettingsContainer, SettingsNavHost
 - `K/settings/dialogs/` (2): ColorPickerDialog, SliderDialog
 - `K/settings/preferences/` (2): KeyboardScalePreference, SliderPreference
-- `K/settings/screens/` (35): AdvancedScreen, AgentAiScreen, AgentAreaGesturesScreen,
-  AgentAreaKeysScreen, AgentAreaScreen, AgentAreaTypingScreen, AgentCommandsScreen,
-  AgentDesignEditor, AgentDesignScreen, AgentDiagnoseScreen, AgentDictationScreen,
-  AgentEmojiMixSection, AgentLearningScreen, AgentProfilesScreen, AgentRgbCurveEditor,
-  AgentRgbScreen, AgentRunStatus, AgentScreenReaderSection, AgentScreenshotScreen, AgentSettingsKit,
-  AgentSkillsScreen, AgentSlider, AgentSnippetsSection, AgentSpaceScreen, AgentStartScreen,
-  AgentSymbolsScreen, AgentUpdatesScreen, AgentWorkflowsScreen, AppearanceScreen, DictionaryScreen,
-  GestureTypingScreen, MainSettingsScreen, TextCorrectionScreen, WorkflowBuilderDialog,
-  WorkflowDraftProtection
+- `K/settings/screens/` (36): AdvancedScreen, AgentAiScreen, AgentAreaBarScreen,
+  AgentAreaGesturesScreen, AgentAreaKeysScreen, AgentAreaScreen, AgentAreaTypingScreen,
+  AgentCommandsScreen, AgentDesignEditor, AgentDesignScreen, AgentDiagnoseScreen,
+  AgentDictationScreen, AgentEmojiMixSection, AgentLearningScreen, AgentProfilesScreen,
+  AgentRgbCurveEditor, AgentRgbScreen, AgentRunStatus, AgentScreenReaderSection,
+  AgentScreenshotScreen, AgentSettingsKit, AgentSkillsScreen, AgentSlider, AgentSnippetsSection,
+  AgentSpaceScreen, AgentStartScreen, AgentSymbolsScreen, AgentUpdatesScreen, AgentWorkflowsScreen,
+  AppearanceScreen, DictionaryScreen, GestureTypingScreen, MainSettingsScreen, TextCorrectionScreen,
+  WorkflowBuilderDialog, WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
 - `app/` (1): build.gradle
@@ -2552,17 +2589,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (15): agent_alarm_strings, agent_design_strings,
+- `app/src/main/res/values-de/` (17): agent_alarm_strings, agent_bar_strings, agent_design_strings,
   agent_diagnose_strings, agent_emoji_mix_strings, agent_gestures_strings, agent_language_strings,
   agent_rgb_strings, agent_settings_keys_strings, agent_settings_strings, agent_slider_strings,
   agent_space_strings, agent_strings, agent_symbol_strings, agent_typing_strings,
-  agent_update_strings
-- `app/src/main/res/values/` (22): agent_alarm_strings, agent_attrs, agent_design_strings,
-  agent_diagnose_strings, agent_emoji_mix_strings, agent_gestures_strings, agent_ids,
-  agent_language_strings, agent_rgb_strings, agent_settings_keys_strings, agent_settings_strings,
-  agent_slider_strings, agent_space_strings, agent_strings, agent_symbol_strings,
-  agent_typing_strings, agent_update_strings, attrs, clip_provider, donottranslate, gesture_data,
-  themes-flat
+  agent_update_strings, strings
+- `app/src/main/res/values/` (23): agent_alarm_strings, agent_attrs, agent_bar_strings,
+  agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings, agent_gestures_strings,
+  agent_ids, agent_language_strings, agent_rgb_strings, agent_settings_keys_strings,
+  agent_settings_strings, agent_slider_strings, agent_space_strings, agent_strings,
+  agent_symbol_strings, agent_typing_strings, agent_update_strings, attrs, clip_provider,
+  donottranslate, gesture_data, themes-flat
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (1): Shadows
