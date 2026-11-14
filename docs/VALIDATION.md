@@ -2987,6 +2987,50 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Offen: Prüfer-Review, Gerätetest (Karten am Telefon, Berechtigungsdialoge für Kontakte und
   Bilder, TalkBack, Skill-Dialog).
 
+## Etappe 38g (Einstellungen: KI & Automationen)
+
+- Auftrag (Lead, ROADMAP 38, 1:1 nach `docs/referenzen/einstellungen-mockup/KI.dc.html`): die
+  Bereichsseite 06 mit dem Baukasten aus 38a, echte Werte, bisherige Seiten für Schlüssel,
+  Skill-Belegung, Workflows und Diktat. Gebaut in einer Arbeitskopie, kein Prüfer-Review, kein
+  Gerätetest.
+- Gebaut: `AgentAreaAiScreen.kt` (Held, Auswahlkarten „Anbieter“ mit Schlüsselstatus und „Ändern“,
+  Karte „Skill-Tasten“ mit drei Kacheln, Abschnitte „Texte“, „Workflows“, „Diktat & Verlauf“;
+  `FLAG_SECURE`, gesperrter Zustand), `agent_ai_area_strings.xml` (Englisch, Deutsch). Klein
+  geändert: `AgentAreaScreen.kt` (eine Zeile Weiche, Kommentar an `SettingsAreas` für KI).
+- Zuordnung: Karten in der Reihenfolge `CloudProviders.SUPPORTED` (OpenAI, Anthropic = `CLAUDE`,
+  Google Gemini) ↔ `ModelSettings.provider`/`setProvider`; Hinweis = `ModelSettings.model(…)`,
+  leer (Gemini ohne eigenes Modell) „Modell-ID selbst eintragen“. Schlüsselstatus nur über
+  `EncryptedCredentialStore.contains` des Platzes des gewählten Anbieters. Kachel = `label`, leer
+  der Name der Aktion („Nicht belegt“). Diktat: Erkenner fehlt → „Nicht verfügbar“, Mikrofonrecht
+  fehlt → „Erlauben“, sonst „Bereit“.
+- Abweichungen vom Mockup: Hinweise der Anbieterkarten zeigen das echte Modell („Modell:
+  gpt-6-luna“ statt „Modell: eigenes oder Vorgabe“, „Modell: claude-haiku-5-5“ statt
+  „Claude-Modelle“); „Ändern“ 44 dp hoch statt 40 (P120); Statuszeile hat zusätzlich „Kein
+  Schlüssel gespeichert“, „wird geprüft“ und „nicht verfügbar“; „Neuer Workflow“ und „Import &
+  Export“ öffnen die Workflow-Seite (dort Anlegen, Builder, Import/Export), „Auftragsstatus“ die
+  Seite KI-Anbieter (dort die Liste). Gesperrt: Hinweis plus Karte „Seiten“ statt der Inhalte.
+  Systemschrift wie in 38a.
+- Tests (Robolectric, kein Gerätetest): `SettingsAreaAiTest` 11 Tests (Aufbau, Texte und
+  Reihenfolge des Mockups, Kacheln nebeneinander, `FLAG_SECURE`; Anbieter in beide Richtungen
+  inkl. Modell-Hinweisen, Modelle bleiben unverändert; Schlüsselstatus je Anbieter mit echtem,
+  verschlüsseltem Testschlüssel, der in keinem Text, keiner Beschreibung erscheint und unverändert
+  bleibt, „Ändern“ → `agent_ai`; gesperrtes Gerät ohne Anbieter, Status und Kacheln, die vier
+  Seiten erreichbar; Kacheln mit echten Namen inkl. Workflow und „Nicht belegt“; Zielsprache und
+  Ton lesen und über die Liste schreiben, Workflow-Anzahl, Zeilen öffnen ihre Seiten; Diktat
+  „Nicht verfügbar“/„Erlauben“/„Bereit“; alles Anklickbare ≥ 44 dp; Bild mit Pixelprüfung von
+  Held, Kachelfarben, gewählter und gedämpfter Anbieterkarte). `SettingsStartScreenTest`
+  unverändert grün (P119: die vier Routen bleiben in `SettingsAreas.entries(AI)` und tragen auf der
+  neuen Seite je einen `AREA_ROW_TAG`, P135).
+- `python3 tools/dev.py agent-tests`: grün, 803 Tests in 89 Klassen laut Ergebnisdateien, 0 Fehler
+  (2026-11-14, darin `SettingsAreaAiTest` 11 und `SettingsStartScreenTest`). Kein Build, keine
+  Upstream-Suite (geteilte Maschine). `docs_sync --check`: grün.
+- Bild (nicht versioniert): `app/build/agent-previews/settings-area_ai-full.png` (ganze Seite,
+  390 × 2200 dp); mit `KI.dc.html` verglichen: Reihenfolge, Farben der Karten und Kacheln, Radien,
+  Schlüsselzeile und Abschnitte stimmen; wie im Mockup liegt die Leucht-Pille der dritten Karte
+  am Ende von „GOOGLE GEMINI“.
+- Offen: Prüfer-Review, Gerätetest (FLAG_SECURE, Sperre und Entsperren mit offener Seite,
+  echter Schlüssel, Diktat mit On-device-Erkenner, TalkBack).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

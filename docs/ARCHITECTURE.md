@@ -1198,6 +1198,24 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Öffnen und bei `ON_RESUME`. Texte `agent_bar_strings.xml`. Test `AT/SettingsBarAreaTest.kt`
   (Bild `app/build/agent-previews/settings-area_bar.png`, ganze Seite; `SettingsStartScreenTest`
   schreibt für diesen Bereich `settings-area_bar-top.png`).
+- KI & Automationen (38g, Vorlage `KI.dc.html`, P134–P135): `K/settings/screens/AgentAreaAiScreen.kt`,
+  von `AgentAreaScreen` für `SettingsArea.AI` aufgerufen (eine Zeile). Wie `AgentAiScreen`:
+  `FLAG_SECURE` solange die Seite steht, `credentialAccessAllowed` bei `ON_RESUME`, `ON_STOP` sperrt;
+  gesperrt wird weder `ModelSettings` noch ein Store gebaut (Direct Boot), es gibt nur den Hinweis
+  `agent_ai_unlock` und die vier Zeilen aus `SettingsAreas.entries(AI)`. Entsperrt: `ChoiceCards`
+  „Anbieter“ über `CloudProviders.SUPPORTED` ↔ `ModelSettings.provider`/`setProvider` (Hinweis =
+  `ModelSettings.model`, leer → „Modell-ID selbst eintragen“; Farben der Karten aus dem Mockup);
+  Schlüsselstatus je Anbieter nur über `EncryptedCredentialStore.contains(CloudProviders.slot(…))`
+  auf `Dispatchers.IO` (nie `read`), „Ändern“ → `agent_ai`. Kacheln der Skill-Tasten aus
+  `SkillBindingStore.read` (Name = `label`, leer → `BuiltinAction.titleResource`), Anzahl aus
+  `WorkflowStore.read`, beides einmal je Besuch auf IO. Zielsprache und Ton mit `DropdownMenu` wie
+  auf der alten Seite (`setTranslationLanguage`, `setWritingTone`). Diktat: `OnDeviceSpeechEngine.available`
+  (in Tests `dictationAvailable`) und `RECORD_AUDIO`, neu bei `ON_RESUME`; Auftragsstatus →
+  `agent_ai` (dort `AgentRunStatus`), Zahlen aus `EncryptedActionRunStore.MAX_RECORDS`/`MAX_AGE_MS`,
+  Workflow-Grenzen aus `WorkflowDefinition.MAX_STEPS`/`MAX_MODEL_CALLS`. Zeilen-Tags für P119:
+  „Ändern“, Kachel 1, „Meine Workflows“ und Diktat tragen `AREA_ROW_TAG` + Route. Texte
+  `agent_ai_area_strings.xml`. Test `AT/SettingsAreaAiTest.kt` (Bild
+  `app/build/agent-previews/settings-area_ai-full.png`, ganze Seite).
 - Design-Seite (23f1): `A/DesignTiles.kt` (Abschnitte, Kacheln, Auswahl; schreibt genau die
   Schlüssel von Tag/Nacht-Schalter und Farbwähler, „Flacher Look“ über `FlatPreset.apply`) und
   `K/settings/screens/AgentDesignScreen.kt` (Raster, Rahmen und Häkchen, TalkBack als
@@ -2472,13 +2490,25 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P133** Die Karte „@-Befehle“ liest Hauptschalter, Präfix und Chip-Zustände in ihrem eigenen
   Composable und ruft dafür `observe()` (beide Zähler aus P121); sonst überspringt Compose sie
   nach einem Tipp (P126), Chip und Einstellung laufen auseinander.
+- **P134** Die KI-Bereichsseite darf auf gesperrtem Gerät nichts aus dem geschützten Speicher
+  öffnen: `ModelSettings`, `SkillBindingStore`, `WorkflowStore` und `EncryptedCredentialStore`
+  entstehen erst in `UnlockedContent`, hinter `credentialAccessAllowed` (wie `AgentAiScreen`).
+  Wer dort einen Wert schon im äußeren Composable liest, wirft auf echten Geräten vor dem ersten
+  Entsperren (Direct Boot). Der Schlüsselstatus nutzt nur `contains`, nie `read`
+  (`SettingsAreaAiTest.keyStatusFollowsTheProviderAndNeverShowsTheKey` sucht den Schlüssel in allen
+  Texten).
+- **P135** `SettingsStartScreenTest.eachAreaPageHasItsHeroAndOpensItsPages` klickt je Route aus
+  `SettingsAreas.entries` genau einen Knoten mit `AREA_ROW_TAG` + Route und erwartet die Routen in
+  dieser Reihenfolge. Auf der KI-Seite öffnen mehrere Elemente dieselbe Seite (drei Kacheln,
+  drei Workflow-Zeilen, „Ändern“ und Auftragsstatus): nur je eines trägt den Tag, die anderen
+  `SKILL_TAG`/`AI_ROW_TAG`, sonst ist der Knoten nicht eindeutig und der Test wird rot.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (452 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (456 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -2505,7 +2535,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (79): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (80): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, ClipCommandTest, CommandReplaceTest, CommandTemplatesTest,
@@ -2517,11 +2547,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LearningDataTest,
   LoadingDotsViewTest, ManualWorkflowDraftTest, MoreCommandsTest, MoreProvidersTest, MyDesignsTest,
   OpenAiProviderTest, RgbLightingRenderTest, RgbSettingsScreenTest, RgbTilesTest,
-  ScreenshotChipTest, SelectedTextCommitTest, SettingsAreaGesturesTest, SettingsBarAreaTest,
-  SettingsKeysScreenTest, SettingsKitTest, SettingsStartScreenTest, SettingsTypingAreaTest,
-  SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest, SnipCommandTest, SpaceDetentsTest,
-  SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest,
-  TouchModelTest, TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest,
+  ScreenshotChipTest, SelectedTextCommitTest, SettingsAreaAiTest, SettingsAreaGesturesTest,
+  SettingsBarAreaTest, SettingsKeysScreenTest, SettingsKitTest, SettingsStartScreenTest,
+  SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest, SnipCommandTest,
+  SpaceDetentsTest, SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal,
+  ToolRunnerTest, TouchModelTest, TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest,
   WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
   WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (8): ClockCommandsTest, EmojiMixCommandTest, LanguageCommandTest, QrCommandTest,
@@ -2561,7 +2591,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/settings/` (4): SearchScreen, SettingsActivity, SettingsContainer, SettingsNavHost
 - `K/settings/dialogs/` (2): ColorPickerDialog, SliderDialog
 - `K/settings/preferences/` (2): KeyboardScalePreference, SliderPreference
-- `K/settings/screens/` (36): AdvancedScreen, AgentAiScreen, AgentAreaBarScreen,
+- `K/settings/screens/` (37): AdvancedScreen, AgentAiScreen, AgentAreaAiScreen, AgentAreaBarScreen,
   AgentAreaGesturesScreen, AgentAreaKeysScreen, AgentAreaScreen, AgentAreaTypingScreen,
   AgentCommandsScreen, AgentDesignEditor, AgentDesignScreen, AgentDiagnoseScreen,
   AgentDictationScreen, AgentEmojiMixSection, AgentLearningScreen, AgentProfilesScreen,
@@ -2589,17 +2619,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (17): agent_alarm_strings, agent_bar_strings, agent_design_strings,
-  agent_diagnose_strings, agent_emoji_mix_strings, agent_gestures_strings, agent_language_strings,
-  agent_rgb_strings, agent_settings_keys_strings, agent_settings_strings, agent_slider_strings,
-  agent_space_strings, agent_strings, agent_symbol_strings, agent_typing_strings,
-  agent_update_strings, strings
-- `app/src/main/res/values/` (23): agent_alarm_strings, agent_attrs, agent_bar_strings,
+- `app/src/main/res/values-de/` (18): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
   agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings, agent_gestures_strings,
-  agent_ids, agent_language_strings, agent_rgb_strings, agent_settings_keys_strings,
-  agent_settings_strings, agent_slider_strings, agent_space_strings, agent_strings,
-  agent_symbol_strings, agent_typing_strings, agent_update_strings, attrs, clip_provider,
-  donottranslate, gesture_data, themes-flat
+  agent_language_strings, agent_rgb_strings, agent_settings_keys_strings, agent_settings_strings,
+  agent_slider_strings, agent_space_strings, agent_strings, agent_symbol_strings,
+  agent_typing_strings, agent_update_strings, strings
+- `app/src/main/res/values/` (24): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+  agent_bar_strings, agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings,
+  agent_gestures_strings, agent_ids, agent_language_strings, agent_rgb_strings,
+  agent_settings_keys_strings, agent_settings_strings, agent_slider_strings, agent_space_strings,
+  agent_strings, agent_symbol_strings, agent_typing_strings, agent_update_strings, attrs,
+  clip_provider, donottranslate, gesture_data, themes-flat
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (1): Shadows

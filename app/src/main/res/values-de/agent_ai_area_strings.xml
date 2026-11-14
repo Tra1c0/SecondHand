@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- stage 38g: area page "KI & Automationen" (mockup KI.dc.html) -->
+    <string name="agent_ai_area_provider">Anbieter</string>
+    <string name="agent_ai_area_model">Modell: %1$s</string>
+    <string name="agent_ai_area_model_own">Modell-ID selbst eintragen</string>
+    <string name="agent_ai_area_key_saved">Schlüssel gespeichert · verschlüsselt auf dem Gerät</string>
+    <string name="agent_ai_area_key_missing">Kein Schlüssel gespeichert</string>
+    <string name="agent_ai_area_key_checking">Schlüssel wird geprüft …</string>
+    <string name="agent_ai_area_key_unavailable">Schlüsselspeicher nicht verfügbar</string>
+    <string name="agent_ai_area_key_change">Ändern</string>
+    <string name="agent_ai_area_key_change_label">Schlüssel und Modell ändern</string>
+    <string name="agent_ai_area_skills">Skill-Tasten</string>
+    <string name="agent_ai_area_skill_unavailable">Nicht lesbar</string>
+    <string name="agent_ai_area_skill_label">Skill-Taste %1$d: %2$s</string>
+    <string name="agent_ai_area_texts">Texte</string>
+    <string name="agent_ai_area_language">Zielsprache für Übersetzungen</string>
+    <string name="agent_ai_area_language_summary">Für @translate und Skill-Tasten</string>
+    <string name="agent_ai_area_tone">Tonfall beim Umformulieren</string>
+    <string name="agent_ai_area_tone_summary">Neutral, freundlich, professionell</string>
+    <string name="agent_ai_area_workflows">Workflows</string>
+    <string name="agent_ai_area_my_workflows">Meine Workflows</string>
+    <string name="agent_ai_area_my_workflows_summary">Bis zu %1$d Schritte, %2$d KI-Anfragen</string>
+    <string name="agent_ai_area_new_workflow">Neuer Workflow</string>
+    <string name="agent_ai_area_new_workflow_summary">Selbst bauen oder mit KI entwerfen</string>
+    <string name="agent_ai_area_import_export">Import &amp; Export</string>
+    <string name="agent_ai_area_import_export_summary">Nur Konfiguration, keine Schlüssel</string>
+    <string name="agent_ai_area_dictation_history">Diktat &amp; Verlauf</string>
+    <string name="agent_ai_area_dictation">Diktat auf dem Gerät</string>
+    <string name="agent_ai_area_dictation_allowed">Mikrofon erlaubt · ab Android 12</string>
+    <string name="agent_ai_area_dictation_not_allowed">Mikrofon nicht erlaubt · ab Android 12</string>
+    <string name="agent_ai_area_dictation_ready">Bereit</string>
+    <string name="agent_ai_area_dictation_permission">Erlauben</string>
+    <string name="agent_ai_area_dictation_unavailable">Nicht verfügbar</string>
+    <string name="agent_ai_area_runs">Auftragsstatus</string>
+    <string name="agent_ai_area_runs_summary">Letzte %1$d Läufe, %2$d Tage</string>
+    <string name="agent_ai_area_pages">Seiten</string>
+</resources>

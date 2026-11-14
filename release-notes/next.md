@@ -161,3 +161,10 @@
   Dateien, Screenshots anbieten und Emoji-Mix in der Leiste. Textbausteine, Orte, Bildschirm lesen
   und das Präfix unter „Alle Befehls-Einstellungen“. „Symbolleiste“ und „Werkzeugleiste“ heißen
   überall „Leiste“. Noch auf keinem Gerät ausprobiert.
+- Neu: Einstellungen → „KI & Automationen“ ist nach dem Entwurf umgebaut. Oben wählst du mit
+  großen Karten den Anbieter (OpenAI, Anthropic, Google Gemini, mit dem eingestellten Modell);
+  darunter steht, ob ein Schlüssel gespeichert ist (der Schlüssel selbst wird nie gezeigt), und
+  „Ändern“ führt zur Schlüsseleingabe. Dann deine drei Skill-Tasten mit ihren Namen, Zielsprache
+  und Tonfall, deine Workflows (mit Anzahl) sowie Diktat (Bereit/Erlauben/Nicht verfügbar) und
+  Auftragsstatus. Bei gesperrtem Gerät zeigt die Seite nur den Hinweis zum Entsperren. Die
+  bisherigen Seiten gibt es weiter. Noch auf keinem Gerät ausprobiert.

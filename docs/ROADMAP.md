@@ -88,6 +88,8 @@ Reihenfolge von oben nach unten.
     Etappe 38f), „Symbolleiste“/„Werkzeugleiste“ heißen in den deutschen Texten jetzt „Leiste“.
     Annahme des Leads: Zuordnung der drei Karten auf `toolbar_mode` (ARCHITECTURE.md →
     Einstellungen und Profile). Offen: Gerätetest.
+  - 38g KI & Automationen ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` →
+    Etappe 38g). Offen: Gerätetest.
 - **39 Text-Stile (Wunsch des Owners vom 2026-11-13)**. Alles lokal, Einfügen nur per Tipp.
   `@style Text` zeigt Chips mit Unicode-Varianten (𝓢𝓬𝓱𝓻𝓲𝓯𝓽, 𝗙𝗲𝘁𝘁, 𝘒𝘶𝘳𝘴𝘪𝘷, ꜱᴍᴀʟʟ ᴄᴀᴘꜱ, Ⓚⓡⓔⓘⓢ,
   d̶u̶r̶c̶h̶, umgedreht); Hinweis, dass Screenreader solche Zeichen schlecht vorlesen. Formatierung

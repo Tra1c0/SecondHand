@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- stage 38g: area page "AI & automations" (mockup KI.dc.html) -->
+    <string name="agent_ai_area_provider">Provider</string>
+    <string name="agent_ai_area_model">Model: %1$s</string>
+    <string name="agent_ai_area_model_own">Enter the model ID yourself</string>
+    <string name="agent_ai_area_key_saved">Key saved · encrypted on this device</string>
+    <string name="agent_ai_area_key_missing">No key saved</string>
+    <string name="agent_ai_area_key_checking">Checking key …</string>
+    <string name="agent_ai_area_key_unavailable">Key storage unavailable</string>
+    <string name="agent_ai_area_key_change">Change</string>
+    <string name="agent_ai_area_key_change_label">Change key and model</string>
+    <string name="agent_ai_area_skills">Skill keys</string>
+    <string name="agent_ai_area_skill_unavailable">Unreadable</string>
+    <string name="agent_ai_area_skill_label">Skill key %1$d: %2$s</string>
+    <string name="agent_ai_area_texts">Texts</string>
+    <string name="agent_ai_area_language">Target language for translations</string>
+    <string name="agent_ai_area_language_summary">For @translate and skill keys</string>
+    <string name="agent_ai_area_tone">Tone when rephrasing</string>
+    <string name="agent_ai_area_tone_summary">Neutral, friendly, professional</string>
+    <string name="agent_ai_area_workflows">Workflows</string>
+    <string name="agent_ai_area_my_workflows">My workflows</string>
+    <string name="agent_ai_area_my_workflows_summary">Up to %1$d steps, %2$d AI requests</string>
+    <string name="agent_ai_area_new_workflow">New workflow</string>
+    <string name="agent_ai_area_new_workflow_summary">Build it yourself or draft it with AI</string>
+    <string name="agent_ai_area_import_export">Import &amp; export</string>
+    <string name="agent_ai_area_import_export_summary">Configuration only, no keys</string>
+    <string name="agent_ai_area_dictation_history">Dictation &amp; history</string>
+    <string name="agent_ai_area_dictation">On-device dictation</string>
+    <string name="agent_ai_area_dictation_allowed">Microphone allowed · Android 12 and later</string>
+    <string name="agent_ai_area_dictation_not_allowed">Microphone not allowed · Android 12 and later</string>
+    <string name="agent_ai_area_dictation_ready">Ready</string>
+    <string name="agent_ai_area_dictation_permission">Allow</string>
+    <string name="agent_ai_area_dictation_unavailable">Unavailable</string>
+    <string name="agent_ai_area_runs">Run status</string>
+    <string name="agent_ai_area_runs_summary">Last %1$d runs, %2$d days</string>
+    <string name="agent_ai_area_pages">Pages</string>
+</resources>
