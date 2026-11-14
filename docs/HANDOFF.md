@@ -15,7 +15,7 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
   Update-Chip, 34 eigene RGB-Lichtmuster (XL), graue Karten mit heller Schrift. Jede Etappe mit
   Prüfer und Nachprüfung (52 viermal); volle Agent-Suite lokal und auf GitHub grün; kein Gerätetest.
 - Releases: nur Builds von `main` erscheinen in `Tra1c0/SecondHandAgenticKeyboard` (Owner-Wahl A,
-  Secret `RELEASES_TOKEN` gesetzt). Build 21 und älter suchen noch im alten Repository: Build 23
+  Secret `RELEASES_TOKEN` gesetzt; Build 23 ist dort erschienen, Lauf ohne Warnung). Build 21 und älter suchen noch im alten Repository: Build 23
   einmal von Hand installieren.
 - Beim Owner: Build 21, Test-Build 22 (ohne 34 und ohne die Prüferkorrekturen zu 52).
 - Nächste Sitzung: Rückmeldung zu Build 22/23 (Befehle, Zeichen-Kunst, Smart Paste, Lichtmuster,
