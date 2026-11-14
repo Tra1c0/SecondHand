@@ -393,3 +393,14 @@
   mit Enter um. Ändert nur deine eigenen Einstellungen und Daten; nie in Passwortfeldern, im
   Inkognito-Modus oder bei gesperrtem Gerät. Die Farben gibt es nur in der Leiste, nicht im
   Textfeld. Noch auf keinem Gerät ausprobiert.
+
+- Neu: Eigene RGB-Lichtmuster. Auf der RGB-Seite unter den Mustern: „Eigenes Muster aus „…““ macht
+  aus dem gewählten Muster deinen Ausgangspunkt und öffnet den Editor. Bis zu vier Ebenen
+  übereinander (Normal, Addieren, Multiplizieren, Aufhellen), je Ebene eine Form (Verläufe, Wellen,
+  Plasma, Rauschen, Streifen, Ringe vom Tippen, Spot auf der letzten Taste, Höhenlinien, Funkeln),
+  2–8 Farben, Farbkreis-Durchlauf, Tempo (auch rückwärts), Richtung, Größe, Verschiebung,
+  Deckkraft, eigene Bewegungskurve und Reaktion aufs Tippen. Oben läuft die Vorschau mit deiner
+  Bildwiederholrate. Eigene Muster stehen neben den eingebauten und lassen sich je Element wählen;
+  duplizieren, umbenennen, löschen, als kleine Datei exportieren und importieren (fremde oder
+  kaputte Dateien werden mit Grund abgelehnt). Die Diagnose zeigt, welche Muster laufen und was ein
+  Bild davon auf deinem Telefon kostet. Alles lokal. Noch auf keinem Gerät ausprobiert.

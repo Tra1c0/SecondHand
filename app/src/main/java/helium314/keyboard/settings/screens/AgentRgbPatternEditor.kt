@@ -3,7 +3,6 @@ package helium314.keyboard.settings.screens
 
 import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
-import androidx.annotation.VisibleForTesting
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -34,7 +33,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -87,10 +85,6 @@ import helium314.keyboard.settings.dialogs.ColorPickerDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
-
-/** How often the editor's option list was composed (tests: dragging a slider must not recompose it). */
-@VisibleForTesting
-internal var editorCompositions = 0
 
 /**
  * The editor of one own light pattern (stage 34), shown in place of the RGB page: the live preview
@@ -146,7 +140,6 @@ internal fun RgbPatternEditor(
             Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)
                 .testTag("agent_rgb_pattern_editor")
         ) {
-            SideEffect { editorCompositions++ }
             RgbSection(R.string.agent_rgb_pattern_name) {
                 var name by remember(pattern.id) { mutableStateOf(pattern.name) }
                 var invalid by remember(pattern.id) { mutableStateOf(false) }

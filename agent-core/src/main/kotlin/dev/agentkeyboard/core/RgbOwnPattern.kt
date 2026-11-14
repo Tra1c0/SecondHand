@@ -189,7 +189,8 @@ data class RgbOwnPattern(val id: String, val name: String, val layers: List<RgbP
                 RgbPattern.BREATHE -> listOf(base.copy(generator = RgbGenerator.FILL))
                 RgbPattern.STATIC_RAINBOW -> listOf(base.copy(speed = 0f))
                 RgbPattern.INK -> listOf(base.copy(generator = RgbGenerator.NOISE, scale = scale * 0.7f, curve = RgbCurve.DEFAULT),
-                    base.copy(generator = RgbGenerator.NOISE, stops = listOf(RgbStop(0f, BLACK), RgbStop(1f, BLACK)), angle = 120,
+                    // dark where there is no ink: noise from black to white, multiplied
+                    base.copy(generator = RgbGenerator.NOISE, stops = listOf(RgbStop(0f, BLACK), RgbStop(1f, WHITE)), angle = 120,
                         scale = scale * 1.3f, opacity = 55, blend = RgbBlend.MULTIPLY, curve = RgbCurve.DEFAULT))
                 RgbPattern.DIAMONDS -> listOf(base.copy(angle = 45),
                     base.copy(generator = RgbGenerator.STRIPES, stops = WHITES, angle = 135, scale = 1.5f, opacity = 35, blend = RgbBlend.SCREEN))

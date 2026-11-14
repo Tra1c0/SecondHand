@@ -900,6 +900,9 @@ Einstellungen in Karten:
 - Muster: Tippe auf ein Bild. Welle waagerecht, senkrecht oder diagonal, Kreis von der Mitte,
   Atmen (alle Tasten gleich, heller und dunkler), statischer Regenbogen (steht still) und die
   bewegten Texturen Tinte, Rauten, Lamellen, Raster, LED-Punkte und Höhenlinien.
+- Eigene Muster (unter der Galerie): deine selbst gestalteten Lichtmuster als Bilder, Antippen wählt
+  eins wie ein eingebautes (mit „Gleiches Muster überall“ aus nur für das gewählte Element). Siehe
+  „Eigene Lichtmuster“ unten.
 - „Gleiches Muster überall“ (an): Alles leuchtet im selben Muster. Schaltest du es aus, erscheint
   eine Auswahl Tasten, Hintergrund, Beschriftung, Vorschläge, Leistenknöpfe. Was du darunter
   einstellst (Muster, Verlauf, Tempo, Farben), gilt nur für das gewählte Element; jedes startet
@@ -963,6 +966,49 @@ Leistenknöpfe: Nur eingeschaltete Werkzeuge leuchten, ausgeschaltete behalten i
 der runde Knopf im flachen Look leuchtet nicht. Mit eigenem Hintergrundbild prüft die Tastatur
 die Lesbarkeit gegen die Hintergrundfarbe, nicht gegen das Bild. Die Einstellung steht im
 Designprofil (Tastaturprofile → Design).
+
+## Eigene Lichtmuster
+
+Auf der RGB-Seite unter der Mustergalerie, Abschnitt „Eigene Muster“:
+
+- „Eigenes Muster aus „…““ macht aus dem gerade gewählten Muster ein eigenes (Wellen und Kreis
+  genau, die Texturen angenähert; bei einem eigenen Muster eine Kopie) und öffnet den Editor. Das
+  neue Muster ist gleich für das gewählte Element eingestellt.
+- Bild antippen wählt ein eigenes Muster, „Bearbeiten“ öffnet das gewählte im Editor.
+- „Importieren“ liest eine Musterdatei (`.json`, höchstens 16 KB). Sie bekommt einen eigenen Namen,
+  falls es den schon gibt („Name 2“). Eine Datei mit unbekannten Feldern, falschen Werten oder
+  einer Adresse im Namen wird ganz abgelehnt; die Meldung sagt, warum. Zu große oder zu kleine
+  Zahlen werden auf den erlaubten Bereich gesetzt.
+
+Im Editor (Zurück führt zur RGB-Seite):
+
+- Oben die Live-Vorschau mit deiner Bildwiederholrate; tippe darauf, um die Reaktionen aufs Tippen
+  zu sehen.
+- Name (1–32 Zeichen, ohne Zeilenumbruch, `<`, `>` oder Adressen), „Duplizieren“, „Exportieren“
+  (du wählst, wo die Datei hin soll), „Löschen“ (mit Rückfrage; Elemente mit diesem Muster zeigen
+  wieder ihr eingebautes Muster).
+- Ebenen: bis zu vier, Ebene 1 liegt unten. „Ebene hinzufügen“ legt ein weißes Funkeln obenauf,
+  „Nach oben“/„Nach unten“ ändern die Reihenfolge, „Ebene entfernen“ (mindestens eine bleibt).
+- Form der gewählten Ebene: Fläche (eine Farbe, die durch die Stopps läuft), linearer, radialer
+  oder Kegelverlauf, Wellen, Plasma, Rauschen, Streifen, Ringe vom Tippen (nur nach einem Tipp
+  sichtbar), Spot auf der letzten Taste (gleitet zur zuletzt getippten Taste), Höhenlinien,
+  Funkeln. „Mischen mit den Ebenen darunter“: Normal, Addieren, Multiplizieren, Aufhellen.
+- Farben: der Streifen zeigt den Verlauf, darunter die Farbstopps als Kreise. Antippen wählt einen
+  Stopp, noch einmal antippen (oder „Farbe ändern“) öffnet den Farbwähler; „Stopp hinzufügen“ setzt
+  einen zwischen den gewählten und den nächsten, „Stopp entfernen“ (2–8 Stopps), der Regler setzt
+  die Position. „Wie gewählt“ oder „Farbkreis-Durchlauf“ (die Farben drehen sich einmal je Dauer).
+- Bewegung: Tempo (−4 bis 4, mal die „Dauer“ der RGB-Seite; minus läuft rückwärts, 0 steht),
+  Richtung in Grad, Größe (wie oft sich die Form wiederholt), seitlich und hoch/runter verschieben,
+  Deckkraft, die Bewegungskurve wie beim Verlauf der RGB-Seite.
+- Tippen: keine, Puls bei jeder Taste, Ring von der Taste, getippte Taste leuchtet auf. Die Ebene
+  ist dann nur während des Nachleuchtens zu sehen (Länge: „Nachleuchten“ auf der RGB-Seite).
+
+Jede Änderung wird sofort gespeichert, Regler und Kurvenpunkte beim Loslassen (beim Ziehen folgt
+nur die Vorschau). Dauer, Rückwärts, Sättigung, Helligkeit und Deckkraft der RGB-Seite gelten auch
+für eigene Muster; Verlauf, Farben und Wellenbreite der RGB-Seite sind für ein eigenes Muster
+ausgeblendet. Eigene Muster haben keine feinen Linien und Punkte wie die eingebauten Texturen:
+Höhenlinien und Funken sind weicher. Höchstens 24 eigene Muster. Alles lokal; ein Designprofil
+merkt sich nur, welches eigene Muster gewählt war, nicht das Muster selbst.
 
 ## Aussehen: flacher Look
 
@@ -1289,7 +1335,9 @@ Schlüssel oder Kennungen: welche Haptik die Rastpunkte der Leertaste spielen, d
 ob Symbole malen laufen kann, warum die Sprache zuletzt gewechselt hat (z. B. „Sprach-Hinweis der
 App → en-US“; nur seit dem Start der Tastatur, nichts wird gespeichert), den Stand von Emoji-Mix,
 was die RGB-Beleuchtung in den letzten 5 Sekunden mit Licht je Bild gekostet hat (Tastatur mit
-RGB öffnen, kurz tippen, dann die Seite öffnen) und die Versionen. „gstatic erreichbar?“ lädt nur bei diesem Tipp einmal ein Testbild von Google.
+RGB öffnen, kurz tippen, dann die Seite öffnen), welche Muster gerade benutzt werden (eigene mit
+Namen und „eigen“) und was ein Licht-Raster jedes Musters auf deinem Telefon kostet (beim Öffnen
+gemessen) und die Versionen. „gstatic erreichbar?“ lädt nur bei diesem Tipp einmal ein Testbild von Google.
 „Kopieren“ legt genau die angezeigten Werte in die Zwischenablage, zum Weitergeben; ein
 Screenshot geht auch.
 

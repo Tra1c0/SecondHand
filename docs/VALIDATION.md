@@ -4806,6 +4806,69 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   `RichInputConnection`, `PointerTracker`, `Settings.java` unverändert. Sonst nur Fork-Dateien
   (`KeyboardCommands`, `FormatGuardChips`: Eintrag der App vor dem Schalter).
 
+## Etappe 34 (Eigene RGB-Lichtmuster)
+
+- Auftrag: `docs/ROADMAP.md` → 34 (Owner, 2026-11-14: „eigene rgb lichtmuster. Vollständig
+  customizable.“, XL); Vorschlag des Leads: Editor für eigene, benannte Muster neben den
+  eingebauten und je Element wählbar, Ebenen mit Mischarten, Formen, Farbstopps, Bewegung, Kurve
+  aus 29, Tipp-Reaktion, Farbkreis; Live-Vorschau mit echter Bildrate; Duplizieren, Umbenennen,
+  Löschen; Export/Import als kleine, strenge, versionierte JSON-Datei; Rechnung im bestehenden
+  Raster ohne Allokation je Bild, Kosten gemessen, Diagnose mit eigenen Mustern.
+- Gebaut: `C/RgbOwnPattern.kt` (Modell, Begrenzung, Bibliothek, `RgbOwnRenderer`),
+  `C/RgbPatternJson.kt` (Datei, Liste, `StrictJson`), `C/RgbLighting.kt` (`RgbLook.own`,
+  `RgbSettings.own`, Text `own=<id>`, `resolve`, `ownIds`, `reactsToTaps`, `moves`, Engine mit
+  `own`, `tilePattern`, `base(x, y, nowMs)`), `A/RgbOwnPatterns.kt` (Einstellung
+  `agent_rgb_patterns`, Import/Export), `A/RgbLighting.kt` (auflösen, neu laden, Tipps, Kacheln),
+  `A/RgbTexture.kt` (Uhr fürs Raster, keine Kachel), `K/settings/screens/AgentRgbPatternEditor.kt`
+  (Editor, Galerie, Vorschau-Einstellung, Dateiname, Fehlertexte), `AgentRgbScreen.kt` (Galerie,
+  Knöpfe, Dateiwähler, Editor statt Seite, Bausteine `internal`), `AgentStartScreen.kt` und
+  `AgentAreaLookScreen.kt` (Name des eigenen Musters in der Zusammenfassung), `A/Diagnose.kt` und
+  `AgentDiagnoseScreen.kt` (benutzte Muster, Raster je Muster gemessen), Texte
+  `agent_rgb_pattern_strings.xml` (en mit `tools:ignore="MissingTranslation"`, de).
+- Annahmen des Leads: ROADMAP 34.
+- Neue Tests:
+  - `CT/RgbOwnPatternTest.kt` (21): Goldwerte je Form (Fläche, linear in jeder Richtung mit Größe und
+    Verschiebung, radial rund mit Seitenverhältnis, Kegel mit Wiederholung, Wellen, Plasma und
+    Rauschen nach Formel und auf der Stopp-Tabelle, Streifen mit Lücken, Höhenlinien und Funken
+    dünn besetzt, Funke hell in der Zellmitte und wieder dunkel, Ringe und Spot nach Tipps, Gleiten,
+    neuester Tipp), Mischarten nach den W3C-Formeln (Normal, Addieren, Multiplizieren, Screen über
+    deckender Ebene, allein, zwei halbe Ebenen = 3/4), Bewegungskurve (Stufen, Sinus), Stopp-Tabellen
+    (offen, rund, Sättigung/Helligkeit), Farbkreis (Phase 0, halbe Drehung, ganze), Reaktionen Puls,
+    Ring, Taste als reine Funktionen der Tipps, Determinismus und genaue Wiederholung nach 20
+    Durchläufen und über den Phasenumbruch, Begrenzung jeder Zahl und des Namens, Einstellung mit
+    ID, Auflösen, Rückfall, kein Erben, Bewegung und Tipps (`moves`, `reactsToTaps`, `tilePattern`,
+    `hasActiveEffect`), Ausgangspunkte aller zwölf eingebauten Muster gültig und Wellen/Kreis bis
+    auf 3/255 gleich, Bibliothek (IDs, Namen, voll), Kosten je Bild, keine Allokation.
+  - `CT/RgbPatternJsonTest.kt` (5): Rundreise (ohne ID, stabil, größtes Muster unter 16 KiB),
+    Vorgaben und Begrenzung, Ablehnungen (zu groß in Bytes, kein JSON in 14 Formen, falsches
+    Format, Version als Text/Bruch/zu neu, unbekannte Felder auf jeder Ebene einschließlich Skript,
+    Adresse, Werkzeug, Anbieter, Name mit Adresse/leer/Zeilenumbruch/fehlt, falsche Werte, Stopps
+    1 und 9, Ebenen 0 und 5), Liste (kaputte, doppelte und unbekannte Einträge übersprungen, volle
+    Liste passt), strenger Leser.
+  - `AT/RgbPatternEditorTest.kt` (7): anlegen aus „Kreis von der Mitte“ (ID in der Einstellung, Editor
+    offen), jede Option der Ebene gespeichert, Regler beim Loslassen, Ebenen hinzufügen/verschieben/
+    entfernen, umbenennen und Adresse abgelehnt, duplizieren, löschen mit Rückfrage und Rückfall,
+    wieder wählen und bearbeiten; Wahl je Element (Hintergrund eigen, Tasten nicht; Kurve und Farben
+    ausgeblendet; zurück zu Tinte); Editor-Vorschau mit 60 Hz bewegt sich und leuchtet in vielen
+    Farben, Bild `app/build/agent-previews/rgb-pattern-editor.png`; Export (Dateiname, Inhalt ohne
+    ID, Meldung) und Import (neue ID, eindeutiger Name, Meldung), Ablehnung unbekannter Felder und
+    zu großer Dateien mit Grund, nichts gewählt; Raster der Tastatur = Licht der Engine ohne Kachel,
+    Neuladen bei geänderter Liste, Tipps nur mit Spot, Rückfall nach Löschen; Diagnose (Namen,
+    gemessene Raster, aus = nichts, auf der Seite).
+- Kosten je Bild (1634 Werte wie `RgbPatternsTest`, Testrechner, bestes von drei, zwei Läufe):
+  Tinte 0,68 ms, 1 × linear 0,20–0,22 ms, Plasma + Funkeln + Ringe + Spot 0,64–0,67 ms,
+  4 × Höhenlinien mit Farbkreis 0,84–0,89 ms, 4 × Rauschen 1,04–1,11 ms. Grenze im Test: höchstens doppelt so viel wie Tinte im selben
+  Lauf und unter 4 ms. Am Telefon nicht gemessen; die Diagnose misst ein Raster je Muster dort.
+- Gelaufen (2026-11-14, `--max-workers=1 -Xmx1536m`): `:agent-core:test` (542 Tests, 0 Fehler);
+  `:app:testDebugUnitTest` gezielt mit `RgbPatternEditorTest` (7), `RgbSettingsScreenTest` (13),
+  `RgbFrameRateCardTest` (14), `RgbLightingRenderTest` (24), `RgbTilesTest` (5), `DiagnoseScreenTest`
+  (7), `AgentDocumentIOTest` (4): 74 Tests, 0 Fehler. `docs_sync --check` grün. Nicht gelaufen:
+  `tools/dev.py agent-tests`, volle Suite, Lint, Build (Speicher, parallele Agenten), Gerätetest
+  (Aussehen und Bildkosten eigener Muster am Telefon, Bedienung des Editors, Dateiwähler echter
+  Apps).
+- Engine- und Upstream-Änderungen: keine. `InputLogic`, `RichInputConnection`, `PointerTracker` und
+  alle Upstream-Dateien unverändert; nur Fork-Dateien.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.
