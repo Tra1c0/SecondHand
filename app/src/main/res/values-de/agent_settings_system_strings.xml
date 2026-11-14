@@ -8,11 +8,15 @@
     <string name="agent_system_updates_never">Noch nicht geprüft</string>
     <string name="agent_system_updates_failed">Prüfung fehlgeschlagen</string>
     <string name="agent_system_updates_checked">Zuletzt geprüft %s</string>
+    <string name="agent_system_updates_install_failed">Installation fehlgeschlagen</string>
+    <string name="agent_system_updates_just_now">gerade eben</string>
+    <string name="agent_system_updates_on_date">am %s</string>
     <string name="agent_system_updates_daily_on">täglich automatisch</string>
     <string name="agent_system_updates_daily_off">automatische Prüfung aus</string>
     <string name="agent_system_updates_install">Build %d installieren</string>
     <string name="agent_system_diagnose">Diagnose</string>
     <string name="agent_system_profiles">Profile</string>
+    <string name="agent_system_profiles_unlock">Entsperre das Gerät, um Profile zu nutzen.</string>
     <string name="agent_system_profile_saved_hint">Gesicherter Stand · antippen zum Anwenden</string>
     <string name="agent_system_profile_active">entspricht den aktuellen Einstellungen</string>
     <string name="agent_system_flat">Flacher Look</string>
@@ -39,7 +43,7 @@
     <string name="agent_system_gesture_lib">Gesten-Bibliothek laden</string>
     <string name="agent_system_gesture_lib_sub">Für Gestenschreiben</string>
     <string name="agent_system_debug">Debug-Einstellungen</string>
-    <string name="agent_system_debug_sub">Nach 5× auf „Version“</string>
+    <string name="agent_system_debug_sub">Freigeschaltet</string>
     <string name="agent_system_all_advanced">Alle erweiterten Einstellungen</string>
     <string name="agent_system_all_advanced_sub">Ziffernblock-Symbole, Emoji-Taste der Hardware-Tastatur und mehr</string>
     <string name="agent_system_section_about">Über</string>

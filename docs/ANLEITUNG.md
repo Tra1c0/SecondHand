@@ -191,16 +191,17 @@ Wie die Seite „KI-Anbieter“ lässt sie keine Bildschirmfotos zu. Bei gesperr
 ### System & Daten
 
 - Karte **UPDATES**: zeigt das letzte Ergebnis („Build 16 ist aktuell“, „Build 17 verfügbar“,
-  „Noch nicht geprüft“ oder „Prüfung fehlgeschlagen“ mit Grund), wann zuletzt geprüft wurde und ob
-  täglich automatisch geprüft wird. „Jetzt prüfen“ fragt GitHub, nur bei diesem Tipp. „Diagnose“
-  öffnet die Diagnose-Seite. Ein Tipp auf die Überschrift öffnet die Seite „Updates“ (Schalter
+  „Noch nicht geprüft“, „Prüfung fehlgeschlagen“ oder „Installation fehlgeschlagen“ mit Grund),
+  wann zuletzt geprüft wurde und ob täglich automatisch geprüft wird. „Jetzt prüfen“ fragt
+  GitHub, nur bei diesem Tipp. „Diagnose“ öffnet die Diagnose-Seite. Ein Tipp auf die Überschrift öffnet die Seite „Updates“ (Schalter
   „Täglich nach Updates suchen“); ist ein neuer Build da, führt „Build 17 installieren“ dorthin
   zum Laden. Bei gesperrtem Gerät steht dort nur der Hinweis zum Entsperren.
 - Karte **PROFILE**: je gesicherter Bereich (Design, Tastenanordnung, Gesten) eine Karte, dazu
   „Flacher Look“ und „+ Neues Profil“. Ein Tipp auf eine Profilkarte fragt nach und wendet sie mit
   „Anwenden“ an. Hell mit weißem Rahmen ist eine Karte, solange deine Einstellungen ihr
   entsprechen. „+ Neues Profil“ öffnet Tastaturprofile (sichern, exportieren, importieren,
-  zurücksetzen, Flacher Look zurücknehmen).
+  zurücksetzen, Flacher Look zurücknehmen). Vor dem Entsperren steht dort nur ein Hinweis, und
+  „Gesten-Bibliothek laden“ fehlt.
 - **Sichern**: „Sichern und Wiederherstellen“ (alle Einstellungen als Datei, derselbe Dialog wie
   bisher), „Profile exportieren“ (öffnet Tastaturprofile).
 - **Für Fortgeschrittene**: Emoji-Version, URL-Erkennung, Hardware-Tastatur, Gesten-Bibliothek
@@ -222,7 +223,8 @@ Wie die Seite „KI-Anbieter“ lässt sie keine Bildschirmfotos zu. Bei gesperr
 - Größe & Form, Schrift & Emoji, Hintergrund & Farben: rechts steht der aktuelle Wert; antippen
   öffnet den bekannten Dialog. Ränder, Schriftgröße, Emoji und Hintergrundbild öffnen eine kleine
   Liste mit den einzelnen Einstellungen, Geteilte Tastatur die Schalter je Lage. Tag/Nacht und
-  Navigationsleiste schaltest du direkt.
+  Navigationsleiste schaltest du direkt. „Tastenabstand“ erscheint nur mit Tastenrändern (unter
+  „Alle Aussehen-Einstellungen“), wie bisher.
 - „Alle Aussehen-Einstellungen“ ganz unten öffnet die bisherige Seite (Stil, Symbolstil,
   Tastenränder, Farben, Symbole anpassen, Leertastentext, Höhe der unteren Reihe).
 

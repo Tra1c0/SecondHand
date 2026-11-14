@@ -75,6 +75,7 @@ import helium314.keyboard.agent.FlatPreset
 import helium314.keyboard.agent.KeyboardProfileStore
 import helium314.keyboard.agent.security.credentialAccessAllowed
 import helium314.keyboard.agent.updates.GitHubUpdateClient
+import helium314.keyboard.agent.updates.UpdateError
 import helium314.keyboard.agent.updates.UpdateHttp
 import helium314.keyboard.agent.updates.UpdateSettings
 import helium314.keyboard.agent.updates.UpdateStatus
@@ -135,20 +136,34 @@ fun updateCardText(context: Context, status: UpdateStatus, installed: Long, chec
     val headline = when {
         available != null -> res.getString(R.string.agent_system_updates_available, available)
         status is UpdateStatus.Current && status.installed == installed -> res.getString(R.string.agent_system_updates_current, installed)
+        status is UpdateStatus.Failed && status.error in installErrors -> res.getString(R.string.agent_system_updates_install_failed)
         status is UpdateStatus.Failed -> res.getString(R.string.agent_system_updates_failed)
         status is UpdateStatus.Unknown -> res.getString(R.string.agent_system_updates_never)
         else -> res.getString(R.string.agent_system_updates_installed, installed)
     }
     val parts = mutableListOf<String>()
     if (status is UpdateStatus.Failed) parts += res.getString(updateErrorText(status.error)).removeSuffix(".")
-    parts += if (checkedAt > 0)
-        res.getString(R.string.agent_system_updates_checked,
-            // mid-sentence: "vor 2 Stunden", DateUtils capitalises it in German
-            DateUtils.getRelativeTimeSpanString(checkedAt, maxOf(now, checkedAt), DateUtils.MINUTE_IN_MILLIS).toString()
-                .replaceFirstChar { it.lowercase(Locale.getDefault()) })
+    parts += if (checkedAt > 0) res.getString(R.string.agent_system_updates_checked, checkedWhen(context, checkedAt, now))
     else res.getString(R.string.agent_updates_installed, installed)
     parts += res.getString(if (daily) R.string.agent_system_updates_daily_on else R.string.agent_system_updates_daily_off)
     return UpdateCardText(headline, parts.joinToString(" · "), available)
+}
+
+/** Errors of download and install (AgentUpdatesScreen stores them too), not of the check. */
+private val installErrors = setOf(UpdateError.STORAGE, UpdateError.CHECKSUM, UpdateError.WRONG_PACKAGE,
+    UpdateError.WRONG_SIGNATURE, UpdateError.NOT_NEWER, UpdateError.INSTALL)
+
+/**
+ * "gerade eben" under a minute, "vor 2 Stunden" up to a week (DateUtils capitalises it in German,
+ * mid-sentence it is lowercased, P137), after that DateUtils gives a date: "am 3. Nov.".
+ */
+private fun checkedWhen(context: Context, checkedAt: Long, now: Long): String {
+    val res = context.resources
+    val age = now - checkedAt
+    if (age < DateUtils.MINUTE_IN_MILLIS) return res.getString(R.string.agent_system_updates_just_now)
+    val span = DateUtils.getRelativeTimeSpanString(checkedAt, now, DateUtils.MINUTE_IN_MILLIS).toString()
+    return if (age < DateUtils.WEEK_IN_MILLIS) span.replaceFirstChar { it.lowercase(Locale.getDefault()) }
+        else res.getString(R.string.agent_system_updates_on_date, span)
 }
 
 /** One card of "PROFILE": a saved profile ([group]), the flat look (null group, not [isNew]) or "+ NEUES PROFIL". */
@@ -191,6 +206,19 @@ fun AgentAreaSystemScreen(
     var dialog by rememberSaveable { mutableStateOf<SystemDialog?>(null) }
     var applyTag by rememberSaveable { mutableStateOf<String?>(null) }
 
+    // P145: profiles, the flat look, the gesture library and the update settings live in
+    // credential-protected storage, which throws before the first unlock (Direct Boot)
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    var accessible by remember { mutableStateOf(credentialAccessAllowed(context)) }
+    var resumed by remember { mutableIntStateOf(0) }
+    DisposableEffect(lifecycle, context) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) { accessible = credentialAccessAllowed(context); resumed++ }
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
+
     fun bool(key: String, default: Boolean) = prefs.getBoolean(key, default)
     fun write(change: SharedPreferences.Editor.() -> Unit) { prefs.edit { change() }; written++ }
 
@@ -204,9 +232,12 @@ fun AgentAreaSystemScreen(
             area.from, area.to, Modifier.testTag(SYSTEM_ROW_TAG + key))
     }
 
-    val store = remember { KeyboardProfileStore(context) }
-    val flat = remember { FlatPreset(context) }
-    val cards = profileCards(context, store, flat)
+    val store = if (accessible) remember { KeyboardProfileStore(context) } else null
+    val flat = if (accessible) remember { FlatPreset(context) } else null
+    // read the stores only after a change or a resume, not on every composition (P136)
+    val version = (changed?.value ?: 0) + written
+    val cards = if (store == null || flat == null) emptyList()
+        else remember(version, resumed) { profileCards(context, store, flat) }
 
     AgentSettingsTheme {
         Column(
@@ -219,9 +250,11 @@ fun AgentAreaSystemScreen(
             BackHeader(onClickBack)
             AreaHero(area)
 
-            UpdatesCard(onNavigate, updateClient)
+            UpdatesCard(accessible, resumed, onNavigate, updateClient)
 
             FeatureCard(stringResource(R.string.agent_system_profiles), spaced = true) {
+                if (!accessible) Text(stringResource(R.string.agent_system_profiles_unlock), style = AgentSettingsType.Label,
+                    color = AgentSettingsTokens.Soft, modifier = Modifier.testTag(SYSTEM_PROFILES_LOCKED_TAG))
                 cards.forEachIndexed { i, card ->
                     ProfileCard(card, i) {
                         if (card.isNew) onNavigate(SettingsDestination.AgentProfiles)
@@ -251,7 +284,8 @@ fun AgentAreaSystemScreen(
                 SwitchRow(Settings.PREF_ENABLE_HARDWARE_KEYBOARD, Defaults.PREF_ENABLE_HARDWARE_KEYBOARD,
                     stringResource(R.string.agent_system_hardware), stringResource(R.string.agent_system_hardware_sub))
                 // the same conditions as on the old page Erweitert
-                if (BuildConfig.BUILD_TYPE != "nouserlib") {
+                // the library and its checksum are in credential-protected storage (P145)
+                if (BuildConfig.BUILD_TYPE != "nouserlib" && accessible) {
                     val lib = remember { Setting(context, SettingsWithoutKey.LOAD_GESTURE_LIB, R.string.load_gesture_library) {} }
                     LoadGestureLibPreference(lib) { open ->
                         Nav(SYSTEM_ROW_TAG + SettingsWithoutKey.LOAD_GESTURE_LIB, stringResource(R.string.agent_system_gesture_lib),
@@ -295,7 +329,7 @@ fun AgentAreaSystemScreen(
             }
             SystemDialog.APPLY -> {
                 val card = cards.firstOrNull { it.tag == applyTag }
-                if (card == null) LaunchedEffect(Unit) { dialog = null }
+                if (card == null || store == null || flat == null) LaunchedEffect(Unit) { dialog = null }
                 else AlertDialog(
                     onDismissRequest = { dialog = null },
                     title = { Text(stringResource(R.string.agent_system_apply_title, card.label)) },
@@ -369,10 +403,13 @@ private fun ProfileCard(card: ProfileCardInfo, index: Int, onClick: () -> Unit) 
     }
 }
 
-/** The glowing pill of the mockup: 42 × 22 dp, 14 dp from the top, 18 + 40 dp × index from the right. */
+/**
+ * The glowing pill of the mockup: 42 × 22 dp, 14 dp from the top, 18 + 40 dp × (index mod 3) from
+ * the right (the mockup has three cards; further cards repeat, so the pill never reaches the title).
+ */
 @Composable
 private fun BoxScope.ProfileGlow(index: Int) {
-    Box(Modifier.align(Alignment.TopEnd).padding(top = 14.dp, end = 18.dp + 40.dp * index).size(42.dp, 22.dp)
+    Box(Modifier.align(Alignment.TopEnd).padding(top = 14.dp, end = 18.dp + 40.dp * (index % 3)).size(42.dp, 22.dp)
         .clip(RoundedCornerShape(11.dp)).background(Color.White.copy(alpha = 0.75f)))
 }
 
@@ -381,18 +418,8 @@ private fun BoxScope.ProfileGlow(index: Int) {
  * live in credential-protected storage). The network is used only on "Jetzt prüfen".
  */
 @Composable
-private fun UpdatesCard(onNavigate: (String) -> Unit, updateClient: (Context) -> GitHubUpdateClient) {
+private fun UpdatesCard(accessible: Boolean, resumed: Int, onNavigate: (String) -> Unit, updateClient: (Context) -> GitHubUpdateClient) {
     val context = LocalContext.current
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
-    var accessible by remember { mutableStateOf(credentialAccessAllowed(context)) }
-    var resumed by remember { mutableIntStateOf(0) }
-    DisposableEffect(lifecycle, context) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) { accessible = credentialAccessAllowed(context); resumed++ }
-        }
-        lifecycle.addObserver(observer)
-        onDispose { lifecycle.removeObserver(observer) }
-    }
     val shape = RoundedCornerShape(AgentSettingsTokens.CardRadius)
     Column(
         Modifier.fillMaxWidth().clip(shape).background(AgentSettingsTokens.Card).border(1.dp, AgentSettingsTokens.Border, shape)
@@ -553,3 +580,4 @@ const val SYSTEM_INSTALL_TAG = "agent_system_install"
 const val SYSTEM_EXPORT_TAG = "agent_system_export"
 const val SYSTEM_APPLY_TAG = "agent_system_apply"
 const val PROFILE_CARD_TAG = "agent_system_profile_"
+const val SYSTEM_PROFILES_LOCKED_TAG = "agent_system_profiles_locked"

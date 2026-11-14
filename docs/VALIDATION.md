@@ -3073,6 +3073,23 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   Systemschrift statt Space Grotesk/Inter.
 - Offen: Prüfer-Review (berührt keine Eingabepfade), Gerätetest (Aussehen, TalkBack, Dialoge im
   dunklen Schema, echte Update-Prüfung).
+- Nachprüfung 38h (Befunde des Prüfers, 2026-11-14): Profilkarten, Flacher Look und
+  Gesten-Bibliothek entstehen nur mit `credentialAccessAllowed`, sonst Hinweis (P145);
+  `KeyboardProfileStore.matchesCurrent` wirft nicht mehr bei einem Wert außerhalb der Bindungen;
+  Profilkarten nur nach Änderung bzw. `ON_RESUME` neu berechnet; Leucht-Pille `index % 3`;
+  Download-/Installationsfehler als „Installation fehlgeschlagen“, „gerade eben“ unter einer
+  Minute, „am <Datum>“ ab einer Woche; Debug-Untertitel „Freigeschaltet“. Neue Tests:
+  `SettingsSystemAreaTest.beforeTheFirstUnlockNothingTouchesCredentialProtectedStorage` (Nutzer
+  gesperrt bei offenem Sperrbildschirm, danach `ON_RESUME` zeigt die Karten),
+  `aCurrentValueOutsideTheProfileBindingsDoesNotBreakThePage`,
+  `KeyboardProfileStoreTest.matchesCurrentIsFalseInsteadOfThrowingForAValueOutsideTheBindings`;
+  erweitert: Sperrtest prüft versteckte Profilkarten, `updateCardText` (Installationsfehler, gerade
+  eben, Datum), Emoji-Version mit Wert aus dem Regler (OK → 30, „Android 11“) und „Standard“
+  (Schlüssel neu gesetzt von `SupportedEmojis.load`, mindestens API 28, Zeile zeigt ihn), Zustand
+  nach dem Neuzeichnen-Tipp. Gezielt (Robolectric): `SettingsLookScreenTest` 21,
+  `SettingsSystemAreaTest` 12, `KeyboardProfileStoreTest` 9, `FlatStyleTest` 10,
+  `SettingsStartScreenTest` 10 – 62 Tests, 0 Fehler. Kein `agent-tests`-Lauf, kein Build, kein
+  Gerätetest (geteilte Maschine). Echte Direct-Boot-Prüfung auf einem Gerät steht aus.
 ## Etappe 38b (Einstellungen: Aussehen)
 
 - Auftrag (Lead, ROADMAP 38): Bereichsseite Aussehen 1:1 nach
@@ -3123,6 +3140,16 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   `SettingsStartScreenTest.renderStartPageAndAreaPages` schreibt dieselbe Datei in 1180 dp Höhe;
   maßgeblich ist der Lauf von `SettingsLookScreenTest.renderLookPage`.
 - Offen: Prüfer-Review, Gerätetest (Aussehen am Telefon, TalkBack, Dialoge, Dateiauswahl).
+- Nachprüfung 38b (Befunde des Prüfers, 2026-11-14): `ConfigurationCompat.getLocales` statt
+  `configuration.locales` (API 24+, minSdk 21); Eigene Schrift, Emoji und Hintergrundbild zeigen
+  nach Laden/Löschen den neuen Wert (P146: `ON_RESUME`, Schließen des Gruppen-Dialogs,
+  `CustomFontPreference(onChanged)`, eigener Einstellungs-Listener); Gruppen-Dialoge werten ihre
+  Bedingungen bei offenem Dialog neu aus (Emoji: Tastengröße ab Skalierung ≠ 1, Hautton ab
+  Emoji-Version 24); „Tastenabstand“ nur mit Tastenrändern wie auf der alten Seite (vorher immer).
+  Neue Tests: `SettingsLookScreenTest.keyGapRowFollowsTheKeyBorders`,
+  `fileOnlyChangesShowAfterResumeDeleteAndClosingTheDialog`,
+  `emojiDialogReadsItsConditionsAgainWhileOpen`; Standardwerte prüfen, dass „Tastenabstand“ ohne
+  Ränder fehlt, Reihenfolge/44-dp-Test mit Rändern. Testlauf siehe Nachprüfung 38h (gleicher Lauf).
 
 ## Etappe 41 (Formatwächter)
 

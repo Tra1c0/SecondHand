@@ -3,6 +3,7 @@ package helium314.keyboard.agent
 
 import android.app.Application
 import android.app.KeyguardManager
+import android.os.UserManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.text.format.DateUtils
@@ -22,6 +23,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.lifecycle.Lifecycle
+import helium314.keyboard.keyboard.KeyboardActionListener
 import dev.agentkeyboard.core.ProfileGroup
 import dev.agentkeyboard.core.UpdateReleases
 import helium314.keyboard.agent.updates.GitHubUpdateClient
@@ -48,6 +52,7 @@ import helium314.keyboard.settings.screens.SYSTEM_APPLY_TAG
 import helium314.keyboard.settings.screens.SYSTEM_CHECK_TAG
 import helium314.keyboard.settings.screens.SYSTEM_EXPORT_TAG
 import helium314.keyboard.settings.screens.SYSTEM_INSTALL_TAG
+import helium314.keyboard.settings.screens.SYSTEM_PROFILES_LOCKED_TAG
 import helium314.keyboard.settings.screens.SYSTEM_ROW_TAG
 import helium314.keyboard.settings.screens.SYSTEM_UPDATES_DETAIL_TAG
 import helium314.keyboard.settings.screens.SYSTEM_UPDATES_HEADLINE_TAG
@@ -97,7 +102,9 @@ class SettingsSystemAreaTest {
 
     /** Keys this page writes; removed after each test (Fallstrick P32). */
     private val written = listOf(Settings.PREF_URL_DETECTION, Settings.PREF_ENABLE_HARDWARE_KEYBOARD, Settings.PREF_EMOJI_MAX_SDK,
-        Settings.PREF_THEME_STYLE) + FlatPreset(RuntimeEnvironment.getApplication()).values().keys
+        Settings.PREF_THEME_STYLE) + FlatPreset(RuntimeEnvironment.getApplication()).values().keys +
+        // applying the gestures profile writes all its keys
+        KeyboardProfileStore(RuntimeEnvironment.getApplication()).capture(ProfileGroup.GESTURES).values.keys
 
     @Before fun resetUpdates() {
         UpdateSettings(app).apply { daily = false; status = UpdateStatus.Unknown; checkedAt = 0 }
@@ -158,7 +165,7 @@ class SettingsSystemAreaTest {
             "Profile exportieren", "Design, Tasten, Gesten einzeln", "Für Fortgeschrittene", "Emoji-Version",
             "Welche Emojis angeboten werden", "URL-Erkennung", "Adressen als ein Wort", "Hardware-Tastatur",
             "Unterstützung für externe Tastaturen", "Gesten-Bibliothek laden", "Für Gestenschreiben", "Debug-Einstellungen",
-            "Nach 5× auf „Version“", "Alle erweiterten Einstellungen", "Über", app.getString(R.string.english_ime_name) /* "Agent Keyboard", in debug builds with a suffix */,
+            "Freigeschaltet", "Alle erweiterten Einstellungen", "Über", app.getString(R.string.english_ime_name) /* "Agent Keyboard", in debug builds with a suffix */,
             "Version ${BuildConfig.VERSION_NAME} · Build ${BuildConfig.VERSION_CODE}", "Lizenz", "GNU GPL v3.0 · basiert auf HeliBoard",
             "Versteckte Funktionen", "Was man leicht übersieht", "Protokoll speichern", "Für Fehlermeldungen", "Alle Infos und Links")
             .forEach { assertTrue(exists(it), "missing text: $it") }
@@ -194,6 +201,20 @@ class SettingsSystemAreaTest {
             assertEquals("Prüfung fehlgeschlagen", it.headline)
             assertEquals("Keine Verbindung zu GitHub · Zuletzt geprüft $relative · täglich automatisch", it.detail)
         }
+        // download and install failures (stored by the Updates page) are not failed checks
+        for (error in listOf(UpdateError.CHECKSUM, UpdateError.WRONG_SIGNATURE, UpdateError.WRONG_PACKAGE, UpdateError.INSTALL))
+            assertEquals("Installation fehlgeschlagen", updateCardText(app, UpdateStatus.Failed(error), 16, twoHours, true, now).headline, error.name)
+        assertEquals("Prüfung fehlgeschlagen", updateCardText(app, UpdateStatus.Failed(UpdateError.RATE_LIMIT), 16, twoHours, true, now).headline)
+        // under a minute "gerade eben", not "vor 0 Minuten"
+        assertEquals("Zuletzt geprüft gerade eben · täglich automatisch",
+            updateCardText(app, UpdateStatus.Current(16), 16, now - 30_000, true, now).detail)
+        assertEquals("Zuletzt geprüft vor 1 Minute · täglich automatisch",
+            updateCardText(app, UpdateStatus.Current(16), 16, now - DateUtils.MINUTE_IN_MILLIS, true, now).detail)
+        // from a week on DateUtils gives a date: "am <Datum>", not lowercased
+        val old = now - 10 * DateUtils.DAY_IN_MILLIS
+        val date = DateUtils.getRelativeTimeSpanString(old, now, DateUtils.MINUTE_IN_MILLIS).toString()
+        assertFalse(date.startsWith("vor", ignoreCase = true), date)
+        assertEquals("Zuletzt geprüft am $date · täglich automatisch", updateCardText(app, UpdateStatus.Current(16), 16, old, true, now).detail)
     }
 
     @Test fun theCardShowsTheStoredStateAndUsesTheNetworkOnlyOnTap() {
@@ -229,9 +250,39 @@ class SettingsSystemAreaTest {
         assertTrue(exists(app.getString(R.string.agent_updates_unlock)))
         compose.onNodeWithTag(SYSTEM_CHECK_TAG).assertDoesNotExist()
         compose.onNodeWithTag(SYSTEM_UPDATES_HEADLINE_TAG).assertDoesNotExist()
+        assertProfilesHidden()
         compose.onNodeWithTag(AREA_ROW_TAG + SettingsDestination.AgentDiagnose).performClick()
         assertEquals(listOf(SettingsDestination.AgentDiagnose), routes)
         assertEquals(0, clientsMade)
+    }
+
+    /** Before the first unlock (Direct Boot) the keyguard may already be gone; the user is still locked (P145). */
+    @Test fun beforeTheFirstUnlockNothingTouchesCredentialProtectedStorage() {
+        KeyboardProfileStore(app).saveCurrent(ProfileGroup.DESIGN)
+        shadowOf(app.getSystemService(UserManager::class.java)).setUserUnlocked(false)
+        assertFalse(app.getSystemService(KeyguardManager::class.java).isKeyguardLocked)
+        start()
+        assertTrue(exists(app.getString(R.string.agent_updates_unlock)))
+        compose.onNodeWithTag(SYSTEM_CHECK_TAG).assertDoesNotExist()
+        assertProfilesHidden()
+        // the rest of the page stays usable
+        compose.onNodeWithTag(SYSTEM_ROW_TAG + Settings.PREF_URL_DETECTION).assertExists()
+        compose.onNodeWithTag(SYSTEM_ROW_TAG + SettingsWithoutKey.BACKUP_RESTORE).assertExists()
+        // after unlocking, the next resume shows the cards
+        shadowOf(app.getSystemService(UserManager::class.java)).setUserUnlocked(true)
+        compose.activityRule.scenario.moveToState(Lifecycle.State.STARTED)
+        compose.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+        compose.waitForIdle()
+        compose.onNodeWithTag(SYSTEM_PROFILES_LOCKED_TAG).assertDoesNotExist()
+        compose.onNodeWithTag(PROFILE_CARD_TAG + ProfileGroup.DESIGN).assertExists()
+        compose.onNodeWithTag(SYSTEM_CHECK_TAG).assertExists()
+    }
+
+    /** While locked: a hint instead of the profile cards, and no gesture library row (its files are protected). */
+    private fun assertProfilesHidden() {
+        compose.onNodeWithTag(SYSTEM_PROFILES_LOCKED_TAG, useUnmergedTree = true).assert(hasText(app.getString(R.string.agent_system_profiles_unlock)))
+        listOf(PROFILE_CARD_TAG + ProfileGroup.DESIGN, PROFILE_CARD_TAG + "FLAT", AREA_ROW_TAG + SettingsDestination.AgentProfiles,
+            SYSTEM_ROW_TAG + SettingsWithoutKey.LOAD_GESTURE_LIB).forEach { compose.onNodeWithTag(it).assertDoesNotExist() }
     }
 
     @Test fun profileCardsAreButtonsThatApplyTheRealProfiles() {
@@ -285,6 +336,24 @@ class SettingsSystemAreaTest {
         assertEquals(listOf(SettingsDestination.AgentProfiles), routes)
     }
 
+    @Test fun aCurrentValueOutsideTheProfileBindingsDoesNotBreakThePage() {
+        KeyboardProfileStore(app).saveCurrent(ProfileGroup.GESTURES)
+        // e.g. from a restored backup: KeyboardProfileStore.capture would throw for it
+        app.prefs().edit().putString(Settings.PREF_SPACE_HORIZONTAL_SWIPE, KeyboardActionListener.SwipeAction.HIDE_KEYBOARD.name).commit()
+        start()
+        val card = compose.onNodeWithTag(PROFILE_CARD_TAG + ProfileGroup.GESTURES).fetchSemanticsNode()
+        assertEquals(null, card.config.getOrNull(SemanticsProperties.StateDescription))
+        compose.onNodeWithTag(PROFILE_CARD_TAG + ProfileGroup.GESTURES).performScrollTo().performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(SYSTEM_APPLY_TAG).performClick()
+        compose.waitForIdle()
+        // applying the saved profile writes a valid value again, and the card matches
+        assertEquals(KeyboardProfileStore(app).read(ProfileGroup.GESTURES)!!.values[Settings.PREF_SPACE_HORIZONTAL_SWIPE],
+            dev.agentkeyboard.core.PreferenceValue.Choice(app.prefs().getString(Settings.PREF_SPACE_HORIZONTAL_SWIPE, null)!!))
+        assertEquals(app.getString(R.string.agent_system_profile_active),
+            compose.onNodeWithTag(PROFILE_CARD_TAG + ProfileGroup.GESTURES).fetchSemanticsNode().config.getOrNull(SemanticsProperties.StateDescription))
+    }
+
     @Test fun switchesAndRowsUseTheRealPreferencesAndDialogs() {
         start()
         val prefs = app.prefs()
@@ -300,16 +369,34 @@ class SettingsSystemAreaTest {
         prefs.edit().putInt(Settings.PREF_EMOJI_MAX_SDK, 34).commit()
         compose.onNodeWithTag(SYSTEM_ROW_TAG + Settings.PREF_URL_DETECTION).performClick() // any write recomposes
         compose.waitForIdle()
+        // the redraw tap switched URL detection off again
+        assertFalse(prefs.getBoolean(Settings.PREF_URL_DETECTION, true))
+        assertEquals(ToggleableState.Off, state(Settings.PREF_URL_DETECTION))
         compose.onNodeWithTag(SYSTEM_ROW_TAG + Settings.PREF_EMOJI_MAX_SDK).assert(hasText("Android 14"))
         assertEquals("Android 16", emojiVersionName(36, "?"))
         assertEquals("?", emojiVersionName(0, "?"))
         compose.onNodeWithTag(SYSTEM_ROW_TAG + Settings.PREF_EMOJI_MAX_SDK).performScrollTo().performClick()
         compose.waitForIdle()
         assertTrue(exists(app.getString(R.string.prefs_key_emoji_max_sdk)))
+        // a value from the slider: OK writes it
+        compose.onNode(SemanticsMatcher.keyIsDefined(SemanticsActions.SetProgress)).performSemanticsAction(SemanticsActions.SetProgress) { it(30f) }
+        compose.waitForIdle()
+        compose.onNodeWithText(app.getString(android.R.string.ok)).performClick()
+        compose.waitForIdle()
+        assertFalse(exists(app.getString(R.string.prefs_key_emoji_max_sdk)))
+        assertEquals(30, prefs.getInt(Settings.PREF_EMOJI_MAX_SDK, 0))
+        compose.onNodeWithTag(SYSTEM_ROW_TAG + Settings.PREF_EMOJI_MAX_SDK).assert(hasText("Android 11"))
+        compose.onNodeWithTag(SYSTEM_ROW_TAG + Settings.PREF_EMOJI_MAX_SDK).performScrollTo().performClick()
+        compose.waitForIdle()
         compose.onNodeWithText(app.getString(R.string.button_default)).performClick()
         compose.waitForIdle()
-        // "Standard" removes the key; SupportedEmojis.load then determines the level of the device again
         assertFalse(exists(app.getString(R.string.prefs_key_emoji_max_sdk)))
+        // "Standard" removes the key; SupportedEmojis.load then determines the level of the device again
+        // and stores it: at least the Android version of the device (here API 28)
+        assertTrue(prefs.contains(Settings.PREF_EMOJI_MAX_SDK))
+        val level = prefs.getInt(Settings.PREF_EMOJI_MAX_SDK, 0)
+        assertTrue(level >= android.os.Build.VERSION.SDK_INT, "level $level")
+        compose.onNodeWithTag(SYSTEM_ROW_TAG + Settings.PREF_EMOJI_MAX_SDK).assert(hasText(emojiVersionName(level, "?")))
 
         // backup and restore: the dialog of BackupRestorePreference
         compose.onNodeWithTag(SYSTEM_ROW_TAG + SettingsWithoutKey.BACKUP_RESTORE).performScrollTo().performClick()

@@ -8,11 +8,15 @@
     <string name="agent_system_updates_never">Not checked yet</string>
     <string name="agent_system_updates_failed">Check failed</string>
     <string name="agent_system_updates_checked">Last checked %s</string>
+    <string name="agent_system_updates_install_failed">Installation failed</string>
+    <string name="agent_system_updates_just_now">just now</string>
+    <string name="agent_system_updates_on_date">on %s</string>
     <string name="agent_system_updates_daily_on">daily automatically</string>
     <string name="agent_system_updates_daily_off">automatic check off</string>
     <string name="agent_system_updates_install">Install build %d</string>
     <string name="agent_system_diagnose">Diagnosis</string>
     <string name="agent_system_profiles">Profiles</string>
+    <string name="agent_system_profiles_unlock">Unlock the device to use profiles.</string>
     <string name="agent_system_profile_saved_hint">Saved state · tap to apply</string>
     <string name="agent_system_profile_active">matches the current settings</string>
     <string name="agent_system_flat">Flat look</string>
@@ -39,7 +43,7 @@
     <string name="agent_system_gesture_lib">Load gesture library</string>
     <string name="agent_system_gesture_lib_sub">For gesture typing</string>
     <string name="agent_system_debug">Debug settings</string>
-    <string name="agent_system_debug_sub">After 5 taps on “Version”</string>
+    <string name="agent_system_debug_sub">Unlocked</string>
     <string name="agent_system_all_advanced">All advanced settings</string>
     <string name="agent_system_all_advanced_sub">Numpad symbols, emoji key on physical keyboards and more</string>
     <string name="agent_system_section_about">About</string>

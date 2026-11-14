@@ -538,8 +538,9 @@ Schieberegler (Etappe 28, Abschnitt „Einstellungen und Profile“, P85–P87):
 - `KeyboardScalePreference.kt`: `AgentSlider` mit dem Standardwert der jeweiligen Variante.
   Seit 38b ein optionaler Platz `row` (Standard: die bisherige `Preference`-Zeile), damit die
   Seite Aussehen ihre eigene Zeile zeigt und denselben Dialog öffnet (P125).
-- `CustomFontPreference.kt` (38b): derselbe optionale Platz `row`; Dateiauswahl, „Laden/Löschen“
-  und Fehlermeldung bleiben unverändert in der Datei.
+- `CustomFontPreference.kt` (38b): derselbe optionale Platz `row` und ein optionales `onChanged`
+  nach Laden oder Löschen der Datei (P146); Dateiauswahl, „Laden/Löschen“ und Fehlermeldung bleiben
+  unverändert in der Datei.
 - `ColorPickerDialog.kt`: Deckkraft- und Helligkeitsleiste der Bibliothek (colorpicker-compose)
   bleiben, ihre Berührungen übernimmt `AgentSliderInput` (setzt `setAlpha`/`setBrightness` wie die
   Bibliothek, mit `fromUser = true`); dazu Slider-Semantik für TalkBack (vorher keine).
@@ -1284,20 +1285,24 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   „Ändern“, Kachel 1, „Meine Workflows“ und Diktat tragen `AREA_ROW_TAG` + Route. Texte
   `agent_ai_area_strings.xml`. Test `AT/SettingsAreaAiTest.kt` (Bild
   `app/build/agent-previews/settings-area_ai-full.png`, ganze Seite).
-- Bereich System & Daten (38h, Vorlage `System.dc.html`, P136–P137):
+- Bereich System & Daten (38h, Vorlage `System.dc.html`, P136–P137, P145):
   `K/settings/screens/AgentAreaSystemScreen.kt`; `AgentAreaScreen` leitet `SettingsArea.SYSTEM` mit
-  einer Zeile dorthin. Karte „Updates“ (`UpdatesCard`): bei gesperrtem Gerät
-  (`credentialAccessAllowed`, neu gelesen bei `ON_RESUME`) nur `agent_updates_unlock` und
-  „Diagnose“ wie die alte Seite; sonst `updateCardText` aus `UpdateSettings.status`,
-  `checkedAt`, `daily` und `Updates.installedVersion` („verfügbar“ nur für einen neueren Build,
-  „ist aktuell“ nur, wenn die Prüfung auf diesem Build lief, Fehlertext über `updateErrorText`
-  aus `AgentUpdatesScreen.kt`). „Jetzt prüfen“ ruft `Updates.check` auf `Dispatchers.IO` mit dem
-  Client aus dem Parameter `updateClient` (Tests: Attrappe), erst bei diesem Tipp; Überschrift und
+  einer Zeile dorthin. Die Seite liest `credentialAccessAllowed` (neu bei `ON_RESUME`, dazu der
+  Zähler `resumed`): gesperrt zeigt die Karte „Updates“ nur `agent_updates_unlock` und „Diagnose“
+  wie die alte Seite, „PROFILE“ nur `agent_system_profiles_unlock`, die Zeile Gesten-Bibliothek
+  fehlt (P145). Entsperrt: `updateCardText` aus `UpdateSettings.status`, `checkedAt`, `daily` und
+  `Updates.installedVersion` („verfügbar“ nur für einen neueren Build, „ist aktuell“ nur, wenn die
+  Prüfung auf diesem Build lief, Fehlertext über `updateErrorText` aus `AgentUpdatesScreen.kt`;
+  Download- und Installationsfehler als „Installation fehlgeschlagen“, Prüfzeit „gerade eben“,
+  „vor …“ bis eine Woche, danach „am <Datum>“). „Jetzt prüfen“ ruft `Updates.check` auf
+  `Dispatchers.IO` mit dem Client aus dem Parameter `updateClient` (Tests: Attrappe), erst bei
+  diesem Tipp; Überschrift und
   „Build N installieren“ öffnen `AgentUpdates` (Schalter, Download). Karte „PROFILE“
   (`profileCards`): je `KeyboardProfileStore.hasSaved` eine Karte, dann Flacher Look, dann
   „+ Neues Profil“ (→ `AgentProfiles`); Knöpfe mit Rückfrage, die `restoreSaved` bzw.
   `FlatPreset.apply` aufrufen; hervorgehoben (100 %, Rahmen, stateDescription), solange
-  `KeyboardProfileStore.matchesCurrent` bzw. `FlatPreset.isApplied` gilt. Sichern:
+  `KeyboardProfileStore.matchesCurrent` (wirft nie) bzw. `FlatPreset.isApplied` gilt; die Karten
+  entstehen in `remember(Zählersumme, resumed)`, nicht bei jeder Komposition. Sichern:
   `BackupRestorePreference`, Für Fortgeschrittene: Emoji-Version (`SliderDialog` mit Bereich,
   Standard und Nebenwirkungen der alten `SliderPreference`), URL-Erkennung, Hardware-Tastatur,
   `LoadGestureLibPreference` (nicht in `nouserlib`), Debug (wie Erweitert nur `DEBUG` oder
@@ -1317,11 +1322,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Designs“ → `agent_design`. RGB-Karte (Streifen 115° über Verlauf 110°, Zusammenfassung Muster
   der Tasten · Bilder/s als Hz · leuchtende Elemente über `targetLabel`, das dafür `internal` ist;
   `GradientSwitch` schreibt nur `enabled` über `RgbLighting.write`), Antippen → `agent_rgb`.
-  Abschnitte: Tastaturhöhe und Tastenabstand über `KeyboardScalePreference` mit `row`, Ränder,
+  Abschnitte: Tastaturhöhe und Tastenabstand (nur mit Tastenrändern, wie die alte Seite) über
+  `KeyboardScalePreference` mit `row`, Ränder,
   Schriftgröße, Emoji und Hintergrundbild als Dialog mit den Upstream-Zeilen aus
   `createAppearanceSettings` (je Zeile ihr eigener Dialog), Geteilte Tastatur mit denselben
-  Schaltern wie der Upstream-Dialog plus Teilungsabstand, Eigene Schrift über
-  `CustomFontPreference` mit `row`, Tag/Nacht und Navigationsleiste als `SettingSwitchRow`,
+  Schaltern wie der Upstream-Dialog plus Teilungsabstand (die Gruppen-Dialoge bekommen die
+  Zählersumme, ihre Bedingungen gelten auch bei offenem Dialog), Eigene Schrift über
+  `CustomFontPreference` mit `row` und `onChanged` (P146), Tag/Nacht und Navigationsleiste als `SettingSwitchRow`,
   zuletzt „Alle Aussehen-Einstellungen“ → `appearance` (Stil, Symbolstil, Tastenränder, Farben,
   Symbole anpassen, Leertastentext, Höhe der unteren Reihe). `SettingsAreas.entries(LOOK)` nennt
   genau die drei Ziele der Seite in Seitenreihenfolge (P119), die Knöpfe tragen
@@ -2617,13 +2624,29 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P136** Profilkarten auf System & Daten sind Aktionen, keine Auswahl: `ChoiceCards` ist eine
   Radio-Gruppe mit genau einer Wahl, hier können mehrere Karten gleichzeitig „aktiv“ sein (Design
   und Gesten passen) oder keine. Deshalb eigene Knöpfe (Role.Button, stateDescription); die
-  Hervorhebung rechnet `FlatPreset.isApplied`/`KeyboardProfileStore.matchesCurrent` bei jeder
-  Komposition neu. Wer `FlatPreset.values` oder die Profil-Bindungen ändert, ändert damit, wann
+  Hervorhebung rechnet `FlatPreset.isApplied`/`KeyboardProfileStore.matchesCurrent` nach jeder
+  Änderung (Zähler aus P121) und bei `ON_RESUME` neu. `matchesCurrent` fängt alles ab: ein
+  aktueller Wert außerhalb der Bindungen (z. B. aus einer Sicherung) lässt `capture` werfen, das
+  hieß vorher Absturz bei jeder Komposition. Wer `FlatPreset.values` oder die Profil-Bindungen ändert, ändert damit, wann
   eine Karte hell ist (`SettingsSystemAreaTest.profileCardsAreButtonsThatApplyTheRealProfiles`).
 - **P137** Ein `clip` mit runden Ecken auf einer klickbaren Fläche ohne Innenabstand schneidet die
   ersten Buchstaben ab (im Bild „JPDATES“, „Zuletzt“ ohne „Z“). Die klickbare Überschrift der
   Update-Karte hat deshalb keinen Clip. `DateUtils.getRelativeTimeSpanString` schreibt deutsch
   „Vor 2 Stunden“ groß; mitten im Satz wird der erste Buchstabe klein gemacht.
+- **P145** Auch Bereichsseiten außer der KI-Seite (P134) berühren den geschützten Speicher:
+  System & Daten mit `KeyboardProfileStore`, `FlatPreset` (eigene SharedPreferences), den
+  Profilkarten, `UpdateSettings` und `LoadGestureLibPreference` (`protectedPrefs`, `filesDir`).
+  Sie entstehen nur, wenn `credentialAccessAllowed` gilt; sonst ein Hinweis. Ein gesperrter
+  Bildschirm allein reicht als Test nicht: vor dem ersten Entsperren kann der Sperrbildschirm weg
+  sein, der Nutzer aber noch gesperrt (`UserManager.isUserUnlocked`, im Test
+  `ShadowUserManager.setUserUnlocked(false)`,
+  `SettingsSystemAreaTest.beforeTheFirstUnlockNothingTouchesCredentialProtectedStorage`).
+- **P146** Eigene Schrift, Emoji-Schrift und Hintergrundbild sind Dateien: Laden oder Löschen
+  ändert keine Einstellung, also zählt `prefChanged` nicht und die Seite Aussehen zeigte den alten
+  Wert. Sie zählt deshalb bei `ON_RESUME` (die Dateiauswahl pausiert die Activity), beim Schließen
+  eines Gruppen-Dialogs und über `CustomFontPreference(onChanged)`; außerdem hört sie selbst auf
+  Einstellungsänderungen (auch ohne `SettingsActivity`, Tests). Wer eine neue Datei-Zeile baut,
+  braucht einen dieser Wege (`SettingsLookScreenTest.fileOnlyChangesShowAfterResumeDeleteAndClosingTheDialog`).
 - **P144** Geschützte Seiten (FLAG_SECURE) können verschachtelt sein (KI & Automationen →
   KI-Anbieter), und der NavHost animiert: Die neue Seite startet, bevor die alte entsorgt ist. Ein
   „wasSecure“-Schnappschuss je Seite löscht das Flag dann unter der neuen Seite. Immer

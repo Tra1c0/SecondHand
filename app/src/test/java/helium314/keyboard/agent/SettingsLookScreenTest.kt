@@ -25,6 +25,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
+import androidx.lifecycle.Lifecycle
 import dev.agentkeyboard.core.RgbLayer
 import dev.agentkeyboard.core.RgbPattern
 import dev.agentkeyboard.core.RgbSettings
@@ -117,6 +118,8 @@ class SettingsLookScreenTest {
     )
 
     @Test fun pageHasTheMockupTextsInTheMockupOrder() {
+        // "Tastenabstand" only with key borders, as on the old appearance page
+        prefs.edit().putBoolean(Settings.PREF_THEME_KEY_BORDERS, true).commit()
         show()
         compose.onNodeWithTag(AREA_TAG + SettingsDestination.AreaLook).assertExists()
         compose.onNodeWithTag(HERO_TAG).assert(hasText("01")).assert(hasText("Aussehen")).assert(hasText("Wie deine Tastatur aussieht und leuchtet."))
@@ -143,16 +146,73 @@ class SettingsLookScreenTest {
 
     @Test fun rowsShowTheRealDefaultValues() {
         show()
-        mapOf(ROW_HEIGHT to "100 %", ROW_GAP to "1,0", ROW_PADDING to "Standard", ROW_SPLIT to "Aus", ROW_FONT_SIZE to "100 %",
+        mapOf(ROW_HEIGHT to "100 %", ROW_PADDING to "Standard", ROW_SPLIT to "Aus", ROW_FONT_SIZE to "100 %",
             ROW_CUSTOM_FONT to "Keine", ROW_EMOJI to "Standard", ROW_IMAGE to "Keins")
             .forEach { (tag, value) -> row(tag).assert(hasText(value)) }
         // switches show the real defaults (Android 9: day/night and navigation bar colour are off by default)
         assertEquals(ToggleableState.Off, toggle(LOOK_ROW_TAG + ROW_DAY_NIGHT))
         assertEquals(ToggleableState.Off, toggle(LOOK_ROW_TAG + ROW_NAVBAR))
+        // without key borders (the default) there is no key gap row, as on the old appearance page
+        compose.onNodeWithTag(LOOK_ROW_TAG + ROW_GAP).assertDoesNotExist()
+    }
+
+    @Test fun keyGapRowFollowsTheKeyBorders() {
+        prefs.edit().putBoolean(Settings.PREF_THEME_KEY_BORDERS, true).commit()
+        show()
+        row(ROW_GAP).assert(hasText("Tastenabstand")).assert(hasText("1,0"))
+        prefs.edit().putBoolean(Settings.PREF_THEME_KEY_BORDERS, false).commit()
+        compose.waitForIdle()
+        compose.onNodeWithTag(LOOK_ROW_TAG + ROW_GAP).assertDoesNotExist()
+    }
+
+    @Test fun fileOnlyChangesShowAfterResumeDeleteAndClosingTheDialog() {
+        show()
+        row(ROW_CUSTOM_FONT).assert(hasText("Keine"))
+        row(ROW_IMAGE).assert(hasText("Keins"))
+        // the file picker pauses the activity; its result writes only a file
+        Settings.getCustomFontFile(app).apply { parentFile?.mkdirs() }.writeText("font")
+        Settings.getCustomBackgroundFile(app, false, false).apply { parentFile?.mkdirs() }.writeText("image")
+        compose.activityRule.scenario.moveToState(Lifecycle.State.STARTED)
+        compose.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+        compose.waitForIdle()
+        row(ROW_CUSTOM_FONT).assert(hasText("Eigene"))
+        row(ROW_IMAGE).assert(hasText("Eigenes"))
+        // "Löschen" of the own font changes no preference either
+        row(ROW_CUSTOM_FONT).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.delete)).performClick()
+        compose.waitForIdle()
+        row(ROW_CUSTOM_FONT).assert(hasText("Keine"))
+        // a file removed from the image dialog shows once the dialog is closed
+        row(ROW_IMAGE).performClick()
+        compose.waitForIdle()
+        Settings.getCustomBackgroundFile(app, false, false).delete()
+        compose.onNodeWithText(text(R.string.dialog_close)).performClick()
+        compose.waitForIdle()
+        row(ROW_IMAGE).assert(hasText("Keins"))
+    }
+
+    @Test fun emojiDialogReadsItsConditionsAgainWhileOpen() {
+        show()
+        row(ROW_EMOJI).performClick()
+        compose.waitForIdle()
+        assertTrue(exists(text(R.string.prefs_emoji_font_scale)))
+        assertFalse(exists(text(R.string.prefs_emoji_key_fit)))
+        assertFalse(exists(text(R.string.prefs_emoji_skin_tone)))
+        // written while the dialog is open (e.g. by its own scale dialog)
+        prefs.edit().putFloat(Settings.PREF_EMOJI_FONT_SCALE, 1.2f).putInt(Settings.PREF_EMOJI_MAX_SDK, 30).commit()
+        compose.waitForIdle()
+        compose.onNodeWithTag(LOOK_DIALOG_TAG + ROW_EMOJI).assertExists()
+        assertTrue(exists(text(R.string.prefs_emoji_key_fit)))
+        assertTrue(exists(text(R.string.prefs_emoji_skin_tone)))
+        prefs.edit().putFloat(Settings.PREF_EMOJI_FONT_SCALE, 1f).commit()
+        compose.waitForIdle()
+        assertFalse(exists(text(R.string.prefs_emoji_key_fit)))
     }
 
     @Test fun rowsFollowChangedPreferencesAndFiles() {
         prefs.edit()
+            .putBoolean(Settings.PREF_THEME_KEY_BORDERS, true)
             .putFloat(MyDesigns.HEIGHT_KEY, 0.9f)
             .putFloat(MyDesigns.GAP_KEY, 1.5f)
             .putFloat(createPrefKeyForBooleanSettings(Settings.PREF_SIDE_PADDING_SCALE_PREFIX, 1, 3), 1.2f)
@@ -352,6 +412,7 @@ class SettingsLookScreenTest {
 
     @Test fun everyClickableIsAtLeast44dp() {
         MyDesigns.save(app, design("d3", "Blau"))
+        prefs.edit().putBoolean(Settings.PREF_THEME_KEY_BORDERS, true).commit() // shows "Tastenabstand"
         show()
         val min = 44 * app.resources.displayMetrics.density - 1
         val clickables = compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.OnClick), useUnmergedTree = true).fetchSemanticsNodes()

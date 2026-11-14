@@ -31,6 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -56,6 +57,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
+import androidx.core.os.ConfigurationCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import dev.agentkeyboard.core.RgbSettings
 import dev.agentkeyboard.core.RgbTarget
 import helium314.keyboard.agent.DesignTiles
@@ -99,6 +104,20 @@ fun AgentAreaLookScreen(onNavigate: (String) -> Unit, onClickBack: () -> Unit) {
     val changed = (context.getActivity() as? SettingsActivity)?.prefChanged?.collectAsState()
     var written by remember { mutableIntStateOf(0) }
     if ((changed?.value ?: 0) + written < 0) Log.v("irrelevant", "read both counters to recompose on a change")
+    // own font, emoji font and background image are files: loading one changes no preference (P146).
+    // The file picker pauses the activity, so re-read on resume; a write from an open group dialog
+    // also counts here when no SettingsActivity counts it (tests).
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle, prefs) {
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) written++ }
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> written++ }
+        lifecycle.addObserver(observer)
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose {
+            lifecycle.removeObserver(observer)
+            prefs.unregisterOnSharedPreferenceChangeListener(listener)
+        }
+    }
     // id of the design in the editor, NEW_DESIGN for a new one, null while the page is shown
     var editing by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -136,7 +155,7 @@ fun AgentAreaLookScreen(onNavigate: (String) -> Unit, onClickBack: () -> Unit) {
             val version = written + (changed?.value ?: 0)
             RgbCard(prefs, version, onOpen = { onNavigate(SettingsDestination.AgentRgb) }, onChanged = ::bump)
             SizeSection(context, prefs, settings, version, ::bump)
-            FontSection(context, prefs, settings, version)
+            FontSection(context, prefs, settings, version, ::bump)
             BackgroundSection(context, prefs, settings, version, onNavigate, ::bump)
         }
     }
@@ -332,22 +351,26 @@ private fun SizeSection(context: Context, prefs: SharedPreferences, settings: Ma
             row = { open -> SettingRow(height, stringResource(R.string.agent_look_height_sub), DOTS[0], open,
                 Modifier.testTag(LOOK_ROW_TAG + ROW_HEIGHT), percent(prefs.getFloat(MyDesigns.HEIGHT_KEY, 1f))) },
         ) { KeyboardSwitcher.getInstance().setThemeNeedsReload() }
-        val gap = stringResource(R.string.agent_look_gap)
-        KeyboardScalePreference(gap, Settings.PREF_KEY_GAP_SCALE_PREFIX, dims, Defaults.PREF_KEY_GAP_SCALE,
-            0.5f..2.5f, { "${(100 * it).toInt()}%" },
-            row = { open -> SettingRow(gap, stringResource(R.string.agent_look_gap_sub), DOTS[1], open,
-                Modifier.testTag(LOOK_ROW_TAG + ROW_GAP), String.format(locale(context), "%.1f", prefs.getFloat(MyDesigns.GAP_KEY, 1f))) },
-        ) { KeyboardSwitcher.getInstance().setThemeNeedsReload() }
+        // only with key borders, as on the old appearance page (without borders there is no gap to see)
+        if (prefs.getBoolean(Settings.PREF_THEME_KEY_BORDERS, Defaults.PREF_THEME_KEY_BORDERS)) {
+            val gap = stringResource(R.string.agent_look_gap)
+            KeyboardScalePreference(gap, Settings.PREF_KEY_GAP_SCALE_PREFIX, dims, Defaults.PREF_KEY_GAP_SCALE,
+                0.5f..2.5f, { "${(100 * it).toInt()}%" },
+                row = { open -> SettingRow(gap, stringResource(R.string.agent_look_gap_sub), DOTS[1], open,
+                    Modifier.testTag(LOOK_ROW_TAG + ROW_GAP), String.format(locale(context), "%.1f", prefs.getFloat(MyDesigns.GAP_KEY, 1f))) },
+            ) { KeyboardSwitcher.getInstance().setThemeNeedsReload() }
+        }
         GroupRow(ROW_PADDING, stringResource(R.string.agent_look_padding), stringResource(R.string.agent_look_padding_sub), DOTS[2],
             if (customized(prefs, Settings.PREF_BOTTOM_PADDING_SCALE_PREFIX, Settings.PREF_SIDE_PADDING_SCALE_PREFIX))
-                stringResource(R.string.agent_look_value_custom) else stringResource(R.string.agent_look_value_default)) {
+                stringResource(R.string.agent_look_value_custom) else stringResource(R.string.agent_look_value_default), version, onChanged) {
             settings.show(Settings.PREF_BOTTOM_PADDING_SCALE_PREFIX, Settings.PREF_SIDE_PADDING_SCALE_PREFIX)
         }
         // the same switches as the upstream dialog of "Geteilte Tastatur", plus the spacer when one is on
         val split = splitPrefs()
         val on = split.filter { prefs.getBoolean(it.first, Defaults.PREF_ENABLE_SPLIT_KEYBOARD) }
         GroupRow(ROW_SPLIT, stringResource(R.string.agent_look_split), stringResource(R.string.agent_look_split_sub), DOTS[3],
-            if (on.isEmpty()) stringResource(R.string.agent_look_value_off) else on.joinToString(", ") { it.second }) {
+            if (on.isEmpty()) stringResource(R.string.agent_look_value_off) else on.joinToString(", ") { it.second }, version, onChanged) { v ->
+            check(v >= 0) // read: the spacer condition below is evaluated again (P124)
             split.forEach { SwitchPreference(name = it.second, key = it.first, default = Defaults.PREF_ENABLE_SPLIT_KEYBOARD) { onChanged() } }
             if (split.any { prefs.getBoolean(it.first, Defaults.PREF_ENABLE_SPLIT_KEYBOARD) })
                 settings.show(Settings.PREF_SPLIT_SPACER_SCALE_PREFIX)
@@ -356,12 +379,13 @@ private fun SizeSection(context: Context, prefs: SharedPreferences, settings: Ma
 }
 
 @Composable
-private fun FontSection(context: Context, prefs: SharedPreferences, settings: Map<String, Setting>, version: Int) {
+private fun FontSection(context: Context, prefs: SharedPreferences, settings: Map<String, Setting>, version: Int, onChanged: () -> Unit) {
     // read the version: Compose ignores unused parameters when it decides to skip (P124)
     check(version >= 0)
     SectionCard(stringResource(R.string.agent_look_font)) {
         GroupRow(ROW_FONT_SIZE, stringResource(R.string.agent_look_font_size), stringResource(R.string.agent_look_font_size_sub), DOTS[0],
-            percent(prefs.getFloat(Settings.PREF_FONT_SCALE, Defaults.PREF_FONT_SCALE))) {
+            percent(prefs.getFloat(Settings.PREF_FONT_SCALE, Defaults.PREF_FONT_SCALE)), version, onChanged) { v ->
+            check(v >= 0) // read: the hint condition below is evaluated again (P124)
             settings.show(Settings.PREF_FONT_SCALE)
             if (prefs.getBoolean(Settings.PREF_SHOW_HINTS, Defaults.PREF_SHOW_HINTS)) settings.show(Settings.PREF_HINT_FONT_SCALE)
         }
@@ -369,18 +393,19 @@ private fun FontSection(context: Context, prefs: SharedPreferences, settings: Ma
         val font = stringResource(R.string.agent_look_custom_font)
         settings[SettingsWithoutKey.CUSTOM_FONT]?.let { setting ->
             // the upstream flow: picker at once, or "load / delete" when a font is there
-            CustomFontPreference(setting, fontFile, R.string.custom_font) { open ->
+            CustomFontPreference(setting, fontFile, R.string.custom_font, row = { open ->
                 SettingRow(font, stringResource(R.string.agent_look_custom_font_sub), DOTS[1], open, Modifier.testTag(LOOK_ROW_TAG + ROW_CUSTOM_FONT),
                     stringResource(if (fontFile.exists()) R.string.agent_look_value_own_font else R.string.agent_look_value_none_font))
-            }
+            }, onChanged = onChanged)
         }
         val emojiCustom = Settings.getCustomEmojiFontFile(context).exists()
             || prefs.getFloat(Settings.PREF_EMOJI_FONT_SCALE, Defaults.PREF_EMOJI_FONT_SCALE) != Defaults.PREF_EMOJI_FONT_SCALE
             || prefs.getString(Settings.PREF_EMOJI_SKIN_TONE, Defaults.PREF_EMOJI_SKIN_TONE) != Defaults.PREF_EMOJI_SKIN_TONE
             || prefs.getBoolean(Settings.PREF_EMOJI_KEY_FIT, Defaults.PREF_EMOJI_KEY_FIT) != Defaults.PREF_EMOJI_KEY_FIT
         GroupRow(ROW_EMOJI, stringResource(R.string.agent_look_emoji), stringResource(R.string.agent_look_emoji_sub), DOTS[3],
-            stringResource(if (emojiCustom) R.string.agent_look_value_custom else R.string.agent_look_value_default)) {
-            // the same conditions as on the old appearance page
+            stringResource(if (emojiCustom) R.string.agent_look_value_custom else R.string.agent_look_value_default), version, onChanged) { v ->
+            // the same conditions as on the old appearance page, read again while the dialog is open (P124)
+            check(v >= 0)
             settings.show(SettingsWithoutKey.CUSTOM_EMOJI_FONT, Settings.PREF_EMOJI_FONT_SCALE)
             if (prefs.getFloat(Settings.PREF_EMOJI_FONT_SCALE, Defaults.PREF_EMOJI_FONT_SCALE) != 1f) settings.show(Settings.PREF_EMOJI_KEY_FIT)
             if (prefs.getInt(Settings.PREF_EMOJI_MAX_SDK, 0) >= 24) settings.show(Settings.PREF_EMOJI_SKIN_TONE)
@@ -397,7 +422,7 @@ private fun BackgroundSection(context: Context, prefs: SharedPreferences, settin
     SectionCard(stringResource(R.string.agent_look_background)) {
         val image = listOf(false, true).any { night -> listOf(false, true).any { land -> Settings.getCustomBackgroundFile(context, night, land).exists() } }
         GroupRow(ROW_IMAGE, stringResource(R.string.agent_look_image), stringResource(R.string.agent_look_image_sub), DOTS[0],
-            stringResource(if (image) R.string.agent_look_value_own_image else R.string.agent_look_value_none_image)) {
+            stringResource(if (image) R.string.agent_look_value_own_image else R.string.agent_look_value_none_image), version, onChanged) {
             settings.show(SettingsWithoutKey.BACKGROUND_IMAGE, SettingsWithoutKey.BACKGROUND_IMAGE_LANDSCAPE)
         }
         // day/night exists from Android 9 on, as on the old page
@@ -418,19 +443,25 @@ private fun BackgroundSection(context: Context, prefs: SharedPreferences, settin
     }
 }
 
-/** A row that opens a dialog with the upstream preference rows of [content] (each opens its own dialog). */
+/**
+ * A row that opens a dialog with the upstream preference rows of [content] (each opens its own dialog).
+ * [content] gets [version] so its conditions are read again while the dialog is open (P124: a
+ * lambda with only stable captures would be skipped); closing calls [onClosed], since a dialog row
+ * may have replaced or deleted a file without changing a preference (P146).
+ */
 @Composable
-private fun GroupRow(tag: String, title: String, summary: String, dot: Color, value: String, content: @Composable () -> Unit) {
+private fun GroupRow(tag: String, title: String, summary: String, dot: Color, value: String, version: Int,
+                     onClosed: () -> Unit, content: @Composable (version: Int) -> Unit) {
     var show by rememberSaveable { mutableStateOf(false) }
     SettingRow(title, summary, dot, { show = true }, Modifier.testTag(LOOK_ROW_TAG + tag), value)
     if (show)
         ThreeButtonAlertDialog(
-            onDismissRequest = { show = false },
+            onDismissRequest = { show = false; onClosed() },
             onConfirmed = {},
             confirmButtonText = null,
             cancelButtonText = stringResource(R.string.dialog_close),
             title = { Text(title) },
-            content = { Column(Modifier.testTag(LOOK_DIALOG_TAG + tag)) { content() } },
+            content = { Column(Modifier.testTag(LOOK_DIALOG_TAG + tag)) { content(version) } },
         )
 }
 
@@ -453,7 +484,8 @@ private fun customized(prefs: SharedPreferences, vararg prefixes: String) =
 @Composable
 private fun percent(value: Float) = stringResource(R.string.agent_look_value_percent, (100 * value).roundToInt())
 
-private fun locale(context: Context): Locale = context.resources.configuration.locales[0]
+// Configuration.locales is API 24+, minSdk is 21
+private fun locale(context: Context): Locale = ConfigurationCompat.getLocales(context.resources.configuration)[0] ?: Locale.getDefault()
 
 private const val COLUMNS = 3
 private const val SHOWN = 6

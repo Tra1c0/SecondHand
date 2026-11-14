@@ -31,6 +31,8 @@ fun CustomFontPreference(
     title: Int,
     // fork (stage 38b): the new appearance page shows its own row and runs the same flow
     row: @Composable (onClick: () -> Unit) -> Unit = { Preference(name = setting.title, onClick = it) },
+    // fork (stage 38b): called after the file was replaced or deleted (no preference changes then)
+    onChanged: () -> Unit = {},
 ) {
     val ctx = LocalContext.current
     var showDialog by rememberSaveable { mutableStateOf(false) }
@@ -46,6 +48,7 @@ fun CustomFontPreference(
             tempFile.renameTo(fontFile)
             KeyboardTypeface.clearCache()
             KeyboardSwitcher.getInstance().setThemeNeedsReload()
+            onChanged()
         } catch (_: Exception) {
             showErrorDialog = true
             tempFile.delete()
@@ -68,6 +71,7 @@ fun CustomFontPreference(
                 fontFile.delete()
                 KeyboardTypeface.clearCache()
                 KeyboardSwitcher.getInstance().setThemeNeedsReload()
+                onChanged()
             },
             neutralButtonText = stringResource(R.string.delete),
             confirmButtonText = stringResource(R.string.load),

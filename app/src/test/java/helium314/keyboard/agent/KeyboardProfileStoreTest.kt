@@ -134,4 +134,15 @@ class KeyboardProfileStoreTest {
         assertEquals(layout, store.exportSaved(ProfileGroup.LAYOUT))
         assertEquals(before, prefs.all)
     }
+
+    @Test fun matchesCurrentIsFalseInsteadOfThrowingForAValueOutsideTheBindings() {
+        store.saveCurrent(ProfileGroup.GESTURES)
+        assertTrue(store.matchesCurrent(ProfileGroup.GESTURES))
+        // e.g. from a restored backup of a newer or older version: capture() fails its validation
+        prefs.edit().putString(Settings.PREF_SPACE_HORIZONTAL_SWIPE, SwipeAction.HIDE_KEYBOARD.name).commit()
+        assertFails { store.capture(ProfileGroup.GESTURES) }
+        assertFalse(store.matchesCurrent(ProfileGroup.GESTURES))
+        // a group without a saved profile never matches
+        assertFalse(store.matchesCurrent(ProfileGroup.LAYOUT))
+    }
 }
