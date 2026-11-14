@@ -47,8 +47,9 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
    (ZipException), Merge-Konflikte in Docs: beide Seiten, generierte Blöcke per `--write`.
    Parallel-Sitzung auf eigenem Branch hat sich bewährt (35); Merge durch die Haupt-Sitzung.
    Danach offen: 25b animierte Emojis, 25c Sticker-Ersteller, U6 `@generate`.
-   Wartet auf den Owner: Secret `RELEASES_TOKEN`; Entscheidung, ob vertrauliche Clips aus dem
-   normalen Zwischenablageverlauf bleiben.
+   Wartet auf den Owner: Secret `RELEASES_TOKEN`. Entschieden (Owner, 2026-11-14, Etappe 44):
+   vertrauliche Clips und Geheimnisse kommen nicht mehr in den normalen Verlauf, sondern verdeckt
+   und nur im Speicher in den Tresor.
 
 1. **Gerätetest teilweise erledigt (G1).** Im Emulator geprüft und in Ordnung: Installation,
    Tippen, Löschen, Rad, Panel, Ersetzen, Schutz bei geänderter Auswahl, Passwortfeld,
