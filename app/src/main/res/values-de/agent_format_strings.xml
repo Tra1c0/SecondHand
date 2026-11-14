@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="agent_format_guard">Formatwächter</string>
+    <string name="agent_format_guard_sub">Hinweise in E-Mail-, Telefon-, IBAN- und Zahlenfeldern; ein Tipp übernimmt, nichts ändert sich von selbst</string>
+    <string name="agent_format_apply">Feld ersetzen durch %s</string>
+    <string name="agent_format_email_spaces">Ohne Leerzeichen: %s</string>
+    <string name="agent_format_email_domain">%s?</string>
+    <string name="agent_format_email_at">%s?</string>
+    <string name="agent_format_phone">📞 %s</string>
+    <string name="agent_format_iban_valid">IBAN gültig</string>
+    <string name="agent_format_iban_group">IBAN gültig · in Viererblöcke</string>
+    <string name="agent_format_iban_invalid">IBAN-Prüfziffer falsch</string>
+    <string name="agent_format_decimal">Üblich: %s</string>
+    <string name="agent_format_decimal_description">Hinweis: In dieser Sprache ist das Dezimalzeichen %1$s (%2$s). Das Feld bleibt unverändert.</string>
+</resources>

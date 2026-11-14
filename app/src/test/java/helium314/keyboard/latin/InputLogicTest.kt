@@ -3930,6 +3930,48 @@ class InputLogicTest {
         handleMessages()
     }
 
+    /** Stage 41: the format guard's chip changes the field only on a tap, exactly once, with the real host. */
+    @Test fun formatGuardChipChangesTheFieldOnlyOnATapAndOnce() {
+        val strip = android.widget.FrameLayout(latinIME)
+        fun chips() = (helium314.keyboard.agent.KeyboardCommands.createChipsView(latinIME, strip) as android.view.ViewGroup?)
+            ?.let { (it.getChildAt(0) as android.view.ViewGroup) }
+        fun tap(row: android.view.ViewGroup) { assertTrue(row.getChildAt(0).performClick()); handleMessages() }
+
+        currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+        setText("max@gmial.com")
+        latinIME.setNeutralSuggestionStrip()
+        handleMessages()
+        val row = chips()!!
+        assertEquals(1, row.childCount)
+        assertEquals("gmail.com?", (row.getChildAt(0) as android.widget.TextView).text.toString())
+        assertEquals("max@gmial.com", getTextFromConnection(), "showing the chip changes nothing")
+        tap(row)
+        assertEquals("max@gmail.com", getTextFromConnection())
+        tap(row) // the old chip again: refused, the field stays
+        assertEquals("max@gmail.com", getTextFromConnection())
+        kotlin.test.assertNull(chips(), "a correct address gets no chip")
+
+        // phone: the international format
+        currentInputType = InputType.TYPE_CLASS_PHONE
+        setText("+4930 1234567")
+        tap(chips()!!)
+        assertEquals("+49 30 1234567", getTextFromConnection())
+
+        // IBAN in a plain text field: blocks of four, then only the green note
+        currentInputType = InputType.TYPE_CLASS_TEXT
+        setText("DE89370400440532013000")
+        tap(chips()!!)
+        assertEquals("DE89 3704 0044 0532 0130 00", getTextFromConnection())
+        tap(chips()!!) // the note changes nothing
+        assertEquals("DE89 3704 0044 0532 0130 00", getTextFromConnection())
+
+        // switched off: nothing
+        latinIME.prefs().edit { putBoolean(AgentPreferences.FORMAT_GUARD, false) }
+        currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+        setText("max@gmial.com")
+        kotlin.test.assertNull(chips())
+    }
+
     // should be called before every test, so the same state is guaranteed
     @BeforeTest
     fun reset() {

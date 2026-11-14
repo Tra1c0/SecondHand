@@ -112,6 +112,14 @@ App-Namen“, „Alle Korrektur-Einstellungen“ (Stärke als Regler, personalis
 anstößige Wörter …), „Wörterbücher“, „Persönliches Wörterbuch“ und „Gelernte Wörter“ öffnen die
 bisherigen Seiten. „Lernen pausieren“ behält das Gelernte; Lernen ganz ausschalten (und löschen)
 geht unter „Alle Korrektur-Einstellungen“ → „Personalisierte Vorschläge“.
+
+Unter „Regeln“ steht auch **Formatwächter** (anfangs an). Er prüft E-Mail-, Telefon- und
+Kommazahl-Felder sowie Textfelder, in denen nur eine IBAN steht, sobald die Schreibmarke am Ende
+steht, und zeigt dann einen Chip in der Leiste, zum Beispiel „gmail.com?“ bei `max@gmial.com`,
+„📞 +49 1512 3456789“ bei `0151 23456789`, „● IBAN gültig · in Viererblöcke“ (grüner Punkt; roter
+Punkt: „IBAN-Prüfziffer falsch“) oder „Üblich: 12,5“. Erst dein Tipp auf den Chip ersetzt den Text
+im Feld; graue Chips sind nur Hinweise und ändern nichts. In Passwortfeldern, im Inkognito-Modus
+und bei gesperrtem Gerät bleibt er still.
 **04 Gesten & Gefühl** hat seinen eigenen Aufbau, alle Werte sind deine echten Einstellungen:
 
 - Karte „Leertaste“: Das Bild zeigt die Rastpunkte eines seitlichen Wischs (Tick, Tick, am

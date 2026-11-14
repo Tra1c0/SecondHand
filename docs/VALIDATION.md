@@ -3031,6 +3031,40 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Offen: Prüfer-Review, Gerätetest (FLAG_SECURE, Sperre und Entsperren mit offener Seite,
   echter Schlüssel, Diktat mit On-device-Erkenner, TalkBack).
 
+## Etappe 41 (Formatwächter)
+
+- Auftrag (Lead, ROADMAP 41): Hinweis-Chips nur in Feldern mit eindeutigem Typ, nie automatisch,
+  ein Tipp übernimmt; E-Mail (Domain-Tippfehler, fehlendes `@`, Leerzeichen), Telefon, IBAN
+  (Modulo 97, grüner/roter Punkt, Viererblöcke), Dezimalzeichen (nur Hinweis); reine Funktionen
+  in `agent-core`, Schalter „Formatwächter“ (an) auf Tippen & Korrektur → Regeln.
+- Größenmessung libphonenumber (vor dem Einbau): Jar 9.0.40 von Maven Central 360 070 Byte
+  (68 Klassen 257 KB, 545 Metadaten-Dateien 331 KB entpackt bzw. 126 KB gepackt, keine
+  Abhängigkeiten). Debug-APK vorher (`tools/dev.py build`, 2026-11-14) 38 660 284 Byte. Der
+  zweite Build nach dem Einbau entfiel (Speicher der geteilten Maschine, Anweisung des Leads);
+  geschätzt etwa 0,35 MB mehr (Jar gepackt, Klassen als Dex), also weit unter 1,5 MB:
+  libphonenumber statt eines eigenen Formatierers.
+- `./gradlew :agent-core:test`: grün, 331 Tests, 0 Fehler, darin `format.FormatGuardTest` 28
+  (Domain-Tippfehler von 16 Anbietern, richtige und unbekannte Domains, Groß-/Kleinschreibung,
+  Punkt am Ende, Umlaut-Tippfehler und echte Umlaut-Domains ohne Hinweis, Domains beim Tippen,
+  Abstandsgrenzen, zwei gleich nahe Anbieter, Leerzeichen, fehlendes `@`; gültige IBANs aus DE, AT,
+  ES, CH, GB, NL, FR, ungültige Prüfziffern, falsche Längen und Formen; Telefon national →
+  international für DE, AT, CH, ES, US, `00`/`+`-Normalisierung, ungültige und schon formatierte
+  Nummern; Dezimalzeichen de/es/en, Tausender-Fall).
+- `./gradlew :app:testDebugUnitTest` gezielt: `FormatGuardChipsTest` 9 (Feldtypen, Chips nur im
+  richtigen Typ, nie in Passwort-/Zahlenpasswortfeldern, Inkognito, No-Learning, gesperrt, ohne
+  Einstellungen; Schalter aus; nur ganzes Feld; Bauen ändert nichts, Tipp genau einmal; IBAN-Punkt
+  grün/rot, Gruppieren nur gültig; Dezimal-Hinweis ändert nie; Sprache aus `hintLocales`),
+  `InputLogicTest.formatGuardChipChangesTheFieldOnlyOnATapAndOnce` (echter Host: E-Mail, Telefon,
+  IBAN, zweiter Tipp auf alten Chip abgelehnt, Schalter aus), dazu unverändert grün
+  `SettingsTypingAreaTest` 9, `SettingsStartScreenTest` 10, `KeyboardCommandsTest` 5,
+  `EmojiMixCommandTest` 13 (`--max-workers=1`, 2026-11-14).
+- Nicht gelaufen: `tools/dev.py agent-tests` (der Lead führt die volle Suite aus), Upstream-Suite,
+  Build nach dem Einbau. Keine Engine-Datei geändert (`InputLogic`, `RichInputConnection`,
+  `PointerTracker` unverändert); der Ersatz geht über das vorhandene
+  `InputLogic.replaceCommandText`. `docs_sync --check`: grün.
+- Offen: Prüfer-Review, Gerätetest (Leiste in Telefon- und Zahlenfeldern echter Apps, Ersetzen in
+  Bank- und Anmeldefeldern, TalkBack).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

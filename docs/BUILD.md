@@ -112,6 +112,12 @@ nutzen einen Debug-Schlüssel, der in jeder neuen Umgebung anders ist; sie sind 
 
 - `com.google.zxing:core` 3.5.4 (Apache-2.0, `LICENSE-Apache-2.0` im Wurzelverzeichnis): nur der
   QR-Encoder für `@qr`, kein Scanner, keine Kamera.
+- `com.googlecode.libphonenumber:libphonenumber` 9.0.40 (Apache-2.0, `LICENSE-Apache-2.0`), in
+  `agent-core`: Telefonnummern des Formatwächters (Etappe 41), nur Prüfen und Formatieren mit den
+  mitgelieferten Metadaten, ohne Geocoder und Netzbetreiber. Größe gemessen am 2026-11-14: Jar
+  360 KB (Klassen 257 KB, Metadaten 331 KB entpackt, 126 KB gepackt), keine weiteren
+  Abhängigkeiten; in der unminifizierten Debug-APK geschätzt etwa 0,35 MB mehr (Debug-APK vorher
+  38 660 284 Byte). Grenze laut Auftrag 1,5 MB, deshalb kein eigener Formatierer.
 
 ## Mitgelieferte Emoji-Wörterbücher
 

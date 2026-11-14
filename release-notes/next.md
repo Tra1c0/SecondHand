@@ -168,3 +168,10 @@
   und Tonfall, deine Workflows (mit Anzahl) sowie Diktat (Bereit/Erlauben/Nicht verfügbar) und
   Auftragsstatus. Bei gesperrtem Gerät zeigt die Seite nur den Hinweis zum Entsperren. Die
   bisherigen Seiten gibt es weiter. Noch auf keinem Gerät ausprobiert.
+- Neu: Formatwächter (Einstellungen → Tippen & Korrektur → Regeln, anfangs an). In E-Mail-Feldern
+  schlägt die Leiste bei Tippfehlern in der Domain den richtigen Anbieter vor (`max@gmial.com` →
+  „gmail.com?“), ebenso bei fehlendem `@` oder Leerzeichen; in Telefonfeldern das internationale
+  Format (`0151 23456789` → „+49 1512 3456789“); bei einer IBAN zeigt ein grüner oder roter Punkt,
+  ob die Prüfziffer stimmt, ein Tipp setzt Viererblöcke; in Kommazahl-Feldern ein Hinweis, wenn
+  Punkt und Komma nicht zur Sprache passen. Nichts ändert sich von selbst, erst dein Tipp. Nie in
+  Passwortfeldern, im Inkognito-Modus oder bei gesperrtem Gerät. Noch auf keinem Gerät ausprobiert.

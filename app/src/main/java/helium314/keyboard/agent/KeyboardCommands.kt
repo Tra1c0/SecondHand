@@ -369,6 +369,8 @@ object KeyboardCommands {
             override val currentSubtype: android.view.inputmethod.InputMethodSubtype?
                 get() = runCatching { helium314.keyboard.latin.RichInputMethodManager.getInstance().currentSubtype.rawSubtype }.getOrNull()
         }
+        // stage 41: no command, but a hint for a field with an unambiguous type (e-mail, phone, IBAN, decimal)
+        if (context == null) FormatGuardChips.stripChips(host).let { if (it.isNotEmpty()) return it }
         // stage 25a: no command, but two typed emojis with a mix
         if (context == null) return helium314.keyboard.agent.commands.EmojiMixCommand.stripChips(host,
             ime.getAgentTextBeforeCursor(helium314.keyboard.agent.commands.EmojiMixCommand.LOOKBACK)).ifEmpty { null }
