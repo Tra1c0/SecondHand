@@ -301,12 +301,30 @@ class RgbOwnPatternTest {
         val library = RgbPatternLibrary(listOf(own))
         val s = RgbSettings(enabled = true, pattern = RgbPattern.CIRCLE, own = own)
         val text = s.encode()
-        assertTrue(";own=p1" in text, text)
+        val check = own.fingerprint()!!
+        assertTrue(Regex("[0-9a-f]{8}").matches(check), check)
+        assertTrue(";own=p1.$check" in text, text)
         assertFalse("RADIAL" in text, "the layers are not in the settings text")
         val read = RgbSettings.parse(text)
         assertEquals("p1", read.own?.id)
+        assertEquals(check, read.own?.check)
         assertFalse(read.own!!.usable, "only a reference until resolved")
         assertEquals(s.normalized(), read.resolve(library))
+        // the check is the content: a rename keeps it, any other layer gives another one
+        assertEquals(check, own.copy(name = "Anders").fingerprint())
+        assertNotEquals(check, pattern(RgbPatternLayer(RgbGenerator.RADIAL, redBlue(), speed = 1.05f)).fingerprint())
+        // other content under the same id (remade, or another phone's pattern): the built-in pattern, never the other one
+        val other = RgbPatternLibrary(listOf(pattern(RgbPatternLayer(RgbGenerator.NOISE, redBlue()))))
+        assertNull(read.resolve(other).own, "content check differs")
+        assertEquals(RgbPattern.CIRCLE, read.resolve(other).pattern)
+        // a broken check is no reference at all
+        assertNull(RgbSettings.parse(text.replace(".$check", ".zz")).own)
+        assertNull(RgbSettings.parse(text.replace(".$check", ".${check}0")).own)
+        // without a check (first build of 34): only a legacy id is taken by id; a random-style id never
+        assertEquals(own, RgbSettings.parse("v=2;on=1;own=p1").resolve(library).own)
+        val modern = own.copy(id = "a1b2c3d4e5f6")
+        assertNull(RgbSettings.parse("v=2;on=1;own=a1b2c3d4e5f6").resolve(RgbPatternLibrary(listOf(modern))).own)
+        assertEquals(modern, RgbSettings.parse(RgbSettings(enabled = true, own = modern).encode()).resolve(RgbPatternLibrary(listOf(modern))).own)
         // a deleted pattern: the element draws its built-in pattern again
         val gone = read.resolve(RgbPatternLibrary.EMPTY)
         assertNull(gone.own)
@@ -372,6 +390,19 @@ class RgbOwnPatternTest {
             }
             assertTrue(worst <= 3, "$p: the copy differs by $worst")
         }
+        // the diagonal wave: the built-in one runs from corner to corner ((x + y) / 2), the copy at
+        // 45 degrees on the screen; on a square area both are the same line (review N9)
+        val look = RgbLook(pattern = RgbPattern.WAVE_DIAGONAL, rainbow = false, palette = palette, waveWidth = 1.5f)
+        val builtIn = RgbEngine(look.applyTo(RgbSettings(enabled = true)))
+        val own = RgbEngine(look.copy(own = RgbOwnPattern.from(look, "p1", "Kopie")).applyTo(RgbSettings(enabled = true)))
+        for (e in listOf(builtIn, own)) { e.aspect = 1f; e.advance(0); e.advance(90); e.advance(180) }
+        var worst = 0
+        for (i in 0 until 100) {
+            val x = (i % 10) / 10f + 0.05f
+            val y = (i / 10) / 10f + 0.05f
+            worst = maxOf(worst, delta(builtIn.light(x, y, -1, 180), own.light(x, y, -1, 180)))
+        }
+        assertTrue(worst <= 3, "WAVE_DIAGONAL on a square area: the copy differs by $worst")
     }
 
     @Test fun theLibraryNamesAndNumbersItsPatterns() {
@@ -380,18 +411,95 @@ class RgbOwnPatternTest {
         lib = l1
         val (l2, b) = lib.add(pattern(RgbPatternLayer()).copy(name = "Welle"))!!
         lib = l2
-        assertEquals("p1", a.id); assertEquals("p2", b.id)
+        val idForm = Regex("[a-z0-9]{${RgbOwnPattern.ID_LENGTH}}")
+        assertTrue(idForm.matches(a.id) && idForm.matches(b.id), "${a.id} ${b.id}")
+        assertNotEquals(a.id, b.id)
         assertEquals("Welle 2", b.name)
-        lib = lib.rename("p1", "Polar")!!
-        assertEquals("Polar", lib["p1"]!!.name)
-        assertNull(lib.rename("p1", "https://evil"), "an address is no name")
-        lib = lib.remove("p1")
-        assertEquals(listOf("p2"), lib.patterns.map { it.id })
-        assertEquals("p3", lib.nextId(), "a new id never reuses a used one")
+        lib = lib.rename(a.id, "Polar")!!
+        assertEquals("Polar", lib[a.id]!!.name)
+        assertNull(lib.rename(a.id, "https://evil"), "an address is no name")
+        lib = lib.remove(a.id)
+        assertEquals(listOf(b.id), lib.patterns.map { it.id })
         repeat(RgbPatternLibrary.MAX_PATTERNS) { lib = lib.add(pattern(RgbPatternLayer()))?.first ?: lib }
         assertEquals(RgbPatternLibrary.MAX_PATTERNS, lib.patterns.size)
+        assertEquals(RgbPatternLibrary.MAX_PATTERNS, lib.patterns.map { it.id }.toSet().size, "all ids differ")
         assertNull(lib.add(pattern(RgbPatternLayer())), "full")
         assertEquals("a".repeat(30) + " 2", RgbPatternLibrary(listOf(RgbOwnPattern("p1", "a".repeat(32), emptyList()))).uniqueName("a".repeat(32)))
+        assertEquals("Pattern", RgbPatternLibrary.EMPTY.uniqueName("<b>"), "the neutral fallback of the core")
+        assertEquals("Muster", RgbPatternLibrary.EMPTY.add(pattern(RgbPatternLayer()).copy(name = ""), fallbackName = "Muster")!!.second.name,
+            "the app's own fallback")
+    }
+
+    /** Review M1: the newest pattern deleted and a new one made never brings back its id for other content. */
+    @Test fun deletingTheNewestPatternNeverHandsItsIdToTheNextOne() {
+        val (lib1, first) = RgbPatternLibrary.EMPTY.add(pattern(RgbPatternLayer(RgbGenerator.RADIAL, redBlue())))!!
+        val (lib2, newest) = lib1.add(pattern(RgbPatternLayer(RgbGenerator.PLASMA, redBlue())))!!
+        // a design profile saved with the newest pattern
+        val profile = RgbSettings(enabled = true, pattern = RgbPattern.INK, own = newest).encode()
+        val afterDelete = lib2.remove(newest.id)
+        val (lib3, next) = afterDelete.add(pattern(RgbPatternLayer(RgbGenerator.SPARKLE, redBlue())))!!
+        assertNotEquals(newest.id, next.id, "a random id, not max + 1")
+        assertNotEquals(first.id, next.id)
+        assertNull(RgbSettings.parse(profile).resolve(lib3).own, "the profile falls back to its built-in pattern")
+        assertEquals(RgbPattern.INK, RgbSettings.parse(profile).resolve(lib3).pattern)
+        // even if a random generator gave the same id again, the content check refuses the other pattern
+        val replay = kotlin.random.Random(7)
+        val (withId, made) = RgbPatternLibrary.EMPTY.add(pattern(RgbPatternLayer(RgbGenerator.PLASMA, redBlue())), random = replay)!!
+        val saved = RgbSettings(enabled = true, own = made).encode()
+        val (remade, again) = withId.remove(made.id).add(pattern(RgbPatternLayer(RgbGenerator.SPARKLE, redBlue())), random = kotlin.random.Random(7))!!
+        assertEquals(made.id, again.id, "the same random sequence")
+        assertNull(RgbSettings.parse(saved).resolve(remade).own, "same id, other content: not taken")
+        // an id from another phone: not in this library
+        assertNull(RgbSettings.parse(profile).resolve(RgbPatternLibrary(listOf(first))).own)
+    }
+
+    /** Review M1: the ids of the first build (`p1`, `p2`) become random ones; the settings follow, others fall back. */
+    @Test fun legacyIdsAreReplacedAndTheSettingsFollow() {
+        val p1 = RgbOwnPattern("p1", "Eins", listOf(RgbPatternLayer(RgbGenerator.RADIAL, redBlue()))).normalized()
+        val p2 = RgbOwnPattern("p2", "Zwei", listOf(RgbPatternLayer(RgbGenerator.NOISE, redBlue()))).normalized()
+        val modern = RgbOwnPattern("k3j9x0a1b2c3", "Neu", listOf(RgbPatternLayer(RgbGenerator.CONIC, redBlue()))).normalized()
+        val old = RgbPatternLibrary(listOf(p1, p2, modern))
+        val (lib, renamed) = old.withNewIds(kotlin.random.Random(3))
+        assertEquals(setOf("p1", "p2"), renamed.keys)
+        assertTrue(lib.patterns.none { RgbOwnPattern.isLegacyId(it.id) })
+        assertEquals(listOf("Eins", "Zwei", "Neu"), lib.patterns.map { it.name }, "order and names kept")
+        assertEquals("k3j9x0a1b2c3", lib.patterns[2].id, "a new id stays")
+        assertEquals(old.patterns.map { it.layers }, lib.patterns.map { it.layers })
+        // the setting of the first build (bare ids) follows to the new ids with their check
+        val legacy = RgbSettings.parse("v=2;on=1;own=p2;sep=1;k.own=p1;b.own=p9")
+        val follows = legacy.restamp(old, lib, renamed)
+        assertEquals(lib[renamed.getValue("p2")], follows.own)
+        assertEquals(lib[renamed.getValue("p1")], follows.lookFor(RgbTarget.KEYS).own)
+        assertNull(follows.lookFor(RgbTarget.BACKGROUND).own, "an id that was never there is dropped")
+        val text = follows.encode()
+        assertFalse(Regex("own=p[0-9]").containsMatchIn(text), text)
+        assertEquals(follows, RgbSettings.parse(text).resolve(lib))
+        // after the change a bare legacy reference (an old profile from another phone) finds nothing
+        assertNull(RgbSettings.parse("v=2;on=1;own=p1").resolve(lib).own)
+        // an edit: the reference follows with the new check; a deleted pattern falls back
+        val edited = lib.replace(lib.patterns[0].copy(layers = listOf(RgbPatternLayer(RgbGenerator.STRIPES, redBlue()))))
+        val afterEdit = RgbSettings.parse(text).restamp(lib, edited)
+        assertEquals(edited.patterns[0], afterEdit.lookFor(RgbTarget.KEYS).own)
+        assertEquals(afterEdit, RgbSettings.parse(afterEdit.encode()).resolve(edited))
+        assertNull(RgbSettings.parse(text).restamp(lib, lib.remove(renamed.getValue("p2"))).own)
+    }
+
+    /** Review N2 and N4: copy names fit, names never hold separators or lone surrogates. */
+    @Test fun namesFitAndStayPlainText() {
+        assertEquals("Polarlicht (Kopie)", RgbOwnPattern.fitName("%s (Kopie)", "Polarlicht"))
+        val long = "x".repeat(32)
+        val copy = RgbOwnPattern.fitName("%s (Kopie)", long)
+        assertEquals(RgbOwnPattern.MAX_NAME, copy.length)
+        assertTrue(copy.endsWith(" (Kopie)"))
+        assertNotNull(RgbOwnPattern.cleanName(copy), "a copy of a full-length name is still a valid name")
+        // a surrogate pair at the cut is never split
+        val emoji = "a".repeat(23) + "🌈🌈"
+        val cut = RgbOwnPattern.fitName("%s (Kopie)", emoji)
+        assertNotNull(RgbOwnPattern.cleanName(cut), cut)
+        assertEquals("a".repeat(23) + "🌈 (Kopie)", cut)
+        for (bad in listOf("a b", "a b", "a\uD800b", "a\uDC00", "󠀁x", "a\u0085b"))
+            assertNull(RgbOwnPattern.cleanName(bad), bad.map { "%04x".format(it.code) }.toString())
+        assertEquals("Regenbogen 🌈", RgbOwnPattern.cleanName("Regenbogen 🌈"))
     }
 
     // --- cost per frame ---
@@ -443,15 +551,35 @@ class RgbOwnPatternTest {
         File("build/rgb-previews/own-pattern-cost.txt").writeText(report.toString())
     }
 
-    /** Nothing per sample is allocated: the same renderer gives the same light a million times without garbage. */
+    /**
+     * Nothing per sample is allocated: every shape (with each blend mode in turn), every reaction
+     * and both palette modes, with fading taps, give their light 100 000 times without garbage.
+     */
     @Test fun samplingDoesNotAllocate() {
-        val r = renderer(RgbPatternLayer(RgbGenerator.CONTOUR, palette = RgbPaletteMode.HUE_CYCLE), RgbPatternLayer(RgbGenerator.SPOTLIGHT, blend = RgbBlend.ADD))
         val bean = java.lang.management.ManagementFactory.getThreadMXBean() as? com.sun.management.ThreadMXBean ?: return
-        repeat(20_000) { r.at(it / 20_000f, 0.5f, phase = it * 0.001) }
+        val renderers = RgbGenerator.entries.mapIndexed { i, g ->
+            renderer(RgbPatternLayer(RgbGenerator.LINEAR, redBlue()),
+                RgbPatternLayer(g, redBlue(), blend = RgbBlend.entries[i % RgbBlend.entries.size], angle = 30,
+                    reaction = RgbLayerReaction.entries[i % RgbLayerReaction.entries.size],
+                    palette = RgbPaletteMode.entries[i % RgbPaletteMode.entries.size]))
+        } + RgbBlend.entries.map { b -> renderer(RgbPatternLayer(RgbGenerator.PLASMA), RgbPatternLayer(RgbGenerator.SPARKLE, blend = b)) } +
+            RgbLayerReaction.entries.map { r -> renderer(RgbPatternLayer(RgbGenerator.NOISE, reaction = r, palette = RgbPaletteMode.HUE_CYCLE)) }
+        // eight taps, fading during the run
+        val tx = FloatArray(RgbEngine.MAX_TAPS) { it / 8f }
+        val ty = FloatArray(RgbEngine.MAX_TAPS) { 0.5f }
+        val tt = LongArray(RgbEngine.MAX_TAPS) { it * 10L }
+        fun run(count: Int): Int {
+            var sink = 0
+            for (i in 0 until count) {
+                val r = renderers[i % renderers.size]
+                sink += r.at((i % 48) / 48f, (i % 32) / 32f, phase = i * 0.0003, now = (i / 100).toLong(), tx = tx, ty = ty, tt = tt)
+            }
+            return sink
+        }
+        run(40_000)
         val before = bean.getThreadAllocatedBytes(Thread.currentThread().id)
-        var sink = 0
-        for (i in 0 until 100_000) sink += r.at((i % 48) / 48f, (i % 32) / 32f, phase = i * 0.0003)
+        val sink = run(100_000)
         val bytes = bean.getThreadAllocatedBytes(Thread.currentThread().id) - before
-        assertTrue(bytes < 64 * 1024, "$bytes bytes allocated for 100000 samples [$sink]")
+        assertTrue(bytes < 64 * 1024, "$bytes bytes allocated for 100000 samples over ${renderers.size} patterns [$sink]")
     }
 }

@@ -65,6 +65,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -147,6 +148,8 @@ fun createAgentRgbSetting(context: Context) =
 fun AgentRgbScreen(onClickBack: () -> Unit) {
     val context = LocalContext.current
     val prefs = context.prefs()
+    // own patterns of the first build of stage 34 get random ids before anything is read (stage 34 review, M1)
+    remember { RgbOwnPatterns.migrate(context) }
     var settings by remember { mutableStateOf(RgbLighting.read(prefs)) }
     // a curve point being dragged: only the preview reads this, so the page is not recomposed per
     // move, and the preview at most once per frame (build-14 lag)
@@ -174,16 +177,28 @@ fun AgentRgbScreen(onClickBack: () -> Unit) {
 
     // own patterns (stage 34): the library, the one being edited, the file flows
     var library by remember { mutableStateOf(RgbOwnPatterns.library(prefs)) }
+    // stored patterns this version cannot read: kept as they are, nothing is written over them
+    var locked by remember { mutableStateOf(RgbOwnPatterns.locked(prefs)) }
     var editing by rememberSaveable { mutableStateOf<String?>(null) }
     var exportId by rememberSaveable { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     fun toast(text: String) = Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
-    /** The library changed: stored at once; the page's settings take the new definitions (a deleted one falls back). */
-    fun changeLibrary(changed: RgbPatternLibrary) {
+    val lockedText = stringResource(R.string.agent_rgb_own_locked)
+    /**
+     * The library changed: stored at once (the stored lighting and design profile follow); the
+     * page's settings take the new definitions by id (a deleted one falls back). False while locked.
+     */
+    fun changeLibrary(changed: RgbPatternLibrary): Boolean {
+        if (!RgbOwnPatterns.write(context, changed)) {
+            locked = true
+            toast(lockedText)
+            return false
+        }
         library = changed
-        RgbOwnPatterns.write(prefs, changed)
-        settings = settings.resolve(changed)
+        settings = settings.refresh(changed)
+        return true
     }
+    val defaultName = stringResource(R.string.agent_rgb_own_default_name)
     fun open(pattern: RgbOwnPattern) {
         editing = pattern.id
         changeLook { it.copy(own = pattern) }
@@ -194,6 +209,8 @@ fun AgentRgbScreen(onClickBack: () -> Unit) {
     val exportedText = stringResource(R.string.agent_rgb_own_exported, "%s")
     val failedText = stringResource(R.string.agent_rgb_own_failed, "%s")
     val writeFailedText = stringResource(R.string.agent_rgb_own_write_failed)
+    val unreadableText = stringResource(R.string.agent_rgb_own_error_unreadable)
+    val noAccessText = stringResource(R.string.agent_rgb_own_error_no_access)
     val saveFile = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         val pattern = exportId?.let { library[it] }
         exportId = null
@@ -207,7 +224,7 @@ fun AgentRgbScreen(onClickBack: () -> Unit) {
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
             val result = withContext(Dispatchers.IO) {
-                runCatching { RgbOwnPatterns.importFile(context, uri) }.getOrDefault(RgbOwnPatterns.Imported.Refused(RgbPatternError.NOT_JSON))
+                runCatching { RgbOwnPatterns.importFile(context, uri, defaultName) }.getOrDefault(RgbOwnPatterns.Imported.Unreadable)
             }
             withContext(Dispatchers.Main) {
                 library = RgbOwnPatterns.library(prefs)
@@ -215,6 +232,9 @@ fun AgentRgbScreen(onClickBack: () -> Unit) {
                     is RgbOwnPatterns.Imported.Added -> importedText.format(result.pattern.name)
                     is RgbOwnPatterns.Imported.Refused -> failedText.format(errorText.getValue(result.error))
                     RgbOwnPatterns.Imported.Full -> fullText
+                    RgbOwnPatterns.Imported.Unreadable -> failedText.format(unreadableText)
+                    RgbOwnPatterns.Imported.NoAccess -> failedText.format(noAccessText)
+                    RgbOwnPatterns.Imported.Locked -> lockedText
                 })
             }
         }
@@ -223,12 +243,15 @@ fun AgentRgbScreen(onClickBack: () -> Unit) {
         exportId = pattern.id
         saveFile.launch(fileName(pattern.name))
     }
-    val copyName = stringResource(R.string.agent_rgb_own_copy_name, "%s")
+    // "<name> (Kopie)" for a copy of an own pattern, "<name> (eigen)" for one made from a built-in pattern; the name is cut to fit
+    val copyTemplate = stringResource(R.string.agent_rgb_own_copy_name, NAME_SLOT)
+    val ownTemplate = stringResource(R.string.agent_rgb_own_from_builtin_name, NAME_SLOT)
+    fun copyName(name: String) = RgbOwnPattern.fitName(copyTemplate, name, NAME_SLOT)
+    fun ownName(name: String) = RgbOwnPattern.fitName(ownTemplate, name, NAME_SLOT)
     /** A new own pattern from [source] (a built-in look or an own pattern), opened in the editor. */
     fun create(source: RgbOwnPattern) {
-        val (changed, made) = library.add(source) ?: run { toast(fullText); return }
-        changeLibrary(changed)
-        open(made)
+        val (changed, made) = library.add(source, defaultName) ?: run { toast(fullText); return }
+        if (changeLibrary(changed)) open(made)
     }
 
     val edited = editing?.let { library[it] }
@@ -239,14 +262,12 @@ fun AgentRgbScreen(onClickBack: () -> Unit) {
             design = design,
             animate = animationsOn,
             onChange = { changeLibrary(library.replace(it)) },
-            onRename = { name -> library.rename(edited.id, name)?.let { changeLibrary(it); true } ?: false },
-            onDuplicate = { create(edited.copy(name = copyName.format(edited.name))) },
-            onExport = { export(edited) },
+            onRename = { name -> library.rename(edited.id, name)?.takeIf { changeLibrary(it) }?.get(edited.id)?.name },
+            // the current state (a rename just saved by these buttons is already in it)
+            onDuplicate = { (library[edited.id] ?: edited).let { create(it.copy(name = copyName(it.name))) } },
+            onExport = { export(library[edited.id] ?: edited) },
             onDelete = {
-                editing = null
-                RgbOwnPatterns.delete(prefs, edited.id)
-                library = RgbOwnPatterns.library(prefs)
-                settings = RgbLighting.read(prefs)
+                if (changeLibrary(library.remove(edited.id))) editing = null
             },
             onBack = { editing = null },
         )
@@ -294,13 +315,14 @@ fun AgentRgbScreen(onClickBack: () -> Unit) {
                 PatternGallery(look, look.reverse) { changeLook { l -> l.copy(pattern = it, own = null) } }
                 // own patterns (stage 34): next to the built-in ones, chosen per element the same way
                 RgbLabel(stringResource(R.string.agent_rgb_own_title))
-                if (library.patterns.isEmpty()) RgbNote(stringResource(R.string.agent_rgb_own_empty))
+                if (locked) RgbNote(lockedText, Modifier.testTag("agent_rgb_own_locked"))
+                else if (library.patterns.isEmpty()) RgbNote(stringResource(R.string.agent_rgb_own_empty))
                 else OwnGallery(library, look) { p -> changeLook { it.copy(own = p) } }
-                FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (!locked) FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     val own = look.own?.takeIf { look.usesOwn }
                     val sourceName = own?.name ?: patternLabel(look.pattern)
                     FilledTonalButton({
-                        create(own?.copy(name = copyName.format(own.name)) ?: RgbOwnPattern.from(look, "", copyName.format(sourceName)))
+                        create(own?.copy(name = copyName(own.name)) ?: RgbOwnPattern.from(look, "", ownName(sourceName)))
                     }, Modifier.testTag("agent_rgb_own_new")) { Text(stringResource(R.string.agent_rgb_own_new, sourceName)) }
                     if (own != null) OutlinedButton({ editing = own.id }, Modifier.testTag("agent_rgb_own_edit")) {
                         Text(stringResource(R.string.agent_rgb_own_edit))
@@ -385,11 +407,8 @@ fun AgentRgbScreen(onClickBack: () -> Unit) {
                         verticalAlignment = Alignment.CenterVertically) {
                         look.palette.forEachIndexed { i, color ->
                             val label = stringResource(R.string.agent_rgb_color_n, i + 1)
-                            Spacer(Modifier.size(36.dp).background(Color(color), CircleShape)
-                                .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                                .clickable(onClickLabel = label) { colorToPick = i }
-                                .semantics { role = Role.Button }
-                                .testTag("agent_rgb_color_$i"))
+                            ColorSwatch(color, stringResource(R.string.agent_rgb_color_description, i + 1, RgbSettings.hex(color)), label,
+                                null, "agent_rgb_color_$i") { colorToPick = i }
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -585,7 +604,7 @@ private data class GalleryKey(val pattern: RgbPattern, val rainbow: Boolean, val
 
 private class GalleryPicture(val field: Bitmap, val texture: RgbTexture?)
 
-private const val GALLERY_DEBOUNCE_MS = 250L
+internal const val GALLERY_DEBOUNCE_MS = 250L
 /** Twelve patterns: two sets of colours. */
 private const val GALLERY_KEEP = 24
 
@@ -666,10 +685,30 @@ internal fun RgbLabel(text: String) {
 }
 
 @Composable
-internal fun RgbNote(text: String) {
+internal fun RgbNote(text: String, modifier: Modifier = Modifier) {
     Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(top = 4.dp))
+        modifier = modifier.padding(top = 4.dp))
 }
+
+/**
+ * A colour as a 36 dp circle in a 48 dp touch target, named for TalkBack by [description]
+ * ("Farbe 2, #FF0050"); [chosen] (null: nothing to choose) draws a thick ring and reports it as selected.
+ */
+@Composable
+internal fun ColorSwatch(color: Int, description: String, clickLabel: String, chosen: Boolean?, tag: String, onClick: () -> Unit) {
+    Box(
+        Modifier.size(48.dp).clip(CircleShape).clickable(onClickLabel = clickLabel, onClick = onClick)
+            .semantics { contentDescription = description; role = Role.Button; if (chosen != null) selected = chosen }
+            .testTag(tag),
+        contentAlignment = Alignment.Center,
+    ) {
+        Spacer(Modifier.size(36.dp).background(Color(color), CircleShape)
+            .border(if (chosen == true) 3.dp else 1.dp, if (chosen == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, CircleShape))
+    }
+}
+
+/** Stands for the name in a name template ("%1$s (Kopie)"): a private use character no name can hold. */
+internal const val NAME_SLOT = "\uE000"
 
 @Composable
 internal fun RgbSwitch(label: String, checked: Boolean, tag: String, strong: Boolean = false, onChange: (Boolean) -> Unit) {

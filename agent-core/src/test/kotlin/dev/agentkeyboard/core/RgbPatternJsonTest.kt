@@ -48,6 +48,36 @@ class RgbPatternJsonTest {
         assertEquals(1f, wild.offsetX); assertEquals(-1f, wild.offsetY)
         assertEquals(0, wild.opacity)
         assertEquals(listOf(RgbStop(0f, 0xFF0000FF.toInt()), RgbStop(1f, 0xFFFF0000.toInt())), wild.stops, "clamped and sorted")
+        // review N4: a huge number is clamped while still a double (as a float it would be infinite and fall back to the default)
+        val huge = ok(valid.replace("\"generator\":\"LINEAR\"", "\"generator\":\"LINEAR\",\"speed\":1e300,\"scale\":1e300,\"offsetX\":-1e300,\"offsetY\":1e300"))
+            .layers.single()
+        assertEquals(RgbPatternLayer.MAX_SPEED, huge.speed)
+        assertEquals(RgbPatternLayer.MAX_SCALE, huge.scale)
+        assertEquals(-1f, huge.offsetX); assertEquals(1f, huge.offsetY)
+        val tiny = ok(valid.replace("\"generator\":\"LINEAR\"", "\"generator\":\"LINEAR\",\"speed\":-1e300,\"scale\":-1e300")).layers.single()
+        assertEquals(-RgbPatternLayer.MAX_SPEED, tiny.speed)
+        assertEquals(RgbPatternLayer.MIN_SCALE, tiny.scale)
+    }
+
+    /** Review N4: escapes take exactly four hex digits; names refuse separators and lone surrogates also when escaped. */
+    @Test fun escapesAndNamesAreExact() {
+        for (bad in listOf("\"\\u+04a\"", "\"\\u-001\"", "\"\\u12\"", "\"\\u 123\"", "\"\\u12g4\"", "\"\\u0x12\""))
+            assertFailsWith<StrictJson.Invalid>(bad) { StrictJson.parse(bad) }
+        assertEquals("\u00e4\u00C4", StrictJson.parse("\"\\u00e4\\u00C4\""))
+        for (name in listOf("a\\u2028b", "a\\u2029b", "a\\ud800b", "\\udc00", "a\\u0085"))
+            assertEquals(RgbPatternError.BAD_NAME, refused(valid.replace("\"Welle\"", "\"$name\"")), name)
+        assertEquals("Welle \uD83C\uDF08", ok(valid.replace("\"Welle\"", "\"Welle \\ud83c\\udf08\"")).name, "an escaped pair is one character")
+    }
+
+    /** Review M1: the content check of the settings text depends on the layers only, and is stable. */
+    @Test fun theFingerprintFollowsTheLayersOnly() {
+        val check = RgbPatternJson.fingerprint(full.layers)
+        assertEquals(RgbOwnPattern.CHECK_LENGTH, check.length)
+        assertEquals(check, full.fingerprint())
+        assertEquals(check, full.copy(id = "x", name = "Anders").fingerprint(), "id and name are not part of it")
+        assertEquals(check, ok(RgbPatternJson.encode(full)).fingerprint(), "the same after export and import")
+        assertNotEquals(check, full.copy(layers = full.layers.dropLast(1)).fingerprint())
+        assertNotEquals(check, full.copy(layers = full.layers.map { it.copy(opacity = 89) }).fingerprint())
     }
 
     @Test fun anythingDoubtfulRefusesTheWholeFile() {
@@ -100,6 +130,14 @@ class RgbPatternJsonTest {
         assertEquals(listOf("p7"), RgbPatternJson.decodeLibrary(shape).patterns.map { it.id })
         assertTrue(RgbPatternJson.encodeLibrary(RgbPatternLibrary(List(RgbPatternLibrary.MAX_PATTERNS) { full.copy(id = "p$it") })).length <
             RgbPatternJson.MAX_LIBRARY_BYTES, "a full library fits")
+        // review N6: a text that cannot be read as a whole is not "empty" (the app must not write over it)
+        assertEquals(lib, RgbPatternJson.readLibrary(text))
+        assertEquals(RgbPatternLibrary.EMPTY, RgbPatternJson.readLibrary(null))
+        assertEquals(RgbPatternLibrary.EMPTY, RgbPatternJson.readLibrary(" "))
+        for (unreadable in listOf(text.replace("\"version\":1", "\"version\":2"), "kaputt", "[]", text + " ".repeat(RgbPatternJson.MAX_LIBRARY_BYTES),
+            text.replace("\"patterns\"", "\"more\":1,\"patterns\""), text.replace(RgbPatternJson.LIBRARY_FORMAT, "other")))
+            assertNull(RgbPatternJson.readLibrary(unreadable), unreadable.take(80))
+        assertEquals(listOf("p4"), RgbPatternJson.readLibrary(broken)!!.patterns.map { it.id }, "a broken entry alone is skipped")
     }
 
     @Test fun strictJsonReadsStandardJson() {

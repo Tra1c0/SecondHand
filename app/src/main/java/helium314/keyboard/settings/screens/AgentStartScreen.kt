@@ -50,10 +50,12 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import dev.agentkeyboard.core.RgbTarget
 import helium314.keyboard.keyboard.KeyboardSwitcher
+import dev.agentkeyboard.core.RgbSettings
 import helium314.keyboard.agent.AgentPreferences
 import helium314.keyboard.agent.DesignTiles
 import helium314.keyboard.agent.MyDesigns
 import helium314.keyboard.agent.RgbLighting
+import helium314.keyboard.agent.RgbOwnPatterns
 import helium314.keyboard.latin.BuildConfig
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.settings.Defaults
@@ -123,12 +125,15 @@ private fun StartContent(onNavigate: (String) -> Unit, onSearch: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         StartTitle(onSearch, Modifier.padding(start = 4.dp, end = 4.dp, top = 8.dp))
-        LookCard(lookName(context, prefs), lightName(prefs)) { onNavigate(SettingsArea.LOOK.route) }
+        // read (and own patterns resolved, stage 34) only when one of the two settings changed, not on every recomposition
+        val rgbText = prefs.getString(RgbLighting.PREF, null)
+        val patternsText = prefs.getString(RgbOwnPatterns.PREF, null)
+        val rgb = remember(rgbText, patternsText) { RgbLighting.read(prefs) }
+        LookCard(lookName(context, prefs), lightName(rgb)) { onNavigate(SettingsArea.LOOK.route) }
 
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(stringResource(R.string.agent_settings_quick), style = AgentSettingsType.Label, color = AgentSettingsTokens.Muted,
                 modifier = Modifier.padding(horizontal = 4.dp))
-            val rgb = RgbLighting.read(prefs)
             ChipToggles(listOf(
                 ChipItem(stringResource(R.string.agent_settings_quick_incognito),
                     prefs.getBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, Defaults.PREF_ALWAYS_INCOGNITO_MODE),
@@ -228,8 +233,7 @@ internal fun lookName(context: Context, prefs: SharedPreferences): String {
 
 /** The pattern of the keys' light, or "aus". */
 @Composable
-private fun lightName(prefs: SharedPreferences): String {
-    val rgb = RgbLighting.read(prefs)
+private fun lightName(rgb: RgbSettings): String {
     return if (rgb.enabled) lookLabel(rgb.lookFor(RgbTarget.KEYS)) else stringResource(R.string.agent_settings_light_off)
 }
 

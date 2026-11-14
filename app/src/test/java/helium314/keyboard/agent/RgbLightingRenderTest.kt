@@ -199,6 +199,35 @@ class RgbLightingRenderTest {
         assertFalse(RgbLighting.engine.hasActiveEffect(RgbLighting.drawTimeMs), "hiding drops the effects")
     }
 
+    /** Review N3 of stage 34: password fields and incognito feed no taps to the light; a new field drops the old ones. */
+    @Test fun privateFieldsFeedNoTapsAndANewFieldDropsThem() {
+        use(lit.copy(tapReaction = RgbTapReaction.FLASH, reactiveOnly = true, glowMs = 5000))
+        val (keyboard, _) = render("rgb-private-fields.png")
+        val q = keyboard.key("q")
+        fun field(inputType: Int, incognito: Boolean = false) {
+            prefs.edit().putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, incognito).commit()
+            Settings.getInstance().loadSettings(latinIME, Locale.GERMANY,
+                InputAttributes(EditorInfo().apply { this.inputType = inputType }, false, latinIME.packageName))
+        }
+        fun tap() { lastView.onKeyPressed(q, false); lastView.onKeyReleased(q, false) }
+        field(android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        tap()
+        assertFalse(RgbLighting.engine.hasActiveEffect(RgbLighting.drawTimeMs), "a password field shows no tapped key")
+        field(android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD)
+        tap()
+        assertFalse(RgbLighting.engine.hasActiveEffect(RgbLighting.drawTimeMs), "nor a PIN field")
+        field(android.text.InputType.TYPE_CLASS_TEXT, incognito = true)
+        tap()
+        assertFalse(RgbLighting.engine.hasActiveEffect(RgbLighting.drawTimeMs), "nor incognito")
+        field(android.text.InputType.TYPE_CLASS_TEXT)
+        tap()
+        assertTrue(RgbLighting.engine.hasActiveEffect(RgbLighting.drawTimeMs), "a normal field reacts")
+        // the next field (onStartInputView loads new settings, then sets the keyboard): the taps are gone
+        field(android.text.InputType.TYPE_CLASS_TEXT)
+        lastView.setKeyboard(keyboard)
+        assertFalse(RgbLighting.engine.hasActiveEffect(RgbLighting.drawTimeMs), "taps of the last field do not carry over")
+    }
+
     @Test fun animationsOffGiveAStillPictureAndIgnoreTaps() {
         android.provider.Settings.Global.putFloat(latinIME.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
         use(RgbSettings(enabled = true, tapReaction = RgbTapReaction.FLASH, reactiveOnly = true))

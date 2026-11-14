@@ -127,7 +127,7 @@ data class RgbSettings(
     /** Each element has its own look (from [looks]) instead of the shared one. */
     val separate: Boolean = false,
     val looks: Map<RgbTarget, RgbLook> = emptyMap(),
-    /** Own pattern of the shared look (stage 34, see [RgbLook.own]); stored as its id only. */
+    /** Own pattern of the shared look (stage 34, see [RgbLook.own]); stored as its id and content check only. */
     val own: RgbOwnPattern? = null,
 ) {
     fun normalized(): RgbSettings = normalLook().copy(
@@ -182,14 +182,30 @@ data class RgbSettings(
         RgbTarget.entries.any { lights(it) && lookFor(it).let { l -> l.usesOwn && l.own!!.usesTaps } }
 
     /**
-     * These settings with every own pattern (stage 34) taken from [library] by its id: the settings
-     * text only names the id. An id the library does not have (deleted, or a profile from another
-     * phone) is dropped, so the element draws its built-in [pattern] again.
+     * These settings with every own pattern (stage 34) taken from [library]: the settings text only
+     * names the id and the content check ([RgbPatternLibrary.match]). An id the library does not
+     * have, or has with other content (deleted, remade, a profile from another phone), is dropped,
+     * so the element draws its built-in [pattern] again and never a different own pattern.
      */
-    fun resolve(library: RgbPatternLibrary): RgbSettings {
-        fun look(o: RgbOwnPattern?) = o?.let { library[it.id] }
-        return copy(own = look(own), looks = looks.mapValues { (_, l) -> l.copy(own = look(l.own)) })
-    }
+    fun resolve(library: RgbPatternLibrary): RgbSettings = mapOwn { library.match(it) }
+
+    /**
+     * These settings with every own pattern taken from [library] by its id alone, for settings
+     * that already hold this phone's patterns (the RGB page after an edit of its own library); an
+     * id that is gone is dropped.
+     */
+    fun refresh(library: RgbPatternLibrary): RgbSettings = mapOwn { library[it.id] }
+
+    /**
+     * Settings stored with [old] that follow a change to [new] (stage 34: an edit, a deletion, new
+     * ids): a reference that matched in [old] names the same pattern in [new] (under its new id
+     * from [renamed]) with its new content check; anything else is dropped (built-in pattern).
+     */
+    fun restamp(old: RgbPatternLibrary, new: RgbPatternLibrary, renamed: Map<String, String> = emptyMap()): RgbSettings =
+        mapOwn { ref -> old.match(ref)?.let { new[renamed[it.id] ?: it.id] } }
+
+    private fun mapOwn(f: (RgbOwnPattern) -> RgbOwnPattern?): RgbSettings =
+        copy(own = own?.let(f), looks = looks.mapValues { (_, l) -> l.copy(own = l.own?.let(f)) })
 
     /** The ids of all own patterns these settings use. */
     fun ownIds(): Set<String> = (listOfNotNull(own) + looks.values.mapNotNull { it.own }).map { it.id }.toSet()
@@ -242,7 +258,7 @@ data class RgbSettings(
             "sat" to look.saturation.toString(),
             "bright" to look.brightness.toString(),
             "mix" to look.mix.toString(),
-        ).let { if (look.own != null) it + ("own" to look.own.id) else it }.map { (k, v) -> prefix + k to v }
+        ).let { if (look.own != null) it + ("own" to look.own.referenceText()) else it }.map { (k, v) -> prefix + k to v }
 
         /**
          * Reads [encoded]; anything missing, unknown or out of range falls back to the default of
@@ -299,7 +315,7 @@ data class RgbSettings(
                 brightness = int("bright", base.brightness),
                 mix = int("mix", base.mix),
                 // never inherited: an element without `own` draws its built-in pattern
-                own = get("own")?.takeIf { RgbOwnPattern.validId(it) }?.let { RgbOwnPattern.reference(it) },
+                own = RgbOwnPattern.parseReference(get("own")),
             )
         }
 
@@ -870,7 +886,8 @@ class RgbEngine(settings: RgbSettings) {
  * changed after they are made.
  */
 object RgbPaletteTables {
-    private const val KEEP = 16
+    /** Own patterns (stage 34) bring up to four tables each: room for their gallery and the page (513 ints each, about 130 KB). */
+    private const val KEEP = 64
     private val tables = object : LinkedHashMap<List<Any>, IntArray>(KEEP, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<List<Any>, IntArray>?) = size > KEEP
     }

@@ -10,6 +10,7 @@ import dev.agentkeyboard.core.EmojiMixTable
 import dev.agentkeyboard.core.RgbEngine
 import dev.agentkeyboard.core.RgbEngines
 import dev.agentkeyboard.core.RgbLook
+import dev.agentkeyboard.core.RgbPatternLibrary
 import dev.agentkeyboard.core.RgbSettings
 import dev.agentkeyboard.core.RgbTarget
 import helium314.keyboard.agent.commands.EmojiMixClient
@@ -275,15 +276,17 @@ object Diagnose {
     }
 
     /**
-     * The patterns the lit elements use (stage 34: own patterns by name, marked "own") and what one
-     * light grid of each costs on this phone, measured now (48 x 32 values, the best of three).
-     * Measure off the main thread; reads only the setting, no text.
+     * The patterns the lit elements use and what one light grid of each costs on this phone,
+     * measured now (48 x 32 values, the best of three). Own patterns (stage 34) appear as "eigenes
+     * Muster n" (their place in [library]), never by the name the user gave them: the page can be
+     * copied into a report. Measure off the main thread; reads only the setting, no text.
      */
-    fun lightPatterns(context: Context, settings: RgbSettings): List<Row> {
+    fun lightPatterns(context: Context, settings: RgbSettings, library: RgbPatternLibrary = RgbPatternLibrary.EMPTY): List<Row> {
         if (!settings.enabled) return emptyList()
         val lit = RgbTarget.entries.filter { settings.lights(it) }
         if (lit.isEmpty()) return emptyList()
-        fun name(look: RgbLook) = if (look.usesOwn) "${look.own!!.name} (${context.getString(R.string.agent_diagnose_light_own)})"
+        fun name(look: RgbLook) = if (look.usesOwn)
+            context.getString(R.string.agent_diagnose_light_own_n, library.patterns.indexOfFirst { it.id == look.own!!.id } + 1)
             else context.getString(helium314.keyboard.settings.screens.patternLabelRes(look.pattern))
         val engines = RgbEngines(settings)
         val rows = mutableListOf(Row(context.getString(R.string.agent_diagnose_light_patterns),

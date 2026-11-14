@@ -424,3 +424,12 @@
   duplizieren, umbenennen, löschen, als kleine Datei exportieren und importieren (fremde oder
   kaputte Dateien werden mit Grund abgelehnt). Die Diagnose zeigt, welche Muster laufen und was ein
   Bild davon auf deinem Telefon kostet. Alles lokal. Noch auf keinem Gerät ausprobiert.
+  Nach der Prüfung nachgebessert: Ein Designprofil zeigt nie mehr ein anderes eigenes Muster als
+  das gespeicherte (auch nicht nach Löschen und Neuanlegen oder von einem anderen Telefon), sonst
+  das eingebaute; bearbeitest du das Muster, zieht das gespeicherte Designprofil mit. Der Name wird
+  erst bei „Fertig“, beim Verlassen des Feldes oder beim Zurückgehen gespeichert, nicht bei jedem
+  Buchstaben. Kopien heißen „… (Kopie)“ und passen immer in 32 Zeichen. In Passwortfeldern und im
+  Inkognito-Modus zeigt das Licht nicht, welche Taste getippt wurde. Farbkreise sind größer zum
+  Antippen und werden von TalkBack mit Farbe vorgelesen, Regler mit ihrem Wert; Tempo, Größe und
+  Verschiebung lassen sich feiner einstellen; „Mischen“ fehlt bei Ebene 1. Eine Liste von einer
+  neueren Version wird nicht überschrieben. Die Diagnose nennt eigene Muster nur mit Nummer.

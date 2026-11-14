@@ -11,6 +11,8 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
+import kotlin.random.Random
+import kotlin.random.asKotlinRandom
 
 /**
  * Shape of one layer of an own light pattern (stage 34). Every shape is a pure function of the
@@ -131,42 +133,100 @@ data class RgbPatternLayer(
 
 /**
  * An own light pattern (stage 34): a name and 1..[MAX_LAYERS] layers, drawn bottom first. [id] is
- * the key in the library and in the settings text (`own=`); a pattern read from the settings alone
- * is a [reference] without layers until the library resolves it ([RgbSettings.resolve]).
+ * the key in the library; the settings text names a pattern by its id and its [fingerprint]
+ * (`own=<id>.<check>`), so a pattern read from the settings alone is a [reference] without layers
+ * until the library resolves it ([RgbSettings.resolve], [RgbPatternLibrary.match]). [check] is the
+ * stored fingerprint of such a reference (null for a full pattern and for references written
+ * before the check existed).
  */
-data class RgbOwnPattern(val id: String, val name: String, val layers: List<RgbPatternLayer>) {
+data class RgbOwnPattern(val id: String, val name: String, val layers: List<RgbPatternLayer>, val check: String? = null) {
     /** True when there is something to draw (a bare [reference] has no layers). */
     val usable: Boolean get() = layers.isNotEmpty()
     val moves: Boolean get() = layers.any { it.moves }
     val usesTaps: Boolean get() = layers.any { it.usesTaps }
 
-    fun normalized(): RgbOwnPattern = copy(
-        name = cleanName(name) ?: DEFAULT_NAME,
+    fun normalized(fallbackName: String = DEFAULT_NAME): RgbOwnPattern = copy(
+        name = cleanName(name) ?: cleanName(fallbackName) ?: DEFAULT_NAME,
         layers = layers.take(MAX_LAYERS).map { it.normalized() },
     )
+
+    /**
+     * The content check of the layers (not the name: a renamed pattern stays the same), or the
+     * stored [check] of a bare reference: [CHECK_LENGTH] hex digits of a 64-bit FNV-1a hash of the
+     * layers as stored ([RgbPatternJson.fingerprint]).
+     */
+    fun fingerprint(): String? = if (usable) RgbPatternJson.fingerprint(layers) else check
+
+    /** The value of `own` in the settings text: `<id>.<fingerprint>`; a legacy reference without one keeps its bare id. */
+    fun referenceText(): String = fingerprint()?.let { "$id.$it" } ?: id
 
     companion object {
         const val MAX_LAYERS = 4
         const val MAX_NAME = 32
-        const val DEFAULT_NAME = "Muster"
+        /** Neutral fallback; the app passes its own, translated one ([normalized], [RgbPatternLibrary.add]). */
+        const val DEFAULT_NAME = "Pattern"
+        /** Length of a new id ([randomId]); shorter ids are from the first build of stage 34 (`p1`, `p2`, …). */
+        const val ID_LENGTH = 12
+        const val CHECK_LENGTH = 8
         private val ID = Regex("[a-z0-9]{1,12}")
+        private val CHECK = Regex("[0-9a-f]{$CHECK_LENGTH}")
+        private const val ID_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789"
 
         fun validId(id: String?): Boolean = id != null && ID.matches(id)
 
+        /** True for an id of the first build of stage 34 (`p1`, `p2`, … counted up, so a new pattern could get an old id). */
+        fun isLegacyId(id: String): Boolean = id.length != ID_LENGTH
+
+        /** A random id of [ID_LENGTH] letters and digits (36^12: never twice in practice, also across phones). */
+        fun randomId(random: Random): String = String(CharArray(ID_LENGTH) { ID_CHARS[random.nextInt(ID_CHARS.length)] })
+
         /** The pattern [id] as named in the settings text, before the library is read. */
-        fun reference(id: String) = RgbOwnPattern(id, "", emptyList())
+        fun reference(id: String, check: String? = null) = RgbOwnPattern(id, "", emptyList(), check)
+
+        /** Reads the value of `own` (`<id>.<check>`, or a bare id from before the check); null when it is broken. */
+        fun parseReference(text: String?): RgbOwnPattern? {
+            val t = text ?: return null
+            val dot = t.indexOf('.')
+            val id = if (dot < 0) t else t.substring(0, dot)
+            val check = if (dot < 0) null else t.substring(dot + 1)
+            if (!validId(id) || (check != null && !CHECK.matches(check))) return null
+            return reference(id, check)
+        }
 
         /**
-         * [name] trimmed, or null when it is empty, too long, has control or markup characters or
-         * looks like an address (`://`, `www.`): a name is only a label, never a link.
+         * [name] trimmed, or null when it is empty, too long, has control, format, line or
+         * paragraph separator characters, a lone surrogate or markup, or looks like an address
+         * (`://`, `www.`): a name is only a label, never a link.
          */
         fun cleanName(name: String?): String? {
             val n = name?.trim() ?: return null
             if (n.isEmpty() || n.codePointCount(0, n.length) > MAX_NAME) return null
-            if (n.any { it.isISOControl() || it == '<' || it == '>' || Character.getType(it) == Character.FORMAT.toInt() }) return null
+            var i = 0
+            while (i < n.length) {
+                val cp = n.codePointAt(i)
+                val type = Character.getType(cp)
+                if (Character.isISOControl(cp) || cp == '<'.code || cp == '>'.code || type == Character.FORMAT.toInt() ||
+                    type == Character.SURROGATE.toInt() || type == Character.LINE_SEPARATOR.toInt() ||
+                    type == Character.PARAGRAPH_SEPARATOR.toInt()) return null
+                i += Character.charCount(cp)
+            }
             val lower = n.lowercase(java.util.Locale.ROOT)
             if ("://" in lower || "www." in lower) return null
             return n
+        }
+
+        /** The first [count] code points of [text] (a surrogate pair is never cut in two). */
+        fun takeCodePoints(text: String, count: Int): String =
+            if (text.codePointCount(0, text.length) <= count) text else text.substring(0, text.offsetByCodePoints(0, count.coerceAtLeast(0)))
+
+        /**
+         * [template] with [slot] replaced by [base], [base] cut so that the result has at most
+         * [MAX_NAME] code points (a copy of a long name still gets its "(copy)").
+         */
+        fun fitName(template: String, base: String, slot: String = "%s"): String {
+            val rest = template.replace(slot, "")
+            val room = MAX_NAME - rest.codePointCount(0, rest.length)
+            return template.replace(slot, takeCodePoints(base.trim(), room).trimEnd())
         }
 
         /**
@@ -225,41 +285,62 @@ data class RgbOwnPattern(val id: String, val name: String, val layers: List<RgbP
 }
 
 /**
- * The library of own patterns ([MAX_PATTERNS] at most), in the order they were made. Ids are
- * `p1`, `p2`, …; a new one never reuses an id in the library.
+ * The library of own patterns ([MAX_PATTERNS] at most), in the order they were made. A new pattern
+ * gets a random id ([RgbOwnPattern.randomId]): deleting the newest one and making another never
+ * gives the old id again, and an id from another phone does not meet a local one.
  */
 data class RgbPatternLibrary(val patterns: List<RgbOwnPattern> = emptyList()) {
     operator fun get(id: String): RgbOwnPattern? = patterns.firstOrNull { it.id == id }
     val full: Boolean get() = patterns.size >= MAX_PATTERNS
 
-    fun nextId(): String {
-        val used = patterns.mapNotNull { it.id.removePrefix("p").toIntOrNull() }.maxOrNull() ?: 0
-        return "p${used + 1}"
+    /** A random id that is not in the library. */
+    fun newId(random: Random = SECURE): String {
+        while (true) {
+            val id = RgbOwnPattern.randomId(random)
+            if (this[id] == null) return id
+        }
+    }
+
+    /**
+     * The stored pattern that [ref] names: the same id and the same [RgbOwnPattern.fingerprint].
+     * Other content under that id (another phone, a deleted and remade pattern) gives null, so the
+     * element draws its built-in pattern instead of a different own one. A reference without a
+     * check (written by the first build of stage 34) is taken by its id only while that id is a
+     * legacy one; [withNewIds] replaces those.
+     */
+    fun match(ref: RgbOwnPattern): RgbOwnPattern? {
+        val stored = this[ref.id] ?: return null
+        val check = ref.fingerprint()
+        return when {
+            check != null -> stored.takeIf { it.fingerprint() == check }
+            RgbOwnPattern.isLegacyId(ref.id) -> stored
+            else -> null
+        }
     }
 
     /** [name] made unique in the library ("Name 2", "Name 3", …), cut to [RgbOwnPattern.MAX_NAME]. */
-    fun uniqueName(name: String, except: String? = null): String {
-        val base = RgbOwnPattern.cleanName(name) ?: RgbOwnPattern.DEFAULT_NAME
+    fun uniqueName(name: String, except: String? = null, fallbackName: String = RgbOwnPattern.DEFAULT_NAME): String {
+        val base = RgbOwnPattern.cleanName(name) ?: RgbOwnPattern.cleanName(fallbackName) ?: RgbOwnPattern.DEFAULT_NAME
         val taken = patterns.filter { it.id != except }.map { it.name }.toSet()
         if (base !in taken) return base
         var n = 2
         while (true) {
-            val suffix = " $n"
-            val cut = base.take(RgbOwnPattern.MAX_NAME - suffix.length).trimEnd() + suffix
+            val cut = RgbOwnPattern.fitName("%s $n", base)
             if (cut !in taken) return cut
             n++
         }
     }
 
-    /** Adds [pattern] with a new id and a unique name; null when the library is full. */
-    fun add(pattern: RgbOwnPattern): Pair<RgbPatternLibrary, RgbOwnPattern>? {
+    /** Adds [pattern] with a new id and a unique name ([fallbackName] for a broken one); null when the library is full. */
+    fun add(pattern: RgbOwnPattern, fallbackName: String = RgbOwnPattern.DEFAULT_NAME, random: Random = SECURE): Pair<RgbPatternLibrary, RgbOwnPattern>? {
         if (full) return null
-        val made = pattern.normalized().let { it.copy(id = nextId(), name = uniqueName(it.name)) }
+        val made = pattern.normalized(fallbackName)
+            .let { it.copy(id = newId(random), name = uniqueName(it.name, fallbackName = fallbackName), check = null) }
         return RgbPatternLibrary(patterns + made) to made
     }
 
     fun replace(pattern: RgbOwnPattern): RgbPatternLibrary =
-        RgbPatternLibrary(patterns.map { if (it.id == pattern.id) pattern.normalized() else it })
+        RgbPatternLibrary(patterns.map { if (it.id == pattern.id) pattern.normalized().copy(check = null) else it })
 
     fun rename(id: String, name: String): RgbPatternLibrary? {
         val clean = RgbOwnPattern.cleanName(name) ?: return null
@@ -268,9 +349,28 @@ data class RgbPatternLibrary(val patterns: List<RgbOwnPattern> = emptyList()) {
 
     fun remove(id: String) = RgbPatternLibrary(patterns.filter { it.id != id })
 
+    /**
+     * The library with a random id for every legacy one (`p1`, `p2`, … of the first build of stage
+     * 34) and which old id became which new one; the settings that name them follow with
+     * [RgbSettings.restamp].
+     */
+    fun withNewIds(random: Random = SECURE): Pair<RgbPatternLibrary, Map<String, String>> {
+        val renamed = LinkedHashMap<String, String>()
+        var taken = this
+        val list = patterns.map { p ->
+            if (!RgbOwnPattern.isLegacyId(p.id)) p else {
+                val id = taken.newId(random)
+                renamed[p.id] = id
+                p.copy(id = id).also { taken = RgbPatternLibrary(taken.patterns + it) }
+            }
+        }
+        return RgbPatternLibrary(list) to renamed
+    }
+
     companion object {
         const val MAX_PATTERNS = 24
         val EMPTY = RgbPatternLibrary()
+        private val SECURE: Random = java.security.SecureRandom().asKotlinRandom()
     }
 }
 

@@ -90,6 +90,22 @@ class KeyboardProfileStore(context: Context) : ProfileStore {
     fun saveCurrent(group: ProfileGroup) = write(capture(group))
 
     /**
+     * Stage 34: the saved design profile names own light patterns by id and content check. When
+     * the own patterns change ([RgbOwnPatterns.write]), its RGB text follows through [follow]
+     * (same pattern with its new check or id; gone ones fall back). Written only when it changed;
+     * an empty RGB text (profile from before stage 26) stays empty.
+     */
+    fun updateSavedRgb(follow: (RgbSettings) -> RgbSettings) {
+        val saved = read(ProfileGroup.DESIGN) ?: return
+        val rgb = saved.values[RgbLighting.PREF] as? PreferenceValue.Choice ?: return
+        if (rgb.value.isEmpty()) return
+        val stored = RgbSettings.parse(rgb.value)
+        if (stored.ownIds().isEmpty()) return
+        val updated = follow(stored).encode()
+        if (updated != rgb.value) write(saved.copy(values = saved.values + (RgbLighting.PREF to PreferenceValue.Choice(updated))))
+    }
+
+    /**
      * True when the saved profile of [group] equals the current settings (stage 38h highlights its
      * card). An empty RGB text (profiles from before stage 26) leaves the light alone, so it matches.
      * Never throws: a current value outside the bindings (e.g. from a restored backup) fails

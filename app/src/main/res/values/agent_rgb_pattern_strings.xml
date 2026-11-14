@@ -22,11 +22,18 @@
     <string name="agent_rgb_own_error_no_layers">has no layers</string>
     <string name="agent_rgb_own_error_too_many_layers">has more than four layers</string>
     <string name="agent_rgb_own_error_bad_name">has an invalid name</string>
-    <string name="agent_rgb_own_copy_name">%1$s (own)</string>
+    <string name="agent_rgb_own_copy_name">%1$s (copy)</string>
+    <string name="agent_rgb_own_from_builtin_name">%1$s (own)</string>
+    <string name="agent_rgb_own_default_name">Pattern</string>
+    <string name="agent_rgb_own_error_unreadable">the file could not be read</string>
+    <string name="agent_rgb_own_error_no_access">no access to the file (moved, deleted or not allowed)</string>
+    <string name="agent_rgb_own_locked">The stored own patterns come from a newer version or are damaged. They stay as they are; new, changed or imported patterns are not saved.</string>
+    <string name="agent_rgb_color_description">Colour %1$d, #%2$s</string>
 
     <string name="agent_rgb_pattern_editor_title">Edit light pattern</string>
     <string name="agent_rgb_pattern_preview_label">Live preview at %1$d Hz: tap it to try the typing reactions</string>
     <string name="agent_rgb_pattern_name">Name</string>
+    <string name="agent_rgb_pattern_name_label">Name of the pattern</string>
     <string name="agent_rgb_pattern_name_invalid">1–32 characters, no line breaks, markup or addresses</string>
     <string name="agent_rgb_pattern_duplicate">Duplicate</string>
     <string name="agent_rgb_pattern_export">Export</string>
@@ -45,6 +52,7 @@
     <string name="agent_rgb_pattern_blend">Blend with the layers below</string>
     <string name="agent_rgb_pattern_group_colors">Colours</string>
     <string name="agent_rgb_pattern_stop_n">Colour stop %1$d</string>
+    <string name="agent_rgb_pattern_stop_description">Colour stop %1$d, #%2$s</string>
     <string name="agent_rgb_pattern_stop_color">Change colour</string>
     <string name="agent_rgb_pattern_stop_add">Add stop</string>
     <string name="agent_rgb_pattern_stop_remove">Remove stop</string>
@@ -84,6 +92,6 @@
     <string name="agent_rgb_reaction_key_glow">Light up the typed key</string>
 
     <string name="agent_diagnose_light_patterns">Patterns in use</string>
-    <string name="agent_diagnose_light_own">own</string>
+    <string name="agent_diagnose_light_own_n">own pattern %1$d</string>
     <string name="agent_diagnose_light_grid">Grid 48 × 32 “%1$s” (measured now)</string>
 </resources>

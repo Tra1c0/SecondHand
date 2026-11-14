@@ -4975,6 +4975,72 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Engine- und Upstream-Änderungen: keine. `InputLogic`, `RichInputConnection`, `PointerTracker` und
   alle Upstream-Dateien unverändert; nur Fork-Dateien.
 
+### Nachprüfung 34 (Prüfer-Befunde zu c79f6eb..06bcce0, behoben 2026-11-14)
+
+- M1 (mittel, IDs wiederverwendet): Neue IDs sind zufällig (12 Zeichen `a–z0–9`, `SecureRandom`,
+  `RgbPatternLibrary.newId`), nicht mehr `max + 1`. Der Text der Einstellung nennt `<id>.<prüfung>`
+  (8 Hexziffern FNV-1a über die Ebenen ohne Namen); `RgbPatternLibrary.match` nimmt ein Muster nur
+  bei gleicher ID und Prüfung, sonst gilt das eingebaute Muster. Jede Änderung der Liste
+  (`RgbOwnPatterns.write`) zieht Beleuchtung und gespeichertes Designprofil mit
+  (`RgbSettings.restamp`, `KeyboardProfileStore.updateSavedRgb`), damit Bearbeiten ein Profil nicht
+  bricht. Umstellung: `RgbOwnPatterns.migrate` (beim Laden der Tastatur und der RGB-Seite) gibt
+  alten IDs (`p1` …) einmal neue, Einstellung und Profil folgen; ein Wert ohne Prüfung gilt nur für
+  eine noch vorhandene alte ID. STORAGE.md korrigiert („eine neue ID nimmt nie eine benutzte“ war
+  falsch).
+- M2 (mittel, Umbenennen je Tastendruck): Der Name bleibt im Feld und wird bei „Fertig“,
+  Fokusverlust, Zurück, Duplizieren und Exportieren gespeichert; danach steht der gespeicherte
+  (eindeutige) Name im Feld, ein ungültiger geht zurück.
+- M3 (mittel, Galerie je Reglerschritt): `OwnGallery` wartet nach dem ersten Bild
+  `GALLERY_DEBOUNCE_MS`, der Schlüssel hat keinen Namen, die Arbeit bricht je Zeile ab
+  (`ensureActive`).
+- M4 (mittel, Tippfläche 36 dp ohne Namen): `ColorSwatch` (Kreis 36 dp in 48 dp, TalkBack „Farbstopp n,
+  #RRGGBB“ bzw. auf der RGB-Seite „Farbe n, #RRGGBB“, de/en).
+- N1: Ein verschobener Farbstopp bleibt nach dem Sortieren gewählt (`stopAfterSort`).
+- N2: Kopien „<Name> (Kopie)“/„(copy)“, aus eingebauten Mustern „(eigen)“/„(own)“, gekürzt auf
+  32 Zeichen ohne geteilte Surrogate (`RgbOwnPattern.fitName`, auch für „Name 2“); Rückfallname im
+  Kern neutral „Pattern“, in der App übersetzt (`agent_rgb_own_default_name`).
+- N3: Keine Tipps an die Engines in Passwort-/PIN-Feldern und bei Inkognito; neue `SettingsValues`
+  (anderes Feld) verwerfen alte Tipps (ohne Eingriff in `LatinIME`, P223).
+- N4: Zahlen werden als Double begrenzt (`1e300` → Obergrenze), `\u` nur mit genau vier
+  Hexziffern, `cleanName` lehnt einzelne Surrogate, U+2028/U+2029 und Formatzeichen außerhalb der
+  BMP ab.
+- N5: Import: kein Datenstrom oder `IOException` → „Datei nicht lesbar“, `SecurityException`/
+  `FileNotFoundException` → „kein Zugriff auf die Datei“ (vorher beides „zu groß“).
+- N6: Eine gespeicherte Liste, die als Ganzes nicht lesbar ist (neuere Version, zu groß, kaputt),
+  bleibt unverändert: `RgbPatternJson.readLibrary` gibt null, `RgbOwnPatterns.write` schreibt nicht,
+  die Seite zeigt einen Hinweis statt Galerie, „Neu“ und „Importieren“.
+- N7: `RgbPaletteTables` hält 64 statt 16 Tabellen.
+- N8: keine Codeänderung; Kosten am Telefon weiter nicht gemessen (Diagnose misst dort).
+- N9: `samplingDoesNotAllocate` deckt alle zwölf Formen, alle Mischarten, Reaktionen und Farbmodi
+  mit verblassenden Tipps ab; Vergleich der diagonalen Welle (auf quadratischer Fläche bis 3/255
+  gleich; auf anderen Seitenverhältnissen läuft die Kopie 45° auf dem Bildschirm, das eingebaute
+  Muster von Ecke zu Ecke).
+- N10: Die Diagnose nennt eigene Muster „eigenes Muster n“, nie mit dem Namen des Nutzers.
+- N11: TalkBack-Namen der Regler (Beschriftung mit Wert) und Feldbeschriftung „Name des Musters“;
+  „Mischen mit den Ebenen darunter“ fehlt bei Ebene 1; Tempo und Größe in Schritten von 0,05,
+  Verschiebung 0,01.
+- N12: Die Startseite liest die Beleuchtung einmal je Änderung der beiden Einstellungen
+  (`remember` über die Texte).
+- Neue oder geänderte Tests: `CT/RgbOwnPatternTest` (24: neu `deletingTheNewestPatternNeverHandsItsIdToTheNextOne`,
+  `legacyIdsAreReplacedAndTheSettingsFollow`, `namesFitAndStayPlainText`; erweitert Einstellung mit
+  Prüfung, Bibliothek, diagonale Welle, Allokation), `CT/RgbPatternJsonTest` (7: neu
+  `escapesAndNamesAreExact`, `theFingerprintFollowsTheLayersOnly`; erweitert `1e300`, unlesbare
+  Liste), `AT/RgbPatternEditorTest` (11: neu Galerie ohne Bild beim Umbenennen und erst nach Ruhe,
+  Umstellung alter IDs mit Einstellung und Designprofil, unlesbare Liste, `stopAfterSort`;
+  erweitert 48 dp und TalkBack-Namen, Stopp nach dem Sortieren, feine Regler, Mischen ab Ebene 2,
+  Name erst bei „Fertig“, „(Kopie)“, kein Zugriff/nicht lesbar beim Import, Diagnose ohne Namen),
+  `AT/RgbLightingRenderTest.privateFieldsFeedNoTapsAndANewFieldDropsThem`. Keine Assertion
+  entfernt oder geschwächt; geänderte Erwartungen folgen dem neuen Verhalten (IDs, Namen).
+- Gelaufen (2026-11-14, `--max-workers=1 -Xmx1536m`): `:agent-core:test` (559 Tests, 0 Fehler);
+  `:app:testDebugUnitTest` gezielt mit `Rgb*` (`RgbPatternEditorTest` 11, `RgbLightingRenderTest` 25,
+  `RgbSettingsScreenTest` 13, `RgbFrameRateCardTest` 14, `RgbTilesTest` 5), `DiagnoseScreenTest` 7,
+  `SettingsStartScreenTest` 10, `KeyboardProfileStoreTest` 9, `AgentDocumentIOTest` 4: 98 Tests,
+  0 Fehler. `docs_sync --check` grün. Nicht gelaufen: `tools/dev.py agent-tests`, volle Suite,
+  Lint, Build (Speicher, paralleler Agent), Gerätetest (TalkBack, Tippflächen, Dateiwähler echter
+  Apps, Umstellung alter IDs auf einem Telefon).
+- Upstream: keine Datei geändert; `LatinIME`, `InputLogic`, `RichInputConnection`, `PointerTracker`
+  unverändert.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.
