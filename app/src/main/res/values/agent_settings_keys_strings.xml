@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Stage 38d: area page "Keys & languages" (mockup Tasten.dc.html) -->
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="agent_keys_languages_card">Languages</string>
     <string name="agent_keys_hint_main_dict">Main dictionary</string>
     <string name="agent_keys_hint_emoji_dict">Emoji dictionary</string>

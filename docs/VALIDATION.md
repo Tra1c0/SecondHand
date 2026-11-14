@@ -3282,6 +3282,8 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   der Tastatur ist (`systemLocale`; Test: en-US-System mit deutscher Tastatur ergibt +49). Bekannte
   Lücken dokumentiert (P148: Tippfehler, die eine echte TLD ergeben; P149: Werte über 500
   Zeichen). Testlauf siehe Lead-Lauf vor Build 19.
+- GitHub-Lauf auf dd28d93: Agent und Upstream grün, Lint rot (MissingTranslation in fünf neuen
+  Textdateien der Bereichsseiten, P150). Behoben mit `tools:ignore`; `lintDebugNoMinify` lokal grün.
 
 ## Gerätetest vor Meilensteinfreigabe
 

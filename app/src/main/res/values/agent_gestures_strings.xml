@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <!-- stage 38e: area page "Gestures & feel" (mockup Gesten.dc.html) -->
     <string name="agent_gestures_space">Space bar</string>
     <string name="agent_gestures_space_caption">Tick · tick · stretch: the action only happens at the last dot.</string>

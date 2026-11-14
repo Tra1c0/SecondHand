@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Stage 38h: area page "System & data" (mockup System.dc.html) -->
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="agent_system_updates_label">UPDATES</string>
     <string name="agent_system_updates_current">Build %d is up to date</string>
     <string name="agent_system_updates_available">Build %d available</string>

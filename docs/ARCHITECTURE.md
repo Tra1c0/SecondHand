@@ -2742,6 +2742,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   „abgelaufen“-Hinweis; ein zweites Enter geht weiter. Ließe es Enter durch, schickte die App
   „@snip name Feld: Wert“. Grenze: Wächst der Wert über 500 Zeichen (z. B. durch Einfügen), ist
   der Text kein Befehl mehr, und das nächste Enter geht an die App (im Chat: Senden).
+- **P150** Jede neue Textdatei `values/agent_*strings.xml` braucht
+  `tools:ignore="MissingTranslation"` am `<resources>`-Tag (der Fork liefert nur Englisch und
+  Deutsch); sonst bricht `lintDebugNoMinify` mit Fehlern für alle Upstream-Sprachen ab. Die
+  Robolectric-Tests merken davon nichts, nur der Lint-Job auf GitHub.
 
 ## Datei-Inventar
 
