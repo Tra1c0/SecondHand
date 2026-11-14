@@ -258,7 +258,7 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   Nicht-lernen-Feld und bei entsperrtem Gerät. Kein Backup, kein Protokoll. Löschen: Seite „Was ich
   mir gemerkt habe“ (einzeln) oder „Gelernte Wörter löschen“ (alles); die Löschtaste nach einer
   Korrektur aus einem gelernten Paar entfernt es (`TypoMemory.forget`).
-- Der Feldtext, mit dem verglichen wird (höchstens je 2000 Zeichen vor und nach der Schreibmarke),
+- Der Feldtext, mit dem verglichen wird (höchstens 1024 Zeichen vor und 300 nach der Schreibmarke),
   liegt nur im Arbeitsspeicher und wird beim Feldwechsel verworfen, nie gespeichert.
 
 ## Trefferzonen (22a)

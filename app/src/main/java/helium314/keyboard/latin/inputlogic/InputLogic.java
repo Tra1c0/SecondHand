@@ -441,6 +441,7 @@ public final class InputLogic {
     public InputTransaction onPickSuggestionManually(SettingsValues settingsValues, SuggestedWordInfo suggestionInfo,
             CapsMode keyboardCapsMode, String currentKeyboardScript, LatinIME.UIHandler handler) {
         mLatinIME.invalidateAgentEditor();
+        mFieldCorrections.ownEdit(mConnection.getExpectedSelectionStart()); // fork, stage 49 review N1: the user's pick
         if (isInlineEmojiSearchAction()) {
             deleteTextReplacedByEmoji();
         }
@@ -631,7 +632,9 @@ public final class InputLogic {
         }
 
         // fork, stage 49: the user moved the cursor, maybe after changing a word earlier in the field
-        mFieldCorrections.checkpoint(mLatinIME, mConnection, settingsValues, mDictionaryFacilitator, mAgentHistorySuppressed, false);
+        // (review M1: not inside a composing word, a half-typed word is no state of the field)
+        mFieldCorrections.checkpoint(mLatinIME, mConnection, settingsValues, mDictionaryFacilitator, mAgentHistorySuppressed, false,
+                mWordComposer.isComposingWord(), null, null);
         // The cursor has been moved : we now accept to perform recapitalization
         mRecapitalizeStatus.enable();
         // We moved the cursor. If we are touching a word, we need to resume suggestion.
@@ -663,6 +666,8 @@ public final class InputLogic {
             CapsMode keyboardCapsMode, String currentKeyboardScript, LatinIME.UIHandler handler) {
         mLatinIME.invalidateAgentEditor();
         if (mConnection.hasSelection()) mFieldCorrections.untrusted(); // fork, stage 49: typing over a selection
+        else if (event.getCodePoint() > 0 || event.getKeyCode() == KeyCode.DELETE) // stage 49 review N1: the user's own edit
+            mFieldCorrections.ownEdit(mConnection.getExpectedSelectionStart());
         mWordBeingCorrectedByCursor = null;
         mJustRevertedACommit = false;
 
@@ -1037,9 +1042,11 @@ public final class InputLogic {
                 if (GestureDataGatheringKt.useBackgroundGathering)
                     BackgroundGatheringCache.INSTANCE.onUndo(mWordComposer.isComposingWord() ? mWordComposer.getTypedWord() : mLastComposedWord.mCommittedWord);
                 sendDownUpKeyEventWithMetaState(KeyEvent.KEYCODE_Z, KeyEvent.META_CTRL_ON);
+                mFieldCorrections.untrusted(); // fork, stage 49 review N1: the app changes the text
                 break;
             case KeyCode.REDO:
                 sendDownUpKeyEventWithMetaState(KeyEvent.KEYCODE_Z, KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON);
+                mFieldCorrections.untrusted(); // fork, stage 49 review N1: the app changes the text
                 break;
             case KeyCode.SPLIT_LAYOUT:
                 KeyboardSwitcher.getInstance().toggleSplitKeyboardMode();
@@ -2708,11 +2715,14 @@ public final class InputLogic {
         final boolean confirmedWord = commitType == LastComposedWord.COMMIT_TYPE_MANUAL_PICK
                 || chosenWord.equalsIgnoreCase(mWordComposer.getTypedWord());
         final String typedForTouch = tapTyped && confirmedWord && settingsValues.mAdaptTouch ? mWordComposer.getTypedWord() : null;
+        // fork, stage 49 review M1: an automatic correction of this word is the keyboard's change, not the user's
+        final String autoCorrectedFrom = commitType == LastComposedWord.COMMIT_TYPE_DECIDED_WORD ? mWordComposer.getTypedWord() : null;
         mLastComposedWord = mWordComposer.commitWord(commitType, chosenWord, separatorString, ngramContext);
         // fork, stage 48 review N1: a remembered correction at this start belongs to text that is gone
         mTypedWordFirst.committedAt(mConnection.getExpectedSelectionEnd() - chosenWord.length());
         // fork, stage 49: compare the field with the last checkpoint (a word fixed earlier in the field)
-        mFieldCorrections.checkpoint(mLatinIME, mConnection, settingsValues, mDictionaryFacilitator, mAgentHistorySuppressed, true);
+        mFieldCorrections.checkpoint(mLatinIME, mConnection, settingsValues, mDictionaryFacilitator, mAgentHistorySuppressed, true,
+                false, autoCorrectedFrom, chosenWord);
         if (typedForTouch != null) {
             final InputPointers pointers = mLastComposedWord.mInputPointers; // keyboard coordinates already
             helium314.keyboard.agent.TouchModel.learnFromWord(mLatinIME, typedForTouch, chosenWord,
