@@ -4890,16 +4890,18 @@ class InputLogicTest {
     }
     private fun suggestedWordList() = (0 until inputLogic.mSuggestedWords.size()).map { inputLogic.mSuggestedWords.getWord(it) }
     /** A new field of the app [packageName], like [setText] with a package and [imeOptions]. */
-    private fun startField(packageName: String?, imeOptions: Int = 0) {
+    private fun startField(packageName: String?, imeOptions: Int = 0, privateImeOptions: String? = null) {
         ShadowInputMethodService.text = ""
         selectionStart = 0
         selectionEnd = 0
         ShadowInputMethodService.currentPackageName = packageName
         ShadowInputMethodService.currentImeOptions = imeOptions
+        ShadowInputMethodService.currentPrivateImeOptions = privateImeOptions
         val ei = EditorInfo()
         ei.inputType = currentInputType
         ei.packageName = packageName
         ei.imeOptions = imeOptions
+        ei.privateImeOptions = privateImeOptions
         latinIME.mHandler.onStartInput(ei, false)
         latinIME.mHandler.onStartInputView(ei, false)
         handleMessages()
@@ -5000,31 +5002,58 @@ class InputLogicTest {
     @Test fun slangBecomesOwnAfterThreeUndoneCorrectionsAndIsOfferedWhileTyped() = withSimilarWords("kraft", "kress") {
         startMemory()
         RejectedCorrections.clear(latinIME)
-        // three times corrected and undone with backspace (the path of "Rückgängig gemachte Korrekturen merken";
-        // that switch is off here: the memory counts on its own); that the engine then keeps it: SuggestTest
+        // three times corrected and undone with backspace in one field, typing on after each undo (the path of
+        // "Rückgängig gemachte Korrekturen merken"; that switch is off here: the memory counts on its own);
+        // that the engine then keeps it: SuggestTest
+        setText("")
         repeat(3) { round ->
-            setText("")
             chainInput("krass")
             getAutocorrectedWithSpaceAfter("kraft", "krass")
-            assertEquals("kraft ", text)
-            if (round < 2) assertTrue(helium314.keyboard.agent.Memory.ownWords(latinIME).isEmpty())
+            assertTrue(text.endsWith("kraft "), text)
             functionalKeyPress(KeyCode.DELETE)
-            assertEquals("krass", text)
+            assertTrue(text.endsWith("krass"), text)
+            // review M3: the same undo reported a second time (as the field checkpoint of stage 49 does) counts nothing
+            RejectedCorrections.remember(latinIME, "krass", "kraft", settingsValues)
+            assertTrue(helium314.keyboard.agent.Memory.candidates(latinIME).none { it.first == "krass" && it.second > round },
+                "counted only when the next word comes")
+            chainInput(" gut ")
+            RejectedCorrections.remember(latinIME, "krass", "kraft", settingsValues)
+            if (round < 2) {
+                assertTrue(helium314.keyboard.agent.Memory.ownWords(latinIME).isEmpty(), "round $round")
+                assertEquals(listOf("krass" to round + 1), helium314.keyboard.agent.Memory.candidates(latinIME), "once per undo")
+            }
         }
         assertEquals(listOf("krass"), helium314.keyboard.agent.Memory.ownWords(latinIME))
         assertFalse(RejectedCorrections.contains(latinIME, "krass", "kraft"), "the pair memory has its own switch")
-        // its start offers it, never as the automatic correction
+        // its start offers it, as a completion, never as the automatic correction
         setText("")
         chainInput("kra")
         updateSuggestions()
         assertTrue("krass" in suggestedWordList(), suggestedWordList().toString())
-        if (inputLogic.mSuggestedWords.mWillAutoCorrect) assertNotEquals("krass", inputLogic.mSuggestedWords.getWord(1))
+        val own = (0 until inputLogic.mSuggestedWords.size()).map { inputLogic.mSuggestedWords.getInfo(it) }.first { it.mWord == "krass" }
+        assertTrue(own.isKindOf(SuggestedWordInfo.KIND_COMPLETION), "a completion; that it never becomes the correction: SuggestTest")
         // removed on the page: not offered any more
         assertTrue(helium314.keyboard.agent.Memory.removeOwnWord(latinIME, "krass"))
         setText("")
         chainInput("kra")
         updateSuggestions()
         assertFalse("krass" in suggestedWordList())
+    }
+
+    @Test fun anUndoneCorrectionTheOwnerThenChangesDoesNotCount() = withSimilarWords("kraft", "kress") {
+        startMemory()
+        setText("")
+        repeat(3) {
+            chainInput("krass")
+            getAutocorrectedWithSpaceAfter("kraft", "krass")
+            functionalKeyPress(KeyCode.DELETE)
+            assertTrue(text.endsWith("krass"), text)
+            // the owner corrects the word right after the undo: it did not stay as typed
+            repeat(5) { functionalKeyPress(KeyCode.DELETE) }
+            chainInput("kress ")
+        }
+        assertTrue(helium314.keyboard.agent.Memory.candidates(latinIME).none { it.first == "krass" })
+        assertTrue(helium314.keyboard.agent.Memory.ownWords(latinIME).isEmpty())
     }
 
     @Test fun slangCommittedAsTypedThreeTimesBecomesOwn() = withSimilarWords("kraft", "kress") {
@@ -5042,48 +5071,88 @@ class InputLogicTest {
         assertEquals(listOf("krass"), helium314.keyboard.agent.Memory.ownWords(latinIME))
     }
 
-    @Test fun abbreviationExpandedTwiceByHandIsOfferedOnceAsAQuietChip() {
+    /**
+     * Types [short] after [prefix], lets the strip see it (the suggestion thread reports whether a main
+     * dictionary knows it; [known] simulates that report), deletes it with the space and types [expansion]
+     * in its place.
+     */
+    private fun expandByHand(prefix: String, short: String, expansion: String, known: Boolean? = null) {
+        chainInput(prefix + short)
+        if (known == null) updateSuggestions() else helium314.keyboard.agent.Memory.onTyped(short, known)
+        chainInput(" ")
+        repeat(short.length + 1) { functionalKeyPress(KeyCode.DELETE) } // the space and the letters
+        assertTrue(text.endsWith(prefix), text)
+        chainInput("$expansion gut. ")
+    }
+
+    @Test fun abbreviationExpandedTwiceIsRememberedOnATapAndOnlyATapReplacesIt() {
         startMemory()
-        val created = mutableListOf<Pair<String, String>>()
-        val defaultCreate = helium314.keyboard.agent.Memory.createShortcut
-        helium314.keyboard.agent.Memory.createShortcut = { _, short, expansion -> created += short to expansion; true }
-        try {
-            setText("")
-            repeat(2) {
-                chainInput("das ist vlt ")
-                repeat(4) { functionalKeyPress(KeyCode.DELETE) } // the space and the three letters
-                assertTrue(text.endsWith("ist "), text)
-                chainInput("vielleicht gut. ")
-            }
-            assertEquals(ShortcutBook.State.READY, helium314.keyboard.agent.Memory.offers(latinIME).single().state)
-            setText("Das ")
-            latinIME.setNeutralSuggestionStrip()
-            handleMessages()
-            val row = memoryChips()!!
-            val offer = chipTexts(row).single { it.contains("vlt") }
-            assertTrue(offer.contains("vielleicht"), offer)
-            assertEquals("Das ", getTextFromConnection(), "the offer changes no text")
-            assertTrue(created.isEmpty(), "nothing without a tap")
-            tapChip(row, offer)
-            assertEquals(listOf("vlt" to "vielleicht"), created)
-            assertEquals("Das ", getTextFromConnection())
-            assertEquals(ShortcutBook.State.CREATED, helium314.keyboard.agent.Memory.offers(latinIME).single().state)
-            // offered once: not again in the strip
-            setText("Noch ")
-            assertFalse(chipTexts(memoryChips()).any { it.contains("vlt") })
-        } finally {
-            helium314.keyboard.agent.Memory.createShortcut = defaultCreate
-        }
+        setText("")
+        repeat(2) { expandByHand("das ist ", "vlt", "vielleicht") }
+        assertEquals(ShortcutBook.State.READY, helium314.keyboard.agent.Memory.offers(latinIME).single().state)
+        setText("Das ")
+        latinIME.setNeutralSuggestionStrip()
+        handleMessages()
+        val row = memoryChips()!!
+        val offer = chipTexts(row).single { it.contains("vlt") }
+        assertTrue(offer.contains("vielleicht"), offer)
+        assertEquals("Das ", getTextFromConnection(), "the offer changes no text")
+        tapChip(row, offer)
+        assertEquals("Das ", getTextFromConnection())
+        assertEquals(ShortcutBook.State.CREATED, helium314.keyboard.agent.Memory.offers(latinIME).single().state)
+        // offered once: not again in the strip
+        setText("Noch ")
+        assertFalse(chipTexts(memoryChips()).any { it.contains("vlt") })
+
+        // review M1: never applied by itself, also with the shortcut setting of the autocorrection on (default)
+        assertTrue(latinIME.prefs().getBoolean(Settings.PREF_AUTOCORRECT_SHORTCUTS, helium314.keyboard.latin.settings.Defaults.PREF_AUTOCORRECT_SHORTCUTS))
+        setText("")
+        chainInput("das ist vlt ")
+        assertEquals("das ist vlt ", text, "the space keeps the abbreviation")
+        // after it, the expansion is a chip; the tap replaces exactly that one word
+        val expand = memoryChips()!!
+        assertEquals("vlt → vielleicht", chipTexts(expand).first())
+        assertEquals("das ist vlt ", getTextFromConnection())
+        tapChip(expand, "vlt → vielleicht")
+        assertEquals("das ist vielleicht ", getTextFromConnection())
+        tapChip(expand, "vlt → vielleicht")
+        assertEquals("das ist vielleicht ", getTextFromConnection(), "once")
+        // at the sentence start with a capital
+        setText("Vlt ")
+        tapChip(memoryChips()!!, "Vlt → Vielleicht")
+        assertEquals("Vielleicht ", getTextFromConnection())
+        // only a whole word, and only while the text is unchanged
+        setText("xvlt ")
+        assertFalse(chipTexts(memoryChips()).any { it.contains("→") })
+        setText("das ist vlt ")
+        val stale = memoryChips()!!
+        chainInput("x")
+        tapChip(stale, "vlt → vielleicht")
+        assertEquals("das ist vlt x", getTextFromConnection())
+        // discarded on the page: no chip any more
+        helium314.keyboard.agent.Memory.removeOffer(latinIME, helium314.keyboard.agent.Memory.offers(latinIME).single())
+        setText("das ist vlt ")
+        assertFalse(chipTexts(memoryChips()).any { it.contains("→") })
+    }
+
+    @Test fun continuedWordsAndDictionaryWordsAreNoAbbreviations() {
+        startMemory()
+        setText("")
+        // review M2: "Haus" continued to "Hausaufgaben" in place is no abbreviation (a new field each time:
+        // the test connection reads 100 characters at most)
+        repeat(2) { setText(""); expandByHand("ich mache ", "haus", "hausaufgaben") }
+        // a short form a main dictionary knows is no abbreviation either ("das" -> "dein alter Schatz")
+        repeat(2) { setText(""); expandByHand("bis ", "das", "dein alter Schatz", known = true) }
+        assertTrue(helium314.keyboard.agent.Memory.offers(latinIME).isEmpty(), helium314.keyboard.agent.Memory.offers(latinIME).toString())
+        // the same expansion of a form no main dictionary knows is offered
+        repeat(2) { setText(""); expandByHand("bis ", "das", "dein alter Schatz", known = false) }
+        assertEquals(listOf("das"), helium314.keyboard.agent.Memory.offers(latinIME).map { it.short })
     }
 
     @Test fun anIgnoredAbbreviationOfferIsNotShownAgain() {
         startMemory()
         setText("")
-        repeat(2) {
-            chainInput("das ist vlt ")
-            repeat(4) { functionalKeyPress(KeyCode.DELETE) }
-            chainInput("vielleicht gut. ")
-        }
+        repeat(2) { expandByHand("das ist ", "vlt", "vielleicht") }
         setText("Das ")
         assertTrue(chipTexts(memoryChips()).any { it.contains("vlt") })
         assertTrue(chipTexts(memoryChips()).any { it.contains("vlt") }, "stays while the cursor stays")
@@ -5092,6 +5161,45 @@ class InputLogicTest {
         assertEquals(ShortcutBook.State.SHOWN, helium314.keyboard.agent.Memory.offers(latinIME).single().state)
     }
 
+    @Test fun memoryLearnsNothingNextToPrivateTextOrInTheKeyboardsOwnFields() {
+        startMemory()
+        currentInputType = InputType.TYPE_CLASS_TEXT
+        // review N2: a vault secret or code inserted as private text: the words right after it are not learned
+        typeSentences(8, "wir sehen uns morgen") {
+            startField(null)
+            reloadSettings()
+            latinIME.onPrivateTextInput("Xq7-geheim ")
+            handleMessages()
+        }
+        assertTrue(helium314.keyboard.agent.Memory.phrases(latinIME, 2).isEmpty())
+        // the keyboard's own fields ("Meine Daten") say so with privateImeOptions only (P180)
+        typeSentences(8, "wir sehen uns morgen") {
+            startField(null, privateImeOptions = AgentPreferences.NO_LEARNING_FIELD)
+            reloadSettings()
+        }
+        assertTrue(helium314.keyboard.agent.Memory.phrases(latinIME, 2).isEmpty())
+        // even with the settings of another field (P165): the field's own EditorInfo decides
+        assertTrue(helium314.keyboard.agent.Memory.isBlocked(latinIME, settingsValues,
+            EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT; privateImeOptions = AgentPreferences.NO_LEARNING_FIELD }))
+        // the same typing in a normal field learns
+        typeSentences(3, "wir sehen uns morgen") { startField(null); reloadSettings() }
+        assertTrue(helium314.keyboard.agent.Memory.phrases(latinIME, 2).isNotEmpty())
+    }
+
+    @Test fun theRestOfAPhraseIsTheOwnersTextNotPrivate() {
+        startMemory()
+        setText("")
+        typeSentences(20)
+        setText("Danke. Ich melde mich ")
+        latinIME.setNeutralSuggestionStrip()
+        handleMessages()
+        tapChip(memoryChips()!!, "… sobald ich mehr weiss")
+        assertEquals("Danke. Ich melde mich sobald ich mehr weiss", getTextFromConnection())
+        // review M4: inserted like a paste, not as private text, so the next typed word is learned as usual
+        lastAddedWord = ""
+        chainInput(" bescheid ")
+        assertEquals("bescheid", lastAddedWord)
+    }
     @Test fun fittingSnippetIsAChipThatInsertsAtTheCursor() {
         startMemory(on = false) // snippets work without the memory: they learn nothing
         val defaultSource = helium314.keyboard.agent.commands.SnipCommand.source

@@ -878,6 +878,46 @@ class SuggestTest {
         helium314.keyboard.agent.Memory.resetForTest()
     }
 
+    // review of stage 46 (N2): the own word as a completion stays behind a real automatic correction
+    @Test fun `own word completion never takes the place of the automatic correction`() {
+        enableAutocorrect(confidenceVeryAggressive)
+        helium314.keyboard.agent.Memory.resetForTest()
+        helium314.keyboard.agent.AgentStorageContexts.keyboard(latinIME)
+            .getSharedPreferences(helium314.keyboard.agent.Memory.FILE, android.content.Context.MODE_PRIVATE)
+            .edit { putString(helium314.keyboard.agent.Memory.OWN_WORDS, "v1\no;krassomat") }
+        latinIME.prefs().edit { putBoolean(AgentPreferences.MEMORY, true) }
+        // the memory offers own words only in a text field (the settings of this test have none by default)
+        latinIME.mSettings.loadSettings(latinIME, latinIME.mSettings.current.mLocale, InputAttributes(
+            android.view.inputmethod.EditorInfo().apply { inputType = android.text.InputType.TYPE_CLASS_TEXT }, false, latinIME.packageName))
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("kraft", 650000)))
+        val words = getSuggestedWords(false, "kras", CapsMode.OFF)
+        assertTrue(words.mWillAutoCorrect)
+        assertEquals("kraft", words.mSuggestedWordInfoList[SuggestedWords.INDEX_OF_AUTO_CORRECTION].mWord)
+        val own = words.mSuggestedWordInfoList.indexOfFirst { it.mWord == "krassomat" }
+        assertTrue(own > SuggestedWords.INDEX_OF_AUTO_CORRECTION, words.mSuggestedWordInfoList.map { it.mWord }.toString())
+        assertTrue(words.mSuggestedWordInfoList[own].isKindOf(SuggestedWordInfo.KIND_COMPLETION))
+        helium314.keyboard.agent.Memory.resetForTest()
+    }
+
+    // review of stage 46 (M1): a remembered abbreviation is never corrected (nor expanded) automatically
+    @Test fun `remembered abbreviation stays as typed`() {
+        enableAutocorrect(confidenceVeryAggressive)
+        fun mfg(): SuggestedWords {
+            tapTypingSuggestions = suggestionResults(listOf(suggestion("mag", 650000)))
+            return getSuggestedWords(false, "mfg", CapsMode.OFF)
+        }
+        assert(mfg().mWillAutoCorrect) // upstream behaviour: replaced
+        helium314.keyboard.agent.Memory.resetForTest()
+        helium314.keyboard.agent.AgentStorageContexts.keyboard(latinIME)
+            .getSharedPreferences(helium314.keyboard.agent.Memory.FILE, android.content.Context.MODE_PRIVATE)
+            .edit { putString(helium314.keyboard.agent.Memory.SHORTCUTS, "v1\n2;CREATED;mfg;mit freundlichen Grüßen") }
+        latinIME.prefs().edit { putBoolean(AgentPreferences.MEMORY, true) }
+        val kept = mfg()
+        assertFalse(kept.mWillAutoCorrect)
+        assertTrue(kept.mSuggestedWordInfoList.none { it.mWord.contains(' ') }, "no expansion in the strip of the engine")
+        helium314.keyboard.agent.Memory.resetForTest()
+    }
+
     private fun getSuggestedWords(gesture: Boolean, typedWord: String, capsMode: CapsMode): SuggestedWords {
         val wc = WordComposer()
         if (gesture) wc.setBatchInputPointers(InputPointers(1))

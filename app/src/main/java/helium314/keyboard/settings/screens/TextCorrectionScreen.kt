@@ -217,6 +217,8 @@ fun createCorrectionSettings(context: Context) = listOf(
                     helium314.keyboard.agent.SymbolDrawing.clearPersonalSymbols(context)
                     // fork (review of stage 45, B11): and the weights of the context suggestions
                     helium314.keyboard.agent.ContextLearning.clear(context)
+                    // fork (review of stage 46, H1): and the memory (phrases, own words, abbreviations)
+                    helium314.keyboard.agent.Memory.clear(context)
                 },
                 content = { Text(stringResource(R.string.disable_personalized_dicts_message)) }
             )

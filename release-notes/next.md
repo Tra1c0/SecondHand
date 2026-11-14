@@ -44,11 +44,16 @@
   Sätzen; schreibst du eine oft, bietet die Leiste nach den ersten Wörtern den ganzen Rest als
   einen Chip an („… sobald ich mehr weiß“), ein Tipp hängt ihn hinter der Schreibmarke an.
   Umgangssprache, die du dreimal so abschickst, wird dein Wort und nicht mehr korrigiert.
-  Ersetzt du eine Abkürzung zweimal selbst durchs ganze Wort, bietet die Leiste einmal an, das
-  Kürzel anzulegen. Neu auch: passende Textbausteine als Chip, wenn deine Wörter klar zu einem
+  Ersetzt du eine Abkürzung zweimal selbst durchs ganze Wort, bietet die Leiste einmal an, sie
+  dir zu merken; danach steht nach der Kurzform die Erweiterung als Chip, erst dein Tipp ersetzt
+  das eine Wort, von allein wird nie etwas erweitert. Neu auch: passende Textbausteine als Chip, wenn deine Wörter klar zu einem
   `@snip`-Baustein passen. Auf der Seite siehst, pinnst und löschst du alles, schließt Apps aus
-  oder vergisst alles. Alles lokal; nie in Passwortfeldern, im Inkognito-Modus oder bei gesperrtem
-  Gerät. Ändert nie deinen Text. Noch auf keinem Gerät ausprobiert.
+  oder vergisst alles; auch „Gelernte Wörter löschen“ und das Ausschalten von „Personalisierte
+  Vorschläge“ löschen das Gedächtnis. Alles lokal; nie in Passwortfeldern, im Inkognito-Modus
+  oder bei gesperrtem Gerät. Ändert nie deinen Text. Geändert seit dem Test-Build 20: Abkürzungen
+  landen nicht mehr im persönlichen Wörterbuch (dort angelegte bleiben, bis du sie dort löschst),
+  eine zurückgenommene Korrektur zählt erst, wenn das Wort stehen bleibt, und nur einmal.
+  Noch auf keinem Gerät ausprobiert.
 
 - Neu: Dynamische Trefferzonen (anfangs aus). Einstellungen → Gelernte Wörter → Trefferzonen →
   „Dynamisch anpassen (Szenen)“, nur mit „Trefferzonen an mich anpassen“. Die Zonen folgen in

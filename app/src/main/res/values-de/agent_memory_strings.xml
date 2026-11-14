@@ -28,11 +28,11 @@
     <string name="agent_memory_own_words_sub">Wörter, die du dreimal so abgeschickt hast, wie du sie getippt hast, obwohl die Tastatur sie nicht kannte, oder nach dem Rückgängigmachen ihrer Korrektur. Sie werden nicht mehr korrigiert und beim Tippen ihres Anfangs angeboten.</string>
     <string name="agent_memory_own_words_none">Noch keine eigenen Wörter.</string>
     <string name="agent_memory_offers">Abkürzungen</string>
-    <string name="agent_memory_offers_sub">Ersetzt du eine Kurzform zweimal selbst durch ihre Erweiterung, bietet die Leiste einmal an, das Kürzel im persönlichen Wörterbuch anzulegen.</string>
+    <string name="agent_memory_offers_sub">Ersetzt du eine Kurzform zweimal selbst durch ihre Erweiterung, bietet die Leiste einmal an, sie dir zu merken. Danach steht nach der Kurzform die Erweiterung als Vorschlag in der Leiste; erst dein Tipp ersetzt die Kurzform. Ins persönliche Wörterbuch wird nichts geschrieben.</string>
     <string name="agent_memory_offers_none">Noch keine Angebote.</string>
     <string name="agent_memory_offer_row">%1$s → %2$s</string>
-    <string name="agent_memory_offer_created_state">angelegt</string>
-    <string name="agent_memory_offer_create">Anlegen</string>
+    <string name="agent_memory_offer_created_state">gemerkt</string>
+    <string name="agent_memory_offer_create">Merken</string>
     <string name="agent_memory_offer_discard">Verwerfen</string>
     <string name="agent_memory_apps">Ausgeschlossene Apps</string>
     <string name="agent_memory_apps_sub">In diesen Apps wird nichts gelernt und nichts angeboten.</string>
@@ -40,12 +40,13 @@
     <string name="agent_memory_apps_add">App ausschließen</string>
     <string name="agent_memory_apps_remove">Entfernen</string>
     <string name="agent_memory_clear">Alles vergessen</string>
-    <string name="agent_memory_clear_confirm">Alle Wortfolgen, eigenen Wörter und Abkürzungs-Angebote vergessen? Ausgeschlossene Apps und schon angelegte Kürzel bleiben.</string>
+    <string name="agent_memory_clear_confirm">Alle Wortfolgen, eigenen Wörter und Abkürzungen vergessen? Ausgeschlossene Apps bleiben.</string>
     <string name="agent_memory_locked">Entsperre das Gerät, um das Gedächtnis zu sehen.</string>
     <string name="agent_memory_chip_rest">„%1$s“ hinter der Schreibmarke anhängen</string>
     <string name="agent_memory_chip_snippet">Textbaustein %1$s an der Schreibmarke einfügen</string>
-    <string name="agent_memory_chip_offer">Kürzel %1$s → %2$s?</string>
-    <string name="agent_memory_chip_offer_description">Kürzel %1$s für %2$s im persönlichen Wörterbuch anlegen</string>
-    <string name="agent_memory_offer_created">Kürzel angelegt</string>
-    <string name="agent_memory_offer_failed">Das persönliche Wörterbuch ließ sich nicht ändern</string>
+    <string name="agent_memory_chip_offer">Kürzel %1$s → %2$s merken?</string>
+    <string name="agent_memory_chip_offer_description">Kürzel %1$s für %2$s merken: danach als Vorschlag nach %1$s, nie automatisch</string>
+    <string name="agent_memory_offer_created">Kürzel gemerkt</string>
+    <string name="agent_memory_chip_expand">%1$s → %2$s</string>
+    <string name="agent_memory_chip_expand_description">%1$s durch %2$s ersetzen</string>
 </resources>

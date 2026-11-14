@@ -165,4 +165,53 @@ class MemoryRulesTest {
         assertEquals("adresse", SnippetMatcher(snippets).best("meine adresse ist")?.id)
         assertNull(SnippetMatcher(emptyList()).best("meine adresse ist"))
     }
+
+    // ---- review M1, M2 ----
+
+    @Test fun continuingAWordIsNoAbbreviation() {
+        assertFalse(ShortcutRules.plausible("Haus", "Hausaufgaben"))
+        assertFalse(ShortcutRules.plausible("Wo", "Wochenende"))
+        assertFalse(ShortcutRules.plausible("wie", "wieder"))
+        assertFalse(ShortcutRules.plausible("wo", "wo oder wann"))
+        assertTrue(ShortcutRules.plausible("vlt", "vielleicht"))
+        // in place: "Haus" deleted and "Hausaufgaben" typed there is no expansion
+        val tracker = ReplacementTracker()
+        assertNull(tracker.onCommit("Haus", 4, "Haus"))
+        assertNull(tracker.onCommit("Hausaufgaben", 12, "Hausaufgaben"))
+        // stored pairs of that kind are dropped when read
+        assertEquals(0, ShortcutBook.parse("v1\n3;CREATED;wie;wieder").offers().size)
+    }
+
+    @Test fun aRememberedAbbreviationIsOnlyLookedUp() {
+        val book = ShortcutBook()
+        book.note("mfg", "mit freundlichen Grüßen"); book.note("mfg", "mit freundlichen Grüßen")
+        assertNull(book.expansionOf("mfg"), "due, but not remembered before the tap")
+        assertTrue(book.remembered.isEmpty())
+        book.mark("mfg", "mit freundlichen Grüßen", ShortcutBook.State.CREATED)
+        assertEquals("mit freundlichen Grüßen", book.expansionOf("MFG"))
+        assertEquals(setOf("mfg"), book.remembered)
+        assertEquals("mit freundlichen Grüßen", ShortcutBook.parse(book.encode()).expansionOf("mfg"))
+        book.remove("mfg", "mit freundlichen Grüßen")
+        assertNull(book.expansionOf("mfg"))
+    }
+
+    // ---- review N5: one or two snippets ----
+
+    @Test fun withFewSnippetsOneSharedWordIsNotEnough() {
+        val hund = SnippetMatcher.Document("hund", "Hundesitter", "Kannst du morgen auf Bello aufpassen?")
+        val rechnung = SnippetMatcher.Document("rechnung", "Rechnung", "Anbei die Rechnung für den letzten Monat, zahlbar in 14 Tagen.")
+        for (docs in listOf(listOf(hund), listOf(hund, rechnung), listOf(rechnung, hund))) {
+            val matcher = SnippetMatcher(docs)
+            // one shared word: before this review "aufpassen" alone scored 0.46 and was offered
+            assertNull(matcher.best("ich muss aufpassen"), docs.toString())
+            assertNull(matcher.best("der letzte monat war lang"), docs.toString())
+            assertNull(matcher.best("zahlbar bis freitag"), docs.toString())
+            // a word of the name, or two shared words, still find it
+            assertEquals("hund", matcher.best("brauchst du einen hundesitter")?.id)
+            assertEquals("hund", matcher.best("kannst du auf bello aufpassen")?.id)
+            if (rechnung in docs) assertEquals("rechnung", matcher.best("anbei die rechnung")?.id)
+        }
+        // among more snippets a word only one of them has is enough (measured above)
+        assertEquals("anfahrt", SnippetMatcher(snippets).best("zum alexanderplatz fahren")?.id)
+    }
 }

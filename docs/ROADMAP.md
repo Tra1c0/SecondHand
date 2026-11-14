@@ -160,9 +160,11 @@ Reihenfolge von oben nach unten.
   dreimal und 70 % (gemessen), dadurch braucht eine Folge etwa zehn Wiederholungen; eigene Wörter
   ab drei Nutzungen ohne Korrektur; Abkürzungs-Angebot ab zwei eigenen Ersetzungen, nur einmal in
   der Leiste; „Passende Textbausteine“ anfangs an (lernt nichts). Abschnitte (`MemorySections`)
-  auf der Seite „Was ich mir gemerkt habe“ aus 49 (Tippen & Korrektur → Wörter & Lernen). Offen: Prüfer-Review (Engine: `InputLogic`, `Suggest`), Gerätetest (Chips beim echten Tippen,
-  Abkürzungen mit echter Löschtaste, Kürzel im persönlichen Wörterbuch, Speicherzeit bei 2000
-  Folgen, Bausteine mit `{cursor}`).
+  auf der Seite „Was ich mir gemerkt habe“ aus 49 (Tippen & Korrektur → Wörter & Lernen). Prüfer-Befunde
+  behoben (`docs/VALIDATION.md` → Nachprüfung 46): gemerkte Abkürzungen nur im Gedächtnis und nur auf
+  Tipp, nie im persönlichen Wörterbuch. Offen: erneute Prüfung (Engine: `InputLogic`, `Suggest`),
+  Gerätetest (Chips beim echten Tippen, Abkürzungen mit echter Löschtaste und Erweiterungs-Chip,
+  Speicherzeit bei 2000 Folgen, Bausteine mit `{cursor}`).
 - **49 Korrekturen merken über das ganze Feld (Regeln mit dem Owner festgelegt, 2026-11-14)** ist
   gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 49), nach den Regeln des
   Owners. Annahmen des Leads, die der Owner ändern kann: hängt am Schalter „Meine Tippfehler

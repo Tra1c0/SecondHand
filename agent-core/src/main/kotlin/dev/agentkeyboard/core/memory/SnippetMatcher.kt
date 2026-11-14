@@ -11,8 +11,12 @@ import kotlin.math.sqrt
  * model, no download, no network. Features of a text are its words, the first [PART] letters of
  * longer words ("word parts", so "Adresse" meets "Adressen") and the character trigrams of every
  * word with boundary marks; each weighted TF-IDF style over the owner's snippets, compared by cosine.
- * A snippet is offered only above [THRESHOLD], clearly ahead of the second best ([MARGIN]) and with at
- * least one shared word or word part (trigrams alone are never enough).
+ * A snippet is offered only above [THRESHOLD], clearly ahead of the second best ([MARGIN]) and with
+ * enough shared words (trigrams alone are never enough): a word of the snippet's name, or at least
+ * [MIN_SHARED_WORDS] words, or at least [MIN_SHARED_SHARE] of the snippet's words, or among three or
+ * more snippets one word only this snippet has (review N5: with one or two snippets a single shared
+ * word such as "aufpassen" passed the threshold). A query word is shared when the snippet has the
+ * word or its word part.
  */
 class SnippetMatcher(documents: List<Document>) {
     /** One snippet: [id] is the caller's, [name] counts twice, [text] without placeholders. */
@@ -24,9 +28,12 @@ class SnippetMatcher(documents: List<Document>) {
         override fun toString() = "Match(score=${"%.2f".format(Locale.ROOT, score)}, second=${"%.2f".format(Locale.ROOT, second)})"
     }
 
-    private class Vector(val weights: Map<String, Double>, val norm: Double, val words: Set<String>)
+    private class Vector(val weights: Map<String, Double>, val norm: Double, val words: Set<String>,
+                         val name: Set<String> = emptySet(), val wordCount: Int = 0)
 
     private val idf: Map<String, Double>
+    /** In how many snippets each feature occurs. */
+    private val df: Map<String, Int>
     private val defaultIdf: Double
     private val vectors: List<Pair<String, Vector>>
 
@@ -34,10 +41,15 @@ class SnippetMatcher(documents: List<Document>) {
         val counts = documents.map { features(it.name + " " + it.name + " " + it.text.take(MAX_TEXT)) }
         val df = HashMap<String, Int>()
         counts.forEach { c -> c.keys.forEach { df[it] = (df[it] ?: 0) + 1 } }
+        this.df = df
         val n = documents.size
         idf = df.mapValues { ln((n + 1.0) / (it.value + 1.0)) + 1.0 }
         defaultIdf = ln(n + 1.0) + 1.0
-        vectors = documents.zip(counts).map { (doc, c) -> doc.id to vector(c) }
+        vectors = documents.zip(counts).map { (doc, c) ->
+            val v = vector(c)
+            doc.id to Vector(v.weights, v.norm, v.words, features(doc.name).keys.filter { !it.startsWith(TRIGRAM) }.toSet(),
+                c.keys.count { it.startsWith(WORD) })
+        }
     }
 
     val size: Int get() = vectors.size
@@ -55,9 +67,32 @@ class SnippetMatcher(documents: List<Document>) {
         return vectors.map { (id, v) ->
             var dot = 0.0
             for ((feature, w) in q.weights) dot += w * (v.weights[feature] ?: 0.0)
-            val shared = q.words.any { it in v.words }
-            id to if (!shared || v.norm == 0.0) 0.0 else dot / (q.norm * v.norm)
+            id to if (!sharesEnough(q, v) || v.norm == 0.0) 0.0 else dot / (q.norm * v.norm)
         }.sortedByDescending { it.second }
+    }
+
+    /**
+     * Enough shared words between query [q] and snippet [v]: a word of its name, [MIN_SHARED_WORDS]
+     * words, [MIN_SHARED_SHARE] of the snippet's words, or, among at least [MIN_DOCUMENTS_FOR_ONE_WORD]
+     * snippets, one word that only this snippet has (there the IDF weights tell words apart; with one
+     * or two snippets every word looks distinctive).
+     */
+    private fun sharesEnough(q: Vector, v: Vector): Boolean {
+        var shared = 0
+        var distinctive = false
+        for (feature in q.words) {
+            if (!feature.startsWith(WORD)) continue
+            val word = feature.substring(WORD.length)
+            val part = if (word.length > PART) WORD_PART + word.take(PART) else null
+            fun inside(set: Set<String>) = feature in set || (part != null && part in set)
+            if (inside(v.name)) return true
+            if (!inside(v.words)) continue
+            shared++
+            val matched = if (feature in v.words) feature else part!!
+            if (df[matched] == 1) distinctive = true
+        }
+        if (shared >= MIN_SHARED_WORDS || (shared > 0 && shared >= MIN_SHARED_SHARE * v.wordCount)) return true
+        return distinctive && vectors.size >= MIN_DOCUMENTS_FOR_ONE_WORD
     }
 
     /** The snippet to offer for [query] (the last words typed), or null. */
@@ -75,6 +110,11 @@ class SnippetMatcher(documents: List<Document>) {
         /** Measured on the synthetic set in the tests (precision and coverage there). */
         const val THRESHOLD = 0.35
         const val MARGIN = 0.08
+        /** Shared words a snippet needs (unless a word of its name or [MIN_SHARED_SHARE] of its words is shared). */
+        const val MIN_SHARED_WORDS = 2
+        const val MIN_SHARED_SHARE = 0.4
+        /** From this many snippets on, one word only the snippet has is enough (measured on the set in the tests). */
+        const val MIN_DOCUMENTS_FOR_ONE_WORD = 3
         const val PART = 5
         const val MIN_WORD = 3
         const val MIN_QUERY_WORDS = 2

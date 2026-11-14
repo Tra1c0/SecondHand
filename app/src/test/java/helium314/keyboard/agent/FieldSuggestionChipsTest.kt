@@ -68,7 +68,9 @@ class FieldSuggestionChipsTest {
             return true
         }
         // like AgentEditorController.insertAtChipCursor: one insertion at the cursor the chips were built for
-        override fun insertAtCursor(text: String): Boolean {
+        override fun insertAtCursor(text: String, privateText: Boolean): Boolean {
+            // review M4 of stage 46: field suggestions always go in as private text
+            assertTrue(privateText, "a field suggestion is private")
             before += text
             inserted += text
             return true
