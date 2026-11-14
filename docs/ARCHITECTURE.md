@@ -187,8 +187,10 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   mit `-`/`_`/`.` zwischen Buchstaben oder Ziffern (`separatedName`: „B2B-Shop“, „Win11-Pro“,
   „camelCase2_x“ bleiben normal) (`PASSWORD`); ein Passwort-Wort (Passwort, Kennwort, password,
   passwd, contraseña, WLAN-Schlüssel, auch „WLAN-Passwort“) mit Wert direkt danach (nach „:“/„=“
-  jeder, nach ist/lautet/heißt/is/es nur mit Ziffer oder Sonderzeichen, nicht nach „one-time“/
-  „einmal“; ≤ 300 Zeichen) ist ebenfalls `PASSWORD`; nie Hex (Git-Hashes, Prüfsummen, UUIDs, Farben), Pfade, `@`/`#`-Namen,
+  ein Wert ab 6 Zeichen mit Ziffer oder Sonderzeichen, nach „:“/„=“ auch nur Buchstaben in Groß-
+  und Kleinschreibung, wenn auf der Zeile kein weiteres Wort folgt (zweite Nachprüfung N8:
+  „Passwort: bitte beim Admin erfragen“ bleibt Text); nicht nach „one-time“/„einmal“; ≤ 300
+  Zeichen) ist ebenfalls `PASSWORD`; nie Hex (Git-Hashes, Prüfsummen, UUIDs, Farben), Pfade, `@`/`#`-Namen,
   `data:`-URIs, Zahlen, Daten, Wörter, Text mit Leerzeichen, längere Blobs. Code im Satz (≤ 300
   Zeichen, Schlüsselwort de/en/es nur als ganzes Wort mit eigenen Grenzen statt `\b`: Code,
   Komposita aus einer Liste (Bestätigungs-, Sicherheits-, Zugangs-, SMS-, Einmal-, PIN-…code) oder
@@ -202,6 +204,16 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   Geheimnis landet im Verlauf, den der Nutzer eingeschaltet hat, ein falsches verlässt ihn nur
   zwei Minuten früher. Test `CT/clip/ClipGuardTest.kt` (Beispielschlüssel aus Stücken
   zusammengesetzt, damit die Datei keinen schlüsselförmigen String enthält).
+- `C/clip/PrivateRanges.kt` (zweite Nachprüfung 44/45, P178, P185): wo eingefügte private Texte im
+  Editor stehen, ohne Text: je Wert Start, Länge und ein gesalzener Hash der ersten `HEAD` = 32
+  Zeichen, höchstens `MAX` = 3 Werte (der älteste fällt). `Editor` (Schreibmarke, Text davor/danach),
+  `add`, `edited(removeFrom, removeTo, inserted)` (verschiebt Werte hinter einer Bearbeitung,
+  kürzt einen angeschnittenen Wert; Einfügen an seinem Ende gehört nicht dazu), `touches(from, to)`
+  (überlappt oder grenzt an; prüft den Hash, sucht einen verschobenen Wert per rollendem Hash bis
+  `WINDOW` = 1024 Zeichen plus seine Länge um die Schreibmarke, vergisst ihn nur, wenn er dort nicht
+  mehr steht; Schreibmarke unbekannt oder Auswahl: `true`), `touchesLearningContext(editor, words)`
+  (die letzten `words` Wörter vor der Schreibmarke, höchstens `CONTEXT_LIMIT` = 512 Zeichen),
+  `contextLength`. Test `CT/clip/PrivateRangesTest.kt`.
 - `C/suggest/ContextSuggest.kt` (Etappe 45, Paket `dev.agentkeyboard.core.suggest`, P161–P163):
   `SuggestKind` (EMAIL, PHONE, IBAN, ADDRESS, NAME, OTP, LINK), `AppCategory.of(packageName)`
   (MESSENGER/MAIL/BROWSER/OTHER nach Paket-Präfix), `FieldClass`, `FieldSignals` (Klasse,
@@ -272,7 +284,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - Tests in `CT/`: `AiTextActionTest`, `EditorPolicyTest`, `LocalTextActionsTest`,
   `PendingBatchGateTest`, `SkillBindingTest`, `ToolTest`, `WorkflowTest`,
   `InsertionAnchorTest`, `StyledTranslationTest`, `UpdateReleasesTest`, `RgbLightingTest`,
-  `RgbCurveTest`, `RgbPatternsTest`, `RgbFrameStatsTest`, `clip/ClipGuardTest`.
+  `RgbCurveTest`, `RgbPatternsTest`, `RgbFrameStatsTest`, `clip/ClipGuardTest`, `clip/PrivateRangesTest`.
   Befehl: `core-tests`.
 
 ## Geänderte Upstream-Dateien
@@ -300,12 +312,19 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   ohne das Lernen für den Rest der Sitzung abzuschalten. `performAdditionToUserHistoryDictionary`
   lernt kein Befehlswort (`KeyboardCommands.isCommandWord`). Die Überladung mit `generated = true`
   (`@ki`) stoppt das Lernen für den Rest der Sitzung wie bei anderen KI-Übernahmen.
-  Nachprüfung 44/45 (P178): `markPrivateText` merkt Text und Startposition eines eingefügten
-  Tresor-Geheimnisses, Codes oder Werts aus „Meine Daten“; `nearPrivateText` hält
-  `restartSuggestionsOnWordTouchedByCursor` davon fern (Schreibmarke darin, an seinem Anfang oder
-  Ende) und `performAdditionToUserHistoryDictionary` lernt nichts, solange die Schreibmarke höchstens
-  `PRIVATE_LEARNING_DISTANCE` = 64 Zeichen dahinter steht und der Text noch dasteht (auch hinten
-  gekürzt); `onFreshEditorSession` vergisst ihn.
+  Nachprüfung 44/45 (P178, zweite Nachprüfung P185): `mPrivateRanges` (`PrivateRanges`, keine
+  Texte) hält bis zu drei eingefügte Tresor-Geheimnisse, Codes oder Werte aus „Meine Daten“.
+  `markEnteredTextPrivate` (Tresor-Pfad, markiert `mEnteredText`, also das wirklich Committete nach
+  der TLD-Behandlung) und `markPrivateText(text)` (Chip-Pfad, Text endet an der Schreibmarke) gehen
+  über `markPrivateBeforeCursor`, das zugleich `mLastComposedWord`, `mEnteredText` und
+  `mWordBeingCorrectedByCursor` leert. `onCodeInput` (Zeicheneingaben und Rücktaste) und
+  `onTextInput` melden ihre Bearbeitung an der Schreibmarke (`privateTextEdited`, Auswahl davor und
+  Schreibmarke danach). `privateTextAtCursor(davor, danach)` sperrt: `restartSuggestionsOnWordTouchedByCursor`
+  (mit dem Wortbereich), den Neustart in `handleNonSeparatorEvent` (Wort bis zum letzten Leerraum)
+  und das Merken von `mWordBeingCorrectedByCursor` in `onCodeInput` (entschieden beim Merken, nicht
+  beim Lernen an der neuen Schreibmarke). `performAdditionToUserHistoryDictionary` lernt nichts,
+  solange das Wort oder seine N-Gramm-Vorgänger (`MAX_PREV_WORD_COUNT_FOR_N_GRAM` + 1 Wörter vor der
+  Schreibmarke) einen privaten Text berühren; `onFreshEditorSession` vergisst alle.
 - `InputLogicHandler.java`: hält Worker- und UI-Teil eines Swipe-Batches über
   `PendingBatchGate` gemeinsam gesperrt.
 - `RichInputConnection.java`: native Ersetzung als genau ein Commit, Ergebnis als `ApplyOutcome`
@@ -518,13 +537,21 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
   sagt (Geheimnis, Code allein), nie in `ClipboardDao`; eine Nachricht mit Code bleibt Verlaufstext.
   `getClipboardSuggestionView` zeigt keinen Chip, wenn `ClipVault.isSecretClip` (Markierung,
   `SensitiveClips`, vom Tresor als Geheimnis sortierte Kopierzeit, Inhalt) zutrifft (vorher
-  Sternchen); `prepareClipboardHistory` und, bei eingeschaltetem Verlauf, `onCreate` entfernen alte
-  nicht angeheftete Geheimnisse (`removeVaultClipsFromHistory`, auch per `SensitiveClips`; Codes
-  bleiben); `onCreate` ruft vorher `SensitiveClips.migrateLegacy` und nach einer Löschung
-  `ClipboardDao.compactInBackground`; `clearHistory` leert den Tresor; `onCreate` setzt
-  `ClipVault.currentClip`. `ClipboardDao.delete`/`clear` löschen über `deleteRows`
-  (`PRAGMA secure_delete = ON` in derselben Transaktion, danach `wal_checkpoint(TRUNCATE)`),
-  `compactInBackground` = einmal `VACUUM` in einem Thread (Nachprüfung 44/45, P179).
+  Sternchen). Alte nicht angeheftete Geheimnisse (auch per `SensitiveClips`; Codes bleiben) verlassen
+  den Verlauf einmal je App-Version (`PREF_OLD_HISTORY_CLEANED` = Versionscode, P186): `onCreate`
+  (Verlauf an) sortiert eine Kopie der Texte in einem Hintergrund-Thread (`startOldHistoryCleanup`),
+  gelöscht wird auf dem Hauptthread bei der nächsten `getClipboardSuggestionView`,
+  `onPrimaryClipChanged` oder `prepareClipboardHistory` (`applyOldHistoryCleanup`, nur ohne
+  offene Verlaufsansicht); war es beim Öffnen noch nicht geschehen, sortiert
+  `prepareClipboardHistory` einmal selbst (`removeVaultClipsFromHistory`). `onCreate` ruft vorher
+  `SensitiveClips.migrateLegacy` (ohne `ClipboardDao`, etwa vor dem ersten Entsperren: nichts tun,
+  Datei bleibt) und nach einer Löschung `ClipboardDao.compactInBackground`; `clearHistory` leert den
+  Tresor; `onCreate` setzt `ClipVault.currentClip`. `ClipboardDao.delete`/`clear` löschen über
+  `deleteRows` (`PRAGMA secure_delete = ON` in derselben Transaktion), danach
+  `checkpointInBackground` (`wal_checkpoint(TRUNCATE)` auf dem Thread `maintenance`, Löschungen
+  kurz hintereinander teilen sich einen), `compactInBackground` = einmal `VACUUM` auf `maintenance`
+  ohne die Sperre des Objekts und nur bis `COMPACT_MAX_BYTES` = 8 MiB Dateigröße (Nachprüfung 44/45,
+  P179).
   `ClipboardHistoryView.startClipboardHistory`
   ruft `refreshVault` (Tresorreihen über der Liste, Liste um ihre Höhe kürzer, `ClipVault.onChange`
   bis `stopClipboardHistory`), `onVaultPick` fügt per `onPrivateTextInput` ein (P178). `ClipboardAdapter.setContent`
@@ -3392,18 +3419,32 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `restartSuggestionsOnWordTouchedByCursor`, das das Wort an der Schreibmarke zum Kompositionswort
   macht; die Leiste zeigte es dann im Klartext, und das nächste Leerzeichen lernte es ins
   Nutzerwörterbuch (das in manuellen Sicherungen steckt). Deshalb `onPrivateTextInput` und
-  `InputLogic.markPrivateText`: kein Neustart der Vorschläge darauf (auch nach Rücktaste oder
-  Antippen), kein Lernen bis 64 Zeichen dahinter (das Wort danach hätte es als N-Gramm-Kontext). Die
-  Prüfung liest den Editortext ab der gemerkten Startposition; steht dort etwas anderes, ist die
-  Marke vergessen. Ein normaler Clip aus dem Verlauf geht weiter über `onTextInput` (Upstream).
-  Test `InputLogicTest.aPrivateTextIsNeverComposedShownOrLearned`.
+  `InputLogic.markEnteredTextPrivate`/`markPrivateText`: kein Neustart der Vorschläge auf einem Wort,
+  das ihn berührt (auch nach Rücktaste, angehängtem Buchstaben oder Antippen), kein Lernen, solange
+  er das Wort oder dessen N-Gramm-Kontext ist. Drei Wege lernten trotzdem (zweite Nachprüfung):
+  `mWordBeingCorrectedByCursor` wurde nach Rücktaste gemerkt und beim Wegsetzen der Schreibmarke
+  gelernt (die Prüfung lief an der neuen Stelle; jetzt beim Merken), `revertCommit` nach einer
+  Tresor-Wahl, die ein korrigiertes Wort beendete, setzte den Text (Trenner in `mLastComposedWord`)
+  als Kompositionswort ein (jetzt wird `mLastComposedWord` geleert), und der Neustart in
+  `handleNonSeparatorEvent` nach einem Wortverbinder fragte nicht. Bearbeitungen der Tastatur vor
+  dem Text verschieben die Marke (`privateTextEdited`), andere (Gesten, gewählte Vorschläge, die App)
+  findet `PrivateRanges.touches` über den Hash wieder (P185). Ein normaler Clip aus dem Verlauf geht
+  weiter über `onTextInput` (Upstream). Tests `InputLogicTest.aPrivateTextIsNeverComposedShownOrLearned`,
+  `aWordTouchingAPrivateTextIsNotLearnedWhenTheCursorLeaves`,
+  `aBackspaceAfterAPickThatEndedACorrectedWordDoesNotComposeIt`,
+  `severalPrivateTextsAreKeptAndFollowEditsBeforeThem`, `learningResumesOnceThePrivateTextIsNoLongerContext`,
+  `aLongPrivateTextIsMarkedAsCommitted`.
 - **P179** `PRAGMA secure_delete` gilt je Verbindung. `SQLiteDatabase` hat einen Verbindungs-Pool;
   ein `rawQuery` außerhalb einer Transaktion kann auf einer Lese-Verbindung landen. Darum setzt
   `ClipboardDao.deleteRows` es innerhalb der Lösch-Transaktion (dort hält der Thread die
   schreibende Verbindung). PRAGMAs, die eine Zeile liefern, gehen nur über `rawQuery`, nicht
   `execSQL`. `secure_delete` wirkt nicht rückwirkend: Darum `VACUUM` nach einer Bereinigung beim
-  Start (`compactInBackground`, nicht in einer Transaktion, eigener Thread, weil `GESTURE_DATA` in
-  derselben Datei groß sein kann). Auf keinem Gerät geprüft.
+  Start (`compactInBackground`, nicht in einer Transaktion, auf dem Thread `maintenance`, ohne
+  `synchronized(this)`, damit Einfügen und Löschen auf dem Hauptthread nicht auf die Sperre warten).
+  `GESTURE_DATA` liegt in derselben Datei und kann groß sein: Über `COMPACT_MAX_BYTES` = 8 MiB läuft
+  kein `VACUUM` (die Datenbank wäre lange belegt); alte freie Seiten bleiben dann, bis SQLite sie
+  wiederverwendet. Der WAL-Checkpoint nach dem Löschen läuft ebenfalls auf `maintenance` (zweite
+  Nachprüfung N7). Auf keinem Gerät geprüft.
 - **P180** Compose-Textfelder können `IME_FLAG_NO_PERSONALIZED_LEARNING` nicht setzen; die Felder von
   „Meine Daten“ tragen deshalb `privateImeOptions` = `AgentPreferences.NO_LEARNING_FIELD`, und
   `InputAttributes` zählt das als `mNoLearning` (damit Inkognito) in jeder Feldklasse und auf jeder
@@ -3434,13 +3475,35 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   ausdrücklich, damit das Gedächtnis sich nicht selbst aus eingefügtem Text lernt. `SnippetStore.version`
   zählt nur Schreibvorgänge dieses Prozesses (Einstellungen und Tastatur laufen im selben Prozess);
   ein Baustein mit Feldern wird als `@snip Name` angehängt, den Rest macht `SnipCommand`.
+  ohne Lernen braucht, setzt dieselbe Kennung. Ein Wert aus „Meine Daten“, der über einen Chip in ein
+  fremdes Feld kommt, ist dort dagegen ein privater Text nach P178 (bis zu drei je Feld, etwa Name und
+  Adresse).
+- **P185** Private Texte werden ohne Klartext verfolgt (`PrivateRanges`): Start, Länge, Hash der
+  ersten 32 Zeichen. Die Tastatur kennt nur ihre eigenen Bearbeitungen genau: `onCodeInput`
+  (Zeichen, Rücktaste) und `onTextInput` melden sie als „Auswahl davor entfernt, bis zur Schreibmarke
+  danach eingefügt“; das stimmt für alles hinter der Bearbeitungsstelle und für die Rücktaste im
+  Text. Gesten, gewählte Vorschläge und Änderungen der App verschieben ihn ungemeldet; dann sucht
+  `touches` den Hash bis 1024 Zeichen plus Länge um die Schreibmarke und vergisst ihn erst, wenn er
+  dort nicht steht. Rest-Risiko: eine ungemeldete Verschiebung um mehr als dieses Fenster. Werte
+  weiter als das Fenster von der gefragten Stelle werden nicht geprüft (sie können sie nicht
+  berühren). Die Prüfung beim Lernen zählt Wörter nach Leerraum (wie `NgramContextUtils`), nicht
+  Zeichen: Das vierte Wort nach dem Text wird wieder gelernt. Unbekannte Schreibmarke oder Auswahl:
+  gesperrt, nichts vergessen. Unit-Test `CT/clip/PrivateRangesTest.kt`; die Testverbindung von
+  `InputLogicTest` liest höchstens 100 Zeichen, lange Werte (PEM) prüft nur der Unit-Test.
+- **P186** Die nachträgliche Bereinigung alter Geheimnisse im Verlauf läuft einmal je Versionscode,
+  nicht bei jedem Start: Seit Etappe 44 kommen neue Geheimnisse nie in den Verlauf, und jeder Start
+  löschte sonst Einträge neu nach den aktuellen Regeln (Regeländerungen wirken mit dem nächsten
+  Update). Sortiert wird eine Kopie im Hintergrund, gelöscht auf dem Hauptthread, weil
+  `ClipboardDao.cache` nicht threadsicher gelesen wird und die Ansicht über `listener` hängt; ohne
+  `Handler`, weil Robolectric-Tests (`InputLogicTest`) `Handler` abfangen. Tests, die die Bereinigung
+  erwarten, entfernen `PREF_OLD_HISTORY_CLEANED` wie nach einem Update.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (528 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (530 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -3500,7 +3563,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Profiles, RgbCurve, RgbLighting, RgbPatterns, SkillBinding, SnippetTemplate, SpecialCharacters,
   StyledTranslation, SymbolTable, TextCondition, TimerParser, Tool, TouchDynamics, UnitConversion,
   UpdateReleases, UrlDetector, Workflow
-- `C/clip/` (1): ClipGuard
+- `C/clip/` (2): ClipGuard, PrivateRanges
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `C/memory/` (4): OwnWords, PhraseMemory, ShortcutOffers, SnippetMatcher
 - `C/suggest/` (1): ContextSuggest
@@ -3512,7 +3575,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   RgbCurveTest, RgbFrameStatsTest, RgbLightingTest, RgbPatternsTest, SkillBindingTest,
   SnippetTemplateTest, StyledTranslationTest, SymbolTableTest, TimerParserTest, ToolTest,
   TouchDynamicsTest, UnitConversionTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
-- `CT/clip/` (1): ClipGuardTest
+- `CT/clip/` (2): ClipGuardTest, PrivateRangesTest
 - `CT/format/` (1): FormatGuardTest
 - `CT/memory/` (2): MemoryRulesTest, PhraseMemoryTest
 - `CT/suggest/` (1): ContextSuggestTest

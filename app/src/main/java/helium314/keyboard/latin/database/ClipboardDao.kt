@@ -34,6 +34,12 @@ class ClipboardDao private constructor(private val db: Database) {
     // we clean up old clips when a new clip is added, but not too frequently
     private var lastClearOldClips = 0L
 
+    // fork (second review N7): WAL checkpoints and the one VACUUM run here, off the main thread
+    private val checkpointPending = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val maintenance = java.util.concurrent.Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "clip-db-maintenance").apply { isDaemon = true; priority = Thread.MIN_PRIORITY }
+    }
+
     // cache is loaded at start and never dropped
     private val cache = mutableListOf<ClipboardHistoryEntry>().apply {
         db.readableDatabase.query(
@@ -203,14 +209,40 @@ class ClipboardDao private constructor(private val db: Database) {
         } finally {
             writable.endTransaction()
         }
-        runCatching { writable.rawQuery("PRAGMA wal_checkpoint(TRUNCATE)", null).use { it.moveToFirst() } }
+        checkpointInBackground()
     }
 
-    /** Fork (B8): rewrites the database file once, so that rows deleted before `secure_delete` leave no trace. */
+    /**
+     * Fork (second review N7): the write-ahead log is truncated on [maintenance], not on the main
+     * thread after every delete; deletes in a row share one checkpoint.
+     */
+    private fun checkpointInBackground() {
+        if (checkpointPending.getAndSet(true)) return
+        runCatching {
+            maintenance.execute {
+                checkpointPending.set(false)
+                runCatching { db.writableDatabase.rawQuery("PRAGMA wal_checkpoint(TRUNCATE)", null).use { it.moveToFirst() } }
+            }
+        }.onFailure { checkpointPending.set(false) }
+    }
+
+    /**
+     * Fork (B8, second review N7): rewrites the database file once, so that rows deleted before
+     * `secure_delete` leave no trace. On [maintenance], without the lock of this object, and only
+     * while the file (which also holds the gesture data) is at most [COMPACT_MAX_BYTES]: a larger
+     * one would keep the database busy for long; its old free pages stay until SQLite reuses them.
+     */
     fun compactInBackground() {
-        Thread {
-            synchronized(this) { runCatching { db.writableDatabase.execSQL("VACUUM") } }
-        }.start()
+        runCatching {
+            maintenance.execute {
+                runCatching {
+                    val writable = db.writableDatabase
+                    val size = writable.path?.let { File(it).length() } ?: Long.MAX_VALUE
+                    if (size <= COMPACT_MAX_BYTES) writable.execSQL("VACUUM")
+                    writable.rawQuery("PRAGMA wal_checkpoint(TRUNCATE)", null).use { it.moveToFirst() }
+                }
+            }
+        }
     }
 
     fun clearOldClips(now: Boolean = false) {
@@ -294,6 +326,9 @@ class ClipboardDao private constructor(private val db: Database) {
 
         const val ADD_FILE_COLUMN = "ALTER TABLE $TABLE ADD COLUMN $COLUMN_FILE TEXT"
         const val ADD_MIME_TYPE_COLUMN = "ALTER TABLE $TABLE ADD COLUMN $COLUMN_MIME_TYPE TEXT"
+
+        /** Fork (N7): the largest database file [compactInBackground] still rewrites. */
+        const val COMPACT_MAX_BYTES = 8L * 1024 * 1024
 
         private var instance: ClipboardDao? = null
         lateinit var clipFilesDir: File

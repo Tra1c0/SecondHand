@@ -103,13 +103,15 @@ object SensitiveClips {
      * the file itself go. Only while the history view is not shown. True if something was deleted.
      */
     @Synchronized fun migrateLegacy(context: Context, dao: ClipboardDao?): Boolean {
+        // no history readable (e.g. before the first unlock): keep the file for a later start (second review M2)
+        if (dao == null) return false
         val prefs = runCatching { prefs(context) }.getOrNull() ?: return false
         if (prefs.all.isEmpty()) return false
         val legacySalt = prefs.getString(KEY_SALT, null)
         val old = prefs.getString(KEY_HASHES, null)?.split(',')?.filter { it.isNotEmpty() }?.toHashSet().orEmpty()
         val keep = HashSet<String>()
         var deleted = false
-        if (legacySalt != null && old.isNotEmpty() && dao != null) {
+        if (legacySalt != null && old.isNotEmpty()) {
             for (index in dao.count() - 1 downTo 0) {
                 val entry = dao.getAt(index)
                 val text = entry.text

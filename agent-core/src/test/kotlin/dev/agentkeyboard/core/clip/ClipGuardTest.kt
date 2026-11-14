@@ -198,6 +198,16 @@ class ClipGuardTest {
         )) assertEquals(ClipKind.TEXT, kind(text), text)
     }
 
+    @Test fun aPasswordWordNeedsAValueThatLooksLikeOne() {
+        // second review of stage 44 (N8): a note about a password is no secret
+        for (text in listOf(
+            "Passwort: bitte beim Admin erfragen", "Passwort: Erfragen beim Admin", "Passwort: geheim",
+            "Kennwort = folgt", "Das Passwort ist abc", "Password: ask IT",
+        )) assertEquals(ClipKind.TEXT, kind(text), text)
+        for (text in listOf("Passwort: Sommer2024 bitte ändern", "WLAN-Passwort: Sommerwiese, Raum 3", "Password: x7Kq9mZ2"))
+            assertEquals(SecretReason.PASSWORD, reason(text), text)
+    }
+
     @Test fun moreKeyFormatsAndIdentifiersThatAreNone() {
         // review of stage 44 (B9)
         val telegram = "123456789" + ":" + "AAHx" + "dqTcvCH1vGWJxfSeofSAs0K5PALDsaw"

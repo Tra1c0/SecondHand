@@ -63,10 +63,10 @@ class ClipboardHistoryManager(
         // stage 44: the vault may read the current clip for "fresh" queries, never keeps it with the history off
         helium314.keyboard.agent.ClipVault.currentClip = { currentTextClip() }
         // review of stages 44/45: the stage 24f hashes leave the disk once; secrets stored before the
-        // guard leave the history at the start already, not only when the history view opens
-        var removed = helium314.keyboard.agent.commands.SensitiveClips.migrateLegacy(latinIME, clipboardDao)
+        // guard leave the history once per app version, sorted off the main thread (second review N8)
+        val removed = helium314.keyboard.agent.commands.SensitiveClips.migrateLegacy(latinIME, clipboardDao)
         if (latinIME.mSettings.current.mClipboardHistoryEnabled) {
-            removed = removeVaultClipsFromHistory() || removed
+            startOldHistoryCleanup()
             fetchPrimaryClip()
         }
         // deleted rows may remain in free pages: rewrite the database file once after such a cleanup
@@ -147,6 +147,7 @@ class ClipboardHistoryManager(
     }
 
     override fun onPrimaryClipChanged() {
+        applyOldHistoryCleanup()
         // Make sure we read clipboard content only if history settings is set
         if (latinIME.mSettings.current.mClipboardHistoryEnabled) {
             fetchPrimaryClip()
@@ -268,8 +269,56 @@ class ClipboardHistoryManager(
     // when history is about to be shown
     fun prepareClipboardHistory() {
         clipboardDao?.clearOldClips(true)
-        removeVaultClipsFromHistory()
+        val cleaned = oldHistoryCleaned()
+        applyOldHistoryCleanup()
+        // the sorting at the start has not finished (or not run): once here, before the history is shown
+        if (!cleaned && removeVaultClipsFromHistory()) clipboardDao?.compactInBackground()
+        if (clipboardDao != null) markOldHistoryCleaned()
     }
+
+    // second review of stages 44/45 (N8): the ids of old secrets found off the main thread, deleted on it
+    private val pendingOldSecrets = java.util.concurrent.atomic.AtomicReference<Set<Long>?>(null)
+
+    private fun oldHistoryCleaned() =
+        latinIME.prefs().getInt(PREF_OLD_HISTORY_CLEANED, 0) == helium314.keyboard.latin.BuildConfig.VERSION_CODE
+
+    private fun markOldHistoryCleaned() =
+        latinIME.prefs().edit().putInt(PREF_OLD_HISTORY_CLEANED, helium314.keyboard.latin.BuildConfig.VERSION_CODE).apply()
+
+    /** Once per app version: sorts the unpinned history texts in a background thread (only reads a copy). */
+    private fun startOldHistoryCleanup() {
+        val dao = clipboardDao ?: return
+        if (oldHistoryCleaned()) return
+        val wasSensitive = helium314.keyboard.agent.commands.SensitiveClips.matcher(latinIME)
+        val region = helium314.keyboard.agent.ClipVault.region(latinIME.mSettings.current)
+        val entries = dao.getAll().filter { !it.isPinned && it.filename == null && !it.text.isNullOrEmpty() }.map { it.id to it.text!! }
+        Thread({
+            runCatching {
+                pendingOldSecrets.set(entries.filter { (_, text) ->
+                    dev.agentkeyboard.core.clip.ClipGuard.classify(text, wasSensitive(text), region).kind == dev.agentkeyboard.core.clip.ClipKind.SECRET
+                }.mapTo(HashSet()) { it.first })
+            }
+        }, "clip-history-cleanup").apply { isDaemon = true; priority = Thread.MIN_PRIORITY }.start()
+    }
+
+    /** On the main thread, while the history view is not shown: deletes what [startOldHistoryCleanup] found. */
+    private fun applyOldHistoryCleanup() {
+        if (pendingOldSecrets.get() == null) return
+        val dao = clipboardDao ?: return
+        if (dao.listener != null) return
+        val ids = pendingOldSecrets.getAndSet(null) ?: return
+        var removed = false
+        for (index in dao.count() - 1 downTo 0) {
+            val entry = dao.getAt(index)
+            if (entry.id in ids && !entry.isPinned) { dao.deleteClipAt(index); removed = true }
+        }
+        markOldHistoryCleaned()
+        if (removed) dao.compactInBackground()
+    }
+
+    /** For tests: the background sorting has a result that is not applied yet. */
+    @androidx.annotation.VisibleForTesting
+    fun hasPendingOldHistoryCleanup() = pendingOldSecrets.get() != null
 
     /**
      * Stage 44: secrets stored before the guard existed leave the history (pinned entries stay, shown
@@ -309,6 +358,7 @@ class ClipboardHistoryManager(
     }
 
     fun getClipboardSuggestionView(editorInfo: EditorInfo?, parent: ViewGroup?): View? {
+        applyOldHistoryCleanup()
         // maybe no need to create a new view
         // but a cache has to consider a few possible changes, so better don't implement without need
         clipboardSuggestionView = null
@@ -415,6 +465,8 @@ class ClipboardHistoryManager(
 
     companion object {
         private val TAG = "ClipboardHistoryManager"
+        /** Fork (second review N8): the app version whose old history was cleaned of secrets. */
+        const val PREF_OLD_HISTORY_CLEANED = "agent_clip_history_cleaned_version"
 
         // avoid showing the current suggestion because it has been dismissed or pasted
         private var dontShowCurrentSuggestion: Boolean = false
