@@ -72,6 +72,8 @@ Reihenfolge von oben nach unten.
     Etappe 38a): Baukasten, neue Startseite, sieben Routen `area_*` mit vorläufiger Karte „Seiten“
     zu den bisherigen Seiten. Annahme des Leads: Systemschrift statt Space Grotesk/Inter (keine
     Schriftdateien im APK). Offen: Gerätetest.
+  - 38d Tasten & Sprachen ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` →
+    Etappe 38d). Offen: Prüfer-Review, Gerätetest.
   - Je Bereichsseite eine Etappe, jeweils 1:1 nach ihrer `*.dc.html`, mit dem Baukasten aus 38a;
     die Karte „Seiten“ fällt dabei für diesen Bereich weg, alles bisher Erreichbare bleibt
     erreichbar: 38b Aussehen, 38c Tippen & Korrektur, 38d Tasten & Sprachen, 38e Gesten & Gefühl,

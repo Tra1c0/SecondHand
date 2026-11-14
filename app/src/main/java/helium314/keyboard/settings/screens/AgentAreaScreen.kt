@@ -50,6 +50,7 @@ object SettingsAreas {
             AreaEntry(SettingsDestination.Dictionaries, R.string.dictionary_settings_category, R.string.agent_area_row_dictionaries),
         )
         SettingsArea.KEYS -> listOf(
+            // 38d: AgentAreaKeysScreen opens these pages from its own rows (tags AREA_ROW_TAG + route)
             // summary: the enabled languages, as on the old start page
             AreaEntry(SettingsDestination.Languages, R.string.language_and_layouts_title, 0),
             AreaEntry(SettingsDestination.Preferences, R.string.settings_screen_preferences, R.string.agent_area_row_options),
@@ -90,6 +91,7 @@ object SettingsAreas {
 fun AgentAreaScreen(area: SettingsArea, onNavigate: (String) -> Unit, onClickBack: () -> Unit) {
     if (area == SettingsArea.TYPING) return AgentAreaTypingScreen(onNavigate, onClickBack) // stage 38c
     if (area == SettingsArea.GESTURES) return AgentAreaGesturesScreen(onNavigate, onClickBack) // 38e
+    if (area == SettingsArea.KEYS) return AgentAreaKeysScreen(onNavigate, onClickBack) // 38d, built from Tasten.dc.html
     AgentSettingsTheme {
         Column(
             Modifier.fillMaxSize().background(AgentSettingsTokens.Background).windowInsetsPadding(WindowInsets.safeDrawing)

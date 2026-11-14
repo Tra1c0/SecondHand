@@ -147,3 +147,9 @@
   „Vibration & Ton“ und „Treffen & Wischen“ (Trefferzonen, Löschen durch Wischen,
   Touchpad-Empfindlichkeit). Alles schaltet deine echten Einstellungen; die bisherigen Seiten
   gibt es weiter. Noch auf keinem Gerät ausprobiert.
+- Neu: Einstellungen → „Tasten & Sprachen“ ist neu gestaltet. Oben eine farbige Karte je Sprache
+  mit Layout und Wörterbüchern, die gerade benutzte ist hell und „aktiv“; ein Tipp öffnet die
+  Seite der Sprache. Darunter Sprachen, Zusatztasten, Popups & Hinweise und Layouts mit Schaltern
+  und den gewohnten Dialogen, dazu aus „Erweitert“ Langdruck-Dauer, Währungen, Zeitstempel-Format
+  und „Zurück zu den Buchstaben“. Zwischenablage, Vibration und Ton liegen vorerst unter „Weitere
+  Optionen“. Noch auf keinem Gerät ausprobiert.

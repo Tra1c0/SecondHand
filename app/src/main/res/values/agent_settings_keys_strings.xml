@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 38d: area page "Keys & languages" (mockup Tasten.dc.html) -->
+<resources>
+    <string name="agent_keys_languages_card">Languages</string>
+    <string name="agent_keys_hint_main_dict">Main dictionary</string>
+    <string name="agent_keys_hint_emoji_dict">Emoji dictionary</string>
+    <string name="agent_keys_hint_no_dict">no dictionary</string>
+    <string name="agent_keys_hint_active">active</string>
+    <string name="agent_keys_section_languages">Languages</string>
+    <string name="agent_keys_add_language">Add language</string>
+    <string name="agent_keys_add_language_sub">Layouts and dictionaries</string>
+    <string name="agent_keys_per_app_sub">Each app keeps its language</string>
+    <string name="agent_keys_switch_key_sub">Switch language or keyboard</string>
+    <string name="agent_keys_section_extra">Extra keys</string>
+    <string name="agent_keys_number_row_sub">Always above the letters</string>
+    <string name="agent_keys_emoji_key_sub">Next to the space bar</string>
+    <string name="agent_keys_dpad">D-pad key</string>
+    <string name="agent_keys_dpad_sub">Arrows to move the cursor</string>
+    <string name="agent_keys_currencies">Currencies</string>
+    <string name="agent_keys_currencies_sub">€ and up to 6 more</string>
+    <string name="agent_keys_section_popups">Popups &amp; hints</string>
+    <string name="agent_keys_hints">Key hints</string>
+    <string name="agent_keys_hints_sub">Small characters in the corner</string>
+    <string name="agent_keys_popup_on_sub">Enlarged key</string>
+    <string name="agent_keys_popup_order">Popup order</string>
+    <string name="agent_keys_redundant">Leave out duplicate popups</string>
+    <string name="agent_keys_redundant_sub">What is already on the keyboard</string>
+    <string name="agent_keys_long_press">Long press delay</string>
+    <string name="agent_keys_long_press_sub">Until the popup appears</string>
+    <string name="agent_keys_section_layouts">Layouts</string>
+    <string name="agent_keys_secondary">Symbols, numbers, numpad</string>
+    <string name="agent_keys_return">Back to the letters</string>
+    <string name="agent_keys_return_sub">After space, emoji, clipboard</string>
+    <string name="agent_keys_return_value">%1$d of %2$d</string>
+    <string name="agent_keys_timestamp">Timestamp format</string>
+    <string name="agent_keys_timestamp_sub">For the timestamp key</string>
+    <string name="agent_keys_more_options">More options</string>
+    <string name="agent_keys_more_options_sub">Clipboard, vibration and sound (until the bar and gesture pages are rebuilt)</string>
+</resources>
