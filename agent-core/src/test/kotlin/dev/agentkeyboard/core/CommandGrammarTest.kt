@@ -261,8 +261,76 @@ class CommandGrammarTest {
                 "@group list", "@gruppe neu arbeit telegram", "@lang foo german"))
             assertTrue(parse(text).all { it.looksLikeCommand }, text)
         // the first word unknown and more than one unknown word: text
-        assertFalse(parse("@lang foo bar german").any { it.looksLikeCommand })
+        assertFalse(parse("@lang foo bar xyz").any { it.looksLikeCommand })
         assertFalse(parse("@mem kann whatsapp nicht").any { it.looksLikeCommand })
+        // second review: an exact action word or language name is a command whatever else is unknown
+        // (apps of two words not read yet, or not installed); "@lang foo bar german" was text before
+        assertTrue(parse("@lang foo bar german").all { it.looksLikeCommand })
+    }
+
+    @Test fun anExactActionOrLanguageMakesACommandWithTwoUnknownWords() {
+        val empty = object : CommandGrammar.Vocabulary {
+            override val apps = emptyList<AppName>()
+            override fun languages(word: String, exactOnly: Boolean) = matcher.match(word, exactOnly)
+        }
+        fun parseEmpty(text: String) = CommandGrammar.parse(text, '@', areas, empty)
+        for (text in listOf("@guard google maps off", "@lang microsoft teams german", "@mem foo bar aus", "@wächter google maps an"))
+            assertTrue(parseEmpty(text).let { it.isNotEmpty() && it.all { r -> r.looksLikeCommand } }, text)
+        assertEquals(listOf("google", "maps"), parseEmpty("@guard google maps off").single().steps.single().unknown)
+        // a typo of the action or a started language is not enough with two unknown words
+        assertFalse(parseEmpty("@guard google maps offf").any { it.looksLikeCommand })
+        assertFalse(parseEmpty("@lang microsoft teams germ").any { it.looksLikeCommand })
+        // still text: no exact action or language
+        assertFalse(parseEmpty("@guard das ist gut").any { it.looksLikeCommand })
+        // a language makes no sense to delete: then it is not exact either
+        assertFalse(parseEmpty("@lang foo bar del german").let { r -> r.isNotEmpty() && r.all { it.steps.single().language == null } }.not())
+    }
+
+    @Test fun aClaimedLanguageWordIsAKnownFirstWord() {
+        // second review: "@deutsch @guard banking off" chains like "@lang deutsch @guard banking off"
+        assertTrue(parse("@deutsch").all { it.looksLikeCommand })
+        assertTrue(parse("@deutsch ").all { it.looksLikeCommand })
+        val chain = single("@deutsch @guard signal off")
+        assertEquals(listOf(Area.LANG, Area.GUARD), chain.steps.map { it.area })
+        assertEquals("de", chain.steps[0].language)
+        assertTrue(chain.steps[0].legacy)
+        // an area word that is no language claims nothing
+        assertFalse(parse("@group").any { it.looksLikeCommand })
+    }
+
+    @Test fun aClipSwitchBeforeASeparatorWordStillChains() {
+        for (separator in listOf("dann", "then", "→", ";")) {
+            val reading = single("@clip on $separator @lang whatsapp german")
+            assertEquals(listOf(Area.CLIP, Area.LANG), reading.steps.map { it.area }, separator)
+            assertEquals(Action.ON, reading.steps[0].action, separator)
+            assertFalse(reading.steps[0].legacy, separator)
+            assertTrue(reading.words.any { it.role == Role.SEPARATOR }, separator)
+        }
+        assertEquals(Action.OFF, single("@clip off then @guard signal off").steps[0].action)
+        assertEquals(Action.OFF, single("@ablage aus dann @guard signal off").steps[0].action)
+        // a search with "dann" in it stays whole, also before an area word
+        val search = single("@clip pizza dann pasta").steps.single()
+        assertTrue(search.legacy)
+        assertEquals("pizza dann pasta", search.text)
+        val before = single("@clip pizza dann @lang whatsapp german")
+        assertEquals("pizza dann", before.steps[0].text)
+        assertTrue(before.steps[0].legacy)
+        // more than one word before the separator: a search
+        assertEquals("on the way dann", single("@clip on the way dann @lang whatsapp german").steps[0].text)
+    }
+
+    @Test fun anEmptyAreaWordInAChainIsAStep() {
+        // second review: "@guard " at the end is a step without words, not dropped
+        val reading = single("@lang whatsapp german; @guard ")
+        assertEquals(listOf(Area.LANG, Area.GUARD), reading.steps.map { it.area })
+        assertTrue(reading.steps[1].words.isEmpty())
+        assertNull(reading.steps[1].action)
+        assertFalse(reading.steps[1].looksLikeCommand)
+        assertEquals(2, single("@lang whatsapp german @mem").steps.size)
+        assertEquals(2, single("@guard signal off; @group").steps.size)
+        // an empty step after a separator still is none
+        assertEquals(1, single("@lang whatsapp german;").steps.size)
+        assertEquals(2, single("@lang whatsapp german;; duolingo spanish").steps.size)
     }
 
     @Test fun anUnknownAppBeforeALanguageIsNoOldCommand() {

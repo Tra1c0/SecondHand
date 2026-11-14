@@ -1678,7 +1678,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     einem beanspruchten Sprachwort (`claim`, `@deutsch` = Wert); Schritte teilen sich an
     `SEPARATORS` (`;`, `then`, `dann`, `→`, `->`), außer in `@snip` und `@clip` (`freeText`, seit
     Nachprüfung 52 auch die Suche von `@clip`: dort gehört alles bis zum nächsten Bereichswort zum
-    Text, nur `;`/`→`/`->` direkt davor fallen weg). `endsWithSeparator` für die Ketten (P220). Jeder Bereich kennt
+    Text, nur `;`/`→`/`->` direkt davor fallen weg; seit der zweiten Nachprüfung auch ein Trennwort,
+    wenn davor genau ein genaues `@clip`-Aktionswort steht, `isClipAction`: `@clip on dann @lang …`).
+    `endsWithSeparator` für die Ketten (P220). Ein Bereichswort ohne Wörter dahinter in einer Kette
+    ist ein eigener Schritt mit `Step.bare` (vorher fiel es weg). Jeder Bereich kennt
     seine Aktionen (`ACTIONS`) und Plätze: `@lang`/`@guard`/`@mem` Ziele (App, Gruppe, `ALL_WORDS`
     = alle; leer = die App des Felds) und bei `@lang` eine Sprache, `@group` Name (erstes Wort ohne
     Aktion; eigene Gruppe auch mit Tippfehler oder neuer Name, `isValidGroupName`) und Apps,
@@ -1694,7 +1697,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `@lang` seit Nachprüfung 52 nur mit höchstens einem Wort oder ohne unbekanntes Wort
     (`@lang foo german` ist neu und rot). `Step.looksLikeCommand`/`Reading.looksLikeCommand`
     (P220): mindestens ein Wort mit bekannter Rolle (ein neuer Gruppenname allein zählt nicht) und
-    das erste Wort bekannt oder höchstens ein unbekanntes. `AppName.normalized`/`parts` halten den
+    das erste Wort bekannt oder höchstens ein unbekanntes; seit der zweiten Nachprüfung reicht ein
+    genau getipptes Aktionswort oder ein genauer Sprachname (`Step.exact`), und ein beanspruchtes
+    Sprachwort (`Step.claimed`, `@deutsch`) zählt wie `@lang deutsch`. `AppName.normalized`/`parts` halten den
     normalisierten Namen je App (einmal je Lesen der Apps, nicht je getipptem Wort).
     `Word`s geben jedem Wort eine `Role` (Bereich, Aktion, Ziel, Wert, Trenner, Unbekannt).
   - `A/KeyboardCommands.kt`: `Active.parse` verlängert einen Bereichsbefehl rückwärts über frühere
@@ -1703,7 +1708,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     Nachprüfung 52 nur über einen Trenner oder hinter einem vollständigen Befehl
     (`CommandSystem.continuesChain`, P220); `Active` hält dafür den App-Kontext.
     `Command.protects(context, call)` (Standard `protectsArgument`) entscheidet je getipptem Befehl,
-    ob seine Wörter vor der Autokorrektur geschützt sind (`guardsTextBefore`). `aliases`
+    ob seine Wörter vor der Autokorrektur geschützt sind (`guardsTextBefore`, seit der zweiten
+    Nachprüfung in `runCatching`: ein Fehler gilt als geschützt). `Host.replaceOutcome` gibt die
+    Antwort des Editors (`ApplyOutcome`; Standard aus `replace`, der echte Host liefert `UNKNOWN`
+    weiter). `forget` ruft `CommandSystem.dropReadings`. `aliases`
     und `help` (die eingeschalteten Bereiche) gehen an `CommandSyntax.parse`. `chipsFor` gibt für
     `@?` `CommandSystem.helpChips`; `buildChips` fragt ohne Befehl zuerst `CommandSystem.undoChips`.
     `chipBackground` ist die Chipfarbe (auch für `CommandColors`), `activeNames` die
@@ -1720,16 +1728,20 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     Grenzen (`MAX_APPS`, `Memory.MAX_EXCLUDED`, `MAX_GROUPS`, `MAX_MEMBERS`,
     `SnippetStore.MAX_SNIPPETS`) prüft der Plan vorher (`agent_unified_limit_toast`). Ein Tipp
     (`execute`, einmal je Chip) prüft Sperren, führt seit Nachprüfung 52 erst jede Wirkung aus,
-    entfernt dann den ganzen Befehl (`Host.replace(call, "")`) und erst danach `after` (Sprache
-    umschalten, Verlauf leeren); scheitert eine Wirkung oder das Entfernen, werden die schon
-    gelaufenen zurückgenommen und der Text bleibt (P221). `Undo` (Text, App, Schreibmarke nach dem Entfernen,
+    entfernt dann den ganzen Befehl (`Host.replaceOutcome(call, "")`) und erst danach `after`
+    (Sprache umschalten, Verlauf leeren; `Done.afterRan`); scheitert eine Wirkung oder wird das
+    Entfernen abgelehnt (`REJECTED`), werden die schon gelaufenen zurückgenommen und der Text bleibt
+    (`agent_unified_failed_nothing` nennt den Schritt; `agent_unified_failed` nur noch für ein
+    gescheitertes Rückgängig). `UNKNOWN` gilt als entfernt (P221). `Undo` (Text, App, Schreibmarke nach dem Entfernen,
     `UNDO_MILLIS` = 8 s) zeigt „↶ Rückgängig“ nur an genau dieser Schreibmarke in derselben App;
     `schedule` baut die Leiste nach Ablauf neu (`Undo.refresh` = `Host.refresh` der zuletzt
     gebauten Leiste). `onEnter`: genau eine Deutung, ausführbar und harmlos → wie ein Tipp (bei
     `canReplaceNow`); jede andere Deutung im neuen Aufbau nimmt Enter mit `Plan.hint`, der Text
     bleibt (P200); alte Form und Wörter, die nicht wie ein Befehl aussehen → null (P220).
     `protects`: geschützt, solange die Wörter wie ein Befehl aussehen oder nur ein Wort hinter dem
-    Bereichswort steht. Harmlos ist nicht:
+    Bereichswort steht (`protects` und `continuesChain` in `runCatching`: geschützt bzw. keine Kette).
+    `readings` merkt sich die letzten vier Texte (`readingsCache`, P230; `dropReadings`). In einer
+    Kette ist ein `Step.bare` unvollständig (`agent_unified_incomplete_toast`). Harmlos ist nicht:
     Löschen, `all`, Gedächtnis an, Zwischenablage-Schalter (räumt wie der Einstellungsschalter
     ungepinnte Einträge, `clearNonPinned`), einen Baustein überschreiben, eine Gruppe mit weniger
     Apps überschreiben (harmlos nur neu oder mit allen bisherigen Apps). Wirkungen: Sprache je App
@@ -1743,7 +1755,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   - `A/commands/CommandAppSettings.kt`: eigene DE-Datei `agent_command_settings` (kein Neuladen
     der Tastatur beim Schreiben), Schlüssel `language:<paket|*>`, `guard:<paket>`,
     `group:<name>` (`docs/STORAGE.md`); `subtypeForApp` (P199), `onSwitchedInField` (P219, aus
-    `LatinIME.onCurrentInputMethodSubtypeChanged`), `resolve` (wie HeliBoard:
+    `LatinIME.onCurrentInputMethodSubtypeChanged`; ganz in `runCatching`, nicht für die Gründe
+    `SubtypeSwitchLog.FIELD_START`), `setGroup` ruft `CommandSystem.dropReadings`, `resolve` (wie HeliBoard:
     gleicher Subtyp, sonst einer der Sprache), `guardAllows` (Eintrag der App vor dem Schalter,
     aus `FormatGuardChips.stripChips`; `guard` liest seit Nachprüfung 52 nur den einen Schlüssel),
     Grenzen `MAX_APPS` 100, `MAX_GROUPS` 20, `MAX_MEMBERS` 30.
@@ -2080,7 +2093,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   das Bild wird verworfen; Versionen und `Build.MODEL`, keine Kennungen, kein Schlüsselstatus).
   `A/SubtypeSwitchLog.kt`: die letzten fünf Sprachwechsel mit Grund, Zeit und Sprach-Tag, nur im
   Speicher (P98); `SubtypeChoice.holds` meldet eine behaltene Befehlswahl (`onKept`), nur wenn
-  die App wirklich umgeschaltet hätte.
+  die App wirklich umgeschaltet hätte. Seit der zweiten Nachprüfung 52 `lastReason` (Grund des
+  zuletzt notierten Wechsels) und `FIELD_START` (`APP_HINT`, `HINT_ENDED`, `PER_APP`) für
+  `CommandAppSettings.onSwitchedInField` (P219).
   Texte: `agent_diagnose_strings.xml`. Tests: `AT/DiagnoseScreenTest.kt`,
   `InputLogicTest.subtypeSwitch*`.
 - `KeyboardProfileStore.kt`: das Designprofil enthält `agent_rgb_lighting` als Text
@@ -4645,32 +4660,55 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   nicht zu ihr selbst ging. Ein anderes Feld der App beginnt wieder in ihrer Sprache
   (`SubtypeChoice.holds` vergleicht das Feld). Nicht einfach `restarting` überspringen: Dann bliebe
   beim ersten Start eines neu geöffneten Felds, das die App als Neustart meldet, die Sprache von
-  vorher. Auch der automatische Wechsel beim Feldstart (Hint-Locales) läuft hier durch und wird
-  gemerkt, wenn er nicht zur Befehlssprache geht; das ist dieselbe Wahl, die der Neustart wieder
-  träfe.
+  vorher. Der automatische Wechsel beim Feldstart (Hint-Locales, Sprache der App, Ende eines
+  Hints) läuft auch hier durch, wird aber seit der zweiten Nachprüfung nicht gemerkt:
+  `SubtypeSwitchLog.lastReason` (gerade von `onSwitched` notiert) in `FIELD_START`; ohne
+  Änderung an `LatinIME`. Wer den Weg von `expectFromStart` über `internalSwitch` nach `onSwitched`
+  ändert, prüft das mit. Messenger wie WhatsApp haben für alle Chats ein Feld: Dort gilt ein
+  Wechsel mit der Sprachtaste für alle Chats, bis ein anderes Feld beginnt.
 - **P220** Text hinter einem Bereichswort ist kein Befehl (Nachprüfung 52): „Hallo @gruppe wer kommt
   heute?“ war ein `@group`-Befehl mit unbekannten Wörtern; Enter wurde geschluckt und die
   Autokorrektur war für den ganzen Rest der Zeile aus. `Step.looksLikeCommand` entscheidet für
   `CommandSystem.onEnter` (null = Enter der App) und `CommandSystem.protects` (`Command.protects`,
   aus `KeyboardCommands.guardsTextBefore`; zusätzlich geschützt, solange nur ein Wort hinter dem
   Bereichswort steht, das kann eine App sein, die gerade getippt wird oder noch nicht geladen ist).
+  Seit der zweiten Nachprüfung reicht ein genau getipptes Aktionswort oder ein genauer Sprachname,
+  egal wie viele Wörter unbekannt sind (`@guard google maps off`, bevor die Apps gelesen sind);
+  damit nimmt Enter auch „@mem ich bin aus Berlin“ (Annahme des Leads: selten, die Leiste sagt
+  warum).
   Ketten (`Active.parse`) nur über einen Trenner am Ende des früheren Teils oder hinter einem
   vollständigen früheren Befehl ohne unbekannte Wörter (`continuesChain`; eine alte Form zählt nur
   als `@lang`-Sprachwechsel): sonst nahm ein früheres Bereichswort ein späteres `@snip adr` in seine
   Kette, und der Enter-Hook der Bausteinfelder (Etappe 42) bekam es nie. `continuesChain` parst den
   früheren Teil bei jedem Lesen des Texts vor der Schreibmarke neu; nur wenn wirklich ein weiterer
-  Bereichsbefehl davor steht.
+  Bereichsbefehl davor steht; seit der zweiten Nachprüfung aus dem Zwischenspeicher (P230).
 - **P221** Wirkungen vor dem Entfernen des Texts (Nachprüfung 52): Vorher entfernte ein Tipp erst den
   Befehl und scheiterte dann z. B. an einer vollen Liste; der Text war weg und nichts geändert.
   `execute` führt jetzt jede Wirkung aus (`Effect.run` → `Done`), entfernt dann den Befehl und erst
   danach `Done.after` (Sprache umschalten, ungepinnte Einträge des Verlaufs löschen); scheitert eine
-  Wirkung oder das Entfernen (Feld geändert), nimmt es die gelaufenen zurück (`undo`) und der Text
-  bleibt. Eine Wirkung, die mittendrin scheitert (`languageEffect`, `guardEffect`, `memoryEffect`
+  Wirkung oder lehnt der Editor das Entfernen ab (`ApplyOutcome.REJECTED`, Feld geändert), nimmt es
+  die gelaufenen zurück (`undo`) und der Text bleibt. `UNKNOWN` (der Editor nahm das Commit an,
+  die Prüfung danach scheiterte; der Text ist sehr wahrscheinlich weg) zählt seit der zweiten
+  Nachprüfung als entfernt: Wirkungen bleiben, `after` läuft, Rückgängig wird angeboten; sonst
+  wäre der Text weg und nichts geändert. Zurücknehmen vor dem Entfernen schaltet keine Sprache
+  zurück (`Done.afterRan`), sonst merkte `switchToSubtypeByCommand` die alte Sprache als Wahl des
+  Felds. Eine Wirkung, die mittendrin scheitert (`languageEffect`, `guardEffect`, `memoryEffect`
   bei `all`), stellt selbst her, was sie schon geschrieben hat, und prüft die Grenze vor dem ersten
-  Schreiben. Wer eine Wirkung baut, die nicht zurückzunehmen ist (Daten löschen) oder die Tastatur
+  Schreiben; seit der zweiten Nachprüfung auch bei einer Ausnahme mittendrin (`try`, dann
+  `restore`, Ergebnis null). Wer eine Wirkung baut, die nicht zurückzunehmen ist (Daten löschen) oder die Tastatur
   oder das Feld ändert, legt sie in `after`. Das Schreiben von `FORMAT_GUARD`, `MEMORY` und
   `PREF_ENABLE_CLIPBOARD_HISTORY` lädt die Einstellungen neu (`Settings.onSharedPreferenceChanged`),
   bevor der Befehl entfernt wird; das ändert die Eingabeverbindung nicht.
+- **P230** Gelesene Befehle zwischengespeichert (zweite Nachprüfung 52): Ein Tastendruck las
+  denselben Befehl mehrmals (`guardsTextBefore` aus `updateGuard` und aus
+  `InputLogic.performAdditionToUserHistoryDictionary`, `Active.parse` mit `continuesChain`, die
+  Leiste, Enter). `CommandSystem.readings` hält die letzten vier Texte (`readingsCache`), gültig
+  bei gleichem Präfix, gleichen Bereichswörtern, derselben App-Liste (`InstalledApps.apps`, gleiche
+  Instanz) und gleicher `readingsGeneration`. Alles andere, was ein Wort benennen kann, muss bei
+  einer Änderung `dropReadings` rufen: `execute` und Rückgängig, `CommandAppSettings.setGroup`,
+  `SnipCommand.reset`, `KeyboardCommands.forget` (auch aus `load`, also bei geänderten Sprachen
+  oder Befehlen). Wer einen neuen Wortschatz (Gruppen, Bausteine, Sprachen) oder einen neuen
+  Schreibweg dafür baut, ruft es auch, sonst zeigt die Leiste für denselben Text die alte Deutung.
 
 - **P222** IDs eigener Muster (34, Nachprüfung): nie wieder hochzählen (`max + 1`). Mit `p1`, `p2` …
   bekam ein neues Muster nach dem Löschen des neuesten dessen ID, und ein Designprofil, das nur

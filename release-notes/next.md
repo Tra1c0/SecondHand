@@ -409,7 +409,11 @@
   hinter einem vollständigen Befehl weiter, `@snip adr` hinter anderem Text bleibt ein Baustein.
   Ist eine Liste voll oder lässt sich etwas nicht ändern, bleibt der Befehlstext stehen und nichts
   ist halb geändert. Hat eine App eine Befehlssprache, bleibt ein Wechsel mit der Sprachtaste im
-  Feld auch nach dem Senden (mit „Sprache pro App merken“ aus). Ändert nur deine eigenen
+  Feld auch nach dem Senden (mit „Sprache pro App merken“ aus); in WhatsApp teilen sich alle
+  Chats ein Feld, dort gilt der Wechsel also für alle Chats, bis du ein anderes Feld antippst.
+  `@guard google maps off` schickt Enter auch dann nicht ab, wenn die Tastatur die Apps noch nicht
+  kennt; `@clip on dann @lang …` und `@deutsch @guard …` sind Ketten; ein leeres `@guard ` am Ende
+  einer Kette wird nicht mehr mitgelöscht. Ändert nur deine eigenen
   Einstellungen und Daten; nie in Passwortfeldern, im Inkognito-Modus oder bei gesperrtem Gerät.
   Die Farben gibt es nur in der Leiste, nicht im Textfeld. Noch auf keinem Gerät ausprobiert.
 - Neu: Update-Fenster. Hat „Jetzt prüfen“ oder die tägliche Suche einen neuen Build gefunden,

@@ -97,6 +97,12 @@ object SubtypeSwitchLog {
     /** Newest first. */
     @JvmStatic @Synchronized fun entries(): List<Entry> = entries.toList()
 
+    /** Second review of stage 52 (P219): the reason of the switch noted last, right after [onSwitched]; null without one. */
+    @JvmStatic @Synchronized fun lastReason(): Reason? = entries.firstOrNull()?.reason
+
+    /** The reasons of the automatic switch when a field starts (`onStartInputInternal`), no choice of the user. */
+    val FIELD_START: Set<Reason> = setOf(Reason.APP_HINT, Reason.HINT_ENDED, Reason.PER_APP)
+
     @JvmStatic @Synchronized fun clear() {
         entries.clear()
         expected = null

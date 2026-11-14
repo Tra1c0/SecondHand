@@ -40,7 +40,8 @@
     <string name="agent_unified_undo">↶ Rückgängig</string>
     <string name="agent_unified_undo_description">Rückgängig: %1$s</string>
     <string name="agent_unified_undone">Rückgängig gemacht</string>
-    <string name="agent_unified_failed">Nicht alles ließ sich ändern</string>
+    <string name="agent_unified_failed">Nicht alles ließ sich zurücknehmen</string>
+    <string name="agent_unified_failed_nothing">Nichts geändert: „%1$s“ ließ sich nicht ändern</string>
     <string name="agent_unified_nothing_set">Noch nichts festgelegt</string>
     <string name="agent_unified_no_groups">Noch keine Gruppen</string>
     <string name="agent_unified_entry_description">%1$s ändern</string>

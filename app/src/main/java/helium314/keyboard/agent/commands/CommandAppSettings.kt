@@ -103,14 +103,20 @@ object CommandAppSettings {
      * restarts the same field (e.g. after sending in a messenger, `onStartInput` with restarting): the
      * switch is kept for this field like a language command's ([SubtypeChoice.remember]); a new field of
      * the app starts in the app's language again. Not when the switch went to that language itself.
+     * Second review: not the automatic switch of a field start either (hint locales, the app's own
+     * language; [helium314.keyboard.agent.SubtypeSwitchLog.FIELD_START]), only a choice of the user;
+     * called from the engine, so nothing in here may throw.
      */
     @JvmStatic fun onSwitchedInField(context: Context, editorInfo: android.view.inputmethod.EditorInfo?,
                                      subtype: android.view.inputmethod.InputMethodSubtype) {
-        val packageName = editorInfo?.packageName?.takeIf { it.isNotEmpty() } ?: return
-        if (context.prefs().getBoolean(Settings.PREF_SAVE_SUBTYPE_PER_APP, helium314.keyboard.latin.settings.Defaults.PREF_SAVE_SUBTYPE_PER_APP)) return
-        val stored = language(context, packageName) ?: language(context, ALL) ?: return
-        if (resolve(stored)?.rawSubtype == subtype) return
-        SubtypeChoice.remember(editorInfo, subtype)
+        runCatching {
+            val packageName = editorInfo?.packageName?.takeIf { it.isNotEmpty() } ?: return
+            if (helium314.keyboard.agent.SubtypeSwitchLog.lastReason() in helium314.keyboard.agent.SubtypeSwitchLog.FIELD_START) return
+            if (context.prefs().getBoolean(Settings.PREF_SAVE_SUBTYPE_PER_APP, helium314.keyboard.latin.settings.Defaults.PREF_SAVE_SUBTYPE_PER_APP)) return
+            val stored = language(context, packageName) ?: language(context, ALL) ?: return
+            if (resolve(stored)?.rawSubtype == subtype) return
+            SubtypeChoice.remember(editorInfo, subtype)
+        }
     }
 
     /** The enabled subtype a stored one stands for: the same, else one of its language (as HeliBoard does). */
@@ -160,9 +166,9 @@ object CommandAppSettings {
         if (packages != null && name !in current && current.size >= MAX_GROUPS) return false
         return runCatching { store(context).edit(commit = true) {
             if (packages == null) remove(GROUP + name) else putString(GROUP + name, packages.distinct().joinToString(","))
-        } }.isSuccess
+        } }.isSuccess.also { CommandSystem.dropReadings() } // a group name is a word of the commands
     }
 
     /** Tests only: everything gone. */
-    internal fun clearForTest(context: Context) { store(context).edit(commit = true) { clear() } }
+    internal fun clearForTest(context: Context) { store(context).edit(commit = true) { clear() }; CommandSystem.dropReadings() }
 }

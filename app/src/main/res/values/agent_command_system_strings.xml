@@ -43,7 +43,8 @@
     <string name="agent_unified_undo">↶ Undo</string>
     <string name="agent_unified_undo_description">Undo: %1$s</string>
     <string name="agent_unified_undone">Undone</string>
-    <string name="agent_unified_failed">Not everything could be changed</string>
+    <string name="agent_unified_failed">Not everything could be undone</string>
+    <string name="agent_unified_failed_nothing">Nothing changed: “%1$s” could not be changed</string>
     <string name="agent_unified_nothing_set">Nothing set yet</string>
     <string name="agent_unified_no_groups">No groups yet</string>
     <string name="agent_unified_entry_description">Change %1$s</string>

@@ -2138,6 +2138,16 @@ class InputLogicTest {
         latinIME.mHandler.onStartInput(field(5), true)
         handleMessages()
         assertEquals(spanish, current())
+        // second review (P219): the automatic switch of the field start (here the field's hint) is no
+        // choice of the user; when the same field restarts without the hint, the app's language applies
+        val hinted = field(6).apply { hintLocales = android.os.LocaleList(Locale.GERMANY) }
+        ShadowInputMethodService.currentFieldId = 6
+        latinIME.mHandler.onStartInput(hinted, false)
+        handleMessages()
+        assertEquals(german, current())
+        latinIME.mHandler.onStartInput(field(6), true)
+        handleMessages()
+        assertEquals(spanish, current())
     }
 
     // ---- fork, stage 51: the autocorrection follows the language, words of other languages ----

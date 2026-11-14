@@ -5140,6 +5140,61 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   Apps, Umstellung alter IDs auf einem Telefon).
 - Upstream: keine Datei geändert; `LatinIME`, `InputLogic`, `RichInputConnection`, `PointerTracker`
   unverändert.
+### Nachprüfung 52, zweite Runde (Engine-Prüfung zu eda723b und cb709c9, 2026-11-14)
+
+- Behoben (Arbeitskopie, Lead-Auftrag 2026-11-14):
+  - 1 (mittel): `ApplyOutcome.UNKNOWN` beim Entfernen galt wie abgelehnt (Rücknahme ohne
+    Rückgängig, obwohl der Text sehr wahrscheinlich weg war). Neu `Host.replaceOutcome` (Standard
+    aus `replace`, der echte Host gibt die Antwort von `replaceCommandText` weiter); `execute` nimmt
+    nur bei `REJECTED` zurück, bei `UNKNOWN` bleiben die Wirkungen, `after` läuft, Rückgängig kommt
+    (P221). `RichInputConnection` unverändert.
+  - 2 (gering): Rücknahme vor dem Entfernen schaltete die Sprache über `switchToSubtypeByCommand`
+    zurück (merkte sie als Feldwahl). `Done.afterRan`; zurückgeschaltet wird nur, wenn `after` lief.
+  - 3 (gering): Neuer Hinweis „Nichts geändert: „…“ ließ sich nicht ändern“
+    (`agent_unified_failed_nothing`, DE und EN, mit dem Schritt); `agent_unified_failed` nur noch für
+    ein gescheitertes Rückgängig („Nicht alles ließ sich zurücknehmen“).
+  - 4 (gering bis mittel): `@guard google maps off`, `@lang microsoft teams german` (Apps nicht
+    geladen oder nicht installiert) gingen mit Enter an die App. Ein genaues Aktionswort oder ein
+    genauer Sprachname macht jetzt immer einen Befehl (`Step.exact`, P220). Angepasst, nicht
+    abgeschwächt: `@lang foo bar german` war in zwei Tests als Text erwartet und ist jetzt ein
+    Befehl (genau dieser Befund); die Text-Fälle prüfen dort jetzt `@lang foo bar xyz`.
+  - 5 (gering): `@deutsch @guard banking off` setzte ohne Trenner keine Kette fort. Ein
+    beanspruchtes Sprachwort zählt wie `@lang deutsch` (`Step.claimed`).
+  - 6 (gering): `@clip on dann @lang …` / `@clip off then …` war seit der ersten Runde eine Suche.
+    Steht vor den Trennern genau ein genaues `@clip`-Aktionswort, enden sie die Suche
+    (`isClipAction`); `@clip pizza dann pasta` bleibt ganz.
+  - 7 (gering): P219 merkte auch den automatischen Wechsel beim Feldstart. `onSwitchedInField`
+    überspringt die Gründe `SubtypeSwitchLog.FIELD_START` (`lastReason`), ohne Änderung an
+    `LatinIME`. Hinweis in `docs/ANLEITUNG.md`: In WhatsApp teilen sich alle Chats ein Feld.
+  - 8 (gering): Eine Ausnahme mitten in `languageEffect`, `guardEffect`, `memoryEffect` umging die
+    eigene Rücknahme; jetzt `try`, `restore`, Ergebnis null.
+  - 9 (gering): Ein leeres Bereichswort am Ende einer Kette fiel weg (`…; @guard ` führte den ersten
+    Teil aus und löschte „@guard “ mit). Jetzt ein Schritt mit `Step.bare`, in der Kette
+    unvollständig (graue Vorschau, Enter „In diesem Befehl fehlt noch etwas“).
+  - 10 (gering): Mehrfaches Parsen je Tastendruck: `CommandSystem.readings` hält die letzten vier
+    Texte (P230, `dropReadings`); `protects`, `continuesChain`, `guardsTextBefore` in `runCatching`
+    (Fehler = geschützt bzw. keine Kette). `InputLogic` unverändert.
+  - 11 (gering): `CommandAppSettings.onSwitchedInField` ganz in `runCatching`.
+- Neue Tests: `CT/CommandGrammarTest` (+4: genaues Wort bei zwei unbekannten, beanspruchtes
+  Sprachwort, `@clip`-Schalter vor Trennwort, leeres Bereichswort in der Kette),
+  `AT/commands/CommandSystemTest` (+8: `UNKNOWN` mit Rückgängig, kein Zurückschalten vor dem
+  Entfernen, Enter bei zwei unbekannten Wörtern, `@deutsch @guard …`, `@clip on dann …`, leeres
+  `@guard ` am Ende, Zwischenspeicher folgt Gruppen und Befehlen, Feldstart-Wechsel nicht gemerkt),
+  `InputLogicTest.unifiedCommandLanguageKeySwitchInTheAppSurvivesARestartOfTheField` (erweitert:
+  Hint-Wechsel beim Feldstart, Neustart ohne Hint → Sprache der App). Befund 8 ohne eigenen Test
+  (keine Stelle, an der sich eine Ausnahme beim Schreiben einschleusen lässt).
+- Gegenprobe: nicht einzeln gemacht.
+- Gelaufen (2026-11-14, `--max-workers=1 -Xmx1536m`): `:agent-core:test` (562 Tests, 1 Fehler: `RgbOwnPatternTest.ownPatternsStayWithinTheBudget`, eine
+  Zeitgrenze unter Last mit parallelen Agenten; allein wiederholt 21 Tests, 0 Fehler);
+  `:app:testDebugUnitTest` mit `*CommandSystemTest`, `*KeyboardCommandsTest`, `*SubtypeChoiceTest`,
+  `*LanguageCommandTest`, `*ClipCommandTest`, `*SnipCommandTest`, `*InputLogicTest`,
+  `*MoreCommandsTest`: 360 Tests, 1 Fehler = geerbt (`insertLetterIntoWordHangulFails`); dazu
+  `agent.commands.*`, `agent.*Command*`, `FormatGuardChipsTest`, `*SuggestTest`: 268 Tests, 0 Fehler.
+  `docs_sync --check` grün. Nicht gelaufen: `tools/dev.py agent-tests`, volle Suite, Lint, Build,
+  Gerätetest (wie Etappe 52, dazu: Sprachtaste in WhatsApp über mehrere Chats, `@guard google maps
+  off` direkt nach dem Start der Tastatur, Rückgängig nach einer unklaren Ersetzung).
+- Engine-Änderungen: keine. `LatinIME`, `InputLogic`, `RichInputConnection`, `PointerTracker`
+  unverändert; nur Fork-Dateien und Tests.
 
 ## Gerätetest vor Meilensteinfreigabe
 
