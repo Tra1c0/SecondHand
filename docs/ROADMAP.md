@@ -301,9 +301,11 @@ Reihenfolge von oben nach unten.
   entscheidet): direkt die Releases dieses Repositorys lesen (öffentlich, kein Secret nötig, dann
   auch Test-Builds; Kanal „nur geprüfte“ / „auch Test-Builds“ wählbar). (M)
   Owner (2026-11-14): Der Chip in der Tastatur steht IMMER da, solange ein neuerer Build bekannt
-  ist (nicht nur einmal), dazu der Dialog in der App wie oben. Annahme des Leads (Owner hat A/B
-  nicht ausdrücklich gewählt): Variante B, also die Releases dieses öffentlichen Repositorys lesen,
-  Kanal wählbar (Standard „auch Test-Builds“, weil der Owner jeden Test-Build installiert). Der Chip
+  ist (nicht nur einmal), dazu der Dialog in der App wie oben. Owner (2026-11-14): Variante A —
+  „Ich will, dass die Builds kontrolliert released werden.“ Quelle bleibt das Release-Repository
+  `Tra1c0/AgenticKeyboard` (Secret `RELEASES_TOKEN`, Einrichtung in BUILD.md, macht der Owner).
+  Dazu: Der Workflow veröffentlicht dort nur Builds von `main` (geprüft); Test-Builds vom
+  Arbeitsbranch bleiben Vorab-Releases in diesem Repository und erscheinen nicht als Update. Der Chip
   verrät nur „Build N verfügbar“; ein Tipp öffnet die Updates-Seite. Neue Builds erkennt die App nur
   über die Prüfung (Schalter „täglich automatisch“ oder „Jetzt prüfen“).
 - **Graue Auswahlkarten (Owner, 2026-11-14: „Ja“):** Die grauen Mockup-Karten (AUS, NICHTS,
