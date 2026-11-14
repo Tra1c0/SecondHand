@@ -91,7 +91,9 @@ object FormatGuardChips {
     fun stripChips(host: KeyboardCommands.Host, settings: SettingsValues? = Settings.getValues()): List<KeyboardCommands.Chip> {
         val kind = fieldKind(host.editorInfo) ?: return emptyList()
         val context = host.context
-        if (isBlocked(settings, host.editorInfo) || !isEnabled(context)) return emptyList()
+        // stage 52: an app's own on/off (`@guard banking off`) comes before the switch
+        if (isBlocked(settings, host.editorInfo) ||
+            !helium314.keyboard.agent.commands.CommandAppSettings.guardAllows(context, host.editorInfo?.packageName)) return emptyList()
         val before = host.textBeforeCursor(LOOKBACK)?.toString() ?: return emptyList()
         if (before.isEmpty() || before.length > FormatGuard.MAX_LENGTH) return emptyList()
         val locale = EditorInfoCompatUtils.getHintLocales(host.editorInfo).firstOrNull()

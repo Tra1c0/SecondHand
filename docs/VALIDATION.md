@@ -4740,6 +4740,71 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Engine-Änderungen (erneutes Prüfer-Review Pflicht): `Suggest.kt` (`addForeignWord`, N5),
   `LatinIME.java` (`onTrimMemory`, eine Zeile). `InputLogic`, `RichInputConnection`,
   `PointerTracker`, `DictionaryFacilitatorImpl` unverändert.
+## Etappe 52 (Einheitliches Befehlssystem)
+
+- Auftrag: `docs/ROADMAP.md` → 52 (mit dem Owner festgelegt, 2026-11-14): Aufbau
+  `@bereich [aktion] [angaben …]` ohne `&`/`&&`, typisierte Plätze mit Toleranz in beliebiger
+  Reihenfolge, Mehrdeutiges als zwei Chips, `app:`, Englisch zuerst und Deutsch, Bereiche `@lang`,
+  `@snip`, `@clip`, `@guard`, `@mem`, `@group`, Gruppen `all`/`apps` und eigene, Ketten mit `;`,
+  `then`/`dann`, `→`, Vorschau in Klartext, Tipp führt aus, Enter nur bei genau einer harmlosen
+  Deutung, Löschen und `all` nur per Tipp, „Rückgängig“, `@?` und `@lang ?`, Vorschläge je Platz,
+  App-Sprache auch mit „Sprache pro App“ aus, Farben wie im Code-Editor, alte Befehle unverändert.
+- Gebaut: `C/CommandGrammar.kt` (Wörter → Deutungen mit Rollen), `CommandSyntax` mit zweiten Namen
+  und `@?`, Ketten in `KeyboardCommands.Active.parse`, `A/commands/CommandSystem.kt` (Vorschau,
+  Farben, Ausführen, Rückgängig, Enter, Hilfe, Vorschläge), `A/commands/CommandAppSettings.kt`
+  (Sprache und Formatwächter je App, Gruppen), `A/commands/InstalledApps.kt`,
+  `A/commands/AreaCommands.kt` (`@guard`, `@mem`, `@group`); `LanguageCommand`, `SnipCommand`,
+  `ClipCommand` fragen zuerst das neue System und behalten ihre alten Chips. Toleranz: dieselben
+  Regeln wie die Sprachwörter (`LanguageNames.isTypo`, `allowedEdits`), für App- und Gruppennamen
+  über `NameMatch`.
+- Farben im Textfeld (Teil 2 des Auftrags): nicht gebaut. Grund (P202): Der Befehl müsste über
+  Leerzeichen hinweg Kompositionstext bleiben; `InputLogic` schließt das Wort an jedem Leerzeichen
+  und Trenner ab (Autokorrektur, Autoleerzeichen), `RichInputConnection` führt Komposition und
+  Schreibmarke selbst, und ein fremder Kompositionsbereich setzt den Composer zurück. Das ist kein
+  enger Eingriff. Farben gibt es in der Vorschau der Leiste (Pflichtteil). Notiz in ROADMAP 52.
+- Annahmen des Leads: ROADMAP 52.
+- Neue Tests:
+  - `CT/CommandGrammarTest.kt` (11): Beispiele des Owners, Toleranz und beliebige Reihenfolge
+    (angefangen, Tippfehler, Wort eines längeren Namens, Namen aus zwei Wörtern), Mehrdeutigkeit
+    (zwei Apps, genau vor angefangen, Sprache vor App-Anfang, `app:`), Ketten mit `;`, ` ;`, `then`,
+    `dann`, `→`, `->`, neues `@` ohne Trenner, leerer Schritt, deutsche Bereiche und Aktionen,
+    Gruppen (Ziel, setzen, neu, Tippfehler, löschen, `all` kein Mitglied), alte Formen bleiben alt
+    (`@lang spanisch`, `@lang`, `@lang xyz`, `@deutsch`, `@snip adr`, `@snip einladung Name: …`,
+    `@clip termin`, `@clip on the way`, Baustein namens „Neu“), Bausteine anlegen und löschen,
+    Rollen jedes Worts, Tokenizer, `NameMatch`.
+  - `CommandSyntaxTest` (+2): zweite Namen (ganz, mit Umlauten, `@sp` bleibt frei, abgeschaltet,
+    `isCommandWord`, bloßes `@` ohne zweite Namen), `@?`.
+  - `AT/commands/CommandSystemTest.kt` (11): Kette als ein Befehl mit farbiger Klartext-Vorschau
+    (Spans je Rolle, sechs verschiedene Farben je Palette), Unbekanntes rot und nicht ausführbar;
+    ein Tipp führt die Kette genau einmal aus, „Rückgängig“ nur an der Schreibmarke, einmal,
+    Ablauf nach 8 s mit Neuaufbau, geänderter Text verhindert alles; Enter-Regeln (harmlos läuft;
+    löschen, `all`, zwei Deutungen, Gedächtnis an, Formatwächter für alle, Zwischenablage, zeigen,
+    `?`, Unbekanntes nur Hinweis; Geste läuft noch; `@deutsch` schaltet; `@lang`, `@snip`, `@clip`
+    lassen Enter in Ruhe); Sprache je App (Schalter aus, HeliBoards Eintrag zuerst und vom Befehl
+    entfernt, App des Felds schaltet sofort, `all` mit Rückgängig, zeigen, auflisten, löschen,
+    abgeschaltete Sprache); Formatwächter und Gedächtnis je App; Gruppen; Bausteine anlegen,
+    ersetzen, löschen mit Rückgängig, Enter; Zwischenablage-Schalter; `@?`, `@lang ?`, Vorschläge;
+    alte Formen; Passwortfeld, Inkognito, abgeschalteter Bereich.
+  - `InputLogicTest` „stage 52“ (3, echter Host und Engine): Vorschau-Farben in der echten Leiste,
+    ein Tipp löscht die ganze Kette in einem Commit und führt einmal aus, zweiter Tipp nichts,
+    „Rückgängig“ in der Leiste; Enter (Soft- und Hardware-Enter) führt `@lang example spanish` aus
+    und lässt `@lang example del` stehen, Passwortfeld ohne Befehl; mit „Sprache pro App“ aus
+    startet ein Feld der App in ihrer Befehlssprache, eine andere App kehrt zurück. Gegenprobe: mit
+    dem alten `mSettings.getSubtypeForApp` in `onStartInputInternal` ist der letzte Test rot
+    (`expected:<…@30a6e00e> but was:<…@c9194f98>`), mit der Änderung grün.
+  - Angepasst, nicht abgeschwächt: `SettingsBarAreaTest` erwartet jetzt 23 Befehle (die 20 des
+    Mockups in ihrer Reihenfolge und dahinter `guard`, `mem`, `group`), weiter als genaue Liste.
+- Gelaufen (2026-11-14, `--max-workers=1 -Xmx1536m`): `:agent-core:test` (510 Tests, 0 Fehler);
+  `:app:testDebugUnitTest` gezielt mit `agent.*Command*`, `agent.commands.*`,
+  `SettingsBarAreaTest`, `FormatGuardChipsTest`, `FieldSuggestionChipsTest`, `MemoryScreenTest`,
+  `DiagnoseScreenTest`, `SmartPasteChipsTest`, `InputLogicTest` und `SuggestTest`: 560 Tests, 1 Fehler (geerbt: `InputLogicTest.insertLetterIntoWordHangulFails`).
+  `docs_sync --check` grün. Nicht gelaufen: `tools/dev.py agent-tests`, volle Suite, Lint, Build
+  (Speicher, parallele Agenten), Gerätetest (App-Namen echter Apps, Sprache beim Feldstart echter
+  Apps, Farben auf hellem und dunklem Design, Enter in Messengern, Hardware-Enter).
+- Engine- und Upstream-Änderungen (Prüfer Pflicht): `LatinIME.java` (`onStartInputInternal`: die
+  Sprache der App an beiden Stellen über `CommandAppSettings.subtypeForApp`). `InputLogic`,
+  `RichInputConnection`, `PointerTracker`, `Settings.java` unverändert. Sonst nur Fork-Dateien
+  (`KeyboardCommands`, `FormatGuardChips`: Eintrag der App vor dem Schalter).
 
 ## Gerätetest vor Meilensteinfreigabe
 

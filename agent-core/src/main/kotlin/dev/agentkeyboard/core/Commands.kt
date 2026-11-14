@@ -15,6 +15,11 @@ package dev.agentkeyboard.core
  * letters (`@español`) and takes no argument. Order: exact name, started name, name with a typo,
  * claim. A typo or a claim inside the argument of an earlier command typed by its exact name on
  * the same line never takes over from it (`@ki frag @matt`).
+ *
+ * Stage 52, both opt-in: [aliases] are second names of a command (`@sprache` for `@lang`, also with
+ * umlauts: `@wächter`); an alias counts like the name, takes an argument and is compared after
+ * [LanguageNames.normalize] (`waechter` and `wachter` alike), never started (`@sp` stays Spanish).
+ * With [help] the prefix followed by `?` (`@?`) lists [help] as [CommandNames] with the name "?".
  */
 object CommandSyntax {
     /**
@@ -41,8 +46,17 @@ object CommandSyntax {
      */
     fun parse(before: CharSequence, prefix: Char, names: Collection<String>,
               longArguments: Collection<String> = emptySet(), fuzzyNames: Boolean = false,
-              claim: ((String) -> String?)? = null): CommandContext? {
+              claim: ((String) -> String?)? = null, aliases: Map<String, String> = emptyMap(),
+              help: List<String>? = null): CommandContext? {
         if (!isAllowedPrefix(prefix) || names.isEmpty()) return null
+        val aliasNames = aliasKeys(aliases, names)
+        // stage 52: "@?" lists the areas of the unified commands
+        if (help != null && help.isNotEmpty() && before.length >= 2 && before[before.length - 1] == '?' &&
+            before[before.length - 2] == prefix) {
+            val at = before.length - 2
+            val boundary = if (at == 0) before.length <= LOOKBACK else before[at - 1].isWhitespace() || before[at - 1] in OPENERS
+            if (boundary) return CommandNames(at, before.substring(at), prefix, HELP, help)
+        }
         // a window cut by the caller does not tell what precedes its first character
         val fieldStartsInWindow = before.length <= LOOKBACK
         var index = before.length - 1
@@ -54,7 +68,7 @@ object CommandSyntax {
             if (before[index] == '\n') return weak // commands never span lines
             if (before[index] == prefix) {
                 val atBoundary = if (index == 0) fieldStartsInWindow else before[index - 1].isWhitespace() || before[index - 1] in OPENERS
-                val found = if (atBoundary) parseAt(before, index, prefix, names, longArguments, fuzzyNames, claim) else null
+                val found = if (atBoundary) parseAt(before, index, prefix, names, longArguments, fuzzyNames, claim, aliasNames) else null
                 when {
                     found == null -> {}
                     found.isWeak() -> if (weak == null) weak = found
@@ -69,17 +83,37 @@ object CommandSyntax {
 
     private fun CommandContext.isWeak() = (this is CommandNames && fuzzy) || (this is CommandCall && claimed != null)
 
+    /** The word "?" of the [CommandNames] that `@?` lists (stage 52). */
+    const val HELP = "?"
+
+    /** Normalized alias (also with ae/oe/ue for umlauts) to the enabled command name it stands for. */
+    private fun aliasKeys(aliases: Map<String, String>, names: Collection<String>): Map<String, String> {
+        if (aliases.isEmpty()) return emptyMap()
+        val out = HashMap<String, String>()
+        for ((alias, name) in aliases) {
+            if (name !in names) continue
+            val lower = alias.lowercase()
+            for (form in listOf(lower, lower.replace("ä", "ae").replace("ö", "oe").replace("ü", "ue")))
+                LanguageNames.normalize(form).takeIf { it.length >= 2 && it !in names }?.let { out[it] = name }
+        }
+        return out
+    }
+
     private fun parseAt(before: CharSequence, start: Int, prefix: Char, names: Collection<String>,
                         longArguments: Collection<String>, fuzzyNames: Boolean,
-                        claim: ((String) -> String?)?): CommandContext? {
+                        claim: ((String) -> String?)?, aliases: Map<String, String>): CommandContext? {
         var end = start + 1
         while (end < before.length && end - start - 1 < MAX_NAME && before[end].isAsciiLetter()) end++
-        // only a claim can take a word with other letters (`@español`)
-        if (claim != null) while (end < before.length && end - start - 1 < MAX_NAME && before[end].isLetter()) end++
+        // only a claim or an alias can take a word with other letters (`@español`, `@wächter`)
+        if (claim != null || aliases.isNotEmpty())
+            while (end < before.length && end - start - 1 < MAX_NAME && before[end].isLetter()) end++
         val typed = before.substring(start + 1, end).lowercase()
         val text = before.substring(start)
+        // stage 52: a second name counts like the name itself (only whole, never started)
+        val alias = if (aliases.isEmpty() || typed in names) null else aliases[LanguageNames.normalize(typed)]
         if (end == before.length) {
             if (typed in names) return CommandCall(start, text, prefix, typed, "")
+            if (alias != null) return CommandCall(start, text, prefix, alias, "", alias = typed)
             val candidates = names.filter { it.startsWith(typed) }.sorted()
             if (candidates.isNotEmpty()) return CommandNames(start, text, prefix, typed, candidates)
             val close = if (fuzzyNames) closeNames(typed, names) else emptyList()
@@ -87,6 +121,12 @@ object CommandSyntax {
             return claimed(typed, names, claim)?.let { CommandCall(start, text, prefix, it, "", claimed = typed) }
         }
         if (before[end] != ' ') return null
+        if (alias != null) {
+            val argument = before.substring(end + 1)
+            val limit = if (alias in longArguments) MAX_LONG_ARGUMENT else MAX_ARGUMENT
+            if (argument.length > limit || argument.any { it == '\n' || it == '\r' }) return null
+            return CommandCall(start, text, prefix, alias, argument, alias = typed)
+        }
         val name = if (typed in names) typed else {
             // a typo of a command name is never claimed by another command
             if (fuzzyNames && closeNames(typed, names).isNotEmpty()) return null
@@ -118,10 +158,13 @@ object CommandSyntax {
 
     /** True for a word that is a command name with its prefix, e.g. `@math`; used to keep it from learning and correction. */
     fun isCommandWord(word: CharSequence, prefix: Char, names: Collection<String>,
-                      claim: ((String) -> String?)? = null): Boolean {
+                      claim: ((String) -> String?)? = null, aliases: Map<String, String> = emptyMap()): Boolean {
         if (word.length < 2 || word[0] != prefix || !isAllowedPrefix(prefix)) return false
         val name = word.substring(1).lowercase()
         if (name in names) return true
+        // stage 52: a second name of a command (`@sprache`, `@wächter`)
+        if (aliases.isNotEmpty() && name.length <= MAX_NAME && name.all { it.isLetter() } &&
+            LanguageNames.normalize(name) in aliasKeys(aliases, names)) return true
         // stage 24g: a word a command claims (`@sp`) is no word of the user's either
         return name.length <= MAX_NAME && name.all { it.isLetter() } && claimed(name, names, claim) != null
     }
@@ -153,6 +196,8 @@ data class CommandNames(
 /**
  * A complete name, maybe with an argument (empty when none was typed). [claimed] is the typed word
  * when the command [name] took a word that is not its name (stage 24g: `@sp` for `lang`), else null.
+ * [alias] is the typed second name (stage 52: `sprache` for `lang`), else null; unlike a claimed
+ * word it takes an argument.
  */
 data class CommandCall(
     override val start: Int,
@@ -161,4 +206,5 @@ data class CommandCall(
     val name: String,
     val argument: String,
     val claimed: String? = null,
+    val alias: String? = null,
 ) : CommandContext

@@ -171,4 +171,40 @@ class CommandSyntaxTest {
         assertFalse(CommandSyntax.isCommandWord("@lewin", '@', all, claim))
         assertFalse(CommandSyntax.isCommandWord("@sp", '@', listOf("math"), claim))
     }
+
+    // ---- stage 52: second names and "@?" ----
+
+    private val areaNames = listOf("math", "lang", "guard", "group", "snip")
+    private val aliases = mapOf("sprache" to "lang", "wächter" to "guard", "gruppe" to "group", "baustein" to "snip")
+    private fun withAliases(text: String, claim: ((String) -> String?)? = null) =
+        CommandSyntax.parse(text, '@', areaNames, fuzzyNames = true, claim = claim, aliases = aliases, help = listOf("lang", "guard", "group"))
+
+    @Test fun aSecondNameCountsLikeTheNameAndTakesAnArgument() {
+        assertEquals(CommandCall(0, "@sprache", '@', "lang", "", alias = "sprache"), withAliases("@sprache"))
+        assertEquals(CommandCall(3, "@Sprache whatsapp deutsch", '@', "lang", "whatsapp deutsch", alias = "sprache"),
+            withAliases("Hi @Sprache whatsapp deutsch"))
+        // umlauts as typed, as ae/oe/ue or without
+        for (typed in listOf("wächter", "waechter", "wachter", "Wächter"))
+            assertEquals("guard", (withAliases("@$typed signal aus") as CommandCall).name, typed)
+        // only whole: a started second name is no command, so "@sp" stays free for a language
+        assertNull(withAliases("@spr"))
+        assertEquals("sp", (withAliases("@sp", claim = { if (it == "sp") "lang" else null }) as CommandCall).claimed)
+        assertNull(withAliases("@gruppenchat")) // a longer word is no second name
+        // a name wins over a second name, and an alias of a switched-off command is none
+        assertNull(CommandSyntax.parse("@wächter", '@', listOf("math"), aliases = aliases))
+        assertTrue(CommandSyntax.isCommandWord("@Wächter", '@', areaNames, aliases = aliases))
+        assertTrue(CommandSyntax.isCommandWord("@gruppe", '@', areaNames, aliases = aliases))
+        assertFalse(CommandSyntax.isCommandWord("@gruppen", '@', areaNames, aliases = aliases))
+        assertFalse(CommandSyntax.isCommandWord("@wächter", '@', areaNames))
+        // the bare prefix lists names, not second names
+        assertEquals(areaNames.sorted(), (withAliases("@") as CommandNames).candidates)
+    }
+
+    @Test fun helpListsTheAreas() {
+        assertEquals(CommandNames(0, "@?", '@', CommandSyntax.HELP, listOf("lang", "guard", "group")), withAliases("@?"))
+        assertEquals(CommandNames(4, "@?", '@', CommandSyntax.HELP, listOf("lang", "guard", "group")), withAliases("so (@?"))
+        assertNull(withAliases("a@?")) // not inside a word
+        assertNull(CommandSyntax.parse("@?", '@', areaNames)) // only when asked for
+        assertNull(withAliases("@? "))
+    }
 }

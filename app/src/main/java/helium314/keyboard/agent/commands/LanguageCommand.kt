@@ -23,9 +23,16 @@ import helium314.keyboard.settings.SettingsDestination
  * claims such words as its own ([claims]); command names always win ([dev.agentkeyboard.core.CommandSyntax]).
  * A chip per enabled subtype of the named language; its tap removes the typed command in one commit
  * and only then switches the keyboard ([KeyboardCommands.Host.switchSubtype]), like the language key.
+ *
+ * Stage 52: `@lang` is an area of the unified command system ([CommandSystem]): `@lang whatsapp
+ * german`, `@lang apps`, `@lang whatsapp del`, chains; also as `@sprache`. The old forms (`@lang`,
+ * `@lang spanisch`, `@deutsch`) keep these chips; Enter runs a language word with exactly one chip.
  */
 object LanguageCommand : KeyboardCommands.Command {
     override val name = "lang"
+    override val aliases: List<String> get() = CommandSystem.ALIASES[name].orEmpty()
+    /** Stage 52: app and language words are not corrected. */
+    override val protectsArgument = true
 
     /** The real source of [subtypes]; tests put it back with this. */
     internal val defaultSubtypes: () -> List<InputMethodSubtype> = {
@@ -53,8 +60,10 @@ object LanguageCommand : KeyboardCommands.Command {
     }
 
     override fun load(context: Context) {
+        InstalledApps.refresh(context) // stage 52: app names for "@lang whatsapp german"
         val locales = subtypes().map { it.locale() }.filter { it.language != SubtypeLocaleUtils.NO_LANGUAGE }
-        val names = KeyboardCommands.registry.map { it.name }
+        // stage 52: the second names of the commands (`@sprache`, `@gruppe`) are reserved as well
+        val names = KeyboardCommands.registry.map { it.name } + KeyboardCommands.registry.flatMap { it.aliases }
         // ICU names and the closeness of every alias to every command name cost time on the main
         // thread: build again only when the enabled languages or the commands changed
         val key = locales.map { it.toLanguageTag() } to names
@@ -72,8 +81,28 @@ object LanguageCommand : KeyboardCommands.Command {
 
     override fun claims(word: String): Boolean = matcher?.match(word)?.isNotEmpty() == true
 
+    /** Stage 52: the enabled languages (ids like "es") [word] names, best first. */
+    internal fun matchLanguages(word: String, exactOnly: Boolean): List<String> = matcher?.match(word, exactOnly).orEmpty()
+
+    /** Stage 52: the enabled subtype for [language]: [current] when it is one of it, else the first in the settings. */
+    internal fun subtypeFor(language: String, current: InputMethodSubtype?): InputMethodSubtype? {
+        val enabled = subtypes().filter { it.locale().language == language }
+        return enabled.firstOrNull { it == current } ?: enabled.firstOrNull()
+    }
+
+    override fun onEnter(host: KeyboardCommands.Host, call: CommandCall): Boolean {
+        CommandSystem.onEnter(host, call)?.let { return it }
+        // stage 52: a language word (`@deutsch`, `@lang spanisch`) with exactly one chip switches like its tap
+        if (call.claimed == null && call.argument.isBlank()) return false
+        val chip = chips(host, call).singleOrNull()?.takeIf { it.kind == KeyboardCommands.Chip.Kind.ACTION } ?: return false
+        if (host.canReplaceNow) chip.onTap()
+        return true
+    }
+
     override fun chips(host: KeyboardCommands.Host, call: CommandCall): List<KeyboardCommands.Chip> {
         if (KeyboardCommands.isBlocked(Settings.getValues(), host.editorInfo)) return emptyList()
+        // stage 52: apps, groups, actions and chains belong to the unified command system
+        CommandSystem.chips(host, call)?.let { return it }
         // the language words take no argument: "@sp hola" is text again (the parser no longer offers it)
         if (call.claimed != null && call.argument.isNotBlank()) return emptyList()
         val enabled = subtypes()
@@ -125,7 +154,7 @@ object LanguageCommand : KeyboardCommands.Command {
         return context.getString(R.string.agent_command_lang_chip_layout, language, code, layout)
     }
 
-    private fun nativeName(language: String): String {
+    internal fun nativeName(language: String): String {
         val locale = java.util.Locale.forLanguageTag(language)
         return locale.getDisplayLanguage(locale).replaceFirstChar { it.titlecase(locale) }
     }
