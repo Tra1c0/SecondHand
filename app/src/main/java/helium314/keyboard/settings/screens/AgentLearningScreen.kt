@@ -125,6 +125,8 @@ fun AgentLearningScreen(onClickBack: () -> Unit, sourceFactory: (() -> LearningS
                     RejectedCorrections.clear(context)
                     TouchModel.clear(context)
                     helium314.keyboard.agent.SymbolDrawing.clearPersonalSymbols(context)
+                    // stage 45: the weights of the context suggestions (numbers only)
+                    helium314.keyboard.agent.ContextLearning.clear(context)
                 }
                 counts = emptyMap()
                 symbolDrawings = 0

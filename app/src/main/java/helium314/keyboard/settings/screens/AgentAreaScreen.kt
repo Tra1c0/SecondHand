@@ -66,6 +66,8 @@ object SettingsAreas {
             AreaEntry(SettingsDestination.Toolbar, R.string.agent_area_row_bar, R.string.agent_area_row_bar_summary),
             AreaEntry(SettingsDestination.AgentCommands, R.string.agent_commands_title, R.string.agent_area_row_commands),
             AreaEntry(SettingsDestination.AgentScreenshots, R.string.agent_screenshot_title, R.string.agent_area_row_screenshots),
+            // stage 45: field and context suggestions with "Meine Daten"
+            AreaEntry(SettingsDestination.AgentMyData, R.string.agent_my_data_title, R.string.agent_my_data_row_sub),
         )
         // 38g: the pages the AI page opens (AgentAreaAiScreen; also its rows when the device is locked)
         SettingsArea.AI -> listOf(

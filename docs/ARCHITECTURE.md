@@ -193,6 +193,31 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   Geheimnis landet im Verlauf, den der Nutzer eingeschaltet hat, ein falsches verlässt ihn nur
   zwei Minuten früher. Test `CT/clip/ClipGuardTest.kt` (Beispielschlüssel aus Stücken
   zusammengesetzt, damit die Datei keinen schlüsselförmigen String enthält).
+- `C/suggest/ContextSuggest.kt` (Etappe 45, Paket `dev.agentkeyboard.core.suggest`, P161–P163):
+  `SuggestKind` (EMAIL, PHONE, IBAN, ADDRESS, NAME, OTP, LINK), `AppCategory.of(packageName)`
+  (MESSENGER/MAIL/BROWSER/OTHER nach Paket-Präfix), `FieldClass`, `FieldSignals` (Klasse,
+  Hinweistext und Beschriftung, Feldname, Autofill-Kennungen, `toString` ohne Text),
+  `FieldTargets.target` (Reihenfolge: Autofill-Kennung, Code-Hinweis in Text-, Zahl- und
+  Telefonfeldern ohne `NOT_OTP` wie Postleitzahl, Gutschein, Promo; dann Typ E-Mail, Telefon,
+  Personenname, Postadresse; dann Hinweis IBAN, E-Mail (nicht bei Passwort-Wörtern), Telefon,
+  Adresse, genau „Name“; ein Zahlenfeld ohne Hinweis = OTP `weak`, `WEAK_OTP_MILLIS` 3 min,
+  sonst `OTP_MILLIS` 10 min) und `fits` (leeres Feld oder Anfang des Werts, bei Code/Telefon/IBAN
+  nur Ziffern, Buchstaben und `+`). `ContextCues`: Tabelle `CUES` mit fester `id` (look, here,
+  media, phone, email, iban, address, code, name), Gewicht je Art, Abstand (Link-Hinweise bis
+  `LINK_DISTANCE` = 60 Zeichen vor der Schreibmarke, Nähe ab 8 Zeichen abnehmend bis 0,4;
+  Datenhinweise bis `DATA_DISTANCE` = 3) und Phrasen de/en/es; `find` liest höchstens `WINDOW` =
+  80 Zeichen nach dem letzten Zeilenumbruch, nur wenn der Text auf Leerraum oder „:“ endet,
+  Phrasen nur an Wortgrenzen (`-` zählt als Buchstabe, „mail“ ≠ „E-Mail“), ein Datenwort aus einem
+  Wort nur mit Doppelpunkt (+`COLON_BONUS` 0,1), nichts, wenn danach schon steht, was der Hinweis
+  ankündigt; Stärke = bester + ½ zweiter + ¼ dritter Hinweis, höchstens 1. `ContextScorer`:
+  Stärke + Frische (`OWN` 0,45 für Meine Daten; Clip `freshMax` × e^(−Alter/6 min), Link 0,7,
+  Code 0,6, Daten 0,55; über `MAX_AGE_MILLIS` 10 min nie) + App (Messenger +0,15 für Links,
+  Browser −0,1) + Feld (Kurznachricht +0,1 für Links) + gelerntes Gewicht; Chip ab `THRESHOLD`
+  1,0 (ohne Hinweis höchstens 0,95). `ContextWeights` (unveränderlich): Schlüssel nur `id:ART`
+  aus der festen Tabelle, `accept` +0,3 × (0,4 − w), `ignore` −0,12 × (w + 0,4), Grenzen ±0,4,
+  `decayed` Halbwertszeit 30 Tage (Tag als Zahl, eine rückwärts laufende Uhr ändert nichts),
+  `encode` „v1;Tag;id:ART=Zahl;…“, `parse` verwirft alles Unbekannte, nie eine Ausnahme,
+  höchstens 4096 Zeichen. Test `CT/suggest/ContextSuggestTest.kt`.
 - `SnippetTemplate.kt` (Etappe 42): Vorlagensprache von `@snip` (`parse` wirft nie, `literal` für
   Bausteine von vor 42, `expand` mit `Values` = Datum, Uhrzeit, `DateFormatting.Language`,
   Zwischenablage oder null, Felder; `Expansion` mit Cursor-Index in UTF-16), `Issue` (`UNKNOWN`,
@@ -496,6 +521,8 @@ Speicher, Datenschutz und Identität:
   `UpdateCheckJobService` (`BIND_JOB_SERVICE`) und Empfänger `UpdateInstallReceiver`, beide nicht
   exportiert und nicht `directBootAware`. `SettingsNavHost.kt`/`MainSettingsScreen.kt`: Ziel und
   Eintrag „Updates“ (`agent_updates`, auch in `AgentPreferences.SETTINGS_DESTINATIONS`).
+- `SettingsNavHost.kt` (45): Ziel `agent_my_data` (`SettingsDestination.AgentMyData`, Seite
+  „Meine Daten & Vorschläge“, auch in `AgentPreferences.SETTINGS_DESTINATIONS`).
 - App-Identität: `app/build.gradle.kts` (App-ID `dev.personal.agentkeyboard`, Version 0.1.0,
   APK-Name, Lint-Baseline `lint-baseline-upstream.xml`), `settings.gradle`
   (`:agent-core`), `clip_provider.xml` und `gesture_data.xml` (eigene Provider-Authorities,
@@ -741,6 +768,24 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Adresse) in der Liste. Texte in `agent_clipvault_strings.xml` (`values/`, `values-de/`).
   `ClipCommand` (`@clip`) und `SnipCommand.SystemClipboard` (`{zwischenablage}`) behandeln ein
   Geheimnis wie einen vertraulichen Clip. Speicher: `docs/STORAGE.md`. Test `AT/ClipVaultTest.kt`.
+  Etappe 45: Am Ende der letzten Tresor-Reihe öffnet der Chip „Meine Daten“ (`TAG_MY_DATA`, kein
+  Tresor-Eintrag) über `SnipCommand.openSettings` die Seite `agent_my_data`.
+- Meine Daten (Etappe 45, P164): `A/MyData.kt`. `MyData` (Name, Listen E-Mail, Telefon, Adresse,
+  IBAN; `cleaned`: eine Zeile, `MAX_LENGTH` 200, `MAX_ENTRIES` 3, ohne Doppelte; `entries(kind)`;
+  `toString` ohne Werte). `MyDataStore` wie `EncryptedCredentialStore`: AES-256-GCM
+  (`androidSecretCipher`, eigener Keystore-Alias `agent.mydata.v1`, AAD „AgentKeyboard/MyData/v1“),
+  Datei `agent_my_data/data.sealed` in CE `noBackupFilesDir` (`credentialContext`), höchstens
+  16 KiB, `checkAccess` (`credentialAccessAllowed`, sonst `LOCKED` vor jedem Datei- und
+  Schlüsselzugriff), manipulierte Datei = `UNAVAILABLE` ohne Löschen, leere Daten löschen die
+  Datei. `MyDataCache`: gelesen erst, wenn ein Feld oder Hinweis eigene Daten braucht; bei
+  gesperrtem Gerät verworfen, nach Speichern und Löschen verworfen. `ContextLearning` siehe
+  „Lerndaten“. `K/settings/screens/AgentMyDataScreen.kt`: Seite „Meine Daten & Vorschläge“ (Route
+  `agent_my_data`, auch in `SETTINGS_DESTINATIONS`): Schalter (Tastatur-Einstellungen, keine
+  Daten), Karte mit neun Feldern (Name, je zwei E-Mail, Telefon, Adresse, IBAN; IBAN-Hinweis über
+  `IbanCheck`), Speichern, Alles löschen. `MyDataStore` entsteht nur im entsperrten Inhalt
+  (P134/P145), `ON_STOP` verwirft ihn, `SecureWindow` solange die Karte steht, nichts in Saved
+  State. Zeile auf Leiste & Befehle (`SettingsAreas.entries(BAR)`). Tests `AT/MyDataStoreTest.kt`,
+  `AT/MyDataScreenTest.kt`.
 - Tests in `AT/`: `EncryptedCredentialStoreTest`, `AgentStorageContextsTest`,
   `AgentDocumentIOTest`.
 
@@ -1179,6 +1224,32 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     (Karte „Regeln“, eine Zeile). Texte in `agent_format_strings.xml` (`values/`, `values-de/`).
     Tests `AT/FormatGuardChipsTest.kt`, mit echtem Host
     `InputLogicTest.formatGuardChipChangesTheFieldOnlyOnATapAndOnce`.
+  - Feld- und Kontext-Vorschläge (45, P161–P164): `A/FieldSuggestionChips.kt`.
+    `KeyboardCommands.buildChips` fragt ihn ohne Befehl nach dem Formatwächter und vor dem
+    Emoji-Mix. `fieldClass` aus `inputType` (Passwort, URI, Filter, Datum: nie; Zahl mit Komma oder
+    Vorzeichen = `OTHER`), `signals` (Hinweistext und `label`, `fieldName`; `EditorInfo` trägt auf
+    keiner API-Stufe Autofill-Kennungen, P161), `isBlocked` = `FormatGuardChips.isBlocked` (keine
+    Einstellungen, Inkognito, No-Learning-Flag, Passwort, `mIsLocked`) oder `deviceLocked` (Gerät
+    oder Nutzer gesperrt, live; `stripChips` fragt es erst, wenn Feldziel oder Hinweis etwas
+    anbieten könnten, also nicht bei jedem Tastendruck über Binder), Schalter
+    `AgentPreferences.FIELD_SUGGESTIONS` (an). Liest
+    `LOOKBACK` = 81 Zeichen vor der Schreibmarke. Feldmodus (`FieldTargets.target`): nur das ganze
+    Feld (weniger als 81 Zeichen, nichts dahinter), Werte aus `myData` (`MyDataCache`) und
+    `fresh` (`ClipVault.freshest`, nie ein Geheimnis), gefiltert mit `fits`, höchstens 3.
+    Kontextmodus (nur `TEXT`/`SHORT_MESSAGE`): `ContextCues.find`, je Treffer eigene Einträge und
+    der frische Clip der Art, `ContextScorer.score` mit `AppCategory`, Feldklasse und
+    `ContextLearning.weights`, nur ab Schwelle, nicht schon im Text, höchstens 2. Chip-Text
+    `label` (🔗 `shortLink` = Host plus „/…“, ✉️, 📞, 🏦 erste und letzte vier Zeichen, 🏠, 👤, 🔢),
+    Beschreibung „… aus Meine Daten“ bzw. „gerade kopiert“. Tipp genau einmal (`used`): leeres Feld
+    `Host.insertAtCursor` (echter Host: `LatinIME.onTextInput` wie das Einfügen aus der
+    Zwischenablage-Ansicht, nur bei `canReplaceAgentCommand` und unveränderter Schreibmarke, P162),
+    angefangener Feldtext `Host.replace` (Text → Wert), Kontext `Host.replace` der letzten bis zu 24
+    Zeichen durch sich selbst plus Wert (nach „:“ mit Leerzeichen; `replaceCommandText` prüft, dass
+    sie unverändert vor der Schreibmarke stehen). Lernen: `shown` hält die gezeigten Angebote
+    (Hinweis-`id`, Art, App und Feld-ID, nur im Speicher); verschwindet eines ohne Tipp, zählt es
+    einmal als übergangen, ein Tipp als angenommen (`ContextLearning.record`, P163). Texte in
+    `agent_suggest_strings.xml` (`values/`, `values-de/`). Tests `AT/FieldSuggestionChipsTest.kt`,
+    mit echtem Host `InputLogicTest.fieldSuggestionChipInsertsOnlyOnATapAndOnce`.
   - Tests: `CT/UrlDetectorTest.kt`, `CT/SymbolTableTest.kt`, `CT/UnitConversionTest.kt`,
     `CT/EventParserTest.kt`, `CT/DateFormattingTest.kt`, `CT/PlacesTest.kt`, `CT/AlarmParserTest.kt`,
     `CT/TimerParserTest.kt`, `AT/commands/ClockCommandsTest.kt`;
@@ -1336,8 +1407,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `AgentScreenshotScreen` (Aufräumen beim Ausschalten, Berechtigung beim Einschalten);
   Emoji-Mix über `EmojiMixCommand.setStripEnabled`. Karte am Ende: „Alle Befehls-Einstellungen“
   (`AgentCommandsScreen`: Präfix, Textbausteine, Orte, Bildschirm lesen, Emoji-Mix-Speicher),
-  „Screenshots“ (Berechtigung erlaubt/fehlt) und „Weitere Zwischenablage-Einstellungen“
-  (Optionen: angeheftete zuerst, Dateigröße). Berechtigungen liest `rememberPermissions` beim
+  „Screenshots“ (Berechtigung erlaubt/fehlt), „Weitere Zwischenablage-Einstellungen“
+  (Optionen: angeheftete zuerst, Dateigröße) und „Meine Daten & Vorschläge“ (45, `agent_my_data`). Berechtigungen liest `rememberPermissions` beim
   Öffnen und bei `ON_RESUME`. Texte `agent_bar_strings.xml`. Test `AT/SettingsBarAreaTest.kt`
   (Bild `app/build/agent-previews/settings-area_bar.png`, ganze Seite; `SettingsStartScreenTest`
   schreibt für diesen Bereich `settings-area_bar-top.png`).
@@ -1909,6 +1980,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   speichert alle zehn Wörter. Der Wörterbuch-Decoder bekommt weiter die rohen Koordinaten und
   rechnet mit den normalen Tastenpositionen. Oberfläche: Abschnitt „Trefferzonen“ in `AgentLearningScreen.kt`.
   Tests: `TouchModelTest`.
+- Kontext-Lernen (45): `A/ContextLearning.kt` hält `ContextWeights` (nur Hinweis-`id`, Art und
+  Zahl) in `agent_context_weights` (gerätegeschützt, Schlüssel `weights`), im Speicher
+  zwischengespeichert. `record` nur bei `mayLearn` („Personalisierte Vorschläge“ an, keine
+  Lernpause, kein Inkognito, nicht gesperrt), `weights` nur mit eingeschaltetem Schalter (sonst
+  keine). „Gelernte Wörter löschen“ ruft `clear`. Das Ausschalten von „Personalisierte
+  Vorschläge“ löscht sie nicht, sie werden dann nur nicht benutzt.
 
 ## Updates
 
@@ -2826,27 +2903,51 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Abschnittstitel „Letzte“ (Index 0). `FlatClipboardTest` erwartet ohne Tresor den Titel als
   erstes Kind; die Liste wird um die Höhe der Reihen kürzer, höchstens auf ein Drittel. Der
   Tresor lebt im Prozess der Tastatur: Ein Neustart des Prozesses vergisst alles (gewollt).
+- **P161** `EditorInfo` trägt keine Autofill-Kennungen (`autofillHints` gibt es nur in
+  `ViewStructure` für Autofill-Dienste, Inline-Vorschläge kommen vom Autofill-Dienst). Ein Code-Feld
+  erkennt die Tastatur nur an Hinweistext, `label`, `fieldName` und Typ; `FieldSignals.autofillHints`
+  bleibt für Aufrufer mit eigener Quelle. Wörter wie „Postleitzahl“, „Gutschein“, „Promo“ machen
+  aus „Code“ kein Code-Feld (`NOT_OTP`); wer die Wortlisten ändert, prüft
+  `ContextSuggestTest.codeLikeFieldsThatAreNoCodeFields`.
+- **P162** Einfügen in ein leeres Feld nicht über `AndroidEditorAdapter.insert`: dessen Policy lehnt
+  Nicht-Text-Felder ab (`UNSUPPORTED_EDITOR`), Telefon- und Zahlenfelder bekämen so nie ihren Code.
+  Der echte Host nimmt deshalb `LatinIME.onTextInput` (wie die Zwischenablage-Ansicht), nur bei
+  unveränderter Schreibmarke; Text vor der Schreibmarke geht über `replaceCommandText`, das das
+  getippte Wort abschließt, ohne zu korrigieren. `insertGeneratedText` würde außerdem das Lernen
+  für die ganze Sitzung abschalten.
+- **P163** Kontext-Chips nur nach Leerraum oder „:“: Die Chips ersetzen die Wortvorschläge
+  (`tryShowCommandChips` vor den Vorschlägen). Mitten im Wort hätte jeder Hinweis („Video“) die
+  Vorschläge des getippten Worts verdeckt. Als übergangen zählt ein Angebot, wenn ein späterer
+  Aufbau es nicht mehr zeigt; jedes nur einmal, ein Tipp nimmt es aus `shown`. Wird der Aufbau
+  einmal nicht gerufen (ein Befehl steht vor der Schreibmarke), zählt das Angebot beim nächsten
+  Aufbau.
+- **P164** `MyDataStore` öffnet CE-Speicher und Keystore: in den Einstellungen nur im entsperrten
+  Inhalt (P134/P145), in der Tastatur nur über `MyDataCache.get`, das bei gesperrtem Gerät nichts
+  liest und den Zwischenspeicher verwirft; `FieldSuggestionChips` fragt es erst nach allen
+  Sperrprüfungen (`FieldSuggestionChipsTest.neverInPasswordFieldsIncognitoNoLearningOrLocked`
+  zählt die Lesezugriffe). Robolectric hat keinen AndroidKeyStore: Tests geben `AesGcmSecretCipher`
+  mit eigenem Schlüssel.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (489 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (500 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (5): agent-apk, agent-tests, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (72): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (75): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
   AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand, ClipVault,
-  ClipVaultSection, ContactCommand, ConvertCommand, CorrectionMemory, DateCommand, DesignLook,
-  DesignTiles, Diagnose, Dictation, EmojiCommand, EmojiMixPalette, EmojiSuggestions,
-  EncryptedActionRunStore, EventCommand, FlatMenuView, FlatPanelStyle, FlatPreset, FormatGuardChips,
-  HapticChain, JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore,
-  LearningData, LoadingDotsView, ManualWorkflowDraft, ModelSettings, MyDesigns,
-  OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter, RgbLighting, RgbStrip, RgbTexture,
+  ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand, CorrectionMemory, DateCommand,
+  DesignLook, DesignTiles, Diagnose, Dictation, EmojiCommand, EmojiMixPalette, EmojiSuggestions,
+  EncryptedActionRunStore, EventCommand, FieldSuggestionChips, FlatMenuView, FlatPanelStyle,
+  FlatPreset, FormatGuardChips, HapticChain, JournaledModelCall, JournaledRun, KeyboardCommands,
+  KeyboardProfileStore, LearningData, LoadingDotsView, ManualWorkflowDraft, ModelSettings, MyData,
+  MyDesigns, OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter, RgbLighting, RgbStrip, RgbTexture,
   RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore, SkillLabels,
   SliderFeel, SliderHaptics, SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing,
   SymbolInk, ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel, TypoMemory,
@@ -2860,24 +2961,25 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (85): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (88): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, ClipCommandTest, ClipVaultTest, CommandReplaceTest,
   CommandTemplatesTest, ContactCommandTest, CorrectionMemoryTest, DatePlaceCommandsTest,
   DebugPrivacyTest, DesignEditorTest, DesignTilesTest, DiagnoseScreenTest, DictationSessionTest,
   DictationUiTest, EmojiMixPaletteTest, EmojiMixRecentsTest, EncryptedActionRunStoreTest,
-  EncryptedCredentialStoreTest, FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest,
-  FlatStyleTest, ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest,
-  InsertAtCursorTest, JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest,
-  LearningDataTest, LoadingDotsViewTest, ManualWorkflowDraftTest, MoreCommandsTest,
-  MoreProvidersTest, MyDesignsTest, OpenAiProviderTest, RgbLightingRenderTest,
-  RgbSettingsScreenTest, RgbTilesTest, ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest,
-  SettingsAreaAiTest, SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest,
-  SettingsKitTest, SettingsLookScreenTest, SettingsStartScreenTest, SettingsSystemAreaTest,
-  SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest, SnipCommandTest,
-  SpaceDetentsTest, SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal,
-  ToolRunnerTest, TouchModelTest, TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest,
+  EncryptedCredentialStoreTest, FieldSuggestionChipsTest, FlatClipboardTest, FlatMenuTest,
+  FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, ForkUpgradeTest,
+  FormatGuardChipsTest, HapticChainTest, InsertAtCursorTest, JournaledModelCallTest,
+  KeyboardCommandsTest, KeyboardProfileStoreTest, LearningDataTest, LoadingDotsViewTest,
+  ManualWorkflowDraftTest, MoreCommandsTest, MoreProvidersTest, MyDataScreenTest, MyDataStoreTest,
+  MyDesignsTest, OpenAiProviderTest, RgbLightingRenderTest, RgbSettingsScreenTest, RgbTilesTest,
+  ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest, SettingsAreaAiTest,
+  SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest, SettingsKitTest,
+  SettingsLookScreenTest, SettingsStartScreenTest, SettingsSystemAreaTest, SettingsTypingAreaTest,
+  SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest, SnipCommandTest, SpaceDetentsTest,
+  SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest,
+  TouchModelTest, TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest,
   WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
   WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (8): ClockCommandsTest, EmojiMixCommandTest, LanguageCommandTest, QrCommandTest,
@@ -2891,6 +2993,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Workflow
 - `C/clip/` (1): ClipGuard
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
+- `C/suggest/` (1): ContextSuggest
 - `CT/` (37): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
   EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest, EventParserTest, InkAreaTest, InkBenchmarkTest,
   InkDotsTest, InkFingerModel, InkRecognizerTest, InkTimingTest, InsertionAnchorTest,
@@ -2901,6 +3004,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   UpdateReleasesTest, UrlDetectorTest, WorkflowTest
 - `CT/clip/` (1): ClipGuardTest
 - `CT/format/` (1): FormatGuardTest
+- `CT/suggest/` (1): ContextSuggestTest
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,
   KeyboardActionListenerImpl, KeyboardSwitcher, KeyboardTheme, KeyboardView, MainKeyboardView,
   PointerTracker
@@ -2923,15 +3027,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/settings/dialogs/` (2): ColorPickerDialog, SliderDialog
 - `K/settings/preferences/` (5): BackupRestorePreference, CustomFontPreference,
   KeyboardScalePreference, LoadGestureLibPreference, SliderPreference
-- `K/settings/screens/` (39): AdvancedScreen, AgentAiScreen, AgentAreaAiScreen, AgentAreaBarScreen,
+- `K/settings/screens/` (40): AdvancedScreen, AgentAiScreen, AgentAreaAiScreen, AgentAreaBarScreen,
   AgentAreaGesturesScreen, AgentAreaKeysScreen, AgentAreaLookScreen, AgentAreaScreen,
   AgentAreaSystemScreen, AgentAreaTypingScreen, AgentCommandsScreen, AgentDesignEditor,
   AgentDesignScreen, AgentDiagnoseScreen, AgentDictationScreen, AgentEmojiMixSection,
-  AgentLearningScreen, AgentProfilesScreen, AgentRgbCurveEditor, AgentRgbScreen, AgentRunStatus,
-  AgentScreenReaderSection, AgentScreenshotScreen, AgentSettingsKit, AgentSkillsScreen, AgentSlider,
-  AgentSnippetsSection, AgentSpaceScreen, AgentStartScreen, AgentSymbolsScreen, AgentUpdatesScreen,
-  AgentWorkflowsScreen, AppearanceScreen, DictionaryScreen, GestureTypingScreen, MainSettingsScreen,
-  TextCorrectionScreen, WorkflowBuilderDialog, WorkflowDraftProtection
+  AgentLearningScreen, AgentMyDataScreen, AgentProfilesScreen, AgentRgbCurveEditor, AgentRgbScreen,
+  AgentRunStatus, AgentScreenReaderSection, AgentScreenshotScreen, AgentSettingsKit,
+  AgentSkillsScreen, AgentSlider, AgentSnippetsSection, AgentSpaceScreen, AgentStartScreen,
+  AgentSymbolsScreen, AgentUpdatesScreen, AgentWorkflowsScreen, AppearanceScreen, DictionaryScreen,
+  GestureTypingScreen, MainSettingsScreen, TextCorrectionScreen, WorkflowBuilderDialog,
+  WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
 - `app/` (1): build.gradle
@@ -2951,20 +3056,21 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (23): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
+- `app/src/main/res/values-de/` (24): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
   agent_clipvault_strings, agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings,
   agent_format_strings, agent_gestures_strings, agent_language_strings, agent_rgb_strings,
   agent_settings_keys_strings, agent_settings_look_strings, agent_settings_strings,
   agent_settings_system_strings, agent_slider_strings, agent_snippet_strings, agent_space_strings,
-  agent_strings, agent_symbol_strings, agent_typing_strings, agent_update_strings, strings
-- `app/src/main/res/values/` (29): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+  agent_strings, agent_suggest_strings, agent_symbol_strings, agent_typing_strings,
+  agent_update_strings, strings
+- `app/src/main/res/values/` (30): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
   agent_bar_strings, agent_clipvault_strings, agent_design_strings, agent_diagnose_strings,
   agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_ids,
   agent_language_strings, agent_rgb_strings, agent_settings_keys_strings,
   agent_settings_look_strings, agent_settings_strings, agent_settings_system_strings,
   agent_slider_strings, agent_snippet_strings, agent_space_strings, agent_strings,
-  agent_symbol_strings, agent_typing_strings, agent_update_strings, attrs, clip_provider,
-  donottranslate, gesture_data, themes-flat
+  agent_suggest_strings, agent_symbol_strings, agent_typing_strings, agent_update_strings, attrs,
+  clip_provider, donottranslate, gesture_data, themes-flat
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (1): Shadows

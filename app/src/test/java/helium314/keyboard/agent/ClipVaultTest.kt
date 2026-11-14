@@ -243,7 +243,8 @@ class ClipVaultTest {
     private fun chips(view: View, rowTag: String): List<TextView> {
         val row = view.findViewWithTag<ViewGroup>(rowTag) ?: return emptyList()
         val line = row.getChildAt(0) as ViewGroup
-        return (1 until line.childCount).map { line.getChildAt(it) as TextView }
+        // stage 45: the "Meine Daten" chip at the end of the last row is no vault item
+        return (1 until line.childCount).map { line.getChildAt(it) as TextView }.filter { it.tag != ClipVaultSection.TAG_MY_DATA }
     }
 
     @Test fun secretsAreMaskedOnScreenAndForTalkBack() {
@@ -353,5 +354,24 @@ class ClipVaultTest {
         } finally {
             historyManager.onDestroy()
         }
+    }
+
+    @Test fun theVaultOpensMyDataFromItsLastRow() {
+        offer(key)
+        offer("123456")
+        val view = historyView()
+        // at the end of the last row (codes), not a vault item
+        val codes = view.findViewWithTag<ViewGroup>(ClipVaultSection.TAG_CODE_ROW).getChildAt(0) as ViewGroup
+        val chip = codes.getChildAt(codes.childCount - 1) as TextView
+        assertEquals(ClipVaultSection.TAG_MY_DATA, chip.tag)
+        assertEquals(latinIME.getString(R.string.agent_vault_my_data), chip.text.toString())
+        assertEquals(listOf("123456"), chips(view, ClipVaultSection.TAG_CODE_ROW).map { it.text.toString() })
+        chip.performClick()
+        val started = shadowOf(latinIME).nextStartedActivity
+        assertEquals(helium314.keyboard.settings.SettingsActivity::class.java.name, started.component?.className)
+        assertEquals(AgentPreferences.MY_DATA_DESTINATION, started.getStringExtra(AgentPreferences.OPEN_SETTINGS_DESTINATION))
+        assertTrue(AgentPreferences.MY_DATA_DESTINATION in AgentPreferences.SETTINGS_DESTINATIONS)
+        // nothing was inserted
+        assertEquals(2, ClipVault.secrets().size + ClipVault.codes().size)
     }
 }

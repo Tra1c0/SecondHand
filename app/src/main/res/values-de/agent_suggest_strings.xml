@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="agent_suggest_insert_own">%1$s aus Meine Daten: %2$s, ein Tipp fügt es ein</string>
+    <string name="agent_suggest_insert_clip">%1$s, gerade kopiert: %2$s, ein Tipp fügt es ein</string>
+    <string name="agent_suggest_kind_name">Name</string>
+    <string name="agent_suggest_kind_code">Einmalcode</string>
+    <string name="agent_suggest_kind_link">Link</string>
+    <string name="agent_my_data_title">Meine Daten &amp; Vorschläge</string>
+    <string name="agent_my_data_row_sub">Eigene E-Mail, Nummer oder IBAN als Chip in passenden Feldern</string>
+    <string name="agent_my_data_switch">Feld- und Kontext-Vorschläge</string>
+    <string name="agent_my_data_switch_sub">Die Leiste schlägt vor, was zum Feld passt (E-Mail, Code, Telefon, IBAN), und nach Wörtern wie „guck mal, hier dieses Video“ oder „meine Nummer ist“: einen frischen Clip oder deinen eigenen Eintrag. Ein Tipp fügt ihn ein. Lokal, nie in Passwortfeldern, im Inkognito-Modus oder bei gesperrtem Gerät.</string>
+    <string name="agent_my_data_learning">Kontext-Lernen: Solange das Lernen an ist (Tippen → Gelernte Wörter), merkt sich die Tastatur, welche Vorschläge du antippst oder übergehst, nur als kleine Zahlen ohne Text. „Gelernte Wörter löschen“ entfernt sie.</string>
+    <string name="agent_my_data_card">Meine Daten</string>
+    <string name="agent_my_data_description">Freiwillig und anfangs leer. Verschlüsselt nur auf diesem Gerät gespeichert, nie in Sicherungen. Keine Passwörter eintragen, dafür ist ein Passwortmanager da.</string>
+    <string name="agent_my_data_unlock">Entsperre das Gerät, um Meine Daten zu sehen oder zu ändern.</string>
+    <string name="agent_my_data_name">Name</string>
+    <string name="agent_my_data_email">E-Mail %d</string>
+    <string name="agent_my_data_phone">Telefon %d</string>
+    <string name="agent_my_data_address">Adresse %d</string>
+    <string name="agent_my_data_iban">IBAN %d</string>
+    <string name="agent_my_data_iban_invalid">IBAN %d sieht nicht gültig aus; sie wird so gespeichert, wie getippt.</string>
+    <string name="agent_my_data_save">Speichern</string>
+    <string name="agent_my_data_saved">Gespeichert</string>
+    <string name="agent_my_data_delete">Alles löschen</string>
+    <string name="agent_my_data_deleted">Gelöscht</string>
+    <string name="agent_my_data_delete_confirm">Alle Meine Daten von diesem Gerät löschen?</string>
+    <string name="agent_my_data_failed">Meine Daten konnten nicht gelesen oder gespeichert werden.</string>
+    <string name="agent_vault_my_data">Meine Daten</string>
+</resources>

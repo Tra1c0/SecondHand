@@ -15,7 +15,8 @@ object AgentPreferences {
         "preferences", "agent_workflows", // stage 24f: clipboard history setting, workflows
         UPDATES_DESTINATION,
         "languages", // stage 24g: @lang with only one enabled language
-        "agent_symbols") // stage 27: "Nicht erkannt" opens the own drawn symbols
+        "agent_symbols", // stage 27: "Nicht erkannt" opens the own drawn symbols
+        MY_DATA_DESTINATION) // stage 45: "Meine Daten" from the vault
     /** Keeps what was learned but adds nothing new. Different from switching learning off, which deletes. */
     const val LEARNING_PAUSED = "agent_learning_paused"
     /** Never replace a known word automatically (default off: known words may still be corrected when clearly wrong). */
@@ -31,6 +32,10 @@ object AgentPreferences {
     const val SCREENSHOT_CHIP = "agent_screenshot_chip"
     /** Stage 41: hint chips for e-mail, phone, IBAN and decimal fields (default on). */
     const val FORMAT_GUARD = "agent_format_guard"
+    /** Stage 45: field and context suggestions in the strip (default on; "Meine Daten" starts empty). */
+    const val FIELD_SUGGESTIONS = "agent_field_suggestions"
+    /** The page "Meine Daten & Vorschläge" (SettingsDestination.AgentMyData), opened from the vault. */
+    const val MY_DATA_DESTINATION = "agent_my_data"
     /** Typed commands like "@math" (stage 24, default on). */
     const val COMMANDS = "agent_commands"
     /** One character from CommandSyntax.ALLOWED_PREFIXES. */

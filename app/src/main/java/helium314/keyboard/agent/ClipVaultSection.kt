@@ -30,6 +30,8 @@ object ClipVaultSection {
     const val TAG_SECTION = "agent_clip_vault"
     const val TAG_SECRET_ROW = "agent_clip_vault_secrets"
     const val TAG_CODE_ROW = "agent_clip_vault_codes"
+    /** Stage 45: the chip that opens "Meine Daten & Vorschläge". */
+    const val TAG_MY_DATA = "agent_clip_vault_my_data"
     private const val ROW_DP = 40f
     private const val CHIP_DP = 32f
     private const val LABEL_START_DP = 11f
@@ -71,6 +73,12 @@ object ClipVaultSection {
             section.addView(row(context, TAG_CODE_ROW, context.getString(R.string.agent_vault_codes), codes, textColor, chipColor, typeface, onPick))
             rows++
         }
+        // stage 45: "Meine Daten" at the end of the last row opens its settings page
+        ((section.getChildAt(section.childCount - 1) as? HorizontalScrollView)?.getChildAt(0) as? LinearLayout)
+            ?.addView(chipView(context, context.getString(R.string.agent_vault_my_data), textColor, chipColor, typeface) {
+                helium314.keyboard.agent.commands.SnipCommand.openSettings(context, AgentPreferences.MY_DATA_DESTINATION)
+            }.apply { tag = TAG_MY_DATA; alpha = 0.7f },
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, context.dp(CHIP_DP)).apply { marginEnd = context.dp(GAP_DP) })
         return rows * context.dp(ROW_DP)
     }
 
@@ -92,20 +100,10 @@ object ClipVaultSection {
         }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = context.dp(GAP_DP * 2) })
         items.forEach { item ->
             val shown = item.shown
-            line.addView(TextView(context).apply {
+            line.addView(chipView(context, shown, textColor, chipColor, typeface) { onPick(item) }.apply {
                 tag = item.id
-                text = shown
                 contentDescription = context.getString(
                     if (item.kind == ClipKind.SECRET) R.string.agent_vault_secret_description else R.string.agent_vault_code_description, shown)
-                setTextColor(textColor)
-                setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15f)
-                this.typeface = typeface
-                isSingleLine = true
-                gravity = Gravity.CENTER
-                setPadding(context.dp(12f), 0, context.dp(12f), 0)
-                background = GradientDrawable().apply { cornerRadius = context.dp(CHIP_DP) / 2f; setColor(chipColor) }
-                isClickable = true
-                setOnClickListener { onPick(item) }
             }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, context.dp(CHIP_DP)).apply { marginEnd = context.dp(GAP_DP) })
         }
         return HorizontalScrollView(context).apply {
@@ -115,6 +113,20 @@ object ClipVaultSection {
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, context.dp(ROW_DP))
         }
     }
+
+    private fun chipView(context: Context, label: String, textColor: Int, chipColor: Int, typeface: Typeface?, onTap: () -> Unit) =
+        TextView(context).apply {
+            text = label
+            setTextColor(textColor)
+            setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15f)
+            this.typeface = typeface
+            isSingleLine = true
+            gravity = Gravity.CENTER
+            setPadding(context.dp(12f), 0, context.dp(12f), 0)
+            background = GradientDrawable().apply { cornerRadius = context.dp(CHIP_DP) / 2f; setColor(chipColor) }
+            isClickable = true
+            setOnClickListener { onTap() }
+        }
 
     /** Label of a personal clip ("IBAN", "Telefon", "E-Mail", "Adresse"), or null. */
     fun label(context: Context, kind: ClipKind): String? = when (kind) {

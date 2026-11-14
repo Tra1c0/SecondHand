@@ -48,6 +48,16 @@
   und Adresse bekommen im Verlauf eine Beschriftung. Ältere Passwörter und Codes im Verlauf
   verschwinden beim nächsten Öffnen (angeheftete bleiben, verdeckt). Nicht in Passwortfeldern,
   im Inkognito-Modus oder bei gesperrtem Gerät. Alles lokal. Noch auf keinem Gerät ausprobiert.
+- Neu: Feld- und Kontext-Vorschläge. Die Leiste schlägt vor, was zum Feld passt, und erst dein
+  Tipp fügt es ein: im E-Mail-Feld deine Adresse oder eine gerade kopierte, im Code-Feld den frisch
+  kopierten Einmalcode (nur die Ziffern), in Telefon- und IBAN-Feldern deinen Eintrag oder einen
+  passenden Clip. Beim Schreiben nach Wörtern wie „guck mal, hier dieses Video “, „meine Nummer
+  ist “, „IBAN:“ oder „Code:“ erscheint z. B. „🔗 youtube.com/…“ mit dem gerade kopierten Link.
+  Deine eigenen Daten trägst du unter Einstellungen → Leiste & Befehle → „Meine Daten &
+  Vorschläge“ ein (freiwillig, anfangs leer, verschlüsselt nur auf dem Gerät); dort schaltest du
+  die Vorschläge auch ab. Mit eingeschaltetem Lernen merkt sich die Tastatur, welche Vorschläge du
+  nimmst, nur als Zahlen ohne Text. Nie in Passwortfeldern, im Inkognito-Modus oder bei gesperrtem
+  Gerät, nie Geheimnisse aus dem Tresor. Alles lokal. Noch auf keinem Gerät ausprobiert.
 
 - Neu: Textbausteine 2.0. In `@snip`-Bausteinen gehen jetzt Platzhalter: `{datum}`,
   `{datum+2t}`, `{uhrzeit}`, `{wochentag}`, `{zwischenablage}`, Ausfüllfelder `{?Name}` (die

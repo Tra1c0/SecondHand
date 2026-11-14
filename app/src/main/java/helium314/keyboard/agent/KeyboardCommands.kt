@@ -125,6 +125,12 @@ object KeyboardCommands {
         fun moveCursorBack(count: Int): Boolean = false
         /** Stage 42 after review: false while [replace] would be refused for now (a gesture still being processed). */
         val canReplaceNow: Boolean get() = true
+        /**
+         * Stage 45: inserts [text] at the plain cursor the chips were built for, like a paste from the
+         * clipboard view and only while the cursor is still there (a field suggestion in an empty
+         * field); false otherwise.
+         */
+        fun insertAtCursor(text: String): Boolean = false
     }
 
     /** A built-in command. Commands never come from files or models. */
@@ -358,6 +364,8 @@ object KeyboardCommands {
         val host = host(ime, position, onRefresh, onShow)
         // stage 41: no command, but a hint for a field with an unambiguous type (e-mail, phone, IBAN, decimal)
         if (context == null) FormatGuardChips.stripChips(host).let { if (it.isNotEmpty()) return it }
+        // stage 45: no command, but the field asks for something or cue words announce a fresh clip or own data
+        if (context == null) FieldSuggestionChips.stripChips(host).let { if (it.isNotEmpty()) return it }
         // stage 25a: no command, but two typed emojis with a mix
         if (context == null) return helium314.keyboard.agent.commands.EmojiMixCommand.stripChips(host,
             ime.getAgentTextBeforeCursor(helium314.keyboard.agent.commands.EmojiMixCommand.LOOKBACK)).ifEmpty { null }
@@ -405,6 +413,12 @@ object KeyboardCommands {
                 get() = runCatching { helium314.keyboard.latin.RichInputMethodManager.getInstance().currentSubtype.rawSubtype }.getOrNull()
             override fun moveCursorBack(count: Int) = ime.moveAgentCursorBack(count)
             override val canReplaceNow: Boolean get() = ime.canReplaceAgentCommand()
+            // the paste path of the clipboard view (also phone and number fields), only at the cursor the chips were built for
+            override fun insertAtCursor(text: String): Boolean {
+                if (text.isEmpty() || !ime.canReplaceAgentCommand() || ime.agentCommandCursor != position) return false
+                ime.onTextInput(text)
+                return true
+            }
         }
 
     /** Name candidates complete the name; a complete command asks the command. */

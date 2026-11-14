@@ -4055,6 +4055,51 @@ class InputLogicTest {
         kotlin.test.assertNull(chips())
     }
 
+    @Test fun fieldSuggestionChipInsertsOnlyOnATapAndOnce() {
+        // stage 45 with the real host: the empty field takes the entry at the cursor, cue words get it after them
+        val defaultData = helium314.keyboard.agent.FieldSuggestionChips.myData
+        helium314.keyboard.agent.FieldSuggestionChips.myData = { _, _ ->
+            helium314.keyboard.agent.MyData(emails = listOf("max@example.com"), phones = listOf("+49 151 12345678"))
+        }
+        try {
+            val strip = android.widget.FrameLayout(latinIME)
+            fun chips() = (helium314.keyboard.agent.KeyboardCommands.createChipsView(latinIME, strip) as android.view.ViewGroup?)
+                ?.let { (it.getChildAt(0) as android.view.ViewGroup) }
+            fun tap(row: android.view.ViewGroup) { assertTrue(row.getChildAt(0).performClick()); handleMessages() }
+
+            currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+            setText("")
+            latinIME.setNeutralSuggestionStrip()
+            handleMessages()
+            val row = chips()!!
+            assertEquals("✉️ max@example.com", (row.getChildAt(0) as android.widget.TextView).text.toString())
+            assertEquals("", getTextFromConnection(), "showing the chip changes nothing")
+            tap(row)
+            assertEquals("max@example.com", getTextFromConnection())
+            tap(row) // the same chip again: nothing
+            assertEquals("max@example.com", getTextFromConnection())
+
+            currentInputType = InputType.TYPE_CLASS_TEXT
+            setText("meine Nummer ist ")
+            latinIME.setNeutralSuggestionStrip()
+            handleMessages()
+            val cue = chips()!!
+            assertEquals("📞 +49 151 12345678", (cue.getChildAt(0) as android.widget.TextView).text.toString())
+            assertEquals("meine Nummer ist ", getTextFromConnection())
+            tap(cue)
+            assertEquals("meine Nummer ist +49 151 12345678", getTextFromConnection())
+            tap(cue)
+            assertEquals("meine Nummer ist +49 151 12345678", getTextFromConnection())
+
+            // a password field: no chip
+            currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setText("")
+            kotlin.test.assertNull(chips())
+        } finally {
+            helium314.keyboard.agent.FieldSuggestionChips.myData = defaultData
+        }
+    }
+
     // should be called before every test, so the same state is guaranteed
     @BeforeTest
     fun reset() {
