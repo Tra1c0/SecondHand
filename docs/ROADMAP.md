@@ -300,6 +300,14 @@ Reihenfolge von oben nach unten.
   Builds nur mit dem Secret `RELEASES_TOKEN`, das fehlt (Workflow-Warnung). Alternative (Owner
   entscheidet): direkt die Releases dieses Repositorys lesen (öffentlich, kein Secret nötig, dann
   auch Test-Builds; Kanal „nur geprüfte“ / „auch Test-Builds“ wählbar). (M)
+  Owner (2026-11-14): Der Chip in der Tastatur steht IMMER da, solange ein neuerer Build bekannt
+  ist (nicht nur einmal), dazu der Dialog in der App wie oben. Annahme des Leads (Owner hat A/B
+  nicht ausdrücklich gewählt): Variante B, also die Releases dieses öffentlichen Repositorys lesen,
+  Kanal wählbar (Standard „auch Test-Builds“, weil der Owner jeden Test-Build installiert). Der Chip
+  verrät nur „Build N verfügbar“; ein Tipp öffnet die Updates-Seite. Neue Builds erkennt die App nur
+  über die Prüfung (Schalter „täglich automatisch“ oder „Jetzt prüfen“).
+- **Graue Auswahlkarten (Owner, 2026-11-14: „Ja“):** Die grauen Mockup-Karten (AUS, NICHTS,
+  AUSGEBLENDET, FLACHER LOOK) bekommen helle Schrift (Kontrast mit dunkler Schrift nur 1,74:1).
 - **47 KI-Kontext im Hintergrund — verworfen (Owner, 2026-11-14):** „Dann lassen wir das.“ Alles
   lokal; die Tastatur lernt selbst dazu (45, 46).
 - **Verworfen (Owner, 2026-11-14):** Mail-Anbindung (Gmail/IMAP) und Codes aus Benachrichtigungen.
