@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- Own RGB light patterns (stage 34). English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="agent_rgb_own_title">Own patterns</string>
+    <string name="agent_rgb_own_empty">No own patterns yet. Start from the pattern above and change everything: shapes, colours, motion, typing.</string>
+    <string name="agent_rgb_own_new">Own pattern from “%1$s”</string>
+    <string name="agent_rgb_own_edit">Edit</string>
+    <string name="agent_rgb_own_import">Import</string>
+    <string name="agent_rgb_own_full">At most %1$d own patterns. Delete one first.</string>
+    <string name="agent_rgb_own_note">Own pattern: shapes, colours and curves are set in its editor. Speed, backwards, saturation, brightness and strength here still apply.</string>
+    <string name="agent_rgb_own_imported">“%1$s” imported</string>
+    <string name="agent_rgb_own_exported">“%1$s” exported</string>
+    <string name="agent_rgb_own_failed">File not taken: %1$s</string>
+    <string name="agent_rgb_own_write_failed">Could not write the file.</string>
+    <string name="agent_rgb_own_error_too_large">too large (at most 16 KB)</string>
+    <string name="agent_rgb_own_error_not_json">not valid JSON</string>
+    <string name="agent_rgb_own_error_wrong_format">not a light pattern of this keyboard</string>
+    <string name="agent_rgb_own_error_newer">made by a newer version</string>
+    <string name="agent_rgb_own_error_unknown_field">contains unknown fields</string>
+    <string name="agent_rgb_own_error_bad_value">contains an invalid value</string>
+    <string name="agent_rgb_own_error_no_layers">has no layers</string>
+    <string name="agent_rgb_own_error_too_many_layers">has more than four layers</string>
+    <string name="agent_rgb_own_error_bad_name">has an invalid name</string>
+    <string name="agent_rgb_own_copy_name">%1$s (own)</string>
+
+    <string name="agent_rgb_pattern_editor_title">Edit light pattern</string>
+    <string name="agent_rgb_pattern_preview_label">Live preview at %1$d Hz: tap it to try the typing reactions</string>
+    <string name="agent_rgb_pattern_name">Name</string>
+    <string name="agent_rgb_pattern_name_invalid">1–32 characters, no line breaks, markup or addresses</string>
+    <string name="agent_rgb_pattern_duplicate">Duplicate</string>
+    <string name="agent_rgb_pattern_export">Export</string>
+    <string name="agent_rgb_pattern_delete">Delete</string>
+    <string name="agent_rgb_pattern_delete_question">Delete “%1$s”? Elements using it go back to their built-in pattern.</string>
+    <string name="agent_rgb_pattern_cancel">Cancel</string>
+    <string name="agent_rgb_pattern_local_note">Local: the pattern is computed on the phone and stored in the keyboard settings. A file only contains shapes, colours and numbers.</string>
+    <string name="agent_rgb_pattern_group_layers">Layers</string>
+    <string name="agent_rgb_pattern_layer_n">Layer %1$d</string>
+    <string name="agent_rgb_pattern_layers_note">Layer 1 is at the bottom; each layer above is blended onto the ones below.</string>
+    <string name="agent_rgb_pattern_layer_add">Add layer</string>
+    <string name="agent_rgb_pattern_layer_remove">Remove layer</string>
+    <string name="agent_rgb_pattern_layer_up">Move up</string>
+    <string name="agent_rgb_pattern_layer_down">Move down</string>
+    <string name="agent_rgb_pattern_group_shape">Shape</string>
+    <string name="agent_rgb_pattern_blend">Blend with the layers below</string>
+    <string name="agent_rgb_pattern_group_colors">Colours</string>
+    <string name="agent_rgb_pattern_stop_n">Colour stop %1$d</string>
+    <string name="agent_rgb_pattern_stop_color">Change colour</string>
+    <string name="agent_rgb_pattern_stop_add">Add stop</string>
+    <string name="agent_rgb_pattern_stop_remove">Remove stop</string>
+    <string name="agent_rgb_pattern_stop_position">Position of stop %1$d: %2$d %%</string>
+    <string name="agent_rgb_pattern_palette_fixed">As chosen</string>
+    <string name="agent_rgb_pattern_palette_hue">Hue cycle</string>
+    <string name="agent_rgb_pattern_group_motion">Motion</string>
+    <string name="agent_rgb_pattern_speed">Speed: %1$s × (minus runs backwards)</string>
+    <string name="agent_rgb_pattern_angle">Direction: %1$d°</string>
+    <string name="agent_rgb_pattern_scale">Scale: %1$s</string>
+    <string name="agent_rgb_pattern_offset_x">Shift sideways: %1$d %%</string>
+    <string name="agent_rgb_pattern_offset_y">Shift up/down: %1$d %%</string>
+    <string name="agent_rgb_pattern_opacity">Opacity: %1$d %%</string>
+    <string name="agent_rgb_pattern_curve">Motion curve</string>
+    <string name="agent_rgb_pattern_group_typing">Typing</string>
+    <string name="agent_rgb_pattern_typing_note">Fade time: “Afterglow” on the RGB page.</string>
+
+    <string name="agent_rgb_gen_fill">Fill</string>
+    <string name="agent_rgb_gen_linear">Linear gradient</string>
+    <string name="agent_rgb_gen_radial">Radial gradient</string>
+    <string name="agent_rgb_gen_conic">Conic gradient</string>
+    <string name="agent_rgb_gen_waves">Waves</string>
+    <string name="agent_rgb_gen_plasma">Plasma</string>
+    <string name="agent_rgb_gen_noise">Noise</string>
+    <string name="agent_rgb_gen_stripes">Stripes</string>
+    <string name="agent_rgb_gen_ripple">Ripple from touch</string>
+    <string name="agent_rgb_gen_spotlight">Spotlight on the last key</string>
+    <string name="agent_rgb_gen_contour">Contour lines</string>
+    <string name="agent_rgb_gen_sparkle">Sparkle</string>
+    <string name="agent_rgb_blend_normal">Normal</string>
+    <string name="agent_rgb_blend_add">Add</string>
+    <string name="agent_rgb_blend_multiply">Multiply</string>
+    <string name="agent_rgb_blend_screen">Screen</string>
+    <string name="agent_rgb_reaction_none">None</string>
+    <string name="agent_rgb_reaction_pulse">Pulse on each key</string>
+    <string name="agent_rgb_reaction_ripple">Ripple from the key</string>
+    <string name="agent_rgb_reaction_key_glow">Light up the typed key</string>
+
+    <string name="agent_diagnose_light_patterns">Patterns in use</string>
+    <string name="agent_diagnose_light_own">own</string>
+    <string name="agent_diagnose_light_grid">Grid 48 × 32 “%1$s” (measured now)</string>
+</resources>

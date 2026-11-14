@@ -182,7 +182,7 @@ class RgbTexture {
         for (r in 0 until gridRows) for (c in 0 until COLUMNS) {
             val x = (c + 0.5f) / COLUMNS
             val y = (r + 0.5f) / gridRows
-            grid[r * COLUMNS + c] = engine.effects(engine.base(x, y), x, y, keyId, nowMs)
+            grid[r * COLUMNS + c] = engine.effects(engine.base(x, y, nowMs), x, y, keyId, nowMs)
         }
     }
 
@@ -225,10 +225,11 @@ class RgbTexture {
     }
 
     private fun updateTile(engine: RgbEngine, left: Float, top: Float, width: Float, height: Float, wait: Boolean) {
-        val pattern = engine.settings.pattern
+        // own patterns (stage 34) have no tile: null
+        val pattern = engine.tilePattern
         // a new pattern, or a tile that was still being built: ask again (cheap while it is pending)
-        if (pattern != tilePattern || (tileShader == null && RgbOverlay.hasOverlay(pattern))) {
-            val tile = if (wait) RgbTiles.build(pattern) else RgbTiles.ready(pattern)
+        if (pattern != tilePattern || (tileShader == null && pattern != null && RgbOverlay.hasOverlay(pattern))) {
+            val tile = pattern?.let { if (wait) RgbTiles.build(it) else RgbTiles.ready(it) }
             if (pattern != tilePattern || tile != null) {
                 tilePattern = pattern
                 tileShader = tile?.let { bitmapShader(it.bitmap, Shader.TileMode.REPEAT) }
@@ -239,6 +240,7 @@ class RgbTexture {
             }
         }
         val shader = tileShader ?: return
+        if (pattern == null) return
         RgbOverlay.transform(pattern, width, height, engine.phase, engine.settings.reverse, tileValues)
         tileMatrix.setValues(tileValues)
         tileMatrix.postTranslate(left, top)

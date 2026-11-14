@@ -186,6 +186,45 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   Muster-Kacheln entstehen im Speicher und werden nicht auf die Platte geschrieben. Keine Texte,
   keine Logs.
 
+## Eigene RGB-Lichtmuster (34)
+
+- Einstellung `agent_rgb_patterns` in den Tastatureinstellungen (geräteverschlüsselt, neben
+  `agent_rgb_lighting`), fehlt ohne eigene Muster. Inhalt: JSON
+  `{"format":"agent-keyboard-rgb-patterns","version":1,"patterns":[…]}`, höchstens 24 Muster, Text
+  höchstens 128 KiB (`RgbPatternJson.encodeLibrary`/`decodeLibrary`). Je Muster `id` (`p1`, `p2` …;
+  Kleinbuchstaben und Ziffern, 1–12 Zeichen, eindeutig, eine neue ID nimmt nie eine benutzte),
+  `name` und `layers` wie in der Datei unten. Beim Lesen wird ein kaputter Eintrag übersprungen
+  (ungültige oder doppelte ID, unbekanntes Feld, falscher Wert), ein kaputter oder fremder Text
+  ergibt eine leere Liste. Mit HeliBoards Einstellungs-Sicherung wird sie wie alle
+  Tastatureinstellungen mitgesichert.
+- Die Beleuchtung (`agent_rgb_lighting`) nennt ein eigenes Muster nur über seine ID: Feld `own`
+  im gemeinsamen Look bzw. `k.own`, `b.own`, `l.own`, `s.own`, `t.own` je Element, z. B.
+  `…;mix=100;own=p3;layers=…`. `own` wird nie vom gemeinsamen Look geerbt. Fehlt die ID in der
+  Liste (gelöscht, Designprofil von einem anderen Telefon), zeigt das Element sein eingebautes
+  `pattern`; Löschen im Editor schreibt die Einstellung ohne die ID neu. Designprofile enthalten
+  deshalb nur die ID, nicht das Muster.
+- Exportdatei (vom Nutzer gewähltes Dokument, `AgentDocumentIO`, nur `content://`): UTF-8-JSON,
+  höchstens 16 KiB, ohne ID:
+  `{"format":"agent-keyboard-rgb-pattern","version":1,"name":"Polarlicht","layers":[{"generator":"NOISE",`
+  `"blend":"NORMAL","speed":0.35,"angle":30,"scale":1.4,"offsetX":0.1,"offsetY":-0.2,"opacity":90,`
+  `"curve":"0:0,1:1","reaction":"NONE","palette":"FIXED","stops":[{"at":0,"color":"#00FF80"},…]}]}`.
+  Felder einer Ebene: `generator` (`FILL`, `LINEAR`, `RADIAL`, `CONIC`, `WAVES`, `PLASMA`, `NOISE`,
+  `STRIPES`, `RIPPLE`, `SPOTLIGHT`, `CONTOUR`, `SPARKLE`), `blend` (`NORMAL`, `ADD`, `MULTIPLY`,
+  `SCREEN`), `speed` (−4…4, Schritte 0,05), `angle` (Grad, modulo 360), `scale` (0,25…8, Schritte
+  0,05), `offsetX`/`offsetY` (−1…1, Schritte 0,01), `opacity` (0…100), `curve` (Text wie in
+  `agent_rgb_lighting`), `reaction` (`NONE`, `PULSE`, `RIPPLE`, `KEY_GLOW`), `palette` (`FIXED`,
+  `HUE_CYCLE`), `stops` (2–8 mit `at` 0…1 und `color` `#RRGGBB`). Pflicht: `format`, `version`,
+  `name` (1–32 Zeichen, keine Steuer- oder Formatzeichen, kein `<`/`>`, kein `://` oder `www.`),
+  `layers` (1–4), in jeder Ebene `stops`; sonst gilt die Vorgabe. Streng (`StrictJson`): keine
+  Kommentare, kein Komma am Ende, keine doppelten Schlüssel, höchstens 8 Ebenen tief, 512 Zeichen je
+  Text, 256 Einträge je Liste. Abgelehnt wird die ganze Datei bei unbekanntem Feld (auf jeder Ebene),
+  falschem Typ, unbekanntem Namen, kaputter Farbe oder Kurve, zu vielen oder zu wenigen Ebenen oder
+  Stopps, ungültigem Namen und `version` > 1; Zahlen werden begrenzt und gerundet. Eine Datei kann
+  damit keinen Code, keine Adresse, kein Werkzeug, keinen Anbieter und keine Berechtigung
+  mitbringen.
+- Sonst nichts: Tipp-Positionen der Reaktionen und des Spots liegen wie bei 26/29 nur im Speicher
+  (höchstens acht). Keine Logs.
+
 ## Screenshot-Kopien (23d)
 
 - Ort: `files/agent_screenshot/screenshot-<ID>.<Endung>` im gerätegeschützten Speicher (DE) der

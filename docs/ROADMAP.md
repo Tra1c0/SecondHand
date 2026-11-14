@@ -333,10 +333,24 @@ Reihenfolge von oben nach unten.
   lokal; die Tastatur lernt selbst dazu (45, 46).
 - **Verworfen (Owner, 2026-11-14):** Mail-Anbindung (Gmail/IMAP) und Codes aus Benachrichtigungen.
   Einmalcodes kommen nur über die Zwischenablage (44).
-- **34 Eigene RGB-Lichtmuster gestalten — bestätigt (Owner, 2026-11-14): „eigene rgb lichtmuster. Vollständig customizable.“ Owner: „wahrscheinlich eher XL“. (XL). Owner, 2026-11-14: nicht in den Test-Build 22, sondern direkt in den geprüften Build 23 (mit eigenem Prüfer vor 23).** (Wunsch des Owners vom 2026-11-13). Eigene
-  Tastatur-Designs gibt es schon (Design-Seite → „Meine Designs“, seit Build 10). Annahme des
-  Leads, vor dem Bau bestätigen: gemeint sind eigene RGB-Designs, also selbst gestaltete
-  Lichtmuster (Farben, Formen, Bewegung) auf Basis der neuen Muster und der Kurve aus 29. (L)
+- **34 Eigene RGB-Lichtmuster gestalten** (Owner, 2026-11-14: „eigene rgb lichtmuster. Vollständig
+  customizable.“, XL; nicht in den Test-Build 22, sondern direkt in den geprüften Build 23 mit eigenem
+  Prüfer) ist gebaut (siehe FEATURES.md, `docs/VALIDATION.md` → Etappe 34). Annahmen des Leads, die der
+  Owner ändern kann: Ein eigenes Muster hat 1–4 Ebenen, gemischt mit Normal, Addieren, Multiplizieren
+  oder Aufhellen (Screen); jede Ebene hat eine von zwölf Formen (Fläche, linearer, radialer und
+  Kegelverlauf, Wellen, Plasma, Rauschen, Streifen, Ringe vom Tippen, Spot auf der letzten Taste,
+  Höhenlinien, Funkeln), 2–8 Farbstopps, Tempo (−4 bis 4 × die „Dauer“ der RGB-Seite), Richtung,
+  Größe, Verschiebung, Deckkraft, die Bewegungskurve aus 29, eine Tipp-Reaktion (keine, Puls, Ring,
+  getippte Taste leuchtet) und Farben wie gewählt oder als Farbkreis-Durchlauf (eine Drehung je
+  „Dauer“). „Getippte Taste leuchtet“ ist ein weicher Fleck an der Tippstelle (etwa eine Taste
+  groß), kein Umriss der Taste; Puls und Ring zeigen die Ebene nur während des Nachleuchtens. Die
+  Dauer, Rückwärts, Sättigung, Helligkeit, Deckkraft und das Nachleuchten der RGB-Seite gelten weiter;
+  Kurve, Farben und Wellenbreite der RGB-Seite nicht (die hat das Muster selbst). Eigene Muster haben
+  keine feinen Detail-Kacheln wie die Texturen aus 29c, sie werden im Licht-Raster 48 × 32 gerechnet
+  (feine Linien und Funken sind darum weich). „Eigenes Muster aus …“ macht aus dem gewählten Muster
+  einen Ausgangspunkt: Wellen und Kreis genau, die Texturen als Annäherung aus Ebenen. Höchstens
+  24 eigene Muster. Datei: JSON mit fester Form, Version 1, höchstens 16 KB. Offen: Gerätetest
+  (Aussehen, Bildkosten der eigenen Muster am Telefon, Bedienung des Editors), Prüfer vor Build 23.
 - **32 Emoji-Mix: zuletzt gemischt** ist gebaut (siehe FEATURES.md). Offen: Gerätetest (Höhe der
   Reihe in der Emoji-Ansicht, Einfügen in WhatsApp/Telegram).
 - **35 Tolerantere Emoji-Vorschläge** (Auftrag des Owners vom 2026-11-13, eigener Branch neben

@@ -148,6 +148,14 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   `RgbPatterns.kt` (29c): `RgbNoise` (periodisches Wertrauschen), `RgbPatterns.field` (Farbfeld
   der sechs Texturmuster), `RgbOverlay` (Detail-Kacheln und ihre Matrix), `RgbTile`. Details im
   Abschnitt „RGB-Beleuchtung“.
+- Eigene RGB-Lichtmuster (Etappe 34, Abschnitt „RGB-Beleuchtung“ → Eigene Muster, P214–P218):
+  `RgbOwnPattern.kt` (`RgbGenerator` mit zwölf Formen, `RgbBlend`, `RgbLayerReaction`,
+  `RgbPaletteMode`, `RgbStop`, `RgbPatternLayer` mit `normalized`, `RgbOwnPattern` mit `reference`,
+  `cleanName` und `from` (Ausgangspunkt aus einem eingebauten Look), `RgbPatternLibrary` (IDs,
+  eindeutige Namen, höchstens 24), `RgbOwnRenderer` (kompilierte Form je Engine: Stopp-Tabellen über
+  `RgbPaletteTables`, Richtung als Sinus/Kosinus, `sample` ohne Allokation, `tapActive`, `stopTable`,
+  `lookup`, `blend`, `hash`)), `RgbPatternJson.kt` (`RgbPatternJson` Export-Datei und gespeicherte
+  Liste, `RgbPatternError`, `RgbPatternRead`, `StrictJson` als kleiner strenger JSON-Leser).
 - Symbole malen (Etappe 27, Abschnitt „Symbole malen“): `InkRecognizer.kt` (`InkStroke`,
   `InkCloud` mit 32 Punkten, Strichrichtung je Punkt und Zahl der Striche und Punkte (36),
   `InkRecognizer` = `$P` plus Richtungs- und Strukturterm mit ±12° Drehtoleranz (36),
@@ -359,7 +367,8 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - Tests in `CT/`: `AiTextActionTest`, `EditorPolicyTest`, `LocalTextActionsTest`,
   `PendingBatchGateTest`, `SkillBindingTest`, `ToolTest`, `WorkflowTest`,
   `InsertionAnchorTest`, `StyledTranslationTest`, `UpdateReleasesTest`, `RgbLightingTest`,
-  `RgbCurveTest`, `RgbPatternsTest`, `RgbFrameStatsTest`, `clip/ClipGuardTest`, `clip/PrivateRangesTest`,
+  `RgbCurveTest`, `RgbPatternsTest`, `RgbFrameStatsTest`, `RgbOwnPatternTest`, `RgbPatternJsonTest`,
+  `clip/ClipGuardTest`, `clip/PrivateRangesTest`,
   `clip/SmartPasteTest`.
   Befehl: `core-tests`.
 
@@ -2000,7 +2009,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Engine und Farbregeln wie die Tastatur). Bildwiederholrate als Karte mit zwei Farbflächen (37,
   `AgentRgbFrameRate.kt`). Einträge auf der Design-Seite (`agent_design_rgb`) und
   unter Aussehen. Texte: `agent_rgb_strings.xml`. Tests `AT/RgbSettingsScreenTest.kt`,
-  `AT/RgbFrameRateCardTest.kt`.
+  `AT/RgbFrameRateCardTest.kt`. Eigene Lichtmuster (34): Galerie, Knöpfe und Editor
+  `K/settings/screens/AgentRgbPatternEditor.kt` an Stelle der Seite, Texte
+  `agent_rgb_pattern_strings.xml`, Test `AT/RgbPatternEditorTest.kt` (Abschnitt „RGB-Beleuchtung“).
 - Schieberegler mit Ticks und Rastpunkten (28, P85–P87): `K/settings/screens/AgentSlider.kt`
   (`AgentSlider`: Material-3-`Slider` über einen eigenen `SliderState`; nur Werte vom Finger
   laufen durch `SliderDrag`, erkannt an `Finger.down` (Initial-Pass bis Final-Pass des Loslassens)
@@ -2390,6 +2401,53 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   nach dem Anmelden noch einmal gelesen);
   sonst steht der Tropfen bei `STILL_PHASE`. Im Hintergrund pausiert Compose die Bilder ohnehin.
   Texte in `agent_rgb_strings.xml`. P198.
+- Eigene Muster (34, Wunsch des Owners „vollständig customizable“; Annahmen in ROADMAP 34):
+  Modell, Rechnung und JSON im Kern (`C/RgbOwnPattern.kt`, `C/RgbPatternJson.kt`). Ein Muster hat
+  1–4 Ebenen, unten zuerst; jede Ebene: Form (`RgbGenerator`: Fläche, linearer, radialer,
+  Kegelverlauf, Wellen, Plasma, Rauschen, Streifen, Ringe vom Tippen, Spot auf der letzten Taste,
+  Höhenlinien, Funkeln), 2–8 Farbstopps (Tabelle mit 513 Einträgen, OKLCH wie 29b, Sättigung und
+  Helligkeit des Looks auf jeden Stopp, rund laufend, wenn die Kurve rund läuft), Tempo in Schritten
+  von 0,05 (P214), Richtung, Größe, Verschiebung, Deckkraft, Bewegungskurve aus 29d, Reaktion
+  (`PULSE` stärkster Fade aller Tipps, `RIPPLE` Ring wie der Effekt aus 26b, `KEY_GLOW` weicher Fleck
+  von 0,08 Breiten an der Tippstelle) und Farbkreis-Durchlauf (Farbdreh-Matrix wie CSS
+  `hue-rotate`, eine Drehung je Durchlauf, je Bild einmal gerechnet). Gemischt nach W3C
+  (`Cs' = (1 − ab)·Cs + ab·B(Cb, Cs)`, Normal, Addieren, Multiplizieren, Screen); das Alpha des
+  Ergebnisses ist die Stärke des Lichts wie bei den eingebauten Mustern. Die Formen laufen wie die
+  Wellen „vorwärts“ (`u = t − Ort`), dadurch ist der Ausgangspunkt aus Welle waagerecht/senkrecht
+  und Kreis mit eigenen Farben bis auf 3/255 dasselbe Licht; die Texturen sind Annäherungen aus
+  Ebenen (`RgbOwnPattern.from`). Alle Formen sind reine Funktionen von Ort, Phase, Uhr und den
+  höchstens acht Tipps der Engine, ganze Durchläufe wiederholen sich genau.
+- Eigene Muster im Ablauf: `RgbLook.own`/`RgbSettings.own` (je Element oder gemeinsam) ersetzt
+  `pattern`, das als Rückfall bleibt; der Text der Einstellung nennt nur die ID (`own=p3`, P217),
+  `RgbLighting.read` löst sie über `A/RgbOwnPatterns.kt` (Einstellung `agent_rgb_patterns`) auf,
+  `RgbLighting.load` liest neu, wenn sich eine der beiden Einstellungen ändert. `RgbEngine` baut
+  daraus einen `RgbOwnRenderer` (null für eine bloße Referenz); `base(x, y, nowMs)` fragt ihn,
+  `effects` (Mischung, Tipp-Effekte der Seite) bleibt gleich. Kein Detail-Bild: `tilePattern` ist
+  null, `RgbTexture.updateTile` und `RgbTiles.request` überspringen eigene Muster. `RgbTexture`
+  rechnet das Raster wie bisher im Hintergrund, jetzt mit `base(x, y, nowMs)` (P216);
+  `hasActiveEffect` hält Raster nach, solange ein Spot gleitet (180 ms) oder eine Reaktion
+  verblasst. `RgbSettings.reactsToTaps` lässt Tipps zur Engine durch, wenn ein leuchtendes eigenes
+  Muster sie braucht, auch ohne Tipp-Reaktion der Seite; `moves` folgt `RgbLook.moves`.
+- Eigene Muster, Seite: `K/settings/screens/AgentRgbScreen.kt` zeigt unter der Galerie „Eigene
+  Muster“ (`OwnGallery`, Bilder 32 × 18 im Hintergrund, Tags `agent_rgb_own_<id>`), „Eigenes Muster
+  aus …“ (`agent_rgb_own_new`, aus dem gewählten Look oder als Kopie des eigenen), „Bearbeiten“
+  und „Importieren“; ein eingebautes Muster wählen setzt `own` zurück. Mit eigenem Muster sind
+  Kurve, Farben und Wellenbreite der Seite ausgeblendet. Der Editor
+  (`K/settings/screens/AgentRgbPatternEditor.kt`, `RgbPatternEditor`) steht an Stelle der Seite
+  (`editing`, Zurück über `BackHandler`), mit derselben `LivePreview` (Einstellungen der Seite mit
+  dem Muster für alle Elemente, `previewWith`, echte Bildrate) und den Bausteinen der Seite
+  (`RgbSection`, `RgbChips`, `RgbNote`, `RgbLabel` jetzt `internal`), Farbwähler
+  `ColorPickerDialog`, Kurven-Editor `RgbCurveEditor`. Regler (`DraftSlider`) und Kurvenpunkte
+  ändern beim Ziehen nur einen Entwurf, den nur die Vorschau liest; gespeichert wird beim
+  Loslassen (P218). Dateien über `AgentDocumentIO` (nur `content://`, Lesegrenze 16 KiB) mit
+  `CreateDocument`/`OpenDocument`; Meldungen als Toast auf dem Main-Thread. Diagnose:
+  `Diagnose.lightPatterns` (benutzte Muster, eigene mit Namen, und ein Raster 48 × 32 je Engine
+  gemessen, im Hintergrund beim Öffnen) hängt an „RGB-Beleuchtung“.
+- Kosten eigener Muster (`CT/RgbOwnPatternTest.ownPatternsStayWithinTheBudget`, dieselben 1634 Werte
+  je Bild wie oben, Testrechner, bestes von drei Läufen, zwei Läufe): Tinte 0,68 ms, eine lineare
+  Ebene 0,20–0,22 ms, Plasma + Funkeln + Ringe + Spot 0,64–0,67 ms, vier Höhenlinien mit Farbkreis
+  0,84–0,89 ms, vier Rauschen 1,04–1,11 ms (Grenze im Test: höchstens doppelt so viel wie Tinte im selben Lauf und unter 4 ms).
+  `sample` alloziert nichts (gemessen mit `ThreadMXBean`, unter 64 KiB auf 100 000 Werte).
 - Tests: `CT/RgbLightingTest.kt`, `CT/RgbCurveTest.kt` (Kurve, Grenzen, Text, Vorlagen,
   Migration, eigene Looks), `CT/RgbPatternsTest.kt` (Bewegung, keine Sprünge in Ort und Zeit,
   Regenbogen ohne Kanten, OKLCH, Merkmale der sechs Muster, Kacheln nahtlos, Matrix, Kosten,
@@ -2403,7 +2461,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   (Seite, Kurve per Touch, TalkBack-Aktionen, eigene Looks, bewegte Vorschau der neuen Muster und
   weiche Vorschau gegen das bilineare Raster mit SDK 36, Galerie ohne Neubau beim Ziehen),
   `AT/RgbTilesTest.kt` (Kachel im Hintergrund, Zeichnen wartet nicht, Cache mit allen Mustern,
-  Leeren), `AT/RgbFrameRateCardTest.kt` (37: Karte mit Überschrift darin, Texte und Reihenfolge,
+  Leeren), `CT/RgbOwnPatternTest.kt` (34: Goldwerte je Form, W3C-Formeln je Mischart, Kurve,
+  Stopp-Tabellen, Farbkreis, Reaktionen als reine Funktionen der Tipps, Wiederholung über ganze
+  Durchläufe und den Phasenumbruch, Begrenzung, ID in der Einstellung, Rückfall, Ausgangspunkte,
+  Bibliothek, Kosten, keine Allokation; Bericht `agent-core/build/rgb-previews/own-pattern-cost.txt`),
+  `CT/RgbPatternJsonTest.kt` (Rundreise, Vorgaben und Begrenzung, Ablehnungen mit Grund, Liste
+  überspringt kaputte Einträge, strenger JSON-Leser), `AT/RgbPatternEditorTest.kt` (anlegen aus dem
+  gewählten Muster, jede Option, Regler beim Loslassen, Ebenen, umbenennen, duplizieren, löschen
+  mit Rückfall; Wahl je Element; laufende Vorschau mit 60 Hz und Bild
+  `app/build/agent-previews/rgb-pattern-editor.png`; Export und Import über ein Test-Register für
+  Dateiwähler, Ablehnung mit Grund; Raster ohne Kachel, Neuladen bei geänderter Liste, Rückfall;
+  Diagnose), `AT/RgbFrameRateCardTest.kt` (37: Karte mit Überschrift darin, Texte und Reihenfolge,
   echte Einstellung, Auswahl folgt, Energiesparschalter bleibt, 44 dp, Überschrift eine Zeile bei
   390 dp in 21 sp, bei 360 dp mit Schrift 130 % ganz, mit 200 % kleiner (Breite gegen
   `TextMeasurer`, das Layout-Ergebnis nennt die Größe des Stils, nicht die Auto-Größe), eine Uhr,
@@ -4458,19 +4526,40 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `Unit`-Funktion umbaut, muss den Zustand heben. „Neu in Build N“ zählt beim Zeigen als gesehen
   (`LaunchedEffect`), sonst käme es nach jeder Drehung oder einem abgebrochenen Start wieder.
   Tests geben `freshInstall` vor, statt sich auf die Installationszeiten von Robolectric zu verlassen.
+- **P214** Tempo eigener Ebenen (34): `0.35f` ist nicht 0,35. Mit `phase * speed` sprang eine
+  Ebene am Phasenumbruch (ganze 200 Durchläufe, P107) um bis zu 0,006 Durchläufe. Der Renderer
+  rechnet die Zeit der Ebene in `double` aus ganzen Schritten (`speedSteps / 20`); das Tempo ist
+  darum auf 0,05 gerundet, und 200 × Schritte / 20 bleibt ganzzahlig.
+- **P215** `RgbOwnRenderer` hat Zwischenwerte je Instanz (Farbdreh-Matrix des Bilds, Abstand zum
+  Ring, Mitte des Spots) und gehört wie die Engine zu einem Thread. Nie in ein `object` legen: Das
+  Hintergrund-Raster (`rgb-light`) und der UI-Thread (Tastenmitten, Leiste) rechnen gleichzeitig;
+  `RgbTexture.ask` macht dafür eine eigene Engine und damit einen eigenen Renderer.
+- **P216** `RgbEngine.base(x, y)` ohne Uhr sieht keine Tipps. Ringe, Spot und Reaktionen eigener
+  Muster brauchen `base(x, y, nowMs)` (so in `RgbTexture.computeGrid` und `light`). Ein neues
+  Raster wird nur bestellt, solange `hasActiveEffect` gilt; darum deckt `RgbOwnRenderer.tapActive`
+  Nachleuchten und Gleiten (180 ms) ab, sonst bliebe das Raster mitten im Gleiten stehen.
+- **P217** Die Einstellung nennt ein eigenes Muster nur über seine ID: `RgbSettings.parse` gibt eine
+  Referenz ohne Ebenen, die wie das eingebaute `pattern` zeichnet. Wer zeichnet oder eine
+  Zusammenfassung zeigt, liest über `RgbLighting.read` (löst auf). `own` wird nie vom gemeinsamen
+  Look geerbt (`readLook`), sonst bekäme ein Element ohne eigenes Muster das des gemeinsamen Looks.
+- **P218** Editor: Regler und Kurvenpunkte ändern beim Ziehen nur einen Entwurf für die Vorschau.
+  Bei jedem Schritt zu speichern hieße, `agent_rgb_patterns` (und damit die Tastatur) neu zu laden
+  und Engines neu zu bauen. Nach Datei-Arbeit auf `Dispatchers.IO` geht es mit
+  `withContext(Dispatchers.Main)` zurück: In Robolectric lief die Fortsetzung sonst auf dem
+  IO-Thread („Can't toast on a thread that has not called Looper.prepare()“).
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (580 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (589 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (5): agent-apk, agent-tests, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (82): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (83): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand,
   ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand, CorrectionMemory,
@@ -4479,11 +4568,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   FlatMenuView, FlatPanelStyle, FlatPreset, ForeignWords, FormatGuardChips, HapticChain,
   JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore, LearningData,
   LoadingDotsView, ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData, MyDesigns,
-  OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter, RgbLighting, RgbStrip, RgbTexture,
-  RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore, SkillLabels,
-  SliderFeel, SliderHaptics, SmartPasteChips, SpaceDetents, SpaceGestures, SubtypeSwitchLog,
-  SymbolDrawing, SymbolInk, ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel,
-  TypedWordFirst, TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract,
+  OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter, RgbLighting, RgbOwnPatterns, RgbStrip,
+  RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore,
+  SkillLabels, SliderFeel, SliderHaptics, SmartPasteChips, SpaceDetents, SpaceGestures,
+  SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary, ToolLauncher, TouchCalibration,
+  TouchModel, TypedWordFirst, TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract,
   WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
 - `A/charart/` (5): CharArtCanvas, CharArtImages, CharArtKey, CharArtKeys, CharArtView
 - `A/commands/` (22): AiCommandChips, AlarmCommand, AreaCommands, AskCommand, ClipCommand,
@@ -4495,7 +4584,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (6): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdatePrompts,
   UpdateSettings, Updates
-- `AT/` (98): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (99): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, CharArtWindowTest, ClipCommandTest, ClipVaultTest, CommandReplaceTest,
@@ -4508,8 +4597,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LearningDataTest,
   LoadingDotsViewTest, ManualWorkflowDraftTest, MemoryScreenTest, MoreCommandsTest,
   MoreProvidersTest, MyDataScreenTest, MyDataStoreTest, MyDesignsTest, OpenAiProviderTest,
-  RgbFrameRateCardTest, RgbLightingRenderTest, RgbSettingsScreenTest, RgbTilesTest,
-  ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest, SettingsAreaAiTest,
+  RgbFrameRateCardTest, RgbLightingRenderTest, RgbPatternEditorTest, RgbSettingsScreenTest,
+  RgbTilesTest, ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest, SettingsAreaAiTest,
   SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest, SettingsKitTest,
   SettingsLookScreenTest, SettingsStartScreenTest, SettingsSystemAreaTest, SettingsTypingAreaTest,
   SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest, SmartPasteChipsTest, SnipCommandTest,
@@ -4521,27 +4610,28 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `AT/commands/` (9): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
   TranslateCommandTest, UrlCommandTest
-- `C/` (45): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
+- `C/` (47): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
   CorrectionRules, DateFormatting, EditorSession, EmojiKeywords, EmojiMix, EmojiNames,
   EmojiSynonyms, EventParser, ExecutionPolicy, InkDots, InkRecognizer, InkSymbols, InkTiming,
   LanguageNames, LocalTextActions, MathExpression, ModelProvider, OwnInkSymbols, PendingBatchGate,
-  PersonalInkSymbols, Places, Profiles, ReleaseNotes, RgbCurve, RgbLighting, RgbPatterns,
-  SkillBinding, SnippetTemplate, SpecialCharacters, StyledTranslation, SymbolTable, TextCondition,
-  TimerParser, Tool, TouchDynamics, UnitConversion, UpdateReleases, UrlDetector, Workflow
+  PersonalInkSymbols, Places, Profiles, ReleaseNotes, RgbCurve, RgbLighting, RgbOwnPattern,
+  RgbPatternJson, RgbPatterns, SkillBinding, SnippetTemplate, SpecialCharacters, StyledTranslation,
+  SymbolTable, TextCondition, TimerParser, Tool, TouchDynamics, UnitConversion, UpdateReleases,
+  UrlDetector, Workflow
 - `C/charart/` (6): BigFont, CharArt, Raster, Sketch, TextColumns, UnicodeStyle
 - `C/clip/` (6): ClipDates, ClipGuard, LinkCleaner, PrivateRanges, SmartPaste, TrackingNumbers
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `C/memory/` (4): OwnWords, PhraseMemory, ShortcutOffers, SnippetMatcher
 - `C/suggest/` (1): ContextSuggest
-- `CT/` (42): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
+- `CT/` (44): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
   CorrectionRulesTest, DateFormattingTest, EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest,
   EventParserTest, InkAreaTest, InkBenchmarkTest, InkDotFlowTest, InkDotsTest, InkFingerModel,
   InkRecognizerTest, InkTimingTest, InsertionAnchorTest, LanguageNamesTest, LocalTextActionsTest,
   MathExpressionTest, OwnInkSymbolsTest, PendingBatchGateTest, PersonalInkSymbolsTest, PlacesTest,
   QuestionCaptureTest, ReleaseNotesTest, RgbCurveTest, RgbFrameStatsTest, RgbLightingTest,
-  RgbPatternsTest, SkillBindingTest, SnippetTemplateTest, StyledTranslationTest, SymbolTableTest,
-  TimerParserTest, ToolTest, TouchDynamicsTest, UnitConversionTest, UpdateReleasesTest,
-  UrlDetectorTest, WorkflowTest
+  RgbOwnPatternTest, RgbPatternJsonTest, RgbPatternsTest, SkillBindingTest, SnippetTemplateTest,
+  StyledTranslationTest, SymbolTableTest, TimerParserTest, ToolTest, TouchDynamicsTest,
+  UnitConversionTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
 - `CT/charart/` (2): CharArtTest, SketchTest
 - `CT/clip/` (3): ClipGuardTest, PrivateRangesTest, SmartPasteTest
 - `CT/format/` (1): FormatGuardTest
@@ -4572,16 +4662,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/settings/dialogs/` (2): ColorPickerDialog, SliderDialog
 - `K/settings/preferences/` (5): BackupRestorePreference, CustomFontPreference,
   KeyboardScalePreference, LoadGestureLibPreference, SliderPreference
-- `K/settings/screens/` (43): AdvancedScreen, AgentAiScreen, AgentAreaAiScreen, AgentAreaBarScreen,
+- `K/settings/screens/` (44): AdvancedScreen, AgentAiScreen, AgentAreaAiScreen, AgentAreaBarScreen,
   AgentAreaGesturesScreen, AgentAreaKeysScreen, AgentAreaLookScreen, AgentAreaScreen,
   AgentAreaSystemScreen, AgentAreaTypingScreen, AgentCommandsScreen, AgentDesignEditor,
   AgentDesignScreen, AgentDiagnoseScreen, AgentDictationScreen, AgentEmojiMixSection,
   AgentLearningScreen, AgentMemoryScreen, AgentMyDataScreen, AgentProfilesScreen,
-  AgentRgbCurveEditor, AgentRgbFrameRate, AgentRgbScreen, AgentRunStatus, AgentScreenReaderSection,
-  AgentScreenshotScreen, AgentSettingsKit, AgentSkillsScreen, AgentSlider, AgentSnippetsSection,
-  AgentSpaceScreen, AgentStartScreen, AgentSymbolsScreen, AgentUpdatePrompts, AgentUpdatesScreen,
-  AgentWorkflowsScreen, AppearanceScreen, DictionaryScreen, GestureTypingScreen, MainSettingsScreen,
-  TextCorrectionScreen, WorkflowBuilderDialog, WorkflowDraftProtection
+  AgentRgbCurveEditor, AgentRgbFrameRate, AgentRgbPatternEditor, AgentRgbScreen, AgentRunStatus,
+  AgentScreenReaderSection, AgentScreenshotScreen, AgentSettingsKit, AgentSkillsScreen, AgentSlider,
+  AgentSnippetsSection, AgentSpaceScreen, AgentStartScreen, AgentSymbolsScreen, AgentUpdatePrompts,
+  AgentUpdatesScreen, AgentWorkflowsScreen, AppearanceScreen, DictionaryScreen, GestureTypingScreen,
+  MainSettingsScreen, TextCorrectionScreen, WorkflowBuilderDialog, WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
 - `app/` (1): build.gradle
@@ -4601,25 +4691,25 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (30): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
+- `app/src/main/res/values-de/` (31): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
   agent_charart_strings, agent_clipvault_strings, agent_command_system_strings,
   agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings, agent_format_strings,
-  agent_gestures_strings, agent_language_strings, agent_memory_strings, agent_rgb_strings,
+  agent_gestures_strings, agent_language_strings, agent_memory_strings, agent_rgb_pattern_strings,
+  agent_rgb_strings, agent_settings_keys_strings, agent_settings_look_strings,
+  agent_settings_strings, agent_settings_system_strings, agent_slider_strings,
+  agent_smart_paste_strings, agent_snippet_strings, agent_space_strings, agent_strings,
+  agent_suggest_strings, agent_symbol_strings, agent_touch_strings, agent_typing_strings,
+  agent_update_prompt_strings, agent_update_strings, strings
+- `app/src/main/res/values/` (38): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+  agent_bar_strings, agent_charart_ids, agent_charart_strings, agent_clipvault_strings,
+  agent_command_system_strings, agent_design_strings, agent_diagnose_strings,
+  agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_ids,
+  agent_language_strings, agent_memory_strings, agent_rgb_pattern_strings, agent_rgb_strings,
   agent_settings_keys_strings, agent_settings_look_strings, agent_settings_strings,
   agent_settings_system_strings, agent_slider_strings, agent_smart_paste_strings,
   agent_snippet_strings, agent_space_strings, agent_strings, agent_suggest_strings,
   agent_symbol_strings, agent_touch_strings, agent_typing_strings, agent_update_prompt_strings,
-  agent_update_strings, strings
-- `app/src/main/res/values/` (37): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
-  agent_bar_strings, agent_charart_ids, agent_charart_strings, agent_clipvault_strings,
-  agent_command_system_strings, agent_design_strings, agent_diagnose_strings,
-  agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_ids,
-  agent_language_strings, agent_memory_strings, agent_rgb_strings, agent_settings_keys_strings,
-  agent_settings_look_strings, agent_settings_strings, agent_settings_system_strings,
-  agent_slider_strings, agent_smart_paste_strings, agent_snippet_strings, agent_space_strings,
-  agent_strings, agent_suggest_strings, agent_symbol_strings, agent_touch_strings,
-  agent_typing_strings, agent_update_prompt_strings, agent_update_strings, attrs, clip_provider,
-  donottranslate, gesture_data, themes-flat
+  agent_update_strings, attrs, clip_provider, donottranslate, gesture_data, themes-flat
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (2): KeyboardParserTest, Shadows
