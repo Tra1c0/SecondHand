@@ -2635,6 +2635,86 @@ class InputLogicTest {
             assertEquals(listOf(Triple("es", "danke", "de")), foreignWords())
         }
 
+    // second review of stage 51 (a-c): closed in the background, after long idle time and when a dictionary
+    // changes; a dictionary that cannot be loaded is not tried at every check
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 51 second review the dictionaries close in the background, when idle and on a dictionary change`() =
+        withLanguages(mapOf("de" to WordLists.of("danke", "gut"), "es" to WordLists.of("hola")), germanSubtype, spanishSubtype, englishSubtype) {
+            val foreign = helium314.keyboard.agent.ForeignWords
+            val here = Thread.currentThread()
+            fun opened(language: String) = WordLists.opened.count { it.second === here && it.first.language == language }
+            typeWord("xyzzy") // known nowhere: every dictionary is asked, English has none
+            assertEquals(1, opened("de"))
+            assertEquals(1, opened("en"))
+            newField()
+            typeWord("qwxyz")
+            assertEquals(1, opened("de")) // kept open
+            assertEquals(1, opened("en")) // (c) before: tried again at every check
+            // (a) the keyboard in the background (Android 14+ hardly sends the low-memory levels)
+            latinIME.onTrimMemory(android.content.ComponentCallbacks2.TRIM_MEMORY_BACKGROUND)
+            newField()
+            typeWord("xyzzy")
+            assertEquals(2, opened("de"))
+            assertEquals(2, opened("en"))
+            // (a) unused for long: closed at the next field change
+            val clock = foreign.clock
+            try {
+                val later = System.currentTimeMillis() + foreign.IDLE_MILLIS
+                foreign.clock = { later }
+                newField()
+                typeWord("qwxyz")
+                assertEquals(3, opened("de"))
+            } finally {
+                foreign.clock = clock
+            }
+            // (b) a dictionary added or removed: HeliBoard reloads its own, the foreign check reopens too
+            latinIME.resetSuggestMainDict()
+            newField()
+            typeWord("xyzzy")
+            assertEquals(4, opened("de"))
+            assertEquals(4, opened("en"))
+        }
+
+    // second review of stage 51 (d): a check still waiting does not bring back a word forgotten meanwhile
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 51 second review a forgotten word is not added again by a waiting check`() =
+        withLanguages(wordsDeEs, germanSubtype, spanishSubtype) {
+            val foreign = helium314.keyboard.agent.ForeignWords
+            val queued = ArrayList<Runnable>()
+            foreign.worker = java.util.concurrent.Executor { queued += it }
+            typeWord("gracias")
+            newField()
+            typeWord("gracias") // the second place: its check would remember it
+            assertEquals(2, queued.size)
+            queued.removeAt(0).run()
+            assertEquals(listOf(Triple("de", "gracias", "es")), foreignWords(withCandidates = true))
+            foreign.forget(latinIME, "de", "gracias") // e.g. replaced by the owner, or deleted on the page
+            queued.removeAt(0).run()
+            assertEquals(emptyList(), foreignWords(withCandidates = true)) // before: remembered
+            foreign.worker = java.util.concurrent.Executor { it.run() }
+            // later checks count again
+            newField(); typeWord("gracias")
+            newField(); typeWord("gracias")
+            assertEquals(listOf(Triple("de", "gracias", "es")), foreignWords())
+        }
+
+    // second review of stage 51 (e): after a language switch in the field, a replaced word is not forgotten for the new language
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 51 second review a word replaced after a language switch in the field stays remembered`() =
+        withLanguages(wordsDeEs, germanSubtype, englishSubtype) {
+            latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_LEARN_TYPOS, true) }
+            setInputType(InputType.TYPE_CLASS_TEXT) // no autocorrection
+            newField()
+            remembered(Triple("de", "hola", "es"), Triple("en", "hola", "es"))
+            chainInput("hola danke ")
+            switchByCommand("@eng")
+            assertEquals("en", settingsValues.mLocale.language)
+            replaceLetter(3, 'd')
+            setCursorPosition(text.length)
+            assertEquals("hold danke ", text)
+            assertEquals(setOf(Triple("de", "hola", "es"), Triple("en", "hola", "es")), foreignWords().toSet()) // before: ("en", "hola") gone
+        }
+
     // review N6: a word is kept as the other dictionary writes it ("haus" in Spanish text is German "Haus")
     @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
     fun `stage 51 review a word is kept as the other dictionary writes it`() = withLanguages(wordsDeEs, spanishSubtype, germanSubtype) {

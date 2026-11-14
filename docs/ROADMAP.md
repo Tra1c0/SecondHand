@@ -231,8 +231,9 @@ Reihenfolge von oben nach unten.
   verschiedenen Stellen unkorrigiert stehen bleibt; ersetzt du ein gemerktes Wort durch ein anderes,
   ist es für diese Sprache wieder vergessen; Rückgängig gemachte Korrekturen, eigene Wörter,
   Wortfolgen und Kürzel bleiben sprachübergreifend. Prüfer-Review: Befunde behoben (Nachprüfung 51 in
-  `docs/VALIDATION.md`), erneute Prüfung offen (Engine: `DictionaryFacilitatorImpl`, `Suggest`,
-  `LatinIME.onTrimMemory`, Pflicht). Offen: Gerätetest (echte Wörterbücher, Speicher der zusätzlich
+  `docs/VALIDATION.md`), Restpunkte der zweiten Prüfung behoben (Zweite Nachprüfung 51), erneute
+  Prüfung offen (Engine: `DictionaryFacilitatorImpl`, `Suggest`, `LatinIME.onTrimMemory`,
+  `LatinIME.resetSuggestMainDict`, Pflicht). Offen: Gerätetest (echte Wörterbücher, Speicher der zusätzlich
   geöffneten Wörterbücher, Sprachtaste und Wischen auf der Leertaste).
 - **52 Einheitliches Befehlssystem (mit dem Owner festgelegt, 2026-11-14)** ist gebaut (siehe
   FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 52), nach den Festlegungen des Owners

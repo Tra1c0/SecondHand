@@ -549,7 +549,8 @@ Autokorrektur folgt der Sprache (Etappe 51, Details im Abschnitt „Lerndaten“
   des Tippens; nie als Korrektur.
 - `LatinIME.java` (Nachprüfung 51 N3): `onTrimMemory` ruft bei knappem Speicher zusätzlich
   `ForeignWords.closeDictionaries` (neben `RgbLighting.onTrimMemory`); beim Beenden schließt
-  `AgentEditorController.destroy` sie.
+  `AgentEditorController.destroy` sie. Zweite Nachprüfung 51: auch bei `TRIM_MEMORY_BACKGROUND`
+  (eigener Fall) und in `resetSuggestMainDict` (Wörterbuch hinzugefügt oder entfernt), P207.
 - Nicht geändert: `InputLogic`, `RichInputConnection`, `PointerTracker`. Die Sprachbefehle schalten
   weiter über `switchToSubtype` (wie die Sprachtaste); gelernt wird über den Hook von 46
   (`Memory.onWordCommitted` reicht jedes Wort zuerst an `ForeignWords` weiter, vor den eigenen
@@ -2651,13 +2652,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   (`DictionaryFactory.createMainDictionaryCollection`, nur lesend wie zweite Sprachen), je Locale
   einmal: das der Tastatursprache und die der anderen Sprachen; sie bleiben über einen Wechsel der
   Tastatursprache offen, eine nicht mehr aktive Sprache wird bei der nächsten Prüfung geschlossen,
-  alle mit `closeDictionaries` (`LatinIME.onTrimMemory` bei knappem Speicher,
-  `AgentEditorController.destroy`, `clear`). Mit „Anstößige Wörter sperren“
+  alle mit `closeDictionaries` (`LatinIME.onTrimMemory` bei knappem Speicher und im Hintergrund,
+  nach `IDLE_MILLIS` = 10 min ohne Prüfung beim nächsten Feldwechsel, `LatinIME.resetSuggestMainDict`
+  nach einer Wörterbuchänderung, `AgentEditorController.destroy`, `clear`; P207). Mit „Anstößige Wörter sperren“
   (`mBlockPotentiallyOffensive`) zählt keine Form mit Häufigkeit 0 (wie HeliBoards Lernverlauf).
   Ersetzt der Owner ein gemerktes Wort (oder einen Kandidaten) durch ein anderes, ist es für die
   Tastatursprache vergessen (`onReplaced`: aus `TypoMemory.confirm`, also Vorschlag statt getipptem
   Wort, und aus `FieldCorrectionWatcher.checkpoint` für eine eigene Änderung im Feld; nicht bei
-  Groß-/Kleinänderung, fertig geschriebenem Wort, Lernpause, gesperrtem Feld oder Gerät). Gelernt
+  Groß-/Kleinänderung, fertig geschriebenem Wort, Lernpause, gesperrtem Feld oder Gerät, und nach
+  einem Sprachwechsel im Feld nicht über den Feldweg, P208). `forget` erhöht je Wort einen Zähler
+  (`forgotten`): eine Prüfung, die davor geplant wurde, legt das Wort nicht wieder an. Gelernt
   wird nur mit „Personalisierte Vorschläge“ (`mUsePersonalizedDicts`), ohne Lernpause, nicht in
   gesperrten Feldern (`Memory.isBlocked`: Inkognito, Passwort, `NO_LEARNING_FIELD`, vom Gedächtnis
   ausgeschlossene Apps) und nicht bei gesperrtem Gerät; angeboten wird nur ungesperrt und nicht in
@@ -4416,9 +4420,15 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   werden zusätzlich zu denen des Facilitators geöffnet (das der Tastatursprache doppelt, Speicher wie
   zweite Sprachen, Gerätetest offen) und bleiben über einen Wechsel der Tastatursprache offen;
   geschlossen werden sie nur bei einer Prüfung nach dem Abschalten einer Sprache, in
-  `LatinIME.onTrimMemory` (knapper Speicher), in `AgentEditorController.destroy` und mit `clear`.
-  Ein Wörterbuch, das nicht geladen werden konnte, wird nicht gemerkt und bei der nächsten Prüfung neu
-  versucht. Ein gemerktes Wort, das wieder benutzt wird, schreibt nichts (`dirty`); erst
+  `LatinIME.onTrimMemory` (knapper Speicher; seit der zweiten Nachprüfung 51 auch
+  `TRIM_MEMORY_BACKGROUND`, weil Android 14+ die Stufen für knappen Speicher kaum noch schickt),
+  beim ersten Feldwechsel nach `IDLE_MILLIS` (10 min) ohne Prüfung (`lastCheck`, ohne Timer: ein
+  verzögerter Handler liefe in den Robolectric-Tests mitten in `handleMessages`), in
+  `LatinIME.resetSuggestMainDict` (ein Wörterbuch kam dazu oder fiel weg; HeliBoard lädt dort seine
+  eigenen neu), in `AgentEditorController.destroy` und mit `clear`. Ein Wörterbuch, das nicht
+  geladen werden konnte, wird je Locale gemerkt (`failed`) und erst nach einem dieser Schließen
+  wieder versucht (vorher bei jeder Prüfung). Wer einen neuen Weg baut, auf dem Wörterbücher dazukommen,
+  ruft `closeDictionaries`. Ein gemerktes Wort, das wieder benutzt wird, schreibt nichts (`dirty`); erst
   `onFieldChanged(context)` schreibt; wer einen neuen Weg zum Feldwechsel baut, ruft es mit Kontext
   (ohne Kontext bleibt die neue Zeit bis zum nächsten Aufruf mit Kontext nur im Speicher). Jede Aufgabe auf dem Worker läuft in `runCatching`: Ein Fehler in einem Wörterbuch darf den
   Tastatur-Prozess nicht beenden. In Tests läuft der Worker auf dem Test-Thread; `WordLists.opened`
@@ -4431,8 +4441,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `AgentEditorController.startEditor`/`finishEditor`), nicht `start`: Ein Sprachwechsel ruft
   `InputLogic.onSubtypeChanged` → `startInput` → `start`, das Feld bleibt aber dasselbe. Wer die
   Sprache an `start` hängt, verliert den Wechsel. Ein von der App geleertes Feld beginnt in der
-  Sprache von jetzt neu. Rücknahmen (`RejectedCorrections`) und `ForeignWords.onReplaced` laufen
-  weiter. Lücke: Startet die App das Feld nach dem Sprachwechsel neu (`onStartInputView`, z. B. nach
+  Sprache von jetzt neu. Rücknahmen (`RejectedCorrections`) laufen weiter; `ForeignWords.onReplaced`
+  seit der zweiten Nachprüfung 51 nicht mehr (das ersetzte Wort kann in der alten Sprache stehen,
+  vergessen würde es aber für die neue). Lücke: Startet die App das Feld nach dem Sprachwechsel neu (`onStartInputView`, z. B. nach
   dem Löschen eines Befehls), ist es ein neues Feld in der neuen Sprache; eine Verbesserung im alten
   Text gilt dann für die neue Sprache, wenn deren Wörterbuch das gemeinte Wort kennt (sonst ist es
   kein Tippfehler im Sinn von `CorrectionRules.classify`). In `InputLogicTest` ruft nur `newField`

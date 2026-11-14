@@ -791,6 +791,7 @@ public class LatinIME extends InputMethodService implements
         mKeyboardSwitcher.setThemeNeedsReload(); // necessary for emoji search
         EmojiPalettesView.closeDictionaryFacilitator();
         EmojiSearchActivity.Companion.closeDictionaryFacilitator();
+        helium314.keyboard.agent.ForeignWords.closeDictionaries(); // fork, second review of stage 51: a dictionary was added or removed
     }
 
     // used for debug
@@ -2111,6 +2112,8 @@ public class LatinIME extends InputMethodService implements
                 helium314.keyboard.agent.RgbLighting.onTrimMemory();
                 helium314.keyboard.agent.ForeignWords.closeDictionaries(); // fork, review of stage 51 (N3)
             }
+            // fork, second review of stage 51: Android 14+ hardly sends the levels above any more
+            case TRIM_MEMORY_BACKGROUND -> helium314.keyboard.agent.ForeignWords.closeDictionaries();
             // deallocateMemory always called on hiding, and should not be called when showing
         }
     }

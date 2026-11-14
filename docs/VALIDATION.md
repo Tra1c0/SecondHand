@@ -4808,6 +4808,35 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   `LatinIME.java` (`onTrimMemory`, eine Zeile). `InputLogic`, `RichInputConnection`,
   `PointerTracker`, `DictionaryFacilitatorImpl` unverändert.
 
+### Zweite Nachprüfung 51 (Restpunkte der zweiten Prüfung, 2026-11-14)
+
+- Behoben (Arbeitskopie, Lead-Auftrag 2026-11-14):
+  - (a) Die Wörterbücher der anderen Sprachen schließen auch bei `TRIM_MEMORY_BACKGROUND` (Android
+    14+ schickt `RUNNING_LOW` kaum noch; eigener Fall in `LatinIME.onTrimMemory`) und beim ersten
+    Feldwechsel nach `ForeignWords.IDLE_MILLIS` (10 min) ohne Prüfung (ohne Timer, P207).
+  - (b) `LatinIME.resetSuggestMainDict` (ein Wörterbuch kam dazu oder fiel weg) schließt sie
+    (`ForeignWords.closeDictionaries`), die nächste Prüfung öffnet die neuen.
+  - (c) Ein Wörterbuch, das nicht geladen werden konnte, wird je Locale gemerkt und erst nach dem
+    nächsten Schließen wieder versucht (vorher bei jeder Prüfung).
+  - (d) `forget` erhöht je Wort einen Zähler; eine schon geplante Prüfung legt das Wort danach
+    nicht wieder an.
+  - (e) Nach einem Sprachwechsel im Feld vergisst die Änderung im Feld (49) kein Wort mehr für die
+    neue Sprache (`ForeignWords.onReplaced` hinter `languageSwitched`, P208).
+- Neue Tests: `InputLogicTest` „stage 51 second review“ (3: Schließen im Hintergrund, nach langer
+  Ruhe und nach einer Wörterbuchänderung, ein fehlendes Wörterbuch nur einmal je Schließen versucht;
+  vergessenes Wort durch wartende Prüfung nicht zurück; ersetztes Wort nach Sprachwechsel im Feld
+  bleibt gemerkt).
+- Gegenprobe (2026-11-14): Mit den alten `ForeignWords.kt` und `FieldCorrections.kt` (nur um
+  `IDLE_MILLIS` ergänzt) sind alle drei rot: (c) am zweiten Öffnen des fehlenden englischen
+  Wörterbuchs (`expected:<1> but was:<2>`), (d) mit `(de, gracias, es)` wieder da, (e) ohne
+  `(en, hola, es)`. (a) und (b) laufen im ersten Test dahinter und sind nicht einzeln gegengeprüft.
+- Gelaufen (2026-11-14): `InputLogicTest` „stage 51*“ (20, 0 Fehler) und der Lauf der Nachprüfung
+  52 (Etappe 52 unten: `*InputLogicTest` 267 mit dem einen geerbten Fehler). Nicht gelaufen wie
+  Nachprüfung 51; Gerätetest offen (wann Android 14+ `TRIM_MEMORY_BACKGROUND` wirklich schickt).
+- Engine-Änderungen (erneutes Prüfer-Review Pflicht): `LatinIME.java` (`onTrimMemory` ein Fall,
+  `resetSuggestMainDict` eine Zeile). `InputLogic`, `RichInputConnection`, `PointerTracker`,
+  `Suggest`, `DictionaryFacilitatorImpl` unverändert.
+
 ## Etappe 52 (Einheitliches Befehlssystem)
 
 - Auftrag: `docs/ROADMAP.md` → 52 (mit dem Owner festgelegt, 2026-11-14): Aufbau
