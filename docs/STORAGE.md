@@ -229,15 +229,19 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
     (angepinnte verblassen nicht, höchstens 200).
   - `own_words`: `v1`, dann `o;Wort` je eigenem Wort (höchstens 500) und `u;Zahl;Tag;Wort` je
     gezähltem Wort, das noch keins ist (höchstens 500, Nutzungen älter als 90 Tage zählen neu).
-  - `shortcuts`: `v1`, dann `Zahl;STATUS;Kurzform;Erweiterung` (STATUS `COUNTING`, `READY`,
-    `SHOWN`, `CREATED`, `DECLINED`; höchstens 200). `CREATED` heißt seit der Nachprüfung 46
-    „gemerkt“: Das Kürzel steht nur hier, nicht mehr im persönlichen Wörterbuch. Paare, deren
-    Erweiterung mit der Kurzform beginnt („wie;wieder“), verwirft das Lesen.
+  - `shortcuts`: `v2`, dann `Zahl;STATUS;Fall;Kurzform;Erweiterung` (STATUS `COUNTING`, `READY`,
+    `SHOWN`, `CREATED`, `DECLINED`; Fall `C`, wenn die Erweiterung nach einer großgeschriebenen
+    Kurzform aufgezeichnet wurde, sonst `l`; höchstens 200). `v1` ohne Fall-Spalte (Test-Build bis
+    zur zweiten Nachprüfung 46) wird weiter gelesen, als `l`. `CREATED` heißt seit der Nachprüfung 46
+    „gemerkt“: Das Kürzel steht nur hier, nicht mehr im persönlichen Wörterbuch; seine Erweiterung
+    ändert sich danach nicht mehr. Unplausible Paare verwirft das Lesen.
   - `excluded_apps`: Menge von Paketnamen (höchstens 50), in denen nichts gelernt und nichts
     angeboten wird.
-- Geschrieben höchstens alle 30 Sekunden beim Tippen, beim Verlassen eines Felds und bei jeder
-  Änderung auf der Seite, auf einem eigenen Hintergrund-Thread (Nachprüfung 46); „Alles
-  vergessen“ macht noch wartende Schreibvorgänge ungültig. Im Speicher dazu: die Wortfolge des
+- Geschrieben höchstens alle 30 Sekunden beim Tippen, beim Wechsel in ein anderes Feld und bei
+  jeder Änderung auf der Seite, auf einem eigenen Hintergrund-Thread (Nachprüfung 46); beim
+  Schließen der Tastatur bzw. Verlassen des Felds sofort (zweite Nachprüfung 46). „Alles
+  vergessen“ macht noch wartende Schreibvorgänge ungültig. Rest-Risiko: Beim Tippen liegen bis zu
+  30 Sekunden Gelerntes nur im Speicher und gehen verloren, wenn der Prozess in dieser Zeit endet. Im Speicher dazu: die Wortfolge des
   aktuellen Satzteils, die letzten 8 Commits mit Position (Abkürzungen), das zuletzt getippte Wort,
   die letzten 16 Wörter, die kein Hauptwörterbuch kannte, eine noch nicht gezählte Rücknahme und
   die schon gezählten Stellen („Wort@Position“, höchstens 200); beim Feldwechsel verworfen.
@@ -250,7 +254,8 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   „Personalisierte Vorschläge“ (`phrases`, `own_words`, `shortcuts`; `excluded_apps` bleibt).
 - Der Bausteinindex für passende Textbausteine (Wortmerkmale der eigenen Bausteine aus dem
   CE-Speicher) liegt nur im Speicher, nie auf der Platte; bei gesperrtem Gerät wird nichts gelesen.
-- Entsteht nur mit eingeschaltetem Schalter, nie aus Passwortfeldern, Inkognito, Feldern ohne
+- Entsteht nur mit eingeschaltetem Schalter und eingeschalteten „Personalisierten Vorschlägen“
+  (zweite Nachprüfung 46), nie aus Passwortfeldern, Inkognito, Feldern ohne
   Lernen, ausgeschlossenen Apps, bei pausiertem Lernen oder gesperrtem Gerät. Kein Backup (die App
   schließt Backups aus), kein Protokoll, kein Export. „Alles vergessen“ leert `phrases`,
   `own_words` und `shortcuts`.

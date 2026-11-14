@@ -169,17 +169,49 @@ class MemoryRulesTest {
     // ---- review M1, M2 ----
 
     @Test fun continuingAWordIsNoAbbreviation() {
-        assertFalse(ShortcutRules.plausible("Haus", "Hausaufgaben"))
-        assertFalse(ShortcutRules.plausible("Wo", "Wochenende"))
-        assertFalse(ShortcutRules.plausible("wie", "wieder"))
-        assertFalse(ShortcutRules.plausible("wo", "wo oder wann"))
-        assertTrue(ShortcutRules.plausible("vlt", "vielleicht"))
-        // in place: "Haus" deleted and "Hausaufgaben" typed there is no expansion
-        val tracker = ReplacementTracker()
-        assertNull(tracker.onCommit("Haus", 4, "Haus"))
-        assertNull(tracker.onCommit("Hausaufgaben", 12, "Hausaufgaben"))
-        // stored pairs of that kind are dropped when read
-        assertEquals(0, ShortcutBook.parse("v1\n3;CREATED;wie;wieder").offers().size)
+        // a real word (main dictionary) continued is no abbreviation
+        assertFalse(ShortcutRules.plausible("Haus", "Hausaufgaben", shortIsWord = true))
+        assertFalse(ShortcutRules.plausible("Wo", "Wochenende", shortIsWord = true))
+        assertFalse(ShortcutRules.plausible("wie", "wieder", shortIsWord = true))
+        assertFalse(ShortcutRules.plausible("wo", "wo oder wann", shortIsWord = true))
+        assertFalse(ShortcutBook().note("haus", "hausaufgaben", shortIsWord = true))
+        assertTrue(ShortcutRules.plausible("vlt", "vielleicht", shortIsWord = true))
+        // second review: a short form that is no word may start its expansion
+        assertTrue(ShortcutRules.plausible("Mo", "Montag"))
+        assertTrue(ShortcutRules.plausible("tel", "Telefon"))
+        assertTrue(ShortcutRules.plausible("Prof", "Professor"))
+        val book = ShortcutBook()
+        book.note("tel", "Telefon")
+        assertTrue(book.note("tel", "Telefon"), "learnable")
+        assertEquals(listOf("tel"), ShortcutBook.parse(book.encode()).offers().map { it.short })
+    }
+
+    @Test fun theStoredExpansionKeepsTheFormOfALowerCaseShortFormAndNeverChangesOnceRemembered() {
+        val book = ShortcutBook()
+        // at a sentence start first: kept only until a form after a lower-case short form comes
+        book.note("Mfg", "Mit freundlichen Grüßen")
+        book.note("mfg", "mit freundlichen Grüßen")
+        book.note("Mfg", "Mit freundlichen Grüßen")
+        book.mark("mfg", "mit freundlichen Grüßen", ShortcutBook.State.CREATED)
+        val mfg = assertNotNull(book.rememberedOf("mfg"))
+        assertEquals("mit freundlichen Grüßen", mfg.expansion)
+        assertFalse(mfg.fromCapitalShort)
+        // only after capitalised short forms: marked as such, also after a round trip
+        book.note("Lg", "Liebe Grüße"); book.note("Lg", "Liebe Grüße")
+        book.mark("lg", "liebe grüße", ShortcutBook.State.CREATED)
+        assertTrue(assertNotNull(ShortcutBook.parse(book.encode()).rememberedOf("lg")).fromCapitalShort)
+        // a noun after a lower-case short form keeps its capital
+        book.note("tel", "Telefon"); book.note("tel", "Telefon")
+        book.mark("tel", "telefon", ShortcutBook.State.CREATED)
+        assertFalse(assertNotNull(book.rememberedOf("tel")).fromCapitalShort)
+        // once remembered, later expansions never overwrite it
+        book.note("mfg", "mit Freundlichen Grüßen")
+        book.note("Mfg", "Mit freundlichen Grüßen")
+        assertEquals("mit freundlichen Grüßen", book.expansionOf("mfg"))
+        assertEquals("mit freundlichen Grüßen", ShortcutBook.parse(book.encode()).expansionOf("mfg"))
+        // the previous format is still read
+        assertEquals("vielleicht", ShortcutBook.parse("v1\n3;CREATED;vlt;vielleicht").expansionOf("vlt"))
+        assertEquals(false, ShortcutBook.parse("v1\n3;CREATED;vlt;vielleicht").rememberedOf("vlt")?.fromCapitalShort)
     }
 
     @Test fun aRememberedAbbreviationIsOnlyLookedUp() {

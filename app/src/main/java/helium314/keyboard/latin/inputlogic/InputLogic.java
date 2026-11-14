@@ -533,7 +533,10 @@ public final class InputLogic {
         commitChosenWord(settingsValues, suggestion, LastComposedWord.COMMIT_TYPE_MANUAL_PICK, LastComposedWord.NOT_A_SEPARATOR);
         mConnection.endBatchEdit();
         if (undoneCorrection != null) {
-            helium314.keyboard.agent.RejectedCorrections.remember(mLatinIME, suggestion, undoneCorrection, settingsValues);
+            // (stage 46, second review: the picked typed word ends at the cursor)
+            final int pickedCursor = mConnection.hasSelection() ? -1 : mConnection.getExpectedSelectionStart();
+            helium314.keyboard.agent.RejectedCorrections.remember(mLatinIME, suggestion, undoneCorrection, settingsValues,
+                    pickedCursor < suggestion.length() ? -1 : pickedCursor - suggestion.length());
             helium314.keyboard.agent.TypoMemory.forget(mLatinIME, suggestion, undoneCorrection);
         }
         if (typedBeforePick != null) {
@@ -2229,8 +2232,10 @@ public final class InputLogic {
             unlearnWord(committedWordString, inputTransaction.getSettingsValues(), DictionaryFacilitator.UnlearnEvent.REVERT);
             // fork, stage 20a: an undone correction is not applied automatically again
             // (gesture input only corrects capitalization, which remember() does not store)
+            // (stage 46, second review: the typed word is put back where the cursor is now)
             helium314.keyboard.agent.RejectedCorrections.remember(mLatinIME, originallyTypedWord.toString(),
-                    committedWordString, inputTransaction.getSettingsValues());
+                    committedWordString, inputTransaction.getSettingsValues(),
+                    mConnection.hasSelection() ? -1 : mConnection.getExpectedSelectionStart());
             // stage 20b: a learned pair that was just undone is dropped
             helium314.keyboard.agent.TypoMemory.forget(mLatinIME, originallyTypedWord.toString(), committedWordString);
         }
