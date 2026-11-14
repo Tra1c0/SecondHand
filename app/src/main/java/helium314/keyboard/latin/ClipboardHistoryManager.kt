@@ -397,13 +397,15 @@ class ClipboardHistoryManager(
             KeyboardTypeface.applyToTextView(textView)
             textView.text = (if (isClipSensitive(inputType)) "*".repeat(shortenedContent.length) else shortenedContent)
         }
+        // stage 40: the pill alone, or the row of the pill and its Smart Paste chips
+        var shownView: View = binding.root
         val onClickListener = View.OnClickListener {
             dontShowCurrentSuggestion = true
             if (hasText) latinIME.onTextInput(content.toString())
             else latinIME.onEvent(Event.createSoftwareKeypressEvent(KeyCode.CLIPBOARD_PASTE, 0,
                 Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false))
             AudioAndHapticFeedbackManager.getInstance().performHapticAndAudioFeedback(KeyCode.NOT_SPECIFIED, it, HapticEvent.KEY_PRESS)
-            binding.root.isGone = true
+            shownView.isGone = true
         }
         textView.setOnClickListener(onClickListener)
 
@@ -444,7 +446,11 @@ class ClipboardHistoryManager(
             ) { removeClipboardSuggestion() }
         }
 
-        clipboardSuggestionView = binding.root
+        // stage 40 (Smart Paste): chips for the recognised text after the pill, each acting only on its own tap
+        if (hasText) helium314.keyboard.agent.SmartPasteChips.stripRow(helium314.keyboard.agent.SmartPasteChips.imeHost(latinIME, editorInfo), parent,
+            binding.root, textView, content.toString(), timeStamp, ClipboardManagerCompat.getClipSensitivity(clipData.description) == true
+        ) { removeClipboardSuggestion() }?.let { shownView = it }
+        clipboardSuggestionView = shownView
         return clipboardSuggestionView
     }
 

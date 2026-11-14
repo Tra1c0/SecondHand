@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="agent_smart_map">📍 In Karten öffnen</string>
+    <string name="agent_smart_place">💾 Als Ort speichern</string>
+    <string name="agent_smart_call">📞 Anrufen</string>
+    <string name="agent_smart_contact">👤 Kontakt anlegen</string>
+    <string name="agent_smart_iban">🏦 Formatiert einfügen</string>
+    <string name="agent_smart_iban_invalid">⚠️ IBAN-Prüfziffer falsch</string>
+    <string name="agent_smart_track">📦 %1$s: Sendung verfolgen</string>
+    <string name="agent_smart_event">📅 Termin: %1$s</string>
+    <string name="agent_smart_mail">✉️ Mail schreiben</string>
+    <string name="agent_smart_clean">🧹 Ohne Tracking einfügen</string>
+    <string name="agent_smart_code">🔢 Code %1$s einfügen</string>
+    <string name="agent_smart_map_short">📍 Karte</string>
+    <string name="agent_smart_place_short">💾 Als Ort</string>
+    <string name="agent_smart_call_short">📞 Anrufen</string>
+    <string name="agent_smart_contact_short">👤 Kontakt</string>
+    <string name="agent_smart_iban_short">🏦 Formatiert</string>
+    <string name="agent_smart_iban_invalid_short">⚠️ Prüfziffer</string>
+    <string name="agent_smart_track_short">📦 %1$s</string>
+    <string name="agent_smart_event_short">📅 Termin</string>
+    <string name="agent_smart_mail_short">✉️ Mail</string>
+    <string name="agent_smart_clean_short">🧹 Ohne Tracking</string>
+    <string name="agent_smart_code_short">🔢 Code</string>
+    <string name="agent_smart_map_description">Kopierte Adresse in einer Karten-App öffnen</string>
+    <string name="agent_smart_place_description">Kopierte Adresse als Ort für den Ort-Befehl speichern</string>
+    <string name="agent_smart_call_description">Telefon-App mit der kopierten Nummer öffnen</string>
+    <string name="agent_smart_contact_description">Neuen Kontakt mit der kopierten Nummer anlegen</string>
+    <string name="agent_smart_iban_description">Kopierte IBAN in Blöcken einfügen: %1$s</string>
+    <string name="agent_smart_iban_invalid_description">Die Prüfziffer der kopierten IBAN stimmt nicht</string>
+    <string name="agent_smart_track_description">Sendungsverfolgung von %1$s für die kopierte Nummer öffnen</string>
+    <string name="agent_smart_event_description">Kalendertermin anlegen: %1$s</string>
+    <string name="agent_smart_mail_description">Mail an die kopierte Adresse schreiben</string>
+    <string name="agent_smart_clean_description">Kopierten Text ohne Tracking-Parameter in seinen Links einfügen</string>
+    <string name="agent_smart_code_description">Code %1$s aus der kopierten Nachricht einfügen</string>
+    <string name="agent_smart_none">Keine passende App gefunden</string>
+    <string name="agent_smart_place_saved">Als Ort „%1$s“ gespeichert</string>
+    <string name="agent_smart_place_exists">Schon gespeichert als „%1$s“</string>
+    <string name="agent_smart_place_full">Kein Platz mehr: höchstens 10 Orte</string>
+    <string name="agent_smart_place_unavailable">Orte lassen sich erst nach dem Entsperren speichern</string>
+    <string name="agent_smart_iban_invalid_toast">Die Prüfziffer dieser IBAN stimmt nicht</string>
+    <string name="agent_smart_paste_setting">Smart Paste</string>
+    <string name="agent_smart_paste_setting_sub">Aktionen für Kopiertes: Karte, Anrufen, IBAN, Sendung, Termin, Link ohne Tracking</string>
+    <string name="agent_smart_paste_setting_no_pill">Im Verlauf; in der Leiste nur mit „Zwischenablagen-Inhalt vorschlagen“</string>
+</resources>

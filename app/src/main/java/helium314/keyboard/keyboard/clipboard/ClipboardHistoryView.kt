@@ -223,6 +223,18 @@ class ClipboardHistoryView @JvmOverloads constructor(
         listHeightWithoutVault = clipboardRecyclerView.layoutParams.height
         helium314.keyboard.agent.ClipVault.onChange = { post { refreshVault() } }
         refreshVault()
+        // stage 40: Smart Paste chips on the cards; inserted text goes in like a vault pick (private)
+        clipboardAdapter.smartPaste = helium314.keyboard.agent.SmartPasteChips.History(context, { this.editorInfo }) { onSmartInsert(it) }
+    }
+
+    /** Stage 40: the tap on an inserting Smart Paste chip of a card, like a tap on a vault chip. */
+    private fun onSmartInsert(text: String): Boolean {
+        keyboardActionListener.onPressKey(KeyCode.NOT_SPECIFIED, 0, 1, HapticEvent.KEY_PRESS)
+        keyboardActionListener.onPrivateTextInput(text) // never composed or learned (P178)
+        keyboardActionListener.onReleaseKey(KeyCode.NOT_SPECIFIED, false)
+        if (Settings.getValues().mAlphaAfterClipHistoryEntry)
+            keyboardActionListener.onCodeInput(KeyCode.ALPHA, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+        return true
     }
 
     /** Shows the vault rows (nothing when locked, incognito or in a password field) and shortens the list by their height. */
@@ -258,6 +270,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
         ClipboardThumbnails.clear() // pictures are not kept beyond the visit of this view
         clipboardHistoryManager.setHistoryChangeListener(null)
         clipboardAdapter.clipboardHistoryManager = null
+        clipboardAdapter.smartPaste = null
     }
 
     override fun onClick(view: View) {

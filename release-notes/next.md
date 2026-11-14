@@ -321,3 +321,14 @@
   Fläche leuchtet voll und hat einen Rahmen. Ohne Android-Animationen und im Energiesparmodus steht
   der Tropfen still. „Im Energiesparmodus anhalten“ steht darunter. Die Einstellung selbst ist
   dieselbe wie vorher. Noch auf keinem Gerät ausprobiert.
+- Neu: Smart Paste (anfangs an, Einstellungen → Leiste & Befehle → Zwischenablage & Bilder). Hast
+  du etwas kopiert, stehen hinter der Zwischenablage-Pille (wenn „Zwischenablagen-Inhalt
+  vorschlagen“ an ist) und auf den Karten der Zwischenablage-Ansicht passende Chips: Adresse → in
+  Karten öffnen oder als `@ort`-Ort speichern; Telefonnummer → Telefon-App mit der Nummer oder neuer
+  Kontakt; IBAN → in Viererblöcken einfügen, nur mit richtiger Prüfziffer (sonst ein Hinweis);
+  Sendungsnummer von DHL, Deutsche Post, Hermes, DPD, GLS oder UPS → Sendungsverfolgung; Datum oder
+  Uhrzeit → Termin-Entwurf im Kalender; E-Mail-Adresse → Mail schreiben; Link → ohne
+  Tracking-Anhängsel (`utm_…`, `fbclid`, `si` …) einfügen; kopierte SMS mit Code → nur den Code
+  einfügen. Nichts passiert von selbst, jeder Chip wirkt nur auf deinen Tipp. Nie für Geheimnisse,
+  nie in Passwortfeldern, im Inkognito-Modus oder bei gesperrtem Gerät. Lokal, ohne Netz, ohne neue
+  Berechtigung. Noch auf keinem Gerät ausprobiert.

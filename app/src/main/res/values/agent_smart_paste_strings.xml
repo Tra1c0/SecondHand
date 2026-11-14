@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 40 Smart Paste (own file so parallel work on other string files does not collide). English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <!-- chips next to the clipboard pill -->
+    <string name="agent_smart_map">📍 Open in maps</string>
+    <string name="agent_smart_place">💾 Save as place</string>
+    <string name="agent_smart_call">📞 Call</string>
+    <string name="agent_smart_contact">👤 New contact</string>
+    <string name="agent_smart_iban">🏦 Insert formatted</string>
+    <string name="agent_smart_iban_invalid">⚠️ IBAN check digits wrong</string>
+    <!-- %1$s: carrier, e.g. DHL -->
+    <string name="agent_smart_track">📦 Track with %1$s</string>
+    <!-- %1$s: day and time, e.g. Sun 11/15 6:00 PM -->
+    <string name="agent_smart_event">📅 Event: %1$s</string>
+    <string name="agent_smart_mail">✉️ Write mail</string>
+    <string name="agent_smart_clean">🧹 Insert without tracking</string>
+    <!-- %1$s: the digits of the code -->
+    <string name="agent_smart_code">🔢 Insert code %1$s</string>
+    <!-- short forms on the cards of the clipboard history -->
+    <string name="agent_smart_map_short">📍 Map</string>
+    <string name="agent_smart_place_short">💾 Place</string>
+    <string name="agent_smart_call_short">📞 Call</string>
+    <string name="agent_smart_contact_short">👤 Contact</string>
+    <string name="agent_smart_iban_short">🏦 Formatted</string>
+    <string name="agent_smart_iban_invalid_short">⚠️ Check digits</string>
+    <string name="agent_smart_track_short">📦 %1$s</string>
+    <string name="agent_smart_event_short">📅 Event</string>
+    <string name="agent_smart_mail_short">✉️ Mail</string>
+    <string name="agent_smart_clean_short">🧹 No tracking</string>
+    <string name="agent_smart_code_short">🔢 Code</string>
+    <!-- TalkBack -->
+    <string name="agent_smart_map_description">Open the copied address in a maps app</string>
+    <string name="agent_smart_place_description">Save the copied address as a place for the place command</string>
+    <string name="agent_smart_call_description">Open the dialer with the copied number</string>
+    <string name="agent_smart_contact_description">Create a new contact with the copied number</string>
+    <!-- %1$s: the IBAN in blocks -->
+    <string name="agent_smart_iban_description">Insert the copied IBAN in blocks: %1$s</string>
+    <string name="agent_smart_iban_invalid_description">The check digits of the copied IBAN are wrong</string>
+    <!-- %1$s: carrier -->
+    <string name="agent_smart_track_description">Open the tracking page of %1$s for the copied number</string>
+    <!-- %1$s: day and time -->
+    <string name="agent_smart_event_description">Create a calendar event: %1$s</string>
+    <string name="agent_smart_mail_description">Write a mail to the copied address</string>
+    <string name="agent_smart_clean_description">Insert the copied text without tracking parameters in its links</string>
+    <!-- %1$s: the digits of the code -->
+    <string name="agent_smart_code_description">Insert the code %1$s from the copied message</string>
+    <!-- toasts -->
+    <string name="agent_smart_none">No app for this found</string>
+    <!-- %1$s: name of the new place -->
+    <string name="agent_smart_place_saved">Saved as place “%1$s”</string>
+    <!-- %1$s: name of the saved place -->
+    <string name="agent_smart_place_exists">Already saved as “%1$s”</string>
+    <string name="agent_smart_place_full">No room: at most 10 places</string>
+    <string name="agent_smart_place_unavailable">Places can be saved after unlocking</string>
+    <string name="agent_smart_iban_invalid_toast">The check digits of this IBAN are wrong</string>
+    <!-- settings: Bar &amp; commands, section Clipboard &amp; images -->
+    <string name="agent_smart_paste_setting">Smart Paste</string>
+    <string name="agent_smart_paste_setting_sub">Actions for copied text: map, call, IBAN, parcel, event, link without tracking</string>
+    <string name="agent_smart_paste_setting_no_pill">In the history; in the bar only with “Suggest clipboard content”</string>
+</resources>

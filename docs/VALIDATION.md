@@ -4317,6 +4317,89 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Offen: Prüfer-Review, Gerätetest (Aussehen, Tempo und Wirkung des Tropfens, Bildkosten am
   Telefon, Energiesparmodus live, TalkBack).
 
+## Etappe 40 (Smart Paste)
+
+- Auftrag (Lead, ROADMAP 40, Wunsch des Owners vom 2026-11-13): für den aktuellen Clip (Pille in der
+  Leiste) und je Karte des Verlaufs Typen lokal erkennen und Chips anbieten: Adresse → Karte /
+  speichern, Telefon → wählen / Kontakt, IBAN → formatiert mit Prüfziffer, Sendungsnummer → Seite
+  des Dienstes (feste Tabelle), Datum/Uhrzeit → Kalender, E-Mail → Mail, Link → ohne Tracking,
+  Einmalcode nur aus der Zwischenablage. Nie für Geheimnisse, nie in Passwort-, Inkognito-,
+  No-Learning-Feldern oder gesperrt. Gebaut in einer Arbeitskopie, kein Prüfer-Review, kein
+  Gerätetest.
+- Vorher geprüft: `@ort` (`PlaceCommand`, `SavedPlaces`, `Places.geoUri`) und `@termin`
+  (`EventCommand.intent`, `EventParser`) gibt es, beide werden benutzt, kein neuer Befehl.
+  `ClipGuard` bleibt unverändert (seine Arten bestimmen Tresor und Beschriftung aus 44/45);
+  Sendungsnummern und Daten sucht Smart Paste nur in Clips, die er als `TEXT` sortiert.
+  `<queries>`: nicht nötig (`startActivity` ohne Sichtbarkeitsabfrage, Manifest hat `action *`).
+  Keine neue Berechtigung: Wählen, Kontakt, Kalender und Mail öffnen nur die Apps.
+- Gebaut: Kern `C/clip/SmartPaste.kt`, `TrackingNumbers.kt`, `LinkCleaner.kt`, `ClipDates.kt`; App
+  `A/SmartPasteChips.kt`, `agent_smart_paste_strings.xml` (`values/` mit
+  `tools:ignore="MissingTranslation"`, `values-de/`), Schalter `AgentPreferences.SMART_PASTE` in
+  `AgentAreaBarScreen.kt`. Geänderte, schon geänderte Upstream-Dateien:
+  `ClipboardHistoryManager.kt` (Pille plus Chips, `shownView`), `ClipboardAdapter.kt`
+  (`bindHistoryRow`), `ClipboardHistoryView.kt` (`History` je Besuch, `onSmartInsert`). Keine
+  bisher unveränderte Upstream-Datei, keine Engine-Datei (`InputLogic`, `RichInputConnection`,
+  `PointerTracker`, `LatinIME`, `Suggest` unverändert), kein Layout, `map.sources` unverändert.
+- `./gradlew :agent-core:test`: grün, 479 Tests, 0 Fehler, darin neu `clip.SmartPasteTest`
+  21 (Adresse → Karte und Ort, Zeilen verbunden; Telefon → Wählen und Kontakt; IBAN nur mit
+  richtiger Prüfziffer in Blöcken, auch „IBAN:“ und klein geschrieben, schon in Blöcken nichts,
+  falsche Prüfziffer nur der Hinweis; E-Mail mit und ohne `mailto:`; Link mit/ohne Tracking;
+  Code aus Nachricht, Code allein nichts; Geheimnisse, Passwortsatz, markierte, leere und zu lange
+  Clips nichts; Text mit DHL-Nummer, Datum und Link ergibt alle drei in dieser Reihenfolge;
+  `toString` ohne Clip; UPS (öffentliche Beispielnummer, auch in Gruppen), Deutsche Post S10 (auch
+  „RR 1234 5678 5DE“, in Klammern), DHL `00340434…` (GS1) und `JJD…`, Hermes `H…`; falsche
+  Prüfziffern und S10 eines anderen Landes nichts; reine Ziffern ohne Namen des Dienstes nichts
+  (Bestell-, Kunden-, 11-stellige Nummern), mit Namen DPD, Hermes, DHL, GLS (auch Track-ID), der
+  zuerst genannte Dienst entscheidet; Postleitzahlen, Packstation, Hotline, Telefonnummer, Beträge,
+  IBAN keine Sendung; Seiten nur aus der Tabelle, nur Großbuchstaben und Ziffern; Daten de/en/es
+  („am 15.03.2027 um 14:30“, „morgen um 18 Uhr.“, „15. Dezember“, „bis 03.12.“, „am 3.12.“, ISO,
+  „20.01.2027.“, „tomorrow at 6pm“, „December 24th“, „mañana a las 9 de la noche“, „el 3 de marzo
+  de 2027“, „um 18:30“, „Sonntag/Samstag halb acht“); keine Daten: „Version 2.1“, „Update 1.2.3“,
+  „Android 14.1.2“, „Kapitel 3.2.“, „Preis 3.10 €“, „Preis: 12.50“, „Version 2.1 um 18 Uhr“,
+  „v2.1.0“, „Seite 4.11“, „bis morgen“, „Samstag“, „Guten Morgen!“, „Abfahrt 18:30“, „Fahrt 4h“,
+  „see you tomorrow“, „hasta mañana“, „Ergebnis 3:21“; vergangene Daten, „Rechnung vom 03.11.“
+  ohne Jahr, „gestern“, zu viele Zeilen, zu lang; Link-Reinigung behält `id`, `color`, `v`, `t`,
+  `page`, `q`, Kodierung, leere Werte, Reihenfolge und Fragment, entfernt `utm_*` (jede
+  Schreibweise), `fbclid`, `gclid`, `igshid`, `mc_eid`, `mc_cid`, `_hsenc`, `srsltid`, `si` nur bei
+  YouTube/Spotify, lässt `utmost`, `gclidx`, `siren` stehen, nichts bei `javascript:`; Links im
+  Text samt Satzzeichen und Klammern; Ortsname aus der Straße, Zähler bei gleichem Namen, Grenze
+  40 Zeichen). Prüfziffern der Beispiele getrennt mit einem kleinen Python-Skript berechnet; die
+  UPS-Beispielnummer `1Z999AA10123456784` ist UPS' öffentliches Beispiel.
+- `./gradlew :app:testDebugUnitTest` gezielt (`--max-workers=1`, 2026-11-14): neu
+  `SmartPasteChipsTest` 11 (Chips je Art mit echten Texten, Hinweis `MUTED`; nichts für Text
+  ohne Typ, Code allein, Link ohne Tracking, „Version 2.1“; echte Pille: Reihe aus Pille und
+  Chips, Pille zuerst mit dem Clip, Zeile ohne Befehlskennung, Karte startet `geo:` ohne
+  Einfügen, Schalter aus → Pille allein; Absichten: `geo:0,0?q=…`, `ACTION_DIAL` `tel:`,
+  `Insert.ACTION` mit `RawContacts.CONTENT_TYPE` und Nummer, `ACTION_SENDTO` `mailto:`,
+  UPS-Seite mit `CATEGORY_BROWSABLE`, `ACTION_INSERT` Kalender mit Beginn 15.11. 18:00 Berlin und
+  Titel, `FLAG_ACTIVITY_NEW_TASK`, nichts eingefügt, Manifest ohne `CALL_PHONE`, `WRITE_CONTACTS`,
+  `READ/WRITE_CALENDAR` (mit `READ_CONTACTS` als Gegenprobe, dass die Liste echt ist), fehlende
+  App nur Toast; Einfügen: vor dem Tipp nichts, zwei Tipps ein Einfügen und ein Ausblenden,
+  bereinigter Link, nur die Code-Ziffern, Hinweis fügt nichts ein, verschobene Schreibmarke und
+  gesperrt nach dem Zeigen nichts; Geheimnis, markiert, im Passwortfeld kopiert, Passwortfeld,
+  Inkognito, No-Learning, Zahlenfeld, kein Feld, gesperrt, Schalter aus: keine Chips; echte Pille:
+  Geheimnis und markierter Clip ohne Pille, Passwortfeld ohne Chips; „Als Ort“: Name „Musterstraße
+  12“, dieselbe Adresse nur einmal, gesperrter Speicher nichts; Karten: Kurztexte, Beschreibung für
+  TalkBack, Tipp fügt privat ein (`onPrivateTextInput`, nicht `onTextInput`), zweiter Tipp nichts,
+  Adresse zwei Chips, normaler Text keine Reihe; Karten in Passwortfeld, Inkognito, gesperrt
+  ohne Chips, Tipp nach dem Sperren nichts, im Passwortfeld kopierter Text ohne Chips; offene
+  Verlaufsansicht setzt `smartPaste`, Karte mit „Anrufen“/„Kontakt“, Tipp wählt, Schließen nimmt
+  es weg), `SettingsBarAreaTest` 11 (neuer Schalter `SMART_PASTE` in
+  `switchesWriteTheirPreferences`: an, Tipp schreibt aus, keine Assertion geändert). Gegenprobe:
+  ohne `used`, ohne Sperrprüfung und mit immer erlaubtem Verlauf schlugen 3 der 11 Tests fehl
+  (`insertOnlyOnATapAndOnce`, `nothingForSecretsOrInProtectedFields`,
+  `historyCardsHaveNoChipsInProtectedFieldsOrForSecrets`). Unverändert grün: `ClipVaultTest` 21,
+  `FlatClipboardTest` 8, `FieldSuggestionChipsTest` 21, `ClipCommandTest` 12,
+  `DatePlaceCommandsTest` 17, `FormatGuardChipsTest` 12.
+- Nicht gelaufen: `tools/dev.py agent-tests`, volle Suite, `InputLogicTest` und Build (geteilte
+  Maschine, Anweisung des Leads), Lint. Das Einfügen über die echte Tastatur
+  (`LatinIME.onPrivateTextInput`) ist derselbe Weg wie bei Feld-Vorschlägen
+  (`InputLogicTest.fieldSuggestionChipInsertsOnlyOnATapAndOnce`), für Smart Paste aber nicht mit
+  echtem Host geprüft (P204). `docs_sync --check`: grün.
+- Offen: Prüfer-Review, Gerätetest (die sechs Tracking-Seiten wirklich öffnen; Karten-, Telefon-,
+  Kontakte-, Mail- und Kalender-App; Leiste mit langer Pille und drei Chips, Karten mit zwei
+  Chips im flachen Look; TalkBack; Start aus der Tastatur heraus auf Android 14/15).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

@@ -114,13 +114,23 @@ Reihenfolge von oben nach unten.
   für markierten Text. `@kaomoji` mit eigener, lokaler Bibliothek ((╯°□°)╯︵ ┻━┻, ¯\_(ツ)_/¯ …,
   Suche nach Stichwort). Typografie aufräumen: „deutsche Anführungszeichen“, Gedankenstrich –,
   Auslassung …, doppelte Leerzeichen. (M)
-- **40 Smart Paste (Wunsch des Owners vom 2026-11-13)**. Lokal, ohne Netz. Erkennt im Kopierten
-  bzw. in der Zwischenablage-Pille Typen und bietet Chips: Adresse → in Karten öffnen / als
-  `@ort` speichern; Telefonnummer → anrufen / Kontakt; IBAN → formatiert einfügen (Prüfziffer
-  prüfen); Sendungsnummer → Link des Paketdienstes; Datum/Uhrzeit → `@termin`; E-Mail; Link →
-  Tracking-Parameter entfernen (utm_*, fbclid, gclid …) vor dem Einfügen; Code aus SMS
-  (Einmalcode) nur aus der Zwischenablage, nie aus Benachrichtigungen. Nicht in Passwortfeldern,
-  Inkognito, gesperrt; vertrauliche Clips nie. (M)
+- **40 Smart Paste (Wunsch des Owners vom 2026-11-13)** ist gebaut (siehe FEATURES.md, Nachweis in
+  `docs/VALIDATION.md` → Etappe 40). Chips neben der Zwischenablage-Pille und auf den Karten des
+  Verlaufs: Adresse → Karte (`geo:`) / als `@ort`-Ort speichern; Telefon → Wählen (ohne
+  Anruf-Berechtigung) / Kontakt anlegen; IBAN → in Blöcken einfügen nach Prüfziffer (falsche
+  Prüfziffer: nur Hinweis); Sendungsnummer → feste Seite von DHL, Deutsche Post, Hermes, DPD, GLS,
+  UPS; Datum/Uhrzeit → Kalenderentwurf wie `@termin`; E-Mail → Mail schreiben; Link → ohne
+  Tracking einfügen; Code aus einer kopierten Nachricht → nur die Ziffern. Annahmen des Leads, die
+  der Owner ändern kann: eigener Schalter „Smart Paste“ (anfangs an, Leiste & Befehle →
+  Zwischenablage & Bilder); in der Leiste nur mit der Pille („Zwischenablagen-Inhalt vorschlagen“,
+  anfangs aus), im Verlauf immer; Feld- und Kontext-Vorschläge (45) gehen vor, dann gibt es weder
+  Pille noch Smart Paste; nur in Textfeldern; höchstens drei Chips in der Leiste, zwei je Karte;
+  „Als Ort“ benennt den Ort nach Straße und Hausnummer; reine Ziffernfolgen (12 Ziffern DHL,
+  14 DPD/Hermes, 11–12 GLS) nur, wenn der Paketdienst im Text steht; Deutsche Post nur mit „DE“
+  am Ende; ein Datum ohne Jahr, das mehr als 300 Tage voraus läge, gilt als gerade vergangen;
+  `si` wird nur bei YouTube und Spotify entfernt; ein Code allein bekommt keinen Chip (die Pille
+  fügt ihn ein). Offen: Prüfer-Review, Gerätetest (Tracking-Seiten der sechs Dienste am Gerät,
+  Karten-, Telefon-, Kontakte-, Mail- und Kalender-App, TalkBack, Leiste mit langer Pille).
 - **41 Formatwächter** ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe
   41). Telefonnummern über libphonenumber (Messung: etwa 0,35 MB, unter der Grenze von 1,5 MB).
   Annahmen des Leads: Hinweise nur, wenn das ganze Feld geprüft werden kann (Schreibmarke am Ende,

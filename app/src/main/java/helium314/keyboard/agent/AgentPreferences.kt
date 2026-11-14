@@ -36,6 +36,8 @@ object AgentPreferences {
     const val FORMAT_GUARD = "agent_format_guard"
     /** Stage 45: field and context suggestions in the strip (default on; "Meine Daten" starts empty). */
     const val FIELD_SUGGESTIONS = "agent_field_suggestions"
+    /** Stage 40: Smart Paste chips with the clipboard pill and in the clipboard history (default on). */
+    const val SMART_PASTE = "agent_smart_paste"
     /** The page "Meine Daten & Vorschläge" (SettingsDestination.AgentMyData), opened from the vault. */
     const val MY_DATA_DESTINATION = "agent_my_data"
     /** Stage 46: the memory learns phrases, own words and abbreviations from typed words (opt-in, default off). */

@@ -207,6 +207,14 @@ fun AgentAreaBarScreen(onNavigate: (String) -> Unit, onClickBack: () -> Unit) {
                     EmojiMixCommand.setStripEnabled(context, on)
                     written++
                 }
+                // stage 40: Smart Paste rides along with the clipboard pill, which has its own switch
+                val pill = bool(Settings.PREF_SUGGEST_CLIPBOARD_CONTENT, Defaults.PREF_SUGGEST_CLIPBOARD_CONTENT)
+                BarSwitchRow(stringResource(R.string.agent_smart_paste_setting),
+                    stringResource(if (pill) R.string.agent_smart_paste_setting_sub else R.string.agent_smart_paste_setting_no_pill),
+                    { bool(AgentPreferences.SMART_PASTE, true) }, true, BAR_SWITCH_TAG + AgentPreferences.SMART_PASTE) { on ->
+                    prefs.edit { putBoolean(AgentPreferences.SMART_PASTE, on) }
+                    written++
+                }
             }
 
             SectionCard(null) {

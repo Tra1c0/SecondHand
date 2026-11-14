@@ -171,7 +171,8 @@ Zugriff auf Kontakte. Darunter: „Knöpfe wählen und sortieren“ (die bisheri
 Modus, Tasten, angehefteten Tasten, Zwischenablage-Tasten), „Automatisch zeigen“ (nur bei TASTEN +
 VORSCHLÄGE), „Wischen blendet aus“, „Skill-Tasten anheften“ (zeigt, wie viele der drei angeheftet
 sind) sowie Zwischenablage-Verlauf, Aufbewahrung (Regler), Bilder und Dateien, Screenshots
-anbieten (fragt nach dem Zugriff auf Bilder) und Emoji-Mix in der Leiste. Präfix, Textbausteine,
+anbieten (fragt nach dem Zugriff auf Bilder), Emoji-Mix in der Leiste und Smart Paste (siehe
+„Smart Paste: Aktionen für Kopiertes“). Präfix, Textbausteine,
 Orte, Bildschirm lesen und den Emoji-Mix-Speicher findest du unter „Alle Befehls-Einstellungen“,
 angeheftete Einträge zuerst und Dateigröße unter „Weitere Zwischenablage-Einstellungen“. „Meine
 Daten & Vorschläge“ schaltet die Feld- und Kontext-Vorschläge und enthält deine eigenen Daten (siehe
@@ -837,7 +838,8 @@ dabei nicht gesichert.
   „Meine Daten“ die Seite „Meine Daten & Vorschläge“.
 - Die Pille mit kopiertem Text oder Bild in der Leiste erscheint nur, wenn
   „Zwischenablagen-Inhalt vorschlagen“ (Einstellungen → Textkorrektur) an ist. Antippen fügt ein, lange
-  drücken blendet sie aus.
+  drücken blendet sie aus. Hinter der Pille und auf den Karten stehen bei erkanntem Inhalt die Chips
+  von Smart Paste (nächster Abschnitt).
 - Das Aktionsrad erreichst du im flachen Look über eine Leertasten-Geste, z. B. Halten
   (Einstellungen → Gesten & Gefühl → Leertaste), die Stift-Taste öffnet das Panel.
 
@@ -870,6 +872,46 @@ eingefügt: erst dein Tipp auf den Chip fügt ein, genau einmal.
 - Ist das Lernen an („Personalisierte Vorschläge“ unter Tippen & Korrektur → „Alle
   Korrektur-Einstellungen“, nicht pausiert), merkt sich die Tastatur, welche Vorschläge du antippst oder übergehst, nur als kleine
   Zahlen ohne Text; „Gelernte Wörter löschen“ entfernt sie.
+
+## Smart Paste: Aktionen für Kopiertes
+
+Kopierst du eine Adresse, Nummer, IBAN, Sendungsnummer, ein Datum, eine E-Mail-Adresse oder einen
+Link, bietet die Tastatur passende Chips an. Nichts passiert von selbst: Jeder Chip wirkt erst auf
+deinen Tipp und genau einmal. Die Pille selbst und ein Tipp auf eine Karte fügen weiter den Clip so
+ein, wie er ist.
+
+- Wo: in der Leiste hinter der Zwischenablage-Pille (nur wenn „Zwischenablagen-Inhalt vorschlagen“
+  unter Einstellungen → Textkorrektur an ist, in den ersten 3 Minuten nach dem Kopieren) und als
+  kleine Chips unten auf den Karten der Zwischenablage-Ansicht (höchstens zwei je Karte).
+- Adresse: „📍 In Karten öffnen“ öffnet deine Karten-App mit der Suche. „💾 Als Ort speichern“ legt
+  sie als Ort für `@ort` an, benannt nach Straße und Hausnummer (z. B. `@ort musterstraße 12`);
+  umbenennen unter Einstellungen → Leiste & Befehle → „Alle Befehls-Einstellungen“ → Orte. Dieselbe
+  Adresse wird nur einmal gespeichert, höchstens 10 Orte.
+- Telefonnummer: „📞 Anrufen“ öffnet die Telefon-App mit der Nummer; angerufen wird erst, wenn du
+  dort auf Anrufen tippst. „👤 Kontakt anlegen“ öffnet einen neuen Kontakt in der Kontakte-App.
+- IBAN: „🏦 Formatiert einfügen“ fügt sie in Viererblöcken ein, nur wenn die Prüfziffer stimmt.
+  Stimmt sie nicht, steht dort „⚠️ IBAN-Prüfziffer falsch“ und nichts wird eingefügt.
+- Sendungsnummer: „📦 DHL: Sendung verfolgen“ (ebenso Deutsche Post, Hermes, DPD, GLS, UPS) öffnet
+  die Sendungsverfolgung im Browser. Die Seiten sind fest in der App, aus dem Kopierten kommt nur
+  die geprüfte Nummer. Eindeutige Nummern erkennt sie allein (UPS „1Z…“, Deutsche Post „…DE“, DHL
+  „JJD…“ oder „00340434…“, Hermes „H…“); eine reine Ziffernfolge nur, wenn der Paketdienst im Text
+  steht, z. B. „DPD Paketnummer 01234567890123“.
+- Datum oder Uhrzeit: „📅 Termin: So 15.11. 18:00“ öffnet den Entwurf in deiner Kalender-App wie
+  `@termin`; gespeichert wird erst dort. Erkannt werden z. B. „am 15.03.2027 um 14:30“, „morgen um
+  18 Uhr“, „15. Dezember“, „tomorrow at 6pm“, „mañana a las 9“. Versionsnummern („2.1“), Preise,
+  „bis morgen“, „Guten Morgen“ und vergangene Daten bekommen keinen Chip.
+- E-Mail-Adresse: „✉️ Mail schreiben“ öffnet deine Mail-App mit der Adresse als Empfänger.
+- Link mit Tracking-Anhängseln (`utm_…`, `fbclid`, `gclid`, `mc_eid`, `igshid`, bei YouTube und
+  Spotify `si` …): „🧹 Ohne Tracking einfügen“ fügt den Link ohne sie ein, alles andere bleibt genau
+  so. Auch für Text mit Links darin.
+- Kopierte Nachricht mit Einmalcode: „🔢 Code 123456 einfügen“ fügt nur die Ziffern ein. Codes
+  kommen nur aus der Zwischenablage, nie aus Benachrichtigungen.
+- Zeigt die Leiste schon einen Feld-Vorschlag (z. B. den Code im Code-Feld), kommen Pille und Smart
+  Paste nicht dazu.
+- Nie für Geheimnisse und als vertraulich markierte Clips, nie in Passwortfeldern, im
+  Inkognito-Modus, in Feldern ohne Lernen, in Zahlen- und Telefonfeldern oder bei gesperrtem Gerät.
+  Eingefügtes lernt die Tastatur nicht. Alles lokal, ohne Netz, ohne neue Berechtigung.
+- Ausschalten: Einstellungen → Leiste & Befehle → Zwischenablage & Bilder → „Smart Paste“.
 
 ## Emoji-Vorschläge
 

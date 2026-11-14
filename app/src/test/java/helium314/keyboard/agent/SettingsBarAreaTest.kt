@@ -179,6 +179,7 @@ class SettingsBarAreaTest {
             Settings.PREF_TOOLBAR_SWIPE_DOWN_TO_HIDE to Defaults.PREF_TOOLBAR_SWIPE_DOWN_TO_HIDE,
             Settings.PREF_ENABLE_CLIPBOARD_HISTORY to Defaults.PREF_ENABLE_CLIPBOARD_HISTORY,
             EmojiMixCommand.STRIP_PREFERENCE to true,
+            AgentPreferences.SMART_PASTE to true, // stage 40
         )
         for ((key, initial) in keys) {
             val tag = BAR_SWITCH_TAG + key

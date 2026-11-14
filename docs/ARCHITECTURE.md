@@ -221,6 +221,38 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   Auswahl: `true`), `touchesLearningContext(editor, words)`
   (die letzten `words` Wörter vor der Schreibmarke, höchstens `CONTEXT_LIMIT` = 512 Zeichen),
   `contextLength`. Test `CT/clip/PrivateRangesTest.kt`.
+- Smart Paste (Etappe 40, Paket `dev.agentkeyboard.core.clip`, P203–P205): `SmartPaste.kt`
+  (`SmartAction`: `OpenMap`, `SavePlace`, `Dial`, `AddContact`, `InsertIban`, `IbanInvalid`, `Track`,
+  `CreateEvent`, `WriteMail`, `InsertClean`, `InsertCode`, `inserts`; `toString` ohne Text;
+  `SmartPaste.recognize(text, markedSensitive, region, now, language)` = `ClipGuard.classify` plus
+  `actions(text, verdict, …)`: markiert, SECRET, leer oder über `MAX_TEXT` = 2000 Zeichen → nichts;
+  ADDRESS → Karte und Ort (Zeilen mit „, “ verbunden, Ort nur bis `Places.MAX_ADDRESS`); PHONE →
+  Wählen und Kontakt; IBAN → `IbanCheck.normalize` (wie ClipGuard, auch „IBAN:“), falsche
+  Prüfziffer `IbanInvalid`, richtige `InsertIban(group)`, schon so geschrieben nichts; EMAIL →
+  Mail (ohne `mailto:`); LINK → `LinkCleaner.clean`; OTP nur `inText` → die Ziffern; TEXT →
+  `TrackingNumbers.find`, `ClipDates.find`, `LinkCleaner.cleanText`; höchstens `MAX_ACTIONS` = 3;
+  `placeName` = erster Teil der Adresse, höchstens `Places.MAX_NAME`, bei Gleichstand „ 2“, „ 3“ …).
+  `TrackingNumbers.kt`: `Carrier` (DHL, DEUTSCHE_POST, HERMES, DPD, GLS, UPS) mit fester Seite je
+  Dienst, `trackingUrl` nimmt nur 8–35 Großbuchstaben und Ziffern; `Tracking` (Dienst, Nummer,
+  `url`, `toString` ohne Nummer); `find` bis `MAX_LENGTH` = 300 Zeichen: Wörter ohne Satzzeichen
+  (mit Ziffer und höchstens vier Buchstaben in Großbuchstaben), ein kurzer Clip (≤ 40 Zeichen aus
+  Buchstaben, Ziffern, Leerzeichen) auch ohne Leerzeichen; ohne Namen nur UPS `1Z` + 16 mit
+  `upsValid`, S10 `XX` + 9 Ziffern + `DE` mit `s10Valid`, DHL `JJD`/`JVGL` + 12–22 Ziffern, DHL
+  `00340434` + 12 Ziffern mit `gs1Valid` (SSCC), Hermes `H` + 19 Ziffern; mit dem Namen im Text
+  (ganzes Wort, in Textreihenfolge) DHL 12 oder 20, Hermes 14 oder 16, DPD 14, GLS 11–12 Ziffern
+  oder 8 Zeichen aus Großbuchstaben und Ziffern. `LinkCleaner.kt`: `clean` (nur über
+  `UrlDetector.isUrl`, auch ohne Schema) und `cleanText` (jede `http(s)://`-Adresse bis zum
+  Leerraum, schließende Satzzeichen wie in `UrlDetector.find`, bis `MAX_TEXT` = 4000) entfernen nur
+  Query-Parameter aus `NAMES`, mit Präfix `utm_` (ohne Groß-/Kleinschreibung) und `si` nur auf
+  youtube.com, youtu.be, spotify.com samt Subdomains; Reihenfolge, Kodierung, leere Werte und das
+  Fragment bleiben; null, wenn nichts zu entfernen ist. `ClipDates.kt`: Tor vor `EventParser.parse`
+  (bis 200 Zeichen, 4 Zeilen; „Guten Morgen“ fällt weg, ein Punkt hinter Datum, Uhrzeit oder „Uhr“
+  am Satzende auch): Kalenderdatum (mit Jahr, ISO, `/` mit Jahr, `DD.MM.`, `am 3.12.`, Tag +
+  ausgeschriebener Monat, englisch Monat in Großschreibung + Tag) genügt; Tageswort oder gar kein
+  Datum nur mit Uhrzeit, Uhrzeit ohne Tag nur mit Marke („Uhr“, am/pm, `um`/`at`/`a las`/`gegen`,
+  halb/viertel); `D.M` ohne Punkt am Ende (Version, Betrag) ohne `am`/`on`/`el` davor macht den
+  ganzen Text zu keinem Datum; vergangene Tage und Daten ohne Jahr mehr als 300 Tage voraus nie.
+  Test `CT/clip/SmartPasteTest.kt` (Prüfziffern der Beispiele getrennt berechnet).
 - `C/suggest/ContextSuggest.kt` (Etappe 45, Paket `dev.agentkeyboard.core.suggest`, P161–P163):
   `SuggestKind` (EMAIL, PHONE, IBAN, ADDRESS, NAME, OTP, LINK), `AppCategory.of(packageName)`
   (MESSENGER/MAIL/BROWSER/OTHER nach Paket-Präfix), `FieldClass`, `FieldSignals` (Klasse,
@@ -299,7 +331,8 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - Tests in `CT/`: `AiTextActionTest`, `EditorPolicyTest`, `LocalTextActionsTest`,
   `PendingBatchGateTest`, `SkillBindingTest`, `ToolTest`, `WorkflowTest`,
   `InsertionAnchorTest`, `StyledTranslationTest`, `UpdateReleasesTest`, `RgbLightingTest`,
-  `RgbCurveTest`, `RgbPatternsTest`, `RgbFrameStatsTest`, `clip/ClipGuardTest`, `clip/PrivateRangesTest`.
+  `RgbCurveTest`, `RgbPatternsTest`, `RgbFrameStatsTest`, `clip/ClipGuardTest`, `clip/PrivateRangesTest`,
+  `clip/SmartPasteTest`.
   Befehl: `core-tests`.
 
 ## Geänderte Upstream-Dateien
@@ -584,6 +617,15 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
   bis `stopClipboardHistory`), `onVaultPick` fügt per `onPrivateTextInput` ein (P178). `ClipboardAdapter.setContent`
   beschriftet persönliche Clips und verdeckt alte angeheftete Geheimnisse
   (`ClipVaultSection.historyText`, Urteil je Eintrags-ID gemerkt).
+  Etappe 40 (Smart Paste, Abschnitt „Befehle“ → Smart Paste, P203): `getClipboardSuggestionView` gibt
+  bei Text die Pille an `SmartPasteChips.stripRow` (mit `imeHost(latinIME, editorInfo)`); gibt es
+  Chips, ist die zurückgegebene Ansicht die Reihe aus Pille und Chips, und der Tipp auf die Pille
+  blendet diese Reihe aus (`shownView`), nicht nur die Pille; ein einfügender Chip ruft danach
+  `removeClipboardSuggestion`. `ClipboardAdapter.setContent` ruft für jede Karte
+  `SmartPasteChips.bindHistoryRow` (Feld `smartPaste`), `ClipboardHistoryView.startClipboardHistory`
+  setzt dafür eine `SmartPasteChips.History` für das Feld dieser Ansicht (`onSmartInsert`: wie
+  `onVaultPick` über `onPrivateTextInput`, P178), `stopClipboardHistory` nimmt sie weg. Keine neue
+  Upstream-Datei, kein Layout geändert (die Reihe entsteht im Code in der Textspalte der Karte).
 - `LatinIME.java` (23g): `setSuggestedWords` ruft nach `tryShowCommandChips` und nach
   `mInputLogic.setSuggestedWords` `tryShowScreenshotChip` (blendet bei `mAutoHideToolbar` die
   Leiste aus wie der Zwischenablage-Chip); die Pille ersetzt also nur die Anzeige, die
@@ -1472,6 +1514,33 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     einmal als übergangen, ein Tipp als angenommen (`ContextLearning.record`, P163). Texte in
     `agent_suggest_strings.xml` (`values/`, `values-de/`). Tests `AT/FieldSuggestionChipsTest.kt`,
     mit echtem Host `InputLogicTest.fieldSuggestionChipInsertsOnlyOnATapAndOnce`.
+  - Smart Paste (40, P203–P205): `A/SmartPasteChips.kt`, kein Befehl, sondern Chips zum Clip der
+    Zwischenablage-Pille (`stripRow`, Tag `TAG_STRIP`) und auf den Karten des Verlaufs
+    (`bindHistoryRow`, Tag `TAG_HISTORY_ROW`, höchstens `MAX_HISTORY_CHIPS` = 2 mit gleicher
+    Breite, Kurztexte `*_short`). Schalter `AgentPreferences.SMART_PASTE` (an). `isBlocked` =
+    `FormatGuardChips.isBlocked` (Einstellungen fehlen, Inkognito samt Passwort und No-Learning,
+    No-Learning-Flag, Passworttyp, `mIsLocked`), kein `TYPE_CLASS_TEXT` oder `deviceLocked` (live,
+    austauschbar). `actions` = nichts für `ClipVault.isSecretClip` (Markierung, `SensitiveClips`,
+    vom Tresor als Geheimnis sortierte Kopierzeit, Inhalt), sonst `SmartPaste.recognize` mit
+    `ClipVault.region`, `DateCommand.clock`/`zone` und der Tastatursprache. `intent`: `geo:` über
+    `PlaceCommand.geoIntent`, `ACTION_DIAL` mit `tel:` (keine `CALL_PHONE`), `Insert.ACTION` mit
+    `RawContacts.CONTENT_TYPE` und `Insert.PHONE` (keine `WRITE_CONTACTS`), `ACTION_SENDTO` mit
+    `mailto:`, `ACTION_VIEW` + `CATEGORY_BROWSABLE` mit `Tracking.url` aus der festen Tabelle,
+    `EventCommand.intent` (`ACTION_INSERT` auf `Events.CONTENT_URI`, keine Kalender-Berechtigung);
+    alle mit `FLAG_ACTIVITY_NEW_TASK`, gestartet über `launcher` (`SearchCommand.Launcher`,
+    fehlende App → Toast). `<queries>` braucht es nicht: `startActivity` fragt keine Sichtbarkeit
+    ab, und das Manifest hat ohnehin `action *`. `perform`: einfügende Aktionen über `insert`, „Als
+    Ort“ über `SavedPlaces` (nur `available`; dieselbe Adresse → Toast mit ihrem Namen, sonst
+    `SmartPaste.placeName` gegen die vorhandenen Namen; voll/gesperrt → Toast), `IbanInvalid` nur
+    Toast. Leiste: `StripHost` (`imeHost`: Feld, für das die Pille gebaut wurde; `insertPrivate`
+    nur bei derselben Schreibmarke ohne Auswahl und `canReplaceAgentCommand`, dann
+    `LatinIME.onPrivateTextInput` wie Feld-Vorschläge, P162/P178); `stripChips` baut
+    `KeyboardCommands.Chip`s (Hinweis `MUTED`), jeder einmal (`used`) und erst nach erneuter
+    Prüfung von Schalter, Feld und Sperre; `stripRow` nimmt `KeyboardCommands.chipRow`, setzt die
+    Pille an Index 0, nimmt der Zeile die Kennung `agent_command_chips` und begrenzt den Pillentext
+    auf 2/5 der Breite. Verlauf: `History` je Besuch (Urteil je Eintrags-ID gemerkt, gesperrt beim
+    Öffnen: keine Chips), ein Tipp prüft das Feld erneut. Texte `agent_smart_paste_strings.xml`
+    (`values/`, `values-de/`). Test `AT/SmartPasteChipsTest.kt`.
   - Tests: `CT/UrlDetectorTest.kt`, `CT/SymbolTableTest.kt`, `CT/UnitConversionTest.kt`,
     `CT/EventParserTest.kt`, `CT/DateFormattingTest.kt`, `CT/PlacesTest.kt`, `CT/AlarmParserTest.kt`,
     `CT/TimerParserTest.kt`, `AT/commands/ClockCommandsTest.kt`;
@@ -1627,7 +1696,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Aufbewahrung über HeliBoards `SliderDialog` (1–121, über 120 „Keine Begrenzung“,
   `clearOldClips`), Bilder und Dateien (`cleanupFiles`), beide nur mit Verlauf; Screenshots wie
   `AgentScreenshotScreen` (Aufräumen beim Ausschalten, Berechtigung beim Einschalten);
-  Emoji-Mix über `EmojiMixCommand.setStripEnabled`. Karte am Ende: „Alle Befehls-Einstellungen“
+  Emoji-Mix über `EmojiMixCommand.setStripEnabled`; Smart Paste (40) über `AgentPreferences.SMART_PASTE`,
+  Untertitel `agent_smart_paste_setting_no_pill`, solange die Pille (`PREF_SUGGEST_CLIPBOARD_CONTENT`)
+  aus ist. Karte am Ende: „Alle Befehls-Einstellungen“
   (`AgentCommandsScreen`: Präfix, Textbausteine, Orte, Bildschirm lesen, Emoji-Mix-Speicher),
   „Screenshots“ (Berechtigung erlaubt/fehlt), „Weitere Zwischenablage-Einstellungen“
   (Optionen: angeheftete zuerst, Dateigröße) und „Meine Daten & Vorschläge“ (45, `agent_my_data`). Berechtigungen liest `rememberPermissions` beim
@@ -3679,19 +3750,49 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `onGloballyPositioned` nicht, Werte aus dem Zeichnen (`frameRateTrips`) bleiben alt. Die Tests
   von 37 zeichnen deshalb je Bild einmal `decorView.draw` in ein 1-×-1-Bitmap (Layout und alle
   Zeichenaufrufe laufen) und lassen dazwischen den Main-Looper laufen.
+- **P203** Smart Paste in der Leiste ist keine eigene Leistenansicht, sondern hängt an der Pille:
+  `getClipboardSuggestionView` gibt dann die Reihe (`HorizontalScrollView` aus
+  `KeyboardCommands.chipRow`) statt der Pille zurück. Wer dort etwas ausblendet, muss die Reihe
+  ausblenden (`shownView`, `clipboardSuggestionView`), sonst bleiben die Chips nach dem Einfügen der
+  Pille stehen. `chipRow` gibt der inneren Zeile die Kennung `agent_command_chips`, nach der Tests
+  und Code getippte Befehle erkennen; `stripRow` nimmt sie ihr wieder. Im Scroll-Container misst
+  die Zeile ohne Grenze: der gewichtete Pillentext nähme seine ganze Breite (bis 200 Zeichen) und
+  schöbe die Chips aus dem Bild, darum `maxWidth`. Vorrang: `setNeutralSuggestionStrip` fragt zuerst
+  `tryShowCommandChips` (Befehle, Formatwächter, Feld- und Kontext-Vorschläge, Gedächtnis,
+  Emoji-Mix), erst danach die Pille; zeigt die Leiste einen Feld-Chip, gibt es weder Pille noch
+  Smart Paste, so steht derselbe Einfüge-Chip nie doppelt da. Die Pille braucht
+  „Zwischenablagen-Inhalt vorschlagen“ (anfangs aus); der Verlauf zeigt die Chips auch ohne.
+- **P204** Der Leisten-Host prüft beim Tipp das Feld, für das die Pille gebaut wurde
+  (`imeHost(…, editorInfo)`), nicht `LatinIME.currentInputEditorInfo`: in Robolectric ist das null
+  (keine Eingabe gestartet), und ein neues Feld baut die Leiste ohnehin neu. Einfügen geht nur an
+  derselben Schreibmarke ohne Auswahl (`agentCommandCursor`); in Robolectric ohne Verbindung ist
+  sie −1, darum testet `SmartPasteChipsTest` das Einfügen über einen eigenen `StripHost` und den
+  echten Weg nur bis zum Chip. Die Kartenreihe entsteht im Code in der Textspalte der Karte
+  (`text.parent`); ein geändertes Upstream-Layout `clipboard_entry_key.xml` mit anderer Spalte
+  zeigt still keine Chips mehr.
+- **P205** Erkennung bewusst vorsichtig, und `EventParser` allein ist dafür zu großzügig: er liest
+  „Guten Morgen“ als morgen, „Version 2.1“ als 2. Januar, „4h“ als 4 Uhr und „Abfahrt 18:30“ als
+  Termin; `ClipDates` sperrt das vorher (Tests `versionNumbersAndAmountsAreNoDates`,
+  `dayWordsAloneUnmarkedTimesAndGreetingsAreNoDates`). Sendungsnummern: 12 bis 16 Ziffern sind auch
+  Kunden-, Bestell- und Kontonummern, deshalb ohne Namen des Dienstes nur die Formate mit Präfix und
+  Prüfziffer. Die Seiten der Dienste (`Carrier`) sind ohne Netz nicht geprüft: Ändert ein Dienst
+  seine Adresse, öffnet der Chip eine Fehlerseite (Gerätetest offen). `si` ist nur bei YouTube und
+  Spotify ein Share-Parameter; anderswo kann er gebraucht werden und bleibt. Smart Paste liest nur
+  Clips bis 2000 Zeichen und sortiert jeden Clip ein zweites Mal (`isSecretClip`, dann
+  `recognize`); die Karten merken sich das Ergebnis je Eintrag.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (532 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (541 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (5): agent-apk, agent-tests, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (80): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (81): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand,
   ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand, CorrectionMemory,
@@ -3702,10 +3803,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData, MyDesigns, OnDeviceSpeechEngine,
   PlaceCommand, RgbKeyPainter, RgbLighting, RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces,
   ScreenshotChip, SearchCommand, SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics,
-  SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary,
-  ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst, TypoMemory, WorkflowApprovalSummary,
-  WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
-  WorkflowStore
+  SmartPasteChips, SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk,
+  ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst, TypoMemory,
+  WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner,
+  WorkflowInputSummary, WorkflowStore
 - `A/commands/` (18): AiCommandChips, AlarmCommand, AskCommand, ClipCommand, EmojiMixCommand,
   EmojiMixRecents, EmojiMixer, LanguageCommand, QrCommand, ScreenReaderService, SensitiveClips,
   SnipCommand, SnippetStore, SubtypeChoice, TimerCommand, TranslateCommand, UrlCommand,
@@ -3714,7 +3815,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (94): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (95): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, ClipCommandTest, ClipVaultTest, CommandReplaceTest,
@@ -3731,11 +3832,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest, SettingsAreaAiTest,
   SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest, SettingsKitTest,
   SettingsLookScreenTest, SettingsStartScreenTest, SettingsSystemAreaTest, SettingsTypingAreaTest,
-  SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest, SnipCommandTest, SpaceDetentsTest,
-  SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest,
-  TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest, TypoMemoryTest,
-  UpdateCheckTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
-  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest, SmartPasteChipsTest, SnipCommandTest,
+  SpaceDetentsTest, SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal,
+  ToolRunnerTest, TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest,
+  TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
+  WorkflowCommandTest, WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest,
+  WorkflowStoreTest
 - `AT/commands/` (8): ClockCommandsTest, EmojiMixCommandTest, LanguageCommandTest, QrCommandTest,
   ScreenReaderServiceTest, SubtypeChoiceTest, TranslateCommandTest, UrlCommandTest
 - `C/` (43): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, CorrectionRules,
@@ -3745,7 +3847,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Profiles, RgbCurve, RgbLighting, RgbPatterns, SkillBinding, SnippetTemplate, SpecialCharacters,
   StyledTranslation, SymbolTable, TextCondition, TimerParser, Tool, TouchDynamics, UnitConversion,
   UpdateReleases, UrlDetector, Workflow
-- `C/clip/` (2): ClipGuard, PrivateRanges
+- `C/clip/` (6): ClipDates, ClipGuard, LinkCleaner, PrivateRanges, SmartPaste, TrackingNumbers
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `C/memory/` (4): OwnWords, PhraseMemory, ShortcutOffers, SnippetMatcher
 - `C/suggest/` (1): ContextSuggest
@@ -3757,7 +3859,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   RgbCurveTest, RgbFrameStatsTest, RgbLightingTest, RgbPatternsTest, SkillBindingTest,
   SnippetTemplateTest, StyledTranslationTest, SymbolTableTest, TimerParserTest, ToolTest,
   TouchDynamicsTest, UnitConversionTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
-- `CT/clip/` (2): ClipGuardTest, PrivateRangesTest
+- `CT/clip/` (3): ClipGuardTest, PrivateRangesTest, SmartPasteTest
 - `CT/format/` (1): FormatGuardTest
 - `CT/memory/` (2): MemoryRulesTest, PhraseMemoryTest
 - `CT/suggest/` (1): ContextSuggestTest
@@ -3814,21 +3916,23 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (26): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
+- `app/src/main/res/values-de/` (27): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
   agent_clipvault_strings, agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings,
   agent_format_strings, agent_gestures_strings, agent_language_strings, agent_memory_strings,
   agent_rgb_strings, agent_settings_keys_strings, agent_settings_look_strings,
   agent_settings_strings, agent_settings_system_strings, agent_slider_strings,
-  agent_snippet_strings, agent_space_strings, agent_strings, agent_suggest_strings,
-  agent_symbol_strings, agent_touch_strings, agent_typing_strings, agent_update_strings, strings
-- `app/src/main/res/values/` (32): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+  agent_smart_paste_strings, agent_snippet_strings, agent_space_strings, agent_strings,
+  agent_suggest_strings, agent_symbol_strings, agent_touch_strings, agent_typing_strings,
+  agent_update_strings, strings
+- `app/src/main/res/values/` (33): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
   agent_bar_strings, agent_clipvault_strings, agent_design_strings, agent_diagnose_strings,
   agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_ids,
   agent_language_strings, agent_memory_strings, agent_rgb_strings, agent_settings_keys_strings,
   agent_settings_look_strings, agent_settings_strings, agent_settings_system_strings,
-  agent_slider_strings, agent_snippet_strings, agent_space_strings, agent_strings,
-  agent_suggest_strings, agent_symbol_strings, agent_touch_strings, agent_typing_strings,
-  agent_update_strings, attrs, clip_provider, donottranslate, gesture_data, themes-flat
+  agent_slider_strings, agent_smart_paste_strings, agent_snippet_strings, agent_space_strings,
+  agent_strings, agent_suggest_strings, agent_symbol_strings, agent_touch_strings,
+  agent_typing_strings, agent_update_strings, attrs, clip_provider, donottranslate, gesture_data,
+  themes-flat
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (1): Shadows

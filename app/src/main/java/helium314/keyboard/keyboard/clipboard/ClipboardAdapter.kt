@@ -35,6 +35,8 @@ class ClipboardAdapter(
     /** Guard verdicts per entry id (stage 44), so a card is sorted once per visit. */
     private val kinds = HashMap<Long, dev.agentkeyboard.core.clip.ClipKind>()
     private val vaultRegion = helium314.keyboard.agent.ClipVault.region(Settings.getValues())
+    /** Stage 40: Smart Paste chips on text cards for this visit of the view, or null for none. */
+    var smartPaste: helium314.keyboard.agent.SmartPasteChips.History? = null
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -104,6 +106,9 @@ class ClipboardAdapter(
                     contentTextView.contentDescription = description
                 }
             }
+            // stage 40: actions for a recognised text (map, call, IBAN, parcel, event, mail, link without tracking)
+            helium314.keyboard.agent.SmartPasteChips.bindHistoryRow(contentTextView, historyEntry.id,
+                historyEntry.text.takeIf { historyEntry.filename == null }, historyEntry.timeStamp, smartPaste)
             pinnedIconView.visibility = if (historyEntry.isPinned) View.VISIBLE else View.GONE
             contentImageView.visibility = if (historyEntry.filename != null) View.VISIBLE else View.GONE
             contentTextView.visibility = if (contentTextView.text.isNullOrEmpty()) View.GONE else View.VISIBLE
