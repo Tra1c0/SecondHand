@@ -3977,6 +3977,64 @@ class InputLogicTest {
         checkConnectionConsistency()
     }
 
+    @Test fun symbolDrawPossibleDotAndThenAKeyFarAwayComeInOrder() = withTapper {
+        // review N4: the next key writes the dash, then the possible dot's letter, then itself
+        enableSymbolDrawing()
+        setText("a ")
+        drawStrokes(floatArrayOf(0f, 100f, 300f, 100f))
+        symbolInk.onInkDown(0, 150, 40); assertFalse(symbolInk.onInkUp(0, 150, 40))
+        assertEquals("a ", text)
+        val listener = latinIME.mKeyboardActionListener
+        listener.onPressKey('b'.code, 0, 1, helium314.keyboard.event.HapticEvent.KEY_PRESS)
+        listener.onCodeInput('b'.code, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+        listener.onReleaseKey('b'.code, false)
+        handleMessages()
+        assertEquals("a –xb", text)
+        assertFalse(symbolInk.isWaiting)
+        checkConnectionConsistency()
+        afterThePause()
+        assertEquals("a –xb", text) // written once
+    }
+
+    /** Stage 43 review M1: a first stroke as PointerTracker starts it right after typing a letter. */
+    private fun drawAfterTyping(stroke: FloatArray) {
+        val listener = latinIME.mKeyboardActionListener
+        listener.onStartBatchInput()
+        symbolInk.onStartAfterTyping(0, stroke[0].toInt(), stroke[1].toInt(), 100)
+        val pointers = helium314.keyboard.latin.common.InputPointers(64)
+        for (i in 0 until stroke.size / 2) pointers.addPointer(stroke[2 * i].toInt(), stroke[2 * i + 1].toInt(), 0, 10 * i)
+        listener.onUpdateBatchInput(pointers)
+        listener.onEndBatchInput(pointers)
+    }
+
+    @Test fun symbolDrawSlidTapRightAfterTypingIsItsLetter() = withTapper {
+        enableSymbolDrawing()
+        chainInput("Ha")
+        drawAfterTyping(floatArrayOf(100f, 100f, 120f, 100f, 180f, 100f)) // 0.8 keys: a sliding tap
+        afterPreview()
+        kotlin.test.assertNull(symbolChips()) // no preview chip for it
+        afterThePause()
+        assertEquals("Hax", text)
+        assertTrue(composer.isComposingWord) // typed like a letter, the word goes on
+        kotlin.test.assertNull(symbolChips())
+        checkConnectionConsistency()
+    }
+
+    @Test fun symbolDrawNotRecognizedRightAfterTypingIsItsLetter() = withTapper {
+        enableSymbolDrawing()
+        chainInput("Ha")
+        drawAfterTyping(wStroke[0]) // not recognized: the letter instead of "Nicht erkannt"
+        afterThePause()
+        assertEquals("Hax", text)
+        kotlin.test.assertNull(symbolChips())
+        // an arrow right after typing is a symbol
+        drawAfterTyping(arrowStrokes[0])
+        drawStrokes(arrowStrokes[1])
+        afterThePause()
+        assertEquals("Hax→", text)
+        checkConnectionConsistency()
+    }
+
     @Test fun symbolDrawTwoTappedDotsMakeADivisionSign() = withTapper {
         enableSymbolDrawing()
         setText("a ")

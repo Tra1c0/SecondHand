@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package dev.agentkeyboard.core
 
+import kotlin.math.abs
+import kotlin.math.hypot
+
 /**
  * Stage 36 "Symbole malen: Erkennung überarbeiten": when is a touch in the pause a tap (a letter or
  * a dot) and when a stroke, and how long does a drawing wait for its next stroke.
@@ -56,6 +59,43 @@ object InkTap {
 
     /** Right after typing: whether a first stroke [movedPx] from its down point may start a drawing. */
     fun startsAfterTyping(movedPx: Float, keyWidthPx: Float): Boolean = movedPx >= START_AFTER_TYPING_KEYS * keyWidthPx
+
+    /**
+     * Stage 43 review M1: right after typing, a fast tap that slides 0.75 key widths starts a drawing
+     * like a stroke does. When such a first stroke ends without a further one and is a short straight
+     * line ([isSlidTap]: its farthest point at most this many key widths from where it went down), it
+     * was that tap: its key is typed instead of a "–" or "/". A deliberate dash this short after a word
+     * needs a further stroke (=) or more length (docs/VALIDATION.md, stage 43 follow-up review).
+     */
+    const val SLID_TAP_KEYS = 1.5f
+
+    /**
+     * Stage 43 review M1: straight for [isSlidTap]: no point is farther from the line from the down point
+     * to the farthest point than this share of that distance (a small ~ or a hook is no sliding tap).
+     */
+    const val SLID_TAP_BEND = 0.25f
+
+    /**
+     * Stage 43 review M1: whether [stroke] (screen px), the only stroke of a drawing that started right
+     * after typing, is a sliding tap: at most [SLID_TAP_KEYS] times [keyWidthPx] long and straight.
+     */
+    fun isSlidTap(stroke: InkStroke, keyWidthPx: Float): Boolean {
+        if (stroke.size == 0) return true
+        val x0 = stroke.x(0); val y0 = stroke.y(0)
+        var far = 0; var length = 0f
+        for (i in 1 until stroke.size) {
+            val d = hypot(stroke.x(i) - x0, stroke.y(i) - y0)
+            if (d > length) { length = d; far = i }
+        }
+        if (length > SLID_TAP_KEYS * keyWidthPx) return false
+        if (length <= 0f) return true
+        val dx = (stroke.x(far) - x0) / length; val dy = (stroke.y(far) - y0) / length
+        for (i in 1 until stroke.size) {
+            // distance across the line from the down point to the farthest point
+            if (abs((stroke.x(i) - x0) * dy - (stroke.y(i) - y0) * dx) > SLID_TAP_BEND * length) return false
+        }
+        return true
+    }
 
     /** The area around a drawing grows by this share of its larger side, but at least by [KEY_MARGIN] key widths. */
     const val AREA_MARGIN = 0.6f

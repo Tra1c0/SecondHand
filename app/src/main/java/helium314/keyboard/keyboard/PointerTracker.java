@@ -705,13 +705,16 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
                 && key != null && !key.isModifier() && !mKeySwipeAllowed && !sInKeySwipe;
         if (mIsDetectingGesture) {
             // fork (stage 43): with drawn symbols HeliBoard's fast-typing cooldown (a swipe of up to six key
-            // widths right after typing) is off; a drawing then starts at a shorter length instead
+            // widths right after typing) is off; a drawing then starts at a shorter length instead. Review M1:
+            // not while another finger is down (two thumbs typing): the cooldown stays as it was
             final long lastLetterTypingTime = sTypingTimeRecorder.getLastLetterTypingTime();
-            mInkAfterTyping = SymbolInk.isEnabled() && SymbolInk.isAfterTyping(eventTime - lastLetterTypingTime);
+            final boolean alone = getActivePointerTrackerCount() == 1;
+            mInkAfterTyping = alone && SymbolInk.isEnabled() && SymbolInk.isAfterTyping(eventTime - lastLetterTypingTime);
             mGestureDownX = x;
             mGestureDownY = y;
             mBatchInputArbiter.addDownEventPoint(x, y, eventTime,
-                    SymbolInk.gestureTypingTime(eventTime, lastLetterTypingTime), getActivePointerTrackerCount());
+                    alone ? SymbolInk.gestureTypingTime(eventTime, lastLetterTypingTime) : lastLetterTypingTime,
+                    getActivePointerTrackerCount());
             mGestureStrokeDrawingPoints.onDownEvent(
                     x, y, mBatchInputArbiter.getElapsedTimeSinceFirstDown(eventTime));
         }
@@ -762,9 +765,13 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
     }
 
     /**
-     * Fork (stage 43): a possible dot of a drawn symbol that was a letter after all, typed after the
-     * symbol like a tap at ([x], [y]) where it touched down, on the keyboard as it is now (the symbol may
-     * have changed the shift state, P96). No tracker state changes: the tracker may be in a new touch.
+     * Fork (stage 43): a possible dot of a drawn symbol that was a letter after all (review M1: or a first
+     * stroke right after typing that was a sliding tap), typed after the symbol like a tap at ([x], [y])
+     * where it touched down, on the keyboard as it is now (the symbol may have changed the shift state,
+     * P96). No tracker state (P151): the tracker may be in a new touch. It records the typing time (now,
+     * when the drawing is written), starts no typing-state timer, and has no haptics, sound or key
+     * preview. Review N1: only a key that types a character (SymbolInk.startsInkOn), else nothing; review
+     * N2: one pointer, whatever else is down (a second finger would cancel auto-caps as chording).
      */
     private static void typeInkTap(final int pointerId, final int x, final int y) {
         final KeyDetector detector = getPointerTracker(pointerId).mKeyDetector;
@@ -772,17 +779,14 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         final Key key = detector.detectHitKey(x, y);
         if (key == null || !key.isEnabled()) return;
         final int code = key.getCode();
-        sListener.onPressKey(code, 0, getActivePointerTrackerCount(), HapticEvent.NO_HAPTICS);
+        if (!SymbolInk.startsInkOn(code, key.isModifier())) return;
+        sListener.onPressKey(code, 0, 1, HapticEvent.NO_HAPTICS);
         sTypingTimeRecorder.onCodeInput(code, SystemClock.uptimeMillis());
-        if (code == KeyCode.MULTIPLE_CODE_POINTS) {
-            sListener.onTextInput(key.getOutputText());
-        } else if (code != KeyCode.NOT_SPECIFIED) {
-            final Keyboard keyboard = detector.getKeyboard();
-            if (keyboard != null && keyboard.hasProximityCharsCorrection(code)) {
-                sListener.onCodeInput(code, x, y, false);
-            } else {
-                sListener.onCodeInput(code, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false);
-            }
+        final Keyboard keyboard = detector.getKeyboard();
+        if (keyboard != null && keyboard.hasProximityCharsCorrection(code)) {
+            sListener.onCodeInput(code, x, y, false);
+        } else {
+            sListener.onCodeInput(code, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false);
         }
         sListener.onReleaseKey(code, false);
     }
@@ -909,12 +913,16 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         if (isShowingPopupKeysPanel()) {
             return;
         }
+        // fork (stage 43): right after typing a drawing starts only alone (review M1) and once long enough
         if (!sInGesture && key != null && Character.isLetter(key.getCode())
-                && (!mInkAfterTyping || SymbolInk.startsAfterTyping( // fork (stage 43)
-                        getDistance(x, y, mGestureDownX, mGestureDownY), mKeyboard.mMostCommonKeyWidth))
+                && (!mInkAfterTyping || (getActivePointerTrackerCount() == 1 && SymbolInk.startsAfterTyping(
+                        getDistance(x, y, mGestureDownX, mGestureDownY), mKeyboard.mMostCommonKeyWidth)))
                 && mBatchInputArbiter.mayStartBatchInput(this)) {
             sListener.resetMetaState(); // avoid metaState getting stuck, doesn't work with gesture typing anyway
             sInGesture = true;
+            // fork (stage 43 review M1): a drawing that turns out a sliding tap types its key at the down point
+            if (mInkAfterTyping) SymbolInk.onStartAfterTyping(mPointerId, mGestureDownX, mGestureDownY,
+                    mKeyboard.mMostCommonKeyWidth);
         }
         if (sInGesture) {
             if (key != null) {

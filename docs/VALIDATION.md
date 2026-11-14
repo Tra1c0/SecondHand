@@ -3435,6 +3435,63 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   `typeInkTap`, `onDownEvent` mit `gestureTypingTime` und `mInkAfterTyping`, Bedingung in
   `onGestureMoveEvent`). `InputLogic`, `RichInputConnection`, `GestureStrokeRecognitionParams` und
   `GestureStrokeRecognitionPoints` unverändert.
+
+### Nachprüfung 43 (Prüfer-Befunde zu 357c9d0, 2026-11-14)
+
+- Auftrag (Lead): Befunde M1, N1–N8 des Prüfers beheben, in einer Arbeitskopie. Kein Gerätetest.
+- M1 (Buchstabenverlust nach dem Tippen, verifiziert): Ohne Sperre startete ein schneller Tipp, der
+  0,75 Tasten rutscht, eine Zeichnung, der Buchstabe kam als „–“/„/“/„|“ oder gar nicht; setzte ein
+  zweiter Daumen den Strich, während der erste lag, endete dessen Loslassen im `sInGesture`-Zweig
+  ohne Code. Behoben: (a) liegt bei einem Aufsetzen schon ein weiterer Zeiger auf, bleibt HeliBoards
+  Sperre (`onDownEvent`), und mit `mInkAfterTyping` startet eine Zeichnung nur allein
+  (`onGestureMoveEvent`); (b) eine so direkt nach dem Tippen begonnene Zeichnung, die beim Schreiben
+  nur ein Strich ist (mögliche Punkte, die Buchstaben werden, nicht mitgezählt) und
+  `InkTap.isSlidTap` ist (weitester Punkt ≤ `SLID_TAP_KEYS` 1,5 Tastenbreiten vom Aufsetzpunkt, keine
+  Abweichung über `SLID_TAP_BEND` 0,25 dieser Strecke) oder vom Erkenner nicht angenommen wird
+  (`Sink.recognizes`), wird nicht geschrieben: `typeInkTap` tippt die Taste am Aufsetzpunkt, dann die
+  möglichen Punkte. Die Vorschau zeigt für so einen Strich keinen Chip (sonst blitzte beim
+  schnellen Tippen „✎ –“ auf); nur wenn er nicht erkannt wird, kann „✎ ?“ erscheinen. Ein Tipp auf
+  einen Vorschau-Chip schreibt weiter das Symbol.
+- M1c Messung (`CT/InkDotFlowTest`, neu, Rutschmodell angenommen, nicht gemessen: vier von fünf
+  Tipps |N(0; 0,1)| Tastenbreiten, einer von fünf rollt 0,2–1,2 Tasten, ±35° zur Reihe, leicht
+  gebogen, 1 dp Zittern; 10 000 Tipps): ab 0,35 Tasten 1727 (HeliBoards Start ohne Sperre), ab 0,75
+  Tasten 923 (9,2 %, starten nach 43 eine Zeichnung), davon kommen mit (b) alle 923 als Buchstabe
+  zurück (vorher 923 verloren; vor 43 wegen der Sperre 0). Preis von (b), einstrichige Symbole des
+  Finger-Modells direkt nach dem Tippen, je Größe (je 680): 0,75–1 Taste 212 als Buchstabe (– und |
+  80 von 80), 1–1,5 Tasten 200 (78 von 80), 1,5–2,3 Tasten 1, 2,3–4,6 Tasten (übliche Größe) 0. Bei
+  üblicher Größe nicht erkannt (jetzt Buchstabe statt „Nicht erkannt“): 9 von 680. Abwägung: Ein
+  kurzer – oder | direkt nach einem Wort braucht 1,5 Tasten Länge oder einen zweiten Strich.
+  Offene Restlücke: Rutscht auch der nächste Tipp nahe der Zeichnung 8 dp oder mehr (im Modell 2206
+  von 10 000), ist er ein zweiter Strich (P111), und beide Buchstaben werden ein Symbol; grob
+  9,2 % × 22 % ≈ 2 von 1000 schnellen Tipps im Modell (nur geschätzt, nicht als Ablauf gemessen).
+- N1: `typeInkTap` tippt nur, was `SymbolInk.startsInkOn` erlaubt (sonst nichts). N2: `onPressKey`
+  mit festem Zeigerzähler 1 (vorher `getActivePointerTrackerCount()`, im Test 0 beim Ende über einen
+  zweiten Finger). N3: P151 und KDoc präzisiert (schreibt die Tippzeit beim Schreiben, kein
+  `startTypingStateTimer`, keine Haptik/Ton/Vorschau). N5: `withoutDrawnSymbolsTheFastTypingCooldownStays`
+  prüft jetzt auch, dass derselbe Strich 2 s später einen Batch startet (Gestenerkennung also an).
+  N6: `InkDotFlowTest` meldet Verluste nur für Tipps innerhalb von `nearDrawing`: 2 von 597 (Grenze
+  1 %). N7: KDoc von `InkDots.keeps` (zählt alle kleinen Striche, nicht nur die Tipps). N8:
+  FEATURES/ANLEITUNG sagen, dass solche Buchstaben erst nach der Pause oder vor der nächsten Taste
+  und ohne Tastenvorschau, Vibration und Ton erscheinen.
+- Neue Tests: `SymbolInkTest` (7, echter PointerTracker): gerutschter Tipp 0,8 Tasten → Buchstabe
+  (ein Zeiger, keine Vorschau), dann nächster Buchstabe fern und nah in Reihenfolge, kurzer Strich mit zweitem
+  Strich → „=“ und 1,6 Tasten → „–“, nicht erkannter Strich nach dem Tippen → Buchstabe (2 s später
+  an die Senke), zwei Daumen (zweiter bzw. erster rutscht) → beide Buchstaben, möglicher Punkt auf
+  jetzt Löschtaste → nichts, möglicher Punkt beim Ende über zweiten Finger → `onPressKey` mit 1.
+  `InputLogicTest` (3, echter `KeyboardActionListenerImpl`/`InputLogic`, Tapper-Ersatz „x“):
+  möglicher Punkt, dann ferne Taste → „a –xb“ samt `checkConnectionConsistency`; gerutschter Tipp
+  nach „Ha“ → „Hax“, Wort läuft weiter, kein Vorschau-Chip und keine Chips danach; nicht erkannter Strich nach dem Tippen → „Hax“,
+  ein Pfeil danach → „Hax→“. `InkDotFlowTest` (2 neu, N6-Grenze im bestehenden). Gegenprobe: mit
+  zurückgenommenen Änderungen (M1a, M1b, N1, N2) scheitern 6 der 7 neuen `SymbolInkTest`-Tests;
+  der =/–-Test ist absichtlich in beiden Fällen grün. Keine Prüfung entfernt oder abgeschwächt.
+- Gelaufen (2026-11-14, `--max-workers=1`): `./gradlew :agent-core:test` grün;
+  `:app:testDebugUnitTest --tests 'helium314.keyboard.agent.SymbolInkTest' --tests '*InputLogicTest'`:
+  alle grün bis auf das geerbte `InputLogicTest.insertLetterIntoWordHangulFails`. Nicht gelaufen:
+  volle Suite, Agent-Tests über `tools/dev.py`, Lint, Build, Gerätetest.
+- Engine-Änderungen (Prüfer Pflicht): `PointerTracker.java` `onDownEvent` (Sperre bleibt bei
+  weiterem Zeiger), `onGestureMoveEvent` (nach dem Tippen nur allein, `SymbolInk.onStartAfterTyping`),
+  `typeInkTap` (N1-Wächter, Zeigerzähler 1, tote Zweige für `MULTIPLE_CODE_POINTS`/`NOT_SPECIFIED`
+  entfernt). `InputLogic`, `RichInputConnection`, `GestureStrokeRecognition*` unverändert.
 ## Etappe 48 (Autokorrektur: getipptes Wort vorne, keine ungewollte Großschreibung)
 
 - Auftrag (Lead, ROADMAP 48, Rückmeldung des Owners vom 2026-11-14): (a) nach dem Zurückgehen zu
