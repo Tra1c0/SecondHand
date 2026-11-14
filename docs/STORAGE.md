@@ -305,6 +305,21 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
 - Getippte Befehle, Rechnungen und Ergebnisse werden nicht gespeichert und nicht protokolliert.
   Der Rechner hält seine Eingabe nur im Speicher und leert sie beim Schließen.
 
+## Zeichen-Kunst (53)
+
+- Nur Einstellungen in den normalen Einstellungen der Tastatur (DE, ohne Inhalt):
+  `agent_char_art_style` (zuletzt gewählter Stil, ein `ArtStyle`-Name), `agent_char_art_app`
+  (zuletzt gewählte Ziel-App, gilt nur, wenn die App des Felds kein Profil hat) und
+  `agent_char_art_width_<app>` (gewählte Breite je Ziel-App, Zahl 8–60). Mit HeliBoards
+  Einstellungs-Sicherung werden sie wie alle Tastatur-Einstellungen mitgesichert.
+- Zeichnung, Fotovorlage (höchstens 256 Pixel, nie kopiert), Vorschaubilder der Bilderleiste, der
+  gelesene Feldtext und das Ergebnis liegen nur im Speicher, solange das Fenster offen ist;
+  Schließen, Feldwechsel und das Ausblenden der Tastatur verwerfen sie. Nichts davon wird
+  geschrieben, gesendet oder protokolliert.
+- „Baustein“ speichert die Kunst als Textbaustein in `agent_snippets.json` (CE, kein Backup, wie
+  alle Bausteine, siehe „Daten der Befehle 24c–24f“) mit `literal: true`; „Kopieren“ legt sie als
+  normalen Text in die Zwischenablage (mit eingeschaltetem Verlauf landet sie dort wie jede Kopie).
+
 ## Symbole malen (27, 36)
 
 - Schalter `agent_symbol_drawing` in den Tastatureinstellungen (Standard aus).

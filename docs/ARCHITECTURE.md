@@ -41,6 +41,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - **Updates** – Opt-in-Prüfung auf neue Builds im öffentlichen Release-Repository, Download und Installation nur nach eigenem Klick.
 - **Unveränderter Upstream** – Was ohne Änderung von HeliBoard übernommen ist; nur nach Ordnern beschrieben.
 - **Symbole malen** – Etappe 27: Sonderzeichen auf die Buchstaben malen statt Gestenschreiben, lokal erkannt.
+- **Zeichen-Kunst** – Etappe 53 (schließt 39 Text-Stile ein): Fenster in der Tastatur, das Zeichnung, Foto, Text und Rahmen zu Text aus Zeichen macht.
 - **Build, Tests, CI, Docs-System** – Lokaler Build, Prüfbefehle, Workflows und die Docs-Prüfung.
 - **Fallstricke** – Fehler, die schon passiert sind oder nahelagen: bei jedem Review prüfen.
 - **Datei-Inventar** – Erzeugte Liste aller kartierten Dateien nach Ordner.
@@ -87,6 +88,8 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   (`DenialReason.NO_CURSOR` sonst), nur bei unverändertem Token und unveränderter Position.
 - `ApplyOutcome.kt`: Ergebnis einer nativen Ersetzung (inklusive `UNKNOWN`, siehe Fallstrick P3).
 - `LocalTextActions.kt`: lokale Textwerkzeuge ohne Netz.
+- `C/charart/` (Etappe 53): die Zeichen-Kunst-Engine, reine Funktionen ohne Android; Abschnitt
+  „Zeichen-Kunst“.
   <!-- gen:local_actions -->
 3 lokale Textwerkzeuge: `UPPERCASE`, `LOWERCASE`, `CLEAN_SPACES`
 <!-- /gen:local_actions -->
@@ -786,6 +789,23 @@ Symbole malen (Etappe 27, Touch-Verarbeitung, jede Änderung mit Prüfer; Detail
   Ausblendzeit der Spur sind ausgeblendet).
 - Diagnose (30): `MainSettingsScreen.kt` (Eintrag „Diagnose“ nach „Erweitert“, Parameter
   `onClickAgentDiagnose`), `SettingsNavHost.kt` (Ziel `agent_diagnose`).
+Zeichen-Kunst (Etappe 53, Abschnitt „Zeichen-Kunst“; kein `InputLogic`, `RichInputConnection` oder
+`PointerTracker` geändert):
+
+- `TextKeyData.kt` (bis dahin unverändert): `getAdditionalPopupKeys` gibt für das Label
+  `toolbarKeyStrings[ToolbarKey.EMOJI]` (die Emoji-Taste jedes Funktionslayouts, auch eigener)
+  `CharArtKey.popupKeys(params.mId)` zurück: der Stift „✎“ mit `!code/-12006`, nicht in
+  Passwortfeldern, ohne Lernen (`IME_FLAG_NO_PERSONALIZED_LEARNING`) und bei gesperrtem Gerät. Ein
+  eigenes Popup der Taste wird angehängt (`merge`), nicht ersetzt. Langdruck, Popup-Anzeige und
+  Auswahl laufen unverändert durch HeliBoards `PointerTracker`/`PopupKeysKeyboardView`.
+- `KeyCode.kt`: `AGENT_CHAR_ART` = -12006 (in `checkAndConvertCode` durchgereicht).
+- `KeyboardActionListenerImpl.kt`: `onCodeInput` mit `AGENT_CHAR_ART` →
+  `AgentEditorController.openCharArt` (eine Zeile neben den anderen Agent-Codes).
+- `InputView.java`: `agent_char_art` zählt als Overlay (Touch und Hover gehen an das Fenster).
+- `main_keyboard_frame.xml`: `CharArtView` als weiteres Kind von `AgentKeyboardFrame`.
+- Geänderter Upstream-Test `KeyboardParserTest.kt` (bis dahin unverändert): `emojiKey` erwartet jetzt
+  genau das Popup „✎“ mit `AGENT_CHAR_ART` (vorher keines).
+
 Emoji-Ansicht (Emoji-Mix, 25a; Abschnitt „Befehle“):
 
 - `EmojiPalettesView.java`: erzeugt in `initialize` den `EmojiMixPalette` (Leiste als erstes Kind),
@@ -860,6 +880,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   speichert sie nie in einem Snapshot. Prüft die Privacy vor dem Lesen und vergleicht vor der
   Übernahme erneut. `captureAnchor`/`insert` fügen an der Schreibmarke ein und lesen dafür
   keinen Text aus dem Editor; ohne gesetztes `commitInsertion` wird jede Einfügung abgelehnt.
+  `protection()` (Etappe 53): der Grund, warum das Feld gar nicht verarbeitet werden darf
+  (Passwort, Inkognito, ohne Lernen, gesperrt, kein Textfeld, kein Editor), ohne Komposition und
+  Auswahl als Grund; liest keinen Text.
 - `AgentKeyboardFrame.kt`: Overlays sind so breit wie die Tastatur, vergrößern die IME nie und
   enden über der Navigationsleiste (`overlayBottomInset`, Fallstrick P18). Hintergrundtasten sind
   währenddessen aus der Accessibility entfernt.
@@ -2580,6 +2603,111 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   im Fenster; Korrektur: ein abgelehnter Tipp kostet eine Erkennung), Kern siehe oben. `AT/SymbolSettingsScreenTest.kt` prüft auch den ausgegrauten
   Gestenschalter und die Grenzen des Malfelds (31).
 
+## Zeichen-Kunst
+
+> Etappe 53 (schließt 39 Text-Stile ein): Fenster in der Tastatur, das Zeichnung, Foto, Text und Rahmen zu Text aus Zeichen macht.
+
+- Kern `C/charart/` (rein, ohne Android, ohne Netz; gleiche Eingabe gibt immer denselben Text):
+  - `Raster.kt`: `Raster` (Grau 0 Papier … 1 Tinte; `withContrast`, `inverted`, `resampled` mit
+    `Pool.AVERAGE` für Fotos und `Pool.MAX` für Striche, damit dünne Linien beim Verkleinern
+    bleiben; `toBits` mit Schwelle 0,05–0,95 und `Dither` NONE/ORDERED (Bayer 4×4)/FLOYD_STEINBERG),
+    `Bits` (Schwarzweiß; `outline` = Tinte mit Papier an einer der vier Seiten, `inverted`,
+    `mirrored`, `scaled`, `placed`, `stack`).
+  - `Sketch.kt`: die Zeichnung als Liste von Schritten in 0..1-Koordinaten (`SketchOp`: Stroke
+    mit Radierer-Flag, Line, Ellipse als Umriss, Fill als 4er-Flutfüllung bis zur Tinte), bei jeder
+    Änderung neu gezeichnet auf `SIZE` = 160 Pixel; `undo`, höchstens 400 Schritte und 2000 Punkte
+    je Strich. `SketchRaster`: `ink` und `erased` (der Radierer nimmt auch das Foto weg),
+    `inkBounds`.
+  - `BigFont.kt`: drei eigene Pixel-Schriften (FIGlet-artig, aber als Pixel, damit jeder Stil sie
+    zeichnet): `MINI` 3×5, `STANDARD` 5×7, `BOLD` (Standard, jeder Strich ein Pixel breiter).
+    Großbuchstaben, Ziffern, Ä Ö Ü, Satzzeichen und ♥; ß → SS, Akzente fallen auf den Buchstaben
+    zurück (É → E), anderes wird „?“ und gemeldet.
+  - `UnicodeStyle.kt`: Familie (Serif, Serifenlos, Schreibschrift, Fraktur, Doppelstrich,
+    Monospace, Kreise, Quadrate, Kapitälchen, Kopfüber) plus fett, kursiv, durchgestrichen
+    (U+0336) und unterstrichen (U+0332), frei kombinierbar; die Lücken der mathematischen
+    Alphabete (ℎ, ℬ, ℭ, ℂ …) als Ausnahmen; Umlaute als Buchstabe plus Trema (NFD/NFC); fehlt eine
+    Kombination in Unicode, nimmt `resolve` die nächste und meldet `approximated`; fett plus
+    Quadrate = negative Quadrate, deren A B O P als Emojis erscheinen (`emojiLetters`).
+  - `TextColumns.kt`: geschätzte Spalten (Emoji und breite CJK 2, Zeichen mit Kombination 0, sonst
+    1) und eigene Graphem-Zerlegung (Hautfarben, ZWJ-Folgen, Flaggen, Tastenkappen), weil
+    `BreakIterator` auf älteren JVMs sie trennt; `isArt`, `isStyledLetter`, `isEmoji`.
+  - `CharArt.kt`: `ArtStyle` (Pixel je Zeichen: Braille 2×4, Blöcke 2×2 Viertel, Halbblöcke 1×2,
+    ASCII-Rampe „ .:-=+*#%@“ 1×2, Emoji 1×1 mit zwei Spalten, eigene Zeichen 1×2 als Rampe oder
+    bei zwei Zeichen schwarzweiß), `Look` (Stil, Umkehren, Umriss, eigene Zeichen, `EmojiPixels`),
+    `PhotoOptions` (umwandeln oder nur Vorlage, Kontrast, Schwelle, Dithering, Umkehren nur im
+    Foto), `PictureElement` (Zeichnung, `Photo.fitted` im Quadrat, Größe 25–100 %, Zuschneiden auf
+    den Inhalt), `TextElement` (`TextMode` BIG/UNICODE/PLAIN, Größe 1–3 oder automatisch: die
+    größte, die passt und höchstens `MAX_BIG_ROWS` = 10 Zeilen hat; sonst Wörter, dann Buchstaben
+    umbrechen), `FrameOptions` (Linie, Doppelt, Rund, Emoji, Innenabstand 0–2), `LayoutOptions`
+    (untereinander oder nebeneinander, Text oben, zentriert, Abstand, Spiegeln: Bilder per Pixel,
+    Text rückwärts mit gedrehten Klammern), `TargetApp` (Breite, Handy-Breite, Codeblock,
+    Nachrichtengrenze; `forPackage` für WhatsApp, Telegram, Discord, Signal), `OutputOptions`
+    (Breite 8–60, Codeblock, Leerstellen als U+2800). `render` setzt alles zusammen: Breite minus
+    Rahmen; nebeneinander bekommt der Text höchstens die Hälfte, das Bild den Rest; ein Bild hat
+    halb so viele Zeilen wie Spalten mal Seitenverhältnis (Zeichen sind etwa doppelt so hoch wie
+    breit), höchstens `MAX_PICTURE_ROWS` = 40. Füllstellen sind intern `PAD` (U+E000) und werden
+    am Ende U+2800 oder Leerzeichen; Braille behält seine leeren Zellen (U+2800) immer, eigene
+    Leerzeichen im Text bleiben Leerzeichen. Ohne Rahmen fallen Leerstellen am Zeilenende weg,
+    leere Zeilen oben und unten immer. Codeblock: WhatsApp „```…```“ ohne Zeilenumbruch,
+    Telegram und Discord mit. `ArtResult` mit `warnings` (`ArtWarning`: zu breit fürs Handy, zu
+    lang für die App, Rahmen/Nebeneinander ohne Codeblock, gemischte Breiten in einer Zeile,
+    Emojis oder Schrift-Stile im Codeblock, Leerzeichen gehen verloren, Stil nur teilweise,
+    Emoji-Buchstaben, Zeichen fehlen in der Groß-Schrift).
+  - Tests `CT/charart/CharArtTest.kt` (Golden-Ausgaben je Stil, Breiten, Groß-Schrift, Schriften,
+    Unicode-Stile samt Kombinationen, U+2800, Rahmen, Anordnung, Spiegeln, Ziel-Apps und
+    Warnungen, Spalten), `CT/charart/SketchTest.kt` (Werkzeuge, Rückgängig, Füllen, Radierer über
+    dem Foto, Dithering, Fotovorlage).
+- App `A/charart/`:
+  - `CharArtKey.kt`: das Popup der Emoji-Taste (`LABEL` „✎“, `popupKeys`), siehe „Geänderte
+    Upstream-Dateien“.
+  - `CharArtView.kt`: das Fenster als Overlay in `AgentKeyboardFrame` (Views wie der Rechner,
+    Farben aus dem Tastatur-Farbsatz). Oben Reiter (Zeichnen, Bild, Stil, Text, Rahmen, Anordnung,
+    App) und Schließen, darunter die Textzeile (Tipp: Text mit den Fenster-Tasten ändern), die
+    Optionen des Reiters, in der Mitte die Arbeitsfläche (Zeichenfläche, Tasten, Bilderleiste oder
+    Breite mit Chatblase) und die Vorschau (Schrift passt sich der Größe an, 4–14 sp, im
+    Codeblock Monospace), unten Hinweise und Kopieren, Baustein, Ersetzen, Einfügen. Ab 380 dp
+    Höhe steht die Vorschau unter der Zeichenfläche, sonst daneben (`STACK_MIN_DP`). Jede Änderung
+    ruft `render` (beim Malen höchstens alle 40 ms, beim Loslassen sofort). `show` liest Stil, App
+    und Breite je App aus den Einstellungen, `hide` vergisst Zeichnung, Foto und Text.
+    `offerUndo` macht „Einfügen“ für `UNDO_MILLIS` = 8 s zu „Rückgängig“; der zweite Tipp ist also
+    nie eine zweite Einfügung. Die Chatblase im Reiter App ist so breit, dass die Handy-Breite der
+    App in Braille hineinpasst, und bricht um wie im Chat.
+  - `CharArtCanvas.kt`: die quadratische Zeichenfläche; zeigt die Pixel der Zeichnung (so grob wie
+    das Ergebnis) über dem Foto (blasser, wenn es nur Vorlage ist), Werkzeuge Stift, Radierer
+    (doppelt breit), Linie, Kreis, Füllen, drei Stärken; meldet jede Änderung an das Fenster.
+  - `CharArtKeys.kt`: die eigenen Tasten des Fensters (QWERTZ mit Umlauten und ß bei Deutsch,
+    sonst QWERTY; Ziffern und Zeichen; Umschalt, Löschen, neue Zeile, Fertig). Entscheidung des
+    Leads statt einer internen `InputConnection`: Die Tastatur-Tasten liegen unter dem Fenster, und
+    sie in ein eigenes Feld umzuleiten hätte `InputLogic`/`LatinIME` (Komposition, Autokorrektur,
+    Umschalt-Zustand, Gesten) berührt. Die Fenster-Tasten ändern nur den Text des Fensters, nichts
+    erreicht die App, nichts wird korrigiert oder gelernt. Für Namen von Bausteinen nur Buchstaben.
+  - `CharArtImages.kt`: die neuesten 12 Bilder (Fotos und Screenshots) über `MediaStore`, nur mit
+    der Bild-Berechtigung der Screenshot-Pille oder „nur ausgewählte Fotos“, gelesen erst im
+    Reiter Bild und auf einem eigenen Thread; Vorlage höchstens 256 Pixel, als Dunkelheit
+    (`darkness`). Kein System-Picker: eine Activity würde die Tastatur und damit das Fenster
+    schließen. Ohne Berechtigung öffnet „Bilder erlauben“ die App-Seite der Systemeinstellungen.
+  - Controller (`AgentEditorController`): `openCharArt` öffnet nur, wenn `editor.protection()` nichts
+    meldet (sonst Hinweis, nichts gelesen); ein Wort in Komposition wird wie beim Öffnen der
+    Einstellungen so abgeschlossen, wie es dasteht (`InputLogic.commitTyped`, kein Gestenrest), dann
+    liest es bis zu `CharArtView.MAX_TEXT` = 300 Zeichen vor und nach der Schreibmarke (oder die
+    Auswahl) direkt aus dem Editor. „Ersetzen“ gibt es nur, wenn das ganze Feld vor der Schreibmarke
+    gelesen wurde und dahinter nichts steht. Einfügen über `editor.captureAnchor`/`editor.insert`
+    wie der Rechner (generierter Text, ein Commit, kein Lernen); Ersetzen über
+    `InputLogic.replaceCommandText(Feldtext, Kunst, Schreibmarke, generated = true)`, das den Text
+    vorher im Editor vergleicht; Rückgängig über `replaceCommandText(Kunst, vorher, Schreibmarke)`,
+    nur an derselben Schreibmarke direkt danach. UNKNOWN sperrt wie beim Rechner die Eingabe bis
+    zur Rückmeldung des Editors. Kopieren ohne Vertraulich-Markierung (die Kunst ist kein
+    Geheimnis); „Baustein“ fragt in der Textzeile nach dem Namen und speichert über `SnippetStore`
+    als `literal` (so eingefügt, wie sie ist), auf `charArtWorker`. `isBlockingInput` gilt, solange
+    das Fenster offen ist; `close()` und jeder Editorwechsel schließen es.
+  - Texte `agent_charart_strings.xml` (`values/`, `values-de/`), IDs `agent_charart_ids.xml`,
+    Einstellungen `AgentPreferences.CHAR_ART_STYLE`, `CHAR_ART_APP`, `CHAR_ART_WIDTH_PREFIX`
+    (`docs/STORAGE.md`).
+  - Tests `AT/CharArtWindowTest.kt` (echter Langdruck auf die Emoji-Taste und Loslassen auf dem
+    Stift, Popup-Code, Feldtext, Passwort/ohne Lernen/Inkognito/gesperrt, Malen aktualisiert die
+    Vorschau, Einfügen nur per Tipp und genau einmal mit Rückgängig, Ersetzen und zurück, Fenster-
+    Tasten, Baustein, App des Felds, Fotovorlage, Vorschaubild `app/build/agent-previews/charart-window.png`).
+
 ## Build, Tests, CI, Docs-System
 
 > Lokaler Build, Prüfbefehle, Workflows und die Docs-Prüfung.
@@ -3645,13 +3773,29 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Wort genau an dieser Stelle und nur mit bekannter Schreibmarke, ein Weg ohne Stelle zählt nichts. Wird das Feld vorher verlassen, zählt
   die Rücknahme nicht (vorsichtig). Nach `revertCommit` ist das Wort wieder Kompositionswort; das
   Leerzeichen danach schickt es ab.
+- **P194** Robolectric-Tests mit Feld müssen `latinIME.onStartInput`/`onStartInputView` aufrufen,
+  nicht `latinIME.mHandler.onStartInput…` wie `InputLogicTest`: Nur `LatinIME` startet die
+  Editor-Sitzung des Controllers (`startEditor`); sonst meldet `editor.protection()` `NO_EDITOR` und
+  das Zeichen-Kunst-Fenster (wie Panel und Rechner) öffnet nie.
+- **P195** Eine Zeichenfläche, die ihre Fläche nur in `onDraw` berechnet, ignoriert jede Berührung,
+  solange sie nicht gezeichnet wurde (in Tests nie, auf dem Gerät vor dem ersten Bild).
+  `CharArtCanvas` setzt die Fläche deshalb schon in `onSizeChanged`.
+- **P196** Das Popup der Emoji-Taste kommt aus `TextKeyData` für jedes Label „emoji“, also auch aus
+  eigenen Funktionslayouts; ein eigenes Popup wird angehängt. Die Tastatur-Ebene kennt nur Passwort,
+  „ohne Lernen“ und gesperrt (`KeyboardId`); die Einstellung Inkognito kennt sie nicht, die prüft
+  erst `openCharArt` beim Tipp. Der Stift ist ein Text-Label: ein Icon bräuchte Einträge in allen
+  vier Icon-Sätzen von `KeyboardIconsSet`.
+- **P197** Rückgängig nach dem Einfügen entfernt genau die Kunst vor der Schreibmarke. Hat
+  `insertGeneratedText` ein ausstehendes automatisches Leerzeichen davor gesetzt, bleibt dieses
+  stehen. Rückgängig geht nur, solange die Schreibmarke dort steht, wo sie nach dem Einfügen stand
+  (`charArtUndoEnd`), und der Text dort unverändert ist; sonst ein Hinweis und nichts passiert.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (530 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (549 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -3672,6 +3816,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst, TypoMemory, WorkflowApprovalSummary,
   WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
   WorkflowStore
+- `A/charart/` (5): CharArtCanvas, CharArtImages, CharArtKey, CharArtKeys, CharArtView
 - `A/commands/` (18): AiCommandChips, AlarmCommand, AskCommand, ClipCommand, EmojiMixCommand,
   EmojiMixRecents, EmojiMixer, LanguageCommand, QrCommand, ScreenReaderService, SensitiveClips,
   SnipCommand, SnippetStore, SubtypeChoice, TimerCommand, TranslateCommand, UrlCommand,
@@ -3680,10 +3825,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (93): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (94): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
-  CalendarToolLauncherTest, ClipCommandTest, ClipVaultTest, CommandReplaceTest,
+  CalendarToolLauncherTest, CharArtWindowTest, ClipCommandTest, ClipVaultTest, CommandReplaceTest,
   CommandTemplatesTest, ContactCommandTest, CorrectionMemoryTest, DatePlaceCommandsTest,
   DebugPrivacyTest, DesignEditorTest, DesignTilesTest, DiagnoseScreenTest, DictationSessionTest,
   DictationUiTest, EmojiMixPaletteTest, EmojiMixRecentsTest, EncryptedActionRunStoreTest,
@@ -3711,6 +3856,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Profiles, RgbCurve, RgbLighting, RgbPatterns, SkillBinding, SnippetTemplate, SpecialCharacters,
   StyledTranslation, SymbolTable, TextCondition, TimerParser, Tool, TouchDynamics, UnitConversion,
   UpdateReleases, UrlDetector, Workflow
+- `C/charart/` (6): BigFont, CharArt, Raster, Sketch, TextColumns, UnicodeStyle
 - `C/clip/` (2): ClipGuard, PrivateRanges
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `C/memory/` (4): OwnWords, PhraseMemory, ShortcutOffers, SnippetMatcher
@@ -3723,6 +3869,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   RgbCurveTest, RgbFrameStatsTest, RgbLightingTest, RgbPatternsTest, SkillBindingTest,
   SnippetTemplateTest, StyledTranslationTest, SymbolTableTest, TimerParserTest, ToolTest,
   TouchDynamicsTest, UnitConversionTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
+- `CT/charart/` (2): CharArtTest, SketchTest
 - `CT/clip/` (2): ClipGuardTest, PrivateRangesTest
 - `CT/format/` (1): FormatGuardTest
 - `CT/memory/` (2): MemoryRulesTest, PhraseMemoryTest
@@ -3734,7 +3881,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/keyboard/emoji/` (2): EmojiPalettesView, EmojiSearchActivity
 - `K/keyboard/internal/` (1): KeyboardIconsSet
 - `K/keyboard/internal/keyboard_parser/` (2): KeyboardParser, LayoutParser
-- `K/keyboard/internal/keyboard_parser/floris/` (2): KeyCode, KeyLabel
+- `K/keyboard/internal/keyboard_parser/floris/` (3): KeyCode, KeyLabel, TextKeyData
 - `K/latin/` (11): App, AppUpgrade, ClipboardHistoryEntry, ClipboardHistoryManager,
   ClipboardThumbnails, DictionaryFacilitatorImpl, InputAttributes, InputView, LatinIME,
   RichInputConnection, Suggest
@@ -3780,24 +3927,25 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (26): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
-  agent_clipvault_strings, agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings,
-  agent_format_strings, agent_gestures_strings, agent_language_strings, agent_memory_strings,
-  agent_rgb_strings, agent_settings_keys_strings, agent_settings_look_strings,
+- `app/src/main/res/values-de/` (27): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
+  agent_charart_strings, agent_clipvault_strings, agent_design_strings, agent_diagnose_strings,
+  agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_language_strings,
+  agent_memory_strings, agent_rgb_strings, agent_settings_keys_strings, agent_settings_look_strings,
   agent_settings_strings, agent_settings_system_strings, agent_slider_strings,
   agent_snippet_strings, agent_space_strings, agent_strings, agent_suggest_strings,
   agent_symbol_strings, agent_touch_strings, agent_typing_strings, agent_update_strings, strings
-- `app/src/main/res/values/` (32): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
-  agent_bar_strings, agent_clipvault_strings, agent_design_strings, agent_diagnose_strings,
-  agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_ids,
-  agent_language_strings, agent_memory_strings, agent_rgb_strings, agent_settings_keys_strings,
-  agent_settings_look_strings, agent_settings_strings, agent_settings_system_strings,
-  agent_slider_strings, agent_snippet_strings, agent_space_strings, agent_strings,
-  agent_suggest_strings, agent_symbol_strings, agent_touch_strings, agent_typing_strings,
-  agent_update_strings, attrs, clip_provider, donottranslate, gesture_data, themes-flat
+- `app/src/main/res/values/` (34): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+  agent_bar_strings, agent_charart_ids, agent_charart_strings, agent_clipvault_strings,
+  agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings, agent_format_strings,
+  agent_gestures_strings, agent_ids, agent_language_strings, agent_memory_strings,
+  agent_rgb_strings, agent_settings_keys_strings, agent_settings_look_strings,
+  agent_settings_strings, agent_settings_system_strings, agent_slider_strings,
+  agent_snippet_strings, agent_space_strings, agent_strings, agent_suggest_strings,
+  agent_symbol_strings, agent_touch_strings, agent_typing_strings, agent_update_strings, attrs,
+  clip_provider, donottranslate, gesture_data, themes-flat
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
-- `app/src/test/java/helium314/keyboard/` (1): Shadows
+- `app/src/test/java/helium314/keyboard/` (2): KeyboardParserTest, Shadows
 - `app/src/test/java/helium314/keyboard/latin/` (2): InputLogicTest, SuggestTest
 - `app/src/test/java/helium314/keyboard/latin/inputlogic/` (1): BatchDeliveryTest
 - `scripts/` (3): docs_sync, docs_sync, install-hooks

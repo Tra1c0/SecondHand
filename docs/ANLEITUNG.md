@@ -573,6 +573,59 @@ von Google (www.gstatic.com); gesendet werden dabei nur die beiden Emojis, kein 
 - Nicht in Passwortfeldern, im Inkognito-Modus oder bei gesperrtem Gerät; dort bleibt der
   Mixer aus („Der Emoji-Mixer ist in diesem Feld aus“).
 
+## Zeichen-Kunst
+
+Bilder und Schriftzüge aus Zeichen (Braille-Punkte, Blöcke, ASCII, Emojis) und Text in
+Unicode-Stilen wie 𝓢𝓬𝓱𝓻𝓲𝓯𝓽 oder 𝗙𝗲𝘁𝘁. Alles passiert auf dem Telefon, ohne Internet.
+
+- Öffnen: die Emoji-Taste in der unteren Reihe lange drücken, im Popup auf den Stift „✎“ gleiten
+  und loslassen (die Emoji-Taste muss da sein: Einstellungen → 03 Tasten & Sprachen →
+  „Emoji-Taste“; der flache Look schaltet sie ein). Ein kurzer Tipp öffnet weiter die Emojis.
+  Statt der Tasten erscheint das Fenster; das Feld bleibt unverändert.
+- Oben steht der Text aus dem Feld („Text: …“, bis 300 Zeichen um die Schreibmarke, oder was du
+  markiert hast). Antippen öffnet die Tasten des Fensters: tippen, ⌫ löscht, ↵ neue Zeile, „123“
+  für Ziffern und Zeichen, „Fertig“ schließt sie. Diese Tasten schreiben nur in das Fenster.
+- Reiter (oben):
+  - **Zeichnen**: Stift, Radierer, Linie, Kreis (vom Aufsetzen bis zum Loslassen), Füllen (tippen
+    in eine geschlossene Fläche), Stärke Dünn/Mittel/Dick, „Zurück“ nimmt den letzten Schritt
+    zurück, „Leeren“ löscht alles.
+  - **Bild**: die neuesten Fotos und Screenshots; ein Tipp legt das Bild unter die Zeichenfläche.
+    „Foto umwandeln“ macht es selbst zu Zeichen, „Nur Vorlage“ zeigt es nur zum Nachzeichnen.
+    Kontrast, Schwelle, Raster/Streuung (für Grautöne), Umkehren, Foto entfernen. Der Radierer
+    nimmt auch Teile des Fotos weg. Braucht die Bild-Berechtigung („Bilder erlauben“ öffnet die
+    App-Seite der Android-Einstellungen; dabei schließt sich das Fenster).
+  - **Stil**: Braille (Standard), Blöcke, Halbblöcke, ASCII, Emoji (nochmals tippen wechselt die
+    Farben ⬛⬜ → 🟥⬜ → ❤️🤍 → 🟩⬛), Eigene (nochmals tippen: eigene Zeichen von hell nach dunkel
+    eingeben, z. B. „ .oO@“; zwei Zeichen = schwarz-weiß). Dazu Umriss, Umkehren, Zuschneiden
+    (nur der gezeichnete Teil) und Größe 100/75/50 %.
+  - **Text**: „Groß-Schrift“ zeichnet den Text als große Buchstaben (Schriften Mini, Standard, Fett;
+    Größe auto oder 1–3; „Stil: …“ wählt, woraus die Buchstaben bestehen; Umriss = hohle
+    Buchstaben). „Unicode-Stil“ schreibt ihn in Schriftzeichen-Stilen: Serif, Serifenlos,
+    Schreibschrift, Fraktur, Doppelstrich, Monospace, Kreise, Quadrate, Kapitälchen, Kopfüber, dazu
+    Fett, Kursiv, Durchgestrichen, Unterstrichen, frei kombinierbar. „Normal“ lässt ihn, wie er ist.
+  - **Rahmen**: Linie, Doppelt, Rund, Emoji (nochmals tippen wechselt ✨ ⭐ ❤️ 🌸 🔥), Innenabstand.
+  - **Anordnung**: Untereinander oder Nebeneinander, Text oben, Zentriert oder Links, Abstand,
+    Spiegeln.
+  - **App**: WhatsApp, Telegram, Discord, Signal, Andere. Die App des Felds wird erkannt. Der
+    Regler stellt die Breite in Zeichen ein (8–60, je App gemerkt); die Chatblase darunter zeigt,
+    ob es auf ein Handy passt: zu breite Zeilen brechen dort um wie im Chat. „Codeblock“ setzt
+    ``` drumherum, damit die App eine Schrift mit gleich breiten Zeichen nimmt (WhatsApp und
+    Discord an, Telegram wählbar, Signal kann es nicht). „⠀ statt Leerzeichen“ (an) füllt Lücken
+    mit dem unsichtbaren Braille-Zeichen, damit die App sie nicht wegkürzt.
+- Jede Änderung zeichnet die Vorschau sofort neu. Darunter steht, wie breit die Kunst ist, oder
+  eine Warnung, wenn sie in der App vermutlich zerfällt (z. B. „Rahmen und Nebeneinander verrutschen
+  ohne Codeblock“, „Emojis und Schrift-Stile sind im Codeblock nicht gleich breit“).
+- Übernehmen, immer nur per Tipp: **Einfügen** setzt die Kunst an die Schreibmarke. **Ersetzen**
+  (nur wenn hinter der Schreibmarke nichts steht) setzt sie an die Stelle des gelesenen Texts, so
+  wird aus „Hallo“ z. B. „𝐇𝐚𝐥𝐥𝐨“. Danach heißt der Knopf 8 Sekunden lang **Rückgängig**: ein Tipp
+  nimmt genau das wieder heraus (nur solange danach nichts im Feld geändert wurde). **Kopieren**
+  legt die Kunst in die Zwischenablage. **Baustein** fragt nach einem Namen (nur Buchstaben) und
+  speichert sie als Textbaustein, später mit `@snip Name`. „Schließen“ verwirft alles.
+- Nicht in Passwortfeldern, im Inkognito-Modus oder bei gesperrtem Gerät: Dort fehlt der Stift
+  bzw. es erscheint „Zeichen-Kunst gibt es in diesem Feld nicht.“
+- Grenzen: Screenreader (TalkBack) lesen Zeichen-Kunst als Zeichensalat vor. Beim Empfänger
+  können ein sehr kleiner Bildschirm oder eine große Schrift die Zeilen umbrechen lassen.
+
 ## Symbole malen
 
 Statt Wörter zu wischen, malst du Sonderzeichen auf die Tastatur. Einschalten: Einstellungen →

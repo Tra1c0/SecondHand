@@ -124,6 +124,17 @@ class AndroidEditorAdapter(
             snapshot.selectionEnd == max(selectionStart, selectionEnd)
     }
 
+    /**
+     * Stage 53: why the editor does not allow processing at all (password, incognito, no learning,
+     * locked, not a text field, no editor), or null. Unlike [captureAnchor] a word still being
+     * composed or a selection is no reason; reads no text.
+     */
+    fun protection(): DenialReason? {
+        if (session.token == null) return DenialReason.NO_EDITOR
+        val access = access() ?: return DenialReason.NO_EDITOR
+        return policy.editorDenial(access.copy(isComposing = false))
+    }
+
     /** A plain cursor in an editor that allows processing. Reads no text from the editor. */
     fun captureAnchor(): AnchorResult {
         val token = session.token ?: return AnchorResult.Denied(DenialReason.NO_EDITOR)

@@ -103,13 +103,13 @@ Reihenfolge von oben nach unten.
   - 38h System & Daten ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` →
     Etappe 38h). Annahme des Leads: Profilkarten sind Aktionen (Anwenden nach Rückfrage),
     hervorgehoben ist, was den aktuellen Einstellungen entspricht. Offen: Prüfer-Review, Gerätetest.
-- **39 Text-Stile (Wunsch des Owners vom 2026-11-13)** — geht in 53 auf (Owner, 2026-11-14). Alles lokal, Einfügen nur per Tipp.
-  `@style Text` zeigt Chips mit Unicode-Varianten (𝓢𝓬𝓱𝓻𝓲𝓯𝓽, 𝗙𝗲𝘁𝘁, 𝘒𝘶𝘳𝘴𝘪𝘷, ꜱᴍᴀʟʟ ᴄᴀᴘꜱ, Ⓚⓡⓔⓘⓢ,
-  d̶u̶r̶c̶h̶, umgedreht); Hinweis, dass Screenreader solche Zeichen schlecht vorlesen. Formatierung
-  für Messenger: *fett*, _kursiv_, ~durch~, `Code`, Spoiler (WhatsApp/Telegram/Discord) als Chips
-  für markierten Text. `@kaomoji` mit eigener, lokaler Bibliothek ((╯°□°)╯︵ ┻━┻, ¯\_(ツ)_/¯ …,
-  Suche nach Stichwort). Typografie aufräumen: „deutsche Anführungszeichen“, Gedankenstrich –,
-  Auslassung …, doppelte Leerzeichen. (M)
+- **39 Text-Stile** — in 53 aufgegangen und mit 53 gebaut (siehe FEATURES.md → Zeichen-Kunst-Fenster):
+  Unicode-Stile (Schreibschrift, fett, kursiv, Kapitälchen, Kreise, durchgestrichen, kopfüber …,
+  kombinierbar) im Reiter Text, Hinweis auf Screenreader in der Vorschau. Noch offen aus dem
+  ursprünglichen Wunsch (nicht Teil von 53, eigener Auftrag nötig): `@style` als Befehl mit Chips,
+  Messenger-Formatierung (*fett*, _kursiv_, ~durch~, `Code`, Spoiler) für markierten Text,
+  `@kaomoji` mit lokaler Bibliothek, Typografie aufräumen („deutsche Anführungszeichen“, –, …,
+  doppelte Leerzeichen).
 - **40 Smart Paste (Wunsch des Owners vom 2026-11-13)**. Lokal, ohne Netz. Erkennt im Kopierten
   bzw. in der Zwischenablage-Pille Typen und bietet Chips: Adresse → in Karten öffnen / als
   `@ort` speichern; Telefonnummer → anrufen / Kontakt; IBAN → formatiert einfügen (Prüfziffer
@@ -231,8 +231,18 @@ Reihenfolge von oben nach unten.
     Provider oder Berechtigungen; nicht in Passwortfeldern, Inkognito, gesperrt.
   - Beispiele: `@lang duolingo spanish`, `@lang apps`, `@lang whatsapp german` (ersetzt
     `del …; set …`), `@lang whatsapp german; duolingo spanish; @guard banking off`.
-- **53 Zeichen-Kunst-Fenster (Wunsch des Owners vom 2026-11-14)** — beschlossen, nächste Runde,
-  schließt 39 (Text-Stile) ein. Öffnen: Emoji-Taste lange drücken → Stift im Popup. Fenster: oben
+- **53 Zeichen-Kunst-Fenster** ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` →
+  Etappe 53). Annahmen des Leads, die der Owner ändern kann: Standardstil Braille; Profile WhatsApp,
+  Telegram, Discord, Signal, Andere (Breiten 26/28/32/26/26, Codeblock bei WhatsApp und Discord an,
+  bei Telegram wählbar); Text im Fenster über eigene Fenster-Tasten statt der Tastatur-Tasten (die
+  liegen unter dem Fenster; umleiten hätte die Engine berührt); Fotovorlage aus den neuesten 12
+  Bildern im Fenster statt System-Picker (der würde die Tastatur schließen); nach dem Einfügen
+  bleibt das Fenster offen und „Einfügen“ ist 8 s „Rückgängig“; „Ersetzen“ nur, wenn hinter der
+  Schreibmarke nichts steht. Offen: Prüfer-Review (Hooks in `TextKeyData`,
+  `KeyboardActionListenerImpl`, `InputView`; Aufruf von `InputLogic.commitTyped` und
+  `replaceCommandText`), Gerätetest (Langdruck, Fensterhöhe, Zeichnen mit dem Finger, Bilder mit
+  echter Berechtigung, wie die Kunst in WhatsApp/Telegram/Discord/Signal wirklich aussieht).
+  Ursprünglicher Wunsch (Owner, 2026-11-14), schließt 39 (Text-Stile) ein. Öffnen: Emoji-Taste lange drücken → Stift im Popup. Fenster: oben
   der vorhandene Feldtext (bearbeitbar), Mitte freie Zeichenfläche (Stift, Radierer, Linie, Kreis,
   Füllen, Rückgängig; auch Foto/Screenshot als Vorlage), unten Live-Vorschau als Text aus Zeichen.
   Owner: nicht „entweder oder“, sondern alles per Auswahl frei kombinierbar und selbstständig neu

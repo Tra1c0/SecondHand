@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Character art window (stage 53, includes the text styles of stage 39). Own file so parallel work on agent_strings.xml does not collide. English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="agent_char_art_title">Character art</string>
+    <string name="agent_char_art_tab_draw">Draw</string>
+    <string name="agent_char_art_tab_photo">Photo</string>
+    <string name="agent_char_art_tab_style">Style</string>
+    <string name="agent_char_art_tab_text">Text</string>
+    <string name="agent_char_art_tab_frame">Frame</string>
+    <string name="agent_char_art_tab_layout">Layout</string>
+    <string name="agent_char_art_tab_app">App</string>
+    <!-- %s: the text of the window -->
+    <string name="agent_char_art_text_value">Text: %s</string>
+    <string name="agent_char_art_text_empty">Text: tap to write</string>
+    <string name="agent_char_art_text_description">Text of the character art; tap to edit it with the keys of the window</string>
+    <string name="agent_char_art_tool_pen">Pen</string>
+    <string name="agent_char_art_tool_eraser">Eraser</string>
+    <string name="agent_char_art_tool_line">Line</string>
+    <string name="agent_char_art_tool_circle">Circle</string>
+    <string name="agent_char_art_tool_fill">Fill</string>
+    <string name="agent_char_art_width_thin">Thin</string>
+    <string name="agent_char_art_width_medium">Medium</string>
+    <string name="agent_char_art_width_thick">Thick</string>
+    <string name="agent_char_art_undo_step">Undo</string>
+    <string name="agent_char_art_clear">Clear</string>
+    <string name="agent_char_art_canvas">Drawing area</string>
+    <string name="agent_char_art_photo_use">Convert photo</string>
+    <string name="agent_char_art_photo_template">Template only</string>
+    <!-- %s: e.g. 1.5 -->
+    <string name="agent_char_art_contrast">Contrast %s</string>
+    <!-- %d: percent -->
+    <string name="agent_char_art_threshold">Threshold %d %%</string>
+    <string name="agent_char_art_dither_none">No dithering</string>
+    <string name="agent_char_art_dither_ordered">Pattern</string>
+    <string name="agent_char_art_dither_diffusion">Diffusion</string>
+    <string name="agent_char_art_invert">Invert</string>
+    <string name="agent_char_art_photo_remove">Remove photo</string>
+    <string name="agent_char_art_photo_none">No pictures. Screenshots and photos show up here once Agent Keyboard may read pictures.</string>
+    <string name="agent_char_art_photo_allow">Allow pictures</string>
+    <string name="agent_char_art_photo_loading">Loading pictures …</string>
+    <!-- %d: number of the picture, newest first -->
+    <string name="agent_char_art_photo_item">Picture %d as template</string>
+    <string name="agent_char_art_style_braille">Braille</string>
+    <string name="agent_char_art_style_blocks">Blocks</string>
+    <string name="agent_char_art_style_half">Half blocks</string>
+    <string name="agent_char_art_style_ascii">ASCII</string>
+    <!-- %s: two emojis, ink and paper -->
+    <string name="agent_char_art_style_emoji">Emoji %s</string>
+    <!-- %s: the user's characters -->
+    <string name="agent_char_art_style_custom">Own: %s</string>
+    <string name="agent_char_art_outline">Outline</string>
+    <string name="agent_char_art_crop">Crop</string>
+    <!-- %d: percent of the width -->
+    <string name="agent_char_art_size_percent">Size %d %%</string>
+    <string name="agent_char_art_mode_big">Big letters</string>
+    <string name="agent_char_art_mode_unicode">Unicode</string>
+    <string name="agent_char_art_mode_plain">Plain</string>
+    <string name="agent_char_art_text_off">No text</string>
+    <string name="agent_char_art_font_mini">Mini</string>
+    <string name="agent_char_art_font_standard">Standard</string>
+    <string name="agent_char_art_font_bold">Bold font</string>
+    <string name="agent_char_art_size_auto">Size auto</string>
+    <!-- %d: 1 to 3 -->
+    <string name="agent_char_art_size">Size %d</string>
+    <!-- %s: name of an art style -->
+    <string name="agent_char_art_text_style">Style: %s</string>
+    <string name="agent_char_art_family_serif">Serif</string>
+    <string name="agent_char_art_family_sans">Sans</string>
+    <string name="agent_char_art_family_script">Script</string>
+    <string name="agent_char_art_family_fraktur">Fraktur</string>
+    <string name="agent_char_art_family_double">Double-struck</string>
+    <string name="agent_char_art_family_mono">Monospace</string>
+    <string name="agent_char_art_family_circled">Circled</string>
+    <string name="agent_char_art_family_squared">Squared</string>
+    <string name="agent_char_art_family_smallcaps">Small caps</string>
+    <string name="agent_char_art_family_upside">Upside down</string>
+    <string name="agent_char_art_bold">Bold</string>
+    <string name="agent_char_art_italic">Italic</string>
+    <string name="agent_char_art_strike">Strikethrough</string>
+    <string name="agent_char_art_underline">Underline</string>
+    <string name="agent_char_art_frame_none">No frame</string>
+    <string name="agent_char_art_frame_line">Line</string>
+    <string name="agent_char_art_frame_double">Double</string>
+    <string name="agent_char_art_frame_round">Round</string>
+    <!-- %s: the emoji of the frame -->
+    <string name="agent_char_art_frame_emoji">Emoji %s</string>
+    <!-- %d: 0 to 2 -->
+    <string name="agent_char_art_padding">Padding %d</string>
+    <string name="agent_char_art_stack">Below each other</string>
+    <string name="agent_char_art_side">Side by side</string>
+    <string name="agent_char_art_text_first">Text on top</string>
+    <string name="agent_char_art_center">Centred</string>
+    <string name="agent_char_art_left">Left</string>
+    <!-- %d: 0 to 2 -->
+    <string name="agent_char_art_spacing">Spacing %d</string>
+    <string name="agent_char_art_mirror">Mirror</string>
+    <string name="agent_char_art_app_whatsapp">WhatsApp</string>
+    <string name="agent_char_art_app_telegram">Telegram</string>
+    <string name="agent_char_art_app_discord">Discord</string>
+    <string name="agent_char_art_app_signal">Signal</string>
+    <string name="agent_char_art_app_generic">Other</string>
+    <string name="agent_char_art_code_block">Code block</string>
+    <string name="agent_char_art_braille_blanks">⠀ for spaces</string>
+    <!-- %d: characters -->
+    <string name="agent_char_art_width_value">Width: %d characters</string>
+    <string name="agent_char_art_width_description">Width of the character art in characters</string>
+    <string name="agent_char_art_fits_phone">Probably fits on a phone</string>
+    <string name="agent_char_art_too_wide_phone">Too wide for a phone: lines will wrap</string>
+    <string name="agent_char_art_copy">Copy</string>
+    <string name="agent_char_art_snippet">Snippet</string>
+    <string name="agent_char_art_replace">Replace</string>
+    <string name="agent_char_art_insert">Insert</string>
+    <string name="agent_char_art_undo">Undo</string>
+    <string name="agent_char_art_empty">Draw something or write a text</string>
+    <!-- %d: characters -->
+    <string name="agent_char_art_fits">%d characters wide · fits a phone</string>
+    <string name="agent_char_art_warn_wide">too wide for a phone</string>
+    <!-- %s: name of the app -->
+    <string name="agent_char_art_warn_long">too long for %s</string>
+    <string name="agent_char_art_warn_alignment_code">frame and side by side shift without code block</string>
+    <!-- %s: name of the app -->
+    <string name="agent_char_art_warn_alignment">frame and side by side probably shift in %s</string>
+    <string name="agent_char_art_warn_mixed">art, letters and emojis differ in width</string>
+    <string name="agent_char_art_warn_code_font">emojis and styled letters are not monospace in a code block</string>
+    <string name="agent_char_art_warn_spaces">spaces at the start of lines get removed</string>
+    <string name="agent_char_art_warn_approximated">Unicode has this style only in part</string>
+    <string name="agent_char_art_warn_emoji_letters">🅰 🅱 🅾 🅿 show as emojis</string>
+    <string name="agent_char_art_warn_unsupported">some characters are missing in the big font</string>
+    <string name="agent_char_art_screen_reader">Screen readers read character art as a jumble of characters.</string>
+    <!-- %1$d: lines, %2$s: the screen reader note -->
+    <string name="agent_char_art_preview_description">Preview of the character art, %1$d lines. %2$s</string>
+    <string name="agent_char_art_protected">Character art is not available in this field.</string>
+    <string name="agent_char_art_selection">Remove the selection first.</string>
+    <string name="agent_char_art_expired">The field changed. Nothing was inserted.</string>
+    <string name="agent_char_art_undone">Removed again</string>
+    <string name="agent_char_art_undo_failed">Undo no longer possible: the text has changed.</string>
+    <string name="agent_char_art_copied">Character art copied</string>
+    <!-- %s: name -->
+    <string name="agent_char_art_snippet_name">Snippet name: %s</string>
+    <string name="agent_char_art_snippet_save">Save</string>
+    <!-- %s: name -->
+    <string name="agent_char_art_snippet_saved">Saved as snippet „%s“</string>
+    <!-- %s: name -->
+    <string name="agent_char_art_snippet_taken">There is a snippet „%s“ already</string>
+    <!-- %d: characters -->
+    <string name="agent_char_art_snippet_too_long">Too long for a snippet (at most %d characters)</string>
+    <string name="agent_char_art_snippet_failed">The snippet was not saved</string>
+    <!-- %s: the characters -->
+    <string name="agent_char_art_custom_value">From light to dark: %s</string>
+    <string name="agent_char_art_keys_done">Done</string>
+    <string name="agent_char_art_keys_space">Space</string>
+    <string name="agent_char_art_keys_delete">Delete</string>
+    <string name="agent_char_art_keys_enter">New line</string>
+    <string name="agent_char_art_keys_shift">Shift</string>
+    <string name="agent_char_art_keys_symbols">Digits and signs</string>
+    <string name="agent_char_art_key_description">Pen in the emoji key: character art</string>
+</resources>

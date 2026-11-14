@@ -36,12 +36,14 @@ public final class InputView extends FrameLayout {
     private View mAgentWheel;
     private View mAgentMenu;
     private View mAgentCalculator;
+    private View mAgentCharArt;
 
     private boolean hasAgentOverlay() {
         return (mAgentPanel != null && mAgentPanel.getVisibility() == VISIBLE)
                 || (mAgentWheel != null && mAgentWheel.getVisibility() == VISIBLE)
                 || (mAgentMenu != null && mAgentMenu.getVisibility() == VISIBLE)
-                || (mAgentCalculator != null && mAgentCalculator.getVisibility() == VISIBLE);
+                || (mAgentCalculator != null && mAgentCalculator.getVisibility() == VISIBLE)
+                || (mAgentCharArt != null && mAgentCharArt.getVisibility() == VISIBLE);
     }
 
     public InputView(final Context context, final AttributeSet attrs) {
@@ -55,6 +57,7 @@ public final class InputView extends FrameLayout {
         mAgentWheel = findViewById(R.id.agent_wheel);
         mAgentMenu = findViewById(R.id.agent_menu);
         mAgentCalculator = findViewById(R.id.agent_calculator);
+        mAgentCharArt = findViewById(R.id.agent_char_art);
         final SuggestionStripView suggestionStripView =
                 findViewById(R.id.suggestion_strip_view);
         mMainKeyboardView = findViewById(R.id.keyboard_view);

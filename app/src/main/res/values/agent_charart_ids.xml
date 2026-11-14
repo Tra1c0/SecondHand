@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Character art window (stage 53). Own file so parallel work on agent_ids.xml does not collide. -->
+<resources>
+    <item type="id" name="agent_char_art_close" />
+    <item type="id" name="agent_char_art_tabs" />
+    <item type="id" name="agent_char_art_text" />
+    <item type="id" name="agent_char_art_options" />
+    <item type="id" name="agent_char_art_canvas" />
+    <item type="id" name="agent_char_art_keys" />
+    <item type="id" name="agent_char_art_photos" />
+    <item type="id" name="agent_char_art_app_panel" />
+    <item type="id" name="agent_char_art_width" />
+    <item type="id" name="agent_char_art_width_label" />
+    <item type="id" name="agent_char_art_bubble" />
+    <item type="id" name="agent_char_art_preview" />
+    <item type="id" name="agent_char_art_status" />
+    <item type="id" name="agent_char_art_copy" />
+    <item type="id" name="agent_char_art_snippet" />
+    <item type="id" name="agent_char_art_replace" />
+    <item type="id" name="agent_char_art_insert" />
+</resources>

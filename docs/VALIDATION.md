@@ -4268,6 +4268,57 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Nicht gelaufen: `tools/dev.py agent-tests`, volle Suite, Build, Lint (Speicher, Anweisung des
   Leads). Gerätetest offen.
 
+## Etappe 53 (Zeichen-Kunst-Fenster)
+
+- Auftrag: `docs/ROADMAP.md` → 53 (Owner, 2026-11-14), schließt 39 (Text-Stile) ein. Annahmen des
+  Leads (vom Owner änderbar): Standardstil Braille; Profile WhatsApp, Telegram, Discord, Signal,
+  Andere; Codeblock bei WhatsApp und Discord an, bei Telegram wählbar; Fenster-Tasten statt der
+  Tastatur-Tasten für den Text; Bilder aus den neuesten 12 im Fenster statt System-Picker; nach dem
+  Einfügen bleibt das Fenster offen, „Einfügen“ ist 8 s „Rückgängig“; „Ersetzen“ nur ohne Text
+  hinter der Schreibmarke.
+- Entscheidung Eingabe im Fenster: eigene Tasten (`CharArtKeys`) statt einer internen
+  `InputConnection`. Die Tastatur-Tasten liegen unter dem Fenster; sie in ein eigenes Feld
+  umzuleiten hätte `InputLogic`/`LatinIME` berührt (Komposition, Autokorrektur, Umschalt-Zustand,
+  Gesten). So erreicht nichts davon die App, nichts wird korrigiert oder gelernt.
+- Neue Tests: `CT/charart/CharArtTest.kt` (13: Braille-Kreis golden, jeder Stil golden inklusive
+  Emoji-Farben und eigener Zeichen, Zellen bitgenau, Breiten 8–60 samt Grenzen, Emoji-Spalten,
+  40-Zeilen-Grenze und Umbruch der Groß-Schrift, Groß-Schrift golden in Braille, Halbblöcken und
+  FIGlet-artigem ASCII samt automatischer Größe und Umriss, Schriften Mini/Standard/Fett mit ß,
+  Akzenten und unbekannten Zeichen, alle zehn Unicode-Familien golden samt fett, kursiv,
+  Ausnahmen der Alphabete, durchgestrichen und unterstrichen kombiniert, Näherungs- und
+  Emoji-Buchstaben-Meldung, Umbruch, U+2800 an/aus samt eigener Leerzeichen und Braille-Zellen,
+  Rahmen Linie/Doppelt/Rund/Emoji mit Innenabstand, Anordnung unter-/nebeneinander, Text oben,
+  links, Spiegeln von Bild und Text, Ziel-Apps mit Codeblock und Warnungen, `forPackage`,
+  Spaltenschätzung mit Graphemen), `CT/charart/SketchTest.kt` (5: Stift, Linie, Ellipse,
+  Rückgängig, Füllen innen und außen, Radierer über dem Foto, Dithering und Schwelle, Fotovorlage
+  samt Umkehren nur im Foto), `AT/CharArtWindowTest.kt` (11: echter Langdruck auf die Emoji-Taste
+  und Loslassen auf dem Stift öffnet das Fenster; Popup-Code und Feldtext, Feld unverändert,
+  Schließen vergisst den Text, Feldwechsel schließt; kein Stift und kein Fenster in Passwortfeldern,
+  ohne Lernen, mit Inkognito, bei gesperrtem Gerät, gesperrt während offen fügt nichts ein und
+  kopiert nichts; Malen aktualisiert die Vorschau, Stil, App, Codeblock, Breite je App gemerkt,
+  Zurück und Leeren; Einfügen nur per Tipp, genau einmal, der zweite Tipp ist Rückgängig, das
+  Angebot endet nach 8 s; Ersetzen und Rückgängig, kein Ersetzen mit Text hinter der Schreibmarke;
+  Fenster-Tasten schreiben nur ins Fenster, „Ohne Text“; Baustein gespeichert als `literal`; App
+  des Felds wählt das Profil; Fotovorlage umwandeln/nur Vorlage/entfernen; Vorschaubild).
+  Geänderter Upstream-Test: `KeyboardParserTest.emojiKey` erwartet jetzt genau das Popup „✎“.
+- Gelaufen (2026-11-14, `--max-workers=1 -Xmx1536m`): `./gradlew :agent-core:test` grün (476
+  Tests); `:app:testDebugUnitTest --tests 'helium314.keyboard.agent.CharArtWindowTest'` grün (11);
+  dazu `ParserTest`, `LayoutTest`, `InputTest`, `KeySpecParserTest`, `CalculatorViewTest`,
+  `AgentPanelViewTest`, `AndroidEditorAdapterTest`, `EmojiMixPaletteTest`, `FlatStyleRenderTest`,
+  `DictationUiTest`, `KeyboardCommandsTest`, `CommandReplaceTest`, `InsertAtCursorTest`,
+  `SnipCommandTest`, `AgentWheelViewTest` grün und `InputLogicTest` grün bis auf das geerbte
+  `insertLetterIntoWordHangulFails`. `docs_sync --check` grün. Vorschaubild:
+  `app/build/agent-previews/charart-window.png` (1080 × 820 px bei Dichte 3, Zeichnung und
+  Vorschau nebeneinander). Nicht gelaufen: volle Suite, Agent-Tests über `tools/dev.py`, Lint,
+  Build, Gerätetest (Langdruck mit echtem Finger, Fensterhöhe, Malen, Bilder mit echter
+  Berechtigung, Aussehen der Kunst in WhatsApp, Telegram, Discord und Signal).
+- Engine-nahe Änderungen (Prüfer Pflicht): `TextKeyData.kt` (Popup der Emoji-Taste, bis dahin
+  unverändert), `KeyCode.kt` (`AGENT_CHAR_ART`), `KeyboardActionListenerImpl.kt` (eine Zeile in
+  `onCodeInput`), `InputView.java` (Overlay gezählt), `main_keyboard_frame.xml`. Der Controller ruft
+  vorhandene `InputLogic`-Methoden: `commitTyped` beim Öffnen (wie `launchSettings`),
+  `insertGeneratedText` über `editor.insert`, `replaceCommandText` für Ersetzen und Rückgängig.
+  `InputLogic`, `RichInputConnection`, `PointerTracker` unverändert.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

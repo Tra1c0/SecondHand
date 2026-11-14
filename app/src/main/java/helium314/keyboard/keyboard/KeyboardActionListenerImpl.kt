@@ -172,6 +172,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
             KeyCode.SKILL_3 -> { latinIME.agentEditorController.openSkill(3); return }
             KeyCode.AGENT_DICTATE -> { latinIME.agentEditorController.openDictation(); return }
             KeyCode.AGENT_EMOJI_MIXER -> { helium314.keyboard.agent.EmojiMixPalette.toggleCurrent(); return } // stage 25a
+            KeyCode.AGENT_CHAR_ART -> { latinIME.agentEditorController.openCharArt(); return } // stage 53
             KeyCode.TOGGLE_AUTOCORRECT -> return settings.toggleAutoCorrect()
             KeyCode.TOGGLE_INCOGNITO_MODE -> {
                 settings.toggleAlwaysIncognitoMode()

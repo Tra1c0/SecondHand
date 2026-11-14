@@ -315,3 +315,15 @@
   Nach einem geleerten Feld zeigt die Leiste kein altes getipptes Wort mehr. „Z. B.“, „D. h.“,
   „U. a.“ und „I. d. R.“ am Satzanfang schreiben das nächste Wort wieder klein. Noch auf keinem
   Gerät ausprobiert.
+
+- Neu: Zeichen-Kunst. Emoji-Taste lange drücken → Stift „✎“: Statt der Tasten erscheint ein
+  Fenster, das aus deiner Zeichnung, einem Foto oder Screenshot als Vorlage, dem Text aus dem Feld
+  und einem Rahmen Text aus Zeichen macht (Braille-Punkte, Blöcke, Halbblöcke, ASCII, Emoji-Pixel
+  oder eigene Zeichen), alles frei kombinierbar, jede Änderung sofort in der Vorschau. Text als
+  große Buchstaben in drei Schriften oder in Unicode-Stilen (𝐟𝐞𝐭𝐭, 𝑘𝑢𝑟𝑠𝑖𝑣, 𝓢𝓬𝓱𝓻𝓲𝓯𝓽, 𝔉𝔯𝔞𝔨𝔱𝔲𝔯,
+  Ⓚⓡⓔⓘⓢⓔ, d̶u̶r̶c̶h̶ …, kombinierbar). Für WhatsApp, Telegram, Discord und Signal: Breite mit
+  Chatblase „passt aufs Handy“, Codeblock, unsichtbare Lücken (⠀) und eine Warnung, wenn es in der
+  App vermutlich zerfällt. Ins Feld nur per Tipp auf „Einfügen“ oder „Ersetzen“, danach 8 Sekunden
+  „Rückgängig“; außerdem Kopieren und als Textbaustein speichern. Alles auf dem Telefon, ohne
+  Internet; nie in Passwortfeldern, im Inkognito-Modus oder bei gesperrtem Gerät. Screenreader
+  lesen Zeichen-Kunst als Zeichensalat. Noch auf keinem Gerät ausprobiert.

@@ -325,7 +325,9 @@ f""", // no newline at the end
     }
 
     @Test fun emojiKey() {
-        assertIsExpected("""[[{ "label": "emoji" }]]""", Expected(KeyCode.EMOJI, icon = "emoji", background = Key.BACKGROUND_TYPE_FUNCTIONAL))
+        // fork, stage 53: a long press shows the pen of the character art window
+        assertIsExpected("""[[{ "label": "emoji" }]]""", Expected(KeyCode.EMOJI, icon = "emoji",
+            popups = listOf("✎" to KeyCode.AGENT_CHAR_ART), background = Key.BACKGROUND_TYPE_FUNCTIONAL))
     }
 
     @Test fun invalidKeys() {

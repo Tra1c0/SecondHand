@@ -42,7 +42,7 @@
       "app/src/main/assets/layouts/functional/functional_keys_flat.json",
       "app/src/main/assets/layouts/{symbols/symbols_flat,more_symbols/symbols_shifted_flat}.txt",
       "app/src/main/java/helium314/keyboard/keyboard/emoji/{EmojiSearchActivity.kt,EmojiPalettesView.java}",
-      "app/src/main/java/helium314/keyboard/keyboard/internal/keyboard_parser/floris/KeyLabel.kt",
+      "app/src/main/java/helium314/keyboard/keyboard/internal/keyboard_parser/floris/{KeyLabel,TextKeyData}.kt",
       "app/src/main/assets/layouts/emoji_bottom/*.json",
       "app/src/main/assets/emoji_mix_pairs.bin",
       "app/src/main/java/helium314/keyboard/keyboard/internal/KeyboardIconsSet.kt",
@@ -77,7 +77,7 @@
       "app/src/main/java/helium314/keyboard/settings/dialogs/{SliderDialog,ColorPickerDialog}.kt",
       "app/src/main/java/helium314/keyboard/settings/preferences/{BackupRestorePreference,LoadGestureLibPreference}.kt",
       "app/src/main/java/helium314/keyboard/settings/preferences/{SliderPreference,KeyboardScalePreference,CustomFontPreference}.kt",
-      "app/src/test/java/helium314/keyboard/Shadows.kt",
+      "app/src/test/java/helium314/keyboard/{Shadows,KeyboardParserTest}.kt",
       "app/src/test/java/helium314/keyboard/latin/{InputLogicTest,SuggestTest}.kt",
 
       "tools/dev.py",
