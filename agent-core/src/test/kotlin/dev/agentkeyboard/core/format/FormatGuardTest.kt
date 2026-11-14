@@ -45,7 +45,9 @@ class FormatGuardTest {
         // review of stage 41: these were offered as typos of a provider
         for (domain in listOf("hotmail.at", "hotmail.ch", "hotmail.fr", "hotmail.it", "outlook.at", "outlook.fr",
             "outlook.it", "posteo.at", "posteo.net", "online.de", "mail.com", "proton.ch", "yahoo.fr", "yahoo.it",
-            "yahoo.ca", "HOTMAIL.FR", "mail.de", "gmail.de", "live.at", "yahoo.co.uk", "hotmail.co.uk"))
+            "yahoo.ca", "HOTMAIL.FR", "mail.de", "gmail.de", "live.at", "yahoo.co.uk", "hotmail.co.uk",
+            // second review
+            "ymail.com", "email.com", "gm.com", "gmc.com", "ms.com", "ge.com", "cloud.com", "weg.de", "life.com", "line.com"))
             assertEquals(emptyList(), email("x@$domain"), domain)
         // a real TLD is kept: a provider name with another country's TLD is not "corrected" to .de/.com
         for (domain in listOf("gmx.it", "web.fr", "gmail.nl", "outlook.pl", "freenet.eu", "gmx.co"))

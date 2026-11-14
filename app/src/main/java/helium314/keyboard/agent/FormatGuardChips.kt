@@ -65,20 +65,24 @@ object FormatGuardChips {
         return InputTypeUtils.isAnyPasswordInputType(type)
     }
 
-    /** The country of the system language (e.g. "AT" for de-AT); replaced in tests. */
-    @JvmStatic var systemCountry: () -> String = {
-        android.content.res.Resources.getSystem().configuration.locale().country.orEmpty()
+    /** The system language (e.g. de-AT); replaced in tests. */
+    @JvmStatic var systemLocale: () -> java.util.Locale = {
+        androidx.core.os.ConfigurationCompat.getLocales(android.content.res.Resources.getSystem().configuration)[0]
+            ?: java.util.Locale.getDefault()
     }
 
     /**
      * The country for phone numbers without a country code: the field's hint locale, then the
-     * keyboard language's country (subtype, e.g. de-CH), then the system language's; empty if none
-     * has one (then [FormatGuard] guesses from the language).
+     * keyboard language's country (subtype, e.g. de-CH), then the system language's, but only when
+     * the system speaks the keyboard's language (de-AT for a German keyboard; an en-US system says
+     * nothing about German numbers); empty if none fits (then [FormatGuard] guesses from the language).
      */
     fun country(hintLocale: java.util.Locale?, settings: SettingsValues?): String =
         hintLocale?.country?.takeIf { it.isNotEmpty() }
             ?: settings?.mLocale?.country?.takeIf { it.isNotEmpty() }
-            ?: runCatching { systemCountry() }.getOrNull().orEmpty()
+            ?: runCatching { systemLocale() }.getOrNull()
+                ?.takeIf { settings == null || it.language == settings.mLocale?.language }
+                ?.country.orEmpty()
 
     /**
      * The chips for the field of [host], or an empty list. Reads at most [LOOKBACK] characters before

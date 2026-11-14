@@ -27,6 +27,9 @@ object EmailCheck {
         "outlook.it", "live.at", "live.fr", "live.it", "posteo.at", "posteo.ch", "posteo.net", "posteo.eu",
         "online.de", "mail.com", "mail.de", "email.de", "gmail.de", "proton.ch", "protonmail.ch",
         "yahoo.fr", "yahoo.it", "yahoo.ca", "yahoo.co.uk", "aol.de", "gmx.li", "gmx.fr", "web.at",
+        // second review: real domains one or two edits from a provider (ymail is Yahoo's, short company domains)
+        "ymail.com", "rocketmail.com", "email.com", "gm.com", "gmc.com", "ms.com", "ge.com", "cloud.com",
+        "weg.de", "life.com", "line.com",
     )
 
     /** The top-level domains of [PROVIDERS]; a typed TLD may be a typo only of one of these. */

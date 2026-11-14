@@ -87,7 +87,11 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     private var agentEnterDown = false
 
     override fun onKeyUp(keyCode: Int, keyEvent: KeyEvent): Boolean {
-        if (agentEnterDown && isPlainEnter(keyCode, keyEvent)) { agentEnterDown = false; return true }
+        // the key code only: a modifier pressed while Enter is held must not let its key up reach the app
+        if (agentEnterDown && (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER)) {
+            agentEnterDown = false
+            return true
+        }
         emojiAltPhysicalKeyDetector.onKeyUp(keyEvent)
         if (!settings.current.mEnableHardwareKeyboard)
             return false
@@ -100,6 +104,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         latinIME.invalidateAgentEditor()
         if (latinIME.agentEditorController.isBlockingInput) {
             latinIME.requestHideSelf(0)
+            agentEnterDown = false // a key up lost while the editor changed must not swallow the next one
             return false // Let the host handle hardware keys while the IME reconnects.
         }
         // stage 42 (P142): while a snippet field is asked, Enter moves on instead of sending the command

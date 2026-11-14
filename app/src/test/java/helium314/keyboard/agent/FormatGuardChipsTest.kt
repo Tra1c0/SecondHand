@@ -62,10 +62,10 @@ class FormatGuardChipsTest {
         override fun textAfterCursor(length: Int): CharSequence = after.take(length)
     }
 
-    private val defaultSystemCountry = FormatGuardChips.systemCountry
+    private val defaultSystemLocale = FormatGuardChips.systemLocale
 
     @After fun tearDown() {
-        FormatGuardChips.systemCountry = defaultSystemCountry
+        FormatGuardChips.systemLocale = defaultSystemLocale
         latinIME.prefs().edit().clear().commit()
         val keyguard = latinIME.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
         shadowOf(keyguard).setIsDeviceLocked(false)
@@ -155,15 +155,19 @@ class FormatGuardChipsTest {
 
     @Test fun phoneCountryFromTheSubtypeThenTheSystemThenTheLanguage() {
         // a German keyboard without a country on an Austrian system: an Austrian mobile number
-        FormatGuardChips.systemCountry = { "AT" }
+        FormatGuardChips.systemLocale = { Locale("de", "AT") }
         assertEquals(listOf("\uD83D\uDCDE +43 664 1234567"), labels(chips("0664 1234567", phone, locale = Locale.GERMAN)))
+        // an English system says nothing about German numbers: the keyboard language decides (Germany)
+        FormatGuardChips.systemLocale = { Locale.US }
+        assertEquals(listOf("\uD83D\uDCDE +49 1512 3456789"), labels(chips("015123456789", phone, locale = Locale.GERMAN)))
+        FormatGuardChips.systemLocale = { Locale("de", "AT") }
         // the keyboard's own country wins over the system's
         assertEquals(listOf("\uD83D\uDCDE +41 44 668 18 00"), labels(chips("044 668 18 00", phone, locale = Locale("de", "CH"))))
         // and the field's hint locale over both
         val swiss = field(phone.inputType).apply { hintLocales = android.os.LocaleList(Locale("de", "CH")) }
         assertEquals(listOf("\uD83D\uDCDE +41 44 668 18 00"), labels(chips("044 668 18 00", swiss, locale = Locale("de", "AT"))))
         // no country anywhere: the language decides (German: Germany)
-        FormatGuardChips.systemCountry = { "" }
+        FormatGuardChips.systemLocale = { Locale.GERMAN }
         assertEquals(listOf("\uD83D\uDCDE +49 1512 3456789"), labels(chips("015123456789", phone, locale = Locale.GERMAN)))
         load(phone, Locale("de", "AT"))
         assertEquals("AT", FormatGuardChips.country(null, Settings.getValues()))

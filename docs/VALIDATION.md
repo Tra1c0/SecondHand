@@ -3271,6 +3271,18 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   Getter), `LatinIME.java` (`canReplaceAgentCommand`), `KeyboardActionListenerImpl.kt`
   (Hardware-Enter).
 
+## Zweite Nachprüfung 41/42 (Lead, 2026-11-14)
+
+- Prüfer (nur Lesen, Python-Nachbau von `EmailCheck` mit rund 80 Domains): M1, M2, N2–N7 in
+  Ordnung, N1 ehrlich dokumentiert; kein hoher Befund. Vom Lead behoben: echte Domains `ymail.com`,
+  `email.com`, `gm.com`, `gmc.com`, `ms.com`, `ge.com`, `cloud.com`, `weg.de`, `life.com`,
+  `line.com` ohne Hinweis (`KNOWN_DOMAINS`, Test erweitert); Hardware-Enter: `onKeyUp` nimmt das
+  Loslassen nach Tastencode auch mit inzwischen gedrücktem Modifikator, `agentEnterDown` wird bei
+  blockierter Eingabe zurückgesetzt; Telefonland aus der Systemsprache nur, wenn sie die Sprache
+  der Tastatur ist (`systemLocale`; Test: en-US-System mit deutscher Tastatur ergibt +49). Bekannte
+  Lücken dokumentiert (P148: Tippfehler, die eine echte TLD ergeben; P149: Werte über 500
+  Zeichen). Testlauf siehe Lead-Lauf vor Build 19.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

@@ -1111,7 +1111,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     eigenes `isBlocked` (keine Einstellungen, `mIncognitoModeEnabled` inklusive No-Learning und
     Passwort, `mIsLocked`, `IME_FLAG_NO_PERSONALIZED_LEARNING` selbst geprüft, Passworttyp; P139),
     Schalter `AgentPreferences.FORMAT_GUARD` (an). Sprache aus `hintLocales` des Felds, sonst
-    Tastatur; Land (`country`) aus `hintLocales`, sonst `mLocale` (Subtyp), sonst `systemCountry`
+    Tastatur; Land (`country`) aus `hintLocales`, sonst `mLocale` (Subtyp), sonst `systemLocale` (nur bei gleicher Sprache wie die Tastatur)
     (Land der Systemsprache aus `Resources.getSystem()`), sonst rät `PhoneFormat.region` nach der
     Sprache. Ein Chip mit `replacement` prüft beim Tipp erneut, dass hinter der Schreibmarke nichts
     steht (P138), und ersetzt über `Host.replace` mit einem `CommandCall`, dessen `text` der ganze
@@ -2710,7 +2710,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `KeyboardActionListenerImpl.onKeyDown` (Hardware-Tastatur, `KEYCODE_ENTER`/`NUMPAD_ENTER` ohne
   Modifikator). Dort steht die Abfrage vor der Prüfung `mEnableHardwareKeyboard`: Ist die
   Einstellung aus (Standard), bekäme sonst die App die Taste und schickte den Befehlstext. Nimmt
-  der Befehl die Taste, muss auch `onKeyUp` sie nehmen (`agentEnterDown`), denn `TextView.onKeyUp`
+  der Befehl die Taste, muss auch `onKeyUp` sie nehmen (`agentEnterDown`, dort nur nach Tastencode,
+  auch wenn inzwischen ein Modifikator gedrückt ist; zurückgesetzt, wenn `onKeyDown` wegen
+  blockierter Eingabe früh zurückkehrt), denn `TextView.onKeyUp`
   springt bei Enter in einzeiligen Feldern sonst zum nächsten Feld; Wiederholungen eines
   gehaltenen Enter fragen kein weiteres Feld ab. `onEnter` darf nur `true` liefern, wenn ein Feld
   wirklich abgefragt wird, sonst wäre Enter in jedem `@snip`-Text tot.
@@ -2730,12 +2732,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `hotmail.de`. Eine typisierte TLD aus `EmailCheck.VALID_TLDS` vergleicht nur mit Anbietern
   derselben TLD; eine unbekannte nur, wenn sie ein Tippfehler (Abstand 1) einer Anbieter-TLD ist.
   Echte Domains, die einem Anbieter nahe sind (`online.de` ↔ `t-online.de`, `mail.com` ↔
-  `gmail.com`), stehen in `KNOWN_DOMAINS`; wer `PROVIDERS` erweitert, prüft solche Nachbarn.
+  `gmail.com`, `ymail.com` ↔ `gmail.com`, kurze Firmendomains wie `ms.com`/`ge.com` neben
+  `msn.com`/`me.com`), stehen in `KNOWN_DOMAINS`; wer `PROVIDERS` erweitert, prüft solche Nachbarn.
+  Bekannte Lücke: Ein Tippfehler, der selbst eine echte TLD ergibt (`gmx.se`, `web.dk`), bekommt
+  keinen Hinweis.
 - **P149** Enter während einer `@snip`-Feldabfrage wird immer genommen, auch wenn das Ersetzen
   gerade nicht geht (laufende Geste: `replaceCommandText` lehnt ab). Dann ruft `SnipCommand.onEnter`
   `next` gar nicht auf (`Host.canReplaceNow`), das Feld bleibt gefragt und es kommt kein
   „abgelaufen“-Hinweis; ein zweites Enter geht weiter. Ließe es Enter durch, schickte die App
-  „@snip name Feld: Wert“.
+  „@snip name Feld: Wert“. Grenze: Wächst der Wert über 500 Zeichen (z. B. durch Einfügen), ist
+  der Text kein Befehl mehr, und das nächste Enter geht an die App (im Chat: Senden).
 
 ## Datei-Inventar
 
