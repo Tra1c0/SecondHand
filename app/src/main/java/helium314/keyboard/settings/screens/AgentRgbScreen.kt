@@ -585,7 +585,7 @@ private fun SliderRow(label: String, value: Float, range: ClosedFloatingPointRan
 }
 
 @Composable
-private fun targetLabel(t: RgbTarget) = stringResource(when (t) {
+internal fun targetLabel(t: RgbTarget) = stringResource(when (t) {
     RgbTarget.KEYS -> R.string.agent_rgb_target_keys
     RgbTarget.BACKGROUND -> R.string.agent_rgb_target_background
     RgbTarget.LABELS -> R.string.agent_rgb_target_labels

@@ -53,16 +53,15 @@ fun KeyboardScalePreference(
     defaults: Array<Float>,
     range:  ClosedFloatingPointRange<Float>,
     description: (Float) -> String,
+    // fork (stage 38b): the new appearance page shows its own row and opens the same dialog
+    row: @Composable (onClick: () -> Unit) -> Unit = { Preference(name = name, onClick = it) },
     onDone: () -> Unit
 ) {
     if (defaults.size != 1.shl(dimensions.size))
         throw ArithmeticException("defaults size does not match with dimensions, expected ${1.shl(dimensions.size)}, got ${defaults.size}")
     var showDialog by remember { mutableStateOf(false) }
-    Preference(
-        name = name,
-        onClick = { showDialog = true },
-        // no description because it can easily take up too much space
-    )
+    // no description because it can easily take up too much space
+    row { showDialog = true }
     if (showDialog)
         KeyboardScaleDialog(
             onDismissRequest = { showDialog = false },

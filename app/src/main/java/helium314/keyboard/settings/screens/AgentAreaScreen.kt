@@ -39,6 +39,7 @@ object SettingsAreas {
     private val gatheringRuns = { JniUtils.sHaveGestureLib && System.currentTimeMillis() < END_DATE_EPOCH_MILLIS + TWO_WEEKS_IN_MILLIS }
 
     fun entries(area: SettingsArea): List<AreaEntry> = when (area) {
+        // 38b: the pages AgentAreaLookScreen opens, in page order ("Alle Designs", RGB card, last row)
         SettingsArea.LOOK -> listOf(
             AreaEntry(SettingsDestination.AgentDesign, R.string.agent_design_title, R.string.agent_area_row_design),
             AreaEntry(SettingsDestination.AgentRgb, R.string.agent_rgb_title, R.string.agent_area_row_rgb),
@@ -97,6 +98,7 @@ fun AgentAreaScreen(area: SettingsArea, onNavigate: (String) -> Unit, onClickBac
     if (area == SettingsArea.BAR) return AgentAreaBarScreen(onNavigate, onClickBack) // stage 38f
     if (area == SettingsArea.AI) return AgentAreaAiScreen(onNavigate, onClickBack) // 38g
     if (area == SettingsArea.SYSTEM) return AgentAreaSystemScreen(onNavigate, onClickBack) // 38h, built from System.dc.html
+    if (area == SettingsArea.LOOK) return AgentAreaLookScreen(onNavigate, onClickBack) // 38b
     AgentSettingsTheme {
         Column(
             Modifier.fillMaxSize().background(AgentSettingsTokens.Background).windowInsetsPadding(WindowInsets.safeDrawing)

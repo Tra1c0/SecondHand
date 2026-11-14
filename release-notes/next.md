@@ -177,3 +177,11 @@
   Gesten-Bibliothek …) und Über (Version, Lizenz, Versteckte Funktionen, Protokoll speichern). Der
   Rest von „Erweitert“ liegt unter „Alle erweiterten Einstellungen“. Noch auf keinem Gerät
   ausprobiert.
+- Neu: Einstellungen → Aussehen ist nach dem Entwurf umgebaut. Oben die Karte „Designs“ mit
+  sechs Kacheln (deine eigenen Designs zuerst, die gewählte gelb umrandet): antippen verwendet,
+  „+ Neues Design“ und „Bearbeiten“ öffnen den Design-Editor, „Alle … Designs“ die ganze
+  Design-Seite. Darunter „RGB-Licht“ mit Schalter und Zusammenfassung (Muster · Hz · was leuchtet),
+  dann Größe & Form, Schrift & Emoji und Hintergrund & Farben; jede Zeile zeigt den aktuellen Wert
+  und öffnet den gewohnten Dialog, Tag/Nacht und Navigationsleiste schaltest du direkt. Alles
+  Übrige (Stil, Symbole, Tastenränder, Farben, Leertastentext) liegt unter „Alle
+  Aussehen-Einstellungen“. Noch auf keinem Gerät ausprobiert.

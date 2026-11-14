@@ -102,7 +102,7 @@ class DesignTilesTest {
         compose.waitForIdle()
         tile(tileId).performScrollTo().performClick()
         compose.waitForIdle()
-        assertEquals(viaExisting, prefs.all.toMap())
+        assertEquals(viaExisting - Settings.PREF_EMOJI_MAX_SDK, prefs.all.toMap() - Settings.PREF_EMOJI_MAX_SDK) // emoji_max_sdk: background write, see below
         tile(tileId).assertIsSelected()
         return viaExisting
     }
@@ -153,7 +153,8 @@ class DesignTilesTest {
         tile(KeyboardTheme.THEME_FLAT_BLACK).assertIsNotSelected()
 
         preset.restore()
-        assertEquals(before, prefs.all.toMap())
+        // App.onCreate writes emoji_max_sdk from a background coroutine at an unknown moment (not part of any design)
+        assertEquals(before - Settings.PREF_EMOJI_MAX_SDK, prefs.all.toMap() - Settings.PREF_EMOJI_MAX_SDK)
     }
 
     @Test @GraphicsMode(GraphicsMode.Mode.NATIVE) @Config(qualifiers = "en-w411dp-h1000dp")

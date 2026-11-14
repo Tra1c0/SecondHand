@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- stage 38b: area page "Aussehen" (mockup Aussehen.dc.html) -->
+    <string name="agent_look_designs">Designs</string>
+    <string name="agent_look_designs_hint">tap = use</string>
+    <string name="agent_look_new_design">+ New design</string>
+    <string name="agent_look_edit_design">Edit</string>
+    <string name="agent_look_all_designs">All %1$d designs</string>
+    <string name="agent_look_rgb">RGB light</string>
+    <string name="agent_look_rgb_switch">RGB light on or off</string>
+    <string name="agent_look_rgb_summary">%1$s · %2$d Hz · %3$s</string>
+    <string name="agent_look_rgb_nothing">nothing lit</string>
+    <string name="agent_look_and">%1$s &amp; %2$s</string>
+
+    <string name="agent_look_size">Size &amp; shape</string>
+    <string name="agent_look_height">Keyboard height</string>
+    <string name="agent_look_height_sub">Portrait, landscape, folded</string>
+    <string name="agent_look_gap">Key gap</string>
+    <string name="agent_look_gap_sub">Space between the keys</string>
+    <string name="agent_look_padding">Margins</string>
+    <string name="agent_look_padding_sub">Bottom and sides</string>
+    <string name="agent_look_split">Split keyboard</string>
+    <string name="agent_look_split_sub">Split in landscape</string>
+
+    <string name="agent_look_font">Font &amp; emoji</string>
+    <string name="agent_look_font_size">Font size</string>
+    <string name="agent_look_font_size_sub">Keys and hints</string>
+    <string name="agent_look_custom_font">Custom font</string>
+    <string name="agent_look_custom_font_sub">Load from file</string>
+    <string name="agent_look_emoji">Emoji</string>
+    <string name="agent_look_emoji_sub">Size, skin tone, emoji font</string>
+
+    <string name="agent_look_background">Background &amp; colours</string>
+    <string name="agent_look_image">Background image</string>
+    <string name="agent_look_image_sub">Portrait and landscape</string>
+    <string name="agent_look_day_night">Day/night automatically</string>
+    <string name="agent_look_day_night_sub">Follows Android</string>
+    <string name="agent_look_navbar">Colour the navigation bar</string>
+    <string name="agent_look_navbar_sub">Below the keyboard</string>
+    <string name="agent_look_all">All appearance settings</string>
+    <string name="agent_look_all_sub">Style, icons, key borders, colours, space bar text</string>
+
+    <string name="agent_look_value_off">Off</string>
+    <string name="agent_look_value_on">On</string>
+    <string name="agent_look_value_default">Default</string>
+    <string name="agent_look_value_custom">Custom</string>
+    <string name="agent_look_value_none_font">None</string>
+    <string name="agent_look_value_own_font">Own</string>
+    <string name="agent_look_value_none_image">None</string>
+    <string name="agent_look_value_own_image">Own</string>
+    <string name="agent_look_value_percent">%1$d %%</string>
+</resources>

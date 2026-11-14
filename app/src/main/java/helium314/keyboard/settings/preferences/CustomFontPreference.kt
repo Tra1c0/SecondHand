@@ -25,7 +25,13 @@ import helium314.keyboard.settings.dialogs.InfoDialog
 import java.io.File
 
 @Composable
-fun CustomFontPreference(setting: Setting, fontFile: File, title: Int) {
+fun CustomFontPreference(
+    setting: Setting,
+    fontFile: File,
+    title: Int,
+    // fork (stage 38b): the new appearance page shows its own row and runs the same flow
+    row: @Composable (onClick: () -> Unit) -> Unit = { Preference(name = setting.title, onClick = it) },
+) {
     val ctx = LocalContext.current
     var showDialog by rememberSaveable { mutableStateOf(false) }
     var showErrorDialog by rememberSaveable { mutableStateOf(false) }
@@ -48,14 +54,11 @@ fun CustomFontPreference(setting: Setting, fontFile: File, title: Int) {
     val intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
         .addCategory(Intent.CATEGORY_OPENABLE)
         .setType("*/*")
-    Preference(
-        name = setting.title,
-        onClick = {
-            if (fontFile.exists())
-                showDialog = true
-            else launcher.launch(intent)
-        },
-    )
+    row {
+        if (fontFile.exists())
+            showDialog = true
+        else launcher.launch(intent)
+    }
     if (showDialog)
         ConfirmationDialog(
             onDismissRequest = { showDialog = false },
