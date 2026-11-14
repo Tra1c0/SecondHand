@@ -4045,14 +4045,16 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   `synchronized(this)` und nur bis 8 MiB Dateigröße; `runCatching` bleibt. Nur indirekt getestet
   (Lösch-Tests grün), auf keinem Gerät geprüft.
 - N8: Passwort-Wort plus Wert nur mit wertartigem Wert (ab 6 Zeichen, Ziffer oder Sonderzeichen;
-  nach „:“/„=“ auch Groß-/Kleinbuchstaben allein am Zeilenende). Test
+  nach „:“/„=“ auch Groß-/Kleinbuchstaben allein am Zeilenende; bis zur dritten Nachprüfung ließ
+  der Code dort noch ein weiteres Wort zu). Test
   `ClipGuardTest.aPasswordWordNeedsAValueThatLooksLikeOne`; die alten Positive bleiben grün. Die
   nachträgliche Bereinigung läuft einmal je Versionscode, sortiert im Hintergrund, löscht auf dem
   Hauptthread (P186). Test `ClipVaultTest.theOldHistoryIsSortedOncePerVersionOffTheMainThread`;
   `oldSecretsLeaveTheHistoryPinnedOnesStay` entfernt dafür vorher den Versions-Merker (wie nach
   einem Update), die Erwartung ist unverändert.
-- Etappe 46 (`Memory.onWordCommitted`) liegt auf dieser Basis noch nicht vor; die Prüfung hier
-  nicht möglich. Hängt sie hinter `performAdditionToUserHistoryDictionary`, gilt die Wortsperre.
+- Etappe 46 (`Memory.onWordCommitted`): nachgeprüft in der dritten Nachprüfung (siehe unten). Der
+  Aufruf steht in `performAdditionToUserHistoryDictionary` hinter der Sperre für private Texte
+  (`InputLogic.java` ~1947/1975), die Wortsperre gilt also auch für das Gedächtnis.
 - Geprüft: `./gradlew :agent-core:test` grün (mit `PrivateRangesTest`, 7); `:app:testDebugUnitTest`
   mit `InputLogicTest` (215, grün bis auf das geerbte `insertLetterIntoWordHangulFails`),
   `ClipVaultTest` (21), `ClipCommandTest` (12), `FieldSuggestionChipsTest` (21) grün. Nicht
@@ -4065,6 +4067,67 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   (nach dem Wortbereich statt in der ersten Bedingung), `performAdditionToUserHistoryDictionary`;
   `nearPrivateText` und `PRIVATE_LEARNING_DISTANCE` entfernt), `LatinIME.onPrivateTextInput`
   (`markEnteredTextPrivate`). `RichInputConnection`, `PointerTracker` unverändert.
+
+## Dritte Nachprüfung 44/45/49 (Prüfer-Befunde zu 912624f, 2026-11-14)
+
+- Behoben (Arbeitskopie, Lead-Auftrag). Engine-Änderung eng, erneutes Prüfer-Review nötig:
+  `InputLogic.java` (neue Methode `privateTextBeforeEdit`, je ein Aufruf in `onCodeInput` und
+  `onTextInput` direkt nach dem Merken der Auswahl; Überladung
+  `performAdditionToUserHistoryDictionary(…, privateDecided)`, gerufen mit `true` nur in
+  `onUpdateSelection` für `mWordBeingCorrectedByCursor`; `mFieldCorrections` mit
+  `PrivateText`-Lambda). `RichInputConnection`, `PointerTracker` unverändert.
+  - 1 (mittel): `PrivateRanges.edited` hashte bei jeder Verschiebung neu an der errechneten Stelle;
+    nach einer ungemeldeten Verschiebung (gewählter Vorschlag, Geste, App) war das falscher Text,
+    `stillThere` passte dann immer und die Marke lag dauerhaft um k Zeichen daneben (Ende des Werts
+    ungeschützt). Jetzt: reine Verschiebung behält Hash und Kopflänge (kein Lesen, auch kein
+    `getTextAfterCursor` je Taste); neu gehasht wird nur bei einer Bearbeitung im Kopf, und davor
+    prüft `beforeEdit` einen Wert, dessen Kopf höchstens 32 Zeichen von der Bearbeitung liegt, und
+    findet ihn nach einer ungemeldeten Verschiebung wieder.
+  - 2 (mittel): `FieldCorrectionWatcher.checkpoint` verwirft eine Änderung, deren Wort
+    `[wordStart, wordStart + max(alt, neu)]` einen privaten Text berührt (Prädikat
+    `PrivateText` aus `InputLogic`, `mPrivateRanges.touches`). Kein Bruchstück eines Werts wird
+    Kandidat oder abgelehnte Korrektur.
+  - 3 (gering): `null` oder ein zu kurz gelesener Text vor der Schreibmarke vergisst nichts mehr:
+    nahe Werte gelten dann als berührt; vergessen wird nur nach einem vollständigen Lesen ohne Fund
+    (weniger Text nach der Schreibmarke = Feldende). Eine Bearbeitung im Kopf, die nicht gelesen
+    werden kann, hält den Wert privat (`headUnread`), bis er wieder gehasht werden kann. Gelesen wird
+    höchstens `READ_LIMIT` = 8192 Zeichen von der Schreibmarke; die Suche läuft um die letzte Stelle
+    des Werts statt Länge + Fenster um die Schreibmarke. Den Kopf eines langen Werts vor der
+    Schreibmarke erreicht `getTextBeforeCursor` nur mit dem Abstand bis zu ihm; das bleibt.
+  - 4 (gering): `mWordBeingCorrectedByCursor` (ohne N-Gramm-Kontext, beim Merken geprüft) wird an
+    der neuen Schreibmarke nicht mehr zusätzlich gesperrt. `Memory.onWordCommitted` liest dort Text
+    vor der Schreibmarke und prüft darum weiter (`privateContext`).
+  - 5 (gering): unter `MIN_RELOCATE` = 8 Zeichen wird nur 64 Zeichen um die letzte Stelle gesucht;
+    mehrere Fundstellen gelten alle als privat (`ambiguous`), bis nur eine übrig ist. Abweichung vom
+    Vorschlag „Mindestlänge für das Wiederfinden“: Codes mit 6 Ziffern sollen nach einem gewählten
+    Vorschlag davor weiter geschützt sein (`PrivateRangesTest.aValueMovedByAnUnseenEditIsFoundAgain`
+    bleibt unverändert).
+  - 6 (gering): Beschluss: Doku korrigiert, Verhalten unverändert. `VACUUM` hält die schreibende
+    Verbindung, Einfügen/Löschen auf dem Hauptthread wartet währenddessen; es läuft nur nach einer
+    einmaligen Bereinigung bei höchstens 8 MiB (P179, KDoc `ClipboardDao.compactInBackground`).
+  - 7 (Doku): Etappe 46 nachgeprüft: `Memory.onWordCommitted` steht hinter der Sperre (oben).
+  - 8 (gering): `ClipGuard.passwordInSentence` lässt nach einem Wert nur aus Buchstaben kein
+    weiteres Wort mehr zu („Passwort: Erfragen Sie“ bleibt Text); Komma, Semikolon oder `|`
+    danach und das Zeilenende beenden den Wert weiter.
+- Tests (Robolectric bzw. JVM, kein Gerätetest): `PrivateRangesTest` neu 4
+  (`anEditAfterAnUnseenShiftDoesNotHashTheWrongText`, `typingFarBeforeAValueReadsNothing`,
+  `anUnreadableOrShortReadForgetsNothing`, `equalTextNearbyIsPrivateTooAShortValueDoesNotJumpFar`;
+  der Test-Editor ruft jetzt wie `InputLogic` `beforeEdit` vor jeder Bearbeitung), `ClipGuardTest`
+  neu 1 (`aLettersOnlyPasswordValueMustEndItsLine`), `InputLogicTest` neu 3
+  (`aPickedSuggestionBeforeAPrivateTextKeepsItsMarkOnIt`, `aFixInAPrivateTextIsNoFieldCorrection`
+  mit Gegenprobe im normalen Text, `aWordTakenAwayFromAPrivateTextIsLearnedNextToOne`; dort setzt der
+  Test `mWordBeingCorrectedByCursor` per Reflexion, weil die Testverbindung das Wort nach der
+  Rücktaste sofort wieder komponiert und `onCodeInput` dann keins merkt). Gegenproben: ohne
+  `beforeEdit` schlägt `anEditAfterAnUnseenShiftDoesNotHashTheWrongText` fehl, ohne die Prüfung in
+  `checkpoint` `aFixInAPrivateTextIsNoFieldCorrection`, mit `privateDecided = false`
+  `aWordTakenAwayFromAPrivateTextIsLearnedNextToOne`. `aPickedSuggestionBeforeAPrivateTextKeepsItsMarkOnIt`
+  besteht auch mit nachgebautem altem Verhalten (ohne `beforeEdit`, Neuhashen bei jeder
+  Bearbeitung): Das Lernen des gewählten Worts fragt `touches` und findet den Wert dort schon
+  wieder; den Fehler (wenn beim Wählen nichts gelernt wird) belegt der Unit-Test. Gelaufen (`--max-workers=1`,
+  2026-11-14): `:agent-core:test` 451/451; `:app:testDebugUnitTest` mit `*InputLogicTest`,
+  `ClipVaultTest`, `FieldCorrectionMemoryTest`, `ClipCommandTest`: 275 Tests, 1 Fehler = geerbt
+  (`InputLogicTest.insertLetterIntoWordHangulFails`). `docs_sync --check`: grün.
+- Nicht gelaufen: `tools/dev.py agent-tests`, volle Suite, Lint, Build, Gerätetest.
 
 ## Gerätetest vor Meilensteinfreigabe
 

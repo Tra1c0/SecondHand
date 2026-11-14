@@ -72,13 +72,14 @@
   und Adresse bekommen im Verlauf eine Beschriftung. Eine kopierte Nachricht mit Code bleibt als
   Text im Verlauf, ein Code allein nicht; Wörter wie „noch einmal“ oder „Barcode“ machen aus einer
   Zahl keinen Code mehr. „Das WLAN-Passwort ist Sommer2024“ gilt als Geheimnis, eine Notiz wie
-  „Passwort: bitte beim Admin erfragen“ nicht. Ältere Passwörter im Verlauf verschwinden einmal
+  „Passwort: bitte beim Admin erfragen“ oder „Passwort: Erfragen Sie“ nicht. Ältere Passwörter im Verlauf verschwinden einmal
   nach dem Update, aussortiert im Hintergrund (angeheftete bleiben, verdeckt), gelöschte Einträge
   werden in der Datenbank überschrieben. Was du in einem Passwortfeld kopierst, wird nirgends
   vorgeschlagen; eingefügte Geheimnisse, Codes und Werte aus „Meine Daten“ (bis zu drei je Feld)
   werden nie gelernt und nie zum bearbeiteten Wort, auch nicht nach der Löschtaste, mit einem
-  angehängten Buchstaben oder wenn du davor weiterschreibst; die Wörter direkt danach lernt sie ab
-  dem vierten wieder. Die Tastatur merkt sich dafür nur Position und Länge, nicht den Text. Die Tastatur speichert keine
+  angehängten Buchstaben oder wenn du davor weiterschreibst, auch nach einem gewählten Vorschlag
+  davor; korrigierst du darin einen Buchstaben, merkt sich die Tastatur das nicht als Tippfehler;
+  die Wörter direkt danach lernt sie ab dem vierten wieder. Die Tastatur merkt sich dafür nur Position und Länge, nicht den Text. Die Tastatur speichert keine
   Hashes vertraulicher Clips mehr auf dem Gerät. Nicht in Passwortfeldern, im Inkognito-Modus oder
   bei gesperrtem Gerät. Alles lokal. Noch auf keinem Gerät ausprobiert.
 - Neu: Feld- und Kontext-Vorschläge. Die Leiste schlägt vor, was zum Feld passt, und erst dein

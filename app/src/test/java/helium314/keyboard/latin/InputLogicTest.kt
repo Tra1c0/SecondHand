@@ -4807,6 +4807,69 @@ class InputLogicTest {
         assertEquals("", lastAddedWord)
     }
 
+    // third review of stages 44/45/49
+
+    @Test fun aPickedSuggestionBeforeAPrivateTextKeepsItsMarkOnIt() {
+        // finding 1: an unreported shift (the pick), then a key: the mark must stay on the value
+        setText("")
+        latinIME.onPrivateTextInput("Max Peter Mustermann")
+        handleMessages()
+        setCursorPosition(0)
+        chainInput(" ")
+        setCursorPosition(0)
+        chainInput("Hal")
+        pickSuggestion("Hallöchenfreunde")
+        handleMessages()
+        input('a')
+        assertTrue(text.startsWith("Hallöchenfreunde"), text)
+        assertTrue(text.endsWith(" Max Peter Mustermann"), text)
+        setCursorPosition(text.indexOf("Mustermann") + 8)
+        assertEquals("", composingText)
+        noPrivateInStrip("Muster")
+        setCursorPosition(text.indexOf("Peter") + 2)
+        assertEquals("", composingText)
+        // the picked word itself is no private text
+        setCursorPosition(4)
+        assertEquals("Hallöchenfreunde", composingText)
+    }
+
+    @Test fun aFixInAPrivateTextIsNoFieldCorrection() = withRealWords("Max", "Muster", "wohnt", "hier") {
+        // finding 2: "Mustr" -> "Muster" in an inserted value is never a candidate (a fragment of it)
+        latinIME.onPrivateTextInput("Max Mustr")
+        handleMessages()
+        chainInput(" wohnt hier ")
+        setCursorPosition(text.indexOf("Mustr") + 4)
+        input('e')
+        setCursorPosition(text.length)
+        assertEquals("Max Muster wohnt hier ", text)
+        assertEquals(emptyList(), fieldEntries())
+        // the same fix in ordinary text is one (the test is not blind)
+        setText("")
+        latinIME.onTextInput("Max Mustr")
+        handleMessages()
+        chainInput(" wohnt hier ")
+        setCursorPosition(text.indexOf("Mustr") + 4)
+        input('e')
+        setCursorPosition(text.length)
+        assertEquals("Max Muster wohnt hier ", text)
+        assertEquals(listOf(Triple("mustr", "Muster", false)), fieldEntries())
+    }
+
+    @Test fun aWordTakenAwayFromAPrivateTextIsLearnedNextToOne() {
+        // finding 4: the word at the cursor was decided when it was taken (onCodeInput, see
+        // aWordTouchingAPrivateTextIsNotLearnedWhenTheCursorLeaves); the new cursor next to a private
+        // text does not block it. Set directly: the test connection lets the backspace compose the word
+        // again at once, so onCodeInput takes no word here.
+        setText("")
+        latinIME.onPrivateTextInput("Geheim42x")
+        handleMessages()
+        chainInput(" und dann hallo")
+        lastAddedWord = ""
+        InputLogic::class.java.getDeclaredField("mWordBeingCorrectedByCursor").apply { isAccessible = true }.set(inputLogic, "hallo")
+        setCursorPosition(9) // right after the private text
+        assertEquals("hallo", lastAddedWord)
+    }
+
     @Test fun fieldSuggestionChipInsertsOnlyOnATapAndOnce() {
         // stage 45 with the real host: the empty field takes the entry at the cursor, cue words get it after them
         val defaultData = helium314.keyboard.agent.FieldSuggestionChips.myData

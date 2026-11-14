@@ -227,12 +227,12 @@ object ClipGuard {
             val strong = value.any { it.isDigit() } || value.any { !it.isLetterOrDigit() }
             val mixedCase = value.any { it.isUpperCase() } && value.any { it.isLowerCase() }
             val rest = t.substring(m.range.last + 1).substringBefore('\n').trim()
-            val alone = rest.isEmpty() || m.value.last() in ",;" || rest[0] in ",;|" || rest.split(WHITESPACE).size <= 1
+            // third review: not even one more word ("Passwort: Erfragen Sie" is a note)
+            val alone = rest.isEmpty() || m.value.last() in ",;" || rest[0] in ",;|"
             (strong || (afterColon && mixedCase && alone)) && !ONE_TIME_BEFORE.containsMatchIn(t.substring(0, m.range.first))
         }
     }
     private const val PASSWORD_VALUE_MIN = 6
-    private val WHITESPACE = Regex("\\s+")
 
     private val FILE_ENDING = Regex("\\.[A-Za-z]{2,4}$")
 
