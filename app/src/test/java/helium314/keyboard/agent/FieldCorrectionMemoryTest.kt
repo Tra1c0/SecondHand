@@ -157,4 +157,35 @@ class FieldCorrectionMemoryTest {
         assertTrue(watcher.adjacency(null, s).adjacent('a', 'z'))
         assertFalse(watcher.adjacency(symbols, s).adjacent('a', 'p'))
     }
+
+    // second review: no strong reference to a keyboard (its id holds the editor info with the field's
+    // initial text); another layout is picked up, a new field starts without the old one
+    @Config(shadows = [helium314.keyboard.ShadowProximityInfo::class, helium314.keyboard.ShadowInputMethodManager2::class])
+    @Test fun neighboursFollowALayoutChangeAndHoldNoKeyboard() {
+        val s = settings(on)
+        val azerty = keyboard(helium314.keyboard.keyboard.KeyboardElement.ALPHABET, Locale.FRANCE, "azerty")
+        val qwerty = keyboard(helium314.keyboard.keyboard.KeyboardElement.ALPHABET, Locale.US, "qwerty")
+        val symbols = keyboard(helium314.keyboard.keyboard.KeyboardElement.SYMBOLS, Locale.US, "qwerty")
+        val watcher = FieldCorrectionWatcher()
+        assertTrue(watcher.adjacency(azerty, s).adjacent('z', 'e'))
+        assertFalse(watcher.adjacency(qwerty, s).adjacent('z', 'e'), "another layout: QWERTY now")
+        assertTrue(watcher.adjacency(qwerty, s).adjacent('z', 'x'))
+        assertFalse(watcher.adjacency(symbols, s).adjacent('z', 'e'), "symbols shown: still QWERTY")
+        watcher.start()
+        assertTrue(watcher.adjacency(null, s).adjacent('z', 'u'), "a new field forgets the layout: German QWERTZ")
+        assertFalse(watcher.adjacency(null, s).adjacent('a', 'z'))
+        val held = FieldCorrectionWatcher::class.java.declaredFields.filter {
+            helium314.keyboard.keyboard.Keyboard::class.java.isAssignableFrom(it.type)
+                || EditorInfo::class.java.isAssignableFrom(it.type)
+        }
+        assertEquals(emptyList(), held.map { it.name }, "no keyboard and no editor info held strongly")
+    }
+
+    // second review: only a commit that really changed the word is the keyboard's own correction
+    @Test fun aCaseOnlyRevertIsNoAutomaticCorrectionOfTheKeyboard() {
+        assertEquals("ich", FieldCorrectionWatcher.keyboardCorrectionFrom(true, "ich", "Ich"))
+        assertEquals("Hsus", FieldCorrectionWatcher.keyboardCorrectionFrom(true, "Hsus", "Haus"))
+        assertNull(FieldCorrectionWatcher.keyboardCorrectionFrom(true, "ich", "ich"), "Ich changed back to ich")
+        assertNull(FieldCorrectionWatcher.keyboardCorrectionFrom(false, "ich", "Ich"))
+    }
 }

@@ -424,7 +424,12 @@ Autokorrektur (Etappe 20a, Details im Abschnitt „Lerndaten“):
   getippt → abgeschickt einer Autokorrektur (`commitChosenWord` bei `COMMIT_TYPE_DECIDED_WORD`,
   vor `commitWord` gelesen); `ownEdit(Schreibmarke)` am Anfang von `onCodeInput` (ohne Markierung,
   nur Zeichen und Löschtaste) und von `onPickSuggestionManually`; `untrusted` bei `UNDO`/`REDO`.
-  Sonst unverändert; `RichInputConnection` nicht geändert, gelesen nur über
+  Zweite Nachprüfung 49: neue Methode `checkpointFieldCorrectionsBeforeOwnCursorMove` (Prüfpunkt
+  vor einer Schreibmarken-Bewegung der Tastatur selbst, P183), gerufen aus
+  `KeyboardActionListenerImpl.onMoveCursorHorizontally` nach `finishInput` und vor `setSelection`;
+  das Paar getippt → abgeschickt nur, wenn sich das Wort genau (Groß/klein) geändert hat
+  (`FieldCorrectionWatcher.keyboardCorrectionFrom`). `KeyboardActionListenerImpl.onKeyDown` ruft
+  bei Hardware-Strg+Z/Strg+Y `untrusted`. Sonst unverändert; `RichInputConnection` nicht geändert, gelesen nur über
   `getTextBeforeCursor`/`getTextAfterCursor`/`hasSelection`/`getExpectedSelectionStart`/
   `hasSlowInputConnection`.
 - `CapsModeUtils.java` (48): im Zustand WORD (Wort direkt vor dem Punkt, ohne inneren Punkt) und
@@ -3370,11 +3375,24 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sein: `onCodeInput` (Zeichen, Löschtaste) und `onPickSuggestionManually` melden die Schreibmarke
   vor der Eingabe (`ownEdit`), der Wächter hält daraus einen Bereich, den jeder Prüfpunkt leert.
   Ein Bereich reicht, weil die Schreibmarke zwischen zwei Prüfpunkten nur durch eigene Eingabe
-  wandert. Autokorrektur und Autofill der App, gemeinsames Bearbeiten und Rückgängig liegen außerhalb
-  und zählen nicht. Gestenschreiben meldet selbst nichts (ein per Geste ersetztes Wort zählt nur, wenn danach eine
-  Taste direkt am Wort folgt, etwa das Leerzeichen);
-  ein neuer Eingabeweg, der Wörter des Nutzers ändert, muss `ownEdit` rufen. Der Bereich gilt als
-  berührt, wenn er das neue Wort einschließlich seiner Ränder schneidet.
+  wandert. Das stimmt nur, weil auch die Bewegungen der Tastatur selbst Prüfpunkte sind:
+  Leertasten-Wischen ruft vor `setSelection` `checkpointFieldCorrectionsBeforeOwnCursorMove`, denn
+  seine Auswahl-Meldung ist erwartet und kehrt vor dem Prüfpunkt in `onUpdateSelection` zurück
+  (zweite Nachprüfung 49). Ein neuer Weg, auf dem die Tastatur die Schreibmarke selbst setzt
+  (`setExpectCursorMove` + `setSelection`), braucht denselben Aufruf, sonst geht eine Korrektur vor
+  der Bewegung verloren und der Bereich wird zu breit. Änderungen der App, gemeinsames Bearbeiten und
+  Rückgängig fern der eigenen Eingabe liegen außerhalb und zählen nicht; ändert die App aber das Wort,
+  an dessen Rand oder in dem gerade getippt wurde (ihre Autokorrektur des eben getippten Worts), zählt
+  das wie eine eigene Korrektur. Rückgängig über die Tastatur (`UNDO`/`REDO`) und Strg+Z/Strg+Y einer
+  Hardware-Tastatur verwerfen den Stand (P170); Strg mit Z auf der Bildschirmtastatur ist nicht
+  geprüft. Gestenschreiben ruft kein `ownEdit` (ein per Geste ersetztes Wort zählt nur, wenn danach
+  eine Taste direkt am Wort folgt, etwa das Leerzeichen). Korrekturen über das
+  Rechtschreib-Menü der App (`SuggestionSpan`) ersetzt die App selbst: Sie zählen nie. Ein neuer
+  Eingabeweg, der Wörter des Nutzers ändert, muss `ownEdit` rufen. Der Bereich gilt als berührt, wenn
+  er das neue Wort einschließlich seiner Ränder schneidet. `commitChosenWord` gibt das Paar getippt
+  → abgeschickt nur weiter, wenn sich das Wort genau geändert hat (`keyboardCorrectionFrom`); sonst
+  hielte ein abgeschicktes „ich“ das Zurücksetzen von „Ich“ auf „ich“ für die eigene Autokorrektur.
+  Reine Groß-/Klein-Paare speichern `RejectedCorrections.remember` und `TypoMemory` trotzdem nicht.
 - **P184** `checkpoint` liest höchstens `Constants.EDITOR_CONTENTS_CACHE_SIZE` (1024) Zeichen vor
   der Schreibmarke (meist aus dem Zwischenspeicher von `RichInputConnection`, ein Lesen bei der App
   nur, wenn der Speicher kürzer ist) und 300 danach (immer ein Aufruf bei der App), im Hauptthread
@@ -3382,7 +3400,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   den Stand (nichts gelernt, solange die App als langsam gilt). Wer die Grenzen hebt, riskiert, dass
   `getTextBeforeCursorAndDetectLaggyConnection` mitten im Commit die Caches neu lädt und die
   Tastatur 10 min als langsam gilt. Die Nachbartasten (`adjacency`) kommen aus der letzten
-  Buchstaben-Tastatur (`KeyboardId.element.isAlphabet`), zwischengespeichert je `Keyboard`-Objekt.
+  Buchstaben-Tastatur (`KeyboardId.element.isAlphabet`). Gehalten werden nur die daraus gebauten
+  `KeyAdjacency` und eine `WeakReference` auf das `Keyboard` als Kennung, nie das `Keyboard` selbst:
+  sein `KeyboardId` hält `editorInfo` mit `initialSurroundingText`, also Feldtext. Jeder Prüfpunkt
+  vergleicht die gezeigte Tastatur mit der Kennung (billig, solange sie gleich bleibt) und baut nur
+  bei einer anderen Buchstaben-Tastatur neu, so wirkt ein Sprach- oder Layoutwechsel; `start` leert
+  beides.
 - **P182** `updateRegions` vergleicht die Geometrie aller Buchstabentasten, nicht das
   `Keyboard`-Objekt: Umschalten erzeugt ein anderes Objekt mit gleicher Geometrie und darf die
   Sitzung nicht beenden. Symbol-Layouts mit einzelnen Buchstaben (µ) liegen unter

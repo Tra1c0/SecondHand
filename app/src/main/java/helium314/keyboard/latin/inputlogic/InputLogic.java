@@ -656,6 +656,16 @@ public final class InputLogic {
         return true;
     }
 
+    /**
+     * fork, stage 49 second review: a cursor move the keyboard makes itself (space bar swipe) comes
+     * back as an expected selection update, which returns before the checkpoint in onUpdateSelection.
+     * Called right before such a move.
+     */
+    public void checkpointFieldCorrectionsBeforeOwnCursorMove(final SettingsValues settingsValues) {
+        mFieldCorrections.checkpoint(mLatinIME, mConnection, settingsValues, mDictionaryFacilitator, mAgentHistorySuppressed, false,
+                mWordComposer.isComposingWord(), null, null);
+    }
+
     public boolean moveCursorByAndReturnIfInsideComposingWord(int distance) {
         return mWordComposer.moveCursorByAndReturnIfInsideComposingWord(distance);
     }
@@ -2741,7 +2751,8 @@ public final class InputLogic {
                 || chosenWord.equalsIgnoreCase(mWordComposer.getTypedWord());
         final String typedForTouch = tapTyped && confirmedWord && settingsValues.mAdaptTouch ? mWordComposer.getTypedWord() : null;
         // fork, stage 49 review M1: an automatic correction of this word is the keyboard's change, not the user's
-        final String autoCorrectedFrom = commitType == LastComposedWord.COMMIT_TYPE_DECIDED_WORD ? mWordComposer.getTypedWord() : null;
+        final String autoCorrectedFrom = helium314.keyboard.agent.FieldCorrectionWatcher.keyboardCorrectionFrom(
+                commitType == LastComposedWord.COMMIT_TYPE_DECIDED_WORD, mWordComposer.getTypedWord(), chosenWord);
         mLastComposedWord = mWordComposer.commitWord(commitType, chosenWord, separatorString, ngramContext);
         // fork, stage 48 review N1: a remembered correction at this start belongs to text that is gone
         mTypedWordFirst.committedAt(mConnection.getExpectedSelectionEnd() - chosenWord.length());

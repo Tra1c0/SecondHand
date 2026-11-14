@@ -282,12 +282,15 @@
   „z. B.“ und ähnlichen Abkürzungen schreibt die Tastatur nicht mehr groß weiter. Noch auf keinem
   Gerät ausprobiert.
 - Neu: Die Tastatur lernt auch Tippfehler, die du später verbesserst (mit „Meine Tippfehler
-  lernen“): nach weiteren Wörtern, nach Zurücklöschen, über einen Vorschlag oder nach Tippen ins
-  Wort, solange du im Feld bleibst. Nur echte Vertipper eines Nicht-Worts zu einem echten Wort
-  zählen (Nachbartaste, fehlender, doppelter oder vertauschter Buchstabe, Umlaut); „das“ → „dass“,
-  Markieren und Überschreiben, Einfügen, ein fertig geschriebenes Wort („Bahnho“ → „Bahnhof“),
-  die Autokorrektur selbst und Änderungen der App (ihre Autokorrektur, Autofill, Rückgängig) nie,
-  nur Wörter, an denen du selbst getippt oder gelöscht hast. In langsamen Apps liest die Tastatur
+  lernen“): nach weiteren Wörtern, nach Zurücklöschen, über einen Vorschlag, nach Tippen ins
+  Wort oder nach Wischen auf der Leertaste zum Wort, solange du im Feld bleibst. Nur echte
+  Vertipper eines Nicht-Worts zu einem echten Wort zählen (Nachbartaste, fehlender, doppelter oder
+  vertauschter Buchstabe, Umlaut); „das“ → „dass“, Markieren und Überschreiben, Einfügen, ein
+  fertig geschriebenes Wort („Bahnho“ → „Bahnhof“, also auch fehlende Endbuchstaben wie „nich“ →
+  „nicht“), die Autokorrektur selbst, das Rechtschreib-Menü der App und Änderungen der App (ihre
+  Autokorrektur, Autofill, Rückgängig, auch Strg+Z einer Hardware-Tastatur) nie, nur Wörter, an
+  denen du selbst getippt oder gelöscht hast. Ändert die App das Wort, an dem du gerade tippst,
+  kann das trotzdem zählen. In langsamen Apps liest die Tastatur
   dafür nichts. Beim ersten Mal nur gemerkt, beim zweiten Mal an anderer Stelle gelernt (leert ein
   Messenger das Feld nach dem Senden, ist die nächste Nachricht eine andere Stelle), danach
   korrigiert die Autokorrektur das Wort. Machst du eine

@@ -3765,6 +3765,85 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   Prüfpunkt markiert oder eingefügt wird, geht verloren (vorsichtig). Mehrere Sprachen: „echt“ in
   irgendeiner aktiven Sprache. Rücknahme-Regel erkennt das Paar am Wort, nicht an der Stelle.
 
+### Nachprüfung 49 (Prüfer-Befunde zu f983cd7 und eine Regression aus 76155ed)
+
+- Behoben (Arbeitskopie, Lead-Auftrag 2026-11-14), Engine-Änderung in `InputLogic.java` eng an den
+  49er-Haken, erneutes Prüfer-Review nötig:
+  - M1: In `onUpdateSelection` kein Vergleich und kein neuer Stand, solange ein Wort komponiert wird
+    (`checkpoint(..., composing = mWordComposer.isComposingWord())`, der alte Stand bleibt);
+    Vervollständigungen zählen nicht (`isCompletion`, ohne Akzente Anfang des neuen Worts, wie
+    `TypoMemory.confirm`); die Autokorrektur des gerade abgeschickten Worts zählt nicht
+    (`commitChosenWord` gibt bei `COMMIT_TYPE_DECIDED_WORD` getippt → abgeschickt mit).
+  - M2: Bei `hasSlowInputConnection()` liest der Prüfpunkt nichts und verwirft den Stand; gelesen
+    werden höchstens 1024 Zeichen davor (Zwischenspeicher-Größe) und 300 danach. Das Verschieben
+    des Commit-Prüfpunkts hinter `endBatchEdit` ist nicht gemacht.
+  - N1: Nur ein Wort, das eigene Eingabe seit dem Stand berührt hat (`ownEdit` aus `onCodeInput`
+    für Zeichen und Löschtaste, aus `onPickSuggestionManually`); `UNDO`/`REDO` rufen `untrusted`.
+  - N2: Nachbartasten aus der letzten Buchstaben-Tastatur, zwischengespeichert je `Keyboard`.
+  - N3: Ist das Feld vor und nach der Schreibmarke leer, beginnt eine neue Feldnummer.
+  - N4 (Regression aus 76155ed): `Abbreviations.isAbbreviation` kennt die Buchstabenpaare z. B.,
+    d. h., u. a., o. ä., s. o., s. u., v. a., u. U., i. d. R. in jeder Schreibung; Initialen nur,
+    wenn beide Buchstaben groß sind und kein bekanntes Paar („Z. B. das“ klein, „J. K. Rowling“ groß).
+- Nur festgehalten (N5–N7):
+  - N5: „Echt“ schließt den Lernverlauf ein; ab wann HeliBoard ein dort gelerntes Wort als gültig
+    meldet (Schwelle von `isValidSpellingWord` für den Verlauf), ist nur auf einem Gerät prüfbar.
+    Ein oft getippter Tippfehler kann so „echt“ werden und wird dann nie gelernt. Kein Gerätetest.
+  - N6: „fur“ gilt mit Deutsch und Englisch als echt (jede aktive Sprache zählt), also wird
+    „fur“ → „für“ hier nie gelernt. Das ist die dokumentierte Annahme (ROADMAP 49) und bewusst
+    anders als 48 M1, wo `guardAllows` eine andere Sprache nicht zählen lässt.
+  - N7: Gelernte Feld-Paare laufen über `TypoMemory.meantWord` und `Suggest.applyLearnedCorrection`,
+    nicht über `guardAllows`; sie greifen nur, wenn das Getippte kein Hauptwörterbuch-Wort ist. Die
+    48-Regel gegen reine Groß-/Klein-Korrekturen betrifft sie nicht, weil `classify` eine reine
+    Groß-/Klein-Änderung als Überarbeitung wertet.
+- Tests (Robolectric, echte `InputLogic`, kein Gerätetest): `InputLogicTest` neu 6 („stage 49“:
+  kein Stand im komponierten Wort, Vervollständigung, eigene Autokorrektur, langsamer Zugang,
+  Änderung der App und Rückgängig, vom Messenger geleertes Feld), `FieldCorrectionMemoryTest` neu 1
+  (AZERTY-Nachbarn bleiben bei Symbolen), `TypedWordFirstTest` neu 1 (Buchstabenpaare am
+  Satzanfang, Initialen). Gegenprobe: mit zurückgenommenen Korrekturen in `FieldCorrections.kt`
+  schlagen die neuen 49er-Tests fehl (6 InputLogicTest-Fälle und der Nachbartasten-Test; Rückgängig über den UNDO-Haken in InputLogic nicht einzeln gegengeprüft). Gelaufen (`--max-workers=1`, 2026-11-14):
+  `:agent-core:test` 417/417; `:app:testDebugUnitTest` mit `*InputLogicTest`,
+  `FieldCorrectionMemoryTest`, `TypedWordFirstTest`, `*SuggestTest`: 270 Tests, 1 Fehler = geerbt
+  (`InputLogicTest.insertLetterIntoWordHangulFails`). Nicht gelaufen: `tools/dev.py agent-tests`,
+  volle Suite, Lint, Build, Gerätetest.
+
+### Zweite Nachprüfung 49 (Prüfer-Befunde zu 4f2c8b9)
+
+- Behoben (Arbeitskopie, Lead-Auftrag 2026-11-14). Engine-Änderung eng, erneutes Prüfer-Review
+  nötig: `InputLogic.java` (neue Methode `checkpointFieldCorrectionsBeforeOwnCursorMove`, eine
+  Zeile in `commitChosenWord`), `KeyboardActionListenerImpl.kt` (je ein Aufruf in
+  `onMoveCursorHorizontally` und `onKeyDown`). `RichInputConnection`, `PointerTracker` unverändert.
+  - 1 (mittel): Leertasten-Wischen setzt die Schreibmarke selbst, die Auswahl-Meldung ist erwartet
+    und kehrte vor dem Prüfpunkt zurück; eine Korrektur nach dem Zurückwischen ging verloren
+    (mehrere Änderungen) und der eigene Bereich wurde zu breit. Jetzt Prüfpunkt nach `finishInput`
+    und vor `setSelection` (`composing` wie in `onUpdateSelection`).
+  - 2 (gering): Das Paar getippt → abgeschickt geht nur noch an den Prüfpunkt, wenn sich das Wort
+    genau geändert hat (`FieldCorrectionWatcher.keyboardCorrectionFrom`). Wirkung heute ohne
+    sichtbare Folge: reine Groß-/Klein-Paare speichern `RejectedCorrections.remember` und
+    `TypoMemory.confirm` ohnehin nicht (Regel aus 48); „als zurückgenommen gemerkt“ wird „ich“ ←
+    „Ich“ darum auch jetzt nicht, nur die Rücknahme-Erkennung wird erreicht.
+  - 3 (gering): Kein `Keyboard` mehr fest gehalten (sein `KeyboardId` hält `editorInfo` mit
+    `initialSurroundingText`): nur die `KeyAdjacency` und eine `WeakReference` als Kennung, in
+    `start` geleert, an jedem Prüfpunkt mit der gezeigten Tastatur verglichen (neu gebaut nur bei
+    einer anderen Buchstaben-Tastatur).
+  - 4, 5 (Doku): P183 sagt jetzt, dass eine Änderung der App am gerade getippten Wort (Rand
+    eingeschlossen) zählt, dass Gestenschreiben kein `ownEdit` ruft und Korrekturen über das
+    Rechtschreib-Menü der App (`SuggestionSpan`) nie zählen. Hardware-Strg+Z/Strg+Y rufen jetzt
+    `untrusted` (vor der Abfrage „Hardware-Tastatur“, beide Wege geben die Taste an die App).
+    Strg mit Z auf der Bildschirmtastatur nicht geprüft.
+  - 6 (Doku): FEATURES/ANLEITUNG nennen die Grenze: fehlende Endbuchstaben („nich“ → „nicht“) sind
+    eine Vervollständigung und werden nie gelernt.
+- Tests (Robolectric, echte `InputLogic`, kein Gerätetest): `InputLogicTest` neu 2 (Korrektur nach
+  Zurückwischen mit der Leertaste wird Kandidat, Änderung der App dazwischen nicht; Hardware-Strg+Z
+  verwirft den Stand), `FieldCorrectionMemoryTest` neu 2 (Layoutwechsel AZERTY → QWERTY, Symbole
+  behalten QWERTY, `start` vergisst das Layout, kein Feld vom Typ `Keyboard` oder `EditorInfo`;
+  `keyboardCorrectionFrom` mit „ich“/„ich“). Gegenprobe: ohne die beiden Aufrufe in
+  `KeyboardActionListenerImpl.kt` schlagen beide neuen `InputLogicTest`-Fälle fehl. Der Test zu
+  Befund 2 prüft nur die Hilfsfunktion (keine sichtbare Wirkung, siehe oben). Gelaufen
+  (`--max-workers=1`, 2026-11-14): `:app:testDebugUnitTest` mit `*InputLogicTest`,
+  `FieldCorrectionMemoryTest`, `SpaceGesturesTest`: 241 Tests, 1 Fehler = geerbt
+  (`InputLogicTest.insertLetterIntoWordHangulFails`); `:agent-core:test` 438/438. `docs_sync --check`: grün. Nicht gelaufen:
+  `tools/dev.py agent-tests`, volle Suite, Lint, Build, Gerätetest.
+
 ## Nachprüfung 44/45 (Prüfer-Befunde zu Etappe 44 und 45, 2026-11-14)
 
 - B1 (mittel): Eine im Passwortfeld kopierte PIN kam über den Live-Clip als Code in Code- und
