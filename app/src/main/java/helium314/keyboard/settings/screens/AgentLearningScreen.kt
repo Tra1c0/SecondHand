@@ -15,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import helium314.keyboard.agent.AgentDocumentIO
@@ -210,34 +211,108 @@ private fun TouchSection(busy: Boolean) {
     var learned by remember { mutableIntStateOf(TouchModel.all().count { it.value.third >= TouchModel.MIN_SAMPLES }) }
     var calibrating by remember { mutableStateOf(false) }
     var confirmReset by remember { mutableStateOf(false) }
+    // stage 50: short-term layer and scenes
+    var dynamic by remember { mutableStateOf(prefs.getBoolean(AgentPreferences.ADAPT_TOUCH_DYNAMIC, false)) }
+    var scenes by remember { mutableStateOf(TouchModel.scenes()) }
+    var hasPrevious by remember { mutableStateOf(TouchModel.hasPrevious(context)) }
+    var confirmRestore by remember { mutableStateOf(false) }
+    fun refresh() {
+        learned = TouchModel.all().count { it.value.third >= TouchModel.MIN_SAMPLES }
+        scenes = TouchModel.scenes()
+        hasPrevious = TouchModel.hasPrevious(context)
+    }
 
     Text(stringResource(R.string.agent_touch_title), style = MaterialTheme.typography.titleMedium)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(stringResource(R.string.agent_touch_adapt), Modifier.weight(1f))
-        Switch(checked = adapt, enabled = !busy, onCheckedChange = { value ->
-            if (prefs.edit().putBoolean(AgentPreferences.ADAPT_TOUCH, value).commit()) { adapt = value; TouchModel.enabled = value }
+        Switch(checked = adapt, enabled = !busy, modifier = Modifier.testTag("agent_touch_adapt"), onCheckedChange = { value ->
+            if (prefs.edit().putBoolean(AgentPreferences.ADAPT_TOUCH, value).commit()) {
+                adapt = value; TouchModel.enabled = value; TouchModel.dynamic = value && dynamic
+            }
         })
     }
     Text(stringResource(R.string.agent_touch_adapt_description), style = MaterialTheme.typography.bodySmall)
     Text(stringResource(R.string.agent_touch_learned, learned))
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedButton(enabled = !busy, onClick = { calibrating = true }) { Text(stringResource(R.string.agent_touch_calibrate)) }
-        OutlinedButton(enabled = !busy && learned > 0, onClick = { confirmReset = true }) { Text(stringResource(R.string.agent_touch_reset)) }
+        OutlinedButton(enabled = !busy && (learned > 0 || scenes.isNotEmpty()), onClick = { confirmReset = true }) {
+            Text(stringResource(R.string.agent_touch_reset))
+        }
+    }
+    OutlinedButton(enabled = !busy && hasPrevious, onClick = { confirmRestore = true }) {
+        Text(stringResource(R.string.agent_touch_restore_previous))
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(stringResource(R.string.agent_touch_dynamic), Modifier.weight(1f))
+        Switch(checked = adapt && dynamic, enabled = !busy && adapt, modifier = Modifier.testTag("agent_touch_dynamic"), onCheckedChange = { value ->
+            if (prefs.edit().putBoolean(AgentPreferences.ADAPT_TOUCH_DYNAMIC, value).commit()) { dynamic = value; TouchModel.dynamic = adapt && value }
+        })
+    }
+    Text(stringResource(R.string.agent_touch_dynamic_description), style = MaterialTheme.typography.bodySmall)
+    if (adapt && dynamic || scenes.isNotEmpty()) {
+        Text(stringResource(R.string.agent_touch_scenes_title), style = MaterialTheme.typography.titleSmall)
+        if (scenes.isEmpty()) Text(stringResource(R.string.agent_touch_scenes_none), style = MaterialTheme.typography.bodySmall)
+        scenes.forEach { scene ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Text(stringResource(R.string.agent_touch_scene, describeScene(context, scene), scene.sessions), Modifier.weight(1f))
+                TextButton(enabled = !busy, onClick = {
+                    runCatching { TouchModel.deleteScene(context, scene.id) }
+                    refresh()
+                }) { Text(stringResource(R.string.agent_touch_scene_delete)) }
+            }
+        }
+        if (TouchModel.promotions() > 0)
+            Text(stringResource(R.string.agent_touch_promotions, TouchModel.promotions()), style = MaterialTheme.typography.bodySmall)
     }
     if (calibrating) CalibrationDialog(onDone = {
         calibrating = false
-        learned = TouchModel.all().count { it.value.third >= TouchModel.MIN_SAMPLES }
+        refresh()
     })
     if (confirmReset) ConfirmationDialog(
         onDismissRequest = { confirmReset = false },
         onConfirmed = {
             confirmReset = false
             runCatching { TouchModel.clear(context) }
-            learned = 0
+            refresh()
         },
         content = { Text(stringResource(R.string.agent_touch_reset_confirm)) },
         confirmButtonText = stringResource(R.string.agent_touch_reset),
     )
+    if (confirmRestore) ConfirmationDialog(
+        onDismissRequest = { confirmRestore = false },
+        onConfirmed = {
+            confirmRestore = false
+            runCatching { TouchModel.restorePrevious(context) }
+            refresh()
+        },
+        content = { Text(stringResource(R.string.agent_touch_restore_previous_confirm)) },
+        confirmButtonText = stringResource(R.string.agent_touch_restore_previous),
+    )
+}
+
+/** Stage 50: a scene in words, e.g. "abends, ungenauer, trifft tiefer"; never text. */
+internal fun describeScene(context: android.content.Context, scene: TouchModel.SceneInfo): String {
+    val bucket = when (scene.bucket) {
+        dev.agentkeyboard.core.TouchDynamics.Bucket.MORNING -> R.string.agent_touch_bucket_morning
+        dev.agentkeyboard.core.TouchDynamics.Bucket.DAY -> R.string.agent_touch_bucket_day
+        dev.agentkeyboard.core.TouchDynamics.Bucket.EVENING -> R.string.agent_touch_bucket_evening
+        dev.agentkeyboard.core.TouchDynamics.Bucket.NIGHT -> R.string.agent_touch_bucket_night
+    }
+    val traits = scene.traits.map {
+        when (it) {
+            dev.agentkeyboard.core.TouchDynamics.Trait.LESS_PRECISE -> R.string.agent_touch_trait_less_precise
+            dev.agentkeyboard.core.TouchDynamics.Trait.MORE_PRECISE -> R.string.agent_touch_trait_more_precise
+            dev.agentkeyboard.core.TouchDynamics.Trait.LOWER -> R.string.agent_touch_trait_lower
+            dev.agentkeyboard.core.TouchDynamics.Trait.HIGHER -> R.string.agent_touch_trait_higher
+            dev.agentkeyboard.core.TouchDynamics.Trait.LEFT -> R.string.agent_touch_trait_left
+            dev.agentkeyboard.core.TouchDynamics.Trait.RIGHT -> R.string.agent_touch_trait_right
+            dev.agentkeyboard.core.TouchDynamics.Trait.FASTER -> R.string.agent_touch_trait_faster
+            dev.agentkeyboard.core.TouchDynamics.Trait.SLOWER -> R.string.agent_touch_trait_slower
+            dev.agentkeyboard.core.TouchDynamics.Trait.MORE_CORRECTIONS -> R.string.agent_touch_trait_corrections
+        }
+    }
+    return (listOf(bucket) + traits).joinToString(", ") { context.getString(it) }
 }
 
 @Composable

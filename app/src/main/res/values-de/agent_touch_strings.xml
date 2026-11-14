@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 50, dynamic hit zones with scene profiles. -->
+<resources>
+    <string name="agent_touch_dynamic">Dynamisch anpassen (Szenen)</string>
+    <string name="agent_touch_dynamic_description">Zusätzlich zu den Zonen oben folgt die Tastatur innerhalb weniger Dutzend Tipps, wie du gerade tippst (im Liegen, unterwegs), und vergisst das nach fünf Minuten Pause oder in einer anderen App. Abweichungen, die länger anhalten, merkt sie sich als Szenen: Tageszeit, Tempo, Genauigkeit, Korrekturen und Verschiebung, nie Text, nie Ort. Die kalibrierten Zonen ändern sich nur, wenn dieselbe Abweichung an mehreren Tagen und zu verschiedenen Tageszeiten wiederkommt, und dann nur ein kleines Stück. Nichts in Passwortfeldern, im Inkognito-Modus, in Feldern ohne Lernen, bei pausiertem Lernen oder gesperrtem Gerät.</string>
+    <string name="agent_touch_scenes_title">Szenen</string>
+    <string name="agent_touch_scenes_none">Noch keine Szenen.</string>
+    <string name="agent_touch_scene">%1$s (in %2$d Sitzungen gesehen)</string>
+    <string name="agent_touch_scene_delete">Szene löschen</string>
+    <string name="agent_touch_bucket_morning">morgens</string>
+    <string name="agent_touch_bucket_day">tagsüber</string>
+    <string name="agent_touch_bucket_evening">abends</string>
+    <string name="agent_touch_bucket_night">nachts</string>
+    <string name="agent_touch_trait_less_precise">ungenauer</string>
+    <string name="agent_touch_trait_more_precise">genauer</string>
+    <string name="agent_touch_trait_lower">trifft tiefer</string>
+    <string name="agent_touch_trait_higher">trifft höher</string>
+    <string name="agent_touch_trait_left">trifft weiter links</string>
+    <string name="agent_touch_trait_right">trifft weiter rechts</string>
+    <string name="agent_touch_trait_faster">schneller</string>
+    <string name="agent_touch_trait_slower">langsamer</string>
+    <string name="agent_touch_trait_corrections">mehr Korrekturen</string>
+    <string name="agent_touch_promotions">Automatische Anpassungen der kalibrierten Zonen: %d</string>
+    <string name="agent_touch_restore_previous">Auf vorherige Kalibrierung zurücksetzen</string>
+    <string name="agent_touch_restore_previous_confirm">Die Trefferzonen auf den Stand vor der letzten Kalibrierung oder automatischen Anpassung zurücksetzen? Die Szenen bleiben.</string>
+</resources>

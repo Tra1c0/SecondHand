@@ -176,23 +176,18 @@ Reihenfolge von oben nach unten.
   Einzelwort-Korrekturen; nie in Passwortfeldern, Inkognito, bei verbotenem Lernen, gesperrt oder
   pausiert. Kandidaten und Gelerntes auf „Was ich mir gemerkt habe“ (löschen, Kandidat übernehmen),
   keine Rückfragen beim Tippen. (M–L)
-- **50 Dynamische Trefferzonen mit Szeneprofilen (Wunsch des Owners vom 2026-11-14)** —
-  beschlossen. Baut auf 22a/22b (`TouchModel`: Mittelwert je Taste, ab 15 Treffern, höchstens ein
-  Drittel Taste, Lernen aus abgeschickten Wörtern). Drei Schichten: Basis (Kalibrierung plus
-  Langzeit, bleibt wie kalibriert), Kurzzeit (passt sich innerhalb weniger Dutzend Tipps an,
-  verblasst nach einer Pause oder beim Feldwechsel), Szeneprofile (Zusammenfassungen von
-  Abweichungen mit Merkmalen wie Tageszeit, Tempo, Streuung, Korrekturrate; nie Text, nie Ort).
-  Ähnelt eine neue Sitzung einer Szene, startet die Kurzzeitschicht dort. Basis ändert sich nur,
-  wenn dieselbe Abweichung regelmäßig auftritt (mehrere Sitzungen an verschiedenen Tagen und nicht
-  nur in einer Szene), gedämpft und begrenzt; vorheriger Stand wiederherstellbar. Szenen auf der
-  Seite Trefferzonen sichtbar und löschbar. Engine-Änderung (`KeyDetector`-Hook), Prüfer Pflicht.
-  (L)
 - **48 Autokorrektur: getipptes Wort vorne, keine ungewollte Großschreibung (Rückmeldung des Owners
   vom 2026-11-14)** ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 48).
   Offen: Prüfer-Review (Engine-Änderung, Pflicht) und Gerätetest. Zu entscheiden (Owner): Felder,
   die selbst „jedes Wort groß“ verlangen (Namen, manche Betreff- und Suchfelder), bekommen weiter
   an jedem Wortanfang einen Großbuchstaben; der Schalter „Großschreibung am Satzanfang“ schaltet
   auch das ab. Soll die Tastatur dort trotzdem nur Satzanfänge groß schreiben? (M)
+- **50 Dynamische Trefferzonen mit Szeneprofilen** (Wunsch des Owners vom 2026-11-14) ist gebaut
+  (siehe FEATURES.md, `docs/VALIDATION.md` → Etappe 50). Annahme des Leads, die der Owner ändern
+  kann: eigener Schalter „Dynamisch anpassen (Szenen)“, anfangs aus, nur zusammen mit
+  „Trefferzonen an mich anpassen“. Offen: Engine-Review (`KeyboardActionListenerImpl.onCodeInput`,
+  `LatinIME.onStartInputViewInternal`), Gerätetest (Schwellen mit echten Fingern, Tageszeiten,
+  Beförderung über mehrere Tage).
 - **47 KI-Kontext im Hintergrund — verworfen (Owner, 2026-11-14):** „Dann lassen wir das.“ Alles
   lokal; die Tastatur lernt selbst dazu (45, 46).
 - **Verworfen (Owner, 2026-11-14):** Mail-Anbindung (Gmail/IMAP) und Codes aus Benachrichtigungen.

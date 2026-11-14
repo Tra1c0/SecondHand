@@ -39,6 +39,16 @@
 
 ## Nächster Build
 
+- Neu: Dynamische Trefferzonen (anfangs aus). Einstellungen → Gelernte Wörter → Trefferzonen →
+  „Dynamisch anpassen (Szenen)“, nur mit „Trefferzonen an mich anpassen“. Die Zonen folgen in
+  wenigen Dutzend Buchstaben, wie du gerade tippst (im Liegen, unterwegs), und vergessen es nach
+  fünf Minuten Pause oder in einer anderen App. Länger anhaltende Abweichungen merkt sich die
+  Tastatur als Szenen („abends, ungenauer, trifft tiefer“) und startet dort, wenn du wieder so
+  tippst. Deine Kalibrierung bleibt; nur was an mehreren Tagen und Tageszeiten wiederkommt,
+  verschiebt sie ein kleines Stück, „Auf vorherige Kalibrierung zurücksetzen“ nimmt das zurück.
+  Nie Text, nie Ort; nichts in Passwortfeldern, im Inkognito-Modus oder bei gesperrtem Gerät.
+  Noch auf keinem Gerät ausprobiert.
+
 - Neu: Zwischenablage-Wächter und Tresor (nur mit eingeschaltetem Zwischenablage-Verlauf).
   Kopierte Passwörter, API-Schlüssel und Tokens landen nicht mehr im Verlauf, sondern oben in der
   Zwischenablage-Ansicht unter „Tresor“, verdeckt (z. B. „sk-proj-…7f3a“): ein Tipp fügt sie
