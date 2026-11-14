@@ -82,7 +82,7 @@ class UpdateCheckTest {
         assertEquals(UpdateStatus.Available(7), status)
         assertEquals(status, UpdateSettings(app).status)
         val request = requests.single()
-        assertEquals("https://api.github.com/repos/Tra1c0/AgenticKeyboard/releases?per_page=10", request.url.toString())
+        assertEquals("https://api.github.com/repos/Tra1c0/SecondHandAgenticKeyboard/releases?per_page=10", request.url.toString())
         assertNull(request.header("Authorization"))
         assertNull(request.header("Cookie"))
         assertEquals("application/vnd.github+json", request.header("Accept"))

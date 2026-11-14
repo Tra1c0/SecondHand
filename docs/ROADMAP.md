@@ -298,14 +298,14 @@ Reihenfolge von oben nach unten.
   APK (offline, aus `release-notes/next.md` beim Bauen eingebettet). (3) Optional einmal ein
   dezenter Chip in der Leiste „Build N verfügbar“ (nicht in Passwort-/Inkognito-Feldern, nicht
   gesperrt). Prüfung weiter nur mit dem bestehenden Schalter „täglich automatisch“ bzw. auf Tipp.
-  Voraussetzung: Die Prüfung liest das Release-Repository `Tra1c0/AgenticKeyboard`; dort landen
+  Voraussetzung: Die Prüfung liest das Release-Repository `Tra1c0/SecondHandAgenticKeyboard`; dort landen
   Builds nur mit dem Secret `RELEASES_TOKEN`, das fehlt (Workflow-Warnung). Alternative (Owner
   entscheidet): direkt die Releases dieses Repositorys lesen (öffentlich, kein Secret nötig, dann
   auch Test-Builds; Kanal „nur geprüfte“ / „auch Test-Builds“ wählbar). (M)
   Owner (2026-11-14): Der Chip in der Tastatur steht IMMER da, solange ein neuerer Build bekannt
   ist (nicht nur einmal), dazu der Dialog in der App wie oben. Owner (2026-11-14): Variante A —
-  „Ich will, dass die Builds kontrolliert released werden.“ Quelle bleibt das Release-Repository
-  `Tra1c0/AgenticKeyboard` (Secret `RELEASES_TOKEN`, Einrichtung in BUILD.md, macht der Owner).
+  „Ich will, dass die Builds kontrolliert released werden.“ Quelle ist das Release-Repository (seit 2026-11-14 vom Owner neu angelegt, vorher `Tra1c0/AgenticKeyboard`)
+  `Tra1c0/SecondHandAgenticKeyboard` (Secret `RELEASES_TOKEN`, Einrichtung in BUILD.md, macht der Owner).
   Dazu: Der Workflow veröffentlicht dort nur Builds von `main` (geprüft); Test-Builds vom
   Arbeitsbranch bleiben Vorab-Releases in diesem Repository und erscheinen nicht als Update. Der Chip
   verrät nur „Build N verfügbar“; ein Tipp öffnet die Updates-Seite. Neue Builds erkennt die App nur

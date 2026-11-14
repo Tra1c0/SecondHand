@@ -31,7 +31,7 @@ Prüfsumme: Neben der APK liegt im Release eine Datei `.apk.sha256`. Wer sicherg
 ## Updates in der App
 
 Jeder Build erscheint zusätzlich im öffentlichen Repository
-[github.com/Tra1c0/AgenticKeyboard/releases](https://github.com/Tra1c0/AgenticKeyboard/releases)
+[github.com/Tra1c0/SecondHandAgenticKeyboard/releases](https://github.com/Tra1c0/SecondHandAgenticKeyboard/releases)
 (Einrichtung einmalig: `docs/BUILD.md` → Installierbare APK). Die App braucht dafür kein Konto
 und keinen Token.
 

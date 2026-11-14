@@ -19,7 +19,7 @@ class UpdateReleasesTest {
             assertNull(UpdateReleases.buildNumber(tag), tag)
         assertEquals("AgentKeyboard-build-7.apk", UpdateReleases.apkName(7))
         assertEquals("AgentKeyboard-build-7.apk.sha256", UpdateReleases.checksumName(7))
-        assertEquals("https://github.com/Tra1c0/AgenticKeyboard/releases/download/build-7/AgentKeyboard-build-7.apk",
+        assertEquals("https://github.com/Tra1c0/SecondHandAgenticKeyboard/releases/download/build-7/AgentKeyboard-build-7.apk",
             UpdateReleases.downloadUrl("build-7", UpdateReleases.apkName(7)))
     }
 

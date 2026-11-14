@@ -13,7 +13,7 @@ permissions:
 
 env:
   # The public release repository; the app has the same name in UpdateReleases.REPOSITORY.
-  RELEASE_REPOSITORY: Tra1c0/AgenticKeyboard
+  RELEASE_REPOSITORY: Tra1c0/SecondHandAgenticKeyboard
 
 jobs:
   apk:

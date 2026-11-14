@@ -19,7 +19,7 @@ data class AvailableBuild(val number: Long, val apk: ReleaseAsset, val checksum:
  */
 object UpdateReleases {
     /** The only repository the check ever asks. Fixed in code, never configurable. Public, no token. */
-    const val REPOSITORY = "Tra1c0/AgenticKeyboard"
+    const val REPOSITORY = "Tra1c0/SecondHandAgenticKeyboard"
     const val RELEASES_PAGE = "https://github.com/$REPOSITORY/releases"
     const val MAX_APK_BYTES = 120L * 1024 * 1024
     const val MAX_CHECKSUM_BYTES = 4096L

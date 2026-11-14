@@ -2583,7 +2583,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 
 > Opt-in-Prüfung auf neue Builds im öffentlichen Release-Repository, Download und Installation nur nach eigenem Klick.
 
-- Quelle: öffentliches Repository `Tra1c0/AgenticKeyboard` (`UpdateReleases.REPOSITORY` in
+- Quelle: öffentliches Repository `Tra1c0/SecondHandAgenticKeyboard` (`UpdateReleases.REPOSITORY` in
   `C/UpdateReleases.kt`, im Workflow `RELEASE_REPOSITORY`). Kein Token, kein `Authorization`-Header.
 - `A/updates/GitHubUpdateClient.kt`: `UpdateHttp` (eigener OkHttp-Client, nicht der KI-Client,
   ohne automatische Redirects und Retries; Connect 15 s, Read 30 s) und `GitHubUpdateClient`:

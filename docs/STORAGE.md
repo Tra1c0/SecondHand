@@ -36,7 +36,7 @@ interne Kopien in Android/HTTP lassen sich nicht zuverlässig aus dem RAM lösch
 
 ## Update-Prüfung
 
-- Kein Zugangsdatum: Das Release-Repository `Tra1c0/AgenticKeyboard` ist öffentlich, die App
+- Kein Zugangsdatum: Das Release-Repository `Tra1c0/SecondHandAgenticKeyboard` ist öffentlich, die App
   sendet keinen `Authorization`-Header und speichert keinen Token.
 - CE-Einstellungen `agent_updates` (nicht in den exportierbaren Tastatureinstellungen): Schalter
   der täglichen Suche (`daily`, Standard aus), zuletzt gemeldeter Build (`notified_build`) und
