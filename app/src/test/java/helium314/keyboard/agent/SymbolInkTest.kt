@@ -55,7 +55,7 @@ class SymbolInkTest {
     private val waiting = mutableListOf<Int>()
     private val sink = object : SymbolInk.Sink {
         override fun onDrawing(strokes: List<InkStroke>) { drawings += strokes; log += "symbol" }
-        override fun onWaiting(strokes: List<InkStroke>) { waiting += strokes.size }
+        override fun onWaiting(strokes: List<InkStroke>, possibleDots: List<Int>) { waiting += strokes.size }
     }
     private val recognizer = InkRecognizer(InkSymbols.templates)
 
@@ -316,7 +316,9 @@ class SymbolInkTest {
         stroke(*line(20f, 80f, 300f, 80f))
         assertTrue(SymbolInk.isWaiting)
         clearInvocations(listener) // the stroke's own key press
-        tap(40f, 30f) // far from where ÷ has its dots
+        // far from where ÷ has its dots (stage 43: was 40, 30, above the left end, which may now wait as a
+        // possible dot: aTapNearADotOfASymbolWaitsAndIsTypedAfterIt)
+        tap(330f, 140f)
         assertEquals(listOf("symbol", "code ${'a'.code}"), log)
         verify(listener, times(1)).onPressKey(eq('a'.code), anyInt(), anyInt(), any()) // pressed like a tap (feedback)
         verify(listener, times(1)).onReleaseKey(eq('a'.code), eq(false))
@@ -340,7 +342,8 @@ class SymbolInkTest {
     @Test fun dotsCountOnlyForSymbolsWithDots() {
         // the same tap as the first dot of ÷, but without any symbol that has dots: a letter
         SymbolInk.dotCheck = SymbolInk.DotCheck { strokes, x, y ->
-            dev.agentkeyboard.core.InkDots(InkSymbols.templates.filter { it.text != "÷" }).isDot(strokes, x, y) }
+            // stage 43: more built-in symbols have dots; before only ÷ was left out
+            dev.agentkeyboard.core.InkDots(InkSymbols.templates.filter { it.cloud.dotCount == 0 }).isDot(strokes, x, y) }
         try {
             stroke(*line(20f, 80f, 300f, 80f))
             tap(160f, 30f)
@@ -483,7 +486,7 @@ class SymbolInkTest {
             now += 1_000 // no fast typing before the stroke (HeliBoard would then ask for a longer swipe)
             stroke(*line(20f, 80f, 300f, 80f))
             idle(100)
-            tap(40f, 30f) // a letter right after the symbol: no gap between two strokes
+            tap(330f, 140f) // a letter right after the symbol: no gap between two strokes (stage 43: far from the dots of ÷)
         }
         assertEquals(3, drawings.size)
         assertEquals(900, SymbolInk.pauseMillis)
@@ -494,6 +497,7 @@ class SymbolInkTest {
         touch(MotionEvent.ACTION_DOWN, 40f, 30f)
         hold() // no long-press popup in the pause, and no stray dot in the drawing
         touch(MotionEvent.ACTION_UP, 40f, 30f)
+        pause() // stage 43: near where ÷ could have a dot it waits as a possible dot, then it is its letter
         assertEquals(listOf("symbol", "code ${'a'.code}"), log)
         assertEquals(1, drawings.single().size)
     }
@@ -621,5 +625,144 @@ class SymbolInkTest {
         fingers(MotionEvent.ACTION_UP, 0, b)
         assertEquals(listOf("symbol", "code ${'a'.code}", "code ${'b'.code}"), log)
         assertEquals(1, drawings.single().size) // the tap is not part of it
+    }
+
+    // stage 43 (owner feedback on build 19): dots of ÷, %, ! and ?, and drawing right after typing
+
+    @Test fun aTapNearADotOfASymbolWaitsAndIsTypedAfterIt() {
+        stroke(*line(20f, 80f, 300f, 80f))
+        clearInvocations(listener)
+        tap(40f, 30f) // above the left end: a possible dot of ÷, nothing is typed yet
+        assertTrue(log.isEmpty())
+        assertTrue(SymbolInk.isWaiting)
+        pause()
+        // one dot is no ÷: the dash, then the letter where it touched down
+        assertEquals(listOf("symbol", "code ${'a'.code}"), log)
+        assertEquals(1, drawings.single().size)
+        assertEquals("–", recognizer.recognize(drawings.single()).best?.text)
+        verify(listener, times(1)).onPressKey(eq('a'.code), anyInt(), anyInt(), any())
+        verify(listener, times(1)).onReleaseKey(eq('a'.code), eq(false))
+    }
+
+    @Test fun aSingleTapAboveTheMiddleOfADashIsItsLetterAfterIt() {
+        stroke(*line(20f, 80f, 300f, 80f))
+        tap(160f, 30f) // where ÷ has a dot, but no second one comes
+        pause()
+        assertEquals(listOf("symbol", "code ${'a'.code}"), log)
+        assertEquals("–", recognizer.recognize(drawings.single()).best?.text)
+    }
+
+    @Test fun possibleDotsAndALaterTapKeepTheirOrder() {
+        twoLetters()
+        stroke(*line(20f, 80f, 300f, 80f))
+        tap(40f, 30f) // "a", a possible dot
+        tap(330f, 140f) // "b", far from any dot: the drawing is written, then a, then b
+        assertEquals(listOf("symbol", "code ${'a'.code}", "code ${'b'.code}"), log)
+        assertEquals("–", recognizer.recognize(drawings.single()).best?.text)
+    }
+
+    @Test fun divisionSignWithTheLowerDotFirst() {
+        stroke(*line(20f, 80f, 300f, 80f))
+        tap(158f, 132f)
+        tap(162f, 28f)
+        noLetterTyped()
+        pause()
+        assertEquals("÷", recognizer.recognize(drawings.single()).best?.text)
+        assertTrue(log == listOf("symbol"))
+    }
+
+    @Test fun aDivisionSignWithDotsBesideTheMiddleIsStillOne() {
+        // stage 31 asked for 0.12 of the size to the side: these dots (0.14 and 0.16) were letters
+        stroke(*line(20f, 80f, 300f, 80f))
+        tap(200f, 25f)
+        tap(115f, 135f)
+        pause()
+        assertEquals(listOf("symbol"), log)
+        assertEquals("÷", recognizer.recognize(drawings.single()).best?.text)
+    }
+
+    /** % 140 px tall: the slash, then its circles at the top left and the bottom right. */
+    private val slash = line(219f, 5f, 121f, 145f)
+
+    @Test fun percentWithTappedDots() {
+        stroke(*slash)
+        tap(125f, 30f)
+        tap(215f, 120f)
+        noLetterTyped()
+        pause()
+        assertEquals(listOf("symbol"), log)
+        assertEquals("%", recognizer.recognize(drawings.single()).best?.text)
+    }
+
+    @Test fun percentWithATinyCircleAndADot() {
+        stroke(*slash)
+        // a circle of 5 px around (125, 30): more than a tap, a dot of the drawing by its size
+        stroke(130f, 30f, 128f, 34f, 125f, 35f, 121f, 34f, 120f, 30f, 121f, 26f, 125f, 25f, 129f, 26f, 130f, 30f)
+        tap(215f, 120f)
+        noLetterTyped()
+        pause()
+        assertEquals("%", recognizer.recognize(drawings.single()).best?.text)
+    }
+
+    @Test fun exclamationAndQuestionMarks() {
+        stroke(*line(150f, 5f, 150f, 105f))
+        tap(151f, 140f)
+        pause()
+        assertEquals("!", recognizer.recognize(drawings.last()).best?.text)
+        now += 1_000
+        // the hook of ? (a hand-drawn arc over the top, then down), then its dot
+        stroke(110f, 30f, 115f, 15f, 130f, 6f, 150f, 5f, 170f, 10f, 182f, 25f, 178f, 45f, 162f, 60f, 151f, 72f, 150f, 88f, 150f, 100f)
+        tap(150f, 140f)
+        pause()
+        assertEquals("?", recognizer.recognize(drawings.last()).best?.text)
+        noLetterTyped()
+        assertEquals(listOf("symbol", "symbol"), log)
+    }
+
+    /** Types a word on "a" (three taps 60 ms apart), as fast typing does before a drawing. */
+    private fun typeAWord() {
+        repeat(3) { tap(60f + 30 * it, 40f); now += 40 }
+    }
+
+    @Test fun drawingRightAfterTypingAWordStartsInk() {
+        for (delay in listOf(100L, 200L, 400L)) {
+            now += 2_000
+            typeAWord()
+            clearInvocations(listener)
+            now += delay - 40
+            stroke(*line(60f, 80f, 200f, 80f)) // the line of ÷, 140 px = 2.8 keys in 120 ms
+            verify(listener, times(1)).onStartBatchInput()
+            noLetterTyped()
+            assertTrue(SymbolInk.isWaiting, "after $delay ms")
+            pause()
+        }
+        assertEquals(3, drawings.size)
+    }
+
+    @Test fun aSlidingTapWhileTypingFastStaysTyping() {
+        typeAWord()
+        clearInvocations(listener)
+        now += 20
+        // 0.7 keys (35 px) in 30 ms: HeliBoard's usual swipe start (0.35 keys from where it got fast) takes
+        // it, so right after a letter drawn symbols ask for 0.75 keys from the down point
+        touch(MotionEvent.ACTION_DOWN, 100f, 60f); touch(MotionEvent.ACTION_MOVE, 112f, 60f); touch(MotionEvent.ACTION_MOVE, 125f, 60f)
+        touch(MotionEvent.ACTION_MOVE, 135f, 60f); touch(MotionEvent.ACTION_UP, 135f, 60f)
+        verify(listener, never()).onStartBatchInput()
+        verify(listener, times(1)).onCodeInput(eq('a'.code), anyInt(), anyInt(), anyBoolean())
+        assertFalse(SymbolInk.isWaiting)
+        // the same slide well after typing is a stroke, as before stage 43
+        now += 2_000
+        touch(MotionEvent.ACTION_DOWN, 100f, 60f); touch(MotionEvent.ACTION_MOVE, 112f, 60f); touch(MotionEvent.ACTION_MOVE, 125f, 60f)
+        touch(MotionEvent.ACTION_MOVE, 135f, 60f); touch(MotionEvent.ACTION_UP, 135f, 60f)
+        verify(listener, times(1)).onStartBatchInput()
+    }
+
+    @Test fun withoutDrawnSymbolsTheFastTypingCooldownStays() {
+        setDrawing(false)
+        typeAWord()
+        clearInvocations(listener)
+        now += 100
+        stroke(*line(60f, 80f, 200f, 80f)) // too short for HeliBoard right after typing: a tap, no gesture
+        verify(listener, never()).onStartBatchInput()
     }
 }

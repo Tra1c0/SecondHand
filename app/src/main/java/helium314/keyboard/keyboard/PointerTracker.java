@@ -131,6 +131,10 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
     private boolean mInInk = false;
     // fork (stage 31 fix): where that stroke touched down; a tap that is a key presses the key there
     private int mInkDownX, mInkDownY;
+    // fork (stage 43): a stroke from this down may start a drawing only once it is long enough, because
+    // a letter was typed just before (SymbolInk.startsAfterTyping); where it went down
+    private boolean mInkAfterTyping = false;
+    private int mGestureDownX, mGestureDownY;
     private static boolean sInGesture = false;
     private static TypingTimeRecorder sTypingTimeRecorder;
 
@@ -203,6 +207,7 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
 
         sTimerProxy = timerProxy;
         sDrawingProxy = drawingProxy;
+        SymbolInk.setTapper(PointerTracker::typeInkTap); // fork (stage 43)
         sTrackers = new ArrayList<>();
 
         sProxyMap.put(drawingProxy, new Object[] {
@@ -699,8 +704,14 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         mIsDetectingGesture = (mKeyboard != null) && mKeyboard.mId.getElement().isAlphabet()
                 && key != null && !key.isModifier() && !mKeySwipeAllowed && !sInKeySwipe;
         if (mIsDetectingGesture) {
+            // fork (stage 43): with drawn symbols HeliBoard's fast-typing cooldown (a swipe of up to six key
+            // widths right after typing) is off; a drawing then starts at a shorter length instead
+            final long lastLetterTypingTime = sTypingTimeRecorder.getLastLetterTypingTime();
+            mInkAfterTyping = SymbolInk.isEnabled() && SymbolInk.isAfterTyping(eventTime - lastLetterTypingTime);
+            mGestureDownX = x;
+            mGestureDownY = y;
             mBatchInputArbiter.addDownEventPoint(x, y, eventTime,
-                    sTypingTimeRecorder.getLastLetterTypingTime(), getActivePointerTrackerCount());
+                    SymbolInk.gestureTypingTime(eventTime, lastLetterTypingTime), getActivePointerTrackerCount());
             mGestureStrokeDrawingPoints.onDownEvent(
                     x, y, mBatchInputArbiter.getElapsedTimeSinceFirstDown(eventTime));
         }
@@ -748,6 +759,32 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         SymbolInk.onInkDown(mPointerId, x, y);
         sDrawingProxy.showGestureTrail(this, false);
         return true;
+    }
+
+    /**
+     * Fork (stage 43): a possible dot of a drawn symbol that was a letter after all, typed after the
+     * symbol like a tap at ([x], [y]) where it touched down, on the keyboard as it is now (the symbol may
+     * have changed the shift state, P96). No tracker state changes: the tracker may be in a new touch.
+     */
+    private static void typeInkTap(final int pointerId, final int x, final int y) {
+        final KeyDetector detector = getPointerTracker(pointerId).mKeyDetector;
+        if (detector == null || sListener == null) return;
+        final Key key = detector.detectHitKey(x, y);
+        if (key == null || !key.isEnabled()) return;
+        final int code = key.getCode();
+        sListener.onPressKey(code, 0, getActivePointerTrackerCount(), HapticEvent.NO_HAPTICS);
+        sTypingTimeRecorder.onCodeInput(code, SystemClock.uptimeMillis());
+        if (code == KeyCode.MULTIPLE_CODE_POINTS) {
+            sListener.onTextInput(key.getOutputText());
+        } else if (code != KeyCode.NOT_SPECIFIED) {
+            final Keyboard keyboard = detector.getKeyboard();
+            if (keyboard != null && keyboard.hasProximityCharsCorrection(code)) {
+                sListener.onCodeInput(code, x, y, false);
+            } else {
+                sListener.onCodeInput(code, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false);
+            }
+        }
+        sListener.onReleaseKey(code, false);
     }
 
     /** Fork (stage 31 fix): this pointer's ink tap is a key after all, pressed where it touched down (P104). */
@@ -873,6 +910,8 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
             return;
         }
         if (!sInGesture && key != null && Character.isLetter(key.getCode())
+                && (!mInkAfterTyping || SymbolInk.startsAfterTyping( // fork (stage 43)
+                        getDistance(x, y, mGestureDownX, mGestureDownY), mKeyboard.mMostCommonKeyWidth))
                 && mBatchInputArbiter.mayStartBatchInput(this)) {
             sListener.resetMetaState(); // avoid metaState getting stuck, doesn't work with gesture typing anyway
             sInGesture = true;

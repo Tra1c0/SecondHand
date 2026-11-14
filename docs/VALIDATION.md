@@ -3285,6 +3285,95 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - GitHub-Lauf auf dd28d93: Agent und Upstream grün, Lint rot (MissingTranslation in fünf neuen
   Textdateien der Bereichsseiten, P150). Behoben mit `tools:ignore`; `lintDebugNoMinify` lokal grün.
 
+## Etappe 43 (Symbole malen: Punkte und Start nach dem Tippen)
+
+- Auftrag (Lead, Rückmeldung des Owners zu Build 19): (A) bei ÷, % und allen Symbolen mit einem
+  getippten Punkt geht das Symbol verloren oder es kommen Symbol und Buchstabe; (B) direkt nach dem
+  Tippen eines Worts erkennt die Tastatur oft keine Zeichnung. Gebaut in einer Arbeitskopie, kein
+  Prüfer-Review, kein Gerätetest. Das „&“ der Rückmeldung als „und“ gelesen: seine Vorlage ist ein
+  Zug ohne Punkt, unverändert.
+- Ursache A (aus dem Code, im Modell gemessen): Ein Tipp in der Pause war nur dann ein Punkt, wenn
+  `InkDots` ihm an der Lage zustimmte (0,12 seitlich, 0,25 näher/weiter); eingebaut hatte nur ÷
+  Punkte. Sonst wurde das Symbol sofort geschrieben und der Tipp getippt („Symbol + Buchstabe“);
+  ein % mit getippten Kreisen war nie möglich. Ursache B (verifiziert): HeliBoard setzt nach einem
+  getippten Buchstaben 500 ms `mAfterFastTyping` (`GestureStrokeRecognitionPoints.addDownEventPoint`,
+  `mGestureFastTypingCooldown`); `isStartOfAGesture` verlangt dann 6 Tastenbreiten, über 450 ms
+  fallend auf 0,35. Der erste Symbolstrich läuft über genau diese Erkennung. Nachweis:
+  `SymbolInkTest.drawingRightAfterTypingAWordStartsInk` mit abgeschalteter Änderung
+  (`gestureTypingTime` liefert die alte Zeit) scheitert schon bei 100 ms (kein `onStartBatchInput`),
+  mit Änderung grün. Die Einstellung „Schnelltipp-Sperre“ steht auf der Gestenseite nur bei
+  Gestenschreiben (bei Symbole malen ausgeblendet, `GestureTypingScreen`), auf der Bereichsseite
+  nie; sie wirkt beim Malen jetzt nicht mehr und bleibt deshalb ausgeblendet.
+- Gebaut (Kern): `InkDots.isDot` als möglicher Punkt (Kreis `DOT_REACH` 0,5 der Größe des
+  punktlosen Teils, `BASE_DISTANCE` 2,3 statt 1,8, weniger Punkte als das Symbol, Regel 4 nur
+  gegen Symbole ohne Punkte), neu `InkDots.keeps` (ganze Zeichnung = Symbol mit genau so vielen
+  Punkten und jeder Punkt höchstens `KEEP_REACH` 0,35 von einem eigenen Punkt); `InkSymbols`: %
+  mit Strich und zwei Punkten (auch gestaucht), ‰, !, ¡, ?, ¿ (118 statt 105 Vorlagen);
+  `InkTap.AFTER_TYPING_MILLIS` 500, `START_AFTER_TYPING_KEYS` 0,75. App: `SymbolInk` (mögliche
+  Punkte als ein Punkt, `resolve`, `Tapper`, `takeWaiting` mit Rückruf, `onWaiting` mit
+  `possibleDots`, `gestureTypingTime`), `SymbolDrawing` (`keeps` mit eigenen Vorlagen, Vorschau
+  entscheidet wie das Schreiben), `PointerTracker` (siehe unten).
+- Messung (`CT/InkDotFlowTest`, neu, Finger-Modell `InkFingerModel.drawDotted`: Striche zuerst,
+  Punkte danach als Tipps, %○ mit halb winzigen Kreisen; 1,5–3 Reihen hoch, 2,75 px/dp; je 200),
+  vorher = Stand Build 19 mit demselben Modell: ÷ 142 → 197, % (Tupfer) 0 → 195, %○ 10 → 106,
+  ‰ 0 → 163, ! 0 → 180, ¡ 0 → 172, ? 0 → 173, ¿ 0 → 169 (vorher nicht eingebaut); zusammen 152 →
+  1355 von 1600. Buchstaben direkt nach Symbolen ohne Punkte (je Symbol 20 Zeichnungen, dann 1–4
+  Buchstaben zufällig auf der Tastatur): verloren 3 → 2 von 1875 (beide nach „|“, als ! bzw. ¡),
+  Symbol geändert 0 → 2 von 760, Reihenfolge immer richtig. Abstimmung: `DOT_REACH` 0,35/0,5/0,7
+  und `KEEP_REACH` 0,25/0,3/0,35 gemessen; ohne Lageprüfung in `keeps` (nur Abstand ≤ 1,0–1,4)
+  wurden 20 % der Buchstabenpaare über und unter einem Strich zu ÷ (verworfen).
+  `InkDotsTest.lettersTappedAroundADrawnDashAreRarelyDots` (Paare, schlimmster Fall): 770 von 8000
+  Buchstaben werden Punkte, 1741 von 4000 ersten Buchstaben warten als mögliche Punkte.
+  Erkennung: `InkBenchmarkTest` hart 96,4 % (36: 96,2 %; neue Symbole ‰ 90, ! 100, ¡ 98, ? 100,
+  ¿ 96), mild 99,9 %, ⇒ des Owners 190/200 ⇒, 0 ≠; `InkRecognizerTest` gestörte Vorlagen 98,3 %
+  (% 259/300), Kritzeleien 10/300, 3,4 ms je Zeichnung gegen 118 Vorlagen, 9,2 ms gegen 328.
+  Nur synthetisch; nichts davon am Telefon gemessen.
+- Abwägung (dokumentiert in FEATURES, ANLEITUNG, `InkDots`): Ein möglicher Punkt erscheint als
+  Buchstabe erst nach der Pause (höchstens so viele wie das Symbol Punkte hat, danach schreibt der
+  nächste Tipp sofort). Verloren ist ein Buchstabe nur als Teil eines Punkt-Symbols an den
+  richtigen Stellen (zwei Buchstaben über und unter der Mitte eines Strichs: ÷; einer unter einem
+  senkrechten Strich: !); vorher reichte ein Buchstabe über oder unter der Mitte. Ein Symbol, das
+  mit einem Punkt beginnt (ein Tipp allein), bleibt unmöglich. % mit winzigen Kreisen (Strich, der
+  kein Tipp ist, aber zu klein für die Kreis-Vorlagen) ist schwach (53 %); gemischte Vorlagen
+  (ein Kreis, ein Punkt) halfen im Modell (89 %), scheiterten aber vollständig am Rauschen von
+  `InkRecognizerTest` (P152) und sind entfernt. Bei `cancel` (Editorwechsel, abgebrochener Touch)
+  gehen mögliche Punkte mit der Zeichnung verloren.
+- Grenze nach dem Tippen (B): 0,75 Tastenbreiten vom Aufsetzpunkt innerhalb von 500 ms nach einem
+  Buchstaben; danach HeliBoards üblicher Start (0,35 Tasten ab der schnellen Bewegung). Ein
+  rutschender Tipp von 0,7 Tasten in 30 ms bleibt nach dem Tippen Buchstabe und ist 2 s später ein
+  Strich (wie vor 43). Keine Mindestdauer: ein schnell gezogener Strich dauert nicht länger als ein
+  rutschender Tipp. Ohne Symbole malen unverändert
+  (`SymbolInkTest.withoutDrawnSymbolsTheFastTypingCooldownStays`).
+- Geänderte Prüfungen alter Tests (Grund: sie beschrieben die strenge Regel von 31, die 43 auf
+  Wunsch des Owners ersetzt): `InkDotsTest.tapsAwayFromTheDotsOfADashAreLetters`,
+  `lettersBesideTheMiddleOfADashAreLetters`, `earlierDotsAreNotPartOfTheLine` prüfen jetzt das
+  Ende (`isDot` und `keeps`, Hilfe `endsAsDots`) statt nur `isDot`: Tipps abseits bleiben
+  Buchstaben, auch zusammen mit einem richtigen zweiten Punkt; ein einzelner Buchstabe über der
+  Mitte ist nie ÷. `lettersTappedAroundADrawnDashAreRarelyDots` misst Paare über/unter dem Strich
+  (Grenze 11 %, vorher 12 % einzelner Tipps). `withoutSymbolsWithDotsEveryTapIsALetter` und
+  `SymbolInkTest.dotsCountOnlyForSymbolsWithDots` lassen alle Vorlagen mit Punkten weg (vorher nur
+  ÷). `ownSymbolsWithDotsCount` nimmt ein eigenes „⊙“, weil ! jetzt eingebaut ist.
+  `SymbolInkTest.aTapInThePauseWritesTheSymbolFirstAndThenTypesItsLetter` und
+  `lettersTypedInThePauseDoNotSetThePace` tippen weit weg von den Punkten (330, 140) statt über dem
+  linken Ende (jetzt ein möglicher Punkt, eigener Test `aTapNearADotOfASymbolWaitsAndIsTypedAfterIt`);
+  `aTapHeldStillIsALetterNotADot` prüft nach der Pause. `InkAreaTest` (Finger) zieht Punkte am
+  Anfang hinter den ersten Strich (P152). Keine Prüfung entfernt oder abgeschwächt, keine Ausnahme.
+- Neue Tests: `InkDotFlowTest` (2, mit Grenzen), `SymbolInkTest` (11: möglicher Punkt wird Buchstabe,
+  einzelner Tipp über der Mitte, Reihenfolge mit späterem Tipp, ÷ unterer Punkt zuerst, ÷ mit
+  seitlichen Punkten, % mit Tupfern, % mit kleinem Kreis und Tupfer, ! und ?, Malen 100/200/400 ms
+  nach einem Wort, rutschender Tipp, ohne Malen bleibt die Sperre), `InputLogicTest.symbolDraw*`
+  (3: Buchstabe nach dem Symbol samt Vorschau „✎ –“, ÷ aus zwei Tipps, Vorschau-Chip mit möglichem
+  Punkt; der Tapper dort ein Ersatz, der echte `typeInkTap` läuft in `SymbolInkTest`).
+- Gelaufen (2026-11-14, `--max-workers=1`): `./gradlew :agent-core:test` grün;
+  `:app:testDebugUnitTest --tests 'helium314.keyboard.agent.SymbolInkTest' --tests '*InputLogicTest'
+  --tests 'helium314.keyboard.agent.SymbolSettingsScreenTest'`: alle grün bis auf das geerbte
+  `InputLogicTest.insertLetterIntoWordHangulFails`. Nicht gelaufen: volle Suite, Agent-Tests über
+  `tools/dev.py`, Lint, Build, Gerätetest.
+- Engine-Änderungen (Prüfer Pflicht): `PointerTracker.java` (`init` setzt den Tapper, statisches
+  `typeInkTap`, `onDownEvent` mit `gestureTypingTime` und `mInkAfterTyping`, Bedingung in
+  `onGestureMoveEvent`). `InputLogic`, `RichInputConnection`, `GestureStrokeRecognitionParams` und
+  `GestureStrokeRecognitionPoints` unverändert.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

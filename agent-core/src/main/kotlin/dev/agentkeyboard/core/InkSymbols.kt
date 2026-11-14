@@ -182,6 +182,22 @@ object InkSymbols {
         listOf(arc(20, 20, 17, 17, 0, 360), line(85, 0, 15, 100), arc(80, 80, 17, 17, 0, 360)),
         listOf(arc(22, 22, 22, 22, 0, 360), line(90, 0, 10, 100), arc(78, 78, 22, 22, 0, 360)),
         listOf(arc(15, 15, 12, 12, 0, 360), line(80, 5, 20, 95), arc(85, 85, 12, 12, 0, 360)),
+        // stage 43 (owner feedback on build 19): the circles drawn as dots or as tiny circles
+        listOf(line(85, 0, 15, 100), dot(18, 18), dot(82, 82)),
+    )
+    // stage 43: ‰ with circles and with dots
+    private val perMille = listOf(
+        listOf(arc(16, 17, 14, 14, 0, 360), line(68, 0, 18, 100), arc(52, 84, 13, 13, 0, 360), arc(86, 84, 13, 13, 0, 360)),
+        listOf(line(68, 0, 18, 100), dot(16, 17), dot(52, 84), dot(86, 84)),
+    )
+    // stage 43: ! and ? with their dot tapped; ¡ and ¿ upside down
+    private val exclamation = listOf(
+        listOf(line(50, 0, 50, 72), dot(50, 100)),
+        listOf(line(50, 0, 50, 82), dot(50, 100)),
+    )
+    private val question = listOf(
+        listOf(joined(arcPoints(50, 27, 28, 25, 195, 405), pts(50, 60, 50, 76)), dot(50, 100)),
+        listOf(joined(arcPoints(50, 25, 30, 23, 180, 420), pts(50, 56, 50, 72)), dot(50, 100)),
     )
     private val leftParen = listOf(listOf(arc(75, 50, 40, 50, 240, 120)), listOf(arc(70, 50, 30, 50, 250, 110)))
     private val leftBracket = listOf(listOf(poly(70, 0, 30, 0, 30, 100, 70, 100)), listOf(poly(60, 0, 35, 0, 35, 100, 60, 100)))
@@ -222,6 +238,11 @@ object InkSymbols {
         Symbol("@", at.withSqueezed()),
         Symbol("#", hash.withSqueezed()),
         Symbol("%", percent.withSqueezed()),
+        Symbol("‰", perMille),
+        Symbol("!", exclamation),
+        Symbol("¡", exclamation.map { it.mirrorY() }),
+        Symbol("?", question),
+        Symbol("¿", question.map { it.mirrorX().mirrorY() }),
         Symbol("(", leftParen),
         Symbol(")", leftParen.map { it.mirrorX() }),
         Symbol("[", leftBracket),

@@ -35,6 +35,28 @@ object InkTap {
     /** True when a touch that moved at most [movedDp] from its down point is a tap, not a stroke. */
     fun isTap(movedDp: Float): Boolean = movedDp < SLOP_DP
 
+    /**
+     * Stage 43 (owner feedback on build 19: drawing right after typing a word was often typed): within
+     * this time after a typed letter, HeliBoard asked a swipe for up to six key widths before it starts
+     * (its fast-typing cooldown, 500 ms). With drawn symbols a first stroke then starts at
+     * [START_AFTER_TYPING_KEYS] instead; later at HeliBoard's usual 0.35 key widths.
+     */
+    const val AFTER_TYPING_MILLIS = 500L
+
+    /**
+     * Stage 43: right after typing, a first stroke starts a drawing only once it is this many key widths
+     * from where it went down (about 27 dp on a phone): a tap that slides onto the next key while typing
+     * fast (up to half a key) stays a tap; the line of ÷ or a small circle of % gets there. Only the
+     * distance counts: a flicked stroke is as quick as a sliding tap.
+     */
+    const val START_AFTER_TYPING_KEYS = 0.75f
+
+    /** True when a touch [sinceTypingMillis] after the last typed letter comes right after typing. */
+    fun isAfterTyping(sinceTypingMillis: Long): Boolean = sinceTypingMillis in 0 until AFTER_TYPING_MILLIS
+
+    /** Right after typing: whether a first stroke [movedPx] from its down point may start a drawing. */
+    fun startsAfterTyping(movedPx: Float, keyWidthPx: Float): Boolean = movedPx >= START_AFTER_TYPING_KEYS * keyWidthPx
+
     /** The area around a drawing grows by this share of its larger side, but at least by [KEY_MARGIN] key widths. */
     const val AREA_MARGIN = 0.6f
 

@@ -5,6 +5,7 @@ import android.content.res.Resources
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import dev.agentkeyboard.core.InkCloud
 import dev.agentkeyboard.core.InkDots
 import dev.agentkeyboard.core.InkGroup
 import dev.agentkeyboard.core.InkPace
@@ -27,8 +28,10 @@ import java.lang.ref.WeakReference
  *   (no space, no modifier) near the drawing (review H1, [InkTap.nearDrawing]) is ink right away
  *   (PointerTracker asks [continuesInk] and then reports [onInkDown]/[onInkMove]/[onInkUp]), so short
  *   strokes and dots (÷, ≠) count too. A touch farther away ends the drawing and is typed as usual.
- * - A touch in that pause that moves less than [InkTap.SLOP_DP] is a tap (stage 36: 6 dp, was 10). It
- *   is a dot only where the drawing needs one ([dotCheck], [InkDots]); any other tap writes the
+ * - A touch in that pause that moves less than [InkTap.SLOP_DP] is a tap (stage 36: 8 dp, was 10). Near
+ *   a dot of a symbol with dots it is a possible dot ([dotCheck], [InkDots], stage 43): it joins the
+ *   drawing as one point and waits; when the drawing is written, possible dots that do not make it a
+ *   symbol with dots are typed as letters after it, in order ([tapper]). Any other tap writes the
  *   waiting symbol and PointerTracker then types the tapped key (stage 31).
  * - After the pause the strokes go to [sink] (the keyboard: [SymbolDrawing]); any other key
  *   press first finishes a waiting symbol ([flush]). Stage 36: the waiting drawing is also shown to
@@ -44,8 +47,11 @@ object SymbolInk {
     interface Sink {
         /** A finished drawing, to be recognized and written. */
         fun onDrawing(strokes: List<InkStroke>)
-        /** Stage 36: the waiting drawing so far (shortly after a stroke); empty when it was dropped. */
-        fun onWaiting(strokes: List<InkStroke>) {}
+        /**
+         * Stage 36: the waiting drawing so far (shortly after a stroke); empty when it was dropped. Stage 43:
+         * [possibleDots] are the indices of possible dots in it ([DotCheck.keeps] decides about them).
+         */
+        fun onWaiting(strokes: List<InkStroke>, possibleDots: List<Int>) {}
         /** Follow-up review F1: a further stroke begins; a preview shown so far is out of date. */
         fun onStrokeStarted() {}
     }
@@ -63,19 +69,36 @@ object SymbolInk {
     private val due = Runnable { finish() }
     /** Stage 36 review M2: the preview follows only after [PREVIEW_DELAY_MILLIS] without a new stroke. */
     private val previewToken = Any()
-    private val preview = Runnable { if (!group.isEmpty && inkPointer < 0) sink?.onWaiting(group.drawn) }
+    private val preview = Runnable { if (!group.isEmpty && inkPointer < 0) sink?.onWaiting(group.drawn, possible.map { it.index }) }
 
     /** No preview while strokes follow each other quickly; it is matched off the main thread anyway. */
     const val PREVIEW_DELAY_MILLIS = 120L
 
-    /** Decides whether a quick tap is a dot of the waiting drawing (stage 31). */
-    fun interface DotCheck { fun isDot(strokes: List<InkStroke>, x: Float, y: Float): Boolean }
+    /**
+     * Decides whether a quick tap may be a dot of the waiting drawing (stage 31) and, stage 43, whether
+     * the possible dots [keeps] of the finished drawing stay dots (indices in it); the default keeps them.
+     */
+    fun interface DotCheck {
+        fun isDot(strokes: List<InkStroke>, x: Float, y: Float): Boolean
+        fun keeps(strokes: List<InkStroke>, possibleDots: List<Int>): Boolean = true
+    }
 
     private val builtInDots by lazy { InkDots(InkSymbols.templates) }
-    /** Dots of the built-in symbols only (÷). */
-    val builtInDotCheck = DotCheck { strokes, x, y -> builtInDots.isDot(strokes, x, y) }
+    /** Dots of the built-in symbols only (÷, %, ‰, !, ¡, ?, ¿). */
+    val builtInDotCheck = object : DotCheck {
+        override fun isDot(strokes: List<InkStroke>, x: Float, y: Float) = builtInDots.isDot(strokes, x, y)
+        override fun keeps(strokes: List<InkStroke>, possibleDots: List<Int>) = builtInDots.keeps(strokes, possibleDots)
+    }
     /** [builtInDotCheck] by default; [SymbolDrawing.attach] adds the own symbols. */
     @JvmStatic var dotCheck: DotCheck = builtInDotCheck
+
+    /** Stage 43: types a possible dot that was a letter after all, at its down point (PointerTracker). */
+    fun interface Tapper { fun type(pointerId: Int, x: Int, y: Int) }
+    @JvmStatic var tapper: Tapper? = null
+
+    /** Stage 43: a possible dot: its index in the group, where it touched down, and its gap for the pace. */
+    private class Possible(val index: Int, val pointerId: Int, val x: Int, val y: Int, val gap: Long)
+    private val possible = ArrayList<Possible>()
 
     /** The continuation stroke being drawn: its pointer and points, or -1. */
     private var inkPointer = -1
@@ -110,6 +133,20 @@ object SymbolInk {
         !isModifier && code > 0 && !Character.isWhitespace(code) && Character.isDefined(code)
 
     // --- first stroke: HeliBoard's gesture detection, via KeyboardActionListenerImpl ---
+
+    /**
+     * Stage 43, PointerTracker: the last letter typing time to give HeliBoard's gesture detection. With
+     * drawn symbols, its fast-typing cooldown (up to six key widths of swipe right after typing) is off
+     * ([startsAfterTyping] decides instead); without, nothing changes.
+     */
+    @JvmStatic fun gestureTypingTime(eventTime: Long, lastLetterTypingTime: Long): Long =
+        if (isEnabled()) eventTime - Int.MAX_VALUE else lastLetterTypingTime
+
+    /** Stage 43: a touch [sinceTypingMillis] after the last typed letter (InkTap.AFTER_TYPING_MILLIS). */
+    @JvmStatic fun isAfterTyping(sinceTypingMillis: Long): Boolean = InkTap.isAfterTyping(sinceTypingMillis)
+
+    /** Stage 43: right after typing, a first stroke [movedPx] from its down point starts ink (InkTap.START_AFTER_TYPING_KEYS). */
+    @JvmStatic fun startsAfterTyping(movedPx: Int, keyWidthPx: Int): Boolean = InkTap.startsAfterTyping(movedPx.toFloat(), keyWidthPx.toFloat())
 
     @JvmStatic fun onBatchStart() {
         handler.removeCallbacksAndMessages(token)
@@ -193,9 +230,9 @@ object SymbolInk {
     }
 
     /**
-     * The end of a continuation stroke. True when it was a tap that is no dot of the waiting
-     * drawing: the symbol is written right now, and PointerTracker then types the tapped key like
-     * any tap, so the letter follows the symbol (stage 31).
+     * The end of a continuation stroke. True when it was a tap that is no possible dot of the waiting
+     * drawing: the symbol is written right now (possible dots before it typed after it, stage 43), and
+     * PointerTracker then types the tapped key like any tap, so the letter follows (stage 31).
      */
     @JvmStatic fun onInkUp(pointerId: Int, x: Int, y: Int): Boolean {
         if (pointerId != inkPointer) return false
@@ -203,7 +240,15 @@ object SymbolInk {
         inkPointer = -1
         val stroke = InkStroke(points.copyOf(2 * pointCount))
         pointCount = 0
-        if (isTap(stroke) && !dotCheck.isDot(group.drawn, centreX(stroke), centreY(stroke))) {
+        if (isTap(stroke)) {
+            val cx = centreX(stroke); val cy = centreY(stroke)
+            // stage 43: a possible dot joins as one point and waits; it stays a dot or becomes its letter
+            // when the drawing is written (finish)
+            if (group.size < InkCloud.MAX_STROKES && dotCheck.isDot(group.drawn, cx, cy)) {
+                possible += Possible(group.size, pointerId, stroke.x(0).toInt(), stroke.y(0).toInt(), inkGap)
+                add(InkStroke(floatArrayOf(cx, cy)))
+                return false
+            }
             finish()
             return true
         }
@@ -236,15 +281,18 @@ object SymbolInk {
     }
 
     /**
-     * Stage 36: the preview chip in the strip was tapped. The waiting strokes, taken from the group
-     * (the caller writes them), or null while a stroke is still being drawn or nothing waits.
+     * Stage 36: the preview chip in the strip was tapped. The waiting strokes are taken from the group
+     * and go to [write] with the number of strokes drawn (possible dots that are letters already left
+     * out, stage 43; they are typed after [write]). False while a stroke is still being drawn or
+     * nothing waits.
      */
-    @JvmStatic fun takeWaiting(): List<InkStroke>? {
-        if (!isWaiting || inkPointer >= 0) return null
+    @JvmStatic fun takeWaiting(write: (strokes: List<InkStroke>, drawn: Int) -> Unit): Boolean {
+        if (!isWaiting || inkPointer >= 0) return false
         handler.removeCallbacksAndMessages(token)
         handler.removeCallbacksAndMessages(previewToken)
         lastStrokeEnd = -1
-        return group.take()
+        resolve(write)
+        return true
     }
 
     /** Drops everything (editor change, cancelled touch); nothing is recognized. */
@@ -253,10 +301,11 @@ object SymbolInk {
         handler.removeCallbacksAndMessages(previewToken)
         val hadStrokes = !group.isEmpty
         group.clear()
+        possible.clear()
         inkPointer = -1
         pointCount = 0
         lastStrokeEnd = -1
-        if (hadStrokes) sink?.onWaiting(emptyList())
+        if (hadStrokes) sink?.onWaiting(emptyList(), emptyList())
     }
 
     /** Tests: the pace starts afresh (it lives as long as the process otherwise). */
@@ -293,7 +342,25 @@ object SymbolInk {
         handler.removeCallbacksAndMessages(previewToken)
         lastStrokeEnd = -1
         if (group.isEmpty) return
+        resolve { strokes, _ -> sink?.onDrawing(strokes) }
+    }
+
+    /**
+     * Stage 43: takes the drawing and decides about its possible dots ([DotCheck.keeps]). Kept: the whole
+     * drawing goes to [write], and their gaps count for the pace. Else the drawing without them goes to
+     * [write], and then each is typed as the letter where it touched down, in the order they came.
+     */
+    private fun resolve(write: (strokes: List<InkStroke>, drawn: Int) -> Unit) {
         val strokes = group.take()
-        sink?.onDrawing(strokes)
+        val taps = possible.toList()
+        possible.clear()
+        if (taps.isEmpty()) return write(strokes, strokes.size)
+        if (dotCheck.keeps(strokes, taps.map { it.index })) {
+            for (tap in taps) if (tap.gap >= 0) pace.onGap(tap.gap)
+            return write(strokes, strokes.size)
+        }
+        val letters = taps.map { it.index }.toSet()
+        write(strokes.filterIndexed { i, _ -> i !in letters }, strokes.size)
+        for (tap in taps) tapper?.type(tap.pointerId, tap.x, tap.y)
     }
 }

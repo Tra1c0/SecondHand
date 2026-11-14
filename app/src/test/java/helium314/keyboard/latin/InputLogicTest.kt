@@ -3608,6 +3608,60 @@ class InputLogicTest {
         checkConnectionConsistency()
     }
 
+    // stage 43: possible dots; PointerTracker types a possible dot that is a letter (SymbolInkTest), here "x"
+
+    private fun <T> withTapper(block: () -> T): T {
+        val old = symbolInk.tapper
+        symbolInk.tapper = helium314.keyboard.agent.SymbolInk.Tapper { _, _, _ ->
+            val listener = latinIME.mKeyboardActionListener
+            listener.onPressKey('x'.code, 0, 1, helium314.keyboard.event.HapticEvent.NO_HAPTICS)
+            listener.onCodeInput('x'.code, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+            listener.onReleaseKey('x'.code, false)
+        }
+        try { return block() } finally { symbolInk.tapper = old }
+    }
+
+    @Test fun symbolDrawPossibleDotThatIsALetterIsTypedAfterTheSymbol() = withTapper {
+        enableSymbolDrawing()
+        setText("a ")
+        drawStrokes(floatArrayOf(0f, 100f, 300f, 100f))
+        symbolInk.onInkDown(0, 150, 40) // above the middle, where ÷ has a dot: it waits
+        assertFalse(symbolInk.onInkUp(0, 150, 40))
+        assertEquals("a ", text)
+        afterPreview()
+        // the preview shows what is written: the dash, the tap would be its letter
+        assertEquals(symbolDrawing.PREVIEW_MARK + "–", chipLabels(symbolChips()!!).first())
+        afterThePause()
+        assertEquals("a –x", text)
+        checkConnectionConsistency()
+    }
+
+    @Test fun symbolDrawTwoTappedDotsMakeADivisionSign() = withTapper {
+        enableSymbolDrawing()
+        setText("a ")
+        drawStrokes(floatArrayOf(0f, 100f, 300f, 100f))
+        symbolInk.onInkDown(0, 150, 40); assertFalse(symbolInk.onInkUp(0, 150, 40))
+        symbolInk.onInkDown(0, 152, 160); assertFalse(symbolInk.onInkUp(0, 152, 160))
+        afterPreview()
+        assertEquals(symbolDrawing.PREVIEW_MARK + "÷", chipLabels(symbolChips()!!).first())
+        afterThePause()
+        assertEquals("a ÷", text)
+    }
+
+    @Test fun symbolDrawPreviewChipWithAPossibleDotWritesTheSymbolThenTheLetter() = withTapper {
+        enableSymbolDrawing()
+        setText("a ")
+        drawStrokes(floatArrayOf(0f, 100f, 300f, 100f))
+        symbolInk.onInkDown(0, 20, 40); assertFalse(symbolInk.onInkUp(0, 20, 40))
+        afterPreview()
+        tapStripChip(symbolChips()!!, symbolDrawing.PREVIEW_MARK + "–")
+        handleMessages()
+        assertEquals("a –x", text)
+        assertFalse(symbolInk.isWaiting)
+        afterThePause()
+        assertEquals("a –x", text) // written once
+    }
+
     @Test fun symbolDrawPreviewChipDoesNothingWhileAStrokeIsDrawnAndGoesWithTheDrawing() {
         enableSymbolDrawing()
         drawStrokes(*arrowStrokes)

@@ -95,12 +95,16 @@ object SymbolDrawing {
      */
     @JvmStatic fun attach(ime: LatinIME): SymbolInk.Sink {
         val ref = WeakReference(ime)
-        SymbolInk.dotCheck = SymbolInk.DotCheck { strokes, x, y ->
-            ref.get()?.let { recognizer(it); dots?.isDot(strokes, x, y) } ?: SymbolInk.builtInDotCheck.isDot(strokes, x, y)
+        SymbolInk.dotCheck = object : SymbolInk.DotCheck {
+            override fun isDot(strokes: List<InkStroke>, x: Float, y: Float) =
+                ref.get()?.let { recognizer(it); dots?.isDot(strokes, x, y) } ?: SymbolInk.builtInDotCheck.isDot(strokes, x, y)
+            // stage 43: the same templates decide whether possible dots stay dots
+            override fun keeps(strokes: List<InkStroke>, possibleDots: List<Int>) =
+                ref.get()?.let { recognizer(it); dots?.keeps(strokes, possibleDots) } ?: SymbolInk.builtInDotCheck.keeps(strokes, possibleDots)
         }
         return object : SymbolInk.Sink {
             override fun onDrawing(strokes: List<InkStroke>) { ref.get()?.let { onDrawing(it, strokes) } }
-            override fun onWaiting(strokes: List<InkStroke>) { ref.get()?.let { onWaiting(it, strokes) } }
+            override fun onWaiting(strokes: List<InkStroke>, possibleDots: List<Int>) { ref.get()?.let { onWaiting(it, strokes, possibleDots) } }
             override fun onStrokeStarted() { this@SymbolDrawing.onStrokeStarted() }
         }.also { SymbolInk.sink = it }
     }
@@ -148,8 +152,11 @@ object SymbolDrawing {
         ime.setNeutralSuggestionStrip()
     }
 
-    /** Stage 36: the waiting drawing changed (a stroke more), or was dropped (empty). */
-    internal fun onWaiting(ime: LatinIME, strokes: List<InkStroke>) {
+    /**
+     * Stage 36: the waiting drawing changed (a stroke more), or was dropped (empty). Stage 43: the guess
+     * is for the drawing as it would be written now: without [possibleDots] that would be letters.
+     */
+    internal fun onWaiting(ime: LatinIME, strokes: List<InkStroke>, possibleDots: List<Int> = emptyList()) {
         if (strokes.isEmpty()) {
             previewGeneration++ // a preview still being matched is out of date
             if (shown !is Waiting) return
@@ -163,11 +170,15 @@ object SymbolDrawing {
             return
         }
         val matcher = recognizer(ime) // read on the main thread (preferences), matched on the worker
+        val dotRule = dots
         val generation = ++previewGeneration
         val drawing = strokes.toList()
+        val taps = possibleDots.toSet()
         val ref = WeakReference(ime)
         previewExecutor.execute {
-            val result = matcher.recognize(drawing)
+            val written = if (taps.isEmpty() || dotRule?.keeps(drawing, taps) != false) drawing
+                else drawing.filterIndexed { i, _ -> i !in taps }
+            val result = matcher.recognize(written)
             // postAtTime, not post: tests replace posted messages of all handlers (P51)
             mainHandler.postAtTime({
                 val keyboard = ref.get() ?: return@postAtTime
@@ -238,11 +249,10 @@ object SymbolDrawing {
         val state = shown as? Waiting ?: return
         // review N3: while input is blocked the drawing stays where it is instead of being dropped
         if (ime.agentEditorController.isBlockingInput) return
-        // a stroke still on the keys, or nothing waits any more: the chip is out of date
-        val strokes = SymbolInk.takeWaiting() ?: return
+        // a stroke still on the keys, or nothing waits any more: the chip is out of date (no write)
         // follow-up review F1: a chip for fewer strokes writes the best match of all of them, never its
-        // old guess (and so learns nothing)
-        write(ime, strokes, if (state.stale || state.strokes != strokes.size) null else chosen)
+        // old guess (and so learns nothing); stage 43: possible dots that are letters follow it
+        SymbolInk.takeWaiting { strokes, drawn -> write(ime, strokes, if (state.stale || state.strokes != drawn) null else chosen) }
     }
 
     private fun replace(ime: LatinIME, state: Inserted, alternative: String) {
