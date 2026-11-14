@@ -78,7 +78,7 @@
       "app/src/main/java/helium314/keyboard/settings/preferences/{BackupRestorePreference,LoadGestureLibPreference}.kt",
       "app/src/main/java/helium314/keyboard/settings/preferences/{SliderPreference,KeyboardScalePreference,CustomFontPreference}.kt",
       "app/src/test/java/helium314/keyboard/Shadows.kt",
-      "app/src/test/java/helium314/keyboard/latin/{InputLogicTest,SuggestTest}.kt",
+      "app/src/test/java/helium314/keyboard/latin/{InputLogicTest,SuggestTest,WordListDictionaries}.kt",
 
       "tools/dev.py",
       "tools/emoji_mix_table.py",

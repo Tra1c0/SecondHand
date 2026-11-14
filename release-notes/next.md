@@ -315,3 +315,16 @@
   Nach einem geleerten Feld zeigt die Leiste kein altes getipptes Wort mehr. „Z. B.“, „D. h.“,
   „U. a.“ und „I. d. R.“ am Satzanfang schreiben das nächste Wort wieder klein. Noch auf keinem
   Gerät ausprobiert.
+- Behoben (deine Rückmeldung zu Build 21): Die Autokorrektur stellt mit der Sprache um. Nach
+  `@sp` korrigiert sie spanisch, nach `@deutsch` wieder deutsch. Bei Sprachen mit zweiter Sprache
+  („Mehrsprachiges Tippen“, z. B. Spanisch mit Deutsch) blieb bisher oft die andere Sprache die
+  bevorzugte, beim Wechsel zwischen Deutsch-mit-Spanisch und Spanisch-mit-Deutsch sogar ganz.
+  Gelernte Tippfehler gelten jetzt nur in der Sprache, in der du sie gelernt hast; ältere nur, wo
+  das Wörterbuch der Sprache das gemeinte Wort kennt. Noch auf keinem Gerät ausprobiert.
+- Neu: Wörter aus deinen anderen Sprachen (mit „Personalisierte Vorschläge“). Schreibst du z. B.
+  „hola“ in einer deutschen Nachricht und nimmst die Korrektur einmal mit der Löschtaste zurück,
+  bleibt „hola“ auf Deutsch ab dann stehen und wird beim Tippen von „ho…“ vorgeschlagen, nie
+  automatisch eingesetzt. Ohne Korrektur reicht das zweite Mal an anderer Stelle. Gilt nur für
+  die Sprache, in der du das Wort behalten hast. Liste mit „Löschen“ unter „Was ich mir gemerkt
+  habe“ → „Wörter aus anderen Sprachen“. Alles lokal; nichts in Passwortfeldern, im
+  Inkognito-Modus, bei Lernpause oder gesperrtem Gerät. Noch auf keinem Gerät ausprobiert.

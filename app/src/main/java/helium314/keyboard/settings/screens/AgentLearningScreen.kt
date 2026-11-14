@@ -131,6 +131,8 @@ fun AgentLearningScreen(onClickBack: () -> Unit, sourceFactory: (() -> LearningS
                     helium314.keyboard.agent.ContextLearning.clear(context)
                     // stage 46 review H1: the memory (phrases, own words, abbreviations) is learned from typing too
                     helium314.keyboard.agent.Memory.clear(context)
+                    // stage 51: and the words of other languages kept while typing
+                    helium314.keyboard.agent.ForeignWords.clear(context)
                 }
                 counts = emptyMap()
                 symbolDrawings = 0

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="agent_memory_title">Was ich mir gemerkt habe</string>
-    <string name="agent_memory_sub">Korrekturen, Wortfolgen, eigene Wörter, Abkürzungen</string>
+    <string name="agent_memory_sub">Korrekturen, Wortfolgen, eigene Wörter, Abkürzungen, andere Sprachen</string>
     <string name="agent_memory_description">Was die Tastatur aus deinem Tippen behält, nur auf diesem Gerät. Die Listen gibt es nur hier.</string>
     <string name="agent_memory_corrections">Korrekturen</string>
     <string name="agent_memory_corrections_description">Tippfehler, die du später im Feld verbessert hast, auch nach weiteren Wörtern oder wenn du in das Wort zurückgehst. Nur wenn aus einem Nicht-Wort durch einen Vertipper ein echtes Wort wurde (Nachbartaste, Buchstabe fehlt, doppelt oder vertauscht, Umlaut). Wird ein echtes Wort zu einem anderen, lernt die Tastatur nichts. Braucht „Meine Tippfehler lernen“.</string>
@@ -49,4 +49,9 @@
     <string name="agent_memory_offer_created">Kürzel gemerkt</string>
     <string name="agent_memory_chip_expand">%1$s → %2$s</string>
     <string name="agent_memory_chip_expand_description">%1$s durch %2$s ersetzen</string>
+    <!-- Etappe 51 -->
+    <string name="agent_memory_foreign">Wörter aus anderen Sprachen</string>
+    <string name="agent_memory_foreign_description">Wörter einer deiner anderen Sprachen, die du beim Schreiben in dieser behalten hast: nachdem du ihre Korrektur einmal rückgängig gemacht hast oder sie an zwei anderen Stellen geschrieben hast. In dieser Sprache werden sie nicht mehr wegkorrigiert und beim Tippen ihres Anfangs vorgeschlagen. Braucht „Personalisierte Vorschläge“.</string>
+    <string name="agent_memory_foreign_none">Noch keine Wörter</string>
+    <string name="agent_memory_foreign_entry">%1$s (%2$s), in %3$s</string>
 </resources>

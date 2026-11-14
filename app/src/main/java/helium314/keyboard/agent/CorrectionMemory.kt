@@ -102,7 +102,7 @@ object RejectedCorrections {
             && !settings.mIncognitoModeEnabled && !settings.mIsLocked
 
     /**
-     * Called when an automatic correction was undone (also tells [Memory]); [at] is the field position
+     * Called when an automatic correction was undone (also tells [Memory] and [ForeignWords]); [at] is the field position
      * where the restored [typed] word starts, or -1 when unknown. Pairs that differ only in case are not stored.
      */
     @JvmStatic @JvmOverloads
@@ -110,6 +110,8 @@ object RejectedCorrections {
         // stage 46: an undone correction is one use of the typed word as an own word (the memory has its
         // own switch), counted only at the place given (second review)
         if (!typed.equals(correction, ignoreCase = true)) Memory.onCorrectionUndone(context, typed, settings, at)
+        // stage 51: a word of another language kept against the correction is remembered (its own rules)
+        ForeignWords.onCorrectionUndone(context, typed, correction, settings, at)
         if (!mayRemember(settings)) return
         if (typed.isBlank() || correction.isBlank() || typed.equals(correction, ignoreCase = true)) return
         val key = key(typed, correction)

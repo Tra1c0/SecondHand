@@ -123,4 +123,31 @@ class TypoMemoryTest {
         assertEquals("nicht", TypoMemory.meantWord(app, "nciht", "das", false))
         assertEquals(Triple("nciht", "nicht", 3), TypoMemory.all(app).first()) // most recent first
     }
+
+    // stage 51: a pair belongs to the keyboard language it was learned in
+    @Test fun aPairAppliesOnlyInItsLanguage() {
+        val german = settings(on)
+        repeat(3) { confirm("dnake", "danke", s = german) }
+        assertEquals("danke", TypoMemory.meantWord(app, "dnake", null, false, "de"))
+        assertNull(TypoMemory.meantWord(app, "dnake", null, false, "es"))
+        Settings.getInstance().loadSettings(app, Locale.forLanguageTag("es"), InputAttributes(EditorInfo(), false, app.packageName))
+        repeat(3) { confirm("dnake", "dante", s = Settings.getValues()) } // the same letters mean another word in Spanish
+        assertEquals("dante", TypoMemory.meantWord(app, "dnake", null, false, "es"))
+        assertEquals("danke", TypoMemory.meantWord(app, "dnake", null, false, "de"))
+        TypoMemory.resetForTest()
+        assertEquals("danke", TypoMemory.meantWord(app, "dnake", null, false, "de"), "the language survives a restart")
+        // an undo drops the pair in every language
+        TypoMemory.forget(app, "dnake", "danke")
+        assertNull(TypoMemory.meantWord(app, "dnake", null, false, "de"))
+        assertEquals("dante", TypoMemory.meantWord(app, "dnake", null, false, "es"))
+    }
+
+    @Test fun aPairFromBeforeStage51AppliesWhereTheLanguageKnowsItsWord() {
+        AgentStorageContexts.keyboard(app).getSharedPreferences(TypoMemory.FILE, android.content.Context.MODE_PRIVATE).edit()
+            .putString("pairs", """[{"typed":"nciht","meant":[{"word":"nicht","form":"nicht","total":3,"contexts":{}}]}]""").commit()
+        TypoMemory.resetForTest()
+        assertEquals("nicht", TypoMemory.meantWord(app, "nciht", null, false, "de") { it == "nicht" })
+        assertNull(TypoMemory.meantWord(app, "nciht", null, false, "es") { false })
+        assertEquals(listOf(Triple("nciht", "nicht", 3)), TypoMemory.all(app))
+    }
 }

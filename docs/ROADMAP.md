@@ -195,14 +195,19 @@ Reihenfolge von oben nach unten.
   `LatinIME.onStartInputViewInternal`), Gerätetest (Schwellen mit echten Fingern, Tageszeiten,
   Beförderung über mehrere Tage).
 - **51 Autokorrektur folgt der Sprache, andere Sprachen im Kontext (Rückmeldung des Owners zu
-  Build 21, 2026-11-14)** — beschlossen, nächste Runde, noch nicht anfangen. Owner: „Sprache pro App“
-  ist aus, umgeschaltet wird mit Befehlen (`@deutsch`, `@sp` …). (a) Nach dem Umschalten per Befehl
-  muss die Autokorrektur die neue Sprache benutzen (Ursache eingrenzen: Wörterbuch/Suggest-Locale
-  nach dem Befehl, gelernte Daten aus 46/48/49 je Sprache). (b) Owner: „dass anderssprachige Wörter,
-  wenn vorher bereits geschrieben, erkannt werden und die Tastatur sich dies merkt“ — also ein Wort
-  einer anderen aktiven Sprache, das der Owner schon einmal geschrieben hat, wird nicht mehr
-  wegkorrigiert und kommt als Vorschlag (Bezug: eigene Wörter aus 46, Regel „fur“ aus 49,
-  HeliBoards „Mehrsprachiges Tippen“). Engine-Änderung, Prüfer Pflicht.
+  Build 21, 2026-11-14)** ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 51).
+  Ursachen: zwei Upstream-Fehler bei Sprachen mit zweiter Sprache (die Hauptsprache stand nicht
+  vorne; ein Wechsel zwischen denselben zwei Sprachen baute nichts neu auf) und sprachblinde
+  Lerndaten aus 20b/49. Annahmen des Leads, die der Owner ändern kann: Wörter aus anderen Sprachen
+  hängen an „Personalisierte Vorschläge“ (nicht am Gedächtnis-Schalter, weil sie wie HeliBoards
+  Lernen nur getippte Wörter merken); gemerkt sofort nach einer rückgängig gemachten Korrektur,
+  sonst erst beim zweiten Mal an anderer Stelle (ein einzelnes unkorrigiertes Wort kann ein
+  Vertipper sein, der zufällig in einer anderen Sprache existiert, z. B. „fur“, „ser“ statt „der“);
+  „andere Sprache“ = jede aktive Sprache und ihre zweiten Sprachen; die Regel „fur“ (49) gilt, bis
+  du „fur“ einmal behältst; Rückgängig gemachte Korrekturen, eigene Wörter, Wortfolgen und Kürzel
+  bleiben sprachübergreifend. Offen: Prüfer-Review (Engine: `DictionaryFacilitatorImpl`, `Suggest`,
+  Pflicht), Gerätetest (echte Wörterbücher, Speicher der zusätzlich geöffneten Wörterbücher,
+  Sprachtaste und Wischen auf der Leertaste).
 - **52 Einheitliches Befehlssystem (mit dem Owner festgelegt, 2026-11-14)** — beschlossen, nächste
   Runde, noch nicht anfangen. Ausgangspunkt waren die Beispiele des Owners (`@lang set &duolingo
   spanish`, `@lang list &&apps lang`, `@lang del &whatsapp lang ; set &whatsapp ger`); der Owner wollte

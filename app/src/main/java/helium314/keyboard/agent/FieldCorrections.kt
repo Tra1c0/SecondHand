@@ -242,6 +242,8 @@ class FieldCorrectionWatcher @JvmOverloads constructor(private val privateText: 
  * position in the field). Learned pairs feed the automatic correction through [TypoMemory.meantWord],
  * only for typed forms that are no dictionary word. Opt-in like [TypoMemory], only on this device,
  * at most [MAX_CANDIDATES] candidates and [MAX_LEARNED] learned pairs, oldest dropped first, never logged.
+ * Stage 51: like [TypoMemory] per keyboard language; pairs from before stage 51 have none and apply
+ * only where a dictionary of the current language knows the meant word.
  */
 object FieldCorrectionMemory {
     const val FILE = "agent_field_corrections"
@@ -250,8 +252,8 @@ object FieldCorrectionMemory {
     const val MAX_LEARNED = 500
     private const val MAX_WORD = 48
 
-    /** [typed] as it stood in the field (lower case), [meant] in the spelling to use. */
-    data class Entry(val typed: String, val meant: String, val learned: Boolean, val seen: Long)
+    /** [typed] as it stood in the field (lower case), [meant] in the spelling to use, [language] where it applies ("" before stage 51). */
+    data class Entry(val typed: String, val meant: String, val learned: Boolean, val seen: Long, val language: String = "")
 
     private class Candidate(val meant: String, val session: Long, val position: Int, val seen: Long)
     private class Learned(val meant: String, val seen: Long)
@@ -261,7 +263,11 @@ object FieldCorrectionMemory {
     private val lock = Any()
     @JvmField var clock: () -> Long = System::currentTimeMillis
 
-    private fun key(word: String) = word.lowercase(Locale.ROOT)
+    private const val SEPARATOR = '\u0000'
+    /** Stage 51: [word] in [language] ("" for pairs from before stage 51). */
+    private fun key(language: String, word: String) = language + SEPARATOR + word.lowercase(Locale.ROOT)
+    private fun typedOf(key: String) = key.substringAfter(SEPARATOR)
+    private fun languageOfKey(key: String) = key.substringBefore(SEPARATOR)
 
     private fun prefs(context: Context) =
         AgentStorageContexts.keyboard(context).getSharedPreferences(FILE, Context.MODE_PRIVATE)
@@ -276,11 +282,11 @@ object FieldCorrectionMemory {
                 val root = JSONObject(prefs(context).getString(KEY, "{}")!!)
                 root.optJSONArray("candidates")?.let { a ->
                     for (i in 0 until a.length()) a.getJSONObject(i).let {
-                        c[it.getString("typed")] = Candidate(it.getString("meant"), it.getLong("session"), it.getInt("position"), it.getLong("seen"))
+                        c[key(it.optString("lang", ""), it.getString("typed"))] = Candidate(it.getString("meant"), it.getLong("session"), it.getInt("position"), it.getLong("seen"))
                     }
                 }
                 root.optJSONArray("learned")?.let { a ->
-                    for (i in 0 until a.length()) a.getJSONObject(i).let { l[it.getString("typed")] = Learned(it.getString("meant"), it.getLong("seen")) }
+                    for (i in 0 until a.length()) a.getJSONObject(i).let { l[key(it.optString("lang", ""), it.getString("typed"))] = Learned(it.getString("meant"), it.getLong("seen")) }
                 }
             }
             learned = l
@@ -291,23 +297,25 @@ object FieldCorrectionMemory {
 
     private fun save(context: Context) {
         val c = JSONArray()
-        candidates.orEmpty().forEach { (typed, v) ->
-            c.put(JSONObject().put("typed", typed).put("meant", v.meant).put("session", v.session).put("position", v.position).put("seen", v.seen))
+        candidates.orEmpty().forEach { (k, v) ->
+            c.put(JSONObject().put("typed", typedOf(k)).put("lang", languageOfKey(k)).put("meant", v.meant).put("session", v.session)
+                .put("position", v.position).put("seen", v.seen))
         }
         val l = JSONArray()
-        learned.forEach { (typed, v) -> l.put(JSONObject().put("typed", typed).put("meant", v.meant).put("seen", v.seen)) }
+        learned.forEach { (k, v) -> l.put(JSONObject().put("typed", typedOf(k)).put("lang", languageOfKey(k)).put("meant", v.meant).put("seen", v.seen)) }
         prefs(context).edit().putString(KEY, JSONObject().put("candidates", c).put("learned", l).toString()).apply()
     }
 
     /**
      * A typo correction [typed] -> [meant] was seen in field [session] at [position]. Returns true when
-     * the pair is (now) learned. The same place again keeps it a candidate.
+     * the pair is (now) learned. The same place again keeps it a candidate. Kept for the keyboard
+     * language of [settings] (stage 51).
      */
     @JvmStatic
     fun observed(context: Context, typed: String, meant: String, session: Long, position: Int, settings: SettingsValues): Boolean {
         if (!TypoMemory.mayLearn(settings)) return false
         if (typed.length < 2 || typed.length > MAX_WORD || meant.isEmpty() || meant.length > MAX_WORD) return false
-        val k = key(typed)
+        val k = key(TypoMemory.languageOf(settings), typed)
         synchronized(lock) {
             val c = loaded(context)
             val now = clock()
@@ -339,22 +347,29 @@ object FieldCorrectionMemory {
         learned = l
     }
 
-    /** The learned meaning of [typed], or null. Read from the suggestion thread. */
-    @JvmStatic
-    fun learnedFor(context: Context, typed: String): String? {
+    /**
+     * The learned meaning of [typed] in [language], or null. Read from the suggestion thread. A pair from
+     * before stage 51 counts only if [knownInLanguage] knows its meaning; without a [language] (unit
+     * tests of the rules) a pair of any language counts.
+     */
+    @JvmStatic @JvmOverloads
+    fun learnedFor(context: Context, typed: String, language: String? = null, knownInLanguage: (String) -> Boolean = { false }): String? {
         loaded(context)
-        return learned[key(typed)]?.meant
+        val pairs = learned
+        if (language == null) return pairs.entries.firstOrNull { typedOf(it.key) == typed.lowercase(Locale.ROOT) }?.value?.meant
+        return pairs[key(language, typed)]?.meant ?: pairs[key("", typed)]?.meant?.takeIf(knownInLanguage)
     }
 
-    /** An automatic correction from a learned pair was undone, or the user deleted it: dropped. */
+    /** An automatic correction from a learned pair was undone: dropped in every language (stage 51). */
     @JvmStatic
     fun forget(context: Context, typed: String, meant: String) {
         synchronized(lock) {
             val c = loaded(context)
-            val k = key(typed)
+            val t = typed.lowercase(Locale.ROOT)
             var changed = false
-            if (learned[k]?.meant?.equals(meant, ignoreCase = true) == true) { learned = LinkedHashMap(learned).apply { remove(k) }; changed = true }
-            if (c[k]?.meant?.equals(meant, ignoreCase = true) == true) { c.remove(k); changed = true }
+            val l = LinkedHashMap(learned)
+            if (l.entries.removeIf { typedOf(it.key) == t && it.value.meant.equals(meant, ignoreCase = true) }) { learned = l; changed = true }
+            if (c.entries.removeIf { typedOf(it.key) == t && it.value.meant.equals(meant, ignoreCase = true) }) changed = true
             if (changed) save(context)
         }
     }
@@ -362,7 +377,8 @@ object FieldCorrectionMemory {
     /** For the page "Was ich mir gemerkt habe": candidates and learned pairs, most recent first. */
     fun all(context: Context): List<Entry> = synchronized(lock) {
         val c = loaded(context)
-        (c.map { Entry(it.key, it.value.meant, false, it.value.seen) } + learned.map { Entry(it.key, it.value.meant, true, it.value.seen) })
+        (c.map { Entry(typedOf(it.key), it.value.meant, false, it.value.seen, languageOfKey(it.key)) } +
+            learned.map { Entry(typedOf(it.key), it.value.meant, true, it.value.seen, languageOfKey(it.key)) })
             .sortedByDescending { it.seen }
     }
 
@@ -370,13 +386,23 @@ object FieldCorrectionMemory {
     fun adopt(context: Context, entry: Entry) {
         synchronized(lock) {
             val c = loaded(context)
-            val candidate = c.remove(entry.typed) ?: return
-            learn(entry.typed, candidate.meant, clock())
+            val k = key(entry.language, entry.typed)
+            val candidate = c.remove(k) ?: return
+            learn(k, candidate.meant, clock())
             save(context)
         }
     }
 
-    fun delete(context: Context, entry: Entry) = forget(context, entry.typed, entry.meant)
+    /** The user deletes [entry] on the page: only this entry, in its language. */
+    fun delete(context: Context, entry: Entry) {
+        synchronized(lock) {
+            val c = loaded(context)
+            val k = key(entry.language, entry.typed)
+            var changed = c.remove(k) != null
+            if (learned.containsKey(k)) { learned = LinkedHashMap(learned).apply { remove(k) }; changed = true }
+            if (changed) save(context)
+        }
+    }
 
     fun clear(context: Context) {
         synchronized(lock) {
