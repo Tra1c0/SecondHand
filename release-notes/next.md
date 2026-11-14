@@ -231,3 +231,13 @@
   Großschreibung („essen“ bleibt, „Essen“ steht als Vorschlag da). Nach „ca.“, „bzw.“, „vgl.“,
   „z. B.“ und ähnlichen Abkürzungen schreibt die Tastatur nicht mehr groß weiter. Noch auf keinem
   Gerät ausprobiert.
+- Neu: Die Tastatur lernt auch Tippfehler, die du später verbesserst (mit „Meine Tippfehler
+  lernen“): nach weiteren Wörtern, nach Zurücklöschen, über einen Vorschlag oder nach Tippen ins
+  Wort, solange du im Feld bleibst. Nur echte Vertipper eines Nicht-Worts zu einem echten Wort
+  zählen (Nachbartaste, fehlender, doppelter oder vertauschter Buchstabe, Umlaut); „das“ → „dass“,
+  Markieren und Überschreiben oder Einfügen nie. Beim ersten Mal nur gemerkt, beim zweiten Mal an
+  anderer Stelle gelernt, danach korrigiert die Autokorrektur das Wort. Machst du eine
+  Autokorrektur später rückgängig, wird sie mit „Rückgängig gemachte Korrekturen merken“ sofort
+  nicht mehr angewendet. Alles sehen, übernehmen und löschen: Einstellungen → Tippen & Korrektur →
+  „Was ich mir gemerkt habe“. Keine Rückfragen beim Tippen; nie in Passwortfeldern, Inkognito,
+  bei Lernpause oder gesperrtem Gerät. Noch auf keinem Gerät ausprobiert.

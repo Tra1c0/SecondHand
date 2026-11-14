@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 49, page "What I remembered" (shared with stage 46). English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="agent_memory_title">What I remembered</string>
+    <string name="agent_memory_sub">Corrections you made later in a field</string>
+    <string name="agent_memory_description">What the keyboard keeps from your typing, only on this device. Nothing here is shown while you type.</string>
+    <string name="agent_memory_corrections">Corrections</string>
+    <string name="agent_memory_corrections_description">Typos you fixed later in a field, also after more words or after going back into the word. Only when a non-word became a real word by a slip of a finger (a neighbouring key, a missing, doubled or swapped letter, an umlaut). Changing a real word into another one is never learned. Needs \"Learn my typos\".</string>
+    <string name="agent_memory_learned">Learned: corrected automatically</string>
+    <string name="agent_memory_candidates">Candidates</string>
+    <string name="agent_memory_candidates_description">Seen once. Learned when you fix the same typo again in another place, or when you adopt it here.</string>
+    <string name="agent_memory_none">None yet</string>
+    <string name="agent_memory_pair">%1$s → %2$s</string>
+    <string name="agent_memory_adopt">Adopt</string>
+    <string name="agent_memory_delete">Delete</string>
+</resources>

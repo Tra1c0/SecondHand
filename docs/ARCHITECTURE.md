@@ -306,6 +306,15 @@ Autokorrektur (Etappe 20a, Details im Abschnitt „Lerndaten“):
   (`typedWordFirstOccurrenceWordInfo`), außer die Korrektur ist `KIND_WHITELIST` („i“ → „I“).
   `correctToCapitalizedWord` (Umschalttaste nach dem Wort mit „Vorgeschlagene Großschreibung
   automatisch korrigieren“) läuft daran vorbei und bleibt.
+- Korrekturen im ganzen Feld (Etappe 49, P169–P171): `InputLogic.java` hält `mFieldCorrections`
+  (`K/agent/FieldCorrections.kt`, `FieldCorrectionWatcher`). `startInput` → `start` (Feld vergessen);
+  `commitChosenWord` nach `commitWord` und `onUpdateSelection` nach dem Zurücksetzen der Caches
+  (vor `mRecapitalizeStatus.enable`) → `checkpoint` (Feld mit dem letzten Stand vergleichen, bei
+  `commitChosenWord` mit erlaubtem gelöschtem Rest); `commitCurrentAutoCorrection` → `autoCorrected`
+  (nur Tipp-Eingabe, wie 48); `untrusted` (Vergleichsstand verwerfen) am Anfang von `onCodeInput`
+  bei Markierung, am Ende von `onTextInput`, in `paste` und in `applyGenerated` nach erfolgreichem
+  Commit. Sonst unverändert; `RichInputConnection` nicht geändert, gelesen nur über
+  `getTextBeforeCursor`/`getTextAfterCursor`/`hasSelection`/`getExpectedSelectionStart`.
 - `CapsModeUtils.java` (48): im Zustand WORD (Wort direkt vor dem Punkt, ohne inneren Punkt) und
   am Textanfang fragt `getCapsMode` `K/agent/Abbreviations.isAbbreviation`; eine bekannte Abkürzung
   (Deutsch bei `mUsesGermanRules`, Englisch bei `mUsesAmericanTypography`) oder ein einzelner
@@ -1925,6 +1934,22 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Korrekturen, kein Lernspeicher), `K/agent/Abbreviations.kt` (feste Listen, keine Lerndaten);
   Einbindung im Abschnitt „Geänderte Upstream-Dateien“ → Autokorrektur. Tests:
   `TypedWordFirstTest`, Fälle „stage 48“ in `SuggestTest` und `InputLogicTest`.
+- Korrekturen im ganzen Feld (49): Regeln rein in `C/CorrectionRules.kt` (`diff`: genau ein Wort
+  geändert, Rest gleich oder bei einem gerade abgeschickten Wort am Feldende gelöscht; `classify`:
+  TYPO nur bei Nicht-Wort → echtem Wort mit 1–2 Vertipp-Schritten, bis 4 Buchstaben 1;
+  `KeyAdjacency` aus den Tasten der aktuellen Tastatur, ohne Tastatur QWERTZ/QWERTY nach Sprache).
+  `K/agent/FieldCorrections.kt`: `FieldCorrectionWatcher` (je `InputLogic`, Feldtext nur im
+  Speicher, je 2000 Zeichen um die Schreibmarke, „echt“ = `isValidSpellingWord` auch klein,
+  also Wörterbuch, persönliches Wörterbuch, Kontakte, Lernverlauf) und `FieldCorrectionMemory`
+  (Datei `agent_field_corrections`, Kandidat → gelernt beim zweiten Vorkommen mit anderer
+  Feldnummer oder Stelle). Wirkung über `TypoMemory.meantWord` (gelerntes Paar nur, wenn das
+  Getippte kein Hauptwörterbuch-Wort ist; danach wie 20b über `Suggest.applyLearnedCorrection`),
+  `TypoMemory.forget` löscht mit. Zurückgenommene Autokorrektur → `RejectedCorrections.remember`.
+  Seite `K/settings/screens/AgentMemoryScreen.kt` („Was ich mir gemerkt habe“, eine Liste von
+  Abschnitten, 46 ergänzt seinen; Ziel `agent_memory`, Zeile in `AgentAreaTypingScreen.kt` und
+  Eintrag in `SettingsAreas`), Texte `values{,-de}/agent_memory_strings.xml`. Tests:
+  `CT/CorrectionRulesTest.kt`, `AT/FieldCorrectionMemoryTest.kt` (Speicher und Seite), Fälle
+  „stage 49“ in `InputLogicTest`.
 - Trefferzonen (22a): `K/agent/TouchModel.kt` hält pro Buchstabe (Code unter U+0250) den
   gleitenden Mittelwert der Abweichung vom Tastenmittelpunkt in Tastenbreiten und -höhen und die
   Anzahl, Datei `agent_touch_model` (gerätegeschützt). Wirksam erst ab 15 Treffern, gedämpft und
@@ -2901,6 +2926,19 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sich Text davor, passt der Start nicht mehr, und das getippte Wort fehlt (gewollt, kein
   Fehlgriff auf ein gleiches Wort an anderer Stelle). Einträge nur im Speicher, nie loggen; neue
   Aufrufer von `corrected` nur für automatische Korrekturen der Tipp-Eingabe.
+- **P169** `FieldCorrectionWatcher` vergleicht nur an Prüfpunkten (Wort abgeschickt, Schreibmarke vom
+  Nutzer bewegt). Erwartete Auswahl-Meldungen (Tippen, Löschtaste) kehren in `onUpdateSelection`
+  vor dem Prüfpunkt zurück; so bleibt der Stand vor dem Zurücklöschen erhalten und „Hsus und“ →
+  Löschen → „Haus“ wird erkannt. Wer den Prüfpunkt vor das frühe `return` legt, verliert das.
+  Eine Änderung, die erst beim nächsten Prüfpunkt sichtbar wird, gilt für das ganze dazwischen.
+- **P170** Markieren, Einfügen und eingefügter Text verwerfen den Vergleichsstand (`untrusted`, bei
+  Markierung im Prüfpunkt selbst): Der nächste Prüfpunkt nimmt nur einen neuen Stand auf. Neue Wege,
+  auf denen Text ohne Tippen ins Feld kommt (Werkzeuge, Bausteine, Chips), müssen `untrusted` rufen
+  oder über `applyGenerated` laufen, sonst kann ein eingefügtes Einzelwort als Korrektur zählen.
+- **P171** In `InputLogicTest` ersetzt `LatinIME` bei jedem `onStartInputView` den Wörterbuch-Zugang
+  von `InputLogic` (`setFacilitator`, Gesten-Datensammlung). Die Stufe-49-Tests setzen ihren
+  gestellten Zugang deshalb in `setText` neu (`installRealWords`); ohne das ist jedes Wort „unecht“
+  und nichts wird gelernt.
 - **P150** Jede neue Textdatei `values/agent_*strings.xml` braucht
   `tools:ignore="MissingTranslation"` am `<resources>`-Tag (der Fork liefert nur Englisch und
   Deutsch); sonst bricht `lintDebugNoMinify` mit Fehlern für alle Upstream-Sprachen ab. Die
@@ -2933,21 +2971,21 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (494 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (501 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (5): agent-apk, agent-tests, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (74): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (75): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand,
   ClipVault, ClipVaultSection, ContactCommand, ConvertCommand, CorrectionMemory, DateCommand,
   DesignLook, DesignTiles, Diagnose, Dictation, EmojiCommand, EmojiMixPalette, EmojiSuggestions,
-  EncryptedActionRunStore, EventCommand, FlatMenuView, FlatPanelStyle, FlatPreset, FormatGuardChips,
-  HapticChain, JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore,
-  LearningData, LoadingDotsView, ManualWorkflowDraft, ModelSettings, MyDesigns,
-  OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter, RgbLighting, RgbStrip, RgbTexture,
+  EncryptedActionRunStore, EventCommand, FieldCorrections, FlatMenuView, FlatPanelStyle, FlatPreset,
+  FormatGuardChips, HapticChain, JournaledModelCall, JournaledRun, KeyboardCommands,
+  KeyboardProfileStore, LearningData, LoadingDotsView, ManualWorkflowDraft, ModelSettings,
+  MyDesigns, OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter, RgbLighting, RgbStrip, RgbTexture,
   RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore, SkillLabels,
   SliderFeel, SliderHaptics, SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing,
   SymbolInk, ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst,
@@ -2961,41 +2999,42 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (86): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (87): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, ClipCommandTest, ClipVaultTest, CommandReplaceTest,
   CommandTemplatesTest, ContactCommandTest, CorrectionMemoryTest, DatePlaceCommandsTest,
   DebugPrivacyTest, DesignEditorTest, DesignTilesTest, DiagnoseScreenTest, DictationSessionTest,
   DictationUiTest, EmojiMixPaletteTest, EmojiMixRecentsTest, EncryptedActionRunStoreTest,
-  EncryptedCredentialStoreTest, FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest,
-  FlatStyleTest, ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest,
-  InsertAtCursorTest, JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest,
-  LearningDataTest, LoadingDotsViewTest, ManualWorkflowDraftTest, MoreCommandsTest,
-  MoreProvidersTest, MyDesignsTest, OpenAiProviderTest, RgbLightingRenderTest,
-  RgbSettingsScreenTest, RgbTilesTest, ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest,
-  SettingsAreaAiTest, SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest,
-  SettingsKitTest, SettingsLookScreenTest, SettingsStartScreenTest, SettingsSystemAreaTest,
-  SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest, SnipCommandTest,
-  SpaceDetentsTest, SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal,
-  ToolRunnerTest, TouchModelTest, TypedWordFirstTest, TypoMemoryTest, UpdateCheckTest,
-  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
-  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  EncryptedCredentialStoreTest, FieldCorrectionMemoryTest, FlatClipboardTest, FlatMenuTest,
+  FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, ForkUpgradeTest,
+  FormatGuardChipsTest, HapticChainTest, InsertAtCursorTest, JournaledModelCallTest,
+  KeyboardCommandsTest, KeyboardProfileStoreTest, LearningDataTest, LoadingDotsViewTest,
+  ManualWorkflowDraftTest, MoreCommandsTest, MoreProvidersTest, MyDesignsTest, OpenAiProviderTest,
+  RgbLightingRenderTest, RgbSettingsScreenTest, RgbTilesTest, ScreenshotChipTest, SecureWindowTest,
+  SelectedTextCommitTest, SettingsAreaAiTest, SettingsAreaGesturesTest, SettingsBarAreaTest,
+  SettingsKeysScreenTest, SettingsKitTest, SettingsLookScreenTest, SettingsStartScreenTest,
+  SettingsSystemAreaTest, SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest,
+  SliderFeelTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest, SymbolInkTest,
+  SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest, TouchModelTest, TypedWordFirstTest,
+  TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
+  WorkflowCommandTest, WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest,
+  WorkflowStoreTest
 - `AT/commands/` (8): ClockCommandsTest, EmojiMixCommandTest, LanguageCommandTest, QrCommandTest,
   ScreenReaderServiceTest, SubtypeChoiceTest, TranslateCommandTest, UrlCommandTest
-- `C/` (41): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
-  EditorSession, EmojiKeywords, EmojiMix, EmojiNames, EmojiSynonyms, EventParser, ExecutionPolicy,
-  InkDots, InkRecognizer, InkSymbols, InkTiming, LanguageNames, LocalTextActions, MathExpression,
-  ModelProvider, OwnInkSymbols, PendingBatchGate, PersonalInkSymbols, Places, Profiles, RgbCurve,
-  RgbLighting, RgbPatterns, SkillBinding, SnippetTemplate, SpecialCharacters, StyledTranslation,
-  SymbolTable, TextCondition, TimerParser, Tool, UnitConversion, UpdateReleases, UrlDetector,
-  Workflow
+- `C/` (42): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, CorrectionRules,
+  DateFormatting, EditorSession, EmojiKeywords, EmojiMix, EmojiNames, EmojiSynonyms, EventParser,
+  ExecutionPolicy, InkDots, InkRecognizer, InkSymbols, InkTiming, LanguageNames, LocalTextActions,
+  MathExpression, ModelProvider, OwnInkSymbols, PendingBatchGate, PersonalInkSymbols, Places,
+  Profiles, RgbCurve, RgbLighting, RgbPatterns, SkillBinding, SnippetTemplate, SpecialCharacters,
+  StyledTranslation, SymbolTable, TextCondition, TimerParser, Tool, UnitConversion, UpdateReleases,
+  UrlDetector, Workflow
 - `C/clip/` (1): ClipGuard
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
-- `CT/` (38): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
-  EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest, EventParserTest, InkAreaTest, InkBenchmarkTest,
-  InkDotFlowTest, InkDotsTest, InkFingerModel, InkRecognizerTest, InkTimingTest,
-  InsertionAnchorTest, LanguageNamesTest, LocalTextActionsTest, MathExpressionTest,
+- `CT/` (39): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, CorrectionRulesTest,
+  DateFormattingTest, EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest, EventParserTest,
+  InkAreaTest, InkBenchmarkTest, InkDotFlowTest, InkDotsTest, InkFingerModel, InkRecognizerTest,
+  InkTimingTest, InsertionAnchorTest, LanguageNamesTest, LocalTextActionsTest, MathExpressionTest,
   OwnInkSymbolsTest, PendingBatchGateTest, PersonalInkSymbolsTest, PlacesTest, QuestionCaptureTest,
   RgbCurveTest, RgbFrameStatsTest, RgbLightingTest, RgbPatternsTest, SkillBindingTest,
   SnippetTemplateTest, StyledTranslationTest, SymbolTableTest, TimerParserTest, ToolTest,
@@ -3025,15 +3064,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/settings/dialogs/` (2): ColorPickerDialog, SliderDialog
 - `K/settings/preferences/` (5): BackupRestorePreference, CustomFontPreference,
   KeyboardScalePreference, LoadGestureLibPreference, SliderPreference
-- `K/settings/screens/` (39): AdvancedScreen, AgentAiScreen, AgentAreaAiScreen, AgentAreaBarScreen,
+- `K/settings/screens/` (40): AdvancedScreen, AgentAiScreen, AgentAreaAiScreen, AgentAreaBarScreen,
   AgentAreaGesturesScreen, AgentAreaKeysScreen, AgentAreaLookScreen, AgentAreaScreen,
   AgentAreaSystemScreen, AgentAreaTypingScreen, AgentCommandsScreen, AgentDesignEditor,
   AgentDesignScreen, AgentDiagnoseScreen, AgentDictationScreen, AgentEmojiMixSection,
-  AgentLearningScreen, AgentProfilesScreen, AgentRgbCurveEditor, AgentRgbScreen, AgentRunStatus,
-  AgentScreenReaderSection, AgentScreenshotScreen, AgentSettingsKit, AgentSkillsScreen, AgentSlider,
-  AgentSnippetsSection, AgentSpaceScreen, AgentStartScreen, AgentSymbolsScreen, AgentUpdatesScreen,
-  AgentWorkflowsScreen, AppearanceScreen, DictionaryScreen, GestureTypingScreen, MainSettingsScreen,
-  TextCorrectionScreen, WorkflowBuilderDialog, WorkflowDraftProtection
+  AgentLearningScreen, AgentMemoryScreen, AgentProfilesScreen, AgentRgbCurveEditor, AgentRgbScreen,
+  AgentRunStatus, AgentScreenReaderSection, AgentScreenshotScreen, AgentSettingsKit,
+  AgentSkillsScreen, AgentSlider, AgentSnippetsSection, AgentSpaceScreen, AgentStartScreen,
+  AgentSymbolsScreen, AgentUpdatesScreen, AgentWorkflowsScreen, AppearanceScreen, DictionaryScreen,
+  GestureTypingScreen, MainSettingsScreen, TextCorrectionScreen, WorkflowBuilderDialog,
+  WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
 - `app/` (1): build.gradle
@@ -3053,16 +3093,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (23): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
+- `app/src/main/res/values-de/` (24): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
   agent_clipvault_strings, agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings,
-  agent_format_strings, agent_gestures_strings, agent_language_strings, agent_rgb_strings,
-  agent_settings_keys_strings, agent_settings_look_strings, agent_settings_strings,
-  agent_settings_system_strings, agent_slider_strings, agent_snippet_strings, agent_space_strings,
-  agent_strings, agent_symbol_strings, agent_typing_strings, agent_update_strings, strings
-- `app/src/main/res/values/` (29): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+  agent_format_strings, agent_gestures_strings, agent_language_strings, agent_memory_strings,
+  agent_rgb_strings, agent_settings_keys_strings, agent_settings_look_strings,
+  agent_settings_strings, agent_settings_system_strings, agent_slider_strings,
+  agent_snippet_strings, agent_space_strings, agent_strings, agent_symbol_strings,
+  agent_typing_strings, agent_update_strings, strings
+- `app/src/main/res/values/` (30): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
   agent_bar_strings, agent_clipvault_strings, agent_design_strings, agent_diagnose_strings,
   agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_ids,
-  agent_language_strings, agent_rgb_strings, agent_settings_keys_strings,
+  agent_language_strings, agent_memory_strings, agent_rgb_strings, agent_settings_keys_strings,
   agent_settings_look_strings, agent_settings_strings, agent_settings_system_strings,
   agent_slider_strings, agent_snippet_strings, agent_space_strings, agent_strings,
   agent_symbol_strings, agent_typing_strings, agent_update_strings, attrs, clip_provider,

@@ -119,9 +119,10 @@ object TypoMemory {
         }
     }
 
-    /** An automatic correction from a learned pair was undone: the pair is dropped completely. */
+    /** An automatic correction from a learned pair was undone: the pair is dropped completely, also in [FieldCorrectionMemory]. */
     @JvmStatic
     fun forget(context: Context, typed: String, meant: String) {
+        FieldCorrectionMemory.forget(context, typed, meant) // stage 49: the same pair learned later in a field
         synchronized(lock) {
             val data = loaded(context)
             val targets = data[norm(typed)] ?: return
@@ -136,7 +137,12 @@ object TypoMemory {
      * [typedIsDictionaryWord] restricts learned corrections of real words to their context.
      */
     @JvmStatic
-    fun meantWord(context: Context, typed: String, previous: String?, typedIsDictionaryWord: Boolean): String? {
+    fun meantWord(context: Context, typed: String, previous: String?, typedIsDictionaryWord: Boolean): String? =
+        ownMeantWord(context, typed, previous, typedIsDictionaryWord)
+            // stage 49: corrections learned later in the field, only for typed forms that are no word
+            ?: if (typedIsDictionaryWord) null else FieldCorrectionMemory.learnedFor(context, typed)
+
+    private fun ownMeantWord(context: Context, typed: String, previous: String?, typedIsDictionaryWord: Boolean): String? {
         loaded(context)
         synchronized(lock) {
             val targets = pairs?.get(norm(typed)) ?: return null

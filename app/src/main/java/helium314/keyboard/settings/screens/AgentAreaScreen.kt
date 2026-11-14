@@ -48,6 +48,7 @@ object SettingsAreas {
         SettingsArea.TYPING -> listOf(
             AreaEntry(SettingsDestination.TextCorrection, R.string.settings_screen_correction, R.string.agent_area_row_correction),
             AreaEntry(SettingsDestination.AgentLearning, R.string.agent_learning_title, R.string.agent_area_row_learning),
+            AreaEntry(SettingsDestination.AgentMemory, R.string.agent_memory_title, R.string.agent_memory_sub), // stage 49
             AreaEntry(SettingsDestination.Dictionaries, R.string.dictionary_settings_category, R.string.agent_area_row_dictionaries),
         )
         SettingsArea.KEYS -> listOf(

@@ -122,6 +122,7 @@ fun AgentLearningScreen(onClickBack: () -> Unit, sourceFactory: (() -> LearningS
                     source.deleteAll()
                     // everything learned from typing, as the confirmation says
                     TypoMemory.clear(context)
+                    helium314.keyboard.agent.FieldCorrectionMemory.clear(context) // stage 49
                     RejectedCorrections.clear(context)
                     TouchModel.clear(context)
                     helium314.keyboard.agent.SymbolDrawing.clearPersonalSymbols(context)

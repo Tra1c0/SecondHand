@@ -853,6 +853,15 @@ Einstellungen → Gelernte Wörter → Abschnitt „Autokorrektur“:
   Vorschlagsleiste antippst, merkt sich die Tastatur das. Nach dem dritten Mal korrigiert sie
   diesen Tippfehler selbst. Gibt es das getippte Wort wirklich (mochte), lernt sie es nur für
   das Wort davor (ich möchte). „Gelernte Tippfehler vergessen“ löscht alles.
+  Mit diesem Schalter zählen auch Tippfehler, die du später im Feld verbesserst: nach weiteren
+  Wörtern, nach Löschen zurück über Leerzeichen, über einen Vorschlag oder nach Tippen ins Wort
+  (dann die Schreibmarke wieder wegsetzen oder weitertippen). Nur echte Vertipper eines
+  Nicht-Worts zu einem echten Wort zählen; „das“ → „dass“, Markieren und Überschreiben oder
+  Einfügen nie. Beim ersten Mal ist es ein Kandidat, beim zweiten Mal an anderer Stelle gelernt.
+  Einstellungen → Tippen & Korrektur → „Was ich mir gemerkt habe“ zeigt beides: „Übernehmen“
+  lernt einen Kandidaten sofort, „Löschen“ entfernt einen Eintrag. „Gelernte Wörter löschen“
+  leert die Seite mit. Machst du eine Autokorrektur später im Feld rückgängig, gilt mit
+  „Rückgängig gemachte Korrekturen merken“ dasselbe wie die Löschtaste direkt danach.
 
 Getipptes Wort zurückholen: Drückst du direkt nach einer Korrektur die Löschtaste oder tippst du
 später in das korrigierte Wort, steht dein getipptes Wort in der Leiste ganz links (in deiner

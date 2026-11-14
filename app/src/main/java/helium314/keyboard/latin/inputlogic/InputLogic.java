@@ -111,6 +111,8 @@ public final class InputLogic {
     public LastComposedWord mLastComposedWord = LastComposedWord.NOT_A_COMPOSED_WORD;
     // fork, stage 48: automatic corrections of this field, for the typed word first in the strip
     public final helium314.keyboard.agent.TypedWordFirst mTypedWordFirst = new helium314.keyboard.agent.TypedWordFirst();
+    // fork, stage 49: later corrections anywhere in this field
+    public final helium314.keyboard.agent.FieldCorrectionWatcher mFieldCorrections = new helium314.keyboard.agent.FieldCorrectionWatcher();
     // This has package visibility so it can be accessed from InputLogicHandler.
     /* package */ final WordComposer mWordComposer;
     public final RichInputConnection mConnection;
@@ -203,6 +205,7 @@ public final class InputLogic {
             mAgentHistorySuppressed = previouslySuppressed;
             return outcome;
         }
+        mFieldCorrections.untrusted(); // fork, stage 49: inserted text is never a correction of the user
         resetComposingState(true);
         mInputLogicHandler.reset();
         mEnteredText = null;
@@ -268,6 +271,7 @@ public final class InputLogic {
         mEnteredText = null;
         mWordBeingCorrectedByCursor = null;
         mTypedWordFirst.clear(); // fork, stage 48
+        mFieldCorrections.start(); // fork, stage 49
         mConnection.onStartInput();
         if (!mWordComposer.getTypedWord().isEmpty()) {
             // For messaging apps that offer send button, the IME does not get the opportunity
@@ -378,6 +382,7 @@ public final class InputLogic {
         mSpaceState = SpaceState.NONE;
         mEnteredText = text;
         mWordBeingCorrectedByCursor = null;
+        mFieldCorrections.untrusted(); // fork, stage 49: inserted or pasted text is not learned
         inputTransaction.setDidAffectContents();
         inputTransaction.requireShiftUpdate(InputTransaction.SHIFT_UPDATE_NOW);
         return inputTransaction;
@@ -585,6 +590,8 @@ public final class InputLogic {
                     newSelStart, newSelEnd, false /* shouldFinishComposition */);
         }
 
+        // fork, stage 49: the user moved the cursor, maybe after changing a word earlier in the field
+        mFieldCorrections.checkpoint(mLatinIME, mConnection, settingsValues, mDictionaryFacilitator, mAgentHistorySuppressed, false);
         // The cursor has been moved : we now accept to perform recapitalization
         mRecapitalizeStatus.enable();
         // We moved the cursor. If we are touching a word, we need to resume suggestion.
@@ -615,6 +622,7 @@ public final class InputLogic {
     public InputTransaction onCodeInput(SettingsValues settingsValues, @NonNull Event event,
             CapsMode keyboardCapsMode, String currentKeyboardScript, LatinIME.UIHandler handler) {
         mLatinIME.invalidateAgentEditor();
+        if (mConnection.hasSelection()) mFieldCorrections.untrusted(); // fork, stage 49: typing over a selection
         mWordBeingCorrectedByCursor = null;
         mJustRevertedACommit = false;
 
@@ -2566,6 +2574,8 @@ public final class InputLogic {
                 // fork, stage 48: remember the typed form for going back to the word (tap typing only)
                 if (!isBatchMode) mTypedWordFirst.corrected(
                         mConnection.getExpectedSelectionEnd() - stringToCommit.length(), stringToCommit, typedWord);
+                // fork, stage 49: changing it back later remembers "do not correct" like backspace
+                if (!isBatchMode) mFieldCorrections.autoCorrected(typedWord, stringToCommit, settingsValues);
                 // This will make the correction flash for a short while as a visual clue
                 // to the user that auto-correction happened. It has no other effect; in particular
                 // note that this won't affect the text inside the text field AT ALL: it only makes
@@ -2651,6 +2661,8 @@ public final class InputLogic {
                 || chosenWord.equalsIgnoreCase(mWordComposer.getTypedWord());
         final String typedForTouch = tapTyped && confirmedWord && settingsValues.mAdaptTouch ? mWordComposer.getTypedWord() : null;
         mLastComposedWord = mWordComposer.commitWord(commitType, chosenWord, separatorString, ngramContext);
+        // fork, stage 49: compare the field with the last checkpoint (a word fixed earlier in the field)
+        mFieldCorrections.checkpoint(mLatinIME, mConnection, settingsValues, mDictionaryFacilitator, mAgentHistorySuppressed, true);
         if (typedForTouch != null) {
             final InputPointers pointers = mLastComposedWord.mInputPointers; // keyboard coordinates already
             helium314.keyboard.agent.TouchModel.learnFromWord(mLatinIME, typedForTouch, chosenWord,
@@ -2853,6 +2865,7 @@ public final class InputLogic {
         // we try to deal with this by committing the text if the clipboard content is simply text,
         // and use KeyEvent.KEYCODE_PASTE otherwise except for apps that are known to ignore it
         String primaryClip = mLatinIME.getClipboardHistoryManager().getPrimaryClipIfText();
+        mFieldCorrections.untrusted(); // fork, stage 49: pasted text is not learned
         if (primaryClip != null) {
             mConnection.commitText(primaryClip, 1);
             return;
