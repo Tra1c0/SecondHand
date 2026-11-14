@@ -2836,6 +2836,41 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   Zeilen und die Halb-Kacheln umbrechen ihren Titel.
 - Offen: Prüfer-Review, Gerätetest (Aussehen am Telefon, TalkBack, Suche, Zurück), 38b–38h.
 
+## Etappe 38d (Einstellungen: Tasten & Sprachen)
+
+- Auftrag (Lead, ROADMAP 38): Bereich 03 1:1 nach `Tasten.dc.html` mit dem Baukasten aus 38a, in
+  eigener Datei, alles bisher Erreichbare bleibt erreichbar. Gebaut in einer Arbeitskopie, kein
+  Prüfer-Review, kein Gerätetest.
+- Gebaut: `AgentAreaKeysScreen.kt`, `agent_settings_keys_strings.xml` (Englisch, Deutsch), eine
+  Zeile in `AgentAreaScreen.kt`. Abweichungen vom Mockup: Sprachkarten sind Knöpfe zur Seite der
+  Sprache (keine Auswahl), hell und gerahmt ist die aktive Sprache; zusätzliche Zeilen, damit die
+  alten Einträge erreichbar bleiben: Verhalten der Sprachwechseltaste, die bedingten
+  Zahlenzeilen-Schalter, Emoji-Beschreibung, Hinweis-Quelle (nur mit Tasten-Hinweisen),
+  funktionale Hinweise, TLD-Popups, mehr diakritische Zeichen, die vier Rückkehr-Schalter
+  (aufklappend unter „Zurück zu den Buchstaben“, Wert „n von 4“) und „Weitere Optionen“ (alte
+  Seite Optionen wegen Zwischenablage, Vibration, Ton bis 38e/38f). Untertitel „Reihenfolge der
+  Popups“ und „Hinweis-Quelle“ = die eingeschalteten Quellen; Währungen zeigen „Standard“ ohne
+  eigene Liste; lange Werte stehen im Untertitel (P129).
+- Tests (Robolectric, kein Gerätetest): `SettingsKeysScreenTest` 9 Tests (Texte und
+  Abschnittsfolge des Mockups, keine Karte „Seiten“; Karten aus den echten Subtypen Deutsch,
+  English (US), Español mit Layout und Wörterbüchern, Role.Button, „aktiv“ nur an der gewählten,
+  Tipp → `subtype/…`, Seite bleibt deutsch (P128); acht Schalter schreiben die echten Schlüssel,
+  bedingte Zeilen wie auf der alten Seite; Rückkehr-Schalter mit „n von 4“; Dialoge
+  Sprachwechseltaste, Währungen, Zeitstempel, Langdruck, Reihenfolge, Hinweis-Quelle, mehr
+  Popup-Buchstaben schreiben ihre Werte; alle alten Optionen-/Erweitert-Einträge des Bereichs als
+  Zeile vorhanden, Seiten Sprachen, Optionen, Sekundäre Layouts öffnen ihre Route; alles
+  Anklickbare ≥ 44 dp; echter `SettingsNavHost` Kachel 03 → Sprachkarte → Sprachseite → Zurück;
+  Bild mit Pixelprüfung). `SettingsStartScreenTest` (P119, Bereichsseiten) und `SettingsKitTest`
+  unverändert grün.
+- `python3 tools/dev.py agent-tests`: grün, 781 Tests in 87 Klassen, 0 Fehler (2026-11-14). Kein
+  Build, keine volle Upstream-Suite (geteilte Maschine). `docs_sync --check`: grün.
+- Bilder (nicht versioniert): `app/build/agent-previews/settings-area_keys.png` (aus
+  `SettingsStartScreenTest`, 1180 dp hoch) und `settings-area_keys-full.png` (ganze Seite); mit
+  `Tasten.dc.html` verglichen: Held, Karte SPRACHEN mit drei Verlaufskarten, Leucht-Pillen,
+  weißem Rahmen, Abschnitte, Punkte, Schalter und Werte („+“, „300 ms“, „1 von 4“) stimmen;
+  Systemschrift breiter als Inter, einige Titel brechen um.
+- Offen: Prüfer-Review, Gerätetest (Aussehen, TalkBack, Dialoge im dunklen Schema).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

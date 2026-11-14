@@ -79,13 +79,22 @@ diesem Bereich:
 | --- | --- |
 | 01 Aussehen | Design, RGB-Beleuchtung, Aussehen |
 | 02 Tippen & Korrektur | Textkorrektur, Gelernte Wörter, Wörterbücher |
-| 03 Tasten & Sprachen | Sprachen & Layouts, Optionen, Sekundäre Layouts |
+| 03 Tasten & Sprachen | schon neu gestaltet (siehe unten): Sprachen & Layouts, Sekundäre Layouts, Optionen (über „Weitere Optionen“) |
 | 04 Gesten & Gefühl | Leertaste, Symbole malen, Gesten-Tippen (nur mit Bibliothek), Vibration & Ton (= Optionen) |
 | 05 Leiste & Befehle | Leiste (= Symbolleiste), Befehle, Screenshots |
 | 06 KI & Automationen | KI-Anbieter, Skill-Tasten, Workflows, Diktat |
 | 07 System & Daten | Tastaturprofile, Updates, Diagnose, Erweitert, Gestendaten-Erfassung (nur in der Sammelphase), Über |
 
 Zurück geht es mit dem runden Pfeil oben links oder der Zurück-Geste.
+
+**03 Tasten & Sprachen** ist schon nach dem Entwurf gebaut: Oben steht je eingeschaltete Sprache
+eine farbige Karte mit Layout und Wörterbüchern; die Sprache, die du gerade benutzt, ist hell
+mit weißem Rahmen und „aktiv“. Ein Tipp auf eine Karte öffnet die Seite dieser Sprache (Layout,
+weitere Sprachen, Wörterbücher). „Sprache hinzufügen“ öffnet Sprachen & Layouts. Darunter die
+Schalter und Zeilen der früheren Seite Optionen (Zahlenzeile, Emoji-Taste, Popups, Hinweise …)
+und aus Erweitert Langdruck-Dauer, Währungen, Zeitstempel-Format und „Zurück zu den Buchstaben“
+(ein Tipp klappt die vier Schalter auf). Zwischenablage, Vibration und Ton findest du dort unter
+„Weitere Optionen“, bis die Bereiche Leiste und Gesten neu sind.
 
 ## Textaktionen (ohne Internet)
 
