@@ -5196,6 +5196,47 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Engine-Änderungen: keine. `LatinIME`, `InputLogic`, `RichInputConnection`, `PointerTracker`
   unverändert; nur Fork-Dateien und Tests.
 
+### Nachprüfung 52, dritte Runde (Prüfung zu e2cda63, 2026-11-14)
+
+- Behoben (Arbeitskopie, Lead-Auftrag 2026-11-14):
+  - 1 (mittel): `Step.exact` machte Alltagssätze zu Befehlen (Enter geschluckt). Jetzt `exactAt`:
+    das genaue Wort nur als erstes oder letztes, die unbekannten Wörter in einem Stück von höchstens
+    drei; dazu `TEXT_WORDS` (häufige Satzwörter, nur für unbekannte Wörter): Ist eines davon
+    unbekannt, gilt weder das genaue Wort noch die Ausnahme „höchstens ein unbekanntes“ (P231).
+    Annahme des Leads: Ohne diese Liste bliebe „@sprache ist weg“ ein Befehl, schon nach der Regel
+    von Etappe 52 (ein unbekanntes Wort). „@guard on duty tonight“ bleibt ein Befehl (erstes Wort
+    bekannt, so seit Etappe 52).
+  - 2 (mittel): `UNKNOWN` heißt nicht sicher entfernt. `execute` liest den Text vor der
+    Schreibmarke neu (`removed`, `Host.editorTextBeforeCursor`); endet er noch mit dem Befehl oder
+    ist er nicht lesbar, alles zurück. `after` (`clearNonPinned`) nur bei bestätigtem Entfernen.
+    KDoc von `Host.replaceOutcome` und P221 berichtigt. `RichInputConnection` unverändert.
+  - 3 (gering): `guardsTextBefore`: Fehler in `parse` = nicht geschützt, Fehler in `protects` =
+    geschützt; `updateGuard` und `find` fangen Fehler von `parse` ab.
+  - 4 (gering): Nur ein genauer Sprachname als beanspruchtes Wort zählt (`@spanis @mem whatsapp aus`
+    ist keine Kette). Hinweis: „@spa“ ist ein genauer Name (Sprachcode), deshalb prüfen die Tests
+    „@spanis“.
+  - 5 (gering): Ein Lesen nimmt eine Momentaufnahme der Apps für Schlüssel und Wortschatz;
+    `AgentSnippetsSection` ruft nach Speichern und Löschen `SnipCommand.reset` (P230).
+  - 6 (gering, nur Doku): P219 nennt den möglichen Wettlauf zwischen `onSwitched` und `lastReason`
+    und das 2-s-Fenster der Feldstart-Notiz.
+  - 7 (gering): `putBack` meldet, ob alles zurückging; sonst „Nicht alles ließ sich zurücknehmen“.
+  - 8 (gering): `assertFalse(… .not())` in `CommandGrammarTest` ist ein `assertTrue`, der
+    irreführende Kommentar berichtigt.
+- Neue Tests: `CT/CommandGrammarTest` (+2: Alltagssätze bleiben Text, auch ohne gelesene Apps, mit
+  Gegenbeispielen; nur genaue beanspruchte Sprachwörter), `AT/commands/CommandSystemTest` (+3:
+  `UNKNOWN` mit Text noch da oder unlesbar, Enter bei den fünf Sätzen, `@spanis` startet keine
+  Kette); `anUnclearRemovalKeepsTheChangesAndOffersUndo` liest jetzt den Feldtext ohne Befehl.
+  Befund 7 und die Bausteinseite (Befund 5) ohne eigenen Test (kein Test für `AgentSnippetsSection`).
+- Gegenprobe: nicht einzeln gemacht.
+- Gelaufen (2026-11-14, `--max-workers=1 -Xmx1536m`): `:agent-core:test` (569 Tests, 0 Fehler);
+  `:app:testDebugUnitTest` mit `*CommandSystemTest` (27), `*KeyboardCommandsTest`, `*SubtypeChoiceTest`,
+  `*LanguageCommandTest`, `*ClipCommandTest`, `*SnipCommandTest`, `*InputLogicTest`, `*MoreCommandsTest`:
+  363 Tests, 1 Fehler = geerbt (`insertLetterIntoWordHangulFails`). `docs_sync --check`
+  grün. Nicht gelaufen: `tools/dev.py agent-tests`, volle Suite, Lint, Build, Gerätetest (wie
+  zweite Runde).
+- Engine-Änderungen: keine. `LatinIME`, `InputLogic`, `RichInputConnection`, `PointerTracker`
+  unverändert.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

@@ -597,9 +597,11 @@ So läuft es ab:
    arbeitet ab dem zweiten Wort hinter dem Bereichswort. Ein Befehl ist es, sobald ein Wort eine
    App, Gruppe, Sprache oder Aktion ist und das erste Wort dazu passt oder höchstens ein Wort
    unbekannt ist (`@lang foo german` ist rot und Enter schickt es nicht ab). Ein genau getipptes
-   Aktionswort (`off`, `aus`, `del` …) oder ein genauer Sprachname reicht immer:
-   `@guard google maps off`, bevor die Tastatur die Apps kennt, ist rot, und Enter schickt es
-   nicht ab (auch ein Satz wie „@mem ich bin aus Berlin“ gilt deshalb als Befehl).
+   Aktionswort (`off`, `aus`, `del` …) oder ein genauer Sprachname als erstes oder letztes Wort
+   reicht auch bei bis zu drei unbekannten Wörtern davor oder dahinter: `@guard google maps off`,
+   bevor die Tastatur die Apps kennt, ist rot, und Enter schickt es nicht ab. Sätze wie „@mem ich
+   bin aus Berlin“, „@sprache ist weg“ oder „@group we set off at 9“ bleiben Text (häufige
+   Satzwörter wie „ist“, „ich“, „we“ sind nie ein App-Name).
 
 Aktionen (Englisch zuerst, Deutsch geht genauso):
 
