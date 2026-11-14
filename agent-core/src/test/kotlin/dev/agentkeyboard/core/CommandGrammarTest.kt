@@ -282,8 +282,35 @@ class CommandGrammarTest {
         assertFalse(parseEmpty("@lang microsoft teams germ").any { it.looksLikeCommand })
         // still text: no exact action or language
         assertFalse(parseEmpty("@guard das ist gut").any { it.looksLikeCommand })
-        // a language makes no sense to delete: then it is not exact either
-        assertFalse(parseEmpty("@lang foo bar del german").let { r -> r.isNotEmpty() && r.all { it.steps.single().language == null } }.not())
+        // a language makes no sense to delete: it is dropped (unknown), the exact action still counts
+        assertTrue(parseEmpty("@lang foo bar del german").let { r -> r.isNotEmpty() && r.all { it.steps.single().language == null } })
+    }
+
+    @Test fun everydaySentencesWithAnActionOrLanguageWordStayText() {
+        // third review: the exact word counts only first or last, after one run of unknown words that
+        // can be an app name, and not with common words of a sentence
+        for (text in listOf("@gruppe wer ist neu dabei", "@group we set off at 9", "@sprache ist auf deutsch toll",
+                "@sprache ist weg", "@mem ich bin aus Berlin")) {
+            assertFalse(parse(text).any { it.looksLikeCommand }, text)
+            assertFalse(CommandGrammar.parse(text, '@', areas, object : CommandGrammar.Vocabulary {
+                override val apps = emptyList<AppName>()
+                override fun languages(word: String, exactOnly: Boolean) = matcher.match(word, exactOnly)
+            }).any { it.looksLikeCommand }, text)
+        }
+        // the exact word in the middle, or the unknown words not in one run
+        assertFalse(parse("@lang foo german bar").any { it.looksLikeCommand })
+        assertFalse(parse("@guard foo off bar baz").any { it.looksLikeCommand })
+        assertFalse(parse("@guard eins zwei drei vier off").any { it.looksLikeCommand }) // more than three words
+        // a known first word is a command as before (also "@guard on duty tonight")
+        assertTrue(parse("@guard on duty tonight").all { it.looksLikeCommand })
+        assertTrue(parse("@lang foo german").all { it.looksLikeCommand })
+    }
+
+    @Test fun onlyAnExactClaimedLanguageWordIsACommandWord() {
+        // third review: "@spanis" (a started name) claims the language but is no command word
+        assertTrue(parse("@spanis").isNotEmpty())
+        assertFalse(parse("@spanis").any { it.looksLikeCommand })
+        assertTrue(parse("@spanisch").all { it.looksLikeCommand })
     }
 
     @Test fun aClaimedLanguageWordIsAKnownFirstWord() {

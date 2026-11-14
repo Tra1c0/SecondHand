@@ -98,6 +98,7 @@ fun AgentSnippetsSection(prefix: Char) {
                 TextButton(onClick = {
                     deleting = null
                     runCatching { store.delete(snippet.name) }
+                    helium314.keyboard.agent.commands.SnipCommand.reset() // the commands read the names again
                     snippets = load()
                 }) { Text(stringResource(R.string.agent_snippets_delete)) }
             },
@@ -203,6 +204,7 @@ private fun SnippetEditor(original: Snippet, all: List<Snippet>, store: SnippetS
             TextButton(enabled = valid, onClick = {
                 // saved here, the text is a template from now on (no longer literal)
                 val saved = runCatching { store.put(Snippet(name, text.text, apps), if (isNew) null else original.name) }.isSuccess
+                if (saved) helium314.keyboard.agent.commands.SnipCommand.reset() // the commands read the names again
                 if (saved) onSaved() else failed = true
             }) { Text(stringResource(R.string.agent_snippets_save)) }
         },

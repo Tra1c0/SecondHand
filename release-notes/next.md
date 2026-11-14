@@ -15,7 +15,8 @@ Alles hier ist nur mit Tests geprüft, noch auf keinem Gerät ausprobiert.
   `@wächter`, `an`, `aus` …). Ketten gehen mit `;`, `dann`/`then` oder `→`. Die Leiste zeigt vorher
   farbig und in Klartext, was passiert. Erst dein Tipp führt aus, danach 8 Sekunden „Rückgängig“.
   Enter führt nur eine eindeutige, harmlose Deutung aus. Ein angefangener Befehl wird nie als
-  Nachricht abgeschickt, normaler Text mit @-Wort („Hallo @gruppe …“) schon. Scheitert etwas,
+  Nachricht abgeschickt, normaler Text mit @-Wort („Hallo @gruppe …“, „@mem ich bin aus Berlin“)
+  schon. Scheitert etwas,
   bleibt der Text stehen und nichts ist geändert. `@?` zeigt alle Bereiche. Die alten Befehle
   (`@deutsch`, `@snip adr`, `@clip Termin`) gehen weiter. Ein Wechsel mit der Sprachtaste bleibt im
   Feld. In WhatsApp teilen sich alle Chats ein Feld, dort gilt er also für alle Chats.

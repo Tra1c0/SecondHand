@@ -1698,8 +1698,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     (`@lang foo german` ist neu und rot). `Step.looksLikeCommand`/`Reading.looksLikeCommand`
     (P220): mindestens ein Wort mit bekannter Rolle (ein neuer Gruppenname allein zählt nicht) und
     das erste Wort bekannt oder höchstens ein unbekanntes; seit der zweiten Nachprüfung reicht ein
-    genau getipptes Aktionswort oder ein genauer Sprachname (`Step.exact`), und ein beanspruchtes
-    Sprachwort (`Step.claimed`, `@deutsch`) zählt wie `@lang deutsch`. `AppName.normalized`/`parts` halten den
+    genau getipptes Aktionswort oder ein genauer Sprachname (`Step.exactAt`, seit der dritten nur als
+    erstes oder letztes Wort, mit den unbekannten Wörtern in einem Stück von höchstens
+    `MAX_APP_WORDS` = 3), und ein genau getipptes beanspruchtes Sprachwort (`Step.claimed`,
+    `@deutsch`, nicht `@spanis`) zählt wie `@lang deutsch`. Ein unbekanntes Wort aus `TEXT_WORDS`
+    (häufige Satzwörter wie „ist“, „we“, „at“) lässt keine unbekannten Wörter zu (P231). `AppName.normalized`/`parts` halten den
     normalisierten Namen je App (einmal je Lesen der Apps, nicht je getipptem Wort).
     `Word`s geben jedem Wort eine `Role` (Bereich, Aktion, Ziel, Wert, Trenner, Unbekannt).
   - `A/KeyboardCommands.kt`: `Active.parse` verlängert einen Bereichsbefehl rückwärts über frühere
@@ -1708,10 +1711,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     Nachprüfung 52 nur über einen Trenner oder hinter einem vollständigen Befehl
     (`CommandSystem.continuesChain`, P220); `Active` hält dafür den App-Kontext.
     `Command.protects(context, call)` (Standard `protectsArgument`) entscheidet je getipptem Befehl,
-    ob seine Wörter vor der Autokorrektur geschützt sind (`guardsTextBefore`, seit der zweiten
-    Nachprüfung in `runCatching`: ein Fehler gilt als geschützt). `Host.replaceOutcome` gibt die
-    Antwort des Editors (`ApplyOutcome`; Standard aus `replace`, der echte Host liefert `UNKNOWN`
-    weiter). `forget` ruft `CommandSystem.dropReadings`. `aliases`
+    ob seine Wörter vor der Autokorrektur geschützt sind (`guardsTextBefore`; seit der dritten
+    Nachprüfung: scheitert `Active.parse`, kein Befehl und nicht geschützt, scheitert `protects`,
+    geschützt; `updateGuard` und `find` fangen Fehler von `parse` ebenso ab). `Host.replaceOutcome`
+    gibt die Antwort des Editors (`ApplyOutcome`; Standard aus `replace`, der echte Host liefert
+    `UNKNOWN` weiter; `UNKNOWN` heißt nicht sicher entfernt, P221). `forget` ruft `CommandSystem.dropReadings`. `aliases`
     und `help` (die eingeschalteten Bereiche) gehen an `CommandSyntax.parse`. `chipsFor` gibt für
     `@?` `CommandSystem.helpChips`; `buildChips` fragt ohne Befehl zuerst `CommandSystem.undoChips`.
     `chipBackground` ist die Chipfarbe (auch für `CommandColors`), `activeNames` die
@@ -4664,18 +4668,24 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Hints) läuft auch hier durch, wird aber seit der zweiten Nachprüfung nicht gemerkt:
   `SubtypeSwitchLog.lastReason` (gerade von `onSwitched` notiert) in `FIELD_START`; ohne
   Änderung an `LatinIME`. Wer den Weg von `expectFromStart` über `internalSwitch` nach `onSwitched`
-  ändert, prüft das mit. Messenger wie WhatsApp haben für alle Chats ein Feld: Dort gilt ein
-  Wechsel mit der Sprachtaste für alle Chats, bis ein anderes Feld beginnt.
+  ändert, prüft das mit. `onSwitched` und `lastReason` laufen beide in
+  `onCurrentInputMethodSubtypeChanged`; ruft das System diese Methode gleichzeitig auf einem
+  anderen Thread (HeliBoard warnt davor), kann `lastReason` den Grund des anderen Wechsels lesen,
+  und eine Notiz von `expectFromStart` gilt nur 2 s: Ein Feldstart-Wechsel, der später läuft, gilt
+  als `KEYBOARD` und wird gemerkt (selten, harmlos: dasselbe Feld behält dann die Sprache).
+  Messenger wie WhatsApp haben für alle Chats ein Feld: Dort gilt ein Wechsel mit der Sprachtaste
+  für alle Chats, bis ein anderes Feld beginnt.
 - **P220** Text hinter einem Bereichswort ist kein Befehl (Nachprüfung 52): „Hallo @gruppe wer kommt
   heute?“ war ein `@group`-Befehl mit unbekannten Wörtern; Enter wurde geschluckt und die
   Autokorrektur war für den ganzen Rest der Zeile aus. `Step.looksLikeCommand` entscheidet für
   `CommandSystem.onEnter` (null = Enter der App) und `CommandSystem.protects` (`Command.protects`,
   aus `KeyboardCommands.guardsTextBefore`; zusätzlich geschützt, solange nur ein Wort hinter dem
   Bereichswort steht, das kann eine App sein, die gerade getippt wird oder noch nicht geladen ist).
-  Seit der zweiten Nachprüfung reicht ein genau getipptes Aktionswort oder ein genauer Sprachname,
-  egal wie viele Wörter unbekannt sind (`@guard google maps off`, bevor die Apps gelesen sind);
-  damit nimmt Enter auch „@mem ich bin aus Berlin“ (Annahme des Leads: selten, die Leiste sagt
-  warum).
+  Seit der zweiten Nachprüfung reicht ein genau getipptes Aktionswort oder ein genauer Sprachname
+  bei mehreren unbekannten Wörtern (`@guard google maps off`, bevor die Apps gelesen sind); seit
+  der dritten nur als erstes oder letztes Wort und mit den unbekannten Wörtern in einem Stück von
+  höchstens drei (ein möglicher App-Name), sonst schluckten Sätze wie „@group we set off at 9“ das
+  Enter (P231). „@guard on duty tonight“ bleibt ein Befehl (erstes Wort bekannt, so seit Etappe 52).
   Ketten (`Active.parse`) nur über einen Trenner am Ende des früheren Teils oder hinter einem
   vollständigen früheren Befehl ohne unbekannte Wörter (`continuesChain`; eine alte Form zählt nur
   als `@lang`-Sprachwechsel): sonst nahm ein früheres Bereichswort ein späteres `@snip adr` in seine
@@ -4687,10 +4697,15 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `execute` führt jetzt jede Wirkung aus (`Effect.run` → `Done`), entfernt dann den Befehl und erst
   danach `Done.after` (Sprache umschalten, ungepinnte Einträge des Verlaufs löschen); scheitert eine
   Wirkung oder lehnt der Editor das Entfernen ab (`ApplyOutcome.REJECTED`, Feld geändert), nimmt es
-  die gelaufenen zurück (`undo`) und der Text bleibt. `UNKNOWN` (der Editor nahm das Commit an,
-  die Prüfung danach scheiterte; der Text ist sehr wahrscheinlich weg) zählt seit der zweiten
-  Nachprüfung als entfernt: Wirkungen bleiben, `after` läuft, Rückgängig wird angeboten; sonst
-  wäre der Text weg und nichts geändert. Zurücknehmen vor dem Entfernen schaltet keine Sprache
+  die gelaufenen zurück (`undo`) und der Text bleibt. `UNKNOWN` sagt nichts Sicheres:
+  `RichInputConnection` liefert es, wenn die Prüfung nach dem Commit scheitert (Text sehr
+  wahrscheinlich weg), aber auch, wenn `setComposingRegion` oder `commitText` false gab oder nach dem
+  Versuch etwas warf (Text sehr wahrscheinlich noch da). Seit der dritten Nachprüfung liest
+  `execute` (`removed`) dann den Text vor der Schreibmarke neu (`Host.editorTextBeforeCursor`):
+  Endet er noch mit dem Befehl oder ist er nicht lesbar, wie `REJECTED` (alles zurück); sonst
+  bleiben die Wirkungen, `after` läuft, Rückgängig wird angeboten. `after` (auch `clearNonPinned`
+  von `@clip`) läuft nie ohne bestätigtes Entfernen. Scheitert beim Zurücknehmen ein Schritt, sagt
+  der Hinweis `agent_unified_failed` statt „Nichts geändert“. Zurücknehmen vor dem Entfernen schaltet keine Sprache
   zurück (`Done.afterRan`), sonst merkte `switchToSubtypeByCommand` die alte Sprache als Wahl des
   Felds. Eine Wirkung, die mittendrin scheitert (`languageEffect`, `guardEffect`, `memoryEffect`
   bei `all`), stellt selbst her, was sie schon geschrieben hat, und prüft die Grenze vor dem ersten
@@ -4707,8 +4722,19 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Instanz) und gleicher `readingsGeneration`. Alles andere, was ein Wort benennen kann, muss bei
   einer Änderung `dropReadings` rufen: `execute` und Rückgängig, `CommandAppSettings.setGroup`,
   `SnipCommand.reset`, `KeyboardCommands.forget` (auch aus `load`, also bei geänderten Sprachen
-  oder Befehlen). Wer einen neuen Wortschatz (Gruppen, Bausteine, Sprachen) oder einen neuen
-  Schreibweg dafür baut, ruft es auch, sonst zeigt die Leiste für denselben Text die alte Deutung.
+  oder Befehlen), seit der dritten Nachprüfung auch die Bausteinseite der Einstellungen
+  (`AgentSnippetsSection`: Speichern und Löschen rufen `SnipCommand.reset`). Wer einen neuen
+  Wortschatz (Gruppen, Bausteine, Sprachen) oder einen neuen Schreibweg dafür baut, ruft es auch,
+  sonst zeigt die Leiste für denselben Text die alte Deutung. Ein Lesen nimmt eine Momentaufnahme
+  von `InstalledApps.apps` für Schlüssel und Wortschatz (nie zwei Listen gemischt).
+- **P231** Satzwörter hinter einem Bereichswort (dritte Nachprüfung 52): Häufige Wörter sind
+  Aktionswörter (an, aus, weg, neu, dazu, liste, zeig, on, off, set, new, add, `-`, `+`, `?`), und
+  Bereichsbefehle laufen bis zu 200 Zeichen. Ein genaues Wort macht darum nur als erstes oder letztes
+  Wort einen Befehl, mit höchstens drei unbekannten Wörtern in einem Stück, und kein unbekanntes Wort
+  darf in `CommandGrammar.TEXT_WORDS` stehen (sonst wären „@sprache ist weg“ und „@mem ich bin aus
+  Berlin“ wegen höchstens eines bzw. eines genauen Worts Befehle). Nachgeschlagen werden nur
+  unbekannte Wörter; eine App, die so heißt und gelesen ist, ist vorher ein Ziel. Wer die Liste
+  erweitert, nimmt keine Aktions- oder Trennwörter auf.
 
 - **P222** IDs eigener Muster (34, Nachprüfung): nie wieder hochzählen (`max + 1`). Mit `p1`, `p2` …
   bekam ein neues Muster nach dem Löschen des neuesten dessen ID, und ein Designprofil, das nur

@@ -78,8 +78,10 @@ object KeyboardCommands {
         /** Replaces the typed command (exactly [CommandContext.text]) by [replacement] in one commit; false if the field changed. */
         fun replace(command: CommandContext, replacement: String): Boolean
         /**
-         * Second review of stage 52: [replace] with the editor's answer. [ApplyOutcome.UNKNOWN]: the
-         * editor took the commit but the check after it failed, the text is most likely replaced.
+         * Second review of stage 52: [replace] with the editor's answer. [ApplyOutcome.UNKNOWN] says
+         * nothing sure (third review): the commit may have gone in and only the check after it failed,
+         * or the editor refused a step or something threw after the attempt; a caller that needs to
+         * know reads the text before the cursor again ([editorTextBeforeCursor]).
          */
         fun replaceOutcome(command: CommandContext, replacement: String): ApplyOutcome =
             if (replace(command, replacement)) ApplyOutcome.SUBMITTED else ApplyOutcome.REJECTED
@@ -339,15 +341,15 @@ object KeyboardCommands {
     @JvmStatic fun guardsTextBefore(before: CharSequence?): Boolean {
         val current = active ?: return false
         if (before == null) return false
-        // second review of stage 52: also called from the engine while typing; a failure counts as protected
-        return runCatching {
-            when (val context = current.parse(before)) {
-                null -> false
-                is CommandNames -> true
-                is CommandCall -> context.argument.isBlank() ||
-                    registry.firstOrNull { it.name == context.name }?.protects(current.context, context) == true
-            }
-        }.getOrDefault(true)
+        // second review of stage 52: also called from the engine while typing. Third review: a text that
+        // cannot be read is no command (not protected); only a command whose check fails stays protected
+        return when (val context = runCatching { current.parse(before) }.getOrNull()) {
+            null -> false
+            is CommandNames -> true
+            is CommandCall -> context.argument.isBlank() || runCatching {
+                registry.firstOrNull { it.name == context.name }?.protects(current.context, context) == true
+            }.getOrDefault(true)
+        }
     }
 
     /**
@@ -358,7 +360,7 @@ object KeyboardCommands {
     @JvmStatic fun updateGuard(before: CharSequence?) {
         inCommand = guardsTextBefore(before)
         val current = active
-        if (current == null || before == null || current.parse(before) == null) forget()
+        if (current == null || before == null || runCatching { current.parse(before) }.getOrNull() == null) forget()
     }
 
     fun isBlocked(settings: SettingsValues?, editorInfo: EditorInfo?): Boolean {
@@ -373,7 +375,7 @@ object KeyboardCommands {
     fun find(before: CharSequence?, settings: SettingsValues?, editorInfo: EditorInfo?): CommandContext? {
         val current = active ?: return null
         if (before == null || isBlocked(settings, editorInfo)) return null
-        return current.parse(before)
+        return runCatching { current.parse(before) }.getOrNull() // third review: a failure is no command
     }
 
     /**

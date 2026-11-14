@@ -105,8 +105,9 @@ object CommandSystem {
         return out
     }
 
-    private fun vocabulary(context: Context) = object : CommandGrammar.Vocabulary {
-        override val apps get() = InstalledApps.apps
+    /** [apps]: one snapshot of [InstalledApps.apps] for a whole parse (third review: never two lists mixed). */
+    private fun vocabulary(context: Context, apps: List<CommandGrammar.AppName>) = object : CommandGrammar.Vocabulary {
+        override val apps = apps
         override val groups by lazy { CommandAppSettings.groups(context) }
         override val snippets by lazy { SnipCommand.names(context) }
         override fun languages(word: String, exactOnly: Boolean) = LanguageCommand.matchLanguages(word, exactOnly)
@@ -122,7 +123,7 @@ object CommandSystem {
         val apps = InstalledApps.apps
         val generation = readingsGeneration
         cachedReadings(text, prefix, areas, apps, generation)?.let { return it }
-        val readings = CommandGrammar.parse(text, prefix, areas, vocabulary(context),
+        val readings = CommandGrammar.parse(text, prefix, areas, vocabulary(context, apps),
             claim = { word -> if (langOn && LanguageCommand.claims(word)) Area.LANG else null })
         synchronized(readingsCache) {
             readingsCache.remove(text)
@@ -366,22 +367,28 @@ object CommandSystem {
         if (KeyboardCommands.isBlocked(Settings.getValues(), host.editorInfo) || !plan.runnable) return false
         val at = host.cursor
         val done = ArrayList<Done>()
-        fun putBack() { for (step in done.asReversed()) runCatching { step.putBack(host) } }
+        /** Puts back every step that ran; false when one of them could not be put back (third review). */
+        fun putBack(): Boolean {
+            var ok = true
+            for (step in done.asReversed()) if (runCatching { step.putBack(host) }.isFailure) ok = false
+            dropReadings()
+            return ok
+        }
+        fun notAllBack() = Toast.makeText(host.context, R.string.agent_unified_failed, Toast.LENGTH_SHORT).show()
         for (step in plan.steps) {
             val effect = step.effect ?: continue
             val result = runCatching { effect.run(host) }.getOrNull()
             if (result == null) {
-                putBack()
-                dropReadings()
-                Toast.makeText(host.context, host.context.getString(R.string.agent_unified_failed_nothing, step.plain), Toast.LENGTH_SHORT).show()
+                if (putBack()) Toast.makeText(host.context, host.context.getString(R.string.agent_unified_failed_nothing, step.plain),
+                    Toast.LENGTH_SHORT).show()
+                else notAllBack()
                 return false
             }
             done += result
         }
         dropReadings() // groups and snippets may have changed
-        // the command goes, in the field it was typed in; when that is refused nothing stays changed.
-        // When the editor's answer is unclear the text is most likely gone: the changes stay, with "Undo"
-        if (host.replaceOutcome(call, "") == ApplyOutcome.REJECTED) { putBack(); dropReadings(); return false }
+        // the command goes, in the field it was typed in; when that is refused nothing stays changed
+        if (!removed(host, call, host.replaceOutcome(call, ""))) { if (!putBack()) notAllBack(); return false }
         for (step in done) step.after?.let { after -> step.afterRan = true; runCatching { after(host) } }
         if (done.isNotEmpty()) {
             // the cursor the strip is built for once the command is gone
@@ -391,6 +398,21 @@ object CommandSystem {
             schedule(UNDO_MILLIS) { if (undo === state) { undo = null; state.refresh?.invoke() } }
         }
         return true
+    }
+
+    /**
+     * Third review of stage 52: whether the command text is gone. [ApplyOutcome.UNKNOWN] also comes
+     * when the editor refused the commit or something threw after the attempt; then the text before
+     * the cursor is read again from the editor: only when it no longer ends with the command it is
+     * gone. Unreadable counts as not removed (nothing irreversible has run yet: `after` waits).
+     */
+    private fun removed(host: Host, call: CommandCall, outcome: ApplyOutcome): Boolean = when (outcome) {
+        ApplyOutcome.SUBMITTED -> true
+        ApplyOutcome.REJECTED -> false
+        ApplyOutcome.UNKNOWN -> {
+            val before = runCatching { host.editorTextBeforeCursor(call.text.length) }.getOrNull()
+            before != null && !before.toString().endsWith(call.text)
+        }
     }
 
     private fun previewChip(host: Host, call: CommandCall, plan: Plan, index: Int, count: Int): Chip {

@@ -113,9 +113,9 @@ object CommandGrammar {
         val words: List<Word> = emptyList(),
         val legacy: Boolean = false,
         internal val score: Int = 0,
-        /** Second review of stage 52: an action word or a language name typed exactly took its slot. */
-        internal val exact: Boolean = false,
-        /** Second review of stage 52: the step of a claimed language word (`@deutsch`), which is its value. */
+        /** Third review of stage 52: where (word start) an action word or a language name typed exactly took its slot. */
+        internal val exactAt: List<Int> = emptyList(),
+        /** Second review of stage 52: the step of a claimed language word typed exactly (`@deutsch`), which is its value. */
         internal val claimed: Boolean = false,
     ) {
         /** True for a step that names every app. */
@@ -136,15 +136,24 @@ object CommandGrammar {
          * installed or not loaded yet). Second review: an action word or a language name typed
          * exactly is enough whatever else is unknown (`@guard google maps off` before the apps are
          * read), and a claimed language word (`@deutsch`) is a known first word like `@lang deutsch`.
+         * Third review: the exact word only counts as the first or the last word, with the unknown
+         * words in one run of at most [MAX_APP_WORDS] (one possible app name), and an unknown word
+         * that is a common word of a sentence ([TEXT_WORDS]: "ist", "we", "at") allows neither that
+         * nor the one unknown word ("@sprache ist weg", "@mem ich bin aus Berlin" stay text).
          */
         val looksLikeCommand: Boolean get() {
             if (claimed && language != null) return true
             val known = words.count { it.role in KNOWN_ROLES } - (if (freshName) 1 else 0)
             if (known < 1) return false
-            if (exact) return true
             val first = words.first()
             val firstKnown = first.role in KNOWN_ROLES && !(freshName && first.role == Role.TARGET)
-            return firstKnown || unknown.size <= 1
+            if (firstKnown) return true
+            if (unknown.any { isTextWord(it) }) return false
+            if (unknown.size <= 1) return true
+            val edge = first.start in exactAt || words.last().start in exactAt
+            val runs = words.indices.filter { words[it].role == Role.UNKNOWN }
+            val oneRun = runs.isNotEmpty() && runs.last() - runs.first() + 1 == runs.size
+            return edge && oneRun && runs.size <= MAX_APP_WORDS
         }
         override fun toString() = "Step($area, $action, ${targets.size} targets, language=$language, unknown=${unknown.size}, legacy=$legacy)"
     }
@@ -192,6 +201,25 @@ object CommandGrammar {
     }
 
     private fun isSeparator(token: Token) = token.text.lowercase() in SEPARATORS
+
+    /** Third review of stage 52: at most this many unknown words in a row read as one app name not read yet. */
+    const val MAX_APP_WORDS = 3
+
+    /**
+     * Third review of stage 52: common words of a sentence (German and English, normalized). Only
+     * an unknown word is looked up here (a word that names an app is a target before), so no app is lost.
+     */
+    val TEXT_WORDS: Set<String> = setOf(
+        "ich", "du", "er", "sie", "es", "wir", "ihr", "man", "mich", "dich", "uns", "euch", "mir", "dir",
+        "ist", "bin", "bist", "sind", "seid", "war", "hat", "habe", "hast", "haben", "wird", "werde", "kann", "will",
+        "wer", "was", "wie", "wo", "wann", "warum", "der", "die", "das", "dem", "den", "des", "ein", "eine", "einen",
+        "und", "oder", "aber", "auf", "in", "im", "mit", "zu", "zum", "zur", "von", "vom", "bei", "fur", "nach",
+        "nicht", "auch", "noch", "schon", "hier", "da", "dabei", "mal", "so", "sehr", "ja", "nein", "doch",
+        "i", "you", "he", "she", "it", "we", "they", "me", "us", "is", "am", "are", "was", "were", "be", "have",
+        "has", "the", "a", "of", "at", "to", "for", "with", "and", "or", "but", "not", "so", "who", "what", "this",
+    )
+
+    private fun isTextWord(word: String) = LanguageNames.normalize(word) in TEXT_WORDS
 
     /** The roles of words that name something; unknown words, areas and separators do not. */
     private val KNOWN_ROLES = setOf(Role.ACTION, Role.TARGET, Role.VALUE)
@@ -417,6 +445,8 @@ object CommandGrammar {
         val choices = units.map { meanings(area, it, vocabulary) }
         // the claimed head (`@deutsch`) is a language and nothing else
         val claimedLanguage = claimed?.let { vocabulary.languages(it.text.substring(1), exactOnly = false).firstOrNull() }
+        // third review: only an exact name counts as a command word ("@Fran" may be a name)
+        val claimedExact = claimed != null && vocabulary.languages(claimed.text.substring(1), exactOnly = true).isNotEmpty()
         return combinations(choices).map { combination ->
             var action: Action? = null
             val targets = ArrayList<Target>()
@@ -424,13 +454,13 @@ object CommandGrammar {
             val unknown = ArrayList<String>()
             val words = ArrayList<Word>()
             var score = 0
-            var exactAction = false
-            var exactLanguage = false
+            var exactAction: Int? = null
+            var exactLanguage: Int? = null
             for ((unit, meaning) in units.zip(combination)) {
                 val role = when (meaning) {
-                    is Meaning.Act -> if (action == null) { action = meaning.action; exactAction = meaning.score == 0; Role.ACTION } else null
+                    is Meaning.Act -> if (action == null) { action = meaning.action; if (meaning.score == 0) exactAction = unit.start; Role.ACTION } else null
                     is Meaning.To -> { targets += meaning.target; Role.TARGET }
-                    is Meaning.Language -> if (language == null) { language = meaning.id; exactLanguage = meaning.score == 0; Role.VALUE } else null
+                    is Meaning.Language -> if (language == null) { language = meaning.id; if (meaning.score == 0) exactLanguage = unit.start; Role.VALUE } else null
                     Meaning.Unknown -> null
                 }
                 score += if (role == null) UNKNOWN_COST else meaning.score
@@ -447,12 +477,12 @@ object CommandGrammar {
                     score += UNKNOWN_COST
                 }
                 language = null
-                exactLanguage = false
+                exactLanguage = null
             }
             // review of stage 52: "@lang foo german" (an app not known, or not loaded yet) is no old command
             val legacy = area == Area.LANG && action == null && targets.isEmpty() && (tokens.size <= 1 || unknown.isEmpty())
             Step(area, action, targets.distinct(), language, unknown = unknown, words = words, legacy = legacy, score = score,
-                exact = exactAction || exactLanguage, claimed = claimed != null)
+                exactAt = listOfNotNull(exactAction, exactLanguage), claimed = claimedExact)
         }.distinctBy { listOf(it.action, it.targets, it.language, it.unknown) }
     }
 
@@ -486,7 +516,7 @@ object CommandGrammar {
             val unknown = ArrayList<String>()
             val words = ArrayList<Word>()
             var score = 0
-            var exactAction = false
+            var exactAction: Int? = null
             if (nameIndex >= 0) {
                 val unit = units[nameIndex]
                 if (name == null) { unknown += unit.text; score += UNKNOWN_COST }
@@ -495,7 +525,7 @@ object CommandGrammar {
             }
             for ((unit, meaning) in memberUnits.zip(combination)) {
                 val role = when (meaning) {
-                    is Meaning.Act -> if (action == null) { action = meaning.action; exactAction = meaning.score == 0; Role.ACTION } else null
+                    is Meaning.Act -> if (action == null) { action = meaning.action; if (meaning.score == 0) exactAction = unit.start; Role.ACTION } else null
                     is Meaning.To -> when (val target = meaning.target) {
                         is Target.App -> { members += target.app; Role.VALUE }
                         is Target.Group -> { members += target.packages.map { known[it] ?: AppName(it, it) }; Role.VALUE }
@@ -515,7 +545,7 @@ object CommandGrammar {
                 score += UNKNOWN_COST
             }
             steps += Step(Area.GROUP, action, name = name?.first, nameExists = name?.second == true,
-                members = members.distinct(), unknown = unknown, words = words.sortedBy { it.start }, score = score, exact = exactAction)
+                members = members.distinct(), unknown = unknown, words = words.sortedBy { it.start }, score = score, exactAt = listOfNotNull(exactAction))
         }
         return steps.distinctBy { listOf(it.action, it.name, it.members, it.unknown) }
     }

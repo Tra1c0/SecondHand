@@ -52,6 +52,8 @@ class CommandSystemTest {
     private var canReplace = true
     /** What the editor answers to a replacement that is not refused (second review: UNKNOWN). */
     private var outcome = ApplyOutcome.SUBMITTED
+    /** What the editor shows before the cursor when it is asked again (third review: after UNKNOWN); null = unreadable. */
+    private var editorText: String? = null
     private var now = 1_000L
     private val scheduled = mutableListOf<Pair<Long, () -> Unit>>()
 
@@ -88,6 +90,7 @@ class CommandSystemTest {
         override fun switchSubtype(subtype: InputMethodSubtype): Boolean { switched += subtype; current = subtype; return true }
         override val currentSubtype: InputMethodSubtype? get() = current
         override val canReplaceNow: Boolean get() = canReplace
+        override fun editorTextBeforeCursor(length: Int): CharSequence? = editorText?.takeLast(length)
     }
 
     private val defaultClock = CommandSystem.clock
@@ -633,6 +636,7 @@ class CommandSystemTest {
         // most likely gone, so the changes stay, the language switches and "Undo" is offered
         editor = field(chat.packageName)
         outcome = ApplyOutcome.UNKNOWN
+        editorText = "Hallo " // read again: the command is gone
         chips("@lang chat spanish; @guard signal off").single().onTap()
         assertEquals(listOf("@lang chat spanish; @guard signal off" to ""), replaced)
         assertEquals(stored(spanish), CommandAppSettings.language(latinIME, chat.packageName))
@@ -678,6 +682,39 @@ class CommandSystemTest {
         assertTrue(replaced.isEmpty())
         assertTrue(CommandAppSettings.guards(latinIME).isEmpty())
         assertTrue(CommandAppSettings.languages(latinIME).isEmpty())
+    }
+
+    @Test fun anUnclearRemovalWithTheTextStillThereChangesNothing() {
+        // third review, finding 2: UNKNOWN also when the editor refused the commit; read again, the
+        // command still ends the text (or cannot be read): everything is put back, nothing switched
+        editor = field(chat.packageName)
+        outcome = ApplyOutcome.UNKNOWN
+        for (text in listOf("Hallo @lang chat spanish; @clip on", null)) {
+            editorText = text
+            chips("@lang chat spanish; @clip on").first().onTap()
+            assertTrue(CommandAppSettings.languages(latinIME).isEmpty(), "$text")
+            assertFalse(ClipCommand.historyEnabled(latinIME), "$text")
+            assertTrue(switched.isEmpty(), "$text")
+            assertTrue(CommandSystem.undoChips(host).isEmpty(), "$text")
+        }
+    }
+
+    @Test fun everydaySentencesAfterAnAreaWordKeepEnter() {
+        // third review, finding 1: an action or language word inside a sentence is no command
+        for (typed in listOf("Hallo @gruppe wer ist neu dabei", "@group we set off at 9", "@sprache ist auf deutsch toll",
+                "@sprache ist weg", "@mem ich bin aus Berlin")) {
+            ShadowToast.reset()
+            assertEquals(false, enter(typed), typed)
+            assertNull(ShadowToast.getTextOfLatestToast(), typed)
+        }
+        assertTrue(replaced.isEmpty())
+        assertTrue(CommandAppSettings.groups(latinIME).isEmpty())
+    }
+
+    @Test fun aStartedLanguageWordStartsNoChain() {
+        // third review, finding 4: "@spanis" may be a name; the later command stands alone
+        assertEquals("@mem whatsapp aus", call("@spanis @mem whatsapp aus").text)
+        assertEquals("@spanisch @mem whatsapp aus", call("@spanisch @mem whatsapp aus").text)
     }
 
     @Test fun aClaimedLanguageWordStartsAChainWithoutSeparator() {
