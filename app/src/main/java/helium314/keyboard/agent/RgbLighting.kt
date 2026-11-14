@@ -17,7 +17,6 @@ import dev.agentkeyboard.core.RgbRun
 import dev.agentkeyboard.core.RgbFramePacer
 import dev.agentkeyboard.core.RgbFrameStats
 import dev.agentkeyboard.core.RgbSettings
-import dev.agentkeyboard.core.RgbTapReaction
 import helium314.keyboard.keyboard.FlatStyle
 import helium314.keyboard.keyboard.Key
 import helium314.keyboard.keyboard.KeyboardView
@@ -48,6 +47,8 @@ object RgbLighting {
     private const val SYSTEM_CHECK_MS = 2000L
 
     private var encoded: String? = null
+    /** The own patterns as last read (stage 34): a changed pattern also makes new engines. */
+    private var encodedPatterns: String? = null
     var settings: RgbSettings = RgbSettings.DEFAULT
         private set
     /** One engine per distinct look (stage 29), all on one clock. */
@@ -91,7 +92,9 @@ object RgbLighting {
     /** Whether the power-save receiver is registered (tests). */
     internal val listensForPowerSave: Boolean get() = receiverContext != null
 
-    fun read(prefs: SharedPreferences): RgbSettings = RgbSettings.parse(prefs.getString(PREF, null))
+    /** The setting with its own patterns (stage 34) taken from [RgbOwnPatterns] by id. */
+    fun read(prefs: SharedPreferences): RgbSettings =
+        RgbSettings.parse(prefs.getString(PREF, null)).let { s -> if (s.ownIds().isEmpty()) s else s.resolve(RgbOwnPatterns.library(prefs)) }
 
     fun write(prefs: SharedPreferences, value: RgbSettings) {
         if (value == RgbSettings.DEFAULT) prefs.edit().remove(PREF).apply()
@@ -100,16 +103,19 @@ object RgbLighting {
 
     /** Re-reads the preference; a changed configuration starts with a new engine. */
     fun load(context: Context) {
-        val value = context.prefs().getString(PREF, null)
-        if (value == encoded) return
+        val prefs = context.prefs()
+        val value = prefs.getString(PREF, null)
+        val patterns = prefs.getString(RgbOwnPatterns.PREF, null)
+        if (value == encoded && patterns == encodedPatterns) return
         encoded = value
-        settings = RgbSettings.parse(value)
+        encodedPatterns = patterns
+        settings = read(prefs)
         engines = RgbEngines(settings)
         pacer = RgbFramePacer(settings.fps)
         // tiles are made in the background ahead of the first frame; switched off they are dropped
         if (settings.enabled) {
             RgbWork.addListener(onTilesReady)
-            RgbTiles.request(engines.all.map { it.settings.pattern })
+            RgbTiles.request(engines.all.mapNotNull { it.tilePattern })
         } else RgbTiles.clear()
         // strip areas deselected while the keys stay lit: give the strip its own colours back
         if (!settings.lightsStrip()) restoreStrip()
@@ -165,7 +171,7 @@ object RgbLighting {
     fun onKeyPressed(view: KeyboardView, key: Key) {
         if (view !== keyboardView?.get()) return
         if (mode == RgbRun.Mode.OFF || mode == RgbRun.Mode.STATIC) return
-        if (settings.tapReaction == RgbTapReaction.NONE && !settings.reactiveOnly) return
+        if (!settings.reactsToTaps()) return
         val width = view.width.takeIf { it > 0 } ?: return
         val height = view.height.takeIf { it > 0 } ?: return
         val now = SystemClock.uptimeMillis()
