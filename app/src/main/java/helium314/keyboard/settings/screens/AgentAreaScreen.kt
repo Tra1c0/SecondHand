@@ -65,6 +65,7 @@ object SettingsAreas {
             AreaEntry(SettingsDestination.AgentCommands, R.string.agent_commands_title, R.string.agent_area_row_commands),
             AreaEntry(SettingsDestination.AgentScreenshots, R.string.agent_screenshot_title, R.string.agent_area_row_screenshots),
         )
+        // 38g: the pages the AI page opens (AgentAreaAiScreen; also its rows when the device is locked)
         SettingsArea.AI -> listOf(
             AreaEntry(SettingsDestination.AgentAi, R.string.agent_ai_title, R.string.agent_area_row_ai),
             AreaEntry(SettingsDestination.AgentSkills, R.string.agent_skills_title, R.string.agent_area_row_skills),
@@ -90,6 +91,7 @@ object SettingsAreas {
 fun AgentAreaScreen(area: SettingsArea, onNavigate: (String) -> Unit, onClickBack: () -> Unit) {
     if (area == SettingsArea.TYPING) return AgentAreaTypingScreen(onNavigate, onClickBack) // stage 38c
     if (area == SettingsArea.GESTURES) return AgentAreaGesturesScreen(onNavigate, onClickBack) // 38e
+    if (area == SettingsArea.AI) return AgentAreaAiScreen(onNavigate, onClickBack) // 38g
     AgentSettingsTheme {
         Column(
             Modifier.fillMaxSize().background(AgentSettingsTokens.Background).windowInsetsPadding(WindowInsets.safeDrawing)

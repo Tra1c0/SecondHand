@@ -85,7 +85,7 @@ liegt X jetzt in diesem Bereich:
 | 03 Tasten & Sprachen | Sprachen & Layouts, Optionen, Sekundäre Layouts |
 | 04 Gesten & Gefühl | eigene Seite (siehe unten): Leertaste, Wischen über die Buchstaben, Symbole malen, Vibration & Ton, Treffen & Wischen |
 | 05 Leiste & Befehle | Leiste (= Symbolleiste), Befehle, Screenshots |
-| 06 KI & Automationen | KI-Anbieter, Skill-Tasten, Workflows, Diktat |
+| 06 KI & Automationen | eigene Seite (siehe unten): Anbieter und Schlüsselstatus, Skill-Tasten, Texte, Workflows, Diktat & Verlauf |
 | 07 System & Daten | Tastaturprofile, Updates, Diagnose, Erweitert, Gestendaten-Erfassung (nur in der Sammelphase), Über |
 
 Zurück geht es mit dem runden Pfeil oben links oder der Zurück-Geste.
@@ -128,6 +128,25 @@ geht unter „Alle Korrektur-Einstellungen“ → „Personalisierte Vorschläge
   unter „Trefferzonen“), Löschen durch Wischen, Touchpad-Empfindlichkeit; liegt „Touchpad-Modus“
   bzw. „Sprache wechseln“ auf einem Leertasten-Wisch, auch „Scrollen am Touchpad-Rand“ bzw.
   „Wischweite für Sprachwechsel“.
+
+**06 KI & Automationen** hat seinen eigenen Aufbau, alle Werte sind deine echten Einstellungen.
+Wie die Seite „KI-Anbieter“ lässt sie keine Bildschirmfotos zu. Bei gesperrtem Gerät zeigt sie nur
+„Gerät entsperren …“ und eine Karte „Seiten“ zu KI-Anbieter, Skill-Tasten, Workflows und Diktat.
+
+- „Anbieter“: drei Karten OpenAI, Anthropic, Google Gemini mit dem eingestellten Modell (bei
+  Gemini „Modell-ID selbst eintragen“). Ein Tipp wählt den Anbieter für die KI-Aktionen der
+  Tastatur. Darunter steht, ob für diesen Anbieter ein Schlüssel gespeichert ist (der Schlüssel
+  selbst wird nie angezeigt). „Ändern“ öffnet die Seite „KI-Anbieter“ zum Eintragen oder Löschen
+  des Schlüssels und der Modell-ID.
+- „Skill-Tasten“: drei Kacheln mit Nummer und Namen deiner Skill-Tasten („Nicht belegt“, wenn
+  leer); ein Tipp öffnet die Seite „Skill-Tasten“.
+- „Texte“: Zielsprache für Übersetzungen und Tonfall beim Umformulieren; ein Tipp öffnet die
+  Auswahl.
+- „Workflows“: „Meine Workflows“ (mit Anzahl), „Neuer Workflow“ und „Import & Export“ öffnen die
+  Seite „Workflows“.
+- „Diktat & Verlauf“: „Diktat auf dem Gerät“ zeigt „Bereit“, „Erlauben“ (Mikrofon fehlt) oder
+  „Nicht verfügbar“ (kein On-device-Erkenner, vor Android 12) und öffnet die Seite „Diktat“;
+  „Auftragsstatus“ öffnet die Seite „KI-Anbieter“, wo die Liste unten steht.
 
 ## Textaktionen (ohne Internet)
 
@@ -185,7 +204,8 @@ gesperrtes Gerät). Ein einzelner Tipp schreibt immer ein Leerzeichen.
 
 ## KI-Aktionen (mit eigenem Schlüssel)
 
-1. Einstellungen → KI-Anbieter. Anbieter wählen: OpenAI, Anthropic oder Google Gemini.
+1. Einstellungen → KI & Automationen → Karte „Anbieter“: OpenAI, Anthropic oder Google Gemini
+   wählen, dann „Ändern“ (öffnet die Seite „KI-Anbieter“).
 2. Den API-Schlüssel dieses Anbieters eintragen und „Schlüssel speichern“. Der Schlüssel wird
    verschlüsselt auf dem Gerät abgelegt und nie wieder angezeigt.
 3. Modell-ID prüfen. Für OpenAI und Anthropic ist eine voreingestellt. Für Gemini musst du die
@@ -204,12 +224,12 @@ Unter KI-Anbieter stehen auch die Zielsprache fürs Übersetzen, der Ton fürs U
 
 ## Skill-Tasten und Workflows
 
-- Einstellungen → Skill-Tasten: drei Tasten mit je einer lokalen Aktion, einer KI-Aktion oder
-  einem Workflow belegen. Damit sie in der Tastatur erscheinen, unter Einstellungen →
-  Symbolleiste die Tasten „Skill-Taste 1–3“ einschalten.
-- Einstellungen → Workflows: eigene Abläufe aus bis zu acht Schritten anlegen, z. B. erst Abstände
-  aufräumen, dann korrigieren, dann übersetzen. Jeder KI-Schritt nennt Anbieter und Modell.
-  Beim Start zeigt die Tastatur alle Schritte und fragt einmal nach der Freigabe.
+- Einstellungen → KI & Automationen → Skill-Tasten (eine Kachel antippen): drei Tasten mit je
+  einer lokalen Aktion, einer KI-Aktion oder einem Workflow belegen. Damit sie in der Tastatur
+  erscheinen, unter Einstellungen → Symbolleiste die Tasten „Skill-Taste 1–3“ einschalten.
+- Einstellungen → KI & Automationen → Meine Workflows: eigene Abläufe aus bis zu acht Schritten
+  anlegen, z. B. erst Abstände aufräumen, dann korrigieren, dann übersetzen. Jeder KI-Schritt
+  nennt Anbieter und Modell. Beim Start zeigt die Tastatur alle Schritte und fragt einmal nach der Freigabe.
 - „Mit KI entwerfen“ (Act Builder): Du beschreibst den Ablauf in Worten, OpenAI schlägt einen
   Workflow vor, du prüfst und speicherst ihn. Das geht nur mit einem OpenAI-Schlüssel.
 - Workflows, Skill-Belegungen und Tastaturprofile lassen sich als Datei exportieren und
@@ -227,7 +247,7 @@ Im Panel unter „Werkzeuge“:
 
 ## Diktieren
 
-1. Einstellungen → Diktat → „Mikrofon erlauben“.
+1. Einstellungen → KI & Automationen → „Diktat auf dem Gerät“ → „Mikrofon erlauben“.
 2. Schreibmarke dorthin setzen, wo der Text hin soll. Es darf nichts markiert sein, und ein
    angefangenes Wort muss beendet sein (z. B. mit einem Leerzeichen).
 3. Im Panel „Diktieren (auf diesem Gerät)“ antippen. Wer oft diktiert, schaltet unter
