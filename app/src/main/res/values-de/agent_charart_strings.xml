@@ -32,6 +32,7 @@
     <string name="agent_char_art_invert">Umkehren</string>
     <string name="agent_char_art_photo_remove">Foto entfernen</string>
     <string name="agent_char_art_photo_none">Keine Bilder. Screenshots und Fotos erscheinen hier, sobald Agent Keyboard Bilder lesen darf.</string>
+    <string name="agent_char_art_photo_empty">Keine Fotos oder Screenshots gefunden.</string>
     <string name="agent_char_art_photo_allow">Bilder erlauben</string>
     <string name="agent_char_art_photo_loading">Bilder laden …</string>
     <string name="agent_char_art_photo_item">Bild %d als Vorlage</string>
@@ -95,6 +96,7 @@
     <string name="agent_char_art_copy">Kopieren</string>
     <string name="agent_char_art_snippet">Baustein</string>
     <string name="agent_char_art_replace">Ersetzen</string>
+    <string name="agent_char_art_replace_selection">Markierung ersetzen</string>
     <string name="agent_char_art_insert">Einfügen</string>
     <string name="agent_char_art_undo">Rückgängig</string>
     <string name="agent_char_art_empty">Zeichne etwas oder schreib einen Text</string>
@@ -109,11 +111,14 @@
     <string name="agent_char_art_warn_approximated">diesen Stil gibt es in Unicode nur teilweise</string>
     <string name="agent_char_art_warn_emoji_letters">🅰 🅱 🅾 🅿 erscheinen als Emojis</string>
     <string name="agent_char_art_warn_unsupported">manche Zeichen fehlen in der Groß-Schrift</string>
+    <string name="agent_char_art_warn_too_large">Groß-Schrift nach %d Zeilen gekürzt</string>
     <string name="agent_char_art_screen_reader">Screenreader lesen Zeichen-Kunst als Zeichensalat.</string>
     <string name="agent_char_art_preview_description">Vorschau der Zeichen-Kunst, %1$d Zeilen. %2$s</string>
     <string name="agent_char_art_protected">Zeichen-Kunst gibt es in diesem Feld nicht.</string>
     <string name="agent_char_art_selection">Erst die Markierung aufheben.</string>
     <string name="agent_char_art_expired">Das Feld hat sich geändert. Nichts eingefügt.</string>
+    <string name="agent_char_art_too_large">Zu groß für das Feld (höchstens %d Zeichen). Kleiner machen oder kopieren.</string>
+    <string name="agent_char_art_selection_too_long">Die Markierung ist zu lang für Zeichen-Kunst; ihr Text wurde nicht übernommen.</string>
     <string name="agent_char_art_undone">Wieder entfernt</string>
     <string name="agent_char_art_undo_failed">Rückgängig geht nicht mehr: der Text hat sich geändert.</string>
     <string name="agent_char_art_copied">Zeichen-Kunst kopiert</string>

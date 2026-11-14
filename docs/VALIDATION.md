@@ -4596,6 +4596,63 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   vorhandene `InputLogic`-Methoden: `commitTyped` beim Öffnen (wie `launchSettings`),
   `insertGeneratedText` über `editor.insert`, `replaceCommandText` für Ersetzen und Rückgängig.
   `InputLogic`, `RichInputConnection`, `PointerTracker` unverändert.
+- Nachprüfung 53 (Prüfer-Befunde zu `959c188`, behoben 2026-11-14):
+  - M1 Unbekannte App bekam WhatsApp mit Codeblock: ohne Profil gilt „Andere“ (die gemerkte App
+    `agent_char_art_app` entfällt); ein Codeblock nur um Bild, Groß-Schrift, Rahmen oder
+    Nebeneinander, nie um Text-Stile allein (`ArtResult.codeBlock`); die Vorschau zeigt den
+    eingefügten Text samt Backticks. Geänderte Erwartungen, keine Abschwächung:
+    `replaceTakesThePlaceOfTheFieldTextAndUndoBringsItBack` erwartet genau „𝐇𝐚𝐥𝐥𝐨“ (vorher „𝐇𝐚𝐥𝐥𝐨“
+    nach Entfernen umgebender Backticks), `drawingUpdatesThePreview` vergleicht die Vorschau mit
+    `result.text` statt mit den Zeilen, `targetAppsAndWarnings` prüft `CODE_BLOCK_FONT` mit Bild
+    plus Schrift-Stil (Schrift-Stil allein hat keinen Codeblock mehr, dafür prüft
+    `codeBlockOnlyWhereWidthsMatter` genau das).
+  - M2 Fenster-Tasten nur halb so breit, quer winzig: beim Tippen verschwinden Optionen, Vorschau
+    und untere Reihe, die Tasten nehmen die ganze Breite; ist eine Reihe unter 36 dp, gibt auch die
+    Kopfzeile Platz; die ganze Zelle ist Tippfläche (`InsetDrawable` statt Außenabstand). Gemessen
+    im Render-Test: hochkant 360 × 246 dp Buchstaben ≥ 32 dp breit (11 deutsche Buchstaben in
+    352 dp; 35 dp bei der englischen Testtastatur), Reihen 44 dp; quer 640 × 200 dp 63 dp breit,
+    41 dp hoch. 44 dp Breite ist hochkant mit elf Tasten je Reihe nicht möglich.
+  - M3 Malen rechnete je Zug alles neu: behaltenes Raster der fertigen Schritte, laufender Schritt
+    über `Sketch.preview`, ein Strich zeichnet nur neue Punkte; Flutfüllung auf Int-Indizes ohne
+    `Pair`; Füllen erst beim Loslassen; höchstens 2000 Punkte je Strich, keine Punkte näher als
+    einen halben Pixel. JVM-Zeittest: 2000 Züge über 399 Schritte plus 50 Füllungen 0,11 s
+    (Grenze 5 s).
+  - M4 EXIF-Drehung: Spalte `orientation` von MediaStore, Drehung mit `Matrix`; Test mit einem quer
+    gespeicherten PNG und 90° über einen eigenen `media`-Provider (Robolectric hat einen eigenen).
+  - N1 Hinweis „✎“ auf jeder Emoji-Taste: Entscheidung des Leads, bleibt (zeigt den Langdruck);
+    in ANLEITUNG und FEATURES beschrieben; Test, dass ein kurzer Tipp weiter die Emojis öffnet und
+    der Hinweis „✎“ ist (N14).
+  - N2 Ersetzen: beim Öffnen `expectedSelectionStart` = gelesene Länge, beim Tipp Schreibmarke =
+    Länge und nichts dahinter. N3 `onAgentTextSubmitted` nach Ersetzen und Rückgängig (kein eigener
+    Test: die Wirkung, Umschalt-Zustand und Gestenrest, ist in Robolectric nicht beobachtbar).
+    N4 Umbruch nimmt das Leerzeichen samt Strich mit. N5 Kopfüber und Stile auf Graphemen (VS16,
+    Hautfarben, ZWJ, Flaggen, Tastenkappen bleiben). N6 Rahmen nie breiter als die Breite (Test
+    aller Breiten 8–33, aller Rahmen, Innenabstände 0–2, Emojis ✨/❤️/#). N7 Groß-Schrift höchstens
+    80 Zeilen mit Warnung, Kunst über 8192 Zeichen mit eigenem Hinweis statt „Das Feld hat sich
+    geändert“. N8 Markierung über `editor.capture` (gedeckelt) und „Markierung ersetzen“ über
+    `editor.apply`. N9 `hide` ohne offenes Fenster tut nichts. N10 Baustein prüft
+    `editor.protection()`. N11 ANLEITUNG: Zurück, Drehen und Design-Wechsel schließen das Fenster.
+    N12 Bilderleiste einmal je Öffnen, eigener Leer-Text. N13 Umschalt + ß = ẞ (Groß-Schrift
+    zeichnet ẞ als SS), Breite erst beim Loslassen gespeichert, TalkBack-Beschreibungen für
+    `AGENT_CHAR_ART`, `AGENT_ACTIONS`, `AGENT_DICTATE`, `AGENT_EMOJI_MIXER` in
+    `KeyCodeDescriptionMapper.kt` (bis dahin unveränderte Upstream-Datei).
+  - Neue Tests: `CharArtTest` +5 (`codeBlockOnlyWhereWidthsMatter`,
+    `wrappingKeepsNoMarkAtALineStart`, `upsideDownKeepsEmojisWhole`,
+    `framesStayInsideOddAndSmallWidths`, `bigLettersStopAtEightyLines`, dazu ẞ in `figletFonts`),
+    `SketchTest` +2 (`keptRasterAndPreviewMatchDrawingEverythingAgain`,
+    `aLongStrokeOverAFullDrawingStaysFast`), `CharArtWindowTest` +11 (`unknownAppsGetOtherAndTextStylesNoCodeBlock`,
+    `typingModePortrait`, `typingModeLandscape`, `fillOnlyWhenTheFingerLifts`,
+    `aSidewaysPhotoIsTurnedUpright`, `aShortTapOnTheEmojiKeyStillOpensTheEmojis`,
+    `replaceOnlyWhileTheFieldIsAsRead`, `replacesTheSelection`, `tooLargeArtSaysSo`,
+    `pictureStripIsReadOncePerOpening`, `capitalSharpSWidthOnLiftAndTalkBack`; dazu N10 in
+    `neverInPasswordIncognitoOrLockedFields`). Vorschaubilder
+    `app/build/agent-previews/charart-typing-portrait.png` und `charart-typing-landscape.png`.
+  - Gelaufen (2026-11-14, `--max-workers=1 -Xmx1536m`): `./gradlew :agent-core:test` grün (510
+    Tests); `:app:testDebugUnitTest` mit `CharArtWindowTest` grün (22) und `ParserTest`
+    (`KeyboardParserTest.kt`) grün (46). `docs_sync --check` grün. Nicht gelaufen: volle Suite,
+    `tools/dev.py agent-tests`, Lint, Build (Speicher, parallele Agenten), Gerätetest (Tastenhöhe und
+    Tippgefühl im Querformat, Zeichnen mit echtem Finger auf schwachem Gerät, gedrehte Fotos aus
+    der Kamera, TalkBack, wie WhatsApp den Text ohne Codeblock zeigt), erneuter Prüfer-Lauf.
 ## Etappe 51 (Autokorrektur folgt der Sprache)
 
 - Auftrag: `docs/ROADMAP.md` → 51 (Owner zu Build 21, 2026-11-14): (a) „Die Autokorrektur muss sich

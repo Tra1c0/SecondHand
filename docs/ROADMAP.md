@@ -261,14 +261,16 @@ Reihenfolge von oben nach unten.
 - **53 Zeichen-Kunst-Fenster** ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` →
   Etappe 53). Annahmen des Leads, die der Owner ändern kann: Standardstil Braille; Profile WhatsApp,
   Telegram, Discord, Signal, Andere (Breiten 26/28/32/26/26, Codeblock bei WhatsApp und Discord an,
-  bei Telegram wählbar); Text im Fenster über eigene Fenster-Tasten statt der Tastatur-Tasten (die
+  bei Telegram wählbar, nur um Kunst, Rahmen oder Nebeneinander; Apps ohne Profil bekommen
+  „Andere“); Text im Fenster über eigene Fenster-Tasten statt der Tastatur-Tasten (die
   liegen unter dem Fenster; umleiten hätte die Engine berührt); Fotovorlage aus den neuesten 12
   Bildern im Fenster statt System-Picker (der würde die Tastatur schließen); nach dem Einfügen
   bleibt das Fenster offen und „Einfügen“ ist 8 s „Rückgängig“; „Ersetzen“ nur, wenn hinter der
-  Schreibmarke nichts steht. Offen: Prüfer-Review (Hooks in `TextKeyData`,
-  `KeyboardActionListenerImpl`, `InputView`; Aufruf von `InputLogic.commitTyped` und
-  `replaceCommandText`), Gerätetest (Langdruck, Fensterhöhe, Zeichnen mit dem Finger, Bilder mit
-  echter Berechtigung, wie die Kunst in WhatsApp/Telegram/Discord/Signal wirklich aussieht).
+  Schreibmarke nichts steht, mit Markierung „Markierung ersetzen“; das „✎“ als Hinweis auf jeder
+  Emoji-Taste bleibt. Prüfer-Befunde behoben (`docs/VALIDATION.md` → Etappe 53, Nachprüfung 53).
+  Offen: erneuter Prüfer-Lauf, Gerätetest (Langdruck, Fensterhöhe und Fenster-Tasten im
+  Querformat, Zeichnen mit dem Finger, Bilder mit echter Berechtigung und gedrehte Kamerafotos,
+  TalkBack, wie die Kunst in WhatsApp/Telegram/Discord/Signal wirklich aussieht).
   Ursprünglicher Wunsch (Owner, 2026-11-14), schließt 39 (Text-Stile) ein. Öffnen: Emoji-Taste lange drücken → Stift im Popup. Fenster: oben
   der vorhandene Feldtext (bearbeitbar), Mitte freie Zeichenfläche (Stift, Radierer, Linie, Kreis,
   Füllen, Rückgängig; auch Foto/Screenshot als Vorlage), unten Live-Vorschau als Text aus Zeichen.

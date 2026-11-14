@@ -90,6 +90,72 @@ class SketchTest {
         assertEquals(listOf("..#"), Bits.parse(listOf("#..")).mirrored().rows())
     }
 
+    /** Review of stage 53, M3: the kept raster and the live preview give exactly what drawing every step again gives. */
+    @Test fun keptRasterAndPreviewMatchDrawingEverythingAgain() {
+        fun fresh(ops: List<SketchOp>, size: Int = 40) = Sketch(size).also { s -> ops.forEach { s.add(it) } }.rasterize()
+        fun same(a: SketchRaster, b: SketchRaster) {
+            assertContentEquals(a.ink.values, b.ink.values)
+            assertContentEquals(a.erased.values, b.erased.values)
+        }
+        val sketch = Sketch(size = 40)
+        sketch.add(SketchOp.Ellipse(p(0.2f, 0.2f), p(0.8f, 0.8f), 0.05f))
+        val first = sketch.rasterize()
+        assertSame(first, sketch.rasterize()) // kept, not drawn again
+        sketch.add(SketchOp.Fill(p(0.5f, 0.5f)))
+        assertEquals(0f, first.ink[20, 20]) // a raster handed out before stays as it was
+        same(fresh(sketch.ops), sketch.rasterize())
+        // a stroke drawn point by point, as the finger moves, with points outside the area
+        val points = ArrayList<SketchPoint>()
+        var shown: SketchRaster? = null
+        for (i in 0..30) {
+            points += p(-0.1f + i * 0.04f, 0.1f + (i % 7) * 0.12f)
+            shown = sketch.preview(SketchOp.Stroke(points, 0.05f, erase = i > 20))
+        }
+        // an eraser changes the kind of stroke: drawn again from the kept raster
+        same(fresh(sketch.ops + SketchOp.Stroke(points.toList(), 0.05f, erase = true)), shown!!)
+        val pen = ArrayList<SketchPoint>()
+        for (i in 0..30) { pen += p(0.05f + i * 0.03f, 0.9f - (i % 5) * 0.1f); shown = sketch.preview(SketchOp.Stroke(pen, 0.08f)) }
+        same(fresh(sketch.ops + SketchOp.Stroke(pen.toList(), 0.08f)), shown)
+        // the finished stroke, then undo and clear draw again
+        sketch.add(SketchOp.Stroke(pen.toList(), 0.08f))
+        same(fresh(sketch.ops), sketch.rasterize())
+        sketch.add(SketchOp.Line(p(0f, 0f), p(1f, 1f), 0.1f))
+        assertTrue(sketch.undo())
+        same(fresh(sketch.ops), sketch.rasterize())
+        // a line being dragged: each preview starts again from the kept steps
+        sketch.preview(SketchOp.Line(p(0f, 0f), p(1f, 0f), 0.1f))
+        same(fresh(sketch.ops + SketchOp.Line(p(0f, 0f), p(0f, 1f), 0.1f)), sketch.preview(SketchOp.Line(p(0f, 0f), p(0f, 1f), 0.1f)))
+        sketch.clear()
+        assertNull(sketch.rasterize().inkBounds())
+    }
+
+    /**
+     * Review of stage 53, M3: a long stroke over a full drawing stays fast because every move draws only
+     * its new points. The bound is generous (a slow CI machine); drawing everything again per move took
+     * far longer on the same data.
+     */
+    @Test fun aLongStrokeOverAFullDrawingStaysFast() {
+        val sketch = Sketch()
+        for (i in 0 until Sketch.MAX_OPS - 1) {
+            val y = (i % 40) / 40f
+            sketch.add(SketchOp.Line(p(0f, y), p(1f, 1f - y), 0.025f))
+        }
+        sketch.rasterize()
+        val points = ArrayList<SketchPoint>()
+        val started = System.nanoTime()
+        for (i in 0 until Sketch.MAX_POINTS) {
+            points += p((i % 200) / 200f, (i / 200) / 10f)
+            sketch.preview(SketchOp.Stroke(points, 0.045f))
+        }
+        sketch.add(SketchOp.Stroke(points, 0.045f))
+        // filling the whole area many times
+        val empty = Sketch()
+        repeat(50) { empty.add(SketchOp.Fill(p(0.5f, 0.5f))); empty.undo(); empty.rasterize(SketchOp.Fill(p(0.5f, 0.5f))) }
+        val millis = (System.nanoTime() - started) / 1_000_000
+        assertTrue(millis < 5_000, "$millis ms for ${Sketch.MAX_POINTS} moves and 50 fills")
+        assertEquals(Sketch.MAX_OPS, sketch.ops.size)
+    }
+
     @Test fun photoTemplate() {
         // a wide photo sits in the middle of the square area
         val wide = Photo.fitted(Raster(20, 10))

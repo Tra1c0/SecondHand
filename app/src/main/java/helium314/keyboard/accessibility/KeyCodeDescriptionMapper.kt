@@ -37,6 +37,12 @@ internal class KeyCodeDescriptionMapper private constructor() {
         put(KeyCode.ACTION_PREVIOUS, R.string.spoken_description_action_previous)
         put(KeyCode.EMOJI, R.string.spoken_description_emoji)
         put(KeyCode.EMOJI_SEARCH, R.string.spoken_description_search)
+        // fork: the agent keys; without this TalkBack reads the pen of the emoji key's popup as "✎"
+        // (review of stage 53, N13). Skill keys keep their own label, which names the skill.
+        put(KeyCode.AGENT_ACTIONS, R.string.agent)
+        put(KeyCode.AGENT_DICTATE, R.string.dictate)
+        put(KeyCode.AGENT_EMOJI_MIXER, R.string.agent_emoji_mixer_key)
+        put(KeyCode.AGENT_CHAR_ART, R.string.agent_char_art_key_description)
         // Because the upper-case and lower-case mappings of the following letters is depending on
         // the locale, the upper case descriptions should be defined here. The lower case
         // descriptions are handled in {@link #getSpokenLetterDescriptionId(Context,int)}.

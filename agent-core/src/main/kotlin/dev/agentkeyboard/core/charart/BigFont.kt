@@ -55,7 +55,8 @@ enum class BigFont(internal val height: Int, private val glyphs: Map<Char, List<
     }
 
     private fun prepare(text: String): List<Char> {
-        val upper = text.replace('❤', '♥').uppercase(Locale.GERMAN)
+        // the capital sharp s of the window's keys (ẞ) is drawn like ß in capitals: SS
+        val upper = text.replace('❤', '♥').uppercase(Locale.GERMAN).replace("ẞ", "SS")
         val out = mutableListOf<Char>()
         for (char in upper) {
             if (char == '️' || char == '‍') continue // emoji variation, joiner

@@ -36,6 +36,7 @@
     <string name="agent_char_art_invert">Invert</string>
     <string name="agent_char_art_photo_remove">Remove photo</string>
     <string name="agent_char_art_photo_none">No pictures. Screenshots and photos show up here once Agent Keyboard may read pictures.</string>
+    <string name="agent_char_art_photo_empty">No photos or screenshots found.</string>
     <string name="agent_char_art_photo_allow">Allow pictures</string>
     <string name="agent_char_art_photo_loading">Loading pictures …</string>
     <!-- %d: number of the picture, newest first -->
@@ -109,6 +110,7 @@
     <string name="agent_char_art_copy">Copy</string>
     <string name="agent_char_art_snippet">Snippet</string>
     <string name="agent_char_art_replace">Replace</string>
+    <string name="agent_char_art_replace_selection">Replace selection</string>
     <string name="agent_char_art_insert">Insert</string>
     <string name="agent_char_art_undo">Undo</string>
     <string name="agent_char_art_empty">Draw something or write a text</string>
@@ -126,12 +128,15 @@
     <string name="agent_char_art_warn_approximated">Unicode has this style only in part</string>
     <string name="agent_char_art_warn_emoji_letters">🅰 🅱 🅾 🅿 show as emojis</string>
     <string name="agent_char_art_warn_unsupported">some characters are missing in the big font</string>
+    <string name="agent_char_art_warn_too_large">big letters cut after %d lines</string>
     <string name="agent_char_art_screen_reader">Screen readers read character art as a jumble of characters.</string>
     <!-- %1$d: lines, %2$s: the screen reader note -->
     <string name="agent_char_art_preview_description">Preview of the character art, %1$d lines. %2$s</string>
     <string name="agent_char_art_protected">Character art is not available in this field.</string>
     <string name="agent_char_art_selection">Remove the selection first.</string>
     <string name="agent_char_art_expired">The field changed. Nothing was inserted.</string>
+    <string name="agent_char_art_too_large">Too large for the field (at most %d characters). Make it smaller or copy it.</string>
+    <string name="agent_char_art_selection_too_long">The selection is too long for character art; its text was not taken.</string>
     <string name="agent_char_art_undone">Removed again</string>
     <string name="agent_char_art_undo_failed">Undo no longer possible: the text has changed.</string>
     <string name="agent_char_art_copied">Character art copied</string>

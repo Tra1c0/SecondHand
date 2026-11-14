@@ -133,6 +133,9 @@ class CharArtTest {
         // letters, one pixel apart; a space is three pixels in the standard font
         assertEquals(5 + 1 + 3 + 1 + 5, BigFont.STANDARD.width("A A"))
         assertEquals(BigFont.STANDARD.width("SS"), BigFont.STANDARD.width("ß")) // ß in capitals is SS
+        // the capital ẞ of the window's keys too (review of stage 53, N13), and it is no unknown character
+        assertEquals(BigFont.STANDARD.render("SS").bits.rows(), BigFont.STANDARD.render("ẞ").bits.rows())
+        assertFalse(BigFont.STANDARD.render("ẞ").unsupported)
         assertEquals(BigFont.STANDARD.render("E").bits.rows(), BigFont.STANDARD.render("É").bits.rows()) // accents fall back to the letter
         assertEquals(listOf(".#.#.", ".....", ".###.", "#...#", "#####", "#...#", "#...#"), BigFont.STANDARD.render("ä").bits.rows())
         assertFalse(BigFont.STANDARD.render("Hallo, Welt!").unsupported)
@@ -293,7 +296,10 @@ class CharArtTest {
         assertFalse(ArtWarning.ALIGNMENT in CharArt.render(picture, null, frame = FrameOptions(FrameStyle.LINE), output = OutputOptions(TargetApp.WHATSAPP)).warnings)
         val emojiFrame = CharArt.render(picture, null, frame = FrameOptions(FrameStyle.EMOJI), output = OutputOptions(TargetApp.SIGNAL))
         assertTrue(ArtWarning.MIXED_WIDTHS in emojiFrame.warnings)
-        val styledInCode = CharArt.render(null, TextElement("Hi", TextMode.UNICODE), output = OutputOptions(TargetApp.WHATSAPP))
+        // styled letters next to art in a code block are not monospace either (review of stage 53, M1:
+        // styled text alone gets no code block any more, so the warning needs art around it)
+        val styledInCode = CharArt.render(picture, TextElement("Hi", TextMode.UNICODE), output = OutputOptions(TargetApp.WHATSAPP))
+        assertTrue(styledInCode.codeBlock)
         assertTrue(ArtWarning.CODE_BLOCK_FONT in styledInCode.warnings)
         val boldSquares = CharArt.render(null, TextElement("ab", TextMode.UNICODE, UnicodeStyle(UnicodeStyle.Family.SQUARED, bold = true)),
             output = OutputOptions(TargetApp.SIGNAL))
@@ -305,6 +311,110 @@ class CharArtTest {
         assertEquals(TargetApp.SIGNAL, TargetApp.forPackage("org.thoughtcrime.securesms"))
         assertNull(TargetApp.forPackage("com.example"))
         assertNull(TargetApp.forPackage(null))
+    }
+
+    /** Review of stage 53, M1: a code block only around art, frames and side by side, never around text styles alone. */
+    @Test fun codeBlockOnlyWhereWidthsMatter() {
+        val whatsapp = OutputOptions(TargetApp.WHATSAPP)
+        for (mode in listOf(TextMode.UNICODE, TextMode.PLAIN)) {
+            val styled = CharArt.render(null, TextElement("Hallo", mode), output = whatsapp)
+            assertFalse(styled.codeBlock, "$mode")
+            assertEquals(styled.lines.joinToString("\n"), styled.text, "$mode: no backticks around text alone")
+            assertFalse(ArtWarning.CODE_BLOCK_FONT in styled.warnings)
+        }
+        assertEquals("𝐇𝐚𝐥𝐥𝐨", CharArt.render(null, TextElement("Hallo", TextMode.UNICODE), output = whatsapp).text)
+        // big letters, a picture, a frame or side by side are art: they keep the code block
+        val big = CharArt.render(null, TextElement("Hi"), output = whatsapp)
+        assertTrue(big.codeBlock)
+        assertEquals("```" + big.lines.joinToString("\n") + "```", big.text)
+        assertTrue(CharArt.render(PictureElement(circle()), null, output = whatsapp).codeBlock)
+        assertTrue(CharArt.render(null, TextElement("Hi", TextMode.UNICODE), frame = FrameOptions(FrameStyle.LINE), output = whatsapp).codeBlock)
+        assertTrue(CharArt.render(PictureElement(circle()), TextElement("Hi", TextMode.PLAIN), layout = LayoutOptions(Arrangement.SIDE_BY_SIDE),
+            output = whatsapp).codeBlock)
+        // switched off, or an app without code blocks: never
+        assertFalse(CharArt.render(null, TextElement("Hi"), output = whatsapp.copy(codeBlock = false)).codeBlock)
+        assertFalse(CharArt.render(null, TextElement("Hi"), output = OutputOptions(TargetApp.GENERIC, codeBlock = true)).codeBlock)
+    }
+
+    /** Review of stage 53, N4: the line through a space never starts the next line. */
+    @Test fun wrappingKeepsNoMarkAtALineStart() {
+        fun marked(text: String, mark: Char) = text.map { "$it$mark" }.joinToString("")
+        val strike = '̶'
+        val struck = UnicodeStyle(strike = true).apply("eins zwei drei").text
+        assertEquals(marked("eins zwei drei", strike), struck) // the space is struck through as well
+        val lines = CharArt.wrap(struck, 9)
+        assertEquals(listOf(marked("eins zwei", strike), marked("drei", strike)), lines)
+        for (line in lines) assertNotEquals(strike, line[0], "no mark at the start of \"$line\"")
+        val underline = '̲'
+        val underlined = CharArt.render(null, TextElement("abc def ghi", TextMode.UNICODE, UnicodeStyle(underline = true)),
+            layout = LayoutOptions(center = false), output = plain(8))
+        assertEquals(listOf(marked("abc def", underline), marked("ghi", underline)), underlined.lines)
+        assertTrue(underlined.lines.all { Character.getType(it[0]) != Character.NON_SPACING_MARK.toInt() })
+        // plain text wraps as before; spaces at a break vanish
+        assertEquals(listOf("eins zwei", "drei"), CharArt.wrap("eins zwei drei", 9))
+        assertEquals(listOf("a", "b"), CharArt.wrap("a   b", 1))
+    }
+
+    /** Review of stage 53, N5: upside down keeps emojis whole (VS16, skin tones, joined emojis, flags). */
+    @Test fun upsideDownKeepsEmojisWhole() {
+        fun cp(vararg codePoints: Int) = codePoints.joinToString("") { String(Character.toChars(it)) }
+        val heart = cp(0x2764, 0xFE0F)
+        val thumb = cp(0x1F44D, 0x1F3FD) // with a skin tone
+        val coder = cp(0x1F469, 0x200D, 0x1F4BB) // woman, joiner, laptop
+        val flag = cp(0x1F1E9, 0x1F1EA)
+        val keycap = cp(0x31, 0xFE0F, 0x20E3)
+        val upside = UnicodeStyle(UnicodeStyle.Family.UPSIDE_DOWN)
+        assertEquals("$heart ᴉɥ", upside.apply("hi $heart").text)
+        assertEquals("${thumb}o", upside.apply("o$thumb").text)
+        assertEquals("$coder$flag", upside.apply("$flag$coder").text)
+        assertEquals("ɐ$keycap", upside.apply("${keycap}ä").text)
+        assertEquals(listOf("ɐ", keycap), TextColumns.graphemes(upside.apply("${keycap}ä").text))
+        // a line through the letters leaves the emoji as it is
+        assertEquals("a̶${thumb}b̶", UnicodeStyle(strike = true).apply("a${thumb}b").text)
+        assertEquals("${cp(0x1D41A)}$coder", UnicodeStyle(bold = true).apply("a$coder").text)
+    }
+
+    /** Review of stage 53, N6: a frame never makes the art wider than the width, also at odd and small widths. */
+    @Test fun framesStayInsideOddAndSmallWidths() {
+        val picture = PictureElement(circle())
+        val text = TextElement("Hallo Welt", TextMode.PLAIN)
+        for (width in CharArt.MIN_WIDTH..33) for (style in FrameStyle.entries) for (padding in 0..2) for (emoji in listOf("✨", "❤️", "#")) {
+            val frame = FrameOptions(style, padding, emoji)
+            for ((name, result) in listOf(
+                "picture" to CharArt.render(picture, null, frame = frame, output = plain(width)),
+                "text" to CharArt.render(null, text, frame = frame, output = plain(width)),
+                "both" to CharArt.render(picture, text, frame = frame, output = plain(width)),
+                "side" to CharArt.render(picture, text, frame = frame, layout = LayoutOptions(Arrangement.SIDE_BY_SIDE), output = plain(width)),
+            )) {
+                assertFalse(result.isEmpty)
+                assertTrue(result.lines.all { TextColumns.of(it) <= width }, "$name, $style, padding $padding, $emoji at $width: ${result.columns}")
+                // every line of a frame is equally wide
+                if (style != FrameStyle.NONE) assertEquals(1, result.lines.map(TextColumns::of).distinct().size, "$name, $style at $width")
+            }
+        }
+        // the padding gives way first: a picture 4 columns wide in 8 keeps a padding of 1, not 2
+        val small = CharArt.render(picture, null, frame = FrameOptions(FrameStyle.LINE, 2), output = plain(8))
+        assertEquals(8, small.columns)
+        assertEquals("┌──────┐", small.lines.first())
+        assertEquals("│$blank$blank$blank$blank$blank$blank│", small.lines[1])
+        // short text keeps the whole padding where it fits
+        val ab = CharArt.render(null, TextElement("ab", TextMode.PLAIN), frame = FrameOptions(FrameStyle.LINE, 2), output = plain(8))
+        assertEquals("│$blank${blank}ab$blank$blank│", ab.lines[3])
+        // an emoji frame at an odd width: one column less instead of one too many
+        val odd = CharArt.render(picture, null, frame = FrameOptions(FrameStyle.EMOJI), output = plain(27))
+        assertEquals(26, odd.columns)
+    }
+
+    /** Review of stage 53, N7: big letters stop at 80 lines and say so. */
+    @Test fun bigLettersStopAtEightyLines() {
+        val long = "Das ist ein langer Text in grossen Buchstaben ".repeat(6).trim()
+        val result = CharArt.render(null, TextElement(long, size = 3, look = Look(style = ArtStyle.BLOCKS)), output = plain(26))
+        assertTrue(result.lines.size <= CharArt.MAX_BIG_LINES, "${result.lines.size} lines")
+        assertTrue(result.lines.size > CharArt.MAX_BIG_LINES - 12) // whole big lines up to the limit
+        assertTrue(ArtWarning.TOO_LARGE in result.warnings)
+        assertTrue(result.lines.all { TextColumns.of(it) <= 26 })
+        val short = CharArt.render(null, TextElement("Hallo", size = 3, look = Look(style = ArtStyle.BLOCKS)), output = plain(26))
+        assertFalse(ArtWarning.TOO_LARGE in short.warnings)
     }
 
     @Test fun columnsEstimate() {

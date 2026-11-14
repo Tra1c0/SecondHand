@@ -16,6 +16,7 @@ import dev.agentkeyboard.core.charart.SketchOp
 import dev.agentkeyboard.core.charart.SketchPoint
 import dev.agentkeyboard.core.charart.SketchRaster
 import helium314.keyboard.latin.R
+import kotlin.math.abs
 import kotlin.math.min
 
 /**
@@ -48,6 +49,7 @@ class CharArtCanvas(context: Context, val sketch: Sketch) : View(context) {
     var raster: SketchRaster = sketch.rasterize()
         private set
     private val pixels = Bitmap.createBitmap(sketch.size, sketch.size, Bitmap.Config.ARGB_8888)
+    private val colors = IntArray(sketch.size * sketch.size)
     private val area = RectF()
     private val paint = Paint()
     private val photoPaint = Paint(Paint.FILTER_BITMAP_FLAG)
@@ -77,16 +79,21 @@ class CharArtCanvas(context: Context, val sketch: Sketch) : View(context) {
         onChanged?.invoke(raster, true)
     }
 
+    /**
+     * Shows the finished steps plus [pending]. Review of stage 53 (M3): the sketch keeps the finished
+     * steps drawn and a stroke in progress only adds its new points, so a move costs the new points
+     * and one pass over the pixels, not all steps again.
+     */
     private fun redraw() {
-        raster = sketch.rasterize(pending)
+        val step = pending
+        raster = if (step == null) sketch.rasterize() else sketch.preview(step)
         val size = sketch.size
-        val colors = IntArray(size * size) { index ->
-            val x = index % size; val y = index / size
-            when {
-                raster.ink[x, y] >= 0.5f -> inkColor
-                raster.erased[x, y] >= 0.5f -> paperColor
-                else -> 0
-            }
+        val ink = raster.ink.values
+        val erased = raster.erased.values
+        for (index in colors.indices) colors[index] = when {
+            ink[index] >= 0.5f -> inkColor
+            erased[index] >= 0.5f -> paperColor
+            else -> 0
         }
         pixels.setPixels(colors, 0, size, 0, 0, size, size)
         invalidate()
@@ -141,22 +148,24 @@ class CharArtCanvas(context: Context, val sketch: Sketch) : View(context) {
                 parent?.requestDisallowInterceptTouchEvent(true)
                 points.clear(); points += at; start = at
                 pending = provisional(at, width)
-                redraw(); onChanged?.invoke(raster, false)
+                // a fill shows only when the finger lifts: nothing to draw now
+                if (pending != null) { redraw(); onChanged?.invoke(raster, false) }
             }
             MotionEvent.ACTION_MOVE -> {
                 if (start == null) return true
+                if (tool == Tool.FILL) return true // no fill computed while dragging (review of stage 53, M3)
                 for (h in 0 until event.historySize) {
-                    if (area.width() > 0f) points += SketchPoint((event.getHistoricalX(h) - area.left) / area.width(),
-                        (event.getHistoricalY(h) - area.top) / area.height())
+                    if (area.width() > 0f) addPoint(SketchPoint((event.getHistoricalX(h) - area.left) / area.width(),
+                        (event.getHistoricalY(h) - area.top) / area.height()))
                 }
-                points += at
+                addPoint(at)
                 pending = provisional(at, width)
                 redraw(); onChanged?.invoke(raster, false)
             }
             MotionEvent.ACTION_UP -> {
                 if (start == null) return true
-                points += at
-                val op = provisional(at, width)
+                addPoint(at)
+                val op = if (tool == Tool.FILL) SketchOp.Fill(at) else provisional(at, width)
                 pending = null
                 start = null
                 if (op != null) sketch.add(op)
@@ -173,15 +182,29 @@ class CharArtCanvas(context: Context, val sketch: Sketch) : View(context) {
 
     override fun performClick(): Boolean = super.performClick()
 
-    /** The step the finger is drawing now; a fill only when the finger lifts. */
+    /**
+     * A point of the stroke: at most [Sketch.MAX_POINTS] (the sketch would drop the rest anyway) and
+     * none closer than half a pixel of the drawing to the one before, which draws nothing new.
+     */
+    private fun addPoint(point: SketchPoint) {
+        if (points.size >= Sketch.MAX_POINTS) return
+        val last = points.lastOrNull()
+        if (last != null && abs(point.x - last.x) * sketch.size < 0.5f && abs(point.y - last.y) * sketch.size < 0.5f) return
+        points += point
+    }
+
+    /**
+     * The step the finger is drawing now, or null for a fill (that comes only when the finger lifts).
+     * A stroke shares the growing list of points: the sketch reads it at once and copies it on [Sketch.add].
+     */
     private fun provisional(at: SketchPoint, width: Float): SketchOp? {
         val from = start ?: return null
         return when (tool) {
-            Tool.PEN -> SketchOp.Stroke(points.toList(), width)
-            Tool.ERASER -> SketchOp.Stroke(points.toList(), width * 2f, erase = true)
+            Tool.PEN -> SketchOp.Stroke(points, width)
+            Tool.ERASER -> SketchOp.Stroke(points, width * 2f, erase = true)
             Tool.LINE -> SketchOp.Line(from, at, width)
             Tool.CIRCLE -> SketchOp.Ellipse(from, at, width)
-            Tool.FILL -> SketchOp.Fill(at)
+            Tool.FILL -> null
         }
     }
 }

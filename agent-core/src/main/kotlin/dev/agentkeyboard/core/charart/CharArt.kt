@@ -156,10 +156,18 @@ enum class ArtWarning {
     EMOJI_LETTERS,
     /** The big font has no letter for some characters; they are drawn as "?". */
     UNSUPPORTED_CHARACTERS,
+    /** The big letters would take more than [CharArt.MAX_BIG_LINES] lines: the text was cut there. */
+    TOO_LARGE,
 }
 
-/** The finished art: its [lines], the [text] to insert (with the code block), widths and warnings. */
-class ArtResult(val lines: List<String>, val text: String, val columns: Int, val warnings: Set<ArtWarning>, val fitsPhone: Boolean) {
+/**
+ * The finished art: its [lines], the [text] to insert (with the code block, if [codeBlock]), widths
+ * and warnings.
+ */
+class ArtResult(
+    val lines: List<String>, val text: String, val columns: Int, val warnings: Set<ArtWarning>, val fitsPhone: Boolean,
+    val codeBlock: Boolean = false,
+) {
     val isEmpty: Boolean get() = lines.isEmpty()
 }
 
@@ -175,6 +183,10 @@ object CharArt {
     const val MAX_TEXT_LINES = 12
     /** Big letters in automatic size grow only while they take at most this many rows. */
     const val MAX_BIG_ROWS = 10
+    /** Big letters never take more lines than this; the rest of the text is cut ([ArtWarning.TOO_LARGE]). */
+    const val MAX_BIG_LINES = 80
+    /** The inside of a frame is at least this wide; the frame's padding shrinks first. */
+    private const val MIN_INNER = 4
     /** Paper that becomes U+2800 or a space at the end; the user's own spaces stay spaces. */
     internal const val PAD = ''
     private const val ASCII_RAMP = " .:-=+*#%@"
@@ -189,12 +201,18 @@ object CharArt {
     ): ArtResult {
         val warnings = mutableSetOf<ArtWarning>()
         val width = output.width.coerceIn(MIN_WIDTH, MAX_WIDTH)
+        // the frame never makes the art wider than the width (review of stage 53, N6): an emoji frame
+        // keeps its inside a whole number of emojis wide, a small width takes the padding first
+        // (in [framed], once the content is known)
+        val unit = frameUnit(frame)
+        val padding = if (frame.style == FrameStyle.NONE) 0 else frame.padding.coerceIn(0, 2)
         val border = when (frame.style) {
             FrameStyle.NONE -> 0
-            FrameStyle.EMOJI -> 4 + 2 * frame.padding
-            else -> 2 + 2 * frame.padding
+            FrameStyle.EMOJI -> 2 * unit + 2 * padding
+            else -> 2 + 2 * padding
         }
-        val inner = max(4, width - border)
+        var inner = max(MIN_INNER, width - border)
+        if (frame.style == FrameStyle.EMOJI) inner -= (inner + 2 * padding) % unit
         val hasText = text != null && text.text.isNotBlank()
         val side = layout.arrangement == Arrangement.SIDE_BY_SIDE && hasText && picture != null
         val gap = if (side) max(1, layout.spacing) else layout.spacing
@@ -213,13 +231,18 @@ object CharArt {
 
         var lines = if (side && blocks.size == 2) sideBySide(blocks, gap, layout.center) else stacked(blocks, gap, layout.center)
         val framed = frame.style != FrameStyle.NONE
-        if (framed) lines = framed(lines, frame)
+        if (framed) lines = framed(lines, frame, width)
         else lines = lines.map { it.trimEnd(PAD, ' ', TextColumns.BRAILLE_BLANK) }
         lines = lines.dropWhile(::isBlank).dropLastWhile(::isBlank).map { if (it.isEmpty()) PAD.toString() else it }
         val blank = if (output.brailleBlanks) TextColumns.BRAILLE_BLANK else ' '
         lines = lines.map { it.replace(PAD, blank) }
 
-        val wrapper = output.app.codeBlock?.takeIf { output.codeBlock }
+        // a code block only where equal widths matter (review of stage 53, M1): art, frames or two
+        // blocks side by side; text in Unicode styles or as typed stays as it is, a code block
+        // would only show it in a monospace font with the backticks around it
+        val art = pictureBlock != null || textBlock != null && text?.mode == TextMode.BIG
+        val needsCode = art || framed || side && blocks.size == 2
+        val wrapper = output.app.codeBlock?.takeIf { output.codeBlock && needsCode }
         val code = wrapper != null
         val body = lines.joinToString("\n")
         val finished = if (wrapper != null) wrapper.first + body + wrapper.second else body
@@ -232,8 +255,13 @@ object CharArt {
         if (!code && kinds.any { it.size > 1 }) warnings += ArtWarning.MIXED_WIDTHS
         if (code && kinds.any { Kind.EMOJI in it || Kind.STYLED in it }) warnings += ArtWarning.CODE_BLOCK_FONT
         if (!code && !output.brailleBlanks && lines.any { it.startsWith(' ') || it.contains("  ") }) warnings += ArtWarning.SPACES_COLLAPSE
-        return ArtResult(lines, finished, columns, warnings, columns <= output.app.phoneWidth)
+        return ArtResult(lines, finished, columns, warnings, columns <= output.app.phoneWidth, code)
     }
+
+    private fun frameEmoji(frame: FrameOptions) = TextColumns.graphemes(frame.emoji).firstOrNull() ?: "✨"
+
+    /** Columns of one piece of the frame's edge: an emoji is two. */
+    private fun frameUnit(frame: FrameOptions) = if (frame.style == FrameStyle.EMOJI) max(1, TextColumns.width(frameEmoji(frame))) else 1
 
     private fun isBlank(line: String) = line.all { it == PAD || it == ' ' || it == TextColumns.BRAILLE_BLANK }
 
@@ -271,17 +299,30 @@ object CharArt {
         }
     }
 
-    /** Word wrap at [columns]; a word longer than a line is cut. */
+    /**
+     * Word wrap at [columns]; a word longer than a line is cut. A space keeps its marks (the line of
+     * struck through or underlined text) between two words of a line; where the line breaks, the
+     * space goes with its marks, so no mark is left at the start of the next line (review of
+     * stage 53, N4).
+     */
     internal fun wrap(line: String, columns: Int): List<String> {
         if (TextColumns.of(line) <= columns) return listOf(line)
+        val words = mutableListOf<String>()
+        val gaps = mutableListOf<String>()
+        var part = StringBuilder()
+        for (grapheme in TextColumns.graphemes(line)) {
+            if (grapheme[0] == ' ') { words += part.toString(); gaps += grapheme; part = StringBuilder() } else part.append(grapheme)
+        }
+        words += part.toString()
         val out = mutableListOf<String>()
         var current = StringBuilder()
         var currentWidth = 0
-        for (word in line.split(' ')) {
+        for ((index, word) in words.withIndex()) {
+            val gap = if (index == 0) "" else gaps[index - 1]
             val wordWidth = TextColumns.of(word)
-            val needed = if (current.isEmpty()) wordWidth else currentWidth + 1 + wordWidth
+            val needed = if (current.isEmpty()) wordWidth else currentWidth + TextColumns.of(gap) + wordWidth
             if (needed <= columns) {
-                if (current.isNotEmpty()) current.append(' ')
+                if (current.isNotEmpty()) current.append(gap)
                 current.append(word); currentWidth = needed
                 continue
             }
@@ -323,9 +364,19 @@ object CharArt {
             val (kx, _) = style.letterScale(scale)
             chosen = lines.flatMap { line -> wrapBig(line, element.font) { columnsOf(it, kx) <= available } }
         }
-        if (chosen.any { it.unsupported }) warnings += ArtWarning.UNSUPPORTED_CHARACTERS
         val (kx, ky) = style.letterScale(scale)
-        var bits = Bits.stack(chosen.map { it.bits }, gap = 1, center = layout.center).scaled(kx, ky)
+        // at most MAX_BIG_LINES lines (review of stage 53, N7): whole big lines, the rest is cut
+        val all: List<BigFont.Line> = chosen
+        var keep = 0
+        var pixels = -1 // the gaps between big lines: one pixel row each
+        while (keep < all.size && ceil((pixels + 1 + all[keep].bits.height) * ky.toDouble() / style.cellHeight) <= MAX_BIG_LINES) {
+            pixels += 1 + all[keep].bits.height
+            keep++
+        }
+        val kept = all.take(keep.coerceAtLeast(1))
+        if (kept.size < all.size) warnings += ArtWarning.TOO_LARGE
+        if (kept.any { it.unsupported }) warnings += ArtWarning.UNSUPPORTED_CHARACTERS
+        var bits = Bits.stack(kept.map { it.bits }, gap = 1, center = layout.center).scaled(kx, ky)
         if (element.look.outline) bits = bits.outline()
         bits = padToCells(bits, style)
         if (element.look.invert) bits = bits.inverted()
@@ -552,18 +603,22 @@ object CharArt {
         return List(height) { row -> columns.joinToString(padding(gap)) { it[row] } }
     }
 
-    private fun framed(lines: List<String>, frame: FrameOptions): List<String> {
-        val pad = frame.padding.coerceIn(0, 2)
-        var content = lines.maxOfOrNull(TextColumns::of) ?: 0
+    /** [lines] in [frame], at most [width] columns wide as long as the lines fit: the padding gives way first. */
+    private fun framed(lines: List<String>, frame: FrameOptions, width: Int): List<String> {
+        val unit = frameUnit(frame)
+        val widest = lines.maxOfOrNull(TextColumns::of) ?: 0
+        // the inside of an emoji frame is a whole number of emojis wide
+        fun contentWith(pad: Int): Int { var content = widest; while ((content + 2 * pad) % unit != 0) content++; return content }
+        fun widthWith(pad: Int) = contentWith(pad) + 2 * pad + 2 * (if (frame.style == FrameStyle.EMOJI) unit else 1)
+        var pad = frame.padding.coerceIn(0, 2)
+        while (pad > 0 && widthWith(pad) > width) pad--
+        val content = contentWith(pad)
         val inner = mutableListOf<String>()
         repeat(pad) { inner += "" }
         inner += lines
         repeat(pad) { inner += "" }
         if (frame.style == FrameStyle.EMOJI) {
-            val emoji = TextColumns.graphemes(frame.emoji).firstOrNull() ?: "✨"
-            val unit = max(1, TextColumns.width(emoji))
-            // the inside must be a whole number of emojis wide
-            while ((content + 2 * pad) % unit != 0) content++
+            val emoji = frameEmoji(frame)
             val count = (content + 2 * pad) / unit + 2
             val edge = emoji.repeat(count)
             return listOf(edge) + inner.map { line ->

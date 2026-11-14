@@ -54,8 +54,6 @@ object AgentPreferences {
     const val CALCULATOR_STYLE = "agent_calculator_style"
     /** Stage 53: last art style of the character art window (an ArtStyle name), no content. */
     const val CHAR_ART_STYLE = "agent_char_art_style"
-    /** Stage 53: last chosen target app (a TargetApp name), used when the field's app has no profile. */
-    const val CHAR_ART_APP = "agent_char_art_app"
     /** Stage 53: the width chosen per target app, key + lower-case TargetApp name, an Int. */
     const val CHAR_ART_WIDTH_PREFIX = "agent_char_art_width_"
     /** Stage 27: drawn symbols instead of gesture typing (default off). */
