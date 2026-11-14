@@ -25,6 +25,11 @@ object CorrectionGuard {
         return strip(left) == strip(right)
     }
 
+    /** [correction] differs from [typed] only in upper and lower case ("essen" and "Essen"), stage 48. */
+    @JvmStatic
+    fun changesOnlyCase(typed: String, correction: String): Boolean =
+        typed != correction && typed.lowercase(Locale.ROOT) == correction.lowercase(Locale.ROOT)
+
     private fun strip(word: String) = Normalizer.normalize(word, Normalizer.Form.NFD).replace("\u0308", "")
 
     /**

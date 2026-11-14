@@ -835,6 +835,12 @@ Einstellungen → Gelernte Wörter → Abschnitt „Autokorrektur“:
   diesen Tippfehler selbst. Gibt es das getippte Wort wirklich (mochte), lernt sie es nur für
   das Wort davor (ich möchte). „Gelernte Tippfehler vergessen“ löscht alles.
 
+Getipptes Wort zurückholen: Drückst du direkt nach einer Korrektur die Löschtaste oder tippst du
+später in das korrigierte Wort, steht dein getipptes Wort in der Leiste ganz links (in deiner
+Groß-/Kleinschreibung), daneben ähnliche Wörter. Ein Tipp darauf setzt es ein; mit „Rückgängig
+gemachte Korrekturen merken“ gilt das wie die Löschtaste. Ein richtig geschriebenes Wort ändert die
+Autokorrektur nie nur in der Großschreibung („essen“ bleibt, „Essen“ steht als Vorschlag da).
+
 ## Trefferzonen
 
 Einstellungen → Gelernte Wörter → Abschnitt „Trefferzonen“ (Schalter und Kalibrieren auch unter

@@ -56,6 +56,7 @@
       "app/src/main/java/helium314/keyboard/latin/dictionary/ExpandableBinaryDictionary.java",
       "app/src/main/java/helium314/keyboard/latin/spellcheck/AndroidSpellCheckerService.java",
       "app/src/main/java/helium314/keyboard/latin/utils/ToolbarUtils.kt",
+      "app/src/main/java/helium314/keyboard/latin/utils/CapsModeUtils.java",
       "app/src/main/java/helium314/keyboard/latin/utils/DictionaryInfoUtils.kt",
       "app/src/main/java/helium314/keyboard/latin/dictionary/DictionaryFactory.kt",
       "app/src/main/assets/dicts/emoji_*.dict",

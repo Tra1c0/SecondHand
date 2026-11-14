@@ -3285,6 +3285,71 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - GitHub-Lauf auf dd28d93: Agent und Upstream grün, Lint rot (MissingTranslation in fünf neuen
   Textdateien der Bereichsseiten, P150). Behoben mit `tools:ignore`; `lintDebugNoMinify` lokal grün.
 
+## Etappe 48 (Autokorrektur: getipptes Wort vorne, keine ungewollte Großschreibung)
+
+- Auftrag (Lead, ROADMAP 48, Rückmeldung des Owners vom 2026-11-14): (a) nach dem Zurückgehen zu
+  einer Korrektur das getippte Wort ganz links, Mitte/rechts ähnliche Wörter; (b) Ursache für
+  ungewollte Großbuchstaben finden und eng beheben. Gebaut in einer Arbeitskopie, kein
+  Prüfer-Review, kein Gerätetest.
+- Befund vorher (dieselben neuen Tests gegen den alten Code, 2026-11-14, 7 von 8 rot): nach
+  Löschtaste direkt nach „hullo“ → „hello“ zeigte die Leiste `[hull, hello, hallo]`, nach dem
+  Zurücksetzen der Schreibmarke in „hello“ `[hallo, hull, –]`; das getippte Wort fehlte beide Male
+  (HeliBoard blendet im Tippstil Index 0 aus, die Textmarke-Variante kennt das getippte Wort nur
+  aus `SuggestionSpan`s, die viele Apps nicht zurückgeben, und die verzögerte Aktualisierung nach
+  dem Zurücknehmen ersetzt auch diese). Mit Spans (Recorrection-Stil) stand das getippte Wort in
+  der Mitte, die Korrektur links. (b) „essen“ wurde bei Wörterbuch-Reihenfolge „Essen“ vor „essen“
+  automatisch zu „Essen“ (`SuggestTest`, Zeile mit `assertFalse(essen.mWillAutoCorrect)` rot);
+  ein zurückgenommenes Paar nur mit anderer Großschreibung merkt `RejectedCorrections` nicht
+  (Schlüssel klein), es kam also immer wieder. Nach „ca. “, „approx. “ und „z. B. “ schaltete die
+  Auto-Großschreibung den nächsten Buchstaben groß (`CapsModeUtils`, Zustand WORD ohne
+  Abkürzungsliste). Kein Fehler gefunden (Tests grün, auch alter Code): „z.B.“, „3. “ (deutsch),
+  Emoji, URL, nach gewähltem Vorschlag mit automatischem Leerzeichen, klein geschriebener
+  Satzteil. Absatzanfang (neue Zeile) schreibt groß, so gewollt. Felder mit
+  `TYPE_TEXT_FLAG_CAP_WORDS` (die App verlangt jedes Wort groß) schreiben jedes Wort groß: wörtlich
+  „groß, nur weil ein neues Wort beginnt“, aber von der App verlangt; nicht geändert, Frage an den
+  Owner (ROADMAP 48). Zuordnung 38c „Großschreibung am Satzanfang“ = `auto_cap` (Standard an)
+  stimmt; der Schalter schaltet HeliBoards ganze Auto-Großschreibung, also auch die Wortanfänge
+  solcher Felder.
+- Gebaut: `K/agent/TypedWordFirst.kt` (Korrekturen des Felds nur im Speicher, Start + Wort im
+  Editor → getippte Form, höchstens 32; `arrange` setzt die getippte Form auf Index 2 im
+  Tippstil = Platz links der Mitte, in RTL rechts, wie HeliBoards getipptes Wort bei anstehender
+  Korrektur), `K/agent/Abbreviations.kt`, `CorrectionGuard.changesOnlyCase`. Engine:
+  `InputLogic.java` (Feld `mTypedWordFirst`; `startInput` leert; `commitCurrentAutoCorrection`
+  merkt Tipp-Korrekturen; `revertCommit` merkt das zurückgenommene Wort; `restartSuggestions` fragt
+  nach Start und Wort und ordnet auch die Span-Liste; `getSuggestedWords` ordnet das Ergebnis für
+  das unveränderte wiederaufgenommene Wort; `onPickSuggestionManually` meldet einen Tipp auf die
+  getippte Form eines korrigierten Worts an `RejectedCorrections.remember` und
+  `TypoMemory.forget`). `Suggest.kt` (`guardAllows`: reine Groß-/Klein-Korrektur eines Worts, das
+  ein Wörterbuch kennt, bleibt Vorschlag, außer Whitelist). Upstream neu geändert:
+  `CapsModeUtils.java` (bekannte Abkürzung im Zustand WORD und am Textanfang = keine
+  Satz-Großschreibung). Nicht geändert: `RichInputConnection`, `PointerTracker`,
+  `SuggestionStripLayoutHelper`, `WordComposer`.
+- Tests (Robolectric, echte `InputLogic` und `Suggest` mit gestelltem Wörterbuch, kein Gerätetest):
+  `InputLogicTest` neu 6 („typed word comes first after undoing …“, „… keeps its case …, also in
+  German“ mit „Hallo“ und „iPhone“, „… cursor goes back into a corrected word …“ mit gemerktem Paar
+  und ohne gelernten Tippfehler, „a word the cursor goes back to without a correction …“ mit „ok“ →
+  „OK“ und neuem Feld, „automatic capitals only at sentence starts …“, „a field asking for capital
+  words …“); dafür laufen in `withSimilarWords` die Nachrichten des Vorschlags-Threads wirklich
+  (`dispatch`), `ShadowKeyboardSwitcher.getKeyboard` liefert nur dort eine Ersatztastatur, sonst
+  wie das Original. Die Leistenplätze rechnet `stripSlots` mit
+  `SuggestionStripLayoutHelper.getPositionInSuggestionStrip` aus (die Ansicht hat im Test keine
+  Breite). `SuggestTest` neu 1 (Deutsch „essen“/„Esen“/„berlin“, Englisch „may“ und „i“ → „I“),
+  `TypedWordFirstTest` neu 5 (Speicher, Grenze, Anordnung, unberührte Fälle, Abkürzungen Deutsch und
+  Englisch mit Gegenproben „usw.“, „etc.“, „Plan B.“, „Max M.“). Gelaufen gezielt
+  `:app:testDebugUnitTest` mit `*InputLogicTest`, `*SuggestTest`, `*TypedWordFirstTest`,
+  `*CorrectionMemoryTest`, `*TypoMemoryTest`, `*StringUtilsTest` (`--max-workers=1`, 2026-11-14):
+  272 Tests, 2 Fehler = geerbt (`InputLogicTest.insertLetterIntoWordHangulFails`,
+  `StringUtilsTest.detectEmojisAtEndFails`). In einem von drei Läufen von `*InputLogicTest` scheiterte
+  zusätzlich `typedWorkflowChoiceIsDroppedWhenTheEditorChanges` (Senden-Knopf sichtbar), allein und
+  in den anderen Läufen grün; berührt keinen geänderten Code, vermutlich reihenfolgeabhängig.
+  Nicht gelaufen: `tools/dev.py agent-tests`, volle Suite, Build, Gerätetest. `docs_sync --check`:
+  grün.
+- Bekannte Grenzen: Ohne weiteren Vorschlag steht das getippte Wort allein in der Mitte. Wird Text
+  vor dem Wort geändert, passt der gemerkte Start nicht mehr (kein Fehlgriff, nur kein getipptes
+  Wort vorne). Ein Tipp auf die getippte Form nach dem Zurücksetzen der Schreibmarke nimmt das
+  korrigierte Wort nicht aus dem Lernverlauf (`unlearnWord` nur bei der Löschtaste wie bisher).
+  Abkürzungsliste fest (Deutsch/Englisch), „usw.“/„etc.“ bewusst nicht.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

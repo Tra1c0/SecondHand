@@ -156,11 +156,11 @@ Reihenfolge von oben nach unten.
   2026-11-14): Das Gedächtnis macht nie aus einem Satz einen anderen; es hängt nur auf Tipp hinter
   der Schreibmarke an und ersetzt nichts, die Autokorrektur bleibt bei einem Wort. (L)
 - **48 Autokorrektur: getipptes Wort vorne, keine ungewollte Großschreibung (Rückmeldung des Owners
-  vom 2026-11-14)** — beschlossen. (a) Nach dem Zurücknehmen einer Korrektur steht das wirklich
-  getippte Wort in der Leiste ganz links, in der getippten Groß-/Kleinschreibung; Mitte und rechts
-  ähnliche Wörter. (b) Wörter werden nicht groß geschrieben, nur weil ein neues Wort beginnt;
-  Ursache vor dem Bau eingrenzen (Groß-Korrektur durch die Autokorrektur, z. B. Substantiv aus dem
-  Wörterbuch, oder Auto-Großschreibung an falscher Stelle). Engine-Änderung, Prüfer Pflicht. (M)
+  vom 2026-11-14)** ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 48).
+  Offen: Prüfer-Review (Engine-Änderung, Pflicht) und Gerätetest. Zu entscheiden (Owner): Felder,
+  die selbst „jedes Wort groß“ verlangen (Namen, manche Betreff- und Suchfelder), bekommen weiter
+  an jedem Wortanfang einen Großbuchstaben; der Schalter „Großschreibung am Satzanfang“ schaltet
+  auch das ab. Soll die Tastatur dort trotzdem nur Satzanfänge groß schreiben? (M)
 - **47 KI-Kontext im Hintergrund — verworfen (Owner, 2026-11-14):** „Dann lassen wir das.“ Alles
   lokal; die Tastatur lernt selbst dazu (45, 46).
 - **Verworfen (Owner, 2026-11-14):** Mail-Anbindung (Gmail/IMAP) und Codes aus Benachrichtigungen.
