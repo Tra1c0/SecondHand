@@ -58,7 +58,7 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
    (ZipException), Merge-Konflikte in Docs: beide Seiten, generierte Blöcke per `--write`.
    Parallel-Sitzung auf eigenem Branch hat sich bewährt (35); Merge durch die Haupt-Sitzung.
    Danach offen: 25b animierte Emojis, 25c Sticker-Ersteller, U6 `@generate`.
-   Wartet auf den Owner: Secret `RELEASES_TOKEN`. Entschieden (Owner, 2026-11-14, Etappe 44):
+   Secret `RELEASES_TOKEN` angelegt (Owner, 2026-11-14, für `Tra1c0/SecondHandAgenticKeyboard`; wirkt ab dem nächsten Build aus `main`, noch nicht beobachtet). Entschieden (Owner, 2026-11-14, Etappe 44):
    vertrauliche Clips und Geheimnisse kommen nicht mehr in den normalen Verlauf, sondern verdeckt
    und nur im Speicher in den Tresor.
 
