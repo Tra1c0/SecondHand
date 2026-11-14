@@ -3090,6 +3090,13 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   `SettingsSystemAreaTest` 12, `KeyboardProfileStoreTest` 9, `FlatStyleTest` 10,
   `SettingsStartScreenTest` 10 – 62 Tests, 0 Fehler. Kein `agent-tests`-Lauf, kein Build, kein
   Gerätetest (geteilte Maschine). Echte Direct-Boot-Prüfung auf einem Gerät steht aus.
+- Zweite Nachprüfung 38h (Prüfer, 2026-11-14): Die Sperre für Profilkarten, Flachen Look und
+  Gesten-Bibliothek war unnötig, denn die Einstellungen-Activity öffnet ihren Speicher mit dem
+  DE-Kontext (`SettingsActivity.attachBaseContext`); nur `UpdateSettings` ist CE. Lead: Sperre
+  auf die Update-Karte beschränkt, Hinweistext entfernt, P145 richtiggestellt; Test umbenannt in
+  `beforeTheFirstUnlockOnlyTheUpdateCardWaits` und prüft jetzt, dass Profilkarten und
+  Gesten-Bibliothek gesperrt sichtbar bleiben (Robolectric wirft bei CE-Zugriff nicht, geprüft
+  wird nur das Sichtbare). Testlauf siehe Lead-Lauf vor Build 19.
 ## Etappe 38b (Einstellungen: Aussehen)
 
 - Auftrag (Lead, ROADMAP 38): Bereichsseite Aussehen 1:1 nach

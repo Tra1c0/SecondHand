@@ -185,8 +185,7 @@
   Dann Sichern, Für Fortgeschrittene (Emoji-Version, URL-Erkennung, Hardware-Tastatur,
   Gesten-Bibliothek …) und Über (Version, Lizenz, Versteckte Funktionen, Protokoll speichern). Der
   Rest von „Erweitert“ liegt unter „Alle erweiterten Einstellungen“. Vor dem ersten Entsperren
-  nach dem Neustart zeigt die Seite statt Profilen und Gesten-Bibliothek einen Hinweis. Noch auf
-  keinem Gerät ausprobiert.
+  nach dem Neustart zeigt die Update-Karte nur einen Hinweis. Noch auf keinem Gerät ausprobiert.
 - Neu: Einstellungen → Aussehen ist nach dem Entwurf umgebaut. Oben die Karte „Designs“ mit
   sechs Kacheln (deine eigenen Designs zuerst, die gewählte gelb umrandet): antippen verwendet,
   „+ Neues Design“ und „Bearbeiten“ öffnen den Design-Editor, „Alle … Designs“ die ganze

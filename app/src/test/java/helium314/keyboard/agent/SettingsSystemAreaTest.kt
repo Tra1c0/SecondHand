@@ -52,7 +52,6 @@ import helium314.keyboard.settings.screens.SYSTEM_APPLY_TAG
 import helium314.keyboard.settings.screens.SYSTEM_CHECK_TAG
 import helium314.keyboard.settings.screens.SYSTEM_EXPORT_TAG
 import helium314.keyboard.settings.screens.SYSTEM_INSTALL_TAG
-import helium314.keyboard.settings.screens.SYSTEM_PROFILES_LOCKED_TAG
 import helium314.keyboard.settings.screens.SYSTEM_ROW_TAG
 import helium314.keyboard.settings.screens.SYSTEM_UPDATES_DETAIL_TAG
 import helium314.keyboard.settings.screens.SYSTEM_UPDATES_HEADLINE_TAG
@@ -250,21 +249,24 @@ class SettingsSystemAreaTest {
         assertTrue(exists(app.getString(R.string.agent_updates_unlock)))
         compose.onNodeWithTag(SYSTEM_CHECK_TAG).assertDoesNotExist()
         compose.onNodeWithTag(SYSTEM_UPDATES_HEADLINE_TAG).assertDoesNotExist()
-        assertProfilesHidden()
+        assertProfilesShown()
         compose.onNodeWithTag(AREA_ROW_TAG + SettingsDestination.AgentDiagnose).performClick()
         assertEquals(listOf(SettingsDestination.AgentDiagnose), routes)
         assertEquals(0, clientsMade)
     }
 
-    /** Before the first unlock (Direct Boot) the keyguard may already be gone; the user is still locked (P145). */
-    @Test fun beforeTheFirstUnlockNothingTouchesCredentialProtectedStorage() {
+    /**
+     * Before the first unlock (Direct Boot) the keyguard may already be gone; the user is still locked (P145).
+     * Only the update card (credential-protected) waits; profiles and the gesture library are device-protected.
+     */
+    @Test fun beforeTheFirstUnlockOnlyTheUpdateCardWaits() {
         KeyboardProfileStore(app).saveCurrent(ProfileGroup.DESIGN)
         shadowOf(app.getSystemService(UserManager::class.java)).setUserUnlocked(false)
         assertFalse(app.getSystemService(KeyguardManager::class.java).isKeyguardLocked)
         start()
         assertTrue(exists(app.getString(R.string.agent_updates_unlock)))
         compose.onNodeWithTag(SYSTEM_CHECK_TAG).assertDoesNotExist()
-        assertProfilesHidden()
+        assertProfilesShown()
         // the rest of the page stays usable
         compose.onNodeWithTag(SYSTEM_ROW_TAG + Settings.PREF_URL_DETECTION).assertExists()
         compose.onNodeWithTag(SYSTEM_ROW_TAG + SettingsWithoutKey.BACKUP_RESTORE).assertExists()
@@ -273,16 +275,14 @@ class SettingsSystemAreaTest {
         compose.activityRule.scenario.moveToState(Lifecycle.State.STARTED)
         compose.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
         compose.waitForIdle()
-        compose.onNodeWithTag(SYSTEM_PROFILES_LOCKED_TAG).assertDoesNotExist()
         compose.onNodeWithTag(PROFILE_CARD_TAG + ProfileGroup.DESIGN).assertExists()
         compose.onNodeWithTag(SYSTEM_CHECK_TAG).assertExists()
     }
 
-    /** While locked: a hint instead of the profile cards, and no gesture library row (its files are protected). */
-    private fun assertProfilesHidden() {
-        compose.onNodeWithTag(SYSTEM_PROFILES_LOCKED_TAG, useUnmergedTree = true).assert(hasText(app.getString(R.string.agent_system_profiles_unlock)))
-        listOf(PROFILE_CARD_TAG + ProfileGroup.DESIGN, PROFILE_CARD_TAG + "FLAT", AREA_ROW_TAG + SettingsDestination.AgentProfiles,
-            SYSTEM_ROW_TAG + SettingsWithoutKey.LOAD_GESTURE_LIB).forEach { compose.onNodeWithTag(it).assertDoesNotExist() }
+    /** While locked the profile cards and the gesture library stay: they are in device-protected storage (P145). */
+    private fun assertProfilesShown() {
+        listOf(PROFILE_CARD_TAG + "FLAT", AREA_ROW_TAG + SettingsDestination.AgentProfiles,
+            SYSTEM_ROW_TAG + SettingsWithoutKey.LOAD_GESTURE_LIB).forEach { compose.onNodeWithTag(it).performScrollTo().assertExists() }
     }
 
     @Test fun profileCardsAreButtonsThatApplyTheRealProfiles() {

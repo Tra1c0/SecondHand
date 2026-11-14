@@ -1305,8 +1305,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `K/settings/screens/AgentAreaSystemScreen.kt`; `AgentAreaScreen` leitet `SettingsArea.SYSTEM` mit
   einer Zeile dorthin. Die Seite liest `credentialAccessAllowed` (neu bei `ON_RESUME`, dazu der
   Zähler `resumed`): gesperrt zeigt die Karte „Updates“ nur `agent_updates_unlock` und „Diagnose“
-  wie die alte Seite, „PROFILE“ nur `agent_system_profiles_unlock`, die Zeile Gesten-Bibliothek
-  fehlt (P145). Entsperrt: `updateCardText` aus `UpdateSettings.status`, `checkedAt`, `daily` und
+  wie die alte Seite (P145); Profilkarten und Gesten-Bibliothek bleiben, sie liegen im
+  geräteverschlüsselten Speicher. Entsperrt: `updateCardText` aus `UpdateSettings.status`, `checkedAt`, `daily` und
   `Updates.installedVersion` („verfügbar“ nur für einen neueren Build, „ist aktuell“ nur, wenn die
   Prüfung auf diesem Build lief, Fehlertext über `updateErrorText` aus `AgentUpdatesScreen.kt`;
   Download- und Installationsfehler als „Installation fehlgeschlagen“, Prüfzeit „gerade eben“,
@@ -2649,14 +2649,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   ersten Buchstaben ab (im Bild „JPDATES“, „Zuletzt“ ohne „Z“). Die klickbare Überschrift der
   Update-Karte hat deshalb keinen Clip. `DateUtils.getRelativeTimeSpanString` schreibt deutsch
   „Vor 2 Stunden“ groß; mitten im Satz wird der erste Buchstabe klein gemacht.
-- **P145** Auch Bereichsseiten außer der KI-Seite (P134) berühren den geschützten Speicher:
-  System & Daten mit `KeyboardProfileStore`, `FlatPreset` (eigene SharedPreferences), den
-  Profilkarten, `UpdateSettings` und `LoadGestureLibPreference` (`protectedPrefs`, `filesDir`).
-  Sie entstehen nur, wenn `credentialAccessAllowed` gilt; sonst ein Hinweis. Ein gesperrter
+- **P145** Auch Bereichsseiten außer der KI-Seite (P134) berühren den CE-Speicher: System & Daten
+  mit `UpdateSettings` (über `credentialContext`). Sie entsteht nur, wenn `credentialAccessAllowed`
+  gilt; sonst ein Hinweis. Nicht CE sind `KeyboardProfileStore`, `FlatPreset`, `protectedPrefs()`
+  und `filesDir` in der Einstellungen-Activity: `SettingsActivity.attachBaseContext` setzt den
+  DE-Kontext (`AgentStorageContexts.keyboard`), also bleiben Profilkarten und Gesten-Bibliothek
+  gesperrt sichtbar. Vor einer Sperre prüfen, welcher Kontext den Speicher öffnet. Ein gesperrter
   Bildschirm allein reicht als Test nicht: vor dem ersten Entsperren kann der Sperrbildschirm weg
   sein, der Nutzer aber noch gesperrt (`UserManager.isUserUnlocked`, im Test
   `ShadowUserManager.setUserUnlocked(false)`,
-  `SettingsSystemAreaTest.beforeTheFirstUnlockNothingTouchesCredentialProtectedStorage`).
+  `SettingsSystemAreaTest.beforeTheFirstUnlockOnlyTheUpdateCardWaits`; Robolectric wirft bei
+  CE-Zugriff nicht, der Test prüft nur das Sichtbare).
 - **P146** Eigene Schrift, Emoji-Schrift und Hintergrundbild sind Dateien: Laden oder Löschen
   ändert keine Einstellung, also zählt `prefChanged` nicht und die Seite Aussehen zeigte den alten
   Wert. Sie zählt deshalb bei `ON_RESUME` (die Dateiauswahl pausiert die Activity), beim Schließen

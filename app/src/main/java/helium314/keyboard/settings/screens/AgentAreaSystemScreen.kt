@@ -206,8 +206,8 @@ fun AgentAreaSystemScreen(
     var dialog by rememberSaveable { mutableStateOf<SystemDialog?>(null) }
     var applyTag by rememberSaveable { mutableStateOf<String?>(null) }
 
-    // P145: profiles, the flat look, the gesture library and the update settings live in
-    // credential-protected storage, which throws before the first unlock (Direct Boot)
+    // P145: the update settings live in credential-protected storage, which throws before the first
+    // unlock (Direct Boot); everything else here is device-protected (SettingsActivity's base context)
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var accessible by remember { mutableStateOf(credentialAccessAllowed(context)) }
     var resumed by remember { mutableIntStateOf(0) }
@@ -232,12 +232,11 @@ fun AgentAreaSystemScreen(
             area.from, area.to, Modifier.testTag(SYSTEM_ROW_TAG + key))
     }
 
-    val store = if (accessible) remember { KeyboardProfileStore(context) } else null
-    val flat = if (accessible) remember { FlatPreset(context) } else null
+    val store = remember { KeyboardProfileStore(context) }
+    val flat = remember { FlatPreset(context) }
     // read the stores only after a change or a resume, not on every composition (P136)
     val version = (changed?.value ?: 0) + written
-    val cards = if (store == null || flat == null) emptyList()
-        else remember(version, resumed) { profileCards(context, store, flat) }
+    val cards = remember(version, resumed) { profileCards(context, store, flat) }
 
     AgentSettingsTheme {
         Column(
@@ -253,8 +252,6 @@ fun AgentAreaSystemScreen(
             UpdatesCard(accessible, resumed, onNavigate, updateClient)
 
             FeatureCard(stringResource(R.string.agent_system_profiles), spaced = true) {
-                if (!accessible) Text(stringResource(R.string.agent_system_profiles_unlock), style = AgentSettingsType.Label,
-                    color = AgentSettingsTokens.Soft, modifier = Modifier.testTag(SYSTEM_PROFILES_LOCKED_TAG))
                 cards.forEachIndexed { i, card ->
                     ProfileCard(card, i) {
                         if (card.isNew) onNavigate(SettingsDestination.AgentProfiles)
@@ -284,8 +281,7 @@ fun AgentAreaSystemScreen(
                 SwitchRow(Settings.PREF_ENABLE_HARDWARE_KEYBOARD, Defaults.PREF_ENABLE_HARDWARE_KEYBOARD,
                     stringResource(R.string.agent_system_hardware), stringResource(R.string.agent_system_hardware_sub))
                 // the same conditions as on the old page Erweitert
-                // the library and its checksum are in credential-protected storage (P145)
-                if (BuildConfig.BUILD_TYPE != "nouserlib" && accessible) {
+                if (BuildConfig.BUILD_TYPE != "nouserlib") {
                     val lib = remember { Setting(context, SettingsWithoutKey.LOAD_GESTURE_LIB, R.string.load_gesture_library) {} }
                     LoadGestureLibPreference(lib) { open ->
                         Nav(SYSTEM_ROW_TAG + SettingsWithoutKey.LOAD_GESTURE_LIB, stringResource(R.string.agent_system_gesture_lib),
@@ -580,4 +576,3 @@ const val SYSTEM_INSTALL_TAG = "agent_system_install"
 const val SYSTEM_EXPORT_TAG = "agent_system_export"
 const val SYSTEM_APPLY_TAG = "agent_system_apply"
 const val PROFILE_CARD_TAG = "agent_system_profile_"
-const val SYSTEM_PROFILES_LOCKED_TAG = "agent_system_profiles_locked"

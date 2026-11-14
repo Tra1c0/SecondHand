@@ -16,7 +16,6 @@
     <string name="agent_system_updates_install">Install build %d</string>
     <string name="agent_system_diagnose">Diagnosis</string>
     <string name="agent_system_profiles">Profiles</string>
-    <string name="agent_system_profiles_unlock">Unlock the device to use profiles.</string>
     <string name="agent_system_profile_saved_hint">Saved state · tap to apply</string>
     <string name="agent_system_profile_active">matches the current settings</string>
     <string name="agent_system_flat">Flat look</string>

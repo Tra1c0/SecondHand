@@ -203,8 +203,7 @@ Wie die Seite „KI-Anbieter“ lässt sie keine Bildschirmfotos zu. Bei gesperr
   „Flacher Look“ und „+ Neues Profil“. Ein Tipp auf eine Profilkarte fragt nach und wendet sie mit
   „Anwenden“ an. Hell mit weißem Rahmen ist eine Karte, solange deine Einstellungen ihr
   entsprechen. „+ Neues Profil“ öffnet Tastaturprofile (sichern, exportieren, importieren,
-  zurücksetzen, Flacher Look zurücknehmen). Vor dem Entsperren steht dort nur ein Hinweis, und
-  „Gesten-Bibliothek laden“ fehlt.
+  zurücksetzen, Flacher Look zurücknehmen).
 - **Sichern**: „Sichern und Wiederherstellen“ (alle Einstellungen als Datei, derselbe Dialog wie
   bisher), „Profile exportieren“ (öffnet Tastaturprofile).
 - **Für Fortgeschrittene**: Emoji-Version, URL-Erkennung, Hardware-Tastatur, Gesten-Bibliothek
