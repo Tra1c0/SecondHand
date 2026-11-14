@@ -131,6 +131,11 @@ object KeyboardCommands {
          * field); false otherwise.
          */
         fun insertAtCursor(text: String): Boolean = false
+        /**
+         * Review of stages 44/45 (B4): [text] was just put before the cursor from "Meine Daten" or a
+         * fresh clip; it must not become the composing word and is not learned.
+         */
+        fun markPrivate(text: String) {}
     }
 
     /** A built-in command. Commands never come from files or models. */
@@ -416,9 +421,10 @@ object KeyboardCommands {
             // the paste path of the clipboard view (also phone and number fields), only at the cursor the chips were built for
             override fun insertAtCursor(text: String): Boolean {
                 if (text.isEmpty() || !ime.canReplaceAgentCommand() || ime.agentCommandCursor != position) return false
-                ime.onTextInput(text)
+                ime.onPrivateTextInput(text) // never composed or learned (review B4)
                 return true
             }
+            override fun markPrivate(text: String) = ime.markAgentPrivateText(text)
         }
 
     /** Name candidates complete the name; a complete command asks the command. */

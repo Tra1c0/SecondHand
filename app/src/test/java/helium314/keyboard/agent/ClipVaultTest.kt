@@ -67,9 +67,11 @@ class ClipVaultTest {
         ClipVault.clear()
         ClipVault.clock = { now }
         ClipboardDao.getInstance(latinIME)?.clear()
+        helium314.keyboard.agent.commands.SensitiveClips.clear(latinIME)
     }
 
     @After fun tearDown() {
+        helium314.keyboard.agent.commands.SensitiveClips.clear(latinIME)
         ClipVault.clear()
         ClipVault.clock = { System.currentTimeMillis() }
         ClipVault.onChange = null
@@ -104,16 +106,18 @@ class ClipVaultTest {
     @Test fun secretsAndCodesNeverReachTheHistoryDatabase() {
         assertTrue(Settings.getValues().mClipboardHistoryEnabled)
         copy(key)
-        copy("Dein Code lautet 482913")
+        copy("482913")
         copy("ein Kennwort", sensitive = true)
         copy("DE89 3704 0044 0532 0130 00")
         copy("Einkaufsliste: Brot")
+        // review B2: a code in a message stays in the history as copied, the vault has the code as well
+        copy("Dein Code lautet 551177")
         val stored = historyTexts()
-        assertEquals(setOf("DE89 3704 0044 0532 0130 00", "Einkaufsliste: Brot"), stored.toSet())
+        assertEquals(setOf("DE89 3704 0044 0532 0130 00", "Einkaufsliste: Brot", "Dein Code lautet 551177"), stored.toSet())
         assertFalse(stored.any { it != null && (it.contains("482913") || it.contains("Kennwort") || it.contains("sk-")) })
         // they are in the vault instead
         assertEquals(2, ClipVault.secrets().size)
-        assertEquals(listOf("482913"), ClipVault.codes().map { it.shown })
+        assertEquals(listOf("551177", "482913"), ClipVault.codes().map { it.shown })
     }
 
     /** Copied while a password field has the focus: a secret for the history, and kept nowhere (password fields count as incognito). */
@@ -152,10 +156,11 @@ class ClipVaultTest {
         copy(key)
         shadowOf(keyguard).setIsDeviceLocked(false)
         load(textField, incognito = true)
-        copy("Code: 554433")
+        // a bare code (a code in a message is history text, review B2)
+        copy("554433")
         assertTrue(ClipVault.secrets().isEmpty())
         assertTrue(ClipVault.codes().isEmpty())
-        assertTrue(historyTexts().none { it == key || it == "Code: 554433" })
+        assertTrue(historyTexts().none { it == key || it == "554433" })
     }
 
     @Test fun oldSecretsLeaveTheHistoryPinnedOnesStay() {
@@ -165,7 +170,53 @@ class ClipVaultTest {
         dao.addClip(wall - 1_000, false, "Notiz")
         dao.addClip(wall - 500, true, "Tr0ub4dor&3")
         latinIME.clipboardHistoryManager.prepareClipboardHistory()
-        assertEquals(setOf("Notiz", "Tr0ub4dor&3"), historyTexts().toSet())
+        // review B2: only secrets are deleted afterwards; an old code is history text the user copied
+        assertEquals(setOf("123456", "Notiz", "Tr0ub4dor&3"), historyTexts().toSet())
+    }
+
+    private fun copyInPasswordField(text: String) {
+        val password = EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD }
+        load(password)
+        val field = android.inputmethodservice.InputMethodService::class.java.getDeclaredField("mInputEditorInfo").apply { isAccessible = true }
+        field.set(latinIME, password)
+        try { copy(text) } finally { field.set(latinIME, null) }
+    }
+
+    /** Review B1: a PIN copied in a password field is no fresh code for a code or number field, with the history on or off. */
+    private fun aPinCopiedInAPasswordFieldIsNeverOffered(history: Boolean) {
+        latinIME.prefs().edit().putBoolean(Settings.PREF_ENABLE_CLIPBOARD_HISTORY, history)
+            .putBoolean(Settings.PREF_SUGGEST_CLIPBOARD_CONTENT, true).commit()
+        val historyManager = ClipboardHistoryManager(latinIME).apply { onCreate() }
+        try {
+            copyInPasswordField("4821")
+            stampNow()
+            val number = EditorInfo().apply { inputType = InputType.TYPE_CLASS_NUMBER }
+            load(number)
+            assertNull(ClipVault.freshest(latinIME, ClipKind.OTP, 60_000))
+            assertNull(historyManager.getClipboardSuggestionView(number, FrameLayout(latinIME)))
+            assertTrue(ClipVault.codes().isEmpty())
+            assertFalse(historyTexts().contains("4821"))
+            // a code copied in a normal field is a fresh code
+            load(textField)
+            copy("7395")
+            assertEquals("7395", ClipVault.freshest(latinIME, ClipKind.OTP, 60_000)?.text)
+        } finally {
+            historyManager.onDestroy()
+        }
+    }
+
+    @Test fun aPinCopiedInAPasswordFieldIsNeverOfferedWithTheHistoryOn() = aPinCopiedInAPasswordFieldIsNeverOffered(true)
+
+    @Test fun aPinCopiedInAPasswordFieldIsNeverOfferedWithTheHistoryOff() = aPinCopiedInAPasswordFieldIsNeverOffered(false)
+
+    @Test fun aClipTheVaultSortedAsSecretIsNotOfferedFromTheLiveClip() {
+        // marked by nothing the live clip still shows, e.g. a key pasted from the vault and not cleared
+        copy("4821")
+        val stamp = assertNotNull(manager.primaryClip).description.timestamp
+        offer("4821", copiedAt = stamp, marked = true)
+        assertNull(ClipVault.freshest(latinIME, ClipKind.OTP, 60_000))
+        assertTrue(ClipVault.isSecretClip("4821", stamp, false))
+        assertFalse(ClipVault.isSecretClip("4821", stamp + 1, false))
     }
 
     // --- expiry and first paste ------------------------------------------------------------

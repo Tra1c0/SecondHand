@@ -54,6 +54,7 @@ class FieldSuggestionChipsTest {
     private var after = ""
     private val replaced = mutableListOf<Pair<String, String>>()
     private val inserted = mutableListOf<String>()
+    private val marked = mutableListOf<String>()
 
     private val host = object : KeyboardCommands.Host {
         override val context: Context get() = latinIME
@@ -76,6 +77,7 @@ class FieldSuggestionChipsTest {
         override val canOpenCalculator = false
         override fun textBeforeCursor(length: Int): CharSequence = before.takeLast(length)
         override fun textAfterCursor(length: Int): CharSequence = after.take(length)
+        override fun markPrivate(text: String) { marked += text }
     }
 
     private val defaultMyData = FieldSuggestionChips.myData
@@ -153,6 +155,27 @@ class FieldSuggestionChipsTest {
         // a second tap on the same chip does nothing
         shown[0].onTap()
         assertEquals(listOf("max@example.com"), inserted)
+    }
+
+    @Test fun aTapChecksTheFieldAgainAndMarksTheValuePrivate() {
+        // review B12: built for an empty field, tapped after the state changed
+        var shown = chips("", email)
+        locked = true
+        shown[0].onTap()
+        locked = false
+        assertTrue(inserted.isEmpty())
+        shown = chips("", email)
+        after = "x" // the app put text behind the cursor in the meantime
+        shown[0].onTap()
+        assertTrue(inserted.isEmpty())
+        shown = chips("", email)
+        load(field(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD))
+        shown[0].onTap()
+        assertTrue(inserted.isEmpty())
+        // review B4: a replacement marks the value as private text (the empty field goes through insertAtCursor, private in the real host)
+        val typed = chips("Ma", email)
+        typed.single().onTap()
+        assertEquals(listOf("max@example.com"), marked)
     }
 
     @Test fun typedTextThatStartsAnEntryIsCompletedOtherTextGetsNothing() {
@@ -281,6 +304,44 @@ class FieldSuggestionChipsTest {
         for ((typed, editor) in listOf("" to codeField, "" to number, "Code: " to chat, "guck mal, hier dieses Video " to chat,
             "" to field(InputType.TYPE_CLASS_TEXT, hint = "IBAN"), "" to email))
             assertEquals(emptyList(), chips(typed, editor), "\"$typed\"")
+    }
+
+    // --- review of stage 45 ---
+
+    @Test fun theMyDataFieldsAreNoLearningFields() {
+        // B5: the settings page marks its fields; the keyboard counts them as incognito on every field class
+        for (type in listOf(InputType.TYPE_CLASS_TEXT, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
+            InputType.TYPE_CLASS_PHONE)) {
+            val own = field(type).apply { privateImeOptions = AgentPreferences.NO_LEARNING_FIELD }
+            assertTrue(InputAttributes(own, false, latinIME.packageName).mNoLearning, "type $type")
+            load(own)
+            assertTrue(Settings.getValues().mIncognitoModeEnabled, "type $type")
+            assertFalse(InputAttributes(field(type), false, latinIME.packageName).mNoLearning, "type $type")
+        }
+    }
+
+    @Test fun hidingTheKeyboardDropsTheDecryptedData() {
+        // B7: the screen goes off (and the device locks) only after the keyboard is hidden
+        val key = javax.crypto.KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
+        var reads = 0
+        val store = MyDataStore(latinIME, helium314.keyboard.agent.security.AesGcmSecretCipher { reads++; key }) { true }
+        val defaultStore = MyDataCache.store
+        MyDataCache.store = { store }
+        try {
+            store.save(MyData(name = "Erika Musterfrau"))
+            MyDataCache.drop()
+            reads = 0
+            assertEquals("Erika Musterfrau", MyDataCache.get(latinIME, false)?.name)
+            assertEquals("Erika Musterfrau", MyDataCache.get(latinIME, false)?.name)
+            assertEquals(1, reads) // cached
+            latinIME.onFinishInputView(false)
+            assertEquals("Erika Musterfrau", MyDataCache.get(latinIME, false)?.name)
+            assertEquals(2, reads) // read again after the keyboard was hidden
+        } finally {
+            store.delete()
+            MyDataCache.store = defaultStore
+            MyDataCache.drop()
+        }
     }
 
     // --- blocked ---

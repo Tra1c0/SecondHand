@@ -52,4 +52,9 @@ object AgentPreferences {
     const val SYMBOL_LEARNING = "agent_symbol_learning"
     /** privateImeOptions of the calibration field in the settings: the keyboard records touches there. */
     const val TOUCH_CALIBRATION_FIELD = "dev.personal.agentkeyboard.touchCalibration"
+    /**
+     * privateImeOptions of own settings fields whose text is never learned ("Meine Daten", review of
+     * stage 45): InputAttributes counts them as no-learning fields, i.e. incognito.
+     */
+    const val NO_LEARNING_FIELD = "dev.personal.agentkeyboard.noLearning"
 }

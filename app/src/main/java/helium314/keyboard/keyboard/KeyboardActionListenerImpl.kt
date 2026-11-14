@@ -222,6 +222,11 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         latinIME.onTextInput(text)
     }
 
+    override fun onPrivateTextInput(text: String?) {
+        helium314.keyboard.agent.SymbolDrawing.beforeOtherInput()
+        latinIME.onPrivateTextInput(text)
+    }
+
     override fun onContent(content: InputContentInfoCompat) {
         if (latinIME.agentEditorController.isBlockingInput) return;
         latinIME.invalidateAgentEditor()

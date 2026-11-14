@@ -3765,6 +3765,61 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   Prüfpunkt markiert oder eingefügt wird, geht verloren (vorsichtig). Mehrere Sprachen: „echt“ in
   irgendeiner aktiven Sprache. Rücknahme-Regel erkennt das Paar am Wort, nicht an der Stelle.
 
+## Nachprüfung 44/45 (Prüfer-Befunde zu Etappe 44 und 45, 2026-11-14)
+
+- B1 (mittel): Eine im Passwortfeld kopierte PIN kam über den Live-Clip als Code in Code- und
+  Zahlenfelder und als Leisten-Chip. Jetzt fragt `ClipVault.isSecretClip` (Markierung,
+  `SensitiveClips`, vom Tresor als Geheimnis sortierte Kopierzeit, Inhalt); `SensitiveClips` hört
+  auch mit Verlauf aus mit. Tests `ClipVaultTest.aPinCopiedInAPasswordFieldIsNeverOfferedWithTheHistoryOn`
+  /`…Off`, `aClipTheVaultSortedAsSecretIsNotOfferedFromTheLiveClip`.
+- B2 (mittel): Code-Schlüsselwörter nur als ganze Wörter bzw. benannte Komposita; eine Nachricht mit
+  Code bleibt Verlaufstext (`ClipClass.inText`, `keepsOutOfHistory`), nachträglich gelöscht werden
+  nur Geheimnisse. Negativtests „noch einmal … 2023114“, „Bestätigung Ihrer Bestellung 12345678“,
+  „Barcode 40071234“, „QR-Code“, „Promo-Code“ in `ClipGuardTest.codeWordsCountOnlyAsWholeWords`.
+  Geänderte Erwartungen (gewolltes neues Verhalten, keine Abschwächung): `ClipVaultTest` erwartet
+  „Dein Code lautet 551177“ und ein altes „123456“ jetzt im Verlauf; der Inkognito-Fall prüft einen
+  Code allein.
+- B3 (mittel): `SensitiveClips` nur im Speicher (je Prozess gesalzen); die alte DE-Datei wird einmal
+  zum Aufräumen des Verlaufs benutzt und gelöscht, nur Hashes angehefteter Einträge bleiben.
+  `ClipCommandTest` erwartet jetzt keine Datei mehr (statt „Hash vorhanden“) und
+  `theOldHashFileIsUsedOnceAndThenOnlyForPinnedEntries`. Speicher statt Keystore-HMAC, weil
+  solche Clips seit Etappe 44 nie in den Verlauf kommen.
+- B4 (mittel): `LatinIME.onPrivateTextInput`, `InputLogic.markPrivateText`/`nearPrivateText`
+  (Tresor, Code-Chip im leeren Feld, ersetzte Werte über `Host.markPrivate`). Test
+  `InputLogicTest.aPrivateTextIsNeverComposedShownOrLearned` (Leerzeichen, nächstes Wort,
+  Rücktaste: nichts gelernt, nichts komponiert, Leiste ohne Geheimnis; ein normales `onTextInput`
+  wird weiter komponiert).
+- B5: Felder von „Meine Daten“ mit `NO_LEARNING_FIELD`, `InputAttributes` zählt es
+  (`FieldSuggestionChipsTest.theMyDataFieldsAreNoLearningFields`; dass Compose die Kennung wirklich
+  in `EditorInfo.privateImeOptions` schreibt, ist nicht getestet).
+- B6: Passwort-Wort plus Wert = `SECRET` (`aPasswordWordWithItsValueIsASecret`; die alte Erwartung
+  „Das WLAN-Passwort lautet Sommer2024“ = Text ist bewusst auf Geheimnis umgestellt).
+- B7: `MyDataCache.drop` in `onFinishInputView` (`hidingTheKeyboardDropsTheDecryptedData`).
+- B8: `secure_delete` + `wal_checkpoint(TRUNCATE)` beim Löschen, Bereinigung auch beim Start, danach
+  einmal `VACUUM`. Nur indirekt getestet (bestehende Lösch-Tests grün); ob die Seiten auf einem Gerät
+  wirklich überschrieben werden, ist nicht geprüft.
+- B9: Telegram-Bot-Token, Bearer-Token, Namen wie „B2B-Shop“/„Win11-Pro“/„camelCase2_x“ bleiben
+  normal (`moreKeyFormatsAndIdentifiersThatAreNone`); alte Passwort-Positive grün.
+- B10: P154 um den Prozess-Neustart ergänzt (bewusst offen).
+- B11: Ausschalten von „Personalisierte Vorschläge“ löscht auch die Kontext-Gewichte (eine Zeile,
+  ohne eigenen Test).
+- B12: Tipp prüft Sperre, Inkognito, Passwortfeld und Text hinter der Schreibmarke erneut
+  (`FieldSuggestionChipsTest.aTapChecksTheFieldAgainAndMarksTheValuePrivate`); schwacher Code im
+  reinen Zahlenfeld bleibt (höchstens 3 min), dokumentiert.
+- Geprüft: `./gradlew :agent-core:test` grün; `:app:testDebugUnitTest` mit `ClipVaultTest` (20),
+  `FieldSuggestionChipsTest` (21), `MyData*` (7), `ClipCommandTest` (11), `SnipCommandTest` (24)
+  grün; `InputLogicTest` (207), `FlatClipboardTest`, `ScreenshotChipTest`, `FormatGuardChipsTest`,
+  `TouchModelTest`, `EmojiMixPaletteTest` grün bis auf das geerbte
+  `InputLogicTest.insertLetterIntoWordHangulFails`. Nicht gelaufen: volle Suite, Agent-Tests über
+  `tools/dev.py`, Lint, Build, Gerätetest.
+- Engine-Änderungen (Prüfer Pflicht): `InputLogic.java` (`markPrivateText`, `nearPrivateText`, je
+  eine Bedingung in `restartSuggestionsOnWordTouchedByCursor` und
+  `performAdditionToUserHistoryDictionary`, `onFreshEditorSession`), `LatinIME.java`
+  (`onPrivateTextInput`, `markAgentPrivateText`, eine Zeile in `onFinishInputView`),
+  `KeyboardActionListener.java`/`KeyboardActionListenerImpl.kt` (`onPrivateTextInput`),
+  `InputAttributes.java` (bisher unverändert), `ClipboardDao.kt`. `RichInputConnection`,
+  `PointerTracker` unverändert.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

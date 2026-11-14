@@ -823,7 +823,9 @@ dabei nicht gesichert.
   einmal ein; danach ist es weg, und die Tastatur leert die System-Zwischenablage, wenn dort noch
   genau dieses Geheimnis liegt. Nach 2 Minuten verschwindet es von selbst. Darunter
   „Einmalcodes“: ein kopierter Code oder eine kopierte SMS mit Code; Antippen fügt nur die Ziffern
-  ein, nach 10 Minuten weg. IBAN, Telefonnummer, E-Mail und Adresse stehen normal im Verlauf, mit
+  ein, nach 10 Minuten weg. Die kopierte SMS selbst bleibt als Text im Verlauf, ein Code allein
+  nicht. Was du in einem Passwortfeld kopierst, schlägt die Tastatur nirgends vor. Eingefügte
+  Geheimnisse und Codes lernt die Tastatur nicht. IBAN, Telefonnummer, E-Mail und Adresse stehen normal im Verlauf, mit
   einer kleinen Beschriftung darüber. Kein Tresor in Passwortfeldern, im Inkognito-Modus und bei
   gesperrtem Gerät. Geheimnisse erscheinen nie als Pille in der Leiste. Am Ende der Tresor-Reihen öffnet
   „Meine Daten“ die Seite „Meine Daten & Vorschläge“.
@@ -851,7 +853,8 @@ eingefügt: erst dein Tipp auf den Chip fügt ein, genau einmal.
   Spanisch). Die Tastatur wägt Hinweiswort, wie frisch der Clip ist, App und Feld ab; ohne
   Hinweiswort erscheint nichts.
 - Nie in Passwortfeldern, im Inkognito-Modus, in Feldern, die Lernen verbieten, und bei gesperrtem
-  Gerät; nie Geheimnisse aus dem Tresor.
+  Gerät; nie Geheimnisse aus dem Tresor. Eingefügte Werte lernt die Tastatur nicht, und was du auf
+  der Seite „Meine Daten“ eintippst, auch nicht.
 - Einstellungen → Leiste & Befehle → „Meine Daten & Vorschläge“ (auch über den Chip „Meine Daten“
   im Tresor der Zwischenablage-Ansicht): Schalter „Feld- und Kontext-Vorschläge“ und die Karte
   „Meine Daten“ mit Name, je zwei E-Mails, Telefonnummern, Adressen und IBANs. Freiwillig, anfangs

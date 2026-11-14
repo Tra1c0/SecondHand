@@ -34,13 +34,18 @@ enum class SecretReason { MARKED, PRIVATE_KEY, API_KEY, JWT, TOKEN, PASSWORD }
 
 /**
  * The guard's verdict. [code] is the one-time code alone (digits) for [ClipKind.OTP], else null.
+ * [inText]: the code stands in a message ("Dein Code lautet 123456"); such a clip stays in the
+ * history as it is and the vault gets the code as well (see [keepsOutOfHistory]).
  * [toString] never contains clip text.
  */
-class ClipClass(val kind: ClipKind, val code: String? = null, val reason: SecretReason? = null) {
+class ClipClass(val kind: ClipKind, val code: String? = null, val reason: SecretReason? = null, val inText: Boolean = false) {
     val category get() = kind.category
-    override fun equals(other: Any?) = other is ClipClass && other.kind == kind && other.code == code && other.reason == reason
-    override fun hashCode() = (kind.hashCode() * 31 + (code?.hashCode() ?: 0)) * 31 + (reason?.hashCode() ?: 0)
-    override fun toString() = "ClipClass($kind${reason?.let { ", $it" } ?: ""}${if (code != null) ", code" else ""})"
+    /** Secrets and bare one-time codes never go into the history database; a code in a message does. */
+    val keepsOutOfHistory get() = kind == ClipKind.SECRET || (kind == ClipKind.OTP && !inText)
+    override fun equals(other: Any?) = other is ClipClass && other.kind == kind && other.code == code && other.reason == reason &&
+        other.inText == inText
+    override fun hashCode() = ((kind.hashCode() * 31 + (code?.hashCode() ?: 0)) * 31 + (reason?.hashCode() ?: 0)) * 31 + inText.hashCode()
+    override fun toString() = "ClipClass($kind${reason?.let { ", $it" } ?: ""}${if (code != null) ", code" else ""}${if (inText) ", in text" else ""})"
 }
 
 /**
@@ -81,6 +86,8 @@ object ClipGuard {
         "glpat-[A-Za-z0-9_\\-]{20,}", // GitLab
         "hf_[A-Za-z0-9]{30,}", // Hugging Face
         "npm_[A-Za-z0-9]{36}",
+        "\\d{8,10}:[A-Za-z0-9_\\-]{35}", // Telegram bot token
+        "[Bb]earer\\s+(?=[A-Za-z0-9\\-._~+/]*\\d)[A-Za-z0-9\\-._~+/]{20,}=*", // a long bearer token (with a digit)
     ).map { Regex("(?<![A-Za-z0-9_])(?:$it)(?![A-Za-z0-9_])") }
 
     private val JWT = Regex("(?<![A-Za-z0-9_\\-])eyJ[A-Za-z0-9_\\-]{8,}\\.eyJ[A-Za-z0-9_\\-]{8,}\\.[A-Za-z0-9_\\-]{8,}")
@@ -98,11 +105,30 @@ object ClipGuard {
     private val UUID = Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
     private const val TOKEN_CHARS = "+/=_-.~"
 
-    /** Words that announce a one-time code (de, en, es); `tan` and `pin` only as whole words. */
+    /**
+     * Words that announce a one-time code (de, en, es), only as whole words: "code" alone or in a
+     * compound ("Bestätigungscode", "SMS-Code", "WhatsApp-Code"; not "Barcode", "QR-Code",
+     * "Promo-Code"), "einmal" only in Einmalcode/Einmalpasswort/Einmal-PIN, never "Bestätigung" or
+     * "Verifizierung" alone (an order confirmation number is no code). Password words announce a
+     * secret instead ([PASSWORD_VALUE]). Explicit boundaries: `\b` is ASCII-only on newer JDKs.
+     */
     private val OTP_WORDS = Regex(
-        "(?i)(code|código|codigo|otp|passcode|password|passwort|kennwort|contraseña|clave|verifizierung|" +
-            "bestätigung|verification|verificación|verificacion|einmal|one-time|\\btan\\b|\\bmtan\\b|\\bpin\\b)"
+        "(?i)(?<![\\p{L}\\d_\\-])(?:" +
+            "(?:[\\p{L}\\d]+-)?(?:bestätigungs|sicherheits|zugangs|anmelde|login|verifizierungs|verifikations|aktivierungs|" +
+            "freigabe|authentifizierungs|autorisierungs|einmal|pass|sms|auth|otp|pin|tan|2fa)-?code|" +
+            "(?!(?:qr|bar|promo|rabatt|gutschein|post|zip|area|farb|color|colour|html|source|quell|programm|country|länder)-)" +
+            "[\\p{L}\\d]+-code|code|c[oó]digo|otp|passcode|clave|" +
+            "einmal-?(?:passwort|kennwort|pin|tan)|one-time|one time|m?tan|sms-?tan|pin" +
+            ")(?![\\p{L}\\d_])"
     )
+    /** A password word with its value right after it ("WLAN-Passwort ist 84736291", "Password: x7Kq9mZ2"). */
+    private val PASSWORD_VALUE = Regex(
+        "(?i)(?<![\\p{L}\\d_])(passwort|kennwort|password|passwd|contraseña|wlan-schlüssel|wifi-key)(?![\\p{L}\\d_])" +
+            "(?:\\s*([:=])\\s*|\\s+(?:ist|lautet|heißt|is|es)\\s*:?\\s*)" +
+            "(\\S{4,64}?)[.,;!?]?(?=\\s|$)"
+    )
+    /** Words right before a password word that make it a one-time password (then the code rule decides). */
+    private val ONE_TIME_BEFORE = Regex("(?i)(one[- ]time|single[- ]use|einmal|temporäres|temporary|otp)[\\s-]*$")
     /** A code in a sentence: 4–8 digits, or 3+3 / 4+4 with one space or dash. */
     private val OTP_IN_TEXT = Regex("(?<![\\d+\\p{L}])(\\d{3}[ -]\\d{3}|\\d{4}[ -]\\d{4}|\\d{4,8})(?![\\d\\p{L}])")
 
@@ -142,7 +168,8 @@ object ClipGuard {
         val singleToken = t.none { it.isWhitespace() }
         if (singleToken && UrlDetector.isUrl(t)) return ClipClass(ClipKind.LINK)
         if (singleToken) tokenSecret(t)?.let { return secret(it) }
-        otpInSentence(t)?.let { return ClipClass(ClipKind.OTP, it) }
+        if (passwordInSentence(t)) return secret(SecretReason.PASSWORD)
+        otpInSentence(t)?.let { return ClipClass(ClipKind.OTP, it, inText = true) }
         if (isAddress(t)) return ClipClass(ClipKind.ADDRESS)
         return ClipClass(ClipKind.TEXT)
     }
@@ -171,8 +198,32 @@ object ClipGuard {
         }
         if (t.length in 8..32 && upper >= 1 && lower >= 1 && digits >= 1 && symbols >= 1
             && lowerRun <= 5 && digitTouchesLetter(t) && !FILE_ENDING.containsMatchIn(t) && t.all { it.code in 0x21..0x7e }
+            && !separatedName(t)
         ) return SecretReason.PASSWORD
         return null
+    }
+
+    /**
+     * Names like "B2B-Shop", "Win11-Pro", "camelCase2_x": the only symbols are `-`, `_` or `.`, each
+     * between two letters or digits. A password has another symbol ("Sommer2024!", "P@ssw0rd!").
+     */
+    private fun separatedName(t: String) = t.indices.all { i ->
+        t[i].isLetterOrDigit() || (t[i] in "-_." && i > 0 && i < t.lastIndex && t[i - 1].isLetterOrDigit() && t[i + 1].isLetterOrDigit())
+    }
+
+    /**
+     * A password word with a value right after it: after ":" or "=" any value, after "ist"/"lautet"/
+     * "is"/"es" only one with a digit or a symbol ("Das Passwort ist falsch" stays text). Not after
+     * "one-time"/"einmal" (a one-time password is a code).
+     */
+    private fun passwordInSentence(t: String): Boolean {
+        if (t.length > MAX_OTP_SENTENCE) return false
+        return PASSWORD_VALUE.findAll(t).any { m ->
+            val value = m.groupValues[3]
+            val afterColon = m.groupValues[2].isNotEmpty()
+            val valueLike = value.any { it.isDigit() } || value.any { !it.isLetterOrDigit() }
+            (afterColon || valueLike) && !ONE_TIME_BEFORE.containsMatchIn(t.substring(0, m.range.first))
+        }
     }
 
     private val FILE_ENDING = Regex("\\.[A-Za-z]{2,4}$")

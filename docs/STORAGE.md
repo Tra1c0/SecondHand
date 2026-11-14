@@ -303,20 +303,28 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   `SnippetStoreTest.version1FilesStayReadableAndTheirSnippetsLiteral`.
 - `@ort`: CE-SharedPreferences `agent_places`, Schlüssel `places` (JSON-Array `{name, address}`,
   höchstens 10), nur entsperrt, nicht in Exporten.
-- `@clip`, vertrauliche Clips: DE-SharedPreferences `agent_sensitive_clips` (Tastatur-Kontext),
-  Schlüssel `salt` (16 Zufallsbytes, hex) und `hashes` (kommagetrennte SHA-256 über Salt und
-  Cliptext, höchstens 200, älteste zuerst verdrängt). Ein Eintrag entsteht nur bei eingeschaltetem
-  Zwischenablage-Verlauf für einen neuen Clip, der als vertraulich markiert ist oder in einem
-  Passwortfeld kopiert wurde; nie der Text selbst. DE wie die Verlaufsdatenbank, die den Text im
-  Klartext hält: der Hash macht nichts lesbar, was dort nicht schon steht. Nur im Speicher reichte
-  nicht, weil der Verlauf einen Neustart der Tastatur überdauert. Kein Backup (`allowBackup=false`),
-  kein Export; „Verlauf löschen“ lässt die Hashes stehen (sie verfallen durch die Grenze).
+- `@clip`, vertrauliche Clips (`SensitiveClips`): seit der Nachprüfung 44/45 nur im Speicher des
+  Tastaturprozesses, SHA-256 über ein je Prozess zufälliges Salt und den Cliptext, höchstens 200,
+  älteste zuerst verdrängt; für jeden neuen Clip, der als vertraulich markiert ist oder in einem
+  Passwortfeld kopiert wurde, auch mit Verlauf aus. Ein Neustart vergisst sie; das genügt, weil
+  solche Clips seit Etappe 44 nie in die Verlaufsdatenbank kommen (der Tresor sortiert sie als
+  Geheimnis), nur der aktuelle System-Clip kann noch einer sein. Alt (Etappe 24f bis 45):
+  DE-SharedPreferences `agent_sensitive_clips` (Tastatur-Kontext), Schlüssel `salt` (16 Bytes, hex)
+  und `hashes` (kommagetrennt). Beim ersten Start danach (`SensitiveClips.migrateLegacy` in
+  `ClipboardHistoryManager.onCreate`) löscht die Tastatur die nicht angehefteten Verlaufseinträge,
+  zu denen ein Hash passt, behält nur die Hashes angehefteter Einträge (deren Text steht ohnehin
+  daneben in der Datenbank) und löscht alle anderen samt Datei, sobald keiner mehr übrig ist; neue
+  schreibt sie nie. Kein Backup (`allowBackup=false`), kein Export.
 - Zwischenablage-Wächter und Tresor (Etappe 44): nichts gespeichert. `ClipVault` hält Geheimnisse
   (höchstens 2 min, bis zum ersten Einfügen), Einmalcodes (10 min) und für Etappe 45 die übrigen
   neuen Clips (10 min) nur im Speicher des Tastaturprozesses, höchstens 20, dazu die Kopierzeiten
-  schon eingefügter Geheimnisse (Zahlen, kein Text). Geheimnisse und Codes gehen nie in die
-  Verlaufsdatenbank (`ClipboardDao`, DE, Tabelle `CLIPBOARD`); vor Etappe 44 gespeicherte, nicht
-  angeheftete werden beim Öffnen der Ansicht daraus gelöscht. Mit Verlauf aus, bei gesperrtem
+  schon eingefügter und als Geheimnis sortierter Clips (Zahlen, kein Text). Geheimnisse und Codes
+  allein gehen nie in die Verlaufsdatenbank (`ClipboardDao`, DE, Tabelle `CLIPBOARD`); eine
+  Nachricht mit Code bleibt dort als Text. Vor Etappe 44 gespeicherte, nicht angeheftete Geheimnisse
+  werden beim Start der Tastatur (Verlauf an) und beim Öffnen der Ansicht daraus gelöscht. Gelöschte
+  Zeilen überschreibt SQLite mit Nullen (`PRAGMA secure_delete = ON` auf der schreibenden
+  Verbindung), danach wird das WAL gekürzt (`wal_checkpoint(TRUNCATE)`); nach einer solchen
+  Bereinigung beim Start schreibt `VACUUM` die Datei einmal neu (im Hintergrund). Mit Verlauf aus, bei gesperrtem
   Gerät, im Inkognito-Modus oder in Passwortfeldern wird nichts behalten. Ein Neustart des
   Prozesses vergisst alles. Kein Format, kein Export, kein Backup.
 - Meine Daten (Etappe 45): Datei `agent_my_data/data.sealed` in CE `noBackupFilesDir`
@@ -327,7 +335,8 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   "addresses":[…],"ibans":[…]}`, je Liste höchstens 3 Einträge zu höchstens 200 Zeichen, eine Zeile.
   Leere Daten löschen die Datei; eine unlesbare oder veränderte Datei bleibt liegen und gilt als
   nicht lesbar. Die Tastatur liest sie erst, wenn ein Feld oder ein Hinweiswort eigene Daten
-  braucht, und hält sie nur im Speicher, solange das Gerät entsperrt ist. Kein Backup
+  braucht, und hält sie nur im Speicher, solange das Gerät entsperrt ist und die Tastatur zu sehen
+  ist (`onFinishInputView` verwirft sie). Kein Backup
   (`allowBackup=false`, `noBackupFilesDir`), kein Export, nie in Profilen oder Tastatureinstellungen.
   Schalter „Feld- und Kontext-Vorschläge“: Tastatureinstellung `agent_field_suggestions` (Boolean,
   Vorgabe an, keine Daten).
@@ -337,8 +346,8 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   `SuggestKind`; Zahl −0,4 bis 0,4 mit vier Nachkommastellen), höchstens 4096 Zeichen, also höchstens
   63 Einträge. Kein getippter Text, kein Clip, keine App, kein Feld. Geschrieben nur mit
   „Personalisierte Vorschläge“ an, ohne Lernpause, ohne Inkognito, entsperrt; Gewichte verblassen mit
-  30 Tagen Halbwertszeit. „Gelernte Wörter löschen“ leert die Datei; das Ausschalten von
-  „Personalisierte Vorschläge“ lässt sie stehen, benutzt sie aber nicht. Kein Backup, kein Export.
+  30 Tagen Halbwertszeit. „Gelernte Wörter löschen“ leert die Datei, ebenso (seit der
+  Nachprüfung 44/45) das bestätigte Ausschalten von „Personalisierte Vorschläge“. Kein Backup, kein Export.
 - `@contact`, `@url`, `@clip`, Bildschirmlesen: nichts gespeichert. Gefundene Kontakte, Adressen,
   Clip-Texte und gelesener Bildschirmtext liegen nur im Speicher, solange der Befehl vor der
   Schreibmarke steht.

@@ -913,6 +913,9 @@ public class LatinIME extends InputMethodService implements
     @Override
     public void onFinishInputView(final boolean finishingInput) {
         mAgentEditorController.finishEditor();
+        // fork (review of stage 45, B7): the decrypted "Meine Daten" live only while the keyboard is shown
+        // (screen off and lock hide it first)
+        helium314.keyboard.agent.MyDataCache.INSTANCE.drop();
         StatsUtils.onFinishInputView();
         mHandler.onFinishInputView(finishingInput);
         mStatsUtilsManager.onFinishInputView();
@@ -1610,6 +1613,29 @@ public class LatinIME extends InputMethodService implements
         updateStateAfterInputTransaction(completeInputTransaction);
         mInputLogic.restartSuggestionsOnWordTouchedByCursor(mSettings.getCurrent(), mKeyboardSwitcher.getCurrentKeyboardScript());
         mKeyboardSwitcher.onEvent(event, getCurrentAutoCapsState(), getCurrentRecapitalizeState());
+    }
+
+    /**
+     * Fork, review of stages 44/45 (B4): like {@link #onTextInput} for a vault secret, a code or a
+     * "Meine Daten" value; the inserted text never becomes the composing word (no recorrection on it)
+     * and is not learned, nor are the words right after it ({@link InputLogic#markPrivateText}).
+     */
+    public void onPrivateTextInput(@Nullable String rawText) {
+        if (mAgentEditorController.isBlockingInput()) return;
+        if (rawText == null) return;
+        Event event = Event.createSoftwareTextEvent(rawText, KeyCode.MULTIPLE_CODE_POINTS, null);
+        InputTransaction completeInputTransaction = mInputLogic.onTextInput(mSettings.getCurrent(),
+            event, mKeyboardSwitcher.getKeyboardCapsMode(), mHandler);
+        mInputLogic.markPrivateText(rawText);
+        updateStateAfterInputTransaction(completeInputTransaction);
+        // refuses the private text and shows the neutral strip
+        mInputLogic.restartSuggestionsOnWordTouchedByCursor(mSettings.getCurrent(), mKeyboardSwitcher.getCurrentKeyboardScript());
+        mKeyboardSwitcher.onEvent(event, getCurrentAutoCapsState(), getCurrentRecapitalizeState());
+    }
+
+    /** Fork (B4): the value a field suggestion chip just put before the cursor is private, see {@link #onPrivateTextInput}. */
+    public void markAgentPrivateText(final String text) {
+        mInputLogic.markPrivateText(text);
     }
 
     public void onStartBatchInput() {

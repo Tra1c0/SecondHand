@@ -168,12 +168,14 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - `C/clip/ClipGuard.kt` (Etappe 44, Paket `dev.agentkeyboard.core.clip`, P154–P157):
   `ClipGuard.classify(text, markedSensitive, region)` → `ClipClass` (`ClipKind` SECRET, OTP, IBAN,
   PHONE, EMAIL, ADDRESS, LINK, TEXT; `ClipCategory` SECRET/OTP/PERSONAL/NORMAL; `code` = Ziffern
-  eines Einmalcodes; `SecretReason`; `toString` ohne Text), `mask` (bekanntes Präfix plus die
+  eines Einmalcodes; `inText` = Code in einer Nachricht, `keepsOutOfHistory` = Geheimnis oder Code
+  allein; `SecretReason`; `toString` ohne Text), `mask` (bekanntes Präfix plus die
   letzten vier Zeichen ab 20 Zeichen, sonst `HIDDEN`), `entropy`, `SECRET_MILLIS` = 2 min,
   `OTP_MILLIS` = 10 min. Reihenfolge und Entscheidungen: markiert → SECRET; Block
   `-----BEGIN … PRIVATE KEY-----`; bekannte Schlüssel (`sk-`, `sk-proj-`, `sk-ant-`, `sk_live_`,
-  `ghp_`/`gho_`/…, `github_pat_`, `AKIA`/`ASIA`, `xox?-`, `AIza`, `glpat-`, `hf_`, `npm_`) und
-  JWT überall im Clip bis `MAX_SCAN` = 64 KiB (auch `KEY=sk-…` und Code); danach nur bis
+  `ghp_`/`gho_`/…, `github_pat_`, `AKIA`/`ASIA`, `xox?-`, `AIza`, `glpat-`, `hf_`, `npm_`,
+  Telegram-Bot-Token `8–10 Ziffern:35 Zeichen`, `Bearer` + mindestens 20 Token-Zeichen mit einer
+  Ziffer) und JWT überall im Clip bis `MAX_SCAN` = 64 KiB (auch `KEY=sk-…` und Code); danach nur bis
   `MAX_LENGTH` = 4096 Zeichen: nur Ziffern 4–8 (auch 3+3/4+4 mit Leerzeichen oder Strich) = OTP,
   außer einer Jahreszahl 1900–2099; IBAN über `IbanCheck.normalize` (auch „IBAN:“ davor);
   E-Mail (ganzer Clip); Telefon über `PhoneFormat.isValid` (neu, bis 30 Zeichen, kein Datum);
@@ -181,11 +183,18 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   20–200 Zeichen aus Base64/URL-Zeichen mit Groß- und Kleinbuchstaben, mindestens 2 Ziffern und
   höchstens 5 Kleinbuchstaben am Stück (ab 32 Zeichen 3 Ziffern, 8 am Stück) und Entropie
   ≥ 3,5 Bit/Zeichen (`TOKEN`), oder 8–32 ASCII-Zeichen mit allen vier Zeichenklassen, einer Ziffer
-  direkt an einem Buchstaben, höchstens 5 Kleinbuchstaben am Stück, ohne Dateiendung
-  (`PASSWORD`); nie Hex (Git-Hashes, Prüfsummen, UUIDs, Farben), Pfade, `@`/`#`-Namen,
+  direkt an einem Buchstaben, höchstens 5 Kleinbuchstaben am Stück, ohne Dateiendung und nicht nur
+  mit `-`/`_`/`.` zwischen Buchstaben oder Ziffern (`separatedName`: „B2B-Shop“, „Win11-Pro“,
+  „camelCase2_x“ bleiben normal) (`PASSWORD`); ein Passwort-Wort (Passwort, Kennwort, password,
+  passwd, contraseña, WLAN-Schlüssel, auch „WLAN-Passwort“) mit Wert direkt danach (nach „:“/„=“
+  jeder, nach ist/lautet/heißt/is/es nur mit Ziffer oder Sonderzeichen, nicht nach „one-time“/
+  „einmal“; ≤ 300 Zeichen) ist ebenfalls `PASSWORD`; nie Hex (Git-Hashes, Prüfsummen, UUIDs, Farben), Pfade, `@`/`#`-Namen,
   `data:`-URIs, Zahlen, Daten, Wörter, Text mit Leerzeichen, längere Blobs. Code im Satz (≤ 300
-  Zeichen, Schlüsselwort de/en/es wie Code, código, clave, TAN, PIN, Bestätigung, verification,
-  einmal, one-time): der Kandidat direkt nach dem Schlüsselwort, sonst der einzige; Daten,
+  Zeichen, Schlüsselwort de/en/es nur als ganzes Wort mit eigenen Grenzen statt `\b`: Code,
+  Komposita aus einer Liste (Bestätigungs-, Sicherheits-, Zugangs-, SMS-, Einmal-, PIN-…code) oder
+  „X-Code“ außer QR, Bar, Promo, Rabatt, Gutschein, Post …; código, clave, OTP, passcode, (m)TAN,
+  PIN, one-time, Einmalpasswort/-kennwort/-PIN/-TAN; nie „Barcode“, „noch einmal“, „Bestätigung“
+  oder „Verifizierung“ allein): der Kandidat direkt nach dem Schlüsselwort, sonst der einzige; Daten,
   Uhrzeiten, Beträge, an Buchstaben klebende Ziffern und gruppierte Nummern (Telefon) zählen
   nicht. Adresse (≤ 200 Zeichen, ≤ 4 Zeilen): PLZ (4–5 Ziffern) plus Ort und Straße mit
   Hausnummer (de/at: -straße, -str., -weg, -gasse, -platz, Ring …; es: Calle, Avenida, Plaza …),
@@ -256,6 +265,12 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   ohne das Lernen für den Rest der Sitzung abzuschalten. `performAdditionToUserHistoryDictionary`
   lernt kein Befehlswort (`KeyboardCommands.isCommandWord`). Die Überladung mit `generated = true`
   (`@ki`) stoppt das Lernen für den Rest der Sitzung wie bei anderen KI-Übernahmen.
+  Nachprüfung 44/45 (P178): `markPrivateText` merkt Text und Startposition eines eingefügten
+  Tresor-Geheimnisses, Codes oder Werts aus „Meine Daten“; `nearPrivateText` hält
+  `restartSuggestionsOnWordTouchedByCursor` davon fern (Schreibmarke darin, an seinem Anfang oder
+  Ende) und `performAdditionToUserHistoryDictionary` lernt nichts, solange die Schreibmarke höchstens
+  `PRIVATE_LEARNING_DISTANCE` = 64 Zeichen dahinter steht und der Text noch dasteht (auch hinten
+  gekürzt); `onFreshEditorSession` vergisst ihn.
 - `InputLogicHandler.java`: hält Worker- und UI-Teil eines Swipe-Batches über
   `PendingBatchGate` gemeinsam gesperrt.
 - `RichInputConnection.java`: native Ersetzung als genau ein Commit, Ergebnis als `ApplyOutcome`
@@ -280,13 +295,18 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   Langdruck-Timer der Leertaste (`cancelLongPressTimersOf`, P101). Schwelle, Achsenwahl,
   senkrechte Wische, fortlaufende Aktionen, Schnelltipp-Sperre, Ende über `onEndSpaceSwipe` und
   Gestentippen sind unverändert.
-- `KeyboardActionListener.java` (`CustomAction.SPACE_HOLD`, früher `SHOW_AGENT_WHEEL`;
+- `KeyboardActionListener.java` (Nachprüfung 44/45: `onPrivateTextInput`, Vorgabe `onTextInput`,
+  `KeyboardActionListenerImpl` ruft `LatinIME.onPrivateTextInput`; `CustomAction.SPACE_HOLD`, früher `SHOW_AGENT_WHEEL`;
   `onSpaceSwipe(SpaceGesture, int)` ersetzt `onHorizontalSpaceSwipe`/`onVerticalSpaceSwipe`;
   `onSpaceSwipeDistance(SpaceGesture, int, int)` für seitliche Einmal-Wische, Etappe 33) und
   `KeyboardActionListenerImpl.kt` (leitet Panel-, Rad-, Skill- und Diktat-Taste an den Controller,
   blockiert Eingabe während eines Overlays; Leertasten-Aktionen und Doppeltippen, siehe
   „Editorzugriff, Panel und Rad“; seitliche Einmal-Wische laufen über `SpaceDetents` und spielen
   `HapticChain`).
+- `InputAttributes.java` (Nachprüfung 45, P180): `mNoLearning` auch für Felder mit
+  `privateImeOptions` = `AgentPreferences.NO_LEARNING_FIELD` (die Felder von „Meine Daten“), in
+  jeder Feldklasse und API-Stufe; daraus wird wie beim Flag `IME_FLAG_NO_PERSONALIZED_LEARNING`
+  Inkognito.
 - `SettingsValues.java`: `mSpaceGestures` (aufgelöste Leertasten-Gesten) statt
   `mSpaceSwipeHorizontal`/`mSpaceSwipeVertical`; `mSpaceForLangChange` aus
   `SpaceGestures.holdShowsPicker`; `mUseDoubleSpacePeriod` ist aus, solange Doppeltippen eine
@@ -376,6 +396,9 @@ Befehle (Etappe 24a, Details im Abschnitt „Befehle“):
   `getAgentCommandCursor`, `replaceCommandText` für `KeyboardCommands`;
   `onStartInputViewInternal` lädt die Befehlseinstellungen; `onCreate`/`onDestroy` hängen
   `SensitiveClips.attach` an die Zwischenablage (eigener Listener, der Verlauf bleibt unverändert).
+  Nachprüfung 44/45: `onPrivateTextInput` (wie `onTextInput`, merkt den Text danach über
+  `InputLogic.markPrivateText`, P178) und `markAgentPrivateText`; `onFinishInputView` verwirft
+  `MyDataCache` (eine Zeile).
   Etappe 42: `onEvent` gibt die Bildschirm-Enter-Taste zuerst an `KeyboardCommands.onEnter` (nur
   ein Befehl, der gerade ein Feld abfragt, nimmt sie; sonst unverändert), `moveAgentCursorBack`
   setzt nach einem Baustein die Schreibmarke über `RichInputConnection.setSelection` zurück (eigener
@@ -430,13 +453,20 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
   `ScreenshotChip.stop` (Observer abmelden, ausstehende Meldung, Entprellen und Ablauf entfernen).
   Etappe 44 (Zwischenablage-Wächter, Abschnitt „Speicher, Zugangsdaten und Datenschutz“):
   `ClipboardHistoryManager.fetchPrimaryClip` gibt jeden Text-Clip zuerst an `ClipVault.offer`
-  (vertraulich = `IS_SENSITIVE` oder Passwortfeld) und schreibt `SECRET`/`OTP` nie in
-  `ClipboardDao`; `getClipboardSuggestionView` zeigt für ein Geheimnis keinen Chip (vorher Sternchen);
-  `prepareClipboardHistory` entfernt alte nicht angeheftete Geheimnisse und Codes
-  (`removeVaultClipsFromHistory`, auch per `SensitiveClips`-Hash); `clearHistory` leert den
-  Tresor; `onCreate` setzt `ClipVault.currentClip`. `ClipboardHistoryView.startClipboardHistory`
+  (vertraulich = `IS_SENSITIVE` oder Passwortfeld) und schreibt, was `ClipClass.keepsOutOfHistory`
+  sagt (Geheimnis, Code allein), nie in `ClipboardDao`; eine Nachricht mit Code bleibt Verlaufstext.
+  `getClipboardSuggestionView` zeigt keinen Chip, wenn `ClipVault.isSecretClip` (Markierung,
+  `SensitiveClips`, vom Tresor als Geheimnis sortierte Kopierzeit, Inhalt) zutrifft (vorher
+  Sternchen); `prepareClipboardHistory` und, bei eingeschaltetem Verlauf, `onCreate` entfernen alte
+  nicht angeheftete Geheimnisse (`removeVaultClipsFromHistory`, auch per `SensitiveClips`; Codes
+  bleiben); `onCreate` ruft vorher `SensitiveClips.migrateLegacy` und nach einer Löschung
+  `ClipboardDao.compactInBackground`; `clearHistory` leert den Tresor; `onCreate` setzt
+  `ClipVault.currentClip`. `ClipboardDao.delete`/`clear` löschen über `deleteRows`
+  (`PRAGMA secure_delete = ON` in derselben Transaktion, danach `wal_checkpoint(TRUNCATE)`),
+  `compactInBackground` = einmal `VACUUM` in einem Thread (Nachprüfung 44/45, P179).
+  `ClipboardHistoryView.startClipboardHistory`
   ruft `refreshVault` (Tresorreihen über der Liste, Liste um ihre Höhe kürzer, `ClipVault.onChange`
-  bis `stopClipboardHistory`), `onVaultPick` fügt per `onTextInput` ein. `ClipboardAdapter.setContent`
+  bis `stopClipboardHistory`), `onVaultPick` fügt per `onPrivateTextInput` ein (P178). `ClipboardAdapter.setContent`
   beschriftet persönliche Clips und verdeckt alte angeheftete Geheimnisse
   (`ClipVaultSection.historyText`, Urteil je Eintrags-ID gemerkt).
 - `LatinIME.java` (23g): `setSuggestedWords` ruft nach `tryShowCommandChips` und nach
@@ -619,7 +649,8 @@ Symbole malen (Etappe 27, Touch-Verarbeitung, jede Änderung mit Prüfer; Detail
   sind) und meldet `onPressKey` immer mit einem Zeiger (N2).
 - `TextCorrectionScreen.kt` (36, Prüfer N4): Bestätigt man das Ausschalten von „Personalisierte
   Vorschläge“, löscht der Dialog auch die persönlichen Vorlagen von Symbole malen
-  (`SymbolDrawing.clearPersonalSymbols`), eine Zeile.
+  (`SymbolDrawing.clearPersonalSymbols`), eine Zeile; seit der Nachprüfung 44/45 auch die Gewichte
+  der Kontext-Vorschläge (`ContextLearning.clear`), eine Zeile.
 - `KeyboardActionListenerImpl.kt`: die vier Batch-Methoden gehen bei eingeschaltetem
   `mSymbolDrawing` an `SymbolInk` statt an `LatinIME` (LatinIME, InputLogic und
   `PendingBatchGate` sehen davon nichts); `onPressKey`, `onCodeInput`, `onTextInput` rufen zuerst
@@ -814,8 +845,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `MAX_ITEMS` = 20. `secrets`/`codes` (neueste zuerst, abgelaufene vorher entfernt), `take` (ein
   Geheimnis verlässt den Tresor beim ersten Einfügen, seine Kopierzeit steht in `used`, damit
   derselbe Clip beim Neustart nicht zurückkommt; ein Code bleibt), `freshest(context, kind,
-  maxAge)` für Etappe 45 (nie ein Geheimnis; mit Verlauf aus nur der aktuelle Clip über
-  `currentClip`, live gelesen, nie behalten), `isBlocked` (gesperrt, Inkognito, Passwortfeld,
+  maxAge)` für Etappe 45 (nie ein Geheimnis; ohne passenden Tresor-Eintrag und mit Verlauf aus nur
+  der aktuelle Clip über `currentClip`, live gelesen, nie behalten, und nie, wenn `isSecretClip`
+  zutrifft), `isSecretClip(text, copiedAt, marked)` (markiert, von `SensitiveClips` als im
+  Passwortfeld kopiert vermerkt, Kopierzeit in `secretStamps` = von `offer` als Geheimnis sortiert,
+  auch nicht behalten, höchstens 20, oder Geheimnis nach Inhalt; auch für den Leisten-Chip),
+  `isBlocked` (gesperrt, Inkognito, Passwortfeld,
   unbekanntes Feld), `clearSystemClip` (P156), `clock` (Tests), `onChange` (Ablauf bei offener
   Ansicht, ein `Handler` weckt beim nächsten Ablauf). `Item.toString`/`Fresh.toString` ohne Text,
   nichts geloggt. `A/ClipVaultSection.kt`: Reihen „Tresor“ und „Einmalcodes“ (Tags
@@ -824,7 +859,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Code); `historyText`/`label` für die Beschriftung persönlicher Clips (IBAN, Telefon, E-Mail,
   Adresse) in der Liste. Texte in `agent_clipvault_strings.xml` (`values/`, `values-de/`).
   `ClipCommand` (`@clip`) und `SnipCommand.SystemClipboard` (`{zwischenablage}`) behandeln ein
-  Geheimnis wie einen vertraulichen Clip. Speicher: `docs/STORAGE.md`. Test `AT/ClipVaultTest.kt`.
+  Geheimnis wie einen vertraulichen Clip. `A/commands/SensitiveClips.kt` (seit der Nachprüfung
+  44/45 nur im Speicher, je Prozess gesalzene Hashes, auch mit Verlauf aus; `isSensitive`,
+  `matcher` mit den Hashes angehefteter Einträge aus der alten Datei, `migrateLegacy`, P155). Speicher: `docs/STORAGE.md`. Test `AT/ClipVaultTest.kt`.
   Etappe 45: Am Ende der letzten Tresor-Reihe öffnet der Chip „Meine Daten“ (`TAG_MY_DATA`, kein
   Tresor-Eintrag) über `SnipCommand.openSettings` die Seite `agent_my_data`.
 - Meine Daten (Etappe 45, P164): `A/MyData.kt`. `MyData` (Name, Listen E-Mail, Telefon, Adresse,
@@ -835,11 +872,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   16 KiB, `checkAccess` (`credentialAccessAllowed`, sonst `LOCKED` vor jedem Datei- und
   Schlüsselzugriff), manipulierte Datei = `UNAVAILABLE` ohne Löschen, leere Daten löschen die
   Datei. `MyDataCache`: gelesen erst, wenn ein Feld oder Hinweis eigene Daten braucht; bei
-  gesperrtem Gerät verworfen, nach Speichern und Löschen verworfen. `ContextLearning` siehe
+  gesperrtem Gerät verworfen, nach Speichern und Löschen verworfen, und in
+  `LatinIME.onFinishInputView` (Bildschirm aus und Sperre blenden die Tastatur vorher aus). `ContextLearning` siehe
   „Lerndaten“. `K/settings/screens/AgentMyDataScreen.kt`: Seite „Meine Daten & Vorschläge“ (Route
   `agent_my_data`, auch in `SETTINGS_DESTINATIONS`): Schalter (Tastatur-Einstellungen, keine
   Daten), Karte mit neun Feldern (Name, je zwei E-Mail, Telefon, Adresse, IBAN; IBAN-Hinweis über
-  `IbanCheck`), Speichern, Alles löschen. `MyDataStore` entsteht nur im entsperrten Inhalt
+  `IbanCheck`; jedes Feld mit `PlatformImeOptions(AgentPreferences.NO_LEARNING_FIELD)`, die Tastatur
+  lernt dort nichts, P180), Speichern, Alles löschen. `MyDataStore` entsteht nur im entsperrten Inhalt
   (P134/P145), `ON_STOP` verwirft ihn, `SecureWindow` solange die Karte steht, nichts in Saved
   State. Zeile auf Leiste & Befehle (`SettingsAreas.entries(BAR)`). Tests `AT/MyDataStoreTest.kt`,
   `AT/MyDataScreenTest.kt`.
@@ -1074,8 +1113,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     (`@clip`, nur mit eingeschaltetem Verlauf, nur Text; überspringt den aktuellen vertraulichen Clip
     und alles, was `A/commands/SensitiveClips.kt` als vertraulich kopiert vermerkt hat: eigener
     Zwischenablage-Listener aus `LatinIME`, Markierung `IS_SENSITIVE` oder Passwortfeld als
-    aktueller Editor, gesalzene SHA-256 in DE-Einstellungen, Speicher: `docs/STORAGE.md`; vor
-    diesem Stand kopierte Clips bleiben unerkannt), `A/commands/WorkflowCommand.kt` (`@wf`,
+    aktueller Editor, gesalzene SHA-256 nur im Speicher seit der Nachprüfung 44/45, vorher in
+    DE-Einstellungen, Speicher: `docs/STORAGE.md`; vor Etappe 24f kopierte Clips bleiben unerkannt), `A/commands/WorkflowCommand.kt` (`@wf`,
     `Host.openWorkflow` → `AgentEditorController.openWorkflow`; ändert das Feld nicht; `false`
     ergibt einen Toast). Ohne Auswahl (`NO_SELECTION`/`COMPOSITION`, `WAITS_FOR_SELECTION`) merkt
     sich der Controller nur die ID (`chosenWorkflowId`) und zeigt „Workflow vorgemerkt“; das
@@ -1298,11 +1337,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `ContextLearning.weights`, nur ab Schwelle, nicht schon im Text, höchstens 2. Chip-Text
     `label` (🔗 `shortLink` = Host plus „/…“, ✉️, 📞, 🏦 erste und letzte vier Zeichen, 🏠, 👤, 🔢),
     Beschreibung „… aus Meine Daten“ bzw. „gerade kopiert“. Tipp genau einmal (`used`): leeres Feld
-    `Host.insertAtCursor` (echter Host: `LatinIME.onTextInput` wie das Einfügen aus der
-    Zwischenablage-Ansicht, nur bei `canReplaceAgentCommand` und unveränderter Schreibmarke, P162),
+    `Host.insertAtCursor` (echter Host: `LatinIME.onPrivateTextInput` wie das Einfügen aus dem
+    Tresor, nur bei `canReplaceAgentCommand` und unveränderter Schreibmarke, P162, P178),
     angefangener Feldtext `Host.replace` (Text → Wert), Kontext `Host.replace` der letzten bis zu 24
     Zeichen durch sich selbst plus Wert (nach „:“ mit Leerzeichen; `replaceCommandText` prüft, dass
-    sie unverändert vor der Schreibmarke stehen). Lernen: `shown` hält die gezeigten Angebote
+    sie unverändert vor der Schreibmarke stehen). Beim Tipp prüft `insert` das Feld erneut
+    (`isBlocked` mit den aktuellen Einstellungen und live gesperrt; im leeren Feld nichts vor oder
+    hinter der Schreibmarke) und meldet einen ersetzten Wert über `Host.markPrivate`
+    (`LatinIME.markAgentPrivateText`, P178). Ein Zahlenfeld ohne Code-Hinweis bekommt einen Code
+    bewusst trotzdem (`weak`), aber nur bis 3 min alt: ein PIN- oder Betragsfeld ohne Hinweis kann so
+    einen frischen Code angeboten bekommen, nie ohne Tipp. Lernen: `shown` hält die gezeigten Angebote
     (Hinweis-`id`, Art, App und Feld-ID, nur im Speicher); verschwindet eines ohne Tipp, zählt es
     einmal als übergangen, ein Tipp als angenommen (`ContextLearning.record`, P163). Texte in
     `agent_suggest_strings.xml` (`values/`, `values-de/`). Tests `AT/FieldSuggestionChipsTest.kt`,
@@ -2118,8 +2162,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Zahl) in `agent_context_weights` (gerätegeschützt, Schlüssel `weights`), im Speicher
   zwischengespeichert. `record` nur bei `mayLearn` („Personalisierte Vorschläge“ an, keine
   Lernpause, kein Inkognito, nicht gesperrt), `weights` nur mit eingeschaltetem Schalter (sonst
-  keine). „Gelernte Wörter löschen“ ruft `clear`. Das Ausschalten von „Personalisierte
-  Vorschläge“ löscht sie nicht, sie werden dann nur nicht benutzt.
+  keine). „Gelernte Wörter löschen“ ruft `clear`, ebenso das bestätigte Ausschalten von
+  „Personalisierte Vorschläge“ (`TextCorrectionScreen`, Nachprüfung 44/45).
 
 ## Updates
 
@@ -3132,11 +3176,21 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   setzt `ClipVault.clock` deshalb auf die Uptime, und für den Leisten-Chip (vergleicht mit
   `System.currentTimeMillis()`) setzt `stampNow` den Zeitstempel per Reflexion. Vor Android 8 hat ein
   Clip keine Zeit: dann gilt „jetzt“, ein Neustart der Tastatur innerhalb von 2 min kann ein
-  schon eingefügtes Geheimnis wieder in den Tresor holen (bekannte Lücke).
+  schon eingefügtes Geheimnis wieder in den Tresor holen (bekannte Lücke). Dasselbe gilt ab
+  Android 8 nach einem Neustart des Prozesses: `used` liegt nur im Speicher, `onCreate` liest den
+  aktuellen Clip wieder ein, und solange er jünger als 2 min ist, steht das Geheimnis wieder im
+  Tresor. Das passiert nur, wenn `clearSystemClip` den Clip nicht leeren konnte (oder durfte); sonst
+  ist nichts mehr da. Bewusst offen: eine Liste eingefügter Clips auf der Platte wäre eine neue Spur.
 - **P155** Passwortfelder zählen als Inkognito (`InputAttributes.mNoLearning`). Ein Clip, der
   kopiert wird, während ein Passwortfeld den Fokus hat, ist ein Geheimnis und landet nirgends,
   weder im Verlauf noch im Tresor. Im Passwortfeld selbst gibt es keinen Tresor (Auftrag); dort
-  bleibt nur das Einfügen des Systems bzw. die Einfüge-Taste mit dem aktuellen Clip.
+  bleibt nur das Einfügen des Systems bzw. die Einfüge-Taste mit dem aktuellen Clip. Der System-Clip
+  trägt diese Herkunft nicht: Wer den aktuellen Clip live liest (Feld-Vorschläge, Leisten-Chip),
+  fragt `ClipVault.isSecretClip`, das `SensitiveClips` (hört seit der Nachprüfung 44/45 auch mit
+  Verlauf aus mit, nur im Speicher) und die vom Tresor als Geheimnis sortierten Kopierzeiten kennt.
+  Nur nach `ClipGuard.classify(text, IS_SENSITIVE)` zu fragen, bot eine im Passwortfeld kopierte
+  PIN als Code an (`ClipVaultTest.aPinCopiedInAPasswordFieldIsNeverOffered*`). Kopiert man denselben
+  Text danach in einem normalen Feld, bleibt er bis zum Neustart vertraulich (Hash des Textes).
 - **P156** Leeren der System-Zwischenablage nach dem Einfügen eines Geheimnisses
   (`ClipVault.clearSystemClip`): nur wenn sie noch genau diesen Clip hält (Text und, ab Android 8,
   Zeitstempel). Laut AOSP-`ClipboardService` (Stand `main`, gelesen 2026-11-14) braucht
@@ -3148,7 +3202,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P157** Die Tresorreihen entstehen erst, wenn etwas darin steht, und sitzen dann vor dem
   Abschnittstitel „Letzte“ (Index 0). `FlatClipboardTest` erwartet ohne Tresor den Titel als
   erstes Kind; die Liste wird um die Höhe der Reihen kürzer, höchstens auf ein Drittel. Der
-  Tresor lebt im Prozess der Tastatur: Ein Neustart des Prozesses vergisst alles (gewollt).
+  Tresor lebt im Prozess der Tastatur: Ein Neustart des Prozesses vergisst alles (gewollt; zum
+  aktuellen Clip siehe P154).
 - **P165** `TouchModel.load` steht in `onStartInputViewInternal` vor `loadSettings`: die
   `SettingsValues` sind dort noch die des vorigen Felds. Was zum neuen Feld gehört (Passwort,
   `IME_FLAG_NO_PERSONALIZED_LEARNING`, Paket, Feld-ID), liest Etappe 50 aus `editorInfo`, die
@@ -3186,7 +3241,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `ContextSuggestTest.codeLikeFieldsThatAreNoCodeFields`.
 - **P162** Einfügen in ein leeres Feld nicht über `AndroidEditorAdapter.insert`: dessen Policy lehnt
   Nicht-Text-Felder ab (`UNSUPPORTED_EDITOR`), Telefon- und Zahlenfelder bekämen so nie ihren Code.
-  Der echte Host nimmt deshalb `LatinIME.onTextInput` (wie die Zwischenablage-Ansicht), nur bei
+  Der echte Host nimmt deshalb `LatinIME.onPrivateTextInput` (wie der Tresor, P178), nur bei
   unveränderter Schreibmarke; Text vor der Schreibmarke geht über `replaceCommandText`, das das
   getippte Wort abschließt, ohne zu korrigieren. `insertGeneratedText` würde außerdem das Lernen
   für die ganze Sitzung abschalten.
@@ -3201,14 +3256,37 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   liest und den Zwischenspeicher verwirft; `FieldSuggestionChips` fragt es erst nach allen
   Sperrprüfungen (`FieldSuggestionChipsTest.neverInPasswordFieldsIncognitoNoLearningOrLocked`
   zählt die Lesezugriffe). Robolectric hat keinen AndroidKeyStore: Tests geben `AesGcmSecretCipher`
-  mit eigenem Schlüssel.
+  mit eigenem Schlüssel. Der Zwischenspeicher fällt in `onFinishInputView`; es gibt keinen eigenen
+  Empfänger für `ACTION_SCREEN_OFF` (die Tastatur wird vorher ausgeblendet). Nachprüfung 44/45.
+- **P178** Ein eingefügter privater Text (Tresor-Geheimnis, Code, Wert aus „Meine Daten“) darf nie
+  das bearbeitete Wort werden: `LatinIME.onTextInput` ruft danach
+  `restartSuggestionsOnWordTouchedByCursor`, das das Wort an der Schreibmarke zum Kompositionswort
+  macht; die Leiste zeigte es dann im Klartext, und das nächste Leerzeichen lernte es ins
+  Nutzerwörterbuch (das in manuellen Sicherungen steckt). Deshalb `onPrivateTextInput` und
+  `InputLogic.markPrivateText`: kein Neustart der Vorschläge darauf (auch nach Rücktaste oder
+  Antippen), kein Lernen bis 64 Zeichen dahinter (das Wort danach hätte es als N-Gramm-Kontext). Die
+  Prüfung liest den Editortext ab der gemerkten Startposition; steht dort etwas anderes, ist die
+  Marke vergessen. Ein normaler Clip aus dem Verlauf geht weiter über `onTextInput` (Upstream).
+  Test `InputLogicTest.aPrivateTextIsNeverComposedShownOrLearned`.
+- **P179** `PRAGMA secure_delete` gilt je Verbindung. `SQLiteDatabase` hat einen Verbindungs-Pool;
+  ein `rawQuery` außerhalb einer Transaktion kann auf einer Lese-Verbindung landen. Darum setzt
+  `ClipboardDao.deleteRows` es innerhalb der Lösch-Transaktion (dort hält der Thread die
+  schreibende Verbindung). PRAGMAs, die eine Zeile liefern, gehen nur über `rawQuery`, nicht
+  `execSQL`. `secure_delete` wirkt nicht rückwirkend: Darum `VACUUM` nach einer Bereinigung beim
+  Start (`compactInBackground`, nicht in einer Transaktion, eigener Thread, weil `GESTURE_DATA` in
+  derselben Datei groß sein kann). Auf keinem Gerät geprüft.
+- **P180** Compose-Textfelder können `IME_FLAG_NO_PERSONALIZED_LEARNING` nicht setzen; die Felder von
+  „Meine Daten“ tragen deshalb `privateImeOptions` = `AgentPreferences.NO_LEARNING_FIELD`, und
+  `InputAttributes` zählt das als `mNoLearning` (damit Inkognito) in jeder Feldklasse und auf jeder
+  API-Stufe, anders als das System-Flag (nur Text, ab Android 8, P139). Wer ein weiteres eigenes Feld
+  ohne Lernen braucht, setzt dieselbe Kennung.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (518 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (519 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -3290,8 +3368,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/keyboard/internal/` (1): KeyboardIconsSet
 - `K/keyboard/internal/keyboard_parser/` (2): KeyboardParser, LayoutParser
 - `K/keyboard/internal/keyboard_parser/floris/` (2): KeyCode, KeyLabel
-- `K/latin/` (10): App, AppUpgrade, ClipboardHistoryEntry, ClipboardHistoryManager,
-  ClipboardThumbnails, DictionaryFacilitatorImpl, InputView, LatinIME, RichInputConnection, Suggest
+- `K/latin/` (11): App, AppUpgrade, ClipboardHistoryEntry, ClipboardHistoryManager,
+  ClipboardThumbnails, DictionaryFacilitatorImpl, InputAttributes, InputView, LatinIME,
+  RichInputConnection, Suggest
 - `K/latin/database/` (1): ClipboardDao
 - `K/latin/define/` (1): DebugFlags
 - `K/latin/dictionary/` (2): DictionaryFactory, ExpandableBinaryDictionary

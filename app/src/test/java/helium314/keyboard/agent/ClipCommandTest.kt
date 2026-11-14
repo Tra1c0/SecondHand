@@ -177,12 +177,47 @@ class ClipCommandTest {
             assertEquals(listOf("Kennwort123"), read.filter { it.sensitive }.map { it.text })
             assertEquals(listOf("harmloser Text"), ClipCommand.match("", read).map { it.text })
             assertTrue(ClipCommand.match("Kennwort", read).isEmpty())
-            // only a salted hash is stored, never the text
+            // review of stages 44/45 (B3): nothing is stored on disk, not even a hash
             val stored = AgentStorageContexts.keyboard(latinIME).getSharedPreferences(SensitiveClips.FILE, Context.MODE_PRIVATE).all
-            assertTrue(stored.isNotEmpty())
-            assertFalse(stored.values.any { it.toString().contains("Kennwort") })
+            assertTrue(stored.isEmpty())
         } finally {
             dao.clear()
+        }
+    }
+
+    private fun legacyHash(salt: String, text: String): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        digest.update(salt.toByteArray(Charsets.UTF_8))
+        digest.update(0)
+        return digest.digest(text.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
+    }
+
+    @Test fun theOldHashFileIsUsedOnceAndThenOnlyForPinnedEntries() {
+        val dao = assertNotNull(ClipboardDao.getInstance(latinIME))
+        dao.clear()
+        val prefs = AgentStorageContexts.keyboard(latinIME).getSharedPreferences(SensitiveClips.FILE, Context.MODE_PRIVATE)
+        try {
+            dao.addClip(now - 3_000, false, "altes Kennwort")
+            dao.addClip(now - 2_000, true, "angeheftetes Kennwort")
+            dao.addClip(now - 1_000, false, "harmloser Text")
+            val salt = "0011223344556677"
+            prefs.edit().putString("salt", salt).putString("hashes", listOf("altes Kennwort", "angeheftetes Kennwort", "längst weg")
+                .joinToString(",") { legacyHash(salt, it) }).commit()
+            assertTrue(SensitiveClips.migrateLegacy(latinIME, dao))
+            // the unpinned entry is gone, the pinned one stays and keeps its mark, the other hashes are deleted
+            assertEquals(listOf("angeheftetes Kennwort", "harmloser Text"), dao.getAll().mapNotNull { it.text }.sorted())
+            assertEquals(legacyHash(salt, "angeheftetes Kennwort"), prefs.getString("hashes", null))
+            assertTrue(SensitiveClips.matcher(latinIME)("angeheftetes Kennwort"))
+            assertFalse(SensitiveClips.matcher(latinIME)("harmloser Text"))
+            // nothing changes at the next start; once the pinned entry is gone, the file goes too
+            assertFalse(SensitiveClips.migrateLegacy(latinIME, dao))
+            dao.clear()
+            assertTrue(SensitiveClips.migrateLegacy(latinIME, dao))
+            assertTrue(prefs.all.isEmpty())
+            assertFalse(SensitiveClips.migrateLegacy(latinIME, dao))
+        } finally {
+            dao.clear()
+            prefs.edit().clear().commit()
         }
     }
 
@@ -196,7 +231,7 @@ class ClipCommandTest {
     }
 
     @Test fun theRecordKeepsOnlyTheNewestHashes() {
-        for (i in 0..SensitiveClips.MAX_ENTRIES) SensitiveClips.remember(latinIME, "geheim $i")
+        for (i in 0..SensitiveClips.MAX_ENTRIES) SensitiveClips.remember("geheim $i")
         val sensitive = SensitiveClips.matcher(latinIME)
         assertFalse(sensitive("geheim 0")) // the oldest is dropped
         assertTrue(sensitive("geheim 1"))
