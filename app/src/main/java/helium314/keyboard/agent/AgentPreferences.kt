@@ -29,6 +29,8 @@ object AgentPreferences {
     /** Opt-in: personal hit boxes for letter keys (stage 22). */
     const val ADAPT_TOUCH = "agent_adapt_touch"
     const val SCREENSHOT_CHIP = "agent_screenshot_chip"
+    /** Stage 41: hint chips for e-mail, phone, IBAN and decimal fields (default on). */
+    const val FORMAT_GUARD = "agent_format_guard"
     /** Typed commands like "@math" (stage 24, default on). */
     const val COMMANDS = "agent_commands"
     /** One character from CommandSyntax.ALLOWED_PREFIXES. */

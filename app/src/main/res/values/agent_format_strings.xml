@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 41 format guard (own file so parallel work on other string files does not collide). English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="agent_format_guard">Format guard</string>
+    <string name="agent_format_guard_sub">Hints in e-mail, phone, IBAN and number fields; a tap applies, nothing changes by itself</string>
+    <!-- %s: the whole new field text -->
+    <string name="agent_format_apply">Replace the field with %s</string>
+    <string name="agent_format_email_spaces">Without spaces: %s</string>
+    <!-- %s: a provider domain such as gmail.com -->
+    <string name="agent_format_email_domain">%s?</string>
+    <string name="agent_format_email_at">%s?</string>
+    <string name="agent_format_phone">📞 %s</string>
+    <string name="agent_format_iban_valid">IBAN valid</string>
+    <string name="agent_format_iban_group">IBAN valid · blocks of four</string>
+    <string name="agent_format_iban_invalid">IBAN check digits wrong</string>
+    <string name="agent_format_decimal">Usual: %s</string>
+    <!-- %1$s: the separator of the language, %2$s: the number with it -->
+    <string name="agent_format_decimal_description">Note: this language writes the decimal separator %1$s (%2$s). The field stays as it is.</string>
+</resources>

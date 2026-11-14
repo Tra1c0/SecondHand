@@ -150,6 +150,18 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   `InkTiming.kt` (36, `InkTap` Tipp-Regel, `InkPace` Pause nach Tempo). Tests
   `InkRecognizerTest`, `OwnInkSymbolsTest`, `InkBenchmarkTest` (mit `InkFingerModel`),
   `InkTimingTest`, `PersonalInkSymbolsTest`.
+- `C/format/` (Etappe 41, Formatwächter, Paket `dev.agentkeyboard.core.format`, P138–P140):
+  `FormatGuard.kt` (`FieldKind` EMAIL/PHONE/DECIMAL/TEXT, `FormatHint` mit `replacement` = ganzer
+  neuer Feldtext oder null für einen reinen Hinweis, `FormatGuard.check`: höchstens
+  `MAX_LENGTH` = 100 Zeichen), `EmailCheck.kt` (Leerzeichen, Domain-Tippfehler gegen `PROVIDERS`
+  mit OSA-Abstand, 1 Fehler bis 7 Zeichen, sonst 2, höchstens zwei gleich nahe Treffer; ohne
+  Hinweis bei bekanntem Anbieter, bei Domain ohne Punkt oder als Anfang eines Anbieters (noch beim
+  Tippen); Punkt am Ende nur nach einem Anbieter; fehlendes `@` nur vor einem Anbieter),
+  `IbanCheck.kt` (Längen je Land, Modulo 97 ohne große Zahlen, nur volle Länge, Leerzeichen nur
+  einzeln zwischen Blöcken, `group`), `PhoneFormat.kt` (libphonenumber, `region` aus Land, sonst
+  Sprache, sonst `ZZ` = nur mit Ländervorwahl; Format `INTERNATIONAL`), `DecimalHint.kt` (Komma-
+  und Punkt-Sprachen, drei Nachkommastellen gelten als Tausender, nie eine Ersetzung).
+  Test `CT/format/FormatGuardTest.kt`.
 - Tests in `CT/`: `AiTextActionTest`, `EditorPolicyTest`, `LocalTextActionsTest`,
   `PendingBatchGateTest`, `SkillBindingTest`, `ToolTest`, `WorkflowTest`,
   `InsertionAnchorTest`, `StyledTranslationTest`, `UpdateReleasesTest`, `RgbLightingTest`,
@@ -1052,6 +1064,20 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `InputLogicTest.typedEmojiPairOffersTheMixAndReplacesItOnlyAfterTwoTaps` (P73) und
     `InputLogicTest.typedEmojiPairStaysWhenTheFieldDoesNotTakeTheImage` (echter Sink: Ablehnung,
     Bild als Objektzeichen an der Schreibmarke, blockierte Eingabe; P83).
+  - Formatwächter (41, P138–P140): `A/FormatGuardChips.kt`. `KeyboardCommands.buildChips` fragt
+    ihn, wenn kein Befehl vor der Schreibmarke steht, vor dem Emoji-Mix (eine Zeile). `fieldKind`
+    aus `EditorInfo.inputType` (E-Mail-Varianten, `TYPE_CLASS_PHONE`, Zahl mit
+    `TYPE_NUMBER_FLAG_DECIMAL`, sonstiger Text nur für die IBAN; URI und alle Passworttypen nie),
+    eigenes `isBlocked` (keine Einstellungen, `mIncognitoModeEnabled` inklusive No-Learning und
+    Passwort, `mIsLocked`, Passworttyp), Schalter `AgentPreferences.FORMAT_GUARD` (an). Sprache
+    aus `hintLocales` des Felds, sonst Tastatur; Land aus `hintLocales`, sonst `mLocale`. Ein Chip
+    mit `replacement` ersetzt über `Host.replace` mit einem `CommandCall`, dessen `text` der ganze
+    geprüfte Feldtext ist (`replaceCommandText`: nur wenn er unverändert vor der Schreibmarke
+    steht, also genau einmal); Hinweise (`MUTED`) tun beim Tipp nichts. IBAN-Punkt als
+    `ForegroundColorSpan` (grün 34C759, rot FF453A). Schalter auf der Seite Tippen & Korrektur
+    (Karte „Regeln“, eine Zeile). Texte in `agent_format_strings.xml` (`values/`, `values-de/`).
+    Tests `AT/FormatGuardChipsTest.kt`, mit echtem Host
+    `InputLogicTest.formatGuardChipChangesTheFieldOnlyOnATapAndOnce`.
   - Tests: `CT/UrlDetectorTest.kt`, `CT/SymbolTableTest.kt`, `CT/UnitConversionTest.kt`,
     `CT/EventParserTest.kt`, `CT/DateFormattingTest.kt`, `CT/PlacesTest.kt`, `CT/AlarmParserTest.kt`,
     `CT/TimerParserTest.kt`, `AT/commands/ClockCommandsTest.kt`;
@@ -2586,27 +2612,42 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   mit eigenen Bereichen (0,3–1,5 bzw. 0,5–2,5) und Dimensionen auf, wie `createAppearanceSettings`.
   Wer dort Bereich oder Dimensionen ändert, ändert sie auch in `AgentAreaLookScreen.kt`. Die
   Gruppen-Dialoge zeigen dagegen die Upstream-`Setting`-Zeilen selbst und folgen automatisch.
+- **P138** Der Formatwächter prüft nur das ganze Feld: Text nach der Schreibmarke (oder ein
+  unbekannter) heißt kein Hinweis, sonst würde ein Tipp nur den Teil vor der Schreibmarke
+  ersetzen. `textAfterCursor` geht an die App (IPC); `FormatGuardChips.stripChips` fragt es deshalb
+  erst, wenn `FormatGuard.check` etwas gefunden hat, denn die Prüfung läuft bei jeder
+  Leistenaktualisierung in jedem Textfeld (IBAN-Prüfung).
+- **P139** `KeyboardCommands.isBlocked`/`find` weisen alle Felder außer `TYPE_CLASS_TEXT` ab;
+  Telefon- und Zahlenfelder kommen trotzdem bis `buildChips` (Befehl = null). Der Formatwächter hat
+  deshalb eine eigene Sperre (Inkognito, gesperrt, Passworttypen inklusive
+  `TYPE_NUMBER_VARIATION_PASSWORD`); wer sie auf `KeyboardCommands.isBlocked` umstellt, verliert
+  Telefon und Zahlen. Mit Auswahl (`agentCommandCursor` < 0) gibt `buildChips` vorher null zurück.
+- **P140** libphonenumber formatiert nach seinen Metadaten, nicht nach Gefühl: deutsche
+  Mobilnummern als `+49 1512 3456789`. Ein Update der Bibliothek kann das Format einzelner Länder
+  ändern; dann die erwarteten Texte in `FormatGuardTest` an die neue Ausgabe anpassen, nicht die
+  Prüfung lockern. Die Metadaten liegen als Java-Ressourcen im Jar und werden beim ersten Aufruf
+  geladen (`PhoneNumberUtil.getInstance`, lazy); ein minifizierter Build muss sie behalten.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (468 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (478 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (5): agent-apk, agent-tests, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (69): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
+- `A/` (70): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
   AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
   AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand, ContactCommand,
   ConvertCommand, CorrectionMemory, DateCommand, DesignLook, DesignTiles, Diagnose, Dictation,
   EmojiCommand, EmojiMixPalette, EmojiSuggestions, EncryptedActionRunStore, EventCommand,
-  FlatMenuView, FlatPanelStyle, FlatPreset, HapticChain, JournaledModelCall, JournaledRun,
-  KeyboardCommands, KeyboardProfileStore, LearningData, LoadingDotsView, ManualWorkflowDraft,
-  ModelSettings, MyDesigns, OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter, RgbLighting,
-  RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand,
+  FlatMenuView, FlatPanelStyle, FlatPreset, FormatGuardChips, HapticChain, JournaledModelCall,
+  JournaledRun, KeyboardCommands, KeyboardProfileStore, LearningData, LoadingDotsView,
+  ManualWorkflowDraft, ModelSettings, MyDesigns, OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter,
+  RgbLighting, RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand,
   SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SpaceDetents, SpaceGestures,
   SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary, ToolLauncher, TouchCalibration,
   TouchModel, TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract,
@@ -2619,7 +2660,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (83): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (84): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, ClipCommandTest, CommandReplaceTest, CommandTemplatesTest,
@@ -2627,16 +2668,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   DesignEditorTest, DesignTilesTest, DiagnoseScreenTest, DictationSessionTest, DictationUiTest,
   EmojiMixPaletteTest, EmojiMixRecentsTest, EncryptedActionRunStoreTest,
   EncryptedCredentialStoreTest, FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest,
-  FlatStyleTest, ForkIdentityTest, ForkUpgradeTest, HapticChainTest, InsertAtCursorTest,
-  JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LearningDataTest,
-  LoadingDotsViewTest, ManualWorkflowDraftTest, MoreCommandsTest, MoreProvidersTest, MyDesignsTest,
-  OpenAiProviderTest, RgbLightingRenderTest, RgbSettingsScreenTest, RgbTilesTest,
-  ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest, SettingsAreaAiTest,
-  SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest, SettingsKitTest,
-  SettingsLookScreenTest, SettingsStartScreenTest, SettingsSystemAreaTest, SettingsTypingAreaTest,
-  SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest, SnipCommandTest, SpaceDetentsTest,
-  SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest,
-  TouchModelTest, TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest,
+  FlatStyleTest, ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest,
+  InsertAtCursorTest, JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest,
+  LearningDataTest, LoadingDotsViewTest, ManualWorkflowDraftTest, MoreCommandsTest,
+  MoreProvidersTest, MyDesignsTest, OpenAiProviderTest, RgbLightingRenderTest,
+  RgbSettingsScreenTest, RgbTilesTest, ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest,
+  SettingsAreaAiTest, SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest,
+  SettingsKitTest, SettingsLookScreenTest, SettingsStartScreenTest, SettingsSystemAreaTest,
+  SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest, SnipCommandTest,
+  SpaceDetentsTest, SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal,
+  ToolRunnerTest, TouchModelTest, TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest,
   WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
   WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (8): ClockCommandsTest, EmojiMixCommandTest, LanguageCommandTest, QrCommandTest,
@@ -2647,6 +2688,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   ModelProvider, OwnInkSymbols, PendingBatchGate, PersonalInkSymbols, Places, Profiles, RgbCurve,
   RgbLighting, RgbPatterns, SkillBinding, SpecialCharacters, StyledTranslation, SymbolTable,
   TextCondition, TimerParser, Tool, UnitConversion, UpdateReleases, UrlDetector, Workflow
+- `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `CT/` (36): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
   EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest, EventParserTest, InkAreaTest, InkBenchmarkTest,
   InkDotsTest, InkFingerModel, InkRecognizerTest, InkTimingTest, InsertionAnchorTest,
@@ -2655,6 +2697,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   RgbFrameStatsTest, RgbLightingTest, RgbPatternsTest, SkillBindingTest, StyledTranslationTest,
   SymbolTableTest, TimerParserTest, ToolTest, UnitConversionTest, UpdateReleasesTest,
   UrlDetectorTest, WorkflowTest
+- `CT/format/` (1): FormatGuardTest
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,
   KeyboardActionListenerImpl, KeyboardSwitcher, KeyboardTheme, KeyboardView, MainKeyboardView,
   PointerTracker
@@ -2705,19 +2748,19 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (20): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
-  agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings, agent_gestures_strings,
-  agent_language_strings, agent_rgb_strings, agent_settings_keys_strings,
+- `app/src/main/res/values-de/` (21): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
+  agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings, agent_format_strings,
+  agent_gestures_strings, agent_language_strings, agent_rgb_strings, agent_settings_keys_strings,
   agent_settings_look_strings, agent_settings_strings, agent_settings_system_strings,
   agent_slider_strings, agent_space_strings, agent_strings, agent_symbol_strings,
   agent_typing_strings, agent_update_strings, strings
-- `app/src/main/res/values/` (26): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+- `app/src/main/res/values/` (27): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
   agent_bar_strings, agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings,
-  agent_gestures_strings, agent_ids, agent_language_strings, agent_rgb_strings,
-  agent_settings_keys_strings, agent_settings_look_strings, agent_settings_strings,
-  agent_settings_system_strings, agent_slider_strings, agent_space_strings, agent_strings,
-  agent_symbol_strings, agent_typing_strings, agent_update_strings, attrs, clip_provider,
-  donottranslate, gesture_data, themes-flat
+  agent_format_strings, agent_gestures_strings, agent_ids, agent_language_strings,
+  agent_rgb_strings, agent_settings_keys_strings, agent_settings_look_strings,
+  agent_settings_strings, agent_settings_system_strings, agent_slider_strings, agent_space_strings,
+  agent_strings, agent_symbol_strings, agent_typing_strings, agent_update_strings, attrs,
+  clip_provider, donottranslate, gesture_data, themes-flat
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (1): Shadows

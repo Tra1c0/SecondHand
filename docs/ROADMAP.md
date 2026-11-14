@@ -109,13 +109,12 @@ Reihenfolge von oben nach unten.
   Tracking-Parameter entfernen (utm_*, fbclid, gclid …) vor dem Einfügen; Code aus SMS
   (Einmalcode) nur aus der Zwischenablage, nie aus Benachrichtigungen. Nicht in Passwortfeldern,
   Inkognito, gesperrt; vertrauliche Clips nie. (M)
-- **41 Formatwächter (Wunsch des Owners vom 2026-11-13)** — beschlossen für den Build nach Build 17 (zusammen mit 38b–38h). Nur in Feldern mit eindeutigem Typ,
-  nie automatisch korrigiert: die Leiste zeigt einen Hinweis-Chip, ein Tipp übernimmt. E-Mail:
-  Tippfehler in der Domain (`gmial.com` → „gmail.com?“, Editierabstand gegen eine lokale Liste
-  häufiger Anbieter), fehlendes `@`, Leerzeichen. Telefon: Formatierung/Ländervorwahl
-  (libphonenumber, Apache 2.0; APK-Größe vor dem Bau messen). IBAN: Prüfziffer (Modulo 97) live
-  als grüner/roter Punkt, Viererblöcke auf Wunsch. Zahlen/Beträge: Dezimalzeichen passend zur
-  Sprache des Felds. Reine Funktionen in `agent-core`, voll testbar. (S–M)
+- **41 Formatwächter** ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe
+  41). Telefonnummern über libphonenumber (Messung: etwa 0,35 MB, unter der Grenze von 1,5 MB).
+  Annahmen des Leads: Hinweise nur, wenn das ganze Feld geprüft werden kann (Schreibmarke am Ende,
+  höchstens 100 Zeichen); IBAN nur in normalen Textfeldern und nur in voller Länge des Landes;
+  Telefon schlägt das internationale Format vor. Offen: Gerätetest (Leiste in Telefon- und
+  Zahlenfeldern echter Apps, Ersetzen in Bank-Apps).
 - **42 Textbausteine 2.0 (Wunsch des Owners vom 2026-11-13)** — beschlossen für den Build nach Build 17 (zusammen mit 38b–38h). `@snip` mit Variablen (`{datum}`,
   `{datum+3t}`, `{uhrzeit}`, `{wochentag}`, `{zwischenablage}`), Ausfüllfeldern `{?Name}` (die
   Leiste wird zum kurzen Eingabefeld, Enter springt weiter), Cursor-Marke `{cursor}` und

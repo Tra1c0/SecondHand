@@ -197,6 +197,9 @@ fun AgentAreaTypingScreen(onNavigate: (String) -> Unit, onClickBack: () -> Unit)
                     Settings.PREF_AUTO_CAP, Defaults.PREF_AUTO_CAP, true, null, ::bool, ::put)
                 PrefSwitch(R.string.agent_typing_shortcuts, stringResource(R.string.agent_typing_shortcuts_sub),
                     Settings.PREF_AUTOCORRECT_SHORTCUTS, Defaults.PREF_AUTOCORRECT_SHORTCUTS, autocorrect, needsAutocorrect, ::bool, ::put)
+                // stage 41: hints only, works without autocorrection
+                PrefSwitch(R.string.agent_format_guard, stringResource(R.string.agent_format_guard_sub),
+                    AgentPreferences.FORMAT_GUARD, true, true, null, ::bool, ::put)
             }
 
             SectionCard(stringResource(R.string.agent_typing_suggestions)) {
