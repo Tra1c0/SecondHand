@@ -94,8 +94,9 @@ nutzen einen Debug-Schlüssel, der in jeder neuen Umgebung anders ist; sie sind 
 - Öffentliches Release-Repository `Tra1c0/AgenticKeyboard` (Name in `UpdateReleases.REPOSITORY`
   und in `RELEASE_REPOSITORY` des Workflows): Der Workflow legt dort zusätzlich dasselbe Release
   `build-<Laufnummer>` mit APK und `.sha256` an (kein Vorab-Release, Text aus
-  `release-notes/next.md`). Die In-App-Prüfung und Freunde lesen nur dort, ohne Token. Fehlt das
-  Secret `RELEASES_TOKEN`, überspringt der Workflow diesen Schritt mit einer Warnung; der Build
+  `release-notes/next.md`). Die In-App-Prüfung und Freunde lesen nur dort, ohne Token. Nur Builds
+  von `main` (geprüft) gehen dorthin und werden damit zum Update; Test-Builds vom Arbeitsbranch
+  bleiben Vorab-Releases hier (Owner, 2026-11-14). Fehlt das Secret `RELEASES_TOKEN`, überspringt der Workflow diesen Schritt mit einer Warnung; der Build
   schlägt deshalb nicht fehl.
 - Einmalige Einrichtung durch den Owner: Das öffentliche Repository braucht mindestens einen
   Commit (z. B. eine README), sonst kann `gh release create` dort kein Tag anlegen. Dann auf

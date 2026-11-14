@@ -72,6 +72,8 @@ jobs:
             --notes-file release-notes/next.md
 
       - name: Publish in the public release repository
+        # only checked builds from main become updates (owner, 2026-11-14); test builds stay pre-releases here
+        if: ${{ github.ref == 'refs/heads/main' }}
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: |
