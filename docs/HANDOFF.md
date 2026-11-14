@@ -15,6 +15,11 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
   2.0 (Platzhalter, Ausfüllfelder, Enter-Hook auch für Hardware-Enter). Alle Etappen mit Prüfer
   und Nachprüfung; volle Agent-Suite lokal grün; kein Gerätetest.
 - Beim Owner: Build 18 (Test, gleiche Funktionen, noch ohne Prüferkorrekturen) und Build 19.
+- RGB-Messung des Owners (Build 19, Xiaomi 24129PN74G, Android 16, Diagnose, 5 s mit Licht):
+  138 Bilder (≈ 28/s bei 30 Hz Licht); Licht im UI-Thread Ø 0,3 / max 0,7 ms; ganzes Zeichnen der
+  Tastatur Ø 2,7 / max 6,3 ms; Raster im Hintergrund 133× Ø 4,5 / max 11,9 ms. Damit ist das
+  Zeichnen der Tastatur kein Engpass (Budget bei 120 Hz: 8,3 ms). Offen: ob der Owner noch
+  Ruckeln spürt; Kandidaten dann RGB-Menü (nicht gemessen), 30-Hz-Lichttakt, Debug-APK.
 - Nächste Sitzung: Rückmeldungen zu Build 17–19 (Einstellungen am Gerät, Formatwächter,
   Textbausteine) und weiter offen zu Build 16 (RGB-Diagnosewerte, Symbol-Erkennung); dann ROADMAP
   34, 37, 39, 40.
