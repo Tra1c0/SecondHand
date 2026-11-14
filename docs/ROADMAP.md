@@ -124,6 +124,40 @@ Reihenfolge von oben nach unten.
   `KeyboardActionListenerImpl` brauchen noch einen Prüfer. Offen: Gerätetest (Feldabfrage in
   Messengern, Schreibmarke nach `{cursor}` in einem Editor, der zwei Auswahl-Meldungen anders
   verarbeitet (P147), App-Auswahl, Enter einer echten Hardware-Tastatur).
+- **44 Zwischenablage-Wächter und Tresor (Wunsch des Owners vom 2026-11-14)** — beschlossen.
+  Sortiert ohne Rückfrage (Sortieren ändert keinen Editortext): Geheimnisse (Passwort-artig,
+  API-Schlüssel wie `sk-…`/`ghp_…`, lange Zufallstokens, vom Passwortmanager als vertraulich
+  markierte Clips) in einen Bereich „Tresor“, verdeckt angezeigt, nie in normalen Vorschlägen,
+  kurz gültig; Einmalcodes eigener Bereich, ca. 10 min; persönliche Daten (IBAN, Telefon, E-Mail,
+  Adresse) beschriftet. Entscheidet die offene Frage „vertrauliche Clips im normalen Verlauf“:
+  nein. Offen beim Owner: Ablaufzeit der Geheimnisse. Vor dem Bau prüfen: darf die Tastatur auf
+  Android 16 die System-Zwischenablage nach dem Einfügen leeren? Lokal, nichts geloggt. (M)
+- **45 Feld- und Kontext-Vorschläge (Wunsch des Owners vom 2026-11-14)** — beschlossen. Aus dem
+  aktuellen Feld (Typ, Hinweistext, Autofill-Kennung, App) und dem Text vor der Schreibmarke
+  schlägt die Leiste Passendes vor, immer als Chip, ein Tipp übernimmt: E-Mail-Feld → Adresse,
+  Code-Feld → frischer Einmalcode aus dem Tresor, IBAN/Telefon → gespeicherter Eintrag oder
+  passender Clip. Kontext lokal über Gewichtung (Hinweiswörter, Frische und Art des Clips, App,
+  Feld), Beispiel des Owners: „guck mal, hier dieses Video“ → Chip mit dem gerade kopierten Link;
+  ebenso „meine Nummer ist“, „IBAN:“, „Adresse:“. Die Tastatur sieht nur das fokussierte Feld,
+  nicht den ganzen Bildschirm. Dauerhafte Passwörter speichert sie nicht (Passwortmanager).
+  Offen beim Owner: feste Karte „Meine Daten“ (verschlüsselt) ja/nein. (M–L)
+- **46 Gedächtnis (Wunsch des Owners vom 2026-11-14)** — beschlossen. Lokal, opt-in wie das
+  übrige Lernen: Wortfolgen und ganze Satzteile aus den eigenen Sätzen (Frische und Häufigkeit
+  gewichtet, Verblassen), erst nächstes Wort, bei sicherem Treffer die ganze Folge als ein Chip;
+  Umgangssprache und bewusste Tippfehler werden nach wiederholter Nutzung eigene Wörter (bestehende
+  Lernfunktionen zusammenführen); Abkürzungen: ersetzt der Owner sie wiederholt selbst, einmaliger
+  Vorschlag, die Erweiterung anzulegen. Seite „Was ich mir gemerkt habe“ (löschen, anpinnen),
+  Ausschluss je App, nie in Passwortfeldern, Inkognito oder bei verbotenem Lernen. Ganz neue Sätze
+  vorhersagen kann das nicht (siehe 47). (L)
+- **47 KI-Kontext (Idee des Owners vom 2026-11-14, nicht entschieden)** — Die Tastatur versteht
+  grob, was gerade geschrieben wird, und schlägt Angebrachtes vor, notfalls über die eigene
+  Gemini-Schnittstelle des Owners (BYOK). Widerspricht in der Form „im Hintergrund“ der Regel
+  „normales Tippen offline, Cloud nur nach Freigabe des angezeigten Inhalts“ (`CLAUDE.md`); eine
+  Änderung dieser Regel entscheidet nur der Owner. Vorschlag des Leads: zuerst 45/46 lokal, KI nur
+  auf Abruf mit angezeigtem Inhalt; danach prüfen, ob ein Modell auf dem Gerät (z. B. Gemini Nano,
+  falls das Telefon es hat; nicht geprüft) reicht.
+- **Verworfen (Owner, 2026-11-14):** Mail-Anbindung (Gmail/IMAP) und Codes aus Benachrichtigungen.
+  Einmalcodes kommen nur über die Zwischenablage (44).
 - **34 Eigene Designs gestalten (übernächste Runde)** (Wunsch des Owners vom 2026-11-13). Eigene
   Tastatur-Designs gibt es schon (Design-Seite → „Meine Designs“, seit Build 10). Annahme des
   Leads, vor dem Bau bestätigen: gemeint sind eigene RGB-Designs, also selbst gestaltete
