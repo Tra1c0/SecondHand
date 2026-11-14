@@ -245,7 +245,11 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   Tastengrößen relativ zur Basis, je Region (3 × 3 Buchstabenbereich), `rn` Anzahl Berührungen,
   `bucket` MORNING/DAY/EVENING/NIGHT, `first`/`last`/`day` lokale Tagesnummer (Tage seit 1970),
   `speed` Buchstaben pro Minute, `corrections` Löschtasten je Buchstabe; fehlende Werte fehlen im
-  JSON. Höchstens 8 Szenen und 60 Beobachtungen (30 Tage). Keine Texte, keine Buchstaben, keine
+  JSON. Kommazahlen mit höchstens 3 Nachkommastellen (seit der Nachprüfung 50; ältere Werte werden
+  unverändert gelesen). Geschrieben wird nur, wenn sich etwas geändert hat (Szene erkannt,
+  Sitzungsende, Szene gelöscht, Kalibrierung), nicht bei jeder Taste. Eine Kalibrierung und
+  „Auf vorherige Kalibrierung zurücksetzen“ rechnen die Szenen auf die neue Basis um und leeren
+  `observations`. Höchstens 8 Szenen und 60 Beobachtungen (30 Tage). Keine Texte, keine Buchstaben, keine
   Reihenfolge, kein Ort, keine App. Die Kurzzeitschicht und die wartenden Berührungen des letzten
   Worts liegen nur im Speicher. Schalter `agent_adapt_touch_dynamic` in den Tastatureinstellungen
   (Standard aus). „Trefferzonen zurücksetzen“ und „Gelernte Wörter löschen“ leeren die Datei.

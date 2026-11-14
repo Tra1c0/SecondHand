@@ -242,7 +242,8 @@ private fun TouchSection(busy: Boolean) {
             Text(stringResource(R.string.agent_touch_reset))
         }
     }
-    OutlinedButton(enabled = !busy && hasPrevious, onClick = { confirmRestore = true }) {
+    // only when there is a step to go back to (a calibration or an automatic adjustment)
+    if (hasPrevious) OutlinedButton(enabled = !busy, onClick = { confirmRestore = true }) {
         Text(stringResource(R.string.agent_touch_restore_previous))
     }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

@@ -362,8 +362,10 @@ Trefferzonen (Etappe 22a, Touch-Verarbeitung, jede Änderung mit Prüfer):
   Aufruf bekommt zusätzlich `editorInfo` und `restarting` (`TouchModel.load(…, editorInfo,
   restarting)`), weil die Einstellungen an dieser Stelle noch die des vorigen Felds sind (P165).
 - `KeyboardActionListenerImpl.kt` (50): `onCodeInput` meldet jeden Code an
-  `TouchModel.onKeyInput`, direkt nach dem Kalibrier-Hook und vor der Verarbeitung (Löschtaste
-  verwirft die Berührungen des zuletzt abgeschickten Worts, jede andere Taste bestätigt sie).
+  `TouchModel.onKeyInput`, direkt nach dem Kalibrier-Hook und vor der Verarbeitung (Löschtaste,
+  Rückgängig und Ausschneiden verwerfen die Berührungen des zuletzt abgeschickten Worts, jede andere
+  Taste bestätigt sie). Seit der Nachprüfung 50 mit `isKeyRepeat` (gehaltene Löschtaste zählt
+  einmal) und `keyboardSwitcher.keyboard` (Geometriewechsel, P182).
 - `KeyDetector.java` bleibt in 50 unverändert: `TouchModel.adjust` rechnet über `offsetX`/`offsetY`
   jetzt Basis plus Kurzzeitschicht.
 
@@ -2079,10 +2081,31 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     einer Szene“), wandert die Basis jeder Region um die Hälfte, höchstens 0,06 Taste je Achse
     (`MAX_PROMOTION`); die Szenen werden um denselben Schritt zurückgerechnet. Vorher sichert
     `TouchModel` die Basis (`previous`, auch vor jeder Kalibrierung), „Auf vorherige Kalibrierung
-    zurücksetzen“ stellt sie wieder her (ein Schritt).
+    zurücksetzen“ stellt sie wieder her (ein Schritt; der Knopf erscheint nur, wenn `previous`
+    existiert). Befördert werden nur trainierte Buchstaben (Basis ab 15 Treffern oder 15 bestätigte
+    Kurzzeit-Berührungen seit Prozessstart, `dynamicTouches`, nie gespeichert); nie getippte
+    Buchstaben behalten Basis und Anzahl. Die übrigen Beobachtungen werden wie die Szenen
+    zurückgerechnet. Weil nur Abweichungen ab 0,12 Taste beobachtet werden, nähert sich die Basis
+    einer dauerhaften Abweichung nur bis auf etwa 0,12 Taste, den Rest trägt die Kurzzeitschicht.
+  - Kalibrierung (`replace`) und „Auf vorherige Kalibrierung zurücksetzen“ (`restorePrevious`)
+    verschieben die Basis außerhalb der Beförderung: `rebaseScenes` rechnet die Szenen je Region um
+    die mittlere Änderung der angewandten Basis zurück (`TouchDynamics.rebase`), leert die
+    Beobachtungen und verwirft die laufende Sitzung (P181).
+  - Ausgeschaltet („Dynamisch anpassen“ oder „Trefferzonen an mich anpassen“ aus, auch über die
+    Gesten-Seite, die `TouchModel.dynamic` mitsetzt): der nächste Feldstart verwirft die Sitzung
+    ungesehen (`discardSession`), damit sich die Basis nicht mehr ändert (genau 22a/22b).
+  - Tastaturgeometrie: `updateRegions` merkt sich Code, Lage und Größe jeder Buchstabentaste.
+    Weicht sie ab (Drehung, Einhand, geteilt, anderes Layout), endet die Sitzung und die Regionen
+    entstehen neu; normale und Umschalt-Tastatur haben dieselbe Geometrie, Tastaturen mit weniger
+    als 10 Buchstaben (Symbole) zählen nicht. Geprüft beim Lernen eines Worts und bei jeder Taste
+    (`onKeyInput` bekommt `keyboardSwitcher.keyboard`). Die Ausrichtung ist kein Szenemerkmal:
+    eine Szene entsteht immer in einer Geometrie, gespeichert wird sie ohne (P182).
   - Gegen Rückkopplung: Lernen nur aus Wörtern, die `InputLogic` schon heute an `learnFromWord`
     gibt (getippt wie abgeschickt oder aus der Leiste gewählt, keine Autokorrektur); die Berührungen
-    warten auf die nächste Taste (`onKeyInput`): Löschtaste oder Feldwechsel verwirft sie. Nur
+    warten auf die nächste Taste (`onKeyInput`): Löschtaste, Rückgängig (`UNDO`), Ausschneiden
+    (`CLIPBOARD_CUT`) oder Feldwechsel verwirft sie; eine gehaltene Löschtaste (`isKeyRepeat`)
+    zählt nur einmal als Korrektur. Ein Versetzen der Schreibmarke ohne neues Feld sieht der Hook
+    nicht, dann entscheidet die nächste Taste (bewusst, kein Eingriff in die Engine). Nur
     Berührungen innerhalb der normalen Taste (`IN_KEY` = 0,5) zählen, so treibt eine verschobene
     Zone sich nicht selbst weiter (P166). Nie in Passwortfeldern, Inkognito, Feldern ohne Lernen,
     bei pausiertem Lernen, gesperrt oder im Kalibrierfeld; dort gilt auch keine Kurzzeitschicht.
@@ -3129,16 +3152,32 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P165** `TouchModel.load` steht in `onStartInputViewInternal` vor `loadSettings`: die
   `SettingsValues` sind dort noch die des vorigen Felds. Was zum neuen Feld gehört (Passwort,
   `IME_FLAG_NO_PERSONALIZED_LEARNING`, Paket, Feld-ID), liest Etappe 50 aus `editorInfo`, die
-  Schalter (Inkognito, Pause) aus den Einstellungen selbst; `learnFromWord` und `onKeyInput`
-  prüfen beim Lernen zusätzlich die dann aktuellen `SettingsValues`.
+  Schalter (Inkognito, Pause, beide Trefferzonen-Schalter) aus den Einstellungen selbst;
+  `learnFromWord` und `onKeyInput` prüfen beim Lernen zusätzlich die dann aktuellen
+  `SettingsValues`. Mit ausgeschaltetem Schalter ruft `load` `discardSession`, nie `endSession`:
+  `endSession` wertet die Sitzung aus und kann befördern, also die Basis ändern.
 - **P166** Die Kurzzeitschicht darf nur Berührungen innerhalb der normalen Taste lernen
   (`TouchDynamics.IN_KEY`). Mit der alten Grenze `OUTLIER` = 0,9 trägt sich eine verschobene Zone
   selbst (Simulation in `movedZonesDoNotTeachThemselves`: Restverschiebung etwa 0,05 statt 0,01).
-- **P167** Sitzungen enden erst beim nächsten Ereignis (Tipp, Taste, Feldstart), nicht per Timer;
-  eine Szene oder Beförderung entsteht also beim ersten Tippen nach der Pause. Die Wanduhr darf
+- **P167** Sitzungen enden erst beim nächsten Ereignis (Tipp, Taste, Feldstart, andere
+  Tastaturgeometrie), nicht per Timer; eine Szene oder Beförderung entsteht also beim ersten
+  Tippen nach der Pause. Wiederholte Tasten (`isKeyRepeat`) sind kein Ereignis. Die Wanduhr darf
   dabei nicht rückwärts laufen (Tests: Sitzungen chronologisch, sonst gilt die Pause nicht).
 - **P168** `TouchModel.replace` und jede Beförderung überschreiben `previous`: „Auf vorherige
   Kalibrierung zurücksetzen“ geht genau einen Schritt zurück, nicht bis zur ersten Kalibrierung.
+  Danach fehlt `previous`, der Knopf verschwindet.
+- **P181** Szenen und Beobachtungen sind relativ zur Basis. Jede Änderung der Basis muss sie
+  mitnehmen: die Beförderung im Modell (Szenen und übrige Beobachtungen um den Schritt),
+  Kalibrierung und Zurücksetzen über `TouchModel.rebaseScenes` (Szenen je Region um die mittlere
+  Änderung der angewandten Basis, Beobachtungen geleert). Kennt der Prozess noch keine Regionen
+  (seit dem Start kein Wort mit dynamischen Zonen), gilt für alle Regionen der Mittelwert über alle
+  Buchstaben mit Basis. Eine neue Stelle, die `dx`/`dy`/`count` setzt, braucht denselben Schritt.
+- **P182** `updateRegions` vergleicht die Geometrie aller Buchstabentasten, nicht das
+  `Keyboard`-Objekt: Umschalten erzeugt ein anderes Objekt mit gleicher Geometrie und darf die
+  Sitzung nicht beenden. Symbol-Layouts mit einzelnen Buchstaben (µ) liegen unter
+  `MIN_LETTER_KEYS` = 10 und lassen die Regionen stehen. Die Szenezahlen werden auf 3
+  Nachkommastellen gerundet gespeichert; Tests, die gespeicherte Szenen vergleichen, brauchen eine
+  Toleranz von 1e-3.
 - **P161** `EditorInfo` trägt keine Autofill-Kennungen (`autofillHints` gibt es nur in
   `ViewStructure` für Autofill-Dienste, Inline-Vorschläge kommen vom Autofill-Dienst). Ein Code-Feld
   erkennt die Tastatur nur an Hinweistext, `label`, `fieldName` und Typ; `FieldSignals.autofillHints`

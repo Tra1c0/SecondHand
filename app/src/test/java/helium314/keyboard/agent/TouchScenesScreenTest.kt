@@ -57,7 +57,7 @@ class TouchScenesScreenTest {
     @Test fun dynamicSwitchIsOffByDefaultAndNeedsTheMainSwitch() {
         page()
         // nothing calibrated yet: no step back
-        compose.onNode(hasText("Auf vorherige Kalibrierung zurücksetzen") and hasClickAction()).performScrollTo().assertIsNotEnabled()
+        compose.onNode(hasText("Auf vorherige Kalibrierung zurücksetzen") and hasClickAction()).assertDoesNotExist()
         compose.onNode(hasText("Dynamisch anpassen (Szenen)")).performScrollTo().assertExists()
         val dynamic = hasTestTag("agent_touch_dynamic")
         compose.onNode(dynamic).performScrollTo().assertIsOff().assertIsNotEnabled()

@@ -84,6 +84,7 @@ class SettingsAreaGesturesTest {
     @After fun reset() {
         JniUtils.sHaveGestureLib = hadLib
         TouchModel.enabled = false
+        TouchModel.dynamic = false
         app.prefs().edit().clear().commit()
         Settings.getInstance().loadSettings(app)
     }
@@ -249,6 +250,16 @@ class SettingsAreaGesturesTest {
             assertEquals(if (default) ToggleableState.Off else ToggleableState.On, toggle(key), key)
         }
         assertTrue(TouchModel.enabled, "the hit zones follow the switch at once")
+        assertFalse(TouchModel.dynamic, "the dynamic zones stay off without their own switch")
+        // stage 50: with "Dynamisch anpassen" on, the main switch here turns the dynamic zones off and on too
+        prefs.edit().putBoolean(AgentPreferences.ADAPT_TOUCH_DYNAMIC, true).commit()
+        row(AgentPreferences.ADAPT_TOUCH).performScrollTo().performClick()
+        compose.waitForIdle()
+        assertFalse(TouchModel.enabled)
+        assertFalse(TouchModel.dynamic, "off here means off for the dynamic zones as well")
+        row(AgentPreferences.ADAPT_TOUCH).performScrollTo().performClick()
+        compose.waitForIdle()
+        assertTrue(TouchModel.enabled && TouchModel.dynamic)
         row(Settings.PREF_VIBRATION_DURATION_SETTINGS).assert(hasText("Vibrationsdauer")).assert(hasText("System"))
         row(Settings.PREF_VIBRATE_IN_DND_MODE).performScrollTo().performClick()
         compose.waitForIdle()

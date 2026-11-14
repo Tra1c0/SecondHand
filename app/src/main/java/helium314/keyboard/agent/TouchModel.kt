@@ -66,7 +66,17 @@ object TouchModel {
     private val dynamics = TouchDynamics(::localStamp).also { it.onPromote = ::promote }
     /** Region (0 until [TouchDynamics.REGIONS]) of each letter on the last keyboard used for learning, or -1. */
     private val regionOf = IntArray(CODES) { -1 }
+    /** The last keyboard looked at by [updateRegions] and the geometry of its letters (positions and sizes). */
     private var regionKeyboard = WeakReference<helium314.keyboard.keyboard.Keyboard>(null)
+    private var regionGeometry: List<Int>? = null
+    /**
+     * Confirmed touches per letter in the short-term layer since the process started (never stored). A
+     * promotion only moves letters with a trained base or this many touches, see [promote]. Sessions are not
+     * stored either, so the touches of every session that leads to a promotion were counted here.
+     */
+    private val dynamicTouches = IntArray(CODES)
+    /** A keyboard with fewer letter keys is no letter layout (symbols, numbers) and keeps the regions. */
+    private const val MIN_LETTER_KEYS = 10
     /** Touches of the last committed word, waiting for the next key: code, offset x, offset y. */
     private var pending: List<Triple<Int, Float, Float>>? = null
     private var appContext: Context? = null
@@ -117,8 +127,13 @@ object TouchModel {
         synchronized(lock) {
             pending = null // the next key decides about a word only in the same field
             dynamicField = dynamic && !restricted
-            if (dynamicField) dynamics.startField(packageName, sameField, clock())
-            else dynamics.endSession() // nothing of a restricted field reaches a scene, no layer carries over
+            when {
+                dynamicField -> dynamics.startField(packageName, sameField, clock())
+                // switched on, restricted field: the session so far ends normally; nothing of this field reaches a scene
+                dynamic -> dynamics.endSession()
+                // switched off: exactly stages 22a/22b, so the session is dropped unseen (no scene, no promotion)
+                else -> dynamics.discardSession()
+            }
             saveDynamicsIfChanged(context)
         }
     }
@@ -199,6 +214,7 @@ object TouchModel {
             // stage 50: the base stays as calibrated; the touches wait for the next key (see onKeyInput)
             if (!dynamicField || settings.mInputAttributes.mIsPasswordField) return
             updateRegions(keyboard)
+            appContext?.let { synchronized(lock) { saveDynamicsIfChanged(it) } } // a new geometry may have ended a session
             val touches = ArrayList<Triple<Int, Float, Float>>()
             for (i in 0 until size) {
                 if (xs[i] < 0 || ys[i] < 0) continue
@@ -293,18 +309,20 @@ object TouchModel {
     fun replace(context: Context, values: Map<Int, Triple<Float, Float, Int>>) {
         synchronized(lock) {
             keepPrevious(context) // stage 50: one step back
+            val before = appliedBase()
             values.forEach { (code, v) ->
                 val i = index(code)
                 if (i >= 0) { dx[i] = v.first; dy[i] = v.second; count[i] = v.third }
             }
             save(context)
+            rebaseScenes(before, context)
         }
     }
 
     fun clear(context: Context) {
         synchronized(lock) {
             dx.fill(0f); dy.fill(0f); count.fill(0)
-            dynamics.clear(); dynamics.dirty = false; pending = null
+            dynamics.clear(); dynamics.dirty = false; pending = null; dynamicTouches.fill(0)
             check(prefs(context).edit().clear().commit())
         }
     }
@@ -312,67 +330,98 @@ object TouchModel {
     internal fun resetForTest() = synchronized(lock) {
         dx.fill(0f); dy.fill(0f); count.fill(0); loaded = false; enabled = false
         dynamic = false; dynamicField = false; dynamics.clear(); dynamics.dirty = false; pending = null
-        regionOf.fill(-1); regionKeyboard = WeakReference(null); lastPackage = null; lastFieldId = 0
+        regionOf.fill(-1); regionKeyboard = WeakReference(null); regionGeometry = null; lastPackage = null; lastFieldId = 0
+        dynamicTouches.fill(0)
         clock = System::currentTimeMillis
     }
 
     // ---- stage 50: dynamic hit zones ----
 
+    /** Keys that take back what was just typed: like a delete, they throw the touches of the last word away. */
+    private fun discards(code: Int) = code == KeyCode.DELETE || code == KeyCode.UNDO || code == KeyCode.CLIPBOARD_CUT
+
     /**
-     * Every key code (from KeyboardActionListenerImpl.onCodeInput, before it is handled). A delete throws
-     * the touches of the last committed word away, any other key confirms them: the word was kept.
-     * Letters and deletes also count for typing speed and correction rate. No code is stored.
+     * Every key code (from KeyboardActionListenerImpl.onCodeInput, before it is handled). A delete, undo or cut
+     * throws the touches of the last committed word away, any other key confirms them: the word was kept.
+     * Letters and deletes also count for typing speed and correction rate; a held delete counts once
+     * ([isKeyRepeat]). [keyboard] is the keyboard shown now: when its geometry differs from the one the
+     * regions were made for (rotation, one-handed, split, another layout), the session ends. No code is stored.
+     * A cursor move without a new field (a tap into the text) is not seen here: the next key confirms the word.
      */
     @JvmStatic
-    fun onKeyInput(code: Int) {
+    @JvmOverloads
+    fun onKeyInput(code: Int, isKeyRepeat: Boolean = false, keyboard: helium314.keyboard.keyboard.Keyboard? = null) {
         if (!dynamic || !dynamicField) return
         val settings = Settings.getValues()
         if (settings == null || settings.mIncognitoModeEnabled || settings.mLearningPaused || settings.mIsLocked) {
             synchronized(lock) { pending = null }
             return
         }
+        if (isKeyRepeat) return // the first press of the held key already decided about the word and counted
+        if (keyboard != null) updateRegions(keyboard)
         val now = clock()
-        val delete = code == KeyCode.DELETE
+        val discard = discards(code)
         synchronized(lock) {
             val word = pending
             pending = null
-            if (!delete && word != null) word.forEach { (c, ox, oy) ->
+            if (!discard && word != null) word.forEach { (c, ox, oy) ->
                 val i = index(c)
-                if (i >= 0) dynamics.onTap(regionOf[i], ox, oy, effective(c, dx), effective(c, dy), now)
+                if (i >= 0 && dynamics.onTap(regionOf[i], ox, oy, effective(c, dx), effective(c, dy), now))
+                    dynamicTouches[i] = min(dynamicTouches[i] + 1, 1000)
             }
-            dynamics.onKey(letter = index(code) >= 0, delete = delete, now = now)
+            dynamics.onKey(letter = index(code) >= 0, delete = code == KeyCode.DELETE, now = now)
             appContext?.let { saveDynamicsIfChanged(it) }
         }
     }
 
-    /** Letter keys in 3 rows times 3 columns of the letter area of [keyboard]. */
+    /**
+     * Letter keys in 3 rows times 3 columns of the letter area of [keyboard]. The shifted and the normal
+     * keyboard share one geometry; another geometry (rotation, one-handed, split, another layout) ends the
+     * session, so a scene stays in one geometry, and the regions are made again.
+     */
     private fun updateRegions(keyboard: helium314.keyboard.keyboard.Keyboard) {
         if (regionKeyboard.get() === keyboard) return
         val letters = keyboard.sortedKeys.filter { index(it.code) >= 0 }
-        if (letters.isEmpty()) return
+        if (letters.size < MIN_LETTER_KEYS) return // symbols (maybe with a µ), emoji: the letters keep their regions
+        val geometry = ArrayList<Int>(letters.size * 5)
+        letters.sortedBy { Character.toLowerCase(it.code) }.forEach { key ->
+            val box = key.hitBox
+            geometry += Character.toLowerCase(key.code); geometry += box.left; geometry += box.top
+            geometry += box.width(); geometry += box.height()
+        }
         val minX = letters.minOf { it.hitBox.exactCenterX() }; val maxX = letters.maxOf { it.hitBox.exactCenterX() }
         val minY = letters.minOf { it.hitBox.exactCenterY() }; val maxY = letters.maxOf { it.hitBox.exactCenterY() }
         fun third(v: Float, min: Float, max: Float) = if (max <= min) 1 else ((v - min) / (max - min) * 3).toInt().coerceIn(0, 2)
         synchronized(lock) {
+            regionKeyboard = WeakReference(keyboard)
+            if (geometry == regionGeometry) return
+            if (regionGeometry != null) { dynamics.endSession(); pending = null }
+            regionGeometry = geometry
             regionOf.fill(-1)
             letters.forEach { key ->
                 regionOf[Character.toLowerCase(key.code)] = third(key.hitBox.exactCenterY(), minY, maxY) * 3 +
                     third(key.hitBox.exactCenterX(), minX, maxX)
             }
-            regionKeyboard = WeakReference(keyboard)
         }
     }
 
     /** Region of [code] on the last keyboard used for learning, or -1 (for tests and the page). */
     internal fun region(code: Int): Int = index(code).let { if (it < 0) -1 else regionOf[it] }
 
-    /** The engine found the same deviation regularly: the base of each known key moves by its region's step. */
+    /**
+     * The engine found the same deviation regularly: the base of each trained key moves by its region's step.
+     * Trained: a base from [MIN_SAMPLES] touches, or [MIN_SAMPLES] confirmed touches in the short-term layer
+     * ([dynamicTouches]). Letters never typed keep their base and their count. The engine only sees
+     * deviations of at least [TouchDynamics.MIN_SHIFT], so the base approaches a lasting deviation up to about
+     * that much; the short-term layer carries the rest.
+     */
     private fun promote(promotion: TouchDynamics.Promotion) {
         val context = appContext
         if (context != null) keepPrevious(context)
         for (i in 0 until CODES) {
             val region = regionOf[i]
             if (region < 0) continue
+            if (count[i] < MIN_SAMPLES && dynamicTouches[i] < MIN_SAMPLES) continue
             val n = maxOf(count[i], PROMOTED_SAMPLES)
             val ax = (effective(i, dx) + promotion.regionDx[region]).coerceIn(-MAX_SHIFT, MAX_SHIFT)
             val ay = (effective(i, dy) + promotion.regionDy[region]).coerceIn(-MAX_SHIFT, MAX_SHIFT)
@@ -389,10 +438,14 @@ object TouchModel {
 
     fun hasPrevious(context: Context): Boolean = prefs(context).contains(PREVIOUS_KEY)
 
-    /** Restores the base kept by the last calibration or promotion; the scenes stay. */
+    /**
+     * Restores the base kept by the last calibration or promotion. The scenes stay and move back by the
+     * change of the base ([rebaseScenes]); the observations are dropped.
+     */
     fun restorePrevious(context: Context): Boolean = synchronized(lock) {
         val stored = prefs(context).getString(PREVIOUS_KEY, null) ?: return false
         val json = runCatching { JSONObject(stored) }.getOrNull() ?: return false
+        val before = appliedBase()
         dx.fill(0f); dy.fill(0f); count.fill(0)
         json.keys().forEach { k ->
             val i = k.toIntOrNull()?.let(::index) ?: -1
@@ -402,7 +455,37 @@ object TouchModel {
         }
         save(context)
         check(prefs(context).edit().remove(PREVIOUS_KEY).commit())
+        rebaseScenes(before, context)
         true
+    }
+
+    /** The applied base of every letter, x then y (for [rebaseScenes]). */
+    private fun appliedBase(): Pair<FloatArray, FloatArray> =
+        FloatArray(CODES) { effective(it, dx) } to FloatArray(CODES) { effective(it, dy) }
+
+    /**
+     * Stage 50: the base changed outside a promotion (calibration, back to the previous one). Scenes are
+     * relative to the base, so the scene values of each region move back by the mean change of the applied
+     * base over the letters of that region (unchanged letters count as 0). The scene totals, and regions not
+     * known yet (no word typed with the dynamic zones since the process started), use the mean change over
+     * all letters with a base before or after. Observations are dropped.
+     */
+    private fun rebaseScenes(before: Pair<FloatArray, FloatArray>, context: Context) {
+        val (bx, by) = before
+        val regions = TouchDynamics.REGIONS
+        val sumX = DoubleArray(regions); val sumY = DoubleArray(regions); val n = IntArray(regions)
+        var allX = 0.0; var allY = 0.0; var all = 0
+        for (i in 0 until CODES) {
+            val cx = effective(i, dx) - bx[i]; val cy = effective(i, dy) - by[i]
+            val r = regionOf[i]
+            if (r >= 0) { sumX[r] += cx; sumY[r] += cy; n[r]++ }
+            if (bx[i] != 0f || by[i] != 0f || effective(i, dx) != 0f || effective(i, dy) != 0f) { allX += cx; allY += cy; all++ }
+        }
+        val meanX = if (all > 0) (allX / all).toFloat() else 0f
+        val meanY = if (all > 0) (allY / all).toFloat() else 0f
+        dynamics.rebase(FloatArray(regions) { if (n[it] > 0) (sumX[it] / n[it]).toFloat() else meanX },
+            FloatArray(regions) { if (n[it] > 0) (sumY[it] / n[it]).toFloat() else meanY }, meanX, meanY)
+        saveDynamicsIfChanged(context)
     }
 
     /** A scene for the settings page: what it looks like, never text. */
@@ -428,9 +511,11 @@ object TouchModel {
         prefs(context).edit().putString(DYNAMICS_KEY, writeDynamics().toString()).apply()
     }
 
-    private fun floats(values: FloatArray) = JSONArray().also { a -> values.forEach { a.put(it.toDouble()) } }
+    /** Scene numbers are stored with 3 decimals (a thousandth of a key is far below a pixel): a smaller, faster JSON. */
+    private fun round3(value: Float): Double = Math.round(value * 1000.0) / 1000.0
+    private fun floats(values: FloatArray) = JSONArray().also { a -> values.forEach { a.put(round3(it)) } }
     private fun ints(values: IntArray) = JSONArray().also { a -> values.forEach { a.put(it) } }
-    private fun JSONObject.putNumber(key: String, value: Float) = apply { if (!value.isNaN()) put(key, value.toDouble()) }
+    private fun JSONObject.putNumber(key: String, value: Float) = apply { if (!value.isNaN()) put(key, round3(value)) }
     private fun JSONObject.number(key: String) = if (has(key)) getDouble(key).toFloat() else Float.NaN
     private fun JSONArray.floats() = FloatArray(TouchDynamics.REGIONS) { if (it < length()) getDouble(it).toFloat() else 0f }
     private fun JSONArray.ints() = IntArray(TouchDynamics.REGIONS) { if (it < length()) getInt(it) else 0 }

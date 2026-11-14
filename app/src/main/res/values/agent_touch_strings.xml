@@ -22,5 +22,5 @@
     <string name="agent_touch_trait_corrections">more corrections</string>
     <string name="agent_touch_promotions">Automatic adjustments of the calibrated zones: %d</string>
     <string name="agent_touch_restore_previous">Reset to previous calibration</string>
-    <string name="agent_touch_restore_previous_confirm">Put the hit zones back to how they were before the last calibration or automatic adjustment? Scenes stay.</string>
+    <string name="agent_touch_restore_previous_confirm">Put the hit zones back to how they were before the last calibration or automatic adjustment? Scenes stay and move back with the zones.</string>
 </resources>

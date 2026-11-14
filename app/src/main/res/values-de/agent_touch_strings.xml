@@ -22,5 +22,5 @@
     <string name="agent_touch_trait_corrections">mehr Korrekturen</string>
     <string name="agent_touch_promotions">Automatische Anpassungen der kalibrierten Zonen: %d</string>
     <string name="agent_touch_restore_previous">Auf vorherige Kalibrierung zurücksetzen</string>
-    <string name="agent_touch_restore_previous_confirm">Die Trefferzonen auf den Stand vor der letzten Kalibrierung oder automatischen Anpassung zurücksetzen? Die Szenen bleiben.</string>
+    <string name="agent_touch_restore_previous_confirm">Die Trefferzonen auf den Stand vor der letzten Kalibrierung oder automatischen Anpassung zurücksetzen? Die Szenen bleiben und werden mit den Zonen zurückgerechnet.</string>
 </resources>

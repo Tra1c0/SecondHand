@@ -45,9 +45,12 @@
   fünf Minuten Pause oder in einer anderen App. Länger anhaltende Abweichungen merkt sich die
   Tastatur als Szenen („abends, ungenauer, trifft tiefer“) und startet dort, wenn du wieder so
   tippst. Deine Kalibrierung bleibt; nur was an mehreren Tagen und Tageszeiten wiederkommt,
-  verschiebt sie ein kleines Stück, „Auf vorherige Kalibrierung zurücksetzen“ nimmt das zurück.
-  Nie Text, nie Ort; nichts in Passwortfeldern, im Inkognito-Modus oder bei gesperrtem Gerät.
-  Noch auf keinem Gerät ausprobiert.
+  verschiebt sie ein kleines Stück, „Auf vorherige Kalibrierung zurücksetzen“ nimmt das zurück
+  (der Knopf erscheint nur, wenn es einen Schritt zurück gibt). Ausgeschaltet ändert sich nichts
+  mehr an deinen Zonen. Eine gehaltene Löschtaste zählt als eine Korrektur, Rückgängig und
+  Ausschneiden verwerfen das Wort wie die Löschtaste, Drehen oder Einhand-Modus beginnt neu, und
+  eine neue Kalibrierung rechnet die Szenen mit um. Nie Text, nie Ort; nichts in Passwortfeldern,
+  im Inkognito-Modus oder bei gesperrtem Gerät. Noch auf keinem Gerät ausprobiert.
 
 - Neu: Zwischenablage-Wächter und Tresor (nur mit eingeschaltetem Zwischenablage-Verlauf).
   Kopierte Passwörter, API-Schlüssel und Tokens landen nicht mehr im Verlauf, sondern oben in der

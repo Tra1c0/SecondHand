@@ -924,6 +924,11 @@ auch wenn du einen Vertipper über die Vorschlagsleiste korrigierst. Gespeichert
 Wörter; wird die Tastatur vorher beendet, gehen bis zu neun Wörter verloren. „Trefferzonen zurücksetzen“ löscht alles. Umlaute werden nur vermessen,
 wenn sie eigene Tasten haben (Layout QWERTZ+); ß hat keine eigene Taste.
 
+„Auf vorherige Kalibrierung zurücksetzen“ erscheint unter den Knöpfen, sobald es einen Schritt
+zurück gibt (nach einer Kalibrierung oder einer automatischen Anpassung, siehe unten), auch ohne
+„Dynamisch anpassen“. Es nimmt genau den letzten Schritt zurück; danach verschwindet der Knopf,
+bis du wieder kalibrierst.
+
 ### Dynamisch anpassen (Szenen)
 
 Im selben Abschnitt, unter den Knöpfen: „Dynamisch anpassen (Szenen)“ einschalten (geht nur,
@@ -933,14 +938,24 @@ wenn „Trefferzonen an mich anpassen“ an ist; anfangs aus).
   das nach fünf Minuten Pause oder in einer anderen App. Ein anderes Feld derselben App halbiert
   die Anpassung.
 - Ein Wort zählt erst, wenn du danach eine andere Taste als die Löschtaste drückst. Korrigierst du
-  es sofort, lernt die Tastatur nichts daraus. Automatische Korrekturen zählen nie.
+  es sofort (Löschtaste, Rückgängig oder Ausschneiden), lernt die Tastatur nichts daraus.
+  Automatische Korrekturen zählen nie. Hältst du die Löschtaste gedrückt, zählt das als eine
+  Korrektur. Tippst du nur in den Text, um die Schreibmarke zu versetzen, merkt die Tastatur das
+  nicht: dann entscheidet die nächste Taste über das Wort.
+- Drehst du das Telefon, schaltest du auf Einhand- oder geteilte Tastatur oder auf ein anderes
+  Layout, beginnt die Anpassung neu (wie nach einer Pause). Ein Wechsel zu Zahlen und Symbolen
+  zählt nicht.
 - Die kalibrierten Zonen lernen in diesem Modus nicht mehr bei jedem Wort. Sie wandern nur, wenn
   dieselbe Abweichung in mindestens fünf längeren Sitzungen an drei verschiedenen Tagen und zu
   zwei verschiedenen Tageszeiten auftritt, und dann nur ein kleines Stück.
 - „Szenen“ listet, was sich die Tastatur gemerkt hat, z. B. „abends, ungenauer, trifft tiefer (in
   3 Sitzungen gesehen)“. „Szene löschen“ entfernt eine Szene samt ihren Sitzungen.
 - „Auf vorherige Kalibrierung zurücksetzen“ nimmt den letzten Schritt zurück: die letzte
-  Kalibrierung oder die letzte automatische Anpassung. Die Szenen bleiben.
+  Kalibrierung oder die letzte automatische Anpassung. Die Szenen bleiben und werden mit den Zonen
+  zurückgerechnet (wie auch nach einer neuen Kalibrierung); die gesammelten Hinweise für die
+  nächste automatische Anpassung beginnen neu.
+- Schaltest du „Dynamisch anpassen“ oder „Trefferzonen an mich anpassen“ aus, wird die laufende
+  Sitzung beim nächsten Feld verworfen: keine Szene, keine Anpassung der Zonen.
 - „Trefferzonen zurücksetzen“ und „Gelernte Wörter löschen“ löschen auch die Szenen.
 - Nichts davon in Passwortfeldern, im Inkognito-Modus, in Feldern, die kein Lernen erlauben, bei
   pausiertem Lernen oder bei gesperrtem Gerät.

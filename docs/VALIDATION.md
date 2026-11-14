@@ -3596,6 +3596,49 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   `editorInfo`, `restarting`). `KeyDetector.java` unverändert (rechnet über `TouchModel.adjust`
   jetzt Basis plus Kurzzeit). `InputLogic`, `RichInputConnection`, `PointerTracker` unverändert.
 
+## Nachprüfung 50 (Prüfer-Befunde zu Etappe 50, 2026-11-14)
+
+- M1: Ausgeschaltet („Dynamisch anpassen“ oder „Trefferzonen an mich anpassen“) verwirft der
+  nächste Feldstart die Sitzung mit `TouchDynamics.discardSession` statt sie auszuwerten (keine
+  Szene, keine Beobachtung, keine Beförderung, kein Bezug). Die Gesten-Seite setzt
+  `TouchModel.dynamic` jetzt mit. Tests `switchedOffTheNextFieldLooksAtNothing` (beide Schalter,
+  fünfte Sitzung wäre befördert worden), `aDiscardedSessionLeavesNoTrace`,
+  `SettingsAreaGesturesTest.switchesWriteTheRealPreferences` (erweitert).
+- M2: Entscheidung: Szenen werden umgerechnet, nicht gelöscht. `replace` und `restorePrevious`
+  rechnen die Szenen je Region um die mittlere Änderung der angewandten Basis zurück
+  (`TouchModel.rebaseScenes` → `TouchDynamics.rebase`), Beobachtungen werden geleert, die laufende
+  Sitzung verworfen (P181). Dialogtext und ANLEITUNG angepasst. Tests
+  `aCalibrationAndTheStepBackMoveTheScenesWithTheBase`, `aMovedBaseRebasesScenesAndDropsObservations`.
+- N1: `onKeyInput(code, isKeyRepeat, keyboard)`; Wiederholungen werden ignoriert, eine gehaltene
+  Löschtaste zählt einmal. N2: `UNDO` und `CLIPBOARD_CUT` verwerfen das Wort wie die Löschtaste
+  (zählen aber nicht als Löschtaste). Versetzen der Schreibmarke ohne Feldstart: dokumentiert,
+  Engine unverändert. Test `aHeldDeleteCountsOnceAndUndoOrCutDropTheWord`.
+- N3: `updateRegions` vergleicht die Geometrie der Buchstabentasten; ein Wechsel (Drehung, Einhand,
+  geteilt, Layout) beendet die Sitzung und verwirft das wartende Wort, Umschalten und Symbole
+  nicht. Ausrichtung bewusst kein Szenemerkmal (P182). Test `anotherKeyboardGeometryEndsTheSession`.
+- N4: Szenezahlen mit 3 Nachkommastellen gespeichert; geschrieben wird weiterhin nur bei Änderung
+  (Erkennung, Sitzungsende, Löschen, Kalibrierung), nicht je Taste; kein Hintergrund-Thread (die
+  Datei ist klein, `apply()` schreibt asynchron). Test `storedSceneNumbersAreRounded`.
+- N5: Beförderung nur für trainierte Buchstaben (Basis ab 15 oder 15 bestätigte Kurzzeit-Berührungen
+  seit Prozessstart); nie getippte behalten Basis und Anzahl. Dokumentiert: die Basis nähert sich
+  einer dauerhaften Abweichung nur bis etwa 0,12 Taste. Test: erweiterte Beförderungsprüfung
+  (`samples('e')` = 45, `y` bleibt 0).
+- N6: Nach einer Beförderung werden die übrigen Beobachtungen wie die Szenen verschoben. Test
+  `observationsLeftAfterAPromotionMoveWithTheBase`.
+- N7: „Auf vorherige Kalibrierung zurücksetzen“ erscheint nur, wenn `previous` existiert
+  (`TouchScenesScreenTest`: vorher `assertIsNotEnabled`, jetzt `assertDoesNotExist`); ANLEITUNG
+  erwähnt den Knopf auch außerhalb des Abschnitts „Dynamisch anpassen“.
+  `restrictedFieldsAndStatesTeachAndMoveNothing` prüft zusätzlich die Kurzzeitschicht selbst
+  (alle Regionen und global null), die Basis (`samples`, `baseOffsetY`) und dass im nächsten
+  normalen Feld nichts nachwirkt (keine Szene, keine Beobachtung). Keine Assertion entfernt.
+- Gelaufen (2026-11-14, `--max-workers=1`): `./gradlew :agent-core:test` grün (417 Tests, davon
+  `TouchDynamicsTest` 13); `:app:testDebugUnitTest` mit `TouchModelTest`, `TouchZonesDynamicTest`,
+  `TouchScenesScreenTest`, `SettingsAreaGesturesTest` grün (33). Nicht gelaufen: volle Suite,
+  `InputLogicTest`, Agent-Tests über `tools/dev.py`, Lint, Build, Gerätetest.
+- Engine-Änderungen (Prüfer Pflicht): `KeyboardActionListenerImpl.kt` (`onCodeInput`: Aufruf
+  `TouchModel.onKeyInput(primaryCode, isKeyRepeat, keyboardSwitcher.keyboard)`). `InputLogic`,
+  `RichInputConnection`, `PointerTracker`, `KeyDetector`, `LatinIME` unverändert.
+
 ## Etappe 45 (Feld- und Kontext-Vorschläge)
 
 - Auftrag (Lead, ROADMAP 45, Owner 2026-11-14): aus Feld (Typ, Hinweistext, App) und Text vor der
