@@ -28,6 +28,7 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -37,6 +38,7 @@ import helium314.keyboard.settings.screens.AgentSettingsTokens
 import helium314.keyboard.settings.screens.AreaHero
 import helium314.keyboard.settings.screens.BackHeader
 import helium314.keyboard.settings.screens.CHIP_TAG
+import helium314.keyboard.settings.screens.CHOICE_DIM_ALPHA
 import helium314.keyboard.settings.screens.CHOICE_TAG
 import helium314.keyboard.settings.screens.ChipItem
 import helium314.keyboard.settings.screens.ChipToggles
@@ -47,6 +49,7 @@ import helium314.keyboard.settings.screens.SectionCard
 import helium314.keyboard.settings.screens.SettingRow
 import helium314.keyboard.settings.screens.SettingSwitchRow
 import helium314.keyboard.settings.screens.SettingsArea
+import helium314.keyboard.settings.screens.choiceDim
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -55,6 +58,8 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.robolectric.annotation.LooperMode
 import java.io.File
+import kotlin.math.pow
+import kotlin.math.roundToInt
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -162,12 +167,69 @@ class SettingsKitTest {
         assertClose(AgentSettingsTokens.Text.toArgb(), outline, 30)
         val noOutline = image.getPixel(other.left.toInt() + (60 * px).toInt(), (other.top - 3.5f * px).toInt())
         assertClose(AgentSettingsTokens.Card.toArgb(), noOutline, 12)
-        // chosen at full opacity: its gradient start; the others at 55 % over the card
+        // chosen at full opacity: its gradient start; the others with the gradient dimmed over the card (choiceDim)
         val chosenStart = image.getPixel(chosen.left.toInt() + (6 * px).toInt(), chosen.bottom.toInt() - (30 * px).toInt())
         assertClose(gestures.from.toArgb(), chosenStart, 40)
         val otherStart = image.getPixel(other.left.toInt() + (6 * px).toInt(), other.bottom.toInt() - (30 * px).toInt())
-        val blended = blend(0xFF5B8CFF.toInt(), AgentSettingsTokens.Card.toArgb(), 0.55f)
+        val dim = choiceDim(false, Color(0xFF5B8CFF), Color(0xFFA9C7FF), AgentSettingsTokens.Card)
+        assertTrue(dim < 1f, "the other card is dimmed: $dim")
+        val blended = blend(0xFF5B8CFF.toInt(), AgentSettingsTokens.Card.toArgb(), dim)
         assertClose(blended, otherStart, 40)
+        // its text is drawn in full colour, not faded with the card: the darkest pixel of the hint
+        val hint = compose.onNode(hasText("Wörter wischen (braucht Bibliothek)"), useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val darkest = (hint.left.toInt() until hint.right.toInt()).flatMap { x -> (hint.top.toInt() until hint.bottom.toInt()).map { y -> image.getPixel(x, y) } }
+            .minBy { (it shr 16 and 0xFF) + (it shr 8 and 0xFF) + (it and 0xFF) }
+        assertClose(AgentSettingsTokens.OnGradient.toArgb(), darkest, 3)
+    }
+
+    /**
+     * The dark text of every coloured choice card of the new pages keeps 4.5:1 on its gradient,
+     * chosen or dimmed. The pages of the kit are always dark (AgentSettingsTheme): the cards lie on
+     * [AgentSettingsTokens.Card]. Gradients: ChoiceCards of Tippen, Leiste, Gesten, KI, the
+     * language cards (Tasten) and the profile cards (System).
+     */
+    @Test fun choiceTextKeepsItsContrastOnEveryColouredGradient() {
+        val card = AgentSettingsTokens.Card.toArgb()
+        val gradients = listOf(
+            0xFF00C2A8 to 0xFF7CF0C8, 0xFFFFC94D to 0xFFFF9F43, // Tippen: behutsam, mutig
+            0xFFFFC94D to 0xFFFFE7A3, 0xFFFF9F43 to 0xFFFFD29A, // Leiste: ausklappbar, nur Vorschläge
+            0xFFA78BFA to 0xFFE9D5FF, 0xFF5B8CFF to 0xFFA9C7FF, // Gesten: Symbole malen, Gestenschreiben (also language 1)
+            0xFF22D3EE to 0xFFA5F3FC, 0xFFFFB547 to 0xFFFFE0A3, 0xFF818CF8 to 0xFFC7D2FE, // KI (also language 2, 3, new profile)
+            0xFF94A3B8 to 0xFFE2E8F0, // System: saved profile
+        )
+        for ((from, to) in gradients) for (selected in listOf(true, false)) {
+            val alpha = choiceDim(selected, Color(from), Color(to), Color(card))
+            if (!selected) assertTrue(alpha in CHOICE_DIM_ALPHA..0.9f, "#%08X dimmed to $alpha".format(from))
+            val least = (0..20).minOf { contrast(AgentSettingsTokens.OnGradient.toArgb(), blend(mix(from.toInt(), to.toInt(), it / 20f), card, alpha)) }
+            println("contrast kit #%08X %s at %.2f: %.2f".format(from, if (selected) "chosen" else "not chosen", alpha, least))
+            assertTrue(least >= 4.5, "#%08X chosen $selected at $alpha: contrast $least".format(from))
+        }
+        // the grey cards (AUS, NICHTS, AUSGEBLENDET, FLACHER LOOK): dark text stays below 4.5:1 even at
+        // full opacity (open point, VALIDATION "Nachprüfung 37"), so they are not dimmed at all
+        for ((from, to) in listOf(0xFF3A3A42 to 0xFF6B6B76, 0xFF3A3A42 to 0xFF9C9CA6)) {
+            assertEquals(1f, choiceDim(false, Color(from), Color(to), Color(card)))
+            val least = (0..20).minOf { contrast(AgentSettingsTokens.OnGradient.toArgb(), mix(from.toInt(), to.toInt(), it / 20f)) }
+            println("contrast kit grey #%08X → #%08X at full opacity: %.2f".format(from, to, least))
+        }
+        // a card that cannot be chosen fades as a whole (inactive), its gradient is not dimmed on top
+        assertEquals(1f, choiceDim(false, Color(0xFF5B8CFF), Color(0xFFA9C7FF), Color(card), enabled = false))
+    }
+
+    /** sRGB channels from [from] to [to] at [t], as the gradient shader mixes them. */
+    private fun mix(from: Int, to: Int, t: Float): Int {
+        fun ch(shift: Int) = ((from shr shift and 0xFF) + ((to shr shift and 0xFF) - (from shr shift and 0xFF)) * t).roundToInt()
+        return (0xFF shl 24) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
+    }
+
+    /** WCAG 2 contrast ratio, written out here independently of the app's `contrastRatio`. */
+    private fun contrast(a: Int, b: Int): Double {
+        fun luminance(c: Int): Double {
+            fun ch(shift: Int) = ((c shr shift and 0xFF) / 255.0).let { if (it <= 0.03928) it / 12.92 else ((it + 0.055) / 1.055).pow(2.4) }
+            return 0.2126 * ch(16) + 0.7152 * ch(8) + 0.0722 * ch(0)
+        }
+        val la = luminance(a)
+        val lb = luminance(b)
+        return (maxOf(la, lb) + 0.05) / (minOf(la, lb) + 0.05)
     }
 
     private fun blend(top: Int, bottom: Int, alpha: Float): Int {

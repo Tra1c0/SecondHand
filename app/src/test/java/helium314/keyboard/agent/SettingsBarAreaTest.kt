@@ -308,7 +308,7 @@ class SettingsBarAreaTest {
 
         val hero = node(HERO_TAG).fetchSemanticsNode().boundsInRoot
         assertClose(0xFFFFC94D.toInt(), image.getPixel(hero.left.toInt() + 24, hero.top.toInt() + 24), 40)
-        // the chosen card at full colour, the others at 55 % over the dark card
+        // the chosen card at full colour, the others with the gradient dimmed over the dark card (choiceDim)
         val chosen = card(ToolbarMode.EXPANDABLE).fetchSemanticsNode().boundsInRoot
         assertClose(0xFFFFC94D.toInt(), image.getPixel(chosen.left.toInt() + 6, chosen.top.toInt() + 40), 40)
         val other = card(ToolbarMode.SUGGESTION_STRIP).fetchSemanticsNode().boundsInRoot

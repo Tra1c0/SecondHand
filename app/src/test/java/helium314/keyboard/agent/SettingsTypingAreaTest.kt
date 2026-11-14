@@ -313,7 +313,7 @@ class SettingsTypingAreaTest {
 
         val hero = compose.onNodeWithTag(HERO_TAG).fetchSemanticsNode().boundsInRoot
         assertClose(0xFF00C2A8.toInt(), image.getPixel(hero.left.toInt() + 24, hero.top.toInt() + 24), 40)
-        // the chosen card at full colour, the others at 55 % over the dark card
+        // the chosen card at full colour, the others with the gradient dimmed over the dark card (choiceDim)
         val gentle = card("gentle").fetchSemanticsNode().boundsInRoot
         assertClose(0xFF00C2A8.toInt(), image.getPixel(gentle.left.toInt() + 6, gentle.top.toInt() + 40), 40)
         val bold = card("bold").fetchSemanticsNode().boundsInRoot

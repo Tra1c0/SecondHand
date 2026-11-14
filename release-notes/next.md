@@ -316,11 +316,16 @@
   „U. a.“ und „I. d. R.“ am Satzanfang schreiben das nächste Wort wieder klein. Noch auf keinem
   Gerät ausprobiert.
 - Neu: Auf der RGB-Seite ist die Bildrate jetzt die Karte „Bildwiederholrate“ nach deiner Skizze:
-  zwei große Farbflächen „30 HERTZ“ (türkis, spart Akku) und „60 HERTZ“ (orange, flüssiger), in
-  jeder wandert ein leuchtender Tropfen hin und her, bei 60 Hz doppelt so schnell. Die gewählte
-  Fläche leuchtet voll und hat einen Rahmen. Ohne Android-Animationen und im Energiesparmodus steht
-  der Tropfen still. „Im Energiesparmodus anhalten“ steht darunter. Die Einstellung selbst ist
-  dieselbe wie vorher. Noch auf keinem Gerät ausprobiert.
+  zwei große Farbflächen untereinander, „30 HERTZ“ (gelb-orange, spart Akku) und „60 HERTZ“
+  (türkis-grün, flüssiger). In beiden wandert ein leuchtender Tropfen gleich schnell und genau
+  übereinander hin und her; der obere springt in 30 Schritten pro Sekunde, der untere gleitet mit
+  60, so siehst du den Unterschied. Die gewählte Fläche hat volle Farbe und einen Rahmen, die
+  andere ist blasser, ihre Schrift bleibt dabei gut lesbar (auch im hellen Design). Die Überschrift
+  bricht auf schmalen Telefonen mit großer Schrift nicht mehr mitten im Wort um, sie wird dort
+  etwas kleiner. Ohne Android-Animationen (beim Öffnen der Seite) und im Energiesparmodus (sofort)
+  stehen die Tropfen still. „Im Energiesparmodus anhalten“ steht darunter. Die Einstellung selbst
+  ist dieselbe wie vorher. Auch die Auswahl- und Sprachkarten der neuen Einstellungen behalten bei
+  den nicht gewählten Karten jetzt dunkle, gut lesbare Schrift. Noch auf keinem Gerät ausprobiert.
 - Neu: Smart Paste (anfangs an, Einstellungen → Leiste & Befehle → Zwischenablage & Bilder). Hast
   du etwas kopiert, stehen hinter der Zwischenablage-Pille (wenn „Zwischenablagen-Inhalt
   vorschlagen“ an ist) und auf den Karten der Zwischenablage-Ansicht passende Chips: Adresse → in

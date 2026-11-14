@@ -4316,6 +4316,68 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   Flächen).
 - Offen: Prüfer-Review, Gerätetest (Aussehen, Tempo und Wirkung des Tropfens, Bildkosten am
   Telefon, Energiesparmodus live, TalkBack).
+- Nachprüfung 37 (Befunde des Prüfers und Entscheidung des Owners, 2026-11-14), Arbeitskopie:
+  - Kontrast (mittel): Die nicht gewählte Fläche dimmte die ganze Ebene samt dunkler Schrift auf
+    55 %. Neu im Baukasten `Modifier.choiceSurface` (Rahmen, Verlauf, Leucht-Pille) mit
+    `choiceDim`: nur der Verlauf (und Pille bzw. Tropfen) wird gedimmt, ohne Alpha-Ebene, auf
+    mindestens 70 %, so weit erhöht, dass `OnGradient` auf jedem Punkt des Verlaufs 4,5:1 (+0,1
+    Rundungsreserve) hat. Benutzt von `FrameRateCard`, `ChoiceCards`, Profilkarten
+    (`AgentAreaSystemScreen`) und Sprachkarten (`AgentAreaKeysScreen`); die drei Kopien von
+    Rahmen und Pille sind weg. Nicht wählbare Karten bleiben als Ganzes bei 35 % (inaktiv,
+    WCAG-Ausnahme). Gerechnet (WCAG, eigene Formel im Test, Hinweiszeile 12,5 sp): Bildwiederholrate
+    dunkel 30 Hz gewählt 9,81, nicht gewählt 5,81, 60 Hz 8,68 bzw. 5,22; hell 9,81 bzw. 11,20,
+    8,68 bzw. 9,95 (vorher mit 55-%-Ebene: dunkel 3,91/3,52, hell 3,11/2,81). Gemessen im
+    Robolectric-Bild (60 Hz nicht gewählt, dunkelstes Pixel der Zeile gegen den Verlauf daneben):
+    hell 10,40 (#0B0B0F auf #50D0BF), dunkel 5,43 (#0B0B0F auf #169786). Baukasten (immer dunkel,
+    auf `Card`): nicht gewählt 4,60–6,83 bei 70–82 % (Blau #5B8CFF 82 %, Indigo #818CF8 79 %,
+    Violett #A78BFA 75 %, Grau-Blau #94A3B8 72 %, die übrigen 70 %), gewählt 6,21–12,83.
+    Neu offen (nicht Teil der Befunde, nicht geändert): Die grauen Karten des Mockups (AUS,
+    NICHTS, AUSGEBLENDET #3A3A42→#6B6B76, FLACHER LOOK #3A3A42→#9C9CA6) haben mit dunkler Schrift
+    auch voll nur 1,74:1; sie werden nicht weiter gedimmt (`choiceDim` = 1). Braucht helle
+    Schrift oder hellere Verläufe, Entscheidung beim Lead/Owner.
+  - Überschrift (niedrig): eine Zeile mit `TextAutoSize.StepBased` 12–21 sp, Sperrung in em,
+    Ellipse nur als letzter Ausweg. Bei 360 dp und Schrift 130 % passt das Wort schon in 21 sp
+    (538 von 588 px), weil Compose große Schrift nichtlinear skaliert; bei 200 % wäre es 776 px
+    breit und bricht ohne die Änderung mitten im Wort um (Gegenprobe), mit ihr 582 von 588 px.
+  - Zusatzzeile (niedrig): ein Format `agent_rgb_fps_line` „%1$d Bilder/s · %2$s“ bzw.
+    „%1$d frames/s · %2$s“ statt Verkettung im Code; `agent_rgb_fps_value` entfernt.
+  - Energiesparmodus (niedrig): nach `registerReceiver` noch einmal gelesen. Richtig ist:
+    Android-Animationen werden beim Öffnen gelesen, der Energiesparmodus live verfolgt (Docs und
+    KDoc so; die Commit-Nachricht von 0361491 sagte es ungenau).
+  - Tests (niedrig): Überschrift als Nachfahre der Karte (`hasAnyDescendant`, ungemergter Baum),
+    doppelte KDoc entfernt, Empfänger mit der Karte abgemeldet
+    (`shadowOf(app).registeredReceivers`).
+  - Entscheidung des Owners (ersetzt „60 Hz doppelt so schnell“): 30 HERTZ gelb-orange, 60 HERTZ
+    türkis-grün; beide Tropfen gleich schnell, aus derselben Phase, auf derselben Bahn genau
+    übereinander; `lightPhase` rastet den 30-Hz-Tropfen auf 72, den 60-Hz-Tropfen auf 144 Stellen
+    je Runde von 2,4 s (33 bzw. 17 ms), unabhängig vom Display. Spur je ein 30-Hz-Bild zurück.
+  - Tests (Robolectric, kein Gerätetest): `RgbFrameRateCardTest` jetzt 14: neu
+    `theHeadingStaysOneLineAt360DpWithFontScale13`, `at360DpWithFontScale2TheHeadingShrinksInsteadOfBreaking`,
+    `thirtyHertzMovesEvery33MsAndSixtyEvery17` (120 Bilder à 16 ms: beide lesen dieselbe Phase,
+    30 Hz nur ganze 1/72-Schritte und nie zwei Bilder nacheinander, 57 ± 1,5 Schritte; 60 Hz
+    ganze 1/144-Schritte, 114 ± 1,5), `theBatterySaverReceiverGoesWithTheCard`,
+    `theTextOfBothAreasKeepsItsContrastInBothThemes`, `inTheLightTheme…`/`inTheDarkThemeTheTextOfTheOtherAreaIsDrawnOpaque`;
+    geändert: `bothLightsRunFromOneClockAtTheSameSpeed` (beide 1/8 Runde in 300 ms ± 0,02,
+    60 Hz höchstens einen 30-Hz-Schritt voraus), Ruhestelle beider Tropfen `STILL_PHASE`, Bild
+    mit getauschten Farben, Tropfen übereinander (rechte Kante des Kerns, ± 1,5 dp), die
+    andere Fläche mit `choiceDim` gedimmt. `SettingsKitTest` 5: neu
+    `choiceTextKeepsItsContrastOnEveryColouredGradient` (zehn Verläufe der Seiten), im Bild
+    Verlauf mit `choiceDim` und dunkelste Pixel der Hinweiszeile ±3 bei `OnGradient`. Kommentare
+    zu „55 %“ in vier Bereichstests angepasst, keine Assertion abgeschwächt.
+  - Gegenprobe (alte Ebene 55 %, alte Farben, keine Rasterung, Überschrift ohne Auto-Größe): 6 von
+    19 Tests in `RgbFrameRateCardTest` und `SettingsKitTest` schlugen fehl (Überschrift bei 200 %
+    zwei Zeilen, Schrift hell #706D74 statt #0B0B0F, Farben, 30-Hz-Stellen nicht ganzzahlig,
+    Verlauf dunkel und im Baukasten). Die gerechneten Kontrasttests prüfen `choiceDim` selbst und
+    schlagen bei der alten Ebene nicht fehl; die Bildtests decken das ab.
+  - Gezielt (Robolectric, 2026-11-14): `RgbFrameRateCardTest` 14, `RgbSettingsScreenTest` 13,
+    `SettingsKitTest` 5, `SettingsAreaAiTest` 11, `SettingsAreaGesturesTest` 11,
+    `SettingsBarAreaTest` 11, `SettingsKeysScreenTest` 9, `SettingsLookScreenTest` 21,
+    `SettingsStartScreenTest` 10, `SettingsSystemAreaTest` 12, `SettingsTypingAreaTest` 9 – 126
+    Tests, 0 Fehler. Kein voller Lauf, kein `agent-tests`, kein Build (geteilte Maschine,
+    Auftrag). `docs_sync --check`: grün. Bild neu: `app/build/agent-previews/rgb-framerate-card.png`.
+  - Offen: Prüfer-Review dieser Nachprüfung, Gerätetest (ob das Springen bei 30 Hz am Telefon
+    deutlich ist, auch bei 90/120 Hz; Lesbarkeit hell/dunkel; dynamische Farben ab Android 12),
+    die grauen Karten.
 
 ## Etappe 40 (Smart Paste)
 

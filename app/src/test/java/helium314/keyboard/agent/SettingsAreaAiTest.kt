@@ -355,7 +355,7 @@ class SettingsAreaAiTest {
                 val b = compose.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot
                 assertClose(color, image.getPixel((b.right - 8 * d).toInt(), (b.bottom - 8 * d).toInt()), 8)
             }
-        // the chosen provider card (OpenAI) at full colour, Anthropic dimmed to 55 % over the dark card
+        // the chosen provider card (OpenAI) at full colour, Anthropic with its gradient dimmed over the dark card (choiceDim)
         val openAi = compose.onNodeWithTag(CHOICE_TAG + PROVIDER_TAG + "openai").fetchSemanticsNode().boundsInRoot
         assertClose(0xFF22D3EE.toInt(), image.getPixel((openAi.left + 6 * d).toInt(), (openAi.top + 30 * d).toInt()), 40)
         val claude = compose.onNodeWithTag(CHOICE_TAG + PROVIDER_TAG + "claude").fetchSemanticsNode().boundsInRoot
