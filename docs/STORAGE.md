@@ -230,16 +230,24 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   - `own_words`: `v1`, dann `o;Wort` je eigenem Wort (höchstens 500) und `u;Zahl;Tag;Wort` je
     gezähltem Wort, das noch keins ist (höchstens 500, Nutzungen älter als 90 Tage zählen neu).
   - `shortcuts`: `v1`, dann `Zahl;STATUS;Kurzform;Erweiterung` (STATUS `COUNTING`, `READY`,
-    `SHOWN`, `CREATED`, `DECLINED`; höchstens 200).
+    `SHOWN`, `CREATED`, `DECLINED`; höchstens 200). `CREATED` heißt seit der Nachprüfung 46
+    „gemerkt“: Das Kürzel steht nur hier, nicht mehr im persönlichen Wörterbuch. Paare, deren
+    Erweiterung mit der Kurzform beginnt („wie;wieder“), verwirft das Lesen.
   - `excluded_apps`: Menge von Paketnamen (höchstens 50), in denen nichts gelernt und nichts
     angeboten wird.
 - Geschrieben höchstens alle 30 Sekunden beim Tippen, beim Verlassen eines Felds und bei jeder
-  Änderung auf der Seite. Im Speicher dazu: die Wortfolge des aktuellen Satzteils, die letzten 8
-  Commits mit Position (Abkürzungen) und das zuletzt getippte Wort; beim Feldwechsel verworfen.
+  Änderung auf der Seite, auf einem eigenen Hintergrund-Thread (Nachprüfung 46); „Alles
+  vergessen“ macht noch wartende Schreibvorgänge ungültig. Im Speicher dazu: die Wortfolge des
+  aktuellen Satzteils, die letzten 8 Commits mit Position (Abkürzungen), das zuletzt getippte Wort,
+  die letzten 16 Wörter, die kein Hauptwörterbuch kannte, eine noch nicht gezählte Rücknahme und
+  die schon gezählten Stellen („Wort@Position“, höchstens 200); beim Feldwechsel verworfen.
 - Schalter `agent_memory` (Standard aus) und `agent_memory_snippets` (Standard an) in den
-  Tastatureinstellungen. Ein angenommenes Abkürzungs-Angebot landet als Kürzel im persönlichen
-  Wörterbuch des Systems (`UserDictionary`, alle Sprachen, Häufigkeit 250) und bleibt dort, auch
-  nach „Alles vergessen“.
+  Tastatureinstellungen. Ein angenommenes Abkürzungs-Angebot bleibt nur in `shortcuts`; ins
+  persönliche Wörterbuch des Systems schreibt das Gedächtnis nichts (Nachprüfung 46, M1). Nur der
+  Test-Build 20 legte Kürzel dort an (`UserDictionary`, Häufigkeit 250); solche Einträge bleiben,
+  bis der Owner sie in „Persönliches Wörterbuch“ löscht, es gibt keine Migration.
+- Gelöscht mit „Alles vergessen“, „Gelernte Wörter löschen“ und dem bestätigten Ausschalten von
+  „Personalisierte Vorschläge“ (`phrases`, `own_words`, `shortcuts`; `excluded_apps` bleibt).
 - Der Bausteinindex für passende Textbausteine (Wortmerkmale der eigenen Bausteine aus dem
   CE-Speicher) liegt nur im Speicher, nie auf der Platte; bei gesperrtem Gerät wird nichts gelesen.
 - Entsteht nur mit eingeschaltetem Schalter, nie aus Passwortfeldern, Inkognito, Feldern ohne

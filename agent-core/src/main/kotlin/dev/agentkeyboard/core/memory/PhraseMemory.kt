@@ -88,6 +88,33 @@ class PhraseBook private constructor(private val entries: LinkedHashMap<String, 
 
     constructor() : this(LinkedHashMap())
 
+    /**
+     * Review N1: the keys by their first two words, in insertion order. Every key that continues a
+     * context shares the context's first two words, so [predictKeys] reads one small bucket instead
+     * of all entries on every strip update.
+     */
+    private val byHead = HashMap<String, LinkedHashSet<String>>().also { index ->
+        entries.keys.forEach { index.getOrPut(head(it)) { LinkedHashSet() }.add(it) }
+    }
+
+    private fun put(key: String, entry: Entry) {
+        entries[key] = entry
+        byHead.getOrPut(head(key)) { LinkedHashSet() }.add(key)
+    }
+
+    private fun drop(key: String) {
+        if (entries.remove(key) == null) return
+        val head = head(key)
+        byHead[head]?.let { if (it.remove(key) && it.isEmpty()) byHead.remove(head) }
+    }
+
+    /** A copy for writing it out on another thread. */
+    fun copy(): PhraseBook {
+        val copy = PhraseBook()
+        for ((key, e) in entries) copy.put(key, Entry(e.text, e.weight, e.day, e.pinned))
+        return copy
+    }
+
     val size: Int get() = entries.size
 
     /** The weight of [key] on [today], decayed unless pinned; 0 when unknown. */
@@ -126,7 +153,7 @@ class PhraseBook private constructor(private val entries: LinkedHashMap<String, 
     fun reinforce(key: String, text: String, today: Long, amount: Double) {
         val entry = entries[key]
         if (entry == null) {
-            entries[key] = Entry(text, amount, today, false)
+            put(key, Entry(text, amount, today, false))
             return
         }
         entry.weight = (effective(entry, today) + amount).coerceAtMost(MAX_WEIGHT)
@@ -140,7 +167,7 @@ class PhraseBook private constructor(private val entries: LinkedHashMap<String, 
         val removable = entries.entries.filter { !it.value.pinned }
             .sortedWith(compareBy({ effective(it.value, today) }, { it.value.day }))
         val drop = (entries.size - target).coerceAtMost(removable.size)
-        for (i in 0 until drop) entries.remove(removable[i].key)
+        for (i in 0 until drop) drop(removable[i].key)
     }
 
     /**
@@ -167,8 +194,9 @@ class PhraseBook private constructor(private val entries: LinkedHashMap<String, 
             var restKey: String? = null
             var restWeight = 0.0
             var restWords = 0
-            for ((key, entry) in entries) {
+            for (key in byHead[head(contextKey)] ?: continue) {
                 if (!key.startsWith(prefix)) continue
+                val entry = entries.getValue(key)
                 val w = effective(entry, today)
                 val extra = key.count { it == ' ' } + 1 - m
                 if (extra == 1 && w > nextWeight) {
@@ -204,7 +232,7 @@ class PhraseBook private constructor(private val entries: LinkedHashMap<String, 
     fun delete(key: String): Int {
         val padded = " $key "
         val gone = entries.keys.filter { " $it ".contains(padded) }
-        gone.forEach { entries.remove(it) }
+        gone.forEach { drop(it) }
         return gone.size
     }
 
@@ -219,7 +247,7 @@ class PhraseBook private constructor(private val entries: LinkedHashMap<String, 
         return true
     }
 
-    fun clear() = entries.clear()
+    fun clear() { entries.clear(); byHead.clear() }
 
     /** "v1" and one line per entry: weight;day;pinned;text. Readable on purpose: the owner's data. */
     fun encode(): String = buildString {
@@ -250,6 +278,14 @@ class PhraseBook private constructor(private val entries: LinkedHashMap<String, 
         const val REST_MIN_SUPPORT = 3.0
         const val REST_MIN_SHARE = 0.7
 
+        /** The first two words of [key] (the whole key for two words). */
+        private fun head(key: String): String {
+            val first = key.indexOf(' ')
+            if (first < 0) return key
+            val second = key.indexOf(' ', first + 1)
+            return if (second < 0) key else key.substring(0, second)
+        }
+
         /** Reads [encode]d text; unknown or broken lines are skipped, never an exception. */
         fun parse(text: String?, today: Long): PhraseBook {
             val book = PhraseBook()
@@ -266,7 +302,7 @@ class PhraseBook private constructor(private val entries: LinkedHashMap<String, 
                 if (tokens.size < 2 || tokens.size > MAX_WORDS) continue
                 val keys = tokens.map { PhraseText.key(it) }
                 if (keys.any { it == null }) continue
-                book.entries[keys.joinToString(" ")] = Entry(tokens.joinToString(" "), weight, day, parts[2] == "1")
+                book.put(keys.joinToString(" "), Entry(tokens.joinToString(" "), weight, day, parts[2] == "1"))
                 if (book.entries.size >= MAX_ENTRIES) break
             }
             return book

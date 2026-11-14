@@ -35,6 +35,8 @@ class SymbolSettingsScreenTest {
 
     @Before @After fun clear() {
         app.prefs().edit().clear().commit()
+        memoryStorage.edit().clear().commit()
+        Memory.resetForTest()
         SymbolDrawing.saveOwnSymbols(app, emptyList())
         SymbolDrawing.savePersonalSymbols(app, emptyList())
     }
@@ -284,8 +286,31 @@ class SymbolSettingsScreenTest {
         SymbolDrawing.savePersonalSymbols(app, personal)
     }
 
+    // review H1 of stage 46: the memory is learned data as well
+    private val memoryStorage get() = AgentStorageContexts.keyboard(app).getSharedPreferences(Memory.FILE, android.content.Context.MODE_PRIVATE)
+
+    private fun someMemory() {
+        memoryStorage.edit().putString(Memory.PHRASES, "v1\n5.000;0;0;ich melde mich").putString(Memory.OWN_WORDS, "v1\no;krass")
+            .putString(Memory.SHORTCUTS, "v1\n2;CREATED;mfg;mit freundlichen Grüßen").commit()
+        Memory.resetForTest()
+        assertEquals(listOf("krass"), Memory.ownWords(app))
+    }
+
+    private fun assertMemoryEmpty() {
+        assertTrue(Memory.phrases(app, 2).isEmpty())
+        assertTrue(Memory.ownWords(app).isEmpty())
+        assertTrue(Memory.offers(app).isEmpty())
+        assertEquals(null, memoryStorage.getString(Memory.PHRASES, null))
+        assertEquals(null, memoryStorage.getString(Memory.OWN_WORDS, null))
+        assertEquals(null, memoryStorage.getString(Memory.SHORTCUTS, null))
+        // also after reading the storage again
+        Memory.resetForTest()
+        assertTrue(Memory.ownWords(app).isEmpty() && Memory.offers(app).isEmpty() && Memory.phrases(app, 2).isEmpty())
+    }
+
     @Test fun theLearnedDataPageCountsAndDeletesPersonalTemplates() {
         somePersonalTemplates()
+        someMemory()
         val nothingTyped = object : LearningSource {
             override fun languages() = emptyList<String>()
             override fun words(language: String) = emptyList<LearnedWord>()
@@ -299,6 +324,8 @@ class SymbolSettingsScreenTest {
         compose.onAllNodes(hasText("Gelernte Wörter löschen") and hasClickAction()).onLast().performClick() // the confirmation
         compose.waitForIdle()
         compose.waitUntil(5_000) { SymbolDrawing.personalSymbols(app).isEmpty() }
+        compose.waitUntil(5_000) { Memory.ownWords(app).isEmpty() }
+        assertMemoryEmpty()
         // the count on the page follows once the deletion (on an IO thread) is back on the main thread
         compose.waitUntil(5_000) {
             compose.onAllNodes(hasText("Persönliche Vorlagen von „Symbole malen“: 0 Zeichnungen", substring = true),
@@ -308,6 +335,7 @@ class SymbolSettingsScreenTest {
 
     @Test fun turningPersonalizedSuggestionsOffDeletesPersonalTemplates() {
         somePersonalTemplates()
+        someMemory()
         app.prefs().edit().putBoolean(helium314.keyboard.latin.settings.Settings.PREF_KEY_USE_PERSONALIZED_DICTS, true).commit()
         helium314.keyboard.settings.SettingsActivity.settingsContainer = helium314.keyboard.settings.SettingsContainer(app)
         compose.setContent { Theme(true) { helium314.keyboard.settings.screens.TextCorrectionScreen {} } }
@@ -316,9 +344,11 @@ class SymbolSettingsScreenTest {
             .performScrollTo().performClick()
         compose.waitForIdle()
         assertEquals(2, SymbolDrawing.personalSymbols(app).size) // asked first
+        assertEquals(listOf("krass"), Memory.ownWords(app))
         compose.onNode(hasText(app.getString(android.R.string.ok))).performClick()
         compose.waitForIdle()
         assertTrue(SymbolDrawing.personalSymbols(app).isEmpty())
         assertFalse(app.prefs().getBoolean(helium314.keyboard.latin.settings.Settings.PREF_KEY_USE_PERSONALIZED_DICTS, true))
+        assertMemoryEmpty()
     }
 }

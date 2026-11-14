@@ -29,11 +29,11 @@
     <string name="agent_memory_own_words_sub">Words you committed three times as typed although the keyboard did not know them, or after undoing their correction. They are not corrected any more and are offered while you type their start.</string>
     <string name="agent_memory_own_words_none">No own words yet.</string>
     <string name="agent_memory_offers">Abbreviations</string>
-    <string name="agent_memory_offers_sub">When you replace a short form by its expansion twice yourself, the strip offers once to create the shortcut in the personal dictionary.</string>
+    <string name="agent_memory_offers_sub">When you replace a short form by its expansion twice yourself, the strip offers once to remember it. Afterwards the strip suggests the expansion after the short form; only your tap replaces the short form. Nothing is written to the personal dictionary.</string>
     <string name="agent_memory_offers_none">No offers yet.</string>
     <string name="agent_memory_offer_row">%1$s → %2$s</string>
-    <string name="agent_memory_offer_created_state">created</string>
-    <string name="agent_memory_offer_create">Create</string>
+    <string name="agent_memory_offer_created_state">remembered</string>
+    <string name="agent_memory_offer_create">Remember</string>
     <string name="agent_memory_offer_discard">Discard</string>
     <string name="agent_memory_apps">Excluded apps</string>
     <string name="agent_memory_apps_sub">Nothing is learned or offered in these apps.</string>
@@ -41,12 +41,13 @@
     <string name="agent_memory_apps_add">Exclude an app</string>
     <string name="agent_memory_apps_remove">Remove</string>
     <string name="agent_memory_clear">Forget everything</string>
-    <string name="agent_memory_clear_confirm">Forget all phrases, own words and abbreviation offers? Excluded apps and shortcuts already created stay.</string>
+    <string name="agent_memory_clear_confirm">Forget all phrases, own words and abbreviations? Excluded apps stay.</string>
     <string name="agent_memory_locked">Unlock the device to see the memory.</string>
     <string name="agent_memory_chip_rest">Add “%1$s” after the cursor</string>
     <string name="agent_memory_chip_snippet">Insert snippet %1$s at the cursor</string>
-    <string name="agent_memory_chip_offer">Shortcut %1$s → %2$s?</string>
-    <string name="agent_memory_chip_offer_description">Create the shortcut %1$s for %2$s in the personal dictionary</string>
-    <string name="agent_memory_offer_created">Shortcut created</string>
-    <string name="agent_memory_offer_failed">The personal dictionary could not be changed</string>
+    <string name="agent_memory_chip_offer">Remember %1$s → %2$s?</string>
+    <string name="agent_memory_chip_offer_description">Remember the abbreviation %1$s for %2$s: then suggested after %1$s, never applied by itself</string>
+    <string name="agent_memory_offer_created">Abbreviation remembered</string>
+    <string name="agent_memory_chip_expand">%1$s → %2$s</string>
+    <string name="agent_memory_chip_expand_description">Replace %1$s by %2$s</string>
 </resources>

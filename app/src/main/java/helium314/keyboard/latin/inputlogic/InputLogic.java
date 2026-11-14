@@ -1910,7 +1910,7 @@ public final class InputLogic {
         // fork, stage 46: the memory learns phrases, own words and abbreviations from the same committed words (opt-in, see Memory)
         helium314.keyboard.agent.Memory.onWordCommitted(mLatinIME, settingsValues, mLatinIME.getCurrentInputEditorInfo(), word,
                 mWordComposer.isComposingWord() && !mWordComposer.isBatchMode() && !mWordComposer.isResumed() ? mWordComposer.getTypedWord() : null,
-                mConnection.getTextBeforeCursor(helium314.keyboard.agent.Memory.LOOKBACK, 0), mConnection.getExpectedSelectionStart());
+                () -> mConnection.getTextBeforeCursor(helium314.keyboard.agent.Memory.LOOKBACK, 0), mConnection.getExpectedSelectionStart());
         final int timeStampInSeconds = (int)TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
         mDictionaryFacilitator.addToUserHistory(word, wasAutoCapitalized, ngramContext,
                 timeStampInSeconds, settingsValues.mBlockPotentiallyOffensive);

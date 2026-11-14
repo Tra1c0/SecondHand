@@ -233,4 +233,68 @@ class PhraseMemoryTest {
         assertTrue(table.getValue(PhraseBook.REST_MIN_SHARE).first >= table.getValue(0.35).first)
         assertTrue(table.getValue(PhraseBook.REST_MIN_SHARE).first >= 0.95)
     }
+
+    // ---- review N1: 2000 phrases ----
+
+    /** A full book: 2000 distinct phrases of 2 to 8 words over a few shared starts. */
+    private fun fullBook(): PhraseBook {
+        val rnd = Random(46)
+        val vocabulary = (0 until 300).map { "wort" + ('a' + it % 26) + ('a' + it / 26) }
+        val starts = listOf("ich melde mich", "wir sehen uns", "kannst du mir", "liebe grüße an", "bis später und")
+        val text = StringBuilder("v1")
+        val seen = HashSet<String>()
+        while (seen.size < PhraseBook.MAX_ENTRIES) {
+            val start = starts[rnd.nextInt(starts.size)].split(' ').take(2 + rnd.nextInt(2))
+            val phrase = (start + List(rnd.nextInt(5)) { vocabulary[rnd.nextInt(vocabulary.size)] }).take(PhraseBook.MAX_WORDS)
+            if (seen.add(phrase.joinToString(" "))) text.append("\n").append(2 + rnd.nextInt(20)).append(";0;0;").append(phrase.joinToString(" "))
+        }
+        return PhraseBook.parse(text.toString(), 0).also { assertEquals(PhraseBook.MAX_ENTRIES, it.size) }
+    }
+
+    @Test fun predictionWithTwoThousandPhrasesIsFast() {
+        val book = fullBook()
+        val contexts = listOf("Danke. Ich melde mich ", "wir sehen uns ", "kannst du ", "liebe grüße an ", "nichts davon hier ")
+        // the same answers as a scan over all entries would give: the index finds every continuation
+        val prediction = assertNotNull(book.predict("Danke. Ich melde mich ", 0))
+        assertEquals(3, prediction.contextWords)
+        assertTrue(prediction.next == null || book.weight("ich melde mich " + prediction.next!!.lowercase(), 0) > 0)
+        repeat(200) { contexts.forEach { book.predict(it, 0) } } // warm up
+        val start = System.nanoTime()
+        repeat(1000) { contexts.forEach { book.predict(it, 0) } }
+        val perUpdateMs = (System.nanoTime() - start) / 1e6 / (1000 * contexts.size)
+        println("predict with ${book.size} phrases: ${"%.4f".format(perUpdateMs)} ms per strip update")
+        assertTrue(perUpdateMs < 2.0, "generous bound: $perUpdateMs ms")
+        // writing them out stays well below a frame on a desktop JVM, and it runs off the main thread in the app
+        repeat(5) { book.copy().encode() }
+        val encodeStart = System.nanoTime()
+        val encoded = book.copy().encode()
+        val encodeMs = (System.nanoTime() - encodeStart) / 1e6
+        println("copy and encode ${book.size} phrases: ${"%.2f".format(encodeMs)} ms, ${encoded.length} chars")
+        assertTrue(encodeMs < 500, "generous bound: $encodeMs ms")
+        assertEquals(book.size, PhraseBook.parse(encoded, 0).size)
+    }
+
+    @Test fun theIndexFollowsDeleteEvictionAndClear() {
+        val book = PhraseBook()
+        repeat(12) { book.type("ich melde mich sobald ich mehr weiß") }
+        assertNotNull(book.predict("ich melde mich ", 0)?.rest)
+        book.delete("melde mich sobald")
+        val after = book.predict("ich melde mich ", 0)
+        assertTrue(after == null || after.rest == null, "a deleted continuation is not predicted")
+        val copy = book.copy()
+        book.clear()
+        assertNull(book.predict("ich melde ", 0))
+        assertEquals(0, book.size)
+        assertTrue(copy.size > 0, "a copy is independent")
+        book.type("wir sehen uns morgen")
+        book.type("wir sehen uns morgen")
+        book.type("wir sehen uns morgen")
+        assertEquals("uns", book.predict("wir sehen ", 0)?.next)
+        // eviction keeps the index in step: every remaining entry is still found
+        val full = fullBook()
+        repeat(200) { full.learn(listOf("neue", "folge$it"), 1) }
+        assertTrue(full.size <= PhraseBook.MAX_ENTRIES)
+        repeat(6) { full.type("neue folge null weiter", 1) }
+        assertEquals("weiter", full.predict("neue folge null ", 1)?.next)
+    }
 }

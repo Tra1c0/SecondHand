@@ -249,7 +249,9 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   des Satzteils) mit Gewicht ≥ `MIN_CONTEXT` = 2 entscheidet; nächstes Wort ab `NEXT_MIN_SUPPORT` = 2
   und `NEXT_MIN_SHARE` = 0,4, der ganze Rest (≥ 2 Wörter, die längste Folge) ab `REST_MIN_SUPPORT`
   = 3 und `REST_MIN_SHARE` = 0,7 (Anteil am Kontextgewicht; gemessen, `docs/VALIDATION.md` →
-  Etappe 46). `predictKeys` dasselbe für die Vorwörter der Engine. `delete` entfernt die Folge und
+  Etappe 46). `predictKeys` dasselbe für die Vorwörter der Engine; es liest nur die Schlüssel mit
+  denselben ersten zwei Wörtern (`byHead`, Index in Einfügereihenfolge, gepflegt von `put`/`drop`,
+  Nachprüfung 46 N1). `copy` für das Schreiben auf einem anderen Thread. `delete` entfernt die Folge und
   jede längere, die sie enthält; `encode` „v1“ plus „Gewicht;Tag;0/1;Text“ je Zeile, `parse`
   verwirft Kaputtes, nie eine Ausnahme, eine rückwärts gelaufene Uhr behält die Einträge.
   `OwnWords.kt`: `OwnWordBook` (Nutzungen je Wort, nach `PROMOTE_AT` = 3 eigenes Wort, Nutzungen
@@ -257,15 +259,19 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   oder `-`, 2–32 Zeichen; `completions` ab 2 Zeichen; Kodierung „v1“, `o;Form`, `u;Zahl;Tag;Form`).
   `ShortcutOffers.kt`: `ShortcutRules.plausible` (Kurzform 2–6 Buchstaben, Erweiterung 1–5 Wörter
   und mindestens 2 Zeichen länger; ein Wort enthält die Buchstaben in Reihenfolge ab dem ersten,
-  mehrere Wörter haben sie als Anfangsbuchstaben; Tippfehler-Korrekturen nie), `ReplacementTracker`
+  mehrere Wörter haben sie als Anfangsbuchstaben; Tippfehler-Korrekturen nie, eine Erweiterung, die
+  mit der Kurzform beginnt, auch nicht: „Haus“ → „Hausaufgaben“, Nachprüfung 46 M2), `ReplacementTracker`
   (letzte 8 Commits mit Startposition; ein Commit an der Startposition eines früheren, anderen
   Worts = Ersetzung an Ort und Stelle, bei mehreren Wörtern bis zu 5 Commits gesammelt),
   `ShortcutBook` (Zählung je Paar, ab `OFFER_AT` = 2 `READY`, dann `SHOWN`/`CREATED`/`DECLINED`,
-  höchstens 200, Kodierung „Zahl;STATUS;Kurz;Lang“). `SnippetMatcher.kt`: Merkmale = Wörter (`w:`,
+  höchstens 200, Kodierung „Zahl;STATUS;Kurz;Lang“; `CREATED` = gemerkt, `expansionOf`, `remembered`,
+  P187). `SnippetMatcher.kt`: Merkmale = Wörter (`w:`,
   Gewicht 1), Wortanfänge aus 5 Buchstaben bei längeren Wörtern (`p:`, 0,7) und Buchstaben-Trigramme
   mit Rand (`t:`, 0,35), kleingeschrieben ohne Akzente, ß als ss, ohne Stoppwörter (de/en/es, auch
   „vielen“, „dank“, „minuten“); TF-IDF über die Bausteine (Name doppelt, Text ohne Platzhalter, 400
-  Zeichen), Kosinus; ohne gemeinsames Wort oder Wortanfang 0. `best` ab 2 Wörtern mit 3 Buchstaben,
+  Zeichen), Kosinus; 0 ohne genug gemeinsame Wörter (`sharesEnough`: ein Wort des Namens, 2 Wörter,
+  40 % der Wörter des Bausteins oder ab 3 Bausteinen ein Wort, das nur dieser hat; ein Wort zählt mit
+  sich oder seinem Wortanfang, Nachprüfung 46 N5). `best` ab 2 Wörtern mit 3 Buchstaben,
   `THRESHOLD` = 0,35 und `MARGIN` = 0,08 vor dem zweiten (gemessen). Tests
   `CT/memory/PhraseMemoryTest.kt` (mit synthetischem Schreiber und Präzisionsmessung),
   `CT/memory/MemoryRulesTest.kt`.
@@ -410,17 +416,18 @@ Autokorrektur (Etappe 20a, Details im Abschnitt „Lerndaten“):
 Gedächtnis (Etappe 46, Details im Abschnitt „Lerndaten“ → Gedächtnis, P174–P177):
 
 - `InputLogic.java`: `performAdditionToUserHistoryDictionary` ruft nach den eigenen Ausstiegen
-  (unterdrückte Historie, Befehl, keine Vorschläge im Feld, Inkognito, langsame Verbindung) und vor
-  `addToUserHistory` `Memory.onWordCommitted` mit Wort, getippter Form (nur Tipp-Eingabe, nicht
-  wiederaufgenommen), Text vor der Schreibmarke (`Memory.LOOKBACK`) und Schreibmarke. Sonst
-  unverändert; das Gedächtnis ändert keinen Text.
+  (unterdrückte Historie, privater Text, Befehl, keine Vorschläge im Feld, Inkognito, langsame
+  Verbindung) und vor `addToUserHistory` `Memory.onWordCommitted` mit Wort, getippter Form (nur
+  Tipp-Eingabe, nicht wiederaufgenommen), einem Lambda für den Text vor der Schreibmarke
+  (`Memory.LOOKBACK`; gelesen erst, wenn das Gedächtnis lernen darf, Nachprüfung 46 N1) und
+  Schreibmarke. Sonst unverändert; das Gedächtnis ändert keinen Text.
 - `Suggest.kt`: `addFromMemory` direkt nach der Entscheidung über die automatische Korrektur
   (`hasAutoCorrection` steht dann fest): meldet `Memory.onTyped` (kennt ein Hauptwörterbuch das
   getippte Wort?), setzt ein eigenes Wort, das das getippte beginnt, als `KIND_COMPLETION` hinter
   die Korrektur (ohne Korrektur an den Anfang, nie als Korrektur) und bei Vorhersagen das nächste
   Wort des Gedächtnisses (`Memory.nextWord`, nur mit „Wortvorschläge“) an die erste Stelle.
-  `guardAllows` und `applyLearnedCorrection` korrigieren ein eigenes Wort (`Memory.isOwnWord`) nie
-  automatisch; die Korrektur bleibt Vorschlag.
+  `guardAllows` und `applyLearnedCorrection` korrigieren ein eigenes Wort oder die Kurzform einer
+  gemerkten Abkürzung (`Memory.isOwnWord`) nie automatisch; die Korrektur bleibt Vorschlag.
 - `SettingsNavHost.kt`: Ziel `agent_memory` (`SettingsDestination.AgentMemory`, Seite
   `AgentMemoryScreen`).
 
@@ -1374,7 +1381,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `InputLogicTest.formatGuardChipChangesTheFieldOnlyOnATapAndOnce`.
   - Gedächtnis (46, P177): `A/MemoryChips.kt`, ohne Befehl nach den Feld- und Kontext-Vorschlägen
     und vor dem Emoji-Mix (Abschnitt „Lerndaten“ → Gedächtnis). `Host.predictions` und
-    `Host.pickPrediction` (46) geben einer Chipreihe die üblichen Vorhersagen der Engine.
+    `Host.pickPrediction` (46) geben einer Chipreihe die üblichen Vorhersagen der Engine;
+    `pickPrediction` prüft beim Tipp erneut, dass die Leiste noch Vorhersagen zeigt (Nachprüfung 46
+    N3). `Host.insertAtCursor(text, privateText = true)`: privat über `onPrivateTextInput`, mit
+    `false` über `onTextInput` wie ein Einfügen aus dem Verlauf (Gedächtnis-Chips, P177).
   - Feld- und Kontext-Vorschläge (45, P161–P164): `A/FieldSuggestionChips.kt`.
     `KeyboardCommands.buildChips` fragt ihn ohne Befehl nach dem Formatwächter und vor dem
     Emoji-Mix. `fieldClass` aus `inputType` (Passwort, URI, Filter, Datum: nie; Zahl mit Komma oder
@@ -1392,7 +1402,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `ContextLearning.weights`, nur ab Schwelle, nicht schon im Text, höchstens 2. Chip-Text
     `label` (🔗 `shortLink` = Host plus „/…“, ✉️, 📞, 🏦 erste und letzte vier Zeichen, 🏠, 👤, 🔢),
     Beschreibung „… aus Meine Daten“ bzw. „gerade kopiert“. Tipp genau einmal (`used`): leeres Feld
-    `Host.insertAtCursor` (echter Host: `LatinIME.onPrivateTextInput` wie das Einfügen aus dem
+    `Host.insertAtCursor` (privat; echter Host: `LatinIME.onPrivateTextInput` wie das Einfügen aus dem
     Tresor, nur bei `canReplaceAgentCommand` und unveränderter Schreibmarke, P162, P178),
     angefangener Feldtext `Host.replace` (Text → Wert), Kontext `Host.replace` der letzten bis zu 24
     Zeichen durch sich selbst plus Wert (nach „:“ mit Leerzeichen; `replaceCommandText` prüft, dass
@@ -2221,36 +2231,56 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   „Personalisierte Vorschläge“ (`TextCorrectionScreen`, Nachprüfung 44/45).
 - Gedächtnis (46, P174–P177): `A/Memory.kt` (Schalter `AgentPreferences.MEMORY`, Standard aus;
   `MEMORY_SNIPPETS`, Standard an). Hält `PhraseBook`, `OwnWordBook`, `ShortcutBook` unter einer Sperre,
-  eigene Wörter zusätzlich als Menge für den Vorschlags-Thread; schreibt höchstens alle 30 s beim
-  Tippen und beim Verlassen des Felds (`AgentEditorController.startEditor`/`finishEditor` →
-  `onFieldChanged`, das auch Lauf und `ReplacementTracker` leert). Datei `agent_phrase_memory`
+  eigene Wörter und Kurzformen gemerkter Abkürzungen zusätzlich als Menge für den Vorschlags-Thread
+  (`ownLookup`, erst bei Bedarf und nur nach einer Änderung neu gebaut); schreibt höchstens alle
+  30 s beim Tippen und beim Verlassen des Felds (`AgentEditorController.startEditor`/`finishEditor` →
+  `onFieldChanged`, das auch Lauf, `ReplacementTracker`, offene Rücknahme und gezählte Stellen leert).
+  `save` kopiert die Folgen unter der Sperre und kodiert und schreibt sie auf einem eigenen Thread
+  (`saver`); ein Zähler (`generation`), den `clear` erhöht, verwirft ältere wartende Schreibvorgänge
+  (Nachprüfung 46 N1, gemessen: 2000 Folgen kopieren und kodieren rund 11 ms auf der JVM).
+  `resetForTest` schreibt sofort. Datei `agent_phrase_memory`
   (gerätegeschützt, `docs/STORAGE.md`). `isBlocked`: keine Einstellungen, Inkognito (auch kein
-  Lernen und Passwort), `IME_FLAG_NO_PERSONALIZED_LEARNING`, gesperrt, kein Textfeld, Passwort,
+  Lernen und Passwort), `IME_FLAG_NO_PERSONALIZED_LEARNING` oder `privateImeOptions` = `AgentPreferences.NO_LEARNING_FIELD`
+  (direkt aus der `EditorInfo`, P180), gesperrt, kein Textfeld, Passwort,
   ausgeschlossene App (höchstens 50 Paketnamen); `mayLearn` zusätzlich Schalter, keine Lernpause und
   der Sperrzustand jetzt. `onWordCommitted` (Hook in `InputLogic`): der Lauf = längstes Ende der
   eigenen Commits, mit dem der Satzteil vor der Schreibmarke noch endet (P174), `learn`; eine Nutzung
   als eigenes Wort, wenn getippt = abgeschickt und das Hauptwörterbuch es laut `onTyped` nicht kennt
-  (P176); `ReplacementTracker` für Abkürzungen. `onCorrectionUndone` aus `RejectedCorrections.remember`
-  (auch ohne dessen Schalter). `createShortcut` = `UserDictionary.Words.addWord(Wort, 250, Kürzel,
-  alle Sprachen)`, in Tests ersetzt. `A/MemoryChips.kt`: Chips nach `FieldSuggestionChips` in
+  (P176); `ReplacementTracker` für Abkürzungen, gezählt nur, wenn kein Hauptwörterbuch die
+  Kurzform kannte (`unknownCommits`, aus `onTyped`, P187). `onCorrectionUndone` aus
+  `RejectedCorrections.remember` (auch ohne dessen Schalter) merkt die Rücknahme vor; gezählt wird
+  sie beim nächsten Commit, wenn das Wort noch dasteht, je Wort und Stelle einmal (P188).
+  `acceptOffer` merkt die Abkürzung nur (`CREATED`), `expansionOf` für den Chip; nichts geht ins
+  persönliche Wörterbuch (P187). `nextWord` und `ownCompletion` fragen den Sperrzustand jetzt,
+  bevor sie etwas zurückgeben (Nachprüfung 46 N4). `clear` (auch aus „Gelernte Wörter löschen“ in
+  `AgentLearningScreen` und dem bestätigten Ausschalten von „Personalisierte Vorschläge“ in
+  `TextCorrectionScreen`, Nachprüfung 46 H1) leert auch Lauf, `lastTyped` und
+  `MemoryChips.forget` (das angezeigte Angebot). `A/MemoryChips.kt`: Chips nach `FieldSuggestionChips` in
   `KeyboardCommands.buildChips`, nur nach Leerraum (nicht nach Zeilenumbruch), nie gesperrt: der
-  sichere Rest (`RESULT`, „… Rest“), der passende Baustein („📋 Name: …“; mit Feldern nur, wenn
+  sichere Rest (`RESULT`, „… Rest“), die Erweiterung der gerade getippten gemerkten Abkürzung
+  (`ACTION`, „vlt → vielleicht“; das letzte ganze Wort vor dem Leerraum, am Satzanfang mit großem
+  Anfangsbuchstaben; der Tipp ersetzt über `Host.replace` genau „Kurzform + Leerraum“ durch
+  „Erweiterung + Leerraum“, P187), der passende Baustein („📋 Name: …“; mit Feldern nur, wenn
   `@snip` an ist, dann wird „@snip Name“ angehängt) und einmal das fällige Abkürzungs-Angebot
   (`TEMPLATE`, beim ersten Zeigen `SHOWN`, bleibt nur bei unveränderter Schreibmarke); mit einem davon
   dazu die üblichen Vorhersagen (`Host.predictions`, Tipp über `Host.pickPrediction` →
-  `LatinIME.pickSuggestionManually`). Jeder Chip fügt nur über `Host.insertAtCursor` an der
-  Schreibmarke ein, für die er gebaut wurde, einmal, und nur wenn der Text davor noch derselbe ist
-  (P177). Bausteinindex im Speicher, neu bei anderer `SnipCommand.source` oder `SnippetStore.version`.
+  `LatinIME.pickSuggestionManually`). Rest und Erweiterung stehen vor den Vorhersagen. Jeder Chip
+  wirkt nur an der Schreibmarke, für die er gebaut wurde, einmal, und nur wenn der Text davor noch
+  derselbe ist; Rest und Baustein über `Host.insertAtCursor(…, privateText = false)` (P177). Bausteinindex im Speicher, neu bei anderer `SnipCommand.source` oder `SnippetStore.version`.
   `AgentEditorController.suggestedWords` gibt den Chips die Vorschläge der Engine. Auf der Seite
   „Was ich mir gemerkt habe“ (`K/settings/screens/AgentMemoryScreen.kt`, aus 49) ist
   `MemorySections` der zweite Eintrag von `memorySections`, unter den Korrekturen: Überschrift
   „Gedächtnis“, Schalter, Wortfolgen ab 3 Wörtern (die 100 stärksten, Anpinnen/Löschen, Tags
   `MEMORY_PIN_TAG`/`MEMORY_PHRASE_DELETE_TAG` + Zeile), eigene Wörter, Abkürzungen
-  Anlegen/Verwerfen, ausgeschlossene Apps über `AppChooser` aus `AgentSnippetsSection.kt`, „Alles
+  Merken/Verwerfen, ausgeschlossene Apps über `AppChooser` aus `AgentSnippetsSection.kt`, „Alles
   vergessen“; bei gesperrtem Gerät nur ein Hinweis. Texte in `agent_memory_strings.xml` (`values/`,
   `values-de/`, gemeinsam mit 49). Tests: Fälle „stage 46“ in `InputLogicTest`
-  (Chip hängt nur auf Tipp an, gesperrte Felder, eigene Wörter, Abkürzung, Baustein) und
-  `SuggestTest` (eigenes Wort nicht korrigiert), `AT/MemoryScreenTest.kt` (Seite).
+  (Chip hängt nur auf Tipp an, gesperrte Felder, neben privatem Text und in `NO_LEARNING_FIELD`,
+  eigene Wörter mit Rücknahme und Weitertippen, Abkürzung merken und auf Tipp ersetzen,
+  weitergeschriebene und bekannte Kurzformen, Baustein, Rest nicht privat) und `SuggestTest`
+  (eigenes Wort und gemerkte Kurzform nicht korrigiert, Vervollständigung hinter der Korrektur),
+  `AT/MemoryScreenTest.kt` (Seite), `AT/SymbolSettingsScreenTest.kt` (Löschen auf „Gelernte
+  Wörter“ und Ausschalten von „Personalisierte Vorschläge“ leeren das Gedächtnis).
 
 ## Updates
 
@@ -3381,17 +3411,41 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   etwa zehn Wiederholungen für zwei Wörter Rest und rund zwanzig für einen langen; das ist gewollt.
 - **P176** „Kennt kein Hauptwörterbuch“ meldet der Vorschlags-Thread (`Memory.onTyped` in
   `Suggest.addFromMemory`) für das zuletzt getippte Wort. Kam die Leiste beim schnellen Tippen nicht
-  mehr dazu, passt das Wort beim Commit nicht, und die Nutzung zählt nicht (vorsichtig). In
+  mehr dazu, passt das Wort beim Commit nicht, und die Nutzung zählt nicht (vorsichtig); dasselbe
+  gilt für die Kurzform einer Abkürzung (P187). In
   `InputLogicTest` läuft die verzögerte Leistenaktualisierung nicht: Tests rufen `updateSuggestions`
   selbst. Die echte Schwelle der Autokorrektur erreicht dort kein Wort (native Bewertung fehlt),
-  darum prüft `SuggestTest`, dass ein eigenes Wort nicht korrigiert wird. Ein eigenes Wort als
-  Vervollständigung steht hinter der Korrektur, nie an ihrer Stelle.
+  darum prüft `SuggestTest`, dass ein eigenes Wort nicht korrigiert wird und als
+  Vervollständigung hinter der Korrektur steht, nie an ihrer Stelle. `SuggestTest` hat ohne
+  `loadSettings` mit einem Textfeld kein Feld: `Memory.isBlocked` sperrt dann alles.
 - **P177** Gedächtnis-Chips nur nach Leerraum wie P163: Nach einem angetippten Vorschlag
   (Phantom-Leerzeichen) kommen sie erst mit dem getippten Leerzeichen. Der Rest wird über
-  `onTextInput` ohne Leerzeichen danach angehängt; die Verstärkung (+1) macht `Memory.accepted`
-  ausdrücklich, damit das Gedächtnis sich nicht selbst aus eingefügtem Text lernt. `SnippetStore.version`
+  `Host.insertAtCursor(…, privateText = false)` = `onTextInput` ohne Leerzeichen danach angehängt:
+  Rest und Baustein sind der eigene Text des Owners, kein privater Text (seit 8e344e9 ging jedes
+  `insertAtCursor` über `onPrivateTextInput` und sperrte das Lernen der Wörter danach; Nachprüfung
+  46 M4). Tresor, „Meine Daten“ und Codes bleiben privat (Standard `true`). Die Verstärkung (+1)
+  macht `Memory.accepted` ausdrücklich, damit das Gedächtnis sich nicht selbst aus eingefügtem
+  Text lernt. `SnippetStore.version`
   zählt nur Schreibvorgänge dieses Prozesses (Einstellungen und Tastatur laufen im selben Prozess);
   ein Baustein mit Feldern wird als `@snip Name` angehängt, den Rest macht `SnipCommand`.
+- **P187** Eine gemerkte Abkürzung ist nie ein Kürzel des persönlichen Wörterbuchs: Mit
+  „Autokorrektur-Kürzel“ (`PREF_AUTOCORRECT_SHORTCUTS`, Standard an) wendet die Engine ein
+  Kürzel beim Leerzeichen selbst an, aus „mfg“ würden drei Wörter (gegen die Grenze des Owners).
+  Darum bleibt sie in `shortcuts` (`CREATED`), die Erweiterung kommt als Chip, und der Tipp ersetzt
+  über `replaceCommandText` nur „Kurzform + Leerraum“. Die Kurzform gilt als eigenes Wort
+  (`ownLookup`), sonst korrigierte die Autokorrektur sie vor dem Chip weg. Als Abkürzung zählt eine
+  Ersetzung nur, wenn die Erweiterung nicht mit der Kurzform beginnt und kein Hauptwörterbuch die
+  Kurzform kannte (`unknownCommits` aus `onTyped`); Tests müssen darum nach der Kurzform
+  `updateSuggestions` rufen oder `Memory.onTyped` melden. Test-Build 20 legte noch Kürzel im
+  persönlichen Wörterbuch an; sie werden nicht migriert.
+- **P188** Eine zurückgenommene Korrektur melden bis zu drei Wege: `revertCommit` (Löschtaste),
+  das Antippen der getippten Form (48) und der Feldvergleich von 49 (Y → X), oft beim selben oder
+  nächsten Commit. `onCorrectionUndone` zählt darum nichts sofort, sondern merkt das Wort vor;
+  beim nächsten Commit zählt es, wenn es noch als ganzes Wort im gelesenen Text steht (auch als
+  das gerade wieder abgeschickte Wort selbst), und nur, wenn „Wort@Position“ in diesem Feld noch
+  nicht gezählt ist (`countedAt`, auch normale Nutzungen). Wird das Feld vorher verlassen, zählt
+  die Rücknahme nicht (vorsichtig). Nach `revertCommit` ist das Wort wieder Kompositionswort; das
+  Leerzeichen danach schickt es ab.
 
 ## Datei-Inventar
 

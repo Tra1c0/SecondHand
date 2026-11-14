@@ -128,9 +128,11 @@ object KeyboardCommands {
         /**
          * Stage 45: inserts [text] at the plain cursor the chips were built for, like a paste from the
          * clipboard view and only while the cursor is still there (a field suggestion in an empty
-         * field); false otherwise.
+         * field); false otherwise. [privateText] (review B4): a vault secret, a code or a value of
+         * "Meine Daten" is never composed or learned afterwards; the owner's own text of the memory
+         * (a phrase rest, a snippet) goes in like a normal paste (review M4 of stage 46).
          */
-        fun insertAtCursor(text: String): Boolean = false
+        fun insertAtCursor(text: String, privateText: Boolean = true): Boolean = false
         /** Stage 46: the word predictions the normal strip would show now (no typed word), at most [max]. */
         fun predictions(max: Int): List<String> = emptyList()
         /** Stage 46: picks [word] like a tap on it in the normal strip; false if it cannot now. */
@@ -425,9 +427,10 @@ object KeyboardCommands {
             override fun moveCursorBack(count: Int) = ime.moveAgentCursorBack(count)
             override val canReplaceNow: Boolean get() = ime.canReplaceAgentCommand()
             // the paste path of the clipboard view (also phone and number fields), only at the cursor the chips were built for
-            override fun insertAtCursor(text: String): Boolean {
+            override fun insertAtCursor(text: String, privateText: Boolean): Boolean {
                 if (text.isEmpty() || !ime.canReplaceAgentCommand() || ime.agentCommandCursor != position) return false
-                ime.onPrivateTextInput(text) // never composed or learned (review B4)
+                if (privateText) ime.onPrivateTextInput(text) // never composed or learned (review B4)
+                else ime.onTextInput(text) // the owner's own text, like a paste from the clipboard history
                 return true
             }
             // stage 46: the suggestions InputLogic holds for the strip, picked through the normal path
@@ -441,6 +444,8 @@ object KeyboardCommands {
             override fun pickPrediction(word: String): Boolean {
                 if (!ime.canReplaceAgentCommand() || ime.agentCommandCursor != position) return false
                 val words = ime.agentEditorController.suggestedWords
+                // review N3: still predictions at tap time, never the suggestions of a word being typed
+                if (!words.isPrediction) return false
                 val info = (0 until words.size()).map { words.getInfo(it) }.firstOrNull { it.mWord == word } ?: return false
                 ime.pickSuggestionManually(info)
                 return true

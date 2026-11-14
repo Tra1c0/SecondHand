@@ -6,8 +6,10 @@ import java.util.Locale
 /**
  * Stage 46: abbreviations the owner expands by hand. When the owner types a short form X, deletes it
  * and types its expansion Y in the same place ([ReplacementTracker]) at least [ShortcutBook.OFFER_AT]
- * times, the app offers once (a quiet chip) to create the shortcut X → Y in the personal dictionary.
- * Nothing is created without a tap.
+ * times, the app offers once (a quiet chip) to remember X → Y. Nothing is remembered without a tap.
+ * A remembered abbreviation is never applied automatically (review M1: it is no shortcut of the
+ * personal dictionary, which the autocorrection may apply at the space): after X the strip offers Y,
+ * and only a tap replaces the one word X.
  */
 object ShortcutRules {
     const val MIN_SHORT = 2
@@ -19,13 +21,16 @@ object ShortcutRules {
      * Whether [expansion] plausibly expands [short]: X is 2–6 letters, Y has 1–5 words and at least
      * two characters more; one word must contain the letters of X in order starting with its first
      * letter ("vlt" → "vielleicht"), several words must have X as initials ("mfg" → "mit freundlichen
-     * Grüßen"). Typo fixes ("nciht" → "nicht") are no expansions.
+     * Grüßen"). Typo fixes ("nciht" → "nicht") are no expansions, nor is a word the owner simply
+     * continued (review M2: "Haus" → "Hausaufgaben", "wie" → "wieder"): Y must not start with X.
+     * Whether X is a word of a main dictionary only the app knows; it checks that as well.
      */
     fun plausible(short: String, expansion: String): Boolean {
         val x = short.lowercase(Locale.ROOT)
         if (x.length !in MIN_SHORT..MAX_SHORT || !x.all { it.isLetter() }) return false
         val y = expansion.trim()
         if (y.length > MAX_EXPANSION || y.length < x.length + 2) return false
+        if (y.lowercase(Locale.ROOT).startsWith(x)) return false
         val words = y.lowercase(Locale.ROOT).split(' ').filter { it.isNotEmpty() }
         if (words.isEmpty() || words.size > MAX_EXPANSION_WORDS) return false
         if (words.any { w -> w.trimEnd(',', '.', '!', '?').let { it.isEmpty() || !it.all { c -> c.isLetter() || c == '-' || c == '\'' } } }) return false
@@ -95,7 +100,11 @@ class ReplacementTracker {
     companion object { const val MAX_RECENT = 8 }
 }
 
-/** The counted expansions and what became of each offer. Not thread-safe; the app guards it with a lock. */
+/**
+ * The counted expansions and what became of each offer. [State.CREATED] is a remembered
+ * abbreviation ([expansionOf]); it lives only here, never in the personal dictionary. Not
+ * thread-safe; the app guards it with a lock.
+ */
 class ShortcutBook private constructor(private val pairs: LinkedHashMap<String, Entry>) {
     enum class State { COUNTING, READY, SHOWN, DECLINED, CREATED }
 
@@ -136,6 +145,15 @@ class ShortcutBook private constructor(private val pairs: LinkedHashMap<String, 
     }
 
     fun remove(short: String, expansion: String) { pairs.remove(key(short, expansion)) }
+
+    /** The expansion of the remembered abbreviation [short] (the most recent one), or null. */
+    fun expansionOf(short: String): String? {
+        val x = short.lowercase(Locale.ROOT)
+        return pairs.values.lastOrNull { it.state == State.CREATED && it.short == x }?.expansion
+    }
+
+    /** The short forms of all remembered abbreviations, lower case. */
+    val remembered: Set<String> get() = pairs.values.filter { it.state == State.CREATED }.mapTo(HashSet()) { it.short }
 
     fun clear() = pairs.clear()
 

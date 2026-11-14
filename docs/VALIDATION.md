@@ -3894,6 +3894,81 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   Lesen und Schreiben bei 2000 Folgen; Bausteine mit `{cursor}`), Zusammenführen der Seite mit
   „Was ich mir gemerkt habe“ (49).
 
+## Nachprüfung 46 (Prüfer-Befunde zu d6ea051/2417070, 2026-11-14)
+
+- H1 behoben: „Gelernte Wörter löschen“ (`AgentLearningScreen`) und das bestätigte Ausschalten von
+  „Personalisierte Vorschläge“ (`TextCorrectionScreen`) rufen `Memory.clear`; `clear` leert auch
+  Lauf, `lastTyped`, offene Rücknahme, gezählte Stellen und `MemoryChips.forget` (N6) und macht
+  wartende Schreibvorgänge ungültig. Test: `SymbolSettingsScreenTest`
+  `theLearnedDataPageCountsAndDeletesPersonalTemplates` und
+  `turningPersonalizedSuggestionsOffDeletesPersonalTemplates` legen Wortfolge, eigenes Wort und
+  gemerkte Abkürzung an und prüfen danach Speicher und neu gelesenen Zustand leer.
+- M1 behoben: Abkürzungen gehen nie mehr ins persönliche Wörterbuch (`createShortcut` entfernt);
+  `CREATED` = gemerkt, die Erweiterung kommt nach „Kurzform + Leerraum“ als Chip, erst der Tipp
+  ersetzt genau dieses Wort (`Host.replace`), die Kurzform wird nicht automatisch korrigiert (P187).
+  Keine Migration: nur Test-Build 20 hat Kürzel angelegt (STORAGE, Release-Notizen). Test:
+  `abbreviationExpandedTwiceIsRememberedOnATapAndOnlyATapReplacesIt` (Angebot ändert nichts, Tipp
+  merkt; „das ist vlt “ bleibt beim Leerzeichen so, auch mit „Autokorrektur-Kürzel“ an; Chip „vlt →
+  vielleicht“ ersetzt nur das Wort, einmal; „Vlt“ → „Vielleicht“; „xvlt “ nichts; geänderter Text:
+  nichts; verworfen: kein Chip), `SuggestTest` `remembered abbreviation stays as typed` (sehr starke
+  Korrektur „mfg“ → „mag“ ohne, keine mit gemerkter Abkürzung, kein mehrwortiger Vorschlag),
+  `MemoryRulesTest.aRememberedAbbreviationIsOnlyLookedUp`.
+- M2 behoben: `ShortcutRules.plausible` lehnt Erweiterungen ab, die mit der Kurzform beginnen;
+  `Memory` zählt eine Ersetzung nur, wenn kein Hauptwörterbuch die Kurzform kannte (`onTyped`,
+  höchstens 16 Wörter je Feld). Tests: `MemoryRulesTest.continuingAWordIsNoAbbreviation` („Haus“ →
+  „Hausaufgaben“, „Wo“ → „Wochenende“, „wie“ → „wieder“, „wo“ → „wo oder wann“, auch beim Lesen),
+  `InputLogicTest.continuedWordsAndDictionaryWordsAreNoAbbreviations` (weitergeschrieben und bekannt:
+  kein Angebot; dieselbe unbekannte Kurzform: Angebot).
+- M3 behoben: `onCorrectionUndone` merkt nur vor; gezählt beim nächsten Commit, wenn das Wort dann
+  noch dasteht, je „Wort@Position“ und Feld einmal (P188). Tests:
+  `slangBecomesOwnAfterThreeUndoneCorrectionsAndIsOfferedWhileTyped` (jetzt drei Rücknahmen in einem
+  Feld mit Weitertippen ohne `setText("")` dazwischen, nach jeder Runde genau eine Nutzung mehr, je
+  Runde zweimal zusätzlich `RejectedCorrections.remember` wie der Feldvergleich von 49: zählt nichts),
+  `anUndoneCorrectionTheOwnerThenChangesDoesNotCount` (nach der Rücknahme korrigiert: nichts gezählt).
+- M4 entschieden und umgesetzt: `Host.insertAtCursor(text, privateText = true)`; Gedächtnis-Chips
+  (Rest, Baustein, `@snip Name`) mit `false` über `onTextInput`, Tresor, „Meine Daten“ und Codes
+  weiter privat. P177 und Gedächtnis-Text in ARCHITECTURE angepasst. Tests:
+  `theRestOfAPhraseIsTheOwnersTextNotPrivate` (das Wort nach dem angehängten Rest wird gelernt),
+  `FieldSuggestionChipsTest` prüft in der Test-Host-Methode, dass Feld-Vorschläge privat einfügen.
+- N1: `onWordCommitted` bekommt den Text vor der Schreibmarke als Lambda und liest ihn erst nach
+  `mayLearn` (eine Zeile in `InputLogic`); `PhraseBook` indexiert nach den ersten zwei Wörtern;
+  `ownLookup` erst bei Bedarf und nur nach Änderungen; `save` kopiert unter der Sperre und kodiert und
+  schreibt auf einem eigenen Thread. Gemessen (`PhraseMemoryTest.predictionWithTwoThousandPhrasesIsFast`,
+  2000 Folgen, JVM des Containers): 0,076 ms je Vorhersage (Grenze 2 ms), kopieren und kodieren
+  11,1 ms (Grenze 500 ms); `theIndexFollowsDeleteEvictionAndClear`. Auf dem Gerät nicht gemessen.
+- N2: `memoryLearnsNothingNextToPrivateTextOrInTheKeyboardsOwnFields` (privater Text vor dem Satz,
+  `privateImeOptions` = `NO_LEARNING_FIELD`; `Memory.isBlocked` prüft das jetzt selbst aus der
+  `EditorInfo`; ein normales Feld lernt danach). Die bedingte Prüfung im Slang-Test wurde durch
+  eine unbedingte ersetzt („krass“ ist `KIND_COMPLETION`), die echte Korrekturschwelle prüft neu
+  `SuggestTest` `own word completion never takes the place of the automatic correction` (Korrektur
+  bleibt an Stelle 1, eigenes Wort dahinter als Vervollständigung).
+- N3: `pickPrediction` prüft `isPrediction` beim Tipp. N4: `nextWord` und `ownCompletion` fragen den
+  Sperrzustand, bevor sie etwas liefern. Kein eigener Test (Robolectric-Host ohne Leiste bzw.
+  `deviceLocked` live; `stripChips` mit Sperre prüft `memoryLearnsNothingInBlockedFields`).
+- N5: mit 1–2 Bausteinen reichte ein gemeinsames Wort („ich muss aufpassen“ → „Hundesitter“ 0,46).
+  Neu `sharesEnough`: Namenswort, 2 Wörter, 40 % der Wörter oder ab 3 Bausteinen ein Wort, das nur
+  dieser Baustein hat. Messung mit 8 Bausteinen unverändert 17/17 richtig, 17 von 23 gefunden
+  (0,35); ohne die Ausnahme ab 3 Bausteinen wären es 16 von 23 gewesen. Test
+  `MemoryRulesTest.withFewSnippetsOneSharedWordIsNotEnough`.
+- `./gradlew :agent-core:test`: grün, 443 Tests, 0 Fehler (`memory.PhraseMemoryTest` 12,
+  `memory.MemoryRulesTest` 10).
+- `./gradlew :app:testDebugUnitTest` gezielt (`--max-workers=1`): `InputLogicTest` 222, einziger
+  Fehler `insertLetterIntoWordHangulFails` (geerbt); die 12 Fälle zu 46 grün:
+  `memoryChipAppendsTheRestOnlyOnATapAndNeverReplaces`, `memoryNextWordForTheEngineAfterTwoWords`,
+  `memoryLearnsNothingInBlockedFields`, `slangBecomesOwnAfterThreeUndoneCorrectionsAndIsOfferedWhileTyped`,
+  `anUndoneCorrectionTheOwnerThenChangesDoesNotCount`, `slangCommittedAsTypedThreeTimesBecomesOwn`,
+  `abbreviationExpandedTwiceIsRememberedOnATapAndOnlyATapReplacesIt`,
+  `continuedWordsAndDictionaryWordsAreNoAbbreviations`, `anIgnoredAbbreviationOfferIsNotShownAgain`,
+  `memoryLearnsNothingNextToPrivateTextOrInTheKeyboardsOwnFields`,
+  `theRestOfAPhraseIsTheOwnersTextNotPrivate`, `fittingSnippetIsAChipThatInsertsAtTheCursor`.
+  `SuggestTest` 44, `MemoryScreenTest` 3, `SymbolSettingsScreenTest` 13, `FieldSuggestionChipsTest`
+  21, `CorrectionMemoryTest` 4, `FieldCorrectionMemoryTest` 5, `LearningDataTest` 5: grün.
+- Engine: `InputLogic.java` nur die eine Hook-Zeile (Lambda statt Text); `Suggest.kt`,
+  `RichInputConnection`, `PointerTracker`, `LatinIME` unverändert. Die Prüfung neben privatem Text
+  (`mPrivate*`/`nearPrivateText`) ändert parallel eine andere Arbeitskopie; hier nicht berührt.
+- Nicht gelaufen: `tools/dev.py agent-tests`, volle Suite, Build, Lint (Speicher, Anweisung des
+  Leads). Gerätetest offen (Erweiterungs-Chip mit echter Leiste, Speicherzeit auf dem Gerät).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

@@ -980,13 +980,20 @@ Einstellungen → Tippen & Korrektur → Wörter & Lernen → „Was ich mir gem
   kommt; selten benutzte verblassen nach Wochen.
 - Eigene Wörter: Schickst du ein Wort, das die Tastatur nicht kennt (Umgangssprache, eine
   bewusste Schreibweise), dreimal so ab, wie du es getippt hast, oder machst du seine Korrektur
-  dreimal mit der Löschtaste rückgängig, wird es dein Wort: Es wird nicht mehr automatisch
-  korrigiert und beim Tippen seines Anfangs angeboten. Die Autokorrektur ändert weiter immer nur
-  ein einzelnes Wort.
+  dreimal mit der Löschtaste rückgängig und lässt es danach stehen (du schreibst einfach weiter),
+  wird es dein Wort: Es wird nicht mehr automatisch korrigiert und beim Tippen seines Anfangs
+  angeboten. Dieselbe Rücknahme an derselben Stelle zählt nur einmal. Die Autokorrektur ändert
+  weiter immer nur ein einzelnes Wort.
 - Abkürzungen: Ersetzt du eine Kurzform zweimal selbst durch das ganze Wort (zum Beispiel „vlt“
-  löschen und „vielleicht“ tippen), bietet die Leiste einmal den Chip „Kürzel vlt → vielleicht?“
-  an. Ein Tipp legt das Kürzel im persönlichen Wörterbuch an; tippst du nicht, kommt das Angebot
-  nicht wieder und steht nur noch auf der Seite unter „Abkürzungen“ („Anlegen“ oder „Verwerfen“).
+  löschen und „vielleicht“ tippen), bietet die Leiste einmal den Chip „Kürzel vlt → vielleicht
+  merken?“ an. Ein Tipp merkt sich das Kürzel im Gedächtnis; ins persönliche Wörterbuch wird
+  nichts geschrieben. Danach steht nach „vlt “ der Chip „vlt → vielleicht“ in der Leiste; erst
+  dein Tipp ersetzt genau das Wort „vlt“ (am Satzanfang „Vlt“ → „Vielleicht“), von allein wird
+  nie etwas erweitert, und „vlt“ wird nicht mehr automatisch korrigiert. Tippst du nicht auf das
+  Angebot, kommt es nicht wieder und steht nur noch auf der Seite unter „Abkürzungen“ („Merken“
+  oder „Verwerfen“; „Verwerfen“ nimmt auch ein gemerktes Kürzel wieder heraus). Ein Wort, das du
+  nur weiterschreibst („Haus“ → „Hausaufgaben“), und eine Kurzform, die das Wörterbuch kennt,
+  zählen nicht als Abkürzung.
 - Textbausteine: „Passende Textbausteine vorschlagen“ (anfangs an, lernt nichts) zeigt nach dem
   Leerzeichen einen Chip „📋 Name: …“, wenn deine letzten Wörter klar zu einem deiner `@snip`-
   Bausteine passen (z. B. „Schick mir deine Adresse “). Ein Tipp fügt ihn an der Schreibmarke
@@ -995,6 +1002,8 @@ Einstellungen → Tippen & Korrektur → Wörter & Lernen → „Was ich mir gem
   wird nie verdrängt) und „Löschen“ (löscht die Folge und jede längere, die sie enthält), eigene
   Wörter mit „Löschen“, Abkürzungs-Angebote, „Ausgeschlossene Apps“ (dort lernt und zeigt das
   Gedächtnis nichts; „App ausschließen“ wählt aus den installierten Apps) und „Alles vergessen“.
+  Auch „Gelernte Wörter löschen“ (Gelernte Wörter) und das Ausschalten von „Personalisierte
+  Vorschläge“ löschen das ganze Gedächtnis; die ausgeschlossenen Apps bleiben.
 - Nie in Passwortfeldern, im Inkognito-Modus, in Feldern ohne Lernen, in ausgeschlossenen Apps
   oder bei gesperrtem Gerät. „Lernen pausieren“ hält das Lernen an, die Chips bleiben.
 - Chips kommen nur zwischen den Wörtern, nach einem Leerzeichen; nach einem angetippten
