@@ -281,6 +281,14 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   Klartext hält: der Hash macht nichts lesbar, was dort nicht schon steht. Nur im Speicher reichte
   nicht, weil der Verlauf einen Neustart der Tastatur überdauert. Kein Backup (`allowBackup=false`),
   kein Export; „Verlauf löschen“ lässt die Hashes stehen (sie verfallen durch die Grenze).
+- Zwischenablage-Wächter und Tresor (Etappe 44): nichts gespeichert. `ClipVault` hält Geheimnisse
+  (höchstens 2 min, bis zum ersten Einfügen), Einmalcodes (10 min) und für Etappe 45 die übrigen
+  neuen Clips (10 min) nur im Speicher des Tastaturprozesses, höchstens 20, dazu die Kopierzeiten
+  schon eingefügter Geheimnisse (Zahlen, kein Text). Geheimnisse und Codes gehen nie in die
+  Verlaufsdatenbank (`ClipboardDao`, DE, Tabelle `CLIPBOARD`); vor Etappe 44 gespeicherte, nicht
+  angeheftete werden beim Öffnen der Ansicht daraus gelöscht. Mit Verlauf aus, bei gesperrtem
+  Gerät, im Inkognito-Modus oder in Passwortfeldern wird nichts behalten. Ein Neustart des
+  Prozesses vergisst alles. Kein Format, kein Export, kein Backup.
 - `@contact`, `@url`, `@clip`, Bildschirmlesen: nichts gespeichert. Gefundene Kontakte, Adressen,
   Clip-Texte und gelesener Bildschirmtext liegen nur im Speicher, solange der Befehl vor der
   Schreibmarke steht.

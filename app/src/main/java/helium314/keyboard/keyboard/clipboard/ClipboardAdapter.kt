@@ -32,6 +32,9 @@ class ClipboardAdapter(
     var itemTextSize = 0f
     /** Cards of the Flat style, see [FlatClipboard]. */
     var flatStyle = false
+    /** Guard verdicts per entry id (stage 44), so a card is sorted once per visit. */
+    private val kinds = HashMap<Long, dev.agentkeyboard.core.clip.ClipKind>()
+    private val vaultRegion = helium314.keyboard.agent.ClipVault.region(Settings.getValues())
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -88,7 +91,18 @@ class ClipboardAdapter(
                 historyEntry.setImageAndDescription(contentImageView, contentTextView)
                 if (flatStyle) FlatClipboard.squareImage(contentImageView, list.width, columnCount(), list.paddingLeft + list.paddingRight)
             } else {
-                contentTextView.text = historyEntry.text?.take(1000) // truncate displayed text for performance reasons
+                val text = historyEntry.text?.take(1000) // truncate displayed text for performance reasons
+                contentTextView.contentDescription = null
+                if (text == null) contentTextView.text = null
+                else {
+                    // stage 44: labels for personal data, masks for secrets pinned before the guard
+                    val kind = kinds.getOrPut(historyEntry.id) {
+                        dev.agentkeyboard.core.clip.ClipGuard.classify(text, region = vaultRegion).kind
+                    }
+                    val (shown, description) = helium314.keyboard.agent.ClipVaultSection.historyText(itemView.context, text, kind)
+                    contentTextView.text = shown
+                    contentTextView.contentDescription = description
+                }
             }
             pinnedIconView.visibility = if (historyEntry.isPinned) View.VISIBLE else View.GONE
             contentImageView.visibility = if (historyEntry.filename != null) View.VISIBLE else View.GONE

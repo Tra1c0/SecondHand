@@ -60,6 +60,8 @@ class ClipboardHistoryManager(
         clipboardManager = latinIME.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboardManager.addPrimaryClipChangedListener(this)
         clipboardDao = ClipboardDao.getInstance(latinIME)
+        // stage 44: the vault may read the current clip for "fresh" queries, never keeps it with the history off
+        helium314.keyboard.agent.ClipVault.currentClip = { currentTextClip() }
         if (latinIME.mSettings.current.mClipboardHistoryEnabled)
             fetchPrimaryClip()
         helium314.keyboard.agent.ScreenshotChip.onChange = { onScreenshotChange() }
@@ -159,10 +161,27 @@ class ClipboardHistoryManager(
         if (description.hasMimeType("text/*")) {
             val content = clipItem.coerceToText(latinIME)
             if (TextUtils.isEmpty(content)) return
+            // stage 44: secrets and one-time codes stay in the memory-only vault, never in the database
+            val settings = latinIME.mSettings.current
+            val marked = ClipboardManagerCompat.getClipSensitivity(description) == true
+                || InputTypeUtils.isAnyPasswordInputType(latinIME.currentInputEditorInfo?.inputType ?: InputType.TYPE_NULL)
+            val verdict = helium314.keyboard.agent.ClipVault.offer(content.toString(), marked, timeStamp,
+                helium314.keyboard.agent.ClipVault.region(settings), helium314.keyboard.agent.ClipVault.mayKeep(latinIME, settings))
+            if (verdict.category == dev.agentkeyboard.core.clip.ClipCategory.SECRET
+                || verdict.category == dev.agentkeyboard.core.clip.ClipCategory.OTP) return
             clipboardDao?.addClip(timeStamp, false, content.toString())
         } else if (maySaveFromUri(clipItem.uri, latinIME)) {
             clipboardDao?.addClipUri(timeStamp, false, clipItem.uri, description, latinIME)
         }
+    }
+
+    /** Text, copy time and sensitive mark of the current clip, for [helium314.keyboard.agent.ClipVault.freshest]. */
+    private fun currentTextClip(): Triple<String, Long, Boolean>? {
+        val clipData = clipboardManager.primaryClip ?: return null
+        if (clipData.itemCount == 0 || clipData.description?.hasMimeType("text/*") != true) return null
+        val text = clipData.getItemAt(0)?.coerceToText(latinIME)?.toString()?.takeIf { it.isNotEmpty() } ?: return null
+        return Triple(text, ClipboardManagerCompat.getClipTimestamp(clipData),
+            ClipboardManagerCompat.getClipSensitivity(clipData.description) == true)
     }
 
     fun getPrimaryClipIfText(): String? {
@@ -222,6 +241,7 @@ class ClipboardHistoryManager(
 
     fun clearHistory() {
         clipboardDao?.clearNonPinned()
+        helium314.keyboard.agent.ClipVault.clear()
         ClipboardManagerCompat.clearPrimaryClip(clipboardManager)
         removeClipboardSuggestion()
     }
@@ -239,7 +259,28 @@ class ClipboardHistoryManager(
 
     // We do not want to update history while user is visualizing it, so we check retention only
     // when history is about to be shown
-    fun prepareClipboardHistory() = clipboardDao?.clearOldClips(true)
+    fun prepareClipboardHistory() {
+        clipboardDao?.clearOldClips(true)
+        removeVaultClipsFromHistory()
+    }
+
+    /**
+     * Stage 44: secrets and one-time codes stored before the guard existed leave the history (pinned
+     * entries stay, shown masked). Only while the view is not shown, like [ClipboardDao.clearOldClips].
+     */
+    private fun removeVaultClipsFromHistory() {
+        val dao = clipboardDao ?: return
+        val wasSensitive = helium314.keyboard.agent.commands.SensitiveClips.matcher(latinIME)
+        val region = helium314.keyboard.agent.ClipVault.region(latinIME.mSettings.current)
+        for (index in dao.count() - 1 downTo 0) {
+            val entry = dao.getAt(index)
+            val text = entry.text
+            if (entry.isPinned || entry.filename != null || text.isNullOrEmpty()) continue
+            val category = dev.agentkeyboard.core.clip.ClipGuard.classify(text, wasSensitive(text), region).category
+            if (category == dev.agentkeyboard.core.clip.ClipCategory.SECRET || category == dev.agentkeyboard.core.clip.ClipCategory.OTP)
+                dao.deleteClipAt(index)
+        }
+    }
 
     fun getHistorySize() = clipboardDao?.count() ?: 0
 
@@ -286,6 +327,9 @@ class ClipboardHistoryManager(
         val inputType = editorInfo?.inputType ?: InputType.TYPE_NULL
         if (hasText) {
             if (TextUtils.isEmpty(content)) return null
+            // stage 44: a secret is never offered as a normal strip suggestion
+            if (dev.agentkeyboard.core.clip.ClipGuard.classify(content.toString(),
+                    ClipboardManagerCompat.getClipSensitivity(clipData.description) == true).kind == dev.agentkeyboard.core.clip.ClipKind.SECRET) return null
             if (InputTypeUtils.isNumberInputType(inputType) && !content.isValidNumber()) return null
             val shortenedContent = content.take(200) // for display only
             KeyboardTypeface.applyToTextView(textView)

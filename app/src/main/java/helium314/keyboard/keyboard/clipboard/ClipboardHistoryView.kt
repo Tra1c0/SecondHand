@@ -62,6 +62,11 @@ class ClipboardHistoryView @JvmOverloads constructor(
             // the back button lives in the strip; with a hidden strip the bottom row must stay
             && Settings.getValues().isSecondaryStripVisible
     private var flatLabelHeight = 0
+    /** List height without the vault rows (stage 44), set in [startClipboardHistory]. */
+    private var listHeightWithoutVault = 0
+    private var editorInfo: EditorInfo? = null
+    private var vaultTextColor = 0
+    private var vaultTypeface: android.graphics.Typeface? = null
     private lateinit var clipboardAdapter: ClipboardAdapter
 
     lateinit var keyboardActionListener: KeyboardActionListener
@@ -210,11 +215,46 @@ class ClipboardHistoryView @JvmOverloads constructor(
 
         // absurd workaround so Android sets the correct color from stateList (depending on "activated")
         toolbarKeys.forEach { it.isEnabled = false; it.isEnabled = true }
+
+        // stage 44: vault rows above the list; refreshed when items expire while the view is open
+        this.editorInfo = editorInfo
+        vaultTextColor = params.mTextColor
+        vaultTypeface = params.mTypeface
+        listHeightWithoutVault = clipboardRecyclerView.layoutParams.height
+        helium314.keyboard.agent.ClipVault.onChange = { post { refreshVault() } }
+        refreshVault()
+    }
+
+    /** Shows the vault rows (nothing when locked, incognito or in a password field) and shortens the list by their height. */
+    internal fun refreshVault() {
+        if (!this::clipboardAdapter.isInitialized || clipboardAdapter.clipboardHistoryManager == null) return
+        val blocked = helium314.keyboard.agent.ClipVault.isBlocked(context, Settings.getValues(), editorInfo)
+        val chipColor = Settings.getValues().mColors.get(ColorType.KEY_BACKGROUND)
+        val height = helium314.keyboard.agent.ClipVaultSection.update(this, blocked, vaultTextColor, chipColor, vaultTypeface) { onVaultPick(it) }
+        if (listHeightWithoutVault > 0) clipboardRecyclerView.layoutParams = clipboardRecyclerView.layoutParams.apply {
+            this.height = (listHeightWithoutVault - height).coerceAtLeast(listHeightWithoutVault / 3)
+        }
+    }
+
+    /** A tap on a vault chip: the user's own insertion, like a history entry; a secret is used up and leaves the system clipboard. */
+    private fun onVaultPick(item: helium314.keyboard.agent.ClipVault.Item) {
+        val vault = helium314.keyboard.agent.ClipVault
+        if (vault.isBlocked(context, Settings.getValues(), editorInfo)) { refreshVault(); return }
+        val taken = vault.take(item.id) ?: run { refreshVault(); return }
+        keyboardActionListener.onPressKey(KeyCode.NOT_SPECIFIED, 0, 1, HapticEvent.KEY_PRESS)
+        keyboardActionListener.onTextInput(taken.insertText)
+        keyboardActionListener.onReleaseKey(KeyCode.NOT_SPECIFIED, false)
+        if (taken.kind == dev.agentkeyboard.core.clip.ClipKind.SECRET) vault.clearSystemClip(context, taken)
+        refreshVault()
+        if (Settings.getValues().mAlphaAfterClipHistoryEntry)
+            keyboardActionListener.onCodeInput(KeyCode.ALPHA, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
     }
 
     fun stopClipboardHistory() {
         if (!this::clipboardAdapter.isInitialized) return
         clipboardRecyclerView.adapter = null
+        helium314.keyboard.agent.ClipVault.onChange = null
+        editorInfo = null
         ClipboardThumbnails.clear() // pictures are not kept beyond the visit of this view
         clipboardHistoryManager.setHistoryChangeListener(null)
         clipboardAdapter.clipboardHistoryManager = null

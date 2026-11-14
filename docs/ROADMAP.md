@@ -124,15 +124,15 @@ Reihenfolge von oben nach unten.
   `KeyboardActionListenerImpl` brauchen noch einen Prüfer. Offen: Gerätetest (Feldabfrage in
   Messengern, Schreibmarke nach `{cursor}` in einem Editor, der zwei Auswahl-Meldungen anders
   verarbeitet (P147), App-Auswahl, Enter einer echten Hardware-Tastatur).
-- **44 Zwischenablage-Wächter und Tresor (Wunsch des Owners vom 2026-11-14)** — beschlossen.
-  Sortiert ohne Rückfrage (Sortieren ändert keinen Editortext): Geheimnisse (Passwort-artig,
-  API-Schlüssel wie `sk-…`/`ghp_…`, lange Zufallstokens, vom Passwortmanager als vertraulich
-  markierte Clips) in einen Bereich „Tresor“, verdeckt angezeigt, nie in normalen Vorschlägen,
-  kurz gültig; Einmalcodes eigener Bereich, ca. 10 min; persönliche Daten (IBAN, Telefon, E-Mail,
-  Adresse) beschriftet. Entscheidet die offene Frage „vertrauliche Clips im normalen Verlauf“:
-  nein. Ablaufzeit (Annahme des Leads): nach dem ersten Einfügen, spätestens nach 2 Minuten.
-  Vor dem Bau prüfen: darf die Tastatur auf
-  Android 16 die System-Zwischenablage nach dem Einfügen leeren? Lokal, nichts geloggt. (M)
+- **44 Zwischenablage-Wächter und Tresor** ist gebaut (siehe FEATURES.md, Nachweis in
+  `docs/VALIDATION.md` → Etappe 44). Entscheidet die offene Frage „vertrauliche Clips im normalen
+  Verlauf“: nein. Annahmen des Leads, die der Owner ändern kann: Geheimnis weg nach dem ersten
+  Einfügen, spätestens nach 2 Minuten; Einmalcode 10 Minuten, bleibt nach dem Einfügen; im Zweifel
+  bleibt ein Clip normal (nur starke Signale machen ein Geheimnis); kein Tresor in Passwortfeldern
+  (Auftrag), dort Kopiertes wird nirgends behalten. System-Zwischenablage: Laut Android-Quelltext
+  darf die Tastatur sie ohne Fokus leeren; sie tut es nur nach dem Einfügen aus dem Tresor und nur,
+  wenn noch genau dieser Clip darin liegt. Offen: Gerätetest (Leeren auf Android 16, TalkBack,
+  echte SMS-Codes, Passwortmanager), Prüfer-Review. (M)
 - **45 Feld- und Kontext-Vorschläge (Wunsch des Owners vom 2026-11-14)** — beschlossen. Aus dem
   aktuellen Feld (Typ, Hinweistext, Autofill-Kennung, App) und dem Text vor der Schreibmarke
   schlägt die Leiste Passendes vor, immer als Chip, ein Tipp übernimmt: E-Mail-Feld → Adresse,

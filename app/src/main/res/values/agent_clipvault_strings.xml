@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 44 clipboard guard and vault (own file so parallel work on other string files does not collide). English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="agent_vault_title">Vault</string>
+    <string name="agent_vault_codes">One-time codes</string>
+    <!-- %s: the masked secret, e.g. "sk-…7f3a"; never the secret itself -->
+    <string name="agent_vault_secret_description">Secret %s, tap inserts it once</string>
+    <!-- %s: the code -->
+    <string name="agent_vault_code_description">One-time code %s, tap inserts it</string>
+    <string name="agent_vault_label_iban">IBAN</string>
+    <string name="agent_vault_label_phone">Phone</string>
+    <string name="agent_vault_label_email">E-mail</string>
+    <string name="agent_vault_label_address">Address</string>
+    <!-- %1$s: label like "IBAN", %2$s: the clip text -->
+    <string name="agent_vault_labelled_description">%1$s: %2$s</string>
+    <!-- a secret kept in the history from before stage 44 (pinned) -->
+    <string name="agent_vault_hidden_entry">Secret %s</string>
+</resources>

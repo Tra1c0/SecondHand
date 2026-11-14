@@ -797,6 +797,15 @@ dabei nicht gesichert.
   Verlauf (Einstellungen → Leiste & Befehle → „Zwischenablage-Verlauf“) öffnet sie die
   Zwischenablage-Ansicht. In der Ansicht: Karte antippen fügt ein, lange drücken heftet an, zur Seite wischen entfernt. Oben
   links geht es zurück zu den Tasten, oben rechts leerst du den Verlauf.
+- Tresor (nur mit eingeschaltetem Verlauf): Kopierst du ein Geheimnis (Passwort aus dem
+  Passwortmanager, API-Schlüssel wie `sk-…`, Token), landet es nicht im Verlauf, sondern oben in
+  der Zwischenablage-Ansicht unter „Tresor“, verdeckt (z. B. „sk-proj-…7f3a“). Antippen fügt es
+  einmal ein; danach ist es weg, und die Tastatur leert die System-Zwischenablage, wenn dort noch
+  genau dieses Geheimnis liegt. Nach 2 Minuten verschwindet es von selbst. Darunter
+  „Einmalcodes“: ein kopierter Code oder eine kopierte SMS mit Code; Antippen fügt nur die Ziffern
+  ein, nach 10 Minuten weg. IBAN, Telefonnummer, E-Mail und Adresse stehen normal im Verlauf, mit
+  einer kleinen Beschriftung darüber. Kein Tresor in Passwortfeldern, im Inkognito-Modus und bei
+  gesperrtem Gerät. Geheimnisse erscheinen nie als Pille in der Leiste.
 - Die Pille mit kopiertem Text oder Bild in der Leiste erscheint nur, wenn
   „Zwischenablagen-Inhalt vorschlagen“ (Einstellungen → Textkorrektur) an ist. Antippen fügt ein, lange
   drücken blendet sie aus.

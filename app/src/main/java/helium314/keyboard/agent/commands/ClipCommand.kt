@@ -113,7 +113,9 @@ object ClipCommand : KeyboardCommands.Command {
                 val text = entry.text
                 if (entry.filename != null || text.isNullOrBlank()) return@mapNotNull null
                 if (!entry.isPinned && entry.timeStamp < oldest) return@mapNotNull null
-                Clip(text, entry.timeStamp, sensitive = text == sensitiveText || wasSensitive(text))
+                // stage 44: what the guard sorts as secret (e.g. pinned before the guard) counts as sensitive
+                val secret = dev.agentkeyboard.core.clip.ClipGuard.classify(text).category == dev.agentkeyboard.core.clip.ClipCategory.SECRET
+                Clip(text, entry.timeStamp, sensitive = secret || text == sensitiveText || wasSensitive(text))
             }
         }
 

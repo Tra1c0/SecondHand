@@ -36,6 +36,18 @@ object PhoneFormat {
 
     private val util: PhoneNumberUtil by lazy { PhoneNumberUtil.getInstance() }
 
+    /**
+     * True if [text] is a valid number for [region] (or with a country code), written only with the
+     * characters of a typed number; stage 44 labels such clips "Telefon".
+     */
+    fun isValid(text: String, region: String): Boolean {
+        if (text.any { it !in ALLOWED }) return false
+        val digits = text.count { it in '0'..'9' }
+        if (digits < MIN_DIGITS || digits > MAX_DIGITS || text.lastIndexOf('+') > 0) return false
+        val number = try { util.parse(text, region) } catch (_: NumberParseException) { return false }
+        return util.isValidNumber(number)
+    }
+
     /** The international format of [text] if it is a valid number and looks different, else null. */
     fun suggest(text: String, region: String): String? {
         if (text.any { it !in ALLOWED }) return null
