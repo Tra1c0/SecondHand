@@ -109,7 +109,7 @@ Schalter wirkt gerade nicht (die Regeln brauchen die Autokorrektur, „Wortvorsc
 Vorschlagsleiste, „Doppeltipp = Punkt“ eine Leertaste ohne Doppeltipp-Geste). „Kontakte und
 App-Namen“, „Alle Korrektur-Einstellungen“ (Stärke als Regler, personalisierte Vorschläge,
 anstößige Wörter …), „Wörterbücher“, „Persönliches Wörterbuch“ und „Gelernte Wörter“ öffnen die
-bisherigen Seiten. „Lernen pausieren“ behält das Gelernte; Lernen ganz ausschalten (und löschen)
+bisherigen Seiten, „Gedächtnis“ die Seite des Gedächtnisses (Abschnitt „Gedächtnis“ unten). „Lernen pausieren“ behält das Gelernte; Lernen ganz ausschalten (und löschen)
 geht unter „Alle Korrektur-Einstellungen“ → „Personalisierte Vorschläge“.
 
 Unter „Regeln“ steht auch **Formatwächter** (anfangs an). Er prüft E-Mail-, Telefon- und
@@ -927,6 +927,41 @@ wenn „Trefferzonen an mich anpassen“ an ist; anfangs aus).
 - „Trefferzonen zurücksetzen“ und „Gelernte Wörter löschen“ löschen auch die Szenen.
 - Nichts davon in Passwortfeldern, im Inkognito-Modus, in Feldern, die kein Lernen erlauben, bei
   pausiertem Lernen oder bei gesperrtem Gerät.
+
+## Gedächtnis
+
+Einstellungen → Tippen & Korrektur → Wörter & Lernen → „Gedächtnis“. Alles lokal, nur auf dem
+Gerät, nichts davon geht ins Internet.
+
+- „Merken, wie ich schreibe“ (anfangs aus) schaltet das Lernen ein. Danach merkt sich die
+  Tastatur Wortfolgen aus deinen eigenen, getippten Sätzen. Hast du eine Folge oft genug
+  geschrieben, erscheint nach dem Leerzeichen hinter den ersten zwei, drei Wörtern ein Chip mit
+  dem ganzen Rest, z. B. nach „Ich melde mich “ der Chip „… sobald ich mehr weiß“. Erst dein Tipp
+  hängt den Rest hinter der Schreibmarke an; nichts wird ersetzt, dein Satz bleibt, wie er ist.
+  Ist sich die Tastatur nur beim nächsten Wort sicher, steht nur dieses Wort vorn in der Leiste.
+  Eine Folge braucht einige Wiederholungen (etwa zehn für zwei Wörter Rest), bevor sie als Chip
+  kommt; selten benutzte verblassen nach Wochen.
+- Eigene Wörter: Schickst du ein Wort, das die Tastatur nicht kennt (Umgangssprache, eine
+  bewusste Schreibweise), dreimal so ab, wie du es getippt hast, oder machst du seine Korrektur
+  dreimal mit der Löschtaste rückgängig, wird es dein Wort: Es wird nicht mehr automatisch
+  korrigiert und beim Tippen seines Anfangs angeboten. Die Autokorrektur ändert weiter immer nur
+  ein einzelnes Wort.
+- Abkürzungen: Ersetzt du eine Kurzform zweimal selbst durch das ganze Wort (zum Beispiel „vlt“
+  löschen und „vielleicht“ tippen), bietet die Leiste einmal den Chip „Kürzel vlt → vielleicht?“
+  an. Ein Tipp legt das Kürzel im persönlichen Wörterbuch an; tippst du nicht, kommt das Angebot
+  nicht wieder und steht nur noch auf der Seite unter „Abkürzungen“ („Anlegen“ oder „Verwerfen“).
+- Textbausteine: „Passende Textbausteine vorschlagen“ (anfangs an, lernt nichts) zeigt nach dem
+  Leerzeichen einen Chip „📋 Name: …“, wenn deine letzten Wörter klar zu einem deiner `@snip`-
+  Bausteine passen (z. B. „Schick mir deine Adresse “). Ein Tipp fügt ihn an der Schreibmarke
+  ein; ein Baustein mit Ausfüllfeldern schreibt `@snip Name`, die Leiste fragt dann die Felder ab.
+- Auf der Seite: Wortfolgen ab drei Wörtern (die stärksten 100) mit „Anpinnen“ (verblasst nie,
+  wird nie verdrängt) und „Löschen“ (löscht die Folge und jede längere, die sie enthält), eigene
+  Wörter mit „Löschen“, Abkürzungs-Angebote, „Ausgeschlossene Apps“ (dort lernt und zeigt das
+  Gedächtnis nichts; „App ausschließen“ wählt aus den installierten Apps) und „Alles vergessen“.
+- Nie in Passwortfeldern, im Inkognito-Modus, in Feldern ohne Lernen, in ausgeschlossenen Apps
+  oder bei gesperrtem Gerät. „Lernen pausieren“ hält das Lernen an, die Chips bleiben.
+- Chips kommen nur zwischen den Wörtern, nach einem Leerzeichen; nach einem angetippten
+  Vorschlag erst, wenn du das Leerzeichen tippst.
 
 ## Gelernte Wörter
 

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 46, the memory (phrases, own words, abbreviation offers, snippet chip). English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="agent_memory_title">Memory</string>
+    <string name="agent_memory_row_sub">Phrases, own words, abbreviations</string>
+    <string name="agent_memory_switch">Remember how I write</string>
+    <string name="agent_memory_switch_sub">Local, only on this device. Learns word sequences from your own sentences, slang you keep and abbreviations you expand by hand. Nothing in password fields, incognito, fields without learning, excluded apps, with learning paused or on a locked device. It never changes your text: a tap on a chip only adds the rest after the cursor.</string>
+    <string name="agent_memory_snippets">Suggest fitting snippets</string>
+    <string name="agent_memory_snippets_sub">Local similarity of words and word parts, no download. A tap inserts the snippet at the cursor.</string>
+    <string name="agent_memory_phrases">Phrases</string>
+    <string name="agent_memory_phrases_none">No phrases yet. Sequences of three or more words appear here once you typed them a few times.</string>
+    <string name="agent_memory_phrase_weight">%1$s · used about %2$d times</string>
+    <string name="agent_memory_phrase_pinned">%1$s · pinned</string>
+    <string name="agent_memory_pin">Pin</string>
+    <string name="agent_memory_unpin">Unpin</string>
+    <string name="agent_memory_delete">Delete</string>
+    <string name="agent_memory_own_words">Own words</string>
+    <string name="agent_memory_own_words_sub">Words you committed three times as typed although the keyboard did not know them, or after undoing their correction. They are not corrected any more and are offered while you type their start.</string>
+    <string name="agent_memory_own_words_none">No own words yet.</string>
+    <string name="agent_memory_offers">Abbreviations</string>
+    <string name="agent_memory_offers_sub">When you replace a short form by its expansion twice yourself, the strip offers once to create the shortcut in the personal dictionary.</string>
+    <string name="agent_memory_offers_none">No offers yet.</string>
+    <string name="agent_memory_offer_row">%1$s → %2$s</string>
+    <string name="agent_memory_offer_created_state">created</string>
+    <string name="agent_memory_offer_create">Create</string>
+    <string name="agent_memory_offer_discard">Discard</string>
+    <string name="agent_memory_apps">Excluded apps</string>
+    <string name="agent_memory_apps_sub">Nothing is learned or offered in these apps.</string>
+    <string name="agent_memory_apps_none">No app excluded.</string>
+    <string name="agent_memory_apps_add">Exclude an app</string>
+    <string name="agent_memory_apps_remove">Remove</string>
+    <string name="agent_memory_clear">Forget everything</string>
+    <string name="agent_memory_clear_confirm">Forget all phrases, own words and abbreviation offers? Excluded apps and shortcuts already created stay.</string>
+    <string name="agent_memory_locked">Unlock the device to see the memory.</string>
+    <string name="agent_memory_chip_rest">Add “%1$s” after the cursor</string>
+    <string name="agent_memory_chip_snippet">Insert snippet %1$s at the cursor</string>
+    <string name="agent_memory_chip_offer">Shortcut %1$s → %2$s?</string>
+    <string name="agent_memory_chip_offer_description">Create the shortcut %1$s for %2$s in the personal dictionary</string>
+    <string name="agent_memory_offer_created">Shortcut created</string>
+    <string name="agent_memory_offer_failed">The personal dictionary could not be changed</string>
+</resources>

@@ -845,6 +845,33 @@ class SuggestTest {
         assertEquals(listOf("bur", "BUR", "BUT", "BIT", "BUY", "😢", "BUTTER"), result4.mSuggestedWordInfoList.map { it.mWord })
     }
 
+    // fork, stage 46: an own word of the memory (slang kept three times) is never corrected automatically
+    @Test fun `own word of the memory stays as typed and the correction stays a suggestion`() {
+        enableAutocorrect(confidenceVeryAggressive)
+        fun krass(): SuggestedWords {
+            tapTypingSuggestions = suggestionResults(listOf(suggestion("kraft", 650000)))
+            return getSuggestedWords(false, "krass", CapsMode.OFF)
+        }
+        assert(krass().mWillAutoCorrect) // upstream behaviour: replaced
+        helium314.keyboard.agent.Memory.resetForTest()
+        helium314.keyboard.agent.AgentStorageContexts.keyboard(latinIME)
+            .getSharedPreferences(helium314.keyboard.agent.Memory.FILE, android.content.Context.MODE_PRIVATE)
+            .edit { putString(helium314.keyboard.agent.Memory.OWN_WORDS, "v1\no;krass") }
+        assert(krass().mWillAutoCorrect, { "only with the memory switched on" })
+        latinIME.prefs().edit { putBoolean(AgentPreferences.MEMORY, true) }
+        val kept = krass()
+        assertFalse(kept.mWillAutoCorrect)
+        assertTrue(kept.mSuggestedWordInfoList.any { it.mWord == "kraft" }) // still offered
+        // also not by a learned typo pair
+        latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_LEARN_TYPOS, true) }
+        repeat(3) { TypoMemory.confirm(latinIME, "krass", "kraft", null, Settings.getValues()) }
+        assertFalse(krass().mWillAutoCorrect)
+        // removed on the page: corrected again
+        assertTrue(helium314.keyboard.agent.Memory.removeOwnWord(latinIME, "krass"))
+        assert(krass().mWillAutoCorrect)
+        helium314.keyboard.agent.Memory.resetForTest()
+    }
+
     private fun getSuggestedWords(gesture: Boolean, typedWord: String, capsMode: CapsMode): SuggestedWords {
         val wc = WordComposer()
         if (gesture) wc.setBatchInputPointers(InputPointers(1))

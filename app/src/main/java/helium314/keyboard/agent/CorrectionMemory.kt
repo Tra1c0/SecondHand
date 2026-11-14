@@ -101,9 +101,11 @@ object RejectedCorrections {
         settings.mRememberRejectedCorrections && !settings.mLearningPaused
             && !settings.mIncognitoModeEnabled && !settings.mIsLocked
 
-    /** Called when an automatic correction was undone. Pairs that differ only in case are not stored. */
+    /** Called when an automatic correction was undone (also tells [Memory]). Pairs that differ only in case are not stored. */
     @JvmStatic
     fun remember(context: Context, typed: String, correction: String, settings: SettingsValues) {
+        // stage 46: an undone correction is one use of the typed word as an own word (the memory has its own switch)
+        if (!typed.equals(correction, ignoreCase = true)) Memory.onCorrectionUndone(context, typed, settings)
         if (!mayRemember(settings)) return
         if (typed.isBlank() || correction.isBlank() || typed.equals(correction, ignoreCase = true)) return
         val key = key(typed, correction)

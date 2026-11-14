@@ -38,6 +38,10 @@ object AgentPreferences {
     const val FIELD_SUGGESTIONS = "agent_field_suggestions"
     /** The page "Meine Daten & Vorschläge" (SettingsDestination.AgentMyData), opened from the vault. */
     const val MY_DATA_DESTINATION = "agent_my_data"
+    /** Stage 46: the memory learns phrases, own words and abbreviations from typed words (opt-in, default off). */
+    const val MEMORY = "agent_memory"
+    /** Stage 46: a fitting snippet as a chip while typing (default on; learns nothing, works without [MEMORY]). */
+    const val MEMORY_SNIPPETS = "agent_memory_snippets"
     /** Typed commands like "@math" (stage 24, default on). */
     const val COMMANDS = "agent_commands"
     /** One character from CommandSyntax.ALLOWED_PREFIXES. */

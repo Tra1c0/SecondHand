@@ -119,6 +119,8 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         // fork, stage 20b: a typo the user corrected by hand three times is corrected automatically
         val hasAutoCorrection = applyLearnedCorrection(typedWordString, capsMode, ngramContext, suggestionResults,
             suggestionsContainer, isCorrectionEnabled, wordComposer) || guardedAutoCorrection
+        // fork, stage 46: own words of the memory (offered while typing, behind the correction) and its next word
+        addFromMemory(typedWordString, resultsArePredictions, suggestionResults, suggestionsContainer, ngramContext, hasAutoCorrection)
         // fork, stage 35: tolerant emoji suggestions behind the first two words, never the autocorrection
         if (typedWordString.isNotEmpty() && !resultsArePredictions) {
             val mainLocale = mDictionaryFacilitator.mainLocale
@@ -196,6 +198,8 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         val typedIsMainWord = results.any { it.mWord.equals(typed, ignoreCase = true) && it.mSourceDict.mDictType == Dictionary.TYPE_MAIN }
         // "never change correct words" also covers learned pairs; the umlaut rule does not: three own picks in this context are a clear wish
         if (typedIsMainWord && settings.mKeepValidWords) return false
+        // stage 46: an own word of the memory is never corrected automatically
+        if (helium314.keyboard.agent.Memory.isOwnWord(context, typed)) return false
         val meant = TypoMemory.meantWord(context, typed, previous, typedIsMainWord) ?: return false
         if (settings.mRememberRejectedCorrections && RejectedCorrections.contains(context, typed, meant)) return false
         val wanted = capitalize(meant, capsMode, mDictionaryFacilitator.mainLocale)
@@ -206,6 +210,35 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
                 SuggestedWordInfo.KIND_CORRECTION, TypoMemory.DICTIONARY, SuggestedWordInfo.NOT_AN_INDEX, SuggestedWordInfo.NOT_A_CONFIDENCE)
         suggestions.add(0, info)
         return true
+    }
+
+    /**
+     * Stage 46: tells the memory whether a main dictionary knows the typed word (an own word is counted
+     * only when none does), offers an own word that the typed word starts (never as the automatic
+     * correction: behind it, or first without one) and puts the memory's next word first among the
+     * predictions. Nothing changes without the memory switched on or in a blocked field.
+     */
+    private fun addFromMemory(typed: String, predictions: Boolean, results: SuggestionResults,
+                              suggestions: ArrayList<SuggestedWordInfo>, ngramContext: NgramContext, hasAutoCorrection: Boolean) {
+        val context = Settings.getCurrentContext() ?: return
+        if (!helium314.keyboard.agent.Memory.isEnabled(context)) return
+        val settings = Settings.getValues()
+        if (typed.isNotEmpty() && !predictions) {
+            helium314.keyboard.agent.Memory.onTyped(typed,
+                results.any { it.mWord.equals(typed, ignoreCase = true) && it.mSourceDict.mDictType == Dictionary.TYPE_MAIN })
+            val own = helium314.keyboard.agent.Memory.ownCompletion(context, settings, typed) ?: return
+            if (suggestions.any { it.mWord.equals(own, ignoreCase = true) }) return
+            suggestions.add(if (hasAutoCorrection) minOf(1, suggestions.size) else 0, SuggestedWordInfo(own, "", SuggestedWordInfo.MAX_SCORE,
+                SuggestedWordInfo.KIND_COMPLETION, helium314.keyboard.agent.Memory.DICTIONARY, SuggestedWordInfo.NOT_AN_INDEX,
+                SuggestedWordInfo.NOT_A_CONFIDENCE))
+        } else if (typed.isEmpty() && predictions && settings.mBigramPredictionEnabled) {
+            val next = helium314.keyboard.agent.Memory.nextWord(context, settings, ngramContext) ?: return
+            val index = suggestions.indexOfFirst { it.mWord.equals(next, ignoreCase = true) }
+            val info = if (index >= 0) suggestions.removeAt(index) else SuggestedWordInfo(next, "", SuggestedWordInfo.MAX_SCORE,
+                SuggestedWordInfo.KIND_PREDICTION, helium314.keyboard.agent.Memory.DICTIONARY, SuggestedWordInfo.NOT_AN_INDEX,
+                SuggestedWordInfo.NOT_A_CONFIDENCE)
+            suggestions.add(0, info)
+        }
     }
 
     /**
@@ -221,6 +254,8 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
             && typedInfo.mSourceDict.mLocale == first.mSourceDict.mLocale
         val settings = Settings.getValues()
         val context = Settings.getCurrentContext()
+        // stage 46: an own word of the memory (slang, a deliberate spelling) stays as typed; the correction stays a suggestion
+        if (helium314.keyboard.agent.Memory.isOwnWord(context, typed)) return false
         // stage 48: a known word never gets only another case automatically ("essen" stays, "Essen" is offered)
         if (typedInfo != null && !first.isKindOf(SuggestedWordInfo.KIND_WHITELIST)
             && CorrectionGuard.changesOnlyCase(typed, correction)) return false

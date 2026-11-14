@@ -152,17 +152,18 @@ Reihenfolge von oben nach unten.
   Hinweistext, Beschriftung, Feldname und App. Einfügen in ein leeres Feld geht wie das Einfügen
   aus der Zwischenablage-Ansicht. Offen: Gerätetest (Code-Felder echter Apps, Messenger, Browser,
   TalkBack), Prüfer-Review (Änderungen an `KeyboardCommands`, `ClipVaultSection`). (M–L)
-- **46 Gedächtnis (Wunsch des Owners vom 2026-11-14)** — beschlossen. Lokal, opt-in wie das
-  übrige Lernen: Wortfolgen und ganze Satzteile aus den eigenen Sätzen (Frische und Häufigkeit
-  gewichtet, Verblassen), erst nächstes Wort, bei sicherem Treffer die ganze Folge als ein Chip;
-  Umgangssprache und bewusste Tippfehler werden nach wiederholter Nutzung eigene Wörter (bestehende
-  Lernfunktionen zusammenführen); Abkürzungen: ersetzt der Owner sie wiederholt selbst, einmaliger
-  Vorschlag, die Erweiterung anzulegen. Seite „Was ich mir gemerkt habe“ (löschen, anpinnen),
-  Ausschluss je App, nie in Passwortfeldern, Inkognito oder bei verbotenem Lernen. Ganz neue Sätze
-  vorhersagen kann das nicht. Textbausteine finden über lokale Ähnlichkeit (Vektoren aus
-  Zeichen- und Wortteilen, ohne Modell-Download), passender Baustein als Chip. Grenze (Owner,
-  2026-11-14): Das Gedächtnis macht nie aus einem Satz einen anderen; es hängt nur auf Tipp hinter
-  der Schreibmarke an und ersetzt nichts, die Autokorrektur bleibt bei einem Wort. (L)
+- **46 Gedächtnis (Wunsch des Owners vom 2026-11-14)** ist gebaut (siehe FEATURES.md, Nachweis in
+  `docs/VALIDATION.md` → Etappe 46). Grenze des Owners eingehalten: Das Gedächtnis hängt nur auf
+  Tipp hinter der Schreibmarke an und ersetzt nichts, die Autokorrektur bleibt bei einem Wort.
+  Annahmen des Leads, die der Owner ändern kann: eigener Schalter „Merken, wie ich schreibe“
+  (anfangs aus); Chips wie in 45 nur nach dem Leerzeichen; der Rest einer Folge als Chip erst ab
+  dreimal und 70 % (gemessen), dadurch braucht eine Folge etwa zehn Wiederholungen; eigene Wörter
+  ab drei Nutzungen ohne Korrektur; Abkürzungs-Angebot ab zwei eigenen Ersetzungen, nur einmal in
+  der Leiste; „Passende Textbausteine“ anfangs an (lernt nichts). Seite „Gedächtnis“ unter Tippen &
+  Korrektur → Wörter & Lernen, mit `MemorySections` für die Seite „Was ich mir gemerkt habe“ aus
+  49. Offen: Prüfer-Review (Engine: `InputLogic`, `Suggest`), Gerätetest (Chips beim echten Tippen,
+  Abkürzungen mit echter Löschtaste, Kürzel im persönlichen Wörterbuch, Speicherzeit bei 2000
+  Folgen, Bausteine mit `{cursor}`).
 - **49 Korrekturen merken über das ganze Feld (Regeln mit dem Owner festgelegt, 2026-11-14)** —
   beschlossen, nach 48 (gleiche Engine-Stelle). Auch spätere Korrekturen zählen (nach weiteren
   Wörtern, nach Backspace über Leerzeichen, nach einem gewählten Vorschlag), solange der Owner im

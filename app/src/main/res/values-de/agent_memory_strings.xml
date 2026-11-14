@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 46, the memory (phrases, own words, abbreviation offers, snippet chip). -->
+<resources>
+    <string name="agent_memory_title">Gedächtnis</string>
+    <string name="agent_memory_row_sub">Wortfolgen, eigene Wörter, Abkürzungen</string>
+    <string name="agent_memory_switch">Merken, wie ich schreibe</string>
+    <string name="agent_memory_switch_sub">Lokal, nur auf diesem Gerät. Lernt Wortfolgen aus deinen eigenen Sätzen, Umgangssprache, die du behältst, und Abkürzungen, die du selbst ausschreibst. Nichts in Passwortfeldern, im Inkognito-Modus, in Feldern ohne Lernen, in ausgeschlossenen Apps, bei pausiertem Lernen oder gesperrtem Gerät. Ändert nie deinen Text: Ein Tipp auf einen Chip hängt nur den Rest hinter der Schreibmarke an.</string>
+    <string name="agent_memory_snippets">Passende Textbausteine vorschlagen</string>
+    <string name="agent_memory_snippets_sub">Lokale Ähnlichkeit von Wörtern und Wortteilen, kein Download. Ein Tipp fügt den Baustein an der Schreibmarke ein.</string>
+    <string name="agent_memory_phrases">Wortfolgen</string>
+    <string name="agent_memory_phrases_none">Noch keine Wortfolgen. Folgen ab drei Wörtern erscheinen hier, wenn du sie ein paarmal getippt hast.</string>
+    <string name="agent_memory_phrase_weight">%1$s · etwa %2$d-mal benutzt</string>
+    <string name="agent_memory_phrase_pinned">%1$s · angepinnt</string>
+    <string name="agent_memory_pin">Anpinnen</string>
+    <string name="agent_memory_unpin">Lösen</string>
+    <string name="agent_memory_delete">Löschen</string>
+    <string name="agent_memory_own_words">Eigene Wörter</string>
+    <string name="agent_memory_own_words_sub">Wörter, die du dreimal so abgeschickt hast, wie du sie getippt hast, obwohl die Tastatur sie nicht kannte, oder nach dem Rückgängigmachen ihrer Korrektur. Sie werden nicht mehr korrigiert und beim Tippen ihres Anfangs angeboten.</string>
+    <string name="agent_memory_own_words_none">Noch keine eigenen Wörter.</string>
+    <string name="agent_memory_offers">Abkürzungen</string>
+    <string name="agent_memory_offers_sub">Ersetzt du eine Kurzform zweimal selbst durch ihre Erweiterung, bietet die Leiste einmal an, das Kürzel im persönlichen Wörterbuch anzulegen.</string>
+    <string name="agent_memory_offers_none">Noch keine Angebote.</string>
+    <string name="agent_memory_offer_row">%1$s → %2$s</string>
+    <string name="agent_memory_offer_created_state">angelegt</string>
+    <string name="agent_memory_offer_create">Anlegen</string>
+    <string name="agent_memory_offer_discard">Verwerfen</string>
+    <string name="agent_memory_apps">Ausgeschlossene Apps</string>
+    <string name="agent_memory_apps_sub">In diesen Apps wird nichts gelernt und nichts angeboten.</string>
+    <string name="agent_memory_apps_none">Keine App ausgeschlossen.</string>
+    <string name="agent_memory_apps_add">App ausschließen</string>
+    <string name="agent_memory_apps_remove">Entfernen</string>
+    <string name="agent_memory_clear">Alles vergessen</string>
+    <string name="agent_memory_clear_confirm">Alle Wortfolgen, eigenen Wörter und Abkürzungs-Angebote vergessen? Ausgeschlossene Apps und schon angelegte Kürzel bleiben.</string>
+    <string name="agent_memory_locked">Entsperre das Gerät, um das Gedächtnis zu sehen.</string>
+    <string name="agent_memory_chip_rest">„%1$s“ hinter der Schreibmarke anhängen</string>
+    <string name="agent_memory_chip_snippet">Textbaustein %1$s an der Schreibmarke einfügen</string>
+    <string name="agent_memory_chip_offer">Kürzel %1$s → %2$s?</string>
+    <string name="agent_memory_chip_offer_description">Kürzel %1$s für %2$s im persönlichen Wörterbuch anlegen</string>
+    <string name="agent_memory_offer_created">Kürzel angelegt</string>
+    <string name="agent_memory_offer_failed">Das persönliche Wörterbuch ließ sich nicht ändern</string>
+</resources>

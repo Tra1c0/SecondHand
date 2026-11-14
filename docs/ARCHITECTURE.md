@@ -225,6 +225,41 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   sonst Deutsch); `SnippetApps` (Paketnamen, höchstens 20, `allows`). Test `CT/SnippetTemplateTest.kt`.
 - `TouchDynamics.kt` (Etappe 50): Kurzzeitschicht und Szeneprofile der Trefferzonen, ohne Android
   (Details im Abschnitt „Lerndaten“ → Dynamische Trefferzonen). Test `CT/TouchDynamicsTest.kt`.
+- `C/memory/` (Etappe 46, Gedächtnis, Paket `dev.agentkeyboard.core.memory`, P174–P177):
+  `PhraseMemory.kt`: `PhraseText` (`currentSentence` = Tokens nach dem letzten `. ! ? … ; ( ) "`
+  oder Zeilenumbruch, `key` = Wort kleingeschrieben ohne `,`/`:` am Ende, null für Ziffern, `@`,
+  URL-Teile, über 32 Zeichen; `trailingWords`), `Phrase` (Schlüssel, Text wie zuletzt getippt,
+  Gewicht, Tag, angepinnt; `toString` ohne Text), `PhrasePrediction` (`next`/`nextShare`,
+  `rest`/`restWords`/`restShare`, `restKey`) und `PhraseBook`: `learn(run, Tag)` zählt die Folgen
+  von 2 bis `MAX_WORDS` = 8 Wörtern, die mit dem neuen Wort enden; 2 Wörter immer, eine längere
+  erst, wenn beide um ein Wort kürzeren Teile `GROW_AT` = 2 erreicht haben, neu mit Gewicht 1 (P175).
+  Verstärkung +1 auf das verblasste Gewicht (Halbwertszeit `HALF_LIFE_DAYS` = 30, Grenze 1000).
+  Höchstens `MAX_ENTRIES` = 2000; darüber fallen die schwächsten (bei Gleichstand die ältesten)
+  nicht angepinnten bis 95 %. Angepinnt (höchstens 200): kein Verblassen, nie verdrängt.
+  `predict(Text vor der Schreibmarke)` nur nach Leerraum: der längste Kontext (2–7 Wörter am Ende
+  des Satzteils) mit Gewicht ≥ `MIN_CONTEXT` = 2 entscheidet; nächstes Wort ab `NEXT_MIN_SUPPORT` = 2
+  und `NEXT_MIN_SHARE` = 0,4, der ganze Rest (≥ 2 Wörter, die längste Folge) ab `REST_MIN_SUPPORT`
+  = 3 und `REST_MIN_SHARE` = 0,7 (Anteil am Kontextgewicht; gemessen, `docs/VALIDATION.md` →
+  Etappe 46). `predictKeys` dasselbe für die Vorwörter der Engine. `delete` entfernt die Folge und
+  jede längere, die sie enthält; `encode` „v1“ plus „Gewicht;Tag;0/1;Text“ je Zeile, `parse`
+  verwirft Kaputtes, nie eine Ausnahme, eine rückwärts gelaufene Uhr behält die Einträge.
+  `OwnWords.kt`: `OwnWordBook` (Nutzungen je Wort, nach `PROMOTE_AT` = 3 eigenes Wort, Nutzungen
+  älter als 90 Tage beginnen neu, je höchstens 500; `isCandidate` nur Buchstaben mit innerem `'`
+  oder `-`, 2–32 Zeichen; `completions` ab 2 Zeichen; Kodierung „v1“, `o;Form`, `u;Zahl;Tag;Form`).
+  `ShortcutOffers.kt`: `ShortcutRules.plausible` (Kurzform 2–6 Buchstaben, Erweiterung 1–5 Wörter
+  und mindestens 2 Zeichen länger; ein Wort enthält die Buchstaben in Reihenfolge ab dem ersten,
+  mehrere Wörter haben sie als Anfangsbuchstaben; Tippfehler-Korrekturen nie), `ReplacementTracker`
+  (letzte 8 Commits mit Startposition; ein Commit an der Startposition eines früheren, anderen
+  Worts = Ersetzung an Ort und Stelle, bei mehreren Wörtern bis zu 5 Commits gesammelt),
+  `ShortcutBook` (Zählung je Paar, ab `OFFER_AT` = 2 `READY`, dann `SHOWN`/`CREATED`/`DECLINED`,
+  höchstens 200, Kodierung „Zahl;STATUS;Kurz;Lang“). `SnippetMatcher.kt`: Merkmale = Wörter (`w:`,
+  Gewicht 1), Wortanfänge aus 5 Buchstaben bei längeren Wörtern (`p:`, 0,7) und Buchstaben-Trigramme
+  mit Rand (`t:`, 0,35), kleingeschrieben ohne Akzente, ß als ss, ohne Stoppwörter (de/en/es, auch
+  „vielen“, „dank“, „minuten“); TF-IDF über die Bausteine (Name doppelt, Text ohne Platzhalter, 400
+  Zeichen), Kosinus; ohne gemeinsames Wort oder Wortanfang 0. `best` ab 2 Wörtern mit 3 Buchstaben,
+  `THRESHOLD` = 0,35 und `MARGIN` = 0,08 vor dem zweiten (gemessen). Tests
+  `CT/memory/PhraseMemoryTest.kt` (mit synthetischem Schreiber und Präzisionsmessung),
+  `CT/memory/MemoryRulesTest.kt`.
 - Tests in `CT/`: `AiTextActionTest`, `EditorPolicyTest`, `LocalTextActionsTest`,
   `PendingBatchGateTest`, `SkillBindingTest`, `ToolTest`, `WorkflowTest`,
   `InsertionAnchorTest`, `StyledTranslationTest`, `UpdateReleasesTest`, `RgbLightingTest`,
@@ -337,6 +372,23 @@ Autokorrektur (Etappe 20a, Details im Abschnitt „Lerndaten“):
   am Textanfang fragt `getCapsMode` `K/agent/Abbreviations.isAbbreviation`; eine bekannte Abkürzung
   (Deutsch bei `mUsesGermanRules`, Englisch bei `mUsesAmericanTypography`) oder ein einzelner
   Buchstabe nach „x. “ („z. B.“) gibt keine Satz-Großschreibung. Alles andere wie upstream.
+
+Gedächtnis (Etappe 46, Details im Abschnitt „Lerndaten“ → Gedächtnis, P174–P177):
+
+- `InputLogic.java`: `performAdditionToUserHistoryDictionary` ruft nach den eigenen Ausstiegen
+  (unterdrückte Historie, Befehl, keine Vorschläge im Feld, Inkognito, langsame Verbindung) und vor
+  `addToUserHistory` `Memory.onWordCommitted` mit Wort, getippter Form (nur Tipp-Eingabe, nicht
+  wiederaufgenommen), Text vor der Schreibmarke (`Memory.LOOKBACK`) und Schreibmarke. Sonst
+  unverändert; das Gedächtnis ändert keinen Text.
+- `Suggest.kt`: `addFromMemory` direkt nach der Entscheidung über die automatische Korrektur
+  (`hasAutoCorrection` steht dann fest): meldet `Memory.onTyped` (kennt ein Hauptwörterbuch das
+  getippte Wort?), setzt ein eigenes Wort, das das getippte beginnt, als `KIND_COMPLETION` hinter
+  die Korrektur (ohne Korrektur an den Anfang, nie als Korrektur) und bei Vorhersagen das nächste
+  Wort des Gedächtnisses (`Memory.nextWord`, nur mit „Wortvorschläge“) an die erste Stelle.
+  `guardAllows` und `applyLearnedCorrection` korrigieren ein eigenes Wort (`Memory.isOwnWord`) nie
+  automatisch; die Korrektur bleibt Vorschlag.
+- `SettingsNavHost.kt`: Ziel `agent_memory` (`SettingsDestination.AgentMemory`, Seite
+  `AgentMemoryScreen`).
 
 Trefferzonen (Etappe 22a, Touch-Verarbeitung, jede Änderung mit Prüfer):
 
@@ -1259,6 +1311,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     (Karte „Regeln“, eine Zeile). Texte in `agent_format_strings.xml` (`values/`, `values-de/`).
     Tests `AT/FormatGuardChipsTest.kt`, mit echtem Host
     `InputLogicTest.formatGuardChipChangesTheFieldOnlyOnATapAndOnce`.
+  - Gedächtnis (46, P177): `A/MemoryChips.kt`, ohne Befehl nach den Feld- und Kontext-Vorschlägen
+    und vor dem Emoji-Mix (Abschnitt „Lerndaten“ → Gedächtnis). `Host.predictions` und
+    `Host.pickPrediction` (46) geben einer Chipreihe die üblichen Vorhersagen der Engine.
   - Feld- und Kontext-Vorschläge (45, P161–P164): `A/FieldSuggestionChips.kt`.
     `KeyboardCommands.buildChips` fragt ihn ohne Befehl nach dem Formatwächter und vor dem
     Emoji-Mix. `fieldClass` aus `inputType` (Passwort, URI, Filter, Datum: nie; Zahl mit Komma oder
@@ -2061,6 +2116,37 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Lernpause, kein Inkognito, nicht gesperrt), `weights` nur mit eingeschaltetem Schalter (sonst
   keine). „Gelernte Wörter löschen“ ruft `clear`. Das Ausschalten von „Personalisierte
   Vorschläge“ löscht sie nicht, sie werden dann nur nicht benutzt.
+- Gedächtnis (46, P174–P177): `A/Memory.kt` (Schalter `AgentPreferences.MEMORY`, Standard aus;
+  `MEMORY_SNIPPETS`, Standard an). Hält `PhraseBook`, `OwnWordBook`, `ShortcutBook` unter einer Sperre,
+  eigene Wörter zusätzlich als Menge für den Vorschlags-Thread; schreibt höchstens alle 30 s beim
+  Tippen und beim Verlassen des Felds (`AgentEditorController.startEditor`/`finishEditor` →
+  `onFieldChanged`, das auch Lauf und `ReplacementTracker` leert). Datei `agent_phrase_memory`
+  (gerätegeschützt, `docs/STORAGE.md`). `isBlocked`: keine Einstellungen, Inkognito (auch kein
+  Lernen und Passwort), `IME_FLAG_NO_PERSONALIZED_LEARNING`, gesperrt, kein Textfeld, Passwort,
+  ausgeschlossene App (höchstens 50 Paketnamen); `mayLearn` zusätzlich Schalter, keine Lernpause und
+  der Sperrzustand jetzt. `onWordCommitted` (Hook in `InputLogic`): der Lauf = längstes Ende der
+  eigenen Commits, mit dem der Satzteil vor der Schreibmarke noch endet (P174), `learn`; eine Nutzung
+  als eigenes Wort, wenn getippt = abgeschickt und das Hauptwörterbuch es laut `onTyped` nicht kennt
+  (P176); `ReplacementTracker` für Abkürzungen. `onCorrectionUndone` aus `RejectedCorrections.remember`
+  (auch ohne dessen Schalter). `createShortcut` = `UserDictionary.Words.addWord(Wort, 250, Kürzel,
+  alle Sprachen)`, in Tests ersetzt. `A/MemoryChips.kt`: Chips nach `FieldSuggestionChips` in
+  `KeyboardCommands.buildChips`, nur nach Leerraum (nicht nach Zeilenumbruch), nie gesperrt: der
+  sichere Rest (`RESULT`, „… Rest“), der passende Baustein („📋 Name: …“; mit Feldern nur, wenn
+  `@snip` an ist, dann wird „@snip Name“ angehängt) und einmal das fällige Abkürzungs-Angebot
+  (`TEMPLATE`, beim ersten Zeigen `SHOWN`, bleibt nur bei unveränderter Schreibmarke); mit einem davon
+  dazu die üblichen Vorhersagen (`Host.predictions`, Tipp über `Host.pickPrediction` →
+  `LatinIME.pickSuggestionManually`). Jeder Chip fügt nur über `Host.insertAtCursor` an der
+  Schreibmarke ein, für die er gebaut wurde, einmal, und nur wenn der Text davor noch derselbe ist
+  (P177). Bausteinindex im Speicher, neu bei anderer `SnipCommand.source` oder `SnippetStore.version`.
+  `AgentEditorController.suggestedWords` gibt den Chips die Vorschläge der Engine. Seite
+  `K/settings/screens/AgentMemoryScreen.kt` („Gedächtnis“, Zeile in Tippen & Korrektur → Wörter &
+  Lernen und in `SettingsAreas`): `MemorySections` (Schalter, Wortfolgen ab 3 Wörtern, die 100
+  stärksten, Anpinnen/Löschen, eigene Wörter, Abkürzungen Anlegen/Verwerfen, ausgeschlossene Apps
+  über `AppChooser` aus `AgentSnippetsSection.kt`, „Alles vergessen“), bei gesperrtem Gerät nur ein
+  Hinweis; gedacht zum Einbinden in die Seite „Was ich mir gemerkt habe“ aus 49. Texte in
+  `agent_memory_strings.xml` (`values/`, `values-de/`). Tests: Fälle „stage 46“ in `InputLogicTest`
+  (Chip hängt nur auf Tipp an, gesperrte Felder, eigene Wörter, Abkürzung, Baustein) und
+  `SuggestTest` (eigenes Wort nicht korrigiert), `AT/MemoryScreenTest.kt` (Seite).
 
 ## Updates
 
@@ -3086,19 +3172,44 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Sperrprüfungen (`FieldSuggestionChipsTest.neverInPasswordFieldsIncognitoNoLearningOrLocked`
   zählt die Lesezugriffe). Robolectric hat keinen AndroidKeyStore: Tests geben `AesGcmSecretCipher`
   mit eigenem Schlüssel.
+- **P174** Das Gedächtnis lernt nur über den Hook in `performAdditionToUserHistoryDictionary`, also
+  nur Wörter, die die Engine selbst lernen würde (kein Befehl, kein KI-Text, kein eingefügter Text:
+  `onTextInput` lernt nicht, auch nicht der angehängte Rest eines Chips). Die `SettingsValues` können
+  dort noch die des vorigen Felds sein (P165): `Memory.mayLearn` prüft deshalb die `EditorInfo` des
+  Felds und den Sperrzustand jetzt. Zur Wortfolge gehören nur die eigenen Commits, mit denen der
+  Satzteil vor der Schreibmarke noch endet; vorhandener Text des Felds, Sprünge der Schreibmarke und
+  Bearbeitungen brechen die Folge ab. Die Test-Verbindung von `InputLogicTest` liest höchstens 100
+  Zeichen (`getTextFromConnection`): die Tests tippen jeden Satz in ein neues Feld.
+- **P175** Längere Folgen starten bei Gewicht 1, nicht beim Gewicht ihrer Teile. Gemessen: Mit dem
+  kleineren Teilgewicht als Start fiel die Präzision des Rests von 100 % auf 93 %, in Zufallssätzen
+  kam 78-mal ein Rest-Chip (1 richtig), das nächste Wort fiel auf 55 %. Folge: Eine Folge braucht
+  etwa zehn Wiederholungen für zwei Wörter Rest und rund zwanzig für einen langen; das ist gewollt.
+- **P176** „Kennt kein Hauptwörterbuch“ meldet der Vorschlags-Thread (`Memory.onTyped` in
+  `Suggest.addFromMemory`) für das zuletzt getippte Wort. Kam die Leiste beim schnellen Tippen nicht
+  mehr dazu, passt das Wort beim Commit nicht, und die Nutzung zählt nicht (vorsichtig). In
+  `InputLogicTest` läuft die verzögerte Leistenaktualisierung nicht: Tests rufen `updateSuggestions`
+  selbst. Die echte Schwelle der Autokorrektur erreicht dort kein Wort (native Bewertung fehlt),
+  darum prüft `SuggestTest`, dass ein eigenes Wort nicht korrigiert wird. Ein eigenes Wort als
+  Vervollständigung steht hinter der Korrektur, nie an ihrer Stelle.
+- **P177** Gedächtnis-Chips nur nach Leerraum wie P163: Nach einem angetippten Vorschlag
+  (Phantom-Leerzeichen) kommen sie erst mit dem getippten Leerzeichen. Der Rest wird über
+  `onTextInput` ohne Leerzeichen danach angehängt; die Verstärkung (+1) macht `Memory.accepted`
+  ausdrücklich, damit das Gedächtnis sich nicht selbst aus eingefügtem Text lernt. `SnippetStore.version`
+  zählt nur Schreibvorgänge dieses Prozesses (Einstellungen und Tastatur laufen im selben Prozess);
+  ein Baustein mit Feldern wird als `@snip Name` angehängt, den Rest macht `SnipCommand`.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (511 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (523 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (5): agent-apk, agent-tests, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (77): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (79): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand,
   ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand, CorrectionMemory,
@@ -3106,12 +3217,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   EmojiSuggestions, EncryptedActionRunStore, EventCommand, FieldSuggestionChips, FlatMenuView,
   FlatPanelStyle, FlatPreset, FormatGuardChips, HapticChain, JournaledModelCall, JournaledRun,
   KeyboardCommands, KeyboardProfileStore, LearningData, LoadingDotsView, ManualWorkflowDraft,
-  ModelSettings, MyData, MyDesigns, OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter, RgbLighting,
-  RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand,
-  SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SpaceDetents, SpaceGestures,
-  SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary, ToolLauncher, TouchCalibration,
-  TouchModel, TypedWordFirst, TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract,
-  WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
+  Memory, MemoryChips, ModelSettings, MyData, MyDesigns, OnDeviceSpeechEngine, PlaceCommand,
+  RgbKeyPainter, RgbLighting, RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip,
+  SearchCommand, SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SpaceDetents,
+  SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary, ToolLauncher,
+  TouchCalibration, TouchModel, TypedWordFirst, TypoMemory, WorkflowApprovalSummary,
+  WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
+  WorkflowStore
 - `A/commands/` (18): AiCommandChips, AlarmCommand, AskCommand, ClipCommand, EmojiMixCommand,
   EmojiMixRecents, EmojiMixer, LanguageCommand, QrCommand, ScreenReaderService, SensitiveClips,
   SnipCommand, SnippetStore, SubtypeChoice, TimerCommand, TranslateCommand, UrlCommand,
@@ -3120,7 +3232,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (91): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (92): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, ClipCommandTest, ClipVaultTest, CommandReplaceTest,
@@ -3131,9 +3243,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, ForkUpgradeTest,
   FormatGuardChipsTest, HapticChainTest, InsertAtCursorTest, JournaledModelCallTest,
   KeyboardCommandsTest, KeyboardProfileStoreTest, LearningDataTest, LoadingDotsViewTest,
-  ManualWorkflowDraftTest, MoreCommandsTest, MoreProvidersTest, MyDataScreenTest, MyDataStoreTest,
-  MyDesignsTest, OpenAiProviderTest, RgbLightingRenderTest, RgbSettingsScreenTest, RgbTilesTest,
-  ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest, SettingsAreaAiTest,
+  ManualWorkflowDraftTest, MemoryScreenTest, MoreCommandsTest, MoreProvidersTest, MyDataScreenTest,
+  MyDataStoreTest, MyDesignsTest, OpenAiProviderTest, RgbLightingRenderTest, RgbSettingsScreenTest,
+  RgbTilesTest, ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest, SettingsAreaAiTest,
   SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest, SettingsKitTest,
   SettingsLookScreenTest, SettingsStartScreenTest, SettingsSystemAreaTest, SettingsTypingAreaTest,
   SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest, SnipCommandTest, SpaceDetentsTest,
@@ -3152,6 +3264,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   UrlDetector, Workflow
 - `C/clip/` (1): ClipGuard
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
+- `C/memory/` (4): OwnWords, PhraseMemory, ShortcutOffers, SnippetMatcher
 - `C/suggest/` (1): ContextSuggest
 - `CT/` (39): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
   EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest, EventParserTest, InkAreaTest, InkBenchmarkTest,
@@ -3163,6 +3276,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   TouchDynamicsTest, UnitConversionTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
 - `CT/clip/` (1): ClipGuardTest
 - `CT/format/` (1): FormatGuardTest
+- `CT/memory/` (2): MemoryRulesTest, PhraseMemoryTest
 - `CT/suggest/` (1): ContextSuggestTest
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,
   KeyboardActionListenerImpl, KeyboardSwitcher, KeyboardTheme, KeyboardView, MainKeyboardView,
@@ -3187,16 +3301,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/settings/dialogs/` (2): ColorPickerDialog, SliderDialog
 - `K/settings/preferences/` (5): BackupRestorePreference, CustomFontPreference,
   KeyboardScalePreference, LoadGestureLibPreference, SliderPreference
-- `K/settings/screens/` (40): AdvancedScreen, AgentAiScreen, AgentAreaAiScreen, AgentAreaBarScreen,
+- `K/settings/screens/` (41): AdvancedScreen, AgentAiScreen, AgentAreaAiScreen, AgentAreaBarScreen,
   AgentAreaGesturesScreen, AgentAreaKeysScreen, AgentAreaLookScreen, AgentAreaScreen,
   AgentAreaSystemScreen, AgentAreaTypingScreen, AgentCommandsScreen, AgentDesignEditor,
   AgentDesignScreen, AgentDiagnoseScreen, AgentDictationScreen, AgentEmojiMixSection,
-  AgentLearningScreen, AgentMyDataScreen, AgentProfilesScreen, AgentRgbCurveEditor, AgentRgbScreen,
-  AgentRunStatus, AgentScreenReaderSection, AgentScreenshotScreen, AgentSettingsKit,
-  AgentSkillsScreen, AgentSlider, AgentSnippetsSection, AgentSpaceScreen, AgentStartScreen,
-  AgentSymbolsScreen, AgentUpdatesScreen, AgentWorkflowsScreen, AppearanceScreen, DictionaryScreen,
-  GestureTypingScreen, MainSettingsScreen, TextCorrectionScreen, WorkflowBuilderDialog,
-  WorkflowDraftProtection
+  AgentLearningScreen, AgentMemoryScreen, AgentMyDataScreen, AgentProfilesScreen,
+  AgentRgbCurveEditor, AgentRgbScreen, AgentRunStatus, AgentScreenReaderSection,
+  AgentScreenshotScreen, AgentSettingsKit, AgentSkillsScreen, AgentSlider, AgentSnippetsSection,
+  AgentSpaceScreen, AgentStartScreen, AgentSymbolsScreen, AgentUpdatesScreen, AgentWorkflowsScreen,
+  AppearanceScreen, DictionaryScreen, GestureTypingScreen, MainSettingsScreen, TextCorrectionScreen,
+  WorkflowBuilderDialog, WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
 - `app/` (1): build.gradle
@@ -3216,17 +3330,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (25): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
+- `app/src/main/res/values-de/` (26): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
   agent_clipvault_strings, agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings,
-  agent_format_strings, agent_gestures_strings, agent_language_strings, agent_rgb_strings,
-  agent_settings_keys_strings, agent_settings_look_strings, agent_settings_strings,
-  agent_settings_system_strings, agent_slider_strings, agent_snippet_strings, agent_space_strings,
-  agent_strings, agent_suggest_strings, agent_symbol_strings, agent_touch_strings,
-  agent_typing_strings, agent_update_strings, strings
-- `app/src/main/res/values/` (31): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+  agent_format_strings, agent_gestures_strings, agent_language_strings, agent_memory_strings,
+  agent_rgb_strings, agent_settings_keys_strings, agent_settings_look_strings,
+  agent_settings_strings, agent_settings_system_strings, agent_slider_strings,
+  agent_snippet_strings, agent_space_strings, agent_strings, agent_suggest_strings,
+  agent_symbol_strings, agent_touch_strings, agent_typing_strings, agent_update_strings, strings
+- `app/src/main/res/values/` (32): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
   agent_bar_strings, agent_clipvault_strings, agent_design_strings, agent_diagnose_strings,
   agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_ids,
-  agent_language_strings, agent_rgb_strings, agent_settings_keys_strings,
+  agent_language_strings, agent_memory_strings, agent_rgb_strings, agent_settings_keys_strings,
   agent_settings_look_strings, agent_settings_strings, agent_settings_system_strings,
   agent_slider_strings, agent_snippet_strings, agent_space_strings, agent_strings,
   agent_suggest_strings, agent_symbol_strings, agent_touch_strings, agent_typing_strings,

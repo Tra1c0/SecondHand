@@ -39,6 +39,17 @@
 
 ## Nächster Build
 
+- Neu: Gedächtnis (anfangs aus). Einstellungen → Tippen & Korrektur → Wörter & Lernen →
+  „Gedächtnis“ → „Merken, wie ich schreibe“. Die Tastatur merkt sich Wortfolgen aus deinen eigenen
+  Sätzen; schreibst du eine oft, bietet die Leiste nach den ersten Wörtern den ganzen Rest als
+  einen Chip an („… sobald ich mehr weiß“), ein Tipp hängt ihn hinter der Schreibmarke an.
+  Umgangssprache, die du dreimal so abschickst, wird dein Wort und nicht mehr korrigiert.
+  Ersetzt du eine Abkürzung zweimal selbst durchs ganze Wort, bietet die Leiste einmal an, das
+  Kürzel anzulegen. Neu auch: passende Textbausteine als Chip, wenn deine Wörter klar zu einem
+  `@snip`-Baustein passen. Auf der Seite siehst, pinnst und löschst du alles, schließt Apps aus
+  oder vergisst alles. Alles lokal; nie in Passwortfeldern, im Inkognito-Modus oder bei gesperrtem
+  Gerät. Ändert nie deinen Text. Noch auf keinem Gerät ausprobiert.
+
 - Neu: Dynamische Trefferzonen (anfangs aus). Einstellungen → Gelernte Wörter → Trefferzonen →
   „Dynamisch anpassen (Szenen)“, nur mit „Trefferzonen an mich anpassen“. Die Zonen folgen in
   wenigen Dutzend Buchstaben, wie du gerade tippst (im Liegen, unterwegs), und vergessen es nach

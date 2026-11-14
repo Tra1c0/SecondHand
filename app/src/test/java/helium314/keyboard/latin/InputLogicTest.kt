@@ -7,6 +7,7 @@ import helium314.keyboard.agent.SpaceGesture
 import helium314.keyboard.keyboard.internal.LayoutDirective
 import helium314.keyboard.agent.RejectedCorrections
 import helium314.keyboard.agent.TypoMemory
+import dev.agentkeyboard.core.memory.ShortcutBook
 import android.os.Handler
 import android.os.Message
 import android.text.InputType
@@ -4313,6 +4314,288 @@ class InputLogicTest {
             kotlin.test.assertNull(chips())
         } finally {
             helium314.keyboard.agent.FieldSuggestionChips.myData = defaultData
+        }
+    }
+
+    // ---- stage 46: the memory, with the real engine and host ----
+
+    private fun memoryChips(): android.view.ViewGroup? =
+        (helium314.keyboard.agent.KeyboardCommands.createChipsView(latinIME, android.widget.FrameLayout(latinIME)) as android.view.ViewGroup?)
+            ?.let { it.getChildAt(0) as android.view.ViewGroup }
+    private fun chipTexts(row: android.view.ViewGroup?) =
+        (0 until (row?.childCount ?: 0)).map { (row!!.getChildAt(it) as android.widget.TextView).text.toString() }
+    private fun tapChip(row: android.view.ViewGroup, label: String) {
+        assertTrue((0 until row.childCount).map { row.getChildAt(it) }.first { (it as android.widget.TextView).text.toString() == label }.performClick())
+        handleMessages()
+    }
+    private val memoryPhrase = "ich melde mich sobald ich mehr weiss"
+    /** Each sentence in a new empty field from [start] (the test connection reads 100 characters at most). */
+    private fun typeSentences(count: Int, sentence: String = memoryPhrase, start: () -> Unit = { setText("") }) = repeat(count) {
+        start()
+        chainInput("$sentence. ")
+    }
+    private fun startMemory(on: Boolean = true) {
+        helium314.keyboard.agent.Memory.resetForTest()
+        helium314.keyboard.agent.MemoryChips.forget()
+        // no capital at the sentence start, so the typed text is exactly what the test types
+        latinIME.prefs().edit { putBoolean(AgentPreferences.MEMORY, on); putBoolean(Settings.PREF_AUTO_CAP, false) }
+    }
+    /** As the delayed strip update would: the real Suggest for the word being typed, synchronously. */
+    private fun updateSuggestions() {
+        handleMessages()
+        val params = helium314.keyboard.keyboard.internal.KeyboardParams().apply {
+            GRID_HEIGHT = 1; GRID_WIDTH = 1
+            mId = helium314.keyboard.keyboard.KeyboardLayoutSet.getFakeKeyboardId(helium314.keyboard.keyboard.KeyboardElement.ALPHABET)
+        }
+        val words = inputLogic.mSuggest.getSuggestedWords(composer.copy(), NgramContext.EMPTY_PREV_WORDS_INFO,
+            helium314.keyboard.keyboard.Keyboard(params), settingsValues.mSettingsValuesForSuggestion,
+            settingsValues.mAutoCorrectEnabled, SuggestedWords.INPUT_STYLE_TYPING, SuggestedWords.NOT_A_SEQUENCE_NUMBER)
+        latinIME.setSuggestions(words)
+        handleMessages()
+    }
+    private fun suggestedWordList() = (0 until inputLogic.mSuggestedWords.size()).map { inputLogic.mSuggestedWords.getWord(it) }
+    /** A new field of the app [packageName], like [setText] with a package and [imeOptions]. */
+    private fun startField(packageName: String?, imeOptions: Int = 0) {
+        ShadowInputMethodService.text = ""
+        selectionStart = 0
+        selectionEnd = 0
+        ShadowInputMethodService.currentPackageName = packageName
+        ShadowInputMethodService.currentImeOptions = imeOptions
+        val ei = EditorInfo()
+        ei.inputType = currentInputType
+        ei.packageName = packageName
+        ei.imeOptions = imeOptions
+        latinIME.mHandler.onStartInput(ei, false)
+        latinIME.mHandler.onStartInputView(ei, false)
+        handleMessages()
+    }
+
+    @Test fun memoryChipAppendsTheRestOnlyOnATapAndNeverReplaces() {
+        startMemory()
+        setText("")
+        typeSentences(20)
+        val learned = helium314.keyboard.agent.Memory.phrases(latinIME)
+        assertTrue(learned.any { it.key == memoryPhrase }, "the whole phrase was learned: ${learned.size} phrases")
+        // stored as readable text in the device-protected storage
+        helium314.keyboard.agent.Memory.flush(latinIME)
+        assertTrue(helium314.keyboard.agent.Memory.stored(latinIME)!!.contains(memoryPhrase))
+
+        setText("Danke. Ich melde mich ")
+        latinIME.setNeutralSuggestionStrip()
+        handleMessages()
+        val row = memoryChips()!!
+        assertEquals("… sobald ich mehr weiss", chipTexts(row).first())
+        assertEquals("Danke. Ich melde mich ", getTextFromConnection(), "showing the chip changes nothing")
+        tapChip(row, "… sobald ich mehr weiss")
+        assertEquals("Danke. Ich melde mich sobald ich mehr weiss", getTextFromConnection(), "appended after the cursor")
+        tapChip(row, "… sobald ich mehr weiss") // the same chip again: nothing
+        assertEquals("Danke. Ich melde mich sobald ich mehr weiss", getTextFromConnection())
+
+        // mid-word nothing (the word suggestions and the single-word autocorrection stay)
+        setText("Ich melde mi")
+        assertFalse(chipTexts(memoryChips()).any { it.startsWith("…") })
+        // the text changed after the chip was built: the tap does nothing
+        setText("Ich melde mich ")
+        val old = memoryChips()!!
+        chainInput("x")
+        tapChip(old, "… sobald ich mehr weiss")
+        assertEquals("Ich melde mich x", getTextFromConnection())
+
+        // switched off: no chip
+        latinIME.prefs().edit { putBoolean(AgentPreferences.MEMORY, false) }
+        setText("Ich melde mich ")
+        assertFalse(chipTexts(memoryChips()).any { it.startsWith("…") })
+    }
+
+    @Test fun memoryNextWordForTheEngineAfterTwoWords() {
+        startMemory()
+        setText("")
+        typeSentences(6, "wir sehen uns morgen")
+        val ngram = NgramContext(NgramContext.WordInfo("uns"), NgramContext.WordInfo("sehen"))
+        assertEquals("morgen", helium314.keyboard.agent.Memory.nextWord(latinIME, settingsValues, ngram))
+        // one word is not enough context
+        assertEquals(null, helium314.keyboard.agent.Memory.nextWord(latinIME, settingsValues, NgramContext(NgramContext.WordInfo("uns"))))
+        // and nothing in a password field
+        setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        assertEquals(null, helium314.keyboard.agent.Memory.nextWord(latinIME, settingsValues, ngram))
+    }
+
+    @Test fun memoryLearnsNothingInBlockedFields() {
+        val keyguard = latinIME.getSystemService(android.content.Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+        try {
+            for (case in listOf("off", "password", "incognito", "no learning", "paused", "excluded", "locked")) {
+                startMemory(on = case != "off")
+                currentInputType = InputType.TYPE_CLASS_TEXT
+                when (case) {
+                    "password" -> currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+                    "incognito" -> latinIME.prefs().edit { putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true) }
+                    "paused" -> latinIME.prefs().edit { putBoolean(AgentPreferences.LEARNING_PAUSED, true) }
+                    "excluded" -> assertTrue(helium314.keyboard.agent.Memory.setExcluded(latinIME, "com.example.chat", true))
+                    "locked" -> org.robolectric.Shadows.shadowOf(keyguard).setIsDeviceLocked(true)
+                }
+                typeSentences(8, "krass wir sehen uns morgen") {
+                    startField(if (case == "excluded") "com.example.chat" else null,
+                        if (case == "no learning") EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING else 0)
+                    reloadSettings()
+                }
+                helium314.keyboard.agent.Memory.flush(latinIME)
+                helium314.keyboard.agent.Memory.resetForTest() // read the storage again: nothing written either
+                assertTrue(helium314.keyboard.agent.Memory.phrases(latinIME, 2).isEmpty(), case)
+                assertTrue(helium314.keyboard.agent.Memory.ownWords(latinIME).isEmpty(), case)
+                latinIME.prefs().edit { putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, false); putBoolean(AgentPreferences.LEARNING_PAUSED, false) }
+                helium314.keyboard.agent.Memory.setExcluded(latinIME, "com.example.chat", false)
+                org.robolectric.Shadows.shadowOf(keyguard).setIsDeviceLocked(false)
+                ShadowInputMethodService.currentPackageName = null
+                ShadowInputMethodService.currentImeOptions = 0
+            }
+            // the same typing in a normal field of that app learns
+            startMemory()
+            currentInputType = InputType.TYPE_CLASS_TEXT
+            typeSentences(3, "wir sehen uns morgen") { startField("com.example.chat"); reloadSettings() }
+            assertTrue(helium314.keyboard.agent.Memory.phrases(latinIME, 2).isNotEmpty())
+        } finally {
+            org.robolectric.Shadows.shadowOf(keyguard).setIsDeviceLocked(false)
+            ShadowInputMethodService.currentPackageName = null
+            ShadowInputMethodService.currentImeOptions = 0
+            reloadSettings()
+            assertFalse(settingsValues.mIsLocked)
+        }
+    }
+
+    @Test fun slangBecomesOwnAfterThreeUndoneCorrectionsAndIsOfferedWhileTyped() = withSimilarWords("kraft", "kress") {
+        startMemory()
+        RejectedCorrections.clear(latinIME)
+        // three times corrected and undone with backspace (the path of "Rückgängig gemachte Korrekturen merken";
+        // that switch is off here: the memory counts on its own); that the engine then keeps it: SuggestTest
+        repeat(3) { round ->
+            setText("")
+            chainInput("krass")
+            getAutocorrectedWithSpaceAfter("kraft", "krass")
+            assertEquals("kraft ", text)
+            if (round < 2) assertTrue(helium314.keyboard.agent.Memory.ownWords(latinIME).isEmpty())
+            functionalKeyPress(KeyCode.DELETE)
+            assertEquals("krass", text)
+        }
+        assertEquals(listOf("krass"), helium314.keyboard.agent.Memory.ownWords(latinIME))
+        assertFalse(RejectedCorrections.contains(latinIME, "krass", "kraft"), "the pair memory has its own switch")
+        // its start offers it, never as the automatic correction
+        setText("")
+        chainInput("kra")
+        updateSuggestions()
+        assertTrue("krass" in suggestedWordList(), suggestedWordList().toString())
+        if (inputLogic.mSuggestedWords.mWillAutoCorrect) assertNotEquals("krass", inputLogic.mSuggestedWords.getWord(1))
+        // removed on the page: not offered any more
+        assertTrue(helium314.keyboard.agent.Memory.removeOwnWord(latinIME, "krass"))
+        setText("")
+        chainInput("kra")
+        updateSuggestions()
+        assertFalse("krass" in suggestedWordList())
+    }
+
+    @Test fun slangCommittedAsTypedThreeTimesBecomesOwn() = withSimilarWords("kraft", "kress") {
+        startMemory()
+        latinIME.prefs().edit { putBoolean(Settings.PREF_AUTO_CORRECTION, false) }
+        setText("")
+        fun typeWord(word: String) { chainInput(word); updateSuggestions(); chainInput(" ") }
+        repeat(2) { typeWord("krass") }
+        assertTrue(helium314.keyboard.agent.Memory.ownWords(latinIME).isEmpty())
+        typeWord("krass")
+        assertEquals(listOf("krass"), helium314.keyboard.agent.Memory.ownWords(latinIME))
+        // a word a main dictionary knows never becomes own
+        setText("")
+        repeat(4) { typeWord("kraft") }
+        assertEquals(listOf("krass"), helium314.keyboard.agent.Memory.ownWords(latinIME))
+    }
+
+    @Test fun abbreviationExpandedTwiceByHandIsOfferedOnceAsAQuietChip() {
+        startMemory()
+        val created = mutableListOf<Pair<String, String>>()
+        val defaultCreate = helium314.keyboard.agent.Memory.createShortcut
+        helium314.keyboard.agent.Memory.createShortcut = { _, short, expansion -> created += short to expansion; true }
+        try {
+            setText("")
+            repeat(2) {
+                chainInput("das ist vlt ")
+                repeat(4) { functionalKeyPress(KeyCode.DELETE) } // the space and the three letters
+                assertTrue(text.endsWith("ist "), text)
+                chainInput("vielleicht gut. ")
+            }
+            assertEquals(ShortcutBook.State.READY, helium314.keyboard.agent.Memory.offers(latinIME).single().state)
+            setText("Das ")
+            latinIME.setNeutralSuggestionStrip()
+            handleMessages()
+            val row = memoryChips()!!
+            val offer = chipTexts(row).single { it.contains("vlt") }
+            assertTrue(offer.contains("vielleicht"), offer)
+            assertEquals("Das ", getTextFromConnection(), "the offer changes no text")
+            assertTrue(created.isEmpty(), "nothing without a tap")
+            tapChip(row, offer)
+            assertEquals(listOf("vlt" to "vielleicht"), created)
+            assertEquals("Das ", getTextFromConnection())
+            assertEquals(ShortcutBook.State.CREATED, helium314.keyboard.agent.Memory.offers(latinIME).single().state)
+            // offered once: not again in the strip
+            setText("Noch ")
+            assertFalse(chipTexts(memoryChips()).any { it.contains("vlt") })
+        } finally {
+            helium314.keyboard.agent.Memory.createShortcut = defaultCreate
+        }
+    }
+
+    @Test fun anIgnoredAbbreviationOfferIsNotShownAgain() {
+        startMemory()
+        setText("")
+        repeat(2) {
+            chainInput("das ist vlt ")
+            repeat(4) { functionalKeyPress(KeyCode.DELETE) }
+            chainInput("vielleicht gut. ")
+        }
+        setText("Das ")
+        assertTrue(chipTexts(memoryChips()).any { it.contains("vlt") })
+        assertTrue(chipTexts(memoryChips()).any { it.contains("vlt") }, "stays while the cursor stays")
+        setText("Noch mehr ")
+        assertFalse(chipTexts(memoryChips()).any { it.contains("vlt") })
+        assertEquals(ShortcutBook.State.SHOWN, helium314.keyboard.agent.Memory.offers(latinIME).single().state)
+    }
+
+    @Test fun fittingSnippetIsAChipThatInsertsAtTheCursor() {
+        startMemory(on = false) // snippets work without the memory: they learn nothing
+        val defaultSource = helium314.keyboard.agent.commands.SnipCommand.source
+        helium314.keyboard.agent.commands.SnipCommand.source = helium314.keyboard.agent.commands.SnipCommand.Source { listOf(
+            helium314.keyboard.agent.commands.Snippet("Adresse", "Musterstraße 12, 10115 Berlin"),
+            helium314.keyboard.agent.commands.Snippet("Rechnung", "Anbei die Rechnung für den letzten Monat."),
+            helium314.keyboard.agent.commands.Snippet("Termin", "Ich bestätige den Termin am {?Datum}."),
+        ) }
+        try {
+            setText("Schick mir deine Adresse ")
+            latinIME.setNeutralSuggestionStrip()
+            handleMessages()
+            val row = memoryChips()!!
+            val label = chipTexts(row).single { it.startsWith("📋") }
+            assertTrue(label.startsWith("📋 Adresse: Musterstraße"), label)
+            assertEquals("Schick mir deine Adresse ", getTextFromConnection())
+            tapChip(row, label)
+            assertEquals("Schick mir deine Adresse Musterstraße 12, 10115 Berlin", getTextFromConnection())
+            tapChip(row, label)
+            assertEquals("Schick mir deine Adresse Musterstraße 12, 10115 Berlin", getTextFromConnection(), "once")
+            // a snippet with fields goes through @snip: the command is appended, the typed text stays
+            setText("ich bestätige den Termin ")
+            val fields = memoryChips()!!
+            tapChip(fields, chipTexts(fields).single { it.startsWith("📋") })
+            assertEquals("ich bestätige den Termin @snip Termin", getTextFromConnection())
+            // nothing fits: no chip; switched off: no chip
+            setText("wie geht es dir heute ")
+            assertFalse(chipTexts(memoryChips()).any { it.startsWith("📋") })
+            latinIME.prefs().edit { putBoolean(AgentPreferences.MEMORY_SNIPPETS, false) }
+            setText("Schick mir deine Adresse ")
+            assertFalse(chipTexts(memoryChips()).any { it.startsWith("📋") })
+            // a password field: no chip
+            latinIME.prefs().edit { putBoolean(AgentPreferences.MEMORY_SNIPPETS, true) }
+            setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+            setText("Schick mir deine Adresse ")
+            assertFalse(chipTexts(memoryChips()).any { it.startsWith("📋") })
+        } finally {
+            helium314.keyboard.agent.commands.SnipCommand.source = defaultSource
+            helium314.keyboard.agent.MemoryChips.forget()
         }
     }
 

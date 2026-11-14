@@ -217,6 +217,36 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
 - Entsteht nur mit eingeschaltetem „Meine Tippfehler lernen“, kein Backup, kein Protokoll.
   „Gelernte Tippfehler vergessen“ leert die Datei.
 
+## Gedächtnis (46)
+
+- Datei: SharedPreferences `agent_phrase_memory` im gerätegeschützten Speicher (Direct Boot), wie
+  die Lernwörterbücher. Bewusst lesbarer Text, keine Hashes: Der Owner sieht und löscht die
+  Einträge auf der Seite „Gedächtnis“.
+  - `phrases`: erste Zeile `v1`, dann je Wortfolge `Gewicht;Tag;0|1;Text` (Gewicht mit drei
+    Nachkommastellen, Stand am Tag der letzten Nutzung; Tag = Tage seit 1970 in UTC; `1` =
+    angepinnt; Text 2–8 Wörter wie zuletzt getippt, mit Kommas, je Wort höchstens 32 Zeichen).
+    Höchstens 2000 Folgen, darüber fallen die schwächsten nicht angepinnten; Halbwertszeit 30 Tage
+    (angepinnte verblassen nicht, höchstens 200).
+  - `own_words`: `v1`, dann `o;Wort` je eigenem Wort (höchstens 500) und `u;Zahl;Tag;Wort` je
+    gezähltem Wort, das noch keins ist (höchstens 500, Nutzungen älter als 90 Tage zählen neu).
+  - `shortcuts`: `v1`, dann `Zahl;STATUS;Kurzform;Erweiterung` (STATUS `COUNTING`, `READY`,
+    `SHOWN`, `CREATED`, `DECLINED`; höchstens 200).
+  - `excluded_apps`: Menge von Paketnamen (höchstens 50), in denen nichts gelernt und nichts
+    angeboten wird.
+- Geschrieben höchstens alle 30 Sekunden beim Tippen, beim Verlassen eines Felds und bei jeder
+  Änderung auf der Seite. Im Speicher dazu: die Wortfolge des aktuellen Satzteils, die letzten 8
+  Commits mit Position (Abkürzungen) und das zuletzt getippte Wort; beim Feldwechsel verworfen.
+- Schalter `agent_memory` (Standard aus) und `agent_memory_snippets` (Standard an) in den
+  Tastatureinstellungen. Ein angenommenes Abkürzungs-Angebot landet als Kürzel im persönlichen
+  Wörterbuch des Systems (`UserDictionary`, alle Sprachen, Häufigkeit 250) und bleibt dort, auch
+  nach „Alles vergessen“.
+- Der Bausteinindex für passende Textbausteine (Wortmerkmale der eigenen Bausteine aus dem
+  CE-Speicher) liegt nur im Speicher, nie auf der Platte; bei gesperrtem Gerät wird nichts gelesen.
+- Entsteht nur mit eingeschaltetem Schalter, nie aus Passwortfeldern, Inkognito, Feldern ohne
+  Lernen, ausgeschlossenen Apps, bei pausiertem Lernen oder gesperrtem Gerät. Kein Backup (die App
+  schließt Backups aus), kein Protokoll, kein Export. „Alles vergessen“ leert `phrases`,
+  `own_words` und `shortcuts`.
+
 ## Trefferzonen (22a)
 
 - Datei: SharedPreferences `agent_touch_model`, gerätegeschützter Speicher. Schlüssel `offsets`:

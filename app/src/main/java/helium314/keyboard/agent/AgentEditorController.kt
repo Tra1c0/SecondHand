@@ -172,13 +172,17 @@ class AgentEditorController @JvmOverloads constructor(
 
     fun startEditor(info: EditorInfo) {
         close()
+        Memory.onFieldChanged(ime) // stage 46: no run of words carries over to another field
         chosenWorkflowId = null
         needsCursorRefresh = false
         editor.startEditor(info.inputType, info.imeOptions, info.initialSelStart, info.initialSelEnd)
     }
     fun invalidate() = editor.invalidate()
+    /** Stage 46: the suggestions the engine holds for the strip now (the memory's chip row shows its predictions). */
+    internal val suggestedWords: helium314.keyboard.latin.SuggestedWords get() = inputLogic.mSuggestedWords
     fun finishEditor() {
         close()
+        Memory.onFieldChanged(ime) // stage 46: and what was learned is written
         chosenWorkflowId = null
         needsCursorRefresh = false
         editor.finishEditor()

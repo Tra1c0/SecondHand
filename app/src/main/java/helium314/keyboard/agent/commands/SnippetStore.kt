@@ -79,10 +79,14 @@ class SnippetStore(context: Context, private val accessible: () -> Boolean = { c
         val output = file.startWrite()
         try { output.write(bytes); file.finishWrite(output) }
         catch (failure: Exception) { file.failWrite(output); throw failure }
+        version++
     }
 
     companion object {
         const val FILE_NAME = "agent_snippets.json"
+        /** Stage 46: counts the writes of this process, so the snippet index of the strip knows when to read again. */
+        @Volatile @JvmStatic var version = 0
+            private set
         const val STORAGE_VERSION = 2
         const val MAX_SNIPPETS = 50
         const val MAX_NAME = 24

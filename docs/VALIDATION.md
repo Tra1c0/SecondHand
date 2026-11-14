@@ -3602,6 +3602,80 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   `ClipVaultSection`), Gerätetest (Code-Felder echter Apps und Browser, Hinweistexte in Messengern,
   TalkBack auf den Chips, Keystore beim ersten Speichern, Seite bei gesperrtem Gerät).
 
+## Etappe 46 (Gedächtnis)
+
+- Auftrag (Lead, ROADMAP 46, Owner 2026-11-14): Wortfolgen aus eigenem Text mit Häufigkeit,
+  Frische und Verblassen, nächstes Wort und bei sicherem Treffer der ganze Rest als ein Chip;
+  Umgangssprache wird nach wiederholter Nutzung eigenes Wort; Abkürzungs-Angebot nach eigenen
+  Ersetzungen; Textbausteine über lokale Ähnlichkeit; Seite zum Ansehen, Anpinnen, Löschen und
+  Ausschließen von Apps. Grenze des Owners: nie einen Satz in einen anderen verwandeln, nur auf Tipp
+  hinter der Schreibmarke anhängen, nichts ersetzen, Autokorrektur bleibt bei einem Wort. Gebaut in
+  einer Arbeitskopie neben 49 (gleiche Engine-Datei) und der `PointerTracker`-Korrektur (nicht
+  berührt). Kein Prüfer-Review, kein Gerätetest.
+- Schwellen gemessen (`CT/memory/PhraseMemoryTest`, synthetischer Schreiber: 12 Gewohnheiten, zwei
+  davon mit zwei Enden 70:30 bzw. 60:40, sonst Zufallssätze aus einem Zipf-Wortschatz; 1500 Sätze
+  über 60 Tage gelernt, 600 neue gemessen; je Wortgrenze ab dem zweiten Wort):
+  - Nächstes Wort (ab 2-mal und 40 %): 493/509 = 96,9 %, 539/559 = 96,4 %, 514/544 = 94,5 % (drei
+    Korpora).
+  - Ganzer Rest (ab 3-mal und 70 %): in Gewohnheitssätzen 265/265, 309/309, 272/272 richtig (100 %);
+    gefunden in 83 %, 89 %, 80 % der Gewohnheiten ab vier Wörtern; in Zufallssätzen kein einziger
+    Rest-Chip.
+  - Anteil-Schwelle über alle drei Korpora (Präzision / gefunden): 0,35: 94,0 % / 90,2 %; 0,5:
+    94,3 % / 88,6 %; 0,6: 98,2 % / 83,9 %; 0,7: 100 % / 83,9 %; 0,8: 100 % / 83,9 %. Gewählt 0,7.
+  - Verworfen: längere Folgen mit dem Gewicht ihrer Teile starten (wächst schneller): Rest 93,2 %,
+    in Zufallssätzen 78 Rest-Chips mit 1 Treffer, nächstes Wort 54,6 % (P175).
+  - Textbausteine (`CT/memory/MemoryRulesTest`, 8 Bausteine, 46 Sätze: 23 mit passendem Baustein,
+    23 ohne, davon 7 mit zufällig gemeinsamen Wörtern): Schwelle 0,1: 23/26 Chips richtig; 0,2:
+    21/24; 0,3: 20/23; 0,35: 17/17 richtig, 17 von 23 gefunden; 0,4: 17/17; 0,5: 15/15. Gewählt
+    0,35 mit Abstand 0,08 zum zweiten (die Fehlgriffe lagen bei 0,31–0,34, also knapp; erweiterte
+    Stoppwörter wie „vielen“, „dank“, „minuten“ nötig, sonst 19/24 bei 0,3).
+- `./gradlew :agent-core:test`: grün, 419 Tests, 0 Fehler, darin neu `memory.PhraseMemoryTest` 10
+  (Tokens und Satzteile, Wachsen erst nach Wiederholung, Halbwertszeit und Verstärkung, Verdrängen
+  der schwächsten, nie angepinnte, Löschen samt längeren Folgen, Vorhersage nur nach Leerzeichen und
+  nicht über Satzenden, zweideutige Fortsetzung ohne Rest-Chip, Kodierung mit kaputten Zeilen und
+  rückwärts laufender Uhr, Präzisionsmessung, Schwellentabelle) und `memory.MemoryRulesTest` 7
+  (eigenes Wort nach drei Nutzungen, Vervollständigung, Verblassen nach 90 Tagen, Nicht-Wörter;
+  plausible Abkürzungen, keine Tippfehler; Ersetzung an Ort und Stelle mit einem und mehreren
+  Wörtern, nicht bei nacheinander getippten Wörtern; Angebot genau einmal; Merkmale, Wortteil
+  trifft andere Wortform, Trigramme allein nie; Präzisionsmessung der Bausteine).
+- `./gradlew :app:testDebugUnitTest` gezielt (`--max-workers=1`, 2026-11-14): `InputLogicTest` 207
+  mit 8 neuen Fällen: `memoryChipAppendsTheRestOnlyOnATapAndNeverReplaces` (20 echt getippte Sätze,
+  gespeichert als lesbarer Text; „Danke. Ich melde mich “ zeigt „… sobald ich mehr weiss“, Zeigen
+  ändert nichts, Tipp hängt an, zweiter Tipp nichts, mitten im Wort kein Chip, nach geändertem Text
+  tut der alte Chip nichts, Schalter aus: kein Chip), `memoryNextWordForTheEngineAfterTwoWords`
+  (nicht nach einem Wort, nicht im Passwortfeld), `memoryLearnsNothingInBlockedFields` (aus,
+  Passwort, Inkognito, Feld ohne Lernen, Pause, ausgeschlossene App, gesperrt: nichts gelernt und
+  nichts gespeichert; dieselbe App in einem normalen Feld lernt),
+  `slangBecomesOwnAfterThreeUndoneCorrectionsAndIsOfferedWhileTyped` (drei mit der Löschtaste zurückgenommene Korrekturen, auch ohne
+  „Rückgängig gemachte Korrekturen merken“; „kra“ bietet „krass“ nie als Korrektur an; gelöscht nicht
+  mehr), `slangCommittedAsTypedThreeTimesBecomesOwn` (Autokorrektur aus; ein Wort des
+  Hauptwörterbuchs nie), `abbreviationExpandedTwiceByHandIsOfferedOnceAsAQuietChip` („vlt“ mit der
+  Löschtaste entfernt und „vielleicht“ getippt, zweimal; Chip ändert keinen Text, erst der Tipp legt
+  an, danach nicht wieder), `anIgnoredAbbreviationOfferIsNotShownAgain`,
+  `fittingSnippetIsAChipThatInsertsAtTheCursor` (fügt an der Schreibmarke ein, einmal; Baustein mit
+  Feld hängt „@snip Termin“ an; nichts Passendes, Schalter aus, Passwortfeld: kein Chip); einziger
+  Fehler `insertLetterIntoWordHangulFails` (geerbte Baseline). `SuggestTest` 42 mit neu `own word of
+  the memory stays as typed and the correction stays a suggestion` (echter Suggest bei sehr starker
+  Korrektur: „krass“ → „kraft“, als eigenes Wort nicht mehr, auch nicht über ein gelerntes
+  Tippfehler-Paar, „kraft“ bleibt Vorschlag; nur mit Schalter; gelöscht: wieder korrigiert).
+  `MemoryScreenTest` 3 (Schalter anfangs aus und gespeichert; Anpinnen und Lösen, Löschen entfernt
+  auch längere Folgen und steht sofort im Speicher; eigenes Wort und ausgeschlossene App
+  entfernen). Unverändert grün: `SettingsTypingAreaTest` 9 (öffnet jede Seite aus
+  `SettingsAreas`, jetzt auch „Gedächtnis“), `SettingsStartScreenTest` 10, `KeyboardCommandsTest` 5,
+  `FieldSuggestionChipsTest` 18, `FormatGuardChipsTest` 12, `SnipCommandTest` 24,
+  `CorrectionMemoryTest` 4, `TypoMemoryTest` 9.
+- Nicht gelaufen: `tools/dev.py agent-tests`, volle Suite, Build und Lint (geteilte Maschine,
+  Anweisung des Leads). Engine geändert, eng: `InputLogic.java` (ein Aufruf in
+  `performAdditionToUserHistoryDictionary`), `Suggest.kt` (`addFromMemory`, je eine Zeile in
+  `guardAllows` und `applyLearnedCorrection`); dazu die schon geänderte Upstream-Datei
+  `SettingsNavHost.kt` (Ziel). `RichInputConnection`, `PointerTracker`, `LatinIME` unverändert.
+  `docs_sync --check`: grün.
+- Offen: Prüfer-Review der Engine-Änderung (Pflicht), Gerätetest (Chips beim echten Tippen, wie viele
+  Wiederholungen eine Folge im Alltag braucht, Abkürzung mit echter Löschtaste und ob das
+  persönliche Wörterbuch des Telefons das Kürzel, auch mit mehreren Wörtern, annimmt; Dauer von
+  Lesen und Schreiben bei 2000 Folgen; Bausteine mit `{cursor}`), Zusammenführen der Seite mit
+  „Was ich mir gemerkt habe“ (49).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

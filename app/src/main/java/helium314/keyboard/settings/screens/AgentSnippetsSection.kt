@@ -221,7 +221,7 @@ private fun SnippetEditor(original: Snippet, all: List<Snippet>, store: SnippetS
 
 /** Installed apps with a launcher entry (package to label), by label; read off the main thread. */
 /** Package name and label of every app with a launcher entry; labels only, no icons are loaded. */
-private suspend fun launchableApps(context: Context): List<Pair<String, String>> = withContext(Dispatchers.IO) {
+internal suspend fun launchableApps(context: Context): List<Pair<String, String>> = withContext(Dispatchers.IO) {
     runCatching {
         val manager = context.packageManager
         val launcher = android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_LAUNCHER)
@@ -231,7 +231,7 @@ private suspend fun launchableApps(context: Context): List<Pair<String, String>>
 }
 
 @Composable
-private fun AppChooser(onChosen: (String, String) -> Unit, onDismiss: () -> Unit) {
+internal fun AppChooser(onChosen: (String, String) -> Unit, onDismiss: () -> Unit) {
     val context = LocalContext.current
     var apps by remember { mutableStateOf<List<Pair<String, String>>?>(null) }
     var query by remember { mutableStateOf("") }

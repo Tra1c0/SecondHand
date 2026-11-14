@@ -131,6 +131,10 @@ object KeyboardCommands {
          * field); false otherwise.
          */
         fun insertAtCursor(text: String): Boolean = false
+        /** Stage 46: the word predictions the normal strip would show now (no typed word), at most [max]. */
+        fun predictions(max: Int): List<String> = emptyList()
+        /** Stage 46: picks [word] like a tap on it in the normal strip; false if it cannot now. */
+        fun pickPrediction(word: String): Boolean = false
     }
 
     /** A built-in command. Commands never come from files or models. */
@@ -366,6 +370,8 @@ object KeyboardCommands {
         if (context == null) FormatGuardChips.stripChips(host).let { if (it.isNotEmpty()) return it }
         // stage 45: no command, but the field asks for something or cue words announce a fresh clip or own data
         if (context == null) FieldSuggestionChips.stripChips(host).let { if (it.isNotEmpty()) return it }
+        // stage 46: no command, but the memory has a sure rest of a phrase, a fitting snippet or an abbreviation offer
+        if (context == null) MemoryChips.stripChips(host).let { if (it.isNotEmpty()) return it }
         // stage 25a: no command, but two typed emojis with a mix
         if (context == null) return helium314.keyboard.agent.commands.EmojiMixCommand.stripChips(host,
             ime.getAgentTextBeforeCursor(helium314.keyboard.agent.commands.EmojiMixCommand.LOOKBACK)).ifEmpty { null }
@@ -417,6 +423,21 @@ object KeyboardCommands {
             override fun insertAtCursor(text: String): Boolean {
                 if (text.isEmpty() || !ime.canReplaceAgentCommand() || ime.agentCommandCursor != position) return false
                 ime.onTextInput(text)
+                return true
+            }
+            // stage 46: the suggestions InputLogic holds for the strip, picked through the normal path
+            override fun predictions(max: Int): List<String> {
+                val words = ime.agentEditorController.suggestedWords
+                if (!words.isPrediction) return emptyList()
+                return (0 until words.size()).map { words.getInfo(it) }
+                    .filter { !it.isKindOf(helium314.keyboard.latin.SuggestedWords.SuggestedWordInfo.KIND_TYPED) && it.mWord.isNotBlank() }
+                    .map { it.mWord }.distinct().take(max)
+            }
+            override fun pickPrediction(word: String): Boolean {
+                if (!ime.canReplaceAgentCommand() || ime.agentCommandCursor != position) return false
+                val words = ime.agentEditorController.suggestedWords
+                val info = (0 until words.size()).map { words.getInfo(it) }.firstOrNull { it.mWord == word } ?: return false
+                ime.pickSuggestionManually(info)
                 return true
             }
         }
