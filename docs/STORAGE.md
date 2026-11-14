@@ -311,7 +311,8 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   Geheimnis), nur der aktuelle System-Clip kann noch einer sein. Alt (Etappe 24f bis 45):
   DE-SharedPreferences `agent_sensitive_clips` (Tastatur-Kontext), Schlüssel `salt` (16 Bytes, hex)
   und `hashes` (kommagetrennt). Beim ersten Start danach (`SensitiveClips.migrateLegacy` in
-  `ClipboardHistoryManager.onCreate`) löscht die Tastatur die nicht angehefteten Verlaufseinträge,
+  `ClipboardHistoryManager.onCreate`; ohne lesbare Verlaufsdatenbank, etwa vor dem ersten
+  Entsperren, bleibt die Datei für einen späteren Start) löscht die Tastatur die nicht angehefteten Verlaufseinträge,
   zu denen ein Hash passt, behält nur die Hashes angehefteter Einträge (deren Text steht ohnehin
   daneben in der Datenbank) und löscht alle anderen samt Datei, sobald keiner mehr übrig ist; neue
   schreibt sie nie. Kein Backup (`allowBackup=false`), kein Export.
@@ -321,12 +322,18 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   schon eingefügter und als Geheimnis sortierter Clips (Zahlen, kein Text). Geheimnisse und Codes
   allein gehen nie in die Verlaufsdatenbank (`ClipboardDao`, DE, Tabelle `CLIPBOARD`); eine
   Nachricht mit Code bleibt dort als Text. Vor Etappe 44 gespeicherte, nicht angeheftete Geheimnisse
-  werden beim Start der Tastatur (Verlauf an) und beim Öffnen der Ansicht daraus gelöscht. Gelöschte
-  Zeilen überschreibt SQLite mit Nullen (`PRAGMA secure_delete = ON` auf der schreibenden
-  Verbindung), danach wird das WAL gekürzt (`wal_checkpoint(TRUNCATE)`); nach einer solchen
-  Bereinigung beim Start schreibt `VACUUM` die Datei einmal neu (im Hintergrund). Mit Verlauf aus, bei gesperrtem
+  werden einmal je App-Version daraus gelöscht (Start mit Verlauf an, sortiert im Hintergrund, oder
+  beim Öffnen der Ansicht); erledigt merkt der Versionscode in den Tastatur-Einstellungen
+  (`agent_clip_history_cleaned_version`, Zahl). Gelöschte Zeilen überschreibt SQLite mit Nullen
+  (`PRAGMA secure_delete = ON` auf der schreibenden Verbindung), danach wird das WAL im Hintergrund
+  gekürzt (`wal_checkpoint(TRUNCATE)`); nach einer solchen Bereinigung schreibt `VACUUM` die Datei
+  einmal neu (im Hintergrund, nur bis 8 MiB Dateigröße, weil die Gestendaten in derselben Datei
+  liegen). Mit Verlauf aus, bei gesperrtem
   Gerät, im Inkognito-Modus oder in Passwortfeldern wird nichts behalten. Ein Neustart des
-  Prozesses vergisst alles. Kein Format, kein Export, kein Backup.
+  Prozesses vergisst alles. Kein Format, kein Export, kein Backup. Eingefügte private Texte
+  (Tresor, Code-Chip, „Meine Daten“) merkt `InputLogic` je Feld nur als Position, Länge und
+  gesalzenen Hash der ersten 32 Zeichen (höchstens drei, nur im Speicher, vergessen beim nächsten
+  Feld; `PrivateRanges`).
 - Meine Daten (Etappe 45): Datei `agent_my_data/data.sealed` in CE `noBackupFilesDir`
   (`credentialContext`, nie vor dem ersten Entsperren), höchstens 16 KiB, atomar geschrieben
   (`AtomicFile`). Format: Version 1 (Byte `1`) + 12 Byte IV + AES-256-GCM-Chiffrat mit AAD

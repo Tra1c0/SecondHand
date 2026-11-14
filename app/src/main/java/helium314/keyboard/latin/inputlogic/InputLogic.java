@@ -127,46 +127,55 @@ public final class InputLogic {
     public boolean acceptsTailBatchResult(long generation) { return mInputLogicHandler.acceptsTail(generation); }
     public void completeTailBatchResult(long generation) { mInputLogicHandler.completeTail(generation); }
     public boolean isAgentHistorySuppressed() { return mAgentHistorySuppressed; }
-    public void onFreshEditorSession() { mAgentHistorySuppressed = false; mPrivateText = null; }
+    public void onFreshEditorSession() { mAgentHistorySuppressed = false; mPrivateRanges.clear(); }
 
-    // fork, review of stages 44/45 (B4): a vault secret, code or "Meine Daten" value the user
-    // inserted, and where it starts; it never becomes the composing word and is never learned
-    private String mPrivateText;
-    private int mPrivateStart = -1;
-    /** Learning stays off while the cursor is at most this many characters after the private text (the next words' n-gram context). */
-    private static final int PRIVATE_LEARNING_DISTANCE = 64;
+    // fork, review of stages 44/45 (B4) and its second review: where vault secrets, codes and "Meine
+    // Daten" values the user inserted sit (positions and a salted hash, no text); they never become
+    // the composing word and are never learned, nor are the words whose n-gram context they are
+    private final dev.agentkeyboard.core.clip.PrivateRanges mPrivateRanges = new dev.agentkeyboard.core.clip.PrivateRanges();
+    private final dev.agentkeyboard.core.clip.PrivateRanges.Editor mPrivateEditor = new dev.agentkeyboard.core.clip.PrivateRanges.Editor() {
+        @Override public int getCursor() { return mConnection.hasSelection() ? -1 : mConnection.getExpectedSelectionStart(); }
+        @Override public CharSequence before(final int n) { return mConnection.getTextBeforeCursor(n, 0); }
+        @Override public CharSequence after(final int n) { return mConnection.getTextAfterCursor(n, 0); }
+    };
 
     /** Remembers [text], which the user just inserted and which ends at the cursor, as private. */
     public void markPrivateText(final String text) {
         final int cursor = mConnection.getExpectedSelectionStart();
-        if (TextUtils.isEmpty(text) || cursor < text.length() || mConnection.hasSelection()) { mPrivateText = null; return; }
+        if (TextUtils.isEmpty(text) || cursor < text.length() || mConnection.hasSelection()) return;
         final CharSequence before = mConnection.getTextBeforeCursor(text.length(), 0);
-        if (before == null || !TextUtils.equals(before, text)) { mPrivateText = null; return; }
-        mPrivateText = text;
-        mPrivateStart = cursor - text.length();
+        if (before == null || !TextUtils.equals(before, text)) return;
+        markPrivateBeforeCursor(text.length());
     }
 
-    /**
-     * True while the cursor is in the private text (or at its start) or at most [after] characters
-     * behind it, and the editor still shows it there (also with characters deleted from its end).
-     */
-    private boolean nearPrivateText(final int after) {
-        final String text = mPrivateText;
-        if (text == null) return false;
+    /** The text {@link #onTextInput} just committed (after TLD processing) is private. */
+    public void markEnteredTextPrivate() {
+        if (mEnteredText != null) markPrivateBeforeCursor(mEnteredText.length());
+    }
+
+    private void markPrivateBeforeCursor(final int length) {
         final int cursor = mConnection.getExpectedSelectionStart();
-        final int distance = cursor - mPrivateStart;
-        if (cursor < 0 || distance < 0 || distance > text.length() + after) return false;
-        if (distance == 0) {
-            final CharSequence following = mConnection.getTextAfterCursor(Math.min(text.length(), 48), 0);
-            return following != null && following.length() > 0 && text.startsWith(following.toString());
-        }
-        final CharSequence before = mConnection.getTextBeforeCursor(distance, 0);
-        if (before == null || before.length() != distance) return false;
-        final String shown = before.toString();
-        final int shared = Math.min(shown.length(), text.length());
-        if (shown.regionMatches(0, text, 0, shared)) return true;
-        mPrivateText = null; // changed by now: forget it
-        return false;
+        if (length > 0 && cursor >= length) mPrivateRanges.add(cursor - length, length, mPrivateEditor);
+        // keep no copy of it: neither as the separator of the last composed word (a backspace would
+        // revert that commit and compose it) nor as the entered text
+        mLastComposedWord = LastComposedWord.NOT_A_COMPOSED_WORD;
+        mEnteredText = null;
+        mWordBeingCorrectedByCursor = null;
+    }
+
+    /** The keyboard edited at the cursor: was [selStart, selEnd) before, the cursor is now at [cursorAfter]. */
+    private void privateTextEdited(final int selStart, final int selEnd, final int cursorAfter) {
+        if (mPrivateRanges.isEmpty() || selStart < 0 || selEnd < selStart || cursorAfter < 0 || mConnection.hasSelection()) return;
+        final int from = Math.min(selStart, cursorAfter);
+        mPrivateRanges.edited(from, selEnd, cursorAfter - from, mPrivateEditor);
+    }
+
+    /** True when a private value overlaps or borders [chars before, chars after] the cursor. */
+    private boolean privateTextAtCursor(final int before, final int after) {
+        if (mPrivateRanges.isEmpty()) return false;
+        final int cursor = mConnection.getExpectedSelectionStart();
+        if (cursor < 0) return true;
+        return mPrivateRanges.touches(cursor - before, cursor + after, mPrivateEditor);
     }
     public boolean refreshAgentEditorCaches(final int start, final int end) {
         resetComposingState(true);
@@ -392,6 +401,7 @@ public final class InputLogic {
                 SystemClock.uptimeMillis(), mSpaceState,
                 getActualCapsMode(settingsValues, keyboardCapsMode));
         mConnection.beginBatchEdit();
+        final int privateSelStart = mConnection.getExpectedSelectionStart(), privateSelEnd = mConnection.getExpectedSelectionEnd(); // fork (B4)
         if (GestureDataGatheringKt.useBackgroundGathering && mConnection.hasSelection())
             BackgroundGatheringCache.INSTANCE.onEditSelection(mConnection.getSelectedText(0), mConnection.getTextBeforeCursor(40, 0), mConnection.getTextAfterCursor(40, 0));
         if (mWordComposer.isComposingWord()) {
@@ -417,6 +427,7 @@ public final class InputLogic {
         }
         mConnection.commitText(text, 1);
         StatsUtils.onWordCommitUserTyped(mEnteredText, mWordComposer.isBatchMode());
+        privateTextEdited(privateSelStart, privateSelEnd, mConnection.getExpectedSelectionStart()); // fork (B4): moves private texts after it
         mConnection.endBatchEdit();
         // Space state must be updated before calling updateShiftState
         mSpaceState = SpaceState.NONE;
@@ -681,6 +692,7 @@ public final class InputLogic {
         }
         mLastKeyTime = inputTransaction.getTimestamp();
         mConnection.beginBatchEdit();
+        final int privateSelStart = mConnection.getExpectedSelectionStart(), privateSelEnd = mConnection.getExpectedSelectionEnd(); // fork (B4)
         if (!mWordComposer.isComposingWord()) {
             // TODO: is this useful? It doesn't look like it should be done here, but rather after
             // a word is committed.
@@ -703,6 +715,9 @@ public final class InputLogic {
             }
             currentEvent = currentEvent.getNextEvent();
         }
+        // fork (B4, second review): typing or deleting before a private text moves it, deleting in it shortens it
+        if (!processedEvent.isFunctionalKeyEvent() || processedEvent.getKeyCode() == KeyCode.DELETE)
+            privateTextEdited(privateSelStart, privateSelEnd, mConnection.getExpectedSelectionStart());
         // Try to record the word being corrected when the user enters a word character or
         // the backspace key.
         if (!mConnection.hasSlowInputConnection() && !mWordComposer.isComposingWord()
@@ -710,6 +725,9 @@ public final class InputLogic {
                     || processedEvent.getKeyCode() == KeyCode.DELETE)
                 ) {
             mWordBeingCorrectedByCursor = getWordAtCursor(settingsValues, currentKeyboardScript);
+            // fork (B4, second review): decided now, not when it is learned at the next cursor position
+            final int wordLength = mWordBeingCorrectedByCursor.length();
+            if (wordLength > 0 && privateTextAtCursor(wordLength, wordLength)) mWordBeingCorrectedByCursor = null;
         }
         if (!inputTransaction.didAutoCorrect() && processedEvent.getKeyCode() != KeyCode.SHIFT
                 && processedEvent.getKeyCode() != KeyCode.CAPS_LOCK
@@ -1222,9 +1240,12 @@ public final class InputLogic {
                 && mConnection.hasLetterBeforeLastSpaceBeforeCursor()
         ) {
             final CharSequence text = mConnection.textBeforeCursorUntilLastWhitespaceOrDoubleSlash();
-            final TextRange range = new TextRange(text, 0, text.length(), text.length(), false);
-            isComposingWord = true;
-            restartSuggestions(range);
+            // fork (B4, second review): not when that word is or touches a private text
+            if (!privateTextAtCursor(text.length(), 0)) {
+                final TextRange range = new TextRange(text, 0, text.length(), text.length(), false);
+                isComposingWord = true;
+                restartSuggestions(range);
+            }
         }
         // TODO: remove isWordConnector() and use isUsuallyFollowedBySpace() instead.
         // See onStartBatchInput() to see how to do it.
@@ -1880,8 +1901,9 @@ public final class InputLogic {
     private void performAdditionToUserHistoryDictionary(final SettingsValues settingsValues,
             final String suggestion, @NonNull final NgramContext ngramContext) {
         if (mAgentHistorySuppressed) return;
-        // fork (B4): neither the private text nor a word right after it (its n-gram context) is learned
-        if (nearPrivateText(PRIVATE_LEARNING_DISTANCE)) return;
+        // fork (B4, second review): neither a private text nor a word whose n-gram context it is (the
+        // word before the cursor and the ones before it) is learned
+        if (mPrivateRanges.touchesLearningContext(mPrivateEditor, helium314.keyboard.latin.define.DecoderSpecificConstants.MAX_PREV_WORD_COUNT_FOR_N_GRAM + 1)) return;
         // a typed command (e.g. "@math") is no word of the user's
         if (helium314.keyboard.agent.KeyboardCommands.isCommandWord(suggestion)
                 || helium314.keyboard.agent.KeyboardCommands.guardsTextBefore(
@@ -2016,9 +2038,7 @@ public final class InputLogic {
                 // If the cursor is not touching a word, or if there is a selection, return right away.
                 || mConnection.hasSelection()
                 // If we don't know the cursor location, return.
-                || mConnection.getExpectedSelectionStart() < 0
-                // fork (B4): a private text the user inserted never becomes the composing word
-                || nearPrivateText(0)) {
+                || mConnection.getExpectedSelectionStart() < 0) {
             mSuggestionStripViewAccessor.setNeutralSuggestionStrip();
             return;
         }
@@ -2040,6 +2060,11 @@ public final class InputLogic {
         }
         final TextRange range = mConnection.getWordRangeAtCursor(settingsValues.mSpacingAndPunctuations, currentKeyboardScript);
         if (null == range) return; // Happens if we don't have an input connection at all
+        // fork (B4, second review): a word that is or touches a private text never becomes the composing word
+        if (privateTextAtCursor(range.getNumberOfCharsInWordBeforeCursor(), range.getNumberOfCharsInWordAfterCursor())) {
+            mSuggestionStripViewAccessor.setNeutralSuggestionStrip();
+            return;
+        }
         if (range.length() <= 0) {
             // Race condition, or touching a word in a non-supported script.
             mLatinIME.setNeutralSuggestionStrip();

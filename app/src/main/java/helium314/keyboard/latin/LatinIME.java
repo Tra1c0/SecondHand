@@ -1626,7 +1626,7 @@ public class LatinIME extends InputMethodService implements
         Event event = Event.createSoftwareTextEvent(rawText, KeyCode.MULTIPLE_CODE_POINTS, null);
         InputTransaction completeInputTransaction = mInputLogic.onTextInput(mSettings.getCurrent(),
             event, mKeyboardSwitcher.getKeyboardCapsMode(), mHandler);
-        mInputLogic.markPrivateText(rawText);
+        mInputLogic.markEnteredTextPrivate(); // what was really committed (second review N5)
         updateStateAfterInputTransaction(completeInputTransaction);
         // refuses the private text and shows the neutral strip
         mInputLogic.restartSuggestionsOnWordTouchedByCursor(mSettings.getCurrent(), mKeyboardSwitcher.getCurrentKeyboardScript());

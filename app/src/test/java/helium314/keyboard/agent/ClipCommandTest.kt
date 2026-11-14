@@ -221,6 +221,20 @@ class ClipCommandTest {
         }
     }
 
+    @Test fun withoutAReadableHistoryTheOldHashFileStays() {
+        // second review M2: before the first unlock there is no history to clean; the file waits for a later start
+        val prefs = AgentStorageContexts.keyboard(latinIME).getSharedPreferences(SensitiveClips.FILE, Context.MODE_PRIVATE)
+        try {
+            val salt = "0011223344556677"
+            prefs.edit().putString("salt", salt).putString("hashes", legacyHash(salt, "altes Kennwort")).commit()
+            assertFalse(SensitiveClips.migrateLegacy(latinIME, null))
+            assertEquals(legacyHash(salt, "altes Kennwort"), prefs.getString("hashes", null))
+            assertEquals(salt, prefs.getString("salt", null))
+        } finally {
+            prefs.edit().clear().commit()
+        }
+    }
+
     @Test fun aClipCopiedInAPasswordFieldCountsAsSensitive() {
         SensitiveClips.note(latinIME, ClipData.newPlainText("", "aus dem Passwortfeld"), inPasswordField = true)
         SensitiveClips.note(latinIME, ClipData.newPlainText("", "normaler Text"), inPasswordField = false)

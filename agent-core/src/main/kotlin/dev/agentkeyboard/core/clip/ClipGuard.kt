@@ -212,19 +212,27 @@ object ClipGuard {
     }
 
     /**
-     * A password word with a value right after it: after ":" or "=" any value, after "ist"/"lautet"/
-     * "is"/"es" only one with a digit or a symbol ("Das Passwort ist falsch" stays text). Not after
-     * "one-time"/"einmal" (a one-time password is a code).
+     * A password word with a value right after it (second review N8: the value must look like one).
+     * The value has at least [PASSWORD_VALUE_MIN] characters and a digit or a symbol; after ":" or
+     * "=" also letters only in upper and lower case, when no further words follow on its line
+     * ("Passwort: Sommerwiese"). "Das Passwort ist falsch" and "Passwort: bitte beim Admin
+     * erfragen" stay text. Not after "one-time"/"einmal" (a one-time password is a code).
      */
     private fun passwordInSentence(t: String): Boolean {
         if (t.length > MAX_OTP_SENTENCE) return false
         return PASSWORD_VALUE.findAll(t).any { m ->
             val value = m.groupValues[3]
+            if (value.length < PASSWORD_VALUE_MIN) return@any false
             val afterColon = m.groupValues[2].isNotEmpty()
-            val valueLike = value.any { it.isDigit() } || value.any { !it.isLetterOrDigit() }
-            (afterColon || valueLike) && !ONE_TIME_BEFORE.containsMatchIn(t.substring(0, m.range.first))
+            val strong = value.any { it.isDigit() } || value.any { !it.isLetterOrDigit() }
+            val mixedCase = value.any { it.isUpperCase() } && value.any { it.isLowerCase() }
+            val rest = t.substring(m.range.last + 1).substringBefore('\n').trim()
+            val alone = rest.isEmpty() || m.value.last() in ",;" || rest[0] in ",;|" || rest.split(WHITESPACE).size <= 1
+            (strong || (afterColon && mixedCase && alone)) && !ONE_TIME_BEFORE.containsMatchIn(t.substring(0, m.range.first))
         }
     }
+    private const val PASSWORD_VALUE_MIN = 6
+    private val WHITESPACE = Regex("\\s+")
 
     private val FILE_ENDING = Regex("\\.[A-Za-z]{2,4}$")
 

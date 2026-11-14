@@ -169,9 +169,42 @@ class ClipVaultTest {
         dao.addClip(wall - 2_000, false, "123456")
         dao.addClip(wall - 1_000, false, "Notiz")
         dao.addClip(wall - 500, true, "Tr0ub4dor&3")
+        // as after an app update (the old history is cleaned once per version, second review N8)
+        latinIME.prefs().edit().remove(ClipboardHistoryManager.PREF_OLD_HISTORY_CLEANED).commit()
         latinIME.clipboardHistoryManager.prepareClipboardHistory()
         // review B2: only secrets are deleted afterwards; an old code is history text the user copied
         assertEquals(setOf("123456", "Notiz", "Tr0ub4dor&3"), historyTexts().toSet())
+    }
+
+    @Test fun theOldHistoryIsSortedOncePerVersionOffTheMainThread() {
+        // second review N8: the sorting runs in a background thread, the main thread deletes; a note about a password stays
+        val dao = ClipboardDao.getInstance(latinIME)!!
+        dao.addClip(wall - 3_000, false, key)
+        dao.addClip(wall - 2_000, false, "Passwort: bitte beim Admin erfragen")
+        dao.addClip(wall - 1_000, false, "Notiz")
+        latinIME.prefs().edit().remove(ClipboardHistoryManager.PREF_OLD_HISTORY_CLEANED).commit()
+        val historyManager = ClipboardHistoryManager(latinIME).apply { onCreate() }
+        try {
+            val until = System.currentTimeMillis() + 10_000
+            while (!historyManager.hasPendingOldHistoryCleanup() && System.currentTimeMillis() < until) Thread.sleep(10)
+            assertTrue(historyManager.hasPendingOldHistoryCleanup())
+            assertTrue(historyTexts().contains(key), "the background thread only sorts")
+            historyManager.getClipboardSuggestionView(textField, FrameLayout(latinIME))
+            assertEquals(setOf("Passwort: bitte beim Admin erfragen", "Notiz"), historyTexts().toSet())
+            assertEquals(helium314.keyboard.latin.BuildConfig.VERSION_CODE,
+                latinIME.prefs().getInt(ClipboardHistoryManager.PREF_OLD_HISTORY_CLEANED, 0))
+            // the next start of this version sorts nothing (the guard keeps new secrets out)
+            dao.addClip(wall - 500, false, key)
+            ClipboardHistoryManager(latinIME).apply { onCreate() }.also {
+                Thread.sleep(300)
+                assertFalse(it.hasPendingOldHistoryCleanup())
+                it.getClipboardSuggestionView(textField, FrameLayout(latinIME))
+                assertTrue(historyTexts().contains(key))
+                it.onDestroy()
+            }
+        } finally {
+            historyManager.onDestroy()
+        }
     }
 
     private fun copyInPasswordField(text: String) {

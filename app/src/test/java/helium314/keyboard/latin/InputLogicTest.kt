@@ -4543,6 +4543,112 @@ class InputLogicTest {
         assertEquals("Rechnung", composingText)
     }
 
+    // second review of stages 44/45
+    private fun noPrivateInStrip(vararg parts: String) = assertFalse(
+        inputLogic.mSuggestedWords.mSuggestedWordInfoList.any { info -> parts.any { info.mWord.contains(it) } },
+        inputLogic.mSuggestedWords.toString())
+
+    @Test fun aWordTouchingAPrivateTextIsNotLearnedWhenTheCursorLeaves() {
+        // H1: the word at the cursor after a backspace or an attached letter is decided private when it is taken
+        setText("")
+        lastAddedWord = ""
+        latinIME.onPrivateTextInput("Geheim42x")
+        handleMessages()
+        functionalKeyPress(KeyCode.DELETE)
+        assertEquals("Geheim42", text)
+        setCursorPosition(0)
+        assertEquals("", lastAddedWord)
+        assertEquals("", composingText)
+        noPrivateInStrip("Geheim")
+        setText("")
+        latinIME.onPrivateTextInput("Geheim42x")
+        handleMessages()
+        input('a')
+        assertEquals("Geheim42xa", text)
+        assertEquals("", composingText)
+        setCursorPosition(0)
+        assertEquals("", lastAddedWord)
+        assertEquals("", composingText)
+        noPrivateInStrip("Geheim")
+    }
+
+    @Test fun aBackspaceAfterAPickThatEndedACorrectedWordDoesNotComposeIt() {
+        // M1: the private text was the separator of the autocorrected word; reverting that commit composed it
+        setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT)
+        chainInput("hullo")
+        val info = SuggestedWordInfo("hello", "", 0, 0, null, 0, 0)
+        val typedInfo = SuggestedWordInfo("hullo", "", 0, 0, null, 0, 0)
+        latinIME.mInputLogic.setSuggestedWords(SuggestedWords(ArrayList(listOf(typedInfo, info)), null, typedInfo, false, true, false, 0, 0))
+        latinIME.onPrivateTextInput("Geheim42x")
+        handleMessages()
+        assertEquals("helloGeheim42x", text) // the pick ended the corrected word
+        assertEquals(helium314.keyboard.latin.LastComposedWord.NOT_A_COMPOSED_WORD, inputLogic.mLastComposedWord) // keeps no copy
+        functionalKeyPress(KeyCode.DELETE)
+        assertEquals("helloGeheim42", text)
+        assertEquals("", composingText)
+        noPrivateInStrip("Geheim")
+    }
+
+    @Test fun severalPrivateTextsAreKeptAndFollowEditsBeforeThem() {
+        // N1: a name and then an address; N2: typing before a private text moves its mark
+        setText("")
+        lastAddedWord = ""
+        latinIME.onPrivateTextInput("Max Muster")
+        handleMessages()
+        chainInput(" wohnt in ")
+        latinIME.onPrivateTextInput("Hauptstr 5")
+        handleMessages()
+        chainInput(" ")
+        assertEquals("Max Muster wohnt in Hauptstr 5 ", text)
+        assertEquals("", lastAddedWord) // "wohnt" and "in" have the name as n-gram context
+        setCursorPosition(2)
+        assertEquals("", composingText)
+        noPrivateInStrip("Max", "Muster")
+        setCursorPosition(text.indexOf("Hauptstr") + 3)
+        assertEquals("", composingText)
+        noPrivateInStrip("Hauptstr")
+        setCursorPosition(0)
+        chainInput("Hallo ")
+        assertEquals("Hallo Max Muster wohnt in Hauptstr 5 ", text)
+        setCursorPosition(text.indexOf("Muster") + 2)
+        assertEquals("", composingText)
+        noPrivateInStrip("Muster")
+        setCursorPosition(text.indexOf("Hauptstr") + 2)
+        assertEquals("", composingText)
+        noPrivateInStrip("Hauptstr")
+        // an ordinary word between them is still composed when touched
+        setCursorPosition(text.indexOf("wohnt") + 2)
+        assertEquals("wohnt", composingText)
+    }
+
+    @Test fun learningResumesOnceThePrivateTextIsNoLongerContext() {
+        // N3: the words whose n-gram context holds it are not learned, the next ones are
+        setText("")
+        lastAddedWord = ""
+        latinIME.onPrivateTextInput("Geheim42x")
+        handleMessages()
+        chainInput(" eins zwei drei ")
+        assertEquals("", lastAddedWord)
+        chainInput("vier ")
+        assertEquals("vier", lastAddedWord)
+    }
+
+    @Test fun aLongPrivateTextIsMarkedAsCommitted() {
+        // N5: a key with line breaks, longer than the hashed head, is marked by what was committed (the
+        // test connection reads at most 100 characters; PrivateRangesTest checks a 3000-character key)
+        val pem = "-----BEGIN KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCMIIEvQ\n-----END KEY-----"
+        setText("")
+        lastAddedWord = ""
+        latinIME.onPrivateTextInput(pem)
+        handleMessages()
+        assertEquals(pem, text)
+        functionalKeyPress(KeyCode.DELETE)
+        assertEquals("", composingText)
+        noPrivateInStrip("KEY", "MIIE")
+        chainInput(" ")
+        assertEquals("", lastAddedWord)
+    }
+
     @Test fun fieldSuggestionChipInsertsOnlyOnATapAndOnce() {
         // stage 45 with the real host: the empty field takes the entry at the cursor, cue words get it after them
         val defaultData = helium314.keyboard.agent.FieldSuggestionChips.myData

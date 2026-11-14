@@ -3820,6 +3820,60 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   `InputAttributes.java` (bisher unverändert), `ClipboardDao.kt`. `RichInputConnection`,
   `PointerTracker` unverändert.
 
+## Zweite Nachprüfung 44/45 (zweiter Prüfer zu den Korrekturen, 2026-11-14)
+
+- H1 (hoch): Nach Rücktaste oder angehängtem Buchstaben merkte `onCodeInput` das Wort an der
+  Schreibmarke (`mWordBeingCorrectedByCursor`), und das Wegsetzen der Schreibmarke lernte es (die
+  Prüfung lief an der neuen Stelle). Jetzt wird beim Merken entschieden: berührt das Wort einen
+  privaten Text, bleibt es leer. Test `InputLogicTest.aWordTouchingAPrivateTextIsNotLearnedWhenTheCursorLeaves`
+  (Rücktaste bzw. „a“ angehängt, Schreibmarke auf 0: nichts gelernt, nichts komponiert, Leiste ohne Text).
+- M1: Beendete die Tresor-Wahl ein autokorrigiertes Wort, stand der Text als Trenner in
+  `mLastComposedWord`, und die Rücktaste setzte ihn per `revertCommit` als Kompositionswort ein.
+  `markPrivateBeforeCursor` leert `mLastComposedWord` und `mEnteredText`. Test
+  `aBackspaceAfterAPickThatEndedACorrectedWordDoesNotComposeIt` („hullo“ → „hello“ + Geheimnis).
+- M2: `SensitiveClips.migrateLegacy` ohne `ClipboardDao` (vor dem ersten Entsperren) löschte die
+  alte Hash-Datei ungenutzt; jetzt `return false`, Datei bleibt. Test
+  `ClipCommandTest.withoutAReadableHistoryTheOldHashFileStays`.
+- N1: bis zu drei private Texte je Feld (`PrivateRanges.MAX`); N2: Bearbeitungen der Tastatur davor
+  verschieben die Marke, andere findet der Hash wieder (P185). Tests
+  `severalPrivateTextsAreKeptAndFollowEditsBeforeThem` (Name, dann Adresse, dann „Hallo “ davor),
+  `PrivateRangesTest` (Verschieben, Kürzen, ungemeldete Verschiebung, drei Werte).
+- N3: statt 64 Zeichen zählt die Lernsperre Wörter (`MAX_PREV_WORD_COUNT_FOR_N_GRAM` + 1). Positiv-
+  test `learningResumesOnceThePrivateTextIsNoLongerContext` („eins zwei drei“ nicht, „vier“ gelernt)
+  und `PrivateRangesTest.theLearningContextAreTheLastWords`.
+- N4: Neustart in `handleNonSeparatorEvent` nach einem Wortverbinder prüft jetzt auch
+  (`privateTextAtCursor`). Kein eigener Test.
+- N5: markiert wird `mEnteredText` (das Committete nach der TLD-Behandlung) statt eines
+  Textvergleichs mit dem Rohtext. Test `aLongPrivateTextIsMarkedAsCommitted` (Schlüssel mit
+  Zeilenumbrüchen, länger als der Hash-Kopf; die Testverbindung liest höchstens 100 Zeichen),
+  `PrivateRangesTest.longValuesAreCheckedByTheirHead` (über 3000 Zeichen).
+- N6: kein Klartext mehr (Position, Länge, Hash der ersten 32 Zeichen), `mLastComposedWord` leer
+  (M1). `PrivateRangesTest.keepsNoTextOnlyFindsTheValueByItsHash`.
+- N7: WAL-Checkpoint und `VACUUM` auf einem Hintergrund-Thread von `ClipboardDao`, `VACUUM` ohne
+  `synchronized(this)` und nur bis 8 MiB Dateigröße; `runCatching` bleibt. Nur indirekt getestet
+  (Lösch-Tests grün), auf keinem Gerät geprüft.
+- N8: Passwort-Wort plus Wert nur mit wertartigem Wert (ab 6 Zeichen, Ziffer oder Sonderzeichen;
+  nach „:“/„=“ auch Groß-/Kleinbuchstaben allein am Zeilenende). Test
+  `ClipGuardTest.aPasswordWordNeedsAValueThatLooksLikeOne`; die alten Positive bleiben grün. Die
+  nachträgliche Bereinigung läuft einmal je Versionscode, sortiert im Hintergrund, löscht auf dem
+  Hauptthread (P186). Test `ClipVaultTest.theOldHistoryIsSortedOncePerVersionOffTheMainThread`;
+  `oldSecretsLeaveTheHistoryPinnedOnesStay` entfernt dafür vorher den Versions-Merker (wie nach
+  einem Update), die Erwartung ist unverändert.
+- Etappe 46 (`Memory.onWordCommitted`) liegt auf dieser Basis noch nicht vor; die Prüfung hier
+  nicht möglich. Hängt sie hinter `performAdditionToUserHistoryDictionary`, gilt die Wortsperre.
+- Geprüft: `./gradlew :agent-core:test` grün (mit `PrivateRangesTest`, 7); `:app:testDebugUnitTest`
+  mit `InputLogicTest` (215, grün bis auf das geerbte `insertLetterIntoWordHangulFails`),
+  `ClipVaultTest` (21), `ClipCommandTest` (12), `FieldSuggestionChipsTest` (21) grün. Nicht
+  gelaufen: volle Suite, Agent-Tests über `tools/dev.py`, Lint, Build, Gerätetest.
+- Engine-Änderungen (Prüfer Pflicht): `InputLogic.java` (`mPrivateRanges`/`mPrivateEditor`,
+  `markPrivateText`, `markEnteredTextPrivate`, `markPrivateBeforeCursor`, `privateTextEdited`,
+  `privateTextAtCursor`; je ein Aufruf in `onCodeInput` (Positionen merken, nach der Ereignisschleife
+  melden, beim Merken von `mWordBeingCorrectedByCursor`), `onTextInput` (merken, vor
+  `endBatchEdit` melden), `handleNonSeparatorEvent`, `restartSuggestionsOnWordTouchedByCursor`
+  (nach dem Wortbereich statt in der ersten Bedingung), `performAdditionToUserHistoryDictionary`;
+  `nearPrivateText` und `PRIVATE_LEARNING_DISTANCE` entfernt), `LatinIME.onPrivateTextInput`
+  (`markEnteredTextPrivate`). `RichInputConnection`, `PointerTracker` unverändert.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.
