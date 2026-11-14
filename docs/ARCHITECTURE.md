@@ -162,6 +162,11 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   Sprache, sonst `ZZ` = nur mit Ländervorwahl; Format `INTERNATIONAL`), `DecimalHint.kt` (Komma-
   und Punkt-Sprachen, drei Nachkommastellen gelten als Tausender, nie eine Ersetzung).
   Test `CT/format/FormatGuardTest.kt`.
+- `SnippetTemplate.kt` (Etappe 42): Vorlagensprache von `@snip` (`parse` wirft nie, `literal` für
+  Bausteine von vor 42, `expand` mit `Values` = Datum, Uhrzeit, `DateFormatting.Language`,
+  Zwischenablage oder null, Felder; `Expansion` mit Cursor-Index in UTF-16), `Issue` (`UNKNOWN`,
+  `UNCLOSED`, `EXTRA_CURSOR`) für die Warnungen im Editor, `language` (en/es folgen der Tastatur,
+  sonst Deutsch); `SnippetApps` (Paketnamen, höchstens 20, `allows`). Test `CT/SnippetTemplateTest.kt`.
 - Tests in `CT/`: `AiTextActionTest`, `EditorPolicyTest`, `LocalTextActionsTest`,
   `PendingBatchGateTest`, `SkillBindingTest`, `ToolTest`, `WorkflowTest`,
   `InsertionAnchorTest`, `StyledTranslationTest`, `UpdateReleasesTest`, `RgbLightingTest`,
@@ -271,6 +276,9 @@ Befehle (Etappe 24a, Details im Abschnitt „Befehle“):
   `getAgentCommandCursor`, `replaceCommandText` für `KeyboardCommands`;
   `onStartInputViewInternal` lädt die Befehlseinstellungen; `onCreate`/`onDestroy` hängen
   `SensitiveClips.attach` an die Zwischenablage (eigener Listener, der Verlauf bleibt unverändert).
+  Etappe 42: `onEvent` gibt die Bildschirm-Enter-Taste zuerst an `KeyboardCommands.onEnter` (nur
+  ein Befehl, der gerade ein Feld abfragt, nimmt sie; sonst unverändert), `moveAgentCursorBack`
+  setzt nach einem Baustein die Schreibmarke über `RichInputConnection.setSelection` zurück.
 - `Suggest.kt`: keine automatische Korrektur für ein Befehlswort und, solange ein vollständiger
   Befehl vor der Schreibmarke steht, für die Wörter seines Arguments
   (`KeyboardCommands.suppressesCorrection`); ebenso keine gelernte Korrektur.
@@ -870,7 +878,25 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     US-Maße, „Pfund“ = lb; ein Paar ohne Zahl wie „oz in g“ rechnet 1 Einheit, eine Zahl
     dahinter ist der Wert: „oz in g 5“).
   - `A/commands/SnipCommand.kt` und `A/commands/SnippetStore.kt` (`@snip`, CE-Datei,
-    Einstellungen `K/settings/screens/AgentSnippetsSection.kt`), `A/commands/ClipCommand.kt`
+    Einstellungen `K/settings/screens/AgentSnippetsSection.kt`). Etappe 42 (Textbausteine 2.0):
+    Text = `SnippetTemplate`, erst beim Tipp erweitert (Uhr `clock`/`zone`, Sprache aus
+    `Host.language`, Zwischenablage `clipboard` nur bei `{zwischenablage}`). `SystemClipboard`:
+    nur mit Verlauf an, nicht gesperrt, nur Text, nie markiert vertraulich oder in
+    `SensitiveClips`, höchstens 2000 Zeichen; sonst leer plus Toast (`ClipRead.Missing`). Felder
+    `{?Name}`: Der Tipp ersetzt den Befehl durch „@snip name Feld: “ (`argumentStart`), der Wert
+    ist das Argument (geschützt, nicht korrigiert, nicht gelernt); `Filling` hält Werte und Index
+    nur im Speicher, solange genau dieser Befehl vor der Schreibmarke steht (`reset`). Enter
+    (`Command.onEnter`, `KeyboardCommands.onEnter` aus `LatinIME.onEvent`) oder „Weiter“ fragt das
+    nächste Feld, das letzte fügt ein; „Abbrechen“ stellt „@snip name“ her. `{cursor}`:
+    `Host.moveCursorBack` nach erfolgreichem `replace`. `apps` filtert nach
+    `EditorInfo.packageName` (`SnippetApps.allows`). Alte Bausteine (`storageVersion` 1) sind
+    `literal` und werden wörtlich eingefügt, bis sie im Editor gespeichert werden. Editor:
+    `SnippetEditor` mit Platzhalter-Reihe (fügt an der Auswahl ein), Warnungen aus `issues`,
+    Live-Vorschau `SnipCommand.editorPreview` (Felder als ‹Name›, Zwischenablage nur als
+    Platzhaltertext, nie gelesen), Apps aus `AppsManager.getPackagesWithNameAndIcon` (auf IO) oder
+    getippt. Texte in `agent_snippet_strings.xml` (`values/`, `values-de/`). Tests
+    `AT/SnipCommandTest.kt` (mit `SnippetStoreTest`),
+    `InputLogicTest.typedSnippetFieldTakesEnterThenInsertsAndPlacesTheCursor`. `A/commands/ClipCommand.kt`
     (`@clip`, nur mit eingeschaltetem Verlauf, nur Text; überspringt den aktuellen vertraulichen Clip
     und alles, was `A/commands/SensitiveClips.kt` als vertraulich kopiert vermerkt hat: eigener
     Zwischenablage-Listener aus `LatinIME`, Markierung `IS_SENSITIVE` oder Passwortfeld als
@@ -2627,13 +2653,27 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   ändern; dann die erwarteten Texte in `FormatGuardTest` an die neue Ausgabe anpassen, nicht die
   Prüfung lockern. Die Metadaten liegen als Java-Ressourcen im Jar und werden beim ersten Aufruf
   geladen (`PhoneNumberUtil.getInstance`, lazy); ein minifizierter Build muss sie behalten.
+- **P141** `@snip`-Felder: `SnipCommand` setzt `filling` (bzw. den nächsten Index) vor
+  `Host.replace` und nimmt es bei Misserfolg zurück. Der echte Host baut die Leiste schon während
+  des Ersetzens neu (`setNeutralSuggestionStrip`); wäre der Zustand erst danach gesetzt, sähe der
+  Neuaufbau „@snip name Feld: “ ohne Feld und zeigte den normalen Streifen.
+- **P142** Enter wird nur in `LatinIME.onEvent` abgefangen (Bildschirmtastatur). Eine
+  Hardware-Tastatur geht über `KeyboardActionListenerImpl.onKeyDown` direkt an `InputLogic` und
+  löst während der Feldabfrage die Editor-Aktion aus (z. B. Senden des Befehlstexts); dort hilft
+  nur „Weiter“. `onEnter` darf nur `true` liefern, wenn ein Feld wirklich abgefragt wird, sonst
+  wäre Enter in jedem `@snip`-Text tot.
+- **P143** `{zwischenablage}` liest die Zwischenablage erst beim Einfügen und nie in den
+  Einstellungen: Die Vorschau zeigt nur „‹Zwischenablage›“. Vertraulich prüft `SystemClipboard`
+  mit derselben Umwandlung wie Verlauf und `SensitiveClips` (`coerceToText`), sonst passt der
+  Hash nicht. Bausteine aus `storageVersion` 1 bleiben `literal`; wer `decode` ändert, darf sie
+  nicht als Vorlage lesen (`{{` oder `{datum}` in altem Text würden sich sonst ändern).
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (478 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (482 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -2682,21 +2722,22 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (8): ClockCommandsTest, EmojiMixCommandTest, LanguageCommandTest, QrCommandTest,
   ScreenReaderServiceTest, SubtypeChoiceTest, TranslateCommandTest, UrlCommandTest
-- `C/` (40): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
+- `C/` (41): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
   EditorSession, EmojiKeywords, EmojiMix, EmojiNames, EmojiSynonyms, EventParser, ExecutionPolicy,
   InkDots, InkRecognizer, InkSymbols, InkTiming, LanguageNames, LocalTextActions, MathExpression,
   ModelProvider, OwnInkSymbols, PendingBatchGate, PersonalInkSymbols, Places, Profiles, RgbCurve,
-  RgbLighting, RgbPatterns, SkillBinding, SpecialCharacters, StyledTranslation, SymbolTable,
-  TextCondition, TimerParser, Tool, UnitConversion, UpdateReleases, UrlDetector, Workflow
+  RgbLighting, RgbPatterns, SkillBinding, SnippetTemplate, SpecialCharacters, StyledTranslation,
+  SymbolTable, TextCondition, TimerParser, Tool, UnitConversion, UpdateReleases, UrlDetector,
+  Workflow
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
-- `CT/` (36): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
+- `CT/` (37): AiTextActionTest, AlarmParserTest, CommandSyntaxTest, DateFormattingTest,
   EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest, EventParserTest, InkAreaTest, InkBenchmarkTest,
   InkDotsTest, InkFingerModel, InkRecognizerTest, InkTimingTest, InsertionAnchorTest,
   LanguageNamesTest, LocalTextActionsTest, MathExpressionTest, OwnInkSymbolsTest,
   PendingBatchGateTest, PersonalInkSymbolsTest, PlacesTest, QuestionCaptureTest, RgbCurveTest,
-  RgbFrameStatsTest, RgbLightingTest, RgbPatternsTest, SkillBindingTest, StyledTranslationTest,
-  SymbolTableTest, TimerParserTest, ToolTest, UnitConversionTest, UpdateReleasesTest,
-  UrlDetectorTest, WorkflowTest
+  RgbFrameStatsTest, RgbLightingTest, RgbPatternsTest, SkillBindingTest, SnippetTemplateTest,
+  StyledTranslationTest, SymbolTableTest, TimerParserTest, ToolTest, UnitConversionTest,
+  UpdateReleasesTest, UrlDetectorTest, WorkflowTest
 - `CT/format/` (1): FormatGuardTest
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,
   KeyboardActionListenerImpl, KeyboardSwitcher, KeyboardTheme, KeyboardView, MainKeyboardView,
@@ -2748,19 +2789,20 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (21): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
+- `app/src/main/res/values-de/` (22): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
   agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings, agent_format_strings,
   agent_gestures_strings, agent_language_strings, agent_rgb_strings, agent_settings_keys_strings,
   agent_settings_look_strings, agent_settings_strings, agent_settings_system_strings,
-  agent_slider_strings, agent_space_strings, agent_strings, agent_symbol_strings,
-  agent_typing_strings, agent_update_strings, strings
-- `app/src/main/res/values/` (27): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+  agent_slider_strings, agent_snippet_strings, agent_space_strings, agent_strings,
+  agent_symbol_strings, agent_typing_strings, agent_update_strings, strings
+- `app/src/main/res/values/` (28): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
   agent_bar_strings, agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings,
   agent_format_strings, agent_gestures_strings, agent_ids, agent_language_strings,
   agent_rgb_strings, agent_settings_keys_strings, agent_settings_look_strings,
-  agent_settings_strings, agent_settings_system_strings, agent_slider_strings, agent_space_strings,
-  agent_strings, agent_symbol_strings, agent_typing_strings, agent_update_strings, attrs,
-  clip_provider, donottranslate, gesture_data, themes-flat
+  agent_settings_strings, agent_settings_system_strings, agent_slider_strings,
+  agent_snippet_strings, agent_space_strings, agent_strings, agent_symbol_strings,
+  agent_typing_strings, agent_update_strings, attrs, clip_provider, donottranslate, gesture_data,
+  themes-flat
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (1): Shadows

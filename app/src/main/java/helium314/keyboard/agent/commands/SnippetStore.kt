@@ -6,11 +6,15 @@ import android.util.AtomicFile
 import helium314.keyboard.agent.security.credentialAccessAllowed
 import helium314.keyboard.agent.security.credentialContext
 import helium314.keyboard.agent.security.readBounded
+import dev.agentkeyboard.core.SnippetApps
+import dev.agentkeyboard.core.SnippetTemplate
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -21,9 +25,16 @@ import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
 import java.util.Locale
 
-/** A text snippet of `@snip` (stage 24f). [toString] never shows the text. */
-class Snippet(val name: String, val text: String) {
-    override fun toString() = "Snippet(${text.length} chars)"
+/**
+ * A text snippet of `@snip` (stage 24f). Stage 42: [text] is a [SnippetTemplate]; [apps] limits the
+ * apps it is offered in (package names, none = all); [literal] marks a snippet stored before stage 42,
+ * inserted as typed until it is saved again in the editor. [toString] never shows the text.
+ */
+class Snippet(val name: String, val text: String, val apps: List<String> = emptyList(), val literal: Boolean = false) {
+    override fun toString() = "Snippet(${text.length} chars, ${apps.size} apps${if (literal) ", literal" else ""})"
+
+    /** What a tap inserts: the template, or for a [literal] snippet its text as typed. */
+    val template: SnippetTemplate get() = if (literal) SnippetTemplate.literal(text) else SnippetTemplate.parse(text)
 }
 
 /**
@@ -47,7 +58,7 @@ class SnippetStore(context: Context, private val accessible: () -> Boolean = { c
 
     /** Adds [snippet], or replaces the one called [previousName] (renaming it). Names are unique regardless of case. */
     fun put(snippet: Snippet, previousName: String? = null) = synchronized(lock) {
-        require(isValidName(snippet.name) && isValidText(snippet.text))
+        require(isValidName(snippet.name) && isValidText(snippet.text) && isValidApps(snippet.apps))
         val current = read()
         // a new snippet never replaces an existing one; an edited one replaces only itself
         if (previousName != null) require(current.any { it.name.equals(previousName, ignoreCase = true) }) { "Snippet gone" }
@@ -72,6 +83,7 @@ class SnippetStore(context: Context, private val accessible: () -> Boolean = { c
 
     companion object {
         const val FILE_NAME = "agent_snippets.json"
+        const val STORAGE_VERSION = 2
         const val MAX_SNIPPETS = 50
         const val MAX_NAME = 24
         const val MAX_TEXT = 2000
@@ -85,24 +97,54 @@ class SnippetStore(context: Context, private val accessible: () -> Boolean = { c
         /** Not blank, at most [MAX_TEXT] characters; line breaks are allowed. */
         fun isValidText(text: String) = text.isNotBlank() && text.length <= MAX_TEXT
 
+        /** Stage 42: at most [SnippetApps.MAX_APPS] distinct valid package names. */
+        fun isValidApps(apps: List<String>) =
+            apps.size <= SnippetApps.MAX_APPS && apps.all { SnippetApps.isValidPackage(it) } && apps.toSet().size == apps.size
+
+        /** Stage 42 writes version 2: `apps` and `literal` only when set, so a plain snippet looks as in version 1. */
         fun encode(snippets: List<Snippet>): String = buildJsonObject {
-            put("storageVersion", 1)
+            put("storageVersion", STORAGE_VERSION)
             put("snippets", buildJsonArray {
                 snippets.sortedBy { it.name.lowercase(Locale.ROOT) }.forEach { snippet ->
-                    add(buildJsonObject { put("name", snippet.name); put("text", snippet.text) })
+                    add(buildJsonObject {
+                        put("name", snippet.name)
+                        put("text", snippet.text)
+                        if (snippet.apps.isNotEmpty()) put("apps", buildJsonArray { snippet.apps.forEach { add(JsonPrimitive(it)) } })
+                        if (snippet.literal) put("literal", true)
+                    })
                 }
             })
         }.toString()
 
+        /**
+         * Reads version 1 (stage 24f) and 2 (stage 42). A version 1 snippet is [Snippet.literal]: its
+         * text is inserted exactly as before, braces included, until the user saves it again.
+         */
         fun decode(encoded: String): List<Snippet> {
             val root = Json.parseToJsonElement(encoded).jsonObject
-            require(root.keys == setOf("storageVersion", "snippets") && root.getValue("storageVersion").jsonPrimitive.int == 1)
+            require(root.keys == setOf("storageVersion", "snippets"))
+            val version = root.getValue("storageVersion").jsonPrimitive.int
+            require(version == 1 || version == STORAGE_VERSION)
             val rows = root.getValue("snippets").jsonArray
             require(rows.size <= MAX_SNIPPETS)
             val snippets = rows.map { element ->
                 val row = element.jsonObject
-                require(row.keys == setOf("name", "text"))
-                Snippet(row.string("name"), row.string("text")).also { require(isValidName(it.name) && isValidText(it.text)) }
+                if (version == 1) {
+                    require(row.keys == setOf("name", "text"))
+                    return@map Snippet(row.string("name"), row.string("text"), literal = true)
+                        .also { require(isValidName(it.name) && isValidText(it.text)) }
+                }
+                require(row.keys.containsAll(setOf("name", "text")) && (row.keys - setOf("name", "text", "apps", "literal")).isEmpty())
+                val apps = row["apps"]?.let { value ->
+                    require(value is JsonArray && value.isNotEmpty()) // written only when not empty
+                    value.map { (it as? JsonPrimitive)?.takeIf { app -> app.isString }?.content ?: throw IllegalArgumentException("app") }
+                }.orEmpty()
+                val literal = row["literal"]?.let { value ->
+                    require(value is JsonPrimitive && !value.isString && value.boolean) // written only when true
+                    true
+                } ?: false
+                Snippet(row.string("name"), row.string("text"), apps, literal)
+                    .also { require(isValidName(it.name) && isValidText(it.text) && isValidApps(it.apps)) }
             }
             require(snippets.map { it.name.lowercase(Locale.ROOT) }.toSet().size == snippets.size)
             return snippets.sortedBy { it.name.lowercase(Locale.ROOT) }

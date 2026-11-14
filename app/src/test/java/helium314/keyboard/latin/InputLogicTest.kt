@@ -913,6 +913,46 @@ class InputLogicTest {
         }
     }
 
+    @Test fun typedSnippetFieldTakesEnterThenInsertsAndPlacesTheCursor() {
+        // stage 42 with the real host: the tap, the field typed as the argument, Enter, the cursor mark
+        helium314.keyboard.agent.KeyboardCommands.load(latinIME)
+        val snip = helium314.keyboard.agent.commands.SnipCommand
+        val zone = java.util.TimeZone.getTimeZone("Europe/Berlin")
+        snip.source = helium314.keyboard.agent.commands.SnipCommand.Source {
+            listOf(helium314.keyboard.agent.commands.Snippet("einladung", "Hallo {?Name}, {cursor}bis {datum+2t}"))
+        }
+        snip.clock = { dev.agentkeyboard.core.LocalMoment(dev.agentkeyboard.core.CivilDate(2026, 11, 12),
+            dev.agentkeyboard.core.ClockTime(18, 45)).toEpochMillis(zone) }
+        snip.zone = { zone }
+        try {
+            chainInput("x @snip ein")
+            val strip = android.widget.FrameLayout(latinIME)
+            fun labels() = (helium314.keyboard.agent.KeyboardCommands.createChipsView(latinIME, strip) as android.view.ViewGroup)
+                .let { chips -> (chips.getChildAt(0) as android.view.ViewGroup).let { row -> (0 until row.childCount).map { row.getChildAt(it) as android.widget.TextView } } }
+            // without a field asked, Enter is left to the engine
+            assertFalse(helium314.keyboard.agent.KeyboardCommands.onEnter(latinIME))
+            labels().single().performClick()
+            handleMessages()
+            assertEquals("x @snip einladung Name: ", text)
+            checkConnectionConsistency()
+            chainInput("Lena")
+            assertEquals("x @snip einladung Name: Lena", text) // not corrected
+            assertEquals("Name (1/1): Lena", labels().first().text.toString())
+            latinIME.onEvent(Event.createEventForCodePointFromUnknownSource(Constants.CODE_ENTER))
+            handleMessages()
+            assertEquals("x Hallo Lena, bis 11/14/2026", text) // Enter neither typed nor sent; the date in the keyboard language (en)
+            assertEquals("x Hallo Lena, ".length, selectionStart)
+            assertEquals(selectionStart, selectionEnd)
+            checkConnectionConsistency()
+            assertFalse(helium314.keyboard.agent.KeyboardCommands.onEnter(latinIME))
+        } finally {
+            snip.source = helium314.keyboard.agent.commands.SnipCommand.Source { helium314.keyboard.agent.commands.SnippetStore(it).read() }
+            snip.clock = { System.currentTimeMillis() }
+            snip.zone = { java.util.TimeZone.getDefault() }
+            snip.reset()
+        }
+    }
+
     @Test fun typedCommandCalculatorInsertsAtTheCursorWhenTheCommandIsGone() {
         helium314.keyboard.agent.KeyboardCommands.load(latinIME)
         val root = android.widget.FrameLayout(latinIME)
