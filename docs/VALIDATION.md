@@ -4449,6 +4449,76 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   vorhandene `InputLogic`-Methoden: `commitTyped` beim Öffnen (wie `launchSettings`),
   `insertGeneratedText` über `editor.insert`, `replaceCommandText` für Ersetzen und Rückgängig.
   `InputLogic`, `RichInputConnection`, `PointerTracker` unverändert.
+## Etappe 51 (Autokorrektur folgt der Sprache)
+
+- Auftrag: `docs/ROADMAP.md` → 51 (Owner zu Build 21, 2026-11-14): (a) „Die Autokorrektur muss sich
+  beim Umstellen der Sprache auch umstellen“ („Sprache pro App“ aus, Umschalten mit `@deutsch`,
+  `@sp`); (b) „dass anderssprachige Wörter, wenn vorher bereits geschrieben, erkannt werden und die
+  Tastatur sich dies merkt“.
+- Nachgestellt mit der echten Engine in Robolectric: neuer Wörterbuch-Ersatz
+  `latin/WordListDictionaries.kt` (`ShadowWordListDictionaries` ersetzt nur das Öffnen der
+  Hauptwörterbücher durch Wortlisten; `DictionaryFacilitatorImpl`, Gruppen, Konfidenz, `Suggest`,
+  `InputLogic`, Sprachbefehl-Chips laufen echt). Befund:
+  - Einsprachige Subtypen (de, es): Sprachbefehl, Einstellungen (`mLocale`), Facilitator und
+    Autokorrektur stellten schon vorher richtig um (`stage 51 the autocorrection follows the
+    language commands, de and es`, vor und nach der Änderung grün).
+  - Ursache 1 (Upstream, `getUsedLocales`): Die Sprachen kamen in einem `HashSet`, die erste Gruppe
+    war die des Hashs: Spanisch mit Deutsch und Englisch mit Deutsch begannen mit Deutsch (Hauptsprache
+    `de`, bevorzugt `de`). Test vorher rot: `expected:<[es, de]> but was:<[de, es]>`.
+  - Ursache 2 (Upstream, `usesSameSettings`): Deutsch-mit-Spanisch → `@sp` → Spanisch-mit-Deutsch
+    baute nichts neu auf (dieselben Sprachen), Deutsch blieb Hauptsprache mit seiner Konfidenz
+    (Gewicht 1,0 gegen 0,7). Test vorher rot: nach `@sp` wurde „mui“ zu „Mut“ statt „muy“.
+  - Ursache 3 (Fork, 20b/49): gelernte Paare waren sprachblind und setzten ihr Wort auch ein, wenn
+    kein Wörterbuch es anbot. Test vorher rot: ein auf Deutsch gelerntes „dnake“ → „danke“ wurde
+    nach `@sp` angewendet (`expected:<d[na]ke > but was:<d[an]ke >`).
+  - Ohne (b) vorher rot: „hola“ nach einmal rückgängig gemachter Korrektur wurde im nächsten Feld
+    wieder zu „hold“ (`expected:<hol[a] > but was:<hol[d] >`); „gracias“ zweimal geschrieben wurde
+    nicht angeboten.
+  Der Rot-Lauf (2026-11-14) lief mit den alten Fassungen von `DictionaryFacilitatorImpl.kt`,
+  `Suggest.kt`, `Memory.kt`, `CorrectionMemory.kt`, `AgentEditorController.kt` und den neuen Tests:
+  6 von 7 rot, nur der Grundfall grün.
+- Entscheidungen je Speicher (Lead, P192): je Sprache `TypoMemory` (20b) und `FieldCorrectionMemory`
+  (49), weil sie Text einsetzen; alte Einträge ohne Sprache gelten nur, wo ein Wörterbuch der
+  Sprache das gemeinte Wort kennt. Sprachneutral: `RejectedCorrections` (verhindert nur, das Paar ist
+  sprachspezifisch), eigene Wörter, Wortfolgen, Kürzel des Gedächtnisses (Namen und Slang des Owners,
+  wirken nur als Schutz oder auf Tipp), `TypedWordFirst` (nur im Speicher je Feld). HeliBoards
+  Lernverlauf und Sperrliste sind je Sprache; seit Ursache 1 lernt der Verlauf in der Hauptsprache.
+- (b) Annahmen des Leads: hängt an „Personalisierte Vorschläge“ (HeliBoards Lernschalter), nicht am
+  Gedächtnis-Schalter. Schwelle: sofort bei ausdrücklichem Behalten (Rücknahme der Korrektur), sonst
+  beim zweiten Commit an anderer Stelle und nur in Feldern mit Autokorrektur. Begründung
+  (Präzision): Die gefährlichen Fälle sind Vertipper, die zufällig ein Wort einer anderen aktiven
+  Sprache sind und die die aktuelle Sprache nicht kennt („fur“ statt „für“, „ser“ statt „der“,
+  „tine“ statt „tiene“). Die Autokorrektur fängt sie normalerweise ab; unkorrigiert stehen bleiben
+  sie nur, wenn der Owner darauf besteht (Rücknahme: klarer Wunsch, einmal genügt) oder die Engine
+  selbst unsicher war. Für den zweiten Fall macht die zweite Stelle aus einem zufälligen Vertipper
+  zwei unabhängige gleiche, während ein wirklich benutztes Wort bald wiederkommt; dieselbe Regel wie
+  49 und schneller als eigene Wörter (drei Nutzungen). „Andere Sprache“ = jeder aktive Subtyp und
+  seine zweiten Sprachen. Regel „fur“ (49) und Groß-/Kleinregel (48 M1) bleiben: Ein Wort, das die
+  Sprache in irgendeiner Schreibung kennt, ist kein Fremdwort, Groß-/Kleinrücknahmen zählen nicht,
+  und „fur“ schützt erst, wenn der Owner es behalten hat, dann nur in dieser Sprache.
+- Neue Tests: `InputLogicTest` „stage 51“ (8: Grundfall de/es; Wechsel Deutsch-mit-Spanisch ↔
+  Spanisch-mit-Deutsch mit Konfidenz; Hauptsprache vorne bei es+de und en+de; Paare 20b/49 und alte
+  Paare je Sprache; „hola“ einmal behalten, im nächsten Feld stehen gelassen, als Vorschlag, auf
+  Englisch weiter korrigiert; „gracias“ zählt erst an der zweiten Stelle, nicht an derselben, ein
+  deutsches Wort nie; „hand“/„Hand“ kein Fremdwort; gesperrt: „Personalisierte Vorschläge“ aus,
+  Lernpause, Inkognito, `NO_LEARNING_FIELD`, Passwort, gesperrtes Gerät), `SuggestTest` (1: „fur“ →
+  „für“ bis „fur“ für Deutsch gemerkt ist, dann nur Vorschlag; gemerktes Wort hinter der Korrektur;
+  nur auf Deutsch; nur mit „Personalisierte Vorschläge“), `TypoMemoryTest` (2), `FieldCorrectionMemoryTest`
+  (1), `MemoryScreenTest` (1: Abschnitt „Wörter aus anderen Sprachen“, Löschen).
+- Gelaufen (2026-11-14, `--max-workers=1 -Xmx1536m`): `:app:testDebugUnitTest` gezielt mit
+  `InputLogicTest` (249, einziger Fehler das geerbte `insertLetterIntoWordHangulFails`),
+  `SuggestTest` (45), `SpellCheckerTest` (2), `CorrectionMemoryTest` (4), `FieldCorrectionMemoryTest`
+  (9), `MemoryScreenTest` (4), `TypoMemoryTest` (11), `SymbolSettingsScreenTest` (13),
+  `TouchScenesScreenTest` (3), `LearningDataTest` (5): 345 Tests, 1 Fehler (geerbt).
+  `docs_sync --check` grün. Nicht gelaufen: `:agent-core:test` (unverändert), `tools/dev.py
+  agent-tests`, volle Suite, Lint, Build (Speicher, parallele Agenten), Gerätetest (echte native
+  Wörterbücher und ihre Punkte, Speicher der zusätzlich geöffneten Wörterbücher, Sprachtaste und
+  Leertasten-Wisch, Laden des Wörterbuchs direkt nach dem Umschalten).
+- Engine-Änderungen (Prüfer Pflicht): `DictionaryFacilitatorImpl.kt` (`usesSameSettings` mit
+  Hauptsprache, `getUsedLocales` mit `linkedSetOf`), `Suggest.kt` (`applyLearnedCorrection` mit
+  Sprache, `guardAllows`, `addForeignWord`). `InputLogic`, `RichInputConnection`, `PointerTracker`,
+  `LatinIME` unverändert; gelernt wird über die vorhandenen Hooks (`Memory.onWordCommitted`,
+  `RejectedCorrections.remember`, `AgentEditorController.startEditor`/`finishEditor`).
 
 ## Gerätetest vor Meilensteinfreigabe
 

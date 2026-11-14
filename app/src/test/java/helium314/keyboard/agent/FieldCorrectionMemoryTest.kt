@@ -188,4 +188,23 @@ class FieldCorrectionMemoryTest {
         assertNull(FieldCorrectionWatcher.keyboardCorrectionFrom(true, "ich", "ich"), "Ich changed back to ich")
         assertNull(FieldCorrectionWatcher.keyboardCorrectionFrom(false, "ich", "Ich"))
     }
+
+    // stage 51: learned per keyboard language; pairs from before have none
+    @Test fun aLearnedPairAppliesOnlyInItsLanguage() {
+        val german = settings(on)
+        FieldCorrectionMemory.observed(app, "Hsus", "Haus", 1, 4, german)
+        assertTrue(FieldCorrectionMemory.observed(app, "Hsus", "Haus", 2, 4, german))
+        assertEquals(listOf("de"), FieldCorrectionMemory.all(app).map { it.language })
+        assertEquals("Haus", FieldCorrectionMemory.learnedFor(app, "hsus", "de"))
+        assertNull(FieldCorrectionMemory.learnedFor(app, "hsus", "es"))
+        FieldCorrectionMemory.resetForTest()
+        assertEquals("Haus", FieldCorrectionMemory.learnedFor(app, "hsus", "de"), "the language survives a restart")
+        AgentStorageContexts.keyboard(app).getSharedPreferences(FieldCorrectionMemory.FILE, android.content.Context.MODE_PRIVATE).edit()
+            .putString("data", """{"candidates":[],"learned":[{"typed":"teh","meant":"the","seen":1}]}""").commit()
+        FieldCorrectionMemory.resetForTest()
+        assertEquals("the", FieldCorrectionMemory.learnedFor(app, "teh", "en") { it == "the" })
+        assertNull(FieldCorrectionMemory.learnedFor(app, "teh", "de") { false })
+        FieldCorrectionMemory.delete(app, FieldCorrectionMemory.all(app).single())
+        assertEquals(emptyList(), FieldCorrectionMemory.all(app))
+    }
 }

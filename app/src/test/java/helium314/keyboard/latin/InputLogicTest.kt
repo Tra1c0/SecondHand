@@ -1918,6 +1918,306 @@ class InputLogicTest {
         }
     }
 
+    // ---- fork, stage 51: the autocorrection follows the language, words of other languages ----
+
+    private val germanSubtype get() = SubtypeSettings.getResourceSubtypesForLocale("de".constructLocale()).first()
+    private val spanishSubtype get() = SubtypeSettings.getResourceSubtypesForLocale("es".constructLocale()).first()
+    private val englishSubtype get() = SubtypeSettings.getResourceSubtypesForLocale("en-US".constructLocale()).first()
+
+    /** The facilitator Suggest asks (LatinIME's, the real one). */
+    private val facilitatorInUse get() = inputLogic.mSuggest.let { s ->
+        Suggest::class.java.getDeclaredField("mDictionaryFacilitator").apply { isAccessible = true }.get(s) as DictionaryFacilitator }
+
+    /** The languages of the facilitator's dictionary groups in their order (the first is the main one). */
+    private fun groupLanguages(): List<String> {
+        val field = DictionaryFacilitatorImpl::class.java.getDeclaredField("dictionaryGroups").apply { isAccessible = true }
+        return (field.get(facilitatorInUse) as List<*>).map { group ->
+            (group!!.javaClass.getDeclaredMethod("getLocale").apply { isAccessible = true }.invoke(group) as Locale).language }
+    }
+
+    /** The posted dictionary reset runs and the main dictionaries (word lists) are loaded. */
+    private fun settleDictionaries() {
+        handleMessages()
+        facilitatorInUse.waitForLoadingMainDictionaries(5, java.util.concurrent.TimeUnit.SECONDS)
+        handleMessages()
+    }
+
+    /** Types [word], lets the strip update as on the device (P176), then the space. */
+    private fun typeWord(word: String) {
+        chainInput(word)
+        updateSuggestions()
+        input(' ')
+    }
+
+    /** The first chip of the typed language command [command] (e.g. "@sp"), tapped. */
+    private fun switchByCommand(command: String) {
+        chainInput(command)
+        val strip = android.widget.FrameLayout(latinIME)
+        val chips = helium314.keyboard.agent.KeyboardCommands.createChipsView(latinIME, strip) as android.view.ViewGroup
+        (chips.getChildAt(0) as android.view.ViewGroup).getChildAt(0).performClick()
+        settleDictionaries()
+    }
+
+    /** A new, empty field: also a new place for the memory and the words of other languages (P187). */
+    private fun newField() {
+        setText("")
+        helium314.keyboard.agent.Memory.onFieldChanged(latinIME)
+        helium314.keyboard.agent.ForeignWords.onFieldChanged()
+    }
+
+    /** [subtype] with [secondary] as its second language (multilingual typing), enabled instead of the plain one. */
+    private fun withSecondary(subtype: InputMethodSubtype, secondary: String): InputMethodSubtype {
+        SubtypeSettings.addEnabledSubtype(latinIME.prefs(), subtype)
+        val from = with(helium314.keyboard.latin.settings.SettingsSubtype) { subtype.toSettingsSubtype() }
+        val to = from.with(Constants.Subtype.ExtraValue.SECONDARY_LOCALES, secondary)
+        helium314.keyboard.latin.utils.SubtypeUtilsAdditional.changeAdditionalSubtype(from, to, latinIME)
+        return SubtypeSettings.getEnabledSubtypes(true).first { with(helium314.keyboard.latin.settings.SettingsSubtype) { it.toSettingsSubtype() } == to }
+    }
+
+    private fun foreignWords(withCandidates: Boolean = false) =
+        helium314.keyboard.agent.ForeignWords.all(latinIME, withCandidates).map { Triple(it.language, it.word, it.from) }
+
+    /**
+     * Stage 51: the real facilitator with [lists] as main dictionaries (ShadowWordListDictionaries),
+     * [subtypes] enabled (the first in use), a field with autocorrection and no automatic capitals,
+     * "Personalisierte Vorschläge" on; checks of other languages run at once. Everything is restored after [body].
+     */
+    private fun withLanguages(lists: Map<String, Map<String, Int>>, vararg subtypes: InputMethodSubtype, body: () -> Unit) {
+        val foreign = helium314.keyboard.agent.ForeignWords
+        val worker = foreign.worker
+        WordLists.reset()
+        WordLists.lists = lists
+        for (subtype in subtypes) if (subtype !in SubtypeSettings.getEnabledSubtypes(false)) SubtypeSettings.addEnabledSubtype(latinIME.prefs(), subtype)
+        latinIME.prefs().edit { putBoolean(Settings.PREF_AUTO_CAP, false); putBoolean(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, true) }
+        foreign.worker = java.util.concurrent.Executor { it.run() }
+        TypoMemory.clear(latinIME)
+        fieldMemory.clear(latinIME)
+        foreign.clear(latinIME)
+        try {
+            helium314.keyboard.agent.KeyboardCommands.load(latinIME)
+            latinIME.switchToSubtype(subtypes.first())
+            setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT)
+            settleDictionaries()
+            newField()
+            body()
+        } finally {
+            foreign.clear(latinIME)
+            foreign.worker = worker
+            TypoMemory.clear(latinIME)
+            fieldMemory.clear(latinIME)
+            WordLists.reset()
+            helium314.keyboard.agent.commands.SubtypeChoice.clear()
+            for (subtype in subtypes) SubtypeSettings.removeEnabledSubtype(latinIME, subtype)
+            helium314.keyboard.agent.KeyboardCommands.load(latinIME)
+        }
+    }
+
+    private val wordsDeEs get() = mapOf(
+        "de" to WordLists.of("danke", "hold", "Haus", "sehr", "gut"),
+        "es" to WordLists.of("hola", "gracias", "mucho", "casa"),
+        "en" to WordLists.of("hold", "house", "thanks"),
+    )
+
+    // (a) the owner: "Die Autokorrektur muss sich beim Umstellen der Sprache auch umstellen."
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 51 the autocorrection follows the language commands, de and es`() =
+        withLanguages(wordsDeEs, germanSubtype, spanishSubtype) {
+            assertEquals(listOf("de"), groupLanguages())
+            typeWord("dankw")
+            assertEquals("danke ", text)
+            switchByCommand("@sp")
+            assertEquals(spanishSubtype, RichInputMethodManager.getInstance().currentSubtype.rawSubtype)
+            assertEquals(listOf("es"), groupLanguages())
+            assertEquals("es", settingsValues.mLocale.language)
+            typeWord("graciax")
+            typeWord("dankw")
+            assertEquals("danke gracias dankw ", text) // Spanish corrections only
+            switchByCommand("@deutsch")
+            assertEquals(listOf("de"), groupLanguages())
+            typeWord("graciax")
+            typeWord("dankw")
+            assertEquals("danke gracias dankw graciax danke ", text)
+        }
+
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 51 switching between German with Spanish and Spanish with German makes Spanish the main language`() {
+        val lists = mapOf("de" to WordLists.of("danke:200", "sehr:200", "gut:200", "Mut:100"), "es" to WordLists.of("muy:250", "gracias:200"))
+        val germanSpanish = withSecondary(germanSubtype, "es")
+        val spanishGerman = withSecondary(spanishSubtype, "de")
+        withLanguages(lists, germanSpanish, spanishGerman) {
+            assertEquals(listOf("de", "es"), groupLanguages())
+            for (word in listOf("danke", "sehr", "gut")) {
+                typeWord(word)
+                // what every committed word does on the device (the test's shadow of addToUserHistory skips it)
+                facilitatorInUse.adjustConfidences(word, false)
+            }
+            typeWord("mui")
+            assertEquals("danke sehr gut Mut ", text) // German is the language in use
+            switchByCommand("@sp")
+            typeWord("mui")
+            // before stage 51 "Mut": the same two languages counted as the same settings, German stayed
+            // the main language and kept its confidence
+            assertEquals("danke sehr gut Mut muy ", text)
+            assertEquals(listOf("es", "de"), groupLanguages())
+            assertEquals("es", facilitatorInUse.mainLocale.language)
+            assertEquals("es", facilitatorInUse.currentLocale.language)
+            switchByCommand("@deutsch")
+            assertEquals(listOf("de", "es"), groupLanguages())
+            assertEquals("de", facilitatorInUse.currentLocale.language)
+        }
+    }
+
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 51 a subtype's own language comes first, also with German as second language`() {
+        val spanishGerman = withSecondary(spanishSubtype, "de")
+        val englishGerman = withSecondary(englishSubtype, "de")
+        withLanguages(wordsDeEs, spanishGerman, englishGerman) {
+            // before stage 51 a hash set ordered the languages: German came first and was preferred
+            assertEquals(listOf("es", "de"), groupLanguages())
+            assertEquals("es", facilitatorInUse.currentLocale.language)
+            switchByCommand("@eng")
+            assertEquals(listOf("en", "de"), groupLanguages())
+            assertEquals("en", facilitatorInUse.mainLocale.language)
+            assertEquals("en", facilitatorInUse.currentLocale.language)
+        }
+    }
+
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 51 learned typo pairs and field corrections stay in their language`() = withLanguages(wordsDeEs, germanSubtype, spanishSubtype) {
+        latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_LEARN_TYPOS, true) }
+        reloadSettings()
+        fun pickedThreeTimes(typed: String, meant: String) = repeat(3) {
+            chainInput(typed); updateSuggestions(); pickSuggestion(meant); input(' ')
+        }
+        fun typedInNewField(word: String): String { newField(); typeWord(word); return text }
+        // stage 20b, German
+        pickedThreeTimes("dnake", "danke")
+        assertEquals("danke ", typedInNewField("dnake"))
+        switchByCommand("@sp")
+        assertEquals("dnake ", typedInNewField("dnake")) // before stage 51: the German word in Spanish text
+        // stage 20b, Spanish
+        pickedThreeTimes("graicas", "gracias")
+        assertEquals("gracias ", typedInNewField("graicas"))
+        switchByCommand("@deutsch")
+        assertEquals("graicas ", typedInNewField("graicas"))
+        // stage 49, learned in a German field twice
+        repeat(2) { helium314.keyboard.agent.FieldCorrectionMemory.observed(latinIME, "hsus", "Haus", it + 1L, 4, settingsValues) }
+        assertEquals(listOf("de"), fieldMemory.all(latinIME).map { it.language })
+        assertEquals("Haus ", typedInNewField("hsus"))
+        switchByCommand("@sp")
+        assertEquals("hsus ", typedInNewField("hsus"))
+        // a pair stored before stage 51 has no language: only where a dictionary of the language knows its word
+        helium314.keyboard.agent.AgentStorageContexts.keyboard(latinIME).getSharedPreferences(TypoMemory.FILE, android.content.Context.MODE_PRIVATE)
+            .edit { putString("pairs", """[{"typed":"mcuho","meant":[{"word":"mucho","form":"mucho","total":3,"contexts":{}}]}]""") }
+        TypoMemory.resetForTest()
+        assertEquals("mucho ", typedInNewField("mcuho"))
+        switchByCommand("@deutsch")
+        assertEquals("mcuho ", typedInNewField("mcuho"))
+    }
+
+    // (b) the owner: "dass anderssprachige Wörter, wenn vorher bereits geschrieben, erkannt werden und die Tastatur sich dies merkt"
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 51 a Spanish word kept once against the German correction stays and is offered later`() =
+        withLanguages(wordsDeEs, germanSubtype, spanishSubtype, englishSubtype) {
+            typeWord("hola")
+            assertEquals("hold ", text) // the German autocorrection
+            functionalKeyPress(KeyCode.DELETE) // undone
+            assertEquals("hola", text)
+            input(' ')
+            assertEquals("hola ", text)
+            newField()
+            typeWord("hola")
+            assertEquals("hola ", text) // before stage 51: "hold " again
+            assertEquals(listOf(Triple("de", "hola", "es")), foreignWords())
+            chainInput("ho")
+            updateSuggestions()
+            assertTrue("hola" in suggestedWordList(), suggestedWordList().toString())
+            assertFalse(inputLogic.mSuggestedWords.mWillAutoCorrect && inputLogic.mSuggestedWords.getWord(1) == "hola", "never the automatic correction")
+            // only for German: English still corrects it
+            input(' ')
+            switchByCommand("@eng")
+            newField()
+            typeWord("hola")
+            assertEquals("hold ", text)
+        }
+
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 51 a word of another language committed as typed counts at the second place, not at the same one`() =
+        withLanguages(wordsDeEs, germanSubtype, spanishSubtype) {
+            typeWord("gracias") // no German word close to it: committed as typed
+            assertEquals("gracias ", text)
+            assertEquals(emptyList(), foreignWords())
+            assertEquals(listOf(Triple("de", "gracias", "es")), foreignWords(withCandidates = true))
+            // deleted and typed again at the same place: still once
+            repeat("gracias ".length) { functionalKeyPress(KeyCode.DELETE) }
+            assertEquals("", text)
+            typeWord("gracias")
+            assertEquals(emptyList(), foreignWords())
+            // a German word is no word of another language
+            typeWord("danke")
+            assertEquals(listOf(Triple("de", "gracias", "es")), foreignWords(withCandidates = true))
+            newField()
+            typeWord("gracias")
+            chainInput("grac")
+            updateSuggestions()
+            assertTrue("gracias" in suggestedWordList(), suggestedWordList().toString()) // before stage 51: not offered
+            assertEquals(listOf(Triple("de", "gracias", "es")), foreignWords())
+            assertFalse(inputLogic.mSuggestedWords.mWillAutoCorrect, "offered, never the automatic correction")
+        }
+
+    // stage 48 stays as it is: a change of case is never a matter of the words of other languages
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 51 a word of this language in another case is no word of another language`() =
+        withLanguages(mapOf("de" to WordLists.of("Hand", "danke"), "en" to WordLists.of("hand")), germanSubtype, englishSubtype) {
+            typeWord("hand")
+            assertEquals("Hand ", text) // the German noun, as before
+            functionalKeyPress(KeyCode.DELETE)
+            input(' ')
+            assertEquals("hand ", text)
+            newField()
+            typeWord("hand")
+            newField()
+            typeWord("hand")
+            assertEquals("Hand ", text)
+            assertEquals(emptyList(), foreignWords(withCandidates = true))
+        }
+
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 51 blocked fields and the switches learn no words of other languages`() = withLanguages(wordsDeEs, germanSubtype, spanishSubtype) {
+        fun keptTwice() {
+            newField(); typeWord("hola"); functionalKeyPress(KeyCode.DELETE); input(' ')
+            newField(); typeWord("gracias"); newField(); typeWord("gracias")
+        }
+        fun nothing(case: String) = assertEquals(emptyList(), foreignWords(withCandidates = true), case)
+        // "Personalisierte Vorschläge" off
+        latinIME.prefs().edit { putBoolean(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, false) }
+        reloadSettings(); keptTwice(); nothing("personalized suggestions off")
+        latinIME.prefs().edit { putBoolean(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, true) }
+        // learning paused
+        latinIME.prefs().edit { putBoolean(AgentPreferences.LEARNING_PAUSED, true) }
+        reloadSettings(); keptTwice(); nothing("paused")
+        latinIME.prefs().edit { putBoolean(AgentPreferences.LEARNING_PAUSED, false) }
+        // incognito
+        latinIME.prefs().edit { putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true) }
+        reloadSettings(); keptTwice(); nothing("incognito")
+        latinIME.prefs().edit { putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, false) }
+        // the keyboard's own no-learning fields ("Meine Daten", P180)
+        ShadowInputMethodService.currentPrivateImeOptions = AgentPreferences.NO_LEARNING_FIELD
+        reloadSettings(); keptTwice(); nothing("no-learning field")
+        ShadowInputMethodService.currentPrivateImeOptions = null
+        // a password field
+        setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        keptTwice(); nothing("password")
+        setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT)
+        // the device locked
+        val locked = helium314.keyboard.agent.Memory.deviceLocked
+        helium314.keyboard.agent.Memory.deviceLocked = { true }
+        try { reloadSettings(); keptTwice(); nothing("locked") } finally { helium314.keyboard.agent.Memory.deviceLocked = locked }
+        // and with everything allowed it learns
+        reloadSettings(); keptTwice()
+        assertEquals(listOf(Triple("de", "gracias", "es"), Triple("de", "hola", "es")), foreignWords().sortedBy { it.second })
+    }
+
     /** The popup keys of the "a" key on the alphabet keyboard the switcher loaded last. */
     private fun popupsOfA(): List<String> = popupsOf('a')
 

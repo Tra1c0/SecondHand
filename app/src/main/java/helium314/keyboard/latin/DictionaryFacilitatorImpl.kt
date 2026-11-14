@@ -122,6 +122,9 @@ class DictionaryFacilitatorImpl : DictionaryFacilitator {
                 && personalization == dictGroup.hasDict(Dictionary.TYPE_USER_HISTORY)
                 && locales.size == dictionaryGroups.size
                 && locales.none { findDictionaryGroupWithLocale(dictionaryGroups, it) == null }
+                // fork, stage 51: the same languages with another main language (German with Spanish ->
+                // Spanish with German) are other settings; the old main language stayed preferred
+                && locales.firstOrNull() == dictGroup.locale
     }
 
     // -------------- managing (loading & closing) dictionaries ------------
@@ -651,7 +654,9 @@ class DictionaryFacilitatorImpl : DictionaryFacilitator {
         }
 
         private fun getUsedLocales(mainLocale: Locale, context: Context): Collection<Locale> {
-            val locales = hashSetOf(mainLocale)
+            // fork, stage 51: insertion order, so the main locale's group is the first one (mainLocale,
+            // preferred on equal confidence); a hash set put e.g. German before Spanish or English
+            val locales = linkedSetOf(mainLocale)
             // adding secondary locales is a bit tricky since they depend on the subtype
             // but usually this is called with the selected subtype locale
             val selectedSubtype = SubtypeSettings.getSelectedSubtype(context.prefs())

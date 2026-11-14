@@ -2,7 +2,7 @@
 <!-- Stages 49 and 46, page "What I remembered" (corrections; phrases, own words, abbreviations). English and German only. -->
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="agent_memory_title">What I remembered</string>
-    <string name="agent_memory_sub">Corrections, phrases, own words, abbreviations</string>
+    <string name="agent_memory_sub">Corrections, phrases, own words, abbreviations, other languages</string>
     <string name="agent_memory_description">What the keyboard keeps from your typing, only on this device. The lists are only here.</string>
     <string name="agent_memory_corrections">Corrections</string>
     <string name="agent_memory_corrections_description">Typos you fixed later in a field, also after more words or after going back into the word. Only when a non-word became a real word by a slip of a finger (a neighbouring key, a missing, doubled or swapped letter, an umlaut). Changing a real word into another one is never learned. Needs \"Learn my typos\".</string>
@@ -50,4 +50,9 @@
     <string name="agent_memory_offer_created">Abbreviation remembered</string>
     <string name="agent_memory_chip_expand">%1$s → %2$s</string>
     <string name="agent_memory_chip_expand_description">Replace %1$s by %2$s</string>
+    <!-- stage 51 -->
+    <string name="agent_memory_foreign">Words of other languages</string>
+    <string name="agent_memory_foreign_description">Words of another of your languages that you kept while writing in this one: after you undid their correction once, or wrote them twice in other places. They are no longer corrected away in that language and are suggested while you type their start. Needs \"Personalized suggestions\".</string>
+    <string name="agent_memory_foreign_none">No words yet</string>
+    <string name="agent_memory_foreign_entry">%1$s (%2$s), in %3$s</string>
 </resources>

@@ -7,6 +7,7 @@ package helium314.keyboard.latin
 
 import helium314.keyboard.agent.CorrectionGuard
 import helium314.keyboard.agent.EmojiSuggestions
+import helium314.keyboard.agent.ForeignWords
 import helium314.keyboard.agent.RejectedCorrections
 import helium314.keyboard.agent.TypoMemory
 import android.text.TextUtils
@@ -121,6 +122,8 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
             suggestionsContainer, isCorrectionEnabled, wordComposer) || guardedAutoCorrection
         // fork, stage 46: own words of the memory (offered while typing, behind the correction) and its next word
         addFromMemory(typedWordString, resultsArePredictions, suggestionResults, suggestionsContainer, ngramContext, hasAutoCorrection)
+        // fork, stage 51: words of other languages the owner kept (offered while typing, behind the correction)
+        addForeignWord(typedWordString, resultsArePredictions, suggestionResults, suggestionsContainer, capsMode, hasAutoCorrection)
         // fork, stage 35: tolerant emoji suggestions behind the first two words, never the autocorrection
         if (typedWordString.isNotEmpty() && !resultsArePredictions) {
             val mainLocale = mDictionaryFacilitator.mainLocale
@@ -200,7 +203,13 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         if (typedIsMainWord && settings.mKeepValidWords) return false
         // stage 46: an own word of the memory is never corrected automatically
         if (helium314.keyboard.agent.Memory.isOwnWord(context, typed)) return false
-        val meant = TypoMemory.meantWord(context, typed, previous, typedIsMainWord) ?: return false
+        // stage 51: nor a word of another language the owner kept (learned data belongs to the keyboard language)
+        val language = ForeignWords.languageOf(settings)
+        if (ForeignWords.isRemembered(context, settings, language, typed)) return false
+        // stage 51: pairs of the current language; one from before stage 51 only if this language knows its word
+        val meant = TypoMemory.meantWord(context, typed, previous, typedIsMainWord, language) { word ->
+            mDictionaryFacilitator.isValidSuggestionWord(word) || mDictionaryFacilitator.isValidSuggestionWord(word.lowercase(mDictionaryFacilitator.mainLocale))
+        } ?: return false
         if (settings.mRememberRejectedCorrections && RejectedCorrections.contains(context, typed, meant)) return false
         val wanted = capitalize(meant, capsMode, mDictionaryFacilitator.mainLocale)
         val index = suggestions.indexOfFirst { it.mWord == wanted }.takeIf { it >= 0 }
@@ -242,13 +251,37 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
     }
 
     /**
+     * Stage 51: tells [ForeignWords] whether a main dictionary of the current language knows the typed
+     * word in some case (only a word it does not know can be a word of another language) and offers a
+     * remembered word of another language that the typed word starts: behind the automatic correction,
+     * first without one, never as the correction. Nothing without "Personalisierte Vorschläge", in a
+     * blocked field or while locked.
+     */
+    private fun addForeignWord(typed: String, predictions: Boolean, results: SuggestionResults,
+                               suggestions: ArrayList<SuggestedWordInfo>, capsMode: CapsMode, hasAutoCorrection: Boolean) {
+        if (typed.isEmpty() || predictions) return
+        val settings = Settings.getValues()
+        val language = ForeignWords.languageOf(settings)
+        ForeignWords.onTyped(typed, language, results.any { it.mSourceDict.mDictType == Dictionary.TYPE_MAIN
+            && it.mSourceDict.mLocale?.language == language && it.mWord.equals(typed, ignoreCase = true) })
+        val word = ForeignWords.completion(Settings.getCurrentContext(), settings, language, typed) ?: return
+        val mainLocale = mDictionaryFacilitator.mainLocale
+        if (suggestions.any { it.mWord.equals(word, ignoreCase = true) }) return
+        suggestions.add(if (hasAutoCorrection) minOf(1, suggestions.size) else 0, SuggestedWordInfo(capitalize(word, capsMode, mainLocale), "",
+            SuggestedWordInfo.MAX_SCORE, SuggestedWordInfo.KIND_COMPLETION, ForeignWords.DICTIONARY, SuggestedWordInfo.NOT_AN_INDEX,
+            SuggestedWordInfo.NOT_A_CONFIDENCE))
+    }
+
+    /**
      * The typed word counts as known only if it is in a main dictionary of the same language as the
      * correction: a word from another active language, the typing history, contacts or the personal
      * dictionary does not protect it (e.g. English "fur" must not keep German "für" from being set).
      * Exception (stage 48): a correction that changes only the case is blocked as soon as the main
      * dictionary or the typing history of the correction's language knows the exact typed form, unless
      * the dictionary itself demands it (whitelist, "i" -> "I"). Another active language does not count
-     * (English "hand" must not keep German "Hand" from being set).
+     * (English "hand" must not keep German "Hand" from being set). Stage 51: a word of another language
+     * counts once the owner kept it ([ForeignWords]: undone correction, or written twice at other places);
+     * until then English "fur" still becomes German "für".
      */
     private fun guardAllows(typed: String, first: SuggestedWordInfo?, typedInfo: SuggestedWordInfo?,
                             results: Collection<SuggestedWordInfo>): Boolean {
@@ -259,6 +292,8 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         val context = Settings.getCurrentContext()
         // stage 46: an own word of the memory (slang, a deliberate spelling) stays as typed; the correction stays a suggestion
         if (helium314.keyboard.agent.Memory.isOwnWord(context, typed)) return false
+        // stage 51: as does a word of another language the owner kept in this language
+        if (ForeignWords.isRemembered(context, settings, ForeignWords.languageOf(settings), typed)) return false
         // stage 48: a known word never gets only another case automatically ("essen" stays, "Essen" is offered)
         if (!first.isKindOf(SuggestedWordInfo.KIND_WHITELIST) && CorrectionGuard.changesOnlyCase(typed, correction)
             && results.any { it.mWord == typed && it.mSourceDict.mLocale == first.mSourceDict.mLocale

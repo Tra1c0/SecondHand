@@ -109,8 +109,8 @@ Schalter wirkt gerade nicht (die Regeln brauchen die Autokorrektur, „Wortvorsc
 Vorschlagsleiste, „Doppeltipp = Punkt“ eine Leertaste ohne Doppeltipp-Geste). „Kontakte und
 App-Namen“, „Alle Korrektur-Einstellungen“ (Stärke als Regler, personalisierte Vorschläge,
 anstößige Wörter …), „Wörterbücher“, „Persönliches Wörterbuch“ und „Gelernte Wörter“ öffnen die
-bisherigen Seiten, „Was ich mir gemerkt habe“ die Korrekturen und das Gedächtnis (Abschnitte
-„Autokorrektur“ und „Gedächtnis“ unten). „Lernen pausieren“ behält das Gelernte; Lernen ganz
+bisherigen Seiten, „Was ich mir gemerkt habe“ die Korrekturen, das Gedächtnis und die Wörter aus
+anderen Sprachen (Abschnitte „Autokorrektur“ und „Gedächtnis“ unten). „Lernen pausieren“ behält das Gelernte; Lernen ganz
 ausschalten (und löschen)
 geht unter „Alle Korrektur-Einstellungen“ → „Personalisierte Vorschläge“.
 
@@ -527,6 +527,10 @@ diese Sprache um.
 - Vertippte Befehlsnamen: `@mtah` oder `@tranlate` zeigt den richtigen Namen als Chip; ein Tipp
   vervollständigt ihn nur. Auch hier ab vier Buchstaben und mit richtigem ersten Buchstaben
   (`@matt`, `@uri` bleiben Erwähnungen).
+- Mit der Sprache stellt auch die Autokorrektur um: Wörterbuch, Vorschläge und gelernte Tippfehler
+  sind ab dem nächsten Wort die der neuen Sprache (die ersten Buchstaben nach dem Umschalten
+  können noch ohne Korrektur bleiben, solange das Wörterbuch lädt). Das gilt auch für Sprachen mit
+  zweiter Sprache („Mehrsprachiges Tippen“): Die gewählte Sprache ist die bevorzugte.
 - Die gewählte Sprache bleibt, solange du im selben Feld bleibst, auch wenn die App das Feld
   nach dem Löschen des Befehls neu startet. Wechselst du in ein anderes Feld, gilt dort wieder,
   was die App oder „Sprache pro App merken“ vorgibt (wie bei der Sprachtaste).
@@ -1013,6 +1017,23 @@ Einstellungen → Gelernte Wörter → Abschnitt „Autokorrektur“:
   lernt einen Kandidaten sofort, „Löschen“ entfernt einen Eintrag. „Gelernte Wörter löschen“
   leert die Seite mit. Machst du eine Autokorrektur später im Feld rückgängig, gilt mit
   „Rückgängig gemachte Korrekturen merken“ dasselbe wie die Löschtaste direkt danach.
+
+Gelernte Tippfehler und später im Feld gelernte Korrekturen gelten nur in der Tastatursprache, in
+der sie gelernt wurden: Was du auf Deutsch gelernt hast, ändert nichts beim Schreiben auf Spanisch
+und umgekehrt. Ältere Einträge (vor dieser Version) gelten nur dort, wo das Wörterbuch der Sprache
+das gemeinte Wort kennt. Gemerkte rückgängig gemachte Korrekturen gelten in allen Sprachen.
+
+Wörter aus anderen Sprachen (mit „Personalisierte Vorschläge“ an, unter „Alle
+Korrektur-Einstellungen“): Schreibst du ein Wort einer deiner anderen aktiven Sprachen, etwa „hola“
+in einer deutschen Nachricht, und die Autokorrektur macht daraus etwas anderes, drück einmal die
+Löschtaste (oder tippe das getippte Wort in der Leiste an). Ab dann bleibt „hola“ auf Deutsch so
+stehen und wird beim Tippen von „ho…“ vorgeschlagen, hinter der Korrektur, nie als Korrektur. Kam
+gar keine Korrektur, merkt sich die Tastatur das Wort beim zweiten Mal an anderer Stelle (anderes
+Feld oder andere Stelle im Text). Das gilt nur für die Sprache, in der du es behalten hast; Wörter,
+die es in dieser Sprache in anderer Groß-/Kleinschreibung gibt („hand“/„Hand“), zählen nie. Nichts
+davon in Inkognito, Passwortfeldern, „Meine Daten“, bei Lernpause oder gesperrtem Gerät.
+„Was ich mir gemerkt habe“ → „Wörter aus anderen Sprachen“ zeigt die Wörter mit „Löschen“;
+„Gelernte Wörter löschen“ und das Ausschalten von „Personalisierte Vorschläge“ löschen alle.
 
 Getipptes Wort zurückholen: Drückst du direkt nach einer Korrektur die Löschtaste oder tippst du
 später in das korrigierte Wort, steht dein getipptes Wort in der Leiste ganz links (in deiner

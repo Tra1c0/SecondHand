@@ -20,6 +20,7 @@ import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.settings.initPreview
 import helium314.keyboard.settings.screens.AgentMemoryScreen
 import helium314.keyboard.settings.screens.MEMORY_APP_TAG
+import helium314.keyboard.settings.screens.MEMORY_FOREIGN_DELETE_TAG
 import helium314.keyboard.settings.screens.MEMORY_PHRASE_DELETE_TAG
 import helium314.keyboard.settings.screens.MEMORY_OWN_TAG
 import helium314.keyboard.settings.screens.MEMORY_PHRASE_TAG
@@ -118,5 +119,23 @@ class MemoryScreenTest {
         compose.onNodeWithTag(MEMORY_APP_TAG + 0).performScrollTo().performClick()
         compose.waitForIdle()
         assertFalse(Memory.isExcluded(app, "com.example.chat"))
+    }
+
+    // stage 51: the words of other languages, with the language they come from and the one they are kept in
+    @Test fun wordsOfOtherLanguagesAreShownAndDeleted() {
+        AgentStorageContexts.keyboard(app).getSharedPreferences(ForeignWords.FILE, Context.MODE_PRIVATE).edit()
+            .putString("data", """{"candidates":[],"remembered":[{"lang":"de","word":"hola","from":"es","seen":1}]}""").commit()
+        ForeignWords.resetForTest()
+        try {
+            show()
+            compose.onNodeWithText("hola (Spanisch), in Deutsch").performScrollTo()
+            compose.onNodeWithTag(MEMORY_FOREIGN_DELETE_TAG + "de_hola").performScrollTo().performClick()
+            compose.waitForIdle()
+            assertEquals(emptyList(), ForeignWords.all(app))
+            ForeignWords.resetForTest()
+            assertEquals(emptyList(), ForeignWords.all(app), "deleted in storage too")
+        } finally {
+            ForeignWords.clear(app)
+        }
     }
 }

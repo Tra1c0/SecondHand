@@ -17,6 +17,10 @@ import java.util.Locale
  * confirmations for that typed form; a typed form that is itself a known word is corrected only
  * in a context where the user corrected it three times. Opt-in, only on this device, at most
  * [MAX_TYPED_FORMS] typed forms, oldest dropped first, never logged.
+ *
+ * Stage 51: a pair belongs to the keyboard language it was learned in ([languageOf]) and applies only
+ * there; a German pair never puts a German word into Spanish text. Pairs stored before stage 51 have
+ * no language: they apply only where a dictionary of the current language knows the meant word.
  */
 object TypoMemory {
     const val FILE = "agent_typo_memory"
@@ -37,11 +41,18 @@ object TypoMemory {
     private class Target(var form: String, var total: Int = 0, val contexts: LinkedHashMap<String, Int> = LinkedHashMap())
     private const val MAX_MEANT = 5
 
-    /** typed form -> (meant word -> confirmations); access order is insertion order, re-inserted on use. */
+    /** language + typed form ([key]) -> (meant word -> confirmations); insertion order, re-inserted on use. */
     @Volatile private var pairs: LinkedHashMap<String, LinkedHashMap<String, Target>>? = null
     private val lock = Any()
 
     private fun norm(word: String) = word.lowercase(Locale.ROOT)
+    private const val SEPARATOR = '\u0000'
+    /** Stage 51: the key of [typed] in [language] ("" for pairs from before stage 51). */
+    private fun key(language: String, typed: String) = language + SEPARATOR + norm(typed)
+    private fun typedOf(key: String) = key.substringAfter(SEPARATOR)
+
+    /** Stage 51: the language learned data belongs to, the keyboard language of [settings] (e.g. "de", "es"). */
+    @JvmStatic fun languageOf(settings: SettingsValues?): String = ForeignWords.languageOf(settings)
     private fun plain(word: String) = java.text.Normalizer.normalize(norm(word).replace("ß", "ss"), java.text.Normalizer.Form.NFD)
         .replace(Regex("\\p{Mn}+"), "")
 
@@ -66,7 +77,7 @@ object TypoMemory {
                         c?.keys()?.forEach { contexts[it] = c.getInt(it) }
                         targets[t.getString("word")] = Target(t.optString("form", t.getString("word")), t.getInt("total"), contexts)
                     }
-                    result[entry.getString("typed")] = targets
+                    result[key(entry.optString("lang", ""), entry.getString("typed"))] = targets
                 }
             }
             pairs = result
@@ -76,12 +87,12 @@ object TypoMemory {
 
     private fun save(context: Context, data: Map<String, Map<String, Target>>) {
         val array = JSONArray()
-        data.forEach { (typed, targets) ->
+        data.forEach { (k, targets) ->
             val meant = JSONArray()
             targets.forEach { (word, target) ->
                 meant.put(JSONObject().put("word", word).put("form", target.form).put("total", target.total).put("contexts", JSONObject(target.contexts as Map<*, *>)))
             }
-            array.put(JSONObject().put("typed", typed).put("meant", meant))
+            array.put(JSONObject().put("typed", typedOf(k)).put("lang", k.substringBefore(SEPARATOR)).put("meant", meant))
         }
         prefs(context).edit().putString(KEY, array.toString()).apply()
     }
@@ -99,7 +110,7 @@ object TypoMemory {
         // picking a longer word that starts with what was typed is a completion, not a typo (also Mad -> Mädchen)
         val plainMeant = plain(meant); val plainTyped = plain(typed)
         if (plainMeant.length > plainTyped.length && plainMeant.startsWith(plainTyped)) return
-        val key = norm(typed)
+        val key = key(languageOf(settings), typed)
         synchronized(lock) {
             val data = loaded(context)
             val targets = data.remove(key) ?: LinkedHashMap()
@@ -119,41 +130,62 @@ object TypoMemory {
         }
     }
 
-    /** An automatic correction from a learned pair was undone: the pair is dropped completely, also in [FieldCorrectionMemory]. */
+    /**
+     * An automatic correction from a learned pair was undone: the pair is dropped completely, in every
+     * language (stage 51), also in [FieldCorrectionMemory].
+     */
     @JvmStatic
     fun forget(context: Context, typed: String, meant: String) {
         FieldCorrectionMemory.forget(context, typed, meant) // stage 49: the same pair learned later in a field
         synchronized(lock) {
             val data = loaded(context)
-            val targets = data[norm(typed)] ?: return
-            if (targets.remove(norm(meant)) == null) return
-            if (targets.isEmpty()) data.remove(norm(typed))
-            save(context, data)
+            var changed = false
+            for (k in data.keys.filter { typedOf(it) == norm(typed) }) {
+                val targets = data[k] ?: continue
+                if (targets.remove(norm(meant)) == null) continue
+                if (targets.isEmpty()) data.remove(k)
+                changed = true
+            }
+            if (changed) save(context, data)
         }
     }
 
     /**
      * The meant word for [typed] in its learned spelling, or null. [previous] is the word before;
      * [typedIsDictionaryWord] restricts learned corrections of real words to their context.
+     * Stage 51: only pairs of [language] count, and a pair from before stage 51 only if
+     * [knownInLanguage] says a dictionary of [language] knows its meant word. Without a [language]
+     * (unit tests of the rules) a pair of any language counts.
      */
-    @JvmStatic
-    fun meantWord(context: Context, typed: String, previous: String?, typedIsDictionaryWord: Boolean): String? =
-        ownMeantWord(context, typed, previous, typedIsDictionaryWord)
+    @JvmStatic @JvmOverloads
+    fun meantWord(context: Context, typed: String, previous: String?, typedIsDictionaryWord: Boolean,
+                  language: String? = null, knownInLanguage: (String) -> Boolean = { false }): String? =
+        ownMeantWord(context, typed, previous, typedIsDictionaryWord, language, knownInLanguage)
             // stage 49: corrections learned later in the field, only for typed forms that are no word
-            ?: if (typedIsDictionaryWord) null else FieldCorrectionMemory.learnedFor(context, typed)
+            ?: if (typedIsDictionaryWord) null else FieldCorrectionMemory.learnedFor(context, typed, language, knownInLanguage)
 
-    private fun ownMeantWord(context: Context, typed: String, previous: String?, typedIsDictionaryWord: Boolean): String? {
+    private fun ownMeantWord(context: Context, typed: String, previous: String?, typedIsDictionaryWord: Boolean,
+                             language: String?, knownInLanguage: (String) -> Boolean): String? {
         loaded(context)
         synchronized(lock) {
-            val targets = pairs?.get(norm(typed)) ?: return null
-            val prev = previous?.let(::norm)
-            if (prev != null) {
-                val inContext = targets.mapValues { it.value.contexts[prev] ?: 0 }
-                decide(inContext)?.let { return targets[it]?.form }
-            }
-            if (typedIsDictionaryWord) return null
-            return decide(targets.mapValues { it.value.total })?.let { targets[it]?.form }
+            val data = pairs ?: return null
+            if (language == null)
+                return data.keys.filter { typedOf(it) == norm(typed) }.firstNotNullOfOrNull { decideFor(data[it]!!, previous, typedIsDictionaryWord) }
+            data[key(language, typed)]?.let { targets -> decideFor(targets, previous, typedIsDictionaryWord)?.let { return it } }
+            // stage 51: a pair from before stage 51, only where this language knows the meant word
+            return data[key("", typed)]?.let { decideFor(it, previous, typedIsDictionaryWord) }?.takeIf(knownInLanguage)
         }
+    }
+
+    /** Under [lock]. */
+    private fun decideFor(targets: LinkedHashMap<String, Target>, previous: String?, typedIsDictionaryWord: Boolean): String? {
+        val prev = previous?.let(::norm)
+        if (prev != null) {
+            val inContext = targets.mapValues { it.value.contexts[prev] ?: 0 }
+            decide(inContext)?.let { return targets[it]?.form }
+        }
+        if (typedIsDictionaryWord) return null
+        return decide(targets.mapValues { it.value.total })?.let { targets[it]?.form }
     }
 
     private fun decide(counts: Map<String, Int>): String? {
@@ -164,7 +196,7 @@ object TypoMemory {
 
     /** For the settings page: typed form, meant word and confirmations, most recent first. */
     fun all(context: Context): List<Triple<String, String, Int>> = synchronized(lock) {
-        loaded(context).entries.reversed().flatMap { (typed, targets) -> targets.map { Triple(typed, it.key, it.value.total) } }
+        loaded(context).entries.reversed().flatMap { (k, targets) -> targets.map { Triple(typedOf(k), it.key, it.value.total) } }
     }
 
     fun clear(context: Context) {

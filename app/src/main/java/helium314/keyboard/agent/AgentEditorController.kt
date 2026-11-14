@@ -174,6 +174,7 @@ class AgentEditorController @JvmOverloads constructor(
     fun startEditor(info: EditorInfo) {
         close()
         Memory.onFieldChanged(ime) // stage 46: no run of words carries over to another field
+        ForeignWords.onFieldChanged() // stage 51: another place for a word of another language
         chosenWorkflowId = null
         needsCursorRefresh = false
         editor.startEditor(info.inputType, info.imeOptions, info.initialSelStart, info.initialSelEnd)
@@ -186,6 +187,7 @@ class AgentEditorController @JvmOverloads constructor(
     fun finishEditor() {
         close()
         Memory.onFieldChanged(ime, finishing = true) // stage 46: and what was learned is written, at once (second review)
+        ForeignWords.onFieldChanged()
         chosenWorkflowId = null
         needsCursorRefresh = false
         editor.finishEditor()

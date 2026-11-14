@@ -236,11 +236,17 @@ object Memory {
      */
     @JvmStatic fun onWordCommitted(context: Context, settings: SettingsValues?, editorInfo: EditorInfo?, word: String,
                                    typed: String?, before: () -> CharSequence?, cursor: Int) {
+        // the text before the cursor is read at most once for both
+        var read = false
+        var textBefore: CharSequence? = null
+        val readOnce = { if (!read) { textBefore = before(); read = true }; textBefore }
+        // stage 51: words of other languages learn from the same commits, with their own switch and rules
+        ForeignWords.onWordCommitted(context, settings, editorInfo, word, typed, readOnce, cursor)
         if (!mayLearn(context, settings, editorInfo)) {
             synchronized(lock) { resetField() }
             return
         }
-        val text = before()?.toString()
+        val text = readOnce()?.toString()
         synchronized(lock) {
             if (text == null) { resetField(); return }
             loaded(context)

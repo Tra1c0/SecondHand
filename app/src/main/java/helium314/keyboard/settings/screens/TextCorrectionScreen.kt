@@ -219,6 +219,8 @@ fun createCorrectionSettings(context: Context) = listOf(
                     helium314.keyboard.agent.ContextLearning.clear(context)
                     // fork (review of stage 46, H1): and the memory (phrases, own words, abbreviations)
                     helium314.keyboard.agent.Memory.clear(context)
+                    // fork, stage 51: and the words of other languages kept while typing
+                    helium314.keyboard.agent.ForeignWords.clear(context)
                 },
                 content = { Text(stringResource(R.string.disable_personalized_dicts_message)) }
             )

@@ -497,6 +497,28 @@ Autokorrektur (Etappe 20a, Details im Abschnitt „Lerndaten“):
   Schreibung („Z. B.“ am Satzanfang), andere Buchstabenpaare nur, wenn nicht beide groß sind
   (Initialen „J. K.“ schreiben groß weiter). Alles andere wie upstream.
 
+Autokorrektur folgt der Sprache (Etappe 51, Details im Abschnitt „Lerndaten“ → Sprache der Lerndaten, P191–P193):
+
+- `DictionaryFacilitatorImpl.kt`: `usesSameSettings` vergleicht zusätzlich die Hauptsprache
+  (`locales.firstOrNull() == dictionaryGroups[0].locale`), sonst blieb beim Wechsel zwischen zwei
+  Subtypen mit denselben Sprachen (Deutsch mit Spanisch ↔ Spanisch mit Deutsch) die alte Sprache
+  Hauptsprache samt ihrer Konfidenz. `getUsedLocales` sammelt in `linkedSetOf` statt `hashSetOf`:
+  Die Gruppe der Hauptsprache steht vorne (`mainLocale`, bei gleicher Konfidenz bevorzugt, ihr
+  Lernverlauf lernt). Vorher entschied der Hash: {es, de} und {en, de} begannen mit Deutsch (P191).
+- `Suggest.kt`: `applyLearnedCorrection` fragt `TypoMemory.meantWord(…, language, knownInLanguage)`
+  mit der Tastatursprache (`ForeignWords.languageOf(settings)`, P192); ein Paar von vor 51 nur,
+  wenn `isValidSuggestionWord` (Gruppe der Hauptsprache) das gemeinte Wort in seiner oder kleiner
+  Schreibung kennt. `guardAllows` und `applyLearnedCorrection` korrigieren ein gemerktes Wort einer
+  anderen Sprache (`ForeignWords.isRemembered`) nie automatisch. `addForeignWord` direkt nach
+  `addFromMemory`: meldet `ForeignWords.onTyped` (kennt ein Hauptwörterbuch der Tastatursprache das
+  getippte Wort in irgendeiner Schreibung?) und setzt ein gemerktes Wort, das das getippte beginnt,
+  als `KIND_COMPLETION` hinter die Korrektur (ohne Korrektur an den Anfang), in der Großschreibung
+  des Tippens; nie als Korrektur.
+- Nicht geändert: `LatinIME`, `InputLogic`, `RichInputConnection`, `PointerTracker`. Die
+  Sprachbefehle schalten weiter über `switchToSubtype` (wie die Sprachtaste); gelernt wird über den
+  Hook von 46 (`Memory.onWordCommitted` reicht jedes Wort zuerst an `ForeignWords` weiter, vor den
+  eigenen Sperren des Gedächtnisses) und `RejectedCorrections.remember` (P193).
+
 Gedächtnis (Etappe 46, Details im Abschnitt „Lerndaten“ → Gedächtnis, P174–P177):
 
 - `InputLogic.java`: `performAdditionToUserHistoryDictionary` ruft nach den eigenen Ausstiegen
@@ -2300,7 +2322,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Einstellungen: Abschnitt „Autokorrektur“ in `AgentLearningScreen.kt`. Tests:
   `CorrectionMemoryTest`, Fälle „stage 20a“ in `SuggestTest` und `InputLogicTest`.
 - Eigene Tippfehler (20b): `K/agent/TypoMemory.kt`, Datei `agent_typo_memory` (gerätegeschützt).
-  Je getippter Form die gemeinten Wörter mit Gesamtzahl und Zahl pro vorherigem Wort (höchstens
+  Je Tastatursprache (seit 51) und getippter Form die gemeinten Wörter mit Gesamtzahl und Zahl pro vorherigem Wort (höchstens
   20). Höchstens 1000 getippte Formen, zuletzt benutzte bleiben. Angewendet ab drei
   Bestätigungen und 80 % aller Bestätigungen dieser Form; eine Form, die selbst Wort eines
   Hauptwörterbuchs ist, nur über den Kontext. Nicht gezählt: Vervollständigungen (gemeintes Wort
@@ -2319,8 +2341,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Speicher, bis 1024 Zeichen vor und 300 nach der Schreibmarke (P184), nur Wörter, die eigene
   Eingabe berührt hat (P183), keine Wortvervollständigung (`isCompletion`), „echt“ = `isValidSpellingWord` auch klein,
   also Wörterbuch, persönliches Wörterbuch, Kontakte, Lernverlauf) und `FieldCorrectionMemory`
-  (Datei `agent_field_corrections`, Kandidat → gelernt beim zweiten Vorkommen mit anderer
-  Feldnummer oder Stelle). Wirkung über `TypoMemory.meantWord` (gelerntes Paar nur, wenn das
+  (Datei `agent_field_corrections`, je Tastatursprache seit 51, Kandidat → gelernt beim zweiten
+  Vorkommen mit anderer Feldnummer oder Stelle). Wirkung über `TypoMemory.meantWord` (gelerntes Paar nur, wenn das
   Getippte kein Hauptwörterbuch-Wort ist; danach wie 20b über `Suggest.applyLearnedCorrection`),
   `TypoMemory.forget` löscht mit. Zurückgenommene Autokorrektur → `RejectedCorrections.remember`.
   Seite `K/settings/screens/AgentMemoryScreen.kt` („Was ich mir gemerkt habe“, eine Liste von
@@ -2399,6 +2421,46 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `agent_touch_strings.xml` (`values/`, `values-de/`). Tests: `CT/TouchDynamicsTest.kt`
     (Modell), `AT/TouchZonesDynamicTest.kt` (Hook, Bestätigung, gesperrte Felder, Beförderung),
     `AT/TouchScenesScreenTest.kt` (Seite).
+- Sprache der Lerndaten (51, P192): Was eine Korrektur hinzufügt, gehört zur Tastatursprache, in
+  der es gelernt wurde (`SettingsValues.mLocale.language`, `ForeignWords.languageOf`):
+  `TypoMemory` (20b) und `FieldCorrectionMemory` (49) schlüsseln nach Sprache und getippter Form,
+  `meantWord`/`learnedFor` fragen nur die aktuelle Sprache; Einträge von vor 51 haben `""` als
+  Sprache und gelten nur, wo ein Wörterbuch der aktuellen Sprache das gemeinte Wort kennt (Rückruf
+  `knownInLanguage`, in `Suggest` `isValidSuggestionWord`). `forget` (Rücknahme einer Korrektur)
+  löscht das Paar in jeder Sprache, `FieldCorrectionMemory.delete` (Seite) nur den einen Eintrag.
+  Ohne Sprache (`language = null`) fragen nur die Unit-Tests der Regeln. Bewusst sprachneutral, weil
+  sie nur verhindern oder nur auf Tipp anbieten: `RejectedCorrections` (ein abgelehntes Paar ist in
+  jeder Sprache unerwünscht, das korrigierte Wort kommt ohnehin nur aus seiner Sprache), eigene
+  Wörter, Wortfolgen und Abkürzungen des Gedächtnisses (Namen, Slang und Kürzel des Owners;
+  Folgen passen nur nach denselben Wörtern), `TypedWordFirst` (nur im Speicher je Feld), die
+  Kontext-Gewichte von 45. HeliBoards Lernverlauf und Sperrliste sind ohnehin je Sprache.
+- Wörter aus anderen Sprachen (51, P193): `A/ForeignWords.kt`. Ein Wort, das kein Hauptwörterbuch der
+  Tastatursprache kennt (in keiner Schreibung, so bleibt 48 unberührt), wohl aber das Hauptwörterbuch
+  einer anderen aktiven Sprache (jeder aktive Subtyp und dessen zweite Sprachen, `enabledLocales`),
+  wird für die Tastatursprache gemerkt: sofort, wenn der Owner es gegen eine automatische Korrektur
+  behalten hat (`onCorrectionUndone` aus `RejectedCorrections.remember`, auch ohne deren Schalter;
+  zählt beim nächsten Commit, wenn das Wort genau an der gemeldeten Stelle steht, wie P188; reine
+  Groß-/Kleinänderungen nie), sonst beim zweiten Commit genau wie getippt an anderer Stelle (anderes
+  Feld oder andere Position, `onFieldChanged` aus `AgentEditorController.startEditor`/`finishEditor`)
+  und nur in Feldern mit Autokorrektur (`mAutoCorrectEnabled`). „Kennt die Tastatursprache nicht“
+  meldet der Vorschlags-Thread (`onTyped`, wie P176). Die Prüfung gegen die anderen Sprachen läuft
+  auf `worker` (eigener Thread): `OtherLanguages` öffnet deren Hauptwörterbücher erst bei Bedarf
+  (`DictionaryFactory.createMainDictionaryCollection`, nur lesend wie zweite Sprachen) und hält sie,
+  bis sich die aktiven Sprachen oder die Tastatursprache ändern; `clear` schließt sie. Gelernt wird
+  nur mit „Personalisierte Vorschläge“ (`mUsePersonalizedDicts`), ohne Lernpause, nicht in
+  gesperrten Feldern (`Memory.isBlocked`: Inkognito, Passwort, `NO_LEARNING_FIELD`, vom Gedächtnis
+  ausgeschlossene Apps) und nicht bei gesperrtem Gerät; angeboten wird nur ungesperrt und nicht in
+  gesperrten Feldern. Datei `agent_foreign_words` (gerätegeschützt, `docs/STORAGE.md`), höchstens
+  500 gemerkte Wörter und 200 Kandidaten, älteste zuerst verworfen; im Speicher als Karte je Sprache
+  (`lookup`) für den Vorschlags-Thread. `clear` aus „Gelernte Wörter löschen“ und dem bestätigten
+  Ausschalten von „Personalisierte Vorschläge“ (`TextCorrectionScreen`) verwirft auch wartende
+  Prüfungen (`generation`). Seite: Abschnitt `ForeignWordsSection` (dritter Eintrag von
+  `memorySections` in `AgentMemoryScreen.kt`, „Wörter aus anderen Sprachen“, Wort mit Herkunfts- und
+  Zielsprache, „Löschen“), Texte in `agent_memory_strings.xml`. Tests: Fälle „stage 51“ in
+  `InputLogicTest` mit echtem Wörterbuch-Zugang (`latin/WordListDictionaries.kt`:
+  `ShadowWordListDictionaries` ersetzt nur `DictionaryFactory.createMainDictionaryCollection` durch
+  Wortlisten, Facilitator, Gruppen, Konfidenz, `Suggest` und `InputLogic` laufen echt) und in
+  `SuggestTest` („fur“), `TypoMemoryTest`, `FieldCorrectionMemoryTest`, `MemoryScreenTest`.
 - Kontext-Lernen (45): `A/ContextLearning.kt` hält `ContextWeights` (nur Hinweis-`id`, Art und
   Zahl) in `agent_context_weights` (gerätegeschützt, Schlüssel `weights`), im Speicher
   zwischengespeichert. `record` nur bei `mayLearn` („Personalisierte Vorschläge“ an, keine
@@ -3924,33 +3986,69 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `insertGeneratedText` ein ausstehendes automatisches Leerzeichen davor gesetzt, bleibt dieses
   stehen. Rückgängig geht nur, solange die Schreibmarke dort steht, wo sie nach dem Einfügen stand
   (`charArtUndoEnd`), und der Text dort unverändert ist; sonst ein Hinweis und nichts passiert.
+- **P191** HeliBoards Facilitator erkennt die Sprache, in der getippt wird, an der ersten Gruppe
+  (`mainLocale`, Großschreibung) und an der Konfidenz (`currentLocale`, Gewichte, Lernverlauf; bei
+  Gleichstand gewinnt die erste Gruppe). Darum muss `getUsedLocales` die Hauptsprache zuerst liefern
+  (`linkedSetOf`, nie ein `HashSet`) und `usesSameSettings` die Hauptsprache vergleichen: sonst blieb
+  nach `@sp` mit Spanisch-mit-Deutsch Deutsch Hauptsprache und behielt seine Konfidenz (Spanisch mit
+  0,7, Deutsch mit 1,0 gewichtet, „mui“ → „Mut“ statt „muy“, Etappe 51). Ein Neuaufbau mit denselben
+  Sprachen benutzt die offenen Wörterbücher weiter (`getNewDictGroupsAndDictsToCleanup`) und beginnt
+  mit frischer Konfidenz. In `InputLogicTest` schattet `ShadowFacilitator2` `addToUserHistory` und
+  damit `adjustConfidences`: Tests zur Konfidenz rufen `adjustConfidences` selbst. Echte
+  Wörterbücher gibt es in Unit-Tests nicht; `ShadowWordListDictionaries` (nur per `@Config` an den
+  Testmethoden) ersetzt allein das Öffnen der Hauptwörterbücher durch Wortlisten, deren Punkte
+  (1,5 Mio. genau, 600 000 ein Schritt, 300 000 Anfang, plus 1000 je Häufigkeitspunkt, mal Gewicht der
+  Sprache) die echte Schwelle der Autokorrektur erreichen; das Laden läuft asynchron, Tests warten mit
+  `waitForLoadingMainDictionaries`.
+- **P192** Lerndaten, die eine Korrektur *hinzufügen* (20b, 49), gehören zur Tastatursprache von
+  `SettingsValues.mLocale`, beim Lernen wie beim Anwenden in `Suggest` (nicht zur Gruppe, aus der ein
+  Vorschlag kommt): bei Deutsch mit Englisch als zweiter Sprache lernt alles für „de“. Neue Speicher,
+  die etwas einsetzen, brauchen diese Sprache im Schlüssel; Speicher, die nur verhindern oder nur
+  auf Tipp anbieten, dürfen sprachneutral bleiben (Liste in „Lerndaten“ → Sprache der Lerndaten).
+  Einträge ohne Sprache (`""`, gespeichert vor 51) wirken nur über den Rückruf `knownInLanguage`;
+  wer ihn mit `{ true }` füllt, holt das Durchsickern zurück (ein deutsches Paar setzte „danke“ in
+  spanischen Text). Nach einem Sprachbefehl sind Einstellungen sofort neu, der Facilitator erst nach
+  `MSG_REOPEN_DICTIONARIES`; in dieser kurzen Lücke gelten schon die Paare der neuen Sprache.
+- **P193** `ForeignWords` lernt über `Memory.onWordCommitted`, das jedes Wort zuerst weiterreicht
+  (vor `Memory.mayLearn`, mit `readOnce`, damit der Text vor der Schreibmarke höchstens einmal
+  gelesen wird); wer den Hook umbaut, behält diese Reihenfolge. „Kennt die Tastatursprache nicht“
+  kommt wie P176 vom Vorschlags-Thread (`onTyped`): Kam die Leiste beim schnellen Tippen nicht dazu,
+  zählt das Wort nicht (vorsichtig); die Tests rufen `updateSuggestions`. Bekannt heißt in jeder
+  Schreibung (`equals(…, ignoreCase)`), damit Groß-/Kleinkorrekturen (48 M1, „hand“ → „Hand“) nie zu
+  gemerkten Fremdwörtern werden; Rücknahmen, die nur die Großschreibung ändern, zählen ebenfalls
+  nicht. Die Regel „fur“ (20a/49) bleibt: Ein Wort einer anderen aktiven Sprache schützt erst, wenn
+  der Owner es behalten hat (Rücknahme oder zweimal an anderer Stelle); dann gilt es nur in dieser
+  Sprache. Die Prüfung gegen die anderen Wörterbücher läuft auf `ForeignWords.worker` und öffnet
+  dort deren Hauptwörterbücher (Speicher wie zweite Sprachen); Tests setzen `worker` auf direkt,
+  `enabledLocales` ist austauschbar. Gemerkte Wörter sind nie die automatische Korrektur, nur
+  Vervollständigung hinter ihr.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (560 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (562 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (5): agent-apk, agent-tests, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (81): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (82): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand,
   ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand, CorrectionMemory,
   DateCommand, DesignLook, DesignTiles, Diagnose, Dictation, EmojiCommand, EmojiMixPalette,
   EmojiSuggestions, EncryptedActionRunStore, EventCommand, FieldCorrections, FieldSuggestionChips,
-  FlatMenuView, FlatPanelStyle, FlatPreset, FormatGuardChips, HapticChain, JournaledModelCall,
-  JournaledRun, KeyboardCommands, KeyboardProfileStore, LearningData, LoadingDotsView,
-  ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData, MyDesigns, OnDeviceSpeechEngine,
-  PlaceCommand, RgbKeyPainter, RgbLighting, RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces,
-  ScreenshotChip, SearchCommand, SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics,
-  SmartPasteChips, SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk,
-  ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst, TypoMemory,
-  WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner,
-  WorkflowInputSummary, WorkflowStore
+  FlatMenuView, FlatPanelStyle, FlatPreset, ForeignWords, FormatGuardChips, HapticChain,
+  JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore, LearningData,
+  LoadingDotsView, ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData, MyDesigns,
+  OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter, RgbLighting, RgbStrip, RgbTexture,
+  RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore, SkillLabels,
+  SliderFeel, SliderHaptics, SmartPasteChips, SpaceDetents, SpaceGestures, SubtypeSwitchLog,
+  SymbolDrawing, SymbolInk, ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel,
+  TypedWordFirst, TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract,
+  WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
 - `A/charart/` (5): CharArtCanvas, CharArtImages, CharArtKey, CharArtKeys, CharArtView
 - `A/commands/` (18): AiCommandChips, AlarmCommand, AskCommand, ClipCommand, EmojiMixCommand,
   EmojiMixRecents, EmojiMixer, LanguageCommand, QrCommand, ScreenReaderService, SensitiveClips,
@@ -4083,7 +4181,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (2): KeyboardParserTest, Shadows
-- `app/src/test/java/helium314/keyboard/latin/` (2): InputLogicTest, SuggestTest
+- `app/src/test/java/helium314/keyboard/latin/` (3): InputLogicTest, SuggestTest,
+  WordListDictionaries
 - `app/src/test/java/helium314/keyboard/latin/inputlogic/` (1): BatchDeliveryTest
 - `scripts/` (3): docs_sync, docs_sync, install-hooks
 - `tools/` (2): dev, emoji_mix_table

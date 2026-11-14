@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import helium314.keyboard.agent.FieldCorrectionMemory
+import helium314.keyboard.agent.ForeignWords
 import helium314.keyboard.latin.R
 import helium314.keyboard.settings.SearchSettingsScreen
 import androidx.compose.material3.OutlinedButton
@@ -40,8 +41,9 @@ import kotlin.math.roundToInt
 /**
  * "Was ich mir gemerkt habe": what the keyboard keeps from typing, one section per kind, each with
  * its own entries and actions. Stage 49 has the corrections section, stage 46 the memory
- * ([MemorySections]: phrases, own words, abbreviation offers, excluded apps). The lists are shown
- * only here; the keyboard shows only its chips (stage 46).
+ * ([MemorySections]: phrases, own words, abbreviation offers, excluded apps), stage 51 the words of
+ * other languages ([ForeignWordsSection]). The lists are shown only here; the keyboard shows only its
+ * chips (stage 46).
  */
 @Composable
 fun AgentMemoryScreen(onClickBack: () -> Unit) {
@@ -58,7 +60,7 @@ fun AgentMemoryScreen(onClickBack: () -> Unit) {
 }
 
 /** The sections of the page, top to bottom. */
-private val memorySections: List<@Composable () -> Unit> = listOf({ CorrectionsSection() }, { MemorySections() })
+private val memorySections: List<@Composable () -> Unit> = listOf({ CorrectionsSection() }, { MemorySections() }, { ForeignWordsSection() })
 
 const val MEMORY_ENTRY_TAG = "agent_memory_entry_"
 const val MEMORY_ADOPT_TAG = "agent_memory_adopt_"
@@ -93,6 +95,42 @@ private fun CorrectionsSection() {
                 Modifier.testTag(MEMORY_DELETE_TAG + entry.typed)) { Text(stringResource(R.string.agent_memory_delete)) }
         }
     }
+}
+
+const val MEMORY_FOREIGN_TAG = "agent_memory_foreign_"
+const val MEMORY_FOREIGN_DELETE_TAG = "agent_memory_foreign_delete_"
+
+/** Stage 51: words of other languages kept while writing in one language, each with "Löschen"; none while locked. */
+@Composable
+private fun ForeignWordsSection() {
+    val context = LocalContext.current
+    var entries by remember { mutableStateOf(runCatching { ForeignWords.all(context) }.getOrDefault(emptyList())) }
+    Text(stringResource(R.string.agent_memory_foreign), style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.agent_memory_foreign_description), style = MaterialTheme.typography.bodySmall)
+    if (Memory.deviceLocked(context)) {
+        Text(stringResource(R.string.agent_memory_locked))
+        return
+    }
+    if (entries.isEmpty()) Text(stringResource(R.string.agent_memory_foreign_none), style = MaterialTheme.typography.bodySmall)
+    entries.forEach { entry ->
+        val tag = entry.language + "_" + entry.word
+        Row(Modifier.fillMaxWidth().testTag(MEMORY_FOREIGN_TAG + tag), verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.agent_memory_foreign_entry, entry.word, languageName(entry.from), languageName(entry.language)),
+                Modifier.weight(1f))
+            TextButton(onClick = {
+                runCatching { ForeignWords.delete(context, entry) }
+                entries = runCatching { ForeignWords.all(context) }.getOrDefault(emptyList())
+            }, Modifier.testTag(MEMORY_FOREIGN_DELETE_TAG + tag)) { Text(stringResource(R.string.agent_memory_delete)) }
+        }
+    }
+}
+
+/** The name of [language] ("es") in the language of the page. */
+@Composable
+private fun languageName(language: String): String {
+    val shown = androidx.core.os.ConfigurationCompat.getLocales(androidx.compose.ui.platform.LocalConfiguration.current)[0]
+        ?: java.util.Locale.getDefault()
+    return java.util.Locale.forLanguageTag(language).getDisplayLanguage(shown).ifEmpty { language }
 }
 
 @Composable

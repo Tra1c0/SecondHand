@@ -212,8 +212,11 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
 ## Gelernte Tippfehler (20b)
 
 - Datei: SharedPreferences `agent_typo_memory`, gerätegeschützter Speicher. Schlüssel `pairs`:
-  JSON-Liste aus `{typed, meant: [{word, total, contexts: {vorheriges Wort: Anzahl}}]}`, alles
-  kleingeschrieben, älteste getippte Form zuerst, höchstens 1000 Formen und 20 Kontexte je Wort.
+  JSON-Liste aus `{typed, lang, meant: [{word, form, total, contexts: {vorheriges Wort: Anzahl}}]}`,
+  alles kleingeschrieben außer `form`, älteste getippte Form zuerst, höchstens 1000 Formen (über alle
+  Sprachen) und 20 Kontexte je Wort. `lang` (seit 51) ist die Tastatursprache, in der das Paar gelernt
+  wurde (z. B. `de`, `es`); Einträge ohne `lang` stammen von vorher, werden als `""` gelesen und
+  gelten nur, wo ein Wörterbuch der aktuellen Sprache das gemeinte Wort kennt.
 - Entsteht nur mit eingeschaltetem „Meine Tippfehler lernen“, kein Backup, kein Protokoll.
   „Gelernte Tippfehler vergessen“ leert die Datei.
 
@@ -263,8 +266,8 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
 ## Korrekturen im ganzen Feld (49)
 
 - Datei: SharedPreferences `agent_field_corrections`, gerätegeschützter Speicher. Schlüssel
-  `data`: JSON `{candidates: [{typed, meant, session, position, seen}], learned: [{typed, meant,
-  seen}]}`; `typed` kleingeschrieben, `meant` in der zu setzenden Schreibung, `session` eine
+  `data`: JSON `{candidates: [{typed, lang, meant, session, position, seen}], learned: [{typed, lang,
+  meant, seen}]}`; `lang` die Tastatursprache (seit 51, ohne `lang` wie bei 20b), `typed` kleingeschrieben, `meant` in der zu setzenden Schreibung, `session` eine
   Zufalls-/Zeitnummer des Felds (kein App-Name), `position` die Stelle im Feld, `seen` Zeit in ms.
   Höchstens 200 Kandidaten und 500 gelernte Paare, älteste zuerst verworfen.
 - Entsteht nur mit „Meine Tippfehler lernen“, ohne Lernpause, Inkognito, Passwort- oder
@@ -273,6 +276,23 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   Korrektur aus einem gelernten Paar entfernt es (`TypoMemory.forget`).
 - Der Feldtext, mit dem verglichen wird (höchstens 1024 Zeichen vor und 300 nach der Schreibmarke),
   liegt nur im Arbeitsspeicher und wird beim Feldwechsel verworfen, nie gespeichert.
+
+## Wörter aus anderen Sprachen (51)
+
+- Datei: SharedPreferences `agent_foreign_words`, gerätegeschützter Speicher (Direct Boot), wie die
+  Lernwörterbücher. Schlüssel `data`: JSON `{candidates: [{lang, word, from, session, position,
+  seen}], remembered: [{lang, word, from, seen}]}`; `lang` die Tastatursprache, in der das Wort
+  behalten wurde, `from` die Sprache, deren Wörterbuch es kennt, `word` in der Schreibung dieses
+  Wörterbuchs, `session` eine Zeitnummer des Felds (kein App-Name), `position` die Stelle im Feld,
+  `seen` Zeit in ms. Höchstens 200 Kandidaten und 500 gemerkte Wörter, älteste zuerst verworfen.
+- Entsteht nur mit „Personalisierte Vorschläge“, ohne Lernpause, nicht in Inkognito, Passwort- oder
+  Nicht-lernen-Feldern, nicht in vom Gedächtnis ausgeschlossenen Apps und nur bei entsperrtem Gerät.
+  Kein Backup, kein Protokoll, kein Export. Löschen: Seite „Was ich mir gemerkt habe“ (einzeln),
+  „Gelernte Wörter löschen“ und das bestätigte Ausschalten von „Personalisierte Vorschläge“ (alles).
+- Nur im Arbeitsspeicher: das zuletzt getippte Wort mit Sprache und ob die Tastatursprache es kennt,
+  eine wartende Rücknahme (Wort und Stelle, beim Feldwechsel verworfen) und die geöffneten
+  Hauptwörterbücher der anderen aktiven Sprachen (nur lesend, aus `files/dicts` bzw. den
+  mitgelieferten Wörterbüchern wie bei zweiten Sprachen).
 
 ## Trefferzonen (22a)
 

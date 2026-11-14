@@ -899,6 +899,50 @@ class SuggestTest {
         helium314.keyboard.agent.Memory.resetForTest()
     }
 
+    // fork, stage 51: the "fur" rule of 20a/49 holds until the owner kept "fur" in German as a word of
+    // another language; then it stays, only in German, and a remembered word is offered, never the correction
+    @Test fun `stage 51 English fur becomes für until the owner kept it in German`() {
+        currentTypingLocale = Locale.GERMAN
+        enableAutocorrect(confidenceVeryAggressive)
+        latinIME.prefs().edit { putBoolean(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, true) }
+        fun inLanguage(locale: Locale) = latinIME.mSettings.loadSettings(latinIME, locale, InputAttributes(
+            android.view.inputmethod.EditorInfo().apply { inputType = android.text.InputType.TYPE_CLASS_TEXT }, false, latinIME.packageName))
+        inLanguage(Locale.GERMAN)
+        fun fur(): SuggestedWords {
+            tapTypingSuggestions = suggestionResults(listOf(suggestion("für", 650000, Locale.GERMAN), suggestion("fur", 300000, Locale.ENGLISH)))
+            return getSuggestedWords(false, "fur", CapsMode.OFF)
+        }
+        assert(fur().mWillAutoCorrect)
+        val foreign = helium314.keyboard.agent.ForeignWords
+        try {
+            helium314.keyboard.agent.AgentStorageContexts.keyboard(latinIME).getSharedPreferences(foreign.FILE, android.content.Context.MODE_PRIVATE)
+                .edit { putString("data", """{"candidates":[],"remembered":[{"lang":"de","word":"fur","from":"en","seen":1},""" +
+                    """{"lang":"de","word":"gracias","from":"es","seen":2}]}""") }
+            foreign.resetForTest()
+            val kept = fur()
+            assertFalse(kept.mWillAutoCorrect)
+            assertTrue(kept.mSuggestedWordInfoList.any { it.mWord == "für" }) // still offered
+            // a remembered word is offered behind the automatic correction, never in its place
+            tapTypingSuggestions = suggestionResults(listOf(suggestion("Grab", 650000, Locale.GERMAN)))
+            val words = getSuggestedWords(false, "gra", CapsMode.OFF)
+            assertTrue(words.mWillAutoCorrect)
+            assertEquals("Grab", words.mSuggestedWordInfoList[SuggestedWords.INDEX_OF_AUTO_CORRECTION].mWord)
+            val offered = words.mSuggestedWordInfoList.indexOfFirst { it.mWord == "gracias" }
+            assertTrue(offered > SuggestedWords.INDEX_OF_AUTO_CORRECTION, words.mSuggestedWordInfoList.map { it.mWord }.toString())
+            // only in German
+            inLanguage(Locale.forLanguageTag("es"))
+            assert(fur().mWillAutoCorrect)
+            // and only with "Personalisierte Vorschläge"
+            inLanguage(Locale.GERMAN)
+            assertFalse(fur().mWillAutoCorrect)
+            latinIME.prefs().edit { putBoolean(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, false) }
+            inLanguage(Locale.GERMAN)
+            assert(fur().mWillAutoCorrect)
+        } finally {
+            foreign.clear(latinIME)
+        }
+    }
+
     // review of stage 46 (M1): a remembered abbreviation is never corrected (nor expanded) automatically
     @Test fun `remembered abbreviation stays as typed`() {
         enableAutocorrect(confidenceVeryAggressive)
