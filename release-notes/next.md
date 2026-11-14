@@ -223,3 +223,11 @@
   ein beim schnellen Tippen rutschender Tipp bleibt Buchstabe. Im künstlichen Finger-Test ÷ 99 %
   statt 71 %, % mit Tupfern 98 % statt 0 %, mit winzigen Kreisen erst 53 %. Noch auf keinem Gerät
   ausprobiert.
+- Neu: Gehst du zu einem automatisch korrigierten Wort zurück (Löschtaste direkt danach oder
+  Schreibmarke ins Wort), steht dein getipptes Wort ganz links in der Leiste, in deiner Groß- und
+  Kleinschreibung; Mitte und rechts ähnliche Wörter. Ein Tipp setzt es ein und zählt wie die
+  Löschtaste. Noch auf keinem Gerät ausprobiert.
+- Behoben: Die Autokorrektur macht aus einem richtigen Wort nicht mehr nur eine andere
+  Großschreibung („essen“ bleibt, „Essen“ steht als Vorschlag da). Nach „ca.“, „bzw.“, „vgl.“,
+  „z. B.“ und ähnlichen Abkürzungen schreibt die Tastatur nicht mehr groß weiter. Noch auf keinem
+  Gerät ausprobiert.

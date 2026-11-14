@@ -729,6 +729,168 @@ class InputLogicTest {
         TypoMemory.clear(latinIME)
     }
 
+    // fork, stage 48: the word as typed comes first after going back to an automatic correction
+    @Test fun `typed word comes first after undoing a correction with backspace and a tap keeps it`() = withSimilarWords("hello", "hull", "hallo") {
+        chainInput("hullo")
+        getAutocorrectedWithSpaceAfter("hello", "hullo")
+        assertEquals("hello ", text)
+        functionalKeyPress(KeyCode.DELETE)
+        assertEquals("hullo", text)
+        // left the word as typed, centre and right similar words; the typed word is not repeated
+        assertEquals(listOf("hullo", "hello", "hull"), stripSlots())
+        assertFalse(inputLogic.mSuggestedWords.mWillAutoCorrect)
+        tapSlot(0)
+        assertEquals("hullo", text)
+        chainInput("x")
+        assertEquals("hullo x", text)
+    }
+
+    @Test fun `typed word keeps its case after backspace, also in German`() {
+        withSimilarWords("Halle", "Halt", locale = Locale.GERMAN) {
+            chainInput("Hallo")
+            getAutocorrectedWithSpaceAfter("Halle", "Hallo")
+            assertEquals("Halle ", text)
+            functionalKeyPress(KeyCode.DELETE)
+            assertEquals("Hallo", text)
+            assertEquals(listOf("Hallo", "Halle", "Halt"), stripSlots())
+        }
+        reset()
+        withSimilarWords("iphone", "phone") {
+            chainInput("iPhone")
+            getAutocorrectedWithSpaceAfter("iphone", "iPhone")
+            assertEquals("iphone ", text)
+            functionalKeyPress(KeyCode.DELETE)
+            assertEquals("iPhone", text)
+            assertEquals("iPhone", stripSlots()[0])
+        }
+    }
+
+    @Test fun `typed word comes first when the cursor goes back into a corrected word, a tap undoes the correction`() {
+        TypoMemory.clear(latinIME)
+        latinIME.prefs().edit {
+            putBoolean(AgentPreferences.AUTOCORRECT_REMEMBER_REJECTED, true)
+            putBoolean(AgentPreferences.AUTOCORRECT_LEARN_TYPOS, true)
+        }
+        withSimilarWords("hello", "hull", "hallo") {
+            chainInput("hullo")
+            getAutocorrectedWithSpaceAfter("hello", "hullo")
+            chainInput("world ")
+            assertEquals("hello world ", text)
+            setCursorPosition(2) // inside "hello"
+            // the corrected word in the editor is not shown, its typed form is left
+            assertEquals(listOf("hullo", "hull", "hallo"), stripSlots())
+            tapSlot(0)
+            assertEquals("hullo world ", text)
+            assertTrue(RejectedCorrections.contains(latinIME, "hullo", "hello")) // remembered like backspace
+            assertEquals(0, TypoMemory.all(latinIME).size) // "hello -> hullo" is not learned as a typo
+        }
+        RejectedCorrections.clear(latinIME)
+    }
+
+    @Test fun `a word the cursor goes back to without a correction shows no extra word`() = withSimilarWords("hello", "hull") {
+        chainInput("hello world ")
+        setCursorPosition(2)
+        assertEquals(listOf(null, "hull", null), stripSlots()) // HeliBoard's display, unchanged
+        // a case-only correction ("ok" -> "OK") keeps the typed case at the first slot
+        setText("")
+        chainInput("ok")
+        getAutocorrectedWithSpaceAfter("OK", "ok")
+        chainInput("then ")
+        assertEquals("OK then ", text)
+        setCursorPosition(1)
+        assertEquals("ok", stripSlots()[0])
+        // another field: corrections of the old one are forgotten
+        setText("OK then ")
+        setCursorPosition(1)
+        assertFalse("ok" in stripSlots())
+    }
+
+    // stage 48 (b): where automatic capitals come from
+    @Test fun `automatic capitals only at sentence starts, not after a picked word, an emoji, a URL or abbreviations`() {
+        currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+        fun capsAfter(before: String): Boolean {
+            setText(before)
+            return inputLogic.getCurrentAutoCapsState(settingsValues) and android.text.TextUtils.CAP_MODE_SENTENCES != 0
+        }
+        assertTrue(capsAfter(""))
+        assertTrue(capsAfter("Hallo. "))
+        assertTrue(capsAfter("Hallo!\n")) // new paragraph
+        assertFalse(capsAfter("hallo "))
+        assertFalse(capsAfter("Hallo 😀 "))
+        assertFalse(capsAfter("siehe www.example.com "))
+        assertFalse(capsAfter("Das ist z.B. "))
+        assertFalse(capsAfter("It costs approx. ")) // stage 48: capitalized before (English keyboard here)
+        assertFalse(capsAfter("Das ist z. B. ")) // stage 48: capitalized before
+        // after a picked suggestion with the automatic space
+        setText("Ich sage ")
+        chainInput("hallo")
+        pickSuggestion("hallo")
+        assertEquals(SpaceState.PHANTOM, spaceState)
+        assertEquals(0, inputLogic.getCurrentAutoCapsState(settingsValues) and android.text.TextUtils.CAP_MODE_SENTENCES)
+        // switched off: never
+        latinIME.prefs().edit { putBoolean(Settings.PREF_AUTO_CAP, false) }
+        assertFalse(capsAfter("Hallo. "))
+    }
+
+    @Test fun `a field asking for capital words gets them at every word, as the app requests`() {
+        currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+        setText("max ")
+        assertTrue(inputLogic.getCurrentAutoCapsState(settingsValues) and android.text.TextUtils.CAP_MODE_WORDS != 0)
+    }
+
+    private var suggestionThread = false
+
+    /**
+     * Runs the real suggestion pipeline (InputLogic, Suggest, the suggestion thread) with [similar]
+     * as the dictionary's answer for every word, on a stand-in keyboard.
+     */
+    private fun withSimilarWords(vararg similar: String, locale: Locale = Locale.ENGLISH, body: () -> Unit) {
+        val field = Suggest::class.java.getDeclaredField("mDictionaryFacilitator").apply { isAccessible = true }
+        val real = field.get(inputLogic.mSuggest) as DictionaryFacilitator
+        val stub = java.lang.reflect.Proxy.newProxyInstance(DictionaryFacilitator::class.java.classLoader,
+            arrayOf(DictionaryFacilitator::class.java)) { _, method, args ->
+            if (method.name == "getSuggestionResults")
+                suggestionResults(similar.mapIndexed { i, word -> suggestion(word, 600000 - i * 1000, locale) })
+            else method.invoke(real, *(args ?: emptyArray()))
+        } as DictionaryFacilitator
+        inputLogic.mSuggest = Suggest(stub)
+        setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT) // autocorrect needs the flag
+        testKeyboard = helium314.keyboard.keyboard.Keyboard(helium314.keyboard.keyboard.internal.KeyboardParams().apply {
+            GRID_HEIGHT = 1; GRID_WIDTH = 1
+            mId = helium314.keyboard.keyboard.KeyboardLayoutSet.getFakeKeyboardId(helium314.keyboard.keyboard.KeyboardElement.ALPHABET)
+        })
+        suggestionThread = true
+        try { body() } finally {
+            suggestionThread = false
+            testKeyboard = null
+            inputLogic.mSuggest = Suggest(real)
+        }
+    }
+
+    /** The words in the three strip slots, start side first, as `SuggestionStripLayoutHelper` places them. */
+    private fun stripSlots(words: SuggestedWords = inputLogic.mSuggestedWords): List<String?> {
+        val helper = Class.forName("helium314.keyboard.latin.suggestions.SuggestionStripLayoutHelper") // package-private
+        val omit = helper.getDeclaredMethod("shouldOmitTypedWord", Int::class.java, Boolean::class.java, Boolean::class.java)
+            .apply { isAccessible = true }.invoke(null, words.mInputStyle, false, true) as Boolean
+        val position = helper.getDeclaredMethod("getPositionInSuggestionStrip", Int::class.java, Boolean::class.java,
+            Boolean::class.java, Int::class.java, Int::class.java).apply { isAccessible = true }
+        val slots = arrayOfNulls<String>(3)
+        for (i in 0 until words.size()) {
+            val slot = position.invoke(null, i, words.mWillAutoCorrect, omit, 1, 0) as Int
+            if (slot in 0..2 && slots[slot] == null) slots[slot] = words.getWord(i)
+        }
+        return slots.toList()
+    }
+
+    /** A tap on the strip slot, with the word's real info like `SuggestionStripView.onClick`. */
+    private fun tapSlot(slot: Int) {
+        val words = inputLogic.mSuggestedWords
+        val word = stripSlots(words)[slot]!!
+        latinIME.pickSuggestionManually(words.getInfo((0 until words.size()).first { words.getWord(it) == word && it > 0 }))
+        handleMessages()
+        checkConnectionConsistency()
+    }
+
     @Test fun `remove glide typing word on delete`() {
         glideTypingInput("hello")
         assertEquals("hello", text)
@@ -4306,7 +4468,7 @@ class InputLogicTest {
     // always need to handle messages for proper simulation
     private fun handleMessages() {
         while (messages.isNotEmpty()) {
-            latinIME.mHandler.handleMessage(messages.first())
+            dispatch(messages.first())
             messages.removeAt(0)
         }
         while (delayedMessages.isNotEmpty()) {
@@ -4316,7 +4478,7 @@ class InputLogicTest {
             delayedMessages.removeAt(0)
             // delayed messages may post further messages, handle before next delayed message
             while (messages.isNotEmpty()) {
-                latinIME.mHandler.handleMessage(messages.first())
+                dispatch(messages.first())
                 messages.removeAt(0)
             }
         }
@@ -4324,9 +4486,17 @@ class InputLogicTest {
         assertEquals(0, delayedMessages.size)
     }
 
+    /** Messages of the suggestion thread run there only in [withSimilarWords] (stage 48), as before otherwise. */
+    private fun dispatch(message: Message) {
+        val target = message.target
+        if (suggestionThread && target != null && target !== latinIME.mHandler) target.dispatchMessage(message)
+        else latinIME.mHandler.handleMessage(message)
+    }
+
 }
 
 private var currentScript = ScriptUtils.SCRIPT_LATIN
+private var testKeyboard: helium314.keyboard.keyboard.Keyboard? = null
 private val messages = java.util.Collections.synchronizedList(mutableListOf<Message>()) // for latinIME / ShadowInputMethodService
 private val delayedMessages = java.util.Collections.synchronizedList(mutableListOf<Message>()) // for latinIME / ShadowInputMethodService
 
@@ -4363,6 +4533,12 @@ class ShadowKeyboardSwitcher {
     fun setOneHandedModeEnabled(enabled: Boolean, force: Boolean) = Unit
     @Implementation
     fun getCurrentKeyboardScript() = currentScript
+    @org.robolectric.annotation.RealObject
+    private lateinit var real: KeyboardSwitcher
+    @Implementation
+    // the stand-in keyboard of stage 48 tests, otherwise as the real method
+    fun getKeyboard(): helium314.keyboard.keyboard.Keyboard? = testKeyboard
+        ?: (KeyboardSwitcher::class.java.getDeclaredField("mKeyboardView").apply { isAccessible = true }.get(real) as MainKeyboardView?)?.keyboard
 }
 
 @Implements(DictionaryFacilitatorImpl::class)

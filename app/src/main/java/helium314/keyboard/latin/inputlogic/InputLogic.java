@@ -109,6 +109,8 @@ public final class InputLogic {
     }
 
     public LastComposedWord mLastComposedWord = LastComposedWord.NOT_A_COMPOSED_WORD;
+    // fork, stage 48: automatic corrections of this field, for the typed word first in the strip
+    public final helium314.keyboard.agent.TypedWordFirst mTypedWordFirst = new helium314.keyboard.agent.TypedWordFirst();
     // This has package visibility so it can be accessed from InputLogicHandler.
     /* package */ final WordComposer mWordComposer;
     public final RichInputConnection mConnection;
@@ -265,6 +267,7 @@ public final class InputLogic {
     public void startInput(final String combiningSpec, final SettingsValues settingsValues) {
         mEnteredText = null;
         mWordBeingCorrectedByCursor = null;
+        mTypedWordFirst.clear(); // fork, stage 48
         mConnection.onStartInput();
         if (!mWordComposer.getTypedWord().isEmpty()) {
             // For messaging apps that offer send button, the IME does not get the opportunity
@@ -455,8 +458,15 @@ public final class InputLogic {
         // fork, stage 20b: a word picked instead of the tap-typed one confirms "typed -> meant"
         final String typedBeforePick = mWordComposer.isComposingWord() && !mWordComposer.isBatchMode()
                 && !mWordComposer.isResumed() && !suggestionInfo.isEmoji() ? mWordComposer.getTypedWord() : null;
+        // stage 48: picking the typed form of a corrected word undoes the correction like backspace would
+        final String undoneCorrection = mTypedWordFirst.correctionUndoneBy(suggestion, mWordComposer.getTypedWord(),
+                mWordComposer.isResumed());
         commitChosenWord(settingsValues, suggestion, LastComposedWord.COMMIT_TYPE_MANUAL_PICK, LastComposedWord.NOT_A_SEPARATOR);
         mConnection.endBatchEdit();
+        if (undoneCorrection != null) {
+            helium314.keyboard.agent.RejectedCorrections.remember(mLatinIME, suggestion, undoneCorrection, settingsValues);
+            helium314.keyboard.agent.TypoMemory.forget(mLatinIME, suggestion, undoneCorrection);
+        }
         if (typedBeforePick != null) {
             final NgramContext context = mLastComposedWord.mNgramContext;
             final CharSequence previous = context != null && context.getPrevWordCount() >= 1
@@ -2026,6 +2036,8 @@ public final class InputLogic {
                 }
             }
         }
+        // fork, stage 48: the typed form of a corrected word comes first in the strip
+        final String typedFirst = mTypedWordFirst.resumed(expectedCursorPosition - numberOfCharsInWordBeforeCursor, typedWordString);
         final int[] codePoints = StringUtils.toCodePointArray(typedWordString);
         mWordComposer.setComposingWord(codePoints, mLatinIME.getCoordinatesForCurrentKeyboard(codePoints));
         mWordComposer.setCursorPositionWithinWord(typedWordString.codePointCount(0, numberOfCharsInWordBeforeCursor));
@@ -2046,7 +2058,8 @@ public final class InputLogic {
                     null /* rawSuggestions */, typedWordInfo, false /* typedWordValid */,
                     false /* willAutoCorrect */, false /* isObsoleteSuggestions */,
                     SuggestedWords.INPUT_STYLE_RECORRECTION, SuggestedWords.NOT_A_SEQUENCE_NUMBER);
-            doShowSuggestionsAndClearAutoCorrectionIndicator(suggestedWords);
+            doShowSuggestionsAndClearAutoCorrectionIndicator(typedFirst == null ? suggestedWords
+                    : helium314.keyboard.agent.TypedWordFirst.arrange(suggestedWords, typedFirst));
         }
     }
 
@@ -2131,6 +2144,7 @@ public final class InputLogic {
         }
 
         if (inputTransaction.getSettingsValues().mSpacingAndPunctuations.mCurrentLanguageHasSpaces) {
+            mTypedWordFirst.reverted(mConnection.getExpectedSelectionStart(), originallyTypedWord.toString()); // fork, stage 48
             mConnection.commitText(textToCommit, 1);
             if (usePhantomSpace) {
                 mJustRevertedACommit = true;
@@ -2549,6 +2563,9 @@ public final class InputLogic {
             final boolean isBatchMode = mWordComposer.isBatchMode();
             commitChosenWord(settingsValues, stringToCommit, LastComposedWord.COMMIT_TYPE_DECIDED_WORD, separator);
             if (!typedWord.equals(stringToCommit)) {
+                // fork, stage 48: remember the typed form for going back to the word (tap typing only)
+                if (!isBatchMode) mTypedWordFirst.corrected(
+                        mConnection.getExpectedSelectionEnd() - stringToCommit.length(), stringToCommit, typedWord);
                 // This will make the correction flash for a short while as a visual clue
                 // to the user that auto-correction happened. It has no other effect; in particular
                 // note that this won't affect the text inside the text field AT ALL: it only makes
@@ -2714,7 +2731,8 @@ public final class InputLogic {
         mWordComposer.adviseCapitalizedModeBeforeFetchingSuggestions(
                 getActualCapsMode(settingsValues, KeyboardSwitcher.getInstance().getKeyboardCapsMode()));
         try {
-            SuggestedWords suggestedWords = mSuggest.getSuggestedWords(mWordComposer.copy(),
+            final WordComposer composer = mWordComposer.copy();
+            SuggestedWords suggestedWords = mSuggest.getSuggestedWords(composer,
                     getNgramContextFromNthPreviousWordForSuggestion(
                     settingsValues.mSpacingAndPunctuations,
                     // Get the word on which we should search the bigrams. If we are composing
@@ -2725,6 +2743,10 @@ public final class InputLogic {
                     settingsValues.mSettingsValuesForSuggestion,
                     settingsValues.mAutoCorrectEnabled,
                     inputStyle, sequenceNumber);
+            // fork, stage 48: the resumed corrected word shows its typed form first
+            final String typedFirst = composer.isBatchMode() ? null
+                    : mTypedWordFirst.typedFor(composer.getTypedWord(), composer.isResumed());
+            if (typedFirst != null) suggestedWords = helium314.keyboard.agent.TypedWordFirst.arrange(suggestedWords, typedFirst);
             callback.onGetSuggestedWords(suggestedWords);
         } catch (Exception e) {
             // better go without suggestions than have the keyboard crash

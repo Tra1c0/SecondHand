@@ -221,6 +221,10 @@ public final class CapsModeUtils {
         // "Not an abbreviation" in the above chart essentially covers cases like "...yes.". This
         // should capitalize.
 
+        // fork, stage 48: the period at j may close a known abbreviation ("ca.", "bzw.", "z. B.")
+        final int periodIndex = j;
+        final boolean german = spacingAndPunctuations.mUsesGermanRules;
+        final boolean english = spacingAndPunctuations.mUsesAmericanTypography;
         final int START = 0;
         final int WORD = 1;
         final int PERIOD = 2;
@@ -250,7 +254,8 @@ public final class CapsModeUtils {
                 } else if (spacingAndPunctuations.isSentenceSeparator(c)) {
                     state = PERIOD;
                 } else {
-                    return caps;
+                    return helium314.keyboard.agent.Abbreviations.isAbbreviation(cs, j + 1, periodIndex, german, english)
+                            ? noCaps : caps;
                 }
                 break;
             case PERIOD:
@@ -280,6 +285,8 @@ public final class CapsModeUtils {
             }
         }
         // Here we arrived at the start of the line. This should behave exactly like whitespace.
+        if (WORD == state && helium314.keyboard.agent.Abbreviations.isAbbreviation(cs, 0, periodIndex, german, english))
+            return noCaps; // fork, stage 48
         return (START == state || LETTER == state) ? noCaps : caps;
     }
 

@@ -291,6 +291,25 @@ Autokorrektur (Etappe 20a, Details im Abschnitt „Lerndaten“):
   `TypoMemory.DICTIONARY`.
 - `SettingsValues.java`: `mKeepValidWords`, `mKeepUmlautVariants`, `mRememberRejectedCorrections`,
   `mLearnTypos`, `mAdaptTouch`.
+- Getipptes Wort vorne (Etappe 48, P158–P160): `InputLogic.java` hält `mTypedWordFirst`
+  (`K/agent/TypedWordFirst.kt`), `startInput` leert es. `commitCurrentAutoCorrection` merkt nach
+  dem Commit Start, korrigiertes und getipptes Wort (nicht beim Gestenschreiben), `revertCommit`
+  vor dem Commit des getippten Worts dessen Start (nur Sprachen mit Leerzeichen).
+  `restartSuggestions` fragt `resumed(Start, Wort)` und ordnet die Span-Liste mit `arrange`;
+  `getSuggestedWords` ordnet das Ergebnis von `Suggest`, solange der wiederaufgenommene Kompositions-
+  text unverändert ist (`typedFor`). `onPickSuggestionManually`: Tipp auf die getippte Form eines
+  korrigierten Worts (`correctionUndoneBy`) → `RejectedCorrections.remember` und
+  `TypoMemory.forget` wie bei der Löschtaste; `TypoMemory.confirm` greift bei wiederaufgenommenen
+  Wörtern ohnehin nicht.
+- `Suggest.kt` (48): `guardAllows` blockiert eine reine Groß-/Klein-Korrektur
+  (`CorrectionGuard.changesOnlyCase`), sobald ein Wörterbuch die getippte Form kennt
+  (`typedWordFirstOccurrenceWordInfo`), außer die Korrektur ist `KIND_WHITELIST` („i“ → „I“).
+  `correctToCapitalizedWord` (Umschalttaste nach dem Wort mit „Vorgeschlagene Großschreibung
+  automatisch korrigieren“) läuft daran vorbei und bleibt.
+- `CapsModeUtils.java` (48): im Zustand WORD (Wort direkt vor dem Punkt, ohne inneren Punkt) und
+  am Textanfang fragt `getCapsMode` `K/agent/Abbreviations.isAbbreviation`; eine bekannte Abkürzung
+  (Deutsch bei `mUsesGermanRules`, Englisch bei `mUsesAmericanTypography`) oder ein einzelner
+  Buchstabe nach „x. “ („z. B.“) gibt keine Satz-Großschreibung. Alles andere wie upstream.
 
 Trefferzonen (Etappe 22a, Touch-Verarbeitung, jede Änderung mit Prüfer):
 
@@ -1902,6 +1921,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Hauptwörterbuchs ist, nur über den Kontext. Nicht gezählt: Vervollständigungen (gemeintes Wort
   beginnt mit dem getippten), Formen mit Ziffern, unter zwei Zeichen, nur andere Großschreibung.
   Tests: `TypoMemoryTest`, Fälle „stage 20b“ in `SuggestTest` und `InputLogicTest`.
+- Getipptes Wort vorne (48): `K/agent/TypedWordFirst.kt` (nur im Speicher, je Feld, höchstens 32
+  Korrekturen, kein Lernspeicher), `K/agent/Abbreviations.kt` (feste Listen, keine Lerndaten);
+  Einbindung im Abschnitt „Geänderte Upstream-Dateien“ → Autokorrektur. Tests:
+  `TypedWordFirstTest`, Fälle „stage 48“ in `SuggestTest` und `InputLogicTest`.
 - Trefferzonen (22a): `K/agent/TouchModel.kt` hält pro Buchstabe (Code unter U+0250) den
   gleitenden Mittelwert der Abweichung vom Tastenmittelpunkt in Tastenbreiten und -höhen und die
   Anzahl, Datei `agent_touch_model` (gerätegeschützt). Wirksam erst ab 15 Treffern, gedämpft und
@@ -2862,6 +2885,22 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   dem Tippen nie den Start, ohne Tippen davor startet er wie bisher ab 0,35 Tasten ab dem Punkt,
   wo er schnell wurde. `gestureTypingTime` darf nicht 0 liefern (`(int)` von großen Uptime-Werten
   wird negativ, dann wäre die Sperre an).
+- **P158** Das getippte Wort steht in `TypedWordFirst.arrange` auf Index 2 und das Ergebnis im
+  Tippstil (`INPUT_STYLE_TYPING`): Nur dort blendet `SuggestionStripLayoutHelper` Index 0 (das Wort
+  im Editor) aus und setzt Index 1 in die Mitte, Index 2 links daneben (in RTL rechts). Im
+  Recorrection-Stil stünde Index 0 in der Mitte. Wer die Leistenreihenfolge oder
+  `getPositionInSuggestionStrip` ändert, prüft die Stufe-48-Tests (`stripSlots`). Anstehende
+  Autokorrektur, Vorhersagen, Satzzeichen und Gesten ordnet `arrange` nie um.
+- **P159** Nach der Löschtaste kommen die Vorschläge zweimal: `restartSuggestions` und danach die
+  verzögerte Aktualisierung (`setRequiresUpdateSuggestions` in `revertCommit`,
+  `performUpdateSuggestionStripSync`). Beide laufen über `InputLogic.getSuggestedWords`; deshalb
+  ordnet dort `typedFor` und nicht nur `restartSuggestions`, sonst überschreibt die zweite Liste die
+  erste (so verschwand das getippte Wort schon upstream). `typedFor` gilt nur, solange der
+  wiederaufgenommene Kompositionstext unverändert ist (`isResumed` und gleiches Wort).
+- **P160** `TypedWordFirst` erkennt ein korrigiertes Wort an Startposition und Wort im Editor. Ändert
+  sich Text davor, passt der Start nicht mehr, und das getippte Wort fehlt (gewollt, kein
+  Fehlgriff auf ein gleiches Wort an anderer Stelle). Einträge nur im Speicher, nie loggen; neue
+  Aufrufer von `corrected` nur für automatische Korrekturen der Tipp-Eingabe.
 - **P150** Jede neue Textdatei `values/agent_*strings.xml` braucht
   `tools:ignore="MissingTranslation"` am `<resources>`-Tag (der Fork liefert nur Englisch und
   Deutsch); sonst bricht `lintDebugNoMinify` mit Fehlern für alle Upstream-Sprachen ab. Die
@@ -2894,26 +2933,26 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (490 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (494 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (5): agent-apk, agent-tests, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (72): ActionRunJournal, AgentDocumentIO, AgentEditorController, AgentFileProvider,
-  AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts, AgentWheelView,
-  AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand, ClipVault,
-  ClipVaultSection, ContactCommand, ConvertCommand, CorrectionMemory, DateCommand, DesignLook,
-  DesignTiles, Diagnose, Dictation, EmojiCommand, EmojiMixPalette, EmojiSuggestions,
+- `A/` (74): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+  AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
+  AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand,
+  ClipVault, ClipVaultSection, ContactCommand, ConvertCommand, CorrectionMemory, DateCommand,
+  DesignLook, DesignTiles, Diagnose, Dictation, EmojiCommand, EmojiMixPalette, EmojiSuggestions,
   EncryptedActionRunStore, EventCommand, FlatMenuView, FlatPanelStyle, FlatPreset, FormatGuardChips,
   HapticChain, JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore,
   LearningData, LoadingDotsView, ManualWorkflowDraft, ModelSettings, MyDesigns,
   OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter, RgbLighting, RgbStrip, RgbTexture,
   RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore, SkillLabels,
   SliderFeel, SliderHaptics, SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing,
-  SymbolInk, ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel, TypoMemory,
-  WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner,
-  WorkflowInputSummary, WorkflowStore
+  SymbolInk, ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst,
+  TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary,
+  WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
 - `A/commands/` (18): AiCommandChips, AlarmCommand, AskCommand, ClipCommand, EmojiMixCommand,
   EmojiMixRecents, EmojiMixer, LanguageCommand, QrCommand, ScreenReaderService, SensitiveClips,
   SnipCommand, SnippetStore, SubtypeChoice, TimerCommand, TranslateCommand, UrlCommand,
@@ -2922,7 +2961,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (85): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (86): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, ClipCommandTest, ClipVaultTest, CommandReplaceTest,
@@ -2939,9 +2978,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   SettingsKitTest, SettingsLookScreenTest, SettingsStartScreenTest, SettingsSystemAreaTest,
   SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest, SnipCommandTest,
   SpaceDetentsTest, SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal,
-  ToolRunnerTest, TouchModelTest, TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest,
-  WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
-  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  ToolRunnerTest, TouchModelTest, TypedWordFirstTest, TypoMemoryTest, UpdateCheckTest,
+  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
+  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (8): ClockCommandsTest, EmojiMixCommandTest, LanguageCommandTest, QrCommandTest,
   ScreenReaderServiceTest, SubtypeChoiceTest, TranslateCommandTest, UrlCommandTest
 - `C/` (41): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
@@ -2980,7 +3019,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/latin/settings/` (2): Defaults, SettingsValues
 - `K/latin/spellcheck/` (1): AndroidSpellCheckerService
 - `K/latin/suggestions/` (2): FlatStrip, SuggestionStripView
-- `K/latin/utils/` (4): DictionaryInfoUtils, DictionaryUtils, SubtypeUtils, ToolbarUtils
+- `K/latin/utils/` (5): CapsModeUtils, DictionaryInfoUtils, DictionaryUtils, SubtypeUtils,
+  ToolbarUtils
 - `K/settings/` (4): SearchScreen, SettingsActivity, SettingsContainer, SettingsNavHost
 - `K/settings/dialogs/` (2): ColorPickerDialog, SliderDialog
 - `K/settings/preferences/` (5): BackupRestorePreference, CustomFontPreference,

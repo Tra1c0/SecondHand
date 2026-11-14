@@ -772,6 +772,30 @@ class SuggestTest {
         assertFalse(after("ich").mWillAutoCorrect)
     }
 
+    // fork, stage 48
+    @Test fun `a known word never gets only another case automatically`() {
+        currentTypingLocale = Locale.GERMAN
+        enableAutocorrect(confidenceVeryAggressive)
+        // German verb and noun, the noun ranked first (dictionary or typing history)
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("Essen", 650000), suggestion("essen", 300000)))
+        val essen = getSuggestedWords(false, "essen", CapsMode.OFF)
+        assertFalse(essen.mWillAutoCorrect)
+        assertTrue(essen.mSuggestedWordInfoList.any { it.mWord == "Essen" }) // still offered
+        // a real typo is still corrected, also to a capitalized word
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("Essen", 650000)))
+        assert(getSuggestedWords(false, "Esen", CapsMode.OFF).mWillAutoCorrect)
+        // an unknown lowercase form is not correctly spelled: "berlin" becomes "Berlin"
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("Berlin", 650000)))
+        assert(getSuggestedWords(false, "berlin", CapsMode.OFF).mWillAutoCorrect)
+
+        // English: "may" stays, the whitelisted "i" -> "I" of the dictionary stays automatic
+        currentTypingLocale = Locale.ENGLISH
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("May", 650000), suggestion("may", 300000)))
+        assertFalse(getSuggestedWords(false, "may", CapsMode.OFF).mWillAutoCorrect)
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("I", Int.MAX_VALUE), suggestion("i", 300000)))
+        assert(getSuggestedWords(false, "i", CapsMode.OFF).mWillAutoCorrect)
+    }
+
     private fun composer(word: String) = WordComposer().apply {
         StringUtils.toCodePointArray(word).forEach {
             val e = Event.createEventForCodePointFromAlreadyTypedText(it, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE)
