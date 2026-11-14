@@ -116,4 +116,9 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:visibility="gone" />
+    <helium314.keyboard.agent.charart.CharArtView
+        android:id="@+id/agent_char_art"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
 </helium314.keyboard.agent.AgentKeyboardFrame>

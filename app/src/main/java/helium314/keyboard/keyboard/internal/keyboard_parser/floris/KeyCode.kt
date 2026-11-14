@@ -28,6 +28,7 @@ object KeyCode {
     const val SKILL_3 =                   -12003
     const val AGENT_DICTATE =             -12004
     const val AGENT_EMOJI_MIXER =         -12005 // stage 25a: mixer mode of the emoji palette
+    const val AGENT_CHAR_ART =            -12006 // stage 53: the character art window, pen in the emoji key's popup
 
     const val CTRL =                          -1
     const val CTRL_LOCK =                     -2
@@ -217,7 +218,7 @@ object KeyCode {
         MEDIA_PREVIOUS, VOL_UP, VOL_DOWN, MUTE, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, BACK,
         TIMESTAMP, CTRL_LEFT, CTRL_RIGHT, ALT_LEFT, ALT_RIGHT, META_LEFT, META_RIGHT, SEND_INTENT_ONE, SEND_INTENT_TWO,
         SEND_INTENT_THREE, EMOJI_SEARCH, INLINE_EMOJI_SEARCH_DONE, META_LOCK,
-        BACKGROUND_GATHERING, BACKGROUND_GATHERING_TEMP_OFF, DPAD, AGENT_ACTIONS, SKILL_1, SKILL_2, SKILL_3, AGENT_DICTATE, AGENT_EMOJI_MIXER,
+        BACKGROUND_GATHERING, BACKGROUND_GATHERING_TEMP_OFF, DPAD, AGENT_ACTIONS, SKILL_1, SKILL_2, SKILL_3, AGENT_DICTATE, AGENT_EMOJI_MIXER, AGENT_CHAR_ART,
         -> this
 
         KEY_REPEAT if (longPress) -> this

@@ -56,6 +56,7 @@ class AgentEditorController @JvmOverloads constructor(
     private var panel: AgentPanelView? = null
     private var wheel: AgentWheelView? = null
     private var calculator: CalculatorView? = null
+    private var charArt: helium314.keyboard.agent.charart.CharArtView? = null
     private var snapshot: TextSnapshot? = null
     private var preparedResult: String? = null
     private var needsCursorRefresh = false
@@ -89,7 +90,7 @@ class AgentEditorController @JvmOverloads constructor(
         journalFactory?.invoke() ?: EncryptedActionRunStore(ime)) }
     val isAwaitingCursorRefresh: Boolean get() = needsCursorRefresh
     val isBlockingInput: Boolean get() = needsCursorRefresh || panel?.visibility == View.VISIBLE || wheel?.visibility == View.VISIBLE
-        || calculator?.visibility == View.VISIBLE
+        || calculator?.visibility == View.VISIBLE || charArt?.visibility == View.VISIBLE
     val editor = AndroidEditorAdapter(
         connection = { ime.currentInputConnection },
         liveAccess = { access -> access.copy(
@@ -205,6 +206,14 @@ class AgentEditorController @JvmOverloads constructor(
         calculator = view.findViewById(R.id.agent_calculator)
         calculator?.onClose = ::close
         calculator?.onInsert = ::insertCalculation
+        charArt = view.findViewById(R.id.agent_char_art)
+        charArt?.onClose = ::close
+        charArt?.onInsert = ::insertCharArt
+        charArt?.onReplace = ::replaceWithCharArt
+        charArt?.onUndo = ::undoCharArt
+        charArt?.onCopy = ::copyCharArt
+        charArt?.onSaveSnippet = ::saveCharArtSnippet
+        charArt?.onAllowPictures = ::openPictureSettings
         wheel?.onAction = { action -> if (action == null) open() else { capture(); runLocal(action) } }
         panel?.onClose = {
             val hideKeyboard = needsCursorRefresh
@@ -357,6 +366,162 @@ class AgentEditorController @JvmOverloads constructor(
                 Toast.makeText(ime, R.string.agent_panel_apply_unknown, Toast.LENGTH_LONG).show()
                 runCatching { ime.currentInputConnection?.requestCursorUpdates(InputConnection.CURSOR_UPDATE_IMMEDIATE) }
             }
+        }
+    }
+
+    /** Stage 53: the whole field text before the cursor when the window opened (nothing after it), or null. */
+    private var charArtField: String? = null
+    /** Whether "Replace" would replace [charArtField] now: not after an insertion until it is undone. */
+    private var charArtFieldInPlace = false
+    /** The last insertion of the window: the art in the field and what it replaced ("" for an insertion). */
+    private var charArtUndo: Pair<String, String>? = null
+    /** Where the cursor was right after that insertion; an undo needs it there. */
+    private var charArtUndoEnd = -1
+    /** Saves snippets off the main thread; replaceable in tests. */
+    internal var charArtWorker: (Runnable) -> Unit = { Thread(it, "char-art-snippet").start() }
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
+    /**
+     * Stage 53: the character art window in place of the keys, opened by the pen in the emoji key's
+     * popup. Never in password fields, incognito, fields without learning or while the device is
+     * locked; there nothing of the field is read. Otherwise a word still being composed is left as
+     * typed (as when the settings open), and up to [CharArtView.MAX_TEXT] characters around the
+     * cursor (or the selection) become the window's text. The field changes only by a tap in the
+     * window. False if the window cannot open now.
+     */
+    fun openCharArt(): Boolean {
+        val target = charArt ?: return false
+        if (needsCursorRefresh) return false
+        if (editor.protection() != null) {
+            Toast.makeText(ime, R.string.agent_char_art_protected, Toast.LENGTH_SHORT).show()
+            return false
+        }
+        if (inputLogic.hasActiveComposition()) {
+            if (inputLogic.hasPendingBatchInput()) return false // a gesture is still being processed
+            inputLogic.commitTyped(Settings.getValues(), helium314.keyboard.latin.LastComposedWord.NOT_A_SEPARATOR)
+        }
+        close()
+        KeyboardSwitcher.getInstance().mainKeyboardView?.closing()
+        target.rootView.findViewById<SuggestionStripView>(R.id.suggestion_strip_view)?.dismissMoreSuggestionsPanel()
+        val limit = helium314.keyboard.agent.charart.CharArtView.MAX_TEXT
+        val connection = ime.currentInputConnection
+        val selected = runCatching { connection?.getSelectedText(0)?.toString() }.getOrNull().orEmpty()
+        val before = if (selected.isEmpty()) runCatching { connection?.getTextBeforeCursor(limit + 1, 0)?.toString() }.getOrNull().orEmpty() else ""
+        val after = if (selected.isEmpty()) runCatching { connection?.getTextAfterCursor(limit, 0)?.toString() }.getOrNull().orEmpty() else ""
+        val whole = selected.isEmpty() && after.isEmpty() && before.isNotBlank() && before.length <= limit
+        charArtField = if (whole) before else null
+        charArtFieldInPlace = whole
+        val text = if (selected.isNotEmpty()) selected.take(limit) else (before.takeLast(limit) + after).take(limit)
+        val app = dev.agentkeyboard.core.charart.TargetApp.forPackage(ime.currentInputEditorInfo?.packageName)
+        target.show(text, whole, app, Settings.getValues()?.mLocale?.language.orEmpty())
+        return true
+    }
+
+    /** The tap on "Insert": once, at the cursor as it is now, through the same checks as the calculator. */
+    private fun insertCharArt(art: String) {
+        when (val captured = editor.captureAnchor()) {
+            is AnchorResult.Captured -> when (editor.insert(captured.anchor, art)) {
+                ApplyOutcome.SUBMITTED -> charArtInserted(art, "")
+                ApplyOutcome.REJECTED -> Toast.makeText(ime, R.string.agent_char_art_expired, Toast.LENGTH_SHORT).show()
+                ApplyOutcome.UNKNOWN -> charArtUnclear()
+            }
+            is AnchorResult.Denied -> Toast.makeText(ime, when (captured.reason) {
+                DenialReason.NO_CURSOR -> R.string.agent_char_art_selection
+                DenialReason.PASSWORD, DenialReason.INCOGNITO, DenialReason.NO_LEARNING, DenialReason.LOCKED -> R.string.agent_char_art_protected
+                else -> R.string.agent_char_art_expired
+            }, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /** The tap on "Replace": the field text read at opening, if it is still exactly that, becomes the art in one commit. */
+    private fun replaceWithCharArt(art: String) {
+        val original = charArtField?.takeIf { charArtFieldInPlace } ?: return
+        if (editor.protection() != null) {
+            Toast.makeText(ime, R.string.agent_char_art_protected, Toast.LENGTH_SHORT).show()
+            return
+        }
+        when (inputLogic.replaceCommandText(original, art, inputLogic.mConnection.expectedSelectionStart, true)) {
+            ApplyOutcome.SUBMITTED -> charArtInserted(art, original)
+            ApplyOutcome.REJECTED -> {
+                charArtFieldInPlace = false
+                charArt?.setReplaceable(false)
+                Toast.makeText(ime, R.string.agent_char_art_expired, Toast.LENGTH_SHORT).show()
+            }
+            ApplyOutcome.UNKNOWN -> charArtUnclear()
+        }
+    }
+
+    private fun charArtInserted(art: String, replaced: String) {
+        charArtUndo = art to replaced
+        charArtUndoEnd = inputLogic.mConnection.expectedSelectionStart
+        charArtFieldInPlace = false
+        charArt?.setReplaceable(false)
+        charArt?.offerUndo()
+    }
+
+    /** The tap on "Undo": the art goes again, only while it is unchanged right before the same cursor. */
+    private fun undoCharArt() {
+        val (art, replaced) = charArtUndo ?: return
+        charArtUndo = null
+        val position = inputLogic.mConnection.expectedSelectionStart
+        if (editor.protection() != null || position != charArtUndoEnd) {
+            Toast.makeText(ime, R.string.agent_char_art_undo_failed, Toast.LENGTH_SHORT).show()
+            return
+        }
+        when (inputLogic.replaceCommandText(art, replaced, position)) {
+            ApplyOutcome.SUBMITTED -> {
+                Toast.makeText(ime, R.string.agent_char_art_undone, Toast.LENGTH_SHORT).show()
+                // the field is as it was when the window opened: "Replace" works again
+                if (charArtField != null) { charArtFieldInPlace = true; charArt?.setReplaceable(true) }
+            }
+            ApplyOutcome.REJECTED -> Toast.makeText(ime, R.string.agent_char_art_undo_failed, Toast.LENGTH_SHORT).show()
+            ApplyOutcome.UNKNOWN -> charArtUnclear()
+        }
+    }
+
+    private fun charArtUnclear() {
+        needsCursorRefresh = true
+        close()
+        Toast.makeText(ime, R.string.agent_panel_apply_unknown, Toast.LENGTH_LONG).show()
+        runCatching { ime.currentInputConnection?.requestCursorUpdates(InputConnection.CURSOR_UPDATE_IMMEDIATE) }
+    }
+
+    /** Character art is the user's own picture, not a secret: copied like normal text, so the clipboard view shows it. */
+    private fun copyCharArt(art: String) {
+        if (editor.protection() != null) return
+        (ime.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager)
+            ?.setPrimaryClip(ClipData.newPlainText(ime.getString(R.string.agent_char_art_title), art))
+        Toast.makeText(ime, R.string.agent_char_art_copied, Toast.LENGTH_SHORT).show()
+    }
+
+    /** Saves the art as a snippet ([name] letters only), inserted as it is (`literal`), off the main thread. */
+    private fun saveCharArtSnippet(name: String, art: String) {
+        val store = helium314.keyboard.agent.commands.SnippetStore
+        if (art.length > store.MAX_TEXT) {
+            Toast.makeText(ime, ime.getString(R.string.agent_char_art_snippet_too_long, store.MAX_TEXT), Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (!store.isValidName(name) || !store.isValidText(art)) return
+        val context = ime.applicationContext
+        charArtWorker(Runnable {
+            val message = runCatching {
+                val snippets = helium314.keyboard.agent.commands.SnippetStore(context)
+                if (snippets.read().any { it.name.equals(name, ignoreCase = true) }) R.string.agent_char_art_snippet_taken
+                else {
+                    snippets.put(helium314.keyboard.agent.commands.Snippet(name, art, literal = true))
+                    R.string.agent_char_art_snippet_saved
+                }
+            }.getOrDefault(R.string.agent_char_art_snippet_failed)
+            mainHandler.post { Toast.makeText(ime, ime.getString(message, name), Toast.LENGTH_SHORT).show() }
+        })
+    }
+
+    /** The app's system page, where the user may allow pictures; the window closes when the keyboard hides. */
+    private fun openPictureSettings() {
+        close()
+        runCatching {
+            ime.startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                android.net.Uri.fromParts("package", ime.packageName, null)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
         }
     }
 
@@ -936,6 +1101,11 @@ class AgentEditorController @JvmOverloads constructor(
         wheel?.visibility = View.GONE
         calculator?.hide()
         calculatorCommand = null
+        charArt?.hide()
+        charArtField = null
+        charArtFieldInPlace = false
+        charArtUndo = null
+        charArtUndoEnd = -1
         asking = false
         questionAction = AiTextAction.ASK
         questionCommand = null

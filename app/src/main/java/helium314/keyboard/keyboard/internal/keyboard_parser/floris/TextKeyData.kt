@@ -473,6 +473,8 @@ sealed interface KeyData : AbstractKeyData {
             )
 
             KeyLabel.ZWNJ -> SimplePopups(listOf("!icon/zwj_key|\u200D"))
+            // fork, stage 53: the pen of the character art window on the emoji key
+            toolbarKeyStrings[ToolbarKey.EMOJI] -> helium314.keyboard.agent.charart.CharArtKey.popupKeys(params.mId)
             // only add currency popups if there are none defined on the key
             KeyLabel.CURRENCY -> if (popup.isEmpty()) SimplePopups(params.mLocaleKeyboardInfos.currencyKey.second) else null
             else -> null
