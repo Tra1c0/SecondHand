@@ -132,3 +132,11 @@
   vorerst über eine Karte „Seiten“ zu den bisherigen Seiten; die Bereiche werden in den nächsten
   Schritten einzeln nach dem Entwurf umgebaut. Welche alte Seite wo liegt, steht in der Anleitung
   unter „Einstellungen finden“. Noch auf keinem Gerät ausprobiert.
+- Neu: Einstellungen → Aussehen ist nach dem Entwurf umgebaut. Oben die Karte „Designs“ mit
+  sechs Kacheln (deine eigenen Designs zuerst, die gewählte gelb umrandet): antippen verwendet,
+  „+ Neues Design“ und „Bearbeiten“ öffnen den Design-Editor, „Alle … Designs“ die ganze
+  Design-Seite. Darunter „RGB-Licht“ mit Schalter und Zusammenfassung (Muster · Hz · was leuchtet),
+  dann Größe & Form, Schrift & Emoji und Hintergrund & Farben; jede Zeile zeigt den aktuellen Wert
+  und öffnet den gewohnten Dialog, Tag/Nacht und Navigationsleiste schaltest du direkt. Alles
+  Übrige (Stil, Symbole, Tastenränder, Farben, Leertastentext) liegt unter „Alle
+  Aussehen-Einstellungen“. Noch auf keinem Gerät ausprobiert.

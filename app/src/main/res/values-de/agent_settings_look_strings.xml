@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- stage 38b: area page "Aussehen" (mockup Aussehen.dc.html) -->
+    <string name="agent_look_designs">Designs</string>
+    <string name="agent_look_designs_hint">tippen = verwenden</string>
+    <string name="agent_look_new_design">+ Neues Design</string>
+    <string name="agent_look_edit_design">Bearbeiten</string>
+    <string name="agent_look_all_designs">Alle %1$d Designs</string>
+    <string name="agent_look_rgb">RGB-Licht</string>
+    <string name="agent_look_rgb_switch">RGB-Licht an oder aus</string>
+    <string name="agent_look_rgb_summary">%1$s · %2$d Hz · %3$s</string>
+    <string name="agent_look_rgb_nothing">nichts leuchtet</string>
+    <string name="agent_look_and">%1$s &amp; %2$s</string>
+
+    <string name="agent_look_size">Größe &amp; Form</string>
+    <string name="agent_look_height">Tastaturhöhe</string>
+    <string name="agent_look_height_sub">Hoch, quer, eingeklappt</string>
+    <string name="agent_look_gap">Tastenabstand</string>
+    <string name="agent_look_gap_sub">Lücke zwischen den Tasten</string>
+    <string name="agent_look_padding">Ränder</string>
+    <string name="agent_look_padding_sub">Unten und seitlich</string>
+    <string name="agent_look_split">Geteilte Tastatur</string>
+    <string name="agent_look_split_sub">Im Querformat teilen</string>
+
+    <string name="agent_look_font">Schrift &amp; Emoji</string>
+    <string name="agent_look_font_size">Schriftgröße</string>
+    <string name="agent_look_font_size_sub">Tasten und Hinweise</string>
+    <string name="agent_look_custom_font">Eigene Schrift</string>
+    <string name="agent_look_custom_font_sub">Aus Datei laden</string>
+    <string name="agent_look_emoji">Emoji</string>
+    <string name="agent_look_emoji_sub">Größe, Hautton, Emoji-Schrift</string>
+
+    <string name="agent_look_background">Hintergrund &amp; Farben</string>
+    <string name="agent_look_image">Hintergrundbild</string>
+    <string name="agent_look_image_sub">Hoch- und Querformat</string>
+    <string name="agent_look_day_night">Tag/Nacht automatisch</string>
+    <string name="agent_look_day_night_sub">Folgt Android</string>
+    <string name="agent_look_navbar">Navigationsleiste einfärben</string>
+    <string name="agent_look_navbar_sub">Unter der Tastatur</string>
+    <string name="agent_look_all">Alle Aussehen-Einstellungen</string>
+    <string name="agent_look_all_sub">Stil, Symbole, Tastenränder, Farben, Leertastentext</string>
+
+    <string name="agent_look_value_off">Aus</string>
+    <string name="agent_look_value_on">An</string>
+    <string name="agent_look_value_default">Standard</string>
+    <string name="agent_look_value_custom">Angepasst</string>
+    <string name="agent_look_value_none_font">Keine</string>
+    <string name="agent_look_value_own_font">Eigene</string>
+    <string name="agent_look_value_none_image">Keins</string>
+    <string name="agent_look_value_own_image">Eigenes</string>
+    <string name="agent_look_value_percent">%1$d %%</string>
+</resources>

@@ -513,6 +513,10 @@ Schieberegler (Etappe 28, Abschnitt „Einstellungen und Profile“, P85–P87):
   `integerValues` an den Dialog; sonst unverändert (alle `SliderPreference` der Upstream-Seiten
   bekommen so Ticks und Rasten, ohne dass ihre Seiten geändert sind).
 - `KeyboardScalePreference.kt`: `AgentSlider` mit dem Standardwert der jeweiligen Variante.
+  Seit 38b ein optionaler Platz `row` (Standard: die bisherige `Preference`-Zeile), damit die
+  Seite Aussehen ihre eigene Zeile zeigt und denselben Dialog öffnet (P125).
+- `CustomFontPreference.kt` (38b): derselbe optionale Platz `row`; Dateiauswahl, „Laden/Löschen“
+  und Fehlermeldung bleiben unverändert in der Datei.
 - `ColorPickerDialog.kt`: Deckkraft- und Helligkeitsleiste der Bibliothek (colorpicker-compose)
   bleiben, ihre Berührungen übernimmt `AgentSliderInput` (setzt `setAlpha`/`setBrightness` wie die
   Bibliothek, mit `fromUser = true`); dazu Slider-Semantik für TalkBack (vorher keine).
@@ -1115,6 +1119,25 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `AgentRgbScreen.kt` ist dafür `internal`. Texte: `agent_settings_strings.xml`. Tests
   `AT/SettingsStartScreenTest.kt` und `AT/SettingsKitTest.kt` (Bilder unter
   `app/build/agent-previews/settings-*.png`).
+- Bereichsseite Aussehen (38b, `Aussehen.dc.html`): `K/settings/screens/AgentAreaLookScreen.kt`,
+  von `AgentAreaScreen` mit einer Zeile für `SettingsArea.LOOK` aufgerufen. Karte „Designs“: eigene
+  Designs zuerst, dann die Kacheln aus `DesignTiles.sections`; zwei Reihen (sechs Kacheln, die
+  gewählte immer dabei), Antippen wählt (`MyDesigns.select` bzw. `DesignTiles.select`), langes
+  Drücken einer eigenen Kachel, „+ Neues Design“ und „Bearbeiten“ (nur bei gewähltem eigenem
+  Design) öffnen `AgentDesignEditor` an Stelle der Seite wie auf der Design-Seite; „Alle <n>
+  Designs“ → `agent_design`. RGB-Karte (Streifen 115° über Verlauf 110°, Zusammenfassung Muster
+  der Tasten · Bilder/s als Hz · leuchtende Elemente über `targetLabel`, das dafür `internal` ist;
+  `GradientSwitch` schreibt nur `enabled` über `RgbLighting.write`), Antippen → `agent_rgb`.
+  Abschnitte: Tastaturhöhe und Tastenabstand über `KeyboardScalePreference` mit `row`, Ränder,
+  Schriftgröße, Emoji und Hintergrundbild als Dialog mit den Upstream-Zeilen aus
+  `createAppearanceSettings` (je Zeile ihr eigener Dialog), Geteilte Tastatur mit denselben
+  Schaltern wie der Upstream-Dialog plus Teilungsabstand, Eigene Schrift über
+  `CustomFontPreference` mit `row`, Tag/Nacht und Navigationsleiste als `SettingSwitchRow`,
+  zuletzt „Alle Aussehen-Einstellungen“ → `appearance` (Stil, Symbolstil, Tastenränder, Farben,
+  Symbole anpassen, Leertastentext, Höhe der unteren Reihe). `SettingsAreas.entries(LOOK)` nennt
+  genau die drei Ziele der Seite in Seitenreihenfolge (P119), die Knöpfe tragen
+  `AREA_ROW_TAG + Route`. Texte `agent_settings_look_strings.xml`. Test
+  `AT/SettingsLookScreenTest.kt` (Bild `app/build/agent-previews/settings-area_look.png`).
 - Design-Seite (23f1): `A/DesignTiles.kt` (Abschnitte, Kacheln, Auswahl; schreibt genau die
   Schlüssel von Tag/Nacht-Schalter und Farbwähler, „Flacher Look“ über `FlatPreset.apply`) und
   `K/settings/screens/AgentDesignScreen.kt` (Raster, Rahmen und Häkchen, TalkBack als
@@ -2356,13 +2379,23 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `cssGradient` nimmt zwei Farben oder eine Liste aus Stopps. Der CSS-Winkel zählt ab oben im
   Uhrzeigersinn, die Länge der Verlaufslinie ist |b·sin| + |h·cos| wie in CSS, sonst sitzen die
   Endfarben nicht in den Ecken.
+- **P124** Abschnitte einer Bereichsseite, die Einstellungen selbst lesen (eigene `@Composable` mit
+  `context`/`prefs` als Parameter), überspringt Compose bei der Neukomposition (gleiche Instanzen,
+  „strong skipping“). Sie bekommen deshalb die Zählersumme `version` als Parameter und müssen ihn
+  lesen (38b: `check(version >= 0)`): einen ungenutzten Parameter lässt der Compose-Compiler beim
+  Vergleich weg. Ohne das zeigt ein Schalter nach dem Tipp den alten Zustand, obwohl die
+  Einstellung geschrieben ist (im Test nur je nach Reihenfolge der Klassen rot).
+- **P125** Tastaturhöhe und Tastenabstand auf der Seite Aussehen rufen `KeyboardScalePreference`
+  mit eigenen Bereichen (0,3–1,5 bzw. 0,5–2,5) und Dimensionen auf, wie `createAppearanceSettings`.
+  Wer dort Bereich oder Dimensionen ändert, ändert sie auch in `AgentAreaLookScreen.kt`. Die
+  Gruppen-Dialoge zeigen dagegen die Upstream-`Setting`-Zeilen selbst und folgen automatisch.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (435 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (440 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -2389,7 +2422,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (5): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateSettings, Updates
-- `AT/` (75): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (76): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, ClipCommandTest, CommandReplaceTest, CommandTemplatesTest,
@@ -2401,12 +2434,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LearningDataTest,
   LoadingDotsViewTest, ManualWorkflowDraftTest, MoreCommandsTest, MoreProvidersTest, MyDesignsTest,
   OpenAiProviderTest, RgbLightingRenderTest, RgbSettingsScreenTest, RgbTilesTest,
-  ScreenshotChipTest, SelectedTextCommitTest, SettingsKitTest, SettingsStartScreenTest,
-  SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest, SnipCommandTest, SpaceDetentsTest,
-  SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest,
-  TouchModelTest, TypoMemoryTest, UpdateCheckTest, WorkflowBuilderContractTest,
-  WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
-  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  ScreenshotChipTest, SelectedTextCommitTest, SettingsKitTest, SettingsLookScreenTest,
+  SettingsStartScreenTest, SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest,
+  SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest,
+  TestRunJournal, ToolRunnerTest, TouchModelTest, TypoMemoryTest, UpdateCheckTest,
+  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
+  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (8): ClockCommandsTest, EmojiMixCommandTest, LanguageCommandTest, QrCommandTest,
   ScreenReaderServiceTest, SubtypeChoiceTest, TranslateCommandTest, UrlCommandTest
 - `C/` (40): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, Commands, DateFormatting,
@@ -2443,15 +2476,15 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/latin/utils/` (4): DictionaryInfoUtils, DictionaryUtils, SubtypeUtils, ToolbarUtils
 - `K/settings/` (4): SearchScreen, SettingsActivity, SettingsContainer, SettingsNavHost
 - `K/settings/dialogs/` (2): ColorPickerDialog, SliderDialog
-- `K/settings/preferences/` (2): KeyboardScalePreference, SliderPreference
-- `K/settings/screens/` (32): AdvancedScreen, AgentAiScreen, AgentAreaScreen, AgentCommandsScreen,
-  AgentDesignEditor, AgentDesignScreen, AgentDiagnoseScreen, AgentDictationScreen,
-  AgentEmojiMixSection, AgentLearningScreen, AgentProfilesScreen, AgentRgbCurveEditor,
-  AgentRgbScreen, AgentRunStatus, AgentScreenReaderSection, AgentScreenshotScreen, AgentSettingsKit,
-  AgentSkillsScreen, AgentSlider, AgentSnippetsSection, AgentSpaceScreen, AgentStartScreen,
-  AgentSymbolsScreen, AgentUpdatesScreen, AgentWorkflowsScreen, AppearanceScreen, DictionaryScreen,
-  GestureTypingScreen, MainSettingsScreen, TextCorrectionScreen, WorkflowBuilderDialog,
-  WorkflowDraftProtection
+- `K/settings/preferences/` (3): CustomFontPreference, KeyboardScalePreference, SliderPreference
+- `K/settings/screens/` (33): AdvancedScreen, AgentAiScreen, AgentAreaLookScreen, AgentAreaScreen,
+  AgentCommandsScreen, AgentDesignEditor, AgentDesignScreen, AgentDiagnoseScreen,
+  AgentDictationScreen, AgentEmojiMixSection, AgentLearningScreen, AgentProfilesScreen,
+  AgentRgbCurveEditor, AgentRgbScreen, AgentRunStatus, AgentScreenReaderSection,
+  AgentScreenshotScreen, AgentSettingsKit, AgentSkillsScreen, AgentSlider, AgentSnippetsSection,
+  AgentSpaceScreen, AgentStartScreen, AgentSymbolsScreen, AgentUpdatesScreen, AgentWorkflowsScreen,
+  AppearanceScreen, DictionaryScreen, GestureTypingScreen, MainSettingsScreen, TextCorrectionScreen,
+  WorkflowBuilderDialog, WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
 - `app/` (1): build.gradle
@@ -2471,15 +2504,15 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
   sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (12): agent_alarm_strings, agent_design_strings,
+- `app/src/main/res/values-de/` (13): agent_alarm_strings, agent_design_strings,
   agent_diagnose_strings, agent_emoji_mix_strings, agent_language_strings, agent_rgb_strings,
-  agent_settings_strings, agent_slider_strings, agent_space_strings, agent_strings,
-  agent_symbol_strings, agent_update_strings
-- `app/src/main/res/values/` (19): agent_alarm_strings, agent_attrs, agent_design_strings,
+  agent_settings_look_strings, agent_settings_strings, agent_slider_strings, agent_space_strings,
+  agent_strings, agent_symbol_strings, agent_update_strings
+- `app/src/main/res/values/` (20): agent_alarm_strings, agent_attrs, agent_design_strings,
   agent_diagnose_strings, agent_emoji_mix_strings, agent_ids, agent_language_strings,
-  agent_rgb_strings, agent_settings_strings, agent_slider_strings, agent_space_strings,
-  agent_strings, agent_symbol_strings, agent_update_strings, attrs, clip_provider, donottranslate,
-  gesture_data, themes-flat
+  agent_rgb_strings, agent_settings_look_strings, agent_settings_strings, agent_slider_strings,
+  agent_space_strings, agent_strings, agent_symbol_strings, agent_update_strings, attrs,
+  clip_provider, donottranslate, gesture_data, themes-flat
 - `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path
 - `app/src/test/java/helium314/keyboard/` (1): Shadows

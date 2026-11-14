@@ -2836,6 +2836,57 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   Zeilen und die Halb-Kacheln umbrechen ihren Titel.
 - Offen: Prüfer-Review, Gerätetest (Aussehen am Telefon, TalkBack, Suche, Zurück), 38b–38h.
 
+## Etappe 38b (Einstellungen: Aussehen)
+
+- Auftrag (Lead, ROADMAP 38): Bereichsseite Aussehen 1:1 nach
+  `docs/referenzen/einstellungen-mockup/Aussehen.dc.html`, eigene Datei, nur Baukasten 38a, jede
+  Zeile mit echtem Wert und bestehendem Dialog, alles Bisherige erreichbar. Gebaut in einer
+  Arbeitskopie, kein Prüfer-Review, kein Gerätetest.
+- Gebaut: `AgentAreaLookScreen.kt` (Designs, RGB-Karte, drei Abschnitte, letzte Zeile zur alten
+  Seite), `agent_settings_look_strings.xml` (Englisch, Deutsch). Geändert: `AgentAreaScreen.kt`
+  (eine Zeile Weiterleitung für LOOK, Kommentar an `SettingsAreas.entries(LOOK)`; die drei Ziele
+  bleiben), `AgentRgbScreen.kt` (`targetLabel` `internal`). Upstream: `KeyboardScalePreference.kt`
+  und `CustomFontPreference.kt` (optionaler Platz `row`, Standard unverändert).
+- Abweichungen vom Mockup: Kacheln zeigen die echten Designs (Namen und Farben aus
+  `MyDesigns`/`DesignTiles`) statt der Beispielnamen, Verlauf Hintergrund → Akzent (Tag/Nacht:
+  Tag- → Nachthintergrund); zusätzlich unter dem Raster die Pille „Alle <n> Designs“ zur
+  Design-Seite (die übrigen Kacheln, Farbsätze aus HeliBoards Farbeditor); „Bearbeiten“ ist ohne
+  gewähltes eigenes Design ausgegraut (eingebaute Looks sind nicht bearbeitbar). Tag/Nacht und
+  Navigationsleiste sind Schalter statt Wert und Pfeil (Auftrag: Schalter schreiben echte
+  Einstellungen); Tag/Nacht nur ab Android 9 wie bisher. Schalter 52 × 30 dp aus dem Baukasten
+  (Mockup 56 × 32). Werte: „Tastenabstand“ als Faktor „1,0“ wie im Mockup (der Dialog zeigt %),
+  „Geteilte Tastatur“ nennt die eingeschalteten Lagen. Zusätzliche letzte Zeile „Alle
+  Aussehen-Einstellungen“ (Stil, Symbolstil, Tastenränder, Farben, Symbole anpassen,
+  Leertastentext, Höhe der unteren Reihe). Ränder, Schriftgröße, Emoji und Hintergrundbild öffnen
+  eine Liste mit den Upstream-Zeilen (ein Tipp mehr), weil es je mehrere Einstellungen sind.
+- Tests (Robolectric, kein Gerätetest): `SettingsLookScreenTest` 18 Tests (Texte und Reihenfolge
+  des Mockups, Karte „Seiten“ weg; Standardwerte und geänderte Werte samt Dateien; Tag/Nacht,
+  Navigationsleiste und RGB-Schalter schreiben die echten Einstellungen, RGB nur `enabled`;
+  RGB-Zusammenfassung mit zwei und drei Zielen und 30/60 Hz; RGB-Karte, „Alle Designs“ und letzte
+  Zeile öffnen genau `SettingsAreas.entries(LOOK)`; Kacheln wählen Dunkel, Flacher Look, eigenes
+  Design; gewählte Kachel von der Design-Seite erscheint; „Bearbeiten“, „+ Neues Design“ und langes
+  Drücken öffnen den Editor; Höhen-Dialog, vier Gruppen-Dialoge mit den Upstream-Zeilen und deren
+  eigener Dialog; Geteilte Tastatur schreibt `split_keyboard_landscape` und zeigt den
+  Teilungsabstand; Eigene Schrift öffnet die Dateiauswahl bzw. „Laden/Löschen“ und löscht; alles
+  Anklickbare ≥ 44 dp; Bild mit Pixelprüfung). `SettingsStartScreenTest` (10) und
+  `SettingsKitTest` (4) unverändert grün.
+- Gezielt (Robolectric, 2026-11-14): `SettingsLookScreenTest` 18, `SettingsStartScreenTest` 10,
+  `SettingsKitTest` 4, `DesignTilesTest` 4, `DesignEditorTest` 5, `MyDesignsTest` 13,
+  `RgbSettingsScreenTest` 13 – 67 Tests, 0 Fehler. `python3 tools/dev.py agent-tests` lief vor der
+  Korrektur P124 zweimal mit je 790 Tests: einmal rot in
+  `SettingsLookScreenTest.switchesWriteTheRealPreferences` (Ursache gefunden: ungenutzter
+  Parameter `version`, P124; danach mit `DesignTilesTest`/`DesignEditorTest` davor nachgestellt und
+  grün), einmal rot in `DesignTilesTest.theSystemTileWritesWhatTheSwitchAndBothColourPickersWrite`
+  (`emoji_max_sdk` taucht zeitabhängig in den Einstellungen auf; nicht von 38b berührt, gezielt
+  grün). Der volle Lauf nach der Korrektur brach ab (Container ohne Speicher); ihn macht der Lead.
+  `docs_sync --check`: grün. Kein Build (geteilte Maschine).
+- Bild (nicht versioniert): `app/build/agent-previews/settings-area_look.png` (390 × 2200 dp), mit
+  `Aussehen.dc.html` verglichen: Held, Karten, Radien, Raster 3 × 2, Pillen, RGB-Streifenbild,
+  Abschnitte und Punktfarben stimmen; lange Kachelnamen („Systemeinstellung“) werden gekürzt.
+  `SettingsStartScreenTest.renderStartPageAndAreaPages` schreibt dieselbe Datei in 1180 dp Höhe;
+  maßgeblich ist der Lauf von `SettingsLookScreenTest.renderLookPage`.
+- Offen: Prüfer-Review, Gerätetest (Aussehen am Telefon, TalkBack, Dialoge, Dateiauswahl).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

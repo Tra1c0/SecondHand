@@ -77,7 +77,7 @@ diesem Bereich:
 
 | Bereich | Seiten |
 | --- | --- |
-| 01 Aussehen | Design, RGB-Beleuchtung, Aussehen |
+| 01 Aussehen | eigene Seite, siehe unten |
 | 02 Tippen & Korrektur | Textkorrektur, Gelernte Wörter, Wörterbücher |
 | 03 Tasten & Sprachen | Sprachen & Layouts, Optionen, Sekundäre Layouts |
 | 04 Gesten & Gefühl | Leertaste, Symbole malen, Gesten-Tippen (nur mit Bibliothek), Vibration & Ton (= Optionen) |
@@ -86,6 +86,24 @@ diesem Bereich:
 | 07 System & Daten | Tastaturprofile, Updates, Diagnose, Erweitert, Gestendaten-Erfassung (nur in der Sammelphase), Über |
 
 Zurück geht es mit dem runden Pfeil oben links oder der Zurück-Geste.
+
+**01 Aussehen** ist schon nach dem Entwurf gebaut:
+
+- „Designs“: Kachel antippen verwendet sie (deine eigenen Designs stehen vorne). „+ Neues Design“
+  öffnet den Design-Editor mit deinem jetzigen Look, „Bearbeiten“ das gewählte eigene Design
+  (oder lange auf eine eigene Kachel drücken). „Alle … Designs“ öffnet die Design-Seite mit allen
+  Kacheln und Farbsätzen.
+- „RGB-Licht“: Schalter rechts schaltet das Licht an oder aus, die Karte antippen öffnet die
+  RGB-Seite.
+- Größe & Form, Schrift & Emoji, Hintergrund & Farben: rechts steht der aktuelle Wert; antippen
+  öffnet den bekannten Dialog. Ränder, Schriftgröße, Emoji und Hintergrundbild öffnen eine kleine
+  Liste mit den einzelnen Einstellungen, Geteilte Tastatur die Schalter je Lage. Tag/Nacht und
+  Navigationsleiste schaltest du direkt.
+- „Alle Aussehen-Einstellungen“ ganz unten öffnet die bisherige Seite (Stil, Symbolstil,
+  Tastenränder, Farben, Symbole anpassen, Leertastentext, Höhe der unteren Reihe).
+
+Wo diese Anleitung „Einstellungen → Aussehen → X“ schreibt und X keine eigene Zeile hat, liegt X
+unter „Alle Aussehen-Einstellungen“.
 
 ## Textaktionen (ohne Internet)
 
@@ -518,7 +536,8 @@ Vibrieren dort erlaubt ist. Die RGB-Seite rastet noch nicht.
 
 ## Design auswählen
 
-Einstellungen → Aussehen → „Design“ oder im Tastaturmenü die Pille „Design“: Kachel antippen.
+Einstellungen → Aussehen → Karte „Designs“ (Kachel antippen) oder dort „Alle … Designs“ bzw. im
+Tastaturmenü die Pille „Design“ für die ganze Design-Seite: Kachel antippen.
 „Flacher Look“ setzt auch Reihen, Größen und Leiste; zurück geht es unter Tastaturprofile.
 Mit dem flachen Tastenstil sehen auch die Einstellungen moderner aus.
 
@@ -538,7 +557,7 @@ Einstellungen so, bis du sie selbst änderst.
 
 ## RGB-Beleuchtung
 
-Einstellungen → Aussehen → „RGB-Beleuchtung“ (oder unten auf der Design-Seite). Oben läuft eine
+Einstellungen → Aussehen → Karte „RGB-Licht“ antippen (oder unten auf der Design-Seite). Oben läuft eine
 große Vorschau; tippe darauf, um die Effekte beim Tippen auszuprobieren. Darunter liegen die
 Einstellungen in Karten:
 
