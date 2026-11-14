@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 42 snippet templates (own file so parallel work on agent_strings.xml does not collide). English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="agent_snip_field_next">Next ⏎</string>
+    <string name="agent_snip_field_insert">Insert ⏎</string>
+    <string name="agent_snip_field_cancel">Cancel</string>
+    <!-- %1$s: field name, %2$s: snippet name -->
+    <string name="agent_snip_field_description">Type %1$s for the snippet %2$s, then Enter</string>
+    <string name="agent_snip_too_long">The snippet would be too long; nothing was inserted.</string>
+    <string name="agent_snip_clip_history_off">{zwischenablage} left empty: the clipboard history is off.</string>
+    <string name="agent_snip_clip_locked">{zwischenablage} left empty: the device is locked.</string>
+    <string name="agent_snip_clip_sensitive">{zwischenablage} left empty: the clip is confidential.</string>
+    <string name="agent_snip_clip_empty">{zwischenablage} left empty: there is no text on the clipboard.</string>
+    <string name="agent_snip_clip_too_long">{zwischenablage} left empty: the clip is too long.</string>
+    <string name="agent_snippets_placeholders">Placeholders (tap to insert): {datum}, {datum+3t} (t = days, w = weeks), {uhrzeit}, {wochentag}, {zwischenablage}, {?Name} asks for a value, {cursor} places the cursor, {{ is a brace.</string>
+    <string name="agent_snippets_preview">Preview</string>
+    <string name="agent_snippets_preview_clipboard">‹clipboard›</string>
+    <!-- %s: the placeholder as typed -->
+    <string name="agent_snippets_issue_unknown">Unknown placeholder, inserted as typed: %s</string>
+    <string name="agent_snippets_issue_unclosed">Brace without its end, inserted as typed: %s</string>
+    <string name="agent_snippets_issue_cursor">Only the first {cursor} counts.</string>
+    <string name="agent_snippets_literal">Saved before placeholders existed: inserted exactly as typed until you save it here.</string>
+    <string name="agent_snippets_apps">Only in these apps (none: everywhere)</string>
+    <string name="agent_snippets_apps_choose">Choose app</string>
+    <string name="agent_snippets_apps_package">Package name</string>
+    <string name="agent_snippets_apps_add">Add</string>
+    <string name="agent_snippets_apps_invalid">Not a package name like com.example.app.</string>
+    <!-- %d: the most apps -->
+    <string name="agent_snippets_apps_full">At most %d apps.</string>
+    <string name="agent_snippets_apps_remove">Remove</string>
+    <string name="agent_snippets_apps_loading">Loading apps …</string>
+    <string name="agent_snippets_apps_search">Search</string>
+    <!-- %d: the number of apps -->
+    <string name="agent_snippets_apps_count">Only in %d apps</string>
+</resources>

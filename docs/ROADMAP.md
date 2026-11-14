@@ -111,12 +111,12 @@ Reihenfolge von oben nach unten.
   (libphonenumber, Apache 2.0; APK-Größe vor dem Bau messen). IBAN: Prüfziffer (Modulo 97) live
   als grüner/roter Punkt, Viererblöcke auf Wunsch. Zahlen/Beträge: Dezimalzeichen passend zur
   Sprache des Felds. Reine Funktionen in `agent-core`, voll testbar. (S–M)
-- **42 Textbausteine 2.0 (Wunsch des Owners vom 2026-11-13)** — beschlossen für den Build nach Build 17 (zusammen mit 38b–38h). `@snip` mit Variablen (`{datum}`,
-  `{datum+3t}`, `{uhrzeit}`, `{wochentag}`, `{zwischenablage}`), Ausfüllfeldern `{?Name}` (die
-  Leiste wird zum kurzen Eingabefeld, Enter springt weiter), Cursor-Marke `{cursor}` und
-  Beschränkung auf bestimmte Apps. Beispiel: „Hallo {?Name}, danke für die Einladung am
-  {datum+2t}, leider kann ich nicht. {cursor}“. Kleine Vorlagensprache mit Parser in `agent-core`;
-  `{zwischenablage}` nie bei vertraulichen Clips, nichts in Passwortfeldern. (M)
+- **42 Textbausteine 2.0** ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` →
+  Etappe 42). Annahmen des Leads, die der Owner ändern kann: Platzhalter nur mit deutschen Namen;
+  Tastatursprachen außer Englisch und Spanisch formatieren deutsch; alte Bausteine bleiben
+  wörtlich, bis sie neu gespeichert werden. Offen: Prüfer-Review (Enter-Hook in `LatinIME`),
+  Gerätetest (Feldabfrage in Messengern, Schreibmarke, App-Auswahl), Enter einer
+  Hardware-Tastatur.
 - **34 Eigene Designs gestalten (übernächste Runde)** (Wunsch des Owners vom 2026-11-13). Eigene
   Tastatur-Designs gibt es schon (Design-Seite → „Meine Designs“, seit Build 10). Annahme des
   Leads, vor dem Bau bestätigen: gemeint sind eigene RGB-Designs, also selbst gestaltete

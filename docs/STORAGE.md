@@ -261,9 +261,15 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
 
 ## Daten der Befehle 24c–24f
 
-- `@snip`: CE-Datei `noBackupFilesDir/agent_snippets.json` (AtomicFile, `storageVersion` 1,
-  höchstens 50 Bausteine, Lesegrenze 1 MiB), erst nach dem Entsperren lesbar, kein Backup, kein
-  Export.
+- `@snip`: CE-Datei `noBackupFilesDir/agent_snippets.json` (AtomicFile, höchstens 50 Bausteine,
+  Lesegrenze 1 MiB), erst nach dem Entsperren lesbar, kein Backup, kein Export. Seit Etappe 42
+  schreibt die App `storageVersion` 2: je Baustein `name`, `text` und nur wenn gesetzt `apps`
+  (nicht leeres Array eindeutiger Paketnamen, höchstens 20) und `literal: true`. Version 1
+  (`name`, `text`) wird weiter gelesen; solche Bausteine gelten als `literal` (Text wörtlich,
+  keine Platzhalter), bis sie im Editor gespeichert werden. Keine Umschreibung beim Lesen; beim
+  nächsten Schreiben entsteht Version 2 mit `literal: true` für die alten. Ältere Builds lesen
+  Version 2 nicht (Einstellungen zeigen dann „nicht lesbar“). Test:
+  `SnippetStoreTest.version1FilesStayReadableAndTheirSnippetsLiteral`.
 - `@ort`: CE-SharedPreferences `agent_places`, Schlüssel `places` (JSON-Array `{name, address}`,
   höchstens 10), nur entsperrt, nicht in Exporten.
 - `@clip`, vertrauliche Clips: DE-SharedPreferences `agent_sensitive_clips` (Tastatur-Kontext),

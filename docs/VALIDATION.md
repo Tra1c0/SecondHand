@@ -3031,6 +3031,44 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Offen: Prüfer-Review, Gerätetest (FLAG_SECURE, Sperre und Entsperren mit offener Seite,
   echter Schlüssel, Diktat mit On-device-Erkenner, TalkBack).
 
+## Etappe 42 (Textbausteine 2.0)
+
+- Auftrag (Lead, ROADMAP 42): `@snip` mit Vorlagensprache in `agent-core`, Ausfüllfeldern in der
+  Leiste, Cursor-Marke, App-Beschränkung, Editor mit Vorschau. Gebaut in einer Arbeitskopie, kein
+  Prüfer-Review, kein Gerätetest.
+- Gebaut: `C/SnippetTemplate.kt` (`SnippetTemplate`, `SnippetApps`), `SnipCommand.kt`
+  (Erweiterung beim Tipp, `Filling`, `onEnter`, `SystemClipboard`, `editorPreview`),
+  `SnippetStore.kt` (`storageVersion` 2, `apps`, `literal`), `AgentSnippetsSection.kt`
+  (`SnippetEditor`, `AppChooser`), `KeyboardCommands.kt` (`Command.onEnter`,
+  `Host.moveCursorBack`, `onEnter`, Host als eigene Funktion), `LatinIME.java` (Enter-Hook in
+  `onEvent`, `moveAgentCursorBack`), `agent_snippet_strings.xml` (Englisch, Deutsch). Nicht
+  geändert: `InputLogic`, `RichInputConnection`, `PointerTracker`, `AgentArea*Screen.kt`.
+- Entscheidungen: Felder nutzen den vorhandenen Weg der Befehlsargumente (der Wert wird im Feld
+  hinter „@snip name Feld: “ getippt, die Leiste zeigt Feld und Wert), statt Tasten in ein eigenes
+  Eingabefeld umzuleiten; so bleibt die Engine unberührt und der Wert geschützt. Speicher ohne
+  Umschreibung: Version 1 wird gelesen, ihre Bausteine bleiben wörtlich (`literal`).
+- Tests (JVM bzw. Robolectric, kein Gerätetest): `SnippetTemplateTest` 16 (Beispiel des Owners,
+  Datum über Monats-, Jahres- und Schaltjahresgrenzen mit fester Uhr, Wochen, Wochentage,
+  Sprachen de/en/es und Rückfall Deutsch, Groß-/Kleinschreibung, Zwischenablage, Felder einmal
+  je Name, ungültige Feldnamen, Cursor (erster zählt, UTF-16), `{{`, Unbekanntes, offene und
+  verschachtelte Klammern, 2000 Zufallstexte ohne Ausnahme, wörtliche Vorlagen, keine Texte in
+  `toString`, Paketnamen). `SnipCommandTest` 22 (davon 13 neu: Erweiterung erst beim Tipp,
+  Tastatursprache, Cursor zurück, Beispiel des Owners über Leiste und Enter, mehrere Felder und
+  gleicher Name, gescheiterter Schritt und Abbrechen, Enter ohne Feld, vergessene Werte,
+  App-Beschränkung, Zwischenablage-Regeln mit Hinweis, echte Zwischenablage mit Verlauf aus,
+  vertraulich gemerkt und markiert, zu lang, leer, gesperrt; Passwortfeld; alte Bausteine;
+  Editor-Vorschau), `SnippetStoreTest` 8 (Version-1-Datei, Version 2 mit Apps, kaputte Dateien;
+  die alte Prüfung „Version 2 ist ungültig“ prüft jetzt Version 3 und 0),
+  `InputLogicTest.typedSnippetFieldTakesEnterThenInsertsAndPlacesTheCursor` (echter Host: Tipp,
+  Wert getippt, Enter fügt ein statt zu senden, Datum in der Tastatursprache, Schreibmarke).
+  Zusätzlich grün: `KeyboardCommandsTest`, `CommandTemplatesTest`, `ClipCommandTest`,
+  `InputLogicTest.typedCommand*` (2026-11-14). `python3 tools/dev.py agent-tests` nicht gelaufen
+  (Auftrag: der Lead lässt die volle Suite laufen), kein Build, keine Upstream-Suite.
+  `docs_sync --check`: grün.
+- Offen: Prüfer-Review (Enter-Hook, P141–P143), Gerätetest (Feldabfrage und Enter in Messengern
+  mit Senden-Taste, Schreibmarke in WhatsApp/Telegram, App-Auswahl und Paketsichtbarkeit,
+  Zwischenablage mit vertraulichem Clip), Enter einer Hardware-Tastatur (P142).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

@@ -367,7 +367,21 @@ stehen unten. Noch auf keinem Gerät ausprobiert.
   `@translate` → `spanisch "`, dann den Text und das schließende `"` tippen.
 - `@such Begriff`, `@zeichen pfeil`, `@emoji herz`, `@conv 5 oz` (auch `@conv 5 oz in g` oder
   `@conv oz in g 5`).
-- `@snip name`: Bausteine legst du unter Einstellungen → Befehle → „Textbausteine“ an.
+- `@snip name`: Bausteine legst du unter Einstellungen → Befehle → „Textbausteine“ an. Im Text
+  gehen Platzhalter (die Knöpfe unter dem Textfeld fügen sie ein, darunter steht die Vorschau):
+  `{datum}`, `{datum+3t}` / `{datum-1t}` (Tage, `w` = Wochen), `{uhrzeit}`, `{wochentag}`,
+  `{zwischenablage}`, `{?Name}` und `{cursor}`; `{{` schreibt eine Klammer. Datum und Wochentag
+  folgen der Tastatursprache (Deutsch, Englisch, Spanisch; sonst Deutsch). Unbekannte Platzhalter
+  bleiben stehen, der Editor warnt rot. Beispiel: „Hallo {?Name}, danke für die Einladung am
+  {datum+2t}, leider kann ich nicht. {cursor}“. Hat ein Baustein `{?…}`-Felder, wird der Befehl
+  nach dem Tipp zu „@snip name Name: “: Wert tippen, Enter (oder „Weiter“/„Einfügen“ in der
+  Leiste) springt zum nächsten Feld, nach dem letzten wird eingefügt; gleiche Namen fragt er
+  einmal. „Abbrechen“ fügt nichts ein. Mit einer Hardware-Tastatur nimm „Weiter“ statt Enter.
+  `{zwischenablage}` setzt den aktuellen Clip nur ein, wenn der Zwischenablage-Verlauf an ist und
+  der Clip nicht vertraulich war; sonst bleibt die Stelle leer und ein Hinweis erscheint. Unter
+  „Nur in diesen Apps“ wählst du Apps („App wählen“) oder tippst Paketnamen; der Baustein
+  erscheint dann nur dort. Bausteine von vor diesem Update werden wörtlich eingefügt, bis du sie
+  einmal speicherst.
 - `@clip wort`: braucht Einstellungen → Leiste & Befehle → Zwischenablage-Verlauf. Einträge, die als
   vertraulich markiert waren oder in einem Passwortfeld kopiert wurden, zeigt er nicht. Ausnahme:
   vor diesem Update kopierte Einträge, die die Tastatur nicht mehr als aktuellen Clip sieht.

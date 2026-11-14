@@ -121,6 +121,8 @@ object KeyboardCommands {
         fun switchSubtype(subtype: android.view.inputmethod.InputMethodSubtype): Boolean = false
         /** The subtype the keyboard uses now (stage 24g), or null when unknown; it gets no switch chip. */
         val currentSubtype: android.view.inputmethod.InputMethodSubtype? get() = null
+        /** Stage 42: moves the plain cursor [count] characters back, right after a replacement; false if it cannot. */
+        fun moveCursorBack(count: Int): Boolean = false
     }
 
     /** A built-in command. Commands never come from files or models. */
@@ -148,6 +150,11 @@ object KeyboardCommands {
         fun claims(word: String): Boolean = false
         /** Reads what the command needs before it is typed, e.g. the enabled languages; called by [load] while enabled. */
         fun load(context: Context) {}
+        /**
+         * Stage 42: the Enter key while [call] is before the cursor. True if the command used the key
+         * (it is then neither typed nor sent to the app); false lets Enter work as usual (the default).
+         */
+        fun onEnter(host: Host, call: CommandCall): Boolean = false
     }
 
     /** Built-in commands in the order of the settings page; each stage adds its own. */
@@ -323,6 +330,20 @@ object KeyboardCommands {
         return (chipRow(parent, chips) as HorizontalScrollView).also { view = it }
     }
 
+    /**
+     * Stage 42: the soft Enter key, before the engine sees it. Only a command that is before a plain
+     * cursor and wants the key ([Command.onEnter]) takes it; otherwise false and Enter works as usual.
+     */
+    @JvmStatic fun onEnter(ime: LatinIME): Boolean {
+        val position = ime.agentCommandCursor
+        if (position < 0) return false
+        val call = find(ime.getAgentTextBeforeCursor(CommandSyntax.LOOKBACK + 1), Settings.getValues(), ime.currentInputEditorInfo)
+            as? CommandCall ?: return false
+        val command = registry.firstOrNull { it.name == call.name } ?: return false
+        // the strip is rebuilt by the normal update after the command changed the field
+        return command.onEnter(host(ime, position, onRefresh = {}, onShow = { false }), call)
+    }
+
     private fun buildChips(ime: LatinIME, onRefresh: () -> Unit, onShow: (List<Chip>) -> Boolean): List<Chip>? {
         val position = ime.agentCommandCursor
         val context = if (position < 0) null
@@ -331,7 +352,16 @@ object KeyboardCommands {
             forget() // nothing a command found stays in memory once the command is gone
             if (position < 0) return null
         }
-        val host = object : Host {
+        val host = host(ime, position, onRefresh, onShow)
+        // stage 25a: no command, but two typed emojis with a mix
+        if (context == null) return helium314.keyboard.agent.commands.EmojiMixCommand.stripChips(host,
+            ime.getAgentTextBeforeCursor(helium314.keyboard.agent.commands.EmojiMixCommand.LOOKBACK)).ifEmpty { null }
+        return chipsFor(context, host)
+    }
+
+    /** The real host for chips built (or the Enter key pressed) at the cursor [position]. */
+    private fun host(ime: LatinIME, position: Int, onRefresh: () -> Unit, onShow: (List<Chip>) -> Boolean): Host =
+        object : Host {
             override val context: Context get() = ime
             override val editorInfo: EditorInfo? get() = ime.currentInputEditorInfo
             override val language: String get() = Settings.getValues()?.mLocale?.language.orEmpty()
@@ -368,12 +398,8 @@ object KeyboardCommands {
             }
             override val currentSubtype: android.view.inputmethod.InputMethodSubtype?
                 get() = runCatching { helium314.keyboard.latin.RichInputMethodManager.getInstance().currentSubtype.rawSubtype }.getOrNull()
+            override fun moveCursorBack(count: Int) = ime.moveAgentCursorBack(count)
         }
-        // stage 25a: no command, but two typed emojis with a mix
-        if (context == null) return helium314.keyboard.agent.commands.EmojiMixCommand.stripChips(host,
-            ime.getAgentTextBeforeCursor(helium314.keyboard.agent.commands.EmojiMixCommand.LOOKBACK)).ifEmpty { null }
-        return chipsFor(context, host)
-    }
 
     /** Name candidates complete the name; a complete command asks the command. */
     fun chipsFor(context: CommandContext, host: Host): List<Chip> = when (context) {

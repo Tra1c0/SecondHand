@@ -170,6 +170,14 @@ public class LatinIME extends InputMethodService implements
         if (outcome == ApplyOutcome.UNKNOWN) mAgentEditorController.onUnclearEdit();
         return outcome;
     }
+    /** Stage 42: moves the plain cursor back by count characters, e.g. to the cursor mark of a snippet just inserted. */
+    public boolean moveAgentCursorBack(final int count) {
+        final RichInputConnection connection = mInputLogic.mConnection;
+        if (mAgentEditorController.isBlockingInput() || count <= 0 || connection.hasSelection()
+                || mInputLogic.hasActiveComposition()) return false;
+        final int target = connection.getExpectedSelectionStart() - count;
+        return target >= 0 && connection.setSelection(target, target);
+    }
     private boolean tryShowCommandChips() {
         // also without a visible strip: the guard keeps the autocorrection off a typed command name
         helium314.keyboard.agent.KeyboardCommands.updateGuard(
@@ -1575,6 +1583,8 @@ public class LatinIME extends InputMethodService implements
     // completely replace #onCodeInput.
     public void onEvent(@NonNull final Event event) {
         if (mAgentEditorController.isBlockingInput()) return;
+        // stage 42: while a typed command asks for a value (snippet fields), Enter moves on instead of sending
+        if (event.getCodePoint() == Constants.CODE_ENTER && helium314.keyboard.agent.KeyboardCommands.onEnter(this)) return;
         if (KeyCode.VOICE_INPUT == event.getKeyCode()) {
             mRichImm.switchToShortcutIme(this);
         }

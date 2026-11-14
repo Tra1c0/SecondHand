@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 42 snippet templates. -->
+<resources>
+    <string name="agent_snip_field_next">Weiter ⏎</string>
+    <string name="agent_snip_field_insert">Einfügen ⏎</string>
+    <string name="agent_snip_field_cancel">Abbrechen</string>
+    <string name="agent_snip_field_description">%1$s für den Baustein %2$s eintippen, dann Enter</string>
+    <string name="agent_snip_too_long">Der Baustein wäre zu lang; nichts eingefügt.</string>
+    <string name="agent_snip_clip_history_off">{zwischenablage} blieb leer: Der Zwischenablageverlauf ist aus.</string>
+    <string name="agent_snip_clip_locked">{zwischenablage} blieb leer: Das Gerät ist gesperrt.</string>
+    <string name="agent_snip_clip_sensitive">{zwischenablage} blieb leer: Der Clip ist vertraulich.</string>
+    <string name="agent_snip_clip_empty">{zwischenablage} blieb leer: Kein Text in der Zwischenablage.</string>
+    <string name="agent_snip_clip_too_long">{zwischenablage} blieb leer: Der Clip ist zu lang.</string>
+    <string name="agent_snippets_placeholders">Platzhalter (Tipp fügt ein): {datum}, {datum+3t} (t = Tage, w = Wochen), {uhrzeit}, {wochentag}, {zwischenablage}, {?Name} fragt einen Wert ab, {cursor} setzt die Schreibmarke, {{ ist eine Klammer.</string>
+    <string name="agent_snippets_preview">Vorschau</string>
+    <string name="agent_snippets_preview_clipboard">‹Zwischenablage›</string>
+    <string name="agent_snippets_issue_unknown">Unbekannter Platzhalter, wird so eingefügt: %s</string>
+    <string name="agent_snippets_issue_unclosed">Klammer ohne Ende, wird so eingefügt: %s</string>
+    <string name="agent_snippets_issue_cursor">Nur das erste {cursor} zählt.</string>
+    <string name="agent_snippets_literal">Vor den Platzhaltern gespeichert: wird wörtlich eingefügt, bis du ihn hier speicherst.</string>
+    <string name="agent_snippets_apps">Nur in diesen Apps (keine: überall)</string>
+    <string name="agent_snippets_apps_choose">App wählen</string>
+    <string name="agent_snippets_apps_package">Paketname</string>
+    <string name="agent_snippets_apps_add">Hinzufügen</string>
+    <string name="agent_snippets_apps_invalid">Kein Paketname wie com.beispiel.app.</string>
+    <string name="agent_snippets_apps_full">Höchstens %d Apps.</string>
+    <string name="agent_snippets_apps_remove">Entfernen</string>
+    <string name="agent_snippets_apps_loading">Apps werden geladen …</string>
+    <string name="agent_snippets_apps_search">Suchen</string>
+    <string name="agent_snippets_apps_count">Nur in %d Apps</string>
+</resources>

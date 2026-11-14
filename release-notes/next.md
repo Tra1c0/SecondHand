@@ -39,6 +39,14 @@
 
 ## Nächster Build
 
+- Neu: Textbausteine 2.0. In `@snip`-Bausteinen gehen jetzt Platzhalter: `{datum}`,
+  `{datum+2t}`, `{uhrzeit}`, `{wochentag}`, `{zwischenablage}`, Ausfüllfelder `{?Name}` (die
+  Leiste fragt den Wert ab, Enter springt weiter) und `{cursor}` für die Schreibmarke danach. Ein
+  Baustein kann auf bestimmte Apps beschränkt werden. Der Editor zeigt eine Vorschau, Knöpfe für
+  die Platzhalter und warnt bei unbekannten. Alles lokal; die Zwischenablage nur mit Verlauf an
+  und nie vertrauliche Clips. Alte Bausteine bleiben, wie sie sind, bis du sie neu speicherst.
+  Noch auf keinem Gerät ausprobiert.
+
 - Neu: Wischen auf der Leertaste nach links oder rechts (z. B. Rückgängig, Wiederholen) hat jetzt
   Rastpunkte auf dem Weg: ein leichter Tick bei etwa 0,8 und 1,6 Tastenbreiten, der letzte etwas
   weiter fühlt sich wie Überdehnen an (stärker, länger) und führt erst dann die Aktion aus, einmal

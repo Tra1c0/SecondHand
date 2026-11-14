@@ -9,6 +9,7 @@ import dev.agentkeyboard.core.CommandCall
 import dev.agentkeyboard.core.CommandContext
 import helium314.keyboard.ShadowInputMethodManager2
 import helium314.keyboard.ShadowProximityInfo
+import helium314.keyboard.agent.commands.SensitiveClips
 import helium314.keyboard.agent.commands.SnipCommand
 import helium314.keyboard.agent.commands.Snippet
 import helium314.keyboard.agent.commands.SnippetStore
@@ -26,7 +27,14 @@ import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import dev.agentkeyboard.core.CivilDate
+import dev.agentkeyboard.core.ClockTime
+import dev.agentkeyboard.core.LocalMoment
+import dev.agentkeyboard.core.SnippetApps
+import dev.agentkeyboard.core.SnippetTemplate
+import org.robolectric.shadows.ShadowToast
 import java.io.File
+import java.util.TimeZone
 import kotlin.test.*
 
 @RunWith(RobolectricTestRunner::class)
@@ -54,7 +62,14 @@ class SnipCommandTest {
         }
         override fun openCalculator(command: CommandCall) = false
         override val canOpenCalculator = false
+        override fun moveCursorBack(count: Int): Boolean { moved += count; return true }
     }
+    private val moved = mutableListOf<Int>()
+    private var clip: SnipCommand.ClipRead = SnipCommand.ClipRead.Missing(SnipCommand.ClipRead.Reason.EMPTY)
+    private var clipReads = 0
+    private val berlin = TimeZone.getTimeZone("Europe/Berlin")
+    // Thursday, 12 November 2026, 18:45 in Berlin
+    private val now = LocalMoment(CivilDate(2026, 11, 12), ClockTime(18, 45)).toEpochMillis(berlin)
 
     @Before fun setUp() {
         latinIME.prefs().edit().clear().commit()
@@ -65,10 +80,16 @@ class SnipCommandTest {
             if (failing) error("locked")
             snippets
         }
+        SnipCommand.clipboard = SnipCommand.Clipboard { clipReads++; clip }
+        SnipCommand.clock = { now }
+        SnipCommand.zone = { berlin }
     }
 
     @After fun tearDown() {
         SnipCommand.source = SnipCommand.Source { SnippetStore(it).read() }
+        SnipCommand.clipboard = SnipCommand.SystemClipboard
+        SnipCommand.clock = { System.currentTimeMillis() }
+        SnipCommand.zone = { TimeZone.getDefault() }
         KeyboardCommands.load(latinIME)
     }
 
@@ -153,6 +174,203 @@ class SnipCommandTest {
         KeyboardCommands.setCommandEnabled(latinIME, "snip", false)
         assertNull(KeyboardCommands.find("@snip adr", Settings.getValues(), editor))
     }
+
+    // stage 42
+
+    private val invitation = Snippet("einladung", "Hallo {?Name}, danke für die Einladung am {datum+2t}, leider kann ich nicht. {cursor}")
+
+    @Test fun aTemplateIsExpandedOnlyOnTheTapWithTheClockOfThatMoment() {
+        snippets = listOf(Snippet("gruss", "Gruß vom {wochentag}, {datum-1t} um {uhrzeit}"))
+        val chip = KeyboardCommands.chipsFor(call("@snip gr"), host).single()
+        assertEquals("gruss: Gruß vom {wochentag}, {datum-1…", chip.label.toString()) // the chip shows the template
+        assertTrue(replaced.isEmpty())
+        chip.onTap()
+        assertEquals(listOf("@snip gr" to "Gruß vom Donnerstag, 11.11.2026 um 18:45"), replaced)
+        assertTrue(moved.isEmpty()) // no cursor mark: the cursor stays after the text
+        assertEquals(0, clipReads) // no clipboard placeholder: the clipboard is not read
+    }
+
+    @Test fun dateAndWeekdayFollowTheKeyboardLanguage() {
+        snippets = listOf(Snippet("gruss", "{wochentag} {datum} {uhrzeit}"))
+        fun insertIn(lang: String): String {
+            replaced.clear()
+            val otherHost = object : KeyboardCommands.Host by host { override val language = lang }
+            KeyboardCommands.chipsFor(call("@snip gr"), otherHost).single().onTap()
+            return replaced.single().second
+        }
+        assertEquals("Thursday 11/12/2026 6:45 PM", insertIn("en"))
+        assertEquals("jueves 12/11/2026 18:45", insertIn("es"))
+        assertEquals("Donnerstag 12.11.2026 18:45", insertIn("fr")) // German by default
+    }
+
+    @Test fun theCursorMarkMovesTheCursorBackAfterTheInsert() {
+        snippets = listOf(Snippet("brief", "Hallo {cursor},\nviele Grüße"))
+        KeyboardCommands.chipsFor(call("@snip brief"), host).single().onTap()
+        assertEquals("Hallo ,\nviele Grüße", replaced.single().second)
+        assertEquals(listOf(",\nviele Grüße".length), moved)
+        // nothing replaced, nothing moved
+        replaced.clear(); moved.clear(); replaceSucceeds = false
+        KeyboardCommands.chipsFor(call("@snip brief"), host).single().onTap()
+        assertTrue(moved.isEmpty())
+    }
+
+    @Test fun theOwnersExampleAsksTheNameInTheStripThenInserts() {
+        snippets = listOf(invitation, address)
+        KeyboardCommands.chipsFor(call("Antwort: @snip ein"), host).single().onTap()
+        // the command becomes the input for the first field; nothing else changes
+        assertEquals(listOf("@snip ein" to "@snip einladung Name: "), replaced)
+        replaced.clear()
+        val asking = KeyboardCommands.chipsFor(call("Antwort: @snip einladung Name: "), host)
+        assertEquals(listOf("Name (1/1): …", latinIME.getString(R.string.agent_snip_field_insert),
+            latinIME.getString(R.string.agent_snip_field_cancel)), labels(asking))
+        val typed = call("Antwort: @snip einladung Name: Lena")
+        assertEquals("Name (1/1): Lena", labels(KeyboardCommands.chipsFor(typed, host))[0])
+        assertTrue(KeyboardCommands.guardsTextBefore("Antwort: @snip einladung Name: Lena")) // the value is not corrected
+        // Enter inserts (the last field)
+        assertTrue(SnipCommand.onEnter(host, typed))
+        assertEquals(listOf("@snip einladung Name: Lena" to "Hallo Lena, danke für die Einladung am 14.11.2026, leider kann ich nicht. "), replaced)
+        assertTrue(moved.isEmpty()) // {cursor} at the end
+        // the values are gone: the same text asks nothing any more
+        assertFalse(SnipCommand.onEnter(host, typed))
+        assertTrue(KeyboardCommands.chipsFor(typed, host).isEmpty())
+    }
+
+    @Test fun enterMovesToTheNextFieldAndTheSameNameIsAskedOnce() {
+        snippets = listOf(Snippet("termin", "{?Name}, wir sehen uns in {?Ort}. Bis dann, {?name}! {cursor}Gruß"))
+        KeyboardCommands.chipsFor(call("@snip termin"), host).single().onTap()
+        assertEquals("@snip termin Name: ", replaced.last().second)
+        assertTrue(SnipCommand.onEnter(host, call("@snip termin Name:  Anna ")))
+        assertEquals("@snip termin Name:  Anna " to "@snip termin Ort: ", replaced.last())
+        assertEquals("Ort (2/2): …", labels(KeyboardCommands.chipsFor(call("@snip termin Ort: "), host))[0])
+        // a tap on "Insert" works like Enter
+        val chips = KeyboardCommands.chipsFor(call("@snip termin Ort: Rom"), host)
+        chips.single { it.label == latinIME.getString(R.string.agent_snip_field_insert) }.onTap()
+        assertEquals("@snip termin Ort: Rom" to "Anna, wir sehen uns in Rom. Bis dann, Anna! Gruß", replaced.last())
+        assertEquals(listOf("Gruß".length), moved)
+    }
+
+    @Test fun aFailedStepKeepsTheFieldAndCancelGoesBackToTheCommand() {
+        snippets = listOf(Snippet("termin", "{?Name} in {?Ort}"))
+        KeyboardCommands.chipsFor(call("@snip termin"), host).single().onTap()
+        replaceSucceeds = false
+        assertTrue(SnipCommand.onEnter(host, call("@snip termin Name: Anna")))
+        // the field changed meanwhile: still the first field
+        assertEquals("Name (1/2): Anna", labels(KeyboardCommands.chipsFor(call("@snip termin Name: Anna"), host))[0])
+        replaceSucceeds = true
+        KeyboardCommands.chipsFor(call("@snip termin Name: Anna"), host)
+            .single { it.label == latinIME.getString(R.string.agent_snip_field_cancel) }.onTap()
+        assertEquals("@snip termin Name: Anna" to "@snip termin", replaced.last())
+        assertFalse(SnipCommand.onEnter(host, call("@snip termin Name: Anna")))
+    }
+
+    @Test fun enterWorksAsUsualWithoutAFieldAndForgottenCommandsDropTheValues() {
+        snippets = listOf(invitation)
+        assertFalse(SnipCommand.onEnter(host, call("@snip einladung")))
+        KeyboardCommands.chipsFor(call("@snip einladung"), host).single().onTap()
+        // the command is gone (cursor moved, other text): the values are dropped
+        KeyboardCommands.updateGuard("ganz anderer Text")
+        assertFalse(SnipCommand.onEnter(host, call("@snip einladung Name: Lena")))
+        // typed by hand without the tap: no field is asked
+        assertTrue(KeyboardCommands.chipsFor(call("@snip einladung Name: Lena"), host).isEmpty())
+    }
+
+    @Test fun snippetsLimitedToAppsAppearOnlyThere() {
+        snippets = listOf(Snippet("wa", "nur WhatsApp", listOf("com.whatsapp")), Snippet("wo", "überall"))
+        assertEquals(listOf("wo: überall"), labels(KeyboardCommands.chipsFor(call("@snip w"), host)))
+        editor = EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT; packageName = "com.whatsapp" }
+        assertEquals(listOf("wa: nur WhatsApp", "wo: überall"), labels(KeyboardCommands.chipsFor(call("@snip w"), host)))
+        editor = EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT; packageName = "org.telegram.messenger" }
+        assertEquals(listOf("wo: überall"), labels(KeyboardCommands.chipsFor(call("@snip w"), host)))
+    }
+
+    @Test fun theClipboardIsInsertedOnlyWhenAllowedOtherwiseEmptyWithANote() {
+        snippets = listOf(Snippet("link", "Hier: {zwischenablage} ok"))
+        clip = SnipCommand.ClipRead.Text("https://example.org")
+        KeyboardCommands.chipsFor(call("@snip link"), host).single().onTap()
+        assertEquals("Hier: https://example.org ok", replaced.last().second)
+        assertEquals(1, clipReads) // read on the tap only
+        for ((reason, note) in listOf(
+            SnipCommand.ClipRead.Reason.SENSITIVE to R.string.agent_snip_clip_sensitive,
+            SnipCommand.ClipRead.Reason.HISTORY_OFF to R.string.agent_snip_clip_history_off,
+            SnipCommand.ClipRead.Reason.LOCKED to R.string.agent_snip_clip_locked,
+            SnipCommand.ClipRead.Reason.EMPTY to R.string.agent_snip_clip_empty,
+            SnipCommand.ClipRead.Reason.TOO_LONG to R.string.agent_snip_clip_too_long,
+        )) {
+            clip = SnipCommand.ClipRead.Missing(reason)
+            KeyboardCommands.chipsFor(call("@snip link"), host).single().onTap()
+            assertEquals("Hier:  ok", replaced.last().second, reason.name)
+            assertEquals(latinIME.getString(note), ShadowToast.getTextOfLatestToast(), reason.name)
+        }
+    }
+
+    @Test fun theSystemClipboardFollowsHistoryAndSensitivity() {
+        val manager = latinIME.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        manager.setPrimaryClip(android.content.ClipData.newPlainText("x", "öffentlich"))
+        fun read() = SnipCommand.SystemClipboard.read(latinIME)
+        // the clipboard history is off by default
+        assertEquals(SnipCommand.ClipRead.Missing(SnipCommand.ClipRead.Reason.HISTORY_OFF), read())
+        latinIME.prefs().edit().putBoolean(Settings.PREF_ENABLE_CLIPBOARD_HISTORY, true).commit()
+        Settings.getInstance().loadSettings(latinIME, Settings.getValues().mLocale, helium314.keyboard.latin.InputAttributes(editor, false, latinIME.packageName))
+        assertEquals("öffentlich", (read() as SnipCommand.ClipRead.Text).text)
+        // copied as sensitive earlier (password field or marked): never inserted
+        SensitiveClips.remember(latinIME, "öffentlich")
+        assertEquals(SnipCommand.ClipRead.Missing(SnipCommand.ClipRead.Reason.SENSITIVE), read())
+        SensitiveClips.clear(latinIME)
+        // marked sensitive by the copying app
+        val marked = android.content.ClipData.newPlainText("x", "geheim").apply {
+            description.extras = android.os.PersistableBundle().apply { putBoolean("android.content.extra.IS_SENSITIVE", true) }
+        }
+        manager.setPrimaryClip(marked)
+        assertEquals(SnipCommand.ClipRead.Missing(SnipCommand.ClipRead.Reason.SENSITIVE), read())
+        manager.setPrimaryClip(android.content.ClipData.newPlainText("x", "x".repeat(SnippetStore.MAX_TEXT + 1)))
+        assertEquals(SnipCommand.ClipRead.Missing(SnipCommand.ClipRead.Reason.TOO_LONG), read())
+        manager.clearPrimaryClip()
+        assertEquals(SnipCommand.ClipRead.Missing(SnipCommand.ClipRead.Reason.EMPTY), read())
+        // locked device
+        manager.setPrimaryClip(android.content.ClipData.newPlainText("x", "öffentlich"))
+        val keyguard = latinIME.getSystemService(android.content.Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+        shadowOf(keyguard).setIsDeviceLocked(true)
+        try {
+            Settings.getInstance().loadSettings(latinIME, Settings.getValues().mLocale, helium314.keyboard.latin.InputAttributes(editor, false, latinIME.packageName))
+            assertTrue(Settings.getValues().mIsLocked)
+            assertEquals(SnipCommand.ClipRead.Missing(SnipCommand.ClipRead.Reason.LOCKED), read())
+        } finally {
+            shadowOf(keyguard).setIsDeviceLocked(false)
+            Settings.getInstance().loadSettings(latinIME, Settings.getValues().mLocale, helium314.keyboard.latin.InputAttributes(editor, false, latinIME.packageName))
+            assertFalse(Settings.getValues().mIsLocked)
+        }
+    }
+
+    @Test fun nothingIsInsertedInAPasswordField() {
+        snippets = listOf(Snippet("link", "{zwischenablage}"), invitation)
+        val linkChip = KeyboardCommands.chipsFor(call("@snip link"), host).single()
+        KeyboardCommands.chipsFor(call("@snip einladung"), host).single().onTap()
+        replaced.clear()
+        // the field turned into a password field after the chips were built
+        editor = EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD }
+        linkChip.onTap()
+        assertFalse(SnipCommand.onEnter(host, CommandCall(0, "@snip einladung Name: x", '@', "snip", "einladung Name: x")))
+        assertTrue(SnipCommand.chips(host, CommandCall(0, "@snip einladung Name: x", '@', "snip", "einladung Name: x")).isEmpty())
+        assertTrue(replaced.isEmpty())
+        assertEquals(0, clipReads)
+    }
+
+    @Test fun oldSnippetsAreInsertedExactlyAsBefore() {
+        snippets = listOf(Snippet("alt", "Code {datum} und {{x}} {?Name} {cursor}", literal = true))
+        KeyboardCommands.chipsFor(call("@snip alt"), host).single().onTap()
+        assertEquals(listOf("@snip alt" to "Code {datum} und {{x}} {?Name} {cursor}"), replaced)
+        assertTrue(moved.isEmpty())
+        assertEquals(0, clipReads)
+    }
+
+    @Test fun theEditorPreviewShowsFieldsClipboardAndCursorWithoutReadingAnything() {
+        val preview = SnipCommand.editorPreview(SnippetTemplate.parse(invitation.text + " {zwischenablage} {wochentag}"), "de",
+            "‹Zwischenablage›", now, berlin)
+        assertEquals("Hallo ‹Name›, danke für die Einladung am 14.11.2026, leider kann ich nicht. ${SnipCommand.PREVIEW_CURSOR} ‹Zwischenablage› Donnerstag",
+            preview)
+        assertEquals("{x}", SnipCommand.editorPreview(SnippetTemplate.parse("{x}"), "de", "c", now, berlin))
+        assertEquals(0, clipReads)
+    }
 }
 
 @RunWith(RobolectricTestRunner::class)
@@ -219,11 +437,58 @@ class SnippetStoreTest {
     }
 
     @Test fun malformedFilesAreRejected() {
-        for (bad in listOf("{}", """{"storageVersion":2,"snippets":[]}""",
+        // stage 42: version 2 exists now, so an unknown version is 3; version 1 knows no apps
+        for (bad in listOf("{}", """{"storageVersion":3,"snippets":[]}""", """{"storageVersion":0,"snippets":[]}""",
             """{"storageVersion":1,"snippets":[{"name":"a b","text":"x"}]}""",
             """{"storageVersion":1,"snippets":[{"name":"a","text":"x"},{"name":"A","text":"y"}]}""",
-            """{"storageVersion":1,"snippets":[{"name":"a","text":"x","url":"y"}]}""")) {
+            """{"storageVersion":1,"snippets":[{"name":"a","text":"x","url":"y"}]}""",
+            """{"storageVersion":1,"snippets":[{"name":"a","text":"x","apps":["com.x"]}]}""",
+            """{"storageVersion":2,"snippets":[{"name":"a b","text":"x"}]}""",
+            """{"storageVersion":2,"snippets":[{"name":"a","text":"x","url":"y"}]}""",
+            """{"storageVersion":2,"snippets":[{"name":"a"}]}""",
+            """{"storageVersion":2,"snippets":[{"name":"a","text":"x","apps":[]}]}""",
+            """{"storageVersion":2,"snippets":[{"name":"a","text":"x","apps":["whatsapp"]}]}""",
+            """{"storageVersion":2,"snippets":[{"name":"a","text":"x","apps":["com.x","com.x"]}]}""",
+            """{"storageVersion":2,"snippets":[{"name":"a","text":"x","apps":[1]}]}""",
+            """{"storageVersion":2,"snippets":[{"name":"a","text":"x","apps":"com.x"}]}""",
+            """{"storageVersion":2,"snippets":[{"name":"a","text":"x","literal":false}]}""",
+            """{"storageVersion":2,"snippets":[{"name":"a","text":"x","literal":"true"}]}""",
+            """{"storageVersion":2,"snippets":[{"name":"a","text":"x","apps":[${(0..SnippetApps.MAX_APPS).joinToString(",") { "\"com.a$it\"" }}]}]}""")) {
             assertFails(bad) { SnippetStore.decode(bad) }
         }
+    }
+
+    @Test fun version1FilesStayReadableAndTheirSnippetsLiteral() {
+        val old = """{"storageVersion":1,"snippets":[{"name":"adr","text":"Am {datum} {{x}}"},{"name":"mail","text":"a@b.de"}]}"""
+        file.parentFile!!.mkdirs()
+        file.writeText(old)
+        val read = store.read()
+        assertEquals(listOf("adr", "mail"), read.map { it.name })
+        assertTrue(read.all { it.literal && it.apps.isEmpty() })
+        assertEquals("Am {datum} {{x}}", read[0].template.expand(SnippetTemplate.Values(CivilDate(2026, 1, 1), ClockTime(0, 0),
+            dev.agentkeyboard.core.DateFormatting.Language.DE)).text)
+        // adding another snippet keeps the old ones literal (written as version 2)
+        store.put(Snippet("neu", "{datum}"))
+        val again = store.read()
+        assertEquals(listOf(true, true, false), again.map { it.literal })
+        assertTrue(file.readText().contains("\"storageVersion\":2"))
+        // saved again in the editor: a template from now on
+        store.put(Snippet("adr", "Am {datum} {{x}}"), previousName = "adr")
+        assertFalse(store.read().first().literal)
+    }
+
+    @Test fun version2KeepsAppsAndLooksLikeVersion1ForPlainSnippets() {
+        store.put(Snippet("wa", "Hallo {?Name}", listOf("com.whatsapp", "org.telegram.messenger")))
+        store.put(Snippet("plain", "x"))
+        val read = store.read()
+        assertEquals(listOf("com.whatsapp", "org.telegram.messenger"), read.single { it.name == "wa" }.apps)
+        assertTrue(read.single { it.name == "plain" }.apps.isEmpty())
+        val encoded = SnippetStore.encode(listOf(Snippet("plain", "x")))
+        assertEquals("""{"storageVersion":2,"snippets":[{"name":"plain","text":"x"}]}""", encoded)
+        assertEquals("""{"storageVersion":2,"snippets":[{"name":"a","text":"y","apps":["com.x"],"literal":true}]}""",
+            SnippetStore.encode(listOf(Snippet("a", "y", listOf("com.x"), literal = true))))
+        assertFailsWith<IllegalArgumentException> { store.put(Snippet("bad", "x", listOf("nopackage"))) }
+        assertFailsWith<IllegalArgumentException> { store.put(Snippet("bad", "x", List(SnippetApps.MAX_APPS + 1) { "com.a$it" })) }
+        assertFalse(Snippet("wa", "geheim", listOf("com.x")).toString().contains("geheim"))
     }
 }
