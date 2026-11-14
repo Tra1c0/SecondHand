@@ -12,6 +12,7 @@ import android.view.inputmethod.InputMethodSubtype
 import android.widget.Toast
 import androidx.core.content.edit
 import androidx.core.graphics.ColorUtils
+import dev.agentkeyboard.core.ApplyOutcome
 import dev.agentkeyboard.core.CommandCall
 import dev.agentkeyboard.core.CommandGrammar
 import dev.agentkeyboard.core.CommandGrammar.Action
@@ -118,8 +119,44 @@ object CommandSystem {
         val areas = areaWords()
         if (areas.isEmpty()) return emptyList()
         val langOn = "lang" in KeyboardCommands.activeNames()
-        return CommandGrammar.parse(text, prefix, areas, vocabulary(context),
+        val apps = InstalledApps.apps
+        val generation = readingsGeneration
+        cachedReadings(text, prefix, areas, apps, generation)?.let { return it }
+        val readings = CommandGrammar.parse(text, prefix, areas, vocabulary(context),
             claim = { word -> if (langOn && LanguageCommand.claims(word)) Area.LANG else null })
+        synchronized(readingsCache) {
+            readingsCache.remove(text)
+            readingsCache[text] = CachedReadings(prefix, areas, apps, generation, readings)
+            while (readingsCache.size > MAX_CACHED_READINGS) readingsCache.remove(readingsCache.keys.first())
+        }
+        return readings
+    }
+
+    /**
+     * Second review of stage 52: the readings of the last few texts. One keystroke reads the same
+     * command several times (the autocorrection guard, the chain before it, the strip, the learning
+     * check of the engine); each text is parsed once. An entry holds while the apps read are the
+     * same list and nothing else the words can name changed ([dropReadings]: a command ran or was
+     * undone, a group or snippet changed, the keyboard loaded its settings, no command is typed).
+     */
+    private class CachedReadings(val prefix: Char, val areas: Map<String, Area>, val apps: List<CommandGrammar.AppName>,
+                                 val generation: Int, val readings: List<Reading>)
+
+    private const val MAX_CACHED_READINGS = 4
+    private val readingsCache = LinkedHashMap<String, CachedReadings>()
+    @Volatile private var readingsGeneration = 0
+
+    private fun cachedReadings(text: String, prefix: Char, areas: Map<String, Area>, apps: List<CommandGrammar.AppName>,
+                               generation: Int): List<Reading>? = synchronized(readingsCache) {
+        readingsCache[text]?.takeIf { it.prefix == prefix && it.apps === apps && it.generation == generation && it.areas == areas }?.readings
+    }
+
+    /** Forgets every cached reading: what the words of a command can name may have changed. */
+    @JvmStatic fun dropReadings() {
+        synchronized(readingsCache) {
+            readingsGeneration++
+            readingsCache.clear()
+        }
     }
 
     /** True when [readings] is the old syntax of its area only, which the area's own chips handle. */
@@ -137,9 +174,12 @@ object CommandSystem {
      */
     fun protects(context: Context, call: CommandCall): Boolean {
         if (call.argument.isBlank()) return true
-        return readings(context, call.text, call.prefix).any { reading ->
-            reading.looksLikeCommand || reading.steps.singleOrNull()?.let { it.words.size <= 1 } == true
-        }
+        // second review: read while typing; a failure keeps the words as they are
+        return runCatching {
+            readings(context, call.text, call.prefix).any { reading ->
+                reading.looksLikeCommand || reading.steps.singleOrNull()?.let { it.words.size <= 1 } == true
+            }
+        }.getOrDefault(true)
     }
 
     /**
@@ -149,14 +189,14 @@ object CommandSystem {
      * change anything (an old `@lang spanisch` switches the field and counts). Otherwise the later
      * command stands alone ("@gruppe hey, hier meine Adresse: @snip adr" is the snippet).
      */
-    fun continuesChain(context: Context, prefix: Char, earlier: String): Boolean {
-        if (CommandGrammar.endsWithSeparator(earlier)) return true
+    fun continuesChain(context: Context, prefix: Char, earlier: String): Boolean = runCatching {
+        if (CommandGrammar.endsWithSeparator(earlier)) return@runCatching true
         val readings = readings(context, earlier, prefix)
-        return readings.isNotEmpty() && readings.all { reading ->
+        readings.isNotEmpty() && readings.all { reading ->
             reading.unknownCount == 0 && reading.looksLikeCommand &&
                 reading.steps.all { !it.legacy || (it.area == Area.LANG && it.language != null) }
         }
-    }
+    }.getOrDefault(false) // second review: read while typing; a failure starts no chain
 
     // ---- chips ----
 
@@ -237,6 +277,7 @@ object CommandSystem {
             undo = null
             var failed = false
             for (step in state.steps.asReversed()) if (runCatching { step(host) }.isFailure) failed = true
+            dropReadings() // groups and snippets may be back
             Toast.makeText(context, if (failed) R.string.agent_unified_failed else R.string.agent_unified_undone, Toast.LENGTH_SHORT).show()
             host.refresh()
         })
@@ -247,9 +288,13 @@ object CommandSystem {
     /**
      * What an effect did: [undo] puts it back; [after] runs once the command text is gone (switching
      * the keyboard's language, emptying the clipboard history), so that nothing in it has to be put
-     * back when the text cannot be removed.
+     * back when the text cannot be removed. Second review of stage 52: [undo] is told whether [after]
+     * ran ([afterRan]); a language switch is put back only then.
      */
-    private class Done(val undo: (Host) -> Unit, val after: ((Host) -> Unit)? = null)
+    private class Done(val undo: (host: Host, afterRan: Boolean) -> Unit, val after: ((Host) -> Unit)? = null) {
+        var afterRan = false
+        fun putBack(host: Host) = undo(host, afterRan)
+    }
 
     /** Changes a setting and says how to undo it, or returns null with nothing changed. */
     private fun interface Effect { fun run(host: Host): Done? }
@@ -292,9 +337,16 @@ object CommandSystem {
         var steps = reading.steps.map { stepPlan(host, it, dark) }
         if (steps.size > 1) {
             // review of stage 52: in a chain every step changes something; inserting (the old @snip
-            // name, @clip word) and showing work only on their own, else a tap would only delete the text
+            // name, @clip word) and showing work only on their own, else a tap would only delete the text.
+            // Second review: an area word with nothing after it ("…; @guard ") is not complete yet
             val chain = host.context.getString(R.string.agent_unified_chain_toast)
-            steps = steps.map { if (it.showOnly) StepPlan(it.text, it.plain, null, false, it.harmless, chain) else it }
+            steps = steps.mapIndexed { index, plan ->
+                when {
+                    reading.steps[index].bare -> StepPlan(plan.text, plan.plain, null, false, plan.harmless)
+                    plan.showOnly -> StepPlan(plan.text, plan.plain, null, false, plan.harmless, chain)
+                    else -> plan
+                }
+            }
         }
         val label = Words(dark)
         steps.forEachIndexed { index, step ->
@@ -307,30 +359,34 @@ object CommandSystem {
     /**
      * A tap on a preview: runs every step, then removes the command, then what has to wait for that
      * (a language switch); offers "Undo". Review of stage 52: when a step fails, or the command cannot
-     * be removed (the field changed), every step that ran is put back and the text stays.
+     * be removed (the field changed), every step that ran is put back and the text stays. Second
+     * review: an unclear removal ([ApplyOutcome.UNKNOWN], the text most likely gone) counts as done.
      */
     private fun execute(host: Host, call: CommandCall, plan: Plan): Boolean {
         if (KeyboardCommands.isBlocked(Settings.getValues(), host.editorInfo) || !plan.runnable) return false
         val at = host.cursor
         val done = ArrayList<Done>()
-        fun putBack() { for (step in done.asReversed()) runCatching { step.undo(host) } }
+        fun putBack() { for (step in done.asReversed()) runCatching { step.putBack(host) } }
         for (step in plan.steps) {
             val effect = step.effect ?: continue
             val result = runCatching { effect.run(host) }.getOrNull()
             if (result == null) {
                 putBack()
-                Toast.makeText(host.context, R.string.agent_unified_failed, Toast.LENGTH_SHORT).show()
+                dropReadings()
+                Toast.makeText(host.context, host.context.getString(R.string.agent_unified_failed_nothing, step.plain), Toast.LENGTH_SHORT).show()
                 return false
             }
             done += result
         }
-        // the command goes, in the field it was typed in; when that fails nothing stays changed
-        if (!host.replace(call, "")) { putBack(); return false }
-        for (step in done) step.after?.let { runCatching { it(host) } }
+        dropReadings() // groups and snippets may have changed
+        // the command goes, in the field it was typed in; when that is refused nothing stays changed.
+        // When the editor's answer is unclear the text is most likely gone: the changes stay, with "Undo"
+        if (host.replaceOutcome(call, "") == ApplyOutcome.REJECTED) { putBack(); dropReadings(); return false }
+        for (step in done) step.after?.let { after -> step.afterRan = true; runCatching { after(host) } }
         if (done.isNotEmpty()) {
             // the cursor the strip is built for once the command is gone
             val state = Undo(plan.plain, host.editorInfo?.packageName, if (at < 0) -1 else at - call.text.length,
-                clock() + UNDO_MILLIS, done.map { it.undo })
+                clock() + UNDO_MILLIS, done.map { step -> { back: Host -> step.putBack(back) } })
             undo = state
             schedule(UNDO_MILLIS) { if (undo === state) { undo = null; state.refresh?.invoke() } }
         }
@@ -518,8 +574,10 @@ object CommandSystem {
     private fun switchEffect(subtype: InputMethodSubtype) = Effect { host ->
         val before = host.currentSubtype
         if (subtype !in LanguageCommand.subtypes()) null
-        else Done(undo = { back -> if (before != null && before != subtype && before in LanguageCommand.subtypes()) back.switchSubtype(before) },
-            after = { now -> if (subtype != before) now.switchSubtype(subtype) })
+        else Done(undo = { back, switched ->
+            // only a switch that happened is put back (before the text went nothing switched)
+            if (switched && before != null && before != subtype && before in LanguageCommand.subtypes()) back.switchSubtype(before)
+        }, after = { now -> if (subtype != before) now.switchSubtype(subtype) })
     }
 
     /**
@@ -542,21 +600,26 @@ object CommandSystem {
             }
             if (packages == null) CommandAppSettings.setLanguage(context, CommandAppSettings.ALL, allBefore)
         }
-        var ok = true
-        for (app in apps) {
-            if (app != CommandAppSettings.ALL) CommandAppSettings.setSavedSubtype(context, app, null) // the latest choice wins
-            ok = CommandAppSettings.setLanguage(context, app, if (packages == null) null else stored) && ok
-            if (!ok) break
-        }
-        if (ok && packages == null) ok = CommandAppSettings.setLanguage(context, CommandAppSettings.ALL, stored)
-        if (!ok) { restore(); return@Effect null }
+        // second review of stage 52: a write that throws midway puts back what this effect wrote, too
+        val ok = try {
+            var ok = true
+            for (app in apps) {
+                if (app != CommandAppSettings.ALL) CommandAppSettings.setSavedSubtype(context, app, null) // the latest choice wins
+                ok = CommandAppSettings.setLanguage(context, app, if (packages == null) null else stored) && ok
+                if (!ok) break
+            }
+            if (ok && packages == null) ok = CommandAppSettings.setLanguage(context, CommandAppSettings.ALL, stored)
+            ok
+        } catch (e: Exception) { false }
+        if (!ok) { runCatching { restore() }; return@Effect null }
         // the app typed in gets the language at once, as at the next start of its field
         val here = target.editorInfo?.packageName
         val current = target.currentSubtype
         val switchNow = subtype != null && subtype != current && (packages == null || here in packages)
-        Done(undo = { back ->
+        Done(undo = { back, switched ->
             restore()
-            if (switchNow && current != null && current in LanguageCommand.subtypes()) back.switchSubtype(current)
+            // only a switch that happened is put back (before the text went nothing switched)
+            if (switched && switchNow && current != null && current in LanguageCommand.subtypes()) back.switchSubtype(current)
         }, after = if (switchNow) { now -> now.switchSubtype(subtype!!) } else null)
     }
 
@@ -569,14 +632,17 @@ object CommandSystem {
             for (app in packages ?: entries.keys.toList()) CommandAppSettings.setGuard(context, app, entries[app])
             if (packages == null) context.prefs().edit { putBoolean(AgentPreferences.FORMAT_GUARD, switch) }
         }
-        var ok = true
-        for (app in packages ?: entries.keys.toList()) {
-            ok = CommandAppSettings.setGuard(context, app, if (packages == null) null else on)
-            if (!ok) break
-        }
-        if (!ok) { restore(); return@Effect null }
-        if (packages == null && on != null) context.prefs().edit { putBoolean(AgentPreferences.FORMAT_GUARD, on) }
-        Done(undo = { _ -> restore() })
+        val ok = try {
+            var ok = true
+            for (app in packages ?: entries.keys.toList()) {
+                ok = CommandAppSettings.setGuard(context, app, if (packages == null) null else on)
+                if (!ok) break
+            }
+            if (ok && packages == null && on != null) context.prefs().edit { putBoolean(AgentPreferences.FORMAT_GUARD, on) }
+            ok
+        } catch (e: Exception) { false }
+        if (!ok) { runCatching { restore() }; return@Effect null }
+        Done(undo = { _, _ -> restore() })
     }
 
     /**
@@ -593,19 +659,22 @@ object CommandSystem {
             (excluded - now).forEach { Memory.setExcluded(context, it, true) }
             if (packages == null) context.prefs().edit { putBoolean(AgentPreferences.MEMORY, switch) }
         }
-        var ok = true
-        if (packages == null) {
-            if (on) for (app in excluded) { ok = Memory.setExcluded(context, app, false); if (!ok) break }
-            if (ok && !reset) context.prefs().edit { putBoolean(AgentPreferences.MEMORY, on) }
-        } else for (app in packages) { ok = Memory.setExcluded(context, app, !on); if (!ok) break }
-        if (!ok) { restore(); return@Effect null }
-        Done(undo = { _ -> restore() })
+        val ok = try {
+            var ok = true
+            if (packages == null) {
+                if (on) for (app in excluded) { ok = Memory.setExcluded(context, app, false); if (!ok) break }
+                if (ok && !reset) context.prefs().edit { putBoolean(AgentPreferences.MEMORY, on) }
+            } else for (app in packages) { ok = Memory.setExcluded(context, app, !on); if (!ok) break }
+            ok
+        } catch (e: Exception) { false }
+        if (!ok) { runCatching { restore() }; return@Effect null }
+        Done(undo = { _, _ -> restore() })
     }
 
     private fun groupEffect(context: Context, name: String, packages: List<String>?) = Effect { _ ->
         val before = CommandAppSettings.groups(context)[name]
         if (!CommandAppSettings.setGroup(context, name, packages)) null
-        else Done(undo = { _ -> CommandAppSettings.setGroup(context, name, before) })
+        else Done(undo = { _, _ -> CommandAppSettings.setGroup(context, name, before) })
     }
 
     /** Stores [text] as the snippet [name] (replacing one of that name, its apps kept), or deletes it with null. */
@@ -614,7 +683,7 @@ object CommandSystem {
         val old = store.read().firstOrNull { it.name.equals(name, ignoreCase = true) }
         if (text == null) store.delete(name) else store.put(Snippet(old?.name ?: name, text, old?.apps.orEmpty()), old?.name)
         SnipCommand.reset()
-        Done(undo = { _ ->
+        Done(undo = { _, _ ->
             val again = snippetStore(context)
             val now = again.read().firstOrNull { it.name.equals(name, ignoreCase = true) }
             when {
@@ -630,7 +699,7 @@ object CommandSystem {
     private fun clipEffect(context: Context, on: Boolean) = Effect { _ ->
         val before = ClipCommand.historyEnabled(context)
         context.prefs().edit { putBoolean(Settings.PREF_ENABLE_CLIPBOARD_HISTORY, on) }
-        Done(undo = { _ -> context.prefs().edit { putBoolean(Settings.PREF_ENABLE_CLIPBOARD_HISTORY, before) } },
+        Done(undo = { _, _ -> context.prefs().edit { putBoolean(Settings.PREF_ENABLE_CLIPBOARD_HISTORY, before) } },
             after = { _ -> if (before != on) ClipboardDao.getInstance(context)?.clearNonPinned() })
     }
 

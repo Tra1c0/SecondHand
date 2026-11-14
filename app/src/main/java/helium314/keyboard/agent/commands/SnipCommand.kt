@@ -90,7 +90,7 @@ object SnipCommand : KeyboardCommands.Command {
     override fun description(context: Context) =
         context.getString(R.string.agent_command_snip, KeyboardCommands.prefix(context).toString())
 
-    override fun reset() { cached = null; filling = null }
+    override fun reset() { cached = null; filling = null; CommandSystem.dropReadings() } // the names may change
 
     /** Characters a field value may still grow by before "@snip name Field: value" is no command any more. */
     fun roomLeft(argument: String) = dev.agentkeyboard.core.CommandSyntax.MAX_LONG_ARGUMENT - argument.length

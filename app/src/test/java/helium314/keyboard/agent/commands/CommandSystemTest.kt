@@ -7,6 +7,7 @@ import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodSubtype
+import dev.agentkeyboard.core.ApplyOutcome
 import dev.agentkeyboard.core.CommandCall
 import dev.agentkeyboard.core.CommandContext
 import dev.agentkeyboard.core.CommandGrammar.AppName
@@ -49,6 +50,8 @@ class CommandSystemTest {
     private var cursor = 100_000 // every replacement moves it, as in the field
     private var refreshed = 0
     private var canReplace = true
+    /** What the editor answers to a replacement that is not refused (second review: UNKNOWN). */
+    private var outcome = ApplyOutcome.SUBMITTED
     private var now = 1_000L
     private val scheduled = mutableListOf<Pair<Long, () -> Unit>>()
 
@@ -69,11 +72,14 @@ class CommandSystemTest {
         override val context: Context get() = latinIME
         override val editorInfo: EditorInfo get() = editor
         override val language = "de"
-        override fun replace(command: CommandContext, replacement: String): Boolean {
-            if (!canReplace) return false
+        override fun replace(command: CommandContext, replacement: String): Boolean =
+            replaceOutcome(command, replacement) == ApplyOutcome.SUBMITTED
+        override fun replaceOutcome(command: CommandContext, replacement: String): ApplyOutcome {
+            if (!canReplace) return ApplyOutcome.REJECTED
+            // also an unclear answer: the editor took the commit, the text is (most likely) replaced
             replaced += command.text to replacement
             this@CommandSystemTest.cursor += replacement.length - command.text.length
-            return true
+            return outcome
         }
         override fun openCalculator(command: CommandCall) = false
         override val canOpenCalculator = false
@@ -443,7 +449,8 @@ class CommandSystemTest {
 
     @Test fun textThatOnlyStartsWithAnAreaWordIsSentAndCorrected() {
         // finding 1: Enter is the app's, the words are corrected as usual
-        for (typed in listOf("Hallo @gruppe wer kommt heute?", "@group", "@mem", "@gruppe wer", "@guard das ist gut", "@lang foo bar german")) {
+        // ("@lang foo bar german" is a command since the second review: "german" is typed exactly)
+        for (typed in listOf("Hallo @gruppe wer kommt heute?", "@group", "@mem", "@gruppe wer", "@guard das ist gut", "@lang foo bar xyz")) {
             ShadowToast.reset()
             assertEquals(false, enter(typed), typed)
             assertNull(ShadowToast.getTextOfLatestToast(), typed)
@@ -560,7 +567,10 @@ class CommandSystemTest {
         CommandSystem.snippetStore = { SnippetStore(it) { true }.also { _ -> throw IllegalStateException("full") } }
         ShadowToast.reset()
         chips("@lang whatsapp german; @snip add gruss Hallo").single().onTap()
-        assertEquals(string(R.string.agent_unified_failed), ShadowToast.getTextOfLatestToast())
+        // second review: the toast says that nothing changed, and which step could not
+        val nothing = string(R.string.agent_unified_failed_nothing, "\u0000").split("\u0000")
+        val toast = ShadowToast.getTextOfLatestToast()
+        assertTrue(toast.startsWith(nothing[0]) && toast.endsWith(nothing[1]) && "gruss" in toast, toast)
         assertTrue(replaced.isEmpty())
         assertTrue(CommandAppSettings.languages(latinIME).isEmpty())
         assertTrue(CommandSystem.undoChips(host).isEmpty())
@@ -614,5 +624,136 @@ class CommandSystemTest {
         // exactly one other: Enter switches as before
         assertEquals(true, enter("@spanisch"))
         assertEquals(listOf(spanish), switched)
+    }
+
+    // ---- second review of stage 52 ----
+
+    @Test fun anUnclearRemovalKeepsTheChangesAndOffersUndo() {
+        // finding 1: the editor took the commit but the check after it failed (UNKNOWN): the text is
+        // most likely gone, so the changes stay, the language switches and "Undo" is offered
+        editor = field(chat.packageName)
+        outcome = ApplyOutcome.UNKNOWN
+        chips("@lang chat spanish; @guard signal off").single().onTap()
+        assertEquals(listOf("@lang chat spanish; @guard signal off" to ""), replaced)
+        assertEquals(stored(spanish), CommandAppSettings.language(latinIME, chat.packageName))
+        assertEquals(false, CommandAppSettings.guard(latinIME, signal.packageName))
+        assertEquals(listOf(spanish), switched)
+        CommandSystem.undoChips(host).single().onTap()
+        assertTrue(CommandAppSettings.languages(latinIME).isEmpty())
+        assertTrue(CommandAppSettings.guards(latinIME).isEmpty())
+        assertEquals(listOf(spanish, english), switched) // the switch that ran is put back
+        assertEquals(string(R.string.agent_unified_undone), ShadowToast.getTextOfLatestToast())
+    }
+
+    @Test fun aFailureBeforeTheTextGoesSwitchesNothingBack() {
+        // finding 2: the language of the field switches only after the text went; when a later step
+        // fails before that, putting back must not switch (nor remember a switch)
+        editor = field(chat.packageName)
+        CommandSystem.snippetStore = { SnippetStore(it) { true }.also { _ -> throw IllegalStateException("full") } }
+        chips("@lang chat spanish; @snip add gruss Hallo").single().onTap()
+        assertTrue(switched.isEmpty())
+        assertTrue(replaced.isEmpty())
+        assertTrue(CommandAppSettings.languages(latinIME).isEmpty())
+        current = english
+        chips("@spanisch @snip add gruss Hallo").single().onTap()
+        assertTrue(switched.isEmpty())
+        assertTrue(replaced.isEmpty())
+    }
+
+    @Test fun anExactActionOrLanguageTakesEnterAlsoWithTwoUnknownWords() {
+        // finding 4: apps of two words that are not read yet (or not installed) are no text for the app
+        InstalledApps.source = InstalledApps.Source { emptyList() }
+        try {
+            KeyboardCommands.load(latinIME)
+            for ((typed, words) in listOf("@guard google maps off" to "google, maps", "@lang microsoft teams german" to "microsoft, teams")) {
+                ShadowToast.reset()
+                assertEquals(true, enter(typed), typed)
+                assertEquals(string(R.string.agent_unified_unknown_app_toast, words), ShadowToast.getTextOfLatestToast(), typed)
+                assertTrue(KeyboardCommands.guardsTextBefore(typed), typed)
+            }
+        } finally {
+            InstalledApps.source = InstalledApps.Source { listOf(whatsapp, business, duolingo, signal, chat) }
+            KeyboardCommands.load(latinIME)
+        }
+        assertTrue(replaced.isEmpty())
+        assertTrue(CommandAppSettings.guards(latinIME).isEmpty())
+        assertTrue(CommandAppSettings.languages(latinIME).isEmpty())
+    }
+
+    @Test fun aClaimedLanguageWordStartsAChainWithoutSeparator() {
+        // finding 5: "@deutsch @guard signal off" like "@lang deutsch @guard signal off"
+        val found = call("@deutsch @guard signal off")
+        assertEquals("@deutsch @guard signal off", found.text)
+        assertEquals("@lang deutsch @guard signal off", call("@lang deutsch @guard signal off").text)
+        assertEquals(true, enter("@deutsch @guard signal off"))
+        assertEquals(listOf("@deutsch @guard signal off" to ""), replaced)
+        assertEquals(false, CommandAppSettings.guard(latinIME, signal.packageName))
+        assertEquals(listOf(german), switched)
+    }
+
+    @Test fun aClipSwitchChainsAcrossASeparatorWord() {
+        // finding 6: "@clip on dann @lang …" is a chain again, a search with "dann" stays whole
+        for (separator in listOf("dann", "then", "→")) {
+            val typed = "@clip on $separator @lang whatsapp german"
+            assertEquals(typed, call(typed).text, separator)
+            assertEquals(KeyboardCommands.Chip.Kind.ACTION, chips(typed).first().kind, separator)
+        }
+        chips("@clip on dann @lang whatsapp german").first().onTap()
+        assertTrue(ClipCommand.historyEnabled(latinIME))
+        assertEquals(stored(german), CommandAppSettings.language(latinIME, whatsapp.packageName))
+        assertEquals("@clip pizza dann pasta", call("@clip pizza dann pasta").text)
+        assertTrue(CommandSystem.isLegacy(host, call("@clip pizza dann pasta")))
+    }
+
+    @Test fun anEmptyAreaWordAtTheEndOfAChainIsIncomplete() {
+        // finding 9: "@lang whatsapp german; @guard " ran the first part and deleted "@guard " too
+        val typed = "@lang whatsapp german; @guard "
+        assertEquals(typed, call(typed).text)
+        val preview = chips(typed).first()
+        assertEquals(KeyboardCommands.Chip.Kind.MUTED, preview.kind)
+        val incomplete = string(R.string.agent_unified_incomplete_toast)
+        ShadowToast.reset()
+        preview.onTap()
+        assertEquals(incomplete, ShadowToast.getTextOfLatestToast())
+        ShadowToast.reset()
+        assertEquals(true, enter(typed))
+        assertEquals(incomplete, ShadowToast.getTextOfLatestToast())
+        assertTrue(replaced.isEmpty())
+        assertTrue(CommandAppSettings.languages(latinIME).isEmpty())
+    }
+
+    @Test fun readingsAreCachedButFollowWhatTheWordsName() {
+        // finding 10: one parse per text, but a new group (or snippet, or apps read) is seen at once
+        assertEquals(KeyboardCommands.Chip.Kind.MUTED, chips("@lang team german").first().kind)
+        assertTrue(CommandAppSettings.setGroup(latinIME, "team", listOf(signal.packageName)))
+        assertEquals(KeyboardCommands.Chip.Kind.ACTION, chips("@lang team german").first().kind)
+        CommandAppSettings.setGroup(latinIME, "team", null)
+        assertEquals(KeyboardCommands.Chip.Kind.MUTED, chips("@lang team german").first().kind)
+        // a command that ran changes what the same text reads
+        chips("@group team signal").single().onTap()
+        assertEquals(KeyboardCommands.Chip.Kind.ACTION, chips("@lang team german").first().kind)
+        CommandSystem.undoChips(host).single().onTap()
+        assertEquals(KeyboardCommands.Chip.Kind.MUTED, chips("@lang team german").first().kind)
+    }
+
+    @Test fun anAutomaticSwitchAtTheFieldStartIsNoChoiceOfTheUser() {
+        // finding 7 (P219): only a switch of the user is kept for the field, not the one of the field start
+        CommandAppSettings.setLanguage(latinIME, chat.packageName, stored(spanish))
+        val info = field(chat.packageName).apply { fieldId = 7 }
+        fun switchFor(reason: () -> Unit, to: InputMethodSubtype) {
+            SubtypeChoice.clear()
+            reason()
+            helium314.keyboard.agent.SubtypeSwitchLog.internalSwitch(to)
+            helium314.keyboard.agent.SubtypeSwitchLog.onSwitched(to)
+            CommandAppSettings.onSwitchedInField(latinIME, info, to)
+        }
+        switchFor({ helium314.keyboard.agent.SubtypeSwitchLog.expectFromStart(german, null, listOf(java.util.Locale.GERMAN)) }, german)
+        assertFalse(SubtypeChoice.holds(info, german))
+        switchFor({}, german) // the language key
+        assertTrue(SubtypeChoice.holds(info, german))
+        // nothing in it throws into the engine
+        CommandAppSettings.onSwitchedInField(latinIME, field(""), german)
+        SubtypeChoice.clear()
+        helium314.keyboard.agent.SubtypeSwitchLog.clear()
     }
 }

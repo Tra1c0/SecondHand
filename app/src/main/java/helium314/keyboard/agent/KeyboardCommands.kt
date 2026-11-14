@@ -77,6 +77,12 @@ object KeyboardCommands {
         val language: String
         /** Replaces the typed command (exactly [CommandContext.text]) by [replacement] in one commit; false if the field changed. */
         fun replace(command: CommandContext, replacement: String): Boolean
+        /**
+         * Second review of stage 52: [replace] with the editor's answer. [ApplyOutcome.UNKNOWN]: the
+         * editor took the commit but the check after it failed, the text is most likely replaced.
+         */
+        fun replaceOutcome(command: CommandContext, replacement: String): ApplyOutcome =
+            if (replace(command, replacement)) ApplyOutcome.SUBMITTED else ApplyOutcome.REJECTED
         /** Shows the calculator in place of the keys (stage 24b); "Insert" replaces [command]. */
         fun openCalculator(command: CommandCall): Boolean
         val canOpenCalculator: Boolean
@@ -309,6 +315,7 @@ object KeyboardCommands {
     /** Lets every command drop what it holds in memory (e.g. contacts found for the typed name). */
     fun forget() {
         registry.forEach { it.reset() }
+        helium314.keyboard.agent.commands.CommandSystem.dropReadings()
     }
 
     /** A typed command word like "@math" (trailing punctuation ignored); never corrected or learned. */
@@ -332,12 +339,15 @@ object KeyboardCommands {
     @JvmStatic fun guardsTextBefore(before: CharSequence?): Boolean {
         val current = active ?: return false
         if (before == null) return false
-        return when (val context = current.parse(before)) {
-            null -> false
-            is CommandNames -> true
-            is CommandCall -> context.argument.isBlank() ||
-                registry.firstOrNull { it.name == context.name }?.protects(current.context, context) == true
-        }
+        // second review of stage 52: also called from the engine while typing; a failure counts as protected
+        return runCatching {
+            when (val context = current.parse(before)) {
+                null -> false
+                is CommandNames -> true
+                is CommandCall -> context.argument.isBlank() ||
+                    registry.firstOrNull { it.name == context.name }?.protects(current.context, context) == true
+            }
+        }.getOrDefault(true)
     }
 
     /**
@@ -444,11 +454,13 @@ object KeyboardCommands {
             override val context: Context get() = ime
             override val editorInfo: EditorInfo? get() = ime.currentInputEditorInfo
             override val language: String get() = Settings.getValues()?.mLocale?.language.orEmpty()
-            override fun replace(command: CommandContext, replacement: String): Boolean {
+            override fun replace(command: CommandContext, replacement: String): Boolean =
+                replaceOutcome(command, replacement) == ApplyOutcome.SUBMITTED
+            override fun replaceOutcome(command: CommandContext, replacement: String): ApplyOutcome {
                 val outcome = ime.replaceCommandText(command.text, replacement, position)
                 if (outcome == ApplyOutcome.REJECTED)
                     android.widget.Toast.makeText(ime, R.string.agent_command_expired, android.widget.Toast.LENGTH_SHORT).show()
-                return outcome == ApplyOutcome.SUBMITTED
+                return outcome
             }
             override fun openCalculator(command: CommandCall) =
                 ime.agentEditorController.openCalculator(command.argument, command.text, position)

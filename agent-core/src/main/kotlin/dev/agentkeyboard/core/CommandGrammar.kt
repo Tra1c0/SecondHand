@@ -113,9 +113,17 @@ object CommandGrammar {
         val words: List<Word> = emptyList(),
         val legacy: Boolean = false,
         internal val score: Int = 0,
+        /** Second review of stage 52: an action word or a language name typed exactly took its slot. */
+        internal val exact: Boolean = false,
+        /** Second review of stage 52: the step of a claimed language word (`@deutsch`), which is its value. */
+        internal val claimed: Boolean = false,
     ) {
         /** True for a step that names every app. */
         val all: Boolean get() = targets.any { it == Target.All }
+
+        /** Second review of stage 52: an area word with nothing typed after it (`…; @guard `); not complete yet. */
+        var bare: Boolean = false
+            internal set
 
         /** A group name that is no group yet, read as this step's target. */
         private val freshName: Boolean get() = area == Area.GROUP && name != null && !nameExists && words.any { it.role == Role.TARGET }
@@ -125,11 +133,15 @@ object CommandGrammar {
          * text that happens to follow one ("Hallo @gruppe wer kommt heute?"): at least one word has a
          * known role (an action, a target or a value; a new group name alone is none), and the first
          * word is known or at most one word is unknown (`@lang foo german`: an app that is not
-         * installed or not loaded yet).
+         * installed or not loaded yet). Second review: an action word or a language name typed
+         * exactly is enough whatever else is unknown (`@guard google maps off` before the apps are
+         * read), and a claimed language word (`@deutsch`) is a known first word like `@lang deutsch`.
          */
         val looksLikeCommand: Boolean get() {
+            if (claimed && language != null) return true
             val known = words.count { it.role in KNOWN_ROLES } - (if (freshName) 1 else 0)
             if (known < 1) return false
+            if (exact) return true
             val first = words.first()
             val firstKnown = first.role in KNOWN_ROLES && !(freshName && first.role == Role.TARGET)
             return firstKnown || unknown.size <= 1
@@ -206,6 +218,10 @@ object CommandGrammar {
         return raw in ACTION_WORDS || (raw.all { it.isLetter() } && LanguageNames.normalize(raw) in ACTION_WORDS)
     }
 
+    /** An action of `@clip`, typed exactly (`on`, `aus`, `list`). */
+    private fun isClipAction(token: Token): Boolean =
+        isExactAction(token.text) && action(token.text)?.let { it in ACTIONS.getValue(Area.CLIP) } == true
+
     /**
      * The readings of [text], which starts with an area word (`@lang …`); best first, at most
      * [maxReadings], all with the fewest unknown words and the lowest cost. Empty when [text] does not
@@ -225,11 +241,15 @@ object CommandGrammar {
             separators.forEach { fixedWords += Word(it.start, it.end, Role.SEPARATOR) }
             segment.trailing.forEach { fixedWords += Word(it.start, it.end, Role.SEPARATOR) }
             for ((index, words) in steps.withIndex()) {
-                // nothing between two separators, after the last one or before the next area is no step
-                if (words.isEmpty() && !(index == 0 && segment.claimed) && (steps.size > 1 || segments.size > 1)) continue
+                // nothing between two separators, after the last one or before the next area is no step;
+                // second review of stage 52: an area word with nothing after it is one (an empty step,
+                // which the keyboard does not run), else "@lang whatsapp german; @guard " ran the first part
+                // and the tap deleted "@guard " too
+                val bareArea = index == 0 && (segment.claimed || segment.words.isEmpty())
+                if (words.isEmpty() && !bareArea && (steps.size > 1 || segments.size > 1)) continue
                 val end = words.lastOrNull()?.end ?: segment.head.end
                 stepOptions += parseStep(segment.area, words, if (index == 0 && segment.claimed) segment.head else null,
-                    text, vocabulary, end)
+                    text, vocabulary, end).onEach { it.bare = words.isEmpty() && !segment.claimed }
             }
         }
         if (stepOptions.isEmpty()) stepOptions += listOf(listOf(Step(segments.first().area, null, legacy = true)))
@@ -260,9 +280,13 @@ object CommandGrammar {
                 continue
             }
             out.lastOrNull()?.let { last ->
-                // in a snippet's text or a clip search only `;`, `→` and `->` end it ("bis dann" stays text)
+                // in a snippet's text or a clip search only `;`, `→` and `->` end it ("bis dann" stays text);
+                // second review of stage 52: `@clip on dann @lang …` is a chain again, only one exact
+                // action word before the separators ("@clip pizza dann pasta" stays a search)
+                val clipSwitch = last.area == Area.CLIP && last.words.size >= 2 && isClipAction(last.words.first()) &&
+                    last.words.drop(1).all { isSeparator(it) }
                 while (last.words.isNotEmpty() && isSeparator(last.words.last()) &&
-                    (!freeText(last.area) || last.words.last().text.none { it.isLetter() }))
+                    (!freeText(last.area) || clipSwitch || last.words.last().text.none { it.isLetter() }))
                     last.trailing.add(0, last.words.removeAt(last.words.lastIndex))
             }
             out += Segment(head.first, token, head.second)
@@ -400,11 +424,13 @@ object CommandGrammar {
             val unknown = ArrayList<String>()
             val words = ArrayList<Word>()
             var score = 0
+            var exactAction = false
+            var exactLanguage = false
             for ((unit, meaning) in units.zip(combination)) {
                 val role = when (meaning) {
-                    is Meaning.Act -> if (action == null) { action = meaning.action; Role.ACTION } else null
+                    is Meaning.Act -> if (action == null) { action = meaning.action; exactAction = meaning.score == 0; Role.ACTION } else null
                     is Meaning.To -> { targets += meaning.target; Role.TARGET }
-                    is Meaning.Language -> if (language == null) { language = meaning.id; Role.VALUE } else null
+                    is Meaning.Language -> if (language == null) { language = meaning.id; exactLanguage = meaning.score == 0; Role.VALUE } else null
                     Meaning.Unknown -> null
                 }
                 score += if (role == null) UNKNOWN_COST else meaning.score
@@ -421,10 +447,12 @@ object CommandGrammar {
                     score += UNKNOWN_COST
                 }
                 language = null
+                exactLanguage = false
             }
             // review of stage 52: "@lang foo german" (an app not known, or not loaded yet) is no old command
             val legacy = area == Area.LANG && action == null && targets.isEmpty() && (tokens.size <= 1 || unknown.isEmpty())
-            Step(area, action, targets.distinct(), language, unknown = unknown, words = words, legacy = legacy, score = score)
+            Step(area, action, targets.distinct(), language, unknown = unknown, words = words, legacy = legacy, score = score,
+                exact = exactAction || exactLanguage, claimed = claimed != null)
         }.distinctBy { listOf(it.action, it.targets, it.language, it.unknown) }
     }
 
@@ -458,6 +486,7 @@ object CommandGrammar {
             val unknown = ArrayList<String>()
             val words = ArrayList<Word>()
             var score = 0
+            var exactAction = false
             if (nameIndex >= 0) {
                 val unit = units[nameIndex]
                 if (name == null) { unknown += unit.text; score += UNKNOWN_COST }
@@ -466,7 +495,7 @@ object CommandGrammar {
             }
             for ((unit, meaning) in memberUnits.zip(combination)) {
                 val role = when (meaning) {
-                    is Meaning.Act -> if (action == null) { action = meaning.action; Role.ACTION } else null
+                    is Meaning.Act -> if (action == null) { action = meaning.action; exactAction = meaning.score == 0; Role.ACTION } else null
                     is Meaning.To -> when (val target = meaning.target) {
                         is Target.App -> { members += target.app; Role.VALUE }
                         is Target.Group -> { members += target.packages.map { known[it] ?: AppName(it, it) }; Role.VALUE }
@@ -486,7 +515,7 @@ object CommandGrammar {
                 score += UNKNOWN_COST
             }
             steps += Step(Area.GROUP, action, name = name?.first, nameExists = name?.second == true,
-                members = members.distinct(), unknown = unknown, words = words.sortedBy { it.start }, score = score)
+                members = members.distinct(), unknown = unknown, words = words.sortedBy { it.start }, score = score, exact = exactAction)
         }
         return steps.distinctBy { listOf(it.action, it.name, it.members, it.unknown) }
     }
