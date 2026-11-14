@@ -95,6 +95,7 @@ fun SettingsNavHost(
         composable(SettingsDestination.AgentSkills) { AgentSkillsScreen(onClickBack = ::goBack) }
         composable(SettingsDestination.AgentWorkflows) { AgentWorkflowsScreen(onClickBack = ::goBack) }
         composable(SettingsDestination.AgentLearning) { AgentLearningScreen(onClickBack = ::goBack) }
+        composable(SettingsDestination.AgentMemory) { helium314.keyboard.settings.screens.AgentMemoryScreen(onClickBack = ::goBack) }
         composable(SettingsDestination.AgentDictation) { AgentDictationScreen(onClickBack = ::goBack) }
         composable(SettingsDestination.AgentScreenshots) { AgentScreenshotScreen(onClickBack = ::goBack) }
         composable(SettingsDestination.AgentCommands) { AgentCommandsScreen(onClickBack = ::goBack) }
@@ -172,6 +173,7 @@ object SettingsDestination {
     const val AgentSkills = "agent_skills"
     const val AgentWorkflows = "agent_workflows"
     const val AgentLearning = "agent_learning"
+    const val AgentMemory = "agent_memory" // stage 49, shared with stage 46
     const val AgentDictation = "agent_dictation"
     const val AgentScreenshots = "agent_screenshots"
     const val AgentCommands = "agent_commands"

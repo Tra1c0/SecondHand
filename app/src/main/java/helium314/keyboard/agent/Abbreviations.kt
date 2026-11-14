@@ -12,14 +12,18 @@ import java.util.Locale
 object Abbreviations {
     private val GERMAN = setOf(
         "bzw", "ca", "vgl", "ggf", "evtl", "inkl", "zzgl", "exkl", "bspw", "sog", "ehem", "geb",
-        "dr", "prof", "nr", "hr", "fr", "str", "abs", "bd", "jh", "jhd", "st",
+        "dr", "prof", "nr", "hr", "str", "abs", "bd", "st",
+        "bzgl", "insb", "insbes", "lt", "gem", "mind", "allg", "ugs", "eigtl",
     )
-    private val ENGLISH = setOf("approx", "vs", "mr", "mrs", "ms", "dr", "prof", "st", "jr", "sr", "mt", "ca", "cf", "viz")
+    // review N2: "fr", "jh", "jhd" (German) and "ms", "st", "jr", "sr" (English) often end a sentence
+    // ("bis Fr.", "im 19. Jh.", "John Smith Jr.") and are not listed
+    private val ENGLISH = setOf("approx", "vs", "mr", "mrs", "dr", "prof", "mt", "ca", "cf", "viz")
 
     /**
      * Whether the period right after `text[start, end)` (letters only) closes a known abbreviation.
-     * Also true for a single letter after another single letter with period and space ("z. B",
-     * "d. h", "u. a"), in every language.
+     * Also true for a single letter after another single lowercase letter with period and space
+     * ("z. B", "d. h", "u. a", "o. ä"), in every language; not after a capital, so initials such as
+     * "J. K. Rowling" keep their capitals (review N3).
      */
     @JvmStatic
     fun isAbbreviation(text: CharSequence, start: Int, end: Int, german: Boolean, english: Boolean): Boolean {
@@ -28,6 +32,6 @@ object Abbreviations {
         if (german && word in GERMAN) return true
         if (english && word in ENGLISH) return true
         return end - start == 1 && start >= 3 && text[start - 1] == ' ' && text[start - 2] == '.'
-            && text[start - 3].isLetter() && (start == 3 || !text[start - 4].isLetter())
+            && text[start - 3].isLowerCase() && (start == 3 || !text[start - 4].isLetter())
     }
 }

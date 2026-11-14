@@ -287,7 +287,7 @@
     <string name="agent_autocorrect_clear">Gemerkte Paare vergessen</string>
     <string name="agent_autocorrect_clear_confirm">Alle gemerkten Korrekturen vergessen? Sie können danach wieder automatisch angewendet werden.</string>
     <string name="agent_autocorrect_learn">Meine Tippfehler lernen</string>
-    <string name="agent_autocorrect_learn_description">Wählst du nach dem Tippen ein anderes Wort aus der Vorschlagsleiste, zählt die Tastatur dieses Paar. Nach drei gleichen Auswahlen korrigiert sie es automatisch; ein Wort, das es selbst gibt, nur nach demselben vorherigen Wort. Nur auf diesem Gerät gespeichert.</string>
+    <string name="agent_autocorrect_learn_description">Wählst du nach dem Tippen ein anderes Wort aus der Vorschlagsleiste, zählt die Tastatur dieses Paar. Nach drei gleichen Auswahlen korrigiert sie es automatisch; ein Wort, das es selbst gibt, nur nach demselben vorherigen Wort. Tippfehler, die du später im Feld verbesserst (nach weiteren Wörtern oder wenn du in das Wort zurückgehst), lernt sie, sobald du sie ein zweites Mal an anderer Stelle verbesserst, siehe „Was ich mir gemerkt habe“. Nur auf diesem Gerät gespeichert.</string>
     <string name="agent_autocorrect_typos">Gelernte Tippfehler: %1$d, davon mindestens dreimal bestätigt: %2$d</string>
     <string name="agent_autocorrect_typos_clear">Gelernte Tippfehler vergessen</string>
     <string name="agent_autocorrect_typos_clear_confirm">Alle gelernten Tippfehler vergessen?</string>

@@ -3601,6 +3601,69 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Offen: Prüfer-Review (`KeyboardCommands`-Host `insertAtCursor` über `onTextInput`,
   `ClipVaultSection`), Gerätetest (Code-Felder echter Apps und Browser, Hinweistexte in Messengern,
   TalkBack auf den Chips, Keystore beim ersten Speichern, Seite bei gesperrtem Gerät).
+## Nachprüfung 48 (Prüfer-Befunde zu Etappe 48, 2026-11-14)
+
+- Behoben: M1 `Suggest.guardAllows` blockierte eine reine Groß-/Klein-Korrektur, sobald irgendein
+  Wörterbuch die getippte Form kannte, auch eine andere aktive Sprache („hand“ → „Hand“, „name“,
+  „bank“ mit Deutsch und Englisch); jetzt nur Hauptwörterbuch oder Lernverlauf der Sprache der
+  Korrektur mit genau der getippten Form. N1 `TypedWordFirst.committedAt` (aus `commitChosenWord`)
+  verwirft alte Einträge am selben Start. N2 Abkürzungen: entfernt „fr“, „jh“, „jhd“ (Deutsch),
+  „ms“, „st“, „jr“, „sr“ (Englisch), neu „bzgl“, „insb“, „insbes“, „lt“, „gem“, „mind“, „allg“,
+  „ugs“, „eigtl“. N3 Einzelbuchstaben-Regel nur nach einem Kleinbuchstaben mit Punkt („z. B“,
+  „o. ä“), nicht bei Initialen („J. K. Rowling“). N4 `reverted` merkt nur, wo eine Korrektur gemerkt
+  ist (Gestenwörter werden nie gemerkt, also auch nicht zurückgenommen); keine Änderung in
+  `revertCommit` nötig.
+- N5 dokumentiert (P158, bekannte Grenzen): ohne weiteren Vorschlag steht das getippte Wort breit
+  in der Mitte; Leisten mit 5 Plätzen nicht geprüft; RTL rechts, ohne Gerätetest.
+- Tests: `SuggestTest` Fall „a known word never gets only another case“ erweitert („hand“ mit
+  deutschem „Hand“ und englischem „hand“ → automatisch; beides deutsch → nicht), `TypedWordFirstTest`
+  neu 2 (Abkürzungsliste mit Gegenproben und Initialen; Commit am selben Start, Rücknahme ohne
+  gemerkte Korrektur), `InputLogicTest` neu 1 („a correction of text deleted since …“: gegen den
+  Stand ohne `committedAt` rot, mit grün). Gelaufen gezielt `*InputLogicTest`, `*SuggestTest`,
+  `*TypedWordFirstTest`, `*CorrectionMemoryTest`, `*TypoMemoryTest`, `*StringUtilsTest`
+  (`--max-workers=1`, 2026-11-14): 289 Tests, 2 Fehler = geerbt
+  (`InputLogicTest.insertLetterIntoWordHangulFails`, `StringUtilsTest.detectEmojisAtEndFails`).
+  Nicht gelaufen: volle Suite, Build, Gerätetest. Erneute Prüfung durch einen Prüfer steht aus.
+
+## Etappe 49 (Korrekturen merken über das ganze Feld)
+
+- Auftrag (Lead, ROADMAP 49, Regeln mit dem Owner vom 2026-11-14): spätere Korrekturen im ganzen
+  Feld; Tippfehler nur bei Nicht-Wort → echtem Wort mit Vertipp-Schritten (Nachbartaste auf dem
+  aktuellen Layout, fehlender/doppelter/vertauschter Buchstabe, Umlaut/Akzent; ≤ 2, bis 4 Buchstaben
+  ≤ 1), nur dieses Wort geändert; alles andere Überarbeitung; Kandidat → gelernt beim zweiten
+  Vorkommen an anderer Stelle; zurückgenommene Autokorrektur sofort „nicht mehr“; Seite „Was ich mir
+  gemerkt habe“. Gebaut in einer Arbeitskopie, kein Prüfer-Review, kein Gerätetest.
+- Gebaut: `C/CorrectionRules.kt` (`diff`, `classify`, `mistypingSteps`, `KeyAdjacency`),
+  `K/agent/FieldCorrections.kt` (`FieldCorrectionWatcher`, `FieldCorrectionMemory`, Datei
+  `agent_field_corrections`), `TypoMemory.meantWord`/`forget` greifen auf die gelernten Paare zu,
+  `K/settings/screens/AgentMemoryScreen.kt` mit Ziel `agent_memory`, Zeile auf „Tippen & Korrektur“,
+  „Gelernte Wörter löschen“ leert mit. Engine: `InputLogic.java` (Feld `mFieldCorrections`;
+  `startInput` → `start`; `commitChosenWord` und `onUpdateSelection` → `checkpoint`;
+  `commitCurrentAutoCorrection` → `autoCorrected`; `untrusted` in `onCodeInput` bei Markierung,
+  `onTextInput`, `paste`, `applyGenerated`). Nicht geändert: `RichInputConnection`, `Suggest.kt`,
+  `PointerTracker`, `KeyDetector`, `TouchModel`. Kein bisher unverändertes Upstream-File neu
+  geändert.
+- Tests (Robolectric, echte `InputLogic` mit gestelltem „echt“ über `isValidSpellingWord`, kein
+  Gerätetest): `CorrectionRulesTest` neu 10 (Hsus → Haus, teh → the, fur → für, Haaus, Strase →
+  Straße, Montag → Freitag, das → dass, Kurzwörter, Layout-Nachbarn, Diff mit einem/mehreren
+  Wörtern, gelöschtem Rest, abgeschnittenem Text), `FieldCorrectionMemoryTest` neu 5 (zweites
+  Vorkommen, gleiche Stelle bleibt Kandidat, andere Bedeutung, ohne Erlaubnis nichts, Löschtaste
+  vergisst, Seite zeigt/übernimmt/löscht), `InputLogicTest` neu 6 („stage 49“: Korrektur nach fünf
+  weiteren Wörtern und gelernt im zweiten Feld, nach Löschen über Leerzeichen, über einen Vorschlag
+  im Wort und für ein per Vorschlag abgeschicktes Wort, Überarbeitungen inkl. das → dass,
+  Montag → Freitag, Markieren und Überschreiben, spätere Rücknahme einer Autokorrektur, nichts bei
+  Passwortfeld, Inkognito, Pause, Schalter aus). Gelaufen gezielt `:agent-core:test --tests
+  '*CorrectionRulesTest*'` (10/10) und `:app:testDebugUnitTest` mit `*InputLogicTest`,
+  `*SuggestTest`, `*TypoMemoryTest`, `*CorrectionMemoryTest`, `*TypedWordFirstTest`,
+  `*FieldCorrectionMemoryTest`, `*SettingsTypingAreaTest`, `*SettingsStartScreenTest`,
+  `*SymbolSettingsScreenTest` (`--max-workers=1`, 2026-11-14): 300 Tests, 1 Fehler = geerbt
+  (`InputLogicTest.insertLetterIntoWordHangulFails`). Nicht gelaufen: `tools/dev.py agent-tests`,
+  volle Suite, Lint, Build, Gerätetest. `docs_sync --check`: grün.
+- Bekannte Grenzen: Ein zusätzlicher Buchstabe zählt nur, wenn er einen Nachbarbuchstaben
+  verdoppelt (Regel „doppelt“ wörtlich). Ein Wort, das nur im Lernverlauf steht, zählt als echt.
+  Der Vergleich deckt je 2000 Zeichen um die Schreibmarke ab. Eine Korrektur, nach der ohne
+  Prüfpunkt markiert oder eingefügt wird, geht verloren (vorsichtig). Mehrere Sprachen: „echt“ in
+  irgendeiner aktiven Sprache. Rücknahme-Regel erkennt das Paar am Wort, nicht an der Stelle.
 
 ## Gerätetest vor Meilensteinfreigabe
 

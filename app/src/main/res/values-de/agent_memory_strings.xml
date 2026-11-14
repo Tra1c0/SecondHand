@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="agent_memory_title">Was ich mir gemerkt habe</string>
+    <string name="agent_memory_sub">Korrekturen, die du später im Feld gemacht hast</string>
+    <string name="agent_memory_description">Was die Tastatur aus deinem Tippen behält, nur auf diesem Gerät. Beim Tippen wird hiervon nichts angezeigt.</string>
+    <string name="agent_memory_corrections">Korrekturen</string>
+    <string name="agent_memory_corrections_description">Tippfehler, die du später im Feld verbessert hast, auch nach weiteren Wörtern oder wenn du in das Wort zurückgehst. Nur wenn aus einem Nicht-Wort durch einen Vertipper ein echtes Wort wurde (Nachbartaste, Buchstabe fehlt, doppelt oder vertauscht, Umlaut). Wird ein echtes Wort zu einem anderen, lernt die Tastatur nichts. Braucht „Meine Tippfehler lernen“.</string>
+    <string name="agent_memory_learned">Gelernt: wird automatisch korrigiert</string>
+    <string name="agent_memory_candidates">Kandidaten</string>
+    <string name="agent_memory_candidates_description">Einmal gesehen. Gelernt, wenn du denselben Tippfehler an anderer Stelle wieder verbesserst oder ihn hier übernimmst.</string>
+    <string name="agent_memory_none">Noch keine</string>
+    <string name="agent_memory_pair">%1$s → %2$s</string>
+    <string name="agent_memory_adopt">Übernehmen</string>
+    <string name="agent_memory_delete">Löschen</string>
+</resources>

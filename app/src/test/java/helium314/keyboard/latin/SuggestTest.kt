@@ -787,6 +787,12 @@ class SuggestTest {
         // an unknown lowercase form is not correctly spelled: "berlin" becomes "Berlin"
         tapTypingSuggestions = suggestionResults(listOf(suggestion("Berlin", 650000)))
         assert(getSuggestedWords(false, "berlin", CapsMode.OFF).mWillAutoCorrect)
+        // review M1: another active language knowing the lowercase form does not block it ("hand" -> "Hand")
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("Hand", 650000), suggestion("hand", 300000, Locale.ENGLISH)))
+        assert(getSuggestedWords(false, "hand", CapsMode.OFF).mWillAutoCorrect)
+        // the same language does block it
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("Hand", 650000), suggestion("hand", 300000)))
+        assertFalse(getSuggestedWords(false, "hand", CapsMode.OFF).mWillAutoCorrect)
 
         // English: "may" stays, the whitelisted "i" -> "I" of the dictionary stays automatic
         currentTypingLocale = Locale.ENGLISH

@@ -28,10 +28,23 @@ class TypedWordFirst {
         put(Entry(start, committed, typed))
     }
 
-    /** The correction at [start] was undone with backspace: [typed] stands there again. */
+    /**
+     * The correction at [start] was undone with backspace: [typed] stands there again. Only for a
+     * correction [corrected] remembered, so not for gesture words (review N4).
+     */
     fun reverted(start: Int, typed: String) {
-        if (start < 0 || typed.isEmpty()) return
+        if (start < 0 || typed.isEmpty() || entries.none { it.start == start }) return
         put(Entry(start, typed, typed))
+    }
+
+    /**
+     * A word was committed at [start]: an older entry there belongs to text that is gone (the field
+     * was cleared by backspace or by the app without restarting input), review N1. Called before
+     * [corrected] adds the new correction.
+     */
+    fun committedAt(start: Int) {
+        entries.removeAll { it.start == start }
+        if (active?.start == start) active = null
     }
 
     private fun put(entry: Entry) {

@@ -217,6 +217,20 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
 - Entsteht nur mit eingeschaltetem „Meine Tippfehler lernen“, kein Backup, kein Protokoll.
   „Gelernte Tippfehler vergessen“ leert die Datei.
 
+## Korrekturen im ganzen Feld (49)
+
+- Datei: SharedPreferences `agent_field_corrections`, gerätegeschützter Speicher. Schlüssel
+  `data`: JSON `{candidates: [{typed, meant, session, position, seen}], learned: [{typed, meant,
+  seen}]}`; `typed` kleingeschrieben, `meant` in der zu setzenden Schreibung, `session` eine
+  Zufalls-/Zeitnummer des Felds (kein App-Name), `position` die Stelle im Feld, `seen` Zeit in ms.
+  Höchstens 200 Kandidaten und 500 gelernte Paare, älteste zuerst verworfen.
+- Entsteht nur mit „Meine Tippfehler lernen“, ohne Lernpause, Inkognito, Passwort- oder
+  Nicht-lernen-Feld und bei entsperrtem Gerät. Kein Backup, kein Protokoll. Löschen: Seite „Was ich
+  mir gemerkt habe“ (einzeln) oder „Gelernte Wörter löschen“ (alles); die Löschtaste nach einer
+  Korrektur aus einem gelernten Paar entfernt es (`TypoMemory.forget`).
+- Der Feldtext, mit dem verglichen wird (höchstens je 2000 Zeichen vor und nach der Schreibmarke),
+  liegt nur im Arbeitsspeicher und wird beim Feldwechsel verworfen, nie gespeichert.
+
 ## Trefferzonen (22a)
 
 - Datei: SharedPreferences `agent_touch_model`, gerätegeschützter Speicher. Schlüssel `offsets`:
