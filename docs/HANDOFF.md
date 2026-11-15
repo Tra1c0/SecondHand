@@ -9,22 +9,22 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 ## Aktueller Stand
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
-- Stand 2026-11-14 (Ende der Runde): `main` = Build 23 (geprüft). Neu seit Build 21: 37
-  Bildwiederholrate-Karten, 40 Smart Paste, 51 Autokorrektur folgt der Sprache und Wörter aus
-  anderen Sprachen, 52 einheitliches Befehlssystem, 53 Zeichen-Kunst, 54 Update-Fenster und
-  Update-Chip, 34 eigene RGB-Lichtmuster (XL), graue Karten mit heller Schrift. Jede Etappe mit
-  Prüfer und Nachprüfung (52 viermal); volle Agent-Suite lokal und auf GitHub grün; kein Gerätetest.
-- Releases: nur Builds von `main` erscheinen in `Tra1c0/SecondHandAgenticKeyboard` (Owner-Wahl A,
-  Secret `RELEASES_TOKEN` gesetzt; Build 23 ist dort erschienen, Lauf ohne Warnung). Build 21 und älter suchen noch im alten Repository: Build 23
-  einmal von Hand installieren.
-- Beim Owner: Build 21, Test-Build 22 (ohne 34 und ohne die Prüferkorrekturen zu 52).
-- Nächste Sitzung: Rückmeldung zu Build 22/23 (Befehle, Zeichen-Kunst, Smart Paste, Lichtmuster,
-  Update-Chip); ROADMAP 52 Farben im Textfeld (bräuchte Engine-Eingriff) noch offen.
+- Stand 2026-11-15 (Ende der Runde): `main` = Build 25 (geprüft). Neu seit Build 23: 55 Diagnose
+  „Letztes Feld“ (warum Vorschläge, Großschreibung, Autokorrektur in einem Feld fehlen), mit Prüfer
+  und Nachprüfung; volle Agent-Suite lokal und GitHub-Lauf 72 grün; kein Gerätetest.
+- Anlass (Owner, 2026-11-15): „Stellenweise gibt's gar keine Vorschläge, Groß-/Kleinschreibung,
+  Autokorrektur“, ohne App, Build oder Sprache. Kandidaten: Feld-Flags der App, HeliBoards
+  Firefox-Workaround (Webfelder ohne Vorschläge), „Mehr Autokorrektur“ standardmäßig aus, verdeckte
+  Leiste. Warten auf Screenshot der Karte.
+- Beim Owner: Build 23, Test-Build 24 (55 vor den Prüferkorrekturen). Releases: nur Builds von
+  `main` in `Tra1c0/SecondHandAgenticKeyboard`; ab Build 23 als Update in der App.
+- Nächste Sitzung: Screenshot auswerten, Ursache beheben; Rückmeldung zu Build 23 (Befehle,
+  Zeichen-Kunst, Smart Paste, Lichtmuster, Update-Chip).
 
 ## Offene Punkte
 
-0. **Nächste Runde.** Zuerst Rückmeldung zu Build 22/23. Fallstricke belegt bis P231, frei ab
-   P232. Offen niedrig: 40 Telefonnummern in ES/US nur mit +/00, PrivateRanges höchstens 3 Werte,
+0. **Nächste Runde.** Zuerst Rückmeldung zu Build 22/23. Fallstricke belegt bis P236, frei ab
+   P237. Offen niedrig: 40 Telefonnummern in ES/US nur mit +/00, PrivateRanges höchstens 3 Werte,
    `RgbOwnPatternTest.ownPatternsStayWithinTheBudget` misst Zeit und fällt unter paralleler Last
    (allein grün, Verhältnis ≈ 1,7 von erlaubten 2). Davor offen: Rückmeldung zu Build 20/21 und die Owner-Fragen: Großschreibung in
    Feldern mit „jedes Wort groß“ (48), Kürzel-Chip als einzige Ersetzung (46), Passwortfeld-Kopien
@@ -235,8 +235,18 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
 - Docs liefen dem Code hinterher: `docs/WORKFLOWS.md` nannte nach Etappe 14 noch 13e als
   aktuellen Stand, die README nannte nur zwei der sechs KI-Aktionen (beides korrigiert). Regel: Docs im selben Push wie den
   Code aktualisieren (`CLAUDE.md` → Docs aktuell halten).
+- Zwei Gradle-Läufe im selben Checkout (volle Suite und ein gezielter Lauf) überschreiben einander
+  die Testergebnisse; die volle Suite meldete FAILED ohne lesbaren Grund, allein wiederholt grün
+  (2026-11-15). Gezielte Läufe nur in einer eigenen Arbeitskopie oder nach der Suite. Lokal grün
+  heißt nicht GitHub grün: Lint und ein Zeitbudget-Test fielen erst dort auf (Lauf 65); vor `main`
+  immer den GitHub-Lauf abwarten.
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
+- Build 25 (geprüft, von `main`): 55 Diagnose „Letztes Feld“ mit Prüfer und Nachprüfung; Agent-Suite
+  lokal grün (586 Kern, 1123 App), GitHub-Lauf 72 grün (Agent, Upstream, Lint); kein Gerätetest.
+- Build 24 (Test, Arbeitsbranch 23edd0e): 55 vor den Prüferkorrekturen (Firefox-Workaround der App
+  zugeschrieben, verdeckte Leiste nicht erfasst). Erster Versuch an Maven Central 429 abgebrochen,
+  Wiederholung grün.
 - Build 23 (geprüft, von `main`): 34, 37, 40, 51–54, graue Karten mit allen Prüferkorrekturen;
   Agent-Suite lokal grün (570 Kern, 1106 App), GitHub-Lauf 68 grün (Agent, Upstream, Lint); Befehle
   viermal nachgeprüft; erster Build im neuen Release-Repository; kein Gerätetest.
