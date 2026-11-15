@@ -1049,6 +1049,7 @@ public class LatinIME extends InputMethodService implements
         if (DebugFlags.DEBUG_ENABLED) {
             EditorInfoCompatUtils.INSTANCE.debugLog(editorInfo, TAG);
         }
+        helium314.keyboard.agent.LastField.capture(this, editorInfo, currentSettingsValues, mDictionaryFacilitator); // stage 55: the field as the engine sees it, for the diagnose page (never throws)
 
         // In landscape mode, this method gets called without the input view being created.
         if (mainKeyboardView == null) {

@@ -333,6 +333,16 @@ Reihenfolge von oben nach unten.
   Arbeitsbranch bleiben Vorab-Releases in diesem Repository und erscheinen nicht als Update. Der Chip
   verrät nur „Build N verfügbar“; ein Tipp öffnet die Updates-Seite. Neue Builds erkennt die App nur
   über die Prüfung (Schalter „täglich automatisch“ oder „Jetzt prüfen“).
+- **55 Diagnose: Letztes Feld** (Entscheidung des Owners vom 2026-11-15) ist gebaut (siehe
+  FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 55). Anlass (Owner): „Stellenweise gibt's
+  gar keine Vorschläge, Groß-/Kleinschreibung, Autokorrektur etc. Keine Ahnung wo und warum.“ Die
+  Diagnose zeigt als erste Karte das letzte Feld: App, Feldtyp und Flags, was die App erlaubt,
+  Sprache und Wörterbuch, was die Tastatur selbst abschaltet, und ein Urteil in einem Satz. Werte
+  aus denselben `InputAttributes`/`SettingsValues`, mit denen die Engine arbeitet; nur im Speicher;
+  Passwortfeld nur „Passwortfeld“, Inkognito/gesperrt nur „nichts gemerkt“. Nächster Schritt: Tritt
+  es wieder auf, öffnet der Owner sofort Einstellungen → Diagnose und schickt einen Screenshot; dann
+  wird die eigentliche Ursache behoben. Offen: Prüfer-Review (eine Zeile in
+  `LatinIME.onStartInputViewInternal`), Gerätetest.
 - **Graue Auswahlkarten (Owner, 2026-11-14: „Ja“):** Die grauen Mockup-Karten (AUS, NICHTS,
   AUSGEBLENDET, FLACHER LOOK) bekommen helle Schrift (Kontrast mit dunkler Schrift nur 1,74:1).
   Gebaut (`docs/VALIDATION.md` → Etappe 37, „Graue Karten“): helle Schrift 4,71:1 gewählt, 6,92:1

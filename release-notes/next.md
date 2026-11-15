@@ -45,3 +45,10 @@ Alles hier ist nur mit Tests geprüft, noch auf keinem Gerät ausprobiert.
   einmal zurück, bleibt „hola“ dort ab dann stehen und wird vorgeschlagen, nie automatisch
   eingesetzt. Die Liste mit „Löschen“ steht unter „Was ich mir gemerkt habe“. Alles lokal.
 - Die grauen Auswahlkarten (AUS, NICHTS …) haben helle, gut lesbare Schrift.
+
+## Nächster Build
+
+- Diagnose → „Letztes Feld“: Fehlen Vorschläge, Großschreibung oder Autokorrektur, zeigt die
+  erste Karte für das zuletzt benutzte Feld, was die App erlaubt, was die Tastatur abgeschaltet hat
+  und ein Urteil in einem Satz. Dann bitte gleich einen Screenshot schicken. Keine Feldtexte, nur im
+  Speicher.

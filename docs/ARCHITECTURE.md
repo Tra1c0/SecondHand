@@ -86,6 +86,12 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   `resultDenial` prüft auch Namen und Literale aus Dateien. `captureAnchor`/`insertDenial`
   (`AnchorResult`) gelten für das Einfügen an der Schreibmarke: nur ohne Auswahl
   (`DenialReason.NO_CURSOR` sonst), nur bei unverändertem Token und unveränderter Position.
+- `FieldReport.kt` (Etappe 55): Modell und Urteil der Diagnose-Karte „Letztes Feld“. Eigene Kopien
+  der `InputType`-/`EditorInfo`-Zahlen (geprüft gegen die Plattform in `AT/LastFieldTest`),
+  `fieldType`/`caps`/`flags`, `Snapshot` (`Password`, `Hidden(locked)`, `Field` nur mit Paketname,
+  `inputType`, `imeOptions`, Sprach-Tag, Zeit und Wahrheitswerten aus `InputAttributes`/`SettingsValues`),
+  `Live` (Wörterbuch vorhanden/geladen, zuletzt im Befehl, Chips in der Leiste), `effective` und
+  `verdict` (erster Grund in fester Reihenfolge, P232). Tests: `CT/FieldReportTest.kt`.
 - `ApplyOutcome.kt`: Ergebnis einer nativen Ersetzung (inklusive `UNKNOWN`, siehe Fallstrick P3).
 - `LocalTextActions.kt`: lokale Textwerkzeuge ohne Netz.
 - `C/charart/` (Etappe 53): die Zeichen-Kunst-Engine, reine Funktionen ohne Android; Abschnitt
@@ -394,6 +400,10 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   pro App (nur mit dem Schalter), dann die per Befehl gesetzte, dann die für alle Apps (P199).
   Nachprüfung 52: `onCurrentInputMethodSubtypeChanged` ruft nach `saveSubtypeForApp`
   `CommandAppSettings.onSwitchedInField` (eine Zeile, P219).
+  Etappe 55: eine Zeile in `onStartInputViewInternal` nach dem Laden der Einstellungen und der
+  Prüfung auf `editorInfo == null`, vor dem frühen Rücksprung ohne `MainKeyboardView`:
+  `LastField.capture(this, editorInfo, currentSettingsValues, mDictionaryFacilitator)` (wirft nie,
+  P233).
 - `InputLogic.java`: verwirft Caches und blockiert Eingabepfade nach einer unklaren Ersetzung
   (`ApplyOutcome.UNKNOWN`), unterdrückt Lernen nach generierter Übernahme. Ersetzen
   (`applyGeneratedText`) und Einfügen (`insertGeneratedText`) laufen durch dieselbe
@@ -2102,6 +2112,23 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `CommandAppSettings.onSwitchedInField` (P219).
   Texte: `agent_diagnose_strings.xml`. Tests: `AT/DiagnoseScreenTest.kt`,
   `InputLogicTest.subtypeSwitch*`.
+  Etappe 55 „Letztes Feld“: `A/LastField.kt` hält nur im Speicher den `FieldReport.Snapshot` des
+  letzten Felds, in dem die Tastatur gezeigt wurde. Zufuhr: `capture` (eine Zeile in
+  `LatinIME.onStartInputViewInternal`, P233), `onSubtypeSwitched` (aus `SubtypeSwitchLog.onSwitched`,
+  P234), `onStrip(chips, insideCommand)` (aus `KeyboardCommands.createChipsView`, jede Leiste mit
+  Leistenansicht). `snapshotOf` liest `InputAttributes` (`mInputType`, Paket,
+  `mShouldShowSuggestions`, `mInputTypeShouldAutoCorrect`, `mIsPasswordField`, `mNoLearning`) und
+  `SettingsValues` (`mSuggestionsEnabled`, `needsToLookupSuggestions()`, `mAutoCorrectEnabled`,
+  `mAutoCap`, `mIsLocked`, `mIncognitoModeEnabled`, `mLocale` …), dazu die Schalter
+  „Änderungsvorschläge“, „Mehr Autokorrektur“ und „Autom. Groß-/Kleinschreibung“ aus den
+  Einstellungen; Passwortfeld → nur `Password`, gesperrt/Inkognito/kein Lernen → nur `Hidden` (P235).
+  `live` fragt beim Öffnen die Wörterbücher der Engine (`WeakReference` auf den
+  `DictionaryFacilitator`, nur bei gleicher Sprache, sonst unbekannt). `Diagnose.lastField` (über
+  `Dispatchers.IO`: Wörterbuch-Dateien der Feldsprache, App-Name über den `PackageManager`) baut die
+  erste Karte der Seite; `verdictText` macht aus `FieldReport.verdict` einen Satz. Tests:
+  `AT/LastFieldTest.kt` (echte `EditorInfo` und `SettingsValues`, Plattformzahlen),
+  `AT/DiagnoseScreenTest.kt` (Karte, Kopieren, keine Feldtexte, Passwort, Inkognito, gesperrt),
+  `InputLogicTest.lastFieldHoldsWhatTheEngineUsedInTheField` (Weg durch LatinIME, Sprachwechsel).
 - `KeyboardProfileStore.kt`: das Designprofil enthält `agent_rgb_lighting` als Text
   (`Binding.freeText`); beim Lesen feldweise über `RgbSettings.parse` begrenzt, leer (Profile von
   vor 26) heißt „unverändert lassen“.
@@ -4756,26 +4783,59 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `SettingsValues`, bevor es die Tastatur setzt; `painterFor` und `onKeyPressed` vergleichen die
   Instanz (`WeakReference`) und rufen bei einer neuen `clearTaps`. Wer das Laden der Einstellungen
   ändert, muss diesen Wechsel erhalten.
+- **P232** Urteil der Karte „Letztes Feld“ (55): `FieldReport.verdict` nennt nur den ersten Grund,
+  in fester Reihenfolge: Passwort, gesperrt, Inkognito, kein Textfeld, Vorschläge (Leiste
+  ausgeblendet vor Einstellung vor App), Wörterbuch (fehlt vor nicht geladen), Autokorrektur
+  (Einstellung vor Adressfeld ohne URL-Erkennung vor „App verlangt sie nicht“ ohne „Mehr
+  Autokorrektur“), Großschreibung (Einstellung vor Schrift ohne Großbuchstaben vor keinen
+  `CAP_*`-Flags), zuletzt der flüchtige Zustand der letzten Leiste (im Befehl, Chips). Die Zweige
+  folgen den Formeln in `SettingsValues` (`mAutoCorrectEnabled`, `mSuggestionsEnabled`,
+  `needsToLookupSuggestions`) und `InputAttributes`; wer dort etwas ändert, prüft die Reihenfolge
+  und `CT/FieldReportTest`. „Die App verbietet Vorschläge“ ist eine Folgerung: Vorschläge aus,
+  Leiste da, Einstellung an. `FieldReport` kopiert die Plattformzahlen; `AT/LastFieldTest`
+  vergleicht sie mit `InputType`/`EditorInfo`.
+- **P233** Zeitpunkt der Aufnahme (55): `LastField.capture` steht in `onStartInputViewInternal`
+  nach `loadSettings` (sonst wären es die Werte des vorigen Felds) und vor dem frühen Rücksprung
+  ohne `MainKeyboardView` und vor `setNeutralSuggestionStrip` (die Zähler der Leiste beginnen
+  dort neu). Ein Haken in `AgentEditorController.startEditor` wäre zu früh: `onStartInputView` ruft
+  ihn vor dem Handler, die Einstellungen sind dann noch die alten. Die Wörterbücher laden im
+  Hintergrund; darum fragt die Seite sie erst beim Öffnen (`LastField.live`) statt zur Aufnahme,
+  und nur, wenn `mainLocale` noch die Sprache des Felds hat.
+- **P234** Sprachwechsel im Feld (55): `SubtypeSwitchLog.onSwitched` läuft vor `loadKeyboard`,
+  die Einstellungen sind dann noch die alten. Es setzt nur `LastField.onSubtypeSwitched`; erst
+  `LastField.current` übernimmt `Settings.getValues()`, und nur, wenn deren `InputAttributes` zum
+  selben Feld gehören (Paket und `mInputType`). Ohne Wechsel bleibt die Aufnahme, wie das Feld sie
+  hatte: ein später geänderter Schalter (`Settings.onSharedPreferenceChanged` lädt mit denselben
+  `InputAttributes` neu) ändert die Karte nicht.
+- **P235** Datenschutz der Karte (55): `FieldReport.Snapshot.Field` hat nur Paketname, Sprach-Tag,
+  Zahlen und Wahrheitswerte (`CT/FieldReportTest.aSnapshotHoldsNoTextOfTheField`); nie
+  `hintText`, `label`, `fieldName`, `privateImeOptions` oder Feldtext. Passwortfeld
+  (`mIsPasswordField`, jede Passwort-Variante) → nur `Password`; gesperrt (`mIsLocked`,
+  `isDeviceLocked`, `isUserLocked`) oder Inkognito (`mIncognitoModeEnabled`, `mNoLearning`,
+  `IME_FLAG_NO_PERSONALIZED_LEARNING` auch außerhalb von Textfeldern) → nur `Hidden`; beide
+  ersetzen das Feld davor. Nur im Speicher (Einstellungen und Tastatur teilen den Prozess, wie bei
+  `SubtypeSwitchLog`), nie geloggt. Der App-Name kommt erst beim Öffnen aus dem `PackageManager`
+  und wird nicht gemerkt.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (589 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (593 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (5): agent-apk, agent-tests, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (83): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (84): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand,
   ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand, CorrectionMemory,
   DateCommand, DesignLook, DesignTiles, Diagnose, Dictation, EmojiCommand, EmojiMixPalette,
   EmojiSuggestions, EncryptedActionRunStore, EventCommand, FieldCorrections, FieldSuggestionChips,
   FlatMenuView, FlatPanelStyle, FlatPreset, ForeignWords, FormatGuardChips, HapticChain,
-  JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore, LearningData,
+  JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore, LastField, LearningData,
   LoadingDotsView, ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData, MyDesigns,
   OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter, RgbLighting, RgbOwnPatterns, RgbStrip,
   RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore,
@@ -4793,7 +4853,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (6): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdatePrompts,
   UpdateSettings, Updates
-- `AT/` (99): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (100): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, CharArtWindowTest, ClipCommandTest, ClipVaultTest, CommandReplaceTest,
@@ -4803,44 +4863,44 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   EncryptedCredentialStoreTest, FieldCorrectionMemoryTest, FieldSuggestionChipsTest,
   FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest,
   ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest, InsertAtCursorTest,
-  JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LearningDataTest,
-  LoadingDotsViewTest, ManualWorkflowDraftTest, MemoryScreenTest, MoreCommandsTest,
-  MoreProvidersTest, MyDataScreenTest, MyDataStoreTest, MyDesignsTest, OpenAiProviderTest,
-  RgbFrameRateCardTest, RgbLightingRenderTest, RgbPatternEditorTest, RgbSettingsScreenTest,
-  RgbTilesTest, ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest, SettingsAreaAiTest,
-  SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest, SettingsKitTest,
-  SettingsLookScreenTest, SettingsStartScreenTest, SettingsSystemAreaTest, SettingsTypingAreaTest,
-  SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest, SmartPasteChipsTest, SnipCommandTest,
-  SpaceDetentsTest, SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal,
-  ToolRunnerTest, TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest,
-  TypoMemoryTest, UpdateCheckTest, UpdateChipTest, UpdatePromptsTest, WorkflowBuilderContractTest,
-  WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
-  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LastFieldTest,
+  LearningDataTest, LoadingDotsViewTest, ManualWorkflowDraftTest, MemoryScreenTest,
+  MoreCommandsTest, MoreProvidersTest, MyDataScreenTest, MyDataStoreTest, MyDesignsTest,
+  OpenAiProviderTest, RgbFrameRateCardTest, RgbLightingRenderTest, RgbPatternEditorTest,
+  RgbSettingsScreenTest, RgbTilesTest, ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest,
+  SettingsAreaAiTest, SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest,
+  SettingsKitTest, SettingsLookScreenTest, SettingsStartScreenTest, SettingsSystemAreaTest,
+  SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest,
+  SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest, SymbolInkTest,
+  SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest, TouchModelTest, TouchScenesScreenTest,
+  TouchZonesDynamicTest, TypedWordFirstTest, TypoMemoryTest, UpdateCheckTest, UpdateChipTest,
+  UpdatePromptsTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
+  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (9): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
   TranslateCommandTest, UrlCommandTest
-- `C/` (47): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
+- `C/` (48): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
   CorrectionRules, DateFormatting, EditorSession, EmojiKeywords, EmojiMix, EmojiNames,
-  EmojiSynonyms, EventParser, ExecutionPolicy, InkDots, InkRecognizer, InkSymbols, InkTiming,
-  LanguageNames, LocalTextActions, MathExpression, ModelProvider, OwnInkSymbols, PendingBatchGate,
-  PersonalInkSymbols, Places, Profiles, ReleaseNotes, RgbCurve, RgbLighting, RgbOwnPattern,
-  RgbPatternJson, RgbPatterns, SkillBinding, SnippetTemplate, SpecialCharacters, StyledTranslation,
-  SymbolTable, TextCondition, TimerParser, Tool, TouchDynamics, UnitConversion, UpdateReleases,
-  UrlDetector, Workflow
+  EmojiSynonyms, EventParser, ExecutionPolicy, FieldReport, InkDots, InkRecognizer, InkSymbols,
+  InkTiming, LanguageNames, LocalTextActions, MathExpression, ModelProvider, OwnInkSymbols,
+  PendingBatchGate, PersonalInkSymbols, Places, Profiles, ReleaseNotes, RgbCurve, RgbLighting,
+  RgbOwnPattern, RgbPatternJson, RgbPatterns, SkillBinding, SnippetTemplate, SpecialCharacters,
+  StyledTranslation, SymbolTable, TextCondition, TimerParser, Tool, TouchDynamics, UnitConversion,
+  UpdateReleases, UrlDetector, Workflow
 - `C/charart/` (6): BigFont, CharArt, Raster, Sketch, TextColumns, UnicodeStyle
 - `C/clip/` (6): ClipDates, ClipGuard, LinkCleaner, PrivateRanges, SmartPaste, TrackingNumbers
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `C/memory/` (4): OwnWords, PhraseMemory, ShortcutOffers, SnippetMatcher
 - `C/suggest/` (1): ContextSuggest
-- `CT/` (44): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
+- `CT/` (45): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
   CorrectionRulesTest, DateFormattingTest, EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest,
-  EventParserTest, InkAreaTest, InkBenchmarkTest, InkDotFlowTest, InkDotsTest, InkFingerModel,
-  InkRecognizerTest, InkTimingTest, InsertionAnchorTest, LanguageNamesTest, LocalTextActionsTest,
-  MathExpressionTest, OwnInkSymbolsTest, PendingBatchGateTest, PersonalInkSymbolsTest, PlacesTest,
-  QuestionCaptureTest, ReleaseNotesTest, RgbCurveTest, RgbFrameStatsTest, RgbLightingTest,
-  RgbOwnPatternTest, RgbPatternJsonTest, RgbPatternsTest, SkillBindingTest, SnippetTemplateTest,
-  StyledTranslationTest, SymbolTableTest, TimerParserTest, ToolTest, TouchDynamicsTest,
-  UnitConversionTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
+  EventParserTest, FieldReportTest, InkAreaTest, InkBenchmarkTest, InkDotFlowTest, InkDotsTest,
+  InkFingerModel, InkRecognizerTest, InkTimingTest, InsertionAnchorTest, LanguageNamesTest,
+  LocalTextActionsTest, MathExpressionTest, OwnInkSymbolsTest, PendingBatchGateTest,
+  PersonalInkSymbolsTest, PlacesTest, QuestionCaptureTest, ReleaseNotesTest, RgbCurveTest,
+  RgbFrameStatsTest, RgbLightingTest, RgbOwnPatternTest, RgbPatternJsonTest, RgbPatternsTest,
+  SkillBindingTest, SnippetTemplateTest, StyledTranslationTest, SymbolTableTest, TimerParserTest,
+  ToolTest, TouchDynamicsTest, UnitConversionTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
 - `CT/charart/` (2): CharArtTest, SketchTest
 - `CT/clip/` (3): ClipGuardTest, PrivateRangesTest, SmartPasteTest
 - `CT/format/` (1): FormatGuardTest

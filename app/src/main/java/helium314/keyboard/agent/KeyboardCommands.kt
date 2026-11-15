@@ -384,6 +384,8 @@ object KeyboardCommands {
      */
     @JvmStatic fun createChipsView(ime: LatinIME, parent: ViewGroup): View? =
         createChipsView(ime, parent) { ime.setNeutralSuggestionStrip() }
+            // stage 55: whether the keyboard's chips stood in the strip instead of suggestions, for the diagnose page
+            .also { LastField.onStrip(chips = it != null, insideCommand = suppressesCorrection()) }
 
     /** [neutral] shows the normal strip again when a rebuilt row would be empty. */
     internal fun createChipsView(ime: LatinIME, parent: ViewGroup, neutral: () -> Unit): View? {

@@ -7,6 +7,7 @@ import android.os.Looper
 import android.text.format.Formatter
 import android.view.accessibility.AccessibilityManager
 import dev.agentkeyboard.core.EmojiMixTable
+import dev.agentkeyboard.core.FieldReport
 import dev.agentkeyboard.core.RgbEngine
 import dev.agentkeyboard.core.RgbEngines
 import dev.agentkeyboard.core.RgbLook
@@ -14,6 +15,7 @@ import dev.agentkeyboard.core.RgbPatternLibrary
 import dev.agentkeyboard.core.RgbSettings
 import dev.agentkeyboard.core.RgbTarget
 import helium314.keyboard.agent.commands.EmojiMixClient
+import helium314.keyboard.compat.locale as configurationLocale
 import helium314.keyboard.agent.commands.EmojiMixer
 import helium314.keyboard.latin.BuildConfig
 import helium314.keyboard.latin.R
@@ -34,7 +36,7 @@ import java.util.Locale
  */
 object Diagnose {
     class Row(val label: String, val value: String)
-    enum class Part { HAPTICS, SYMBOLS, LANGUAGE, EMOJI_MIX, LIGHTING, DEVICE }
+    enum class Part { LAST_FIELD, HAPTICS, SYMBOLS, LANGUAGE, EMOJI_MIX, LIGHTING, DEVICE }
     class Section(val part: Part, val title: String, val rows: List<Row>)
 
     // --- haptics (HapticChain) ---
@@ -145,6 +147,165 @@ object Diagnose {
         val (userDicts, internal) = getUserAndInternalDictionaries(context, locale)
         internal || userDicts.any { it.name.startsWith(helium314.keyboard.latin.dictionary.Dictionary.TYPE_MAIN) }
     }.getOrDefault(false)
+
+    // --- the last field (stage 55, LastField) ---
+
+    /**
+     * The card "Letztes Feld": what the app allowed, what the keyboard switched off, the language and
+     * its dictionary, and one verdict. Lists the dictionary files of the field's language and asks
+     * the package manager for the app's name: call off the main thread. The values come from
+     * [LastField]; nothing from the field's text.
+     */
+    fun lastField(context: Context, nowElapsedMillis: Long): Section {
+        val title = context.getString(R.string.agent_diagnose_field_title)
+        val label = context.getString(R.string.agent_diagnose_field)
+        val verdict = context.getString(R.string.agent_diagnose_field_verdict)
+        return when (val snapshot = LastField.current(context)) {
+            null -> Section(Part.LAST_FIELD, title, listOf(Row(label, context.getString(R.string.agent_diagnose_field_none))))
+            FieldReport.Snapshot.Password -> Section(Part.LAST_FIELD, title, listOf(
+                Row(label, context.getString(R.string.agent_diagnose_field_password)),
+                Row(verdict, verdictText(context, FieldReport.verdict(snapshot))),
+            ))
+            is FieldReport.Snapshot.Hidden -> Section(Part.LAST_FIELD, title, listOf(
+                Row(label, context.getString(R.string.agent_diagnose_field_hidden)),
+                Row(verdict, verdictText(context, FieldReport.verdict(snapshot))),
+            ))
+            is FieldReport.Snapshot.Field -> {
+                val locale = runCatching { Locale.forLanguageTag(snapshot.languageTag) }.getOrNull()
+                val present = locale?.let { hasMainDictionary(context, it) }
+                fieldSection(context, snapshot, LastField.live(snapshot.languageTag, present), nowElapsedMillis)
+            }
+        }
+    }
+
+    /** The rows of a [FieldReport.Snapshot.Field] with what the page found out now ([live]). */
+    fun fieldSection(context: Context, field: FieldReport.Snapshot.Field, live: FieldReport.Live, nowElapsedMillis: Long): Section {
+        fun s(id: Int) = context.getString(id)
+        val seconds = ((nowElapsedMillis - field.atMillis) / 1000).coerceAtLeast(0)
+        val flags = field.flags.joinToString(", ") { flagText(context, it) }.ifEmpty { s(R.string.agent_diagnose_none) }
+        val dictionary = when {
+            live.dictionaryPresent == false -> s(R.string.agent_diagnose_missing)
+            live.dictionaryLoaded == true -> s(R.string.agent_diagnose_field_dictionary_loaded)
+            live.dictionaryLoaded == false -> s(R.string.agent_diagnose_field_dictionary_not_loaded)
+            live.dictionaryPresent == true -> s(R.string.agent_diagnose_present)
+            else -> s(R.string.agent_diagnose_field_unknown)
+        }
+        val effective = FieldReport.effective(field, live)
+        val chips = if (live.chipUpdates == 0) s(R.string.agent_diagnose_none)
+            else context.getString(R.string.agent_diagnose_field_chips_value, live.chipUpdates, live.stripUpdates)
+        val rows = listOf(
+            Row(s(R.string.agent_diagnose_field_app), field.packageName?.let { appName(context, it) } ?: s(R.string.agent_diagnose_field_unknown)),
+            Row(s(R.string.agent_diagnose_field_when), ago(context, seconds)),
+            Row(s(R.string.agent_diagnose_field_type), typeText(context, field.type)),
+            Row(s(R.string.agent_diagnose_field_flags), flags),
+            Row("inputType / imeOptions", String.format(Locale.ROOT, "0x%08x / 0x%08x", field.inputType, field.imeOptions)),
+            Row(s(R.string.agent_diagnose_field_app_suggestions), yesNo(context, field.appSuggestions)),
+            Row(s(R.string.agent_diagnose_field_app_caps), capsText(context, field.caps)),
+            Row(s(R.string.agent_diagnose_field_app_autocorrect), yesNo(context, field.appAutoCorrect)),
+            Row(s(R.string.agent_diagnose_field_language), languageName(context, field.languageTag)),
+            Row(s(R.string.agent_diagnose_field_dictionary), dictionary),
+            Row(s(R.string.agent_diagnose_field_suggestions_setting), onOff(context, field.suggestionsSetting)),
+            Row(s(R.string.agent_diagnose_field_strip),
+                s(if (field.stripHidden) R.string.agent_diagnose_field_strip_hidden else R.string.agent_diagnose_field_strip_shown)),
+            Row(s(R.string.agent_diagnose_field_autocorrect_setting), onOff(context, field.autoCorrectSetting)),
+            Row(s(R.string.agent_diagnose_field_more_autocorrect), onOff(context, field.moreAutoCorrect)),
+            Row(s(R.string.agent_diagnose_field_url_detection), onOff(context, field.urlDetection)),
+            Row(s(R.string.agent_diagnose_field_autocap_setting), onOff(context, field.autoCapSetting)),
+            // an incognito, locked or sensitive field never leaves a Field snapshot: these three are always off here
+            Row(s(R.string.agent_diagnose_field_incognito), onOff(context, false)),
+            Row(s(R.string.agent_diagnose_field_locked), yesNo(context, false)),
+            Row(s(R.string.agent_diagnose_field_sensitive), yesNo(context, false)),
+            Row(s(R.string.agent_diagnose_field_learning_paused), yesNo(context, field.learningPaused)),
+            Row(s(R.string.agent_diagnose_field_in_command), yesNo(context, live.inCommand)),
+            Row(s(R.string.agent_diagnose_field_chips), chips),
+            Row(s(R.string.agent_diagnose_field_result), context.getString(R.string.agent_diagnose_field_result_value,
+                onOff(context, effective.suggestions), onOff(context, effective.autoCorrect), onOff(context, effective.caps))),
+            Row(s(R.string.agent_diagnose_field_verdict), verdictText(context, FieldReport.verdict(field, live))),
+        )
+        return Section(Part.LAST_FIELD, s(R.string.agent_diagnose_field_title), rows)
+    }
+
+    /** "WhatsApp (com.whatsapp)" when the package manager knows the app, else the package name. */
+    private fun appName(context: Context, packageName: String): String = runCatching {
+        val manager = context.packageManager
+        val name = manager.getApplicationLabel(manager.getApplicationInfo(packageName, 0)).toString()
+        if (name.isBlank() || name == packageName) packageName else "$name ($packageName)"
+    }.getOrDefault(packageName)
+
+    /** "Spanisch (es)" in the language of the page. */
+    private fun languageName(context: Context, tag: String): String {
+        val name = displayLanguage(context, tag)
+        return if (name == tag) tag else "$name ($tag)"
+    }
+
+    private fun displayLanguage(context: Context, tag: String): String = runCatching {
+        Locale.forLanguageTag(tag).getDisplayLanguage(context.resources.configuration.configurationLocale())
+    }.getOrNull().orEmpty().ifEmpty { tag }
+
+    /** The verdict as one sentence. */
+    fun verdictText(context: Context, verdict: FieldReport.Verdict): String {
+        val language = verdict.languageTag?.let { displayLanguage(context, it) }.orEmpty()
+        return when (verdict.finding) {
+            FieldReport.Finding.PASSWORD -> context.getString(R.string.agent_diagnose_verdict_password)
+            FieldReport.Finding.LOCKED -> context.getString(R.string.agent_diagnose_verdict_locked)
+            FieldReport.Finding.INCOGNITO -> context.getString(R.string.agent_diagnose_verdict_incognito)
+            FieldReport.Finding.NO_TEXT_FIELD -> context.getString(R.string.agent_diagnose_verdict_no_text_field)
+            FieldReport.Finding.NOT_TEXT -> context.getString(R.string.agent_diagnose_verdict_not_text)
+            FieldReport.Finding.STRIP_HIDDEN -> context.getString(R.string.agent_diagnose_verdict_strip_hidden)
+            FieldReport.Finding.SUGGESTIONS_SETTING_OFF -> context.getString(R.string.agent_diagnose_verdict_suggestions_setting)
+            FieldReport.Finding.APP_NO_SUGGESTIONS -> context.getString(R.string.agent_diagnose_verdict_app_no_suggestions)
+            FieldReport.Finding.NO_DICTIONARY -> context.getString(R.string.agent_diagnose_verdict_no_dictionary, language)
+            FieldReport.Finding.DICTIONARY_NOT_LOADED -> context.getString(R.string.agent_diagnose_verdict_dictionary_not_loaded, language)
+            FieldReport.Finding.AUTOCORRECT_SETTING_OFF -> context.getString(R.string.agent_diagnose_verdict_autocorrect_setting)
+            FieldReport.Finding.AUTOCORRECT_ADDRESS -> context.getString(R.string.agent_diagnose_verdict_autocorrect_address)
+            FieldReport.Finding.AUTOCORRECT_APP -> context.getString(R.string.agent_diagnose_verdict_autocorrect_app)
+            FieldReport.Finding.AUTOCORRECT_OFF -> context.getString(R.string.agent_diagnose_verdict_autocorrect_off)
+            FieldReport.Finding.CAPS_SETTING_OFF -> context.getString(R.string.agent_diagnose_verdict_caps_setting)
+            FieldReport.Finding.CAPS_SCRIPT -> context.getString(R.string.agent_diagnose_verdict_caps_script, language)
+            FieldReport.Finding.CAPS_APP -> context.getString(R.string.agent_diagnose_verdict_caps_app)
+            FieldReport.Finding.IN_COMMAND -> context.getString(R.string.agent_diagnose_verdict_in_command)
+            FieldReport.Finding.CHIPS -> context.getString(R.string.agent_diagnose_verdict_chips)
+            FieldReport.Finding.ALL_ON -> context.getString(R.string.agent_diagnose_verdict_all_on)
+        }
+    }
+
+    private fun typeText(context: Context, type: FieldReport.FieldType) = context.getString(when (type) {
+        FieldReport.FieldType.NONE -> R.string.agent_diagnose_type_none
+        FieldReport.FieldType.TEXT -> R.string.agent_diagnose_type_text
+        FieldReport.FieldType.SEARCH -> R.string.agent_diagnose_type_search
+        FieldReport.FieldType.URL -> R.string.agent_diagnose_type_url
+        FieldReport.FieldType.EMAIL -> R.string.agent_diagnose_type_email
+        FieldReport.FieldType.PASSWORD -> R.string.agent_diagnose_field_password
+        FieldReport.FieldType.PERSON_NAME -> R.string.agent_diagnose_type_person_name
+        FieldReport.FieldType.POSTAL_ADDRESS -> R.string.agent_diagnose_type_postal_address
+        FieldReport.FieldType.SHORT_MESSAGE -> R.string.agent_diagnose_type_short_message
+        FieldReport.FieldType.LONG_MESSAGE -> R.string.agent_diagnose_type_long_message
+        FieldReport.FieldType.EMAIL_SUBJECT -> R.string.agent_diagnose_type_email_subject
+        FieldReport.FieldType.WEB_TEXT -> R.string.agent_diagnose_type_web_text
+        FieldReport.FieldType.FILTER -> R.string.agent_diagnose_type_filter
+        FieldReport.FieldType.PHONETIC -> R.string.agent_diagnose_type_phonetic
+        FieldReport.FieldType.NUMBER -> R.string.agent_diagnose_type_number
+        FieldReport.FieldType.PHONE -> R.string.agent_diagnose_type_phone
+        FieldReport.FieldType.DATETIME -> R.string.agent_diagnose_type_datetime
+    })
+
+    private fun flagText(context: Context, flag: FieldReport.Flag) = context.getString(when (flag) {
+        FieldReport.Flag.MULTI_LINE -> R.string.agent_diagnose_flag_multi_line
+        FieldReport.Flag.IME_MULTI_LINE -> R.string.agent_diagnose_flag_ime_multi_line
+        FieldReport.Flag.NO_SUGGESTIONS -> R.string.agent_diagnose_flag_no_suggestions
+        FieldReport.Flag.AUTO_CORRECT -> R.string.agent_diagnose_flag_auto_correct
+        FieldReport.Flag.AUTO_COMPLETE -> R.string.agent_diagnose_flag_auto_complete
+        FieldReport.Flag.SIGNED -> R.string.agent_diagnose_flag_signed
+        FieldReport.Flag.DECIMAL -> R.string.agent_diagnose_flag_decimal
+        FieldReport.Flag.FORCE_ASCII -> R.string.agent_diagnose_flag_force_ascii
+    })
+
+    private fun capsText(context: Context, caps: FieldReport.Caps) = context.getString(when (caps) {
+        FieldReport.Caps.NONE -> R.string.agent_diagnose_none
+        FieldReport.Caps.SENTENCES -> R.string.agent_diagnose_caps_sentences
+        FieldReport.Caps.WORDS -> R.string.agent_diagnose_caps_words
+        FieldReport.Caps.CHARACTERS -> R.string.agent_diagnose_caps_characters
+    })
 
     // --- language switches (SubtypeSwitchLog) ---
 

@@ -5,11 +5,14 @@ import android.app.Application
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.text.InputType
 import android.view.WindowManager
+import android.view.inputmethod.EditorInfo
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import helium314.keyboard.agent.commands.EmojiMixer
+import helium314.keyboard.latin.InputAttributes
 import helium314.keyboard.latin.common.LocaleUtils.constructLocale
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.SubtypeSettings
@@ -75,6 +78,7 @@ class DiagnoseScreenTest {
         EmojiMixer.resetForTest()
         EmojiMixer.calls = { http }
         SubtypeSwitchLog.clear()
+        LastField.clear() // stage 55: no field of another test class
         (app.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("x", secrets[0]))
         SymbolDrawing.saveOwnSymbols(app, emptyList())
     }
@@ -83,6 +87,7 @@ class DiagnoseScreenTest {
         HapticChain.deviceForTest = null
         EmojiMixer.resetForTest()
         SubtypeSwitchLog.clear()
+        LastField.clear()
         app.prefs().edit().clear().commit()
     }
 
@@ -202,5 +207,102 @@ class DiagnoseScreenTest {
         compose.waitForIdle()
         compose.onNode(hasText("Diagnose")).performScrollTo().performClick()
         assertEquals(helium314.keyboard.settings.SettingsDestination.AgentDiagnose, route)
+    }
+
+    // --- stage 55: the card "Letztes Feld" ---
+
+    /** Texts of the field the card must never show or copy. */
+    private val fieldTexts = listOf("GEHEIMER-HINWEIS", "GEHEIMES-LABEL", "geheimes_feld")
+
+    /** As LatinIME does when the keyboard starts in [editor]: settings loaded for the field, then the snapshot. */
+    private fun startIn(editor: EditorInfo) {
+        Settings.getInstance().loadSettings(app, java.util.Locale.GERMAN, InputAttributes(editor, false, app.packageName))
+        LastField.capture(app, editor, Settings.getValues(), null)
+    }
+
+    private fun field(inputType: Int, imeOptions: Int = 0) = EditorInfo().apply {
+        this.inputType = inputType
+        this.imeOptions = imeOptions
+        packageName = "com.example.suche"
+        hintText = fieldTexts[0]
+        label = fieldTexts[1]
+        fieldName = fieldTexts[2]
+    }
+
+    private fun exact(text: String) = compose.onNode(hasText(text, substring = false)).performScrollTo().assertExists()
+
+    @Test fun theLastFieldShowsWhatTheEngineUsedAndNoTextOfTheField() {
+        // a single-line search field: suggestions yes, capitals at sentence starts, no autocorrection (the app does not ask)
+        startIn(field(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES, EditorInfo.IME_ACTION_SEARCH))
+        page()
+        compose.waitUntil(5_000) { compose.onAllNodes(hasText("Urteil")).fetchSemanticsNodes().isNotEmpty() }
+        exact("com.example.suche")
+        exact("Suche")
+        exact("0x00004001 / 0x00000003")
+        exact("Satzanfänge")
+        exact("Deutsch (de)")
+        exact("Vorschläge an, Autokorrektur aus, Großschreibung an")
+        exact("Keine Autokorrektur: Die App verlangt sie in diesem Feld nicht, und „Mehr Autokorrektur“ ist aus.")
+        for (text in fieldTexts) compose.onAllNodes(hasText(text, substring = true)).assertCountEquals(0)
+        compose.onNodeWithTag("agent_diagnose_copy").performScrollTo().performClick()
+        compose.waitForIdle()
+        val copied = (app.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip!!.getItemAt(0).text.toString()
+        for (line in listOf("Letztes Feld", "App: com.example.suche", "Feldtyp: Suche", "App erlaubt Vorschläge: ja",
+            "App verlangt Großschreibung: Satzanfänge", "App wünscht Autokorrektur: nein", "Wörterbuch der Sprache: vorhanden",
+            "Urteil: Keine Autokorrektur: Die App verlangt sie"))
+            assertTrue(line in copied, "$line in\n$copied")
+        for (text in fieldTexts) assertFalse(text in copied, text)
+    }
+
+    @Test fun aFieldThatForbidsSuggestionsNamesTheApp() {
+        startIn(field(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or InputType.TYPE_TEXT_FLAG_MULTI_LINE))
+        page()
+        compose.waitUntil(5_000) { compose.onAllNodes(hasText("Urteil")).fetchSemanticsNodes().isNotEmpty() }
+        exact("mehrzeilig, keine Vorschläge")
+        exact("Keine Vorschläge: Die App verbietet sie in diesem Feld (damit auch keine Autokorrektur).")
+        exact("Vorschläge aus, Autokorrektur aus, Großschreibung aus")
+    }
+
+    @Test fun aPasswordFieldLeavesOnlyPasswortfeld() {
+        startIn(field(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES))
+        // the password field replaces the field before: its app is gone too
+        startIn(field(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD))
+        assertEquals(dev.agentkeyboard.core.FieldReport.Snapshot.Password, LastField.current(app))
+        page()
+        compose.waitUntil(5_000) { compose.onAllNodes(hasText("Urteil")).fetchSemanticsNodes().isNotEmpty() }
+        exact("Passwortfeld")
+        exact("Passwortfeld: Vorschläge, Autokorrektur und Lernen sind hier immer aus.")
+        compose.onAllNodes(hasText("com.example", substring = true)).assertCountEquals(0)
+        compose.onAllNodes(hasText("Feldtyp")).assertCountEquals(0)
+        for (text in fieldTexts) compose.onAllNodes(hasText(text, substring = true)).assertCountEquals(0)
+    }
+
+    @Test fun incognitoAndALockedDeviceRememberNothing() {
+        startIn(field(InputType.TYPE_CLASS_TEXT))
+        app.prefs().edit().putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true).commit()
+        startIn(field(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES))
+        assertEquals(dev.agentkeyboard.core.FieldReport.Snapshot.Hidden(locked = false), LastField.current(app))
+        // an app's own incognito (no personalized learning) as well
+        app.prefs().edit().putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, false).commit()
+        startIn(field(InputType.TYPE_CLASS_TEXT, EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING))
+        assertEquals(dev.agentkeyboard.core.FieldReport.Snapshot.Hidden(locked = false), LastField.current(app))
+        val keyguard = app.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+        org.robolectric.Shadows.shadowOf(keyguard).setIsDeviceLocked(true)
+        try {
+            startIn(field(InputType.TYPE_CLASS_TEXT))
+            assertEquals(dev.agentkeyboard.core.FieldReport.Snapshot.Hidden(locked = true), LastField.current(app))
+            page()
+            compose.waitUntil(5_000) { compose.onAllNodes(hasText("Urteil")).fetchSemanticsNodes().isNotEmpty() }
+            exact("Inkognito/gesperrt: nichts gemerkt")
+            exact("Gesperrt: nichts gemerkt; bei gesperrtem Gerät zeigt die Tastatur keine Vorschläge.")
+            compose.onAllNodes(hasText("com.example", substring = true)).assertCountEquals(0)
+        } finally {
+            org.robolectric.Shadows.shadowOf(keyguard).setIsDeviceLocked(false)
+        }
+    }
+
+    @Test fun withoutAFieldTheCardSaysSo() {
+        page()
+        exact("noch keins, seit die Tastatur läuft (nur im Speicher)")
     }
 }

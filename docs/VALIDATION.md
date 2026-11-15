@@ -5262,6 +5262,42 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   Befehl oder eine in Millisekunden verschobene Schreibmarke beim Nachlesen; sehr selten.
 - Tests: siehe nächster Eintrag des Leads bzw. Build-Log.
 
+## Etappe 55 (Diagnose: Letztes Feld)
+
+- Auftrag: Owner-Entscheidung vom 2026-11-15 (`docs/ROADMAP.md` → 55) nach „Stellenweise gibt's gar
+  keine Vorschläge, Groß-/Kleinschreibung, Autokorrektur etc.“. Gebaut wurde nur die Diagnose; eine
+  Ursache ist damit nicht behoben.
+- Neu: `C/FieldReport.kt` (Modell, Feldtyp, Flags, Urteil), `A/LastField.kt` (Aufnahme im Speicher),
+  Karte „Letztes Feld“ als erster Abschnitt in `Diagnose`/`AgentDiagnoseScreen`, Texte in
+  `agent_diagnose_strings.xml` (Englisch, Deutsch). Haken: eine Zeile in
+  `LatinIME.onStartInputViewInternal` (`LastField.capture`, nach `loadSettings`), eine Zeile in
+  `SubtypeSwitchLog.onSwitched`, ein `.also` in `KeyboardCommands.createChipsView`. `InputLogic`,
+  `RichInputConnection`, `PointerTracker` unverändert. Fallstricke P232–P235.
+- Neue Tests: `CT/FieldReportTest.kt` (14: alles an → „Alles an“, Flag „keine Vorschläge“, keine
+  `CAP_*`-Flags, URL- und E-Mail-Feld, Suchfeld ohne Autokorrektur-Wunsch, Autokorrektur in den
+  Einstellungen aus, Passwort, kein Wörterbuch bzw. nicht geladen, Inkognito und gesperrt, im
+  Befehl und Chips, keine Textfelder, Namen der Variationen, keine Textfelder im Snapshot),
+  `AT/LastFieldTest.kt` (6: Plattformzahlen gegen `InputType`/`EditorInfo`, Werte gleich
+  `SettingsValues`, Gründe echter Felder einschließlich „Mehr Autokorrektur“ und Schalter,
+  Sprachwechsel im selben Feld übernommen und für ein anderes Feld nicht, Zähler der Leiste,
+  Passwort und „Meine Daten“-Feld ersetzen das Feld davor), `AT/DiagnoseScreenTest.kt` (+5: Karte
+  mit App, Feldtyp, Zahlen, Urteil und Kopieren, kein Hinweistext/Label/Feldname; Feld ohne
+  Vorschläge; Passwortfeld nur „Passwortfeld“; Inkognito, App-Inkognito und gesperrt „nichts
+  gemerkt“; ohne Feld „noch keins“; `LastField.clear` in `setUp`/`tearDown`, keine Assertion
+  geändert), `InputLogicTest.lastFieldHoldsWhatTheEngineUsedInTheField` (Weg durch LatinIME, Werte
+  gleich `settingsValues`, Sprachwechsel de → es, Passwortfeld).
+- Gelaufen (2026-11-15, `--max-workers=1 -Xmx1536m`): `:agent-core:test` grün (584 Tests);
+  `:app:testDebugUnitTest` mit `LastFieldTest` (6), `DiagnoseScreenTest` (12) und
+  `InputLogicTest.lastField*`/`subtypeSwitch*` (5) grün; `*InputLogicTest` 268 Tests, nur der
+  geerbte Fehler `insertLetterIntoWordHangulFails`. Lint (`:app:lintDebugNoMinify` mit denselben
+  Optionen wie `tools/dev.py lint`, aber `--max-workers=1 -Xmx1536m`): 0 Fehler; die eine neue
+  Warnung (Plural bei „%2$d Leisten“) danach durch einen Text ohne Zählwort behoben, Lint danach
+  nicht erneut gelaufen, `LastFieldTest`/`DiagnoseScreenTest` erneut grün. `docs_sync --check` grün.
+- Engine-nahe Änderung (Prüfer Pflicht): die Zeile in `LatinIME.java`.
+- Nicht gelaufen: volle Suite, `tools/dev.py agent-tests`, Build, Gerätetest (echte Apps, App-Name
+  über den `PackageManager` auf Android 11+, Wörterbuch-Zustand der laufenden Engine, Screenshot der
+  Karte).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

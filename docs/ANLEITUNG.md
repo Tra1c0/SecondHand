@@ -1418,6 +1418,18 @@ gemessen) und die Versionen. „gstatic erreichbar?“ lädt nur bei diesem Tipp
 „Kopieren“ legt genau die angezeigten Werte in die Zwischenablage, zum Weitergeben; ein
 Screenshot geht auch.
 
+**Keine Vorschläge, keine Großschreibung oder keine Autokorrektur?** Lass die App, in der es
+passiert, offen, wechsle direkt zu Einstellungen → Diagnose (ohne vorher in ein anderes Textfeld
+zu tippen) und mach einen Screenshot der ersten Karte „Letztes Feld“. Sie zeigt für das letzte
+Feld, in dem die Tastatur offen war: die App, den Feldtyp (z. B. „Suche“, „Adresse (URL)“), was die
+App erlaubt (Vorschläge, Großschreibung, Autokorrektur), die Sprache und ob ihr Wörterbuch geladen
+ist, was die Tastatur selbst abgeschaltet hat, und ganz unten das Urteil in einem Satz, z. B.
+„Keine Autokorrektur: Die App verlangt sie in diesem Feld nicht, und „Mehr Autokorrektur“ ist aus.“
+Schick den Screenshot (oder „Kopieren“) an den Lead. Feldtexte stehen dort nie. In einem
+Passwortfeld steht nur „Passwortfeld“, im Inkognito-Modus und bei gesperrtem Telefon nur
+„Inkognito/gesperrt: nichts gemerkt“. Die Karte lebt nur im Speicher; nach einem Neustart der
+Tastatur steht dort „noch keins“.
+
 Schreib dazu auf, was hilft, den Fehler zu finden:
 
 - Telefon und Android-Version,

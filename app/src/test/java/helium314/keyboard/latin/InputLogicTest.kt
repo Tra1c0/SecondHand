@@ -5452,6 +5452,51 @@ class InputLogicTest {
         }
     }
 
+    // stage 55: the card "Letztes Feld" gets the values the engine used when the keyboard started in the field
+    @Test fun lastFieldHoldsWhatTheEngineUsedInTheField() {
+        val lastField = helium314.keyboard.agent.LastField
+        val german = SubtypeSettings.getResourceSubtypesForLocale("de".constructLocale()).first()
+        val spanish = SubtypeSettings.getResourceSubtypesForLocale("es".constructLocale()).first()
+        for (subtype in listOf(german, spanish)) SubtypeSettings.addEnabledSubtype(latinIME.prefs(), subtype)
+        try {
+            latinIME.switchToSubtype(german)
+            ShadowInputMethodService.currentPackageName = "com.example.chat"
+            currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            setText("")
+            val forbidden = lastField.current(latinIME) as dev.agentkeyboard.core.FieldReport.Snapshot.Field
+            assertEquals("com.example.chat", forbidden.packageName)
+            assertEquals(settingsValues.mInputAttributes.mInputType, forbidden.inputType)
+            assertFalse(forbidden.appSuggestions)
+            assertEquals(settingsValues.mSuggestionsEnabled, forbidden.suggestionsShown)
+            assertEquals(settingsValues.needsToLookupSuggestions(), forbidden.lookups)
+            assertEquals(settingsValues.mAutoCorrectEnabled, forbidden.autoCorrectEnabled)
+            assertEquals(dev.agentkeyboard.core.FieldReport.Finding.APP_NO_SUGGESTIONS,
+                dev.agentkeyboard.core.FieldReport.verdict(forbidden).finding)
+            // a message field, then a language switch in it: the card takes the settings the engine reloaded
+            currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            setText("")
+            val message = lastField.current(latinIME) as dev.agentkeyboard.core.FieldReport.Snapshot.Field
+            assertEquals("de", message.languageTag)
+            assertTrue(message.suggestionsShown && message.autoCorrectEnabled && message.autoCap)
+            latinIME.switchToSubtype(spanish)
+            handleMessages()
+            val switched = lastField.current(latinIME) as dev.agentkeyboard.core.FieldReport.Snapshot.Field
+            assertEquals(settingsValues.mLocale.toLanguageTag(), switched.languageTag)
+            assertEquals("es", switched.languageTag)
+            assertEquals(message.atMillis, switched.atMillis)
+            // a password field leaves nothing but its kind
+            currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setText("")
+            assertEquals(dev.agentkeyboard.core.FieldReport.Snapshot.Password, lastField.current(latinIME))
+        } finally {
+            ShadowInputMethodService.currentPackageName = null
+            latinIME.switchToSubtype(german)
+            for (subtype in listOf(spanish, german)) SubtypeSettings.removeEnabledSubtype(latinIME, subtype)
+            lastField.clear()
+            switchLog.clear()
+        }
+    }
+
     private lateinit var screenshotImage: java.io.File
 
     /**

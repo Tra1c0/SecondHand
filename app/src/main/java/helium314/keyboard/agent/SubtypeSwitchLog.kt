@@ -84,6 +84,7 @@ object SubtypeSwitchLog {
         val noted = pending?.takeIf { it.target == subtype && fresh(it) }
         pending = null
         add(Entry(noted?.reason ?: Reason.SYSTEM, now(), tag(subtype)))
+        LastField.onSubtypeSwitched() // stage 55: the card "Letztes Feld" takes the settings reloaded for the new language
     }
 
     /** The app restarted the field and a command's choice of [subtype] was kept; repeated restarts make one entry. */

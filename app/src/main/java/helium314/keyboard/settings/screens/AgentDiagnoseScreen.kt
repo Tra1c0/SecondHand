@@ -60,8 +60,12 @@ fun AgentDiagnoseScreen(onClickBack: () -> Unit) {
     var reach by remember { mutableStateOf<Diagnose.Reach?>(null) }
     // stage 30 fix: every section is built once (as the page opens), not on each recomposition
     var symbols by remember { mutableStateOf<Diagnose.Section?>(null) }
+    var lastField by remember { mutableStateOf<Diagnose.Section?>(null) }
     LaunchedEffect(Unit) {
         val app = context.applicationContext ?: context
+        // stage 55: the last field, first on the page; its dictionary files and the app's name off the main thread
+        val opened = SystemClock.elapsedRealtime()
+        lastField = withContext(Dispatchers.IO) { Diagnose.lastField(context, opened) }
         // lists the dictionary files: off the main thread
         symbols = withContext(Dispatchers.IO) { Diagnose.symbols(context) }
         // the table the keyboard has in memory (main thread), else read from the asset; both offline
@@ -81,7 +85,7 @@ fun AgentDiagnoseScreen(onClickBack: () -> Unit) {
     }
     val lighting = remember(lightPatterns) { Diagnose.lighting(context, helium314.keyboard.agent.RgbLighting.lastFrameWork(), lightPatterns) }
     val emojiMix = remember(table, tableRead, cache, reach) { Diagnose.emojiMix(context, table, tableRead, cache, reach) }
-    val sections = remember(symbols, emojiMix, lighting) { listOfNotNull(haptics, symbols, languages, emojiMix, lighting, phone) }
+    val sections = remember(lastField, symbols, emojiMix, lighting) { listOfNotNull(lastField, haptics, symbols, languages, emojiMix, lighting, phone) }
     SearchSettingsScreen(onClickBack, stringResource(R.string.agent_diagnose_title), emptyList()) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
