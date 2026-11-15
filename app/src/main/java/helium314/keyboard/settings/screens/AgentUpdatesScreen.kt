@@ -44,8 +44,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * The opt-in update check (no account, no token): daily switch, "check now", last result and,
- * when a newer build exists, download and install after the user's own click.
+ * The update check (no account, no token): the switch of the check when the keyboard opens (stage
+ * 56, default on), the opt-in daily switch, "check now", last result and, when a newer build
+ * exists, download and install after the user's own click.
  */
 @Composable
 fun AgentUpdatesScreen(onClickBack: () -> Unit) {
@@ -77,6 +78,7 @@ private fun AgentUpdatesUnlockedScreen(onClickBack: () -> Unit, resumed: Int) {
     val scope = rememberCoroutineScope()
     val installed = remember { runCatching { Updates.installedVersion(context) }.getOrDefault(0L) }
     var daily by remember { mutableStateOf(settings.daily) }
+    var onOpen by remember { mutableStateOf(settings.onOpen) }
     var status by remember { mutableStateOf(settings.status) }
     var busy by remember { mutableStateOf(false) }
     var progress by remember { mutableStateOf<Pair<Long, Long>?>(null) }
@@ -135,6 +137,17 @@ private fun AgentUpdatesUnlockedScreen(onClickBack: () -> Unit, resumed: Int) {
             Text(stringResource(R.string.agent_updates_repository, UpdateReleases.REPOSITORY),
                 style = MaterialTheme.typography.bodySmall)
             Text(stringResource(R.string.agent_updates_installed, installed), style = MaterialTheme.typography.bodySmall)
+            // stage 56: check when the keyboard opens, default on; the daily job and "check now" stay as they are
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.agent_updates_on_open), style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(if (onOpen) R.string.agent_updates_on_open_on else R.string.agent_updates_on_open_off),
+                        style = MaterialTheme.typography.bodySmall)
+                }
+                Switch(checked = onOpen, onCheckedChange = { enabled ->
+                    runCatching { settings.onOpen = enabled }.onSuccess { onOpen = enabled }
+                })
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(stringResource(R.string.agent_updates_daily), style = MaterialTheme.typography.titleMedium)

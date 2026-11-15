@@ -44,19 +44,27 @@ und keinen Token.
    erlauben und zurückkommen. Die App lädt die Datei, prüft Prüfsumme, Paketname und Signatur und
    übergibt sie an Android; du bestätigst die Installation im Systemdialog. Passt etwas nicht,
    wird die Datei gelöscht und nichts installiert.
-4. Optional „Täglich nach Updates suchen“ (anfangs aus): Etwa einmal am Tag und nur mit Netz
+4. „Neue Builds sofort melden“ (anfangs an): Die Tastatur prüft beim Öffnen selbst, höchstens alle
+   15 Minuten (nach Fehlschlägen seltener), ob es einen neuen Build gibt. Gesendet wird nur eine
+   Anfrage nach der Release-Liste an api.github.com, nie etwas, das du tippst. Nicht bei gesperrtem
+   Gerät, in Inkognito- oder Passwortfeldern, mit Datensparmodus oder ohne Netz. Findet sie einen
+   neuen Build, steht in der leeren Leiste sofort „⬆ Build 7 verfügbar“ (nie statt Wortvorschlägen);
+   ein Tipp darauf öffnet die Seite „Updates“, geladen und installiert wird weiter nur nach deinem
+   Tipp dort. Ausschalten: Einstellungen → „Updates“ → „Neue Builds sofort melden“; dann fragt die
+   Tastatur nie selbst, nur „Jetzt prüfen“ und die tägliche Suche.
+5. Optional „Täglich nach Updates suchen“ (anfangs aus): Etwa einmal am Tag und nur mit Netz
    fragt die App nach einem neuen Build. Ab Android 13 fragt Android beim Einschalten, ob die App
    Benachrichtigungen zeigen darf. Ein neuer Build meldet sich einmal als „Agent Keyboard: Build 7
    verfügbar“; ein Tipp öffnet die Seite „Updates“, geladen wird erst nach deinem Tipp dort.
    Ausschalten beendet die tägliche Suche sofort.
-5. Hat eine Prüfung einen neuen Build gefunden, erscheint beim nächsten Öffnen der Einstellungen
+6. Hat eine Prüfung einen neuen Build gefunden, erscheint beim nächsten Öffnen der Einstellungen
    „Build 7 ist da“ mit seinen Notizen („Alle Notizen anzeigen“ klappt lange Notizen auf).
    „Installieren“ öffnet die Seite „Updates“ und startet dort gleich den Download (weiter wie in
    Schritt 3); „Später“ fragt für diesen Build nicht mehr, erst für einen neueren wieder.
-6. In der Tastatur steht dann in der leeren Leiste „⬆ Build 7 verfügbar“ (am Feldanfang oder
+7. In der Tastatur steht dann in der leeren Leiste „⬆ Build 7 verfügbar“ (am Feldanfang oder
    nachdem du alles gelöscht hast; beim Tippen haben die Wortvorschläge Vorrang). Ein Tipp öffnet
    die Seite „Updates“. Bei gesperrtem Gerät fehlt der Chip. Nach der Installation verschwindet er.
-7. Nach dem Update zeigen die Einstellungen beim ersten Öffnen einmal „Neu in Build 7“ mit den
+8. Nach dem Update zeigen die Einstellungen beim ersten Öffnen einmal „Neu in Build 7“ mit den
    Notizen, die in der APK stecken (kein Netz nötig). „OK“ schließt den Dialog für immer.
 
 Für Freunde: Die APK einmal von der Release-Seite oben im Browser des Telefons herunterladen und

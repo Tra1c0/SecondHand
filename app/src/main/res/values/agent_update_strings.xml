@@ -2,10 +2,13 @@
 <!-- Opt-in update check (own file so parallel work on agent_strings.xml does not collide). English and German only. -->
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="agent_updates_title">Updates</string>
-    <string name="agent_updates_description">Optional: looks on GitHub for a newer build of this app in the public release repository. No account and no token: only api.github.com is asked (plus GitHub\'s download server when you install a build), never while typing.</string>
+    <string name="agent_updates_description">Looks on GitHub for a newer build of this app in the public release repository. No account and no token: only api.github.com is asked (plus GitHub\'s download server when you install a build). Nothing you type is ever sent, and the download always waits for your tap.</string>
     <string name="agent_updates_unlock">Unlock the device to change the update settings.</string>
     <string name="agent_updates_repository">Repository: %s</string>
     <string name="agent_updates_installed">Installed: build %d</string>
+    <string name="agent_updates_on_open">Report new builds right away</string>
+    <string name="agent_updates_on_open_on">The keyboard checks by itself when it opens, at most every 15 minutes: one request for the release list to api.github.com, never anything typed. Not while locked, in incognito or password fields, with Data Saver or without a network. A new build shows as “⬆ Build N available” in the strip.</string>
+    <string name="agent_updates_on_open_off">Off: the keyboard never asks by itself; only “Check now” and the daily check do.</string>
     <string name="agent_updates_daily">Check for updates daily</string>
     <string name="agent_updates_daily_summary">About once a day and only with a network connection. Shows a notification when a new build exists.</string>
     <string name="agent_updates_notifications_refused">Notifications are not allowed. The daily check still runs, but cannot tell you about a new build.</string>

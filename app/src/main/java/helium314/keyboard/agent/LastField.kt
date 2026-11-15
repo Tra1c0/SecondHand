@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.SystemClock
 import android.view.inputmethod.EditorInfo
 import dev.agentkeyboard.core.FieldReport
+import helium314.keyboard.agent.updates.UpdateOnOpen
 import helium314.keyboard.latin.DictionaryFacilitator
 import helium314.keyboard.latin.settings.Defaults
 import helium314.keyboard.latin.settings.Settings
@@ -31,7 +32,8 @@ import java.util.Locale
  * settings the engine reloaded for the new language), by [KeyboardCommands.createChipsView]
  * ([onStrip]: the keyboard's chips, a command) and by `SuggestionStripView` ([onStripView]: what the
  * strip shows). Called from the engine: nothing in here may throw. One lock for every call (review
- * of stage 55, M1).
+ * of stage 55, M1). Stage 56: [capture] also starts [UpdateOnOpen] (no new engine line), and
+ * [stripNeutral] tells it whether the strip of the field is empty.
  */
 object LastField {
     private val lock = Any()
@@ -60,6 +62,9 @@ object LastField {
 
     /** `LatinIME.onStartInputViewInternal`, once the settings for [editorInfo] are loaded. */
     @JvmStatic fun capture(context: Context, editorInfo: EditorInfo?, settings: SettingsValues?, dictionaries: DictionaryFacilitator?) {
+        // stage 56: the same engine line starts the update check on open; it never throws, never blocks
+        // and returns at once (the request runs on its own thread)
+        UpdateOnOpen.onStartInputView(context, editorInfo, settings)
         synchronized(lock) {
             runCatching {
                 val values = settings ?: return
@@ -131,6 +136,16 @@ object LastField {
                 && kind != FieldReport.Strip.EMOJIS && kind != FieldReport.Strip.PILL && kind != FieldReport.Strip.KEYBOARD_CHIPS) return
             strip = StripState(kind, wordsOffered && !external)
         }
+    }
+
+    /**
+     * Stage 56: the strip of the current field last showed the empty neutral strip (no words, no
+     * chips, no pill, no toolbar, no emoji row), so [UpdateOnOpen] may show the update chip there.
+     * False in password, incognito and locked fields, in the keyboard's own settings and before the
+     * strip reported for this field.
+     */
+    @JvmStatic fun stripNeutral(): Boolean = synchronized(lock) {
+        counting() && !inCommand && strip?.strip == FieldReport.Strip.EMPTY
     }
 
     /** The snapshot, null before the keyboard was shown in a field. */

@@ -26,6 +26,31 @@ class UpdateSettings(context: Context) {
         get() = storage.getBoolean("daily", false)
         set(value) { check(storage.edit().putBoolean("daily", value).commit()) }
 
+    /**
+     * Stage 56 "Neue Builds sofort melden": check when the keyboard opens ([UpdateOnOpen]), at most
+     * every 15 minutes. Default on (owner, 2026-11-15); off, the keyboard never asks by itself.
+     */
+    var onOpen: Boolean
+        get() = storage.getBoolean("on_open", true)
+        set(value) { check(storage.edit().putBoolean("on_open", value).commit()) }
+
+    /** Stage 56: when the last check on open started (epoch milliseconds, 0 = never), for the 15-minute limit. */
+    var openAttemptAt: Long
+        get() = storage.getLong("open_attempt_at", 0)
+        set(value) { check(storage.edit().putLong("open_attempt_at", value).commit()) }
+
+    /** Stage 56: failed checks on open in a row; each doubles the wait ([dev.agentkeyboard.core.UpdateOnOpenPolicy]). */
+    var openFailures: Int
+        get() = storage.getInt("open_failures", 0)
+        set(value) { check(storage.edit().putInt("open_failures", value).commit()) }
+
+    /**
+     * Stage 56: the `ETag` of the release list the stored result ([knownBuild], [comparedVersion])
+     * came from; sent as `If-None-Match` while the installed version is still [comparedVersion].
+     * Only [remember] writes it.
+     */
+    val etag: String? get() = storage.getString("etag", null)
+
     /** Highest build a notification was already shown for, so each build notifies once. */
     var notifiedBuild: Long
         get() = storage.getLong("notified_build", 0)
@@ -50,10 +75,14 @@ class UpdateSettings(context: Context) {
     /** The installed version code the last successful check compared with (0 = never checked). */
     val comparedVersion: Long get() = storage.getLong("compared_version", 0)
 
-    /** Stores what a successful check found: [build] above [installed], or null for none. One commit. */
-    fun remember(build: AvailableBuild?, installed: Long) {
+    /**
+     * Stores what a successful check found: [build] above [installed], or null for none, and the
+     * [etag] of that release list (null forgets the old one). One commit.
+     */
+    fun remember(build: AvailableBuild?, installed: Long, etag: String? = null) {
         val notes = ReleaseNotes.cap(build?.notes.orEmpty())
         val editor = storage.edit().putLong("compared_version", installed)
+        if (etag == null) editor.remove("etag") else editor.putString("etag", etag)
         if (build == null) editor.remove("known_build").remove("known_notes").remove("known_notes_truncated")
         else editor.putLong("known_build", build.number).putString("known_notes", notes.text)
             .putBoolean("known_notes_truncated", notes.truncated)

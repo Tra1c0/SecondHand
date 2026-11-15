@@ -51,14 +51,25 @@ class UpdateCheckTest {
             .body(body.toResponseBody()).build()
 
     /** Offline fake of GitHub: the API, the public download URL and the storage host it redirects to. */
+    /**
+     * Stage 56: [etag] is the ETag of [releases] (sent with each 200; a matching `If-None-Match` gets
+     * 304, also any `If-None-Match` with [alwaysNotModified]); [listCode] other than 200 answers the
+     * list with that code and [listHeaders].
+     */
     private fun client(releases: String = releasesJson(7, 5), checksum: String? = null, apk: ByteArray = apkBytes,
-                       redirect: String = "https://release-assets.example.net/signed?x=1"): GitHubUpdateClient {
+                       redirect: String = "https://release-assets.example.net/signed?x=1", etag: String? = null,
+                       listCode: Int = 200, listHeaders: Map<String, String> = emptyMap(), alwaysNotModified: Boolean = false): GitHubUpdateClient {
         val http = OkHttpClient.Builder().followRedirects(false).addInterceptor { chain ->
             val request = chain.request()
             requests += request
             val url = request.url.toString()
+            val sent = request.header("If-None-Match")
             when {
-                url == GitHubUpdateClient.RELEASES_URL -> response(request, 200, releases.toByteArray())
+                url == GitHubUpdateClient.RELEASES_URL && listCode != 200 -> response(request, listCode, headers = listHeaders)
+                url == GitHubUpdateClient.RELEASES_URL && (alwaysNotModified || (sent != null && sent == etag)) ->
+                    response(request, 304, headers = etag?.let { mapOf("ETag" to it) }.orEmpty())
+                url == GitHubUpdateClient.RELEASES_URL ->
+                    response(request, 200, releases.toByteArray(), headers = etag?.let { mapOf("ETag" to it) }.orEmpty())
                 url.endsWith(".sha256") -> response(request, 200,
                     (checksum ?: "${sha(apk)}  ${request.url.pathSegments.last().removeSuffix(".sha256")}\n").toByteArray())
                 url.startsWith(UpdateReleases.RELEASES_PAGE + "/download/") -> response(request, 302, headers = mapOf("Location" to redirect))
@@ -124,6 +135,62 @@ class UpdateCheckTest {
             GitHubUpdateClient.parseReleases(releasesJson(3).replace(""""notes of build-3"""", "5"))
         }.error)
         assertEquals(4, requests.size, "only the four checks asked")
+    }
+
+    /** Stage 56: the ETag of a 200 is stored and sent back; a 304 keeps the stored result, a failure the known state. */
+    @Test fun theETagIsStoredAndSentAndA304KeepsTheResult() {
+        val first = "W/\"aaa111\""
+        assertEquals(UpdateStatus.Available(7), Updates.check(app, { client(etag = first) }, installed = 6))
+        assertNull(requests.last().header("If-None-Match"), "nothing stored yet")
+        UpdateSettings(app).let { assertEquals(first, it.etag); assertEquals(7L, it.knownBuild) }
+
+        // unchanged: 304, the result stays and only the time of the check is new
+        UpdateSettings(app).checkedAt = 0
+        assertEquals(UpdateStatus.Available(7), Updates.check(app, { client(releases = "[broken", etag = first) }, installed = 6))
+        assertEquals(first, requests.last().header("If-None-Match"))
+        UpdateSettings(app).let {
+            assertEquals(UpdateStatus.Available(7), it.status)
+            assertEquals(7L, it.knownBuild)
+            assertEquals("notes of build-7", it.knownNotes)
+            assertEquals(6L, it.comparedVersion)
+            assertEquals(first, it.etag)
+            assertTrue(it.checkedAt > 0)
+        }
+
+        // rate limits (403 with no requests left, 429) and other failures keep the known state and the ETag
+        for ((code, headers) in listOf(403 to mapOf("x-ratelimit-remaining" to "0"), 429 to emptyMap()))
+            assertEquals(UpdateStatus.Failed(UpdateError.RATE_LIMIT),
+                Updates.check(app, { client(etag = first, listCode = code, listHeaders = headers) }, installed = 6))
+        assertEquals(UpdateStatus.Failed(UpdateError.SERVICE), Updates.check(app, { client(etag = first, listCode = 403) }, installed = 6))
+        UpdateSettings(app).let { assertEquals(7L, it.knownBuild); assertEquals(first, it.etag); assertEquals(6L, it.comparedVersion) }
+        // a 304 after the failure brings back the stored result
+        assertEquals(UpdateStatus.Available(7), Updates.check(app, { client(etag = first) }, installed = 6))
+        assertEquals(UpdateStatus.Available(7), UpdateSettings(app).status)
+
+        // the list changed: a new ETag replaces the old one
+        val second = "\"bbb222\""
+        assertEquals(UpdateStatus.Available(9), Updates.check(app, { client(releases = releasesJson(9, 7), etag = second) }, installed = 6))
+        assertEquals(first, requests.last().header("If-None-Match"))
+        UpdateSettings(app).let { assertEquals(second, it.etag); assertEquals(9L, it.knownBuild) }
+
+        // another installed version: the stored result was compared with 6, so the ETag is not sent
+        assertEquals(UpdateStatus.Current(9), Updates.check(app, { client(releases = releasesJson(9, 7), etag = second) }, installed = 9))
+        assertNull(requests.last().header("If-None-Match"))
+        UpdateSettings(app).let { assertEquals(0L, it.knownBuild); assertEquals(9L, it.comparedVersion); assertEquals(second, it.etag) }
+
+        // an ETag that may not be sent back (a space, a line break) is not kept; without one nothing is sent
+        Updates.check(app, { client(releases = releasesJson(9), etag = "\"x y\"") }, installed = 9)
+        assertNull(UpdateSettings(app).etag)
+        Updates.check(app, { client(releases = releasesJson(9)) }, installed = 9)
+        assertNull(requests.last().header("If-None-Match"))
+        // a 304 to a request without If-None-Match is no answer to trust
+        assertEquals(UpdateStatus.Failed(UpdateError.SERVICE), Updates.check(app, { client(alwaysNotModified = true) }, installed = 9))
+        assertEquals(UpdateStatus.Failed(UpdateError.SERVICE), UpdateSettings(app).status)
+        // the download asks for the full list again, never with If-None-Match
+        UpdateSettings(app).remember(null, 6, first)
+        Updates.downloadAndInstall(app, client(etag = first), inspector(own.copy(versionCode = 7)), own, session)
+        assertEquals(1, installedFiles)
+        assertNull(requests.last { it.url.toString() == GitHubUpdateClient.RELEASES_URL }.header("If-None-Match"))
     }
 
     @Test fun parsingIsStrictAndErrorsBecomeNeutralStatus() {

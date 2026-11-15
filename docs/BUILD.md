@@ -105,6 +105,15 @@ nutzen einen Debug-Schlüssel, der in jeder neuen Umgebung anders ist; sie sind 
   von `main` (geprüft) gehen dorthin und werden damit zum Update; Test-Builds vom Arbeitsbranch
   bleiben Vorab-Releases hier (Owner, 2026-11-14). Fehlt das Secret `RELEASES_TOKEN`, überspringt der Workflow diesen Schritt mit einer Warnung; der Build
   schlägt deshalb nicht fehl.
+- Wann die App fragt (seit 56): auf „Jetzt prüfen“, mit der täglichen Suche (Schalter, anfangs aus)
+  und mit „Neue Builds sofort melden“ (Schalter, anfangs an) beim Öffnen der Tastatur, höchstens alle
+  15 Minuten seit dem letzten Versuch, nach Fehlschlägen in Folge seltener (bis 4 Stunden). Gesendet
+  wird jedes Mal nur ein `GET` der Release-Liste an `api.github.com`, ohne Token und ohne Getipptes,
+  mit `If-None-Match` (ETag der letzten Antwort); unverändert antwortet GitHub mit 304. Nicht bei
+  gesperrtem Gerät, Inkognito, in Passwortfeldern, mit Datensparmodus oder ohne Netz. Einen Push (FCM
+  oder eigener Server) gibt es nicht (Owner, 2026-11-15): Ein neuer Build erscheint also erst, wenn
+  die Tastatur das nächste Mal nach Ablauf der 15 Minuten geöffnet wird. Download und Installation
+  bleiben beim Tipp des Owners.
 - Einmalige Einrichtung durch den Owner: Das öffentliche Repository braucht mindestens einen
   Commit (z. B. eine README), sonst kann `gh release create` dort kein Tag anlegen. Dann auf
   GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens →

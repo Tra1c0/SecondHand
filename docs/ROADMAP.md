@@ -344,6 +344,19 @@ Reihenfolge von oben nach unten.
   wird die eigentliche Ursache behoben. Prüfer-Befunde behoben (`docs/VALIDATION.md` →
   Nachprüfung 55: Firefox-Workaround, Leiste, eigene Einstellungen). Offen: Nachprüfung, Prüfer-Review (eine Zeile in
   `LatinIME.onStartInputViewInternal`), Gerätetest.
+- **56 Neue Builds sofort melden** (Entscheidung des Owners vom 2026-11-15: „Schalter, anfangs an“)
+  ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 56). Anlass (Owner):
+  „Kannst du es so machen, dass ein neuer release build sofort einen chip an die Tastatur schickt?“
+  Echter Push (FCM oder ein Server) ist verworfen. Stattdessen prüft die Tastatur beim Öffnen in
+  einem Feld, höchstens alle 15 Minuten seit dem letzten Versuch (gespeichert, gilt über Neustarts),
+  im Hintergrund dieselbe Release-Liste wie „Jetzt prüfen“, mit ETag (`If-None-Match`, 304 behält
+  das Ergebnis); Fehlschläge in Folge verdoppeln die Wartezeit bis 4 Stunden. Kein Hintergrund-Job
+  alle 15 Minuten; die tägliche Suche und „Jetzt prüfen“ bleiben. Nicht gesperrt, nicht in
+  Inkognito- oder Passwortfeldern, nicht mit Datensparmodus, nicht ohne Netz. Ein neu gefundener
+  Build zeigt den Chip sofort in der leeren Leiste desselben Felds. Haken: kein neuer in `LatinIME`,
+  die Zeile von 55 (`LastField.capture`) startet die Prüfung. Offen: Prüfer-Review (Engine-Nähe:
+  Aufruf aus `capture`, Refresh über `setNeutralSuggestionStrip`), Gerätetest (echtes GitHub, 304,
+  Datensparmodus, Chip nach einem echten Release).
 - **Graue Auswahlkarten (Owner, 2026-11-14: „Ja“):** Die grauen Mockup-Karten (AUS, NICHTS,
   AUSGEBLENDET, FLACHER LOOK) bekommen helle Schrift (Kontrast mit dunkler Schrift nur 1,74:1).
   Gebaut (`docs/VALIDATION.md` → Etappe 37, „Graue Karten“): helle Schrift 4,71:1 gewählt, 6,92:1

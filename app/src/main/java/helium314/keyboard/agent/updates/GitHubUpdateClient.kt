@@ -5,6 +5,7 @@ import android.content.Context
 import dev.agentkeyboard.core.AvailableBuild
 import dev.agentkeyboard.core.ReleaseAsset
 import dev.agentkeyboard.core.ReleaseInfo
+import dev.agentkeyboard.core.UpdateOnOpenPolicy
 import dev.agentkeyboard.core.UpdateReleases
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -43,7 +44,10 @@ object UpdateHttp {
             .build()
     }
 
-    /** Only from an explicit action or the opt-in daily job, never while typing. Call off the main thread. */
+    /**
+     * Only from an explicit action, the opt-in daily job or (stage 56) the check when the keyboard
+     * opens, which runs on its own background thread, never on the typing path. Call off the main thread.
+     */
     fun calls(context: Context): Call.Factory {
         OkHttp.initialize(context.applicationContext)
         return delegate.value
@@ -55,16 +59,38 @@ object UpdateHttp {
  * Authorization header on any request. Blocking, call on IO. Response bodies are never logged.
  */
 class GitHubUpdateClient(private val calls: Call.Factory) {
+    /** Stage 56: the answer to the (maybe conditional) request of the release list. */
+    sealed class ReleaseList {
+        /** 304: the list is the one the sent ETag stands for. */
+        data object Unchanged : ReleaseList()
+        /** 200: the strictly parsed list and its [etag] (null when GitHub sent none or one not to keep). */
+        class Fresh(val releases: List<ReleaseInfo>, val etag: String?) : ReleaseList()
+    }
+
     fun newest(): AvailableBuild? = UpdateReleases.newest(releases())
 
-    fun releases(): List<ReleaseInfo> {
+    fun releases(): List<ReleaseInfo> = (releaseList(null) as ReleaseList.Fresh).releases
+
+    /**
+     * One GET of the release list; with [etag] (from an earlier 200) as `If-None-Match`, a 304 is
+     * [ReleaseList.Unchanged]. A 304 to a request without [etag] is an error.
+     */
+    fun releaseList(etag: String?): ReleaseList {
+        val sent = UpdateOnOpenPolicy.etag(etag)
         val request = Request.Builder().url(RELEASES_URL).get()
             .header("Accept", "application/vnd.github+json")
             .header("X-GitHub-Api-Version", API_VERSION)
             .header("User-Agent", USER_AGENT)
+            .apply { if (sent != null) header("If-None-Match", sent) }
             .build()
-        val body = execute(request, CHECK_TIMEOUT_SECONDS).use { readBounded(it, MAX_RELEASES_BYTES) }
-        return parseReleases(body.toString(Charsets.UTF_8))
+        val response = execute(request, CHECK_TIMEOUT_SECONDS, notModified = sent != null)
+        if (response.code == NOT_MODIFIED) {
+            response.close()
+            return ReleaseList.Unchanged
+        }
+        val tag = UpdateOnOpenPolicy.etag(response.header("ETag"))
+        val body = response.use { readBounded(it, MAX_RELEASES_BYTES) }
+        return ReleaseList.Fresh(parseReleases(body.toString(Charsets.UTF_8)), tag)
     }
 
     /** The expected lowercase SHA-256 of the build's APK, from its `.sha256` asset. */
@@ -119,12 +145,13 @@ class GitHubUpdateClient(private val calls: Call.Factory) {
         throw UpdateFailure(UpdateError.INVALID_RESPONSE)
     }
 
-    private fun execute(request: Request, timeoutSeconds: Long, allowRedirect: Boolean = false): Response {
+    private fun execute(request: Request, timeoutSeconds: Long, allowRedirect: Boolean = false, notModified: Boolean = false): Response {
         val response = try {
             calls.newCall(request).apply { timeout().timeout(timeoutSeconds, TimeUnit.SECONDS) }.execute()
         } catch (_: InterruptedIOException) { throw UpdateFailure(UpdateError.TIMEOUT) }
         catch (_: IOException) { throw UpdateFailure(UpdateError.NETWORK) }
-        if (response.code in 200..299 || (allowRedirect && response.code in REDIRECTS)) return response
+        if (response.code in 200..299 || (allowRedirect && response.code in REDIRECTS)
+            || (notModified && response.code == NOT_MODIFIED)) return response
         val error = when (response.code) {
             403, 429 -> if (response.code == 429 || response.header("x-ratelimit-remaining") == "0")
                 UpdateError.RATE_LIMIT else UpdateError.SERVICE
@@ -168,6 +195,7 @@ class GitHubUpdateClient(private val calls: Call.Factory) {
         /** Per request; the read timeout still ends a stalled download after 30 s without data. */
         private const val DOWNLOAD_TIMEOUT_SECONDS = 15L * 60
         private val REDIRECTS = setOf(301, 302, 303, 307, 308)
+        private const val NOT_MODIFIED = 304
 
         /** Strict: any release or asset without the expected fields fails the whole check. */
         internal fun parseReleases(body: String): List<ReleaseInfo> = try {

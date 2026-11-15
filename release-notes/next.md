@@ -11,3 +11,9 @@ Nur mit Tests geprüft, noch auf keinem Gerät ausprobiert.
   Bitte direkt danach einen Screenshot schicken (die Suche der Einstellungen zählt nicht als Feld).
   Nie Text aus dem Feld, nur im Speicher; in Passwortfeldern, Inkognito und bei gesperrtem Gerät
   merkt sich die Karte nichts.
+
+## Nächster Build
+
+- Neu: „Neue Builds sofort melden“ (Einstellungen → Updates, anfangs an). Die Tastatur fragt beim
+  Öffnen höchstens alle 15 Minuten GitHub nach einem neuen Build, nie mit Getipptem, und zeigt
+  dann sofort „⬆ Build N verfügbar“ in der leeren Leiste.

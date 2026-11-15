@@ -4494,10 +4494,112 @@ class InputLogicTest {
             latinIME.setNeutralSuggestionStrip()
             handleMessages()
             kotlin.test.assertNull(chip())
+            // stage 56: the strip itself never checks, and the check on open skips Robolectric's unvalidated network
             assertEquals(0L, helium314.keyboard.agent.updates.UpdateSettings(latinIME).checkedAt, "the keyboard never checks")
         } finally {
             chips.locked = defaults.first
             chips.installed = defaults.second
+        }
+    }
+
+    /**
+     * Stage 56: a newer build found by the check when the keyboard opens shows the chip on the neutral
+     * strip of the same field without any further action; never instead of words, never locked.
+     */
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun updateChipAppearsAtOnceWhenTheCheckOnOpenFindsANewerBuild() {
+        helium314.keyboard.keyboard.internal.KeyboardIconsSet.instance.loadIcons(latinIME)
+        val themed = android.view.ContextThemeWrapper(latinIME, R.style.KeyboardTheme_Flat)
+        val root = android.widget.FrameLayout(themed)
+        val container = android.view.LayoutInflater.from(themed).inflate(R.layout.strip_container, root, false) as android.view.ViewGroup
+        root.addView(container)
+        root.addView(MainKeyboardView(themed, null).apply { id = R.id.keyboard_view })
+        latinIME.updateSuggestionStripView(root)
+        val strip = container.findViewById<android.view.View>(R.id.suggestion_strip_view)
+        fun chip() = strip.findViewWithTag<android.view.View>(helium314.keyboard.agent.updates.UpdateChip.TAG)
+        val chips = helium314.keyboard.agent.updates.UpdateChip
+        val onOpen = helium314.keyboard.agent.updates.UpdateOnOpen
+        val defaults = listOf(chips.locked, chips.installed, onOpen.clock, onOpen.online, onOpen.dataSaver, onOpen.client, onOpen.executor)
+        var locked = false
+        var now = 1_800_000_000_000L
+        var newest = 22L
+        val tasks = mutableListOf<Runnable>()
+        val http = okhttp3.OkHttpClient.Builder().addInterceptor { chain ->
+            val request = chain.request()
+            val json = kotlinx.serialization.json.buildJsonArray {
+                add(kotlinx.serialization.json.buildJsonObject {
+                    put("tag_name", kotlinx.serialization.json.JsonPrimitive("build-$newest"))
+                    put("assets", kotlinx.serialization.json.buildJsonArray {
+                        for (name in listOf(dev.agentkeyboard.core.UpdateReleases.apkName(newest), dev.agentkeyboard.core.UpdateReleases.checksumName(newest)))
+                            add(kotlinx.serialization.json.buildJsonObject {
+                                put("name", kotlinx.serialization.json.JsonPrimitive(name))
+                                put("size", kotlinx.serialization.json.JsonPrimitive(1000))
+                                put("browser_download_url", kotlinx.serialization.json.JsonPrimitive(dev.agentkeyboard.core.UpdateReleases.downloadUrl("build-$newest", name)))
+                            })
+                    })
+                })
+            }.toString()
+            okhttp3.Response.Builder().request(request).protocol(okhttp3.Protocol.HTTP_1_1).code(200).message("OK")
+                .body(okhttp3.ResponseBody.Companion.run { json.toByteArray().toResponseBody() }).build()
+        }.build()
+        chips.locked = { locked }
+        chips.installed = { 20L }
+        onOpen.clock = { now }
+        onOpen.online = { true }
+        onOpen.dataSaver = { false }
+        onOpen.client = { helium314.keyboard.agent.updates.GitHubUpdateClient(http) }
+        onOpen.executor = java.util.concurrent.Executor { tasks += it }
+        fun runCheck() {
+            while (tasks.isNotEmpty()) tasks.removeAt(0).run()
+            org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle() // the refresh posted to the main thread
+        }
+        try {
+            setText("") // the keyboard opens in a field: the check starts in the background
+            handleMessages()
+            kotlin.test.assertNull(chip(), "nothing known yet")
+            assertEquals(1, tasks.size)
+            runCheck()
+            assertNotNull(chip(), "shown without any further action")
+            assertTrue(stripWords(strip).contains(latinIME.getString(R.string.agent_update_chip, 22L)))
+
+            // word suggestions: a build found now waits for the next neutral strip
+            newest = 23
+            now += 20 * 60_000L
+            val words = SuggestedWords(arrayListOf(SuggestedWordInfo("hallo", "", 100, SuggestedWordInfo.KIND_CORRECTION, null, 0, 0)),
+                null, null, false, false, false, SuggestedWords.INPUT_STYLE_PREDICTION, SuggestedWords.NOT_A_SEQUENCE_NUMBER)
+            latinIME.setSuggestions(words)
+            handleMessages()
+            kotlin.test.assertNull(onOpen.onStartInputView(latinIME, latinIME.currentInputEditorInfo, settingsValues))
+            runCheck()
+            assertEquals(23L, helium314.keyboard.agent.updates.UpdateSettings(latinIME).knownBuild)
+            kotlin.test.assertNull(chip())
+            assertTrue(stripWords(strip).contains("hallo"))
+            latinIME.setNeutralSuggestionStrip()
+            handleMessages()
+            assertTrue(stripWords(strip).contains(latinIME.getString(R.string.agent_update_chip, 23L)))
+
+            // locked by the time the check answers: no chip
+            helium314.keyboard.agent.updates.UpdateSettings(latinIME).remember(null, 20)
+            newest = 24
+            now += 20 * 60_000L
+            setText("")
+            handleMessages()
+            kotlin.test.assertNull(chip())
+            assertEquals(1, tasks.size)
+            locked = true
+            runCheck()
+            assertEquals(24L, helium314.keyboard.agent.updates.UpdateSettings(latinIME).knownBuild)
+            kotlin.test.assertNull(chip())
+        } finally {
+            @Suppress("UNCHECKED_CAST") run {
+                chips.locked = defaults[0] as (android.content.Context) -> Boolean
+                chips.installed = defaults[1] as (android.content.Context) -> Long
+                onOpen.clock = defaults[2] as () -> Long
+                onOpen.online = defaults[3] as (android.content.Context) -> Boolean
+                onOpen.dataSaver = defaults[4] as (android.content.Context) -> Boolean
+                onOpen.client = defaults[5] as (android.content.Context) -> helium314.keyboard.agent.updates.GitHubUpdateClient
+                onOpen.executor = defaults[6] as java.util.concurrent.Executor
+            }
         }
     }
 

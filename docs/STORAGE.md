@@ -49,6 +49,13 @@ interne Kopien in Android/HTTP lassen sich nicht zuverlässig aus dem RAM lösch
   (`compared_version`), „Später“ für den Dialog (`later_build`) und die Version, deren „Neu in
   Build N“ gezeigt wurde (`seen_version`). Der Release-Text ist der öffentliche Text des Releases,
   nichts Persönliches; er wird nur angezeigt, nie geloggt oder weitergegeben.
+- Seit 56 dort auch: Schalter „Neue Builds sofort melden“ (`on_open`, Standard an), Beginn der
+  letzten Prüfung beim Öffnen der Tastatur (`open_attempt_at`, Millisekunden Wanduhr, 0 = nie; gilt
+  über Neustarts für die 15 Minuten), Fehlschläge dieser Prüfung in Folge (`open_failures`, 0–4, für
+  die Verdopplung der Wartezeit) und der `ETag` der Release-Liste, aus der `known_build` stammt
+  (`etag`, höchstens 256 Zeichen sichtbares ASCII; gesendet als `If-None-Match`, solange
+  `compared_version` die installierte Version ist). Alles öffentliche oder technische Werte, nichts
+  Getipptes, nie geloggt.
 - In der APK (54): Asset `agent/release_notes.md`, beim Bauen aus `release-notes/next.md` kopiert;
   gelesen nur für „Neu in Build N“ (höchstens 256 KiB).
 - Download nach `cacheDir/agent_update/update.apk` im CE-Kontext, höchstens 120 MB, Prüfsumme

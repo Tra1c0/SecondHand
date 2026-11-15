@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="agent_updates_title">Updates</string>
-    <string name="agent_updates_description">Optional: sucht auf GitHub im öffentlichen Release-Repository nach einem neueren Build dieser App. Ohne Konto und ohne Token: gefragt wird nur api.github.com (und beim Installieren der Download-Server von GitHub), nie beim Tippen.</string>
+    <string name="agent_updates_description">Sucht auf GitHub im öffentlichen Release-Repository nach einem neueren Build dieser App. Ohne Konto und ohne Token: gefragt wird nur api.github.com (und beim Installieren der Download-Server von GitHub). Nie wird etwas Getipptes gesendet, und der Download wartet immer auf deinen Tipp.</string>
     <string name="agent_updates_unlock">Entsperre das Gerät, um die Update-Einstellungen zu ändern.</string>
     <string name="agent_updates_repository">Repository: %s</string>
     <string name="agent_updates_installed">Installiert: Build %d</string>
+    <string name="agent_updates_on_open">Neue Builds sofort melden</string>
+    <string name="agent_updates_on_open_on">Die Tastatur prüft beim Öffnen selbst, höchstens alle 15 Minuten: eine Anfrage nach der Release-Liste an api.github.com, nie etwas Getipptes. Nicht gesperrt, nicht in Inkognito- oder Passwortfeldern, nicht mit Datensparmodus und nicht ohne Netz. Ein neuer Build erscheint als „⬆ Build N verfügbar“ in der Leiste.</string>
+    <string name="agent_updates_on_open_off">Aus: Die Tastatur fragt nie selbst, nur „Jetzt prüfen“ und die tägliche Suche.</string>
     <string name="agent_updates_daily">Täglich nach Updates suchen</string>
     <string name="agent_updates_daily_summary">Etwa einmal am Tag und nur mit Netzverbindung. Zeigt eine Benachrichtigung, wenn es einen neuen Build gibt.</string>
     <string name="agent_updates_notifications_refused">Benachrichtigungen sind nicht erlaubt. Die tägliche Suche läuft trotzdem, kann dir einen neuen Build aber nicht melden.</string>

@@ -5357,6 +5357,61 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   Inkognito umgelegt bei sichtbarer Pille) und N-d (Stil) so gelassen.
 - Tests: `LastFieldTest`, `DiagnoseScreenTest` grün (siehe Build-Log für die volle Suite).
 
+## Etappe 56 (Neue Builds sofort melden)
+
+- Auftrag: Owner-Entscheidung vom 2026-11-15 (`docs/ROADMAP.md` → 56): Schalter, anfangs an;
+  Prüfung beim Öffnen der Tastatur höchstens alle 15 Minuten; kein Hintergrund-Job alle 15 Minuten,
+  kein Push.
+- Neu: `C/UpdateOnOpenPolicy.kt` (15 Minuten, Verdopplung bis 4 h, ETag-Form), `A/updates/UpdateOnOpen.kt`
+  (Bedingungen auf dem Hauptthread, Anfrage im Executor, Refresh der leeren Leiste). Geändert:
+  `GitHubUpdateClient.releaseList(etag)` (`If-None-Match`, 304), `Updates.check` (ETag senden,
+  304 behält das Ergebnis), `UpdateSettings` (`on_open`, `open_attempt_at`, `open_failures`,
+  `etag`), `LastField.capture` (ruft zuerst `UpdateOnOpen.onStartInputView`) und
+  `LastField.stripNeutral`, Seite Updates (Schalter „Neue Builds sofort melden“, Text je Zustand,
+  Beschreibung ohne „nie beim Tippen“), `AndroidManifest.xml` (`ACCESS_NETWORK_STATE`). Fallstricke
+  P237–P239.
+- Haken: keine neue Zeile in `LatinIME.java`; die Zeile von 55 (`LastField.capture` in
+  `onStartInputViewInternal`) startet die Prüfung. Der Refresh ruft das öffentliche
+  `LatinIME.setNeutralSuggestionStrip`. `InputLogic`, `RichInputConnection`, `PointerTracker`
+  unverändert.
+- Neue Tests: `CT/UpdateOnOpenPolicyTest.kt` (5), `AT/UpdateOnOpenTest.kt` (7: eine Anfrage nur im
+  Executor, Versuchszeit und gefundener Build gespeichert; 15 Minuten auch nach einem Neustart, die
+  zweite Anfrage mit `If-None-Match` bekommt 304 und behält das Ergebnis; keine zweite laufende
+  Prüfung; 429 verdoppelt, Erfolg setzt zurück; Überspringen bei Schalter aus, gesperrt in
+  `SettingsValues` und live, Inkognito (Einstellung und `IME_FLAG_NO_PERSONALIZED_LEARNING`),
+  Passwortfeldern, Datensparmodus, ohne Netz, ohne Feld; Netz- und Datensparabfrage mit den
+  Robolectric-Schatten, Standardnetz nicht validiert; Schalter auf der Seite anfangs an, Text mit
+  „höchstens alle 15 Minuten“, aus geschaltet gespeichert),
+  `UpdateCheckTest.theETagIsStoredAndSentAndA304KeepsTheResult` (ETag gespeichert und gesendet, 304
+  behält Build, Notizen, Version und ETag; 403 ohne Restkontingent und 429 = Rate-Limit, 403 sonst =
+  Dienst, alle behalten den Stand; 304 nach Fehlschlag stellt den Status wieder her; neue Liste
+  ersetzt den ETag; andere installierte Version sendet keinen; ungültiger ETag nicht gespeichert; 304
+  ohne `If-None-Match` = Fehler; Download fragt ohne ETag),
+  `InputLogicTest.updateChipAppearsAtOnceWhenTheCheckOnOpenFindsANewerBuild` (echte Leiste: Chip
+  ohne weiteres Zutun; mit Wortvorschlägen kein Refresh, der Chip kommt mit der nächsten neutralen
+  Leiste; gesperrt bis zur Antwort kein Chip). In
+  `InputLogicTest.updateChipShowsOnlyOnTheNeutralStripWhileANewerBuildIsKnown` nur ein Kommentar
+  ergänzt (die Assertion `checkedAt == 0` bleibt und gilt, weil die Prüfung beim Öffnen ohne
+  validiertes Netz überspringt). Keine Assertion geändert oder entfernt.
+- Gelaufen (2026-11-15, `--max-workers=1 -Xmx1536m`): `:agent-core:test` grün (591 Tests);
+  `:app:testDebugUnitTest --tests '*Update*' --tests '*LastFieldTest' --tests '*DiagnoseScreenTest'`
+  59 Tests, 58 grün (`UpdateCheckTest` 13, `UpdateOnOpenTest` 7, `UpdateChipTest` 3, `LastFieldTest`
+  9, `DiagnoseScreenTest` 15, dazu passend `ForkUpgradeTest`, `CharArtWindowTest`,
+  `SettingsSystemAreaTest`); rot: `UpdatePromptsTest.whatsNewDialogComesOnceThenTheAvailableOne`
+  (Zeile 176: kein „Alle Notizen anzeigen“). Der Test liest die eingebetteten Notizen aus
+  `release-notes/next.md` und erwartet mehr als sechs Blöcke; seit bf97a3a hat die Datei nur drei
+  (mit dem Abschnitt „Nächster Build“ fünf). Derselbe Fehler vor und nach der Änderung an
+  `next.md`; der Code dieser Etappe berührt Dialog und Notizen nicht; auf bf97a3a selbst nicht
+  nachgeprüft.
+  `*InputLogicTest` 269 Tests, nur der geerbte Fehler `insertLetterIntoWordHangulFails`. Lint
+  (`:app:lintDebugNoMinify`, `--max-workers=1`): 0 Fehler; neu sind drei Warnungen `UseKtx` für die
+  neuen Setter in `UpdateSettings.kt` (wie die bestehenden der Datei). `docs_sync --check` grün.
+- Engine-nahe Änderung (Prüfer Pflicht): der Aufruf in `LastField.capture` (läuft in jedem
+  `onStartInputView`) und der Refresh über `setNeutralSuggestionStrip`.
+- Nicht gelaufen: volle Suite, Build, Gerätetest, echtes GitHub (ETag, 304, ob 304 wirklich nicht
+  gegen das Limit zählt), echter Datensparmodus, Netzwechsel, Verhalten bei langsamem Netz auf dem
+  Gerät.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

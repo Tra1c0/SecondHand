@@ -38,7 +38,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - **RGB-Beleuchtung** – Animierte Farben für Tasten, Beschriftung, Hintergrund und Leiste (Etappe 26, überarbeitet in 29): Rechnen im Kern, Zeichnen über einen Painter.
 - **Diktat** – Diktieren über den On-device-Erkenner des Systems: zuhören, Vorschau, Einfügen erst nach eigenem Klick.
 - **Lerndaten** – Was die Tastatur aus dem Tippen lernt: pausieren, zählen, exportieren, löschen. Alles auf dem Gerät.
-- **Updates** – Opt-in-Prüfung auf neue Builds im öffentlichen Release-Repository, Download und Installation nur nach eigenem Klick.
+- **Updates** – Prüfung auf neue Builds im öffentlichen Release-Repository (auf Tipp, täglich als Option, seit 56 beim Öffnen der Tastatur höchstens alle 15 Minuten, nie mit Getipptem), Download und Installation nur nach eigenem Klick.
 - **Unveränderter Upstream** – Was ohne Änderung von HeliBoard übernommen ist; nur nach Ordnern beschrieben.
 - **Symbole malen** – Etappe 27: Sonderzeichen auf die Buchstaben malen statt Gestenschreiben, lokal erkannt.
 - **Zeichen-Kunst** – Etappe 53 (schließt 39 Text-Stile ein): Fenster in der Tastatur, das Zeichnung, Foto, Text und Rahmen zu Text aus Zeichen macht.
@@ -142,6 +142,10 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - `ReleaseNotes.kt` (54): `clean`, `cap` (höchstens `MAX_STORED_BYTES` = 8 KiB UTF-8, Schnitt an
   einer Zeile oder einem Codepunkt) und `blocks` (einfaches Markdown: Überschrift, Listenpunkt,
   Absatz; `**`, `__`, Backticks weg, Links als ihr Text) für die Update-Dialoge.
+- `UpdateOnOpenPolicy.kt` (56): Regeln der Prüfung beim Öffnen: `interval(failures)` (15 min,
+  je Fehlschlag in Folge doppelt, höchstens 4 h), `due(now, lastAttempt, failures)` (eine Uhr vor
+  dem letzten Versuch erlaubt eine Prüfung), `failuresAfter` (Erfolg setzt zurück, höchstens
+  `MAX_FAILURES` = 4), `etag` (nur sichtbares ASCII ohne Leerzeichen, höchstens 256 Zeichen).
 - `RgbLighting.kt` (Etappe 26, überarbeitet 29): `RgbSettings` (alle Optionen, `encode`/`parse`
   mit feldweiser Begrenzung, nie eine Ausnahme; gemeinsamer Look plus `looks` je `RgbTarget`,
   `forTarget`, `lights`), `RgbLook`, `RgbEngine` (Farbe und Stärke für Punkt, Taste und Zeit:
@@ -404,7 +408,9 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   Etappe 55: eine Zeile in `onStartInputViewInternal` nach dem Laden der Einstellungen und der
   Prüfung auf `editorInfo == null`, vor dem frühen Rücksprung ohne `MainKeyboardView`:
   `LastField.capture(this, editorInfo, currentSettingsValues, mDictionaryFacilitator)` (wirft nie,
-  P233).
+  P233). Etappe 56 nutzt dieselbe Zeile: `capture` ruft zuerst `UpdateOnOpen.onStartInputView`
+  (wirft nie, kehrt sofort zurück, die Anfrage läuft auf einem eigenen Thread, P237); `LatinIME`
+  selbst ist dafür unverändert.
   Nachprüfung 55: `SuggestionStripView.kt` (keine Engine-Datei) meldet über `reportToLastField`
   (`runCatching`, `LastField.onStripView`) am Ende von `setToolbarVisibility` und nach dem neuen
   Inhalt in `setSuggestions` und `setExternalSuggestionView`, was die Leiste zeigt (Wörter,
@@ -837,7 +843,9 @@ Speicher, Datenschutz und Identität:
 - `AndroidManifest.xml` (24e): Dienst `ScreenReaderService` mit `BIND_ACCESSIBILITY_SERVICE`.
 - `AndroidManifest.xml` (`@wecker`/`@timer`): `com.android.alarm.permission.SET_ALARM` (normale
   Berechtigung, bei der Installation erteilt, keine Nachfrage).
-- `AndroidManifest.xml` (Update-Prüfung): `POST_NOTIFICATIONS`, `REQUEST_INSTALL_PACKAGES`, Dienst
+- `AndroidManifest.xml` (Update-Prüfung): `POST_NOTIFICATIONS`, `REQUEST_INSTALL_PACKAGES`, seit 56
+  `ACCESS_NETWORK_STATE` (normale Berechtigung, bei der Installation erteilt: die Prüfung beim Öffnen
+  fragt vorher, ob ein validiertes Netz da ist), Dienst
   `UpdateCheckJobService` (`BIND_JOB_SERVICE`) und Empfänger `UpdateInstallReceiver`, beide nicht
   exportiert und nicht `directBootAware`. `SettingsNavHost.kt`/`MainSettingsScreen.kt`: Ziel und
   Eintrag „Updates“ (`agent_updates`, auch in `AgentPreferences.SETTINGS_DESTINATIONS`).
@@ -1291,7 +1299,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   41, Feld-Vorschlägen 45, Gedächtnis 46, Emoji-Mix aus `KeyboardCommands.buildChips`), Symbol-Chips
   (27), Zwischenablage-Pille mit Smart Paste (40), dann der Update-Chip (54, `UpdateChip`), zuletzt
   Satzzeichen oder leer. In `setSuggestedWords` kommt der Update-Chip nicht vor: Wortvorschläge und
-  Vorhersagen verdeckt er nie (Entscheidung des Leads, P212).
+  Vorhersagen verdeckt er nie (Entscheidung des Leads, P212). Seit 56 findet ihn die Prüfung beim
+  Öffnen; `UpdateOnOpen.refresh` ruft dann einmal `setNeutralSuggestionStrip`, aber nur, wenn die
+  Tastatur noch im selben Feld steht und die Leiste zuletzt leer war (`LastField.stripNeutral`), sonst
+  kommt er mit der nächsten neutralen Leiste (P238).
 - Vorlagen: `Command.templates(host)` liefert `Template(label, text)` (Standard: keine). Bei
   `CommandCall` mit leerem Argument hängt `chipsFor` nach den eigenen Chips des Befehls
   `templateChips` an (`Chip.Kind.TEMPLATE`: umrandet, Text leicht gedämpft, Beschreibung
@@ -2130,7 +2141,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Schalter „Änderungsvorschläge“, „Immer Vorschläge anzeigen“ samt Web-Ausnahme, „Mehr
   Autokorrektur“ und „Autom. Groß-/Kleinschreibung“ aus den Einstellungen; Passwortfeld → nur
   `Password`, gesperrt/Inkognito/kein Lernen → nur `Hidden` (P235). Felder der eigenen Einstellungen
-  ändern nichts und zählen nichts (`ownField`). `live` fragt beim Öffnen die Wörterbücher der Engine
+  ändern nichts und zählen nichts (`ownField`). Seit 56: `capture` startet zuerst
+  `UpdateOnOpen.onStartInputView` (Abschnitt „Updates“), `stripNeutral` sagt, ob die Leiste des Felds
+  zuletzt leer war (für den Update-Chip, P238). `live` fragt beim Öffnen die Wörterbücher der Engine
   (`WeakReference` auf den `DictionaryFacilitator`, nur bei gleicher Sprache, sonst unbekannt).
   `Diagnose.lastField` (über `Dispatchers.IO`: Wörterbuch-Dateien der Feldsprache über
   `mainDictionary`, das bei einem Fehler `null` = „unbekannt“ gibt, App-Name über den
@@ -2908,19 +2921,23 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 
 ## Updates
 
-> Opt-in-Prüfung auf neue Builds im öffentlichen Release-Repository, Download und Installation nur nach eigenem Klick.
+> Prüfung auf neue Builds im öffentlichen Release-Repository (auf Tipp, täglich als Option, seit 56 beim Öffnen der Tastatur höchstens alle 15 Minuten, nie mit Getipptem), Download und Installation nur nach eigenem Klick.
 
 - Quelle: öffentliches Repository `Tra1c0/SecondHandAgenticKeyboard` (`UpdateReleases.REPOSITORY` in
   `C/UpdateReleases.kt`, im Workflow `RELEASE_REPOSITORY`). Kein Token, kein `Authorization`-Header.
 - `A/updates/GitHubUpdateClient.kt`: `UpdateHttp` (eigener OkHttp-Client, nicht der KI-Client,
   ohne automatische Redirects und Retries; Connect 15 s, Read 30 s) und `GitHubUpdateClient`:
-  `GET …/releases?per_page=10` (höchstens 2 MiB, 30 s), strenges Parsen, `.sha256`-Asset
+  `GET …/releases?per_page=10` (höchstens 2 MiB, 30 s; seit 56 `releaseList(etag)` mit
+  `If-None-Match`, 304 = `ReleaseList.Unchanged`, nur wenn ein ETag gesendet wurde, sonst Fehler;
+  200 = `ReleaseList.Fresh` mit dem geprüften `ETag`), strenges Parsen, `.sha256`-Asset
   (höchstens 4 KiB), APK-Download über `browser_download_url` mit selbst verfolgten Redirects
   (höchstens 5, nur HTTPS), Größe ≤ 120 MB und genau die gelistete Größe, SHA-256 beim Schreiben.
   `UpdateError`/`UpdateFailure` sind neutral, kein Antworttext wird gezeigt oder geloggt.
 - `C/UpdateReleases.kt` nimmt nur Assets mit genau der erwarteten Download-URL
   (`https://github.com/<REPOSITORY>/releases/download/build-<n>/<Name>`).
-- `A/updates/Updates.kt`: `check` (speichert das Ergebnis), `downloadAndInstall` (fragt die API
+- `A/updates/Updates.kt`: `check` (speichert das Ergebnis; seit 56 mit dem gespeicherten ETag, solange
+  `compared_version` die installierte Version ist; 304 behält Build, Notizen und ETag und schreibt
+  nur `status` und `checkedAt`, ein Fehlschlag behält alles, P239), `downloadAndInstall` (fragt die API
   erneut, lädt, vergleicht SHA-256, prüft mit `ApkCheck` Paket, Zertifikate und höhere
   Versionsnummer, erst dann `ApkInstallSession`; die Datei wird immer gelöscht), `cleanup`,
   `runScheduled` (nur entsperrt, nur bei eingeschaltetem Schalter, sonst Job abbrechen;
@@ -2934,8 +2951,24 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `UpdateCheckJobService`, `UpdateNotifier` (Kanal „Updates“, öffnet nur die Seite über
   `OPEN_SETTINGS_DESTINATION` mit `FLAG_ACTIVITY_CLEAR_TASK`, P39).
 - `A/updates/UpdateSettings.kt`: CE-Einstellungen `agent_updates` (`UpdateStatus`, seit 38h
-  `checkedAt`, von `Updates.check` mit jedem Ergebnis geschrieben).
-- `K/settings/screens/AgentUpdatesScreen.kt`: Seite „Updates“ (Schalter, „Jetzt prüfen“, Ergebnis,
+  `checkedAt`, von `Updates.check` mit jedem Ergebnis geschrieben; seit 56 `onOpen` (Standard an),
+  `openAttemptAt`, `openFailures` und `etag`, das nur `remember` schreibt).
+- Prüfung beim Öffnen (56, Entscheidung des Owners vom 2026-11-15, kein Push über FCM oder Server):
+  `A/updates/UpdateOnOpen.kt`. `onStartInputView` (aus `LastField.capture`, also der Zeile von 55
+  in `LatinIME.onStartInputViewInternal`) prüft auf dem Hauptthread nur Werte und Zustände:
+  `SettingsValues.mIsLocked`, Passwortfeld (`mIsPasswordField`, jede Variante, auch im
+  `EditorInfo.inputType`), Inkognito (`mIncognitoModeEnabled`, `mNoLearning`,
+  `IME_FLAG_NO_PERSONALIZED_LEARNING`), live gesperrt (`UpdateChip.locked`, vor jedem Lesen der
+  CE-Einstellungen), eine laufende Prüfung, Schalter `onOpen`, `UpdateOnOpenPolicy.due`,
+  Datensparmodus (`restrictBackgroundStatus == ENABLED`, unbekannt = eingeschränkt), validiertes Netz
+  (`NET_CAPABILITY_INTERNET` und `_VALIDATED`, unbekannt = keins), installierte Version. Erst dann
+  geht `run` an den `executor` (ein Daemon-Thread niedriger Priorität): `openAttemptAt` zuerst
+  speichern, `Updates.check`, `openFailures` nach `failuresAfter`, und bei einem neu bekannten Build
+  `refresh` per `postAtTime` auf den Hauptthread (P51). Ein Überspringen ist kein Versuch und
+  schreibt nichts. `Skip` nennt den Grund nur für Tests. Austauschbar in Tests: `clock`, `online`,
+  `dataSaver`, `client`, `executor`.
+- `K/settings/screens/AgentUpdatesScreen.kt`: Seite „Updates“ (seit 56 zuerst der Schalter „Neue
+  Builds sofort melden“ mit Text je Zustand, dann der Schalter der täglichen Suche, „Jetzt prüfen“, Ergebnis,
   Download-Knopf mit Fortschritt und Abbrechen, Weg zu „Unbekannte Apps installieren“, Hinweis
   für Freunde). Texte in `agent_update_strings.xml`, Icon `ic_agent_settings_updates.xml`.
   Seit 54 zeigt sie den Download-Knopf auch für `knownBuild` nach einem fehlgeschlagenen Download
@@ -2973,6 +3006,14 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Dialoge in Compose, keine Prüfung und kein Job), `AT/UpdateChipTest.kt` (54: Chip nur bei
   bekanntem neuerem Build, weg nach der Installation, gesperrt nicht, Tipp öffnet nur die Seite),
   `InputLogicTest.updateChipShowsOnlyOnTheNeutralStripWhileANewerBuildIsKnown` (echte Leiste).
+  Seit 56: `CT/UpdateOnOpenPolicyTest.kt` (15 Minuten, Verdopplung bis 4 h, Rücksetzen, Uhr
+  zurückgestellt, ETag-Form), `UpdateCheckTest.theETagIsStoredAndSentAndA304KeepsTheResult`,
+  `AT/UpdateOnOpenTest.kt` (Anfrage nur im Executor, Versuchszeit gespeichert und nach Neustart
+  gültig, keine zweite laufende Prüfung, Verdopplung nach 429, Überspringen bei Schalter aus,
+  gesperrt, Inkognito, Passwort, Datensparmodus, ohne Netz; echte Netz- und Datensparabfrage mit
+  den Robolectric-Schatten; Schalter auf der Seite) und
+  `InputLogicTest.updateChipAppearsAtOnceWhenTheCheckOnOpenFindsANewerBuild` (Chip ohne weiteres
+  Zutun in der leeren Leiste, nicht statt Wörtern, nicht gesperrt).
 
 ## Unveränderter Upstream
 
@@ -4861,13 +4902,41 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   kann, bevor `suggestedWords` gesetzt ist. Solange die Tastatur in den eigenen Einstellungen offen
   ist (`ownField`), zählen `onStrip` und `onStripView` nichts; erst das nächste fremde Feld setzt
   es zurück.
+- **P237** Prüfung beim Öffnen (56) nie auf dem Tipp-Pfad: `UpdateOnOpen.onStartInputView` läuft in
+  jedem `onStartInputView`, darum auf dem Hauptthread nur Felder und Systemzustände lesen und erst
+  nach allen Bedingungen (Schalter, 15 Minuten) die Binder-Fragen nach Netz und Datensparmodus; das
+  Speichern (`commit`) und die Anfrage nur im `executor`. Der Aufruf steht vor dem
+  `synchronized`-Block von `LastField.capture`, weil dessen `return` in `runCatching` die ganze
+  Funktion verlässt (eigene Einstellungen, keine Einstellungen). Ein `AtomicBoolean` verhindert eine
+  zweite Prüfung, solange eine läuft. Unit-Tests erreichen nie das echte Netz: Robolectrics
+  Standardnetz ist nicht `VALIDATED` (`UpdateOnOpenTest.theNetworkMustBeValidated…` hält das fest);
+  wer `networkUsable` lockert, muss in allen Tests, die `onStartInputView` auslösen, `online`
+  ersetzen. Die Versuchszeit ist Wanduhrzeit in CE-Einstellungen, damit ein Neustart die 15 Minuten
+  nicht zurücksetzt; ein Überspringen schreibt keine Zeit.
+- **P238** Chip sofort, aber nie statt Wörtern (56): Der Refresh nach einer Prüfung ruft
+  `setNeutralSuggestionStrip` nur, wenn die Tastatur noch sichtbar im selben Feld ist (Paket,
+  `fieldId`, `inputType` von `currentInputEditorInfo`) und `LastField.stripNeutral` die leere Leiste
+  meldet (keine Wörter, keine Chips, keine Pille, keine Symbolleiste, keine Emoji-Reihe, kein Befehl).
+  `LatinIME` gibt `mInputLogic` nur dem eigenen Paket; der Zustand der Leiste kommt darum aus der
+  Meldung von `SuggestionStripView` (P236). In Passwort-, Inkognito- und gesperrten Feldern prüft die
+  Tastatur nicht; in den eigenen Einstellungen prüft sie, aber `LastField` zählt dort nicht, der Chip
+  kommt dann erst mit der nächsten neutralen Leiste. `UpdateChip.build` fragt die Sperre im Refresh noch einmal live.
+- **P239** ETag (56): `etag` steht für die Release-Liste, aus der `known_build` und `compared_version`
+  stammen. Darum gesendet nur, solange `compared_version` die installierte Version ist (nach einem
+  Update fragt die App die volle Liste), und nur `remember` schreibt es (eine erfolgreiche 200-Antwort
+  mit gültigem `ETag`, sonst gelöscht). Ein 304 rechnet den Status aus `newerBuild(installed)` neu,
+  auch nach einem Fehlschlag. Ein 304 auf eine Anfrage ohne `If-None-Match` ist ein Fehler
+  (`SERVICE`). `downloadAndInstall` fragt immer ohne ETag (es braucht die Assets). Jeder Fehlschlag
+  (auch 403/429) behält Build, Notizen und ETag (P211) und verdoppelt die Wartezeit der Prüfung beim
+  Öffnen; ein Erfolg (200 oder 304) setzt sie zurück. Ein 304 zählt laut GitHub nicht gegen das Limit
+  von 60 Anfragen je Stunde ohne Anmeldung; gegen das echte GitHub ist das nicht geprüft.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (593 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (597 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -4896,9 +4965,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
-- `A/updates/` (6): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdatePrompts,
-  UpdateSettings, Updates
-- `AT/` (100): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
+  UpdatePrompts, UpdateSettings, Updates
+- `AT/` (101): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, CharArtWindowTest, ClipCommandTest, ClipVaultTest, CommandReplaceTest,
@@ -4919,25 +4988,26 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest, SymbolInkTest,
   SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest, TouchModelTest, TouchScenesScreenTest,
   TouchZonesDynamicTest, TypedWordFirstTest, TypoMemoryTest, UpdateCheckTest, UpdateChipTest,
-  UpdatePromptsTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
-  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  UpdateOnOpenTest, UpdatePromptsTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
+  WorkflowCommandTest, WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest,
+  WorkflowStoreTest
 - `AT/commands/` (9): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
   TranslateCommandTest, UrlCommandTest
-- `C/` (48): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
+- `C/` (49): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
   CorrectionRules, DateFormatting, EditorSession, EmojiKeywords, EmojiMix, EmojiNames,
   EmojiSynonyms, EventParser, ExecutionPolicy, FieldReport, InkDots, InkRecognizer, InkSymbols,
   InkTiming, LanguageNames, LocalTextActions, MathExpression, ModelProvider, OwnInkSymbols,
   PendingBatchGate, PersonalInkSymbols, Places, Profiles, ReleaseNotes, RgbCurve, RgbLighting,
   RgbOwnPattern, RgbPatternJson, RgbPatterns, SkillBinding, SnippetTemplate, SpecialCharacters,
   StyledTranslation, SymbolTable, TextCondition, TimerParser, Tool, TouchDynamics, UnitConversion,
-  UpdateReleases, UrlDetector, Workflow
+  UpdateOnOpenPolicy, UpdateReleases, UrlDetector, Workflow
 - `C/charart/` (6): BigFont, CharArt, Raster, Sketch, TextColumns, UnicodeStyle
 - `C/clip/` (6): ClipDates, ClipGuard, LinkCleaner, PrivateRanges, SmartPaste, TrackingNumbers
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `C/memory/` (4): OwnWords, PhraseMemory, ShortcutOffers, SnippetMatcher
 - `C/suggest/` (1): ContextSuggest
-- `CT/` (45): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
+- `CT/` (46): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
   CorrectionRulesTest, DateFormattingTest, EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest,
   EventParserTest, FieldReportTest, InkAreaTest, InkBenchmarkTest, InkDotFlowTest, InkDotsTest,
   InkFingerModel, InkRecognizerTest, InkTimingTest, InsertionAnchorTest, LanguageNamesTest,
@@ -4945,7 +5015,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   PersonalInkSymbolsTest, PlacesTest, QuestionCaptureTest, ReleaseNotesTest, RgbCurveTest,
   RgbFrameStatsTest, RgbLightingTest, RgbOwnPatternTest, RgbPatternJsonTest, RgbPatternsTest,
   SkillBindingTest, SnippetTemplateTest, StyledTranslationTest, SymbolTableTest, TimerParserTest,
-  ToolTest, TouchDynamicsTest, UnitConversionTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
+  ToolTest, TouchDynamicsTest, UnitConversionTest, UpdateOnOpenPolicyTest, UpdateReleasesTest,
+  UrlDetectorTest, WorkflowTest
 - `CT/charart/` (2): CharArtTest, SketchTest
 - `CT/clip/` (3): ClipGuardTest, PrivateRangesTest, SmartPasteTest
 - `CT/format/` (1): FormatGuardTest
