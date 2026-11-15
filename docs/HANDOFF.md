@@ -9,22 +9,22 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 ## Aktueller Stand
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
-- Stand 2026-11-15 (Ende der Runde): `main` = Build 25 (geprüft). Neu seit Build 23: 55 Diagnose
-  „Letztes Feld“ (warum Vorschläge, Großschreibung, Autokorrektur in einem Feld fehlen), mit Prüfer
-  und Nachprüfung; volle Agent-Suite lokal und GitHub-Lauf 72 grün; kein Gerätetest.
-- Anlass (Owner, 2026-11-15): „Stellenweise gibt's gar keine Vorschläge, Groß-/Kleinschreibung,
-  Autokorrektur“, ohne App, Build oder Sprache. Kandidaten: Feld-Flags der App, HeliBoards
-  Firefox-Workaround (Webfelder ohne Vorschläge), „Mehr Autokorrektur“ standardmäßig aus, verdeckte
-  Leiste. Warten auf Screenshot der Karte.
-- Beim Owner: Build 23, Test-Build 24 (55 vor den Prüferkorrekturen). Releases: nur Builds von
-  `main` in `Tra1c0/SecondHandAgenticKeyboard`; ab Build 23 als Update in der App.
-- Nächste Sitzung: Screenshot auswerten, Ursache beheben; Rückmeldung zu Build 23 (Befehle,
-  Zeichen-Kunst, Smart Paste, Lichtmuster, Update-Chip).
+- Stand 2026-11-15 (Ende der Runde): `main` = Build 27 (geprüft). Neu seit Build 25: 56 „Neue Builds
+  sofort melden“ (Prüfung beim Öffnen der Tastatur, höchstens alle 15 Minuten, ETag, Schalter
+  anfangs an), mit Prüfer; volle Agent-Suite lokal und GitHub-Lauf 75 grün; kein Gerätetest, nie
+  gegen das echte GitHub. Dazu der rote `UpdatePromptsTest` auf Build 25 behoben (nur Test).
+- Owner-Fragen offen: Satz in `CLAUDE.md`, dass die Update-Prüfung die einzige Netzanfrage ohne
+  Freigabe ist (Lead hat vorgeschlagen, wartet auf Okay); Screenshot der Diagnose-Karte „Letztes
+  Feld“ zum Problem „stellenweise keine Vorschläge, Großschreibung, Autokorrektur“.
+- Beim Owner: Build 25, Test-Build 26 (56 mit allen Korrekturen). Erwartung: Mit 26 erscheint nach
+  dem Release von 27 von selbst der Chip „⬆ Build 27 verfügbar“ (erster echter Test von 56).
+- Nächste Sitzung: Rückmeldung zum Chip und zur Diagnose-Karte; Rückmeldung zu Build 23
+  (Befehle, Zeichen-Kunst, Smart Paste, Lichtmuster).
 
 ## Offene Punkte
 
-0. **Nächste Runde.** Zuerst Rückmeldung zu Build 22/23. Fallstricke belegt bis P236, frei ab
-   P237. Offen niedrig: 40 Telefonnummern in ES/US nur mit +/00, PrivateRanges höchstens 3 Werte,
+0. **Nächste Runde.** Zuerst Rückmeldung zu Build 22/23. Fallstricke belegt bis P239, frei ab
+   P240. Offen niedrig: 40 Telefonnummern in ES/US nur mit +/00, PrivateRanges höchstens 3 Werte,
    `RgbOwnPatternTest.ownPatternsStayWithinTheBudget` misst Zeit und fällt unter paralleler Last
    (allein grün, Verhältnis ≈ 1,7 von erlaubten 2). Davor offen: Rückmeldung zu Build 20/21 und die Owner-Fragen: Großschreibung in
    Feldern mit „jedes Wort groß“ (48), Kürzel-Chip als einzige Ersetzung (46), Passwortfeld-Kopien
@@ -247,6 +247,10 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
   `release-notes/**` startet den Lauf.
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
+- Build 27 (geprüft, von `main`): 56 „Neue Builds sofort melden“ mit Prüfer und Korrekturen; volle
+  Agent-Suite lokal grün (1131 App auf bcc46ad, danach gezielt 591 Kern und 46 App auf 42248cd),
+  GitHub-Lauf 75 grün (Agent, Upstream, Lint); kein Gerätetest.
+- Build 26 (Test, Arbeitsbranch cdb676c): 56 mit allen Prüferkorrekturen.
 - Build 25 (geprüft, von `main`): 55 Diagnose „Letztes Feld“ mit Prüfer und Nachprüfung; Agent-Suite
   lokal grün (586 Kern, 1123 App), GitHub-Lauf 72 grün (Agent, Upstream, Lint); kein Gerätetest.
 - Build 24 (Test, Arbeitsbranch 23edd0e): 55 vor den Prüferkorrekturen (Firefox-Workaround der App
