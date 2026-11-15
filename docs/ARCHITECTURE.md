@@ -4906,7 +4906,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P237** Prüfung beim Öffnen (56) nie auf dem Tipp-Pfad: `UpdateOnOpen.onStartInputView` läuft in
   jedem `onStartInputView`, darum auf dem Hauptthread nur Felder und Systemzustände lesen und erst
   nach allen Bedingungen (Schalter, 15 Minuten) die Binder-Fragen nach Netz und Datensparmodus; das
-  Speichern (`commit`) und die Anfrage nur im `executor`. Der Aufruf steht vor dem
+  Speichern (`commit`) und die Anfrage nur im `executor`. Nachprüfung 56: vor dem Lesen der
+  CE-Einstellungen nur `isUserUnlocked` (einmal wahr, dann je Prozess gemerkt), die Keyguard-Fragen
+  (`UpdateChip.locked`) erst nach Schalter und 15 Minuten; `Updates.check` läuft unter einem Lock, so
+  dass Prüfung beim Öffnen, „Jetzt prüfen“ und täglicher Job nacheinander schreiben. Der Aufruf steht vor dem
   `synchronized`-Block von `LastField.capture`, weil dessen `return` in `runCatching` die ganze
   Funktion verlässt (eigene Einstellungen, keine Einstellungen). Ein `AtomicBoolean` verhindert eine
   zweite Prüfung, solange eine läuft. Unit-Tests erreichen nie das echte Netz: Robolectrics
@@ -4929,8 +4932,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   auch nach einem Fehlschlag. Ein 304 auf eine Anfrage ohne `If-None-Match` ist ein Fehler
   (`SERVICE`). `downloadAndInstall` fragt immer ohne ETag (es braucht die Assets). Jeder Fehlschlag
   (auch 403/429) behält Build, Notizen und ETag (P211) und verdoppelt die Wartezeit der Prüfung beim
-  Öffnen; ein Erfolg (200 oder 304) setzt sie zurück. Ein 304 zählt laut GitHub nicht gegen das Limit
-  von 60 Anfragen je Stunde ohne Anmeldung; gegen das echte GitHub ist das nicht geprüft.
+  Öffnen; ein Erfolg (200 oder 304) setzt sie zurück. Laut GitHub-Doku zählt ein 304 nur bei
+  angemeldeten Anfragen (`Authorization`) nicht gegen das Limit; ohne Anmeldung zählt vermutlich auch
+  er gegen die 60 Anfragen je Stunde und IP (nicht gegen das echte GitHub geprüft). Mit höchstens vier
+  Anfragen je Stunde und Gerät reicht das; hinter einer geteilten IP (CGNAT) mögliche 403 fängt die
+  Wartezeit ab. Der ETag spart vor allem Datenmenge.
 
 ## Datei-Inventar
 

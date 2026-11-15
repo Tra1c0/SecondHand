@@ -24,7 +24,14 @@ object Updates {
      * stored result as `If-None-Match` while it was compared with [installed]; a 304 keeps that
      * result (known build, notes, ETag) and only writes the status and [UpdateSettings.checkedAt].
      */
-    fun check(context: Context, client: () -> GitHubUpdateClient, installed: Long = installedVersion(context)): UpdateStatus {
+    fun check(context: Context, client: () -> GitHubUpdateClient, installed: Long = installedVersion(context)): UpdateStatus =
+        // review of stage 56 (3): the check on open, "Jetzt prüfen" and the daily job one after another, so a
+        // 304 never reads the stored build while another check writes a newer one
+        synchronized(checkLock) { checkLocked(context, client, installed) }
+
+    private val checkLock = Any()
+
+    private fun checkLocked(context: Context, client: () -> GitHubUpdateClient, installed: Long): UpdateStatus {
         // credential-protected: before the first unlock there is no stored state and no ETag to send
         val stored = runCatching { UpdateSettings(context) }.getOrNull()
         val sent = runCatching { stored?.let { s -> s.etag?.takeIf { s.comparedVersion == installed } } }.getOrNull()

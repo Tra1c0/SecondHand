@@ -109,8 +109,10 @@ nutzen einen Debug-Schlüssel, der in jeder neuen Umgebung anders ist; sie sind 
   und mit „Neue Builds sofort melden“ (Schalter, anfangs an) beim Öffnen der Tastatur, höchstens alle
   15 Minuten seit dem letzten Versuch, nach Fehlschlägen in Folge seltener (bis 4 Stunden). Gesendet
   wird jedes Mal nur ein `GET` der Release-Liste an `api.github.com`, ohne Token und ohne Getipptes,
-  mit `If-None-Match` (ETag der letzten Antwort); unverändert antwortet GitHub mit 304. Nicht bei
-  gesperrtem Gerät, Inkognito, in Passwortfeldern, mit Datensparmodus oder ohne Netz. Einen Push (FCM
+  mit `If-None-Match` (ETag der letzten Antwort, nicht direkt nach einem Update); unverändert
+  antwortet GitHub mit 304. Die Prüfung beim Öffnen läuft nicht bei gesperrtem Gerät, Inkognito, in
+  Passwortfeldern, mit Datensparmodus oder ohne Netz; „Jetzt prüfen“ und die tägliche Suche achten
+  nicht auf den Datensparmodus. Einen Push (FCM
   oder eigener Server) gibt es nicht (Owner, 2026-11-15): Ein neuer Build erscheint also erst, wenn
   die Tastatur das nächste Mal nach Ablauf der 15 Minuten geöffnet wird. Download und Installation
   bleiben beim Tipp des Owners.

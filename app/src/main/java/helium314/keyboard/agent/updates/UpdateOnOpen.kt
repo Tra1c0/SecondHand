@@ -68,19 +68,34 @@ object UpdateOnOpen {
     @JvmStatic fun onStartInputView(context: Context, editorInfo: EditorInfo?, settings: SettingsValues?): Skip? =
         runCatching { start(context, editorInfo, settings) }.getOrDefault(Skip.FAILED)
 
+    @Volatile private var unlockedOnce = false
+
+    /** Whether credential-protected storage is readable; true stays true for the process (Direct Boot only ends). */
+    private fun userUnlocked(context: Context): Boolean {
+        if (unlockedOnce) return true
+        val unlocked = android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.N || runCatching {
+            (context.getSystemService(Context.USER_SERVICE) as? android.os.UserManager)?.isUserUnlocked == true
+        }.getOrDefault(false)
+        if (unlocked) unlockedOnce = true
+        return unlocked
+    }
+
     private fun start(context: Context, editorInfo: EditorInfo?, settings: SettingsValues?): Skip? {
         val values = settings ?: return Skip.NO_FIELD
         if (editorInfo == null) return Skip.NO_FIELD
         if (values.mIsLocked) return Skip.LOCKED
         if (isPassword(values, editorInfo)) return Skip.PASSWORD
         if (isIncognito(values, editorInfo)) return Skip.INCOGNITO
-        // live: the device may have locked since the field started; this also guards the credential-protected settings
-        if (UpdateChip.locked(context)) return Skip.LOCKED
         if (running.get()) return Skip.RUNNING
+        // review of stage 56 (4): only what the credential-protected settings need before reading them
+        // (one call, remembered once true); the keyguard questions come after the switch and the 15 minutes
+        if (!userUnlocked(context)) return Skip.LOCKED
         val stored = UpdateSettings(context)
         if (!stored.onOpen) return Skip.SWITCH_OFF
         val now = clock()
         if (!UpdateOnOpenPolicy.due(now, stored.openAttemptAt, stored.openFailures)) return Skip.THROTTLED
+        // live: the device may have locked since the field started
+        if (UpdateChip.locked(context)) return Skip.LOCKED
         if (dataSaver(context)) return Skip.DATA_SAVER
         if (!online(context)) return Skip.OFFLINE
         val installed = UpdateChip.installed(context)

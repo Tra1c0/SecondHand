@@ -46,7 +46,8 @@ und keinen Token.
    wird die Datei gelöscht und nichts installiert.
 4. „Neue Builds sofort melden“ (anfangs an): Die Tastatur prüft beim Öffnen selbst, höchstens alle
    15 Minuten (nach Fehlschlägen seltener), ob es einen neuen Build gibt. Gesendet wird nur eine
-   Anfrage nach der Release-Liste an api.github.com, nie etwas, das du tippst. Nicht bei gesperrtem
+   Anfrage nach der Release-Liste an api.github.com, nie etwas, das du tippst (GitHub sieht dabei wie
+   bei jedem Abruf deine IP-Adresse). Nicht bei gesperrtem
    Gerät, in Inkognito- oder Passwortfeldern, mit Datensparmodus oder ohne Netz. Findet sie einen
    neuen Build, steht in der leeren Leiste sofort „⬆ Build 7 verfügbar“ (nie statt Wortvorschlägen);
    ein Tipp darauf öffnet die Seite „Updates“, geladen und installiert wird weiter nur nach deinem

@@ -6,7 +6,7 @@
     <string name="agent_updates_repository">Repository: %s</string>
     <string name="agent_updates_installed">Installiert: Build %d</string>
     <string name="agent_updates_on_open">Neue Builds sofort melden</string>
-    <string name="agent_updates_on_open_on">Die Tastatur prüft beim Öffnen selbst, höchstens alle 15 Minuten: eine Anfrage nach der Release-Liste an api.github.com, nie etwas Getipptes. Nicht gesperrt, nicht in Inkognito- oder Passwortfeldern, nicht mit Datensparmodus und nicht ohne Netz. Ein neuer Build erscheint als „⬆ Build N verfügbar“ in der Leiste.</string>
+    <string name="agent_updates_on_open_on">Die Tastatur prüft beim Öffnen selbst, höchstens alle 15 Minuten: eine Anfrage nach der Release-Liste an api.github.com, nie etwas Getipptes (GitHub sieht wie bei jedem Abruf deine IP-Adresse). Nicht gesperrt, nicht in Inkognito- oder Passwortfeldern, nicht mit Datensparmodus und nicht ohne Netz. Ein neuer Build erscheint als „⬆ Build N verfügbar“ in der Leiste.</string>
     <string name="agent_updates_on_open_off">Aus: Die Tastatur fragt nie selbst, nur „Jetzt prüfen“ und die tägliche Suche.</string>
     <string name="agent_updates_daily">Täglich nach Updates suchen</string>
     <string name="agent_updates_daily_summary">Etwa einmal am Tag und nur mit Netzverbindung. Zeigt eine Benachrichtigung, wenn es einen neuen Build gibt.</string>

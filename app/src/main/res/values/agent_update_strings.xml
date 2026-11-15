@@ -7,7 +7,7 @@
     <string name="agent_updates_repository">Repository: %s</string>
     <string name="agent_updates_installed">Installed: build %d</string>
     <string name="agent_updates_on_open">Report new builds right away</string>
-    <string name="agent_updates_on_open_on">The keyboard checks by itself when it opens, at most every 15 minutes: one request for the release list to api.github.com, never anything typed. Not while locked, in incognito or password fields, with Data Saver or without a network. A new build shows as “⬆ Build N available” in the strip.</string>
+    <string name="agent_updates_on_open_on">The keyboard checks by itself when it opens, at most every 15 minutes: one request for the release list to api.github.com, never anything typed (like any request, GitHub sees your IP address). Not while locked, in incognito or password fields, with Data Saver or without a network. A new build shows as “⬆ Build N available” in the strip.</string>
     <string name="agent_updates_on_open_off">Off: the keyboard never asks by itself; only “Check now” and the daily check do.</string>
     <string name="agent_updates_daily">Check for updates daily</string>
     <string name="agent_updates_daily_summary">About once a day and only with a network connection. Shows a notification when a new build exists.</string>
