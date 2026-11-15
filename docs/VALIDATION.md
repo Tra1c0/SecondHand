@@ -5412,6 +5412,24 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   gegen das Limit zählt), echter Datensparmodus, Netzwechsel, Verhalten bei langsamem Netz auf dem
   Gerät.
 
+### Nachprüfung 56 (Prüfung zu 5dc4016 und bcc46ad, Lead, 2026-11-15)
+
+- Behoben in 42248cd:
+  - Befund 1, mittel: FEATURES „Normales Tippen offline“ nennt jetzt die Update-Prüfung als einzige Ausnahme ohne Freigabe.
+  - Befund 2, mittel: Ein 304 zählt bei anonymen Anfragen vermutlich doch gegen das Limit (P239).
+  - Befund 3: `Updates.check` läuft unter einem Lock.
+  - Befund 4: Vor den CE-Einstellungen wird nur `isUserUnlocked` geprüft; die Keyguard-Fragen kommen nach Schalter und 15 Minuten (P237).
+  - Befund 7: Die IP-Adresse wird in App-Text, FEATURES und ANLEITUNG genannt.
+  - Befund 8: BUILD sagt, welche Bedingungen nur für die Prüfung beim Öffnen gelten.
+- Behoben in bcc46ad, Befund 9: `UpdatePromptsTest.whatsNewDialogComesOnceThenTheAvailableOne` lief auf `main` (bf97a3a) rot. Ursache waren die gekürzten Notizen, und `release-notes/**` startete keinen GitHub-Lauf. Der Test nimmt jetzt eigene lange Notizen (`notesForTest`); die echten Notizen prüfen weiter zwei Tests. `release-notes/**` startet den Lauf.
+- So gelassen:
+  - Befund 5: Ein kurzer Chip vor den ersten Wörtern ist nur auf dem Gerät sichtbar.
+  - Befund 6: Es gibt keinen Test für `refresh` bei verdeckter Tastatur oder in einem anderen Feld. Die Prüfung im Code ist da.
+- Tests:
+  - Volle Agent-Suite auf bcc46ad: 1131 App-Tests, 0 Fehler.
+  - Danach auf 42248cd: `:agent-core:test` 591 grün; `*Update*`, `*LastFieldTest` und `*InputLogicTest.update*` 46 grün.
+  - Kein Gerätetest und kein Test gegen das echte GitHub.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.
