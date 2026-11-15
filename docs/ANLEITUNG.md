@@ -1430,8 +1430,7 @@ für das letzte Feld, in dem die Tastatur offen war: die App, der Feldtyp (z. B.
 Sprache und ob ihr Wörterbuch geladen ist, was die Tastatur selbst abgeschaltet hat (auch „Immer
 Vorschläge anzeigen“) und was die Leiste zuletzt zeigte (Wörter, Symbolleiste, Emoji-Reihe, Chips
 oder eine Pille). Schick den Screenshot (oder „Kopieren“) an den Lead. Feldtexte stehen dort nie.
-„Kopieren“ markiert den Text als vertraulich: Mit Zwischenablageverlauf liegt er darum im Tresor
-der Tastatur, Einfügen über die App (langes Drücken → Einfügen) geht wie immer. In einem
+In einem
 Passwortfeld steht nur „Passwortfeld“, im Inkognito-Modus, in Feldern, die das Lernen verbieten
 (z. B. private Tabs im Browser), und bei gesperrtem Telefon nur „Inkognito/gesperrt: nichts
 gemerkt“; für solche Felder kann die Karte also keinen Grund nennen. Die Karte lebt nur im

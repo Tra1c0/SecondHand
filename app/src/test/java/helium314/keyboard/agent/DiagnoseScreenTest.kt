@@ -35,6 +35,7 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.LooperMode
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -260,7 +261,9 @@ class DiagnoseScreenTest {
         for (gone in listOf("Inkognito:", "Gerät gesperrt:", "Sensibles Feld")) assertFalse(gone in copied, gone)
         assertTrue("„Immer Vorschläge anzeigen“: aus" in copied, copied)
         val clip = (app.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip!!
-        assertEquals(true, clip.description.extras?.getBoolean("android.content.extra.IS_SENSITIVE"))
+        // meant to be passed on, no field text: not marked, so the clipboard guard does not file it in the vault (lead)
+        assertNotEquals(true, clip.description.extras?.getBoolean("android.content.extra.IS_SENSITIVE"))
+        assertTrue("Letztes Feld" in clip.getItemAt(0).text.toString())
     }
 
     @Test fun firefoxsWorkaroundIsNamedWithBothNumbers() {

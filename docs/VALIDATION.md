@@ -5321,13 +5321,14 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - N1–N4, N6, N10 (behoben): Urteil und Ergebnis zuerst; die drei immer „aus“-Zeilen weg; „Immer
   Vorschläge anzeigen“ samt Web-Ausnahme als Zeile und im Urteil (`APP_NO_SUGGESTIONS_WEB` für
   Webfelder mit Ausnahme); eine scheiternde Wörterbuch-Prüfung ist „unbekannt“ (`mainDictionary`
-  gibt `null`), nie „fehlt“; „Kopieren“ setzt `IS_SENSITIVE`; jede Zeile mit
+  gibt `null`), nie „fehlt“; „Kopieren“ setzte `IS_SENSITIVE` (vom Lead zurückgenommen, siehe unten); jede Zeile mit
   `semantics(mergeDescendants = true)`, lange Werte (auf schmalen Bildschirmen schon mittlere) unter
   der Beschriftung (Breite über `LocalWindowInfo`, nicht `LocalConfiguration`, Lint). N5 (behoben):
   nur `SettingsValues.mIsLocked` (liest `isDeviceLocked` beim Feldstart; ein nicht entsperrter Nutzer
   ist auch gesperrt). N7: ANLEITUNG sagt, dass die Karte in Inkognito- und Nicht-Lernen-Feldern
-  keinen Grund nennen kann. Folge von N6: Mit Zwischenablageverlauf legt `ClipGuard` den kopierten
-  Text als Geheimnis in den Tresor (in ANLEITUNG genannt).
+  keinen Grund nennen kann. N6 vom Lead zurückgenommen: markiert legte `ClipGuard` die Kopie mit
+  Zwischenablageverlauf als Geheimnis in den Tresor; sie ist zum Weitergeben da und enthält keinen
+  Feldtext (nur App, Feldtyp, Zahlen), darum ohne `IS_SENSITIVE` wie vor Etappe 55.
 - Engine-nah: `SuggestionStripView.kt` (keine der drei Engine-Dateien, `runCatching`); `LatinIME`,
   `InputLogic`, `RichInputConnection`, `PointerTracker` in dieser Nachprüfung unverändert.
 - Tests (2026-11-15, `--max-workers=1 -Xmx1536m`): `:agent-core:test` 586 grün (`FieldReportTest`

@@ -144,9 +144,8 @@ private const val NARROW_VALUE = 14
 private fun copy(context: Context, text: String) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
     val clip = ClipData.newPlainText(context.getString(R.string.agent_diagnose_title), text)
-    // review of stage 55 (N6): the app's name and field types are nobody else's business, like the panel's copies
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
-        clip.description.extras = android.os.PersistableBundle().apply { putBoolean("android.content.extra.IS_SENSITIVE", true) }
+    // not marked sensitive (lead, stage 55): the copy is meant to be passed on and holds no field text;
+    // marked, the clipboard guard would file it as a secret in the vault
     clipboard.setPrimaryClip(clip)
     // from Android 13 on the system shows its own confirmation
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU)
