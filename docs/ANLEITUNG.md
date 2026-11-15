@@ -1419,8 +1419,8 @@ gemessen) und die Versionen. „gstatic erreichbar?“ lädt nur bei diesem Tipp
 Screenshot geht auch.
 
 **Keine Vorschläge, keine Großschreibung oder keine Autokorrektur?** Lass die App, in der es
-passiert, offen, wechsle direkt zu Einstellungen → Diagnose (ohne vorher in ein anderes Textfeld
-zu tippen) und mach einen Screenshot der ersten Karte „Letztes Feld“. Sie zeigt für das letzte
+passiert, offen, wechsle direkt zu Einstellungen → Diagnose (ohne vorher in einer anderen App in ein
+Textfeld zu tippen; die Suche der Einstellungen zählt nicht) und mach einen Screenshot der ersten Karte „Letztes Feld“. Sie zeigt für das letzte
 Feld, in dem die Tastatur offen war: die App, den Feldtyp (z. B. „Suche“, „Adresse (URL)“), was die
 App erlaubt (Vorschläge, Großschreibung, Autokorrektur), die Sprache und ob ihr Wörterbuch geladen
 ist, was die Tastatur selbst abgeschaltet hat, und ganz unten das Urteil in einem Satz, z. B.

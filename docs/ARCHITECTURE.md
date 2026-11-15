@@ -4794,7 +4794,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   und `CT/FieldReportTest`. „Die App verbietet Vorschläge“ ist eine Folgerung: Vorschläge aus,
   Leiste da, Einstellung an. `FieldReport` kopiert die Plattformzahlen; `AT/LastFieldTest`
   vergleicht sie mit `InputType`/`EditorInfo`.
-- **P233** Zeitpunkt der Aufnahme (55): `LastField.capture` steht in `onStartInputViewInternal`
+- **P233** Zeitpunkt der Aufnahme (55): Felder der eigenen Einstellungen (Paketname der Tastatur, z. B.
+  die Suche auf dem Weg zur Diagnose) nimmt `capture` nicht auf, das Feld der App davor bleibt
+  (Test `aFieldOfTheKeyboardsOwnSettingsKeepsTheAppBefore`). `LastField.capture` steht in `onStartInputViewInternal`
   nach `loadSettings` (sonst wären es die Werte des vorigen Felds) und vor dem frühen Rücksprung
   ohne `MainKeyboardView` und vor `setNeutralSuggestionStrip` (die Zähler der Leiste beginnen
   dort neu). Ein Haken in `AgentEditorController.startEditor` wäre zu früh: `onStartInputView` ruft

@@ -47,6 +47,9 @@ object LastField {
     @JvmStatic @Synchronized fun capture(context: Context, editorInfo: EditorInfo?, settings: SettingsValues?, dictionaries: DictionaryFacilitator?) {
         runCatching {
             val values = settings ?: return
+            // a field of the keyboard's own settings (their search on the way to the diagnose page)
+            // keeps the snapshot of the app before it (lead, stage 55)
+            if (editorInfo?.packageName == context.packageName) return
             snapshot = snapshotOf(context, editorInfo?.imeOptions ?: 0, values, SystemClock.elapsedRealtime())
             this.dictionaries = dictionaries?.let { WeakReference(it) }
             switched = false

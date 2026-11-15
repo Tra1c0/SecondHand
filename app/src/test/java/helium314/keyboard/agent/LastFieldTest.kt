@@ -111,6 +111,15 @@ class LastFieldTest {
         assertEquals(FieldReport.FieldType.SHORT_MESSAGE, field.type)
     }
 
+    @Test fun aFieldOfTheKeyboardsOwnSettingsKeepsTheAppBefore() {
+        start(editor(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES))
+        // the settings search on the way to the diagnose page
+        val own = editor(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS, packageName = app.packageName)
+        load(own)
+        LastField.capture(app, own, Settings.getValues(), null)
+        assertEquals("com.example.chat", assertIs<FieldReport.Snapshot.Field>(LastField.current(app)).packageName)
+    }
+
     @Test fun realFieldsGetTheirReason() {
         fun finding(inputType: Int, imeOptions: Int = 0) =
             FieldReport.verdict(start(editor(inputType, imeOptions))!!).finding
