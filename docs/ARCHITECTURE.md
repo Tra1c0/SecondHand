@@ -2137,8 +2137,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `PackageManager`) baut die erste Karte der Seite, Urteil und Ergebnis zuerst; `verdictText` macht
   aus `FieldReport.verdict` einen Satz. Die Seite fasst jede Zeile für TalkBack zusammen und setzt
   lange Werte (und auf schmalen Bildschirmen schon mittlere) unter ihre Beschriftung; „Kopieren“
-  markiert den Clip als vertraulich (`IS_SENSITIVE`, wie das Aktionspanel; mit Zwischenablageverlauf
-  legt `ClipGuard` ihn darum als Geheimnis in den Tresor, Einfügen über die App geht normal). Tests: `AT/LastFieldTest.kt` (echte `EditorInfo` und
+  markiert den Clip bewusst nicht als vertraulich (er ist zum Weitergeben da und enthält keinen
+  Feldtext; markiert legte `ClipGuard` ihn mit Zwischenablageverlauf als Geheimnis in den Tresor). Tests: `AT/LastFieldTest.kt` (echte `EditorInfo` und
   `SettingsValues`, Plattformzahlen, Firefox-Workaround, Leiste, eigene Einstellungen),
   `AT/DiagnoseScreenTest.kt` (Karte, Reihenfolge, Kopieren, keine Feldtexte, Firefox, verdeckte
   Leiste, Wörterbuch-Fehler, Passwort, Inkognito, gesperrt),
@@ -4806,7 +4806,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   im Befehl, Chips der Tastatur, Pille (Zwischenablage, Screenshot, Update, gemaltes Symbol,
   Autofill), Wörter unter der Symbolleiste bzw. Emoji-Reihe, Symbolleiste bzw. Emoji-Reihe ohne
   Wörter, Leiste nie gemeldet („nicht erfasst“). „Alles an“ nur, wenn die Leiste zuletzt Wörter
-  oder nichts im Weg zeigte. Die Zweige folgen den Formeln in `SettingsValues`
+  oder nichts im Weg zeigte. Zweite Nachprüfung (M-a): Eine Meldung ohne neuen Inhalt deckt die
+  Leiste nur zu, nie auf; `hideWindow` (und das Schließen des flachen Menüs) klappt eine
+  ausgeklappte Symbolleiste zu, bevor die Diagnose offen ist, das darf „Wörter unter der
+  Symbolleiste“ nicht zu „Wörter“ machen (`LastField.onStripView`). Bekannte Grenze (N-b): ein
+  Firefox-Webfeld ohne `AUTO_CORRECT`, dem nur der Workaround (`WEB_EDIT_TEXT`) die Autokorrektur
+  nimmt, gilt als „App verlangt sie nicht“; beide Zahlen und „Workaround der Tastatur“ stehen auf der
+  Karte, der genannte Ausweg „Mehr Autokorrektur“ stimmt. Die Zweige folgen den Formeln in `SettingsValues`
   (`mAutoCorrectEnabled`, `mSuggestionsEnabled`, `mOverrideShowingSuggestions`,
   `needsToLookupSuggestions`) und `InputAttributes`; wer dort etwas ändert, prüft die Reihenfolge
   und `CT/FieldReportTest`. „Die App verbietet Vorschläge“ ist eine Folgerung: Vorschläge aus,

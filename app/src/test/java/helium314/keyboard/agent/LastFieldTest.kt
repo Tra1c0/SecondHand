@@ -196,6 +196,14 @@ class LastFieldTest {
         assertEquals(4, live.stripUpdates)
         assertEquals(3, live.coveredUpdates)
         assertEquals(Finding.WORDS_UNDER_TOOLBAR, FieldReport.verdict(LastField.current(app)!!, live).finding)
+        // second review (M-a): hideWindow closes the expanded toolbar before the diagnose page opens; a report
+        // without new content does not uncover the strip
+        LastField.onStripView(newContent = false, wordsOffered = true, external = false, toolbar = false, emojis = false)
+        assertEquals(FieldReport.Strip.TOOLBAR, LastField.live("de", true).strip)
+        assertEquals(Finding.WORDS_UNDER_TOOLBAR, FieldReport.verdict(LastField.current(app)!!, LastField.live("de", true)).finding)
+        // new words after it do
+        LastField.onStripView(newContent = true, wordsOffered = true, external = false, toolbar = false, emojis = false)
+        assertEquals(FieldReport.Strip.WORDS, LastField.live("de", true).strip)
         // a new field starts counting again
         start(editor(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES))
         assertEquals(0, LastField.live("de", null).stripUpdates)

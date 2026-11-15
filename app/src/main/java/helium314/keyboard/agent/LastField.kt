@@ -123,6 +123,12 @@ object LastField {
                 wordsOffered -> FieldReport.Strip.WORDS
                 else -> FieldReport.Strip.EMPTY
             }
+            // second review of stage 55 (M-a): a report without new content can only cover the strip, never
+            // uncover it. hideWindow closes an expanded toolbar (and the flat menu closes) before the
+            // diagnose page opens; that must not turn "words under the toolbar" into "words".
+            val last = strip
+            if (!newContent && last != null && last.strip == FieldReport.Strip.TOOLBAR && kind != FieldReport.Strip.TOOLBAR
+                && kind != FieldReport.Strip.EMOJIS && kind != FieldReport.Strip.PILL && kind != FieldReport.Strip.KEYBOARD_CHIPS) return
             strip = StripState(kind, wordsOffered && !external)
         }
     }

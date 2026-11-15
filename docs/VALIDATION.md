@@ -5336,13 +5336,26 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   23edd0e, +2: eigene Einstellungen zählen nichts, Firefox; Leistentest auf `onStripView`
   umgestellt); `DiagnoseScreenTest` 15 grün (+3: Firefox mit beiden Zahlen, verdeckte Leiste ohne
   „Alles an“, scheiternde Wörterbuch-Prüfung; Kopier-Test prüft Reihenfolge, fehlende Zeilen,
-  `IS_SENSITIVE`; zwei Erwartungen an geänderte Texte angepasst: die Zahlenzeile ist jetzt zwei
+  damals `IS_SENSITIVE`, seit 82f85aa dessen Fehlen; zwei Erwartungen an geänderte Texte angepasst: die Zahlenzeile ist jetzt zwei
   Zeilen, der Satz zu `APP_NO_SUGGESTIONS` nennt den Ausweg); `*InputLogicTest` 268, nur der geerbte
   Fehler `insertLetterIntoWordHangulFails`. Lint (`:app:lintDebugNoMinify`, `--max-workers=1`): 0
   Fehler; die Warnung `ConfigurationScreenWidthHeight` danach behoben und Lint erneut gelaufen.
   `docs_sync --check` grün.
 - Nicht gelaufen: volle Suite, Build, Gerätetest (echte Leiste in Firefox, Symbolleiste, Pillen,
-  TalkBack, schmaler Bildschirm, Tresor nach „Kopieren“).
+  TalkBack, schmaler Bildschirm).
+
+### Zweite Nachprüfung 55 (Prüfung zu 43dbb59 und 82f85aa, Lead, 2026-11-15)
+
+- M-a (mittel, behoben): `hideWindow` klappte eine ausgeklappte Symbolleiste zu und meldete die Leiste
+  danach als „Wörter“, bevor die Diagnose offen war; „Alles an“ statt „Wörter unter der
+  Symbolleiste“. Eine Meldung ohne neuen Inhalt deckt jetzt nur zu, nie auf (P232); Test in
+  `LastFieldTest.theStripCountsChipsAndTheCommandOfTheField` erweitert.
+- M-b, N-a (behoben): FEATURES, ARCHITECTURE und VALIDATION sagen nicht mehr, dass „Kopieren“
+  vertraulich markiert (82f85aa).
+- N-b (bekannte Grenze, in P232): Firefox-Webfeld ohne `AUTO_CORRECT`, dem nur `WEB_EDIT_TEXT` die
+  Autokorrektur nimmt, gilt als „App verlangt sie nicht“. N-c (seltene Upstream-Eigenheit:
+  Inkognito umgelegt bei sichtbarer Pille) und N-d (Stil) so gelassen.
+- Tests: `LastFieldTest`, `DiagnoseScreenTest` grün (siehe Build-Log für die volle Suite).
 
 ## Gerätetest vor Meilensteinfreigabe
 
