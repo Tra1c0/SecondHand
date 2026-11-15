@@ -171,17 +171,79 @@ class LastFieldTest {
 
     @Test fun theStripCountsChipsAndTheCommandOfTheField() {
         start(editor(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or InputType.TYPE_TEXT_FLAG_MULTI_LINE))
+        // as LatinIME and SuggestionStripView report it: words, then the keyboard's chips for a command
         LastField.onStrip(chips = false, insideCommand = false)
+        LastField.onStripView(newContent = true, wordsOffered = true, external = false, toolbar = false, emojis = false)
         LastField.onStrip(chips = true, insideCommand = true)
-        val live = LastField.live("de", dictionaryPresent = true)
+        LastField.onStripView(newContent = true, wordsOffered = false, external = true, toolbar = false, emojis = false)
+        LastField.onStripView(newContent = false, wordsOffered = false, external = true, toolbar = false, emojis = false) // toolbar hidden
+        var live = LastField.live("de", dictionaryPresent = true)
+        assertEquals(FieldReport.Strip.KEYBOARD_CHIPS, live.strip)
         assertEquals(2, live.stripUpdates)
+        assertEquals(1, live.coveredUpdates)
         assertEquals(1, live.chipUpdates)
-        assertTrue(live.lastStripChips)
         assertTrue(live.inCommand)
         assertNull(live.dictionaryLoaded, "no engine dictionaries here: unknown, no claim")
+        // another view in place of the words (clipboard pill), then words under the expanded toolbar
+        LastField.onStrip(chips = false, insideCommand = false)
+        LastField.onStripView(newContent = true, wordsOffered = false, external = true, toolbar = false, emojis = false)
+        assertEquals(FieldReport.Strip.PILL, LastField.live("de", true).strip)
+        LastField.onStripView(newContent = true, wordsOffered = true, external = false, toolbar = false, emojis = false)
+        LastField.onStripView(newContent = false, wordsOffered = true, external = false, toolbar = true, emojis = false)
+        live = LastField.live("de", true)
+        assertEquals(FieldReport.Strip.TOOLBAR, live.strip)
+        assertTrue(live.wordsOffered)
+        assertEquals(4, live.stripUpdates)
+        assertEquals(3, live.coveredUpdates)
+        assertEquals(Finding.WORDS_UNDER_TOOLBAR, FieldReport.verdict(LastField.current(app)!!, live).finding)
         // a new field starts counting again
         start(editor(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES))
         assertEquals(0, LastField.live("de", null).stripUpdates)
+        assertNull(LastField.live("de", null).strip)
+    }
+
+    @Test fun theKeyboardsOwnSettingsCountNothingOfTheStrip() {
+        start(editor(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or InputType.TYPE_TEXT_FLAG_MULTI_LINE))
+        LastField.onStripView(newContent = true, wordsOffered = true, external = false, toolbar = false, emojis = false)
+        // the keyboard opens in the settings search: chips, a command and pills there are not the app's (review M2)
+        val own = editor(InputType.TYPE_CLASS_TEXT, packageName = app.packageName)
+        load(own)
+        LastField.capture(app, own, Settings.getValues(), null)
+        LastField.onStrip(chips = true, insideCommand = true)
+        LastField.onStripView(newContent = true, wordsOffered = false, external = true, toolbar = false, emojis = false)
+        val live = LastField.live("de", true)
+        assertEquals(FieldReport.Strip.WORDS, live.strip)
+        assertEquals(1, live.stripUpdates)
+        assertEquals(0, live.chipUpdates)
+        assertTrue(!live.inCommand)
+        assertEquals("com.example.chat", assertIs<FieldReport.Snapshot.Field>(LastField.current(app)).packageName)
+        // back in an app, counting starts for that field
+        start(editor(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES))
+        LastField.onStrip(chips = true, insideCommand = false)
+        assertEquals(1, LastField.live("de", true).chipUpdates)
+    }
+
+    @Test fun firefoxsWorkaroundKeepsWhatTheAppSent() {
+        // a web field in Firefox: IME_MULTI_LINE + AUTO_CORRECT, HeliBoard adds NO_SUGGESTIONS and WEB_EDIT_TEXT (AppWorkarounds)
+        val raw = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_IME_MULTI_LINE or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT or
+            InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+        val field = assertIs<FieldReport.Snapshot.Field>(start(editor(raw, packageName = "org.mozilla.firefox")))
+        assertEquals(raw, field.rawInputType)
+        assertEquals(raw or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or InputType.TYPE_TEXT_VARIATION_WEB_EDIT_TEXT, field.inputType)
+        assertEquals(Settings.getValues().mInputAttributes.mInputType, field.inputType)
+        assertTrue(field.workaroundForbidsSuggestions)
+        assertTrue(field.appAllowsSuggestions)
+        assertEquals(Finding.WORKAROUND_NO_SUGGESTIONS, FieldReport.verdict(field).finding)
+        // "Immer Vorschläge anzeigen" with its default exception for web fields does not change it
+        app.prefs().edit().putBoolean(Settings.PREF_ALWAYS_SHOW_SUGGESTIONS, true).commit()
+        assertEquals(Finding.WORKAROUND_NO_SUGGESTIONS, FieldReport.verdict(start(editor(raw, packageName = "org.mozilla.firefox"))!!).finding)
+        // without the exception it does: suggestions are shown
+        app.prefs().edit().putBoolean(Settings.PREF_ALWAYS_SHOW_SUGGESTIONS_EXCEPT_WEB_TEXT, false).commit()
+        val shown = assertIs<FieldReport.Snapshot.Field>(start(editor(raw, packageName = "org.mozilla.firefox")))
+        assertTrue(shown.suggestionsShown)
+        // the same field in another app is left as the app sent it
+        app.prefs().edit().clear().commit()
+        assertTrue(!assertIs<FieldReport.Snapshot.Field>(start(editor(raw, packageName = "com.example.chat"))).workaround)
     }
 
     @Test fun aPasswordOrIncognitoFieldReplacesTheFieldBefore() {

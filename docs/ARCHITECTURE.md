@@ -89,8 +89,9 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - `FieldReport.kt` (Etappe 55): Modell und Urteil der Diagnose-Karte „Letztes Feld“. Eigene Kopien
   der `InputType`-/`EditorInfo`-Zahlen (geprüft gegen die Plattform in `AT/LastFieldTest`),
   `fieldType`/`caps`/`flags`, `Snapshot` (`Password`, `Hidden(locked)`, `Field` nur mit Paketname,
-  `inputType`, `imeOptions`, Sprach-Tag, Zeit und Wahrheitswerten aus `InputAttributes`/`SettingsValues`),
-  `Live` (Wörterbuch vorhanden/geladen, zuletzt im Befehl, Chips in der Leiste), `effective` und
+  `inputType` der Engine und `rawInputType` der App, `imeOptions`, Sprach-Tag, Zeit und Wahrheitswerten
+  aus `InputAttributes`/`SettingsValues`), `Strip` (was die Leiste zuletzt zeigte), `Live` (Wörterbuch
+  vorhanden/geladen, zuletzt im Befehl, Leiste zuletzt, verdeckte Leisten, Chips), `effective` und
   `verdict` (erster Grund in fester Reihenfolge, P232). Tests: `CT/FieldReportTest.kt`.
 - `ApplyOutcome.kt`: Ergebnis einer nativen Ersetzung (inklusive `UNKNOWN`, siehe Fallstrick P3).
 - `LocalTextActions.kt`: lokale Textwerkzeuge ohne Netz.
@@ -404,6 +405,10 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   Prüfung auf `editorInfo == null`, vor dem frühen Rücksprung ohne `MainKeyboardView`:
   `LastField.capture(this, editorInfo, currentSettingsValues, mDictionaryFacilitator)` (wirft nie,
   P233).
+  Nachprüfung 55: `SuggestionStripView.kt` (keine Engine-Datei) meldet über `reportToLastField`
+  (`runCatching`, `LastField.onStripView`) am Ende von `setToolbarVisibility` und nach dem neuen
+  Inhalt in `setSuggestions` und `setExternalSuggestionView`, was die Leiste zeigt (Wörter,
+  Symbolleiste, Emoji-Reihe, fremde Ansicht), nie Wörter oder Texte (P236).
 - `InputLogic.java`: verwirft Caches und blockiert Eingabepfade nach einer unklaren Ersetzung
   (`ApplyOutcome.UNKNOWN`), unterdrückt Lernen nach generierter Übernahme. Ersetzen
   (`applyGeneratedText`) und Einfügen (`insertGeneratedText`) laufen durch dieselbe
@@ -2115,19 +2120,28 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Etappe 55 „Letztes Feld“: `A/LastField.kt` hält nur im Speicher den `FieldReport.Snapshot` des
   letzten Felds, in dem die Tastatur gezeigt wurde. Zufuhr: `capture` (eine Zeile in
   `LatinIME.onStartInputViewInternal`, P233), `onSubtypeSwitched` (aus `SubtypeSwitchLog.onSwitched`,
-  P234), `onStrip(chips, insideCommand)` (aus `KeyboardCommands.createChipsView`, jede Leiste mit
-  Leistenansicht). `snapshotOf` liest `InputAttributes` (`mInputType`, Paket,
-  `mShouldShowSuggestions`, `mInputTypeShouldAutoCorrect`, `mIsPasswordField`, `mNoLearning`) und
-  `SettingsValues` (`mSuggestionsEnabled`, `needsToLookupSuggestions()`, `mAutoCorrectEnabled`,
-  `mAutoCap`, `mIsLocked`, `mIncognitoModeEnabled`, `mLocale` …), dazu die Schalter
-  „Änderungsvorschläge“, „Mehr Autokorrektur“ und „Autom. Groß-/Kleinschreibung“ aus den
-  Einstellungen; Passwortfeld → nur `Password`, gesperrt/Inkognito/kein Lernen → nur `Hidden` (P235).
-  `live` fragt beim Öffnen die Wörterbücher der Engine (`WeakReference` auf den
-  `DictionaryFacilitator`, nur bei gleicher Sprache, sonst unbekannt). `Diagnose.lastField` (über
-  `Dispatchers.IO`: Wörterbuch-Dateien der Feldsprache, App-Name über den `PackageManager`) baut die
-  erste Karte der Seite; `verdictText` macht aus `FieldReport.verdict` einen Satz. Tests:
-  `AT/LastFieldTest.kt` (echte `EditorInfo` und `SettingsValues`, Plattformzahlen),
-  `AT/DiagnoseScreenTest.kt` (Karte, Kopieren, keine Feldtexte, Passwort, Inkognito, gesperrt),
+  P234), `onStrip(chips, insideCommand)` (aus `KeyboardCommands.createChipsView`: Chips der
+  Tastatur, Befehl) und `onStripView` (aus `SuggestionStripView`, P236). Alle Aufrufe unter einem
+  Sperrobjekt (`lock`, Nachprüfung 55 M1). `snapshotOf` liest `InputAttributes` (`mInputType`, Paket,
+  `mShouldShowSuggestions`, `mInputTypeShouldAutoCorrect`, `mApplicationSpecifiedCompletionOn`,
+  `mIsPasswordField`, `mNoLearning`), dazu `EditorInfo.inputType` der App (vor `AppWorkarounds`,
+  P232), und `SettingsValues` (`mSuggestionsEnabled`, `needsToLookupSuggestions()`,
+  `mAutoCorrectEnabled`, `mAutoCap`, `mIsLocked`, `mIncognitoModeEnabled`, `mLocale` …), dazu die
+  Schalter „Änderungsvorschläge“, „Immer Vorschläge anzeigen“ samt Web-Ausnahme, „Mehr
+  Autokorrektur“ und „Autom. Groß-/Kleinschreibung“ aus den Einstellungen; Passwortfeld → nur
+  `Password`, gesperrt/Inkognito/kein Lernen → nur `Hidden` (P235). Felder der eigenen Einstellungen
+  ändern nichts und zählen nichts (`ownField`). `live` fragt beim Öffnen die Wörterbücher der Engine
+  (`WeakReference` auf den `DictionaryFacilitator`, nur bei gleicher Sprache, sonst unbekannt).
+  `Diagnose.lastField` (über `Dispatchers.IO`: Wörterbuch-Dateien der Feldsprache über
+  `mainDictionary`, das bei einem Fehler `null` = „unbekannt“ gibt, App-Name über den
+  `PackageManager`) baut die erste Karte der Seite, Urteil und Ergebnis zuerst; `verdictText` macht
+  aus `FieldReport.verdict` einen Satz. Die Seite fasst jede Zeile für TalkBack zusammen und setzt
+  lange Werte (und auf schmalen Bildschirmen schon mittlere) unter ihre Beschriftung; „Kopieren“
+  markiert den Clip als vertraulich (`IS_SENSITIVE`, wie das Aktionspanel; mit Zwischenablageverlauf
+  legt `ClipGuard` ihn darum als Geheimnis in den Tresor, Einfügen über die App geht normal). Tests: `AT/LastFieldTest.kt` (echte `EditorInfo` und
+  `SettingsValues`, Plattformzahlen, Firefox-Workaround, Leiste, eigene Einstellungen),
+  `AT/DiagnoseScreenTest.kt` (Karte, Reihenfolge, Kopieren, keine Feldtexte, Firefox, verdeckte
+  Leiste, Wörterbuch-Fehler, Passwort, Inkognito, gesperrt),
   `InputLogicTest.lastFieldHoldsWhatTheEngineUsedInTheField` (Weg durch LatinIME, Sprachwechsel).
 - `KeyboardProfileStore.kt`: das Designprofil enthält `agent_rgb_lighting` als Text
   (`Binding.freeText`); beim Lesen feldweise über `RgbSettings.parse` begrenzt, leer (Profile von
@@ -4785,15 +4799,26 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   ändert, muss diesen Wechsel erhalten.
 - **P232** Urteil der Karte „Letztes Feld“ (55): `FieldReport.verdict` nennt nur den ersten Grund,
   in fester Reihenfolge: Passwort, gesperrt, Inkognito, kein Textfeld, Vorschläge (Leiste
-  ausgeblendet vor Einstellung vor App), Wörterbuch (fehlt vor nicht geladen), Autokorrektur
-  (Einstellung vor Adressfeld ohne URL-Erkennung vor „App verlangt sie nicht“ ohne „Mehr
-  Autokorrektur“), Großschreibung (Einstellung vor Schrift ohne Großbuchstaben vor keinen
-  `CAP_*`-Flags), zuletzt der flüchtige Zustand der letzten Leiste (im Befehl, Chips). Die Zweige
-  folgen den Formeln in `SettingsValues` (`mAutoCorrectEnabled`, `mSuggestionsEnabled`,
+  ausgeblendet vor Einstellung vor Firefox-Workaround vor App im Webfeld mit Web-Ausnahme vor App),
+  Wörterbuch (fehlt vor nicht geladen), Autokorrektur (Einstellung vor Adressfeld ohne URL-Erkennung
+  vor „App verlangt sie nicht“ ohne „Mehr Autokorrektur“), Großschreibung (Einstellung vor Schrift
+  ohne Großbuchstaben vor keinen `CAP_*`-Flags), zuletzt der flüchtige Zustand der letzten Leiste:
+  im Befehl, Chips der Tastatur, Pille (Zwischenablage, Screenshot, Update, gemaltes Symbol,
+  Autofill), Wörter unter der Symbolleiste bzw. Emoji-Reihe, Symbolleiste bzw. Emoji-Reihe ohne
+  Wörter, Leiste nie gemeldet („nicht erfasst“). „Alles an“ nur, wenn die Leiste zuletzt Wörter
+  oder nichts im Weg zeigte. Die Zweige folgen den Formeln in `SettingsValues`
+  (`mAutoCorrectEnabled`, `mSuggestionsEnabled`, `mOverrideShowingSuggestions`,
   `needsToLookupSuggestions`) und `InputAttributes`; wer dort etwas ändert, prüft die Reihenfolge
   und `CT/FieldReportTest`. „Die App verbietet Vorschläge“ ist eine Folgerung: Vorschläge aus,
-  Leiste da, Einstellung an. `FieldReport` kopiert die Plattformzahlen; `AT/LastFieldTest`
-  vergleicht sie mit `InputType`/`EditorInfo`.
+  Leiste da, Einstellung an. Nachprüfung 55 (H1): `mInputType` ist schon durch
+  `AppWorkarounds.adjustInputType` geändert (Firefox und Abkömmlinge: Webfelder mit
+  `IME_MULTI_LINE` + `AUTO_CORRECT` bekommen `NO_SUGGESTIONS` und `WEB_EDIT_TEXT` von der
+  Tastatur). Darum hält der Snapshot auch `rawInputType` (`EditorInfo.inputType`); fügte erst der
+  Workaround `NO_SUGGESTIONS` hinzu, heißt der Grund `WORKAROUND_NO_SUGGESTIONS` (Ausweg: „Immer
+  Vorschläge anzeigen“ an und die Web-Ausnahme `…_EXCEPT_WEB_TEXT`, Standard an, aus), und die
+  Karte zeigt beide Zahlen. Nicht erfasst (Karte „Nicht erfasst“): ob hinter Chips oder Pillen
+  Wörter bereitlagen (LatinIME gibt sie der Leiste dann gar nicht). `FieldReport` kopiert die
+  Plattformzahlen; `AT/LastFieldTest` vergleicht sie mit `InputType`/`EditorInfo`.
 - **P233** Zeitpunkt der Aufnahme (55): Felder der eigenen Einstellungen (Paketname der Tastatur, z. B.
   die Suche auf dem Weg zur Diagnose) nimmt `capture` nicht auf, das Feld der App davor bleibt
   (Test `aFieldOfTheKeyboardsOwnSettingsKeepsTheAppBefore`). `LastField.capture` steht in `onStartInputViewInternal`
@@ -4812,12 +4837,24 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P235** Datenschutz der Karte (55): `FieldReport.Snapshot.Field` hat nur Paketname, Sprach-Tag,
   Zahlen und Wahrheitswerte (`CT/FieldReportTest.aSnapshotHoldsNoTextOfTheField`); nie
   `hintText`, `label`, `fieldName`, `privateImeOptions` oder Feldtext. Passwortfeld
-  (`mIsPasswordField`, jede Passwort-Variante) → nur `Password`; gesperrt (`mIsLocked`,
-  `isDeviceLocked`, `isUserLocked`) oder Inkognito (`mIncognitoModeEnabled`, `mNoLearning`,
-  `IME_FLAG_NO_PERSONALIZED_LEARNING` auch außerhalb von Textfeldern) → nur `Hidden`; beide
-  ersetzen das Feld davor. Nur im Speicher (Einstellungen und Tastatur teilen den Prozess, wie bei
-  `SubtypeSwitchLog`), nie geloggt. Der App-Name kommt erst beim Öffnen aus dem `PackageManager`
-  und wird nicht gemerkt.
+  (`mIsPasswordField`, jede Passwort-Variante, auch im `rawInputType`) → nur `Password`; gesperrt
+  (`mIsLocked`, das `isDeviceLocked` beim Feldstart liest; ein noch nicht entsperrter Nutzer liegt
+  hinter dem Sperrbildschirm, Nachprüfung N5) oder Inkognito (`mIncognitoModeEnabled`,
+  `mNoLearning`, `IME_FLAG_NO_PERSONALIZED_LEARNING` auch außerhalb von Textfeldern) → nur `Hidden`;
+  beide ersetzen das Feld davor. Nur im Speicher (Einstellungen und Tastatur teilen den Prozess, wie
+  bei `SubtypeSwitchLog`), nie geloggt. Der App-Name kommt erst beim Öffnen aus dem
+  `PackageManager` und wird nicht gemerkt.
+- **P236** Was die Leiste zeigte (Nachprüfung 55, M2/M3): `SuggestionStripView.reportToLastField`
+  meldet nach neuem Inhalt (`setSuggestions`, `setExternalSuggestionView`: `newContent`) und nach
+  jedem `setToolbarVisibility` (auch beim Ein- und Ausblenden der Emoji-Reihe) Wörter vorhanden,
+  fremde Ansicht, Symbolleiste, Emoji-Reihe. `LastField` zählt erst beim nächsten neuen Inhalt
+  (der Endzustand nach dem Ein- oder Ausklappen durch LatinIME zählt, nicht der Zwischenstand) und
+  ordnet eine fremde Ansicht als „Chips der Tastatur“ ein, wenn `KeyboardCommands.createChipsView`
+  direkt davor Chips meldete (`pendingChips`), sonst als Pille. `reportToLastField` steckt in
+  `runCatching`, weil der `init`-Block von `SuggestionStripView` `setToolbarVisibility` aufrufen
+  kann, bevor `suggestedWords` gesetzt ist. Solange die Tastatur in den eigenen Einstellungen offen
+  ist (`ownField`), zählen `onStrip` und `onStripView` nichts; erst das nächste fremde Feld setzt
+  es zurück.
 
 ## Datei-Inventar
 

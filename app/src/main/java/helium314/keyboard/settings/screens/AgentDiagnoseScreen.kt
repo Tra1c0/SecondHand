@@ -28,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -86,6 +87,8 @@ fun AgentDiagnoseScreen(onClickBack: () -> Unit) {
     val lighting = remember(lightPatterns) { Diagnose.lighting(context, helium314.keyboard.agent.RgbLighting.lastFrameWork(), lightPatterns) }
     val emojiMix = remember(table, tableRead, cache, reach) { Diagnose.emojiMix(context, table, tableRead, cache, reach) }
     val sections = remember(lastField, symbols, emojiMix, lighting) { listOfNotNull(lastField, haptics, symbols, languages, emojiMix, lighting, phone) }
+    val windowWidth = androidx.compose.ui.platform.LocalWindowInfo.current.containerSize.width
+    val narrow = with(androidx.compose.ui.platform.LocalDensity.current) { windowWidth.toDp() } < 400.dp
     SearchSettingsScreen(onClickBack, stringResource(R.string.agent_diagnose_title), emptyList()) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -96,7 +99,15 @@ fun AgentDiagnoseScreen(onClickBack: () -> Unit) {
             sections.forEach { section ->
                 Text(section.title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
                 section.rows.forEach { row ->
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // review of stage 55 (N10): TalkBack reads label and value as one; a long value (a
+                    // verdict) or a narrow screen puts the value under its label, at full width
+                    val rowModifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}
+                    if (row.value.length > LONG_VALUE || (narrow && row.value.length > NARROW_VALUE)) {
+                        Column(rowModifier) {
+                            Text(row.label, style = MaterialTheme.typography.bodySmall)
+                            Text(row.value)
+                        }
+                    } else Row(rowModifier, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(row.label, Modifier.weight(1f))
                         Text(row.value, Modifier.weight(1f), textAlign = TextAlign.End)
                     }
@@ -125,9 +136,18 @@ fun AgentDiagnoseScreen(onClickBack: () -> Unit) {
     }
 }
 
+/** Values at most this long sit beside their label; longer ones (a verdict) go under it. */
+private const val LONG_VALUE = 32
+/** On a narrow screen ([narrow]) already from this length. */
+private const val NARROW_VALUE = 14
+
 private fun copy(context: Context, text: String) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
-    clipboard.setPrimaryClip(ClipData.newPlainText(context.getString(R.string.agent_diagnose_title), text))
+    val clip = ClipData.newPlainText(context.getString(R.string.agent_diagnose_title), text)
+    // review of stage 55 (N6): the app's name and field types are nobody else's business, like the panel's copies
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
+        clip.description.extras = android.os.PersistableBundle().apply { putBoolean("android.content.extra.IS_SENSITIVE", true) }
+    clipboard.setPrimaryClip(clip)
     // from Android 13 on the system shows its own confirmation
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU)
         Toast.makeText(context, R.string.agent_diagnose_copied, Toast.LENGTH_SHORT).show()

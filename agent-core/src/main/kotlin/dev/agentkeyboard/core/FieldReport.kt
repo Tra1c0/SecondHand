@@ -135,7 +135,10 @@ object FieldReport {
          */
         data class Field(
             val packageName: String? = null,
+            /** `InputAttributes.mInputType`: what the engine uses, after HeliBoard's `AppWorkarounds`. */
             val inputType: Int = TYPE_CLASS_TEXT or FLAG_CAP_SENTENCES or FLAG_MULTI_LINE,
+            /** `EditorInfo.inputType` as the app sent it (differs only by a workaround, P232). */
+            val rawInputType: Int = inputType,
             val imeOptions: Int = 0,
             /** When the snapshot was taken, on the clock the app chose (elapsed realtime). */
             val atMillis: Long = 0,
@@ -143,8 +146,13 @@ object FieldReport {
             val appSuggestions: Boolean = true,
             /** `InputAttributes.mInputTypeShouldAutoCorrect`: the flag, or a multi-line field that is no URL or e-mail. */
             val appAutoCorrect: Boolean = true,
+            /** `InputAttributes.mApplicationSpecifiedCompletionOn`: the app shows its own completions (fullscreen). */
+            val appCompletions: Boolean = false,
             /** The setting "Änderungsvorschläge". */
             val suggestionsSetting: Boolean = true,
+            /** The setting "Immer Vorschläge anzeigen" and its exception for web edit fields. */
+            val alwaysShowSetting: Boolean = false,
+            val alwaysShowExceptWeb: Boolean = true,
             /** `mSuggestionStripHiddenPerUserSettings`: the toolbar mode leaves no room for suggestions. */
             val stripHidden: Boolean = false,
             /** `mSuggestionsEnabled`: the strip shows suggestions in this field. */
@@ -171,32 +179,69 @@ object FieldReport {
             val type: FieldType get() = fieldType(inputType, imeOptions)
             val caps: Caps get() = caps(inputType)
             val flags: List<Flag> get() = flags(inputType, imeOptions)
+            /** HeliBoard changed the app's `inputType` (`AppWorkarounds`: Firefox and its forks). */
+            val workaround: Boolean get() = rawInputType != inputType
+            /** The workaround, not the app, added `TYPE_TEXT_FLAG_NO_SUGGESTIONS`. */
+            val workaroundForbidsSuggestions: Boolean get() =
+                workaround && rawInputType and FLAG_NO_SUGGESTIONS == 0 && inputType and FLAG_NO_SUGGESTIONS != 0
+            /** Whether the app itself allows suggestions (its own flags, before a workaround). */
+            val appAllowsSuggestions: Boolean get() = appSuggestions || workaroundForbidsSuggestions
+            /** A web edit field, which "Immer Vorschläge anzeigen" leaves out with its exception. */
+            val webText: Boolean get() = inputType and TYPE_MASK_CLASS == TYPE_CLASS_TEXT && inputType and TYPE_MASK_VARIATION == VARIATION_WEB_EDIT_TEXT
         }
+    }
+
+    /** What the suggestion strip showed at its last change ([Live.strip]). */
+    enum class Strip {
+        /** Words (suggestions or predictions). */
+        WORDS,
+        /** Nothing in the way, but no words (e.g. after a space without predictions). */
+        EMPTY,
+        /** The expanded toolbar. */
+        TOOLBAR,
+        /** The recent emojis of a symbol page (flat style). */
+        EMOJIS,
+        /** The keyboard's own chips (commands, format guard, field suggestions, memory, emoji mix). */
+        KEYBOARD_CHIPS,
+        /** Another view in place of the words: clipboard pill, screenshot or update chip, drawn symbol, autofill. */
+        PILL,
     }
 
     /**
      * What is only known when the page asks: the main dictionary of the snapshot's language (file
      * present, loaded by the engine; null = unknown), whether the cursor was inside a command at the
-     * last strip update, and how many strip updates since the field started showed the keyboard's own
-     * chips instead of suggestions.
+     * last strip update, and what the strip showed: at its last change ([strip], null = never
+     * reported; [wordsOffered] = the strip had words that something else may cover) and over the
+     * field ([stripUpdates] of which [coveredUpdates] covered the words or replaced them;
+     * [chipUpdates] with the keyboard's chips).
      */
     data class Live(
         val dictionaryPresent: Boolean? = true,
         val dictionaryLoaded: Boolean? = true,
         val inCommand: Boolean = false,
+        val strip: Strip? = Strip.WORDS,
+        val wordsOffered: Boolean = true,
         val stripUpdates: Int = 0,
+        val coveredUpdates: Int = 0,
         val chipUpdates: Int = 0,
-        val lastStripChips: Boolean = false,
-    )
+    ) {
+        /** The last strip hid words or showed something else in their place. */
+        val stripCovered: Boolean get() = when (strip) {
+            Strip.KEYBOARD_CHIPS, Strip.PILL -> true
+            Strip.TOOLBAR, Strip.EMOJIS -> wordsOffered
+            else -> false
+        }
+    }
 
     enum class Finding {
         PASSWORD, LOCKED, INCOGNITO,
         NO_TEXT_FIELD, NOT_TEXT,
-        STRIP_HIDDEN, SUGGESTIONS_SETTING_OFF, APP_NO_SUGGESTIONS,
+        STRIP_HIDDEN, SUGGESTIONS_SETTING_OFF, WORKAROUND_NO_SUGGESTIONS, APP_NO_SUGGESTIONS, APP_NO_SUGGESTIONS_WEB,
         NO_DICTIONARY, DICTIONARY_NOT_LOADED,
         AUTOCORRECT_SETTING_OFF, AUTOCORRECT_ADDRESS, AUTOCORRECT_APP, AUTOCORRECT_OFF,
         CAPS_SETTING_OFF, CAPS_SCRIPT, CAPS_APP,
-        IN_COMMAND, CHIPS,
+        IN_COMMAND,
+        CHIPS, PILL, WORDS_UNDER_TOOLBAR, WORDS_UNDER_EMOJIS, STRIP_TOOLBAR, STRIP_EMOJIS, STRIP_NOT_CAPTURED,
         ALL_ON,
     }
 
@@ -204,7 +249,7 @@ object FieldReport {
     data class Verdict(val finding: Finding, val languageTag: String? = null)
 
     /** What really runs in the field, after every switch of the app and of the keyboard. */
-    data class Effective(val suggestions: Boolean, val autoCorrect: Boolean, val caps: Boolean)
+    data class Effective(val suggestions: Boolean, val autoCorrect: Boolean, val caps: Boolean, val stripCovered: Boolean)
 
     fun effective(field: Snapshot.Field, live: Live): Effective {
         val text = field.inputType and TYPE_MASK_CLASS == TYPE_CLASS_TEXT
@@ -212,13 +257,15 @@ object FieldReport {
             suggestions = field.suggestionsShown,
             autoCorrect = field.autoCorrectEnabled && field.lookups && live.dictionaryLoaded != false && !live.inCommand,
             caps = text && field.autoCap && field.caps != Caps.NONE,
+            stripCovered = field.suggestionsShown && live.stripCovered,
         )
     }
 
     /**
-     * The first reason that switched something off, in this order: the field's privacy, a field that
-     * is no text, suggestions, the dictionary, autocorrection, capitalisation, then the keyboard's own
-     * state at the last strip update (a command, its chips). [Finding.ALL_ON] when nothing is off.
+     * The first reason that switched something off, in this order (P232): the field's privacy, a field
+     * that is no text, suggestions, the dictionary, autocorrection, capitalisation, then the state of the
+     * last strip (a command, chips, pills, toolbar, emojis, or not captured). [Finding.ALL_ON] only when
+     * nothing is off and the strip last showed words or nothing in their way.
      */
     fun verdict(snapshot: Snapshot, live: Live = Live()): Verdict = when (snapshot) {
         Snapshot.Password -> Verdict(Finding.PASSWORD)
@@ -234,6 +281,9 @@ object FieldReport {
         if (!f.suggestionsShown) return Verdict(when {
             f.stripHidden -> Finding.STRIP_HIDDEN
             !f.suggestionsSetting -> Finding.SUGGESTIONS_SETTING_OFF
+            f.workaroundForbidsSuggestions -> Finding.WORKAROUND_NO_SUGGESTIONS
+            // "Immer Vorschläge anzeigen" would override the app, but its exception (on by default) leaves web fields out
+            f.alwaysShowExceptWeb && f.webText -> Finding.APP_NO_SUGGESTIONS_WEB
             else -> Finding.APP_NO_SUGGESTIONS
         })
         if (live.dictionaryPresent == false) return Verdict(Finding.NO_DICTIONARY, language)
@@ -248,7 +298,13 @@ object FieldReport {
         if (!f.autoCap) return Verdict(Finding.CAPS_SCRIPT, language)
         if (f.caps == Caps.NONE) return Verdict(Finding.CAPS_APP)
         if (live.inCommand) return Verdict(Finding.IN_COMMAND)
-        if (live.lastStripChips) return Verdict(Finding.CHIPS)
-        return Verdict(Finding.ALL_ON)
+        return Verdict(when (live.strip) {
+            null -> Finding.STRIP_NOT_CAPTURED
+            Strip.KEYBOARD_CHIPS -> Finding.CHIPS
+            Strip.PILL -> Finding.PILL
+            Strip.TOOLBAR -> if (live.wordsOffered) Finding.WORDS_UNDER_TOOLBAR else Finding.STRIP_TOOLBAR
+            Strip.EMOJIS -> if (live.wordsOffered) Finding.WORDS_UNDER_EMOJIS else Finding.STRIP_EMOJIS
+            Strip.WORDS, Strip.EMPTY -> Finding.ALL_ON
+        })
     }
 }

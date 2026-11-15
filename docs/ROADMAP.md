@@ -341,7 +341,8 @@ Reihenfolge von oben nach unten.
   aus denselben `InputAttributes`/`SettingsValues`, mit denen die Engine arbeitet; nur im Speicher;
   Passwortfeld nur „Passwortfeld“, Inkognito/gesperrt nur „nichts gemerkt“. Nächster Schritt: Tritt
   es wieder auf, öffnet der Owner sofort Einstellungen → Diagnose und schickt einen Screenshot; dann
-  wird die eigentliche Ursache behoben. Offen: Prüfer-Review (eine Zeile in
+  wird die eigentliche Ursache behoben. Prüfer-Befunde behoben (`docs/VALIDATION.md` →
+  Nachprüfung 55: Firefox-Workaround, Leiste, eigene Einstellungen). Offen: Nachprüfung, Prüfer-Review (eine Zeile in
   `LatinIME.onStartInputViewInternal`), Gerätetest.
 - **Graue Auswahlkarten (Owner, 2026-11-14: „Ja“):** Die grauen Mockup-Karten (AUS, NICHTS,
   AUSGEBLENDET, FLACHER LOOK) bekommen helle Schrift (Kontrast mit dunkler Schrift nur 1,74:1).

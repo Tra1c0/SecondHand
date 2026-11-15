@@ -268,6 +268,19 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         }
 
         toolbarExpandKey.scaleX = (if (toolbarVisible) -1f else 1f) * direction
+        reportToLastField(newContent = false)
+    }
+
+    /**
+     * Fork, stage 55 (review M3): what the strip shows, for the diagnose card "Letztes Feld"; no words
+     * or texts. runCatching: the init block can call setToolbarVisibility before suggestedWords is set.
+     */
+    private fun reportToLastField(newContent: Boolean) {
+        runCatching {
+            helium314.keyboard.agent.LastField.onStripView(newContent,
+                wordsOffered = !isExternalSuggestionVisible && !suggestedWords.isEmpty && !suggestedWords.isPunctuationSuggestions,
+                external = isExternalSuggestionVisible, toolbar = toolbarContainer.isVisible, emojis = emojiRow?.isVisible == true)
+        }
     }
 
     fun setSuggestions(suggestions: SuggestedWords, isRtlLanguage: Boolean) {
@@ -278,12 +291,14 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             context, suggestedWords, suggestionsStrip, this
         )
         isExternalSuggestionVisible = false
+        reportToLastField(newContent = true)
         updateKeys()
     }
 
     fun setExternalSuggestionView(view: View?, addCloseButton: Boolean) {
         clear()
         isExternalSuggestionVisible = true
+        reportToLastField(newContent = true)
 
         if (addCloseButton) {
             val wrapper = LinearLayout(context)

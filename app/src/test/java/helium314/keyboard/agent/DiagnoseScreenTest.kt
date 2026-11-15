@@ -238,7 +238,8 @@ class DiagnoseScreenTest {
         compose.waitUntil(5_000) { compose.onAllNodes(hasText("Urteil")).fetchSemanticsNodes().isNotEmpty() }
         exact("com.example.suche")
         exact("Suche")
-        exact("0x00004001 / 0x00000003")
+        exact("0x00004001") // inputType (no workaround: the app's and the engine's are the same)
+        exact("0x00000003") // imeOptions
         exact("Satzanfänge")
         exact("Deutsch (de)")
         exact("Vorschläge an, Autokorrektur aus, Großschreibung an")
@@ -252,6 +253,57 @@ class DiagnoseScreenTest {
             "Urteil: Keine Autokorrektur: Die App verlangt sie"))
             assertTrue(line in copied, "$line in\n$copied")
         for (text in fieldTexts) assertFalse(text in copied, text)
+        // review N1: verdict and result first; N2: no rows that are always off; N6: the clip is marked sensitive
+        val card = copied.substringAfter("\n\nLetztes Feld\n").lines()
+        assertTrue(card[0].startsWith("Urteil: "), card[0])
+        assertTrue(card[1].startsWith("Ergebnis: "), card[1])
+        for (gone in listOf("Inkognito:", "Gerät gesperrt:", "Sensibles Feld")) assertFalse(gone in copied, gone)
+        assertTrue("„Immer Vorschläge anzeigen“: aus" in copied, copied)
+        val clip = (app.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip!!
+        assertEquals(true, clip.description.extras?.getBoolean("android.content.extra.IS_SENSITIVE"))
+    }
+
+    @Test fun firefoxsWorkaroundIsNamedWithBothNumbers() {
+        // review H1: the web field asks for autocorrection; HeliBoard itself adds NO_SUGGESTIONS and WEB_EDIT_TEXT
+        val raw = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_IME_MULTI_LINE or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT or
+            InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+        startIn(field(raw).apply { packageName = "org.mozilla.firefox" })
+        page()
+        compose.waitUntil(5_000) { compose.onAllNodes(hasText("Urteil")).fetchSemanticsNodes().isNotEmpty() }
+        exact("Keine Vorschläge: Die Tastatur schaltet sie in Webfeldern von Firefox selbst ab (HeliBoard-Workaround); " +
+            "ändern lässt sich das nur mit „Immer Vorschläge anzeigen“ an und „Nicht immer Vorschläge für Web-Editierfelder anzeigen“ aus.")
+        exact("0x0004c001") // what Firefox sent
+        exact("0x000cc0a1") // what the engine uses
+        exact("Webfeld in Firefox: HeliBoard ändert den Feldtyp")
+        compose.onAllNodes(hasText("Die App verbietet", substring = true)).assertCountEquals(0)
+    }
+
+    @Test fun whatCoveredTheStripIsNotAllOn() {
+        // review M3: a field with everything on, but the expanded toolbar lay over the words at the last change
+        startIn(field(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or InputType.TYPE_TEXT_FLAG_MULTI_LINE))
+        LastField.onStripView(newContent = true, wordsOffered = true, external = false, toolbar = false, emojis = false)
+        LastField.onStripView(newContent = false, wordsOffered = true, external = false, toolbar = true, emojis = false)
+        page()
+        compose.waitUntil(5_000) { compose.onAllNodes(hasText("Urteil")).fetchSemanticsNodes().isNotEmpty() }
+        exact("Vorschläge verdeckt: Zuletzt lag die ausgeklappte Symbolleiste über den Vorschlägen.")
+        exact("Vorschläge an, Autokorrektur an, Großschreibung an; Leiste zuletzt verdeckt: Symbolleiste")
+        compose.onAllNodes(hasText("Alles an.")).assertCountEquals(0)
+        exact("ob hinter Chips oder Pillen Wörter bereitlagen")
+    }
+
+    @Test fun aDictionaryCheckThatFailsIsUnknownNotMissing() {
+        // review N4
+        val lookup = Diagnose.mainDictionaryLookup
+        Diagnose.mainDictionaryLookup = { _, _ -> throw SecurityException("no files") }
+        try {
+            startIn(field(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or InputType.TYPE_TEXT_FLAG_MULTI_LINE))
+            val section = Diagnose.lastField(app, android.os.SystemClock.elapsedRealtime())
+            val rows = section.rows.associate { it.label to it.value }
+            assertEquals("unbekannt", rows["Wörterbuch der Sprache"])
+            assertFalse(rows.getValue("Urteil").contains("Wörterbuch"), rows.getValue("Urteil"))
+        } finally {
+            Diagnose.mainDictionaryLookup = lookup
+        }
     }
 
     @Test fun aFieldThatForbidsSuggestionsNamesTheApp() {
@@ -259,7 +311,7 @@ class DiagnoseScreenTest {
         page()
         compose.waitUntil(5_000) { compose.onAllNodes(hasText("Urteil")).fetchSemanticsNodes().isNotEmpty() }
         exact("mehrzeilig, keine Vorschläge")
-        exact("Keine Vorschläge: Die App verbietet sie in diesem Feld (damit auch keine Autokorrektur).")
+        exact("Keine Vorschläge: Die App verbietet sie in diesem Feld (damit auch keine Autokorrektur); „Immer Vorschläge anzeigen“ setzt sich darüber hinweg.")
         exact("Vorschläge aus, Autokorrektur aus, Großschreibung aus")
     }
 

@@ -5298,6 +5298,51 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   über den `PackageManager` auf Android 11+, Wörterbuch-Zustand der laufenden Engine, Screenshot der
   Karte).
 
+### Nachprüfung 55 (Prüfer-Befunde zu 4a10778 und 23edd0e, 2026-11-15)
+
+- H1 (hoch, behoben): Die Karte gab der App die Schuld für HeliBoards eigenen Firefox-Workaround
+  (`AppWorkarounds.adjustInputType`: Webfelder mit `IME_MULTI_LINE` + `AUTO_CORRECT` bekommen
+  `NO_SUGGESTIONS` und `WEB_EDIT_TEXT`). Jetzt hält der Snapshot auch `rawInputType`
+  (`EditorInfo.inputType`), die Karte zeigt beide Zahlen und „Workaround der Tastatur“, das Urteil
+  heißt `WORKAROUND_NO_SUGGESTIONS` mit dem Ausweg („Immer Vorschläge anzeigen“ an, „Nicht immer
+  Vorschläge für Web-Editierfelder anzeigen“ aus); „App erlaubt Vorschläge“ folgt den Flags der App.
+  P232 ergänzt.
+- M1 (behoben): Alle Aufrufe von `LastField` laufen unter einem Sperrobjekt (`lock`) statt
+  `@Synchronized` auf Klasse und Instanz gemischt.
+- M2 (behoben): `capture` setzt `ownField` für Felder der eigenen Einstellungen; `onStrip` und
+  `onStripView` zählen dann nichts, auch keinen Befehl (P236).
+- M3 (behoben): `SuggestionStripView.reportToLastField` meldet Wörter, fremde Ansicht, Symbolleiste
+  und Emoji-Reihe; `LastField` unterscheidet Chips der Tastatur von Pillen (Zwischenablage,
+  Screenshot, Update, gemaltes Symbol, Autofill) und zählt verdeckte Leisten. Neue Urteile `PILL`,
+  `WORDS_UNDER_TOOLBAR`/`_EMOJIS`, `STRIP_TOOLBAR`/`_EMOJIS`, `STRIP_NOT_CAPTURED`; „Alles an“ nur
+  bei Wörtern oder leerer Leiste ohne Hindernis; das Ergebnis nennt eine verdeckte Leiste. Nicht
+  erfassbar ohne Engine-Eingriff: ob hinter Chips oder Pillen Wörter bereitlagen (Zeile „Nicht
+  erfasst“, P232).
+- N1–N4, N6, N10 (behoben): Urteil und Ergebnis zuerst; die drei immer „aus“-Zeilen weg; „Immer
+  Vorschläge anzeigen“ samt Web-Ausnahme als Zeile und im Urteil (`APP_NO_SUGGESTIONS_WEB` für
+  Webfelder mit Ausnahme); eine scheiternde Wörterbuch-Prüfung ist „unbekannt“ (`mainDictionary`
+  gibt `null`), nie „fehlt“; „Kopieren“ setzt `IS_SENSITIVE`; jede Zeile mit
+  `semantics(mergeDescendants = true)`, lange Werte (auf schmalen Bildschirmen schon mittlere) unter
+  der Beschriftung (Breite über `LocalWindowInfo`, nicht `LocalConfiguration`, Lint). N5 (behoben):
+  nur `SettingsValues.mIsLocked` (liest `isDeviceLocked` beim Feldstart; ein nicht entsperrter Nutzer
+  ist auch gesperrt). N7: ANLEITUNG sagt, dass die Karte in Inkognito- und Nicht-Lernen-Feldern
+  keinen Grund nennen kann. Folge von N6: Mit Zwischenablageverlauf legt `ClipGuard` den kopierten
+  Text als Geheimnis in den Tresor (in ANLEITUNG genannt).
+- Engine-nah: `SuggestionStripView.kt` (keine der drei Engine-Dateien, `runCatching`); `LatinIME`,
+  `InputLogic`, `RichInputConnection`, `PointerTracker` in dieser Nachprüfung unverändert.
+- Tests (2026-11-15, `--max-workers=1 -Xmx1536m`): `:agent-core:test` 586 grün (`FieldReportTest`
+  16, +2: Leiste verdeckt, Firefox-Workaround und Web-Ausnahme); `LastFieldTest` 9 grün (+1 aus
+  23edd0e, +2: eigene Einstellungen zählen nichts, Firefox; Leistentest auf `onStripView`
+  umgestellt); `DiagnoseScreenTest` 15 grün (+3: Firefox mit beiden Zahlen, verdeckte Leiste ohne
+  „Alles an“, scheiternde Wörterbuch-Prüfung; Kopier-Test prüft Reihenfolge, fehlende Zeilen,
+  `IS_SENSITIVE`; zwei Erwartungen an geänderte Texte angepasst: die Zahlenzeile ist jetzt zwei
+  Zeilen, der Satz zu `APP_NO_SUGGESTIONS` nennt den Ausweg); `*InputLogicTest` 268, nur der geerbte
+  Fehler `insertLetterIntoWordHangulFails`. Lint (`:app:lintDebugNoMinify`, `--max-workers=1`): 0
+  Fehler; die Warnung `ConfigurationScreenWidthHeight` danach behoben und Lint erneut gelaufen.
+  `docs_sync --check` grün.
+- Nicht gelaufen: volle Suite, Build, Gerätetest (echte Leiste in Firefox, Symbolleiste, Pillen,
+  TalkBack, schmaler Bildschirm, Tresor nach „Kopieren“).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

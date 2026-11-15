@@ -1420,15 +1420,22 @@ Screenshot geht auch.
 
 **Keine Vorschläge, keine Großschreibung oder keine Autokorrektur?** Lass die App, in der es
 passiert, offen, wechsle direkt zu Einstellungen → Diagnose (ohne vorher in einer anderen App in ein
-Textfeld zu tippen; die Suche der Einstellungen zählt nicht) und mach einen Screenshot der ersten Karte „Letztes Feld“. Sie zeigt für das letzte
-Feld, in dem die Tastatur offen war: die App, den Feldtyp (z. B. „Suche“, „Adresse (URL)“), was die
-App erlaubt (Vorschläge, Großschreibung, Autokorrektur), die Sprache und ob ihr Wörterbuch geladen
-ist, was die Tastatur selbst abgeschaltet hat, und ganz unten das Urteil in einem Satz, z. B.
-„Keine Autokorrektur: Die App verlangt sie in diesem Feld nicht, und „Mehr Autokorrektur“ ist aus.“
-Schick den Screenshot (oder „Kopieren“) an den Lead. Feldtexte stehen dort nie. In einem
-Passwortfeld steht nur „Passwortfeld“, im Inkognito-Modus und bei gesperrtem Telefon nur
-„Inkognito/gesperrt: nichts gemerkt“. Die Karte lebt nur im Speicher; nach einem Neustart der
-Tastatur steht dort „noch keins“.
+Textfeld zu tippen; die Suche der Einstellungen zählt nicht) und mach einen Screenshot der ersten
+Karte „Letztes Feld“. Ganz oben steht das Urteil in einem Satz, z. B. „Keine Autokorrektur: Die App
+verlangt sie in diesem Feld nicht, und „Mehr Autokorrektur“ ist aus.“ oder „Keine Vorschläge: Die
+Tastatur schaltet sie in Webfeldern von Firefox selbst ab …“, darunter das Ergebnis (Vorschläge,
+Autokorrektur, Großschreibung an oder aus, und ob zuletzt etwas die Leiste verdeckte). Danach folgen
+für das letzte Feld, in dem die Tastatur offen war: die App, der Feldtyp (z. B. „Suche“, „Adresse
+(URL)“) und seine Zahlen, was die App erlaubt (Vorschläge, Großschreibung, Autokorrektur), die
+Sprache und ob ihr Wörterbuch geladen ist, was die Tastatur selbst abgeschaltet hat (auch „Immer
+Vorschläge anzeigen“) und was die Leiste zuletzt zeigte (Wörter, Symbolleiste, Emoji-Reihe, Chips
+oder eine Pille). Schick den Screenshot (oder „Kopieren“) an den Lead. Feldtexte stehen dort nie.
+„Kopieren“ markiert den Text als vertraulich: Mit Zwischenablageverlauf liegt er darum im Tresor
+der Tastatur, Einfügen über die App (langes Drücken → Einfügen) geht wie immer. In einem
+Passwortfeld steht nur „Passwortfeld“, im Inkognito-Modus, in Feldern, die das Lernen verbieten
+(z. B. private Tabs im Browser), und bei gesperrtem Telefon nur „Inkognito/gesperrt: nichts
+gemerkt“; für solche Felder kann die Karte also keinen Grund nennen. Die Karte lebt nur im
+Speicher; nach einem Neustart der Tastatur steht dort „noch keins“.
 
 Schreib dazu auf, was hilft, den Fehler zu finden:
 

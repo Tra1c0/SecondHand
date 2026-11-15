@@ -19,7 +19,7 @@ class FieldReportTest {
 
     @Test fun everythingOnIsAllOn() {
         assertEquals(FieldReport.Verdict(Finding.ALL_ON), verdict(Snapshot.Field()))
-        assertEquals(FieldReport.Effective(suggestions = true, autoCorrect = true, caps = true), FieldReport.effective(Snapshot.Field(), Live()))
+        assertEquals(FieldReport.Effective(suggestions = true, autoCorrect = true, caps = true, stripCovered = false), FieldReport.effective(Snapshot.Field(), Live()))
     }
 
     @Test fun aNoSuggestionsFlagMeansTheAppForbidsThem() {
@@ -107,9 +107,46 @@ class FieldReportTest {
     @Test fun insideACommandAndChipsInTheStrip() {
         assertEquals(Finding.IN_COMMAND, verdict(Snapshot.Field(), Live(inCommand = true)).finding)
         assertFalse(FieldReport.effective(Snapshot.Field(), Live(inCommand = true)).autoCorrect)
-        assertEquals(Finding.CHIPS, verdict(Snapshot.Field(), Live(stripUpdates = 4, chipUpdates = 3, lastStripChips = true)).finding)
+        assertEquals(Finding.CHIPS, verdict(Snapshot.Field(), Live(strip = FieldReport.Strip.KEYBOARD_CHIPS, stripUpdates = 4, chipUpdates = 3)).finding)
         // a permanent reason of the field comes first
         assertEquals(Finding.CAPS_APP, verdict(Snapshot.Field(inputType = text), Live(inCommand = true)).finding)
+    }
+
+    @Test fun whatCoversTheStripIsNamedAndNeverAllOn() {
+        val field = Snapshot.Field()
+        fun finding(strip: FieldReport.Strip?, words: Boolean) = verdict(field, Live(strip = strip, wordsOffered = words)).finding
+        assertEquals(Finding.PILL, finding(FieldReport.Strip.PILL, words = false))
+        assertEquals(Finding.WORDS_UNDER_TOOLBAR, finding(FieldReport.Strip.TOOLBAR, words = true))
+        assertEquals(Finding.STRIP_TOOLBAR, finding(FieldReport.Strip.TOOLBAR, words = false))
+        assertEquals(Finding.WORDS_UNDER_EMOJIS, finding(FieldReport.Strip.EMOJIS, words = true))
+        assertEquals(Finding.STRIP_EMOJIS, finding(FieldReport.Strip.EMOJIS, words = false))
+        assertEquals(Finding.STRIP_NOT_CAPTURED, finding(null, words = false))
+        assertEquals(Finding.ALL_ON, finding(FieldReport.Strip.EMPTY, words = false))
+        // the result line knows it too
+        assertTrue(FieldReport.effective(field, Live(strip = FieldReport.Strip.TOOLBAR, wordsOffered = true)).stripCovered)
+        assertTrue(FieldReport.effective(field, Live(strip = FieldReport.Strip.PILL, wordsOffered = false)).stripCovered)
+        assertFalse(FieldReport.effective(field, Live(strip = FieldReport.Strip.TOOLBAR, wordsOffered = false)).stripCovered)
+    }
+
+    @Test fun firefoxsWorkaroundIsTheKeyboardsNotTheApps() {
+        // AppWorkarounds: IME_MULTI_LINE + AUTO_CORRECT in Firefox become NO_SUGGESTIONS + WEB_EDIT_TEXT
+        val raw = text or FieldReport.FLAG_IME_MULTI_LINE or FieldReport.FLAG_AUTO_CORRECT or FieldReport.FLAG_CAP_SENTENCES
+        val field = Snapshot.Field(inputType = raw or FieldReport.FLAG_NO_SUGGESTIONS or FieldReport.VARIATION_WEB_EDIT_TEXT,
+            rawInputType = raw, appSuggestions = false, suggestionsShown = false, lookups = false)
+        assertTrue(field.workaround)
+        assertTrue(field.workaroundForbidsSuggestions)
+        assertTrue(field.appAllowsSuggestions)
+        assertEquals(Finding.WORKAROUND_NO_SUGGESTIONS, verdict(field).finding)
+        // the app's own flag in a web field is the app's; "Immer Vorschläge anzeigen" leaves web fields out with its exception
+        val own = field.copy(rawInputType = field.inputType)
+        assertFalse(own.workaround)
+        assertTrue(own.webText)
+        assertEquals(Finding.APP_NO_SUGGESTIONS_WEB, verdict(own).finding)
+        assertEquals(Finding.APP_NO_SUGGESTIONS_WEB, verdict(own.copy(alwaysShowSetting = true)).finding)
+        // without the exception, or outside web fields, the setting itself is the way out
+        assertEquals(Finding.APP_NO_SUGGESTIONS, verdict(own.copy(alwaysShowExceptWeb = false)).finding)
+        val plain = text or FieldReport.FLAG_NO_SUGGESTIONS
+        assertEquals(Finding.APP_NO_SUGGESTIONS, verdict(own.copy(inputType = plain, rawInputType = plain)).finding)
     }
 
     @Test fun fieldsThatAreNoText() {

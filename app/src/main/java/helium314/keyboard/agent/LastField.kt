@@ -5,8 +5,6 @@ import android.content.Context
 import android.os.SystemClock
 import android.view.inputmethod.EditorInfo
 import dev.agentkeyboard.core.FieldReport
-import helium314.keyboard.compat.isDeviceLocked
-import helium314.keyboard.compat.isUserLocked
 import helium314.keyboard.latin.DictionaryFacilitator
 import helium314.keyboard.latin.settings.Defaults
 import helium314.keyboard.latin.settings.Settings
@@ -21,61 +19,116 @@ import java.util.Locale
  * for the card on Einstellungen → Diagnose ([Diagnose.lastField]).
  *
  * Memory only, never stored or logged, gone with the process (the settings run in the keyboard's
- * process, like [SubtypeSwitchLog]). Holds a [FieldReport.Snapshot]: the package name, `inputType`,
- * `imeOptions`, the language tag and booleans read from the `InputAttributes` and `SettingsValues`
- * the engine uses; never the field's text, hint, label or name. A password field leaves only
- * [FieldReport.Snapshot.Password], incognito or a locked device only [FieldReport.Snapshot.Hidden];
- * either replaces the field before.
+ * process, like [SubtypeSwitchLog]). Holds a [FieldReport.Snapshot]: the package name, `inputType`
+ * (as the app sent it and as the engine uses it), `imeOptions`, the language tag and booleans read
+ * from the `InputAttributes` and `SettingsValues` the engine uses; never the field's text, hint,
+ * label or name. A password field leaves only [FieldReport.Snapshot.Password], incognito or a locked
+ * device only [FieldReport.Snapshot.Hidden]; either replaces the field before. A field of the
+ * keyboard's own settings changes nothing, and nothing of its strip is counted.
  *
  * Fed by one line in `LatinIME.onStartInputViewInternal` ([capture], after the settings were loaded
  * for the field), by [SubtypeSwitchLog.onSwitched] ([onSubtypeSwitched]: the next read takes the
- * settings the engine reloaded for the new language) and by the strip ([onStrip], from
- * [KeyboardCommands.createChipsView]). Called from the engine: nothing in here may throw.
+ * settings the engine reloaded for the new language), by [KeyboardCommands.createChipsView]
+ * ([onStrip]: the keyboard's chips, a command) and by `SuggestionStripView` ([onStripView]: what the
+ * strip shows). Called from the engine: nothing in here may throw. One lock for every call (review
+ * of stage 55, M1).
  */
 object LastField {
+    private val lock = Any()
     private var snapshot: FieldReport.Snapshot? = null
     /** The engine's dictionaries, asked when the page opens (they load in the background). */
     private var dictionaries: WeakReference<DictionaryFacilitator>? = null
     /** A language switch since [capture]: [current] takes the settings the engine reloaded for this field. */
     private var switched = false
+    /** The keyboard is open in a field of its own settings: strip updates there are not the app's (M2). */
+    private var ownField = false
+
+    private class StripState(val strip: FieldReport.Strip, val wordsOffered: Boolean) {
+        val covered get() = FieldReport.Live(strip = strip, wordsOffered = wordsOffered).stripCovered
+    }
+    /** The strip at its last change; null until it reports for this field. */
+    private var strip: StripState? = null
+    /** Earlier strip contents of this field (the current one not yet counted) and how many were covered. */
     private var stripUpdates = 0
+    private var coveredUpdates = 0
     private var chipUpdates = 0
-    private var lastStripChips = false
+    /** [onStrip] said the keyboard's chips come; the next content of the strip are these chips. */
+    private var pendingChips = false
+    /** The external view the strip shows now is the keyboard's chips. */
+    private var externalChips = false
     private var inCommand = false
 
     /** `LatinIME.onStartInputViewInternal`, once the settings for [editorInfo] are loaded. */
-    @JvmStatic @Synchronized fun capture(context: Context, editorInfo: EditorInfo?, settings: SettingsValues?, dictionaries: DictionaryFacilitator?) {
-        runCatching {
-            val values = settings ?: return
-            // a field of the keyboard's own settings (their search on the way to the diagnose page)
-            // keeps the snapshot of the app before it (lead, stage 55)
-            if (editorInfo?.packageName == context.packageName) return
-            snapshot = snapshotOf(context, editorInfo?.imeOptions ?: 0, values, SystemClock.elapsedRealtime())
-            this.dictionaries = dictionaries?.let { WeakReference(it) }
-            switched = false
-            stripUpdates = 0
-            chipUpdates = 0
-            lastStripChips = false
-            inCommand = false
+    @JvmStatic fun capture(context: Context, editorInfo: EditorInfo?, settings: SettingsValues?, dictionaries: DictionaryFacilitator?) {
+        synchronized(lock) {
+            runCatching {
+                val values = settings ?: return
+                // a field of the keyboard's own settings (their search on the way to the diagnose page)
+                // keeps the snapshot of the app before it (lead, stage 55); its strip is not counted (M2)
+                val packageName = editorInfo?.packageName ?: values.mInputAttributes.mTargetApplicationPackageName
+                ownField = packageName == context.packageName
+                if (ownField) return
+                snapshot = snapshotOf(context, editorInfo?.inputType ?: values.mInputAttributes.mInputType,
+                    editorInfo?.imeOptions ?: 0, values, SystemClock.elapsedRealtime())
+                this.dictionaries = dictionaries?.let { WeakReference(it) }
+                switched = false
+                strip = null
+                stripUpdates = 0
+                coveredUpdates = 0
+                chipUpdates = 0
+                pendingChips = false
+                externalChips = false
+                inCommand = false
+            }
         }
     }
 
     /** [SubtypeSwitchLog.onSwitched]: the subtype changes; the engine reloads its settings right after. */
-    @JvmStatic @Synchronized fun onSubtypeSwitched() {
-        switched = true
+    @JvmStatic fun onSubtypeSwitched() {
+        synchronized(lock) { switched = true }
     }
 
-    /** Every strip update with a strip: whether the keyboard's own chips stood there instead of suggestions. */
-    @JvmStatic @Synchronized fun onStrip(chips: Boolean, insideCommand: Boolean) {
-        if (snapshot !is FieldReport.Snapshot.Field) return
-        if (stripUpdates < Int.MAX_VALUE) stripUpdates++
-        if (chips && chipUpdates < Int.MAX_VALUE) chipUpdates++
-        lastStripChips = chips
-        inCommand = insideCommand
+    private fun counting() = snapshot is FieldReport.Snapshot.Field && !ownField
+
+    /** Every strip update with a strip ([KeyboardCommands.createChipsView]): the keyboard's own chips, a command. */
+    @JvmStatic fun onStrip(chips: Boolean, insideCommand: Boolean) {
+        synchronized(lock) {
+            if (!counting()) return
+            if (chips && chipUpdates < Int.MAX_VALUE) chipUpdates++
+            pendingChips = chips
+            inCommand = insideCommand
+        }
+    }
+
+    /**
+     * `SuggestionStripView` after new content ([newContent]: words or an external view) and after the
+     * toolbar or the emoji row changed: [wordsOffered] = the strip got words (not punctuation),
+     * [external] = a view in their place, [toolbar] = the expanded toolbar, [emojis] = the emoji row.
+     */
+    @JvmStatic fun onStripView(newContent: Boolean, wordsOffered: Boolean, external: Boolean, toolbar: Boolean, emojis: Boolean) {
+        synchronized(lock) {
+            if (!counting()) return
+            if (newContent) {
+                strip?.let {
+                    if (stripUpdates < Int.MAX_VALUE) stripUpdates++
+                    if (it.covered && coveredUpdates < Int.MAX_VALUE) coveredUpdates++
+                }
+                externalChips = external && pendingChips
+                pendingChips = false
+            }
+            val kind = when {
+                emojis -> FieldReport.Strip.EMOJIS
+                external -> if (externalChips) FieldReport.Strip.KEYBOARD_CHIPS else FieldReport.Strip.PILL
+                toolbar -> FieldReport.Strip.TOOLBAR
+                wordsOffered -> FieldReport.Strip.WORDS
+                else -> FieldReport.Strip.EMPTY
+            }
+            strip = StripState(kind, wordsOffered && !external)
+        }
     }
 
     /** The snapshot, null before the keyboard was shown in a field. */
-    @Synchronized fun current(context: Context): FieldReport.Snapshot? {
+    fun current(context: Context): FieldReport.Snapshot? = synchronized(lock) {
         val field = snapshot as? FieldReport.Snapshot.Field
         if (field != null && switched) runCatching {
             // the settings LatinIME reloaded after the switch, if they still belong to this field
@@ -83,25 +136,30 @@ object LastField {
             val attributes = values?.mInputAttributes
             if (attributes != null && attributes.mInputType == field.inputType
                 && attributes.mTargetApplicationPackageName.orEmpty() == field.packageName.orEmpty()) {
-                snapshot = when (val fresh = snapshotOf(context, field.imeOptions, values, field.atMillis)) {
+                snapshot = when (val fresh = snapshotOf(context, field.rawInputType, field.imeOptions, values, field.atMillis)) {
                     is FieldReport.Snapshot.Field -> fresh.copy(atMillis = field.atMillis)
                     else -> fresh
                 }
                 switched = false
             }
         }
-        return snapshot
+        snapshot
     }
 
-    /** What the page asks now; [dictionaryPresent] is the file check of [Diagnose] (off the main thread). */
-    @Synchronized fun live(languageTag: String, dictionaryPresent: Boolean?): FieldReport.Live = FieldReport.Live(
-        dictionaryPresent = dictionaryPresent,
-        dictionaryLoaded = dictionaryLoaded(languageTag),
-        inCommand = inCommand,
-        stripUpdates = stripUpdates,
-        chipUpdates = chipUpdates,
-        lastStripChips = lastStripChips,
-    )
+    /** What the page asks now; [dictionaryPresent] is the file check of [Diagnose] (off the main thread, null = unknown). */
+    fun live(languageTag: String, dictionaryPresent: Boolean?): FieldReport.Live = synchronized(lock) {
+        val last = strip
+        FieldReport.Live(
+            dictionaryPresent = dictionaryPresent,
+            dictionaryLoaded = dictionaryLoaded(languageTag),
+            inCommand = inCommand,
+            strip = last?.strip,
+            wordsOffered = last?.wordsOffered == true,
+            stripUpdates = stripUpdates + (if (last != null) 1 else 0),
+            coveredUpdates = coveredUpdates + (if (last?.covered == true) 1 else 0),
+            chipUpdates = chipUpdates,
+        )
+    }
 
     /**
      * Whether the engine has an initialized main dictionary, as autocorrection asks it
@@ -114,13 +172,19 @@ object LastField {
         facilitator.hasAtLeastOneInitializedMainDictionary()
     }.getOrNull()
 
-    /** The values of [settings] (loaded for the field) as a snapshot; [imeOptions] from the field's EditorInfo. */
-    internal fun snapshotOf(context: Context, imeOptions: Int, settings: SettingsValues, atMillis: Long): FieldReport.Snapshot {
+    /**
+     * The values of [settings] (loaded for the field) as a snapshot; [rawInputType] and [imeOptions]
+     * as the field's EditorInfo has them (the engine's `inputType` may be changed by `AppWorkarounds`).
+     */
+    internal fun snapshotOf(context: Context, rawInputType: Int, imeOptions: Int, settings: SettingsValues, atMillis: Long): FieldReport.Snapshot {
         val attributes = settings.mInputAttributes
         val inputType = attributes.mInputType
-        if (attributes.mIsPasswordField || InputTypeUtils.isAnyPasswordInputType(inputType) || FieldReport.isPassword(inputType))
+        if (attributes.mIsPasswordField || InputTypeUtils.isAnyPasswordInputType(inputType) || FieldReport.isPassword(inputType)
+            || FieldReport.isPassword(rawInputType))
             return FieldReport.Snapshot.Password
-        if (settings.mIsLocked || isDeviceLocked(context) || isUserLocked(context)) return FieldReport.Snapshot.Hidden(locked = true)
+        // review of stage 55 (N5): SettingsValues reads the lock state when the field starts (isDeviceLocked;
+        // a user not unlocked yet is behind the keyguard as well)
+        if (settings.mIsLocked) return FieldReport.Snapshot.Hidden(locked = true)
         // incognito: the setting, a field that forbids learning (InputAttributes folds it in only for text fields)
         if (settings.mIncognitoModeEnabled || attributes.mNoLearning || imeOptions and FieldReport.IME_FLAG_NO_PERSONALIZED_LEARNING != 0)
             return FieldReport.Snapshot.Hidden(locked = false)
@@ -128,11 +192,16 @@ object LastField {
         return FieldReport.Snapshot.Field(
             packageName = attributes.mTargetApplicationPackageName?.takeIf { it.isNotEmpty() },
             inputType = inputType,
+            rawInputType = rawInputType,
             imeOptions = imeOptions,
             atMillis = atMillis,
             appSuggestions = attributes.mShouldShowSuggestions,
             appAutoCorrect = attributes.mInputTypeShouldAutoCorrect,
+            appCompletions = attributes.mApplicationSpecifiedCompletionOn,
             suggestionsSetting = prefs.getBoolean(Settings.PREF_SHOW_SUGGESTIONS, Defaults.PREF_SHOW_SUGGESTIONS),
+            alwaysShowSetting = prefs.getBoolean(Settings.PREF_ALWAYS_SHOW_SUGGESTIONS, Defaults.PREF_ALWAYS_SHOW_SUGGESTIONS),
+            alwaysShowExceptWeb = prefs.getBoolean(Settings.PREF_ALWAYS_SHOW_SUGGESTIONS_EXCEPT_WEB_TEXT,
+                Defaults.PREF_ALWAYS_SHOW_SUGGESTIONS_EXCEPT_WEB_TEXT),
             stripHidden = settings.mSuggestionStripHiddenPerUserSettings,
             suggestionsShown = settings.mSuggestionsEnabled,
             lookups = settings.needsToLookupSuggestions(),
@@ -147,13 +216,19 @@ object LastField {
         )
     }
 
-    @JvmStatic @Synchronized fun clear() {
-        snapshot = null
-        dictionaries = null
-        switched = false
-        stripUpdates = 0
-        chipUpdates = 0
-        lastStripChips = false
-        inCommand = false
+    @JvmStatic fun clear() {
+        synchronized(lock) {
+            snapshot = null
+            dictionaries = null
+            switched = false
+            ownField = false
+            strip = null
+            stripUpdates = 0
+            coveredUpdates = 0
+            chipUpdates = 0
+            pendingChips = false
+            externalChips = false
+            inCommand = false
+        }
     }
 }
