@@ -14,6 +14,8 @@ on:
       - 'tools/**'
       - '*.gradle*'
       - 'gradle/**'
+      # embedded into the APK as the update notes and read by the unit tests (stage 54)
+      - 'release-notes/**'
       - '.github/workflows/agent-tests.yml'
 
 concurrency:

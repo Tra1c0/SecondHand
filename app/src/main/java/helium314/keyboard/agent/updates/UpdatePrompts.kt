@@ -63,8 +63,11 @@ object UpdatePrompts {
     /** "Später": no dialog for this build any more; the keyboard chip stays until it is installed. */
     fun later(context: Context, build: Long) { runCatching { UpdateSettings(context).laterBuild = build } }
 
+    /** Replaced in tests: other notes than the embedded asset (null = the asset). */
+    @JvmStatic var notesForTest: String? = null
+
     /** The notes of this APK, "" if missing. */
-    fun embeddedNotes(context: Context): String = runCatching {
+    fun embeddedNotes(context: Context): String = notesForTest ?: runCatching {
         context.assets.open(NOTES_ASSET).use { input ->
             val output = ByteArrayOutputStream()
             val buffer = ByteArray(16 * 1024)

@@ -240,6 +240,11 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
   (2026-11-15). Gezielte Läufe nur in einer eigenen Arbeitskopie oder nach der Suite. Lokal grün
   heißt nicht GitHub grün: Lint und ein Zeitbudget-Test fielen erst dort auf (Lauf 65); vor `main`
   immer den GitHub-Lauf abwarten.
+- `release-notes/next.md` wird in die APK eingebettet und von `UpdatePromptsTest` gelesen, startete
+  aber keinen GitHub-Lauf: Die gekürzten Notizen für Build 25 ließen
+  `whatsNewDialogComesOnceThenTheAvailableOne` (brauchte mehr als 6 Blöcke) auf `main` rot werden,
+  unbemerkt bis Etappe 56. Behoben: Der Test nimmt eigene lange Notizen (`notesForTest`), und
+  `release-notes/**` startet den Lauf.
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
 - Build 25 (geprüft, von `main`): 55 Diagnose „Letztes Feld“ mit Prüfer und Nachprüfung; Agent-Suite

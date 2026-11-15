@@ -56,7 +56,10 @@ class UpdatePromptsTest {
     @Before fun reset() {
         settings.apply { status = UpdateStatus.Unknown; checkedAt = 0; laterBuild = 0; seenVersion = 0; remember(null, 0) }
         UpdatePrompts.takeInstallRequest(0)
+        UpdatePrompts.notesForTest = null
     }
+
+    @org.junit.After fun restoreNotes() { UpdatePrompts.notesForTest = null }
 
     @Test fun theNotesOfThisBuildAreEmbeddedFromTheReleaseNotesFile() {
         val notes = UpdatePrompts.embeddedNotes(app)
@@ -163,6 +166,8 @@ class UpdatePromptsTest {
     }
 
     @Test fun whatsNewDialogComesOnceThenTheAvailableOne() {
+        // long notes, whatever release-notes/next.md holds right now (a short round's notes have fewer than 7 blocks)
+        UpdatePrompts.notesForTest = "# Agent Keyboard\n\n" + (1..10).joinToString("\n") { "- Punkt $it" }
         settings.apply { seenVersion = 20; remember(build(23), 21) }
         var round by mutableIntStateOf(0)
         compose.setContent {

@@ -3383,7 +3383,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `docs/VALIDATION.md` und `docs/HANDOFF.md` → Offene Punkte. Jeder weitere Fehler ist neu.
 - CI: `.github/workflows/docs-check.yml` führt bei jedem Push den Docs-Check aus.
   `.github/workflows/agent-tests.yml` (seit Build 12) läuft bei Pushes auf `claude/**` und `main`,
-  die Code ändern, und von Hand: drei parallele Jobs `agent` (core- und agent-tests), `upstream`
+  die Code oder `release-notes/**` ändern (die Notizen stecken in der APK und in `UpdatePromptsTest`),
+  und von Hand: drei parallele Jobs `agent` (core- und agent-tests), `upstream`
   (voller Lauf) und `lint`, je über `tools/dev.py`. Die Zusammenfassung (Job-Log und Step-Summary)
   listet jeden Fehler als `known` oder `NEW`; nur `NEW` außerhalb der Baseline (Hangul, Emoji,
   `XLinkTest.*`) lässt den Job scheitern. Berichte als Artefakt `reports-<job>` (7 Tage). Ein
