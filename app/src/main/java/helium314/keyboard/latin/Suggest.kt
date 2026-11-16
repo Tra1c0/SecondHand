@@ -308,13 +308,10 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         val allowed = CorrectionGuard.allowsAutoCorrection(typed, correction, typedIsDictionaryWord,
             settings.mKeepValidWords, settings.mKeepUmlautVariants
         ) { t, c -> settings.mRememberRejectedCorrections && context != null && RejectedCorrections.contains(context, t, c) }
-        // stage 60: asked last, only when the correction would be applied
-        val typedLocale = typedInfo?.mSourceDict?.mLocale
-        val correctionLocale = first.mSourceDict.mLocale
         if (!allowed) return false
-        return !(typedInfo?.mSourceDict?.mDictType == Dictionary.TYPE_MAIN && typedLocale != null
-            && correctionLocale != null && typedLocale != correctionLocale
-            && sentenceIsOfOtherLanguage(ngramContext, correctionLocale))
+        // stage 60: asked last, only when the correction would be applied; a correction without a locale stays outside
+        val correctionLocale = first.mSourceDict.mLocale ?: return true
+        return !sentenceIsOfOtherLanguage(typed, ngramContext, correctionLocale)
     }
 
     /**
@@ -322,10 +319,15 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
      * the sentence, from [ngramContext]) show that it is not written in the language of the correction
      * ([correctionLocale]): at least one is known only to another active language, none only to the
      * correction's language (main dictionaries, [SentenceLanguage]). Runs on the suggestion thread, reads
-     * only, and only when a cross-language correction is about to be applied.
+     * only, and only when a correction is about to be applied ([typed] must be a main-dictionary word of another
+     * active language and not of the correction's).
      */
-    private fun sentenceIsOfOtherLanguage(ngramContext: NgramContext, correctionLocale: Locale): Boolean {
+    private fun sentenceIsOfOtherLanguage(typed: String, ngramContext: NgramContext, correctionLocale: Locale): Boolean {
         val facilitator = mDictionaryFacilitator as? DictionaryFacilitatorImpl ?: return false
+        // the typed word is a word of another active language and not one of the correction's (asked of the
+        // main dictionaries, not of the first occurrence in the results, which may be a history entry)
+        val typedKnownIn = facilitator.mainLocalesKnowing(typed)
+        if (typedKnownIn.none { it != correctionLocale } || correctionLocale in typedKnownIn) return false
         var onlyL2 = 0
         for (n in 1..min(SentenceLanguage.MAX_PREVIOUS_WORDS, ngramContext.prevWordCount)) {
             if (ngramContext.isNthPrevWordBeginningOfSentence(n)) break

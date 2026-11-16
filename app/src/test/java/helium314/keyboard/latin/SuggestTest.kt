@@ -950,7 +950,7 @@ class SuggestTest {
         enableAutocorrect(confidenceVeryAggressive)
         val de = listOf(Locale.GERMAN)
         val en = listOf(Locale.ENGLISH)
-        mainLocalesKnowingWord = mapOf("the" to en, "cat" to en, "soft" to en, "gib" to de, "mir" to de, "in" to de + en, "xyz" to emptyList())
+        mainLocalesKnowingWord = mapOf("the" to en, "cat" to en, "soft" to en, "gib" to de, "mir" to de, "in" to de + en, "xyz" to emptyList(), "fur" to en)
         fun fur(vararg previous: String): SuggestedWords {
             tapTypingSuggestions = suggestionResults(listOf(suggestion("für", 650000, Locale.GERMAN), suggestion("fur", 300000, Locale.ENGLISH)))
             val words = previous.map { if (it == "<S>") NgramContext.WordInfo.BEGINNING_OF_SENTENCE_WORD_INFO else NgramContext.WordInfo(it) }
@@ -979,15 +979,20 @@ class SuggestTest {
         assert(fur("a", "a", "a", "cat").mWillAutoCorrect)
         // a new sentence: the English one before does not count
         assert(fur("<S>", "cat").mWillAutoCorrect)
-        // the same typed word in the correction's own language is not a case of this rule
-        tapTypingSuggestions = suggestionResults(listOf(suggestion("für", 650000, Locale.GERMAN)))
-        assert(getSuggestedWords(false, "fur", CapsMode.OFF, NgramContext(NgramContext.WordInfo("cat"))).mWillAutoCorrect)
+        // a typed word both main dictionaries know is not a case of this rule
+        mainLocalesKnowingWord += mapOf("fur" to de + en)
+        assert(fur("cat").mWillAutoCorrect)
+        // the gate asks the dictionaries, not the first occurrence in the results (a history entry of either group)
+        mainLocalesKnowingWord += mapOf("fur" to en)
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("für", 650000, Locale.GERMAN),
+            SuggestedWordInfo("fur", "", 300000, SuggestedWordInfo.KIND_FLAG_APPROPRIATE_FOR_AUTO_CORRECTION, Dictionary.DICTIONARY_USER_TYPED, 0, 0)))
+        assertFalse(getSuggestedWords(false, "fur", CapsMode.OFF, NgramContext(NgramContext.WordInfo("cat"))).mWillAutoCorrect)
     }
 
     @Test fun `stage 60 Spanish as second language`() {
         currentTypingLocale = Locale.GERMAN
         enableAutocorrect(confidenceVeryAggressive)
-        mainLocalesKnowingWord = mapOf("gracias" to listOf(Locale("es")), "danke" to listOf(Locale.GERMAN))
+        mainLocalesKnowingWord = mapOf("gracias" to listOf(Locale("es")), "danke" to listOf(Locale.GERMAN), "hola" to listOf(Locale("es")))
         fun hola(previous: String): SuggestedWords {
             tapTypingSuggestions = suggestionResults(listOf(suggestion("hold", 650000, Locale.GERMAN), suggestion("hola", 300000, Locale("es"))))
             return getSuggestedWords(false, "hola", CapsMode.OFF, NgramContext(NgramContext.WordInfo(previous)))

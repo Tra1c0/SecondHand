@@ -549,8 +549,8 @@ Autokorrektur (Etappe 20a, Details im Abschnitt „Lerndaten“):
   `correctToCapitalizedWord` (Umschalttaste nach dem Wort mit „Vorgeschlagene Großschreibung
   automatisch korrigieren“) läuft daran vorbei und bleibt.
 - `Suggest.kt` (60): `guardAllows` bekommt den `NgramContext` und fragt am Ende, nur wenn
-  `CorrectionGuard` die Korrektur zulässt und das getippte Wort aus einem Hauptwörterbuch einer
-  anderen Sprache stammt als die Korrektur (`typedInfo`), `sentenceIsOfOtherLanguage`: bis zu drei vorige
+  `CorrectionGuard` die Korrektur zulässt und die Korrektur eine Locale hat, `sentenceIsOfOtherLanguage`: zuerst das Tor (`mainLocalesKnowing(getippt)`
+  enthält eine andere Sprache als die der Korrektur, aber nicht diese; nicht `typedInfo`, der erste Treffer kann ein Verlaufseintrag sein), dann bis zu drei vorige
   Wörter (`NgramContext`, Abbruch am Satzanfang oder an einem leeren Eintrag), je Wort
   `DictionaryFacilitatorImpl.mainLocalesKnowing` (Gruppen, deren Hauptwörterbuch das Wort kennt, wie
   geschrieben oder klein, ohne Sperre), die Entscheidung in `C/SentenceLanguage.kt`. `ForeignWords` und die
@@ -5069,6 +5069,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Das erste Wort eines Satzes hat deshalb keinen Beweis und wird wie vorher korrigiert; ein Satzzeichen
   beginnt einen neuen Satz ohne Beweis aus dem davor. Der Test-Helfer `updateSuggestions()` übergibt
   `EMPTY_PREV_WORDS_INFO`; für diese Etappe gibt es `updateSuggestions(real = true)`.
+- **P249a** Satzsprache (60): `applyLearnedCorrection` (gelerntes Tippfehler-Paar, 20b) läuft nach `guardAllows` und geht an der
+  Regel vorbei, wie die Korrekturen ohne Locale (Gedächtnis, `ForeignWords`, Emoji).
 - **P250** Satzsprache (60): Ein vorheriges Wort zählt für die Sprache der Korrektur oder für eine andere
   Gruppe nach dem Hauptwörterbuch, wie geschrieben oder klein (`mainLocalesKnowing`). Kennen es beide,
   ist es neutral: ein kleingeschriebenes „hand“ vorher gilt nur englisch, aber ein großes „Hand“ wegen der
