@@ -5451,6 +5451,7 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Ergebnis: `:agent-core:test` 595 grün; App-Tests `*Update*`, `*DiagnoseScreenTest`,
   `*SettingsStartScreenTest`, `*ForkIdentityTest`, `*SettingsSystemAreaTest`, `*InputLogicTest.update*`:
   82 grün; Lint ohne neuen Fehler; YAML beider Workflows gelesen und geparst.
+- Nachprüfung 57 (Prüfer ohne mittleren oder hohen Befund): Speichervorschläge „SecondHand-workflows.json“, „-skill-keys.json“, „-<Gruppe>-profile.json“, „-Lichtmuster-….json“ (Import prüft keinen Dateinamen, Formate gleich; `RgbPatternEditorTest` angepasst), Zwischenablage-Label der Farbvorlage aus `english_ime_name`, ungenutztes `agent_ime_settings` und die wiederholten Spell-Checker-Namen in den Debug-Quellen entfernt, Kommentar in `SettingsSystemAreaTest`.
 - Nicht geprüft: der Workflow selbst (läuft nur auf GitHub), ein echtes Update von Build 27 über die neue
   oder die alte Datei, die Namen in Androids Listen auf einem Gerät.
 

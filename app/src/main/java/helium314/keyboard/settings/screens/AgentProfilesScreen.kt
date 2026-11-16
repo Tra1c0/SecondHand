@@ -117,7 +117,7 @@ fun AgentProfilesScreen(onClickBack: () -> Unit) {
                                     scope.launch {
                                         try {
                                             exportContent = withContext(Dispatchers.IO) { requireNotNull(store.exportSaved(group)) }
-                                            saveFile.launch("AgentKeyboard-${group.name.lowercase(java.util.Locale.ROOT)}-profile.json")
+                                            saveFile.launch("SecondHand-${group.name.lowercase(java.util.Locale.ROOT)}-profile.json")
                                         } catch (_: Exception) { error = true }
                                         finally { busy = false }
                                     }

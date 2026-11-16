@@ -99,7 +99,7 @@ fun AgentSkillsScreen(onClickBack: () -> Unit) {
                     scope.launch {
                         try {
                             exportContent = withContext(Dispatchers.IO) { store.export() }
-                            saveFile.launch("AgentKeyboard-skill-keys.json")
+                            saveFile.launch("SecondHand-skill-keys.json")
                         } catch (_: Exception) { error = true }
                         finally { busy = false }
                     }

@@ -520,7 +520,7 @@ internal fun lookLabel(look: RgbLook): String = if (look.usesOwn) look.own!!.nam
 /** A file name from [name]: letters, digits, space, dash and underscore only. */
 internal fun fileName(name: String): String {
     val clean = name.map { if (it.isLetterOrDigit() || it == ' ' || it == '-' || it == '_') it else '_' }.joinToString("").trim().take(32)
-    return "AgentKeyboard-Lichtmuster-${clean.ifEmpty { "Muster" }}.json"
+    return "SecondHand-Lichtmuster-${clean.ifEmpty { "Muster" }}.json"
 }
 
 @Composable
