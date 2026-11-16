@@ -5604,6 +5604,17 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Nicht geprüft: jeder Workflow selbst (läuft nur auf GitHub), `gh run list --commit`, das Zurücklesen,
   ein erneuter Lauf mit `--clobber`.
 
+### Nachprüfung 60
+
+- Befund 1: Das Tor der Regel hing am ersten Treffer des getippten Worts (`typedInfo`), der ein Eintrag aus Verlauf, Kontakten oder
+  persönlichem Wörterbuch sein kann. Jetzt fragt `Suggest` den Facilitator (`mainLocalesKnowing(getippt)`): eine andere Sprache kennt
+  es, die der Korrektur nicht. Neue/angepasste Tests: `SuggestTest` „stage 60 a typed word…“ (Verlaufseintrag ohne Locale als erster
+  Treffer bleibt geschützt; ein Wort, das beide Hauptwörterbücher kennen, bleibt unberührt), `InputLogicTest` „stage 60 an English
+  keyboard keeps German words in a German sentence“ (beide Richtungen, echter Facilitator mit Wortlisten). Nicht möglich: echtes
+  Verlaufswörterbuch der englischen oder deutschen Gruppe (kein native Code in Robolectric), darum nur mit festen Ergebnissen.
+- Befunde 2 bis 5: Ende von `guardAllows` aufgeräumt (kein Verhalten geändert), Docs ergänzt (Komma, ein deutsches Wort,
+  nur zweite Sprachen, beide Richtungen, gelernte Tippfehler, ehrliche Prüfangabe zu „fur“).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

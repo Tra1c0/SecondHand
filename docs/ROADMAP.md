@@ -252,7 +252,12 @@ Reihenfolge von oben nach unten.
   Es zählen nur die Sprachen der Wörterbuchgruppen (Hauptsprache und zweite Sprachen des Subtyps);
   die anderen aktivierten Sprachen aus 51 (`ForeignWords`) zählen hier nicht, weil sie nicht im
   Tippen mitlaufen und ihre Wörterbücher nur im Hintergrund geöffnet werden. Immer an, ohne Schalter.
-  Bleibt: das erste Wort eines Satzes hat keinen Beweis („hand“ am Satzanfang wird „Hand“).
+  Bleibt: das erste Wort eines Satzes hat keinen Beweis („hand“ am Satzanfang wird „Hand“); nach einem Komma
+  (und nach einem Wort mit angehängten Anführungszeichen, Klammern oder Emoji) zählen die Wörter davor nicht; ein einziges
+  nur deutsches Wort unter den letzten drei beendet den Schutz; es zählen nur die zweiten Sprachen der
+  Tastatursprache, nicht andere aktivierte Tastatursprachen; ein gelernter Tippfehler (20b) geht an der Regel vorbei. Die
+  Regel gilt in beide Richtungen (englische Tastatur mit Deutsch als zweiter Sprache). Nachprüfung 60: Das Tor der Regel
+  fragt die Hauptwörterbücher nach dem getippten Wort, nicht den ersten Treffer der Ergebnisse (der kann ein Verlaufseintrag sein).
   (S)
 - **52 Einheitliches Befehlssystem (mit dem Owner festgelegt, 2026-11-14)** ist gebaut (siehe
   FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 52), nach den Festlegungen des Owners

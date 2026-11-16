@@ -2483,6 +2483,24 @@ class InputLogicTest {
         assertEquals("Mesa ", sentence("mesa")) // no evidence
     }
 
+    // stage 60 works in both directions: English keyboard with German as second language
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 60 an English keyboard keeps German words in a German sentence`() {
+        val lists = mapOf("de" to WordLists.of("das", "ist", "gut", "mein"), "en" to WordLists.of("Gut", "is", "my"))
+        fun sentence(sentence: String): String {
+            var result = ""
+            withLanguages(lists, withSecondary(englishSubtype, "de")) {
+                assertEquals(listOf("en", "de"), groupLanguages())
+                sentence.split(' ').forEach { typeSentenceWord(it) }
+                result = text
+            }
+            return result
+        }
+        assertEquals("das ist gut ", sentence("das ist gut")) // before: "Gut"
+        assertEquals("Gut ", sentence("gut")) // no evidence
+        assertEquals("my is Gut ", sentence("my is gut")) // English words: the old rule
+    }
+
     @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
     fun `stage 51 blocked fields and the switches learn no words of other languages`() = withLanguages(wordsDeEs, germanSubtype, spanishSubtype) {
         fun keptTwice() {
