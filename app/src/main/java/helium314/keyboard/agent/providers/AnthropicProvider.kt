@@ -25,7 +25,7 @@ class AnthropicProvider(
         return transport.post(request, {
             buildJsonObject {
                 put("model", request.model)
-                put("max_tokens", MAX_TOKENS)
+                put("max_tokens", ModelBudget.thinkingProviderTokens(request))
                 put("system", request.instruction)
                 put("messages", buildJsonArray { add(buildJsonObject {
                     put("role", "user"); put("content", request.input)
@@ -42,9 +42,6 @@ class AnthropicProvider(
 
     companion object {
         const val API_VERSION = "2026-10-21"
-        /** Thinking tokens count against this cap on models that think by default; leave room for them. */
-        const val MAX_TOKENS = 8192
-
         internal fun parseResponse(body: String): ModelResponse {
             try {
                 val root = Json.parseToJsonElement(body).jsonObject
@@ -53,7 +50,7 @@ class AnthropicProvider(
                 when (root["stop_reason"]?.jsonPrimitive?.content) {
                     "end_turn" -> Unit
                     "refusal" -> throw CloudFailure(CloudError.REFUSED)
-                    "max_tokens", "model_context_window_exceeded" -> throw CloudFailure(CloudError.TOO_LARGE) // cut off
+                    "max_tokens", "model_context_window_exceeded" -> throw CloudFailure(CloudError.CUT_OFF) // stage 59: cut off
                     else -> throw CloudFailure(CloudError.INVALID_RESPONSE) // paused, tool use or unknown
                 }
                 val text = StringBuilder()
@@ -68,7 +65,7 @@ class AnthropicProvider(
                         "thinking", "redacted_thinking" -> Unit // never part of the result
                         else -> throw CloudFailure(CloudError.INVALID_RESPONSE)
                     }
-                    if (text.length > 16384) throw CloudFailure(CloudError.TOO_LARGE)
+                    if (text.length > ModelBudget.MAX_RESULT_CHARS) throw CloudFailure(CloudError.TOO_LARGE)
                 }
                 if (text.isBlank() || ExecutionPolicy().resultDenial(text.toString()) != null)
                     throw CloudFailure(CloudError.INVALID_RESPONSE)

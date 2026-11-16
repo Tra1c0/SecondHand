@@ -33,7 +33,7 @@ class InsertionAnchorTest {
         assertEquals(DenialReason.PASSWORD, policy.insertDenial(anchor, session.token, text.copy(isPassword = true), 4, 4, "Hallo"))
         assertEquals(DenialReason.INVALID_TEXT, policy.insertDenial(anchor, session.token, text, 4, 4, ""))
         assertEquals(DenialReason.INVALID_TEXT, policy.insertDenial(anchor, session.token, text, 4, 4, "broken \uD83D"))
-        assertEquals(DenialReason.TOO_LARGE, policy.insertDenial(anchor, session.token, text, 4, 4, "x".repeat(8_193)))
+        assertEquals(DenialReason.TOO_LARGE, policy.insertDenial(anchor, session.token, text, 4, 4, "x".repeat(32_769)))
         session.invalidate() // same coordinates later are still a different editor state
         assertEquals(DenialReason.STALE_CONTEXT, policy.insertDenial(anchor, session.token, text, 4, 4, "Hallo"))
         assertEquals("InsertionAnchor(token=${anchor.token})", anchor.toString()) // no position, no text

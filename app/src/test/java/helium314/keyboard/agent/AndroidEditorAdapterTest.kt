@@ -63,7 +63,7 @@ class AndroidEditorAdapterTest {
         incognito = false
         adapter.selectionChanged(0, 5, 0, 5)
         assertIs<CaptureResult.Denied>(adapter.capture())
-        adapter.selectionChanged(0, 8193, -1, -1)
+        adapter.selectionChanged(0, 32769, -1, -1)
         assertIs<CaptureResult.Denied>(adapter.capture())
         assertEquals(0, connectionReads)
     }

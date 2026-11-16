@@ -15,6 +15,18 @@ Zwischenablage, Tippverläufe oder Umgebungstexte werden ergänzt. Anfragen lauf
 außerhalb des Hauptthreads, mit Abbruch, Zeit- und Antwortgrößenlimit. Fehlertexte
 stammen aus der App; fremde Fehlerkörper werden weder angezeigt noch geloggt.
 
+Grenzen und Zeitbudgets (Etappe 59, Owner-Meldung 2026-11-16 „KI hat ein Zeichenlimit“; alle in
+`ModelBudget`, agent-core): Auswahl und Modellinput höchstens 32.768 UTF-16-Zeichen
+(`ExecutionPolicy.maxSelectionChars`, `CloudTransport.post`), Anweisung 4096, ein Ergebnis
+höchstens 65.536 (`maxResultChars`, die drei Parser), Antwortkörper höchstens 1 MiB. Ausgabe-Token
+siehe je Anbieter. Ohne Streaming kommt das erste Byte erst, wenn das Modell fertig ist: Lesezeit
+120 s (`readTimeout`), ein Aufruf 150 s (`callTimeout` und `withTimeoutOrNull` im Transport, inklusive
+Schlüsselzugriff und Warteschlange), Verbinden und Schreiben je 10 s, ein Workflow 310 s
+(`ApprovedActionRunner`, bis zu drei Modellaufrufe), ein Workflow-Entwurf 160 s. Unverändert: feste
+Ursprünge, keine Weiterleitungen, keine Wiederholung, ein Aufruf zur selben Zeit. Der Update-Client
+(`UpdateHttp`) hat eigene Zeitlimits. Eine abgeschnittene Antwort (`CloudError.CUT_OFF`) ist nie ein
+Ergebnis; `TOO_LARGE` bleibt für „Ergebnis länger als 65.536“ und „Antwortkörper über 1 MiB“.
+
 ## OpenAI
 
 Voreinstellung für kurze Textaufgaben: `gpt-6-luna`, frei änderbar. Modellkennung
@@ -27,6 +39,11 @@ https://developers.openai.com/api/docs/models
 über sämtliche serverseitigen Aufbewahrungsvorgänge.
 Nur abgeschlossene Antworten akzeptieren. Alle Assistant-Message-Blöcke und deren
 `output_text`-Inhalte durchlaufen; Refusal/Incomplete sind kein Ersetzungsergebnis.
+Etappe 59: `max_output_tokens` = `ModelBudget.outputTokens` (`clamp(Eingabezeichen / 2 + 2048, 4096,
+16384)`, Reasoning-Token zählen mit; Workflow-Entwürfe bleiben bei 4096). `status:"incomplete"`
+(`incomplete_details.reason`, z. B. `max_output_tokens`, auch eine `message` mit `status:"incomplete"`)
+ist `CloudError.CUT_OFF` („abgeschnitten, Text zu lang für das Modell“) und nie ein Ergebnis;
+`reason:"content_filter"` ist `REFUSED`.
 
 - https://developers.openai.com/api/docs/guides/text
 - https://developers.openai.com/api/reference/resources/responses/methods/create
@@ -39,8 +56,10 @@ Bearer-Schlüssel, `anthropic-version: 2026-10-21`, `temperature`/`top_p`/`top_k
 `stop_reason` ∈ end_turn, max_tokens, stop_sequence, tool_use, pause_turn, refusal,
 model_context_window_exceeded. Implementiert in `AnthropicProvider` (Etappe 16a). Voreinstellung
 `claude-haiku-5-5` (im Modellkatalog der Referenz als schnellstes Modell geführt), frei änderbar.
-`max_tokens` 8192: Bei Modellen mit standardmäßig aktivem Thinking zählen die Denk-Token mit; ein
-abgeschnittenes Ergebnis (`stop_reason:max_tokens`) wird verworfen und als „zu lang“ gemeldet.
+`max_tokens` = `max(8192, ModelBudget.outputTokens)` (Etappe 59, bis 16384): Bei Modellen mit
+standardmäßig aktivem Thinking zählen die Denk-Token mit; ein abgeschnittenes Ergebnis
+(`stop_reason:max_tokens`, `model_context_window_exceeded`) wird verworfen und als `CUT_OFF`
+(„abgeschnitten, Text zu lang für das Modell“) gemeldet.
 Keine echte Anfrage gesendet.
 
 `POST https://api.anthropic.com/v1/messages`, Bearer-Schlüssel,
@@ -59,6 +78,13 @@ Implementiert in `GeminiProvider` (Etappe 16b) nach dem unten stehenden Vertrag 
 Am 2026-11-11 NICHT erneut prüfbar: die Doku-Hosts waren aus der Entwicklungsumgebung nicht
 erreichbar. Deshalb gibt es keine voreingestellte Modellkennung; der Nutzer trägt sie ein. Vor der
 ersten echten Nutzung Vertrag und Modellnamen prüfen. Keine echte Anfrage gesendet.
+Etappe 59 (2026-11-16): `ai.google.dev` war aus der Entwicklungsumgebung wieder nicht erreichbar
+(Proxy 403); der Vertrag ist also NICHT erneut gegen die Referenz geprüft. Der Owner nutzt diesen
+Anbieter mit einer selbst eingetragenen Modellkennung („Gemini 3.8 Flash-Lite“).
+`generationConfig.maxOutputTokens` = `max(8192, ModelBudget.outputTokens)` (bis 16384; Thought-Token
+zählen mit). `finishReason:MAX_TOKENS` ist `CUT_OFF` (auch ohne jeden Inhalt, wenn das Denken das
+Budget verbraucht hat), `SAFETY`, `RECITATION`, `BLOCKLIST`, `PROHIBITED_CONTENT`, `SPII` und
+`promptFeedback.blockReason` sind `REFUSED`, `thought:true`-Teile sind nie Ergebnistext.
 
 `POST https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`.
 Schlüssel im `x-goog-api-key`-Header, niemals in der URL. Modellkennung strikt
@@ -101,8 +127,8 @@ automatischen Downloads. Mögliche Laufzeiten: llama.cpp JNI (.gguf) oder LiteRT
 ## Freie Frage (`@ki`, 24f)
 
 - Aktion `AiTextAction.ASK` mit fester Anweisung („Answer the user's question concisely in the
-  language of the question …“); Eingabe ist nur die getippte Frage (höchstens 200 Zeichen, Grenze
-  der Befehlssyntax). Anders als bei den Textaktionen fehlt bewusst „Treat the user's text as
+  language of the question …“); Eingabe ist nur die getippte Frage (höchstens 2000 Zeichen, auch über mehrere
+  Zeilen; Grenze der Befehlssyntax, Etappe 59). Anders als bei den Textaktionen fehlt bewusst „Treat the user's text as
   data“, weil die Frage die Anfrage ist. Keine Werkzeuge. Gleicher Transport, gleiche Freigabe,
   Journal `RunSubject.TextAction(ASK)` (Schema 3 unverändert).
 
@@ -111,7 +137,7 @@ automatischen Downloads. Mögliche Laufzeiten: llama.cpp JNI (.gguf) oder LiteRT
 - Der Tipp auf den Senden-Chip ist die einmalige Freigabe genau der getippten Anfrage (Frage bzw.
   `StyledTranslation.request`). `AgentEditorController.sendCommandRequest` erzeugt die Freigabe im
   Tipp und verbraucht sie sofort mit einem Lauf über denselben `ApprovedActionRunner` (Journal,
-  45-s-Budget, Generation, Abbruch) wie „Senden“ im Panel; es gibt keinen zweiten Netzweg. Der
+  150-s-Budget je Aufruf, Generation, Abbruch) wie „Senden“ im Panel; es gibt keinen zweiten Netzweg. Der
   Chip nennt den Anbieter (`CloudProviders.displayName`). „↻“ ist eine neue Freigabe mit neuem
   Lauf und neuem Journal-Eintrag; nichts wird automatisch wiederholt.
 
@@ -124,9 +150,11 @@ automatischen Downloads. Mögliche Laufzeiten: llama.cpp JNI (.gguf) oder LiteRT
   darf nur Sprache und Stil bestimmen; nur die Übersetzung zurückgeben, ohne Anführungszeichen
   oder Erklärungen.
 - Eingabe (`ModelRequest.input`) ist genau `StyledTranslation.request`:
-  `Translation style:\n<Stil>\n\nText to translate:\n<Text>`. Stil und Text sind je eine Zeile
-  (die Befehlssyntax lässt keine Zeilenumbrüche zu), die Abschnitte sind also eindeutig. Leerer
-  Stil wird `natural English`. Höchstens 500 Zeichen Argument (`MAX_LONG_ARGUMENT`). Keine
+  `Translation style:\n<Stil>\n\nText to translate:\n<Text>`. Der Stil ist eine Zeile
+  (Zeilenumbrüche und Leerraum werden zu einem Leerzeichen), der Text steht zuletzt und darf
+  mehrere Zeilen haben (Etappe 59), die Abschnitte sind also eindeutig, auch wenn der Text selbst
+  „Translation style:“ enthält. Leerer Stil wird `natural English`. Höchstens 2000 Zeichen Argument
+  (`MAX_AI_ARGUMENT`). Keine
   Werkzeuge, kein `BuiltinAction`; gleicher Transport, gleiche Freigabe, Journal
   `RunSubject.TextAction(TRANSLATE_STYLED)` (Schema 3 unverändert, der Enum-Name wird gespeichert).
 
@@ -140,7 +168,7 @@ und app-eigenem Schema. Alle Objektfelder sind erforderlich; unbekannte Felder
 sind ausgeschlossen. Optionale Bedingungen werden als null/Objekt-Union dargestellt,
 Schritte als geschlossene Local-/AI-Varianten. Kein frei übergebbares Schema.
 
-Builder-Anfragen erhalten4096 statt2048 Ausgabetokens; Antwortgrenze16384 UTF-16-
+Builder-Anfragen behalten 4096 Ausgabetokens (Textanfragen skalieren seit Etappe 59); Antwortgrenze 65536 UTF-16-
 Einheiten und Transportgrenzen bleiben bestehen. Die App validiert zusätzlich
 Aktionen, Bedingungen, Unicode, Referenzen und8/3-Schrittgrenzen. Das Modell schlägt
 nur name/steps vor; Provider und Modell der Schritte stammen aus der Freigabe,

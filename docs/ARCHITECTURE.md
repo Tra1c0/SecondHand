@@ -112,6 +112,10 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   <!-- gen:languages -->
 14 Zielsprachen: English, German, French, Spanish, Italian, Portuguese, Ukrainian, Russian, Arabic, Turkish, Chinese, Japanese, Korean, Hindi
 <!-- /gen:languages -->
+- `ModelBudget.kt` (Etappe 59): Grenzen und Zeitbudgets eines Modellaufrufs an einer Stelle
+  (Eingabe 32.768, Ergebnis 65.536, Anweisung 4096, Lesen 120 s, Aufruf 150 s, Workflow 310 s) und
+  die reine Funktion `outputTokens(inputChars)` = `clamp(inputChars / 2 + 2048, 4096, 16384)`,
+  `thinkingProviderTokens` = `max(8192, …)`.
 - `ModelProvider.kt`: `ModelProvider`, `ProviderCapabilities`, `ModelOutputFormat`,
   `ModelRequest` (nur Strings, keine Tokens oder `InputConnection`), `ModelResponse`.
 - `Workflow.kt`: `WorkflowDefinition` (unveränderlich, versioniert), `WorkflowStep.Local` und
@@ -376,7 +380,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   `THRESHOLD` = 0,35 und `MARGIN` = 0,08 vor dem zweiten (gemessen). Tests
   `CT/memory/PhraseMemoryTest.kt` (mit synthetischem Schreiber und Präzisionsmessung),
   `CT/memory/MemoryRulesTest.kt`.
-- Tests in `CT/`: `AiTextActionTest`, `EditorPolicyTest`, `LocalTextActionsTest`,
+- Tests in `CT/`: `AiTextActionTest`, `ModelBudgetTest`, `EditorPolicyTest`, `LocalTextActionsTest`,
   `PendingBatchGateTest`, `SkillBindingTest`, `ToolTest`, `WorkflowTest`,
   `InsertionAnchorTest`, `StyledTranslationTest`, `UpdateReleasesTest`, `RgbLightingTest`,
   `RgbCurveTest`, `RgbPatternsTest`, `RgbFrameStatsTest`, `RgbOwnPatternTest`, `RgbPatternJsonTest`,
@@ -391,7 +395,9 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lassen):
 
 - `LatinIME.java`: erzeugt `AgentEditorController`, meldet Editorstart/-ende, abgeschickten Text
-  und unterdrückte Lernhistorie. `switchToSubtypeByCommand` (Sprachbefehle) und die Prüfung
+  und unterdrückte Lernhistorie. Etappe 59: `tryShowCommandChips` liest die Länge für
+  `updateGuard` mit `KeyboardCommands.readLength(cursor)` statt der festen Länge `LOOKBACK + 1`
+  (wirft nie; P244). `switchToSubtypeByCommand` (Sprachbefehle) und die Prüfung
   `SubtypeChoice.holds` am Anfang von `onStartInputInternal` (P66). Engine-Speicher läuft über `AgentStorageContexts.keyboard`.
   Diagnose (30): je eine Zeile in `onCurrentInputMethodSubtypeChanged` (`SubtypeSwitchLog.onSwitched`
   nach den frühen Rücksprüngen), `switchToSubtype` (`internalSwitch`), `switchToSubtypeByCommand`
@@ -1176,29 +1182,29 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Drei Cloud-Provider (OpenAI, Anthropic, Gemini) über einen gemeinsamen Transport. Verträge: docs/PROVIDERS.md.
 
 - `providers/CloudTransport.kt`: der einzige Weg zu einem Provider. Genau ein nicht
-  wiederholbarer JSON-POST (`isOneShot`), ein Aufruf zur selben Zeit (`BUSY`), Budget 45 s,
+  wiederholbarer JSON-POST (`isOneShot`), ein Aufruf zur selben Zeit (`BUSY`), Budget 150 s (`ModelBudget.CALL_TIMEOUT_MS`, Konstruktor-Parameter für Tests), Eingabe höchstens 32.768 Zeichen,
   Antwort höchstens 1 MiB, HTTP-Status wird auf neutrale `CloudError` abgebildet. Fremde
   Fehlerkörper werden weder angezeigt noch geloggt. Provider-Klassen liefern nur Body, Request
   und Parser.
 - `providers/OpenAiProvider.kt`: `OpenAiProvider` (Responses-API, `store:false`/`stream:false`,
-  2048 Ausgabetokens, Builder 4096; einziger Provider mit `workflowDrafts`), `CloudHttpClient`
+  `max_output_tokens` = `ModelBudget.outputTokens`, Builder 4096; `incomplete` wird `CUT_OFF`; einziger Provider mit `workflowDrafts`), `CloudHttpClient`
   (OkHttp, erst nach dem Senden initialisiert, ohne Redirects und Retries; Connect/Read/Write
-  10 s, Call 45 s), `CloudError`, `CloudFailure`. Der AndroidX-Startup-Initializer ist im
+  10 s, Read 120 s, Call 150 s), `CloudError` (Etappe 59: `CUT_OFF` = abgeschnitten),  `CloudFailure`. Der AndroidX-Startup-Initializer ist im
   Manifest entfernt, `OkHttp.initialize` läuft erst nach dem Senden auf IO.
 - `providers/AnthropicProvider.kt`: Messages-API, `anthropic-version` aus `API_VERSION`,
-  Bearer-Schlüssel, kein `temperature`, `max_tokens` 8192 (`MAX_TOKENS`; Denk-Token zählen bei
+  Bearer-Schlüssel, kein `temperature`, `max_tokens` = `ModelBudget.thinkingProviderTokens` (mindestens 8192; Denk-Token zählen bei
   Modellen mit Standard-Thinking mit). Ergebnis nur bei `stop_reason:end_turn`; `refusal` wird
-  `REFUSED`; `max_tokens` wird `TOO_LARGE` (abgeschnitten, nie ein Ergebnis); `thinking`-Blöcke
+  `REFUSED`; `max_tokens` wird `CUT_OFF` (abgeschnitten, nie ein Ergebnis); `thinking`-Blöcke
   werden übergangen, jeder andere Blocktyp ist ein Fehler.
 - `providers/GeminiProvider.kt`: `generateContent` (v1beta), Schlüssel im Header
   `x-goog-api-key`, nie in der URL. Das Modell wird Teil des URL-Pfads und ist deshalb strenger
   geprüft (`validModel`: nur Kleinbuchstaben, Ziffern, Punkt, Bindestrich). Ergebnis nur bei
-  `finishReason:STOP` und genau einem Kandidaten; `MAX_TOKENS` wird `TOO_LARGE`; Teile mit
-  `thought:true` werden übergangen. `maxOutputTokens` 8192.
+  `finishReason:STOP` und genau einem Kandidaten; `MAX_TOKENS` wird `CUT_OFF`; Teile mit
+  `thought:true` werden übergangen. `maxOutputTokens` = `thinkingProviderTokens` (mindestens 8192).
 - `providers/CloudProviders.kt`: `SUPPORTED` (Provider mit echtem Adapter, Reihenfolge der
   Einstellungen), `get` (erzeugt den Adapter erst bei der ersten freigegebenen Anfrage),
   `slot` (eigener Schlüsselplatz je Provider), `displayName`, `validModel`.
-- Regeln für alle Provider: Ergebnis höchstens 16384 Zeichen, nur vollständig abgeschlossener
+- Regeln für alle Provider: Ergebnis höchstens 65.536 Zeichen (`ModelBudget.MAX_RESULT_CHARS`), nur vollständig abgeschlossener
   Text; Refusal, abgeschnittene Antworten und Tool-Blöcke sind kein Ergebnis. Anthropic und
   Gemini lehnen `WORKFLOW_DRAFT` vor jedem Aufruf ab (der Act Builder bleibt bei OpenAI).
 - `JournaledModelCall.kt`: genau ein freigegebener Modellaufruf mit Journal, unabhängig von der
@@ -1238,7 +1244,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   (`CloudProviders.validModel`). Der Editor setzt beim Providerwechsel das Modell dieses
   Providers ein. `proposal()` macht aus einem Builder-Ergebnis Revision 1.
 - `ApprovedActionRunner.kt`: Main-Thread-Steuerung eines freigegebenen Laufs (Einzelaktion oder
-  Workflow). Epoch-Prüfungen schützen vor späten Antworten, das Gesamtbudget beträgt 95 s.
+  Workflow). Epoch-Prüfungen schützen vor späten Antworten, das Gesamtbudget beträgt 310 s (`ModelBudget.WORKFLOW_TIMEOUT_MS`).
 - Zusammenfassungen für Freigabe und Anzeige: `WorkflowApprovalSummary.kt`,
   `WorkflowInputSummary.kt`, `WorkflowConditionSummary.kt`.
 - `SkillBindingStore.kt`: Belegung der Slots 1–3. Fehlende Workflow-IDs bleiben ohne Ersatz
@@ -1274,9 +1280,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   (`CommandNames` = Präfix mit angefangenem Namen, `CommandCall` = vollständiger Name mit
   optionalem Argument). Präfix nur am Anfang, nach Leerraum oder öffnender Klammer, Name aus
   ASCII-Buchstaben, Argument höchstens 200 Zeichen (`MAX_ARGUMENT`) auf derselben Zeile; nur
-  Befehle mit `Command.longArgument` (bisher `@translate`) dürfen 500 (`MAX_LONG_ARGUMENT`,
-  `parse(…, longArguments)`). `LOOKBACK` richtet sich nach der langen Grenze, alle Leser
-  (`guardsTextBefore`, `updateGuard`, Chips) lesen deshalb bis zu 519 Zeichen. Erlaubte Präfixe
+  Befehle mit `Command.longArgument` (`@snip`) dürfen 500 (`MAX_LONG_ARGUMENT`,
+  `parse(…, longArguments)`). Etappe 59: Befehle mit `Command.aiArgument` (`@ki`, `@translate`)
+  dürfen 2000 (`MAX_AI_ARGUMENT`, `parse(…, aiArguments)`) und als einzige über mehrere Zeilen
+  (jeder andere Befehl endet am Zeilenumbruch; `parse` sucht deshalb über Zeilenumbrüche
+  zurück, `parseAt` lehnt sie bei allen anderen ab). `LOOKBACK` bleibt bei der 500er-Grenze: die
+  normalen Leser (`guardsTextBefore` aus InputLogic, `updateGuard`, Chips) lesen 519 + 1 Zeichen,
+  damit der Cache der Eingabeverbindung (1024) auch in langem Text trifft. Nur solange ein
+  AI-Befehl getippt wird, reicht das Lesen bis zu seinem Anfang (`LONG_LOOKBACK` = 2018, siehe
+  `KeyboardCommands.readLength`, P244); `parse(…, lookback)` und `Active.parse` schließen aus der
+  gelesenen Länge, ob das Fenster kurz oder lang ist. Erlaubte Präfixe
   (`ALLOWED_PREFIXES`) sind nur Zeichen, die in `symbols_word_separators` fehlen; sonst wäre der
   Befehl beim Tippen kein einzelnes Wort und die Autokorrektur könnte ihn ändern. Etappe 52:
   `aliases` (zweite Namen, nur ganz, nach `LanguageNames.normalize`, Umlaute auch als ae/oe/ue,
@@ -3342,7 +3355,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     `InputLogic.replaceCommandText(Feldtext, Kunst, Schreibmarke, generated = true)`, das den Text
     vorher im Editor vergleicht; Rückgängig über `replaceCommandText(Kunst, vorher, Schreibmarke)`,
     nur an derselben Schreibmarke direkt danach; beide melden danach wie die anderen Wege
-    `ime.onAgentTextSubmitted()` (N3). Kunst über `policy.maxSelectionChars` (8192 Zeichen) lehnen
+    `ime.onAgentTextSubmitted()` (N3). Kunst über `policy.maxSelectionChars` (32.768 Zeichen) lehnen
     Einfügen und Ersetzen mit eigenem Hinweis ab (`charArtTooLarge`, N7), nicht mit „Das Feld hat
     sich geändert“. UNKNOWN sperrt wie beim Rechner die Eingabe bis zur Rückmeldung des Editors.
     Kopieren ohne Vertraulich-Markierung (die Kunst ist kein Geheimnis); „Baustein“ fragt in der
@@ -3470,8 +3483,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   ein späterer Zugriff erzeugt ein zweites Objekt auf derselben Datei. Zum Leeren bei
   eingeschaltetem Lernen deshalb `clearAndWait` auf dem vorhandenen Objekt verwenden.
 - **P23** Ausgabegrenzen der Provider schließen Denk-Token ein. Eine zu knappe Grenze lässt
-  bezahlte Anfragen als „abgeschnitten“ enden. OpenAI steht noch bei 2048 (offener Punkt in
-  `docs/HANDOFF.md`), Anthropic und Gemini bei 8192.
+  bezahlte Anfragen als „abgeschnitten“ enden. Seit Etappe 59 skaliert die Grenze mit der Eingabe
+  (`ModelBudget.outputTokens`, P245); ein abgeschnittenes Ergebnis ist `CUT_OFF`.
 - **P24** `InputConnection.getSelectedText` liefert `null` sowohl bei „nichts markiert“ als auch,
   wenn die App nicht rechtzeitig antwortet. Wer daraus „keine Auswahl“ liest, ersetzt im
   schlimmsten Fall später doch eine Auswahl. Vor einem Commit, der sich auf „nichts markiert“
@@ -4937,13 +4950,50 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   er gegen die 60 Anfragen je Stunde und IP (nicht gegen das echte GitHub geprüft). Mit höchstens vier
   Anfragen je Stunde und Gerät reicht das; hinter einer geteilten IP (CGNAT) mögliche 403 fängt die
   Wartezeit ab. Der ETag spart vor allem Datenmenge.
+- **P244** Langer KI-Befehl, Lesefenster (59): Die Leser des Befehls vor der Schreibmarke lesen
+  `LOOKBACK + 1` (520) Zeichen, nie mehr, weil `RichInputConnection.getTextBeforeCursor(n)` nur
+  aus dem Cache (1024, schrumpft beim Löschen) antwortet, solange er `n` Zeichen hält; eine größere
+  Konstante kostete in langem Text einen IPC je Tastendruck. Nur solange ein `@ki`/`@translate`
+  getippt wird, merkt `KeyboardCommands.longRun` den absoluten Anfang (aus dem Parse mit dem
+  kurzen Fenster) und `readLength(cursor)` liefert `Schreibmarke - Anfang + 1` (höchstens
+  `LONG_LOOKBACK + 1`). Der Zustand endet, sobald ein Parse den Befehl nicht mehr findet, die
+  Schreibmarke davor oder weiter als 2018 Zeichen dahinter steht, Text markiert ist oder
+  `load` läuft (neuer Eingabe-View = anderes Feld). Ein alter langer Befehl, dessen Anfang
+  außerhalb des kurzen Fensters liegt und der nicht hier getippt wurde, wird nicht erkannt
+  (dokumentiert, kein Fehler). `guardsTextBefore` (InputLogic, kurzes Fenster) bleibt für Wörter
+  eines laufenden langen Befehls `true` (`longRun.guards`), sonst würden sie gelernt und
+  korrigiert. `updateGuard` und `readLength` hängen über `readCursor` zusammen (gleicher Thread,
+  unmittelbar nacheinander). Test: `LongCommandTest` zählt die angeforderten Zeichen.
+- **P245** Ausgabetoken und Abschneiden (59): `max_output_tokens`/`max_tokens`/`maxOutputTokens`
+  zählen Denk-Token mit; ein fester Wert ließ lange Texte als „abgeschnitten“ enden. Die Grenze
+  folgt der Eingabe (`ModelBudget`). Jede abgeschnittene Antwort ist `CloudError.CUT_OFF`, nie ein
+  Ergebnis: OpenAI `status:"incomplete"` (auch eine `message` mit `status:"incomplete"`,
+  `content_filter` ist `REFUSED`), Anthropic `max_tokens`/`model_context_window_exceeded`, Gemini
+  `MAX_TOKENS` (auch ohne Inhalt). `TOO_LARGE` bleibt für Ergebnis über 65.536 und Körper über 1 MiB.
+- **P246** Zeit ohne Streaming (59): ohne `stream` kommt das erste Byte erst nach der ganzen
+  Generierung; `readTimeout` 10 s machte jede Antwort über 10 s zu `TIMEOUT`, praktisch eine
+  Längenbegrenzung. Jetzt Lesen 120 s, Aufruf 150 s (`callTimeout` und `withTimeoutOrNull`),
+  Workflow 310 s (bis zu drei Aufrufe, der dritte kann also am Gesamtbudget enden), Entwurf 160 s.
+  Der Weg „Abbrechen“ (Leiste: Lade-Chip mit „Abbrechen“, Panel: `cancelButton`) ruft
+  `ApprovedActionRunner.cancel`, das den Job beendet; `CloudTransport` bricht dabei den OkHttp-Call
+  ab (`invokeOnCancellation`). Test: `LongTextBudgetTest`.
+- **P247** Zeilenumbruch im KI-Befehl (59): Nur `@ki` und `@translate` dürfen mehrere Zeilen haben
+  (`aiArguments`); `CommandSyntax.parse` sucht deshalb über Zeilenumbrüche zurück, und `parseAt`
+  verwirft ein Argument mit Zeilenumbruch für jeden anderen Befehl. Folge: ein älteres `@ki` bleibt bis
+  2000 Zeichen dahinter „der laufende Befehl“ (Chip, Autokorrektur aus), auch über Leerzeilen; Senden
+  bleibt der Tipp auf den Chip. Enter gehört dem Text (`AskCommand.onEnter`/`TranslateCommand.onEnter`
+  sind `false`: weder verschluckt noch senden). `StyledTranslation.request`: Stil eine Zeile, Text zuletzt.
+- **P248** Sprache des Ergebnisses (59): Die Anweisungen sind englisch; ohne Regel antwortet ein
+  Modell mitunter auf Englisch oder Deutsch statt in der Sprache des Textes.
+  `AiTextAction.KEEP_LANGUAGE` steht in CORRECT, REPHRASE, SUMMARIZE, REPLY, ANALYZE; ASK und die
+  zwei Übersetzungen behalten ihre Bedeutung. Ob das hilft, ist nicht an einem echten Modell geprüft.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (597 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (601 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -4974,7 +5024,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (101): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (102): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, CharArtWindowTest, ClipCommandTest, ClipVaultTest, CommandReplaceTest,
@@ -4985,45 +5035,45 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest,
   ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest, InsertAtCursorTest,
   JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LastFieldTest,
-  LearningDataTest, LoadingDotsViewTest, ManualWorkflowDraftTest, MemoryScreenTest,
-  MoreCommandsTest, MoreProvidersTest, MyDataScreenTest, MyDataStoreTest, MyDesignsTest,
-  OpenAiProviderTest, RgbFrameRateCardTest, RgbLightingRenderTest, RgbPatternEditorTest,
-  RgbSettingsScreenTest, RgbTilesTest, ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest,
-  SettingsAreaAiTest, SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest,
-  SettingsKitTest, SettingsLookScreenTest, SettingsStartScreenTest, SettingsSystemAreaTest,
-  SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest,
-  SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest, SymbolInkTest,
-  SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest, TouchModelTest, TouchScenesScreenTest,
-  TouchZonesDynamicTest, TypedWordFirstTest, TypoMemoryTest, UpdateCheckTest, UpdateChipTest,
-  UpdateOnOpenTest, UpdatePromptsTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest,
-  WorkflowCommandTest, WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest,
-  WorkflowStoreTest
-- `AT/commands/` (9): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
-  LanguageCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
+  LearningDataTest, LoadingDotsViewTest, LongTextBudgetTest, ManualWorkflowDraftTest,
+  MemoryScreenTest, MoreCommandsTest, MoreProvidersTest, MyDataScreenTest, MyDataStoreTest,
+  MyDesignsTest, OpenAiProviderTest, RgbFrameRateCardTest, RgbLightingRenderTest,
+  RgbPatternEditorTest, RgbSettingsScreenTest, RgbTilesTest, ScreenshotChipTest, SecureWindowTest,
+  SelectedTextCommitTest, SettingsAreaAiTest, SettingsAreaGesturesTest, SettingsBarAreaTest,
+  SettingsKeysScreenTest, SettingsKitTest, SettingsLookScreenTest, SettingsStartScreenTest,
+  SettingsSystemAreaTest, SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest,
+  SliderFeelTest, SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest,
+  SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest, TouchModelTest,
+  TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest, TypoMemoryTest, UpdateCheckTest,
+  UpdateChipTest, UpdateOnOpenTest, UpdatePromptsTest, WorkflowBuilderContractTest,
+  WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
+  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+- `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
+  LanguageCommandTest, LongCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
   TranslateCommandTest, UrlCommandTest
-- `C/` (49): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
+- `C/` (50): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
   CorrectionRules, DateFormatting, EditorSession, EmojiKeywords, EmojiMix, EmojiNames,
   EmojiSynonyms, EventParser, ExecutionPolicy, FieldReport, InkDots, InkRecognizer, InkSymbols,
-  InkTiming, LanguageNames, LocalTextActions, MathExpression, ModelProvider, OwnInkSymbols,
-  PendingBatchGate, PersonalInkSymbols, Places, Profiles, ReleaseNotes, RgbCurve, RgbLighting,
-  RgbOwnPattern, RgbPatternJson, RgbPatterns, SkillBinding, SnippetTemplate, SpecialCharacters,
-  StyledTranslation, SymbolTable, TextCondition, TimerParser, Tool, TouchDynamics, UnitConversion,
-  UpdateOnOpenPolicy, UpdateReleases, UrlDetector, Workflow
+  InkTiming, LanguageNames, LocalTextActions, MathExpression, ModelBudget, ModelProvider,
+  OwnInkSymbols, PendingBatchGate, PersonalInkSymbols, Places, Profiles, ReleaseNotes, RgbCurve,
+  RgbLighting, RgbOwnPattern, RgbPatternJson, RgbPatterns, SkillBinding, SnippetTemplate,
+  SpecialCharacters, StyledTranslation, SymbolTable, TextCondition, TimerParser, Tool,
+  TouchDynamics, UnitConversion, UpdateOnOpenPolicy, UpdateReleases, UrlDetector, Workflow
 - `C/charart/` (6): BigFont, CharArt, Raster, Sketch, TextColumns, UnicodeStyle
 - `C/clip/` (6): ClipDates, ClipGuard, LinkCleaner, PrivateRanges, SmartPaste, TrackingNumbers
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `C/memory/` (4): OwnWords, PhraseMemory, ShortcutOffers, SnippetMatcher
 - `C/suggest/` (1): ContextSuggest
-- `CT/` (46): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
+- `CT/` (47): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
   CorrectionRulesTest, DateFormattingTest, EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest,
   EventParserTest, FieldReportTest, InkAreaTest, InkBenchmarkTest, InkDotFlowTest, InkDotsTest,
   InkFingerModel, InkRecognizerTest, InkTimingTest, InsertionAnchorTest, LanguageNamesTest,
-  LocalTextActionsTest, MathExpressionTest, OwnInkSymbolsTest, PendingBatchGateTest,
-  PersonalInkSymbolsTest, PlacesTest, QuestionCaptureTest, ReleaseNotesTest, RgbCurveTest,
-  RgbFrameStatsTest, RgbLightingTest, RgbOwnPatternTest, RgbPatternJsonTest, RgbPatternsTest,
-  SkillBindingTest, SnippetTemplateTest, StyledTranslationTest, SymbolTableTest, TimerParserTest,
-  ToolTest, TouchDynamicsTest, UnitConversionTest, UpdateOnOpenPolicyTest, UpdateReleasesTest,
-  UrlDetectorTest, WorkflowTest
+  LocalTextActionsTest, MathExpressionTest, ModelBudgetTest, OwnInkSymbolsTest,
+  PendingBatchGateTest, PersonalInkSymbolsTest, PlacesTest, QuestionCaptureTest, ReleaseNotesTest,
+  RgbCurveTest, RgbFrameStatsTest, RgbLightingTest, RgbOwnPatternTest, RgbPatternJsonTest,
+  RgbPatternsTest, SkillBindingTest, SnippetTemplateTest, StyledTranslationTest, SymbolTableTest,
+  TimerParserTest, ToolTest, TouchDynamicsTest, UnitConversionTest, UpdateOnOpenPolicyTest,
+  UpdateReleasesTest, UrlDetectorTest, WorkflowTest
 - `CT/charart/` (2): CharArtTest, SketchTest
 - `CT/clip/` (3): ClipGuardTest, PrivateRangesTest, SmartPasteTest
 - `CT/format/` (1): FormatGuardTest

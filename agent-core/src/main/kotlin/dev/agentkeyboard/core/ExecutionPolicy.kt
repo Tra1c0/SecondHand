@@ -30,8 +30,8 @@ sealed interface AnchorResult {
 
 /** The same rules apply to local tools and to future provider requests. */
 class ExecutionPolicy(
-    val maxSelectionChars: Int = 8_192,
-    val maxResultChars: Int = 16_384,
+    val maxSelectionChars: Int = ModelBudget.MAX_INPUT_CHARS,
+    val maxResultChars: Int = ModelBudget.MAX_RESULT_CHARS,
 ) {
     init {
         require(maxSelectionChars > 0 && maxResultChars >= maxSelectionChars)

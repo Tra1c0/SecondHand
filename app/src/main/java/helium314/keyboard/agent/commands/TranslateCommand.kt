@@ -21,7 +21,14 @@ import helium314.keyboard.latin.settings.Settings
 object TranslateCommand : KeyboardCommands.Command {
     override val name = "translate"
     override val protectsArgument = true
-    override val longArgument = true
+    /** Stage 59: up to [dev.agentkeyboard.core.CommandSyntax.MAX_AI_ARGUMENT] characters, read only while it is typed. */
+    override val aiArgument = true
+
+    /**
+     * Stage 59: the argument may have several lines, so Enter belongs to the text: it is neither used nor
+     * swallowed here and never sends the request (that stays the tap on the chip).
+     */
+    override fun onEnter(host: KeyboardCommands.Host, call: CommandCall) = false
 
     override fun description(context: Context) =
         context.getString(R.string.agent_command_translate, KeyboardCommands.prefix(context).toString())

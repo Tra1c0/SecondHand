@@ -107,7 +107,7 @@ class OpenAiProviderTest {
 
     @Test fun incompleteRefusalMalformedAndOversizedResponsesFailClosed() {
         for (body in listOf("{}", "[broken", completed(""), completed("x").replace("completed", "incomplete"),
-            completed("x").replace("output_text", "refusal"), completed("x".repeat(16385)))) {
+            completed("x").replace("output_text", "refusal"), completed("x".repeat(65537)))) {
             assertFailsWith<CloudFailure> { OpenAiProvider.parseResponse(body) }
         }
         assertEquals("Grüße 😀", OpenAiProvider.parseResponse(completed("Grüße 😀")).text)

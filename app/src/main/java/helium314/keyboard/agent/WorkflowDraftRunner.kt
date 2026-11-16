@@ -18,9 +18,9 @@ class WorkflowDraftRunner(
     private val provider: () -> ModelProvider,
     private val isAllowed: () -> Boolean,
     journal: ActionRunJournal,
-    private val timeoutMillis: Long = 65_000,
+    private val timeoutMillis: Long = ModelBudget.CALL_TIMEOUT_MS + 10_000,
 ) {
-    init { require(timeoutMillis in 1..65_000) }
+    init { require(timeoutMillis in 1..ModelBudget.CALL_TIMEOUT_MS + 10_000) }
     private val runs = JournaledRun(journal)
     private var generation = 0L
     private var pending: WorkflowDraftApproval? = null

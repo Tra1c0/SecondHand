@@ -49,7 +49,7 @@ class EditorPolicyTest {
 
     @Test fun oversizedAndBrokenUnicodeSelectionsAreRejected() {
         assertEquals(CaptureResult.Denied(DenialReason.TOO_LARGE),
-            policy.capture(session.token, normal, 0, 8193, "a".repeat(8193)))
+            policy.capture(session.token, normal, 0, 32769, "a".repeat(32769)))
         for (broken in listOf("\uD83D", "\uDE00", "a\uD83Db"))
             assertEquals(CaptureResult.Denied(DenialReason.INVALID_TEXT),
                 policy.capture(session.token, normal, 0, broken.length, broken))
@@ -100,7 +100,7 @@ class EditorPolicyTest {
 
     @Test fun resultLimitsAllowIntentionalEmptyReplacementButNotMalformedText() {
         assertNull(policy.resultDenial(""))
-        assertEquals(DenialReason.TOO_LARGE, policy.resultDenial("a".repeat(16385)))
+        assertEquals(DenialReason.TOO_LARGE, policy.resultDenial("a".repeat(65537)))
         assertEquals(DenialReason.INVALID_TEXT, policy.resultDenial("\uD83D"))
     }
 

@@ -94,10 +94,10 @@ class MoreProvidersTest {
         assertEquals(CloudError.REFUSED, assertFailsWith<CloudFailure> {
             AnthropicProvider.parseResponse(claude("x", stop = "refusal")) }.error)
         // A cut-off answer is never a result, and it is reported as "too long", not as a broken reply.
-        for (stop in listOf("max_tokens", "model_context_window_exceeded")) assertEquals(CloudError.TOO_LARGE,
+        for (stop in listOf("max_tokens", "model_context_window_exceeded")) assertEquals(CloudError.CUT_OFF,
             assertFailsWith<CloudFailure> { AnthropicProvider.parseResponse(claude("partial answ", stop = stop)) }.error)
         for (body in listOf("{}", "[broken", claude(""), claude("x", stop = "max_tokens"), claude("x", stop = "tool_use"),
-            claude("x", stop = "pause_turn"), claude("x", type = "tool_use"), claude("x".repeat(16385)),
+            claude("x", stop = "pause_turn"), claude("x", type = "tool_use"), claude("x".repeat(65537)),
             claude("x").replace("\"assistant\"", "\"user\""), claude("marker").replace("\"marker\"", "42"))) {
             assertFailsWith<CloudFailure> { AnthropicProvider.parseResponse(body) }
         }
@@ -132,12 +132,12 @@ class MoreProvidersTest {
         }
         val blocked = buildJsonObject { put("promptFeedback", buildJsonObject { put("blockReason", "SAFETY") }) }.toString()
         assertEquals(CloudError.REFUSED, assertFailsWith<CloudFailure> { GeminiProvider.parseResponse(blocked) }.error)
-        assertEquals(CloudError.TOO_LARGE, assertFailsWith<CloudFailure> {
+        assertEquals(CloudError.CUT_OFF, assertFailsWith<CloudFailure> {
             GeminiProvider.parseResponse(gemini("partial answ", "MAX_TOKENS")) }.error)
         val twoCandidates = gemini("x").replace("\"candidates\":[", "\"candidates\":[{\"finishReason\":\"STOP\"},")
         val functionCall = gemini("x").replace("{\"text\":\"x\"}", "{\"functionCall\":{\"name\":\"n\"}}")
         for (body in listOf("{}", "[broken", gemini(""), gemini("x", "MAX_TOKENS"), gemini("x", "OTHER"), twoCandidates,
-            functionCall, gemini("x".repeat(16385)), gemini("marker").replace("\"marker\"", "42"))) {
+            functionCall, gemini("x".repeat(65537)), gemini("marker").replace("\"marker\"", "42"))) {
             assertFailsWith<CloudFailure> { GeminiProvider.parseResponse(body) }
         }
     }

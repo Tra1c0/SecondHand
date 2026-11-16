@@ -25,6 +25,7 @@ object StyledTranslation {
         '\'' to "'’",
         '‚' to "‘’'",
     )
+    private val WHITESPACE_RUN = Regex("\\s+")
     /** Quotes that are also apostrophes ("don't", "it's"): they only count at a word boundary. */
     private const val APOSTROPHES = "'’‘‚"
 
@@ -36,7 +37,6 @@ object StyledTranslation {
      * the start, and closes only before a space, punctuation or the end.
      */
     fun parse(argument: String): Parsed? {
-        if (argument.any { it == '\n' || it == '\r' }) return null
         var open = -1
         for (i in argument.indices) {
             val c = argument[i]
@@ -58,11 +58,15 @@ object StyledTranslation {
         if (close < 0) return null
         val text = argument.substring(open + 1, close).trim()
         if (text.isEmpty()) return null
+        // stage 59: the text may have several lines; the style stays one line, so the two sections of [request] stay unambiguous
         val style = listOf(argument.substring(0, open).trim(), argument.substring(close + 1).trim())
-            .filter { it.isNotEmpty() }.joinToString(" ")
+            .filter { it.isNotEmpty() }.joinToString(" ").replace(WHITESPACE_RUN, " ")
         return if (style.isEmpty()) Parsed(text, DEFAULT_STYLE, true) else Parsed(text, style, false)
     }
 
-    /** The user message of the request: the style and the text in two labelled sections, nothing else. */
+    /**
+     * The user message of the request: the style (one line) and the text (any number of lines, always
+     * last) in two labelled sections, nothing else.
+     */
     fun request(parsed: Parsed): String = "$STYLE_LABEL:\n${parsed.style}\n\n$TEXT_LABEL:\n${parsed.text}"
 }

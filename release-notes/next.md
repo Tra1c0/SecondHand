@@ -11,3 +11,12 @@ Nur mit Tests geprüft, noch auf keinem Gerät ausprobiert.
   Laden und Installieren weiter nur nach deinem Tipp. Ausschalten auf derselben Seite.
 - Diagnose → „Letztes Feld“ (seit Build 25): Fehlen Vorschläge, Großschreibung oder Autokorrektur,
   bitte direkt danach einen Screenshot der ersten Karte schicken.
+
+## Nächster Build
+
+- KI ohne Zeichenlimit: `@ki` und `@translate` nehmen bis 2000 Zeichen und mehrere Zeilen (Enter fügt
+  einen Umbruch ein, gesendet wird nur per Tipp auf den Chip). Markierter Text für KI-Aktionen bis
+  32.768 Zeichen, Ergebnis bis 65.536. Lange Antworten werden nicht mehr nach 10 Sekunden abgebrochen
+  (bis 150 Sekunden, „Abbrechen“ bleibt), eine abgeschnittene Antwort wird nie eingefügt, sondern
+  gemeldet. Die KI-Aktionen antworten in der Sprache deines Textes. Nur mit Tests geprüft, noch auf
+  keinem Gerät und mit keiner echten Anfrage.

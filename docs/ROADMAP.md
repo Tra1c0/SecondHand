@@ -357,6 +357,24 @@ Reihenfolge von oben nach unten.
   die Zeile von 55 (`LastField.capture`) startet die Prüfung. Offen: Prüfer-Review (Engine-Nähe:
   Aufruf aus `capture`, Refresh über `setNeutralSuggestionStrip`), Gerätetest (echtes GitHub, 304,
   Datensparmodus, Chip nach einem echten Release).
+- **59 KI ohne Zeichenlimit (Meldung des Owners, 2026-11-16: „KI hat ein Zeichenlimit.“)** ist gebaut
+  (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 59). Der Owner nutzt OpenAI und
+  Gemini (selbst eingetragene Modellkennung); bei `@ki` verschwand der Chip nach 5–6 Zeilen, das ist
+  die 200-Zeichen-Grenze. Vier Grenzen, kohärent angehoben: (1) `@ki` und `@translate` bis 2000
+  Zeichen, auch über mehrere Zeilen (Enter gehört dem Text, Senden bleibt der Tipp auf den Chip),
+  ohne zusätzlichen Editor-Lesezugriff beim normalen Tippen (Lesefenster nur während eines solchen
+  Befehls bis zu dessen Anfang); (2) Auswahl und Modellinput 32.768 statt 8.192, ein Ergebnis 65.536
+  statt 16.384, alle behaltenen Texte eines Workflows 131.072 statt 32.768; (3) Ausgabetoken
+  `clamp(Eingabe / 2 + 2048, 4096, 16384)` (Anthropic und Gemini mindestens 8192, Entwürfe 4096) und
+  eine abgeschnittene Antwort aller drei Anbieter ist „abgeschnitten, Text zu lang für das Modell“,
+  nie ein Ergebnis; (4) Zeit: Lesen 120 s, ein Aufruf 150 s, ein Workflow 310 s (vorher 10/45/95 s,
+  die jede Antwort über 10 s zu einem Zeitfehler machten), ohne Streaming. Dazu eine feste Regel
+  „Never translate“ in den Anweisungen aller Aktionen „in der Originalsprache“. Annahmen des Leads,
+  die der Owner ändern kann: 2000 Zeichen für beide Befehle; ein älterer `@ki` bleibt bis 2000
+  Zeichen dahinter der laufende Befehl (Autokorrektur aus), auch über Leerzeilen; ein alter langer
+  Befehl, dessen Anfang außerhalb des kurzen Lesefensters liegt, wird nicht erkannt;
+  der dritte KI-Schritt eines Workflows kann am Gesamtbudget (310 s) enden. Offen: Gerätetest und
+  echte Anfragen (lange Texte, Gemini-Vertrag nicht gegen die Referenz geprüft).
 - **Graue Auswahlkarten (Owner, 2026-11-14: „Ja“):** Die grauen Mockup-Karten (AUS, NICHTS,
   AUSGEBLENDET, FLACHER LOOK) bekommen helle Schrift (Kontrast mit dunkler Schrift nur 1,74:1).
   Gebaut (`docs/VALIDATION.md` → Etappe 37, „Graue Karten“): helle Schrift 4,71:1 gewählt, 6,92:1

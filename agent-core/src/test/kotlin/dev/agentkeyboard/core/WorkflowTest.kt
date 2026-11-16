@@ -86,7 +86,7 @@ class WorkflowTest {
 
     @Test fun oversizedOrMalformedSelectionNeverReachesTheProvider() {
         val workflow = definition(ai("first", selection))
-        for (input in listOf("", "x".repeat(8193), "\uD800")) {
+        for (input in listOf("", "x".repeat(32769), "\uD800")) {
             val failure = assertFailsWith<WorkflowFailure> { execute { runner().execute(workflow, input) } }
             assertEquals(WorkflowError.INVALID_INPUT, failure.error)
         }
@@ -94,13 +94,13 @@ class WorkflowTest {
 
     @Test fun oversizedIntermediateIsNotSentToTheNextModel() {
         val workflow = definition(local(), ai())
-        val failure = assertFailsWith<WorkflowFailure> { execute { runner().execute(workflow, "ß".repeat(8192)) } }
+        val failure = assertFailsWith<WorkflowFailure> { execute { runner().execute(workflow, "ß".repeat(32768)) } }
         assertEquals(WorkflowError.INVALID_INPUT, failure.error)
     }
 
     @Test fun malformedOrOversizedModelOutputCannotBecomeAResult() {
         val workflow = definition(ai("first", selection))
-        for (output in listOf("\uDC00", "x".repeat(16385))) {
+        for (output in listOf("\uDC00", "x".repeat(65537))) {
             val failure = assertFailsWith<WorkflowFailure> { execute { runner { _, _ -> output }.execute(workflow, "Hallo") } }
             assertEquals(WorkflowError.INVALID_OUTPUT, failure.error)
         }
@@ -108,7 +108,7 @@ class WorkflowTest {
 
     @Test fun totalTextBudgetBoundsEvenLocalExpansion() {
         val workflow = definition(local(), local("second", WorkflowInput.StepResult("first")))
-        val failure = assertFailsWith<WorkflowFailure> { execute { runner().execute(workflow, "ß".repeat(8192)) } }
+        val failure = assertFailsWith<WorkflowFailure> { execute { runner().execute(workflow, "ß".repeat(32768)) } }
         assertEquals(WorkflowError.TEXT_BUDGET, failure.error)
     }
 
@@ -199,8 +199,8 @@ class WorkflowTest {
 
     @Test fun skippedStepReusesItsInputWithoutAllocatingAnotherBudgetedOutput() {
         val workflow = definition(local(), ai().copy(condition = TextCondition(TextPredicate.CONTAINS_LITERAL, "absent")))
-        val result = execute { runner().execute(workflow, "ß".repeat(8192)) }
-        assertEquals(16384, result.text.length)
+        val result = execute { runner().execute(workflow, "ß".repeat(32768)) }
+        assertEquals(65536, result.text.length)
         assertTrue(result.allowsReplacement)
     }
 

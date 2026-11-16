@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.agent.providers
 
+import dev.agentkeyboard.core.ModelBudget
 import dev.agentkeyboard.core.ModelOutputFormat
 import dev.agentkeyboard.core.ModelRequest
 import dev.agentkeyboard.core.ModelResponse
@@ -27,6 +28,8 @@ import kotlin.coroutines.resumeWithException
 internal class CloudTransport(
     private val credentials: () -> Secret?,
     private val calls: Call.Factory,
+    /** The budget of one call including credential access and queue time; tests shorten it. */
+    private val callTimeoutMillis: Long = ModelBudget.CALL_TIMEOUT_MS,
 ) {
     private val active = AtomicBoolean(false)
 
@@ -34,11 +37,12 @@ internal class CloudTransport(
                      parse: (String) -> ModelResponse, allowsDrafts: Boolean = true): ModelResponse {
         if (!active.compareAndSet(false, true)) throw CloudFailure(CloudError.BUSY)
         try {
-            if (request.instruction.length !in 1..4096 || request.input.length !in 1..8192 ||
+            if (request.instruction.length !in 1..ModelBudget.MAX_INSTRUCTION_CHARS ||
+                request.input.length !in 1..ModelBudget.MAX_INPUT_CHARS ||
                 (!allowsDrafts && request.outputFormat != ModelOutputFormat.TEXT))
                 throw CloudFailure(CloudError.INVALID_REQUEST)
             // Includes credential access and async dispatcher queue time.
-            return withTimeoutOrNull(45_000) { postOnce(body(), build, parse) } ?: throw CloudFailure(CloudError.TIMEOUT)
+            return withTimeoutOrNull(callTimeoutMillis) { postOnce(body(), build, parse) } ?: throw CloudFailure(CloudError.TIMEOUT)
         } finally { active.set(false) }
     }
 

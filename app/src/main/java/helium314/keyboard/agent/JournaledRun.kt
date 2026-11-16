@@ -23,7 +23,7 @@ internal class JournaledRun(private val journal: ActionRunJournal) {
             val state = when {
                 outcome.isSuccess -> ActionRunState.SUCCEEDED
                 error in setOf(CloudError.NETWORK, CloudError.TIMEOUT, CloudError.SERVICE,
-                    CloudError.INVALID_RESPONSE, CloudError.TOO_LARGE) -> ActionRunState.UNKNOWN
+                    CloudError.INVALID_RESPONSE, CloudError.TOO_LARGE, CloudError.CUT_OFF) -> ActionRunState.UNKNOWN
                 else -> ActionRunState.FAILED
             }
             try { withContext(NonCancellable) { runId?.let { journal.finish(it, state) } } }
