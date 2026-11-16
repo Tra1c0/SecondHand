@@ -89,7 +89,7 @@
     <string name="agent_diagnose_field">Letztes Feld</string>
     <string name="agent_diagnose_field_none">noch keins, seit die Tastatur läuft (nur im Speicher)</string>
     <string name="agent_diagnose_field_password">Passwortfeld</string>
-    <string name="agent_diagnose_field_hidden">Inkognito/gesperrt: nichts gemerkt</string>
+    <string name="agent_diagnose_field_locked">Gesperrt: nichts gemerkt</string>
     <string name="agent_diagnose_field_unknown">unbekannt</string>
     <string name="agent_diagnose_field_app">App</string>
     <string name="agent_diagnose_field_when">Erfasst</string>
@@ -145,7 +145,6 @@
     <string name="agent_diagnose_caps_characters">alles groß</string>
     <string name="agent_diagnose_verdict_password">Passwortfeld: Vorschläge, Autokorrektur und Lernen sind hier immer aus.</string>
     <string name="agent_diagnose_verdict_locked">Gesperrt: nichts gemerkt; bei gesperrtem Gerät zeigt die Tastatur keine Vorschläge.</string>
-    <string name="agent_diagnose_verdict_incognito">Inkognito: nichts gemerkt, darum kein Urteil.</string>
     <string name="agent_diagnose_verdict_no_text_field">Keine Vorschläge, Großschreibung oder Autokorrektur: Die App meldet kein Textfeld.</string>
     <string name="agent_diagnose_verdict_not_text">Keine Vorschläge: Das Feld nimmt nur Zahlen, Telefonnummern oder Daten an.</string>
     <string name="agent_diagnose_verdict_strip_hidden">Keine Vorschläge: Die Vorschlagsleiste ist in den Einstellungen ausgeblendet.</string>
@@ -191,4 +190,19 @@
     <string name="agent_diagnose_verdict_strip_toolbar">Vorschläge an, aber zuletzt zeigte die Leiste die Symbolleiste statt Wörtern.</string>
     <string name="agent_diagnose_verdict_strip_emojis">Vorschläge an, aber zuletzt zeigte die Leiste die Emoji-Reihe statt Wörtern.</string>
     <string name="agent_diagnose_verdict_strip_not_captured">Vorschläge, Autokorrektur und Großschreibung an; was die Leiste zeigte, ist nicht erfasst.</string>
+    <!-- stage 61: Korrektur in Apps erzwingen (Karte Letztes Feld) -->
+    <string name="agent_diagnose_field_app_not_kept">nicht gemerkt (Feld ohne Lernen)</string>
+    <string name="agent_diagnose_field_forced">Korrektur erzwungen</string>
+    <string name="agent_diagnose_field_forced_yes">ja, für diese App</string>
+    <string name="agent_diagnose_field_forced_listed">App ist in der Liste, aber dieses Feld ist dafür nicht geeignet</string>
+    <string name="agent_diagnose_field_forced_no">nein</string>
+    <string name="agent_diagnose_verdict_forced_suggestions">Die App verbietet Vorschläge; für diese App erzwungen.</string>
+    <string name="agent_diagnose_verdict_forced_autocorrect">Die App verlangt keine Autokorrektur; für diese App erzwungen.</string>
+    <string name="agent_diagnose_verdict_forced_caps">Die App verlangt keine Großschreibung; für diese App erzwungen.</string>
+    <string name="agent_diagnose_verdict_learning_field">Das Feld verlangt kein Lernen; darum wird die App nicht gemerkt.</string>
+    <string name="agent_diagnose_verdict_learning_incognito">Inkognito ist an; darum wird die App nicht gemerkt.</string>
+    <string name="agent_diagnose_force_add">In dieser App erzwingen</string>
+    <string name="agent_diagnose_force_remove">Nicht mehr erzwingen</string>
+    <string name="agent_diagnose_force_hint">Erzwingen heißt: Vorschläge, Autokorrektur und Großschreibung wie in einem normalen Nachrichtenfeld, in Textfeldern dieser App (nicht in Passwort-, E-Mail-, Adress-, Namen- und Suchfeldern). Eigene Schalter bleiben maßgebend, Lernen bleibt, wie es ist.</string>
+    <string name="agent_diagnose_force_saved">Gespeichert. Gilt ab dem nächsten Feld.</string>
 </resources>

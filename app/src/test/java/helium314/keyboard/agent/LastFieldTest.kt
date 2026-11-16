@@ -254,15 +254,152 @@ class LastFieldTest {
         assertTrue(!assertIs<FieldReport.Snapshot.Field>(start(editor(raw, packageName = "com.example.chat"))).workaround)
     }
 
-    @Test fun aPasswordOrIncognitoFieldReplacesTheFieldBefore() {
+    @Test fun aPasswordFieldReplacesTheFieldBefore() {
         start(editor(InputType.TYPE_CLASS_TEXT))
         assertEquals(FieldReport.Snapshot.Password, start(editor(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD)))
-        start(editor(InputType.TYPE_CLASS_TEXT))
-        // the keyboard's own fields of "Meine Daten" never learn: incognito as well
-        val myData = editor(InputType.TYPE_CLASS_TEXT).apply { privateImeOptions = AgentPreferences.NO_LEARNING_FIELD }
-        assertEquals(FieldReport.Snapshot.Hidden(locked = false), start(myData))
-        // and nothing about a strip is counted while hidden
+        // a password field in a forced app stays a password field: nothing forced, nothing kept
+        val instagram = editor(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD, packageName = "com.instagram.android")
+        assertEquals(FieldReport.Snapshot.Password, start(instagram))
+        assertTrue(!Settings.getValues().mCorrectionForced)
+        // and nothing about a strip is counted
         LastField.onStrip(chips = true, insideCommand = true)
         assertEquals(0, LastField.live("de", null).stripUpdates)
+    }
+
+    @Test fun aFieldWithoutLearningKeepsItsReasonButNotTheApp() {
+        // stage 61: the keyboard's own fields of "Meine Daten" never learn; the field's type, flags and verdict stay
+        val myData = editor(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS, packageName = "com.example.geheim")
+            .apply { privateImeOptions = AgentPreferences.NO_LEARNING_FIELD }
+        val own = assertIs<FieldReport.Snapshot.Field>(start(myData))
+        assertNull(own.packageName)
+        assertTrue(own.noLearning && own.learningOff && !own.incognito)
+        assertEquals(FieldReport.Learning.FIELD_ASKS_NONE, FieldReport.verdict(own).learning)
+        assertEquals(Finding.APP_NO_SUGGESTIONS, FieldReport.verdict(own).finding)
+        assertTrue(FieldReport.Flag.NO_SUGGESTIONS in own.flags)
+        // the app's flag (no personalized learning) the same
+        val instagram = assertIs<FieldReport.Snapshot.Field>(start(editor(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS,
+            EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING or EditorInfo.IME_ACTION_SEND, "com.instagram.android")))
+        assertNull(instagram.packageName)
+        assertTrue(!instagram.appForced, "the app is not kept, so is not whether it is listed")
+        // forced all the same: the card says what the keyboard does here, without the app
+        assertTrue(instagram.forced)
+        assertEquals(listOf(FieldReport.Forced.SUGGESTIONS, FieldReport.Forced.AUTOCORRECT, FieldReport.Forced.CAPS), FieldReport.verdict(instagram).forced)
+        assertEquals(FieldReport.Learning.FIELD_ASKS_NONE, FieldReport.verdict(instagram).learning)
+        // the owner's incognito setting the same, with its own reason
+        app.prefs().edit().putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true).commit()
+        val incognito = assertIs<FieldReport.Snapshot.Field>(start(editor(InputType.TYPE_CLASS_TEXT)))
+        assertNull(incognito.packageName)
+        assertEquals(FieldReport.Learning.INCOGNITO, FieldReport.verdict(incognito).learning)
+        app.prefs().edit().putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, false).commit()
+        // the strip of such a field is counted (the card shows it), but the update chip never goes there
+        start(myData)
+        LastField.onStripView(newContent = true, wordsOffered = false, external = false, toolbar = false, emojis = false)
+        assertTrue(!LastField.stripNeutral())
+        assertEquals(1, LastField.live("de", null).stripUpdates)
+    }
+
+    private val instagramField = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+
+    @Test fun aForcedAppGetsSuggestionsAutocorrectAndCapitalsInASingleLineField() {
+        val forced = editor(instagramField, EditorInfo.IME_ACTION_SEND, "com.instagram.android")
+        load(forced)
+        val values = Settings.getValues()
+        assertTrue(values.mCorrectionForced)
+        assertTrue(values.mSuggestionsEnabled)
+        assertTrue(values.mAutoCorrectEnabled)
+        assertTrue(values.needsToLookupSuggestions())
+        assertTrue(values.mAutoCap)
+        // sentence capitals: the app sent no CAP flag, the engine reads one
+        assertEquals(forced.inputType or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES, values.capsInputType(forced.inputType))
+        // the attributes of the engine stay as the app sent them: isSameInputType answers as before (P254)
+        assertEquals(forced.inputType, values.mInputAttributes.mInputType)
+        assertTrue(values.isSameInputType(forced))
+        assertTrue(!values.mInputAttributes.mShouldShowSuggestions)
+        assertTrue(!values.mInputAttributes.mInputTypeShouldAutoCorrect)
+        // the card follows the real values
+        val field = assertIs<FieldReport.Snapshot.Field>(start(forced))
+        assertEquals("com.instagram.android", field.packageName)
+        assertTrue(field.forced && field.appForced)
+        assertEquals(values.mSuggestionsEnabled, field.suggestionsShown)
+        assertEquals(values.mAutoCorrectEnabled, field.autoCorrectEnabled)
+        assertEquals(FieldReport.Effective(suggestions = true, autoCorrect = true, caps = true, stripCovered = false),
+            FieldReport.effective(field, FieldReport.Live(dictionaryLoaded = true)))
+        assertEquals(listOf(FieldReport.Forced.SUGGESTIONS, FieldReport.Forced.AUTOCORRECT, FieldReport.Forced.CAPS), FieldReport.verdict(field).forced)
+    }
+
+    @Test fun theSameFieldInAnotherAppIsLeftAlone() {
+        val other = editor(instagramField, EditorInfo.IME_ACTION_SEND, "com.example.chat")
+        load(other)
+        val values = Settings.getValues()
+        assertTrue(!values.mCorrectionForced)
+        assertTrue(!values.mSuggestionsEnabled)
+        assertTrue(!values.mAutoCorrectEnabled)
+        assertEquals(other.inputType, values.capsInputType(other.inputType))
+        val field = assertIs<FieldReport.Snapshot.Field>(start(other))
+        assertTrue(!field.forced && !field.appForced)
+        assertEquals(Finding.APP_NO_SUGGESTIONS, FieldReport.verdict(field).finding)
+        assertEquals(emptyList(), FieldReport.verdict(field).forced)
+    }
+
+    @Test fun theOwnersSwitchesStillWin() {
+        val forced = editor(instagramField, EditorInfo.IME_ACTION_SEND, "com.instagram.android")
+        app.prefs().edit().putBoolean(Settings.PREF_SHOW_SUGGESTIONS, false).commit()
+        load(forced)
+        assertTrue(Settings.getValues().mCorrectionForced)
+        assertTrue(!Settings.getValues().mSuggestionsEnabled)
+        app.prefs().edit().putBoolean(Settings.PREF_SHOW_SUGGESTIONS, true).putBoolean(Settings.PREF_AUTO_CORRECTION, false).commit()
+        load(forced)
+        assertTrue(!Settings.getValues().mAutoCorrectEnabled)
+        assertTrue(Settings.getValues().mSuggestionsEnabled)
+        app.prefs().edit().putBoolean(Settings.PREF_AUTO_CORRECTION, true).putBoolean(Settings.PREF_AUTO_CAP, false).commit()
+        load(forced)
+        assertTrue(!Settings.getValues().mAutoCap)
+        val field = assertIs<FieldReport.Snapshot.Field>(start(forced))
+        assertEquals(listOf(FieldReport.Forced.SUGGESTIONS, FieldReport.Forced.AUTOCORRECT), FieldReport.verdict(field).forced)
+        assertTrue(!FieldReport.effective(field, FieldReport.Live(dictionaryLoaded = true)).caps)
+    }
+
+    @Test fun excludedFieldsOfAForcedAppAreNotForced() {
+        fun forced(inputType: Int, imeOptions: Int = 0): Boolean {
+            load(editor(inputType, imeOptions, "com.instagram.android"))
+            return Settings.getValues().mCorrectionForced
+        }
+        val text = InputType.TYPE_CLASS_TEXT
+        assertTrue(forced(text or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS))
+        for (variation in listOf(InputType.TYPE_TEXT_VARIATION_PASSWORD, InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD,
+            InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD, InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS, InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS,
+            InputType.TYPE_TEXT_VARIATION_URI, InputType.TYPE_TEXT_VARIATION_FILTER, InputType.TYPE_TEXT_VARIATION_PHONETIC,
+            InputType.TYPE_TEXT_VARIATION_PERSON_NAME, InputType.TYPE_TEXT_VARIATION_POSTAL_ADDRESS))
+            assertTrue(!forced(text or variation or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS), "variation 0x${variation.toString(16)}")
+        assertTrue(!forced(text, EditorInfo.IME_ACTION_SEARCH))
+        assertTrue(!forced(InputType.TYPE_CLASS_NUMBER))
+        assertTrue(!forced(InputType.TYPE_NULL))
+        // the apps' own CAP flags are kept
+        val words = editor(text or InputType.TYPE_TEXT_FLAG_CAP_WORDS, 0, "com.instagram.android")
+        load(words)
+        assertEquals(words.inputType, Settings.getValues().capsInputType(words.inputType))
+    }
+
+    @Test fun theListChangesTakeEffectAtTheNextFieldStart() {
+        val chat = editor(instagramField, 0, "com.example.chat")
+        load(chat)
+        assertTrue(!Settings.getValues().mCorrectionForced)
+        assertTrue(ForcedApps.add(app.prefs(), "com.example.chat"))
+        load(chat)
+        assertTrue(Settings.getValues().mCorrectionForced)
+        ForcedApps.remove(app.prefs(), "com.instagram.android")
+        ForcedApps.remove(app.prefs(), "com.example.chat")
+        load(editor(instagramField, 0, "com.instagram.android"))
+        assertTrue(!Settings.getValues().mCorrectionForced)
+        assertEquals(emptySet(), ForcedApps.read(app.prefs()), "an emptied list stays empty, the default does not come back")
+    }
+
+    @Test fun theListHasInstagramByDefaultAndTakesOnlyPackageNames() {
+        assertEquals(setOf("com.instagram.android"), ForcedApps.read(app.prefs()))
+        assertTrue(!ForcedApps.add(app.prefs(), "not a package"))
+        assertTrue(!ForcedApps.add(app.prefs(), "x"))
+        assertTrue(ForcedApps.add(app.prefs(), "com.whatsapp"))
+        assertEquals(setOf("com.instagram.android", "com.whatsapp"), ForcedApps.read(app.prefs()))
+        assertTrue(ForcedApps.isListed(app.prefs(), "com.whatsapp") && !ForcedApps.isListed(app.prefs(), null))
     }
 }

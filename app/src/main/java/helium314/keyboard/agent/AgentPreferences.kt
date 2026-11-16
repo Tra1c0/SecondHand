@@ -32,6 +32,8 @@ object AgentPreferences {
     /** Opt-in on top of [ADAPT_TOUCH]: short-term layer and scene profiles of the hit zones (stage 50). */
     const val ADAPT_TOUCH_DYNAMIC = "agent_adapt_touch_dynamic"
     const val SCREENSHOT_CHIP = "agent_screenshot_chip"
+    /** Stage 61: packages whose text fields get suggestions, autocorrect and sentence capitals although the app forbids them (string set, default Instagram). */
+    const val FORCED_CORRECTION_APPS = "agent_forced_correction_apps"
     /** Stage 41: hint chips for e-mail, phone, IBAN and decimal fields (default on). */
     const val FORMAT_GUARD = "agent_format_guard"
     /** Stage 45: field and context suggestions in the strip (default on; "Meine Daten" starts empty). */

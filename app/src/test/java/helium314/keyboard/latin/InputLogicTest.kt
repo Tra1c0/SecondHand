@@ -5554,6 +5554,49 @@ class InputLogicTest {
         }
     }
 
+    // stage 61: a single-line field that forbids suggestions and sets no CAP flag, in an app on the list of forced apps
+    private fun typeTypoInField(packageName: String): String {
+        currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+        startField(packageName, EditorInfo.IME_ACTION_SEND)
+        chainInput("hullo")
+        val typed = SuggestedWordInfo("hullo", "", 0, 0, null, 0, 0)
+        latinIME.mInputLogic.setSuggestedWords(SuggestedWords(arrayListOf(typed, SuggestedWordInfo("hello", "", 0, 0, null, 0, 0)),
+            null, typed, false, true, false, 0, 0))
+        input(' ')
+        return text
+    }
+
+    private val sentenceCaps = android.text.TextUtils.CAP_MODE_SENTENCES
+
+    @Test fun `a forced app gets a capital at the start and its typo corrected in a field that forbids suggestions`() {
+        currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+        startField("com.instagram.android", EditorInfo.IME_ACTION_SEND)
+        assertTrue(settingsValues.mCorrectionForced)
+        assertTrue(settingsValues.needsToLookupSuggestions())
+        // the first letter is capitalised, and again after a sentence; not in the middle of one
+        assertTrue(inputLogic.getCurrentAutoCapsState(settingsValues) and sentenceCaps != 0)
+        startField("com.instagram.android", EditorInfo.IME_ACTION_SEND, content = "Hallo. ")
+        assertTrue(inputLogic.getCurrentAutoCapsState(settingsValues) and sentenceCaps != 0)
+        startField("com.instagram.android", EditorInfo.IME_ACTION_SEND, content = "hallo ")
+        assertEquals(0, inputLogic.getCurrentAutoCapsState(settingsValues) and sentenceCaps)
+        // the typo is corrected at the space
+        assertEquals("hello ", typeTypoInField("com.instagram.android"))
+        // the same field in another app: no capital, no correction (the app's wish, as before)
+        reset()
+        assertEquals("hullo ", typeTypoInField("com.example.chat"))
+        assertFalse(settingsValues.mCorrectionForced)
+        assertEquals(0, inputLogic.getCurrentAutoCapsState(settingsValues) and sentenceCaps)
+    }
+
+    @Test fun `forcing never reaches a password field of a forced app`() {
+        currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        startField("com.instagram.android", EditorInfo.IME_ACTION_SEND)
+        assertFalse(settingsValues.mCorrectionForced)
+        assertFalse(settingsValues.mSuggestionsEnabled)
+        assertFalse(settingsValues.mAutoCorrectEnabled)
+        assertEquals(0, inputLogic.getCurrentAutoCapsState(settingsValues) and sentenceCaps)
+    }
+
     // stage 55: the card "Letztes Feld" gets the values the engine used when the keyboard started in the field
     @Test fun lastFieldHoldsWhatTheEngineUsedInTheField() {
         val lastField = helium314.keyboard.agent.LastField
@@ -6006,10 +6049,10 @@ class InputLogicTest {
     }
     private fun suggestedWordList() = (0 until inputLogic.mSuggestedWords.size()).map { inputLogic.mSuggestedWords.getWord(it) }
     /** A new field of the app [packageName], like [setText] with a package and [imeOptions]. */
-    private fun startField(packageName: String?, imeOptions: Int = 0, privateImeOptions: String? = null) {
-        ShadowInputMethodService.text = ""
-        selectionStart = 0
-        selectionEnd = 0
+    private fun startField(packageName: String?, imeOptions: Int = 0, privateImeOptions: String? = null, content: String = "") {
+        ShadowInputMethodService.text = content
+        selectionStart = content.length
+        selectionEnd = content.length
         ShadowInputMethodService.currentPackageName = packageName
         ShadowInputMethodService.currentImeOptions = imeOptions
         ShadowInputMethodService.currentPrivateImeOptions = privateImeOptions

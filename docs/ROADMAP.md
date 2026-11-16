@@ -339,11 +339,24 @@ Reihenfolge von oben nach unten.
   Diagnose zeigt als erste Karte das letzte Feld: App, Feldtyp und Flags, was die App erlaubt,
   Sprache und Wörterbuch, was die Tastatur selbst abschaltet, und ein Urteil in einem Satz. Werte
   aus denselben `InputAttributes`/`SettingsValues`, mit denen die Engine arbeitet; nur im Speicher;
-  Passwortfeld nur „Passwortfeld“, Inkognito/gesperrt nur „nichts gemerkt“. Nächster Schritt: Tritt
+  Passwortfeld nur „Passwortfeld“, gesperrt nur „nichts gemerkt“ (Felder ohne Lernen seit 61 mit Merkmalen, ohne App). Nächster Schritt: Tritt
   es wieder auf, öffnet der Owner sofort Einstellungen → Diagnose und schickt einen Screenshot; dann
   wird die eigentliche Ursache behoben. Prüfer-Befunde behoben (`docs/VALIDATION.md` →
   Nachprüfung 55: Firefox-Workaround, Leiste, eigene Einstellungen). Offen: Nachprüfung, Prüfer-Review (eine Zeile in
   `LatinIME.onStartInputViewInternal`), Gerätetest.
+- **61 Korrektur in Apps erzwingen** (Owner, 2026-11-16: „In Insta-Privat-Chats gibt's keine
+  Autokorrektur.“; davor: „Stellenweise gibt's gar keine Vorschläge, Groß-/Kleinschreibung,
+  Autokorrektur.“) ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 61).
+  Annahmen des Leads, die der Owner ändern kann: Instagram (`com.instagram.android`) ist
+  voreingestellt und entfernbar; die echten Flags seines Chatfelds sind ohne Gerät unbekannt
+  (Annahme: `NO_SUGGESTIONS`, kein `CAP_*`, vermutlich `IME_FLAG_NO_PERSONALIZED_LEARNING`). Erzwungen
+  wird nur in Textfeldern, nie in Passwort-, E-Mail-, Adress-, Filter-, Phonetik-, Namen- und
+  Postanschrift-Feldern und nie bei der Aktion „Suchen“; Lernen und Inkognito bleiben unverändert, und
+  die eigenen Schalter gewinnen. Felder ohne Lernen (`IME_FLAG_NO_PERSONALIZED_LEARNING`, eigenes
+  Inkognito) behalten auf der Karte „Letztes Feld“ Feldtyp, Merkmale und Urteil (nur den App-Namen
+  nicht): genau dort braucht der Owner den Grund. Offen: Prüfer-Review der Engine-Nähe (`InputLogic`,
+  `SettingsValues`, `InputAttributes`), Gerätetest in Instagram; korrigiert es dort trotzdem nicht,
+  schickt der Owner einen Screenshot der Karte nach dem Tippen im Chat.
 - **56 Neue Builds sofort melden** (Entscheidung des Owners vom 2026-11-15: „Schalter, anfangs an“)
   ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 56). Anlass (Owner):
   „Kannst du es so machen, dass ein neuer release build sofort einen chip an die Tastatur schickt?“

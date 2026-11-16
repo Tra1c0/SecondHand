@@ -143,6 +143,11 @@ public final class InputAttributes {
         return inPrivateImeOptions(null, helium314.keyboard.agent.AgentPreferences.NO_LEARNING_FIELD, editorInfo);
     }
 
+    /** Fork (stage 61): the field's imeOptions (the action), 0 without an editor info. */
+    public int getImeOptions() {
+        return mEditorInfo != null ? mEditorInfo.imeOptions : 0;
+    }
+
     public boolean isTypeNull() {
         return InputType.TYPE_NULL == mInputType;
     }

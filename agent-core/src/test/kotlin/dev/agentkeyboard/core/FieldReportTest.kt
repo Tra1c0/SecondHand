@@ -99,9 +99,41 @@ class FieldReportTest {
             Live(dictionaryPresent = false)).finding)
     }
 
-    @Test fun incognitoAndLockedRememberNothing() {
-        assertEquals(Finding.INCOGNITO, FieldReport.verdict(Snapshot.Hidden(locked = false)).finding)
-        assertEquals(Finding.LOCKED, FieldReport.verdict(Snapshot.Hidden(locked = true)).finding)
+    @Test fun aLockedDeviceRemembersNothing() {
+        assertEquals(FieldReport.Verdict(Finding.LOCKED), FieldReport.verdict(Snapshot.Locked))
+    }
+
+    @Test fun aFieldWithoutLearningKeepsItsVerdictAndSaysWhy() {
+        // stage 61: the reason is kept where the owner needs it; only the app is not
+        val noLearning = Snapshot.Field(inputType = text or FieldReport.FLAG_NO_SUGGESTIONS, appSuggestions = false, appAutoCorrect = false,
+            suggestionsShown = false, lookups = false, noLearning = true)
+        assertEquals(FieldReport.Verdict(Finding.APP_NO_SUGGESTIONS, learning = FieldReport.Learning.FIELD_ASKS_NONE), verdict(noLearning))
+        assertTrue(noLearning.learningOff)
+        assertEquals(FieldReport.Learning.INCOGNITO, verdict(Snapshot.Field(incognito = true)).learning)
+        assertEquals(FieldReport.Learning.ON, verdict(Snapshot.Field()).learning)
+    }
+
+    @Test fun aForcedFieldSaysWhatTheForcingChanged() {
+        // a single-line field with NO_SUGGESTIONS and no CAP flag in a forced app, as SettingsValues computes it
+        val forced = Snapshot.Field(inputType = text or FieldReport.FLAG_NO_SUGGESTIONS, appSuggestions = false, appAutoCorrect = false,
+            forced = true, appForced = true, suggestionsShown = true, lookups = true, autoCorrectEnabled = true)
+        assertEquals(Caps.NONE, forced.caps)
+        assertEquals(Caps.SENTENCES, forced.capsUsed)
+        val verdict = verdict(forced)
+        assertEquals(Finding.ALL_ON, verdict.finding)
+        assertEquals(listOf(FieldReport.Forced.SUGGESTIONS, FieldReport.Forced.AUTOCORRECT, FieldReport.Forced.CAPS), verdict.forced)
+        assertEquals(FieldReport.Effective(suggestions = true, autoCorrect = true, caps = true, stripCovered = false), FieldReport.effective(forced, Live()))
+        // the same field not forced: no capitals, and the verdict names none of the three as forced
+        val plain = forced.copy(forced = false, appForced = false, suggestionsShown = false, lookups = false, autoCorrectEnabled = false)
+        assertEquals(emptyList(), verdict(plain).forced)
+        assertFalse(FieldReport.effective(plain, Live()).caps)
+        // the owner's switches win: nothing is claimed as forced that they switched off
+        assertEquals(listOf(FieldReport.Forced.AUTOCORRECT, FieldReport.Forced.CAPS), verdict(forced.copy(suggestionsSetting = false)).forced)
+        assertEquals(listOf(FieldReport.Forced.SUGGESTIONS, FieldReport.Forced.CAPS), verdict(forced.copy(autoCorrectSetting = false)).forced)
+        assertEquals(listOf(FieldReport.Forced.SUGGESTIONS, FieldReport.Forced.AUTOCORRECT), verdict(forced.copy(autoCapSetting = false)).forced)
+        // an app that already asks for capitals, autocorrection and suggestions has nothing forced
+        val asks = Snapshot.Field(inputType = text or FieldReport.FLAG_CAP_SENTENCES or FieldReport.FLAG_AUTO_CORRECT, forced = true)
+        assertEquals(emptyList(), verdict(asks).forced)
     }
 
     @Test fun insideACommandAndChipsInTheStrip() {
@@ -178,6 +210,8 @@ class FieldReportTest {
         assertEquals(setOf("packageName", "languageTag"), strings)
         assertTrue(Snapshot.Field::class.java.declaredFields.filter { !java.lang.reflect.Modifier.isStatic(it.modifiers) }
             .all { it.type == String::class.java || it.type.isPrimitive }, "only strings named above and primitives")
-        assertTrue(Snapshot.Hidden::class.java.declaredFields.filter { !java.lang.reflect.Modifier.isStatic(it.modifiers) }.all { it.type.isPrimitive })
+        // a field without learning keeps no package: the same class, the flag says so (stage 61); nothing else about the app
+        assertTrue(Snapshot.Field::class.java.declaredFields.map { it.name }.containsAll(listOf("noLearning", "incognito", "forced", "appForced")))
+        assertTrue(Snapshot.Locked::class.java.declaredFields.filter { !java.lang.reflect.Modifier.isStatic(it.modifiers) }.isEmpty())
     }
 }

@@ -54,4 +54,14 @@
     <string name="agent_typing_incognito_sub">Nie lernen</string>
     <string name="agent_typing_all">Alle Korrektur-Einstellungen</string>
     <string name="agent_typing_all_sub">Stärke, anstößige Wörter, Leerzeichen bei Gesten, Zwischenablage, personalisierte Vorschläge und mehr</string>
+    <!-- stage 61: Korrektur in Apps erzwingen -->
+    <string name="agent_forced_title">Korrektur in Apps erzwingen</string>
+    <string name="agent_forced_sub">Vorschläge, Autokorrektur und Großschreibung auch dort, wo die App sie verbietet</string>
+    <string name="agent_forced_value">%1$d aktiv</string>
+    <string name="agent_forced_none">keine</string>
+    <string name="agent_forced_intro">In Textfeldern dieser Apps verhält sich die Tastatur wie in einem normalen Nachrichtenfeld: Vorschläge auch bei „keine Vorschläge“ der App, Autokorrektur auch im einzeiligen Feld, Satzanfang groß, wenn die App nichts verlangt. Nicht in Passwort-, E-Mail-, Adress-, Namen- und Suchfeldern. Deine Schalter („Änderungsvorschläge“, „Autokorrektur“, automatische Großschreibung) bleiben maßgebend; Lernen wird nie eingeschaltet. Gilt ab dem nächsten Feld.</string>
+    <string name="agent_forced_empty">Keine App in der Liste: Die Tastatur folgt überall den Angaben der App.</string>
+    <string name="agent_forced_add">App hinzufügen</string>
+    <string name="agent_forced_remove">Entfernen</string>
+    <string name="agent_forced_close">Fertig</string>
 </resources>

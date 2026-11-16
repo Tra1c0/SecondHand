@@ -54,4 +54,14 @@
     <string name="agent_typing_incognito_sub">Never learn</string>
     <string name="agent_typing_all">All correction settings</string>
     <string name="agent_typing_all_sub">Strength, offensive words, spaces with gestures, clipboard, personalised suggestions and more</string>
+    <!-- stage 61: force correction in apps -->
+    <string name="agent_forced_title">Force correction in apps</string>
+    <string name="agent_forced_sub">Suggestions, autocorrection and capitalisation even where the app forbids them</string>
+    <string name="agent_forced_value">%1$d active</string>
+    <string name="agent_forced_none">none</string>
+    <string name="agent_forced_intro">In text fields of these apps the keyboard behaves as in a normal message field: suggestions even when the app says no suggestions, autocorrection even in a single-line field, a capital at the start of a sentence when the app asks for nothing. Not in password, e-mail, address, name and search fields. Your switches (suggestions, autocorrection, automatic capitalisation) still win; learning is never switched on. Applies from the next field.</string>
+    <string name="agent_forced_empty">No app on the list: the keyboard follows the app everywhere.</string>
+    <string name="agent_forced_add">Add app</string>
+    <string name="agent_forced_remove">Remove</string>
+    <string name="agent_forced_close">Done</string>
 </resources>

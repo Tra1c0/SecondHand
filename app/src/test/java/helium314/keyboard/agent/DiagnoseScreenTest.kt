@@ -332,28 +332,95 @@ class DiagnoseScreenTest {
         for (text in fieldTexts) compose.onAllNodes(hasText(text, substring = true)).assertCountEquals(0)
     }
 
-    @Test fun incognitoAndALockedDeviceRememberNothing() {
+    @Test fun aLockedDeviceRemembersNothing() {
         startIn(field(InputType.TYPE_CLASS_TEXT))
-        app.prefs().edit().putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true).commit()
-        startIn(field(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES))
-        assertEquals(dev.agentkeyboard.core.FieldReport.Snapshot.Hidden(locked = false), LastField.current(app))
-        // an app's own incognito (no personalized learning) as well
-        app.prefs().edit().putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, false).commit()
-        startIn(field(InputType.TYPE_CLASS_TEXT, EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING))
-        assertEquals(dev.agentkeyboard.core.FieldReport.Snapshot.Hidden(locked = false), LastField.current(app))
         val keyguard = app.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
         org.robolectric.Shadows.shadowOf(keyguard).setIsDeviceLocked(true)
         try {
             startIn(field(InputType.TYPE_CLASS_TEXT))
-            assertEquals(dev.agentkeyboard.core.FieldReport.Snapshot.Hidden(locked = true), LastField.current(app))
+            assertEquals(dev.agentkeyboard.core.FieldReport.Snapshot.Locked, LastField.current(app))
             page()
             compose.waitUntil(5_000) { compose.onAllNodes(hasText("Urteil")).fetchSemanticsNodes().isNotEmpty() }
-            exact("Inkognito/gesperrt: nichts gemerkt")
+            exact("Gesperrt: nichts gemerkt")
             exact("Gesperrt: nichts gemerkt; bei gesperrtem Gerät zeigt die Tastatur keine Vorschläge.")
             compose.onAllNodes(hasText("com.example", substring = true)).assertCountEquals(0)
+            compose.onAllNodes(hasText("Feldtyp")).assertCountEquals(0)
         } finally {
             org.robolectric.Shadows.shadowOf(keyguard).setIsDeviceLocked(false)
         }
+    }
+
+    @Test fun aFieldWithoutLearningShowsFlagsAndVerdictButNotTheApp() {
+        // stage 61: the app says "no personalized learning" (Instagram's private chats, as far as the owner reports)
+        startIn(field(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS, EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING))
+        val kept = LastField.current(app) as dev.agentkeyboard.core.FieldReport.Snapshot.Field
+        assertEquals(null, kept.packageName)
+        page()
+        compose.waitUntil(5_000) { compose.onAllNodes(hasText("Urteil")).fetchSemanticsNodes().isNotEmpty() }
+        exact("nicht gemerkt (Feld ohne Lernen)")
+        exact("keine Vorschläge")
+        row("Das Feld verlangt kein Lernen; darum wird die App nicht gemerkt.")
+        row("Die App verbietet sie in diesem Feld")
+        compose.onAllNodes(hasText("com.example", substring = true)).assertCountEquals(0)
+        for (text in fieldTexts) compose.onAllNodes(hasText(text, substring = true)).assertCountEquals(0)
+        // the card does not know the app: no button
+        compose.onAllNodesWithTag("agent_diagnose_force").assertCountEquals(0)
+        compose.onNodeWithTag("agent_diagnose_copy").performScrollTo().performClick()
+        compose.waitForIdle()
+        val copied = (app.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip!!.getItemAt(0).text.toString()
+        assertFalse("com.example" in copied, copied)
+        assertTrue("App: nicht gemerkt (Feld ohne Lernen)" in copied, copied)
+    }
+
+    @Test fun theOwnersIncognitoKeepsTheFieldButNotTheApp() {
+        app.prefs().edit().putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true).commit()
+        startIn(field(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES))
+        page()
+        compose.waitUntil(5_000) { compose.onAllNodes(hasText("Urteil")).fetchSemanticsNodes().isNotEmpty() }
+        exact("nicht gemerkt (Feld ohne Lernen)")
+        row("Inkognito ist an; darum wird die App nicht gemerkt.")
+        compose.onAllNodes(hasText("com.example", substring = true)).assertCountEquals(0)
+    }
+
+    @Test fun aForcedFieldSaysSoAndTheButtonTogglesThePreference() {
+        val instagram = field(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS, EditorInfo.IME_ACTION_SEND)
+            .apply { packageName = "com.instagram.android" }
+        startIn(instagram)
+        page()
+        compose.waitUntil(5_000) { compose.onAllNodes(hasText("Urteil")).fetchSemanticsNodes().isNotEmpty() }
+        row("Die App verbietet Vorschläge; für diese App erzwungen.")
+        row("Die App verlangt keine Autokorrektur; für diese App erzwungen.")
+        exact("Vorschläge an, Autokorrektur an, Großschreibung an")
+        exact("ja, für diese App")
+        // the app is on the list (the default): the button takes it off, from the next field
+        compose.onNodeWithTag("agent_diagnose_force").performScrollTo().assertTextEquals("Nicht mehr erzwingen")
+        compose.onAllNodesWithTag("agent_diagnose_force_saved").assertCountEquals(0)
+        compose.onNodeWithTag("agent_diagnose_force").performClick()
+        compose.waitForIdle()
+        assertEquals(emptySet(), ForcedApps.read(app.prefs()))
+        compose.onNodeWithTag("agent_diagnose_force").performScrollTo().assertTextEquals("In dieser App erzwingen")
+        compose.onNodeWithTag("agent_diagnose_force_saved").performScrollTo().assertTextEquals("Gespeichert. Gilt ab dem nächsten Feld.")
+        // the card of this field stays as it was; the next field is not forced any more
+        exact("ja, für diese App")
+        startIn(instagram)
+        assertFalse((LastField.current(app) as dev.agentkeyboard.core.FieldReport.Snapshot.Field).forced)
+        // and back on
+        compose.onNodeWithTag("agent_diagnose_force").performClick()
+        compose.waitForIdle()
+        assertEquals(setOf("com.instagram.android"), ForcedApps.read(app.prefs()))
+        compose.onNodeWithTag("agent_diagnose_force").performScrollTo().assertTextEquals("Nicht mehr erzwingen")
+    }
+
+    @Test fun anAppThatIsNotListedCanBeForcedFromTheCard() {
+        startIn(field(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS, EditorInfo.IME_ACTION_SEND))
+        page()
+        compose.waitUntil(5_000) { compose.onAllNodes(hasText("Urteil")).fetchSemanticsNodes().isNotEmpty() }
+        row("Korrektur erzwungen")
+        compose.onNodeWithTag("agent_diagnose_force").performScrollTo().assertTextEquals("In dieser App erzwingen")
+        compose.onNodeWithTag("agent_diagnose_force").performClick()
+        compose.waitForIdle()
+        assertTrue(ForcedApps.isListed(app.prefs(), "com.example.suche"))
+        compose.onNodeWithTag("agent_diagnose_force").performScrollTo().assertTextEquals("Nicht mehr erzwingen")
     }
 
     @Test fun withoutAFieldTheCardSaysSo() {

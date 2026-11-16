@@ -90,7 +90,7 @@
     <string name="agent_diagnose_field">Last field</string>
     <string name="agent_diagnose_field_none">none since the keyboard started (kept in memory only)</string>
     <string name="agent_diagnose_field_password">Password field</string>
-    <string name="agent_diagnose_field_hidden">Incognito/locked: nothing remembered</string>
+    <string name="agent_diagnose_field_locked">Locked: nothing remembered</string>
     <string name="agent_diagnose_field_unknown">unknown</string>
     <string name="agent_diagnose_field_app">App</string>
     <string name="agent_diagnose_field_when">Captured</string>
@@ -146,7 +146,6 @@
     <string name="agent_diagnose_caps_characters">all capitals</string>
     <string name="agent_diagnose_verdict_password">Password field: suggestions, autocorrection and learning are always off here.</string>
     <string name="agent_diagnose_verdict_locked">Locked: nothing remembered; on a locked device the keyboard shows no suggestions.</string>
-    <string name="agent_diagnose_verdict_incognito">Incognito: nothing remembered, so no verdict.</string>
     <string name="agent_diagnose_verdict_no_text_field">No suggestions, capitals or autocorrection: the app reports no text field.</string>
     <string name="agent_diagnose_verdict_not_text">No suggestions: the field takes only numbers, phone numbers or dates.</string>
     <string name="agent_diagnose_verdict_strip_hidden">No suggestions: the suggestion strip is hidden in the settings.</string>
@@ -192,4 +191,19 @@
     <string name="agent_diagnose_verdict_strip_toolbar">Suggestions on, but the strip last showed the toolbar instead of words.</string>
     <string name="agent_diagnose_verdict_strip_emojis">Suggestions on, but the strip last showed the emoji row instead of words.</string>
     <string name="agent_diagnose_verdict_strip_not_captured">Suggestions, autocorrection and capitals on; what the strip showed is not captured.</string>
+    <!-- stage 61: force correction in apps (card Last field) -->
+    <string name="agent_diagnose_field_app_not_kept">not remembered (field without learning)</string>
+    <string name="agent_diagnose_field_forced">Correction forced</string>
+    <string name="agent_diagnose_field_forced_yes">yes, for this app</string>
+    <string name="agent_diagnose_field_forced_listed">the app is on the list, but this field does not qualify</string>
+    <string name="agent_diagnose_field_forced_no">no</string>
+    <string name="agent_diagnose_verdict_forced_suggestions">The app forbids suggestions; forced for this app.</string>
+    <string name="agent_diagnose_verdict_forced_autocorrect">The app does not ask for autocorrection; forced for this app.</string>
+    <string name="agent_diagnose_verdict_forced_caps">The app does not ask for capitalisation; forced for this app.</string>
+    <string name="agent_diagnose_verdict_learning_field">The field asks for no learning, so the app is not remembered.</string>
+    <string name="agent_diagnose_verdict_learning_incognito">Incognito is on, so the app is not remembered.</string>
+    <string name="agent_diagnose_force_add">Force in this app</string>
+    <string name="agent_diagnose_force_remove">Stop forcing</string>
+    <string name="agent_diagnose_force_hint">Forcing means suggestions, autocorrection and capitalisation as in a normal message field, in text fields of this app (not in password, e-mail, address, name and search fields). Your own switches still win, learning stays as it is.</string>
+    <string name="agent_diagnose_force_saved">Saved. Applies from the next field.</string>
 </resources>
