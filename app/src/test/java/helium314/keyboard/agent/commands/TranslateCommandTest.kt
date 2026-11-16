@@ -117,15 +117,16 @@ class TranslateCommandTest {
     }
 
     @Test fun takesLongerArgumentsThanOtherCommandsButNotUnlimited() {
-        val text = "a".repeat(CommandSyntax.MAX_LONG_ARGUMENT - 20)
+        // stage 59: 2000 characters (was 500); the chip is found with the long window
+        val text = "a".repeat(CommandSyntax.MAX_AI_ARGUMENT - 30)
         val typed = "@translate \"$text\" spanisch"
-        assertTrue(typed.length - "@translate ".length > CommandSyntax.MAX_ARGUMENT)
+        assertTrue(typed.length - "@translate ".length > CommandSyntax.MAX_LONG_ARGUMENT)
         val chip = KeyboardCommands.chipsFor(call(typed), host).single()
         chip.onTap()
         assertTrue(translated.single().second.endsWith(text))
-        assertNull(KeyboardCommands.find("@translate \"${"a".repeat(CommandSyntax.MAX_LONG_ARGUMENT)}\"", Settings.getValues(), editor))
+        assertNull(KeyboardCommands.find("@translate \"${"a".repeat(CommandSyntax.MAX_AI_ARGUMENT)}\"", Settings.getValues(), editor))
         // other commands keep the short limit
-        assertNull(KeyboardCommands.find("@ki " + "a".repeat(CommandSyntax.MAX_ARGUMENT + 1), Settings.getValues(), editor))
+        assertNull(KeyboardCommands.find("@math " + "1+".repeat(CommandSyntax.MAX_ARGUMENT), Settings.getValues(), editor))
     }
 
     @Test fun blockedFieldsOfferNothing() {

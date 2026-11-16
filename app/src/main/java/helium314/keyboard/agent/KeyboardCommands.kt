@@ -166,6 +166,11 @@ object KeyboardCommands {
         fun protects(context: Context, call: CommandCall): Boolean = protectsArgument
         /** True if the argument may be up to [CommandSyntax.MAX_LONG_ARGUMENT] characters instead of [CommandSyntax.MAX_ARGUMENT]. */
         val longArgument: Boolean get() = false
+        /**
+         * Stage 59: true if the argument may be up to [CommandSyntax.MAX_AI_ARGUMENT] characters (`@ki`,
+         * `@translate`). The editor is then read further back only while such a command is typed ([readLength]).
+         */
+        val aiArgument: Boolean get() = false
         /** The chips for a complete command; empty to show nothing (then the normal strip stays). */
         fun chips(host: Host, call: CommandCall): List<Chip>
         /** The runtime permission the command needs, requested on the settings page; null for none. */
@@ -228,7 +233,7 @@ object KeyboardCommands {
     /** True while the text before the cursor is a complete command: its words are not autocorrected. */
     @Volatile private var inCommand = false
 
-    private class Active(val prefix: Char, val names: Set<String>, val longNames: Set<String>, val claimers: List<Command>,
+    private class Active(val prefix: Char, val names: Set<String>, val longNames: Set<String>, val aiNames: Set<String>, val claimers: List<Command>,
                          val aliases: Map<String, String>, val context: Context) {
         /** Stage 24g: the enabled command that takes an unknown word as its own, or null. */
         val claim: (String) -> String? = { word -> claimers.firstOrNull { it.claims(word) }?.name }
@@ -236,8 +241,17 @@ object KeyboardCommands {
         /** Stage 52: the enabled areas of the unified command system, in their order; `@?` lists them. */
         val areas: List<String> = helium314.keyboard.agent.commands.CommandSystem.AREAS.keys.filter { it in names }
 
-        private fun syntax(before: CharSequence) = CommandSyntax.parse(before, prefix, names, longNames, fuzzyNames = true,
-            claim = claim.takeIf { claimers.isNotEmpty() }, aliases = aliases, help = areas.ifEmpty { null })
+        /**
+         * Stage 59: the characters the caller asked for decide the window. At most LOOKBACK + 1 is the normal
+         * read; more only comes from [readLength] while an AI command is typed, then the window reaches back
+         * to its start ([CommandSyntax.LONG_LOOKBACK]).
+         */
+        private fun lookbackFor(before: CharSequence) =
+            if (before.length > CommandSyntax.LOOKBACK + 1) CommandSyntax.LONG_LOOKBACK else CommandSyntax.LOOKBACK
+
+        private fun syntax(before: CharSequence, lookback: Int) = CommandSyntax.parse(before, prefix, names, longNames,
+            fuzzyNames = true, claim = claim.takeIf { claimers.isNotEmpty() }, aliases = aliases,
+            help = areas.ifEmpty { null }, aiArguments = aiNames, lookback = lookback)
 
         /**
          * Typos of names offer the name to complete (stage 24g); every reader parses the same way.
@@ -247,14 +261,15 @@ object KeyboardCommands {
          * "@gruppe hey, hier meine Adresse: @snip adr" is the snippet, not a chain of the group.
          */
         fun parse(before: CharSequence): CommandContext? {
-            val found = syntax(before)
+            val lookback = lookbackFor(before)
+            val found = syntax(before, lookback)
             if (found !is CommandCall || found.name !in areas) return found
             var first: CommandCall = found
             for (step in 1 until MAX_CHAIN) {
                 if (first.start == 0) break
-                val earlier = syntax(before.subSequence(0, first.start)) as? CommandCall ?: break
+                val earlier = syntax(before.subSequence(0, first.start), lookback) as? CommandCall ?: break
                 // a window cut by the caller does not tell what precedes its first character
-                if (earlier.name !in areas || (earlier.start == 0 && before.length > CommandSyntax.LOOKBACK)) break
+                if (earlier.name !in areas || (earlier.start == 0 && before.length > lookback)) break
                 if (!helium314.keyboard.agent.commands.CommandSystem.continuesChain(context, prefix,
                         before.substring(earlier.start, first.start))) break
                 first = earlier
@@ -304,13 +319,15 @@ object KeyboardCommands {
     @JvmStatic fun load(context: Context) {
         val names = registry.map { it.name }.filter { isCommandEnabled(context, it) }.toSet()
         val longNames = registry.filter { it.longArgument && it.name in names }.map { it.name }.toSet()
+        val aiNames = registry.filter { it.aiArgument && it.name in names }.map { it.name }.toSet()
         val enabled = registry.filter { it.name in names }
         val aliases = enabled.flatMap { command -> command.aliases.map { it to command.name } }.toMap()
         // stage 52: the areas read the enabled command names (and the language words) while they load
         active = if (isEnabled(context) && names.isNotEmpty())
-            Active(prefix(context), names, longNames, enabled, aliases, context.applicationContext ?: context) else null
+            Active(prefix(context), names, longNames, aiNames, enabled, aliases, context.applicationContext ?: context) else null
         if (isEnabled(context)) enabled.forEach { it.load(context) }
         inCommand = false
+        endLong() // a new input view is a new field
         forget()
     }
 
@@ -337,19 +354,81 @@ object KeyboardCommands {
      */
     @JvmStatic fun suppressesCorrection(): Boolean = inCommand && active != null
 
-    /** Whether the text before the cursor ends in a command name or a protected argument. */
+    /**
+     * Whether the text before the cursor ends in a command name or a protected argument. Stage 59: the
+     * engine calls this with the short window; while an AI command is typed whose start lies before
+     * that window ([longRun]), it is still a command, so its words are neither learned nor corrected.
+     */
     @JvmStatic fun guardsTextBefore(before: CharSequence?): Boolean {
         val current = active ?: return false
         if (before == null) return false
         // second review of stage 52: also called from the engine while typing. Third review: a text that
         // cannot be read is no command (not protected); only a command whose check fails stays protected
-        return when (val context = runCatching { current.parse(before) }.getOrNull()) {
-            null -> false
-            is CommandNames -> true
-            is CommandCall -> context.argument.isBlank() || runCatching {
-                registry.firstOrNull { it.name == context.name }?.protects(current.context, context) == true
-            }.getOrDefault(true)
+        val context = runCatching { current.parse(before) }.getOrNull()
+        if (context == null) {
+            val run = longRun ?: return false
+            // a longer window than the short one was read for the long command itself (its argument may have several lines)
+            return run.guards && before.length <= CommandSyntax.LOOKBACK + 1
         }
+        return guards(current, context)
+    }
+
+    private fun guards(current: Active, context: CommandContext?): Boolean = when (context) {
+        null -> false
+        is CommandNames -> true
+        is CommandCall -> context.argument.isBlank() || runCatching {
+            registry.firstOrNull { it.name == context.name }?.protects(current.context, context) == true
+        }.getOrDefault(true)
+    }
+
+    /**
+     * Stage 59: a typed AI command ([Command.aiArgument]) whose start was found, as an absolute offset in
+     * the field. While it is set, the reads for the strip reach back to that start instead of the short
+     * window ([readLength]), so no other keystroke costs more than before. It ends as soon as a parse does
+     * not find the command, the cursor leaves it or a new input view starts (the field changes).
+     */
+    private class LongRun(val start: Int, val guards: Boolean)
+    @Volatile private var longRun: LongRun? = null
+    /** The cursor of the read just announced by [readLength], for the update that follows it on the same thread. */
+    @Volatile private var readCursor = -1
+
+    private fun endLong() { longRun = null; readCursor = -1 }
+
+    /**
+     * How many characters before the plain cursor at [cursor] the strip update reads: [CommandSyntax.LOOKBACK]
+     * + 1 as always, and only while an `@ki` or `@translate` command is typed back to its start, never more
+     * than [CommandSyntax.LONG_LOOKBACK] + 1. Never throws. Call right before the read, with its result.
+     */
+    @JvmStatic fun readLength(cursor: Int): Int {
+        val normal = CommandSyntax.LOOKBACK + 1
+        return try {
+            readCursor = cursor
+            val run = longRun
+            if (run == null) normal else {
+                val span = cursor - run.start
+                if (cursor < 0 || span < 0 || span > CommandSyntax.LONG_LOOKBACK) { longRun = null; normal }
+                else maxOf(normal, span + 1)
+            }
+        } catch (_: Throwable) { normal }
+    }
+
+    /** Remembers or forgets [longRun] from what the parse of a window of [windowLength] characters before [cursor] found. */
+    private fun trackLong(found: CommandContext?, windowLength: Int, cursor: Int) {
+        val current = active
+        val call = found as? CommandCall
+        if (current == null || call == null || call.name !in current.aiNames || cursor < 0) { longRun = null; return }
+        val start = cursor - (windowLength - call.start)
+        longRun = if (start < 0) null else LongRun(start, guards(current, call))
+    }
+
+    /** The command before the plain cursor [position], read with [readLength]; null for none. */
+    private fun findAtCursor(ime: LatinIME, position: Int): CommandContext? {
+        if (position < 0) return null
+        val before = ime.getAgentTextBeforeCursor(readLength(position))
+        val found = find(before, Settings.getValues(), ime.currentInputEditorInfo)
+        trackLong(found, before?.length ?: 0, position)
+        readCursor = -1
+        return found
     }
 
     /**
@@ -358,9 +437,12 @@ object KeyboardCommands {
      * what it found, so nothing stays in memory when the chips are never built.
      */
     @JvmStatic fun updateGuard(before: CharSequence?) {
-        inCommand = guardsTextBefore(before)
         val current = active
-        if (current == null || before == null || runCatching { current.parse(before) }.getOrNull() == null) forget()
+        val found = if (current == null || before == null) null else runCatching { current.parse(before) }.getOrNull()
+        inCommand = current != null && guards(current, found)
+        trackLong(found, before?.length ?: 0, readCursor)
+        readCursor = -1
+        if (found == null) forget()
     }
 
     fun isBlocked(settings: SettingsValues?, editorInfo: EditorInfo?): Boolean {
@@ -422,8 +504,7 @@ object KeyboardCommands {
     @JvmStatic fun onEnter(ime: LatinIME): Boolean {
         val position = ime.agentCommandCursor
         if (position < 0) return false
-        val call = find(ime.getAgentTextBeforeCursor(CommandSyntax.LOOKBACK + 1), Settings.getValues(), ime.currentInputEditorInfo)
-            as? CommandCall ?: return false
+        val call = findAtCursor(ime, position) as? CommandCall ?: return false
         val command = registry.firstOrNull { it.name == call.name } ?: return false
         // the strip is rebuilt by the normal update after the command changed the field
         return command.onEnter(host(ime, position, onRefresh = {}, onShow = { false }), call)
@@ -431,8 +512,7 @@ object KeyboardCommands {
 
     private fun buildChips(ime: LatinIME, onRefresh: () -> Unit, onShow: (List<Chip>) -> Boolean): List<Chip>? {
         val position = ime.agentCommandCursor
-        val context = if (position < 0) null
-            else find(ime.getAgentTextBeforeCursor(CommandSyntax.LOOKBACK + 1), Settings.getValues(), ime.currentInputEditorInfo)
+        val context = findAtCursor(ime, position)
         if (context == null) {
             forget() // nothing a command found stays in memory once the command is gone
             if (position < 0) return null

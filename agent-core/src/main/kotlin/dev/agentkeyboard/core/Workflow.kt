@@ -105,5 +105,5 @@ class WorkflowRunner(
         return WorkflowResult(result.text, result.allowsReplacement, executed, skipped)
     }
 
-    companion object { const val MAX_TOTAL_CHARS = 32_768 }
+    companion object { const val MAX_TOTAL_CHARS = 131_072 }
 }

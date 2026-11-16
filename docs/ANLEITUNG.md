@@ -472,7 +472,12 @@ stehen unten. Noch auf keinem Gerät ausprobiert.
   gewohnt frei. Ist schon Text markiert, wird er sofort vorbereitet. Ein Feldwechsel verwirft die
   Wahl.
 - `@ki Frage`: Chip „✦ KI fragen (Anbieter): …“ antippen – das sendet genau die getippte Frage
-  (eigener Schlüssel nötig). Drei wandernde Punkte zeigen „Frage läuft …“; „Abbrechen“ stoppt.
+  (eigener Schlüssel nötig). Die Frage darf bis 2000 Zeichen lang sein und mehrere Absätze haben:
+  Enter fügt einen Zeilenumbruch ein und sendet nie, gesendet wird nur per Tipp auf den Chip. Hinter
+  einem älteren `@ki` gilt bis 2000 Zeichen später noch alles als Teil der Frage; wer weiterschreiben
+  will, löscht oder ersetzt den Befehl. Dauert die Antwort lange (bis 2,5 Minuten), bleibt „Abbrechen“
+  erreichbar. Wurde die Antwort abgeschnitten, steht „Antwort abgeschnitten, Text zu lang“: weniger
+  Text oder eine kürzere Aufgabe wählen. Drei wandernde Punkte zeigen „Frage läuft …“; „Abbrechen“ stoppt.
   Die Antwort erscheint als Chip in der Leiste (lange Antworten seitlich wischen); antippen
   ersetzt `@ki …` durch die Antwort. „↻“ fragt noch einmal (neue Anfrage), „✕“ verwirft. Tippst
   du weiter oder setzt die Schreibmarke um, wird die Anfrage abgebrochen. Ein grauer Fehler-Chip
@@ -483,9 +488,10 @@ stehen unten. Noch auf keinem Gerät ausprobiert.
   letzten passenden Anführungszeichen, Zitate im Text gehen also („… funktioniert "@translate"
   super“); im Stil dann keine Anführungszeichen derselben Art verwenden. Chip „🌐 Übersetzen
   mit Anbieter: Stil“ antippen – das sendet genau Stil und Text (eigener Schlüssel nötig); danach
-  wie bei `@ki`: „Übersetze …“, dann die Übersetzung als Chip antippen, um den Befehl zu ersetzen. Höchstens 500 Zeichen nach
-  `@translate`; bei mehr verschwindet der Chip und die Autokorrektur greift wieder. Für längere
-  Texte: Text markieren, Stift, „Mit KI übersetzen“.
+  wie bei `@ki`: „Übersetze …“, dann die Übersetzung als Chip antippen, um den Befehl zu ersetzen. Höchstens 2000 Zeichen nach
+  `@translate`, der Text in Anführungszeichen darf mehrere Zeilen haben (Enter fügt einen Umbruch ein);
+  bei mehr verschwindet der Chip und die Autokorrektur greift wieder. Für längere
+  Texte (bis 32.768 Zeichen): Text markieren, Stift, „Mit KI übersetzen“.
 - `@qr Text` erzeugt einen QR-Code, z. B. `@qr https://…` oder für WLAN
   `@qr WIFI:T:WPA;S:Netzname;P:Passwort;;`. „QR-Code einfügen“ (in Chats mit Bildern) oder „QR-Code teilen“.
 - `@datum`, `@datum morgen`; `@termin Samstag halb acht Kino` öffnet einen Kalenderentwurf (gespeichert

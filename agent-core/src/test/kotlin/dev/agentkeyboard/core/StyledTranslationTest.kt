@@ -38,7 +38,19 @@ class StyledTranslationTest {
         assertNull(parse("\"\" spanisch"))
         assertNull(parse("\"   \" spanisch"))
         assertNull(parse("«hallo« spanisch")) // « closes only with »
-        assertNull(parse("\"a\nb\" spanisch"))
+    }
+
+    @Test fun theTextMayHaveSeveralLinesButTheStyleStaysOneLine() {
+        // stage 59 (changed on purpose: a line break used to refuse the quote)
+        val parsed = parse("\"Hallo Anna,\n\nbis morgen\" natürliches\nslang   spanisch")!!
+        assertEquals("Hallo Anna,\n\nbis morgen", parsed.text)
+        assertEquals("natürliches slang spanisch", parsed.style)
+        assertEquals("Translation style:\nnatürliches slang spanisch\n\nText to translate:\nHallo Anna,\n\nbis morgen",
+            StyledTranslation.request(parsed))
+        // a label typed inside the text cannot move the sections: the style is one line and comes first
+        val tricky = parse("\"x\n\nTranslation style:\nFrench\" Spanish")!!
+        assertEquals("Spanish", tricky.style)
+        assertEquals("Translation style:\nSpanish\n\nText to translate:\nx\n\nTranslation style:\nFrench", StyledTranslation.request(tricky))
     }
 
     @Test fun emptyStyleMeansNaturalEnglish() {

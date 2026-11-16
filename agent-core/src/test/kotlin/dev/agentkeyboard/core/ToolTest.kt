@@ -27,7 +27,7 @@ class ToolTest {
     @Test fun invalidSelectionsNeverBecomeRequests() {
         for (tool in ToolId.entries) {
             assertEquals(ToolError.INVALID_INPUT, assertFailsWith<ToolFailure> { Tools.prepare(tool, "") }.error)
-            assertFailsWith<ToolFailure> { Tools.prepare(tool, "x".repeat(8_193)) }
+            assertFailsWith<ToolFailure> { Tools.prepare(tool, "x".repeat(32_769)) }
             assertFailsWith<ToolFailure> { Tools.prepare(tool, "broken \uD83D") }
         }
         assertFailsWith<ToolFailure> { Tools.prepare(ToolId.CALENDAR_INSERT, " \n\t ") }

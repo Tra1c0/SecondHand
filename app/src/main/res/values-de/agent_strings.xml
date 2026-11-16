@@ -66,7 +66,7 @@
     <string name="agent_panel_empty_result">Leeres Ergebnis: Beim Anwenden wird die Auswahl entfernt.</string>
     <string name="agent_panel_stale">Text oder Auswahl haben sich geändert. Öffne die Textaktionen erneut.</string>
     <string name="agent_panel_protected">In diesem geschützten Feld sind Textaktionen deaktiviert.</string>
-    <string name="agent_panel_too_large">Markiere höchstens 8.192 Zeichen.</string>
+    <string name="agent_panel_too_large">Markiere höchstens 32.768 Zeichen.</string>
     <string name="agent_panel_composing">Beende die Eingabe oder Wischgeste und markiere dann Text.</string>
     <string name="agent_panel_result_invalid">Dieses Ergebnis kann nicht übernommen werden.</string>
     <string name="agent_panel_apply_unknown">Die App könnte das Ergebnis bereits übernommen haben. Prüfe zuerst den Text. Beim Schließen dieses Panels wird die Tastatur bei Bedarf geschlossen und neu verbunden.</string>
@@ -146,7 +146,7 @@
     <string name="agent_workflow_running">Workflow läuft… Es wird nichts automatisch eingefügt.</string>
     <string name="agent_workflow_loading">Workflows werden geladen…</string>
     <string name="agent_workflow_provider_unavailable">Dieser Workflow benötigt einen noch nicht verfügbaren Anbieter. Es wurde keine Anfrage gesendet.</string>
-    <string name="agent_workflow_limits">Workflow gestoppt: Text oder Ausgabe überschreitet die Grenzen. Es wurde kein Teilergebnis eingefügt.</string>
+    <string name="agent_workflow_limits">Workflow gestoppt: Text oder Ausgabe überschreitet die Grenzen (Eingabe 32.768, ein Ergebnis 65.536, alle Schritte zusammen 131.072 Zeichen). Es wurde kein Teilergebnis eingefügt.</string>
     <string name="agent_condition_non_empty">Eingabe ist nicht leer</string>
     <string name="agent_condition_contains">Eingabe enthält den Text „%1$s“ (Groß-/Kleinschreibung beachten)</string>
     <string name="agent_condition_length">Eingabe hat mindestens %1$d UTF-16-Zeichen</string>
@@ -228,6 +228,7 @@
     <string name="agent_learning_delete_confirm">Alles löschen, was die Tastatur aus deinem Tippen gelernt hat, für alle Sprachen? Dein persönliches Wörterbuch bleibt unverändert. Das lässt sich nicht rückgängig machen.</string>
     <string name="agent_learning_deleted">Gelernte Wörter gelöscht.</string>
     <string name="agent_learning_failed">Das hat nicht geklappt. Es wurde nichts geändert oder exportiert.</string>
+    <string name="agent_cloud_cut_off">Die Antwort wurde abgeschnitten, weil der Text für das Modell zu lang ist. Nichts wird eingefügt. Markiere weniger Text oder wähle eine kürzere Aufgabe.</string>
     <string name="agent_cloud_too_long">Die Antwort war zu lang und wurde verworfen. Nichts wird eingefügt. Versuche es mit einer kürzeren Auswahl.</string>
     <string name="agent_workflow_model_invalid">Ein Schritt dieses Workflows hat eine Modell-ID, die sein Anbieter nicht verwenden kann. Bearbeite den Workflow. Es wurde keine Anfrage gesendet.</string>
     <string name="dictate">Diktieren (auf dem Gerät)</string>
@@ -444,7 +445,7 @@
     <string name="agent_places_invalid">Gib einen Namen und eine Adresse ein (Name bis 40, Adresse bis 200 Zeichen).</string>
     <string name="agent_places_full">Höchstens %d Orte können gespeichert werden.</string>
     <string name="agent_places_unavailable">Gespeicherte Orte sind nur bei entsperrtem Gerät verfügbar.</string>
-    <string name="agent_command_ki">KI fragen: %1$ski Frage zeigt einen Chip mit deinem KI-Anbieter. Erst ein Tipp darauf schickt genau die getippte Frage, sonst nichts aus dem Feld, an deinen eigenen KI-Anbieter (API-Schlüssel nötig). Die Antwort erscheint dann in der Vorschlagsleiste; erst ein Tipp darauf ersetzt den getippten Befehl durch sie.</string>
+    <string name="agent_command_ki">KI fragen: %1$ski Frage zeigt einen Chip mit deinem KI-Anbieter. Erst ein Tipp darauf schickt genau die getippte Frage, sonst nichts aus dem Feld, an deinen eigenen KI-Anbieter (API-Schlüssel nötig). Die Antwort erscheint dann in der Vorschlagsleiste; erst ein Tipp darauf ersetzt den getippten Befehl durch sie. Bis 2.000 Zeichen nach dem Befehlsnamen.</string>
     <string name="agent_command_ki_chip">✦ KI fragen (%1$s): %2$s</string>
     <string name="agent_command_ki_open">Genau diese Frage jetzt an %1$s senden: %2$s</string>
     <string name="agent_command_ki_source">Zu sendende Frage</string>
@@ -468,7 +469,7 @@
     <string name="agent_command_qr_none">Keine App kann den QR-Code teilen.</string>
     <string name="agent_image_not_inserted">Das Bild wurde nicht eingefügt. Der Text bleibt stehen.</string>
     <string name="agent_image_inserted_text_kept">Bild eingefügt. Die App hat es anders platziert, deshalb bleibt der getippte Text stehen.</string>
-    <string name="agent_command_translate">Mit KI übersetzen: %1$stranslate \"Text\" Stil zeigt einen Chip mit deinem KI-Anbieter und dem Stil (z. B. natürliches Slang-Spanisch; ohne Stil natürliches Englisch). Erst ein Tipp darauf schickt genau den Text in Anführungszeichen und den Stil, sonst nichts aus dem Feld, an deinen eigenen KI-Anbieter (API-Schlüssel nötig). Die Übersetzung erscheint dann in der Vorschlagsleiste; erst ein Tipp darauf ersetzt den getippten Befehl durch sie. Bis 500 Zeichen nach dem Befehlsnamen.</string>
+    <string name="agent_command_translate">Mit KI übersetzen: %1$stranslate \"Text\" Stil zeigt einen Chip mit deinem KI-Anbieter und dem Stil (z. B. natürliches Slang-Spanisch; ohne Stil natürliches Englisch). Erst ein Tipp darauf schickt genau den Text in Anführungszeichen und den Stil, sonst nichts aus dem Feld, an deinen eigenen KI-Anbieter (API-Schlüssel nötig). Die Übersetzung erscheint dann in der Vorschlagsleiste; erst ein Tipp darauf ersetzt den getippten Befehl durch sie. Bis 2.000 Zeichen nach dem Befehlsnamen.</string>
     <string name="agent_command_translate_hint">Text in \"…\" setzen</string>
     <string name="agent_command_translate_usage">Tippe %1$stranslate \"Text\" Stil, z. B. %1$stranslate \"bis morgen\" lockeres Spanisch</string>
     <string name="agent_command_translate_chip">🌐 Übersetzen mit %1$s: %2$s</string>
@@ -496,6 +497,7 @@
     <string name="agent_command_ai_no_model">Kein Modell · KI-Einstellungen</string>
     <string name="agent_command_ai_refused">Vom Anbieter abgelehnt · Details</string>
     <string name="agent_command_ai_too_long">Antwort zu lang · Details</string>
+    <string name="agent_command_ai_cut_off">Antwort abgeschnitten, Text zu lang · Details</string>
     <string name="agent_command_ai_timeout">Keine Antwort rechtzeitig · Details</string>
     <string name="agent_command_ai_unusable">Antwort unbrauchbar · Details</string>
     <string name="agent_command_ai_failed">Anfrage fehlgeschlagen · Details</string>

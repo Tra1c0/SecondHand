@@ -31,7 +31,7 @@ class QuestionCaptureTest {
         }
         assertEquals(CaptureResult.Denied(DenialReason.INVALID_TEXT), policy.captureQuestion(token, text, 4, 4, "  "))
         assertEquals(CaptureResult.Denied(DenialReason.INVALID_TEXT), policy.captureQuestion(token, text, 4, 4, "broken \uD83D"))
-        assertEquals(CaptureResult.Denied(DenialReason.TOO_LARGE), policy.captureQuestion(token, text, 4, 4, "x".repeat(8_193)))
+        assertEquals(CaptureResult.Denied(DenialReason.TOO_LARGE), policy.captureQuestion(token, text, 4, 4, "x".repeat(32_769)))
     }
 
     @Test fun questionStaysCurrentInTheSameEditorButNeverReplacesASelection() {

@@ -5526,6 +5526,37 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   Wörterbücher vor, echte Bewertungen von „fur“ → „für“ und die Bewertung mehrsprachiger Sätze stehen aus);
   der Fall „fur“ → „für“ in `InputLogicTest` (die Wortlisten werten das genaue Wort höher, P253); Engine-Review
   der Änderungen an `Suggest.kt` und `DictionaryFacilitatorImpl.kt`.
+## Etappe 59: KI ohne Zeichenlimit (Lead und Builder, 2026-11-16)
+
+- Anlass: Owner-Meldung „KI hat ein Zeichenlimit.“; Owner nutzt OpenAI und Gemini, bei `@ki` verschwand
+  der Chip nach 5–6 Zeilen (200-Zeichen-Grenze).
+- Gebaut: `@ki`/`@translate` bis 2000 Zeichen und über mehrere Zeilen (`aiArguments`, `LONG_LOOKBACK`,
+  `KeyboardCommands.readLength`/`longRun`, P244, P247); Auswahl 32.768, Ergebnis 65.536, Workflow-Texte
+  131.072; `ModelBudget.outputTokens` und `CUT_OFF` (P245); Zeiten 120/150/310 s (P246); „Never translate“ (P248).
+- Tests (neu): `ModelBudgetTest`, `CommandSyntaxTest` (2000 Zeichen, Zeilen, unveränderte Grenzen),
+  `AiTextActionTest` (Sprachregel), `StyledTranslationTest` (mehrzeiliger Text, einzeiliger Stil),
+  `LongTextBudgetTest` (Anfragekörper mit skalierten Tokens für OpenAI, Gemini, Anthropic, abgeschnittene
+  Antworten aller drei, Gemini-Thoughts und -Sperren, Client- und Transport-Zeitlimits, Abbruch des echten
+  Calls über `ApprovedActionRunner.cancel`), `LongCommandTest` (zwei Absätze behalten den Chip, ein
+  Zeilenumbruch beendet jeden anderen Befehl, Enter, Zählung der Editor-Lesevorgänge beim Tippen: nie mehr
+  als 520 Zeichen außer während eines aktiven KI-Arguments, Ende des Zustands bei Löschen, Schreibmarke,
+  Auswahl, Feldwechsel).
+- Absichtlich geänderte Erwartungen: Grenzzahlen in `EditorPolicyTest`, `InsertionAnchorTest`, `ToolTest`,
+  `QuestionCaptureTest`, `WorkflowTest`, `AndroidEditorAdapterTest`, `DictationSessionTest` (8192/16384
+  auf 32768/65536 skaliert, gleiche Assertionen); `OpenAiProviderTest` und `MoreProvidersTest`
+  (Ergebnislänge 65537; abgeschnittene Antworten sind `CUT_OFF` statt `TOO_LARGE`);
+  `TranslateCommandTest` (2000 statt 500; `@ki` 2000); `StyledTranslationTest` (ein Zeilenumbruch im
+  Text ist erlaubt statt abgelehnt).
+- Lauf: `:agent-core:test` 601 Tests grün (vorher 591). App-Tests des Bereichs (`*Provider*`, `*Cloud*`,
+  `*Approved*`, `*Workflow*`, `*KeyboardCommands*`, `*CommandSystem*`, `*MoreCommands*`, `*Translate*`,
+  `*AskCommand*`, `*SnipCommand*`, `*AndroidEditorAdapter*`, `*DictationSession*`, `*JournaledModelCall*`,
+  `*InputLogicTest`, dazu die neuen) 497 Tests, nur der geerbte Fehler `insertLetterIntoWordHangulFails`.
+  Hinweis: `LongTextBudgetTest` darf `CloudHttpClient.client` nicht anfassen (`InputLogicTest` prüft, dass
+  der Client nie initialisiert wurde); der Test liest `CloudHttpClient.newBuilder()`.
+- Nicht geprüft: echte Anfragen (OpenAI, Gemini, Anthropic), Gemini-Vertrag gegen die Referenz (Host aus
+  der Umgebung nicht erreichbar), Gerät (lange Texte tippen, Zeit der Binder-Antwort für 32.768 Zeichen,
+  Chip-Verhalten bei vielen Zeilen), ob die Sprachregel das Problem „Englisch kommt deutsch zurück“ löst.
+- Engine-nahe Änderung (Prüfer Pflicht): in `LatinIME.tryShowCommandChips` das Argument der Leselänge.
 
 ## Gerätetest vor Meilensteinfreigabe
 

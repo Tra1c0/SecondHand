@@ -31,7 +31,7 @@ class GeminiProvider(
                     put("role", "user")
                     put("parts", buildJsonArray { add(buildJsonObject { put("text", request.input) }) })
                 }) })
-                put("generationConfig", buildJsonObject { put("maxOutputTokens", MAX_TOKENS); put("candidateCount", 1) })
+                put("generationConfig", buildJsonObject { put("maxOutputTokens", ModelBudget.thinkingProviderTokens(request)); put("candidateCount", 1) })
             }.toString()
         }, { secret, body ->
             Request.Builder()
@@ -42,9 +42,6 @@ class GeminiProvider(
     }
 
     companion object {
-        /** Thought tokens count against this cap on thinking models; leave room for them. */
-        const val MAX_TOKENS = 8192
-
         fun validModel(model: String) = model.matches(Regex("[a-z0-9][a-z0-9.-]{0,99}")) && !model.contains("..")
 
         private val blockedReasons = setOf("SAFETY", "RECITATION", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII", "IMAGE_SAFETY")
@@ -58,7 +55,7 @@ class GeminiProvider(
                 when (candidate["finishReason"]?.jsonPrimitive?.content) {
                     "STOP" -> Unit
                     in blockedReasons -> throw CloudFailure(CloudError.REFUSED)
-                    "MAX_TOKENS" -> throw CloudFailure(CloudError.TOO_LARGE) // cut off
+                    "MAX_TOKENS" -> throw CloudFailure(CloudError.CUT_OFF) // stage 59: cut off
                     else -> throw CloudFailure(CloudError.INVALID_RESPONSE)
                 }
                 val text = StringBuilder()
@@ -68,7 +65,7 @@ class GeminiProvider(
                     require(value.isString)
                     val thought = content["thought"]?.jsonPrimitive?.booleanOrNull == true
                     if (!thought) text.append(value.content) // thought summaries are never part of the result
-                    if (text.length > 16384) throw CloudFailure(CloudError.TOO_LARGE)
+                    if (text.length > ModelBudget.MAX_RESULT_CHARS) throw CloudFailure(CloudError.TOO_LARGE)
                 }
                 if (text.isBlank() || ExecutionPolicy().resultDenial(text.toString()) != null)
                     throw CloudFailure(CloudError.INVALID_RESPONSE)

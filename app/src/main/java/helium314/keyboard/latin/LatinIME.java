@@ -185,7 +185,7 @@ public class LatinIME extends InputMethodService implements
     private boolean tryShowCommandChips() {
         // also without a visible strip: the guard keeps the autocorrection off a typed command name
         helium314.keyboard.agent.KeyboardCommands.updateGuard(
-                getAgentCommandCursor() < 0 ? null : getAgentTextBeforeCursor(dev.agentkeyboard.core.CommandSyntax.LOOKBACK + 1));
+                getAgentCommandCursor() < 0 ? null : getAgentTextBeforeCursor(helium314.keyboard.agent.KeyboardCommands.readLength(getAgentCommandCursor())));
         if (!hasSuggestionStripView() || !onEvaluateInputViewShown()) return false;
         final View chips = helium314.keyboard.agent.KeyboardCommands.createChipsView(this, mSuggestionStripView);
         if (chips == null) return false;

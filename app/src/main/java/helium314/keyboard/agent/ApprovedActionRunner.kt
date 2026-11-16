@@ -13,11 +13,11 @@ class ApprovedActionRunner(
     private val provider: (WorkflowProvider) -> ModelProvider,
     private val isCurrent: (TextSnapshot) -> Boolean,
     private val journal: ActionRunJournal,
-    private val workflowTimeoutMillis: Long = 95_000,
+    private val workflowTimeoutMillis: Long = ModelBudget.WORKFLOW_TIMEOUT_MS,
     /** Providers a workflow step may name. A step naming any other provider fails before any request. */
     private val providers: Set<WorkflowProvider> = CloudProviders.SUPPORTED.toSet(),
 ) {
-    init { require(workflowTimeoutMillis in 1..95_000) }
+    init { require(workflowTimeoutMillis in 1..ModelBudget.WORKFLOW_TIMEOUT_MS) }
     private val modelCall = JournaledModelCall(journal)
     private val runs = JournaledRun(journal)
     private var generation = 0L

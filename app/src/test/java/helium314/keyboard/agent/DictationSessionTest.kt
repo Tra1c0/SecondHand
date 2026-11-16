@@ -165,7 +165,7 @@ class DictationSessionTest {
             { l: SpeechEngine.Listener -> l.onError(DictationError.NO_SPEECH) } to "failed:NO_SPEECH",
             { l: SpeechEngine.Listener -> l.onError(DictationError.LANGUAGE) } to "failed:LANGUAGE",
             { l: SpeechEngine.Listener -> l.onFinal("   ") } to "failed:NO_SPEECH",
-            { l: SpeechEngine.Listener -> l.onFinal("x".repeat(8_193)) } to "denied:TOO_LARGE",
+            { l: SpeechEngine.Listener -> l.onFinal("x".repeat(32_769)) } to "denied:TOO_LARGE",
             { l: SpeechEngine.Listener -> l.onFinal("broken \uD83D") } to "failed:FAILED")) {
             assertTrue(session.start())
             deliver(engine.listener!!)

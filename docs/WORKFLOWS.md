@@ -8,8 +8,8 @@ Anfrage abgewiesen. Das Dateiformat ist unverändert, die Kennungen gab es schon
 Bis zu acht geordnete Schritte und drei Modellaufrufe; Format3. Ein Eingang ist
 die freigegebene Auswahl oder exakt das Ergebnis eines früheren Schritts, auch
 nicht unmittelbar vorher. Keine Zyklen/Vorwärtsverweise. V1/V2 bleiben bei ihren
-alten Zwei-Schritt-Grenzen. Textbudget32.768, Modellinput8.192, Ausgabe16.384,
-Gesamtbudget95s; langsame/große Abläufe können kontrolliert scheitern. Neue
+alten Zwei-Schritt-Grenzen. Textbudget 131.072, Modellinput 32.768, Ausgabe 65.536 (Etappe 59, vorher
+32.768/8.192/16.384), Gesamtbudget 310 s (vorher 95 s; ein KI-Aufruf darf 150 s dauern); langsame/große Abläufe können kontrolliert scheitern. Neue
 Schritte wählen standardmäßig den zuletzt angelegten Schritt. Alle Ansichten
 beschreiben den tatsächlichen Ursprung mit Schrittnummer.
 
@@ -24,8 +24,10 @@ das Ergebnis. Die Definition wird bei Erstellung defensiv kopiert und eingefrore
 - KI-Schritte: dieselben sechs festen Textaktionen wie im Tastaturpanel;
   Anbieter, Modell, Zielsprache und Ton sind Bestandteil der Definition.
 - Keine URLs, beliebiger Code, Credentials, Toolaufrufe oder Editorberechtigungen.
-- Auswahl und Modellinput höchstens 8.192 UTF-16-Zeichen, einzelne Ausgabe
-  höchstens 16.384, alle behaltenen Texte zusammen höchstens 32.768.
+- Auswahl und Modellinput höchstens 32.768 UTF-16-Zeichen, einzelne Ausgabe
+  höchstens 65.536, alle behaltenen Texte zusammen höchstens 131.072 (Etappe 59; vorher
+  8.192/16.384/32.768). Eine Ausgabe über 32.768 Zeichen geht deshalb nicht mehr in einen
+  weiteren KI-Schritt (`INVALID_INPUT`). Die Mindestlänge einer Bedingung (1–8192) bleibt.
 - Höchstens zwei Modellaufrufe; alle benötigten Anbieter werden vor dem ersten
   Schritt auf Unterstützung geprüft. Import erteilt keine Fähigkeiten.
 - Analyseausgaben sind entlang ihrer Abhängigkeiten nicht ersetzbar.

@@ -1212,6 +1212,7 @@ private fun CloudError?.commandChip() = when (this) {
     CloudError.AUTHENTICATION -> R.string.agent_command_ai_key_rejected
     CloudError.REFUSED -> R.string.agent_command_ai_refused
     CloudError.TOO_LARGE -> R.string.agent_command_ai_too_long
+    CloudError.CUT_OFF -> R.string.agent_command_ai_cut_off
     CloudError.TIMEOUT -> R.string.agent_command_ai_timeout
     CloudError.INVALID_RESPONSE -> R.string.agent_command_ai_unusable
     else -> R.string.agent_command_ai_failed
@@ -1227,6 +1228,7 @@ internal fun CloudError?.cloudMessage() = when (this) {
     CloudError.REFUSED -> R.string.agent_cloud_refused
     CloudError.INVALID_RESPONSE -> R.string.agent_cloud_invalid_response
     CloudError.TOO_LARGE -> R.string.agent_cloud_too_long
+    CloudError.CUT_OFF -> R.string.agent_cloud_cut_off
     CloudError.BUSY -> R.string.agent_cloud_busy
     else -> R.string.agent_cloud_network
 }

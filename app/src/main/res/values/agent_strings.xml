@@ -67,7 +67,7 @@
     <string name="agent_panel_empty_result">Empty result: applying removes the selected text.</string>
     <string name="agent_panel_stale">The text or selection changed. Reopen text actions to start again.</string>
     <string name="agent_panel_protected">Text actions are disabled in this protected field.</string>
-    <string name="agent_panel_too_large">Select at most 8,192 characters.</string>
+    <string name="agent_panel_too_large">Select at most 32,768 characters.</string>
     <string name="agent_panel_composing">Finish typing or swiping, then select text.</string>
     <string name="agent_panel_result_invalid">This result cannot be applied.</string>
     <string name="agent_panel_apply_unknown">The editor may have accepted the result. Check the text before doing anything else. Closing this panel may close the keyboard so it can reconnect.</string>
@@ -147,7 +147,7 @@
     <string name="agent_workflow_running">Running workflow… Nothing is automatically inserted.</string>
     <string name="agent_workflow_loading">Loading workflows…</string>
     <string name="agent_workflow_provider_unavailable">This workflow requires a provider that is not available. No request was sent.</string>
-    <string name="agent_workflow_limits">Workflow stopped: text or output exceeded its allowed limits. No partial result was inserted.</string>
+    <string name="agent_workflow_limits">Workflow stopped: text or output exceeded its allowed limits (input 32,768, one result 65,536, all steps together 131,072 characters). No partial result was inserted.</string>
     <string name="agent_condition_non_empty">input is not empty</string>
     <string name="agent_condition_contains">input contains the literal “%1$s” (case sensitive)</string>
     <string name="agent_condition_length">input has at least %1$d UTF-16 characters</string>
@@ -229,6 +229,7 @@
     <string name="agent_learning_delete_confirm">Delete everything the keyboard learned from your typing, for all languages? Your personal dictionary is not changed. This cannot be undone.</string>
     <string name="agent_learning_deleted">Learned words deleted.</string>
     <string name="agent_learning_failed">That did not work. Nothing was changed or exported.</string>
+    <string name="agent_cloud_cut_off">The answer was cut off because the text is too long for the model. Nothing is inserted. Select less text or choose a shorter task.</string>
     <string name="agent_cloud_too_long">The answer was too long and was discarded. Nothing is inserted. Try a shorter selection.</string>
     <string name="agent_workflow_model_invalid">A step of this workflow has a model ID its provider cannot use. Edit the workflow. No request was sent.</string>
     <string name="dictate">Dictate (on device)</string>
@@ -445,7 +446,7 @@
     <string name="agent_places_invalid">Enter a name and an address (name up to 40, address up to 200 characters).</string>
     <string name="agent_places_full">At most %d places can be saved.</string>
     <string name="agent_places_unavailable">Saved places are available only while the device is unlocked.</string>
-    <string name="agent_command_ki">Ask AI: %1$ski question shows a chip that names your AI provider. Only a tap on it sends exactly the typed question, nothing else from the field, to your own AI provider (API key required). The answer then appears in the suggestion strip; only a tap on it replaces the typed command by the answer.</string>
+    <string name="agent_command_ki">Ask AI: %1$ski question shows a chip that names your AI provider. Only a tap on it sends exactly the typed question, nothing else from the field, to your own AI provider (API key required). The answer then appears in the suggestion strip; only a tap on it replaces the typed command by the answer. Up to 2,000 characters after the command name.</string>
     <string name="agent_command_ki_chip">✦ Ask AI (%1$s): %2$s</string>
     <string name="agent_command_ki_open">Send exactly this question to %1$s now: %2$s</string>
     <string name="agent_command_ki_source">Question to send</string>
@@ -469,7 +470,7 @@
     <string name="agent_command_qr_none">No app can share the QR code.</string>
     <string name="agent_image_not_inserted">The image was not inserted. The text stays.</string>
     <string name="agent_image_inserted_text_kept">Image inserted. The app placed it differently, so the typed text stays.</string>
-    <string name="agent_command_translate">Translate with AI: %1$stranslate \"text\" style shows a chip that names your AI provider and the style (e.g. natural Spanish slang; without a style natural English). Only a tap on it sends exactly the text in quotes and the style, nothing else from the field, to your own AI provider (API key required). The translation then appears in the suggestion strip; only a tap on it replaces the typed command by it. Up to 500 characters after the command name.</string>
+    <string name="agent_command_translate">Translate with AI: %1$stranslate \"text\" style shows a chip that names your AI provider and the style (e.g. natural Spanish slang; without a style natural English). Only a tap on it sends exactly the text in quotes and the style, nothing else from the field, to your own AI provider (API key required). The translation then appears in the suggestion strip; only a tap on it replaces the typed command by it. Up to 2,000 characters after the command name.</string>
     <string name="agent_command_translate_hint">Put the text in \"…\"</string>
     <string name="agent_command_translate_usage">Type %1$stranslate \"text\" style, e.g. %1$stranslate \"see you tomorrow\" casual Spanish</string>
     <string name="agent_command_translate_chip">🌐 Translate with %1$s: %2$s</string>
@@ -497,6 +498,7 @@
     <string name="agent_command_ai_no_model">No model · AI settings</string>
     <string name="agent_command_ai_refused">Declined by the provider · details</string>
     <string name="agent_command_ai_too_long">Answer too long · details</string>
+    <string name="agent_command_ai_cut_off">Answer cut off, text too long · details</string>
     <string name="agent_command_ai_timeout">No answer in time · details</string>
     <string name="agent_command_ai_unusable">Answer unusable · details</string>
     <string name="agent_command_ai_failed">Request failed · details</string>

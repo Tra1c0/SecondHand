@@ -32,8 +32,16 @@ object CommandSyntax {
     const val MAX_ARGUMENT = 200
     /** The argument limit of the few commands that name themselves in `longArguments` (`@translate`). */
     const val MAX_LONG_ARGUMENT = 500
-    /** Characters the caller must read before the cursor; one more tells whether the field starts there. */
+    /** Stage 59: the argument limit of the commands that name themselves in `aiArguments` (`@ki`, `@translate`). */
+    const val MAX_AI_ARGUMENT = 2000
+    /**
+     * Characters the caller reads before the cursor on the normal typing path; one more tells whether
+     * the field starts there. Deliberately not grown by stage 59: a larger constant would make the
+     * cache of the input connection miss on every keystroke in long texts.
+     */
     const val LOOKBACK = 1 + MAX_NAME + 1 + MAX_LONG_ARGUMENT
+    /** Stage 59: the window while an `aiArguments` command is being typed, name and argument up to [MAX_AI_ARGUMENT]. */
+    const val LONG_LOOKBACK = 1 + MAX_NAME + 1 + MAX_AI_ARGUMENT
 
     private val OPENERS = setOf('(', '[', '{', '"', '\'', '„', '“', '«', '¿', '¡')
 
@@ -41,34 +49,39 @@ object CommandSyntax {
 
     /**
      * What is typed before the cursor, or null. [before] is the text before the cursor, up to
-     * [LOOKBACK] + 1 characters; [names] are the enabled command names in lower case. Commands in
-     * [longArguments] take up to [MAX_LONG_ARGUMENT] characters, all others [MAX_ARGUMENT].
+     * [lookback] + 1 characters ([LOOKBACK] normally, [LONG_LOOKBACK] while a command of
+     * [aiArguments] is typed); [names] are the enabled command names in lower case. Commands in
+     * [aiArguments] take up to [MAX_AI_ARGUMENT] characters, also over several lines (every other command
+     * ends at a line break); those in [longArguments] up to
+     * [MAX_LONG_ARGUMENT], all others [MAX_ARGUMENT].
      */
     fun parse(before: CharSequence, prefix: Char, names: Collection<String>,
               longArguments: Collection<String> = emptySet(), fuzzyNames: Boolean = false,
               claim: ((String) -> String?)? = null, aliases: Map<String, String> = emptyMap(),
-              help: List<String>? = null): CommandContext? {
+              help: List<String>? = null, aiArguments: Collection<String> = emptySet(),
+              lookback: Int = LOOKBACK): CommandContext? {
         if (!isAllowedPrefix(prefix) || names.isEmpty()) return null
         val aliasNames = aliasKeys(aliases, names)
         // stage 52: "@?" lists the areas of the unified commands
         if (help != null && help.isNotEmpty() && before.length >= 2 && before[before.length - 1] == '?' &&
             before[before.length - 2] == prefix) {
             val at = before.length - 2
-            val boundary = if (at == 0) before.length <= LOOKBACK else before[at - 1].isWhitespace() || before[at - 1] in OPENERS
+            val boundary = if (at == 0) before.length <= lookback else before[at - 1].isWhitespace() || before[at - 1] in OPENERS
             if (boundary) return CommandNames(at, before.substring(at), prefix, HELP, help)
         }
         // a window cut by the caller does not tell what precedes its first character
-        val fieldStartsInWindow = before.length <= LOOKBACK
+        val fieldStartsInWindow = before.length <= lookback
         var index = before.length - 1
-        val lowest = maxOf(0, before.length - LOOKBACK)
+        val lowest = maxOf(0, before.length - lookback)
         // stage 24g after review: a claimed word or a typo of a name only counts when no command
         // typed by its exact name is running earlier on the line (`@ki frag @matt`, `@translate … @es`)
         var weak: CommandContext? = null
         while (index >= lowest) {
-            if (before[index] == '\n') return weak // commands never span lines
+            // commands never span lines, except the argument of [aiArguments] commands (stage 59): parseAt
+            // refuses a line break in the argument of every other command, so the search goes on
             if (before[index] == prefix) {
                 val atBoundary = if (index == 0) fieldStartsInWindow else before[index - 1].isWhitespace() || before[index - 1] in OPENERS
-                val found = if (atBoundary) parseAt(before, index, prefix, names, longArguments, fuzzyNames, claim, aliasNames) else null
+                val found = if (atBoundary) parseAt(before, index, prefix, names, longArguments, aiArguments, fuzzyNames, claim, aliasNames) else null
                 when {
                     found == null -> {}
                     found.isWeak() -> if (weak == null) weak = found
@@ -100,7 +113,7 @@ object CommandSyntax {
     }
 
     private fun parseAt(before: CharSequence, start: Int, prefix: Char, names: Collection<String>,
-                        longArguments: Collection<String>, fuzzyNames: Boolean,
+                        longArguments: Collection<String>, aiArguments: Collection<String>, fuzzyNames: Boolean,
                         claim: ((String) -> String?)?, aliases: Map<String, String>): CommandContext? {
         var end = start + 1
         while (end < before.length && end - start - 1 < MAX_NAME && before[end].isAsciiLetter()) end++
@@ -123,8 +136,8 @@ object CommandSyntax {
         if (before[end] != ' ') return null
         if (alias != null) {
             val argument = before.substring(end + 1)
-            val limit = if (alias in longArguments) MAX_LONG_ARGUMENT else MAX_ARGUMENT
-            if (argument.length > limit || argument.any { it == '\n' || it == '\r' }) return null
+            val limit = limitOf(alias, longArguments, aiArguments)
+            if (argument.length > limit || (alias !in aiArguments && argument.any { it == '\n' || it == '\r' })) return null
             return CommandCall(start, text, prefix, alias, argument, alias = typed)
         }
         val name = if (typed in names) typed else {
@@ -135,10 +148,13 @@ object CommandSyntax {
         val argument = before.substring(end + 1)
         // a claimed word takes no argument: after "@sp hola" the line is text again (autocorrect on)
         if (name != typed && argument.isNotEmpty()) return null
-        val limit = if (name in longArguments) MAX_LONG_ARGUMENT else MAX_ARGUMENT
-        if (argument.length > limit || argument.any { it == '\n' || it == '\r' }) return null
+        val limit = limitOf(name, longArguments, aiArguments)
+        if (argument.length > limit || (name !in aiArguments && argument.any { it == '\n' || it == '\r' })) return null
         return CommandCall(start, text, prefix, name, argument, claimed = typed.takeIf { name != typed })
     }
+
+    private fun limitOf(name: String, longArguments: Collection<String>, aiArguments: Collection<String>) =
+        if (name in aiArguments) MAX_AI_ARGUMENT else if (name in longArguments) MAX_LONG_ARGUMENT else MAX_ARGUMENT
 
     private fun claimed(typed: String, names: Collection<String>, claim: ((String) -> String?)?): String? {
         if (claim == null || typed.isEmpty()) return null

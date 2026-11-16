@@ -66,6 +66,48 @@ class CommandSyntaxTest {
         assertEquals("contact", (CommandSyntax.parse(window, '@', names, longNames) as CommandCall).name)
     }
 
+    @Test fun aiCommandsTakeTwoThousandCharactersOthersKeepTheirLimits() {
+        // stage 59: @ki and @translate up to MAX_AI_ARGUMENT, read with the long window
+        assertEquals(2000, CommandSyntax.MAX_AI_ARGUMENT)
+        val ai = setOf("contact")
+        val long = "x".repeat(CommandSyntax.MAX_AI_ARGUMENT)
+        val window = "Davor @contact $long"
+        val found = CommandSyntax.parse(window, '@', names, aiArguments = ai, lookback = CommandSyntax.LONG_LOOKBACK) as CommandCall
+        assertEquals(long, found.argument)
+        assertNull(CommandSyntax.parse("$window!", '@', names, aiArguments = ai, lookback = CommandSyntax.LONG_LOOKBACK))
+        // the other limits do not move, also when an AI command is named
+        assertNull(CommandSyntax.parse("@url " + "x".repeat(CommandSyntax.MAX_ARGUMENT + 1), '@', names, aiArguments = ai))
+        val longNames = setOf("conv")
+        assertEquals(500, CommandSyntax.MAX_LONG_ARGUMENT)
+        assertNull(CommandSyntax.parse("@conv " + "x".repeat(CommandSyntax.MAX_LONG_ARGUMENT + 1), '@', names, longNames, aiArguments = ai))
+        assertEquals(200, CommandSyntax.MAX_ARGUMENT)
+        // the short window does not see a start that lies further back: no command, nothing is guessed
+        val tail = window.takeLast(CommandSyntax.LOOKBACK + 1)
+        assertNull(CommandSyntax.parse(tail, '@', names, aiArguments = ai))
+    }
+
+    @Test fun onlyAiCommandsSpanLinesEveryOtherEndsAtALineBreak() {
+        val ai = setOf("contact")
+        val question = "Erster Absatz mit Frage.\n\nZweiter Absatz\nund eine dritte Zeile"
+        val found = CommandSyntax.parse("Davor\n@contact $question", '@', names, aiArguments = ai) as CommandCall
+        assertEquals(question, found.argument)
+        assertEquals(6, found.start)
+        // the same text for a command that is no AI command: the line break ends it
+        assertNull(CommandSyntax.parse("Davor\n@contact $question", '@', names))
+        assertNull(CommandSyntax.parse("@url eins\nzwei", '@', names, aiArguments = ai))
+        assertNull(CommandSyntax.parse("@math 3+4\n5", '@', names, aiArguments = ai))
+        // a command on the last line is still found first
+        assertEquals("url", (CommandSyntax.parse("@contact a\nb\n@url x", '@', names, aiArguments = ai) as CommandCall).name)
+        // an AI command is no longer than its limit over all lines
+        val over = "@contact " + "ab\n".repeat(CommandSyntax.MAX_AI_ARGUMENT / 3 + 1)
+        assertNull(CommandSyntax.parse(over, '@', names, aiArguments = ai, lookback = CommandSyntax.LONG_LOOKBACK))
+    }
+
+    @Test fun theNormalWindowIsNotGrown() {
+        assertEquals(1 + CommandSyntax.MAX_NAME + 1 + CommandSyntax.MAX_LONG_ARGUMENT, CommandSyntax.LOOKBACK)
+        assertEquals(1 + CommandSyntax.MAX_NAME + 1 + 2000, CommandSyntax.LONG_LOOKBACK)
+    }
+
     @Test fun commandWords() {
         assertTrue(CommandSyntax.isCommandWord("@math", '@', names))
         assertTrue(CommandSyntax.isCommandWord("@URL", '@', names))
