@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108">
+  <!-- the second key, behind: only its visible part, an open outline -->
+  <path d="M43 39 A10 10 0 0 1 53 29 L69 29 A10 10 0 0 1 79 39 L79 55 A10 10 0 0 1 69 65" fill="none" stroke="#FF453A" stroke-width="3.2" stroke-linecap="round"/>
+  <!-- the front key -->
+  <rect x="29" y="43" width="36" height="36" rx="10" fill="#FFFFFF"/>
+  <!-- S -->
+  <path d="M53 55.2 C53 50.6 41 50.6 41 56.2 C41 61.6 53 60.4 53 65.8 C53 71.4 41 71.4 41 66.8" fill="none" stroke="#161B31" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
