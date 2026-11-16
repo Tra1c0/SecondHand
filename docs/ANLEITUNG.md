@@ -1446,10 +1446,30 @@ Sprache und ob ihr Wörterbuch geladen ist, was die Tastatur selbst abgeschaltet
 Vorschläge anzeigen“) und was die Leiste zuletzt zeigte (Wörter, Symbolleiste, Emoji-Reihe, Chips
 oder eine Pille). Schick den Screenshot (oder „Kopieren“) an den Lead. Feldtexte stehen dort nie.
 In einem
-Passwortfeld steht nur „Passwortfeld“, im Inkognito-Modus, in Feldern, die das Lernen verbieten
-(z. B. private Tabs im Browser), und bei gesperrtem Telefon nur „Inkognito/gesperrt: nichts
-gemerkt“; für solche Felder kann die Karte also keinen Grund nennen. Die Karte lebt nur im
-Speicher; nach einem Neustart der Tastatur steht dort „noch keins“.
+Passwortfeld steht nur „Passwortfeld“ und bei gesperrtem Telefon nur „Gesperrt: nichts gemerkt“. In
+Feldern, die das Lernen verbieten (z. B. private Chats oder Tabs), und im Inkognito-Modus zeigt die
+Karte Feldtyp, Merkmale und Urteil, aber nicht die App („App: nicht gemerkt (Feld ohne Lernen)“); das
+Urteil sagt dann dazu, dass das Feld kein Lernen verlangt. Die Karte lebt nur im Speicher; nach einem
+Neustart der Tastatur steht dort „noch keins“.
+
+**Korrektur in einer App erzwingen.** Manche Apps (z. B. Instagram) melden ihr Nachrichtenfeld mit
+„keine Vorschläge“ und ohne Großschreibung. Für Apps in einer Liste behandelt die Tastatur solche
+Textfelder wie ein normales Nachrichtenfeld: Vorschläge, Autokorrektur auch im einzeiligen Feld und
+Satzanfänge groß. Nicht in Passwort-, E-Mail-, Adress-, Namen- und Suchfeldern. Deine eigenen Schalter
+(„Änderungsvorschläge“, „Autokorrektur“, automatische Großschreibung) gelten weiter, und Lernen wird
+dadurch nie eingeschaltet. Instagram steht anfangs in der Liste. So änderst du sie:
+
+- Auf der Karte „Letztes Feld“ (Einstellungen → Diagnose) steht unter den Werten der Knopf „In dieser
+  App erzwingen“ oder „Nicht mehr erzwingen“, sobald die Karte die App kennt (nicht in Feldern ohne
+  Lernen). Er speichert sofort und sagt „Gilt ab dem nächsten Feld.“
+- Einstellungen → Tippen & Korrektur → Regeln → „Korrektur in Apps erzwingen“: die Liste der Apps
+  (Name, wenn Android ihn verrät, sonst der Paketname), „Entfernen“ und „App hinzufügen“ aus den
+  installierten Apps.
+
+Die Karte sagt auch, was erzwungen wurde, z. B. „Die App verbietet Vorschläge; für diese App
+erzwungen.“ Korrigiert die Tastatur in Instagram trotzdem nicht, tippe im Chat ein paar Wörter mit
+einem Tippfehler, öffne dann direkt Einstellungen → Diagnose und schick dem Lead einen Screenshot der
+Karte „Letztes Feld“ (sie zeigt auch in privaten Chats Feldtyp, Merkmale und Urteil, nur nicht die App).
 
 Schreib dazu auf, was hilft, den Fehler zu finden:
 

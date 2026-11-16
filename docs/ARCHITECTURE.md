@@ -489,6 +489,13 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   `privateImeOptions` = `AgentPreferences.NO_LEARNING_FIELD` (die Felder von „Meine Daten“), in
   jeder Feldklasse und API-Stufe; daraus wird wie beim Flag `IME_FLAG_NO_PERSONALIZED_LEARNING`
   Inkognito.
+- Etappe 61 (Korrektur in Apps erzwingen, Prüfer Pflicht; `mInputType` bleibt unverändert, P254):
+  `InputAttributes.java`: `getImeOptions()` (die `imeOptions` des Felds für die Regel; sonst nichts).
+  `SettingsValues.java`: `mCorrectionForced = ForcedApps.forces(prefs, inputAttributes)`; in
+  `mAutoCorrectEnabled` ein `|| mCorrectionForced` bei „die App verlangt es“, `mOverrideShowingSuggestions`
+  ist jetzt `(bisherige Formel) || mCorrectionForced`; neue Methode `capsInputType(inputType)`.
+  `InputLogic.java`: in `getCurrentAutoCapsState` ersetzt `settingsValues.capsInputType(ei.inputType)`
+  das rohe `ei.inputType`.
 - `SettingsValues.java`: `mSpaceGestures` (aufgelöste Leertasten-Gesten) statt
   `mSpaceSwipeHorizontal`/`mSpaceSwipeVertical`; `mSpaceForLangChange` aus
   `SpaceGestures.holdShowsPicker`; `mUseDoubleSpacePeriod` ist aus, solange Doppeltippen eine
@@ -2158,7 +2165,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `mAutoCorrectEnabled`, `mAutoCap`, `mIsLocked`, `mIncognitoModeEnabled`, `mLocale` …), dazu die
   Schalter „Änderungsvorschläge“, „Immer Vorschläge anzeigen“ samt Web-Ausnahme, „Mehr
   Autokorrektur“ und „Autom. Groß-/Kleinschreibung“ aus den Einstellungen; Passwortfeld → nur
-  `Password`, gesperrt/Inkognito/kein Lernen → nur `Hidden` (P235). Felder der eigenen Einstellungen
+  `Password`, gesperrt → nur `Locked`; kein Lernen/Inkognito behält das Feld ohne Paket (seit 61, P257). Felder der eigenen Einstellungen
   ändern nichts und zählen nichts (`ownField`). Seit 56: `capture` startet zuerst
   `UpdateOnOpen.onStartInputView` (Abschnitt „Updates“), `stripNeutral` sagt, ob die Leiste des Felds
   zuletzt leer war (für den Update-Chip, P238). `live` fragt beim Öffnen die Wörterbücher der Engine
@@ -2174,6 +2181,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `AT/DiagnoseScreenTest.kt` (Karte, Reihenfolge, Kopieren, keine Feldtexte, Firefox, verdeckte
   Leiste, Wörterbuch-Fehler, Passwort, Inkognito, gesperrt),
   `InputLogicTest.lastFieldHoldsWhatTheEngineUsedInTheField` (Weg durch LatinIME, Sprachwechsel).
+  Etappe 61 „Korrektur in Apps erzwingen“: `C/ForcedCorrection.kt` (rein: `eligible(inputType,
+  imeOptions)`: nur Textfelder, ohne Passwort-, E-Mail-, URI-, Filter-, Phonetik-, Namen-,
+  Postanschrift-Variationen und ohne Aktion „Suchen“; `capsInputType`: `CAP_SENTENCES` dazu, wenn erzwungen
+  und kein `CAP_*`-Flag; `DEFAULT_PACKAGES`), `A/ForcedApps.kt` (Liste in `agent_forced_correction_apps`,
+  `forces(prefs, attributes)` ohne Ausnahme nach außen), `K/settings/screens/AgentForcedAppsDialog.kt` (Liste, Entfernen,
+  Hinzufügen mit dem `AppChooser` des Snippet-Editors; Zeile in `AgentAreaTypingScreen` unter Regeln).
+  `FieldReport.Snapshot.Field` hat `noLearning`, `incognito`, `forced`, `appForced`; `Snapshot.Hidden` und
+  `Finding.INCOGNITO` gibt es nicht mehr (`Snapshot.Locked` für gesperrt); `Verdict` hat `forced` (was die
+  Erzwingung wirklich einschaltete) und `learning`. `Diagnose.Section` hat `appPackage` und `appForced` für den
+  Knopf der Karte. Tests: `CT/ForcedCorrectionTest.kt`, `AT/LastFieldTest.kt`, `AT/DiagnoseScreenTest.kt`,
+  `AT/SettingsTypingAreaTest.kt`, `InputLogicTest` (`a forced app …`).
 - `KeyboardProfileStore.kt`: das Designprofil enthält `agent_rgb_lighting` als Text
   (`Binding.freeText`); beim Lesen feldweise über `RgbSettings.parse` begrenzt, leer (Profile von
   vor 26) heißt „unverändert lassen“.
@@ -4905,13 +4923,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   selben Feld gehören (Paket und `mInputType`). Ohne Wechsel bleibt die Aufnahme, wie das Feld sie
   hatte: ein später geänderter Schalter (`Settings.onSharedPreferenceChanged` lädt mit denselben
   `InputAttributes` neu) ändert die Karte nicht.
-- **P235** Datenschutz der Karte (55): `FieldReport.Snapshot.Field` hat nur Paketname, Sprach-Tag,
+- **P235** Datenschutz der Karte (55; für Felder ohne Lernen seit 61 durch P257 ersetzt): `FieldReport.Snapshot.Field` hat nur Paketname, Sprach-Tag,
   Zahlen und Wahrheitswerte (`CT/FieldReportTest.aSnapshotHoldsNoTextOfTheField`); nie
   `hintText`, `label`, `fieldName`, `privateImeOptions` oder Feldtext. Passwortfeld
   (`mIsPasswordField`, jede Passwort-Variante, auch im `rawInputType`) → nur `Password`; gesperrt
   (`mIsLocked`, das `isDeviceLocked` beim Feldstart liest; ein noch nicht entsperrter Nutzer liegt
-  hinter dem Sperrbildschirm, Nachprüfung N5) oder Inkognito (`mIncognitoModeEnabled`,
-  `mNoLearning`, `IME_FLAG_NO_PERSONALIZED_LEARNING` auch außerhalb von Textfeldern) → nur `Hidden`;
+  hinter dem Sperrbildschirm, Nachprüfung N5) → nur `Locked` (seit 61; vorher auch Inkognito, jetzt P257);
   beide ersetzen das Feld davor. Nur im Speicher (Einstellungen und Tastatur teilen den Prozess, wie
   bei `SubtypeSwitchLog`), nie geloggt. Der App-Name kommt erst beim Öffnen aus dem
   `PackageManager` und wird nicht gemerkt.
@@ -4994,25 +5011,68 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `fake_toast.xml` lesen `@mipmap/ic_launcher_round`, ein eigenes Marken-Drawable gibt es nicht mehr.
   Die einfarbige Variante hat bewusst keine Füllung (Launcher färben die Fläche selbst ein). Store-
   Bilder unter `fastlane/` sind Upstream und nicht angefasst.
+- **P254** Erzwingen und `mInputType` (61): `InputAttributes.mInputType` bleibt der Typ der App (nach
+  `AppWorkarounds`); `isSameInputType` vergleicht ihn mit dem rohen `EditorInfo.inputType`, ein Unterschied
+  ließe jeden Neustart desselben Felds als neues Feld zählen. Darum liegt die Entscheidung in
+  `SettingsValues.mCorrectionForced` und wirkt nur an drei Stellen: `mAutoCorrectEnabled`,
+  `mOverrideShowingSuggestions` und die Großschreibung (`capsInputType`). Wer eine vierte Stelle
+  braucht, ändert nicht `mInputAttributes`. `mShouldShowSuggestions` und `mInputTypeShouldAutoCorrect`
+  bleiben die Angaben der App (Karte „App erlaubt Vorschläge“).
+- **P255** Was erzwungen wird (61): Textfelder einer gelisteten App, Entscheidung beim Feldstart
+  (`ForcedApps.forces`, liest die Liste neu; ein geänderter Schlüssel lädt die Einstellungen neu, es gilt also ab
+  dem nächsten Feld oder der nächsten Neuladung). Ausgeschlossen (rein, `ForcedCorrection.eligible`): jede
+  Passwortvariante, URI, E-Mail (auch Web), Filter, Phonetik, Personenname, Postanschrift, Aktion „Suchen“ und
+  jede Nicht-Textklasse; zusätzlich nie bei `mIsPasswordField`. Webfelder (`WEB_EDIT_TEXT`) und
+  E-Mail-Betreff sind nicht ausgeschlossen. Erzwungene Vorschläge umgehen auch die Web-Ausnahme von „Immer
+  Vorschläge anzeigen“, weil der Owner die App ausdrücklich gelistet hat. Die eigenen Schalter gewinnen
+  (`PREF_SHOW_SUGGESTIONS`, `PREF_AUTO_CORRECTION`, `mAutoCap`, Symbolleistenmodus). Lernen und Inkognito
+  bleiben: `mNoLearning`/`mIncognitoModeEnabled` werden nicht angefasst, ein Feld mit
+  `IME_FLAG_NO_PERSONALIZED_LEARNING` hat weiter keinen Nutzerverlauf. Bekannte Nebenwirkung: Mit erzwungenen
+  Vorschlägen in einem `NO_SUGGESTIONS`-Feld setzt die Engine Composing-Text (wie bei „Immer Vorschläge
+  anzeigen“); `RichInputConnection.setComposingText` prüft dort nach (unverändert, nicht auf einem Gerät
+  geprüft). Ebenso gilt `mAutoCorrectEnabled == mAutoCorrectionEnabledPerUserSettings` in
+  `DictionaryFacilitatorImpl` (Persönliches Wörterbuch, Opt-in) im erzwungenen Feld wie in einem normalen
+  Feld.
+- **P256** Großschreibung (61): `InputLogic.getCurrentAutoCapsState` liest `settingsValues.capsInputType(ei.inputType)`.
+  `CAP_SENTENCES` kommt nur dazu, wenn das Feld erzwungen ist und kein `CAP_CHARACTERS`, `CAP_WORDS` oder
+  `CAP_SENTENCES` gesetzt hat; setzt die App eins, gilt es. Andere Leser des rohen `inputType` (KeyboardId,
+  `KeyboardLayoutSet`, `ClipboardHistoryManager`) bleiben bei der Angabe der App: Die Großschreibung
+  betrifft nur den Auto-Shift-Zustand, nicht das Layout.
+- **P257** Karte ohne Lernen (61, löst P235 ab): Felder mit `IME_FLAG_NO_PERSONALIZED_LEARNING`, den eigenen
+  `NO_LEARNING_FIELD`-Feldern oder Nutzer-Inkognito bleiben als `Snapshot.Field` mit Feldtyp, Flags, Zahlen,
+  Verdict und Ergebnis, aber `packageName = null` und `appForced = false` (kein App-Name, auch nicht, ob die App
+  gelistet ist); `noLearning`/`incognito` sagen warum, das Urteil hängt „Das Feld verlangt kein Lernen …“ an.
+  Der Knopf der Karte fehlt dort (`Section.appPackage` ist `null`). `forced` bleibt wahr, wenn die Engine
+  erzwungen hat (kein Paketname, nur ein Wahrheitswert). Passwortfeld (jede Variante, auch roh) bleibt nur
+  `Password`, gesperrt nur `Locked`. Der Update-Chip (`stripNeutral`) erscheint in Feldern ohne Lernen weiter
+  nie, die Leistenzähler laufen aber. `LastField.current` übernimmt nach einem Sprachwechsel auch dort die neuen
+  Einstellungen (ohne Paketvergleich, es gibt keinen Namen). Test: `AT/LastFieldTest.aFieldWithoutLearningKeepsItsReasonButNotTheApp`,
+  `AT/DiagnoseScreenTest.aFieldWithoutLearningShowsFlagsAndVerdictButNotTheApp`, `CT/FieldReportTest.aSnapshotHoldsNoTextOfTheField`.
+- **P258** Urteil und Erzwingen (61): `FieldReport.Verdict.forced` nennt nur, was die Erzwingung wirklich
+  einschaltete (App hat Vorschläge verboten und die Schalter erlauben sie; die App hat keine Autokorrektur
+  verlangt und „Mehr Autokorrektur“ ist aus; kein `CAP_*`-Flag und Großschreibung an). Der Hauptgrund
+  (`finding`) folgt weiter P232, die Sätze der Erzwingung und des Lernens hängen dahinter
+  (`Diagnose.verdictText`). `Snapshot.Field.capsUsed` ist, was die Engine liest, `caps` bleibt der Wunsch der
+  App; `FieldReport.effective` und `CAPS_APP` nutzen `capsUsed`.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (615 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (619 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (5): agent-apk, agent-tests, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (84): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (85): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand,
   ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand, CorrectionMemory,
   DateCommand, DesignLook, DesignTiles, Diagnose, Dictation, EmojiCommand, EmojiMixPalette,
   EmojiSuggestions, EncryptedActionRunStore, EventCommand, FieldCorrections, FieldSuggestionChips,
-  FlatMenuView, FlatPanelStyle, FlatPreset, ForeignWords, FormatGuardChips, HapticChain,
+  FlatMenuView, FlatPanelStyle, FlatPreset, ForcedApps, ForeignWords, FormatGuardChips, HapticChain,
   JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore, LastField, LearningData,
   LoadingDotsView, ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData, MyDesigns,
   OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter, RgbLighting, RgbOwnPatterns, RgbStrip,
@@ -5058,29 +5118,29 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `AT/commands/` (9): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
   TranslateCommandTest, UrlCommandTest
-- `C/` (49): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
+- `C/` (50): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
   CorrectionRules, DateFormatting, EditorSession, EmojiKeywords, EmojiMix, EmojiNames,
-  EmojiSynonyms, EventParser, ExecutionPolicy, FieldReport, InkDots, InkRecognizer, InkSymbols,
-  InkTiming, LanguageNames, LocalTextActions, MathExpression, ModelProvider, OwnInkSymbols,
-  PendingBatchGate, PersonalInkSymbols, Places, Profiles, ReleaseNotes, RgbCurve, RgbLighting,
-  RgbOwnPattern, RgbPatternJson, RgbPatterns, SkillBinding, SnippetTemplate, SpecialCharacters,
-  StyledTranslation, SymbolTable, TextCondition, TimerParser, Tool, TouchDynamics, UnitConversion,
-  UpdateOnOpenPolicy, UpdateReleases, UrlDetector, Workflow
+  EmojiSynonyms, EventParser, ExecutionPolicy, FieldReport, ForcedCorrection, InkDots,
+  InkRecognizer, InkSymbols, InkTiming, LanguageNames, LocalTextActions, MathExpression,
+  ModelProvider, OwnInkSymbols, PendingBatchGate, PersonalInkSymbols, Places, Profiles,
+  ReleaseNotes, RgbCurve, RgbLighting, RgbOwnPattern, RgbPatternJson, RgbPatterns, SkillBinding,
+  SnippetTemplate, SpecialCharacters, StyledTranslation, SymbolTable, TextCondition, TimerParser,
+  Tool, TouchDynamics, UnitConversion, UpdateOnOpenPolicy, UpdateReleases, UrlDetector, Workflow
 - `C/charart/` (6): BigFont, CharArt, Raster, Sketch, TextColumns, UnicodeStyle
 - `C/clip/` (6): ClipDates, ClipGuard, LinkCleaner, PrivateRanges, SmartPaste, TrackingNumbers
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `C/memory/` (4): OwnWords, PhraseMemory, ShortcutOffers, SnippetMatcher
 - `C/suggest/` (1): ContextSuggest
-- `CT/` (46): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
+- `CT/` (47): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
   CorrectionRulesTest, DateFormattingTest, EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest,
-  EventParserTest, FieldReportTest, InkAreaTest, InkBenchmarkTest, InkDotFlowTest, InkDotsTest,
-  InkFingerModel, InkRecognizerTest, InkTimingTest, InsertionAnchorTest, LanguageNamesTest,
-  LocalTextActionsTest, MathExpressionTest, OwnInkSymbolsTest, PendingBatchGateTest,
-  PersonalInkSymbolsTest, PlacesTest, QuestionCaptureTest, ReleaseNotesTest, RgbCurveTest,
-  RgbFrameStatsTest, RgbLightingTest, RgbOwnPatternTest, RgbPatternJsonTest, RgbPatternsTest,
-  SkillBindingTest, SnippetTemplateTest, StyledTranslationTest, SymbolTableTest, TimerParserTest,
-  ToolTest, TouchDynamicsTest, UnitConversionTest, UpdateOnOpenPolicyTest, UpdateReleasesTest,
-  UrlDetectorTest, WorkflowTest
+  EventParserTest, FieldReportTest, ForcedCorrectionTest, InkAreaTest, InkBenchmarkTest,
+  InkDotFlowTest, InkDotsTest, InkFingerModel, InkRecognizerTest, InkTimingTest,
+  InsertionAnchorTest, LanguageNamesTest, LocalTextActionsTest, MathExpressionTest,
+  OwnInkSymbolsTest, PendingBatchGateTest, PersonalInkSymbolsTest, PlacesTest, QuestionCaptureTest,
+  ReleaseNotesTest, RgbCurveTest, RgbFrameStatsTest, RgbLightingTest, RgbOwnPatternTest,
+  RgbPatternJsonTest, RgbPatternsTest, SkillBindingTest, SnippetTemplateTest, StyledTranslationTest,
+  SymbolTableTest, TimerParserTest, ToolTest, TouchDynamicsTest, UnitConversionTest,
+  UpdateOnOpenPolicyTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
 - `CT/charart/` (2): CharArtTest, SketchTest
 - `CT/clip/` (3): ClipGuardTest, PrivateRangesTest, SmartPasteTest
 - `CT/format/` (1): FormatGuardTest
@@ -5111,16 +5171,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/settings/dialogs/` (2): ColorPickerDialog, SliderDialog
 - `K/settings/preferences/` (5): BackupRestorePreference, CustomFontPreference,
   KeyboardScalePreference, LoadGestureLibPreference, SliderPreference
-- `K/settings/screens/` (44): AdvancedScreen, AgentAiScreen, AgentAreaAiScreen, AgentAreaBarScreen,
+- `K/settings/screens/` (45): AdvancedScreen, AgentAiScreen, AgentAreaAiScreen, AgentAreaBarScreen,
   AgentAreaGesturesScreen, AgentAreaKeysScreen, AgentAreaLookScreen, AgentAreaScreen,
   AgentAreaSystemScreen, AgentAreaTypingScreen, AgentCommandsScreen, AgentDesignEditor,
   AgentDesignScreen, AgentDiagnoseScreen, AgentDictationScreen, AgentEmojiMixSection,
-  AgentLearningScreen, AgentMemoryScreen, AgentMyDataScreen, AgentProfilesScreen,
-  AgentRgbCurveEditor, AgentRgbFrameRate, AgentRgbPatternEditor, AgentRgbScreen, AgentRunStatus,
-  AgentScreenReaderSection, AgentScreenshotScreen, AgentSettingsKit, AgentSkillsScreen, AgentSlider,
-  AgentSnippetsSection, AgentSpaceScreen, AgentStartScreen, AgentSymbolsScreen, AgentUpdatePrompts,
-  AgentUpdatesScreen, AgentWorkflowsScreen, AppearanceScreen, DictionaryScreen, GestureTypingScreen,
-  MainSettingsScreen, TextCorrectionScreen, WorkflowBuilderDialog, WorkflowDraftProtection
+  AgentForcedAppsDialog, AgentLearningScreen, AgentMemoryScreen, AgentMyDataScreen,
+  AgentProfilesScreen, AgentRgbCurveEditor, AgentRgbFrameRate, AgentRgbPatternEditor,
+  AgentRgbScreen, AgentRunStatus, AgentScreenReaderSection, AgentScreenshotScreen, AgentSettingsKit,
+  AgentSkillsScreen, AgentSlider, AgentSnippetsSection, AgentSpaceScreen, AgentStartScreen,
+  AgentSymbolsScreen, AgentUpdatePrompts, AgentUpdatesScreen, AgentWorkflowsScreen,
+  AppearanceScreen, DictionaryScreen, GestureTypingScreen, MainSettingsScreen, TextCorrectionScreen,
+  WorkflowBuilderDialog, WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
 - `app/` (1): build.gradle

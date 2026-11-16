@@ -2329,7 +2329,7 @@ public final class InputLogic {
 
         final EditorInfo ei = getCurrentInputEditorInfo();
         if (ei == null) return Constants.TextUtils.CAP_MODE_OFF;
-        final int inputType = ei.inputType;
+        final int inputType = settingsValues.capsInputType(ei.inputType); // fork, stage 61: sentence capitals in a forced field
         // Warning: this depends on mSpaceState, which may not be the most current value. If
         // mSpaceState gets updated later, whoever called this may need to be told about it.
         return mConnection.getCursorCapsMode(inputType, settingsValues.mSpacingAndPunctuations,

@@ -26,7 +26,9 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import helium314.keyboard.latin.settings.Defaults
@@ -43,6 +45,9 @@ import helium314.keyboard.settings.screens.CHOICE_TAG
 import helium314.keyboard.settings.screens.HERO_TAG
 import helium314.keyboard.settings.screens.SettingsArea
 import helium314.keyboard.settings.screens.SettingsAreas
+import helium314.keyboard.settings.screens.FORCED_APPS_DIALOG_TAG
+import helium314.keyboard.settings.screens.FORCED_APPS_REMOVE_TAG
+import helium314.keyboard.settings.screens.FORCED_APPS_ROW_TAG
 import helium314.keyboard.settings.screens.TYPING_CUSTOM_TAG
 import helium314.keyboard.settings.screens.TYPING_LEVEL_TAG
 import helium314.keyboard.settings.screens.TYPING_NAMES_TAG
@@ -83,7 +88,7 @@ class SettingsTypingAreaTest {
         Settings.PREF_SUGGEST_EMOJIS, Settings.PREF_SUGGEST_PUNCTUATION, Settings.PREF_USE_CONTACTS, Settings.PREF_USE_APPS,
         Settings.PREF_KEY_USE_DOUBLE_SPACE_PERIOD, Settings.PREF_AUTOSPACE_AFTER_PUNCTUATION, Settings.PREF_AUTOSPACE_AFTER_SUGGESTION,
         AgentPreferences.LEARNING_PAUSED, Settings.PREF_ALWAYS_INCOGNITO_MODE, Settings.PREF_TOOLBAR_MODE,
-        SpaceGesture.DOUBLE_TAP.key, Settings.PREF_KEY_USE_PERSONALIZED_DICTS)
+        SpaceGesture.DOUBLE_TAP.key, Settings.PREF_KEY_USE_PERSONALIZED_DICTS, AgentPreferences.FORCED_CORRECTION_APPS)
 
     // Fallstrick P32: the settings singleton outlives the test, so reload the defaults
     @After fun reset() {
@@ -100,6 +105,27 @@ class SettingsTypingAreaTest {
     private fun card(level: String) = compose.onNodeWithTag(CHOICE_TAG + TYPING_LEVEL_TAG + level)
     private fun switch(key: String) = compose.onNodeWithTag(TYPING_SWITCH_TAG + key)
     private fun state(key: String) = switch(key).fetchSemanticsNode().config.getOrNull(SemanticsProperties.ToggleableState)
+
+    // stage 61: "Korrektur in Apps erzwingen" under Regeln
+    @Test fun theForcedAppsRowListsTheAppsAndRemovesThem() {
+        show()
+        compose.onNodeWithTag(FORCED_APPS_ROW_TAG).performScrollTo().assertExists()
+        compose.onAllNodesWithText("Korrektur in Apps erzwingen").onFirst().assertExists()
+        compose.onAllNodesWithText("1 aktiv").onFirst().assertExists()
+        compose.onNodeWithTag(FORCED_APPS_ROW_TAG).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(FORCED_APPS_DIALOG_TAG).assertExists()
+        // Instagram is the default; the package manager does not know it here, so the package name stands
+        compose.onAllNodesWithText("com.instagram.android", substring = true).onFirst().assertExists()
+        compose.onNodeWithTag(FORCED_APPS_REMOVE_TAG + "com.instagram.android").performClick()
+        compose.waitForIdle()
+        assertEquals(emptySet(), ForcedApps.read(prefs))
+        assertTrue(prefs.contains(AgentPreferences.FORCED_CORRECTION_APPS), "an emptied list is stored, the default does not come back")
+        compose.onAllNodesWithText("Keine App in der Liste", substring = true).onFirst().assertExists()
+        compose.onNodeWithText("Fertig").performClick()
+        compose.waitForIdle()
+        compose.onAllNodesWithText("keine").onFirst().assertExists()
+    }
 
     @Test fun mappingReadsAndWritesTheRealPreferences() {
         val p = prefs

@@ -62,6 +62,8 @@ fun AgentDiagnoseScreen(onClickBack: () -> Unit) {
     // stage 30 fix: every section is built once (as the page opens), not on each recomposition
     var symbols by remember { mutableStateOf<Diagnose.Section?>(null) }
     var lastField by remember { mutableStateOf<Diagnose.Section?>(null) }
+    // stage 61: the choice made with the button of the card (null until it is pressed), and that it was saved
+    var forceChoice by remember { mutableStateOf<Boolean?>(null) }
     LaunchedEffect(Unit) {
         val app = context.applicationContext ?: context
         // stage 55: the last field, first on the page; its dictionary files and the app's name off the main thread
@@ -113,6 +115,24 @@ fun AgentDiagnoseScreen(onClickBack: () -> Unit) {
                     }
                 }
                 when (section.part) {
+                    Diagnose.Part.LAST_FIELD -> {
+                        // stage 61: only when the card knows the app (not in fields without learning)
+                        val pkg = section.appPackage
+                        if (pkg != null) {
+                            val listed = forceChoice ?: section.appForced
+                            Text(stringResource(R.string.agent_diagnose_force_hint), style = MaterialTheme.typography.bodySmall)
+                            OutlinedButton(onClick = {
+                                val prefs = context.prefs()
+                                if (listed) helium314.keyboard.agent.ForcedApps.remove(prefs, pkg)
+                                else helium314.keyboard.agent.ForcedApps.add(prefs, pkg)
+                                forceChoice = helium314.keyboard.agent.ForcedApps.isListed(prefs, pkg)
+                            }, modifier = Modifier.testTag("agent_diagnose_force")) {
+                                Text(stringResource(if (listed) R.string.agent_diagnose_force_remove else R.string.agent_diagnose_force_add))
+                            }
+                            if (forceChoice != null) Text(stringResource(R.string.agent_diagnose_force_saved), style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.testTag("agent_diagnose_force_saved"))
+                        }
+                    }
                     Diagnose.Part.HAPTICS -> {
                         val plan = Diagnose.chain(device)?.plan
                         Text(stringResource(R.string.agent_diagnose_test_hint), style = MaterialTheme.typography.bodySmall)

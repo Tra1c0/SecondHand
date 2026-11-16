@@ -23,8 +23,10 @@ import java.util.Locale
  * process, like [SubtypeSwitchLog]). Holds a [FieldReport.Snapshot]: the package name, `inputType`
  * (as the app sent it and as the engine uses it), `imeOptions`, the language tag and booleans read
  * from the `InputAttributes` and `SettingsValues` the engine uses; never the field's text, hint,
- * label or name. A password field leaves only [FieldReport.Snapshot.Password], incognito or a locked
- * device only [FieldReport.Snapshot.Hidden]; either replaces the field before. A field of the
+ * label or name. A password field leaves only [FieldReport.Snapshot.Password], a locked device only
+ * [FieldReport.Snapshot.Locked]; either replaces the field before. A field that asks for no learning (the
+ * app's flag, or the owner's incognito) keeps its type, flags and verdict but neither package nor
+ * app name (stage 61: that is where the owner needs the reason). A field of the
  * keyboard's own settings changes nothing, and nothing of its strip is counted.
  *
  * Fed by one line in `LatinIME.onStartInputViewInternal` ([capture], after the settings were loaded
@@ -141,11 +143,12 @@ object LastField {
     /**
      * Stage 56: the strip of the current field last showed the empty neutral strip (no words, no
      * chips, no pill, no toolbar, no emoji row), so [UpdateOnOpen] may show the update chip there.
-     * False in password, incognito and locked fields, in the keyboard's own settings and before the
+     * False in password, no-learning, incognito and locked fields, in the keyboard's own settings and before the
      * strip reported for this field.
      */
     @JvmStatic fun stripNeutral(): Boolean = synchronized(lock) {
         counting() && !inCommand && strip?.strip == FieldReport.Strip.EMPTY
+            && (snapshot as? FieldReport.Snapshot.Field)?.learningOff == false
     }
 
     /** The snapshot, null before the keyboard was shown in a field. */
@@ -156,7 +159,7 @@ object LastField {
             val values = Settings.getValues()
             val attributes = values?.mInputAttributes
             if (attributes != null && attributes.mInputType == field.inputType
-                && attributes.mTargetApplicationPackageName.orEmpty() == field.packageName.orEmpty()) {
+                && (field.learningOff || attributes.mTargetApplicationPackageName.orEmpty() == field.packageName.orEmpty())) {
                 snapshot = when (val fresh = snapshotOf(context, field.rawInputType, field.imeOptions, values, field.atMillis)) {
                     is FieldReport.Snapshot.Field -> fresh.copy(atMillis = field.atMillis)
                     else -> fresh
@@ -205,13 +208,19 @@ object LastField {
             return FieldReport.Snapshot.Password
         // review of stage 55 (N5): SettingsValues reads the lock state when the field starts (isDeviceLocked;
         // a user not unlocked yet is behind the keyguard as well)
-        if (settings.mIsLocked) return FieldReport.Snapshot.Hidden(locked = true)
-        // incognito: the setting, a field that forbids learning (InputAttributes folds it in only for text fields)
-        if (settings.mIncognitoModeEnabled || attributes.mNoLearning || imeOptions and FieldReport.IME_FLAG_NO_PERSONALIZED_LEARNING != 0)
-            return FieldReport.Snapshot.Hidden(locked = false)
+        if (settings.mIsLocked) return FieldReport.Snapshot.Locked
         val prefs = context.prefs()
+        // stage 61: a field without learning (the field's flag, InputAttributes folds it in only for text fields, or
+        // the owner's incognito) keeps its flags and verdict, but not the app: no package, no app name
+        val noLearning = attributes.mNoLearning || imeOptions and FieldReport.IME_FLAG_NO_PERSONALIZED_LEARNING != 0
+        val incognito = !noLearning && prefs.getBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, Defaults.PREF_ALWAYS_INCOGNITO_MODE)
+        val packageName = if (noLearning || incognito) null else attributes.mTargetApplicationPackageName?.takeIf { it.isNotEmpty() }
         return FieldReport.Snapshot.Field(
-            packageName = attributes.mTargetApplicationPackageName?.takeIf { it.isNotEmpty() },
+            packageName = packageName,
+            noLearning = noLearning,
+            incognito = incognito,
+            forced = settings.mCorrectionForced,
+            appForced = ForcedApps.isListed(prefs, packageName),
             inputType = inputType,
             rawInputType = rawInputType,
             imeOptions = imeOptions,

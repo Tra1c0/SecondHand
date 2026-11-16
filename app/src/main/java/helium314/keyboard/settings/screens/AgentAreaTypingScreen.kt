@@ -44,6 +44,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import helium314.keyboard.agent.AgentPreferences
+import helium314.keyboard.agent.ForcedApps
 import helium314.keyboard.agent.LearningData
 import helium314.keyboard.agent.SpaceGestures
 import helium314.keyboard.keyboard.KeyboardSwitcher
@@ -148,6 +149,7 @@ fun AgentAreaTypingScreen(onNavigate: (String) -> Unit, onClickBack: () -> Unit)
         written++
     }
     var emojiWarning by remember { mutableStateOf(false) }
+    var forcedApps by remember { mutableStateOf(false) }
     val counts by produceState<WordCounts?>(null) { value = withContext(Dispatchers.IO) { WordCounts.read(context) } }
 
     val autocorrect = bool(Settings.PREF_AUTO_CORRECTION, Defaults.PREF_AUTO_CORRECTION)
@@ -200,6 +202,11 @@ fun AgentAreaTypingScreen(onNavigate: (String) -> Unit, onClickBack: () -> Unit)
                 // stage 41: hints only, works without autocorrection
                 PrefSwitch(R.string.agent_format_guard, stringResource(R.string.agent_format_guard_sub),
                     AgentPreferences.FORMAT_GUARD, true, true, null, ::bool, ::put)
+                // stage 61: apps whose fields get suggestions, autocorrection and sentence capitals although the app forbids them
+                val forcedCount = remember(written, changed?.value) { ForcedApps.read(prefs).size }
+                SettingRow(stringResource(R.string.agent_forced_title), stringResource(R.string.agent_forced_sub), area.dot,
+                    { forcedApps = true }, Modifier.testTag(FORCED_APPS_ROW_TAG),
+                    value = if (forcedCount == 0) stringResource(R.string.agent_forced_none) else stringResource(R.string.agent_forced_value, forcedCount))
             }
 
             SectionCard(stringResource(R.string.agent_typing_suggestions)) {
@@ -265,6 +272,7 @@ fun AgentAreaTypingScreen(onNavigate: (String) -> Unit, onClickBack: () -> Unit)
                     { onNavigate(SettingsDestination.TextCorrection) }, Modifier.testTag(AREA_ROW_TAG + SettingsDestination.TextCorrection))
             }
         }
+        if (forcedApps) AgentForcedAppsDialog(onDismiss = { forcedApps = false }, onChanged = { written++ })
         if (emojiWarning) {
             val link = stringResource(R.string.dictionary_link_text).withHtmlLink(Links.DICTIONARY_URL +
                 Links.DICTIONARY_DOWNLOAD_SUFFIX.replace("raw", "src") + Links.DICTIONARY_EMOJI_CLDR_SUFFIX)

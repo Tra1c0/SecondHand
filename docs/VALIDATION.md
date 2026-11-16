@@ -5467,6 +5467,42 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   Robolectric SDK 28). Lint wie oben.
 - Nicht geprüft: Aussehen auf einem Gerät (Launcher, runde Maske, Themed Icons Android 13+), die
   Vektor-Drawables wurden nicht gerendert (nur die PNGs aus den SVGs).
+## Etappe 61 (Korrektur in Apps erzwingen)
+
+- Auftrag: Owner, 2026-11-16: „In Insta-Privat-Chats gibt's keine Autokorrektur.“ (davor: „Stellenweise
+  gibt's gar keine Vorschläge, Groß-/Kleinschreibung, Autokorrektur.“). Ursache vermutet, nicht geprüft:
+  Instagram meldet sein Nachrichtenfeld mit `NO_SUGGESTIONS` und ohne `CAP_*`, vermutlich auch mit
+  `IME_FLAG_NO_PERSONALIZED_LEARNING`; ohne Gerät sind die echten Flags unbekannt.
+- Neu: `C/ForcedCorrection.kt`, `A/ForcedApps.kt`, `K/settings/screens/AgentForcedAppsDialog.kt`. Geändert: `FieldReport`
+  (`Snapshot.Locked` statt `Hidden`, Felder ohne Lernen bleiben, `forced`/`appForced`, `Verdict.forced`/`learning`),
+  `LastField`, `Diagnose`, `AgentDiagnoseScreen` (Knopf), `AgentAreaTypingScreen` (Zeile), Texte (Englisch, Deutsch).
+  Upstream (Prüfer Pflicht): `InputAttributes.getImeOptions()`, `SettingsValues` (`mCorrectionForced`, zwei
+  Formeln, `capsInputType`), `InputLogic.getCurrentAutoCapsState` (eine Zeile). `RichInputConnection`,
+  `PointerTracker`, `LatinIME` unverändert. Fallstricke P254–P258.
+- Geprüft (Robolectric, echte `EditorInfo` und `SettingsValues`): ein einzeiliges Feld mit
+  `NO_SUGGESTIONS` ohne `CAP_*` in einer gelisteten App bekommt Vorschläge, Autokorrektur und Satzanfangs-Großschreibung,
+  dasselbe Feld in einer anderen App nicht; `mInputType` und `isSameInputType` unverändert; abgeschaltete eigene
+  Schalter gewinnen; jede ausgeschlossene Variation, die Aktion „Suchen“ und Nicht-Textklassen werden nicht erzwungen;
+  Passwortfeld in einer gelisteten App bleibt `Password`; Listenänderung gilt ab dem nächsten Feldstart, eine
+  geleerte Liste bleibt leer; über die Engine (`InputLogicTest`): erstes Zeichen und Satzanfang groß, der Tippfehler
+  wird beim Leerzeichen korrigiert, in einer anderen App nicht. Karte: Erzwungen wird gezeigt (Urteil, Ergebnis), der
+  Knopf schaltet die Einstellung und meldet „Gilt ab dem nächsten Feld.“, ein Feld ohne Lernen zeigt Merkmale und
+  Urteil, aber keine App und keinen Knopf, Passwort nur „Passwortfeld“, gesperrt nur „Gesperrt: nichts gemerkt“.
+  Einstellungen: Zeile „Korrektur in Apps erzwingen“ mit Liste und Entfernen.
+- Geänderte Erwartungen (Absicht): `LastFieldTest.aPasswordOrIncognitoFieldReplacesTheFieldBefore` (Feld ohne
+  Lernen war `Hidden(locked = false)`, ist jetzt ein `Field` ohne Paket), `DiagnoseScreenTest.incognitoAndALockedDeviceRememberNothing`
+  (geteilt in drei Tests), `FieldReportTest.incognitoAndLockedRememberNothing` (Inkognito-Urteil gibt es nicht mehr),
+  `aSnapshotHoldsNoTextOfTheField` (Hidden-Zeile durch Locked und die neuen Felder ersetzt; die Zeichenketten bleiben
+  `packageName` und `languageTag`). Keine Assertion abgeschwächt.
+- Gelaufen (2026-11-16, `--max-workers=1 -Xmx1536m`): `:agent-core:test` 599 Tests grün (neu
+  `ForcedCorrectionTest` 6, `FieldReportTest` +2); `*LastFieldTest` 16 und `*DiagnoseScreenTest` 19 grün;
+  `*InputLogicTest` 271 Tests, nur der geerbte Fehler `insertLetterIntoWordHangulFails`; `*Settings*` und `*Update*`
+  190 Tests grün (darunter `SettingsTypingAreaTest` mit der neuen Zeile); Lint `:app:lintDebugNoMinify` 0 neue
+  Fehler (284 Warnungen, 68 Fehler durch die Upstream-Baseline gefiltert); `docs_sync --check` grün. Keine volle
+  Suite, kein Build.
+- Nicht geprüft: die echten Flags des Instagram-Chatfelds, ob Instagram im Feld überhaupt Composing-Text und
+  Korrekturen annimmt, der Auswahldialog für Apps mit echtem Paketmanager (der Weg „Hinzufügen“ ist nur über
+  `ForcedApps.add` getestet), TalkBack, jeder Gerätetest.
 
 ## Gerätetest vor Meilensteinfreigabe
 

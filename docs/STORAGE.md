@@ -415,6 +415,12 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
     höchstens 20 Gruppen mit je höchstens 30 Apps.
   Nur Paketnamen, Namen und Sprachen, kein getippter Text. Ungültige Paketnamen werden beim
   Schreiben abgelehnt und beim Lesen übergangen.
+- Etappe 61: `agent_forced_correction_apps` (Stringmenge von Paketnamen) in den normalen
+  Tastatur-Einstellungen (gerätegeschützt, wie `SettingsValues` sie liest; kein Backup, kein Export).
+  Fehlt der Schlüssel, gilt `com.instagram.android`; eine leere Menge bleibt leer (der Owner hat die
+  Voreinstellung entfernt). Höchstens 50 gültige Paketnamen; nur Namen von Apps, kein Text. Geschrieben
+  nur auf einen Tipp (Karte „Letztes Feld“, Einstellungen → Tippen & Korrektur), gelesen beim Start
+  jedes Felds (`SettingsValues`).
 - Andere Speicher, die die Befehle ändern: HeliBoards Sprache pro App `saved_app_subtype_<paket>`
   (Tastatur-Einstellungen; ein Sprachbefehl entfernt den Eintrag seiner App, die Rücknahme stellt
   ihn wieder her), die ausgeschlossenen Apps des Gedächtnisses (`excluded_apps` in

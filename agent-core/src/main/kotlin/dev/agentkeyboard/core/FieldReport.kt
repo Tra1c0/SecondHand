@@ -8,8 +8,9 @@ package dev.agentkeyboard.core
  *
  * A snapshot never holds text of the field, its hint, its name or its label: only the app's package
  * name, the raw `inputType` and `imeOptions` numbers, the subtype's language tag, booleans and when it
- * was taken. A password field keeps nothing but [Snapshot.Password]; a field typed in incognito or
- * while the device was locked keeps nothing but [Snapshot.Hidden].
+ * was taken. A password field keeps nothing but [Snapshot.Password]; a field seen while the device was
+ * locked keeps nothing but [Snapshot.Locked]. A field that asks for no learning (the app's flag, or the
+ * owner's incognito) keeps its type, flags and verdict but neither package nor app name (stage 61).
  */
 object FieldReport {
     // android.text.InputType and EditorInfo values (stable platform API), so the core stays free of Android
@@ -126,8 +127,8 @@ object FieldReport {
     sealed interface Snapshot {
         /** A password field: nothing else is kept. */
         object Password : Snapshot
-        /** Incognito (setting or a field that forbids learning) or a locked device: nothing is kept. */
-        data class Hidden(val locked: Boolean) : Snapshot
+        /** A locked device: nothing is kept. */
+        object Locked : Snapshot
 
         /**
          * A normal field. Defaults are a multi-line text field with everything on, for tests.
@@ -175,9 +176,22 @@ object FieldReport {
             val learningPaused: Boolean = false,
             /** The language of the subtype the engine used (`SettingsValues.mLocale`). */
             val languageTag: String = "de",
+            /** The field asks for no learning (`IME_FLAG_NO_PERSONALIZED_LEARNING`, the keyboard's own no-learning fields): no package is kept. */
+            val noLearning: Boolean = false,
+            /** The owner's own incognito setting: no package is kept. */
+            val incognito: Boolean = false,
+            /** Stage 61: `SettingsValues.mCorrectionForced`, the field is treated like a normal message field. */
+            val forced: Boolean = false,
+            /** Stage 61: the app is on the list of forced apps (also when this field does not qualify). False without a package. */
+            val appForced: Boolean = false,
         ) : Snapshot {
             val type: FieldType get() = fieldType(inputType, imeOptions)
+            /** What the app asked for with its `CAP_*` flags. */
             val caps: Caps get() = caps(inputType)
+            /** What the keyboard uses: the app's wish, or sentences in a forced field without any `CAP_*` flag. */
+            val capsUsed: Caps get() = caps(ForcedCorrection.capsInputType(inputType, forced))
+            /** The learning of this field is off: the app's flag or the incognito setting. */
+            val learningOff: Boolean get() = noLearning || incognito
             val flags: List<Flag> get() = flags(inputType, imeOptions)
             /** HeliBoard changed the app's `inputType` (`AppWorkarounds`: Firefox and its forks). */
             val workaround: Boolean get() = rawInputType != inputType
@@ -234,7 +248,7 @@ object FieldReport {
     }
 
     enum class Finding {
-        PASSWORD, LOCKED, INCOGNITO,
+        PASSWORD, LOCKED,
         NO_TEXT_FIELD, NOT_TEXT,
         STRIP_HIDDEN, SUGGESTIONS_SETTING_OFF, WORKAROUND_NO_SUGGESTIONS, APP_NO_SUGGESTIONS, APP_NO_SUGGESTIONS_WEB,
         NO_DICTIONARY, DICTIONARY_NOT_LOADED,
@@ -245,8 +259,23 @@ object FieldReport {
         ALL_ON,
     }
 
-    /** The first reason, and the language tag for the findings that name the language. */
-    data class Verdict(val finding: Finding, val languageTag: String? = null)
+    /** What the forcing of stage 61 changed in a field, as far as it really took effect. */
+    enum class Forced { SUGGESTIONS, AUTOCORRECT, CAPS }
+
+    /** Whether the field itself asks for no learning, or the owner's incognito does (stage 61). */
+    enum class Learning { ON, FIELD_ASKS_NONE, INCOGNITO }
+
+    /**
+     * The first reason, and the language tag for the findings that name the language. [forced]: what the
+     * forcing for this app switched on although the app did not ask for it; [learning]: why nothing is learned
+     * here, which the card says next to the reason.
+     */
+    data class Verdict(
+        val finding: Finding,
+        val languageTag: String? = null,
+        val forced: List<Forced> = emptyList(),
+        val learning: Learning = Learning.ON,
+    )
 
     /** What really runs in the field, after every switch of the app and of the keyboard. */
     data class Effective(val suggestions: Boolean, val autoCorrect: Boolean, val caps: Boolean, val stripCovered: Boolean)
@@ -256,7 +285,7 @@ object FieldReport {
         return Effective(
             suggestions = field.suggestionsShown,
             autoCorrect = field.autoCorrectEnabled && field.lookups && live.dictionaryLoaded != false && !live.inCommand,
-            caps = text && field.autoCap && field.caps != Caps.NONE,
+            caps = text && field.autoCap && field.capsUsed != Caps.NONE,
             stripCovered = field.suggestionsShown && live.stripCovered,
         )
     }
@@ -269,8 +298,20 @@ object FieldReport {
      */
     fun verdict(snapshot: Snapshot, live: Live = Live()): Verdict = when (snapshot) {
         Snapshot.Password -> Verdict(Finding.PASSWORD)
-        is Snapshot.Hidden -> Verdict(if (snapshot.locked) Finding.LOCKED else Finding.INCOGNITO)
-        is Snapshot.Field -> field(snapshot, live)
+        Snapshot.Locked -> Verdict(Finding.LOCKED)
+        is Snapshot.Field -> field(snapshot, live).copy(forced = forcedBy(snapshot), learning = when {
+            snapshot.noLearning -> Learning.FIELD_ASKS_NONE
+            snapshot.incognito -> Learning.INCOGNITO
+            else -> Learning.ON
+        })
+    }
+
+    /** What the forcing really switched on: only what the app did not ask for and the owner's switches allow. */
+    private fun forcedBy(f: Snapshot.Field): List<Forced> = buildList {
+        if (!f.forced) return@buildList
+        if (!f.appSuggestions && f.suggestionsSetting && !f.stripHidden && !f.alwaysShowSetting) add(Forced.SUGGESTIONS)
+        if (!f.appAutoCorrect && f.autoCorrectSetting && !f.moreAutoCorrect) add(Forced.AUTOCORRECT)
+        if (f.caps == Caps.NONE && f.autoCapSetting && f.autoCap) add(Forced.CAPS)
     }
 
     private fun field(f: Snapshot.Field, live: Live): Verdict {
@@ -296,7 +337,7 @@ object FieldReport {
         })
         if (!f.autoCapSetting) return Verdict(Finding.CAPS_SETTING_OFF)
         if (!f.autoCap) return Verdict(Finding.CAPS_SCRIPT, language)
-        if (f.caps == Caps.NONE) return Verdict(Finding.CAPS_APP)
+        if (f.capsUsed == Caps.NONE) return Verdict(Finding.CAPS_APP)
         if (live.inCommand) return Verdict(Finding.IN_COMMAND)
         return Verdict(when (live.strip) {
             null -> Finding.STRIP_NOT_CAPTURED

@@ -37,7 +37,11 @@ import java.util.Locale
 object Diagnose {
     class Row(val label: String, val value: String)
     enum class Part { LAST_FIELD, HAPTICS, SYMBOLS, LANGUAGE, EMOJI_MIX, LIGHTING, DEVICE }
-    class Section(val part: Part, val title: String, val rows: List<Row>)
+    /**
+     * [appPackage]/[appForced] (stage 61, only the card "Letztes Feld", only when the app is remembered): the
+     * package of the app and whether it is on the list of forced apps, for the button of the card.
+     */
+    class Section(val part: Part, val title: String, val rows: List<Row>, val appPackage: String? = null, val appForced: Boolean = false)
 
     // --- haptics (HapticChain) ---
 
@@ -174,9 +178,9 @@ object Diagnose {
                 Row(verdict, verdictText(context, FieldReport.verdict(snapshot))),
                 Row(label, context.getString(R.string.agent_diagnose_field_password)),
             ))
-            is FieldReport.Snapshot.Hidden -> Section(Part.LAST_FIELD, title, listOf(
+            FieldReport.Snapshot.Locked -> Section(Part.LAST_FIELD, title, listOf(
                 Row(verdict, verdictText(context, FieldReport.verdict(snapshot))),
-                Row(label, context.getString(R.string.agent_diagnose_field_hidden)),
+                Row(label, context.getString(R.string.agent_diagnose_field_locked)),
             ))
             is FieldReport.Snapshot.Field -> {
                 val locale = runCatching { Locale.forLanguageTag(snapshot.languageTag) }.getOrNull()
@@ -215,7 +219,16 @@ object Diagnose {
             add(Row(s(R.string.agent_diagnose_field_verdict), verdictText(context, FieldReport.verdict(field, live))))
             add(Row(s(R.string.agent_diagnose_field_result),
                 if (effective.stripCovered) context.getString(R.string.agent_diagnose_field_result_covered, result, stripNow) else result))
-            add(Row(s(R.string.agent_diagnose_field_app), field.packageName?.let { appName(context, it) } ?: s(R.string.agent_diagnose_field_unknown)))
+            // stage 61: a field without learning keeps neither package nor app name
+            add(Row(s(R.string.agent_diagnose_field_app), when {
+                field.learningOff -> s(R.string.agent_diagnose_field_app_not_kept)
+                else -> field.packageName?.let { appName(context, it) } ?: s(R.string.agent_diagnose_field_unknown)
+            }))
+            add(Row(s(R.string.agent_diagnose_field_forced), s(when {
+                field.forced -> R.string.agent_diagnose_field_forced_yes
+                field.appForced -> R.string.agent_diagnose_field_forced_listed
+                else -> R.string.agent_diagnose_field_forced_no
+            })))
             add(Row(s(R.string.agent_diagnose_field_when), ago(context, seconds)))
             add(Row(s(R.string.agent_diagnose_field_type), typeText(context, field.type)))
             add(Row(s(R.string.agent_diagnose_field_flags), flags))
@@ -248,7 +261,8 @@ object Diagnose {
             add(Row(s(R.string.agent_diagnose_field_in_command), yesNo(context, live.inCommand)))
             add(Row(s(R.string.agent_diagnose_field_not_captured), s(R.string.agent_diagnose_field_not_captured_value)))
         }
-        return Section(Part.LAST_FIELD, s(R.string.agent_diagnose_field_title), rows)
+        return Section(Part.LAST_FIELD, s(R.string.agent_diagnose_field_title), rows,
+            appPackage = field.packageName?.takeIf { !field.learningOff }, appForced = field.appForced)
     }
 
     private fun stripText(context: Context, strip: FieldReport.Strip?) = context.getString(when (strip) {
@@ -280,11 +294,28 @@ object Diagnose {
 
     /** The verdict as one sentence. */
     fun verdictText(context: Context, verdict: FieldReport.Verdict): String {
+        val parts = buildList {
+            add(findingText(context, verdict))
+            // stage 61: what the forcing of this app switched on, and why nothing is learned here
+            for (forced in verdict.forced) add(context.getString(when (forced) {
+                FieldReport.Forced.SUGGESTIONS -> R.string.agent_diagnose_verdict_forced_suggestions
+                FieldReport.Forced.AUTOCORRECT -> R.string.agent_diagnose_verdict_forced_autocorrect
+                FieldReport.Forced.CAPS -> R.string.agent_diagnose_verdict_forced_caps
+            }))
+            when (verdict.learning) {
+                FieldReport.Learning.FIELD_ASKS_NONE -> add(context.getString(R.string.agent_diagnose_verdict_learning_field))
+                FieldReport.Learning.INCOGNITO -> add(context.getString(R.string.agent_diagnose_verdict_learning_incognito))
+                FieldReport.Learning.ON -> {}
+            }
+        }
+        return parts.joinToString(" ")
+    }
+
+    private fun findingText(context: Context, verdict: FieldReport.Verdict): String {
         val language = verdict.languageTag?.let { displayLanguage(context, it) }.orEmpty()
         return when (verdict.finding) {
             FieldReport.Finding.PASSWORD -> context.getString(R.string.agent_diagnose_verdict_password)
             FieldReport.Finding.LOCKED -> context.getString(R.string.agent_diagnose_verdict_locked)
-            FieldReport.Finding.INCOGNITO -> context.getString(R.string.agent_diagnose_verdict_incognito)
             FieldReport.Finding.NO_TEXT_FIELD -> context.getString(R.string.agent_diagnose_verdict_no_text_field)
             FieldReport.Finding.NOT_TEXT -> context.getString(R.string.agent_diagnose_verdict_not_text)
             FieldReport.Finding.STRIP_HIDDEN -> context.getString(R.string.agent_diagnose_verdict_strip_hidden)
