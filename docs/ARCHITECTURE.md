@@ -65,14 +65,14 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   `K/settings/screens/`. Der Kern liegt in `dev.agentkeyboard.core` (`C/`).
 - Name (57, Owner 2026-11-16): Die App heißt „SecondHand“ (bis Build 27 „Agent Keyboard“, in jeder
   Variante ohne Zusatz „Lab“). Geändert hat sich nur, was der Nutzer liest: `english_ime_name`, die
-  Fork-Texte, die Rechtschreib- und IME-Namen (neue Schlüssel `agent_spell_checker_service_name`,
-  `agent_ime_settings`, `agent_android_spell_checker_settings` in `values{,-de}/agent_name_strings.xml`,
+  Fork-Texte, die Rechtschreib- und IME-Namen (neue Schlüssel `agent_spell_checker_service_name`
+  und `agent_android_spell_checker_settings` in `values{,-de}/agent_name_strings.xml`,
   P241), Workflow-Namen und Release-Titel, der `User-Agent` `SecondHand-Updater`, die Dateinamen der
   APK (zwei, P240) und das Logo (58, P243). Es bleiben: `applicationId` `dev.personal.agentkeyboard`,
   Pakete (`dev.agentkeyboard.core`, `helium314.keyboard.*`), Klassen (`AgentKeyboardFrame` …),
   Einstellungsschlüssel, Dateinamen und Ordner auf dem Gerät, AAD-Texte der Verschlüsselung
-  („AgentKeyboard/…“, sonst wären Daten unlesbar), Vorschlagsnamen beim Speichern
-  (`AgentKeyboard-…`), die Namen der beiden GitHub-Repositories, der Secrets und das
+  („AgentKeyboard/…“, sonst wären Daten unlesbar), die Dateiformate (Vorschlagsnamen
+  beim Speichern heißen seit der Nachprüfung 57 „SecondHand-…“, der Import prüft keinen Dateinamen), die Namen der beiden GitHub-Repositories, der Secrets und das
   Tag-Format `build-<N>`. Upstream-Texte mit „HeliBoard“ (Lizenzzeile „basiert auf HeliBoard“,
   Gestendaten, Firefox-Hinweise der Diagnose, Links) bleiben bewusst.
 - Einstiegspunkte: IME-Dienst `LatinIME.java`, Anwendung `App.kt`, Einstellungen
@@ -5003,11 +5003,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   sagen „HeliBoard“. Ein gleichnamiger Eintrag in einer Fork-Datei wäre ein doppelter Schlüssel.
   Darum eigene Schlüssel `agent_*` (`agent_name_strings.xml`), auf die `AndroidManifest.xml`,
   `res/xml/spellchecker.xml` und `SettingsActivity.kt` zeigen. Wer eine weitere Stelle findet, die
-  den Upstream-Schlüssel nutzt, stellt sie ebenfalls um. `ime_settings` wird nirgends gelesen.
+  den Upstream-Schlüssel nutzt, stellt sie ebenfalls um. `ime_settings` wird nirgends gelesen und hat darum keinen Fork-Ersatz.
 - **P242** Der Name, den der Owner sieht, kommt aus der Variante `debugNoMinify` (die ausgelieferte
   APK), nicht aus `app/src/main/res`: `app/src/debug{,NoMinify}/res/values/strings.xml`
-  überschreiben `english_ime_name` („SecondHand“), `agent_spell_checker_service_name` („SecondHand
-  Spell Checker“) und `agent_ime_settings` („SecondHand Settings“), unübersetzt, ohne „Lab“. Vor 57
+  überschreiben `english_ime_name` („SecondHand“, ohne „Lab“); die Fork-Namen der Rechtschreibprüfung
+  kommen aus `main` (`agent_name_strings.xml`). Vor 57
   überschrieben sie die Upstream-Schlüssel (`spell_checker_service_name`, `ime_settings`) mit „Agent
   Keyboard Lab …“; die Manifest-Einträge zeigen jetzt auf die `agent_*`-Schlüssel, ein alter
   Upstream-Schlüssel dort bringt keinen alten Namen zurück. Neue Namensschlüssel immer in `main`

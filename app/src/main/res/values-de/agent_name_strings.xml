@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="agent_spell_checker_service_name">SecondHand-Rechtschreibprüfung</string>
-    <string name="agent_ime_settings">SecondHand-Einstellungen</string>
     <string name="agent_android_spell_checker_settings">SecondHand-Rechtschreibprüfungs-Einstellungen</string>
 </resources>

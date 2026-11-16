@@ -354,7 +354,7 @@ class RgbPatternEditorTest {
         click("agent_rgb_own_edit")
         click("agent_rgb_pattern_export")
         waitUntil("the file") { written.size() > 0 }
-        assertEquals("AgentKeyboard-Lichtmuster-Funken.json", asked.last())
+        assertEquals("SecondHand-Lichtmuster-Funken.json", asked.last())
         val text = written.toString("UTF-8")
         assertEquals(sparkle.copy(id = ""), (RgbPatternJson.decode(text) as RgbPatternRead.Ok).pattern)
         assertFalse("\"id\"" in text)
@@ -545,8 +545,8 @@ class RgbPatternEditorTest {
     }
 
     @Test fun nameAndFileNameAreSafe() {
-        assertEquals("AgentKeyboard-Lichtmuster-Polar_licht_.json", helium314.keyboard.settings.screens.fileName("Polar/licht!"))
-        assertEquals("AgentKeyboard-Lichtmuster-Muster.json", helium314.keyboard.settings.screens.fileName("   "))
+        assertEquals("SecondHand-Lichtmuster-Polar_licht_.json", helium314.keyboard.settings.screens.fileName("Polar/licht!"))
+        assertEquals("SecondHand-Lichtmuster-Muster.json", helium314.keyboard.settings.screens.fileName("   "))
         val added = assertNotNull(RgbOwnPatterns.add(app, sparkle))
         assertNull(library.rename(added.id, "a\nb"))
         assertTrue(RgbOwnPatterns.write(app, library.rename(added.id, "Neu")!!))

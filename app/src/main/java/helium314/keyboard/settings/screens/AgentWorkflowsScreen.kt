@@ -131,7 +131,7 @@ private fun AgentWorkflowsUnlockedScreen(onClickBack: () -> Unit) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(enabled = !displayedBusy && displayedConfiguration != null, onClick = {
                     exportContent = WorkflowStore.encode(displayedConfiguration!!.definitions)
-                    saveFile.launch("AgentKeyboard-workflows.json")
+                    saveFile.launch("SecondHand-workflows.json")
                 }) { Text(stringResource(R.string.agent_file_export)) }
                 TextButton(enabled = !displayedBusy && displayedConfiguration != null, onClick = {
                     importGeneration = displayedConfiguration!!.generation

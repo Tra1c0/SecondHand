@@ -43,7 +43,7 @@ class ForkIdentityTest {
     @Test fun systemVisibleNamesSaySecondHandNotHeliBoard() {
         // the fork strings the manifest and the spell checker XML point to (debug variants override them, still "SecondHand ...")
         for (id in listOf(R.string.english_ime_name, R.string.agent_spell_checker_service_name,
-            R.string.agent_ime_settings, R.string.agent_android_spell_checker_settings)) {
+            R.string.agent_android_spell_checker_settings)) {
             val text = app.getString(id)
             assertTrue(text, text.startsWith("SecondHand"))
             assertFalse(text, text.contains("HeliBoard") || text.contains("Agent Keyboard") || text.contains("Lab"))

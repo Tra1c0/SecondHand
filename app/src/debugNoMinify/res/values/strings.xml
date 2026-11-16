@@ -4,6 +4,4 @@
 -->
 <resources>
     <string name="english_ime_name" translatable="false">SecondHand</string>
-    <string name="agent_spell_checker_service_name" translatable="false">SecondHand Spell Checker</string>
-    <string name="agent_ime_settings" translatable="false">SecondHand Settings</string>
 </resources>

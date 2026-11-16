@@ -164,7 +164,7 @@ class SettingsSystemAreaTest {
             "Profile exportieren", "Design, Tasten, Gesten einzeln", "Für Fortgeschrittene", "Emoji-Version",
             "Welche Emojis angeboten werden", "URL-Erkennung", "Adressen als ein Wort", "Hardware-Tastatur",
             "Unterstützung für externe Tastaturen", "Gesten-Bibliothek laden", "Für Gestenschreiben", "Debug-Einstellungen",
-            "Freigeschaltet", "Alle erweiterten Einstellungen", "Über", app.getString(R.string.english_ime_name) /* "SecondHand", in debug builds with a suffix */,
+            "Freigeschaltet", "Alle erweiterten Einstellungen", "Über", app.getString(R.string.english_ime_name) /* "SecondHand" */,
             "Version ${BuildConfig.VERSION_NAME} · Build ${BuildConfig.VERSION_CODE}", "Lizenz", "GNU GPL v3.0 · basiert auf HeliBoard",
             "Versteckte Funktionen", "Was man leicht übersieht", "Protokoll speichern", "Für Fehlermeldungen", "Alle Infos und Links")
             .forEach { assertTrue(exists(it), "missing text: $it") }
