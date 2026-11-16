@@ -2414,6 +2414,75 @@ class InputLogicTest {
             assertEquals(emptyList(), foreignWords(withCandidates = true))
         }
 
+    // ---- fork, stage 60: the language of the sentence so far ----
+
+    private val wordsDeEn get() = mapOf(
+        "de" to WordLists.of("Hand", "Name", "Bank", "Job", "für", "dich", "gib", "mir", "deine", "mein", "neuer", "das", "ist", "in", "Team"),
+        "en" to WordLists.of("hand", "name", "bank", "job", "fur", "what", "is", "your", "went", "to", "the", "cat", "has", "soft",
+            "my", "new", "in", "team", "i"),
+    )
+
+    /** [word] typed and committed with a space; the strip is computed with the previous words of the sentence. */
+    private fun typeSentenceWord(word: String) {
+        chainInput(word)
+        updateSuggestions(real = true)
+        input(' ')
+    }
+
+    /** German with English as second language: [sentence] typed word by word, the text that came out. */
+    private fun germanEnglishSentence(sentence: String, lists: Map<String, Map<String, Int>> = wordsDeEn): String {
+        var result = ""
+        withLanguages(lists, withSecondary(germanSubtype, "en")) {
+            assertEquals(listOf("de", "en"), groupLanguages())
+            sentence.split(' ').forEach { typeSentenceWord(it) }
+            result = text
+        }
+        return result
+    }
+
+    // owner report 2026-11-16: "Englisch wird ins Deutsche übersetzt, auch wenn der Satz komplett in Englisch ist."
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 60 English words stay in an English sentence`() {
+        assertEquals("what is your name ", germanEnglishSentence("what is your name")) // before: "Name"
+        assertEquals("i went to the bank ", germanEnglishSentence("i went to the bank")) // before: "Bank"
+        assertEquals("my new job ", germanEnglishSentence("my new job")) // before: "Job"
+        assertEquals("the cat has soft hand ", germanEnglishSentence("the cat has soft hand")) // before: "Hand"
+    }
+
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 60 German sentences and the first word keep the old rule`() {
+        assertEquals("gib mir deine Hand ", germanEnglishSentence("gib mir deine hand"))
+        assertEquals("mein neuer Job ", germanEnglishSentence("mein neuer job"))
+        assertEquals("das ist mein Name ", germanEnglishSentence("das ist mein name"))
+        assertEquals("Hand ", germanEnglishSentence("hand")) // empty field
+    }
+
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 60 neutral words, mixed sentences and a new sentence use the old rule`() {
+        assertEquals("in Team ", germanEnglishSentence("in team")) // "in" is known to both: the old rule
+        assertEquals("in Bank ", germanEnglishSentence("in bank")) // neutral word before
+        assertEquals("what ist mein Name ", germanEnglishSentence("what ist mein name")) // English-only and German-only words
+    }
+
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 60 works with Spanish as second language`() {
+        val lists = mapOf("de" to WordLists.of("danke", "Mesa", "Haus", "sehr", "gut"),
+            "es" to WordLists.of("mesa", "gracias", "mucho", "casa"))
+        fun sentence(sentence: String): String {
+            var result = ""
+            withLanguages(lists, withSecondary(germanSubtype, "es")) {
+                assertEquals(listOf("de", "es"), groupLanguages())
+                sentence.split(' ').forEach { typeSentenceWord(it) }
+                result = text
+            }
+            return result
+        }
+        assertEquals("gracias mesa ", sentence("gracias mesa")) // before: "Mesa"
+        assertEquals("mucho gracias mesa ", sentence("mucho gracias mesa"))
+        assertEquals("danke Mesa ", sentence("danke mesa")) // German word before: the old rule
+        assertEquals("Mesa ", sentence("mesa")) // no evidence
+    }
+
     @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
     fun `stage 51 blocked fields and the switches learn no words of other languages`() = withLanguages(wordsDeEs, germanSubtype, spanishSubtype) {
         fun keptTwice() {
@@ -5992,13 +6061,15 @@ class InputLogicTest {
         reloadSettings()
     }
     /** As the delayed strip update would: the real Suggest for the word being typed, synchronously. */
-    private fun updateSuggestions() {
+    /** [real]: with the previous words of the sentence from the editor, as the input logic asks for them while composing. */
+    private fun updateSuggestions(real: Boolean = false) {
         handleMessages()
         val params = helium314.keyboard.keyboard.internal.KeyboardParams().apply {
             GRID_HEIGHT = 1; GRID_WIDTH = 1
             mId = helium314.keyboard.keyboard.KeyboardLayoutSet.getFakeKeyboardId(helium314.keyboard.keyboard.KeyboardElement.ALPHABET)
         }
-        val words = inputLogic.mSuggest.getSuggestedWords(composer.copy(), NgramContext.EMPTY_PREV_WORDS_INFO,
+        val words = inputLogic.mSuggest.getSuggestedWords(composer.copy(),
+            if (real) inputLogic.getNgramContextFromNthPreviousWordForSuggestion(settingsValues.mSpacingAndPunctuations, 2) else NgramContext.EMPTY_PREV_WORDS_INFO,
             helium314.keyboard.keyboard.Keyboard(params), settingsValues.mSettingsValuesForSuggestion,
             settingsValues.mAutoCorrectEnabled, SuggestedWords.INPUT_STYLE_TYPING, SuggestedWords.NOT_A_SEQUENCE_NUMBER)
         latinIME.setSuggestions(words)

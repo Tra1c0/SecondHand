@@ -11,3 +11,10 @@ Nur mit Tests geprüft, noch auf keinem Gerät ausprobiert.
   Laden und Installieren weiter nur nach deinem Tipp. Ausschalten auf derselben Seite.
 - Diagnose → „Letztes Feld“ (seit Build 25): Fehlen Vorschläge, Großschreibung oder Autokorrektur,
   bitte direkt danach einen Screenshot der ersten Karte schicken.
+
+## Nächster Build
+
+- Englische Sätze auf der deutschen Tastatur (mit Englisch oder Spanisch als zweiter Sprache) bleiben
+  englisch: „what is your name“, „I went to the bank“, „my new job“ werden nicht mehr zu „Name“, „Bank“,
+  „Job“. Die Tastatur schaut auf die bis zu drei Wörter davor im selben Satz; das erste Wort eines
+  Satzes hat noch keinen Beweis und wird wie bisher korrigiert („hand“ → „Hand“). Nur mit Tests geprüft.

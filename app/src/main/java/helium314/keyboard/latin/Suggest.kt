@@ -10,6 +10,7 @@ import helium314.keyboard.agent.EmojiSuggestions
 import helium314.keyboard.agent.ForeignWords
 import helium314.keyboard.agent.RejectedCorrections
 import helium314.keyboard.agent.TypoMemory
+import dev.agentkeyboard.core.SentenceLanguage
 import android.text.TextUtils
 import com.android.inputmethod.latin.utils.BinaryDictionaryUtils
 import helium314.keyboard.keyboard.Keyboard
@@ -116,7 +117,7 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         )
         // fork, stage 20a: protect known words and corrections the user undid before
         val guardedAutoCorrection = rawHasAutoCorrection && guardAllows(typedWordString, suggestionsContainer.firstOrNull(),
-            typedWordFirstOccurrenceWordInfo, suggestionResults)
+            typedWordFirstOccurrenceWordInfo, suggestionResults, ngramContext)
         // fork, stage 20b: a typo the user corrected by hand three times is corrected automatically
         val hasAutoCorrection = applyLearnedCorrection(typedWordString, capsMode, ngramContext, suggestionResults,
             suggestionsContainer, isCorrectionEnabled, wordComposer) || guardedAutoCorrection
@@ -284,10 +285,12 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
      * the dictionary itself demands it (whitelist, "i" -> "I"). Another active language does not count
      * (English "hand" must not keep German "Hand" from being set). Stage 51: a word of another language
      * counts once the owner kept it ([ForeignWords]: undone correction, or written twice at other places);
-     * until then English "fur" still becomes German "für".
+     * until then English "fur" still becomes German "für". Stage 60: a typed word of another active language
+     * also stays when the sentence so far is of that language ([sentenceIsOfOtherLanguage]: English "name"
+     * in an English sentence), the old rule applies without such evidence.
      */
     private fun guardAllows(typed: String, first: SuggestedWordInfo?, typedInfo: SuggestedWordInfo?,
-                            results: Collection<SuggestedWordInfo>): Boolean {
+                            results: Collection<SuggestedWordInfo>, ngramContext: NgramContext): Boolean {
         val correction = first?.mWord ?: return true
         val typedIsDictionaryWord = typedInfo != null && typedInfo.mSourceDict.mDictType == Dictionary.TYPE_MAIN
             && typedInfo.mSourceDict.mLocale == first.mSourceDict.mLocale
@@ -302,9 +305,39 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
             && results.any { it.mWord == typed && it.mSourceDict.mLocale == first.mSourceDict.mLocale
                 && (it.mSourceDict.mDictType == Dictionary.TYPE_MAIN || it.mSourceDict.mDictType == Dictionary.TYPE_USER_HISTORY) })
             return false
-        return CorrectionGuard.allowsAutoCorrection(typed, correction, typedIsDictionaryWord,
+        val allowed = CorrectionGuard.allowsAutoCorrection(typed, correction, typedIsDictionaryWord,
             settings.mKeepValidWords, settings.mKeepUmlautVariants
         ) { t, c -> settings.mRememberRejectedCorrections && context != null && RejectedCorrections.contains(context, t, c) }
+        // stage 60: asked last, only when the correction would be applied
+        val typedLocale = typedInfo?.mSourceDict?.mLocale
+        val correctionLocale = first.mSourceDict.mLocale
+        if (!allowed) return false
+        return !(typedInfo?.mSourceDict?.mDictType == Dictionary.TYPE_MAIN && typedLocale != null
+            && correctionLocale != null && typedLocale != correctionLocale
+            && sentenceIsOfOtherLanguage(ngramContext, correctionLocale))
+    }
+
+    /**
+     * Fork, stage 60: whether the previous words of this sentence (at most three, up to the beginning of
+     * the sentence, from [ngramContext]) show that it is not written in the language of the correction
+     * ([correctionLocale]): at least one is known only to another active language, none only to the
+     * correction's language (main dictionaries, [SentenceLanguage]). Runs on the suggestion thread, reads
+     * only, and only when a cross-language correction is about to be applied.
+     */
+    private fun sentenceIsOfOtherLanguage(ngramContext: NgramContext, correctionLocale: Locale): Boolean {
+        val facilitator = mDictionaryFacilitator as? DictionaryFacilitatorImpl ?: return false
+        var onlyL2 = 0
+        for (n in 1..min(SentenceLanguage.MAX_PREVIOUS_WORDS, ngramContext.prevWordCount)) {
+            if (ngramContext.isNthPrevWordBeginningOfSentence(n)) break
+            val word = ngramContext.getNthPrevWord(n)?.toString()?.takeIf { it.isNotEmpty() } ?: break
+            val known = facilitator.mainLocalesKnowing(word)
+            when (SentenceLanguage.evidenceOf(known.any { it == correctionLocale }, known.any { it != correctionLocale })) {
+                SentenceLanguage.Evidence.ONLY_L1 -> return false // one word of the correction's language: the old rule
+                SentenceLanguage.Evidence.ONLY_L2 -> onlyL2++
+                SentenceLanguage.Evidence.NEUTRAL -> {}
+            }
+        }
+        return SentenceLanguage.blocksCorrection(0, onlyL2) // a word of L1 has returned above
     }
 
     // returns [allowsToBeAutoCorrected, hasAutoCorrection]
