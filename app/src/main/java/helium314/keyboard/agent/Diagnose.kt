@@ -558,6 +558,10 @@ object Diagnose {
 
     fun device(context: Context): Section = Section(Part.DEVICE, context.getString(R.string.agent_diagnose_device), listOf(
         Row(context.getString(R.string.agent_diagnose_app), "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}, ${BuildConfig.BUILD_TYPE})"),
+        // stage 62: the state a screenshot has to prove (debuggable apps run slower, debug mode logs words)
+        Row(context.getString(R.string.agent_diagnose_debuggable),
+            yesNo(context, context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0)),
+        Row(context.getString(R.string.agent_diagnose_debug_mode), yesNo(context, helium314.keyboard.latin.define.DebugFlags.DEBUG_ENABLED)),
         Row(context.getString(R.string.agent_diagnose_android), "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})"),
         Row(context.getString(R.string.agent_diagnose_model), "${Build.MANUFACTURER} ${Build.MODEL}"),
     ))

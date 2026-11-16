@@ -1,5 +1,5 @@
 # Runs the project's checks on GitHub in parallel to the lead's local work: the agent suite with the
-# core tests, the full upstream suite and lint, each in its own job. The upstream suite always has
+# core tests, the full upstream suite, lint and the build of the shipped APK, each in its own job. The upstream suite always has
 # known failures (docs/HANDOFF.md -> Offene Punkte 4); the summary step fails the job only on
 # failures outside that baseline. No secrets are used.
 name: SecondHand Tests
@@ -14,9 +14,14 @@ on:
       - 'tools/**'
       - '*.gradle*'
       - 'gradle/**'
+      - 'gradle.properties'
+      - 'upstream.lock'
       # embedded into the APK as the update notes and read by the unit tests (stage 54)
       - 'release-notes/**'
       - '.github/workflows/agent-tests.yml'
+      # agent-apk.yml only publishes after a green run of this workflow for the last commit that changed
+      # one of these paths (stage 63): its own path must be in the list
+      - '.github/workflows/agent-apk.yml'
 
 concurrency:
   group: agent-tests-${{ github.ref }}
@@ -32,7 +37,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        check: [ agent, upstream, lint ]
+        check: [ agent, upstream, lint, build ]
     steps:
       - uses: actions/checkout@v4
 
@@ -67,18 +72,29 @@ jobs:
             agent) python3 tools/dev.py core-tests && python3 tools/dev.py agent-tests ;;
             upstream) python3 tools/dev.py upstream-tests || true ;;  # judged by the summary below
             lint) python3 tools/dev.py lint ;;
+            build) python3 tools/dev.py build ;;  # the shipped variant, so packaging errors show before a release
           esac
 
       - name: Summary of test results
-        if: ${{ always() && matrix.check != 'lint' }}
+        if: ${{ always() && matrix.check != 'lint' && matrix.check != 'build' }}
         run: |
           python3 - <<'EOF'
           import glob, os, sys, xml.etree.ElementTree as ET
-          # The inherited baseline, plus the external link tests that depend on foreign servers.
+          # The five inherited failures (docs/HANDOFF.md -> Offene Punkte 4), by exact name. The two link
+          # tests that fail only behind the cloud sandbox's network filter (layoutsLinksInternal,
+          # otherLinks) are not on it: on GitHub they must pass.
           known = {
               "InputLogicTest.insertLetterIntoWordHangulFails",
               "StringUtilsTest.detectEmojisAtEndFails",
+              "XLinkTest.layoutsLinks",
+              "XLinkTest.readmeLinks",
+              "XLinkTest.knownDictionaries",
           }
+          # A crashed test class leaves no XML file, so a job that ran far too few tests fails. Raise these
+          # when tests were added: take the "Tests:" number of a green run and set about 90 % of it.
+          # (First values from counting @Test in the sources, not from a run: agent-core 595 plus
+          # app/src/test/.../agent 1033 for "agent"; app/src/test 1439 for "upstream".)
+          minimum = {"agent": 1500, "upstream": 1300}["${{ matrix.check }}"]
           total, failed = 0, []
           for path in glob.glob("*/build/test-results/**/*.xml", recursive=True):
               root = ET.parse(path).getroot()
@@ -87,14 +103,17 @@ jobs:
               for case in root.iter("testcase"):
                   if case.find("failure") is not None or case.find("error") is not None:
                       failed.append(f"{cls}.{case.get('name')}")
-          new = [f for f in failed if f not in known and not f.startswith("XLinkTest.")]
-          lines = [f"Tests: {total}, failed: {len(failed)}, new (outside baseline): {len(new)}", ""]
+          new = [f for f in failed if f not in known]
+          too_few = total < minimum
+          lines = [f"Tests: {total} (minimum {minimum}), failed: {len(failed)}, new (outside baseline): {len(new)}", ""]
+          if too_few:
+              lines += [f"TOO FEW TESTS: {total} < {minimum}, a test class probably crashed before it reported.", ""]
           lines += [f"- {'NEW ' if f in new else 'known '}{f}" for f in sorted(failed)]
           text = "\n".join(lines)
           print(text)
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as out:
               out.write("## ${{ matrix.check }}\n\n" + text + "\n")
-          sys.exit(1 if new or total == 0 else 0)
+          sys.exit(1 if new or too_few else 0)
           EOF
 
       - name: Test reports

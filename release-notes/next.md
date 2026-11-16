@@ -31,3 +31,5 @@ Nur mit Tests geprüft, noch auf keinem Gerät ausprobiert.
   (bis 150 Sekunden, „Abbrechen“ bleibt), eine abgeschnittene Antwort wird nie eingefügt, sondern
   gemeldet. Die KI-Aktionen antworten in der Sprache deines Textes. Nur mit Tests geprüft, noch auf
   keinem Gerät und mit keiner echten Anfrage.
+- Die App läuft jetzt ohne Debug-Modus: Sie ist nicht mehr als „debuggable“ gebaut, und der Debug-Modus ist aus. Das soll Tippen und Einstellungen schneller machen; gemessen habe ich es noch nicht. Ein früher gespeicherter „Debug-Modus an“ wird einmal zurückgesetzt, die Debug-Einstellungen findest du nach fünf Tipps auf die Version unter Über. Diagnose → App und Telefon zeigt jetzt „Debugfähige App“ und „Debug-Modus“, bitte bei weiteren Rucklern einen Screenshot schicken.
+- Das Veröffentlichen eines Builds prüft sich jetzt selbst (Signatur, Schlüssel, Versionsnummer, grüne Tests, Auffindbarkeit für die Update-Prüfung); für dich ändert sich nichts.

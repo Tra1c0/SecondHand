@@ -28,7 +28,11 @@ android {
         minSdk = 21
         targetSdk = 37
         // counted up by the workflow, so that Android accepts each build as an update
-        versionCode = System.getenv("AGENT_VERSION_CODE")?.toIntOrNull() ?: 1
+        // Stage 63: with the owner's key a missing or invalid number must fail, not fall back to 1
+        // (a build with version code 1 would be refused as an update by every installed phone).
+        versionCode = System.getenv("AGENT_VERSION_CODE")?.toIntOrNull()?.takeIf { it > 0 }
+            ?: if (ownerKeystore != null) throw GradleException("AGENT_VERSION_CODE must be a positive number when AGENT_KEYSTORE_FILE is set (the workflow passes github.run_number)")
+            else 1
         versionName = "0.1.0"
         ndk {
             abiFilters.clear()
@@ -61,8 +65,13 @@ android {
             isMinifyEnabled = false
             isJniDebuggable = false
         }
-        create("debugNoMinify") { // for faster builds in IDE
-            isDebuggable = true
+        create("debugNoMinify") { // the variant the owner installs (agent-apk.yml) and the IDE default
+            // Stage 62: not debuggable. A debuggable app runs without the runtime's optimisations and
+            // BuildConfig.DEBUG switches on debug mode (logs every committed word, throws on anomalies
+            // a normal build tolerates). Everything else stays as it was, because the installed app and
+            // its data depend on it: the variant name, the application id suffix ".debug", the signing
+            // and the source set app/src/debugNoMinify. No R8 here (isMinifyEnabled stays false).
+            isDebuggable = false
             isMinifyEnabled = false
             isJniDebuggable = false
             signingConfig = signingConfigs.getByName(if (ownerKeystore != null) "owner" else "debug")
@@ -127,6 +136,10 @@ android {
     namespace = "helium314.keyboard.latin"
     lint {
         abortOnError = true
+        // Stage 62: the shipped variant is no longer debuggable, so assemble would run lintVital on it
+        // (about a minute more, and a second lint verdict on every build). The full lint
+        // (lintDebugNoMinify, python3 tools/dev.py lint) is its own check in agent-tests.yml.
+        checkReleaseBuilds = false
         // Only unchanged upstream translation gaps; new code remains checked.
         baseline = file("lint-baseline-upstream.xml")
     }

@@ -5558,6 +5558,52 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   Chip-Verhalten bei vielen Zeilen), ob die Sprachregel das Problem „Englisch kommt deutsch zurück“ löst.
 - Engine-nahe Änderung (Prüfer Pflicht): in `LatinIME.tryShowCommandChips` das Argument der Leselänge.
 
+## Etappe 62 (ausgelieferte Variante ohne Debug-Modus)
+
+- Auftrag: Prüfung des Leads vom 2026-11-16 und Bericht des Owners („stellenweise Performance-
+  Probleme“). Nichts wurde auf einem Gerät gemessen.
+- Befund: Die Variante `debugNoMinify` war `isDebuggable = true`; `BuildConfig.DEBUG` schaltete
+  `Defaults.PREF_DEBUG_MODE` ein (Wörter im Logcat, vier Ausnahmen bei Auffälligkeiten) und setzte
+  `GET_SUGGESTED_WORDS_TIMEOUT` auf 500 ms. Alle Stellen mit `BuildConfig.DEBUG`: `Constants`,
+  `Defaults`, `App`, `SettingsActivity` (Absturzberichte), `AgentAreaSystemScreen`, `AboutScreen`,
+  `AdvancedScreen`, `DebugScreen`; Beschreibung in `docs/ARCHITECTURE.md` → P259. Keine musste
+  geändert werden: jede Stelle liest `BuildConfig.DEBUG` oder die gespeicherten Schalter, und die Debug-
+  Einstellungen bleiben über fünf Tipps erreichbar.
+- Geändert: `isDebuggable = false` für `debugNoMinify` (Kommentar nennt, was bleibt), `A/DebugModeReset.kt`
+  (einmaliger Rückschritt, Aufruf in `AppUpgrade`), zwei Diagnose-Zeilen und deren Texte.
+- Tests: `ForkUpgradeTest` neu: gespeichertes „an“ wird beim Update einmal „aus“ und bleibt danach an,
+  wenn der Owner es wieder einschaltet; „aus“ und nicht gesetzt bleiben; eine frische Installation
+  zählt als erledigt. `DiagnoseScreenTest.theAppRowsProveWhetherTheAppIsDebuggableAndDebugModeIsOn`
+  (beide Zustände, Seite und kopierter Text).
+- Ergebnis: `:agent-core:test` 595 grün (vor Etappe 63); `*ForkUpgrade*` 7 grün (drei neu),
+  `*DiagnoseScreenTest` 16 grün (einer neu), Lint (`python3 tools/dev.py lint`) grün. Lokaler Build
+  (`python3 tools/dev.py build`, 11 Minuten) bestanden; `aapt2 dump badging` der APK: Paket
+  `dev.personal.agentkeyboard.debug`, Versionscode 1 (lokal ohne `AGENT_VERSION_CODE`), Version 0.1.0,
+  keine Zeile `application-debuggable`. Die lokale APK trägt den Debug-Schlüssel (nur zum Prüfen).
+- Nebenwirkung gefunden und behoben: Eine nicht debuggable Variante lässt `assemble` die Aufgaben
+  `lintVital…` laufen (eine Minute mehr, zweites Lint-Urteil bei jedem Build; sie fanden nichts).
+  `lint { checkReleaseBuilds = false }` schaltet sie ab (`--dry-run` zeigt keine `lintVital`-Aufgabe mehr);
+  das volle Lint läuft weiter über `lintDebugNoMinify`.
+- Nicht geprüft: Geschwindigkeit auf einem Gerät, die Diagnose-Zeilen auf dem Gerät, ein echtes Update
+  mit gespeichertem Debug-Modus.
+
+## Etappe 63 (Release scheitert laut)
+
+- Auftrag: Prüfung des Leads vom 2026-11-16.
+- Geändert: `agent-apk.yml` (Prüfschritt, Tor für Tests, Pflicht-Token, Zurücklesen, erneuter Lauf,
+  `-Xmx3g`), `agent-tests.yml` (Pfade, Job `build`, exakte Baseline, Mindestzahlen),
+  `build-test-auto.yml` (nur von Hand), `app/build.gradle.kts` (Besitzer-Schlüssel ohne gültige
+  `AGENT_VERSION_CODE` bricht ab).
+- Test: `WorkflowContractTest` (agent-core) liest `agent-apk.yml` als Text: Tag und Namen gegen
+  `UpdateReleases`, Repository, Zertifikat gegen `docs/BUILD.md`, kein `|| true` an `apksigner`, kein
+  stiller Abbruch ohne Token.
+- Ergebnis: `:agent-core:test` 601 grün (595 bisherige, sechs neue in `WorkflowContractTest`); Lint
+  (`python3 tools/dev.py lint`) grün (277 Warnungen, 5 Hinweise, 68 durch die Baseline gefiltert).
+- Geprüft: YAML aller drei geänderten Workflows geparst, die Shell-Blöcke einzeln mit `bash -n`
+  gelesen, die Pfadauswertung des Tests-Tors lokal mit `git log` ausgeführt.
+- Nicht geprüft: jeder Workflow selbst (läuft nur auf GitHub), `gh run list --commit`, das Zurücklesen,
+  ein erneuter Lauf mit `--clobber`.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

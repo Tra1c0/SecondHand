@@ -205,4 +205,6 @@
     <string name="agent_diagnose_force_remove">Nicht mehr erzwingen</string>
     <string name="agent_diagnose_force_hint">Erzwingen heißt: Vorschläge, Autokorrektur und Großschreibung wie in einem normalen Nachrichtenfeld, in Textfeldern dieser App (nicht in Passwort-, E-Mail-, Adress-, Namen- und Suchfeldern). Eigene Schalter bleiben maßgebend, Lernen bleibt, wie es ist.</string>
     <string name="agent_diagnose_force_saved">Gespeichert. Gilt ab dem nächsten Feld.</string>
+    <string name="agent_diagnose_debuggable">Debugfähige App</string>
+    <string name="agent_diagnose_debug_mode">Debug-Modus</string>
 </resources>

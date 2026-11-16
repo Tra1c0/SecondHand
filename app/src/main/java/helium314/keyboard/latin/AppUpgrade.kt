@@ -90,6 +90,7 @@ private object AppUpgrade {
         if (oldVersion == 0) {
             // fresh install -> no need to upgrade, as this does things like keeping old defaults which is on wanted on actual upgrade
             prefs.edit { putInt(Settings.PREF_VERSION_CODE, BuildConfig.VERSION_CODE) }
+            helium314.keyboard.agent.DebugModeReset.runOnce(prefs) // marks the fresh install as done
             return
         }
         // clear extracted dictionaries, in case updated version contains newer ones
@@ -107,6 +108,7 @@ private object AppUpgrade {
         if (FORK_UPGRADES_ONLY) {
             // builds up to 12 had already run them on each update: give an own design its gaps back
             if (oldVersion <= 12) helium314.keyboard.agent.MyDesigns.repairKeyGapsAfterOldUpgrades(prefs)
+            helium314.keyboard.agent.DebugModeReset.runOnce(prefs) // stage 62: leave debug mode once
             upgradeToolbarPrefs(prefs)
             LayoutUtilsCustom.onLayoutFileChanged()
             prefs.edit { putInt(Settings.PREF_VERSION_CODE, BuildConfig.VERSION_CODE) }

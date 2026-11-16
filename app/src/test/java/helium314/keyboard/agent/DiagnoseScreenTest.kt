@@ -100,6 +100,30 @@ class DiagnoseScreenTest {
 
     private fun row(text: String) = compose.onNode(hasText(text, substring = true)).performScrollTo().assertExists()
 
+    @Test fun theAppRowsProveWhetherTheAppIsDebuggableAndDebugModeIsOn() {
+        val info = app.applicationInfo
+        val before = info.flags
+        val debugBefore = helium314.keyboard.latin.define.DebugFlags.DEBUG_ENABLED
+        try {
+            info.flags = info.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE.inv()
+            helium314.keyboard.latin.define.DebugFlags.DEBUG_ENABLED = false
+            fun rows() = Diagnose.device(app).rows.associate { it.label to it.value }
+            assertEquals("nein", rows()["Debugfähige App"])
+            assertEquals("nein", rows()["Debug-Modus"])
+            info.flags = info.flags or android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE
+            helium314.keyboard.latin.define.DebugFlags.DEBUG_ENABLED = true
+            assertEquals("ja", rows()["Debugfähige App"])
+            assertEquals("ja", rows()["Debug-Modus"])
+            // both rows are on the page and in the copied text
+            page()
+            row("Debugfähige App"); row("Debug-Modus")
+            assertTrue("Debug-Modus: ja" in Diagnose.text(app, listOf(Diagnose.device(app))))
+        } finally {
+            info.flags = before
+            helium314.keyboard.latin.define.DebugFlags.DEBUG_ENABLED = debugBefore
+        }
+    }
+
     @Test fun showsWhatThePhoneDoesWithoutAnyContent() {
         // a language switch by command, as LatinIME reports it (the package of the app is never passed)
         val german = SubtypeSettings.getResourceSubtypesForLocale("de".constructLocale()).first()

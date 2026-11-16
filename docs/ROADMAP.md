@@ -422,6 +422,24 @@ Reihenfolge von oben nach unten.
   Befehl, dessen Anfang außerhalb des kurzen Lesefensters liegt, wird nicht erkannt;
   der dritte KI-Schritt eines Workflows kann am Gesamtbudget (310 s) enden. Offen: Gerätetest und
   echte Anfragen (lange Texte, Gemini-Vertrag nicht gegen die Referenz geprüft).
+- **62 Ausgelieferte Variante ohne Debug-Modus** (Befund der Prüfung vom 2026-11-16 und Bericht des
+  Owners „stellenweise Performance-Probleme“) ist gebaut (siehe FEATURES.md, Nachweis in
+  `docs/VALIDATION.md` → Etappe 62). Die installierte APK war `debuggable`: Android führt sie ohne
+  volle Optimierungen aus, und der Debug-Modus war an (jedes getippte Wort ins Logcat, vier Ausnahmen
+  bei Auffälligkeiten). Jetzt ist die Variante `debugNoMinify` nicht debuggable (Name, `.debug`,
+  Signatur, Quellordner und fehlendes R8 unverändert), und ein gespeicherter Debug-Modus „an“ wird
+  einmal zurückgesetzt. Die Diagnose zeigt beide Zustände. Annahme: Das macht Tippen und Einstellungen
+  schneller; nichts davon ist gemessen. Offen: Gerätetest (spürbarer Unterschied, Diagnose-Zeilen,
+  Debug-Einstellungen nach fünf Tipps wieder einschaltbar) und, falls es weiter ruckelt, eine
+  Messung auf dem Gerät; R8 ist eine eigene spätere Etappe.
+- **63 Release scheitert laut** (Befund der Prüfung vom 2026-11-16) ist gebaut (siehe FEATURES.md,
+  Nachweis in `docs/VALIDATION.md` → Etappe 63). `agent-apk.yml` prüft die APK vor dem
+  Veröffentlichen (Signatur, Zertifikat des Owners, Versionscode, Paket, nicht debuggable), verlangt
+  auf `main` `RELEASES_TOKEN`, einen grünen Testlauf des Commits und liest das öffentliche Release
+  zurück, und erlaubt einen erneuten Lauf; `agent-tests.yml` baut zusätzlich die ausgelieferte
+  Variante und kennt Mindestzahlen und exakte Baseline-Namen; ein Vertragstest hält Workflow und App
+  zusammen. Offen: der erste echte Lauf auf GitHub (die Workflows laufen nur dort), die Mindestzahlen
+  der Tests nach dem ersten grünen Lauf nachziehen.
 - **Graue Auswahlkarten (Owner, 2026-11-14: „Ja“):** Die grauen Mockup-Karten (AUS, NICHTS,
   AUSGEBLENDET, FLACHER LOOK) bekommen helle Schrift (Kontrast mit dunkler Schrift nur 1,74:1).
   Gebaut (`docs/VALIDATION.md` → Etappe 37, „Graue Karten“): helle Schrift 4,71:1 gewählt, 6,92:1

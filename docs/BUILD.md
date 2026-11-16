@@ -82,6 +82,48 @@ nutzen einen Debug-Schlüssel, der in jeder neuen Umgebung anders ist; sie sind 
   APK“ → „Run workflow“, Branch wählen). Baut `:app:assembleDebugNoMinify` (App-ID
   `dev.personal.agentkeyboard.debug`, Name „SecondHand“, in allen Varianten ohne Zusatz) und veröffentlicht die APK samt
   SHA-256 als Vorab-Release `build-<Laufnummer>` mit `release-notes/next.md` als Text.
+- Bauart (62): Die APK ist die Variante `debugNoMinify`, aber **nicht debuggable** und ohne R8 (nur
+  die Variante, die der Owner installiert; Gründe: ein debuggable-Programm läuft ohne die vollen
+  Optimierungen von Android, und `BuildConfig.DEBUG` schaltete den Debug-Modus ein, der jedes
+  getippte Wort ins Logcat schrieb). Name `debugNoMinify`, App-ID mit `.debug`, Signatur und
+  Quellordner `app/src/debugNoMinify` bleiben, sonst wäre es keine Update-Installation mehr. Was sich
+  für den Owner ändert: Debug-Modus standardmäßig aus (ein gespeichertes „an“ wird beim ersten Update
+  einmal zurückgesetzt, danach lässt es sich wieder einschalten), die Debug-Einstellungen erscheinen
+  erst nach fünf Tipps auf die Versionszeile unter Über, Vorschlags-Zeitlimit 200 statt 500 ms, die
+  Symbolleisten-Tasten werden nur noch beim Update neu eingelesen, die vier Ausnahmen bei
+  Auffälligkeiten sind aus. Die Diagnose zeigt „Debugfähige App“ und „Debug-Modus“. Wer die Debug-Bauart
+  braucht, nimmt die Variante `debug` (`assembleDebug`). Weil die Variante nicht mehr debuggable ist,
+  hätte `assemble` zusätzlich `lintVital` ausgeführt; `lint { checkReleaseBuilds = false }` schaltet das
+  ab (das volle Lint ist `python3 tools/dev.py lint`).
+- Prüfungen des Workflows (63). Jeder Lauf prüft die gebaute APK und scheitert bei einem Fehler,
+  bevor etwas veröffentlicht wird. Was tun, wenn …
+  - … „Package and version code … expected …“: Der Versionscode muss die Laufnummer sein
+    (`AGENT_VERSION_CODE`), das Paket `dev.personal.agentkeyboard.debug`. Nicht die Datei umbenennen
+    (Laufnummern, P240); Ursache in `app/build.gradle.kts` suchen. Mit dem Schlüssel des Owners und
+    ohne gültige `AGENT_VERSION_CODE` bricht Gradle selbst ab.
+  - … „not signed with the owner's certificate“: Das Secret `AGENT_KEYSTORE_BASE64` ist ein anderer
+    Schlüssel als der des Owners (unten die Zahl). Secret prüfen; nur wenn der Owner bewusst einen
+    neuen Schlüssel einführt (dann ist jede Installation einmal Neuinstallation), `OWNER_CERT_SHA256`
+    im Workflow und hier ändern.
+  - … „The APK is debuggable“: `isDebuggable` der Variante `debugNoMinify` steht wieder auf `true`.
+  - … `apksigner verify` bricht ab: die Signatur ist beschädigt; neu bauen.
+  - … „No successful run of agent-tests.yml for commit …“ (nur `main`): für diesen Commit lief
+    der Test-Workflow nicht grün. Unter Actions → „SecondHand Tests“ → „Run workflow“ auf `main`
+    starten, bei Rot die Fehler beheben, dann den APK-Workflow neu starten. Test-Builds anderer Branches
+    prüfen das nicht.
+  - … „RELEASES_TOKEN is missing“ (nur `main`): Secret anlegen (Einrichtung unten). Der Lauf scheitert
+    bewusst, damit ein Build, den die App nie findet, nicht als fertig gilt. Das private Vorab-Release
+    ist da schon veröffentlicht.
+  - … der Schritt „Read the public release back“ scheitert: im öffentlichen Repository fehlt das
+    Release oder ein Asset oder eine Download-URL weicht ab. Release dort ansehen; einen erneuten
+    Lauf derselben Nummer (Actions → „Re-run“) lädt die Dateien mit `--clobber` neu hoch.
+  - … „tag build-N already exists … points to …“: Die Nummer gehört einem anderen Commit (z. B. weil
+    der Workflow umbenannt wurde). Nichts löschen, bevor der Owner entschieden hat; ein erneuter Lauf
+    gleicher Nummer und gleichen Commits lädt dagegen neu hoch.
+  - Der Gradle-Schritt bekommt `-Xmx3g`; `gradle.properties` hat nur 1024m.
+- `build-test-auto.yml` (Upstream-Rest): lief bei jedem Pull Request und war immer rot (er ruft
+  `testRunTestsUnitTest` auf, nicht der Weg dieses Forks). Seit 63 nur noch von Hand
+  (`workflow_dispatch`); die Tests laufen in `agent-tests.yml`.
 - Die Workflow-Dateien dürfen nie umbenannt oder verschoben werden (nur die `name:`-Zeile ändert sich): GitHub zählt die Laufnummer je Workflow-Datei, eine neue Datei finge bei 1 an, und alle installierten Builds sähen eine niedrigere Versionsnummer (P240).
 - Zwei Dateinamen (57): Jeder Build liegt unter `SecondHand-build-<N>.apk` und
   `AgentKeyboard-build-<N>.apk` (gleiche Bytes), je mit einer eigenen `.sha256`, die genau diese
@@ -90,7 +132,7 @@ nutzen einen Debug-Schlüssel, der in jeder neuen Umgebung anders ist; sie sind 
   `agent-core`); ohne die alte Datei bekämen sie nie wieder ein Update. Die App ab diesem Build
   nimmt den neuen Namen zuerst und fällt auf den alten zurück. Der alte Name darf entfallen, sobald es
   keine Installation unter diesem Build mehr gibt (alle Geräte des Owners sind auf dem neuen
-  Stand); dann in `agent-apk.yml` die `OLD_NAME`-Zeilen und `UpdateReleases.legacy*` samt Tests
+  Stand); dann in `agent-apk.yml` die `LEGACY_APK_NAME`-Zeilen und `UpdateReleases.legacy*` samt Tests
   entfernen. Die lokale Datei aus `tools/dev.py build` heißt `SecondHand_<Version>-debugNoMinify-<ABI>.apk`
   (Gradle-Ausgabename in `app/build.gradle.kts`).
 - Signatur: Repository-Secrets `AGENT_KEYSTORE_BASE64` (PKCS12-Datei, Base64) und
@@ -98,7 +140,8 @@ nutzen einen Debug-Schlüssel, der in jeder neuen Umgebung anders ist; sie sind 
   Workflow schreibt die Datei nach `$RUNNER_TEMP` und löscht sie nach dem Build. `app/build.gradle.kts`
   nimmt die Signatur nur, wenn `AGENT_KEYSTORE_FILE` gesetzt ist; sonst bleibt es beim
   Debug-Schlüssel.
-- Versionsnummer: `AGENT_VERSION_CODE` = Laufnummer des Workflows, also steigend.
+- Versionsnummer: `AGENT_VERSION_CODE` = Laufnummer des Workflows, also steigend. Mit dem Schlüssel
+  des Owners und ohne gültige Zahl bricht der Build ab (63), statt still 1 zu nehmen.
 - Notizen in der APK (54): Der Gradle-Task `embed<Variante>ReleaseNotes` (`EmbedReleaseNotes` in
   `app/build.gradle.kts`) kopiert `release-notes/next.md` bei jedem Build als Asset
   `agent/release_notes.md` in die APK, auch lokal und für die Unit-Tests (`mergeDebugAssets`). Die
@@ -107,15 +150,18 @@ nutzen einen Debug-Schlüssel, der in jeder neuen Umgebung anders ist; sie sind 
   ist da“. Darum gehört in `next.md` das Wichtigste nach oben.
 - Zertifikat des Owners (SHA-256):
   `D5:6E:8F:00:11:D7:80:63:37:90:8C:FA:A7:36:E5:D4:F8:FE:25:49:14:5A:5B:37:5D:FB:BB:1D:18:63:60:2A`.
-  Der Workflow gibt das Zertifikat der APK im Log aus.
+  Der Workflow gibt das Zertifikat der APK im Log aus und bricht ab, wenn es nicht dieses ist
+  (`OWNER_CERT_SHA256` im Kopf von `agent-apk.yml`; `WorkflowContractTest` prüft, dass beide gleich sind).
 - Öffentliches Release-Repository `Tra1c0/SecondHandAgenticKeyboard` (seit 2026-11-14, vorher
   `Tra1c0/AgenticKeyboard`; Name in `UpdateReleases.REPOSITORY`
   und in `RELEASE_REPOSITORY` des Workflows): Der Workflow legt dort zusätzlich dasselbe Release
   `build-<Laufnummer>` mit APK und `.sha256` an (kein Vorab-Release, Text aus
   `release-notes/next.md`). Die In-App-Prüfung und Freunde lesen nur dort, ohne Token. Nur Builds
   von `main` (geprüft) gehen dorthin und werden damit zum Update; Test-Builds vom Arbeitsbranch
-  bleiben Vorab-Releases hier (Owner, 2026-11-14). Fehlt das Secret `RELEASES_TOKEN`, überspringt der Workflow diesen Schritt mit einer Warnung; der Build
-  schlägt deshalb nicht fehl.
+  bleiben Vorab-Releases hier (Owner, 2026-11-14). Fehlt das Secret `RELEASES_TOKEN`, scheitert der Lauf (seit 63; vorher nur eine Warnung). Danach
+  liest der Workflow die öffentliche Liste wie die App ohne Token zurück und verlangt vier Assets mit den
+  erwarteten Download-URLs. Vor dem Veröffentlichen verlangt er einen grünen Lauf von `agent-tests.yml`
+  für den Commit.
 - Wann die App fragt (seit 56): auf „Jetzt prüfen“, mit der täglichen Suche (Schalter, anfangs aus)
   und mit „Neue Builds sofort melden“ (Schalter, anfangs an) beim Öffnen der Tastatur, höchstens alle
   15 Minuten seit dem letzten Versuch, nach Fehlschlägen in Folge seltener (bis 4 Stunden). Gesendet
