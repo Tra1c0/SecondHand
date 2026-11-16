@@ -235,6 +235,25 @@ Reihenfolge von oben nach unten.
   Prüfung offen (Engine: `DictionaryFacilitatorImpl`, `Suggest`, `LatinIME.onTrimMemory`,
   `LatinIME.resetSuggestMainDict`, Pflicht). Offen: Gerätetest (echte Wörterbücher, Speicher der zusätzlich
   geöffneten Wörterbücher, Sprachtaste und Wischen auf der Leertaste).
+- **60 Satzsprache (Rückmeldung des Owners, 2026-11-16)**: „Englisch wird ins Deutsche übersetzt,
+  auch wenn der Satz komplett in Englisch ist.“ ist gebaut (siehe FEATURES.md, Nachweis in
+  `docs/VALIDATION.md` → Etappe 60). Ursache: die Regel aus 48/49/51 zählt ein getipptes Wort nur
+  als bekannt, wenn ein Hauptwörterbuch der Sprache der Korrektur es kennt; ein Wort, das nur die
+  zweite Sprache kennt („name“, „bank“, „job“, „hand“), bekam so sein deutsches Gegenstück. Neu: die
+  Regel schaut auf die Sprache des Satzes bisher. Annahmen des Leads, die der Owner ändern kann:
+  Beweis sind die bis zu drei vorigen Wörter desselben Satzes (die, die die Engine für Vorschläge
+  schon hat, bis zum Satzanfang); ein Wort zählt für eine Sprache, wenn ihr Hauptwörterbuch es kennt
+  (wie getippt oder klein); Wörter, die beide oder keine Sprache kennen (Namen, Zahlen, „in“,
+  „Team“), zählen nicht. Die Korrektur zur Sprache der Hauptsprache wird blockiert, wenn das getippte
+  Wort ein Wort einer anderen Sprache der Wörterbuchgruppen ist, mindestens ein voriges Wort nur
+  dort bekannt ist und keines nur in der Sprache der Korrektur; das getippte Wort bleibt, die
+  Korrektur steht weiter als Vorschlag. Schwelle „mindestens ein Wort“ (nicht zwei), weil nur dann
+  der Satz „what is your name“ am dritten Wort schon trägt und „in team“ (neutral) nichts blockiert.
+  Es zählen nur die Sprachen der Wörterbuchgruppen (Hauptsprache und zweite Sprachen des Subtyps);
+  die anderen aktivierten Sprachen aus 51 (`ForeignWords`) zählen hier nicht, weil sie nicht im
+  Tippen mitlaufen und ihre Wörterbücher nur im Hintergrund geöffnet werden. Immer an, ohne Schalter.
+  Bleibt: das erste Wort eines Satzes hat keinen Beweis („hand“ am Satzanfang wird „Hand“).
+  (S)
 - **52 Einheitliches Befehlssystem (mit dem Owner festgelegt, 2026-11-14)** ist gebaut (siehe
   FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 52), nach den Festlegungen des Owners
   (Aufbau `@bereich [aktion] [angaben …]` ohne `&`, Plätze mit Toleranz in beliebiger Reihenfolge,

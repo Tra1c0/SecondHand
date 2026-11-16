@@ -583,6 +583,14 @@ class DictionaryFacilitatorImpl : DictionaryFacilitator {
         return isValidWord(word, DictionaryFacilitator.ALL_DICTIONARY_TYPES, dictionaryGroups[0])
     }
 
+    /**
+     * Fork, stage 60: the locales of the dictionary groups whose main dictionary knows [word], as written
+     * or in lower case. Read-only, takes no lock, for the suggestion thread.
+     */
+    fun mainLocalesKnowing(word: String): List<Locale> = dictionaryGroups.filter {
+        isValidWord(word, MAIN_ONLY, it) || isValidWord(word.lowercase(it.locale), MAIN_ONLY, it)
+    }.map { it.locale }
+
     // todo: move into dictionaryGroup?
     private fun isValidWord(word: String, dictionariesToCheck: Array<String>, dictionaryGroup: DictionaryGroup): Boolean {
         if (word.isEmpty() || dictionaryGroup.isBlacklisted(word)) return false
@@ -626,6 +634,7 @@ class DictionaryFacilitatorImpl : DictionaryFacilitator {
 
     companion object {
         private val TAG = DictionaryFacilitatorImpl::class.java.simpleName
+        private val MAIN_ONLY = arrayOf(Dictionary.TYPE_MAIN)
 
         // HACK: This threshold is being used when adding a capitalized entry in the User History dictionary.
         private const val CAPITALIZED_FORM_MAX_PROBABILITY_FOR_INSERT = 140

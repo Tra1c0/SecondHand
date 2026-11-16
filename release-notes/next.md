@@ -21,3 +21,7 @@ Nur mit Tests geprüft, noch auf keinem Gerät ausprobiert.
   Suchfeldern; deine Schalter und das Lernen bleiben, wie sie sind. Auf der Karte „Letztes Feld“
   (Diagnose) gibt es dazu den Knopf „In dieser App erzwingen“; in Feldern ohne Lernen (private Chats)
   zeigt die Karte jetzt Feldtyp, Merkmale und Urteil, nur nicht die App. Gilt ab dem nächsten Feld.
+- Englische Sätze auf der deutschen Tastatur (mit Englisch oder Spanisch als zweiter Sprache) bleiben
+  englisch: „what is your name“, „I went to the bank“, „my new job“ werden nicht mehr zu „Name“, „Bank“,
+  „Job“. Die Tastatur schaut auf die bis zu drei Wörter davor im selben Satz; das erste Wort eines
+  Satzes hat noch keinen Beweis und wird wie bisher korrigiert („hand“ → „Hand“). Nur mit Tests geprüft.

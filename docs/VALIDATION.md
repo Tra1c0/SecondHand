@@ -5503,6 +5503,28 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Nicht geprüft: die echten Flags des Instagram-Chatfelds, ob Instagram im Feld überhaupt Composing-Text und
   Korrekturen annimmt, der Auswahldialog für Apps mit echtem Paketmanager (der Weg „Hinzufügen“ ist nur über
   `ForcedApps.add` getestet), TalkBack, jeder Gerätetest.
+## Etappe 60 (Satzsprache)
+
+- Auftrag: `docs/ROADMAP.md` → 60 (Owner, 2026-11-16: „Englisch wird ins Deutsche übersetzt, auch wenn
+  der Satz komplett in Englisch ist.“).
+- Zuerst rot gesehen: mit der Regel abgeschaltet schlugen `InputLogicTest` „stage 60 English words stay
+  in an English sentence“ („Name“ statt „name“) und „stage 60 works with Spanish as second language“ sowie die
+  beiden `SuggestTest`-Fälle fehl; die Fälle mit deutschem Satz, Satzanfang und neutralen Wörtern blieben grün.
+- Neue Tests: `SentenceLanguageTest` (4, rein), `SuggestTest` „stage 60“ (2: „fur“ mit festen Punkten und
+  Beweis aus drei Wörtern, neutral, unbekannt, Satzanfang, mehr als drei Wörter, Spanisch),
+  `InputLogicTest` „stage 60“ (3: englische Sätze „what is your name“, „i went to the bank“, „my new job“,
+  „the cat has soft hand“; deutsche Sätze, einzelnes Wort, neutrales Wort davor, gemischter Satz,
+  neuer Satz nach Punkt; Spanisch als zweite Sprache) mit echter Engine und Wortlisten.
+- Geändert wurde keine bestehende Erwartung. Im Test-Helfer wurde `updateSuggestions` um den Parameter
+  `real` erweitert (Standard unverändert).
+- Gelaufen (2026-11-16, `--max-workers=1 -Xmx1536m`): `:agent-core:test` 595 grün; `*SuggestTest` 48,
+  `*FieldCorrection*` 10, `*TypoMemory*` 12 grün; `*InputLogicTest` 273 Tests, Fehler nur der geerbte
+  `insertLetterIntoWordHangulFails` (einmal zusätzlich `typedWorkflowChoiceIsDroppedWhenTheEditorChanges`
+  bei Last durch parallele Läufe; allein wiederholt grün); `lintDebugNoMinify` ohne neue Fehler.
+- Nicht geprüft: mit echten Wörterbüchern und auf einem Gerät (die Wortlisten nehmen nur das Öffnen der
+  Wörterbücher vor, echte Bewertungen von „fur“ → „für“ und die Bewertung mehrsprachiger Sätze stehen aus);
+  der Fall „fur“ → „für“ in `InputLogicTest` (die Wortlisten werten das genaue Wort höher, P253); Engine-Review
+  der Änderungen an `Suggest.kt` und `DictionaryFacilitatorImpl.kt`.
 
 ## Gerätetest vor Meilensteinfreigabe
 

@@ -71,6 +71,7 @@ class SuggestTest {
         RejectedCorrections.clear(latinIME)
         TypoMemory.clear(latinIME)
         EmojiSuggestions.setTableForTest(null) // no emojis unless a test loads the table
+        mainLocalesKnowingWord = emptyMap()
     }
 
     @Test fun `'on' to 'in' if 'in' was used before in this context`() {
@@ -943,6 +944,58 @@ class SuggestTest {
         }
     }
 
+    // fork, stage 60: the language of the sentence so far (owner report 2026-11-16: English is turned into German)
+    @Test fun `stage 60 a typed word of another language stays when the sentence so far is of that language`() {
+        currentTypingLocale = Locale.GERMAN
+        enableAutocorrect(confidenceVeryAggressive)
+        val de = listOf(Locale.GERMAN)
+        val en = listOf(Locale.ENGLISH)
+        mainLocalesKnowingWord = mapOf("the" to en, "cat" to en, "soft" to en, "gib" to de, "mir" to de, "in" to de + en, "xyz" to emptyList())
+        fun fur(vararg previous: String): SuggestedWords {
+            tapTypingSuggestions = suggestionResults(listOf(suggestion("für", 650000, Locale.GERMAN), suggestion("fur", 300000, Locale.ENGLISH)))
+            val words = previous.map { if (it == "<S>") NgramContext.WordInfo.BEGINNING_OF_SENTENCE_WORD_INFO else NgramContext.WordInfo(it) }
+            return getSuggestedWords(false, "fur", CapsMode.OFF, if (words.isEmpty()) NgramContext.EMPTY_PREV_WORDS_INFO else NgramContext(*words.toTypedArray()))
+        }
+        // English only: stays, the German word is still offered
+        val english = fur("soft", "cat", "the")
+        assertFalse(english.mWillAutoCorrect)
+        assertTrue(english.mSuggestedWordInfoList.any { it.mWord == "für" })
+        assertFalse(fur("cat").mWillAutoCorrect)
+        assertFalse(fur("Soft", "<S>").mWillAutoCorrect) // capital of the sentence start, the start itself is no word
+        assertFalse(fur("in", "cat").mWillAutoCorrect) // a neutral word and an English one
+        assertFalse(fur("xyz", "cat").mWillAutoCorrect) // unknown words are neutral
+        // no evidence: the old rule
+        assert(fur().mWillAutoCorrect)
+        assert(fur("<S>").mWillAutoCorrect)
+        assert(fur("in").mWillAutoCorrect)
+        assert(fur("in", "xyz").mWillAutoCorrect)
+        assert(fur("xyz", "<S>").mWillAutoCorrect)
+        // a German word anywhere in the sentence: the old rule
+        assert(fur("gib").mWillAutoCorrect)
+        assert(fur("cat", "gib").mWillAutoCorrect)
+        assert(fur("gib", "cat", "the").mWillAutoCorrect)
+        // only the three previous words count
+        mainLocalesKnowingWord += mapOf("a" to listOf(Locale.GERMAN, Locale.ENGLISH))
+        assert(fur("a", "a", "a", "cat").mWillAutoCorrect)
+        // a new sentence: the English one before does not count
+        assert(fur("<S>", "cat").mWillAutoCorrect)
+        // the same typed word in the correction's own language is not a case of this rule
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("für", 650000, Locale.GERMAN)))
+        assert(getSuggestedWords(false, "fur", CapsMode.OFF, NgramContext(NgramContext.WordInfo("cat"))).mWillAutoCorrect)
+    }
+
+    @Test fun `stage 60 Spanish as second language`() {
+        currentTypingLocale = Locale.GERMAN
+        enableAutocorrect(confidenceVeryAggressive)
+        mainLocalesKnowingWord = mapOf("gracias" to listOf(Locale("es")), "danke" to listOf(Locale.GERMAN))
+        fun hola(previous: String): SuggestedWords {
+            tapTypingSuggestions = suggestionResults(listOf(suggestion("hold", 650000, Locale.GERMAN), suggestion("hola", 300000, Locale("es"))))
+            return getSuggestedWords(false, "hola", CapsMode.OFF, NgramContext(NgramContext.WordInfo(previous)))
+        }
+        assertFalse(hola("gracias").mWillAutoCorrect)
+        assert(hola("danke").mWillAutoCorrect)
+    }
+
     // review of stage 51 (N5): results of another main language (a language command switched the settings,
     // the dictionaries follow later) tell nothing about the keyboard language: the word counts as known
     @Test fun `stage 51 review results of another main language never make a word of another language`() {
@@ -993,7 +1046,8 @@ class SuggestTest {
         helium314.keyboard.agent.Memory.resetForTest()
     }
 
-    private fun getSuggestedWords(gesture: Boolean, typedWord: String, capsMode: CapsMode): SuggestedWords {
+    private fun getSuggestedWords(gesture: Boolean, typedWord: String, capsMode: CapsMode,
+                                  ngramContext: NgramContext = NgramContext.EMPTY_PREV_WORDS_INFO): SuggestedWords {
         val wc = WordComposer()
         if (gesture) wc.setBatchInputPointers(InputPointers(1))
         if (typedWord.isNotEmpty()) {
@@ -1020,7 +1074,7 @@ class SuggestTest {
 
         suggest.clearNextWordSuggestionsCache()
         return suggest.getSuggestedWords(
-            wc, NgramContext.EMPTY_PREV_WORDS_INFO, Keyboard(params), Settings.getValues().mSettingsValuesForSuggestion,
+            wc, ngramContext, Keyboard(params), Settings.getValues().mSettingsValuesForSuggestion,
             Settings.getValues().mAutoCorrectEnabled, 0, 0
         )
     }
@@ -1072,6 +1126,8 @@ private var currentTypingLocale = Locale.ENGLISH
 private var tapTypingSuggestions = suggestionResults(emptyList())
 private var glideTypingSuggestions = suggestionResults(emptyList())
 private var nextWordSuggestions = suggestionResults(emptyList())
+/** Stage 60: the languages whose main dictionary knows a (lower case) word, for the previous words of a sentence. */
+private var mainLocalesKnowingWord = emptyMap<String, List<Locale>>()
 
 fun suggestion(word: String, score: Int, locale: Locale = currentTypingLocale, shortcut: Boolean = false) =
     SuggestedWordInfo(
@@ -1100,6 +1156,8 @@ class ShadowFacilitator {
     fun getMainLocale(): Locale = currentTypingLocale
     @Implementation
     fun hasAtLeastOneInitializedMainDictionary() = true // otherwise no autocorrect
+    @Implementation
+    fun mainLocalesKnowing(word: String): List<Locale> = mainLocalesKnowingWord[word.lowercase()].orEmpty()
     @Implementation
     // what is relevant for facilitator?
     // only detecting whether we want next word suggestions (typed word empty and not batch mode)

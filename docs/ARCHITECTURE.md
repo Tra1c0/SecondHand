@@ -313,6 +313,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   v, Firmware, Build, Patch …; Nachprüfung 40, B3); vergangene Tage und Daten ohne Jahr mehr als
   300 Tage voraus nie. Test `CT/clip/SmartPasteTest.kt` (Prüfziffern der Beispiele getrennt
   berechnet).
+- `C/SentenceLanguage.kt` (Etappe 60, P249–P253): reine Entscheidung zur Satzsprache: `evidenceOf` (nur Sprache der Korrektur, nur andere Sprache, neutral), `blocksCorrection(onlyL1, onlyL2)` (mindestens ein Wort nur der anderen Sprache, keines nur der eigenen), `MAX_PREVIOUS_WORDS` = 3. Hält keinen Text. Test: `CT/SentenceLanguageTest.kt`.
 - `C/suggest/ContextSuggest.kt` (Etappe 45, Paket `dev.agentkeyboard.core.suggest`, P161–P163):
   `SuggestKind` (EMAIL, PHONE, IBAN, ADDRESS, NAME, OTP, LINK), `AppCategory.of(packageName)`
   (MESSENGER/MAIL/BROWSER/OTHER nach Paket-Präfix), `FieldClass`, `FieldSignals` (Klasse,
@@ -547,6 +548,14 @@ Autokorrektur (Etappe 20a, Details im Abschnitt „Lerndaten“):
   `KIND_WHITELIST` („i“ → „I“).
   `correctToCapitalizedWord` (Umschalttaste nach dem Wort mit „Vorgeschlagene Großschreibung
   automatisch korrigieren“) läuft daran vorbei und bleibt.
+- `Suggest.kt` (60): `guardAllows` bekommt den `NgramContext` und fragt am Ende, nur wenn
+  `CorrectionGuard` die Korrektur zulässt und das getippte Wort aus einem Hauptwörterbuch einer
+  anderen Sprache stammt als die Korrektur (`typedInfo`), `sentenceIsOfOtherLanguage`: bis zu drei vorige
+  Wörter (`NgramContext`, Abbruch am Satzanfang oder an einem leeren Eintrag), je Wort
+  `DictionaryFacilitatorImpl.mainLocalesKnowing` (Gruppen, deren Hauptwörterbuch das Wort kennt, wie
+  geschrieben oder klein, ohne Sperre), die Entscheidung in `C/SentenceLanguage.kt`. `ForeignWords` und die
+  Reihenfolge der Vorschläge bleiben unberührt. `DictionaryFacilitatorImpl.kt`: nur `mainLocalesKnowing`
+  und die Konstante `MAIN_ONLY`.
 - Korrekturen im ganzen Feld (Etappe 49, P169–P171): `InputLogic.java` hält `mFieldCorrections`
   (`K/agent/FieldCorrections.kt`, `FieldCorrectionWatcher`). `startInput` → `start` (Feld vergessen);
   `commitChosenWord` nach `commitWord` und `onUpdateSelection` nach dem Zurücksetzen der Caches
@@ -5055,12 +5064,36 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   (`Diagnose.verdictText`). `Snapshot.Field.capsUsed` ist, was die Engine liest, `caps` bleibt der Wunsch der
   App; `FieldReport.effective` und `CAPS_APP` nutzen `capsUsed`.
 
+- **P249** Satzsprache (60): Beweis sind nur die vorigen Wörter des Satzes aus dem `NgramContext` der Engine
+  (bis zu drei, Abbruch am Satzanfang und an einem leeren Eintrag, etwa nach einem Komma), nie der Editor.
+  Das erste Wort eines Satzes hat deshalb keinen Beweis und wird wie vorher korrigiert; ein Satzzeichen
+  beginnt einen neuen Satz ohne Beweis aus dem davor. Der Test-Helfer `updateSuggestions()` übergibt
+  `EMPTY_PREV_WORDS_INFO`; für diese Etappe gibt es `updateSuggestions(real = true)`.
+- **P250** Satzsprache (60): Ein vorheriges Wort zählt für die Sprache der Korrektur oder für eine andere
+  Gruppe nach dem Hauptwörterbuch, wie geschrieben oder klein (`mainLocalesKnowing`). Kennen es beide,
+  ist es neutral: ein kleingeschriebenes „hand“ vorher gilt nur englisch, aber ein großes „Hand“ wegen der
+  Kleinschreibung beidseitig (neutral). Nicht in Benutzerverlauf, Kontakten oder dem persönlichen
+  Wörterbuch (das würde Namen zu Beweisen machen).
+- **P251** Satzsprache (60): Läuft nur, wenn die Korrektur sonst angewendet würde und das getippte Wort
+  aus einem Hauptwörterbuch einer anderen Sprache kommt (die seltene Ausnahme), im Vorschlags-Thread,
+  ohne Sperre und ohne Editorzugriff; die Wörterbuchabfragen sind lesend (`isValidWord`). Der Zugriff geht
+  über `mDictionaryFacilitator as? DictionaryFacilitatorImpl`; `SuggestTest` ersetzt `mainLocalesKnowing`
+  im Schatten `ShadowFacilitator` (sonst hat dort die Gruppenliste keine Wörterbücher und alles ist neutral).
+- **P252** Satzsprache (60): `ForeignWords` (51) zählt hier nicht als „andere Sprache“. Es meint andere
+  aktivierte Subtypen, deren Wörterbücher nur im Hintergrund geöffnet werden und die nicht im Tippen
+  mitlaufen; die Regel hier gilt nur für die Gruppen des Facilitators. Wer Englisch nur als weiteren
+  Subtyp (nicht als zweite Sprache) aktiviert hat, bekommt „name“ → „Name“ wie vorher.
+- **P253** Satzsprache (60): Die Regel ändert nur, ob die Korrektur automatisch ist; die deutsche Korrektur
+  bleibt Vorschlag, Reihenfolge, `TypoMemory`, die Regel von 48 (nur Groß-/Kleinschreibung) und Wischtippen
+  bleiben unberührt. Beim Test mit Wortlisten bleibt ein getipptes englisches Wort, das nicht nur Groß-/
+  Kleinschreibung unterscheidet („fur“ → „für“), in `InputLogicTest` unberührt (die Wortlisten werten das
+  genaue Wort höher); dieser Fall ist nur in `SuggestTest` mit festen Punkten geprüft.
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (619 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (621 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -5118,29 +5151,30 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `AT/commands/` (9): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
   TranslateCommandTest, UrlCommandTest
-- `C/` (50): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
+- `C/` (51): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
   CorrectionRules, DateFormatting, EditorSession, EmojiKeywords, EmojiMix, EmojiNames,
   EmojiSynonyms, EventParser, ExecutionPolicy, FieldReport, ForcedCorrection, InkDots,
   InkRecognizer, InkSymbols, InkTiming, LanguageNames, LocalTextActions, MathExpression,
   ModelProvider, OwnInkSymbols, PendingBatchGate, PersonalInkSymbols, Places, Profiles,
-  ReleaseNotes, RgbCurve, RgbLighting, RgbOwnPattern, RgbPatternJson, RgbPatterns, SkillBinding,
-  SnippetTemplate, SpecialCharacters, StyledTranslation, SymbolTable, TextCondition, TimerParser,
-  Tool, TouchDynamics, UnitConversion, UpdateOnOpenPolicy, UpdateReleases, UrlDetector, Workflow
+  ReleaseNotes, RgbCurve, RgbLighting, RgbOwnPattern, RgbPatternJson, RgbPatterns, SentenceLanguage,
+  SkillBinding, SnippetTemplate, SpecialCharacters, StyledTranslation, SymbolTable, TextCondition,
+  TimerParser, Tool, TouchDynamics, UnitConversion, UpdateOnOpenPolicy, UpdateReleases, UrlDetector,
+  Workflow
 - `C/charart/` (6): BigFont, CharArt, Raster, Sketch, TextColumns, UnicodeStyle
 - `C/clip/` (6): ClipDates, ClipGuard, LinkCleaner, PrivateRanges, SmartPaste, TrackingNumbers
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `C/memory/` (4): OwnWords, PhraseMemory, ShortcutOffers, SnippetMatcher
 - `C/suggest/` (1): ContextSuggest
-- `CT/` (47): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
+- `CT/` (48): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
   CorrectionRulesTest, DateFormattingTest, EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest,
   EventParserTest, FieldReportTest, ForcedCorrectionTest, InkAreaTest, InkBenchmarkTest,
   InkDotFlowTest, InkDotsTest, InkFingerModel, InkRecognizerTest, InkTimingTest,
   InsertionAnchorTest, LanguageNamesTest, LocalTextActionsTest, MathExpressionTest,
   OwnInkSymbolsTest, PendingBatchGateTest, PersonalInkSymbolsTest, PlacesTest, QuestionCaptureTest,
   ReleaseNotesTest, RgbCurveTest, RgbFrameStatsTest, RgbLightingTest, RgbOwnPatternTest,
-  RgbPatternJsonTest, RgbPatternsTest, SkillBindingTest, SnippetTemplateTest, StyledTranslationTest,
-  SymbolTableTest, TimerParserTest, ToolTest, TouchDynamicsTest, UnitConversionTest,
-  UpdateOnOpenPolicyTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
+  RgbPatternJsonTest, RgbPatternsTest, SentenceLanguageTest, SkillBindingTest, SnippetTemplateTest,
+  StyledTranslationTest, SymbolTableTest, TimerParserTest, ToolTest, TouchDynamicsTest,
+  UnitConversionTest, UpdateOnOpenPolicyTest, UpdateReleasesTest, UrlDetectorTest, WorkflowTest
 - `CT/charart/` (2): CharArtTest, SketchTest
 - `CT/clip/` (3): ClipGuardTest, PrivateRangesTest, SmartPasteTest
 - `CT/format/` (1): FormatGuardTest

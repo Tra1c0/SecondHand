@@ -574,6 +574,8 @@ diese Sprache um.
 - Abschalten unter Einstellungen → Befehle → `@lang`; dort stehen auch die Kürzel deiner aktiven
   Sprachen.
 
+**Englischer Satz auf der deutschen Tastatur.** Hat die Tastatur Englisch (oder Spanisch) als zweite Sprache, bleiben Wörter, die es in beiden Sprachen gibt („name“, „bank“, „job“, „hand“), in einem Satz, der bisher englisch war, so stehen, wie du sie tippst. Die Tastatur sieht das an den bis zu drei Wörtern davor im selben Satz. Das erste Wort eines Satzes hat noch keinen Beweis: dort gilt weiter die deutsche Korrektur („hand“ → „Hand“); tippe das Wort dann trotzdem so, tippst du auf die getippte Form in der Leiste oder nimmst die Korrektur mit der Löschtaste zurück.
+
 ### Einheitliches Befehlssystem
 
 Sechs Bereiche, ein Aufbau: `@bereich [aktion] [angaben …]`. Damit änderst du deine eigenen
