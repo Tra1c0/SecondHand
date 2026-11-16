@@ -107,16 +107,23 @@ nutzen einen Debug-Schlüssel, der in jeder neuen Umgebung anders ist; sie sind 
     im Workflow und hier ändern.
   - … „The APK is debuggable“: `isDebuggable` der Variante `debugNoMinify` steht wieder auf `true`.
   - … `apksigner verify` bricht ab: die Signatur ist beschädigt; neu bauen.
-  - … „No successful run of agent-tests.yml for commit …“ (nur `main`): für diesen Commit lief
-    der Test-Workflow nicht grün. Unter Actions → „SecondHand Tests“ → „Run workflow“ auf `main`
+  - … „No successful run of agent-tests.yml covers commit …“ (nur `main`): Keiner der letzten
+    grünen Läufe des Test-Workflows hat denselben Stand der getesteten Dateien wie dieser Commit.
+    Als Nachweis zählt jeder grüne Lauf, dessen Commit in den Pfaden von `agent-tests.yml` gleich
+    ist (ein späterer reiner Docs-Commit oder ein Merge-Commit obendrauf behält den Nachweis; der Lauf
+    darf vom Arbeitsbranch stammen). Unter Actions → „SecondHand Tests“ → „Run workflow“ auf `main`
     starten, bei Rot die Fehler beheben, dann den APK-Workflow neu starten. Test-Builds anderer Branches
     prüfen das nicht.
   - … „RELEASES_TOKEN is missing“ (nur `main`): Secret anlegen (Einrichtung unten). Der Lauf scheitert
     bewusst, damit ein Build, den die App nie findet, nicht als fertig gilt. Das private Vorab-Release
     ist da schon veröffentlicht.
   - … der Schritt „Read the public release back“ scheitert: im öffentlichen Repository fehlt das
-    Release oder ein Asset oder eine Download-URL weicht ab. Release dort ansehen; einen erneuten
-    Lauf derselben Nummer (Actions → „Re-run“) lädt die Dateien mit `--clobber` neu hoch.
+    Release oder ein Asset, eine Download-URL weicht ab, oder eine der beiden APK-Dateien lässt sich
+    nicht ohne Token laden bzw. passt nicht zu ihrer Prüfsumme (die Meldung sagt, was). Release dort
+    ansehen; ein erneuter Lauf derselben Nummer (Actions → „Re-run“) lädt die Dateien mit `--clobber`
+    neu hoch. Die Liste fragt der Schritt zuerst ohne Token ab, wie die App; antwortet GitHub mit dem
+    Ratenlimit für anonyme Anfragen (403/429, die Runner teilen sich Adressen), fragt er mit dem Token
+    des Laufs nach, das im öffentlichen Repository keine Rechte hat und dieselbe Liste sieht.
   - … „tag build-N already exists … points to …“: Die Nummer gehört einem anderen Commit (z. B. weil
     der Workflow umbenannt wurde). Nichts löschen, bevor der Owner entschieden hat; ein erneuter Lauf
     gleicher Nummer und gleichen Commits lädt dagegen neu hoch.
@@ -159,9 +166,10 @@ nutzen einen Debug-Schlüssel, der in jeder neuen Umgebung anders ist; sie sind 
   `release-notes/next.md`). Die In-App-Prüfung und Freunde lesen nur dort, ohne Token. Nur Builds
   von `main` (geprüft) gehen dorthin und werden damit zum Update; Test-Builds vom Arbeitsbranch
   bleiben Vorab-Releases hier (Owner, 2026-11-14). Fehlt das Secret `RELEASES_TOKEN`, scheitert der Lauf (seit 63; vorher nur eine Warnung). Danach
-  liest der Workflow die öffentliche Liste wie die App ohne Token zurück und verlangt vier Assets mit den
-  erwarteten Download-URLs. Vor dem Veröffentlichen verlangt er einen grünen Lauf von `agent-tests.yml`
-  für den Commit.
+  liest der Workflow die öffentliche Liste wie die App ohne Token zurück, verlangt vier Assets mit den
+  erwarteten Download-URLs, lädt beide APK-Dateien samt `.sha256` ohne Token und vergleicht sie mit dem
+  gebauten Stand. Vor dem Veröffentlichen verlangt er einen grünen Lauf von `agent-tests.yml` für
+  einen Commit mit demselben Stand der getesteten Dateien.
 - Wann die App fragt (seit 56): auf „Jetzt prüfen“, mit der täglichen Suche (Schalter, anfangs aus)
   und mit „Neue Builds sofort melden“ (Schalter, anfangs an) beim Öffnen der Tastatur, höchstens alle
   15 Minuten seit dem letzten Versuch, nach Fehlschlägen in Folge seltener (bis 4 Stunden). Gesendet

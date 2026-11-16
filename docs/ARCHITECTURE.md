@@ -3464,16 +3464,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Schlüssel des Owners signierte APK (`docs/BUILD.md` → Installierbare APK); dafür liest
   `app/build.gradle.kts` `AGENT_KEYSTORE_FILE`, `AGENT_KEYSTORE_PASSWORD`, `AGENT_KEY_ALIAS` und
   `AGENT_VERSION_CODE` aus der Umgebung. Mit dem Secret `RELEASES_TOKEN` legt er dasselbe Release
-  im öffentlichen Repository `RELEASE_REPOSITORY` an (Abschnitt „Updates“), ohne Secret nur eine
-  Warnung. Von Upstream
+  im öffentlichen Repository `RELEASE_REPOSITORY` an (Abschnitt „Updates“); ohne Secret scheitert
+  der Lauf auf `main` (seit 63). Von Upstream
   übernommen: `build-debug-apk.yml` (nur manuell) und `build-test-auto.yml` (seit 63 nur noch von
   Hand: der Lauf bei Pull Requests war immer rot, siehe `docs/BUILD.md`).
 - Release-Workflow hart (63, P262/P263): `agent-apk.yml` prüft die gebaute APK vor jeder
   Veröffentlichung (`apksigner verify`, SHA-256 des Zertifikats gleich `OWNER_CERT_SHA256`, Paket
   `APP_PACKAGE`, Versionscode gleich Laufnummer, nicht debuggable) und scheitert sonst. Auf `main`
-  verlangt er `RELEASES_TOKEN`, einen grünen `agent-tests.yml`-Lauf für den letzten Commit, der
-  dessen Pfade geändert hat, und liest das öffentliche Release danach ohne Token zurück (vier Assets,
-  Download-URLs). Ein erneuter Lauf derselben Nummer lädt mit `--clobber` neu hoch. Gradle bekommt
+  verlangt er `RELEASES_TOKEN`, einen grünen `agent-tests.yml`-Lauf für einen Commit mit demselben
+  Stand der getesteten Pfade, und liest das öffentliche Release danach ohne Token zurück (vier Assets,
+  Download-URLs, beide APK-Dateien geladen und gegen ihre Prüfsumme verglichen). Ein erneuter Lauf
+  derselben Nummer lädt mit `--clobber` neu hoch. Gradle bekommt
   im Workflow `-Xmx3g`. `app/build.gradle.kts` bricht mit Besitzer-Schlüssel ohne gültige
   `AGENT_VERSION_CODE` ab. `agent-tests.yml` hat seit 63 einen vierten Job `build` (baut die
   ausgelieferte Variante), erweiterte Pfade (`gradle.properties`, `upstream.lock`,
@@ -5201,13 +5202,22 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   den Commit prüfen (andere Historie); die Prüfung des Tags auf Commit-Gleichheit gilt für das
   private Release, das davor entsteht. Schritte mit Geheimnissen (`RELEASES_TOKEN`) geben nie die
   Umgebung aus; `set -x` nie einschalten. Der Zurücklese-Schritt wiederholt bis zu sechsmal (zehn
-  Sekunden Abstand), die Liste kann kurz hinterherhinken; ohne Token gilt das Ratenlimit von GitHub
-  je IP.
+  Sekunden Abstand), die Liste kann kurz hinterherhinken. Er fragt zuerst ohne Token wie die App; für
+  anonyme Anfragen gilt das Ratenlimit von GitHub je IP, und die Runner teilen sich Adressen: bei 403
+  oder 429 fragt er mit dem Token des Laufs nach (im öffentlichen Repository ohne Rechte, sieht
+  dieselbe Liste). Danach lädt er beide APK-Dateien und ihre `.sha256` ohne Token über `github.com`
+  und vergleicht: die `.sha256` muss die des Laufs sein, die APK zu ihr passen. Das Tag nie mit
+  `gh api …/git/ref/tags/…` suchen: bei einem fehlenden Tag schreibt `gh api` den Fehlertext auf die
+  Standardausgabe, der dann wie ein Tag auf einem anderen Commit aussieht und jeden neuen Build
+  stoppt; der Workflow fragt `git ls-remote --tags` (leer = kein Tag).
 - **P263** Test-Tor und `agent-tests.yml` (63): Das Tor vor dem öffentlichen Veröffentlichen liest die
   Pfade aus `agent-tests.yml` (Schlüssel `paths:` unter `push`, einfache Zeilenauswertung, kein
-  YAML-Parser) und sucht mit `git log -1 -- :(glob)<Pfad>` den letzten Commit dazu (daher
-  `fetch-depth: 0`); `gh run list --workflow agent-tests.yml --commit <sha>` braucht
-  `actions: read`. Ändert sich die Pfadliste, bleibt das Tor automatisch richtig; die Pfad-Liste muss
+  YAML-Parser) und nimmt als Nachweis jeden grünen Lauf (`gh run list --workflow agent-tests.yml`,
+  die letzten 100, braucht `actions: read`), dessen Commit in diesen Pfaden gleich dem gebauten ist
+  (`git diff --quiet <sha> $GITHUB_SHA -- :(glob)<Pfad>`, daher `fetch-depth: 0`). Nicht den „letzten
+  Commit, der die Pfade geändert hat“ verlangen: ein Push startet die Tests nur einmal, für den
+  neuesten Commit des Pushs, und der ist oft ein Merge- oder Docs-Commit; das Tor fände dann nie
+  einen Lauf. Ändert sich die Pfadliste, bleibt das Tor automatisch richtig; die Pfad-Liste muss
   `.github/workflows/agent-apk.yml` selbst enthalten. Die Mindestzahlen je Job (`minimum` im
   Zusammenfassungsschritt, zuerst aus gezählten `@Test` geschätzt) beim Hinzufügen von Tests auf etwa
   90 % des Wertes eines grünen Laufs anheben; die fünf bekannten Fehler stehen mit exakten Namen in

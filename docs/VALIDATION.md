@@ -5526,6 +5526,17 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   Wörterbücher vor, echte Bewertungen von „fur“ → „für“ und die Bewertung mehrsprachiger Sätze stehen aus);
   der Fall „fur“ → „für“ in `InputLogicTest` (die Wortlisten werten das genaue Wort höher, P253); Engine-Review
   der Änderungen an `Suggest.kt` und `DictionaryFacilitatorImpl.kt`.
+### Nachprüfung 60
+
+- Befund 1: Das Tor der Regel hing am ersten Treffer des getippten Worts (`typedInfo`), der ein Eintrag aus Verlauf, Kontakten oder
+  persönlichem Wörterbuch sein kann. Jetzt fragt `Suggest` den Facilitator (`mainLocalesKnowing(getippt)`): eine andere Sprache kennt
+  es, die der Korrektur nicht. Neue/angepasste Tests: `SuggestTest` „stage 60 a typed word…“ (Verlaufseintrag ohne Locale als erster
+  Treffer bleibt geschützt; ein Wort, das beide Hauptwörterbücher kennen, bleibt unberührt), `InputLogicTest` „stage 60 an English
+  keyboard keeps German words in a German sentence“ (beide Richtungen, echter Facilitator mit Wortlisten). Nicht möglich: echtes
+  Verlaufswörterbuch der englischen oder deutschen Gruppe (kein native Code in Robolectric), darum nur mit festen Ergebnissen.
+- Befunde 2 bis 5: Ende von `guardAllows` aufgeräumt (kein Verhalten geändert), Docs ergänzt (Komma, ein deutsches Wort,
+  nur zweite Sprachen, beide Richtungen, gelernte Tippfehler, ehrliche Prüfangabe zu „fur“).
+
 ## Etappe 59: KI ohne Zeichenlimit (Lead und Builder, 2026-11-16)
 
 - Anlass: Owner-Meldung „KI hat ein Zeichenlimit.“; Owner nutzt OpenAI und Gemini, bei `@ki` verschwand
@@ -5604,16 +5615,36 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Nicht geprüft: jeder Workflow selbst (läuft nur auf GitHub), `gh run list --commit`, das Zurücklesen,
   ein erneuter Lauf mit `--clobber`.
 
-### Nachprüfung 60
+### Kontrolle des Leads 63 (2026-11-16)
 
-- Befund 1: Das Tor der Regel hing am ersten Treffer des getippten Worts (`typedInfo`), der ein Eintrag aus Verlauf, Kontakten oder
-  persönlichem Wörterbuch sein kann. Jetzt fragt `Suggest` den Facilitator (`mainLocalesKnowing(getippt)`): eine andere Sprache kennt
-  es, die der Korrektur nicht. Neue/angepasste Tests: `SuggestTest` „stage 60 a typed word…“ (Verlaufseintrag ohne Locale als erster
-  Treffer bleibt geschützt; ein Wort, das beide Hauptwörterbücher kennen, bleibt unberührt), `InputLogicTest` „stage 60 an English
-  keyboard keeps German words in a German sentence“ (beide Richtungen, echter Facilitator mit Wortlisten). Nicht möglich: echtes
-  Verlaufswörterbuch der englischen oder deutschen Gruppe (kein native Code in Robolectric), darum nur mit festen Ergebnissen.
-- Befunde 2 bis 5: Ende von `guardAllows` aufgeräumt (kein Verhalten geändert), Docs ergänzt (Komma, ein deutsches Wort,
-  nur zweite Sprachen, beide Richtungen, gelernte Tippfehler, ehrliche Prüfangabe zu „fur“).
+Der Lead hat `agent-apk.yml` Zeile für Zeile gelesen und die Schritte lokal mit den echten Werkzeugen
+durchgespielt. Drei Fehler gefunden und behoben, bevor der Workflow je lief:
+
+- Tag-Suche: `gh api …/git/ref/tags/<tag> --jq … || true` gibt für ein fehlendes Tag den Fehlertext
+  auf der Standardausgabe aus (mit einem echten Aufruf nachgestellt). Jeder neue Build wäre mit „tag
+  already exists“ gescheitert. Jetzt `git ls-remote --tags` (leer = kein Tag).
+- Test-Tor: Es verlangte einen grünen Lauf genau für den letzten Commit, der die getesteten Pfade
+  geändert hat. Ein Push startet die Tests aber nur für seinen neuesten Commit, und der ist oft ein
+  Merge- oder Docs-Commit: das Tor hätte geprüfte Builds blockiert. Jetzt zählt jeder grüne Lauf, dessen
+  Commit in den getesteten Pfaden gleich ist. Lokal mit einem Ersatz für `gh` nachgestellt, vier
+  Fälle: nur ein älterer grüner Commit mit anderem Stand → scheitert; grüner Lauf für denselben Commit
+  → besteht; Docs-Commit über einem grünen Commit → besteht; kein grüner Lauf → scheitert.
+- Zurücklesen: Die anonyme Abfrage der Release-Liste kann auf den geteilten Adressen der Runner am
+  Ratenlimit scheitern (403/429); dann fragt der Schritt mit dem Token des Laufs nach. Neu: beide
+  APK-Dateien und ihre `.sha256` werden ohne Token geladen und verglichen. Lokal nachgestellt mit einem
+  Ersatz für die Liste und den echten öffentlichen Dateien von Build 27: besteht; falsche Prüfsumme
+  → scheitert; fehlendes Asset → scheitert nach sechs Versuchen.
+- Prüfschritt mit `apksigner` und `aapt2` (Build-Tools 36.0.0) lokal ausgeführt: gegen die vom
+  Owner-Schlüssel signierte APK von Build 27 stimmt das Zertifikat mit `OWNER_CERT_SHA256` überein,
+  Paket und Versionscode werden richtig gelesen, und der Schritt stoppt wie gewollt bei „debuggable“
+  (Build 27 war es noch); falscher Versionscode → stoppt; lokale APK aus Etappe 62 (Debug-Schlüssel,
+  nicht debuggable) → stoppt am Zertifikat, mit ihrem eigenen Zertifikat als Sollwert läuft der
+  Schritt durch und schreibt vier Dateien, jede Prüfsumme nennt ihre Datei.
+- Mindestzahlen in `agent-tests.yml` auf Werte aus dem grünen Lauf 82 gesetzt (agent 1600 von 1788,
+  upstream 1330 von 1477).
+- Nicht geprüft: der Workflow selbst auf GitHub (erster echter Lauf ist der nächste Test-Build), die
+  echte Abfrage der Release-Liste (aus dieser Umgebung nicht erreichbar), `gh run list`, ein erneuter
+  Lauf mit `--clobber`, das Verhalten auf `main` (erst beim geprüften Build).
 
 ## Gerätetest vor Meilensteinfreigabe
 

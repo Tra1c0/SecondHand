@@ -19,8 +19,8 @@ on:
       # embedded into the APK as the update notes and read by the unit tests (stage 54)
       - 'release-notes/**'
       - '.github/workflows/agent-tests.yml'
-      # agent-apk.yml only publishes after a green run of this workflow for the last commit that changed
-      # one of these paths (stage 63): its own path must be in the list
+      # agent-apk.yml only publishes after a green run of this workflow for a commit with the same
+      # content in these paths (stage 63): its own path must be in the list
       - '.github/workflows/agent-apk.yml'
 
 concurrency:
