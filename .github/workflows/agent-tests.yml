@@ -92,9 +92,8 @@ jobs:
           }
           # A crashed test class leaves no XML file, so a job that ran far too few tests fails. Raise these
           # when tests were added: take the "Tests:" number of a green run and set about 90 % of it.
-          # (First values from counting @Test in the sources, not from a run: agent-core 595 plus
-          # app/src/test/.../agent 1033 for "agent"; app/src/test 1439 for "upstream".)
-          minimum = {"agent": 1500, "upstream": 1300}["${{ matrix.check }}"]
+          # (Run 82 on 51c4506, green: agent 1788, upstream 1477.)
+          minimum = {"agent": 1600, "upstream": 1330}["${{ matrix.check }}"]
           total, failed = 0, []
           for path in glob.glob("*/build/test-results/**/*.xml", recursive=True):
               root = ET.parse(path).getroot()

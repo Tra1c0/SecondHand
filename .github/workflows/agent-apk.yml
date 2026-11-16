@@ -130,7 +130,9 @@ jobs:
         run: |
           set -euo pipefail
           FILES=("$APK_NAME" "$APK_NAME.sha256" "$LEGACY_APK_NAME" "$LEGACY_APK_NAME.sha256")
-          TAG_SHA=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq '.object.sha' 2>/dev/null || true)
+          # Ask git, not `gh api`: for a tag that does not exist `gh api` prints the error body on stdout,
+          # which would look like a tag on another commit and stop every new build. Empty = no such tag.
+          TAG_SHA=$(git ls-remote --tags origin "refs/tags/$RELEASE_TAG" | cut -f1)
           if [ -n "$TAG_SHA" ] && [ "$TAG_SHA" != "$GITHUB_SHA" ]; then
             echo "::error::The tag $RELEASE_TAG already exists in $GITHUB_REPOSITORY and points to $TAG_SHA, not to this commit ($GITHUB_SHA). Run numbers are never reused; look at the release and the tag before deleting anything (docs/BUILD.md)."
             exit 1
