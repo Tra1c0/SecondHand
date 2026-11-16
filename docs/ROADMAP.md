@@ -372,6 +372,16 @@ Reihenfolge von oben nach unten.
   adaptive Symbol und die Bild-Symbole für Android 5–7 zeigen denselben Ausschnitt; die
   einfarbige Variante ist die Umriss-Fassung. Store-Bilder unter `fastlane/` sind Upstream-Material
   und bleiben. Offen: Ansehen auf dem Gerät (Launcher, runde Maske, Themed Icons).
+- **62 Ausgelieferte Variante ohne Debug-Modus** (Befund der Prüfung vom 2026-11-16 und Bericht des
+  Owners „stellenweise Performance-Probleme“) ist gebaut (siehe FEATURES.md, Nachweis in
+  `docs/VALIDATION.md` → Etappe 62). Die installierte APK war `debuggable`: Android führt sie ohne
+  volle Optimierungen aus, und der Debug-Modus war an (jedes getippte Wort ins Logcat, vier Ausnahmen
+  bei Auffälligkeiten). Jetzt ist die Variante `debugNoMinify` nicht debuggable (Name, `.debug`,
+  Signatur, Quellordner und fehlendes R8 unverändert), und ein gespeicherter Debug-Modus „an“ wird
+  einmal zurückgesetzt. Die Diagnose zeigt beide Zustände. Annahme: Das macht Tippen und Einstellungen
+  schneller; nichts davon ist gemessen. Offen: Gerätetest (spürbarer Unterschied, Diagnose-Zeilen,
+  Debug-Einstellungen nach fünf Tipps wieder einschaltbar) und, falls es weiter ruckelt, eine
+  Messung auf dem Gerät; R8 ist eine eigene spätere Etappe.
 - **Graue Auswahlkarten (Owner, 2026-11-14: „Ja“):** Die grauen Mockup-Karten (AUS, NICHTS,
   AUSGEBLENDET, FLACHER LOOK) bekommen helle Schrift (Kontrast mit dunkler Schrift nur 1,74:1).
   Gebaut (`docs/VALIDATION.md` → Etappe 37, „Graue Karten“): helle Schrift 4,71:1 gewählt, 6,92:1

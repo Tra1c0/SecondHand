@@ -75,6 +75,12 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   (`AgentKeyboard-…`), die Namen der beiden GitHub-Repositories, der Secrets und das
   Tag-Format `build-<N>`. Upstream-Texte mit „HeliBoard“ (Lizenzzeile „basiert auf HeliBoard“,
   Gestendaten, Firefox-Hinweise der Diagnose, Links) bleiben bewusst.
+- Gebaute Variante (62, Owner-Bericht „stellenweise Performance-Probleme“): Die APK, die der Owner
+  installiert, ist `debugNoMinify` und seit 62 **nicht mehr debuggable** (`isDebuggable = false` in
+  `app/build.gradle.kts`). Name der Variante, Zusatz `.debug` der App-ID, Signatur und Quellordner
+  `app/src/debugNoMinify` bleiben (die installierte App und ihre Daten hängen daran); R8 bleibt aus.
+  Folge: `BuildConfig.DEBUG` ist false, der Debug-Modus ist standardmäßig aus, Android führt die App
+  mit seinen vollen Optimierungen aus (P259). Nichts davon ist auf einem Gerät gemessen.
 - Einstiegspunkte: IME-Dienst `LatinIME.java`, Anwendung `App.kt`, Einstellungen
   `SettingsActivity.kt` (alles Upstream-Dateien, siehe „Geänderte Upstream-Dateien“).
 - Ablauf jeder Aktion: Aktion starten → Quelltextvorschau → ausdrücklich freigegebener Snapshot →
@@ -4995,32 +5001,65 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Die einfarbige Variante hat bewusst keine Füllung (Launcher färben die Fläche selbst ein). Store-
   Bilder unter `fastlane/` sind Upstream und nicht angefasst.
 
+- **P259** Die ausgelieferte Variante ist nicht debuggable (62): `BuildConfig.DEBUG` ist dort false,
+  das hat vier Folgen. (1) `Defaults.PREF_DEBUG_MODE` ist false, also ist `DebugFlags.DEBUG_ENABLED`
+  aus: `InputLogic.commitChosenWord` schreibt keine Wörter mehr ins Logcat, `LatinIME` loggt keine
+  `EditorInfo`, und die vier `RuntimeException` bei Auffälligkeiten (`InputLogic` „Unknown event“ und
+  „revertCommit, but we are composing a word“, `WordComposer` „Wrong cursor position“, `LatinIME`
+  `EditorInfo` null) werden toleriert statt zu werfen. (2) `Constants.GET_SUGGESTED_WORDS_TIMEOUT` ist
+  200 statt 500 ms (der Upstream-Wert eines normalen Builds; ein langsames Telefon kann dadurch
+  Vorschläge verpassen, gemessen ist nichts). (3) Die Debug-Einstellungen (`AgentAreaSystemScreen`,
+  `AboutScreen`, `AdvancedScreen`, `DebugScreen`) erscheinen nur, wenn „Debug-Einstellungen zeigen“
+  (`PREF_SHOW_DEBUG_SETTINGS`) an ist: fünf Tipps auf die Versionszeile unter Über; dort lässt sich
+  auch der Debug-Modus wieder einschalten. (4) `App.onCreate` ruft `upgradeToolbarPrefs` nicht mehr
+  bei jedem Start auf, sondern nur beim Update (`AppUpgrade`, läuft bei jedem neuen Build); eine neue
+  Symbolleisten-Taste erscheint also mit dem nächsten Build, nicht beim Neustart. Der Absturzbericht-
+  Dialog (`SettingsActivity.findCrashReports`) liest bei ausgeschaltetem Debug-Modus nur den
+  ungeschützten Ordner; die App schreibt selbst keine Berichte (`DebugFlags`). Unverändert:
+  `BuildConfig.BUILD_TYPE` ist weiter `debugNoMinify`, die Unit-Tests laufen auf der Variante `debug`
+  (dort ist `DEBUG` true), `debugNoMinifyImplementation("…ui-tooling")` bleibt (nur Größe). Beim
+  Zurückstellen von `isDebuggable` Name der Variante, `.debug`, Signatur und Quellordner nie
+  anfassen; die Diagnose zeigt, ob die installierte App debuggable ist (P261).
+- **P260** Einmaliger Rückschritt des Debug-Modus (62): `A/DebugModeReset.kt` setzt einen
+  gespeicherten `DebugSettings.PREF_DEBUG_MODE = true` genau einmal auf false (Schlüssel
+  `agent_debug_mode_reset_done`). Aufruf in `AppUpgrade.onUpgrade`, in beiden Zweigen: beim
+  Update und bei frischer Installation (die setzt nur die Marke, sonst würde ein später absichtlich
+  eingeschalteter Debug-Modus beim ersten Update gelöscht). Der Schritt läuft vor `upgradeToolbarPrefs`
+  und setzt auch `DebugFlags.DEBUG_ENABLED`, denn `App.onCreate` liest es vor der Upgrade-Prüfung.
+  Er hängt am Versionswechsel: ein Telefon, das nie aktualisiert wird, behält den Wert. Tests:
+  `AT/ForkUpgradeTest.kt`.
+- **P261** Diagnose, Zeilen unter „App und Telefon“ (62): „Debugfähige App“ liest
+  `ApplicationInfo.FLAG_DEBUGGABLE` der laufenden App, „Debug-Modus“ liest `DebugFlags.DEBUG_ENABLED`;
+  beide kommen mit in den kopierten Text, ein Screenshot belegt also den Zustand. Texte am Ende von
+  `agent_diagnose_strings.xml` (`agent_diagnose_debuggable`, `agent_diagnose_debug_mode`). Test:
+  `DiagnoseScreenTest.theAppRowsProveWhetherTheAppIsDebuggableAndDebugModeIsOn`.
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (615 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (617 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (5): agent-apk, agent-tests, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (84): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (85): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand,
   ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand, CorrectionMemory,
-  DateCommand, DesignLook, DesignTiles, Diagnose, Dictation, EmojiCommand, EmojiMixPalette,
-  EmojiSuggestions, EncryptedActionRunStore, EventCommand, FieldCorrections, FieldSuggestionChips,
-  FlatMenuView, FlatPanelStyle, FlatPreset, ForeignWords, FormatGuardChips, HapticChain,
-  JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore, LastField, LearningData,
-  LoadingDotsView, ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData, MyDesigns,
-  OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter, RgbLighting, RgbOwnPatterns, RgbStrip,
-  RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore,
-  SkillLabels, SliderFeel, SliderHaptics, SmartPasteChips, SpaceDetents, SpaceGestures,
-  SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary, ToolLauncher, TouchCalibration,
-  TouchModel, TypedWordFirst, TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract,
-  WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
+  DateCommand, DebugModeReset, DesignLook, DesignTiles, Diagnose, Dictation, EmojiCommand,
+  EmojiMixPalette, EmojiSuggestions, EncryptedActionRunStore, EventCommand, FieldCorrections,
+  FieldSuggestionChips, FlatMenuView, FlatPanelStyle, FlatPreset, ForeignWords, FormatGuardChips,
+  HapticChain, JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore, LastField,
+  LearningData, LoadingDotsView, ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData,
+  MyDesigns, OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter, RgbLighting, RgbOwnPatterns,
+  RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand,
+  SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SmartPasteChips, SpaceDetents,
+  SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary, ToolLauncher,
+  TouchCalibration, TouchModel, TypedWordFirst, TypoMemory, WorkflowApprovalSummary,
+  WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
+  WorkflowStore
 - `A/charart/` (5): CharArtCanvas, CharArtImages, CharArtKey, CharArtKeys, CharArtView
 - `A/commands/` (22): AiCommandChips, AlarmCommand, AreaCommands, AskCommand, ClipCommand,
   CommandAppSettings, CommandSystem, EmojiMixCommand, EmojiMixRecents, EmojiMixer, InstalledApps,
@@ -5071,7 +5110,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `C/memory/` (4): OwnWords, PhraseMemory, ShortcutOffers, SnippetMatcher
 - `C/suggest/` (1): ContextSuggest
-- `CT/` (46): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
+- `CT/` (47): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
   CorrectionRulesTest, DateFormattingTest, EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest,
   EventParserTest, FieldReportTest, InkAreaTest, InkBenchmarkTest, InkDotFlowTest, InkDotsTest,
   InkFingerModel, InkRecognizerTest, InkTimingTest, InsertionAnchorTest, LanguageNamesTest,
@@ -5080,7 +5119,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   RgbFrameStatsTest, RgbLightingTest, RgbOwnPatternTest, RgbPatternJsonTest, RgbPatternsTest,
   SkillBindingTest, SnippetTemplateTest, StyledTranslationTest, SymbolTableTest, TimerParserTest,
   ToolTest, TouchDynamicsTest, UnitConversionTest, UpdateOnOpenPolicyTest, UpdateReleasesTest,
-  UrlDetectorTest, WorkflowTest
+  UrlDetectorTest, WorkflowContractTest, WorkflowTest
 - `CT/charart/` (2): CharArtTest, SketchTest
 - `CT/clip/` (3): ClipGuardTest, PrivateRangesTest, SmartPasteTest
 - `CT/format/` (1): FormatGuardTest

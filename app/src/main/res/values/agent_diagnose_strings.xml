@@ -192,4 +192,6 @@
     <string name="agent_diagnose_verdict_strip_toolbar">Suggestions on, but the strip last showed the toolbar instead of words.</string>
     <string name="agent_diagnose_verdict_strip_emojis">Suggestions on, but the strip last showed the emoji row instead of words.</string>
     <string name="agent_diagnose_verdict_strip_not_captured">Suggestions, autocorrection and capitals on; what the strip showed is not captured.</string>
+    <string name="agent_diagnose_debuggable">Debuggable app</string>
+    <string name="agent_diagnose_debug_mode">Debug mode</string>
 </resources>

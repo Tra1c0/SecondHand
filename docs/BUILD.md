@@ -82,6 +82,19 @@ nutzen einen Debug-Schlüssel, der in jeder neuen Umgebung anders ist; sie sind 
   APK“ → „Run workflow“, Branch wählen). Baut `:app:assembleDebugNoMinify` (App-ID
   `dev.personal.agentkeyboard.debug`, Name „SecondHand“, in allen Varianten ohne Zusatz) und veröffentlicht die APK samt
   SHA-256 als Vorab-Release `build-<Laufnummer>` mit `release-notes/next.md` als Text.
+- Bauart (62): Die APK ist die Variante `debugNoMinify`, aber **nicht debuggable** und ohne R8 (nur
+  die Variante, die der Owner installiert; Gründe: ein debuggable-Programm läuft ohne die vollen
+  Optimierungen von Android, und `BuildConfig.DEBUG` schaltete den Debug-Modus ein, der jedes
+  getippte Wort ins Logcat schrieb). Name `debugNoMinify`, App-ID mit `.debug`, Signatur und
+  Quellordner `app/src/debugNoMinify` bleiben, sonst wäre es keine Update-Installation mehr. Was sich
+  für den Owner ändert: Debug-Modus standardmäßig aus (ein gespeichertes „an“ wird beim ersten Update
+  einmal zurückgesetzt, danach lässt es sich wieder einschalten), die Debug-Einstellungen erscheinen
+  erst nach fünf Tipps auf die Versionszeile unter Über, Vorschlags-Zeitlimit 200 statt 500 ms, die
+  Symbolleisten-Tasten werden nur noch beim Update neu eingelesen, die vier Ausnahmen bei
+  Auffälligkeiten sind aus. Die Diagnose zeigt „Debugfähige App“ und „Debug-Modus“. Wer die Debug-Bauart
+  braucht, nimmt die Variante `debug` (`assembleDebug`). Weil die Variante nicht mehr debuggable ist,
+  hätte `assemble` zusätzlich `lintVital` ausgeführt; `lint { checkReleaseBuilds = false }` schaltet das
+  ab (das volle Lint ist `python3 tools/dev.py lint`).
 - Die Workflow-Dateien dürfen nie umbenannt oder verschoben werden (nur die `name:`-Zeile ändert sich): GitHub zählt die Laufnummer je Workflow-Datei, eine neue Datei finge bei 1 an, und alle installierten Builds sähen eine niedrigere Versionsnummer (P240).
 - Zwei Dateinamen (57): Jeder Build liegt unter `SecondHand-build-<N>.apk` und
   `AgentKeyboard-build-<N>.apk` (gleiche Bytes), je mit einer eigenen `.sha256`, die genau diese

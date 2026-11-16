@@ -15,3 +15,4 @@ Nur mit Tests geprüft, noch auf keinem Gerät ausprobiert.
 ## Nächster Build
 
 - Neuer Name und neues Logo: Die App heißt jetzt „SecondHand“ (bisher „Agent Keyboard“) und hat ein neues Symbol, eine weiße Taste mit „S“ vor einer roten Umriss-Taste. Ein Update von Build 27 behält alle Einstellungen, Schlüssel und Gelerntes. Jeder Build liegt auf GitHub zusätzlich unter dem alten Dateinamen `AgentKeyboard-build-<N>.apk`, damit ältere Installationen weiter Updates finden.
+- Die App läuft jetzt ohne Debug-Modus: Sie ist nicht mehr als „debuggable“ gebaut, und der Debug-Modus ist aus. Das soll Tippen und Einstellungen schneller machen; gemessen habe ich es noch nicht. Ein früher gespeicherter „Debug-Modus an“ wird einmal zurückgesetzt, die Debug-Einstellungen findest du nach fünf Tipps auf die Version unter Über. Diagnose → App und Telefon zeigt jetzt „Debugfähige App“ und „Debug-Modus“, bitte bei weiteren Rucklern einen Screenshot schicken.

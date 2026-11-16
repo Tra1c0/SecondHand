@@ -86,4 +86,38 @@ class ForkUpgradeTest {
         checkVersionUpgrade(context)
         assertEquals(0.8f, prefs.getFloat(gapKey(0), -1f))
     }
+
+    // stage 62: the shipped APK is no longer debuggable, a stored "debug mode on" is reset once
+    private val debugKey = helium314.keyboard.latin.settings.DebugSettings.PREF_DEBUG_MODE
+
+    @Test fun aStoredDebugModeIsSwitchedOffOnceOnTheFirstUpdate() {
+        prefs.edit(commit = true) {
+            putInt(Settings.PREF_VERSION_CODE, 13)
+            putBoolean(debugKey, true)
+        }
+        checkVersionUpgrade(context)
+        assertFalse(prefs.getBoolean(debugKey, true))
+        // the owner switches it on again later; the next update leaves it alone
+        prefs.edit(commit = true) { putBoolean(debugKey, true); putInt(Settings.PREF_VERSION_CODE, 14) }
+        checkVersionUpgrade(context)
+        assertTrue(prefs.getBoolean(debugKey, false))
+    }
+
+    @Test fun debugModeThatIsOffOrUnsetStaysAsItIs() {
+        prefs.edit(commit = true) { putInt(Settings.PREF_VERSION_CODE, 13); putBoolean(debugKey, false) }
+        checkVersionUpgrade(context)
+        assertFalse(prefs.getBoolean(debugKey, true))
+        prefs.edit(commit = true) { clear(); putInt(Settings.PREF_VERSION_CODE, 13) }
+        checkVersionUpgrade(context)
+        assertFalse(prefs.contains(debugKey))
+        assertTrue(prefs.getBoolean(DebugModeReset.DONE_KEY, false))
+    }
+
+    @Test fun aFreshInstallCountsAsDoneSoALaterOnPurposeDebugModeStays() {
+        checkVersionUpgrade(context) // no stored version: fresh install
+        assertTrue(prefs.getBoolean(DebugModeReset.DONE_KEY, false))
+        prefs.edit(commit = true) { putBoolean(debugKey, true); putInt(Settings.PREF_VERSION_CODE, 13) }
+        checkVersionUpgrade(context)
+        assertTrue(prefs.getBoolean(debugKey, false))
+    }
 }

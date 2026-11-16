@@ -191,4 +191,6 @@
     <string name="agent_diagnose_verdict_strip_toolbar">Vorschläge an, aber zuletzt zeigte die Leiste die Symbolleiste statt Wörtern.</string>
     <string name="agent_diagnose_verdict_strip_emojis">Vorschläge an, aber zuletzt zeigte die Leiste die Emoji-Reihe statt Wörtern.</string>
     <string name="agent_diagnose_verdict_strip_not_captured">Vorschläge, Autokorrektur und Großschreibung an; was die Leiste zeigte, ist nicht erfasst.</string>
+    <string name="agent_diagnose_debuggable">Debugfähige App</string>
+    <string name="agent_diagnose_debug_mode">Debug-Modus</string>
 </resources>
