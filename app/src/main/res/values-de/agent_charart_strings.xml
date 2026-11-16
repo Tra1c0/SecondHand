@@ -31,7 +31,7 @@
     <string name="agent_char_art_dither_diffusion">Streuung</string>
     <string name="agent_char_art_invert">Umkehren</string>
     <string name="agent_char_art_photo_remove">Foto entfernen</string>
-    <string name="agent_char_art_photo_none">Keine Bilder. Screenshots und Fotos erscheinen hier, sobald Agent Keyboard Bilder lesen darf.</string>
+    <string name="agent_char_art_photo_none">Keine Bilder. Screenshots und Fotos erscheinen hier, sobald SecondHand Bilder lesen darf.</string>
     <string name="agent_char_art_photo_empty">Keine Fotos oder Screenshots gefunden.</string>
     <string name="agent_char_art_photo_allow">Bilder erlauben</string>
     <string name="agent_char_art_photo_loading">Bilder laden …</string>

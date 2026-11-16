@@ -78,10 +78,21 @@ Android installiert eine neue Version nur dann als Update (mit allen Daten), wen
 demselben Schlüssel signiert ist und eine höhere Versionsnummer hat. Lokale und Cloud-Builds
 nutzen einen Debug-Schlüssel, der in jeder neuen Umgebung anders ist; sie sind nur zum Prüfen da.
 
-- Workflow `.github/workflows/agent-apk.yml`, nur von Hand gestartet (Actions → „Agent Keyboard
+- Workflow `.github/workflows/agent-apk.yml`, nur von Hand gestartet (Actions → „SecondHand
   APK“ → „Run workflow“, Branch wählen). Baut `:app:assembleDebugNoMinify` (App-ID
-  `dev.personal.agentkeyboard.debug`, Name „Agent Keyboard Lab“) und veröffentlicht die APK samt
+  `dev.personal.agentkeyboard.debug`, Name „SecondHand“, in allen Varianten ohne Zusatz) und veröffentlicht die APK samt
   SHA-256 als Vorab-Release `build-<Laufnummer>` mit `release-notes/next.md` als Text.
+- Die Workflow-Dateien dürfen nie umbenannt oder verschoben werden (nur die `name:`-Zeile ändert sich): GitHub zählt die Laufnummer je Workflow-Datei, eine neue Datei finge bei 1 an, und alle installierten Builds sähen eine niedrigere Versionsnummer (P240).
+- Zwei Dateinamen (57): Jeder Build liegt unter `SecondHand-build-<N>.apk` und
+  `AgentKeyboard-build-<N>.apk` (gleiche Bytes), je mit einer eigenen `.sha256`, die genau diese
+  Datei nennt (vier Dateien je Release, im Vorab-Release und im öffentlichen Repository). Grund:
+  Installierte Builds bis 27 suchen nur nach dem alten Namen (`UpdateReleases.apkName` in
+  `agent-core`); ohne die alte Datei bekämen sie nie wieder ein Update. Die App ab diesem Build
+  nimmt den neuen Namen zuerst und fällt auf den alten zurück. Der alte Name darf entfallen, sobald es
+  keine Installation unter diesem Build mehr gibt (alle Geräte des Owners sind auf dem neuen
+  Stand); dann in `agent-apk.yml` die `OLD_NAME`-Zeilen und `UpdateReleases.legacy*` samt Tests
+  entfernen. Die lokale Datei aus `tools/dev.py build` heißt `SecondHand_<Version>-debugNoMinify-<ABI>.apk`
+  (Gradle-Ausgabename in `app/build.gradle.kts`).
 - Signatur: Repository-Secrets `AGENT_KEYSTORE_BASE64` (PKCS12-Datei, Base64) und
   `AGENT_KEYSTORE_PASSWORD` (Passwort von Datei und Schlüssel), Alias `agentkeyboard`. Der
   Workflow schreibt die Datei nach `$RUNNER_TEMP` und löscht sie nach dem Build. `app/build.gradle.kts`

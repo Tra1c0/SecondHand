@@ -1,6 +1,6 @@
-# Agent Keyboard – Regeln für jede Sitzung
+# SecondHand – Regeln für jede Sitzung
 
-Private Android-Tastatur auf Basis von HeliBoard 4.2 mit Aktionspanel, Aktionsrad, Skill Keys,
+SecondHand (bis Build 27 „Agent Keyboard“) ist eine private Android-Tastatur auf Basis von HeliBoard 4.2 mit Aktionspanel, Aktionsrad, Skill Keys,
 eigenen Text-Workflows und optionaler KI über den eigenen OpenAI-Schlüssel. Diese Regeln gelten
 für jede Sitzung. Jede Regel steht nur hier und nur einmal, Details stehen in der jeweils
 genannten Datei. `AGENTS.md` ist eine automatisch erzeugte Kopie dieser Datei für Werkzeuge, die

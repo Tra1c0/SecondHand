@@ -38,7 +38,7 @@
     <string name="agent_updates_error_not_newer">Kein neuerer Build verfügbar.</string>
     <string name="agent_updates_error_install">Die Installation wurde abgebrochen oder ist fehlgeschlagen.</string>
     <string name="agent_updates_channel">Updates</string>
-    <string name="agent_updates_notification">Agent Keyboard: Build %d verfügbar</string>
+    <string name="agent_updates_notification">SecondHand: Build %d verfügbar</string>
     <string name="agent_updates_notification_text">Öffne die Seite „Updates“, um ihn herunterzuladen und zu installieren.</string>
     <string name="agent_updates_friends">Für Freunde: Die APK einmal von %s installieren (Android fragt, ob der Browser Apps installieren darf), danach kommen Updates hier in der App. Alternativ kann Obtainium dieser Adresse folgen.</string>
 </resources>

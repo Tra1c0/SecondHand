@@ -27,7 +27,10 @@
       "app/src/main/res/drawable/ic_{agent,skill}_*.xml",
 
       "app/src/main/AndroidManifest.xml",
-      "app/src/main/res/xml/clipboard_provider_path.xml",
+      "app/src/main/res/xml/{clipboard_provider_path,spellchecker}.xml",
+      "app/src/main/res/{drawable,drawable-v24}/ic_launcher_*.xml",
+      "app/src/main/res/mipmap-anydpi-v26/ic_launcher*.xml",
+      "app/src/main/res/mipmap-*/ic_launcher*.png",
       "app/build.gradle.kts",
       "settings.gradle",
       "app/src/main/res/layout/main_keyboard_frame.xml",

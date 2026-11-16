@@ -3,7 +3,11 @@
 # build has a higher version code and the same signature, so it installs as an update.
 # With the secret RELEASES_TOKEN the same files also go to the public release repository, where
 # the app's opt-in update check (and friends) find them without any token.
-name: Agent Keyboard APK
+# Every build is published under two file names with identical bytes, each with its own .sha256 that
+# names that file: SecondHand-build-<N>.apk and AgentKeyboard-build-<N>.apk. Installed builds up to 27
+# (the app was called "Agent Keyboard") accept only the old name; drop it once no such installation
+# is left (docs/BUILD.md).
+name: SecondHand APK
 
 on:
   workflow_dispatch:
@@ -62,13 +66,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           APK=$(ls app/build/outputs/apk/debugNoMinify/*.apk | head -1)
-          NAME="AgentKeyboard-build-${{ github.run_number }}.apk"
+          NAME="SecondHand-build-${{ github.run_number }}.apk"
+          OLD_NAME="AgentKeyboard-build-${{ github.run_number }}.apk"
           cp "$APK" "$NAME"
+          cp "$APK" "$OLD_NAME"
+          # each checksum file names the file it belongs to (the app refuses a checksum that names another file)
           sha256sum "$NAME" > "$NAME.sha256"
+          sha256sum "$OLD_NAME" > "$OLD_NAME.sha256"
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$NAME" | grep -i "SHA-256" || true
-          gh release create "build-${{ github.run_number }}" "$NAME" "$NAME.sha256" \
+          gh release create "build-${{ github.run_number }}" "$NAME" "$NAME.sha256" "$OLD_NAME" "$OLD_NAME.sha256" \
             --prerelease --target "${{ github.sha }}" \
-            --title "Agent Keyboard Build ${{ github.run_number }} (${{ github.ref_name }})" \
+            --title "SecondHand Build ${{ github.run_number }} (${{ github.ref_name }})" \
             --notes-file release-notes/next.md
 
       - name: Publish in the public release repository
@@ -81,10 +89,11 @@ jobs:
             echo "::warning::Secret RELEASES_TOKEN is missing: build-${{ github.run_number }} was not published in $RELEASE_REPOSITORY, the in-app update check will not see it (see docs/BUILD.md)."
             exit 0
           fi
-          NAME="AgentKeyboard-build-${{ github.run_number }}.apk"
-          gh release create "build-${{ github.run_number }}" "$NAME" "$NAME.sha256" \
+          NAME="SecondHand-build-${{ github.run_number }}.apk"
+          OLD_NAME="AgentKeyboard-build-${{ github.run_number }}.apk"
+          gh release create "build-${{ github.run_number }}" "$NAME" "$NAME.sha256" "$OLD_NAME" "$OLD_NAME.sha256" \
             --repo "$RELEASE_REPOSITORY" \
-            --title "Agent Keyboard Build ${{ github.run_number }}" \
+            --title "SecondHand Build ${{ github.run_number }}" \
             --notes-file release-notes/next.md
 
       - name: Reports of a failed build

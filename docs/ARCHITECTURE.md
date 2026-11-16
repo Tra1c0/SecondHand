@@ -1,4 +1,4 @@
-# Agent Keyboard – Code-Landkarte
+# SecondHand – Code-Landkarte
 
 Die Code-Landkarte für alle, die Code ändern: wo jeder Teil liegt, wie die Teile zusammenhängen
 und was schon einmal kaputtging. Lies nur den Abschnitt des Bereichs, den du änderst. Seine
@@ -63,6 +63,18 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - Paketnamen: Die Upstream-Pakete `helium314.keyboard.*` bleiben, damit die native Engine stabil
   bleibt. Eigener App-Code liegt in `helium314.keyboard.agent` (`A/`) und in
   `K/settings/screens/`. Der Kern liegt in `dev.agentkeyboard.core` (`C/`).
+- Name (57, Owner 2026-11-16): Die App heißt „SecondHand“ (bis Build 27 „Agent Keyboard“, in jeder
+  Variante ohne Zusatz „Lab“). Geändert hat sich nur, was der Nutzer liest: `english_ime_name`, die
+  Fork-Texte, die Rechtschreib- und IME-Namen (neue Schlüssel `agent_spell_checker_service_name`,
+  `agent_ime_settings`, `agent_android_spell_checker_settings` in `values{,-de}/agent_name_strings.xml`,
+  P241), Workflow-Namen und Release-Titel, der `User-Agent` `SecondHand-Updater`, die Dateinamen der
+  APK (zwei, P240) und das Logo (58, P243). Es bleiben: `applicationId` `dev.personal.agentkeyboard`,
+  Pakete (`dev.agentkeyboard.core`, `helium314.keyboard.*`), Klassen (`AgentKeyboardFrame` …),
+  Einstellungsschlüssel, Dateinamen und Ordner auf dem Gerät, AAD-Texte der Verschlüsselung
+  („AgentKeyboard/…“, sonst wären Daten unlesbar), Vorschlagsnamen beim Speichern
+  (`AgentKeyboard-…`), die Namen der beiden GitHub-Repositories, der Secrets und das
+  Tag-Format `build-<N>`. Upstream-Texte mit „HeliBoard“ (Lizenzzeile „basiert auf HeliBoard“,
+  Gestendaten, Firefox-Hinweise der Diagnose, Links) bleiben bewusst.
 - Einstiegspunkte: IME-Dienst `LatinIME.java`, Anwendung `App.kt`, Einstellungen
   `SettingsActivity.kt` (alles Upstream-Dateien, siehe „Geänderte Upstream-Dateien“).
 - Ablauf jeder Aktion: Aktion starten → Quelltextvorschau → ausdrücklich freigegebener Snapshot →
@@ -825,6 +837,12 @@ Speicher, Datenschutz und Identität:
   Klartextverkehr, Backups aus
   (`agent_data_extraction_rules.xml`), CE als Standard, eigener FileProvider, der
   AndroidX-Startup-Initializer für HTTP ist entfernt.
+- `res/xml/spellchecker.xml`, `AndroidManifest.xml` (Namen) und `SettingsActivity.kt` (Titel der
+  Rechtschreib-Einstellungen): zeigen auf `agent_spell_checker_service_name` bzw.
+  `agent_android_spell_checker_settings` statt auf die Upstream-Texte mit „HeliBoard“ (57, P241).
+- `res/drawable/ic_launcher_foreground.xml`, `res/drawable/ic_launcher_monochrome.xml` (neu),
+  `res/drawable-v24/ic_launcher_background.xml`, `res/mipmap-anydpi-v26/ic_launcher{,_round}.xml`
+  und `res/mipmap-*/ic_launcher{,_round}.png`: das Logo SecondHand (58, P243).
 - `res/xml/clipboard_provider_path.xml`: zusätzliche Pfade `agent_qr/` (`@qr`), `agent_emoji_mix/`
   (Emoji-Mix-Cache, 25a) und `agent_screenshot/` für die Kopien
   der Screenshot-Pille, getrennt von den Clip-Dateien (deren Aufräumen hielte ein Unterordner
@@ -861,7 +879,7 @@ Speicher, Datenschutz und Identität:
   APK-Name, Lint-Baseline `lint-baseline-upstream.xml`), `settings.gradle`
   (`:agent-core`), `clip_provider.xml` und `gesture_data.xml` (eigene Provider-Authorities,
   auch in `debug`/`debugNoMinify`), `donottranslate.xml` und `strings.xml` in
-  `debug`/`debugNoMinify` (Namen „Agent Keyboard“ bzw. „Agent Keyboard Lab“).
+  `debug`/`debugNoMinify` (seit 57 alle drei Namen ohne „Lab“, P242).
 - `values-de/strings.xml` (38f): deutsche Texte von HeliBoard sagen „Leiste“ statt „Symbolleiste“
   (Modus, Tasten, Anheften, Hinweise, Gestendaten); nur Wortlaut, keine neuen oder entfernten
   Schlüssel. Englisch unverändert.
@@ -2934,7 +2952,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   (höchstens 5, nur HTTPS), Größe ≤ 120 MB und genau die gelistete Größe, SHA-256 beim Schreiben.
   `UpdateError`/`UpdateFailure` sind neutral, kein Antworttext wird gezeigt oder geloggt.
 - `C/UpdateReleases.kt` nimmt nur Assets mit genau der erwarteten Download-URL
-  (`https://github.com/<REPOSITORY>/releases/download/build-<n>/<Name>`).
+  (`https://github.com/<REPOSITORY>/releases/download/build-<n>/<Name>`). Seit 57 heißt die APK
+  `SecondHand-build-<n>.apk` (`apkName`/`checksumName`); `newest` nimmt dieses Paar aus APK und
+  Prüfsumme zuerst und fällt auf `AgentKeyboard-build-<n>.apk` (`legacyApkName`/`legacyChecksumName`)
+  zurück, nie gemischt (P240). `GitHubUpdateClient.USER_AGENT` ist `SecondHand-Updater`.
 - `A/updates/Updates.kt`: `check` (speichert das Ergebnis; seit 56 mit dem gespeicherten ETag, solange
   `compared_version` die installierte Version ist; 304 behält Build, Notizen und ETag und schreibt
   nur `status` und `checkedAt`, ein Fehlschlag behält alles, P239), `downloadAndInstall` (fragt die API
@@ -3377,6 +3398,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `typedCommand*`, `typedEmoji*`, `screenshotChip*`, `symbolDraw*`, `subtypeSwitch*`) und `BatchDeliveryTest`.
   Toolchain und Einrichtung: `docs/BUILD.md`. UI-Tests schreiben gerenderte Vorschauen nach
   `app/build/agent-previews/` (z. B. `builder-send-review.png`, nicht versioniert).
+- `tools/render_logo.js` (58): rendert mit dem installierten Playwright/Chromium die Bild-Symbole
+  `mipmap-*/ic_launcher{,_round}.png` aus den SVGs in `docs/referenzen/logo/` (P243).
 - `tools/emoji_mix_table.py` (25a): baut `app/src/main/assets/emoji_mix_pairs.bin` aus der
   Emoji-Kitchen-Metadatei; Aufruf und Quelle in `docs/BUILD.md` → Emoji-Mix-Tabelle.
 - Baseline: `upstream-tests` endet mit genau fünf geerbten Fehlern, Liste in
@@ -4937,13 +4960,47 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   er gegen die 60 Anfragen je Stunde und IP (nicht gegen das echte GitHub geprüft). Mit höchstens vier
   Anfragen je Stunde und Gerät reicht das; hinter einer geteilten IP (CGNAT) mögliche 403 fängt die
   Wartezeit ab. Der ETag spart vor allem Datenmenge.
+- **P240** Zwei Dateinamen (57): Jedes Release enthält vier Dateien, `SecondHand-build-<N>.apk(.sha256)`
+  und `AgentKeyboard-build-<N>.apk(.sha256)` mit gleichen Bytes. Installierte Builds bis 27 suchen nur
+  den alten Namen; ihn zu streichen schnitte sie von Updates ab. Jede `.sha256` muss den Namen der
+  eigenen Datei tragen (`sha256sum` im Ordner der Datei), sonst lehnt `parseChecksum` sie ab.
+  `UpdateReleases.newest` nimmt nie die APK des einen mit der Prüfsumme des anderen Namens. Beide
+  Veröffentlichungsschritte in `agent-apk.yml` laden alle vier Dateien hoch; wer einen Schritt ändert,
+  ändert beide. Streichen darf man den alten Namen erst, wenn keine Installation unter Build 28
+  mehr existiert (`docs/BUILD.md`). Der Gradle-Ausgabename (`SecondHand_<Version>-…`) ist davon
+  unabhängig: der Workflow nimmt die APK per Glob und benennt sie beim Kopieren. Die
+  Workflow-Dateien (`agent-apk.yml`, `agent-tests.yml`) nie umbenennen oder verschieben, nur ihre
+  `name:`-Zeile ändern: die Build-Nummer ist die Laufnummer je Workflow-Datei, eine neue Datei finge
+  wieder bei 1 an, und jede Installation sähe eine niedrigere Versionsnummer und aktualisierte nie mehr.
+- **P241** Upstream-Texte nicht überschreiben (57): `spell_checker_service_name`, `ime_settings` und
+  `android_spell_checker_settings` stehen in `values/strings.xml` mit rund hundert Übersetzungen und
+  sagen „HeliBoard“. Ein gleichnamiger Eintrag in einer Fork-Datei wäre ein doppelter Schlüssel.
+  Darum eigene Schlüssel `agent_*` (`agent_name_strings.xml`), auf die `AndroidManifest.xml`,
+  `res/xml/spellchecker.xml` und `SettingsActivity.kt` zeigen. Wer eine weitere Stelle findet, die
+  den Upstream-Schlüssel nutzt, stellt sie ebenfalls um. `ime_settings` wird nirgends gelesen.
+- **P242** Der Name, den der Owner sieht, kommt aus der Variante `debugNoMinify` (die ausgelieferte
+  APK), nicht aus `app/src/main/res`: `app/src/debug{,NoMinify}/res/values/strings.xml`
+  überschreiben `english_ime_name` („SecondHand“), `agent_spell_checker_service_name` („SecondHand
+  Spell Checker“) und `agent_ime_settings` („SecondHand Settings“), unübersetzt, ohne „Lab“. Vor 57
+  überschrieben sie die Upstream-Schlüssel (`spell_checker_service_name`, `ime_settings`) mit „Agent
+  Keyboard Lab …“; die Manifest-Einträge zeigen jetzt auf die `agent_*`-Schlüssel, ein alter
+  Upstream-Schlüssel dort bringt keinen alten Namen zurück. Neue Namensschlüssel immer in `main`
+  und in beiden Debug-Dateien prüfen. `gesture_data.xml` und `clip_provider.xml` dort (Provider-
+  Authorities der `.debug`-App-ID) nicht anfassen.
+- **P243** Logo (58): Quellen sind die SVGs in `docs/referenzen/logo/`; die Vektor-Drawables
+  (`ic_launcher_foreground/_monochrome/_background`) übernehmen ihre Koordinaten (Viewport 108).
+  Die PNGs für Android 5–7 sind erzeugt: Ändert sich ein SVG, `node tools/render_logo.js` laufen
+  lassen und die Vektor-Drawables von Hand nachziehen (kein Konverter). `AboutScreen` und
+  `fake_toast.xml` lesen `@mipmap/ic_launcher_round`, ein eigenes Marken-Drawable gibt es nicht mehr.
+  Die einfarbige Variante hat bewusst keine Füllung (Launcher färben die Fläche selbst ein). Store-
+  Bilder unter `fastlane/` sind Upstream und nicht angefasst.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (597 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (615 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -5076,34 +5133,43 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `app/src/main/assets/layouts/functional/` (1): functional_keys_flat
 - `app/src/main/assets/layouts/more_symbols/` (1): symbols_shifted_flat
 - `app/src/main/assets/layouts/symbols/` (1): symbols_flat
-- `app/src/main/res/drawable/` (21): btn_keyboard_key_flat, btn_keyboard_key_flat_pill,
+- `app/src/main/res/drawable-v24/` (1): ic_launcher_background
+- `app/src/main/res/drawable/` (23): btn_keyboard_key_flat, btn_keyboard_key_flat_pill,
   btn_keyboard_key_flat_rect, btn_keyboard_key_functional_flat, ic_agent_actions, ic_agent_dictate,
-  ic_agent_settings_updates, ic_skill_1, ic_skill_2, ic_skill_3, sym_keyboard_clipboard_flat,
-  sym_keyboard_delete_flat, sym_keyboard_go_flat, sym_keyboard_grid_flat, sym_keyboard_mic_flat,
-  sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
-  sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
+  ic_agent_settings_updates, ic_launcher_foreground, ic_launcher_monochrome, ic_skill_1, ic_skill_2,
+  ic_skill_3, sym_keyboard_clipboard_flat, sym_keyboard_delete_flat, sym_keyboard_go_flat,
+  sym_keyboard_grid_flat, sym_keyboard_mic_flat, sym_keyboard_pen_flat, sym_keyboard_return_flat,
+  sym_keyboard_shift_flat, sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat,
+  sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
-- `app/src/main/res/values-de/` (31): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
+- `app/src/main/res/mipmap-anydpi-v26/` (2): ic_launcher, ic_launcher_round
+- `app/src/main/res/mipmap-hdpi/` (2): ic_launcher, ic_launcher_round
+- `app/src/main/res/mipmap-mdpi/` (2): ic_launcher, ic_launcher_round
+- `app/src/main/res/mipmap-xhdpi/` (2): ic_launcher, ic_launcher_round
+- `app/src/main/res/mipmap-xxhdpi/` (2): ic_launcher, ic_launcher_round
+- `app/src/main/res/mipmap-xxxhdpi/` (2): ic_launcher, ic_launcher_round
+- `app/src/main/res/values-de/` (32): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
   agent_charart_strings, agent_clipvault_strings, agent_command_system_strings,
   agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings, agent_format_strings,
-  agent_gestures_strings, agent_language_strings, agent_memory_strings, agent_rgb_pattern_strings,
+  agent_gestures_strings, agent_language_strings, agent_memory_strings, agent_name_strings,
+  agent_rgb_pattern_strings, agent_rgb_strings, agent_settings_keys_strings,
+  agent_settings_look_strings, agent_settings_strings, agent_settings_system_strings,
+  agent_slider_strings, agent_smart_paste_strings, agent_snippet_strings, agent_space_strings,
+  agent_strings, agent_suggest_strings, agent_symbol_strings, agent_touch_strings,
+  agent_typing_strings, agent_update_prompt_strings, agent_update_strings, strings
+- `app/src/main/res/values/` (39): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+  agent_bar_strings, agent_charart_ids, agent_charart_strings, agent_clipvault_strings,
+  agent_command_system_strings, agent_design_strings, agent_diagnose_strings,
+  agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_ids,
+  agent_language_strings, agent_memory_strings, agent_name_strings, agent_rgb_pattern_strings,
   agent_rgb_strings, agent_settings_keys_strings, agent_settings_look_strings,
   agent_settings_strings, agent_settings_system_strings, agent_slider_strings,
   agent_smart_paste_strings, agent_snippet_strings, agent_space_strings, agent_strings,
   agent_suggest_strings, agent_symbol_strings, agent_touch_strings, agent_typing_strings,
-  agent_update_prompt_strings, agent_update_strings, strings
-- `app/src/main/res/values/` (38): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
-  agent_bar_strings, agent_charart_ids, agent_charart_strings, agent_clipvault_strings,
-  agent_command_system_strings, agent_design_strings, agent_diagnose_strings,
-  agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_ids,
-  agent_language_strings, agent_memory_strings, agent_rgb_pattern_strings, agent_rgb_strings,
-  agent_settings_keys_strings, agent_settings_look_strings, agent_settings_strings,
-  agent_settings_system_strings, agent_slider_strings, agent_smart_paste_strings,
-  agent_snippet_strings, agent_space_strings, agent_strings, agent_suggest_strings,
-  agent_symbol_strings, agent_touch_strings, agent_typing_strings, agent_update_prompt_strings,
-  agent_update_strings, attrs, clip_provider, donottranslate, gesture_data, themes-flat
-- `app/src/main/res/xml/` (3): agent_data_extraction_rules, agent_screen_reader,
-  clipboard_provider_path
+  agent_update_prompt_strings, agent_update_strings, attrs, clip_provider, donottranslate,
+  gesture_data, themes-flat
+- `app/src/main/res/xml/` (4): agent_data_extraction_rules, agent_screen_reader,
+  clipboard_provider_path, spellchecker
 - `app/src/test/java/helium314/keyboard/` (2): KeyboardParserTest, Shadows
 - `app/src/test/java/helium314/keyboard/latin/` (3): InputLogicTest, SuggestTest,
   WordListDictionaries

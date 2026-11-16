@@ -5430,6 +5430,44 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   - Danach auf 42248cd: `:agent-core:test` 591 grün; `*Update*`, `*LastFieldTest` und `*InputLogicTest.update*` 46 grün.
   - Kein Gerätetest und kein Test gegen das echte GitHub.
 
+## Etappe 57 (Name SecondHand)
+
+- Auftrag: Owner, 2026-11-16: „Bitte benenne die App in SecondHand um, ändere das Logo.“ Nur der sichtbare
+  Name ändert sich (Liste in `docs/ARCHITECTURE.md` → Grundlagen).
+- Geändert: `english_ime_name`, die Fork-Texte (Diagnose-Kopf, Zeichen-Kunst, Update-Benachrichtigung,
+  Screenreader-Dienst, je Englisch und Deutsch), neue Schlüssel `agent_spell_checker_service_name`,
+  `agent_ime_settings`, `agent_android_spell_checker_settings` (`values{,-de}/agent_name_strings.xml`)
+  statt der Upstream-Texte mit „HeliBoard“ (Manifest, `spellchecker.xml`, `SettingsActivity.kt`), die
+  Namen in `app/src/debug{,NoMinify}/res/values/strings.xml` (ohne „Lab“), die Workflow-Namen und
+  Release-Titel, `UpdateReleases` (neuer Name zuerst, alter als Rückfall), `USER_AGENT`
+  `SecondHand-Updater`, Gradle-Ausgabename.
+- Tests: `UpdateReleasesTest` neu: beide Namen, nur der alte, nur der neue, Paare nie gemischt,
+  Prüfsumme mit dem Namen der anderen Datei abgelehnt. `UpdateCheckTest` neu: Release mit beiden Namen
+  lädt unter dem neuen, nur alter Name wird weiter installiert, Prüfsumme der anderen Datei wird
+  abgelehnt (`INVALID_RESPONSE`, wie jede Prüfsumme, die die geladene Datei nicht nennt), `User-Agent`.
+  `ForkIdentityTest` neu: System-Namen sagen „SecondHand“ und nie „HeliBoard“, „Agent Keyboard“ oder „Lab“.
+  Geänderte Erwartungen (Name geändert, Absicht gleich): `DiagnoseScreenTest` (Kopierkopf
+  „SecondHand – Diagnose“), `ForkIdentityTest` (App-Label beginnt mit „SecondHand“).
+- Ergebnis: `:agent-core:test` 595 grün; App-Tests `*Update*`, `*DiagnoseScreenTest`,
+  `*SettingsStartScreenTest`, `*ForkIdentityTest`, `*SettingsSystemAreaTest`, `*InputLogicTest.update*`:
+  82 grün; Lint ohne neuen Fehler; YAML beider Workflows gelesen und geparst.
+- Nicht geprüft: der Workflow selbst (läuft nur auf GitHub), ein echtes Update von Build 27 über die neue
+  oder die alte Datei, die Namen in Androids Listen auf einem Gerät.
+
+## Etappe 58 (Logo SecondHand)
+
+- Auftrag: Owner, 2026-11-16, gleicher Satz. Entwurf des Leads: `docs/referenzen/logo/`.
+- Neu/geändert: Vektor-Drawables `ic_launcher_foreground`, `ic_launcher_monochrome` (neu),
+  `ic_launcher_background` (Verlauf), adaptive Symbole mit `monochrome`, zehn PNGs (48 bis 192 px) aus
+  `tools/render_logo.js` (Playwright/Chromium, mittlere 72 × 72 des 108er Feldes, Rundung 18 % bzw. Kreis,
+  transparent außen). Über-Bildschirm und Toast lesen `@mipmap/ic_launcher_round` und zeigen es damit mit.
+- Sicht geprüft: `mipmap-xxxhdpi/ic_launcher.png` und `ic_launcher_round.png` angesehen: dunkles „S“ auf
+  der weißen Taste, roter Umriss dahinter, nichts abgeschnitten, Ecken bzw. Kreis transparent.
+- Test: `ForkIdentityTest.launcherIconResourcesResolve` (alle fünf Symbol-Ressourcen lösen auf, unter
+  Robolectric SDK 28). Lint wie oben.
+- Nicht geprüft: Aussehen auf einem Gerät (Launcher, runde Maske, Themed Icons Android 13+), die
+  Vektor-Drawables wurden nicht gerendert (nur die PNGs aus den SVGs).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

@@ -30,13 +30,17 @@ class UpdateCheckTest {
 
     private fun sha(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 
+    /** [names] picks the published file names of a build: the new pair, the legacy pair (builds up to 27) or both. */
     private fun releasesJson(vararg numbers: Long, apkSize: Long = apkBytes.size.toLong(),
+                             names: (Long) -> List<Pair<String, Long>> = { n ->
+                                 listOf(UpdateReleases.apkName(n) to apkSize, UpdateReleases.checksumName(n) to 100L)
+                             },
                              body: (Long) -> String = { "notes of build-$it" }) = buildJsonArray {
         for (n in numbers) add(buildJsonObject {
             put("tag_name", "build-$n"); put("draft", false); put("prerelease", false)
             put("body", body(n))
             put("assets", buildJsonArray {
-                for ((name, size) in listOf(UpdateReleases.apkName(n) to apkSize, UpdateReleases.checksumName(n) to 100L))
+                for ((name, size) in names(n))
                     add(buildJsonObject {
                         put("id", n * 10); put("name", name); put("size", size)
                         put("browser_download_url", UpdateReleases.downloadUrl("build-$n", name))
@@ -211,6 +215,48 @@ class UpdateCheckTest {
         assertTrue(requests.all { it.url.isHttps })
         assertTrue(requests.any { it.url.host == "release-assets.example.net" })
         assertTrue(Updates.downloadDirectory(app).listFiles().isNullOrEmpty(), "downloaded file must be deleted")
+    }
+
+    @Test fun aReleaseWithBothNamesIsDownloadedUnderTheNewName() {
+        val both = releasesJson(7, names = { n -> listOf(UpdateReleases.legacyApkName(n) to 200_000L, UpdateReleases.legacyChecksumName(n) to 100L,
+            UpdateReleases.apkName(n) to 200_000L, UpdateReleases.checksumName(n) to 100L) })
+        val build = Updates.downloadAndInstall(app, client(releases = both), inspector(own.copy(versionCode = 7)), own, session)
+        assertEquals("SecondHand-build-7.apk", build.apk.name)
+        assertTrue(requests.any { it.url.toString().endsWith("/SecondHand-build-7.apk.sha256") })
+        assertTrue(requests.none { it.url.toString().contains("AgentKeyboard-build") })
+        assertEquals(1, installedFiles)
+    }
+
+    @Test fun aReleaseWithOnlyTheOldNameIsStillInstalled() {
+        val old = releasesJson(7, names = { n -> listOf(UpdateReleases.legacyApkName(n) to 200_000L, UpdateReleases.legacyChecksumName(n) to 100L) })
+        assertEquals(UpdateStatus.Available(7), Updates.check(app, { client(releases = old) }, installed = 6))
+        val build = Updates.downloadAndInstall(app, client(releases = old), inspector(own.copy(versionCode = 7)), own, session)
+        assertEquals("AgentKeyboard-build-7.apk", build.apk.name)
+        assertEquals(1, installedFiles)
+    }
+
+    @Test fun aChecksumThatNamesTheOtherFileIsRefused() {
+        val hex = sha(apkBytes)
+        val newOnly = releasesJson(7)
+        val failure = assertFailsWith<UpdateFailure> {
+            Updates.downloadAndInstall(app, client(releases = newOnly, checksum = "$hex  ${UpdateReleases.legacyApkName(7)}\n"),
+                inspector(own.copy(versionCode = 7)), own, session)
+        }
+        // a checksum file naming another file is an invalid answer (before any byte of the APK is read)
+        assertEquals(UpdateError.INVALID_RESPONSE, failure.error)
+        val oldOnly = releasesJson(7, names = { n -> listOf(UpdateReleases.legacyApkName(n) to 200_000L, UpdateReleases.legacyChecksumName(n) to 100L) })
+        val failure2 = assertFailsWith<UpdateFailure> {
+            Updates.downloadAndInstall(app, client(releases = oldOnly, checksum = "$hex  ${UpdateReleases.apkName(7)}\n"),
+                inspector(own.copy(versionCode = 7)), own, session)
+        }
+        assertEquals(UpdateError.INVALID_RESPONSE, failure2.error)
+        assertEquals(0, installedFiles)
+        assertTrue(Updates.downloadDirectory(app).listFiles().isNullOrEmpty())
+    }
+
+    @Test fun updateClientIdentifiesAsSecondHandUpdater() {
+        Updates.check(app, { client() }, installed = 6)
+        assertEquals("SecondHand-Updater", requests.first().header("User-Agent"))
     }
 
     @Test fun redirectToPlainHttpIsRefused() {

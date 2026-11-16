@@ -138,7 +138,7 @@ class DiagnoseScreenTest {
         compose.waitForIdle()
         val clip = (app.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip!!
         val copied = clip.getItemAt(0).text.toString()
-        assertTrue(copied.startsWith("Agent Keyboard – Diagnose"), copied)
+        assertTrue(copied.startsWith("SecondHand – Diagnose"), copied)
         for (line in listOf("Vibrationsmotor: ja", "Stärke regelbar (Amplitude): ja", "Rastpunkt spielt: Primitive (tick)", "Letzter Rastpunkt spielt: Wellenform mit regelbarer Stärke",
             "Symbole malen: an", "Letzter Wechsel: keiner", "Paartabelle: 147000 Paare, 619 Emojis", "www.gstatic.com: nicht geprüft",
             "Android: "))

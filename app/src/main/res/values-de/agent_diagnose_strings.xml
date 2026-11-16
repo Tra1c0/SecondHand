@@ -4,7 +4,7 @@
     <string name="agent_diagnose_intro">Was dieses Telefon mit den eigenen Funktionen der Tastatur wirklich macht. Nur Zustände, Zahlen und Versionen: keine Texte, Schlüssel, Lerndaten oder Kennungen des Telefons. Zum Weitergeben kopieren oder als Screenshot.</string>
     <string name="agent_diagnose_copy">Kopieren</string>
     <string name="agent_diagnose_copied">Diagnose kopiert</string>
-    <string name="agent_diagnose_copy_heading">Agent Keyboard – Diagnose</string>
+    <string name="agent_diagnose_copy_heading">SecondHand – Diagnose</string>
     <string name="agent_diagnose_yes">ja</string>
     <string name="agent_diagnose_no">nein</string>
     <string name="agent_diagnose_on">an</string>

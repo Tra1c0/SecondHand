@@ -2,7 +2,7 @@
 # core tests, the full upstream suite and lint, each in its own job. The upstream suite always has
 # known failures (docs/HANDOFF.md -> Offene Punkte 4); the summary step fails the job only on
 # failures outside that baseline. No secrets are used.
-name: Agent Keyboard Tests
+name: SecondHand Tests
 
 on:
   workflow_dispatch:

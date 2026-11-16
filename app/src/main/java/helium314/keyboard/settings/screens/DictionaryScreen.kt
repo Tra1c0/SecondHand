@@ -148,7 +148,7 @@ fun getUserAndInternalDictionaries(context: Context, locale: Locale): Pair<List<
     if (hasInternalDict)
         return userDicts to true
     val internalDicts = DictionaryInfoUtils.getAssetsDictionaryList(context) ?: return userDicts to false
-    // a bundled emoji dictionary (Agent Keyboard) is no internal main dictionary
+    // a bundled emoji dictionary (SecondHand) is no internal main dictionary
     val best = LocaleUtils.getBestMatch(locale, internalDicts.filterNot { it.startsWith(Dictionary.TYPE_EMOJI + "_") }) {
         DictionaryInfoUtils.extractLocaleFromAssetsDictionaryFile(it)
     }

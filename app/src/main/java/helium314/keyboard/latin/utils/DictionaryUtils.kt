@@ -34,7 +34,7 @@ fun getDictionaryLocales(context: Context): MutableSet<Locale> {
     val assetsDictionaryList = DictionaryInfoUtils.getAssetsDictionaryList(context)
     if (assetsDictionaryList != null) {
         for (dictionary in assetsDictionaryList) {
-            // bundled emoji dictionaries (Agent Keyboard) add no language of their own
+            // bundled emoji dictionaries (SecondHand) add no language of their own
             if (dictionary.substringBefore("_") == Dictionary.TYPE_EMOJI) continue
             locales.add(DictionaryInfoUtils.extractLocaleFromAssetsDictionaryFile(dictionary))
         }
@@ -139,5 +139,5 @@ fun cleanUnusedMainDicts(context: Context) {
 private fun hasAnythingOtherThanExtractedMainDictionary(dir: File) =
     dir.listFiles()?.any { it.name != DictionaryInfoUtils.MAIN_DICT_FILE_NAME && it.name != EXTRACTED_EMOJI_DICT } != false
 
-/** A bundled emoji dictionary extracted from assets (Agent Keyboard); it is no user dictionary. */
+/** A bundled emoji dictionary extracted from assets (SecondHand); it is no user dictionary. */
 private const val EXTRACTED_EMOJI_DICT = Dictionary.TYPE_EMOJI + ".dict"

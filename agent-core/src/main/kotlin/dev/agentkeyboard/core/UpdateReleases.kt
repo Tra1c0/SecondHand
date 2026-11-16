@@ -13,9 +13,10 @@ data class AvailableBuild(val number: Long, val apk: ReleaseAsset, val checksum:
 /**
  * Rules of the opt-in update check. Pure and deterministic: the app supplies the parsed
  * release list and the installed version code. The release layout comes from
- * `.github/workflows/agent-apk.yml`: tag `build-<n>`, assets `AgentKeyboard-build-<n>.apk`
- * and `AgentKeyboard-build-<n>.apk.sha256`, version code `<n>`, published in the public
- * release repository [REPOSITORY].
+ * `.github/workflows/agent-apk.yml`: tag `build-<n>`, assets `SecondHand-build-<n>.apk` and
+ * `SecondHand-build-<n>.apk.sha256` plus, byte-identical, the same two files under the name
+ * `AgentKeyboard-build-<n>.apk` (up to build 27 the name of the app; installed builds up to 27
+ * accept only that one), version code `<n>`, published in the public release repository [REPOSITORY].
  */
 object UpdateReleases {
     /** The only repository the check ever asks. Fixed in code, never configurable. Public, no token. */
@@ -29,24 +30,35 @@ object UpdateReleases {
     /** The build number of a tag like `build-7`, null for every other tag. */
     fun buildNumber(tag: String): Long? = TAG.matchEntire(tag)?.groupValues?.get(1)?.toLong()
 
-    fun apkName(number: Long) = "AgentKeyboard-build-$number.apk"
+    fun apkName(number: Long) = "SecondHand-build-$number.apk"
     fun checksumName(number: Long) = apkName(number) + ".sha256"
+
+    /** The name up to build 27 ("Agent Keyboard"): still published, and the fallback when the new name is missing. */
+    fun legacyApkName(number: Long) = "AgentKeyboard-build-$number.apk"
+    fun legacyChecksumName(number: Long) = legacyApkName(number) + ".sha256"
 
     /** The only download URL accepted for an asset: the public release download of this repository. */
     fun downloadUrl(tag: String, name: String) = "$RELEASES_PAGE/download/$tag/$name"
 
     /**
      * The highest published build with an APK of plausible size and its checksum file, both with
-     * exactly the expected download URL (never a URL from elsewhere in the answer).
+     * exactly the expected download URL (never a URL from elsewhere in the answer). The pair under
+     * the new name wins; a release that has only the legacy pair is still accepted. The two pairs are
+     * never mixed: the checksum must belong to the APK that is downloaded (see [parseChecksum]).
      */
     fun newest(releases: List<ReleaseInfo>): AvailableBuild? = releases.mapNotNull { release ->
         if (release.draft) return@mapNotNull null
         val number = buildNumber(release.tag) ?: return@mapNotNull null
         fun asset(name: String) = release.assets.singleOrNull { it.name == name }
             ?.takeIf { it.downloadUrl == downloadUrl(release.tag, name) }
-        val apk = asset(apkName(number)) ?: return@mapNotNull null
-        val checksum = asset(checksumName(number)) ?: return@mapNotNull null
-        if (apk.size !in 1..MAX_APK_BYTES || checksum.size !in 1..MAX_CHECKSUM_BYTES) return@mapNotNull null
+        fun pair(apkName: String, checksumName: String): Pair<ReleaseAsset, ReleaseAsset>? {
+            val apk = asset(apkName) ?: return null
+            val checksum = asset(checksumName) ?: return null
+            return if (apk.size !in 1..MAX_APK_BYTES || checksum.size !in 1..MAX_CHECKSUM_BYTES) null else apk to checksum
+        }
+        val (apk, checksum) = pair(apkName(number), checksumName(number))
+            ?: pair(legacyApkName(number), legacyChecksumName(number))
+            ?: return@mapNotNull null
         AvailableBuild(number, apk, checksum, release.body)
     }.maxByOrNull { it.number }
 

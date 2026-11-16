@@ -10,7 +10,7 @@ object WorkflowBuilderContract {
     const val MAX_PROMPT_CHARS = 4096
     const val SCHEMA_NAME = "agent_keyboard_workflow_draft_v1"
     val instruction = """
-        Design one Agent Keyboard text workflow as JSON matching the supplied schema.
+        Design one SecondHand text workflow as JSON matching the supplied schema.
         Configuration only: never execute tasks. The future input is the user's selected text;
         the current user message describes the workflow, not that selection.
         Use 1 to 8 steps and at most 3 AI steps. Every step has a unique short lowercase id.

@@ -383,7 +383,7 @@
     <string name="agent_command_url_read_screen_off">Turn on screen reading</string>
     <string name="agent_command_url_screen_none">No new web address on the screen.</string>
     <string name="agent_command_url_screen_failed">The screen could not be read.</string>
-    <string name="agent_screen_reader_label">Agent Keyboard: read screen on command</string>
+    <string name="agent_screen_reader_label">SecondHand: read screen on command</string>
     <string name="agent_screen_reader_summary">Reads the visible text once when you tap “Read screen” after @url.</string>
     <string name="agent_screen_reader_description">Reads the text that is currently visible only when you type @url and tap “Read screen”, finds web addresses in it and shows them as chips. It listens to no events, so it does nothing in between and uses no battery. Password fields and the keyboard itself are skipped. What is read stays in memory only for these chips; it is never stored, logged or sent.</string>
     <string name="agent_screen_reader_title">Read screen (@url)</string>

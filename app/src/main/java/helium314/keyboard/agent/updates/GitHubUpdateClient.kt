@@ -188,7 +188,7 @@ class GitHubUpdateClient(private val calls: Call.Factory) {
     companion object {
         const val RELEASES_URL = "https://api.github.com/repos/${UpdateReleases.REPOSITORY}/releases?per_page=10"
         const val API_VERSION = "2022-11-28"
-        private const val USER_AGENT = "AgentKeyboard-Updater"
+        private const val USER_AGENT = "SecondHand-Updater"
         private const val MAX_REDIRECTS = 5
         private const val MAX_RELEASES_BYTES = 2L * 1024 * 1024
         private const val CHECK_TIMEOUT_SECONDS = 30L

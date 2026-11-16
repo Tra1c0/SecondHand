@@ -81,7 +81,7 @@ android {
             }
             variant.outputs.forEach { output ->
                 if (output is com.android.build.api.variant.impl.VariantOutputImpl) {
-                    output.outputFileName = "AgentKeyboard_${defaultConfig.versionName}-${variant.buildType}.apk"
+                    output.outputFileName = "SecondHand_${defaultConfig.versionName}-${variant.buildType}.apk"
                 }
             }
         }

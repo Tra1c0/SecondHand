@@ -114,7 +114,7 @@ object DictionaryInfoUtils {
         getCachedDictsForLocale(locale, context).firstOrNull { it.name.substringBefore("_") == type }
             ?: if (type == Dictionary.TYPE_EMOJI) extractBundledEmojiDict(locale, context) else null
 
-    /** Agent Keyboard bundles emoji dictionaries in assets; extract the best match on first use. */
+    /** SecondHand bundles emoji dictionaries in assets; extract the best match on first use. */
     private fun extractBundledEmojiDict(locale: Locale, context: Context): File? {
         // an extracted asset is named "emoji.dict", which the lookup above does not match:
         // reuse it, never rewrite a file a loaded dictionary may have mapped

@@ -17,16 +17,18 @@ class UpdateReleasesTest {
         assertEquals(123456789L, UpdateReleases.buildNumber("build-123456789"))
         for (tag in listOf("build-0", "build-07", "build-", "v7", "build-7a", "Build-7", " build-7", "build--7", "build-1234567890"))
             assertNull(UpdateReleases.buildNumber(tag), tag)
-        assertEquals("AgentKeyboard-build-7.apk", UpdateReleases.apkName(7))
-        assertEquals("AgentKeyboard-build-7.apk.sha256", UpdateReleases.checksumName(7))
-        assertEquals("https://github.com/Tra1c0/SecondHandAgenticKeyboard/releases/download/build-7/AgentKeyboard-build-7.apk",
+        assertEquals("SecondHand-build-7.apk", UpdateReleases.apkName(7))
+        assertEquals("SecondHand-build-7.apk.sha256", UpdateReleases.checksumName(7))
+        assertEquals("AgentKeyboard-build-7.apk", UpdateReleases.legacyApkName(7))
+        assertEquals("AgentKeyboard-build-7.apk.sha256", UpdateReleases.legacyChecksumName(7))
+        assertEquals("https://github.com/Tra1c0/SecondHandAgenticKeyboard/releases/download/build-7/SecondHand-build-7.apk",
             UpdateReleases.downloadUrl("build-7", UpdateReleases.apkName(7)))
     }
 
     @Test fun newestPicksTheHighestCompleteBuildNotTheFirstListed() {
         val newest = UpdateReleases.newest(listOf(release(6), release(9), release(8)))!!
         assertEquals(9L, newest.number)
-        assertEquals(UpdateReleases.downloadUrl("build-9", "AgentKeyboard-build-9.apk"), newest.apk.downloadUrl)
+        assertEquals(UpdateReleases.downloadUrl("build-9", "SecondHand-build-9.apk"), newest.apk.downloadUrl)
         assertEquals(UpdateReleases.checksumName(9), newest.checksum.name)
     }
 
@@ -46,16 +48,48 @@ class UpdateReleasesTest {
                 asset("build-31", UpdateReleases.apkName(31), 10), asset("build-31", UpdateReleases.checksumName(31), 10))),
             // download URL pointing elsewhere
             ReleaseInfo("build-40", false, listOf(
-                ReleaseAsset(UpdateReleases.apkName(40), 10, "https://example.com/AgentKeyboard-build-40.apk"),
+                ReleaseAsset(UpdateReleases.apkName(40), 10, "https://example.com/SecondHand-build-40.apk"),
                 asset("build-40", UpdateReleases.checksumName(40), 10))),
             ReleaseInfo("build-41", false, listOf(
                 ReleaseAsset(UpdateReleases.apkName(41), 10,
-                    "https://github.com/Tra1c0/SomethingElse/releases/download/build-41/AgentKeyboard-build-41.apk"),
+                    "https://github.com/Tra1c0/SomethingElse/releases/download/build-41/SecondHand-build-41.apk"),
                 asset("build-41", UpdateReleases.checksumName(41), 10))),
         )
         assertEquals(5L, UpdateReleases.newest(releases)?.number)
         assertNull(UpdateReleases.newest(emptyList()))
         assertNull(UpdateReleases.newest(listOf(release(4, draft = true))))
+    }
+
+    private fun releaseWith(number: Long, vararg names: String) = ReleaseInfo("build-$number", false,
+        names.map { asset("build-$number", it, if (it.endsWith(".sha256")) 100 else 30_000_000) })
+
+    @Test fun bothNamesPresentTheNewNameWins() {
+        val both = releaseWith(30, UpdateReleases.legacyApkName(30), UpdateReleases.legacyChecksumName(30),
+            UpdateReleases.apkName(30), UpdateReleases.checksumName(30))
+        val build = UpdateReleases.newest(listOf(both))!!
+        assertEquals("SecondHand-build-30.apk", build.apk.name)
+        assertEquals("SecondHand-build-30.apk.sha256", build.checksum.name)
+    }
+
+    @Test fun onlyTheOldNameStillWorks() {
+        val old = releaseWith(30, UpdateReleases.legacyApkName(30), UpdateReleases.legacyChecksumName(30))
+        val build = UpdateReleases.newest(listOf(old))!!
+        assertEquals("AgentKeyboard-build-30.apk", build.apk.name)
+        assertEquals("AgentKeyboard-build-30.apk.sha256", build.checksum.name)
+    }
+
+    @Test fun onlyTheNewNameWorks() {
+        val new = releaseWith(30, UpdateReleases.apkName(30), UpdateReleases.checksumName(30))
+        assertEquals("SecondHand-build-30.apk", UpdateReleases.newest(listOf(new))!!.apk.name)
+    }
+
+    @Test fun pairsAreNeverMixed() {
+        // new APK with only the old checksum, and the other way round: no complete pair, no update
+        assertNull(UpdateReleases.newest(listOf(releaseWith(30, UpdateReleases.apkName(30), UpdateReleases.legacyChecksumName(30)))))
+        assertNull(UpdateReleases.newest(listOf(releaseWith(30, UpdateReleases.legacyApkName(30), UpdateReleases.checksumName(30)))))
+        // a broken new pair falls back to the complete old one
+        val fallback = releaseWith(30, UpdateReleases.apkName(30), UpdateReleases.legacyApkName(30), UpdateReleases.legacyChecksumName(30))
+        assertEquals("AgentKeyboard-build-30.apk", UpdateReleases.newest(listOf(fallback))!!.apk.name)
     }
 
     @Test fun onlyAStrictlyHigherBuildIsAnUpdate() {
@@ -72,6 +106,10 @@ class UpdateReleasesTest {
         assertEquals(hex, UpdateReleases.parseChecksum("$hex  $name\n", name))
         assertEquals(hex, UpdateReleases.parseChecksum("${hex.uppercase()} *$name", name))
         assertNull(UpdateReleases.parseChecksum("$hex  ${UpdateReleases.apkName(8)}\n", name))
+        // a checksum that names the other file (old vs. new name) is refused
+        assertNull(UpdateReleases.parseChecksum("$hex  ${UpdateReleases.legacyApkName(7)}\n", name))
+        assertNull(UpdateReleases.parseChecksum("$hex  $name\n", UpdateReleases.legacyApkName(7)))
+        assertEquals(hex, UpdateReleases.parseChecksum("$hex  ${UpdateReleases.legacyApkName(7)}\n", UpdateReleases.legacyApkName(7)))
         assertNull(UpdateReleases.parseChecksum("${hex.dropLast(2)}  $name", name))
         assertNull(UpdateReleases.parseChecksum("$hex  $name\n$hex  $name\n", name))
         assertNull(UpdateReleases.parseChecksum("", name))

@@ -1,4 +1,4 @@
-# Agent Keyboard – Roadmap (noch nicht gebaut)
+# SecondHand – Roadmap (noch nicht gebaut)
 
 Alles, was es noch nicht gibt. Der Owner sortiert. Sitzungen bauen nur, was unter „Beschlossen“
 steht oder was der Owner direkt beauftragt, und nur, wenn die Entwicklung nicht pausiert ist
@@ -357,6 +357,21 @@ Reihenfolge von oben nach unten.
   die Zeile von 55 (`LastField.capture`) startet die Prüfung. Offen: Prüfer-Review (Engine-Nähe:
   Aufruf aus `capture`, Refresh über `setNeutralSuggestionStrip`), Gerätetest (echtes GitHub, 304,
   Datensparmodus, Chip nach einem echten Release).
+- **57 Name SecondHand** (Auftrag des Owners vom 2026-11-16: „Bitte benenne die App in SecondHand um, ändere das Logo.“)
+  ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 57). Annahmen des Leads,
+  die der Owner ändern kann: Nur der sichtbare Name ändert sich; App-ID, Pakete, Klassen,
+  Einstellungsschlüssel, Dateinamen auf dem Gerät, die beiden GitHub-Repositories, Secrets und das
+  Tag-Format `build-<N>` bleiben (sonst gäbe es kein Update und Daten gingen verloren). Der frühere Debug-Zusatz
+  „Lab“ entfällt: auch die ausgelieferte Variante `debugNoMinify` heißt „SecondHand“. Builds werden unter zwei Dateinamen veröffentlicht, solange
+  installierte Builds bis 27 nur den alten Namen akzeptieren (`docs/BUILD.md`). Offen: Gerätetest
+  (Name in der Android-Tastaturliste, in den Rechtschreib-Einstellungen, in der Benachrichtigung; ein
+  echtes Update von Build 27 über die neue Datei) und der erste echte Lauf des Workflows auf GitHub.
+- **58 Logo SecondHand** (Auftrag des Owners vom 2026-11-16, gleicher Satz) ist gebaut (siehe
+  FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 58). Entwurf des Leads in
+  `docs/referenzen/logo/` (die Variante „Sekundenzeiger“ ist nicht genommen). Annahmen: Das
+  adaptive Symbol und die Bild-Symbole für Android 5–7 zeigen denselben Ausschnitt; die
+  einfarbige Variante ist die Umriss-Fassung. Store-Bilder unter `fastlane/` sind Upstream-Material
+  und bleiben. Offen: Ansehen auf dem Gerät (Launcher, runde Maske, Themed Icons).
 - **Graue Auswahlkarten (Owner, 2026-11-14: „Ja“):** Die grauen Mockup-Karten (AUS, NICHTS,
   AUSGEBLENDET, FLACHER LOOK) bekommen helle Schrift (Kontrast mit dunkler Schrift nur 1,74:1).
   Gebaut (`docs/VALIDATION.md` → Etappe 37, „Graue Karten“): helle Schrift 4,71:1 gewählt, 6,92:1

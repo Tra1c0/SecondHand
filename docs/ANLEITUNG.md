@@ -1,8 +1,13 @@
-# Agent Keyboard – Anleitung
+# SecondHand – Anleitung
 
 Für den Owner: installieren, einrichten, benutzen. Was es gibt und wie gut es geprüft ist, steht
 in [FEATURES.md](FEATURES.md). Diese Anleitung beschreibt die Debug-APK (sie heißt auf dem Telefon
-„Agent Keyboard Lab“). Wird bei jeder Änderung der Bedienung im selben Push aktualisiert.
+„SecondHand“). Wird bei jeder Änderung der Bedienung im selben Push aktualisiert.
+
+Die App hieß bis Build 27 „Agent Keyboard“ und heißt jetzt „SecondHand“ (Etappe 57). Beim Update von
+Build 27 oder früher ändern sich nur Name und Symbol; die App-ID bleibt, darum bleiben alle
+Einstellungen, Schlüssel und Gelerntes erhalten. Wo in einer Android-Liste noch der alte Name steht,
+hilft ein Neustart des Telefons oder erneutes Öffnen der Liste.
 
 Stand der Prüfung: Die Tastatur wurde bisher nur in einem Android-15-Emulator ausprobiert
 (Tippen, Aktionsrad, Panel, Ersetzen, Schlüssel speichern). Auf einem echten Telefon ist noch
@@ -13,13 +18,14 @@ nichts geprüft. Rechne beim ersten Versuch mit Fehlern und behalte deine bisher
 1. Einmalig: Lege in GitHub unter deinem Repo → Settings → Secrets and variables → Actions zwei
    „Repository secrets“ an: `AGENT_KEYSTORE_BASE64` und `AGENT_KEYSTORE_PASSWORD` (Inhalte aus
    den beiden Dateien, die du bekommen hast). Bewahre beide zusätzlich im Passwortmanager auf.
-2. Für jede neue Version: GitHub → Actions → „Agent Keyboard APK“ → „Run workflow“, Branch
+2. Für jede neue Version: GitHub → Actions → „SecondHand APK“ → „Run workflow“, Branch
    wählen. Nach etwa 10–20 Minuten steht unter „Releases“ ein Eintrag `build-<Nummer>` mit der
-   Datei `AgentKeyboard-build-<Nummer>.apk`. Lade sie auf dem Telefon herunter. Sie ist für
+   Datei `SecondHand-build-<Nummer>.apk` (dieselbe Datei liegt zur Sicherheit auch als
+   `AgentKeyboard-build-<Nummer>.apk` dort; nimm die mit „SecondHand“). Lade sie auf dem Telefon herunter. Sie ist für
    Android 5 und neuer gebaut; KI-Schlüssel brauchen Android 6, das Diktat Android 12.
 2. Die Datei auf dem Telefon antippen. Android fragt, ob die App, mit der du die Datei öffnest
    (z. B. der Dateimanager), unbekannte Apps installieren darf. Erlaube es für diesen einen Zweck.
-3. Die App erscheint als „Agent Keyboard Lab“. Sie ersetzt keine andere Tastatur und kann neben
+3. Die App erscheint als „SecondHand“. Sie ersetzt keine andere Tastatur und kann neben
    HeliBoard installiert sein.
 4. Neue Versionen installierst du genauso: Android zeigt „Aktualisieren“, Einstellungen,
    Schlüssel und Gelerntes bleiben. Eine APK aus einer anderen Quelle (etwa ein Test-Build aus
@@ -40,7 +46,7 @@ und keinen Token.
    gibt es auch direkt auf der Karte in System & Daten.
 2. „Jetzt prüfen“: Darunter steht „Aktuell: Build 6“, „Build 7 verfügbar“ oder eine Meldung.
 3. Ist ein neuer Build da, tippe „Build 7 herunterladen und installieren“. Darf die App noch
-   keine Apps installieren, zeigt die Seite „Einstellung öffnen“: dort „Agent Keyboard Lab“
+   keine Apps installieren, zeigt die Seite „Einstellung öffnen“: dort „SecondHand“
    erlauben und zurückkommen. Die App lädt die Datei, prüft Prüfsumme, Paketname und Signatur und
    übergibt sie an Android; du bestätigst die Installation im Systemdialog. Passt etwas nicht,
    wird die Datei gelöscht und nichts installiert.
@@ -55,7 +61,7 @@ und keinen Token.
    Tastatur nie selbst, nur „Jetzt prüfen“ und die tägliche Suche.
 5. Optional „Täglich nach Updates suchen“ (anfangs aus): Etwa einmal am Tag und nur mit Netz
    fragt die App nach einem neuen Build. Ab Android 13 fragt Android beim Einschalten, ob die App
-   Benachrichtigungen zeigen darf. Ein neuer Build meldet sich einmal als „Agent Keyboard: Build 7
+   Benachrichtigungen zeigen darf. Ein neuer Build meldet sich einmal als „SecondHand: Build 7
    verfügbar“; ein Tipp öffnet die Seite „Updates“, geladen wird erst nach deinem Tipp dort.
    Ausschalten beendet die tägliche Suche sofort.
 6. Hat eine Prüfung einen neuen Build gefunden, erscheint beim nächsten Öffnen der Einstellungen
@@ -77,13 +83,13 @@ die installierte App.
 ## Als Tastatur einschalten
 
 1. Android-Einstellungen → System → Tastatur → Bildschirmtastatur → Tastaturen verwalten
-   (der Pfad heißt je nach Hersteller etwas anders) → „Agent Keyboard Lab“ einschalten.
+   (der Pfad heißt je nach Hersteller etwas anders) → „SecondHand“ einschalten.
    Android zeigt dabei für jede Tastatur dieselbe Warnung, dass sie alles Getippte lesen könnte.
 2. In ein Textfeld tippen und über das Tastatur-Symbol in der Navigationsleiste zu
-   „Agent Keyboard Lab“ wechseln.
+   „SecondHand“ wechseln.
 3. Zurück zur alten Tastatur kommst du jederzeit über dasselbe Symbol.
 
-Die Einstellungen der Tastatur öffnest du über das App-Symbol „Agent Keyboard Lab Settings“ oder
+Die Einstellungen der Tastatur öffnest du über das App-Symbol „SecondHand“ oder
 in der Tastatur über den Pfeil links in der Leiste und dann das Zahnrad.
 
 ## Einstellungen finden
@@ -233,7 +239,7 @@ Wie die Seite „KI-Anbieter“ lässt sie keine Bildschirmfotos zu. Bei gesperr
   laden, Debug-Einstellungen (nur wenn freigeschaltet), Gestendaten (nur in der Sammelphase) und
   „Alle erweiterten Einstellungen“ für den Rest der alten Seite Erweitert (Symbole-Taste für den
   Ziffernblock, Emoji-Taste der Hardware-Tastatur, App-Symbol …).
-- **Über**: Agent Keyboard mit Version und Build (fünfmal tippen schaltet die
+- **Über**: SecondHand mit Version und Build (fünfmal tippen schaltet die
   Debug-Einstellungen frei), Lizenz, Versteckte Funktionen, Protokoll speichern und „Alle Infos und
   Links“ (Wiki, Community, Quellcode).
 
@@ -429,7 +435,7 @@ stehen unten. Noch auf keinem Gerät ausprobiert.
   „Kontakte erlauben“; das öffnet Einstellungen → Befehle, dort den Zugriff erlauben.
 - `@url heise.de` öffnet die Seite. `@url` allein schlägt Adressen aus Zwischenablage und Feld vor.
   „Bildschirm lesen“: einmal einschalten unter Einstellungen → Befehle → „Bildschirm lesen“ →
-  „Bedienungshilfen öffnen“. Auf dem Xiaomi vorher: App-Info von „Agent Keyboard Lab“ → ⋮ →
+  „Bedienungshilfen öffnen“. Auf dem Xiaomi vorher: App-Info von „SecondHand“ → ⋮ →
   „Eingeschränkte Einstellungen zulassen“. Der Dienst liest nur, wenn du den Chip antippst, und
   speichert nichts. Er liest auch Apps mit Bildschirmschutz (z. B. Banking-Apps), Passwortfelder
   aber nie. Vor Android 14 erkennt er andere vertrauliche Felder wie Einmalcodes nicht; tippe den
@@ -1456,6 +1462,6 @@ Bekannte Lücken stehen in [HANDOFF.md](HANDOFF.md) unter „Offene Punkte“.
 
 ## Entfernen
 
-Android-Einstellungen → Apps → „Agent Keyboard Lab“ → Deinstallieren. Dabei werden Schlüssel,
+Android-Einstellungen → Apps → „SecondHand“ → Deinstallieren. Dabei werden Schlüssel,
 Workflows, Profile und gelernte Wörter gelöscht. Vorher wechselt Android automatisch zu einer
 anderen Tastatur.

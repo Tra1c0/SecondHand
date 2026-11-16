@@ -382,7 +382,7 @@
     <string name="agent_command_url_read_screen_off">Bildschirm lesen einschalten</string>
     <string name="agent_command_url_screen_none">Keine neue Webadresse auf dem Bildschirm.</string>
     <string name="agent_command_url_screen_failed">Der Bildschirm konnte nicht gelesen werden.</string>
-    <string name="agent_screen_reader_label">Agent Keyboard: Bildschirm auf Befehl lesen</string>
+    <string name="agent_screen_reader_label">SecondHand: Bildschirm auf Befehl lesen</string>
     <string name="agent_screen_reader_summary">Liest den sichtbaren Text einmal, wenn du nach @url auf „Bildschirm lesen“ tippst.</string>
     <string name="agent_screen_reader_description">Liest den gerade sichtbaren Text nur, wenn du @url tippst und auf „Bildschirm lesen“ tippst, sucht darin Webadressen und zeigt sie als Chips. Der Dienst hört auf keine Ereignisse, tut also dazwischen nichts und braucht keinen Akku. Passwortfelder und die Tastatur selbst werden übersprungen. Das Gelesene bleibt nur für diese Chips im Speicher; es wird nie gespeichert, protokolliert oder gesendet.</string>
     <string name="agent_screen_reader_title">Bildschirm lesen (@url)</string>

@@ -40,7 +40,7 @@ object ShadowLocaleManagerCompat {
 class ShadowInputMethodManager2 : ShadowInputMethodManager() {
     @Implementation
     override fun getInputMethodList() = listOf(
-        InputMethodInfo(BuildConfig.APPLICATION_ID, "LatinIME", "Agent Keyboard", null),
+        InputMethodInfo(BuildConfig.APPLICATION_ID, "LatinIME", "SecondHand", null),
     )
     @Implementation
     fun getShortcutInputMethodsAndSubtypes() = emptyMap<InputMethodInfo, List<InputMethodSubtype>>()

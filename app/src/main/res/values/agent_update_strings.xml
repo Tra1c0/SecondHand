@@ -39,7 +39,7 @@
     <string name="agent_updates_error_not_newer">No newer build available.</string>
     <string name="agent_updates_error_install">The installation was cancelled or failed.</string>
     <string name="agent_updates_channel">Updates</string>
-    <string name="agent_updates_notification">Agent Keyboard: build %d available</string>
+    <string name="agent_updates_notification">SecondHand: build %d available</string>
     <string name="agent_updates_notification_text">Open the Updates page to download and install it.</string>
     <string name="agent_updates_friends">For friends: install the APK once from %s (Android asks to allow installing from the browser), then updates work here in the app. Alternatively, Obtainium can follow this address.</string>
 </resources>

@@ -1,4 +1,4 @@
-# Agent Keyboard 0.1.0 – neu seit Build 25
+# SecondHand 0.1.0 – neu seit Build 25
 
 Nur mit Tests geprüft, noch auf keinem Gerät ausprobiert.
 
@@ -11,3 +11,7 @@ Nur mit Tests geprüft, noch auf keinem Gerät ausprobiert.
   Laden und Installieren weiter nur nach deinem Tipp. Ausschalten auf derselben Seite.
 - Diagnose → „Letztes Feld“ (seit Build 25): Fehlen Vorschläge, Großschreibung oder Autokorrektur,
   bitte direkt danach einen Screenshot der ersten Karte schicken.
+
+## Nächster Build
+
+- Neuer Name und neues Logo: Die App heißt jetzt „SecondHand“ (bisher „Agent Keyboard“) und hat ein neues Symbol, eine weiße Taste mit „S“ vor einer roten Umriss-Taste. Ein Update von Build 27 behält alle Einstellungen, Schlüssel und Gelerntes. Jeder Build liegt auf GitHub zusätzlich unter dem alten Dateinamen `AgentKeyboard-build-<N>.apk`, damit ältere Installationen weiter Updates finden.

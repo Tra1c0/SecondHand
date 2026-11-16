@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <!-- Fork copies of the upstream strings that still said "HeliBoard"; the manifest, the spell checker XML and
+         the settings screen use these, the upstream strings (and their translations) stay untouched. -->
+    <string name="agent_spell_checker_service_name">SecondHand Spell Checker</string>
+    <string name="agent_ime_settings">SecondHand Settings</string>
+    <string name="agent_android_spell_checker_settings">SecondHand Spell Checker Settings</string>
+</resources>

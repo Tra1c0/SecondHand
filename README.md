@@ -1,6 +1,6 @@
-# Agent Keyboard
+# SecondHand
 
-Private Android keyboard built incrementally on HeliBoard 4.2. Ordinary typing
+SecondHand (called "Agent Keyboard" up to build 27) is a private Android keyboard built incrementally on HeliBoard 4.2. Ordinary typing
 and local text actions work offline. Optional OpenAI support uses your own API
 key, stored encrypted in separate credential-protected storage. The APK now
 includes network permission; ordinary typing does not initialize cloud transport.

@@ -5,7 +5,7 @@
     <string name="agent_diagnose_intro">What this phone really does with the keyboard\'s own features. Only states, counts and versions: no texts, keys, learned data or phone identifiers. To pass it on, copy it or take a screenshot.</string>
     <string name="agent_diagnose_copy">Copy</string>
     <string name="agent_diagnose_copied">Diagnostics copied</string>
-    <string name="agent_diagnose_copy_heading">Agent Keyboard diagnostics</string>
+    <string name="agent_diagnose_copy_heading">SecondHand diagnostics</string>
     <string name="agent_diagnose_yes">yes</string>
     <string name="agent_diagnose_no">no</string>
     <string name="agent_diagnose_on">on</string>

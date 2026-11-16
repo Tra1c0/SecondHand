@@ -35,7 +35,7 @@
     <string name="agent_char_art_dither_diffusion">Diffusion</string>
     <string name="agent_char_art_invert">Invert</string>
     <string name="agent_char_art_photo_remove">Remove photo</string>
-    <string name="agent_char_art_photo_none">No pictures. Screenshots and photos show up here once Agent Keyboard may read pictures.</string>
+    <string name="agent_char_art_photo_none">No pictures. Screenshots and photos show up here once SecondHand may read pictures.</string>
     <string name="agent_char_art_photo_empty">No photos or screenshots found.</string>
     <string name="agent_char_art_photo_allow">Allow pictures</string>
     <string name="agent_char_art_photo_loading">Loading pictures …</string>
