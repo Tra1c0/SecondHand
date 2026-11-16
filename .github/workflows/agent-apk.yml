@@ -1,12 +1,17 @@
 # Builds the APK the owner installs, signed with the owner's own key from the repository secrets
 # AGENT_KEYSTORE_BASE64 and AGENT_KEYSTORE_PASSWORD, and publishes it as a pre-release. Every
 # build has a higher version code and the same signature, so it installs as an update.
-# With the secret RELEASES_TOKEN the same files also go to the public release repository, where
-# the app's opt-in update check (and friends) find them without any token.
+# On main the same files also go to the public release repository (secret RELEASES_TOKEN), where
+# the app's opt-in update check finds them without any token.
 # Every build is published under two file names with identical bytes, each with its own .sha256 that
 # names that file: SecondHand-build-<N>.apk and AgentKeyboard-build-<N>.apk. Installed builds up to 27
 # (the app was called "Agent Keyboard") accept only the old name; drop it once no such installation
 # is left (docs/BUILD.md).
+# Stage 63: a release fails loudly. The built APK is verified before anything is published (signature,
+# the owner's certificate, version code, package, not debuggable); on main the public publish needs
+# RELEASES_TOKEN, green tests for the commit and is read back the way the app reads it; a re-run of
+# the same run number uploads again instead of failing (docs/BUILD.md -> Was tun, wenn ein Lauf scheitert).
+# The names and the tag below are pinned to UpdateReleases by WorkflowContractTest (agent-core).
 name: SecondHand APK
 
 on:
@@ -14,10 +19,22 @@ on:
 
 permissions:
   contents: write
+  actions: read # to look up the test run of the commit (gate before the public publish)
 
 env:
   # The public release repository; the app has the same name in UpdateReleases.REPOSITORY.
   RELEASE_REPOSITORY: Tra1c0/SecondHandAgenticKeyboard
+  # Tag and file names of this build; the app builds the same names in UpdateReleases.
+  RELEASE_TAG: build-${{ github.run_number }}
+  APK_NAME: SecondHand-build-${{ github.run_number }}.apk
+  LEGACY_APK_NAME: AgentKeyboard-build-${{ github.run_number }}.apk
+  # What the built APK must be. The package is the variant debugNoMinify (applicationIdSuffix ".debug");
+  # changing it would install as a second app next to the owner's.
+  APP_PACKAGE: dev.personal.agentkeyboard.debug
+  # SHA-256 of the owner's signing certificate, lowercase without colons. It is the value in
+  # docs/BUILD.md ("Zertifikat des Owners (SHA-256)", there with colons); WorkflowContractTest keeps
+  # the two equal. A different certificate would not install as an update over the owner's app.
+  OWNER_CERT_SHA256: d56e8f0011d7806337908cfaa736e5d4f8fe2549145a5b375dfbbb1d1863602a
 
 jobs:
   apk:
@@ -25,6 +42,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the test gate looks up the last commit that touched the paths of agent-tests.yml
 
       - name: Check the signing secrets
         env:
@@ -55,46 +74,182 @@ jobs:
           AGENT_KEYSTORE_PASSWORD: ${{ secrets.AGENT_KEYSTORE_PASSWORD }}
           AGENT_VERSION_CODE: ${{ github.run_number }}
         run: |
+          set -euo pipefail
           export AGENT_KEYSTORE_FILE="$RUNNER_TEMP/agent.p12"
           echo "$KEYSTORE" | base64 -d > "$AGENT_KEYSTORE_FILE"
           chmod +x gradlew
-          ./gradlew :app:assembleDebugNoMinify --no-configuration-cache --console=plain
+          # gradle.properties has 1024m, too little for this build in CI
+          ./gradlew :app:assembleDebugNoMinify --no-configuration-cache --console=plain -Dorg.gradle.jvmargs=-Xmx3g
           rm -f "$AGENT_KEYSTORE_FILE"
+
+      - name: Verify the built APK
+        run: |
+          set -euo pipefail
+          BT="$ANDROID_HOME/build-tools/36.0.0"
+          COUNT=$(ls app/build/outputs/apk/debugNoMinify/*.apk | wc -l)
+          if [ "$COUNT" != "1" ]; then
+            echo "::error::Expected exactly one APK in app/build/outputs/apk/debugNoMinify, found $COUNT."
+            exit 1
+          fi
+          APK=$(ls app/build/outputs/apk/debugNoMinify/*.apk)
+
+          # 1. the signature is valid (a failing verify stops the run here)
+          "$BT/apksigner" verify --print-certs "$APK" > "$RUNNER_TEMP/certs.txt"
+
+          # 2. the signing certificate is the owner's
+          DIGESTS=$(sed -n 's/^Signer #[0-9]* certificate SHA-256 digest: //p' "$RUNNER_TEMP/certs.txt" | tr 'A-F' 'a-f' | sort -u)
+          if [ "$DIGESTS" != "$OWNER_CERT_SHA256" ]; then
+            echo "::error::The APK is not signed with the owner's certificate. Expected $OWNER_CERT_SHA256, found: ${DIGESTS:-none}. See docs/BUILD.md (Zertifikat des Owners)."
+            exit 1
+          fi
+
+          # 3. package, version code and debuggable flag
+          "$BT/aapt2" dump badging "$APK" > "$RUNNER_TEMP/badging.txt"
+          FOUND=$(sed -n "s/^package: name='\([^']*\)' versionCode='\([0-9]*\)'.*/\1 \2/p" "$RUNNER_TEMP/badging.txt")
+          if [ "$FOUND" != "$APP_PACKAGE ${{ github.run_number }}" ]; then
+            echo "::error::Package and version code of the APK are '$FOUND', expected '$APP_PACKAGE ${{ github.run_number }}' (version code must equal the run number)."
+            exit 1
+          fi
+          if grep -q "^application-debuggable" "$RUNNER_TEMP/badging.txt"; then
+            echo "::error::The APK is debuggable. The shipped variant must not be (isDebuggable in app/build.gradle.kts, stage 62)."
+            exit 1
+          fi
+          echo "APK verified: $APP_PACKAGE, version code ${{ github.run_number }}, owner certificate, not debuggable."
+
+          # the four files of the release; each checksum file names the file it belongs to
+          # (the app refuses a checksum that names another file)
+          cp "$APK" "$APK_NAME"
+          cp "$APK" "$LEGACY_APK_NAME"
+          sha256sum "$APK_NAME" > "$APK_NAME.sha256"
+          sha256sum "$LEGACY_APK_NAME" > "$LEGACY_APK_NAME.sha256"
+          sha256sum --check "$APK_NAME.sha256" "$LEGACY_APK_NAME.sha256"
 
       - name: Publish as a pre-release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          APK=$(ls app/build/outputs/apk/debugNoMinify/*.apk | head -1)
-          NAME="SecondHand-build-${{ github.run_number }}.apk"
-          OLD_NAME="AgentKeyboard-build-${{ github.run_number }}.apk"
-          cp "$APK" "$NAME"
-          cp "$APK" "$OLD_NAME"
-          # each checksum file names the file it belongs to (the app refuses a checksum that names another file)
-          sha256sum "$NAME" > "$NAME.sha256"
-          sha256sum "$OLD_NAME" > "$OLD_NAME.sha256"
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$NAME" | grep -i "SHA-256" || true
-          gh release create "build-${{ github.run_number }}" "$NAME" "$NAME.sha256" "$OLD_NAME" "$OLD_NAME.sha256" \
-            --prerelease --target "${{ github.sha }}" \
-            --title "SecondHand Build ${{ github.run_number }} (${{ github.ref_name }})" \
-            --notes-file release-notes/next.md
+          set -euo pipefail
+          FILES=("$APK_NAME" "$APK_NAME.sha256" "$LEGACY_APK_NAME" "$LEGACY_APK_NAME.sha256")
+          TAG_SHA=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq '.object.sha' 2>/dev/null || true)
+          if [ -n "$TAG_SHA" ] && [ "$TAG_SHA" != "$GITHUB_SHA" ]; then
+            echo "::error::The tag $RELEASE_TAG already exists in $GITHUB_REPOSITORY and points to $TAG_SHA, not to this commit ($GITHUB_SHA). Run numbers are never reused; look at the release and the tag before deleting anything (docs/BUILD.md)."
+            exit 1
+          fi
+          if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            echo "Release $RELEASE_TAG exists for this commit (re-run): uploading the files again."
+            gh release upload "$RELEASE_TAG" "${FILES[@]}" --clobber
+          else
+            gh release create "$RELEASE_TAG" "${FILES[@]}" \
+              --prerelease --target "$GITHUB_SHA" \
+              --title "SecondHand Build ${{ github.run_number }} (${{ github.ref_name }})" \
+              --notes-file release-notes/next.md
+          fi
+
+      - name: Require green tests for this commit
+        # only checked builds from main become updates (owner, 2026-11-14); test builds are not held back
+        if: ${{ github.ref == 'refs/heads/main' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # the paths that start agent-tests.yml (its own filter, read from the file)
+          python3 - <<'PY' > "$RUNNER_TEMP/test-paths.txt"
+          paths, inside = [], False
+          for line in open(".github/workflows/agent-tests.yml").read().splitlines():
+              s = line.strip()
+              if s == "paths:":
+                  inside = True
+                  continue
+              if not inside or not s or s.startswith("#"):
+                  continue
+              if not s.startswith("- "):
+                  break
+              paths.append(s[2:].strip().strip("'\""))
+          if not paths:
+              raise SystemExit("no paths found in agent-tests.yml")
+          for p in paths:
+              print(":(glob)" + p)
+          PY
+          mapfile -t SPECS < "$RUNNER_TEMP/test-paths.txt"
+          if [ "${#SPECS[@]}" -eq 0 ]; then
+            echo "::error::Could not read the path filter of agent-tests.yml."
+            exit 1
+          fi
+          SHA=$(git log -1 --format=%H -- "${SPECS[@]}")
+          if [ -z "$SHA" ]; then
+            echo "::error::No commit found that touched the paths of agent-tests.yml."
+            exit 1
+          fi
+          GREEN=$(gh run list --workflow agent-tests.yml --commit "$SHA" --limit 50 --json conclusion \
+            --jq '[.[] | select(.conclusion == "success")] | length')
+          if [ "${GREEN:-0}" -lt 1 ]; then
+            echo "::error::No successful run of agent-tests.yml for commit $SHA (the last commit that changed what the tests cover). The build is not published in $RELEASE_REPOSITORY. Run the tests for that commit (Actions -> SecondHand Tests -> Run workflow on main) and start this build again."
+            exit 1
+          fi
+          echo "Tests are green for $SHA."
 
       - name: Publish in the public release repository
-        # only checked builds from main become updates (owner, 2026-11-14); test builds stay pre-releases here
         if: ${{ github.ref == 'refs/heads/main' }}
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: |
+          set -euo pipefail
           if [ -z "$GH_TOKEN" ]; then
-            echo "::warning::Secret RELEASES_TOKEN is missing: build-${{ github.run_number }} was not published in $RELEASE_REPOSITORY, the in-app update check will not see it (see docs/BUILD.md)."
-            exit 0
+            echo "::error::Secret RELEASES_TOKEN is missing: $RELEASE_TAG cannot be published in $RELEASE_REPOSITORY and the in-app update check would not see it (docs/BUILD.md)."
+            exit 1
           fi
-          NAME="SecondHand-build-${{ github.run_number }}.apk"
-          OLD_NAME="AgentKeyboard-build-${{ github.run_number }}.apk"
-          gh release create "build-${{ github.run_number }}" "$NAME" "$NAME.sha256" "$OLD_NAME" "$OLD_NAME.sha256" \
-            --repo "$RELEASE_REPOSITORY" \
-            --title "SecondHand Build ${{ github.run_number }}" \
-            --notes-file release-notes/next.md
+          FILES=("$APK_NAME" "$APK_NAME.sha256" "$LEGACY_APK_NAME" "$LEGACY_APK_NAME.sha256")
+          if gh release view "$RELEASE_TAG" --repo "$RELEASE_REPOSITORY" > /dev/null 2>&1; then
+            # A re-run of this run number. The tag of the public repository lives in another history, so the
+            # commit cannot be compared there; the pre-release above already refused a tag of another commit.
+            # A rebuild may differ in bytes: say so, the files are replaced and read back below.
+            gh release download "$RELEASE_TAG" --repo "$RELEASE_REPOSITORY" --pattern "$APK_NAME.sha256" --dir "$RUNNER_TEMP/existing" --clobber || true
+            if ! cmp -s "$RUNNER_TEMP/existing/$APK_NAME.sha256" "$APK_NAME.sha256"; then
+              echo "::warning::$RELEASE_TAG already exists in $RELEASE_REPOSITORY with a different checksum; the files are replaced by this run's build."
+            fi
+            echo "Release $RELEASE_TAG exists (re-run): uploading the files again."
+            gh release upload "$RELEASE_TAG" "${FILES[@]}" --repo "$RELEASE_REPOSITORY" --clobber
+          else
+            gh release create "$RELEASE_TAG" "${FILES[@]}" \
+              --repo "$RELEASE_REPOSITORY" \
+              --title "SecondHand Build ${{ github.run_number }}" \
+              --notes-file release-notes/next.md
+          fi
+
+      - name: Read the public release back like the app
+        if: ${{ github.ref == 'refs/heads/main' }}
+        run: |
+          set -euo pipefail
+          # no token, exactly what the in-app check sends (with retries: the list can lag a moment)
+          URL="https://api.github.com/repos/$RELEASE_REPOSITORY/releases?per_page=10"
+          for attempt in 1 2 3 4 5 6; do
+            curl -fsS -H "Accept: application/vnd.github+json" "$URL" > "$RUNNER_TEMP/releases.json" || echo "[]" > "$RUNNER_TEMP/releases.json"
+            if python3 - <<'PY'
+          import json, os, sys
+          repo, tag = os.environ["RELEASE_REPOSITORY"], os.environ["RELEASE_TAG"]
+          names = [os.environ[k] for k in ("APK_NAME", "LEGACY_APK_NAME")]
+          names += [n + ".sha256" for n in names]
+          releases = json.load(open(os.environ["RUNNER_TEMP"] + "/releases.json"))
+          release = next((r for r in releases if r.get("tag_name") == tag), None)
+          if release is None:
+              print("release", tag, "is not in the list yet")
+              sys.exit(1)
+          assets = {a["name"]: a.get("browser_download_url") for a in release.get("assets", [])}
+          bad = []
+          for n in names:
+              want = f"https://github.com/{repo}/releases/download/{tag}/{n}"
+              if assets.get(n) != want:
+                  bad.append(n)
+          if bad:
+              print("missing or wrong download URL for:", ", ".join(bad))
+              sys.exit(1)
+          print("public release", tag, "has all four assets with the expected download URLs")
+          PY
+            then exit 0; fi
+            sleep 10
+          done
+          echo "::error::$RELEASE_TAG is not complete in the public list of $RELEASE_REPOSITORY (see the lines above). The app's update check would not find this build."
+          exit 1
 
       - name: Reports of a failed build
         if: ${{ failure() }}

@@ -3413,10 +3413,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - CI: `.github/workflows/docs-check.yml` führt bei jedem Push den Docs-Check aus.
   `.github/workflows/agent-tests.yml` (seit Build 12) läuft bei Pushes auf `claude/**` und `main`,
   die Code oder `release-notes/**` ändern (die Notizen stecken in der APK und in `UpdatePromptsTest`),
-  und von Hand: drei parallele Jobs `agent` (core- und agent-tests), `upstream`
-  (voller Lauf) und `lint`, je über `tools/dev.py`. Die Zusammenfassung (Job-Log und Step-Summary)
-  listet jeden Fehler als `known` oder `NEW`; nur `NEW` außerhalb der Baseline (Hangul, Emoji,
-  `XLinkTest.*`) lässt den Job scheitern. Berichte als Artefakt `reports-<job>` (7 Tage). Ein
+  und von Hand: vier parallele Jobs `agent` (core- und agent-tests), `upstream`
+  (voller Lauf), `lint` und `build` (seit 63: `tools/dev.py build`, die ausgelieferte Variante), je
+  über `tools/dev.py`. Die Zusammenfassung (Job-Log und Step-Summary)
+  listet jeden Fehler als `known` oder `NEW`; nur `NEW` außerhalb der Baseline (die fünf Namen aus
+  `docs/HANDOFF.md`, seit 63 ohne Präfix) oder eine Testzahl unter der Mindestzahl des Jobs lässt den
+  Job scheitern. Berichte als Artefakt `reports-<job>` (7 Tage). Ein
   neuer Push auf denselben Branch bricht den laufenden Lauf ab.
   `.github/workflows/agent-apk.yml` baut von Hand gestartet die installierbare, mit dem
   Schlüssel des Owners signierte APK (`docs/BUILD.md` → Installierbare APK); dafür liest
@@ -3424,8 +3426,20 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `AGENT_VERSION_CODE` aus der Umgebung. Mit dem Secret `RELEASES_TOKEN` legt er dasselbe Release
   im öffentlichen Repository `RELEASE_REPOSITORY` an (Abschnitt „Updates“), ohne Secret nur eine
   Warnung. Von Upstream
-  übernommen: `build-debug-apk.yml` (nur manuell) und `build-test-auto.yml` (bei Pull Requests;
-  ruft den nicht existierenden Task `testRunTestsUnitTest` auf, siehe `docs/BUILD.md`).
+  übernommen: `build-debug-apk.yml` (nur manuell) und `build-test-auto.yml` (seit 63 nur noch von
+  Hand: der Lauf bei Pull Requests war immer rot, siehe `docs/BUILD.md`).
+- Release-Workflow hart (63, P262/P263): `agent-apk.yml` prüft die gebaute APK vor jeder
+  Veröffentlichung (`apksigner verify`, SHA-256 des Zertifikats gleich `OWNER_CERT_SHA256`, Paket
+  `APP_PACKAGE`, Versionscode gleich Laufnummer, nicht debuggable) und scheitert sonst. Auf `main`
+  verlangt er `RELEASES_TOKEN`, einen grünen `agent-tests.yml`-Lauf für den letzten Commit, der
+  dessen Pfade geändert hat, und liest das öffentliche Release danach ohne Token zurück (vier Assets,
+  Download-URLs). Ein erneuter Lauf derselben Nummer lädt mit `--clobber` neu hoch. Gradle bekommt
+  im Workflow `-Xmx3g`. `app/build.gradle.kts` bricht mit Besitzer-Schlüssel ohne gültige
+  `AGENT_VERSION_CODE` ab. `agent-tests.yml` hat seit 63 einen vierten Job `build` (baut die
+  ausgelieferte Variante), erweiterte Pfade (`gradle.properties`, `upstream.lock`,
+  `agent-apk.yml`), die fünf bekannten Fehler mit exakten Namen und je Job eine Mindestzahl an Tests.
+  `CT/WorkflowContractTest.kt` (agent-core, Tests) liest `agent-apk.yml` als Text und hält Tag, Dateinamen,
+  Repository und Zertifikat (gegen `docs/BUILD.md`) gleich `UpdateReleases`.
 - Docs-System: `scripts/docs_sync.py` (Konfiguration `scripts/docs_sync.json`),
   `scripts/install-hooks.sh` (optionaler Pre-Commit-Hook), `.claude/hooks/session-start.sh`
   (registriert in `.claude/settings.json`). Bedienung: `docs/HANDOFF.md` → Arbeitsweise.
@@ -5033,6 +5047,28 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   beide kommen mit in den kopierten Text, ein Screenshot belegt also den Zustand. Texte am Ende von
   `agent_diagnose_strings.xml` (`agent_diagnose_debuggable`, `agent_diagnose_debug_mode`). Test:
   `DiagnoseScreenTest.theAppRowsProveWhetherTheAppIsDebuggableAndDebugModeIsOn`.
+- **P262** Prüfungen von `agent-apk.yml` (63): Die Konstanten `OWNER_CERT_SHA256` (Kleinbuchstaben
+  ohne Doppelpunkte; `docs/BUILD.md` hat dieselbe Zahl mit Doppelpunkten) und `APP_PACKAGE`
+  stehen im Kopf des Workflows; ändert sich der Schlüssel des Owners oder die App-ID, beides dort und
+  in `BUILD.md` nachziehen, `WorkflowContractTest` prüft die Gleichheit. Tag und Dateinamen
+  (`RELEASE_TAG`, `APK_NAME`, `LEGACY_APK_NAME`) sind ebenfalls dort und müssen zu `UpdateReleases`
+  passen (gleicher Test). Der Lauf der Nummer N im öffentlichen Repository kann das Tag nicht gegen
+  den Commit prüfen (andere Historie); die Prüfung des Tags auf Commit-Gleichheit gilt für das
+  private Release, das davor entsteht. Schritte mit Geheimnissen (`RELEASES_TOKEN`) geben nie die
+  Umgebung aus; `set -x` nie einschalten. Der Zurücklese-Schritt wiederholt bis zu sechsmal (zehn
+  Sekunden Abstand), die Liste kann kurz hinterherhinken; ohne Token gilt das Ratenlimit von GitHub
+  je IP.
+- **P263** Test-Tor und `agent-tests.yml` (63): Das Tor vor dem öffentlichen Veröffentlichen liest die
+  Pfade aus `agent-tests.yml` (Schlüssel `paths:` unter `push`, einfache Zeilenauswertung, kein
+  YAML-Parser) und sucht mit `git log -1 -- :(glob)<Pfad>` den letzten Commit dazu (daher
+  `fetch-depth: 0`); `gh run list --workflow agent-tests.yml --commit <sha>` braucht
+  `actions: read`. Ändert sich die Pfadliste, bleibt das Tor automatisch richtig; die Pfad-Liste muss
+  `.github/workflows/agent-apk.yml` selbst enthalten. Die Mindestzahlen je Job (`minimum` im
+  Zusammenfassungsschritt, zuerst aus gezählten `@Test` geschätzt) beim Hinzufügen von Tests auf etwa
+  90 % des Wertes eines grünen Laufs anheben; die fünf bekannten Fehler stehen mit exakten Namen in
+  `known` (die zwei Cloud-Umgebungs-Fehler `layoutsLinksInternal`, `otherLinks` nicht: auf GitHub
+  müssen sie bestehen).
+
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.

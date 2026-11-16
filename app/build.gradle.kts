@@ -28,7 +28,11 @@ android {
         minSdk = 21
         targetSdk = 37
         // counted up by the workflow, so that Android accepts each build as an update
-        versionCode = System.getenv("AGENT_VERSION_CODE")?.toIntOrNull() ?: 1
+        // Stage 63: with the owner's key a missing or invalid number must fail, not fall back to 1
+        // (a build with version code 1 would be refused as an update by every installed phone).
+        versionCode = System.getenv("AGENT_VERSION_CODE")?.toIntOrNull()?.takeIf { it > 0 }
+            ?: if (ownerKeystore != null) throw GradleException("AGENT_VERSION_CODE must be a positive number when AGENT_KEYSTORE_FILE is set (the workflow passes github.run_number)")
+            else 1
         versionName = "0.1.0"
         ndk {
             abiFilters.clear()

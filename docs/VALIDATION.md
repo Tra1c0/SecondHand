@@ -5497,6 +5497,23 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Nicht geprüft: Geschwindigkeit auf einem Gerät, die Diagnose-Zeilen auf dem Gerät, ein echtes Update
   mit gespeichertem Debug-Modus.
 
+## Etappe 63 (Release scheitert laut)
+
+- Auftrag: Prüfung des Leads vom 2026-11-16.
+- Geändert: `agent-apk.yml` (Prüfschritt, Tor für Tests, Pflicht-Token, Zurücklesen, erneuter Lauf,
+  `-Xmx3g`), `agent-tests.yml` (Pfade, Job `build`, exakte Baseline, Mindestzahlen),
+  `build-test-auto.yml` (nur von Hand), `app/build.gradle.kts` (Besitzer-Schlüssel ohne gültige
+  `AGENT_VERSION_CODE` bricht ab).
+- Test: `WorkflowContractTest` (agent-core) liest `agent-apk.yml` als Text: Tag und Namen gegen
+  `UpdateReleases`, Repository, Zertifikat gegen `docs/BUILD.md`, kein `|| true` an `apksigner`, kein
+  stiller Abbruch ohne Token.
+- Ergebnis: `:agent-core:test` 601 grün (595 bisherige, sechs neue in `WorkflowContractTest`); Lint
+  (`python3 tools/dev.py lint`) grün (277 Warnungen, 5 Hinweise, 68 durch die Baseline gefiltert).
+- Geprüft: YAML aller drei geänderten Workflows geparst, die Shell-Blöcke einzeln mit `bash -n`
+  gelesen, die Pfadauswertung des Tests-Tors lokal mit `git log` ausgeführt.
+- Nicht geprüft: jeder Workflow selbst (läuft nur auf GitHub), `gh run list --commit`, das Zurücklesen,
+  ein erneuter Lauf mit `--clobber`.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.
