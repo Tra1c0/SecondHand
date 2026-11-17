@@ -99,6 +99,11 @@ class UpdateCheckTest {
         assertEquals(status, UpdateSettings(app).status)
         val request = requests.single()
         assertEquals("https://api.github.com/repos/Tra1c0/SecondHandAgenticKeyboard/releases?per_page=10", request.url.toString())
+        // stage 63: the release workflow reads the public list back with the same path and query
+        val workflow = listOf(File("../.github/workflows/agent-apk.yml"), File(".github/workflows/agent-apk.yml")).first { it.isFile }.readText()
+        val read = "https://api.github.com/repos/\$RELEASE_REPOSITORY/releases?per_page=10"
+        assertTrue("URL=\"$read\"" in workflow, "agent-apk.yml asks $read")
+        assertEquals(request.url.toString(), read.replace("\$RELEASE_REPOSITORY", UpdateReleases.REPOSITORY))
         assertNull(request.header("Authorization"))
         assertNull(request.header("Cookie"))
         assertEquals("application/vnd.github+json", request.header("Accept"))

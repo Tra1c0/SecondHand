@@ -5610,7 +5610,7 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Auftrag: Prüfung des Leads vom 2026-11-16 und Bericht des Owners („stellenweise Performance-
   Probleme“). Nichts wurde auf einem Gerät gemessen.
 - Befund: Die Variante `debugNoMinify` war `isDebuggable = true`; `BuildConfig.DEBUG` schaltete
-  `Defaults.PREF_DEBUG_MODE` ein (Wörter im Logcat, vier Ausnahmen bei Auffälligkeiten) und setzte
+  `Defaults.PREF_DEBUG_MODE` ein (Wörter im Logcat, fünf Ausnahmen bei Auffälligkeiten) und setzte
   `GET_SUGGESTED_WORDS_TIMEOUT` auf 500 ms. Alle Stellen mit `BuildConfig.DEBUG`: `Constants`,
   `Defaults`, `App`, `SettingsActivity` (Absturzberichte), `AgentAreaSystemScreen`, `AboutScreen`,
   `AdvancedScreen`, `DebugScreen`; Beschreibung in `docs/ARCHITECTURE.md` → P259. Keine musste
@@ -5733,6 +5733,26 @@ als sein Name sagt.
 Bewusst nicht geändert: Ein öffentliches Release gleicher Nummer mit anderer Prüfsumme wird weiter
 ersetzt (Warnung); davor schützt die Tag-Prüfung des privaten Repositorys, Laufnummern wiederholen
 sich nicht. Das Fenster des Test-Nachweises bleibt bei den letzten 100 Läufen.
+
+### Nachbesserung 62/63 durch den Builder (2026-11-17)
+
+- P259 vervollständigt (Stellen aus dem Code gelesen, Zeilen dort): `SubtypeSettings.kt:262/:273`,
+  `SuggestionStripView.kt:475`, `SuggestedWords.java:156`, `FoldableUtils.kt:142`,
+  `PointerTracker.java:55`, `MainKeyboardView.java:852`, die Zeitmessung und der `revertCommit`-Aufruf an
+  die App in `InputLogic.java`, die reinen Logs. Die Zahl der Ausnahmen ist fünf, nicht vier
+  (`InputLogic.java:1149`, `:2220`, `:2225`, `WordComposer.java:233`, `LatinIME.java:1044` als
+  `NullPointerException`); korrigiert in P259, `docs/BUILD.md`, `docs/ROADMAP.md`, dieser Datei und im
+  Prüfbericht.
+- `WorkflowContractTest`: neu geprüft werden die vier Dateien in beiden Veröffentlichungsschritten
+  (`FILES`-Zeile zweimal, jeder `gh release create`/`upload` mit allen vier), das URL-Muster des
+  Zurücklesens (Python und Shell) gegen `UpdateReleases.downloadUrl`, die Größengrenzen gegen
+  `MAX_CHECKSUM_BYTES` und `MAX_APK_BYTES`, die Sicherungen des Tors (`git ls-remote --tags origin`, kein
+  `git/ref/tags`, `agent-apk.yml` und `docs/BUILD.md` in den Pfaden von `agent-tests.yml`). Die zweite
+  Zusicherung von `theWorkflowPublishesInTheRepositoryTheAppAsks` verglich zwei Texte aus denselben Teilen
+  und ist ersetzt. `UpdateCheckTest` prüft, dass der Workflow dieselbe Liste (`per_page=10`) abfragt wie
+  die App. `ForkUpgradeTest` prüft, dass der Rückschritt `DebugFlags.DEBUG_ENABLED` ausschaltet.
+- P263: Mindestzahlen auf die Werte des Leads (1600/1330) angepasst, sonst keine Abweichung der Doku vom
+  Workflow gefunden.
 
 ## Gerätetest vor Meilensteinfreigabe
 

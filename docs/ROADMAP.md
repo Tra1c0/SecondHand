@@ -432,7 +432,7 @@ Reihenfolge von oben nach unten.
 - **62 Ausgelieferte Variante ohne Debug-Modus** (Befund der Prüfung vom 2026-11-16 und Bericht des
   Owners „stellenweise Performance-Probleme“) ist gebaut (siehe FEATURES.md, Nachweis in
   `docs/VALIDATION.md` → Etappe 62). Die installierte APK war `debuggable`: Android führt sie ohne
-  volle Optimierungen aus, und der Debug-Modus war an (jedes getippte Wort ins Logcat, vier Ausnahmen
+  volle Optimierungen aus, und der Debug-Modus war an (jedes getippte Wort ins Logcat, fünf Ausnahmen
   bei Auffälligkeiten). Jetzt ist die Variante `debugNoMinify` nicht debuggable (Name, `.debug`,
   Signatur, Quellordner und fehlendes R8 unverändert), und ein gespeicherter Debug-Modus „an“ wird
   einmal zurückgesetzt. Die Diagnose zeigt beide Zustände. Annahme: Das macht Tippen und Einstellungen
