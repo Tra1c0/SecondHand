@@ -989,6 +989,40 @@ class SuggestTest {
         assertFalse(getSuggestedWords(false, "fur", CapsMode.OFF, NgramContext(NgramContext.WordInfo("cat"))).mWillAutoCorrect)
     }
 
+    // second round: the cases that leave the rule out
+    @Test fun `stage 60 the gate`() {
+        currentTypingLocale = Locale.GERMAN
+        enableAutocorrect(confidenceVeryAggressive)
+        val de = listOf(Locale.GERMAN)
+        val en = listOf(Locale.ENGLISH)
+        mainLocalesKnowingWord = mapOf("cat" to en)
+        fun fur(first: SuggestedWordInfo = suggestion("für", 650000, Locale.GERMAN)): SuggestedWords {
+            tapTypingSuggestions = suggestionResults(listOf(first, suggestion("fur", 300000, Locale.ENGLISH)))
+            return getSuggestedWords(false, "fur", CapsMode.OFF, NgramContext(NgramContext.WordInfo("cat")))
+        }
+        mainLocalesKnowingWord += mapOf("fur" to en)
+        assertFalse(fur().mWillAutoCorrect) // control: English word in an English sentence
+        mainLocalesKnowingWord += mapOf("fur" to de) // known only to the correction's language
+        assert(fur().mWillAutoCorrect)
+        mainLocalesKnowingWord += mapOf("fur" to emptyList()) // known to no main dictionary (a real typo)
+        assert(fur().mWillAutoCorrect)
+        mainLocalesKnowingWord += mapOf("fur" to en)
+        // a correction without a locale (memory, foreign words, emoji) stays outside the rule
+        val phony = SuggestedWordInfo("für", "", 650000, SuggestedWordInfo.KIND_FLAG_APPROPRIATE_FOR_AUTO_CORRECTION,
+            Dictionary.DICTIONARY_USER_TYPED, 0, 0)
+        assert(fur(phony).mWillAutoCorrect)
+        // three languages: a word known to English and Spanish is evidence for an English typed word, one known to Spanish alone is not
+        val es = listOf(Locale("es"))
+        mainLocalesKnowingWord += mapOf("both" to en + es, "gracias" to es, "dewort" to de + es)
+        fun after(previous: String): Boolean {
+            tapTypingSuggestions = suggestionResults(listOf(suggestion("für", 650000, Locale.GERMAN), suggestion("fur", 300000, Locale.ENGLISH)))
+            return getSuggestedWords(false, "fur", CapsMode.OFF, NgramContext(NgramContext.WordInfo(previous))).mWillAutoCorrect
+        }
+        assertFalse(after("both"))
+        assert(after("gracias"))
+        assert(after("dewort")) // known to German (and Spanish): the German side
+    }
+
     @Test fun `stage 60 Spanish as second language`() {
         currentTypingLocale = Locale.GERMAN
         enableAutocorrect(confidenceVeryAggressive)

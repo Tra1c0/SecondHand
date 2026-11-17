@@ -317,8 +317,8 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
     /**
      * Fork, stage 60: whether the previous words of this sentence (at most three, up to the beginning of
      * the sentence, from [ngramContext]) show that it is not written in the language of the correction
-     * ([correctionLocale]): at least one is known only to another active language, none only to the
-     * correction's language (main dictionaries, [SentenceLanguage]). Runs on the suggestion thread, reads
+     * ([correctionLocale]): at least one is known to a language that also knows [typed] (and not to the
+     * correction's), none only to the correction's language (main dictionaries, [SentenceLanguage]). Runs on the suggestion thread, reads
      * only, and only when a correction is about to be applied ([typed] must be a main-dictionary word of another
      * active language and not of the correction's).
      */
@@ -333,7 +333,8 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
             if (ngramContext.isNthPrevWordBeginningOfSentence(n)) break
             val word = ngramContext.getNthPrevWord(n)?.toString()?.takeIf { it.isNotEmpty() } ?: break
             val known = facilitator.mainLocalesKnowing(word)
-            when (SentenceLanguage.evidenceOf(known.any { it == correctionLocale }, known.any { it != correctionLocale })) {
+            // evidence for the typed word's language: a language that knows the typed word (a third language does not count)
+            when (SentenceLanguage.evidenceOf(known.any { it == correctionLocale }, known.any { it != correctionLocale && it in typedKnownIn })) {
                 SentenceLanguage.Evidence.ONLY_L1 -> return false // one word of the correction's language: the old rule
                 SentenceLanguage.Evidence.ONLY_L2 -> onlyL2++
                 SentenceLanguage.Evidence.NEUTRAL -> {}
