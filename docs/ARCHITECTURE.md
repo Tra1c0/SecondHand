@@ -5347,14 +5347,20 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P287** Beleuchtung hinter Überlagerungen (70): `RgbLighting.isVisible` kennt nur die Tastatur-View.
   Jede neue Überlagerung in `main_keyboard_frame.xml` muss `AgentKeyboardFrame.updateOverlayAccessibility`
   aus ihrem `setVisibility` rufen (wie `FlatMenuView`), sonst läuft das Licht dahinter weiter und
-  `isShown` bleibt `true`. Das Rad und das Menü zählen mit: Die Frage „bedeckt etwas die Tasten“
-  ist `irgendein Kind ab Index 1 sichtbar`. Der Zustand ist statisch; ein abgehängter Frame setzt ihn zurück.
+  `isShown` bleibt `true`. Das Rad zählt mit. Das Menü des flachen Looks bedeckt nur die Tasten, die
+  Leiste darüber bleibt sichtbar (Nachprüfung N1): `setOverlayOpen(open, menu)` kennt beide Zustände.
+  Bei offenem Menü läuft das Licht weiter, wenn die Leiste leuchtet (`lightsStrip()`); `redraw`
+  zeichnet dann nur die Leiste, die Tasten werden nicht neu gezeichnet. Leuchtet die Leiste nicht,
+  pausiert alles wie bei den anderen Überlagerungen. Der Zustand ist statisch; ein abgehängter Frame
+  setzt ihn zurück.
 - **P288** Fangnetz im Painter (70): `RgbKeyPainter.guarded` fängt nur `Exception`, keine `Error`. Die
   Rückgabe nach einem Fehler ist der Eingabewert (`labelColor`), `restoreBackground` und
   `restoreIcon` laufen bewusst ungeschützt und immer, damit kein Farbfilter am Drawable hängen
   bleibt. `onPainterFailed` setzt den Painter am View nicht mitten im Zeichnen auf null (die
   Aufrufe in `KeyboardView.onDrawKey` lesen das Feld jedes Mal), sondern in einem Handler-Post.
-  Es wird nie die Meldung der Ausnahme gespeichert, nur der Klassenname.
+  Es wird nie die Meldung der Ausnahme gespeichert, nur der Klassenname. Ein Fehler im Painter
+  könnte Programmierfehler in anderen Render-Tests verdecken: `RgbLightingRenderTest` prüft nach jedem
+  Bild und im `@After`, dass kein Fehler vermerkt ist (nur der Test, der einen auslöst, setzt ihn zurück).
 - **P289** Abbruch einer Leertasten-Wischgeste (70, A2): `onCancelEvent` ruft `cancelAllPointerTrackers`
   (setzt nur „Aktion aus“) und danach `releaseAllPointers`; das ruft für jeden Tracker in der Warteschlange
   `onUpEventInternal`, und das setzt `mKeySwipeAllowed`, `sInKeySwipe`, `mInHorizontalSwipe`,
@@ -5362,12 +5368,18 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `AT/AgentSpaceGestureTest` (seitlich, senkrecht, einmalige Aktion, jeweils danach ein Tipp) bestanden ohne
   Änderung; `PointerTracker` blieb unverändert. Ein Tracker, der vorher aus der Warteschlange entfernt
   wurde (`cancelKeyTracking`), setzt die Flags selbst zurück (SPACE_HOLD-Pfad).
-- **P290** Hintergrundrechnen der Zeichen-Kunst und Z6 (70): Ein Hintergrundergebnis wird nur gezeigt,
-  wenn seine `renderGeneration` noch die neueste ist; jedes `render()` und `resetContent` zählen
-  hoch. Das Lesen von `sketch`/`raster` im Thread wäre ein Datenrennen (der Strich-Puffer wird
+- **P290** Hintergrundrechnen der Zeichen-Kunst und Z6 (70): `renderGeneration` zählt nur, was ein
+  Hintergrundergebnis entwertet (`render()`, `resetContent`, Abhängen); ein Tick des Strichs zählt sie
+  nicht. Es läuft höchstens eine Rechnung; Ticks währenddessen merken nur „neueres gewünscht“
+  (`livePending`), das beim Zeigen des Ergebnisses startet. Würde jeder Tick entwerten, bliebe die
+  Vorschau bei einer Rechnung über 40 ms den ganzen Strich lang stehen (Nachprüfung M1). Ein Fehler im
+  Hintergrund (`Throwable`) leert die Vorschau; `render()` bleibt der Ort, an dem ein echter Fehler
+  auftritt. Test-Haken `liveComputeHook` und `awaitLiveWorker`. Das Lesen von `sketch`/`raster` im Thread wäre ein Datenrennen (der Strich-Puffer wird
   wiederverwendet): immer die Kopie aus `renderInput(copy = true)` übergeben. Z6: `setNeutralSuggestionStrip`
   zeigt selbst Befehls-, Symbol-, Zwischenablage- und Update-Chips; ein weiterer Aufruf von
-  `tryShowClipboardSuggestion` in `onStartInputViewInternal` darf sie nicht ersetzen.
+  `tryShowClipboardSuggestion` in `onStartInputViewInternal` darf sie nicht ersetzen. Folge (gewollt,
+  Nachprüfung N5): Mit „Werkzeugleiste automatisch zeigen“ an und Chips in der Leiste öffnet sich die
+  Werkzeugleiste beim Feldstart nicht mehr (vorher ersetzte oder verdeckte der zweite Aufruf die Chips).
 
 ## Datei-Inventar
 

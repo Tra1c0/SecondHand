@@ -141,6 +141,58 @@ class AgentSpaceGestureTest {
         verify(listener, times(1)).onCodeInput(eq(32), anyInt(), anyInt(), eq(false))
     }
 
+    // --- stage 70 fix round, M2: a long press that leaves the tracker out of the queue ---
+
+    private fun pickerBranch() {
+        `when`(listener.onCustomRequest(CustomAction.SPACE_HOLD)).thenReturn(false) // the default: no own hold action
+        `when`(listener.onCustomRequest(CustomAction.SHOW_INPUT_METHOD_PICKER)).thenReturn(true)
+    }
+
+    private fun assertLetterTapAndGestureStillWork() {
+        assertNoSwipeLeft()
+        assertFalse(ReflectionHelpers.getField<Boolean>(tracker, "mKeySwipeAllowed"))
+        `when`(key.code).thenReturn('a'.code)
+        // a tap on a letter key types the letter
+        touch(MotionEvent.ACTION_DOWN); touch(MotionEvent.ACTION_UP)
+        verify(listener, times(1)).onCodeInput(eq('a'.code), anyInt(), anyInt(), eq(false))
+        // and a touch that starts on a letter key is a gesture candidate again
+        PointerTracker.setGestureHandlingEnabledByUser(true)
+        try {
+            touch(MotionEvent.ACTION_DOWN)
+            assertTrue(ReflectionHelpers.getField<Boolean>(tracker, "mIsDetectingGesture"), "gesture detection is on for a letter key")
+            touch(MotionEvent.ACTION_UP)
+        } finally { PointerTracker.setGestureHandlingEnabledByUser(false) }
+    }
+
+    @Test fun longPressThatOpensThePickerThenCancelLeavesNoSwipeState() {
+        pickerBranch()
+        touch(MotionEvent.ACTION_DOWN); hold()
+        verify(listener).onCustomRequest(CustomAction.SHOW_INPUT_METHOD_PICKER)
+        touch(MotionEvent.ACTION_CANCEL)
+        assertLetterTapAndGestureStillWork()
+    }
+
+    @Test fun longPressThatOpensThePickerThenUpLeavesNoSwipeState() {
+        pickerBranch()
+        touch(MotionEvent.ACTION_DOWN); hold()
+        verify(listener).onCustomRequest(CustomAction.SHOW_INPUT_METHOD_PICKER)
+        touch(MotionEvent.ACTION_UP)
+        verify(listener, never()).onCodeInput(anyInt(), anyInt(), anyInt(), anyBoolean())
+        assertLetterTapAndGestureStillWork()
+    }
+
+    @Test fun longPressOnAKeyWithoutPanelPopupThenCancelLeavesNoSwipeState() {
+        pickerBranch()
+        `when`(key.popupKeys).thenReturn(arrayOf(PopupKeySpec("x", false, Locale.ROOT)))
+        `when`(key.hasNoPanelAutoPopupKey()).thenReturn(true)
+        touch(MotionEvent.ACTION_DOWN); hold()
+        verify(listener).onCodeInput(eq('x'.code), anyInt(), anyInt(), eq(false))
+        touch(MotionEvent.ACTION_CANCEL)
+        `when`(key.popupKeys).thenReturn(null)
+        `when`(key.hasNoPanelAutoPopupKey()).thenReturn(false)
+        assertLetterTapAndGestureStillWork()
+    }
+
     @Test fun movementCancelsTimerAndPreservesCursorSwipe() {
         touch(MotionEvent.ACTION_DOWN)
         touch(MotionEvent.ACTION_MOVE, 150f)

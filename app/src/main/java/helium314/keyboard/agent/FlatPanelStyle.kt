@@ -61,7 +61,7 @@ internal class FlatPanelStyle private constructor(private val result: TextView, 
         override fun run() {
             // panel closed while the request still runs (stage 70, A6): no redraws; [resume] starts again
             pulseScheduled = false
-            if (!result.isShown) return
+            if (!result.isShown || result.windowVisibility != View.VISIBLE) return // also hidden by an ancestor or the window (stage 70)
             val phase = ((SystemClock.uptimeMillis() - busySince) % PULSE_PERIOD_MS) / PULSE_PERIOD_MS.toFloat()
             // triangle wave between 55 % and 100 %
             skeleton.alpha = Math.round(255 * (0.55f + 0.45f * abs(1f - 2f * phase)))

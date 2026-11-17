@@ -463,6 +463,11 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
     override fun setVisibility(visibility: Int) {
         super.setVisibility(visibility)
         (parent as? AgentKeyboardFrame)?.updateOverlayAccessibility()
+    }
+
+    /** Also called when an ancestor is hidden or shown (stage 70, N2): the loading pulse comes back with the panel. */
+    override fun onVisibilityChanged(changedView: View, visibility: Int) {
+        super.onVisibilityChanged(changedView, visibility)
         if (visibility == View.VISIBLE) flatStyle?.resume()
     }
 

@@ -255,9 +255,105 @@ class CharArtWindowTest {
         looper.idle()
         val final = window.result.text
         assertEquals(final, preview.text.toString())
-        Thread.sleep(200); looper.idle()
+        window.awaitLiveWorker(); looper.idle()
         assertEquals(final, window.result.text)
         assertEquals(final, preview.text.toString())
+    }
+
+    private class Stroke(val window: CharArtView, val canvas: CharArtCanvas) {
+        val side = minOf(canvas.width, canvas.height).toFloat()
+        val left = (canvas.width - side) / 2f
+        val top = (canvas.height - side) / 2f
+        val time = SystemClock.uptimeMillis()
+        var at = 0L
+        fun touch(action: Int, x: Float, y: Float) {
+            canvas.dispatchTouchEvent(MotionEvent.obtain(time, time + at, action, left + x * side, top + y * side, 0)); at += 10
+        }
+    }
+
+    /** Stage 70, M1: a computation slower than the 40 ms tick must not leave the preview stale for the whole stroke. */
+    @Test fun aSlowComputationStillLetsThePreviewFollowTheStrokeWithADelay() {
+        pen()
+        layoutWindow()
+        val stroke = Stroke(window, window.findViewById(R.id.agent_char_art_canvas))
+        val preview = window.findViewById<TextView>(R.id.agent_char_art_preview)
+        val looper = shadowOf(Looper.getMainLooper())
+        window.liveComputeHook = { Thread.sleep(150) } // every render takes much longer than a tick
+        stroke.touch(MotionEvent.ACTION_DOWN, 0.1f, 0.1f)
+        var step = 0
+        val end = System.currentTimeMillis() + 10_000
+        val seen = HashSet<String>()
+        while (seen.size < 2 && System.currentTimeMillis() < end) {
+            // the finger keeps moving at tick speed while the computation runs
+            step++
+            stroke.touch(MotionEvent.ACTION_MOVE, 0.1f + 0.8f * ((step % 20) / 20f), 0.1f + 0.8f * (((step * 7) % 20) / 20f))
+            looper.idleFor(java.time.Duration.ofMillis(CharArtView.LIVE_RENDER_MILLIS + 1))
+            Thread.sleep(20)
+            if (preview.text.isNotEmpty()) seen.add(preview.text.toString())
+        }
+        assertTrue(seen.size >= 2, "the preview changed during the stroke (before the finger lifted): ${seen.size}")
+        // the lift: the synchronous picture wins and stays
+        window.liveComputeHook = null
+        stroke.touch(MotionEvent.ACTION_UP, 0.5f, 0.9f)
+        looper.idle()
+        val final = window.result.text
+        window.awaitLiveWorker(); looper.idle()
+        assertEquals(final, window.result.text)
+        assertEquals(final, preview.text.toString())
+    }
+
+    /** A background result that arrives after render(), a reset or a detach is not applied; forced with a latch, no sleeping. */
+    @Test fun aLateBackgroundResultIsNeverApplied() {
+        pen()
+        layoutWindow()
+        val view = window
+        val canvas = window.findViewById<CharArtCanvas>(R.id.agent_char_art_canvas)
+        val preview = window.findViewById<TextView>(R.id.agent_char_art_preview)
+        val looper = shadowOf(Looper.getMainLooper())
+        fun lateResultAfter(invalidate: () -> Unit, label: String) {
+            val started = java.util.concurrent.CountDownLatch(1)
+            val release = java.util.concurrent.CountDownLatch(1)
+            view.liveComputeHook = { started.countDown(); release.await() }
+            val stroke = Stroke(view, canvas)
+            stroke.touch(MotionEvent.ACTION_DOWN, 0.1f, 0.1f)
+            stroke.touch(MotionEvent.ACTION_MOVE, 0.9f, 0.9f)
+            looper.idleFor(java.time.Duration.ofMillis(CharArtView.LIVE_RENDER_MILLIS + 1)) // starts the background render
+            assertTrue(started.await(5, java.util.concurrent.TimeUnit.SECONDS), "$label: the computation started")
+            invalidate()
+            val before = view.result.text
+            val shownBefore = preview.text.toString()
+            release.countDown()
+            view.awaitLiveWorker(); looper.idle() // the late result is delivered now
+            assertEquals(before, view.result.text, "$label: result unchanged")
+            assertEquals(shownBefore, preview.text.toString(), "$label: preview unchanged")
+            view.liveComputeHook = null
+        }
+        lateResultAfter({ view.render() }, "render()")
+        // after a reset the window is empty and stays empty
+        lateResultAfter({ view.hide() }, "reset")
+        pen(); layoutWindow()
+        lateResultAfter({ org.robolectric.util.ReflectionHelpers.callInstanceMethod<Any>(view, "dispatchDetachedFromWindow") }, "detach") // the test window is not on a screen
+    }
+
+    /** A failing background render clears the live preview instead of freezing it; the synchronous render stays the place of real errors. */
+    @Test fun aFailingBackgroundRenderClearsTheLivePreview() {
+        pen()
+        layoutWindow()
+        val stroke = Stroke(window, window.findViewById(R.id.agent_char_art_canvas))
+        val preview = window.findViewById<TextView>(R.id.agent_char_art_preview)
+        val looper = shadowOf(Looper.getMainLooper())
+        draw(0.1f to 0.1f, 0.5f to 0.5f, 0.9f to 0.9f)
+        assertTrue(preview.text.isNotEmpty())
+        window.liveComputeHook = { throw IllegalStateException("boom") }
+        stroke.touch(MotionEvent.ACTION_DOWN, 0.2f, 0.9f)
+        stroke.touch(MotionEvent.ACTION_MOVE, 0.8f, 0.1f)
+        looper.idleFor(java.time.Duration.ofMillis(CharArtView.LIVE_RENDER_MILLIS + 1))
+        window.awaitLiveWorker(); looper.idle()
+        assertEquals("", preview.text.toString(), "cleared, not frozen")
+        window.liveComputeHook = null
+        stroke.touch(MotionEvent.ACTION_UP, 0.8f, 0.1f)
+        looper.idle()
+        assertTrue(preview.text.isNotEmpty(), "the synchronous render at the end of the stroke shows the real picture")
     }
 
     @Test fun drawingUpdatesThePreview() {

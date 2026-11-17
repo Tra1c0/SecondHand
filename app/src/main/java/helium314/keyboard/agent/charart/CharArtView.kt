@@ -131,10 +131,17 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
     private var picturesRequested = false
     private var renderPosted = false
     /**
-     * Counts renders (stage 70, A3): a finished background render is only shown while its number is
-     * still the newest, so the newest request wins and a stroke's last picture is never overwritten.
+     * Counts what invalidates a background render (stage 70, A3): [render], [resetContent] and detach. A
+     * finished background render is shown only if nothing of that kind happened since it was requested,
+     * so a stroke's final synchronous picture is never overwritten by a late result.
      */
     @Volatile private var renderGeneration = 0
+    /** A background render is running; the ticks of the stroke meanwhile only remember that a newer one is wanted (M1). */
+    private var liveRunning = false
+    private var livePending = false
+    private var livePendingGeneration = 0
+    /** Tests: runs on the worker before each background render (a slow computation, a latch). */
+    internal var liveComputeHook: (() -> Unit)? = null
     private var renderWorker: ExecutorService? = null
     /** Paints for fitting the preview and the bubble, kept instead of made new at every render (stage 70, A3). */
     private val previewPaint = Paint()
@@ -438,7 +445,7 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
         handler.removeCallbacks(endUndo)
         handler.removeCallbacksAndMessages(RENDER_TOKEN)
         renderPosted = false
-        renderGeneration++
+        invalidateLive()
         offersUndo = false
         pictureSession++
         pickGeneration++
@@ -868,26 +875,58 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
 
     /**
      * The picture while a finger draws (stage 70, A3): the art is calculated on a background thread
-     * from a copy of the drawing, and only the newest request is shown. The final picture of a stroke
-     * and every other change still go through [render] at once.
+     * from a copy of the drawing. One calculation runs at a time; ticks that come meanwhile only
+     * remember that a newer picture is wanted, which starts when the running one is shown (M1). So
+     * the preview follows the finger with a delay even when one calculation takes longer than a tick.
+     * The final picture of a stroke and every other change still go through [render] at once.
      */
     private fun renderLive() {
-        val generation = ++renderGeneration
+        if (liveRunning) {
+            livePending = true
+            livePendingGeneration = renderGeneration
+            return
+        }
+        startLive()
+    }
+
+    private fun startLive() {
+        liveRunning = true
+        livePending = false
+        val generation = renderGeneration
         val input = renderInput(copy = true)
         val worker = renderWorker ?: Executors.newSingleThreadExecutor { task -> Thread(task, "char-art-render").apply { isDaemon = true } }
             .also { renderWorker = it }
         worker.execute {
-            if (generation != renderGeneration) return@execute // a newer request is already waiting
-            val computed = try { compute(input) } catch (e: Exception) { null } ?: return@execute
-            handler.post { if (generation == renderGeneration) show(computed) }
+            val computed = try { liveComputeHook?.invoke(); compute(input) } catch (e: Throwable) { null }
+            handler.post { finishLive(generation, computed) }
         }
+    }
+
+    private fun finishLive(generation: Int, computed: ArtResult?) {
+        if (generation != renderGeneration) return // invalidated meanwhile: [render] or a reset has the newer picture
+        liveRunning = false
+        // a failure clears the live preview; the synchronous render at the end of the stroke is where it shows for real
+        show(computed ?: CharArt.render(null, null))
+        if (livePending && livePendingGeneration == renderGeneration) startLive() else livePending = false
+    }
+
+    /** Everything a running background render may still deliver is dropped. */
+    private fun invalidateLive() {
+        renderGeneration++
+        liveRunning = false
+        livePending = false
+    }
+
+    /** Waits until the worker has finished what it was given (tests). */
+    internal fun awaitLiveWorker() {
+        renderWorker?.submit { }?.get()
     }
 
     /** Renders the whole art again from every element and option. */
     internal fun render() {
         handler.removeCallbacksAndMessages(RENDER_TOKEN)
         renderPosted = false
-        renderGeneration++ // a background render of an older picture is dropped
+        invalidateLive() // a background render of an older picture is dropped
         show(compute(renderInput(copy = false)))
     }
 
@@ -994,7 +1033,7 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
-        renderGeneration++
+        invalidateLive()
         renderWorker?.shutdownNow()
         renderWorker = null
     }

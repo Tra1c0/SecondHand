@@ -101,7 +101,10 @@ class RgbLightingRenderTest {
     /** Settings and the lighting are singletons (P32): later tests must see the defaults. */
     @After fun restoreDefaults() {
         android.provider.Settings.Global.putFloat(latinIME.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+        // the painter's safety net must not hide a programming error: only the test that provokes one may leave it (N4)
+        val failure = RgbLighting.painterFailure
         RgbLighting.resetPainterFailure()
+        assertNull(failure, "the painter failed during the test")
         RgbLighting.setOverlayOpen(false)
         prefs.edit().clear().commit()
         reload()
@@ -830,6 +833,49 @@ class RgbLightingRenderTest {
         activity.finish()
     }
 
+    /** Stage 70, N1: the flat menu covers only the keys; a lit strip above it keeps the light running. */
+    @Test fun theFlatMenuKeepsTheLightRunningForALitStripAndPausesWithoutOne() {
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val context = ContextThemeWrapper(activity, R.style.KeyboardTheme_Flat)
+        KeyboardIconsSet.instance.loadIcons(context)
+        for ((settings, runs) in listOf(RgbSettings(enabled = true, areas = RgbArea.entries.toSet()) to true,
+            RgbSettings(enabled = true, areas = RgbArea.entries.filter { !it.inStrip }.toSet()) to false)) {
+            use(settings)
+            reload()
+            val frame = AgentKeyboardFrame(context, null)
+            val view = MainKeyboardView(context, null).apply { id = R.id.keyboard_view }
+            view.setKeyboard(buildKeyboard(context, KeyboardElement.ALPHABET))
+            frame.addView(view, FrameLayout.LayoutParams(WIDTH, HEIGHT))
+            val menu = FlatMenuView(context, null).apply { visibility = View.GONE }
+            frame.addView(menu)
+            activity.setContentView(frame)
+            shadowOf(Looper.getMainLooper()).idle()
+            assertEquals(RgbRun.Mode.RUNNING, RgbLighting.mode)
+            menu.visibility = View.VISIBLE
+            assertTrue(RgbLighting.menuCovers && !RgbLighting.overlayCovers)
+            assertEquals(if (runs) RgbRun.Mode.RUNNING else RgbRun.Mode.PAUSED, RgbLighting.mode, "strip lit: $runs")
+            assertEquals(runs, RgbLighting.framesScheduled)
+            menu.visibility = View.GONE
+            assertEquals(RgbRun.Mode.RUNNING, RgbLighting.mode)
+            assertTrue(RgbLighting.framesScheduled)
+            (frame.parent as ViewGroup).removeView(frame)
+        }
+        activity.finish()
+    }
+
+    /** Stage 70, N5: the strip says whether chips (an external view) or normal suggestions are shown. */
+    @Test fun theStripReportsWhetherAnExternalViewIsShown() {
+        val context = ContextThemeWrapper(latinIME, R.style.KeyboardTheme_Flat)
+        val container = LayoutInflater.from(context).inflate(R.layout.strip_container, null) as ViewGroup
+        val strip = container.findViewById<SuggestionStripView>(R.id.suggestion_strip_view)
+        assertFalse(strip.isExternalSuggestionVisible)
+        strip.setExternalSuggestionView(TextView(context).apply { text = "chip" }, false)
+        assertTrue(strip.isExternalSuggestionVisible)
+        val info = SuggestedWordInfo("Hallo", "", 1, SuggestedWordInfo.KIND_TYPED, null, -1, -1)
+        strip.setSuggestions(SuggestedWords(ArrayList(listOf(info)), null, info, true, false, false, 0, 0), false)
+        assertFalse(strip.isExternalSuggestionVisible)
+    }
+
     /** Stage 70, S13: a painter that throws must not end the draw again and again. */
     @Test fun aPainterThatThrowsSwitchesTheLightOffForTheSessionAndShowsOnlyTheClass() {
         use(lit)
@@ -851,6 +897,7 @@ class RgbLightingRenderTest {
         val section = Diagnose.lighting(latinIME, RgbLighting.lastFrameWork(), failure = RgbLighting.painterFailure)
         assertTrue(section.rows.any { it.value == "java.lang.IllegalStateException" })
         assertTrue(section.rows.none { "text of the field" in it.label + it.value }, "never the message")
+        RgbLighting.resetPainterFailure() // provoked on purpose: the check after every test must not see it
     }
 
     /** Stage 70, A4: colour filters are shared by colour and their number is bounded. */
@@ -906,6 +953,7 @@ class RgbLightingRenderTest {
         draw(view)
         settle()
         val picture = draw(view)
+        assertNull(RgbLighting.painterFailure, "the painter failed while rendering")
         File("build/reports/rgb-lighting").apply { mkdirs() }.resolve(fileName).outputStream().use {
             picture.compress(Bitmap.CompressFormat.PNG, 100, it)
         }

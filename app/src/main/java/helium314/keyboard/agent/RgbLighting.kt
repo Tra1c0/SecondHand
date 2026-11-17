@@ -81,8 +81,10 @@ object RgbLighting {
     /** True while strip views may carry RGB colours, so restoring is only done when needed. */
     private var stripLit = false
     private var inFrame = false
-    /** True while a window (panel, wheel, calculator, character art, flat menu) covers the keys (stage 70, A1). */
+    /** True while a window (panel, wheel, calculator, character art) covers keys and strip (stage 70, A1). */
     private var overlayOpen = false
+    /** True while the flat menu covers the keys; the strip above it stays visible (stage 70, N1). */
+    private var menuOpen = false
     /** Class name of the exception that switched the light off for this session, null while it works (stage 70, S13). */
     @Volatile var painterFailure: String? = null
         private set
@@ -288,17 +290,24 @@ object RgbLighting {
      * for keys nobody can see (stage 70, A1); the light carries on when the last overlay closes.
      */
     @JvmStatic
-    fun setOverlayOpen(open: Boolean) {
-        if (overlayOpen == open) return
+    fun setOverlayOpen(open: Boolean, menu: Boolean = false) {
+        if (overlayOpen == open && menuOpen == menu) return
         overlayOpen = open
+        menuOpen = menu
         update()
+        // the menu opened over lit keys that are no longer seen: nothing to redraw; closed again: draw them
+        if (!menu && view() != null && mode != RgbRun.Mode.RUNNING) redraw(view())
     }
+
+    private fun view(): KeyboardView? = keyboardView?.get()
 
     /** Whether a frame is requested from the Choreographer (tests). */
     internal val framesScheduled: Boolean get() = scheduled
 
     /** Whether frames are paused because an overlay covers the keys (tests). */
     internal val overlayCovers: Boolean get() = overlayOpen
+    /** Whether the flat menu is open (tests). */
+    internal val menuCovers: Boolean get() = menuOpen
 
     /**
      * The painter threw (stage 70, S13): the light stays off until the keyboard process restarts.
@@ -332,7 +341,7 @@ object RgbLighting {
         val now = SystemClock.uptimeMillis()
         val effect = engines.hasActiveEffect(now)
         val newMode = if (painterFailure != null) RgbRun.Mode.OFF
-            else RgbRun.mode(settings, isVisible(view) && !overlayOpen, powerSave, animationsOn, effect)
+            else RgbRun.mode(settings, isVisible(view) && !overlayOpen && !(menuOpen && !settings.lightsStrip()), powerSave, animationsOn, effect)
         val old = mode
         mode = newMode
         updateReceiver(view)
@@ -414,7 +423,8 @@ object RgbLighting {
     }
 
     private fun redraw(view: KeyboardView?) {
-        if (settings.lightsKeys()) view?.invalidateAllKeys()
+        // under the flat menu only the strip above it is seen (stage 70, N1)
+        if (settings.lightsKeys() && !menuOpen) view?.invalidateAllKeys()
         if (settings.lightsStrip()) strip?.get()?.let { paintStrip(it) } else restoreStrip()
     }
 }

@@ -252,6 +252,26 @@ class FlatPanelTest {
         activity.finish()
     }
 
+    @Test fun theLoadingPulseResumesWhenAnAncestorIsHiddenAndShownAgain() {
+        // stage 70, N2: the panel itself stays VISIBLE while its parent goes away
+        val activity = org.robolectric.Robolectric.buildActivity(android.app.Activity::class.java).setup().get()
+        val panel = AgentPanelView(context)
+        val frame = FrameLayout(context).apply { layoutDirection = View.LAYOUT_DIRECTION_LTR; addView(panel) }
+        activity.setContentView(frame)
+        val looper = org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper())
+        looper.idle()
+        panel.showSource("Hallo")
+        panel.showCloudBusy()
+        looper.idleFor(java.time.Duration.ofMillis(300))
+        assertTrue(panel.pulseScheduled)
+        frame.visibility = View.GONE
+        looper.idleFor(java.time.Duration.ofMillis(300))
+        assertFalse(panel.pulseScheduled, "the ancestor is hidden: the pulse stops")
+        frame.visibility = View.VISIBLE
+        assertTrue(panel.pulseScheduled, "the ancestor is shown again: the pulse is back")
+        activity.finish()
+    }
+
     @Test fun otherStylesKeepThePlainPanel() {
         latinIME.prefs().edit().clear().commit()
         reloadSettings()
