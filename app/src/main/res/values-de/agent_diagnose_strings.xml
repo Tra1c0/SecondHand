@@ -205,4 +205,8 @@
     <string name="agent_diagnose_force_remove">Nicht mehr erzwingen</string>
     <string name="agent_diagnose_force_hint">Erzwingen heißt: Vorschläge, Autokorrektur und Großschreibung wie in einem normalen Nachrichtenfeld, in Textfeldern dieser App (nicht in Passwort-, E-Mail-, Adress-, Namen- und Suchfeldern). Eigene Schalter bleiben maßgebend, Lernen bleibt, wie es ist.</string>
     <string name="agent_diagnose_force_saved">Gespeichert. Gilt ab dem nächsten Feld.</string>
+    <string name="agent_diagnose_field_refused">App nahm getippten Text nicht sofort an</string>
+    <string name="agent_diagnose_field_refused_value">%1$d-mal</string>
+    <string name="agent_diagnose_verdict_refused">Die App übernahm den Text, den die Tastatur beim Tippen setzt, nicht sofort; Vorschläge und Autokorrektur können in diesem Feld abbrechen.</string>
+    <string name="agent_diagnose_force_full">Liste voll (höchstens 50 Apps). Nichts geändert.</string>
 </resources>

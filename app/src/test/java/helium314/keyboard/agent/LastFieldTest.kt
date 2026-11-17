@@ -300,6 +300,39 @@ class LastFieldTest {
 
     private val instagramField = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
 
+    @Test fun theRefusalOfComposingTextIsCountedPerFieldWithoutText() {
+        // RichInputConnection reports it; Robolectric cannot make an editor refuse, so the counter is driven directly
+        start(editor(instagramField, EditorInfo.IME_ACTION_SEND, "com.instagram.android"))
+        assertEquals(0, LastField.live("de", true).composingRefused)
+        LastField.onComposingRefused()
+        LastField.onComposingRefused()
+        val live = LastField.live("de", true)
+        assertEquals(2, live.composingRefused)
+        assertTrue(FieldReport.verdict(LastField.current(app)!!, live).composingRefused)
+        // a new field starts again
+        start(editor(instagramField, EditorInfo.IME_ACTION_SEND, "com.instagram.android"))
+        assertEquals(0, LastField.live("de", true).composingRefused)
+        // a password field counts nothing
+        start(editor(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD))
+        LastField.onComposingRefused()
+        assertEquals(0, LastField.live("de", true).composingRefused)
+    }
+
+    @Test fun aLanguageSwitchInAFieldWithoutLearningStillKnowsTheSameField() {
+        val chat = editor(instagramField, EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING or EditorInfo.IME_ACTION_SEND, "com.instagram.android")
+        val first = assertIs<FieldReport.Snapshot.Field>(start(chat))
+        assertNull(first.packageName)
+        assertTrue(first.fieldKey != 0)
+        LastField.onSubtypeSwitched()
+        load(chat, Locale.forLanguageTag("es"))
+        assertEquals("es", assertIs<FieldReport.Snapshot.Field>(LastField.current(app)).languageTag)
+        // settings of another field (another app) say nothing about it
+        start(chat)
+        LastField.onSubtypeSwitched()
+        load(editor(instagramField, EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING, "com.example.other"), Locale.forLanguageTag("es"))
+        assertEquals("de", assertIs<FieldReport.Snapshot.Field>(LastField.current(app)).languageTag)
+    }
+
     @Test fun aForcedAppGetsSuggestionsAutocorrectAndCapitalsInASingleLineField() {
         val forced = editor(instagramField, EditorInfo.IME_ACTION_SEND, "com.instagram.android")
         load(forced)

@@ -117,6 +117,11 @@ class SettingsTypingAreaTest {
         compose.onNodeWithTag(FORCED_APPS_DIALOG_TAG).assertExists()
         // Instagram is the default; the package manager does not know it here, so the package name stands
         compose.onAllNodesWithText("com.instagram.android", substring = true).onFirst().assertExists()
+        // F6: not installed here, and the remove button names the app for TalkBack
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("nicht installiert", substring = true).fetchSemanticsNodes().isNotEmpty() }
+        compose.onAllNodesWithText("nicht installiert", substring = true).onFirst().assertExists()
+        compose.onNodeWithTag(FORCED_APPS_REMOVE_TAG + "com.instagram.android")
+            .assert(androidx.compose.ui.test.hasContentDescription("com.instagram.android entfernen"))
         compose.onNodeWithTag(FORCED_APPS_REMOVE_TAG + "com.instagram.android").performClick()
         compose.waitForIdle()
         assertEquals(emptySet(), ForcedApps.read(prefs))

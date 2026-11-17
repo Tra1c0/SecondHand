@@ -5027,19 +5027,24 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `mOverrideShowingSuggestions` und die Großschreibung (`capsInputType`). Wer eine vierte Stelle
   braucht, ändert nicht `mInputAttributes`. `mShouldShowSuggestions` und `mInputTypeShouldAutoCorrect`
   bleiben die Angaben der App (Karte „App erlaubt Vorschläge“).
-- **P255** Was erzwungen wird (61): Textfelder einer gelisteten App, Entscheidung beim Feldstart
+- **P255** Was erzwungen wird (61, Nachprüfung 61): Textfelder einer gelisteten App, Entscheidung beim Feldstart
   (`ForcedApps.forces`, liest die Liste neu; ein geänderter Schlüssel lädt die Einstellungen neu, es gilt also ab
   dem nächsten Feld oder der nächsten Neuladung). Ausgeschlossen (rein, `ForcedCorrection.eligible`): jede
   Passwortvariante, URI, E-Mail (auch Web), Filter, Phonetik, Personenname, Postanschrift, Aktion „Suchen“ und
-  jede Nicht-Textklasse; zusätzlich nie bei `mIsPasswordField`. Webfelder (`WEB_EDIT_TEXT`) und
+  jede Nicht-Textklasse; seit der Nachprüfung auch Felder mit `IME_FLAG_FORCE_ASCII` und den Aktionen GO und NEXT (Anmelde- und
+  Formularfelder); SEND, DONE, NONE, UNSPECIFIED und `AUTO_COMPLETE` bleiben zulässig. Zusätzlich nie bei `mIsPasswordField`. Webfelder (`WEB_EDIT_TEXT`) und
   E-Mail-Betreff sind nicht ausgeschlossen. Erzwungene Vorschläge umgehen auch die Web-Ausnahme von „Immer
   Vorschläge anzeigen“, weil der Owner die App ausdrücklich gelistet hat. Die eigenen Schalter gewinnen
   (`PREF_SHOW_SUGGESTIONS`, `PREF_AUTO_CORRECTION`, `mAutoCap`, Symbolleistenmodus). Lernen und Inkognito
   bleiben: `mNoLearning`/`mIncognitoModeEnabled` werden nicht angefasst, ein Feld mit
   `IME_FLAG_NO_PERSONALIZED_LEARNING` hat weiter keinen Nutzerverlauf. Bekannte Nebenwirkung: Mit erzwungenen
   Vorschlägen in einem `NO_SUGGESTIONS`-Feld setzt die Engine Composing-Text (wie bei „Immer Vorschläge
-  anzeigen“); `RichInputConnection.setComposingText` prüft dort nach (unverändert, nicht auf einem Gerät
-  geprüft). Ebenso gilt `mAutoCorrectEnabled == mAutoCorrectionEnabledPerUserSettings` in
+  anzeigen“); `RichInputConnection.setComposingText` prüft dort nach (die Prüfung und ihr `return false` sind unverändert; auf einem
+  Gerät nicht geprüft). Nachprüfung 61: Das Log dieser Prüfung nennt nur die Länge, nie den Text, und ein Aufruf
+  `LastField.onComposingRefused()` (wirft nie) zählt jeden Fehlschlag für das Feld; die Karte zeigt „App nahm getippten Text
+  nicht sofort an: n-mal“ und das Urteil sagt, dass Vorschläge und Autokorrektur abbrechen können. Nur die Zahl, sie beginnt mit
+  jedem Feld neu. Zeigt Instagram nach diesem Build weiter keine Korrektur, zeigt der Screenshot der Karte, ob die App den Text
+  verweigert. Ebenso gilt `mAutoCorrectEnabled == mAutoCorrectionEnabledPerUserSettings` in
   `DictionaryFacilitatorImpl` (Persönliches Wörterbuch, Opt-in) im erzwungenen Feld wie in einem normalen
   Feld.
 - **P256** Großschreibung (61): `InputLogic.getCurrentAutoCapsState` liest `settingsValues.capsInputType(ei.inputType)`.
@@ -5049,18 +5054,20 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   betrifft nur den Auto-Shift-Zustand, nicht das Layout.
 - **P257** Karte ohne Lernen (61, löst P235 ab): Felder mit `IME_FLAG_NO_PERSONALIZED_LEARNING`, den eigenen
   `NO_LEARNING_FIELD`-Feldern oder Nutzer-Inkognito bleiben als `Snapshot.Field` mit Feldtyp, Flags, Zahlen,
-  Verdict und Ergebnis, aber `packageName = null` und `appForced = false` (kein App-Name, auch nicht, ob die App
-  gelistet ist); `noLearning`/`incognito` sagen warum, das Urteil hängt „Das Feld verlangt kein Lernen …“ an.
+  Verdict und Ergebnis, aber `packageName = null` und `appForced = false` (kein App-Name; `appForced` ist dort aus); `noLearning`/`incognito` sagen warum, das Urteil hängt „Das Feld verlangt kein Lernen …“ an.
   Der Knopf der Karte fehlt dort (`Section.appPackage` ist `null`). `forced` bleibt wahr, wenn die Engine
-  erzwungen hat (kein Paketname, nur ein Wahrheitswert). Passwortfeld (jede Variante, auch roh) bleibt nur
+  erzwungen hat, und die Karte zeigt „Korrektur erzwungen: ja“: Sie behält dort weder Paketname noch App-Name, verrät aber,
+  ob erzwungen wurde (und damit mittelbar, dass die App in der Liste steht; `appForced` selbst ist dort aus). Zum Wiedererkennen
+  desselben Felds nach einem Sprachwechsel hält `Field.fieldKey` einen Hash des Pakets mit einem zufälligen Salz je Prozess
+  (nie angezeigt, nie gespeichert). Passwortfeld (jede Variante, auch roh) bleibt nur
   `Password`, gesperrt nur `Locked`. Der Update-Chip (`stripNeutral`) erscheint in Feldern ohne Lernen weiter
   nie, die Leistenzähler laufen aber. `LastField.current` übernimmt nach einem Sprachwechsel auch dort die neuen
-  Einstellungen (ohne Paketvergleich, es gibt keinen Namen). Test: `AT/LastFieldTest.aFieldWithoutLearningKeepsItsReasonButNotTheApp`,
+  Einstellungen (Vergleich über `fieldKey`). Test: `AT/LastFieldTest.aFieldWithoutLearningKeepsItsReasonButNotTheApp`,
   `AT/DiagnoseScreenTest.aFieldWithoutLearningShowsFlagsAndVerdictButNotTheApp`, `CT/FieldReportTest.aSnapshotHoldsNoTextOfTheField`.
 - **P258** Urteil und Erzwingen (61): `FieldReport.Verdict.forced` nennt nur, was die Erzwingung wirklich
   einschaltete (App hat Vorschläge verboten und die Schalter erlauben sie; die App hat keine Autokorrektur
   verlangt und „Mehr Autokorrektur“ ist aus; kein `CAP_*`-Flag und Großschreibung an). Der Hauptgrund
-  (`finding`) folgt weiter P232, die Sätze der Erzwingung und des Lernens hängen dahinter
+  (`finding`) folgt weiter P232 (`Verdict.composingRefused` hängt den Satz zur verweigerten Eingabe an), die Sätze der Erzwingung und des Lernens hängen dahinter
   (`Diagnose.verdictText`). `Snapshot.Field.capsUsed` ist, was die Engine liest, `caps` bleibt der Wunsch der
   App; `FieldReport.effective` und `CAPS_APP` nutzen `capsUsed`.
 

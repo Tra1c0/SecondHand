@@ -206,4 +206,8 @@
     <string name="agent_diagnose_force_remove">Stop forcing</string>
     <string name="agent_diagnose_force_hint">Forcing means suggestions, autocorrection and capitalisation as in a normal message field, in text fields of this app (not in password, e-mail, address, name and search fields). Your own switches still win, learning stays as it is.</string>
     <string name="agent_diagnose_force_saved">Saved. Applies from the next field.</string>
+    <string name="agent_diagnose_field_refused">App did not take typed text at once</string>
+    <string name="agent_diagnose_field_refused_value">%1$d times</string>
+    <string name="agent_diagnose_verdict_refused">The app did not take the text the keyboard sets while typing at once; suggestions and autocorrection can break off in this field.</string>
+    <string name="agent_diagnose_force_full">List full (at most 50 apps). Nothing changed.</string>
 </resources>

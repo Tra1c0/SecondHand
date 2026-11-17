@@ -5501,6 +5501,23 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   190 Tests grün (darunter `SettingsTypingAreaTest` mit der neuen Zeile); Lint `:app:lintDebugNoMinify` 0 neue
   Fehler (284 Warnungen, 68 Fehler durch die Upstream-Baseline gefiltert); `docs_sync --check` grün. Keine volle
   Suite, kein Build.
+### Nachprüfung 61 (Prüfer-Befunde, 2026-11-16)
+
+- F1 (mittel): Die Prüfung in `RichInputConnection.setComposingText` bleibt samt `return false`; das Log nennt nur die Länge
+  (Audit S1), ein Aufruf `LastField.onComposingRefused()` zählt den Fehlschlag je Feld (`Live.composingRefused`); die Karte hat die Zeile
+  „App nahm getippten Text nicht sofort an“ und einen Urteilssatz. Der Fehlschlag selbst ist in Robolectric nicht herstellbar: Test
+  (`LastFieldTest.theRefusalOfComposingTextIsCountedPerFieldWithoutText`, `DiagnoseScreenTest.aRefusedComposingTextShowsAsRowAndVerdict`,
+  `FieldReportTest.aRefusedComposingTextIsNamedInTheVerdict`) treibt den Zähler direkt.
+- F2: GO, NEXT und `IME_FLAG_FORCE_ASCII` sind ausgeschlossen (`ForcedCorrectionTest.loginFieldsAndAsciiFieldsNeverQualify`).
+- F3: P257 und ANLEITUNG korrigiert (kein Paket, kein Name, aber „erzwungen: ja“ sichtbar).
+- F4: `Field.fieldKey` (Hash mit Salz je Prozess) statt Paketvergleich (`aLanguageSwitchInAFieldWithoutLearningStillKnowsTheSameField`).
+- F5: Voller Liste (50) sagt der Knopf „Liste voll“, Zustand unverändert (`aFullListRefusesTheAppAndSaysSo`).
+- F6: Entfernen-Knöpfe mit TalkBack-Beschriftung „<App> entfernen“, „nicht installiert“ bei fehlenden Paketen (`theForcedAppsRowListsTheAppsAndRemovesThem`).
+- Gelaufen (2026-11-17, über die Gradle-Sperre): `:agent-core:test` grün; `*LastFieldTest` 18, `*DiagnoseScreenTest` 21,
+  `*SettingsTypingAreaTest` 10 grün; `*InputLogicTest` 275 Tests, nur der geerbte Fehler `insertLetterIntoWordHangulFails`
+  (ein erster Lauf nach dem Merge mit Stage 60 hatte zusätzlich `typedWorkflowChoiceIsDroppedWhenTheEditorChanges` rot; allein
+  und im zweiten vollen Lauf grün, also unbeständig, Ursache nicht gesucht). Lint 0 neue Fehler (278 Warnungen). `docs_sync --check` grün.
+
 - Nicht geprüft: die echten Flags des Instagram-Chatfelds, ob Instagram im Feld überhaupt Composing-Text und
   Korrekturen annimmt, der Auswahldialog für Apps mit echtem Paketmanager (der Weg „Hinzufügen“ ist nur über
   `ForcedApps.add` getestet), TalkBack, jeder Gerätetest.

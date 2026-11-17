@@ -259,6 +259,8 @@ object Diagnose {
             add(Row(s(R.string.agent_diagnose_field_covered), count(live.coveredUpdates)))
             add(Row(s(R.string.agent_diagnose_field_chips), count(live.chipUpdates)))
             add(Row(s(R.string.agent_diagnose_field_in_command), yesNo(context, live.inCommand)))
+            add(Row(s(R.string.agent_diagnose_field_refused), if (live.composingRefused == 0) s(R.string.agent_diagnose_none)
+                else context.getString(R.string.agent_diagnose_field_refused_value, live.composingRefused)))
             add(Row(s(R.string.agent_diagnose_field_not_captured), s(R.string.agent_diagnose_field_not_captured_value)))
         }
         return Section(Part.LAST_FIELD, s(R.string.agent_diagnose_field_title), rows,
@@ -302,6 +304,7 @@ object Diagnose {
                 FieldReport.Forced.AUTOCORRECT -> R.string.agent_diagnose_verdict_forced_autocorrect
                 FieldReport.Forced.CAPS -> R.string.agent_diagnose_verdict_forced_caps
             }))
+            if (verdict.composingRefused) add(context.getString(R.string.agent_diagnose_verdict_refused))
             when (verdict.learning) {
                 FieldReport.Learning.FIELD_ASKS_NONE -> add(context.getString(R.string.agent_diagnose_verdict_learning_field))
                 FieldReport.Learning.INCOGNITO -> add(context.getString(R.string.agent_diagnose_verdict_learning_incognito))

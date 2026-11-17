@@ -411,6 +411,30 @@ class DiagnoseScreenTest {
         compose.onNodeWithTag("agent_diagnose_force").performScrollTo().assertTextEquals("Nicht mehr erzwingen")
     }
 
+    @Test fun aFullListRefusesTheAppAndSaysSo() {
+        val full = (1..ForcedApps.MAX_APPS).map { "com.example.app$it" }.toSet()
+        app.prefs().edit().putStringSet(AgentPreferences.FORCED_CORRECTION_APPS, full).commit()
+        startIn(field(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS, EditorInfo.IME_ACTION_SEND))
+        page()
+        compose.waitUntil(5_000) { compose.onAllNodes(hasText("Urteil")).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("agent_diagnose_force").performScrollTo().performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag("agent_diagnose_force_full").performScrollTo().assertTextEquals("Liste voll (höchstens 50 Apps). Nichts geändert.")
+        compose.onAllNodesWithTag("agent_diagnose_force_saved").assertCountEquals(0)
+        assertEquals(full, ForcedApps.read(app.prefs()))
+        compose.onNodeWithTag("agent_diagnose_force").performScrollTo().assertTextEquals("In dieser App erzwingen")
+    }
+
+    @Test fun aRefusedComposingTextShowsAsRowAndVerdict() {
+        startIn(field(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS, EditorInfo.IME_ACTION_SEND))
+        // the refusal cannot be produced in Robolectric: the engine's report is made directly
+        repeat(3) { LastField.onComposingRefused() }
+        page()
+        compose.waitUntil(5_000) { compose.onAllNodes(hasText("Urteil")).fetchSemanticsNodes().isNotEmpty() }
+        exact("3-mal")
+        row("Die App übernahm den Text, den die Tastatur beim Tippen setzt, nicht sofort")
+    }
+
     @Test fun anAppThatIsNotListedCanBeForcedFromTheCard() {
         startIn(field(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS, EditorInfo.IME_ACTION_SEND))
         page()

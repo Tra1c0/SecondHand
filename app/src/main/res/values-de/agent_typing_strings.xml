@@ -64,4 +64,6 @@
     <string name="agent_forced_add">App hinzufügen</string>
     <string name="agent_forced_remove">Entfernen</string>
     <string name="agent_forced_close">Fertig</string>
+    <string name="agent_forced_remove_for">%1$s entfernen</string>
+    <string name="agent_forced_not_installed">nicht installiert</string>
 </resources>
