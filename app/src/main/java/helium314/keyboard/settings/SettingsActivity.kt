@@ -70,8 +70,9 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
     private val prefs by lazy { this.prefs() }
     val prefChanged = MutableStateFlow(0) // simple counter, as the only relevant information is that something changed
     fun prefChanged() = prefChanged.value++
-    private val dictUriFlow = MutableStateFlow<Uri?>(null)
-    private val cachedDictionaryFile by lazy { File(this.cacheDir.path + File.separator + "temp_dict") }
+    // stage 65: the dictionary handed in from outside lives in the companion, so that a rotation (a new activity
+    // with the same intent) neither copies it a second time nor loses the dialog
+    private val dictUriFlow get() = pendingDictionary
     private val crashReportFiles = MutableStateFlow<List<File>>(emptyList())
     private var paused = true
 
@@ -151,10 +152,10 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
                             GestureDataGatheringSettings.GestureDataPromotionReminderDialog()
                         }
                     }
-                    if (dictUri != null) {
+                    dictUri?.let { pending ->
                         NewDictionaryDialog(
                             onDismissRequest = { dictUriFlow.value = null },
-                            cachedFile = cachedDictionaryFile,
+                            cachedFile = pending.second,
                             mainLocale = null
                         )
                     }
@@ -162,11 +163,32 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
             }
         }
 
-        if (intent?.action == Intent.ACTION_VIEW) {
-            intent?.data?.let {
-                cachedDictionaryFile.delete()
-                FileUtils.copyContentUriToNewFile(it, this, cachedDictionaryFile)
-                dictUriFlow.value = it
+        // a recreated activity (rotation) gets the same intent again: the first one already copies it
+        if (savedInstanceState == null && intent?.action == Intent.ACTION_VIEW) {
+            intent?.data?.let { uri ->
+                // stage 65 (S7): a large or slow source must not freeze the screen; the dialog comes when the copy is done
+                val activity = this
+                val copy = File(cacheDir, "temp_dict_${System.nanoTime()}") // a name per copy, no two copies write one file
+                // own thread, and not copyContentUriToNewFile: that one waits for the keyboard executor and
+                // reports a SecurityException or a missing stream as success (stage 65)
+                kotlin.concurrent.thread(name = "open-dictionary-copy") {
+                    val copied = try {
+                        activity.contentResolver.openInputStream(uri)?.use { FileUtils.copyStreamToNewFile(it, copy) }
+                            ?: throw java.io.IOException("no stream")
+                        true
+                    } catch (e: Exception) { // IOException, SecurityException (permission gone), no stream
+                        false
+                    }
+                    if (copied) {
+                        pendingDictionary.value?.second?.delete()
+                        pendingDictionary.value = uri to copy
+                    } else {
+                        copy.delete()
+                        activity.runOnUiThread {
+                            android.widget.Toast.makeText(activity, R.string.dictionary_load_error, android.widget.Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
             }
             intent = null
         }
@@ -238,6 +260,7 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
     }
 
     companion object {
+        private val pendingDictionary = MutableStateFlow<Pair<Uri, File>?>(null)
         // public write so compose previews can show the screens
         // having it in a companion object is not ideal as it will stay in memory even after settings are closed
         // but it's small enough to not care

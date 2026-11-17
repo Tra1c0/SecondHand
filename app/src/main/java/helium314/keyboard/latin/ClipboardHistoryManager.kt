@@ -78,6 +78,13 @@ class ClipboardHistoryManager(
     fun onDestroy() {
         clipboardManager.removePrimaryClipChangedListener(this)
         helium314.keyboard.agent.ScreenshotChip.stop(latinIME) // observer and posted reports, not only the callback
+        // stage 65 (S8): the vault (clip texts) and the hooks that reference this service do not outlive it
+        helium314.keyboard.agent.ClipVault.clear()
+        helium314.keyboard.agent.ClipVault.currentClip = null
+        helium314.keyboard.agent.ClipVault.onChange = null
+        helium314.keyboard.agent.ScreenshotChip.onChange = null
+        clipboardSuggestionView = null
+        screenshotView = null
     }
 
     /**
@@ -165,6 +172,11 @@ class ClipboardHistoryManager(
         val clipItem = clipData.getItemAt(0) ?: return
         val description = clipData.description ?: return
         val timeStamp = ClipboardManagerCompat.getClipTimestamp(clipData)
+        // stage 65 (S2): one rule for the vault and the history database (ClipVault.mayKeep); a clip the
+        // system marks sensitive is never kept as file or image (text goes through the vault, see below)
+        val sensitive = ClipboardManagerCompat.getClipSensitivity(description) == true
+        val mayKeep = helium314.keyboard.agent.ClipVault.mayKeep(latinIME, latinIME.mSettings.current,
+            sensitive && !description.hasMimeType("text/*"))
 
         if (description.hasMimeType("text/*")) {
             val content = clipItem.coerceToText(latinIME)
@@ -172,13 +184,16 @@ class ClipboardHistoryManager(
             // stage 44: secrets and bare one-time codes stay in the memory-only vault, never in the
             // database; a code in a message stays in the history as it is (the vault has the code too)
             val settings = latinIME.mSettings.current
+            // a password field counts only while the input view is active in it: with the keyboard hidden,
+            // currentInputEditorInfo is a field the clip did not come from (stage 65)
             val marked = ClipboardManagerCompat.getClipSensitivity(description) == true
-                || InputTypeUtils.isAnyPasswordInputType(latinIME.currentInputEditorInfo?.inputType ?: InputType.TYPE_NULL)
+                || (helium314.keyboard.agent.ClipVault.isPrivateFieldActive()
+                    && InputTypeUtils.isAnyPasswordInputType(latinIME.currentInputEditorInfo?.inputType ?: InputType.TYPE_NULL))
             val verdict = helium314.keyboard.agent.ClipVault.offer(content.toString(), marked, timeStamp,
-                helium314.keyboard.agent.ClipVault.region(settings), helium314.keyboard.agent.ClipVault.mayKeep(latinIME, settings))
-            if (verdict.keepsOutOfHistory) return
+                helium314.keyboard.agent.ClipVault.region(settings), mayKeep)
+            if (verdict.keepsOutOfHistory || !mayKeep) return
             clipboardDao?.addClip(timeStamp, false, content.toString())
-        } else if (maySaveFromUri(clipItem.uri, latinIME)) {
+        } else if (mayKeep && maySaveFromUri(clipItem.uri, latinIME)) {
             clipboardDao?.addClipUri(timeStamp, false, clipItem.uri, description, latinIME)
         }
     }

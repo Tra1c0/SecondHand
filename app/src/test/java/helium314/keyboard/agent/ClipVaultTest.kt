@@ -62,6 +62,7 @@ class ClipVaultTest {
     private val key = "sk" + "-proj-" + "Ab3dE5fG7hJ9kL1mN3pQ5rS7tU9vW1xY3z" + "7f3a"
 
     @Before fun setUp() {
+        ClipVault.fieldFinished(null)
         latinIME.prefs().edit().clear().putBoolean(Settings.PREF_ENABLE_CLIPBOARD_HISTORY, true).commit()
         load(textField)
         ClipVault.clear()
@@ -126,7 +127,9 @@ class ClipVaultTest {
         load(password)
         val field = android.inputmethodservice.InputMethodService::class.java.getDeclaredField("mInputEditorInfo").apply { isAccessible = true }
         field.set(latinIME, password)
-        try { copy("ganz normaler Satz") } finally { field.set(latinIME, null) }
+        // stage 65: the input view starts through the real hook, so that the keyboard knows the private field is active
+        LastField.capture(latinIME, password, Settings.getValues(), null)
+        try { copy("ganz normaler Satz") } finally { field.set(latinIME, null); ClipVault.fieldFinished(null) }
         assertTrue(Settings.getValues().mIncognitoModeEnabled)
         assertFalse(historyTexts().contains("ganz normaler Satz"))
         assertTrue(ClipVault.secrets().isEmpty())
@@ -212,7 +215,8 @@ class ClipVaultTest {
         load(password)
         val field = android.inputmethodservice.InputMethodService::class.java.getDeclaredField("mInputEditorInfo").apply { isAccessible = true }
         field.set(latinIME, password)
-        try { copy(text) } finally { field.set(latinIME, null) }
+        LastField.capture(latinIME, password, Settings.getValues(), null) // stage 65: the real start hook
+        try { copy(text) } finally { field.set(latinIME, null); ClipVault.fieldFinished(null) }
     }
 
     /** Review B1: a PIN copied in a password field is no fresh code for a code or number field, with the history on or off. */

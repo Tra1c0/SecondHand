@@ -23,8 +23,10 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
   darin eine Änderung an `PointerTracker.cancelKeyTracking`: Prüfer fehlt noch), 64a und 64b
   (Diagnose-Karte „Tippen“, gemeinsamer Sperrzustand; sieben Zählzeilen in `RichInputConnection`
   und `LatinIME`: Prüfer fehlt), 69 (ein Test nach der letzten Korrektur nicht neu gelaufen, kein
-  Lint). Nächste Schritte: GitHub-Lauf des Branches ansehen, 65 samt Korrekturrunde einholen (siehe
-  Offene Punkte), Prüfer für 64, 69 und die Nachprüfungen 65 und 70, dann 64c/64d, 66, 67, 68.
+  Lint), 65 mit Korrekturrunde (Zwischenablage-Regel, sichere Wiederherstellung; Nachprüfung fehlt).
+  Nächste Schritte: GitHub-Lauf des Branches ansehen und Rotes beheben, Lint, Prüfer für 64 und 69
+  und Nachprüfungen für 65 und 70, dann 64c/64d, 66, 67, 68 (die Aufträge standen nur im Arbeitsordner
+  der Sitzung; neu aus ROADMAP und Prüfbericht ableiten).
 - Owner-Fragen offen: Code-Verkleinerung R8 als eigener Test-Build; Satz in `CLAUDE.md` zur
   Update-Prüfung; Logo-Alternative. Der Lead hat in `CLAUDE.md` die Definition „Build“ an den neuen
   Dateinamen und die Bauart angepasst (2026-11-17).

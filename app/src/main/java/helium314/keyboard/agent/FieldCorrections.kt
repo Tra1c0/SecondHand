@@ -77,6 +77,17 @@ class FieldCorrectionWatcher @JvmOverloads constructor(private val privateText: 
     }
 
     /**
+     * Input in the field ended or the keyboard was hidden (stage 65, S12): the reference text (up to
+     * about 1300 characters of the field) is dropped now instead of at the next field start. A restart
+     * in the same field calls [start] anyway. Never throws.
+     */
+    fun end() {
+        reference = null
+        autoCorrections.clear()
+        clearOwnEdits()
+    }
+
+    /**
      * Text was pasted or inserted, text is typed over a selection, or undo/redo let the app change the
      * text: this change is not learned.
      */

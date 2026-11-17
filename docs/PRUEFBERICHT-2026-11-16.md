@@ -85,18 +85,18 @@ Gerätetest einzelne Seiten zum Absturz bringen: eigener Test-Build nach Entsche
 
 | Nr. | Befund | Schwere | Stelle | Geprüft | Plan |
 | --- | --- | --- | --- | --- | --- |
-| S1 | Eine Protokollzeile von HeliBoard schreibt in Feldern ohne Vorschläge den getippten Text ins Systemprotokoll, auch in Passwortfeldern. | hoch | `RichInputConnection.java:894` | L | erledigt (Nachprüfung 61: nur noch die Länge im Protokoll) |
-| S2 | Der Zwischenablage-Verlauf speichert auch im Inkognito-Modus, in Feldern ohne Lernen und bei gesperrtem Gerät; nur der Tresor prüft das. | mittel | `ClipboardHistoryManager.kt:174–180` | L | 65 |
-| S3 | Schlägt „Wiederherstellen“ fehl, wird der geschützte Datenordner gelöscht, weil seine Sicherung nie angelegt wurde. | mittel | `BackupRestorePreference.kt:181, 236–237` | L | 65 |
-| S4 | Eine beschädigte Sicherung leert die Einstellungen und meldet trotzdem „wiederhergestellt“. | mittel | `BackupRestorePreference.kt:209–216` | – | 65 |
+| S1 | Eine Protokollzeile von HeliBoard schreibt in Feldern ohne Vorschläge den getippten Text ins Systemprotokoll, auch in Passwortfeldern. | hoch | `RichInputConnection.java:894` | L | bereits behoben (die Zeile nennt nur die Länge); Prüfung in Etappe 65 |
+| S2 | Der Zwischenablage-Verlauf speichert auch im Inkognito-Modus, in Feldern ohne Lernen und bei gesperrtem Gerät; nur der Tresor prüft das. | mittel | `ClipboardHistoryManager.kt:174–180` | L | erledigt (Etappe 65) |
+| S3 | Schlägt „Wiederherstellen“ fehl, wird der geschützte Datenordner gelöscht, weil seine Sicherung nie angelegt wurde. | mittel | `BackupRestorePreference.kt:181, 236–237` | L | erledigt (Etappe 65) |
+| S4 | Eine beschädigte Sicherung leert die Einstellungen und meldet trotzdem „wiederhergestellt“. | mittel | `BackupRestorePreference.kt:209–216` | – | erledigt (Etappe 65) |
 | S5 | Die Sicherungs-ZIP enthält gelernte Wörter und den Zwischenablage-Verlauf unverschlüsselt, ohne Hinweis. | niedrig | `BackupRestorePreference.kt:343–352` | – | erledigt (Etappe 69): Der Dialog sagt, dass die Datei nicht verschlüsselt ist und gelernte Wörter und Zwischenablage enthält |
-| S6 | Weitere Protokollzeilen von HeliBoard nennen im Fehlerfall gelernte Wörter. | niedrig | `ExpandableBinaryDictionary.java:283, 300, 326` | – | 65 |
-| S7 | Die Einstellungen kopieren eine von außen übergebene Datei im Hauptthread. | niedrig | `SettingsActivity.kt:165–171` | – | 65 |
-| S8 | Der Tresor und ein Verweis auf den Tastaturdienst bleiben nach dem Beenden im Speicher. | niedrig | `ClipboardHistoryManager.kt:64, 78–81` | – | 65 |
+| S6 | Weitere Protokollzeilen von HeliBoard nennen im Fehlerfall gelernte Wörter. | niedrig | `ExpandableBinaryDictionary.java:283, 300, 326` | – | erledigt (Etappe 65; Zeilen hinter `DebugFlags.DEBUG_ENABLED` bleiben, nur im Debug-Modus) |
+| S7 | Die Einstellungen kopieren eine von außen übergebene Datei im Hauptthread. | niedrig | `SettingsActivity.kt:165–171` | – | erledigt (Etappe 65) |
+| S8 | Der Tresor und ein Verweis auf den Tastaturdienst bleiben nach dem Beenden im Speicher. | niedrig | `ClipboardHistoryManager.kt:64, 78–81` | – | erledigt (Etappe 65) |
 | S9 | Eine Ausnahme in einem einzelnen Befehl kann den Feldstart abbrechen (Schleife ohne Fangnetz). | niedrig | `KeyboardCommands.kt:312` | – | 64 |
 | S10 | Ein KI-Ergebnis bleibt nach „Kopieren“ unbegrenzt in der System-Zwischenablage (als vertraulich markiert). | niedrig | `AgentEditorController.kt:1150–1157` | – | offen |
 | S11 | Die Gestendaten-Sammlung für das HeliBoard-Projekt ist noch erreichbar. | niedrig | `GestureDataGathering.kt:174–190`, `AgentAreaSystemScreen.kt:291` | – | 68 |
-| S12 | Der Feldtext des letzten Felds (bis etwa 1300 Zeichen) bleibt bis zum nächsten Feldstart im Arbeitsspeicher. | niedrig | `InputLogic.java:388–396`, `FieldCorrections.kt` | – | 65 |
+| S12 | Der Feldtext des letzten Felds (bis etwa 1300 Zeichen) bleibt bis zum nächsten Feldstart im Arbeitsspeicher. | niedrig | `InputLogic.java:388–396`, `FieldCorrections.kt` | – | erledigt (Etappe 65) |
 | S13 | Das Zeichnen der Beleuchtung hat kein Fangnetz: Ein Fehler dort würde die Tastatur wiederholt beenden. | mittel | `KeyboardView.java:309–597`, `RgbKeyPainter.kt` | – | erledigt (Etappe 70) |
 
 Geprüft und in Ordnung: Backup-Regeln für Cloud und Gerätewechsel, exportierte Komponenten,
@@ -140,17 +140,10 @@ Browser nach Tipp.
 
 | Nr. | Befund | Schwere | Stelle | Geprüft | Plan |
 | --- | --- | --- | --- | --- | --- |
-| E1 | „Sichern und Wiederherstellen“ sichert nur die Einstellungen von HeliBoard, nicht Profile, Gedächtnis, Bausteine, Orte, Korrekturen; der Dialog verspricht „alle“. | hoch | `BackupRestorePreference.kt:100–150, 343–352` | – | 69 (Text), Inhalt offen |
-| E2 | Die Suche findet die neuen Seiten nicht (KI, RGB, Updates, Diagnose …). | mittel | `SettingsContainer.kt:76–80` | – | 69 |
-| E3 | Die Anleitung nennt alte Menüpfade und hat einen doppelten Absatz. | mittel | `docs/ANLEITUNG.md:92–100` u. a. | – | 69 |
 | E4 | Auf dem Telefon hieß die App „Agent Keyboard Lab“ (Name der ausgelieferten Variante). | niedrig | `app/src/debugNoMinify/res/values/strings.xml` | L | erledigt (Etappe 57) |
-| E5 | Tippflächen der neuen Seiten sind 44 statt 48 dp groß. | niedrig | `AgentSettingsKit.kt:108` | – | 69 |
-| E6 | Englische Texte in der deutschen Oberfläche (Slogan, zehn Tastennamen); „Über“ verlinkt auf HeliBoard. | niedrig | `donottranslate.xml:75`, `Constants.kt:9–22` | – | 69 |
-| E7 | Abhängige Schalter verschwinden auf „Tasten & Sprachen“, statt ausgegraut mit Grund zu erscheinen. | niedrig | `AgentAreaKeysScreen.kt:199–212` | – | 69 |
 | E1 | „Sichern und Wiederherstellen“ sichert nur die Einstellungen von HeliBoard, nicht Profile, Gedächtnis, Bausteine, Orte, Korrekturen; der Dialog verspricht „alle“. | hoch | `BackupRestorePreference.kt:100–150, 343–352` | – | Text erledigt (Etappe 69); Inhalt der Sicherung offen, Owner entscheidet (ROADMAP.md) |
 | E2 | Die Suche findet die neuen Seiten nicht (KI, RGB, Updates, Diagnose …). | mittel | `SettingsContainer.kt:76–80` | – | erledigt (Etappe 69) |
 | E3 | Die Anleitung nennt alte Menüpfade und hat einen doppelten Absatz. | mittel | `docs/ANLEITUNG.md:92–100` u. a. | – | erledigt (Etappe 69) |
-| E4 | Auf dem Telefon hieß die App „Agent Keyboard Lab“ (Name der ausgelieferten Variante). | niedrig | `app/src/debugNoMinify/res/values/strings.xml` | L | 57 |
 | E5 | Tippflächen der neuen Seiten sind 44 statt 48 dp groß. | niedrig | `AgentSettingsKit.kt:108` | – | erledigt (Etappe 69) |
 | E6 | Englische Texte in der deutschen Oberfläche (Slogan, zehn Tastennamen); „Über“ verlinkt auf HeliBoard. | niedrig | `donottranslate.xml:75`, `Constants.kt:9–22` | – | erledigt (Etappe 69): Slogan, sechs Ansagen und zwei Einstellungstexte ergänzt; die Tastennamen (kopieren, ausschneiden, einfügen, alles auswählen, Ziffernblock, Steuerkreuz) fehlten nicht, sie kommen aus Android und aus übersetzten Layoutnamen; „Über“ verweist auf das Repository des Forks |
 | E7 | Abhängige Schalter verschwinden auf „Tasten & Sprachen“, statt ausgegraut mit Grund zu erscheinen. | niedrig | `AgentAreaKeysScreen.kt:199–212` | – | erledigt (Etappe 69) |
@@ -164,7 +157,7 @@ Browser nach Tipp.
 | Nr. | Befund | Schwere | Stelle | Geprüft | Plan |
 | --- | --- | --- | --- | --- | --- |
 | A1 | Die Beleuchtung läuft hinter Aktionspanel, Rad, Rechner, Zeichen-Kunst und Menü weiter. | hoch | `RgbLighting.kt:281` | L | erledigt (Etappe 70) |
-| A2 | Bricht Android eine Wischgeste auf der Leertaste ab, bleibt ihr Zustand hängen; der nächste Tipp kann verloren gehen. | mittel | `PointerTracker.java` (`onCancelEvent`) | – | in Robolectric nicht nachgestellt (Etappe 70): drei Tests bestehen ohne Änderung an `PointerTracker`; ein Gerät könnte anders sein; verwandter Fall nach Langdruck mit Sprachwahl gefunden und behoben (Nachprüfung 70, M2) |
+| A2 | Bricht Android eine Wischgeste auf der Leertaste ab, bleibt ihr Zustand hängen; der nächste Tipp kann verloren gehen. | mittel | `PointerTracker.java` (`onCancelEvent`) | – | behoben in der Nachprüfung 70: Ein Abbruch mitten im Wischen war in Robolectric nicht nachzustellen; ein langer Druck auf die Leertaste (Sprachauswahl) mit anschließendem Abbruch ließ aber Wisch-Merker stehen (Test rot), `PointerTracker.cancelKeyTracking` löscht sie jetzt. Prüfer für diese Engine-Änderung und Gerätetest fehlen noch |
 | A3 | Die Zeichen-Kunst rechnet beim Zeichnen alle 40 ms im Hauptthread. | mittel | `CharArtView.kt:827–890` | – | erledigt (Etappe 70) |
 | A4 | Je Taste und Bild entstehen neue Farbfilter-Objekte. | niedrig | `RgbKeyPainter.kt:177–181, 228–232` | – | erledigt (Etappe 70) |
 | A5 | Lauftext im Menü des flachen Looks läuft endlos. | niedrig | `FlatStyle.kt:36–52` | – | erledigt (Etappe 70) |

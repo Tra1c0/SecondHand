@@ -20,3 +20,7 @@ auf keinem Gerät ausprobiert.
   bricht bei großer Schrift um.
 - Einige englische Texte in der deutschen Oberfläche sind übersetzt; „Über“ verweist auf das
   Repository dieses Projekts statt auf die Fehlerseiten von HeliBoard (Dank und Lizenz bleiben).
+- Zwischenablage-Verlauf: Nichts wird aufgenommen, solange das Gerät gesperrt ist, „Immer Inkognito“ an ist oder das System ein Bild oder eine Datei als vertraulich markiert. Solange die Tastatur gerade in einem Passwortfeld oder einem Feld ohne Lernen (private Chats) aktiv ist, wird auch nichts aufgenommen. Beispiel: Text im privaten Chat kopiert: nicht im Verlauf. Tastatur ausblenden, im Browser einen Link kopieren: im Verlauf. Was nicht aufgenommen wurde, kommt später nicht nachträglich hinein.
+- Sicherung wiederherstellen: Scheitert es, holt die App alles zurück (vorher konnte der geschützte Datenordner verloren gehen). „Es wurde nichts geändert“ steht nur da, wenn es stimmt; scheitert das Zurückholen selbst, sagt die Meldung, wo deine alten Daten liegen. Ein Rest einer abgebrochenen Wiederherstellung wird beim nächsten Versuch zurückgeholt. Stirbt die App mitten drin, geschieht das erst beim nächsten Versuch.
+- Eine von außen geöffnete Wörterbuchdatei wird im Hintergrund kopiert (einmal, auch beim Drehen); schlägt das fehl, kommt eine Fehlermeldung statt einer leeren Seite.
+- Intern: keine gelernten Wörter, gewählten Emojis und Tastenbeschriftungen mehr in Protokollzeilen, Tresor und Feldtext werden früher aus dem Speicher geräumt.

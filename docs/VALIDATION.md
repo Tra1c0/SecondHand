@@ -5947,6 +5947,69 @@ Build nichts zwingend zu beheben.
 - Rückmeldung des Owners zu Test-Build 28 (2026-11-17): „Die Tastatur läuft aber DEUTLICH flüssiger
   und bisher habe ich gar keine Probleme“. Das ist die erste Beobachtung auf einem Gerät zu Etappe 62;
   gemessen ist weiter nichts, und die übrigen Etappen sind auf dem Gerät nicht gezielt geprüft.
+## Etappe 65 (Härtung, Datenschutz und Robustheit)
+
+Befunde S1 bis S4, S6 bis S8, S12 aus `docs/PRUEFBERICHT-2026-11-16.md` (Abschnitt 3), im Code
+nachgelesen; Fallstricke P270 bis P274. Stand nach der Nachbesserung (siehe „Nachprüfung 65“).
+
+- S1: war schon behoben. Die Zeile in `RichInputConnection.java` nennt nur die Länge des
+  Kompositionstexts; kein Text. Keine Änderung.
+- S2: `ClipVault.mayKeep` ist die eine Regel für Tresor, Verlauf (Text, Dateien, Bilder) und die
+  Screenshots im Verlauf. Immer verboten: gesperrt, „Immer Inkognito“, vom System als vertraulich
+  markierter Datei- oder Bildclip; nur bei aktiver Eingabeansicht in einem privaten Feld zusätzlich
+  verboten. Tests: `HardeningClipHistoryTest` (10), `ScreenshotChipTest.theHistoryRuleOfStage65AppliesToScreenshotsToo`.
+- S3, S4: `RestoreSafetyTest` (15 Tests, echte temporäre Ordner und Robolectric-Einstellungen), siehe
+  „Nachprüfung 65“. Nicht getestet: der Ablauf der ganzen Zeile `restoreLauncher` mit Dateiauswahl
+  (Compose, Dateiauswahldialog, echte ZIP).
+- S6: `ExpandableBinaryDictionary` (vier Zeilen) und `Ver4DictEncoder` (zwei Zeilen) loggen kein Wort und
+  keinen Kontext mehr. Ohne Test (Protokollzeilen).
+- S7: `SettingsActivity` kopiert die von außen übergebene Datei einmal je Intent in einem eigenen Thread.
+  Ohne Test (Aktivität mit Intent).
+- S8: `ClipboardHistoryManager.onDestroy` leert Tresor, `currentClip`, `onChange` beider Objekte und die
+  Chip-Ansichten; Test `destroyingTheServiceClearsTheVaultAndEveryReferenceItHolds`.
+- S12: `ClipVault.fieldFinished` (ruft `FieldCorrectionWatcher.end()`) aus zwei Zeilen in `LatinIME`;
+  `FieldEndHooksTest` (2) über die echten Wege `onFinishInputInternal` und `onFinishInputViewInternal`.
+- Nicht geprüft: alles auf einem Gerät (Verlauf in Passwortfeld, Inkognito und gesperrt;
+  Wiederherstellen mit beschädigter Datei; Wörterbuchdatei von außen öffnen; Speicher nach dem Beenden).
+
+### Nachprüfung 65 (Prüfer-Befunde zu `d4417a7`, Nachbesserung des Builders)
+
+Kein schwerer Befund; sieben mittlere und sechs kleine. Entscheidung des Leads zur Zwischenablage:
+die „strenge Lesart“ ist durch die Regel „aktiv in einem privaten Feld“ ersetzt.
+
+- M2, M7, M3, N3 (Zwischenablage-Regel): neue Regel in `ClipVault.mayKeep` (P270), Zustand
+  `fieldStarted`/`fieldFinished` statt `isInputViewShown`; Dateien und Bilder prüfen die
+  Vertraulich-Markierung; `ScreenshotChip.addToHistory` nutzt dieselbe Funktion (seine übrigen
+  Bedingungen, Verlauf an, Schalter, Berechtigung, bleiben, weil sie eigene Funktionen schützen).
+  Tests: im aktiven Feld ohne Lernen nicht behalten; Tastatur ausblenden, anderswo kopieren: behalten und
+  der frühere Clip kommt nicht zurück; gesperrt und „Immer Inkognito“ in beiden Zuständen nicht;
+  vertraulich markiertes Bild nicht, normales Bild ja (echter Provider im Test); Screenshot folgt der
+  Regel. `ClipVaultTest.aClipCopiedInAPasswordFieldIsKeptNowhere` und die PIN-Tests prüfen dasselbe wie
+  vorher; geändert ist nur ihre Vorbereitung: sie starten die Eingabeansicht über den echten Haken
+  (`LastField.capture`) und beenden sie mit `fieldFinished`, weil die Passwortfeld-Marke jetzt nur bei
+  aktivem Feld gilt. Keine Aussage geändert.
+- N6 (Direct Boot): `mayKeep` prüft zusätzlich `isUserLocked`; billig (ein Systemaufruf), und der
+  Tastaturschutz vor dem ersten Entsperren schließt sich nicht auf `isDeviceLocked` allein.
+- M1, M6, N4, N5 (Wiederherstellen): jeder Schritt geprüft; Ablauf in `restoreWithRollback`;
+  Rückweg als Funktion, die der Test aufruft; Rest `…2` einer unterbrochenen Wiederherstellung wird beim
+  nächsten Versuch zuerst zurückgeholt, sonst Abbruch ohne die einzige Kopie anzufassen; alte
+  `heliboard.db_restored` vor der Arbeit gelöscht; `commit` der Einstellungen geprüft; „Es wurde nichts
+  geändert“ nur bei vollständigem Rückweg, sonst `restore_rollback_failed`. Restrisiko nach Prozesstod in
+  P273 und ROADMAP. Meldungen in ANLEITUNG beschrieben.
+- M4, M5 (Tests): erste Sektion gut, spätere beschädigt; Long- und Float-Werte; scheiternde Umbenennung
+  und scheiterndes `putBack` über einspritzbare Schritte; der Test des Rückwegs ruft
+  `restoreWithRollback`, fehlt der Rückweg im `catch`, scheitert er (`aRestoreThatThrowsPutsFoldersAndBothSettingsBack`).
+  S12 über die echten `LatinIME`-Wege; S8 prüft jede geleerte Referenz einzeln, mit Tresorinhalt vor
+  dem Beenden (ein Geheimnis und ein Code vorhanden).
+- N1: `SettingsActivity`: Kopie nur bei `savedInstanceState == null`, Zustand im Companion, Dateiname je
+  Kopie, `SecurityException` und fehlender Stream landen in `dictionary_load_error`. Die Kopie
+  benutzt nicht `copyContentUriToNewFile` (meldet Ausnahmen außer `IOException` als Erfolg).
+- N2: Protokollzeilen ohne Inhalt: gewähltes Emoji (`LatinIME.onEmojiSearchDone`,
+  `EmojiSearchActivity.onStop`), Tastenbeschriftungen importierter Layouts (`LayoutUtilsCustom`,
+  `TextKeyData`). `dumpAllWordsForDebug` bleibt (Debug-Aktion) und steht in P274.
+- Nicht geprüft: alles auf einem Gerät; der ganze Wiederherstellungsablauf mit Dateiauswahl und echter
+  ZIP; das Drehen während des Kopierens einer Wörterbuchdatei; ein Prozesstod mitten in der
+  Wiederherstellung (Restrisiko).
 
 ## Gerätetest vor Meilensteinfreigabe
 
