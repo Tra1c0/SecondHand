@@ -480,8 +480,9 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   keine externe Ansicht (Chips) steht (`isExternalSuggestionVisible()`, P290);
   `SuggestionStripView.kt`: dafür ist `isExternalSuggestionVisible` von außen lesbar (`private set`).
   `RgbKeyPainter` fängt Ausnahmen selbst ab (P288), `KeyboardView.java` bleibt unverändert.
-  `PointerTracker.java` blieb unverändert: der Abbruch einer Leertasten-Wischgeste ließ sich nicht
-  nachstellen (P289).
+  `PointerTracker.java`: `cancelKeyTracking` setzt jetzt `mKeySwipeAllowed`, `sInKeySwipe`,
+  `mInHorizontalSwipe`, `mInVerticalSwipe` und den Touchpad-Zustand zurück (Nachprüfung M2, P289);
+  der Abbruch mitten in einer Wischgeste mit Tracker in der Warteschlange war schon richtig.
 - `PointerTracker.java`: Leertasten-Langdruck fragt `CustomAction.SPACE_HOLD` (die eingestellte
   Halten-Aktion); ist sie verbraucht, endet der laufende Zeiger samt Swipe/Touchpad-Flags, sonst
   bleibt HeliBoards Tastaturwahl über `mSpaceForLangChange` der Rückfall. Leertasten-Gesten:
@@ -5361,13 +5362,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Es wird nie die Meldung der Ausnahme gespeichert, nur der Klassenname. Ein Fehler im Painter
   könnte Programmierfehler in anderen Render-Tests verdecken: `RgbLightingRenderTest` prüft nach jedem
   Bild und im `@After`, dass kein Fehler vermerkt ist (nur der Test, der einen auslöst, setzt ihn zurück).
-- **P289** Abbruch einer Leertasten-Wischgeste (70, A2): `onCancelEvent` ruft `cancelAllPointerTrackers`
-  (setzt nur „Aktion aus“) und danach `releaseAllPointers`; das ruft für jeden Tracker in der Warteschlange
-  `onUpEventInternal`, und das setzt `mKeySwipeAllowed`, `sInKeySwipe`, `mInHorizontalSwipe`,
-  `mInVerticalSwipe` und das Touchpad zurück, bevor es wegen „Aktion aus“ endet. Die drei Tests in
-  `AT/AgentSpaceGestureTest` (seitlich, senkrecht, einmalige Aktion, jeweils danach ein Tipp) bestanden ohne
-  Änderung; `PointerTracker` blieb unverändert. Ein Tracker, der vorher aus der Warteschlange entfernt
-  wurde (`cancelKeyTracking`), setzt die Flags selbst zurück (SPACE_HOLD-Pfad).
+- **P289** Abbruch auf der Leertaste (70, A2 und Nachprüfung M2): Mitten in einer Wischgeste ist der Tracker
+  noch in der Warteschlange; `onCancelEvent` ruft `cancelAllPointerTrackers` (setzt nur „Aktion aus“) und
+  `releaseAllPointers`, das `onUpEventInternal` aufruft und damit `mKeySwipeAllowed`, `sInKeySwipe`,
+  `mInHorizontalSwipe`, `mInVerticalSwipe` und das Touchpad zurücksetzt (drei Tests, bestanden ohne
+  Änderung). Anders nach einem Langdruck: Jeder Zweig von `onLongPressed`, der `cancelKeyTracking()` ruft
+  (Sprachwahl über die Leertaste, Taste ohne Panel-Popup, `SPACE_HOLD`), nimmt den Tracker aus der
+  Warteschlange. Ein späteres `ACTION_CANCEL` (die Sprachwahl öffnet ein Fenster) erreicht ihn dann nicht, und
+  `mKeySwipeAllowed` und das statische `sInKeySwipe` blieben wahr: Der nächste Druck startete mit
+  ausgeschalteter Gestenerkennung und im Wisch-Zweig, ein Wort durch Wischen konnte verloren gehen. Nur der
+  Zweig `SPACE_HOLD` setzte die Flags selbst zurück. Behoben in `cancelKeyTracking`. Mit einem `ACTION_UP`
+  statt des Abbruchs war der Zustand immer sauber (`onUpEventInternal`).
 - **P290** Hintergrundrechnen der Zeichen-Kunst und Z6 (70): `renderGeneration` zählt nur, was ein
   Hintergrundergebnis entwertet (`render()`, `resetContent`, Abhängen); ein Tick des Strichs zählt sie
   nicht. Es läuft höchstens eine Rechnung; Ticks währenddessen merken nur „neueres gewünscht“

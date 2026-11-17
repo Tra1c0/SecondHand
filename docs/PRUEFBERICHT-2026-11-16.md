@@ -156,7 +156,7 @@ Browser nach Tipp.
 | Nr. | Befund | Schwere | Stelle | Geprüft | Plan |
 | --- | --- | --- | --- | --- | --- |
 | A1 | Die Beleuchtung läuft hinter Aktionspanel, Rad, Rechner, Zeichen-Kunst und Menü weiter. | hoch | `RgbLighting.kt:281` | L | erledigt (Etappe 70) |
-| A2 | Bricht Android eine Wischgeste auf der Leertaste ab, bleibt ihr Zustand hängen; der nächste Tipp kann verloren gehen. | mittel | `PointerTracker.java` (`onCancelEvent`) | – | in Robolectric nicht nachgestellt (Etappe 70): drei Tests bestehen ohne Änderung an `PointerTracker`; ein Gerät könnte anders sein |
+| A2 | Bricht Android eine Wischgeste auf der Leertaste ab, bleibt ihr Zustand hängen; der nächste Tipp kann verloren gehen. | mittel | `PointerTracker.java` (`onCancelEvent`) | – | in Robolectric nicht nachgestellt (Etappe 70): drei Tests bestehen ohne Änderung an `PointerTracker`; ein Gerät könnte anders sein; verwandter Fall nach Langdruck mit Sprachwahl gefunden und behoben (Nachprüfung 70, M2) |
 | A3 | Die Zeichen-Kunst rechnet beim Zeichnen alle 40 ms im Hauptthread. | mittel | `CharArtView.kt:827–890` | – | erledigt (Etappe 70) |
 | A4 | Je Taste und Bild entstehen neue Farbfilter-Objekte. | niedrig | `RgbKeyPainter.kt:177–181, 228–232` | – | erledigt (Etappe 70) |
 | A5 | Lauftext im Menü des flachen Looks läuft endlos. | niedrig | `FlatStyle.kt:36–52` | – | erledigt (Etappe 70) |
