@@ -5754,6 +5754,20 @@ sich nicht. Das Fenster des Test-Nachweises bleibt bei den letzten 100 Läufen.
 - P263: Mindestzahlen auf die Werte des Leads (1600/1330) angepasst, sonst keine Abweichung der Doku vom
   Workflow gefunden.
 
+### Erster echter Lauf des Release-Workflows (Test-Build 28, 2026-11-17)
+
+- Lauf 28 von `agent-apk.yml` auf dem Arbeitsbranch (`c64f0d7`), 7,5 Minuten, erfolgreich: Bau,
+  Prüfschritt und privates Vorab-Release. Die Schritte für `main` (Test-Nachweis, öffentliches
+  Release, Zurücklesen) liefen dabei nicht; ihr erster echter Lauf ist der geprüfte Build.
+- Vom Lead an der geladenen Datei nachgeprüft (`SecondHand-build-28.apk`, 34,1 MB statt 42,2 MB bei
+  Build 27): Prüfsumme stimmt, die `.sha256` des alten Namens nennt den alten Namen mit derselben
+  Summe; Zertifikat ist das des Owners; Paket `dev.personal.agentkeyboard.debug`, Versionscode 28,
+  Name „SecondHand“; keine Zeile `application-debuggable`; native Bibliothek für alle vier ABIs,
+  arm64 1.347.040 Bytes (optimiert, wie lokal); die eingebetteten Notizen sind die des Commits.
+- Davor: lokale Agent-Suite auf `affc62b` 1184 Tests, Kern 626, alles grün; GitHub-Lauf 84 auf
+  `affc62b` in allen vier Jobs grün. `c64f0d7` ändert danach nur die Notizen.
+- Nicht geprüft: Installation und Verhalten auf einem Gerät.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.
