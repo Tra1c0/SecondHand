@@ -33,12 +33,14 @@ genannten Datei. `AGENTS.md` ist eine automatisch erzeugte Kopie dieser Datei f�
 - **Runde**: alle Etappen, die der Owner in einem Auftrag freigibt, bis zum Push nach `main`.
 - **Upstream**: HeliBoard, festgeschrieben in `upstream.lock` (Tag `v4.2`). **Fork**: dieses
   Repository.
-- **Build**: eine Debug-APK. Zum Prüfen schreibt `python3 tools/dev.py build` sie lokal nach
+- **Build**: eine APK der Variante `debugNoMinify` (seit Build 28 nicht mehr debuggable). Zum
+  Prüfen schreibt `python3 tools/dev.py build` sie lokal nach
   `artifacts/` (nicht versioniert, mit wechselndem Debug-Schlüssel). Installiert wird nur die
   APK aus dem Workflow `agent-apk.yml` (GitHub Actions, von Hand gestartet): signiert mit dem
   Schlüssel des Owners aus den Repository-Secrets, als Vorab-Release veröffentlicht, als Update
   installierbar (`docs/BUILD.md` → Installierbare APK).
   Die Build-Nummer ist immer die Laufnummer des Workflows (Tag `build-<N>`, Datei
+  `SecondHand-build-<N>.apk`, bis auf Weiteres zusätzlich unter dem alten Namen
   `AgentKeyboard-build-<N>.apk`), auch für Test-Builds. Runden werden ohne feste Nummer geplant
   („nächste Runde“); eine Nummer nennt nur eine gebaute APK (Owner, 2026-11-13).
 - **Gerätetest**: eine Prüfung auf einem echten Android-Gerät oder Emulator. Robolectric-Tests

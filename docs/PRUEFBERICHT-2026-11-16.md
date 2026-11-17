@@ -10,7 +10,8 @@ Größenordnungen sind Schätzungen aus dem Code.
 
 Die Spalte „Plan“ nennt die Etappe, in der der Befund behoben wird (Nachweis dann in
 `docs/VALIDATION.md`), „offen“ für Befunde ohne Etappe (sie stehen auch in `docs/ROADMAP.md`) oder
-„bleibt“ mit Grund. Dieser Bericht wird bis zum Ende von Runde 2 gepflegt und danach nicht mehr.
+„bleibt“ mit Grund. Dieser Bericht wird bis zum Ende von Runde 2 gepflegt und danach nicht mehr. Stand
+2026-11-17: Runde 1 (Etappen 57 bis 63) ist gebaut und geprüft; Runde 2 (64 bis 70) läuft.
 
 ## Das Wichtigste
 
@@ -64,15 +65,15 @@ Arbeit im Vorschlags-Thread. Zur Messung am Telefon bekommt die Diagnose eine Ka
 | Nr. | Befund | Schwere | Stelle | Geprüft | Plan |
 | --- | --- | --- | --- | --- | --- |
 | B1 | Die ausgelieferte Variante ist debuggable und nicht verkleinert; Debug-Modus standardmäßig an (Wörter im Protokoll, absichtliche Abstürze); die native Vorschlags-Engine ohne Optimierung übersetzt. | hoch | `app/build.gradle.kts:64–71`, `Defaults.kt:194`, `InputLogic.java:2733` | L | erledigt (Etappe 62), nicht auf einem Gerät gemessen |
-| B2 | Fehlt das Token für das öffentliche Repository, gibt der Workflow nur eine Warnung aus und endet grün. | hoch | `agent-apk.yml:76–82` | L | 63 |
-| B3 | Signatur, Zertifikat und Versionsnummer der fertigen APK werden nicht geprüft (`|| true`); ohne gültige Nummer fällt der Build still auf 1. | hoch | `agent-apk.yml:67`, `app/build.gradle.kts:31` | L | 63 |
-| B4 | Ein fehlgeschlagener Lauf lässt sich nicht wiederholen, weil das Release schon existiert. | mittel | `agent-apk.yml:63–88` | – | 63 |
-| B5 | Ein Build von `main` wird auch ohne grünen Testlauf veröffentlicht. | mittel | `agent-apk.yml`, `agent-tests.yml` | – | 63 |
-| B6 | Die Testläufe bauen nie die ausgelieferte Variante. | mittel | `tools/dev.py:53–67` | – | 63 |
-| B7 | Die Zusammenfassung der Tests bemerkt abgestürzte Testklassen nicht und toleriert jeden Fehler in `XLinkTest`. | mittel | `agent-tests.yml:49, 84–103` | – | 63 |
-| B8 | Umbenennen der Workflow-Datei, des Repositorys oder der App-ID würde die Update-Kette brechen. | hoch | `UpdateReleases.kt`, `GitHubUpdateClient.kt:49` | L | 57 (P240), 63 |
-| B9 | Änderungen an `gradle.properties` und `upstream.lock` starten keinen Testlauf. | niedrig | `agent-tests.yml:12–20` | – | 63 |
-| B10 | `build-test-auto.yml` (HeliBoard) ruft eine Aufgabe auf, die es hier nicht gibt. | niedrig | `.github/workflows/build-test-auto.yml` | – | 63 |
+| B2 | Fehlt das Token für das öffentliche Repository, gibt der Workflow nur eine Warnung aus und endet grün. | hoch | `agent-apk.yml:76–82` | L | erledigt (Etappe 63) |
+| B3 | Signatur, Zertifikat und Versionsnummer der fertigen APK werden nicht geprüft (`|| true`); ohne gültige Nummer fällt der Build still auf 1. | hoch | `agent-apk.yml:67`, `app/build.gradle.kts:31` | L | erledigt (Etappe 63) |
+| B4 | Ein fehlgeschlagener Lauf lässt sich nicht wiederholen, weil das Release schon existiert. | mittel | `agent-apk.yml:63–88` | – | erledigt (Etappe 63) |
+| B5 | Ein Build von `main` wird auch ohne grünen Testlauf veröffentlicht. | mittel | `agent-apk.yml`, `agent-tests.yml` | – | erledigt (Etappe 63) |
+| B6 | Die Testläufe bauen nie die ausgelieferte Variante. | mittel | `tools/dev.py:53–67` | – | erledigt (Etappe 63) |
+| B7 | Die Zusammenfassung der Tests bemerkt abgestürzte Testklassen nicht und toleriert jeden Fehler in `XLinkTest`. | mittel | `agent-tests.yml:49, 84–103` | – | erledigt (Etappe 63) |
+| B8 | Umbenennen der Workflow-Datei, des Repositorys oder der App-ID würde die Update-Kette brechen. | hoch | `UpdateReleases.kt`, `GitHubUpdateClient.kt:49` | L | erledigt (Etappen 57 und 63: P240, Vertragstest) |
+| B9 | Änderungen an `gradle.properties` und `upstream.lock` starten keinen Testlauf. | niedrig | `agent-tests.yml:12–20` | – | erledigt (Etappe 63) |
+| B10 | `build-test-auto.yml` (HeliBoard) ruft eine Aufgabe auf, die es hier nicht gibt. | niedrig | `.github/workflows/build-test-auto.yml` | – | erledigt (Etappe 63) |
 | B11 | „Installieren“ lädt den neuesten Build, nicht unbedingt den im Dialog gezeigten. | niedrig | `Updates.kt:75–87` | – | offen |
 | B12 | Tests mit festen Wartezeiten können auf langsamen Rechnern kippen. | niedrig | `RgbSettingsScreenTest.kt:319`, `ClipVaultTest.kt:199` u. a. | – | offen |
 | B13 | Die Notizen zum Build werden von Hand überschrieben; die Grenze von 8 KiB für den Dialog prüft niemand. | niedrig | `release-notes/next.md`, `docs_sync.json` | – | offen |
@@ -84,7 +85,7 @@ Gerätetest einzelne Seiten zum Absturz bringen: eigener Test-Build nach Entsche
 
 | Nr. | Befund | Schwere | Stelle | Geprüft | Plan |
 | --- | --- | --- | --- | --- | --- |
-| S1 | Eine Protokollzeile von HeliBoard schreibt in Feldern ohne Vorschläge den getippten Text ins Systemprotokoll, auch in Passwortfeldern. | hoch | `RichInputConnection.java:894` | L | 65 |
+| S1 | Eine Protokollzeile von HeliBoard schreibt in Feldern ohne Vorschläge den getippten Text ins Systemprotokoll, auch in Passwortfeldern. | hoch | `RichInputConnection.java:894` | L | erledigt (Nachprüfung 61: nur noch die Länge im Protokoll) |
 | S2 | Der Zwischenablage-Verlauf speichert auch im Inkognito-Modus, in Feldern ohne Lernen und bei gesperrtem Gerät; nur der Tresor prüft das. | mittel | `ClipboardHistoryManager.kt:174–180` | L | 65 |
 | S3 | Schlägt „Wiederherstellen“ fehl, wird der geschützte Datenordner gelöscht, weil seine Sicherung nie angelegt wurde. | mittel | `BackupRestorePreference.kt:181, 236–237` | L | 65 |
 | S4 | Eine beschädigte Sicherung leert die Einstellungen und meldet trotzdem „wiederhergestellt“. | mittel | `BackupRestorePreference.kt:209–216` | – | 65 |
@@ -109,7 +110,7 @@ Browser nach Tipp.
 | Nr. | Befund | Schwere | Stelle | Geprüft | Plan |
 | --- | --- | --- | --- | --- | --- |
 | T1 | In Feldern ohne Autokorrektur wird ein dreimal abgeschickter Vertipper zum „eigenen Wort“ und danach nie mehr korrigiert. | hoch | `Memory.kt:277–283` | L | 66 |
-| T2 | Englische Wörter bekommen in englischen Sätzen den deutschen Zwilling („hand“ → „Hand“). | mittel | `Suggest.kt:289` (`guardAllows`) | L | 60 |
+| T2 | Englische Wörter bekommen in englischen Sätzen den deutschen Zwilling („hand“ → „Hand“). | mittel | `Suggest.kt:289` (`guardAllows`) | L | erledigt (Etappe 60), nicht auf einem Gerät geprüft |
 | T3 | Die Sperre der Korrektur in Befehlen hinkt einen Tastendruck hinterher. | mittel | `LatinIME.java:187`, `Suggest.kt:195, 366` | – | offen |
 | T4 | Ein Befehlsname hinter „@“ (z. B. „@ki “ als Erwähnung) macht den Rest der Zeile zum Befehl ohne Autokorrektur. | mittel | `Commands.kt:102–150` | – | offen |
 | T5 | Eigene Wörter, Wortfolgen und Kürzel gelten für alle Sprachen (so entschieden in Etappe 51). | mittel | `Memory.kt` | – | bleibt, Owner entscheidet |
@@ -118,13 +119,13 @@ Browser nach Tipp.
 | T8 | Die gelernte Schreibweise eines Tippfehlers hängt davon ab, ob er zuerst am Satzanfang stand. | niedrig | `TypoMemory.kt:114–121` | – | 66 |
 | T9 | „Wörter aus anderen Sprachen“ setzt beim Feldwechsel einen Merker nicht zurück. | niedrig | `ForeignWords.kt` (`onFieldChanged`) | – | 66 |
 | T10 | Kontext-Vorschläge zählen einen Feldwechsel als „Vorschlag übergangen“. | niedrig | `FieldSuggestionChips.kt:111–114` | – | 66 |
-| T11 | Vorschläge, Autokorrektur und Großschreibung fehlen, wo die App sie abschaltet (Instagram). | mittel | `InputAttributes.java`, `SettingsValues.java:240–290` | L | 61 |
+| T11 | Vorschläge, Autokorrektur und Großschreibung fehlen, wo die App sie abschaltet (Instagram). | mittel | `InputAttributes.java`, `SettingsValues.java:240–290` | L | erledigt (Etappe 61), nicht auf einem Gerät geprüft; ob Instagram damit korrigiert, zeigt die Diagnose-Karte |
 
 ## 5. Befehle, Zwischenablage, KI-Abläufe
 
 | Nr. | Befund | Schwere | Stelle | Geprüft | Plan |
 | --- | --- | --- | --- | --- | --- |
-| K1 | `@ki` nimmt höchstens 200 Zeichen, `@translate` 500; markierter Text 8.192; Antwort 2.048 Token; Abbruch nach 10 Sekunden ohne Antwort. | hoch | `Commands.kt:32–36`, `CloudTransport.kt:37`, `OpenAiProvider.kt:28–31, 57` | L | 59 |
+| K1 | `@ki` nimmt höchstens 200 Zeichen, `@translate` 500; markierter Text 8.192; Antwort 2.048 Token; Abbruch nach 10 Sekunden ohne Antwort. | hoch | `Commands.kt:32–36`, `CloudTransport.kt:37`, `OpenAiProvider.kt:28–31, 57` | L | erledigt (Etappe 59), mit keiner echten Anfrage geprüft |
 | K2 | Der QR-Chip reagiert nach einem Fehlschlag nicht mehr, teils ohne Meldung. | mittel | `QrCommand.kt:117–143` | – | 67 |
 | K3 | Der Chip „Kein Schlüssel“ öffnet nicht sicher die KI-Einstellungen, wenn die Einstellungen schon offen waren. | mittel | `AgentEditorController.kt:813–817` | L | 67 |
 | K4 | Enter und Chip-Tipps haben kein Fangnetz. | niedrig | `KeyboardCommands.kt:432–440, 598` | – | 64 |
@@ -142,7 +143,7 @@ Browser nach Tipp.
 | E1 | „Sichern und Wiederherstellen“ sichert nur die Einstellungen von HeliBoard, nicht Profile, Gedächtnis, Bausteine, Orte, Korrekturen; der Dialog verspricht „alle“. | hoch | `BackupRestorePreference.kt:100–150, 343–352` | – | 69 (Text), Inhalt offen |
 | E2 | Die Suche findet die neuen Seiten nicht (KI, RGB, Updates, Diagnose …). | mittel | `SettingsContainer.kt:76–80` | – | 69 |
 | E3 | Die Anleitung nennt alte Menüpfade und hat einen doppelten Absatz. | mittel | `docs/ANLEITUNG.md:92–100` u. a. | – | 69 |
-| E4 | Auf dem Telefon hieß die App „Agent Keyboard Lab“ (Name der ausgelieferten Variante). | niedrig | `app/src/debugNoMinify/res/values/strings.xml` | L | 57 |
+| E4 | Auf dem Telefon hieß die App „Agent Keyboard Lab“ (Name der ausgelieferten Variante). | niedrig | `app/src/debugNoMinify/res/values/strings.xml` | L | erledigt (Etappe 57) |
 | E5 | Tippflächen der neuen Seiten sind 44 statt 48 dp groß. | niedrig | `AgentSettingsKit.kt:108` | – | 69 |
 | E6 | Englische Texte in der deutschen Oberfläche (Slogan, zehn Tastennamen); „Über“ verlinkt auf HeliBoard. | niedrig | `donottranslate.xml:75`, `Constants.kt:9–22` | – | 69 |
 | E7 | Abhängige Schalter verschwinden auf „Tasten & Sprachen“, statt ausgegraut mit Grund zu erscheinen. | niedrig | `AgentAreaKeysScreen.kt:199–212` | – | 69 |
