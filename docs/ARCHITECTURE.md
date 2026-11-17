@@ -5077,7 +5077,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Gerät nicht geprüft). Zweite Nachprüfung 61 (M2): Ein Editor, der den Text ändert (z. B. nur Großbuchstaben) oder spät übernimmt,
   ließ die Prüfung scheitern; `InputLogic` setzt danach den Wort-Composer zurück, der nächste Buchstabe begann einen neuen Composing-Text
   und ersetzte den alten Bereich (gemessen: „hal welt“ ergab „AL ELT“). Darum ruft die Fehlerstelle `finishComposingText()` auf, bevor
-  `false` zurückkommt: Der Text bleibt, der nächste Buchstabe wird angehängt, für dieses Wort gibt es keine Vorschläge. Die Stelle liegt in
+  `false` zurückkommt: Der Text bleibt, der nächste Buchstabe wird angehängt, für dieses Wort gibt es keine Vorschläge. Das gilt für
+  Editoren, die den Composing-Text annehmen (verändert oder spät). Ein Editor, der Composing-Text gar nicht annimmt, verliert in einem
+  erzwungenen Feld weiter Zeichen (im Test mit dem dritten Ersatz-Editor kommt von „hal welt“ nur „al “ an, vor und nach der Änderung;
+  keine solche App ist bekannt, auf keinem Gerät geprüft): dann die App aus der Liste nehmen. Die Stelle liegt in
   `RichInputConnection`, weil dort beide Zwischenspeicher (`mComposingText` und der Text davor) zusammen geführt werden; sie gilt
   auch für „Immer Vorschläge anzeigen“ ohne Erzwingen (Normaleditoren unverändert). Nachprüfung 61: Das Log dieser Prüfung nennt nur die Länge, nie den Text, und ein Aufruf
   `LastField.onComposingRefused()` (wirft nie) zählt jeden Fehlschlag für das Feld; die Karte zeigt „App nahm getippten Text
@@ -5171,7 +5174,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `LatinIME.onTextInput("\n")` (Pfad der Engine, ihre Caches bleiben stimmig), sonst passiert nichts und ein
   Toast (`agent_command_enter_blocked`) sagt es, einmal je Befehl (`enterHintFor`). Ohne Aktion
   (`NO_ENTER_ACTION`, NONE) bleibt es beim Zeilenumbruch der Engine. Eine bloße `@ki` ohne Argument und
-  eine durch zwei Leerzeilen beendete Frage gehören wieder der App. `StyledTranslation.request`: Stil eine Zeile, Text zuletzt.
+  eine durch zwei Leerzeilen beendete Frage gehören wieder der App. Grenzen (Abschlussprüfung): Gehalten
+  wird nur, solange der Parse die Frage im gelesenen Fenster findet, also nicht bei einer Auswahl, mit
+  der Schreibmarke vor dem Befehl, jenseits von etwa 2500 Zeichen und nicht für eine Frage über dem
+  kurzen Fenster (519 Zeichen), deren Zustand weg ist (anderes Feld, Neustart des Dienstes): dort führt
+  Enter die Aktion aus. `onTextInput("\n")` ist nicht die Enter-Taste der Engine: Im Zustand PHANTOM
+  (nach einem übernommenen Vorschlag) setzt es ein Leerzeichen vor den Umbruch, und manche Webviews
+  machen aus `commitText("\n")` keinen Umbruch (ungeprüft). `onEnter` hat kein Fangnetz (Etappe 64). `StyledTranslation.request`: Stil eine Zeile, Text zuletzt.
 - **P248** Sprache des Ergebnisses (59): Die Anweisungen sind englisch; ohne Regel antwortet ein
   Modell mitunter auf Englisch oder Deutsch statt in der Sprache des Textes.
   `AiTextAction.KEEP_LANGUAGE` (gemischter Text: jeder Teil in seiner Sprache) steht in CORRECT und

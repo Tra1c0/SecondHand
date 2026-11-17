@@ -5816,6 +5816,24 @@ sich nicht. Das Fenster des Test-Nachweises bleibt bei den letzten 100 Läufen.
   `affc62b` in allen vier Jobs grün. `c64f0d7` ändert danach nur die Notizen.
 - Nicht geprüft: Installation und Verhalten auf einem Gerät.
 
+### Abschlussprüfung Runde 1 (Prüfer zu c6e5299, 2026-11-17)
+
+Ein Prüfer hat die drei Änderungen nach der letzten Nachprüfung gelesen (nur gelesen, kein Lauf):
+`RichInputConnection.setComposingText` mit `finishComposingText()` vor `return false` (4145e83), Enter
+in einer KI-Frage und 64 Zeichen Luft beim Lesen (9438147), dritte Sprache in
+`Suggest.sentenceIsOfOtherLanguage` (e05788b). Urteil: nichts Schweres, nichts Mittleres, vor dem
+Build nichts zwingend zu beheben.
+
+- `setComposingText`: Die Zwischenspeicher bleiben stimmig, der Schreibmarken-Vorbehalt des
+  Upstream-TODO in `finishComposingText` trifft hier nicht zu (die Schreibmarke steht hinter dem
+  Wort), kein Aufrufer verlässt sich nach `false` auf einen offenen Composing-Text, normale Felder
+  sind nicht berührt. Offen: Ein Editor, der Composing-Text gar nicht annimmt, verliert weiter
+  Zeichen (P255, Anleitung und Notizen sagen das jetzt).
+- Enter: gehalten nur, solange die Frage erkannt wird; Leerzeichen vor dem Umbruch im Zustand
+  PHANTOM; „@ki“ mit Text als normale Nachricht hält Enter fest (P247, Anleitung).
+- `Suggest`: für zwei Sprachen unverändert, für drei entfällt der Fehlalarm durch die dritte Sprache.
+- Niedrige Befunde in den Docs berichtigt (dieser Commit); der Code blieb, wie er geprüft wurde.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

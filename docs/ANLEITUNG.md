@@ -476,9 +476,15 @@ stehen unten. Noch auf keinem Gerät ausprobiert.
   Enter in der Frage: Hat das Feld keine Aktion
   (kein Senden/Los/Fertig, oder die App unterdrückt sie bei Mehrzeilenfeldern), fügt Enter einen
   Zeilenumbruch ein wie sonst. Hat das Feld eine Aktion (z. B. Senden im Chat), führt die Tastatur sie
-  bei einer laufenden Frage NICHT aus, die Frage geht also nie als Nachricht raus: In einem
-  Mehrzeilenfeld fügt Enter dann den Zeilenumbruch ein, in einem einzeiligen Feld passiert nichts, und
-  ein Hinweis (einmal je Frage) sagt, warum. Gesendet wird die Frage nur per Tipp auf den Chip. Hinter
+  bei einer laufenden Frage NICHT aus, die Frage geht also nicht als Nachricht raus, solange die
+  Tastatur sie als Frage erkennt (der Chip ist zu sehen): In einem Mehrzeilenfeld fügt Enter dann den
+  Zeilenumbruch ein, in einem einzeiligen Feld passiert nichts, und ein Hinweis (einmal je Frage) sagt,
+  warum. Gesendet wird die Frage nur per Tipp auf den Chip. Nicht erkannt wird eine Frage, wenn Text
+  markiert ist oder die Schreibmarke vor dem Befehl steht, wenn sie länger als etwa 2500 Zeichen ist
+  und wenn eine lange Frage (über etwa 500 Zeichen) nach einem Wechsel in ein anderes Feld oder einem
+  Neustart der Tastatur noch im Feld steht: dann tut Enter, was es im Feld sonst tut. Umgekehrt hält
+  die Tastatur Enter auch fest, wenn du „@ki“ mit Text dahinter als normale Nachricht meinst; sende
+  sie dann über den Knopf der App. Hinter
   einem älteren `@ki` gilt bis 2000 Zeichen später noch alles als Teil der Frage. Zwei Leerzeilen
   beenden die Frage (eine Leerzeile zwischen Absätzen nicht); danach ist es wieder normaler Text. Das gilt
   auch für den Text von `@translate`. Wird die Frage länger als 2000 Zeichen, zeigt ein grauer Chip
@@ -1493,8 +1499,9 @@ Karte „Letztes Feld“ (sie zeigt auch in privaten Chats Feldtyp, Merkmale und
 zeigt aber „Korrektur erzwungen: ja“, wenn erzwungen wurde). Neu: Steht dort „App nahm getippten Text nicht unverändert an: n-mal“
 und im Urteil, dass der Text stehen bleibt, es aber für das Wort keine Vorschläge und keine Autokorrektur gibt, ändert die App den
 Text, den die Tastatur beim Tippen setzt (z. B. nur Großbuchstaben), oder übernimmt ihn verspätet; dann liegt es an der App, nicht an
-der Liste. Verhält sich das Tippen in einer App seltsam, nimm sie unter Einstellungen → Tippen & Korrektur → Regeln → „Korrektur in
-Apps erzwingen“ aus der Liste und schick den Screenshot der Karte. „nicht gefunden“ in der Liste heißt: Die App sieht dieses Paket
+der Liste. Nimmt eine App diesen Text gar nicht an, können beim Erzwingen Buchstaben fehlen (so eine App ist nicht bekannt, auf einem
+Telefon ist das nicht geprüft). Verhält sich das Tippen in einer App seltsam oder fehlen Buchstaben, nimm sie unter Einstellungen →
+Tippen & Korrektur → Regeln → „Korrektur in Apps erzwingen“ aus der Liste und schick den Screenshot der Karte. „nicht gefunden“ in der Liste heißt: Die App sieht dieses Paket
 nicht (nicht installiert oder für sie unsichtbar). Ist die Liste voll (50 Apps), sagt der Knopf „Liste voll“ und ändert nichts.
 
 Schreib dazu auf, was hilft, den Fehler zu finden:
