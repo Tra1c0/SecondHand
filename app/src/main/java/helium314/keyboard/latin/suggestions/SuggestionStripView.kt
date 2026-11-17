@@ -210,7 +210,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     private lateinit var listener: Listener
     private var suggestedWords = SuggestedWords.getEmptyInstance()
     private var startIndexOfMoreSuggestions = 0
-    private var isExternalSuggestionVisible = false // Required to disable the more suggestions if other suggestions are visible
+    var isExternalSuggestionVisible = false // Required to disable the more suggestions if other suggestions are visible
+        private set // fork (stage 70, Z6): LatinIME reads it
     private val layoutHelper = SuggestionStripLayoutHelper(context, attrs, defStyle, wordViews, dividerViews, debugInfoViews)
     private val moreSuggestionsView = moreSuggestionsContainer.findViewById<MoreSuggestionsView>(R.id.more_suggestions_view).apply {
         val slidingListener = object : SimpleOnGestureListener() {

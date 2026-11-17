@@ -35,6 +35,7 @@ import dev.agentkeyboard.core.charart.LayoutOptions
 import dev.agentkeyboard.core.charart.Look
 import dev.agentkeyboard.core.charart.OutputOptions
 import dev.agentkeyboard.core.charart.Photo
+import dev.agentkeyboard.core.charart.Raster
 import dev.agentkeyboard.core.charart.PhotoOptions
 import dev.agentkeyboard.core.charart.PictureElement
 import dev.agentkeyboard.core.charart.Sketch
@@ -51,6 +52,8 @@ import helium314.keyboard.latin.common.ColorType
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.prefs
 import kotlin.math.min
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 /**
  * The character art window of stage 53, shown in place of the keys. On top the text (taken from
@@ -127,6 +130,22 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
     /** The strip was read (or is being read) in this window session; it is read again only after reopening (N12). */
     private var picturesRequested = false
     private var renderPosted = false
+    /**
+     * Counts what invalidates a background render (stage 70, A3): [render], [resetContent] and detach. A
+     * finished background render is shown only if nothing of that kind happened since it was requested,
+     * so a stroke's final synchronous picture is never overwritten by a late result.
+     */
+    @Volatile private var renderGeneration = 0
+    /** A background render is running; the ticks of the stroke meanwhile only remember that a newer one is wanted (M1). */
+    private var liveRunning = false
+    private var livePending = false
+    private var livePendingGeneration = 0
+    /** Tests: runs on the worker before each background render (a slow computation, a latch). */
+    internal var liveComputeHook: (() -> Unit)? = null
+    private var renderWorker: ExecutorService? = null
+    /** Paints for fitting the preview and the bubble, kept instead of made new at every render (stage 70, A3). */
+    private val previewPaint = Paint()
+    private val bubblePaint = Paint()
 
     private val dp = resources.displayMetrics.density
     private val handler = Handler(Looper.getMainLooper())
@@ -426,6 +445,7 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
         handler.removeCallbacks(endUndo)
         handler.removeCallbacksAndMessages(RENDER_TOKEN)
         renderPosted = false
+        invalidateLive()
         offersUndo = false
         pictureSession++
         pickGeneration++
@@ -827,18 +847,91 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
     private fun postRender() {
         if (renderPosted) return
         renderPosted = true
-        handler.postAtTime({ renderPosted = false; render() }, RENDER_TOKEN, android.os.SystemClock.uptimeMillis() + LIVE_RENDER_MILLIS)
+        handler.postAtTime({ renderPosted = false; renderLive() }, RENDER_TOKEN, android.os.SystemClock.uptimeMillis() + LIVE_RENDER_MILLIS)
+    }
+
+    /** What one render needs, taken on the main thread so a background render never reads what the finger still changes. */
+    private class RenderInput(val sketchRaster: SketchRaster, val hasSketch: Boolean, val photo: Photo?, val photoOptions: PhotoOptions,
+        val look: Look, val pictureSize: Float, val crop: Boolean, val text: String, val textShown: Boolean, val textMode: TextMode, val unicode: UnicodeStyle,
+        val font: BigFont, val letterSize: Int, val textLook: Look, val frame: FrameOptions, val layout: LayoutOptions, val output: OutputOptions)
+
+    private fun renderInput(copy: Boolean): RenderInput {
+        val source = raster
+        // the live raster of a stroke is one buffer the next point draws into: a background render gets a copy
+        val snapshot = if (copy) SketchRaster(Raster(source.ink.width, source.ink.height, source.ink.values.copyOf()),
+            Raster(source.erased.width, source.erased.height, source.erased.values.copyOf())) else source
+        return RenderInput(snapshot, !sketch.isEmpty, photo, photoOptions, look, pictureSize, crop, text, textShown, textMode, unicode, font, letterSize,
+            textLook, frame, layoutOptions, output)
+    }
+
+    private fun compute(input: RenderInput): ArtResult {
+        val hasDrawing = input.hasSketch || input.sketchRaster.inkBounds() != null
+        val picture = if (!hasDrawing && input.photo == null) null
+            else PictureElement(input.sketchRaster, input.photo, input.photoOptions, input.look, input.pictureSize, input.crop)
+        val textElement = if (input.text.isBlank() || !input.textShown) null
+            else TextElement(input.text, input.textMode, input.unicode, input.font, input.letterSize, input.textLook)
+        return CharArt.render(picture, textElement, input.frame, input.layout, input.output)
+    }
+
+    /**
+     * The picture while a finger draws (stage 70, A3): the art is calculated on a background thread
+     * from a copy of the drawing. One calculation runs at a time; ticks that come meanwhile only
+     * remember that a newer picture is wanted, which starts when the running one is shown (M1). So
+     * the preview follows the finger with a delay even when one calculation takes longer than a tick.
+     * The final picture of a stroke and every other change still go through [render] at once.
+     */
+    private fun renderLive() {
+        if (liveRunning) {
+            livePending = true
+            livePendingGeneration = renderGeneration
+            return
+        }
+        startLive()
+    }
+
+    private fun startLive() {
+        liveRunning = true
+        livePending = false
+        val generation = renderGeneration
+        val input = renderInput(copy = true)
+        val worker = renderWorker ?: Executors.newSingleThreadExecutor { task -> Thread(task, "char-art-render").apply { isDaemon = true } }
+            .also { renderWorker = it }
+        worker.execute {
+            val computed = try { liveComputeHook?.invoke(); compute(input) } catch (e: Throwable) { null }
+            handler.post { finishLive(generation, computed) }
+        }
+    }
+
+    private fun finishLive(generation: Int, computed: ArtResult?) {
+        if (generation != renderGeneration) return // invalidated meanwhile: [render] or a reset has the newer picture
+        liveRunning = false
+        // a failure clears the live preview; the synchronous render at the end of the stroke is where it shows for real
+        show(computed ?: CharArt.render(null, null))
+        if (livePending && livePendingGeneration == renderGeneration) startLive() else livePending = false
+    }
+
+    /** Everything a running background render may still deliver is dropped. */
+    private fun invalidateLive() {
+        renderGeneration++
+        liveRunning = false
+        livePending = false
+    }
+
+    /** Waits until the worker has finished what it was given (tests). */
+    internal fun awaitLiveWorker() {
+        renderWorker?.submit { }?.get()
     }
 
     /** Renders the whole art again from every element and option. */
     internal fun render() {
         handler.removeCallbacksAndMessages(RENDER_TOKEN)
         renderPosted = false
-        val hasDrawing = !sketch.isEmpty || raster.inkBounds() != null
-        val picture = if (!hasDrawing && photo == null) null
-            else PictureElement(raster, photo, photoOptions, look, pictureSize, crop)
-        val textElement = if (text.isBlank() || !textShown) null else TextElement(text, textMode, unicode, font, letterSize, textLook)
-        result = CharArt.render(picture, textElement, frame, layoutOptions, output)
+        invalidateLive() // a background render of an older picture is dropped
+        show(compute(renderInput(copy = false)))
+    }
+
+    private fun show(art: ArtResult) {
+        result = art
         val body = result.lines.joinToString("\n")
         preview.typeface = if (result.codeBlock) Typeface.MONOSPACE else Typeface.DEFAULT
         // exactly what "Insert" puts into the field, the backticks of a code block included (review of stage 53, M1)
@@ -896,7 +989,7 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
         val available = previewBox.width - preview.paddingLeft - preview.paddingRight
         val availableHeight = previewBox.height - preview.paddingTop - preview.paddingBottom
         if (available <= 0 || availableHeight <= 0 || result.isEmpty) return
-        val paint = Paint().apply { typeface = preview.typeface; textSize = 10 * resources.displayMetrics.scaledDensity }
+        val paint = previewPaint.apply { typeface = preview.typeface; textSize = 10 * resources.displayMetrics.scaledDensity }
         val shown = result.text.split('\n') // with the backticks, as the preview shows it
         val widest = shown.maxOf { paint.measureText(it) }.coerceAtLeast(1f)
         val tallest = (paint.fontSpacing * shown.size).coerceAtLeast(1f)
@@ -909,7 +1002,7 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
         val width = appPanel.width - appPanel.paddingLeft - appPanel.paddingRight
         if (width <= 0) return
         val inner = (width * 0.9f).toInt() - bubble.paddingLeft - bubble.paddingRight
-        val paint = Paint().apply { typeface = bubble.typeface; textSize = 10 * resources.displayMetrics.scaledDensity }
+        val paint = bubblePaint.apply { typeface = bubble.typeface; textSize = 10 * resources.displayMetrics.scaledDensity }
         val sample = paint.measureText("⣿".repeat(output.app.phoneWidth)).coerceAtLeast(1f)
         bubble.setTextSize(TypedValue.COMPLEX_UNIT_SP, (10f * inner / sample).coerceIn(3f, 14f))
         bubble.maxWidth = (width * 0.9f).toInt()
@@ -936,6 +1029,13 @@ class CharArtView @JvmOverloads constructor(context: Context, attrs: AttributeSe
             }
         }
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        invalidateLive()
+        renderWorker?.shutdownNow()
+        renderWorker = null
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {

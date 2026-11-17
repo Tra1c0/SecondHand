@@ -449,6 +449,11 @@ Reihenfolge von oben nach unten.
   zusammen. Die Mindestzahlen stehen auf Werten aus Lauf 82 (GitHub-Lauf 83 damit grün). Offen: der
   erste echte Lauf des Release-Workflows auf GitHub (zuerst als Test-Build, die Schritte für `main`
   erst beim geprüften Build).
+- **70 Aussehen und Gefühl** ist gebaut (siehe FEATURES.md, Prüfnachweis in `docs/VALIDATION.md`):
+  A1, A3 bis A6, S13 und Z6 behoben; A2 (abgebrochene Wischgeste auf der Leertaste) ließ sich in
+  Robolectric nicht nachstellen, `PointerTracker` blieb unverändert. Offen: Gerätetest (Licht hinter
+  Panel, Rad, Rechner, Zeichen-Kunst und Menü pausiert und läuft weiter; Vorschau der Zeichen-Kunst
+  folgt dem Finger; Lauftext hält an; abgebrochene Wischgeste auf einem echten Gerät).
 - **Runde 2 nach dem Scan (Auftrag des Owners vom 2026-11-16: „suche nach Lücken, Verbesserungen und
   Fehlern … scanne gebietübergreifend“)**: noch nicht gebaut. Die Befunde stehen mit Stelle und
   Schwere in `docs/PRUEFBERICHT-2026-11-16.md`; jede Etappe behebt die dort genannten Nummern und

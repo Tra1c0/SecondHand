@@ -81,8 +81,28 @@ class RgbKeyPainter {
     private var keysReady = false
     private val masks = RgbKeyMasks()
     private val effectPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val filters = RgbFilterCache()
 
-    fun beginDraw(view: KeyboardView) {
+    /** Set once something in here threw (stage 70, S13): every entry then does nothing and colours stay as the theme has them. */
+    private var failed = false
+
+    /**
+     * The fork's one entry into the painter: an exception in the lighting must not end the draw of
+     * the keyboard again and again, so the light is switched off for this session
+     * ([RgbLighting.onPainterFailed]; the Diagnose page shows the exception class).
+     */
+    private inline fun <T> guarded(fallback: T, block: () -> T): T {
+        if (failed) return fallback
+        return try { block() } catch (e: Exception) {
+            failed = true
+            lit = false
+            measuring = false
+            RgbLighting.onPainterFailed(e)
+            fallback
+        }
+    }
+
+    fun beginDraw(view: KeyboardView) = guarded(Unit) {
         val start = System.nanoTime()
         drawStart = start
         frameNanos = 0L
@@ -96,10 +116,11 @@ class RgbKeyPainter {
      * End of the keyboard's draw (hook at the end of KeyboardView.onDrawKeyboard): records the
      * lighting share of this frame and the whole keyboard draw ([RgbLighting.frameWork]).
      */
-    fun endDraw() {
-        if (!measuring) return
-        measuring = false
-        RgbLighting.frameStats.recordUi(android.os.SystemClock.uptimeMillis(), frameNanos, System.nanoTime() - drawStart)
+    fun endDraw() = guarded(Unit) {
+        if (measuring) {
+            measuring = false
+            RgbLighting.frameStats.recordUi(android.os.SystemClock.uptimeMillis(), frameNanos, System.nanoTime() - drawStart)
+        }
     }
 
     private fun prepare(view: KeyboardView) {
@@ -130,13 +151,12 @@ class RgbKeyPainter {
     }
 
     /** Draws the lit keyboard background (its alpha is the strength) over what is already there. */
-    fun drawKeyboardBackground(canvas: Canvas) {
-        if (!backgroundDrawn) return
-        background.drawRect(canvas, 0f, 0f, width.toFloat(), height.toFloat(), backEngine.overlayStrength(now))
+    fun drawKeyboardBackground(canvas: Canvas) = guarded(Unit) {
+        if (backgroundDrawn) background.drawRect(canvas, 0f, 0f, width.toFloat(), height.toFloat(), backEngine.overlayStrength(now))
     }
 
     /** [x], [y]: top left of the key in view coordinates. */
-    fun beginKey(key: Key, x: Int, y: Int) {
+    fun beginKey(key: Key, x: Int, y: Int) = guarded(Unit) {
         val start = System.nanoTime()
         try { startKey(key, x, y) } finally { frameNanos += System.nanoTime() - start }
     }
@@ -168,7 +188,9 @@ class RgbKeyPainter {
             behind = RgbColors.over(scaleAlpha(keys.tileMean, RgbColors.alpha(keyLight) / 255f), behind)
     }
 
-    fun tintBackground(background: Drawable) {
+    fun tintBackground(background: Drawable) = guarded(Unit) { tintBackgroundUnguarded(background) }
+
+    private fun tintBackgroundUnguarded(background: Drawable) {
         if (!lit || !keyBackgroundLit || !solid || RgbColors.alpha(keyLight) == 0) return
         // the selected child of a state list, never the container: a container keeps a filter
         // for all children it selects later and would drop their tint (see ARCHITECTURE P60)
@@ -177,7 +199,7 @@ class RgbKeyPainter {
         if (android.R.attr.state_pressed in background.state) color = RgbColors.pressed(color)
         tinted = target
         tintedFilter = target.colorFilter
-        target.colorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN)
+        target.colorFilter = filters.srcIn(color)
     }
 
     /**
@@ -185,10 +207,11 @@ class RgbKeyPainter {
      * the canvas translated to that point: the smooth light (unless keys are solid), tap effects
      * and the texture detail, all through the alpha mask of the key drawable.
      */
-    fun drawOverBackground(canvas: Canvas, background: Drawable, bgX: Int, bgY: Int) {
-        if (!lit || !keyBackgroundLit) return
-        val start = System.nanoTime()
-        try { drawLight(canvas, background, bgX, bgY) } finally { frameNanos += System.nanoTime() - start }
+    fun drawOverBackground(canvas: Canvas, background: Drawable, bgX: Int, bgY: Int) = guarded(Unit) {
+        if (lit && keyBackgroundLit) {
+            val start = System.nanoTime()
+            try { drawLight(canvas, background, bgX, bgY) } finally { frameNanos += System.nanoTime() - start }
+        }
     }
 
     private fun drawLight(canvas: Canvas, background: Drawable, bgX: Int, bgY: Int) {
@@ -228,9 +251,8 @@ class RgbKeyPainter {
      * Colour of a label, hint or icon of the current key: lit with the label light if labels are a
      * layer, and always readable against the (possibly lit) key background. Alpha of [themeColor] is kept.
      */
-    fun labelColor(themeColor: Int): Int {
-        if (!lit) return themeColor
-        return RgbColors.label(themeColor, labelLight, labelLit, behind)
+    fun labelColor(themeColor: Int): Int = guarded(themeColor) {
+        if (!lit) themeColor else RgbColors.label(themeColor, labelLight, labelLit, behind)
     }
 
     /**
@@ -238,14 +260,16 @@ class RgbKeyPainter {
      * shift (accent while shifted), key icon or key text colour). Without the label layer the icon
      * keeps exactly that colour as long as it is readable; with it, the light is based on it.
      */
-    fun tintIcon(icon: Drawable?, themeColor: Int) {
+    fun tintIcon(icon: Drawable?, themeColor: Int) = guarded(Unit) { tintIconUnguarded(icon, themeColor) }
+
+    private fun tintIconUnguarded(icon: Drawable?, themeColor: Int) {
         if (icon == null || !lit) return
         // icons are coloured by a filter or a tint from the theme; replace that only when needed
         val color = labelColor(themeColor)
         if (!labelLit && color == themeColor) return
         tintedIcon = icon
         tintedIconFilter = icon.colorFilter
-        icon.colorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN)
+        icon.colorFilter = filters.srcIn(color)
     }
 
     fun restoreIcon() {
@@ -273,6 +297,7 @@ class RgbKeyPainter {
     /** Number of cached key masks (tests). */
     internal val maskCount get() = masks.size
     /** The light under the keys and behind them (tests). */
+    internal val filterCache get() = filters
     internal val keysTexture get() = keys
     internal val backgroundTexture get() = background
 
@@ -298,6 +323,23 @@ class RgbKeyPainter {
             }
         }
     }
+}
+
+/**
+ * Colour filters by colour (stage 70, A4): keys and icons repeat a few colours, so one filter object
+ * serves every draw instead of a new one per key and frame. Bounded: when [LIMIT] colours are held
+ * the cache starts again (a slow light drifts through many colours, each seen only briefly).
+ */
+internal class RgbFilterCache {
+    private val entries = HashMap<Int, PorterDuffColorFilter>()
+    val size get() = entries.size
+
+    fun srcIn(color: Int): PorterDuffColorFilter = entries[color] ?: run {
+        if (entries.size >= LIMIT) entries.clear()
+        PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN).also { entries[color] = it }
+    }
+
+    companion object { const val LIMIT = 64 }
 }
 
 /**

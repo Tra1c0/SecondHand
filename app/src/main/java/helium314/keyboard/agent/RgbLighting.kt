@@ -81,6 +81,13 @@ object RgbLighting {
     /** True while strip views may carry RGB colours, so restoring is only done when needed. */
     private var stripLit = false
     private var inFrame = false
+    /** True while a window (panel, wheel, calculator, character art) covers keys and strip (stage 70, A1). */
+    private var overlayOpen = false
+    /** True while the flat menu covers the keys; the strip above it stays visible (stage 70, N1). */
+    private var menuOpen = false
+    /** Class name of the exception that switched the light off for this session, null while it works (stage 70, S13). */
+    @Volatile var painterFailure: String? = null
+        private set
     private val frameCallback = Choreographer.FrameCallback { onFrame(it) }
 
     /** Application context the power-save receiver is registered with, null while unregistered. */
@@ -172,7 +179,7 @@ object RgbLighting {
         // switched off: no system queries, no frames, upstream drawing
         if (settings.enabled) checkSystem(view.context, force = true)
         update()
-        if (!settings.lightsKeys()) return null
+        if (!settings.lightsKeys() || painterFailure != null) return null
         return current ?: RgbKeyPainter()
     }
 
@@ -278,6 +285,45 @@ object RgbLighting {
         strip?.get()?.let { RgbStrip.paint(it, false) }
     }
 
+    /**
+     * Called by [AgentKeyboardFrame] when an overlay window opens or closes: no frames are drawn
+     * for keys nobody can see (stage 70, A1); the light carries on when the last overlay closes.
+     */
+    @JvmStatic
+    fun setOverlayOpen(open: Boolean, menu: Boolean = false) {
+        if (overlayOpen == open && menuOpen == menu) return
+        overlayOpen = open
+        menuOpen = menu
+        update()
+        // the menu opened over lit keys that are no longer seen: nothing to redraw; closed again: draw them
+        if (!menu && view() != null && mode != RgbRun.Mode.RUNNING) redraw(view())
+    }
+
+    private fun view(): KeyboardView? = keyboardView?.get()
+
+    /** Whether a frame is requested from the Choreographer (tests). */
+    internal val framesScheduled: Boolean get() = scheduled
+
+    /** Whether frames are paused because an overlay covers the keys (tests). */
+    internal val overlayCovers: Boolean get() = overlayOpen
+    /** Whether the flat menu is open (tests). */
+    internal val menuCovers: Boolean get() = menuOpen
+
+    /**
+     * The painter threw (stage 70, S13): the light stays off until the keyboard process restarts.
+     * Only the class name is kept; the Diagnose page shows it, the message is never stored.
+     */
+    internal fun onPainterFailed(error: Throwable) {
+        if (painterFailure != null) return
+        painterFailure = error.javaClass.name
+        // not inside the draw that failed: the view still finishes it with the (now inert) painter
+        val view = keyboardView?.get()
+        if (view != null) android.os.Handler(android.os.Looper.getMainLooper()).post { update(); view.setRgbPainter(null) } else update()
+    }
+
+    /** Lights up again after a failure (tests). */
+    internal fun resetPainterFailure() { painterFailure = null }
+
     private fun isVisible(view: View?) = view != null && view.isAttachedToWindow && view.isShown &&
         view.windowVisibility == View.VISIBLE && view.width > 0
 
@@ -294,7 +340,8 @@ object RgbLighting {
         val view = keyboardView?.get()
         val now = SystemClock.uptimeMillis()
         val effect = engines.hasActiveEffect(now)
-        val newMode = RgbRun.mode(settings, isVisible(view), powerSave, animationsOn, effect)
+        val newMode = if (painterFailure != null) RgbRun.Mode.OFF
+            else RgbRun.mode(settings, isVisible(view) && !overlayOpen && !(menuOpen && !settings.lightsStrip()), powerSave, animationsOn, effect)
         val old = mode
         mode = newMode
         updateReceiver(view)
@@ -376,7 +423,8 @@ object RgbLighting {
     }
 
     private fun redraw(view: KeyboardView?) {
-        if (settings.lightsKeys()) view?.invalidateAllKeys()
+        // under the flat menu only the strip above it is seen (stage 70, N1)
+        if (settings.lightsKeys() && !menuOpen) view?.invalidateAllKeys()
         if (settings.lightsStrip()) strip?.get()?.let { paintStrip(it) } else restoreStrip()
     }
 }

@@ -457,8 +457,22 @@ class AgentPanelView @JvmOverloads constructor(context: Context, attrs: Attribut
         post { if (sendButton.visibility == View.VISIBLE) smoothScrollTo(0, cloudConfirmation.top) }
     }
 
+    /** Whether the loading pulse is queued (tests, stage 70). */
+    internal val pulseScheduled: Boolean get() = flatStyle?.pulseScheduled == true
+
     override fun setVisibility(visibility: Int) {
         super.setVisibility(visibility)
         (parent as? AgentKeyboardFrame)?.updateOverlayAccessibility()
+    }
+
+    /** Also called when an ancestor is hidden or shown (stage 70, N2): the loading pulse comes back with the panel. */
+    override fun onVisibilityChanged(changedView: View, visibility: Int) {
+        super.onVisibilityChanged(changedView, visibility)
+        if (visibility == View.VISIBLE) flatStyle?.resume()
+    }
+
+    override fun onWindowVisibilityChanged(visibility: Int) {
+        super.onWindowVisibilityChanged(visibility)
+        if (visibility == View.VISIBLE) flatStyle?.resume() // the pulse stops while the panel is not shown
     }
 }

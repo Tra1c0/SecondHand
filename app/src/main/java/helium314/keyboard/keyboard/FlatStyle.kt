@@ -41,7 +41,7 @@ object FlatStyle {
             return
         }
         view.ellipsize = android.text.TextUtils.TruncateAt.MARQUEE
-        view.marqueeRepeatLimit = -1
+        view.marqueeRepeatLimit = MARQUEE_REPEATS // stage 70 (A5): a few runs, not for ever
         view.isSelected = true
         view.accessibilityDelegate = object : android.view.View.AccessibilityDelegate() {
             override fun onInitializeAccessibilityNodeInfo(host: android.view.View, info: android.view.accessibility.AccessibilityNodeInfo) {
@@ -50,6 +50,9 @@ object FlatStyle {
             }
         }
     }
+
+    /** How often a too long label runs through before it stops. */
+    private const val MARQUEE_REPEATS = 3
 
     /** False when the owner turned animations off (developer options or "remove animations"). */
     @JvmStatic

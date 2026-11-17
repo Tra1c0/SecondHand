@@ -97,7 +97,7 @@ Gerätetest einzelne Seiten zum Absturz bringen: eigener Test-Build nach Entsche
 | S10 | Ein KI-Ergebnis bleibt nach „Kopieren“ unbegrenzt in der System-Zwischenablage (als vertraulich markiert). | niedrig | `AgentEditorController.kt:1150–1157` | – | offen |
 | S11 | Die Gestendaten-Sammlung für das HeliBoard-Projekt ist noch erreichbar. | niedrig | `GestureDataGathering.kt:174–190`, `AgentAreaSystemScreen.kt:291` | – | 68 |
 | S12 | Der Feldtext des letzten Felds (bis etwa 1300 Zeichen) bleibt bis zum nächsten Feldstart im Arbeitsspeicher. | niedrig | `InputLogic.java:388–396`, `FieldCorrections.kt` | – | 65 |
-| S13 | Das Zeichnen der Beleuchtung hat kein Fangnetz: Ein Fehler dort würde die Tastatur wiederholt beenden. | mittel | `KeyboardView.java:309–597`, `RgbKeyPainter.kt` | – | 65 |
+| S13 | Das Zeichnen der Beleuchtung hat kein Fangnetz: Ein Fehler dort würde die Tastatur wiederholt beenden. | mittel | `KeyboardView.java:309–597`, `RgbKeyPainter.kt` | – | erledigt (Etappe 70) |
 
 Geprüft und in Ordnung: Backup-Regeln für Cloud und Gerätewechsel, exportierte Komponenten,
 Prüfung der Update-APK (Prüfsumme, Paket, Signatur), Schlüsselspeicher, Bildschirmschutz der
@@ -156,12 +156,12 @@ Browser nach Tipp.
 
 | Nr. | Befund | Schwere | Stelle | Geprüft | Plan |
 | --- | --- | --- | --- | --- | --- |
-| A1 | Die Beleuchtung läuft hinter Aktionspanel, Rad, Rechner, Zeichen-Kunst und Menü weiter. | hoch | `RgbLighting.kt:281` | L | 70 |
-| A2 | Bricht Android eine Wischgeste auf der Leertaste ab, bleibt ihr Zustand hängen; der nächste Tipp kann verloren gehen. | mittel | `PointerTracker.java` (`onCancelEvent`) | – | 70, erst mit Test bestätigen |
-| A3 | Die Zeichen-Kunst rechnet beim Zeichnen alle 40 ms im Hauptthread. | mittel | `CharArtView.kt:827–890` | – | 70 |
-| A4 | Je Taste und Bild entstehen neue Farbfilter-Objekte. | niedrig | `RgbKeyPainter.kt:177–181, 228–232` | – | 70 |
-| A5 | Lauftext im Menü des flachen Looks läuft endlos. | niedrig | `FlatStyle.kt:36–52` | – | 70 |
-| A6 | Der Lade-Puls des Panels läuft bei geschlossenem Panel weiter. | niedrig | `FlatPanelStyle.kt:55–79` | – | 70 |
+| A1 | Die Beleuchtung läuft hinter Aktionspanel, Rad, Rechner, Zeichen-Kunst und Menü weiter. | hoch | `RgbLighting.kt:281` | L | erledigt (Etappe 70) |
+| A2 | Bricht Android eine Wischgeste auf der Leertaste ab, bleibt ihr Zustand hängen; der nächste Tipp kann verloren gehen. | mittel | `PointerTracker.java` (`onCancelEvent`) | – | in Robolectric nicht nachgestellt (Etappe 70): drei Tests bestehen ohne Änderung an `PointerTracker`; ein Gerät könnte anders sein; verwandter Fall nach Langdruck mit Sprachwahl gefunden und behoben (Nachprüfung 70, M2) |
+| A3 | Die Zeichen-Kunst rechnet beim Zeichnen alle 40 ms im Hauptthread. | mittel | `CharArtView.kt:827–890` | – | erledigt (Etappe 70) |
+| A4 | Je Taste und Bild entstehen neue Farbfilter-Objekte. | niedrig | `RgbKeyPainter.kt:177–181, 228–232` | – | erledigt (Etappe 70) |
+| A5 | Lauftext im Menü des flachen Looks läuft endlos. | niedrig | `FlatStyle.kt:36–52` | – | erledigt (Etappe 70) |
+| A6 | Der Lade-Puls des Panels läuft bei geschlossenem Panel weiter. | niedrig | `FlatPanelStyle.kt:55–79` | – | erledigt (Etappe 70) |
 | A7 | Die Eckenrundung eigener Designs gilt auch für Popups und „mehr Vorschläge“. | niedrig | `KeyboardView.java:129`, `DesignLook.kt:37–46` | – | offen, Owner entscheidet |
 
 ## 8. Zusammenspiel der Bereiche
@@ -173,7 +173,7 @@ Browser nach Tipp.
 | Z3 | „Ausgeschlossene Apps“ gelten nur für Gedächtnis und Fremdwörter, nicht für Tippfehler, Trefferzonen, Kontext. | niedrig | `Memory.kt:133`, `TypoMemory.kt:102` | – | 68 |
 | Z4 | Der Lernverlauf von HeliBoard lernt auch bei gesperrtem Gerät. | niedrig | `InputLogic.java:1940–1996` | – | 68 |
 | Z5 | „Gesperrt“ wird teils live, teils mit dem Stand vom Feldstart geprüft. | niedrig | `SettingsValues.java:197` gegen `Memory.kt:62` u. a. | – | 68 |
-| Z6 | Beim Feldstart kann die Zwischenablage-Pille gerade gezeigte Chips überschreiben (mit zwei Nicht-Standard-Schaltern). | niedrig | `LatinIME.java:1146–1148` | – | 70 |
+| Z6 | Beim Feldstart kann die Zwischenablage-Pille gerade gezeigte Chips überschreiben (mit zwei Nicht-Standard-Schaltern). | niedrig | `LatinIME.java:1146–1148` | – | erledigt (Etappe 70) |
 | Z7 | Datum ohne passende Sprache: Bausteine fallen auf Deutsch zurück, Befehle auf Englisch. | niedrig | `SnippetTemplate.kt:98–104`, `DateFormatting.kt:33–39` | – | 67 |
 | Z8 | „Zuletzt gemischt“ (Emoji-Mix) beachtet die Lernpause nicht und bleibt bei „Gelernte Wörter löschen“. | niedrig | `EmojiMixRecents.kt:34` | – | 68 |
 | Z9 | Die Reihenfolge der Leiste in `ARCHITECTURE.md` nennt Screenshot-Chip und Autofill nicht. | niedrig | `docs/ARCHITECTURE.md` (Befehle → Leiste) | – | 64 |

@@ -50,7 +50,23 @@ class AgentKeyboardFrame(context: Context, attrs: AttributeSet?) : FrameLayout(c
         return navigationOverlap(location[1] + height, rootView.height, bar)
     }
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        updateOverlayAccessibility()
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        RgbLighting.setOverlayOpen(false) // a new frame reports its own overlays when it is attached
+    }
+
     fun updateOverlayAccessibility() {
+        // every shown overlay covers the keys and the strip, so the light has no frames to draw while one is open
+        // (stage 70, A1); the flat menu covers only the key area below the strip (N1)
+        if (isAttachedToWindow) {
+            val shown = (1 until childCount).map(::getChildAt).filter { it.visibility == View.VISIBLE }
+            RgbLighting.setOverlayOpen(shown.any { it !is FlatMenuView }, shown.any { it is FlatMenuView })
+        }
         // the menu keeps the strip usable and hides only the keys itself, see FlatStrip.toggleMenu
         val show = (1 until childCount).map(::getChildAt).any { it.visibility == View.VISIBLE && it !is FlatMenuView }
         getChildAt(0).importantForAccessibility = if (show)

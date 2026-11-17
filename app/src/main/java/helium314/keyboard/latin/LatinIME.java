@@ -1144,7 +1144,9 @@ public class LatinIME extends InputMethodService implements
         if (!mHandler.hasPendingResumeSuggestions()) {
             mHandler.cancelUpdateSuggestionStrip();
             setNeutralSuggestionStrip();
-            if (hasSuggestionStripView() && currentSettingsValues.mAutoShowToolbar && !tryShowClipboardSuggestion()) {
+            // stage 70 (Z6): chips that setNeutralSuggestionStrip has just shown stay; a second call must not replace them
+            if (hasSuggestionStripView() && currentSettingsValues.mAutoShowToolbar
+                    && !mSuggestionStripView.isExternalSuggestionVisible() && !tryShowClipboardSuggestion()) {
                 mSuggestionStripView.setToolbarVisibility(true);
             }
         }

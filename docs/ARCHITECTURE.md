@@ -475,6 +475,14 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   `replaceTextBeforeCursorIfUnchanged` (24a) ersetzt einen getippten Befehl direkt vor der
   Schreibmarke: liest den Text aus dem Editor (nicht aus dem Cache), dann `setComposingRegion`
   plus `commitText` als ein Commit. Nur über `InputLogic.replaceCommandText` aufrufen.
+- Etappe 70: `LatinIME.java` (`onStartInputViewInternal`, Z6): der zweite Aufruf von
+  `tryShowClipboardSuggestion` nach `setNeutralSuggestionStrip` läuft nur noch, wenn in der Leiste
+  keine externe Ansicht (Chips) steht (`isExternalSuggestionVisible()`, P290);
+  `SuggestionStripView.kt`: dafür ist `isExternalSuggestionVisible` von außen lesbar (`private set`).
+  `RgbKeyPainter` fängt Ausnahmen selbst ab (P288), `KeyboardView.java` bleibt unverändert.
+  `PointerTracker.java`: `cancelKeyTracking` setzt jetzt `mKeySwipeAllowed`, `sInKeySwipe`,
+  `mInHorizontalSwipe`, `mInVerticalSwipe` und den Touchpad-Zustand zurück (Nachprüfung M2, P289);
+  der Abbruch mitten in einer Wischgeste mit Tracker in der Warteschlange war schon richtig.
 - `PointerTracker.java`: Leertasten-Langdruck fragt `CustomAction.SPACE_HOLD` (die eingestellte
   Halten-Aktion); ist sie verbraucht, endet der laufende Zeiger samt Swipe/Touchpad-Flags, sonst
   bleibt HeliBoards Tastaturwahl über `mSpaceForLangChange` der Rückfall. Leertasten-Gesten:
@@ -2373,6 +2381,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   echte `ClipboardHistoryView`, Chip) und `FlatPanelTest` (IDs, Typen und Callbacks, Positionen,
   Balken). Jeder dieser Tests lädt danach die Standardeinstellungen neu (Fallstrick P32). Bilder unter `app/build/reports/flat-style/`, nicht versioniert.
 
+- Etappe 70 (A5, A6): `FlatStyle.scrollWhenTooLong` lässt den Lauftext `MARQUEE_REPEATS` = 3 Mal
+  laufen (vorher endlos). Der Lade-Puls von `FlatPanelStyle` hält an, sobald das Panel nicht
+  sichtbar ist (`result.isShown`), und `FlatPanelStyle.resume()` startet ihn, wenn `AgentPanelView`
+  wieder sichtbar wird (`setVisibility`, `onWindowVisibilityChanged`) und die Anfrage noch läuft.
+  Tests `AT/FlatMenuTest.theTickerStopsAfterAFewRuns`,
+  `AT/FlatPanelTest.theLoadingPulseStopsWhileThePanelIsClosedAndResumesWhenItIsShownAgain`.
+
 ## RGB-Beleuchtung
 
 > Animierte Farben für Tasten, Beschriftung, Hintergrund und Leiste (Etappe 26, überarbeitet in 29): Rechnen im Kern, Zeichnen über einen Painter.
@@ -2678,6 +2693,22 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Bild gemessen, Bild `app/build/agent-previews/rgb-framerate-card.png` mit Pixelprüfung, Tropfen
   übereinander). Bilder unter
   `app/build/reports/rgb-lighting/` und `app/build/agent-previews/`.
+
+- Etappe 70 (A1, S13, A4): `AgentKeyboardFrame.updateOverlayAccessibility` (ruft jede Überlagerung
+  bei `setVisibility`: Panel, Rad, Rechner, Zeichen-Kunst, neu auch `FlatMenuView`) meldet
+  `RgbLighting.setOverlayOpen(…)`; `RgbLighting.update` rechnet dann `visible = false`, also
+  `PAUSED` ohne Bildanforderung, und das Licht läuft nach dem Schließen der letzten Überlagerung
+  weiter (P287). `onAttachedToWindow` meldet den Stand neu, `onDetachedFromWindow` setzt ihn zurück.
+  `RgbKeyPainter` ruft alle Einstiege über `guarded(…)`: eine Ausnahme setzt `failed`, ab dann tut
+  der Painter nichts, die Farben bleiben die des Designs, `RgbLighting.onPainterFailed` merkt nur
+  den Klassennamen (`painterFailure`), schaltet das Licht für die Sitzung aus (Modus `OFF`,
+  `painterFor` liefert null) und nimmt dem View den Painter erst nach dem laufenden Zeichnen
+  (P288). Die Diagnose-Karte der Beleuchtung zeigt oben die Zeile „Licht für diese Sitzung nach
+  einem Fehler ausgeschaltet“ mit dem Klassennamen (`Diagnose.lighting(…, failure)`), nie mit der
+  Meldung. Farbfilter (`SRC_IN`) kommen aus `RgbFilterCache` (höchstens 64, voll = neu anfangen).
+  Tests in `AT/RgbLightingRenderTest` (`noFramesWhileAnOverlayCoversTheKeysAndTheyRunAgainAfterwards`,
+  `aPainterThatThrowsSwitchesTheLightOffForTheSessionAndShowsOnlyTheClass`,
+  `colourFiltersAreCachedByColourAndBounded`).
 
 ## Diktat
 
@@ -3430,6 +3461,14 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
     Füllen erst beim Loslassen, gedrehtes Foto über einen eigenen `media`-Provider, kurzer Tipp
     öffnet weiter die Emojis, Ersetzen nur bei unverändertem Feld, Markierung ersetzen, zu große
     Kunst, Bilderleiste je Öffnen, ẞ, Regler, TalkBack).
+
+- Etappe 70 (A3): Während der Finger zeichnet (`CharArtView.postRender`, alle 40 ms), rechnet
+  `renderLive` die Kunst auf einem eigenen Thread (`char-art-render`) aus einer Kopie der Zeichnung
+  (der Puffer des laufenden Strichs wird vom nächsten Punkt überschrieben); `renderGeneration`
+  lässt nur das neueste Ergebnis auf den Hauptthread (P290). Das Loslassen und jede Änderung am
+  Fenster gehen weiter über `render()` sofort und entwerten ältere Hintergrundergebnisse. Die Paints
+  für Vorschau und Blase sind Felder (`previewPaint`, `bubblePaint`). `onDetachedFromWindow` beendet
+  den Thread. Test `AT/CharArtWindowTest.theLivePreviewIsMadeInTheBackgroundAndFollowsTheFinger`.
 
 ## Build, Tests, CI, Docs-System
 
@@ -5335,6 +5374,47 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   beim Hinzufügen von Tests auf etwa 90 % des Wertes eines grünen Laufs anheben; die fünf bekannten Fehler stehen mit exakten Namen in
   `known` (die zwei Cloud-Umgebungs-Fehler `layoutsLinksInternal`, `otherLinks` nicht: auf GitHub
   müssen sie bestehen).
+
+- **P287** Beleuchtung hinter Überlagerungen (70): `RgbLighting.isVisible` kennt nur die Tastatur-View.
+  Jede neue Überlagerung in `main_keyboard_frame.xml` muss `AgentKeyboardFrame.updateOverlayAccessibility`
+  aus ihrem `setVisibility` rufen (wie `FlatMenuView`), sonst läuft das Licht dahinter weiter und
+  `isShown` bleibt `true`. Das Rad zählt mit. Das Menü des flachen Looks bedeckt nur die Tasten, die
+  Leiste darüber bleibt sichtbar (Nachprüfung N1): `setOverlayOpen(open, menu)` kennt beide Zustände.
+  Bei offenem Menü läuft das Licht weiter, wenn die Leiste leuchtet (`lightsStrip()`); `redraw`
+  zeichnet dann nur die Leiste, die Tasten werden nicht neu gezeichnet. Leuchtet die Leiste nicht,
+  pausiert alles wie bei den anderen Überlagerungen. Der Zustand ist statisch; ein abgehängter Frame
+  setzt ihn zurück.
+- **P288** Fangnetz im Painter (70): `RgbKeyPainter.guarded` fängt nur `Exception`, keine `Error`. Die
+  Rückgabe nach einem Fehler ist der Eingabewert (`labelColor`), `restoreBackground` und
+  `restoreIcon` laufen bewusst ungeschützt und immer, damit kein Farbfilter am Drawable hängen
+  bleibt. `onPainterFailed` setzt den Painter am View nicht mitten im Zeichnen auf null (die
+  Aufrufe in `KeyboardView.onDrawKey` lesen das Feld jedes Mal), sondern in einem Handler-Post.
+  Es wird nie die Meldung der Ausnahme gespeichert, nur der Klassenname. Ein Fehler im Painter
+  könnte Programmierfehler in anderen Render-Tests verdecken: `RgbLightingRenderTest` prüft nach jedem
+  Bild und im `@After`, dass kein Fehler vermerkt ist (nur der Test, der einen auslöst, setzt ihn zurück).
+- **P289** Abbruch auf der Leertaste (70, A2 und Nachprüfung M2): Mitten in einer Wischgeste ist der Tracker
+  noch in der Warteschlange; `onCancelEvent` ruft `cancelAllPointerTrackers` (setzt nur „Aktion aus“) und
+  `releaseAllPointers`, das `onUpEventInternal` aufruft und damit `mKeySwipeAllowed`, `sInKeySwipe`,
+  `mInHorizontalSwipe`, `mInVerticalSwipe` und das Touchpad zurücksetzt (drei Tests, bestanden ohne
+  Änderung). Anders nach einem Langdruck: Jeder Zweig von `onLongPressed`, der `cancelKeyTracking()` ruft
+  (Sprachwahl über die Leertaste, Taste ohne Panel-Popup, `SPACE_HOLD`), nimmt den Tracker aus der
+  Warteschlange. Ein späteres `ACTION_CANCEL` (die Sprachwahl öffnet ein Fenster) erreicht ihn dann nicht, und
+  `mKeySwipeAllowed` und das statische `sInKeySwipe` blieben wahr: Der nächste Druck startete mit
+  ausgeschalteter Gestenerkennung und im Wisch-Zweig, ein Wort durch Wischen konnte verloren gehen. Nur der
+  Zweig `SPACE_HOLD` setzte die Flags selbst zurück. Behoben in `cancelKeyTracking`. Mit einem `ACTION_UP`
+  statt des Abbruchs war der Zustand immer sauber (`onUpEventInternal`).
+- **P290** Hintergrundrechnen der Zeichen-Kunst und Z6 (70): `renderGeneration` zählt nur, was ein
+  Hintergrundergebnis entwertet (`render()`, `resetContent`, Abhängen); ein Tick des Strichs zählt sie
+  nicht. Es läuft höchstens eine Rechnung; Ticks währenddessen merken nur „neueres gewünscht“
+  (`livePending`), das beim Zeigen des Ergebnisses startet. Würde jeder Tick entwerten, bliebe die
+  Vorschau bei einer Rechnung über 40 ms den ganzen Strich lang stehen (Nachprüfung M1). Ein Fehler im
+  Hintergrund (`Throwable`) leert die Vorschau; `render()` bleibt der Ort, an dem ein echter Fehler
+  auftritt. Test-Haken `liveComputeHook` und `awaitLiveWorker`. Das Lesen von `sketch`/`raster` im Thread wäre ein Datenrennen (der Strich-Puffer wird
+  wiederverwendet): immer die Kopie aus `renderInput(copy = true)` übergeben. Z6: `setNeutralSuggestionStrip`
+  zeigt selbst Befehls-, Symbol-, Zwischenablage- und Update-Chips; ein weiterer Aufruf von
+  `tryShowClipboardSuggestion` in `onStartInputViewInternal` darf sie nicht ersetzen. Folge (gewollt,
+  Nachprüfung N5): Mit „Werkzeugleiste automatisch zeigen“ an und Chips in der Leiste öffnet sich die
+  Werkzeugleiste beim Feldstart nicht mehr (vorher ersetzte oder verdeckte der zweite Aufruf die Chips).
 
 ## Datei-Inventar
 

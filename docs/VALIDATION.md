@@ -5837,6 +5837,56 @@ Build nichts zwingend zu beheben.
   (Code-Stand `c6e5299`; das lokale Lint lief wegen des Zeitlimits des Laufs nicht mehr). GitHub-Lauf 90
   auf `ff741cd` (danach nur noch der Notiztext geändert) in allen vier Jobs grün: Agent, Upstream,
   Lint, Build. Kein Gerätetest, kein echter KI-Aufruf.
+## Etappe 70 (Aussehen und Gefühl)
+
+- Auftrag: `docs/PRUEFBERICHT-2026-11-16.md` Abschnitt 7 (A1 bis A6), S13 und Z6. Nichts davon auf einem Gerät
+  geprüft; alles nur in Robolectric.
+- A1: `RgbLightingRenderTest.noFramesWhileAnOverlayCoversTheKeysAndTheyRunAgainAfterwards` öffnet nacheinander
+  Panel, Rad, Rechner, Zeichen-Kunst und Menü in einem echten `AgentKeyboardFrame`: Modus `PAUSED`, keine
+  angeforderte Bildfolge (auch nach 200 ms nicht), nach dem Schließen `RUNNING` mit Bildanforderung; zwei
+  Überlagerungen zugleich; ein abgehängter Frame setzt den Zustand zurück.
+- S13: `aPainterThatThrowsSwitchesTheLightOffForTheSessionAndShowsOnlyTheClass` (eine `Key`-Attrappe wirft in
+  `beginKey`): kein Durchschlagen, Klassenname gemerkt, Painter inaktiv, Licht aus, Painter am View entfernt,
+  keine neue Painter-Instanz, Diagnose-Zeile mit Klasse und ohne Meldung.
+- A4: `colourFiltersAreCachedByColourAndBounded` (gleiche Instanz je Farbe, höchstens 64, gezeichnetes Bild füllt den Zwischenspeicher).
+- A3: `CharArtWindowTest.theLivePreviewIsMadeInTheBackgroundAndFollowsTheFinger` (mitten im Strich bleibt die Vorschau im
+  Hauptthread leer, das Hintergrundergebnis erscheint, folgt dem Finger, das Loslassen liefert das endgültige Bild und
+  kein spätes Hintergrundergebnis überschreibt es).
+- A5: `FlatMenuTest.theTickerStopsAfterAFewRuns` (Wiederholungen 1 bis 5, tatsächlich 3).
+- A6: `FlatPanelTest.theLoadingPulseStopsWhileThePanelIsClosedAndResumesWhenItIsShownAgain` über den Test-Zugriff
+  `pulseScheduled` (der erste Entwurf, der die Warteschlange der Schleife las, war zu fragil: andere Aufgaben standen darin).
+- A2 (nicht nachgestellt): Die drei Tests `AgentSpaceGestureTest.cancelledSideSwipeOnSpaceLeavesNoStateAndTheNextTapTypes`,
+  `cancelledVerticalSwipeOnSpaceLeavesNoStateAndTheNextTapTypes` und `cancelledOneShotSwipeOnSpaceLeavesNoStateAndTheNextTapTypes`
+  schicken Down, Move (seitlich, senkrecht, einmalige Aktion Rad), dann `ACTION_CANCEL` über den echten `PointerTracker`. Sie prüfen
+  `mKeySwipeAllowed`, `sInKeySwipe`, `mInHorizontalSwipe`, `mInVerticalSwipe`, `mIsInDraggingFinger`, bei der seitlichen Wischgeste genau einmal
+  `onEndSpaceSwipe`, und dass der nächste Tipp genau einen Leerschritt eingibt. Sie bestehen ohne Änderung an `PointerTracker` (die Nachprüfung unten fand den verwandten Fall nach einem Langdruck und änderte ihn)
+  (`onCancelEvent` → `releaseAllPointers` → `onUpEventInternal` setzt die Flags zurück, P289). Der Befund gilt daher als
+  „in Robolectric nicht nachgestellt“; ein echtes Gerät (mehrere Zeiger, Abbruch durch das System) könnte sich anders verhalten.
+- Z6: kein eigener Test (die Bedingung in `LatinIME.onStartInputViewInternal` ist eine Zeile, der Pfad braucht beide Nicht-Standard-Schalter
+  und Chips beim Feldstart); durch Lesen geprüft, auf keinem Gerät.
+
+### Nachprüfung 70 (Prüfer zu 5bd63f9)
+
+- M1 (Zeichen-Kunst, Vorschau blieb bei langsamer Rechnung stehen): behoben in `CharArtView` (`renderLive`, `startLive`,
+  `finishLive`, `invalidateLive`): eine Rechnung zugleich, neuere Wünsche merken sich nur, nur `render()`, Zurücksetzen und
+  Abhängen entwerten. Tests in `AT/CharArtWindowTest`: `aSlowComputationStillLetsThePreviewFollowTheStrokeWithADelay` (Rechnung 150 ms,
+  die Vorschau ändert sich vor dem Loslassen), `aLateBackgroundResultIsNeverApplied` (nach `render()`, Zurücksetzen und Abhängen wird ein
+  mit einem Riegel erzwungenes spätes Ergebnis nicht gezeigt), `aFailingBackgroundRenderClearsTheLivePreview`; der `Thread.sleep` im
+  alten Test ist durch `awaitLiveWorker` ersetzt (N6).
+- M2 (Langdruck auf der Leertaste, Sprachwahl, dann `ACTION_CANCEL`): Die Tests in `AT/AgentSpaceGestureTest`
+  (`longPressThatOpensThePickerThenCancelLeavesNoSwipeState`, `...ThenUpLeavesNoSwipeState`,
+  `longPressOnAKeyWithoutPanelPopupThenCancelLeavesNoSwipeState`; jeweils danach: Flags aus, Tipp auf einen Buchstaben tippt ihn, ein Druck auf
+  einen Buchstaben ist wieder ein Gestenkandidat) scheiterten vor der Änderung in beiden Abbruch-Fällen an den Flags
+  (`mKeySwipeAllowed` blieb wahr). Behoben in `PointerTracker.cancelKeyTracking` (siehe P289). Nur Robolectric, kein Gerät. Mit
+  `ACTION_UP` statt des Abbruchs war schon vorher alles sauber. Der Zweig `hasNoPanelAutoPopupKey` ist für die Leertaste nur mit
+  Popup-Tasten möglich; der Test benutzt dafür eine Attrappe.
+- N1: Das Menü des flachen Looks pausiert nur die Tasten (`RgbLighting.setOverlayOpen(open, menu)`); leuchtet die Leiste, läuft
+  das Licht weiter. Test `theFlatMenuKeepsTheLightRunningForALitStripAndPausesWithoutOne`.
+- N2: Der Puls prüft auch das Fenster und wacht über `onVisibilityChanged` (auch Vorfahren) auf. Test
+  `theLoadingPulseResumesWhenAnAncestorIsHiddenAndShownAgain`.
+- N3: Der Hintergrundrechner fängt `Throwable` und leert die Vorschau (Test oben).
+- N4: `RgbLightingRenderTest` prüft nach jedem Bild und im `@After`, dass kein Painter-Fehler vermerkt ist.
+- N5: P290 und Notizen nennen die Folge für die Werkzeugleiste; Test `theStripReportsWhetherAnExternalViewIsShown`.
 
 ## Gerätetest vor Meilensteinfreigabe
 
