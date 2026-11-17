@@ -499,6 +499,11 @@
     <string name="agent_command_ai_refused">Declined by the provider · details</string>
     <string name="agent_command_ai_too_long">Answer too long · details</string>
     <string name="agent_command_ai_over_limit">Too long: at most %1$d characters after the command</string>
+    <string name="agent_command_enter_blocked">Enter would run this field\'s action (e.g. send) here, so nothing happened. Tap the chip to ask the AI.</string>
+    <string name="agent_command_ai_cut_off_translate">Translation cut off · details</string>
+    <string name="agent_cloud_cut_off_translate">The translation was cut off: the text is too long for the output limit. Nothing is inserted. Shorten the quoted text.</string>
+    <string name="agent_command_ai_request_refused">Request refused · details</string>
+    <string name="agent_cloud_request_refused">The provider refused the request. Check the model name and whether the model allows this output size. Nothing is inserted, no retry was sent.</string>
     <string name="agent_command_ai_cut_off_ask">Answer cut off · details</string>
     <string name="agent_cloud_cut_off_ask">The answer was cut off: too long for the output limit. Nothing is inserted. Ask a narrower question.</string>
     <string name="agent_command_ai_cut_off">Answer cut off, text too long · details</string>

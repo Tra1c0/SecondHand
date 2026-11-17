@@ -726,7 +726,7 @@ class AgentEditorController @JvmOverloads constructor(
                     else CommandAiRequest.Failed(R.string.agent_command_ai_unusable, R.string.agent_panel_result_invalid)
             }.onFailure { failure ->
                 val error = (failure as? CloudFailure)?.error
-                entry.state = CommandAiRequest.Failed(error.commandChip(action == AiTextAction.ASK), error.cloudMessage(action == AiTextAction.ASK),
+                entry.state = CommandAiRequest.Failed(error.commandChip(action), error.cloudMessage(action),
                     error == CloudError.CREDENTIALS || error == CloudError.AUTHENTICATION)
             }
             entry.onChange?.invoke()
@@ -1047,7 +1047,7 @@ class AgentEditorController @JvmOverloads constructor(
                     canApply = approval.action.allowsReplacement
                     panel?.showResult(result, approval.action.allowsReplacement)
                 } else panel?.showStatus(R.string.agent_panel_result_invalid, true)
-            }.onFailure { failure -> panel?.showStatus((failure as? CloudFailure)?.error.cloudMessage(asking && !translating), true) }
+            }.onFailure { failure -> panel?.showStatus((failure as? CloudFailure)?.error.cloudMessage(if (!asking) null else if (translating) AiTextAction.TRANSLATE_STYLED else AiTextAction.ASK), true) }
         }) panel?.showStatus(R.string.agent_panel_stale, true)
     }
 
@@ -1207,29 +1207,41 @@ private fun Throwable.workflowMessage(): Int = when (this) {
 }
 
 /** The short text of a failed typed request on its chip; the panel shows [cloudMessage]. */
-private fun CloudError?.commandChip(asking: Boolean = false) = when (this) {
+private fun CloudError?.commandChip(action: AiTextAction? = null) = when (this) {
     CloudError.CREDENTIALS -> R.string.agent_command_ai_no_key
     CloudError.AUTHENTICATION -> R.string.agent_command_ai_key_rejected
     CloudError.REFUSED -> R.string.agent_command_ai_refused
     CloudError.TOO_LARGE -> R.string.agent_command_ai_too_long
-    CloudError.CUT_OFF -> if (asking) R.string.agent_command_ai_cut_off_ask else R.string.agent_command_ai_cut_off
+    CloudError.CUT_OFF -> when (action) {
+        AiTextAction.ASK -> R.string.agent_command_ai_cut_off_ask
+        AiTextAction.TRANSLATE_STYLED -> R.string.agent_command_ai_cut_off_translate
+        else -> R.string.agent_command_ai_cut_off
+    }
+    CloudError.INVALID_REQUEST -> R.string.agent_command_ai_request_refused
     CloudError.TIMEOUT -> R.string.agent_command_ai_timeout
     CloudError.INVALID_RESPONSE -> R.string.agent_command_ai_unusable
     else -> R.string.agent_command_ai_failed
 }
 
-/** [asking]: a free question (`@ki`, panel question): a cut-off answer asks for a narrower question, not for less text. */
-internal fun CloudError?.cloudMessage(asking: Boolean = false) = when (this) {
+/**
+ * [action]: the typed request that failed (`@ki`, `@translate`, or the panel question): a cut-off answer then asks for a
+ * narrower question or a shorter quoted text, not for "less selected text", since nothing is selected.
+ */
+internal fun CloudError?.cloudMessage(action: AiTextAction? = null) = when (this) {
     CloudError.STORAGE -> R.string.agent_runs_unavailable
     CloudError.CREDENTIALS -> R.string.agent_cloud_credentials
     CloudError.AUTHENTICATION -> R.string.agent_cloud_authentication
-    CloudError.INVALID_REQUEST -> R.string.agent_cloud_invalid_request
+    CloudError.INVALID_REQUEST -> R.string.agent_cloud_request_refused
     CloudError.RATE_LIMIT -> R.string.agent_cloud_rate_limit
     CloudError.TIMEOUT -> R.string.agent_cloud_timeout
     CloudError.REFUSED -> R.string.agent_cloud_refused
     CloudError.INVALID_RESPONSE -> R.string.agent_cloud_invalid_response
     CloudError.TOO_LARGE -> R.string.agent_cloud_too_long
-    CloudError.CUT_OFF -> if (asking) R.string.agent_cloud_cut_off_ask else R.string.agent_cloud_cut_off
+    CloudError.CUT_OFF -> when (action) {
+        AiTextAction.ASK -> R.string.agent_cloud_cut_off_ask
+        AiTextAction.TRANSLATE_STYLED -> R.string.agent_cloud_cut_off_translate
+        else -> R.string.agent_cloud_cut_off
+    }
     CloudError.BUSY -> R.string.agent_cloud_busy
     else -> R.string.agent_cloud_network
 }

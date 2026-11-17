@@ -5554,7 +5554,7 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Befunde 2 bis 5: Ende von `guardAllows` aufgeräumt (kein Verhalten geändert), Docs ergänzt (Komma, ein deutsches Wort,
   nur zweite Sprachen, beide Richtungen, gelernte Tippfehler, ehrliche Prüfangabe zu „fur“).
 
-## Etappe 59: KI ohne Zeichenlimit (Lead und Builder, 2026-11-16)
+## Etappe 59: KI mit höheren Grenzen (Lead und Builder, 2026-11-16)
 
 - Anlass: Owner-Meldung „KI hat ein Zeichenlimit.“; Owner nutzt OpenAI und Gemini, bei `@ki` verschwand
   der Chip nach 5–6 Zeilen (200-Zeichen-Grenze).
@@ -5733,6 +5733,23 @@ als sein Name sagt.
 Bewusst nicht geändert: Ein öffentliches Release gleicher Nummer mit anderer Prüfsumme wird weiter
 ersetzt (Warnung); davor schützt die Tag-Prüfung des privaten Repositorys, Laufnummern wiederholen
 sich nicht. Das Fenster des Test-Nachweises bleibt bei den letzten 100 Läufen.
+
+### Nachprüfung 59, zweite Runde (Prüfung des Leads, 2026-11-17)
+
+- M1 (mittel): Enter in einer laufenden `@ki`/`@translate`-Frage führt die Editor-Aktion des Feldes nie aus
+  (`KeyboardCommands.holdsEnterForQuestion`): Mehrzeilenfeld = Zeilenumbruch über `LatinIME.onTextInput`,
+  sonst nichts plus Toast; ohne Aktion bleibt der Zeilenumbruch der Engine. Tests: `InputLogicTest`
+  `enterInsideAKiQuestionNeverPerformsTheFieldsEditorAction` und `enterKeepsTodaysBehaviourWithoutAQuestion`
+  (neu im Testgerüst: `ShadowInputMethodService.editorActions`, `currentActionLabel`; `performEditorAction`
+  zeichnet auf statt `TODO` zu werfen).
+- M3 (mittel): 64 Zeichen Luft beim Lesen (`START_SLACK`), Neuverankerung über den gefundenen Anfang.
+  Test `textDeletedInFrontOfALongQuestionDoesNotLoseIt` (1, 3, 40, 64 gelöscht: Chip da; Einfügen davor;
+  mehr als die Luft: Zustand endet, in P244 dokumentiert). Geändert: Erwartungen der Lesefenstergröße in
+  `LongCommandTest` (+64).
+- Klein: Hinweis „Zu lang“ nach dem Rückgängig-Chip; eigene Texte für `INVALID_REQUEST` (Anbieter hat die
+  Anfrage abgelehnt, Modellname und Ausgabegröße prüfen) und für eine abgeschnittene `@translate`;
+  `AiTextActionTest` pinnt beide Sätze wieder als Literale; Docs (Überschrift „KI mit höheren Grenzen“,
+  Hinweis-Chip, Einfügegrenzen, P244 mit den zwei weiteren Fällen) korrigiert.
 
 ## Gerätetest vor Meilensteinfreigabe
 

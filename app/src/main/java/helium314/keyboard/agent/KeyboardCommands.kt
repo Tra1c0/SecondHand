@@ -413,10 +413,13 @@ object KeyboardCommands {
     /** For tests: whether the hint "too long" would show now. */
     internal val overflowHint: Boolean get() = overflowing
 
+    /** Review of stage 59: extra characters read in front of the tracked start, for text deleted in front of it. */
+    const val START_SLACK = 64
+
     /** Stage 59: characters past the limit the long state is still read for, to show the "too long" hint. */
     const val OVERFLOW_GRACE = 500
 
-    private fun endLong() { longRun = null; overflowing = false; readCursor = -1 }
+    private fun endLong() { longRun = null; overflowing = false; readCursor = -1; enterHintFor = Int.MIN_VALUE }
 
     /**
      * How many characters before the plain cursor at [cursor] the strip update reads: [CommandSyntax.LOOKBACK]
@@ -434,7 +437,9 @@ object KeyboardCommands {
                 when {
                     cursor < 0 || span < 0 -> { run.active = false; normal } // dormant, not dropped
                     span > CommandSyntax.LONG_LOOKBACK + OVERFLOW_GRACE -> { endLong(); normal }
-                    else -> maxOf(normal, span + 1)
+                    // some slack in front: text deleted in front of the command moves its start left, and the
+                    // parse of the longer window then finds it again and re-anchors (trackLong)
+                    else -> maxOf(normal, span + 1 + START_SLACK)
                 }
             }
         } catch (_: Throwable) { normal }
@@ -584,7 +589,37 @@ object KeyboardCommands {
         val call = findAtCursor(ime, position) as? CommandCall ?: return false
         val command = registry.firstOrNull { it.name == call.name } ?: return false
         // the strip is rebuilt by the normal update after the command changed the field
-        return command.onEnter(host(ime, position, onRefresh = {}, onShow = { false }), call)
+        if (command.onEnter(host(ime, position, onRefresh = {}, onShow = { false }), call)) return true
+        return holdsEnterForQuestion(ime, call)
+    }
+
+    /** Stage 59 (review): the text of the question, never an editor action; see [holdsEnterForQuestion]. */
+    private var enterHintFor = Int.MIN_VALUE
+
+    /**
+     * Enter inside a typed `@ki` or `@translate` question (with an argument, before the plain cursor). If Enter
+     * would run the field's editor action here (send, go, done, a custom label; decided by the same function the
+     * engine uses, [InputTypeUtils.getImeOptionsActionIdFromEditorInfo], so both always agree), the key is taken:
+     * the action is not performed and the question is never sent as a message. In a multi-line field the line
+     * break is then entered through the engine's own text input ([LatinIME.onTextInput], which keeps its caches
+     * and composing state consistent); in any other field nothing is inserted and a toast says why, once per
+     * command. Without an editor action the engine inserts the line break itself, as before (false).
+     */
+    private fun holdsEnterForQuestion(ime: LatinIME, call: CommandCall): Boolean {
+        val current = active ?: return false
+        if (call.name !in current.aiNames || call.argument.isBlank()) return false
+        val info = ime.currentInputEditorInfo ?: return false
+        if (InputTypeUtils.getImeOptionsActionIdFromEditorInfo(info) == EditorInfo.IME_ACTION_NONE) return false
+        val type = info.inputType
+        val multiLine = type and android.text.InputType.TYPE_MASK_CLASS == android.text.InputType.TYPE_CLASS_TEXT &&
+            type and (android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE or android.text.InputType.TYPE_TEXT_FLAG_IME_MULTI_LINE) != 0
+        if (multiLine) { ime.onTextInput("\n"); return true }
+        val key = longRun?.start ?: Int.MAX_VALUE
+        if (enterHintFor != key) {
+            enterHintFor = key
+            android.widget.Toast.makeText(ime, R.string.agent_command_enter_blocked, android.widget.Toast.LENGTH_LONG).show()
+        }
+        return true
     }
 
     private fun buildChips(ime: LatinIME, onRefresh: () -> Unit, onShow: (List<Chip>) -> Boolean): List<Chip>? {
@@ -595,13 +630,13 @@ object KeyboardCommands {
             if (position < 0) return null
         }
         val host = host(ime, position, onRefresh, onShow)
+        // stage 52: a command just ran here: "Undo" for a few seconds
+        if (context == null) helium314.keyboard.agent.commands.CommandSystem.undoChips(host).let { if (it.isNotEmpty()) return it }
         // stage 59: the running AI command is longer than its limit: say so instead of letting the chip vanish
         if (context == null && overflowing) {
             val text = ime.getString(R.string.agent_command_ai_over_limit, CommandSyntax.MAX_AI_ARGUMENT)
             return listOf(Chip(text, text, Chip.Kind.MUTED) { android.widget.Toast.makeText(ime, text, android.widget.Toast.LENGTH_LONG).show() })
         }
-        // stage 52: a command just ran here: "Undo" for a few seconds
-        if (context == null) helium314.keyboard.agent.commands.CommandSystem.undoChips(host).let { if (it.isNotEmpty()) return it }
         // stage 41: no command, but a hint for a field with an unambiguous type (e-mail, phone, IBAN, decimal)
         if (context == null) FormatGuardChips.stripChips(host).let { if (it.isNotEmpty()) return it }
         // stage 45: no command, but the field asks for something or cue words announce a fresh clip or own data

@@ -35,6 +35,11 @@ class AiTextActionTest {
         assertTrue(AiTextAction.TRANSLATE_STYLED.allowsReplacement)
     }
 
+    @Test fun theConstantsAreTheSentencesThatAreSent() {
+        assertEquals("Never translate: write the result in the language of the user's text, even though these instructions are in English. If the text mixes languages, keep each part in its language.", AiTextAction.KEEP_LANGUAGE)
+        assertEquals("Never translate: write the result in the main language of the user's text, even though these instructions are in English.", AiTextAction.KEEP_MAIN_LANGUAGE)
+    }
+
     @Test fun actionsInTheOriginalLanguageNeverTranslateAndTheOthersKeepTheirMeaning() {
         // stage 59: the instructions are English; the result must still come back in the language of the text
         for (action in listOf(AiTextAction.CORRECT, AiTextAction.REPHRASE, AiTextAction.SUMMARIZE, AiTextAction.REPLY, AiTextAction.ANALYZE)) {
@@ -44,10 +49,10 @@ class AiTextActionTest {
             // review: corrected and rephrased text stays itself, so each part of a mixed text keeps its language;
             // a summary, reply or analysis is new text in the main language of the user's text
             if (action == AiTextAction.CORRECT || action == AiTextAction.REPHRASE) {
-                assertTrue(instruction.contains(AiTextAction.KEEP_LANGUAGE), action.name)
+                assertTrue(instruction.contains("Never translate: write the result in the language of the user's text, even though these instructions are in English. If the text mixes languages, keep each part in its language."), action.name)
                 assertTrue(instruction.contains("If the text mixes languages, keep each part in its language."), action.name)
             } else {
-                assertTrue(instruction.contains(AiTextAction.KEEP_MAIN_LANGUAGE), action.name)
+                assertTrue(instruction.contains("Never translate: write the result in the main language of the user's text, even though these instructions are in English."), action.name)
                 assertTrue(instruction.contains("in the main language of the user's text"), action.name)
                 assertFalse(instruction.contains("keep each part"), action.name)
             }

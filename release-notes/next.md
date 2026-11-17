@@ -15,8 +15,11 @@ Nur mit Tests geprüft, noch auf keinem Gerät ausprobiert.
   englisch: „what is your name“, „I went to the bank“, „my new job“ werden nicht mehr zu „Name“, „Bank“,
   „Job“. Die Tastatur schaut auf die bis zu drei Wörter davor im selben Satz; das erste Wort eines
   Satzes hat noch keinen Beweis und wird wie bisher korrigiert („hand“ → „Hand“). Nur mit Tests geprüft.
-- KI ohne Zeichenlimit: `@ki` und `@translate` nehmen bis 2000 Zeichen und mehrere Zeilen (Enter fügt
-  einen Umbruch ein, gesendet wird nur per Tipp auf den Chip). Markierter Text für KI-Aktionen bis
+- KI mit höheren Grenzen: `@ki` und `@translate` nehmen bis 2000 Zeichen und mehrere Zeilen. Enter führt
+  bei einer laufenden Frage nie die Aktion des Feldes aus (im Chat wird die Frage also nicht als Nachricht
+  gesendet): in Mehrzeilenfeldern fügt es einen Zeilenumbruch ein, in einzeiligen Feldern passiert nichts
+  und ein Hinweis erscheint; gesendet wird nur per Tipp auf den Chip. Zwei Leerzeilen beenden die Frage.
+  Markierter Text für KI-Aktionen bis
   32.768 Zeichen, Ergebnis bis 65.536. Lange Antworten werden nicht mehr nach 10 Sekunden abgebrochen
   (bis 150 Sekunden, „Abbrechen“ bleibt), eine abgeschnittene Antwort wird nie eingefügt, sondern
   gemeldet. Die KI-Aktionen antworten in der Sprache deines Textes. Nur mit Tests geprüft, noch auf

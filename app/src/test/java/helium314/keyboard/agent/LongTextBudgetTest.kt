@@ -173,9 +173,14 @@ class LongTextBudgetTest {
         assertNotEquals(CloudError.TOO_LARGE.cloudMessage(), cloud)
         assertNotEquals(CloudError.NETWORK.cloudMessage(), cloud)
         // review of stage 59: for a question "select less text" makes no sense
-        val ask = CloudError.CUT_OFF.cloudMessage(asking = true)
+        val ask = CloudError.CUT_OFF.cloudMessage(AiTextAction.ASK)
         assertNotEquals(cloud, ask)
-        assertEquals(CloudError.NETWORK.cloudMessage(), CloudError.NETWORK.cloudMessage(asking = true))
+        assertEquals(CloudError.NETWORK.cloudMessage(), CloudError.NETWORK.cloudMessage(AiTextAction.ASK))
+        // a typed translation has its own text too (nothing is marked), and so has a refused request
+        val translate = CloudError.CUT_OFF.cloudMessage(AiTextAction.TRANSLATE_STYLED)
+        assertNotEquals(cloud, translate); assertNotEquals(ask, translate)
+        assertNotEquals(CloudError.NETWORK.cloudMessage(), CloudError.INVALID_REQUEST.cloudMessage())
+        assertNotEquals(helium314.keyboard.latin.R.string.agent_cloud_invalid_request, CloudError.INVALID_REQUEST.cloudMessage())
     }
 
     @Test fun aCutOffAnswerStaysUnknownInTheJournalBecauseTheRequestWasPaidFor() = runBlocking {
