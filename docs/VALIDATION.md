@@ -5934,6 +5934,20 @@ Build nichts zwingend zu beheben.
   das Stichwort ergänzt, nicht erneut gelaufen. Lint nicht gelaufen.
 - Nicht geprüft: Gerät, Lint, alle anderen Tests.
 
+### Geprüfter Build 29 (2026-11-17)
+
+- Lauf 29 von `agent-apk.yml` auf `main` (`d6d2ac9`), 9,5 Minuten, erfolgreich. Das war der erste
+  echte Lauf der Schritte für `main`: Test-Nachweis (GitHub-Lauf 90 auf `ff741cd`, getestete Dateien
+  gleich), öffentliches Release, Zurücklesen mit Download beider APK-Dateien.
+- Vom Lead nachgeprüft, geladen aus dem öffentlichen Repository ohne Token:
+  `SecondHand-build-29.apk` (34,1 MB) passt zu ihrer Prüfsumme, die Datei unter dem alten Namen ist
+  ladbar und ihre `.sha256` nennt sie mit derselben Summe; Zertifikat des Owners; Paket
+  `dev.personal.agentkeyboard.debug`, Versionscode 29, Name „SecondHand“; nicht debuggable; die
+  eingebetteten Notizen sind die des Commits.
+- Rückmeldung des Owners zu Test-Build 28 (2026-11-17): „Die Tastatur läuft aber DEUTLICH flüssiger
+  und bisher habe ich gar keine Probleme“. Das ist die erste Beobachtung auf einem Gerät zu Etappe 62;
+  gemessen ist weiter nichts, und die übrigen Etappen sind auf dem Gerät nicht gezielt geprüft.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.
