@@ -18,20 +18,53 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
   mit Gemini, englische Sätze, Instagram-Privatchat (sonst Screenshot Diagnose → „Letztes Feld“),
   Tempo (Diagnose → „App und Telefon“: „Debugfähige App: nein“).
 - Runde 2 (Etappen 64 bis 70, `docs/ROADMAP.md` → „Runde 2 nach dem Scan“, Befunde in
-  `docs/PRUEFBERICHT-2026-11-16.md`) ist wegen des Nutzungskontingents des Owners angehalten
-  (2026-11-17). Auf dem Arbeitsbranch liegen, in keinem geprüften Build: 70 (mit Korrekturrunde,
-  darin eine Änderung an `PointerTracker.cancelKeyTracking`: Prüfer fehlt noch), 64a und 64b
-  (Diagnose-Karte „Tippen“, gemeinsamer Sperrzustand; sieben Zählzeilen in `RichInputConnection`
-  und `LatinIME`: Prüfer fehlt), 69 (ein Test nach der letzten Korrektur nicht neu gelaufen, kein
-  Lint), 65 mit Korrekturrunde (Zwischenablage-Regel, sichere Wiederherstellung; Nachprüfung fehlt).
-  Nächste Schritte: GitHub-Lauf des Branches ansehen und Rotes beheben, Lint, Prüfer für 64 und 69
-  und Nachprüfungen für 65 und 70, dann 64c/64d, 66, 67, 68 (die Aufträge standen nur im Arbeitsordner
-  der Sitzung; neu aus ROADMAP und Prüfbericht ableiten).
+  `docs/PRUEFBERICHT-2026-11-16.md`) ist auf Wunsch des Owners angehalten (2026-11-17: „alles, was
+  nicht zwangsläufig gefixt werden muss, erstmal außen vor lassen“). Auf dem Arbeitsbranch liegen,
+  in keinem Build: 64a, 64b, 65, 69, 70, jeweils mit Tests; GitHub-Lauf 93 (Agent, Upstream, Build)
+  grün, Lint danach behoben. Nicht gebaut: 64c, 64d, 66, 67, 68.
+- Vor einem Build aus dem Arbeitsbranch zuerst die zwei mittleren Prüferbefunde beheben (Offene
+  Punkte → „Runde 2“): Zwischenablage-Text bleibt in `ClipVault`-Zwischenspeichern, und
+  `PointerTracker.cancelKeyTracking` löscht `sInKeySwipe` für alle Finger.
 - Owner-Fragen offen: Code-Verkleinerung R8 als eigener Test-Build; Satz in `CLAUDE.md` zur
   Update-Prüfung; Logo-Alternative. Der Lead hat in `CLAUDE.md` die Definition „Build“ an den neuen
   Dateinamen und die Bauart angepasst (2026-11-17).
 
 ## Offene Punkte
+
+### Runde 2 (angehalten am 2026-11-17)
+
+- Prüfer zu 64a, 64b und der Korrekturrunde 70 (nur gelesen, nichts Schweres):
+  - mittel: `ClipVault` hält seit 64b den Text des aktuellen Clips (`live`) und des zuletzt
+    eingeordneten (`classified`) in statischen Feldern, `SmartPasteChips.Recognised` abgeleitete
+    Werte; sie verfallen nicht mit dem Tresor. Ein eingefügtes Passwort bleibt so im Arbeitsspeicher,
+    bis etwas anderes kopiert wird. Beheben: für Geheimnisse nur Zeit, Länge und Hash merken; alle
+    drei leeren, wenn der Tresor den Clip verwirft, nach `LIVE_MILLIS`, beim Sperren und beim Ende
+    des Dienstes.
+  - mittel: `PointerTracker.cancelKeyTracking` (Etappe 70) löscht das statische `sInKeySwipe`
+    immer; die anderen Stellen nur, wenn `mKeySwipeAllowed` dieses Fingers gesetzt ist. Zwei Finger:
+    einer wischt auf der Leertaste, der andere hält eine Buchstabentaste lange. Beheben mit der
+    Bedingung, Mehrfinger-Test dazu, Engine-Datei mit Prüfer.
+  - niedrig: `TypingPerf` rechnet Feldstart-Arbeit dem letzten Tastendruck zu und zählt nicht alle
+    Anfragen an die App (`getExtractedText`, `getCursorCapsMode`, `requestCursorUpdates`): die Karte
+    „Tippen“ bis dahin nicht als Messung lesen. `LockState`: theoretisches Rennen nach `drop()` auf
+    einem zweiten Thread (Generationszähler). `UpdateOnOpen`: Sperre vor dem Senden auf dem Worker
+    nicht noch einmal geprüft. `CharArtView.startLive`: `liveRunning` ohne Fangnetz.
+- Prüfer zur Korrekturrunde 65 und zu 69: lief beim Anhalten noch; sein Bericht steht, falls er
+  eingetroffen ist, unten in `docs/VALIDATION.md`, sonst fehlt diese Nachprüfung.
+- Engine-Zeilen ohne abschließenden Prüfer: die Zählzeilen von 64a (gelesen, in Ordnung), die zwei
+  `LatinIME`-Zeilen von 65, die `LatinIME`-Bedingung von 70 (gelesen), `PointerTracker` (siehe oben).
+- Angefangene, nicht zusammengeführte Arbeit liegt nur als lokale Commits in den Arbeitskopien
+  dieser Sitzung (`.claude/worktrees/agent-…`, Commit „WIP (stopped by the lead …)“): 64c
+  (`a2a77041…`), 66 (`a0ca7bbb…`), 67 (`a7569c81…`), 68 (`a50d6dc5…`), Korrekturen zu den Befunden
+  oben (`a94b3c46…`). Ungetestet und unvollständig; ist der Container neu, sind sie weg, dann die
+  Etappen aus `docs/ROADMAP.md` und dem Prüfbericht neu beauftragen. Die Aufträge standen im
+  Arbeitsordner der Sitzung, nicht im Repository.
+- Für Etappe 67 beschlossen und in der ROADMAP notiert: Ausgabegrenze je Modell merken, wenn ein
+  Anbieter die Anfrage wegen zu vieler Ausgabe-Token ablehnt (kein automatisches zweites Senden).
+- Aus der Abschlussprüfung von Runde 1 offen (niedrig): Enter in einer `@ki`-Frage setzt im Zustand
+  PHANTOM ein Leerzeichen vor den Umbruch; ein Editor, der Composing-Text gar nicht annimmt,
+  verliert in einem erzwungenen Feld Zeichen (Idee: Erzwingen je Feld aufgeben, wenn die App den
+  Text mehrfach nicht annimmt).
 
 0. **Nächste Runde.** Zuerst Rückmeldung zu Build 22/23. Fallstricke belegt bis P239, frei ab
    P240. Offen niedrig: 40 Telefonnummern in ES/US nur mit +/00, PrivateRanges höchstens 3 Werte,

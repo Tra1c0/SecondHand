@@ -493,6 +493,9 @@ Reihenfolge von oben nach unten.
   Schwere in `docs/PRUEFBERICHT-2026-11-16.md`; jede Etappe behebt die dort genannten Nummern und
   bekommt einen Prüfer. Nichts davon ist auf einem Gerät gemessen. Reihenfolge: erst 64, 65, 69,
   70 (unabhängig voneinander), danach 66, 67, 68.
+  Stand 2026-11-17: 64a, 64b, 65, 69 und 70 sind gebaut und liegen auf dem Arbeitsbranch (eigene
+  Einträge „… ist gebaut“ in dieser Liste, Prüferbefunde in `docs/HANDOFF.md` → Offene Punkte), in
+  keinem Build. Offen: 64c, 64d, 66, 67, 68. Angehalten auf Wunsch des Owners.
   - **64 Tipp-Leistung** (P1 bis P11, P13, S9, K4, Z9): 64a messen (Zähler ohne Inhalt für die Zeit
     der eigenen Hooks und für Anfragen an die App und an Android je Tastendruck; Diagnose-Karte
     „Tippen“ mit Median, 95 %, Maximum und den zehn langsamsten Stellen); 64b weniger
