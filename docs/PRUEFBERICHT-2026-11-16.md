@@ -17,7 +17,9 @@ Die Spalte „Plan“ nennt die Etappe, in der der Befund behoben wird (Nachweis
 1. **Die ausgelieferte APK ist eine Debug-Variante** (`debugNoMinify`, `isDebuggable = true`, kein
    R8). Damit ist der Debug-Modus standardmäßig an: Jedes abgeschickte Wort steht im
    Systemprotokoll, die Tastatur stürzt bei vier Ausnahmefällen absichtlich ab, und Android führt
-   die App ohne volle Optimierung aus. Etappe 62.
+   die App ohne volle Optimierung aus. Nachtrag des Leads: Auch der native Teil der Vorschlags-Engine
+   (Wörterbuchsuche, Wischtippen) war dadurch ohne Optimierung übersetzt (`NDK_DEBUG=1`), wahrscheinlich
+   der größte Einzelgrund für träge Vorschläge. Etappe 62.
 2. **Bei jeder Aktualisierung der Vorschlagsleiste laufen Anfragen an Android und an die App**:
    Sperrzustand, Zwischenablage, Text hinter der Schreibmarke, in langen Texten nach dem Löschen
    auch der Text davor. Betroffen sind vor allem E-Mail-, Telefon- und Code-Felder. Etappe 64.
@@ -61,7 +63,7 @@ Arbeit im Vorschlags-Thread. Zur Messung am Telefon bekommt die Diagnose eine Ka
 
 | Nr. | Befund | Schwere | Stelle | Geprüft | Plan |
 | --- | --- | --- | --- | --- | --- |
-| B1 | Die ausgelieferte Variante ist debuggable und nicht verkleinert; Debug-Modus standardmäßig an (Wörter im Protokoll, absichtliche Abstürze). | hoch | `app/build.gradle.kts:64–71`, `Defaults.kt:194`, `InputLogic.java:2733` | L | 62 |
+| B1 | Die ausgelieferte Variante ist debuggable und nicht verkleinert; Debug-Modus standardmäßig an (Wörter im Protokoll, absichtliche Abstürze); die native Vorschlags-Engine ohne Optimierung übersetzt. | hoch | `app/build.gradle.kts:64–71`, `Defaults.kt:194`, `InputLogic.java:2733` | L | erledigt (Etappe 62), nicht auf einem Gerät gemessen |
 | B2 | Fehlt das Token für das öffentliche Repository, gibt der Workflow nur eine Warnung aus und endet grün. | hoch | `agent-apk.yml:76–82` | L | 63 |
 | B3 | Signatur, Zertifikat und Versionsnummer der fertigen APK werden nicht geprüft (`|| true`); ohne gültige Nummer fällt der Build still auf 1. | hoch | `agent-apk.yml:67`, `app/build.gradle.kts:31` | L | 63 |
 | B4 | Ein fehlgeschlagener Lauf lässt sich nicht wiederholen, weil das Release schon existiert. | mittel | `agent-apk.yml:63–88` | – | 63 |

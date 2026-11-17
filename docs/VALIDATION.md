@@ -5598,6 +5598,19 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Nicht geprüft: Geschwindigkeit auf einem Gerät, die Diagnose-Zeilen auf dem Gerät, ein echtes Update
   mit gespeichertem Debug-Modus.
 
+### Kontrolle des Leads 62 (2026-11-16)
+
+- Fund beim Vergleich der APKs: Die native Bibliothek `libjni_latinime.so` (arm64) ist in Build 27
+  2.025.400 Bytes groß, im lokalen Build dieser Etappe 1.347.040; der Codeabschnitt `.text` 962.692
+  gegen 647.508 Bytes (`llvm-readelf -S`). Ursache: AGP übersetzt den nativen Teil einer debuggable
+  Variante mit `NDK_DEBUG=1` (ohne Optimierung). Nachgewiesen mit
+  `:app:configureNdkBuildDebug[arm64-v8a]` (Variante `debug`, debuggable: `NDK_DEBUG=1`) und
+  `:app:configureNdkBuildRelease[arm64-v8a]` (jetzt `debugNoMinify`: `NDK_DEBUG=0`), jeweils aus
+  `android_gradle_build.json`. Bis Build 27 lief die Wörterbuchsuche also unoptimiert.
+- Die lokale APK (`tools/dev.py build`) trägt die native Bibliothek nur für arm64 (so gewollt,
+  `--abi`); der Workflow baut alle vier ABIs wie bisher.
+- Nicht geprüft: wie viel schneller die Vorschläge auf dem Telefon dadurch werden.
+
 ## Etappe 63 (Release scheitert laut)
 
 - Auftrag: Prüfung des Leads vom 2026-11-16.

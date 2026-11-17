@@ -91,7 +91,9 @@ nutzen einen Debug-Schlüssel, der in jeder neuen Umgebung anders ist; sie sind 
   einmal zurückgesetzt, danach lässt es sich wieder einschalten), die Debug-Einstellungen erscheinen
   erst nach fünf Tipps auf die Versionszeile unter Über, Vorschlags-Zeitlimit 200 statt 500 ms, die
   Symbolleisten-Tasten werden nur noch beim Update neu eingelesen, die vier Ausnahmen bei
-  Auffälligkeiten sind aus. Die Diagnose zeigt „Debugfähige App“ und „Debug-Modus“. Wer die Debug-Bauart
+  Auffälligkeiten sind aus. Dazu wird die native Bibliothek `libjni_latinime.so` (Wörterbuchsuche,
+  Wischtippen) jetzt optimiert übersetzt (`NDK_DEBUG=0` statt `1`, das richtet sich nach `isDebuggable`,
+  nicht nach `isJniDebuggable`; P259). Die Diagnose zeigt „Debugfähige App“ und „Debug-Modus“. Wer die Debug-Bauart
   braucht, nimmt die Variante `debug` (`assembleDebug`). Weil die Variante nicht mehr debuggable ist,
   hätte `assemble` zusätzlich `lintVital` ausgeführt; `lint { checkReleaseBuilds = false }` schaltet das
   ab (das volle Lint ist `python3 tools/dev.py lint`).

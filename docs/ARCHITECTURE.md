@@ -5177,7 +5177,14 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Dialog (`SettingsActivity.findCrashReports`) liest bei ausgeschaltetem Debug-Modus nur den
   ungeschützten Ordner; die App schreibt selbst keine Berichte (`DebugFlags`). Unverändert:
   `BuildConfig.BUILD_TYPE` ist weiter `debugNoMinify`, die Unit-Tests laufen auf der Variante `debug`
-  (dort ist `DEBUG` true), `debugNoMinifyImplementation("…ui-tooling")` bleibt (nur Größe). Beim
+  (dort ist `DEBUG` true), `debugNoMinifyImplementation("…ui-tooling")` bleibt (nur Größe). (5) Der
+  native Teil der Vorschlags-Engine (`libjni_latinime.so`: Wörterbuchsuche, Wischtippen) wird jetzt
+  optimiert übersetzt: AGP ruft `ndk-build` für eine debuggable Variante mit `NDK_DEBUG=1` auf (ohne
+  Optimierung) und für eine nicht debuggable mit `NDK_DEBUG=0`; `isJniDebuggable = false` ändert daran
+  nichts. Bis Build 27 lief dieser Code also unoptimiert (Codeabschnitt `.text` für arm64 in Build 27
+  962.692 Bytes, im Stand von Etappe 62 647.508; die Aufgaben heißen deshalb
+  `configureNdkBuildRelease[…]` statt `…Debug[…]`, Ordner `app/build/.cxx/Release`). Das ist
+  wahrscheinlich der größte Einzelgrund für träge Vorschläge; gemessen ist es auf keinem Gerät. Beim
   Zurückstellen von `isDebuggable` Name der Variante, `.debug`, Signatur und Quellordner nie
   anfassen; die Diagnose zeigt, ob die installierte App debuggable ist (P261).
 - **P260** Einmaliger Rückschritt des Debug-Modus (62): `A/DebugModeReset.kt` setzt einen
