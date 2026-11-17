@@ -5185,11 +5185,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Kleinschreibung unterscheidet („fur“ → „für“), in `InputLogicTest` unberührt (die Wortlisten werten das
   genaue Wort höher); dieser Fall ist nur in `SuggestTest` mit festen Punkten geprüft.
 - **P259** Die ausgelieferte Variante ist nicht debuggable (62): `BuildConfig.DEBUG` ist dort false,
-  das hat vier Folgen. (1) `Defaults.PREF_DEBUG_MODE` ist false, also ist `DebugFlags.DEBUG_ENABLED`
+  das hat mehrere Folgen. (1) `Defaults.PREF_DEBUG_MODE` ist false, also ist `DebugFlags.DEBUG_ENABLED`
   aus: `InputLogic.commitChosenWord` schreibt keine Wörter mehr ins Logcat, `LatinIME` loggt keine
-  `EditorInfo`, und die vier `RuntimeException` bei Auffälligkeiten (`InputLogic` „Unknown event“ und
-  „revertCommit, but we are composing a word“, `WordComposer` „Wrong cursor position“, `LatinIME`
-  `EditorInfo` null) werden toleriert statt zu werfen. (2) `Constants.GET_SUGGESTED_WORDS_TIMEOUT` ist
+  `EditorInfo`, und die fünf Ausnahmen, die der Debug-Modus bei Auffälligkeiten warf, werden toleriert
+  statt zu werfen: `InputLogic.java:1149` „Unknown event“, `InputLogic.java:2220` „revertCommit, but we
+  are composing a word“, `InputLogic.java:2225` „revertCommit check failed“, `WordComposer.java:233`
+  „Wrong cursor position“ (je `RuntimeException`) und `LatinIME.java:1044` Null-`EditorInfo` in
+  `onStartInputView` (`NullPointerException`; ohne Debug-Modus kehrt die Methode still zurück). (2) `Constants.GET_SUGGESTED_WORDS_TIMEOUT` ist
   200 statt 500 ms (der Upstream-Wert eines normalen Builds; ein langsames Telefon kann dadurch
   Vorschläge verpassen, gemessen ist nichts). (3) Die Debug-Einstellungen (`AgentAreaSystemScreen`,
   `AboutScreen`, `AdvancedScreen`, `DebugScreen`) erscheinen nur, wenn „Debug-Einstellungen zeigen“
@@ -5209,7 +5211,38 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `configureNdkBuildRelease[…]` statt `…Debug[…]`, Ordner `app/build/.cxx/Release`). Das ist
   wahrscheinlich der größte Einzelgrund für träge Vorschläge; gemessen ist es auf keinem Gerät. Beim
   Zurückstellen von `isDebuggable` Name der Variante, `.debug`, Signatur und Quellordner nie
-  anfassen; die Diagnose zeigt, ob die installierte App debuggable ist (P261).
+  anfassen; die Diagnose zeigt, ob die installierte App debuggable ist (P261). (6) Weitere Stellen
+  hängen an `DebugFlags.DEBUG_ENABLED` (geprüft im Code, im Stand von Build 27 war der Schalter an):
+  - `utils/SubtypeSettings.kt:262` und `:273` (Laden der aktivierten Sprachen): Eine aktivierte Sprache
+    ohne Ressourcen-Untertyp oder eine, die sich nicht laden lässt, zeigte im Debug-Modus nur einen
+    Toast und blieb in der Liste; ohne Debug-Modus wird der Eintrag aus der Liste der aktivierten
+    Sprachen entfernt. Wer nie einen solchen Toast gesehen hat, merkt nichts (es gab keinen defekten
+    Eintrag). Wer ihn sah, verliert diese Sprache beim ersten Laden still und muss sie bei Bedarf unter
+    Sprachen neu aktivieren.
+  - `suggestions/SuggestionStripView.kt:475` (langes Drücken auf einen Vorschlag): zeigte im Debug-Modus
+    in einigen Fällen die Quell-Wörterbuchliste (`showSourceDict`); jetzt immer nur „mehr Vorschläge“.
+    `SuggestedWords.java:156`: die Debug-Texte der Vorschläge (`getDebugString`) sind aus.
+  - `InputLogic.java:2010`/`:2062` (Zeitmessung um `performUpdateSuggestionStripSync`) und
+    `:2731`–`:2798` (sechs Messungen in `commitChosenWord`): im Debug-Modus bei jeder Wortübernahme
+    `SystemClock`-Aufrufe und Logeinträge; jetzt entfallen sie. `InputLogic.java:2218`–`:2230`
+    (`revertCommit`): im Debug-Modus fragte die Prüfung bei jedem Zurücknehmen die App über
+    `getTextBeforeCursor` nach dem Text vor dem Cursor, ein zusätzlicher Aufruf an die Texteingabe der
+    fremden App; jetzt entfällt er.
+  - `utils/FoldableUtils.kt:142`: ein zusätzlicher Hinge-Sensor-Listener (`featureString == null ||
+    DEBUG_ENABLED`) wurde im Debug-Modus auch dort registriert, wo die Display-Features den
+    Faltzustand schon liefern; jetzt nicht mehr. Weitere Logs dort (`:48`, `:89`, `:113`, `:129`).
+  - `keyboard/PointerTracker.java:55` (`DEBUG_MODE = DEBUG_ENABLED || DEBUG_EVENT`, beim Laden der
+    Klasse gelesen; Zeilen `:675`, `:990`, `:1037`, `:1414`, `:1423`): Touch-Protokolle, jetzt aus.
+  - `MainKeyboardView.java:852`: im Debug-Modus zeigte die Leertaste Sprache und Konfidenz
+    (`getLocaleAndConfidenceInfo`), jetzt wieder die Sprachbeschriftung.
+  - Reine Logs, im Debug-Modus an und jetzt aus: `RichInputConnection.java` (`:511`, `:755`, `:791`,
+    `:884`, `:919`, `:997`), `Suggest.kt` (`:728`, `:754`), `AndroidWordLevelSpellCheckerSession.kt`,
+    `ContactsContentObserver.java`, `FloatingKeyboardUtils.kt`, `SettingsSubtype.kt:100`, `LatinIME.java`
+    (`:949`, `:996`, `:1049`, `:1226`, `:1314`), `KeyboardState.kt`, `KeyboardBuilder.kt`,
+    `KeyboardParser.kt`, `KeySpecParser.java`, `TouchPositionCorrection.java`,
+    `BogusMoveEventDetector.java`, `AutoCorrectionUtils.java` und die Prüfungen beim Schreiben von
+    Wörterbüchern (`makedict/*`). Hinweis: Weil `PointerTracker.DEBUG_MODE` statisch ist, gilt ein
+    später eingeschalteter Debug-Modus für die Touch-Protokolle erst nach einem Neustart.
 - **P260** Einmaliger Rückschritt des Debug-Modus (62): `A/DebugModeReset.kt` setzt einen
   gespeicherten `DebugSettings.PREF_DEBUG_MODE = true` genau einmal auf false (Schlüssel
   `agent_debug_mode_reset_done`). Aufruf in `AppUpgrade.onUpgrade`, in beiden Zweigen: beim
@@ -5256,8 +5289,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `.github/workflows/agent-apk.yml` selbst enthalten, dazu `docs/BUILD.md` (der Vertragstest liest
   dort das Zertifikat) und `gradlew*`. Das Tor scheitert laut, statt weniger zu prüfen: eine Pfadzeile
   mit Kommentar dahinter oder mit `!` und ein Pfad, der auf keine Datei passt, brechen ab. Die Mindestzahlen je Job (`minimum` im
-  Zusammenfassungsschritt, zuerst aus gezählten `@Test` geschätzt) beim Hinzufügen von Tests auf etwa
-  90 % des Wertes eines grünen Laufs anheben; die fünf bekannten Fehler stehen mit exakten Namen in
+  Zusammenfassungsschritt; seit dem grünen Lauf 82 agent 1600 von 1788 und upstream 1330 von 1477)
+  beim Hinzufügen von Tests auf etwa 90 % des Wertes eines grünen Laufs anheben; die fünf bekannten Fehler stehen mit exakten Namen in
   `known` (die zwei Cloud-Umgebungs-Fehler `layoutsLinksInternal`, `otherLinks` nicht: auf GitHub
   müssen sie bestehen).
 

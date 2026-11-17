@@ -16,7 +16,7 @@ Die Spalte „Plan“ nennt die Etappe, in der der Befund behoben wird (Nachweis
 
 1. **Die ausgelieferte APK ist eine Debug-Variante** (`debugNoMinify`, `isDebuggable = true`, kein
    R8). Damit ist der Debug-Modus standardmäßig an: Jedes abgeschickte Wort steht im
-   Systemprotokoll, die Tastatur stürzt bei vier Ausnahmefällen absichtlich ab, und Android führt
+   Systemprotokoll, die Tastatur stürzt bei fünf Ausnahmefällen absichtlich ab, und Android führt
    die App ohne volle Optimierung aus. Nachtrag des Leads: Auch der native Teil der Vorschlags-Engine
    (Wörterbuchsuche, Wischtippen) war dadurch ohne Optimierung übersetzt (`NDK_DEBUG=1`), wahrscheinlich
    der größte Einzelgrund für träge Vorschläge. Etappe 62.

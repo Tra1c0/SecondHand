@@ -95,8 +95,10 @@ class ForkUpgradeTest {
             putInt(Settings.PREF_VERSION_CODE, 13)
             putBoolean(debugKey, true)
         }
+        helium314.keyboard.latin.define.DebugFlags.DEBUG_ENABLED = true // as App.onCreate read it before the upgrade
         checkVersionUpgrade(context)
         assertFalse(prefs.getBoolean(debugKey, true))
+        assertFalse(helium314.keyboard.latin.define.DebugFlags.DEBUG_ENABLED, "the running flag follows the reset")
         // the owner switches it on again later; the next update leaves it alone
         prefs.edit(commit = true) { putBoolean(debugKey, true); putInt(Settings.PREF_VERSION_CODE, 14) }
         checkVersionUpgrade(context)

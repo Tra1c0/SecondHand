@@ -38,17 +38,38 @@ class WorkflowContractTest {
             assertEquals(UpdateReleases.checksumName(n), "$apk.sha256")
             assertEquals(UpdateReleases.legacyChecksumName(n), "$legacy.sha256")
         }
-        for (name in listOf("\"\$APK_NAME.sha256\"", "\"\$LEGACY_APK_NAME.sha256\"", "\"\$APK_NAME\"", "\"\$LEGACY_APK_NAME\""))
-            assertTrue(name in workflow, "the publish step lists $name")
+        // both publish steps (private pre-release, public repository) upload all four files, nothing less
+        val filesLine = "FILES=(\"\$APK_NAME\" \"\$APK_NAME.sha256\" \"\$LEGACY_APK_NAME\" \"\$LEGACY_APK_NAME.sha256\")"
+        assertEquals(2, workflow.lines().count { it.trim() == filesLine }, "the FILES line of both publish steps")
+        for (call in listOf("gh release create", "gh release upload")) {
+            val lines = workflow.lines().filter { call in it && "\"\$RELEASE_TAG\"" in it }
+            assertEquals(2, lines.size, "$call in both publish steps")
+            for (line in lines) assertTrue("\"\${FILES[@]}\"" in line, "$call uses all four files: $line")
+        }
     }
 
     @Test fun theWorkflowPublishesInTheRepositoryTheAppAsks() {
         assertEquals(UpdateReleases.REPOSITORY, env("RELEASE_REPOSITORY"))
-        // the read-back checks the download URLs the app accepts
-        assertEquals(
-            "https://github.com/${UpdateReleases.REPOSITORY}/releases/download/build-42/${UpdateReleases.apkName(42)}",
-            "https://github.com/${env("RELEASE_REPOSITORY")}/releases/download/${env("RELEASE_TAG")}/${env("APK_NAME")}",
-        )
+        // the read-back (list check in Python, file download in shell) must build the URL the app accepts
+        val inPython = UpdateReleases.downloadUrl("{tag}", "{n}").replace(UpdateReleases.REPOSITORY, "{repo}")
+        assertTrue("want = f\"$inPython\"" in workflow, "read-back URL pattern $inPython")
+        val inShell = UpdateReleases.downloadUrl("\$RELEASE_TAG", "\$FILE").replace(UpdateReleases.REPOSITORY, "\$RELEASE_REPOSITORY")
+        assertTrue("\"$inShell\"" in workflow, "read-back download URL $inShell")
+        // the limits it applies are the app's
+        assertEquals(4096L, UpdateReleases.MAX_CHECKSUM_BYTES)
+        assertEquals(120L * 1024 * 1024, UpdateReleases.MAX_APK_BYTES)
+        val limit = "limit = ${UpdateReleases.MAX_CHECKSUM_BYTES} if n.endswith(\".sha256\") else ${UpdateReleases.MAX_APK_BYTES / 1024 / 1024} * 1024 * 1024"
+        assertTrue(limit in workflow, "read-back limits: $limit")
+    }
+
+    @Test fun theGatesSafetyNetsAreStillThere() {
+        // the tag lookup that works for a missing tag (gh api printed the error body and stopped every new build)
+        assertTrue("git ls-remote --tags origin" in workflow)
+        assertFalse("git/ref/tags" in workflow, "no gh api tag lookup")
+        // the test gate follows the paths of agent-tests.yml; these two must be among them
+        val paths = repoFile(".github/workflows/agent-tests.yml").readLines().map { it.trim() }
+        for (path in listOf(".github/workflows/agent-apk.yml", "docs/BUILD.md"))
+            assertTrue("- '$path'" in paths, "agent-tests.yml lists $path")
     }
 
     @Test fun theOwnersCertificateInTheWorkflowIsTheOneInBuildMd() {
