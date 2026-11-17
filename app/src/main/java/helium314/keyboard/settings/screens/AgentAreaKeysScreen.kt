@@ -155,13 +155,14 @@ fun AgentAreaKeysScreen(onNavigate: (String) -> Unit, onClickBack: () -> Unit) {
     val themeReload = { KeyboardSwitcher.getInstance().setThemeNeedsReload() }
 
     @Composable
-    fun SwitchRow(key: String, default: Boolean, title: String, summary: String?, after: () -> Unit = {}) {
+    fun SwitchRow(key: String, default: Boolean, title: String, summary: String?, after: () -> Unit = {},
+                  enabled: Boolean = true, reason: String? = null) {
         SettingSwitchRow(title, summary, area.dot, bool(key, default), { v -> write({ putBoolean(key, v) }, after) },
-            area.from, area.to, Modifier.testTag(KEYS_ROW_TAG + key))
+            area.from, area.to, Modifier.testTag(KEYS_ROW_TAG + key), enabled, reason)
     }
     @Composable
-    fun Nav(tag: String, title: String, summary: String?, value: String?, onClick: () -> Unit) {
-        SettingRow(title, summary, area.dot, onClick, Modifier.testTag(tag), value)
+    fun Nav(tag: String, title: String, summary: String?, value: String?, enabled: Boolean = true, onClick: () -> Unit) {
+        SettingRow(title, summary, area.dot, onClick, Modifier.testTag(tag), value, enabled)
     }
 
     AgentSettingsTheme {
@@ -202,15 +203,20 @@ fun AgentAreaKeysScreen(onNavigate: (String) -> Unit, onClickBack: () -> Unit) {
                 // the conditional rows of the old options page, under the same conditions
                 if (SubtypeSettings.getEnabledSubtypes(true).any { it.locale().language in localesWithLocalizedNumberRow })
                     SwitchRow(Settings.PREF_LOCALIZED_NUMBER_ROW, Defaults.PREF_LOCALIZED_NUMBER_ROW,
-                        stringResource(R.string.localized_number_row), stringResource(R.string.localized_number_row_summary)) {
-                        KeyboardLayoutSet.onSystemLocaleChanged(); reload()
-                    }
-                if (bool(Settings.PREF_SHOW_HINTS, Defaults.PREF_SHOW_HINTS) && numberRow)
-                    SwitchRow(Settings.PREF_SHOW_NUMBER_ROW_HINTS, Defaults.PREF_SHOW_NUMBER_ROW_HINTS,
-                        stringResource(R.string.number_row_hints), null, themeReload)
-                if (!numberRow)
-                    SwitchRow(Settings.PREF_SHOW_NUMBER_ROW_IN_SYMBOLS, Defaults.PREF_SHOW_NUMBER_ROW_IN_SYMBOLS,
-                        stringResource(R.string.number_row_in_symbols), null, themeReload)
+                        stringResource(R.string.localized_number_row), stringResource(R.string.localized_number_row_summary),
+                        after = { KeyboardLayoutSet.onSystemLocaleChanged(); reload() })
+                // stage 69: dependent rows stay in place, greyed out with the reason (they used to disappear)
+                val hintsOn = bool(Settings.PREF_SHOW_HINTS, Defaults.PREF_SHOW_HINTS)
+                SwitchRow(Settings.PREF_SHOW_NUMBER_ROW_HINTS, Defaults.PREF_SHOW_NUMBER_ROW_HINTS,
+                    stringResource(R.string.number_row_hints), null, themeReload, hintsOn && numberRow,
+                    stringResource(when {
+                        !hintsOn && !numberRow -> R.string.agent_keys_needs_hints_and_number_row
+                        !hintsOn -> R.string.agent_keys_needs_hints
+                        else -> R.string.agent_keys_needs_number_row
+                    }))
+                SwitchRow(Settings.PREF_SHOW_NUMBER_ROW_IN_SYMBOLS, Defaults.PREF_SHOW_NUMBER_ROW_IN_SYMBOLS,
+                    stringResource(R.string.number_row_in_symbols), null, themeReload, !numberRow,
+                    stringResource(R.string.agent_keys_number_row_already_on))
                 SwitchRow(Settings.PREF_SHOW_EMOJI_KEY, Defaults.PREF_SHOW_EMOJI_KEY,
                     stringResource(R.string.show_emoji_key), stringResource(R.string.agent_keys_emoji_key_sub), reload)
                 // emoji descriptions need an emoji dictionary, as on the old page (SwitchPreferenceWithEmojiDictWarning)
@@ -231,10 +237,10 @@ fun AgentAreaKeysScreen(onNavigate: (String) -> Unit, onClickBack: () -> Unit) {
                 val hints = bool(Settings.PREF_SHOW_HINTS, Defaults.PREF_SHOW_HINTS)
                 SwitchRow(Settings.PREF_SHOW_HINTS, Defaults.PREF_SHOW_HINTS,
                     stringResource(R.string.agent_keys_hints), stringResource(R.string.agent_keys_hints_sub), reload)
-                if (hints)
-                    Nav(KEYS_ROW_TAG + Settings.PREF_POPUP_KEYS_HINT_ORDER, stringResource(R.string.hint_source),
-                        orderSummary(context, prefs.getString(Settings.PREF_POPUP_KEYS_HINT_ORDER, Defaults.PREF_POPUP_KEYS_HINT_ORDER)!!), null
-                    ) { dialog = KeysDialog.HINT_SOURCE }
+                Nav(KEYS_ROW_TAG + Settings.PREF_POPUP_KEYS_HINT_ORDER, stringResource(R.string.hint_source),
+                    if (hints) orderSummary(context, prefs.getString(Settings.PREF_POPUP_KEYS_HINT_ORDER, Defaults.PREF_POPUP_KEYS_HINT_ORDER)!!)
+                    else stringResource(R.string.agent_keys_needs_hints), null, hints
+                ) { dialog = KeysDialog.HINT_SOURCE }
                 SwitchRow(Settings.PREF_SHOW_POPUP_HINTS, Defaults.PREF_SHOW_POPUP_HINTS,
                     stringResource(R.string.show_popup_hints), stringResource(R.string.show_popup_hints_summary), themeReload)
                 SwitchRow(Settings.PREF_POPUP_ON, Defaults.PREF_POPUP_ON,

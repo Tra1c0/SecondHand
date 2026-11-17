@@ -321,9 +321,9 @@ class SettingsTypingAreaTest {
             .forEach { assertTrue(compose.onAllNodesWithText(it, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty(), "missing text: $it") }
     }
 
-    @Test fun everyClickableIsAtLeast44dp() {
+    @Test fun everyClickableIsAtLeast48dp() {
         show()
-        val min = 44 * app.resources.displayMetrics.density - 1
+        val min = 48 * app.resources.displayMetrics.density - 1
         val clickables = compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.OnClick), useUnmergedTree = true).fetchSemanticsNodes()
         assertTrue(clickables.size >= 1 + 3 + 5 + 5 + 3 + 5 + 1, "clickables: ${clickables.size}")
         clickables.forEach { assertTrue(it.size.height >= min && it.size.width >= min, "too small: ${it.size} ${it.config}") }

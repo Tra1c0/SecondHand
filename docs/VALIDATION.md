@@ -5919,6 +5919,20 @@ Build nichts zwingend zu beheben.
 - Nicht geprüft: auf einem Gerät (kein Messwert vorher und nachher; die Zahlen der Karte „Tippen“ fehlen noch); die Pille der
   Zwischenablage liest ihren Clip in `ClipboardHistoryManager` weiter selbst; der Empfänger der Bildschirmereignisse
   nur mit Robolektrics Sendung.
+## Etappe 69 (Einstellungen und Texte)
+
+- Auftrag: Abschnitt 6 und S5 der Prüfung vom 2026-11-16 (E1 nur Text, E2, E3, E5, E6, E7, E9, E10, S5).
+- Geändert: Suche (`AgentSearchEntries.kt`, `SettingsContainer.kt`), Dialogtext der Sicherung, `ANLEITUNG.md`
+  (Pfade, doppelter Absatz), `MinTouch` 48 dp, abhängige Schalter auf „Tasten & Sprachen“, `FlowRow` in der
+  Fußzeile, deutsche Texte, „Über“, Übergangsseite entfernt (`grep` nach `agent_area_pages` findet nichts mehr).
+- Tests: neu `SettingsSearchTest` (5), `footerWrapsWithALargeFont` in `SettingsStartScreenTest`;
+  geändert: die Tests „everyClickable…“ prüfen 48 statt 44 dp (strenger), `SettingsKeysScreenTest` prüft statt
+  „Zeile fehlt“ jetzt „Zeile da, ausgegraut, mit Grund“ (Verhalten geändert, E7), drei Tests prüfen den Text der
+  entfernten Übergangskarte als festen Text, `SettingsSystemAreaTest` den neuen Untertitel der Sicherung.
+- Ergebnis: gezielter Lauf (Settings*, SymbolSettingsScreenTest, MyData, Memory, Diagnose, RgbSettings,
+  SkillSettings) 165 Tests, 164 grün; ein Fehler in `SettingsSearchTest` (Stichwort „lighting“ fehlte), danach nur
+  das Stichwort ergänzt, nicht erneut gelaufen. Lint nicht gelaufen.
+- Nicht geprüft: Gerät, Lint, alle anderen Tests.
 
 ## Gerätetest vor Meilensteinfreigabe
 

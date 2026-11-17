@@ -89,7 +89,7 @@ Gerätetest einzelne Seiten zum Absturz bringen: eigener Test-Build nach Entsche
 | S2 | Der Zwischenablage-Verlauf speichert auch im Inkognito-Modus, in Feldern ohne Lernen und bei gesperrtem Gerät; nur der Tresor prüft das. | mittel | `ClipboardHistoryManager.kt:174–180` | L | 65 |
 | S3 | Schlägt „Wiederherstellen“ fehl, wird der geschützte Datenordner gelöscht, weil seine Sicherung nie angelegt wurde. | mittel | `BackupRestorePreference.kt:181, 236–237` | L | 65 |
 | S4 | Eine beschädigte Sicherung leert die Einstellungen und meldet trotzdem „wiederhergestellt“. | mittel | `BackupRestorePreference.kt:209–216` | – | 65 |
-| S5 | Die Sicherungs-ZIP enthält gelernte Wörter und den Zwischenablage-Verlauf unverschlüsselt, ohne Hinweis. | niedrig | `BackupRestorePreference.kt:343–352` | – | 69 |
+| S5 | Die Sicherungs-ZIP enthält gelernte Wörter und den Zwischenablage-Verlauf unverschlüsselt, ohne Hinweis. | niedrig | `BackupRestorePreference.kt:343–352` | – | erledigt (Etappe 69): Der Dialog sagt, dass die Datei nicht verschlüsselt ist und gelernte Wörter und Zwischenablage enthält |
 | S6 | Weitere Protokollzeilen von HeliBoard nennen im Fehlerfall gelernte Wörter. | niedrig | `ExpandableBinaryDictionary.java:283, 300, 326` | – | 65 |
 | S7 | Die Einstellungen kopieren eine von außen übergebene Datei im Hauptthread. | niedrig | `SettingsActivity.kt:165–171` | – | 65 |
 | S8 | Der Tresor und ein Verweis auf den Tastaturdienst bleiben nach dem Beenden im Speicher. | niedrig | `ClipboardHistoryManager.kt:64, 78–81` | – | 65 |
@@ -147,9 +147,16 @@ Browser nach Tipp.
 | E5 | Tippflächen der neuen Seiten sind 44 statt 48 dp groß. | niedrig | `AgentSettingsKit.kt:108` | – | 69 |
 | E6 | Englische Texte in der deutschen Oberfläche (Slogan, zehn Tastennamen); „Über“ verlinkt auf HeliBoard. | niedrig | `donottranslate.xml:75`, `Constants.kt:9–22` | – | 69 |
 | E7 | Abhängige Schalter verschwinden auf „Tasten & Sprachen“, statt ausgegraut mit Grund zu erscheinen. | niedrig | `AgentAreaKeysScreen.kt:199–212` | – | 69 |
+| E1 | „Sichern und Wiederherstellen“ sichert nur die Einstellungen von HeliBoard, nicht Profile, Gedächtnis, Bausteine, Orte, Korrekturen; der Dialog verspricht „alle“. | hoch | `BackupRestorePreference.kt:100–150, 343–352` | – | Text erledigt (Etappe 69); Inhalt der Sicherung offen, Owner entscheidet (ROADMAP.md) |
+| E2 | Die Suche findet die neuen Seiten nicht (KI, RGB, Updates, Diagnose …). | mittel | `SettingsContainer.kt:76–80` | – | erledigt (Etappe 69) |
+| E3 | Die Anleitung nennt alte Menüpfade und hat einen doppelten Absatz. | mittel | `docs/ANLEITUNG.md:92–100` u. a. | – | erledigt (Etappe 69) |
+| E4 | Auf dem Telefon hieß die App „Agent Keyboard Lab“ (Name der ausgelieferten Variante). | niedrig | `app/src/debugNoMinify/res/values/strings.xml` | L | 57 |
+| E5 | Tippflächen der neuen Seiten sind 44 statt 48 dp groß. | niedrig | `AgentSettingsKit.kt:108` | – | erledigt (Etappe 69) |
+| E6 | Englische Texte in der deutschen Oberfläche (Slogan, zehn Tastennamen); „Über“ verlinkt auf HeliBoard. | niedrig | `donottranslate.xml:75`, `Constants.kt:9–22` | – | erledigt (Etappe 69): Slogan, sechs Ansagen und zwei Einstellungstexte ergänzt; die Tastennamen (kopieren, ausschneiden, einfügen, alles auswählen, Ziffernblock, Steuerkreuz) fehlten nicht, sie kommen aus Android und aus übersetzten Layoutnamen; „Über“ verweist auf das Repository des Forks |
+| E7 | Abhängige Schalter verschwinden auf „Tasten & Sprachen“, statt ausgegraut mit Grund zu erscheinen. | niedrig | `AgentAreaKeysScreen.kt:199–212` | – | erledigt (Etappe 69) |
 | E8 | Neue Seiten sind immer dunkel, alte folgen dem System. | niedrig | `AgentSettingsKit.kt:200–212` | – | offen, Owner entscheidet |
-| E9 | Die Fußzeile der Startseite kann bei großer Schrift abgeschnitten werden. | niedrig | `AgentStartScreen.kt:154` | – | 69 |
-| E10 | Unerreichbarer Code und unbenutzte Texte der alten Übergangsseite. | niedrig | `AgentAreaScreen.kt:108–125` | – | 69 |
+| E9 | Die Fußzeile der Startseite kann bei großer Schrift abgeschnitten werden. | niedrig | `AgentStartScreen.kt:154` | – | erledigt (Etappe 69) |
+| E10 | Unerreichbarer Code und unbenutzte Texte der alten Übergangsseite. | niedrig | `AgentAreaScreen.kt:108–125` | – | erledigt (Etappe 69) |
 | E11 | Die Karte „Dein Look“ zeigt nicht die echten Farben. | niedrig | `AgentStartScreen.kt` (`LookCard`) | – | offen |
 
 ## 7. Aussehen und Gefühl

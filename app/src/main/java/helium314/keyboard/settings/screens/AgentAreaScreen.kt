@@ -2,26 +2,9 @@
 package helium314.keyboard.settings.screens
 
 import androidx.annotation.StringRes
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.utils.JniUtils
-import helium314.keyboard.latin.utils.SubtypeLocaleUtils.displayName
-import helium314.keyboard.latin.utils.SubtypeSettings
 import helium314.keyboard.settings.SettingsDestination
 import helium314.keyboard.settings.screens.gesturedata.END_DATE_EPOCH_MILLIS
 import helium314.keyboard.settings.screens.gesturedata.TWO_WEEKS_IN_MILLIS
@@ -90,39 +73,20 @@ object SettingsAreas {
 }
 
 /**
- * Page of one area: back, the gradient hero and, until the area is built from the mockup, a card
- * with rows to the existing pages ([SettingsAreas]).
+ * Page of one area. Each of the seven areas has its own screen (stages 38b to 38h); the old
+ * transition page with a card of rows for the existing pages is gone (stage 69, E10). The rows of
+ * [SettingsAreas] remain the map of which page belongs to which area (tests, settings search).
  */
 @Composable
 fun AgentAreaScreen(area: SettingsArea, onNavigate: (String) -> Unit, onClickBack: () -> Unit) {
-    if (area == SettingsArea.TYPING) return AgentAreaTypingScreen(onNavigate, onClickBack) // stage 38c
-    if (area == SettingsArea.GESTURES) return AgentAreaGesturesScreen(onNavigate, onClickBack) // 38e
-    if (area == SettingsArea.KEYS) return AgentAreaKeysScreen(onNavigate, onClickBack) // 38d, built from Tasten.dc.html
-    if (area == SettingsArea.BAR) return AgentAreaBarScreen(onNavigate, onClickBack) // stage 38f
-    if (area == SettingsArea.AI) return AgentAreaAiScreen(onNavigate, onClickBack) // 38g
-    if (area == SettingsArea.SYSTEM) return AgentAreaSystemScreen(onNavigate, onClickBack) // 38h, built from System.dc.html
-    if (area == SettingsArea.LOOK) return AgentAreaLookScreen(onNavigate, onClickBack) // 38b
-    AgentSettingsTheme {
-        Column(
-            Modifier.fillMaxSize().background(AgentSettingsTokens.Background).windowInsetsPadding(WindowInsets.safeDrawing)
-                .verticalScroll(rememberScrollState())
-                .padding(start = AgentSettingsTokens.PagePadding, end = AgentSettingsTokens.PagePadding, top = 16.dp, bottom = 32.dp)
-                .testTag(AREA_TAG + area.route),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            BackHeader(onClickBack)
-            AreaHero(area)
-            SectionCard(stringResource(R.string.agent_area_pages)) {
-                Text(stringResource(R.string.agent_area_pages_note), style = AgentSettingsType.Small, color = AgentSettingsTokens.Muted,
-                    modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 6.dp))
-                SettingsAreas.entries(area).filter { it.visible() }.forEach { entry ->
-                    val summary = if (entry.summary != 0) stringResource(entry.summary)
-                        else SubtypeSettings.getEnabledSubtypes(true).joinToString(", ") { it.displayName() }
-                    SettingRow(stringResource(entry.title), summary, area.dot, { onNavigate(entry.route) },
-                        Modifier.testTag(AREA_ROW_TAG + entry.route))
-                }
-            }
-        }
+    when (area) {
+        SettingsArea.LOOK -> AgentAreaLookScreen(onNavigate, onClickBack) // 38b
+        SettingsArea.TYPING -> AgentAreaTypingScreen(onNavigate, onClickBack) // 38c
+        SettingsArea.KEYS -> AgentAreaKeysScreen(onNavigate, onClickBack) // 38d, built from Tasten.dc.html
+        SettingsArea.GESTURES -> AgentAreaGesturesScreen(onNavigate, onClickBack) // 38e
+        SettingsArea.BAR -> AgentAreaBarScreen(onNavigate, onClickBack) // 38f
+        SettingsArea.AI -> AgentAreaAiScreen(onNavigate, onClickBack) // 38g
+        SettingsArea.SYSTEM -> AgentAreaSystemScreen(onNavigate, onClickBack) // 38h, built from System.dc.html
     }
 }
 

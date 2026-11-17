@@ -229,7 +229,7 @@
     <!-- Preferences item and dialog title for backup and restore -->
     <string name="backup_restore_title">Backup and restore</string>
     <!-- Message for backup and restore dialog -->
-    <string name="backup_restore_message">Save or load from file. Warning: restore will overwrite existing data</string>
+    <string name="backup_restore_message">Saved in the file: keyboard settings (including own designs and lighting), own layouts, dictionaries and learned words, background image, fonts and the clipboard history.\n\nNot saved: profiles, memory, snippets, places, remembered corrections, touch zones, drawn symbols, AI settings and models, access keys. These stay on this phone only.\n\nThe file is not encrypted: learned words and clipboard entries can be read in it. Keep it safe.\n\nWarning: restore will overwrite existing data</string>
     <!-- Error message for backup -->
     <string name="backup_error">Backup error: %s</string>
     <!-- Error message for restore, %s is replaced by the error message -->

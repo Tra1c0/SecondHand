@@ -97,22 +97,22 @@ in der Tastatur über den Pfeil links in der Leiste und dann das Zahnrad.
 Die Startseite der Einstellungen (dunkel, mit farbigen Kacheln) hat oben die Lupe für die Suche,
 darunter „Dein Look“ mit „Ändern“ (öffnet Aussehen), die Schnellschalter Inkognito, RGB-Licht,
 Vibration und Symbole malen (ein Tipp schaltet um) und sieben Bereiche. Ganz unten: Diagnose,
-Updates (mit deiner Build-Nummer) und Über. Jeder Bereich außer Tippen & Korrektur zeigt vorerst
-eine Karte „Seiten“, die die bisherigen Seiten öffnet. Wo diese Anleitung „Einstellungen → X“ schreibt, liegt X jetzt in
-diesem Bereich:
-Updates (mit deiner Build-Nummer) und Über. Die Bereiche ohne eigenen Aufbau zeigen vorerst eine
-Karte „Seiten“, die die bisherigen Seiten öffnet. Wo diese Anleitung „Einstellungen → X“ schreibt,
-liegt X jetzt in diesem Bereich:
+Updates (mit deiner Build-Nummer) und Über. Jeder der sieben Bereiche hat seit Etappe 38 eine eigene
+Seite (die Karte „Seiten“ der Übergangszeit gibt es nicht mehr); die bisherigen Seiten sind dort
+über Zeilen erreichbar. Die Pfade in dieser Anleitung nennen zuerst den Bereich und dann die Zeile oder
+Karte, zum Beispiel „Einstellungen → Leiste & Befehle → Alle Befehls-Einstellungen“.
+Die Suche (Lupe) findet jede Seite auch unter ihrem Titel und unter deutschen und englischen
+Stichwörtern (zum Beispiel „openai“, „Beleuchtung“, „Diagnose“, „autocorrect“).
 
 | Bereich | Seiten |
 | --- | --- |
 | 01 Aussehen | eigene Seite (siehe unten): Designs, RGB-Licht, Größe & Form, Schrift & Emoji, Hintergrund & Farben; „Alle Aussehen-Einstellungen“ = bisherige Seite Aussehen |
-| 02 Tippen & Korrektur | eigene Seite (siehe unten); Textkorrektur = „Alle Korrektur-Einstellungen“, Gelernte Wörter, Wörterbücher, Persönliches Wörterbuch |
+| 02 Tippen & Korrektur | eigene Seite (siehe unten); die bisherige Seite Textkorrektur = „Alle Korrektur-Einstellungen“; im Abschnitt „Wörter & Lernen“: Wörterbücher, Persönliches Wörterbuch, Gelernte Wörter, Was ich mir gemerkt habe |
 | 03 Tasten & Sprachen | eigene Seite (siehe unten): Sprachen & Layouts, Sekundäre Layouts, Optionen (über „Weitere Optionen“) |
-| 04 Gesten & Gefühl | eigene Seite (siehe unten): Leertaste, Wischen über die Buchstaben, Symbole malen, Vibration & Ton, Treffen & Wischen |
-| 05 Leiste & Befehle | eigene Seite (siehe unten); Leiste = „Knöpfe wählen und sortieren“, Befehle = „Alle Befehls-Einstellungen“, Screenshots |
+| 04 Gesten & Gefühl | eigene Seite (siehe unten): Leertaste, Wischen über die Buchstaben (mit Bibliothek: Zeile „Gestenschreiben“), Symbole malen, Vibration & Ton, Treffen & Wischen |
+| 05 Leiste & Befehle | eigene Seite (siehe unten); Leiste = „Knöpfe wählen und sortieren“, Befehle = „Alle Befehls-Einstellungen“, Screenshots, Meine Daten & Vorschläge |
 | 06 KI & Automationen | eigene Seite (siehe unten): Anbieter und Schlüsselstatus, Skill-Tasten, Texte, Workflows, Diktat & Verlauf |
-| 07 System & Daten | eigene Seite (siehe unten): Updates, Profile, Sichern, Für Fortgeschrittene, Über; dazu Tastaturprofile, Updates, Diagnose, Erweitert („Alle erweiterten Einstellungen“), Gestendaten-Erfassung (nur in der Sammelphase), Über („Alle Infos und Links“) |
+| 07 System & Daten | eigene Seite (siehe unten): Updates, Profile, Sichern, Für Fortgeschrittene, Über; dazu Tastaturprofile (über „+ Neues Profil“ oder „Profile exportieren“), Updates, Diagnose (Knopf auf der Karte UPDATES), Erweitert („Alle erweiterten Einstellungen“), Gestendaten-Erfassung (nur in der Sammelphase), Über („Alle Infos und Links“) |
 
 Zurück geht es mit dem runden Pfeil oben links oder der Zurück-Geste.
 
@@ -154,10 +154,10 @@ Gerät bleibt er still.
   letzten Punkt die Aktion). Darunter die sechs Gesten (← → ↑ ↓ Wischen, Halten, Doppeltipp) mit
   ihrer Aktion; ein Tipp öffnet dieselbe Liste wie die bisherige Seite „Leertaste“, „Standard“
   nimmt die eigene Wahl zurück. Doppeltipp ohne Aktion zeigt „Punkt + Leer“, wenn
-  „Punkt plus Leerzeichen“ (Textkorrektur) an ist.
+  „Doppeltipp = Punkt“ (Tippen & Korrektur → Leerzeichen & Satzzeichen) an ist.
 - „Über die Buchstaben wischen“: **Nichts** (Symbole malen und Gestenschreiben aus),
   **Symbole malen** oder **Gestenschreiben** (nur mit geladener Gesten-Bibliothek; sonst
-  ausgegraut mit Hinweis auf System & Daten → Erweitert). Mit Bibliothek führt die Zeile
+  ausgegraut mit Hinweis auf System & Daten → Für Fortgeschrittene → „Gesten-Bibliothek laden“). Mit Bibliothek führt die Zeile
   „Gestenschreiben“ darunter zu Spur, Vorschau und Tempo.
 - „Symbole malen“: Eigene Symbole (mit Anzahl) und Kalibrieren öffnen die Seite „Symbole malen“,
   „Aus Korrekturen lernen“ ist ein Schalter, „Spur anzeigen“ stellt ein, wie lange die Spur bleibt.
@@ -233,15 +233,25 @@ Wie die Seite „KI-Anbieter“ lässt sie keine Bildschirmfotos zu. Bei gesperr
   „Anwenden“ an. Hell mit weißem Rahmen ist eine Karte, solange deine Einstellungen ihr
   entsprechen. „+ Neues Profil“ öffnet Tastaturprofile (sichern, exportieren, importieren,
   zurücksetzen, Flacher Look zurücknehmen).
-- **Sichern**: „Sichern und Wiederherstellen“ (alle Einstellungen als Datei, derselbe Dialog wie
-  bisher), „Profile exportieren“ (öffnet Tastaturprofile).
+- **Sichern**: „Sichern und Wiederherstellen“ (Tastatureinstellungen und Wörter als Datei, derselbe
+  Dialog wie bisher), „Profile exportieren“ (öffnet Tastaturprofile). Der Dialog sagt genau, was die
+  ZIP-Datei enthält: Tastatureinstellungen (auch eigene Designs und RGB-Licht), eigene Layouts,
+  Wörterbücher und gelernte Wörter, Hintergrundbild, Schriften und den Zwischenablage-Verlauf. Nicht
+  enthalten sind Profile, Gedächtnis, Bausteine, Orte, gemerkte Korrekturen, Trefferzonen, gemalte
+  Symbole, KI-Einstellungen und -Modelle und Zugangsschlüssel; sie bleiben nur auf diesem Telefon (Profile
+  und Workflows lassen sich einzeln als Datei exportieren). Die Datei ist nicht verschlüsselt: Gelernte
+  Wörter und Zwischenablage-Einträge sind darin lesbar, bewahre sie sicher auf. Wiederherstellen
+  überschreibt vorhandene Daten. Ob die Sicherung später um die Daten von SecondHand erweitert wird,
+  steht in ROADMAP.md.
 - **Für Fortgeschrittene**: Emoji-Version, URL-Erkennung, Hardware-Tastatur, Gesten-Bibliothek
   laden, Debug-Einstellungen (nur wenn freigeschaltet), Gestendaten (nur in der Sammelphase) und
   „Alle erweiterten Einstellungen“ für den Rest der alten Seite Erweitert (Symbole-Taste für den
   Ziffernblock, Emoji-Taste der Hardware-Tastatur, App-Symbol …).
 - **Über**: SecondHand mit Version und Build (fünfmal tippen schaltet die
   Debug-Einstellungen frei), Lizenz, Versteckte Funktionen, Protokoll speichern und „Alle Infos und
-  Links“ (Wiki, Community, Quellcode).
+  Links“ (SecondHand auf GitHub für Quellcode und Fehlermeldungen, „Basiert auf HeliBoard“ als Dank und
+  Lizenz, Lizenz, Versteckte Funktionen, Protokoll speichern; die Seiten von HeliBoard für Wiki, Community
+  und Fehler gibt es hier nicht mehr).
 
 **01 Aussehen** hat seinen eigenen Aufbau, alle Werte sind deine echten Einstellungen:
 
@@ -280,7 +290,7 @@ Optional: Die Leertaste kann das Rad öffnen, z. B. beim Halten (siehe „Leerta
 ## Leertaste
 
 Einstellungen → Gesten & Gefühl → Karte **Leertaste** (die bisherige Seite gibt es weiter unter
-System & Daten → Erweitert → „Leertaste“ und Tastaturprofile → Gesten). Für jede Geste wählst du
+System & Daten → Alle erweiterten Einstellungen → „Leertaste“ und Tastaturprofile → Gesten). Für jede Geste wählst du
 eine Aktion:
 
 - **Nach links / rechts / oben / unten wischen**: Wische auf der Leertaste los. Die Richtung des
@@ -293,7 +303,7 @@ eine Aktion:
   letzte fühlt sich wie Überdehnen an (stärker und länger) und führt erst dann die Aktion aus,
   genau einmal pro Wisch. Lässt du vorher los, passiert nichts. Ziehst du ein Stück zurück und
   wieder vor, tickt der Rastpunkt erneut. Rückgängig ist ein normaler Rückgängig-Schritt wie die
-  Rückgängig-Taste. Die Ticks kommen nur, wenn unter Einstellungen → Optionen „Vibration bei
+  Rückgängig-Taste. Die Ticks kommen nur, wenn unter Einstellungen → Gesten & Gefühl → Vibration & Ton „Vibration bei
   Tastendruck“ an ist, und nicht bei „Bitte nicht stören“ (außer du hast Vibration dort
   erlaubt); der Android-Schalter für Berührungs-Haptik spielt keine Rolle. Kann dein Telefon die
   Stärke nicht steuern, ist der letzte Rastpunkt ein langer statt eines kurzen Pulses.
@@ -380,7 +390,7 @@ Sprach-Tastatur des Systems, falls eine installiert ist.
 ## Screenshot einfügen
 
 1. Einstellungen → Leiste & Befehle → „Screenshots anbieten“ einschalten (oder Einstellungen →
-   Screenshots → „Neue Screenshots in der Leiste anbieten“) und den
+   Leiste & Befehle → Screenshots → „Neue Screenshots in der Leiste anbieten“) und den
    Zugriff auf Bilder erlauben. Wählst du nur „ausgewählte Fotos“, sieht die Tastatur neue
    Screenshots nicht.
 2. Screenshot machen. Ist die Tastatur offen, steht er sofort als Pille in der Leiste, sonst
@@ -399,7 +409,8 @@ Sprach-Tastatur des Systems, falls eine installiert ist.
 Die Tastatur gibt der App eine Kopie, die nach 10 Minuten gelöscht wird. Wechselst du das Feld,
 bevor die Kopie fertig ist, wird nichts eingefügt.
 
-Zwischenablage: Ist der Zwischenablage-Verlauf (Einstellungen → Leiste & Befehle) an, legt die
+Zwischenablage: Ist der Zwischenablage-Verlauf (Einstellungen → Leiste & Befehle → Zwischenablage &
+Bilder) an, legt die
 Tastatur jeden neuen Screenshot auch als Bild in ihren eigenen Verlauf (Zwischenablage-Taste).
 Die System-Zwischenablage bleibt unberührt, andere Apps sehen ihn dort nicht. Es gelten die
 Regeln des Verlaufs (Dateien erlaubt, Größengrenze, Aufbewahrungszeit, Anheften). Ein
@@ -425,16 +436,16 @@ keinem Gerät ausprobiert.
 
 Solange du nichts antippst, passiert nichts; der Befehl bleibt einfach als Text stehen. In
 Passwortfeldern, im Inkognito-Modus und bei gesperrtem Gerät gibt es keine Befehle. Unter
-Einstellungen → Befehle schaltest du Befehle ab oder wählst statt `@` ein anderes Zeichen (`#`,
+Einstellungen → Leiste & Befehle → Alle Befehls-Einstellungen schaltest du Befehle ab oder wählst statt `@` ein anderes Zeichen (`#`,
 `$`, `%`, `~`, `§`), etwa wenn du in einer App oft Leute mit `@` erwähnst. Weitere Befehle
 stehen unten. Noch auf keinem Gerät ausprobiert.
 
 ### Weitere Befehle
 
 - `@contact Ann`: Kontakt antippen, dann Nummer, E-Mail oder Adresse. Beim ersten Mal erscheint
-  „Kontakte erlauben“; das öffnet Einstellungen → Befehle, dort den Zugriff erlauben.
+  „Kontakte erlauben“; das öffnet Einstellungen → Leiste & Befehle → Alle Befehls-Einstellungen, dort den Zugriff erlauben.
 - `@url heise.de` öffnet die Seite. `@url` allein schlägt Adressen aus Zwischenablage und Feld vor.
-  „Bildschirm lesen“: einmal einschalten unter Einstellungen → Befehle → „Bildschirm lesen“ →
+  „Bildschirm lesen“: einmal einschalten unter Einstellungen → Leiste & Befehle → Alle Befehls-Einstellungen → „Bildschirm lesen (@url)“ →
   „Bedienungshilfen öffnen“. Auf dem Xiaomi vorher: App-Info von „SecondHand“ → ⋮ →
   „Eingeschränkte Einstellungen zulassen“. Der Dienst liest nur, wenn du den Chip antippst, und
   speichert nichts. Er liest auch Apps mit Bildschirmschutz (z. B. Banking-Apps), Passwortfelder
@@ -448,7 +459,7 @@ stehen unten. Noch auf keinem Gerät ausprobiert.
   `@translate` → `spanisch "`, dann den Text und das schließende `"` tippen.
 - `@such Begriff`, `@zeichen pfeil`, `@emoji herz`, `@conv 5 oz` (auch `@conv 5 oz in g` oder
   `@conv oz in g 5`).
-- `@snip name`: Bausteine legst du unter Einstellungen → Befehle → „Textbausteine“ an. Im Text
+- `@snip name`: Bausteine legst du unter Einstellungen → Leiste & Befehle → Alle Befehls-Einstellungen → „Textbausteine“ an. Im Text
   gehen Platzhalter (die Knöpfe unter dem Textfeld fügen sie ein, darunter steht die Vorschau):
   `{datum}`, `{datum+3t}` / `{datum-1t}` (Tage, `w` = Wochen), `{uhrzeit}`, `{wochentag}`,
   `{zwischenablage}`, `{?Name}` und `{cursor}`; `{{` schreibt eine Klammer. Datum und Wochentag
@@ -464,7 +475,7 @@ stehen unten. Noch auf keinem Gerät ausprobiert.
   „Nur in diesen Apps“ wählst du Apps („App wählen“) oder tippst Paketnamen; der Baustein
   erscheint dann nur dort. Bausteine von vor diesem Update werden wörtlich eingefügt, bis du sie
   einmal speicherst.
-- `@clip wort`: braucht Einstellungen → Leiste & Befehle → Zwischenablage-Verlauf. Einträge, die als
+- `@clip wort`: braucht Einstellungen → Leiste & Befehle → Zwischenablage & Bilder → Zwischenablage-Verlauf. Einträge, die als
   vertraulich markiert waren oder in einem Passwortfeld kopiert wurden, zeigt er nicht. Ausnahme:
   vor diesem Update kopierte Einträge, die die Tastatur nicht mehr als aktuellen Clip sieht.
 - `@wf name`: Workflow antippen; das Panel sagt „Workflow vorgemerkt“. Panel schließen, Text
@@ -512,7 +523,7 @@ stehen unten. Noch auf keinem Gerät ausprobiert.
   `@qr WIFI:T:WPA;S:Netzname;P:Passwort;;`. „QR-Code einfügen“ (in Chats mit Bildern) oder „QR-Code teilen“.
 - `@datum`, `@datum morgen`; `@termin Samstag halb acht Kino` öffnet einen Kalenderentwurf (gespeichert
   ist er erst in der Kalender-App); `@ort Bahnhofstraße 1 Köln` oder `@ort zuhause` (Orte unter
-  Einstellungen → Befehle → „Gespeicherte Orte“).
+  Einstellungen → Leiste & Befehle → Alle Befehls-Einstellungen → „Gespeicherte Orte“).
   `@termin` versteht Tage (`heute`, `morgen`, `übermorgen`, `+3`, `in 3 Tagen`, Wochentage,
   `24.12.`, `24. Dezember`, `2026-12-24`) und Uhrzeiten (`18:30`, `18 Uhr`, `6pm`, `halb acht`,
   `viertel nach acht`, `dreiviertel acht`, `zehn nach acht`, `Mittag`; eine nackte Zahl nur mit
@@ -556,7 +567,7 @@ diese Sprache um.
   du gerade benutzt, bekommt keinen Chip; trifft nur sie, steht da grau „Schon aktiv: Deutsch
   (DE)“, und ein Tipp darauf ändert nichts.
 - Hat eine Sprache mehrere Layouts, gibt es einen Chip je Layout (z. B. „· QWERTY“).
-- Nur Sprachen, die unter Einstellungen → Sprachen & Layouts aktiv sind. Ist nur eine aktiv,
+- Nur Sprachen, die unter Einstellungen → Tasten & Sprachen → „Sprache hinzufügen“ (Sprachen & Layouts) aktiv sind. Ist nur eine aktiv,
   zeigt die Leiste „Nur eine Sprache aktiv“; ein Tipp öffnet die Spracheinstellungen. Schaltest
   du eine Sprache ab, während ihr Chip noch zu sehen ist, meldet ein Tipp „Diese Sprache ist
   nicht mehr aktiv“, und der Text bleibt.
@@ -593,7 +604,7 @@ diese Sprache um.
   Sprache, die das Feld selbst vorgibt) zählt dafür nicht. Achtung WhatsApp und ähnliche
   Messenger: Alle Chats teilen sich dort ein Eingabefeld. Ein Wechsel mit der Sprachtaste gilt
   dann für alle Chats, bis du ein anderes Feld antippst (z. B. die Suche).
-- Abschalten unter Einstellungen → Befehle → `@lang`; dort stehen auch die Kürzel deiner aktiven
+- Abschalten unter Einstellungen → Leiste & Befehle → Alle Befehls-Einstellungen → Befehle → `@lang`; dort stehen auch die Kürzel deiner aktiven
   Sprachen.
 
 **Englischer Satz auf der deutschen Tastatur.** Hat die Tastatur Englisch (oder Spanisch) als zweite Sprache, bleiben Wörter, die es in beiden Sprachen gibt („name“, „bank“, „job“, „hand“), in einem Satz, der bisher englisch war, so stehen, wie du sie tippst. Die Tastatur sieht das an den bis zu drei Wörtern davor im selben Satz. Das erste Wort eines Satzes hat noch keinen Beweis: dort gilt weiter die deutsche Korrektur („hand“ → „Hand“); tippe das Wort dann trotzdem so, tippst du auf die getippte Form in der Leiste oder nimmst die Korrektur mit der Löschtaste zurück. Ebenso fehlt der Beweis nach einem Komma (die Wörter davor zählen nicht) und nach einem Wort mit angehängten Anführungszeichen, Klammern oder einem Emoji; ein einziges nur deutsches Wort unter den letzten drei beendet den Schutz; es zählen nur die zweiten Sprachen der Tastatursprache, nicht andere aktivierte Tastatursprachen. Die Regel gilt in beide Richtungen: Eine englische Tastatur mit Deutsch als zweiter Sprache lässt deutsche Wörter in einem deutschen Satz stehen.
@@ -721,7 +732,7 @@ Grenzen: Befehle ändern nur deine eigenen Einstellungen und Daten, nie Werkzeug
 Anbieter oder Berechtigungen. Nichts in Passwortfeldern, im Inkognito-Modus oder bei gesperrtem
 Gerät. Die Farben stehen nur in der Leiste, nicht im Textfeld. Direkt nach dem Start der Tastatur
 kennt sie die App-Namen einen Augenblick lang noch nicht (das Wort ist dann rot). Abschalten
-einzeln unter Einstellungen → Leiste & Befehle (`@guard`, `@mem`, `@group` sind neu). Noch auf
+einzeln unter Einstellungen → Leiste & Befehle → Alle Befehls-Einstellungen → Befehle (`@guard`, `@mem`, `@group` sind neu). Noch auf
 keinem Gerät ausprobiert.
 
 ### Emoji-Mix
@@ -760,8 +771,8 @@ von Google (www.gstatic.com); gesendet werden dabei nur die beiden Emojis, kein 
   versucht ein neuer Tipp es noch einmal. Steht im Mixer „Tippen, um die Mischung von Google zu
   laden“ (z. B. nachdem du die gespeicherten Mischungen gelöscht hast), lädt erst dieser Tipp.
 - Geladene Sticker bleiben auf dem Gerät (höchstens 20 MB, die ältesten gehen zuerst) und
-  erscheinen beim nächsten Mal sofort ohne Internet. Löschen: Einstellungen → Befehle →
-  „Gespeicherte Mischungen löschen“.
+  erscheinen beim nächsten Mal sofort ohne Internet. Löschen: Einstellungen → Leiste & Befehle →
+  Alle Befehls-Einstellungen → „Gespeicherte Mischungen löschen“.
 - Nicht in Passwortfeldern, im Inkognito-Modus oder bei gesperrtem Gerät; dort bleibt der
   Mixer aus („Der Emoji-Mixer ist in diesem Feld aus“).
 
@@ -771,8 +782,8 @@ Bilder und Schriftzüge aus Zeichen (Braille-Punkte, Blöcke, ASCII, Emojis) und
 Unicode-Stilen wie 𝓢𝓬𝓱𝓻𝓲𝓯𝓽 oder 𝗙𝗲𝘁𝘁. Alles passiert auf dem Telefon, ohne Internet.
 
 - Öffnen: die Emoji-Taste in der unteren Reihe lange drücken, im Popup auf den Stift „✎“ gleiten
-  und loslassen (die Emoji-Taste muss da sein: Einstellungen → 03 Tasten & Sprachen →
-  „Emoji-Taste“; der flache Look schaltet sie ein). Ein kurzer Tipp öffnet weiter die Emojis. Das
+  und loslassen (die Emoji-Taste muss da sein: Einstellungen → Tasten & Sprachen →
+  Zusatztasten → „Emoji-Taste“; der flache Look schaltet sie ein). Ein kurzer Tipp öffnet weiter die Emojis. Das
   kleine „✎“ oben auf der Emoji-Taste erinnert an den Langdruck (es erscheint mit „Tasten-Hinweise
   anzeigen“, Standard an). Statt der Tasten erscheint das Fenster; das Feld bleibt unverändert.
 - Oben steht der Text aus dem Feld („Text: …“, bis 300 Zeichen um die Schreibmarke, oder was du
@@ -892,13 +903,13 @@ langes Drücken für Sonderzeichen und das Wischen auf Leer- und Löschtaste ble
   danach. Ersetzt der Vorschlag das Wort, das du vor dem Malen getippt hast, bleibt das Symbol
   dahinter.
 - Die Leiste zeigt danach bis zu drei andere Symbole; ein Tipp tauscht das geschriebene aus.
-- Persönliche Vorlagen: Einstellungen → „Symbole malen“ → „Aus meinen Korrekturen lernen“
+- Persönliche Vorlagen: Einstellungen → Gesten & Gefühl → Symbole malen → „Aus Korrekturen lernen“
   (anfangs aus). Ist es an und wählst du in der Leiste ein anderes Symbol (beim Malen oder
   danach), merkt sich die Tastatur deine Zeichnung für dieses Symbol, bis zu drei je Symbol, die
   neuesten bleiben. Wählst du danach noch einmal um, wandert die Zeichnung mit; wählst du das
   zuerst erkannte Symbol zurück, ist alles wie vorher. Eine Zeichnung mit einem Punkt merkt sie sich
   nur für ein Symbol mit Punkten (÷). Nur, wenn auch „Personalisierte Vorschläge“ an ist (Einstellungen
-  → Textkorrektur); nicht im Inkognito-Modus, bei „Lernen pausieren“ oder gesperrtem Telefon. „Gelernte Wörter löschen“ (Einstellungen → Gelernte Wörter, dort steht auch
+  → Tippen & Korrektur → Alle Korrektur-Einstellungen); nicht im Inkognito-Modus, bei „Lernen pausieren“ oder gesperrtem Telefon. „Gelernte Wörter löschen“ (Einstellungen → Tippen & Korrektur → Wörter & Lernen → Gelernte Wörter, dort steht auch
   ihre Zahl) und das Ausschalten von „Personalisierte Vorschläge“ löschen sie mit.
 - „Kalibrieren“ (dieselbe Seite): Die Seite zeigt nacheinander jedes eingebaute Symbol; male es
   zweimal in das Feld, je „Weiter“. „Überspringen“ geht zum nächsten Symbol, „Fertig“ hört auf;
@@ -910,7 +921,7 @@ langes Drücken für Sonderzeichen und das Wischen auf Leer- und Löschtaste ble
 - Ein zweiter Finger während eines Strichs (nicht eines Tipps) verwirft die Zeichnung; ihre Spur
   malt dann nicht weiter. In Passwortfeldern geht Malen nicht, ebenso wenig ohne Hauptwörterbuch für die Sprache
   (wie beim Gestenschreiben). Ob beides passt, zeigt Einstellungen → Diagnose.
-- Unter Einstellungen → Gestenschreiben ist der Schalter „Gestenschreiben“ ausgegraut, solange
+- Unter Einstellungen → Gesten & Gefühl → Gestenschreiben (nur mit Gesten-Bibliothek) ist der Schalter „Gestenschreiben“ ausgegraut, solange
   Symbole malen an ist („Aus, solange „Symbole malen“ an ist“); dein Wert bleibt gespeichert.
 
 Eingebaute Symbole (Reihenfolge und Richtung der Striche sind egal; die Form jedes Strichs zählt,
@@ -959,21 +970,21 @@ alles; mehr als 12 Striche oder sehr langes Malen: „Bitte neu malen“, „Wei
 
 ## Schieberegler
 
-Alle Schieberegler der Einstellungen (z. B. Aussehen → Tastaturhöhe, Schriftgröße; Vibrationsdauer,
+Alle Schieberegler der Einstellungen (z. B. Aussehen → Größe & Form → Tastaturhöhe, Schriftgröße; Vibrationsdauer,
 Lautstärke; Deckkraft und Helligkeit im Farbwähler; Eckenrundung, Abstand und Höhe im
 Design-Editor) ticken beim Ziehen leicht. Am Standardwert, an den Enden und an runden Werten
 (z. B. 50 %, 100 %, 150 %, Zehner bei Prozent und Millisekunden) rastet der Regler mit einem etwas
 stärkeren Impuls ein; ziehst du weiter, löst er sich wieder. Einen Wert direkt neben einer Rast
 (z. B. 49 %) erreichst du so: etwas über die Rast hinausziehen und langsam zurück, dann rastet sie
 nicht sofort wieder ein. Mit TalkBack stellst du jeden Wert genau ein. Gespürt wird das nur, wenn
-Einstellungen → Optionen → „Vibration bei Tastendruck“ an ist; bei „Bitte nicht stören“ nur, wenn
+Einstellungen → Gesten & Gefühl → Vibration & Ton → „Vibration bei Tastendruck“ an ist; bei „Bitte nicht stören“ nur, wenn
 Vibrieren dort erlaubt ist. Die RGB-Seite rastet noch nicht.
 
 ## Design auswählen
 
 Einstellungen → Aussehen → Karte „Designs“ (Kachel antippen) oder dort „Alle … Designs“ bzw. im
 Tastaturmenü die Pille „Design“ für die ganze Design-Seite: Kachel antippen.
-„Flacher Look“ setzt auch Reihen, Größen und Leiste; zurück geht es unter Tastaturprofile.
+„Flacher Look“ setzt auch Reihen, Größen und Leiste; zurück geht es unter System & Daten → „+ Neues Profil“ (öffnet Tastaturprofile).
 Mit dem flachen Tastenstil sehen auch die Einstellungen moderner aus.
 
 Eigenes Design: oben unter „Meine Designs“ die Kachel „+“ antippen. Oben siehst du die Vorschau,
@@ -1067,7 +1078,7 @@ Mustergalerie zeigen Muster und Farben, nicht deine Kurve oder dein Tempo.
 Leistenknöpfe: Nur eingeschaltete Werkzeuge leuchten, ausgeschaltete behalten ihre graue Farbe;
 der runde Knopf im flachen Look leuchtet nicht. Mit eigenem Hintergrundbild prüft die Tastatur
 die Lesbarkeit gegen die Hintergrundfarbe, nicht gegen das Bild. Die Einstellung steht im
-Designprofil (Tastaturprofile → Design).
+Designprofil (System & Daten → „+ Neues Profil“ → Tastaturprofile → Design).
 
 ## Eigene Lichtmuster
 
@@ -1128,15 +1139,16 @@ Inkognito-Modus.
 
 ## Aussehen: flacher Look
 
-Einstellungen → Tastaturprofile → „Flacher Look (Vorlage)“ → „Vorlage anwenden“. Das stellt
+Einstellungen → System & Daten → Karte „Profile“ → „+ Neues Profil“ (öffnet Tastaturprofile) →
+„Flacher Look (Vorlage)“ → „Vorlage anwenden“ (oder auf der Karte „Flacher Look“ antippen und „Anwenden“). Das stellt
 Stil, Farben, Icons, Zahlenreihe, Symbolhinweise und die Größen für das Hochformat in einem
 Schritt ein. „Vorherigen Look wiederherstellen“ setzt genau diese Einstellungen auf den Stand
 vor dem ersten Anwenden zurück; was du zwischen zwei Anwendungen von Hand geändert hast, wird
 dabei nicht gesichert.
 
 - Die Tastenhöhe wird aus der Bildschirmbreite berechnet (Tastatur ohne Leiste = 66 % der Breite).
-  Feinjustieren: Einstellungen → Aussehen → „Tastaturgröße“.
-- „DE • EN • ES“ auf der Leertaste erscheint, wenn du unter Sprachen & Layouts bei Deutsch
+  Feinjustieren: Einstellungen → Aussehen → Größe & Form → Tastaturhöhe.
+- „DE • EN • ES“ auf der Leertaste erscheint, wenn du unter Tasten & Sprachen → „Sprache hinzufügen“ (Sprachen & Layouts) bei Deutsch
   „Mehrsprachiges Tippen“ mit Englisch und Spanisch einschaltest.
 - Die Schrift ist die Systemschrift deines Telefons. Eine eigene Schriftdatei lässt sich unter
   Aussehen → „Benutzerdefinierte Schriftart aus Datei festlegen“ laden.
@@ -1150,7 +1162,7 @@ dabei nicht gesichert.
   Das X schließt das Menü.
 - Die Zwischenablage-Taste fügt den aktuellen Inhalt der Zwischenablage an der Schreibmarke
   ein, solange der Zwischenablageverlauf aus ist (so ist er anfangs). Erst mit eingeschaltetem
-  Verlauf (Einstellungen → Leiste & Befehle → „Zwischenablage-Verlauf“) öffnet sie die
+  Verlauf (Einstellungen → Leiste & Befehle → Zwischenablage & Bilder → „Zwischenablage-Verlauf“) öffnet sie die
   Zwischenablage-Ansicht. In der Ansicht: Karte antippen fügt ein, lange drücken heftet an, zur Seite wischen entfernt. Oben
   links geht es zurück zu den Tasten, oben rechts leerst du den Verlauf.
 - Tresor (nur mit eingeschaltetem Verlauf): Kopierst du ein Geheimnis (Passwort aus dem
@@ -1166,7 +1178,7 @@ dabei nicht gesichert.
   gesperrtem Gerät. Geheimnisse erscheinen nie als Pille in der Leiste. Am Ende der Tresor-Reihen öffnet
   „Meine Daten“ die Seite „Meine Daten & Vorschläge“.
 - Die Pille mit kopiertem Text oder Bild in der Leiste erscheint nur, wenn
-  „Zwischenablagen-Inhalt vorschlagen“ (Einstellungen → Textkorrektur) an ist. Antippen fügt ein, lange
+  „Zwischenablagen-Inhalt vorschlagen“ (Einstellungen → Tippen & Korrektur → Alle Korrektur-Einstellungen) an ist. Antippen fügt ein, lange
   drücken blendet sie aus. Hinter der Pille und auf den Karten stehen bei erkanntem Inhalt die Chips
   von Smart Paste (nächster Abschnitt).
 - Das Aktionsrad erreichst du im flachen Look über eine Leertasten-Geste, z. B. Halten
@@ -1211,13 +1223,13 @@ gesperrt, keine passende App), bleibt der Chip nutzbar; beim Einfügen sagt ein 
 einfügbar“. Die Pille selbst und ein Tipp auf eine Karte fügen weiter den Clip so ein, wie er ist.
 
 - Wo: in der Leiste hinter der Zwischenablage-Pille (nur wenn „Zwischenablagen-Inhalt vorschlagen“
-  unter Einstellungen → Textkorrektur an ist, in den ersten 3 Minuten nach dem Kopieren) und als
+  unter Einstellungen → Tippen & Korrektur → Alle Korrektur-Einstellungen an ist, in den ersten 3 Minuten nach dem Kopieren) und als
   kleine Chips unten auf den Karten der Zwischenablage-Ansicht (höchstens zwei je Karte).
 - Adresse: „📍 In Karten öffnen“ öffnet deine Karten-App mit der Suche nach Straße und Hausnummer,
   PLZ und Ort; ein Name, „Lieferadresse:“, Telefon- und Mail-Zeilen kommen nicht mit. „💾 Als Ort
   speichern“ legt sie als Ort für `@ort` an, benannt nach Straße und Hausnummer (z. B. `@ort
   musterstraße 12`); umbenennen unter Einstellungen → Leiste & Befehle → „Alle Befehls-Einstellungen“
-  → Orte. Dieselbe Adresse wird nur einmal gespeichert, höchstens 10 Orte. Steht die Adresse mitten
+  → „Gespeicherte Orte“. Dieselbe Adresse wird nur einmal gespeichert, höchstens 10 Orte. Steht die Adresse mitten
   in einem Satz („Treffen am Marktplatz 5, 10115 Berlin“), gibt es nur „In Karten öffnen“.
 - Telefonnummer: „📞 Anrufen“ öffnet die Telefon-App mit der Nummer; angerufen wird erst, wenn du
   dort auf Anrufen tippst. „👤 Kontakt anlegen“ öffnet einen neuen Kontakt in der Kontakte-App. Beide
@@ -1261,7 +1273,8 @@ einfügbar“. Die Pille selbst und ein Tipp auf eine Karte fügen weiter den Cl
 Für Deutsch, Englisch und Spanisch ist das Emoji-Wörterbuch eingebaut; du musst nichts
 herunterladen. „Emojis vorschlagen“, „Inline-Emoji-Suche“ (Emoji nach `:`, z. B. `:herz`) und die
 Emoji-Beschreibungen sind in HeliBoard standardmäßig an und wirken damit sofort. Abschalten unter
-Einstellungen → Textkorrektur. Für andere Sprachen gilt weiter der Hinweis mit dem Download-Link.
+Einstellungen → Tippen & Korrektur → Vorschläge → „Emoji-Vorschläge“ (die Inline-Emoji-Suche unter „Alle
+Korrektur-Einstellungen“). Für andere Sprachen gilt weiter der Hinweis mit dem Download-Link.
 
 Die Emojis in der Leiste sind tolerant: „Katzen“, „KATZE“, „Katz“ und „Kaze“ zeigen 🐈, „Kaese“
 zeigt 🧀, „party“ beim deutschen Tippen 🎉, „geil“ 🔥. Wortanfänge und Tippfehler zählen erst ab
@@ -1274,7 +1287,8 @@ bei Inkognito und bei gesperrtem Gerät ohnehin nicht.
 
 ## Autokorrektur
 
-Einstellungen → Gelernte Wörter → Abschnitt „Autokorrektur“:
+Einstellungen → Tippen & Korrektur → Wörter & Lernen → Gelernte Wörter → Abschnitt „Autokorrektur“ (drei
+der Schalter stehen auch direkt unter „Regeln“ auf der Seite Tippen & Korrektur):
 
 - „Umlaut-Wörter behalten“ (an): Aus „mochte“ wird nicht mehr automatisch „möchte“, wenn beide
   Wörter existieren. „möchte“ steht dann als Vorschlag in der Leiste.
@@ -1299,7 +1313,7 @@ Einstellungen → Gelernte Wörter → Abschnitt „Autokorrektur“:
   das trotzdem als deine Korrektur zählen. Ein per Gestenschreiben ersetztes Wort zählt nur, wenn
   du danach direkt am Wort eine Taste drückst (etwa das Leerzeichen). Beim ersten Mal ist es ein Kandidat, beim zweiten Mal an anderer Stelle gelernt;
   leert ein Messenger das Feld nach dem Senden, zählt die nächste Nachricht als andere Stelle.
-  Einstellungen → Tippen & Korrektur → „Was ich mir gemerkt habe“ zeigt beides: „Übernehmen“
+  Einstellungen → Tippen & Korrektur → Wörter & Lernen → „Was ich mir gemerkt habe“ zeigt beides: „Übernehmen“
   lernt einen Kandidaten sofort, „Löschen“ entfernt einen Eintrag. „Gelernte Wörter löschen“
   leert die Seite mit. Machst du eine Autokorrektur später im Feld rückgängig, gilt mit
   „Rückgängig gemachte Korrekturen merken“ dasselbe wie die Löschtaste direkt danach.
@@ -1340,8 +1354,8 @@ Autokorrektur nie nur in der Großschreibung („essen“ bleibt, „Essen“ st
 
 ## Trefferzonen
 
-Einstellungen → Gelernte Wörter → Abschnitt „Trefferzonen“ (Schalter und Kalibrieren auch unter
-Gesten & Gefühl → „Treffen & Wischen“):
+Einstellungen → Tippen & Korrektur → Wörter & Lernen → Gelernte Wörter → Abschnitt „Trefferzonen“
+(Schalter und Kalibrieren auch unter Gesten & Gefühl → „Treffen & Wischen“):
 
 1. „Trefferzonen an mich anpassen“ einschalten.
 2. „Kalibrieren“ antippen und den angezeigten Text so abtippen, wie du sonst tippst. Tippfehler
@@ -1438,14 +1452,16 @@ Einstellungen → Tippen & Korrektur → Wörter & Lernen → „Was ich mir gem
 
 ## Gelernte Wörter
 
-Lernen aus dem Tippen ist anfangs aus. Einschalten: Einstellungen → Textkorrektur →
-„Personalisierte Vorschläge“. Unter Einstellungen → Gelernte Wörter kannst du das Lernen
+Lernen aus dem Tippen ist anfangs aus. Einschalten: Einstellungen → Tippen & Korrektur →
+Alle Korrektur-Einstellungen → „Personalisierte Vorschläge“. Unter Einstellungen → Tippen & Korrektur →
+Wörter & Lernen → Gelernte Wörter kannst du das Lernen
 pausieren (das Gelernte bleibt), die gelernten Wörter je Sprache zählen, als Datei exportieren
 oder löschen. Wer „Personalisierte Vorschläge“ ausschaltet, löscht dabei alles Gelernte.
 
 ## Wenn etwas nicht klappt
 
-Einstellungen → „Diagnose“ (unter „Erweitert“) zeigt, was dein Telefon wirklich macht, ohne Texte,
+Einstellungen → „Diagnose“ (unten auf der Startseite, oder der Knopf „Diagnose“ auf der Karte UPDATES in
+System & Daten) zeigt, was dein Telefon wirklich macht, ohne Texte,
 Schlüssel oder Kennungen: welche Haptik die Rastpunkte der Leertaste spielen, der leichte Tick und der letzte Punkt (Knopf
 „Test“ spielt den letzten Punkt),
 ob Symbole malen laufen kann, warum die Sprache zuletzt gewechselt hat (z. B. „Sprach-Hinweis der

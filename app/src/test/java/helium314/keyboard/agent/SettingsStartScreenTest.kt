@@ -174,12 +174,29 @@ class SettingsStartScreenTest {
         assertTrue(compose.onAllNodesWithText(app.getString(R.string.vibrate_on_keypress)).fetchSemanticsNodes().isNotEmpty())
     }
 
-    @Test fun everyClickableIsAtLeast44dp() {
+    @Test fun everyClickableIsAtLeast48dp() {
         start()
-        val min = with(compose.density) { 44.dpToPxCompat() } - 1
+        val min = with(compose.density) { 48.dpToPxCompat() } - 1
         val clickables = compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.OnClick), useUnmergedTree = true).fetchSemanticsNodes()
         assertTrue(clickables.size >= 4 + 7 + 3 + 2, "clickables: ${clickables.size}")
         clickables.forEach { assertTrue(it.size.height >= min && it.size.width >= min, "too small: ${it.size} ${it.config}") }
+    }
+
+    /** Stage 69 (E9): with a large font the footer wraps to a second line and no pill is cut off. */
+    @Test fun footerWrapsWithALargeFont() {
+        initPreview(app)
+        compose.setContent {
+            val density = androidx.compose.ui.platform.LocalDensity.current
+            androidx.compose.runtime.CompositionLocalProvider(
+                androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(density.density, fontScale = 2f)
+            ) { Theme(dark = true) { MainSettingsScreen(onNavigate = {}, onClickBack = {}) } }
+        }
+        compose.waitForIdle()
+        val root = compose.onNodeWithTag(START_TAG).fetchSemanticsNode().boundsInRoot
+        val pills = listOf(SettingsDestination.AgentDiagnose, SettingsDestination.AgentUpdates, SettingsDestination.About).map {
+            compose.onNodeWithTag(FOOTER_TAG + it).performScrollTo().fetchSemanticsNode().boundsInRoot
+        }
+        pills.forEach { assertTrue(it.left >= root.left - 1 && it.right <= root.right + 1, "pill cut off: $it in $root") }
     }
 
     private fun Int.dpToPxCompat() = this * app.resources.displayMetrics.density

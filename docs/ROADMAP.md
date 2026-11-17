@@ -474,6 +474,20 @@ Reihenfolge von oben nach unten.
     (P6) „Meine Daten“ im Hintergrund laden, Fehlschlag bis Feld oder Entsperren merken, beim Sperren weg;
     (P11) Lernspeicher gesammelt im Hintergrund schreiben (Feldende und Zerstören schreiben aus), Gedächtnis beim Start
     im Hintergrund lesen; Tests: Änderung überlebt Feldende, zwei Änderungen ein Schreiben.
+- **69 Einstellungen und Texte** (Befunde E1 nur Text, E2, E3, E5, E6, E7, E9, E10, S5 der Prüfung vom
+  2026-11-16) ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 69). Die Suche
+  findet jede Seite des Forks (Titel und deutsche und englische Stichwörter); „Sichern und
+  Wiederherstellen“ sagt ehrlich, was in der Datei steht und was nicht, und dass sie nicht verschlüsselt
+  ist; die Anleitung nennt die echten Menüpfade; Tippflächen mindestens 48 dp; abhängige Schalter auf
+  „Tasten & Sprachen“ grau mit Grund; Fußzeile bricht um; fehlende deutsche Texte ergänzt; „Über“
+  verweist auf das Repository des Forks statt auf die Fehlerseiten von HeliBoard; die tote
+  Übergangsseite ist entfernt. Offen (Owner entscheidet): die Sicherung um die eigenen Speicher des Forks
+  erweitern (Profile, Gedächtnis, Bausteine, Orte, Korrekturen, Trefferzonen, gemalte Symbole,
+  KI-Einstellungen ohne Schlüssel); bis dahin steht im Dialog, dass sie fehlen. Offen: Gerätetest (Suche,
+  Dialogtext, Größe der Tippflächen, Umbruch der Fußzeile mit großer Schrift).
+  Noch zu tun für eine spätere Sitzung: Lint (`python3 tools/dev.py lint`) und erneuter gezielter Lauf von
+  `SettingsSearchTest` (Stichwort „lighting“ nach dem letzten Lauf ergänzt); ob unbenutzte Strings
+  (`about_wiki_link*`, `about_community_links*`) aus den Übersetzungen entfernt werden sollen.
 - **Runde 2 nach dem Scan (Auftrag des Owners vom 2026-11-16: „suche nach Lücken, Verbesserungen und
   Fehlern … scanne gebietübergreifend“)**: noch nicht gebaut. Die Befunde stehen mit Stelle und
   Schwere in `docs/PRUEFBERICHT-2026-11-16.md`; jede Etappe behebt die dort genannten Nummern und

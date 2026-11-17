@@ -525,6 +525,14 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   „Leertaste lang drücken …“ ein Eintrag „Leertaste“ (`AGENT_SPACE_ENTRY`); Sprach-Wischdistanz
   und Touchpad-Regler stehen jetzt auf der Seite „Leertaste“. `SettingsContainer.kt`:
   `createAgentSpaceSettings` für Suche und Seite. `SettingsNavHost.kt`: Ziel `agent_space`.
+- Etappe 69: `SettingsContainer.kt`: `Setting` hat ein optionales Feld `keywords` (zusätzliche
+  Suchwörter), `filter` sucht auch dort, die Liste enthält `createAgentPageSettings` (alle Seiten des
+  Forks, P284); `SettingsWithoutKey` hat `FORK_REPO` statt `GITHUB_WIKI` und `COMMUNITY_LINKS`.
+  `AboutScreen.kt`: statt Wiki, Community und „Auf GitHub ansehen“ (alles HeliBoard) die Zeile
+  „SecondHand auf GitHub“ (`Links.FORK_REPO`) und „Basiert auf HeliBoard“ (Dank und Lizenz); die Lizenz
+  bleibt. `latin/common/Constants.kt`: `Links.FORK_REPO` neu, `Links.COMMUNITY_LINKS` entfernt (nicht mehr
+  benutzt). Texte: `app_slogan` ist übersetzbar (stand in `donottranslate.xml`), fehlende deutsche
+  Namen in `values-de` ergänzt, `backup_restore_message` nennt, was die Sicherung enthält.
 - `InputView.java`: leitet Touch und Hover an sichtbare Overlays (Panel, Rad, Rechner).
 - `main_keyboard_frame.xml`: Wurzel ist `AgentKeyboardFrame`, darin Tastatur, `FlatMenuView`, `AgentPanelView`,
   `AgentWheelView` und `CalculatorView` (24b).
@@ -1951,7 +1959,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   „Ändern“ → `area_look`; Schnellschalter auf `always_incognito_mode`, `RgbSettings.enabled`
   über `RgbLighting.write`, `vibrate_on`, `agent_symbol_drawing`; Kacheln 01 breit, 02/03, 04/05,
   06 und 07 breit; Pillen Diagnose, „Updates · Build <VERSION_CODE>“, Über).
-  `K/settings/screens/AgentAreaScreen.kt`: Bereichsseite (Zurück, Held, Karte „Seiten“) und
+  `K/settings/screens/AgentAreaScreen.kt`: leitet jeden `SettingsArea` an seine Seite weiter (seit 69 ohne die
+  alte Übergangsseite mit Karte „Seiten“, P286) und
   `SettingsAreas.entries(area)`, die vorläufige Zuordnung der bisherigen Seiten nach
   `Struktur.dc.html` (Aussehen: Design, RGB, Aussehen; Tippen: Textkorrektur, Gelernte Wörter,
   Wörterbücher; Tasten: Sprachen, Optionen, Sekundäre Layouts; Gesten: Leertaste, Symbole malen,
@@ -1964,6 +1973,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `AgentRgbScreen.kt` ist dafür `internal`. Texte: `agent_settings_strings.xml`. Tests
   `AT/SettingsStartScreenTest.kt` und `AT/SettingsKitTest.kt` (Bilder unter
   `app/build/agent-previews/settings-*.png`).
+  Etappe 69: `AgentSettingsKit.kt`: `MinTouch` ist 48 dp; `SettingRow` und `SettingSwitchRow` haben
+  `enabled` (grau mit `DISABLED_ROW_ALPHA`, bei den Schaltern mit `disabledReason` als Zusammenfassung,
+  P285); die Fußzeile der Startseite ist ein `FlowRow` (bricht bei großer Schrift um).
+  `K/settings/screens/AgentSearchEntries.kt` (neu): `createAgentPageSettings` für die Suche (P284);
+  Suchwörter in `agent_search_strings.xml`. Test `AT/SettingsSearchTest.kt`.
 - Bereich Tippen & Korrektur (38c, P126–P127): `K/settings/screens/AgentAreaTypingScreen.kt`,
   aufgerufen von `AgentAreaScreen` für `SettingsArea.TYPING` (eine Zeile). `TypingAutocorrect`
   ordnet die drei Auswahlkarten vorhandenen Einstellungen zu (Annahme des Leads): AUS =
@@ -5483,12 +5497,30 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Nachprüfung N5): Mit „Werkzeugleiste automatisch zeigen“ an und Chips in der Leiste öffnet sich die
   Werkzeugleiste beim Feldstart nicht mehr (vorher ersetzte oder verdeckte der zweite Aufruf die Chips).
 
+- **P284** Suche nach Seiten (69): `SettingsContainer.filter` kennt nur `Setting`-Einträge. Jede Seite
+  des Forks braucht dort einen eigenen Eintrag, sonst findet die Suche sie nicht:
+  `createAgentPageSettings` (`AgentSearchEntries.kt`) baut ihn für die sieben Bereiche und jede Seite
+  aus `SettingsAreas`, der Schlüssel ist `agent_page_<Route>`. Eine neue Seite muss in `SettingsAreas`
+  stehen und ihre Suchwörter in `KEYWORDS` (`agent_search_strings.xml`, deutsch und englisch in einer
+  Liste, `translatable="false"`); `SettingsSearchTest` bricht sonst. Seiten mit eigenem Eintrag
+  (`AGENT_SPACE_ENTRY`, `AGENT_SYMBOLS_ENTRY`) stehen nicht doppelt darin.
+- **P285** Abhängige Schalter (69): Nicht mehr ausblenden, sondern grau (`enabled = false`,
+  `DISABLED_ROW_ALPHA`) mit dem Grund als Zusammenfassung (`disabledReason`); `SettingSwitchRow` und
+  `SettingRow` haben dafür `enabled`. Ein Lambda nach den Klammern gehört bei lokalen Hilfen wie
+  `SwitchRow` in `AgentAreaKeysScreen` zum letzten Parameter: `after` deshalb benennen (`after = { … }`),
+  sonst meldet der Compiler einen Typfehler bei `reason`. Mindestgröße zum Tippen ist `MinTouch` = 48 dp;
+  die Tests „everyClickableIsAtLeast48dp“ prüfen es je Seite.
+- **P286** Alte Übergangsseite (69): `AgentAreaScreen` hatte hinter den sieben Weichen einen Zweig mit
+  Karte „Seiten“, der nie erreicht wurde (`when` ist jetzt vollständig); die Strings `agent_area_pages`
+  und `agent_area_pages_note` sind weg. `SettingsAreas.entries` bleibt: Karte der Seiten je Bereich für
+  Tests und Suche. Die Tests prüfen mit dem alten Text, dass die Karte nicht wiederkommt.
+
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (631 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (636 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -5520,7 +5552,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (104): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (105): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, CharArtWindowTest, ClipCommandTest, ClipVaultTest, CommandReplaceTest,
@@ -5536,13 +5568,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   MyDesignsTest, OpenAiProviderTest, RgbFrameRateCardTest, RgbLightingRenderTest,
   RgbPatternEditorTest, RgbSettingsScreenTest, RgbTilesTest, ScreenshotChipTest, SecureWindowTest,
   SelectedTextCommitTest, SettingsAreaAiTest, SettingsAreaGesturesTest, SettingsBarAreaTest,
-  SettingsKeysScreenTest, SettingsKitTest, SettingsLookScreenTest, SettingsStartScreenTest,
-  SettingsSystemAreaTest, SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest,
-  SliderFeelTest, SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest,
-  StripRequestsTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest,
-  TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest, TypingPerfTest,
-  TypoMemoryTest, UpdateCheckTest, UpdateChipTest, UpdateOnOpenTest, UpdatePromptsTest,
-  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
+  SettingsKeysScreenTest, SettingsKitTest, SettingsLookScreenTest, SettingsSearchTest,
+  SettingsStartScreenTest, SettingsSystemAreaTest, SettingsTypingAreaTest, SkillBindingStoreTest,
+  SkillSettingsTest, SliderFeelTest, SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest,
+  SpaceGesturesTest, StripRequestsTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal,
+  ToolRunnerTest, TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest,
+  TypingPerfTest, TypoMemoryTest, UpdateCheckTest, UpdateChipTest, UpdateOnOpenTest,
+  UpdatePromptsTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
   WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, LongCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
@@ -5589,6 +5621,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/latin/` (11): App, AppUpgrade, ClipboardHistoryEntry, ClipboardHistoryManager,
   ClipboardThumbnails, DictionaryFacilitatorImpl, InputAttributes, InputView, LatinIME,
   RichInputConnection, Suggest
+- `K/latin/common/` (1): Constants
 - `K/latin/database/` (1): ClipboardDao
 - `K/latin/define/` (1): DebugFlags
 - `K/latin/dictionary/` (2): DictionaryFactory, ExpandableBinaryDictionary
@@ -5602,17 +5635,17 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/settings/dialogs/` (2): ColorPickerDialog, SliderDialog
 - `K/settings/preferences/` (5): BackupRestorePreference, CustomFontPreference,
   KeyboardScalePreference, LoadGestureLibPreference, SliderPreference
-- `K/settings/screens/` (45): AdvancedScreen, AgentAiScreen, AgentAreaAiScreen, AgentAreaBarScreen,
-  AgentAreaGesturesScreen, AgentAreaKeysScreen, AgentAreaLookScreen, AgentAreaScreen,
-  AgentAreaSystemScreen, AgentAreaTypingScreen, AgentCommandsScreen, AgentDesignEditor,
-  AgentDesignScreen, AgentDiagnoseScreen, AgentDictationScreen, AgentEmojiMixSection,
-  AgentForcedAppsDialog, AgentLearningScreen, AgentMemoryScreen, AgentMyDataScreen,
-  AgentProfilesScreen, AgentRgbCurveEditor, AgentRgbFrameRate, AgentRgbPatternEditor,
-  AgentRgbScreen, AgentRunStatus, AgentScreenReaderSection, AgentScreenshotScreen, AgentSettingsKit,
-  AgentSkillsScreen, AgentSlider, AgentSnippetsSection, AgentSpaceScreen, AgentStartScreen,
-  AgentSymbolsScreen, AgentUpdatePrompts, AgentUpdatesScreen, AgentWorkflowsScreen,
-  AppearanceScreen, DictionaryScreen, GestureTypingScreen, MainSettingsScreen, TextCorrectionScreen,
-  WorkflowBuilderDialog, WorkflowDraftProtection
+- `K/settings/screens/` (47): AboutScreen, AdvancedScreen, AgentAiScreen, AgentAreaAiScreen,
+  AgentAreaBarScreen, AgentAreaGesturesScreen, AgentAreaKeysScreen, AgentAreaLookScreen,
+  AgentAreaScreen, AgentAreaSystemScreen, AgentAreaTypingScreen, AgentCommandsScreen,
+  AgentDesignEditor, AgentDesignScreen, AgentDiagnoseScreen, AgentDictationScreen,
+  AgentEmojiMixSection, AgentForcedAppsDialog, AgentLearningScreen, AgentMemoryScreen,
+  AgentMyDataScreen, AgentProfilesScreen, AgentRgbCurveEditor, AgentRgbFrameRate,
+  AgentRgbPatternEditor, AgentRgbScreen, AgentRunStatus, AgentScreenReaderSection,
+  AgentScreenshotScreen, AgentSearchEntries, AgentSettingsKit, AgentSkillsScreen, AgentSlider,
+  AgentSnippetsSection, AgentSpaceScreen, AgentStartScreen, AgentSymbolsScreen, AgentUpdatePrompts,
+  AgentUpdatesScreen, AgentWorkflowsScreen, AppearanceScreen, DictionaryScreen, GestureTypingScreen,
+  MainSettingsScreen, TextCorrectionScreen, WorkflowBuilderDialog, WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
 - `app/` (1): build.gradle
@@ -5649,12 +5682,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   agent_slider_strings, agent_smart_paste_strings, agent_snippet_strings, agent_space_strings,
   agent_strings, agent_suggest_strings, agent_symbol_strings, agent_touch_strings,
   agent_typing_strings, agent_update_prompt_strings, agent_update_strings, strings
-- `app/src/main/res/values/` (39): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+- `app/src/main/res/values/` (40): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
   agent_bar_strings, agent_charart_ids, agent_charart_strings, agent_clipvault_strings,
   agent_command_system_strings, agent_design_strings, agent_diagnose_strings,
   agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_ids,
   agent_language_strings, agent_memory_strings, agent_name_strings, agent_rgb_pattern_strings,
-  agent_rgb_strings, agent_settings_keys_strings, agent_settings_look_strings,
+  agent_rgb_strings, agent_search_strings, agent_settings_keys_strings, agent_settings_look_strings,
   agent_settings_strings, agent_settings_system_strings, agent_slider_strings,
   agent_smart_paste_strings, agent_snippet_strings, agent_space_strings, agent_strings,
   agent_suggest_strings, agent_symbol_strings, agent_touch_strings, agent_typing_strings,

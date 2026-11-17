@@ -11,6 +11,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -151,7 +153,10 @@ private fun StartContent(onNavigate: (String) -> Unit, onSearch: () -> Unit) {
 
         AreaGrid(onNavigate)
 
-        Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
+        // stage 69: wraps to a second line with a large font instead of cutting the last pill off
+        @OptIn(ExperimentalLayoutApi::class)
+        FlowRow(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
             FooterPill(stringResource(R.string.agent_settings_footer_diagnose), { onNavigate(SettingsDestination.AgentDiagnose) },
                 Modifier.testTag(FOOTER_TAG + SettingsDestination.AgentDiagnose))
             FooterPill(stringResource(R.string.agent_settings_footer_updates, BuildConfig.VERSION_CODE),

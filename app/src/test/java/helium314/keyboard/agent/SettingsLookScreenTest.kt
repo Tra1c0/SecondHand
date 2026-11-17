@@ -141,7 +141,7 @@ class SettingsLookScreenTest {
             top(AREA_ROW_TAG + SettingsDestination.Appearance))
         assertEquals(tops.sorted(), tops)
         // the old card "Seiten" is gone
-        assertFalse(exists(text(R.string.agent_area_pages)))
+        assertFalse(exists("Seiten")) // title of the removed transition card (stage 69)
     }
 
     @Test fun rowsShowTheRealDefaultValues() {
@@ -410,11 +410,11 @@ class SettingsLookScreenTest {
         assertFalse(Settings.getCustomFontFile(app).exists())
     }
 
-    @Test fun everyClickableIsAtLeast44dp() {
+    @Test fun everyClickableIsAtLeast48dp() {
         MyDesigns.save(app, design("d3", "Blau"))
         prefs.edit().putBoolean(Settings.PREF_THEME_KEY_BORDERS, true).commit() // shows "Tastenabstand"
         show()
-        val min = 44 * app.resources.displayMetrics.density - 1
+        val min = 48 * app.resources.displayMetrics.density - 1
         val clickables = compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.OnClick), useUnmergedTree = true).fetchSemanticsNodes()
         // back, 6 tiles, "Alle Designs", two buttons, RGB card and switch, 11 rows
         assertTrue(clickables.size >= 1 + 6 + 1 + 2 + 2 + 11, "clickables: ${clickables.size}")

@@ -36,4 +36,9 @@
     <string name="agent_keys_timestamp_sub">For the timestamp key</string>
     <string name="agent_keys_more_options">More options</string>
     <string name="agent_keys_more_options_sub">All options, e.g. pinned clips first, file size</string>
+    <!-- stage 69: dependent rows stay visible, greyed out, with the reason -->
+    <string name="agent_keys_needs_hints">Turn on \"Key hints\" first</string>
+    <string name="agent_keys_needs_number_row">Turn on \"Number row\" first</string>
+    <string name="agent_keys_needs_hints_and_number_row">Needs \"Key hints\" and \"Number row\"</string>
+    <string name="agent_keys_number_row_already_on">Not needed while the number row is on</string>
 </resources>

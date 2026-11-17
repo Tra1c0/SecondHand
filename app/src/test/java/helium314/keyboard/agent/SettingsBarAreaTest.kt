@@ -283,9 +283,9 @@ class SettingsBarAreaTest {
             "ort", "qr", "translate", "wecker", "timer", "lang", "mix", "guard", "mem", "group"), KeyboardCommands.registry.map { it.name })
     }
 
-    @Test fun everyClickableIsAtLeast44dp() {
+    @Test fun everyClickableIsAtLeast48dp() {
         show()
-        val min = 44 * app.resources.displayMetrics.density - 1
+        val min = 48 * app.resources.displayMetrics.density - 1
         val clickables = compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.OnClick), useUnmergedTree = true).fetchSemanticsNodes()
         assertTrue(clickables.size >= 1 + 3 + 1 + 20 + 4 + 5 + 3, "clickables: ${clickables.size}")
         clickables.forEach { assertTrue(it.size.height >= min && it.size.width >= min, "too small: ${it.size} ${it.config}") }

@@ -216,7 +216,7 @@
     <string name="agent_learning_title">Learned words</string>
     <string name="agent_learning_description">What the keyboard learns from your typing stays on this device. It is never sent to an AI provider, and generated or inserted text is not learned.</string>
     <string name="agent_learning_enabled">Learning from typing is on.</string>
-    <string name="agent_learning_disabled">Learning from typing is off (Text correction → Personalized suggestions). Switching it off deletes what was learned.</string>
+    <string name="agent_learning_disabled">Learning from typing is off (Typing &amp; correction → All correction settings → Personalized suggestions). Switching it off deletes what was learned.</string>
     <string name="agent_learning_pause">Pause learning</string>
     <string name="agent_learning_pause_description">While paused, nothing new is learned and no word is added to your personal dictionary. What was learned before stays and is still used for suggestions.</string>
     <string name="agent_learning_data">Stored on this device</string>

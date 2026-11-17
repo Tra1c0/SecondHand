@@ -8,6 +8,7 @@ import androidx.compose.runtime.Immutable
 import helium314.keyboard.latin.utils.JniUtils
 import helium314.keyboard.settings.screens.createAboutSettings
 import helium314.keyboard.settings.screens.createAdvancedSettings
+import helium314.keyboard.settings.screens.createAgentPageSettings
 import helium314.keyboard.settings.screens.createAgentSpaceSettings
 import helium314.keyboard.settings.screens.createAgentSymbolSettings
 import helium314.keyboard.settings.screens.createAppearanceSettings
@@ -42,6 +43,11 @@ class SettingsContainer(context: Context) {
             if (setting.description?.lowercase()?.split(' ')?.any { it.startsWith(term) } == true)
                 results.add(setting)
         }
+        // fork (stage 69): search words of the pages of the fork, German and English
+        list.forEach { setting ->
+            if (setting.keywords?.lowercase()?.split(' ')?.any { it.startsWith(term) } == true)
+                results.add(setting)
+        }
         return results.toList()
     }
 }
@@ -52,10 +58,13 @@ class Setting(
     val key: String,
     @StringRes titleId: Int,
     @StringRes descriptionId: Int? = null,
+    @StringRes keywordsId: Int? = null,
     private val content: @Composable (Setting) -> Unit
 ) {
     val title = context.getString(titleId)
     val description = descriptionId?.let { context.getString(it) }
+    /** Extra words the search matches besides title and description (fork, stage 69). */
+    val keywords = keywordsId?.let { context.getString(it) }
 
     @Composable
     fun Preference() {
@@ -67,7 +76,7 @@ class Setting(
 private fun createSettings(context: Context) = createAboutSettings(context) + createAppearanceSettings(context) +
         createCorrectionSettings(context) + createPreferencesSettings(context) + createToolbarSettings(context) +
         createLayoutSettings(context) + createAdvancedSettings(context) + createAgentSpaceSettings(context) +
-        createAgentSymbolSettings(context) +
+        createAgentSymbolSettings(context) + createAgentPageSettings(context) +
         if (JniUtils.sHaveGestureLib) createGestureTypingSettings(context) else emptyList()
 
 object SettingsWithoutKey {
@@ -77,8 +86,7 @@ object SettingsWithoutKey {
     const val LICENSE = "license"
     const val HIDDEN_FEATURES = "hidden_features"
     const val GITHUB = "github"
-    const val GITHUB_WIKI = "github_wiki"
-    const val COMMUNITY_LINKS = "community_links"
+    const val FORK_REPO = "fork_repo"
     const val SAVE_LOG = "save_log"
     const val BACKUP_RESTORE = "backup_restore"
     const val DEBUG_SETTINGS = "screen_debug"

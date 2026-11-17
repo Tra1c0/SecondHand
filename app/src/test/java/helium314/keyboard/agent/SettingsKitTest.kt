@@ -118,10 +118,10 @@ class SettingsKitTest {
         assertEquals(false, row)
         assertEquals(ToggleableState.Off, toggle("row_switch"))
 
-        // a standalone switch: own label, Role.Switch, at least 44 dp to touch
+        // a standalone switch: own label, Role.Switch, at least 48 dp to touch
         compose.onNodeWithTag("own_switch").assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Switch))
             .assert(hasContentDescription("RGB-Licht an oder aus"))
-        val min = with(compose.density) { 44.dp.toPx() } - 1
+        val min = with(compose.density) { 48.dp.toPx() } - 1
         assertTrue(compose.onNodeWithTag("own_switch").fetchSemanticsNode().size.height >= min)
         compose.onNodeWithTag("own_switch").performClick()
         compose.waitForIdle()
@@ -153,7 +153,7 @@ class SettingsKitTest {
         compose.onNodeWithTag(CHIP_TAG + "math").performClick()
         compose.waitForIdle()
         assertEquals(false, chipOn)
-        val min = with(compose.density) { 44.dp.toPx() } - 1
+        val min = with(compose.density) { 48.dp.toPx() } - 1
         assertTrue(compose.onNodeWithTag(CHIP_TAG + "ki").fetchSemanticsNode().size.height >= min)
     }
 

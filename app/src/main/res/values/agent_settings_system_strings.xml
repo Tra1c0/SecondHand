@@ -28,7 +28,7 @@
     <string name="agent_system_apply">Apply</string>
     <string name="agent_system_section_backup">Back up</string>
     <string name="agent_system_backup">Back up and restore</string>
-    <string name="agent_system_backup_sub">All settings as a file</string>
+    <string name="agent_system_backup_sub">Keyboard settings and words as a file</string>
     <string name="agent_system_export">Export profiles</string>
     <string name="agent_system_export_sub">Design, keys, gestures one by one</string>
     <string name="agent_system_section_advanced">For advanced users</string>
@@ -53,5 +53,12 @@
     <string name="agent_system_hidden_sub">What is easy to miss</string>
     <string name="agent_system_log_sub">For bug reports</string>
     <string name="agent_system_about_all">All info and links</string>
-    <string name="agent_system_about_all_sub">Wiki, community, source code</string>
+    <string name="agent_system_about_all_sub">Source code, licence, credit</string>
+    <!-- stage 69: About page links -->
+    <string name="about_fork_link">SecondHand on GitHub</string>
+    <string name="about_fork_link_description">Source code and problem reports of this keyboard</string>
+    <string name="about_based_on">Based on HeliBoard</string>
+    <string name="about_based_on_description">Credit and licence of the original project</string>
+    <!-- App slogan (stage 69: translatable, was in donottranslate.xml) -->
+    <string name="app_slogan">100% FOSS keyboard, based on AOSP.</string>
 </resources>

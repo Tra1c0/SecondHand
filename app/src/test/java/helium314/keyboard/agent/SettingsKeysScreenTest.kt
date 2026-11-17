@@ -113,7 +113,7 @@ class SettingsKeysScreenTest {
             "Für die Zeitstempel-Taste · ${Defaults.PREF_TIMESTAMP_FORMAT}", "+", "Standard")
             .forEach { assertTrue(exists(it), "missing text: $it") }
         // the "Seiten" card of 38a is gone on this area
-        assertFalse(exists(app.getString(R.string.agent_area_pages_note)))
+        assertFalse(exists("Dieser Bereich wird Schritt für Schritt neu gestaltet")) // text of the removed transition page (stage 69)
         // section order as in the mockup
         val tops = listOf("Sprache hinzufügen", "Zahlenzeile", "Tasten-Hinweise", "Symbole, Zahlen, Ziffernblock")
             .map { compose.onNodeWithText(it).fetchSemanticsNode().boundsInRoot.top }
@@ -168,20 +168,30 @@ class SettingsKeysScreenTest {
             assertEquals(!default, prefs.getBoolean(key, default), key)
             assertEquals(ToggleableState(!default), state(key), key)
         }
-        // number row: on hides "Zahlenzeile in Symbol-Ansicht" and shows the number row hints, as on the old page
+        // stage 69: dependent rows stay in place, greyed out with the reason (they used to disappear)
+        fun enabled(key: String) = compose.onNodeWithTag(KEYS_ROW_TAG + key).performScrollTo().fetchSemanticsNode()
+            .config.contains(SemanticsProperties.Disabled).not()
+        assertTrue(enabled(Settings.PREF_SHOW_NUMBER_ROW_IN_SYMBOLS))
+        assertFalse(enabled(Settings.PREF_SHOW_NUMBER_ROW_HINTS))
         assertTrue(exists(app.getString(R.string.number_row_in_symbols)))
-        assertFalse(exists(app.getString(R.string.number_row_hints)))
+        assertTrue(exists(app.getString(R.string.number_row_hints)))
+        assertTrue(exists(app.getString(R.string.agent_keys_needs_number_row)))
         compose.onNodeWithTag(KEYS_ROW_TAG + Settings.PREF_SHOW_NUMBER_ROW).performScrollTo().performClick()
         compose.waitForIdle()
         assertTrue(prefs.getBoolean(Settings.PREF_SHOW_NUMBER_ROW, false))
-        assertFalse(exists(app.getString(R.string.number_row_in_symbols)))
-        assertTrue(exists(app.getString(R.string.number_row_hints)))
-        // key hints off hides the hint source, as on the old page
-        assertTrue(exists(app.getString(R.string.hint_source)))
+        assertFalse(enabled(Settings.PREF_SHOW_NUMBER_ROW_IN_SYMBOLS))
+        assertTrue(enabled(Settings.PREF_SHOW_NUMBER_ROW_HINTS))
+        assertTrue(exists(app.getString(R.string.number_row_in_symbols)))
+        assertTrue(exists(app.getString(R.string.agent_keys_number_row_already_on)))
+        // key hints off greys out the hint source (and the number row hints) with the reason
+        assertTrue(enabled(Settings.PREF_POPUP_KEYS_HINT_ORDER))
         compose.onNodeWithTag(KEYS_ROW_TAG + Settings.PREF_SHOW_HINTS).performScrollTo().performClick()
         compose.waitForIdle()
         assertFalse(prefs.getBoolean(Settings.PREF_SHOW_HINTS, true))
-        assertFalse(exists(app.getString(R.string.hint_source)))
+        assertTrue(exists(app.getString(R.string.hint_source)))
+        assertFalse(enabled(Settings.PREF_POPUP_KEYS_HINT_ORDER))
+        assertFalse(enabled(Settings.PREF_SHOW_NUMBER_ROW_HINTS))
+        assertTrue(exists(app.getString(R.string.agent_keys_needs_hints)))
     }
 
     @Test fun backToTheLettersShowsTheFourSwitchesOfErweitert() {
@@ -288,9 +298,9 @@ class SettingsKeysScreenTest {
         assertTrue(exists("Weitere Optionen"))
     }
 
-    @Test fun everyClickableIsAtLeast44dp() {
+    @Test fun everyClickableIsAtLeast48dp() {
         start(german, english)
-        val min = 44 * app.resources.displayMetrics.density - 1
+        val min = 48 * app.resources.displayMetrics.density - 1
         val clickables = compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.OnClick), useUnmergedTree = true).fetchSemanticsNodes()
         assertTrue(clickables.size >= 25, "clickables: ${clickables.size}")
         clickables.forEach { assertTrue(it.size.height >= min && it.size.width >= min, "too small: ${it.size} ${it.config}") }
