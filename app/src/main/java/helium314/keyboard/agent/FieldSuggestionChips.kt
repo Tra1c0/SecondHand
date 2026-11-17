@@ -49,9 +49,7 @@ object FieldSuggestionChips {
     /** Replaced in tests: the freshest clip of a kind, never a secret. */
     @JvmStatic var fresh: (Context, ClipKind, Long) -> ClipVault.Fresh? = { context, kind, age -> ClipVault.freshest(context, kind, age) }
     /** Replaced in tests: whether the device (or the user) is locked right now. */
-    @JvmStatic var deviceLocked: (Context) -> Boolean = {
-        helium314.keyboard.compat.isDeviceLocked(it) || runCatching { helium314.keyboard.compat.isUserLocked(it) }.getOrDefault(false)
-    }
+    @JvmStatic var deviceLocked: (Context) -> Boolean = { LockState.isLocked(it) } // stage 64b: the shared, short-lived answer
 
     /**
      * No suggestions without settings, in incognito (also no-learning and password fields, P139),
@@ -116,6 +114,29 @@ object FieldSuggestionChips {
     /** Forgets the shown offers without learning anything (blocked field, tests). */
     fun forget() { shown = emptySet() }
 
+    /**
+     * Stage 64b (P1): the cursor at which the app last said "nothing behind the cursor", or -1. Asking the app for
+     * the text after the cursor on every strip update was one request per key press in e-mail, phone, number and
+     * name fields. While the cursor only moves forward from there (typing at the end) the answer stays true; a
+     * cursor that went back, an unknown cursor and a new field ask again, and a tap on a chip always asks
+     * ([insert]). Never remembered for "there is text behind it": that is asked every time.
+     */
+    private var emptyAfterCursorAt = -1
+
+    /** A new field starts (called from [KeyboardCommands.load]): what was known about the old one is gone. */
+    internal fun fieldStarted() { emptyAfterCursorAt = -1 }
+
+    private fun nothingAfterCursor(host: KeyboardCommands.Host): Boolean {
+        val cursor = host.cursor
+        if (cursor >= 0 && emptyAfterCursorAt in 0..cursor) {
+            emptyAfterCursorAt = cursor
+            return true
+        }
+        val empty = host.textAfterCursor(1)?.isNotEmpty() != true
+        emptyAfterCursorAt = if (empty) cursor else -1
+        return empty
+    }
+
     private class Item(val kind: SuggestKind, val value: String, val own: Boolean, val score: Double, val offer: Offer?)
 
     /** The chips for the field of [host], or an empty list. */
@@ -153,7 +174,7 @@ object FieldSuggestionChips {
     private fun fieldItems(host: KeyboardCommands.Host, before: String, kind: SuggestKind, weak: Boolean): List<Item> {
         // the whole field before the cursor only, and nothing behind the cursor
         if (before.length >= LOOKBACK) return emptyList()
-        if (host.textAfterCursor(1)?.isNotEmpty() == true) return emptyList()
+        if (!nothingAfterCursor(host)) return emptyList()
         val context = host.context
         val values = ArrayList<Item>()
         myData(context, false)?.entries(kind)?.forEach { values += Item(kind, it, own = true, score = 0.0, offer = null) }
@@ -230,7 +251,8 @@ object FieldSuggestionChips {
                 if (host.textAfterCursor(1)?.isNotEmpty() == true || host.textBeforeCursor(1)?.isNotEmpty() == true) return false
                 return host.insertAtCursor(value) // inserted as private text by the host
             }
-            typed.isNotEmpty() -> host.replace(call(host.context, typed), value)
+            // the build no longer asks every time (nothingAfterCursor): the tap does, so a value never lands in front of text
+            typed.isNotEmpty() -> if (host.textAfterCursor(1)?.isNotEmpty() == true) return false else host.replace(call(host.context, typed), value)
             else -> {
                 var anchor = before.takeLast(ANCHOR)
                 if (anchor.isNotEmpty() && Character.isLowSurrogate(anchor[0])) anchor = anchor.drop(1)

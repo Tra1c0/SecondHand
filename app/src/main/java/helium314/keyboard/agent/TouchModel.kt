@@ -114,6 +114,8 @@ object TouchModel {
         TypingPerf.measure(TypingPerf.Hook.FIELD_START) { loadNow(context, settings, editorInfo, restarting) }
 
     private fun loadNow(context: Context, settings: SettingsValues, editorInfo: EditorInfo?, restarting: Boolean) {
+        // stage 64b: a field starts, so the shared lock state is asked fresh once here and used by everything after it
+        helium314.keyboard.agent.LockState.drop()
         load(context, settings)
         appContext = context.applicationContext ?: context
         val prefs = context.prefs()
@@ -123,7 +125,7 @@ object TouchModel {
             || prefs.getBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, Defaults.PREF_ALWAYS_INCOGNITO_MODE)
             || prefs.getBoolean(AgentPreferences.LEARNING_PAUSED, false)
             || AgentPreferences.TOUCH_CALIBRATION_FIELD == editorInfo.privateImeOptions
-            || helium314.keyboard.compat.isDeviceLocked(context)
+            || helium314.keyboard.agent.LockState.isLocked(context)
         val packageName = editorInfo?.packageName
         val sameField = restarting && packageName == lastPackage && editorInfo?.fieldId == lastFieldId
         lastPackage = packageName; lastFieldId = editorInfo?.fieldId ?: 0

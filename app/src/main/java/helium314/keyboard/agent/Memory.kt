@@ -59,9 +59,7 @@ object Memory {
     /** Wall clock, replaced in tests. */
     @JvmStatic var clock: () -> Long = { System.currentTimeMillis() }
     /** Replaced in tests: whether the device (or the user) is locked right now. */
-    @JvmStatic var deviceLocked: (Context) -> Boolean = {
-        helium314.keyboard.compat.isDeviceLocked(it) || runCatching { helium314.keyboard.compat.isUserLocked(it) }.getOrDefault(false)
-    }
+    @JvmStatic var deviceLocked: (Context) -> Boolean = { LockState.isLocked(it) } // stage 64b: the shared, short-lived answer
 
     private val lock = Any()
     private var phrases: PhraseBook? = null

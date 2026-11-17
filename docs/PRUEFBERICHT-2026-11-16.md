@@ -41,19 +41,19 @@ Die Spalte „Plan“ nennt die Etappe, in der der Befund behoben wird (Nachweis
 
 | Nr. | Befund | Schwere | Stelle | Geprüft | Plan |
 | --- | --- | --- | --- | --- | --- |
-| P1 | In Feldern mit Ziel (E-Mail, Telefon, Zahl, Code, Name, Adresse) fragt jede Leistenaktualisierung den Sperrzustand, den Text hinter der Schreibmarke und die Zwischenablage ab und sortiert den Clip zweimal ein. | hoch | `FieldSuggestionChips.kt:131–156`, `ClipVault.kt:141–158` | L | 64 |
-| P2 | Der Sperrzustand wird nirgends zwischengespeichert: je Wort und je Leerzeichen mehrere Systemaufrufe, auch im normalen Textfeld. | mittel | `Memory.kt:62`, `MemoryChips.kt:62`, `ForeignWords.kt:122–124` | L | 64 |
+| P1 | In Feldern mit Ziel (E-Mail, Telefon, Zahl, Code, Name, Adresse) fragt jede Leistenaktualisierung den Sperrzustand, den Text hinter der Schreibmarke und die Zwischenablage ab und sortiert den Clip zweimal ein. | hoch | `FieldSuggestionChips.kt:131–156`, `ClipVault.kt:141–158` | L | erledigt (Etappe 64b): Text hinter der Schreibmarke nur beim ersten Bauen je Feld und beim Tipp, Clip und Einordnung einmal je Clip; die Pille liest ihren Clip in `ClipboardHistoryManager` weiterhin selbst (gehört zu Etappe 65), nicht auf einem Gerät gemessen |
+| P2 | Der Sperrzustand wird nirgends zwischengespeichert: je Wort und je Leerzeichen mehrere Systemaufrufe, auch im normalen Textfeld. | mittel | `Memory.kt:62`, `MemoryChips.kt:62`, `ForeignWords.kt:122–124` | L | erledigt (Etappe 64b): gemeinsamer Sperrzustand `LockState`, nicht auf einem Gerät gemessen |
 | P3 | Nach viel Löschen in langen Texten reicht der Textspeicher der Tastatur nicht mehr; die Befehlserkennung liest dann je Aktualisierung zweimal 519 Zeichen aus der App. | hoch | `LatinIME.java:187–188`, `KeyboardCommands.kt:425, 435`, `RichInputConnection.java:627–650` | L | 64 |
 | P4 | Die Befehlsanalyse läuft drei- bis fünfmal je Tastendruck und baut ihre Namenstabelle jedes Mal neu. | mittel | `KeyboardCommands.kt:360–378`, `Commands.kt` | – | 64 |
 | P5 | „Tippfehler lernen“ liest je Wort 300 Zeichen hinter der Schreibmarke aus der App, ohne die Zeit zu messen. | mittel | `FieldCorrections.kt:139–140` | – | 64 |
 | P6 | „Meine Daten“ wird nach jedem Schließen der Tastatur verworfen und im nächsten Zielfeld im Hauptthread neu entschlüsselt; ein Fehlschlag wird nicht gemerkt und wiederholt sich je Taste. | mittel | `LatinIME.java:919`, `MyData.kt:164–170` | – | 64 |
-| P7 | Zwischenablage-Pille und Smart Paste werden bis 3 Minuten nach dem Kopieren bei jeder leeren Leiste neu erkannt und neu gebaut. | mittel | `ClipboardHistoryManager.kt:360–418`, `SmartPasteChips.kt:77–82` | – | 64 |
-| P8 | Chip-Zeilen und der Update-Chip werden je Aktualisierung neu gebaut, auch bei gleichem Inhalt. | mittel | `KeyboardCommands.kt:560–620`, `UpdatePrompts.kt` | – | 64 |
+| P7 | Zwischenablage-Pille und Smart Paste werden bis 3 Minuten nach dem Kopieren bei jeder leeren Leiste neu erkannt und neu gebaut. | mittel | `ClipboardHistoryManager.kt:360–418`, `SmartPasteChips.kt:77–82` | – | erledigt (Etappe 64b): Erkennung je Clip gemerkt; die Pille selbst baut `ClipboardHistoryManager` weiter je Aktualisierung (Etappe 65), nicht auf einem Gerät gemessen |
+| P8 | Chip-Zeilen und der Update-Chip werden je Aktualisierung neu gebaut, auch bei gleichem Inhalt. | mittel | `KeyboardCommands.kt:560–620`, `UpdatePrompts.kt` | – | erledigt (Etappe 64b): Zeile der Chips und Update-Chip bei gleichem Inhalt nicht neu gebaut; die Pille mit Smart Paste ausgenommen (wie P7), nicht auf einem Gerät gemessen |
 | P9 | Die Chip-Quellen laufen je leerer Leiste zweimal. | niedrig | `LatinIME.java:1813–1829`, `1694–1712` | – | 64 |
-| P10 | Beim Feldstart laufen mehrere Systemaufrufe im Hauptthread (Update-Prüfung, Trefferzonen). | niedrig | `UpdateOnOpen.kt:83–114`, `TouchModel.kt:113–139` | – | 64 |
+| P10 | Beim Feldstart laufen mehrere Systemaufrufe im Hauptthread (Update-Prüfung, Trefferzonen). | niedrig | `UpdateOnOpen.kt:83–114`, `TouchModel.kt:113–139` | – | erledigt (Etappe 64b): Sperrprüfung des Feldstarts über den gemeinsamen Zustand, Datensparmodus, Netz und Version der Update-Prüfung im Hintergrund, nicht auf einem Gerät gemessen |
 | P11 | Lernspeicher schreiben ihre ganze Datei im Hauptthread (Tippfehler, abgelehnte Korrekturen, Feldkorrekturen); das Gedächtnis wird beim ersten Wort im Hauptthread eingelesen. | niedrig | `TypoMemory.kt:131`, `Memory.kt:146–176` | – | 64 |
 | P12 | Private Bereiche lesen je Wort aus der App, solange ein privater Wert im Feld steht. | niedrig | `PrivateRanges.kt:115–226` | – | offen |
-| P13 | Haptik fragt je Raststufe der Leertaste die Fähigkeiten des Geräts neu ab. | niedrig | `HapticChain.kt:84–130` | – | 64 |
+| P13 | Haptik fragt je Raststufe der Leertaste die Fähigkeiten des Geräts neu ab. | niedrig | `HapticChain.kt:84–130` | – | erledigt (Etappe 64b): Fähigkeiten und Plan je Vibrator einmal, nicht auf einem Gerät gemessen |
 
 Unauffällig laut Bericht: das Zeichnen der Tasten und der Beleuchtung, Touch, Symbole malen, die
 Arbeit im Vorschlags-Thread. Zur Messung am Telefon bekommt die Diagnose eine Karte „Tippen“

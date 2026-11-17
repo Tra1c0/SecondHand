@@ -334,6 +334,7 @@ object KeyboardCommands {
             Active(prefix(context), names, longNames, aiNames, enabled, aliases, context.applicationContext ?: context) else null
         if (isEnabled(context)) enabled.forEach { it.load(context) }
         inCommand = false
+        helium314.keyboard.agent.FieldSuggestionChips.fieldStarted()
         // a new input view is another field, unless the app only restarted the same one (stage 59)
         val kept = longRun
         if (kept == null || field == null || kept.field != field) endLong() else { readCursor = -1; overflowing = false }
@@ -570,6 +571,8 @@ object KeyboardCommands {
             shown.removeAllViews()
             shown.addView(inner)
             shown.scrollTo(0, 0)
+            // the row of the next update is compared with what it shows now (stage 64b)
+            lastRow?.takeIf { it.view === shown }?.let { lastRow = Built(it.parent, it.colors, signature(chips), shown) }
             return true
         }
         fun build(): List<Chip>? = buildChips(ime, onRefresh = {
@@ -580,7 +583,46 @@ object KeyboardCommands {
         }, onShow = { swap(it, onlyIfShown = true) })
         val chips = build()
         if (chips.isNullOrEmpty()) return null
-        return (chipRow(parent, chips) as HorizontalScrollView).also { view = it }
+        return rowFor(parent, chips).also { view = it }
+    }
+
+    /** The row for [chips] in the strip [parent]: the one of the last update when nothing visible changed, else a new one. */
+    internal fun rowFor(parent: ViewGroup, chips: List<Chip>): HorizontalScrollView =
+        reusedRow(parent, chips)
+            ?: (chipRow(parent, chips) as HorizontalScrollView).also { lastRow = Built(java.lang.ref.WeakReference(parent), colorsNow(), signature(chips), it) }
+
+    /**
+     * Stage 64b (P8): the row of the last update, kept for the next one. What a strip update shows is often
+     * the same as before (a second update for the same key, a cursor move that changes nothing visible): then
+     * the views are not built again; only the taps are bound to the new chips, because what a tap does
+     * (the command text it replaces, the cursor it was built for) belongs to this update. The row is the same
+     * only for the same strip, the same colours and chips with the same labels, descriptions and kinds.
+     */
+    private class Built(val parent: java.lang.ref.WeakReference<ViewGroup>, val colors: Any?, val signature: String, val view: HorizontalScrollView)
+    private var lastRow: Built? = null
+    /** Rows built by [chipRow] for the strip since the process started (tests). */
+    @Volatile internal var rowsBuilt = 0
+        private set
+
+    private fun colorsNow(): Any? = Settings.getValues()?.mColors
+
+    private fun signature(chips: List<Chip>): String = buildString {
+        for (chip in chips) append(chip.label).append('\u0000').append(chip.description).append('\u0000').append(chip.kind.ordinal).append('\u0001')
+    }
+
+    private fun reusedRow(parent: ViewGroup, chips: List<Chip>): HorizontalScrollView? {
+        val last = lastRow ?: return null
+        if (last.parent.get() !== parent || last.colors !== colorsNow() || last.signature != signature(chips)) return null
+        val line = last.view.getChildAt(0) as? LinearLayout ?: return null
+        if (line.childCount != chips.size) return null
+        bindTaps(line, chips)
+        return last.view
+    }
+
+    private fun bindTaps(line: LinearLayout, chips: List<Chip>) {
+        chips.forEachIndexed { index, chip ->
+            if (chip.kind != Chip.Kind.LOADING) line.getChildAt(index).setOnClickListener { LockState.drop(); chip.onTap() }
+        }
     }
 
     /**
@@ -674,8 +716,9 @@ object KeyboardCommands {
             override val cursor: Int get() = position
             override fun refresh() = onRefresh()
             override fun textBeforeCursor(length: Int) = ime.getAgentTextBeforeCursor(length)
-            override fun editorTextBeforeCursor(length: Int): CharSequence? = ime.currentInputConnection?.getTextBeforeCursor(length, 0)
-            override fun textAfterCursor(length: Int): CharSequence? = ime.currentInputConnection?.getTextAfterCursor(length, 0)
+            // these two ask the app directly, not through RichInputConnection: counted here (stage 64)
+            override fun editorTextBeforeCursor(length: Int): CharSequence? { TypingPerf.app(); return ime.currentInputConnection?.getTextBeforeCursor(length, 0) }
+            override fun textAfterCursor(length: Int): CharSequence? { TypingPerf.app(); return ime.currentInputConnection?.getTextAfterCursor(length, 0) }
             // e.g. after reading the screen: only while the strip still shows this command at this cursor
             override fun showChips(chips: List<Chip>): Boolean = ime.agentCommandCursor == position && onShow(chips)
             override fun openWorkflow(workflowId: String) = ime.agentEditorController.openWorkflow(workflowId)
@@ -760,6 +803,7 @@ object KeyboardCommands {
     }
 
     internal fun chipRow(parent: ViewGroup, chips: List<Chip>): View {
+        rowsBuilt++
         val context = parent.context
         val colors = Settings.getValues().mColors
         val flat = FlatStyle.isActive(colors)
@@ -811,7 +855,8 @@ object KeyboardCommands {
                 if (chip.kind != Chip.Kind.LOADING) {
                     isClickable = true
                     isFocusable = true
-                    setOnClickListener { chip.onTap() }
+                    // stage 64b: what a tap inserts is checked against the lock state asked now, not the cached one
+                    setOnClickListener { LockState.drop(); chip.onTap() }
                 }
             }
             row.addView(view, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(34f)).apply { marginEnd = dp(6f) })

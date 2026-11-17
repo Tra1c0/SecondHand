@@ -68,6 +68,41 @@ object ClipVault {
      * text, copy time and whether it was marked sensitive. Set by the clipboard history manager.
      */
     @JvmStatic var currentClip: (() -> Triple<String, Long, Boolean>?)? = null
+        set(value) { field = value; live = null }
+
+    /** Stage 64b (P1): the live clip as read last, for [LIVE_MILLIS]; a new clip ([offer]) or [clear] forgets it. */
+    private class Live(val clip: Triple<String, Long, Boolean>?, val at: Long)
+    @Volatile private var live: Live? = null
+    /** How long a read of the system clipboard is reused: a strip update asked it for every candidate kind, every key. */
+    const val LIVE_MILLIS = 1_000L
+
+    /** The system clipboard has a new clip (called by the listener of [helium314.keyboard.agent.commands.SensitiveClips]): [freshest] reads it again. */
+    @JvmStatic fun clipChanged() { live = null }
+
+    private fun liveClip(now: Long): Triple<String, Long, Boolean>? {
+        val known = live
+        if (known != null && now - known.at in 0 until LIVE_MILLIS) return known.clip
+        TypingPerf.system()
+        val clip = runCatching { currentClip?.invoke() }.getOrNull()
+        live = Live(clip, now)
+        return clip
+    }
+
+    /** Stage 64b (P1): the verdict of the content for the clip read last; classifying it again for the same text is wasted work. */
+    private class Classified(val text: String, val result: dev.agentkeyboard.core.clip.ClipClass)
+    @Volatile private var classified: Classified? = null
+    /** How often [classifyLive] really classified (tests). */
+    @Volatile internal var classifications = 0
+        private set
+
+    /** [ClipGuard.classify] with its defaults for [text], remembered for the last text (the live clip is asked twice per update). */
+    internal fun classifyLive(text: String): dev.agentkeyboard.core.clip.ClipClass {
+        classified?.let { if (it.text == text) return it.result }
+        classifications++
+        val result = ClipGuard.classify(text)
+        classified = Classified(text, result)
+        return result
+    }
 
     private val items = ArrayList<Item>()
     /** Copy times of secrets already pasted from the vault, so that re-reading the same clip does not bring them back. */
@@ -95,6 +130,7 @@ object ClipVault {
      */
     @Synchronized
     fun offer(text: String, markedSensitive: Boolean, copiedAt: Long, region: String, allowed: Boolean): ClipClass {
+        live = null // a new clip: the next read of the live clip is a real one
         val result = ClipGuard.classify(text, markedSensitive, region)
         prune()
         if (result.kind == ClipKind.SECRET) {
@@ -148,12 +184,12 @@ object ClipVault {
                     ?.let { return Fresh(kind, it.insertText, now - it.copiedAt) }
             }
         }
-        val (text, copiedAt, marked) = runCatching { currentClip?.invoke() }.getOrNull() ?: return null
+        val (text, copiedAt, marked) = liveClip(now) ?: return null
         if (now - copiedAt > maxAgeMillis) return null
         // the live clip has only the app's mark: a clip copied in a password field, or one the vault
         // sorted as secret (kept, pasted or not), is never offered (review of stage 44, B1)
         if (isSecretClip(text, copiedAt, marked)) return null
-        val result = ClipGuard.classify(text, false)
+        val result = classifyLive(text)
         if (result.kind != kind) return null
         return Fresh(kind, if (kind == ClipKind.OTP) result.code ?: text else text, now - copiedAt)
     }
@@ -166,7 +202,7 @@ object ClipVault {
     fun isSecretClip(text: String, copiedAt: Long, marked: Boolean): Boolean {
         if (marked || helium314.keyboard.agent.commands.SensitiveClips.isSensitive(text)) return true
         if (synchronized(this) { copiedAt in secretStamps }) return true
-        return ClipGuard.classify(text).kind == ClipKind.SECRET
+        return classifyLive(text).kind == ClipKind.SECRET
     }
 
     /**
@@ -205,6 +241,8 @@ object ClipVault {
 
     /** Forgets everything (tests, history cleared). */
     @Synchronized fun clear() {
+        live = null
+        classified = null
         items.clear()
         used.clear()
         secretStamps.clear()
