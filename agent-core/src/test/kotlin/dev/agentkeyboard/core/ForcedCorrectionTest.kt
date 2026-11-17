@@ -51,6 +51,29 @@ class ForcedCorrectionTest {
         assertTrue(ForcedCorrection.eligible(text or FieldReport.FLAG_AUTO_COMPLETE, 4))
     }
 
+    @Test fun goAndNextOnlyExcludeSingleLineFields() {
+        // Android's TextView sets NEXT by itself for a chat field: multi-line fields stay eligible
+        val chat = text or FieldReport.FLAG_MULTI_LINE or FieldReport.FLAG_NO_SUGGESTIONS
+        assertTrue(ForcedCorrection.eligible(chat, FieldReport.IME_ACTION_NEXT))
+        assertTrue(ForcedCorrection.eligible(chat, FieldReport.IME_ACTION_GO))
+        assertFalse(ForcedCorrection.eligible(text or FieldReport.FLAG_NO_SUGGESTIONS, FieldReport.IME_ACTION_NEXT))
+        // search and ASCII stay excluded in a multi-line field
+        assertFalse(ForcedCorrection.eligible(chat, FieldReport.IME_ACTION_SEARCH))
+        assertFalse(ForcedCorrection.eligible(chat, FieldReport.IME_FLAG_FORCE_ASCII))
+    }
+
+    @Test fun theReasonIsNamed() {
+        assertEquals(ForcedCorrection.Excluded.PASSWORD, ForcedCorrection.excludedReason(text or FieldReport.VARIATION_PASSWORD, 0))
+        assertEquals(ForcedCorrection.Excluded.ADDRESS, ForcedCorrection.excludedReason(text or FieldReport.VARIATION_EMAIL_ADDRESS, 0))
+        assertEquals(ForcedCorrection.Excluded.NAME, ForcedCorrection.excludedReason(text or FieldReport.VARIATION_PERSON_NAME, 0))
+        assertEquals(ForcedCorrection.Excluded.FILTER, ForcedCorrection.excludedReason(text or FieldReport.VARIATION_FILTER, 0))
+        assertEquals(ForcedCorrection.Excluded.SEARCH, ForcedCorrection.excludedReason(text, FieldReport.IME_ACTION_SEARCH))
+        assertEquals(ForcedCorrection.Excluded.GO_NEXT, ForcedCorrection.excludedReason(text, FieldReport.IME_ACTION_GO))
+        assertEquals(ForcedCorrection.Excluded.ASCII, ForcedCorrection.excludedReason(text, FieldReport.IME_FLAG_FORCE_ASCII))
+        assertEquals(ForcedCorrection.Excluded.NOT_TEXT, ForcedCorrection.excludedReason(FieldReport.TYPE_CLASS_NUMBER, 0))
+        assertEquals(null, ForcedCorrection.excludedReason(text, 4))
+    }
+
     @Test fun onlyTextFieldsQualify() {
         assertFalse(ForcedCorrection.eligible(0, 0))
         assertFalse(ForcedCorrection.eligible(FieldReport.TYPE_CLASS_NUMBER, 0))

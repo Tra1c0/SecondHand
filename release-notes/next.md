@@ -12,8 +12,10 @@ Bekannt in diesem Test-Build (Korrektur folgt im nächsten Build):
 - Neuer Name und neues Logo: Die App heißt jetzt „SecondHand“ (bisher „Agent Keyboard“) und hat ein neues Symbol, eine weiße Taste mit „S“ vor einer roten Umriss-Taste. Ein Update von Build 27 behält alle Einstellungen, Schlüssel und Gelerntes. Jeder Build liegt auf GitHub zusätzlich unter dem alten Dateinamen `AgentKeyboard-build-<N>.apk`, damit ältere Installationen weiter Updates finden.
 - Neu: „Korrektur in Apps erzwingen“ (Einstellungen → Tippen & Korrektur → Regeln, anfangs nur
   Instagram): In Textfeldern dieser Apps gibt es Vorschläge, Autokorrektur und Großschreibung am
-  Satzanfang auch dort, wo die App sie verbietet. Nicht in Passwort-, E-Mail-, Adress-, Namen- und
-  Suchfeldern; deine Schalter und das Lernen bleiben, wie sie sind. Auf der Karte „Letztes Feld“
+  Satzanfang auch dort, wo die App sie verbietet. Nicht in Passwort-, E-Mail-, Adress-, Suchfeldern
+  und einigen weiteren Feldarten; deine Schalter und das Lernen bleiben, wie sie sind. Verhält sich das
+  Tippen in Instagram seltsam, nimm die App unter Einstellungen → Tippen & Korrektur → Regeln aus der
+  Liste und schick den Screenshot der Karte „Letztes Feld“. Auf der Karte „Letztes Feld“
   (Diagnose) gibt es dazu den Knopf „In dieser App erzwingen“; in Feldern ohne Lernen (private Chats)
   zeigt die Karte jetzt Feldtyp, Merkmale und Urteil, nur nicht die App. Gilt ab dem nächsten Feld.
   Korrigiert Instagram trotzdem nicht, zeigt die Karte den Grund: „Korrektur erzwungen: ja/nein“ und

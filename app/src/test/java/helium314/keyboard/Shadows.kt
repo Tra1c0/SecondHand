@@ -154,6 +154,9 @@ class ShadowInputMethodService {
         var currentFieldId = 0
         /** How the field answers an image (commitContent); unset, a commit fails the test. */
         var contentCommit: ((InputContentInfo) -> Boolean)? = null
+        /** How the editor treats text (stage 61 tests): normally, upper-casing everything it is given, or ignoring composing text. */
+        enum class EditorMode { NORMAL, UPPERCASE, IGNORE_COMPOSING }
+        var editorMode = EditorMode.NORMAL
 
         // convenience for access
         val textBeforeCursor get() = text.substring(0, selectionStart)
@@ -182,6 +185,7 @@ class ShadowInputMethodService {
             currentPackageName = null
             currentFieldId = 0
             contentCommit = null
+            editorMode = EditorMode.NORMAL
         }
     }
 
@@ -216,7 +220,12 @@ class ShadowInputMethodService {
         // inserts text at cursor (right?), and sets it as composing text
         // this REPLACES currently composing text (even if at a different position)
         // moves the cursor: positive means relative to composing text start, negative means relative to start
-        override fun setComposingText(newText: CharSequence, cursor: Int): Boolean {
+        override fun setComposingText(newText: CharSequence, cursor: Int): Boolean = when (editorMode) {
+            EditorMode.NORMAL -> doSetComposingText(newText, cursor)
+            EditorMode.UPPERCASE -> doSetComposingText(newText.toString().uppercase(), cursor)
+            EditorMode.IGNORE_COMPOSING -> true // takes nothing, answers as if it did
+        }
+        private fun doSetComposingText(newText: CharSequence, cursor: Int): Boolean {
             // first remove the composing text if any
             if (composingStart != -1 && composingEnd != -1)
                 text = text.substring(0, composingStart) + text.substring(composingEnd)
@@ -257,7 +266,7 @@ class ShadowInputMethodService {
         }
         // as per documentation: "This behaves like calling setComposingText(text, newCursorPosition) then finishComposingText()"
         override fun commitText(p0: CharSequence, p1: Int): Boolean {
-            setComposingText(p0, p1)
+            doSetComposingText(if (editorMode == EditorMode.UPPERCASE) p0.toString().uppercase() else p0, p1)
             finishComposingText()
             return true // whether we added the text
         }

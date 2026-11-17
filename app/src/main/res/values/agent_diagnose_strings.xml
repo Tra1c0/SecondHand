@@ -195,7 +195,7 @@
     <string name="agent_diagnose_field_app_not_kept">not remembered (field without learning)</string>
     <string name="agent_diagnose_field_forced">Correction forced</string>
     <string name="agent_diagnose_field_forced_yes">yes, for this app</string>
-    <string name="agent_diagnose_field_forced_listed">the app is on the list, but this field does not qualify</string>
+    <string name="agent_diagnose_field_forced_listed">the app is on the list, this field is not: %1$s</string>
     <string name="agent_diagnose_field_forced_no">no</string>
     <string name="agent_diagnose_verdict_forced_suggestions">The app forbids suggestions; forced for this app.</string>
     <string name="agent_diagnose_verdict_forced_autocorrect">The app does not ask for autocorrection; forced for this app.</string>
@@ -208,8 +208,16 @@
     <string name="agent_diagnose_force_saved">Saved. Applies from the next field.</string>
     <string name="agent_diagnose_debuggable">Debuggable app</string>
     <string name="agent_diagnose_debug_mode">Debug mode</string>
-    <string name="agent_diagnose_field_refused">App did not take typed text at once</string>
+    <string name="agent_diagnose_field_refused">App did not take typed text unchanged</string>
     <string name="agent_diagnose_field_refused_value">%1$d times</string>
-    <string name="agent_diagnose_verdict_refused">The app did not take the text the keyboard sets while typing at once; suggestions and autocorrection can break off in this field.</string>
+    <string name="agent_diagnose_verdict_refused">The app did not take the text the keyboard sets while typing unchanged (it changes it, limits it or applies it late). The text stays, but there are no suggestions and no autocorrection for that word.</string>
     <string name="agent_diagnose_force_full">List full (at most 50 apps). Nothing changed.</string>
+    <string name="agent_diagnose_excluded_password">password field</string>
+    <string name="agent_diagnose_excluded_address">address or e-mail field</string>
+    <string name="agent_diagnose_excluded_name">name or postal address field</string>
+    <string name="agent_diagnose_excluded_filter">filter or phonetic field</string>
+    <string name="agent_diagnose_excluded_search">search action</string>
+    <string name="agent_diagnose_excluded_go_next">single-line field with the Go or Next action</string>
+    <string name="agent_diagnose_excluded_ascii">ASCII characters only</string>
+    <string name="agent_diagnose_excluded_not_text">no text field</string>
 </resources>

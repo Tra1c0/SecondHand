@@ -23,29 +23,36 @@ object ForcedCorrection {
     /** Apps forced until the owner changes the list (lead's assumption, stage 61; removable). */
     val DEFAULT_PACKAGES: Set<String> = setOf("com.instagram.android")
 
-    /** `TYPE_TEXT_VARIATION_*` that are never forced: addresses, names, filters and every password. */
-    private val EXCLUDED_VARIATIONS = setOf(
-        FieldReport.VARIATION_URI, FieldReport.VARIATION_EMAIL_ADDRESS, FieldReport.VARIATION_WEB_EMAIL_ADDRESS,
-        FieldReport.VARIATION_PERSON_NAME, FieldReport.VARIATION_POSTAL_ADDRESS,
-        FieldReport.VARIATION_PASSWORD, FieldReport.VARIATION_VISIBLE_PASSWORD, FieldReport.VARIATION_WEB_PASSWORD,
-        FieldReport.VARIATION_FILTER, FieldReport.VARIATION_PHONETIC,
-    )
-
     private const val CAP_FLAGS = FLAG_CAP_CHARACTERS or FLAG_CAP_WORDS or FLAG_CAP_SENTENCES
 
+    /** Why a field is never forced (the card names it). */
+    enum class Excluded { NOT_TEXT, PASSWORD, ADDRESS, NAME, FILTER, SEARCH, GO_NEXT, ASCII }
+
     /**
-     * Whether a field with [inputType] and [imeOptions] may be forced when its app is on the list: a text
-     * field that is no password, e-mail, URI, filter, phonetic, person-name or postal-address field and
-     * whose action is not search, go or next and that does not force ASCII.
+     * Why a field with [inputType] and [imeOptions] is not forced even when its app is on the list; null when it
+     * qualifies: a text field that is no password, e-mail, URI, filter, phonetic, person-name or postal-address
+     * field, whose action is not search, that does not force ASCII and, when it is single-line, whose action is
+     * not go or next. Login and form fields (user names) are single-line and ask for GO or NEXT; Android's
+     * `TextView` also sets NEXT by itself for chat fields, which are multi-line and stay eligible.
      */
-    fun eligible(inputType: Int, imeOptions: Int): Boolean {
-        if (inputType and TYPE_MASK_CLASS != TYPE_CLASS_TEXT) return false
-        if ((inputType and TYPE_MASK_VARIATION) in EXCLUDED_VARIATIONS) return false
-        // login and form fields (user names, account names) ask for GO or NEXT; SEND, DONE, NONE and UNSPECIFIED stay
+    fun excludedReason(inputType: Int, imeOptions: Int): Excluded? {
+        if (inputType and TYPE_MASK_CLASS != TYPE_CLASS_TEXT) return Excluded.NOT_TEXT
+        when (inputType and TYPE_MASK_VARIATION) {
+            FieldReport.VARIATION_PASSWORD, FieldReport.VARIATION_VISIBLE_PASSWORD, FieldReport.VARIATION_WEB_PASSWORD -> return Excluded.PASSWORD
+            FieldReport.VARIATION_URI, FieldReport.VARIATION_EMAIL_ADDRESS, FieldReport.VARIATION_WEB_EMAIL_ADDRESS -> return Excluded.ADDRESS
+            FieldReport.VARIATION_PERSON_NAME, FieldReport.VARIATION_POSTAL_ADDRESS -> return Excluded.NAME
+            FieldReport.VARIATION_FILTER, FieldReport.VARIATION_PHONETIC -> return Excluded.FILTER
+        }
         val action = imeOptions and IME_MASK_ACTION
-        if (action == IME_ACTION_SEARCH || action == FieldReport.IME_ACTION_GO || action == FieldReport.IME_ACTION_NEXT) return false
-        return imeOptions and FieldReport.IME_FLAG_FORCE_ASCII == 0
+        if (action == IME_ACTION_SEARCH) return Excluded.SEARCH
+        if (imeOptions and FieldReport.IME_FLAG_FORCE_ASCII != 0) return Excluded.ASCII
+        if ((action == FieldReport.IME_ACTION_GO || action == FieldReport.IME_ACTION_NEXT) && inputType and FieldReport.FLAG_MULTI_LINE == 0)
+            return Excluded.GO_NEXT
+        return null
     }
+
+    /** Whether a field may be forced when its app is on the list ([excludedReason] is null). */
+    fun eligible(inputType: Int, imeOptions: Int): Boolean = excludedReason(inputType, imeOptions) == null
 
     /**
      * The `inputType` the capitalisation reads: [inputType] with `TYPE_TEXT_FLAG_CAP_SENTENCES` added when

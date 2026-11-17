@@ -5065,8 +5065,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   (`ForcedApps.forces`, liest die Liste neu; ein geänderter Schlüssel lädt die Einstellungen neu, es gilt also ab
   dem nächsten Feld oder der nächsten Neuladung). Ausgeschlossen (rein, `ForcedCorrection.eligible`): jede
   Passwortvariante, URI, E-Mail (auch Web), Filter, Phonetik, Personenname, Postanschrift, Aktion „Suchen“ und
-  jede Nicht-Textklasse; seit der Nachprüfung auch Felder mit `IME_FLAG_FORCE_ASCII` und den Aktionen GO und NEXT (Anmelde- und
-  Formularfelder); SEND, DONE, NONE, UNSPECIFIED und `AUTO_COMPLETE` bleiben zulässig. Zusätzlich nie bei `mIsPasswordField`. Webfelder (`WEB_EDIT_TEXT`) und
+  jede Nicht-Textklasse; seit der Nachprüfung auch Felder mit `IME_FLAG_FORCE_ASCII` und, nur in einzeiligen Feldern, den Aktionen GO und NEXT (Anmelde- und
+  Formularfelder; Chatfelder sind mehrzeilig, und `TextView` setzt NEXT selbst); `ForcedCorrection.excludedReason` nennt den Grund für die Karte; SEND, DONE, NONE, UNSPECIFIED und `AUTO_COMPLETE` bleiben zulässig. Zusätzlich nie bei `mIsPasswordField`. Webfelder (`WEB_EDIT_TEXT`) und
   E-Mail-Betreff sind nicht ausgeschlossen. Erzwungene Vorschläge umgehen auch die Web-Ausnahme von „Immer
   Vorschläge anzeigen“, weil der Owner die App ausdrücklich gelistet hat. Die eigenen Schalter gewinnen
   (`PREF_SHOW_SUGGESTIONS`, `PREF_AUTO_CORRECTION`, `mAutoCap`, Symbolleistenmodus). Lernen und Inkognito
@@ -5074,7 +5074,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `IME_FLAG_NO_PERSONALIZED_LEARNING` hat weiter keinen Nutzerverlauf. Bekannte Nebenwirkung: Mit erzwungenen
   Vorschlägen in einem `NO_SUGGESTIONS`-Feld setzt die Engine Composing-Text (wie bei „Immer Vorschläge
   anzeigen“); `RichInputConnection.setComposingText` prüft dort nach (die Prüfung und ihr `return false` sind unverändert; auf einem
-  Gerät nicht geprüft). Nachprüfung 61: Das Log dieser Prüfung nennt nur die Länge, nie den Text, und ein Aufruf
+  Gerät nicht geprüft). Zweite Nachprüfung 61 (M2): Ein Editor, der den Text ändert (z. B. nur Großbuchstaben) oder spät übernimmt,
+  ließ die Prüfung scheitern; `InputLogic` setzt danach den Wort-Composer zurück, der nächste Buchstabe begann einen neuen Composing-Text
+  und ersetzte den alten Bereich (gemessen: „hal welt“ ergab „AL ELT“). Darum ruft die Fehlerstelle `finishComposingText()` auf, bevor
+  `false` zurückkommt: Der Text bleibt, der nächste Buchstabe wird angehängt, für dieses Wort gibt es keine Vorschläge. Die Stelle liegt in
+  `RichInputConnection`, weil dort beide Zwischenspeicher (`mComposingText` und der Text davor) zusammen geführt werden; sie gilt
+  auch für „Immer Vorschläge anzeigen“ ohne Erzwingen (Normaleditoren unverändert). Nachprüfung 61: Das Log dieser Prüfung nennt nur die Länge, nie den Text, und ein Aufruf
   `LastField.onComposingRefused()` (wirft nie) zählt jeden Fehlschlag für das Feld; die Karte zeigt „App nahm getippten Text
   nicht sofort an: n-mal“ und das Urteil sagt, dass Vorschläge und Autokorrektur abbrechen können. Nur die Zahl, sie beginnt mit
   jedem Feld neu. Zeigt Instagram nach diesem Build weiter keine Korrektur, zeigt der Screenshot der Karte, ob die App den Text
@@ -5091,7 +5096,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Verdict und Ergebnis, aber `packageName = null` und `appForced = false` (kein App-Name; `appForced` ist dort aus); `noLearning`/`incognito` sagen warum, das Urteil hängt „Das Feld verlangt kein Lernen …“ an.
   Der Knopf der Karte fehlt dort (`Section.appPackage` ist `null`). `forced` bleibt wahr, wenn die Engine
   erzwungen hat, und die Karte zeigt „Korrektur erzwungen: ja“: Sie behält dort weder Paketname noch App-Name, verrät aber,
-  ob erzwungen wurde (und damit mittelbar, dass die App in der Liste steht; `appForced` selbst ist dort aus). Zum Wiedererkennen
+  ob erzwungen wurde (und damit mittelbar, dass die App in der Liste steht; `appForced` selbst ist dort aus). Die Zahl der verweigerten Eingaben bleibt, wenn die App dasselbe Feld neu startet (gesalzener Hash aus Paket, Feld-ID und Eingabetyp, `restartKey`), und beginnt bei einem anderen Feld neu. Zum Wiedererkennen
   desselben Felds nach einem Sprachwechsel hält `Field.fieldKey` einen Hash des Pakets mit einem zufälligen Salz je Prozess
   (nie angezeigt, nie gespeichert). Passwortfeld (jede Variante, auch roh) bleibt nur
   `Password`, gesperrt nur `Locked`. Der Update-Chip (`stripNeutral`) erscheint in Feldern ohne Lernen weiter
