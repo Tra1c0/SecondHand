@@ -5239,7 +5239,12 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   und vergleicht: die `.sha256` muss die des Laufs sein, die APK zu ihr passen. Das Tag nie mit
   `gh api …/git/ref/tags/…` suchen: bei einem fehlenden Tag schreibt `gh api` den Fehlertext auf die
   Standardausgabe, der dann wie ein Tag auf einem anderen Commit aussieht und jeden neuen Build
-  stoppt; der Workflow fragt `git ls-remote --tags` (leer = kein Tag).
+  stoppt; der Workflow fragt `git ls-remote --tags` (leer = kein Tag; das zweite Muster `…^{}` liefert
+  bei einem von Hand angelegten, annotierten Tag den Commit dahinter). Der Zurücklese-Schritt wendet
+  die Grenzen der App an (`UpdateReleases`: genau ein Asset je Name, APK 1 bis 120 MB, Prüfsumme 1 bis
+  4096 Bytes, kein Entwurf). Ein Branchname kommt nur über `env` in ein Skript (`REF_NAME`), nie als
+  `${{ … }}` im Skripttext. Nach `gh release upload` im Wiederholungszweig folgt `gh release edit
+  --draft=false`: ein abgebrochener Upload des ersten Versuchs kann einen Entwurf hinterlassen.
 - **P263** Test-Tor und `agent-tests.yml` (63): Das Tor vor dem öffentlichen Veröffentlichen liest die
   Pfade aus `agent-tests.yml` (Schlüssel `paths:` unter `push`, einfache Zeilenauswertung, kein
   YAML-Parser) und nimmt als Nachweis jeden grünen Lauf (`gh run list --workflow agent-tests.yml`,
@@ -5248,7 +5253,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Commit, der die Pfade geändert hat“ verlangen: ein Push startet die Tests nur einmal, für den
   neuesten Commit des Pushs, und der ist oft ein Merge- oder Docs-Commit; das Tor fände dann nie
   einen Lauf. Ändert sich die Pfadliste, bleibt das Tor automatisch richtig; die Pfad-Liste muss
-  `.github/workflows/agent-apk.yml` selbst enthalten. Die Mindestzahlen je Job (`minimum` im
+  `.github/workflows/agent-apk.yml` selbst enthalten, dazu `docs/BUILD.md` (der Vertragstest liest
+  dort das Zertifikat) und `gradlew*`. Das Tor scheitert laut, statt weniger zu prüfen: eine Pfadzeile
+  mit Kommentar dahinter oder mit `!` und ein Pfad, der auf keine Datei passt, brechen ab. Die Mindestzahlen je Job (`minimum` im
   Zusammenfassungsschritt, zuerst aus gezählten `@Test` geschätzt) beim Hinzufügen von Tests auf etwa
   90 % des Wertes eines grünen Laufs anheben; die fünf bekannten Fehler stehen mit exakten Namen in
   `known` (die zwei Cloud-Umgebungs-Fehler `layoutsLinksInternal`, `otherLinks` nicht: auf GitHub

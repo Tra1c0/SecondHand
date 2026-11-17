@@ -14,8 +14,11 @@ on:
       - 'tools/**'
       - '*.gradle*'
       - 'gradle/**'
+      - 'gradlew*'
       - 'gradle.properties'
       - 'upstream.lock'
+      # WorkflowContractTest compares the owner's certificate in this file with agent-apk.yml
+      - 'docs/BUILD.md'
       # embedded into the APK as the update notes and read by the unit tests (stage 54)
       - 'release-notes/**'
       - '.github/workflows/agent-tests.yml'

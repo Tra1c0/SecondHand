@@ -129,7 +129,22 @@ nutzen einen Debug-Schlüssel, der in jeder neuen Umgebung anders ist; sie sind 
   - … „tag build-N already exists … points to …“: Die Nummer gehört einem anderen Commit (z. B. weil
     der Workflow umbenannt wurde). Nichts löschen, bevor der Owner entschieden hat; ein erneuter Lauf
     gleicher Nummer und gleichen Commits lädt dagegen neu hoch.
-  - Der Gradle-Schritt bekommt `-Xmx3g`; `gradle.properties` hat nur 1024m.
+  - Reihenfolge auf `main`: Prüfschritt, privates Vorab-Release, dann Test-Nachweis, öffentliches
+    Release, Zurücklesen. Scheitert der Lauf am Test-Nachweis, am Token oder beim Zurücklesen, gibt es
+    das private Vorab-Release dieser Nummer schon; ein Update für die App ist es erst im öffentlichen
+    Repository.
+  - „Re-run“ und neuer Start: Ein erneuter Lauf (Actions → „Re-run“) behält die Nummer und benutzt die
+    Workflow-Datei des ursprünglichen Commits. Er hilft nach einem Ausfall von außen (Netz, GitHub,
+    fehlendes Secret, Tests inzwischen grün). Steckt der Fehler in `agent-apk.yml` selbst oder im Code,
+    braucht es nach der Korrektur einen neuen Start („Run workflow“) mit neuer Nummer. Blieb das
+    Release durch einen abgebrochenen Upload als Entwurf stehen, veröffentlicht der erneute Lauf es
+    (`gh release edit --draft=false`).
+  - „agent-tests.yml: path line not understood“ oder „The path … matches no file“: Der Test-Nachweis
+    liest die Pfadliste von `agent-tests.yml`. Dort darf hinter einem Pfad kein Kommentar stehen, kein
+    Ausschluss (`!`) vorkommen und jeder Pfad muss auf mindestens eine Datei passen; sonst würde der
+    Nachweis diesen Pfad still übergehen.
+  - Der Gradle-Schritt bekommt `-Xmx3g`; `gradle.properties` hat nur 1024m. Die Schlüsseldatei wird
+    auch nach einem gescheiterten Build gelöscht (`trap`).
 - `build-test-auto.yml` (Upstream-Rest): lief bei jedem Pull Request und war immer rot (er ruft
   `testRunTestsUnitTest` auf, nicht der Weg dieses Forks). Seit 63 nur noch von Hand
   (`workflow_dispatch`); die Tests laufen in `agent-tests.yml`.
@@ -159,7 +174,7 @@ nutzen einen Debug-Schlüssel, der in jeder neuen Umgebung anders ist; sie sind 
   ist da“. Darum gehört in `next.md` das Wichtigste nach oben.
 - Zertifikat des Owners (SHA-256):
   `D5:6E:8F:00:11:D7:80:63:37:90:8C:FA:A7:36:E5:D4:F8:FE:25:49:14:5A:5B:37:5D:FB:BB:1D:18:63:60:2A`.
-  Der Workflow gibt das Zertifikat der APK im Log aus und bricht ab, wenn es nicht dieses ist
+  Der Workflow gibt das Zertifikat der APK im Log aus (Schritt „Verify the built APK“) und bricht ab, wenn es nicht dieses ist
   (`OWNER_CERT_SHA256` im Kopf von `agent-apk.yml`; `WorkflowContractTest` prüft, dass beide gleich sind).
 - Öffentliches Release-Repository `Tra1c0/SecondHandAgenticKeyboard` (seit 2026-11-14, vorher
   `Tra1c0/AgenticKeyboard`; Name in `UpdateReleases.REPOSITORY`

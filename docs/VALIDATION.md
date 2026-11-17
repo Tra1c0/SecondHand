@@ -5586,6 +5586,25 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   Chip-Verhalten bei vielen Zeilen), ob die Sprachregel das Problem „Englisch kommt deutsch zurück“ löst.
 - Engine-nahe Änderung (Prüfer Pflicht): in `LatinIME.tryShowCommandChips` das Argument der Leselänge.
 
+### Nachprüfung 59 (Prüfung des Leads, 2026-11-16)
+
+- F1 (mittel): ein angefangener Name (`@`, `@t`) oder ein anderer Befehl mitten in einer langen Frage
+  beendet das lange Lesefenster nicht mehr; ein zweites `@ki` darin übernimmt nur, wenn das äußere nicht
+  mehr steht (`trackLong`, `check`). Test: `aStartedNameOrAnotherCommandInsideALongQuestionDoesNotEndIt`.
+- F2 (mittel bis niedrig): Auswahl und Schreibmarke vor dem Anfang machen den Zustand nur ruhend; `load`
+  behält ihn im selben Feld (`FieldKey`), verwirft ihn in einem anderen. Geändert: der Test, der „kommt nicht
+  von selbst zurück“ festhielt, prüft jetzt das Gegenteil (`aSelectionOrACursorInFrontOfTheCommandOnlyMakesItDormant`,
+  `theSameFieldRestartedKeepsTheCommandAnotherFieldDropsIt`).
+- F3 (mittel): Ausgabetoken mindestens 8192 für alle drei Anbieter, höchstens 16384; `@ki` und Panel-Frage haben
+  eine eigene Abschneide-Meldung (`agent_cloud_cut_off_ask`, `agent_command_ai_cut_off_ask`).
+  Geändert: `ModelBudgetTest` und `LongTextBudgetTest` (Untergrenze 8192 statt 4096; OpenAI 5 Zeichen = 8192).
+- F4 (niedrig): `ExecutionPolicy.insertDenial` erlaubt bis `maxResultChars`; geändert in `InsertionAnchorTest`
+  (65.536 erlaubt, 65.537 `TOO_LARGE` statt 32.769).
+- F7: `KEEP_LANGUAGE` nur in CORRECT und REPHRASE, `KEEP_MAIN_LANGUAGE` in SUMMARIZE, REPLY, ANALYZE
+  (`AiTextActionTest` angepasst).
+- Zwei Leerzeilen beenden die Frage (`CommandSyntax.endsQuestion`, Tests in `CommandSyntaxTest` und
+  `LongCommandTest`); Hinweis-Chip über 2000 Zeichen; P244 und ROADMAP korrigiert.
+
 ## Etappe 62 (ausgelieferte Variante ohne Debug-Modus)
 
 - Auftrag: Prüfung des Leads vom 2026-11-16 und Bericht des Owners („stellenweise Performance-
@@ -5640,15 +5659,17 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
   stiller Abbruch ohne Token.
 - Ergebnis: `:agent-core:test` 601 grün (595 bisherige, sechs neue in `WorkflowContractTest`); Lint
   (`python3 tools/dev.py lint`) grün (277 Warnungen, 5 Hinweise, 68 durch die Baseline gefiltert).
-- Geprüft: YAML aller drei geänderten Workflows geparst, die Shell-Blöcke einzeln mit `bash -n`
-  gelesen, die Pfadauswertung des Tests-Tors lokal mit `git log` ausgeführt.
-- Nicht geprüft: jeder Workflow selbst (läuft nur auf GitHub), `gh run list --commit`, das Zurücklesen,
-  ein erneuter Lauf mit `--clobber`.
+- Geprüft (Stand des Builders, 518f9b0): YAML aller drei geänderten Workflows geparst, die
+  Shell-Blöcke einzeln mit `bash -n` gelesen, die Pfadauswertung des Tests-Tors lokal mit `git log`
+  ausgeführt. Das Tor und das Zurücklesen hat der Lead danach umgebaut (nächster Abschnitt).
+- Nicht geprüft: jeder Workflow selbst (läuft nur auf GitHub), das Zurücklesen, ein erneuter Lauf mit
+  `--clobber`.
 
 ### Kontrolle des Leads 63 (2026-11-16)
 
 Der Lead hat `agent-apk.yml` Zeile für Zeile gelesen und die Schritte lokal mit den echten Werkzeugen
-durchgespielt. Drei Fehler gefunden und behoben, bevor der Workflow je lief:
+durchgespielt. Drei Fehler gefunden und behoben, bevor der Workflow je lief (die ersten drei Punkte;
+die übrigen sind Prüfungen):
 
 - Tag-Suche: `gh api …/git/ref/tags/<tag> --jq … || true` gibt für ein fehlendes Tag den Fehlertext
   auf der Standardausgabe aus (mit einem echten Aufruf nachgestellt). Jeder neue Build wäre mit „tag
@@ -5675,24 +5696,43 @@ durchgespielt. Drei Fehler gefunden und behoben, bevor der Workflow je lief:
 - Nicht geprüft: der Workflow selbst auf GitHub (erster echter Lauf ist der nächste Test-Build), die
   echte Abfrage der Release-Liste (aus dieser Umgebung nicht erreichbar), `gh run list`, ein erneuter
   Lauf mit `--clobber`, das Verhalten auf `main` (erst beim geprüften Build).
-### Nachprüfung 59 (Prüfung des Leads, 2026-11-16)
 
-- F1 (mittel): ein angefangener Name (`@`, `@t`) oder ein anderer Befehl mitten in einer langen Frage
-  beendet das lange Lesefenster nicht mehr; ein zweites `@ki` darin übernimmt nur, wenn das äußere nicht
-  mehr steht (`trackLong`, `check`). Test: `aStartedNameOrAnotherCommandInsideALongQuestionDoesNotEndIt`.
-- F2 (mittel bis niedrig): Auswahl und Schreibmarke vor dem Anfang machen den Zustand nur ruhend; `load`
-  behält ihn im selben Feld (`FieldKey`), verwirft ihn in einem anderen. Geändert: der Test, der „kommt nicht
-  von selbst zurück“ festhielt, prüft jetzt das Gegenteil (`aSelectionOrACursorInFrontOfTheCommandOnlyMakesItDormant`,
-  `theSameFieldRestartedKeepsTheCommandAnotherFieldDropsIt`).
-- F3 (mittel): Ausgabetoken mindestens 8192 für alle drei Anbieter, höchstens 16384; `@ki` und Panel-Frage haben
-  eine eigene Abschneide-Meldung (`agent_cloud_cut_off_ask`, `agent_command_ai_cut_off_ask`).
-  Geändert: `ModelBudgetTest` und `LongTextBudgetTest` (Untergrenze 8192 statt 4096; OpenAI 5 Zeichen = 8192).
-- F4 (niedrig): `ExecutionPolicy.insertDenial` erlaubt bis `maxResultChars`; geändert in `InsertionAnchorTest`
-  (65.536 erlaubt, 65.537 `TOO_LARGE` statt 32.769).
-- F7: `KEEP_LANGUAGE` nur in CORRECT und REPHRASE, `KEEP_MAIN_LANGUAGE` in SUMMARIZE, REPLY, ANALYZE
-  (`AiTextActionTest` angepasst).
-- Zwei Leerzeilen beenden die Frage (`CommandSyntax.endsQuestion`, Tests in `CommandSyntaxTest` und
-  `LongCommandTest`); Hinweis-Chip über 2000 Zeichen; P244 und ROADMAP korrigiert.
+### Nachprüfung 62/63 (Prüfer-Befunde zu 911f8a0, 2026-11-17)
+
+Der Prüfer hat nur gelesen: nichts Schweres, vier mittlere, zehn niedrige Befunde. GitHub-Lauf 83 auf
+`911f8a0` war in allen vier Jobs grün (agent, upstream, lint, build): der neue Job `build`, die
+Zusammenfassung und die Mindestzahlen funktionieren dort.
+
+Vom Lead sofort behoben (Workflow), jeweils lokal nachgestellt:
+
+- Pfadliste von `agent-tests.yml` um `docs/BUILD.md` (der Vertragstest liest dort das Zertifikat) und
+  `gradlew*` ergänzt. Nachgestellt: ein Commit, der nur `BUILD.md` ändert, über einem grünen Commit
+  gilt nicht mehr als getestet.
+- Der Test-Nachweis scheitert laut, statt weniger zu prüfen: Pfadzeile mit Kommentar oder `!` und ein
+  Pfad ohne Datei brechen ab. Nachgestellt mit einem Tippfehler (`upstream.lok`) und einem Kommentar
+  hinter dem Pfad; die vier Fälle von vorher weiter richtig.
+- Tag-Suche auch für annotierte Tags (zweites Muster `…^{}`). Geprüft gegen das echte Repository
+  (`build-27` → `585bbb8`, fehlendes Tag → leer) und gegen ein lokales Repository mit leichtem und
+  annotiertem Tag.
+- Wiederholter Lauf veröffentlicht einen stehen gebliebenen Entwurf (`gh release edit --draft=false`,
+  privat mit `--prerelease`). Nicht nachstellbar (kein Zugriff auf `gh` gegen GitHub von hier).
+- Schlüsseldatei wird auch nach gescheitertem Build gelöscht (`trap`). Nachgestellt mit einem
+  scheiternden Ersatz für `gradlew`: Datei weg, Ausstiegscode bleibt der des Builds.
+- Zurücklesen mit den Grenzen der App: genau ein Asset je Name, plausible Größe, kein Entwurf.
+  Nachgestellt: gültig → besteht; doppeltes Asset, 130 MB, leere Prüfsumme, Entwurf → scheitert.
+- Der Prüfschritt gibt das Zertifikat im Log aus (die Doku sagte das schon); der Branchname kommt über
+  `env` in den Release-Titel.
+
+An den Builder zurückgegeben (Doku und Vertragstest, kein Verhalten): P259 nennt nicht alle Stellen,
+die am Debug-Modus hängen (u. a. `SubtypeSettings` entfernt bei ausgeschaltetem Debug-Modus eine
+defekte aktivierte Sprache, statt nur einen Hinweis zu zeigen; langes Drücken auf einen Vorschlag zeigt
+nicht mehr die Wörterbuchquelle; Touch-Protokoll und Zeitmessung in `PointerTracker`/`InputLogic`
+sind aus) und zählt vier statt fünf Ausnahmen; `WorkflowContractTest` prüft an drei Stellen weniger,
+als sein Name sagt.
+
+Bewusst nicht geändert: Ein öffentliches Release gleicher Nummer mit anderer Prüfsumme wird weiter
+ersetzt (Warnung); davor schützt die Tag-Prüfung des privaten Repositorys, Laufnummern wiederholen
+sich nicht. Das Fenster des Test-Nachweises bleibt bei den letzten 100 Läufen.
 
 ## Gerätetest vor Meilensteinfreigabe
 

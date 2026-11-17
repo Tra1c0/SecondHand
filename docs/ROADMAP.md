@@ -445,8 +445,9 @@ Reihenfolge von oben nach unten.
   auf `main` `RELEASES_TOKEN`, einen grünen Testlauf des Commits und liest das öffentliche Release
   zurück, und erlaubt einen erneuten Lauf; `agent-tests.yml` baut zusätzlich die ausgelieferte
   Variante und kennt Mindestzahlen und exakte Baseline-Namen; ein Vertragstest hält Workflow und App
-  zusammen. Offen: der erste echte Lauf auf GitHub (die Workflows laufen nur dort), die Mindestzahlen
-  der Tests nach dem ersten grünen Lauf nachziehen.
+  zusammen. Die Mindestzahlen stehen auf Werten aus Lauf 82 (GitHub-Lauf 83 damit grün). Offen: der
+  erste echte Lauf des Release-Workflows auf GitHub (zuerst als Test-Build, die Schritte für `main`
+  erst beim geprüften Build).
 - **Graue Auswahlkarten (Owner, 2026-11-14: „Ja“):** Die grauen Mockup-Karten (AUS, NICHTS,
   AUSGEBLENDET, FLACHER LOOK) bekommen helle Schrift (Kontrast mit dunkler Schrift nur 1,74:1).
   Gebaut (`docs/VALIDATION.md` → Etappe 37, „Graue Karten“): helle Schrift 4,71:1 gewählt, 6,92:1

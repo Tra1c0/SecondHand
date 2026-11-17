@@ -76,11 +76,11 @@ jobs:
         run: |
           set -euo pipefail
           export AGENT_KEYSTORE_FILE="$RUNNER_TEMP/agent.p12"
+          trap 'rm -f "$AGENT_KEYSTORE_FILE"' EXIT # also when the build fails
           echo "$KEYSTORE" | base64 -d > "$AGENT_KEYSTORE_FILE"
           chmod +x gradlew
           # gradle.properties has 1024m, too little for this build in CI
           ./gradlew :app:assembleDebugNoMinify --no-configuration-cache --console=plain -Dorg.gradle.jvmargs=-Xmx3g
-          rm -f "$AGENT_KEYSTORE_FILE"
 
       - name: Verify the built APK
         run: |
@@ -95,6 +95,7 @@ jobs:
 
           # 1. the signature is valid (a failing verify stops the run here)
           "$BT/apksigner" verify --print-certs "$APK" > "$RUNNER_TEMP/certs.txt"
+          cat "$RUNNER_TEMP/certs.txt" # the certificate is public; the log shows which key signed
 
           # 2. the signing certificate is the owner's
           DIGESTS=$(sed -n 's/^Signer #[0-9]* certificate SHA-256 digest: //p' "$RUNNER_TEMP/certs.txt" | tr 'A-F' 'a-f' | sort -u)
@@ -127,12 +128,14 @@ jobs:
       - name: Publish as a pre-release
         env:
           GH_TOKEN: ${{ github.token }}
+          REF_NAME: ${{ github.ref_name }} # through the environment: a branch name is never pasted into the script
         run: |
           set -euo pipefail
           FILES=("$APK_NAME" "$APK_NAME.sha256" "$LEGACY_APK_NAME" "$LEGACY_APK_NAME.sha256")
           # Ask git, not `gh api`: for a tag that does not exist `gh api` prints the error body on stdout,
           # which would look like a tag on another commit and stop every new build. Empty = no such tag.
-          TAG_SHA=$(git ls-remote --tags origin "refs/tags/$RELEASE_TAG" | cut -f1)
+          # The second pattern is the commit behind an annotated tag (a tag made by hand); it comes last.
+          TAG_SHA=$(git ls-remote --tags origin "refs/tags/$RELEASE_TAG" "refs/tags/$RELEASE_TAG^{}" | tail -n 1 | cut -f1)
           if [ -n "$TAG_SHA" ] && [ "$TAG_SHA" != "$GITHUB_SHA" ]; then
             echo "::error::The tag $RELEASE_TAG already exists in $GITHUB_REPOSITORY and points to $TAG_SHA, not to this commit ($GITHUB_SHA). Run numbers are never reused; look at the release and the tag before deleting anything (docs/BUILD.md)."
             exit 1
@@ -140,10 +143,12 @@ jobs:
           if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
             echo "Release $RELEASE_TAG exists for this commit (re-run): uploading the files again."
             gh release upload "$RELEASE_TAG" "${FILES[@]}" --clobber
+            # an upload that broke off in the first attempt can leave the release as a draft: publish it
+            gh release edit "$RELEASE_TAG" --draft=false --prerelease
           else
             gh release create "$RELEASE_TAG" "${FILES[@]}" \
               --prerelease --target "$GITHUB_SHA" \
-              --title "SecondHand Build ${{ github.run_number }} (${{ github.ref_name }})" \
+              --title "SecondHand Build ${{ github.run_number }} ($REF_NAME)" \
               --notes-file release-notes/next.md
           fi
 
@@ -166,9 +171,13 @@ jobs:
                   continue
               if not s.startswith("- "):
                   break
-              paths.append(s[2:].strip().strip("'\""))
+              item = s[2:].strip()
+              # a comment behind a path or an exclusion would turn into a path that matches nothing
+              if "#" in item or item.strip("'\"").startswith("!"):
+                  raise SystemExit("::error::agent-tests.yml: path line not understood by the test gate: " + s)
+              paths.append(item.strip("'\""))
           if not paths:
-              raise SystemExit("no paths found in agent-tests.yml")
+              raise SystemExit("::error::no paths found in agent-tests.yml")
           for p in paths:
               print(":(glob)" + p)
           PY
@@ -177,6 +186,14 @@ jobs:
             echo "::error::Could not read the path filter of agent-tests.yml."
             exit 1
           fi
+          # every path must match a file, or the comparison below would silently skip it (a typo)
+          for SPEC in "${SPECS[@]}"; do
+            MATCHES=$(git ls-files -- "$SPEC" | wc -l)
+            if [ "$MATCHES" -eq 0 ]; then
+              echo "::error::The path '${SPEC#:(glob)}' in agent-tests.yml matches no file of this commit. Correct or remove it; the test gate cannot compare it."
+              exit 1
+            fi
+          done
           # A push starts the tests once, for the newest commit of that push. So the proof is any green run
           # of agent-tests.yml whose commit has exactly the same tested files as this commit: a later
           # commit that changed only other files (docs) keeps the proof, and so does a merge commit on top.
@@ -218,6 +235,8 @@ jobs:
             fi
             echo "Release $RELEASE_TAG exists (re-run): uploading the files again."
             gh release upload "$RELEASE_TAG" "${FILES[@]}" --repo "$RELEASE_REPOSITORY" --clobber
+            # an upload that broke off in the first attempt can leave the release as a draft: publish it
+            gh release edit "$RELEASE_TAG" --repo "$RELEASE_REPOSITORY" --draft=false
           else
             gh release create "$RELEASE_TAG" "${FILES[@]}" \
               --repo "$RELEASE_REPOSITORY" \
@@ -255,14 +274,19 @@ jobs:
           if release is None:
               print("release", tag, "is not in the list yet")
               sys.exit(1)
-          assets = {a["name"]: a.get("browser_download_url") for a in release.get("assets", [])}
+          if release.get("draft"):
+              print("release", tag, "is still a draft")
+              sys.exit(1)
           bad = []
           for n in names:
+              found = [a for a in release.get("assets", []) if a.get("name") == n]
               want = f"https://github.com/{repo}/releases/download/{tag}/{n}"
-              if assets.get(n) != want:
+              # the app's limits (UpdateReleases): one asset of that name, 1..120 MB for the APK, 1..4096 bytes for the checksum
+              limit = 4096 if n.endswith(".sha256") else 120 * 1024 * 1024
+              if len(found) != 1 or found[0].get("browser_download_url") != want or not 1 <= int(found[0].get("size") or 0) <= limit:
                   bad.append(n)
           if bad:
-              print("missing or wrong download URL for:", ", ".join(bad))
+              print("missing, duplicated, wrong download URL or implausible size for:", ", ".join(bad))
               sys.exit(1)
           print("public release", tag, "has all four assets with the expected download URLs")
           PY
