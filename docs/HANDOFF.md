@@ -165,19 +165,24 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
 ### Release (nur Lead)
 
 0. Test-Build (Wunsch des Owners vom 2026-11-13, gilt immer): Sind alle Funktionen der Runde auf
-   dem Arbeitsbranch, kompiliert und die Agent-Tests grün, den Workflow „Agent Keyboard APK“ auf
-   dem Arbeitsbranch starten und die APK als Datei an den Owner schicken (Download aus dem
-   Release: `https://api.github.com/repos/Tra1c0/SecondHand/releases/assets/<id>` mit
-   `Accept: application/octet-stream` geht über den Proxy). Dem Owner sagen, was noch ungeprüft
-   ist. Dann Prüfer, volle Tests und Korrekturen; danach die Schritte unten und ein zweiter Build.
-1. Runde auf `main` zusammenführen, dort bauen und prüfen.
-2. Docs laut `CLAUDE.md` → „Docs aktuell halten“ im selben Push aktualisieren.
-   `release-notes/next.md` durch die Notizen dieses Pushs ersetzen.
-3. `python3 -I scripts/docs_sync.py --check` muss grün sein; `main` einmal pushen.
-4. Prüf-Build: `python3 tools/dev.py build`. Zum Installieren startet der Owner (oder der Lead
-   über die GitHub-Werkzeuge, falls verfügbar) den Workflow „Agent Keyboard APK“ auf dem
-   gepushten Branch; die APK steht danach als Vorab-Release `build-<Nummer>` bereit und
-   installiert sich als Update (`docs/BUILD.md` → Installierbare APK).
+   dem Arbeitsbranch, kompiliert und die Agent-Tests grün, den Workflow „SecondHand APK“
+   (`agent-apk.yml`) auf dem Arbeitsbranch starten und die APK als Datei an den Owner schicken
+   (`https://github.com/Tra1c0/SecondHand/releases/download/build-<N>/SecondHand-build-<N>.apk`
+   lässt sich über den Proxy laden; Prüfsumme, Zertifikat und Versionscode danach lokal ansehen).
+   Dem Owner sagen, was noch ungeprüft ist, und bekannte Schwächen in die Notizen schreiben. Dann
+   Prüfer, volle Tests und Korrekturen; danach die Schritte unten und ein zweiter Build.
+1. Runde auf dem Arbeitsbranch fertig prüfen; `release-notes/next.md` durch die Notizen dieses
+   Builds ersetzen; Docs laut `CLAUDE.md` → „Docs aktuell halten“; `python3 -I
+   scripts/docs_sync.py --check` grün.
+2. Pushen und den GitHub-Lauf „SecondHand Tests“ grün abwarten (vier Jobs). Danach nur noch Dateien
+   außerhalb der Pfadliste von `agent-tests.yml` ändern (reine Docs, nicht `docs/BUILD.md`): Der
+   Release-Workflow verlangt auf `main` einen grünen Lauf für genau diesen Stand der getesteten
+   Dateien.
+3. `main` vorspulen (`git push origin HEAD:main`, nur als Fast-Forward) und den Workflow
+   „SecondHand APK“ auf `main` starten. Er prüft die APK, legt das private Vorab-Release an,
+   verlangt den Test-Nachweis und `RELEASES_TOKEN`, veröffentlicht im öffentlichen Repository und
+   liest von dort zurück (`docs/BUILD.md` → Prüfungen des Workflows, mit „Was tun, wenn …“).
+4. Die APK laden, prüfen und dem Owner schicken; Zeile im Build-Log.
 
 ## Sackgassen (Prozess und Umgebung; Code-Sackgassen stehen in ARCHITECTURE.md)
 
@@ -245,6 +250,23 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
   `whatsNewDialogComesOnceThenTheAvailableOne` (brauchte mehr als 6 Blöcke) auf `main` rot werden,
   unbemerkt bis Etappe 56. Behoben: Der Test nimmt eigene lange Notizen (`notesForTest`), und
   `release-notes/**` startet den Lauf.
+
+- Drei Agenten mit je einem Gradle-Lauf gleichzeitig haben den Container (16 GB) zum Neustart
+  gebracht (2026-11-16); alle laufenden Agenten waren weg, ihre Arbeitskopien blieben. Seitdem läuft
+  jeder Gradle-Aufruf, auch der des Leads, hinter einer gemeinsamen Sperre (`flock <Datei>
+  ./gradlew …`), und jeder Auftrag an einen Agenten nennt sie. Die Läufe warten dann aufeinander:
+  volle Suiten des Leads zuerst einplanen.
+- Das Nutzungslimit der Agenten (5 Stunden) hält alle laufenden Agenten mitten in der Arbeit an
+  (2026-11-17). Nichts geht verloren, was committet ist: im Auftrag verlangen, vor dem Bericht zu
+  committen, und nach dem Zurücksetzen jeden Agenten mit einer Nachricht fortsetzen statt neu zu
+  starten.
+- Agenten geben ab, sobald sie nur noch auf ihren eigenen Gradle-Lauf warten, mit uncommitteter
+  Arbeit. Im Auftrag ausdrücklich sagen: erst committen, dann berichten; während des Wartens an den
+  Docs arbeiten.
+- Eine Datei, die ein laufender Test liest (`release-notes/next.md`), während des Laufs im selben
+  Checkout zu ändern, verfälscht den Lauf. Solche Änderungen als Patch beiseitelegen.
+- Jeder Push mit Änderungen an getesteten Pfaden bricht den laufenden GitHub-Lauf des Branches ab.
+  Vor einem Release den letzten Lauf abwarten und danach nur noch reine Docs pushen.
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
 - Build 27 (geprüft, von `main`): 56 „Neue Builds sofort melden“ mit Prüfer und Korrekturen; volle
