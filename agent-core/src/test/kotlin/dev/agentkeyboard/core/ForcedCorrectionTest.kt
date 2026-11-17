@@ -40,6 +40,17 @@ class ForcedCorrectionTest {
         assertTrue(ForcedCorrection.eligible(text, 6 or FieldReport.IME_FLAG_NO_PERSONALIZED_LEARNING))
     }
 
+    @Test fun loginFieldsAndAsciiFieldsNeverQualify() {
+        // GO and NEXT are the actions of login and form fields (user names, account names)
+        assertFalse(ForcedCorrection.eligible(text, FieldReport.IME_ACTION_GO))
+        assertFalse(ForcedCorrection.eligible(text or FieldReport.FLAG_NO_SUGGESTIONS, FieldReport.IME_ACTION_NEXT))
+        assertFalse(ForcedCorrection.eligible(text, FieldReport.IME_FLAG_FORCE_ASCII))
+        assertFalse(ForcedCorrection.eligible(text, 4 or FieldReport.IME_FLAG_FORCE_ASCII))
+        // NONE (1), UNSPECIFIED (0), SEND (4), DONE (6) and AUTO_COMPLETE stay eligible
+        for (action in listOf(0, 1, 4, 6)) assertTrue(ForcedCorrection.eligible(text, action), "action $action")
+        assertTrue(ForcedCorrection.eligible(text or FieldReport.FLAG_AUTO_COMPLETE, 4))
+    }
+
     @Test fun onlyTextFieldsQualify() {
         assertFalse(ForcedCorrection.eligible(0, 0))
         assertFalse(ForcedCorrection.eligible(FieldReport.TYPE_CLASS_NUMBER, 0))

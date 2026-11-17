@@ -56,6 +56,10 @@ object LastField {
     private var stripUpdates = 0
     private var coveredUpdates = 0
     private var chipUpdates = 0
+    /** The editor refused composing text in this field (stage 61): a count only. */
+    private var composingRefused = 0
+    private val salt = java.util.UUID.randomUUID().toString()
+    private fun keyOf(packageName: String?): Int = if (packageName.isNullOrEmpty()) 0 else (salt + packageName).hashCode()
     /** [onStrip] said the keyboard's chips come; the next content of the strip are these chips. */
     private var pendingChips = false
     /** The external view the strip shows now is the keyboard's chips. */
@@ -83,11 +87,20 @@ object LastField {
                 stripUpdates = 0
                 coveredUpdates = 0
                 chipUpdates = 0
+                composingRefused = 0
                 pendingChips = false
                 externalChips = false
                 inCommand = false
             }
         }
+    }
+
+    /**
+     * `RichInputConnection.setComposingText`: the editor did not show the text just set (stage 61). A count for the
+     * current field, never text; called from the engine, never throws.
+     */
+    @JvmStatic fun onComposingRefused() {
+        runCatching { synchronized(lock) { if (counting() && composingRefused < Int.MAX_VALUE) composingRefused++ } }
     }
 
     /** [SubtypeSwitchLog.onSwitched]: the subtype changes; the engine reloads its settings right after. */
@@ -159,7 +172,7 @@ object LastField {
             val values = Settings.getValues()
             val attributes = values?.mInputAttributes
             if (attributes != null && attributes.mInputType == field.inputType
-                && (field.learningOff || attributes.mTargetApplicationPackageName.orEmpty() == field.packageName.orEmpty())) {
+                && keyOf(attributes.mTargetApplicationPackageName) == field.fieldKey) {
                 snapshot = when (val fresh = snapshotOf(context, field.rawInputType, field.imeOptions, values, field.atMillis)) {
                     is FieldReport.Snapshot.Field -> fresh.copy(atMillis = field.atMillis)
                     else -> fresh
@@ -182,6 +195,7 @@ object LastField {
             stripUpdates = stripUpdates + (if (last != null) 1 else 0),
             coveredUpdates = coveredUpdates + (if (last?.covered == true) 1 else 0),
             chipUpdates = chipUpdates,
+            composingRefused = composingRefused,
         )
     }
 
@@ -217,6 +231,7 @@ object LastField {
         val packageName = if (noLearning || incognito) null else attributes.mTargetApplicationPackageName?.takeIf { it.isNotEmpty() }
         return FieldReport.Snapshot.Field(
             packageName = packageName,
+            fieldKey = keyOf(attributes.mTargetApplicationPackageName),
             noLearning = noLearning,
             incognito = incognito,
             forced = settings.mCorrectionForced,
@@ -256,6 +271,7 @@ object LastField {
             stripUpdates = 0
             coveredUpdates = 0
             chipUpdates = 0
+            composingRefused = 0
             pendingChips = false
             externalChips = false
             inCommand = false

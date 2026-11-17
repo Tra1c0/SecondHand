@@ -1465,7 +1465,8 @@ Neustart der Tastatur steht dort „noch keins“.
 **Korrektur in einer App erzwingen.** Manche Apps (z. B. Instagram) melden ihr Nachrichtenfeld mit
 „keine Vorschläge“ und ohne Großschreibung. Für Apps in einer Liste behandelt die Tastatur solche
 Textfelder wie ein normales Nachrichtenfeld: Vorschläge, Autokorrektur auch im einzeiligen Feld und
-Satzanfänge groß. Nicht in Passwort-, E-Mail-, Adress-, Namen- und Suchfeldern. Deine eigenen Schalter
+Satzanfänge groß. Nicht in Passwort-, E-Mail-, Adress-, Namen- und Suchfeldern und nicht in Feldern mit den Aktionen „Los“ oder „Weiter“
+(Anmelde- und Formularfelder) oder mit ASCII-Zwang. Deine eigenen Schalter
 („Änderungsvorschläge“, „Autokorrektur“, automatische Großschreibung) gelten weiter, und Lernen wird
 dadurch nie eingeschaltet. Instagram steht anfangs in der Liste. So änderst du sie:
 
@@ -1479,7 +1480,10 @@ dadurch nie eingeschaltet. Instagram steht anfangs in der Liste. So änderst du 
 Die Karte sagt auch, was erzwungen wurde, z. B. „Die App verbietet Vorschläge; für diese App
 erzwungen.“ Korrigiert die Tastatur in Instagram trotzdem nicht, tippe im Chat ein paar Wörter mit
 einem Tippfehler, öffne dann direkt Einstellungen → Diagnose und schick dem Lead einen Screenshot der
-Karte „Letztes Feld“ (sie zeigt auch in privaten Chats Feldtyp, Merkmale und Urteil, nur nicht die App).
+Karte „Letztes Feld“ (sie zeigt auch in privaten Chats Feldtyp, Merkmale und Urteil, nur nicht Paketname und App-Name; sie
+zeigt aber „Korrektur erzwungen: ja“, wenn erzwungen wurde). Neu: Steht dort „App nahm getippten Text nicht sofort an: n-mal“
+und im Urteil, dass Vorschläge und Autokorrektur abbrechen können, verweigert die App den Text, den die Tastatur beim Tippen
+setzt; dann liegt es an der App, nicht an der Liste. Ist die Liste voll (50 Apps), sagt der Knopf „Liste voll“ und ändert nichts.
 
 Schreib dazu auf, was hilft, den Fehler zu finden:
 

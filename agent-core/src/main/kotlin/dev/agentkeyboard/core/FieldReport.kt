@@ -46,7 +46,9 @@ object FieldReport {
     const val NUMBER_FLAG_SIGNED = 0x1000
     const val NUMBER_FLAG_DECIMAL = 0x2000
     const val IME_MASK_ACTION = 0xff
+    const val IME_ACTION_GO = 2
     const val IME_ACTION_SEARCH = 3
+    const val IME_ACTION_NEXT = 5
     const val IME_FLAG_NO_PERSONALIZED_LEARNING = 0x1000000
     const val IME_FLAG_FORCE_ASCII = 0x80000000.toInt()
 
@@ -184,6 +186,11 @@ object FieldReport {
             val forced: Boolean = false,
             /** Stage 61: the app is on the list of forced apps (also when this field does not qualify). False without a package. */
             val appForced: Boolean = false,
+            /**
+             * Stage 61: tells "the same field" apart after a language switch without keeping the app: a hash of the
+             * package with a per-process random salt, never shown. 0 without a package.
+             */
+            val fieldKey: Int = 0,
         ) : Snapshot {
             val type: FieldType get() = fieldType(inputType, imeOptions)
             /** What the app asked for with its `CAP_*` flags. */
@@ -238,6 +245,8 @@ object FieldReport {
         val stripUpdates: Int = 0,
         val coveredUpdates: Int = 0,
         val chipUpdates: Int = 0,
+        /** Stage 61: how often the editor did not take the composing text the keyboard set (a count, no text). */
+        val composingRefused: Int = 0,
     ) {
         /** The last strip hid words or showed something else in their place. */
         val stripCovered: Boolean get() = when (strip) {
@@ -275,6 +284,8 @@ object FieldReport {
         val languageTag: String? = null,
         val forced: List<Forced> = emptyList(),
         val learning: Learning = Learning.ON,
+        /** The app did not take the text set while typing (at least once in this field). */
+        val composingRefused: Boolean = false,
     )
 
     /** What really runs in the field, after every switch of the app and of the keyboard. */
@@ -299,7 +310,7 @@ object FieldReport {
     fun verdict(snapshot: Snapshot, live: Live = Live()): Verdict = when (snapshot) {
         Snapshot.Password -> Verdict(Finding.PASSWORD)
         Snapshot.Locked -> Verdict(Finding.LOCKED)
-        is Snapshot.Field -> field(snapshot, live).copy(forced = forcedBy(snapshot), learning = when {
+        is Snapshot.Field -> field(snapshot, live).copy(forced = forcedBy(snapshot), composingRefused = live.composingRefused > 0, learning = when {
             snapshot.noLearning -> Learning.FIELD_ASKS_NONE
             snapshot.incognito -> Learning.INCOGNITO
             else -> Learning.ON

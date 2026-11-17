@@ -23,6 +23,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import helium314.keyboard.agent.ForcedApps
 import helium314.keyboard.latin.R
@@ -44,6 +46,8 @@ fun AgentForcedAppsDialog(onDismiss: () -> Unit, onChanged: () -> Unit) {
     val prefs = context.prefs()
     var packages by remember { mutableStateOf(ForcedApps.read(prefs).sorted()) }
     var labels by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    // one package-manager lookup per listed app, cheap enough for the main thread
+    val missing = remember(packages) { packages.filter { !installed(context, it) }.toSet() }
     var choosing by remember { mutableStateOf(false) }
     // the labels of the listed apps, off the main thread (an app that is not visible shows its package name)
     LaunchedEffect(packages) {
@@ -59,12 +63,15 @@ fun AgentForcedAppsDialog(onDismiss: () -> Unit, onChanged: () -> Unit) {
                 Text(stringResource(R.string.agent_forced_intro), style = MaterialTheme.typography.bodySmall)
                 if (packages.isEmpty()) Text(stringResource(R.string.agent_forced_empty), style = MaterialTheme.typography.bodyMedium)
                 for (pkg in packages) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(labels[pkg]?.let { "$it ($pkg)" } ?: pkg, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                    val name = labels[pkg] ?: pkg
+                    val notInstalled = if (pkg in missing) " – " + stringResource(R.string.agent_forced_not_installed) else ""
+                    Text((labels[pkg]?.let { "$it ($pkg)" } ?: pkg) + notInstalled, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                    val removeLabel = stringResource(R.string.agent_forced_remove_for, name)
                     TextButton(onClick = {
                         ForcedApps.remove(prefs, pkg)
                         packages = ForcedApps.read(prefs).sorted()
                         onChanged()
-                    }, modifier = Modifier.testTag(FORCED_APPS_REMOVE_TAG + pkg)) { Text(stringResource(R.string.agent_forced_remove)) }
+                    }, modifier = Modifier.testTag(FORCED_APPS_REMOVE_TAG + pkg).semantics { contentDescription = removeLabel }) { Text(stringResource(R.string.agent_forced_remove)) }
                 }
                 if (packages.size < ForcedApps.MAX_APPS)
                     TextButton(onClick = { choosing = true }, modifier = Modifier.testTag(FORCED_APPS_ADD_TAG)) {
@@ -85,6 +92,10 @@ fun AgentForcedAppsDialog(onDismiss: () -> Unit, onChanged: () -> Unit) {
         onDismiss = { choosing = false },
     )
 }
+
+/** Whether the package manager knows the package (it may still be hidden from the app on Android 11+, so "not installed" can be wrong). */
+private fun installed(context: Context, packageName: String): Boolean =
+    runCatching { context.packageManager.getApplicationInfo(packageName, 0); true }.getOrDefault(false)
 
 /** The label of an app that has no launcher entry, null when the package manager does not know it. */
 private fun appLabel(context: Context, packageName: String): String? = runCatching {

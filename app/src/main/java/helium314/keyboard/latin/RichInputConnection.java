@@ -891,7 +891,9 @@ public final class RichInputConnection implements PrivateCommandPerformer {
                 // Note that the check may also fail because the text field is not yet updated, so we don't want to check everything!
                 final CharSequence lastChar = mIC.getTextBeforeCursor(1, 0);
                 if (lastChar == null || lastChar.length() == 0 || text.charAt(text.length() - 1) != lastChar.charAt(0)) {
-                    Log.w(TAG, "did set " + text + ", but got " + mIC.getTextBeforeCursor(text.length(), 0) + " as last character");
+                    // fork (stage 61): no field text in the log (length only), and the card "Letztes Feld" counts the refusal
+                    Log.w(TAG, "composing text of length " + text.length() + " was not taken by the editor");
+                    helium314.keyboard.agent.LastField.onComposingRefused();
                     return false;
                 }
             }

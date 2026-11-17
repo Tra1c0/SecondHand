@@ -208,4 +208,8 @@
     <string name="agent_diagnose_force_saved">Saved. Applies from the next field.</string>
     <string name="agent_diagnose_debuggable">Debuggable app</string>
     <string name="agent_diagnose_debug_mode">Debug mode</string>
+    <string name="agent_diagnose_field_refused">App did not take typed text at once</string>
+    <string name="agent_diagnose_field_refused_value">%1$d times</string>
+    <string name="agent_diagnose_verdict_refused">The app did not take the text the keyboard sets while typing at once; suggestions and autocorrection can break off in this field.</string>
+    <string name="agent_diagnose_force_full">List full (at most 50 apps). Nothing changed.</string>
 </resources>

@@ -99,6 +99,14 @@ class FieldReportTest {
             Live(dictionaryPresent = false)).finding)
     }
 
+    @Test fun aRefusedComposingTextIsNamedInTheVerdict() {
+        assertFalse(verdict(Snapshot.Field(), Live()).composingRefused)
+        val refused = verdict(Snapshot.Field(), Live(composingRefused = 3))
+        assertTrue(refused.composingRefused)
+        // the reason stays the first finding; the count is a separate sentence
+        assertEquals(Finding.ALL_ON, refused.finding)
+    }
+
     @Test fun aLockedDeviceRemembersNothing() {
         assertEquals(FieldReport.Verdict(Finding.LOCKED), FieldReport.verdict(Snapshot.Locked))
     }

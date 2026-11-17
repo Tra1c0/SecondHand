@@ -64,6 +64,7 @@ fun AgentDiagnoseScreen(onClickBack: () -> Unit) {
     var lastField by remember { mutableStateOf<Diagnose.Section?>(null) }
     // stage 61: the choice made with the button of the card (null until it is pressed), and that it was saved
     var forceChoice by remember { mutableStateOf<Boolean?>(null) }
+    var forceFull by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         val app = context.applicationContext ?: context
         // stage 55: the last field, first on the page; its dictionary files and the app's name off the main thread
@@ -125,11 +126,16 @@ fun AgentDiagnoseScreen(onClickBack: () -> Unit) {
                                 val prefs = context.prefs()
                                 if (listed) helium314.keyboard.agent.ForcedApps.remove(prefs, pkg)
                                 else helium314.keyboard.agent.ForcedApps.add(prefs, pkg)
-                                forceChoice = helium314.keyboard.agent.ForcedApps.isListed(prefs, pkg)
+                                val now = helium314.keyboard.agent.ForcedApps.isListed(prefs, pkg)
+                                // a full list refuses the app: say so, the state stays as it was
+                                forceFull = !listed && !now
+                                forceChoice = if (forceFull) null else now
                             }, modifier = Modifier.testTag("agent_diagnose_force")) {
                                 Text(stringResource(if (listed) R.string.agent_diagnose_force_remove else R.string.agent_diagnose_force_add))
                             }
-                            if (forceChoice != null) Text(stringResource(R.string.agent_diagnose_force_saved), style = MaterialTheme.typography.bodySmall,
+                            if (forceFull) Text(stringResource(R.string.agent_diagnose_force_full), style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.testTag("agent_diagnose_force_full"))
+                            else if (forceChoice != null) Text(stringResource(R.string.agent_diagnose_force_saved), style = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier.testTag("agent_diagnose_force_saved"))
                         }
                     }

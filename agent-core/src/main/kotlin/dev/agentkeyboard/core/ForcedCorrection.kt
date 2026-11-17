@@ -36,12 +36,15 @@ object ForcedCorrection {
     /**
      * Whether a field with [inputType] and [imeOptions] may be forced when its app is on the list: a text
      * field that is no password, e-mail, URI, filter, phonetic, person-name or postal-address field and
-     * whose action is not search.
+     * whose action is not search, go or next and that does not force ASCII.
      */
     fun eligible(inputType: Int, imeOptions: Int): Boolean {
         if (inputType and TYPE_MASK_CLASS != TYPE_CLASS_TEXT) return false
         if ((inputType and TYPE_MASK_VARIATION) in EXCLUDED_VARIATIONS) return false
-        return imeOptions and IME_MASK_ACTION != IME_ACTION_SEARCH
+        // login and form fields (user names, account names) ask for GO or NEXT; SEND, DONE, NONE and UNSPECIFIED stay
+        val action = imeOptions and IME_MASK_ACTION
+        if (action == IME_ACTION_SEARCH || action == FieldReport.IME_ACTION_GO || action == FieldReport.IME_ACTION_NEXT) return false
+        return imeOptions and FieldReport.IME_FLAG_FORCE_ASCII == 0
     }
 
     /**
