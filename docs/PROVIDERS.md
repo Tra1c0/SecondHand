@@ -39,7 +39,7 @@ https://developers.openai.com/api/docs/models
 über sämtliche serverseitigen Aufbewahrungsvorgänge.
 Nur abgeschlossene Antworten akzeptieren. Alle Assistant-Message-Blöcke und deren
 `output_text`-Inhalte durchlaufen; Refusal/Incomplete sind kein Ersetzungsergebnis.
-Etappe 59: `max_output_tokens` = `ModelBudget.outputTokens` (`clamp(Eingabezeichen / 2 + 2048, 4096,
+Etappe 59: `max_output_tokens` = `ModelBudget.outputTokens` (`clamp(Eingabezeichen / 2 + 2048, 8192,
 16384)`, Reasoning-Token zählen mit; Workflow-Entwürfe bleiben bei 4096). `status:"incomplete"`
 (`incomplete_details.reason`, z. B. `max_output_tokens`, auch eine `message` mit `status:"incomplete"`)
 ist `CloudError.CUT_OFF` („abgeschnitten, Text zu lang für das Modell“) und nie ein Ergebnis;
@@ -56,7 +56,7 @@ Bearer-Schlüssel, `anthropic-version: 2026-10-21`, `temperature`/`top_p`/`top_k
 `stop_reason` ∈ end_turn, max_tokens, stop_sequence, tool_use, pause_turn, refusal,
 model_context_window_exceeded. Implementiert in `AnthropicProvider` (Etappe 16a). Voreinstellung
 `claude-haiku-5-5` (im Modellkatalog der Referenz als schnellstes Modell geführt), frei änderbar.
-`max_tokens` = `max(8192, ModelBudget.outputTokens)` (Etappe 59, bis 16384): Bei Modellen mit
+`max_tokens` = `ModelBudget.outputTokens` (Etappe 59, wie OpenAI: mindestens 8192, bis 16384): Bei Modellen mit
 standardmäßig aktivem Thinking zählen die Denk-Token mit; ein abgeschnittenes Ergebnis
 (`stop_reason:max_tokens`, `model_context_window_exceeded`) wird verworfen und als `CUT_OFF`
 („abgeschnitten, Text zu lang für das Modell“) gemeldet.
@@ -81,7 +81,7 @@ ersten echten Nutzung Vertrag und Modellnamen prüfen. Keine echte Anfrage gesen
 Etappe 59 (2026-11-16): `ai.google.dev` war aus der Entwicklungsumgebung wieder nicht erreichbar
 (Proxy 403); der Vertrag ist also NICHT erneut gegen die Referenz geprüft. Der Owner nutzt diesen
 Anbieter mit einer selbst eingetragenen Modellkennung („Gemini 3.8 Flash-Lite“).
-`generationConfig.maxOutputTokens` = `max(8192, ModelBudget.outputTokens)` (bis 16384; Thought-Token
+`generationConfig.maxOutputTokens` = `ModelBudget.outputTokens` (mindestens 8192, bis 16384; Thought-Token
 zählen mit). `finishReason:MAX_TOKENS` ist `CUT_OFF` (auch ohne jeden Inhalt, wenn das Denken das
 Budget verbraucht hat), `SAFETY`, `RECITATION`, `BLOCKLIST`, `PROHIBITED_CONTENT`, `SPII` und
 `promptFeedback.blockReason` sind `REFUSED`, `thought:true`-Teile sind nie Ergebnistext.

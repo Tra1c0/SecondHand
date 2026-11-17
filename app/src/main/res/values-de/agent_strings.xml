@@ -497,6 +497,9 @@
     <string name="agent_command_ai_no_model">Kein Modell · KI-Einstellungen</string>
     <string name="agent_command_ai_refused">Vom Anbieter abgelehnt · Details</string>
     <string name="agent_command_ai_too_long">Antwort zu lang · Details</string>
+    <string name="agent_command_ai_over_limit">Zu lang: höchstens %1$d Zeichen nach dem Befehl</string>
+    <string name="agent_command_ai_cut_off_ask">Antwort abgeschnitten · Details</string>
+    <string name="agent_cloud_cut_off_ask">Antwort abgeschnitten: zu lang für die Ausgabegrenze. Nichts wird eingefügt. Stell die Frage enger.</string>
     <string name="agent_command_ai_cut_off">Antwort abgeschnitten, Text zu lang · Details</string>
     <string name="agent_command_ai_timeout">Keine Antwort rechtzeitig · Details</string>
     <string name="agent_command_ai_unusable">Antwort unbrauchbar · Details</string>

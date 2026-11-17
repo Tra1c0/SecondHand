@@ -5658,6 +5658,24 @@ durchgespielt. Drei Fehler gefunden und behoben, bevor der Workflow je lief:
 - Nicht geprüft: der Workflow selbst auf GitHub (erster echter Lauf ist der nächste Test-Build), die
   echte Abfrage der Release-Liste (aus dieser Umgebung nicht erreichbar), `gh run list`, ein erneuter
   Lauf mit `--clobber`, das Verhalten auf `main` (erst beim geprüften Build).
+### Nachprüfung 59 (Prüfung des Leads, 2026-11-16)
+
+- F1 (mittel): ein angefangener Name (`@`, `@t`) oder ein anderer Befehl mitten in einer langen Frage
+  beendet das lange Lesefenster nicht mehr; ein zweites `@ki` darin übernimmt nur, wenn das äußere nicht
+  mehr steht (`trackLong`, `check`). Test: `aStartedNameOrAnotherCommandInsideALongQuestionDoesNotEndIt`.
+- F2 (mittel bis niedrig): Auswahl und Schreibmarke vor dem Anfang machen den Zustand nur ruhend; `load`
+  behält ihn im selben Feld (`FieldKey`), verwirft ihn in einem anderen. Geändert: der Test, der „kommt nicht
+  von selbst zurück“ festhielt, prüft jetzt das Gegenteil (`aSelectionOrACursorInFrontOfTheCommandOnlyMakesItDormant`,
+  `theSameFieldRestartedKeepsTheCommandAnotherFieldDropsIt`).
+- F3 (mittel): Ausgabetoken mindestens 8192 für alle drei Anbieter, höchstens 16384; `@ki` und Panel-Frage haben
+  eine eigene Abschneide-Meldung (`agent_cloud_cut_off_ask`, `agent_command_ai_cut_off_ask`).
+  Geändert: `ModelBudgetTest` und `LongTextBudgetTest` (Untergrenze 8192 statt 4096; OpenAI 5 Zeichen = 8192).
+- F4 (niedrig): `ExecutionPolicy.insertDenial` erlaubt bis `maxResultChars`; geändert in `InsertionAnchorTest`
+  (65.536 erlaubt, 65.537 `TOO_LARGE` statt 32.769).
+- F7: `KEEP_LANGUAGE` nur in CORRECT und REPHRASE, `KEEP_MAIN_LANGUAGE` in SUMMARIZE, REPLY, ANALYZE
+  (`AiTextActionTest` angepasst).
+- Zwei Leerzeilen beenden die Frage (`CommandSyntax.endsQuestion`, Tests in `CommandSyntaxTest` und
+  `LongCommandTest`); Hinweis-Chip über 2000 Zeichen; P244 und ROADMAP korrigiert.
 
 ## Gerätetest vor Meilensteinfreigabe
 

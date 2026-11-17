@@ -10,6 +10,7 @@ import dev.agentkeyboard.core.CommandContext
 import dev.agentkeyboard.core.CommandSyntax
 import helium314.keyboard.ShadowInputMethodManager2
 import helium314.keyboard.ShadowProximityInfo
+import helium314.keyboard.agent.FieldKey
 import helium314.keyboard.agent.KeyboardCommands
 import helium314.keyboard.latin.LatinIME
 import helium314.keyboard.latin.settings.Settings
@@ -167,44 +168,156 @@ class LongCommandTest {
         // lines inside the question keep it going
         field.type("\n\nZweiter Absatz")
         assertEquals(field.cursor - start + 1, update(field))
-        // past 2000 characters it is no command any more: the window falls back and nothing is protected
+        // past 2000 characters it is no command any more: nothing is protected, the hint chip says why
         field.type("z".repeat(300))
-        assertEquals(normal, update(field))
+        update(field)
+        assertTrue(KeyboardCommands.overflowHint)
         assertFalse(KeyboardCommands.suppressesCorrection())
-        assertEquals(normal, update(field))
         assertFalse(KeyboardCommands.guardsTextBefore(field.text.substring(field.cursor - normal, field.cursor)))
+        // and far beyond that the window falls back to the normal one
+        field.type("z".repeat(1000))
+        update(field)
+        assertEquals(normal, update(field))
+        assertFalse(KeyboardCommands.overflowHint)
     }
 
-    @Test fun theLongStateEndsWhenTheCommandIsGoneTheCursorLeavesOrTheFieldChanges() {
-        fun typeLong(field: Field) {
-            for (ch in "Text @ki ") { field.type(ch.toString()); update(field) }
-            field.type("q".repeat(900)) // a paste: the start is known from the keystrokes before
-            update(field)
-        }
-        // the command is edited away
-        var field = Field(); typeLong(field)
+    private fun typeLong(field: Field, argument: Int = 900) {
+        for (ch in "Text @ki ") { field.type(ch.toString()); update(field) }
+        field.type("q".repeat(argument)) // a paste: the start is known from the keystrokes before
+        update(field)
+    }
+
+    @Test fun theLongStateEndsWhenTheCommandIsEditedAway() {
+        val field = Field(); typeLong(field)
         assertTrue(update(field) > normal)
         // the edit happens now: the next read still reaches back (nothing knows yet), the parse then drops the state
         field.text.replace(field.text.indexOf("@ki"), field.text.indexOf("@ki") + 3, "ki"); field.cursor = field.text.length
-        assertTrue(update(field) > normal) // the read before the parse still was the long one
-        assertEquals(normal, update(field)) // not found: dropped
-        // the cursor moves in front of the command
-        field = Field(); typeLong(field)
-        field.cursor = 2
-        assertEquals(normal, KeyboardCommands.readLength(field.cursor))
+        assertTrue(update(field) > normal)
         assertEquals(normal, update(field))
-        field.cursor = field.text.length
-        assertEquals(normal, update(field)) // and does not come back by itself: the old command is not recognised
-        // text is selected (no plain cursor)
-        field = Field(); typeLong(field)
-        KeyboardCommands.updateGuard(null)
-        assertEquals(normal, KeyboardCommands.readLength(field.cursor))
-        // a new input view is another field
-        field = Field(); typeLong(field)
+        assertFalse(KeyboardCommands.suppressesCorrection())
+    }
+
+    @Test fun aStartedNameOrAnotherCommandInsideALongQuestionDoesNotEndIt() {
+        // review F1: an "@" typed (and deleted) in the middle of a question longer than the short window
+        val field = Field(); typeLong(field, 1000)
+        for (typed in listOf("@", "@t", "@math", "@contact Anna", "@ki zweite")) {
+            field.type(" ")
+            update(field)
+            for (ch in typed) { field.type(ch.toString()); update(field) }
+            assertTrue(update(field) > normal, "window after $typed") // the start is still known
+            field.backspace(typed.length + 1)
+            val n = update(field)
+            assertTrue(n > normal, "window after deleting $typed")
+            val found = KeyboardCommands.find(field.before(n).toString(), Settings.getValues(), editor) as CommandCall
+            assertEquals("ki", found.name, typed)
+            assertEquals(1000 + 0, found.argument.length, typed)
+            assertTrue(KeyboardCommands.suppressesCorrection(), typed)
+        }
+    }
+
+    @Test fun aSelectionOrACursorInFrontOfTheCommandOnlyMakesItDormant() {
+        // review F2
+        val field = Field(); typeLong(field)
+        val end = field.text.length
+        // the cursor moves into the middle of the command: the parse still finds it, the start stays
+        field.cursor = end - 100
+        assertTrue(update(field) > normal)
+        assertTrue(KeyboardCommands.suppressesCorrection())
+        field.cursor = end
+        assertTrue(update(field) > normal)
+        assertTrue(KeyboardCommands.suppressesCorrection())
+        // the cursor goes in front of the command: normal reads, nothing protected
+        field.cursor = 2
+        assertEquals(normal, update(field))
+        assertFalse(KeyboardCommands.suppressesCorrection())
+        assertFalse(KeyboardCommands.guardsTextBefore(field.text.substring(0, 2)))
+        // and back to the end: the long-window parse decides and finds it again
+        field.cursor = end
         assertTrue(KeyboardCommands.readLength(field.cursor) > normal)
-        KeyboardCommands.load(latinIME)
+        assertTrue(update(field) > normal)
+        assertTrue(KeyboardCommands.suppressesCorrection())
+        assertTrue(KeyboardCommands.guardsTextBefore(field.text.substring(end - normal, end)))
+        // a word is selected (no plain cursor), then replaced: the command goes on
+        KeyboardCommands.updateGuard(null)
+        assertFalse(KeyboardCommands.guardsTextBefore(field.text.substring(end - normal, end))) // dormant: not protected
+        field.backspace(5); field.type("neues")
+        assertTrue(update(field) > normal)
+        assertTrue(KeyboardCommands.suppressesCorrection())
+        // a dormant state that no longer fits is dropped by the parse, not kept for ever
+        field.text.setLength(0); field.text.append("ganz anderer Text ".repeat(100)); field.cursor = field.text.length
+        update(field)
+        assertEquals(normal, update(field))
+    }
+
+    @Test fun theSameFieldRestartedKeepsTheCommandAnotherFieldDropsIt() {
+        val first = FieldKey("com.example", 7, InputType.TYPE_CLASS_TEXT)
+        KeyboardCommands.load(latinIME, first)
+        var field = Field(); typeLong(field)
+        assertTrue(KeyboardCommands.readLength(field.cursor) > normal)
+        KeyboardCommands.load(latinIME, first) // the app restarted the same field, or the screen turned
+        assertTrue(KeyboardCommands.readLength(field.cursor) > normal)
+        assertTrue(update(field) > normal)
+        assertTrue(KeyboardCommands.suppressesCorrection())
+        KeyboardCommands.load(latinIME, FieldKey("com.example", 8, InputType.TYPE_CLASS_TEXT)) // another field
         assertEquals(normal, KeyboardCommands.readLength(field.cursor))
         assertFalse(KeyboardCommands.guardsTextBefore(field.text.substring(field.cursor - normal, field.cursor)))
+        KeyboardCommands.load(latinIME, first); field = Field(); typeLong(field)
+        KeyboardCommands.load(latinIME, FieldKey("other.app", 7, InputType.TYPE_CLASS_TEXT))
+        assertEquals(normal, KeyboardCommands.readLength(field.cursor))
+        KeyboardCommands.load(latinIME, first); field = Field(); typeLong(field)
+        KeyboardCommands.load(latinIME, null) // a field that cannot be named is another field
+        assertEquals(normal, KeyboardCommands.readLength(field.cursor))
+    }
+
+    @Test fun twoEmptyLinesEndTheQuestionOneDoesNot() {
+        val field = Field()
+        for (ch in "@ki ") { field.type(ch.toString()); update(field) }
+        field.type("q".repeat(700)); update(field)
+        field.type("\n\n" + "r".repeat(300)); // one empty line: paragraphs
+        val n = update(field)
+        assertTrue(n > normal)
+        assertEquals("ki", (KeyboardCommands.find(field.before(n).toString(), Settings.getValues(), editor) as CommandCall).name)
+        assertTrue(KeyboardCommands.suppressesCorrection())
+        // a second empty line in a row: the question ends, what follows is normal text again
+        field.type("\n\n\nDanach kommt ganz normaler Text.")
+        update(field)
+        assertEquals(normal, update(field))
+        assertFalse(KeyboardCommands.suppressesCorrection())
+        assertNull(KeyboardCommands.find(field.before(normal).toString(), Settings.getValues(), editor))
+        assertFalse(KeyboardCommands.overflowHint)
+        // the same for the text of @translate
+        val other = Field()
+        for (ch in "@translate \"") { other.type(ch.toString()); update(other) }
+        other.type("abc ".repeat(200)); update(other)
+        other.type("\n \n\" spanisch"); // one empty line
+        assertTrue(update(other) > normal)
+        other.type("\n\n\nweiter")
+        update(other)
+        assertEquals(normal, update(other))
+    }
+
+    @Test fun aQuestionBeyondTheLimitShowsAHintNormalTextAfterAnEndedOneDoesNot() {
+        val field = Field()
+        for (ch in "Vorher @ki ") { field.type(ch.toString()); update(field) }
+        for (i in 1..(CommandSyntax.MAX_AI_ARGUMENT / 100)) { field.type("x".repeat(100)); update(field) }
+        assertFalse(KeyboardCommands.overflowHint) // exactly the limit still is a command
+        assertNotNull(KeyboardCommands.find(field.before(KeyboardCommands.readLength(field.cursor)).toString(), Settings.getValues(), editor))
+        field.type("y"); val n = update(field)
+        assertTrue(n > normal)
+        assertTrue(KeyboardCommands.overflowHint) // 2001: no command, one hint chip
+        assertNull(KeyboardCommands.find(field.before(n).toString(), Settings.getValues(), editor))
+        assertNotEquals(0, latinIME.getString(helium314.keyboard.latin.R.string.agent_command_ai_over_limit, CommandSyntax.MAX_AI_ARGUMENT).length)
+        field.backspace(1); update(field)
+        assertFalse(KeyboardCommands.overflowHint)
+        // far beyond (limit + grace): the window stops growing, the hint is gone
+        field.type("z".repeat(CommandSyntax.MAX_AI_ARGUMENT)); update(field)
+        assertEquals(normal, update(field))
+        assertFalse(KeyboardCommands.overflowHint)
+        // normal text after a question that two empty lines ended is no overflow, however long it gets
+        val ended = Field()
+        for (ch in "@ki ") { ended.type(ch.toString()); update(ended) }
+        ended.type("Frage\n\n\n"); update(ended)
+        for (i in 1..30) { ended.type("normal ".repeat(40)); assertEquals(normal, update(ended)); assertFalse(KeyboardCommands.overflowHint) }
     }
 
     @Test fun anOldLongCommandOutsideTheShortWindowIsNotRecognised() {

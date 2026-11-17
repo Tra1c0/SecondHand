@@ -138,6 +138,7 @@ object CommandSyntax {
             val argument = before.substring(end + 1)
             val limit = limitOf(alias, longArguments, aiArguments)
             if (argument.length > limit || (alias !in aiArguments && argument.any { it == '\n' || it == '\r' })) return null
+            if (alias in aiArguments && endsQuestion(argument)) return null
             return CommandCall(start, text, prefix, alias, argument, alias = typed)
         }
         val name = if (typed in names) typed else {
@@ -150,7 +151,23 @@ object CommandSyntax {
         if (name != typed && argument.isNotEmpty()) return null
         val limit = limitOf(name, longArguments, aiArguments)
         if (argument.length > limit || (name !in aiArguments && argument.any { it == '\n' || it == '\r' })) return null
+        if (name in aiArguments && endsQuestion(argument)) return null
         return CommandCall(start, text, prefix, name, argument, claimed = typed.takeIf { name != typed })
+    }
+
+    /**
+     * Stage 59: two empty lines in a row (three line breaks with only white space between them) end the
+     * argument of an AI command; one empty line between paragraphs does not. Without this a question left
+     * in the field would swallow everything typed after it, up to [MAX_AI_ARGUMENT] characters.
+     */
+    fun endsQuestion(argument: CharSequence): Boolean {
+        var breaks = 0
+        for (c in argument) when {
+            c == '\n' -> if (++breaks >= 3) return true
+            c.isWhitespace() -> {}
+            else -> breaks = 0
+        }
+        return false
     }
 
     private fun limitOf(name: String, longArguments: Collection<String>, aiArguments: Collection<String>) =

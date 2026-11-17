@@ -132,8 +132,8 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 <!-- /gen:languages -->
 - `ModelBudget.kt` (Etappe 59): Grenzen und Zeitbudgets eines Modellaufrufs an einer Stelle
   (Eingabe 32.768, Ergebnis 65.536, Anweisung 4096, Lesen 120 s, Aufruf 150 s, Workflow 310 s) und
-  die reine Funktion `outputTokens(inputChars)` = `clamp(inputChars / 2 + 2048, 4096, 16384)`,
-  `thinkingProviderTokens` = `max(8192, …)`.
+  die reine Funktion `outputTokens(inputChars)` = `clamp(inputChars / 2 + 2048, 8192, 16384)` (Nachprüfung: Untergrenze 8192 für alle drei
+  Anbieter, nie mehr als 16384), `thinkingProviderTokens` = dasselbe.
 - `ModelProvider.kt`: `ModelProvider`, `ProviderCapabilities`, `ModelOutputFormat`,
   `ModelRequest` (nur Strings, keine Tokens oder `InputConnection`), `ModelResponse`.
 - `Workflow.kt`: `WorkflowDefinition` (unveränderlich, versioniert), `WorkflowStep.Local` und
@@ -1232,7 +1232,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   10 s, Read 120 s, Call 150 s), `CloudError` (Etappe 59: `CUT_OFF` = abgeschnitten),  `CloudFailure`. Der AndroidX-Startup-Initializer ist im
   Manifest entfernt, `OkHttp.initialize` läuft erst nach dem Senden auf IO.
 - `providers/AnthropicProvider.kt`: Messages-API, `anthropic-version` aus `API_VERSION`,
-  Bearer-Schlüssel, kein `temperature`, `max_tokens` = `ModelBudget.thinkingProviderTokens` (mindestens 8192; Denk-Token zählen bei
+  Bearer-Schlüssel, kein `temperature`, `max_tokens` = `ModelBudget.thinkingProviderTokens` (wie OpenAI, mindestens 8192; Denk-Token zählen bei
   Modellen mit Standard-Thinking mit). Ergebnis nur bei `stop_reason:end_turn`; `refusal` wird
   `REFUSED`; `max_tokens` wird `CUT_OFF` (abgeschnitten, nie ein Ergebnis); `thinking`-Blöcke
   werden übergangen, jeder andere Blocktyp ist ein Fehler.
@@ -5098,14 +5098,23 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   (`Diagnose.verdictText`). `Snapshot.Field.capsUsed` ist, was die Engine liest, `caps` bleibt der Wunsch der
   App; `FieldReport.effective` und `CAPS_APP` nutzen `capsUsed`.
 - **P244** Langer KI-Befehl, Lesefenster (59): Die Leser des Befehls vor der Schreibmarke lesen
-  `LOOKBACK + 1` (520) Zeichen, nie mehr, weil `RichInputConnection.getTextBeforeCursor(n)` nur
+  `LOOKBACK + 1` (519) Zeichen, nie mehr, weil `RichInputConnection.getTextBeforeCursor(n)` nur
   aus dem Cache (1024, schrumpft beim Löschen) antwortet, solange er `n` Zeichen hält; eine größere
   Konstante kostete in langem Text einen IPC je Tastendruck. Nur solange ein `@ki`/`@translate`
   getippt wird, merkt `KeyboardCommands.longRun` den absoluten Anfang (aus dem Parse mit dem
   kurzen Fenster) und `readLength(cursor)` liefert `Schreibmarke - Anfang + 1` (höchstens
-  `LONG_LOOKBACK + 1`). Der Zustand endet, sobald ein Parse den Befehl nicht mehr findet, die
-  Schreibmarke davor oder weiter als 2018 Zeichen dahinter steht, Text markiert ist oder
-  `load` läuft (neuer Eingabe-View = anderes Feld). Ein alter langer Befehl, dessen Anfang
+  `LONG_LOOKBACK + OVERFLOW_GRACE + 1` = 2519). Der Zustand endet NUR, wenn (a) ein Lesen, das bis
+  zum Anfang reicht, den Befehl dort nicht mehr findet (gelöscht, ersetzt, durch zwei Leerzeilen
+  beendet, Kopf `@ki` geändert), (b) die Schreibmarke mehr als 2018 + 500 Zeichen dahinter steht,
+  (c) ein anderes Feld beginnt (`load` mit anderem `FieldKey`: Paket, Feld-ID, Eingabetyp; dasselbe
+  Feld nach Neustart oder Drehen behält ihn) oder (d) die Befehle ausgeschaltet werden. Eine
+  Auswahl oder eine Schreibmarke vor dem Anfang machen ihn nur ruhend (`active` false: nichts
+  geschützt, normale Lesefenster); die nächste einfache Schreibmarke dahinter lässt den Parse
+  entscheiden. Ein angefangener Name (`@`, `@t`) oder ein anderer vollständiger Befehl mitten in der
+  Frage beendet ihn nicht; ein zweites `@ki` darin übernimmt nur, wenn das äußere nicht mehr
+  steht. Länger als 2000 Zeichen ist kein Befehl mehr (nichts geschützt), `overflowHint` zeigt einen
+  gedämpften Chip „Zu lang: höchstens 2000 Zeichen“ (Tipp = derselbe Text als Toast), solange die
+  Schreibmarke höchstens 500 Zeichen über der Grenze steht; danach endet der Zustand. Ein alter langer Befehl, dessen Anfang
   außerhalb des kurzen Fensters liegt und der nicht hier getippt wurde, wird nicht erkannt
   (dokumentiert, kein Fehler). `guardsTextBefore` (InputLogic, kurzes Fenster) bleibt für Wörter
   eines laufenden langen Befehls `true` (`longRun.guards`), sonst würden sie gelernt und
@@ -5113,7 +5122,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   unmittelbar nacheinander). Test: `LongCommandTest` zählt die angeforderten Zeichen.
 - **P245** Ausgabetoken und Abschneiden (59): `max_output_tokens`/`max_tokens`/`maxOutputTokens`
   zählen Denk-Token mit; ein fester Wert ließ lange Texte als „abgeschnitten“ enden. Die Grenze
-  folgt der Eingabe (`ModelBudget`). Jede abgeschnittene Antwort ist `CloudError.CUT_OFF`, nie ein
+  folgt der Eingabe (`ModelBudget`), mindestens 8192 bei allen drei Anbietern (auch eine kurze Frage
+  braucht Platz für Reasoning) und nie über 16384 (ein Modell mit kleinerem Limit könnte die Anfrage
+  ablehnen; nicht gegen eine echte API geprüft). Bei `@ki` und einer Frage im Panel nennt die
+  Abschnitt-Meldung „Stell die Frage enger“ statt „weniger Text markieren“. Jede abgeschnittene Antwort ist `CloudError.CUT_OFF`, nie ein
   Ergebnis: OpenAI `status:"incomplete"` (auch eine `message` mit `status:"incomplete"`,
   `content_filter` ist `REFUSED`), Anthropic `max_tokens`/`model_context_window_exceeded`, Gemini
   `MAX_TOKENS` (auch ohne Inhalt). `TOO_LARGE` bleibt für Ergebnis über 65.536 und Körper über 1 MiB.
@@ -5127,12 +5139,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P247** Zeilenumbruch im KI-Befehl (59): Nur `@ki` und `@translate` dürfen mehrere Zeilen haben
   (`aiArguments`); `CommandSyntax.parse` sucht deshalb über Zeilenumbrüche zurück, und `parseAt`
   verwirft ein Argument mit Zeilenumbruch für jeden anderen Befehl. Folge: ein älteres `@ki` bleibt bis
-  2000 Zeichen dahinter „der laufende Befehl“ (Chip, Autokorrektur aus), auch über Leerzeilen; Senden
+  2000 Zeichen dahinter „der laufende Befehl“ (Chip, Autokorrektur aus), auch über eine Leerzeile.
+  Zwei Leerzeilen hintereinander (drei Zeilenumbrüche, dazwischen nur Leerraum,
+  `CommandSyntax.endsQuestion`) beenden die Frage; ebenso den Text von `@translate`. Senden
   bleibt der Tipp auf den Chip. Enter gehört dem Text (`AskCommand.onEnter`/`TranslateCommand.onEnter`
   sind `false`: weder verschluckt noch senden). `StyledTranslation.request`: Stil eine Zeile, Text zuletzt.
 - **P248** Sprache des Ergebnisses (59): Die Anweisungen sind englisch; ohne Regel antwortet ein
   Modell mitunter auf Englisch oder Deutsch statt in der Sprache des Textes.
-  `AiTextAction.KEEP_LANGUAGE` steht in CORRECT, REPHRASE, SUMMARIZE, REPLY, ANALYZE; ASK und die
+  `AiTextAction.KEEP_LANGUAGE` (gemischter Text: jeder Teil in seiner Sprache) steht in CORRECT und
+  REPHRASE, `KEEP_MAIN_LANGUAGE` (Hauptsprache des Textes, weil neuer Text entsteht) in SUMMARIZE,
+  REPLY und ANALYZE; ASK und die
   zwei Übersetzungen behalten ihre Bedeutung. Ob das hilft, ist nicht an einem echten Modell geprüft.
 
 - **P249** Satzsprache (60): Beweis sind nur die vorigen Wörter des Satzes aus dem `NgramContext` der Engine

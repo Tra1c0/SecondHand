@@ -115,7 +115,7 @@ class ExecutionPolicy(
         if (anchor.token != token || selectionStart != anchor.position || selectionEnd != anchor.position)
             return DenialReason.STALE_CONTEXT
         if (text.isEmpty()) return DenialReason.INVALID_TEXT
-        if (text.length > maxSelectionChars) return DenialReason.TOO_LARGE
+        // a result up to maxResultChars may be inserted at the cursor (review of stage 59); resultDenial checks it
         return resultDenial(text)
     }
 

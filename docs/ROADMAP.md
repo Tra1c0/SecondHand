@@ -410,20 +410,22 @@ Reihenfolge von oben nach unten.
   einfarbige Variante ist die Umriss-Fassung. Store-Bilder unter `fastlane/` sind Upstream-Material
   und bleiben. Offen: Ansehen auf dem Gerät (Launcher, runde Maske, Themed Icons).
 - **59 KI ohne Zeichenlimit (Meldung des Owners, 2026-11-16: „KI hat ein Zeichenlimit.“)** ist gebaut
-  (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 59). Der Owner nutzt OpenAI und
-  Gemini (selbst eingetragene Modellkennung); bei `@ki` verschwand der Chip nach 5–6 Zeilen, das ist
+  (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 59). Der Owner nutzt Gemini
+  (selbst eingetragene Modellkennung, „Gemini 3.8 Flash-Lite“); bei `@ki` verschwand der Chip nach 5–6 Zeilen, das ist
   die 200-Zeichen-Grenze. Vier Grenzen, kohärent angehoben: (1) `@ki` und `@translate` bis 2000
   Zeichen, auch über mehrere Zeilen (Enter gehört dem Text, Senden bleibt der Tipp auf den Chip),
   ohne zusätzlichen Editor-Lesezugriff beim normalen Tippen (Lesefenster nur während eines solchen
   Befehls bis zu dessen Anfang); (2) Auswahl und Modellinput 32.768 statt 8.192, ein Ergebnis 65.536
   statt 16.384, alle behaltenen Texte eines Workflows 131.072 statt 32.768; (3) Ausgabetoken
-  `clamp(Eingabe / 2 + 2048, 4096, 16384)` (Anthropic und Gemini mindestens 8192, Entwürfe 4096) und
+  `clamp(Eingabe / 2 + 2048, 8192, 16384)` (für alle drei Anbieter, Entwürfe 4096) und
   eine abgeschnittene Antwort aller drei Anbieter ist „abgeschnitten, Text zu lang für das Modell“,
   nie ein Ergebnis; (4) Zeit: Lesen 120 s, ein Aufruf 150 s, ein Workflow 310 s (vorher 10/45/95 s,
   die jede Antwort über 10 s zu einem Zeitfehler machten), ohne Streaming. Dazu eine feste Regel
   „Never translate“ in den Anweisungen aller Aktionen „in der Originalsprache“. Annahmen des Leads,
   die der Owner ändern kann: 2000 Zeichen für beide Befehle; ein älterer `@ki` bleibt bis 2000
-  Zeichen dahinter der laufende Befehl (Autokorrektur aus), auch über Leerzeilen; ein alter langer
+  Zeichen dahinter der laufende Befehl (Autokorrektur aus), auch über eine Leerzeile; zwei Leerzeilen
+  hintereinander beenden die Frage (Entscheidung des Leads in der Nachprüfung); über 2000 Zeichen
+  zeigt ein gedämpfter Chip die Grenze; ein alter langer
   Befehl, dessen Anfang außerhalb des kurzen Lesefensters liegt, wird nicht erkannt;
   der dritte KI-Schritt eines Workflows kann am Gesamtbudget (310 s) enden. Offen: Gerätetest und
   echte Anfragen (lange Texte, Gemini-Vertrag nicht gegen die Referenz geprüft).

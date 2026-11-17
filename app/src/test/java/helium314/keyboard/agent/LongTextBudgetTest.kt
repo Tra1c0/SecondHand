@@ -81,7 +81,7 @@ class LongTextBudgetTest {
     // --- request bodies ---
 
     @Test fun openAiOutputTokensScaleWithTheInputAndDraftsKeepTheirBudget() = runBlocking {
-        for ((chars, expected) in listOf(5 to 4096, 8192 to 6144, 20_000 to 12_048, 32_768 to 16_384)) {
+        for ((chars, expected) in listOf(5 to 8192, 8192 to 8192, 20_000 to 12_048, 32_768 to 16_384)) {
             val sent = mutableListOf<Request>()
             assertEquals("ok", OpenAiProvider(key, factory(sent, openAi("ok"))).generate(request(chars)) {}.text)
             assertEquals(expected, bodyOf(sent.single()).getValue("max_output_tokens").jsonPrimitive.int, "chars=$chars")
@@ -168,10 +168,14 @@ class LongTextBudgetTest {
             GeminiProvider.parseResponse(gemini("x", "OTHER")) }.error)
     }
 
-    @Test fun theCutOffErrorHasItsOwnMessages() {
+    @Test fun theCutOffErrorHasItsOwnMessagesAndAQuestionAsksForANarrowerOne() {
         val cloud = CloudError.CUT_OFF.cloudMessage()
         assertNotEquals(CloudError.TOO_LARGE.cloudMessage(), cloud)
         assertNotEquals(CloudError.NETWORK.cloudMessage(), cloud)
+        // review of stage 59: for a question "select less text" makes no sense
+        val ask = CloudError.CUT_OFF.cloudMessage(asking = true)
+        assertNotEquals(cloud, ask)
+        assertEquals(CloudError.NETWORK.cloudMessage(), CloudError.NETWORK.cloudMessage(asking = true))
     }
 
     @Test fun aCutOffAnswerStaysUnknownInTheJournalBecauseTheRequestWasPaidFor() = runBlocking {

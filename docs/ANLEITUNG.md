@@ -474,10 +474,12 @@ stehen unten. Noch auf keinem Gerät ausprobiert.
 - `@ki Frage`: Chip „✦ KI fragen (Anbieter): …“ antippen – das sendet genau die getippte Frage
   (eigener Schlüssel nötig). Die Frage darf bis 2000 Zeichen lang sein und mehrere Absätze haben:
   Enter fügt einen Zeilenumbruch ein und sendet nie, gesendet wird nur per Tipp auf den Chip. Hinter
-  einem älteren `@ki` gilt bis 2000 Zeichen später noch alles als Teil der Frage; wer weiterschreiben
-  will, löscht oder ersetzt den Befehl. Dauert die Antwort lange (bis 2,5 Minuten), bleibt „Abbrechen“
-  erreichbar. Wurde die Antwort abgeschnitten, steht „Antwort abgeschnitten, Text zu lang“: weniger
-  Text oder eine kürzere Aufgabe wählen. Drei wandernde Punkte zeigen „Frage läuft …“; „Abbrechen“ stoppt.
+  einem älteren `@ki` gilt bis 2000 Zeichen später noch alles als Teil der Frage. Zwei Leerzeilen
+  beenden die Frage (eine Leerzeile zwischen Absätzen nicht); danach ist es wieder normaler Text. Das gilt
+  auch für den Text von `@translate`. Wird die Frage länger als 2000 Zeichen, zeigt ein grauer Chip
+  „Zu lang: höchstens 2000 Zeichen nach dem Befehl“. Dauert die Antwort lange (bis 2,5 Minuten), bleibt „Abbrechen“
+  erreichbar. Wurde die Antwort abgeschnitten, steht „Antwort abgeschnitten“: die Frage enger stellen (bei
+  markiertem Text: weniger Text oder eine kürzere Aufgabe wählen). Drei wandernde Punkte zeigen „Frage läuft …“; „Abbrechen“ stoppt.
   Die Antwort erscheint als Chip in der Leiste (lange Antworten seitlich wischen); antippen
   ersetzt `@ki …` durch die Antwort. „↻“ fragt noch einmal (neue Anfrage), „✕“ verwirft. Tippst
   du weiter oder setzt die Schreibmarke um, wird die Anfrage abgebrochen. Ein grauer Fehler-Chip

@@ -33,7 +33,9 @@ class InsertionAnchorTest {
         assertEquals(DenialReason.PASSWORD, policy.insertDenial(anchor, session.token, text.copy(isPassword = true), 4, 4, "Hallo"))
         assertEquals(DenialReason.INVALID_TEXT, policy.insertDenial(anchor, session.token, text, 4, 4, ""))
         assertEquals(DenialReason.INVALID_TEXT, policy.insertDenial(anchor, session.token, text, 4, 4, "broken \uD83D"))
-        assertEquals(DenialReason.TOO_LARGE, policy.insertDenial(anchor, session.token, text, 4, 4, "x".repeat(32_769)))
+        // review of stage 59: a long answer (up to the result limit, more than a selection) may be inserted at the cursor
+        assertNull(policy.insertDenial(anchor, session.token, text, 4, 4, "x".repeat(65_536)))
+        assertEquals(DenialReason.TOO_LARGE, policy.insertDenial(anchor, session.token, text, 4, 4, "x".repeat(65_537)))
         session.invalidate() // same coordinates later are still a different editor state
         assertEquals(DenialReason.STALE_CONTEXT, policy.insertDenial(anchor, session.token, text, 4, 4, "Hallo"))
         assertEquals("InsertionAnchor(token=${anchor.token})", anchor.toString()) // no position, no text
