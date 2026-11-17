@@ -66,7 +66,9 @@ object UpdateOnOpen {
 
     /** From [LastField.capture] for every field the keyboard is shown in. Never throws, returns at once. */
     @JvmStatic fun onStartInputView(context: Context, editorInfo: EditorInfo?, settings: SettingsValues?): Skip? =
-        runCatching { start(context, editorInfo, settings) }.getOrDefault(Skip.FAILED)
+        helium314.keyboard.agent.TypingPerf.measure(helium314.keyboard.agent.TypingPerf.Hook.FIELD_START) {
+            runCatching { start(context, editorInfo, settings) }.getOrDefault(Skip.FAILED)
+        }
 
     @Volatile private var unlockedOnce = false
 

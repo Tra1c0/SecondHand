@@ -120,7 +120,10 @@ object UpdateChip {
     }
 
     /** The chip row for the neutral strip (from `LatinIME.setNeutralSuggestionStrip`), or null. */
-    @JvmStatic fun createView(context: Context, parent: ViewGroup): View? {
+    @JvmStatic fun createView(context: Context, parent: ViewGroup): View? =
+        helium314.keyboard.agent.TypingPerf.measure(helium314.keyboard.agent.TypingPerf.Hook.UPDATE_CHIP) { createViewNow(context, parent) }
+
+    private fun createViewNow(context: Context, parent: ViewGroup): View? {
         val build = build(context, Settings.getValues()) ?: return null
         val chip = KeyboardCommands.Chip(context.getString(R.string.agent_update_chip, build),
             context.getString(R.string.agent_update_chip_description, build)) { open(context) }

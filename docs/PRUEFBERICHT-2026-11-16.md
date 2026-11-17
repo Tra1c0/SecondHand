@@ -57,7 +57,7 @@ Die Spalte „Plan“ nennt die Etappe, in der der Befund behoben wird (Nachweis
 
 Unauffällig laut Bericht: das Zeichnen der Tasten und der Beleuchtung, Touch, Symbole malen, die
 Arbeit im Vorschlags-Thread. Zur Messung am Telefon bekommt die Diagnose eine Karte „Tippen“
-(Etappe 64).
+(Etappe 64, seit 64a gebaut).
 
 ## 2. Build, Release, Updates, Tests
 

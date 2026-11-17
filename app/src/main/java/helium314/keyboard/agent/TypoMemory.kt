@@ -103,7 +103,10 @@ object TypoMemory {
 
     /** The user typed [typed] and then picked [meant] from the strip. [previous] is the word before, if any. */
     @JvmStatic
-    fun confirm(context: Context, typed: String, meant: String, previous: String?, settings: SettingsValues) {
+    fun confirm(context: Context, typed: String, meant: String, previous: String?, settings: SettingsValues) =
+        TypingPerf.measure(TypingPerf.Hook.LEARNING) { confirmNow(context, typed, meant, previous, settings) }
+
+    private fun confirmNow(context: Context, typed: String, meant: String, previous: String?, settings: SettingsValues) {
         // review of stage 51 (M2): a word of another language kept for this one is no longer wanted there
         ForeignWords.onReplaced(context, settings, typed, meant)
         if (!mayLearn(settings)) return

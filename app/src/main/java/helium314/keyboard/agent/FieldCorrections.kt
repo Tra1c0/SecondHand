@@ -115,6 +115,13 @@ class FieldCorrectionWatcher @JvmOverloads constructor(private val privateText: 
      */
     fun checkpoint(context: Context, connection: RichInputConnection, settings: SettingsValues,
                    dictionary: DictionaryFacilitator, historySuppressed: Boolean, atCommit: Boolean,
+                   composing: Boolean, committedFrom: String?, committedTo: String?) =
+        TypingPerf.measure(TypingPerf.Hook.LEARNING) {
+            checkpointNow(context, connection, settings, dictionary, historySuppressed, atCommit, composing, committedFrom, committedTo)
+        }
+
+    private fun checkpointNow(context: Context, connection: RichInputConnection, settings: SettingsValues,
+                   dictionary: DictionaryFacilitator, historySuppressed: Boolean, atCommit: Boolean,
                    composing: Boolean, committedFrom: String?, committedTo: String?) {
         if (!mayObserve(settings, historySuppressed)) {
             reference = null

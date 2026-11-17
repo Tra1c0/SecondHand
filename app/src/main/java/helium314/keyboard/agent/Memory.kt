@@ -235,6 +235,10 @@ object Memory {
      * N1), [cursor] the cursor after it.
      */
     @JvmStatic fun onWordCommitted(context: Context, settings: SettingsValues?, editorInfo: EditorInfo?, word: String,
+                                   typed: String?, before: () -> CharSequence?, cursor: Int) =
+        TypingPerf.measure(TypingPerf.Hook.WORD_COMMIT) { onWordCommittedNow(context, settings, editorInfo, word, typed, before, cursor) }
+
+    private fun onWordCommittedNow(context: Context, settings: SettingsValues?, editorInfo: EditorInfo?, word: String,
                                    typed: String?, before: () -> CharSequence?, cursor: Int) {
         // the text before the cursor is read at most once for both
         var read = false

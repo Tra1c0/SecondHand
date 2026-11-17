@@ -110,7 +110,10 @@ object TouchModel {
      * own restrictions come from [editorInfo] and the switches from the preferences.
      */
     @JvmStatic
-    fun load(context: Context, settings: SettingsValues, editorInfo: EditorInfo?, restarting: Boolean) {
+    fun load(context: Context, settings: SettingsValues, editorInfo: EditorInfo?, restarting: Boolean) =
+        TypingPerf.measure(TypingPerf.Hook.FIELD_START) { loadNow(context, settings, editorInfo, restarting) }
+
+    private fun loadNow(context: Context, settings: SettingsValues, editorInfo: EditorInfo?, restarting: Boolean) {
         load(context, settings)
         appContext = context.applicationContext ?: context
         val prefs = context.prefs()
@@ -199,6 +202,10 @@ object TouchModel {
      */
     @JvmStatic
     fun learnFromWord(context: Context, typed: String, committed: String, xs: IntArray, ys: IntArray, size: Int,
+                      keyboard: helium314.keyboard.keyboard.Keyboard?, paddingLeft: Int, paddingTop: Int, settings: SettingsValues) =
+        TypingPerf.measure(TypingPerf.Hook.LEARNING) { learnFromWordNow(context, typed, committed, xs, ys, size, keyboard, paddingLeft, paddingTop, settings) }
+
+    private fun learnFromWordNow(context: Context, typed: String, committed: String, xs: IntArray, ys: IntArray, size: Int,
                       keyboard: helium314.keyboard.keyboard.Keyboard?, paddingLeft: Int, paddingTop: Int, settings: SettingsValues) {
         if (!settings.mAdaptTouch || settings.mLearningPaused || settings.mIncognitoModeEnabled || settings.mIsLocked) return
         if (keyboard == null) return

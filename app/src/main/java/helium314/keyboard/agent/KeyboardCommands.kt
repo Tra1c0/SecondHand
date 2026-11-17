@@ -321,7 +321,9 @@ object KeyboardCommands {
     @JvmStatic fun load(context: Context) = load(context, FieldKey.of((context as? LatinIME)?.currentInputEditorInfo))
 
     /** [field]: the field of the input view that starts, null when unknown (then a long command in progress is dropped). */
-    internal fun load(context: Context, field: FieldKey?) {
+    internal fun load(context: Context, field: FieldKey?) = TypingPerf.measure(TypingPerf.Hook.FIELD_START) { loadNow(context, field) }
+
+    private fun loadNow(context: Context, field: FieldKey?) {
         val names = registry.map { it.name }.filter { isCommandEnabled(context, it) }.toSet()
         val longNames = registry.filter { it.longArgument && it.name in names }.map { it.name }.toSet()
         val aiNames = registry.filter { it.aiArgument && it.name in names }.map { it.name }.toSet()
@@ -518,7 +520,9 @@ object KeyboardCommands {
      * shown; null while text is selected. Without a command before the cursor, every command drops
      * what it found, so nothing stays in memory when the chips are never built.
      */
-    @JvmStatic fun updateGuard(before: CharSequence?) {
+    @JvmStatic fun updateGuard(before: CharSequence?) = TypingPerf.measure(TypingPerf.Hook.COMMAND) { updateGuardNow(before) }
+
+    private fun updateGuardNow(before: CharSequence?) {
         val current = active
         val found = if (current == null || before == null) null else runCatching { current.parse(before) }.getOrNull()
         inCommand = current != null && guards(current, found)
@@ -546,10 +550,11 @@ object KeyboardCommands {
      * The chips view for the strip, or null when no command is typed. Reads only the text before
      * the cursor that the keyboard already holds.
      */
-    @JvmStatic fun createChipsView(ime: LatinIME, parent: ViewGroup): View? =
+    @JvmStatic fun createChipsView(ime: LatinIME, parent: ViewGroup): View? = TypingPerf.measure(TypingPerf.Hook.STRIP_CHIPS) {
         createChipsView(ime, parent) { ime.setNeutralSuggestionStrip() }
             // stage 55: whether the keyboard's chips stood in the strip instead of suggestions, for the diagnose page
             .also { LastField.onStrip(chips = it != null, insideCommand = suppressesCorrection()) }
+    }
 
     /** [neutral] shows the normal strip again when a rebuilt row would be empty. */
     internal fun createChipsView(ime: LatinIME, parent: ViewGroup, neutral: () -> Unit): View? {
@@ -638,11 +643,11 @@ object KeyboardCommands {
             return listOf(Chip(text, text, Chip.Kind.MUTED) { android.widget.Toast.makeText(ime, text, android.widget.Toast.LENGTH_LONG).show() })
         }
         // stage 41: no command, but a hint for a field with an unambiguous type (e-mail, phone, IBAN, decimal)
-        if (context == null) FormatGuardChips.stripChips(host).let { if (it.isNotEmpty()) return it }
+        if (context == null) TypingPerf.measure(TypingPerf.Hook.FORMAT_CHIPS) { FormatGuardChips.stripChips(host) }.let { if (it.isNotEmpty()) return it }
         // stage 45: no command, but the field asks for something or cue words announce a fresh clip or own data
-        if (context == null) FieldSuggestionChips.stripChips(host).let { if (it.isNotEmpty()) return it }
+        if (context == null) TypingPerf.measure(TypingPerf.Hook.FIELD_CHIPS) { FieldSuggestionChips.stripChips(host) }.let { if (it.isNotEmpty()) return it }
         // stage 46: no command, but the memory has a sure rest of a phrase, a fitting snippet or an abbreviation offer
-        if (context == null) MemoryChips.stripChips(host).let { if (it.isNotEmpty()) return it }
+        if (context == null) TypingPerf.measure(TypingPerf.Hook.MEMORY_CHIPS) { MemoryChips.stripChips(host) }.let { if (it.isNotEmpty()) return it }
         // stage 25a: no command, but two typed emojis with a mix
         if (context == null) return helium314.keyboard.agent.commands.EmojiMixCommand.stripChips(host,
             ime.getAgentTextBeforeCursor(helium314.keyboard.agent.commands.EmojiMixCommand.LOOKBACK)).ifEmpty { null }

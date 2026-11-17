@@ -1049,6 +1049,13 @@ für jedes Update (entpackte Wörterbücher leeren, `upgradeToolbarPrefs`, Layou
 der alten Migration (1,75 bzw. 1,1 im Querformat): Hochformat bekommt den Abstand des gewählten
 eigenen Designs, alle anderen ihren Standard; die Höhe bleibt. Test: `ForkUpgradeTest`.
 
+- `RichInputConnection.java` (64a): je eine Zeile `TypingPerf.app()` vor jedem Aufruf, der die App wirklich
+  fragt: `getTextBeforeCursor` und `getTextAfterCursor` (in den zwei `…AndDetectLaggyConnection`, also nur wenn der
+  Textspeicher nicht antworten kann), `getSelectedText`, `getExtractedText` in `reloadCursorPosition`, die Prüfung des
+  letzten Zeichens nach `setComposingText` und `getSelectedText` in `tryFixIncorrectCursorPosition`. Nicht gezählt:
+  `copyText` und die statischen Ersetzungs-Helfer (Antippen, nicht Tippen). Der Zähler wirft nie.
+- `LatinIME.java` (64a): `onEvent` beginnt mit `TypingPerf.keyPress()` (ein Tastendruck beginnt; nur Zahlen).
+
 Geänderte Upstream-Tests (Leertasten-Gesten): `InputLogicTest.kt` ruft `onSpaceSwipe` statt
 `onHorizontalSpaceSwipe` und hat die Fälle `generatedSpace*` (seit Etappe 33 auch die
 Rastpunkte über `onSpaceSwipeDistance`).
@@ -2223,6 +2230,21 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `KeyboardProfileStore.kt`: das Designprofil enthält `agent_rgb_lighting` als Text
   (`Binding.freeText`); beim Lesen feldweise über `RgbSettings.parse` begrenzt, leer (Profile von
   vor 26) heißt „unverändert lassen“.
+- Tipp-Leistung (64): `A/TypingPerf.kt` (64a) ist der Zähler ohne Text. `Hook` nennt die gemessenen Stellen mit festen
+  Namen (`COMMAND`, `STRIP_CHIPS`, `FORMAT_CHIPS`, `FIELD_CHIPS`, `MEMORY_CHIPS`, `UPDATE_CHIP`, `FIELD_START`,
+  `WORD_COMMIT`, `LEARNING`); `measure(hook) { … }` (inline) oder `begin()` / `end(hook, token)` messen einen Lauf mit zwei
+  `System.nanoTime()`; nur der Hauptthread wird gezeitet, verschachtelte Läufe zählen für den Tastendruck nur außen, stehen aber
+  einzeln in der Liste der zehn langsamsten. `app()` und `system()` zählen Anfragen aus jedem Thread (atomar, ohne
+  Allokation). `keyPress()` (eine Zeile in `LatinIME.onEvent`) schließt den vorigen Tastendruck in einen Ring der letzten
+  500 ein: Zeit des Tastendrucks, Anfragen an App und Android. `snapshot()` rechnet Median, 95. Perzentil (nächster Rang),
+  Maximum und Durchschnitt, `reset()` leert alles und setzt „seit“. Es gibt keine Zeichenketten in der Schnittstelle außer
+  `commandFailed(name, error)` (64c: Name des eingebauten Befehls und Klasse der Ausnahme, nie die Meldung). Die Zeit kommt
+  aus `nanoSource` (Tests). Gemessene Stellen: `KeyboardCommands` (`updateGuard`, `createChipsView`, die drei
+  Chip-Quellen, `load`), `UpdateChip.createView`, `UpdateOnOpen.onStartInputView`, `TouchModel.load` und
+  `learnFromWord`, `Memory.onWordCommitted`, `TypoMemory.confirm`, `FieldCorrectionWatcher.checkpoint`; dort ist der
+  Rumpf in eine `…Now`-Funktion gewandert und die öffentliche Funktion ruft sie über `measure`. Karte: `Diagnose.typing`
+  (`Part.TYPING`), in `AgentDiagnoseScreen` als eigene Liste `shown` vor „App und Telefon“ eingefügt (`sections`
+  bleibt, wie es war), Knopf `agent_diagnose_typing_reset`. Tests: `AT/TypingPerfTest.kt`.
 
 ## Flacher Stil
 
@@ -5321,19 +5343,27 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   beim Hinzufügen von Tests auf etwa 90 % des Wertes eines grünen Laufs anheben; die fünf bekannten Fehler stehen mit exakten Namen in
   `known` (die zwei Cloud-Umgebungs-Fehler `layoutsLinksInternal`, `otherLinks` nicht: auf GitHub
   müssen sie bestehen).
+- **P264** Messung der Tipp-Leistung (64a): `TypingPerf` darf nie Text, nie eine Meldung einer Ausnahme und nie ein
+  Feldwort aufnehmen: jede neue Messstelle bekommt einen Eintrag in `Hook` (feste Namen, Beschriftung in
+  `agent_diagnose_strings.xml`), keine Zeichenkette. Auf dem heißen Pfad gibt es keine Allokation (keine Lambdas mit
+  Erfassung außerhalb der inline-Funktion `measure`, kein String, kein Logging); jeder Einstieg fängt Throwable und wirft nie
+  in die Engine. Zählung der App-Anfragen nur dort, wo wirklich ein `InputConnection`-Aufruf die App verlässt (nicht beim
+  Antworten aus dem Textspeicher): eine neue Stelle in `RichInputConnection` braucht genau eine Zeile `TypingPerf.app()`.
+  Der Tastendruck zählt Zeit bis zum nächsten `keyPress()`; Arbeit auf anderen Threads zählt nur bei den Anfragen. Die
+  Karte zeigt nur, was seit dem Start des Prozesses oder dem letzten „Zurücksetzen“ gemessen wurde.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (627 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (629 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (5): agent-apk, agent-tests, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (86): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (87): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand,
   ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand, CorrectionMemory,
@@ -5346,9 +5376,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   RgbLighting, RgbOwnPatterns, RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip,
   SearchCommand, SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SmartPasteChips,
   SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary,
-  ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst, TypoMemory, WorkflowApprovalSummary,
-  WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
-  WorkflowStore
+  ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst, TypingPerf, TypoMemory,
+  WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner,
+  WorkflowInputSummary, WorkflowStore
 - `A/charart/` (5): CharArtCanvas, CharArtImages, CharArtKey, CharArtKeys, CharArtView
 - `A/commands/` (22): AiCommandChips, AlarmCommand, AreaCommands, AskCommand, ClipCommand,
   CommandAppSettings, CommandSystem, EmojiMixCommand, EmojiMixRecents, EmojiMixer, InstalledApps,
@@ -5359,7 +5389,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (102): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (103): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, CharArtWindowTest, ClipCommandTest, ClipVaultTest, CommandReplaceTest,
@@ -5379,8 +5409,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   SettingsSystemAreaTest, SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest,
   SliderFeelTest, SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest,
   SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest, TouchModelTest,
-  TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest, TypoMemoryTest, UpdateCheckTest,
-  UpdateChipTest, UpdateOnOpenTest, UpdatePromptsTest, WorkflowBuilderContractTest,
+  TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest, TypingPerfTest, TypoMemoryTest,
+  UpdateCheckTest, UpdateChipTest, UpdateOnOpenTest, UpdatePromptsTest, WorkflowBuilderContractTest,
   WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
   WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,

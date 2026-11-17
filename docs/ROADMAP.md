@@ -449,6 +449,11 @@ Reihenfolge von oben nach unten.
   zusammen. Die Mindestzahlen stehen auf Werten aus Lauf 82 (GitHub-Lauf 83 damit grün). Offen: der
   erste echte Lauf des Release-Workflows auf GitHub (zuerst als Test-Build, die Schritte für `main`
   erst beim geprüften Build).
+- **64 Tipp-Leistung** (Befunde P1 bis P11, P13, S9, K4, Z9 der Prüfung vom 2026-11-16) wird in vier
+  Teilen gebaut. **64a messen ist gebaut** (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` →
+  Etappe 64a): `TypingPerf` zählt ohne Text, wie lange die eigenen Hooks je Tastendruck im Hauptthread
+  brauchen und wie viele Anfragen an die App und an Android dabei laufen; die Diagnose hat dazu die Karte
+  „Tippen“. Offen: ein Gerätetest mit Screenshot der Karte (vor und nach 64b bis 64d), 64b bis 64d.
 - **Runde 2 nach dem Scan (Auftrag des Owners vom 2026-11-16: „suche nach Lücken, Verbesserungen und
   Fehlern … scanne gebietübergreifend“)**: noch nicht gebaut. Die Befunde stehen mit Stelle und
   Schwere in `docs/PRUEFBERICHT-2026-11-16.md`; jede Etappe behebt die dort genannten Nummern und

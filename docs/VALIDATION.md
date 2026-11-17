@@ -5800,6 +5800,20 @@ sich nicht. Das Fenster des Test-Nachweises bleibt bei den letzten 100 Läufen.
   `affc62b` in allen vier Jobs grün. `c64f0d7` ändert danach nur die Notizen.
 - Nicht geprüft: Installation und Verhalten auf einem Gerät.
 
+## Etappe 64a (Tipp-Leistung messen)
+
+- Auftrag: Prüfbericht 2026-11-16, Abschnitt 1 („stellenweise Performance-Probleme“); die Etappe misst nur.
+- Geändert: neu `TypingPerf.kt`; Messstellen in `KeyboardCommands`, `UpdatePrompts` (`UpdateChip`), `UpdateOnOpen`,
+  `TouchModel`, `Memory`, `TypoMemory`, `FieldCorrections`; Engine-Dateien je eine Zeile: `RichInputConnection` (sechs Zähler
+  `TypingPerf.app()`), `LatinIME` (`keyPress()` in `onEvent`); Karte `Diagnose.typing` und der Knopf in `AgentDiagnoseScreen`;
+  Texte in `agent_diagnose_strings.xml` (de, en).
+- Test: `TypingPerfTest` (Zähler und Zeiten mit falscher Uhr, Median, 95. Perzentil, Maximum, Ring auf 500 begrenzt, verschachtelte
+  Läufe, zehn langsamste, Zähler aus fremden Threads, fremde Threads nicht gezeitet, Zurücksetzen, Ausnahme im Block, die
+  Schnittstelle nimmt keinen Text, Fehlerliste ohne Meldung, Karte lesbar, Seite mit Knopf).
+- Ergebnis: `TypingPerfTest` 13 grün, `DiagnoseScreenTest` 22 grün (`:app:testDebugUnitTest`, Robolectric, kein Gerät). Der Lauf kompiliert die Engine-Zeilen mit.
+- Nicht geprüft: auf einem Gerät (keine Messung; die Zahlen der Karte sind noch nie gesehen), der Mehraufwand der Messung
+  selbst (nach dem Entwurf zwei Zeitabfragen und ein paar Feldschreibungen je Stelle, nicht gemessen).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.
