@@ -5521,6 +5521,22 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Nicht geprüft: die echten Flags des Instagram-Chatfelds, ob Instagram im Feld überhaupt Composing-Text und
   Korrekturen annimmt, der Auswahldialog für Apps mit echtem Paketmanager (der Weg „Hinzufügen“ ist nur über
   `ForcedApps.add` getestet), TalkBack, jeder Gerätetest.
+
+### Nachprüfung 61, zweite Runde (Prüfer-Befund M2 und kleinere Punkte, 2026-11-17)
+
+- M2 (mittel): Gemessen vor der Änderung (`InputLogicTest`, gefälschter Editor in `Shadows.kt` mit den Modi `NORMAL`,
+  `UPPERCASE`, `IGNORE_COMPOSING`; erzwungenes Feld von Instagram mit `NO_SUGGESTIONS`, getippt „hal“, Leerzeichen, „welt“):
+  A normal „hal welt“; B (ändert den Composing-Text, Prüfung scheitert jedes Mal) „AL ELT“ (das erste Zeichen jedes Worts ging
+  verloren); C (ignoriert Composing-Text, nimmt nur Festgeschriebenes) „al “. Nach der Änderung (`finishComposingText()` in
+  `RichInputConnection.setComposingText` vor `return false`): A „hal welt“ (unverändert, Vorschläge und Autokorrektur gehen),
+  B „HAL WELT“ (alle Buchstaben), C „al “ (nicht schlechter, nicht besser). Dasselbe mit „Immer Vorschläge anzeigen“ in einer nicht
+  gelisteten App: normal „hal welt“, B „HAL WELT“. Tests: `InputLogicTest` `M2 …` (4).
+- Kleinere Punkte: GO und NEXT nur in einzeiligen Feldern ausgeschlossen (`ForcedCorrectionTest.goAndNextOnlyExcludeSingleLineFields`,
+  `theReasonIsNamed`); die Karte nennt den Grund (`aListedAppsExcludedFieldNamesTheReason`); der Urteilssatz zur verweigerten Eingabe sagt
+  „nicht unverändert“ und was bleibt; der Zähler bleibt bei einem Neustart desselben Felds (`theRefusalCountSurvivesARestartOfTheSameFieldOnly`);
+  „nicht gefunden“ statt „nicht installiert“; „Liste voll“ nur bei voller Liste.
+- Nicht geprüft: ob echte Editoren (Instagram) sich wie B oder C verhalten, jeder Gerätetest.
+
 ## Etappe 60 (Satzsprache)
 
 - Auftrag: `docs/ROADMAP.md` → 60 (Owner, 2026-11-16: „Englisch wird ins Deutsche übersetzt, auch wenn

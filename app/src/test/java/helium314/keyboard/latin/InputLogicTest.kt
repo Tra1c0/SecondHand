@@ -5684,6 +5684,46 @@ class InputLogicTest {
         assertEquals(0, inputLogic.getCurrentAutoCapsState(settingsValues) and sentenceCaps)
     }
 
+    // stage 61, second round (M2): editors that refuse the composing text the keyboard sets in a field with NO_SUGGESTIONS
+    private fun typeRaw(typed: String) {
+        for (c in typed) { latinIME.onEvent(Event.createEventForCodePointFromUnknownSource(c.code)); handleMessages() }
+    }
+
+    private fun typeInForcedField(mode: ShadowInputMethodService.Companion.EditorMode, packageName: String = "com.instagram.android"): String {
+        ShadowInputMethodService.editorMode = mode
+        currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+        startField(packageName, EditorInfo.IME_ACTION_SEND)
+        typeRaw("hal"); typeRaw(" "); typeRaw("welt")
+        println("M2 $mode in $packageName: field=\"$text\" connectionBefore=\"$connectionTextBeforeComposingText\" composing=\"$connectionComposingText\"")
+        return text
+    }
+
+    @Test fun `M2 a normal editor in a forced field`() {
+        assertEquals("hal welt", typeInForcedField(ShadowInputMethodService.Companion.EditorMode.NORMAL))
+        assertTrue(settingsValues.mCorrectionForced)
+    }
+
+    @Test fun `M2 an editor that changes the composing text keeps every letter`() {
+        val typed = typeInForcedField(ShadowInputMethodService.Companion.EditorMode.UPPERCASE)
+        assertEquals("HAL WELT", typed)
+    }
+
+    @Test fun `M2 an editor that ignores composing text loses no more than before`() {
+        // before the fix: "al " (the first letter and the last word were lost); the editor takes only committed text
+        val typed = typeInForcedField(ShadowInputMethodService.Companion.EditorMode.IGNORE_COMPOSING)
+        assertEquals("al ", typed)
+    }
+
+    @Test fun `M2 the same editors with always show suggestions in an app that is not forced`() {
+        latinIME.prefs().edit { putBoolean(Settings.PREF_ALWAYS_SHOW_SUGGESTIONS, true) }
+        assertEquals("hal welt", typeInForcedField(ShadowInputMethodService.Companion.EditorMode.NORMAL, "com.example.chat"))
+        assertFalse(settingsValues.mCorrectionForced)
+        assertTrue(settingsValues.mSuggestionsEnabled)
+        reset()
+        latinIME.prefs().edit { putBoolean(Settings.PREF_ALWAYS_SHOW_SUGGESTIONS, true) }
+        assertEquals("HAL WELT", typeInForcedField(ShadowInputMethodService.Companion.EditorMode.UPPERCASE, "com.example.chat"))
+    }
+
     // stage 55: the card "Letztes Feld" gets the values the engine used when the keyboard started in the field
     @Test fun lastFieldHoldsWhatTheEngineUsedInTheField() {
         val lastField = helium314.keyboard.agent.LastField

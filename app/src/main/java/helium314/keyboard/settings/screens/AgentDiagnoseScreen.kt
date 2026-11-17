@@ -128,7 +128,7 @@ fun AgentDiagnoseScreen(onClickBack: () -> Unit) {
                                 else helium314.keyboard.agent.ForcedApps.add(prefs, pkg)
                                 val now = helium314.keyboard.agent.ForcedApps.isListed(prefs, pkg)
                                 // a full list refuses the app: say so, the state stays as it was
-                                forceFull = !listed && !now
+                                forceFull = !listed && !now && helium314.keyboard.agent.ForcedApps.read(prefs).size >= helium314.keyboard.agent.ForcedApps.MAX_APPS
                                 forceChoice = if (forceFull) null else now
                             }, modifier = Modifier.testTag("agent_diagnose_force")) {
                                 Text(stringResource(if (listed) R.string.agent_diagnose_force_remove else R.string.agent_diagnose_force_add))

@@ -224,11 +224,11 @@ object Diagnose {
                 field.learningOff -> s(R.string.agent_diagnose_field_app_not_kept)
                 else -> field.packageName?.let { appName(context, it) } ?: s(R.string.agent_diagnose_field_unknown)
             }))
-            add(Row(s(R.string.agent_diagnose_field_forced), s(when {
-                field.forced -> R.string.agent_diagnose_field_forced_yes
-                field.appForced -> R.string.agent_diagnose_field_forced_listed
-                else -> R.string.agent_diagnose_field_forced_no
-            })))
+            add(Row(s(R.string.agent_diagnose_field_forced), when {
+                field.forced -> s(R.string.agent_diagnose_field_forced_yes)
+                field.appForced -> context.getString(R.string.agent_diagnose_field_forced_listed, excludedText(context, field))
+                else -> s(R.string.agent_diagnose_field_forced_no)
+            }))
             add(Row(s(R.string.agent_diagnose_field_when), ago(context, seconds)))
             add(Row(s(R.string.agent_diagnose_field_type), typeText(context, field.type)))
             add(Row(s(R.string.agent_diagnose_field_flags), flags))
@@ -266,6 +266,19 @@ object Diagnose {
         return Section(Part.LAST_FIELD, s(R.string.agent_diagnose_field_title), rows,
             appPackage = field.packageName?.takeIf { !field.learningOff }, appForced = field.appForced)
     }
+
+    /** Stage 61: in plain words why forcing does not apply to a field of a listed app. */
+    private fun excludedText(context: Context, field: FieldReport.Snapshot.Field): String = context.getString(
+        when (dev.agentkeyboard.core.ForcedCorrection.excludedReason(field.inputType, field.imeOptions)) {
+            dev.agentkeyboard.core.ForcedCorrection.Excluded.PASSWORD -> R.string.agent_diagnose_excluded_password
+            dev.agentkeyboard.core.ForcedCorrection.Excluded.ADDRESS -> R.string.agent_diagnose_excluded_address
+            dev.agentkeyboard.core.ForcedCorrection.Excluded.NAME -> R.string.agent_diagnose_excluded_name
+            dev.agentkeyboard.core.ForcedCorrection.Excluded.FILTER -> R.string.agent_diagnose_excluded_filter
+            dev.agentkeyboard.core.ForcedCorrection.Excluded.SEARCH -> R.string.agent_diagnose_excluded_search
+            dev.agentkeyboard.core.ForcedCorrection.Excluded.GO_NEXT -> R.string.agent_diagnose_excluded_go_next
+            dev.agentkeyboard.core.ForcedCorrection.Excluded.ASCII -> R.string.agent_diagnose_excluded_ascii
+            dev.agentkeyboard.core.ForcedCorrection.Excluded.NOT_TEXT, null -> R.string.agent_diagnose_excluded_not_text
+        })
 
     private fun stripText(context: Context, strip: FieldReport.Strip?) = context.getString(when (strip) {
         null -> R.string.agent_diagnose_field_not_captured_short

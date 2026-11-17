@@ -59,6 +59,8 @@ object LastField {
     /** The editor refused composing text in this field (stage 61): a count only. */
     private var composingRefused = 0
     private val salt = java.util.UUID.randomUUID().toString()
+    /** Salted hash of package, field id and input type of the last field: the same field restarted keeps [composingRefused]. */
+    private var restartKey = 0
     private fun keyOf(packageName: String?): Int = if (packageName.isNullOrEmpty()) 0 else (salt + packageName).hashCode()
     /** [onStrip] said the keyboard's chips come; the next content of the strip are these chips. */
     private var pendingChips = false
@@ -79,6 +81,9 @@ object LastField {
                 val packageName = editorInfo?.packageName ?: values.mInputAttributes.mTargetApplicationPackageName
                 ownField = packageName == context.packageName
                 if (ownField) return
+                val key = (salt + packageName + "/" + (editorInfo?.fieldId ?: 0) + "/" + (editorInfo?.inputType ?: 0)).hashCode()
+                val sameField = snapshot is FieldReport.Snapshot.Field && key == restartKey
+                restartKey = key
                 snapshot = snapshotOf(context, editorInfo?.inputType ?: values.mInputAttributes.mInputType,
                     editorInfo?.imeOptions ?: 0, values, SystemClock.elapsedRealtime())
                 this.dictionaries = dictionaries?.let { WeakReference(it) }
@@ -87,7 +92,8 @@ object LastField {
                 stripUpdates = 0
                 coveredUpdates = 0
                 chipUpdates = 0
-                composingRefused = 0
+                // an app that restarts the same field must not hide refusals counted a moment ago
+                if (!sameField) composingRefused = 0
                 pendingChips = false
                 externalChips = false
                 inCommand = false
@@ -267,6 +273,7 @@ object LastField {
             dictionaries = null
             switched = false
             ownField = false
+            restartKey = 0
             strip = null
             stripUpdates = 0
             coveredUpdates = 0

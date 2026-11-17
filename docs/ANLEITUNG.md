@@ -1465,8 +1465,9 @@ Neustart der Tastatur steht dort „noch keins“.
 **Korrektur in einer App erzwingen.** Manche Apps (z. B. Instagram) melden ihr Nachrichtenfeld mit
 „keine Vorschläge“ und ohne Großschreibung. Für Apps in einer Liste behandelt die Tastatur solche
 Textfelder wie ein normales Nachrichtenfeld: Vorschläge, Autokorrektur auch im einzeiligen Feld und
-Satzanfänge groß. Nicht in Passwort-, E-Mail-, Adress-, Namen- und Suchfeldern und nicht in Feldern mit den Aktionen „Los“ oder „Weiter“
-(Anmelde- und Formularfelder) oder mit ASCII-Zwang. Deine eigenen Schalter
+Satzanfänge groß. Nicht in Passwort-, E-Mail-, Adress-, Namen- und Suchfeldern, nicht in einzeiligen Feldern mit den Aktionen „Los“ oder „Weiter“
+(Anmelde- und Formularfelder) und nicht in Feldern mit ASCII-Zwang. Steht ein Feld einer gelisteten App nicht in der Liste der
+erzwungenen Felder, nennt die Karte den Grund (Zeile „Korrektur erzwungen“). Deine eigenen Schalter
 („Änderungsvorschläge“, „Autokorrektur“, automatische Großschreibung) gelten weiter, und Lernen wird
 dadurch nie eingeschaltet. Instagram steht anfangs in der Liste. So änderst du sie:
 
@@ -1481,9 +1482,12 @@ Die Karte sagt auch, was erzwungen wurde, z. B. „Die App verbietet Vorschläge
 erzwungen.“ Korrigiert die Tastatur in Instagram trotzdem nicht, tippe im Chat ein paar Wörter mit
 einem Tippfehler, öffne dann direkt Einstellungen → Diagnose und schick dem Lead einen Screenshot der
 Karte „Letztes Feld“ (sie zeigt auch in privaten Chats Feldtyp, Merkmale und Urteil, nur nicht Paketname und App-Name; sie
-zeigt aber „Korrektur erzwungen: ja“, wenn erzwungen wurde). Neu: Steht dort „App nahm getippten Text nicht sofort an: n-mal“
-und im Urteil, dass Vorschläge und Autokorrektur abbrechen können, verweigert die App den Text, den die Tastatur beim Tippen
-setzt; dann liegt es an der App, nicht an der Liste. Ist die Liste voll (50 Apps), sagt der Knopf „Liste voll“ und ändert nichts.
+zeigt aber „Korrektur erzwungen: ja“, wenn erzwungen wurde). Neu: Steht dort „App nahm getippten Text nicht unverändert an: n-mal“
+und im Urteil, dass der Text stehen bleibt, es aber für das Wort keine Vorschläge und keine Autokorrektur gibt, ändert die App den
+Text, den die Tastatur beim Tippen setzt (z. B. nur Großbuchstaben), oder übernimmt ihn verspätet; dann liegt es an der App, nicht an
+der Liste. Verhält sich das Tippen in einer App seltsam, nimm sie unter Einstellungen → Tippen & Korrektur → Regeln → „Korrektur in
+Apps erzwingen“ aus der Liste und schick den Screenshot der Karte. „nicht gefunden“ in der Liste heißt: Die App sieht dieses Paket
+nicht (nicht installiert oder für sie unsichtbar). Ist die Liste voll (50 Apps), sagt der Knopf „Liste voll“ und ändert nichts.
 
 Schreib dazu auf, was hilft, den Fehler zu finden:
 

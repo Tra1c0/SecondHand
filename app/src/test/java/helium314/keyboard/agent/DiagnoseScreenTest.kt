@@ -449,6 +449,14 @@ class DiagnoseScreenTest {
         compose.onNodeWithTag("agent_diagnose_force").performScrollTo().assertTextEquals("In dieser App erzwingen")
     }
 
+    @Test fun aListedAppsExcludedFieldNamesTheReason() {
+        val search = field(InputType.TYPE_CLASS_TEXT, EditorInfo.IME_ACTION_SEARCH).apply { packageName = "com.instagram.android" }
+        startIn(search)
+        page()
+        compose.waitUntil(5_000) { compose.onAllNodes(hasText("Urteil")).fetchSemanticsNodes().isNotEmpty() }
+        exact("App ist in der Liste, dieses Feld nicht: Aktion „Suchen“")
+    }
+
     @Test fun aRefusedComposingTextShowsAsRowAndVerdict() {
         startIn(field(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS, EditorInfo.IME_ACTION_SEND))
         // the refusal cannot be produced in Robolectric: the engine's report is made directly
@@ -456,7 +464,7 @@ class DiagnoseScreenTest {
         page()
         compose.waitUntil(5_000) { compose.onAllNodes(hasText("Urteil")).fetchSemanticsNodes().isNotEmpty() }
         exact("3-mal")
-        row("Die App übernahm den Text, den die Tastatur beim Tippen setzt, nicht sofort")
+        row("Die App nahm den Text, den die Tastatur beim Tippen setzt, nicht unverändert an")
     }
 
     @Test fun anAppThatIsNotListedCanBeForcedFromTheCard() {

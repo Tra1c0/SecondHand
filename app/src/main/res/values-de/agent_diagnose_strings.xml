@@ -194,7 +194,7 @@
     <string name="agent_diagnose_field_app_not_kept">nicht gemerkt (Feld ohne Lernen)</string>
     <string name="agent_diagnose_field_forced">Korrektur erzwungen</string>
     <string name="agent_diagnose_field_forced_yes">ja, für diese App</string>
-    <string name="agent_diagnose_field_forced_listed">App ist in der Liste, aber dieses Feld ist dafür nicht geeignet</string>
+    <string name="agent_diagnose_field_forced_listed">App ist in der Liste, dieses Feld nicht: %1$s</string>
     <string name="agent_diagnose_field_forced_no">nein</string>
     <string name="agent_diagnose_verdict_forced_suggestions">Die App verbietet Vorschläge; für diese App erzwungen.</string>
     <string name="agent_diagnose_verdict_forced_autocorrect">Die App verlangt keine Autokorrektur; für diese App erzwungen.</string>
@@ -207,8 +207,16 @@
     <string name="agent_diagnose_force_saved">Gespeichert. Gilt ab dem nächsten Feld.</string>
     <string name="agent_diagnose_debuggable">Debugfähige App</string>
     <string name="agent_diagnose_debug_mode">Debug-Modus</string>
-    <string name="agent_diagnose_field_refused">App nahm getippten Text nicht sofort an</string>
+    <string name="agent_diagnose_field_refused">App nahm getippten Text nicht unverändert an</string>
     <string name="agent_diagnose_field_refused_value">%1$d-mal</string>
-    <string name="agent_diagnose_verdict_refused">Die App übernahm den Text, den die Tastatur beim Tippen setzt, nicht sofort; Vorschläge und Autokorrektur können in diesem Feld abbrechen.</string>
+    <string name="agent_diagnose_verdict_refused">Die App nahm den Text, den die Tastatur beim Tippen setzt, nicht unverändert an (sie ändert ihn, begrenzt ihn oder übernimmt ihn verspätet). Er bleibt stehen, aber für dieses Wort gibt es dann keine Vorschläge und keine Autokorrektur.</string>
     <string name="agent_diagnose_force_full">Liste voll (höchstens 50 Apps). Nichts geändert.</string>
+    <string name="agent_diagnose_excluded_password">Passwortfeld</string>
+    <string name="agent_diagnose_excluded_address">Adress- oder E-Mail-Feld</string>
+    <string name="agent_diagnose_excluded_name">Namen- oder Anschriftfeld</string>
+    <string name="agent_diagnose_excluded_filter">Filter- oder Lautschriftfeld</string>
+    <string name="agent_diagnose_excluded_search">Aktion „Suchen“</string>
+    <string name="agent_diagnose_excluded_go_next">einzeiliges Feld mit der Aktion „Los“ oder „Weiter“</string>
+    <string name="agent_diagnose_excluded_ascii">nur ASCII-Zeichen erlaubt</string>
+    <string name="agent_diagnose_excluded_not_text">kein Textfeld</string>
 </resources>

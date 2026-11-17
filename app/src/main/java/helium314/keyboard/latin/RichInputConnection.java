@@ -894,6 +894,10 @@ public final class RichInputConnection implements PrivateCommandPerformer {
                     // fork (stage 61): no field text in the log (length only), and the card "Letztes Feld" counts the refusal
                     Log.w(TAG, "composing text of length " + text.length() + " was not taken by the editor");
                     helium314.keyboard.agent.LastField.onComposingRefused();
+                    // fork (stage 61): keep what the editor holds. InputLogic resets the word composer after this, so the
+                    // next key would start a new composing text and the framework would replace the old composing region
+                    // with it (an editor that changes the text, e.g. all caps, would lose the earlier letters).
+                    finishComposingText();
                     return false;
                 }
             }

@@ -309,12 +309,22 @@ class LastFieldTest {
         val live = LastField.live("de", true)
         assertEquals(2, live.composingRefused)
         assertTrue(FieldReport.verdict(LastField.current(app)!!, live).composingRefused)
-        // a new field starts again
-        start(editor(instagramField, EditorInfo.IME_ACTION_SEND, "com.instagram.android"))
+        // another field (another id) starts again; the same field restarted keeps the count (own test)
+        start(editor(instagramField, EditorInfo.IME_ACTION_SEND, "com.instagram.android").apply { fieldId = 99 })
         assertEquals(0, LastField.live("de", true).composingRefused)
         // a password field counts nothing
         start(editor(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD))
         LastField.onComposingRefused()
+        assertEquals(0, LastField.live("de", true).composingRefused)
+    }
+
+    @Test fun theRefusalCountSurvivesARestartOfTheSameFieldOnly() {
+        fun field(id: Int) = editor(instagramField, EditorInfo.IME_ACTION_SEND, "com.instagram.android").apply { fieldId = id }
+        start(field(7))
+        LastField.onComposingRefused()
+        start(field(7)) // the app restarts the same field
+        assertEquals(1, LastField.live("de", true).composingRefused)
+        start(field(8)) // another field
         assertEquals(0, LastField.live("de", true).composingRefused)
     }
 
