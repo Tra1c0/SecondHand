@@ -16,11 +16,9 @@ object ModelBudget {
     const val MAX_RESULT_CHARS = 65_536
 
     /** Floor, ceiling and base of the output budget of a text request, in tokens. */
-    const val MIN_OUTPUT_TOKENS = 4096
+    const val MIN_OUTPUT_TOKENS = 8192
     const val MAX_OUTPUT_TOKENS = 16_384
     private const val BASE_OUTPUT_TOKENS = 2048
-    /** Providers whose cap also counts thinking tokens never get less than this (Anthropic, Gemini). */
-    const val THINKING_PROVIDER_MIN_TOKENS = 8192
     /** A workflow draft keeps its own, smaller budget: a bounded JSON. */
     const val WORKFLOW_DRAFT_TOKENS = 4096
 
@@ -31,14 +29,16 @@ object ModelBudget {
 
     /**
      * The output tokens a TEXT request of [inputChars] characters may use (reasoning tokens count
-     * against it): `clamp(inputChars / 2 + 2048, 4096, 16384)`.
+     * against it, at every provider): `clamp(inputChars / 2 + 2048, 8192, 16384)`. The floor is 8192
+     * also for a short question: reasoning alone can use thousands of tokens. Never above 16384, because a
+     * model with a lower limit may refuse the request.
      */
     fun outputTokens(inputChars: Int): Int =
         (max(0, inputChars).toLong() / 2 + BASE_OUTPUT_TOKENS)
             .coerceIn(MIN_OUTPUT_TOKENS.toLong(), MAX_OUTPUT_TOKENS.toLong()).toInt()
 
-    /** The same for the providers whose cap counts thinking tokens too: at least [THINKING_PROVIDER_MIN_TOKENS]. */
-    fun thinkingProviderTokens(inputChars: Int): Int = max(THINKING_PROVIDER_MIN_TOKENS, outputTokens(inputChars))
+    /** Anthropic and Gemini use the same budget as OpenAI since the review of stage 59 (floor 8192 for all). */
+    fun thinkingProviderTokens(inputChars: Int): Int = outputTokens(inputChars)
 
     /** The output cap a [request] sends to an OpenAI-style provider. */
     fun outputTokens(request: ModelRequest): Int =

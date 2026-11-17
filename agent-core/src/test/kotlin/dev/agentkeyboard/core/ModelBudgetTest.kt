@@ -5,15 +5,17 @@ import kotlin.test.*
 
 class ModelBudgetTest {
     @Test fun outputTokensScaleWithTheInputAndStayInsideTheClamp() {
-        assertEquals(4096, ModelBudget.outputTokens(0))
-        assertEquals(4096, ModelBudget.outputTokens(100))
-        assertEquals(4096, ModelBudget.outputTokens(4096)) // 4096 / 2 + 2048 is exactly the floor
-        assertEquals(6144, ModelBudget.outputTokens(8192))
+        // review of stage 59: the floor is 8192 for every provider (reasoning tokens count everywhere)
+        assertEquals(8192, ModelBudget.outputTokens(0))
+        assertEquals(8192, ModelBudget.outputTokens(100))
+        assertEquals(8192, ModelBudget.outputTokens(4096))
+        assertEquals(8192, ModelBudget.outputTokens(8192)) // 6144 -> floor
+        assertEquals(8192, ModelBudget.outputTokens(12288)) // exactly 8192
         assertEquals(10240, ModelBudget.outputTokens(16384))
         assertEquals(16384, ModelBudget.outputTokens(28672)) // 14336 + 2048
         assertEquals(16384, ModelBudget.outputTokens(ModelBudget.MAX_INPUT_CHARS))
         assertEquals(16384, ModelBudget.outputTokens(Int.MAX_VALUE))
-        assertEquals(4096, ModelBudget.outputTokens(-5))
+        assertEquals(8192, ModelBudget.outputTokens(-5))
     }
 
     @Test fun outputTokensNeverDecreaseWithMoreInput() {
@@ -21,9 +23,13 @@ class ModelBudgetTest {
         for (chars in 0..40_000 step 97) { val now = ModelBudget.outputTokens(chars); assertTrue(now >= last); last = now }
     }
 
-    @Test fun thinkingProvidersGetAtLeastEightThousandTokens() {
+    @Test fun allProvidersGetTheSameBudgetOfAtLeastEightThousandTokensAndNeverMoreThanSixteenThousand() {
         assertEquals(8192, ModelBudget.thinkingProviderTokens(10))
         assertEquals(8192, ModelBudget.thinkingProviderTokens(10_000)) // 7048 -> 8192
+        for (chars in listOf(0, 10, 10_000, 20_000, 32_768, Int.MAX_VALUE)) {
+            assertEquals(ModelBudget.outputTokens(chars), ModelBudget.thinkingProviderTokens(chars))
+            assertTrue(ModelBudget.outputTokens(chars) in 8192..16_384)
+        }
         assertEquals(16384, ModelBudget.thinkingProviderTokens(ModelBudget.MAX_INPUT_CHARS))
         assertEquals(ModelBudget.outputTokens(20_000), ModelBudget.thinkingProviderTokens(20_000))
     }

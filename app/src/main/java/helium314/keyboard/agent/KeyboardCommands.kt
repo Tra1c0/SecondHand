@@ -30,6 +30,8 @@ import helium314.keyboard.latin.settings.SettingsValues
 import helium314.keyboard.latin.utils.InputTypeUtils
 import helium314.keyboard.latin.utils.prefs
 
+internal typealias FieldKey = helium314.keyboard.agent.updates.UpdateOnOpen.FieldKey
+
 /**
  * Commands typed into the field (stage 24), e.g. `@math`. While the text before the cursor is a
  * command, the strip shows chips instead of word suggestions; only a tap on a chip removes the
@@ -316,7 +318,10 @@ object KeyboardCommands {
     }
 
     /** Reads the settings; called when an input view starts and when the settings page changes them. */
-    @JvmStatic fun load(context: Context) {
+    @JvmStatic fun load(context: Context) = load(context, FieldKey.of((context as? LatinIME)?.currentInputEditorInfo))
+
+    /** [field]: the field of the input view that starts, null when unknown (then a long command in progress is dropped). */
+    internal fun load(context: Context, field: FieldKey?) {
         val names = registry.map { it.name }.filter { isCommandEnabled(context, it) }.toSet()
         val longNames = registry.filter { it.longArgument && it.name in names }.map { it.name }.toSet()
         val aiNames = registry.filter { it.aiArgument && it.name in names }.map { it.name }.toSet()
@@ -327,7 +332,10 @@ object KeyboardCommands {
             Active(prefix(context), names, longNames, aiNames, enabled, aliases, context.applicationContext ?: context) else null
         if (isEnabled(context)) enabled.forEach { it.load(context) }
         inCommand = false
-        endLong() // a new input view is a new field
+        // a new input view is another field, unless the app only restarted the same one (stage 59)
+        val kept = longRun
+        if (kept == null || field == null || kept.field != field) endLong() else { readCursor = -1; overflowing = false }
+        currentField = field
         forget()
     }
 
@@ -368,7 +376,7 @@ object KeyboardCommands {
         if (context == null) {
             val run = longRun ?: return false
             // a longer window than the short one was read for the long command itself (its argument may have several lines)
-            return run.guards && before.length <= CommandSyntax.LOOKBACK + 1
+            return run.guards && run.active && before.length <= CommandSyntax.LOOKBACK + 1
         }
         return guards(current, context)
     }
@@ -383,21 +391,38 @@ object KeyboardCommands {
 
     /**
      * Stage 59: a typed AI command ([Command.aiArgument]) whose start was found, as an absolute offset in
-     * the field. While it is set, the reads for the strip reach back to that start instead of the short
-     * window ([readLength]), so no other keystroke costs more than before. It ends as soon as a parse does
-     * not find the command, the cursor leaves it or a new input view starts (the field changes).
+     * the field, with the typed [head] (`@ki`) and the [field] it belongs to. While it is set, the reads
+     * for the strip reach back to that start instead of the short window ([readLength]), so no other
+     * keystroke costs more than before. It ends only when a read that reaches the start no longer finds the
+     * command there (deleted, replaced, ended by two empty lines), when the cursor is more than the limit
+     * (plus [OVERFLOW_GRACE]) behind it, when another `@ki`/`@translate` takes over, or when another field
+     * starts. A selection or a cursor in front of the start only make it dormant ([active] false): the
+     * next plain cursor behind the start lets the parse decide. Another command or a started name typed
+     * inside the question does not end it.
      */
-    private class LongRun(val start: Int, val guards: Boolean)
+    private class LongRun(val start: Int, val head: String, val guards: Boolean, val field: FieldKey?) {
+        /** False while the cursor is somewhere the command cannot be checked (selection, in front of it). */
+        @Volatile var active = true
+    }
     @Volatile private var longRun: LongRun? = null
+    /** True while the argument of the running AI command is longer than the limit (a muted hint chip shows). */
+    @Volatile private var overflowing = false
     /** The cursor of the read just announced by [readLength], for the update that follows it on the same thread. */
     @Volatile private var readCursor = -1
 
-    private fun endLong() { longRun = null; readCursor = -1 }
+    /** For tests: whether the hint "too long" would show now. */
+    internal val overflowHint: Boolean get() = overflowing
+
+    /** Stage 59: characters past the limit the long state is still read for, to show the "too long" hint. */
+    const val OVERFLOW_GRACE = 500
+
+    private fun endLong() { longRun = null; overflowing = false; readCursor = -1 }
 
     /**
      * How many characters before the plain cursor at [cursor] the strip update reads: [CommandSyntax.LOOKBACK]
      * + 1 as always, and only while an `@ki` or `@translate` command is typed back to its start, never more
-     * than [CommandSyntax.LONG_LOOKBACK] + 1. Never throws. Call right before the read, with its result.
+     * than [CommandSyntax.LONG_LOOKBACK] + [OVERFLOW_GRACE] + 1. Never throws. Call right before the read,
+     * with its result.
      */
     @JvmStatic fun readLength(cursor: Int): Int {
         val normal = CommandSyntax.LOOKBACK + 1
@@ -406,19 +431,71 @@ object KeyboardCommands {
             val run = longRun
             if (run == null) normal else {
                 val span = cursor - run.start
-                if (cursor < 0 || span < 0 || span > CommandSyntax.LONG_LOOKBACK) { longRun = null; normal }
-                else maxOf(normal, span + 1)
+                when {
+                    cursor < 0 || span < 0 -> { run.active = false; normal } // dormant, not dropped
+                    span > CommandSyntax.LONG_LOOKBACK + OVERFLOW_GRACE -> { endLong(); normal }
+                    else -> maxOf(normal, span + 1)
+                }
             }
         } catch (_: Throwable) { normal }
     }
 
-    /** Remembers or forgets [longRun] from what the parse of a window of [windowLength] characters before [cursor] found. */
-    private fun trackLong(found: CommandContext?, windowLength: Int, cursor: Int) {
+    private fun hasTwoEmptyLines(argument: CharSequence) = CommandSyntax.endsQuestion(argument)
+
+    /** The field of the current input view (set by [load]); a [LongRun] belongs to it. */
+    @Volatile private var currentField: FieldKey? = null
+
+    private enum class Tracked { INTACT, OVER, GONE, UNKNOWN }
+
+    /** Whether [run] still stands at its start in [before] (the text before the plain cursor [cursor]). */
+    private fun check(run: LongRun, before: CharSequence, cursor: Int): Tracked {
+        val span = cursor - run.start
+        val index = before.length - span
+        if (span < 0 || index < 0) return Tracked.UNKNOWN
+        val head = run.head
+        val afterHead = index + head.length
+        val intact = afterHead <= before.length && head.indices.all { before[index + it].equals(head[it], ignoreCase = true) } &&
+            (afterHead >= before.length || before[afterHead] == ' ')
+        if (!intact) return Tracked.GONE
+        val argument = if (afterHead < before.length) before.subSequence(afterHead + 1, before.length) else ""
+        return when {
+            hasTwoEmptyLines(argument) -> Tracked.GONE
+            argument.length > CommandSyntax.MAX_AI_ARGUMENT -> Tracked.OVER
+            else -> Tracked.INTACT
+        }
+    }
+
+    /**
+     * Remembers, keeps or forgets [longRun] from what the parse of the window [before] (the text before
+     * the plain cursor [cursor]) found. [before] null or an unknown cursor (selection) only make it dormant.
+     * Another command or a started name found inside the question does not end it; another AI command
+     * found inside it only takes over when the first one is gone.
+     */
+    private fun trackLong(found: CommandContext?, before: CharSequence?, cursor: Int) {
         val current = active
+        if (current == null) { endLong(); return }
+        if (before == null || cursor < 0) { longRun?.active = false; overflowing = false; return }
+        val run = longRun
         val call = found as? CommandCall
-        if (current == null || call == null || call.name !in current.aiNames || cursor < 0) { longRun = null; return }
-        val start = cursor - (windowLength - call.start)
-        longRun = if (start < 0) null else LongRun(start, guards(current, call))
+        if (call != null && call.name in current.aiNames) {
+            val start = cursor - (before.length - call.start)
+            // an outer question that is still intact stays the tracked one, so deleting an inner "@ki" loses nothing
+            if (run != null && run.start < start && check(run, before, cursor).let { it == Tracked.INTACT || it == Tracked.OVER }) {
+                run.active = true; overflowing = false
+                return
+            }
+            longRun = if (start < 0) null else LongRun(start, call.text.substringBefore(' '), guards(current, call), currentField)
+            overflowing = false
+            return
+        }
+        if (run == null) { overflowing = false; return }
+        when (check(run, before, cursor)) {
+            Tracked.UNKNOWN -> { run.active = false; overflowing = false }
+            Tracked.GONE -> endLong()
+            Tracked.INTACT -> { run.active = true; overflowing = false }
+            // longer than the limit: no command (nothing protected), but the hint chip says why
+            Tracked.OVER -> { run.active = false; overflowing = true }
+        }
     }
 
     /** The command before the plain cursor [position], read with [readLength]; null for none. */
@@ -426,7 +503,7 @@ object KeyboardCommands {
         if (position < 0) return null
         val before = ime.getAgentTextBeforeCursor(readLength(position))
         val found = find(before, Settings.getValues(), ime.currentInputEditorInfo)
-        trackLong(found, before?.length ?: 0, position)
+        trackLong(found, before, position)
         readCursor = -1
         return found
     }
@@ -440,7 +517,7 @@ object KeyboardCommands {
         val current = active
         val found = if (current == null || before == null) null else runCatching { current.parse(before) }.getOrNull()
         inCommand = current != null && guards(current, found)
-        trackLong(found, before?.length ?: 0, readCursor)
+        trackLong(found, before, readCursor)
         readCursor = -1
         if (found == null) forget()
     }
@@ -518,6 +595,11 @@ object KeyboardCommands {
             if (position < 0) return null
         }
         val host = host(ime, position, onRefresh, onShow)
+        // stage 59: the running AI command is longer than its limit: say so instead of letting the chip vanish
+        if (context == null && overflowing) {
+            val text = ime.getString(R.string.agent_command_ai_over_limit, CommandSyntax.MAX_AI_ARGUMENT)
+            return listOf(Chip(text, text, Chip.Kind.MUTED) { android.widget.Toast.makeText(ime, text, android.widget.Toast.LENGTH_LONG).show() })
+        }
         // stage 52: a command just ran here: "Undo" for a few seconds
         if (context == null) helium314.keyboard.agent.commands.CommandSystem.undoChips(host).let { if (it.isNotEmpty()) return it }
         // stage 41: no command, but a hint for a field with an unambiguous type (e-mail, phone, IBAN, decimal)

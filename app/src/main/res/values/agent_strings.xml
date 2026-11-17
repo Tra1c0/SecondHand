@@ -498,6 +498,9 @@
     <string name="agent_command_ai_no_model">No model · AI settings</string>
     <string name="agent_command_ai_refused">Declined by the provider · details</string>
     <string name="agent_command_ai_too_long">Answer too long · details</string>
+    <string name="agent_command_ai_over_limit">Too long: at most %1$d characters after the command</string>
+    <string name="agent_command_ai_cut_off_ask">Answer cut off · details</string>
+    <string name="agent_cloud_cut_off_ask">The answer was cut off: too long for the output limit. Nothing is inserted. Ask a narrower question.</string>
     <string name="agent_command_ai_cut_off">Answer cut off, text too long · details</string>
     <string name="agent_command_ai_timeout">No answer in time · details</string>
     <string name="agent_command_ai_unusable">Answer unusable · details</string>

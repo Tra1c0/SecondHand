@@ -103,6 +103,22 @@ class CommandSyntaxTest {
         assertNull(CommandSyntax.parse(over, '@', names, aiArguments = ai, lookback = CommandSyntax.LONG_LOOKBACK))
     }
 
+    @Test fun twoEmptyLinesEndAnAiQuestionOneDoesNot() {
+        val ai = setOf("contact")
+        fun parse(text: String) = CommandSyntax.parse(text, '@', names, aiArguments = ai)
+        assertEquals("a\n\nb", (parse("@contact a\n\nb") as CommandCall).argument) // one empty line: paragraphs
+        assertNull(parse("@contact a\n\n\nb")) // two empty lines in a row end it
+        assertNull(parse("@contact a\n \t\n  \nb")) // only white space between the breaks
+        assertNull(parse("@contact a\r\n\r\n\r\nb"))
+        assertNull(parse("@contact a\n\n\n"))
+        assertEquals("a\n\nb\n\nc", (parse("@contact a\n\nb\n\nc") as CommandCall).argument)
+        assertTrue(CommandSyntax.endsQuestion("x\n\n\ny"))
+        assertFalse(CommandSyntax.endsQuestion("x\n\ny\nz\n\nw"))
+        // normal text after the ended question is text again; another command on the last line still works
+        assertNull(parse("@contact frage\n\n\nDanach ganz normaler Text"))
+        assertEquals("url", (parse("@contact frage\n\n\n@url x") as CommandCall).name)
+    }
+
     @Test fun theNormalWindowIsNotGrown() {
         assertEquals(1 + CommandSyntax.MAX_NAME + 1 + CommandSyntax.MAX_LONG_ARGUMENT, CommandSyntax.LOOKBACK)
         assertEquals(1 + CommandSyntax.MAX_NAME + 1 + 2000, CommandSyntax.LONG_LOOKBACK)
