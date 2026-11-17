@@ -9,17 +9,17 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 ## Aktueller Stand
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
-- Stand 2026-11-15 (Ende der Runde): `main` = Build 27 (geprüft). Neu seit Build 25: 56 „Neue Builds
-  sofort melden“ (Prüfung beim Öffnen der Tastatur, höchstens alle 15 Minuten, ETag, Schalter
-  anfangs an), mit Prüfer; volle Agent-Suite lokal und GitHub-Lauf 75 grün; kein Gerätetest, nie
-  gegen das echte GitHub. Dazu der rote `UpdatePromptsTest` auf Build 25 behoben (nur Test).
-- Owner-Fragen offen: Satz in `CLAUDE.md`, dass die Update-Prüfung die einzige Netzanfrage ohne
-  Freigabe ist (Lead hat vorgeschlagen, wartet auf Okay); Screenshot der Diagnose-Karte „Letztes
-  Feld“ zum Problem „stellenweise keine Vorschläge, Großschreibung, Autokorrektur“.
-- Beim Owner: Build 25, Test-Build 26 (56 mit allen Korrekturen). Erwartung: Mit 26 erscheint nach
-  dem Release von 27 von selbst der Chip „⬆ Build 27 verfügbar“ (erster echter Test von 56).
-- Nächste Sitzung: Rückmeldung zum Chip und zur Diagnose-Karte; Rückmeldung zu Build 23
-  (Befehle, Zeichen-Kunst, Smart Paste, Lichtmuster).
+- Stand 2026-11-17 (Runde läuft): `main` = Build 27 (geprüft). Auf dem Arbeitsbranch liegt Runde 1
+  des Auftrags vom 2026-11-16: 57 Name SecondHand, 58 Logo, 59 KI-Grenzen, 60 Satzsprache, 61
+  Korrektur in Apps erzwingen (Instagram), 62 nicht mehr debuggable, 63 Release scheitert laut;
+  jede mit Prüfer, erste Korrekturen gemergt. Lokal 1810 Tests und GitHub-Lauf 84 grün (`affc62b`).
+- Test-Build 28 (Arbeitsbranch, `c64f0d7`) ist gestartet bzw. beim Owner; zwei bekannte Punkte stehen
+  in seinen Notizen (Enter in `@ki` kann senden; abgelehnter Korrekturmodus kann Buchstaben kosten).
+- Offen bis zum geprüften Build: zweite Korrekturrunde 59 (Enter, Löschen vor dem Befehl), 61
+  (Composing-Ablehnung sicher, Engine-Zeile mit Prüfer), 60 (dritte Sprache), 62/63 (Doku, Vertragstest);
+  danach Notizen neu schreiben, `main`, geprüfter Build, öffentliches Release prüfen.
+- Danach Runde 2 (Etappen 64 bis 70, `docs/ROADMAP.md` → „Runde 2 nach dem Scan“, Befunde in
+  `docs/PRUEFBERICHT-2026-11-16.md`). Owner-Fragen offen: Satz in `CLAUDE.md` zur Update-Prüfung; R8.
 
 ## Offene Punkte
 

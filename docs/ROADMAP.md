@@ -448,6 +448,49 @@ Reihenfolge von oben nach unten.
   zusammen. Die Mindestzahlen stehen auf Werten aus Lauf 82 (GitHub-Lauf 83 damit grün). Offen: der
   erste echte Lauf des Release-Workflows auf GitHub (zuerst als Test-Build, die Schritte für `main`
   erst beim geprüften Build).
+- **Runde 2 nach dem Scan (Auftrag des Owners vom 2026-11-16: „suche nach Lücken, Verbesserungen und
+  Fehlern … scanne gebietübergreifend“)**: noch nicht gebaut. Die Befunde stehen mit Stelle und
+  Schwere in `docs/PRUEFBERICHT-2026-11-16.md`; jede Etappe behebt die dort genannten Nummern und
+  bekommt einen Prüfer. Nichts davon ist auf einem Gerät gemessen. Reihenfolge: erst 64, 65, 69,
+  70 (unabhängig voneinander), danach 66, 67, 68.
+  - **64 Tipp-Leistung** (P1 bis P11, P13, S9, K4, Z9): 64a messen (Zähler ohne Inhalt für die Zeit
+    der eigenen Hooks und für Anfragen an die App und an Android je Tastendruck; Diagnose-Karte
+    „Tippen“ mit Median, 95 %, Maximum und den zehn langsamsten Stellen); 64b weniger
+    Systemanfragen je Leiste (ein gemeinsamer, kurz zwischengespeicherter Sperrzustand, der bei
+    Feldstart und Bildschirm-Ereignissen verfällt; Zwischenablage und Text hinter der Schreibmarke
+    nicht bei jeder Aktualisierung); 64c Befehlserkennung einmal je Aktualisierung und höchstens ein
+    Lesen aus der App, Fangnetz je Befehl; 64d Laden und Speichern der Lernspeicher und von „Meine
+    Daten“ nicht im Hauptthread.
+  - **65 Härtung** (S2, S3, S4, S6, S7, S8, S12): Zwischenablage-Verlauf beachtet Inkognito, Felder
+    ohne Lernen, Passwortfelder und Sperre; eine gescheiterte Wiederherstellung lässt alles, wie es
+    war, und meldet es; keine Wörter in Protokollzeilen; Tresor und Feldtext nach Ende aus dem
+    Speicher.
+  - **66 Tipp-Logik** (T1, T6 bis T10): eigene Wörter nur dort zählen, wo die Autokorrektur an ist und
+    das Wörterbuch geladen; Fangnetze in den Lern-Hooks; kleinere Fehler in Tippfehler-Gedächtnis,
+    Fremdwörtern, Trefferzonen, Kontext-Chips.
+  - **67 Befehle und KI-Abläufe** (K2, K3, K5 bis K10, Z7): QR-Chip, „Kein Schlüssel“ öffnet sicher
+    die KI-Seite, eingefügte Kontaktdaten privat, „Senden“ nur mit Schlüssel, `@wecker`/`@timer` in
+    der Tastatursprache, Ganztagstermin mit UTC-Mitternacht, `@mix` und `@contact` melden Fehler,
+    ein Datums-Rückfall. Dazu neu (Befund der Nachprüfung 59): Lehnt ein Modell die Anfrage wegen
+    seiner kleineren Ausgabegrenze ab, merkt sich die App die Grenze für dieses Modell und bittet um
+    erneutes Senden (kein automatisches zweites Senden).
+  - **68 Lernen einheitlich** (Z1 bis Z5, Z8, S11): eine Liste aller Lernspeicher mit einem
+    „alles löschen“, eine gemeinsame Regel (Hauptschalter, eigener Schalter, Inkognito, Feld ohne
+    Lernen, Passwort, ausgeschlossene Apps, Sperre), Hinweis auf den Seiten, wenn der Hauptschalter
+    aus ist; die Gestendaten-Sammlung für HeliBoard verschwindet aus den Einstellungen.
+  - **69 Einstellungen und Texte** (E1 nur Text, E2, E3, E5, E6, E7, E9, E10, S5): ehrlicher Text
+    bei „Sichern und Wiederherstellen“, Suche findet die neuen Seiten, Menüpfade der Anleitung,
+    48-dp-Tippflächen, fehlende deutsche Texte, „Über“ ohne Verweise zum Melden bei HeliBoard.
+  - **70 Aussehen und Gefühl** (A1 bis A6, S13, Z6): Beleuchtung pausiert hinter Panel, Rad,
+    Rechner, Zeichen-Kunst und Menü; Fangnetz beim Zeichnen der Beleuchtung; abgebrochene Wischgeste
+    (erst mit Test bestätigen, `PointerTracker` nur mit Prüfer); Zeichen-Kunst rechnet im Hintergrund.
+  - Ohne Etappe, Owner entscheidet oder später: Code-Verkleinerung R8 (eigener Test-Build),
+    Sicherung um die eigenen Speicher erweitern (E1), helle neue Einstellungsseiten (E8), „Dein Look“
+    mit echten Farben (E11), eigene Wörter je Sprache (T5), Befehlsname als Erwähnung (T4), Sperre der
+    Korrektur einen Tastendruck früher (T3), Eckenrundung in Popups (A7), private Bereiche ohne
+    Lesen je Wort (P12), „Installieren“ lädt genau den gezeigten Build (B11), feste Wartezeiten in
+    Tests (B12), Größe der Build-Notizen prüfen (B13), KI-Ergebnis nach einiger Zeit aus der
+    Zwischenablage nehmen (S10).
 - **Graue Auswahlkarten (Owner, 2026-11-14: „Ja“):** Die grauen Mockup-Karten (AUS, NICHTS,
   AUSGEBLENDET, FLACHER LOOK) bekommen helle Schrift (Kontrast mit dunkler Schrift nur 1,74:1).
   Gebaut (`docs/VALIDATION.md` → Etappe 37, „Graue Karten“): helle Schrift 4,71:1 gewählt, 6,92:1
