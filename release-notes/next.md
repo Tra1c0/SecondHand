@@ -1,38 +1,22 @@
-# SecondHand 0.1.0 – neu seit Build 27
+# SecondHand 0.1.0 – neu seit Build 29
 
-Nur mit Tests geprüft, noch auf keinem Gerät ausprobiert.
+Arbeitsstand von Runde 2, noch kein geprüfter Build: nur mit Tests geprüft, teils noch ohne Nachprüfung,
+auf keinem Gerät ausprobiert.
 
-- Neuer Name und neues Logo: Die App heißt jetzt „SecondHand“ (bisher „Agent Keyboard“) und hat ein
-  neues Symbol, eine weiße Taste mit „S“ vor einer roten Umriss-Taste. Ein Update von Build 27 behält
-  alle Einstellungen, Schlüssel und Gelerntes.
-- Schneller: Die App ist nicht mehr als „debuggable“ gebaut, und der Debug-Modus ist aus. Bisher lief
-  dadurch auch der Kern der Vorschläge (Wörterbuchsuche, Wischtippen) ohne Optimierung. Das soll
-  Vorschläge, Tippen und Einstellungen deutlich schneller machen; gemessen habe ich es noch nicht.
-  Diagnose → „App und Telefon“ zeigt „Debugfähige App“ und „Debug-Modus“; bitte bei weiteren Rucklern
-  einen Screenshot schicken. Die Debug-Einstellungen findest du nach fünf Tipps auf die Version unter
-  „Über“.
-- KI mit höheren Grenzen: `@ki` und `@translate` nehmen bis 2000 Zeichen (bisher 200) und mehrere
-  Zeilen. Enter schickt eine laufende Frage nie als Nachricht ab: in mehrzeiligen Feldern fügt es
-  einen Zeilenumbruch ein, in einzeiligen passiert nichts und ein Hinweis erscheint; gesendet wird nur
-  per Tipp auf den Chip. Zwei Leerzeilen beenden die Frage. Ab 2000 Zeichen zeigt ein grauer Chip
-  „Zu lang …“. Markierter Text für KI-Aktionen bis 32.768 Zeichen, Ergebnis bis 65.536. Lange
-  Antworten werden nicht mehr nach 10 Sekunden abgebrochen (bis 150 Sekunden, „Abbrechen“ bleibt); eine
-  abgeschnittene Antwort wird nie eingefügt, sondern gemeldet. Die KI-Aktionen antworten in der
-  Sprache deines Textes. Noch mit keiner echten Anfrage geprüft.
-- Englische Sätze bleiben englisch (deutsche Tastatur mit Englisch oder Spanisch als zweiter
-  Sprache): „what is your name“, „I went to the bank“, „my new job“ werden nicht mehr zu „Name“, „Bank“,
-  „Job“. Die Tastatur schaut auf die bis zu drei Wörter davor im selben Satz; das erste Wort eines
-  Satzes wird wie bisher korrigiert („hand“ → „Hand“).
-- Neu: „Korrektur in Apps erzwingen“ (Einstellungen → Tippen & Korrektur → Regeln, anfangs nur
-  Instagram): In Textfeldern dieser Apps gibt es Vorschläge, Autokorrektur und Großschreibung am
-  Satzanfang auch dort, wo die App sie verbietet. Nicht in Passwort-, E-Mail-, Adress-, Suchfeldern
-  und einigen weiteren Feldarten; deine Schalter und das Lernen bleiben, wie sie sind. Die Karte
-  „Letztes Feld“ (Diagnose) zeigt, ob erzwungen wurde und wenn nicht, warum, und hat den Knopf „In
-  dieser App erzwingen“. Ändert eine App den Text, den die Tastatur beim Tippen setzt, oder übernimmt
-  sie ihn verspätet, bleibt er stehen, nur Vorschläge und Autokorrektur setzen für dieses Wort aus;
-  die Karte zählt das mit. Nimmt eine App diesen Text gar nicht an, können Buchstaben fehlen (so eine
-  App ist nicht bekannt, auf einem Telefon ist es nicht geprüft). Korrigiert Instagram trotzdem nicht
-  oder verhält sich das Tippen dort seltsam: bitte einen Screenshot der Karte schicken und die App im
-  Zweifel aus der Liste nehmen.
-- Das Veröffentlichen eines Builds prüft sich jetzt selbst (Signatur, Schlüssel, Versionsnummer, grüne
-  Tests, Auffindbarkeit für die Update-Prüfung); für dich ändert sich nichts.
+- Das RGB-Licht pausiert, solange Aktionspanel, Aktionsrad, Rechner, Zeichen-Kunst oder das Menü des flachen Looks die Tasten verdecken, und läuft danach weiter (spart Akku, nicht gemessen). Wirft das Zeichnen des Lichts je einen Fehler, bleibt das Licht für diese Sitzung aus, die Tastatur tippt weiter, und die Diagnose-Karte „RGB-Beleuchtung“ nennt die Fehlerklasse.
+- Die Vorschau der Zeichen-Kunst rechnet beim Zeichnen im Hintergrund und folgt dem Finger; der Lauftext im Menü des flachen Looks läuft nur noch dreimal; der Lade-Puls des Panels hält an, solange es geschlossen ist.
+- Beim Feldstart überschreibt die Zwischenablage-Pille keine Chips mehr, die schon in der Leiste stehen; ist „Werkzeugleiste automatisch zeigen“ an und stehen Chips da, öffnet sich die Werkzeugleiste dort nicht mehr von selbst.
+- Unter dem geöffneten Menü des flachen Looks leuchtet die Leiste weiter. Nach einem langen Druck auf die Leertaste (Sprachwahl), den das System mit einem Abbruch beendet, kann das nächste Wort wieder durch Wischen geschrieben werden (vorher konnte es verloren gehen).
+- Neu: Diagnose → Karte „Tippen“ misst, wie lange die Zusatzfunktionen der Tastatur je Taste brauchen und wie oft sie die App und Android fragen (nur Zahlen, nie Text). Wenn das Tippen irgendwo ruckelt: eine Weile dort tippen, Diagnose öffnen und einen Screenshot dieser Karte schicken. Gut ist unter 16 ms je Taste.
+- Die Vorschlagsleiste fragt Android und die App seltener: ein gemeinsamer, höchstens eine Sekunde alter Sperrzustand (bei Bildschirm aus, Entsperren, neuem Feld und jedem Tipp auf einen Chip sofort neu), Text hinter der Schreibmarke und Zwischenablage in Feldern für E-Mail, Telefon, Zahl und Name nicht mehr bei jeder Taste, Chip-Zeilen bei gleichem Inhalt nicht neu gebaut. Es soll das Tippen in diesen Feldern weniger ruckeln lassen; ob es das tut, zeigt die Karte „Tippen“ auf dem Gerät.
+- Die Suche in den Einstellungen findet jetzt auch die Seiten selbst („KI“, „Beleuchtung“, „Updates“,
+  „Diagnose“, „Tippen“ …), auf Deutsch und auf Englisch.
+- „Sichern und Wiederherstellen“ sagt jetzt genau, was in der Datei steht (Tastatureinstellungen,
+  eigene Layouts, Wörterbücher und gelernte Wörter, Hintergrundbild, Schriften, Zwischenablage-Verlauf),
+  was nicht (Profile, Gedächtnis, Bausteine, Orte, Korrekturen, Trefferzonen, gemalte Symbole,
+  KI-Einstellungen) und dass die Datei nicht verschlüsselt ist.
+- Tippflächen der neuen Einstellungsseiten sind größer (48 statt 44 dp); auf „Tasten & Sprachen“
+  bleiben abhängige Schalter sichtbar, grau und mit dem Grund; die Leiste unten auf der Startseite
+  bricht bei großer Schrift um.
+- Einige englische Texte in der deutschen Oberfläche sind übersetzt; „Über“ verweist auf das
+  Repository dieses Projekts statt auf die Fehlerseiten von HeliBoard (Dank und Lizenz bleiben).
