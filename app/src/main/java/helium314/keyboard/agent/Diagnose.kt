@@ -36,7 +36,7 @@ import java.util.Locale
  */
 object Diagnose {
     class Row(val label: String, val value: String)
-    enum class Part { LAST_FIELD, HAPTICS, SYMBOLS, LANGUAGE, EMOJI_MIX, LIGHTING, DEVICE }
+    enum class Part { LAST_FIELD, HAPTICS, SYMBOLS, LANGUAGE, EMOJI_MIX, LIGHTING, TYPING, DEVICE }
     /**
      * [appPackage]/[appForced] (stage 61, only the card "Letztes Feld", only when the app is remembered): the
      * package of the app and whether it is on the list of forced apps, for the button of the card.
@@ -571,6 +571,53 @@ object Diagnose {
         }
         if (sink == Int.MIN_VALUE) best = 0.0
         return best
+    }
+
+    // --- typing cost (stage 64a) ---
+
+    private fun hookName(context: Context, hook: TypingPerf.Hook) = context.getString(when (hook) {
+        TypingPerf.Hook.COMMAND -> R.string.agent_diagnose_typing_hook_command
+        TypingPerf.Hook.STRIP_CHIPS -> R.string.agent_diagnose_typing_hook_strip
+        TypingPerf.Hook.FORMAT_CHIPS -> R.string.agent_diagnose_typing_hook_format
+        TypingPerf.Hook.FIELD_CHIPS -> R.string.agent_diagnose_typing_hook_field
+        TypingPerf.Hook.MEMORY_CHIPS -> R.string.agent_diagnose_typing_hook_memory
+        TypingPerf.Hook.UPDATE_CHIP -> R.string.agent_diagnose_typing_hook_update
+        TypingPerf.Hook.FIELD_START -> R.string.agent_diagnose_typing_hook_start
+        TypingPerf.Hook.WORD_COMMIT -> R.string.agent_diagnose_typing_hook_word
+        TypingPerf.Hook.LEARNING -> R.string.agent_diagnose_typing_hook_learning
+    })
+
+    /**
+     * The card "Tippen": what the fork's own code cost per key press since the process started or the last
+     * reset ([TypingPerf]). Numbers and fixed hook names only; [nowMillis] says how long ago the count began.
+     * Failures of single commands ([TypingPerf.failures]) are listed by command name and exception class.
+     */
+    fun typing(context: Context, snapshot: TypingPerf.Snapshot, nowMillis: Long,
+               failures: List<TypingPerf.Failure> = TypingPerf.failures()): Section {
+        fun ms(nanos: Long) = String.format(Locale.getDefault(), "%.1f ms", nanos / 1e6)
+        fun avg(average: Double, max: Int) = context.getString(R.string.agent_diagnose_typing_requests_value,
+            String.format(Locale.getDefault(), "%.1f", average), max)
+        val rows = mutableListOf(Row(context.getString(R.string.agent_diagnose_typing_good), context.getString(R.string.agent_diagnose_typing_good_value)))
+        if (snapshot.presses == 0) {
+            rows += Row(context.getString(R.string.agent_diagnose_typing_presses), context.getString(R.string.agent_diagnose_typing_none))
+        } else {
+            val minutes = ((nowMillis - snapshot.sinceMillis).coerceAtLeast(0) / 60_000).toInt()
+            rows += Row(context.getString(R.string.agent_diagnose_typing_presses),
+                context.getString(R.string.agent_diagnose_typing_presses_value, snapshot.presses, minutes))
+            rows += Row(context.getString(R.string.agent_diagnose_typing_median), ms(snapshot.medianNanos))
+            rows += Row(context.getString(R.string.agent_diagnose_typing_p95), ms(snapshot.p95Nanos))
+            rows += Row(context.getString(R.string.agent_diagnose_typing_max), ms(snapshot.maxNanos))
+            rows += Row(context.getString(R.string.agent_diagnose_typing_app), avg(snapshot.appAverage, snapshot.appMax))
+            rows += Row(context.getString(R.string.agent_diagnose_typing_system), avg(snapshot.systemAverage, snapshot.systemMax))
+            snapshot.slowest.forEachIndexed { index, run ->
+                rows += Row(context.getString(R.string.agent_diagnose_typing_slow, index + 1, hookName(context, run.hook)),
+                    context.getString(R.string.agent_diagnose_typing_slow_value, ms(run.nanos), run.requests))
+            }
+        }
+        // a command that threw was skipped (stage 64c): its name and the class of the error, never the message
+        for (failure in failures) rows += Row(context.getString(R.string.agent_diagnose_typing_failure, failure.name),
+            context.getString(R.string.agent_diagnose_typing_failure_value, failure.count, failure.errorClass))
+        return Section(Part.TYPING, context.getString(R.string.agent_diagnose_typing), rows)
     }
 
     // --- app and phone ---

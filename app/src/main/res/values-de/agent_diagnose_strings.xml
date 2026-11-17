@@ -85,6 +85,34 @@
     <string name="agent_diagnose_light_draw">Ganzes Zeichnen der Tastatur je Bild</string>
     <string name="agent_diagnose_light_background">Raster im Hintergrund</string>
     <string name="agent_diagnose_ms">Ø %1$.1f ms, max %2$.1f ms</string>
+    <!-- stage 64a: typing cost -->
+    <string name="agent_diagnose_typing">Tippen (Kosten der eigenen Funktionen der Tastatur)</string>
+    <string name="agent_diagnose_typing_good">Guter Wert</string>
+    <string name="agent_diagnose_typing_good_value">unter 16 ms je Taste (ein Bild bei 60 Hz)</string>
+    <string name="agent_diagnose_typing_presses">Gemessene Tastendrücke</string>
+    <string name="agent_diagnose_typing_presses_value">%1$d, seit %2$d Min.</string>
+    <string name="agent_diagnose_typing_none">noch keine – in einem Feld tippen, dann diese Seite wieder öffnen</string>
+    <string name="agent_diagnose_typing_median">Zeit je Taste, Median</string>
+    <string name="agent_diagnose_typing_p95">Zeit je Taste, 95. Perzentil</string>
+    <string name="agent_diagnose_typing_max">Zeit je Taste, Maximum</string>
+    <string name="agent_diagnose_typing_app">Anfragen an die App je Taste</string>
+    <string name="agent_diagnose_typing_system">Anfragen an Android je Taste</string>
+    <string name="agent_diagnose_typing_requests_value">Ø %1$s, max %2$d</string>
+    <string name="agent_diagnose_typing_slow">Langsamster Lauf %1$d: %2$s</string>
+    <string name="agent_diagnose_typing_slow_value">%1$s, %2$d Anfragen</string>
+    <string name="agent_diagnose_typing_hook_command">Befehlserkennung</string>
+    <string name="agent_diagnose_typing_hook_strip">Chips der Vorschlagsleiste</string>
+    <string name="agent_diagnose_typing_hook_format">Format-Hinweis-Chips</string>
+    <string name="agent_diagnose_typing_hook_field">Feld-Vorschlags-Chips</string>
+    <string name="agent_diagnose_typing_hook_memory">Gedächtnis-Chips</string>
+    <string name="agent_diagnose_typing_hook_update">Update-Chip</string>
+    <string name="agent_diagnose_typing_hook_start">Feldstart</string>
+    <string name="agent_diagnose_typing_hook_word">Wort abgeschickt</string>
+    <string name="agent_diagnose_typing_hook_learning">Lernen</string>
+    <string name="agent_diagnose_typing_failure">Befehl %1$s übersprungen</string>
+    <string name="agent_diagnose_typing_failure_value">%1$d-mal, %2$s</string>
+    <string name="agent_diagnose_typing_hint">Nur Zahlen, kein Text, nur im Speicher bis die Tastatur beendet wird. Eine Weile in einem Feld tippen, diese Seite öffnen und einen Screenshot dieser Karte schicken.</string>
+    <string name="agent_diagnose_typing_reset">Zahlen zurücksetzen</string>
     <!-- stage 55: the last field -->
     <string name="agent_diagnose_field_title">Letztes Feld</string>
     <string name="agent_diagnose_field">Letztes Feld</string>

@@ -454,6 +454,26 @@ Reihenfolge von oben nach unten.
   Robolectric nicht nachstellen, `PointerTracker` blieb unverändert. Offen: Gerätetest (Licht hinter
   Panel, Rad, Rechner, Zeichen-Kunst und Menü pausiert und läuft weiter; Vorschau der Zeichen-Kunst
   folgt dem Finger; Lauftext hält an; abgebrochene Wischgeste auf einem echten Gerät).
+- **64 Tipp-Leistung** (Befunde P1 bis P11, P13, S9, K4, Z9 der Prüfung vom 2026-11-16) wird in vier
+  Teilen gebaut. **64a messen ist gebaut** (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` →
+  Etappe 64a): `TypingPerf` zählt ohne Text, wie lange die eigenen Hooks je Tastendruck im Hauptthread
+  brauchen und wie viele Anfragen an die App und an Android dabei laufen; die Diagnose hat dazu die Karte
+  „Tippen“. **64b weniger Anfragen je Leistenaktualisierung ist gebaut** (`LockState`: ein gemeinsamer,
+  höchstens eine Sekunde alter Sperrzustand; Text hinter der Schreibmarke und Clip in Feldern mit Ziel
+  nicht bei jeder Aktualisierung; Chip-Zeilen, Update-Chip und Smart-Paste-Erkennung bei gleichem
+  Inhalt nicht neu; Feldstart der Update-Prüfung im Hintergrund; Haptik einmal je Vibrator).
+  Offen: ein Gerätetest mit Screenshot der Karte (vor und nach 64b bis 64d), 64c und 64d.
+  **Offen für eine spätere Sitzung (64c, 64d; Entwurf liegt nicht im Repository):**
+  - 64c: Befehlserkennung (P3) höchstens ein Lesen je Aktualisierung, geteilt, keins bei gleicher Schreibmarke und
+    gleichem Textstand (nur lesender Zugriff auf den Textspeicher in `RichInputConnection`); (P4) Namenstabelle einmal
+    bauen, eine Analyse je Aktualisierung, `forget()` nur beim Übergang, Regex in `ContextSuggest` als Konstanten;
+    (P9) Chip-Quellen je leerer Leiste einmal (kleinste Änderung in `LatinIME`); (S9, K4) Fangnetz je Befehl in `load`,
+    `onEnter` und Chip-Tipps, Zähler mit Befehlsname und Fehlerklasse auf der Karte „Tippen“; (Z9) Reihenfolge der Leiste
+    in `docs/ARCHITECTURE.md` um Screenshot-Chip und Autofill ergänzen. `TypingPerf.commandFailed` gibt es noch nicht.
+  - 64d: (P5) Text hinter der Schreibmarke in `FieldCorrectionWatcher.checkpoint` nur lesen, wenn es etwas lernen kann;
+    (P6) „Meine Daten“ im Hintergrund laden, Fehlschlag bis Feld oder Entsperren merken, beim Sperren weg;
+    (P11) Lernspeicher gesammelt im Hintergrund schreiben (Feldende und Zerstören schreiben aus), Gedächtnis beim Start
+    im Hintergrund lesen; Tests: Änderung überlebt Feldende, zwei Änderungen ein Schreiben.
 - **Runde 2 nach dem Scan (Auftrag des Owners vom 2026-11-16: „suche nach Lücken, Verbesserungen und
   Fehlern … scanne gebietübergreifend“)**: noch nicht gebaut. Die Befunde stehen mit Stelle und
   Schwere in `docs/PRUEFBERICHT-2026-11-16.md`; jede Etappe behebt die dort genannten Nummern und

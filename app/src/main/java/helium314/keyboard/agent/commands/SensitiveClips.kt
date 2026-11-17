@@ -51,6 +51,7 @@ object SensitiveClips {
     @JvmStatic fun attach(context: Context, editorInfo: () -> EditorInfo?): () -> Unit {
         val manager = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return {}
         val listener = ClipboardManager.OnPrimaryClipChangedListener {
+            helium314.keyboard.agent.ClipVault.clipChanged() // stage 64b: the reused read of the live clip is void, also with the history off
             runCatching { note(context, manager.primaryClip, isPasswordField(editorInfo())) }
         }
         manager.addPrimaryClipChangedListener(listener)

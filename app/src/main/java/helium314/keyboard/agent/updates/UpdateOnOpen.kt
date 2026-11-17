@@ -66,7 +66,9 @@ object UpdateOnOpen {
 
     /** From [LastField.capture] for every field the keyboard is shown in. Never throws, returns at once. */
     @JvmStatic fun onStartInputView(context: Context, editorInfo: EditorInfo?, settings: SettingsValues?): Skip? =
-        runCatching { start(context, editorInfo, settings) }.getOrDefault(Skip.FAILED)
+        helium314.keyboard.agent.TypingPerf.measure(helium314.keyboard.agent.TypingPerf.Hook.FIELD_START) {
+            runCatching { start(context, editorInfo, settings) }.getOrDefault(Skip.FAILED)
+        }
 
     @Volatile private var unlockedOnce = false
 
@@ -94,23 +96,45 @@ object UpdateOnOpen {
         if (!stored.onOpen) return Skip.SWITCH_OFF
         val now = clock()
         if (!UpdateOnOpenPolicy.due(now, stored.openAttemptAt, stored.openFailures)) return Skip.THROTTLED
-        // live: the device may have locked since the field started
+        // the device may have locked since the field started: the shared lock state, dropped at every field start
+        // and screen event (stage 64b), so this is a fresh answer here without a second call to the system
         if (UpdateChip.locked(context)) return Skip.LOCKED
-        if (dataSaver(context)) return Skip.DATA_SAVER
-        if (!online(context)) return Skip.OFFLINE
-        val installed = UpdateChip.installed(context)
-        if (installed <= 0 || installed == Long.MAX_VALUE) return Skip.NO_VERSION
         if (!running.compareAndSet(false, true)) return Skip.RUNNING
         val app = context.applicationContext ?: context
         val keyboard = WeakReference(context)
         val field = FieldKey.of(editorInfo)
         try {
-            executor.execute { run(app, keyboard, field, now, installed) }
+            // stage 64b (P10): Data Saver, the network and the installed version are asked on the worker, not
+            // while the keyboard opens; a skip found there is in [lastSkip] (nothing is sent, no attempt stored)
+            executor.execute { runDue(app, keyboard, field, now) }
         } catch (_: Exception) {
             running.set(false)
             return Skip.FAILED
         }
         return null
+    }
+
+    /** Why the last started run asked for nothing (set on the worker: Data Saver, offline, no version), or null. For tests. */
+    @Volatile internal var lastSkip: Skip? = null
+
+    /** On [executor]: the checks that call into the system, then the request. */
+    private fun runDue(app: Context, keyboard: WeakReference<Context>, field: FieldKey?, now: Long) {
+        try {
+            lastSkip = null
+            val skip = when {
+                dataSaver(app) -> Skip.DATA_SAVER
+                !online(app) -> Skip.OFFLINE
+                else -> null
+            }
+            if (skip != null) { lastSkip = skip; return }
+            val installed = UpdateChip.installed(app)
+            if (installed <= 0 || installed == Long.MAX_VALUE) { lastSkip = Skip.NO_VERSION; return }
+            run(app, keyboard, field, now, installed)
+        } catch (_: Throwable) {
+            lastSkip = Skip.FAILED
+        } finally {
+            running.set(false)
+        }
     }
 
     /** On [executor]: the attempt is stored first, so a kill during the request still counts for the limit. */

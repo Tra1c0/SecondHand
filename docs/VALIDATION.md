@@ -5887,6 +5887,38 @@ Build nichts zwingend zu beheben.
 - N3: Der Hintergrundrechner fängt `Throwable` und leert die Vorschau (Test oben).
 - N4: `RgbLightingRenderTest` prüft nach jedem Bild und im `@After`, dass kein Painter-Fehler vermerkt ist.
 - N5: P290 und Notizen nennen die Folge für die Werkzeugleiste; Test `theStripReportsWhetherAnExternalViewIsShown`.
+## Etappe 64a (Tipp-Leistung messen)
+
+- Auftrag: Prüfbericht 2026-11-16, Abschnitt 1 („stellenweise Performance-Probleme“); die Etappe misst nur.
+- Geändert: neu `TypingPerf.kt`; Messstellen in `KeyboardCommands`, `UpdatePrompts` (`UpdateChip`), `UpdateOnOpen`,
+  `TouchModel`, `Memory`, `TypoMemory`, `FieldCorrections`; Engine-Dateien je eine Zeile: `RichInputConnection` (sechs Zähler
+  `TypingPerf.app()`), `LatinIME` (`keyPress()` in `onEvent`); Karte `Diagnose.typing` und der Knopf in `AgentDiagnoseScreen`;
+  Texte in `agent_diagnose_strings.xml` (de, en).
+- Test: `TypingPerfTest` (Zähler und Zeiten mit falscher Uhr, Median, 95. Perzentil, Maximum, Ring auf 500 begrenzt, verschachtelte
+  Läufe, zehn langsamste, Zähler aus fremden Threads, fremde Threads nicht gezeitet, Zurücksetzen, Ausnahme im Block, die
+  Schnittstelle nimmt keinen Text, Fehlerliste ohne Meldung, Karte lesbar, Seite mit Knopf).
+- Ergebnis: `TypingPerfTest` 13 grün, `DiagnoseScreenTest` 22 grün (`:app:testDebugUnitTest`, Robolectric, kein Gerät). Der Lauf kompiliert die Engine-Zeilen mit.
+- Nicht geprüft: auf einem Gerät (keine Messung; die Zahlen der Karte sind noch nie gesehen), der Mehraufwand der Messung
+  selbst (nach dem Entwurf zwei Zeitabfragen und ein paar Feldschreibungen je Stelle, nicht gemessen).
+
+## Etappe 64b (weniger Anfragen je Leistenaktualisierung)
+
+- Auftrag: Prüfbericht 2026-11-16, P1, P2, P7, P8, P10, P13.
+- Geändert: neu `LockState.kt`; `Memory`, `FieldSuggestionChips`, `SmartPasteChips` (Hook `deviceLocked`), `UpdatePrompts`
+  (`UpdateChip.locked`, Zeile gemerkt), `TouchModel.load`, `ClipVault`, `SmartPasteChips.actions`, `KeyboardCommands`
+  (`rowFor`, `bindTaps`, Zähler im Host), `UpdateOnOpen`, `HapticChain`. Keine Engine-Datei.
+- Test: `StripRequestsTest` (Sperrzustand: eine Frage für fünfzig, Verfall nach einer Sekunde, ein Schloss zwischen zwei Tasten
+  spätestens nach der Zeit gesehen, sofort nach `ACTION_SCREEN_OFF`/`ON`/`USER_PRESENT`, gesperrt aus dem Speicher nur kurz,
+  Fehler gilt als gesperrt, alle Aufrufer sperren sofort, Feldstart und Tipp fragen live; Text hinter der Schreibmarke einmal
+  in neun Aktualisierungen, nach „zurück“ und bei Text dahinter wieder, neues Feld, Tipp fragt noch einmal; Clip einmal gelesen
+  und eingeordnet für sechzig Fragen, geheime Clips nie; Smart Paste einmal erkannt; Zeile und Update-Chip einmal gebaut, Tipps
+  an die neuen Chips; Haptik-Fähigkeiten einmal je Vibrator). Geänderte Erwartung: `UpdateOnOpenTest.skippedQuietly…`: Datensparmodus
+  und Netz werden auf dem Worker gefragt, der Start gibt dafür `null` zurück und der Grund steht danach in
+  `UpdateOnOpen.lastSkip` (weiterhin: nichts gesendet, kein Versuch gespeichert).
+- Ergebnis: Erster Lauf 449 Tests (`StripRequestsTest`, `UpdateOnOpenTest`, `UpdateChipTest`, `FieldSuggestionChipsTest`, `SmartPasteChipsTest`, `ClipVaultTest`, `FormatGuardChipsTest`, `HapticChainTest`, `KeyboardCommandsTest`, `TouchZonesDynamicTest`, `TouchModelTest`, `MemoryScreenTest`, `ScreenshotChipTest`, `TypingPerfTest`, `UpdatePromptsTest`, ganze `InputLogicTest`): vier rot, davon der geerbte `insertLetterIntoWordHangulFails`; die anderen drei (zwei eigene Erwartungen, `ClipVaultTest` wegen der Clip-Wiederverwendung) behoben (`ClipVault.clipChanged` aus dem Zwischenablage-Hörer, Tests angepasst). Zweiter Lauf (`StripRequestsTest`, `ClipVaultTest`, `FieldSuggestionChipsTest`, `SmartPasteChipsTest`, `ScreenshotChipTest`, `UpdateOnOpenTest`) grün.
+- Nicht geprüft: auf einem Gerät (kein Messwert vorher und nachher; die Zahlen der Karte „Tippen“ fehlen noch); die Pille der
+  Zwischenablage liest ihren Clip in `ClipboardHistoryManager` weiter selbst; der Empfänger der Bildschirmereignisse
+  nur mit Robolektrics Sendung.
 
 ## Gerätetest vor Meilensteinfreigabe
 

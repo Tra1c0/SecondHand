@@ -58,9 +58,7 @@ object SmartPasteChips {
     /** Replaced in tests, so that they need no maps, dialer, contacts, mail, calendar or browser app. */
     @JvmStatic var launcher: SearchCommand.Launcher = SearchCommand.SYSTEM_LAUNCHER
     /** Replaced in tests: whether the device (or the user) is locked right now. */
-    @JvmStatic var deviceLocked: (Context) -> Boolean = {
-        helium314.keyboard.compat.isDeviceLocked(it) || runCatching { helium314.keyboard.compat.isUserLocked(it) }.getOrDefault(false)
-    }
+    @JvmStatic var deviceLocked: (Context) -> Boolean = { LockState.isLocked(it) } // stage 64b: the shared, short-lived answer
 
     /**
      * No Smart Paste without settings, in incognito (also password and no-learning fields, P139),
@@ -73,12 +71,34 @@ object SmartPasteChips {
         return deviceLocked(context)
     }
 
+    /**
+     * Stage 64b (P7): what was recognised for the clip of the pill last, so the same clip (same copy time, same
+     * content, same language and region, same minute) is not recognised again on every neutral strip for the three
+     * minutes the pill stays. The minute is part of the key because dates in a clip ("morgen 15 Uhr") are read
+     * against it. The secret check below is not remembered: it asks the live marks every time.
+     */
+    private class Recognised(val copiedAt: Long, val hash: Int, val length: Int, val marked: Boolean, val language: String,
+                             val region: String, val now: LocalMoment, val actions: List<SmartAction>)
+    @Volatile private var recognised: Recognised? = null
+    /** How often a clip was really recognised (tests). */
+    @Volatile internal var recognitions = 0
+        private set
+
     /** The actions for a clip copied at [copiedAt]; none for a secret or a clip the app [marked] sensitive. */
     fun actions(context: Context, text: String, copiedAt: Long, marked: Boolean, settings: SettingsValues?): List<SmartAction> {
         if (text.isBlank() || text.length > SmartPaste.MAX_TEXT) return emptyList()
         if (ClipVault.isSecretClip(text, copiedAt, marked)) return emptyList()
         val now = LocalMoment.of(DateCommand.clock(), DateCommand.zone())
-        return SmartPaste.recognize(text, marked, ClipVault.region(settings), now, settings?.mLocale?.language.orEmpty())
+        val language = settings?.mLocale?.language.orEmpty()
+        val region = ClipVault.region(settings)
+        recognised?.let {
+            if (it.copiedAt == copiedAt && it.hash == text.hashCode() && it.length == text.length && it.marked == marked &&
+                it.language == language && it.region == region && it.now == now) return it.actions
+        }
+        recognitions++
+        val result = SmartPaste.recognize(text, marked, region, now, language)
+        recognised = Recognised(copiedAt, text.hashCode(), text.length, marked, language, region, now, result)
+        return result
     }
 
     // --- what a tap does -------------------------------------------------------------------------

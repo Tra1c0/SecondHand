@@ -286,6 +286,7 @@ public final class RichInputConnection implements PrivateCommandPerformer {
 
     private void reloadCursorPosition() {
         if (!isConnected()) return;
+        helium314.keyboard.agent.TypingPerf.app(); // fork, stage 64
         final ExtractedText et = mIC.getExtractedText(new ExtractedTextRequest(), 0);
         if (et == null) return;
         mExpectedSelStart = et.selectionStart + et.startOffset;
@@ -545,6 +546,7 @@ public final class RichInputConnection implements PrivateCommandPerformer {
 
     @Nullable
     public CharSequence getSelectedText(final int flags) {
+        if (isConnected()) helium314.keyboard.agent.TypingPerf.app(); // fork, stage 64
         return isConnected() ?  mIC.getSelectedText(flags) : null;
     }
 
@@ -660,6 +662,7 @@ public final class RichInputConnection implements PrivateCommandPerformer {
             return null;
         }
         final long startTime = SystemClock.uptimeMillis();
+        helium314.keyboard.agent.TypingPerf.app(); // fork, stage 64: one request to the app (a count, never text)
         final CharSequence result = mIC.getTextBeforeCursor(n, flags);
         detectLaggyConnection(operation, timeout, startTime);
 
@@ -728,6 +731,7 @@ public final class RichInputConnection implements PrivateCommandPerformer {
             return null;
         }
         final long startTime = SystemClock.uptimeMillis();
+        helium314.keyboard.agent.TypingPerf.app(); // fork, stage 64
         final CharSequence result = mIC.getTextAfterCursor(n, flags);
         detectLaggyConnection(operation, timeout, startTime);
         return result;
@@ -889,6 +893,7 @@ public final class RichInputConnection implements PrivateCommandPerformer {
                 // This might lead to weird bugs (e.g. https://github.com/HeliBorg/HeliBoard/issues/225), so better do
                 // a sanity check whether the wanted text has been set.
                 // Note that the check may also fail because the text field is not yet updated, so we don't want to check everything!
+                helium314.keyboard.agent.TypingPerf.app(); // fork, stage 64
                 final CharSequence lastChar = mIC.getTextBeforeCursor(1, 0);
                 if (lastChar == null || lastChar.length() == 0 || text.charAt(text.length() - 1) != lastChar.charAt(0)) {
                     // fork (stage 61): no field text in the log (length only), and the card "Letztes Feld" counts the refusal
@@ -1284,6 +1289,7 @@ public final class RichInputConnection implements PrivateCommandPerformer {
         mIC = mParent.getCurrentInputConnection();
         final CharSequence textBeforeCursor = getTextBeforeCursor(
                 Constants.EDITOR_CONTENTS_CACHE_SIZE, 0);
+        if (isConnected()) helium314.keyboard.agent.TypingPerf.app(); // fork, stage 64
         final CharSequence selectedText = isConnected() ? mIC.getSelectedText(0 /* flags */) : null;
         if (null == textBeforeCursor ||
                 (!TextUtils.isEmpty(selectedText) && mExpectedSelEnd == mExpectedSelStart)) {

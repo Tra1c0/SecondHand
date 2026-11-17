@@ -1057,6 +1057,13 @@ für jedes Update (entpackte Wörterbücher leeren, `upgradeToolbarPrefs`, Layou
 der alten Migration (1,75 bzw. 1,1 im Querformat): Hochformat bekommt den Abstand des gewählten
 eigenen Designs, alle anderen ihren Standard; die Höhe bleibt. Test: `ForkUpgradeTest`.
 
+- `RichInputConnection.java` (64a): je eine Zeile `TypingPerf.app()` vor jedem Aufruf, der die App wirklich
+  fragt: `getTextBeforeCursor` und `getTextAfterCursor` (in den zwei `…AndDetectLaggyConnection`, also nur wenn der
+  Textspeicher nicht antworten kann), `getSelectedText`, `getExtractedText` in `reloadCursorPosition`, die Prüfung des
+  letzten Zeichens nach `setComposingText` und `getSelectedText` in `tryFixIncorrectCursorPosition`. Nicht gezählt:
+  `copyText` und die statischen Ersetzungs-Helfer (Antippen, nicht Tippen). Der Zähler wirft nie.
+- `LatinIME.java` (64a): `onEvent` beginnt mit `TypingPerf.keyPress()` (ein Tastendruck beginnt; nur Zahlen).
+
 Geänderte Upstream-Tests (Leertasten-Gesten): `InputLogicTest.kt` ruft `onSpaceSwipe` statt
 `onHorizontalSpaceSwipe` und hat die Fälle `generatedSpace*` (seit Etappe 33 auch die
 Rastpunkte über `onSpaceSwipeDistance`).
@@ -2231,6 +2238,46 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `KeyboardProfileStore.kt`: das Designprofil enthält `agent_rgb_lighting` als Text
   (`Binding.freeText`); beim Lesen feldweise über `RgbSettings.parse` begrenzt, leer (Profile von
   vor 26) heißt „unverändert lassen“.
+- Tipp-Leistung (64): `A/TypingPerf.kt` (64a) ist der Zähler ohne Text. `Hook` nennt die gemessenen Stellen mit festen
+  Namen (`COMMAND`, `STRIP_CHIPS`, `FORMAT_CHIPS`, `FIELD_CHIPS`, `MEMORY_CHIPS`, `UPDATE_CHIP`, `FIELD_START`,
+  `WORD_COMMIT`, `LEARNING`); `measure(hook) { … }` (inline) oder `begin()` / `end(hook, token)` messen einen Lauf mit zwei
+  `System.nanoTime()`; nur der Hauptthread wird gezeitet, verschachtelte Läufe zählen für den Tastendruck nur außen, stehen aber
+  einzeln in der Liste der zehn langsamsten. `app()` und `system()` zählen Anfragen aus jedem Thread (atomar, ohne
+  Allokation). `keyPress()` (eine Zeile in `LatinIME.onEvent`) schließt den vorigen Tastendruck in einen Ring der letzten
+  500 ein: Zeit des Tastendrucks, Anfragen an App und Android. `snapshot()` rechnet Median, 95. Perzentil (nächster Rang),
+  Maximum und Durchschnitt, `reset()` leert alles und setzt „seit“. Es gibt keine Zeichenketten in der Schnittstelle außer
+  `commandFailed(name, error)` (64c: Name des eingebauten Befehls und Klasse der Ausnahme, nie die Meldung). Die Zeit kommt
+  aus `nanoSource` (Tests). Gemessene Stellen: `KeyboardCommands` (`updateGuard`, `createChipsView`, die drei
+  Chip-Quellen, `load`), `UpdateChip.createView`, `UpdateOnOpen.onStartInputView`, `TouchModel.load` und
+  `learnFromWord`, `Memory.onWordCommitted`, `TypoMemory.confirm`, `FieldCorrectionWatcher.checkpoint`; dort ist der
+  Rumpf in eine `…Now`-Funktion gewandert und die öffentliche Funktion ruft sie über `measure`. Karte: `Diagnose.typing`
+  (`Part.TYPING`), in `AgentDiagnoseScreen` als eigene Liste `shown` vor „App und Telefon“ eingefügt (`sections`
+  bleibt, wie es war), Knopf `agent_diagnose_typing_reset`. Tests: `AT/TypingPerfTest.kt`.
+  64b (P1, P2, P7, P8, P10, P13), Tests `AT/StripRequestsTest.kt`: `A/LockState.kt` ist der gemeinsame Sperrzustand.
+  `LockState.normal` (Gerät gesperrt oder Speicher des Nutzers nicht entsperrt, wie `Memory`, `MemoryChips`,
+  `ForeignWords`, `FieldSuggestionChips`, `SmartPasteChips` und `TouchModel.load` ihn fragten; deren Prüf-Hooks
+  `deviceLocked` zeigen jetzt darauf) und `LockState.credentials` (die strengere Frage des Zugangsdaten-Speichers für
+  den Update-Chip, `UpdateChip.locked`). Eine Antwort „entsperrt“ gilt `UNLOCKED_MILLIS` (1 s), „gesperrt“ `LOCKED_MILLIS`
+  (5 s), ein Fehler beim Lesen zählt als gesperrt. Verfall sofort bei `ACTION_SCREEN_OFF`, `ACTION_SCREEN_ON`,
+  `ACTION_USER_PRESENT` (ein Empfänger, beim ersten Lesen am Anwendungskontext angemeldet), beim Feldstart
+  (`TouchModel.load` ruft `LockState.drop()` zuerst) und bei jedem Tipp auf einen Chip (`KeyboardCommands.chipRow` und `bindTaps`, also auch
+  der Tresor, der Tipp-Zeitpunkt prüft live). Bewusst weiter live gefragt: `ClipVault.isBlocked`/`mayKeep`,
+  `ScreenshotChip`, `EmojiSuggestions` (eigener 2-s-Speicher), `AgentEditorController` (Panel), `SettingsValues.mIsLocked`,
+  `credentialAccessAllowed` im Zugangsdaten-Speicher.
+  `FieldSuggestionChips` fragt den Text hinter der Schreibmarke über `nothingAfterCursor`: „nichts dahinter“ gilt, solange
+  die Schreibmarke nur vorwärts geht (`emptyAfterCursorAt`); zurück, unbekannt, neues Feld (`fieldStarted`, aus
+  `KeyboardCommands.load`) fragen neu, „Text dahinter“ wird nie gemerkt, und `insert` fragt beim Tipp noch einmal.
+  `ClipVault.liveClip` merkt den gelesenen Clip `LIVE_MILLIS` (1 s; `offer` und `clear` verwerfen ihn),
+  `classifyLive` die Einordnung des zuletzt gesehenen Texts (`isSecretClip` und `freshest` fragten je Aufruf einzeln).
+  `SmartPasteChips.actions` merkt die Erkennung je (Kopierzeit, Inhalt, Markierung, Sprache, Region, Minute); die
+  Geheim-Prüfung davor läuft jedes Mal. `KeyboardCommands.rowFor` baut die Chip-Zeile nur neu, wenn Leiste, Farben
+  oder Beschriftungen, Beschreibungen und Arten der Chips sich ändern; sonst bleibt die Zeile und `bindTaps` bindet die
+  Tipps an die neuen Chips (was ein Tipp tut, gehört zu dieser Aktualisierung). `UpdateChip.createView` merkt seine Zeile
+  ebenso. `UpdateOnOpen.start` fragt nur noch die Einstellungen und `UpdateChip.locked` auf dem Hauptthread;
+  `runDue` (Datensparmodus, Netz, installierte Version) läuft auf dem Worker, ein Grund zum Überspringen steht dort in
+  `lastSkip`. `HapticChain.planFor` entscheidet je Vibrator und Art einmal, `deviceFor` gibt dasselbe Gerät zurück.
+  Die Host-Aufrufe `textAfterCursor` und `editorTextBeforeCursor` in `KeyboardCommands.host` zählen ihre Anfrage selbst
+  (sie fragen die App direkt, nicht über `RichInputConnection`).
 
 ## Flacher Stil
 
@@ -5374,6 +5421,26 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   beim Hinzufügen von Tests auf etwa 90 % des Wertes eines grünen Laufs anheben; die fünf bekannten Fehler stehen mit exakten Namen in
   `known` (die zwei Cloud-Umgebungs-Fehler `layoutsLinksInternal`, `otherLinks` nicht: auf GitHub
   müssen sie bestehen).
+- **P264** Messung der Tipp-Leistung (64a): `TypingPerf` darf nie Text, nie eine Meldung einer Ausnahme und nie ein
+  Feldwort aufnehmen: jede neue Messstelle bekommt einen Eintrag in `Hook` (feste Namen, Beschriftung in
+  `agent_diagnose_strings.xml`), keine Zeichenkette. Auf dem heißen Pfad gibt es keine Allokation (keine Lambdas mit
+  Erfassung außerhalb der inline-Funktion `measure`, kein String, kein Logging); jeder Einstieg fängt Throwable und wirft nie
+  in die Engine. Zählung der App-Anfragen nur dort, wo wirklich ein `InputConnection`-Aufruf die App verlässt (nicht beim
+  Antworten aus dem Textspeicher): eine neue Stelle in `RichInputConnection` braucht genau eine Zeile `TypingPerf.app()`.
+  Der Tastendruck zählt Zeit bis zum nächsten `keyPress()`; Arbeit auf anderen Threads zählt nur bei den Anfragen. Die
+  Karte zeigt nur, was seit dem Start des Prozesses oder dem letzten „Zurücksetzen“ gemessen wurde.
+- **P265** Gemeinsamer Sperrzustand (64b): `LockState` darf nur „entsperrt“ aus dem Speicher melden, solange die Antwort
+  jünger als `UNLOCKED_MILLIS` ist; jede neue Stelle, die Daten vor einem gesperrten Gerät schützt, fragt
+  `LockState.isLocked` und nie selbst `KeyguardManager`, außer sie entscheidet etwas Unumkehrbares (Tresor, Zugangsdaten,
+  Panel): dann live. Ein Tipp auf einen Chip verwirft die Antwort (`chipRow`, `bindTaps`); wer Chips anders verdrahtet, muss
+  `LockState.drop()` vor der Prüfung selbst rufen. Tests, die das Schloss umschalten, müssen `LockState.drop()` rufen (so
+  wie das Ereignis „Bildschirm aus“ es täte): sonst gilt die alte Antwort bis zu einer Sekunde.
+- **P266** Zeilen und Erkennung merken (64b): `KeyboardCommands.rowFor` darf nur wiederverwenden, was nichts Gebundenes
+  mehr enthält: die Tipps werden bei jeder Wiederverwendung neu gebunden. Was ein Chip über den Befehlstext oder die
+  Schreibmarke weiß, steht in seinem `onTap`, nie in der Zeile. `SmartPasteChips.actions` und `ClipVault.classifyLive` merken
+  nur reine Funktionen des Inhalts; Geheimmarken (`isSecretClip`: markiert, Passwortfeld, `secretStamps`) werden bei jedem
+  Aufruf neu gefragt. Der Clip der Zwischenablage wird höchstens einmal je Sekunde gelesen: ein neuer Clip erscheint bei
+  ausgeschaltetem Verlauf bis zu eine Sekunde später (mit Verlauf sofort, `offer`).
 
 - **P287** Beleuchtung hinter Überlagerungen (70): `RgbLighting.isVisible` kennt nur die Tastatur-View.
   Jede neue Überlagerung in `main_keyboard_frame.xml` muss `AgentKeyboardFrame.updateOverlayAccessibility`
@@ -5421,13 +5488,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (627 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (631 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (5): agent-apk, agent-tests, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (86): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (88): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand,
   ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand, CorrectionMemory,
@@ -5435,14 +5502,14 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   EmojiMixPalette, EmojiSuggestions, EncryptedActionRunStore, EventCommand, FieldCorrections,
   FieldSuggestionChips, FlatMenuView, FlatPanelStyle, FlatPreset, ForcedApps, ForeignWords,
   FormatGuardChips, HapticChain, JournaledModelCall, JournaledRun, KeyboardCommands,
-  KeyboardProfileStore, LastField, LearningData, LoadingDotsView, ManualWorkflowDraft, Memory,
-  MemoryChips, ModelSettings, MyData, MyDesigns, OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter,
-  RgbLighting, RgbOwnPatterns, RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip,
-  SearchCommand, SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SmartPasteChips,
-  SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary,
-  ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst, TypoMemory, WorkflowApprovalSummary,
-  WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
-  WorkflowStore
+  KeyboardProfileStore, LastField, LearningData, LoadingDotsView, LockState, ManualWorkflowDraft,
+  Memory, MemoryChips, ModelSettings, MyData, MyDesigns, OnDeviceSpeechEngine, PlaceCommand,
+  RgbKeyPainter, RgbLighting, RgbOwnPatterns, RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces,
+  ScreenshotChip, SearchCommand, SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics,
+  SmartPasteChips, SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk,
+  ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst, TypingPerf,
+  TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary,
+  WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
 - `A/charart/` (5): CharArtCanvas, CharArtImages, CharArtKey, CharArtKeys, CharArtView
 - `A/commands/` (22): AiCommandChips, AlarmCommand, AreaCommands, AskCommand, ClipCommand,
   CommandAppSettings, CommandSystem, EmojiMixCommand, EmojiMixRecents, EmojiMixer, InstalledApps,
@@ -5453,7 +5520,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (102): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (104): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, CharArtWindowTest, ClipCommandTest, ClipVaultTest, CommandReplaceTest,
@@ -5472,11 +5539,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   SettingsKeysScreenTest, SettingsKitTest, SettingsLookScreenTest, SettingsStartScreenTest,
   SettingsSystemAreaTest, SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest,
   SliderFeelTest, SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest,
-  SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest, TouchModelTest,
-  TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest, TypoMemoryTest, UpdateCheckTest,
-  UpdateChipTest, UpdateOnOpenTest, UpdatePromptsTest, WorkflowBuilderContractTest,
-  WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
-  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  StripRequestsTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest,
+  TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest, TypingPerfTest,
+  TypoMemoryTest, UpdateCheckTest, UpdateChipTest, UpdateOnOpenTest, UpdatePromptsTest,
+  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
+  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, LongCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
   TranslateCommandTest, UrlCommandTest

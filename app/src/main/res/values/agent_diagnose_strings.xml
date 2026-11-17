@@ -86,6 +86,34 @@
     <string name="agent_diagnose_light_draw">Whole keyboard draw per frame</string>
     <string name="agent_diagnose_light_background">Grids in the background</string>
     <string name="agent_diagnose_ms">avg %1$.1f ms, max %2$.1f ms</string>
+    <!-- stage 64a: typing cost -->
+    <string name="agent_diagnose_typing">Typing (cost of the keyboard\'s own functions)</string>
+    <string name="agent_diagnose_typing_good">Good value</string>
+    <string name="agent_diagnose_typing_good_value">under 16 ms per key (one frame at 60 Hz)</string>
+    <string name="agent_diagnose_typing_presses">Key presses measured</string>
+    <string name="agent_diagnose_typing_presses_value">%1$d, since %2$d min</string>
+    <string name="agent_diagnose_typing_none">none yet – type in a field, then open this page again</string>
+    <string name="agent_diagnose_typing_median">Time per key, median</string>
+    <string name="agent_diagnose_typing_p95">Time per key, 95th percentile</string>
+    <string name="agent_diagnose_typing_max">Time per key, maximum</string>
+    <string name="agent_diagnose_typing_app">Requests to the app per key</string>
+    <string name="agent_diagnose_typing_system">Requests to Android per key</string>
+    <string name="agent_diagnose_typing_requests_value">avg %1$s, max %2$d</string>
+    <string name="agent_diagnose_typing_slow">Slowest run %1$d: %2$s</string>
+    <string name="agent_diagnose_typing_slow_value">%1$s, %2$d requests</string>
+    <string name="agent_diagnose_typing_hook_command">command detection</string>
+    <string name="agent_diagnose_typing_hook_strip">suggestion strip chips</string>
+    <string name="agent_diagnose_typing_hook_format">format hint chips</string>
+    <string name="agent_diagnose_typing_hook_field">field suggestion chips</string>
+    <string name="agent_diagnose_typing_hook_memory">memory chips</string>
+    <string name="agent_diagnose_typing_hook_update">update chip</string>
+    <string name="agent_diagnose_typing_hook_start">field start</string>
+    <string name="agent_diagnose_typing_hook_word">word committed</string>
+    <string name="agent_diagnose_typing_hook_learning">learning</string>
+    <string name="agent_diagnose_typing_failure">Skipped command %1$s</string>
+    <string name="agent_diagnose_typing_failure_value">%1$d times, %2$s</string>
+    <string name="agent_diagnose_typing_hint">Only numbers, no text, kept in memory until the keyboard process ends. Type for a while in a field, open this page and send a screenshot of this card.</string>
+    <string name="agent_diagnose_typing_reset">Reset the numbers</string>
     <!-- stage 55: the last field -->
     <string name="agent_diagnose_field_title">Last field</string>
     <string name="agent_diagnose_field">Last field</string>

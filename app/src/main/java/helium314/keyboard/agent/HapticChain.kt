@@ -113,8 +113,32 @@ object HapticChain {
     fun play(context: Context, settings: SettingsValues?, feel: Feel, device: Device? = null) {
         if (!allowed(context, settings)) return
         val target = device ?: deviceFor(context) ?: return
-        if (!target.hasVibrator) return
-        runCatching { target.play(plan(feel, target)) } // a vendor vibrator may refuse: no feedback then
+        val plan = planFor(feel, target) ?: return
+        runCatching { target.play(plan) } // a vendor vibrator may refuse: no feedback then
+    }
+
+    /**
+     * Stage 64b (P13): what a vibrator can play does not change while it is the same vibrator, but [plan] asked
+     * its abilities (vibrator, amplitude control, up to four primitives) on every detent of a space swipe. Decided
+     * once per vibrator and feel; null while it has no vibrator (also remembered). A different [Device] object
+     * (tests, a new service object) decides again.
+     */
+    private class Decided(val device: Device, val plans: Array<Plan?>, val hasVibrator: Boolean)
+    @Volatile private var decided: Decided? = null
+    /** How many plans were really decided (tests). */
+    @Volatile internal var decisions = 0
+        private set
+
+    private fun planFor(feel: Feel, device: Device): Plan? {
+        var known = decided
+        if (known == null || known.device !== device) {
+            known = Decided(device, arrayOfNulls(Feel.entries.size), device.hasVibrator)
+            decided = known
+        }
+        if (!known.hasVibrator) return null
+        known.plans[feel.ordinal]?.let { return it }
+        decisions++
+        return plan(feel, device).also { known.plans[feel.ordinal] = it }
     }
 
     internal fun allowed(context: Context, settings: SettingsValues?): Boolean {
@@ -124,7 +148,7 @@ object HapticChain {
 
     /** The same source as LatinIME's ringer-mode receiver. */
     private fun doNotDisturb(context: Context) =
-        runCatching { android.provider.Settings.Global.getInt(context.contentResolver, "zen_mode") != 0 }.getOrDefault(false)
+        runCatching { TypingPerf.system(); android.provider.Settings.Global.getInt(context.contentResolver, "zen_mode") != 0 }.getOrDefault(false)
 
     /** Replaced in tests: the vibrator the feedback plays on. */
     @JvmStatic var deviceForTest: Device? = null
@@ -132,17 +156,21 @@ object HapticChain {
     /** The phone's vibrator ([deviceForTest] in tests); also read by the diagnose page (stage 30). */
     internal fun deviceFor(context: Context): Device? {
         deviceForTest?.let { return it }
+        // stage 64b: one device object per vibrator service object, so [planFor] decides once
         @Suppress("DEPRECATION")
         val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator ?: return null
-        return AndroidDevice(vibrator)
+        androidDevice?.let { if (it.vibrator === vibrator) return it }
+        return AndroidDevice(vibrator).also { androidDevice = it }
     }
 
-    private class AndroidDevice(private val vibrator: Vibrator) : Device {
+    @Volatile private var androidDevice: AndroidDevice? = null
+
+    private class AndroidDevice(val vibrator: Vibrator) : Device {
         override val sdk = Build.VERSION.SDK_INT
-        override val hasVibrator get() = vibrator.hasVibrator()
-        override val hasAmplitudeControl get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && vibrator.hasAmplitudeControl()
+        override val hasVibrator get() = vibrator.also { TypingPerf.system() }.hasVibrator()
+        override val hasAmplitudeControl get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && vibrator.also { TypingPerf.system() }.hasAmplitudeControl()
         override fun supportsPrimitive(primitive: Int) =
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && vibrator.areAllPrimitivesSupported(primitive)
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && vibrator.also { TypingPerf.system() }.areAllPrimitivesSupported(primitive)
 
         override fun play(plan: Plan) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {

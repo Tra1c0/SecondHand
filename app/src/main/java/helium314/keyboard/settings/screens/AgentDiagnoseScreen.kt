@@ -90,16 +90,20 @@ fun AgentDiagnoseScreen(onClickBack: () -> Unit) {
     val lighting = remember(lightPatterns) { Diagnose.lighting(context, helium314.keyboard.agent.RgbLighting.lastFrameWork(), lightPatterns, helium314.keyboard.agent.RgbLighting.painterFailure) }
     val emojiMix = remember(table, tableRead, cache, reach) { Diagnose.emojiMix(context, table, tableRead, cache, reach) }
     val sections = remember(lastField, symbols, emojiMix, lighting) { listOfNotNull(lastField, haptics, symbols, languages, emojiMix, lighting, phone) }
+    // stage 64a: the card "Tippen" (read when the page opens and after "Zurücksetzen"), before the card of the app
+    var typingVersion by remember { mutableStateOf(0) }
+    val typing = remember(typingVersion) { Diagnose.typing(context, helium314.keyboard.agent.TypingPerf.snapshot(), System.currentTimeMillis()) }
+    val shown = remember(sections, typing) { sections.flatMap { if (it.part == Diagnose.Part.DEVICE) listOf(typing, it) else listOf(it) } }
     val windowWidth = androidx.compose.ui.platform.LocalWindowInfo.current.containerSize.width
     val narrow = with(androidx.compose.ui.platform.LocalDensity.current) { windowWidth.toDp() } < 400.dp
     SearchSettingsScreen(onClickBack, stringResource(R.string.agent_diagnose_title), emptyList()) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.agent_diagnose_intro))
-            Button(onClick = { copy(context, Diagnose.text(context, sections)) }, modifier = Modifier.testTag("agent_diagnose_copy")) {
+            Button(onClick = { copy(context, Diagnose.text(context, shown)) }, modifier = Modifier.testTag("agent_diagnose_copy")) {
                 Text(stringResource(R.string.agent_diagnose_copy))
             }
-            sections.forEach { section ->
+            shown.forEach { section ->
                 Text(section.title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
                 section.rows.forEach { row ->
                     // review of stage 55 (N10): TalkBack reads label and value as one; a long value (a
@@ -145,6 +149,14 @@ fun AgentDiagnoseScreen(onClickBack: () -> Unit) {
                         OutlinedButton(enabled = plan != null, onClick = {
                             if (plan != null) runCatching { device?.play(plan) } // a vendor vibrator may refuse
                         }, modifier = Modifier.testTag("agent_diagnose_test")) { Text(stringResource(R.string.agent_diagnose_test)) }
+                    }
+                    Diagnose.Part.TYPING -> {
+                        Text(stringResource(R.string.agent_diagnose_typing_hint), style = MaterialTheme.typography.bodySmall)
+                        OutlinedButton(onClick = {
+                            helium314.keyboard.agent.TypingPerf.reset()
+                            helium314.keyboard.agent.TypingPerf.resetFailures()
+                            typingVersion++
+                        }, modifier = Modifier.testTag("agent_diagnose_typing_reset")) { Text(stringResource(R.string.agent_diagnose_typing_reset)) }
                     }
                     Diagnose.Part.EMOJI_MIX -> {
                         Text(stringResource(R.string.agent_diagnose_gstatic_hint), style = MaterialTheme.typography.bodySmall)

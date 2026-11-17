@@ -110,7 +110,12 @@ object TouchModel {
      * own restrictions come from [editorInfo] and the switches from the preferences.
      */
     @JvmStatic
-    fun load(context: Context, settings: SettingsValues, editorInfo: EditorInfo?, restarting: Boolean) {
+    fun load(context: Context, settings: SettingsValues, editorInfo: EditorInfo?, restarting: Boolean) =
+        TypingPerf.measure(TypingPerf.Hook.FIELD_START) { loadNow(context, settings, editorInfo, restarting) }
+
+    private fun loadNow(context: Context, settings: SettingsValues, editorInfo: EditorInfo?, restarting: Boolean) {
+        // stage 64b: a field starts, so the shared lock state is asked fresh once here and used by everything after it
+        helium314.keyboard.agent.LockState.drop()
         load(context, settings)
         appContext = context.applicationContext ?: context
         val prefs = context.prefs()
@@ -120,7 +125,7 @@ object TouchModel {
             || prefs.getBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, Defaults.PREF_ALWAYS_INCOGNITO_MODE)
             || prefs.getBoolean(AgentPreferences.LEARNING_PAUSED, false)
             || AgentPreferences.TOUCH_CALIBRATION_FIELD == editorInfo.privateImeOptions
-            || helium314.keyboard.compat.isDeviceLocked(context)
+            || helium314.keyboard.agent.LockState.isLocked(context)
         val packageName = editorInfo?.packageName
         val sameField = restarting && packageName == lastPackage && editorInfo?.fieldId == lastFieldId
         lastPackage = packageName; lastFieldId = editorInfo?.fieldId ?: 0
@@ -199,6 +204,10 @@ object TouchModel {
      */
     @JvmStatic
     fun learnFromWord(context: Context, typed: String, committed: String, xs: IntArray, ys: IntArray, size: Int,
+                      keyboard: helium314.keyboard.keyboard.Keyboard?, paddingLeft: Int, paddingTop: Int, settings: SettingsValues) =
+        TypingPerf.measure(TypingPerf.Hook.LEARNING) { learnFromWordNow(context, typed, committed, xs, ys, size, keyboard, paddingLeft, paddingTop, settings) }
+
+    private fun learnFromWordNow(context: Context, typed: String, committed: String, xs: IntArray, ys: IntArray, size: Int,
                       keyboard: helium314.keyboard.keyboard.Keyboard?, paddingLeft: Int, paddingTop: Int, settings: SettingsValues) {
         if (!settings.mAdaptTouch || settings.mLearningPaused || settings.mIncognitoModeEnabled || settings.mIsLocked) return
         if (keyboard == null) return

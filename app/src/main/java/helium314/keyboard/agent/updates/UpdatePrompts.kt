@@ -97,7 +97,7 @@ object UpdateChip {
     const val TAG = "agent_update_chip"
 
     /** Replaced in tests: whether the device (or the user) is locked right now; no settings can open there. */
-    @JvmStatic var locked: (Context) -> Boolean = { !credentialAccessAllowed(it) }
+    @JvmStatic var locked: (Context) -> Boolean = { helium314.keyboard.agent.LockState.credentials.isLocked(it) } // stage 64b: cached for about a second
 
     @Volatile private var installedCache = 0L
 
@@ -120,14 +120,30 @@ object UpdateChip {
     }
 
     /** The chip row for the neutral strip (from `LatinIME.setNeutralSuggestionStrip`), or null. */
-    @JvmStatic fun createView(context: Context, parent: ViewGroup): View? {
+    @JvmStatic fun createView(context: Context, parent: ViewGroup): View? =
+        helium314.keyboard.agent.TypingPerf.measure(helium314.keyboard.agent.TypingPerf.Hook.UPDATE_CHIP) { createViewNow(context, parent) }
+
+    private class Built(val parent: java.lang.ref.WeakReference<ViewGroup>, val colors: Any?, val signature: String, val row: ViewGroup)
+    private var last: Built? = null
+    /** Rows built since the process started (tests). */
+    @Volatile internal var rowsBuilt = 0
+        private set
+
+    private fun createViewNow(context: Context, parent: ViewGroup): View? {
         val build = build(context, Settings.getValues()) ?: return null
-        val chip = KeyboardCommands.Chip(context.getString(R.string.agent_update_chip, build),
-            context.getString(R.string.agent_update_chip_description, build)) { open(context) }
+        val label = context.getString(R.string.agent_update_chip, build)
+        val description = context.getString(R.string.agent_update_chip_description, build)
+        // stage 64b (P8): the same chip for the same strip and colours is the same row; the tap only opens a page
+        val signature = "$label\u0000$description"
+        val colors = Settings.getValues()?.mColors
+        last?.let { if (it.parent.get() === parent && it.colors === colors && it.signature == signature) return it.row }
+        val chip = KeyboardCommands.Chip(label, description) { open(context) }
         val row = KeyboardCommands.chipRow(parent, listOf(chip)) as ViewGroup
+        rowsBuilt++
         // not a command row: code that looks for typed command chips must not find this one
         row.getChildAt(0).id = View.NO_ID
         row.tag = TAG
+        last = Built(java.lang.ref.WeakReference(parent), colors, signature, row)
         return row
     }
 

@@ -1457,6 +1457,14 @@ gemessen) und die Versionen. „gstatic erreichbar?“ lädt nur bei diesem Tipp
 „Kopieren“ legt genau die angezeigten Werte in die Zwischenablage, zum Weitergeben; ein
 Screenshot geht auch.
 
+**Ruckelt das Tippen?** Tippe eine Weile in einem Feld (am besten dort, wo es ruckelt), öffne dann
+Einstellungen → Diagnose und schick einen Screenshot der Karte „Tippen“ (vor „App und Telefon“). Sie
+zeigt, wie lange die Zusatzfunktionen der Tastatur je Taste brauchen (Median, 95. Perzentil, Maximum;
+unter 16 ms ist gut, das ist ein Bild bei 60 Hz), wie oft sie dabei die App und Android fragen und
+welche zehn Stellen am langsamsten waren. Es sind nur Zahlen, nie Text, und sie bleiben nur im
+Speicher, bis die Tastatur beendet wird. „Zahlen zurücksetzen“ fängt neu an; „Kopieren“ nimmt die Karte
+mit.
+
 **Keine Vorschläge, keine Großschreibung oder keine Autokorrektur?** Lass die App, in der es
 passiert, offen, wechsle direkt zu Einstellungen → Diagnose (ohne vorher in einer anderen App in ein
 Textfeld zu tippen; die Suche der Einstellungen zählt nicht) und mach einen Screenshot der ersten
