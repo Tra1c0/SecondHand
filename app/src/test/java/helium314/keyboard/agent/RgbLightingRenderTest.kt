@@ -15,6 +15,7 @@ import android.view.ContextThemeWrapper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.view.inputmethod.EditorInfo
 import android.widget.ImageView
 import android.widget.TextView
@@ -58,6 +59,8 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.Mockito.mock
+import org.mockito.Mockito.`when`
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
@@ -98,6 +101,8 @@ class RgbLightingRenderTest {
     /** Settings and the lighting are singletons (P32): later tests must see the defaults. */
     @After fun restoreDefaults() {
         android.provider.Settings.Global.putFloat(latinIME.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+        RgbLighting.resetPainterFailure()
+        RgbLighting.setOverlayOpen(false)
         prefs.edit().clear().commit()
         reload()
         RgbLighting.load(latinIME)
@@ -777,6 +782,90 @@ class RgbLightingRenderTest {
         val words = strip.findViewById<ViewGroup>(R.id.suggestions_strip)
         val word = (0 until words.childCount).map { words.getChildAt(it) }.filterIsInstance<TextView>().first { it.text.toString() == "Hallo" }
         return strip to word
+    }
+
+    /** Stage 70, A1: every window that covers the keys stops the frames; closing the last one starts them again. */
+    @Test fun noFramesWhileAnOverlayCoversTheKeysAndTheyRunAgainAfterwards() {
+        use(RgbSettings(enabled = true))
+        reload()
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val context = ContextThemeWrapper(activity, R.style.KeyboardTheme_Flat)
+        KeyboardIconsSet.instance.loadIcons(context)
+        val frame = AgentKeyboardFrame(context, null)
+        val view = MainKeyboardView(context, null).apply { id = R.id.keyboard_view }
+        view.setKeyboard(buildKeyboard(context, KeyboardElement.ALPHABET))
+        frame.addView(view, FrameLayout.LayoutParams(WIDTH, HEIGHT))
+        val overlays = linkedMapOf<String, View>(
+            "panel" to AgentPanelView(context), "wheel" to AgentWheelView(context), "calculator" to CalculatorView(context),
+            "character art" to helium314.keyboard.agent.charart.CharArtView(context), "flat menu" to FlatMenuView(context, null))
+        for (overlay in overlays.values) { overlay.visibility = View.GONE; frame.addView(overlay) }
+        activity.setContentView(frame)
+        shadowOf(Looper.getMainLooper()).idle()
+        assertTrue(view.isAttachedToWindow && view.width > 0)
+        assertEquals(RgbRun.Mode.RUNNING, RgbLighting.mode)
+        assertTrue(RgbLighting.framesScheduled)
+
+        for ((name, overlay) in overlays) {
+            overlay.visibility = View.VISIBLE
+            assertEquals(RgbRun.Mode.PAUSED, RgbLighting.mode, "$name open")
+            assertFalse(RgbLighting.framesScheduled, "$name open: no frame requested")
+            shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(200))
+            assertFalse(RgbLighting.framesScheduled, "$name open: still no frame after time passed")
+            overlay.visibility = View.GONE
+            assertEquals(RgbRun.Mode.RUNNING, RgbLighting.mode, "$name closed")
+            assertTrue(RgbLighting.framesScheduled, "$name closed: the light runs again")
+        }
+        // two overlays at once: the light waits for the last one
+        overlays.getValue("panel").visibility = View.VISIBLE
+        overlays.getValue("wheel").visibility = View.VISIBLE
+        overlays.getValue("panel").visibility = View.GONE
+        assertEquals(RgbRun.Mode.PAUSED, RgbLighting.mode)
+        overlays.getValue("wheel").visibility = View.GONE
+        assertEquals(RgbRun.Mode.RUNNING, RgbLighting.mode)
+
+        // a frame that is removed with an overlay open does not keep the next keyboard dark
+        overlays.getValue("calculator").visibility = View.VISIBLE
+        (frame.parent as ViewGroup).removeView(frame)
+        assertFalse(RgbLighting.overlayCovers)
+        activity.finish()
+    }
+
+    /** Stage 70, S13: a painter that throws must not end the draw again and again. */
+    @Test fun aPainterThatThrowsSwitchesTheLightOffForTheSessionAndShowsOnlyTheClass() {
+        use(lit)
+        render("rgb-painter-fails.png")
+        val painter = assertNotNull(lastView.rgbPainter)
+        val key = mock(Key::class.java)
+        `when`(key.isSpacer).thenThrow(IllegalStateException("text of the field"))
+        painter.beginKey(key, 0, 0) // does not throw
+        assertEquals("java.lang.IllegalStateException", RgbLighting.painterFailure)
+        // inert from now on: colours stay as the theme has them
+        assertEquals(0x123456, painter.labelColor(0x123456))
+        painter.beginDraw(lastView)
+        painter.endDraw()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertNull(lastView.rgbPainter, "the view draws as upstream again")
+        assertEquals(RgbRun.Mode.OFF, RgbLighting.mode)
+        draw(lastView) // the keyboard still draws
+        assertNull(RgbLighting.painterFor(lastView, null), "and no new painter is made")
+        val section = Diagnose.lighting(latinIME, RgbLighting.lastFrameWork(), failure = RgbLighting.painterFailure)
+        assertTrue(section.rows.any { it.value == "java.lang.IllegalStateException" })
+        assertTrue(section.rows.none { "text of the field" in it.label + it.value }, "never the message")
+    }
+
+    /** Stage 70, A4: colour filters are shared by colour and their number is bounded. */
+    @Test fun colourFiltersAreCachedByColourAndBounded() {
+        val cache = RgbFilterCache()
+        assertSame(cache.srcIn(0xFF112233.toInt()), cache.srcIn(0xFF112233.toInt()))
+        assertNotSame(cache.srcIn(0xFF112233.toInt()), cache.srcIn(0xFF112234.toInt()))
+        for (i in 0 until 1000) cache.srcIn(0xFF000000.toInt() or i)
+        assertTrue(cache.size <= RgbFilterCache.LIMIT, "bounded: ${cache.size}")
+        // a drawn solid-key frame fills the painter's cache with few filters
+        use(lit.copy(solidKeys = true))
+        render("rgb-filter-cache.png")
+        draw(lastView)
+        val used = assertNotNull(lastView.rgbPainter).filterCache.size
+        assertTrue(used in 1..RgbFilterCache.LIMIT, "cached filters: $used")
     }
 
     private fun buildKeyboard(context: Context, element: KeyboardElement): Keyboard {

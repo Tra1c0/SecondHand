@@ -79,6 +79,7 @@
     <string name="agent_diagnose_android">Android</string>
     <string name="agent_diagnose_model">Model</string>
     <string name="agent_diagnose_lighting">RGB lighting (last 5 s with light)</string>
+    <string name="agent_diagnose_light_failed">Light switched off for this session after an error (exception class)</string>
     <string name="agent_diagnose_light_frames">Measured frames</string>
     <string name="agent_diagnose_light_none">none – open the keyboard with RGB on and type, then look here</string>
     <string name="agent_diagnose_light_ui">Light on the UI thread per frame</string>

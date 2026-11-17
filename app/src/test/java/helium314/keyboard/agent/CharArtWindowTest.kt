@@ -216,6 +216,50 @@ class CharArtWindowTest {
         assertTrue(SnippetStore(latinIME).read().isEmpty()) // readable only unlocked
     }
 
+    /** Stage 70, A3: while a finger draws, the art is calculated in the background and the newest request wins. */
+    @Test fun theLivePreviewIsMadeInTheBackgroundAndFollowsTheFinger() {
+        pen()
+        layoutWindow()
+        val canvas = window.findViewById<CharArtCanvas>(R.id.agent_char_art_canvas)
+        val preview = window.findViewById<TextView>(R.id.agent_char_art_preview)
+        val looper = shadowOf(Looper.getMainLooper())
+        val side = minOf(canvas.width, canvas.height).toFloat()
+        val left = (canvas.width - side) / 2f; val top = (canvas.height - side) / 2f
+        val time = SystemClock.uptimeMillis()
+        fun touch(action: Int, x: Float, y: Float, at: Long) =
+            canvas.dispatchTouchEvent(MotionEvent.obtain(time, time + at, action, left + x * side, top + y * side, 0))
+        fun waitUntil(condition: () -> Boolean) {
+            val end = System.currentTimeMillis() + 5_000
+            while (!condition() && System.currentTimeMillis() < end) { looper.idle(); Thread.sleep(10) }
+            assertTrue(condition())
+        }
+        touch(MotionEvent.ACTION_DOWN, 0.1f, 0.1f, 0)
+        touch(MotionEvent.ACTION_MOVE, 0.5f, 0.5f, 10)
+        touch(MotionEvent.ACTION_MOVE, 0.9f, 0.9f, 20)
+        looper.idle()
+        assertEquals("", preview.text.toString(), "nothing is calculated on the main thread while the finger moves")
+        looper.idleFor(java.time.Duration.ofMillis(CharArtView.LIVE_RENDER_MILLIS + 10)) // the render is handed to the worker
+        waitUntil { preview.text.isNotEmpty() }
+        val firstLine = window.result.text
+        assertFalse(window.result.isEmpty)
+        // the finger goes on: the preview follows it
+        touch(MotionEvent.ACTION_MOVE, 0.9f, 0.1f, 30)
+        touch(MotionEvent.ACTION_MOVE, 0.1f, 0.9f, 40)
+        looper.idleFor(java.time.Duration.ofMillis(CharArtView.LIVE_RENDER_MILLIS + 10))
+        waitUntil { window.result.text != firstLine }
+        assertEquals(window.result.text, preview.text.toString())
+        // more moves and the lift at once: the final picture is the synchronous one and no late background result replaces it
+        touch(MotionEvent.ACTION_MOVE, 0.5f, 0.2f, 50)
+        looper.idleFor(java.time.Duration.ofMillis(CharArtView.LIVE_RENDER_MILLIS + 10))
+        touch(MotionEvent.ACTION_UP, 0.5f, 0.8f, 60)
+        looper.idle()
+        val final = window.result.text
+        assertEquals(final, preview.text.toString())
+        Thread.sleep(200); looper.idle()
+        assertEquals(final, window.result.text)
+        assertEquals(final, preview.text.toString())
+    }
+
     @Test fun drawingUpdatesThePreview() {
         pen()
         layoutWindow()

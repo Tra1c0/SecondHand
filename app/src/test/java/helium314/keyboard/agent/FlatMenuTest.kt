@@ -264,6 +264,16 @@ class FlatMenuTest {
         }
     }
 
+    @Test fun theTickerStopsAfterAFewRuns() {
+        // stage 70, A5: not for ever
+        val menu = FlatMenuView(context, null)
+        val frame = ltrFrame().apply { addView(menu) }
+        menu.open(STRIP)
+        layout(frame)
+        val pill = menu.findViewById<Button>(R.id.agent_menu_design)
+        assertTrue(pill.marqueeRepeatLimit in 1..5, "limit ${pill.marqueeRepeatLimit}")
+    }
+
     /** A root without a window cannot resolve the layout direction on its own. */
     private fun ltrFrame() = FrameLayout(context).apply { layoutDirection = View.LAYOUT_DIRECTION_LTR }
 

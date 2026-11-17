@@ -501,7 +501,8 @@ object Diagnose {
     // --- RGB lighting cost (build 14 feedback: the keyboard lagged) ---
 
     /** What drawing the light cost in the last seconds the keyboard was lit ([RgbLighting.lastFrameWork]). */
-    fun lighting(context: Context, work: dev.agentkeyboard.core.RgbFrameStats.Summary, patterns: List<Row> = emptyList()): Section {
+    fun lighting(context: Context, work: dev.agentkeyboard.core.RgbFrameStats.Summary, patterns: List<Row> = emptyList(),
+        failure: String? = null): Section {
         fun ms(avg: Double, max: Double) = context.getString(R.string.agent_diagnose_ms, avg, max)
         val rows = if (work.frames == 0 && work.jobs == 0) listOf(Row(context.getString(R.string.agent_diagnose_light_frames),
             context.getString(R.string.agent_diagnose_light_none)))
@@ -511,7 +512,9 @@ object Diagnose {
             Row(context.getString(R.string.agent_diagnose_light_draw), ms(work.drawAvgMs, work.drawMaxMs)),
             Row(context.getString(R.string.agent_diagnose_light_background), "${work.jobs} · " + ms(work.backgroundAvgMs, work.backgroundMaxMs)),
         )
-        return Section(Part.LIGHTING, context.getString(R.string.agent_diagnose_lighting), rows + patterns)
+        // stage 70 (S13): the painter threw and the light is off for this session; only the exception class is shown
+        val failed = if (failure == null) emptyList() else listOf(Row(context.getString(R.string.agent_diagnose_light_failed), failure))
+        return Section(Part.LIGHTING, context.getString(R.string.agent_diagnose_lighting), failed + rows + patterns)
     }
 
     /**

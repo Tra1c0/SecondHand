@@ -87,7 +87,7 @@ fun AgentDiagnoseScreen(onClickBack: () -> Unit) {
         val library = helium314.keyboard.agent.RgbOwnPatterns.library(context.prefs())
         lightPatterns = withContext(Dispatchers.Default) { Diagnose.lightPatterns(context, settings, library) }
     }
-    val lighting = remember(lightPatterns) { Diagnose.lighting(context, helium314.keyboard.agent.RgbLighting.lastFrameWork(), lightPatterns) }
+    val lighting = remember(lightPatterns) { Diagnose.lighting(context, helium314.keyboard.agent.RgbLighting.lastFrameWork(), lightPatterns, helium314.keyboard.agent.RgbLighting.painterFailure) }
     val emojiMix = remember(table, tableRead, cache, reach) { Diagnose.emojiMix(context, table, tableRead, cache, reach) }
     val sections = remember(lastField, symbols, emojiMix, lighting) { listOfNotNull(lastField, haptics, symbols, languages, emojiMix, lighting, phone) }
     val windowWidth = androidx.compose.ui.platform.LocalWindowInfo.current.containerSize.width

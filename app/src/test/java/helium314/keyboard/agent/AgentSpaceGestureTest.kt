@@ -104,6 +104,43 @@ class AgentSpaceGestureTest {
         verify(listener, times(1)).onCodeInput(eq(32), anyInt(), anyInt(), eq(false))
     }
 
+    private fun assertNoSwipeLeft() {
+        assertSwipeCleared()
+        assertFalse(ReflectionHelpers.getField<Boolean>(tracker, "mInHorizontalSwipe"), "horizontal swipe flag")
+        assertFalse(ReflectionHelpers.getField<Boolean>(tracker, "mInVerticalSwipe"), "vertical swipe flag")
+        assertFalse(ReflectionHelpers.getField<Boolean>(tracker, "mIsInDraggingFinger"))
+    }
+
+    /** Stage 70, A2 (audit of 585bbb8): Android cancels a swipe on the space bar; the next tap must still type. */
+    @Test fun cancelledSideSwipeOnSpaceLeavesNoStateAndTheNextTapTypes() {
+        touch(MotionEvent.ACTION_DOWN); touch(MotionEvent.ACTION_MOVE, 160f)
+        verify(listener, atLeastOnce()).onSpaceSwipe(eq(SpaceGesture.SWIPE_RIGHT), anyInt())
+        touch(MotionEvent.ACTION_CANCEL, 160f)
+        assertNoSwipeLeft()
+        verify(listener, times(1)).onEndSpaceSwipe()
+        touch(MotionEvent.ACTION_DOWN); touch(MotionEvent.ACTION_UP)
+        verify(listener, times(1)).onCodeInput(eq(32), anyInt(), anyInt(), eq(false))
+        assertNoSwipeLeft()
+    }
+
+    @Test fun cancelledVerticalSwipeOnSpaceLeavesNoStateAndTheNextTapTypes() {
+        touch(MotionEvent.ACTION_DOWN); touch(MotionEvent.ACTION_MOVE, y = 40f)
+        verify(listener).onSpaceSwipe(eq(SpaceGesture.SWIPE_UP), intThat { it < 0 })
+        touch(MotionEvent.ACTION_CANCEL, y = 40f)
+        assertNoSwipeLeft()
+        touch(MotionEvent.ACTION_DOWN); touch(MotionEvent.ACTION_UP)
+        verify(listener, times(1)).onCodeInput(eq(32), anyInt(), anyInt(), eq(false))
+    }
+
+    @Test fun cancelledOneShotSwipeOnSpaceLeavesNoStateAndTheNextTapTypes() {
+        setGesture(SpaceGesture.SWIPE_RIGHT, SpaceAction.ACTION_WHEEL)
+        touch(MotionEvent.ACTION_DOWN); touch(MotionEvent.ACTION_MOVE, 160f)
+        touch(MotionEvent.ACTION_CANCEL, 160f)
+        assertNoSwipeLeft()
+        touch(MotionEvent.ACTION_DOWN); touch(MotionEvent.ACTION_UP)
+        verify(listener, times(1)).onCodeInput(eq(32), anyInt(), anyInt(), eq(false))
+    }
+
     @Test fun movementCancelsTimerAndPreservesCursorSwipe() {
         touch(MotionEvent.ACTION_DOWN)
         touch(MotionEvent.ACTION_MOVE, 150f)

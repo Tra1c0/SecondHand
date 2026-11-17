@@ -36,6 +36,7 @@ import java.util.Locale
 import kotlin.math.abs
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -222,6 +223,33 @@ class FlatPanelTest {
             show()
             assertSame(idle, result.background, name)
         }
+    }
+
+    @Test fun theLoadingPulseStopsWhileThePanelIsClosedAndResumesWhenItIsShownAgain() {
+        // stage 70, A6: a request that runs behind a closed panel must not redraw the card
+        val activity = org.robolectric.Robolectric.buildActivity(android.app.Activity::class.java).setup().get()
+        val panel = AgentPanelView(context)
+        val frame = FrameLayout(context).apply { layoutDirection = View.LAYOUT_DIRECTION_LTR; addView(panel) }
+        activity.setContentView(frame)
+        val looper = org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper())
+        looper.idle()
+        panel.showSource("Hallo")
+        panel.showCloudBusy()
+        looper.idleFor(java.time.Duration.ofMillis(300))
+        assertTrue(panel.pulseScheduled, "the pulse runs while the panel is shown")
+        val card = panel.findViewById<TextView>(R.id.agent_result)
+        panel.visibility = View.GONE
+        looper.idleFor(java.time.Duration.ofMillis(300))
+        assertFalse(panel.pulseScheduled, "closed: the pulse queues nothing any more")
+        val alpha = card.background.alpha
+        looper.idleFor(java.time.Duration.ofMillis(300))
+        assertEquals(alpha, card.background.alpha, "closed: the pulse does no work")
+        panel.visibility = View.VISIBLE
+        assertTrue(panel.pulseScheduled, "shown again while the request runs: the pulse is back")
+        panel.showResult("fertig")
+        looper.idleFor(java.time.Duration.ofMillis(300))
+        assertFalse(panel.pulseScheduled, "no request, no pulse")
+        activity.finish()
     }
 
     @Test fun otherStylesKeepThePlainPanel() {

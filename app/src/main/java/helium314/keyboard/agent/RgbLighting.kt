@@ -81,6 +81,11 @@ object RgbLighting {
     /** True while strip views may carry RGB colours, so restoring is only done when needed. */
     private var stripLit = false
     private var inFrame = false
+    /** True while a window (panel, wheel, calculator, character art, flat menu) covers the keys (stage 70, A1). */
+    private var overlayOpen = false
+    /** Class name of the exception that switched the light off for this session, null while it works (stage 70, S13). */
+    @Volatile var painterFailure: String? = null
+        private set
     private val frameCallback = Choreographer.FrameCallback { onFrame(it) }
 
     /** Application context the power-save receiver is registered with, null while unregistered. */
@@ -172,7 +177,7 @@ object RgbLighting {
         // switched off: no system queries, no frames, upstream drawing
         if (settings.enabled) checkSystem(view.context, force = true)
         update()
-        if (!settings.lightsKeys()) return null
+        if (!settings.lightsKeys() || painterFailure != null) return null
         return current ?: RgbKeyPainter()
     }
 
@@ -278,6 +283,38 @@ object RgbLighting {
         strip?.get()?.let { RgbStrip.paint(it, false) }
     }
 
+    /**
+     * Called by [AgentKeyboardFrame] when an overlay window opens or closes: no frames are drawn
+     * for keys nobody can see (stage 70, A1); the light carries on when the last overlay closes.
+     */
+    @JvmStatic
+    fun setOverlayOpen(open: Boolean) {
+        if (overlayOpen == open) return
+        overlayOpen = open
+        update()
+    }
+
+    /** Whether a frame is requested from the Choreographer (tests). */
+    internal val framesScheduled: Boolean get() = scheduled
+
+    /** Whether frames are paused because an overlay covers the keys (tests). */
+    internal val overlayCovers: Boolean get() = overlayOpen
+
+    /**
+     * The painter threw (stage 70, S13): the light stays off until the keyboard process restarts.
+     * Only the class name is kept; the Diagnose page shows it, the message is never stored.
+     */
+    internal fun onPainterFailed(error: Throwable) {
+        if (painterFailure != null) return
+        painterFailure = error.javaClass.name
+        // not inside the draw that failed: the view still finishes it with the (now inert) painter
+        val view = keyboardView?.get()
+        if (view != null) android.os.Handler(android.os.Looper.getMainLooper()).post { update(); view.setRgbPainter(null) } else update()
+    }
+
+    /** Lights up again after a failure (tests). */
+    internal fun resetPainterFailure() { painterFailure = null }
+
     private fun isVisible(view: View?) = view != null && view.isAttachedToWindow && view.isShown &&
         view.windowVisibility == View.VISIBLE && view.width > 0
 
@@ -294,7 +331,8 @@ object RgbLighting {
         val view = keyboardView?.get()
         val now = SystemClock.uptimeMillis()
         val effect = engines.hasActiveEffect(now)
-        val newMode = RgbRun.mode(settings, isVisible(view), powerSave, animationsOn, effect)
+        val newMode = if (painterFailure != null) RgbRun.Mode.OFF
+            else RgbRun.mode(settings, isVisible(view) && !overlayOpen, powerSave, animationsOn, effect)
         val old = mode
         mode = newMode
         updateReceiver(view)

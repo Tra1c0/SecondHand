@@ -78,6 +78,11 @@ class FlatMenuView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         addView(scroll, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     }
 
+    override fun setVisibility(visibility: Int) {
+        super.setVisibility(visibility)
+        (parent as? AgentKeyboardFrame)?.updateOverlayAccessibility() // the light pauses under the menu (stage 70)
+    }
+
     /** Shows the menu below the strip, which is [stripHeight] pixels high. */
     fun open(stripHeight: Int) {
         if (!built) { build(); built = true }

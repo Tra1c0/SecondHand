@@ -78,6 +78,7 @@
     <string name="agent_diagnose_android">Android</string>
     <string name="agent_diagnose_model">Modell</string>
     <string name="agent_diagnose_lighting">RGB-Beleuchtung (letzte 5 s mit Licht)</string>
+    <string name="agent_diagnose_light_failed">Licht für diese Sitzung nach einem Fehler ausgeschaltet (Fehlerklasse)</string>
     <string name="agent_diagnose_light_frames">Gemessene Bilder</string>
     <string name="agent_diagnose_light_none">keine – Tastatur mit RGB öffnen und tippen, dann hier nachsehen</string>
     <string name="agent_diagnose_light_ui">Licht im UI-Thread je Bild</string>

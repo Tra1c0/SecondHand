@@ -53,11 +53,19 @@ internal class FlatPanelStyle private constructor(private val result: TextView, 
     private val card: Drawable = cardBackground(null)
     private val busyCard: Drawable = cardBackground(skeleton)
     private var busySince = 0L
+    private var busy = false
+    /** True while the pulse is queued to run again (tests, stage 70). */
+    internal var pulseScheduled = false
+        private set
     private val pulse = object : Runnable {
         override fun run() {
+            // panel closed while the request still runs (stage 70, A6): no redraws; [resume] starts again
+            pulseScheduled = false
+            if (!result.isShown) return
             val phase = ((SystemClock.uptimeMillis() - busySince) % PULSE_PERIOD_MS) / PULSE_PERIOD_MS.toFloat()
             // triangle wave between 55 % and 100 %
             skeleton.alpha = Math.round(255 * (0.55f + 0.45f * abs(1f - 2f * phase)))
+            pulseScheduled = true
             result.postDelayed(this, PULSE_STEP_MS)
         }
     }
@@ -66,6 +74,8 @@ internal class FlatPanelStyle private constructor(private val result: TextView, 
 
     /** Bars instead of text while a request runs. Every other panel state switches them off again. */
     fun setBusy(busy: Boolean) {
+        this.busy = busy
+        pulseScheduled = false
         result.removeCallbacks(pulse)
         skeleton.alpha = 255
         result.background = if (busy) busyCard else card
@@ -73,8 +83,18 @@ internal class FlatPanelStyle private constructor(private val result: TextView, 
         val animate = Build.VERSION.SDK_INT < Build.VERSION_CODES.O || ValueAnimator.areAnimatorsEnabled()
         if (busy && animate && result.isAttachedToWindow) {
             busySince = SystemClock.uptimeMillis()
+            pulseScheduled = true
             result.postDelayed(pulse, PULSE_STEP_MS)
         }
+    }
+
+    /** The panel is shown again: a request that is still running gets its pulse back (stage 70, A6). */
+    fun resume() {
+        val animate = Build.VERSION.SDK_INT < Build.VERSION_CODES.O || ValueAnimator.areAnimatorsEnabled()
+        if (!busy || !animate || !result.isAttachedToWindow) return
+        result.removeCallbacks(pulse)
+        pulseScheduled = true
+        result.postDelayed(pulse, PULSE_STEP_MS)
     }
 
     /** Chip look for an action button, also for the workflow choices that are created later. */
@@ -195,7 +215,7 @@ internal class FlatPanelStyle private constructor(private val result: TextView, 
         setBusy(false)
         result.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
             override fun onViewAttachedToWindow(v: View) = Unit
-            override fun onViewDetachedFromWindow(v: View) { result.removeCallbacks(pulse) }
+            override fun onViewDetachedFromWindow(v: View) { pulseScheduled = false; result.removeCallbacks(pulse) }
         })
     }
 
