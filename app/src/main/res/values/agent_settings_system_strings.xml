@@ -60,5 +60,5 @@
     <string name="about_based_on">Based on HeliBoard</string>
     <string name="about_based_on_description">Credit and licence of the original project</string>
     <!-- App slogan (stage 69: translatable, was in donottranslate.xml) -->
-    <string name="app_slogan">100% FOSS keyboard, based on AOSP.</string>
+    <string name="app_slogan" formatted="false">100% FOSS keyboard, based on AOSP.</string>
 </resources>
