@@ -163,10 +163,16 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
         }
 
         if (intent?.action == Intent.ACTION_VIEW) {
-            intent?.data?.let {
-                cachedDictionaryFile.delete()
-                FileUtils.copyContentUriToNewFile(it, this, cachedDictionaryFile)
-                dictUriFlow.value = it
+            intent?.data?.let { uri ->
+                // stage 65 (S7): a large or slow source must not freeze the screen; the dialog comes when the copy is done
+                val activity = this
+                // own thread: copyContentUriToNewFile waits for the keyboard executor itself
+                kotlin.concurrent.thread(name = "open-dictionary-copy") {
+                    cachedDictionaryFile.delete()
+                    val copied = runCatching { FileUtils.copyContentUriToNewFile(uri, activity, cachedDictionaryFile) }.isSuccess
+                    if (copied) dictUriFlow.value = uri
+                    else cachedDictionaryFile.delete()
+                }
             }
             intent = null
         }

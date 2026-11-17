@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 65 hardening (own file so parallel work on other string files does not collide). English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <!-- shown inside "Error restoring the backup: %s" -->
+    <string name="restore_settings_damaged">the settings in the backup file are damaged. Nothing was changed.</string>
+    <string name="restore_nothing_changed">the data folders could not be prepared. Nothing was changed.</string>
+</resources>

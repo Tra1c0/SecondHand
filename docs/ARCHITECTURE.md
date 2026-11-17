@@ -810,7 +810,16 @@ Speicher, Datenschutz und Identität:
 - `SettingsValues.java` (`mLearningPaused` aus `AgentPreferences.LEARNING_PAUSED`),
   `DictionaryFacilitatorImpl.kt` (`addToUserHistory` speichert bei Pause nichts; die beiden
   Sperrlisten-Fehlermeldungen loggen das Wort nicht mehr) und `ExpandableBinaryDictionary.java`
-  (`readAllWordProperties`, `clearAndWait`): Lernpause und Lerndaten, siehe „Lerndaten“.
+  (`readAllWordProperties`, `clearAndWait`): Lernpause und Lerndaten, siehe „Lerndaten“. Stufe 65 (S6):
+  die Fehlerzeilen von `ExpandableBinaryDictionary.java` und `Ver4DictEncoder.java` nennen kein Wort
+  und keinen Wortkontext mehr.
+- `ClipboardHistoryManager.kt` (65, S2/S8): `fetchPrimaryClip` fragt vor jedem Speichern, Text wie
+  Datei, `ClipVault.mayKeep` (eine Regel für Tresor und Verlauf); `onDestroy` leert Tresor und
+  Verweise (P270, P271). `LatinIME.java` (65, S12): `onFinishInputInternal` und
+  `onFinishInputViewInternal` rufen je `mInputLogic.mFieldCorrections.end()` (P272).
+- `BackupRestorePreference.kt` (65, S3/S4): Ordner-Paar als `RestoreFolders`, Einstellungen über
+  `restoreSettingsFromLines` (P273). `SettingsActivity.kt` (65, S7): die von außen übergebene
+  Wörterbuchdatei wird in einem eigenen Thread kopiert; das Dialogfenster folgt nach dem Kopieren.
 - `Defaults.kt`: personalisierte Wörterbücher, Zwischenablage-Vorschläge und
   Zwischenablageverlauf standardmäßig aus.
 - `SubtypeUtils.kt` (Korrektur nach Prüfer zu 30): `SubtypeState.getSubtypeForLocales` hat den
@@ -1150,6 +1159,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 
 > CE/DE-Trennung, verschlüsselte Schlüssel, Dateifreigaben. Details und Prüflimits: docs/STORAGE.md.
 
+- Härtung (65): `ClipVault.mayKeep` ist die eine Regel für Tresor und Verlauf (P270); `RestoreFolders` und
+  `restoreSettingsFromLines` in `BackupRestorePreference.kt` (P273); `FieldCorrectionWatcher.end()` (P272).
+  Texte: `res/values/agent_hardening_strings.xml` und `res/values-de/agent_hardening_strings.xml`
+  (`restore_settings_damaged`, `restore_nothing_changed`). Tests: `HardeningClipHistoryTest.kt`
+  (Verlauf je Bedingung, Dienstende, Feldtext) und `RestoreSafetyTest.kt` (echte Ordner, Einstellungen).
 - `AgentStorageContexts.kt`: liefert der Engine den DE-Kontext (Direct Boot). Geheimnisse und
   Agent-Konfiguration nutzen den rohen CE-Kontext aus `App.kt`.
 - `security/EncryptedCredentialStore.kt`: `CredentialSlot` (ein Platz je Provider), `Secret`, `credentialContext`,
@@ -5293,13 +5307,45 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   beim Hinzufügen von Tests auf etwa 90 % des Wertes eines grünen Laufs anheben; die fünf bekannten Fehler stehen mit exakten Namen in
   `known` (die zwei Cloud-Umgebungs-Fehler `layoutsLinksInternal`, `otherLinks` nicht: auf GitHub
   müssen sie bestehen).
+- **P270** Eine Regel für „darf ein Clip bleiben“ (65, S2): `ClipVault.mayKeep(context, settings)`
+  gilt für den Tresor und den Verlauf (Text und Dateien): Gerät nicht gesperrt (`mIsLocked` und
+  `isDeviceLocked`), „Immer Inkognito“ aus (direkt aus den Einstellungen gelesen) und das aktuelle Feld
+  weder Passwortfeld noch Feld ohne Lernen (`mIncognitoModeEnabled`). „Aktuelles Feld“ ist das zuletzt
+  gesehene Feld, auch wenn der Clip bei ausgeblendeter Tastatur kopiert wird: die Tastatur weiß dann
+  nicht, woher er kommt, und nimmt die strengere Lesart (nach einem Feld ohne Lernen bleibt in dem Fall
+  auch ein Clip aus einer anderen App draußen; entschieden vom Builder, vom Owner zu bestätigen). Eine
+  lockerere Lesart (bei ausgeblendeter Tastatur nur die globalen Bedingungen) wurde verworfen, weil
+  `ClipVaultTest.aClipCopiedInAPasswordFieldIsKeptNowhere` die strenge Lesart festlegt. „Vom System als
+  vertraulich markiert“ und die Passwortfeld-Marke (`currentInputEditorInfo`) bleiben unverändert. Die
+  reine Regel ist `mayKeep(locked, alwaysIncognito, fieldIncognito)`; neue Wege, die Clips speichern,
+  müssen sie fragen. `ScreenshotChip.addToHistory` hat eine eigene, strengere Prüfung.
+- **P271** Zustand, der den Dienst überlebt (65, S8): Objekte (`ClipVault`, `ScreenshotChip`) halten
+  Verweise (`currentClip`, `onChange`) auf Lambdas, die den Dienst festhalten. `onDestroy` von
+  `ClipboardHistoryManager` setzt sie auf `null` und leert den Tresor; wer so einen Verweis neu einführt,
+  räumt ihn dort ab. Der Tresor wird beim Beenden geleert, nicht beim Ausblenden (dort läuft die
+  Ablaufzeit weiter).
+- **P272** Der Feldtext des Beobachters (65, S12): `FieldCorrectionWatcher.reference` hält bis etwa 1300
+  Zeichen des Felds. `end()` wirft ihn, die Selbstkorrekturen und die eigenen Änderungen weg und wird
+  beim Ende des Felds und beim Ausblenden aufgerufen (zwei Zeilen in `LatinIME`); ein Neustart im selben
+  Feld ruft ohnehin `start()`. Es verliert nur einen Vergleich, nie Gelerntes.
+- **P273** Wiederherstellen (65, S3/S4): Die beiden Datenordner werden als Paar nach `<Name>2` verschoben
+  (`RestoreFolders.moveAside`, alles oder nichts; eine vorhandene Kopie `<Name>2` einer früheren Runde
+  wird nie überschrieben und bricht das Wiederherstellen ab, bevor etwas angefasst wird, denn sie kann
+  die einzige Kopie sein). Der frühere Fehler: die zweite Umbenennung hatte Quelle und Ziel vertauscht,
+  die Sicherung des geschützten Ordners gab es nie, ein Fehlschlag löschte ihn. Ein Ordner, den es vorher
+  nicht gab, wird bei einem Fehlschlag wieder entfernt. Die Einstellungen werden erst vollständig gelesen
+  (`parseSettingsLines`, mindestens ein bekannter Abschnitt) und erst dann ersetzt; eine beschädigte Datei
+  wirft, die Abbruchstelle stellt Ordner und beide Einstellungsdateien wieder her und meldet „… Es wurde
+  nichts geändert.“ (`restore_settings_damaged`). Bleibt noch offen: eine Sicherungs-ZIP kann außer den
+  Einstellungen auch Dateien geändert haben; sie werden mit den Ordnern zurückgerollt, die Datenbank
+  (`Database.copyFromDb`) erst am Ende kopiert.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (627 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (631 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -5331,7 +5377,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (102): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (103): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, CharArtWindowTest, ClipCommandTest, ClipVaultTest, CommandReplaceTest,
@@ -5340,21 +5386,21 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   DictationUiTest, EmojiMixPaletteTest, EmojiMixRecentsTest, EncryptedActionRunStoreTest,
   EncryptedCredentialStoreTest, FieldCorrectionMemoryTest, FieldSuggestionChipsTest,
   FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest,
-  ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest, InsertAtCursorTest,
-  JournaledModelCallTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LastFieldTest,
-  LearningDataTest, LoadingDotsViewTest, LongTextBudgetTest, ManualWorkflowDraftTest,
-  MemoryScreenTest, MoreCommandsTest, MoreProvidersTest, MyDataScreenTest, MyDataStoreTest,
-  MyDesignsTest, OpenAiProviderTest, RgbFrameRateCardTest, RgbLightingRenderTest,
-  RgbPatternEditorTest, RgbSettingsScreenTest, RgbTilesTest, ScreenshotChipTest, SecureWindowTest,
-  SelectedTextCommitTest, SettingsAreaAiTest, SettingsAreaGesturesTest, SettingsBarAreaTest,
-  SettingsKeysScreenTest, SettingsKitTest, SettingsLookScreenTest, SettingsStartScreenTest,
-  SettingsSystemAreaTest, SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest,
-  SliderFeelTest, SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest,
-  SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest, TouchModelTest,
-  TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest, TypoMemoryTest, UpdateCheckTest,
-  UpdateChipTest, UpdateOnOpenTest, UpdatePromptsTest, WorkflowBuilderContractTest,
-  WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
-  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest,
+  HardeningClipHistoryTest, InsertAtCursorTest, JournaledModelCallTest, KeyboardCommandsTest,
+  KeyboardProfileStoreTest, LastFieldTest, LearningDataTest, LoadingDotsViewTest,
+  LongTextBudgetTest, ManualWorkflowDraftTest, MemoryScreenTest, MoreCommandsTest,
+  MoreProvidersTest, MyDataScreenTest, MyDataStoreTest, MyDesignsTest, OpenAiProviderTest,
+  RgbFrameRateCardTest, RgbLightingRenderTest, RgbPatternEditorTest, RgbSettingsScreenTest,
+  RgbTilesTest, ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest, SettingsAreaAiTest,
+  SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest, SettingsKitTest,
+  SettingsLookScreenTest, SettingsStartScreenTest, SettingsSystemAreaTest, SettingsTypingAreaTest,
+  SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest, SmartPasteChipsTest, SnipCommandTest,
+  SpaceDetentsTest, SpaceGesturesTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal,
+  ToolRunnerTest, TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest,
+  TypoMemoryTest, UpdateCheckTest, UpdateChipTest, UpdateOnOpenTest, UpdatePromptsTest,
+  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
+  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, LongCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
   TranslateCommandTest, UrlCommandTest
@@ -5404,6 +5450,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/latin/define/` (1): DebugFlags
 - `K/latin/dictionary/` (2): DictionaryFactory, ExpandableBinaryDictionary
 - `K/latin/inputlogic/` (2): InputLogic, InputLogicHandler
+- `K/latin/makedict/` (1): Ver4DictEncoder
 - `K/latin/settings/` (2): Defaults, SettingsValues
 - `K/latin/spellcheck/` (1): AndroidSpellCheckerService
 - `K/latin/suggestions/` (2): FlatStrip, SuggestionStripView
@@ -5451,26 +5498,26 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `app/src/main/res/mipmap-xhdpi/` (2): ic_launcher, ic_launcher_round
 - `app/src/main/res/mipmap-xxhdpi/` (2): ic_launcher, ic_launcher_round
 - `app/src/main/res/mipmap-xxxhdpi/` (2): ic_launcher, ic_launcher_round
-- `app/src/main/res/values-de/` (32): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
+- `app/src/main/res/values-de/` (33): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
   agent_charart_strings, agent_clipvault_strings, agent_command_system_strings,
   agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings, agent_format_strings,
-  agent_gestures_strings, agent_language_strings, agent_memory_strings, agent_name_strings,
-  agent_rgb_pattern_strings, agent_rgb_strings, agent_settings_keys_strings,
+  agent_gestures_strings, agent_hardening_strings, agent_language_strings, agent_memory_strings,
+  agent_name_strings, agent_rgb_pattern_strings, agent_rgb_strings, agent_settings_keys_strings,
   agent_settings_look_strings, agent_settings_strings, agent_settings_system_strings,
   agent_slider_strings, agent_smart_paste_strings, agent_snippet_strings, agent_space_strings,
   agent_strings, agent_suggest_strings, agent_symbol_strings, agent_touch_strings,
   agent_typing_strings, agent_update_prompt_strings, agent_update_strings, strings
-- `app/src/main/res/values/` (39): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+- `app/src/main/res/values/` (40): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
   agent_bar_strings, agent_charart_ids, agent_charart_strings, agent_clipvault_strings,
   agent_command_system_strings, agent_design_strings, agent_diagnose_strings,
-  agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_ids,
-  agent_language_strings, agent_memory_strings, agent_name_strings, agent_rgb_pattern_strings,
-  agent_rgb_strings, agent_settings_keys_strings, agent_settings_look_strings,
-  agent_settings_strings, agent_settings_system_strings, agent_slider_strings,
-  agent_smart_paste_strings, agent_snippet_strings, agent_space_strings, agent_strings,
-  agent_suggest_strings, agent_symbol_strings, agent_touch_strings, agent_typing_strings,
-  agent_update_prompt_strings, agent_update_strings, attrs, clip_provider, donottranslate,
-  gesture_data, themes-flat
+  agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_hardening_strings,
+  agent_ids, agent_language_strings, agent_memory_strings, agent_name_strings,
+  agent_rgb_pattern_strings, agent_rgb_strings, agent_settings_keys_strings,
+  agent_settings_look_strings, agent_settings_strings, agent_settings_system_strings,
+  agent_slider_strings, agent_smart_paste_strings, agent_snippet_strings, agent_space_strings,
+  agent_strings, agent_suggest_strings, agent_symbol_strings, agent_touch_strings,
+  agent_typing_strings, agent_update_prompt_strings, agent_update_strings, attrs, clip_provider,
+  donottranslate, gesture_data, themes-flat
 - `app/src/main/res/xml/` (4): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path, spellchecker
 - `app/src/test/java/helium314/keyboard/` (2): KeyboardParserTest, Shadows

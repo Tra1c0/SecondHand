@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- wird in „Fehler beim Wiederherstellen der Sicherung: %s“ gezeigt -->
+    <string name="restore_settings_damaged">Die Einstellungen in der Sicherungsdatei sind beschädigt. Es wurde nichts geändert.</string>
+    <string name="restore_nothing_changed">Die Datenordner ließen sich nicht vorbereiten. Es wurde nichts geändert.</string>
+</resources>

@@ -5768,6 +5768,46 @@ sich nicht. Das Fenster des Test-Nachweises bleibt bei den letzten 100 Läufen.
   `affc62b` in allen vier Jobs grün. `c64f0d7` ändert danach nur die Notizen.
 - Nicht geprüft: Installation und Verhalten auf einem Gerät.
 
+## Etappe 65 (Härtung, Datenschutz und Robustheit)
+
+Befunde S1 bis S4, S6 bis S8, S12 aus `docs/PRUEFBERICHT-2026-11-16.md` (Abschnitt 3), im Code
+nachgelesen; Fallstricke P270 bis P273.
+
+- S1: war schon behoben. Die Zeile in `RichInputConnection.java` nennt nur die Länge des
+  Kompositionstexts; kein Text. Die anderen Protokollzeilen dort (Zeile 1115 und 1140) nennen nur die
+  festen Trennzeichen der Sprache, keinen getippten Text. Keine Änderung.
+- S2: `ClipVault.mayKeep` ist die eine Regel für Tresor und Verlauf (Text und Dateien).
+  `HardeningClipHistoryTest` (9 Tests): Kontrollfall bleibt, „Immer Inkognito“, Feld ohne Lernen,
+  Passwortfeld auch ohne Markierung, gesperrtes Gerät, Beurteilung nach dem zuletzt gesehenen Feld
+  (beide Richtungen), die reine Regeltabelle. Entscheidung des Builders (vom Owner zu bestätigen):
+  „aktuelles Feld“ ist das zuletzt gesehene Feld, auch bei ausgeblendeter Tastatur. Ein erster Entwurf
+  (bei ausgeblendeter Tastatur nur die globalen Bedingungen) ließ `ClipVaultTest.aClipCopiedInAPasswordFieldIsKeptNowhere`
+  scheitern und wurde verworfen; keine Erwartung wurde geändert.
+- S3, S4: `RestoreSafetyTest` (7 Tests, echte temporäre Ordner und Robolectric-Einstellungen):
+  gescheiterte Wiederherstellung bringt beide Ordner zurück und entfernt Neues; Erfolg verwirft die
+  Kopien; eine vorhandene Kopie `…2` bricht ab, ohne etwas zu verlieren; ein vorher fehlender Ordner
+  fehlt danach wieder; ein Ordner für beide wird nur einmal verschoben; beschädigte Einstellungsdatei
+  (abgeschnittener JSON, unbekannter Abschnitt, fehlende Zeile, falscher Typ, leer) ändert nichts;
+  gute Datei ersetzt die Einstellungen. Nicht getestet: der Ablauf der ganzen Zeile
+  `restoreLauncher` mit Dateiauswahl (Compose, Dateiauswahldialog).
+- S6: `ExpandableBinaryDictionary` (vier Zeilen) und `Ver4DictEncoder` (zwei Zeilen) loggen kein Wort und
+  keinen Kontext mehr. Ohne Test (Protokollzeilen). Zeilen hinter `DebugFlags.DEBUG_ENABLED`
+  (`Suggest.kt`, `AutoCorrectionUtils.java`, Spell-Checker-Session, `GestureDataGathering` hinter
+  `DEBUG`) bleiben; sie laufen nur im Debug-Modus.
+- S7: `SettingsActivity` kopiert die von außen übergebene Datei in einem eigenen Thread (nicht im
+  Executor, `copyContentUriToNewFile` wartet selbst darauf); ein Fehlschlag öffnet keinen Dialog mehr
+  statt abzustürzen. Ohne Test (Aktivität mit Intent).
+- S8: `ClipboardHistoryManager.onDestroy` leert Tresor, `currentClip`, `onChange` beider Objekte und die
+  Chip-Ansichten. Test `destroyingTheServiceClearsTheVaultAndItsHooks`.
+- S12: `FieldCorrectionWatcher.end()` aus `LatinIME.onFinishInputInternal` und
+  `onFinishInputViewInternal`. Test `theFieldReferenceIsDroppedWhenTheFieldEnds` (liest die Referenz
+  per Reflexion).
+- Ausgeführt: `HardeningClipHistoryTest` 9, `RestoreSafetyTest` 7, `ClipVaultTest` 21,
+  `FieldCorrectionMemoryTest` 10, alle grün. Die volle Suite ist Sache des Leads.
+- Nicht geprüft: alles auf einem Gerät (Verlauf in Passwortfeld, Inkognito und gesperrt;
+  Wiederherstellen mit beschädigter Datei; Wörterbuchdatei von außen öffnen; Speicher nach dem
+  Beenden).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

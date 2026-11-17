@@ -1189,6 +1189,7 @@ public class LatinIME extends InputMethodService implements
         super.onFinishInput();
         Log.i(TAG, "onFinishInput");
         helium314.keyboard.agent.SymbolDrawing.reset(); // stage 27: a waiting drawing never reaches a finished editor
+        mInputLogic.mFieldCorrections.end(); // fork, stage 65: the last field's text does not stay in memory
 
         mDictionaryFacilitator.onFinishInput();
         final MainKeyboardView mainKeyboardView = mKeyboardSwitcher.getMainKeyboardView();
@@ -1201,6 +1202,7 @@ public class LatinIME extends InputMethodService implements
         super.onFinishInputView(finishingInput);
         Log.i(TAG, "onFinishInputView");
         helium314.keyboard.agent.SymbolDrawing.reset(); // stage 27: nor a hidden keyboard (back key, screen off)
+        mInputLogic.mFieldCorrections.end(); // fork, stage 65
         cleanupInternalStateForFinishInput();
     }
 

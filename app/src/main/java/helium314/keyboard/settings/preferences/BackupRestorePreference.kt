@@ -175,10 +175,14 @@ private fun restoreLauncher(onError: (String) -> Unit): ManagedActivityResultLau
             val oldProtectedPrefs = ctx.protectedPrefs().all.toMap()
             val filesDir = ctx.filesDir!!
             val deviceProtectedFilesDir = DeviceProtectedUtils.getFilesDir(ctx)
-            val filesDir2 = File(filesDir.absolutePath + "2")
-            val deviceProtectedFilesDir2 = File(deviceProtectedFilesDir.absolutePath + "2")
-            filesDir.renameTo(filesDir2)
-            deviceProtectedFilesDir2.renameTo(deviceProtectedFilesDir2)
+            // stage 65 (S3): the folders are moved aside as a pair; if that is not possible, nothing is touched
+            val aside = RestoreFolders(filesDir, deviceProtectedFilesDir)
+            if (!aside.moveAside()) {
+                onError("r" + ctx.getString(R.string.restore_nothing_changed))
+                Log.w("AdvancedScreen", "restore not started: could not move the data folders aside")
+                wait.countDown()
+                return@execute
+            }
             try {
                 var anyMatch = false
                 ctx.getActivity()?.contentResolver?.openInputStream(uri)?.use { inputStream ->
@@ -205,15 +209,14 @@ private fun restoreLauncher(onError: (String) -> Unit): ManagedActivityResultLau
                                 FileUtils.copyStreamToNewFile(zip, restoredDb)
                             } else if (entry.name == PREFS_FILE_NAME) {
                                 val prefLines = String(zip.readBytes()).split("\n")
-                                val prefs = ctx.prefs()
-                                prefs.edit { clear() }
                                 anyMatch = true
-                                readJsonLinesToSettings(prefLines, prefs)
+                                // stage 65 (S4): a damaged file changes nothing and fails the restore
+                                if (!restoreSettingsFromLines(prefLines, ctx.prefs()))
+                                    throw Exception(ctx.getString(R.string.restore_settings_damaged))
                             } else if (entry.name == PROTECTED_PREFS_FILE_NAME) {
                                 val prefLines = String(zip.readBytes()).split("\n")
-                                val protectedPrefs = ctx.protectedPrefs()
-                                protectedPrefs.edit { clear() }
-                                readJsonLinesToSettings(prefLines, protectedPrefs)
+                                if (!restoreSettingsFromLines(prefLines, ctx.protectedPrefs()))
+                                    throw Exception(ctx.getString(R.string.restore_settings_damaged))
                                 anyMatch = true
                             }
                             zip.closeEntry()
@@ -225,16 +228,13 @@ private fun restoreLauncher(onError: (String) -> Unit): ManagedActivityResultLau
                     throw Exception("nothing to restore in the given file")
 
                 Database.copyFromDb(restoredDb, ctx)
-                filesDir2.deleteRecursively()
-                deviceProtectedFilesDir2.deleteRecursively()
+                aside.discardCopies()
                 if (Looper.myLooper() == null)
                     Looper.prepare()
                 Toast.makeText(ctx, ctx.getString(R.string.backup_restored), Toast.LENGTH_LONG).show()
             } catch (t: Throwable) {
-                filesDir.deleteRecursively()
-                filesDir2.renameTo(filesDir)
-                deviceProtectedFilesDir.deleteRecursively()
-                deviceProtectedFilesDir2.renameTo(deviceProtectedFilesDir)
+                aside.putBack()
+                restoredDb.delete()
                 ctx.prefs().edit {
                     clear()
                     oldPrefs.forEach { (key, value) ->
@@ -305,24 +305,88 @@ private fun settingsToJsonStream(settings: Map<String?, Any?>, out: OutputStream
     out.write(Json.encodeToString(stringSets).toByteArray())
 }
 
-private fun readJsonLinesToSettings(list: List<String>, prefs: SharedPreferences): Boolean {
+/**
+ * Stage 65 (S4): replaces the settings in [prefs] by the ones in [list], but only if the whole list
+ * can be read. A damaged file returns false and leaves [prefs] as they were.
+ */
+internal fun restoreSettingsFromLines(list: List<String>, prefs: SharedPreferences): Boolean {
+    val staged = parseSettingsLines(list) ?: return false
+    prefs.edit(commit = true) {
+        clear()
+        staged.forEach { (key, value) ->
+            when (value) {
+                is Boolean -> putBoolean(key, value)
+                is Int -> putInt(key, value)
+                is Long -> putLong(key, value)
+                is Float -> putFloat(key, value)
+                is String -> putString(key, value)
+                is Set<*> -> putStringSet(key, value.filterIsInstance<String>().toSet())
+            }
+        }
+    }
+    return true
+}
+
+private fun parseSettingsLines(list: List<String>): Map<String, Any>? {
     val i = list.iterator()
-    val e = prefs.edit()
+    val staged = LinkedHashMap<String, Any>()
+    var sections = 0
     try {
         while (i.hasNext()) {
             when (i.next()) {
-                "boolean settings" -> Json.decodeFromString<Map<String, Boolean>>(i.next()).forEach { e.putBoolean(it.key, it.value) }
-                "int settings" -> Json.decodeFromString<Map<String, Int>>(i.next()).forEach { e.putInt(it.key, it.value) }
-                "long settings" -> Json.decodeFromString<Map<String, Long>>(i.next()).forEach { e.putLong(it.key, it.value) }
-                "float settings" -> Json.decodeFromString<Map<String, Float>>(i.next()).forEach { e.putFloat(it.key, it.value) }
-                "string settings" -> Json.decodeFromString<Map<String, String>>(i.next()).forEach { e.putString(it.key, it.value) }
-                "string set settings" -> Json.decodeFromString<Map<String, Set<String>>>(i.next()).forEach { e.putStringSet(it.key, it.value) }
+                "boolean settings" -> staged.putAll(Json.decodeFromString<Map<String, Boolean>>(i.next()))
+                "int settings" -> staged.putAll(Json.decodeFromString<Map<String, Int>>(i.next()))
+                "long settings" -> staged.putAll(Json.decodeFromString<Map<String, Long>>(i.next()))
+                "float settings" -> staged.putAll(Json.decodeFromString<Map<String, Float>>(i.next()))
+                "string settings" -> staged.putAll(Json.decodeFromString<Map<String, String>>(i.next()))
+                "string set settings" -> staged.putAll(Json.decodeFromString<Map<String, Set<String>>>(i.next()))
+                else -> continue
             }
+            sections++
         }
-        e.apply()
-        return true
     } catch (e: Exception) {
-        return false
+        return null
+    }
+    return if (sections == 0) null else staged
+}
+
+/**
+ * Stage 65 (S3): the two data folders of a restore. [moveAside] renames both to `<name>2` as a pair
+ * (all or nothing; an existing leftover copy of an earlier run is never overwritten), the restore
+ * then writes into fresh folders, [putBack] returns the originals, [discardCopies] drops them.
+ */
+internal class RestoreFolders(private val filesDir: File, private val protectedDir: File) {
+    private val pairs = ArrayList<Pair<File, File>>() // original to aside copy, of the folders moved
+    private val absent = ArrayList<File>() // folders that did not exist before: a failed restore removes what it made
+
+    fun moveAside(): Boolean {
+        val same = runCatching { filesDir.canonicalPath == protectedDir.canonicalPath }.getOrDefault(false)
+        val folders = if (same) listOf(filesDir) else listOf(filesDir, protectedDir)
+        for (folder in folders) {
+            val copy = File(folder.absolutePath + "2")
+            if (copy.exists()) { putBack(); return false } // a leftover copy may be the only one
+            if (!folder.exists()) { absent.add(folder); continue } // nothing to keep
+            if (!folder.renameTo(copy)) { putBack(); return false }
+            pairs.add(folder to copy)
+        }
+        return true
+    }
+
+    /** Failed restore: the new content goes, the originals come back. */
+    fun putBack() {
+        for ((folder, copy) in pairs.reversed()) {
+            folder.deleteRecursively()
+            copy.renameTo(folder)
+        }
+        pairs.clear()
+        absent.forEach { it.deleteRecursively() }
+        absent.clear()
+    }
+
+    fun discardCopies() {
+        pairs.forEach { it.second.deleteRecursively() }
+        pairs.clear()
+        absent.clear()
     }
 }
 

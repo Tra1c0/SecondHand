@@ -67,7 +67,7 @@ public class Ver4DictEncoder implements DictEncoder {
             if (!binaryDict.addUnigramEntry(wordProperty.mWord, wordProperty.getProbability(), null, 0,
                 wordProperty.mIsBeginningOfSentence, wordProperty.mIsNotAWord,
                 wordProperty.mIsPossiblyOffensive, 0 /* timestamp */)) {
-                Log.e(TAG, "Cannot add unigram entry for " + wordProperty.mWord);
+                Log.e(TAG, "Cannot add unigram entry."); // stage 65: never the word
             }
             if (binaryDict.needsToRunGC(true /* mindsBlockByGC */)) {
                 if (!binaryDict.flushWithGC()) {
@@ -84,8 +84,7 @@ public class Ver4DictEncoder implements DictEncoder {
                     new NgramContext(new NgramContext.WordInfo(word0Property.mWord));
                 if (!binaryDict.addNgramEntry(ngramContext, word1.mWord,
                     word1.getProbability(), 0 /* timestamp */)) {
-                    Log.e(TAG, "Cannot add n-gram entry for "
-                        + ngramContext + " -> " + word1.mWord);
+                    Log.e(TAG, "Cannot add n-gram entry.");
                     return;
                 }
                 if (binaryDict.needsToRunGC(true /* mindsBlockByGC */)) {

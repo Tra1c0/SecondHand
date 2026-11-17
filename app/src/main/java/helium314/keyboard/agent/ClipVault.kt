@@ -16,6 +16,7 @@ import helium314.keyboard.agent.commands.ClipCommand
 import helium314.keyboard.compat.ClipboardManagerCompat
 import helium314.keyboard.latin.settings.SettingsValues
 import helium314.keyboard.latin.utils.InputTypeUtils
+import helium314.keyboard.latin.utils.prefs
 
 /**
  * Clipboard vault (stage 44), memory only. Every new text clip of the opt-in clipboard history is
@@ -180,9 +181,27 @@ object ClipVault {
         return InputTypeUtils.isAnyPasswordInputType(inputType)
     }
 
-    /** Whether a clip seen now may be kept: device unlocked and no incognito. */
-    fun mayKeep(context: Context, settings: SettingsValues?): Boolean =
-        settings != null && !settings.mIncognitoModeEnabled && !helium314.keyboard.compat.isDeviceLocked(context)
+    /**
+     * The one rule for keeping a clip seen now, in the vault and in the history database (stage 65,
+     * S2): the device is unlocked, "always incognito" is off, and the current field is not a password
+     * field and does not forbid learning (`mIncognitoModeEnabled` covers all three). "Current field"
+     * is the last field the keyboard saw, also when a clip is copied while the keyboard is hidden:
+     * the keyboard cannot know where such a clip comes from, so it takes the stricter reading and
+     * keeps nothing after a field that forbade it.
+     */
+    fun mayKeep(context: Context, settings: SettingsValues?): Boolean {
+        if (settings == null) return false
+        val alwaysIncognito = runCatching {
+            context.prefs().getBoolean(helium314.keyboard.latin.settings.Settings.PREF_ALWAYS_INCOGNITO_MODE,
+                helium314.keyboard.latin.settings.Defaults.PREF_ALWAYS_INCOGNITO_MODE)
+        }.getOrDefault(true)
+        return mayKeep(settings.mIsLocked || helium314.keyboard.compat.isDeviceLocked(context), alwaysIncognito,
+            settings.mIncognitoModeEnabled)
+    }
+
+    /** The pure core of [mayKeep]. */
+    internal fun mayKeep(locked: Boolean, alwaysIncognito: Boolean, fieldIncognito: Boolean): Boolean =
+        !locked && !alwaysIncognito && !fieldIncognito
 
     /**
      * After a secret was pasted from the vault: clears the system clipboard, but only if it still

@@ -11,6 +11,10 @@ Bekannt in diesem Test-Build (Korrektur folgt im nächsten Build):
 
 ## Nächster Build
 
+- Zwischenablage-Verlauf: Es wird nichts mehr aufgenommen, solange das Gerät gesperrt ist oder „Immer Inkognito“ an ist, und in Passwortfeldern und Feldern ohne Lernen (private Chats) auch nichts, was du dort oder danach bis zum nächsten Feld kopierst. Gilt für Text und für Dateien.
+- Sicherung wiederherstellen: Scheitert es, bleibt alles, wie es war (vorher konnte der geschützte Datenordner verloren gehen). Eine beschädigte Einstellungsdatei in der Sicherung verändert nichts und meldet „Es wurde nichts geändert“.
+- Eine von außen geöffnete Wörterbuchdatei wird im Hintergrund kopiert; die Einstellungen bleiben dabei bedienbar.
+- Intern: keine gelernten Wörter mehr in Fehlerzeilen, Tresor und Feldtext werden früher aus dem Speicher geräumt.
 - Neuer Name und neues Logo: Die App heißt jetzt „SecondHand“ (bisher „Agent Keyboard“) und hat ein neues Symbol, eine weiße Taste mit „S“ vor einer roten Umriss-Taste. Ein Update von Build 27 behält alle Einstellungen, Schlüssel und Gelerntes. Jeder Build liegt auf GitHub zusätzlich unter dem alten Dateinamen `AgentKeyboard-build-<N>.apk`, damit ältere Installationen weiter Updates finden.
 - Neu: „Korrektur in Apps erzwingen“ (Einstellungen → Tippen & Korrektur → Regeln, anfangs nur
   Instagram): In Textfeldern dieser Apps gibt es Vorschläge, Autokorrektur und Großschreibung am

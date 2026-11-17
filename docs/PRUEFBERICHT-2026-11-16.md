@@ -84,18 +84,18 @@ Gerätetest einzelne Seiten zum Absturz bringen: eigener Test-Build nach Entsche
 
 | Nr. | Befund | Schwere | Stelle | Geprüft | Plan |
 | --- | --- | --- | --- | --- | --- |
-| S1 | Eine Protokollzeile von HeliBoard schreibt in Feldern ohne Vorschläge den getippten Text ins Systemprotokoll, auch in Passwortfeldern. | hoch | `RichInputConnection.java:894` | L | 65 |
-| S2 | Der Zwischenablage-Verlauf speichert auch im Inkognito-Modus, in Feldern ohne Lernen und bei gesperrtem Gerät; nur der Tresor prüft das. | mittel | `ClipboardHistoryManager.kt:174–180` | L | 65 |
-| S3 | Schlägt „Wiederherstellen“ fehl, wird der geschützte Datenordner gelöscht, weil seine Sicherung nie angelegt wurde. | mittel | `BackupRestorePreference.kt:181, 236–237` | L | 65 |
-| S4 | Eine beschädigte Sicherung leert die Einstellungen und meldet trotzdem „wiederhergestellt“. | mittel | `BackupRestorePreference.kt:209–216` | – | 65 |
+| S1 | Eine Protokollzeile von HeliBoard schreibt in Feldern ohne Vorschläge den getippten Text ins Systemprotokoll, auch in Passwortfeldern. | hoch | `RichInputConnection.java:894` | L | bereits behoben (die Zeile nennt nur die Länge); Prüfung in Etappe 65 |
+| S2 | Der Zwischenablage-Verlauf speichert auch im Inkognito-Modus, in Feldern ohne Lernen und bei gesperrtem Gerät; nur der Tresor prüft das. | mittel | `ClipboardHistoryManager.kt:174–180` | L | erledigt (Etappe 65) |
+| S3 | Schlägt „Wiederherstellen“ fehl, wird der geschützte Datenordner gelöscht, weil seine Sicherung nie angelegt wurde. | mittel | `BackupRestorePreference.kt:181, 236–237` | L | erledigt (Etappe 65) |
+| S4 | Eine beschädigte Sicherung leert die Einstellungen und meldet trotzdem „wiederhergestellt“. | mittel | `BackupRestorePreference.kt:209–216` | – | erledigt (Etappe 65) |
 | S5 | Die Sicherungs-ZIP enthält gelernte Wörter und den Zwischenablage-Verlauf unverschlüsselt, ohne Hinweis. | niedrig | `BackupRestorePreference.kt:343–352` | – | 69 |
-| S6 | Weitere Protokollzeilen von HeliBoard nennen im Fehlerfall gelernte Wörter. | niedrig | `ExpandableBinaryDictionary.java:283, 300, 326` | – | 65 |
-| S7 | Die Einstellungen kopieren eine von außen übergebene Datei im Hauptthread. | niedrig | `SettingsActivity.kt:165–171` | – | 65 |
-| S8 | Der Tresor und ein Verweis auf den Tastaturdienst bleiben nach dem Beenden im Speicher. | niedrig | `ClipboardHistoryManager.kt:64, 78–81` | – | 65 |
+| S6 | Weitere Protokollzeilen von HeliBoard nennen im Fehlerfall gelernte Wörter. | niedrig | `ExpandableBinaryDictionary.java:283, 300, 326` | – | erledigt (Etappe 65; Zeilen hinter `DebugFlags.DEBUG_ENABLED` bleiben, nur im Debug-Modus) |
+| S7 | Die Einstellungen kopieren eine von außen übergebene Datei im Hauptthread. | niedrig | `SettingsActivity.kt:165–171` | – | erledigt (Etappe 65) |
+| S8 | Der Tresor und ein Verweis auf den Tastaturdienst bleiben nach dem Beenden im Speicher. | niedrig | `ClipboardHistoryManager.kt:64, 78–81` | – | erledigt (Etappe 65) |
 | S9 | Eine Ausnahme in einem einzelnen Befehl kann den Feldstart abbrechen (Schleife ohne Fangnetz). | niedrig | `KeyboardCommands.kt:312` | – | 64 |
 | S10 | Ein KI-Ergebnis bleibt nach „Kopieren“ unbegrenzt in der System-Zwischenablage (als vertraulich markiert). | niedrig | `AgentEditorController.kt:1150–1157` | – | offen |
 | S11 | Die Gestendaten-Sammlung für das HeliBoard-Projekt ist noch erreichbar. | niedrig | `GestureDataGathering.kt:174–190`, `AgentAreaSystemScreen.kt:291` | – | 68 |
-| S12 | Der Feldtext des letzten Felds (bis etwa 1300 Zeichen) bleibt bis zum nächsten Feldstart im Arbeitsspeicher. | niedrig | `InputLogic.java:388–396`, `FieldCorrections.kt` | – | 65 |
+| S12 | Der Feldtext des letzten Felds (bis etwa 1300 Zeichen) bleibt bis zum nächsten Feldstart im Arbeitsspeicher. | niedrig | `InputLogic.java:388–396`, `FieldCorrections.kt` | – | erledigt (Etappe 65) |
 | S13 | Das Zeichnen der Beleuchtung hat kein Fangnetz: Ein Fehler dort würde die Tastatur wiederholt beenden. | mittel | `KeyboardView.java:309–597`, `RgbKeyPainter.kt` | – | 65 |
 
 Geprüft und in Ordnung: Backup-Regeln für Cloud und Gerätewechsel, exportierte Komponenten,
