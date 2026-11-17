@@ -5166,15 +5166,27 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - **P249a** Satzsprache (60): `applyLearnedCorrection` (gelerntes Tippfehler-Paar, 20b) läuft nach `guardAllows` und geht an der
   Regel vorbei, wie die Korrekturen ohne Locale (Gedächtnis, `ForeignWords`, Emoji).
 - **P250** Satzsprache (60): Ein vorheriges Wort zählt für die Sprache der Korrektur oder für eine andere
-  Gruppe nach dem Hauptwörterbuch, wie geschrieben oder klein (`mainLocalesKnowing`). Kennen es beide,
+  Gruppe nach dem Hauptwörterbuch, wie geschrieben oder klein (`mainLocalesKnowing`). „Andere Gruppe“
+  heißt: eine Sprache, die auch das getippte Wort kennt (zweite Runde; mit drei Sprachen, Deutsch als Korrektur und
+  getipptem „hand“ nur Englisch, ist ein spanisches „gracias“ kein Beweis, es ist neutral). Gewählt ist „das vorige Wort
+  ist einer Sprache bekannt, die auch das getippte Wort kennt“ statt „nur solchen Sprachen“: Ein Wort, das Englisch und Spanisch kennen, Deutsch nicht, spricht gegen einen deutschen Satz und
+  zählt für Englisch; ein Wort, das nur Deutsch und Spanisch kennen, zählt für die Korrektur. Kennen es beide,
   ist es neutral: ein kleingeschriebenes „hand“ vorher gilt nur englisch, aber ein großes „Hand“ wegen der
   Kleinschreibung beidseitig (neutral). Nicht in Benutzerverlauf, Kontakten oder dem persönlichen
   Wörterbuch (das würde Namen zu Beweisen machen).
-- **P251** Satzsprache (60): Läuft nur, wenn die Korrektur sonst angewendet würde und das getippte Wort
-  aus einem Hauptwörterbuch einer anderen Sprache kommt (die seltene Ausnahme), im Vorschlags-Thread,
+- **P251** Satzsprache (60): Läuft nur, wenn die Korrektur sonst angewendet würde, eine Locale hat und das getippte
+  Wort in einem Hauptwörterbuch einer anderen Sprache steht, aber nicht in dem der Korrektur (die seltene
+  Ausnahme; beide Bedingungen, gefragt wird `mainLocalesKnowing(getippt)`), im Vorschlags-Thread,
   ohne Sperre und ohne Editorzugriff; die Wörterbuchabfragen sind lesend (`isValidWord`). Der Zugriff geht
   über `mDictionaryFacilitator as? DictionaryFacilitatorImpl`; `SuggestTest` ersetzt `mainLocalesKnowing`
   im Schatten `ShadowFacilitator` (sonst hat dort die Gruppenliste keine Wörterbücher und alles ist neutral).
+  Locales: Gruppe, Hauptwörterbuch und Teilwörterbücher werden mit demselben `Locale`-Objekt angelegt
+  (`DictionaryFactory.getDictionary(file, locale)` nimmt die Locale der Anfrage, nicht die der Datei), `de_CH` und `de`
+  können also nicht gegeneinander stehen; getestet mit `de-CH` und `en-GB`. Geschlossenes Wörterbuch: `isValidWord` →
+  `ReadOnlyBinaryDictionary.isInDictionary` nimmt nur `tryLock` (während des Schließens `false`),
+  `BinaryDictionary.getFrequency` übergibt den Zeiger 0 an `getProbabilityNative`, das `NOT_A_PROBABILITY` liefert;
+  im Java-Pfad kann nichts werfen, es gibt kein `try/catch`, ein geschlossenes Wörterbuch heißt „unbekannt“ (alte Regel).
+  Ein fehlendes Hauptwörterbuch (`getDict` null) ist ebenso „unbekannt“.
 - **P252** Satzsprache (60): `ForeignWords` (51) zählt hier nicht als „andere Sprache“. Es meint andere
   aktivierte Subtypen, deren Wörterbücher nur im Hintergrund geöffnet werden und die nicht im Tippen
   mitlaufen; die Regel hier gilt nur für die Gruppen des Facilitators. Wer Englisch nur als weiteren

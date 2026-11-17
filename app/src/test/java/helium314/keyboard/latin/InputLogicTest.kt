@@ -2483,6 +2483,91 @@ class InputLogicTest {
         assertEquals("Mesa ", sentence("mesa")) // no evidence
     }
 
+    /** [sentence] typed word by word with [subtype] in use and [lists] as main dictionaries; the text that came out. */
+    private fun sentenceIn(subtype: InputMethodSubtype, lists: Map<String, Map<String, Int>>, sentence: String): String {
+        var result = ""
+        withLanguages(lists, subtype) {
+            sentence.split(' ').forEach { typeSentenceWord(it) }
+            result = text
+        }
+        return result
+    }
+
+    // second round: with three languages only a language that knows the typed word is evidence
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 60 with three languages only a language that knows the typed word counts`() {
+        val lists = mapOf("de" to WordLists.of("Hand", "Mesa", "gib", "mir"),
+            "en" to WordLists.of("hand", "what", "is", "your", "cat"),
+            "es" to WordLists.of("mesa", "gracias", "por", "tu"))
+        val three = withSecondary(germanSubtype, "en" + Constants.Separators.KV + "es")
+        assertEquals("what is your hand ", sentenceIn(three, lists, "what is your hand"))
+        assertEquals("gracias por tu Hand ", sentenceIn(three, lists, "gracias por tu hand")) // Spanish is no evidence for an English word
+        assertEquals("gracias por tu mesa ", sentenceIn(three, lists, "gracias por tu mesa")) // Spanish typed word, Spanish sentence
+        assertEquals("what is your Mesa ", sentenceIn(three, lists, "what is your mesa")) // English is no evidence for a Spanish word
+    }
+
+    // second round: a subtype with a region still has the same locale in the groups and in the dictionaries
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 60 subtypes with a region`() {
+        val swissGerman = withSecondary(SubtypeSettings.getResourceSubtypesForLocale("de-CH".constructLocale()).first(), "en-GB")
+        assertEquals("what is your name ", sentenceIn(swissGerman, wordsDeEn, "what is your name"))
+        assertEquals("gib mir deine Hand ", sentenceIn(swissGerman, wordsDeEn, "gib mir deine hand")) // German sentence: no block
+    }
+
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 60 an English keyboard with a region`() { // own test: a facilitator keeps the dictionaries of a locale it already loaded
+        val britishEnglish = withSecondary(SubtypeSettings.getResourceSubtypesForLocale("en-GB".constructLocale()).first(), "de-CH")
+        val lists = mapOf("de" to WordLists.of("das", "ist", "gut", "mein"), "en" to WordLists.of("Gut", "is", "my"))
+        assertEquals("das ist gut ", sentenceIn(britishEnglish, lists, "das ist gut"))
+        assertEquals("my is Gut ", sentenceIn(britishEnglish, lists, "my is gut"))
+    }
+
+    // second round: the other cases of the gate
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 60 a typo in an English sentence is still corrected and a loan word does not end German corrections`() {
+        // a word no dictionary knows: the correction applies as always
+        assertEquals("what is your ", germanEnglishSentence("what is yoir"))
+    }
+
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 60 a loan word does not end German corrections`() {
+        // a German sentence with an English loan word: German words in the last three keep the old rule
+        val lists = mapOf("de" to WordLists.of("Hand", "das", "ist", "Name"), "en" to WordLists.of("hand", "cool", "name"))
+        assertEquals("das ist cool Hand ", germanEnglishSentence("das ist cool hand", lists))
+        assertEquals("das ist cool Name ", germanEnglishSentence("das ist cool name", lists))
+        assertEquals("cool hand ", germanEnglishSentence("cool hand", lists)) // only the loan word before: English evidence
+    }
+
+    // second round: the real facilitator helper
+    @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
+    fun `stage 60 mainLocalesKnowing asks the main dictionaries`() {
+        fun languages(f: DictionaryFacilitatorImpl, word: String) = f.mainLocalesKnowing(word).map { it.language }
+        withLanguages(wordsDeEn, withSecondary(germanSubtype, "en")) {
+            val f = facilitatorInUse as DictionaryFacilitatorImpl
+            assertEquals(listOf("en"), languages(f, "name")) // as typed
+            assertEquals(listOf("de", "en"), languages(f, "Name")) // German as typed, English in lower case
+            assertEquals(listOf("en"), languages(f, "NAME")) // lower case only
+            assertEquals(listOf("de"), languages(f, "gib"))
+            assertEquals(emptyList(), languages(f, "xyz"))
+            assertEquals(emptyList(), languages(f, ""))
+            // a blacklisted word is unknown in that group
+            val groups = DictionaryFacilitatorImpl::class.java.getDeclaredField("dictionaryGroups").apply { isAccessible = true }.get(f) as List<*>
+            val english = groups.single { g -> (g!!.javaClass.getDeclaredMethod("getLocale").apply { isAccessible = true }.invoke(g) as Locale).language == "en" }!!
+            english.javaClass.getDeclaredMethod("addToBlacklist", String::class.java).apply { isAccessible = true }.invoke(english, "name")
+            assertEquals(emptyList(), languages(f, "name"))
+            assertEquals(listOf("de"), languages(f, "Name")) // English reads the lower case "name" of it, which is blacklisted too
+        }
+        // a language without a loaded word list has an empty main dictionary: unknown, no exception
+        // (Spanish: the facilitator keeps the English dictionary it loaded above)
+        withLanguages(mapOf("de" to WordLists.of("Hand", "gib")), withSecondary(germanSubtype, "es")) {
+            val f = facilitatorInUse as DictionaryFacilitatorImpl
+            assertEquals(listOf("de"), languages(f, "Hand"))
+            assertEquals(emptyList(), languages(f, "mesa"))
+        }
+        // a facilitator without any dictionary
+        assertEquals(emptyList(), DictionaryFacilitatorImpl().mainLocalesKnowing("name"))
+    }
+
     // stage 60 works in both directions: English keyboard with German as second language
     @Test @org.robolectric.annotation.Config(shadows = [ShadowWordListDictionaries::class])
     fun `stage 60 an English keyboard keeps German words in a German sentence`() {

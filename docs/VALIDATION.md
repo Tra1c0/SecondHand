@@ -5554,6 +5554,21 @@ Gebaut in einer Arbeitskopie, ohne Prüfer (folgt durch den Lead), ohne Gerätet
 - Befunde 2 bis 5: Ende von `guardAllows` aufgeräumt (kein Verhalten geändert), Docs ergänzt (Komma, ein deutsches Wort,
   nur zweite Sprachen, beide Richtungen, gelernte Tippfehler, ehrliche Prüfangabe zu „fur“).
 
+### Nachprüfung 60, zweite Runde
+
+- Befund 1 (dritte Sprache): `sentenceIsOfOtherLanguage` zählt ein voriges Wort nur als Beweis für die andere Sprache, wenn eine Sprache
+  es kennt, die auch das getippte Wort kennt. Gewählt „mindestens eine“ statt „nur solche“: Ein Wort für Englisch und Spanisch spricht
+  für Englisch und gegen Deutsch. Test `InputLogicTest` „with three languages…“ („what is your hand“ bleibt, „gracias por tu hand“ → „Hand“,
+  „gracias por tu mesa“ bleibt, „what is your mesa“ → „Mesa“), `SuggestTest` „stage 60 the gate“. Geänderte Erwartung: keine.
+- Befund 2 (Locale): Gruppe und Wörterbücher entstehen mit demselben `Locale`-Objekt (`DictionaryFactory.getDictionary(file, locale)`, auch bei
+  einer allgemeineren Wörterbuchdatei), `equals` genügt; kein Code geändert. Test „subtypes with a region“ (`de-CH` mit `en-GB`, `en-GB` mit `de-CH`).
+- Befund 3 (geschlossenes Wörterbuch): im Java-Pfad nichts, das wirft (`tryLock`, Zeiger 0, nativ `NOT_A_PROBABILITY`); kein `try/catch`. Nicht
+  getestet: ein Wörterbuch, das während der Abfrage auf einem anderen Thread geschlossen wird.
+- Befund 4 (Tests): `SuggestTest` „the gate“ (nur Sprache der Korrektur kennt das Wort, kein Wörterbuch kennt es, Korrektur ohne Locale),
+  `InputLogicTest` „a typo in an English sentence…“ (Tippfehler wird korrigiert; deutscher Satz mit englischem Lehnwort, auch Großschreibung),
+  „mainLocalesKnowing asks the main dictionaries“ (echter Facilitator: wie getippt, klein, Sperrliste, fehlendes Wörterbuch, leerer Facilitator).
+- Befund 5 (Docs): P250, P251, ROADMAP, FEATURES berichtigt.
+
 ## Etappe 59: KI ohne Zeichenlimit (Lead und Builder, 2026-11-16)
 
 - Anlass: Owner-Meldung „KI hat ein Zeichenlimit.“; Owner nutzt OpenAI und Gemini, bei `@ki` verschwand

@@ -245,8 +245,9 @@ Reihenfolge von oben nach unten.
   schon hat, bis zum Satzanfang); ein Wort zählt für eine Sprache, wenn ihr Hauptwörterbuch es kennt
   (wie getippt oder klein); Wörter, die beide oder keine Sprache kennen (Namen, Zahlen, „in“,
   „Team“), zählen nicht. Die Korrektur zur Sprache der Hauptsprache wird blockiert, wenn das getippte
-  Wort ein Wort einer anderen Sprache der Wörterbuchgruppen ist, mindestens ein voriges Wort nur
-  dort bekannt ist und keines nur in der Sprache der Korrektur; das getippte Wort bleibt, die
+  Wort in einem Hauptwörterbuch einer anderen Sprache der Wörterbuchgruppen steht und nicht in dem der Korrektur, mindestens
+  ein voriges Wort nur in solchen Sprachen bekannt ist, die auch das getippte Wort kennen (bei drei Sprachen zählt ein
+  spanisches Wort nicht für ein englisches getipptes), und keines nur in der Sprache der Korrektur; das getippte Wort bleibt, die
   Korrektur steht weiter als Vorschlag. Schwelle „mindestens ein Wort“ (nicht zwei), weil nur dann
   der Satz „what is your name“ am dritten Wort schon trägt und „in team“ (neutral) nichts blockiert.
   Es zählen nur die Sprachen der Wörterbuchgruppen (Hauptsprache und zweite Sprachen des Subtyps);
