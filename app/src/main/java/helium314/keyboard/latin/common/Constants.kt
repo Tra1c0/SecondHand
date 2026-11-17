@@ -6,7 +6,10 @@ object Links {
     const val DICTIONARY_DOWNLOAD_SUFFIX = "/raw/branch/main/"
     const val DICTIONARY_NORMAL_SUFFIX = "dictionaries/"
     const val DICTIONARY_EMOJI_CLDR_SUFFIX = "emoji_cldr_signal_dictionaries/"
+    /** HeliBoard, the upstream project: credit and licence only (stage 69), no pages for reporting problems of this fork. */
     const val GITHUB = "https://github.com/HeliBorg/HeliBoard"
+    /** This fork: source code and problems. */
+    const val FORK_REPO = "https://github.com/Tra1c0/SecondHandAgenticKeyboard"
     const val LICENSE = "$GITHUB/blob/main/LICENSE"
     const val WIKI_URL = "$GITHUB/wiki"
     const val LAYOUT_WIKI_URL = "$WIKI_URL/2.-Layouts"
@@ -19,7 +22,6 @@ object Links {
     const val BACKGROUND_GESTURE_DATA_VIDEO_YOUTUBE = "https://youtu.be/VJLzVEhY2PY"
     const val BACKGROUND_GESTURE_DATA_WIKI = "$WIKI_URL/Background-Gesture-Data-Gathering"
     const val SWIPE_O_SCOPE = "https://codeberg.org/eclexic/swipe-o-scope"
-    const val COMMUNITY_LINKS = "$GITHUB#to-community"
 }
 
 val combiningRange = 0x300..0x35b

@@ -34,3 +34,14 @@ Nur mit Tests geprüft, noch auf keinem Gerät ausprobiert.
   schicken und die App im Zweifel aus der Liste nehmen.
 - Das Veröffentlichen eines Builds prüft sich jetzt selbst (Signatur, Schlüssel, Versionsnummer, grüne
   Tests, Auffindbarkeit für die Update-Prüfung); für dich ändert sich nichts.
+- Die Suche in den Einstellungen findet jetzt auch die Seiten selbst („KI“, „Beleuchtung“, „Updates“,
+  „Diagnose“, „Tippen“ …), auf Deutsch und auf Englisch.
+- „Sichern und Wiederherstellen“ sagt jetzt genau, was in der Datei steht (Tastatureinstellungen,
+  eigene Layouts, Wörterbücher und gelernte Wörter, Hintergrundbild, Schriften, Zwischenablage-Verlauf),
+  was nicht (Profile, Gedächtnis, Bausteine, Orte, Korrekturen, Trefferzonen, gemalte Symbole,
+  KI-Einstellungen) und dass die Datei nicht verschlüsselt ist.
+- Tippflächen der neuen Einstellungsseiten sind größer (48 statt 44 dp); auf „Tasten & Sprachen“
+  bleiben abhängige Schalter sichtbar, grau und mit dem Grund; die Leiste unten auf der Startseite
+  bricht bei großer Schrift um.
+- Einige englische Texte in der deutschen Oberfläche sind übersetzt; „Über“ verweist auf das
+  Repository dieses Projekts statt auf die Fehlerseiten von HeliBoard (Dank und Lizenz bleiben).

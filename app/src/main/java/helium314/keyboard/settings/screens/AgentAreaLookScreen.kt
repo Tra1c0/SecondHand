@@ -260,7 +260,7 @@ private fun DesignTileButton(tile: LookTile, modifier: Modifier, onEdit: (String
     }
 }
 
-/** The two buttons under the grid: light ("+ Neues Design") or outlined ("Bearbeiten"), 44 dp high. */
+/** The two buttons under the grid: light ("+ Neues Design") or outlined ("Bearbeiten"), 48 dp high. */
 @Composable
 private fun PillButton(text: String, light: Boolean, enabled: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val t = AgentSettingsTokens

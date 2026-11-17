@@ -39,8 +39,6 @@
     <string name="agent_area_system_tile">Profile, Sicherung, Updates, Diagnose</string>
     <string name="agent_area_system_sub">Sichern, wiederherstellen, aktuell halten, nachsehen.</string>
 
-    <string name="agent_area_pages">Seiten</string>
-    <string name="agent_area_pages_note">Dieser Bereich wird Schritt für Schritt neu gestaltet. Bis dahin öffnen diese Zeilen die bisherigen Seiten.</string>
     <string name="agent_area_row_design">Designs, eigene Designs und Farben</string>
     <string name="agent_area_row_rgb">Bewegtes Licht für Tasten und Hintergrund</string>
     <string name="agent_area_row_appearance">Stil, Größe, Schrift, Hintergrundbild</string>

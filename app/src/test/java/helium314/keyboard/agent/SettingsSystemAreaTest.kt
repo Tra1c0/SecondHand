@@ -160,7 +160,7 @@ class SettingsSystemAreaTest {
         compose.onNodeWithTag(HERO_TAG).assert(hasText("07")).assert(hasText("System & Daten"))
             .assert(hasText("Sichern, wiederherstellen, aktuell halten, nachsehen."))
         listOf("UPDATES", "Jetzt prüfen", "Diagnose", "PROFILE", "FLACHER LOOK", "Vorlage nach deinen Screenshots",
-            "+ NEUES PROFIL", "Aktuellen Stand sichern", "Sichern", "Sichern und Wiederherstellen", "Alle Einstellungen als Datei",
+            "+ NEUES PROFIL", "Aktuellen Stand sichern", "Sichern", "Sichern und Wiederherstellen", "Tastatureinstellungen und Wörter als Datei",
             "Profile exportieren", "Design, Tasten, Gesten einzeln", "Für Fortgeschrittene", "Emoji-Version",
             "Welche Emojis angeboten werden", "URL-Erkennung", "Adressen als ein Wort", "Hardware-Tastatur",
             "Unterstützung für externe Tastaturen", "Gesten-Bibliothek laden", "Für Gestenschreiben", "Debug-Einstellungen",
@@ -168,7 +168,7 @@ class SettingsSystemAreaTest {
             "Version ${BuildConfig.VERSION_NAME} · Build ${BuildConfig.VERSION_CODE}", "Lizenz", "GNU GPL v3.0 · basiert auf HeliBoard",
             "Versteckte Funktionen", "Was man leicht übersieht", "Protokoll speichern", "Für Fehlermeldungen", "Alle Infos und Links")
             .forEach { assertTrue(exists(it), "missing text: $it") }
-        assertFalse(exists(app.getString(R.string.agent_area_pages_note)))
+        assertFalse(exists("Dieser Bereich wird Schritt für Schritt neu gestaltet")) // text of the removed transition page (stage 69)
         // section order as in the mockup
         val tops = listOf("UPDATES", "PROFILE", "Sichern und Wiederherstellen", "Emoji-Version", "Lizenz")
             .map { compose.onNodeWithText(it).fetchSemanticsNode().boundsInRoot.top }
@@ -449,11 +449,11 @@ class SettingsSystemAreaTest {
         compose.onNodeWithTag(SYSTEM_CHECK_TAG).assertExists()
     }
 
-    @Test fun everyClickableIsAtLeast44dp() {
+    @Test fun everyClickableIsAtLeast48dp() {
         UpdateSettings(app).status = UpdateStatus.Available(installed + 1)
         KeyboardProfileStore(app).saveCurrent(ProfileGroup.GESTURES)
         start()
-        val min = 44 * app.resources.displayMetrics.density - 1
+        val min = 48 * app.resources.displayMetrics.density - 1
         val clickables = compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.OnClick), useUnmergedTree = true).fetchSemanticsNodes()
         assertTrue(clickables.size >= 20, "clickables: ${clickables.size}")
         clickables.forEach { assertTrue(it.size.height >= min && it.size.width >= min, "too small: ${it.size} ${it.config}") }

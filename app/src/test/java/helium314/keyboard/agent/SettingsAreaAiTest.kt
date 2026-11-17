@@ -314,10 +314,10 @@ class SettingsAreaAiTest {
         assertFalse(compose.onAllNodesWithText("Erlauben").fetchSemanticsNodes().isNotEmpty())
     }
 
-    @Test fun everyClickableIsAtLeast44dp() {
+    @Test fun everyClickableIsAtLeast48dp() {
         page()
         waitForText("Kein Schlüssel gespeichert")
-        val min = 44 * app.resources.displayMetrics.density - 1
+        val min = 48 * app.resources.displayMetrics.density - 1
         val clickables = compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.OnClick), useUnmergedTree = true).fetchSemanticsNodes()
         // back, three providers, "Ändern", three skill tiles, two text rows, three workflow rows, two dictation rows
         assertTrue(clickables.size >= 1 + 3 + 1 + 3 + 2 + 3 + 2, "clickables: ${clickables.size}")

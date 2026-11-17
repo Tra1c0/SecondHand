@@ -105,7 +105,8 @@ object AgentSettingsTokens {
     val TileRadius = 26.dp
     val ChoiceRadius = 22.dp
     val RowRadius = 18.dp
-    val MinTouch = 44.dp
+    /** Minimum touch size (Material and WCAG 2.2 AAA ask for 48 dp; stage 69 raised it from 44 dp). */
+    val MinTouch = 48.dp
     val PagePadding = 16.dp
 
     val SwitchWidth = 52.dp
@@ -230,7 +231,7 @@ fun AgentLineIcon(icon: LineIcon, color: Color, size: Dp, modifier: Modifier = M
     }
 }
 
-/** Round 44 dp button with a line icon (search on the start page, back on area pages). */
+/** Round 48 dp button with a line icon (search on the start page, back on area pages). */
 @Composable
 fun AgentRoundButton(icon: LineIcon, description: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(
@@ -328,11 +329,13 @@ fun SettingRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     value: String? = null,
+    enabled: Boolean = true,
 ) {
     val label = stringResource(R.string.agent_settings_open, title)
     Row(
         modifier.fillMaxWidth().heightIn(min = AgentSettingsTokens.MinTouch).clip(RoundedCornerShape(AgentSettingsTokens.RowRadius))
-            .clickable(role = Role.Button, onClickLabel = label, onClick = onClick).padding(12.dp),
+            .alpha(if (enabled) 1f else DISABLED_ROW_ALPHA)
+            .clickable(enabled = enabled, role = Role.Button, onClickLabel = label, onClick = onClick).padding(12.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Dot(dot)
@@ -355,21 +358,25 @@ fun SettingSwitchRow(
     from: Color,
     to: Color,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    /** Shown instead of [summary] while the row is not [enabled]: why it cannot be changed now. */
+    disabledReason: String? = null,
 ) {
     Row(
         modifier.fillMaxWidth().heightIn(min = AgentSettingsTokens.MinTouch).clip(RoundedCornerShape(AgentSettingsTokens.RowRadius))
-            .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange).padding(12.dp),
+            .alpha(if (enabled) 1f else DISABLED_ROW_ALPHA)
+            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange).padding(12.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Dot(dot)
-        RowText(title, summary, Modifier.weight(1f))
+        RowText(title, if (!enabled && disabledReason != null) disabledReason else summary, Modifier.weight(1f))
         GradientSwitch(checked, null, from, to)
     }
 }
 
 /**
  * The switch of the mockup: 52 × 30 dp, knob 22 dp, the area gradient when on, grey when off. With
- * [onCheckedChange] it is its own switch (Role.Switch, at least 44 dp to touch, [description] for
+ * [onCheckedChange] it is its own switch (Role.Switch, at least 48 dp to touch, [description] for
  * TalkBack); without, it only shows the state of the row around it.
  */
 @Composable
@@ -397,6 +404,9 @@ fun GradientSwitch(
         }
     }
 }
+
+/** Opacity of a row that cannot be used now (greyed out, with its reason as summary). */
+const val DISABLED_ROW_ALPHA = 0.5f
 
 /** One big card of [ChoiceCards]; a card that is not [enabled] cannot be chosen (38e: gesture typing without its library). */
 class Choice(val label: String, val hint: String, val from: Color, val to: Color, val tag: String = label, val enabled: Boolean = true)
@@ -545,7 +555,7 @@ class ChipItem(val label: String, val checked: Boolean, val onToggle: (Boolean) 
 /**
  * Toggle chips that wrap. [area] null: the light chips of the start page (on = light, off = dark
  * with a border); with an area: on = area gradient, off = outlined (command chips of the bar
- * page). Each chip is a switch for TalkBack and at least 44 dp high.
+ * page). Each chip is a switch for TalkBack and at least 48 dp high.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -587,7 +597,7 @@ fun AreaTile(area: SettingsArea, onClick: () -> Unit, modifier: Modifier = Modif
     }
 }
 
-/** Small dark pill (footer of the start page), 44 dp high to be easy to hit. */
+/** Small dark pill (footer of the start page), 48 dp high to be easy to hit. */
 @Composable
 fun FooterPill(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(

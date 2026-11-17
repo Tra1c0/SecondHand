@@ -28,7 +28,7 @@
     <string name="agent_system_apply">Anwenden</string>
     <string name="agent_system_section_backup">Sichern</string>
     <string name="agent_system_backup">Sichern und Wiederherstellen</string>
-    <string name="agent_system_backup_sub">Alle Einstellungen als Datei</string>
+    <string name="agent_system_backup_sub">Tastatureinstellungen und Wörter als Datei</string>
     <string name="agent_system_export">Profile exportieren</string>
     <string name="agent_system_export_sub">Design, Tasten, Gesten einzeln</string>
     <string name="agent_system_section_advanced">Für Fortgeschrittene</string>
@@ -53,5 +53,11 @@
     <string name="agent_system_hidden_sub">Was man leicht übersieht</string>
     <string name="agent_system_log_sub">Für Fehlermeldungen</string>
     <string name="agent_system_about_all">Alle Infos und Links</string>
-    <string name="agent_system_about_all_sub">Wiki, Community, Quellcode</string>
+    <string name="agent_system_about_all_sub">Quellcode, Lizenz, Dank</string>
+    <!-- Stufe 69: Links der Seite „Über“ -->
+    <string name="about_fork_link">SecondHand auf GitHub</string>
+    <string name="about_fork_link_description">Quellcode und Fehlermeldungen dieser Tastatur</string>
+    <string name="about_based_on">Basiert auf HeliBoard</string>
+    <string name="about_based_on_description">Dank und Lizenz des ursprünglichen Projekts</string>
+    <string name="app_slogan">Zu 100 % freie Tastatur, basiert auf AOSP.</string>
 </resources>

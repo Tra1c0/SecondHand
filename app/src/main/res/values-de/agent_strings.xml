@@ -215,7 +215,7 @@
     <string name="agent_learning_title">Gelernte Wörter</string>
     <string name="agent_learning_description">Was die Tastatur aus deinem Tippen lernt, bleibt auf diesem Gerät. Es wird nie an einen KI-Anbieter gesendet, und erzeugter oder eingefügter Text wird nicht gelernt.</string>
     <string name="agent_learning_enabled">Lernen aus dem Tippen ist an.</string>
-    <string name="agent_learning_disabled">Lernen aus dem Tippen ist aus (Textkorrektur → Personalisierte Vorschläge). Ausschalten löscht das Gelernte.</string>
+    <string name="agent_learning_disabled">Lernen aus dem Tippen ist aus (Tippen &amp; Korrektur → Alle Korrektur-Einstellungen → Personalisierte Vorschläge). Ausschalten löscht das Gelernte.</string>
     <string name="agent_learning_pause">Lernen pausieren</string>
     <string name="agent_learning_pause_description">Solange pausiert ist, wird nichts Neues gelernt und kein Wort in dein persönliches Wörterbuch aufgenommen. Das bisher Gelernte bleibt und wird weiter für Vorschläge genutzt.</string>
     <string name="agent_learning_data">Auf diesem Gerät gespeichert</string>

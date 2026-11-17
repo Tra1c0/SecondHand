@@ -264,7 +264,7 @@
     <string name="one_handed" tools:keep="@string/one_handed">Einhandmodus</string>
     <string name="layout_error">Layoutfehler: %s</string>
     <string name="secondary_locale">Mehrsprachiges Tippen</string>
-    <string name="backup_restore_message">Speichern oder Laden aus Datei. Warnung: Die Wiederherstellung überschreibt vorhandene Daten</string>
+    <string name="backup_restore_message">In der Datei: Tastatureinstellungen (auch eigene Designs und Beleuchtung), eigene Layouts, Wörterbücher und gelernte Wörter, Hintergrundbild, Schriften und der Zwischenablage-Verlauf.\n\nNicht enthalten: Profile, Gedächtnis, Bausteine, Orte, gemerkte Korrekturen, Trefferzonen, gemalte Symbole, KI-Einstellungen und -Modelle, Zugangsschlüssel. Sie bleiben nur auf diesem Telefon.\n\nDie Datei ist nicht verschlüsselt: gelernte Wörter und Zwischenablage-Einträge sind darin lesbar. Bewahre sie sicher auf.\n\nWarnung: Die Wiederherstellung überschreibt vorhandene Daten</string>
     <string name="save_log">Protokoll speichern</string>
     <string name="popup_keys_layout" tools:keep="@string/popup_keys_layout">Layout</string>
     <string name="more_autocorrect_summary">Autokorrektur, auch wenn dies vom Eingabefeld nicht explizit angefordert wird</string>
@@ -548,4 +548,7 @@
     <string name="gesture_data_swipe_o_scope">Werkzeug zur Visualisierung von Gestendaten: &lt;a href=%s&gt;Swipe-O-Scope&lt;/a&gt;</string>
     <string name="show_dpad_key">Steuerkreuztaste</string>
     <string name="recent_emojis_cleared">Zuletzt verwendete Emojis gelöscht</string>
+    <!-- stage 69: names that were missing in German -->
+    <string name="prefs_enable_hardware_keyboard">Unterstützung für Hardware-Tastaturen</string>
+    <string name="accent_shifted_icon">Umschalt-Symbol in Akzentfarbe</string>
 </resources>

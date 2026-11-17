@@ -40,8 +40,6 @@
     <string name="agent_area_system_tile">Profiles, backup, updates, diagnostics</string>
     <string name="agent_area_system_sub">Back up, restore, keep up to date, look things up.</string>
 
-    <string name="agent_area_pages">Pages</string>
-    <string name="agent_area_pages_note">This area is being redesigned step by step. Until then these rows open the existing pages.</string>
     <string name="agent_area_row_design">Designs, own designs and colours</string>
     <string name="agent_area_row_rgb">Animated light for keys and background</string>
     <string name="agent_area_row_appearance">Style, size, font, background image</string>

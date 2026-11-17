@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- Stage 69: extra search words of the pages of the settings (German and English in one list, so
+     a search finds a page in either language). Not translated on purpose. Words are separated by spaces. -->
+<resources>
+    <string name="agent_search_kw_area_look" translatable="false">look aussehen farben colors theme design style stil hintergrund background dunkel dark hell</string>
+    <string name="agent_search_kw_area_typing" translatable="false">typing tippen correction korrektur autokorrektur autocorrect suggestions vorschläge wörter words wörterbuch</string>
+    <string name="agent_search_kw_area_keys" translatable="false">keys tasten languages sprachen layout zahlenreihe number row emoji popups hinweise</string>
+    <string name="agent_search_kw_area_gestures" translatable="false">gestures gesten gefühl feel vibration haptik sound ton leertaste space swipe wischen</string>
+    <string name="agent_search_kw_area_bar" translatable="false">bar leiste toolbar werkzeugleiste commands befehle schnellzugriff</string>
+    <string name="agent_search_kw_area_ai" translatable="false">ai ki openai chatgpt gpt anthropic gemini claude automations automationen skills</string>
+    <string name="agent_search_kw_area_system" translatable="false">system daten data backup sichern wiederherstellen restore updates diagnose profile about über</string>
+    <string name="agent_search_kw_agent_design" translatable="false">designs themes farben colors vorlagen templates flat flach look</string>
+    <string name="agent_search_kw_agent_rgb" translatable="false">rgb licht light lighting beleuchtung led leuchten animation regenbogen rainbow muster pattern bildrate framerate</string>
+    <string name="agent_search_kw_appearance" translatable="false">aussehen appearance theme style stil hintergrund background schrift font dunkel dark hell tastenform rundung</string>
+    <string name="agent_search_kw_text_correction" translatable="false">textkorrektur korrektur correction autokorrektur autocorrect rechtschreibung spelling vorschläge suggestions</string>
+    <string name="agent_search_kw_agent_learning" translatable="false">gelernte wörter learned words lernen learning gelernt vergessen löschen delete personal</string>
+    <string name="agent_search_kw_agent_memory" translatable="false">gedächtnis memory gemerkt remembered merken phrases wendungen</string>
+    <string name="agent_search_kw_dictionaries" translatable="false">wörterbücher dictionaries wörterbuch dictionary sprache language download</string>
+    <string name="agent_search_kw_languages" translatable="false">sprachen languages layouts tastaturlayout qwertz qwerty subtype</string>
+    <string name="agent_search_kw_preferences" translatable="false">optionen preferences zahlenreihe number row emoji hinweise popups tasten</string>
+    <string name="agent_search_kw_layouts" translatable="false">layouts sekundär secondary symbole symbols layout</string>
+    <string name="agent_search_kw_gesture_typing" translatable="false">gestenschreiben gesture typing swipe wischen schwung glide</string>
+    <string name="agent_search_kw_toolbar" translatable="false">leiste bar toolbar werkzeugleiste tasten keys pinned angeheftet</string>
+    <string name="agent_search_kw_agent_commands" translatable="false">befehle commands kürzel shortcuts text snippet baustein</string>
+    <string name="agent_search_kw_agent_screenshots" translatable="false">screenshots bildschirmfoto screenshot capture ocr text bild</string>
+    <string name="agent_search_kw_agent_my_data" translatable="false">meine daten my data vorschläge suggestions feld kontext context datenschutz privacy</string>
+    <string name="agent_search_kw_agent_ai" translatable="false">ki ai anbieter provider openai anthropic gemini schlüssel key api modell model chatgpt</string>
+    <string name="agent_search_kw_agent_skills" translatable="false">skill tasten skills skill-tasten skill keys schnellaktionen aktionen actions</string>
+    <string name="agent_search_kw_agent_workflows" translatable="false">workflows abläufe automation automationen schritte steps</string>
+    <string name="agent_search_kw_agent_dictation" translatable="false">diktat diktieren dictation spracheingabe voice sprechen speech mikrofon microphone</string>
+    <string name="agent_search_kw_agent_profiles" translatable="false">profile profiles tastaturprofile keyboard umschalten switch export import</string>
+    <string name="agent_search_kw_agent_updates" translatable="false">updates update aktualisieren aktualisierung neue version build installieren install</string>
+    <string name="agent_search_kw_agent_diagnose" translatable="false">diagnose diagnostics diagnostik fehler probleme problem prüfen check status test</string>
+    <string name="agent_search_kw_advanced" translatable="false">erweitert advanced emoji url hardware tastatur debug protokoll log gesten bibliothek</string>
+    <string name="agent_search_kw_data_gathering" translatable="false">gestendaten gesture data gathering daten sammeln erfassung heliboard</string>
+    <string name="agent_search_kw_about" translatable="false">über about version lizenz license github quellcode source protokoll log</string>
+</resources>

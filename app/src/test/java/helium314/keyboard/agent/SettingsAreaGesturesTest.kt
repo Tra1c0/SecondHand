@@ -329,10 +329,10 @@ class SettingsAreaGesturesTest {
         compose.onNodeWithText(TouchCalibration.TEXT).assertDoesNotExist()
     }
 
-    @Test fun everyClickableIsAtLeast44dp() {
+    @Test fun everyClickableIsAtLeast48dp() {
         app.prefs().edit().putBoolean(Settings.PREF_VIBRATE_ON, true).putBoolean(Settings.PREF_SOUND_ON, true).commit()
         page()
-        val min = 44 * app.resources.displayMetrics.density - 1
+        val min = 48 * app.resources.displayMetrics.density - 1
         val clickables = compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.OnClick), useUnmergedTree = true).fetchSemanticsNodes()
         assertTrue(clickables.size >= 1 + 6 + 3 + 4 + 5 + 4, "clickables: ${clickables.size}")
         clickables.forEach { assertTrue(it.size.height >= min && it.size.width >= min, "too small: ${it.size} ${it.config}") }

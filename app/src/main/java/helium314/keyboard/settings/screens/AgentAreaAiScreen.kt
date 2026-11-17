@@ -220,7 +220,7 @@ private fun KeyStatusRow(key: KeyState, onChange: () -> Unit) {
         }), style = AgentSettingsType.Label, color = t.Soft, modifier = Modifier.weight(1f))
         val buttonShape = RoundedCornerShape(18.dp)
         Box(
-            // 44 dp instead of the mockup's 40 dp: the minimum touch size of the settings (P120)
+            // 48 dp instead of the mockup's 40 dp: the minimum touch size of the settings (P120, 48 dp since stage 69)
             Modifier.heightIn(min = t.MinTouch).widthIn(min = t.MinTouch).clip(buttonShape).border(1.dp, t.SwitchOff, buttonShape)
                 .clickable(role = Role.Button, onClickLabel = stringResource(R.string.agent_ai_area_key_change_label), onClick = onChange)
                 .padding(horizontal = 12.dp, vertical = 8.dp).testTag(AREA_ROW_TAG + SettingsDestination.AgentAi),

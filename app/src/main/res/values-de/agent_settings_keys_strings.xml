@@ -36,4 +36,9 @@
     <string name="agent_keys_timestamp_sub">Für die Zeitstempel-Taste</string>
     <string name="agent_keys_more_options">Weitere Optionen</string>
     <string name="agent_keys_more_options_sub">Alle Optionen, z. B. angeheftete Einträge zuerst, Dateigröße</string>
+    <!-- Stufe 69: abhängige Zeilen bleiben sichtbar, ausgegraut, mit Grund -->
+    <string name="agent_keys_needs_hints">Zuerst „Tasten-Hinweise“ einschalten</string>
+    <string name="agent_keys_needs_number_row">Zuerst „Zahlenreihe“ einschalten</string>
+    <string name="agent_keys_needs_hints_and_number_row">Braucht „Tasten-Hinweise“ und „Zahlenreihe“</string>
+    <string name="agent_keys_number_row_already_on">Nicht nötig, solange die Zahlenreihe an ist</string>
 </resources>

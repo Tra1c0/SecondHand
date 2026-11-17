@@ -465,7 +465,7 @@ private fun UpdatesCard(accessible: Boolean, resumed: Int, onNavigate: (String) 
 private val labelStyle = AgentSettingsType.Label.copy(fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
 private val headlineStyle = AgentSettingsType.SectionTitle.copy(fontSize = 26.sp)
 
-/** The buttons of the updates card: light (filled) or outlined, 44 dp high, round. */
+/** The buttons of the updates card: light (filled) or outlined, 48 dp high, round. */
 @Composable
 private fun CardButton(text: String, light: Boolean, modifier: Modifier, enabled: Boolean = true, onClick: () -> Unit) {
     val shape = RoundedCornerShape(22.dp)
