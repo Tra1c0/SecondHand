@@ -9,17 +9,21 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 ## Aktueller Stand
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
-- Stand 2026-11-17 (Runde läuft): `main` = Build 27 (geprüft). Auf dem Arbeitsbranch liegt Runde 1
-  des Auftrags vom 2026-11-16: 57 Name SecondHand, 58 Logo, 59 KI-Grenzen, 60 Satzsprache, 61
-  Korrektur in Apps erzwingen (Instagram), 62 nicht mehr debuggable, 63 Release scheitert laut;
-  jede mit Prüfer, erste Korrekturen gemergt. Lokal 1810 Tests und GitHub-Lauf 84 grün (`affc62b`).
-- Test-Build 28 (Arbeitsbranch, `c64f0d7`) ist gestartet bzw. beim Owner; zwei bekannte Punkte stehen
-  in seinen Notizen (Enter in `@ki` kann senden; abgelehnter Korrekturmodus kann Buchstaben kosten).
-- Offen bis zum geprüften Build: zweite Korrekturrunde 59 (Enter, Löschen vor dem Befehl), 61
-  (Composing-Ablehnung sicher, Engine-Zeile mit Prüfer), 60 (dritte Sprache), 62/63 (Doku, Vertragstest);
-  danach Notizen neu schreiben, `main`, geprüfter Build, öffentliches Release prüfen.
-- Danach Runde 2 (Etappen 64 bis 70, `docs/ROADMAP.md` → „Runde 2 nach dem Scan“, Befunde in
-  `docs/PRUEFBERICHT-2026-11-16.md`). Owner-Fragen offen: Satz in `CLAUDE.md` zur Update-Prüfung; R8.
+- Stand 2026-11-17: `main` = Build 29 (geprüft) = Runde 1 des Auftrags vom 2026-11-16: 57 Name
+  SecondHand, 58 Logo, 59 KI-Grenzen (`@ki` 2000 Zeichen, Enter sendet eine Frage nie), 60 Satzsprache,
+  61 Korrektur in Apps erzwingen (Instagram), 62 nicht mehr debuggable (auch die native Engine war
+  unoptimiert), 63 Release scheitert laut. Jede Etappe mit Prüfer und Nachprüfung; lokal 1817 Tests,
+  GitHub-Lauf 90 grün (Agent, Upstream, Lint, Build). Kein Gerätetest, kein echter KI-Aufruf.
+- Beim Owner: Test-Build 28 (vor den letzten Korrekturen) und Build 29. Erbeten: `@ki` über 6 Zeilen
+  mit Gemini, englische Sätze, Instagram-Privatchat (sonst Screenshot Diagnose → „Letztes Feld“),
+  Tempo (Diagnose → „App und Telefon“: „Debugfähige App: nein“).
+- Runde 2 läuft (Etappen 64 bis 70, `docs/ROADMAP.md` → „Runde 2 nach dem Scan“, Befunde in
+  `docs/PRUEFBERICHT-2026-11-16.md`): in eigenen Arbeitskopien, noch nichts davon auf dem
+  Arbeitsbranch. 65 und 70 sind gebaut und in der Korrekturrunde nach dem Prüfer, 64 und 69 in Arbeit,
+  66 bis 68 noch nicht gestartet.
+- Owner-Fragen offen: Code-Verkleinerung R8 als eigener Test-Build; Satz in `CLAUDE.md` zur
+  Update-Prüfung; Logo-Alternative. Der Lead hat in `CLAUDE.md` die Definition „Build“ an den neuen
+  Dateinamen und die Bauart angepasst (2026-11-17).
 
 ## Offene Punkte
 
@@ -269,6 +273,13 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
   Vor einem Release den letzten Lauf abwarten und danach nur noch reine Docs pushen.
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
+- Build 29 (geprüft, von `main`): Runde 1 (57 bis 63) mit allen Prüferkorrekturen; lokal 630 Kern-
+  und 1187 App-Tests grün (Code-Stand c6e5299; das lokale Lint lief wegen des Zeitlimits nicht mehr),
+  GitHub-Lauf 90 grün (Agent, Upstream, Lint, Build); erster Lauf der `main`-Schritte des neuen Release-Workflows (Test-Nachweis,
+  öffentliches Release, Zurücklesen); kein Gerätetest.
+- Build 28 (Test, Arbeitsbranch c64f0d7): Runde 1 vor der zweiten Korrekturrunde (Enter in `@ki`
+  konnte senden; abgelehnter Composing-Text konnte Buchstaben kosten); erster echter Lauf des neuen
+  Release-Workflows.
 - Build 27 (geprüft, von `main`): 56 „Neue Builds sofort melden“ mit Prüfer und Korrekturen; volle
   Agent-Suite lokal grün (1131 App auf bcc46ad, danach gezielt 591 Kern und 46 App auf 42248cd),
   GitHub-Lauf 75 grün (Agent, Upstream, Lint); kein Gerätetest.

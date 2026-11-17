@@ -5833,6 +5833,10 @@ Build nichts zwingend zu beheben.
   PHANTOM; „@ki“ mit Text als normale Nachricht hält Enter fest (P247, Anleitung).
 - `Suggest`: für zwei Sprachen unverändert, für drei entfällt der Fehlalarm durch die dritte Sprache.
 - Niedrige Befunde in den Docs berichtigt (dieser Commit); der Code blieb, wie er geprüft wurde.
+- Tests des Endstands: lokal `:agent-core:test` 630 und die Agent-Suite 1187 Tests ohne Fehler
+  (Code-Stand `c6e5299`; das lokale Lint lief wegen des Zeitlimits des Laufs nicht mehr). GitHub-Lauf 90
+  auf `ff741cd` (danach nur noch der Notiztext geändert) in allen vier Jobs grün: Agent, Upstream,
+  Lint, Build. Kein Gerätetest, kein echter KI-Aufruf.
 
 ## Gerätetest vor Meilensteinfreigabe
 
