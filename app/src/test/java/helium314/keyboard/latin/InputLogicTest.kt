@@ -2004,6 +2004,74 @@ class InputLogicTest {
         assertTrue(stripChips().none { it.text.toString() == latinIME.getString(R.string.agent_unified_undo) })
     }
 
+    /** Review M1 of stage 59: Enter inside a typed `@ki` question and the field's editor action. */
+    private fun enterInQuestion(inputType: Int, imeOptions: Int, label: CharSequence? = null, typed: String = "@ki Frage",
+                                content: String = ""): Pair<List<Int>, String> {
+        currentInputType = inputType
+        ShadowInputMethodService.currentActionLabel = label
+        ShadowInputMethodService.currentActionId = if (label != null) 77 else 0
+        ShadowInputMethodService.editorActions.clear()
+        composingStart = -1; composingEnd = -1 // nothing composing from the earlier field
+        helium314.keyboard.agent.KeyboardCommands.load(latinIME, null) // no state of an earlier test
+        startField("com.example", imeOptions, content = content)
+        helium314.keyboard.agent.KeyboardCommands.load(latinIME)
+        if (content.isEmpty()) chainInput(typed)
+        latinIME.onEvent(Event.createEventForCodePointFromUnknownSource(Constants.CODE_ENTER))
+        handleMessages()
+        return ShadowInputMethodService.editorActions.toList() to text
+    }
+
+    @Test fun enterInsideAKiQuestionNeverPerformsTheFieldsEditorAction() {
+        val single = InputType.TYPE_CLASS_TEXT
+        val multi = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+        val noEnterAction = EditorInfo.IME_FLAG_NO_ENTER_ACTION
+        val toast = { org.robolectric.shadows.ShadowToast.getTextOfLatestToast() }
+        val hint = latinIME.getString(R.string.agent_command_enter_blocked)
+        val none = emptyList<Int>()
+        // action SEND, single line: the key is taken, nothing is inserted, one toast says why
+        org.robolectric.shadows.ShadowToast.reset()
+        assertEquals(none to "@ki Frage", enterInQuestion(single, EditorInfo.IME_ACTION_SEND))
+        assertEquals(hint, toast())
+        // the toast comes once per command: a second Enter inside the same question stays quiet
+        org.robolectric.shadows.ShadowToast.reset()
+        latinIME.onEvent(Event.createEventForCodePointFromUnknownSource(Constants.CODE_ENTER)); handleMessages()
+        assertNull(toast())
+        assertEquals("@ki Frage", text)
+        assertEquals(none, ShadowInputMethodService.editorActions)
+        // action SEND, multi-line (and no NO_ENTER_ACTION flag): no action, the line break goes in through the engine
+        assertEquals(none to "@ki Frage\n", enterInQuestion(multi, EditorInfo.IME_ACTION_SEND))
+        checkConnectionConsistency()
+        assertEquals(none to "@ki Frage\n",
+            enterInQuestion(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_IME_MULTI_LINE, EditorInfo.IME_ACTION_DONE))
+        // NO_ENTER_ACTION: the engine's own line break, as before, single-line or multi-line
+        assertEquals(none to "@ki Frage\n", enterInQuestion(single, EditorInfo.IME_ACTION_SEND or noEnterAction))
+        assertEquals(none to "@ki Frage\n", enterInQuestion(multi, EditorInfo.IME_ACTION_SEND or noEnterAction))
+        // action NONE: line break
+        assertEquals(none to "@ki Frage\n", enterInQuestion(single, EditorInfo.IME_ACTION_NONE))
+        // a custom action label: held, single line (nothing inserted) and multi-line (line break)
+        assertEquals(none to "@ki Frage", enterInQuestion(single, 0, label = "Los"))
+        assertEquals(none to "@ki Frage\n", enterInQuestion(multi, 0, label = "Los"))
+        // UNSPECIFIED (the default imeOptions of most fields): held like any action
+        assertEquals(none to "@ki Frage", enterInQuestion(single, EditorInfo.IME_ACTION_UNSPECIFIED))
+        assertEquals(none to "@ki Frage\n", enterInQuestion(multi, EditorInfo.IME_ACTION_UNSPECIFIED))
+        // @translate is held the same way
+        assertEquals(none to "@translate \"hallo\" spanisch",
+            enterInQuestion(single, EditorInfo.IME_ACTION_SEND, typed = "@translate \"hallo\" spanisch"))
+    }
+
+    @Test fun enterKeepsTodaysBehaviourWithoutAQuestion() {
+        val single = InputType.TYPE_CLASS_TEXT
+        val send = listOf(EditorInfo.IME_ACTION_SEND)
+        // a bare @ki has no question yet: the app's action
+        assertEquals(send to "@ki", enterInQuestion(single, EditorInfo.IME_ACTION_SEND, typed = "@ki"))
+        // normal text after a question that two empty lines ended: Enter is the app's again
+        assertEquals(send to "@ki Frage\n\n\nweiter", enterInQuestion(single, EditorInfo.IME_ACTION_SEND, content = "@ki Frage\n\n\nweiter"))
+        // one empty line between paragraphs does not end it
+        assertEquals(emptyList<Int>() to "@ki Frage\n\nzweiter", enterInQuestion(single, EditorInfo.IME_ACTION_SEND, content = "@ki Frage\n\nzweiter"))
+        // an e-mail address with @ki inside is no command
+        assertEquals(send to "mail@ki Frage", enterInQuestion(single, EditorInfo.IME_ACTION_SEND, content = "mail@ki Frage"))
+    }
+
     @Test fun unifiedCommandEnterRunsOnlyOneHarmlessReading() = withUnifiedCommands { _, spanish, _ ->
         val settings = helium314.keyboard.agent.commands.CommandAppSettings
         fun enter() {

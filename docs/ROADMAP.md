@@ -410,11 +410,11 @@ Reihenfolge von oben nach unten.
   adaptive Symbol und die Bild-Symbole für Android 5–7 zeigen denselben Ausschnitt; die
   einfarbige Variante ist die Umriss-Fassung. Store-Bilder unter `fastlane/` sind Upstream-Material
   und bleiben. Offen: Ansehen auf dem Gerät (Launcher, runde Maske, Themed Icons).
-- **59 KI ohne Zeichenlimit (Meldung des Owners, 2026-11-16: „KI hat ein Zeichenlimit.“)** ist gebaut
+- **59 KI mit höheren Grenzen (Meldung des Owners, 2026-11-16: „KI hat ein Zeichenlimit.“)** ist gebaut
   (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 59). Der Owner nutzt Gemini
   (selbst eingetragene Modellkennung, „Gemini 3.8 Flash-Lite“); bei `@ki` verschwand der Chip nach 5–6 Zeilen, das ist
   die 200-Zeichen-Grenze. Vier Grenzen, kohärent angehoben: (1) `@ki` und `@translate` bis 2000
-  Zeichen, auch über mehrere Zeilen (Enter gehört dem Text, Senden bleibt der Tipp auf den Chip),
+  Zeichen, auch über mehrere Zeilen (Enter führt in einer laufenden Frage nie die Aktion des Feldes aus, Senden bleibt der Tipp auf den Chip),
   ohne zusätzlichen Editor-Lesezugriff beim normalen Tippen (Lesefenster nur während eines solchen
   Befehls bis zu dessen Anfang); (2) Auswahl und Modellinput 32.768 statt 8.192, ein Ergebnis 65.536
   statt 16.384, alle behaltenen Texte eines Workflows 131.072 statt 32.768; (3) Ausgabetoken

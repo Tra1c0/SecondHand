@@ -158,16 +158,16 @@ class LongCommandTest {
             val n = update(field)
             biggest = maxOf(biggest, n)
             // never more than the command and one character before it
-            assertTrue(n <= maxOf(normal, field.cursor - start + 1) && n >= normal, "n=$n at $i")
+            assertTrue(n <= maxOf(normal, field.cursor - start + 1 + KeyboardCommands.START_SLACK) && n >= normal, "n=$n at $i")
             // the engine reads the short window: the words of the long question stay protected
             assertTrue(KeyboardCommands.guardsTextBefore(field.text.substring(field.cursor - normal, field.cursor)), "guard at $i")
             assertTrue(KeyboardCommands.suppressesCorrection(), "suppress at $i")
         }
-        assertEquals(1800 + 4 + 1, biggest)
-        assertTrue(biggest <= CommandSyntax.LONG_LOOKBACK + 1)
+        assertEquals(1800 + 4 + 1 + KeyboardCommands.START_SLACK, biggest)
+        assertTrue(biggest <= CommandSyntax.LONG_LOOKBACK + KeyboardCommands.OVERFLOW_GRACE + KeyboardCommands.START_SLACK + 1)
         // lines inside the question keep it going
         field.type("\n\nZweiter Absatz")
-        assertEquals(field.cursor - start + 1, update(field))
+        assertEquals(field.cursor - start + 1 + KeyboardCommands.START_SLACK, update(field))
         // past 2000 characters it is no command any more: nothing is protected, the hint chip says why
         field.type("z".repeat(300))
         update(field)
@@ -247,6 +247,48 @@ class LongCommandTest {
         field.text.setLength(0); field.text.append("ganz anderer Text ".repeat(100)); field.cursor = field.text.length
         update(field)
         assertEquals(normal, update(field))
+    }
+
+    @Test fun textDeletedInFrontOfALongQuestionDoesNotLoseIt() {
+        // review M3: the start is an absolute offset; the read keeps some slack in front, so the parse finds the
+        // command at its new start and re-anchors
+        for (deleted in listOf(1, 3, 40, KeyboardCommands.START_SLACK)) {
+            val field = Field()
+            field.type("v".repeat(300) + " ")
+            for (ch in "@ki ") { field.type(ch.toString()); update(field) }
+            field.type("q".repeat(1000)); update(field)
+            field.cursor = deleted; field.backspace(deleted); update(field) // at the start of the field, deleting there
+            field.cursor = field.text.length
+            val n = update(field)
+            assertTrue(n > normal, "deleted=$deleted")
+            val found = KeyboardCommands.find(field.before(n).toString(), Settings.getValues(), editor) as CommandCall
+            assertEquals("ki", found.name, "deleted=$deleted")
+            assertEquals(1000, found.argument.length, "deleted=$deleted")
+            assertTrue(KeyboardCommands.suppressesCorrection(), "deleted=$deleted")
+            // and it keeps working afterwards: the next keystroke still reads back to the new start
+            field.type("w")
+            assertTrue(update(field) > normal, "deleted=$deleted")
+            assertTrue(KeyboardCommands.suppressesCorrection(), "deleted=$deleted")
+        }
+        // inserting in front works too (the parse finds the command further right)
+        val inserted = Field()
+        inserted.type("v".repeat(300) + " ")
+        for (ch in "@ki ") { inserted.type(ch.toString()); update(inserted) }
+        inserted.type("q".repeat(1000)); update(inserted)
+        inserted.cursor = 5; inserted.type("neu eingefuegt "); inserted.cursor = inserted.text.length
+        assertTrue(update(inserted) > normal)
+        assertTrue(KeyboardCommands.suppressesCorrection())
+        // more than the slack deleted in front: the head is outside the window, the state ends (documented, P244)
+        val tooMuch = Field()
+        tooMuch.type("v".repeat(300) + " ")
+        for (ch in "@ki ") { tooMuch.type(ch.toString()); update(tooMuch) }
+        tooMuch.type("q".repeat(1000)); update(tooMuch)
+        val gone = KeyboardCommands.START_SLACK + 10
+        tooMuch.cursor = gone; tooMuch.backspace(gone); update(tooMuch)
+        tooMuch.cursor = tooMuch.text.length
+        update(tooMuch)
+        assertEquals(normal, update(tooMuch))
+        assertFalse(KeyboardCommands.suppressesCorrection())
     }
 
     @Test fun theSameFieldRestartedKeepsTheCommandAnotherFieldDropsIt() {
@@ -336,7 +378,7 @@ class LongCommandTest {
         field.type("abc ".repeat(300))
         update(field)
         val n = update(field)
-        assertTrue(n > normal && n <= CommandSyntax.LONG_LOOKBACK + 1, "n=$n")
+        assertTrue(n > normal && n <= CommandSyntax.LONG_LOOKBACK + KeyboardCommands.START_SLACK + 1, "n=$n")
         assertTrue(KeyboardCommands.suppressesCorrection())
     }
 

@@ -3,8 +3,6 @@
 Test-Build. Nur mit Tests geprüft, noch auf keinem Gerät ausprobiert.
 
 Bekannt in diesem Test-Build (Korrektur folgt im nächsten Build):
-- Enter in einer `@ki`- oder `@translate`-Frage macht nur dort einen Zeilenumbruch, wo Enter das auch
-  sonst tut. In Feldern, in denen Enter sendet, schickt es die Nachricht samt Frage ab.
 - Sollten in Instagram beim Tippen Buchstaben verschwinden oder ersetzt werden: Instagram unter
   Einstellungen → Tippen & Korrektur → Regeln → „Korrektur in Apps erzwingen“ aus der Liste nehmen und
   mir einen Screenshot der Karte „Letztes Feld“ (Diagnose) schicken.
@@ -24,10 +22,12 @@ Bekannt in diesem Test-Build (Korrektur folgt im nächsten Build):
   englisch: „what is your name“, „I went to the bank“, „my new job“ werden nicht mehr zu „Name“, „Bank“,
   „Job“. Die Tastatur schaut auf die bis zu drei Wörter davor im selben Satz; das erste Wort eines
   Satzes hat noch keinen Beweis und wird wie bisher korrigiert („hand“ → „Hand“). Nur mit Tests geprüft.
-- KI mit viel höheren Grenzen: `@ki` und `@translate` nehmen bis 2000 Zeichen (bisher 200) und mehrere Zeilen (Enter fügt
-  einen Umbruch ein, gesendet wird nur per Tipp auf den Chip). Zwei leere Zeilen hintereinander
-  beenden die Frage. Ab 2000 Zeichen zeigt ein grauer Chip „Zu lang …“, statt dass der Chip einfach
-  verschwindet. Markierter Text für KI-Aktionen bis
+- KI mit höheren Grenzen: `@ki` und `@translate` nehmen bis 2000 Zeichen (bisher 200) und mehrere
+  Zeilen. Enter führt bei einer laufenden Frage nie die Aktion des Feldes aus (im Chat wird die Frage
+  also nicht als Nachricht gesendet): in Mehrzeilenfeldern fügt es einen Zeilenumbruch ein, in
+  einzeiligen Feldern passiert nichts und ein Hinweis erscheint; gesendet wird nur per Tipp auf den
+  Chip. Zwei Leerzeilen beenden die Frage. Ab 2000 Zeichen zeigt ein grauer Chip „Zu lang …“, statt
+  dass der Chip einfach verschwindet. Markierter Text für KI-Aktionen bis
   32.768 Zeichen, Ergebnis bis 65.536. Lange Antworten werden nicht mehr nach 10 Sekunden abgebrochen
   (bis 150 Sekunden, „Abbrechen“ bleibt), eine abgeschnittene Antwort wird nie eingefügt, sondern
   gemeldet. Die KI-Aktionen antworten in der Sprache deines Textes. Nur mit Tests geprüft, noch auf

@@ -143,6 +143,10 @@ class ShadowInputMethodService {
         /** Content types the field declares (e.g. images for the screenshot chip), none by default. */
         var acceptedMimeTypes: Array<String>? = null
         var currentImeOptions = 0
+        /** The field's custom action label and id (none by default), and the editor actions the keyboard performed. */
+        var currentActionLabel: CharSequence? = null
+        var currentActionId = 0
+        val editorActions = mutableListOf<Int>()
         /** The field's private options (e.g. the keyboard's own no-learning fields), none by default. */
         var currentPrivateImeOptions: String? = null
         /** The field's app and id, for tests that tell fields apart (none by default). */
@@ -171,6 +175,9 @@ class ShadowInputMethodService {
             currentInputType = InputType.TYPE_CLASS_TEXT
             acceptedMimeTypes = null
             currentImeOptions = 0
+            currentActionLabel = null
+            currentActionId = 0
+            editorActions.clear()
             currentPrivateImeOptions = null
             currentPackageName = null
             currentFieldId = 0
@@ -182,6 +189,8 @@ class ShadowInputMethodService {
     fun getCurrentInputEditorInfo() = EditorInfo().apply {
         inputType = currentInputType
         imeOptions = currentImeOptions
+        actionLabel = currentActionLabel
+        actionId = currentActionId
         privateImeOptions = currentPrivateImeOptions
         packageName = currentPackageName
         fieldId = currentFieldId
@@ -346,7 +355,7 @@ class ShadowInputMethodService {
         override fun getCursorCapsMode(p0: Int): Int = TODO("Not yet implemented")
         override fun deleteSurroundingTextInCodePoints(p0: Int, p1: Int): Boolean = TODO("Not yet implemented")
         override fun commitCompletion(p0: CompletionInfo?): Boolean = TODO("Not yet implemented")
-        override fun performEditorAction(p0: Int): Boolean = TODO("Not yet implemented")
+        override fun performEditorAction(p0: Int): Boolean { ShadowInputMethodService.editorActions.add(p0); return true }
         override fun performContextMenuAction(p0: Int): Boolean = TODO("Not yet implemented")
         override fun clearMetaKeyStates(p0: Int): Boolean = TODO("Not yet implemented")
         override fun reportFullscreenMode(p0: Boolean): Boolean = TODO("Not yet implemented")

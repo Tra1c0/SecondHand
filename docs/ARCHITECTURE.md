@@ -5119,7 +5119,15 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   geschützt, normale Lesefenster); die nächste einfache Schreibmarke dahinter lässt den Parse
   entscheiden. Ein angefangener Name (`@`, `@t`) oder ein anderer vollständiger Befehl mitten in der
   Frage beendet ihn nicht; ein zweites `@ki` darin übernimmt nur, wenn das äußere nicht mehr
-  steht. Länger als 2000 Zeichen ist kein Befehl mehr (nichts geschützt), `overflowHint` zeigt einen
+  steht. Beenden außerdem: der Anfang liegt vor dem Text (`start < 0`) und ein fehlgeschlagenes Lesen (`getTextBeforeCursor`
+  liefert nichts: nur ruhend, kein Verwerfen). Text, der vor dem Befehl gelöscht wird, verschiebt seinen
+  Anfang nach links: das Lesen hat deshalb `START_SLACK` = 64 Zeichen Luft vor dem gemerkten Anfang, der Parse
+  findet den Befehl am neuen Anfang und verankert neu (`trackLong`); wird mehr als etwa 64 Zeichen vor dem
+  Befehl gelöscht, endet der Zustand, und eine Frage, die länger als das kurze Fenster ist, wird nicht mehr
+  gefunden (dokumentiert, kein Fehler). Ebenfalls nicht erkannt, ohne Hinweis: ein Einfügen von mehr als etwa
+  2500 Zeichen hinter `@ki ` auf einmal und eine ganze, längere als das kurze Fenster, auf einmal in ein leeres
+  Feld eingefügte Frage (nie getippt, also nie gemerkt). Der Hinweis-Chip steht hinter dem Rückgängig-Chip.
+  Länger als 2000 Zeichen ist kein Befehl mehr (nichts geschützt), `overflowHint` zeigt einen
   gedämpften Chip „Zu lang: höchstens 2000 Zeichen“ (Tipp = derselbe Text als Toast), solange die
   Schreibmarke höchstens 500 Zeichen über der Grenze steht; danach endet der Zustand. Ein alter langer Befehl, dessen Anfang
   außerhalb des kurzen Fensters liegt und der nicht hier getippt wurde, wird nicht erkannt
@@ -5149,8 +5157,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   2000 Zeichen dahinter „der laufende Befehl“ (Chip, Autokorrektur aus), auch über eine Leerzeile.
   Zwei Leerzeilen hintereinander (drei Zeilenumbrüche, dazwischen nur Leerraum,
   `CommandSyntax.endsQuestion`) beenden die Frage; ebenso den Text von `@translate`. Senden
-  bleibt der Tipp auf den Chip. Enter gehört dem Text (`AskCommand.onEnter`/`TranslateCommand.onEnter`
-  sind `false`: weder verschluckt noch senden). `StyledTranslation.request`: Stil eine Zeile, Text zuletzt.
+  bleibt der Tipp auf den Chip. Enter (Nachprüfung, M1): `AskCommand.onEnter`/`TranslateCommand.onEnter`
+  sind `false`, aber `KeyboardCommands.onEnter` nimmt die Taste selbst (`holdsEnterForQuestion`), solange
+  eine `@ki`/`@translate`-Frage mit Argument vor der Schreibmarke steht UND Enter in diesem Feld eine
+  Editor-Aktion ausführen würde (dieselbe Funktion wie die Engine, `InputTypeUtils.getImeOptionsActionIdFromEditorInfo`
+  ≠ `IME_ACTION_NONE`: Senden, Los, Fertig, eigene Beschriftung, UNSPECIFIED). Die Aktion läuft nicht; in
+  einem Mehrzeilenfeld (`TYPE_TEXT_FLAG_MULTI_LINE`/`IME_MULTI_LINE`) geht der Zeilenumbruch über
+  `LatinIME.onTextInput("\n")` (Pfad der Engine, ihre Caches bleiben stimmig), sonst passiert nichts und ein
+  Toast (`agent_command_enter_blocked`) sagt es, einmal je Befehl (`enterHintFor`). Ohne Aktion
+  (`NO_ENTER_ACTION`, NONE) bleibt es beim Zeilenumbruch der Engine. Eine bloße `@ki` ohne Argument und
+  eine durch zwei Leerzeilen beendete Frage gehören wieder der App. `StyledTranslation.request`: Stil eine Zeile, Text zuletzt.
 - **P248** Sprache des Ergebnisses (59): Die Anweisungen sind englisch; ohne Regel antwortet ein
   Modell mitunter auf Englisch oder Deutsch statt in der Sprache des Textes.
   `AiTextAction.KEEP_LANGUAGE` (gemischter Text: jeder Teil in seiner Sprache) steht in CORRECT und

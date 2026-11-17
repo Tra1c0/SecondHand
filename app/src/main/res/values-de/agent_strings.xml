@@ -498,6 +498,11 @@
     <string name="agent_command_ai_refused">Vom Anbieter abgelehnt · Details</string>
     <string name="agent_command_ai_too_long">Antwort zu lang · Details</string>
     <string name="agent_command_ai_over_limit">Zu lang: höchstens %1$d Zeichen nach dem Befehl</string>
+    <string name="agent_command_enter_blocked">Enter würde hier die Aktion des Feldes ausführen (z. B. senden), deshalb ist nichts passiert. Für die KI den Chip antippen.</string>
+    <string name="agent_command_ai_cut_off_translate">Übersetzung abgeschnitten · Details</string>
+    <string name="agent_cloud_cut_off_translate">Die Übersetzung wurde abgeschnitten: der Text ist zu lang für die Ausgabegrenze. Nichts wird eingefügt. Kürze den Text in den Anführungszeichen.</string>
+    <string name="agent_command_ai_request_refused">Anfrage abgelehnt · Details</string>
+    <string name="agent_cloud_request_refused">Der Anbieter hat die Anfrage abgelehnt. Modellname prüfen und ob das Modell diese Ausgabegröße erlaubt. Nichts wird eingefügt, keine Wiederholung gesendet.</string>
     <string name="agent_command_ai_cut_off_ask">Antwort abgeschnitten · Details</string>
     <string name="agent_cloud_cut_off_ask">Antwort abgeschnitten: zu lang für die Ausgabegrenze. Nichts wird eingefügt. Stell die Frage enger.</string>
     <string name="agent_command_ai_cut_off">Antwort abgeschnitten, Text zu lang · Details</string>
