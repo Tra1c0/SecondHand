@@ -301,8 +301,10 @@ object ScreenshotChip {
         context: Context, settings: SettingsValues?, dao: helium314.keyboard.latin.database.ClipboardDao?,
         now: Long = clock(), mayStore: (Uri) -> Boolean,
     ): Boolean {
-        if (dao == null || settings == null || !settings.mClipboardHistoryEnabled || settings.mIncognitoModeEnabled) return false
-        if (!isEnabled(context) || !hasPermission(context) || helium314.keyboard.compat.isDeviceLocked(context)) return false
+        if (dao == null || settings == null || !settings.mClipboardHistoryEnabled) return false
+        // stage 65: the common clipboard rule (locked, always incognito, private field while the keyboard is active)
+        if (!ClipVault.mayKeep(context, settings)) return false
+        if (!isEnabled(context) || !hasPermission(context)) return false
         newest(context, now) ?: return false
         // too old to be offered: no longer copied either
         historyCandidates.removeAll { now - it.addedMillis !in 0..RECENT_MILLIS }

@@ -172,8 +172,11 @@ class ClipboardHistoryManager(
         val clipItem = clipData.getItemAt(0) ?: return
         val description = clipData.description ?: return
         val timeStamp = ClipboardManagerCompat.getClipTimestamp(clipData)
-        // stage 65 (S2): one rule for the vault and the history database (ClipVault.mayKeep)
-        val mayKeep = helium314.keyboard.agent.ClipVault.mayKeep(latinIME, latinIME.mSettings.current)
+        // stage 65 (S2): one rule for the vault and the history database (ClipVault.mayKeep); a clip the
+        // system marks sensitive is never kept as file or image (text goes through the vault, see below)
+        val sensitive = ClipboardManagerCompat.getClipSensitivity(description) == true
+        val mayKeep = helium314.keyboard.agent.ClipVault.mayKeep(latinIME, latinIME.mSettings.current,
+            sensitive && !description.hasMimeType("text/*"))
 
         if (description.hasMimeType("text/*")) {
             val content = clipItem.coerceToText(latinIME)
@@ -181,8 +184,11 @@ class ClipboardHistoryManager(
             // stage 44: secrets and bare one-time codes stay in the memory-only vault, never in the
             // database; a code in a message stays in the history as it is (the vault has the code too)
             val settings = latinIME.mSettings.current
+            // a password field counts only while the input view is active in it: with the keyboard hidden,
+            // currentInputEditorInfo is a field the clip did not come from (stage 65)
             val marked = ClipboardManagerCompat.getClipSensitivity(description) == true
-                || InputTypeUtils.isAnyPasswordInputType(latinIME.currentInputEditorInfo?.inputType ?: InputType.TYPE_NULL)
+                || (helium314.keyboard.agent.ClipVault.isPrivateFieldActive()
+                    && InputTypeUtils.isAnyPasswordInputType(latinIME.currentInputEditorInfo?.inputType ?: InputType.TYPE_NULL))
             val verdict = helium314.keyboard.agent.ClipVault.offer(content.toString(), marked, timeStamp,
                 helium314.keyboard.agent.ClipVault.region(settings), mayKeep)
             if (verdict.keepsOutOfHistory || !mayKeep) return

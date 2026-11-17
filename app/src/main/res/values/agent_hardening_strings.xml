@@ -4,4 +4,7 @@
     <!-- shown inside "Error restoring the backup: %s" -->
     <string name="restore_settings_damaged">the settings in the backup file are damaged. Nothing was changed.</string>
     <string name="restore_nothing_changed">the data folders could not be prepared. Nothing was changed.</string>
+    <string name="restore_settings_not_saved">the settings could not be saved. Nothing was changed.</string>
+    <!-- the roll-back itself failed: say where the data is -->
+    <string name="restore_rollback_failed">the restore failed and putting the old data back failed too. Your data from before may be in a folder next to the data folder, with the name ending in 2. Do not delete it; start the restore again, it first tries to put that data back.</string>
 </resources>

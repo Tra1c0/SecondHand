@@ -71,6 +71,8 @@ object LastField {
         // stage 56: the same engine line starts the update check on open; it never throws, never blocks
         // and returns at once (the request runs on its own thread)
         UpdateOnOpen.onStartInputView(context, editorInfo, settings)
+        // stage 65: the clipboard rule needs to know that an input view is active in a private field
+        ClipVault.fieldStarted(settings?.mIncognitoModeEnabled == true)
         synchronized(lock) {
             runCatching {
                 val values = settings ?: return

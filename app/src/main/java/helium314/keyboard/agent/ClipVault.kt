@@ -181,27 +181,51 @@ object ClipVault {
         return InputTypeUtils.isAnyPasswordInputType(inputType)
     }
 
+    /** Whether the keyboard's input view is active in a field that is private (password, no learning, incognito). */
+    @Volatile private var privateFieldActive = false
+
     /**
-     * The one rule for keeping a clip seen now, in the vault and in the history database (stage 65,
-     * S2): the device is unlocked, "always incognito" is off, and the current field is not a password
-     * field and does not forbid learning (`mIncognitoModeEnabled` covers all three). "Current field"
-     * is the last field the keyboard saw, also when a clip is copied while the keyboard is hidden:
-     * the keyboard cannot know where such a clip comes from, so it takes the stricter reading and
-     * keeps nothing after a field that forbade it.
+     * An input view starts in a field (called from [LastField.capture], the fork's hook at the start
+     * of `onStartInputView`). [privateField]: password field, field without learning or incognito.
      */
-    fun mayKeep(context: Context, settings: SettingsValues?): Boolean {
+    @JvmStatic fun fieldStarted(privateField: Boolean) { privateFieldActive = privateField }
+
+    /** Whether an input view is active in a private field now, see [fieldStarted]. */
+    fun isPrivateFieldActive(): Boolean = privateFieldActive
+
+    /**
+     * The input view finished or the keyboard was hidden (`LatinIME.onFinishInputInternal` and
+     * `onFinishInputViewInternal`): from now on no field is active, and the field's text reference of
+     * [watcher] is dropped (stage 65, S12). Never throws.
+     */
+    @JvmStatic fun fieldFinished(watcher: FieldCorrectionWatcher?) {
+        privateFieldActive = false
+        runCatching { watcher?.end() }
+    }
+
+    /**
+     * The one rule for keeping a clip seen now, in the vault, the history (text, files, images) and for
+     * screenshots (stage 65, S2). Always forbidden: device locked (live check, direct boot and the
+     * frozen state in [settings]), "always incognito", and a clip the system marks [sensitive]. Only
+     * while the keyboard's input view is active in a private field (password, no learning, incognito)
+     * is a clip also forbidden; one copied while the keyboard is hidden comes from an app the keyboard
+     * knows nothing about, so the last field says nothing about it. A clip that is not kept is not
+     * offered again later.
+     */
+    fun mayKeep(context: Context, settings: SettingsValues?, sensitive: Boolean = false): Boolean {
         if (settings == null) return false
         val alwaysIncognito = runCatching {
             context.prefs().getBoolean(helium314.keyboard.latin.settings.Settings.PREF_ALWAYS_INCOGNITO_MODE,
                 helium314.keyboard.latin.settings.Defaults.PREF_ALWAYS_INCOGNITO_MODE)
         }.getOrDefault(true)
-        return mayKeep(settings.mIsLocked || helium314.keyboard.compat.isDeviceLocked(context), alwaysIncognito,
-            settings.mIncognitoModeEnabled)
+        val locked = settings.mIsLocked || helium314.keyboard.compat.isDeviceLocked(context)
+            || runCatching { helium314.keyboard.compat.isUserLocked(context) }.getOrDefault(true)
+        return mayKeep(locked, alwaysIncognito, sensitive, privateFieldActive)
     }
 
     /** The pure core of [mayKeep]. */
-    internal fun mayKeep(locked: Boolean, alwaysIncognito: Boolean, fieldIncognito: Boolean): Boolean =
-        !locked && !alwaysIncognito && !fieldIncognito
+    internal fun mayKeep(locked: Boolean, alwaysIncognito: Boolean, sensitive: Boolean, privateFieldActive: Boolean): Boolean =
+        !locked && !alwaysIncognito && !sensitive && !privateFieldActive
 
     /**
      * After a secret was pasted from the vault: clears the system clipboard, but only if it still

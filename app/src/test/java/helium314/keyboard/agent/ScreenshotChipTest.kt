@@ -422,6 +422,24 @@ class ScreenshotChipTest {
         dao.clear()
     }
 
+    @Test fun theHistoryRuleOfStage65AppliesToScreenshotsToo() {
+        val dao = historyOn()
+        ScreenshotChip.findOnly { _, _ -> shot(500) }
+        seeChange()
+        fun add() = ScreenshotChip.addToHistory(latinIME, Settings.getValues(), dao, now) { true }
+        try {
+            ClipVault.fieldStarted(true) // the keyboard is active in a private field
+            assertFalse(add())
+            assertEquals(0, dao.count())
+            ClipVault.fieldFinished(null) // hidden again: the same screenshot may go in
+            assertTrue(add())
+            assertEquals(1, dao.count())
+        } finally {
+            ClipVault.fieldFinished(null)
+            dao.clear()
+        }
+    }
+
     @Test fun newScreenshotGoesIntoTheKeyboardHistoryOnlyWithTheHistoryOnAndNeverIntoTheSystemClipboard() {
         val dao = assertNotNull(ClipboardDao.getInstance(latinIME))
         dao.clear()

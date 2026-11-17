@@ -3,4 +3,7 @@
     <!-- wird in „Fehler beim Wiederherstellen der Sicherung: %s“ gezeigt -->
     <string name="restore_settings_damaged">Die Einstellungen in der Sicherungsdatei sind beschädigt. Es wurde nichts geändert.</string>
     <string name="restore_nothing_changed">Die Datenordner ließen sich nicht vorbereiten. Es wurde nichts geändert.</string>
+    <string name="restore_settings_not_saved">Die Einstellungen ließen sich nicht speichern. Es wurde nichts geändert.</string>
+    <!-- das Zurücksetzen selbst ist gescheitert: sagen, wo die Daten liegen -->
+    <string name="restore_rollback_failed">Das Wiederherstellen ist gescheitert, und das Zurückholen der alten Daten auch. Deine Daten von vorher können in einem Ordner neben dem Datenordner liegen, dessen Name auf 2 endet. Lösche ihn nicht; starte das Wiederherstellen noch einmal, es versucht zuerst, diese Daten zurückzuholen.</string>
 </resources>

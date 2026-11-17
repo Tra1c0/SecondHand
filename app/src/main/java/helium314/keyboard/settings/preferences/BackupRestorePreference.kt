@@ -171,20 +171,12 @@ private fun restoreLauncher(onError: (String) -> Unit): ManagedActivityResultLau
         val wait = CountDownLatch(1)
         ExecutorUtils.getBackgroundExecutor(ExecutorUtils.KEYBOARD).execute {
             val restoredDb = ctx.getDatabasePath(Database.NAME + "_restored")
-            val oldPrefs = ctx.prefs().all.toMap()
-            val oldProtectedPrefs = ctx.protectedPrefs().all.toMap()
-            val filesDir = ctx.filesDir!!
-            val deviceProtectedFilesDir = DeviceProtectedUtils.getFilesDir(ctx)
-            // stage 65 (S3): the folders are moved aside as a pair; if that is not possible, nothing is touched
-            val aside = RestoreFolders(filesDir, deviceProtectedFilesDir)
-            if (!aside.moveAside()) {
-                onError("r" + ctx.getString(R.string.restore_nothing_changed))
-                Log.w("AdvancedScreen", "restore not started: could not move the data folders aside")
-                wait.countDown()
-                return@execute
-            }
-            try {
+            val folders = RestoreFolders(ctx.filesDir!!, DeviceProtectedUtils.getFilesDir(ctx))
+            // stage 65 (S3, S4): moving aside, the work and the roll-back are in restoreWithRollback
+            val result = restoreWithRollback(folders, restoredDb, ctx.prefs(), ctx.protectedPrefs()) {
                 var anyMatch = false
+                val filesDir = ctx.filesDir!!
+                val deviceProtectedFilesDir = DeviceProtectedUtils.getFilesDir(ctx)
                 ctx.getActivity()?.contentResolver?.openInputStream(uri)?.use { inputStream ->
                     ZipInputStream(inputStream).use { zip ->
                         var entry: ZipEntry? = zip.nextEntry
@@ -210,62 +202,36 @@ private fun restoreLauncher(onError: (String) -> Unit): ManagedActivityResultLau
                             } else if (entry.name == PREFS_FILE_NAME) {
                                 val prefLines = String(zip.readBytes()).split("\n")
                                 anyMatch = true
-                                // stage 65 (S4): a damaged file changes nothing and fails the restore
-                                if (!restoreSettingsFromLines(prefLines, ctx.prefs()))
-                                    throw Exception(ctx.getString(R.string.restore_settings_damaged))
+                                checkSettingsRestore(ctx, restoreSettingsFromLines(prefLines, ctx.prefs()))
                             } else if (entry.name == PROTECTED_PREFS_FILE_NAME) {
                                 val prefLines = String(zip.readBytes()).split("\n")
-                                if (!restoreSettingsFromLines(prefLines, ctx.protectedPrefs()))
-                                    throw Exception(ctx.getString(R.string.restore_settings_damaged))
+                                checkSettingsRestore(ctx, restoreSettingsFromLines(prefLines, ctx.protectedPrefs()))
                                 anyMatch = true
                             }
                             zip.closeEntry()
                             entry = zip.nextEntry
                         }
                     }
-                }
+                } ?: throw Exception("the backup file could not be opened")
                 if (!anyMatch)
                     throw Exception("nothing to restore in the given file")
-
                 Database.copyFromDb(restoredDb, ctx)
-                aside.discardCopies()
+            }
+            if (result.ok) {
                 if (Looper.myLooper() == null)
                     Looper.prepare()
                 Toast.makeText(ctx, ctx.getString(R.string.backup_restored), Toast.LENGTH_LONG).show()
-            } catch (t: Throwable) {
-                aside.putBack()
-                restoredDb.delete()
-                ctx.prefs().edit {
-                    clear()
-                    oldPrefs.forEach { (key, value) ->
-                        when (value) {
-                            is String -> putString(key, value)
-                            is Int -> putInt(key, value)
-                            is Long -> putLong(key, value)
-                            is Float -> putFloat(key, value)
-                            is Boolean -> putBoolean(key, value)
-                            is Set<*> -> putStringSet(key, value.filterIsInstance<String>().toSet())
-                        }
-                    }
+            } else {
+                // only a restore that put everything back may say that nothing was changed
+                val message = when {
+                    !result.rolledBack -> ctx.getString(R.string.restore_rollback_failed)
+                    result.error is RestoreNotStarted -> ctx.getString(R.string.restore_nothing_changed)
+                    else -> result.error?.message ?: result.error?.javaClass?.simpleName ?: ""
                 }
-                ctx.protectedPrefs().edit {
-                    clear()
-                    oldProtectedPrefs.forEach { (key, value) ->
-                        when (value) {
-                            is String -> putString(key, value)
-                            is Int -> putInt(key, value)
-                            is Long -> putLong(key, value)
-                            is Float -> putFloat(key, value)
-                            is Boolean -> putBoolean(key, value)
-                            is Set<*> -> putStringSet(key, value.filterIsInstance<String>().toSet())
-                        }
-                    }
-                }
-                onError("r" + t.message)
-                Log.w("AdvancedScreen", "error during restore", t)
-            } finally {
-                wait.countDown()
+                onError("r$message")
+                Log.w("AdvancedScreen", "error during restore", result.error)
             }
+            wait.countDown()
         }
         wait.await()
         checkVersionUpgrade(ctx)
@@ -279,6 +245,14 @@ private fun restoreLauncher(onError: (String) -> Unit): ManagedActivityResultLau
         (ctx.getActivity() as? SettingsActivity)?.prefChanged()
         SupportedEmojis.load(ctx)
         KeyboardSwitcher.getInstance().setThemeNeedsReload()
+    }
+}
+
+private fun checkSettingsRestore(ctx: android.content.Context, result: SettingsRestore) {
+    when (result) {
+        SettingsRestore.OK -> {}
+        SettingsRestore.DAMAGED -> throw Exception(ctx.getString(R.string.restore_settings_damaged))
+        SettingsRestore.NOT_SAVED -> throw Exception(ctx.getString(R.string.restore_settings_not_saved))
     }
 }
 
@@ -305,26 +279,33 @@ private fun settingsToJsonStream(settings: Map<String?, Any?>, out: OutputStream
     out.write(Json.encodeToString(stringSets).toByteArray())
 }
 
+internal enum class SettingsRestore { OK, DAMAGED, NOT_SAVED }
+
 /**
  * Stage 65 (S4): replaces the settings in [prefs] by the ones in [list], but only if the whole list
- * can be read. A damaged file returns false and leaves [prefs] as they were.
+ * can be read (also its later sections). A damaged file returns [SettingsRestore.DAMAGED] and leaves
+ * [prefs] as they were; a failed commit returns [SettingsRestore.NOT_SAVED] (a failed restore).
  */
-internal fun restoreSettingsFromLines(list: List<String>, prefs: SharedPreferences): Boolean {
-    val staged = parseSettingsLines(list) ?: return false
-    prefs.edit(commit = true) {
-        clear()
-        staged.forEach { (key, value) ->
-            when (value) {
-                is Boolean -> putBoolean(key, value)
-                is Int -> putInt(key, value)
-                is Long -> putLong(key, value)
-                is Float -> putFloat(key, value)
-                is String -> putString(key, value)
-                is Set<*> -> putStringSet(key, value.filterIsInstance<String>().toSet())
-            }
+internal fun restoreSettingsFromLines(list: List<String>, prefs: SharedPreferences): SettingsRestore {
+    val staged = parseSettingsLines(list) ?: return SettingsRestore.DAMAGED
+    return if (writeSettings(prefs, staged)) SettingsRestore.OK else SettingsRestore.NOT_SAVED
+}
+
+/** Replaces all of [prefs] by [values]; false if the commit did not succeed. */
+internal fun writeSettings(prefs: SharedPreferences, values: Map<String, Any?>): Boolean {
+    val e = prefs.edit()
+    e.clear()
+    values.forEach { (key, value) ->
+        when (value) {
+            is Boolean -> e.putBoolean(key, value)
+            is Int -> e.putInt(key, value)
+            is Long -> e.putLong(key, value)
+            is Float -> e.putFloat(key, value)
+            is String -> e.putString(key, value)
+            is Set<*> -> e.putStringSet(key, value.filterIsInstance<String>().toSet())
         }
     }
-    return true
+    return e.commit()
 }
 
 private fun parseSettingsLines(list: List<String>): Map<String, Any>? {
@@ -350,43 +331,110 @@ private fun parseSettingsLines(list: List<String>): Map<String, Any>? {
     return if (sections == 0) null else staged
 }
 
+/** The restore did not start; [RestoreResult.rolledBack] tells whether everything is as it was. */
+internal class RestoreNotStarted : Exception("the data folders could not be prepared")
+
+internal class RestoreResult(val ok: Boolean, val rolledBack: Boolean, val error: Throwable?)
+
 /**
- * Stage 65 (S3): the two data folders of a restore. [moveAside] renames both to `<name>2` as a pair
- * (all or nothing; an existing leftover copy of an earlier run is never overwritten), the restore
- * then writes into fresh folders, [putBack] returns the originals, [discardCopies] drops them.
+ * Stage 65 (S3, S4): moves the data [folders] aside, runs [work] (which fills the folders, the settings
+ * and the database) and drops the copies; if anything throws, puts folders and both settings files back.
+ * [RestoreResult.rolledBack] is false when a roll-back step failed: then the data is not as it was.
  */
-internal class RestoreFolders(private val filesDir: File, private val protectedDir: File) {
-    private val pairs = ArrayList<Pair<File, File>>() // original to aside copy, of the folders moved
+internal fun restoreWithRollback(
+    folders: RestoreFolders, restoredDb: File, prefs: SharedPreferences, protectedPrefs: SharedPreferences, work: () -> Unit,
+): RestoreResult {
+    val oldPrefs = prefs.all.toMap()
+    val oldProtectedPrefs = protectedPrefs.all.toMap()
+    restoredDb.delete() // a copy of an earlier restore must never be read as part of this one
+    if (!folders.moveAside()) return RestoreResult(false, folders.intact, RestoreNotStarted())
+    try {
+        work()
+    } catch (t: Throwable) {
+        var restored = folders.putBack()
+        restored = writeSettings(prefs, oldPrefs) && restored
+        restored = writeSettings(protectedPrefs, oldProtectedPrefs) && restored
+        restoredDb.delete()
+        return RestoreResult(false, restored, t)
+    }
+    folders.discardCopies()
+    return RestoreResult(true, true, null)
+}
+
+/**
+ * Stage 65 (S3): the two data folders of a restore. [moveAside] first rolls back an interrupted earlier
+ * restore (a leftover `<name>2` is the user's data from before: it replaces the half-written folder),
+ * then renames both folders to `<name>2` as a pair (all or nothing). [putBack] returns the originals,
+ * [discardCopies] drops them. Every step is checked; the copy is never deleted unless its folder is
+ * back in place. [rename] and [delete] can be replaced in tests.
+ */
+internal class RestoreFolders(
+    private val filesDir: File,
+    private val protectedDir: File,
+    private val rename: (File, File) -> Boolean = { from, to -> from.renameTo(to) },
+    private val delete: (File) -> Boolean = { it.deleteRecursively() },
+) {
+    private val moved = ArrayList<Pair<File, File>>() // original to aside copy, of the folders moved
     private val absent = ArrayList<File>() // folders that did not exist before: a failed restore removes what it made
 
-    fun moveAside(): Boolean {
-        val same = runCatching { filesDir.canonicalPath == protectedDir.canonicalPath }.getOrDefault(false)
-        val folders = if (same) listOf(filesDir) else listOf(filesDir, protectedDir)
+    /** After [moveAside] returned false: whether the folders are as they were before it started. */
+    var intact = false
+        private set
+
+    private val folders: List<File>
+        get() = if (runCatching { filesDir.canonicalPath == protectedDir.canonicalPath }.getOrDefault(false)) listOf(filesDir)
+        else listOf(filesDir, protectedDir)
+
+    private fun copyOf(folder: File) = File(folder.absolutePath + "2")
+    private fun trashOf(folder: File) = File(folder.absolutePath + "2_discard")
+
+    private fun recoverInterrupted(): Boolean {
         for (folder in folders) {
-            val copy = File(folder.absolutePath + "2")
-            if (copy.exists()) { putBack(); return false } // a leftover copy may be the only one
-            if (!folder.exists()) { absent.add(folder); continue } // nothing to keep
-            if (!folder.renameTo(copy)) { putBack(); return false }
-            pairs.add(folder to copy)
+            trashOf(folder).takeIf { it.exists() }?.let { delete(it) } // best effort, never a copy to restore
+            val copy = copyOf(folder)
+            if (!copy.exists()) continue
+            if (folder.exists() && !delete(folder)) return false
+            if (!rename(copy, folder)) return false
         }
         return true
     }
 
-    /** Failed restore: the new content goes, the originals come back. */
-    fun putBack() {
-        for ((folder, copy) in pairs.reversed()) {
-            folder.deleteRecursively()
-            copy.renameTo(folder)
+    fun moveAside(): Boolean {
+        intact = false
+        if (!recoverInterrupted()) return false
+        for (folder in folders) {
+            if (!folder.exists()) { absent.add(folder); continue } // nothing to keep
+            val copy = copyOf(folder)
+            if (!rename(folder, copy)) { intact = putBack(); return false }
+            moved.add(folder to copy)
         }
-        pairs.clear()
-        absent.forEach { it.deleteRecursively() }
-        absent.clear()
+        intact = true
+        return true
     }
 
-    fun discardCopies() {
-        pairs.forEach { it.second.deleteRecursively() }
-        pairs.clear()
+    /** Failed restore: the new content goes, the originals come back. True if every step worked. */
+    fun putBack(): Boolean {
+        var ok = true
+        for ((folder, copy) in moved.reversed()) {
+            if (folder.exists() && !delete(folder)) { ok = false; continue } // the copy stays where it is
+            if (!rename(copy, folder)) ok = false
+        }
+        moved.clear()
+        for (folder in absent) if (folder.exists() && !delete(folder)) ok = false
         absent.clear()
+        return ok
+    }
+
+    /** Successful restore: the copies go. The copy is renamed first, so a half-deleted one is never taken for a roll-back. */
+    fun discardCopies(): Boolean {
+        var ok = true
+        for ((_, copy) in moved) {
+            val trash = File(copy.absolutePath + "_discard")
+            if (rename(copy, trash)) delete(trash) else if (!delete(copy)) ok = false
+        }
+        moved.clear()
+        absent.clear()
+        return ok
     }
 }
 

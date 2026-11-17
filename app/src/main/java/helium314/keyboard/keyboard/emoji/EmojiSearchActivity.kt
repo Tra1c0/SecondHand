@@ -270,7 +270,7 @@ class EmojiSearchActivity : ComponentActivity() {
     }
 
     override fun onStop() {
-        Log.d(TAG, "search ending. Selected emoji: ${pressedKey?.let { getEmoji(it) }}. imeClosed: $imeClosed")
+        Log.d(TAG, "search ending. Emoji selected: ${pressedKey != null}. imeClosed: $imeClosed") // stage 65: not which emoji
         val intent = Intent(EMOJI_SEARCH_DONE_ACTION).setPackage(packageName)
             .putExtra(IME_CLOSED_KEY, imeClosed)
         pressedKey?.let {

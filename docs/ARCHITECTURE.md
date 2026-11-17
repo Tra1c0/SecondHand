@@ -816,10 +816,13 @@ Speicher, Datenschutz und Identität:
 - `ClipboardHistoryManager.kt` (65, S2/S8): `fetchPrimaryClip` fragt vor jedem Speichern, Text wie
   Datei, `ClipVault.mayKeep` (eine Regel für Tresor und Verlauf); `onDestroy` leert Tresor und
   Verweise (P270, P271). `LatinIME.java` (65, S12): `onFinishInputInternal` und
-  `onFinishInputViewInternal` rufen je `mInputLogic.mFieldCorrections.end()` (P272).
+  `onFinishInputViewInternal` rufen je `ClipVault.fieldFinished(mInputLogic.mFieldCorrections)` (P272).
+  Zwei Logzeilen ohne Inhalt: `onEmojiSearchDone` (gewähltes Emoji) und siehe P274.
 - `BackupRestorePreference.kt` (65, S3/S4): Ordner-Paar als `RestoreFolders`, Einstellungen über
-  `restoreSettingsFromLines` (P273). `SettingsActivity.kt` (65, S7): die von außen übergebene
-  Wörterbuchdatei wird in einem eigenen Thread kopiert; das Dialogfenster folgt nach dem Kopieren.
+  `restoreWithRollback` (P273). `SettingsActivity.kt` (65, S7): die von außen übergebene
+  Wörterbuchdatei wird einmal je Intent (nicht bei Drehung) in einem eigenen Thread in eine Datei mit
+  eigenem Namen kopiert; Zustand im Companion, Fehler (`SecurityException`, kein Stream) zeigen
+  `dictionary_load_error`; das Dialogfenster folgt nach dem Kopieren.
 - `Defaults.kt`: personalisierte Wörterbücher, Zwischenablage-Vorschläge und
   Zwischenablageverlauf standardmäßig aus.
 - `SubtypeUtils.kt` (Korrektur nach Prüfer zu 30): `SubtypeState.getSubtypeForLocales` hat den
@@ -1162,8 +1165,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - Härtung (65): `ClipVault.mayKeep` ist die eine Regel für Tresor und Verlauf (P270); `RestoreFolders` und
   `restoreSettingsFromLines` in `BackupRestorePreference.kt` (P273); `FieldCorrectionWatcher.end()` (P272).
   Texte: `res/values/agent_hardening_strings.xml` und `res/values-de/agent_hardening_strings.xml`
-  (`restore_settings_damaged`, `restore_nothing_changed`). Tests: `HardeningClipHistoryTest.kt`
-  (Verlauf je Bedingung, Dienstende, Feldtext) und `RestoreSafetyTest.kt` (echte Ordner, Einstellungen).
+  (`restore_settings_damaged`, `restore_settings_not_saved`, `restore_nothing_changed`,
+  `restore_rollback_failed`). Tests: `HardeningClipHistoryTest.kt` (Verlauf je Bedingung, Dateien,
+  Dienstende), `FieldEndHooksTest.kt` (die zwei `LatinIME`-Zeilen) und `RestoreSafetyTest.kt` (echte
+  Ordner, Rückweg, Einstellungen).
 - `AgentStorageContexts.kt`: liefert der Engine den DE-Kontext (Direct Boot). Geheimnisse und
   Agent-Konfiguration nutzen den rohen CE-Kontext aus `App.kt`.
 - `security/EncryptedCredentialStore.kt`: `CredentialSlot` (ein Platz je Provider), `Secret`, `credentialContext`,
@@ -5307,38 +5312,60 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   beim Hinzufügen von Tests auf etwa 90 % des Wertes eines grünen Laufs anheben; die fünf bekannten Fehler stehen mit exakten Namen in
   `known` (die zwei Cloud-Umgebungs-Fehler `layoutsLinksInternal`, `otherLinks` nicht: auf GitHub
   müssen sie bestehen).
-- **P270** Eine Regel für „darf ein Clip bleiben“ (65, S2): `ClipVault.mayKeep(context, settings)`
-  gilt für den Tresor und den Verlauf (Text und Dateien): Gerät nicht gesperrt (`mIsLocked` und
-  `isDeviceLocked`), „Immer Inkognito“ aus (direkt aus den Einstellungen gelesen) und das aktuelle Feld
-  weder Passwortfeld noch Feld ohne Lernen (`mIncognitoModeEnabled`). „Aktuelles Feld“ ist das zuletzt
-  gesehene Feld, auch wenn der Clip bei ausgeblendeter Tastatur kopiert wird: die Tastatur weiß dann
-  nicht, woher er kommt, und nimmt die strengere Lesart (nach einem Feld ohne Lernen bleibt in dem Fall
-  auch ein Clip aus einer anderen App draußen; entschieden vom Builder, vom Owner zu bestätigen). Eine
-  lockerere Lesart (bei ausgeblendeter Tastatur nur die globalen Bedingungen) wurde verworfen, weil
-  `ClipVaultTest.aClipCopiedInAPasswordFieldIsKeptNowhere` die strenge Lesart festlegt. „Vom System als
-  vertraulich markiert“ und die Passwortfeld-Marke (`currentInputEditorInfo`) bleiben unverändert. Die
-  reine Regel ist `mayKeep(locked, alwaysIncognito, fieldIncognito)`; neue Wege, die Clips speichern,
-  müssen sie fragen. `ScreenshotChip.addToHistory` hat eine eigene, strengere Prüfung.
+- **P270** Eine Regel für „darf ein Clip bleiben“ (65, S2, Nachbesserung): `ClipVault.mayKeep(context,
+  settings, sensitive)` gilt für Tresor, Verlauf (Text, Dateien, Bilder) und
+  `ScreenshotChip.addToHistory` (dessen weitere Bedingungen: Verlauf an, Schalter und Berechtigung für
+  Screenshots). Immer verboten: Gerät gesperrt (`mIsLocked`, `isDeviceLocked` und `isUserLocked`, der
+  Direct-Boot-Zustand, bei dem der Bildschirm nicht gesperrt sein muss), „Immer Inkognito“ (direkt aus
+  den Einstellungen gelesen) und ein vom System als vertraulich markierter Datei- oder Bildclip (bei
+  Text sortiert der Tresor, wie vorher). Nur solange die Eingabeansicht in einem privaten Feld
+  (Passwort, ohne Lernen, Inkognito) aktiv ist, zusätzlich verboten. „Aktiv“ ist der eigene Zustand der
+  Gabel: `ClipVault.fieldStarted` aus `LastField.capture` (Start der Eingabeansicht), `fieldFinished` aus
+  den zwei Zeilen in `LatinIME` (`onFinishInputInternal`, `onFinishInputViewInternal`); nicht
+  `isInputViewShown` (Zustand der Engine, in Robolectric falsch). Ein Clip, der bei ausgeblendeter
+  Tastatur irgendwo kopiert wird, bleibt also erhalten, sofern keine globale Bedingung ihn verbietet.
+  Die frühere „strenge Lesart“ (zuletzt gesehenes Feld auch bei ausgeblendeter Tastatur) ist verworfen:
+  sie ließ nach einem privaten Chat den Link aus dem Browser für immer aus dem Verlauf. Ein nicht
+  behaltener Clip wird nie später nachgereicht. Die Passwortfeld-Marke in `fetchPrimaryClip`
+  (Geheimnis für die Sortierung) gilt ebenfalls nur bei aktivem privatem Feld. Neue Wege, die Clips
+  speichern, müssen `mayKeep` fragen.
 - **P271** Zustand, der den Dienst überlebt (65, S8): Objekte (`ClipVault`, `ScreenshotChip`) halten
   Verweise (`currentClip`, `onChange`) auf Lambdas, die den Dienst festhalten. `onDestroy` von
-  `ClipboardHistoryManager` setzt sie auf `null` und leert den Tresor; wer so einen Verweis neu einführt,
-  räumt ihn dort ab. Der Tresor wird beim Beenden geleert, nicht beim Ausblenden (dort läuft die
-  Ablaufzeit weiter).
+  `ClipboardHistoryManager` setzt sie und die beiden Chip-Ansichten auf `null` und leert den Tresor;
+  wer so einen Verweis neu einführt, räumt ihn dort ab (der Test prüft jeden einzeln). Der Tresor wird
+  beim Beenden geleert, nicht beim Ausblenden (dort läuft die Ablaufzeit weiter).
 - **P272** Der Feldtext des Beobachters (65, S12): `FieldCorrectionWatcher.reference` hält bis etwa 1300
-  Zeichen des Felds. `end()` wirft ihn, die Selbstkorrekturen und die eigenen Änderungen weg und wird
-  beim Ende des Felds und beim Ausblenden aufgerufen (zwei Zeilen in `LatinIME`); ein Neustart im selben
-  Feld ruft ohnehin `start()`. Es verliert nur einen Vergleich, nie Gelerntes.
-- **P273** Wiederherstellen (65, S3/S4): Die beiden Datenordner werden als Paar nach `<Name>2` verschoben
-  (`RestoreFolders.moveAside`, alles oder nichts; eine vorhandene Kopie `<Name>2` einer früheren Runde
-  wird nie überschrieben und bricht das Wiederherstellen ab, bevor etwas angefasst wird, denn sie kann
-  die einzige Kopie sein). Der frühere Fehler: die zweite Umbenennung hatte Quelle und Ziel vertauscht,
-  die Sicherung des geschützten Ordners gab es nie, ein Fehlschlag löschte ihn. Ein Ordner, den es vorher
-  nicht gab, wird bei einem Fehlschlag wieder entfernt. Die Einstellungen werden erst vollständig gelesen
-  (`parseSettingsLines`, mindestens ein bekannter Abschnitt) und erst dann ersetzt; eine beschädigte Datei
-  wirft, die Abbruchstelle stellt Ordner und beide Einstellungsdateien wieder her und meldet „… Es wurde
-  nichts geändert.“ (`restore_settings_damaged`). Bleibt noch offen: eine Sicherungs-ZIP kann außer den
-  Einstellungen auch Dateien geändert haben; sie werden mit den Ordnern zurückgerollt, die Datenbank
-  (`Database.copyFromDb`) erst am Ende kopiert.
+  Zeichen des Felds. `FieldCorrectionWatcher.end()` wirft ihn, die Selbstkorrekturen und die eigenen
+  Änderungen weg; aufgerufen über `ClipVault.fieldFinished(watcher)` aus den zwei Zeilen in `LatinIME`
+  (Ende des Felds und Ausblenden; ein Neustart im selben Feld ruft ohnehin `start()`). Es verliert nur
+  einen Vergleich, nie Gelerntes. `FieldEndHooksTest` ruft die echten `LatinIME`-Wege auf: fehlt eine der
+  zwei Zeilen, scheitert er.
+- **P273** Wiederherstellen (65, S3/S4, Nachbesserung): Ablauf in `restoreWithRollback`
+  (`BackupRestorePreference.kt`): alte Kopie `heliboard.db_restored` löschen, `RestoreFolders.moveAside`,
+  Arbeit, bei Erfolg `discardCopies`, bei einer Ausnahme `putBack` und beide Einstellungsdateien
+  zurückschreiben (mit `commit`, Ergebnis geprüft). Jeder Schritt (`renameTo`, `deleteRecursively`)
+  wird geprüft; eine Kopie `<Name>2` wird nur gelöscht, wenn ihr Ordner wieder an seinem Platz ist, und
+  beim Verwerfen erst in `<Name>2_discard` umbenannt, damit eine halb gelöschte Kopie nie für einen
+  Rückweg gehalten wird. Ein Rest `<Name>2` einer unterbrochenen früheren Wiederherstellung wird beim
+  nächsten Versuch zuerst zurückgeholt (er ersetzt den halb geschriebenen Ordner), dann läuft die neue
+  Wiederherstellung; gelingt das nicht, bricht sie ab. Meldungen: „Es wurde nichts geändert“ nur, wenn
+  alles zurückgesetzt ist (Start nicht möglich, beschädigte oder nicht speicherbare Einstellungen);
+  scheitert das Zurücksetzen selbst, sagt `restore_rollback_failed`, wo die alten Daten liegen. Jede
+  andere Ausnahme zeigt den Text des Systems. Der frühere Fehler: die zweite Umbenennung hatte Quelle und
+  Ziel vertauscht, ein Fehlschlag löschte den geschützten Ordner. **Restrisiko (nicht Teil von 65):**
+  stirbt der Prozess mitten in der Wiederherstellung (Absturz, Akku, App beenden), bleibt der Zustand
+  „Datenordner halb geschrieben, alter Stand in `<Name>2`“; erst der nächste Wiederherstellungsversuch
+  holt ihn zurück, der Start der App tut es nicht. Unwahrscheinlich (das Fenster ist kurz, die Dateien
+  klein), aber möglich. Behebung später: in einen Zwischenordner entpacken und am Ende tauschen, dazu
+  Wiederherstellung des Rests beim App-Start. Ein weiteres Restrisiko: schlägt nach erfolgreicher
+  Wiederherstellung sowohl das Umbenennen als auch das Löschen einer Kopie fehl, bleibt `<Name>2` mit
+  altem Stand liegen; der nächste Versuch würde ihn zurückholen und die neuen Daten ersetzen.
+- **P274** Protokollzeilen ohne Inhalt (65, Nachbesserung N2): nicht mehr geloggt werden das gewählte Emoji
+  (`LatinIME.onEmojiSearchDone`, `EmojiSearchActivity.onStop`) und Tastenbeschriftungen importierter
+  Layouts (`LayoutUtilsCustom`, `TextKeyData`). Bewusste Ausnahmen: `dumpAllWordsForDebug` (eine
+  ausdrückliche Debug-Aktion des Nutzers) und Zeilen hinter `DebugFlags.DEBUG_ENABLED` (`Suggest.kt`,
+  `AutoCorrectionUtils.java`, Spell-Checker-Sitzung, `GestureDataGathering`; nur im Debug-Modus, den die
+  ausgelieferte Variante nicht hat).
 
 ## Datei-Inventar
 

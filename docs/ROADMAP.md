@@ -465,13 +465,16 @@ Reihenfolge von oben nach unten.
     ohne Lernen, Passwortfelder und Sperre; eine gescheiterte Wiederherstellung lässt alles, wie es
     war, und meldet es; keine Wörter in Protokollzeilen; Tresor und Feldtext nach Ende aus dem
     Speicher. Gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 65). S1 war schon
-    behoben (die Zeile nennt nur die Länge). Entscheidung des Builders, vom Owner zu bestätigen: „aktuelles
-    Feld“ ist das zuletzt gesehene Feld, auch bei ausgeblendeter Tastatur (strengere Lesart; nach einem
-    Feld ohne Lernen bleibt dann auch ein Clip aus einer anderen App draußen). Offen: Gerätetest (Verlauf in
-    Passwortfeld, Inkognito und gesperrt; Wiederherstellen mit beschädigter Datei; Wörterbuchdatei
-    von außen öffnen). Weitere Fundstellen ohne Änderung: S5 (Etappe 69) und Zeilen hinter
-    `DebugFlags.DEBUG_ENABLED` in `Suggest.kt`, `AutoCorrectionUtils.java` und den Spell-Checker-Zeilen
-    (nur im Debug-Modus, den die ausgelieferte Variante nicht hat).
+    behoben (die Zeile nennt nur die Länge). Entscheidung des Leads: Der Verlauf lässt nur solange nichts zu, wie die Tastatur
+    in einem privaten Feld aktiv ist; bei ausgeblendeter Tastatur kopierte Clips bleiben erhalten (P270).
+    Offen: Gerätetest (Verlauf in Passwortfeld, Inkognito und gesperrt; Wiederherstellen mit
+    beschädigter Datei; Wörterbuchdatei von außen öffnen). Bekanntes Restrisiko: Stirbt der Prozess
+    mitten in einer Wiederherstellung, bleibt der Datenordner halb geschrieben und der alte Stand in
+    `<Name>2`; erst der nächste Wiederherstellungsversuch holt ihn zurück (unwahrscheinlich, das Fenster
+    ist kurz). Behebung später: in einen Zwischenordner entpacken, am Ende tauschen, Rest beim App-Start
+    zurückholen. Weitere Fundstellen ohne Änderung: S5 (Etappe 69) und Zeilen hinter
+    `DebugFlags.DEBUG_ENABLED` sowie `dumpAllWordsForDebug` (nur im Debug-Modus bzw. auf ausdrückliche
+    Aktion).
   - **66 Tipp-Logik** (T1, T6 bis T10): eigene Wörter nur dort zählen, wo die Autokorrektur an ist und
     das Wörterbuch geladen; Fangnetze in den Lern-Hooks; kleinere Fehler in Tippfehler-Gedächtnis,
     Fremdwörtern, Trefferzonen, Kontext-Chips.

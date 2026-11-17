@@ -11,10 +11,10 @@ Bekannt in diesem Test-Build (Korrektur folgt im nächsten Build):
 
 ## Nächster Build
 
-- Zwischenablage-Verlauf: Es wird nichts mehr aufgenommen, solange das Gerät gesperrt ist oder „Immer Inkognito“ an ist, und in Passwortfeldern und Feldern ohne Lernen (private Chats) auch nichts, was du dort oder danach bis zum nächsten Feld kopierst. Gilt für Text und für Dateien.
-- Sicherung wiederherstellen: Scheitert es, bleibt alles, wie es war (vorher konnte der geschützte Datenordner verloren gehen). Eine beschädigte Einstellungsdatei in der Sicherung verändert nichts und meldet „Es wurde nichts geändert“.
-- Eine von außen geöffnete Wörterbuchdatei wird im Hintergrund kopiert; die Einstellungen bleiben dabei bedienbar.
-- Intern: keine gelernten Wörter mehr in Fehlerzeilen, Tresor und Feldtext werden früher aus dem Speicher geräumt.
+- Zwischenablage-Verlauf: Nichts wird aufgenommen, solange das Gerät gesperrt ist, „Immer Inkognito“ an ist oder das System ein Bild oder eine Datei als vertraulich markiert. Solange die Tastatur gerade in einem Passwortfeld oder einem Feld ohne Lernen (private Chats) aktiv ist, wird auch nichts aufgenommen. Beispiel: Text im privaten Chat kopiert: nicht im Verlauf. Tastatur ausblenden, im Browser einen Link kopieren: im Verlauf. Was nicht aufgenommen wurde, kommt später nicht nachträglich hinein.
+- Sicherung wiederherstellen: Scheitert es, holt die App alles zurück (vorher konnte der geschützte Datenordner verloren gehen). „Es wurde nichts geändert“ steht nur da, wenn es stimmt; scheitert das Zurückholen selbst, sagt die Meldung, wo deine alten Daten liegen. Ein Rest einer abgebrochenen Wiederherstellung wird beim nächsten Versuch zurückgeholt. Stirbt die App mitten drin, geschieht das erst beim nächsten Versuch.
+- Eine von außen geöffnete Wörterbuchdatei wird im Hintergrund kopiert (einmal, auch beim Drehen); schlägt das fehl, kommt eine Fehlermeldung statt einer leeren Seite.
+- Intern: keine gelernten Wörter, gewählten Emojis und Tastenbeschriftungen mehr in Protokollzeilen, Tresor und Feldtext werden früher aus dem Speicher geräumt.
 - Neuer Name und neues Logo: Die App heißt jetzt „SecondHand“ (bisher „Agent Keyboard“) und hat ein neues Symbol, eine weiße Taste mit „S“ vor einer roten Umriss-Taste. Ein Update von Build 27 behält alle Einstellungen, Schlüssel und Gelerntes. Jeder Build liegt auf GitHub zusätzlich unter dem alten Dateinamen `AgentKeyboard-build-<N>.apk`, damit ältere Installationen weiter Updates finden.
 - Neu: „Korrektur in Apps erzwingen“ (Einstellungen → Tippen & Korrektur → Regeln, anfangs nur
   Instagram): In Textfeldern dieser Apps gibt es Vorschläge, Autokorrektur und Großschreibung am

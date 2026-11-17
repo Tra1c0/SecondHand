@@ -1189,7 +1189,7 @@ public class LatinIME extends InputMethodService implements
         super.onFinishInput();
         Log.i(TAG, "onFinishInput");
         helium314.keyboard.agent.SymbolDrawing.reset(); // stage 27: a waiting drawing never reaches a finished editor
-        mInputLogic.mFieldCorrections.end(); // fork, stage 65: the last field's text does not stay in memory
+        helium314.keyboard.agent.ClipVault.fieldFinished(mInputLogic.mFieldCorrections); // fork, stage 65: no active field, the last field's text does not stay in memory
 
         mDictionaryFacilitator.onFinishInput();
         final MainKeyboardView mainKeyboardView = mKeyboardSwitcher.getMainKeyboardView();
@@ -1202,7 +1202,7 @@ public class LatinIME extends InputMethodService implements
         super.onFinishInputView(finishingInput);
         Log.i(TAG, "onFinishInputView");
         helium314.keyboard.agent.SymbolDrawing.reset(); // stage 27: nor a hidden keyboard (back key, screen off)
-        mInputLogic.mFieldCorrections.end(); // fork, stage 65
+        helium314.keyboard.agent.ClipVault.fieldFinished(mInputLogic.mFieldCorrections); // fork, stage 65
         cleanupInternalStateForFinishInput();
     }
 
@@ -1992,7 +1992,7 @@ public class LatinIME extends InputMethodService implements
 
     private void onEmojiSearchDone(Intent intent) {
         Log.d(EmojiSearchActivityKt.TAG, "after activity closing. isEmojiSearch: " + isEmojiSearch() + ". Intent: " + intent +
-                (intent != null ? ". imeClosed: " + isImeClosed(intent) + ". selected emoji: " + getSelectedEmoji(intent) : ""));
+                (intent != null ? ". imeClosed: " + isImeClosed(intent) : "")); // stage 65: never the selected emoji
         if (intent != null && EmojiSearchActivity.EMOJI_SEARCH_DONE_ACTION.equals(intent.getAction()) && ! isEmojiSearch()) {
             if (isImeClosed(intent)) {
                 requestHideSelf(0);

@@ -201,8 +201,12 @@ Orte, Bildschirm lesen und den Emoji-Mix-Speicher findest du unter „Alle Befeh
 angeheftete Einträge zuerst und Dateigröße unter „Weitere Zwischenablage-Einstellungen“. „Meine
 Daten & Vorschläge“ schaltet die Feld- und Kontext-Vorschläge und enthält deine eigenen Daten (siehe
 „Vorschläge fürs Feld und Meine Daten“). Der Zwischenablage-Verlauf nimmt nichts auf, solange das
-Gerät gesperrt ist oder „Immer Inkognito“ an ist, und nach einem Passwortfeld oder einem Feld ohne Lernen
-(private Chats) nichts, bis du ein anderes Feld benutzt.
+Gerät gesperrt ist (auch vor dem ersten Entsperren) oder „Immer Inkognito“ an ist, und auch kein
+Bild oder keine Datei, die das System als vertraulich markiert. Solange die Tastatur gerade in einem
+Passwortfeld, einem Feld ohne Lernen (private Chats) oder im Inkognito-Modus aktiv ist, nimmt er auch
+nichts auf. Beispiel: Du kopierst in einem privaten Chat einen Text, er kommt nicht in den Verlauf.
+Dann blendest du die Tastatur aus, öffnest den Browser und kopierst einen Link: Der kommt in den
+Verlauf. Was nicht aufgenommen wurde, kommt später nicht nachträglich hinein.
 
 **06 KI & Automationen** hat seinen eigenen Aufbau, alle Werte sind deine echten Einstellungen.
 Wie die Seite „KI-Anbieter“ lässt sie keine Bildschirmfotos zu. Bei gesperrtem Gerät zeigt sie nur
@@ -236,9 +240,14 @@ Wie die Seite „KI-Anbieter“ lässt sie keine Bildschirmfotos zu. Bei gesperr
   entsprechen. „+ Neues Profil“ öffnet Tastaturprofile (sichern, exportieren, importieren,
   zurücksetzen, Flacher Look zurücknehmen).
 - **Sichern**: „Sichern und Wiederherstellen“ (alle Einstellungen als Datei, derselbe Dialog wie
-  bisher), „Profile exportieren“ (öffnet Tastaturprofile). Scheitert das Wiederherstellen (z. B.
-  weil die Einstellungen in der Datei beschädigt sind), bleibt alles, wie es war, und die Meldung
-  sagt „Es wurde nichts geändert“.
+  bisher), „Profile exportieren“ (öffnet Tastaturprofile). Scheitert das Wiederherstellen,
+  holt die App alles zurück, wie es war. Die Meldung sagt „Es wurde nichts geändert“, wenn die
+  Einstellungen in der Datei beschädigt sind, wenn sie sich nicht speichern ließen oder wenn das
+  Wiederherstellen gar nicht erst starten konnte. Bei jedem anderen Fehler (z. B. eine Datei ohne
+  passenden Inhalt) zeigt sie den Text des Systems; die App hat auch dann alles zurückgeholt. Nur
+  wenn sogar das Zurückholen scheitert, sagt die Meldung, dass deine alten Daten in einem Ordner neben
+  dem Datenordner liegen (Name endet auf 2): nicht löschen, das Wiederherstellen noch einmal starten.
+  Stirbt die App mitten in einem Wiederherstellen, holt erst der nächste Versuch den alten Stand zurück.
 - **Für Fortgeschrittene**: Emoji-Version, URL-Erkennung, Hardware-Tastatur, Gesten-Bibliothek
   laden, Debug-Einstellungen (nur wenn freigeschaltet), Gestendaten (nur in der Sammelphase) und
   „Alle erweiterten Einstellungen“ für den Rest der alten Seite Erweitert (Symbole-Taste für den
