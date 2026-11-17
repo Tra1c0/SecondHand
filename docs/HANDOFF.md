@@ -22,9 +22,10 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
   nicht zwangsläufig gefixt werden muss, erstmal außen vor lassen“). Auf dem Arbeitsbranch liegen,
   in keinem Build: 64a, 64b, 65, 69, 70, jeweils mit Tests; GitHub-Lauf 93 (Agent, Upstream, Build)
   grün, Lint danach behoben. Nicht gebaut: 64c, 64d, 66, 67, 68.
-- Vor einem Build aus dem Arbeitsbranch zuerst die zwei mittleren Prüferbefunde beheben (Offene
-  Punkte → „Runde 2“): Zwischenablage-Text bleibt in `ClipVault`-Zwischenspeichern, und
-  `PointerTracker.cancelKeyTracking` löscht `sInKeySwipe` für alle Finger.
+- Vor einem Build aus dem Arbeitsbranch zuerst die fünf mittleren Prüferbefunde beheben (Offene
+  Punkte → „Runde 2“): Zwischenablage-Text in `ClipVault`-Zwischenspeichern, `sInKeySwipe` in
+  `PointerTracker.cancelKeyTracking`, Start-Lesen der Zwischenablage ohne Regel, halbe Kopie nach
+  dem Wiederherstellen, Text des Sicherungsdialogs.
 - Owner-Fragen offen: Code-Verkleinerung R8 als eigener Test-Build; Satz in `CLAUDE.md` zur
   Update-Prüfung; Logo-Alternative. Der Lead hat in `CLAUDE.md` die Definition „Build“ an den neuen
   Dateinamen und die Bauart angepasst (2026-11-17).
@@ -49,8 +50,26 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
     „Tippen“ bis dahin nicht als Messung lesen. `LockState`: theoretisches Rennen nach `drop()` auf
     einem zweiten Thread (Generationszähler). `UpdateOnOpen`: Sperre vor dem Senden auf dem Worker
     nicht noch einmal geprüft. `CharArtView.startLive`: `liveRunning` ohne Fangnetz.
-- Prüfer zur Korrekturrunde 65 und zu 69: lief beim Anhalten noch; sein Bericht steht, falls er
-  eingetroffen ist, unten in `docs/VALIDATION.md`, sonst fehlt diese Nachprüfung.
+- Prüfer zur Korrekturrunde 65 und zu 69 (nur gelesen, nichts Schweres):
+  - mittel: `ClipboardHistoryManager.onCreate` liest beim Start des Dienstes den Clip, der gerade in
+    der System-Zwischenablage liegt, ohne die neue Regel: Ein in einem Passwortfeld kopiertes
+    Passwort kann nach einem Neustart des Dienstes im Verlauf landen. Beheben: beim Start-Lesen
+    `SensitiveClips.isSensitive` mitzählen oder nur Clips nach dem Dienststart behalten.
+  - mittel: Wiederherstellen: scheitert nach einem Erfolg das Aufräumen (`discardCopies`, Ergebnis
+    wird verworfen), bleibt eine halbe Kopie `…2`, die der nächste Versuch über die frischen Daten
+    zurückholt. Beheben: Markerdatei in der Kopie, nur Kopien mit Marker zurückholen. Dazu: nach einem
+    gescheiterten Rückweg die Nacharbeiten überspringen (`removeMissingLayouts` löscht sonst
+    Layout-Einstellungen).
+  - mittel: Der neue Sicherungsdialog (69) nennt „eigene Designs“ und „Wörterbücher“; gesichert
+    werden aber weder die Design-Bilder (`files/agent_designs/`) noch heruntergeladene Wörterbücher,
+    und das Wiederherstellen entfernt sie. Mindestens den Text berichtigen, besser beide Ordner in
+    die Sicherung aufnehmen.
+  - niedrig: `docs/ANLEITUNG.md` hat nach dem Zusammenführen zwei Absätze „Sichern“ hintereinander
+    (der zweite ist der alte) und einen doppelten Satz unter „Über“; „Schriftgröße“ liegt unter
+    „Schrift & Emoji“, nicht „Größe & Form“. Screenshot-Kandidaten werden bei `mayKeep = false` bis zu
+    drei Minuten nachgereicht. Fehlende Tests für `discardCopies`-Fehlschlag und die Meldungswahl.
+  - in Ordnung laut Prüfer: Zustandsmaschine „privates Feld aktiv“, Rückweg bei normalen Fehlern,
+    Suche, 48 dp, Über-Seite, die Lint-Baseline-Änderung.
 - Engine-Zeilen ohne abschließenden Prüfer: die Zählzeilen von 64a (gelesen, in Ordnung), die zwei
   `LatinIME`-Zeilen von 65, die `LatinIME`-Bedingung von 70 (gelesen), `PointerTracker` (siehe oben).
 - Angefangene, nicht zusammengeführte Arbeit liegt nur als lokale Commits in den Arbeitskopien
