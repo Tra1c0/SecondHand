@@ -28,9 +28,11 @@ Nur mit Tests geprüft, noch auf keinem Gerät ausprobiert.
   Satzanfang auch dort, wo die App sie verbietet. Nicht in Passwort-, E-Mail-, Adress-, Suchfeldern
   und einigen weiteren Feldarten; deine Schalter und das Lernen bleiben, wie sie sind. Die Karte
   „Letztes Feld“ (Diagnose) zeigt, ob erzwungen wurde und wenn nicht, warum, und hat den Knopf „In
-  dieser App erzwingen“. Nimmt eine App den Text der Tastatur nicht unverändert an, bleibt er stehen,
-  nur Vorschläge und Autokorrektur setzen für dieses Wort aus; die Karte zählt das mit. Korrigiert
-  Instagram trotzdem nicht oder verhält sich das Tippen dort seltsam: bitte einen Screenshot der Karte
-  schicken und die App im Zweifel aus der Liste nehmen.
+  dieser App erzwingen“. Ändert eine App den Text, den die Tastatur beim Tippen setzt, oder übernimmt
+  sie ihn verspätet, bleibt er stehen, nur Vorschläge und Autokorrektur setzen für dieses Wort aus;
+  die Karte zählt das mit. Nimmt eine App diesen Text gar nicht an, können Buchstaben fehlen (so eine
+  App ist nicht bekannt, auf einem Telefon ist es nicht geprüft). Korrigiert Instagram trotzdem nicht
+  oder verhält sich das Tippen dort seltsam: bitte einen Screenshot der Karte schicken und die App im
+  Zweifel aus der Liste nehmen.
 - Das Veröffentlichen eines Builds prüft sich jetzt selbst (Signatur, Schlüssel, Versionsnummer, grüne
   Tests, Auffindbarkeit für die Update-Prüfung); für dich ändert sich nichts.
