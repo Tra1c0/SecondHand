@@ -156,12 +156,15 @@ class AgentSpaceGestureTest {
         touch(MotionEvent.ACTION_DOWN); touch(MotionEvent.ACTION_UP)
         verify(listener, times(1)).onCodeInput(eq('a'.code), anyInt(), anyInt(), eq(false))
         // and a touch that starts on a letter key is a gesture candidate again
+        helium314.keyboard.accessibility.AccessibilityUtils.init(app) // gesture detection asks for touch exploration
         PointerTracker.setGestureHandlingEnabledByUser(true)
+        PointerTracker.setMainDictionaryAvailability(true)
+        PointerTracker.setKeyDetector(detector) // not a password field: gesture detection allowed
         try {
             touch(MotionEvent.ACTION_DOWN)
             assertTrue(ReflectionHelpers.getField<Boolean>(tracker, "mIsDetectingGesture"), "gesture detection is on for a letter key")
             touch(MotionEvent.ACTION_UP)
-        } finally { PointerTracker.setGestureHandlingEnabledByUser(false) }
+        } finally { PointerTracker.setGestureHandlingEnabledByUser(false); PointerTracker.setMainDictionaryAvailability(false) }
     }
 
     @Test fun longPressThatOpensThePickerThenCancelLeavesNoSwipeState() {

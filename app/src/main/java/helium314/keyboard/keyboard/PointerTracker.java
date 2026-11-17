@@ -1371,6 +1371,14 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         cancelTrackingForAction();
         setReleasedKeyGraphics(mCurrentKey, true);
         sPointerTrackerQueue.remove(this);
+        // fork (stage 70): out of the queue, a later ACTION_CANCEL (the picker or an overlay opens as a window)
+        // no longer reaches onUpEventInternal, which is what clears the space-swipe state; clear it here, as the
+        // SPACE_HOLD branch of onLongPressed does
+        mKeySwipeAllowed = false;
+        sInKeySwipe = false;
+        mInHorizontalSwipe = false;
+        mInVerticalSwipe = false;
+        mTouchpadHandler.disableTouchpadMode();
     }
 
     private void onCancelEvent(final int x, final int y, final long eventTime) {
