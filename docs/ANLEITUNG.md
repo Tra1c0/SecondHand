@@ -118,6 +118,11 @@ Zurück geht es mit dem runden Pfeil oben links oder der Zurück-Geste.
 
 ### Tippen & Korrektur
 
+Unter **Regeln → Satzbezogene Autokorrektur** kannst du die zusätzliche Prüfung deutscher
+Verbformen abschalten. Die bisherige Autokorrektur ist dann weiter verfügbar.
+Mit **Rücktaste macht Autokorrektur rückgängig** holst du direkt nach einer Korrektur mit
+der Rücktaste dein getipptes Wort zurück. Beide Schalter sind anfangs an.
+
 Oben wählst du die Autokorrektur in einem Tipp:
 
 - **AUS**: nur Vorschläge, nie automatisch (schaltet „Autokorrektur“ aus).

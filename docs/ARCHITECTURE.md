@@ -324,14 +324,19 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   300 Tage voraus nie. Test `CT/clip/SmartPasteTest.kt` (Prüfziffern der Beispiele getrennt
   berechnet).
 - `C/SentenceLanguage.kt` (Etappe 60, P249–P253): reine Entscheidung zur Satzsprache: `evidenceOf` (nur Sprache der Korrektur, nur andere Sprache, neutral), `blocksCorrection(onlyL1, onlyL2)` (mindestens ein Wort nur der anderen Sprache, keines nur der eigenen), `MAX_PREVIOUS_WORDS` = 3. Hält keinen Text. Test: `CT/SentenceLanguageTest.kt`.
-- `C/GermanVerbAgreement.kt` (72): wertet bei konkurrierenden Formen eines regelmäßigen deutschen
-  Verbs das Subjekt im vorhandenen Wortkontext aus. `Suggest.kt` schützt die getippte Form oder
+- `C/GermanVerbAgreement.kt` (72): leitet konkurrierende Formen regelmäßiger deutscher Verben
+  aus dem Stamm ab und wertet Personalpronomen und Modalverben im Wortkontext aus.
+  `A/GermanVerbLemmas.kt` liest `app/src/main/assets/agent/german_verb_lemmas.txt` einmalig. Die
+  Liste bestätigt den Infinitiv, bevor Endungen verglichen werden. `tools/build_german_verb_lemmas.py`
+  erzeugt die Liste aus der festgeschriebenen Quelle (siehe `docs/BUILD.md`).
+  `Suggest.kt` schützt die getippte Form oder
   bewertet einen vorhandenen Wörterbuchtreffer mit der üblichen Korrekturschwelle. Bei Bedarf
   liefert `InputLogic.java` höchstens 24 Zeichen nach dem Cursor derselben Editorverbindung.
   Ist die Abfrage langsam, pausiert sie kurz. Fehlender rechter Kontext lässt die Rangfolge
   bestehen. `TypedWordFirst.kt` merkt sich ein zurückgenommenes Paar an der Wortposition bis
-  zum Wort- oder Feldwechsel. Tests: `CT/GermanVerbAgreementTest.kt`, `SuggestTest.kt` und
-  `AT/TypedWordFirstTest.kt`.
+  zum Wort- oder Feldwechsel. Der Schalter in `AgentAreaTypingScreen.kt` steuert beides über
+  `SettingsValues.mContextualAutocorrection`. Tests: `CT/GermanVerbAgreementTest.kt`,
+  `SuggestTest.kt`, `InputLogicTest.kt` und `AT/TypedWordFirstTest.kt`.
 - `C/InformalWords.kt`, `A/InformalWordsStore.kt` und `app/src/main/assets/agent/informal_words.txt` (Etappe 71, P291–P293; 1.695 Wörter): die eingebaute Liste informeller Wörter, die `Suggest.guardAllows` nicht korrigieren lässt. `InformalWords` (rein): `normalize` (NFC, klein, gerader Apostroph), `parse`, `appliesTo` (nur `de`/`en`), `isExpressive` (gedehnt und Lacher), `protects`. `InformalWordsStore` lädt die Datei einmal aus den Assets (`@Volatile`, Fehler = leere Liste) und fragt mit Tastatursprache und Sprache der Korrektur. Die Liste macht `tools/build_informal_words.py`. Tests `CT/InformalWordsTest.kt` (liest die echte Datei und `agent-core/src/test/resources/informal_cases.tsv`), `AT/InformalWordsStoreTest.kt`, `SuggestTest` „stage 71“.
 - `C/suggest/ContextSuggest.kt` (Etappe 45, Paket `dev.agentkeyboard.core.suggest`, P161–P163):
   `SuggestKind` (EMAIL, PHONE, IBAN, ADDRESS, NAME, OTP, LINK), `AppCategory.of(packageName)`
@@ -5655,28 +5660,29 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (650 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (653 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (5): agent-apk, agent-tests, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (89): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (90): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand,
   ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand, CorrectionMemory,
   DateCommand, DebugModeReset, DesignLook, DesignTiles, Diagnose, Dictation, EmojiCommand,
   EmojiMixPalette, EmojiSuggestions, EncryptedActionRunStore, EventCommand, FieldCorrections,
   FieldSuggestionChips, FlatMenuView, FlatPanelStyle, FlatPreset, ForcedApps, ForeignWords,
-  FormatGuardChips, HapticChain, InformalWordsStore, JournaledModelCall, JournaledRun,
-  KeyboardCommands, KeyboardProfileStore, LastField, LearningData, LoadingDotsView, LockState,
-  ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData, MyDesigns, OnDeviceSpeechEngine,
-  PlaceCommand, RgbKeyPainter, RgbLighting, RgbOwnPatterns, RgbStrip, RgbTexture, RunSubjectCodec,
-  SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore, SkillLabels, SliderFeel,
-  SliderHaptics, SmartPasteChips, SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing,
-  SymbolInk, ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst,
-  TypingPerf, TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract,
-  WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
+  FormatGuardChips, GermanVerbLemmas, HapticChain, InformalWordsStore, JournaledModelCall,
+  JournaledRun, KeyboardCommands, KeyboardProfileStore, LastField, LearningData, LoadingDotsView,
+  LockState, ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData, MyDesigns,
+  OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter, RgbLighting, RgbOwnPatterns, RgbStrip,
+  RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore,
+  SkillLabels, SliderFeel, SliderHaptics, SmartPasteChips, SpaceDetents, SpaceGestures,
+  SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary, ToolLauncher, TouchCalibration,
+  TouchModel, TypedWordFirst, TypingPerf, TypoMemory, WorkflowApprovalSummary,
+  WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
+  WorkflowStore
 - `A/charart/` (5): CharArtCanvas, CharArtImages, CharArtKey, CharArtKeys, CharArtView
 - `A/commands/` (22): AiCommandChips, AlarmCommand, AreaCommands, AskCommand, ClipCommand,
   CommandAppSettings, CommandSystem, EmojiMixCommand, EmojiMixRecents, EmojiMixer, InstalledApps,
@@ -5790,6 +5796,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `app/src/debugNoMinify/res/values/` (3): clip_provider, gesture_data, strings
 - `app/src/main/` (1): AndroidManifest
 - `app/src/main/assets/` (1): emoji_mix_pairs
+- `app/src/main/assets/agent/` (1): german_verb_lemmas
 - `app/src/main/assets/dicts/` (3): emoji_de, emoji_en, emoji_es
 - `app/src/main/assets/layouts/emoji_bottom/` (2): emoji_bottom_row, emoji_bottom_row_with_action
 - `app/src/main/assets/layouts/functional/` (1): functional_keys_flat
@@ -5838,7 +5845,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   WordListDictionaries
 - `app/src/test/java/helium314/keyboard/latin/inputlogic/` (1): BatchDeliveryTest
 - `scripts/` (3): docs_sync, docs_sync, install-hooks
-- `tools/` (2): dev, emoji_mix_table
+- `tools/` (3): build_german_verb_lemmas, dev, emoji_mix_table
 
 </details>
 <!-- /gen:inventory -->

@@ -10,6 +10,7 @@ import helium314.keyboard.agent.EmojiSuggestions
 import helium314.keyboard.agent.ForeignWords
 import helium314.keyboard.agent.RejectedCorrections
 import helium314.keyboard.agent.TypoMemory
+import helium314.keyboard.agent.GermanVerbLemmas
 import dev.agentkeyboard.core.GermanVerbAgreement
 import dev.agentkeyboard.core.SentenceLanguage
 import android.text.TextUtils
@@ -102,8 +103,9 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
 
         val after by lazy(followingText)
         val normalFirst = suggestionsContainer.firstOrNull()
-        val preferred = if (isCorrectionEnabled && !resultsArePredictions && normalFirst?.isGermanVerbCandidate() == true)
-            preferredGermanVerb(typedWordString, normalFirst.mWord, suggestionsContainer, ngramContext) { after }
+        val preferred = if (isCorrectionEnabled && Settings.getValues().mContextualAutocorrection &&
+            !resultsArePredictions && normalFirst?.isGermanVerbCandidate() == true)
+            preferredGermanVerb(typedWordString, normalFirst.mWord, suggestionsContainer, suggestionResults, ngramContext) { after }
         else null
         if (preferred != null && preferred != typedWordString) {
             val index = suggestionsContainer.indexOfFirst { it.mWord == preferred && it.isGermanVerbCandidate() }
@@ -192,16 +194,22 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
     }
 
     private fun SuggestedWordInfo.isGermanVerbCandidate() =
-        mSourceDict.mDictType == Dictionary.TYPE_MAIN && mSourceDict.mLocale?.language == "de" &&
+        (mSourceDict.mDictType == Dictionary.TYPE_MAIN || mSourceDict.mDictType == Dictionary.TYPE_USER_HISTORY) &&
+            mSourceDict.mLocale?.language == "de" &&
             !isEmoji && !isKindOf(SuggestedWordInfo.KIND_WHITELIST) && !isKindOf(SuggestedWordInfo.KIND_SHORTCUT)
 
-    private fun preferredGermanVerb(typed: String, first: String, suggestions: List<SuggestedWordInfo>,
+    private fun preferredGermanVerb(typed: String, first: String, suggestions: List<SuggestedWordInfo>, raw: SuggestionResults,
                                     context: NgramContext, after: () -> CharSequence?): String? {
         val previousWords = (1..context.prevWordCount).asSequence()
             .takeWhile { !context.isNthPrevWordBeginningOfSentence(it) }
             .mapNotNull { context.getNthPrevWord(it)?.toString() }
         val candidates = suggestions.asSequence().filter { it.isGermanVerbCandidate() }.map { it.mWord }
-        return GermanVerbAgreement.prefer(typed, first, candidates, previousWords, after)
+        val settingsContext = Settings.getCurrentContext()
+        return GermanVerbAgreement.prefer(typed, first, candidates, previousWords,
+            isInfinitive = { GermanVerbLemmas.contains(settingsContext, it) }, typedIsKnown = {
+            raw.any { it.mWord == typed && it.mSourceDict.mDictType == Dictionary.TYPE_MAIN && it.mSourceDict.mLocale?.language == "de" } ||
+                (mDictionaryFacilitator as? DictionaryFacilitatorImpl)?.mainLocalesKnowing(typed)?.any { it.language == "de" } == true
+        }, after = after)
     }
 
     /**
@@ -239,7 +247,8 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         } ?: return false
         if (settings.mRememberRejectedCorrections && RejectedCorrections.contains(context, typed, meant)) return false
         val wanted = capitalize(meant, capsMode, mDictionaryFacilitator.mainLocale)
-        if (language == "de" && preferredGermanVerb(typed, wanted, suggestions, ngramContext, followingText) != null)
+        if (settings.mContextualAutocorrection && language == "de" &&
+            preferredGermanVerb(typed, wanted, suggestions, results, ngramContext, followingText) != null)
             return false
         val index = suggestions.indexOfFirst { it.mWord == wanted }.takeIf { it >= 0 }
             ?: suggestions.indexOfFirst { it.mWord.equals(meant, ignoreCase = true) && !(meant.first().isUpperCase() && it.mWord.first().isLowerCase()) }

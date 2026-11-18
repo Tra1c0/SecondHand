@@ -2,10 +2,12 @@
 
 ## Etappe 72 — Satzabhängige Autokorrektur
 
-- Vier Kernprüfungen mit Kotlin 2.4.0 und JUnit bestanden. Sie prüfen „dass ich nachträglich
-  korrigiere“, Buchstabendreher, ein Modalverb hinter dem Cursor und fehlenden Kontext.
-- `SuggestTest` prüft die automatische Auswahl und den verbleibenden Vorschlag in der Leiste
-  mit festen Wörterbuchtreffern. `TypedWordFirstTest` prüft die Rücknahme an der Wortposition.
+- Sieben Kernprüfungen mit Kotlin 2.4.0 und JUnit bestanden. Sie prüfen mehrere Verbformen,
+  Buchstabendreher, Modalverben, die mitgelieferte Infinitivliste, Verwechslungen mit Possessiven
+  und fehlenden Kontext.
+- `SuggestTest` prüft die automatische Auswahl, die Vorschlagsleiste und das Abschalten der
+  Regel mit festen Wörterbuchtreffern. `InputLogicTest` und `TypedWordFirstTest` prüfen die
+  Rücktaste und die Rücknahme an der Wortposition.
 - Unabhängige Codeprüfung mit Nachprüfung. Die Kontextabfrage ist an Editor und Cursor gebunden,
   und eine langsame Antwort pausiert weitere Abfragen.
 - Die Prüfung auf einem Telefon mit dem nativen Wörterbuch steht aus.

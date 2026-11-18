@@ -10,9 +10,9 @@ Etappen aus dem ursprünglichen Auftrag; Teilpakete bekommen Buchstaben (15a, 15
 
 Reihenfolge von oben nach unten.
 
-- **72 Satzabhängige Autokorrektur**: Auf dem separaten Testbranch für regelmäßige deutsche
-  Verbformen gebaut. Offen sind die Prüfung mit den nativen Wörterbüchern am Gerät, weitere
-  Satzmuster und die Qualität in gemischtsprachigen und informellen Texten.
+- **72 Satzbezogene Autokorrektur**: Für regelmäßige deutsche Verbformen gebaut und abschaltbar.
+  Offen sind der Gerätetest mit nativen Wörterbüchern, unregelmäßige Verben und die Auswertung
+  weiterer Satzmuster, Sprachen und gemischtsprachiger Texte.
 - **27 Symbole malen** (Auftrag des Owners vom 2026-11-13) ist gebaut (siehe FEATURES.md), mit
   Engine-Review (`docs/VALIDATION.md` → Build 12: Prüfer zu Etappe 27), die niedrigen Befunde in
   31. Offen: Gerätetest (Erkennung mit echten Fingern, Schwellen, Spur, Tempo, Tipp-Regel,

@@ -2694,7 +2694,8 @@ public final class InputLogic {
         final SuggestedWordInfo candidate = mWordComposer.getAutoCorrectionOrNull();
         final int start = mConnection.getExpectedSelectionEnd() - typedWord.length();
         final SuggestedWordInfo autoCorrectionOrNull =
-                candidate != null && !mTypedWordFirst.rejects(start, typedWord, candidate.mWord) ? candidate : null;
+                candidate != null && settingsValues.mContextualAutocorrection
+                        && mTypedWordFirst.rejects(start, typedWord, candidate.mWord) ? null : candidate;
         final String stringToCommit = (autoCorrectionOrNull != null) ? autoCorrectionOrNull.mWord : typedWord;
         if (stringToCommit != null) {
             final boolean isBatchMode = mWordComposer.isBatchMode();
@@ -2879,7 +2880,8 @@ public final class InputLogic {
                 getActualCapsMode(settingsValues, KeyboardSwitcher.getInstance().getKeyboardCapsMode()));
         try {
             final WordComposer composer = mWordComposer.copy();
-            final InputConnection editor = settingsValues.mIncognitoModeEnabled || settingsValues.mIsLocked
+            final InputConnection editor = !settingsValues.mContextualAutocorrection
+                    || settingsValues.mIncognitoModeEnabled || settingsValues.mIsLocked
                     || !settingsValues.mInputAttributes.mIsGeneralTextInput || !composer.isComposingWord()
                     || composer.isCursorFrontOrMiddleOfComposingWord() ? null : mLatinIME.getCurrentInputConnection();
             final int cursor = mConnection.getExpectedSelectionStart();

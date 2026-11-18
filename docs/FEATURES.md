@@ -71,12 +71,12 @@ E stammt bisher nur aus dem Emulator-Test vom 2026-11-11 (Android 15, Protokoll 
 | Schutz beim Ersetzen | Ersetzt wird nur, wenn sich Feld, Auswahl und Text seit der Vorschau nicht geändert haben. Sonst bleibt die Übernahme gesperrt. (4) | E |
 | Schutzbereiche | Passwortfelder, Inkognito, gesperrtes Gerät und Felder mit Lernverbot sperren alle Aktionen. Im Emulator geprüft: Passwortfeld. (4) | T |
 
-Für die deutsche Autokorrektur prüft die Tastatur bei konkurrierenden Verbformen den Satz. Getipptes
-„korrigiere“ bleibt bei „dass ich nachträglich korrigiere“ stehen. Bei einem Buchstabendreher können
-„ich“, „du“, „er“ oder „man“ und ein vorhandenes Hilfswort wie „muss“ die passende Form nach vorn
-holen. Die übliche Korrekturschwelle gilt weiter. Eine zurückgenommene Korrektur bleibt für dasselbe
-Wort an derselben Stelle im aktuellen Feld verworfen. Das gilt auch bei ausgeschaltetem dauerhaftem
-Lernen. (72, separater Testbranch)
+**Satzbezogene Autokorrektur (72).** Die Tastatur prüft bei konkurrierenden Formen regelmäßiger
+deutscher Verben das Subjekt und ein mögliches Modalverb. Beispielsweise können „du arbeitest“,
+„ihr sortiert“ und „wir speichern“ vor eine unpassende Form rücken. Die übliche Korrekturschwelle
+gilt weiter. Mit der Rücktaste lässt sich eine automatische Änderung direkt zurücknehmen. Das
+gleiche Korrekturpaar bleibt an dieser Wortposition im aktuellen Feld verworfen, auch bei
+ausgeschaltetem dauerhaftem Lernen. Die beiden Optionen stehen in „Tippen & Korrektur → Regeln“.
 
 ## KI (eigene API-Schlüssel)
 

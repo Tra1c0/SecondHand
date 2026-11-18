@@ -84,6 +84,7 @@ public class SettingsValues {
     public final boolean mLearningPaused;
     // stage 20a, see helium314.keyboard.agent.CorrectionGuard
     public final boolean mKeepValidWords;
+    public final boolean mContextualAutocorrection;
     public final boolean mKeepUmlautVariants;
     public final boolean mRememberRejectedCorrections;
     public final boolean mLearnTypos;
@@ -230,6 +231,7 @@ public class SettingsValues {
         mUsePersonalizedDicts = prefs.getBoolean(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, Defaults.PREF_KEY_USE_PERSONALIZED_DICTS);
         mLearningPaused = prefs.getBoolean(helium314.keyboard.agent.AgentPreferences.LEARNING_PAUSED, false);
         mKeepValidWords = prefs.getBoolean(helium314.keyboard.agent.AgentPreferences.AUTOCORRECT_KEEP_VALID_WORDS, false);
+        mContextualAutocorrection = prefs.getBoolean(helium314.keyboard.agent.AgentPreferences.AUTOCORRECT_SENTENCE_CONTEXT, true);
         mKeepUmlautVariants = prefs.getBoolean(helium314.keyboard.agent.AgentPreferences.AUTOCORRECT_KEEP_UMLAUT_VARIANTS, true);
         mRememberRejectedCorrections = prefs.getBoolean(helium314.keyboard.agent.AgentPreferences.AUTOCORRECT_REMEMBER_REJECTED, false);
         mLearnTypos = prefs.getBoolean(helium314.keyboard.agent.AgentPreferences.AUTOCORRECT_LEARN_TYPOS, false);

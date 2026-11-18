@@ -50,6 +50,7 @@
       "app/src/main/java/helium314/keyboard/keyboard/internal/keyboard_parser/floris/{KeyLabel,TextKeyData}.kt",
       "app/src/main/assets/layouts/emoji_bottom/*.json",
       "app/src/main/assets/emoji_mix_pairs.bin",
+      "app/src/main/assets/agent/german_verb_lemmas.txt",
       "app/src/main/java/helium314/keyboard/keyboard/internal/KeyboardIconsSet.kt",
       "app/src/main/java/helium314/keyboard/keyboard/internal/keyboard_parser/floris/KeyCode.kt",
       "app/src/main/java/helium314/keyboard/accessibility/KeyCodeDescriptionMapper.kt",
@@ -92,6 +93,7 @@
       "app/src/test/java/helium314/keyboard/latin/{InputLogicTest,SuggestTest,WordListDictionaries}.kt",
 
       "tools/dev.py",
+      "tools/build_german_verb_lemmas.py",
       "tools/emoji_mix_table.py",
       "scripts/*.{py,sh,json}",
       ".claude/**",

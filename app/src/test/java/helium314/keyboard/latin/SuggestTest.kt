@@ -1139,6 +1139,25 @@ class SuggestTest {
         assertEquals("korrigieren", beforeModal.getWord(SuggestedWords.INDEX_OF_AUTO_CORRECTION))
     }
 
+    @Test fun contextualAutocorrectUsesOtherVerbEndingsAndCanBeSwitchedOff() {
+        currentTypingLocale = Locale.GERMAN
+        enableAutocorrect(confidenceVeryAggressive)
+        val context = NgramContext(NgramContext.WordInfo("heute"), NgramContext.WordInfo("du"))
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("arbeiten", 850000), suggestion("arbeitest", 800000)))
+        val contextual = getSuggestedWords(false, "arbeietst", CapsMode.OFF, context) { "" }
+        assertTrue(contextual.mWillAutoCorrect)
+        assertEquals("arbeitest", contextual.getWord(SuggestedWords.INDEX_OF_AUTO_CORRECTION))
+
+        latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_SENTENCE_CONTEXT, false) }
+        try {
+            val legacy = getSuggestedWords(false, "arbeietst", CapsMode.OFF, context) { error("Setting is disabled") }
+            assertTrue(legacy.mWillAutoCorrect)
+            assertEquals("arbeiten", legacy.getWord(SuggestedWords.INDEX_OF_AUTO_CORRECTION))
+        } finally {
+            latinIME.prefs().edit { remove(AgentPreferences.AUTOCORRECT_SENTENCE_CONTEXT) }
+        }
+    }
+
     private fun getSuggestedWords(gesture: Boolean, typedWord: String, capsMode: CapsMode,
                                   ngramContext: NgramContext = NgramContext.EMPTY_PREV_WORDS_INFO,
                                   followingText: () -> CharSequence? = { null }): SuggestedWords {

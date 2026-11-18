@@ -189,6 +189,11 @@ fun AgentAreaTypingScreen(onNavigate: (String) -> Unit, onClickBack: () -> Unit)
             }
 
             SectionCard(stringResource(R.string.agent_typing_rules)) {
+                PrefSwitch(R.string.agent_typing_sentence_context, stringResource(R.string.agent_typing_sentence_context_sub),
+                    AgentPreferences.AUTOCORRECT_SENTENCE_CONTEXT, true, autocorrect, needsAutocorrect, ::bool, ::put)
+                PrefSwitch(R.string.backspace_reverts_autocorrect, stringResource(R.string.agent_typing_revert_sub),
+                    Settings.PREF_BACKSPACE_REVERTS_AUTOCORRECT,
+                    Defaults.PREF_BACKSPACE_REVERTS_AUTOCORRECT, autocorrect, needsAutocorrect, ::bool, ::put)
                 PrefSwitch(R.string.agent_autocorrect_keep_umlaut, stringResource(R.string.agent_typing_keep_umlaut_sub),
                     AgentPreferences.AUTOCORRECT_KEEP_UMLAUT_VARIANTS, true, autocorrect, needsAutocorrect, ::bool, ::put)
                 PrefSwitch(R.string.agent_autocorrect_remember, stringResource(R.string.agent_typing_remember_sub),

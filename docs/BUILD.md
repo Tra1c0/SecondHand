@@ -224,6 +224,15 @@ nutzen einen Debug-Schlüssel, der in jeder neuen Umgebung anders ist; sie sind 
   Abhängigkeiten; in der unminifizierten Debug-APK geschätzt etwa 0,35 MB mehr (Debug-APK vorher
   38 660 284 Byte). Grenze laut Auftrag 1,5 MB, deshalb kein eigener Formatierer.
 
+## Deutscher Verbwortschatz
+
+`app/src/main/assets/agent/german_verb_lemmas.txt` enthält 6.584 Infinitive. Quelle sind die
+Beiträge zu [UniMorph Deutsch](https://github.com/unimorph/deu/tree/d226d2112d3490d8f04ece10d4538123d4297a39)
+auf Grundlage der Beiträge im englischen Wiktionary unter [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/).
+Die abgeleitete Liste enthält nur kleingeschriebene Infinitive, ergänzt um häufige Verben. Sie
+steht unter derselben Lizenz. Nach dem Download der festgeschriebenen Datei `deu` erzeugt
+`python3 -I tools/build_german_verb_lemmas.py deu` die Liste. Das Skript prüft die SHA-256-Summe.
+
 ## Mitgelieferte Emoji-Wörterbücher
 
 Aus `https://codeberg.org/Helium314/aosp-dictionaries`, Ordner `emoji_cldr_signal_dictionaries`
