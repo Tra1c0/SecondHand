@@ -76,7 +76,7 @@ object LockState {
     @JvmStatic fun isLocked(context: Context): Boolean = normal.isLocked(context)
 
     /** Forgets the answers: the next ask goes to the system. Field start, screen events, a tap on a chip. */
-    @JvmStatic fun drop() { normal.drop(); credentials.drop() }
+    @JvmStatic fun drop() { normal.drop(); credentials.drop(); ClipVault.forgetCaches() }
 
     private fun register(context: Context) {
         if (!registered.compareAndSet(false, true)) return

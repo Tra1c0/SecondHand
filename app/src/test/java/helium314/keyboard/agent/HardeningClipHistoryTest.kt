@@ -134,6 +134,19 @@ class HardeningClipHistoryTest {
         assertEquals(listOf("$text zwei"), historyTexts().filter { it?.startsWith(text) == true })
     }
 
+    /** Review of stage 65: the clip on the clipboard when the service starts was copied in a field the keyboard did not see. */
+    @Test fun aClipThatWasAlreadyOnTheClipboardWhenTheServiceStartsIsNotKept() {
+        copy("$text vorher") // kept by the listener; now forget the history and let a new service start read the clipboard
+        ClipboardDao.getInstance(latinIME)?.clear()
+        assertFalse(historyTexts().contains("$text vorher"))
+        val history = org.robolectric.util.ReflectionHelpers.getField<helium314.keyboard.latin.ClipboardHistoryManager>(latinIME, "mClipboardHistoryManager")
+        history.onCreate()
+        assertFalse(historyTexts().contains("$text vorher"), "origin unknown: the start-up read keeps nothing")
+        // clips copied while the service runs follow the field rule as before
+        copy("$text nachher")
+        assertTrue(historyTexts().contains("$text nachher"))
+    }
+
     @Test fun alwaysIncognitoKeepsNothingInEitherState() {
         load(plain, incognito = true)
         copy(text)

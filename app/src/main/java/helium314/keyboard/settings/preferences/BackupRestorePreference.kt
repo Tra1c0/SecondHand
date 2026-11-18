@@ -169,6 +169,7 @@ private fun restoreLauncher(onError: (String) -> Unit): ManagedActivityResultLau
     val ctx = LocalContext.current
     return filePicker { uri ->
         val wait = CountDownLatch(1)
+        var rollbackFailed = false // the data is not as it was: the follow-up steps must not act on it
         ExecutorUtils.getBackgroundExecutor(ExecutorUtils.KEYBOARD).execute {
             val restoredDb = ctx.getDatabasePath(Database.NAME + "_restored")
             val folders = RestoreFolders(ctx.filesDir!!, DeviceProtectedUtils.getFilesDir(ctx))
@@ -230,6 +231,7 @@ private fun restoreLauncher(onError: (String) -> Unit): ManagedActivityResultLau
                 }
                 onError("r$message")
                 Log.w("AdvancedScreen", "error during restore", result.error)
+                if (!result.rolledBack) rollbackFailed = true
             }
             wait.countDown()
         }
@@ -241,7 +243,8 @@ private fun restoreLauncher(onError: (String) -> Unit): ManagedActivityResultLau
         val newDictBroadcast = Intent(DictionaryPackConstants.NEW_DICTIONARY_INTENT_ACTION)
         ctx.getActivity()?.sendBroadcast(newDictBroadcast)
         LayoutUtilsCustom.onLayoutFileChanged()
-        LayoutUtilsCustom.removeMissingLayouts(ctx)
+        // review of stage 65 (N1): removing layout settings of layouts that are "missing" would delete them for good
+        if (!rollbackFailed) LayoutUtilsCustom.removeMissingLayouts(ctx)
         (ctx.getActivity() as? SettingsActivity)?.prefChanged()
         SupportedEmojis.load(ctx)
         KeyboardSwitcher.getInstance().setThemeNeedsReload()

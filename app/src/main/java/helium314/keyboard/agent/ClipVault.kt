@@ -80,12 +80,37 @@ object ClipVault {
     /** The system clipboard has a new clip (called by the listener of [helium314.keyboard.agent.commands.SensitiveClips]): [freshest] reads it again. */
     @JvmStatic fun clipChanged() { live = null }
 
+    /**
+     * Review of 64b (M-1): the caches below hold the text of a clip (or what was read from it). The vault promises that a secret
+     * lives until its first insertion at most [SECRET_MILLIS], in memory only: so no cache outlives [CACHE_MILLIS], and all are
+     * dropped when the vault lets a secret go, on a lock event ([LockState.drop]), at [clear] and when the service ends.
+     */
+    const val CACHE_MILLIS = 2 * LIVE_MILLIS
+    private val expireCaches = Runnable { forgetCaches() }
+
+    /** Drops every cache that holds clip text: the live clip, its classification and what Smart Paste recognised in it. */
+    @JvmStatic fun forgetCaches() {
+        live = null
+        classified = null
+        SmartPasteChips.forget()
+    }
+
+    /** Called after a cache was filled: it is dropped [CACHE_MILLIS] after the last fill. */
+    internal fun armForget() {
+        handler.removeCallbacks(expireCaches)
+        handler.postDelayed(expireCaches, CACHE_MILLIS)
+    }
+
+    /** For the tests: whether a cache still holds [text]. */
+    internal fun holdsText(text: String): Boolean = live?.clip?.first == text || classified?.text == text
+
     private fun liveClip(now: Long): Triple<String, Long, Boolean>? {
         val known = live
         if (known != null && now - known.at in 0 until LIVE_MILLIS) return known.clip
         TypingPerf.system()
         val clip = runCatching { currentClip?.invoke() }.getOrNull()
         live = Live(clip, now)
+        armForget()
         return clip
     }
 
@@ -102,6 +127,7 @@ object ClipVault {
         classifications++
         val result = ClipGuard.classify(text)
         classified = Classified(text, result)
+        armForget()
         return result
     }
 
@@ -165,6 +191,7 @@ object ClipVault {
         val item = items.firstOrNull { it.id == id } ?: return null
         if (item.kind == ClipKind.SECRET) {
             items.remove(item)
+            forgetCaches() // the secret leaves the vault: no cache keeps its text either
             used.add(item.copiedAt)
             while (used.size > MAX_ITEMS) used.remove(used.first())
         }
@@ -284,8 +311,8 @@ object ClipVault {
 
     /** Forgets everything (tests, history cleared). */
     @Synchronized fun clear() {
-        live = null
-        classified = null
+        forgetCaches()
+        handler.removeCallbacks(expireCaches)
         items.clear()
         used.clear()
         secretStamps.clear()

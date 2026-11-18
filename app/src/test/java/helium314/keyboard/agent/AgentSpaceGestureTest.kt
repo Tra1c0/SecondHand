@@ -196,6 +196,33 @@ class AgentSpaceGestureTest {
         assertLetterTapAndGestureStillWork()
     }
 
+    /** Review of stage 70 (M-2): the static swipe flag belongs to the finger that set it. */
+    @Test fun aSecondFingersLongPressDoesNotEndTheFirstFingersSwipe() {
+        val second = PointerTracker.getPointerTracker(1)
+        val letter = mock(Key::class.java)
+        `when`(letter.code).thenReturn('b'.code)
+        `when`(letter.isEnabled).thenReturn(true)
+        `when`(letter.isLongPressEnabled).thenReturn(true)
+        `when`(letter.popupKeys).thenReturn(arrayOf(PopupKeySpec("x", false, Locale.ROOT)))
+        `when`(letter.hasNoPanelAutoPopupKey()).thenReturn(true) // its long press ends in cancelKeyTracking()
+        `when`(detector.detectHitKey(eq(300), anyInt())).thenReturn(letter)
+        try {
+            // finger A swipes on the space bar: the flag is set and A's swipe is going
+            touch(MotionEvent.ACTION_DOWN); touch(MotionEvent.ACTION_MOVE, 160f)
+            verify(listener, atLeastOnce()).onSpaceSwipe(eq(SpaceGesture.SWIPE_RIGHT), anyInt())
+            assertTrue(ReflectionHelpers.getField<Boolean>(tracker, "mKeySwipeAllowed"))
+            assertTrue(ReflectionHelpers.getStaticField<Boolean>(PointerTracker::class.java, "sInKeySwipe"))
+            // finger B holds a letter key until its long press commits the first popup key
+            touch(MotionEvent.ACTION_DOWN, 300f, second); hold()
+            verify(listener).onCodeInput(eq('x'.code), anyInt(), anyInt(), eq(false))
+            // B's tracker is out of the queue, but A's swipe is still going: the flag stays
+            assertTrue(ReflectionHelpers.getField<Boolean>(tracker, "mKeySwipeAllowed"), "A's own flag")
+            assertTrue(ReflectionHelpers.getStaticField<Boolean>(PointerTracker::class.java, "sInKeySwipe"), "the static flag of A's swipe")
+            touch(MotionEvent.ACTION_UP, 160f)
+            assertSwipeCleared()
+        } finally { touch(MotionEvent.ACTION_CANCEL, 300f, second) }
+    }
+
     @Test fun movementCancelsTimerAndPreservesCursorSwipe() {
         touch(MotionEvent.ACTION_DOWN)
         touch(MotionEvent.ACTION_MOVE, 150f)

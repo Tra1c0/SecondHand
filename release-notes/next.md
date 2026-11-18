@@ -28,3 +28,6 @@ auf keinem Gerät ausprobiert.
   Musikbegriffe) und gedehnte Wörter („neee“, „jaaaa“, „hahaha“) ersetzt die Autokorrektur nicht mehr; ihr Vorschlag steht weiter in der
   Leiste. Gilt für deutsches und englisches Tippen, ohne Schalter; „dont“ wird weiter zu „don't“. Nur mit Tests geprüft, noch nicht mit den
   echten Wörterbüchern auf dem Telefon.
+- Zwischenablage: Ein Clip, der schon in der Zwischenablage lag, als die Tastatur startete, kommt nicht in den Verlauf (die Tastatur weiß
+  nicht, wo er kopiert wurde). Gelesene Clips bleiben nur kurz im Arbeitsspeicher. „Sichern und Wiederherstellen“ sagt jetzt, dass
+  heruntergeladene Wörterbücher und die Bilder eigener Designs nicht in der Datei sind und beim Wiederherstellen entfernt werden.

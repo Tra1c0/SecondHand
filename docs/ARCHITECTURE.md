@@ -2302,7 +2302,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `FieldSuggestionChips` fragt den Text hinter der Schreibmarke über `nothingAfterCursor`: „nichts dahinter“ gilt, solange
   die Schreibmarke nur vorwärts geht (`emptyAfterCursorAt`); zurück, unbekannt, neues Feld (`fieldStarted`, aus
   `KeyboardCommands.load`) fragen neu, „Text dahinter“ wird nie gemerkt, und `insert` fragt beim Tipp noch einmal.
-  `ClipVault.liveClip` merkt den gelesenen Clip `LIVE_MILLIS` (1 s; `offer` und `clear` verwerfen ihn),
+  `ClipVault.liveClip` merkt den gelesenen Clip `LIVE_MILLIS` (1 s; `offer` und `clear` verwerfen ihn; seit der Nachprüfung 64
+  überlebt kein Zwischenspeicher mit Clip-Text `CACHE_MILLIS` = 2 s nach der letzten Füllung, und `forgetCaches()` leert `live`,
+  `classified` und `SmartPasteChips.recognised`, wenn der Tresor ein Geheimnis herausgibt (`take`), bei `clear()` und bei jedem
+  `LockState.drop()`; Test `ClipCachesTest`),
   `classifyLive` die Einordnung des zuletzt gesehenen Texts (`isSecretClip` und `freshest` fragten je Aufruf einzeln).
   `SmartPasteChips.actions` merkt die Erkennung je (Kopierzeit, Inhalt, Markierung, Sprache, Region, Minute); die
   Geheim-Prüfung davor läuft jedes Mal. `KeyboardCommands.rowFor` baut die Chip-Zeile nur neu, wenn Leiste, Farben
@@ -5506,6 +5509,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   ausgeschalteter Gestenerkennung und im Wisch-Zweig, ein Wort durch Wischen konnte verloren gehen. Nur der
   Zweig `SPACE_HOLD` setzte die Flags selbst zurück. Behoben in `cancelKeyTracking`. Mit einem `ACTION_UP`
   statt des Abbruchs war der Zustand immer sauber (`onUpEventInternal`).
+  Nachprüfung M-2 (zweiter Finger): `cancelKeyTracking()` löscht `mKeySwipeAllowed` und das statische `sInKeySwipe` nur, wenn dieser Tracker `mKeySwipeAllowed` gesetzt hatte, wie alle anderen Stellen. Sonst beendete der Langdruck eines zweiten Fingers auf einer Buchstabentaste die Wischgeste des ersten (ein dritter Druck konnte Gestenerkennung starten, während der Cursor wischt). Test `aSecondFingersLongPressDoesNotEndTheFirstFingersSwipe` (rot ohne die Bedingung, geprüft).
 - **P290** Hintergrundrechnen der Zeichen-Kunst und Z6 (70): `renderGeneration` zählt nur, was ein
   Hintergrundergebnis entwertet (`render()`, `resetContent`, Abhängen); ein Tick des Strichs zählt sie
   nicht. Es läuft höchstens eine Rechnung; Ticks währenddessen merken nur „neueres gewünscht“
@@ -5553,6 +5557,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   behaltener Clip wird nie später nachgereicht. Die Passwortfeld-Marke in `fetchPrimaryClip`
   (Geheimnis für die Sortierung) gilt ebenfalls nur bei aktivem privatem Feld. Neue Wege, die Clips
   speichern, müssen `mayKeep` fragen.
+  Nachprüfung 65 (Start des Dienstes): `ClipboardHistoryManager.onCreate` liest die Zwischenablage mit `fetchPrimaryClip(startup = true)` und schreibt dabei nie in den Verlauf: der Clip lag schon da, sein Feld kennt die Tastatur nicht (ein Passwort aus dem Feld einer anderen Tastatur wäre sonst im Klartext im Verlauf gelandet). Der Tresor bekommt ihn weiter (`offer`). Test `aClipThatWasAlreadyOnTheClipboardWhenTheServiceStartsIsNotKept`.
 - **P271** Zustand, der den Dienst überlebt (65, S8): Objekte (`ClipVault`, `ScreenshotChip`) halten
   Verweise (`currentClip`, `onChange`) auf Lambdas, die den Dienst festhalten. `onDestroy` von
   `ClipboardHistoryManager` setzt sie und die beiden Chip-Ansichten auf `null` und leert den Tresor;
@@ -5584,6 +5589,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Wiederherstellung des Rests beim App-Start. Ein weiteres Restrisiko: schlägt nach erfolgreicher
   Wiederherstellung sowohl das Umbenennen als auch das Löschen einer Kopie fehl, bleibt `<Name>2` mit
   altem Stand liegen; der nächste Versuch würde ihn zurückholen und die neuen Daten ersetzen.
+  Nachprüfung 65: Scheitert der Rückweg (`rolledBack` falsch), läuft `LayoutUtilsCustom.removeMissingLayouts` nicht (sie würde die Einstellungen „fehlender“ eigener Layouts endgültig löschen, obwohl nur der Datenordner fehlt); der Dialog nennt die Bilder eigener Designs und heruntergeladene Wörterbücher als nicht gesichert und beim Wiederherstellen entfernt (`backupFilePatterns` enthält von `dicts/` nur `user.dict`, den Ordner `agent_designs/` gar nicht). Offen bleibt die Markerdatei in der Kopie `…2` (siehe oben).
 - **P274** Protokollzeilen ohne Inhalt (65, Nachbesserung N2): nicht mehr geloggt werden das gewählte Emoji
   (`LatinIME.onEmojiSearchDone`, `EmojiSearchActivity.onStop`) und Tastenbeschriftungen importierter
   Layouts (`LayoutUtilsCustom`, `TextKeyData`). Bewusste Ausnahmen: `dumpAllWordsForDebug` (eine
@@ -5616,7 +5622,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (644 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (645 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -5648,16 +5654,16 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (107): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (108): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
-  CalendarToolLauncherTest, CharArtWindowTest, ClipCommandTest, ClipVaultTest, CommandReplaceTest,
-  CommandTemplatesTest, ContactCommandTest, CorrectionMemoryTest, DatePlaceCommandsTest,
-  DebugPrivacyTest, DesignEditorTest, DesignTilesTest, DiagnoseScreenTest, DictationSessionTest,
-  DictationUiTest, EmojiMixPaletteTest, EmojiMixRecentsTest, EncryptedActionRunStoreTest,
-  EncryptedCredentialStoreTest, FieldCorrectionMemoryTest, FieldSuggestionChipsTest,
-  FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest,
-  ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest,
+  CalendarToolLauncherTest, CharArtWindowTest, ClipCachesTest, ClipCommandTest, ClipVaultTest,
+  CommandReplaceTest, CommandTemplatesTest, ContactCommandTest, CorrectionMemoryTest,
+  DatePlaceCommandsTest, DebugPrivacyTest, DesignEditorTest, DesignTilesTest, DiagnoseScreenTest,
+  DictationSessionTest, DictationUiTest, EmojiMixPaletteTest, EmojiMixRecentsTest,
+  EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, FieldCorrectionMemoryTest,
+  FieldSuggestionChipsTest, FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest,
+  FlatStyleTest, ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest,
   HardeningClipHistoryTest, InformalWordsStoreTest, InsertAtCursorTest, JournaledModelCallTest,
   KeyboardCommandsTest, KeyboardProfileStoreTest, LastFieldTest, LearningDataTest,
   LoadingDotsViewTest, LongTextBudgetTest, ManualWorkflowDraftTest, MemoryScreenTest,

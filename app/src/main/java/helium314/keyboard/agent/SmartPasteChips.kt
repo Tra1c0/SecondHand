@@ -80,6 +80,12 @@ object SmartPasteChips {
     private class Recognised(val copiedAt: Long, val hash: Int, val length: Int, val marked: Boolean, val language: String,
                              val region: String, val now: LocalMoment, val actions: List<SmartAction>)
     @Volatile private var recognised: Recognised? = null
+    /** Drops what was recognised (the vault's cache rule, see [ClipVault.forgetCaches]). */
+    internal fun forget() { recognised = null }
+
+    /** Whether something recognised is cached (tests). */
+    internal val hasCached: Boolean get() = recognised != null
+
     /** How often a clip was really recognised (tests). */
     @Volatile internal var recognitions = 0
         private set
@@ -98,6 +104,7 @@ object SmartPasteChips {
         recognitions++
         val result = SmartPaste.recognize(text, marked, region, now, language)
         recognised = Recognised(copiedAt, text.hashCode(), text.length, marked, language, region, now, result)
+        ClipVault.armForget() // review of 64b (M-1): derived values of a clip do not stay for ever either
         return result
     }
 

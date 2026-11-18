@@ -22,10 +22,9 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
   nicht zwangsläufig gefixt werden muss, erstmal außen vor lassen“). Auf dem Arbeitsbranch liegen,
   in keinem Build: 64a, 64b, 65, 69, 70, jeweils mit Tests; GitHub-Lauf 93 (Agent, Upstream, Build)
   grün, Lint danach behoben. Nicht gebaut: 64c, 64d, 66, 67, 68.
-- Vor einem Build aus dem Arbeitsbranch zuerst die fünf mittleren Prüferbefunde beheben (Offene
-  Punkte → „Runde 2“): Zwischenablage-Text in `ClipVault`-Zwischenspeichern, `sInKeySwipe` in
-  `PointerTracker.cancelKeyTracking`, Start-Lesen der Zwischenablage ohne Regel, halbe Kopie nach
-  dem Wiederherstellen, Text des Sicherungsdialogs.
+- Die fünf mittleren Prüferbefunde zu 64/65/69/70 sind behoben (Lead, 2026-11-18: `docs/VALIDATION.md` → „Nachprüfung 64, 65 und 70: Befunde
+  behoben“); die Engine-Änderung an `PointerTracker` hat einen Prüfer. Der Arbeitsbranch enthält zusätzlich Etappe 71 (Slang-Liste). Offen
+  davor: ein Gerätetest, 64c/64d, 66, 67, 68.
 - Owner-Fragen offen: Code-Verkleinerung R8 als eigener Test-Build; Satz in `CLAUDE.md` zur
   Update-Prüfung; Logo-Alternative. Der Lead hat in `CLAUDE.md` die Definition „Build“ an den neuen
   Dateinamen und die Bauart angepasst (2026-11-17).
@@ -34,42 +33,25 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 
 ### Runde 2 (angehalten am 2026-11-17)
 
-- Prüfer zu 64a, 64b und der Korrekturrunde 70 (nur gelesen, nichts Schweres):
-  - mittel: `ClipVault` hält seit 64b den Text des aktuellen Clips (`live`) und des zuletzt
-    eingeordneten (`classified`) in statischen Feldern, `SmartPasteChips.Recognised` abgeleitete
-    Werte; sie verfallen nicht mit dem Tresor. Ein eingefügtes Passwort bleibt so im Arbeitsspeicher,
-    bis etwas anderes kopiert wird. Beheben: für Geheimnisse nur Zeit, Länge und Hash merken; alle
-    drei leeren, wenn der Tresor den Clip verwirft, nach `LIVE_MILLIS`, beim Sperren und beim Ende
-    des Dienstes.
-  - mittel: `PointerTracker.cancelKeyTracking` (Etappe 70) löscht das statische `sInKeySwipe`
-    immer; die anderen Stellen nur, wenn `mKeySwipeAllowed` dieses Fingers gesetzt ist. Zwei Finger:
-    einer wischt auf der Leertaste, der andere hält eine Buchstabentaste lange. Beheben mit der
-    Bedingung, Mehrfinger-Test dazu, Engine-Datei mit Prüfer.
+- Die mittleren Prüferbefunde zu 64/65/69/70 sind am 2026-11-18 behoben (`docs/VALIDATION.md` →
+  „Nachprüfung 64, 65 und 70: Befunde behoben“): Zwischenspeicher mit Clip-Text, `PointerTracker`
+  (zweiter Finger), Start-Lesen der Zwischenablage, Text des Sicherungsdialogs, Nacharbeiten nach
+  gescheitertem Rückweg. Offen davon:
+  - mittel, bewusst verschoben: Wiederherstellen: scheitert nach einem Erfolg das Aufräumen
+    (`discardCopies`) und dann noch ein zweiter Schritt, bleibt eine halbe Kopie `…2`, die der nächste
+    Versuch über die frischen Daten zurückholt. Beheben: Markerdatei in der Kopie, nur Kopien mit
+    Marker zurückholen. Sehr unwahrscheinlich (zwei Fehler hintereinander).
   - niedrig: `TypingPerf` rechnet Feldstart-Arbeit dem letzten Tastendruck zu und zählt nicht alle
     Anfragen an die App (`getExtractedText`, `getCursorCapsMode`, `requestCursorUpdates`): die Karte
     „Tippen“ bis dahin nicht als Messung lesen. `LockState`: theoretisches Rennen nach `drop()` auf
     einem zweiten Thread (Generationszähler). `UpdateOnOpen`: Sperre vor dem Senden auf dem Worker
     nicht noch einmal geprüft. `CharArtView.startLive`: `liveRunning` ohne Fangnetz.
-- Prüfer zur Korrekturrunde 65 und zu 69 (nur gelesen, nichts Schweres):
-  - mittel: `ClipboardHistoryManager.onCreate` liest beim Start des Dienstes den Clip, der gerade in
-    der System-Zwischenablage liegt, ohne die neue Regel: Ein in einem Passwortfeld kopiertes
-    Passwort kann nach einem Neustart des Dienstes im Verlauf landen. Beheben: beim Start-Lesen
-    `SensitiveClips.isSensitive` mitzählen oder nur Clips nach dem Dienststart behalten.
-  - mittel: Wiederherstellen: scheitert nach einem Erfolg das Aufräumen (`discardCopies`, Ergebnis
-    wird verworfen), bleibt eine halbe Kopie `…2`, die der nächste Versuch über die frischen Daten
-    zurückholt. Beheben: Markerdatei in der Kopie, nur Kopien mit Marker zurückholen. Dazu: nach einem
-    gescheiterten Rückweg die Nacharbeiten überspringen (`removeMissingLayouts` löscht sonst
-    Layout-Einstellungen).
-  - mittel: Der neue Sicherungsdialog (69) nennt „eigene Designs“ und „Wörterbücher“; gesichert
-    werden aber weder die Design-Bilder (`files/agent_designs/`) noch heruntergeladene Wörterbücher,
-    und das Wiederherstellen entfernt sie. Mindestens den Text berichtigen, besser beide Ordner in
-    die Sicherung aufnehmen.
   - niedrig: `docs/ANLEITUNG.md` hat nach dem Zusammenführen zwei Absätze „Sichern“ hintereinander
     (der zweite ist der alte) und einen doppelten Satz unter „Über“; „Schriftgröße“ liegt unter
     „Schrift & Emoji“, nicht „Größe & Form“. Screenshot-Kandidaten werden bei `mayKeep = false` bis zu
     drei Minuten nachgereicht. Fehlende Tests für `discardCopies`-Fehlschlag und die Meldungswahl.
-  - in Ordnung laut Prüfer: Zustandsmaschine „privates Feld aktiv“, Rückweg bei normalen Fehlern,
-    Suche, 48 dp, Über-Seite, die Lint-Baseline-Änderung.
+- Etappe 71 (Slang-Liste aus dem Datenpaket des Owners, `docs/referenzen/datensaetze/AUSWAHL.md`) liegt
+  auf dem Arbeitsbranch, mit Tests, ohne Gerätetest.
 - Engine-Zeilen ohne abschließenden Prüfer: die Zählzeilen von 64a (gelesen, in Ordnung), die zwei
   `LatinIME`-Zeilen von 65, die `LatinIME`-Bedingung von 70 (gelesen), `PointerTracker` (siehe oben).
 - Angefangene, nicht zusammengeführte Arbeit liegt nur als lokale Commits in den Arbeitskopien

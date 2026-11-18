@@ -1373,9 +1373,12 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         sPointerTrackerQueue.remove(this);
         // fork (stage 70): out of the queue, a later ACTION_CANCEL (the picker or an overlay opens as a window)
         // no longer reaches onUpEventInternal, which is what clears the space-swipe state; clear it here, as the
-        // SPACE_HOLD branch of onLongPressed does
-        mKeySwipeAllowed = false;
-        sInKeySwipe = false;
+        // SPACE_HOLD branch of onLongPressed does. The static flag is cleared only by the finger that set it
+        // (review of stage 70, M-2): another finger's long press must not end a swipe that is still going
+        if (mKeySwipeAllowed) {
+            mKeySwipeAllowed = false;
+            sInKeySwipe = false;
+        }
         mInHorizontalSwipe = false;
         mInVerticalSwipe = false;
         mTouchpadHandler.disableTouchpadMode();

@@ -6038,6 +6038,26 @@ die „strenge Lesart“ ist durch die Regel „aktiv in einem privaten Feld“ 
   Spanisch-Tippen wirklich ungeschützt bleibt (das Test-Gerüst hält die Tastatursprache fest, die Sprachwahl ist in `InformalWordsTest`
   und `InformalWordsStoreTest` geprüft).
 
+### Nachprüfung 64, 65 und 70: Befunde behoben (Lead, 2026-11-18)
+
+Die Prüfer zu 64a/64b, zur Korrekturrunde 65 und zu 69 hatten fünf mittlere Befunde hinterlassen (`docs/HANDOFF.md`, Stand 2026-11-17).
+Behoben, jeweils mit Test:
+
+- Text aus der Zwischenablage in Zwischenspeichern (64b, M-1): `ClipVault.live`, `classified` und `SmartPasteChips.recognised` verfallen
+  nach zwei Sekunden, beim Herausgeben eines Geheimnisses, bei `clear()` und bei jedem `LockState.drop()`. `ClipCachesTest` 4 grün.
+- `PointerTracker.cancelKeyTracking` (70, M-2, Engine-Datei): `sInKeySwipe` nur löschen, wenn dieser Finger `mKeySwipeAllowed` hatte.
+  `aSecondFingersLongPressDoesNotEndTheFirstFingersSwipe` ist ohne die Änderung rot („the static flag of A's swipe“) und mit ihr grün
+  (beides gelaufen); `AgentSpaceGestureTest` 22 grün.
+- Start des Dienstes (65, Prüfer M1): der beim Start gelesene Clip kommt nicht in den Verlauf. `HardeningClipHistoryTest` 11 grün.
+- Sicherungsdialog (69, M3): nennt die Bilder eigener Designs und heruntergeladene Wörterbücher als nicht gesichert und beim
+  Wiederherstellen entfernt (deutsch und englisch).
+- Wiederherstellen (65, N1): nach einem gescheiterten Rückweg läuft das Entfernen „fehlender“ Layouts nicht.
+- Weitere Läufe: `ClipVaultTest` 21, `StripRequestsTest` 16, `SmartPasteChipsTest` 15, `ScreenshotChipTest` 15, `RestoreSafetyTest` 15,
+  `SettingsSystemAreaTest` 12, alle grün.
+- Weiter offen (niedrig oder bewusst verschoben): Markerdatei in der Kopie `…2` gegen das Zurückholen einer halben Kopie nach einem
+  zweiten Fehler beim Aufräumen; die niedrigen Befunde zu `TypingPerf` (Feldstart-Arbeit im Tastendruck, nicht alle Anfragen gezählt),
+  `LockState` (Rennen nach `drop()`), `UpdateOnOpen`, `CharArtView.startLive`, Screenshot-Kandidaten, Docs-Fehler in ANLEITUNG.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

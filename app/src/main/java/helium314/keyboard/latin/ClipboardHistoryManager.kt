@@ -67,7 +67,7 @@ class ClipboardHistoryManager(
         val removed = helium314.keyboard.agent.commands.SensitiveClips.migrateLegacy(latinIME, clipboardDao)
         if (latinIME.mSettings.current.mClipboardHistoryEnabled) {
             startOldHistoryCleanup()
-            fetchPrimaryClip()
+            fetchPrimaryClip(startup = true)
         }
         // deleted rows may remain in free pages: rewrite the database file once after such a cleanup
         if (removed) clipboardDao?.compactInBackground()
@@ -165,7 +165,12 @@ class ClipboardHistoryManager(
     // todo for later
     //  setting whether to store sensitive clip data?
     //  care about other clip items than first?
-    private fun fetchPrimaryClip() {
+    /**
+     * [startup]: the read when the service starts. The clip then on the clipboard was copied before, in a field the
+     * keyboard did not see (a password field of another keyboard, say), so it is not kept in the history (stage 65 review:
+     * a clip that is not kept does not come back later). Clips copied while the service runs follow the field rule.
+     */
+    private fun fetchPrimaryClip(startup: Boolean = false) {
         if (tempPrimaryClip) return // avoid updating history
         val clipData = clipboardManager.primaryClip ?: return
         if (clipData.itemCount == 0) return
@@ -175,7 +180,7 @@ class ClipboardHistoryManager(
         // stage 65 (S2): one rule for the vault and the history database (ClipVault.mayKeep); a clip the
         // system marks sensitive is never kept as file or image (text goes through the vault, see below)
         val sensitive = ClipboardManagerCompat.getClipSensitivity(description) == true
-        val mayKeep = helium314.keyboard.agent.ClipVault.mayKeep(latinIME, latinIME.mSettings.current,
+        val mayKeep = !startup && helium314.keyboard.agent.ClipVault.mayKeep(latinIME, latinIME.mSettings.current,
             sensitive && !description.hasMimeType("text/*"))
 
         if (description.hasMimeType("text/*")) {
