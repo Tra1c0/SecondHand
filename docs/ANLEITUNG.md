@@ -242,15 +242,16 @@ Wie die Seite „KI-Anbieter“ lässt sie keine Bildschirmfotos zu. Bei gesperr
 - **Sichern**: „Sichern und Wiederherstellen“ (Tastatureinstellungen und Wörter als Datei, derselbe
   Dialog wie bisher), „Profile exportieren“ (öffnet Tastaturprofile). Der Dialog sagt genau, was die
   ZIP-Datei enthält: Tastatureinstellungen (auch Designs und RGB-Licht, aber ohne die Bilder eigener
-  Designs), eigene Layouts, von dir hinzugefügte Wörterbuchdateien, gelernte Wörter, Hintergrundbild,
+  Designs), eigene Layouts, von dir hinzugefügte Wörterbuchdateien, Listen gesperrter Wörter, gelernte Wörter (nur solange „Persönliches
+  Wörterbuch des Gerätes verwenden“ aus ist, sonst liegen sie beim System), gesammelte Gestendaten (falls eingeschaltet), Hintergrundbild,
   Schriften und den Zwischenablage-Verlauf. Nicht enthalten sind Profile, Gedächtnis, Bausteine, Orte,
   gemerkte Korrekturen, Trefferzonen, gemalte Symbole, KI-Einstellungen und -Modelle, Zugangsschlüssel, das
   Persönliche Wörterbuch (es bleibt beim System), mitgelieferte Wörterbücher (werden bei Bedarf neu angelegt)
   und die Bilder eigener Designs. Beim Wiederherstellen wird alles im Datenordner entfernt, was nicht in der
-  Datei steht, zum Beispiel Bilder eigener Designs und die geladene Gesten-Bibliothek (Gestenschreiben danach
-  neu laden). Alles andere bleibt nur auf diesem Telefon (Profile und Workflows lassen sich einzeln als Datei
+  Datei steht, zum Beispiel Bilder eigener Designs und die geladene Gesten-Bibliothek (Gesten-Tippen danach
+  neu laden). Die nicht gesicherten Daten bleiben unverändert auf diesem Telefon (Profile und Workflows lassen sich einzeln als Datei
   exportieren). Die Datei ist nicht verschlüsselt: Gelernte
-  Wörter und Zwischenablage-Einträge sind darin lesbar, bewahre sie sicher auf. Wiederherstellen
+  Wörter, gesammelte Gestendaten und Zwischenablage-Einträge sind darin lesbar, bewahre sie sicher auf. Wiederherstellen
   überschreibt vorhandene Daten. Ob die Sicherung später um die Daten von SecondHand erweitert wird,
   steht in ROADMAP.md.
 - **Sichern**: „Sichern und Wiederherstellen“ (alle Einstellungen als Datei, derselbe Dialog wie

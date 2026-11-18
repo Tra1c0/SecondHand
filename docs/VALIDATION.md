@@ -6091,6 +6091,42 @@ von Hand gegen Standardwörter und bekannte Tippfehler gelesen. Befunde und was 
   Gestentippen ruft `guardAllows` nicht auf, die Liste gilt dort nicht.
 - Nicht geprüft: das Verhalten auf einem Gerät und mit den echten Wörterbüchern zur Laufzeit.
 
+### Abschlussprüfung des Arbeitsstands von Runde 2 und Etappe 71 (zwei Prüfer zu `e1d0131`, 2026-11-18)
+
+Zwei unabhängige Prüfer lasen den Branch gegen `main` (Build 29): der eine die geänderten Engine-Dateien (`PointerTracker`, `RichInputConnection`,
+`LatinIME`, `Suggest.kt`, jeweils mit den Zielen der Fork-Aufrufe), der andere die beiden Korrekturcommits zu den mittleren Befunden der Härtung
+(Zwischenspeicher mit Clip-Text, Start-Lesen, Sicherungsdialog). Beide fanden keinen hohen und keinen mittleren Befund. Die niedrigen und was daraus wurde:
+
+- Engine-Zeilen: Der Kommentar in `PointerTracker.cancelKeyTracking` („nur der Finger, der es gesetzt hat“) stimmte nur halb: gelöscht wird, wenn dieser
+  Finger selbst wischen darf (`mKeySwipeAllowed`); zwei Finger auf Leertaste und Entf entsprechen den Zweigen von Upstream (Dauerfeuer, Panel-Langdruck)
+  und beenden den Wisch mit dem Langdruck; nichts bleibt hängen (Kommentar und P289 berichtigt, kein Verhalten geändert). „Nicht gezählt: `copyText`“
+  war halb falsch (`copyText(true)` ruft das gezählte `getSelectedText`; sein `getExtractedText` bleibt ungezählt), „jeder `InputConnection`-Aufruf“ meinte
+  nur lesende Aufrufe (`TypingPerf.app`, P264, `TypingPerf.kt` berichtigt); `LatinIME.onEvent` zählt jeden Tastenbefehl, auch Dauerfeuer und Touchpad-Pfeile.
+  Die Zeile „Nicht geändert: `InputLogic`, `RichInputConnection`, `PointerTracker`“ gilt nur für Etappe 51 (so benannt). `LatinIME.getSelectedEmoji` hat
+  nach der Logänderung keinen Aufrufer mehr (toter privater Upstream-Code, bleibt). Der Lead zählte nach: von 39 geänderten Dateien unter `app/src/main` fehlten
+  `LayoutUtilsCustom.kt`, `values/strings.xml` und `values-de/strings-talkback-descriptions.xml` in `map.sources` und in „Geänderte Upstream-Dateien“
+  (`docs_sync.py --check` erzwingt das nicht); nachgetragen. Testlücken, nicht behoben: nichts prüft, dass die sechs `TypingPerf.app()`-Zeilen genau die genannten
+  Aufrufe zählen; kein Test für `cancelKeyTracking` bei einem zweiten Finger, der selbst wischen darf.
+- Start-Lesen-Test: Die Prüfung „der Tresor hält es nicht“ konnte nicht rot werden. Der Prüfer vermutete einen Klartext-Clip als Grund; die Ursache war
+  zusätzlich, dass die Uhr des Tresors nicht der Uhr von Robolectric folgte (der Tresor räumte jeden Eintrag sofort, auch in den anderen „Tresor ist
+  leer“-Prüfungen des Tests). Jetzt folgt die Uhr wie in `ClipVaultTest`, eine Kontrollprüfung („der Tresor nimmt einen Code, solange der Dienst läuft“) und ein
+  Tresor-Teil für das Start-Lesen sind ergänzt. Rot nachgewiesen mit einer Mutation (der Tresor bekommt beim Start-Lesen `allowed = true`): der Test scheitert an
+  „origin unknown: the start-up read does not put the code into the vault“; die Mutation ist zurückgenommen.
+- Sicherungsdialog: Kein Satz war falsch, aber die Datei enthält auch die Wortsperrlisten und gesammelte Gestendaten (beides lesbar), „Alles andere bleibt nur
+  auf diesem Telefon“ las sich, als bliebe der Rest des Datenordners (gemeint: die nicht gesicherten Daten bleiben unverändert), und die deutsche Oberfläche
+  sagt „Gesten-Tippen“. Berichtigt (Deutsch und Englisch, ANLEITUNG, FEATURES); „gelernte Wörter“ stehen nur in der Datei, solange „Persönliches Wörterbuch des
+  Gerätes verwenden“ aus ist (steht in der ANLEITUNG). 41 andere Sprachen zeigen weiter den kurzen Upstream-Text.
+- Frist der Zwischenspeicher: Der Wortlaut „kein Zwischenspeicher mit Clip-Text überlebt 2 s“ war zu weit; gemeint sind die Zwischenspeicher des Tresors und
+  `SmartPasteChips.recognised`. Chip-Ansichten und `UrlCommand.cached` erfasst die Frist nicht, und liegt der Clip noch auf der System-Zwischenablage, lädt ihn
+  die nächste Anfrage neu (ARCHITECTURE, Release-Notizen berichtigt). `armForget` setzt den Merker zurück, wenn der Handler die Frist nicht annimmt; `clear()` ist
+  nicht atomar gegen Füllen (alles im Hauptthread, dokumentiert).
+- RGB-Zeittest: `RgbOwnPatternTest.ownPatternsStayWithinTheBudget` scheiterte auf GitHub in Lauf 98 (erster Versuch) und Lauf 99; der unveränderte Wiederholungslauf von
+  Lauf 98 war grün, Lauf 96 und 97 waren grün. Lokal liegt der Test allein bei dem 1,3- bis 1,5-Fachen der INK-Zeit gegen erlaubte 2. Vermutete Ursache (nicht belegt): die
+  JIT hat auf einem ausgelasteten Rechner die Pfade der Muster noch nicht übersetzt. Gemessen wird jetzt nach 400 statt 60 Aufwärm-Bildern und als Bestes aus neun statt
+  drei Läufen; die Grenzen (2 × INK, unter 4 ms) sind unverändert, keine Prüfung wurde entfernt oder gelockert.
+- Nicht geprüft: Verhalten auf einem Gerät (Zwei-Finger-Wischen, TalkBack-Langklick, Sprachwahl), Laufzeitkosten; „rot ohne die Änderung“ der Zwischenspeicher-Tests ist nur
+  durchgedacht.
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

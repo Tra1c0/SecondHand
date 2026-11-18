@@ -96,7 +96,11 @@ object TypingPerf {
     private var slowCount = 0
     @Volatile private var slowMin = 0L
 
-    /** One request to the edited app (an `InputConnection` call that leaves the process). Never throws. */
+    /**
+     * One reading request to the edited app (an `InputConnection` call that leaves the process: text before or after
+     * the cursor, the selection, the extracted text). Writing calls (`commitText`, `setComposingText`,
+     * `deleteSurroundingText`, `sendKeyEvent`, `setSelection`) are not counted. Never throws.
+     */
     @JvmStatic fun app() { appRequests.incrementAndGet() }
 
     /** One request to the system (lock state, clipboard, device abilities). Never throws. */

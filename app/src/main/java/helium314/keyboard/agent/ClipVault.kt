@@ -103,7 +103,10 @@ object ClipVault {
      * most [CACHE_MILLIS] and the next fill after the deadline arms the next one.
      */
     internal fun armForget() {
-        if (deadline.compareAndSet(false, true)) handler.postDelayed(expireCaches, CACHE_MILLIS)
+        if (!deadline.compareAndSet(false, true)) return
+        // a deadline that could not be posted (the looper has quit, the handler cannot be made) must not stay "pending": nothing would clear it
+        val posted = runCatching { handler.postDelayed(expireCaches, CACHE_MILLIS) }.getOrDefault(false)
+        if (!posted) deadline.set(false)
     }
 
     /** For the tests: whether a cache still holds [text]. */

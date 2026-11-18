@@ -521,10 +521,13 @@ class RgbOwnPatternTest {
                 for (s in 0 until 8) sum += e.light(s / 8f, 0f, -1, t)
                 return sum
             }
-            repeat(60) { frame(it.toLong()) }
+            // A long warm-up (on a busy CI machine the JIT compiles the generator paths late) and the best of nine runs: the budget
+            // below is unchanged, only the estimate of the cost is steadier. Alone this test shows 1.3 to 1.5 times the cost of ink
+            // against the allowed 2; on GitHub it failed in two of four runs of one day with the three-run estimate.
+            repeat(400) { frame(it.toLong()) }
             var best = Double.MAX_VALUE
             var sink = 0
-            repeat(3) {
+            repeat(9) {
                 val start = System.nanoTime()
                 for (f in 0 until 60) { e.advance(f * 33L); sink += frame(f * 33L % 5000) }
                 best = minOf(best, (System.nanoTime() - start) / 1e6 / 60)

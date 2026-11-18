@@ -482,8 +482,8 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   `SuggestionStripView.kt`: dafür ist `isExternalSuggestionVisible` von außen lesbar (`private set`).
   `RgbKeyPainter` fängt Ausnahmen selbst ab (P288), `KeyboardView.java` bleibt unverändert.
   `PointerTracker.java`: `cancelKeyTracking` setzt jetzt `mKeySwipeAllowed`, `sInKeySwipe`,
-  `mInHorizontalSwipe`, `mInVerticalSwipe` und den Touchpad-Zustand zurück (Nachprüfung M2, P289);
-  der Abbruch mitten in einer Wischgeste mit Tracker in der Warteschlange war schon richtig.
+  `mInHorizontalSwipe`, `mInVerticalSwipe` und den Touchpad-Zustand zurück (Nachprüfung M2, P289); `sInKeySwipe` nur, wenn dieser Finger
+  selbst wischen durfte (`mKeySwipeAllowed`); der Abbruch mitten in einer Wischgeste mit Tracker in der Warteschlange war schon richtig.
 - `PointerTracker.java`: Leertasten-Langdruck fragt `CustomAction.SPACE_HOLD` (die eingestellte
   Halten-Aktion); ist sie verbraucht, endet der laufende Zeiger samt Swipe/Touchpad-Flags, sonst
   bleibt HeliBoards Tastaturwahl über `mSpaceForLangChange` der Rückfall. Leertasten-Gesten:
@@ -640,7 +640,7 @@ Autokorrektur folgt der Sprache (Etappe 51, Details im Abschnitt „Lerndaten“
   `ForeignWords.closeDictionaries` (neben `RgbLighting.onTrimMemory`); beim Beenden schließt
   `AgentEditorController.destroy` sie. Zweite Nachprüfung 51: auch bei `TRIM_MEMORY_BACKGROUND`
   (eigener Fall) und in `resetSuggestMainDict` (Wörterbuch hinzugefügt oder entfernt), P207.
-- Nicht geändert: `InputLogic`, `RichInputConnection`, `PointerTracker`. Die Sprachbefehle schalten
+- Stand Etappe 51 nicht geändert (spätere Etappen: siehe oben): `InputLogic`, `RichInputConnection`, `PointerTracker`. Die Sprachbefehle schalten
   weiter über `switchToSubtype` (wie die Sprachtaste); gelernt wird über den Hook von 46
   (`Memory.onWordCommitted` reicht jedes Wort zuerst an `ForeignWords` weiter, vor den eigenen
   Sperren des Gedächtnisses) und `RejectedCorrections.remember` (P193); vergessen über
@@ -830,7 +830,7 @@ Speicher, Datenschutz und Identität:
   Sperrlisten-Fehlermeldungen loggen das Wort nicht mehr) und `ExpandableBinaryDictionary.java`
   (`readAllWordProperties`, `clearAndWait`): Lernpause und Lerndaten, siehe „Lerndaten“. Stufe 65 (S6):
   die Fehlerzeilen von `ExpandableBinaryDictionary.java` und `Ver4DictEncoder.java` nennen kein Wort
-  und keinen Wortkontext mehr.
+  und keinen Wortkontext mehr; `LayoutUtilsCustom.kt`: drei Warnzeilen nennen die Beschriftung der Taste nicht mehr.
 - `ClipboardHistoryManager.kt` (65, S2/S8): `fetchPrimaryClip` fragt vor jedem Speichern, Text wie
   Datei, `ClipVault.mayKeep` (eine Regel für Tresor und Verlauf); `onDestroy` leert Tresor und
   Verweise (P270, P271). `LatinIME.java` (65, S12): `onFinishInputInternal` und
@@ -940,7 +940,9 @@ Speicher, Datenschutz und Identität:
   `debug`/`debugNoMinify` (seit 57 alle drei Namen ohne „Lab“, P242).
 - `values-de/strings.xml` (38f): deutsche Texte von HeliBoard sagen „Leiste“ statt „Symbolleiste“
   (Modus, Tasten, Anheften, Hinweise, Gestendaten); nur Wortlaut, keine neuen oder entfernten
-  Schlüssel. Englisch unverändert.
+  Schlüssel. Stufe 65/69: `backup_restore_message` (Deutsch und Englisch, `values/strings.xml`) sagt, was in der Sicherungsdatei steht, was
+  nicht und was ein Wiederherstellen entfernt; `app_slogan` mit `formatted="false"` (kein Formatstring); `values-de/strings-talkback-descriptions.xml`
+  (69): fehlende deutsche Namen für die Sprachausgabe (Zwischenablage-Vorschlag, Modi, Emoji-Kategorien).
 
 Symbole malen (Etappe 27, Touch-Verarbeitung, jede Änderung mit Prüfer; Details im Abschnitt
 „Symbole malen“):
@@ -1079,11 +1081,13 @@ für jedes Update (entpackte Wörterbücher leeren, `upgradeToolbarPrefs`, Layou
 der alten Migration (1,75 bzw. 1,1 im Querformat): Hochformat bekommt den Abstand des gewählten
 eigenen Designs, alle anderen ihren Standard; die Höhe bleibt. Test: `ForkUpgradeTest`.
 
-- `RichInputConnection.java` (64a): je eine Zeile `TypingPerf.app()` vor jedem Aufruf, der die App wirklich
+- `RichInputConnection.java` (64a): je eine Zeile `TypingPerf.app()` vor jedem lesenden Aufruf, der die App wirklich
   fragt: `getTextBeforeCursor` und `getTextAfterCursor` (in den zwei `…AndDetectLaggyConnection`, also nur wenn der
   Textspeicher nicht antworten kann), `getSelectedText`, `getExtractedText` in `reloadCursorPosition`, die Prüfung des
   letzten Zeichens nach `setComposingText` und `getSelectedText` in `tryFixIncorrectCursorPosition`. Nicht gezählt:
-  `copyText` und die statischen Ersetzungs-Helfer (Antippen, nicht Tippen). Der Zähler wirft nie.
+  schreibende Aufrufe (`commitText`, `setComposingText`, `deleteSurroundingText`, `sendKeyEvent`, `setSelection`), das
+  `getExtractedText` in `copyText` (sein `getSelectedText` zählt, einmal) und die statischen Ersetzungs-Helfer (Antippen, nicht Tippen).
+  Der Zähler wirft nie. `LatinIME.onEvent` zählt jeden Tastenbefehl, auch Dauerfeuer und Pfeile des Touchpads (verzerrt nur die Karte „Tippen“).
 - `LatinIME.java` (64a): `onEvent` beginnt mit `TypingPerf.keyPress()` (ein Tastendruck beginnt; nur Zahlen).
 
 Geänderte Upstream-Tests (Leertasten-Gesten): `InputLogicTest.kt` ruft `onSpaceSwipe` statt
@@ -2303,9 +2307,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   die Schreibmarke nur vorwärts geht (`emptyAfterCursorAt`); zurück, unbekannt, neues Feld (`fieldStarted`, aus
   `KeyboardCommands.load`) fragen neu, „Text dahinter“ wird nie gemerkt, und `insert` fragt beim Tipp noch einmal.
   `ClipVault.liveClip` merkt den gelesenen Clip `LIVE_MILLIS` (1 s; `offer` und `clear` verwerfen ihn; seit der Nachprüfung 64
-  überlebt kein Zwischenspeicher mit Clip-Text `CACHE_MILLIS` = 2 s nach seiner Füllung (eine Frist, die spätere Füllungen nicht verschieben), und `forgetCaches()` leert `live`,
+  überleben die Zwischenspeicher des Tresors (`live`, `classified`) und `SmartPasteChips.recognised` höchstens `CACHE_MILLIS` = 2 s nach der Füllung, die die Frist armt (eine Frist, die spätere Füllungen nicht verschieben; liegt der Clip noch auf der System-Zwischenablage, lädt die nächste Anfrage ihn neu, und Chip-Ansichten sowie `UrlCommand.cached` erfasst die Frist nicht), und `forgetCaches()` leert `live`,
   `classified` und `SmartPasteChips.recognised`, wenn der Tresor ein Geheimnis herausgibt (`take`), bei `clear()` und bei jedem
-  `LockState.drop()`; Test `ClipCachesTest`),
+  `LockState.drop()`; Füllen, `armForget` und `clear()` laufen im Hauptthread und sind nicht untereinander synchronisiert; nimmt der Handler die
+  Frist nicht an, wird der Merker zurückgesetzt; Test `ClipCachesTest`),
   `classifyLive` die Einordnung des zuletzt gesehenen Texts (`isSecretClip` und `freshest` fragten je Aufruf einzeln).
   `SmartPasteChips.actions` merkt die Erkennung je (Kopierzeit, Inhalt, Markierung, Sprache, Region, Minute); die
   Geheim-Prüfung davor läuft jedes Mal. `KeyboardCommands.rowFor` baut die Chip-Zeile nur neu, wenn Leiste, Farben
@@ -5464,8 +5469,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Feldwort aufnehmen: jede neue Messstelle bekommt einen Eintrag in `Hook` (feste Namen, Beschriftung in
   `agent_diagnose_strings.xml`), keine Zeichenkette. Auf dem heißen Pfad gibt es keine Allokation (keine Lambdas mit
   Erfassung außerhalb der inline-Funktion `measure`, kein String, kein Logging); jeder Einstieg fängt Throwable und wirft nie
-  in die Engine. Zählung der App-Anfragen nur dort, wo wirklich ein `InputConnection`-Aufruf die App verlässt (nicht beim
-  Antworten aus dem Textspeicher): eine neue Stelle in `RichInputConnection` braucht genau eine Zeile `TypingPerf.app()`.
+  in die Engine. Zählung der App-Anfragen nur dort, wo wirklich ein lesender `InputConnection`-Aufruf die App verlässt (nicht beim
+  Antworten aus dem Textspeicher, nicht bei schreibenden Aufrufen): eine neue lesende Stelle in `RichInputConnection` braucht genau eine Zeile `TypingPerf.app()`.
   Der Tastendruck zählt Zeit bis zum nächsten `keyPress()`; Arbeit auf anderen Threads zählt nur bei den Anfragen. Die
   Karte zeigt nur, was seit dem Start des Prozesses oder dem letzten „Zurücksetzen“ gemessen wurde.
 - **P265** Gemeinsamer Sperrzustand (64b): `LockState` darf nur „entsperrt“ aus dem Speicher melden, solange die Antwort
@@ -5509,7 +5514,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   ausgeschalteter Gestenerkennung und im Wisch-Zweig, ein Wort durch Wischen konnte verloren gehen. Nur der
   Zweig `SPACE_HOLD` setzte die Flags selbst zurück. Behoben in `cancelKeyTracking`. Mit einem `ACTION_UP`
   statt des Abbruchs war der Zustand immer sauber (`onUpEventInternal`).
-  Nachprüfung M-2 (zweiter Finger): `cancelKeyTracking()` löscht `mKeySwipeAllowed` und das statische `sInKeySwipe` nur, wenn dieser Tracker `mKeySwipeAllowed` gesetzt hatte, wie alle anderen Stellen. Sonst beendete der Langdruck eines zweiten Fingers auf einer Buchstabentaste die Wischgeste des ersten (ein dritter Druck konnte Gestenerkennung starten, während der Cursor wischt). Test `aSecondFingersLongPressDoesNotEndTheFirstFingersSwipe` (rot ohne die Bedingung, geprüft).
+  Nachprüfung M-2 (zweiter Finger): `cancelKeyTracking()` löscht `mKeySwipeAllowed` und das statische `sInKeySwipe` nur, wenn dieser Tracker `mKeySwipeAllowed` gesetzt hatte, wie alle anderen Stellen. Sonst beendete der Langdruck eines zweiten Fingers auf einer Buchstabentaste die Wischgeste des ersten (ein dritter Druck konnte Gestenerkennung starten, während der Cursor wischt). Test `aSecondFingersLongPressDoesNotEndTheFirstFingersSwipe` (rot ohne die Bedingung, geprüft). Dürfen beide Finger wischen (beide auf Leertaste oder Entf), beendet der abgebrochene Langdruck des einen den Wisch des anderen, wie bei Upstreams Dauerfeuer und Panel-Langdruck; nichts bleibt hängen, ein Test dafür fehlt (Prüfung zu `e1d0131`).
 - **P290** Hintergrundrechnen der Zeichen-Kunst und Z6 (70): `renderGeneration` zählt nur, was ein
   Hintergrundergebnis entwertet (`render()`, `resetContent`, Abhängen); ein Tick des Strichs zählt sie
   nicht. Es läuft höchstens eine Rechnung; Ticks währenddessen merken nur „neueres gewünscht“
@@ -5642,7 +5647,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (645 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (648 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -5753,8 +5758,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/latin/settings/` (2): Defaults, SettingsValues
 - `K/latin/spellcheck/` (1): AndroidSpellCheckerService
 - `K/latin/suggestions/` (2): FlatStrip, SuggestionStripView
-- `K/latin/utils/` (5): CapsModeUtils, DictionaryInfoUtils, DictionaryUtils, SubtypeUtils,
-  ToolbarUtils
+- `K/latin/utils/` (6): CapsModeUtils, DictionaryInfoUtils, DictionaryUtils, LayoutUtilsCustom,
+  SubtypeUtils, ToolbarUtils
 - `K/settings/` (4): SearchScreen, SettingsActivity, SettingsContainer, SettingsNavHost
 - `K/settings/dialogs/` (2): ColorPickerDialog, SliderDialog
 - `K/settings/preferences/` (5): BackupRestorePreference, CustomFontPreference,
@@ -5797,7 +5802,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `app/src/main/res/mipmap-xhdpi/` (2): ic_launcher, ic_launcher_round
 - `app/src/main/res/mipmap-xxhdpi/` (2): ic_launcher, ic_launcher_round
 - `app/src/main/res/mipmap-xxxhdpi/` (2): ic_launcher, ic_launcher_round
-- `app/src/main/res/values-de/` (33): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
+- `app/src/main/res/values-de/` (34): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
   agent_charart_strings, agent_clipvault_strings, agent_command_system_strings,
   agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings, agent_format_strings,
   agent_gestures_strings, agent_hardening_strings, agent_language_strings, agent_memory_strings,
@@ -5805,8 +5810,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   agent_settings_look_strings, agent_settings_strings, agent_settings_system_strings,
   agent_slider_strings, agent_smart_paste_strings, agent_snippet_strings, agent_space_strings,
   agent_strings, agent_suggest_strings, agent_symbol_strings, agent_touch_strings,
-  agent_typing_strings, agent_update_prompt_strings, agent_update_strings, strings
-- `app/src/main/res/values/` (41): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+  agent_typing_strings, agent_update_prompt_strings, agent_update_strings, strings,
+  strings-talkback-descriptions
+- `app/src/main/res/values/` (42): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
   agent_bar_strings, agent_charart_ids, agent_charart_strings, agent_clipvault_strings,
   agent_command_system_strings, agent_design_strings, agent_diagnose_strings,
   agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_hardening_strings,
@@ -5816,7 +5822,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   agent_slider_strings, agent_smart_paste_strings, agent_snippet_strings, agent_space_strings,
   agent_strings, agent_suggest_strings, agent_symbol_strings, agent_touch_strings,
   agent_typing_strings, agent_update_prompt_strings, agent_update_strings, attrs, clip_provider,
-  donottranslate, gesture_data, themes-flat
+  donottranslate, gesture_data, strings, themes-flat
 - `app/src/main/res/xml/` (4): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path, spellchecker
 - `app/src/test/java/helium314/keyboard/` (2): KeyboardParserTest, Shadows

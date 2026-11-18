@@ -69,6 +69,9 @@ class HardeningClipHistoryTest {
         imeOptions = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
     }
     private val password = EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD }
+    // Robolectric stamps clips with SystemClock.uptimeMillis() (a device uses the wall clock), so the vault clock follows it, as in
+    // ClipVaultTest. With the wall clock the vault pruned every item at once and "the vault holds nothing" could not fail (review).
+    private val now = android.os.SystemClock.uptimeMillis()
 
     @Before fun setUp() {
         ClipVault.fieldFinished(null)
@@ -76,6 +79,7 @@ class HardeningClipHistoryTest {
         load(plain)
         ClipboardDao.getInstance(latinIME)?.clear()
         ClipVault.clear()
+        ClipVault.clock = { now }
     }
 
     @After fun tearDown() {
@@ -83,6 +87,7 @@ class HardeningClipHistoryTest {
         shadowOf(keyguard).setIsDeviceLocked(false)
         ClipboardDao.getInstance(latinIME)?.clear()
         ClipVault.clear()
+        ClipVault.clock = { System.currentTimeMillis() }
         latinIME.prefs().edit().clear().commit()
         load(plain)
     }
@@ -143,6 +148,15 @@ class HardeningClipHistoryTest {
         history.onCreate()
         assertFalse(historyTexts().contains("$text vorher"), "origin unknown: the start-up read keeps nothing")
         assertTrue(ClipVault.secrets().isEmpty(), "nor does the vault hold it")
+        // the vault proper (review: the line above cannot fail, the clip is plain text): a code that was on the clipboard before the start
+        // is not taken into it either
+        ClipVault.clear()
+        copy("482913")
+        assertEquals(listOf("482913"), ClipVault.codes().map { it.shown }, "control: while the service runs, the vault takes a code")
+        ClipVault.clear()
+        history.onCreate()
+        assertTrue(ClipVault.codes().isEmpty(), "origin unknown: the start-up read does not put the code into the vault")
+        ClipVault.clear()
         // clips copied while the service runs follow the field rule as before
         copy("$text nachher")
         assertTrue(historyTexts().contains("$text nachher"))

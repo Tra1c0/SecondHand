@@ -1373,8 +1373,10 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         sPointerTrackerQueue.remove(this);
         // fork (stage 70): out of the queue, a later ACTION_CANCEL (the picker or an overlay opens as a window)
         // no longer reaches onUpEventInternal, which is what clears the space-swipe state; clear it here, as the
-        // SPACE_HOLD branch of onLongPressed does. The static flag is cleared only by the finger that set it
-        // (review of stage 70, M-2): another finger's long press must not end a swipe that is still going
+        // SPACE_HOLD branch of onLongPressed does. The static flag is cleared only when this finger may swipe
+        // itself (mKeySwipeAllowed: it went down on space or delete; review of stage 70, M-2): a letter finger's
+        // long press must not end another finger's swipe. Two fingers on space and delete are the case of
+        // upstream's key-repeat and panel long-press branches: the swipe state ends with that long press
         if (mKeySwipeAllowed) {
             mKeySwipeAllowed = false;
             sInKeySwipe = false;
