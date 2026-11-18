@@ -6,8 +6,10 @@ Output: app/src/main/assets/agent/informal_words.txt (one normalised word per li
 (docs/referenzen/datensaetze/AUSWAHL.md) that says what was kept, what was left out and why.
 
 Only `data/informal_lexicon.jsonl` (own editorial work of the package, CC0-1.0) ends up in the output.
-Word lists and frequencies of the package are read only to decide what to leave out; nothing derived
-from them (no frequency, no dictionary word) is written. Run with `python3 -I` and the package folder:
+What leaves an entry out is decided against the app's own dictionaries (`app/src/main/assets/dicts/main_de.dict`,
+`main_en-US.dict`, `main_en-GB.dict`: the words the engine really knows) and the package's frequency list (how
+common a form is); nothing derived from them (no frequency, no dictionary word) is written. Run with `python3 -I`
+and the package folder:
 
     python3 -I tools/build_informal_words.py /path/to/unpacked/package
 
@@ -16,6 +18,7 @@ The normal form of a word (NFC, lower case, ' for the curly apostrophe) is the o
 """
 import gzip
 import json
+import struct
 import sys
 import unicodedata
 from collections import Counter, defaultdict
@@ -25,11 +28,82 @@ REPO = Path(__file__).resolve().parent.parent
 OUT_WORDS = REPO / "app/src/main/assets/agent/informal_words.txt"
 OUT_REPORT = REPO / "docs/referenzen/datensaetze/AUSWAHL.md"
 
-MIN_LENGTH = 3            # shorter tokens are too ambiguous (package rule 7)
-COLLISION_MAX_LENGTH = 4  # a collision with a frequent word only matters for short forms
-COLLISION_NEIGHBOUR_ZIPF = 5.5
-COLLISION_OWN_ZIPF = 3.5
+DICTS = REPO / "app/src/main/assets/dicts"
+APP_DICTIONARIES = ("main_de.dict", "main_en-US.dict", "main_en-GB.dict")
+MIN_LENGTH = 3             # shorter tokens are too ambiguous (package rule 7)
+COMMON_PROBABILITY = 150   # of 255 in the app's dictionaries: a "very common word" for the typo test
+COLLISION_OWN_ZIPF = 3.0   # a form used about this rarely in running text is more likely a typo than slang
 WORD_CHARS = set("'-")
+ALPHABET = "abcdefghijklmnopqrstuvwxyzäöüß'"
+
+# --- reader of the app's binary dictionaries (AOSP/HeliBoard format version 202, static) ---
+_CHILDREN_MASK, _MULTI, _TERMINAL, _SHORTCUTS, _BIGRAMS, _NOT_A_WORD, _BLACKLIST = 0xC0, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01
+
+
+def read_app_dictionary(path: Path) -> dict:
+    """word (as stored) -> probability 0..255 for every word the engine treats as valid (not blacklisted, not "not a word")."""
+    b = path.read_bytes()
+    magic, _version, _flags, header = struct.unpack(">IHHI", b[:12])
+    if magic != 0x9BC13AFE:
+        raise SystemExit(f"{path}: not a binary dictionary")
+
+    def codepoint(p):
+        c = b[p]
+        if c == 0x1F:
+            return None, p + 1
+        if c < 0x20:
+            return (c << 16) | (b[p + 1] << 8) | b[p + 2], p + 3
+        return c, p + 1
+
+    words, stack, seen = {}, [(header, "")], set()
+    while stack:
+        pos, prefix = stack.pop()
+        if (pos, prefix) in seen:
+            continue
+        seen.add((pos, prefix))
+        count = b[pos]
+        pos += 1
+        if count & 0x80:
+            count = ((count & 0x7F) << 8) | b[pos]
+            pos += 1
+        for _ in range(count):
+            flags = b[pos]
+            pos += 1
+            chars = []
+            if flags & _MULTI:
+                while True:
+                    cp, pos = codepoint(pos)
+                    if cp is None:
+                        break
+                    chars.append(cp)
+            else:
+                cp, pos = codepoint(pos)
+                chars.append(cp)
+            word = prefix + "".join(chr(c) for c in chars)
+            probability = None
+            if flags & _TERMINAL:
+                probability = b[pos]
+                pos += 1
+            children = flags & _CHILDREN_MASK
+            child = None
+            if children:
+                size = {0x40: 1, 0x80: 2, 0xC0: 3}[children]
+                child = pos + int.from_bytes(b[pos:pos + size], "big")
+                pos += size
+            if flags & _SHORTCUTS:
+                pos += (b[pos] << 8) | b[pos + 1]
+            if flags & _BIGRAMS:
+                while True:
+                    f = b[pos]
+                    pos += 1
+                    pos += (f >> 4) & 3
+                    if not f & 0x80:
+                        break
+            if probability is not None and not flags & (_NOT_A_WORD | _BLACKLIST):
+                words[word] = max(words.get(word, 0), probability)
+            if child is not None:
+                stack.append((child, word))
+    return words
 
 
 def normalize(word: str) -> str:
@@ -73,32 +147,22 @@ ADJ = [keyboard_adjacency(["qwertzuiopü", "asdfghjklöä", "yxcvbnm"], [0, 0, 1
        keyboard_adjacency(["qwertyuiop", "asdfghjkl", "zxcvbnm"], [0, 0.5, 1.5])]
 
 
-def one_typo_apart(typo: str, word: str) -> bool:
-    """Whether [typo] could be [word] typed with one slip: a letter missing, a letter too many that sits
-    next to a neighbouring letter on the keyboard (or doubles it), two letters swapped, or the key next
-    to the right one."""
-    n, m = len(typo), len(word)
-    if abs(n - m) > 1:
-        return False
-    if n == m:
-        diff = [i for i in range(n) if typo[i] != word[i]]
-        if len(diff) == 1:
-            i = diff[0]
-            return any(a(typo[i], word[i]) for a in ADJ)
-        if len(diff) == 2 and diff[1] == diff[0] + 1:
-            i = diff[0]
-            return typo[i] == word[i + 1] and typo[i + 1] == word[i]
-        return False
-    if n < m:  # a letter missing in the typo: any letter can be skipped
-        return any(word[:i] + word[i + 1:] == typo for i in range(m))
-    # a letter too many in the typo: it was the same key again or a key next to a neighbouring letter
-    for i in range(n):
-        if typo[:i] + typo[i + 1:] != word:
-            continue
-        around = [c for c in (typo[i - 1] if i > 0 else "", typo[i + 1] if i + 1 < n else "") if c]
+def intended_words(typo: str):
+    """The words [typo] could be a one-slip typing of: a letter missing, a letter too many that sits next to a
+    neighbouring letter on the keyboard (or doubles it), the key next to the right one, two letters swapped."""
+    for i in range(len(typo) + 1):                       # a letter missing in the typo
+        for c in ALPHABET:
+            yield typo[:i] + c + typo[i:]
+    for i in range(len(typo)):                           # a letter too many
+        around = [c for c in (typo[i - 1] if i > 0 else "", typo[i + 1] if i + 1 < len(typo) else "") if c]
         if any(typo[i] == c or any(a(typo[i], c) for a in ADJ) for c in around):
-            return True
-    return False
+            yield typo[:i] + typo[i + 1:]
+    for i in range(len(typo)):                           # the neighbouring key instead of the right one
+        for c in ALPHABET:
+            if c != typo[i] and any(a(typo[i], c) for a in ADJ):
+                yield typo[:i] + c + typo[i + 1:]
+    for i in range(len(typo) - 1):                       # two letters swapped
+        yield typo[:i] + typo[i + 1] + typo[i] + typo[i + 2:]
 
 
 FIXTURE = REPO / "agent-core/src/test/resources/informal_cases.tsv"
@@ -132,22 +196,17 @@ def write_fixture(data: Path, listed: set) -> None:
 def main(package: Path) -> None:
     data = package / "data"
     lexicon = [json.loads(line) for line in open(data / "informal_lexicon.jsonl", encoding="utf-8")]
-    dictionary = {}
-    for lang in ("de", "en"):
-        dictionary[lang] = {normalize(w.strip()) for w in open(data / f"words_dictionary_{lang}.txt", encoding="utf-8") if w.strip()}
-    known = dictionary["de"] | dictionary["en"]
+    app = {}  # lower-case word -> highest probability in the app's dictionaries
+    for name in APP_DICTIONARIES:
+        for word, probability in read_app_dictionary(DICTS / name).items():
+            key = normalize(word)
+            app[key] = max(app.get(key, 0), probability)
+    known = set(app)  # a capitalised dictionary word counts too: "jungs" is the noun "Jungs", the engine capitalises it
     # "dont", "cant", "youre": a standard word with its apostrophe left out; the engine's correction to the
     # apostrophe form is wanted, so these stay unprotected (package rule 18/19: formal form on explicit choice only)
     with_apostrophe = {w.replace("'", "") for w in known if "'" in w}
     zipf = {lang: read_zipf(data / f"frequency_priors_{lang}.tsv.gz") for lang in ("de", "en")}
-    frequent = {}  # normalised dictionary word -> zipf, only the frequent ones of either language
-    for lang in ("de", "en"):
-        for word, z in zipf[lang].items():
-            if z >= COLLISION_NEIGHBOUR_ZIPF and word in dictionary[lang] and len(word) >= 3:
-                frequent[word] = max(frequent.get(word, 0.0), z)
-    by_length = defaultdict(list)
-    for word in frequent:
-        by_length[len(word)].append(word)
+    common = {w for w, p in app.items() if p >= COMMON_PROBABILITY and len(w) >= 3}
 
     kept, left_out = {}, defaultdict(list)
     categories = defaultdict(set)
@@ -167,11 +226,8 @@ def main(package: Path) -> None:
         else:
             own = max(zipf["de"].get(key, 0.0), zipf["en"].get(key, 0.0))
             clash = None
-            if len(key) <= COLLISION_MAX_LENGTH and own < COLLISION_OWN_ZIPF:
-                for length in (len(key) - 1, len(key), len(key) + 1):
-                    clash = next((w for w in by_length[length] if one_typo_apart(key, w)), None)
-                    if clash:
-                        break
+            if own < COLLISION_OWN_ZIPF:
+                clash = next((w for w in intended_words(key) if w in common), None)
             if clash:
                 left_out["typo_collision"].append(f"{key} ({clash})")
             else:
@@ -206,16 +262,18 @@ def main(package: Path) -> None:
         f"| Phrase | {len(left_out['phrase'])} | Mehrere Wörter („zu gut“): ein getipptes Wort kann sie nie treffen. |",
         f"| Sonderzeichen | {len(left_out['symbols'])} | Emoticons und Formen wie „f*ck“ sind kein Wort der Tastatur. |",
         f"| Zu kurz | {len(left_out['too_short'])} | Höchstens zwei Zeichen: zu mehrdeutig (Regel 7 des Pakets). |",
-        f"| Schon bekannt | {len(left_out['known_word'])} | Ein Wörterbuch der Datensätze kennt die Form; ein Schutz würde "
-        "nur echte Korrekturen verhindern (Regel 20: zwei gültige Wörter braucht Satzbeleg). |",
+        f"| Schon bekannt | {len(left_out['known_word'])} | Ein Wörterbuch der App (Deutsch, Englisch US und GB) kennt die Form, "
+        "auch groß geschrieben („jungs“ ist das Hauptwort „Jungs“); ein Schutz würde nur echte Korrekturen verhindern, auch die "
+        "Großschreibung (Regel 20: zwei gültige Wörter braucht Satzbeleg). |",
         f"| Apostroph weggelassen | {len(left_out['apostrophe_omission'])} | „dont“, „cant“, „youre“: Die Korrektur zu „don't“ "
         "ist erwünscht und bleibt (Regel 18/19 des Pakets: die förmliche Form nur auf Wunsch). |",
-        f"| Tippfehler-Nähe | {len(left_out['typo_collision'])} | Höchstens vier Zeichen, selten im Netz und einen Tippfehler "
-        "(fehlender oder überzähliger Buchstabe, Dreher, Nachbartaste) von einem sehr häufigen Wort entfernt: "
-        "hier wäre der Tippfehler wahrscheinlicher als der Slang. |",
+        f"| Tippfehler-Nähe | {len(left_out['typo_collision'])} | Selten im Netz (Zipf unter 3,0) und einen Tippfehler "
+        "(fehlender oder überzähliger Buchstabe, Dreher, Nachbartaste) von einem sehr häufigen Wort der App-Wörterbücher "
+        "entfernt: hier wäre der Tippfehler wahrscheinlicher als der Slang. |",
         "",
-        "Aus Quellen des Pakets, die nur zur Entscheidung gelesen wurden (Wörterbuchlisten, Häufigkeiten), "
-        "steht nichts in der Ausgabe.",
+        "Was „bekannt“ und „sehr häufig“ heißt, entscheiden die Wörterbücher der App (`app/src/main/assets/dicts/main_de.dict`, "
+        "`main_en-US.dict`, `main_en-GB.dict`, gelesen mit dem Leser im Skript), nicht die Wortlisten des Pakets: Die Engine "
+        "benutzt nur jene. Aus den gelesenen Quellen (App-Wörterbücher, Häufigkeitsliste des Pakets) steht nichts in der Ausgabe.",
         "",
         "## Was die Liste enthält",
         "",
@@ -238,12 +296,14 @@ def main(package: Path) -> None:
         "",
         "| Datei des Pakets | Grund |",
         "| --- | --- |",
-        "| `frequency_priors*`, `context_ngrams*`, `morphology_observed*`, `context_morphology.sqlite` | "
-        "Ableitungen unter CC BY-SA 4.0 (wordfreq, Universal Dependencies), viele MB; Häufigkeit ist kein "
-        "Nachweis der Schreibweise, die Wörterbücher der Tastatur haben eigene Häufigkeiten. |",
+        "| `context_ngrams*`, `morphology_observed*`, `context_morphology.sqlite` | Ableitungen unter CC BY-SA 4.0 "
+        "(Universal Dependencies), viele MB; ein Korpusbeleg beweist keine Schreibweise. Nicht verwendet. |",
+        "| `frequency_priors_*` | Ableitung der wordfreq-Daten (CC BY-SA 4.0). Nur beim Auswählen gelesen (wie selten eine Form im Netz vorkommt, "
+        "für die Tippfehler-Nähe); nichts davon steht in der Ausgabe. |",
         "| `dictionary_stems*`, `words_dictionary_*`, `words_frequency_matched_*`, `raw/hunspell/*` | "
-        "Ableitungen der Hunspell-Wörterbücher (GPL); die Tastatur bringt eigene Hauptwörterbücher mit, "
-        "ein zweites Wörterbuch würde Doppelte erzeugen. Nur zum Entscheiden gelesen. |",
+        "Ableitungen der Hunspell-Wörterbücher (GPL), Stammformen ohne Beugung. Die Tastatur bringt eigene Hauptwörterbücher mit, "
+        "nur diese kennt die Engine; die Listen wurden zuerst zum Entscheiden gelesen und sind seit der Nachprüfung 71 ersetzt "
+        "durch die App-Wörterbücher (Stämme kennen „gefixt“ und „texte“ anders als die Engine). Nicht verwendet. |",
         "| `typo_candidates_synthetic.jsonl` | Künstlich erzeugte Tippfehler (20 MB), keine gemessene Fehlerhäufigkeit; "
         "die Engine erzeugt solche Kandidaten selbst. |",
         "| `correction_rules.jsonl`, `confusion_sets.jsonl`, `keyboard_adjacency.jsonl` | Beschreibungen ohne "

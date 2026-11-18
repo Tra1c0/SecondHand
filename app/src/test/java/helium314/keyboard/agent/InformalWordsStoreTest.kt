@@ -22,7 +22,7 @@ class InformalWordsStoreTest {
     @Before @After fun reset() = InformalWordsStore.resetForTest()
 
     @Test fun `the list is shipped in the assets`() {
-        assertTrue(InformalWordsStore.size(context) in 2000..4000)
+        assertTrue(InformalWordsStore.size(context) in 1500..4000)
     }
 
     @Test fun `listed and expressive words are protected, ordinary words are not`() {

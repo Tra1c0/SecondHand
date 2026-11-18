@@ -55,8 +55,18 @@ object InformalWords {
         return run >= (if (last in VOWELS) 3 else 4) || LAUGHTER.matches(typed)
     }
 
-    /** Whether [typed] stays as typed: it is on the [words] list or expressive, and this applies to [languages]. */
+    /**
+     * Whether [typed] stays as typed: it is on the [words] list or expressive, and this applies to [languages]. Single quotes
+     * around the word ("'lowkey'", the engine keeps them in the typed word) do not matter; a quote that belongs to a listed word
+     * ("goin'") does.
+     */
     @JvmStatic
-    fun protects(words: Set<String>, typed: String, languages: Collection<String?>): Boolean =
-        typed.length in 1..MAX_LENGTH && appliesTo(languages) && (normalize(typed) in words || isExpressive(typed))
+    fun protects(words: Set<String>, typed: String, languages: Collection<String?>): Boolean {
+        if (typed.length !in 1..MAX_LENGTH || !appliesTo(languages)) return false
+        val word = normalize(typed)
+        if (word in words || isExpressive(typed)) return true
+        return listOf(word.trimStart('\''), word.trimEnd('\''), word.trim('\'')).any {
+            it.isNotEmpty() && it != word && (it in words || isExpressive(it))
+        }
+    }
 }

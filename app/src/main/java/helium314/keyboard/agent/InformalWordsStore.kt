@@ -7,7 +7,7 @@ import dev.agentkeyboard.core.InformalWords
 /**
  * Stage 71: loads the built-in list of informal words (see [InformalWords]) from the app's assets
  * once and answers whether the automatic correction must leave a typed word alone. Static data, no
- * learning and nothing stored; a missing or unreadable file means an empty list (nothing protected).
+ * learning and nothing stored; a missing or unreadable file means an empty list for that call (nothing protected).
  */
 object InformalWordsStore {
     const val ASSET = "agent/informal_words.txt"
@@ -18,9 +18,10 @@ object InformalWordsStore {
         words?.let { return it }
         synchronized(this) {
             words?.let { return it }
+            // a failed read is not remembered: the next call tries again (a missing asset is a packaging error, not a state)
             val read = runCatching {
                 context.applicationContext.assets.open(ASSET).bufferedReader(Charsets.UTF_8).use { InformalWords.parse(it.readText()) }
-            }.getOrDefault(emptySet())
+            }.getOrNull() ?: return emptySet()
             words = read
             return read
         }

@@ -24,10 +24,11 @@ auf keinem Gerät ausprobiert.
 - Sicherung wiederherstellen: Scheitert es, holt die App alles zurück (vorher konnte der geschützte Datenordner verloren gehen). „Es wurde nichts geändert“ steht nur da, wenn es stimmt; scheitert das Zurückholen selbst, sagt die Meldung, wo deine alten Daten liegen. Ein Rest einer abgebrochenen Wiederherstellung wird beim nächsten Versuch zurückgeholt. Stirbt die App mitten drin, geschieht das erst beim nächsten Versuch.
 - Eine von außen geöffnete Wörterbuchdatei wird im Hintergrund kopiert (einmal, auch beim Drehen); schlägt das fehl, kommt eine Fehlermeldung statt einer leeren Seite.
 - Intern: keine gelernten Wörter, gewählten Emojis und Tastenbeschriftungen mehr in Protokollzeilen, Tresor und Feldtext werden früher aus dem Speicher geräumt.
-- Slang und Chat-Sprache: Etwa 2.100 Formen (Umgangssprache, Abkürzungen, eingedeutschte Wörter wie „gecovert“, Spiele-, Technik- und
-  Musikbegriffe) und gedehnte Wörter („neee“, „jaaaa“, „hahaha“) ersetzt die Autokorrektur nicht mehr; ihr Vorschlag steht weiter in der
-  Leiste. Gilt für deutsches und englisches Tippen, ohne Schalter; „dont“ wird weiter zu „don't“. Nur mit Tests geprüft, noch nicht mit den
-  echten Wörterbüchern auf dem Telefon.
+- Slang und Chat-Sprache: Etwa 1.750 Formen, die die Wörterbücher nicht kennen (Umgangssprache, Abkürzungen, eingedeutschte Wörter wie
+  „gecovert“ oder „gefixt“, Spiele-, Technik- und Musikbegriffe) und gedehnte Wörter („neee“, „jaaaa“, „hahaha“) ersetzt die Autokorrektur
+  nicht mehr durch andere Wörter; ihr Vorschlag steht weiter in der Leiste. Großschreibung („jungs“ → „Jungs“), Kürzel aus dem
+  Persönlichen Wörterbuch und selbst beigebrachte Korrekturen bleiben, wie sie waren; „dont“ wird weiter zu „don't“. Gilt für
+  deutsches und englisches Tippen, ohne Schalter. Nur mit Tests geprüft, noch nicht mit den echten Wörterbüchern auf dem Telefon.
 - Zwischenablage: Ein Clip, der schon in der Zwischenablage lag, als die Tastatur startete, kommt nicht in den Verlauf (die Tastatur weiß
   nicht, wo er kopiert wurde). Gelesene Clips bleiben nur kurz im Arbeitsspeicher. „Sichern und Wiederherstellen“ sagt jetzt genau, was in der
   Datei ist und dass ein Wiederherstellen alles im Datenordner entfernt, was nicht darin steht (zum Beispiel Bilder eigener Designs und die

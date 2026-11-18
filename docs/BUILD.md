@@ -145,6 +145,10 @@ nutzen einen Debug-Schlüssel, der in jeder neuen Umgebung anders ist; sie sind 
     Nachweis diesen Pfad still übergehen.
   - Der Gradle-Schritt bekommt `-Xmx3g`; `gradle.properties` hat nur 1024m. Die Schlüsseldatei wird
     auch nach einem gescheiterten Build gelöscht (`trap`).
+- Slang-Liste neu erzeugen (71): `python3 -I tools/build_informal_words.py <entpacktes Datenpaket>` schreibt
+  `app/src/main/assets/agent/informal_words.txt`, `agent-core/src/test/resources/informal_cases.tsv` und
+  `docs/referenzen/datensaetze/AUSWAHL.md`. Es liest die Wörterbücher der App (`app/src/main/assets/dicts/main_{de,en-US,en-GB}.dict`):
+  ändert sich eines davon, die Liste neu erzeugen und prüfen, was herausfällt; danach `InformalWordsTest` und `SuggestTest`.
 - `build-test-auto.yml` (Upstream-Rest): lief bei jedem Pull Request und war immer rot (er ruft
   `testRunTestsUnitTest` auf, nicht der Weg dieses Forks). Seit 63 nur noch von Hand
   (`workflow_dispatch`); die Tests laufen in `agent-tests.yml`.

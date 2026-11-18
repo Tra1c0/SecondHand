@@ -2,7 +2,7 @@
 
 Erzeugt von `tools/build_informal_words.py` aus dem Paket „SecondHand DE/EN-Datensätze 1.0“ (17.11.2026). Dieses Dokument wird vom Skript geschrieben und nicht von Hand bearbeitet.
 
-Aus `informal_lexicon.jsonl` (3893 Einträge, eigene redaktionelle Arbeit des Pakets, CC0-1.0) bleiben **2138** geschützte Schreibformen übrig: `app/src/main/assets/agent/informal_words.txt`.
+Aus `informal_lexicon.jsonl` (3893 Einträge, eigene redaktionelle Arbeit des Pakets, CC0-1.0) bleiben **1750** geschützte Schreibformen übrig: `app/src/main/assets/agent/informal_words.txt`.
 
 ## Warum diese Auswahl
 
@@ -13,36 +13,37 @@ Die Tastatur ersetzt ein getipptes Wort nicht mehr automatisch, wenn es in diese
 | Phrase | 666 | Mehrere Wörter („zu gut“): ein getipptes Wort kann sie nie treffen. |
 | Sonderzeichen | 69 | Emoticons und Formen wie „f*ck“ sind kein Wort der Tastatur. |
 | Zu kurz | 104 | Höchstens zwei Zeichen: zu mehrdeutig (Regel 7 des Pakets). |
-| Schon bekannt | 715 | Ein Wörterbuch der Datensätze kennt die Form; ein Schutz würde nur echte Korrekturen verhindern (Regel 20: zwei gültige Wörter braucht Satzbeleg). |
-| Apostroph weggelassen | 22 | „dont“, „cant“, „youre“: Die Korrektur zu „don't“ ist erwünscht und bleibt (Regel 18/19 des Pakets: die förmliche Form nur auf Wunsch). |
-| Tippfehler-Nähe | 36 | Höchstens vier Zeichen, selten im Netz und einen Tippfehler (fehlender oder überzähliger Buchstabe, Dreher, Nachbartaste) von einem sehr häufigen Wort entfernt: hier wäre der Tippfehler wahrscheinlicher als der Slang. |
+| Schon bekannt | 1109 | Ein Wörterbuch der App (Deutsch, Englisch US und GB) kennt die Form, auch groß geschrieben („jungs“ ist das Hauptwort „Jungs“); ein Schutz würde nur echte Korrekturen verhindern, auch die Großschreibung (Regel 20: zwei gültige Wörter braucht Satzbeleg). |
+| Apostroph weggelassen | 21 | „dont“, „cant“, „youre“: Die Korrektur zu „don't“ ist erwünscht und bleibt (Regel 18/19 des Pakets: die förmliche Form nur auf Wunsch). |
+| Tippfehler-Nähe | 31 | Selten im Netz (Zipf unter 3,0) und einen Tippfehler (fehlender oder überzähliger Buchstabe, Dreher, Nachbartaste) von einem sehr häufigen Wort der App-Wörterbücher entfernt: hier wäre der Tippfehler wahrscheinlicher als der Slang. |
 
-Aus Quellen des Pakets, die nur zur Entscheidung gelesen wurden (Wörterbuchlisten, Häufigkeiten), steht nichts in der Ausgabe.
+Was „bekannt“ und „sehr häufig“ heißt, entscheiden die Wörterbücher der App (`app/src/main/assets/dicts/main_de.dict`, `main_en-US.dict`, `main_en-GB.dict`, gelesen mit dem Leser im Skript), nicht die Wortlisten des Pakets: Die Engine benutzt nur jene. Aus den gelesenen Quellen (App-Wörterbücher, Häufigkeitsliste des Pakets) steht nichts in der Ausgabe.
 
 ## Was die Liste enthält
 
 | Bereich im Paket | Formen |
 | --- | --- |
-| denglish_form | 566 |
-| colloquial | 504 |
-| gaming_tech | 457 |
-| internet_slang | 313 |
-| music | 178 |
-| abbreviation | 124 |
-| youth_phrase | 101 |
+| denglish_form | 477 |
+| colloquial | 460 |
+| gaming_tech | 325 |
+| internet_slang | 253 |
+| music | 133 |
+| abbreviation | 107 |
+| youth_phrase | 87 |
 
 (Eine Form kann in mehreren Bereichen stehen.) Die Einträge sind „redaktionell gesammelt, nicht an Gebrauch geprüft“ (`verification` im Paket): Sie schützen vor falschen Korrekturen, sie belegen keine Verbreitung.
 
 ## Weggelassene Tippfehler-Nähe (Stichprobe)
 
-bih (bin), bish (bist), bois (bis), daws (dass), defs (des), dya (day), dyou (you), eep (keep), fook (took), fsr (far), fst (fast), gell (tell), idr (dir), ight (right), ild (old), ime (time), istg (ist), ofc (off), ong (long), ooff (off), otp (top), sone (some), unc (und), usf (use), vibt (gibt), wayy (way), welp (well), whd (why), wsg (weg), wth (with), wya (way), yass (dass), yeet (yet), yeh (yet), yess (yes), yoo (too)
+bsing (being), dadrauf (darauf), daws (das), defs (des), dya (day), dyou (you), faken (taken), fook (took), fst (fast), gng (ging), haten (hatten), hatet (hatte), ight (right), ild (old), ime (time), imes (times), istg (ist), joine (joined), mosht (most), noice (nice), ooff (off), otp (top), recorde (recorded), tilte (title), vibt (gibt), wayy (way), wth (with), wya (way), yas (das), yass (dass), yess (yes)
 
 ## Nicht verwendet
 
 | Datei des Pakets | Grund |
 | --- | --- |
-| `frequency_priors*`, `context_ngrams*`, `morphology_observed*`, `context_morphology.sqlite` | Ableitungen unter CC BY-SA 4.0 (wordfreq, Universal Dependencies), viele MB; Häufigkeit ist kein Nachweis der Schreibweise, die Wörterbücher der Tastatur haben eigene Häufigkeiten. |
-| `dictionary_stems*`, `words_dictionary_*`, `words_frequency_matched_*`, `raw/hunspell/*` | Ableitungen der Hunspell-Wörterbücher (GPL); die Tastatur bringt eigene Hauptwörterbücher mit, ein zweites Wörterbuch würde Doppelte erzeugen. Nur zum Entscheiden gelesen. |
+| `context_ngrams*`, `morphology_observed*`, `context_morphology.sqlite` | Ableitungen unter CC BY-SA 4.0 (Universal Dependencies), viele MB; ein Korpusbeleg beweist keine Schreibweise. Nicht verwendet. |
+| `frequency_priors_*` | Ableitung der wordfreq-Daten (CC BY-SA 4.0). Nur beim Auswählen gelesen (wie selten eine Form im Netz vorkommt, für die Tippfehler-Nähe); nichts davon steht in der Ausgabe. |
+| `dictionary_stems*`, `words_dictionary_*`, `words_frequency_matched_*`, `raw/hunspell/*` | Ableitungen der Hunspell-Wörterbücher (GPL), Stammformen ohne Beugung. Die Tastatur bringt eigene Hauptwörterbücher mit, nur diese kennt die Engine; die Listen wurden zuerst zum Entscheiden gelesen und sind seit der Nachprüfung 71 ersetzt durch die App-Wörterbücher (Stämme kennen „gefixt“ und „texte“ anders als die Engine). Nicht verwendet. |
 | `typo_candidates_synthetic.jsonl` | Künstlich erzeugte Tippfehler (20 MB), keine gemessene Fehlerhäufigkeit; die Engine erzeugt solche Kandidaten selbst. |
 | `correction_rules.jsonl`, `confusion_sets.jsonl`, `keyboard_adjacency.jsonl` | Beschreibungen ohne Laufzeitwert für die Engine (Regeln sind Text, Verwechslungsgruppen brauchen Satzkontext, die Tastatur kennt die echte Tastengeometrie). Die Regeln stehen als Prüfmaßstab in den Tests. |
 | `correction_cases_editorial.*`, `code_switch_cases.jsonl` | Als Testfälle verwendet (`InformalWordsTest`), nicht eingebaut. |

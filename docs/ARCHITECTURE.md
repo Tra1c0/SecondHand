@@ -324,7 +324,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   300 Tage voraus nie. Test `CT/clip/SmartPasteTest.kt` (Prüfziffern der Beispiele getrennt
   berechnet).
 - `C/SentenceLanguage.kt` (Etappe 60, P249–P253): reine Entscheidung zur Satzsprache: `evidenceOf` (nur Sprache der Korrektur, nur andere Sprache, neutral), `blocksCorrection(onlyL1, onlyL2)` (mindestens ein Wort nur der anderen Sprache, keines nur der eigenen), `MAX_PREVIOUS_WORDS` = 3. Hält keinen Text. Test: `CT/SentenceLanguageTest.kt`.
-- `C/InformalWords.kt`, `A/InformalWordsStore.kt` und `app/src/main/assets/agent/informal_words.txt` (Etappe 71, P291–P293): die eingebaute Liste informeller Wörter, die `Suggest.guardAllows` nicht korrigieren lässt. `InformalWords` (rein): `normalize` (NFC, klein, gerader Apostroph), `parse`, `appliesTo` (nur `de`/`en`), `isExpressive` (gedehnt und Lacher), `protects`. `InformalWordsStore` lädt die Datei einmal aus den Assets (`@Volatile`, Fehler = leere Liste) und fragt mit Tastatursprache und Sprache der Korrektur. Die Liste macht `tools/build_informal_words.py`. Tests `CT/InformalWordsTest.kt` (liest die echte Datei und `agent-core/src/test/resources/informal_cases.tsv`), `AT/InformalWordsStoreTest.kt`, `SuggestTest` „stage 71“.
+- `C/InformalWords.kt`, `A/InformalWordsStore.kt` und `app/src/main/assets/agent/informal_words.txt` (Etappe 71, P291–P293; 1.750 Wörter): die eingebaute Liste informeller Wörter, die `Suggest.guardAllows` nicht korrigieren lässt. `InformalWords` (rein): `normalize` (NFC, klein, gerader Apostroph), `parse`, `appliesTo` (nur `de`/`en`), `isExpressive` (gedehnt und Lacher), `protects`. `InformalWordsStore` lädt die Datei einmal aus den Assets (`@Volatile`, Fehler = leere Liste) und fragt mit Tastatursprache und Sprache der Korrektur. Die Liste macht `tools/build_informal_words.py`. Tests `CT/InformalWordsTest.kt` (liest die echte Datei und `agent-core/src/test/resources/informal_cases.tsv`), `AT/InformalWordsStoreTest.kt`, `SuggestTest` „stage 71“.
 - `C/suggest/ContextSuggest.kt` (Etappe 45, Paket `dev.agentkeyboard.core.suggest`, P161–P163):
   `SuggestKind` (EMAIL, PHONE, IBAN, ADDRESS, NAME, OTP, LINK), `AppCategory.of(packageName)`
   (MESSENGER/MAIL/BROWSER/OTHER nach Paket-Präfix), `FieldClass`, `FieldSignals` (Klasse,
@@ -608,7 +608,7 @@ Autokorrektur (Etappe 20a, Details im Abschnitt „Lerndaten“):
   berührt. Sonst unverändert; `RichInputConnection` nicht geändert, gelesen nur über
   `getTextBeforeCursor`/`getTextAfterCursor`/`hasSelection`/`getExpectedSelectionStart`/
   `hasSlowInputConnection`.
-- `Suggest.kt` (71): `guardAllows` fragt nach dem Check der eigenen Wörter (Gedächtnis, 46) `InformalWordsStore.protects(context, getippt, Tastatursprache, Sprache der Korrektur)`; bei Ja bleibt das Wort, die Korrektur steht weiter als Vorschlag. Eine Zeile, vor `ForeignWords` und den Regeln aus 48.
+- `Suggest.kt` (71): `guardAllows` fragt nach dem Check der eigenen Wörter (Gedächtnis, 46) `InformalWordsStore.protects(context, getippt, Tastatursprache, Sprache der Korrektur)`, außer die Korrektur ändert nur die Großschreibung oder ist ein Kürzel oder ein Whitelist-Eintrag; bei Ja bleibt das Wort, die Korrektur steht weiter als Vorschlag. Eine Bedingung, vor `ForeignWords` und den Regeln aus 48.
 - `CapsModeUtils.java` (48): im Zustand WORD (Wort direkt vor dem Punkt, ohne inneren Punkt) und
   am Textanfang fragt `getCapsMode` `K/agent/Abbreviations.isAbbreviation`; eine bekannte Abkürzung
   (Deutsch bei `mUsesGermanRules`, Englisch bei `mUsesAmericanTypography`) oder ein einzelner
@@ -5599,23 +5599,35 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 
 - **P291** Slang-Liste (71): Ihre einzige Wirkung ist ein `false` in `Suggest.guardAllows`: das getippte Wort bleibt, der
   Vorschlag der Engine bleibt in der Leiste (`mWillAutoCorrect` aus). Sie schlägt nichts vor, lernt nichts und prüft keine
-  Schreibung (auch nicht für die Rechtschreibprüfung anderer Apps). Der Check läuft nur, wenn eine Korrektur sonst angewendet würde,
-  also nicht je Taste; die Datei (17 KB) wird beim ersten Mal gelesen, ein Lesefehler ergibt eine leere Liste (nichts geschützt).
-  Sie gilt für Tastatursprache oder Sprache der Korrektur `de`/`en`, nie für Spanisch allein. Der Schutz hängt nicht an
-  „Personalisierte Vorschläge“ und nicht am Gedächtnis (die Liste ist feste Ausstattung, keine Lerndaten).
-- **P292** Auswahl der Liste (71): Aufnehmen darf man nur, was ein Wörterbuch nicht schon kennt (sonst verhindert der Schutz echte
-  Korrekturen), keine Phrasen, Sonderzeichen oder Formen bis zwei Zeichen und keine Form, die ein Tippfehler eines sehr häufigen
-  Wortes sein kann (Buchstabe fehlt, Nachbartaste, Dreher, doppelter Buchstabe) bei höchstens vier Zeichen und seltenem Vorkommen. „dont“,
-  „cant“, „youre“ (Apostroph weggelassen) bleiben draußen, damit die Ergänzung des Apostrophs nicht wegfällt. Das Skript schreibt die
-  Gründe nach `AUSWAHL.md`; „bekannt“ heißt: bekannt in den Hunspell-Stammlisten des Pakets, nicht in den `.dict` der App. Eine
-  unverdiente Auslassung kostet nichts (Zustand wie vorher), ein unverdienter Schutz verhindert eine Korrektur. `InformalWordsTest`
-  hält fest: kein Fehlschreibungs-Eintrag und kein Standardwort der Redaktionsfälle steht in der Liste (297 Wörter), alle 49
-  Slangfälle der Redaktion, die die Liste abdecken soll, stehen darin.
+  Schreibung (auch nicht für die Rechtschreibprüfung anderer Apps). Der Check läuft bei jeder Aktualisierung der Vorschläge, in der die
+  Engine eine Korrektur anwenden würde (also mehrfach je falsch getipptem Wort, nicht je Taste), kostet Mikrosekunden (eine Mengenabfrage)
+  und liest die Datei (14 KB) beim ersten Mal; ein Lesefehler ergibt eine leere Liste für diesen Aufruf und wird nicht gemerkt.
+  Sie gilt für Tastatursprache oder Sprache der Korrektur `de`/`en`, nie für Spanisch allein, und nicht an
+  „Personalisierte Vorschläge“ oder am Gedächtnis (feste Ausstattung, keine Lerndaten). Sie hält bewusst nichts auf, was der Owner oder das
+  Wörterbuch ausdrücklich eingerichtet hat: kein Schutz, wenn die Korrektur nur die Großschreibung ändert (Stufe 48 entscheidet, „jungs“ wird
+  „Jungs“), nicht gegen ein Kürzel des Persönlichen Wörterbuchs (`KIND_SHORTCUT`) und nicht gegen einen Eintrag der Whitelist des Wörterbuchs
+  (`KIND_WHITELIST`). Gelernte Tippfehler-Paare (`applyLearnedCorrection`) und die Umschaltkorrektur der Großschreibung
+  (`correctToCapitalizedWord`) laufen an der Liste vorbei: ein ausdrücklicher Wunsch geht vor. Einfache Anführungszeichen um das Wort
+  zählen nicht („'lowkey'“), das zu einem Listenwort gehörende („goin'“) schon. Nebenwirkung: Wörter, die die Wörterbücher als gesperrt
+  führen („fuck“, „shit“ …), bleiben, wie getippt, wenn sie auf der Liste stehen.
+- **P292** Auswahl der Liste (71): Aufnehmen darf man nur, was die Wörterbücher **der App** nicht kennen (`main_de.dict`, `main_en-US.dict`,
+  `main_en-GB.dict`; das Skript liest sie selbst, `read_app_dictionary`; groß geschrieben zählt mit, sonst bräche „jungs“ die Großschreibung
+  der Stufe 48; gesperrte Einträge zählen nicht als bekannt). Die Hunspell-Stämme des Pakets taugen dafür nicht: Die Nachprüfung 71 fand
+  bei ihnen „gefixt“, „gepusht“, „zocken“ als bekannt (die Engine kennt sie nicht) und „texte“, „jungs“ als unbekannt (die Engine kennt sie).
+  Keine Phrasen, Sonderzeichen oder Formen bis zwei Zeichen und keine Form, die ein Tippfehler eines sehr häufigen Wortes (Wahrscheinlichkeit ab
+  150 von 255 in den App-Wörterbüchern) sein kann (Buchstabe fehlt, überzähliger Buchstabe neben seinem Nachbarn, Nachbartaste, Dreher), wenn sie
+  im Netz selten ist (Zipf unter 3,0 laut Häufigkeitsliste des Pakets, nur zum Entscheiden gelesen). „dont“, „cant“, „youre“ (Apostroph
+  weggelassen) bleiben draußen, damit die Ergänzung des Apostrophs nicht wegfällt. Das Skript schreibt die Gründe nach `AUSWAHL.md`. Eine
+  unverdiente Auslassung kostet nichts (Zustand wie vorher), ein unverdienter Schutz verhindert eine Korrektur. `InformalWordsTest` hält fest:
+  kein Fehlschreibungs-Eintrag und kein Standardwort der Redaktionsfälle steht in der Liste (297 Wörter), die Slangfälle der Redaktion, die
+  die Liste abdecken soll (45), stehen darin, und typische Hauptwörter („jungs“, „texte“, „feierabend“) nicht.
 - **P293** Gedehnte Wörter und Lacher (71, `InformalWords.isExpressive`, wirkt auch ohne Listeneintrag): nur Buchstaben; letzter Buchstabe
-  ein Vokal mindestens dreimal („neee“, „jaaaa“, „hääää“), ein Konsonant mindestens viermal („yesssss“), oder eine Silbe aus zwei Buchstaben mindestens
-  dreimal („hahaha“). Ein Konsonant dreimal („addresss“, „wennn“) bleibt Tippfehler, weil Wörter mit doppeltem Endbuchstaben den dritten
-  aus Versehen bekommen. Kosten: Ein versehentlich gehaltenes „wennnnn“ wird nicht korrigiert; auf einem Touch-Feld ist das selten. Die
-  Wörter in der Mitte („Schifffahrt“, „Kaffeeernte“) sind nicht betroffen: nur der Wortschluss zählt.
+  ein Vokal mindestens dreimal („neee“, „jaaaa“, „hääää“: „neee“ ist ein Fall der Redaktion, der bleiben soll), ein Konsonant mindestens viermal
+  („yesssss“), oder eine Silbe aus zwei Buchstaben mindestens dreimal („hahaha“). Ein Konsonant dreimal („addresss“, „wennn“) bleibt Tippfehler,
+  weil Wörter mit doppeltem Endbuchstaben den dritten aus Versehen bekommen. Dasselbe gilt für Vokale (Wörter auf „ee“, „oo“: „see“, „too“,
+  „Idee“): „seee“ und „Kaffeee“ bleiben deshalb stehen, wie getippt; das ist der Preis dafür, „neee“ zu schützen (nach dem Wörterbuch
+  lässt es sich nicht unterscheiden, der Kern kennt keins). Ein versehentlich gehaltenes „wennnnn“ wird nicht korrigiert; auf einem
+  Touch-Feld ist das selten. Wörter mit Wiederholung in der Mitte („Schifffahrt“, „Kaffeeernte“) sind nicht betroffen: nur der Wortschluss zählt.
 
 ## Datei-Inventar
 

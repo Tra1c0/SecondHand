@@ -44,6 +44,12 @@ class InformalWordsTest {
         assertFalse(InformalWords.protects(words, "lowkey", listOf("es")), "the list is for German and English typing")
         assertFalse(InformalWords.protects(emptySet(), "lowkey", de))
         assertFalse(InformalWords.protects(words, "", de))
+        // quotes around the word are not part of it; the quote of a listed word is
+        assertTrue(InformalWords.protects(words, "'lowkey'", de))
+        assertTrue(InformalWords.protects(setOf("goin'"), "goin'", de))
+        assertTrue(InformalWords.protects(setOf("goin'"), "'goin'", de))
+        assertTrue(InformalWords.protects(emptySet(), "'neee'", de))
+        assertFalse(InformalWords.protects(words, "'", de))
         assertFalse(InformalWords.protects(words, "x".repeat(InformalWords.MAX_LENGTH + 1), de))
     }
 
@@ -76,9 +82,12 @@ class InformalWordsTest {
     }
 
     @Test fun `the shipped list holds the words it is made for and no ordinary words`() {
-        assertTrue(shipped.size in 2000..4000, "size ${shipped.size}")
-        for (w in listOf("gecovert", "lowkey", "metalcore", "nich", "digga", "rizzing", "respeccen", "lulz"))
+        assertTrue(shipped.size in 1500..4000, "size ${shipped.size}")
+        for (w in listOf("gecovert", "lowkey", "metalcore", "nich", "digga", "rizzing", "respeccen", "lulz", "gefixt", "gepusht", "zocken"))
             assertTrue(w in shipped, w)
+        // what the app's dictionaries know stays with the engine, capitalised nouns too ("jungs" is "Jungs": stage 48 capitalises it)
+        for (w in listOf("jungs", "texte", "feierabend", "wegen", "bzw", "usw"))
+            assertFalse(w in shipped, w)
         // standard words stay with the engine: a protected word is never corrected
         for (w in listOf("nicht", "für", "und", "the", "interessant", "vielleicht", "wahrscheinlich", "dont", "cant", "youre"))
             assertFalse(w in shipped, w)

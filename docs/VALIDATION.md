@@ -6015,51 +6015,50 @@ die „strenge Lesart“ ist durch die Regel „aktiv in einem privaten Feld“ 
 
 - Auftrag des Owners (2026-11-17): das Paket `SecondHand_DE_EN_Datensaetze_2026-11-17.zip` „sinnvoll aussortieren und die
   Autokorrektur erweitern/ergänzen“. Das Paket wurde in einen leeren Arbeitsordner entpackt und nur gelesen (136 MB); ins Repository
-  kommen die Liste (17 KB), eine Testdatei und der Bericht.
+  kommen die Liste (14 KB), eine Testdatei, das Skript und der Bericht `docs/referenzen/datensaetze/AUSWAHL.md`.
 - Prüfung des Pakets durch den Lead: Manifest, Schemas, Lizenzen und Quellen gelesen. `informal_lexicon.jsonl` (3.893 Einträge) ist
-  eigene redaktionelle Arbeit unter CC0-1.0, alle Einträge „redaktionell gesammelt, nicht an Gebrauch geprüft“, `proactive_prediction`
-  überall falsch. Die Redaktionsfälle (547) decken alle Slang-Eingaben der Liste ab (0 fehlen). Von 276 Vorschlagsfällen sind 180 saubere
-  Einzelwort-Paare, davon 164 nur einen Schritt vom Ziel entfernt: eine Tabelle häufiger Fehlschreibungen brächte der Engine fast nichts
-  Neues (etwa 16 Fälle wie „Portmonai“). Häufigkeits-, Kontext- und Morphologiedaten (CC BY-SA, MB-groß) und die Hunspell-Ableitungen
-  (GPL) sind nicht eingebaut.
-- Auswahl (`tools/build_informal_words.py`): 2.138 Wörter bleiben, weggelassen 666 Phrasen, 69 Sonderzeichenformen, 104 Formen bis
-  zwei Zeichen, 715 schon bekannte Wörter, 22 Apostroph-Auslassungen („dont“) und 36 Formen nahe an einem Tippfehler eines sehr häufigen
-  Wortes. Die Tippfehler-Nähe wurde einmal nachgeschärft: Ein überzähliger Buchstabe zählt nur, wenn er neben einem Nachbarbuchstaben
-  liegt oder ihn verdoppelt (vorher fielen „iwie“, „iwer“, „mixt“ ohne Grund heraus).
-- Gefunden und behoben beim Testen: Die erste Fassung der Regel für gedehnte Wörter schützte auch „addresss“ (Tippfehler, den die
+  eigene redaktionelle Arbeit unter CC0-1.0; 3.873 Einträge sind „redaktionell gesammelt, nicht an Gebrauch geprüft“, 20 „Begriff belegt“
+  (Langenscheidt, Cambridge; nur einzelne Wortformen, keine Definitionen), `proactive_prediction` überall falsch. Die Slang-Eingaben der
+  Redaktionsfälle (547 Fälle) stehen fast alle in der Liste des Pakets; die Auswahl unten lässt einen Teil davon bewusst weg. Eine Tabelle
+  häufiger Fehlschreibungen aus den Vorschlagsfällen brächte der Engine fast nichts Neues (von etwa 170 sauberen Einzelwort-Paaren liegen
+  gut 150 einen Schritt vom Ziel entfernt, die Engine findet sie selbst; etwa 17 wie „Portmonai“ wären neu). Häufigkeits-, Kontext- und
+  Morphologiedaten (CC BY-SA, MB-groß) und die Hunspell-Ableitungen (GPL) sind nicht eingebaut.
+- Auswahl (`tools/build_informal_words.py`, nach der Nachprüfung 71): 1.750 Wörter bleiben. Weggelassen: 666 Phrasen, 69 Sonderzeichenformen,
+  104 Formen bis zwei Zeichen, 1.109 Formen, die die Wörterbücher der App kennen (auch groß geschrieben), 21 Apostroph-Auslassungen („dont“)
+  und 31 Formen nahe an einem Tippfehler eines sehr häufigen Wortes. Die Summe ist größer als 3.893 − 1.750, weil Formen, die sich nur in
+  Groß-/Kleinschreibung unterscheiden, zusammenfallen (143 Doppelte). Die erste Fassung hatte „bekannt“ an den Hunspell-Stämmen des Pakets
+  gemessen (2.138 Wörter); der Prüfer fand das falsch (siehe unten).
+- Gefunden und behoben beim Testen (Lead): Die erste Fassung der Regel für gedehnte Wörter schützte auch „addresss“ (Tippfehler, den die
   Redaktionsfälle als zu korrigieren führen); jetzt Vokal ab drei, Konsonant ab vier (P293).
-- Tests: `:agent-core:test` `InformalWordsTest` 8 grün (Normalform, Sprachen, Schutz, gedehnte Wörter, die echte Datei: sortiert, ohne
-  Doppelte, Normalform, tippbar, Größe, Beispiele; Fälle der Redaktion: 49 geschützte Slangwörter, 297 Fehlschreibungen und
-  Standardwörter, die nie in der Liste stehen); `InformalWordsStoreTest` 4 grün (echte Assets, Sprachen, kein Kontext);
-  `SuggestTest` 50 grün, darunter neu „stage 71 an informal word stays as typed“ (Tippfehler wird weiter korrigiert, Listenwort und
-  gedehntes Wort bleiben, die Engine-Alternative bleibt in der Leiste).
-- Nicht geprüft: das Verhalten mit den echten Wörterbüchern und auf einem Gerät (die Tests simulieren die Engine); ob die
-  „schon bekannt“-Auslassungen (Hunspell-Stämme des Pakets, nicht die `.dict` der App) zu viel oder zu wenig weglassen; ob
-  Spanisch-Tippen wirklich ungeschützt bleibt (das Test-Gerüst hält die Tastatursprache fest, die Sprachwahl ist in `InformalWordsTest`
-  und `InformalWordsStoreTest` geprüft).
+- Tests: `:agent-core:test` `InformalWordsTest` 8 grün (Normalform, Sprachen, Schutz mit Anführungszeichen, gedehnte Wörter, die echte Datei:
+  sortiert, ohne Doppelte, Normalform, tippbar, Größe, Beispiele inklusive „gefixt“/„zocken“ drin und „jungs“/„texte“/„bzw“ nicht; Fälle der
+  Redaktion: 45 geschützte Slangwörter, 297 Fehlschreibungen und Standardwörter, die nie in der Liste stehen); `InformalWordsStoreTest` 4
+  grün (echte Assets, Sprachen, kein Kontext); `SuggestTest` 50 grün, darunter „stage 71 an informal word stays as typed“ (Tippfehler wird
+  weiter korrigiert, Listenwort, gedehntes Wort und Wort in Anführungszeichen bleiben, reine Großschreibung und ein Kürzel gehen an der Liste
+  vorbei; ohne diese Ausnahmen ist der Test rot, geprüft).
+- Nicht geprüft: das Verhalten mit den echten Wörterbüchern und auf einem Gerät (die Tests simulieren die Engine, das Test-Gerüst hält die
+  Tastatursprache fest: Spanisch-Tippen ist nur in den reinen Tests geprüft).
 
-### Nachprüfung 64, 65 und 70: Befunde behoben (Lead, 2026-11-18)
+### Nachprüfung 71 (Prüfer zu `af3dd35`, 2026-11-18)
 
-Die Prüfer zu 64a/64b, zur Korrekturrunde 65 und zu 69 hatten fünf mittlere Befunde hinterlassen (`docs/HANDOFF.md`, Stand 2026-11-17).
-Behoben, jeweils mit Test:
+Der Prüfer fand nichts Schweres, drei mittlere und fünf niedrige Punkte. Behoben:
 
-- Text aus der Zwischenablage in Zwischenspeichern (64b, M-1): `ClipVault.live`, `classified` und `SmartPasteChips.recognised` verfallen
-  nach zwei Sekunden (eine feste Frist: der Prüfer fand, dass ein Neuarmen bei jeder Füllung den Text beliebig lange am Leben hielt, M2,
-  behoben), beim Herausgeben eines Geheimnisses, bei `clear()` und bei jedem `LockState.drop()`. `ClipCachesTest` 6 grün.
-- `PointerTracker.cancelKeyTracking` (70, M-2, Engine-Datei): `sInKeySwipe` nur löschen, wenn dieser Finger `mKeySwipeAllowed` hatte.
-  `aSecondFingersLongPressDoesNotEndTheFirstFingersSwipe` ist ohne die Änderung rot („the static flag of A's swipe“) und mit ihr grün
-  (beides gelaufen); `AgentSpaceGestureTest` 22 grün.
-- Start des Dienstes (65, Prüfer M1): der beim Start gelesene Clip kommt nicht in den Verlauf. `HardeningClipHistoryTest` 11 grün.
-- Sicherungsdialog (69, M3): nennt die Bilder eigener Designs als nicht gesichert und beim Wiederherstellen entfernt (deutsch und
-  englisch). Der Prüfer fand die erste Fassung teils falsch („heruntergeladene Wörterbücher“: die App lädt keine, von dir hinzugefügte
-  `*user.dict` sind in der Datei; „eigene Wörter“: das Persönliche Wörterbuch gehört dem System und fehlt) und die Entfernungsliste
-  unvollständig (auch die geladene Gesten-Bibliothek): jetzt nach dem Code, mit den Mustern von `backupFilePatterns` abgeglichen.
-- Wiederherstellen (65, N1): nach einem gescheiterten Rückweg läuft das Entfernen „fehlender“ Layouts nicht.
-- Weitere Läufe: `ClipVaultTest` 21, `StripRequestsTest` 16, `SmartPasteChipsTest` 15, `ScreenshotChipTest` 15, `RestoreSafetyTest` 15,
-  `SettingsSystemAreaTest` 12, alle grün.
-- Weiter offen (niedrig oder bewusst verschoben): Markerdatei in der Kopie `…2` gegen das Zurückholen einer halben Kopie nach einem
-  zweiten Fehler beim Aufräumen; die niedrigen Befunde zu `TypingPerf` (Feldstart-Arbeit im Tastendruck, nicht alle Anfragen gezählt),
-  `LockState` (Rennen nach `drop()`), `UpdateOnOpen`, `CharArtView.startLive`, Screenshot-Kandidaten, Docs-Fehler in ANLEITUNG.
+- M1 (Großschreibung): Die Liste hielt „jungs“, „texte“ usw. (40 Formen, 30 gewöhnliche Hauptwörter) davon ab, groß zu werden. Jetzt zählt
+  „groß geschrieben im Wörterbuch“ als bekannt (Liste), und `guardAllows` überspringt die Liste, wenn die Korrektur nur die Großschreibung ändert.
+- M2 (Kürzel): Die Liste verhinderte das Auflösen von Kürzeln des Persönlichen Wörterbuchs („bzw“ → …). Jetzt kein Schutz gegen `KIND_SHORTCUT` und
+  `KIND_WHITELIST`; Test mit Kontrolle.
+- M3 („bekannt“ gegen die falschen Wörterbücher): 442 Einträge der Liste kennt die App schon, 59 weggelassene nicht („gefixt“, „gepusht“, „geblockt“,
+  „zocken“, „googeln“, „innit“ …). Das Skript liest jetzt die App-Wörterbücher selbst (`read_app_dictionary`, Format-Version 202; Leser mit 205.846
+  deutschen und je etwa 157.000 englischen Wörtern geprüft); der Prüfer hatte dasselbe unabhängig gelesen.
+- N1 (Tippfehler-Nähe zu eng): jetzt für alle Längen, gegen sehr häufige Wörter der App (Wahrscheinlichkeit ab 150 von 255) und mit demselben
+  Tippfehler-Modell, wenn die Form im Netz selten ist (Zipf unter 3,0). „hatet“, „haten“, „faken“, „dadrauf“ fallen so heraus; „nich“, „nen“, „ick“
+  (häufig) bleiben.
+- N3 (Ladefehler wurde gemerkt) und N4 (Anführungszeichen um das Wort): behoben, getestet.
+- Nicht geändert: N2 (Vokal ab drei: „seee“ bleibt stehen): „neee“ ist ein Fall der Redaktion, der bleiben soll; der Preis steht in P293. Ob
+  „bekannt“ auch gesperrte Wörter der Wörterbücher einschließt („fuck“): sie bleiben, wie getippt (P291).
+- Zahlen in den Docs berichtigt („0 fehlen“ stimmte nicht; „1.100 Formen“ waren 1.125 im Paket und sind jetzt etwa 460 in der Liste; 143 Doppelte
+  erklärt), die Ausnahmen (Großschreibung, Kürzel, gelernte Paare) stehen in P291, FEATURES und ANLEITUNG; das Gedächtnis ist dort als „aus, bis du
+  es einschaltest“ benannt.
 
 ## Gerätetest vor Meilensteinfreigabe
 

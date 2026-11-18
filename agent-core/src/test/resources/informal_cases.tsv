@@ -1,5 +1,4 @@
 # made by tools/build_informal_words.py from correction_cases_editorial.jsonl (CC0-1.0)
-protect	based
 protect	brudi
 protect	bruh
 protect	bussin
@@ -11,20 +10,19 @@ protect	digga
 protect	diggah
 protect	dikka
 protect	djent
-protect	doggo
 protect	eepy
-protect	fei
-protect	feierabend
 protect	finna
 protect	geaimt
 protect	gecampt
 protect	gecarryt
 protect	gechillt
+protect	gefixt
 protect	geghostet
 protect	gejoint
 protect	geliked
 protect	gelikt
-protect	gepostet
+protect	gell
+protect	gepusht
 protect	gerendert
 protect	gescrollt
 protect	gestreamt
@@ -32,12 +30,11 @@ protect	geupdatet
 protect	goated
 protect	idk
 protect	ikr
+protect	innit
 protect	lol
 protect	lowkey
 protect	mmn
 protect	moin
-protect	moots
-protect	ngl
 protect	nüscht
 protect	pookie
 protect	ragebait
@@ -47,7 +44,6 @@ protect	smol
 protect	thall
 protect	tryna
 protect	vllt
-protect	wat
 open	abbrevation
 open	abkürtzung
 open	abkürzng

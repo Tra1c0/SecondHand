@@ -1039,6 +1039,19 @@ class SuggestTest {
         assertFalse(typed("Lowkey", "Lockey", Locale.ENGLISH).mWillAutoCorrect, "listed English word")
         // stretched letters are emphasis
         assertFalse(typed("neeee", "neue", Locale.GERMAN).mWillAutoCorrect, "stretched letters")
+        // quotes around the word do not matter
+        assertFalse(typed("'lowkey'", "'lockey'", Locale.ENGLISH).mWillAutoCorrect, "quoted word")
+        // the list stops other words, not the owner's wishes: a correction that only changes the case is stage 48's business ...
+        currentTypingLocale = Locale.GERMAN
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("Lowkey", 650000, Locale.GERMAN)))
+        assertTrue(getSuggestedWords(false, "lowkey", CapsMode.OFF, NgramContext(NgramContext.WordInfo("das"))).mWillAutoCorrect, "case only")
+        // ... and so is the expansion of a personal shortcut (control first: the same shortcut for a word that is not on the list)
+        fun shortcut(word: String): Boolean {
+            tapTypingSuggestions = suggestionResults(listOf(suggestion("ziemlich", 700000, Locale.GERMAN, true)))
+            return getSuggestedWords(false, word, CapsMode.OFF, NgramContext(NgramContext.WordInfo("das"))).mWillAutoCorrect
+        }
+        assertTrue(shortcut("xlkq"), "control: a shortcut is expanded")
+        assertTrue(shortcut("nich"), "a listed word that is a personal shortcut is expanded")
         // (that the list covers German and English typing only is tested in InformalWordsTest and InformalWordsStoreTest:
         // this harness keeps the keyboard's own language fixed)
     }
