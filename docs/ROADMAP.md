@@ -504,13 +504,13 @@ Reihenfolge von oben nach unten.
   Häufigkeits- und Kontextdaten (CC BY-SA, groß, keine Rechtschreibung). Offen: Gerätetest mit echten Wörterbüchern;
   die Entscheidung des Owners, ob der Zusatzwortschatz (Spiele/Technik/Musik, etwa 450 Formen der Liste) als Vorschlag erscheinen soll.
 - **Runde 2 nach dem Scan (Auftrag des Owners vom 2026-11-16: „suche nach Lücken, Verbesserungen und
-  Fehlern … scanne gebietübergreifend“)**: noch nicht gebaut. Die Befunde stehen mit Stelle und
+  Fehlern … scanne gebietübergreifend“)**: teilweise gebaut (Stand unten). Die Befunde stehen mit Stelle und
   Schwere in `docs/PRUEFBERICHT-2026-11-16.md`; jede Etappe behebt die dort genannten Nummern und
   bekommt einen Prüfer. Nichts davon ist auf einem Gerät gemessen. Reihenfolge: erst 64, 65, 69,
   70 (unabhängig voneinander), danach 66, 67, 68.
-  Stand 2026-11-17: 64a, 64b, 65, 69 und 70 sind gebaut und liegen auf dem Arbeitsbranch (eigene
-  Einträge „… ist gebaut“ in dieser Liste, Prüferbefunde in `docs/HANDOFF.md` → Offene Punkte), in
-  keinem Build. Offen: 64c, 64d, 66, 67, 68. Angehalten auf Wunsch des Owners.
+  Stand 2026-11-18: 64a, 64b, 65, 69 und 70 sind gebaut und seit Build 32 auf `main` (eigene
+  Einträge „… ist gebaut“ in dieser Liste, Prüferbefunde in `docs/HANDOFF.md` → Offene Punkte und
+  `docs/VALIDATION.md`), ohne Gerätetest. Offen: 64c, 64d, 66, 67, 68. Angehalten auf Wunsch des Owners.
   - **64 Tipp-Leistung** (P1 bis P11, P13, S9, K4, Z9): 64a messen (Zähler ohne Inhalt für die Zeit
     der eigenen Hooks und für Anfragen an die App und an Android je Tastendruck; Diagnose-Karte
     „Tippen“ mit Median, 95 %, Maximum und den zehn langsamsten Stellen); 64b weniger

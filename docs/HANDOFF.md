@@ -9,25 +9,17 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 ## Aktueller Stand
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
-- Stand 2026-11-17: `main` = Build 29 (geprüft) = Runde 1 des Auftrags vom 2026-11-16: 57 Name
-  SecondHand, 58 Logo, 59 KI-Grenzen (`@ki` 2000 Zeichen, Enter sendet eine Frage nie), 60 Satzsprache,
-  61 Korrektur in Apps erzwingen (Instagram), 62 nicht mehr debuggable (auch die native Engine war
-  unoptimiert), 63 Release scheitert laut. Jede Etappe mit Prüfer und Nachprüfung; lokal 1817 Tests,
-  GitHub-Lauf 90 grün (Agent, Upstream, Lint, Build). Kein Gerätetest, kein echter KI-Aufruf.
-- Beim Owner: Test-Build 28 (vor den letzten Korrekturen) und Build 29. Erbeten: `@ki` über 6 Zeilen
-  mit Gemini, englische Sätze, Instagram-Privatchat (sonst Screenshot Diagnose → „Letztes Feld“),
-  Tempo (Diagnose → „App und Telefon“: „Debugfähige App: nein“).
-- Runde 2 (Etappen 64 bis 70, `docs/ROADMAP.md` → „Runde 2 nach dem Scan“, Befunde in
-  `docs/PRUEFBERICHT-2026-11-16.md`) ist auf Wunsch des Owners angehalten (2026-11-17: „alles, was
-  nicht zwangsläufig gefixt werden muss, erstmal außen vor lassen“). Auf dem Arbeitsbranch liegen,
-  in keinem Build: 64a, 64b, 65, 69, 70, jeweils mit Tests; GitHub-Lauf 93 (Agent, Upstream, Build)
-  grün, Lint danach behoben. Nicht gebaut: 64c, 64d, 66, 67, 68.
-- Die fünf mittleren Prüferbefunde zu 64/65/69/70 sind behoben (Lead, 2026-11-18: `docs/VALIDATION.md` → „Nachprüfung 64, 65 und 70: Befunde
-  behoben“); die Engine-Änderung an `PointerTracker` hat einen Prüfer. Der Arbeitsbranch enthält zusätzlich Etappe 71 (Slang-Liste). Offen
-  davor: ein Gerätetest, 64c/64d, 66, 67, 68.
-- Owner-Fragen offen: Code-Verkleinerung R8 als eigener Test-Build; Satz in `CLAUDE.md` zur
-  Update-Prüfung; Logo-Alternative. Der Lead hat in `CLAUDE.md` die Definition „Build“ an den neuen
-  Dateinamen und die Bauart angepasst (2026-11-17).
+- Stand 2026-11-18: `main` = Build 32 (geprüft) = Runde 1 (57 bis 63, Build 29) plus der bis zum Anhalten gebaute Teil von Runde 2
+  (64a Tempo-Messung, 64b Leiste, 65 Härtung, 69 Einstellungen, 70 Look) und Etappe 71 (Slang-Liste, 1.695 Wörter aus dem Datenpaket des
+  Owners). Jede Etappe mit Prüfer und Nachprüfung, am Ende zwei Prüfer über den ganzen Branch (nur niedrige Befunde, behoben); GitHub-Lauf 100
+  grün (Agent, Upstream, Lint, Build). Kein Gerätetest, kein echter KI-Aufruf, die Slang-Liste nicht mit den echten Wörterbüchern auf einem Gerät.
+- Beim Owner: Build 29, die Test-Builds 30 und 31 (frühere Fassungen der Slang-Liste) und Build 32. Erbeten: Slang tippen („gecovert“, „lowkey“,
+  „neee“ bleiben, „idr“ wird „dir“), Tempo (Diagnose → Karte „Tippen“, ein Screenshot), `@ki` über 6 Zeilen mit Gemini, Instagram-Privatchat.
+- Runde 2 ist angehalten (Owner, 2026-11-17: „alles, was nicht zwangsläufig gefixt werden muss, erstmal außen vor lassen“), `docs/ROADMAP.md` →
+  „Runde 2 nach dem Scan“, Befunde in `docs/PRUEFBERICHT-2026-11-16.md`. Nicht gebaut: 64c, 64d, 66, 67, 68; die angefangene Arbeit liegt nur als
+  lokale Commits in `.claude/worktrees/…` (Offene Punkte).
+- Owner-Fragen offen: Zusatzwortschatz (Spiele/Technik/Musik, etwa 450 Formen) als Vorschläge; „meh“/„ish“ lieber korrigieren (Sprache je Wort);
+  Code-Verkleinerung R8 als eigener Test-Build; Satz in `CLAUDE.md` zur Update-Prüfung; Logo-Alternative.
 
 ## Offene Punkte
 
@@ -50,10 +42,13 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
     (der zweite ist der alte) und einen doppelten Satz unter „Über“; „Schriftgröße“ liegt unter
     „Schrift & Emoji“, nicht „Größe & Form“. Screenshot-Kandidaten werden bei `mayKeep = false` bis zu
     drei Minuten nachgereicht. Fehlende Tests für `discardCopies`-Fehlschlag und die Meldungswahl.
-- Etappe 71 (Slang-Liste aus dem Datenpaket des Owners, `docs/referenzen/datensaetze/AUSWAHL.md`) liegt
-  auf dem Arbeitsbranch, mit Tests, ohne Gerätetest.
-- Engine-Zeilen ohne abschließenden Prüfer: die Zählzeilen von 64a (gelesen, in Ordnung), die zwei
-  `LatinIME`-Zeilen von 65, die `LatinIME`-Bedingung von 70 (gelesen), `PointerTracker` (siehe oben).
+- Etappe 71 (Slang-Liste aus dem Datenpaket des Owners, `docs/referenzen/datensaetze/AUSWAHL.md`) ist in Build 32, mit Tests und zwei
+  Nachprüfungen, ohne Gerätetest. Offen (niedrig): Die Sprache je Wort bleibt ungenutzt (ein englisches Wort schützt auch auf der deutschen
+  Tastatur), das Testfixture fängt Verluste nur über die Mindestzahl 40, die Liste gilt nicht beim Gestentippen.
+- Engine-Zeilen: Ein Prüfer hat am 2026-11-18 alle geänderten Engine-Dateien gegen `main` gelesen (`PointerTracker`, `RichInputConnection`,
+  `LatinIME`, `Suggest.kt`): keine hohen oder mittleren Befunde. Testlücken: nichts prüft, dass die sechs `TypingPerf.app()`-Zeilen die richtigen
+  Aufrufe zählen; kein Test für `cancelKeyTracking` bei zwei Fingern, die beide wischen dürfen; `LatinIME.getSelectedEmoji` hat keinen Aufrufer
+  mehr (toter Upstream-Code). Der Sicherungsdialog zeigt in 41 anderen Sprachen weiter den kurzen Upstream-Text.
 - Angefangene, nicht zusammengeführte Arbeit liegt nur als lokale Commits in den Arbeitskopien
   dieser Sitzung (`.claude/worktrees/agent-…`, Commit „WIP (stopped by the lead …)“): 64c
   (`a2a77041…`), 66 (`a0ca7bbb…`), 67 (`a7569c81…`), 68 (`a50d6dc5…`), Korrekturen zu den Befunden
@@ -278,6 +273,17 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
   `tools/dev.py` nutzen.
 - **Externe Link-Tests (`XLinkTest`)** hängen von fremden Servern ab und schwanken zwischen 404,
   503 und 504. Nicht als App-Fehler werten, Baseline aber nicht erweitern.
+- **`RgbOwnPatternTest.ownPatternsStayWithinTheBudget` (Zeitmessung)** schlug am 2026-11-18 in zwei von vier GitHub-Läufen fehl (Lauf 98 erster
+  Versuch, Lauf 99), allein lokal liegt er beim 1,3- bis 1,5-fachen der INK-Zeit gegen erlaubte 2. Er verdeckt die App-Agent-Tests desselben Jobs
+  (`core-tests && agent-tests`; die Zusammenfassung sagt dann „TOO FEW TESTS: 638“ und nennt ihn als „NEW“). Erst „Re-run failed jobs“
+  (`rerun_failed_jobs`), nie die Grenze lockern. Die Messung wärmt jetzt 400 Bilder auf und nimmt das Beste aus neun Läufen (Lauf 100 grün);
+  scheitert er weiter, die Ursache (vermutet: JIT auf einem ausgelasteten Rechner) neu untersuchen, nicht die Grenze. Den Fehlschlag zeigt das
+  Ende des Job-Logs (`get_job_logs` mit `tail_lines` um 80; der Blob-Download des Logs ist hinter dem Proxy gesperrt, 403).
+- **Lokaler Gradle-Lauf scheitert mit „Could not resolve org.ow2.asm“ oder „Could not generate test report“:** `tools/dev.py` setzt
+  `GRADLE_USER_HOME` auf `.toolchains/gradle-user`, wo das Mirror-Skript fehlt. Gezielte Läufe mit `./gradlew`, `JAVA_HOME=…/.toolchains/jdk-17`,
+  `ANDROID_HOME`, `LC_ALL=C.UTF-8` und ohne `GRADLE_USER_HOME` (Standard `~/.gradle`). Ein Test, der eine Datei außerhalb des Moduls liest (z. B.
+  `InformalWordsTest` die Asset-Liste), ist für Gradle „UP-TO-DATE“, wenn sich nur diese Datei ändert: davor `:agent-core:cleanTest`, sonst
+  ist ein „rot ohne die Änderung“-Nachweis leer.
 
 ## Wiederholte Fehler (Prozess; Code-Fallstricke: ARCHITECTURE.md → Fallstricke)
 
@@ -313,6 +319,11 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
   Vor einem Release den letzten Lauf abwarten und danach nur noch reine Docs pushen.
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
+- Build 32 (geprüft, von `main` 7ada405): Runde 2 teilweise (64a, 64b, 65, 69, 70) mit allen Prüferkorrekturen und Etappe 71 (Slang-Liste,
+  1.695 Wörter, zwei Nachprüfungen); am Ende zwei Prüfer über den ganzen Branch (Engine-Zeilen; Zwischenablage und Sicherung), nur niedrige Befunde,
+  behoben; lokal 686 Tests der berührten Klassen und der Kern-Suite grün; GitHub-Lauf 100 grün (Agent, Upstream, Lint, Build); Release-Lauf 32 auf `main` grün (Signatur und Zertifikat des Owners, Versionscode 32, Test-Nachweis, öffentliches Release, Zurücklesen); APK nachgeprüft (Prüfsumme, Zertifikat, nicht debuggable, Slang-Liste 1.695 Zeilen); kein Gerätetest.
+- Build 31 (Test, Arbeitsbranch 0d5d36b): 71 mit 1.750 Wörtern (nach der ersten Nachprüfung, vor der zweiten).
+- Build 30 (Test, Arbeitsbranch 575f66a): Arbeitsstand von Runde 2 und 71 mit 2.138 Wörtern (vor den Nachprüfungen der Liste).
 - Build 29 (geprüft, von `main`): Runde 1 (57 bis 63) mit allen Prüferkorrekturen; lokal 630 Kern-
   und 1187 App-Tests grün (Code-Stand c6e5299; das lokale Lint lief wegen des Zeitlimits nicht mehr),
   GitHub-Lauf 90 grün (Agent, Upstream, Lint, Build); erster Lauf der `main`-Schritte des neuen Release-Workflows (Test-Nachweis,
@@ -326,12 +337,3 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
 - Build 26 (Test, Arbeitsbranch cdb676c): 56 mit allen Prüferkorrekturen.
 - Build 25 (geprüft, von `main`): 55 Diagnose „Letztes Feld“ mit Prüfer und Nachprüfung; Agent-Suite
   lokal grün (586 Kern, 1123 App), GitHub-Lauf 72 grün (Agent, Upstream, Lint); kein Gerätetest.
-- Build 24 (Test, Arbeitsbranch 23edd0e): 55 vor den Prüferkorrekturen (Firefox-Workaround der App
-  zugeschrieben, verdeckte Leiste nicht erfasst). Erster Versuch an Maven Central 429 abgebrochen,
-  Wiederholung grün.
-- Build 23 (geprüft, von `main`): 34, 37, 40, 51–54, graue Karten mit allen Prüferkorrekturen;
-  Agent-Suite lokal grün (570 Kern, 1106 App), GitHub-Lauf 68 grün (Agent, Upstream, Lint); Befehle
-  viermal nachgeprüft; erster Build im neuen Release-Repository; kein Gerätetest.
-- Build 22 (Test, Arbeitsbranch 4ee743c): 37, 40, 51–54, graue Karten, ohne 34 und vor der
-  zweiten Prüferrunde zu 52.
-- Ältere Builds: siehe die Git-Historie dieser Datei.
