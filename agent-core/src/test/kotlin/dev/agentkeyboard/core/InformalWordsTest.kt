@@ -91,6 +91,13 @@ class InformalWordsTest {
         // standard words stay with the engine: a protected word is never corrected
         for (w in listOf("nicht", "für", "und", "the", "interessant", "vielleicht", "wahrscheinlich", "dont", "cant", "youre"))
             assertFalse(w in shipped, w)
+        // a typo of a very common word is a typo, however slangy it looks, and is corrected (review of 71: "idr" for "dir",
+        // "bish" for "bist", "bih" for "bin"; the dictionaries' probabilities do not tell how common "ich" or "bist" are)
+        for (w in listOf("idr", "bish", "bih", "toml", "moggen", "gecacht", "fsr", "whd"))
+            assertFalse(w in shipped, w)
+        // the engine lets a "possibly offensive" dictionary word through when it is typed exactly: it is known, not listed
+        for (w in listOf("fuck", "fucking", "scheiße", "verdammt", "geil", "damn"))
+            assertFalse(w in shipped, w)
     }
 
     @Test fun `editorial cases of the data package`() {

@@ -6020,14 +6020,15 @@ die „strenge Lesart“ ist durch die Regel „aktiv in einem privaten Feld“ 
   eigene redaktionelle Arbeit unter CC0-1.0; 3.873 Einträge sind „redaktionell gesammelt, nicht an Gebrauch geprüft“, 20 „Begriff belegt“
   (Langenscheidt, Cambridge; nur einzelne Wortformen, keine Definitionen), `proactive_prediction` überall falsch. Die Slang-Eingaben der
   Redaktionsfälle (547 Fälle) stehen fast alle in der Liste des Pakets; die Auswahl unten lässt einen Teil davon bewusst weg. Eine Tabelle
-  häufiger Fehlschreibungen aus den Vorschlagsfällen brächte der Engine fast nichts Neues (von etwa 170 sauberen Einzelwort-Paaren liegen
-  gut 150 einen Schritt vom Ziel entfernt, die Engine findet sie selbst; etwa 17 wie „Portmonai“ wären neu). Häufigkeits-, Kontext- und
+  häufiger Fehlschreibungen aus den Vorschlagsfällen brächte der Engine fast nichts Neues (von 203 sauberen Einzelwort-Fällen (Rechtschreibung, doppelter oder fehlender Buchstabe, Dreher, Nachbartaste) liegen
+  182 einen Schritt vom Ziel entfernt, die Engine findet sie selbst; die 21 weiter entfernten wie „Portmonai“ wären neu). Häufigkeits-, Kontext- und
   Morphologiedaten (CC BY-SA, MB-groß) und die Hunspell-Ableitungen (GPL) sind nicht eingebaut.
-- Auswahl (`tools/build_informal_words.py`, nach der Nachprüfung 71): 1.750 Wörter bleiben. Weggelassen: 666 Phrasen, 69 Sonderzeichenformen,
-  104 Formen bis zwei Zeichen, 1.109 Formen, die die Wörterbücher der App kennen (auch groß geschrieben), 21 Apostroph-Auslassungen („dont“)
-  und 31 Formen nahe an einem Tippfehler eines sehr häufigen Wortes. Die Summe ist größer als 3.893 − 1.750, weil Formen, die sich nur in
-  Groß-/Kleinschreibung unterscheiden, zusammenfallen (143 Doppelte). Die erste Fassung hatte „bekannt“ an den Hunspell-Stämmen des Pakets
-  gemessen (2.138 Wörter); der Prüfer fand das falsch (siehe unten).
+- Auswahl (`tools/build_informal_words.py`, nach der zweiten Nachprüfung 71): 1.695 Wörter bleiben. Weggelassen: 666 Phrasen, 69 Sonderzeichenformen,
+  104 Formen bis zwei Zeichen, 1.128 Formen, die die Wörterbücher der App kennen (auch groß geschrieben, auch „möglicherweise anstößige“),
+  20 Apostroph-Auslassungen („dont“) und 68 Formen nahe an einem Tippfehler eines sehr häufigen Wortes. Die Summe der Gründe (2.055) ist um 143
+  kleiner als 3.893 − 1.695, weil Formen, die sich nur in Groß-/Kleinschreibung unterscheiden, zusammenfallen (143 Doppelte). Die erste Fassung
+  hatte „bekannt“ an den Hunspell-Stämmen des Pakets gemessen (2.138 Wörter), die zweite (1.750) „sehr häufig“ nur an den Wahrscheinlichkeiten
+  der Wörterbücher und „anstößige“ Wörter als unbekannt; beide Male fand der Prüfer das falsch (siehe unten).
 - Gefunden und behoben beim Testen (Lead): Die erste Fassung der Regel für gedehnte Wörter schützte auch „addresss“ (Tippfehler, den die
   Redaktionsfälle als zu korrigieren führen); jetzt Vokal ab drei, Konsonant ab vier (P293).
 - Tests: `:agent-core:test` `InformalWordsTest` 8 grün (Normalform, Sprachen, Schutz mit Anführungszeichen, gedehnte Wörter, die echte Datei:
@@ -6053,12 +6054,42 @@ Der Prüfer fand nichts Schweres, drei mittlere und fünf niedrige Punkte. Behob
 - N1 (Tippfehler-Nähe zu eng): jetzt für alle Längen, gegen sehr häufige Wörter der App (Wahrscheinlichkeit ab 150 von 255) und mit demselben
   Tippfehler-Modell, wenn die Form im Netz selten ist (Zipf unter 3,0). „hatet“, „haten“, „faken“, „dadrauf“ fallen so heraus; „nich“, „nen“, „ick“
   (häufig) bleiben.
-- N3 (Ladefehler wurde gemerkt) und N4 (Anführungszeichen um das Wort): behoben, getestet.
+- N3 (Ladefehler wurde gemerkt) und N4 (Anführungszeichen um das Wort): behoben; N4 hatte einen Test, den für N3 brachte erst die zweite Nachprüfung.
 - Nicht geändert: N2 (Vokal ab drei: „seee“ bleibt stehen): „neee“ ist ein Fall der Redaktion, der bleiben soll; der Preis steht in P293. Ob
-  „bekannt“ auch gesperrte Wörter der Wörterbücher einschließt („fuck“): sie bleiben, wie getippt (P291).
-- Zahlen in den Docs berichtigt („0 fehlen“ stimmte nicht; „1.100 Formen“ waren 1.125 im Paket und sind jetzt etwa 460 in der Liste; 143 Doppelte
+  „bekannt“ auch „gesperrte“ Wörter der Wörterbücher einschließt („fuck“): damals galten sie als unbekannt; die zweite Nachprüfung berichtigte das (unten).
+- Zahlen in den Docs berichtigt („0 fehlen“ stimmte nicht; „1.100 Formen“ waren 1.125 im Paket und sind jetzt etwa 450 in der Liste; 143 Doppelte
   erklärt), die Ausnahmen (Großschreibung, Kürzel, gelernte Paare) stehen in P291, FEATURES und ANLEITUNG; das Gedächtnis ist dort als „aus, bis du
   es einschaltest“ benannt.
+
+### Zweite Nachprüfung 71 (Prüfer zu `0d5d36b`, 2026-11-18)
+
+Der Prüfer fand in `Suggest.guardAllows`, `InformalWords` und `InformalWordsStore` keinen Fehler (ganz gelesen: Reihenfolge der Schutzstufen,
+Nullsicherheit, die drei Ausnahmen, kein Log, kein Netz). Er hat die Liste mit dem Skript reproduziert (gleiche Datei, gleiche Prüfsumme),
+den Wörterbuchleser mit dem der Engine verglichen (gleiche Zähler: 205.846 deutsche, 159.369 und 156.121 englische Wörter), und die Liste
+von Hand gegen Standardwörter und bekannte Tippfehler gelesen. Befunde und was daraus wurde:
+
+- mittel, behoben: „sehr häufig“ war an der Wahrscheinlichkeit im Wörterbuch gemessen, die keine Häufigkeit ist („ich“ 139, „bist“ 105, „dir“
+  108, „mir“ 125). Tippfehler wie „idr“ (dir), „bish“ (bist), „bih“ (bin), „toml“ (toll), „moggen“ (morgen), „gecacht“ (gedacht) standen deshalb
+  in der Liste und wären nicht korrigiert worden. Jetzt zählt auch Zipf ab 5,0 der Häufigkeitsliste als „sehr häufig“ (`COMMON_ZIPF`); 37 Formen
+  fallen so heraus. Es bleiben 43 Formen, die über ihre Eigenhäufigkeit (Zipf ab 3,0) trotz eines sehr häufigen Nachbarwortes stehen („nich“,
+  „nen“, „würd“, „habs“, „goin“, „meh“, „ish“, „welp“ …): Absicht, in P292 benannt (eine Owner-Entscheidung, falls „meh“ und „ish“ lieber
+  korrigiert werden sollen). Test: „idr“, „bish“, „bih“, „toml“, „moggen“, „gecacht“, „fsr“, „whd“ stehen nicht in der Liste; mit der alten
+  Liste ist der Test rot, mit der neuen grün.
+- niedrig, behoben: Das Bit 0x01 der Wörterbuchknoten heißt „möglicherweise anstößig“ (`isBlacklisted` ist in der Engine immer falsch); ein
+  genau getipptes solches Wort gibt die Engine aus. Das Skript zählte es als unbekannt, 18 solche Wörter standen deshalb überflüssig in der Liste
+  („fuck“, „scheiße“, „verdammt“, „geil“, „damn“ …). Jetzt zählen sie als bekannt (1.128 statt 1.109 Formen unter „schon bekannt“); P291 und
+  P292 berichtigt. Test: diese Wörter stehen nicht in der Liste.
+- niedrig, behoben: Für N3 (Ladefehler wird nicht gemerkt) fehlte der Test, obwohl die erste Nachprüfung „getestet“ sagte;
+  `InformalWordsStoreTest` „a failed read is not remembered“ ergänzt. Der Whitelist-Zweig in `guardAllows` hat weiter keinen eigenen Test und
+  heute keine Wirkung (kein Whitelist-Schlüssel der Wörterbücher steht auf der Liste); P291 sagt es.
+- niedrig, behoben: Zahlen und Texte berichtigt: Die Summe der Weglassgründe ist um die 143 zusammengefallenen Doppelten kleiner als
+  3.893 − Liste (nicht größer); von den Vorschlagsfällen der Redaktion sind 203 saubere Einzelwort-Fälle, 182 einen Schritt vom Ziel und 21
+  weiter (nachgerechnet); der Check in `guardAllows` läuft bei einem unbekannten Wort oft schon nach vielen Tasten.
+- niedrig, offen, in P291 festgehalten: Die Sprache je Wort aus dem Paket wird nicht benutzt, jedes Listenwort gilt für Deutsch und Englisch
+  (ein englisches Wort nahe einem deutschen, „ish“, „meh“, schützt auch auf der deutschen Tastatur). Das Testfixture `informal_cases.tsv` wird
+  aus der Liste erzeugt: sein „protect“-Teil prüft, was ohnehin dort steht, und fängt einen Verlust nur über die Mindestzahl 40. Das
+  Gestentippen ruft `guardAllows` nicht auf, die Liste gilt dort nicht.
+- Nicht geprüft: das Verhalten auf einem Gerät und mit den echten Wörterbüchern zur Laufzeit.
 
 ## Gerätetest vor Meilensteinfreigabe
 

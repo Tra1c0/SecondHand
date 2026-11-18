@@ -64,7 +64,6 @@ archspire
 argh
 arpg
 arse
-asshole
 assi
 aufgelevelt
 aufleveln
@@ -76,7 +75,6 @@ ausloggt
 awesomesauce
 awesum
 axe-fx
-ayo
 ayoo
 ayy
 b4n
@@ -100,7 +98,6 @@ batchst
 batcht
 bbgs
 bbiab
-bby
 bbygirl
 bbygurl
 bcos
@@ -124,12 +121,9 @@ bierkönig
 bierpong
 bigram
 bigrams
-bih
 bimo
-bish
 bishes
 bisn
-bitch
 bitdepth
 bitteee
 bitteschoen
@@ -141,7 +135,6 @@ blastbeats
 blegh
 bleh
 blockst
-blud
 blursed
 bmth
 boah
@@ -188,8 +181,6 @@ bugfix
 bugfixing
 buildcraft
 bullcrap
-bullshit
-bullshitting
 bunnyhop
 bunnyhopping
 bussin
@@ -260,9 +251,7 @@ coulda
 count-in
 counter-strafe
 counterstrafe
-covere
 coverst
-coz
 craften
 crashout
 cringefaktor
@@ -296,12 +285,7 @@ cya
 d'addario
 d'ya
 d'you
-dadran
-dadrin
 damerau-levenshtein
-dammit
-damn
-dang
 dankeee
 dankeschoen
 dankö
@@ -326,7 +310,6 @@ deliverst
 delivert
 delulu
 denglisch
-denglish
 deployen
 deployt
 despawn
@@ -394,7 +377,6 @@ duoq
 durchgeballert
 edgelord
 edgen
-eep
 eepiness
 eepy
 effin
@@ -425,7 +407,6 @@ eom
 eow
 erra
 every1
-everythin
 everythin'
 evtl
 exkl
@@ -440,7 +421,6 @@ factcheckt
 fakest
 faket
 faktencheck
-fams
 farme
 farmst
 farmt
@@ -470,7 +450,6 @@ fishman
 fixst
 fixt
 fkin
-fkn
 flabbers
 flashe
 flashen
@@ -486,7 +465,6 @@ flixen
 floortom
 flunkyball
 focusrite
-followe
 followen
 followerin
 followst
@@ -510,14 +488,10 @@ frickin
 frickin'
 fricking
 frl
-fsr
 ftf
 ftw
-fuck
 fuckin
 fuckin'
-fucking
-fuk
 fukk
 full-stack
 fullstack
@@ -525,7 +499,6 @@ fumblen
 fumblest
 fwiw
 fym
-fyp
 g-sync
 g2g
 gainstaging
@@ -547,7 +520,6 @@ geboostet
 gebrancht
 gebufft
 gecached
-gecacht
 gecampt
 gecancelt
 gecarried
@@ -608,7 +580,6 @@ gehustelt
 gehustlet
 gehyped
 gehypet
-geil
 geilo
 geintet
 gejammt
@@ -736,8 +707,6 @@ goated
 goblincore
 goblinmode
 gobsmacked
-goddammit
-goddamn
 goin
 goin'
 gojira
@@ -770,7 +739,6 @@ grrr
 grwm
 gtfo
 gtg
-gud
 gudnight
 gudnite
 gumo
@@ -817,7 +785,6 @@ heliboard
 heya
 heyho
 heyo
-heyy
 hi-hat
 high-effort
 high-key
@@ -834,7 +801,6 @@ hochleveln
 homie
 homies
 hopium
-horny
 hotfix
 hotfixes
 huiuiui
@@ -858,7 +824,6 @@ ick
 idek
 idgaf
 idk
-idr
 iframe
 iframes
 iirc
@@ -887,7 +852,6 @@ isso
 itsover
 iwann
 iwas
-iwen
 iwer
 iwie
 iykyk
@@ -939,7 +903,6 @@ leakt
 leavest
 leavet
 lel
-leuts
 levele
 leveln
 levelst
@@ -1015,7 +978,6 @@ mastert
 matche
 matchen
 matchst
-matcht
 mathcore
 mathrock
 matschig
@@ -1049,7 +1011,6 @@ minmaxing
 minmaxxing
 mixst
 mmn
-mmo
 mmorpg
 moba
 modded
@@ -1057,7 +1018,6 @@ modden
 modpack
 modpacks
 mogged
-moggen
 mogging
 moin
 moinsen
@@ -1108,7 +1068,6 @@ northlane
 nosql
 nothin
 nothin'
-nothingg
 npu
 nsfw
 nu-metal
@@ -1179,7 +1138,6 @@ periodtt
 pickslide
 pigsqueal
 pigsqueals
-pleasee
 pmo
 polymeter
 polymeters
@@ -1203,7 +1161,6 @@ prefetching
 preload
 preloading
 preroll
-prob
 probly
 prog
 prolly
@@ -1267,7 +1224,6 @@ releast
 remixst
 remixt
 rent-free
-reporte
 reporten
 reportest
 reportet
@@ -1282,7 +1238,6 @@ respawned
 respawnen
 respawning
 respawns
-respec
 respeccen
 respeccing
 retweet
@@ -1340,7 +1295,6 @@ schecter
 scheiss
 scheisse
 scheissegal
-scheiße
 scheißegal
 schmackofatz
 schnack
@@ -1384,7 +1338,6 @@ shitpost
 shitposter
 shitposting
 shitposts
-shitty
 shoegaze
 shooken
 shooketh
@@ -1396,7 +1349,6 @@ sidechain
 sidechaining
 sidequest
 siehste
-simpe
 simped
 simpen
 simping
@@ -1523,8 +1475,6 @@ synchronisierst
 syncst
 synct
 tachschen
-tagge
-taggen
 taggst
 taggt
 takin
@@ -1566,14 +1516,12 @@ tokenisation
 tokeniser
 tokenisieren
 tokenisiert
-toml
 tonex
 tortex
 tracke
 tracken
 trackst
 trackt
-trie
 triggere
 triggerst
 triggert
@@ -1632,7 +1580,6 @@ vallah
 vallahi
 verballert
 vercheckt
-verdammt
 verpeilt
 verstehste
 verstrahlt
@@ -1696,7 +1643,6 @@ whatev
 whateverrr
 whatevs
 whatsup
-whd
 whoopsie
 willste
 woah
@@ -1725,7 +1671,6 @@ yappt
 yapt
 yasss
 yeehaw
-yeet
 yeeted
 yeeting
 yeetus

@@ -2,7 +2,7 @@
 
 Erzeugt von `tools/build_informal_words.py` aus dem Paket „SecondHand DE/EN-Datensätze 1.0“ (17.11.2026). Dieses Dokument wird vom Skript geschrieben und nicht von Hand bearbeitet.
 
-Aus `informal_lexicon.jsonl` (3893 Einträge, eigene redaktionelle Arbeit des Pakets, CC0-1.0) bleiben **1750** geschützte Schreibformen übrig: `app/src/main/assets/agent/informal_words.txt`.
+Aus `informal_lexicon.jsonl` (3893 Einträge, eigene redaktionelle Arbeit des Pakets, CC0-1.0) bleiben **1695** geschützte Schreibformen übrig: `app/src/main/assets/agent/informal_words.txt`.
 
 ## Warum diese Auswahl
 
@@ -13,29 +13,29 @@ Die Tastatur ersetzt ein getipptes Wort nicht mehr automatisch, wenn es in diese
 | Phrase | 666 | Mehrere Wörter („zu gut“): ein getipptes Wort kann sie nie treffen. |
 | Sonderzeichen | 69 | Emoticons und Formen wie „f*ck“ sind kein Wort der Tastatur. |
 | Zu kurz | 104 | Höchstens zwei Zeichen: zu mehrdeutig (Regel 7 des Pakets). |
-| Schon bekannt | 1109 | Ein Wörterbuch der App (Deutsch, Englisch US und GB) kennt die Form, auch groß geschrieben („jungs“ ist das Hauptwort „Jungs“); ein Schutz würde nur echte Korrekturen verhindern, auch die Großschreibung (Regel 20: zwei gültige Wörter braucht Satzbeleg). |
-| Apostroph weggelassen | 21 | „dont“, „cant“, „youre“: Die Korrektur zu „don't“ ist erwünscht und bleibt (Regel 18/19 des Pakets: die förmliche Form nur auf Wunsch). |
-| Tippfehler-Nähe | 31 | Selten im Netz (Zipf unter 3,0) und einen Tippfehler (fehlender oder überzähliger Buchstabe, Dreher, Nachbartaste) von einem sehr häufigen Wort der App-Wörterbücher entfernt: hier wäre der Tippfehler wahrscheinlicher als der Slang. |
+| Schon bekannt | 1128 | Ein Wörterbuch der App (Deutsch, Englisch US und GB) kennt die Form, auch groß geschrieben („jungs“ ist das Hauptwort „Jungs“); ein Schutz würde nur echte Korrekturen verhindern, auch die Großschreibung (Regel 20: zwei gültige Wörter braucht Satzbeleg). |
+| Apostroph weggelassen | 20 | „dont“, „cant“, „youre“: Die Korrektur zu „don't“ ist erwünscht und bleibt (Regel 18/19 des Pakets: die förmliche Form nur auf Wunsch). |
+| Tippfehler-Nähe | 68 | Selten im Netz (Zipf unter 3,0) und einen Tippfehler (fehlender oder überzähliger Buchstabe, Dreher, Nachbartaste) von einem sehr häufigen Wort entfernt (Wahrscheinlichkeit ab 150 von 255 im App-Wörterbuch oder Zipf ab 5,0 in der Häufigkeitsliste): hier wäre der Tippfehler wahrscheinlicher als der Slang. |
 
-Was „bekannt“ und „sehr häufig“ heißt, entscheiden die Wörterbücher der App (`app/src/main/assets/dicts/main_de.dict`, `main_en-US.dict`, `main_en-GB.dict`, gelesen mit dem Leser im Skript), nicht die Wortlisten des Pakets: Die Engine benutzt nur jene. Aus den gelesenen Quellen (App-Wörterbücher, Häufigkeitsliste des Pakets) steht nichts in der Ausgabe.
+Was „bekannt“ heißt, entscheiden die Wörterbücher der App (`app/src/main/assets/dicts/main_de.dict`, `main_en-US.dict`, `main_en-GB.dict`, gelesen mit dem Leser im Skript), nicht die Wortlisten des Pakets: Die Engine benutzt nur jene. Bekannt ist jede Form, die die Engine ausgibt, wenn sie genau so getippt wird; dazu zählen die als „möglicherweise anstößig“ markierten Wörter („fuck“), die die Engine nur als Vorschlag ausblendet. „Sehr häufig“ misst die Häufigkeitsliste des Pakets mit, weil die Wahrscheinlichkeiten der Wörterbücher keine Häufigkeit sind. Aus den gelesenen Quellen (App-Wörterbücher, Häufigkeitsliste des Pakets) steht nichts in der Ausgabe.
 
 ## Was die Liste enthält
 
 | Bereich im Paket | Formen |
 | --- | --- |
-| denglish_form | 477 |
-| colloquial | 460 |
-| gaming_tech | 325 |
-| internet_slang | 253 |
+| denglish_form | 470 |
+| colloquial | 432 |
+| gaming_tech | 319 |
+| internet_slang | 243 |
 | music | 133 |
-| abbreviation | 107 |
-| youth_phrase | 87 |
+| abbreviation | 101 |
+| youth_phrase | 86 |
 
 (Eine Form kann in mehreren Bereichen stehen.) Die Einträge sind „redaktionell gesammelt, nicht an Gebrauch geprüft“ (`verification` im Paket): Sie schützen vor falschen Korrekturen, sie belegen keine Verbreitung.
 
 ## Weggelassene Tippfehler-Nähe (Stichprobe)
 
-bsing (being), dadrauf (darauf), daws (das), defs (des), dya (day), dyou (you), faken (taken), fook (took), fst (fast), gng (ging), haten (hatten), hatet (hatte), ight (right), ild (old), ime (time), imes (times), istg (ist), joine (joined), mosht (most), noice (nice), ooff (off), otp (top), recorde (recorded), tilte (title), vibt (gibt), wayy (way), wth (with), wya (way), yas (das), yass (dass), yess (yes)
+ayo (ago), bby (baby), bih (big), bish (bist), blud (blue), bsing (being), covere (cover), dadran (daran), dadrauf (darauf), dadrin (darin), daws (das), defs (des), denglish (english), dya (day), dyou (you), eep (deep), everythin (everything), faken (taken), fams (fans), fkn (fun), followe (followed), fook (took), fsr (far), fst (fast), fuk (fuck), fyp (typ), gecacht (gedacht), gng (ging), gud (guy), haten (halten), hatet (hatte), heyy (hey), idr (dir), ight (eight), ild (bild), ime (time), imes (times), istg (ist), iwen (wien), joine (joined), leuts (leute), matcht (match), mmo (mom), moggen (morgen), mosht (most), noice (nice), nothingg (nothing), ooff (off), otp (top), pleasee (please), recorde (recorded), reporte (reported), respec (respect), simpe (simple), tagge (tage), taggen (tagen), tilte (title), toml (toll), trie (tried), vibt (gibt) …
 
 ## Nicht verwendet
 

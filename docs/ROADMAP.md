@@ -492,17 +492,17 @@ Reihenfolge von oben nach unten.
   „sinnvoll aussortieren und die Autokorrektur erweitern/ergänzen“) ist gebaut, nach der Nachprüfung 71 mit den Wörterbüchern der App als Maßstab (siehe FEATURES.md, Nachweis in
   `docs/VALIDATION.md` → Etappe 71, Auswahl und Gründe in `docs/referenzen/datensaetze/AUSWAHL.md`). Aus dem Paket
   (136 MB, gemischte Lizenzen, nicht im Repository) wird nur die eigene, CC0-lizenzierte Liste informeller Formen
-  genommen: 1.750 von 3.893 Einträgen werden zu einer 14 KB großen Asset-Datei, die die Autokorrektur nutzt, um ein
+  genommen: 1.695 von 3.893 Einträgen werden zu einer 14 KB großen Asset-Datei, die die Autokorrektur nutzt, um ein
   getipptes Wort **nicht** zu ersetzen (Vorschlag bleibt in der Leiste). Dazu gedehnte Wörter und Lacher als Regel.
   Annahmen des Leads, die der Owner ändern kann: keine Schalter (die Liste verbietet nur Korrekturen, sie lernt und
   schlägt nichts vor); nur Deutsch und Englisch; „dont/cant“ bleiben korrigierbar (Apostroph); ein Konsonant dreimal
   am Wortende („addresss“) bleibt ein Tippfehler, erst vier (oder ein Vokal dreimal) zählen als Betonung. Bewusst nicht
   gebaut: Wortvorschläge aus der Liste (das Paket erlaubt sie nur bei getipptem Anfang oder ausdrücklichem
   Fachgebiet; sie würden die Leiste füllen, ohne dass es messbar wäre), Abkürzungen aufklappen (Paket: nie still),
-  eine Tabelle häufiger Fehlschreibungen (von etwa 170 sauberen Einzelwort-Fällen der Redaktion liegen gut 150 einen Schritt vom Ziel, die
-  Engine findet sie selbst; nur etwa 17 wie „Portmonai“ wären neu), Verwechslungsgruppen (brauchen den Satz), die
+  eine Tabelle häufiger Fehlschreibungen (von 203 sauberen Einzelwort-Fällen der Redaktion (Rechtschreibung, doppelter oder fehlender Buchstabe, Dreher, Nachbartaste) liegen 182 einen Schritt vom Ziel, die
+  Engine findet sie selbst; nur die 21 weiter entfernten wie „Portmonai“ wären neu), Verwechslungsgruppen (brauchen den Satz), die
   Häufigkeits- und Kontextdaten (CC BY-SA, groß, keine Rechtschreibung). Offen: Gerätetest mit echten Wörterbüchern;
-  die Entscheidung des Owners, ob der Zusatzwortschatz (Spiele/Technik/Musik, etwa 460 Formen der Liste) als Vorschlag erscheinen soll.
+  die Entscheidung des Owners, ob der Zusatzwortschatz (Spiele/Technik/Musik, etwa 450 Formen der Liste) als Vorschlag erscheinen soll.
 - **Runde 2 nach dem Scan (Auftrag des Owners vom 2026-11-16: „suche nach Lücken, Verbesserungen und
   Fehlern … scanne gebietübergreifend“)**: noch nicht gebaut. Die Befunde stehen mit Stelle und
   Schwere in `docs/PRUEFBERICHT-2026-11-16.md`; jede Etappe behebt die dort genannten Nummern und

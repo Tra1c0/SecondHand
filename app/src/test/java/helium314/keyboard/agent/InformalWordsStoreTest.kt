@@ -2,6 +2,8 @@
 package helium314.keyboard.agent
 
 import android.content.Context
+import android.content.ContextWrapper
+import android.content.res.AssetManager
 import androidx.test.core.app.ApplicationProvider
 import org.junit.After
 import org.junit.Before
@@ -37,6 +39,22 @@ class InformalWordsStoreTest {
         assertFalse(InformalWordsStore.protects(context, "gecovert", "es", "es"))
         assertTrue(InformalWordsStore.protects(context, "gecovert", "es", "de"))
         assertFalse(InformalWordsStore.protects(context, "gecovert", null, null))
+    }
+
+    @Test fun `a failed read is not remembered`() {
+        val failing = object : ContextWrapper(context) {
+            var reads = 0
+            override fun getApplicationContext(): Context = this
+            override fun getAssets(): AssetManager {
+                if (reads++ == 0) throw IllegalStateException("simulated: the asset cannot be opened")
+                return super.getAssets()
+            }
+        }
+        assertFalse(InformalWordsStore.protects(failing, "gecovert", "de"), "the first read fails: nothing is protected")
+        assertTrue(InformalWordsStore.protects(failing, "gecovert", "de"), "the next call reads again and finds the list")
+        assertEquals(2, failing.reads, "one failed read and one successful read, then the list is cached")
+        assertTrue(InformalWordsStore.protects(failing, "gecovert", "de"))
+        assertEquals(2, failing.reads)
     }
 
     @Test fun `no context, no word, no protection`() {

@@ -31,17 +31,22 @@ OUT_REPORT = REPO / "docs/referenzen/datensaetze/AUSWAHL.md"
 DICTS = REPO / "app/src/main/assets/dicts"
 APP_DICTIONARIES = ("main_de.dict", "main_en-US.dict", "main_en-GB.dict")
 MIN_LENGTH = 3             # shorter tokens are too ambiguous (package rule 7)
-COMMON_PROBABILITY = 150   # of 255 in the app's dictionaries: a "very common word" for the typo test
+COMMON_PROBABILITY = 150   # of 255 in the app's dictionaries: a "very common word" for the typo test ...
+COMMON_ZIPF = 5.0          # ... or this common in running text (Zipf scale; 5.0 = 100 per million words): the
+                           # dictionaries' probabilities are no frequency ("ich" is 139, "bist" 105, "dir" 108)
 COLLISION_OWN_ZIPF = 3.0   # a form used about this rarely in running text is more likely a typo than slang
 WORD_CHARS = set("'-")
 ALPHABET = "abcdefghijklmnopqrstuvwxyzäöüß'"
 
 # --- reader of the app's binary dictionaries (AOSP/HeliBoard format version 202, static) ---
-_CHILDREN_MASK, _MULTI, _TERMINAL, _SHORTCUTS, _BIGRAMS, _NOT_A_WORD, _BLACKLIST = 0xC0, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01
+# 0x01 is "possibly offensive", not "blacklisted" (patricia_trie_policy.cpp: isBlacklisted is always false): the engine lets such a
+# word through when it is typed exactly (suggestions_output_utils.cpp: "it's exactly what they typed"), so it is a valid word.
+_CHILDREN_MASK, _MULTI, _TERMINAL, _SHORTCUTS, _BIGRAMS, _NOT_A_WORD, _OFFENSIVE = 0xC0, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01
 
 
 def read_app_dictionary(path: Path) -> dict:
-    """word (as stored) -> probability 0..255 for every word the engine treats as valid (not blacklisted, not "not a word")."""
+    """word (as stored) -> probability 0..255 for every word the engine accepts when it is typed exactly (not "not a word";
+    a possibly offensive word counts)."""
     b = path.read_bytes()
     magic, _version, _flags, header = struct.unpack(">IHHI", b[:12])
     if magic != 0x9BC13AFE:
@@ -99,7 +104,7 @@ def read_app_dictionary(path: Path) -> dict:
                     pos += (f >> 4) & 3
                     if not f & 0x80:
                         break
-            if probability is not None and not flags & (_NOT_A_WORD | _BLACKLIST):
+            if probability is not None and not flags & _NOT_A_WORD:
                 words[word] = max(words.get(word, 0), probability)
             if child is not None:
                 stack.append((child, word))
@@ -206,7 +211,11 @@ def main(package: Path) -> None:
     # apostrophe form is wanted, so these stay unprotected (package rule 18/19: formal form on explicit choice only)
     with_apostrophe = {w.replace("'", "") for w in known if "'" in w}
     zipf = {lang: read_zipf(data / f"frequency_priors_{lang}.tsv.gz") for lang in ("de", "en")}
-    common = {w for w, p in app.items() if p >= COMMON_PROBABILITY and len(w) >= 3}
+
+    def running_zipf(word):
+        return max(zipf["de"].get(word, 0.0), zipf["en"].get(word, 0.0))
+
+    common = {w for w, p in app.items() if len(w) >= 3 and (p >= COMMON_PROBABILITY or running_zipf(w) >= COMMON_ZIPF)}
 
     kept, left_out = {}, defaultdict(list)
     categories = defaultdict(set)
@@ -224,7 +233,7 @@ def main(package: Path) -> None:
         elif key in with_apostrophe:
             left_out["apostrophe_omission"].append(key)
         else:
-            own = max(zipf["de"].get(key, 0.0), zipf["en"].get(key, 0.0))
+            own = running_zipf(key)
             clash = None
             if own < COLLISION_OWN_ZIPF:
                 clash = next((w for w in intended_words(key) if w in common), None)
@@ -268,12 +277,16 @@ def main(package: Path) -> None:
         f"| Apostroph weggelassen | {len(left_out['apostrophe_omission'])} | „dont“, „cant“, „youre“: Die Korrektur zu „don't“ "
         "ist erwünscht und bleibt (Regel 18/19 des Pakets: die förmliche Form nur auf Wunsch). |",
         f"| Tippfehler-Nähe | {len(left_out['typo_collision'])} | Selten im Netz (Zipf unter 3,0) und einen Tippfehler "
-        "(fehlender oder überzähliger Buchstabe, Dreher, Nachbartaste) von einem sehr häufigen Wort der App-Wörterbücher "
-        "entfernt: hier wäre der Tippfehler wahrscheinlicher als der Slang. |",
+        "(fehlender oder überzähliger Buchstabe, Dreher, Nachbartaste) von einem sehr häufigen Wort entfernt "
+        "(Wahrscheinlichkeit ab 150 von 255 im App-Wörterbuch oder Zipf ab 5,0 in der Häufigkeitsliste): hier wäre der "
+        "Tippfehler wahrscheinlicher als der Slang. |",
         "",
-        "Was „bekannt“ und „sehr häufig“ heißt, entscheiden die Wörterbücher der App (`app/src/main/assets/dicts/main_de.dict`, "
+        "Was „bekannt“ heißt, entscheiden die Wörterbücher der App (`app/src/main/assets/dicts/main_de.dict`, "
         "`main_en-US.dict`, `main_en-GB.dict`, gelesen mit dem Leser im Skript), nicht die Wortlisten des Pakets: Die Engine "
-        "benutzt nur jene. Aus den gelesenen Quellen (App-Wörterbücher, Häufigkeitsliste des Pakets) steht nichts in der Ausgabe.",
+        "benutzt nur jene. Bekannt ist jede Form, die die Engine ausgibt, wenn sie genau so getippt wird; dazu zählen die als "
+        "„möglicherweise anstößig“ markierten Wörter („fuck“), die die Engine nur als Vorschlag ausblendet. „Sehr häufig“ misst "
+        "die Häufigkeitsliste des Pakets mit, weil die Wahrscheinlichkeiten der Wörterbücher keine Häufigkeit sind. Aus den "
+        "gelesenen Quellen (App-Wörterbücher, Häufigkeitsliste des Pakets) steht nichts in der Ausgabe.",
         "",
         "## Was die Liste enthält",
         "",
