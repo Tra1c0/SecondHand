@@ -142,6 +142,7 @@ class HardeningClipHistoryTest {
         val history = org.robolectric.util.ReflectionHelpers.getField<helium314.keyboard.latin.ClipboardHistoryManager>(latinIME, "mClipboardHistoryManager")
         history.onCreate()
         assertFalse(historyTexts().contains("$text vorher"), "origin unknown: the start-up read keeps nothing")
+        assertTrue(ClipVault.secrets().isEmpty(), "nor does the vault hold it")
         // clips copied while the service runs follow the field rule as before
         copy("$text nachher")
         assertTrue(historyTexts().contains("$text nachher"))

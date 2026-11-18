@@ -2303,7 +2303,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   die Schreibmarke nur vorwärts geht (`emptyAfterCursorAt`); zurück, unbekannt, neues Feld (`fieldStarted`, aus
   `KeyboardCommands.load`) fragen neu, „Text dahinter“ wird nie gemerkt, und `insert` fragt beim Tipp noch einmal.
   `ClipVault.liveClip` merkt den gelesenen Clip `LIVE_MILLIS` (1 s; `offer` und `clear` verwerfen ihn; seit der Nachprüfung 64
-  überlebt kein Zwischenspeicher mit Clip-Text `CACHE_MILLIS` = 2 s nach der letzten Füllung, und `forgetCaches()` leert `live`,
+  überlebt kein Zwischenspeicher mit Clip-Text `CACHE_MILLIS` = 2 s nach seiner Füllung (eine Frist, die spätere Füllungen nicht verschieben), und `forgetCaches()` leert `live`,
   `classified` und `SmartPasteChips.recognised`, wenn der Tresor ein Geheimnis herausgibt (`take`), bei `clear()` und bei jedem
   `LockState.drop()`; Test `ClipCachesTest`),
   `classifyLive` die Einordnung des zuletzt gesehenen Texts (`isSecretClip` und `freshest` fragten je Aufruf einzeln).
@@ -5557,7 +5557,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   behaltener Clip wird nie später nachgereicht. Die Passwortfeld-Marke in `fetchPrimaryClip`
   (Geheimnis für die Sortierung) gilt ebenfalls nur bei aktivem privatem Feld. Neue Wege, die Clips
   speichern, müssen `mayKeep` fragen.
-  Nachprüfung 65 (Start des Dienstes): `ClipboardHistoryManager.onCreate` liest die Zwischenablage mit `fetchPrimaryClip(startup = true)` und schreibt dabei nie in den Verlauf: der Clip lag schon da, sein Feld kennt die Tastatur nicht (ein Passwort aus dem Feld einer anderen Tastatur wäre sonst im Klartext im Verlauf gelandet). Der Tresor bekommt ihn weiter (`offer`). Test `aClipThatWasAlreadyOnTheClipboardWhenTheServiceStartsIsNotKept`.
+  Nachprüfung 65 (Start des Dienstes): `ClipboardHistoryManager.onCreate` liest die Zwischenablage mit `fetchPrimaryClip(startup = true)` und schreibt dabei nie in den Verlauf: der Clip lag schon da, sein Feld kennt die Tastatur nicht (ein Passwort aus dem Feld einer anderen Tastatur wäre sonst im Klartext im Verlauf gelandet). `ClipVault.offer` stuft ihn weiter ein (Geheimnis-Stempel, `allowed = false`), speichert aber nichts. Test `aClipThatWasAlreadyOnTheClipboardWhenTheServiceStartsIsNotKept`.
 - **P271** Zustand, der den Dienst überlebt (65, S8): Objekte (`ClipVault`, `ScreenshotChip`) halten
   Verweise (`currentClip`, `onChange`) auf Lambdas, die den Dienst festhalten. `onDestroy` von
   `ClipboardHistoryManager` setzt sie und die beiden Chip-Ansichten auf `null` und leert den Tresor;
@@ -5589,7 +5589,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Wiederherstellung des Rests beim App-Start. Ein weiteres Restrisiko: schlägt nach erfolgreicher
   Wiederherstellung sowohl das Umbenennen als auch das Löschen einer Kopie fehl, bleibt `<Name>2` mit
   altem Stand liegen; der nächste Versuch würde ihn zurückholen und die neuen Daten ersetzen.
-  Nachprüfung 65: Scheitert der Rückweg (`rolledBack` falsch), läuft `LayoutUtilsCustom.removeMissingLayouts` nicht (sie würde die Einstellungen „fehlender“ eigener Layouts endgültig löschen, obwohl nur der Datenordner fehlt); der Dialog nennt die Bilder eigener Designs und heruntergeladene Wörterbücher als nicht gesichert und beim Wiederherstellen entfernt (`backupFilePatterns` enthält von `dicts/` nur `user.dict`, den Ordner `agent_designs/` gar nicht). Offen bleibt die Markerdatei in der Kopie `…2` (siehe oben).
+  Nachprüfung 65: Scheitert der Rückweg (`rolledBack` falsch), läuft `LayoutUtilsCustom.removeMissingLayouts` nicht (sie würde die Einstellungen „fehlender“ eigener Layouts endgültig löschen, obwohl nur der Datenordner fehlt); der Dialog sagt, was die Datei enthält (von `dicts/` nur `*user.dict`, also von dir hinzugefügte Wörterbuchdateien; nicht das Persönliche Wörterbuch des Systems, nicht die mitgelieferten `.dict`, die bei Bedarf neu entstehen, nicht `agent_designs/`) und dass ein Wiederherstellen alles im Datenordner entfernt, was kein Muster trifft (Bilder eigener Designs, `libjni_latinime.so` der geladenen Gesten-Bibliothek). `LayoutUtilsCustom.removeMissingLayouts` läuft auch beim App-Start (`App.kt`): nach einem Prozesstod mitten im Wiederherstellen ist das derselbe Rest. Offen bleibt die Markerdatei in der Kopie `…2` (siehe oben).
 - **P274** Protokollzeilen ohne Inhalt (65, Nachbesserung N2): nicht mehr geloggt werden das gewählte Emoji
   (`LatinIME.onEmojiSearchDone`, `EmojiSearchActivity.onStop`) und Tastenbeschriftungen importierter
   Layouts (`LayoutUtilsCustom`, `TextKeyData`). Bewusste Ausnahmen: `dumpAllWordsForDebug` (eine

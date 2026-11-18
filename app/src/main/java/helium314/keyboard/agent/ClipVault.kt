@@ -86,7 +86,9 @@ object ClipVault {
      * dropped when the vault lets a secret go, on a lock event ([LockState.drop]), at [clear] and when the service ends.
      */
     const val CACHE_MILLIS = 2 * LIVE_MILLIS
-    private val expireCaches = Runnable { forgetCaches() }
+    /** A deadline is pending: it is not moved by later fills, so nothing outlives [CACHE_MILLIS] after its own fill. */
+    private val deadline = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val expireCaches = Runnable { deadline.set(false); forgetCaches() }
 
     /** Drops every cache that holds clip text: the live clip, its classification and what Smart Paste recognised in it. */
     @JvmStatic fun forgetCaches() {
@@ -95,10 +97,13 @@ object ClipVault {
         SmartPasteChips.forget()
     }
 
-    /** Called after a cache was filled: it is dropped [CACHE_MILLIS] after the last fill. */
+    /**
+     * Called after a cache was filled. Arms one deadline [CACHE_MILLIS] after the first fill that finds none pending; a later
+     * fill does not move it (review M2: re-arming at every fill let a text live as long as the typing went on), so a cache lives at
+     * most [CACHE_MILLIS] and the next fill after the deadline arms the next one.
+     */
     internal fun armForget() {
-        handler.removeCallbacks(expireCaches)
-        handler.postDelayed(expireCaches, CACHE_MILLIS)
+        if (deadline.compareAndSet(false, true)) handler.postDelayed(expireCaches, CACHE_MILLIS)
     }
 
     /** For the tests: whether a cache still holds [text]. */
@@ -313,6 +318,7 @@ object ClipVault {
     @Synchronized fun clear() {
         forgetCaches()
         handler.removeCallbacks(expireCaches)
+        deadline.set(false)
         items.clear()
         used.clear()
         secretStamps.clear()

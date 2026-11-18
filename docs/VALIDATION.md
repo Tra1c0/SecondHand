@@ -6044,13 +6044,16 @@ Die Prüfer zu 64a/64b, zur Korrekturrunde 65 und zu 69 hatten fünf mittlere Be
 Behoben, jeweils mit Test:
 
 - Text aus der Zwischenablage in Zwischenspeichern (64b, M-1): `ClipVault.live`, `classified` und `SmartPasteChips.recognised` verfallen
-  nach zwei Sekunden, beim Herausgeben eines Geheimnisses, bei `clear()` und bei jedem `LockState.drop()`. `ClipCachesTest` 4 grün.
+  nach zwei Sekunden (eine feste Frist: der Prüfer fand, dass ein Neuarmen bei jeder Füllung den Text beliebig lange am Leben hielt, M2,
+  behoben), beim Herausgeben eines Geheimnisses, bei `clear()` und bei jedem `LockState.drop()`. `ClipCachesTest` 6 grün.
 - `PointerTracker.cancelKeyTracking` (70, M-2, Engine-Datei): `sInKeySwipe` nur löschen, wenn dieser Finger `mKeySwipeAllowed` hatte.
   `aSecondFingersLongPressDoesNotEndTheFirstFingersSwipe` ist ohne die Änderung rot („the static flag of A's swipe“) und mit ihr grün
   (beides gelaufen); `AgentSpaceGestureTest` 22 grün.
 - Start des Dienstes (65, Prüfer M1): der beim Start gelesene Clip kommt nicht in den Verlauf. `HardeningClipHistoryTest` 11 grün.
-- Sicherungsdialog (69, M3): nennt die Bilder eigener Designs und heruntergeladene Wörterbücher als nicht gesichert und beim
-  Wiederherstellen entfernt (deutsch und englisch).
+- Sicherungsdialog (69, M3): nennt die Bilder eigener Designs als nicht gesichert und beim Wiederherstellen entfernt (deutsch und
+  englisch). Der Prüfer fand die erste Fassung teils falsch („heruntergeladene Wörterbücher“: die App lädt keine, von dir hinzugefügte
+  `*user.dict` sind in der Datei; „eigene Wörter“: das Persönliche Wörterbuch gehört dem System und fehlt) und die Entfernungsliste
+  unvollständig (auch die geladene Gesten-Bibliothek): jetzt nach dem Code, mit den Mustern von `backupFilePatterns` abgeglichen.
 - Wiederherstellen (65, N1): nach einem gescheiterten Rückweg läuft das Entfernen „fehlender“ Layouts nicht.
 - Weitere Läufe: `ClipVaultTest` 21, `StripRequestsTest` 16, `SmartPasteChipsTest` 15, `ScreenshotChipTest` 15, `RestoreSafetyTest` 15,
   `SettingsSystemAreaTest` 12, alle grün.

@@ -35,6 +35,27 @@ class ClipCachesTest {
         assertFalse(ClipVault.holdsText(secret), "dropped after ${ClipVault.CACHE_MILLIS} ms")
     }
 
+    @Test fun aLaterFillDoesNotMoveTheDeadline() {
+        fill()
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1_500))
+        fill() // the typing goes on: a refill must not keep the first text alive
+        assertTrue(ClipVault.holdsText(secret))
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(ClipVault.CACHE_MILLIS - 1_500 + 100))
+        assertFalse(ClipVault.holdsText(secret), "the deadline of the first fill passed")
+        fill() // the next fill arms the next deadline
+        assertTrue(ClipVault.holdsText(secret))
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(ClipVault.CACHE_MILLIS + 100))
+        assertFalse(ClipVault.holdsText(secret))
+    }
+
+    @Test fun releasingASecretFromTheVaultDropsThem() {
+        ClipVault.offer(secret, true, System.currentTimeMillis(), "DE", true)
+        fill()
+        assertTrue(ClipVault.holdsText(secret))
+        ClipVault.take(ClipVault.secrets().first().id)
+        assertFalse(ClipVault.holdsText(secret))
+    }
+
     @Test fun aLockEventDropsThem() {
         fill()
         LockState.drop()

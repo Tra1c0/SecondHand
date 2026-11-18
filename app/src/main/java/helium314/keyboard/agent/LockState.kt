@@ -75,7 +75,10 @@ object LockState {
     /** Whether the device or the user's storage is locked; never throws, "locked" when it cannot tell. */
     @JvmStatic fun isLocked(context: Context): Boolean = normal.isLocked(context)
 
-    /** Forgets the answers: the next ask goes to the system. Field start, screen events, a tap on a chip. */
+    /**
+     * Forgets the answers: the next ask goes to the system. Field start, screen events, a tap on a chip. Also drops the
+     * clip caches ([ClipVault.forgetCaches]): they hold clip text and must not survive a lock.
+     */
     @JvmStatic fun drop() { normal.drop(); credentials.drop(); ClipVault.forgetCaches() }
 
     private fun register(context: Context) {
