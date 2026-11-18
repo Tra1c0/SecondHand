@@ -9,10 +9,10 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 ## Aktueller Stand
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
-- Stand 2026-11-18: `main` = Build 32 (geprüft) = Runde 1 (57 bis 63, Build 29) plus der bis zum Anhalten gebaute Teil von Runde 2
-  (64a Tempo-Messung, 64b Leiste, 65 Härtung, 69 Einstellungen, 70 Look) und Etappe 71 (Slang-Liste, 1.695 Wörter aus dem Datenpaket des
-  Owners). Jede Etappe mit Prüfer und Nachprüfung, am Ende zwei Prüfer über den ganzen Branch (nur niedrige Befunde, behoben); GitHub-Lauf 100
-  grün (Agent, Upstream, Lint, Build). Kein Gerätetest, kein echter KI-Aufruf, die Slang-Liste nicht mit den echten Wörterbüchern auf einem Gerät.
+- Stand 2026-11-18. Build 33 ist als signiertes Update veröffentlicht. Er ergänzt Build 32 um
+  satzbezogene Autokorrektur für regelmäßige deutsche Verben (72) mit Rücknahme im aktuellen
+  Feld und Schalter unter „Tippen & Korrektur → Regeln“. Der vollständige GitHub-Lauf 103 ist grün.
+  Offen sind der Gerätetest mit dem echten Wörterbuch und echte KI-Aufrufe.
 - Beim Owner: Build 29, die Test-Builds 30 und 31 (frühere Fassungen der Slang-Liste) und Build 32. Erbeten: Slang tippen („gecovert“, „lowkey“,
   „neee“ bleiben, „idr“ wird „dir“), Tempo (Diagnose → Karte „Tippen“, ein Screenshot), `@ki` über 6 Zeilen mit Gemini, Instagram-Privatchat.
 - Runde 2 ist angehalten (Owner, 2026-11-17: „alles, was nicht zwangsläufig gefixt werden muss, erstmal außen vor lassen“), `docs/ROADMAP.md` →
@@ -319,6 +319,7 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
   Vor einem Release den letzten Lauf abwarten und danach nur noch reine Docs pushen.
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
+- Build 33 (geprüft, von `main` d051fe8) ergänzt die satzbezogene Autokorrektur (72). GitHub-Lauf 103 grün (Agent, Upstream, Lint, Build). Release-Lauf 33 grün (Signatur, Versionscode und öffentlicher Download geprüft). Die Geräteprüfung steht aus.
 - Build 32 (geprüft, von `main` 7ada405): Runde 2 teilweise (64a, 64b, 65, 69, 70) mit allen Prüferkorrekturen und Etappe 71 (Slang-Liste,
   1.695 Wörter, zwei Nachprüfungen); am Ende zwei Prüfer über den ganzen Branch (Engine-Zeilen; Zwischenablage und Sicherung), nur niedrige Befunde,
   behoben; lokal 686 Tests der berührten Klassen und der Kern-Suite grün; GitHub-Lauf 100 grün (Agent, Upstream, Lint, Build); Release-Lauf 32 auf `main` grün (Signatur und Zertifikat des Owners, Versionscode 32, Test-Nachweis, öffentliches Release, Zurücklesen); APK nachgeprüft (Prüfsumme, Zertifikat, nicht debuggable, Slang-Liste 1.695 Zeilen); kein Gerätetest.

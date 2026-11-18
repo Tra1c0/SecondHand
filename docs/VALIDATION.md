@@ -10,6 +10,10 @@
   Rücktaste und die Rücknahme an der Wortposition.
 - Unabhängige Codeprüfung mit Nachprüfung. Die Kontextabfrage ist an Editor und Cursor gebunden,
   und eine langsame Antwort pausiert weitere Abfragen.
+- [SecondHand Tests auf GitHub](https://github.com/Tra1c0/SecondHand/actions/runs/44349813278)
+  bestand Agent, Upstream, Lint und Build für d051fe8. Der
+  [Release-Lauf](https://github.com/Tra1c0/SecondHand/actions/runs/44354374291) verifizierte
+  Signatur und Versionscode und veröffentlichte das öffentliche Update Build 33.
 - Die Prüfung auf einem Telefon mit dem nativen Wörterbuch steht aus.
 
 ## Etappe 0 — unveränderte HeliBoard-Codebasis
