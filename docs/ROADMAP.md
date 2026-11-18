@@ -488,6 +488,21 @@ Reihenfolge von oben nach unten.
   Noch zu tun für eine spätere Sitzung: Lint (`python3 tools/dev.py lint`) und erneuter gezielter Lauf von
   `SettingsSearchTest` (Stichwort „lighting“ nach dem letzten Lauf ergänzt); ob unbenutzte Strings
   (`about_wiki_link*`, `about_community_links*`) aus den Übersetzungen entfernt werden sollen.
+- **71 Datenpaket DE/EN: Slang schützen** (Auftrag des Owners vom 2026-11-17: das Paket „SecondHand DE/EN-Datensätze 1.0“
+  „sinnvoll aussortieren und die Autokorrektur erweitern/ergänzen“) ist gebaut (siehe FEATURES.md, Nachweis in
+  `docs/VALIDATION.md` → Etappe 71, Auswahl und Gründe in `docs/referenzen/datensaetze/AUSWAHL.md`). Aus dem Paket
+  (136 MB, gemischte Lizenzen, nicht im Repository) wird nur die eigene, CC0-lizenzierte Liste informeller Formen
+  genommen: 2.138 von 3.893 Einträgen werden zu einer 17 KB großen Asset-Datei, die die Autokorrektur nutzt, um ein
+  getipptes Wort **nicht** zu ersetzen (Vorschlag bleibt in der Leiste). Dazu gedehnte Wörter und Lacher als Regel.
+  Annahmen des Leads, die der Owner ändern kann: keine Schalter (die Liste verbietet nur Korrekturen, sie lernt und
+  schlägt nichts vor); nur Deutsch und Englisch; „dont/cant“ bleiben korrigierbar (Apostroph); ein Konsonant dreimal
+  am Wortende („addresss“) bleibt ein Tippfehler, erst vier (oder ein Vokal dreimal) zählen als Betonung. Bewusst nicht
+  gebaut: Wortvorschläge aus der Liste (das Paket erlaubt sie nur bei getipptem Anfang oder ausdrücklichem
+  Fachgebiet; sie würden die Leiste füllen, ohne dass es messbar wäre), Abkürzungen aufklappen (Paket: nie still),
+  eine Tabelle häufiger Fehlschreibungen (von 180 sauberen Fällen der Redaktion liegen 164 einen Schritt vom Ziel, die
+  Engine findet sie selbst; nur etwa 16 wie „Portmonai“ wären neu), Verwechslungsgruppen (brauchen den Satz), die
+  Häufigkeits- und Kontextdaten (CC BY-SA, groß, keine Rechtschreibung). Offen: Gerätetest mit echten Wörterbüchern;
+  die Entscheidung des Owners, ob der Zusatzwortschatz (Spiele/Technik/Musik, 1.100 Formen) als Vorschlag erscheinen soll.
 - **Runde 2 nach dem Scan (Auftrag des Owners vom 2026-11-16: „suche nach Lücken, Verbesserungen und
   Fehlern … scanne gebietübergreifend“)**: noch nicht gebaut. Die Befunde stehen mit Stelle und
   Schwere in `docs/PRUEFBERICHT-2026-11-16.md`; jede Etappe behebt die dort genannten Nummern und

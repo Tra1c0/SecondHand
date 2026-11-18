@@ -324,6 +324,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   300 Tage voraus nie. Test `CT/clip/SmartPasteTest.kt` (Prüfziffern der Beispiele getrennt
   berechnet).
 - `C/SentenceLanguage.kt` (Etappe 60, P249–P253): reine Entscheidung zur Satzsprache: `evidenceOf` (nur Sprache der Korrektur, nur andere Sprache, neutral), `blocksCorrection(onlyL1, onlyL2)` (mindestens ein Wort nur der anderen Sprache, keines nur der eigenen), `MAX_PREVIOUS_WORDS` = 3. Hält keinen Text. Test: `CT/SentenceLanguageTest.kt`.
+- `C/InformalWords.kt`, `A/InformalWordsStore.kt` und `app/src/main/assets/agent/informal_words.txt` (Etappe 71, P291–P293): die eingebaute Liste informeller Wörter, die `Suggest.guardAllows` nicht korrigieren lässt. `InformalWords` (rein): `normalize` (NFC, klein, gerader Apostroph), `parse`, `appliesTo` (nur `de`/`en`), `isExpressive` (gedehnt und Lacher), `protects`. `InformalWordsStore` lädt die Datei einmal aus den Assets (`@Volatile`, Fehler = leere Liste) und fragt mit Tastatursprache und Sprache der Korrektur. Die Liste macht `tools/build_informal_words.py`. Tests `CT/InformalWordsTest.kt` (liest die echte Datei und `agent-core/src/test/resources/informal_cases.tsv`), `AT/InformalWordsStoreTest.kt`, `SuggestTest` „stage 71“.
 - `C/suggest/ContextSuggest.kt` (Etappe 45, Paket `dev.agentkeyboard.core.suggest`, P161–P163):
   `SuggestKind` (EMAIL, PHONE, IBAN, ADDRESS, NAME, OTP, LINK), `AppCategory.of(packageName)`
   (MESSENGER/MAIL/BROWSER/OTHER nach Paket-Präfix), `FieldClass`, `FieldSignals` (Klasse,
@@ -607,6 +608,7 @@ Autokorrektur (Etappe 20a, Details im Abschnitt „Lerndaten“):
   berührt. Sonst unverändert; `RichInputConnection` nicht geändert, gelesen nur über
   `getTextBeforeCursor`/`getTextAfterCursor`/`hasSelection`/`getExpectedSelectionStart`/
   `hasSlowInputConnection`.
+- `Suggest.kt` (71): `guardAllows` fragt nach dem Check der eigenen Wörter (Gedächtnis, 46) `InformalWordsStore.protects(context, getippt, Tastatursprache, Sprache der Korrektur)`; bei Ja bleibt das Wort, die Korrektur steht weiter als Vorschlag. Eine Zeile, vor `ForeignWords` und den Regeln aus 48.
 - `CapsModeUtils.java` (48): im Zustand WORD (Wort direkt vor dem Punkt, ohne inneren Punkt) und
   am Textanfang fragt `getCapsMode` `K/agent/Abbreviations.isAbbreviation`; eine bekannte Abkürzung
   (Deutsch bei `mUsesGermanRules`, Englisch bei `mUsesAmericanTypography`) oder ein einzelner
@@ -3565,6 +3567,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `app/build/agent-previews/` (z. B. `builder-send-review.png`, nicht versioniert).
 - `tools/render_logo.js` (58): rendert mit dem installierten Playwright/Chromium die Bild-Symbole
   `mipmap-*/ic_launcher{,_round}.png` aus den SVGs in `docs/referenzen/logo/` (P243).
+- `tools/build_informal_words.py` (71): kuratiert aus dem entpackten Datenpaket (`informal_lexicon.jsonl`, `words_dictionary_*`, `frequency_priors_*`, `correction_cases_editorial.jsonl`) `app/src/main/assets/agent/informal_words.txt`, die Testdatei `agent-core/src/test/resources/informal_cases.tsv` und den Bericht `docs/referenzen/datensaetze/AUSWAHL.md`: `python3 -I tools/build_informal_words.py <Ordner>`. Die Ausgabe nie von Hand ändern.
 - `tools/emoji_mix_table.py` (25a): baut `app/src/main/assets/emoji_mix_pairs.bin` aus der
   Emoji-Kitchen-Metadatei; Aufruf und Quelle in `docs/BUILD.md` → Emoji-Mix-Tabelle.
 - Baseline: `upstream-tests` endet mit genau fünf geerbten Fehlern, Liste in
@@ -5588,33 +5591,53 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `AutoCorrectionUtils.java`, Spell-Checker-Sitzung, `GestureDataGathering`; nur im Debug-Modus, den die
   ausgelieferte Variante nicht hat).
 
+- **P291** Slang-Liste (71): Ihre einzige Wirkung ist ein `false` in `Suggest.guardAllows`: das getippte Wort bleibt, der
+  Vorschlag der Engine bleibt in der Leiste (`mWillAutoCorrect` aus). Sie schlägt nichts vor, lernt nichts und prüft keine
+  Schreibung (auch nicht für die Rechtschreibprüfung anderer Apps). Der Check läuft nur, wenn eine Korrektur sonst angewendet würde,
+  also nicht je Taste; die Datei (17 KB) wird beim ersten Mal gelesen, ein Lesefehler ergibt eine leere Liste (nichts geschützt).
+  Sie gilt für Tastatursprache oder Sprache der Korrektur `de`/`en`, nie für Spanisch allein. Der Schutz hängt nicht an
+  „Personalisierte Vorschläge“ und nicht am Gedächtnis (die Liste ist feste Ausstattung, keine Lerndaten).
+- **P292** Auswahl der Liste (71): Aufnehmen darf man nur, was ein Wörterbuch nicht schon kennt (sonst verhindert der Schutz echte
+  Korrekturen), keine Phrasen, Sonderzeichen oder Formen bis zwei Zeichen und keine Form, die ein Tippfehler eines sehr häufigen
+  Wortes sein kann (Buchstabe fehlt, Nachbartaste, Dreher, doppelter Buchstabe) bei höchstens vier Zeichen und seltenem Vorkommen. „dont“,
+  „cant“, „youre“ (Apostroph weggelassen) bleiben draußen, damit die Ergänzung des Apostrophs nicht wegfällt. Das Skript schreibt die
+  Gründe nach `AUSWAHL.md`; „bekannt“ heißt: bekannt in den Hunspell-Stammlisten des Pakets, nicht in den `.dict` der App. Eine
+  unverdiente Auslassung kostet nichts (Zustand wie vorher), ein unverdienter Schutz verhindert eine Korrektur. `InformalWordsTest`
+  hält fest: kein Fehlschreibungs-Eintrag und kein Standardwort der Redaktionsfälle steht in der Liste (297 Wörter), alle 49
+  Slangfälle der Redaktion, die die Liste abdecken soll, stehen darin.
+- **P293** Gedehnte Wörter und Lacher (71, `InformalWords.isExpressive`, wirkt auch ohne Listeneintrag): nur Buchstaben; letzter Buchstabe
+  ein Vokal mindestens dreimal („neee“, „jaaaa“, „hääää“), ein Konsonant mindestens viermal („yesssss“), oder eine Silbe aus zwei Buchstaben mindestens
+  dreimal („hahaha“). Ein Konsonant dreimal („addresss“, „wennn“) bleibt Tippfehler, weil Wörter mit doppeltem Endbuchstaben den dritten
+  aus Versehen bekommen. Kosten: Ein versehentlich gehaltenes „wennnnn“ wird nicht korrigiert; auf einem Touch-Feld ist das selten. Die
+  Wörter in der Mitte („Schifffahrt“, „Kaffeeernte“) sind nicht betroffen: nur der Wortschluss zählt.
+
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (640 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (644 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (5): agent-apk, agent-tests, build-debug-apk, build-test-auto, docs-check
 - `/` (1): settings
-- `A/` (88): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (89): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand,
   ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand, CorrectionMemory,
   DateCommand, DebugModeReset, DesignLook, DesignTiles, Diagnose, Dictation, EmojiCommand,
   EmojiMixPalette, EmojiSuggestions, EncryptedActionRunStore, EventCommand, FieldCorrections,
   FieldSuggestionChips, FlatMenuView, FlatPanelStyle, FlatPreset, ForcedApps, ForeignWords,
-  FormatGuardChips, HapticChain, JournaledModelCall, JournaledRun, KeyboardCommands,
-  KeyboardProfileStore, LastField, LearningData, LoadingDotsView, LockState, ManualWorkflowDraft,
-  Memory, MemoryChips, ModelSettings, MyData, MyDesigns, OnDeviceSpeechEngine, PlaceCommand,
-  RgbKeyPainter, RgbLighting, RgbOwnPatterns, RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces,
-  ScreenshotChip, SearchCommand, SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics,
-  SmartPasteChips, SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk,
-  ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst, TypingPerf,
-  TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary,
-  WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
+  FormatGuardChips, HapticChain, InformalWordsStore, JournaledModelCall, JournaledRun,
+  KeyboardCommands, KeyboardProfileStore, LastField, LearningData, LoadingDotsView, LockState,
+  ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData, MyDesigns, OnDeviceSpeechEngine,
+  PlaceCommand, RgbKeyPainter, RgbLighting, RgbOwnPatterns, RgbStrip, RgbTexture, RunSubjectCodec,
+  SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore, SkillLabels, SliderFeel,
+  SliderHaptics, SmartPasteChips, SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing,
+  SymbolInk, ToolApprovalSummary, ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst,
+  TypingPerf, TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract,
+  WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
 - `A/charart/` (5): CharArtCanvas, CharArtImages, CharArtKey, CharArtKeys, CharArtView
 - `A/commands/` (22): AiCommandChips, AlarmCommand, AreaCommands, AskCommand, ClipCommand,
   CommandAppSettings, CommandSystem, EmojiMixCommand, EmojiMixRecents, EmojiMixer, InstalledApps,
@@ -5625,7 +5648,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (106): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (107): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, CharArtWindowTest, ClipCommandTest, ClipVaultTest, CommandReplaceTest,
@@ -5635,28 +5658,28 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   EncryptedCredentialStoreTest, FieldCorrectionMemoryTest, FieldSuggestionChipsTest,
   FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest,
   ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest,
-  HardeningClipHistoryTest, InsertAtCursorTest, JournaledModelCallTest, KeyboardCommandsTest,
-  KeyboardProfileStoreTest, LastFieldTest, LearningDataTest, LoadingDotsViewTest,
-  LongTextBudgetTest, ManualWorkflowDraftTest, MemoryScreenTest, MoreCommandsTest,
-  MoreProvidersTest, MyDataScreenTest, MyDataStoreTest, MyDesignsTest, OpenAiProviderTest,
-  RgbFrameRateCardTest, RgbLightingRenderTest, RgbPatternEditorTest, RgbSettingsScreenTest,
-  RgbTilesTest, ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest, SettingsAreaAiTest,
-  SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest, SettingsKitTest,
-  SettingsLookScreenTest, SettingsSearchTest, SettingsStartScreenTest, SettingsSystemAreaTest,
-  SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest,
-  SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest, StripRequestsTest,
-  SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest, TouchModelTest,
-  TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest, TypingPerfTest, TypoMemoryTest,
-  UpdateCheckTest, UpdateChipTest, UpdateOnOpenTest, UpdatePromptsTest, WorkflowBuilderContractTest,
-  WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
-  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  HardeningClipHistoryTest, InformalWordsStoreTest, InsertAtCursorTest, JournaledModelCallTest,
+  KeyboardCommandsTest, KeyboardProfileStoreTest, LastFieldTest, LearningDataTest,
+  LoadingDotsViewTest, LongTextBudgetTest, ManualWorkflowDraftTest, MemoryScreenTest,
+  MoreCommandsTest, MoreProvidersTest, MyDataScreenTest, MyDataStoreTest, MyDesignsTest,
+  OpenAiProviderTest, RgbFrameRateCardTest, RgbLightingRenderTest, RgbPatternEditorTest,
+  RgbSettingsScreenTest, RgbTilesTest, ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest,
+  SettingsAreaAiTest, SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest,
+  SettingsKitTest, SettingsLookScreenTest, SettingsSearchTest, SettingsStartScreenTest,
+  SettingsSystemAreaTest, SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest,
+  SliderFeelTest, SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest,
+  StripRequestsTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest,
+  TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest, TypingPerfTest,
+  TypoMemoryTest, UpdateCheckTest, UpdateChipTest, UpdateOnOpenTest, UpdatePromptsTest,
+  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
+  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, LongCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
   TranslateCommandTest, UrlCommandTest
-- `C/` (52): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
+- `C/` (53): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
   CorrectionRules, DateFormatting, EditorSession, EmojiKeywords, EmojiMix, EmojiNames,
-  EmojiSynonyms, EventParser, ExecutionPolicy, FieldReport, ForcedCorrection, InkDots,
-  InkRecognizer, InkSymbols, InkTiming, LanguageNames, LocalTextActions, MathExpression,
+  EmojiSynonyms, EventParser, ExecutionPolicy, FieldReport, ForcedCorrection, InformalWords,
+  InkDots, InkRecognizer, InkSymbols, InkTiming, LanguageNames, LocalTextActions, MathExpression,
   ModelBudget, ModelProvider, OwnInkSymbols, PendingBatchGate, PersonalInkSymbols, Places, Profiles,
   ReleaseNotes, RgbCurve, RgbLighting, RgbOwnPattern, RgbPatternJson, RgbPatterns, SentenceLanguage,
   SkillBinding, SnippetTemplate, SpecialCharacters, StyledTranslation, SymbolTable, TextCondition,
@@ -5667,10 +5690,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `C/memory/` (4): OwnWords, PhraseMemory, ShortcutOffers, SnippetMatcher
 - `C/suggest/` (1): ContextSuggest
-- `CT/` (50): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
+- `CT/` (51): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
   CorrectionRulesTest, DateFormattingTest, EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest,
-  EventParserTest, FieldReportTest, ForcedCorrectionTest, InkAreaTest, InkBenchmarkTest,
-  InkDotFlowTest, InkDotsTest, InkFingerModel, InkRecognizerTest, InkTimingTest,
+  EventParserTest, FieldReportTest, ForcedCorrectionTest, InformalWordsTest, InkAreaTest,
+  InkBenchmarkTest, InkDotFlowTest, InkDotsTest, InkFingerModel, InkRecognizerTest, InkTimingTest,
   InsertionAnchorTest, LanguageNamesTest, LocalTextActionsTest, MathExpressionTest, ModelBudgetTest,
   OwnInkSymbolsTest, PendingBatchGateTest, PersonalInkSymbolsTest, PlacesTest, QuestionCaptureTest,
   ReleaseNotesTest, RgbCurveTest, RgbFrameStatsTest, RgbLightingTest, RgbOwnPatternTest,

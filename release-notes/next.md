@@ -24,3 +24,7 @@ auf keinem Gerät ausprobiert.
 - Sicherung wiederherstellen: Scheitert es, holt die App alles zurück (vorher konnte der geschützte Datenordner verloren gehen). „Es wurde nichts geändert“ steht nur da, wenn es stimmt; scheitert das Zurückholen selbst, sagt die Meldung, wo deine alten Daten liegen. Ein Rest einer abgebrochenen Wiederherstellung wird beim nächsten Versuch zurückgeholt. Stirbt die App mitten drin, geschieht das erst beim nächsten Versuch.
 - Eine von außen geöffnete Wörterbuchdatei wird im Hintergrund kopiert (einmal, auch beim Drehen); schlägt das fehl, kommt eine Fehlermeldung statt einer leeren Seite.
 - Intern: keine gelernten Wörter, gewählten Emojis und Tastenbeschriftungen mehr in Protokollzeilen, Tresor und Feldtext werden früher aus dem Speicher geräumt.
+- Slang und Chat-Sprache: Etwa 2.100 Formen (Umgangssprache, Abkürzungen, eingedeutschte Wörter wie „gecovert“, Spiele-, Technik- und
+  Musikbegriffe) und gedehnte Wörter („neee“, „jaaaa“, „hahaha“) ersetzt die Autokorrektur nicht mehr; ihr Vorschlag steht weiter in der
+  Leiste. Gilt für deutsches und englisches Tippen, ohne Schalter; „dont“ wird weiter zu „don't“. Nur mit Tests geprüft, noch nicht mit den
+  echten Wörterbüchern auf dem Telefon.

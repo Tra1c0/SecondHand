@@ -298,6 +298,8 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         val context = Settings.getCurrentContext()
         // stage 46: an own word of the memory (slang, a deliberate spelling) stays as typed; the correction stays a suggestion
         if (helium314.keyboard.agent.Memory.isOwnWord(context, typed)) return false
+        // stage 71: so does a built-in informal word (slang, chat abbreviation, Denglish, gaming/tech/music term)
+        if (helium314.keyboard.agent.InformalWordsStore.protects(context, typed, ForeignWords.languageOf(settings), first.mSourceDict.mLocale?.language)) return false
         // stage 51: as does a word of another language the owner kept in this language
         if (ForeignWords.isRemembered(context, settings, ForeignWords.languageOf(settings), typed)) return false
         // stage 48: a known word never gets only another case automatically ("essen" stays, "Essen" is offered)

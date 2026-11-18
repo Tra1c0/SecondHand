@@ -6011,6 +6011,33 @@ die „strenge Lesart“ ist durch die Regel „aktiv in einem privaten Feld“ 
   ZIP; das Drehen während des Kopierens einer Wörterbuchdatei; ein Prozesstod mitten in der
   Wiederherstellung (Restrisiko).
 
+## Etappe 71 (Datenpaket DE/EN: Slang schützen)
+
+- Auftrag des Owners (2026-11-17): das Paket `SecondHand_DE_EN_Datensaetze_2026-11-17.zip` „sinnvoll aussortieren und die
+  Autokorrektur erweitern/ergänzen“. Das Paket wurde in einen leeren Arbeitsordner entpackt und nur gelesen (136 MB); ins Repository
+  kommen die Liste (17 KB), eine Testdatei und der Bericht.
+- Prüfung des Pakets durch den Lead: Manifest, Schemas, Lizenzen und Quellen gelesen. `informal_lexicon.jsonl` (3.893 Einträge) ist
+  eigene redaktionelle Arbeit unter CC0-1.0, alle Einträge „redaktionell gesammelt, nicht an Gebrauch geprüft“, `proactive_prediction`
+  überall falsch. Die Redaktionsfälle (547) decken alle Slang-Eingaben der Liste ab (0 fehlen). Von 276 Vorschlagsfällen sind 180 saubere
+  Einzelwort-Paare, davon 164 nur einen Schritt vom Ziel entfernt: eine Tabelle häufiger Fehlschreibungen brächte der Engine fast nichts
+  Neues (etwa 16 Fälle wie „Portmonai“). Häufigkeits-, Kontext- und Morphologiedaten (CC BY-SA, MB-groß) und die Hunspell-Ableitungen
+  (GPL) sind nicht eingebaut.
+- Auswahl (`tools/build_informal_words.py`): 2.138 Wörter bleiben, weggelassen 666 Phrasen, 69 Sonderzeichenformen, 104 Formen bis
+  zwei Zeichen, 715 schon bekannte Wörter, 22 Apostroph-Auslassungen („dont“) und 36 Formen nahe an einem Tippfehler eines sehr häufigen
+  Wortes. Die Tippfehler-Nähe wurde einmal nachgeschärft: Ein überzähliger Buchstabe zählt nur, wenn er neben einem Nachbarbuchstaben
+  liegt oder ihn verdoppelt (vorher fielen „iwie“, „iwer“, „mixt“ ohne Grund heraus).
+- Gefunden und behoben beim Testen: Die erste Fassung der Regel für gedehnte Wörter schützte auch „addresss“ (Tippfehler, den die
+  Redaktionsfälle als zu korrigieren führen); jetzt Vokal ab drei, Konsonant ab vier (P293).
+- Tests: `:agent-core:test` `InformalWordsTest` 8 grün (Normalform, Sprachen, Schutz, gedehnte Wörter, die echte Datei: sortiert, ohne
+  Doppelte, Normalform, tippbar, Größe, Beispiele; Fälle der Redaktion: 49 geschützte Slangwörter, 297 Fehlschreibungen und
+  Standardwörter, die nie in der Liste stehen); `InformalWordsStoreTest` 4 grün (echte Assets, Sprachen, kein Kontext);
+  `SuggestTest` 50 grün, darunter neu „stage 71 an informal word stays as typed“ (Tippfehler wird weiter korrigiert, Listenwort und
+  gedehntes Wort bleiben, die Engine-Alternative bleibt in der Leiste).
+- Nicht geprüft: das Verhalten mit den echten Wörterbüchern und auf einem Gerät (die Tests simulieren die Engine); ob die
+  „schon bekannt“-Auslassungen (Hunspell-Stämme des Pakets, nicht die `.dict` der App) zu viel oder zu wenig weglassen; ob
+  Spanisch-Tippen wirklich ungeschützt bleibt (das Test-Gerüst hält die Tastatursprache fest, die Sprachwahl ist in `InformalWordsTest`
+  und `InformalWordsStoreTest` geprüft).
+
 ## Gerätetest vor Meilensteinfreigabe
 
 - Installation neben der bisherigen Tastatur und problemloser Rückwechsel.

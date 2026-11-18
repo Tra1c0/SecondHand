@@ -1023,6 +1023,26 @@ class SuggestTest {
         assert(after("dewort")) // known to German (and Spanish): the German side
     }
 
+    @Test fun `stage 71 an informal word stays as typed`() {
+        enableAutocorrect(confidenceVeryAggressive)
+        fun typed(word: String, correction: String, locale: Locale): SuggestedWords {
+            currentTypingLocale = locale
+            tapTypingSuggestions = suggestionResults(listOf(suggestion(correction, 650000, locale), suggestion(word, 300000, locale)))
+            return getSuggestedWords(false, word, CapsMode.OFF, NgramContext(NgramContext.WordInfo("das")))
+        }
+        // control: a typo of the same word is still corrected
+        assertTrue(typed("gecovrt", "gecovert", Locale.GERMAN).mWillAutoCorrect, "control: a typo is corrected")
+        // the word itself (slang of the list) stays, the engine's suggestion stays a suggestion
+        val kept = typed("gecovert", "gecoverte", Locale.GERMAN)
+        assertFalse(kept.mWillAutoCorrect, "listed word")
+        assertTrue((0 until kept.size()).any { kept.getWord(it) == "gecoverte" }, "the suggestion stays in the strip")
+        assertFalse(typed("Lowkey", "Lockey", Locale.ENGLISH).mWillAutoCorrect, "listed English word")
+        // stretched letters are emphasis
+        assertFalse(typed("neeee", "neue", Locale.GERMAN).mWillAutoCorrect, "stretched letters")
+        // (that the list covers German and English typing only is tested in InformalWordsTest and InformalWordsStoreTest:
+        // this harness keeps the keyboard's own language fixed)
+    }
+
     @Test fun `stage 60 Spanish as second language`() {
         currentTypingLocale = Locale.GERMAN
         enableAutocorrect(confidenceVeryAggressive)
