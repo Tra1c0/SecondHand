@@ -65,6 +65,19 @@ class TypedWordFirstTest {
         assertEquals("wrod1", memory.resumed(10, "word1"))
     }
 
+    @Test fun anUndonePairStaysRejectedOnlyAtItsLocationUntilTheWordChanges() {
+        val memory = TypedWordFirst()
+        memory.corrected(6, "hello", "hullo")
+        memory.reverted(6, "hullo")
+        assertTrue(memory.rejects(6, "hullo", "hello"))
+        assertFalse(memory.rejects(0, "hullo", "hello"))
+        assertFalse(memory.rejects(6, "hullo", "hallo"))
+        memory.committedAt(6, "hullo")
+        assertTrue(memory.rejects(6, "hullo", "hello"))
+        memory.committedAt(6, "hello")
+        assertFalse(memory.rejects(6, "hullo", "hello"))
+    }
+
     @Test fun arrangePutsTheTypedWordAtTheStartSlotWithItsCase() {
         val arranged = TypedWordFirst.arrange(words("hello", "hull", "iPhone", "hallo"), "iPhone")
         assertEquals(listOf("hello", "hull", "iPhone", "hallo"), arranged.list())

@@ -60,6 +60,7 @@ def main() -> int:
                         "--tests", "helium314.keyboard.latin.InputLogicTest.symbolDraw*",
                         "--tests", "helium314.keyboard.latin.InputLogicTest.subtypeSwitch*",
                         "--tests", "helium314.keyboard.latin.SuggestTest.emoji*",
+                        "--tests", "helium314.keyboard.latin.SuggestTest.contextualAutocorrect*",
                         "--tests", "helium314.keyboard.latin.inputlogic.BatchDeliveryTest"],
         "lint": [":app:lintDebugNoMinify"],
     }[args.check]

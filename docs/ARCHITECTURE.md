@@ -324,6 +324,14 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   300 Tage voraus nie. Test `CT/clip/SmartPasteTest.kt` (Prüfziffern der Beispiele getrennt
   berechnet).
 - `C/SentenceLanguage.kt` (Etappe 60, P249–P253): reine Entscheidung zur Satzsprache: `evidenceOf` (nur Sprache der Korrektur, nur andere Sprache, neutral), `blocksCorrection(onlyL1, onlyL2)` (mindestens ein Wort nur der anderen Sprache, keines nur der eigenen), `MAX_PREVIOUS_WORDS` = 3. Hält keinen Text. Test: `CT/SentenceLanguageTest.kt`.
+- `C/GermanVerbAgreement.kt` (72): wertet bei konkurrierenden Formen eines regelmäßigen deutschen
+  Verbs das Subjekt im vorhandenen Wortkontext aus. `Suggest.kt` schützt die getippte Form oder
+  bewertet einen vorhandenen Wörterbuchtreffer mit der üblichen Korrekturschwelle. Bei Bedarf
+  liefert `InputLogic.java` höchstens 24 Zeichen nach dem Cursor derselben Editorverbindung.
+  Ist die Abfrage langsam, pausiert sie kurz. Fehlender rechter Kontext lässt die Rangfolge
+  bestehen. `TypedWordFirst.kt` merkt sich ein zurückgenommenes Paar an der Wortposition bis
+  zum Wort- oder Feldwechsel. Tests: `CT/GermanVerbAgreementTest.kt`, `SuggestTest.kt` und
+  `AT/TypedWordFirstTest.kt`.
 - `C/InformalWords.kt`, `A/InformalWordsStore.kt` und `app/src/main/assets/agent/informal_words.txt` (Etappe 71, P291–P293; 1.695 Wörter): die eingebaute Liste informeller Wörter, die `Suggest.guardAllows` nicht korrigieren lässt. `InformalWords` (rein): `normalize` (NFC, klein, gerader Apostroph), `parse`, `appliesTo` (nur `de`/`en`), `isExpressive` (gedehnt und Lacher), `protects`. `InformalWordsStore` lädt die Datei einmal aus den Assets (`@Volatile`, Fehler = leere Liste) und fragt mit Tastatursprache und Sprache der Korrektur. Die Liste macht `tools/build_informal_words.py`. Tests `CT/InformalWordsTest.kt` (liest die echte Datei und `agent-core/src/test/resources/informal_cases.tsv`), `AT/InformalWordsStoreTest.kt`, `SuggestTest` „stage 71“.
 - `C/suggest/ContextSuggest.kt` (Etappe 45, Paket `dev.agentkeyboard.core.suggest`, P161–P163):
   `SuggestKind` (EMAIL, PHONE, IBAN, ADDRESS, NAME, OTP, LINK), `AppCategory.of(packageName)`
@@ -5647,7 +5655,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (648 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (650 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -5707,31 +5715,31 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, LongCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
   TranslateCommandTest, UrlCommandTest
-- `C/` (53): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
+- `C/` (54): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
   CorrectionRules, DateFormatting, EditorSession, EmojiKeywords, EmojiMix, EmojiNames,
-  EmojiSynonyms, EventParser, ExecutionPolicy, FieldReport, ForcedCorrection, InformalWords,
-  InkDots, InkRecognizer, InkSymbols, InkTiming, LanguageNames, LocalTextActions, MathExpression,
-  ModelBudget, ModelProvider, OwnInkSymbols, PendingBatchGate, PersonalInkSymbols, Places, Profiles,
-  ReleaseNotes, RgbCurve, RgbLighting, RgbOwnPattern, RgbPatternJson, RgbPatterns, SentenceLanguage,
-  SkillBinding, SnippetTemplate, SpecialCharacters, StyledTranslation, SymbolTable, TextCondition,
-  TimerParser, Tool, TouchDynamics, UnitConversion, UpdateOnOpenPolicy, UpdateReleases, UrlDetector,
-  Workflow
+  EmojiSynonyms, EventParser, ExecutionPolicy, FieldReport, ForcedCorrection, GermanVerbAgreement,
+  InformalWords, InkDots, InkRecognizer, InkSymbols, InkTiming, LanguageNames, LocalTextActions,
+  MathExpression, ModelBudget, ModelProvider, OwnInkSymbols, PendingBatchGate, PersonalInkSymbols,
+  Places, Profiles, ReleaseNotes, RgbCurve, RgbLighting, RgbOwnPattern, RgbPatternJson, RgbPatterns,
+  SentenceLanguage, SkillBinding, SnippetTemplate, SpecialCharacters, StyledTranslation,
+  SymbolTable, TextCondition, TimerParser, Tool, TouchDynamics, UnitConversion, UpdateOnOpenPolicy,
+  UpdateReleases, UrlDetector, Workflow
 - `C/charart/` (6): BigFont, CharArt, Raster, Sketch, TextColumns, UnicodeStyle
 - `C/clip/` (6): ClipDates, ClipGuard, LinkCleaner, PrivateRanges, SmartPaste, TrackingNumbers
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `C/memory/` (4): OwnWords, PhraseMemory, ShortcutOffers, SnippetMatcher
 - `C/suggest/` (1): ContextSuggest
-- `CT/` (51): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
+- `CT/` (52): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
   CorrectionRulesTest, DateFormattingTest, EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest,
-  EventParserTest, FieldReportTest, ForcedCorrectionTest, InformalWordsTest, InkAreaTest,
-  InkBenchmarkTest, InkDotFlowTest, InkDotsTest, InkFingerModel, InkRecognizerTest, InkTimingTest,
-  InsertionAnchorTest, LanguageNamesTest, LocalTextActionsTest, MathExpressionTest, ModelBudgetTest,
-  OwnInkSymbolsTest, PendingBatchGateTest, PersonalInkSymbolsTest, PlacesTest, QuestionCaptureTest,
-  ReleaseNotesTest, RgbCurveTest, RgbFrameStatsTest, RgbLightingTest, RgbOwnPatternTest,
-  RgbPatternJsonTest, RgbPatternsTest, SentenceLanguageTest, SkillBindingTest, SnippetTemplateTest,
-  StyledTranslationTest, SymbolTableTest, TimerParserTest, ToolTest, TouchDynamicsTest,
-  UnitConversionTest, UpdateOnOpenPolicyTest, UpdateReleasesTest, UrlDetectorTest,
-  WorkflowContractTest, WorkflowTest
+  EventParserTest, FieldReportTest, ForcedCorrectionTest, GermanVerbAgreementTest,
+  InformalWordsTest, InkAreaTest, InkBenchmarkTest, InkDotFlowTest, InkDotsTest, InkFingerModel,
+  InkRecognizerTest, InkTimingTest, InsertionAnchorTest, LanguageNamesTest, LocalTextActionsTest,
+  MathExpressionTest, ModelBudgetTest, OwnInkSymbolsTest, PendingBatchGateTest,
+  PersonalInkSymbolsTest, PlacesTest, QuestionCaptureTest, ReleaseNotesTest, RgbCurveTest,
+  RgbFrameStatsTest, RgbLightingTest, RgbOwnPatternTest, RgbPatternJsonTest, RgbPatternsTest,
+  SentenceLanguageTest, SkillBindingTest, SnippetTemplateTest, StyledTranslationTest,
+  SymbolTableTest, TimerParserTest, ToolTest, TouchDynamicsTest, UnitConversionTest,
+  UpdateOnOpenPolicyTest, UpdateReleasesTest, UrlDetectorTest, WorkflowContractTest, WorkflowTest
 - `CT/charart/` (2): CharArtTest, SketchTest
 - `CT/clip/` (3): ClipGuardTest, PrivateRangesTest, SmartPasteTest
 - `CT/format/` (1): FormatGuardTest

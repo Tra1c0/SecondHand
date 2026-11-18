@@ -10,6 +10,7 @@ import helium314.keyboard.agent.EmojiSuggestions
 import helium314.keyboard.agent.ForeignWords
 import helium314.keyboard.agent.RejectedCorrections
 import helium314.keyboard.agent.TypoMemory
+import dev.agentkeyboard.core.GermanVerbAgreement
 import dev.agentkeyboard.core.SentenceLanguage
 import android.text.TextUtils
 import com.android.inputmethod.latin.utils.BinaryDictionaryUtils
@@ -63,22 +64,23 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         fun onGetSuggestedWords(suggestedWords: SuggestedWords?)
     }
 
+    @JvmOverloads
     fun getSuggestedWords(wordComposer: WordComposer, ngramContext: NgramContext, keyboard: Keyboard,
                           settingsValuesForSuggestion: SettingsValuesForSuggestion, isCorrectionEnabled: Boolean,
-                          inputStyle: Int, sequenceNumber: Int): SuggestedWords =
+                          inputStyle: Int, sequenceNumber: Int, followingText: () -> CharSequence? = { null }): SuggestedWords =
         if (wordComposer.isBatchMode) {
             getSuggestedWordsForBatchInput(wordComposer, ngramContext, keyboard, settingsValuesForSuggestion,
                 inputStyle, isCorrectionEnabled, sequenceNumber)
         } else {
             getSuggestedWordsForNonBatchInput(wordComposer, ngramContext, keyboard, settingsValuesForSuggestion,
-                inputStyle, isCorrectionEnabled, sequenceNumber)
+                inputStyle, isCorrectionEnabled, sequenceNumber, followingText)
         }
 
     // Retrieves suggestions for non-batch input (typing, recorrection, predictions...)
     // and calls the callback function with the suggestions.
     private fun getSuggestedWordsForNonBatchInput(wordComposer: WordComposer, ngramContext: NgramContext, keyboard: Keyboard,
                       settingsValuesForSuggestion: SettingsValuesForSuggestion, inputStyleIfNotPrediction: Int,
-                      isCorrectionEnabled: Boolean, sequenceNumber: Int): SuggestedWords {
+                      isCorrectionEnabled: Boolean, sequenceNumber: Int, followingText: () -> CharSequence?): SuggestedWords {
         val typedWordString = wordComposer.typedWord
         val resultsArePredictions = !wordComposer.isComposingWord
         val suggestionResults = if (typedWordString.isEmpty())
@@ -98,6 +100,16 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         val firstOccurrenceOfTypedWordInSuggestions = SuggestedWordInfo.removeDupsAndTypedWord(capitalizedTypedWord, suggestionsContainer)
         makeFirstTwoSuggestionsNonEmoji(suggestionsContainer)
 
+        val after by lazy(followingText)
+        val normalFirst = suggestionsContainer.firstOrNull()
+        val preferred = if (isCorrectionEnabled && !resultsArePredictions && normalFirst?.isGermanVerbCandidate() == true)
+            preferredGermanVerb(typedWordString, normalFirst.mWord, suggestionsContainer, ngramContext) { after }
+        else null
+        if (preferred != null && preferred != typedWordString) {
+            val index = suggestionsContainer.indexOfFirst { it.mWord == preferred && it.isGermanVerbCandidate() }
+            if (index > 0) suggestionsContainer.add(0, suggestionsContainer.removeAt(index))
+        }
+
         val (allowsToBeAutoCorrected, rawHasAutoCorrection) = shouldBeAutoCorrected(
             trailingSingleQuotesCount,
             capitalizedTypedWord,
@@ -116,11 +128,11 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
             typedWordFirstOccurrenceWordInfo
         )
         // fork, stage 20a: protect known words and corrections the user undid before
-        val guardedAutoCorrection = rawHasAutoCorrection && guardAllows(typedWordString, suggestionsContainer.firstOrNull(),
+        val guardedAutoCorrection = rawHasAutoCorrection && preferred != typedWordString && guardAllows(typedWordString, suggestionsContainer.firstOrNull(),
             typedWordFirstOccurrenceWordInfo, suggestionResults, ngramContext)
         // fork, stage 20b: a typo the user corrected by hand three times is corrected automatically
         val hasAutoCorrection = applyLearnedCorrection(typedWordString, capsMode, ngramContext, suggestionResults,
-            suggestionsContainer, isCorrectionEnabled, wordComposer) || guardedAutoCorrection
+            suggestionsContainer, isCorrectionEnabled, wordComposer) { after } || guardedAutoCorrection
         // fork, stage 46: own words of the memory (offered while typing, behind the correction) and its next word
         addFromMemory(typedWordString, resultsArePredictions, suggestionResults, suggestionsContainer, ngramContext, hasAutoCorrection)
         // fork, stage 51: words of other languages the owner kept (offered while typing, behind the correction)
@@ -179,6 +191,19 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
             isTypedWordValid, hasAutoCorrection || correctToCapitalizedWord, false, inputStyle, sequenceNumber)
     }
 
+    private fun SuggestedWordInfo.isGermanVerbCandidate() =
+        mSourceDict.mDictType == Dictionary.TYPE_MAIN && mSourceDict.mLocale?.language == "de" &&
+            !isEmoji && !isKindOf(SuggestedWordInfo.KIND_WHITELIST) && !isKindOf(SuggestedWordInfo.KIND_SHORTCUT)
+
+    private fun preferredGermanVerb(typed: String, first: String, suggestions: List<SuggestedWordInfo>,
+                                    context: NgramContext, after: () -> CharSequence?): String? {
+        val previousWords = (1..context.prevWordCount).asSequence()
+            .takeWhile { !context.isNthPrevWordBeginningOfSentence(it) }
+            .mapNotNull { context.getNthPrevWord(it)?.toString() }
+        val candidates = suggestions.asSequence().filter { it.isGermanVerbCandidate() }.map { it.mWord }
+        return GermanVerbAgreement.prefer(typed, first, candidates, previousWords, after)
+    }
+
     /**
      * Puts the learned meant word of [typed] first in [suggestions] and returns true, or changes
      * nothing and returns false. Respects the autocorrect setting and undone corrections.
@@ -186,6 +211,7 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
     private fun applyLearnedCorrection(
         typed: String, capsMode: CapsMode, ngramContext: NgramContext, results: SuggestionResults,
         suggestions: ArrayList<SuggestedWordInfo>, isCorrectionEnabled: Boolean, wordComposer: WordComposer,
+        followingText: () -> CharSequence?,
     ): Boolean {
         val settings = Settings.getValues()
         // the same exclusions as the normal autocorrection
@@ -213,6 +239,8 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         } ?: return false
         if (settings.mRememberRejectedCorrections && RejectedCorrections.contains(context, typed, meant)) return false
         val wanted = capitalize(meant, capsMode, mDictionaryFacilitator.mainLocale)
+        if (language == "de" && preferredGermanVerb(typed, wanted, suggestions, ngramContext, followingText) != null)
+            return false
         val index = suggestions.indexOfFirst { it.mWord == wanted }.takeIf { it >= 0 }
             ?: suggestions.indexOfFirst { it.mWord.equals(meant, ignoreCase = true) && !(meant.first().isUpperCase() && it.mWord.first().isLowerCase()) }
         val info = if (index >= 0) suggestions.removeAt(index)

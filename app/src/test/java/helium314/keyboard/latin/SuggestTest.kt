@@ -1118,8 +1118,30 @@ class SuggestTest {
         helium314.keyboard.agent.Memory.resetForTest()
     }
 
+    @Test fun contextualAutocorrectKeepsTheFiniteFormAndSelectsTheFormThatFits() {
+        currentTypingLocale = Locale.GERMAN
+        enableAutocorrect(confidenceVeryAggressive)
+        val context = NgramContext(NgramContext.WordInfo("nachträglich"), NgramContext.WordInfo("ich"), NgramContext.WordInfo("dass"))
+
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("korrigieren", 850000)))
+        val valid = getSuggestedWords(false, "korrigiere", CapsMode.OFF, context) { error("No editor read needed") }
+        assertFalse(valid.mWillAutoCorrect)
+        assertTrue(valid.mSuggestedWordInfoList.any { it.mWord == "korrigieren" })
+
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("korrigieren", 850000), suggestion("korrigiere", 800000)))
+        val typo = getSuggestedWords(false, "korrigeire", CapsMode.OFF, context) { "" }
+        assertTrue(typo.mWillAutoCorrect)
+        assertEquals("korrigiere", typo.getWord(SuggestedWords.INDEX_OF_AUTO_CORRECTION))
+
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("korrigiere", 850000), suggestion("korrigieren", 800000)))
+        val beforeModal = getSuggestedWords(false, "korrigeiren", CapsMode.OFF, context) { " muss." }
+        assertTrue(beforeModal.mWillAutoCorrect)
+        assertEquals("korrigieren", beforeModal.getWord(SuggestedWords.INDEX_OF_AUTO_CORRECTION))
+    }
+
     private fun getSuggestedWords(gesture: Boolean, typedWord: String, capsMode: CapsMode,
-                                  ngramContext: NgramContext = NgramContext.EMPTY_PREV_WORDS_INFO): SuggestedWords {
+                                  ngramContext: NgramContext = NgramContext.EMPTY_PREV_WORDS_INFO,
+                                  followingText: () -> CharSequence? = { null }): SuggestedWords {
         val wc = WordComposer()
         if (gesture) wc.setBatchInputPointers(InputPointers(1))
         if (typedWord.isNotEmpty()) {
@@ -1147,7 +1169,7 @@ class SuggestTest {
         suggest.clearNextWordSuggestionsCache()
         return suggest.getSuggestedWords(
             wc, ngramContext, Keyboard(params), Settings.getValues().mSettingsValuesForSuggestion,
-            Settings.getValues().mAutoCorrectEnabled, 0, 0
+            Settings.getValues().mAutoCorrectEnabled, 0, 0, followingText
         )
     }
 

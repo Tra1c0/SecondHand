@@ -23,6 +23,7 @@ import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 import android.view.inputmethod.CorrectionInfo;
 import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputConnection;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -111,6 +112,10 @@ public final class InputLogic {
     public LastComposedWord mLastComposedWord = LastComposedWord.NOT_A_COMPOSED_WORD;
     // fork, stage 48: automatic corrections of this field, for the typed word first in the strip
     public final helium314.keyboard.agent.TypedWordFirst mTypedWordFirst = new helium314.keyboard.agent.TypedWordFirst();
+    private static final int VERB_CONTEXT_CHARS = 24;
+    private static final long VERB_CONTEXT_SLOW_MS = 40;
+    private static final long VERB_CONTEXT_PAUSE_MS = 4000;
+    private volatile long mVerbContextReadAfter;
     // fork, stage 49: later corrections anywhere in this field
     // fork, third review 44/45/49: a change in or at a private text is never a correction to learn
     public final helium314.keyboard.agent.FieldCorrectionWatcher mFieldCorrections = new helium314.keyboard.agent.FieldCorrectionWatcher(
@@ -535,6 +540,7 @@ public final class InputLogic {
         if (undoneCorrection != null) {
             // (stage 46, second review: the picked typed word ends at the cursor)
             final int pickedCursor = mConnection.hasSelection() ? -1 : mConnection.getExpectedSelectionStart();
+            mTypedWordFirst.rejectedAt(pickedCursor - suggestion.length(), suggestion, undoneCorrection);
             helium314.keyboard.agent.RejectedCorrections.remember(mLatinIME, suggestion, undoneCorrection, settingsValues,
                     pickedCursor < suggestion.length() ? -1 : pickedCursor - suggestion.length());
             helium314.keyboard.agent.TypoMemory.forget(mLatinIME, suggestion, undoneCorrection);
@@ -2684,8 +2690,11 @@ public final class InputLogic {
             // INPUT_STYLE_TYPING.
             performUpdateSuggestionStripSync(settingsValues, SuggestedWords.INPUT_STYLE_TYPING);
         }
-        final SuggestedWordInfo autoCorrectionOrNull = mWordComposer.getAutoCorrectionOrNull();
         final String typedWord = mWordComposer.getTypedWord();
+        final SuggestedWordInfo candidate = mWordComposer.getAutoCorrectionOrNull();
+        final int start = mConnection.getExpectedSelectionEnd() - typedWord.length();
+        final SuggestedWordInfo autoCorrectionOrNull =
+                candidate != null && !mTypedWordFirst.rejects(start, typedWord, candidate.mWord) ? candidate : null;
         final String stringToCommit = (autoCorrectionOrNull != null) ? autoCorrectionOrNull.mWord : typedWord;
         if (stringToCommit != null) {
             final boolean isBatchMode = mWordComposer.isBatchMode();
@@ -2785,7 +2794,7 @@ public final class InputLogic {
                 commitType == LastComposedWord.COMMIT_TYPE_DECIDED_WORD, mWordComposer.getTypedWord(), chosenWord);
         mLastComposedWord = mWordComposer.commitWord(commitType, chosenWord, separatorString, ngramContext);
         // fork, stage 48 review N1: a remembered correction at this start belongs to text that is gone
-        mTypedWordFirst.committedAt(mConnection.getExpectedSelectionEnd() - chosenWord.length());
+        mTypedWordFirst.committedAt(mConnection.getExpectedSelectionEnd() - chosenWord.length(), chosenWord);
         // fork, stage 49: compare the field with the last checkpoint (a word fixed earlier in the field)
         mFieldCorrections.checkpoint(mLatinIME, mConnection, settingsValues, mDictionaryFacilitator, mAgentHistorySuppressed, true,
                 false, autoCorrectedFrom, chosenWord);
@@ -2870,6 +2879,10 @@ public final class InputLogic {
                 getActualCapsMode(settingsValues, KeyboardSwitcher.getInstance().getKeyboardCapsMode()));
         try {
             final WordComposer composer = mWordComposer.copy();
+            final InputConnection editor = settingsValues.mIncognitoModeEnabled || settingsValues.mIsLocked
+                    || !settingsValues.mInputAttributes.mIsGeneralTextInput || !composer.isComposingWord()
+                    || composer.isCursorFrontOrMiddleOfComposingWord() ? null : mLatinIME.getCurrentInputConnection();
+            final int cursor = mConnection.getExpectedSelectionStart();
             SuggestedWords suggestedWords = mSuggest.getSuggestedWords(composer,
                     getNgramContextFromNthPreviousWordForSuggestion(
                     settingsValues.mSpacingAndPunctuations,
@@ -2880,7 +2893,7 @@ public final class InputLogic {
                     keyboard,
                     settingsValues.mSettingsValuesForSuggestion,
                     settingsValues.mAutoCorrectEnabled,
-                    inputStyle, sequenceNumber);
+                    inputStyle, sequenceNumber, () -> readAfterForVerbAgreement(editor, cursor));
             // fork, stage 48: the resumed corrected word shows its typed form first
             final String typedFirst = composer.isBatchMode() ? null
                     : mTypedWordFirst.typedFor(composer.getTypedWord(), composer.isResumed());
@@ -2891,6 +2904,26 @@ public final class InputLogic {
             Log.e(TAG, "Error fetching suggested words, using empty words instead", e);
             callback.onGetSuggestedWords(SuggestedWords.getEmptyInstance());
             KeyboardSwitcher.getInstance().showToast("Error getting suggestions", true);
+        }
+    }
+
+    @Nullable
+    private CharSequence readAfterForVerbAgreement(@Nullable final InputConnection editor, final int cursor) {
+        final long started = SystemClock.uptimeMillis();
+        if (editor == null || cursor < 0 || mConnection.hasSelection() || mConnection.hasSlowInputConnection()
+                || started < mVerbContextReadAfter
+                || editor != mLatinIME.getCurrentInputConnection() || cursor != mConnection.getExpectedSelectionStart())
+            return null;
+        try {
+            helium314.keyboard.agent.TypingPerf.app();
+            final CharSequence after = editor.getTextAfterCursor(VERB_CONTEXT_CHARS, 0);
+            return editor == mLatinIME.getCurrentInputConnection() && cursor == mConnection.getExpectedSelectionStart()
+                    && !mConnection.hasSelection() ? after : null;
+        } catch (RuntimeException ignored) {
+            return null;
+        } finally {
+            final long now = SystemClock.uptimeMillis();
+            if (now - started >= VERB_CONTEXT_SLOW_MS) mVerbContextReadAfter = now + VERB_CONTEXT_PAUSE_MS;
         }
     }
 

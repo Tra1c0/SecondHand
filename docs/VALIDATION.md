@@ -1,5 +1,15 @@
 # Prüfnachweise
 
+## Etappe 72 — Satzabhängige Autokorrektur
+
+- Vier Kernprüfungen mit Kotlin 2.4.0 und JUnit bestanden. Sie prüfen „dass ich nachträglich
+  korrigiere“, Buchstabendreher, ein Modalverb hinter dem Cursor und fehlenden Kontext.
+- `SuggestTest` prüft die automatische Auswahl und den verbleibenden Vorschlag in der Leiste
+  mit festen Wörterbuchtreffern. `TypedWordFirstTest` prüft die Rücknahme an der Wortposition.
+- Unabhängige Codeprüfung mit Nachprüfung. Die Kontextabfrage ist an Editor und Cursor gebunden,
+  und eine langsame Antwort pausiert weitere Abfragen.
+- Die Prüfung auf einem Telefon mit dem nativen Wörterbuch steht aus.
+
 ## Etappe 0 — unveränderte HeliBoard-Codebasis
 
 Stand: 2026-11-08. Upstream-Commit siehe `upstream.lock`.

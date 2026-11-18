@@ -17,7 +17,7 @@ import helium314.keyboard.latin.dictionary.Dictionary
  * input starts in a field. Written on the UI thread; [typedFor] is read from the suggestion thread.
  */
 class TypedWordFirst {
-    private class Entry(val start: Int, val inEditor: String, val typed: String)
+    private class Entry(val start: Int, val inEditor: String, val typed: String, val rejected: String? = null)
 
     private val entries = ArrayDeque<Entry>()
     @Volatile private var active: Entry? = null
@@ -33,17 +33,27 @@ class TypedWordFirst {
      * correction [corrected] remembered, so not for gesture words (review N4).
      */
     fun reverted(start: Int, typed: String) {
-        if (start < 0 || typed.isEmpty() || entries.none { it.start == start }) return
-        put(Entry(start, typed, typed))
+        val corrected = entries.lastOrNull { it.start == start && it.typed == typed } ?: return
+        rejectedAt(start, typed, corrected.rejected ?: corrected.inEditor)
     }
+
+    /** Keep an explicit choice at this location even with persistent learning disabled. */
+    fun rejectedAt(start: Int, typed: String, correction: String) {
+        if (start >= 0 && typed.isNotEmpty() && typed != correction)
+            put(Entry(start, typed, typed, correction))
+    }
+
+    fun rejects(start: Int, typed: String, candidate: String): Boolean =
+        entries.any { it.start == start && it.typed == typed && it.rejected == candidate }
 
     /**
      * A word was committed at [start]: an older entry there belongs to text that is gone (the field
      * was cleared by backspace or by the app without restarting input), review N1. Called before
      * [corrected] adds the new correction.
      */
-    fun committedAt(start: Int) {
-        entries.removeAll { it.start == start }
+    @JvmOverloads
+    fun committedAt(start: Int, word: String? = null) {
+        entries.removeAll { it.start == start && (it.rejected == null || it.typed != word) }
         if (active?.start == start) active = null
     }
 
