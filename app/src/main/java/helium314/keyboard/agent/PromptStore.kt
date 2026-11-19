@@ -43,6 +43,9 @@ data class PromptFolder(val id: String, val name: String) {
 class PromptLibrary(val folders: List<PromptFolder>, val prompts: List<Prompt>) {
     fun isEmpty() = folders.isEmpty() && prompts.isEmpty()
 
+    /** Stage 76 rule for the backup: only prompts count; folders alone are neither saved nor restored. */
+    fun hasPrompts() = prompts.isNotEmpty()
+
     /** The prompts a view with [filter] shows, in the global relative order. */
     fun promptsIn(filter: PromptFilter): List<Prompt> = when (filter) {
         PromptFilter.All -> prompts
@@ -297,15 +300,15 @@ class PromptStore(context: Context, private val accessible: () -> Boolean = { cr
 
     /**
      * Stage 76 (backup): exactly the bytes of the stored file when it exists, is readable and valid and the device
-     * is unlocked; otherwise null (nothing to save: no file, no prompts and no folders in it, locked, too large, not
-     * understood). An empty file is no entry: restoring it later would wipe prompts made since.
+     * is unlocked; otherwise null (nothing to save: no file, no prompts in it, locked, too large, not understood). A file
+     * without prompts is no entry, folders alone included: restoring it later would wipe prompts made since.
      */
     fun exportBytes(): ByteArray? = synchronized(lock) {
         if (!isAccessible()) return@synchronized null
         runCatching {
             if (!file.baseFile.exists() && !File(file.baseFile.path + ".bak").exists()) return@runCatching null
             val bytes = file.openRead().use { it.readBounded(MAX_STORAGE_BYTES) }
-            if (decodeBytes(bytes).isEmpty()) null else bytes
+            if (decodeBytes(bytes).prompts.isEmpty()) null else bytes
         }.getOrNull()
     }
 
@@ -459,7 +462,8 @@ class PromptStore(context: Context, private val accessible: () -> Boolean = { cr
             }
             require(folders.size <= MAX_FOLDERS)
             require(folders.map { it.id }.toSet().size == folders.size)
-            require(folders.map { folderKey(it.name) }.toSet().size == folders.size)
+            // two names equal ignoring case are NOT refused here: the case tables differ between Android versions, and refusing
+            // would make a whole store unreadable. Uniqueness is enforced when a folder is created or renamed.
             val rows = root.getValue("prompts").jsonArray
             require(rows.size <= MAX_PROMPTS)
             val folderIds = folders.map { it.id }.toSet()

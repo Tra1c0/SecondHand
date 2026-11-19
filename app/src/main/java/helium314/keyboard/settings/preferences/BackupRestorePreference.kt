@@ -328,7 +328,8 @@ internal fun restorePromptsFromBackup(store: PromptStore, entryFound: Boolean, b
     if (!entryFound) return@runCatching PromptsRestore.NO_ENTRY
     if (bytes == null) return@runCatching PromptsRestore.CORRUPT.also { Log.w("AdvancedScreen", "skipping prompts that are too large in backup") }
     val decoded = PromptStore.decodeBackup(bytes) ?: return@runCatching PromptsRestore.CORRUPT
-    if (decoded.isEmpty()) return@runCatching PromptsRestore.NO_ENTRY
+    // no prompts means no entry, whatever folders it has: folders alone never replace a store (stage 76 rule, stage 77)
+    if (!decoded.hasPrompts()) return@runCatching PromptsRestore.NO_ENTRY
     when (restorePrompts(store, bytes)) {
         null -> PromptsRestore.APPLIED
         PromptError.INVALID_TEXT -> PromptsRestore.CORRUPT

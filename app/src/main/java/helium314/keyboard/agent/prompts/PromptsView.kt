@@ -209,7 +209,8 @@ class PromptsView @JvmOverloads constructor(context: Context, attrs: AttributeSe
             isClickable = true
             isFocusable = true
             setOnClickListener {
-                if (filter != target) {
+                // a stale chip of a hidden window must not move the remembered filter
+                if (this@PromptsView.visibility == View.VISIBLE && filter != target) {
                     filter = target
                     rememberedFilter = target
                     onFilterChanged?.invoke()

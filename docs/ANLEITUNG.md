@@ -932,7 +932,7 @@ gesendet. Stand der Prüfung: nur mit automatischen Tests, auf keinem Gerät aus
   oder „Weiter bearbeiten“); ohne Änderungen schließt es gleich.
 - **Ordner** (seit Etappe 77): Du kannst Prompts in Ordnern ablegen, eine Ebene, höchstens 50 Ordner. Auf der Seite
   „Prompt-Ablage“ legt „Neuer Ordner“ einen Ordner an (Name 1 bis 40 Zeichen; zwei Ordner dürfen nicht gleich heißen,
-  auch nicht in anderer Groß-/Kleinschreibung). Der neue Ordner wird gleich gezeigt, ein neuer Prompt landet dann darin.
+  auch nicht in anderer Groß-/Kleinschreibung; „Neuer Ordner“ und „Ordner umbenennen“ fragen bei einem geänderten Namen vor dem Verwerfen nach, wie der Prompt-Editor). Der neue Ordner wird gleich gezeigt, ein neuer Prompt landet dann darin.
   Sobald es Ordner gibt, steht über der Liste eine Reihe Chips: „Alle“, deine Ordner und „Ohne Ordner“ (nur, wenn ein Prompt
   keinen Ordner hat). Ein Tipp auf einen Chip zeigt nur diese Prompts. Ist ein Ordner gewählt, gibt es „Ordner umbenennen“
   und „Ordner löschen“. Löschen fragt und sagt, wie viele Prompts im Ordner sind: Sie werden nicht gelöscht, sie
@@ -963,8 +963,9 @@ gesendet. Stand der Prüfung: nur mit automatischen Tests, auf keinem Gerät aus
 - **Wo die Prompts liegen und wie sie verloren gehen**: In einer Datei im geschützten Speicher der App, nur
   auf dem Telefon und nur nach dem Entsperren lesbar. Sie bleiben über Neustarts und App-Updates erhalten.
   Sie sind in „Sichern und Wiederherstellen“ (Einstellungen → System & Daten) enthalten, wenn das Telefon beim
-  Sichern entsperrt ist und mindestens ein Prompt oder ein Ordner da ist (die Ordner gehören dazu; eine Sicherung aus der Zeit
-  vor den Ordnern stellt Prompts ohne Ordner her und ersetzt vorhandene Ordner); ohne Sicherung gehen sie verloren, wenn du die App
+  Sichern entsperrt ist und mindestens ein Prompt da ist (die Ordner der Prompts gehören dazu; Ordner ohne einen einzigen Prompt werden
+  nicht gesichert, und ein Eintrag ohne Prompts ersetzt beim Wiederherstellen nie etwas, auch wenn er Ordner enthält; eine Sicherung aus
+  der Zeit vor den Ordnern stellt Prompts ohne Ordner her und ersetzt vorhandene Ordner); ohne Sicherung gehen sie verloren, wenn du die App
   deinstallierst oder ihre Daten löschst. Beim Wiederherstellen werden sie ganz zuletzt durch die Prompts
   der Datei ersetzt (die Prompts auf dem Telefon, die nicht in der Datei stehen, verschwinden dann). Eine
   Datei ohne Prompts (zum Beispiel von einer älteren Version) und eine Datei mit leerer Liste lassen die

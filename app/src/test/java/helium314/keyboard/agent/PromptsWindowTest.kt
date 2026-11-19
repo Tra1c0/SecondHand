@@ -635,16 +635,19 @@ class PromptsWindowTest {
         icon()
         val chip = chips().first { it.text.toString() == "A" }
         startField("", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
-        // a field change closes the window; a stale chip of it must do nothing
+        // a field change closes the window; a stale chip of it must change nothing, not even the remembered filter
         assertEquals(View.GONE, window.visibility)
+        assertEquals(PromptFilter.All, PromptsView.rememberedFilter)
         chip.performClick()
         idle()
         assertEquals(View.GONE, window.visibility)
+        assertEquals(PromptFilter.All, PromptsView.rememberedFilter, "a tap in a hidden window moved the remembered filter")
+        assertEquals(PromptFilter.All, window.filter)
         // and a lock after opening closes it on the tap
         startField("")
         icon()
         lock(true)
-        tapChip(string(R.string.agent_prompts_chip_all)) // the stale tap above already moved the filter to A, so this one changes it
+        tapChip("A") // a real change of the filter, so the tap goes on to the guard
         assertEquals(View.GONE, window.visibility)
         assertEquals(string(R.string.agent_prompts_protected), ShadowToast.getTextOfLatestToast())
     }

@@ -3650,13 +3650,13 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
   (`TEXT_TOO_LONG`, `TITLE_TOO_LONG`), eine Datei über 2 MiB `FILE_FULL`, ein defektes Zeichen
   `INVALID_TEXT`. Dazu `promptPreview` (höchstens 300 Zeichen, nie mitten in einem Surrogatpaar) und
   `promptLabel` (Titel oder erste nicht leere Zeile), von Seite und Fenster gemeinsam benutzt.
-- Ordner (Etappe 77, P312–P316), alles in `A/PromptStore.kt`, `A/prompts/PromptsView.kt`, `AgentEditorController` und
+- Ordner (Etappe 77, P312–P317), alles in `A/PromptStore.kt`, `A/prompts/PromptsView.kt`, `AgentEditorController` und
   `K/settings/screens/AgentPromptsScreen.kt`; kein `InputLogic`, `RichInputConnection`, `PointerTracker`:
   - Modell: `PromptFolder` (`id`, `name`), `PromptLibrary` (`folders`, `prompts`; eine globale Liste der Prompts, `promptsIn(filter)`,
     `offersNoFolder()`, `effective(filter)`), `PromptFilter` (`All`, `NoFolder`, `Folder(id)`; `encode`/`decode` für den
     gespeicherten Zustand der Seite, `folderIdForNew`). Neue `PromptError`: `FOLDER_NAME_EMPTY`, `…_TOO_LONG`, `…_INVALID`,
     `…_TAKEN`, `FOLDERS_FULL`, `FOLDER_NOT_FOUND`. Grenzen: `MAX_FOLDERS` = 50, `MAX_FOLDER_NAME` = 40 (UTF-16, nach dem Trimmen,
-    kein Steuerzeichen, kein einzelnes Surrogat, ohne Groß-/Kleinschreibung eindeutig).
+    kein Steuerzeichen, kein einzelnes Surrogat; Anlegen und Umbenennen verlangen Eindeutigkeit ohne Groß-/Kleinschreibung, der Leser nicht).
   - Schreiben: `add(title, text, folderId = null)`, `update(id, title, text)` (behält den Ordner) und `update(id, title, text,
     folderId)` (verschiebt, der Prompt behält seinen globalen Platz), `addFolder` (hängt hinten an), `renameFolder`, `deleteFolder`
     (die Prompts bleiben, werden „ohne Ordner“; `PromptResult.moved` zählt sie), `reorderFolders`, `reorderInFolder(folderId, ids)`
@@ -3685,8 +3685,8 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
   einen Text: `restore_prompts_corrupt`, `…_locked`, `…_unreadable` in `agent_prompt_strings.xml`). Aufgerufen wird sie
   in `restoreLauncher` ganz am Ende des Blocks von `restoreWithRollback`, nach `Database.copyFromDb`; ihr Ergebnis
   wird nach dem Erfolgs-Toast als zweite Meldung gezeigt. Der Text `backup_restore_message` (`strings.xml`,
-  `values-de`) nennt die Prompts. Test `app/src/test/java/helium314/keyboard/settings/BackupPromptsTest.kt` (22: Eintrag,
-  Sammler, Entscheidungsfunktion, Meldungen; seit 77 vier Fälle mit Ordnern), daneben `AT/PromptStoreTest.kt` (45) und das bestehende
+  `values-de`) nennt die Prompts. Test `app/src/test/java/helium314/keyboard/settings/BackupPromptsTest.kt` (23: Eintrag,
+  Sammler, Entscheidungsfunktion, Meldungen; seit 77 fünf Fälle mit Ordnern), daneben `AT/PromptStoreTest.kt` (47) und das bestehende
   `RestoreSafetyTest.kt` (15, unverändert).
 - `K/settings/screens/AgentPromptsScreen.kt` (74a): die Seite „Prompt-Ablage“ unter Einstellungen →
   Leiste & Befehle. Liste mit Titel oder erster Zeile und zwei Zeilen Vorschau, „Neuer Prompt“,
@@ -3741,9 +3741,9 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
 - Ressourcen: `agent_prompt_strings.xml` (`values/`, `values-de/`), `agent_prompts_ids.xml`
   (Ids des Fensters), Symbol `ic_agent_prompts.xml` (ein Drawable für alle Symbolstile), Suchbegriffe
   in `agent_search_strings.xml`.
-- Tests (Robolectric): `AT/PromptStoreTest.kt` (45, seit 77 mit Ordnern: Migration aus Format 1, Format je nach Ordnern, Ordner anlegen, umbenennen, löschen, sortieren, Namensregeln, Grenzen, Sortieren im Ordner, strenges Lesen mit 18 unbrauchbaren Dateien, gesperrt, Sicherung; vorher 25: Dauerhaftigkeit in CE/`noBackupFilesDir`, Reihenfolge
+- Tests (Robolectric): `AT/PromptStoreTest.kt` (47, seit 77 mit Ordnern: Migration aus Format 1, Format je nach Ordnern, Ordner anlegen, umbenennen, löschen, sortieren, Namensregeln, Grenzen, Sortieren im Ordner, strenges Lesen mit 17 unbrauchbaren Dateien, gesperrt, Sicherung; vorher 25: Dauerhaftigkeit in CE/`noBackupFilesDir`, Reihenfolge
   und Ids, Grenzen, Zeichen, gesperrt, kaputte, zu große und fremde Dateien, Datei voll, Surrogate,
-  `state`, `reset`, `reorder`, seit 76 `exportBytes` und `replaceAll`), `AT/PromptsScreenTest.kt` (50, seit 77 mit Ordnern: Chip-Reihe, Anlegen, Umbenennen, Löschen mit Rückfrage, Sortieren, Ordner-Wähler, Standard-Ordner für neue Prompts, Wiederherstellung; vorher 29: Seite, Editor-Karte, Zurück und
+  `state`, `reset`, `reorder`, seit 76 `exportBytes` und `replaceAll`), `AT/PromptsScreenTest.kt` (53, seit 77 mit Ordnern: Chip-Reihe, Anlegen, Umbenennen, Löschen mit Rückfrage, Sortieren, Ordner-Wähler, Standard-Ordner für neue Prompts, Wiederherstellung; vorher 29: Seite, Editor-Karte, Zurück und
   Abbrechen, Wiederherstellung nach Aktivitäts-Neustart, Löschen, Sortieren, gesperrt, Zurücksetzen,
   Einfügen aus der Zwischenablage, Vorschau), `AT/PromptsWindowTest.kt` (35, seit 77 mit Chip-Reihe, Filter, Speichern in den gezeigten Ordner, gemerkter Chip, Schutz beim Chip-Tipp; vorher 25: Popup-Taste und ihre
   Bedingungen, Fenster und Zeilen, Einfügen genau einmal, Markierung, Sperre nach dem Öffnen,
@@ -5983,11 +5983,13 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
 - **P312** Prompt-Ablage, Format mit Ordnern (77): Der Speicher schreibt Format 1 (ohne `folders`, wie bis Etappe 76), solange es keinen
   Ordner gibt, sonst Format 2; so bleibt eine Datei ohne Ordner byte-gleich lesbar für ältere App-Versionen und `exportBytes` für
   Nutzer ohne Ordner unverändert. Der Leser ist streng: Ein Prompt, der auf einen Ordner zeigt, den die Datei nicht hat, eine höhere
-  `storageVersion`, falsche Schlüssel je Format, doppelte Ids oder Namen (ohne Groß-/Kleinschreibung), ein Name außerhalb der Regeln
-  oder mehr als 50 Ordner machen die ganze Datei unbrauchbar (`UNUSABLE`, Schreibvorgänge geben `IO`, die Datei bleibt, wie in
+  `storageVersion`, falsche Schlüssel je Format, doppelte Ids, ein Name außerhalb der Regeln
+  oder mehr als 50 Ordner machen die ganze Datei unbrauchbar. Zwei Namen, die sich nur in der Schreibweise unterscheiden, lässt der Leser dagegen zu (die
+  Tabellen für Groß-/Kleinbuchstaben unterscheiden sich zwischen Android-Versionen, sonst wäre ein ganzer Speicher unlesbar; Test
+  `twoFolderNamesThatDifferOnlyInCaseAreReadAndStayWritable`); `encode` prüft nur die Ordner der Prompts, nie die Namen (`UNUSABLE`, Schreibvorgänge geben `IO`, die Datei bleibt, wie in
   P296). Bewusst nicht „den Prompt dann ohne Ordner laden“: Der nächste Schreibvorgang würde die Zuordnung still ändern. Folge: Die
   Datei einer neueren App-Version bietet in dieser Version „Ablage zurücksetzen“ an (mit Rückfrage, wie jede unbrauchbare Datei).
-  Tests: `aFileWithFoldersThatTheReaderDoesNotAcceptIsUnusableAndNeverChanged` (18 Dateien), `anOldFileWithoutFoldersLoadsUnchanged…`.
+  Tests: `aFileWithFoldersThatTheReaderDoesNotAcceptIsUnusableAndNeverChanged` (17 Dateien), `anOldFileWithoutFoldersLoadsUnchanged…`, `aStoreNearTheFileLimitThatGainsItsFirstFolderIsRefusedAsFileFull…` (Format 2 ist je Prompt 16 Byte länger; `FILE_FULL`, Datei unverändert).
 - **P313** Prompt-Ablage, Reihenfolge mit Ordnern (77): Es gibt genau eine globale Liste der Prompts; die Ansicht eines Ordners ist ihre
   gefilterte Sicht. `reorder(ids)` verlangt weiter alle Ids (nie mit der gefilterten Liste aufrufen: `INVALID_ORDER`); in einer
   Ordneransicht gilt `reorderInFolder`, das nur die Plätze der Prompts dieses Ordners untereinander tauscht. Ein Prompt, der den Ordner
@@ -6003,9 +6005,17 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
   einem Dialog); der Löschdialog hat kein Textfeld und nennt die Zahl der Prompts aus dem aktuellen Stand. Der gewählte Filter und der
   Ordner-Editor sind `rememberSaveable`. Im Prompt-Editor zählt ein inzwischen gelöschter Ordner als „Ohne Ordner“ (so zeigt es der
   Wähler); trifft das Speichern trotzdem auf `FOLDER_NOT_FOUND`, steht die Meldung da, die Seite lädt neu und nichts wird gespeichert.
-- **P316** Prompt-Ablage, Sicherung mit Ordnern (77): `PromptStore.decodeBackup` liefert eine `PromptLibrary`; „leer“ (kein Eintrag, nichts
-  wiederherstellen) heißt ohne Prompts UND ohne Ordner, eine Datei nur mit Ordnern wird gesichert und wiederhergestellt. Wiederherstellen
-  ersetzt auch die Ordner (der Stand der Sicherung); eine Sicherung im Format 1 stellt Prompts ohne Ordner her, so wie vor 77.
+- **P316** Prompt-Ablage, Sicherung mit Ordnern (77): `PromptStore.decodeBackup` liefert eine `PromptLibrary`; für die Sicherung zählen nur Prompts
+  (`PromptLibrary.hasPrompts`, Regel von 76 gilt weiter): `exportBytes` ist null ohne Prompts, Ordner allein werden also nicht gesichert
+  (bekannte Grenze), und ein Eintrag, der zu null Prompts dekodiert, ist beim Wiederherstellen `NO_ENTRY`, auch mit Ordnern; sonst könnte ein
+  handgemachter oder alter Eintrag nur mit Ordnern einen Speicher voller Prompts durch eine leere Ablage ersetzen. Wiederherstellen
+  ersetzt bei einem Eintrag mit Prompts auch die Ordner (der Stand der Sicherung); eine Sicherung im Format 1 stellt Prompts ohne Ordner
+  her, so wie vor 77. Tests: `anEntryWithFoldersButNoPromptsNeverReplacesAStoreWithPromptsAndFolders`, `aStoreWithOnlyFoldersHasNoBackupEntry`.
+- **P317** Prompt-Ablage, Ordner-Editor und Seite (77, Nachprüfung): Der Ordner-Editor fragt bei geändertem Namen vor dem Verwerfen (Zurück und
+  „Abbrechen“, wie P300), sein Feld ist ein `TextFieldValue` mit der Schreibmarke am Ende. Der Löschdialog liest die Zahl der Prompts beim Öffnen
+  frisch aus dem Speicher; die Seite lädt bei `ON_RESUME` neu (das Fenster der Tastatur kann den Speicher inzwischen geändert haben). Der Klick eines
+  Chips tut nichts, solange das Fenster nicht sichtbar ist (`this@PromptsView.visibility`, nicht die Sichtbarkeit des Chips): ein veralteter Chip darf
+  `rememberedFilter` nicht ändern.
 
 ## Datei-Inventar
 

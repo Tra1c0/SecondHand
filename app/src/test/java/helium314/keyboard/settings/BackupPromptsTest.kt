@@ -274,14 +274,26 @@ class BackupPromptsTest {
         assertEquals(listOf(work.id, null, home.id), library.prompts.map { it.folderId })
     }
 
-    @Test fun aBackupWithOnlyFoldersIsSavedAndRestored() {
+    @Test fun aStoreWithOnlyFoldersHasNoBackupEntry() {
         store.addFolder("Leer")
-        assertEquals(listOf("preferences.json", PROMPTS_ENTRY_NAME), names(backupZip()))
-        val zip = backupZip()
+        assertEquals(listOf("preferences.json"), names(backupZip()))
+    }
+
+    @Test fun anEntryWithFoldersButNoPromptsNeverReplacesAStoreWithPromptsAndFolders() {
+        val keep = store.addFolder("Bleibt").folder!!
+        store.add("keep", "k", keep.id)
+        val before = file.readBytes()
+        val version = PromptStore.version
+        val foldersOnly = "{\"storageVersion\":2,\"folders\":[{\"id\":\"f1\",\"name\":\"Fremd\"}],\"prompts\":[]}"
+        assertEquals(PromptsRestore.NO_ENTRY, restore(zipWith(PROMPTS_ENTRY_NAME to foldersOnly.toByteArray())))
+        assertContentEquals(before, file.readBytes())
+        assertEquals(version, PromptStore.version)
+        assertEquals(listOf("Bleibt"), store.loadLibrary()!!.folders.map { it.name })
+        assertEquals(listOf("keep"), titles())
+        // and onto an empty store it changes nothing either (no entry, no file)
         file.delete()
-        assertEquals(PromptsRestore.APPLIED, restore(zip))
-        assertEquals(listOf("Leer"), store.loadLibrary()!!.folders.map { it.name })
-        assertTrue(store.read().isEmpty())
+        assertEquals(PromptsRestore.NO_ENTRY, restore(zipWith(PROMPTS_ENTRY_NAME to foldersOnly.toByteArray())))
+        assertFalse(file.exists())
     }
 
     @Test fun anOldBackupWithoutFoldersRestoresAsBefore() {

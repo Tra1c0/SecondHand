@@ -633,7 +633,6 @@ class PromptStoreTest {
         "format 1 prompt with a folderId" to """{"storageVersion":1,"prompts":[{"id":"p","title":"","text":"x","folderId":null}]}""",
         "a folderId that is a number" to """{"storageVersion":2,"folders":[{"id":"f1","name":"A"}],"prompts":[{"id":"p","title":"","text":"x","folderId":1}]}""",
         "duplicate folder ids" to """{"storageVersion":2,"folders":[{"id":"f1","name":"A"},{"id":"f1","name":"B"}],"prompts":[]}""",
-        "folder names equal ignoring case" to """{"storageVersion":2,"folders":[{"id":"f1","name":"A"},{"id":"f2","name":"a"}],"prompts":[]}""",
         "a folder name with spaces around" to """{"storageVersion":2,"folders":[{"id":"f1","name":" A"}],"prompts":[]}""",
         "an empty folder name" to """{"storageVersion":2,"folders":[{"id":"f1","name":""}],"prompts":[]}""",
         "a folder name of 41 characters" to """{"storageVersion":2,"folders":[{"id":"f1","name":"${"n".repeat(41)}"}],"prompts":[]}""",
@@ -696,14 +695,13 @@ class PromptStoreTest {
         assertTrue(before.contentEquals(file.readBytes()))
     }
 
-    @Test fun theBackupCarriesFoldersAndAFileWithOnlyFoldersIsNotEmpty() {
+    @Test fun theBackupCarriesFoldersWithPromptsButAFileWithOnlyFoldersHasNoEntry() {
         assertEquals(null, store.exportBytes(), "no file")
         val a = folder("Nur Ordner")
-        val bytes = store.exportBytes()
-        assertNotEquals(null, bytes, "a folder without prompts is worth saving")
-        assertTrue(bytes!!.contentEquals(file.readBytes()))
+        assertEquals(null, store.exportBytes(), "folders alone are not backed up: restoring them could never replace a store")
         val p = inFolder("p", a.id)
         val withPrompt = store.exportBytes()!!
+        assertTrue(withPrompt.contentEquals(file.readBytes()))
         // restore into a fresh state: folders, assignments and order come back
         file.delete()
         assertTrue(store.replaceAll(withPrompt).ok)
@@ -720,8 +718,62 @@ class PromptStoreTest {
         assertEquals(PromptError.INVALID_TEXT, store.replaceAll(bad).error)
         assertEquals(null, PromptStore.decodeBackup(bad))
         assertTrue(before.contentEquals(file.readBytes()))
-        // an empty library is "empty" for the backup decision, a folder-only one is not
-        assertTrue(PromptStore.decodeBackup(oldFormat.replace(Regex("\\[.*\\]"), "[]").toByteArray())!!.isEmpty())
-        assertFalse(PromptStore.decodeBackup("""{"storageVersion":2,"folders":[{"id":"f","name":"A"}],"prompts":[]}""".toByteArray())!!.isEmpty())
+        // for the backup decision only prompts count: an empty library and a folder-only one both have none
+        assertFalse(PromptStore.decodeBackup(oldFormat.replace(Regex("\\[.*\\]"), "[]").toByteArray())!!.hasPrompts())
+        assertFalse(PromptStore.decodeBackup("""{"storageVersion":2,"folders":[{"id":"f","name":"A"}],"prompts":[]}""".toByteArray())!!.hasPrompts())
+        assertTrue(PromptStore.decodeBackup(oldFormat.toByteArray())!!.hasPrompts())
+    }
+
+    @Test fun twoFolderNamesThatDifferOnlyInCaseAreReadAndStayWritable() {
+        // the case tables differ between Android versions, so the reader must not refuse such a file
+        file.parentFile!!.mkdirs()
+        val content = """{"storageVersion":2,"folders":[{"id":"f1","name":"Arbeit"},{"id":"f2","name":"ARBEIT"}],"prompts":[{"id":"p1","title":"t","text":"x","folderId":"f2"}]}"""
+        file.writeText(content)
+        assertEquals(PromptStoreState.READY, store.state())
+        assertEquals(listOf("Arbeit", "ARBEIT"), folderNames())
+        // an unrelated change is written without failing, and both folders stay as they are
+        assertTrue(store.add("neu", "y", "f1").ok)
+        assertTrue(store.update("p1", "t2", "x2").ok)
+        assertTrue(store.reorderFolders(listOf("f2", "f1")).ok)
+        assertTrue(store.reorder(store.read().map { it.id }.reversed()).ok)
+        assertEquals(listOf("ARBEIT", "Arbeit"), folderNames())
+        assertEquals(PromptStoreState.READY, store.state())
+        assertEquals(setOf("f1", "f2"), lib().prompts.map { it.folderId }.toSet())
+        // uniqueness is enforced only for a new or renamed folder, against the other folders
+        assertEquals(PromptError.FOLDER_NAME_TAKEN, store.addFolder("arbeit").error)
+        // a rename into a collision with another folder is refused (also to the own old name while the twin exists), any other name works
+        assertEquals(PromptError.FOLDER_NAME_TAKEN, store.renameFolder("f1", "Arbeit ").error)
+        assertTrue(store.renameFolder("f1", "Arbeit 2").ok)
+        assertTrue(store.renameFolder("f2", "ARBEIT").ok, "no twin any more: its own spelling is allowed again")
+        assertTrue(store.deleteFolder("f1").ok)
+        assertEquals(listOf("ARBEIT"), folderNames())
+    }
+
+    @Test fun aStoreNearTheFileLimitThatGainsItsFirstFolderIsRefusedAsFileFullAndStaysByteIdentical() {
+        // format 2 adds a folderId to every prompt, so a store that just fits in format 1 may not fit with a folder
+        val prompts = ArrayList<Prompt>()
+        fun size() = PromptStore.encode(prompts).toByteArray(Charsets.UTF_8).size
+        while (size() + 24100 < PromptStore.MAX_STORAGE_BYTES) prompts.add(Prompt("p${prompts.size}", "", "中".repeat(PromptStore.MAX_TEXT)))
+        while (size() + 4100 < PromptStore.MAX_STORAGE_BYTES) prompts.add(Prompt("p${prompts.size}", "", "x".repeat(4000)))
+        // a last prompt that brings the file to 10 bytes below the limit
+        prompts.add(Prompt("p${prompts.size}", "", "x"))
+        val padding = PromptStore.MAX_STORAGE_BYTES - 10 - size()
+        assertTrue(padding in 0 until PromptStore.MAX_TEXT, "$padding")
+        prompts[prompts.size - 1] = Prompt(prompts.last().id, "", "x".repeat(1 + padding))
+        assertEquals(PromptStore.MAX_STORAGE_BYTES - 10, size())
+        assertTrue(prompts.size <= PromptStore.MAX_PROMPTS)
+        file.parentFile!!.mkdirs()
+        file.writeText(PromptStore.encode(prompts))
+        assertEquals(PromptStoreState.READY, store.state())
+        val before = file.readBytes()
+        val version = PromptStore.version
+        assertEquals(PromptError.FILE_FULL, store.addFolder("Neu").error)
+        assertTrue(before.contentEquals(file.readBytes()), "the file is untouched")
+        assertEquals(version, PromptStore.version)
+        assertEquals(PromptStoreState.READY, store.state())
+        assertTrue(store.readFolders().isEmpty())
+        // a prompt can still be removed, and then the folder fits
+        assertTrue(store.delete("p0").ok)
+        assertTrue(store.addFolder("Neu").ok)
     }
 }

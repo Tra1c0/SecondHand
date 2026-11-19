@@ -564,8 +564,10 @@ class PromptsScreenTest {
         field.performTextReplacement("   ")
         compose.waitForIdle()
         compose.onNodeWithTag(PROMPTS_FOLDER_SAVE_TAG).assertIsNotEnabled()
-        // cancel stores nothing and brings the list back
+        // cancel (the typed name is a change, so it asks) stores nothing and brings the list back
         click(PROMPTS_FOLDER_CANCEL_TAG)
+        compose.onNodeWithTag(PROMPTS_DISCARD_TAG).performClick()
+        compose.waitForIdle()
         assertEquals(listOf("Arbeit"), store.readFolders().map { it.name })
         compose.onNodeWithTag(PROMPTS_FOLDER_NEW_TAG).assertExists()
     }
@@ -902,7 +904,7 @@ class PromptsScreenTest {
         compose.onNodeWithTag(PROMPTS_FOLDER_NAME_FIELD_TAG).performTextInput("x")
         tester.emulateSavedInstanceStateRestore()
         compose.waitForIdle()
-        assertEquals("xA", fieldText(PROMPTS_FOLDER_NAME_FIELD_TAG))
+        assertEquals("Ax", fieldText(PROMPTS_FOLDER_NAME_FIELD_TAG)) // the cursor of an existing name is at its end
         assertEquals("A", store.readFolders().first().name, "nothing was saved by the restore")
     }
 
@@ -916,5 +918,63 @@ class PromptsScreenTest {
         assertFalse(exists(PROMPTS_FOLDER_NEW_TAG))
         assertFalse(exists(PROMPTS_FILTER_ALL_TAG))
         assertEquals(bad, file.readText(), "the page changed nothing")
+    }
+
+    @Test fun aChangedFolderNameAsksBeforeCancelAndBackDiscardAndUnchangedClosesAtOnce() {
+        val store = newStore()
+        val a = folder(store, "A")
+        show()
+        click(chip(a))
+        // unchanged: closes at once
+        click(PROMPTS_FOLDER_RENAME_TAG)
+        click(PROMPTS_FOLDER_CANCEL_TAG)
+        compose.onNodeWithTag(PROMPTS_FOLDER_NEW_TAG).assertExists()
+        click(PROMPTS_FOLDER_RENAME_TAG)
+        back()
+        compose.onNodeWithTag(PROMPTS_FOLDER_NEW_TAG).assertExists()
+        // changed: Cancel asks, "keep editing" keeps the typed name
+        click(PROMPTS_FOLDER_RENAME_TAG)
+        compose.onNodeWithTag(PROMPTS_FOLDER_NAME_FIELD_TAG).performTextInput("zwei")
+        click(PROMPTS_FOLDER_CANCEL_TAG)
+        compose.onNodeWithTag(PROMPTS_DISCARD_TAG).assertExists()
+        compose.onNodeWithTag(PROMPTS_KEEP_EDITING_TAG).performClick()
+        compose.waitForIdle()
+        assertEquals("Azwei", fieldText(PROMPTS_FOLDER_NAME_FIELD_TAG))
+        // Back asks the same; discarding closes and saves nothing
+        back()
+        compose.onNodeWithTag(PROMPTS_DISCARD_TAG).assertExists()
+        compose.onNodeWithTag(PROMPTS_DISCARD_TAG).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PROMPTS_FOLDER_NEW_TAG).assertExists()
+        assertEquals("A", store.readFolders().single().name)
+        // a new folder with a typed name asks too
+        click(PROMPTS_FOLDER_NEW_TAG)
+        compose.onNodeWithTag(PROMPTS_FOLDER_NAME_FIELD_TAG).performTextInput("neu")
+        click(PROMPTS_FOLDER_CANCEL_TAG)
+        compose.onNodeWithTag(PROMPTS_DISCARD_TAG).assertExists()
+    }
+
+    @Test fun theFolderDeleteDialogCountsWhatTheStoreHoldsWhenItOpens() {
+        val store = newStore()
+        val a = folder(store, "A")
+        add(store, "p1", a)
+        show()
+        click(chip(a))
+        // the keyboard window (or another page) changed the store meanwhile: two more prompts in the folder
+        add(store, "p2", a); add(store, "p3", a)
+        click(PROMPTS_FOLDER_DELETE_TAG)
+        compose.onNodeWithText("Den Ordner „A“ löschen? Seine Prompts (3) werden nicht gelöscht, sie wandern nach „Ohne Ordner“.").assertExists()
+    }
+
+    @Test fun thePageReloadsTheStoreWhenItResumes() {
+        val store = newStore()
+        show()
+        compose.onNodeWithTag(PROMPTS_COUNT_TAG).assert(hasText("0 von 200"))
+        val p = add(store, "p", null) // changed by the keyboard window while the page was away
+        compose.runOnUiThread { compose.activityRule.scenario.moveToState(androidx.lifecycle.Lifecycle.State.STARTED) }
+        compose.runOnUiThread { compose.activityRule.scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED) }
+        compose.waitForIdle()
+        compose.onNodeWithTag(PROMPTS_ROW_TAG + p.id).assertExists()
+        compose.onNodeWithTag(PROMPTS_COUNT_TAG).assert(hasText("1 von 200"))
     }
 }

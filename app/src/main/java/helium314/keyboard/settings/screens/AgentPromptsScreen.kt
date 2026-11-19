@@ -22,6 +22,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -39,6 +40,9 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import helium314.keyboard.agent.Prompt
 import helium314.keyboard.agent.PromptError
 import helium314.keyboard.agent.PromptFilter
@@ -122,12 +126,20 @@ private fun PromptsContent(store: PromptStore) {
     // which prompts the list shows, see [PromptFilter.encode]
     var filterCode by rememberSaveable { mutableStateOf(PromptFilter.All.encode()) }
     var deleting by remember { mutableStateOf<Prompt?>(null) }
-    var deletingFolder by remember { mutableStateOf<PromptFolder?>(null) }
+    // the folder to delete and how many prompts it holds, read from the store when the dialog was opened
+    var deletingFolder by remember { mutableStateOf<Pair<PromptFolder, Int>?>(null) }
     var sorting by remember { mutableStateOf(false) }
     var sortingFolders by remember { mutableStateOf(false) }
     var resetting by remember { mutableStateOf(false) }
     var notice by remember { mutableIntStateOf(0) }
     fun reload() { library = store.loadLibrary(); state = store.state() }
+    // the keyboard window or another page may have changed the store while this page was away
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle) {
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) reload() }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
 
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(stringResource(R.string.agent_prompts_description), style = MaterialTheme.typography.bodySmall)
@@ -209,7 +221,13 @@ private fun PromptsContent(store: PromptStore) {
                 OutlinedButton(modifier = Modifier.testTag(PROMPTS_FOLDER_RENAME_TAG),
                     onClick = { notice = 0; editingFolderId = folder.id }) { Text(stringResource(R.string.agent_prompts_folder_rename)) }
                 OutlinedButton(modifier = Modifier.testTag(PROMPTS_FOLDER_DELETE_TAG),
-                    onClick = { notice = 0; deletingFolder = folder }) { Text(stringResource(R.string.agent_prompts_folder_delete)) }
+                    onClick = {
+                        notice = 0
+                        // a fresh read: the count must be what the store holds now, not what the page showed earlier
+                        val fresh = store.loadLibrary()
+                        reload()
+                        deletingFolder = folder to (fresh?.prompts?.count { it.folderId == folder.id } ?: 0)
+                    }) { Text(stringResource(R.string.agent_prompts_folder_delete)) }
             }
             if (content.folders.size > 1) OutlinedButton(modifier = Modifier.testTag(PROMPTS_FOLDER_SORT_TAG),
                 onClick = { notice = 0; sortingFolders = true }) { Text(stringResource(R.string.agent_prompts_folder_sort)) }
@@ -261,9 +279,8 @@ private fun PromptsContent(store: PromptStore) {
         )
     }
 
-    deletingFolder?.let { folder ->
-        // the count is read now, from the store: the prompts of the folder are kept and move to "no folder"
-        val count = library?.prompts?.count { it.folderId == folder.id } ?: 0
+    deletingFolder?.let { (folder, count) ->
+        // the prompts of the folder are kept and move to "no folder"
         AlertDialog(
             onDismissRequest = { deletingFolder = null },
             text = { Text(stringResource(R.string.agent_prompts_folder_delete_confirm, folder.name, count)) },
@@ -494,10 +511,16 @@ private fun FolderEditorCard(original: PromptFolder, store: PromptStore, folders
                              onGone: () -> Unit, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val isNew = original.id.isEmpty()
-    var name by rememberSaveable(original.id) { mutableStateOf(original.name) }
+    // an existing name opens with the cursor at its end, like the prompt editor
+    var name by rememberSaveable(original.id, stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue(original.name, TextRange(original.name.length)))
+    }
     var message by remember(original) { mutableStateOf("") }
-    BackHandler { onDismiss() }
-    val clean = PromptStore.cleanFolderName(name)
+    var askDiscard by rememberSaveable(original.id) { mutableStateOf(false) }
+    // back and "Cancel": unchanged closes at once, a changed name asks first (P300; read when the handler runs, not captured)
+    fun cancel() { if (name.text != original.name) askDiscard = true else onDismiss() }
+    BackHandler { cancel() }
+    val clean = PromptStore.cleanFolderName(name.text)
     val error = PromptStore.folderNameError(clean, folders, original.id.ifEmpty { null })
     // "empty" is not shown as an error before anything was typed; the Save button is off meanwhile
     val errorText = when (error) {
@@ -509,14 +532,14 @@ private fun FolderEditorCard(original: PromptFolder, store: PromptStore, folders
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(stringResource(if (isNew) R.string.agent_prompts_folder_editor_new else R.string.agent_prompts_folder_editor_rename),
             style = MaterialTheme.typography.titleMedium)
-        OutlinedTextField(value = name, onValueChange = { if (it.length <= PromptStore.MAX_FOLDER_NAME + 1) { name = it; message = "" } },
+        OutlinedTextField(value = name, onValueChange = { if (it.text.length <= PromptStore.MAX_FOLDER_NAME + 1) { name = it; message = "" } },
             modifier = Modifier.fillMaxWidth().testTag(PROMPTS_FOLDER_NAME_FIELD_TAG),
             label = { Text(stringResource(R.string.agent_prompts_folder_field_name)) }, singleLine = true, isError = errorText != null,
             supportingText = { Text(errorText ?: "${clean.length} / ${PromptStore.MAX_FOLDER_NAME}") })
         if (message.isNotEmpty()) Text(message, Modifier.testTag(PROMPTS_FOLDER_ERROR_TAG), color = MaterialTheme.colorScheme.error)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(enabled = error == null, modifier = Modifier.testTag(PROMPTS_FOLDER_SAVE_TAG), onClick = {
-                val result = if (isNew) store.addFolder(name) else store.renameFolder(original.id, name)
+                val result = if (isNew) store.addFolder(name.text) else store.renameFolder(original.id, name.text)
                 when (result.error) {
                     null -> onSaved(result.folder)
                     PromptError.FOLDER_NOT_FOUND -> onGone()
@@ -526,9 +549,23 @@ private fun FolderEditorCard(original: PromptFolder, store: PromptStore, folders
                     else -> message = context.getString(R.string.agent_prompts_folder_failed)
                 }
             }) { Text(stringResource(R.string.agent_prompts_save)) }
-            OutlinedButton(modifier = Modifier.testTag(PROMPTS_FOLDER_CANCEL_TAG), onClick = onDismiss) {
+            OutlinedButton(modifier = Modifier.testTag(PROMPTS_FOLDER_CANCEL_TAG), onClick = ::cancel) {
                 Text(stringResource(R.string.agent_prompts_cancel))
             }
         }
     }
+    if (askDiscard) AlertDialog(
+        onDismissRequest = { askDiscard = false },
+        text = { Text(stringResource(R.string.agent_prompts_discard_confirm)) },
+        confirmButton = {
+            TextButton(modifier = Modifier.testTag(PROMPTS_DISCARD_TAG), onClick = { askDiscard = false; onDismiss() }) {
+                Text(stringResource(R.string.agent_prompts_discard))
+            }
+        },
+        dismissButton = {
+            TextButton(modifier = Modifier.testTag(PROMPTS_KEEP_EDITING_TAG), onClick = { askDiscard = false }) {
+                Text(stringResource(R.string.agent_prompts_keep_editing))
+            }
+        },
+    )
 }
