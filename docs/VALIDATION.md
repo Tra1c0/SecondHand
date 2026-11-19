@@ -1,5 +1,36 @@
 # Prüfnachweise
 
+## Etappe 79 — Autofill-Vorschläge robust
+
+- **Gelesen und bestätigt (Code, nicht Gerät):** Die vier gemeldeten Schwächen waren alle richtig. (W-a) Feste Breite 100/740 px, dreimal derselbe Wert
+  (`InlineAutofillUtils.java`, `createInlineSuggestionRequest`). (W-b) `createView` fügte jedes Chip-Bild im Rückruf mit `container.addView(view)` an,
+  also in der Reihenfolge der Fertigstellung; ein `null`-Bild fiel still weg. (W-c) Weder `onInlineSuggestionsResponse` noch der Rückruf prüften Feld
+  oder Eingabeende; `onFinishInput`/`onStartInput` rührten Autofill nicht an. (W-d) Nichts gab die Ansichten frei; die Prüfung per `javap` auf `android.jar`
+  (API 34 und 37, nur Stubs, keine Rümpfe) zeigt aber, dass `InlineContentView` und `InlineSuggestion` keine Freigabe-Methode haben: also
+  nichts zu beheben, dokumentiert in P320. Richtlinie (nur festgehalten, Verhalten unverändert): Die Chips erscheinen in Passwortfeldern und im
+  Inkognito-Modus (nur der Schalter „Vorschlagsleiste aus“ blendet sie aus); gewollt für Passwortmanager.
+- **Geändert (je ein Commit):** W-a `InlineAutofillSizing` (Breite aus Leiste oder Anzeige und Dichte, Mindestbreite 40 dp); W-b `InlineAutofillSlots` (Chip an
+  der Stelle seines Index, Fehlschlag oder fehlender Rückruf blockiert nicht); W-c `InlineAutofillGeneration` (Token, `open`/`close`/`invalidate`/`beginResponse`).
+  Geänderte Upstream-Dateien: `InlineAutofillUtils.java`, `LatinIME.java` (kleine Stellen), `InputLogic`/`RichInputConnection`/`PointerTracker` unberührt.
+- **Getestet (Robolectric/JUnit, lokal, Stand `ce006a1` plus Docs):** `InlineAutofillSizingTest` 10, `InlineAutofillSlotsTest` 9, `InlineAutofillGenerationTest` 10, alle grün.
+  Abgedeckt: Breite für Telefon, kleines Telefon, Tablet, Querformat, Dichte, Leiste noch nicht gelayoutet, nichts bekannt, Maximum nie unter Minimum; Reihenfolge bei allen
+  24 Ankunftsfolgen von vier Chips, Fehlschlag, nie ankommender Chip, doppelter Rückruf, unbekannter Index; Antwort ohne Eingabe, nach Eingabeende, neue Anfrage,
+  neue Antwort, Schließen, veralteter Rückruf.
+- **Rot-Nachweis:** Mit sabotierten Helfern (Breite fest 740, Einfügestelle immer am Ende, `isCurrent` immer wahr und `beginResponse` ohne Eingabeprüfung)
+  schlugen alle drei Klassen fehl (Generation 9 von 10, Sizing 8 von 10, Slots 5 von 9, XML gelesen); danach zurückgesetzt, im Endstand alle grün.
+- **Bestehende Tests, die Leiste oder `LatinIME` berühren** (`InputLogicTest`, `InputTest`, `FieldEndHooksTest`, `BatchDeliveryTest`, `SuggestTest`, `FlatStyleTest`,
+  `FormatGuardChipsTest`, `ScreenshotChipTest`, `UpdateChipTest`, `StripRequestsTest`, `LastFieldTest`, `FieldSuggestionChipsTest`, `SmartPasteChipsTest`, `KeyboardCommandsTest`,
+  `ClipCommandTest`, `LiveLockGateTest`, `FlatMenuTest`, `FlatPanelTest`, `KeyNodePositionTest`): 539 Tests mit den neuen, 1 Fehler: der geerbte
+  `InputLogicTest.insertLetterIntoWordHangulFails`. Kein bestehender Test und keine Assertion geändert.
+- **Gerätetest-Erweiterung (geschrieben, nicht gelaufen):** `FakeAutofillService` bietet drei Datensätze („Test 73c“, „Test 73c-2“, „Test 73c-3“); `autofill_inline`
+  prüft zusätzlich, dass die Titel-Knoten (`autofill_inline_suggestion_title`) in der Leiste von links nach rechts in dieser Reihenfolge stehen, und tippt den linken Chip; die
+  bisherigen Prüfungen und der Kontrolllauf sind unverändert. Die Test-App kompiliert (`./gradlew -p tools/devicetest :app:assembleDebug`), das Skript besteht `py_compile`.
+  Ungeprüft: ob die Titel-Knoten im Emulator lesbar und eindeutig dem Streifen zugeordnet sind, ob der Dienst drei Datensätze mit den drei Spezifikationen so ausliefert,
+  und ob der Tipp auf den linken Chip weiter trifft.
+- **Nicht geprüft:** echte Passwortmanager, ein echtes Telefon, Drehen mit offenen Chips (ob das System dann eine neue Anfrage stellt), das Verhalten
+  der Plattform bei einer Antwort zwischen Ende und Start der Eingabe, die echte Freigabe der Oberflächen, Aussehen der breiteren Chips (Tablet, Querformat), die Verdrahtung in
+  `LatinIME`/`createView` selbst (nur die Entscheidungslogik ist getestet; `InlineSuggestion` lässt sich ohne Plattform nicht erzeugen).
+
 ## Etappe 77b — Umbenennung in „Ablage“
 
 - **Änderung (nur Wortlaut, keine Logik):** Die Prompt-Ablage heißt „Ablage“, ein Prompt „Eintrag“

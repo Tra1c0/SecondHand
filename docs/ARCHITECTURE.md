@@ -817,6 +817,17 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
   Autofill über `showInlineAutofill` und merkt sich die View; `isShowingInlineAutofill` sagt, ob
   sie noch in der Leiste hängt (`removeExternalSuggestions` vergisst sie). `InputLogic` selbst ist
   unverändert.
+- Etappe 79 (Autofill-Chips robust): `latin/utils/InlineAutofillUtils.java` (neu in der Liste der geänderten
+  Upstream-Dateien) und `LatinIME.java`; die neue Datei `A/InlineAutofill.kt` enthält die drei reinen Helfer
+  `InlineAutofillSizing`, `InlineAutofillSlots` und `InlineAutofillGeneration` (kein Android, kein Text der Vorschläge). `createInlineSuggestionRequest(context, stripWidthPx)` nimmt die Breite
+  aus `A/InlineAutofillSizing` (Leistenbreite oder Anzeigebreite, sonst feste dp; die Mindestbreite skaliert mit der
+  Dichte; weiter drei gleiche `InlinePresentationSpec`). `createView(…, BooleanSupplier isCurrent)` setzt jedes
+  fertige Chip-Bild über `A/InlineAutofillSlots` an die Stelle seines Index und prüft vorher `isCurrent`.
+  `LatinIME` hält eine `A/InlineAutofillGeneration`: `open()` in `onCreateInlineSuggestionsRequest` und am Anfang von
+  `onStartInputInternal`, `close()` in `onFinishInputInternal`, `invalidate()` in `removeExternalSuggestions`,
+  `beginResponse()` je nicht leerer Antwort; ohne aktive Eingabe oder ohne Leiste liefert
+  `onInlineSuggestionsResponse` `false`. Tests: `AT/InlineAutofillSizingTest.kt`, `AT/InlineAutofillSlotsTest.kt`,
+  `AT/InlineAutofillGenerationTest.kt` (P318–P320). `InputLogic`, `RichInputConnection` und `PointerTracker` sind unberührt.
 - `KeyboardActionListenerImpl.kt`: `KeyCode.AGENT_ACTIONS` öffnet im flachen Stil das Panel statt
   des Rads.
 - `InputView.java`: zählt `agent_menu` zu den Overlays. `SettingsActivity.kt`: Extra
@@ -3819,7 +3830,9 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   Inhalt. `ProbeAccessibilityService.java`: Bedienungshilfen-Dienst nur in der Test-App, listet die Knoten
   aller Fenster als JSON und handelt nie; nur solange ein Dienst aktiv ist, legt
   `MainKeyboardView.setKeyboard` die Tasten als Knoten an (P294). `FakeAutofillService.java`: Autofill-Dienst nur in
-  der Test-App für das Szenario `autofill_inline` (73c), bietet feste erfundene Werte als Inline-Vorschlag an,
+  der Test-App für das Szenario `autofill_inline` (73c), bietet seit 79 drei feste erfundene Datensätze mit den Titeln „Test 73c“,
+  „Test 73c-2“, „Test 73c-3“ in dieser Reihenfolge als Inline-Vorschläge an (das Szenario prüft die Reihenfolge der Chips von links nach rechts
+  über die Titel-Knoten und tippt den linken; nicht gelaufen),
   wird nur für dieses Szenario per `settings put secure autofill_service` gewählt und danach abgewählt (P311).
 - Docs-System: `scripts/docs_sync.py` (Konfiguration `scripts/docs_sync.json`),
   `scripts/install-hooks.sh` (optionaler Pre-Commit-Hook), `.claude/hooks/session-start.sh`
@@ -6017,30 +6030,52 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   Chips tut nichts, solange das Fenster nicht sichtbar ist (`this@PromptsView.visibility`, nicht die Sichtbarkeit des Chips): ein veralteter Chip darf
   `rememberedFilter` nicht ändern.
 
+- **P318** Autofill-Chips, Breite (79): Die Breite wird beim Erzeugen der Anfrage gelesen (`mSuggestionStripView.getWidth()`, 0 solange die Leiste nicht
+  gelayoutet ist; dann gilt die Anzeigebreite, ohne beides 280 dp). Davon gehen 66 dp ab (linke Werkzeugtaste 36 dp und Schließen-Knopf 30 dp,
+  `SuggestionStripView.setExternalSuggestionView`); angeheftete Tasten des flachen Stils zählen nicht mit, die Zahl ist eine Obergrenze, kein
+  Layout, denn die Chips liegen in einer `HorizontalScrollView`. Die Anfrage entsteht einmal je Eingabe: Dreht sich das Gerät danach, ohne dass das System neu fragt,
+  bleibt die alte Breite (nicht geprüft, ob es neu fragt). Weiter drei gleiche Spezifikationen (manche Passwortmanager verlangen drei);
+  die Höhe ist weiter `config_suggestions_strip_height`.
+- **P319** Autofill-Chips, Reihenfolge und veraltete Antworten (79): Die Chips werden einzeln aufgeblasen; `InlineAutofillSlots.onResult(index, hasView)` gibt die
+  Einfügestelle (Zahl der schon eingesetzten Chips mit kleinerem Index) oder -1 (Fehlschlag `view == null`, unbekannter oder doppelter Index). Bewusst
+  kein Warten auf alle und kein Zeitlimit: Ein Chip, der nie zurückgerufen wird, hält die anderen nicht auf; kommt er spät, rutscht er an seine Stelle
+  (die Chips dahinter verschieben sich dann). `InlineAutofillGeneration` macht Tokens ungültig bei neuer Anfrage, Start und Ende der Eingabe, neuer Antwort und
+  Schließen durch den Nutzer. Folge: Ein Rückruf eines Fensters, das schon durch Wörter ersetzt wurde (`setNeutralSuggestionStrip`), fügt weiter in
+  einen losgelösten Container ein (harmlos, ohne Wirkung). `onFinishInputInternal` schließt, `onStartInputInternal` und die Anfrage öffnen; die
+  verzögerten Rückrufe nach dem Drehen (`executePendingImsCallback`) führen beide aus, am Ende ist wieder geöffnet. Fällt `open()` aus, würde
+  Autofill still nichts mehr zeigen; darum öffnet auch die Anfrage. Eine Antwort ohne aktive Eingabe liefert `false`.
+- **P320** Autofill-Chips, Freigabe und Datenschutz (79): `InlineContentView` (Android 11+) hat in der öffentlichen Schnittstelle keine Freigabe-Methode (`javap` auf
+  `android.jar` von API 37: nur `getSurfaceControl`, `setSurfaceControlCallback`, `setClipBounds`, `setZOrderedOnTop`, `onLayout`; `InlineSuggestion`
+  nur `inflate`). Darum gibt es keinen Aufruf zum Freigeben; die Ansichten werden mit der Leiste losgelöst (`clear()` entfernt sie) und die Referenz in
+  `LatinIME` wird verworfen. Dass die Oberfläche dann vom System freigegeben wird, ist Plattformverhalten (nach dem Wissen über AOSP, im SDK
+  liegen nur Stubs; auf einem Gerät nicht geprüft). Verhalten, gewollt und hier festgehalten: Die Chips erscheinen auch in Passwortfeldern und im Inkognito-Modus
+  (nur `mSuggestionStripHiddenPerUserSettings` schaltet sie ab), denn ein Passwortmanager braucht genau das; Text und Werte der Vorschläge liest, speichert
+  und loggt die Tastatur nicht (nur „onInlineSuggestionsResponse called“).
+
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (680 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (685 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (6): agent-apk, agent-tests, build-debug-apk, build-test-auto, device-tests,
   docs-check
 - `/` (1): settings
-- `A/` (91): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (92): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand,
   ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand, CorrectionMemory,
   DateCommand, DebugModeReset, DesignLook, DesignTiles, Diagnose, Dictation, EmojiCommand,
   EmojiMixPalette, EmojiSuggestions, EncryptedActionRunStore, EventCommand, FieldCorrections,
   FieldSuggestionChips, FlatMenuView, FlatPanelStyle, FlatPreset, ForcedApps, ForeignWords,
-  FormatGuardChips, GermanVerbLemmas, HapticChain, InformalWordsStore, JournaledModelCall,
-  JournaledRun, KeyboardCommands, KeyboardProfileStore, LastField, LearningData, LoadingDotsView,
-  LockState, ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData, MyDesigns,
-  OnDeviceSpeechEngine, PlaceCommand, PromptStore, RgbKeyPainter, RgbLighting, RgbOwnPatterns,
-  RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand,
+  FormatGuardChips, GermanVerbLemmas, HapticChain, InformalWordsStore, InlineAutofill,
+  JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore, LastField, LearningData,
+  LoadingDotsView, LockState, ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData,
+  MyDesigns, OnDeviceSpeechEngine, PlaceCommand, PromptStore, RgbKeyPainter, RgbLighting,
+  RgbOwnPatterns, RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand,
   SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SmartPasteChips, SpaceDetents,
   SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary, ToolLauncher,
   TouchCalibration, TouchModel, TypedWordFirst, TypingPerf, TypoMemory, WorkflowApprovalSummary,
@@ -6057,7 +6092,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (113): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (116): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, CharArtWindowTest, ClipCachesTest, ClipCommandTest, ClipVaultTest,
@@ -6067,7 +6102,8 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, FieldCorrectionMemoryTest,
   FieldSuggestionChipsTest, FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest,
   FlatStyleTest, ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest,
-  HardeningClipHistoryTest, InformalWordsStoreTest, InsertAtCursorTest, JournaledModelCallTest,
+  HardeningClipHistoryTest, InformalWordsStoreTest, InlineAutofillGenerationTest,
+  InlineAutofillSizingTest, InlineAutofillSlotsTest, InsertAtCursorTest, JournaledModelCallTest,
   KeyNodePositionTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LastFieldTest,
   LearningDataTest, LiveLockGateTest, LoadingDotsViewTest, LongTextBudgetTest,
   ManualWorkflowDraftTest, MemoryScreenTest, MoreCommandsTest, MoreProvidersTest, MyDataScreenTest,
@@ -6138,8 +6174,8 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `K/latin/settings/` (2): Defaults, SettingsValues
 - `K/latin/spellcheck/` (1): AndroidSpellCheckerService
 - `K/latin/suggestions/` (2): FlatStrip, SuggestionStripView
-- `K/latin/utils/` (6): CapsModeUtils, DictionaryInfoUtils, DictionaryUtils, LayoutUtilsCustom,
-  SubtypeUtils, ToolbarUtils
+- `K/latin/utils/` (7): CapsModeUtils, DictionaryInfoUtils, DictionaryUtils, InlineAutofillUtils,
+  LayoutUtilsCustom, SubtypeUtils, ToolbarUtils
 - `K/settings/` (4): SearchScreen, SettingsActivity, SettingsContainer, SettingsNavHost
 - `K/settings/dialogs/` (2): ColorPickerDialog, SliderDialog
 - `K/settings/preferences/` (5): BackupRestorePreference, CustomFontPreference,

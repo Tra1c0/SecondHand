@@ -11,5 +11,6 @@
 - Der Screenshot-Chip schreibt bei Fehlern nur noch die Fehlerklasse ins Systemprotokoll, keine Pfade.
 - Der Hinweis „Build … verfügbar“ in der Leiste erscheint nicht mehr in Passwortfeldern.
 - Die Tastatur meldet Bedienungshilfen (Screenreadern) die Lage ihrer Tasten jetzt genauer.
+- **Autofill-Vorschläge (Passwortmanager) in der Leiste**: Die Chips richten sich nach der echten Breite der Leiste und der Bildschirmdichte (vorher fest 740 Pixel), stehen in der Reihenfolge, die der Passwortmanager vorgibt, und eine verspätete Antwort für ein früheres Feld erscheint nicht mehr. Sie erscheinen weiter auch in Passwortfeldern und im Inkognito-Modus, denn dafür ist ein Passwortmanager da.
 
 Nur mit automatischen Tests geprüft, noch nicht auf einem Telefon: Langdruck auf die Komma-Taste, Aussehen von Symbol und Fenster (auch im Querformat), das Tempo mit sehr vielen langen Prompts, das Wiederherstellen der Prompts im echten Dialog und die Buchstabendreher mit den echten Wörterbüchern („ort“, „rest“, „titel“ dürfen nicht verändert werden). Die letzte Fassung der Buchstabendreher hat noch kein zweiter Prüfer gelesen.
