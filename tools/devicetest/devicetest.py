@@ -885,8 +885,7 @@ SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete
 # KNOWN and does not turn the run red, like the five inherited failures of the unit tests. A KNOWN
 # scenario that passes turns the run red, so the list cannot go stale.
 KNOWN_FINDINGS = {
-    "autocorrect_typo": "run 17: the real dictionary offers IDE, ist, die for 'idr' and leaves it",
-    "autocorrect_typo_in_sentence": "run 17: 'wie geht es idr' stays, same offers",
+    # empty since stage 75 (swapped letters): "idr" is expected to become "dir" again
 }
 
 
