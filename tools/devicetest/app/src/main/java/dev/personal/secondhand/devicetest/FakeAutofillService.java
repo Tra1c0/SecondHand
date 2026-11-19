@@ -26,15 +26,20 @@ import androidx.autofill.inline.v1.InlineSuggestionUi;
 import java.util.List;
 
 /**
- * Test-only autofill service for the inline-suggestion scenario (stage 73c). It offers one fixed,
- * obviously fake login for the fields of MainActivity that carry the autofill hints "username" and
- * "password", as an inline suggestion for the keyboard's suggestion strip. No real data, no network,
+ * Test-only autofill service for the inline-suggestion scenario (stage 73c). It offers three fixed,
+ * obviously fake logins (stage 79: in a fixed order, with distinct titles, so the scenario can check the
+ * order of the chips) for the fields of MainActivity that carry the autofill hints "username" and
+ * "password", as inline suggestions for the keyboard's suggestion strip. No real data, no network,
  * nothing is logged, nothing is saved. It is selected only by devicetest.py, only for that scenario.
  */
 public class FakeAutofillService extends AutofillService {
     static final String FAKE_USER = "testnutzer@example.invalid";
     static final String FAKE_PASSWORD = "Testpasswort-73c";
     static final String CHIP_TITLE = "Test 73c";
+    // stage 79: the datasets in the order the service ranks them; only the first one is ever tapped
+    static final String[] CHIP_TITLES = {CHIP_TITLE, "Test 73c-2", "Test 73c-3"};
+    static final String[] FAKE_USERS = {FAKE_USER, "testnutzer2@example.invalid", "testnutzer3@example.invalid"};
+    static final String[] FAKE_PASSWORDS = {FAKE_PASSWORD, "Testpasswort-73c-2", "Testpasswort-73c-3"};
 
     @Override
     public void onFillRequest(FillRequest request, CancellationSignal cancellationSignal, FillCallback callback) {
@@ -49,19 +54,23 @@ public class FakeAutofillService extends AutofillService {
             return;
         }
         final InlineSuggestionsRequest inline = request.getInlineSuggestionsRequest();
-        final InlinePresentation presentation = inline == null ? null : chip(inline);
 
-        final Dataset.Builder dataset = new Dataset.Builder(listItem());
-        if (ids[0] != null) {
-            dataset.setValue(ids[0], AutofillValue.forText(FAKE_USER));
+        final FillResponse.Builder response = new FillResponse.Builder();
+        for (int i = 0; i < CHIP_TITLES.length; i++) {
+            final InlinePresentation presentation = inline == null ? null : chip(inline, i);
+            final Dataset.Builder dataset = new Dataset.Builder(listItem(CHIP_TITLES[i]));
+            if (ids[0] != null) {
+                dataset.setValue(ids[0], AutofillValue.forText(FAKE_USERS[i]));
+            }
+            if (ids[1] != null) {
+                dataset.setValue(ids[1], AutofillValue.forText(FAKE_PASSWORDS[i]));
+            }
+            if (presentation != null) {
+                dataset.setInlinePresentation(presentation);
+            }
+            response.addDataset(dataset.build());
         }
-        if (ids[1] != null) {
-            dataset.setValue(ids[1], AutofillValue.forText(FAKE_PASSWORD));
-        }
-        if (presentation != null) {
-            dataset.setInlinePresentation(presentation);
-        }
-        callback.onSuccess(new FillResponse.Builder().addDataset(dataset.build()).build());
+        callback.onSuccess(response.build());
     }
 
     @Override
@@ -69,21 +78,22 @@ public class FakeAutofillService extends AutofillService {
         callback.onSuccess();
     }
 
-    private RemoteViews listItem() {
+    private RemoteViews listItem(String title) {
         final RemoteViews views = new RemoteViews(getPackageName(), android.R.layout.simple_list_item_1);
-        views.setTextViewText(android.R.id.text1, CHIP_TITLE);
+        views.setTextViewText(android.R.id.text1, title);
         return views;
     }
 
-    private InlinePresentation chip(InlineSuggestionsRequest request) {
+    private InlinePresentation chip(InlineSuggestionsRequest request, int index) {
         final List<InlinePresentationSpec> specs = request.getInlinePresentationSpecs();
         if (specs.isEmpty()) return null;
-        final InlinePresentationSpec spec = specs.get(0);
+        // one spec per dataset; the last one is used for any beyond the specs the keyboard offered
+        final InlinePresentationSpec spec = specs.get(Math.min(index, specs.size() - 1));
         if (!UiVersions.getVersions(spec.getStyle()).contains(UiVersions.INLINE_UI_VERSION_1)) return null;
         final PendingIntent attribution = PendingIntent.getActivity(this, 0,
                 new Intent(this, MainActivity.class), PendingIntent.FLAG_IMMUTABLE);
         return new InlinePresentation(
-                InlineSuggestionUi.newContentBuilder(attribution).setTitle(CHIP_TITLE).build().getSlice(),
+                InlineSuggestionUi.newContentBuilder(attribution).setTitle(CHIP_TITLES[index]).build().getSlice(),
                 spec, false);
     }
 
