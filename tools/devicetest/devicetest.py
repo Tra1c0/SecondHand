@@ -790,10 +790,11 @@ def prompt_store(d):
     offered = sorted(d.popup_of(","))
     d.expect_equal("the store's key in the popup of a password field (popup %s)" % offered[:8],
                    any("prompt" in name.lower() for name in offered), False)
-    try:
-        d.expect_field("password", "")
-    except CheckFailed as error:
-        raise CheckFailed("%s | %s" % (str(error)[:120], d.hold_info[:400]))
+    # Lifting the finger outside the popup may type the held key's own comma (run 36); anything else in
+    # the password field, above all a prompt or the copied text, is a failure.
+    left = d.field("password")
+    d.expect_equal("the password field holds nothing but the held key's own comma (got %r; %s)"
+                   % (left, d.hold_info[:300]), left in ("", ","), True)
 
 
 def learning_not_in_password(d):
