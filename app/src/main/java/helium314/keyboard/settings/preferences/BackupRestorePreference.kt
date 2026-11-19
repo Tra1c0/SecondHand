@@ -182,7 +182,7 @@ private fun restoreLauncher(onError: (String) -> Unit): ManagedActivityResultLau
             val result = restoreWithRollback(folders, restoredDb, ctx.prefs(), ctx.protectedPrefs()) {
                 var anyMatch = false
                 var promptBytes: ByteArray? = null // stage 76: applied at the very end, so nothing else can fail after it
-                var promptsInvalid = false
+                var promptsFound = false
                 val filesDir = ctx.filesDir!!
                 val deviceProtectedFilesDir = DeviceProtectedUtils.getFilesDir(ctx)
                 ctx.getActivity()?.contentResolver?.openInputStream(uri)?.use { inputStream ->
@@ -194,7 +194,7 @@ private fun restoreLauncher(onError: (String) -> Unit): ManagedActivityResultLau
                             if (isPromptsEntry(entry.name)) {
                                 // matched exactly, never used as a path; too large reads as invalid
                                 promptBytes = readPromptsEntry(zip)
-                                promptsInvalid = promptBytes == null
+                                promptsFound = true
                                 anyMatch = true
                             } else if (entry.name.startsWith("unprotected${File.separator}")) {
                                 val adjustedName = entry.name.substringAfter("unprotected${File.separator}")
@@ -231,8 +231,7 @@ private fun restoreLauncher(onError: (String) -> Unit): ManagedActivityResultLau
                 Database.copyFromDb(restoredDb, ctx)
                 // the prompt file lives in noBackupFilesDir, outside both folders of the roll-back: it is written last
                 // and atomically, so a failed restore never reaches it and it is either replaced or untouched
-                if (promptsInvalid) Log.w("AdvancedScreen", "skipping invalid prompts in backup")
-                else promptBytes?.let { restorePrompts(PromptStore(ctx), it) }
+                restorePromptsFromBackup(PromptStore(ctx), promptsFound, promptBytes)
             }
             if (result.ok) {
                 if (Looper.myLooper() == null)
@@ -289,6 +288,16 @@ internal fun restorePrompts(store: PromptStore, bytes: ByteArray): PromptError? 
     val result = store.replaceAll(bytes)
     if (!result.ok) Log.w("AdvancedScreen", "prompts not restored: ${result.error}")
     return result.error
+}
+
+/**
+ * Stage 76: the prompts part of a restore. No entry in the zip (an older backup): nothing happens, existing prompts stay.
+ * An entry that is too large ([bytes] null) or invalid: existing prompts stay. Otherwise they are replaced. Never throws.
+ */
+internal fun restorePromptsFromBackup(store: PromptStore, entryFound: Boolean, bytes: ByteArray?): PromptError? {
+    if (!entryFound) return null
+    if (bytes == null) return PromptError.INVALID_TEXT.also { Log.w("AdvancedScreen", "skipping prompts that are too large in backup") }
+    return restorePrompts(store, bytes)
 }
 
 private fun checkSettingsRestore(ctx: android.content.Context, result: SettingsRestore) {

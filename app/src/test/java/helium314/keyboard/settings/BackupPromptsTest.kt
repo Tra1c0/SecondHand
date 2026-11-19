@@ -8,7 +8,7 @@ import helium314.keyboard.agent.security.credentialContext
 import helium314.keyboard.settings.preferences.PROMPTS_ENTRY_NAME
 import helium314.keyboard.settings.preferences.isPromptsEntry
 import helium314.keyboard.settings.preferences.readPromptsEntry
-import helium314.keyboard.settings.preferences.restorePrompts
+import helium314.keyboard.settings.preferences.restorePromptsFromBackup
 import helium314.keyboard.settings.preferences.writePromptsEntry
 import org.junit.Before
 import org.junit.Test
@@ -80,9 +80,7 @@ class BackupPromptsTest {
                 if (isPromptsEntry(e.name)) { bytes = readPromptsEntry(z); found = true }
             }
         }
-        if (!found) return null
-        val b = bytes ?: return PromptError.INVALID_TEXT
-        return restorePrompts(store, b)
+        return restorePromptsFromBackup(store, found, bytes)
     }
 
     private fun titles() = store.read().map { it.title }
