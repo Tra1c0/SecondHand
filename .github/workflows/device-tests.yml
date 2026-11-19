@@ -1,0 +1,168 @@
+# Device tests (stage 73): builds the shipped variant of the keyboard and the small test app, boots an
+# Android 14 emulator on the GitHub runner (KVM) and lets tools/devicetest/devicetest.py type on the
+# real keyboard and compare what arrives in the fields. Result: one RESULT line per scenario and a
+# SUMMARY line in the job log, the same as a table in the job summary, and the artifact
+# "device-test-<n>" with the screen recording, one screenshot per scenario and results.json.
+# No secrets are used; the APK is signed with the runner's throw-away debug key and is never published.
+# An emulator is not a phone: green means "these scenarios, in this emulator" (docs/VALIDATION.md).
+name: SecondHand Device Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      repeats:
+        description: 'How many emulators run all scenarios, each freshly booted (to find flaky tests)'
+        type: choice
+        default: '1'
+        options: [ '1', '3', '5' ]
+      control:
+        description: 'Control run: the last character of every typed text is left out, the run MUST turn red'
+        type: boolean
+        default: false
+  push:
+    branches: [ 'claude/**', main ]
+    paths:
+      - 'app/**'
+      - 'agent-core/**'
+      - 'tools/devicetest/**'
+      - '*.gradle*'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - '.github/workflows/device-tests.yml'
+
+concurrency:
+  group: device-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build the APKs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 # v3.5.0
+
+      - name: Android SDK packages
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" 'platforms;android-37.0' 'build-tools;36.0.0' 'ndk;28.0.13004108' > /dev/null
+
+      # The variant the owner installs. --abi x86_64: with an injected ABI Gradle builds the native keyboard
+      # library only for that ABI, and the emulator is x86_64 (the released APK carries all four).
+      - name: Build the keyboard (debugNoMinify)
+        env:
+          LC_ALL: C.UTF-8
+          LANG: C.UTF-8
+        run: |
+          chmod +x gradlew
+          python3 tools/dev.py build --abi x86_64 > build-keyboard.log 2>&1 || { tail -n 60 build-keyboard.log; exit 1; }
+          tail -n 4 build-keyboard.log
+
+      - name: Build the test app
+        run: |
+          ./gradlew -p tools/devicetest :app:assembleDebug --console=plain > build-testapp.log 2>&1 \
+            || { tail -n 60 build-testapp.log; exit 1; }
+          tail -n 3 build-testapp.log
+
+      - name: Collect the APKs
+        run: |
+          set -euo pipefail
+          mkdir apks
+          count=$(ls artifacts/*.apk | wc -l)
+          if [ "$count" != "1" ]; then echo "::error::expected one keyboard APK, found $count"; exit 1; fi
+          cp artifacts/*.apk apks/keyboard.apk
+          cp tools/devicetest/app/build/outputs/apk/debug/app-debug.apk apks/testapp.apk
+          # the emulator is x86_64: the keyboard must carry its native library for it
+          unzip -l apks/keyboard.apk | grep -q 'lib/x86_64/libjni_latinime.so' \
+            || { echo "::error::the keyboard APK has no x86_64 library"; exit 1; }
+          # the helpers of the test (accessibility probe) must only be in the test app
+          if unzip -l apks/keyboard.apk | grep -qi 'devicetest'; then
+            echo "::error::test code found in the keyboard APK"; exit 1
+          fi
+          sha256sum apks/*.apk
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: apks
+          path: apks/*.apk
+          retention-days: 3
+          if-no-files-found: error
+
+  emulator:
+    name: Emulator ${{ matrix.attempt }}
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        attempt: ${{ fromJSON(inputs.repeats == '5' && '[1,2,3,4,5]' || inputs.repeats == '3' && '[1,2,3]' || '[1]') }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: apks
+          path: apks
+
+      # The runner user may not open /dev/kvm by default (README of the emulator action).
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+
+      - name: Run the scenarios in the emulator
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        env:
+          DEVICETEST_FLAGS: ${{ inputs.control && '--control' || '' }}
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          cores: 4
+          ram-size: 4096M
+          disable-animations: true
+          emulator-boot-timeout: 600
+          script: python3 -I tools/devicetest/devicetest.py --keyboard-apk apks/keyboard.apk --test-apk apks/testapp.apk --out device-test-out $DEVICETEST_FLAGS
+
+      - name: Upload the recording, screenshots and results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: device-test-${{ matrix.attempt }}
+          path: device-test-out
+          retention-days: 14
+          if-no-files-found: warn
+
+      # Last step on purpose: its output is the end of the job log. It fails when the script left no
+      # result or a failed one, so a crashed run can never look green.
+      - name: Results
+        if: ${{ always() }}
+        run: |
+          if [ ! -f device-test-out/results.json ]; then
+            echo "::error::no results.json: the scenarios did not run"
+            echo "### Device tests: NO RESULT (the scenarios did not run)" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          cat device-test-out/summary.md >> "$GITHUB_STEP_SUMMARY"
+          cat device-test-out/summary.md
+          ls -l device-test-out | tail -n +2 | awk '{print $5, $9}'
+          python3 -I -c "import json,sys; sys.exit(0 if json.load(open('device-test-out/results.json'))['ok'] is True else 1)"

@@ -3624,6 +3624,24 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `agent-apk.yml`), die fünf bekannten Fehler mit exakten Namen und je Job eine Mindestzahl an Tests.
   `CT/WorkflowContractTest.kt` (agent-core, Tests) liest `agent-apk.yml` als Text und hält Tag, Dateinamen,
   Repository und Zertifikat (gegen `docs/BUILD.md`) gleich `UpdateReleases`.
+- Gerätetests im Emulator (73, `docs/BUILD.md` → Gerätetests im Emulator): `.github/workflows/device-tests.yml`
+  baut die ausgelieferte Variante (`tools/dev.py build --abi x86_64`) und die Test-App, startet auf dem
+  GitHub-Runner einen Emulator (Android 14, `google_apis`, x86_64, KVM) und ruft
+  `tools/devicetest/devicetest.py` auf (`python3 -I`, nur Standardbibliothek). Das Skript installiert beide
+  APKs, stellt die Systemsprachen auf Deutsch und Englisch, macht die Tastatur zur aktuellen
+  Eingabemethode, liest die Knoten aller Fenster über die Test-App (`adb shell content read` auf
+  `DumpProvider.java`, der `ProbeAccessibilityService.java` fragt), findet darin die Tasten, tippt mit `input tap` und vergleicht
+  den Feldinhalt. Ergebnis: `RESULT`- und `SUMMARY`-Zeilen im Job-Log, Tabelle in der Job-Zusammenfassung,
+  Artefakt `device-test-<n>` (Aufnahme, Screenshots, Ergebnisdatei). `--control` lässt das letzte Zeichen
+  jedes getippten Textes weg; dann muss jedes Szenario scheitern.
+  Die Test-App ist ein eigenes Gradle-Projekt (`tools/devicetest/settings.gradle.kts`,
+  `tools/devicetest/build.gradle.kts`, `tools/devicetest/app/build.gradle.kts`,
+  `tools/devicetest/app/src/main/AndroidManifest.xml`), gebaut mit
+  `./gradlew -p tools/devicetest :app:assembleDebug`; das Haupt-`settings.gradle` kennt sie nicht.
+  `MainActivity.java`: vier Felder (Text, Passwort, E-Mail, Zahl) und je eine Spiegelzeile mit dem echten
+  Inhalt. `ProbeAccessibilityService.java`: Bedienungshilfen-Dienst nur in der Test-App, listet die Knoten
+  aller Fenster als JSON und handelt nie; nur solange ein Dienst aktiv ist, legt
+  `MainKeyboardView.setKeyboard` die Tasten als Knoten an (P294).
 - Docs-System: `scripts/docs_sync.py` (Konfiguration `scripts/docs_sync.json`),
   `scripts/install-hooks.sh` (optionaler Pre-Commit-Hook), `.claude/hooks/session-start.sh`
   (registriert in `.claude/settings.json`). Bedienung: `docs/HANDOFF.md` → Arbeitsweise.
@@ -5654,17 +5672,31 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   „Idee“): „seee“ und „Kaffeee“ bleiben deshalb stehen, wie getippt; das ist der Preis dafür, „neee“ zu schützen (nach dem Wörterbuch
   lässt es sich nicht unterscheiden, der Kern kennt keins). Ein versehentlich gehaltenes „wennnnn“ wird nicht korrigiert; auf einem
   Touch-Feld ist das selten. Wörter mit Wiederholung in der Mitte („Schifffahrt“, „Kaffeeernte“) sind nicht betroffen: nur der Wortschluss zählt.
+- **P294** Gerätetests (73): Die Tasten sind nur dann einzelne Bedienungshilfen-Knoten, wenn beim
+  Aufbau der Tastatur (`MainKeyboardView.setKeyboard`) ein Bedienungshilfen-Dienst aktiv ist (`AccessibilityManager.isEnabled`).
+  Nie `am force-stop` auf die Test-App: Android beendet und deaktiviert damit auch ihren Dienst (GitHub-Lauf 5: „probe is not
+  connected“; in den Läufen 2 und 4 fehlten deshalb die Tasten im `uiautomator`-Dump, das Skript stoppte die App vor jedem
+  Szenario). Ob `uiautomator dump --windows` die Tasten bei laufendem Dienst zeigen würde, ist nicht geprüft; der
+  `ProbeAccessibilityService` der Test-App liest die Fenster selbst aus. Er fordert kein
+  „Tippen zum Erkunden“ an: Alles, was das Tippen ändert, hängt an `isTouchExplorationEnabled`. In Passwortfeldern heißen
+  alle Zeichentasten „Aufzählungspunkt“, solange `settings put secure speak_password 1` nicht gesetzt ist
+  (`AccessibilityUtils.shouldObscureInput`). Eine Trenntaste (Leertaste, Punkt) heißt bei anstehender Autokorrektur
+  „Mit Leertaste wird "x" in "y" geändert.“ (`getAutoCorrectionDescription`); `devicetest.py` löst das auf. Mit
+  `-Pandroid.injected.build.abi=<ABI>` (`tools/dev.py build --abi …`) baut Gradle `libjni_latinime.so` nur für diese eine
+  ABI: für den Emulator `--abi x86_64`, sonst fehlt die Bibliothek dort (am 2026-11-19 an der Dateiliste der APK
+  nachgesehen; nur `libandroidx.graphics.path.so` liegt für alle vier ABIs bei).
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (653 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (662 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
-- `.github/workflows/` (5): agent-apk, agent-tests, build-debug-apk, build-test-auto, docs-check
+- `.github/workflows/` (6): agent-apk, agent-tests, build-debug-apk, build-test-auto, device-tests,
+  docs-check
 - `/` (1): settings
 - `A/` (90): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
@@ -5846,6 +5878,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `app/src/test/java/helium314/keyboard/latin/inputlogic/` (1): BatchDeliveryTest
 - `scripts/` (3): docs_sync, docs_sync, install-hooks
 - `tools/` (3): build_german_verb_lemmas, dev, emoji_mix_table
+- `tools/devicetest/` (3): build.gradle, devicetest, settings.gradle
+- `tools/devicetest/app/` (1): build.gradle
+- `tools/devicetest/app/src/main/` (1): AndroidManifest
+- `tools/devicetest/app/src/main/java/dev/personal/secondhand/devicetest/` (3): DumpProvider,
+  MainActivity, ProbeAccessibilityService
 
 </details>
 <!-- /gen:inventory -->
