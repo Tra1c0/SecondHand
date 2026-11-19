@@ -68,3 +68,43 @@ class InlineAutofillSlots(private val count: Int) {
     /** How many chips are in the row now. */
     val placed: Int get() = present.count { it }
 }
+
+/**
+ * Stage 79 (W-c): which inline autofill response and which late inflation callback still belong to what the
+ * keyboard shows. Every response gets a token; a new response, a new input, a finished input or the user closing
+ * the chips makes older tokens stale, and a stale callback adds nothing. Main thread only.
+ */
+class InlineAutofillGeneration {
+    private var generation = 0
+    private var open = false
+
+    /** An input started or the system asked for a new request: responses are accepted, older ones are stale. */
+    fun open() {
+        generation++
+        open = true
+    }
+
+    /** The input finished: responses that arrive now belong to nothing, and everything in flight is stale. */
+    fun close() {
+        generation++
+        open = false
+    }
+
+    /** Everything in flight is stale (the user closed the chips), but responses are still accepted. */
+    fun invalidate() {
+        generation++
+    }
+
+    /** The token for a response that just arrived, or [NONE] if no input is active; it makes all older tokens stale. */
+    fun beginResponse(): Int {
+        if (!open) return NONE
+        generation++
+        return generation
+    }
+
+    fun isCurrent(token: Int): Boolean = open && token != NONE && token == generation
+
+    companion object {
+        const val NONE = -1
+    }
+}

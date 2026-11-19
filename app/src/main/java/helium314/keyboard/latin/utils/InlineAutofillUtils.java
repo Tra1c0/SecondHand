@@ -41,6 +41,7 @@ import androidx.autofill.inline.v1.InlineSuggestionUi.Style;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 
 import helium314.keyboard.agent.InlineAutofillSizing;
 import helium314.keyboard.agent.InlineAutofillSlots;
@@ -107,8 +108,12 @@ public class InlineAutofillUtils {
                 .build();
     }
 
+    /**
+     * @param isCurrent whether the response still belongs to what the keyboard shows; a late inflation of a
+     *                  stale response adds nothing (stage 79)
+     */
     public static InlineContentClipView createView(final List<InlineSuggestion> inlineSuggestions,
-                                                   final Context context) {
+                                                   final Context context, final BooleanSupplier isCurrent) {
         LinearLayout container = new LinearLayout(context);
         // fork, stage 79: the callbacks come in any order (or never); each chip goes to the place its index asks for
         final InlineAutofillSlots slots = new InlineAutofillSlots(inlineSuggestions.size());
@@ -116,6 +121,7 @@ public class InlineAutofillUtils {
             final int index = i;
             inlineSuggestions.get(i).inflate(context, new Size(ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT), context.getMainExecutor(), (view) -> {
+                if (!isCurrent.getAsBoolean()) return; // the field changed or the chips were replaced meanwhile
                 final int position = slots.onResult(index, view != null);
                 if (position >= 0)
                     container.addView(view, position);

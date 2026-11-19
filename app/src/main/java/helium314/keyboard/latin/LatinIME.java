@@ -982,6 +982,7 @@ public class LatinIME extends InputMethodService implements
 
     private void onStartInputInternal(EditorInfo editorInfo, boolean restarting) {
         super.onStartInput(editorInfo, restarting);
+        mInlineAutofillGeneration.open(); // fork, stage 79: answers to an earlier input are stale
 
         // fork, stage 24g fix (P66): a language command's choice survives the app restarting the same field
         if (helium314.keyboard.agent.commands.SubtypeChoice.holds(editorInfo, mRichImm.getCurrentSubtype().getRawSubtype(), () -> mSubtypeState.getSubtypeForLocales(
@@ -1190,6 +1191,7 @@ public class LatinIME extends InputMethodService implements
     void onFinishInputInternal() {
         super.onFinishInput();
         Log.i(TAG, "onFinishInput");
+        mInlineAutofillGeneration.close(); // fork, stage 79: an inline response arriving now belongs to nothing
         helium314.keyboard.agent.SymbolDrawing.reset(); // stage 27: a waiting drawing never reaches a finished editor
         helium314.keyboard.agent.ClipVault.fieldFinished(mInputLogic.mFieldCorrections); // fork, stage 65: no active field, the last field's text does not stay in memory
 
@@ -1474,6 +1476,7 @@ public class LatinIME extends InputMethodService implements
             return null;
         }
 
+        mInlineAutofillGeneration.open(); // fork, stage 79: a new request, responses to older ones are stale
         // fork, stage 79: the chips may be as wide as the strip really is (0 while it is not laid out yet)
         return InlineAutofillUtils.createInlineSuggestionRequest(mDisplayContext,
                 hasSuggestionStripView() ? mSuggestionStripView.getWidth() : 0);
@@ -1492,13 +1495,22 @@ public class LatinIME extends InputMethodService implements
             return false;
         }
 
-        final View inlineSuggestionView = InlineAutofillUtils.createView(inlineSuggestions, mDisplayContext);
+        // fork, stage 79: nothing for a finished input or a strip that is not there; a newer response makes older ones stale
+        final int token = mInlineAutofillGeneration.beginResponse();
+        if (token == helium314.keyboard.agent.InlineAutofillGeneration.NONE || !hasSuggestionStripView()) {
+            return false;
+        }
+
+        final View inlineSuggestionView = InlineAutofillUtils.createView(inlineSuggestions, mDisplayContext,
+                () -> mInlineAutofillGeneration.isCurrent(token));
         showInlineAutofill(inlineSuggestionView);
         return true;
     }
 
     // the inline autofill view while it may be shown; the screenshot chip (stage 23g) leaves it in place
     private View mInlineAutofillView;
+    private final helium314.keyboard.agent.InlineAutofillGeneration mInlineAutofillGeneration =
+            new helium314.keyboard.agent.InlineAutofillGeneration(); // stage 79
 
     void showInlineAutofill(final View inlineSuggestionView) {
         mInlineAutofillView = inlineSuggestionView;
@@ -1850,6 +1862,7 @@ public class LatinIME extends InputMethodService implements
     @Override
     public void removeExternalSuggestions() {
         mInlineAutofillView = null; // closed by the user
+        mInlineAutofillGeneration.invalidate(); // stage 79: chips still being inflated do not come back
         setNeutralSuggestionStrip();
         mHandler.postResumeSuggestions(false);
     }
