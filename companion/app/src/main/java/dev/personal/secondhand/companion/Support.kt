@@ -17,6 +17,9 @@ interface Probe {
     /** Battery temperature in degrees Celsius (ACTION_BATTERY_CHANGED), or null when the phone does not report it. */
     fun batteryTempC(): Double?
 
+    /** MemAvailable of the system in bytes (what the memory guard compares), or -1. */
+    fun memAvailableBytes(): Long
+
     /** Free space of the app's storage in bytes, or -1. */
     fun freeStorageBytes(): Long
 

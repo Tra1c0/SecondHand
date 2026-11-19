@@ -11,8 +11,8 @@ class PullPlannerTest {
     private val instruct = PullPlanner.INSTRUCT_V66
     private val qwen3 = PullPlanner.QWEN3_V66
 
-    @Test fun theOrderIsInstructFirstThenQwen3_bothFromTheReleaseBuiltWithTheRuntimesQairt() {
-        assertEquals(listOf(instruct, qwen3), PullPlanner.CANDIDATES)
+    @Test fun theSmallModelsComeFirstThenTheTwo4BOnes_allFromTheReleaseBuiltWithTheRuntimesQairt() {
+        assertEquals(listOf(PullPlanner.QWEN3_1_7B_V66, PullPlanner.QWEN3_0_6B_V66, instruct, qwen3), PullPlanner.CANDIDATES)
         assertTrue(PullPlanner.CANDIDATES.all { it.release == "v0.66.0" && it.expectedQairt == "2.50" })
         assertNotEquals(instruct.id, qwen3.id)
         assertEquals("local/qwen3-4b-instruct-2507-v066|v0.66.0", instruct.id)
@@ -30,7 +30,7 @@ class PullPlannerTest {
     @Test fun storeNamesAreLocalAndTheEarlierAppsNamesAreKnownForCleanup() {
         assertTrue(PullPlanner.CANDIDATES.all { it.modelName.startsWith("local/") })
         assertTrue(PullPlanner.ALL_MODEL_NAMES.containsAll(listOf("ai-hub-models/Qwen3-4B", "ai-hub-models/Qwen3-4B-Instruct-2507")))
-        assertEquals(PullPlanner.CANDIDATES.map { it.modelName }, PullPlanner.ALL_MODEL_NAMES.take(2)) // candidates preferred
+        assertEquals(PullPlanner.CANDIDATES.map { it.modelName }, PullPlanner.ALL_MODEL_NAMES.take(PullPlanner.CANDIDATES.size)) // candidates preferred
     }
 
     @Test fun aBundleBelongsToACandidateByStoreNameAndQairtVersion() {
@@ -57,16 +57,16 @@ class PullPlannerTest {
 
     @Test fun everyCandidateDialogTextSaysSizeAndThatItMayFail() {
         PullPlanner.CANDIDATES.forEach {
-            assertTrue(it.sizeText.contains("2,7 GB"))
+            assertTrue(it.sizeText.contains(" GB"))
             assertTrue(it.difference.contains("Es kann scheitern"))
         }
         assertTrue(qwen3.difference.contains("ANDERES Modell"))
     }
 
     @Test fun currentIsTheFirstCandidateNotGivenUp() {
-        assertEquals(instruct, PullPlanner.current(emptySet()))
-        assertEquals(qwen3, PullPlanner.current(setOf(instruct.id)))
-        assertNull(PullPlanner.current(setOf(instruct.id, qwen3.id)))
+        assertEquals(PullPlanner.QWEN3_1_7B_V66, PullPlanner.current(emptySet()))
+        assertEquals(qwen3, PullPlanner.current(PullPlanner.CANDIDATES.map { it.id }.toSet() - qwen3.id))
+        assertNull(PullPlanner.current(PullPlanner.CANDIDATES.map { it.id }.toSet()))
     }
 
     @Test fun nextSkipsGivenUpOnesAndEnds() {
@@ -121,5 +121,27 @@ class PullPlannerTest {
         assertTrue(PullPlanner.looksLikeChipsetUnavailable("REQUESTED CHIPSET NOT AVAILABLE FOR THIS MODEL"))
         assertFalse(PullPlanner.looksLikeChipsetUnavailable("   "))
         assertFalse(PullPlanner.looksLikeChipsetUnavailable("size 14031 bytes"))
+    }
+
+    @Test fun theSmallModelsAreTheExactFilesOfReleaseV066() {
+        val s17 = PullPlanner.QWEN3_1_7B_V66
+        val s06 = PullPlanner.QWEN3_0_6B_V66
+        assertTrue(s17.zipUrl.contains("/qwen3_1_7b/releases/v0.66.0/qwen3_1_7b-geniex_qairt-w4a16-qualcomm_snapdragon_8_elite_for_galaxy.zip"))
+        assertTrue(s06.zipUrl.contains("/qwen3_0_6b/releases/v0.66.0/"))
+        assertEquals(1_534_158_813L, s17.zipBytes)
+        assertEquals(640_473_082L, s06.zipBytes)
+        assertEquals("local/qwen3-1-7b-v066", s17.modelName)
+        assertTrue(s17.zipBytes < instruct.zipBytes / 1.5)
+    }
+
+    @Test fun theNextDownloadIsTheSmallOneAndTheFallbackFollowsWhenItFails() {
+        assertEquals(PullPlanner.QWEN3_1_7B_V66, PullPlanner.current(emptySet()))
+        assertEquals(PullPlanner.QWEN3_0_6B_V66, PullPlanner.current(setOf(PullPlanner.QWEN3_1_7B_V66.id)))
+        assertEquals(instruct, PullPlanner.current(setOf(PullPlanner.QWEN3_1_7B_V66.id, PullPlanner.QWEN3_0_6B_V66.id)))
+    }
+
+    @Test fun theStoreNamesAreDifferentSoTheBundlesCoexist() {
+        assertEquals(PullPlanner.CANDIDATES.size, PullPlanner.CANDIDATES.map { it.modelName }.toSet().size)
+        assertEquals(PullPlanner.CANDIDATES.map { it.modelName }, PullPlanner.ALL_MODEL_NAMES.take(4))
     }
 }

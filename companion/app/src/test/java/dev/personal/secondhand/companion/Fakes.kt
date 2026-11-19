@@ -18,6 +18,8 @@ class FakeProbe(var temp: Double? = 31.0) : Probe {
     override fun batteryTempC(): Double? = temp?.also { temp = it + 1.5 }
     var free = 90L * 1073741824
     var network = "WLAN"
+    var memAvail = 16L * 1073741824
+    override fun memAvailableBytes(): Long = memAvail
     override fun freeStorageBytes(): Long = free
     override fun networkType(): String = network
 }
@@ -45,6 +47,7 @@ class FakePort(private val clock: FakeClock) : NpuPort {
     var loadInfo = LoadInfo("qairt", "/models/x")
     var loadError: Throwable? = null
     var loadTakesMs = 4000L
+    var order: MutableList<String>? = null
     var tokens = listOf("Wir ", "haben ", "gestern ", "einen ", "langen ", "Spaziergang ", "gemacht ", "und ", "danach ", "Kaffee ", "getrunken.")
     var tokenGapMs = 50L
     var profile: GenProfile? = GenProfile(310.0, 280.0, 5000.0, 40, 11, 142.0, 2.2, "stop")
@@ -115,6 +118,7 @@ class FakePort(private val clock: FakeClock) : NpuPort {
 
     override suspend fun load(modelName: String): LoadInfo {
         calls += "load"
+        order?.add("load")
         loadedNames += modelName
         onLoad?.invoke()
         clock.now += loadTakesMs
@@ -194,4 +198,28 @@ class FakeDownloader(private val store: FakeStore) : ZipDownloader {
         verifyError?.let { throw it }
         return ZipSummary(17, 4, true, 3_000_000_000L)
     }
+}
+
+class FakeWatchdog(private val order: MutableList<String>) : Watchdog {
+    var started = 0
+    var stopped = 0
+    override fun start(step: String) { started++; order += "wd-start" }
+    override fun stop(): List<String> { stopped++; order += "wd-stop"; return listOf("Speicherwächter während des Ladens: fake") }
+}
+
+class FakeMeter : MemoryMeter {
+    var avail = 4_000L * 1048576
+    var rss = 100L * 1048576
+    var swapFree = 6_000L * 1048576
+    override fun availBytes() = avail
+    override fun rssBytes() = rss
+    override fun swapFreeBytes() = swapFree
+}
+
+class MemSampleStore : SampleStore {
+    val saves = mutableListOf<StoredRun>()
+    var stored: StoredRun? = null
+    override fun save(run: StoredRun) { saves += run; stored = StoredRun.parse(run.serialize()) } // through the text: what survives a kill
+    override fun load() = stored
+    override fun clear() { stored = null }
 }

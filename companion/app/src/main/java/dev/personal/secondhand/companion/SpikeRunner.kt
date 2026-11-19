@@ -17,6 +17,7 @@ class SpikeRunner(
     private val diag: Diagnostics = NoDiagnostics,
     private val store: StoreFiles = NoStore,
     private val downloader: ZipDownloader = NoDownloader,
+    private val watchdog: Watchdog = NoWatchdog,
 ) {
     sealed interface PullOutcome {
         data class Success(val candidate: Candidate) : PullOutcome
@@ -38,7 +39,13 @@ class SpikeRunner(
             /** The bundle's metadata.json has `model_files` as a list: SDK 0.10.0 cannot read it (the real cause seen on the phone). */
             val metadataFormatTooNew: Boolean = false,
         ) : TestOutcome
+
+        /** The memory guard refused the load (nothing was loaded): [verdict] says what was needed and what is free. */
+        data class Blocked(val verdict: MemoryGuard.Verdict, val model: String) : TestOutcome
     }
+
+    /** A bundle in the SDK's store with what its files say: the version and the size of the context binaries. */
+    data class PresentBundle(val name: String, val facts: BundleFacts?, val binBytes: Long)
 
     @Volatile
     var supported: Boolean = false
@@ -57,6 +64,14 @@ class SpikeRunner(
     @Volatile
     var presentModel: String? = null
         private set
+
+    /** Every bundle of this app in the SDK's store (candidate names first), and the one the tests use ([presentModel]). */
+    @Volatile
+    var presentBundles: List<PresentBundle> = emptyList()
+        private set
+
+    @Volatile
+    private var selected: String? = null
 
     /** What the files of the present bundle say about it (null: unreadable or no bundle). */
     @Volatile
@@ -102,24 +117,38 @@ class SpikeRunner(
         }
     }
 
-    /** Looks for a complete bundle of any candidate model in the SDK's store; returns its model name. */
+    /** Looks for the complete bundles of this app in the SDK's store; returns the name of the one the tests use. */
     suspend fun refreshModelPresent(): String? {
         try {
-            val found = PullPlanner.ALL_MODEL_NAMES.firstOrNull { port.isModelPresent(it) }
-            presentModel = found
-            presentFacts = null
-            if (found != null) {
-                val facts = readFacts(found)
-                presentFacts = facts
-                log.add("Vorhandenes Paket: $found, gebaut mit QAIRT ${facts?.qairt ?: "unbekannt"}")
+            val names = PullPlanner.ALL_MODEL_NAMES.filter { port.isModelPresent(it) }
+            val bundles = names.map { n ->
+                val inspection = try { port.inspect(n) } catch (e: CancellationException) { throw e } catch (t: Throwable) { null }
+                val facts = inspection?.let { BundleFacts.extract(it.texts["metadata.json"], it.texts["htp_backend_ext_config.json"]) }
+                PresentBundle(n, facts, inspection?.files?.filter { it.name.endsWith(".bin") }?.sumOf { it.size } ?: 0L)
             }
-            return found
+            presentBundles = bundles
+            val chosen = bundles.firstOrNull { it.name == selected } ?: bundles.firstOrNull()
+            presentModel = chosen?.name
+            presentFacts = chosen?.facts
+            bundles.forEach { log.add("Vorhandenes Paket: ${it.name}, gebaut mit QAIRT ${it.facts?.qairt ?: "unbekannt"}, Rechenprogramme ${Metrics.gb(it.binBytes)}") }
+            return presentModel
         } catch (e: CancellationException) {
             throw e
         } catch (t: Throwable) {
             fail("Modellspeicher prüfen", t)
             return presentModel
         }
+    }
+
+    /** Chooses which present bundle the tests use; a loaded model of another bundle is unloaded first. */
+    suspend fun selectModel(name: String): Boolean {
+        val b = presentBundles.firstOrNull { it.name == name } ?: return false
+        if (loaded && presentModel != name) unload()
+        selected = name
+        presentModel = name
+        presentFacts = b.facts
+        log.add("Test-Modell gewählt: $name (Rechenprogramme ${Metrics.gb(b.binBytes)})")
+        return true
     }
 
     private suspend fun readFacts(modelName: String): BundleFacts? = try {
@@ -246,14 +275,14 @@ class SpikeRunner(
             tracker.failed(step, "WrongBundleVersion")
             return PullOutcome.Failed(candidate, "Paket hat QAIRT ${facts.qairt} statt ${candidate.expectedQairt}", PullPlanner.Advice(giveUp = true, repeatUseful = false, deleteFirst = false, cancelled = false))
         }
-        presentModel = candidate.modelName
-        presentFacts = facts
+        selected = candidate.modelName
         log.add("  Paket gebaut mit QAIRT: ${facts?.qairt ?: "unbekannt"}, Metadaten-Format: " + when (facts?.modelFilesIsList) {
             true -> "Liste (neu)"
             false -> "Objekt (das SDK kann es lesen)"
             null -> "unbekannt"
         })
         if (store.deleteTree(zipPath)) log.add("  Zip-Datei nach dem Import gelöscht (Speicher frei).") else log.add("  Zip-Datei konnte nicht gelöscht werden: $zipPath")
+        refreshModelPresent()
         log.add("Download und Import fertig (${candidate.modelName}) in ${Metrics.num((clock.nowMs() - started) / 1000.0, 0)} s.")
         tracker.end(step)
         return PullOutcome.Success(candidate)
@@ -278,7 +307,7 @@ class SpikeRunner(
         }
     }
 
-    suspend fun runTest(test: FixedTest, onText: (String) -> Unit): TestOutcome {
+    suspend fun runTest(test: FixedTest, ignoreMemoryGuard: Boolean = false, onText: (String) -> Unit): TestOutcome {
         stopRequested = false
         val modelName = presentModel
         if (modelName == null) {
@@ -295,15 +324,27 @@ class SpikeRunner(
             if (!loaded) {
                 val loadStep = "Modell auf der NPU laden (nur qairt, kein CPU/GPU-Ersatz)"
                 val pre = diagnoseBeforeLoad(modelName)
+                // the memory guard: decide before the load whether it can fit (stage 80e: the 4B bundle ended in the low-memory killer)
+                val avail = probe.memAvailableBytes().takeIf { it >= 0 } ?: probe.memory().systemAvailBytes
+                val verdict = MemoryGuard.verdict(if (pre.binBytes > 0) pre.binBytes else MemoryGuard.UNKNOWN_BIN_BYTES, avail)
+                log.add("Speicherwächter vor dem Laden (prüft ${DiagnoseFormatter.H4}): " + verdict.ruleText())
+                if (!verdict.ok && !ignoreMemoryGuard) {
+                    log.add("NICHT GELADEN: Es ist zu wenig Speicher frei, das Laden würde das Telefon in Speichermangel bringen (so endete der Versuch mit dem 4B-Modell).")
+                    return TestOutcome.Blocked(verdict, modelName)
+                }
+                if (!verdict.ok) log.add("Auf ausdrücklichen Wunsch trotzdem geladen; die Notbremse (Selbstbeendigung der App bei Speichermangel) bleibt aktiv.")
                 tracker.begin(loadStep)
+                watchdog.start(loadStep)
                 val marker = "secondhand-load-" + clock.nowMs()
                 diag.markLog(marker)
                 val t0 = clock.nowMs()
                 val info = try {
-                    port.load(modelName)
+                    port.load(modelName).also { log.addAll(watchdog.stop()) }
                 } catch (e: CancellationException) {
+                    log.addAll(watchdog.stop())
                     throw e
                 } catch (t: Throwable) {
+                    log.addAll(watchdog.stop())
                     fail(loadStep, t)
                     afterLoadFailure(marker)
                     return TestOutcome.Failed(loadFailed = true, bundleNewerThanRuntime = pre.compat == Compat.BUNDLE_NEWER, metadataFormatTooNew = pre.formatTooNew)
@@ -378,7 +419,7 @@ class SpikeRunner(
     }
 
     /** Writes the facts that decide whether the load can work; returns how the bundle's QAIRT compares with the runtime's. */
-    private data class Pre(val compat: Compat, val formatTooNew: Boolean)
+    private data class Pre(val compat: Compat, val formatTooNew: Boolean, val binBytes: Long)
 
     private suspend fun diagnoseBeforeLoad(modelName: String): Pre {
         log.add("")
@@ -387,6 +428,7 @@ class SpikeRunner(
         this.runtimeQairt = runtimeQairt
         var compat = Compat.UNKNOWN
         var formatTooNew = false
+        var binBytes = 0L
         try {
             val inspection = port.inspect(modelName)
             if (inspection == null) {
@@ -397,6 +439,7 @@ class SpikeRunner(
                 log.addAll(DiagnoseFormatter.bundleLines(inspection, facts, runtimeQairt))
                 compat = QairtVersion.compat(facts.qairt, runtimeQairt)
                 formatTooNew = facts.modelFilesIsList == true
+                binBytes = inspection.files.filter { it.name.endsWith(".bin") }.sumOf { it.size }
                 val backup = compatBackupPath(modelName)
                 if (store.exists(backup)) log.add("  Hinweis: Die Metadaten dieses Pakets wurden von der App angepasst (Kompatibilitäts-Metadaten); das Original ist gesichert unter $backup.")
             }
@@ -410,7 +453,7 @@ class SpikeRunner(
             "PSS der App ${Metrics.mb(m.pssBytes)}, nativer Heap ${Metrics.mb(m.nativeHeapBytes)}")
         diag.environmentLines().takeIf { it.isNotEmpty() }?.let { log.addAll(it) }
         diag.nativeLoadLines().takeIf { it.isNotEmpty() }?.let { log.addAll(it) }
-        return Pre(compat, formatTooNew)
+        return Pre(compat, formatTooNew, binBytes)
     }
 
     /** After a failed load: the process facts and the runtime's own log lines, filtered. */
@@ -426,6 +469,8 @@ class SpikeRunner(
             "die Prüftexte sind fest eingebaut, Zeilen mit ihnen werden entfernt; prüft ${DiagnoseFormatter.H1}, ${DiagnoseFormatter.H3}, ${DiagnoseFormatter.H4}):")
         if (lines.isEmpty()) log.add("  (keine passenden Zeilen; das System gibt der App ihr Protokoll vielleicht nicht frei)") else lines.forEach { log.add("  $it") }
     }
+
+    fun availBytesNow(): Long = probe.memAvailableBytes().takeIf { it >= 0 } ?: probe.memory().systemAvailBytes
 
     fun freeStorageBytesNow(): Long = probe.freeStorageBytes()
 
@@ -490,7 +535,11 @@ class SpikeRunner(
             val after = storeLeftovers()
             val ok = stillInSdk.isEmpty() && after.isEmpty()
             presentModel = stillInSdk.firstOrNull()
-            if (ok) presentFacts = null
+            if (ok) {
+                presentFacts = null
+                presentBundles = emptyList()
+                selected = null
+            }
             log.add(
                 if (ok) "Gelöscht und geprüft: Der Modellspeicher des SDK ist leer."
                 else "NICHT vollständig gelöscht. Noch da: " + (stillInSdk.map { "SDK: $it" } + after.map { "Ordner: $it" }).joinToString(", "),

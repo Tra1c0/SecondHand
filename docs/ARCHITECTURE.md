@@ -3783,18 +3783,18 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   SDK-Text bleiben erhalten). Alles andere arbeitet nur mit `NpuPort`, darum kann ein Fake (`Fakes.kt` in den
   Tests) die ganze App-Logik prüfen.
 - App-Logik ohne Android und SDK: `SpikeRunner.kt` (Ablauf: SDK starten, Download, die zwei Tests, Stopp, Entladen,
-  Löschen; schreibt jeden Fehler als Zeilen in den Bericht), `PullPlanner.kt` (80b: die geordnete Liste der Pakete `Candidate`, Rat nach einem fehlgeschlagenen Pull, SDK-Fehlercodes `SdkCodes`; nichts wird von selbst geladen), `Downloader.kt` (80d: eigener fortsetzbarer HTTPS-Download der Paket-Zip-Datei: `ResumePlan` mit Fortsetzen, Range und Content-Range, Platzbedarf; `HttpZipDownloader`; `ZipCheck` prüft das Zip-Verzeichnis und die CRC32 jeder Datei), `MetadataCompat.kt` (80d: wandelt die Metadaten-Datei des neuen Formats in das alte um, Option ohne Download) und `LoadDiagnose.kt` (80c: kleiner JSON-Leser und -Schreiber `MiniJson`, `BundleFacts` aus die Metadaten-Datei des Pakets und der HTP-Konfiguration, QAIRT-Versionsvergleich `QairtVersion`, Filter `LogFilter` für das Protokoll der Laufzeit, `DiagnoseFormatter` mit den Vermutungen H1 bis H5), `ErrorText.kt` (Fehler zu Berichtszeilen, „Auf diesem Gerät nicht
+  Löschen; schreibt jeden Fehler als Zeilen in den Bericht), `PullPlanner.kt` (80b: die geordnete Liste der Pakete `Candidate`, Rat nach einem fehlgeschlagenen Pull, SDK-Fehlercodes `SdkCodes`; nichts wird von selbst geladen), `MemoryGuard.kt` (80e: die Speicherregel vor dem Laden `MemoryGuard`, der Wächter `LoadWatchdog` mit Notbremse, Messwerte `MemSample`/`StoredRun` und deren Text zum Speichern, Schnittstellen `MemoryMeter`/`SampleStore`/`Watchdog`), `Downloader.kt` (80d: eigener fortsetzbarer HTTPS-Download der Paket-Zip-Datei: `ResumePlan` mit Fortsetzen, Range und Content-Range, Platzbedarf; `HttpZipDownloader`; `ZipCheck` prüft das Zip-Verzeichnis und die CRC32 jeder Datei), `MetadataCompat.kt` (80d: wandelt die Metadaten-Datei des neuen Formats in das alte um, Option ohne Download) und `LoadDiagnose.kt` (80c: kleiner JSON-Leser und -Schreiber `MiniJson`, `BundleFacts` aus die Metadaten-Datei des Pakets und der HTP-Konfiguration, QAIRT-Versionsvergleich `QairtVersion`, Filter `LogFilter` für das Protokoll der Laufzeit, `DiagnoseFormatter` mit den Vermutungen H1 bis H5), `ErrorText.kt` (Fehler zu Berichtszeilen, „Auf diesem Gerät nicht
   unterstützt: <Klasse>“), `Metrics.kt` (Tokens pro Sekunde, Vergleich mit dem erwarteten Satz, Zahlenformat),
   `FixedTests.kt` (die zwei festen deutschen Texte), `ReportFormatter.kt` (Kopfzeilen, Testzeilen, gesamter
   Bericht; Datentypen `DeviceHeader`, `TestResult`) und `Support.kt` (die Schnittstellen `Probe`, `Clock`,
   `StepTracker` und der `ReportLog`).
 - Android-Teil: `AndroidSupport.kt` (80c: `AndroidDiagnostics` liest Herstellerbibliotheken, öffentliche Bibliothekslisten, DSP-Ordner, Speicher, Ladetests der Bibliotheken des KI-Chip-Teils, Prozessumgebung und das eigene Protokoll über `logcat`; Messungen `AndroidProbe`: nativer Heap, PSS, freier Systemspeicher, Akku-
-  temperatur; `PrefsStepTracker`; `SpikePrefs` merkt das geladene Paket und die aufgegebenen Pakete samt Fehler; `DeviceInfo`:
+  temperatur; `PrefsStepTracker`; `SpikePrefs` merkt das geladene Paket, das gewählte Test-Modell und die aufgegebenen Pakete samt Fehler; `AndroidMemoryMeter` liest MemAvailable, SwapFree und den RSS der App aus `/proc`; `PrefsSampleStore` schreibt die Messwerte mit `commit()`; `DeviceInfo`:
   Kopfzeilen und Grund des letzten Prozessendes über `ApplicationExitInfo`) und `MainActivity.kt` (ein Bildschirm,
   alle Views im Code (Liste der Pakete mit Zustand, Dialoge vor jedem Download und nach jedem Fehler), Hochformat, Bildschirm bleibt während eines Schritts an, SDK-Arbeit nie im Hauptthread,
   Modell wird in `onDestroy` freigegeben).
 - Tests (`companion/app/src/test/java/…`): `MetricsTest`, `ErrorTextTest`, `PullPlannerTest`,
-  `ReportFormatterTest`, `LoadDiagnoseTest`, `DownloaderTest` (mit einem lokalen HTTP-Server des JDK), `MetadataCompatTest` und `RealMetadataCompatTest` (mit den echten Metadaten-Dateien beider Ausgaben unter `src/test/resources/metadata/`), `SpikeRunnerTest` (mit `Fakes.kt`); reines JUnit 4, kein Robolectric, kein SDK-Aufruf.
+  `ReportFormatterTest`, `LoadDiagnoseTest`, `DownloaderTest` (mit einem lokalen HTTP-Server des JDK), `MetadataCompatTest` und `RealMetadataCompatTest` (mit den echten Metadaten-Dateien beider Ausgaben unter `src/test/resources/metadata/`), `MemoryGuardTest`, `SpikeRunnerTest` (mit `Fakes.kt`); reines JUnit 4, kein Robolectric, kein SDK-Aufruf.
 - Regeln der App: Internet nur durch den Download des SDK nach Tipp auf Knopf 1 und Bestätigung; kein Textfeld,
   nur zwei feste Texte; mit `android.util.Log` nur Schrittnamen und Fehlerklassen; keine Statistik; nichts
   wird übernommen oder in ein Feld geschrieben.
@@ -6182,13 +6182,28 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - **P338** Begleit-App, Löschen (80d, Fehler aus Version 0.3): Das SDK meldete beim Löschen `0` („Gelöscht“), die Dateien blieben aber liegen (das nächste „Vorhandenes Paket“ zeigte sie). `SpikeRunner.deleteModels` ruft darum nach dem SDK
   die Ordner unter `files/geniex/models/<org>/<repo>` selbst ab (der Speicher liegt im privaten Ordner der App), löscht übrig gebliebene selbst, prüft danach erneut (SDK und Ordner) und schreibt „Gelöscht und geprüft“ nur, wenn nichts mehr da ist; sonst „NICHT vollständig gelöscht“ mit dem Rest.
   Zum Zuordnen: Das SDK legt „ai-hub-models/X“ im Ordner „qualcomm/X“ ab (Auflösung in `pull.rs` des GenieX-Repositorys); die Beschriftung, welches Paket da ist, kommt jetzt aus der Metadaten-Datei (QAIRT-Version) und dem Speichernamen, nicht aus der zuletzt angefragten Kennung.
+- **P339** Begleit-App, Speichermangel beim Laden des 4B-Pakets (80e, vierter Lauf auf dem Xiaomi 15): Das Paket v0.66.0 (Import und Metadaten waren in Ordnung, das Laden kam über den Punkt, an dem 0.3 scheiterte) ließ das Telefon in
+  Speichermangel geraten: Android beendete die App („vom System wegen Speichermangel beendet“, `REASON_LOW_MEMORY`) und den Launcher, der Bildschirm lud neu. Zuvor waren nur etwa 4,2 GB frei (`MemAvailable`; Swap 12,6 GB, 6,4 GB frei) bei 3,16 GB Rechenprogrammen (vier `.bin`-Dateien).
+  Veröffentlichte Speicherzahlen gibt es nicht: die Leistungsliste jeder Ausgabe enthält nur Tokens pro Sekunde, Zeit bis zum ersten Token und Einlesegeschwindigkeit; die Karten bei Hugging Face und die AI-Hub-Seite nennen keinen Arbeitsspeicher; die GenieX-Doku
+  nennt als einziges Beispiel ein 4,94-GB-Modell, das auf einem Gerät mit 4,7 GB frei vom Kernel beendet wird. Die Doku des Plugins: „Memory footprint: Dominated by KV cache size (num_layers * num_kv_heads * context_length * head_dim * 2 * dtype_size)“.
+  Aus den Formen in der Metadaten-Datei gerechnet: KV-Cache des 4B bei Kontext 4096 etwa 0,3 GB (36 Schichten, 8 Köpfe, 128, uint8); der Rest sind die Gewichte (3,16 GB), die der Chip über gemeinsamen Speicher (`shared_buffer`, `weight_sharing_enabled`) bekommt. Vermutung, nicht belegt: Dieser Speicher
+  ist für das System nicht verdrängbar und steht in `MemAvailable` als frei, bis er belegt wird.
+- **P340** Begleit-App, Regler gegen den Speicherbedarf (80e, Recherche): Die Schlüssel `use-mmap`, `mmap-budget`, `spill-fill-bufsize` und `allow-async-init` in der Genie-Konfigurationsdatei des Pakets gehören zum Genie-SDK von Qualcomm; sie kommen weder in `libgeniex_plugin_qairt.so` noch in `libgeniex_core.so`
+  des AAR 0.10.0 vor und das GenieX-Plugin liest aus `engine.backend.QnnHtp` nur `rope-theta` (Quelltext `llm_spec_loader.cpp`, Zeilen 415 bis 418). Eine Änderung dieser Datei würde also nichts bewirken. Was GenieX selbst hat: `ModelConfig::mmap_context_bins = true` und `file_read_budget_mb = 40`
+  (Datei types.h im Plugin-Repository, Ordner core/include), schon die Vorgabe; im AAR 0.10.0 stehen `fileReadMemoryBudgetInMb` und `QNN_HTP_CONTEXT_CONFIG_OPTION_FILE_READ_MEMORY_BUDGET`, aber die Kotlin-Klasse `ModelConfig` hat kein solches Feld (nur `nCtx`, `nGpuLayers`, Threads, `power_mode` …).
+  Die Kontextlängen (bis 4096) stecken fest in den Programmen. **Es gibt keinen dokumentierten Regler, der den Spitzenbedarf des 4B senkt; die App bietet darum keine „sparsame Einstellung“ an.**
+- **P341** Begleit-App, Speicherwächter (80e): Vor jedem Laden prüft `MemoryGuard`: frei (`MemAvailable`) muss mindestens das Doppelte der Rechenprogramme plus 512 MB sein (4B: 6,4 GB, 1,7B: 3,7 GB, 0,6B: 1,9 GB; GB zu 1024 hoch 3 Bytes wie in der App). Der Faktor 2 ist eine **Vermutung**, eingestellt an einer Beobachtung (3,2 GB Programme bei 4,2 GB frei: beendet);
+  er soll an den gespeicherten Messungen korrigiert werden. Reicht der Speicher nicht, wird nichts geladen; „Trotzdem laden“ steht hinter einer zweiten Bestätigung. Während des Ladens misst `LoadWatchdog` alle 200 ms MemAvailable, RSS der App und freien Swap und schreibt jede Messung mit `commit()`;
+  `onTrimMemory`-Meldungen der Activity werden mit Zeit gespeichert. Fällt `MemAvailable` unter 800 MB (Vermutung) oder meldet das System `TRIM_MEMORY_RUNNING_CRITICAL`, beendet sich die App selbst (`Process.killProcess`), nachdem sie den Grund gespeichert hat: Das Laden im SDK
+  (`create()`, nativ) lässt sich nicht abbrechen, aber ein früher Tod des Prozesses gibt den Speicher zurück, bevor Android Launcher und andere Apps beendet. Beim nächsten Start steht im Bericht „Letzte Speichermessung vor dem Ende“ mit freiem Speicher, App-Größe, Zeit und Notbremse.
+  Ein Vordergrunddienst wurde erwogen und nicht gebaut: Er senkt den Bedarf nicht, und eine sichtbare Vordergrund-App hat bei Android schon die höchste Priorität; beendet wird sie erst, wenn der Speicher nach dem Beenden aller unwichtigeren Prozesse noch nicht reicht (Android-Grundsatz, nicht auf diesem Telefon gemessen).
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (711 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (713 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6382,12 +6397,12 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `companion/` (2): build.gradle, settings.gradle
 - `companion/app/` (1): build.gradle
 - `companion/app/src/main/` (1): AndroidManifest
-- `companion/app/src/main/java/dev/personal/secondhand/companion/` (13): AndroidSupport, Downloader,
-  ErrorText, FixedTests, GeniexPort, LoadDiagnose, MainActivity, MetadataCompat, Metrics,
-  PullPlanner, ReportFormatter, SpikeRunner, Support
-- `companion/app/src/test/java/dev/personal/secondhand/companion/` (9): DownloaderTest,
-  ErrorTextTest, Fakes, LoadDiagnoseTest, MetadataCompatTest, MetricsTest, PullPlannerTest,
-  ReportFormatterTest, SpikeRunnerTest
+- `companion/app/src/main/java/dev/personal/secondhand/companion/` (14): AndroidSupport, Downloader,
+  ErrorText, FixedTests, GeniexPort, LoadDiagnose, MainActivity, MemoryGuard, MetadataCompat,
+  Metrics, PullPlanner, ReportFormatter, SpikeRunner, Support
+- `companion/app/src/test/java/dev/personal/secondhand/companion/` (10): DownloaderTest,
+  ErrorTextTest, Fakes, LoadDiagnoseTest, MemoryGuardTest, MetadataCompatTest, MetricsTest,
+  PullPlannerTest, ReportFormatterTest, SpikeRunnerTest
 - `scripts/` (3): docs_sync, docs_sync, install-hooks
 - `tools/` (3): build_german_verb_lemmas, dev, emoji_mix_table
 - `tools/devicetest/` (3): build.gradle, devicetest, settings.gradle

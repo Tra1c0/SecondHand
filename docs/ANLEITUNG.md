@@ -1618,6 +1618,10 @@ vom Lead als Datei geschickt (`app-debug.apk`, etwa 97 MB; Größe und SHA-256 s
    Metadaten-Format des Pakets, fragt sie, was sie tun soll: **Metadaten anpassen und neu testen** (kein Download; die App schreibt die Beschreibung im alten Format und sichert das Original; es kann trotzdem scheitern) oder
    **Ältere Ausgabe laden** (etwa 2,7 GB, lädt die Ausgabe v0.66.0 selbst herunter, prüft sie und übernimmt sie; das vorhandene Paket bleibt, bis du es löschst). Beides nur nach deiner Bestätigung. Danach Test 2 noch einmal
    und **Bericht kopieren**. Für den Download brauchst du etwa 8 GB freien Speicher und am besten WLAN; ein Abbruch ist harmlos, Knopf 1 setzt fort.
+   **Speicher (Fassung 0.5):** Das große Modell (4B) hat dein Telefon beim Laden in Speichermangel gebracht (App und Launcher wurden beendet). Darum prüft die App vor jedem Laden, ob genug Speicher frei ist, und lädt sonst
+   nicht (mit Hinweis: andere Apps schließen oder das Telefon neu starten). **Trotzdem laden** gibt es nur hinter einer zweiten Frage, denn dabei kann der Bildschirm neu laden. Fällt der freie Speicher beim Laden zu tief, beendet sich die App selbst, um das Telefon zu schützen; beim
+   nächsten Öffnen steht die letzte Messung im Bericht. **Knopf 1 lädt jetzt zuerst das kleine Modell Qwen3-1.7B (etwa 1,5 GB)**, damit sich alles bis zum Chip beweisen lässt; das 4B-Paket bleibt auf dem Telefon. Mit **Test-Modell wählen** kannst du zwischen den vorhandenen Paketen wechseln (die App zeigt für jedes, ob der Speicher reicht).
+   Tipp für das 4B: Telefon neu starten, keine anderen Apps öffnen, dann erst testen.
 5. Hängt etwas, hilft **Stopp**. **Modell entladen** gibt den Arbeitsspeicher frei, **Modell / angefangenen Download löschen** die Modelle
    vom Telefon. Verschwindet die App mitten im Test, öffne sie wieder: Der Bericht sagt dann, in welchem Schritt es passierte.
 6. **Bericht kopieren** tippen, dann in den Chat mit dem Lead einfügen (oder einen Screenshot des Berichts schicken).

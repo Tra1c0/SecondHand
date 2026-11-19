@@ -38,6 +38,8 @@ class MainActivity : Activity() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val report = ReportLog()
     private lateinit var runner: SpikeRunner
+    private lateinit var sampleStore: PrefsSampleStore
+    private lateinit var loadWatchdog: LoadWatchdog
     private lateinit var prefs: SpikePrefs
     private lateinit var headerLines: List<String>
 
@@ -56,6 +58,7 @@ class MainActivity : Activity() {
     private lateinit var btnDelete: Button
     private lateinit var btnList: Button
     private lateinit var btnCompat: Button
+    private lateinit var btnChoose: Button
     private lateinit var candidatesView: TextView
     private lateinit var btnCopy: Button
 
@@ -73,7 +76,13 @@ class MainActivity : Activity() {
         prefs = SpikePrefs(this)
         val tracker = PrefsStepTracker(this)
         headerLines = ReportFormatter.headerLines(DeviceInfo.collect(this))
-        runner = SpikeRunner(GeniexAdapter(this), AndroidProbe(this), RealClock(), tracker, report, AndroidDiagnostics(this), AndroidStoreFiles(this), HttpZipDownloader())
+        sampleStore = PrefsSampleStore(this)
+        // emergency brake: the app ends itself (it has persisted the reason first) so that Android does not have to kill the launcher
+        loadWatchdog = LoadWatchdog(AndroidMemoryMeter(), sampleStore, RealClock(), { android.os.Process.killProcess(android.os.Process.myPid()) })
+        runner = SpikeRunner(
+            GeniexAdapter(this), AndroidProbe(this), RealClock(), tracker, report, AndroidDiagnostics(this), AndroidStoreFiles(this), HttpZipDownloader(),
+            loadWatchdog,
+        )
         buildUi()
         headerView.text = headerLines.joinToString("\n")
         report.listener = {
@@ -85,12 +94,17 @@ class MainActivity : Activity() {
         tracker.takeInterruptedStep()?.let {
             report.add("WARNUNG: Der vorherige Lauf endete mitten im Schritt '$it' (Absturz oder vom System beendet).")
         }
+        sampleStore.load()?.takeIf { !it.finished }?.let { run -> run.reportLines().forEach { report.add(it) } }
+        sampleStore.clear()
         DeviceInfo.lastExitLines(this).forEach { report.add(it) }
         showCandidates()
         refreshButtons()
         scope.launch(Dispatchers.Default) {
             runner.init()
-            if (runner.supported) runner.refreshModelPresent()
+            if (runner.supported) {
+                runner.refreshModelPresent()
+                prefs.selectedModel?.let { runner.selectModel(it) }
+            }
             runOnUiThread {
                 runner.initFailureLine?.let {
                     bannerView.text = it
@@ -105,6 +119,11 @@ class MainActivity : Activity() {
         }
     }
 
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (::loadWatchdog.isInitialized) loadWatchdog.onTrim(level)
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         scope.cancel()
@@ -115,12 +134,11 @@ class MainActivity : Activity() {
     // ---- actions ------------------------------------------------------------------------------
 
     private fun onPullTapped() {
-        val present = presentCandidate()
-        if (present != null) {
-            info("Das Paket ist schon vorhanden" + pulledSuffix() + ". Zum erneuten Laden tippe zuerst 'Modell / angefangenen Download löschen'.")
+        val candidate = PullPlanner.current(prefs.abandoned.keys)
+        if (candidate != null && isPresent(candidate)) {
+            info("Das Paket ${candidate.title} ist schon vorhanden. Tippe Knopf 2 für den Test. Zum erneuten Laden tippe zuerst 'Modell / angefangenen Download löschen'.")
             return
         }
-        val candidate = PullPlanner.current(prefs.abandoned.keys)
         if (candidate == null) {
             AlertDialog.Builder(this)
                 .setTitle("Alle Pakete versucht")
@@ -145,6 +163,9 @@ class MainActivity : Activity() {
 
     /** The candidate the bundle on the phone belongs to (same model, built with the QAIRT version of that candidate), or null. */
     private fun presentCandidate(): Candidate? = PullPlanner.matching(runner.presentModel, runner.presentFacts?.qairt)
+
+    /** True when a bundle of this candidate (store name and QAIRT version) is in the SDK's store. */
+    private fun isPresent(c: Candidate): Boolean = runner.presentBundles.any { PullPlanner.matching(it.name, it.facts?.qairt)?.id == c.id }
 
     /** The one dialog before every download: what, size, source, what differs, "may fail". */
     private fun confirmPull(candidate: Candidate, intro: String) {
@@ -263,8 +284,9 @@ class MainActivity : Activity() {
         val abandoned = prefs.abandoned
         val current = PullPlanner.current(abandoned.keys)
         candidatesView.text = PullPlanner.CANDIDATES.mapIndexed { i, c ->
+            val b = runner.presentBundles.firstOrNull { PullPlanner.matching(it.name, it.facts?.qairt)?.id == c.id }
             val state = when {
-                presentCandidate()?.id == c.id -> "GELADEN (QAIRT ${runner.presentFacts?.qairt ?: "?"})"
+                b != null -> "GELADEN (QAIRT ${b.facts?.qairt ?: "?"}, Rechenprogramme ${Metrics.gb(b.binBytes)})" + if (b.name == runner.presentModel) " - Test-Modell" else ""
                 c.id in abandoned -> "gescheitert: " + abandoned[c.id]
                 c.id == current?.id -> "nächster Versuch (Knopf 1)"
                 else -> "noch nicht dran"
@@ -274,13 +296,15 @@ class MainActivity : Activity() {
     }
 
     private fun presentOtherLine(): String {
-        val model = runner.presentModel ?: return ""
-        if (presentCandidate() != null) return ""
-        return "\nVorhanden, aber keines der Pakete oben: $model, gebaut mit QAIRT ${runner.presentFacts?.qairt ?: "unbekannt"} " +
-            "(Ausgabe v0.67.0 oder neuer; Laden dieser Fassung ist auf diesem Telefon gescheitert)"
+        val others = runner.presentBundles.filter { PullPlanner.matching(it.name, it.facts?.qairt) == null }
+        if (others.isEmpty()) return ""
+        return others.joinToString("") {
+            "\nVorhanden, aber keines der Pakete oben: ${it.name}, gebaut mit QAIRT ${it.facts?.qairt ?: "unbekannt"} " +
+                "(Ausgabe v0.67.0 oder neuer; Laden dieser Fassung ist auf diesem Telefon gescheitert)"
+        }
     }
 
-    private fun startTest(test: FixedTest) {
+    private fun startTest(test: FixedTest, ignoreMemoryGuard: Boolean = false) {
         if (!modelPresent) {
             info("Zuerst Knopf 1 tippen: Das Modell ist noch nicht geladen.")
             return
@@ -289,7 +313,7 @@ class MainActivity : Activity() {
         answerView.text = ""
         statusView.text = (if (runner.loaded) "" else "Lade das Modell auf die NPU ... ") + "${test.title} läuft ..."
         activeJob = scope.launch(Dispatchers.Default) {
-            val outcome = runner.runTest(test) { text -> runOnUiThread { answerView.text = text } }
+            val outcome = runner.runTest(test, ignoreMemoryGuard) { text -> runOnUiThread { answerView.text = text } }
             runOnUiThread {
                 when (outcome) {
                     is SpikeRunner.TestOutcome.Ok -> statusView.text = "${test.title}: fertig. Zahlen im Bericht unten."
@@ -297,10 +321,73 @@ class MainActivity : Activity() {
                         statusView.text = "${test.title}: fehlgeschlagen. Details im Bericht unten."
                         if (outcome.loadFailed) onLoadFailed(outcome)
                     }
+                    is SpikeRunner.TestOutcome.Blocked -> {
+                        statusView.text = "Nicht geladen: zu wenig freier Speicher."
+                        onMemoryBlocked(test, outcome)
+                    }
                 }
             }
         }
         finishWhenDone()
+    }
+
+    /** The memory guard refused: say what to do; "Trotzdem laden" only behind a second, explicit confirmation. */
+    private fun onMemoryBlocked(test: FixedTest, b: SpikeRunner.TestOutcome.Blocked) {
+        val smaller = runner.presentBundles.filter { it.binBytes in 1 until b.verdict.binBytes }.minByOrNull { it.binBytes }
+        AlertDialog.Builder(this)
+            .setTitle("Zu wenig freier Speicher")
+            .setMessage(
+                "Das Modell wurde NICHT geladen. ${b.verdict.ruleText()}\n\n" +
+                    "Beim letzten Versuch mit dem großen Modell hat Android die App und den Launcher wegen Speichermangels beendet.\n\n" +
+                    "Was du tun kannst:\n" +
+                    "1. Andere Apps schließen (Übersicht, alle wegwischen) oder das Telefon neu starten, dann Test noch einmal tippen.\n" +
+                    (if (smaller != null) "2. Das kleinere Modell nehmen: 'Test-Modell wählen' (${smaller.name}).\n" else "2. Das kleinere Modell laden (Knopf 1) und damit testen.\n"),
+            )
+            .setPositiveButton("Abbrechen", null)
+            .setNeutralButton("Trotzdem laden ...") { _, _ ->
+                AlertDialog.Builder(this)
+                    .setTitle("Wirklich trotzdem laden?")
+                    .setMessage(
+                        "Das Telefon kann dabei in Speichermangel geraten: Der Bildschirm und der Launcher können neu laden, andere Apps werden beendet, " +
+                            "ungespeicherte Eingaben darin gehen verloren. Die App beendet sich bei zu wenig Speicher selbst, das ist aber nicht sicher.\n\n" +
+                            "Nur tippen, wenn du das in Kauf nimmst.",
+                    )
+                    .setNegativeButton("Nein, nicht laden", null)
+                    .setPositiveButton("Ja, trotzdem laden") { _, _ -> startTest(test, ignoreMemoryGuard = true) }
+                    .show()
+            }
+            .show()
+    }
+
+    private fun onChooseModelTapped() {
+        val bundles = runner.presentBundles
+        if (bundles.isEmpty()) {
+            info("Es ist noch kein Modell geladen. Tippe Knopf 1.")
+            return
+        }
+        val avail = runner.availBytesNow()
+        val labels = bundles.map { b ->
+            val v = MemoryGuard.verdict(if (b.binBytes > 0) b.binBytes else MemoryGuard.UNKNOWN_BIN_BYTES, avail)
+            b.name.removePrefix("local/") + "\n   Rechenprogramme ${Metrics.gb(b.binBytes)}, QAIRT ${b.facts?.qairt?.let { QairtVersion.majorMinor(it) } ?: "?"}, " +
+                (if (v.ok) "Speicher reicht (frei ${Metrics.gb(avail)})" else "Speicher reicht NICHT (frei ${Metrics.gb(avail)}, nötig ${Metrics.gb(v.neededBytes)})") +
+                if (b.name == runner.presentModel) "  [gewählt]" else ""
+        }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle("Test-Modell wählen")
+            .setItems(labels) { _, which ->
+                beginBusy(Kind.OTHER)
+                activeJob = scope.launch(Dispatchers.Default) {
+                    runner.selectModel(bundles[which].name)
+                    runOnUiThread {
+                        prefs.selectedModel = bundles[which].name
+                        statusView.text = "Test-Modell: ${bundles[which].name.removePrefix("local/")}"
+                        showCandidates()
+                    }
+                }
+                finishWhenDone()
+            }
+            .setNegativeButton("Schließen", null)
+            .show()
     }
 
     private fun onLoadFailed(out: SpikeRunner.TestOutcome.Failed) {
@@ -475,6 +562,7 @@ class MainActivity : Activity() {
         btnUnload.isEnabled = idle && ready && runner.loaded
         btnDelete.isEnabled = idle && ready
         btnList.isEnabled = idle && ready
+        btnChoose.isEnabled = idle && ready && runner.presentBundles.size > 1
         btnCompat.isEnabled = idle && ready && runner.presentFacts?.modelFilesIsList == true
         btnCopy.isEnabled = true
     }
@@ -530,8 +618,9 @@ class MainActivity : Activity() {
         btnDelete = button("Modell / angefangenen Download löschen") { onDeleteTapped() }
         btnList = button("Paketliste bei Qualcomm abfragen") { onListTapped() }
         btnCompat = button("Option: Kompatibilitäts-Metadaten (kein Download)") { onCompatTapped() }
+        btnChoose = button("Test-Modell wählen (Speicher-Check)") { onChooseModelTapped() }
         btnCopy = button("Bericht kopieren") { onCopyTapped() }
-        listOf(btnPull, btnTest2, btnTest3, btnStop, btnUnload, btnDelete, btnList, btnCompat, btnCopy).forEach {
+        listOf(btnPull, btnTest2, btnTest3, btnStop, btnUnload, btnDelete, btnList, btnCompat, btnChoose, btnCopy).forEach {
             column.addView(it, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
                 topMargin = dp(8)
             })

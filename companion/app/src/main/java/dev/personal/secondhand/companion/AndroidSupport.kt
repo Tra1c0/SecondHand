@@ -36,6 +36,8 @@ class AndroidProbe(private val context: Context) : Probe {
 
     override fun freeStorageBytes(): Long = runCatching { StatFs(context.filesDir.path).availableBytes }.getOrDefault(-1L)
 
+    override fun memAvailableBytes(): Long = AndroidMemoryMeter().availBytes()
+
     override fun networkType(): String = try {
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val caps = cm.getNetworkCapabilities(cm.activeNetwork)
@@ -108,6 +110,13 @@ class SpikePrefs(context: Context) {
             prefs.edit().putStringSet("abandoned_candidates", value).apply()
         }
 
+    /** The store name of the bundle the owner chose for the tests (null: the default, the first candidate). */
+    var selectedModel: String?
+        get() = prefs.getString("selected_model", null)
+        set(value) {
+            prefs.edit().apply { if (value == null) remove("selected_model") else putString("selected_model", value) }.apply()
+        }
+
     val abandoned: Map<String, String>
         get() = abandonedRaw.associate { it.substringBefore('\t') to it.substringAfter('\t', "") }
 
@@ -172,7 +181,7 @@ object DeviceInfo {
 }
 
 object BuildConfigLike {
-    const val VERSION = "Begleit-Spike 0.4 (Etappe 80), SDK geniex-android 0.10.0"
+    const val VERSION = "Begleit-Spike 0.5 (Etappe 80), SDK geniex-android 0.10.0"
 }
 
 /**
@@ -308,4 +317,38 @@ class AndroidStoreFiles(private val context: Context) : StoreFiles {
     }.isSuccess
 
     override fun freeBytes(): Long = runCatching { StatFs(context.filesDir.path).availableBytes }.getOrDefault(-1L)
+}
+
+/** MemAvailable, the app's RSS and the free swap, read from /proc (readable for apps). */
+class AndroidMemoryMeter : MemoryMeter {
+    private fun meminfoKb(key: String): Long = runCatching {
+        java.io.File("/proc/meminfo").useLines { lines ->
+            lines.firstOrNull { it.startsWith("$key:") }?.let { l -> Regex("\\d+").find(l)?.value?.toLong() }
+        }
+    }.getOrNull() ?: -1L
+
+    override fun availBytes(): Long = meminfoKb("MemAvailable").let { if (it < 0) -1L else it * 1024 }
+
+    override fun swapFreeBytes(): Long = meminfoKb("SwapFree").let { if (it < 0) -1L else it * 1024 }
+
+    override fun rssBytes(): Long = runCatching {
+        // /proc/self/statm: size resident shared ... in pages
+        val pages = java.io.File("/proc/self/statm").readText().trim().split(' ')[1].toLong()
+        pages * android.system.Os.sysconf(android.system.OsConstants._SC_PAGESIZE)
+    }.getOrDefault(-1L)
+}
+
+/** Persists the last run of the load watchdog with commit() (synchronously), so that it survives the app being killed. */
+class PrefsSampleStore(context: Context) : SampleStore {
+    private val prefs = context.getSharedPreferences("spike-samples", Context.MODE_PRIVATE)
+
+    override fun save(run: StoredRun) {
+        runCatching { prefs.edit().putString("run", run.serialize()).commit() }
+    }
+
+    override fun load(): StoredRun? = StoredRun.parse(prefs.getString("run", null))
+
+    override fun clear() {
+        runCatching { prefs.edit().remove("run").commit() }
+    }
 }

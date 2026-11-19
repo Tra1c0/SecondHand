@@ -29,11 +29,37 @@ data class Candidate(
 // v0.65.0 and v0.66.0 use the object form and were built with QAIRT 2.50.0, the version of the SDK's runtime
 // (2.50.40). The app therefore downloads the zip of the release itself (resumable HTTPS from Qualcomm's S3 bucket,
 // checked against the known byte count and the zip's CRC32s) and imports it through the SDK's documented LOCALFS
-// route. Never started on its own: every download is one explicit tap with its own dialog.
+// route. Stage 80e: the 4B bundle imported fine, but loading it (3.2 GB of context binaries, about 4.2 GB available) ended in the
+// low-memory killer; the small Qwen3-1.7B (1.7 GB) is the first candidate, the 4B ones come last. Never started on its own: every download is one explicit tap with its own dialog.
 object PullPlanner {
     private const val S3 = "https://qaihub-public-assets.s3.us-west-2.amazonaws.com/qai-hub-models/models"
     const val MATCHING_RELEASE = "v0.66.0"
 
+    val QWEN3_1_7B_V66 = Candidate(
+        modelName = "local/qwen3-1-7b-v066",
+        release = MATCHING_RELEASE,
+        expectedQairt = "2.50",
+        zipUrl = "$S3/qwen3_1_7b/releases/v0.66.0/qwen3_1_7b-geniex_qairt-w4a16-qualcomm_snapdragon_8_elite_for_galaxy.zip",
+        zipBytes = 1_534_158_813L,
+        unpackedBytes = 1_800_000_000L,
+        title = "Qwen3-1.7B, Ausgabe v0.66.0 (QAIRT 2.50), das kleine Modell zum Ausprobieren",
+        sizeText = "etwa 1,5 GB",
+        difference = "Ein kleineres Modell (1,7 Milliarden statt 4 Milliarden Parameter): Es braucht nur etwa die Hälfte des Speichers und soll beweisen, dass " +
+            "alles bis zum Chip funktioniert, bevor das große Modell noch einmal drankommt. Die Antworten sind schlechter als beim großen Modell. " +
+            "Gleiche Ausgabe v0.66.0 (QAIRT 2.50.0, Format, das das SDK liest), Paket für die Galaxy-Variante des Chips. Es kann scheitern.",
+    )
+    val QWEN3_0_6B_V66 = Candidate(
+        modelName = "local/qwen3-0-6b-v066",
+        release = MATCHING_RELEASE,
+        expectedQairt = "2.50",
+        zipUrl = "$S3/qwen3_0_6b/releases/v0.66.0/qwen3_0_6b-geniex_qairt-w4a16-qualcomm_snapdragon_8_elite_for_galaxy.zip",
+        zipBytes = 640_473_082L,
+        unpackedBytes = 800_000_000L,
+        title = "Qwen3-0.6B, Ausgabe v0.66.0 (QAIRT 2.50), das kleinste Modell",
+        sizeText = "etwa 0,6 GB",
+        difference = "Das kleinste Modell (0,6 Milliarden Parameter, etwa 0,75 GB Rechenprogramme): sehr sparsam mit dem Speicher, nur als Rückfall, falls schon das " +
+            "1,7B-Modell nicht lädt. Die Antworten sind deutlich schlechter. Es kann scheitern.",
+    )
     val INSTRUCT_V66 = Candidate(
         modelName = "local/qwen3-4b-instruct-2507-v066",
         release = MATCHING_RELEASE,
@@ -62,7 +88,7 @@ object PullPlanner {
     )
 
     /** Best evidence first. */
-    val CANDIDATES = listOf(INSTRUCT_V66, QWEN3_V66)
+    val CANDIDATES = listOf(QWEN3_1_7B_V66, QWEN3_0_6B_V66, INSTRUCT_V66, QWEN3_V66)
 
     /** Names the earlier app versions (0.2 and 0.3) used for their SDK pulls; the bundles may still be on the phone. */
     val LEGACY_MODEL_NAMES = listOf("ai-hub-models/Qwen3-4B-Instruct-2507", "ai-hub-models/Qwen3-4B")

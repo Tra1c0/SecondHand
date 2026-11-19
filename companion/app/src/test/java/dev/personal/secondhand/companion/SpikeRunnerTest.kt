@@ -477,4 +477,73 @@ class SpikeRunnerTest {
         runner.runTest(FixedTests.SENTENCE) { }
         assertTrue(logText().contains("Die Metadaten dieses Pakets wurden von der App angepasst"))
     }
+
+    // ---- stage 80e: memory guard, watchdog hooks, model selection ----
+
+    private val order = mutableListOf<String>()
+    private fun runnerWithWatchdog(probe: FakeProbe = FakeProbe()): Pair<SpikeRunner, FakeWatchdog> {
+        val wd = FakeWatchdog(order)
+        port.order = order
+        return SpikeRunner(port, probe, clock, tracker, log, diag, store, dl, wd) to wd
+    }
+
+    @Test fun theGuardRefusesALoadThatDoesNotFitAndLoadsNothing() = runBlocking {
+        val (r, wd) = runnerWithWatchdog(FakeProbe().apply { memAvail = 1_000_000_000L })
+        r.refreshModelPresent()
+        val out = r.runTest(FixedTests.SENTENCE) { }
+        assertTrue(out is SpikeRunner.TestOutcome.Blocked)
+        assertTrue(port.calls.none { it == "load" })
+        assertEquals(0, wd.started)
+        assertTrue(logText().contains("Speicherwächter vor dem Laden"))
+        assertTrue(logText().contains("NICHT GELADEN"))
+        assertFalse(r.loaded)
+    }
+
+    @Test fun theOwnerCanLoadAnywayAndTheWatchdogStaysOn() = runBlocking {
+        val (r, wd) = runnerWithWatchdog(FakeProbe().apply { memAvail = 1_000_000_000L })
+        r.refreshModelPresent()
+        val out = r.runTest(FixedTests.SENTENCE, ignoreMemoryGuard = true) { }
+        assertTrue(out is SpikeRunner.TestOutcome.Ok)
+        assertEquals(1, wd.started)
+        assertEquals(1, wd.stopped)
+        assertTrue(logText().contains("Auf ausdrücklichen Wunsch trotzdem geladen"))
+    }
+
+    @Test fun theWatchdogRunsAroundTheLoadAndStopsAlsoOnAFailure() = runBlocking {
+        val (r, wd) = runnerWithWatchdog()
+        r.refreshModelPresent()
+        port.loadError = NpuException(null, "Model loading failed", "java.lang.RuntimeException")
+        r.runTest(FixedTests.SENTENCE) { }
+        assertEquals(listOf("wd-start", "load", "wd-stop"), order)
+        assertEquals(1, wd.stopped)
+        assertTrue(logText().contains("Speicherwächter während des Ladens: fake"))
+    }
+
+    @Test fun enoughMemoryLoadsWithoutAnyDialogOutcome() = runBlocking {
+        val (r, _) = runnerWithWatchdog(FakeProbe().apply { memAvail = 12L * 1073741824 })
+        r.refreshModelPresent()
+        assertTrue(r.runTest(FixedTests.SENTENCE) { } is SpikeRunner.TestOutcome.Ok)
+        assertTrue(logText().contains("frei sind jetzt 12,0 GB"))
+    }
+
+    @Test fun selectingAnotherPresentBundleSwitchesTheTestModelAndUnloads() = runBlocking {
+        port.present += PullPlanner.QWEN3_1_7B_V66.modelName
+        runner.refreshModelPresent()
+        // candidates come in their order: the 1.7B bundle is preferred over the 4B one
+        assertEquals(PullPlanner.QWEN3_1_7B_V66.modelName, runner.presentModel)
+        assertEquals(2, runner.presentBundles.size)
+        runner.runTest(FixedTests.SENTENCE) { }
+        assertTrue(runner.loaded)
+        assertTrue(runner.selectModel(PullPlanner.INSTRUCT_V66.modelName))
+        assertFalse(runner.loaded)
+        assertEquals(PullPlanner.INSTRUCT_V66.modelName, runner.presentModel)
+        runner.refreshModelPresent() // the choice survives a refresh
+        assertEquals(PullPlanner.INSTRUCT_V66.modelName, runner.presentModel)
+        assertFalse(runner.selectModel("local/not-there"))
+    }
+
+    @Test fun theBundleSizesComeFromTheBinFiles() = runBlocking {
+        runner.refreshModelPresent()
+        assertEquals(778182656L + 659685376L, runner.presentBundles.single().binBytes)
+    }
 }
