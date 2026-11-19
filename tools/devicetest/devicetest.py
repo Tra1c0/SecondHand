@@ -348,11 +348,17 @@ class Driver:
 def describe(screen):
     """A short description of a screen for the log: what the keyboard and the test app show."""
     keyboard = screen.keyboard_nodes()
-    classes = sorted({n.cls.rsplit(".", 1)[-1] for n in keyboard})
-    descriptions = [n.desc for n in keyboard if n.desc][:15]
     packages = sorted({n.package for n in screen.nodes})
-    return ("%d nodes of %s; keyboard nodes %d, classes %s, descriptions %s" % (
-        len(screen.nodes), ",".join(packages), len(keyboard), ",".join(classes), descriptions))[:500]
+    parts = []
+    for n in keyboard:
+        label = n.cls.rsplit(".", 1)[-1]
+        if n.rid:
+            label += "#" + n.rid.rsplit("/", 1)[-1]
+        if n.desc or n.text:
+            label += "'%s'" % (n.desc or n.text)[:20]
+        parts.append(label)
+    return ("%d nodes of %s; keyboard nodes %d: %s" % (
+        len(screen.nodes), ",".join(packages), len(keyboard), " ".join(parts)))[:1100]
 
 
 def tap(x, y):
@@ -442,6 +448,23 @@ def set_locales():
     time.sleep(10)
 
 
+def accessibility_state():
+    """Says whether the system has bound the probe service ("bound") or only knows it as enabled."""
+    text = shell("dumpsys accessibility", check=False, timeout=30)
+    state = []
+    for line in text.splitlines():
+        low = line.strip()
+        if low.startswith("Bound services") and "ProbeAccessibilityService" in low:
+            state.append("bound")
+        elif low.startswith("Enabled services") and "ProbeAccessibilityService" in low:
+            state.append("enabled")
+        elif low.startswith("Binding services") and "ProbeAccessibilityService" in low:
+            state.append("binding")
+        elif low.startswith("Crashed services") and "ProbeAccessibilityService" in low:
+            state.append("crashed")
+    return ",".join(state) or "unknown to the system"
+
+
 def setup(keyboard_apk, test_apk, info):
     wait_for_boot()
     set_locales()
@@ -458,10 +481,19 @@ def setup(keyboard_apk, test_apk, info):
     version = re.search(r"versionName=(\S+)", shell("dumpsys package " + KEYBOARD_PACKAGE))
     info["keyboard"] = "%s %s" % (KEYBOARD_PACKAGE, version.group(1) if version else "?")
 
-    # accessibility on (so the keys are in the UI dump), key names not hidden in password fields
+    # accessibility on (so the keys are in the UI dump), key names not hidden in password fields.
+    # The test app is started once first: a freshly installed app is in the "stopped" state.
+    shell("am start -W -n %s/.MainActivity" % TEST_PACKAGE, timeout=60)
     shell("settings put secure enabled_accessibility_services " + PROBE_SERVICE)
     shell("settings put secure accessibility_enabled 1")
     shell("settings put secure speak_password 1")
+    info["accessibility"] = accessibility_state()
+    deadline = time.time() + 30
+    while "bound" not in info["accessibility"] and time.time() < deadline:
+        time.sleep(2)
+        info["accessibility"] = accessibility_state()
+    if "bound" not in info["accessibility"]:
+        raise DeviceError("the accessibility probe was not bound by the system: " + info["accessibility"])
 
     ime = ""
     for line in shell("ime list -a -s").splitlines():
