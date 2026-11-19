@@ -3665,8 +3665,8 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
     Liste neu laden. Fehler werden als Meldung der Statuszeile gezeigt (voll, zu lang, Datei voll,
     defektes Zeichen, sonst „Speichern nicht möglich …“).
   - `isSecretClip` (P299): `ClipVault.isSecretClip(text, Kopierzeit, Markierung)` mit der eigenen
-    Kopierzeit und Vertraulich-Markierung des Clips, dazu `ClipGuard.classify(...)` mit Kategorie `OTP`
-    (ein Einmalcode auch innerhalb einer längeren Nachricht).
+    Kopierzeit und Vertraulich-Markierung des Clips, dazu `ClipGuard.classify(...).keepsOutOfHistory`
+    (Geheimnis oder bloßer Einmalcode; ein Satz mit codeähnlicher Zahl bleibt erlaubt, wie im Verlauf).
   - `openPromptSettings` („Verwalten“): bei gesperrtem Gerät nur schließen (P77), sonst schließen und
     `SnipCommand.openSettings(ime, SettingsDestination.AgentPrompts)`.
 - Ressourcen: `agent_prompt_strings.xml` (`values/`, `values-de/`), `agent_prompts_ids.xml`
@@ -3676,7 +3676,7 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
   und Ids, Grenzen, Zeichen, gesperrt, kaputte, zu große und fremde Dateien, Datei voll, Surrogate,
   `state`, `reset`, `reorder`), `AT/PromptsScreenTest.kt` (29: Seite, Editor-Karte, Zurück und
   Abbrechen, Wiederherstellung nach Aktivitäts-Neustart, Löschen, Sortieren, gesperrt, Zurücksetzen,
-  Einfügen aus der Zwischenablage, Vorschau), `AT/PromptsWindowTest.kt` (24: Popup-Taste und ihre
+  Einfügen aus der Zwischenablage, Vorschau), `AT/PromptsWindowTest.kt` (25: Popup-Taste und ihre
   Bedingungen, Fenster und Zeilen, Einfügen genau einmal, Markierung, Sperre nach dem Öffnen,
   Doppeltipp, „Verwalten“, „Kopiertes speichern“ mit allen Ablehnungen), dazu `AT/SettingsBarAreaTest.kt`
   (die Zeile im Bereich Leiste & Befehle).
@@ -5822,11 +5822,17 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
   des Zwischenablage-Verlaufs (`ClipVault.isSecretClip` mit der eigenen Kopierzeit und Markierung des
   Clips), nicht einer eigenen Prüfung: Ein Clip, den der Tresor beim Kopieren als vertraulich sortiert hat
   (etwa in einem Passwortfeld), bleibt auch später in einem normalen Feld abgelehnt. Eine eigene,
-  schwächere Regel war ein Befund der Prüfung von 74b. Zusätzlich lehnt `ClipGuard` mit Kategorie
-  `OTP` auch eine längere Nachricht mit Einmalcode ab, die der Verlauf behielte (Entscheidung des Leads:
-  ein Prompt hat kein Ablaufdatum). Tests: `aClipTheVaultSortedAsSecretWhenCopiedIsRefusedLaterInANormalField`,
+  schwächere Regel war ein Befund der Prüfung von 74b. Zusätzlich gilt `ClipGuard.classify(...).keepsOutOfHistory`
+  (Geheimnis oder bloßer Einmalcode). Die erste Fassung lehnte jede Kategorie `OTP` ab und damit auch
+  Alltags-Prompts wie „Write Python code that prints 10000 random numbers“; nicht wieder verschärfen
+  (`aPromptThatMentionsCodeAndANumberIsStoredLikeTheHistoryKeepsIt`, Rot-Beweis mit der alten Regel).
+  Bekannte Grenzen: Nach einem Neustart des Tastatur-Prozesses kennt der Tresor das Herkunftsfeld eines Clips
+  nicht mehr (die Markierung liegt nur im Speicher, auch im Verlauf); ein harmlos aussehender Text, der vorher
+  in einem Passwortfeld kopiert wurde, kann dann als Prompt gespeichert werden; nicht behebbar, das Feld
+  ist nicht wiederherstellbar. Auf Android-Versionen ohne Zeitstempel am Clip kann der Abgleich der Kopierzeit
+  im Tresor nicht greifen (gleiche Schwäche wie im Verlauf). Tests: `aClipTheVaultSortedAsSecretWhenCopiedIsRefusedLaterInANormalField`,
   `aClipTheSystemMarkedSensitiveIsRefused`, `everyCategoryTheHistoryKeepsOutIsRefusedHere`,
-  `aOneTimeCodeInsideALongerMessageIsRefusedToo`.
+  `aBareOneTimeCodeIsRefused`.
 - **P300** Prompt-Ablage, Zurück im Editor (74a): Der `BackHandler` der Editor-Karte ruft `cancel()`, das
   Titel und Text beim Aufruf liest; das Callback überlebt Neuzeichnungen, ein beim Zusammensetzen
   festgehaltener Wert wäre veraltet. Mit angezeigter Liste ist der Handler nicht aktiv, Zurück verlässt

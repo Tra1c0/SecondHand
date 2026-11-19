@@ -904,8 +904,12 @@ gesendet. Stand der Prüfung: nur mit automatischen Tests, auf keinem Gerät aus
   (höchstens 8000 Zeichen). Nichts gespeichert.“; „Schon gespeichert.“ (der oberste Prompt ist genau dieser
   Text); „Die Prompt-Ablage ist voll (200 Prompts). Lösche zuerst einen.“; und „Der kopierte Text sieht nach
   einem Geheimnis aus (Passwort, Schlüssel oder Code). Er wird nicht gespeichert.“ Diese Sperre folgt der
-  Regel des Zwischenablage-Verlaufs, ein Prompt läuft ja nie ab. Eine Nachricht, in der ein Einmalcode
-  steht, speichert die Tastatur auch dann nicht, wenn der Verlauf sie behielte (Annahme des Leads).
+  Regel des Zwischenablage-Verlaufs: abgelehnt wird, was als vertraulich markiert ist oder beim Kopieren
+  als Geheimnis sortiert wurde, ein Geheimnis und ein bloßer Einmalcode. Ein Text, der nur eine
+  codeähnliche Zahl in einem Satz enthält (etwa „Schreibe Python-Code, der 10000 Zahlen ausgibt“), wird
+  gespeichert. Grenze: Nach einem Neustart der Tastatur weiß sie nicht mehr, wo etwas kopiert wurde; ein
+  harmlos aussehender Text, der vorher in einem Passwortfeld kopiert wurde, kann dann gespeichert werden
+  (der Verlauf hat dieselbe Schwäche). Prüfe den Prompt im Zweifel auf der Seite und lösche ihn.
 - **Sortieren**: Auf der Seite „Prompt-Ablage“ gibt es „Sortieren“ (erst ab zwei Prompts). Im Dialog „Prompts
   sortieren“ ziehst du die Zeilen in die gewünschte Reihenfolge und bestätigst. Diese Reihenfolge gilt dann
   auch im Fenster der Tastatur. Sortieren geht nur auf der Seite, nicht im Fenster. Hat sich die Liste

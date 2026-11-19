@@ -17,13 +17,11 @@ Reihenfolge von oben nach unten.
   permanent gespeichert werden und die ich sortieren kann“, Zugang: „Eigenes Symbol beim , gedrückt
   halten“) ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 74): 74a Speicher und
   Einstellungsseite, 74b Symbol im Komma-Popup und Fenster in der Tastatur. Annahmen des Leads, die der
-  Owner ändern kann: (1) Ein Einmalcode innerhalb einer längeren kopierten Nachricht wird von
-  „Kopiertes als Prompt speichern“ abgelehnt, obwohl der Zwischenablage-Verlauf eine solche Nachricht
-  behielte; ein Prompt läuft nie ab. (2) Sortiert wird auf der Einstellungsseite (Ziehen im Dialog
-  „Sortieren“), nicht im Fenster der Tastatur. (3) Das Symbol fehlt auch in Feldern, die Lernen verbieten
-  (private Chats), nicht nur in Passwortfeldern. (4) Die Prompts liegen im geschützten Speicher ohne
-  Backup und sind nicht in „Sichern“. Offen: Nachprüfung der letzten Korrekturen (e5689c9, bad8d4f)
-  steht aus; Gerätetest (Langdruck auf Komma, Symbol und Popup, Fenster im Querformat, auf Tablets und im
+  Owner ändern kann: (1) Sortiert wird auf der Einstellungsseite (Ziehen im Dialog
+  „Sortieren“), nicht im Fenster der Tastatur. (2) Das Symbol fehlt auch in Feldern, die Lernen verbieten
+  (private Chats), nicht nur in Passwortfeldern. (3) Die Prompts liegen im geschützten Speicher ohne
+  Backup und sind nicht in „Sichern“. „Kopiertes als Prompt speichern“ folgt der Regel des Zwischenablage-Verlaufs (ein Satz mit codeähnlicher Zahl wird gespeichert); bekannte Grenze: nach einem Neustart der Tastatur kennt der Tresor das Herkunftsfeld nicht mehr. Die zweite Prüfung der Korrekturen e5689c9 und bad8d4f ist erledigt; die spätere Regeländerung 5faced3 hat kein Prüfer gelesen.
+  Offen: Gerätetest (Langdruck auf Komma, Symbol und Popup, Fenster im Querformat, auf Tablets und im
   flachen Stil, Tempo mit 200 langen Prompts); der GitHub-Lauf „SecondHand Tests“ (volle Agent-Suite,
   Upstream-Suite, Lint, Build) lief für diesen Stand noch nicht; ein signierter Build fehlt.
   Ideen danach, nicht gebaut: den Prompt-Speicher in „Sichern“ aufnehmen; Ordner oder Kategorien;

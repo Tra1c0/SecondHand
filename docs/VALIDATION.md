@@ -13,7 +13,7 @@ Belegt:
   bad8d4f: Editor-Karte, Zurück und Abbrechen mit Rückfrage, Wiederherstellung nach Aktivitäts-Neustart,
   Löschen, Sortieren, gesperrt, Zurücksetzen, Einfügen aus der Zwischenablage, Vorschau).
 - Symbol im Komma-Popup und Fenster (74b, Commits a71ffc2, d66ed9a, 931d285, f16848b, e5689c9, bad8d4f):
-  `PromptsWindowTest` (12 auf f16848b, 24 auf bad8d4f: Popup-Taste und ihre Bedingungen, Zeilen,
+  `PromptsWindowTest` (12 auf f16848b, 24 auf bad8d4f, 25 auf 5faced3, 0 Fehler im Lauf des Leads vom 2026-11-19: Popup-Taste und ihre Bedingungen, Zeilen,
   Einfügen genau einmal, Markierung, Sperre nach dem Öffnen, Doppeltipp, „Verwalten“, „Kopiertes
   speichern“ mit allen Ablehnungen).
 - Lokale Läufe (Robolectric, Cloud-Container, 2026-11-19): auf f16848b 9 Klassen, 166 Tests, 0 Fehler
@@ -36,6 +36,19 @@ Belegt:
   `ClipVault.isSecretClip`) und fehlende Tests (ergänzt; sie deckten zwei echte Fehler auf, die behoben
   wurden: ein Tipp nach dem Sperren ließ das Fenster offen, ein zweiter oder veralteter Tipp auf eine
   verborgene Zeile konnte erneut einfügen).
+- Regel für „Kopiertes als Prompt speichern“ (5faced3): abgelehnt wird, was der Verlauf draußen hält, also markiert oder vom Tresor
+  beim Kopieren als Geheimnis sortiert (`ClipVault.isSecretClip`) sowie Geheimnis oder bloßer Einmalcode
+  (`ClipGuard …keepsOutOfHistory`). Anlass: Die zweite Prüfung zeigte, dass Alltags-Prompts wie „Write Python code
+  that prints 10000 random numbers“ als Einmalcode abgelehnt wurden. Neu bzw. umbenannt: `aBareOneTimeCodeIsRefused`,
+  `aPromptThatMentionsCodeAndANumberIsStoredLikeTheHistoryKeepsIt`. Rot-Beweis des Leads: Mit der alten Regel
+  (Kategorie OTP) wurde der zweite Test rot („Write Python code that prints 10000 random numbers expected:<1> but was:<0>“),
+  danach zurückgesetzt.
+- Zweite Prüfung der letzten Korrekturen (e5689c9, bad8d4f), erledigt: bestätigt sind die Regel des Verlaufs, die
+  Ablehnung eines Duplikats und die erneute Prüfung von `insertPrompt` beim Tipp. Befunde: mittel, falsche Ablehnung
+  kurzer Code-Prompts (behoben in 5faced3); mittel, die Grenze beim Neustart (siehe unten, angenommen und dokumentiert,
+  nicht behebbar); niedrig, auf Android-Versionen ohne Zeitstempel am Clip kann der Abgleich der Kopierzeit im Tresor nicht greifen
+  (gleiche Schwäche wie im Verlauf); niedrig, die Tests „Sperre nach dem Öffnen“ und „Doppeltipp“ würden vermutlich auch ohne die
+  neuen Schutzzeilen bestehen, weil die Editor-Sitzung schon ablehnt: Sie halten das Verhalten fest, nicht die Zeilen.
 - Berührte Upstream-Dateien: `KeyCode.kt`, `TextKeyData.kt`, `KeyboardIconsSet.kt`,
   `KeyCodeDescriptionMapper.kt`, `KeyboardActionListenerImpl.kt`, `InputView.java`,
   `main_keyboard_frame.xml`, `SettingsNavHost.kt`. `InputLogic`, `RichInputConnection` und
@@ -44,8 +57,7 @@ Belegt:
 
 Nicht geprüft:
 
-- Prüfung durch einen Prüfer für die letzten Korrekturen (e5689c9, bad8d4f): Nachprüfung der letzten
-  Korrekturen (e5689c9, bad8d4f) steht aus.
+- Die Regeländerung 5faced3 hat kein Prüfer gelesen.
 - Kein Gerätetest und kein Emulatortest: Komma-Taste lange drücken, Darstellung des Popups, Aussehen und
   Einfärbung des Symbols, das Fenster im Querformat, auf Tablets und im flachen Stil, Geschwindigkeit beim
   Laden von 200 langen Prompts.
@@ -53,14 +65,18 @@ Nicht geprüft:
   noch nicht. Es gibt noch keinen signierten Build.
 - Die Läufe oben betreffen nur die genannten Klassen, nicht die ganze Suite.
 
+Nicht abgedeckt, bekannte Grenzen:
+
+- Nach einem Neustart des Tastatur-Prozesses weiß der Tresor nicht mehr, wo ein Clip kopiert wurde; ein harmlos
+  aussehender Text (nicht geheim nach seiner Form), der vorher in einem Passwortfeld kopiert wurde, kann dann als
+  Prompt gespeichert werden. Der Verlauf hat dieselbe Markierung nur im Speicher.
+- Auf Android-Versionen ohne Zeitstempel am Clip kann der Abgleich der Kopierzeit nicht greifen.
+
 Annahmen des Leads (der Owner kann sie ändern):
 
-1. Ein Einmalcode innerhalb einer längeren kopierten Nachricht wird von „Kopiertes als Prompt speichern“
-   abgelehnt, obwohl der Zwischenablage-Verlauf eine solche Nachricht behielte, weil ein Prompt nicht
-   abläuft.
-2. Sortiert wird auf der Einstellungsseite (Ziehen im Dialog „Sortieren“), nicht im Fenster der
+1. Sortiert wird auf der Einstellungsseite (Ziehen im Dialog „Sortieren“), nicht im Fenster der
    Tastatur.
-3. Das Symbol fehlt auch in Feldern, die Lernen verbieten.
+2. Das Symbol fehlt auch in Feldern, die Lernen verbieten.
 
 ## Etappe 72 — Satzabhängige Autokorrektur
 
