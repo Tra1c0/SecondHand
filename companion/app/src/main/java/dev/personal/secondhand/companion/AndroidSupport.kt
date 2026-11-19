@@ -5,6 +5,8 @@ import android.app.ApplicationExitInfo
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Debug
@@ -30,6 +32,22 @@ class AndroidProbe(private val context: Context) : Probe {
             (context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).getMemoryInfo(it)
         }.availMem
         return MemSnapshot(Debug.getNativeHeapAllocatedSize(), pss, system)
+    }
+
+    override fun freeStorageBytes(): Long = runCatching { StatFs(context.filesDir.path).availableBytes }.getOrDefault(-1L)
+
+    override fun networkType(): String = try {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork)
+        when {
+            caps == null -> "kein Netz"
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "WLAN"
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "Mobilfunk"
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "Ethernet"
+            else -> "anderes Netz"
+        }
+    } catch (t: Throwable) {
+        "unbekannt"
     }
 
     override fun batteryTempC(): Double? {
@@ -70,24 +88,35 @@ class PrefsStepTracker(context: Context) : StepTracker {
     }
 }
 
-/** The pulled chipset id and the ids that failed (pull or load), kept across app starts. */
+/**
+ * The candidate that was pulled and the candidates given up (with the short error that made it so), kept across
+ * app starts. A candidate is identified by Candidate.id.
+ */
 class SpikePrefs(context: Context) {
     private val prefs = context.getSharedPreferences("spike", Context.MODE_PRIVATE)
 
-    var pulledChipset: String?
-        get() = prefs.getString("pulled_chipset", null)
+    var pulledCandidateId: String?
+        get() = prefs.getString("pulled_candidate", null)
         set(value) {
-            prefs.edit().apply { if (value == null) remove("pulled_chipset") else putString("pulled_chipset", value) }.apply()
+            prefs.edit().apply { if (value == null) remove("pulled_candidate") else putString("pulled_candidate", value) }.apply()
         }
 
-    var failedChipsets: Set<String>
-        get() = prefs.getStringSet("failed_chipsets", emptySet())?.toSet() ?: emptySet()
+    /** Entries "id<TAB>error". */
+    private var abandonedRaw: Set<String>
+        get() = prefs.getStringSet("abandoned_candidates", emptySet())?.toSet() ?: emptySet()
         set(value) {
-            prefs.edit().putStringSet("failed_chipsets", value).apply()
+            prefs.edit().putStringSet("abandoned_candidates", value).apply()
         }
 
-    fun markFailed(chipset: String) {
-        failedChipsets = failedChipsets + chipset
+    val abandoned: Map<String, String>
+        get() = abandonedRaw.associate { it.substringBefore('\t') to it.substringAfter('\t', "") }
+
+    fun abandon(candidateId: String, error: String) {
+        abandonedRaw = abandonedRaw.filterNot { it.substringBefore('\t') == candidateId }.toSet() + (candidateId + "\t" + error)
+    }
+
+    fun clearAbandoned() {
+        abandonedRaw = emptySet()
     }
 }
 
@@ -143,5 +172,5 @@ object DeviceInfo {
 }
 
 object BuildConfigLike {
-    const val VERSION = "Begleit-Spike 0.1 (Etappe 80), SDK geniex-android 0.10.0"
+    const val VERSION = "Begleit-Spike 0.2 (Etappe 80), SDK geniex-android 0.10.0"
 }

@@ -4,6 +4,9 @@
     <!-- Only the SDK's model download uses this, and only after the explicit tap on button 1. -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Only to tell Wi-Fi from mobile data before and during the 2,7 GB download (reported, nothing else). -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <application
         android:allowBackup="false"
         android:extractNativeLibs="true"

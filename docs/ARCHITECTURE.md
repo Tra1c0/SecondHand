@@ -3778,21 +3778,20 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - **Der eine SDK-Adapter:** `GeniexPort.kt` ist die einzige Datei, die `com.geniex.sdk.*` importiert. Sie enthält
   die SDK-freien Typen (`InitInfo`, `LoadInfo`, `PullUpdate`, `GenEvent`, `GenProfile`, `NpuException`), die
   Schnittstelle `NpuPort` (`init`, `isModelPresent`, `pull`, `deleteModel`, `load`, `generate`, `stop`, `unload`),
-  die Konstanten (`GeniexConstants`: Modellname `ai-hub-models/Qwen3-4B`, Laufzeit `qairt`, Chipsets `SM8750`
-  und `SM8750-AC`) und die echte Umsetzung `GeniexAdapter`. SDK-Fehler werden zu `NpuException` (Klasse, SDK-Code,
+  die Konstanten (`GeniexConstants`: Laufzeit `qairt`, Chipset `SM8750-AC`) und die echte Umsetzung `GeniexAdapter`. Die Modell-ID ist
+  ein Parameter jedes Aufrufs (80b: zwei Kandidaten); `listHub` fragt Qualcomms Paketliste ab, `InitInfo.detectedChipset` ist die lokal gelesene Chip-Kennung des SDK. SDK-Fehler werden zu `NpuException` (Klasse, SDK-Code,
   SDK-Text bleiben erhalten). Alles andere arbeitet nur mit `NpuPort`, darum kann ein Fake (`Fakes.kt` in den
   Tests) die ganze App-Logik prüfen.
 - App-Logik ohne Android und SDK: `SpikeRunner.kt` (Ablauf: SDK starten, Download, die zwei Tests, Stopp, Entladen,
-  Löschen; schreibt jeden Fehler als Zeilen in den Bericht), `PullPlanner.kt` (zuerst `SM8750`; bei „nicht
-  verfügbar“ wird `SM8750-AC` nur angeboten), `ErrorText.kt` (Fehler zu Berichtszeilen, „Auf diesem Gerät nicht
+  Löschen; schreibt jeden Fehler als Zeilen in den Bericht), `PullPlanner.kt` (80b: die geordnete Liste der Pakete `Candidate`, Rat nach einem fehlgeschlagenen Pull, SDK-Fehlercodes `SdkCodes`; nichts wird von selbst geladen), `ErrorText.kt` (Fehler zu Berichtszeilen, „Auf diesem Gerät nicht
   unterstützt: <Klasse>“), `Metrics.kt` (Tokens pro Sekunde, Vergleich mit dem erwarteten Satz, Zahlenformat),
   `FixedTests.kt` (die zwei festen deutschen Texte), `ReportFormatter.kt` (Kopfzeilen, Testzeilen, gesamter
   Bericht; Datentypen `DeviceHeader`, `TestResult`) und `Support.kt` (die Schnittstellen `Probe`, `Clock`,
   `StepTracker` und der `ReportLog`).
 - Android-Teil: `AndroidSupport.kt` (Messungen `AndroidProbe`: nativer Heap, PSS, freier Systemspeicher, Akku-
-  temperatur; `PrefsStepTracker`; `SpikePrefs` merkt die geladene Variante und gescheiterte Chipsets; `DeviceInfo`:
+  temperatur; `PrefsStepTracker`; `SpikePrefs` merkt das geladene Paket und die aufgegebenen Pakete samt Fehler; `DeviceInfo`:
   Kopfzeilen und Grund des letzten Prozessendes über `ApplicationExitInfo`) und `MainActivity.kt` (ein Bildschirm,
-  alle Views im Code, Hochformat, Bildschirm bleibt während eines Schritts an, SDK-Arbeit nie im Hauptthread,
+  alle Views im Code (Liste der Pakete mit Zustand, Dialoge vor jedem Download und nach jedem Fehler), Hochformat, Bildschirm bleibt während eines Schritts an, SDK-Arbeit nie im Hauptthread,
   Modell wird in `onDestroy` freigegeben).
 - Tests (`companion/app/src/test/java/…`): `MetricsTest`, `ErrorTextTest`, `PullPlannerTest`,
   `ReportFormatterTest`, `SpikeRunnerTest` (mit `Fakes.kt`); reines JUnit 4, kein Robolectric, kein SDK-Aufruf.
@@ -6078,12 +6077,14 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   mit dem dritten Parameter `enableThinking = false` von `applyChatTemplate` abgeschaltet, nicht in `ModelConfig`. `maxTokens` hat
   in `GenerationConfig` die Vorgabe 32 und wird darum immer gesetzt (96 und 192). `PullEvent` und `LlmStreamResult` sind
   versiegelt; `Completed` beendet den Strom, `GeniexAdapter` bricht ihn dort per `transformWhile` ab.
-- **P323** Begleit-App, Chip-Kennung (80): Das Xiaomi 15 meldet `SM8750`; Qualcomm veröffentlicht Qwen3-4B nur für die
-  Galaxy-Variante (`SM8750-AC`, Alias von `snapdragon-8-elite-for-galaxy`). Der erste Pull nutzt `SM8750`; nur wenn der SDK-Text
-  „nicht verfügbar“ meldet (Strings aus `libgeniex.so`: „Requested chipset not available for this model“, „No pre-compiled
-  assets available for“; dazu „not found“, „unsupported“, HTTP 403/404), bietet `PullPlanner` `SM8750-AC` mit einem eigenen Dialog an
-  und lädt nie von selbst. Ein Fehler beim Laden der gepullten Variante markiert sie in `SpikePrefs` als gescheitert; nach „Modell
-  löschen“ bietet Knopf 1 dann die andere an. Die Fehlertexte des SDK sind nicht dokumentiert, die Erkennung ist eine Annahme.
+- **P323** Begleit-App, Chip-Kennung (80, korrigiert in 80b nach dem ersten Lauf auf dem Xiaomi 15): Der Pull mit Chipset `SM8750` scheitert
+  immer mit `-100015` (`COMMON_CHIPSET_UNAVAILABLE`). Grund (gelesen in den Listen „platform“ und „release-assets“ von Qualcomms S3 und im Quelltext der
+  Paketauswahl des SDK): `SM8750` ist bei Qualcomm **kein** Alias eines Chips (bekannt ist nur `sm8750-ac` für
+  `qualcomm-snapdragon-8-elite-for-galaxy`), und die Pakete von Qwen3-4B und Qwen3-4B-Instruct-2507 gibt es nur für diesen Galaxy-Chip (und
+  Gen 5 for Galaxy, X Elite, QCS); die Anleitung im Netz („chipset SM8750“) stimmt dafür nicht. Darum sind beide Kandidaten
+  `PullPlanner.CANDIDATES` mit `SM8750-AC`, zuerst Instruct-2507 (das Modell der Android-Anleitung, ohne Denkblock, in der Fehlerhilfe der
+  Anleitung als registrierter Name genannt), dann Qwen3-4B. Nach jedem Fehler zeigt die App den Fehler und bietet das nächste Paket mit
+  eigenem Dialog an; geladen wird nur nach Tipp. Ob die Galaxy-Pakete auf dem Xiaomi laufen, ist weiter offen.
 - **P324** Begleit-App, Paketierung (80): Das SDK sucht `libgeniex_plugin_*.so` in `applicationInfo.nativeLibraryDir`, also müssen
   die Bibliotheken auf der Platte liegen: `packaging.jniLibs.useLegacyPackaging = true` und `android:extractNativeLibs="true"`.
   Das AAR deklariert keine Abhängigkeiten, die App muss `kotlinx-coroutines` selbst einbinden, und es deklariert keine
@@ -6131,6 +6132,21 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   liegen nur Stubs; auf einem Gerät nicht geprüft). Verhalten, gewollt und hier festgehalten: Die Chips erscheinen auch in Passwortfeldern und im Inkognito-Modus
   (nur `mSuggestionStripHiddenPerUserSettings` schaltet sie ab), denn ein Passwortmanager braucht genau das; Text und Werte der Vorschläge liest, speichert
   und loggt die Tastatur nicht (nur „onInlineSuggestionsResponse called“).
+- **P330** Begleit-App, Fehlercodes (80b): Der Kotlin-Wrapper des SDK macht aus jedem Pull-Fehler nur `geniex_model_pull failed (rc=<Code>)`; die
+  Klartextmeldung des Rust-Teils (`geniex_model_last_error_message`, z. B. „chipset … not available for this model; supported: …“) ist über
+  die Java-Klassen nicht erreichbar (thread-lokal, `ModelManager.lastErrorMessage` nur auf dem Pull-Thread). Die App entscheidet darum nach
+  dem Code (`SdkCodes`, Tabelle aus `sdk/model-manager/src/ffi/types.rs` im GenieX-Repository, Stand main 2026-11-19): `-100015` und `-100010`
+  geben das Paket auf, `-100005/-100011/-100012/-100017` erlauben Wiederholen, `-100203` rät zum Löschen, `-100006` ist der Abbruch des Nutzers.
+  Der Text ist nur der Rückfall für unbekannte Codes. Die Codes stehen im Bericht mit Namen; Codes außerhalb der Tabelle bleiben Zahlen.
+- **P331** Begleit-App, angefangene Downloads (80b): Das SDK legt je Modell-ID einen Ordner an und hält `.inflight/`, bis alle Dateien da sind
+  (`pull.rs`); Abbruch und Netzfehler lassen die fertigen Teile liegen, der nächste Pull derselben ID setzt fort. Ein Pull, der schon beim
+  Planen scheitert (z. B. `-100015`), lässt nur einen leeren `.inflight/`-Ordner zurück, der das Modell nicht als vorhanden zeigt. „Modell /
+  angefangenen Download löschen“ ruft `ModelManagerWrapper.remove` für beide Modell-IDs auf (`-100004` „nicht im Speicher“ gilt als in
+  Ordnung); ob `remove` einen reinen `.inflight/`-Ordner entfernt, ist nicht belegt.
+- **P332** Begleit-App, Netzart und freier Speicher (80b): Der Bericht nennt vor jedem Versuch freien Speicher und Netzart (WLAN, Mobilfunk, …).
+  Dafür deklariert die App die normale Berechtigung `ACCESS_NETWORK_STATE` (keine Abfrage beim Nutzer; sie liefert nur die Art der
+  Verbindung). Die Signatur der Debug-APK kommt vom Schlüssel `~/.android/debug.keystore` des Containers; ein Update über eine ältere Fassung
+  klappt nur mit demselben Schlüssel (SHA-256 des Zertifikats `ba38b227…c1ad`, geprüft für 0.1 und 0.2 mit `apksigner verify --print-certs`).
 
 ## Datei-Inventar
 

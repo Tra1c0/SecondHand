@@ -30,7 +30,16 @@ import kotlinx.coroutines.withContext
 // Begleit-App). SDK strings (error codes and messages) are passed on unchanged; no user text is logged.
 
 /** What the SDK reported after its start (all optional: they are only for the report). */
-data class InitInfo(val sdkVersion: String?, val qairtPluginVersion: String?, val qairtRuntimePath: String?)
+data class InitInfo(
+    val sdkVersion: String?,
+    val qairtPluginVersion: String?,
+    val qairtRuntimePath: String?,
+    /** The chipset id the SDK reads from the phone itself (local probe, no network). */
+    val detectedChipset: String?,
+)
+
+/** One model of Qualcomm's AI Hub list with the chipsets it has a ready NPU bundle for. */
+data class HubEntry(val name: String, val chipsets: List<String>)
 
 /** The runtime the SDK's model manager recorded for the pulled bundle ("qairt" = NPU). */
 data class LoadInfo(val manifestRuntime: String?, val modelDir: String?)
@@ -72,17 +81,20 @@ interface NpuPort {
     /** Starts the SDK (idempotent). Throws NpuException; on a device without the NPU libraries this fails. */
     suspend fun init(): InitInfo
 
-    /** True when a complete model bundle is in the SDK's model store. */
-    suspend fun isModelPresent(): Boolean
+    /** True when a complete model bundle of this name is in the SDK's model store. */
+    suspend fun isModelPresent(modelName: String): Boolean
 
-    /** Downloads the model for the given chipset id (the only call that uses the network). */
-    fun pull(chipset: String): Flow<PullUpdate>
+    /** Downloads the model for the given chipset id (with [listHub], the only call that uses the network). */
+    fun pull(modelName: String, chipset: String): Flow<PullUpdate>
 
-    /** Removes the model from the SDK's store; returns the SDK's result code (0 = ok). */
-    suspend fun deleteModel(): Int
+    /** Removes the model (also a partial download, as far as the SDK does) from the SDK's store; returns the SDK's result code (0 = ok). */
+    suspend fun deleteModel(modelName: String): Int
+
+    /** Asks Qualcomm's release list which models have a ready NPU bundle for which chipsets (a small list, no model data). */
+    suspend fun listHub(): List<HubEntry>
 
     /** Loads the model on the NPU only (runtime qairt). Throws NpuException. */
-    suspend fun load(): LoadInfo
+    suspend fun load(modelName: String): LoadInfo
 
     /** Templates the two messages (thinking off) and streams the answer. Never throws for SDK errors; emits Failed. */
     fun generate(systemInstruction: String, userText: String, maxTokens: Int): Flow<GenEvent>
@@ -92,11 +104,9 @@ interface NpuPort {
     suspend fun unload()
 }
 
-/** Pull ids and the model name in one place. */
+/** Constants of the SDK calls. */
 object GeniexConstants {
-    const val MODEL_NAME = "ai-hub-models/Qwen3-4B"
     const val RUNTIME_QAIRT = "qairt"
-    const val CHIPSET_PRIMARY = "SM8750"
     const val CHIPSET_GALAXY = "SM8750-AC"
 }
 
@@ -131,6 +141,7 @@ class GeniexAdapter(context: Context) : NpuPort {
                 sdkVersion = runCatching { sdk.getSdkVersion() }.getOrNull(),
                 qairtPluginVersion = runCatching { sdk.getPluginVersion(GeniexConstants.RUNTIME_QAIRT) }.getOrNull(),
                 qairtRuntimePath = runCatching { sdk.getQairtRuntimePath() }.getOrNull(),
+                detectedChipset = runCatching { ModelManagerWrapper.detectChipset(true) }.getOrNull(),
             )
         } catch (e: CancellationException) {
             throw e
@@ -139,9 +150,9 @@ class GeniexAdapter(context: Context) : NpuPort {
         }
     }
 
-    override suspend fun isModelPresent(): Boolean = withContext(Dispatchers.IO) {
+    override suspend fun isModelPresent(modelName: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            ModelManagerWrapper.getPaths(GeniexConstants.MODEL_NAME) != null
+            ModelManagerWrapper.getPaths(modelName) != null
         } catch (e: CancellationException) {
             throw e
         } catch (t: Throwable) {
@@ -149,9 +160,9 @@ class GeniexAdapter(context: Context) : NpuPort {
         }
     }
 
-    override fun pull(chipset: String): Flow<PullUpdate> =
+    override fun pull(modelName: String, chipset: String): Flow<PullUpdate> =
         ModelManagerWrapper.pullFlow(
-            ModelPullInput(model_name = GeniexConstants.MODEL_NAME, hub = HubSource.AUTO, chipset = chipset),
+            ModelPullInput(model_name = modelName, hub = HubSource.AUTO, chipset = chipset),
         ).transformWhile { event ->
             when (event) {
                 is ModelManagerWrapper.PullEvent.Progress -> {
@@ -171,9 +182,9 @@ class GeniexAdapter(context: Context) : NpuPort {
             }
         }.flowOn(Dispatchers.IO)
 
-    override suspend fun deleteModel(): Int = withContext(Dispatchers.IO) {
+    override suspend fun deleteModel(modelName: String): Int = withContext(Dispatchers.IO) {
         try {
-            ModelManagerWrapper.remove(GeniexConstants.MODEL_NAME)
+            ModelManagerWrapper.remove(modelName)
         } catch (e: CancellationException) {
             throw e
         } catch (t: Throwable) {
@@ -181,9 +192,19 @@ class GeniexAdapter(context: Context) : NpuPort {
         }
     }
 
-    override suspend fun load(): LoadInfo = withContext(Dispatchers.IO) {
+    override suspend fun listHub(): List<HubEntry> = withContext(Dispatchers.IO) {
         try {
-            val paths = ModelManagerWrapper.getPaths(GeniexConstants.MODEL_NAME)
+            ModelManagerWrapper.listHubModels().map { HubEntry(it.name, it.chipsets.toList()) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (t: Throwable) {
+            throw wrap(t)
+        }
+    }
+
+    override suspend fun load(modelName: String): LoadInfo = withContext(Dispatchers.IO) {
+        try {
+            val paths = ModelManagerWrapper.getPaths(modelName)
                 ?: throw NpuException(null, "Modell nicht im Modellspeicher des SDK", "NoModel")
             // qairt rejects nCtx != 0 and nGpuLayers != 0 (PARAM_NOT_SUPPORTED), but 0.10.0's defaults are
             // 2048 and -1: set both to 0 explicitly. runtime qairt + compute unit NPU: no CPU/GPU path.

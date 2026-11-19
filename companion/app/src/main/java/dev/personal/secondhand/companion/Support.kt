@@ -16,6 +16,12 @@ interface Probe {
 
     /** Battery temperature in degrees Celsius (ACTION_BATTERY_CHANGED), or null when the phone does not report it. */
     fun batteryTempC(): Double?
+
+    /** Free space of the app's storage in bytes, or -1. */
+    fun freeStorageBytes(): Long
+
+    /** "WLAN", "Mobilfunk", "anderes Netz", "kein Netz" or "unbekannt" (ConnectivityManager, needs ACCESS_NETWORK_STATE). */
+    fun networkType(): String
 }
 
 interface Clock {

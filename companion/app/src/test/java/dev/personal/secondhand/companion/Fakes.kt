@@ -16,6 +16,10 @@ class FakeProbe(var temp: Double? = 31.0) : Probe {
     }
 
     override fun batteryTempC(): Double? = temp?.also { temp = it + 1.5 }
+    var free = 90L * 1073741824
+    var network = "WLAN"
+    override fun freeStorageBytes(): Long = free
+    override fun networkType(): String = network
 }
 
 class FakeTracker : StepTracker {
@@ -29,7 +33,13 @@ class FakeTracker : StepTracker {
 class FakePort(private val clock: FakeClock) : NpuPort {
     val calls = mutableListOf<String>()
     var initError: Throwable? = null
-    var present = true
+    /** Model names that are in the store. */
+    val present = mutableSetOf(PullPlanner.INSTRUCT_GALAXY.modelName)
+    var hub: List<HubEntry> = listOf(HubEntry("qwen3_4b", listOf("qualcomm-snapdragon-8-elite-for-galaxy")))
+    var hubError: Throwable? = null
+    val loadedNames = mutableListOf<String>()
+    val deletedNames = mutableListOf<String>()
+    val deleteResults = mutableMapOf<String, Int>()
     var pullUpdates: List<PullUpdate> = listOf(PullUpdate.Completed)
     var pullThrows: Throwable? = null
     var loadInfo = LoadInfo("qairt", "/models/x")
@@ -45,22 +55,33 @@ class FakePort(private val clock: FakeClock) : NpuPort {
     override suspend fun init(): InitInfo {
         calls += "init"
         initError?.let { throw it }
-        return InitInfo("0.10.0", "2.50", "/data/qairt")
+        return InitInfo("0.10.0", "2.50", "/data/qairt", "SM8750")
     }
 
-    override suspend fun isModelPresent(): Boolean { calls += "present"; return present }
+    override suspend fun isModelPresent(modelName: String): Boolean { calls += "present:$modelName"; return modelName in present }
 
-    override fun pull(chipset: String): Flow<PullUpdate> = flow {
-        calls += "pull:$chipset"
+    override fun pull(modelName: String, chipset: String): Flow<PullUpdate> = flow {
+        calls += "pull:$modelName:$chipset"
         pulledChipsets += chipset
         pullThrows?.let { throw it }
         pullUpdates.forEach { emit(it) }
     }
 
-    override suspend fun deleteModel(): Int { calls += "delete"; return deleteResult }
+    override suspend fun deleteModel(modelName: String): Int {
+        calls += "delete:$modelName"
+        deletedNames += modelName
+        return deleteResults[modelName] ?: deleteResult
+    }
 
-    override suspend fun load(): LoadInfo {
+    override suspend fun listHub(): List<HubEntry> {
+        calls += "listHub"
+        hubError?.let { throw it }
+        return hub
+    }
+
+    override suspend fun load(modelName: String): LoadInfo {
         calls += "load"
+        loadedNames += modelName
         clock.now += loadTakesMs
         loadError?.let { throw it }
         return loadInfo

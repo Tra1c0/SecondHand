@@ -53,4 +53,17 @@ class ErrorTextTest {
         val lines = ErrorText.describe("X", RuntimeException("outer", java.io.IOException("No space left on device")))
         assertTrue(lines.contains("  Ursache: java.io.IOException: No space left on device"))
     }
+
+    @Test fun knownSdkCodesGetTheirNameAndAHint() {
+        val lines = ErrorText.describePull("Modell herunterladen", -100015, "geniex_model_pull failed (rc=-100015)")
+        assertTrue(lines.contains("  SDK-Code: -100015 (COMMON_CHIPSET_UNAVAILABLE laut GenieX-Quelltext)"))
+        assertTrue(lines.any { it.contains("SM8750-AC") && it.contains("Hinweis") })
+    }
+
+    @Test fun shortErrorCombinesCodeNameAndText() {
+        assertEquals("-100005 (COMMON_NETWORK): timed out", ErrorText.shortError(-100005, "timed out", "X"))
+        assertEquals("-7: boom", ErrorText.shortError(-7, "boom", "X"))
+        assertEquals("boom", ErrorText.shortError(null, "boom", "X"))
+        assertEquals("java.io.IOException", ErrorText.shortError(null, " ", "java.io.IOException"))
+    }
 }

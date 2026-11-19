@@ -12,8 +12,8 @@ android {
         applicationId = "dev.personal.secondhand.companion"
         minSdk = 27 // the AAR's own minSdk
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1-spike"
+        versionCode = 2
+        versionName = "0.2-spike"
         ndk {
             abiFilters.clear()
             abiFilters.add("arm64-v8a") // the AAR ships nothing else

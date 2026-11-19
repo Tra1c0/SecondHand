@@ -28,7 +28,7 @@ object ErrorText {
         val lines = mutableListOf<String>()
         lines += "FEHLER bei Schritt: $step"
         lines += "  Klasse: " + className(t)
-        sdkCode(t)?.let { lines += "  SDK-Code: $it" }
+        sdkCode(t)?.let { lines += "  SDK-Code: $it" + (SdkCodes.name(it)?.let { n -> " ($n laut GenieX-Quelltext)" } ?: "") }
         lines += "  SDK-Text: " + (sdkMessage(t)?.takeIf { it.isNotBlank() } ?: "(keiner)")
         var cause = t.cause
         var depth = 0
@@ -46,9 +46,22 @@ object ErrorText {
     fun describePull(step: String, code: Int, message: String?): List<String> =
         describe(step, NpuException(code, message, "PullEvent.Error"))
 
+    /** "-100015 (COMMON_CHIPSET_UNAVAILABLE): <text>", the short form for the screen and the list of attempts. */
+    fun shortError(code: Int?, message: String?, className: String): String {
+        val c = code?.let { it.toString() + (SdkCodes.name(it)?.let { n -> " ($n)" } ?: "") }
+        val m = message?.takeIf { it.isNotBlank() }
+        return listOfNotNull(c, m).joinToString(": ").ifBlank { className }
+    }
+
     fun hint(t: Throwable): String? {
         val text = ((sdkMessage(t) ?: "") + " " + className(t)).lowercase()
         return when {
+            sdkCode(t) == SdkCodes.CHIPSET_UNAVAILABLE ->
+                "Qualcomm kennt für diese Chip-Kennung kein Paket dieses Modells (bei Qualcomm ist SM8750 keine bekannte Kennung, nur SM8750-AC)."
+            sdkCode(t) == SdkCodes.HUB_MODEL_NOT_FOUND -> "Das Modell steht nicht in Qualcomms Liste."
+            sdkCode(t) == SdkCodes.INSUFFICIENT_DISK_SPACE -> "Nicht genug freier Speicher."
+            sdkCode(t) == SdkCodes.MODEL_INVALID -> "Das Paket ist unvollständig oder beschädigt: angefangenen Download löschen und neu laden."
+            sdkCode(t) == SdkCodes.NETWORK -> "Netzwerkproblem: WLAN und Internet prüfen, dann erneut tippen (der Download setzt fort)."
             isUnsupportedDevice(t) -> "Die NPU-Bibliotheken des SDK lassen sich auf diesem Gerät nicht laden."
             "param_not_supported" in text ->
                 "Die Modellkonfiguration wurde abgelehnt (bei qairt müssen nCtx und nGpuLayers 0 sein)."

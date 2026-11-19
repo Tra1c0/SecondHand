@@ -13,14 +13,16 @@ class SpikeRunner(
     private val log: ReportLog,
 ) {
     sealed interface PullOutcome {
-        data class Success(val chipset: String) : PullOutcome
-        data class Failed(val chipset: String, val offerGalaxyBundle: Boolean) : PullOutcome
+        data class Success(val candidate: Candidate) : PullOutcome
+
+        /** [error] is the short error text of the attempt (code and SDK text), [advice] what the screen should offer. */
+        data class Failed(val candidate: Candidate, val error: String, val advice: PullPlanner.Advice) : PullOutcome
     }
 
     sealed interface TestOutcome {
         data class Ok(val result: TestResult) : TestOutcome
 
-        /** [loadFailed]: the failure was while loading the model (the pulled variant is then marked as failed). */
+        /** [loadFailed]: the failure was while loading the model (the pulled candidate is then given up). */
         data class Failed(val loadFailed: Boolean) : TestOutcome
     }
 
@@ -37,8 +39,15 @@ class SpikeRunner(
     var loaded: Boolean = false
         private set
 
+    /** The model name of the bundle that is in the SDK's store (the first candidate model found), or null. */
+    @Volatile
+    var presentModel: String? = null
+        private set
+
     @Volatile
     private var stopRequested = false
+
+    private var attempts = 0
 
     suspend fun init(): InitInfo? {
         val step = "GenieX-SDK starten"
@@ -48,6 +57,7 @@ class SpikeRunner(
             supported = true
             log.add("GenieX-SDK gestartet. SDK-Version: ${info.sdkVersion ?: "nicht gemeldet"}, " +
                 "QAIRT-Plugin: ${info.qairtPluginVersion?.ifBlank { null } ?: "nicht gemeldet"}")
+            log.add("Chip-Kennung laut SDK (lokal gelesen): ${info.detectedChipset?.ifBlank { null } ?: "nicht gemeldet"}")
             if (info.qairtPluginVersion.isNullOrBlank()) {
                 log.add("Warnung: Das QAIRT-Plugin (NPU) meldet keine Version. Möglicherweise ist es nicht registriert.")
             }
@@ -64,26 +74,36 @@ class SpikeRunner(
         }
     }
 
-    suspend fun refreshModelPresent(): Boolean = try {
-        port.isModelPresent()
-    } catch (e: CancellationException) {
-        throw e
-    } catch (t: Throwable) {
-        fail("Modellspeicher prüfen", t)
-        false
+    /** Looks for a complete bundle of any candidate model in the SDK's store; returns its model name. */
+    suspend fun refreshModelPresent(): String? {
+        try {
+            val found = PullPlanner.CANDIDATES.map { it.modelName }.distinct().firstOrNull { port.isModelPresent(it) }
+            presentModel = found
+            return found
+        } catch (e: CancellationException) {
+            throw e
+        } catch (t: Throwable) {
+            fail("Modellspeicher prüfen", t)
+            return presentModel
+        }
     }
 
-    suspend fun pull(chipset: String, onProgress: (downloadedBytes: Long, totalBytes: Long) -> Unit): PullOutcome {
-        val step = "Modell herunterladen (Chipset $chipset)"
+    suspend fun pull(candidate: Candidate, onProgress: (downloadedBytes: Long, totalBytes: Long) -> Unit): PullOutcome {
+        val step = "Modell herunterladen (${candidate.modelName}, Chipset ${candidate.chipset})"
+        attempts++
         tracker.begin(step)
-        log.add("Schritt 1: $step ...")
+        log.add("")
+        log.add("Schritt 1, Versuch $attempts: $step ...")
+        val free = probe.freeStorageBytes()
+        log.add("  Modell-ID: ${candidate.modelName}, Chipset-ID: ${candidate.chipset}")
+        log.add("  Freier Speicher vorher: " + (if (free >= 0) Metrics.gb(free) else "unbekannt") + ", Netz: " + probe.networkType())
         val started = clock.nowMs()
         var failureCode: Int? = null
         var failureMessage: String? = null
         var failedWithException: Throwable? = null
         var completed = false
         try {
-            port.pull(chipset).collect { update ->
+            port.pull(candidate.modelName, candidate.chipset).collect { update ->
                 when (update) {
                     is PullUpdate.Progress -> onProgress(update.downloadedBytes, update.totalBytes)
                     is PullUpdate.Completed -> completed = true
@@ -94,7 +114,8 @@ class SpikeRunner(
                 }
             }
         } catch (e: CancellationException) {
-            log.add("Download abgebrochen (ein erneuter Tipp setzt fort).")
+            log.add("Download abgebrochen (ein erneuter Tipp auf Knopf 1 setzt fort).")
+            tracker.failed(step, "Cancelled")
             throw e
         } catch (t: Throwable) {
             failedWithException = t
@@ -102,37 +123,66 @@ class SpikeRunner(
         val exception = failedWithException
         if (exception != null) {
             fail(step, exception)
-            return PullOutcome.Failed(chipset, PullPlanner.afterPullFailure(chipset, null, ErrorText.sdkMessage(exception)) ==
-                PullPlanner.AfterFailure.OfferGalaxyBundle)
+            val code = ErrorText.sdkCode(exception)
+            val message = ErrorText.sdkMessage(exception)
+            return PullOutcome.Failed(candidate, ErrorText.shortError(code, message, ErrorText.className(exception)),
+                PullPlanner.adviceAfterPullFailure(code, message))
         }
         if (!completed) {
             val code = failureCode ?: -1
             log.addAll(ErrorText.describePull(step, code, failureMessage ?: "Der Download endete ohne Abschlussmeldung"))
             tracker.failed(step, "PullEvent.Error")
-            val offer = PullPlanner.afterPullFailure(chipset, code, failureMessage) == PullPlanner.AfterFailure.OfferGalaxyBundle
-            return PullOutcome.Failed(chipset, offer)
+            return PullOutcome.Failed(candidate, ErrorText.shortError(code, failureMessage, "PullEvent.Error"),
+                PullPlanner.adviceAfterPullFailure(code, failureMessage))
         }
         val present = try {
-            port.isModelPresent()
+            port.isModelPresent(candidate.modelName)
         } catch (e: CancellationException) {
             throw e
         } catch (t: Throwable) {
             fail(step, t)
-            return PullOutcome.Failed(chipset, false)
+            return PullOutcome.Failed(candidate, ErrorText.shortError(null, ErrorText.sdkMessage(t), ErrorText.className(t)),
+                PullPlanner.adviceAfterPullFailure(null, null))
         }
         if (!present) {
             log.add("FEHLER bei Schritt: $step")
             log.add("  Der Download meldet 'fertig', aber das SDK findet das Modell nicht im Modellspeicher.")
             tracker.failed(step, "ModelNotPresent")
-            return PullOutcome.Failed(chipset, false)
+            return PullOutcome.Failed(candidate, "Download fertig, Modell nicht im Speicher",
+                PullPlanner.Advice(giveUp = false, repeatUseful = true, deleteFirst = true, cancelled = false))
         }
-        log.add("Download fertig (Chipset $chipset) in ${Metrics.num((clock.nowMs() - started) / 1000.0, 0)} s.")
+        presentModel = candidate.modelName
+        log.add("Download fertig (${candidate.modelName}, ${candidate.chipset}) in ${Metrics.num((clock.nowMs() - started) / 1000.0, 0)} s.")
         tracker.end(step)
-        return PullOutcome.Success(chipset)
+        return PullOutcome.Success(candidate)
+    }
+
+    /** Asks Qualcomm's list which models have an NPU bundle for which chipsets and writes the Qwen3 entries to the report. */
+    suspend fun listHub() {
+        val step = "Paketliste bei Qualcomm abfragen"
+        tracker.begin(step)
+        log.add("")
+        log.add("$step (nur eine Liste, kein Modell-Download; Netz: ${probe.networkType()}) ...")
+        try {
+            val all = port.listHub()
+            val qwen = all.filter { it.name.contains("qwen3", ignoreCase = true) }
+            log.add("Qualcomms Liste: ${all.size} Modelle mit NPU-Paket, davon ${qwen.size} mit 'qwen3' im Namen.")
+            qwen.forEach { log.add("  ${it.name}: " + it.chipsets.joinToString(", ").ifBlank { "(keine Chips)" }) }
+            tracker.end(step)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (t: Throwable) {
+            fail(step, t)
+        }
     }
 
     suspend fun runTest(test: FixedTest, onText: (String) -> Unit): TestOutcome {
         stopRequested = false
+        val modelName = presentModel
+        if (modelName == null) {
+            log.add("Kein Modell im Speicher: erst Knopf 1 tippen.")
+            return TestOutcome.Failed(loadFailed = false)
+        }
         val testStart = clock.nowMs()
         log.add("")
         log.add("Schritt ${test.id}: ${test.title} ...")
@@ -145,7 +195,7 @@ class SpikeRunner(
                 tracker.begin(loadStep)
                 val t0 = clock.nowMs()
                 val info = try {
-                    port.load()
+                    port.load(modelName)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (t: Throwable) {
@@ -221,6 +271,10 @@ class SpikeRunner(
         }
     }
 
+    fun freeStorageBytesNow(): Long = probe.freeStorageBytes()
+
+    fun networkTypeNow(): String = probe.networkType()
+
     suspend fun requestStop() {
         stopRequested = true
         port.stop()
@@ -239,13 +293,29 @@ class SpikeRunner(
         }
     }
 
-    suspend fun deleteModel(): Boolean {
+    /**
+     * Removes every candidate model (complete or partial, as far as the SDK removes partial ones). "Not in the
+     * store" counts as fine.
+     */
+    suspend fun deleteModels(): Boolean {
         val step = "Modell löschen"
         try {
             if (loaded) unload()
-            val rc = port.deleteModel()
-            log.add(if (rc == 0) "Modell aus dem Speicher des SDK gelöscht." else "Modell löschen: SDK-Ergebniscode $rc (0 = ok).")
-            return rc == 0
+            var allOk = true
+            for (name in PullPlanner.CANDIDATES.map { it.modelName }.distinct()) {
+                val rc = port.deleteModel(name)
+                val ok = rc == 0 || rc == SdkCodes.FILE_NOT_FOUND
+                if (!ok) allOk = false
+                log.add(
+                    when (rc) {
+                        0 -> "Gelöscht: $name"
+                        SdkCodes.FILE_NOT_FOUND -> "Nichts zu löschen: $name"
+                        else -> "Löschen von $name: SDK-Ergebniscode $rc (0 = ok)"
+                    },
+                )
+            }
+            if (allOk) presentModel = null
+            return allOk
         } catch (e: CancellationException) {
             throw e
         } catch (t: Throwable) {

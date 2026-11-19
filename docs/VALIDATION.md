@@ -1,6 +1,36 @@
 # Prüfnachweise
 
+## Etappe 80b — erster Lauf auf dem Gerät und Korrektur (2026-11-19)
+
+- **Gerätebericht des Owners (Xiaomi 15, Android 16 / API 36, Chip laut System QTI SM8750, RAM 10,9 GB, 222 GB frei):** SDK-Start in
+  Ordnung (SDK 0.10.0, QAIRT-Plugin 2.50). Schritt 1 mit `ai-hub-models/Qwen3-4B`, Chipset `SM8750`: ein vom Nutzer abgebrochener
+  Versuch, danach zweimal `PullEvent.Error`, SDK-Code `-100015`, Text „geniex_model_pull failed (rc=-100015)“. Das ist der erste echte
+  Geräteteil; Test 2 und 3 liefen noch nicht, nichts wurde geladen.
+- **Bedeutung von -100015 (aus dem Quelltext von Qualcomms GenieX gelesen):** `GENIEX_ERROR_COMMON_CHIPSET_UNAVAILABLE`
+  (Quelltext des SDK, Datei types im Ordner sdk/model-manager/src/ffi). Ursache: `SM8750` ist in Qualcomms Qualcomms Chipliste kein Alias eines Chips; nur `sm8750-ac`
+  (`qualcomm-snapdragon-8-elite-for-galaxy`) ist bekannt. Das SDK findet also für `SM8750` nie ein Paket, bei keinem Modell. Auf dem
+  Gerät nicht gegengeprüft, aber die Kette (Manifest, Alias-Suche, Fehler) ist im Quelltext eindeutig. Die erste Fassung der App erkannte den
+  Fall nicht, weil sie auf Texte statt auf den Code schaute; der Text enthält nur den Code.
+- **Paketprüfung auf Qualcomms Server (HEAD, nichts geladen; Muster `qaihub-public-assets.s3.us-west-2.amazonaws.com/qai-hub-models/models/<id>/releases/v0.67.0/<id>-geniex_qairt-w4a16-<chip>.zip`):**
+  Qwen3-4B, `qualcomm_snapdragon_8_elite`: 403 (gibt es nicht); Qwen3-4B, `…_8_elite_for_galaxy`: 200, 2 666 196 166 Bytes;
+  Qwen3-4B-Instruct-2507, `…_8_elite`: 403; Qwen3-4B-Instruct-2507, `…_8_elite_for_galaxy`: 200, 2 665 337 667 Bytes. Auch Modellliste
+  und die Paketliste beider Modelle (Laufzeit `RUNTIME_GENIEX_QAIRT`) kennen für den 8 Elite nur die Galaxy-Pakete.
+- **Änderung (Version 0.2-spike, versionCode 2):** Die Liste der Pakete (`PullPlanner.CANDIDATES`): 1. Qwen3-4B-Instruct-2507 / `SM8750-AC`,
+  2. Qwen3-4B / `SM8750-AC`. Nach jedem Fehlschlag zeigt die App Fehler (mit Namen des SDK-Codes) und bietet über einen eigenen Dialog das nächste
+  Paket (Name, Größe, Unterschied, „kann scheitern“) oder, wo es sinnvoll ist, dasselbe noch einmal (Fortsetzen) an; Abbruch durch den Nutzer ist
+  kein Fehler. Bei Rückfall und Fehlern zeigt der Bildschirm, welches Paket aktiv ist und welche mit welchem Fehler aufgegeben wurden. Knopf „Modell /
+  angefangenen Download löschen“ erklärt, wann er dran ist. Neu: Knopf „Paketliste bei Qualcomm abfragen“ (kleine Liste, kein Modell), Chip-Kennung
+  laut SDK im Bericht, je Versuch Modell-ID, Chipset-ID, freier Speicher und Netzart (Berechtigung `ACCESS_NETWORK_STATE`). Weiter gilt: jeder Download
+  ist ein eigener Tipp mit Dialog. Das Denken bleibt aus; Instruct-2507 denkt ohnehin nicht (laut Doku ist `enable_thinking=False` dort ein No-op).
+- **Tests (JVM):** 61 von 61 grün (`MetricsTest` 7, `ErrorTextTest` 9, `PullPlannerTest` 11, `ReportFormatterTest` 9, `SpikeRunnerTest` 25).
+  Rotprobe: In `PullPlanner` die Folge von `-100015` auf „Wiederholen sinnvoll“ gesetzt und `next` um eins verschoben: 6 Tests rot; zurückgesetzt, 61 grün.
+- **APK 0.2:** 97 103 306 Bytes, gleiche Signatur wie 0.1 (Debug-Schlüssel des Containers, Zertifikat-SHA-256 `ba38b227…c1ad`), also als Update
+  installierbar. **Nicht geprüft:** ob eines der Galaxy-Pakete auf dem Xiaomi 15 lädt oder läuft; ob `remove` angefangene Downloads löscht; die
+  neuen Dialoge auf einem Telefon.
+
 ## Etappe 80 — GenieX-Spike (Begleit-App)
+
+(Stand der ersten Fassung 0.1; der erste Lauf auf dem Gerät und die Korrektur stehen oben unter 80b. Die Aussage zur Chip-Kennung `SM8750` in dieser Fassung ist überholt: sie ist bei Qualcomm unbekannt.)
 
 **Auf einem Gerät ist NICHTS gelaufen.** Weder die App noch das SDK noch das Modell wurden auf einem Telefon, einem
 Emulator oder sonst irgendwo ausgeführt. Alles unten ist aus den Dateien gelesen oder von der JVM-Prüfung der eigenen Logik.

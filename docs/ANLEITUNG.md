@@ -1602,13 +1602,19 @@ vom Lead als Datei geschickt (`app-debug.apk`, etwa 97 MB; Größe und SHA-256 s
 2. **WLAN** einschalten und etwa **7 GB freien Speicher** sicherstellen. App öffnen. Oben stehen Gerät, Chip und Speicher.
    Steht dort in Rot „Auf diesem Gerät nicht unterstützt …“, tippe nur **Bericht kopieren** (Schritt 6).
 3. **1. Modell laden** tippen und die Frage mit „Jetzt laden“ bestätigen (etwa 2,7 GB von Qualcomms Server; die App
-   bleibt dabei im Vordergrund, der Bildschirm bleibt an). Wenn Qualcomm für deinen Chip kein Paket hat, fragt die
-   App, ob sie das Galaxy-Paket „SM8750-AC“ versuchen soll; es ist für eine andere Chip-Variante gebaut und läuft
-   vielleicht nicht. Das ist ein zweiter, eigener Tipp.
+   bleibt dabei im Vordergrund, der Bildschirm bleibt an; der Dialog nennt auch, ob du im WLAN bist). Die App kennt zwei
+   Pakete in fester Reihenfolge (Liste auf dem Bildschirm): zuerst Qwen3-4B-Instruct-2507, dann Qwen3-4B, beide in der
+   Fassung „SM8750-AC“, die für die Galaxy-Variante des Chips gebaut ist und auf diesem Telefon vielleicht nicht läuft.
+   Scheitert ein Download, zeigt die App den Fehler und bietet das **nächste Paket** (mit Name, Größe, Unterschied) oder
+   „Dasselbe nochmal“ an; geladen wird immer erst nach deinem Tipp. Ein Abbruch durch dich ist kein Fehler: Knopf 1 setzt
+   den Download fort. **Modell / angefangenen Download löschen** brauchst du nur, wenn ein Download „unvollständig oder
+   beschädigt“ meldet, Knopf 1 nach einem Abbruch immer wieder scheitert, ein Paket sich nicht laden lässt (dann wird danach
+   das nächste angeboten) oder um Speicher freizugeben. **Paketliste bei Qualcomm abfragen** holt nur eine kleine Liste
+   (kein Modell) und schreibt sie in den Bericht.
 4. **2. Test: festen Satz korrigieren** tippen. Die App lädt das Modell auf den KI-Chip (das kann eine Weile dauern),
    lässt es einen festen Satz mit zwei Tippfehlern korrigieren und zeigt Antwort, Ladezeit, Tempo, Speicher und Akku-
    Temperatur. Optional danach **3. Test: längerer Absatz** (zeigt das Tempo über längere Zeit).
-5. Hängt etwas, hilft **Stopp**. **Modell entladen** gibt den Arbeitsspeicher frei, **Modell löschen** das Modell
+5. Hängt etwas, hilft **Stopp**. **Modell entladen** gibt den Arbeitsspeicher frei, **Modell / angefangenen Download löschen** die Modelle
    vom Telefon. Verschwindet die App mitten im Test, öffne sie wieder: Der Bericht sagt dann, in welchem Schritt es passierte.
 6. **Bericht kopieren** tippen, dann in den Chat mit dem Lead einfügen (oder einen Screenshot des Berichts schicken).
    Der Bericht enthält Gerätedaten, Zahlen und Fehlertexte, keine privaten Texte.

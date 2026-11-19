@@ -874,17 +874,19 @@ offen, gebaut wird erst nach einer Entscheidung zu den offenen Fragen.
   falschen Ausgaben). Veröffentlichte Geschwindigkeit (Galaxy-Variante): 16 bis 21 Tokens pro Sekunde; zu
   Energie und Speicher nichts. Weitergabe einer APK mit der Laufzeit: aus den Texten nicht ablesbar, also keine
   Veröffentlichung.
-  **Etappe 80 (gebaut, nicht auf einem Gerät gelaufen):** die kleine Begleit-App `companion/` („SecondHand Begleit-Spike“,
-  `docs/ARCHITECTURE.md` → Begleit-App, `docs/BUILD.md`, `docs/ANLEITUNG.md`). Sie lädt nach Bestätigung das Modell (zuerst
-  Chipset `SM8750`, bei „nicht verfügbar“ auf eigenen Tipp das Galaxy-Paket `SM8750-AC`), lädt es nur auf der NPU
-  (`qairt`), korrigiert einen festen Satz und schreibt einen längeren Absatz um und zeigt Antwort, Ladezeit, Zeit bis zum
-  ersten Token, Tokens pro Sekunde (SDK und selbst gemessen), Speicher, Akku-Temperatur und jeden Fehler samt SDK-Code
-  und -Text; „Bericht kopieren“ legt alles in die Zwischenablage. Kein Textfeld, keine Verbindung zur Tastatur, nie
-  veröffentlicht, nur als Datei an den Owner. Nächste Schritte, je erst nach dem Bericht des Owners: (a) Läuft es
-  (und welche Variante)? Sonst Ursache klären (Chip-Kennung, QAIRT 2.51 gegen 2.50, `enableThinking`). (b) Tempo,
-  Speicher und Wärme bewerten (Qualcomm nennt 16 bis 21 Tokens/s für die Galaxy-Variante). (c) Erst dann die lokale
-  Schnittstelle zwischen Tastatur und Begleit-App (Aufruf nur auf Tipp, Übernahme mit eigenem Klick, nichts loggen) und
-  eine eigene Etappe für die Dienstform.
+  **Etappe 80 (gebaut; erster Lauf auf dem Gerät: SDK-Start ok, Download scheitert):** die kleine Begleit-App `companion/`
+  („SecondHand Begleit-Spike“, `docs/ARCHITECTURE.md` → Begleit-App, `docs/BUILD.md`, `docs/ANLEITUNG.md`, `docs/VALIDATION.md` →
+  80 und 80b). Sie lädt nach Bestätigung das Modell, lädt es nur auf der NPU (`qairt`), korrigiert einen festen Satz und schreibt
+  einen längeren Absatz um und zeigt Antwort, Ladezeit, Zeit bis zum ersten Token, Tokens pro Sekunde (SDK und selbst gemessen),
+  Speicher, Akku-Temperatur und jeden Fehler samt SDK-Code und -Text; „Bericht kopieren“ legt alles in die Zwischenablage. Kein
+  Textfeld, keine Verbindung zur Tastatur, nie veröffentlicht, nur als Datei an den Owner. **Befund des ersten Laufs (Xiaomi 15):**
+  der Pull mit `SM8750` scheitert mit `-100015` (Chip-Kennung unbekannt: bei Qualcomm gibt es nur `SM8750-AC`, also die Galaxy-Pakete;
+  für beide Modelle auf dem Server bestätigt). **80b (0.2-spike):** geordnete Liste (1. Qwen3-4B-Instruct-2507, 2. Qwen3-4B, beide
+  `SM8750-AC`), nach jedem Fehler Angebot des nächsten Pakets mit eigenem Dialog. Nächste Schritte, je erst nach dem Bericht des Owners:
+  (a) Läuft ein Galaxy-Paket auf dem Xiaomi? Sonst Ursache klären (Chip, QAIRT 2.51 gegen 2.50, `enableThinking`); wenn keines läuft,
+  ist der eigene Export mit Qualcomms Werkzeug (Konto nötig) die Alternative. (b) Tempo, Speicher und Wärme bewerten (Qualcomm nennt
+  16 bis 21 Tokens/s für die Galaxy-Variante). (c) Erst dann die lokale Schnittstelle zwischen Tastatur und Begleit-App (Aufruf nur auf
+  Tipp, Übernahme mit eigenem Klick, nichts loggen) und eine eigene Etappe für die Dienstform.
 - **W5 Sprache auf dem Gerät (Wunsch des Owners, 2026-11-20, noch nicht zugeschnitten).** Präzise
   Spracherfassung auch bei viel Hintergrundlärm, später eventuell Melodie-Erkennung. Das Textmodell aus W4 kann
   kein Audio; es braucht eigene Modelle in derselben Begleit-App. Deutung des Leads, nichts geprüft: (a) Diktat

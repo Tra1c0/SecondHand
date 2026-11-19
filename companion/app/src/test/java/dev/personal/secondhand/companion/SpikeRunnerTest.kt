@@ -18,6 +18,12 @@ class SpikeRunnerTest {
 
     private fun logText() = log.text()
 
+    init {
+        // the default fake store holds the Instruct model, like after a finished pull
+        runBlocking { runner.refreshModelPresent() }
+        port.calls.clear()
+    }
+
     @Test fun initOnAnUnsupportedDeviceDoesNotCrashAndSaysSo() = runBlocking {
         port.initError = NpuException(null, "libnpu_jni.so not found", "java.lang.UnsatisfiedLinkError")
         assertNull(runner.init())
@@ -40,42 +46,114 @@ class SpikeRunnerTest {
         assertTrue(logText().contains("QAIRT-Plugin: 2.50"))
     }
 
-    @Test fun pullSuccessReportsTheChipset() = runBlocking {
+    private val instruct = PullPlanner.INSTRUCT_GALAXY
+    private val qwen3 = PullPlanner.QWEN3_GALAXY
+
+    @Test fun pullSuccessLogsModelChipsetStorageAndNetwork() = runBlocking {
+        port.present.clear()
         port.pullUpdates = listOf(PullUpdate.Progress(100, 1000), PullUpdate.Completed)
+        port.present += instruct.modelName // appears after the pull
         val seen = mutableListOf<Pair<Long, Long>>()
-        val out = runner.pull("SM8750") { d, t -> seen += d to t }
-        assertEquals(SpikeRunner.PullOutcome.Success("SM8750"), out)
+        val out = runner.pull(instruct) { d, t -> seen += d to t }
+        assertEquals(SpikeRunner.PullOutcome.Success(instruct), out)
         assertEquals(listOf(100L to 1000L), seen)
-        assertEquals(listOf("SM8750"), port.pulledChipsets)
+        assertEquals(instruct.modelName, runner.presentModel)
+        val text = logText()
+        assertTrue(text.contains("Modell-ID: ai-hub-models/Qwen3-4B-Instruct-2507, Chipset-ID: SM8750-AC"))
+        assertTrue(text.contains("Freier Speicher vorher: 90,0 GB, Netz: WLAN"))
     }
 
-    @Test fun pullNotFoundOnSm8750OffersTheGalaxyBundleButDoesNotPullIt() = runBlocking {
-        port.pullUpdates = listOf(PullUpdate.Failed(5, "Requested chipset not available for this model"))
-        val out = runner.pull("SM8750") { _, _ -> }
-        assertEquals(SpikeRunner.PullOutcome.Failed("SM8750", offerGalaxyBundle = true), out)
-        assertEquals(listOf("SM8750"), port.pulledChipsets) // only the documented id was requested
-        assertTrue(logText().contains("  SDK-Code: 5"))
-        assertTrue(logText().contains("  SDK-Text: Requested chipset not available for this model"))
-        assertTrue(logText().contains("FEHLER bei Schritt: Modell herunterladen (Chipset SM8750)"))
+    @Test fun chipsetUnavailableIsReportedWithCodeNameAndGivesUp() = runBlocking {
+        port.pullUpdates = listOf(PullUpdate.Failed(-100015, "geniex_model_pull failed (rc=-100015)"))
+        val out = runner.pull(instruct) { _, _ -> } as SpikeRunner.PullOutcome.Failed
+        assertEquals(instruct, out.candidate)
+        assertTrue(out.advice.giveUp)
+        assertFalse(out.advice.repeatUseful)
+        assertTrue(out.error.startsWith("-100015 (COMMON_CHIPSET_UNAVAILABLE)"))
+        assertTrue(logText().contains("  SDK-Code: -100015 (COMMON_CHIPSET_UNAVAILABLE laut GenieX-Quelltext)"))
+        assertTrue(logText().contains("FEHLER bei Schritt: Modell herunterladen (ai-hub-models/Qwen3-4B-Instruct-2507, Chipset SM8750-AC)"))
     }
 
-    @Test fun pullExceptionWithNotFoundTextAlsoOffersTheGalaxyBundle() = runBlocking {
-        port.pullThrows = NpuException(2, "model not found", "com.geniex.sdk.ModelManagerWrapper\$GenieXModelError")
-        val out = runner.pull("SM8750") { _, _ -> }
-        assertEquals(SpikeRunner.PullOutcome.Failed("SM8750", true), out)
+    @Test fun afterAFailureTheNextCandidateIsOfferedButNeverPulledOnItsOwn() = runBlocking {
+        port.pullUpdates = listOf(PullUpdate.Failed(-100015, "x"))
+        val out = runner.pull(instruct) { _, _ -> } as SpikeRunner.PullOutcome.Failed
+        val next = PullPlanner.next(out.candidate, setOf(out.candidate.id))
+        assertEquals(qwen3, next)
+        // exactly one pull request went out, the one that was tapped
+        assertEquals(listOf("pull:${instruct.modelName}:SM8750-AC"), port.calls.filter { it.startsWith("pull:") })
     }
 
-    @Test fun networkFailureOffersNothing() = runBlocking {
-        port.pullUpdates = listOf(PullUpdate.Failed(9, "connection reset by peer"))
-        val out = runner.pull("SM8750") { _, _ -> }
-        assertEquals(SpikeRunner.PullOutcome.Failed("SM8750", false), out)
+    @Test fun attemptsAreNumberedAndEachLogsItsModelAndChipset() = runBlocking {
+        port.pullUpdates = listOf(PullUpdate.Failed(-100005, "connection reset"))
+        runner.pull(instruct) { _, _ -> }
+        runner.pull(qwen3) { _, _ -> }
+        val text = logText()
+        assertTrue(text.contains("Versuch 1: Modell herunterladen (ai-hub-models/Qwen3-4B-Instruct-2507"))
+        assertTrue(text.contains("Versuch 2: Modell herunterladen (ai-hub-models/Qwen3-4B, Chipset SM8750-AC"))
+        assertTrue(text.contains("Modell-ID: ai-hub-models/Qwen3-4B, Chipset-ID: SM8750-AC"))
     }
 
-    @Test fun completedButModelMissingIsAFailure() = runBlocking {
-        port.present = false
-        val out = runner.pull("SM8750-AC") { _, _ -> }
-        assertEquals(SpikeRunner.PullOutcome.Failed("SM8750-AC", false), out)
+    @Test fun networkTypeAndFreeStorageComeFromTheProbe() = runBlocking {
+        val probe = FakeProbe().apply { network = "Mobilfunk"; free = 3L * 1073741824 }
+        val r = SpikeRunner(port, probe, clock, tracker, log)
+        port.pullUpdates = listOf(PullUpdate.Failed(-100005, "x"))
+        r.pull(instruct) { _, _ -> }
+        assertTrue(logText().contains("Freier Speicher vorher: 3,0 GB, Netz: Mobilfunk"))
+    }
+
+    @Test fun networkErrorAllowsRepeatAndKeepsTheCandidate() = runBlocking {
+        port.pullUpdates = listOf(PullUpdate.Failed(-100005, "connection reset by peer"))
+        val out = runner.pull(instruct) { _, _ -> } as SpikeRunner.PullOutcome.Failed
+        assertFalse(out.advice.giveUp)
+        assertTrue(out.advice.repeatUseful)
+    }
+
+    @Test fun pullExceptionWithAKnownCodeIsAdvisedByItsCode() = runBlocking {
+        port.pullThrows = NpuException(-100015, "chipset not available", "com.geniex.sdk.ModelManagerWrapper\$GenieXModelError")
+        val out = runner.pull(instruct) { _, _ -> } as SpikeRunner.PullOutcome.Failed
+        assertTrue(out.advice.giveUp)
+    }
+
+    @Test fun completedButModelMissingIsAFailureThatAsksToDeleteFirst() = runBlocking {
+        port.present.clear()
+        val out = runner.pull(qwen3) { _, _ -> } as SpikeRunner.PullOutcome.Failed
+        assertTrue(out.advice.deleteFirst)
         assertTrue(logText().contains("findet das Modell nicht"))
+    }
+
+    @Test fun refreshFindsTheFirstPresentCandidateModel() = runBlocking {
+        port.present.clear()
+        assertNull(runner.refreshModelPresent())
+        port.present += qwen3.modelName
+        assertEquals(qwen3.modelName, runner.refreshModelPresent())
+        port.present += instruct.modelName
+        assertEquals(instruct.modelName, runner.refreshModelPresent())
+    }
+
+    @Test fun testWithoutAModelSaysSo() = runBlocking {
+        port.present.clear()
+        runner.refreshModelPresent()
+        assertEquals(SpikeRunner.TestOutcome.Failed(loadFailed = false), runner.runTest(FixedTests.SENTENCE) { })
+        assertTrue(logText().contains("Kein Modell im Speicher"))
+    }
+
+    @Test fun hubListLogsTheQwen3EntriesWithTheirChipsets() = runBlocking {
+        port.hub = listOf(
+            HubEntry("qwen3_4b", listOf("qualcomm-snapdragon-8-elite-for-galaxy", "qualcomm-snapdragon-x-elite")),
+            HubEntry("whisper_tiny", listOf("x")),
+        )
+        runner.listHub()
+        val t = logText()
+        assertTrue(t.contains("2 Modelle mit NPU-Paket, davon 1 mit 'qwen3'"))
+        assertTrue(t.contains("qwen3_4b: qualcomm-snapdragon-8-elite-for-galaxy, qualcomm-snapdragon-x-elite"))
+        assertFalse(t.contains("whisper_tiny"))
+    }
+
+    @Test fun hubListFailureIsReportedWithClassAndText() = runBlocking {
+        port.hubError = NpuException(-100005, "network error", "java.io.IOException")
+        runner.listHub()
+        assertTrue(logText().contains("FEHLER bei Schritt: Paketliste bei Qualcomm abfragen"))
+        assertTrue(logText().contains("  Klasse: java.io.IOException"))
     }
 
     @Test fun sentenceTestComputesLoadTimeTokensAndVerdict() = runBlocking {
@@ -92,6 +170,7 @@ class SpikeRunnerTest {
         assertTrue(r.memAfter.pssBytes > r.memBefore.pssBytes)
         assertTrue(r.tempAfterC!! > r.tempBeforeC!!)
         assertEquals(listOf("load", "generate:96"), port.calls)
+        assertEquals(listOf(PullPlanner.INSTRUCT_GALAXY.modelName), port.loadedNames)
         assertTrue(logText().contains("Antwort = erwarteter Satz: JA"))
         assertTrue(runner.loaded)
     }
@@ -142,6 +221,7 @@ class SpikeRunnerTest {
         val slow = FakePort(clock)
         val r2 = SpikeRunner(slow, FakeProbe(), clock, tracker, log)
         slow.tokens = listOf("a ", "b ")
+        r2.refreshModelPresent()
         r2.requestStop()
         assertTrue(slow.calls.contains("stop"))
         // a new test resets the flag: the stop belongs to the run it was tapped in
@@ -149,17 +229,25 @@ class SpikeRunnerTest {
         assertFalse(out.result.stoppedByUser)
     }
 
-    @Test fun deleteUnloadsFirstAndReportsTheCode() = runBlocking {
+    @Test fun deleteUnloadsFirstThenRemovesEveryCandidateModel() = runBlocking {
         runner.runTest(FixedTests.SENTENCE) { }
-        assertTrue(runner.deleteModel())
-        assertEquals(listOf("load", "generate:96", "unload", "delete"), port.calls)
+        port.deleteResults[PullPlanner.QWEN3_GALAXY.modelName] = -100004 // not in the store: fine
+        assertTrue(runner.deleteModels())
+        assertEquals(
+            listOf("load", "generate:96", "unload", "delete:ai-hub-models/Qwen3-4B-Instruct-2507", "delete:ai-hub-models/Qwen3-4B"),
+            port.calls,
+        )
         assertFalse(runner.loaded)
+        assertNull(runner.presentModel)
+        assertTrue(logText().contains("Nichts zu löschen: ai-hub-models/Qwen3-4B"))
     }
 
     @Test fun deleteWithErrorCodeIsReportedAsNotOk() = runBlocking {
+        runner.refreshModelPresent()
         port.deleteResult = 4
-        assertFalse(runner.deleteModel())
+        assertFalse(runner.deleteModels())
         assertTrue(logText().contains("SDK-Ergebniscode 4"))
+        assertEquals(PullPlanner.INSTRUCT_GALAXY.modelName, runner.presentModel)
     }
 
     @Test fun noLogLineContainsTheModelTextOfAFailedGeneration() = runBlocking {

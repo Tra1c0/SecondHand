@@ -54,11 +54,13 @@ class MainActivity : Activity() {
     private lateinit var btnStop: Button
     private lateinit var btnUnload: Button
     private lateinit var btnDelete: Button
+    private lateinit var btnList: Button
+    private lateinit var candidatesView: TextView
     private lateinit var btnCopy: Button
 
     private var activeJob: Job? = null
     private var activeKind = Kind.NONE
-    private var modelPresent = false
+    private val modelPresent: Boolean get() = runner.presentModel != null
     private var lastProgressUpdate = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -79,15 +81,17 @@ class MainActivity : Activity() {
             report.add("WARNUNG: Der vorherige Lauf endete mitten im Schritt '$it' (Absturz oder vom System beendet).")
         }
         DeviceInfo.lastExitLines(this).forEach { report.add(it) }
+        showCandidates()
         refreshButtons()
         scope.launch(Dispatchers.Default) {
             runner.init()
-            if (runner.supported) modelPresent = runner.refreshModelPresent()
+            if (runner.supported) runner.refreshModelPresent()
             runOnUiThread {
                 runner.initFailureLine?.let {
                     bannerView.text = it
                     bannerView.visibility = View.VISIBLE
                 }
+                showCandidates()
                 if (runner.supported) {
                     statusView.text = if (modelPresent) "Modell ist vorhanden" + pulledSuffix() + "." else "Modell noch nicht geladen. Tippe Knopf 1."
                 }
@@ -107,78 +111,116 @@ class MainActivity : Activity() {
 
     private fun onPullTapped() {
         if (modelPresent) {
-            info("Das Modell ist schon vorhanden" + pulledSuffix() + ". Zum erneuten Laden tippe zuerst 'Modell löschen'.")
+            info("Das Modell ist schon vorhanden" + pulledSuffix() + ". Zum erneuten Laden tippe zuerst 'Modell / angefangenen Download löschen'.")
             return
         }
-        when (PullPlanner.nextOffer(prefs.failedChipsets)) {
-            PullPlanner.Offer.Primary -> confirmPrimaryPull()
-            PullPlanner.Offer.GalaxyBundle -> confirmGalaxyPull(afterFailedPrimary = true)
-            PullPlanner.Offer.Exhausted -> info(
-                "Beide Varianten (SM8750 und SM8750-AC) wurden schon versucht und haben nicht funktioniert. " +
-                    "Schicke den Bericht an den Entwickler.",
-            )
+        val candidate = PullPlanner.current(prefs.abandoned.keys)
+        if (candidate == null) {
+            AlertDialog.Builder(this)
+                .setTitle("Alle Pakete versucht")
+                .setMessage(
+                    "Alle Pakete sind schon gescheitert (siehe Liste und Bericht). Tippe 'Bericht kopieren' und schicke ihn dem Entwickler. " +
+                        "Mit 'Liste zurücksetzen' darfst du alle noch einmal versuchen (zum Beispiel nach einem Netzproblem).",
+                )
+                .setPositiveButton("Liste zurücksetzen") { _, _ ->
+                    prefs.clearAbandoned()
+                    showCandidates()
+                    refreshButtons()
+                }
+                .setNegativeButton("Schließen", null)
+                .show()
+            return
         }
+        confirmPull(candidate, intro = "")
     }
 
-    private fun confirmPrimaryPull() {
-        val free = DeviceInfo.collect(this).freeStorageBytes
-        val freeText = if (free >= 0) "\n\nFreier Speicher jetzt: ${Metrics.gb(free)}" + if (free < 7L * 1073741824) " (das ist knapp!)" else "" else ""
+    /** The one dialog before every download: what, size, source, what differs, "may fail". */
+    private fun confirmPull(candidate: Candidate, intro: String) {
+        val free = runner.freeStorageBytesNow()
+        val freeText = if (free >= 0) "Freier Speicher jetzt: ${Metrics.gb(free)}" + if (free < 7L * 1073741824) " (das ist knapp!)" else "" else ""
+        val net = runner.networkTypeNow()
+        val netText = "Netz jetzt: $net" + if (net != "WLAN") " (WLAN wird empfohlen, 2,7 GB über Mobilfunk können Datenvolumen kosten)" else ""
         AlertDialog.Builder(this)
             .setTitle("Modell herunterladen?")
             .setMessage(
-                "Modell: Qwen3-4B (Qualcomm, fertig für die NPU)\n" +
-                    "Größe: etwa 2,7 GB\n" +
+                intro +
+                    "Paket: ${candidate.title}\n" +
+                    "Modell-ID: ${candidate.modelName}, Chipset-ID: ${candidate.chipset}\n" +
+                    "Größe: ${candidate.sizeText}\n" +
                     "Quelle: Qualcomms öffentlicher Server (AI Hub). Qualcomm sieht dabei deine IP-Adresse, wie bei jedem Download.\n" +
-                    "WLAN wird empfohlen.\n" +
                     "Du brauchst etwa 7 GB freien Speicher (Download plus entpacktes Modell).\n" +
-                    "Es werden keine eigenen Daten gesendet." + freeText,
+                    "$netText\n$freeText\n\n" +
+                    candidate.difference + "\n\nEs werden keine eigenen Daten gesendet.",
             )
-            .setPositiveButton("Jetzt laden") { _, _ -> startPull(GeniexConstants.CHIPSET_PRIMARY) }
+            .setPositiveButton("Jetzt laden") { _, _ -> startPull(candidate) }
             .setNegativeButton("Abbrechen", null)
             .show()
     }
 
-    private fun confirmGalaxyPull(afterFailedPrimary: Boolean) {
-        val intro = if (afterFailedPrimary) {
-            "Für die Chip-Bezeichnung SM8750 hat Qualcomm kein Modellpaket (oder es ließ sich nicht verwenden).\n\n"
-        } else ""
-        AlertDialog.Builder(this)
-            .setTitle("Galaxy-Paket versuchen?")
-            .setMessage(
-                intro +
-                    "Es gibt ein Paket 'SM8750-AC'. Es ist für eine andere Variante des Chips gebaut (Samsung Galaxy) " +
-                    "und läuft auf diesem Telefon vielleicht NICHT.\n\n" +
-                    "Größe: etwa 2,7 GB, Quelle: Qualcomms öffentlicher Server, WLAN empfohlen, etwa 7 GB frei nötig.",
-            )
-            .setPositiveButton("Ja, SM8750-AC laden") { _, _ -> startPull(GeniexConstants.CHIPSET_GALAXY) }
-            .setNegativeButton("Nein", null)
-            .show()
-    }
-
-    private fun startPull(chipset: String) {
+    private fun startPull(candidate: Candidate) {
         beginBusy(Kind.PULL)
         progressBar.visibility = View.VISIBLE
         progressBar.progress = 0
-        statusView.text = "Lade herunter (Chipset $chipset) ..."
+        statusView.text = "Lade herunter: ${candidate.title} ..."
         activeJob = scope.launch(Dispatchers.Default) {
-            val outcome = runner.pull(chipset) { done, total -> showProgress(done, total) }
+            val outcome = runner.pull(candidate) { done, total -> showProgress(done, total) }
             runOnUiThread {
                 progressBar.visibility = View.GONE
                 when (outcome) {
                     is SpikeRunner.PullOutcome.Success -> {
-                        prefs.pulledChipset = outcome.chipset
-                        modelPresent = true
-                        statusView.text = "Modell geladen (Variante ${outcome.chipset}). Weiter mit Knopf 2."
+                        prefs.pulledCandidateId = outcome.candidate.id
+                        statusView.text = "Modell geladen (${outcome.candidate.title}). Weiter mit Knopf 2."
                     }
-                    is SpikeRunner.PullOutcome.Failed -> {
-                        statusView.text = "Download fehlgeschlagen. Details im Bericht unten."
-                        if (outcome.offerGalaxyBundle) {
-                            prefs.markFailed(outcome.chipset)
-                            confirmGalaxyPull(afterFailedPrimary = true)
-                        }
-                    }
+                    is SpikeRunner.PullOutcome.Failed -> onPullFailed(outcome)
                 }
+                showCandidates()
             }
+        }
+        finishWhenDone()
+    }
+
+    private fun onPullFailed(f: SpikeRunner.PullOutcome.Failed) {
+        if (f.advice.cancelled) {
+            statusView.text = "Download abgebrochen. Knopf 1 setzt ihn fort."
+            return
+        }
+        statusView.text = "Download fehlgeschlagen: ${f.error}"
+        if (f.advice.giveUp) prefs.abandon(f.candidate.id, f.error)
+        val next = PullPlanner.next(f.candidate, prefs.abandoned.keys + if (f.advice.giveUp) setOf(f.candidate.id) else emptySet())
+        val sb = StringBuilder()
+        sb.append("Paket: ${f.candidate.title}\nFehler: ${f.error}\n\n")
+        sb.append(
+            if (f.advice.giveUp) "Dieses Paket wird nicht noch einmal versucht: Es würde genauso scheitern.\n"
+            else "Dasselbe Paket noch einmal zu versuchen kann helfen; der Download setzt fort.\n",
+        )
+        if (f.advice.deleteFirst) {
+            sb.append("Tipp: Das Paket ist unvollständig oder beschädigt. Tippe zuerst 'Modell / angefangenen Download löschen' und danach Knopf 1.\n")
+        }
+        if (next != null) {
+            sb.append("\nNächstes Paket: ${next.title} (${next.sizeText})\n${next.difference}\n")
+        } else if (f.advice.giveUp) {
+            sb.append("\nEs gibt kein weiteres Paket zum Versuchen. Tippe 'Bericht kopieren' und schicke ihn dem Entwickler.\n")
+        }
+        val dialog = AlertDialog.Builder(this).setTitle("Download fehlgeschlagen").setMessage(sb.toString())
+            .setNegativeButton("Schließen", null)
+        if (next != null) {
+            dialog.setPositiveButton("Nächstes Paket laden") { _, _ ->
+                if (!f.advice.giveUp) prefs.abandon(f.candidate.id, f.error)
+                confirmPull(next, intro = "Vorheriges Paket gescheitert: ${f.error}\n\n")
+            }
+        }
+        if (f.advice.repeatUseful && !f.advice.deleteFirst) {
+            dialog.setNeutralButton("Dasselbe nochmal") { _, _ -> confirmPull(f.candidate, intro = "") }
+        }
+        dialog.show()
+    }
+
+    private fun onListTapped() {
+        beginBusy(Kind.OTHER)
+        statusView.text = "Frage Qualcomms Paketliste ab ..."
+        activeJob = scope.launch(Dispatchers.Default) {
+            runner.listHub()
+            runOnUiThread { statusView.text = "Paketliste: Ergebnis im Bericht unten." }
         }
         finishWhenDone()
     }
@@ -197,6 +239,21 @@ class MainActivity : Activity() {
                 statusView.text = "Lade herunter: ${Metrics.gb(done)}"
             }
         }
+    }
+
+    /** The list of candidates with their state: next attempt, given up (with the error), loaded. */
+    private fun showCandidates() {
+        val abandoned = prefs.abandoned
+        val current = PullPlanner.current(abandoned.keys)
+        candidatesView.text = PullPlanner.CANDIDATES.mapIndexed { i, c ->
+            val state = when {
+                runner.presentModel == c.modelName -> "GELADEN"
+                c.id in abandoned -> "gescheitert: " + abandoned[c.id]
+                c.id == current?.id -> "nächster Versuch (Knopf 1)"
+                else -> "noch nicht dran"
+            }
+            "${i + 1}. ${c.title}\n     $state"
+        }.joinToString("\n")
     }
 
     private fun startTest(test: FixedTest) {
@@ -223,17 +280,20 @@ class MainActivity : Activity() {
     }
 
     private fun onLoadFailed() {
-        val chipset = prefs.pulledChipset ?: return
-        prefs.markFailed(chipset)
-        val next = PullPlanner.nextOffer(prefs.failedChipsets)
+        val model = runner.presentModel ?: return
+        val candidate = PullPlanner.byId(prefs.pulledCandidateId)?.takeIf { it.modelName == model }
+            ?: PullPlanner.CANDIDATES.firstOrNull { it.modelName == model } ?: return
+        prefs.abandon(candidate.id, "Laden auf der NPU gescheitert (Details im Bericht)")
+        val next = PullPlanner.current(prefs.abandoned.keys)
         report.add(
-            when (next) {
-                PullPlanner.Offer.GalaxyBundle ->
-                    "Hinweis: Die Variante $chipset ließ sich nicht laden. Zum Probieren der anderen Variante tippe " +
-                        "'Modell löschen' und danach Knopf 1: dann wird SM8750-AC angeboten."
-                else -> "Hinweis: Die Variante $chipset ließ sich nicht laden, und es gibt keine weitere Variante zum Probieren."
+            if (next != null) {
+                "Hinweis: ${candidate.title} ließ sich nicht laden. Zum Probieren des nächsten Pakets tippe 'Modell / angefangenen " +
+                    "Download löschen' und danach Knopf 1: dann wird ${next.title} angeboten."
+            } else {
+                "Hinweis: ${candidate.title} ließ sich nicht laden, und es gibt kein weiteres Paket zum Probieren."
             },
         )
+        showCandidates()
     }
 
     private fun onStopTapped() {
@@ -261,17 +321,22 @@ class MainActivity : Activity() {
 
     private fun onDeleteTapped() {
         AlertDialog.Builder(this)
-            .setTitle("Modell löschen?")
-            .setMessage("Das heruntergeladene Modell (etwa 3 GB) wird vom Telefon gelöscht. Danach kannst du es mit Knopf 1 neu laden.")
+            .setTitle("Modell / angefangenen Download löschen?")
+            .setMessage(
+                "Löscht alle heruntergeladenen Modelle dieser App vom Telefon (je etwa 3 GB, auch angefangene Downloads, soweit das SDK sie löscht).\n\n" +
+                    "Nimm das, wenn: ein Download mit 'unvollständig/beschädigt' endet, Knopf 1 nach einem Abbruch immer wieder scheitert, " +
+                    "ein Modell sich nicht laden lässt und du das nächste Paket versuchen willst, oder du Speicher freigeben willst.\n\n" +
+                    "Ein einfacher Abbruch braucht das nicht: Knopf 1 setzt den Download fort.",
+            )
             .setPositiveButton("Löschen") { _, _ ->
                 beginBusy(Kind.OTHER)
                 activeJob = scope.launch(Dispatchers.Default) {
-                    val ok = runner.deleteModel()
-                    val present = runner.refreshModelPresent()
+                    val ok = runner.deleteModels()
+                    runner.refreshModelPresent()
                     runOnUiThread {
-                        modelPresent = present
-                        if (ok) prefs.pulledChipset = null
-                        statusView.text = if (ok) "Modell gelöscht." else "Löschen fehlgeschlagen, siehe Bericht."
+                        if (ok) prefs.pulledCandidateId = null
+                        statusView.text = if (ok) "Modelle gelöscht." else "Löschen fehlgeschlagen, siehe Bericht."
+                        showCandidates()
                     }
                 }
                 finishWhenDone()
@@ -294,7 +359,9 @@ class MainActivity : Activity() {
         AlertDialog.Builder(this).setMessage(message).setPositiveButton("OK", null).show()
     }
 
-    private fun pulledSuffix(): String = prefs.pulledChipset?.let { " (Variante $it)" } ?: ""
+    private fun pulledSuffix(): String =
+        (PullPlanner.byId(prefs.pulledCandidateId) ?: PullPlanner.CANDIDATES.firstOrNull { it.modelName == runner.presentModel })
+            ?.let { " (${it.title})" } ?: ""
 
     // ---- busy state ---------------------------------------------------------------------------
 
@@ -324,7 +391,8 @@ class MainActivity : Activity() {
         btnTest3.isEnabled = idle && ready && modelPresent
         btnStop.isEnabled = activeKind == Kind.PULL || activeKind == Kind.TEST
         btnUnload.isEnabled = idle && ready && runner.loaded
-        btnDelete.isEnabled = idle && ready && modelPresent
+        btnDelete.isEnabled = idle && ready
+        btnList.isEnabled = idle && ready
         btnCopy.isEnabled = true
     }
 
@@ -376,14 +444,18 @@ class MainActivity : Activity() {
         btnTest3 = button("3. Test: längerer Absatz") { startTest(FixedTests.PARAGRAPH) }
         btnStop = button("Stopp") { onStopTapped() }
         btnUnload = button("Modell entladen") { onUnloadTapped() }
-        btnDelete = button("Modell löschen (Speicher freigeben)") { onDeleteTapped() }
+        btnDelete = button("Modell / angefangenen Download löschen") { onDeleteTapped() }
+        btnList = button("Paketliste bei Qualcomm abfragen") { onListTapped() }
         btnCopy = button("Bericht kopieren") { onCopyTapped() }
-        listOf(btnPull, btnTest2, btnTest3, btnStop, btnUnload, btnDelete, btnCopy).forEach {
+        listOf(btnPull, btnTest2, btnTest3, btnStop, btnUnload, btnDelete, btnList, btnCopy).forEach {
             column.addView(it, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
                 topMargin = dp(8)
             })
         }
 
+        column.addView(text(16f, bold = true).apply { text = "Pakete (Reihenfolge der Versuche):" })
+        candidatesView = text(15f)
+        column.addView(candidatesView)
         statusView = text(18f, bold = true).apply { text = "Starte ..." }
         column.addView(statusView)
         progressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
