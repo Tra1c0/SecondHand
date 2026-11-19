@@ -587,6 +587,14 @@ def _open_settings_and_switch_on(d, path, switch):
     """Opens the keyboard's settings, follows the menu texts of the path and switches the named
     setting on (taps its row once, only if the dump does not already show it as checked)."""
     shell("am start -W -n %s/helium314.keyboard.settings.SettingsActivity" % KEYBOARD_PACKAGE, timeout=60)
+    time.sleep(2.0)
+    # The settings may open with a dialog over them: "Build N ist da" (the emulator has a network and
+    # the test build has a low version number) or "Neu in Build N". Back closes it.
+    for _ in range(2):
+        texts = [n.text for n in dump().nodes if n.package == KEYBOARD_PACKAGE and n.text]
+        if any(re.match(r"(Build \d+ ist da|Neu in Build \d+|Build \d+ is available|New in build \d+)", t) for t in texts):
+            shell("input keyevent KEYCODE_BACK", check=False)
+            time.sleep(1.5)
     for label in path:
         d.tap_text(label)
     d.tap_text(switch)
@@ -601,9 +609,7 @@ def emoji_suggestion(d):
     d.wait_for_suggestions()
     d.type(" geil")
     d.tap_in_strip(("🔥",))
-    time.sleep(1.0)
-    field = d.field("text")
-    d.expect_equal("the field holds the emoji (field %r)" % field, "🔥" in field, True)
+    d.expect_field("text", "Und 🔥")  # the emoji replaces the typed word (seen in run 18)
 
 
 def clipboard_pill(d):
@@ -961,8 +967,13 @@ def main():
             log("PROBLEM " + problem)
         write_reports(args.out, info, results, problems, ok, args.control)
         passed = sum(1 for r in results if r["status"] == "PASS")
-        log("SUMMARY %s passed=%d failed=%d total=%d expected=%d videos=%d" % (
-            "OK" if ok else "FAILED", passed, len(results) - passed, len(results), len(SCENARIOS), len(videos)))
+        known = sum(1 for r in results if r["status"] == "KNOWN")
+        for result in results:
+            if result["status"] == "KNOWN":
+                log("KNOWN %s: %s" % (result["name"], KNOWN_FINDINGS[result["name"]]))
+        log("SUMMARY %s passed=%d failed=%d known=%d total=%d expected=%d videos=%d" % (
+            "OK" if ok else "FAILED", passed, len(results) - passed - known, known, len(results), len(SCENARIOS),
+            len(videos)))
     return 0 if ok else 1
 
 
