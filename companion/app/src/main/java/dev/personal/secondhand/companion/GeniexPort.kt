@@ -22,7 +22,6 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.transformWhile
 import kotlinx.coroutines.withContext
 
@@ -96,10 +95,10 @@ interface NpuPort {
     suspend fun isModelPresent(modelName: String): Boolean
 
     /**
-     * Downloads the model for the given chipset id from the AI Hub release [release] (for example "v0.66.0"; null = the
-     * newest). With [listHub], the only call that uses the network.
+     * Imports a bundle zip that is already on the phone into the SDK's store under [modelName] (HubSource.LOCALFS, no
+     * network, no chipset). Since 80d the app downloads the zip itself.
      */
-    fun pull(modelName: String, chipset: String, release: String?): Flow<PullUpdate>
+    fun importLocal(modelName: String, localPath: String): Flow<PullUpdate>
 
     /** Lists the files of the pulled bundle and reads its small text files; null when the model is not in the store. */
     suspend fun inspect(modelName: String): BundleInspection?
@@ -126,12 +125,10 @@ object GeniexConstants {
     const val RUNTIME_QAIRT = "qairt"
     const val CHIPSET_GALAXY = "SM8750-AC"
 
-    /** The environment variable of the SDK that pins the AI Hub release (libgeniex.so, GENIEX_AIHUBVERSION). */
-    const val ENV_RELEASE = "GENIEX_AIHUBVERSION"
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class GeniexAdapter(context: Context, private val initialRelease: String? = null) : NpuPort {
+class GeniexAdapter(context: Context) : NpuPort {
     private val appContext: Context = context.applicationContext
     private var llm: LlmWrapper? = null
 
@@ -144,9 +141,8 @@ class GeniexAdapter(context: Context, private val initialRelease: String? = null
     override suspend fun init(): InitInfo = withContext(Dispatchers.IO) {
         try {
             val done = CompletableDeferred<String?>()
-            // the SDK reads these from the process environment while it starts: most detailed log level, pinned release
+            // the SDK may read this from the process environment while it starts: the most detailed log level
             setEnv("GENIEX_LOG", "trace")
-            setEnv(GeniexConstants.ENV_RELEASE, initialRelease)
             // may throw UnsatisfiedLinkError / NoClassDefFoundError on a device without the NPU libraries
             GenieXSdk.getInstance().init(appContext, object : GenieXSdk.InitCallback {
                 override fun onSuccess() {
@@ -204,10 +200,10 @@ class GeniexAdapter(context: Context, private val initialRelease: String? = null
         runCatching { if (value == null) android.system.Os.unsetenv(name) else android.system.Os.setenv(name, value, true) }
     }
 
-    override fun pull(modelName: String, chipset: String, release: String?): Flow<PullUpdate> =
+    override fun importLocal(modelName: String, localPath: String): Flow<PullUpdate> =
         ModelManagerWrapper.pullFlow(
-            ModelPullInput(model_name = modelName, hub = HubSource.AUTO, chipset = chipset),
-        ).onStart { setEnv(GeniexConstants.ENV_RELEASE, release) }.transformWhile { event ->
+            ModelPullInput(model_name = modelName, hub = HubSource.LOCALFS, local_path = localPath),
+        ).transformWhile { event ->
             when (event) {
                 is ModelManagerWrapper.PullEvent.Progress -> {
                     val total = event.files.sumOf { if (it.total_bytes > 0) it.total_bytes else 0L }

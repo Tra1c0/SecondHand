@@ -1,0 +1,2494 @@
+{
+  "aihm_version": "0.1.dev1+ga62ece148",
+  "model_id": "qwen3_4b_instruct_2507",
+  "model_name": "Qwen3-4B-Instruct-2507",
+  "runtime": "RUNTIME_GENIEX_QAIRT",
+  "precision": "PRECISION_W4A16",
+  "tool_versions": {
+    "qairt": "2.51.0.260929181845"
+  },
+  "model_files": [
+    {
+      "filename": "part1_of_4.bin",
+      "inputs": [
+        {
+          "name": "input_ids",
+          "shape": [
+            1,
+            1
+          ],
+          "dtype": "DTYPE_INT32",
+          "io_type": "IO_TYPE_TENSOR"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "embedding",
+          "shape": [
+            1,
+            1,
+            2560
+          ],
+          "dtype": "DTYPE_UINT16",
+          "quantization_parameters": {
+            "scale": 7.1228637352760416e-06,
+            "zero_point": 30985
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        }
+      ]
+    },
+    {
+      "filename": "part2_of_4.bin",
+      "inputs": [
+        {
+          "name": "embedding",
+          "shape": [
+            1,
+            1,
+            2560
+          ],
+          "dtype": "DTYPE_UINT16",
+          "quantization_parameters": {
+            "scale": 7.1228637352760416e-06,
+            "zero_point": 30985
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "attention_mask",
+          "shape": [
+            1,
+            1,
+            1,
+            4096
+          ],
+          "dtype": "DTYPE_UINT16",
+          "quantization_parameters": {
+            "scale": 0.0015259021893143654,
+            "zero_point": 65535
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "position_ids_cos",
+          "shape": [
+            1,
+            1,
+            1,
+            64
+          ],
+          "dtype": "DTYPE_UINT16",
+          "quantization_parameters": {
+            "scale": 3.051804378628731e-05,
+            "zero_point": 32768
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "position_ids_sin",
+          "shape": [
+            1,
+            1,
+            1,
+            64
+          ],
+          "dtype": "DTYPE_UINT16",
+          "quantization_parameters": {
+            "scale": 3.051804378628731e-05,
+            "zero_point": 32768
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_0_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 2.478320837020874,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_0_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.004066294990479946,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_1_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.48290738463401794,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_1_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.004994118586182594,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_2_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.25299182534217834,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_2_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.006979715544730425,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_3_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.21308116614818573,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_3_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.010032203048467636,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_4_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.4897420108318329,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_4_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.009850149042904377,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_5_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.8812734484672546,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_5_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.012562667019665241,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_6_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.33741509914398193,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_6_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.014567207545042038,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_7_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.26427188515663147,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_7_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.02307971380650997,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_8_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.44518178701400757,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_8_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.026538018137216568,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_9_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.1995171457529068,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_9_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.02600664459168911,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_10_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.36364996433258057,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_10_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.042777542024850845,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_11_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.3117886781692505,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_11_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.031665850430727005,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "add_42076",
+          "shape": [
+            1,
+            1,
+            2560
+          ],
+          "dtype": "DTYPE_UINT16",
+          "quantization_parameters": {
+            "scale": 0.1380782574415207,
+            "zero_point": 14122
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_0_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 2.478320837020874,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_0_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.004066294990479946,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_1_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.48290738463401794,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_1_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.004994118586182594,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_2_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.25299182534217834,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_2_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.006979715544730425,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_3_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.21308116614818573,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_3_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.010032203048467636,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_4_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.4897420108318329,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_4_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.009850149042904377,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_5_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.8812734484672546,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_5_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.012562667019665241,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_6_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.33741509914398193,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_6_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.014567207545042038,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_7_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.26427188515663147,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_7_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.02307971380650997,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_8_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.44518178701400757,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_8_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.026538018137216568,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_9_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.1995171457529068,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_9_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.02600664459168911,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_10_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.36364996433258057,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_10_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.042777542024850845,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_11_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.3117886781692505,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_11_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.031665850430727005,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        }
+      ]
+    },
+    {
+      "filename": "part3_of_4.bin",
+      "inputs": [
+        {
+          "name": "add_42076",
+          "shape": [
+            1,
+            1,
+            2560
+          ],
+          "dtype": "DTYPE_UINT16",
+          "quantization_parameters": {
+            "scale": 0.1380782574415207,
+            "zero_point": 14122
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "attention_mask",
+          "shape": [
+            1,
+            1,
+            1,
+            4096
+          ],
+          "dtype": "DTYPE_UINT16",
+          "quantization_parameters": {
+            "scale": 0.0015259021893143654,
+            "zero_point": 65535
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "position_ids_cos",
+          "shape": [
+            1,
+            1,
+            1,
+            64
+          ],
+          "dtype": "DTYPE_UINT16",
+          "quantization_parameters": {
+            "scale": 3.051804378628731e-05,
+            "zero_point": 32768
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "position_ids_sin",
+          "shape": [
+            1,
+            1,
+            1,
+            64
+          ],
+          "dtype": "DTYPE_UINT16",
+          "quantization_parameters": {
+            "scale": 3.051804378628731e-05,
+            "zero_point": 32768
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_12_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.25612109899520874,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_12_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.028920184820890427,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_13_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.21905581653118134,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_13_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.16823506355285645,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_14_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.290218323469162,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_14_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.09065122902393341,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_15_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.19421876966953278,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_15_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.20903363823890686,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_16_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.21260203421115875,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_16_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.20054848492145538,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_17_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.17789603769779205,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_17_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.3262353241443634,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_18_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.2102230042219162,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_18_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.17719773948192596,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_19_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.21831977367401123,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_19_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.06290073692798615,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_20_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.20017486810684204,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_20_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.048738591372966766,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_21_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.19327639043331146,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_21_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.0530727244913578,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_22_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.23788899183273315,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_22_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.11290299892425537,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_23_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.25507283210754395,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_23_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.05996454879641533,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "add_82384",
+          "shape": [
+            1,
+            1,
+            2560
+          ],
+          "dtype": "DTYPE_UINT16",
+          "quantization_parameters": {
+            "scale": 0.1417268067598343,
+            "zero_point": 13666
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_12_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.25612109899520874,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_12_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.028920184820890427,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_13_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.21905581653118134,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_13_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.16823506355285645,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_14_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.290218323469162,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_14_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.09065122902393341,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_15_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.19421876966953278,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_15_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.20903363823890686,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_16_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.21260203421115875,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_16_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.20054848492145538,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_17_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.17789603769779205,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_17_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.3262353241443634,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_18_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.2102230042219162,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_18_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.17719773948192596,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_19_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.21831977367401123,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_19_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.06290073692798615,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_20_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.20017486810684204,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_20_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.048738591372966766,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_21_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.19327639043331146,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_21_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.0530727244913578,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_22_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.23788899183273315,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_22_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.11290299892425537,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_23_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.25507283210754395,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_23_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.05996454879641533,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        }
+      ]
+    },
+    {
+      "filename": "part4_of_4.bin",
+      "inputs": [
+        {
+          "name": "add_82384",
+          "shape": [
+            1,
+            1,
+            2560
+          ],
+          "dtype": "DTYPE_UINT16",
+          "quantization_parameters": {
+            "scale": 0.1417268067598343,
+            "zero_point": 13666
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "attention_mask",
+          "shape": [
+            1,
+            1,
+            1,
+            4096
+          ],
+          "dtype": "DTYPE_UINT16",
+          "quantization_parameters": {
+            "scale": 0.0015259021893143654,
+            "zero_point": 65535
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "position_ids_cos",
+          "shape": [
+            1,
+            1,
+            1,
+            64
+          ],
+          "dtype": "DTYPE_UINT16",
+          "quantization_parameters": {
+            "scale": 3.051804378628731e-05,
+            "zero_point": 32768
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "position_ids_sin",
+          "shape": [
+            1,
+            1,
+            1,
+            64
+          ],
+          "dtype": "DTYPE_UINT16",
+          "quantization_parameters": {
+            "scale": 3.051804378628731e-05,
+            "zero_point": 32768
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_24_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.21961303055286407,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_24_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.1007169634103775,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_25_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.16112695634365082,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_25_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.07959455251693726,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_26_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.16689760982990265,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_26_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.09330577403306961,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_27_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.17144803702831268,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_27_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.11341379582881927,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_28_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.18316921591758728,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_28_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.11956210434436798,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_29_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.18112534284591675,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_29_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.34084901213645935,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_30_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.20218881964683533,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_30_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.2872224748134613,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_31_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.19094006717205048,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_31_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.37725862860679626,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_32_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.1476210355758667,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_32_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.4072023034095764,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_33_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.16842448711395264,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_33_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.8867996335029602,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_34_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.20609720051288605,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_34_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.8476966023445129,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_35_in",
+          "shape": [
+            8,
+            1,
+            128,
+            4095
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.3760576546192169,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_35_in",
+          "shape": [
+            8,
+            1,
+            4095,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.4521947503089905,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "logits",
+          "shape": [
+            1,
+            1,
+            151936
+          ],
+          "dtype": "DTYPE_UINT16",
+          "quantization_parameters": {
+            "scale": 0.0014529300387948751,
+            "zero_point": 28754
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_24_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.21961303055286407,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_24_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.1007169634103775,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_25_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.16112695634365082,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_25_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.07959455251693726,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_26_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.16689760982990265,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_26_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.09330577403306961,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_27_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.17144803702831268,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_27_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.11341379582881927,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_28_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.18316921591758728,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_28_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.11956210434436798,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_29_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.18112534284591675,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_29_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.34084901213645935,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_30_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.20218881964683533,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_30_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.2872224748134613,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_31_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.19094006717205048,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_31_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.37725862860679626,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_32_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.1476210355758667,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_32_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.4072023034095764,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_33_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.16842448711395264,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_33_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.8867996335029602,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_34_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.20609720051288605,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_34_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.8476966023445129,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_key_35_out",
+          "shape": [
+            8,
+            1,
+            128,
+            1
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.3760576546192169,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        },
+        {
+          "name": "past_value_35_out",
+          "shape": [
+            8,
+            1,
+            1,
+            128
+          ],
+          "dtype": "DTYPE_UINT8",
+          "quantization_parameters": {
+            "scale": 0.4521947503089905,
+            "zero_point": 128
+          },
+          "io_type": "IO_TYPE_TENSOR"
+        }
+      ]
+    }
+  ],
+  "supplementary_files": [
+    {
+      "filename": "htp_backend_ext_config.json",
+      "description": "HTP backend configuration for the target device."
+    },
+    {
+      "filename": "genie_config.json",
+      "description": "Genie SDK configuration for on-device LLM inference."
+    },
+    {
+      "filename": "sample_prompt.txt",
+      "description": "Sample prompt for on-device inference."
+    },
+    {
+      "filename": "tokenizer.json",
+      "description": "Tokenizer for encoding/decoding text."
+    }
+  ],
+  "genie": {
+    "chat_template": {
+      "system_prefix": "<|im_start|>system\n",
+      "system_suffix": "<|im_end|>\n",
+      "user_prefix": "<|im_start|>user\n",
+      "user_suffix": "<|im_end|>\n",
+      "assistant_prefix": "<|im_start|>assistant\n",
+      "assistant_suffix": "<|im_end|>\n",
+      "default_system_prompt": "You are a helpful AI assistant."
+    },
+    "context_lengths": [
+      512,
+      1024,
+      2048,
+      3072,
+      4096
+    ],
+    "supports_streaming": true
+  },
+  "chipset_attributes": {
+    "name": "qualcomm-snapdragon-8-elite-for-galaxy",
+    "aliases": [
+      "qualcomm-snapdragon-8-elite-for-galaxy",
+      "sm8750-ac"
+    ],
+    "marketing_name": "qualcomm-snapdragon-8-elite-for-galaxy",
+    "world": "WEBSITE_WORLD_MOBILE",
+    "supports_fp16": true,
+    "htp_version": 79,
+    "soc_model": 69,
+    "reference_device": "Samsung Galaxy S25 (Family)",
+    "supports_weight_sharing": true
+  },
+  "use_case": "MODEL_USE_CASE_TEXT_GENERATION"
+}

@@ -3,7 +3,7 @@ package dev.personal.secondhand.companion
 // Pure helpers of the load diagnostics (stage 80c): a tiny JSON reader, the facts of a pulled bundle, QAIRT
 // version arithmetic and the filter for the runtime's own log lines. No Android, no SDK: unit-tested.
 
-/** A small JSON reader (the unit tests run on the JVM, where android.jar's org.json is only a stub). Returns Map, List, String, Double, Boolean or null. */
+/** A small JSON reader and writer (the unit tests run on the JVM, where android.jar's org.json is only a stub). Values: Map, List, String, Long, Double, Boolean or null. */
 object MiniJson {
     fun parse(text: String): Any? = try {
         val p = Parser(text)
@@ -41,10 +41,12 @@ object MiniJson {
             return v
         }
 
-        fun num(): Double {
+        fun num(): Number {
             val st = i
             while (i < s.length && (s[i].isDigit() || s[i] in "+-.eE")) i++
-            return s.substring(st, i).toDouble()
+            val t = s.substring(st, i)
+            // integers stay integers: a loader that reads a shape or a zero point must not meet 8.0
+            return if (t.all { it.isDigit() || it == '-' }) t.toLongOrNull() ?: t.toDouble() else t.toDouble()
         }
 
         fun str(): String {
@@ -116,6 +118,56 @@ object MiniJson {
         }
     }
 
+    /** Compact JSON text of a value as [parse] returns it. */
+    fun write(v: Any?): String = StringBuilder().also { writeTo(it, v) }.toString()
+
+    private fun writeTo(sb: StringBuilder, v: Any?) {
+        when (v) {
+            null -> sb.append("null")
+            is String -> quote(sb, v)
+            is Boolean -> sb.append(v)
+            is Long, is Int -> sb.append(v.toString())
+            is Double -> sb.append(if (v.isNaN() || v.isInfinite()) "null" else v.toString())
+            is Map<*, *> -> {
+                sb.append('{')
+                var first = true
+                for ((k, x) in v) {
+                    if (!first) sb.append(',')
+                    first = false
+                    quote(sb, k.toString())
+                    sb.append(':')
+                    writeTo(sb, x)
+                }
+                sb.append('}')
+            }
+            is List<*> -> {
+                sb.append('[')
+                v.forEachIndexed { i, x ->
+                    if (i > 0) sb.append(',')
+                    writeTo(sb, x)
+                }
+                sb.append(']')
+            }
+            else -> quote(sb, v.toString())
+        }
+    }
+
+    private fun quote(sb: StringBuilder, t: String) {
+        sb.append('"')
+        for (c in t) {
+            when {
+                c == '"' -> sb.append("\\\"")
+                c == '\\' -> sb.append("\\\\")
+                c == '\n' -> sb.append("\\n")
+                c == '\r' -> sb.append("\\r")
+                c == '\t' -> sb.append("\\t")
+                c < ' ' -> sb.append(String.format("\\u%04x", c.code))
+                else -> sb.append(c)
+            }
+        }
+        sb.append('"')
+    }
+
     @Suppress("UNCHECKED_CAST")
     fun path(root: Any?, vararg keys: Any): Any? {
         var cur = root
@@ -141,13 +193,15 @@ data class BundleFacts(
     val chipsetAliases: List<String>,
     val socModel: Int?,
     val dspArch: String?,
+    /** True when `model_files` is a list (the format of AI Hub release v0.67.0 and newer), false for an object, null when unreadable. */
+    val modelFilesIsList: Boolean? = null,
 ) {
     companion object {
         fun extract(metadataJson: String?, htpConfigJson: String?): BundleFacts {
             val meta = metadataJson?.let { MiniJson.parse(it) }
             val htp = htpConfigJson?.let { MiniJson.parse(it) }
             fun s(root: Any?, vararg k: Any) = MiniJson.path(root, *k) as? String
-            fun n(root: Any?, vararg k: Any) = (MiniJson.path(root, *k) as? Double)?.toInt()
+            fun n(root: Any?, vararg k: Any) = (MiniJson.path(root, *k) as? Number)?.toInt()
             return BundleFacts(
                 modelId = s(meta, "model_id"),
                 runtime = s(meta, "runtime"),
@@ -157,6 +211,7 @@ data class BundleFacts(
                 chipsetAliases = (MiniJson.path(meta, "chipset_attributes", "aliases") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
                 socModel = n(htp, "devices", 0, "soc_model") ?: n(meta, "chipset_attributes", "soc_model"),
                 dspArch = s(htp, "devices", 0, "dsp_arch"),
+                modelFilesIsList = MiniJson.path(meta, "model_files")?.let { it is List<*> },
             )
         }
     }
@@ -227,6 +282,7 @@ object DiagnoseFormatter {
     const val H3 = "H3 (Chip-Zugriff oder Paket zum Chip passt nicht)"
     const val H4 = "H4 (zu wenig Arbeitsspeicher beim Laden)"
     const val H5 = "H5 (Paketdateien unvollständig oder beschädigt)"
+    const val H6 = "H6 (Metadaten-Format des Pakets zu neu für das SDK)"
 
     fun bundleLines(i: BundleInspection, facts: BundleFacts, runtimeQairt: String?): List<String> {
         val lines = mutableListOf<String>()
@@ -241,6 +297,11 @@ object DiagnoseFormatter {
         lines += "  Laufzeit des SDK (libQnnHtp.so): ${runtimeQairt ?: "nicht gefunden"}"
         lines += "  Paket: Modell ${facts.modelId ?: "?"}, ${facts.runtime ?: "?"}, ${facts.precision ?: "?"}, Chip ${facts.chipsetName ?: "?"} " +
             "(${facts.chipsetAliases.joinToString("/")}), SoC-Nummer ${facts.socModel ?: "?"}, DSP-Architektur ${facts.dspArch ?: "?"}"
+        lines += when (facts.modelFilesIsList) {
+            true -> "  Format der Metadaten: model_files ist eine LISTE (Format ab AI-Hub-Ausgabe v0.67.0). SDK 0.10.0 liest nur ein Objekt (prüft H6: Metadaten-Format zu neu)."
+            false -> "  Format der Metadaten: model_files ist ein Objekt (das Format, das SDK 0.10.0 liest)."
+            null -> "  Format der Metadaten: nicht lesbar."
+        }
         lines += when (QairtVersion.compat(facts.qairt, runtimeQairt)) {
             Compat.BUNDLE_NEWER -> "  -> Das Paket ist NEUER als die Laufzeit: $H1 ist möglich."
             Compat.BUNDLE_SAME_OR_OLDER -> "  -> Paket nicht neuer als die Laufzeit: $H1 ist damit unwahrscheinlich."

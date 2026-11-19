@@ -1,6 +1,48 @@
 # Prüfnachweise
 
+## Etappe 80d — dritter Lauf auf dem Gerät: die wirkliche Ursache und der eigene Download (2026-11-19)
+
+- **Gerätebericht des Owners (Spike 0.3, Xiaomi 15):** Die Diagnose lief; das Protokoll der Laufzeit (eigene logcat-Zeilen, Android 16) enthält die Ursache des Ladefehlers:
+  `E GenieXSdk: [/workspace/third-party/geniex-qairt/models/dispatch.h:72:bundleFactsOf] dispatch: cannot read metadata.json: llm_spec_loader: metadata.json missing 'model_files' object`,
+  `E GenieXSdk: [plugins/qairt/src/llm.cpp:113:create] Failed to create QAIRT LLM pipeline from bundle: …/files/geniex/models/qualcomm/Qwen3-4B`,
+  `E GenieXSdk: [JNI] create() failed, error code: -100201` (create mit `model_path` …/part4_of_4.bin, `tokenizer_path` null, plugin qairt). **Das SDK 0.10.0 lehnt das Metadaten-Format des Pakets ab, bevor der Chip
+  überhaupt angesprochen wird.** Der Rest war gesund: `libcdsprpc` und `libadsprpc` in `/vendor/lib64` und in `/vendor/etc/public.libraries.txt`, alle sieben Ladetests der Bibliotheken ok, 4,1 GB RAM frei, Paket vollständig
+  (17 Dateien, 3,0 GB, 4 `.bin`-Teile), gebaut mit QAIRT 2.51.0.260929181845, Laufzeit v2.50.40, SoC 69, DSP v79. H2 bis H5 sind damit widerlegt, H1 bleibt als zweites Risiko.
+- **Zwei Fehler der Version 0.3:** (1) Löschen löschte nicht: „Gelöscht: …“, danach sofort „Vorhandenes Paket … 2.51.0“; die Dateien blieben (Ursache im SDK nicht geklärt, `remove` lieferte 0). (2) Die Festlegung der Ausgabe v0.66.0 über
+  `GENIEX_AIHUBVERSION` hatte keine Wirkung: beide Pulls lieferten ein Paket mit QAIRT 2.51 (die App meldete das, wie vorgesehen, als Fehler). Außerdem zeigte der Bericht den Ordner `qualcomm/Qwen3-4B` bei einer Beschriftung „Instruct-2507“:
+  Das SDK legt „ai-hub-models/X“ im Ordner „qualcomm/X“ ab, und die App beschriftete das Paket nach der zuletzt angefragten Kennung statt nach den Dateien.
+- **Schreibtischprüfung (Qualcomm-Server und Quelltext, nichts auf dem Gerät):** Die Metadaten-Datei beider Modelle (for_galaxy, GENIEX_QAIRT, w4a16) der Ausgaben v0.64 bis v0.67 per Bereichsabfrage aus den Zip-Dateien gelesen (v0.63 hat die Datei für Qwen3-4B nicht):
+
+| Ausgabe | Modell | `model_files` | QAIRT | Größe der Zip-Datei |
+| --- | --- | --- | --- | --- |
+| v0.67.0 | Instruct-2507 | **Liste** | 2.51.0.260929181845 | 2 665 337 667 |
+| v0.67.0 | Qwen3-4B | **Liste** | 2.51.0.260929181845 | 2 666 196 166 |
+| v0.66.0 | Instruct-2507 | Objekt | 2.50.0.260828221209 | 2 659 737 495 |
+| v0.66.0 | Qwen3-4B | Objekt | 2.50.0.260828221209 | 2 660 599 539 |
+| v0.65.0 | Instruct-2507 | Objekt | 2.50.0.260828221209 | 2 529 557 705 |
+| v0.65.0 | Qwen3-4B | Objekt | 2.50.0.260828221209 | 2 530 270 573 |
+| v0.64.0 | Instruct-2507 | Objekt | 2.45.0.260326154327 | 2 534 543 150 |
+| v0.64.0 | Qwen3-4B | Objekt | 2.45.0.260326154327 | 2 535 418 960 |
+
+  Unterschiede der Struktur: In v0.67.0 ist `model_files` eine Liste mit `filename`, die Tensoren sind Listen mit `name` und `io_type`, dtype heißt `DTYPE_UINT16` (vorher `uint16`), runtime `RUNTIME_GENIEX_QAIRT` (vorher `geniex_qairt`),
+  precision `PRECISION_W4A16`, `supplementary_files` eine Liste, neu `aihm_version` und `genie.supports_streaming`. **Was das 0.10.0-Plugin verlangt:** `model_files` als Objekt (Zeichenkette „metadata.json missing 'model_files' object“
+  in `libgeniex_plugin_qairt.so`; Quelltext `parseQAIRTMetadata` in `core/src/llm/llm_spec_loader.cpp` des Plugin-Repositorys, Zeilen 177 bis 232: `model_files`, je Graphdatei `inputs` und `outputs` mit `shape`, ein erkennbarer Shard-Name
+  wie `part1_of_4.bin`); `main` akzeptiert „object or array“ (Zeile 180) und liest die Einträge mit `forEachNamed(…, "filename")`. Das Format ist also neuer als das Android-SDK. Ob `main` (0.11) das Paket v0.67.0 lädt, ist damit
+  erwartet, aber nicht geprüft; eine Android-Fassung 0.11 gibt es nicht (Maven 404, kein AAR in Qualcomms Veröffentlichung).
+- **Kompatibilitäts-Metadaten (Option, kein Download):** Die Umwandlung der Datei von v0.67.0 ins alte Format ergibt `model_files` und `supplementary_files` **identisch** zu den echten Dateien von v0.66.0 (alle 4 Graphdateien, alle Tensornamen, Formen,
+  dtype und Quantisierungsparameter; Test `RealMetadataCompatTest` mit den echten Dateien). Meine Sicherheit, dass das 0.10.0-Plugin damit die Metadaten akzeptiert: etwa 90 Prozent (die Quelle des Plugins liest nur diese Felder; nicht ausgeführt). Ob die mit QAIRT 2.51 gebauten
+  `.bin`-Programme auf der Laufzeit 2.50.40 laufen, ist unbekannt (etwa 50 Prozent, keine Doku); dort bleibt das Risiko H1.
+- **Änderung (Version 0.4-spike, versionCode 4):** (B) Die Kandidaten sind die Ausgabe **v0.66.0** (Instruct-2507, dann Qwen3-4B); die App lädt die Zip-Datei selbst (fortsetzbar, Bytezahl, CRC32 aller Dateien; keine Prüfsumme bei Qualcomm) und übernimmt sie über
+  `HubSource.LOCALFS` mit dem Namen `local/…`; der Speicher wird vorher geprüft (Zip, entpackt, Reserve). (C) Löschen prüft nach und löscht übrig gebliebene Ordner im privaten Speicher der App selbst; „Gelöscht“ steht nur noch, wenn nichts mehr da ist. Die Beschriftung kommt aus den Dateien.
+  (A) Option „Kompatibilitäts-Metadaten (kein Download)“, nach einem Ladefehler durch das Format auch als Dialog neben „Ältere Ausgabe laden“. (D) Alle Diagnosezeilen bleiben; neu die Hypothese H6 (Format).
+- **Tests (JVM):** 122 von 122 grün (`DownloaderTest` 15 mit einem lokalen HTTP-Server: Voll-Download, Fortsetzen mit Range, Server ohne Range, abgerissene Verbindung, falsche Größe, 404, Abbruch, Zip-Prüfung; `MetadataCompatTest` 8, `RealMetadataCompatTest` 2,
+  `SpikeRunnerTest` 44, `PullPlannerTest` 15, `LoadDiagnoseTest` 13, `ErrorTextTest` 9, `ReportFormatterTest` 9, `MetricsTest` 7). Rotprobe: dtype-Umwandlung entfernt, Anhängen beim Fortsetzen durch Neubeginn ersetzt und die eigene Löschprüfung entfernt: 7 Tests rot; zurückgesetzt, alle grün.
+- **APK 0.4:** gleiche Signatur wie 0.1 bis 0.3 (Zertifikat-SHA-256 `ba38b227…c1ad`, Debug-Schlüssel des Containers), also ein Update. **Nicht geprüft:** der Download von Qualcomms Server von einem Telefon aus (gegen einen lokalen Server geprüft), der Import mit `LOCALFS` für diese Zip-Datei,
+  ob das Modell mit dem Paket v0.66.0 lädt und läuft, ob die Kompatibilitäts-Metadaten genügen.
+
 ## Etappe 80c — zweiter Lauf auf dem Gerät und Diagnose des Ladefehlers (2026-11-19)
+
+(Die Hauptvermutung H1 dieses Abschnitts ist durch 80d überholt: Die Ursache war das Metadaten-Format, siehe oben.)
 
 - **Gerätebericht des Owners (Spike 0.2 auf dem Xiaomi 15, Android 16, Update über 0.1 ging):** Chip-Kennung laut SDK (lokal gelesen) `SM8750-AC`, obwohl
   `Build.SOC_MODEL` `SM8750` sagt. Pull von `ai-hub-models/Qwen3-4B-Instruct-2507` mit `SM8750-AC` über WLAN: „Download fertig in 291 s“. Danach bei Test 2 und

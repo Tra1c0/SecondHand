@@ -3779,11 +3779,11 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   die SDK-freien Typen (`InitInfo`, `LoadInfo`, `PullUpdate`, `GenEvent`, `GenProfile`, `NpuException`), die
   Schnittstelle `NpuPort` (`init`, `isModelPresent`, `pull`, `deleteModel`, `load`, `generate`, `stop`, `unload`),
   die Konstanten (`GeniexConstants`: Laufzeit `qairt`, Chipset `SM8750-AC`) und die echte Umsetzung `GeniexAdapter`. Die Modell-ID ist
-  ein Parameter jedes Aufrufs (80b: zwei Kandidaten, 80c: mit Ausgabe wie `v0.66.0`; `inspect` liest die Dateien des Pakets); `listHub` fragt Qualcomms Paketliste ab, `InitInfo.detectedChipset` ist die lokal gelesene Chip-Kennung des SDK. SDK-Fehler werden zu `NpuException` (Klasse, SDK-Code,
+  ein Parameter jedes Aufrufs (80b/80c: zwei Kandidaten; 80d: `importLocal` übernimmt eine fertig geladene Zip-Datei über `HubSource.LOCALFS`; `inspect` liest die Dateien des Pakets); `listHub` fragt Qualcomms Paketliste ab, `InitInfo.detectedChipset` ist die lokal gelesene Chip-Kennung des SDK. SDK-Fehler werden zu `NpuException` (Klasse, SDK-Code,
   SDK-Text bleiben erhalten). Alles andere arbeitet nur mit `NpuPort`, darum kann ein Fake (`Fakes.kt` in den
   Tests) die ganze App-Logik prüfen.
 - App-Logik ohne Android und SDK: `SpikeRunner.kt` (Ablauf: SDK starten, Download, die zwei Tests, Stopp, Entladen,
-  Löschen; schreibt jeden Fehler als Zeilen in den Bericht), `PullPlanner.kt` (80b: die geordnete Liste der Pakete `Candidate`, Rat nach einem fehlgeschlagenen Pull, SDK-Fehlercodes `SdkCodes`; nichts wird von selbst geladen), `LoadDiagnose.kt` (80c: kleiner JSON-Leser `MiniJson`, `BundleFacts` aus die Metadaten-Datei des Pakets und der HTP-Konfiguration, QAIRT-Versionsvergleich `QairtVersion`, Filter `LogFilter` für das Protokoll der Laufzeit, `DiagnoseFormatter` mit den Vermutungen H1 bis H5), `ErrorText.kt` (Fehler zu Berichtszeilen, „Auf diesem Gerät nicht
+  Löschen; schreibt jeden Fehler als Zeilen in den Bericht), `PullPlanner.kt` (80b: die geordnete Liste der Pakete `Candidate`, Rat nach einem fehlgeschlagenen Pull, SDK-Fehlercodes `SdkCodes`; nichts wird von selbst geladen), `Downloader.kt` (80d: eigener fortsetzbarer HTTPS-Download der Paket-Zip-Datei: `ResumePlan` mit Fortsetzen, Range und Content-Range, Platzbedarf; `HttpZipDownloader`; `ZipCheck` prüft das Zip-Verzeichnis und die CRC32 jeder Datei), `MetadataCompat.kt` (80d: wandelt die Metadaten-Datei des neuen Formats in das alte um, Option ohne Download) und `LoadDiagnose.kt` (80c: kleiner JSON-Leser und -Schreiber `MiniJson`, `BundleFacts` aus die Metadaten-Datei des Pakets und der HTP-Konfiguration, QAIRT-Versionsvergleich `QairtVersion`, Filter `LogFilter` für das Protokoll der Laufzeit, `DiagnoseFormatter` mit den Vermutungen H1 bis H5), `ErrorText.kt` (Fehler zu Berichtszeilen, „Auf diesem Gerät nicht
   unterstützt: <Klasse>“), `Metrics.kt` (Tokens pro Sekunde, Vergleich mit dem erwarteten Satz, Zahlenformat),
   `FixedTests.kt` (die zwei festen deutschen Texte), `ReportFormatter.kt` (Kopfzeilen, Testzeilen, gesamter
   Bericht; Datentypen `DeviceHeader`, `TestResult`) und `Support.kt` (die Schnittstellen `Probe`, `Clock`,
@@ -3794,7 +3794,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   alle Views im Code (Liste der Pakete mit Zustand, Dialoge vor jedem Download und nach jedem Fehler), Hochformat, Bildschirm bleibt während eines Schritts an, SDK-Arbeit nie im Hauptthread,
   Modell wird in `onDestroy` freigegeben).
 - Tests (`companion/app/src/test/java/…`): `MetricsTest`, `ErrorTextTest`, `PullPlannerTest`,
-  `ReportFormatterTest`, `LoadDiagnoseTest`, `SpikeRunnerTest` (mit `Fakes.kt`); reines JUnit 4, kein Robolectric, kein SDK-Aufruf.
+  `ReportFormatterTest`, `LoadDiagnoseTest`, `DownloaderTest` (mit einem lokalen HTTP-Server des JDK), `MetadataCompatTest` und `RealMetadataCompatTest` (mit den echten Metadaten-Dateien beider Ausgaben unter `src/test/resources/metadata/`), `SpikeRunnerTest` (mit `Fakes.kt`); reines JUnit 4, kein Robolectric, kein SDK-Aufruf.
 - Regeln der App: Internet nur durch den Download des SDK nach Tipp auf Knopf 1 und Bestätigung; kein Textfeld,
   nur zwei feste Texte; mit `android.util.Log` nur Schrittnamen und Fehlerklassen; keine Statistik; nichts
   wird übernommen oder in ein Feld geschrieben.
@@ -6156,25 +6156,39 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   logcat-Zeilen lesen (`logcat -d`, ohne Berechtigung); `AndroidDiagnostics.logSince` schneidet nach einer Markerzeile vor dem Laden, `LogFilter` behält NPU-
   Stichwörter und Warnungen und entfernt Zeilen mit Teilen der festen Prüftexte. Eine Java-Schnittstelle für die Protokollstufe gibt es nicht
   (`JNI_OnLoad` setzt Stufe 4 selbst); die App setzt zusätzlich `GENIEX_LOG=trace` über `android.system.Os.setenv` vor dem Start des SDK (Wirkung nicht belegt).
-- **P334** Begleit-App, Paketausgabe und Laufzeit (80c): Die Laufzeit im AAR 0.10.0 ist QAIRT 2.50.40 (Zeichenkette `v2.50.40.260831140417` in `libQnnHtp.so`, die App
+- **P334** Begleit-App, Paketausgabe und Laufzeit (80c, korrigiert in 80d): Die Laufzeit im AAR 0.10.0 ist QAIRT 2.50.40 (Zeichenkette `v2.50.40.260831140417` in `libQnnHtp.so`, die App
   liest sie aus der Datei). Das neueste Paket (AI-Hub-Ausgabe v0.67.0) ist mit QAIRT 2.51.0 gebaut (Eintrag tool_versions.qairt in der Metadaten-Datei des Pakets), v0.65.0 und
   v0.66.0 mit 2.50.0, v0.63.0 und v0.64.0 mit 2.45.0 (Paketlisten je Ausgabe auf Qualcomms S3). Das Plugin prüft nur die QNN-C-Schnittstelle der
-  Laufzeit (Untergrenze 2.27), nicht die Version des Pakets; ob QNN ein Paket einer neueren Version ablehnt, ist nicht dokumentiert (Vermutung H1, nicht belegt).
-  Die Ausgabe wird über die Umgebungsvariable `GENIEX_AIHUBVERSION` festgelegt (Zeichenkette in `libgeniex.so`, Quelltext Datei index im Ordner source/ai_hub: mit gesetzter Variable liest das SDK
-  die Listen der gewählten Ausgabe statt `latest`); die App setzt sie beim Start des SDK und vor jedem Pull (`GeniexAdapter`). Nach dem Pull prüft `SpikeRunner` die Version
-  im Paket und meldet einen Fehler, falls die Festlegung nicht gewirkt hat. Alle Ausgaben desselben Modells liegen im selben Ordner des SDK: Vor dem Pull einer anderen
-  Ausgabe wird das vorhandene Paket gelöscht, damit sich Dateien nicht mischen.
+  Laufzeit (Untergrenze 2.27), nicht die Version des Pakets. **Die Festlegung der Ausgabe über die Umgebungsvariable `GENIEX_AIHUBVERSION` hat auf dem Telefon nicht gewirkt** (beide
+  Pulls mit „v0.66.0“ lieferten die Ausgabe v0.67.0; ob die Variable anders heißt, einmal gelesen wird oder `Os.setenv` den nativen Teil nicht erreicht, ist offen). Seit 80d verlässt sich die App
+  nicht mehr darauf: Sie lädt die Zip-Datei der Ausgabe selbst (genaue URL und Bytezahl je Kandidat in `PullPlanner`) und übernimmt sie über `HubSource.LOCALFS`; der Modellname im
+  SDK ist dann frei wählbar (`local/…`), also gibt es keine Verwechslung mit den älteren Paketen (`ai-hub-models/…`, im Ordner `qualcomm/…`), die die Versionen 0.2 und 0.3 angelegt haben.
 - **P335** Begleit-App, Diagnose ohne Modell (80c): Das SDK hat in Java keinen Aufruf, der den KI-Chip ohne Modell anspricht. Als Ersatz lädt die App die Bibliotheken
   des KI-Chip-Teils einzeln (`System.loadLibrary("cdsprpc")`, `System.load` für `libQnnHtp.so`, `libQnnSystem.so` und weitere) und meldet die Systemfehlermeldung; das
   prüft, ob der Lader der App die Herstellerbibliotheken sieht (H2), nicht ob der Chip antwortet. `libcdsprpc.so` ist für Apps nur über `uses-native-library` und die
   `public.libraries`-Listen des Herstellers sichtbar; beide Listen stehen im Bericht. Alle Diagnosezeilen sind Fakten des Telefons, kein Nutzertext.
+- **P336** Begleit-App, Ladefehler durch das Metadaten-Format (80d, dritter Lauf auf dem Xiaomi 15): Die wirkliche Ursache von „Model loading failed“ war im Protokoll der Laufzeit:
+  `dispatch: cannot read metadata.json: llm_spec_loader: metadata.json missing 'model_files' object`, danach `Failed to create QAIRT LLM pipeline` und Fehlercode `-100201`. Ab AI-Hub-Ausgabe v0.67.0
+  ist `model_files` in der Metadaten-Datei eine Liste (`filename`, Tensoren als Liste mit `name`, dtype `DTYPE_UINT16`, `io_type`, runtime `RUNTIME_GENIEX_QAIRT`), bis v0.66.0 ein Objekt je Dateiname. Das Plugin
+  im AAR 0.10.0 enthält nur die Meldung „missing 'model_files' object“ und liest nur Objekte (Zeichenkette in `libgeniex_plugin_qairt.so`); der Quelltext auf `main` (Datei llm_spec_loader.cpp im Plugin-Repository
+  qualcomm/geniex-qairt-plugin, Ordner core/src/llm) akzeptiert „object or array“. Das Paketformat ist also neuer als das Android-SDK 0.10.0, und der Chip wurde nie angesprochen. Verglichen
+  an den echten Dateien beider Ausgaben: Nach der Umwandlung sind `model_files` (alle Graphdateien, Tensornamen, Formen, Typen, Quantisierung) und `supplementary_files` **gleich** wie in v0.66.0
+  (`RealMetadataCompatTest`); die `.bin`-Dateien sind andere (neu gebaut, andere Größen). `MetadataCompat` macht daraus die Option „Kompatibilitäts-Metadaten“: schreibt die Datei im alten Format, sichert das Original
+  außerhalb des Modellordners (`files/companion-backup/…`). Offen bleibt, ob die mit QAIRT 2.51 gebauten Programme auf der Laufzeit 2.50.40 laufen. Die ältere Ausgabe v0.66.0 hat beides: das Format des SDK und die Version der Laufzeit.
+- **P337** Begleit-App, Download und Import (80d): Qualcomm veröffentlicht keine Prüfsumme der Zip-Dateien (der S3-ETag ist nur eine Multipart-Prüfsumme). Die App prüft die genaue Bytezahl (HEAD-Abfrage 2026-11-19), danach das Zip-Verzeichnis
+  (metadata.json und mindestens eine .bin-Datei) und die CRC32 jeder Datei; eine beschädigte Zip-Datei wird gelöscht. Fortsetzen: Range-Anfrage ab der Größe der `.part`-Datei, `If-Range` mit dem gemerkten ETag, antwortet der Server mit 200,
+  beginnt die Datei von vorn; ein vorzeitiges Ende der Antwort zählt als Netzfehler (bis zu sechs Versuche mit Wartezeit). Der Import (`LOCALFS`, ohne Netz) kopiert die Dateien in den Modellspeicher; danach wird die Zip-Datei gelöscht. Platzbedarf: Zip etwa 2,7 GB plus entpackt etwa 3,2 GB
+  plus Reserve, das alte Paket (3,0 GB) bleibt bis zum Löschen.
+- **P338** Begleit-App, Löschen (80d, Fehler aus Version 0.3): Das SDK meldete beim Löschen `0` („Gelöscht“), die Dateien blieben aber liegen (das nächste „Vorhandenes Paket“ zeigte sie). `SpikeRunner.deleteModels` ruft darum nach dem SDK
+  die Ordner unter `files/geniex/models/<org>/<repo>` selbst ab (der Speicher liegt im privaten Ordner der App), löscht übrig gebliebene selbst, prüft danach erneut (SDK und Ordner) und schreibt „Gelöscht und geprüft“ nur, wenn nichts mehr da ist; sonst „NICHT vollständig gelöscht“ mit dem Rest.
+  Zum Zuordnen: Das SDK legt „ai-hub-models/X“ im Ordner „qualcomm/X“ ab (Auflösung in `pull.rs` des GenieX-Repositorys); die Beschriftung, welches Paket da ist, kommt jetzt aus der Metadaten-Datei (QAIRT-Version) und dem Speichernamen, nicht aus der zuletzt angefragten Kennung.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (707 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (711 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6368,11 +6382,12 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `companion/` (2): build.gradle, settings.gradle
 - `companion/app/` (1): build.gradle
 - `companion/app/src/main/` (1): AndroidManifest
-- `companion/app/src/main/java/dev/personal/secondhand/companion/` (11): AndroidSupport, ErrorText,
-  FixedTests, GeniexPort, LoadDiagnose, MainActivity, Metrics, PullPlanner, ReportFormatter,
-  SpikeRunner, Support
-- `companion/app/src/test/java/dev/personal/secondhand/companion/` (7): ErrorTextTest, Fakes,
-  LoadDiagnoseTest, MetricsTest, PullPlannerTest, ReportFormatterTest, SpikeRunnerTest
+- `companion/app/src/main/java/dev/personal/secondhand/companion/` (13): AndroidSupport, Downloader,
+  ErrorText, FixedTests, GeniexPort, LoadDiagnose, MainActivity, MetadataCompat, Metrics,
+  PullPlanner, ReportFormatter, SpikeRunner, Support
+- `companion/app/src/test/java/dev/personal/secondhand/companion/` (9): DownloaderTest,
+  ErrorTextTest, Fakes, LoadDiagnoseTest, MetadataCompatTest, MetricsTest, PullPlannerTest,
+  ReportFormatterTest, SpikeRunnerTest
 - `scripts/` (3): docs_sync, docs_sync, install-hooks
 - `tools/` (3): build_german_verb_lemmas, dev, emoji_mix_table
 - `tools/devicetest/` (3): build.gradle, devicetest, settings.gradle

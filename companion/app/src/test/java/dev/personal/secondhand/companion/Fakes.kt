@@ -50,13 +50,17 @@ class FakePort(private val clock: FakeClock) : NpuPort {
     var profile: GenProfile? = GenProfile(310.0, 280.0, 5000.0, 40, 11, 142.0, 2.2, "stop")
     var generateEvents: List<GenEvent>? = null
     var deleteResult = 0
-    val pulledChipsets = mutableListOf<String>()
-    val pulledReleases = mutableListOf<String?>()
+    val importedNames = mutableListOf<String>()
+    var importAddsPresent = true
 
     /** The QAIRT version the fake bundle in the store was built with. */
     var bundleQairt: String? = "2.50.0.260828221209"
     var inspectError: Throwable? = null
     var noInspection = false
+    var newFormat = false
+
+    /** Lets a test serve the metadata.json the app wrote (a null result means: the generated one). */
+    var metaProvider: (() -> String?)? = null
     /** Called inside load(): lets a test write log lines while the load runs. */
     var onLoad: (() -> Unit)? = null
 
@@ -72,9 +76,15 @@ class FakePort(private val clock: FakeClock) : NpuPort {
         calls += "inspect:$modelName"
         inspectError?.let { throw it }
         if (noInspection || modelName !in present) return null
-        val meta = "{\"model_id\":\"qwen3_4b_instruct_2507\",\"runtime\":\"RUNTIME_GENIEX_QAIRT\",\"precision\":\"PRECISION_W4A16\"," +
+        val modelFiles = if (newFormat) {
+            "[{\"filename\":\"part1_of_4.bin\",\"inputs\":[{\"name\":\"input_ids\",\"shape\":[1,1],\"dtype\":\"DTYPE_INT32\",\"io_type\":\"IO_TYPE_TENSOR\"}],\"outputs\":[]}]"
+        } else {
+            "{\"part1_of_4.bin\":{\"inputs\":{\"input_ids\":{\"shape\":[1,1],\"dtype\":\"int32\"}},\"outputs\":{}}}"
+        }
+        val generated = "{\"model_id\":\"qwen3_4b_instruct_2507\",\"runtime\":\"RUNTIME_GENIEX_QAIRT\",\"precision\":\"PRECISION_W4A16\"," +
             "\"tool_versions\":{\"qairt\":\"$bundleQairt\"},\"chipset_attributes\":{\"name\":\"qualcomm-snapdragon-8-elite-for-galaxy\"," +
-            "\"aliases\":[\"sm8750-ac\"],\"soc_model\":69}}"
+            "\"aliases\":[\"sm8750-ac\"],\"soc_model\":69},\"model_files\":$modelFiles}"
+        val meta = metaProvider?.invoke() ?: generated
         val htp = "{\"devices\":[{\"soc_model\":69,\"dsp_arch\":\"v79\"}]}"
         return BundleInspection(
             "/data/geniex/models/x", "qairt",
@@ -83,10 +93,10 @@ class FakePort(private val clock: FakeClock) : NpuPort {
         )
     }
 
-    override fun pull(modelName: String, chipset: String, release: String?): Flow<PullUpdate> = flow {
-        calls += "pull:$modelName:$chipset"
-        pulledReleases += release
-        pulledChipsets += chipset
+    override fun importLocal(modelName: String, localPath: String): Flow<PullUpdate> = flow {
+        calls += "import:$modelName:$localPath"
+        importedNames += modelName
+        if (importAddsPresent) present += modelName
         pullThrows?.let { throw it }
         pullUpdates.forEach { emit(it) }
     }
@@ -137,4 +147,51 @@ class FakeDiagnostics : Diagnostics {
     override fun runtimeQairtVersion(): String? = runtimeVersion
     override fun markLog(marker: String) { calls += "mark"; log = log + "01-01 00:00:00.000 1 1 I SecondHandCompanion: $marker" }
     override fun logSince(marker: String): List<String> = log
+}
+
+class FakeStore : StoreFiles {
+    val files = linkedMapOf<String, Long>()
+    val texts = mutableMapOf<String, String>()
+    var free = 100L * 1073741824
+    val undeletable = mutableSetOf<String>()
+    var onDeleted: (String) -> Unit = {}
+    var copyOk = true
+    var writeOk = true
+
+    override fun modelsRoot() = "/data/files/geniex/models"
+    override fun downloadsDir() = "/data/files/companion-dl"
+    override fun backupDir() = "/data/files/companion-backup"
+    override fun exists(path: String) = files.keys.any { it == path || it.startsWith("$path/") } || texts.containsKey(path)
+    override fun listDirs(path: String): List<String> =
+        files.keys.filter { it.startsWith("$path/") }.map { it.removePrefix("$path/").substringBefore('/') }
+            .filter { name -> files.keys.any { it.startsWith("$path/$name/") } }.distinct().sorted()
+    override fun treeBytes(path: String) = files.filterKeys { it == path || it.startsWith("$path/") }.values.sum()
+    override fun deleteTree(path: String): Boolean {
+        if (path in undeletable) return false
+        files.keys.removeAll { it == path || it.startsWith("$path/") }
+        onDeleted(path)
+        return true
+    }
+    override fun readText(path: String): String? = texts[path]
+    override fun writeText(path: String, text: String): Boolean = writeOk.also { if (it) texts[path] = text }
+    override fun copyFile(from: String, to: String): Boolean = copyOk.also { if (it) texts[to] = texts[from] ?: "" }
+    override fun freeBytes() = free
+}
+
+class FakeDownloader(private val store: FakeStore) : ZipDownloader {
+    val calls = mutableListOf<String>()
+    var downloadError: DownloadException? = null
+    var verifyError: DownloadException? = null
+    var progressAt: List<Pair<Long, Long>> = emptyList()
+    override fun download(url: String, dest: String, expectedBytes: Long, onProgress: (Long, Long) -> Unit, cancelled: () -> Boolean) {
+        calls += "download:$url"
+        progressAt.forEach { onProgress(it.first, it.second) }
+        downloadError?.let { throw it }
+        store.files[dest] = expectedBytes
+    }
+    override fun verifyZip(path: String, onProgress: (Long, Long) -> Unit, cancelled: () -> Boolean): ZipSummary {
+        calls += "verify:$path"
+        verifyError?.let { throw it }
+        return ZipSummary(17, 4, true, 3_000_000_000L)
+    }
 }

@@ -1,6 +1,9 @@
 package dev.personal.secondhand.companion
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
 
 // The spike's flow: start the SDK, pull, run the two fixed tests, unload, delete (stage 80).
 // Talks only to NpuPort/Probe/Clock/StepTracker, so a fake of them drives the unit tests.
@@ -12,6 +15,8 @@ class SpikeRunner(
     private val tracker: StepTracker,
     private val log: ReportLog,
     private val diag: Diagnostics = NoDiagnostics,
+    private val store: StoreFiles = NoStore,
+    private val downloader: ZipDownloader = NoDownloader,
 ) {
     sealed interface PullOutcome {
         data class Success(val candidate: Candidate) : PullOutcome
@@ -27,7 +32,12 @@ class SpikeRunner(
          * [loadFailed]: the failure was while loading the model. [bundleNewerThanRuntime]: the bundle was built with a
          * newer QAIRT than the runtime in this app, so an older release of the bundle is the next thing to try.
          */
-        data class Failed(val loadFailed: Boolean, val bundleNewerThanRuntime: Boolean = false) : TestOutcome
+        data class Failed(
+            val loadFailed: Boolean,
+            val bundleNewerThanRuntime: Boolean = false,
+            /** The bundle's metadata.json has `model_files` as a list: SDK 0.10.0 cannot read it (the real cause seen on the phone). */
+            val metadataFormatTooNew: Boolean = false,
+        ) : TestOutcome
     }
 
     @Volatile
@@ -43,7 +53,7 @@ class SpikeRunner(
     var loaded: Boolean = false
         private set
 
-    /** The model name of the bundle that is in the SDK's store (the first candidate model found), or null. */
+    /** The store name of the bundle the tests use: the first of [PullPlanner.ALL_MODEL_NAMES] that is in the SDK's store, or null. */
     @Volatile
     var presentModel: String? = null
         private set
@@ -95,7 +105,7 @@ class SpikeRunner(
     /** Looks for a complete bundle of any candidate model in the SDK's store; returns its model name. */
     suspend fun refreshModelPresent(): String? {
         try {
-            val found = PullPlanner.CANDIDATES.map { it.modelName }.distinct().firstOrNull { port.isModelPresent(it) }
+            val found = PullPlanner.ALL_MODEL_NAMES.firstOrNull { port.isModelPresent(it) }
             presentModel = found
             presentFacts = null
             if (found != null) {
@@ -120,24 +130,74 @@ class SpikeRunner(
         null
     }
 
-    suspend fun pull(candidate: Candidate, onProgress: (downloadedBytes: Long, totalBytes: Long) -> Unit): PullOutcome {
-        val step = "Modell herunterladen (${candidate.modelName}, Chipset ${candidate.chipset})"
+    /**
+     * Downloads the zip of the candidate's release itself (resumable, checked against the known size and the zip's CRC32s)
+     * and imports it into the SDK's store (LOCALFS). Phases for the screen: "Laden", "Prüfen", "Importieren".
+     */
+    suspend fun download(candidate: Candidate, onProgress: (phase: String, done: Long, total: Long) -> Unit): PullOutcome {
+        val step = "Modell herunterladen (${candidate.modelName}, Ausgabe ${candidate.release})"
         attempts++
         tracker.begin(step)
         log.add("")
         log.add("Schritt 1, Versuch $attempts: $step ...")
-        val free = probe.freeStorageBytes()
-        log.add("  Modell-ID: ${candidate.modelName}, Chipset-ID: ${candidate.chipset}, Ausgabe: ${candidate.release ?: "neueste"}")
+        val free = store.freeBytes().takeIf { it >= 0 } ?: probe.freeStorageBytes()
+        val zipPath = store.downloadsDir() + "/" + candidate.zipFileName
+        val alreadyThere = if (store.exists("$zipPath.part")) store.treeBytes("$zipPath.part") else 0L
+        log.add("  Modell-Name im SDK: ${candidate.modelName}, Ausgabe: ${candidate.release}, gebaut mit QAIRT ${candidate.expectedQairt}")
+        log.add("  Quelle: ${candidate.zipUrl}")
+        log.add("  Erwartete Größe: ${candidate.zipBytes} Bytes" + if (alreadyThere > 0) ", davon schon da: $alreadyThere (Fortsetzen)" else "")
         log.add("  Freier Speicher vorher: " + (if (free >= 0) Metrics.gb(free) else "unbekannt") + ", Netz: " + probe.networkType())
+        val needed = ResumePlan.spaceNeeded(candidate.zipBytes, alreadyThere, candidate.unpackedBytes)
+        if (free in 0 until needed) {
+            log.add("FEHLER bei Schritt: $step")
+            log.add("  Zu wenig freier Speicher: gebraucht werden etwa ${Metrics.gb(needed)} (Zip, entpacktes Modell und Reserve), frei sind ${Metrics.gb(free)}.")
+            tracker.failed(step, "NoSpace")
+            return PullOutcome.Failed(candidate, "zu wenig Speicher (${Metrics.gb(free)} frei, ${Metrics.gb(needed)} nötig)",
+                PullPlanner.adviceAfterDownloadFailure(DownloadException.Kind.NO_SPACE, null))
+        }
         val started = clock.nowMs()
+        val job = kotlin.coroutines.coroutineContext[Job]
+        val cancelled = { job?.isActive == false }
+        fun downloadFailed(e: DownloadException): PullOutcome {
+            if (e.kind == DownloadException.Kind.CANCELLED) {
+                log.add("Download abgebrochen (ein erneuter Tipp auf Knopf 1 setzt fort).")
+                tracker.failed(step, "Cancelled")
+            } else {
+                log.add("FEHLER bei Schritt: $step")
+                log.add("  Klasse: DownloadException (${e.kind})" + (e.httpStatus?.let { ", HTTP-Status $it" } ?: ""))
+                log.add("  Text: ${e.message}")
+                tracker.failed(step, "DownloadException")
+            }
+            return PullOutcome.Failed(candidate, "${e.kind}: ${e.message}", PullPlanner.adviceAfterDownloadFailure(e.kind, e.httpStatus))
+        }
+        try {
+            withContext(Dispatchers.IO) {
+                downloader.download(candidate.zipUrl, zipPath, candidate.zipBytes, { d, t -> onProgress("Laden", d, t) }, cancelled)
+            }
+        } catch (e: DownloadException) {
+            return downloadFailed(e)
+        }
+        log.add("  Zip geladen in ${Metrics.num((clock.nowMs() - started) / 1000.0, 0)} s, Größe stimmt (${candidate.zipBytes} Bytes).")
+        try {
+            val sum = withContext(Dispatchers.IO) { downloader.verifyZip(zipPath, { d, t -> onProgress("Prüfen", d, t) }, cancelled) }
+            log.add("  Zip geprüft: ${sum.entries} Dateien, ${sum.binFiles} .bin-Teile, metadata.json vorhanden, Prüfsummen (CRC32) aller Dateien stimmen.")
+        } catch (e: DownloadException) {
+            if (e.kind == DownloadException.Kind.ZIP_INVALID) {
+                store.deleteTree(zipPath) // a damaged zip is never kept: the next attempt downloads it again
+                log.add("  Die beschädigte Zip-Datei wurde gelöscht.")
+            }
+            return downloadFailed(e)
+        }
+        // import into the SDK's store (no network)
+        log.add("  Importiere in den Modellspeicher des SDK (LOCALFS) ...")
         var failureCode: Int? = null
         var failureMessage: String? = null
         var failedWithException: Throwable? = null
         var completed = false
         try {
-            port.pull(candidate.modelName, candidate.chipset, candidate.release).collect { update ->
+            port.importLocal(candidate.modelName, zipPath).collect { update ->
                 when (update) {
-                    is PullUpdate.Progress -> onProgress(update.downloadedBytes, update.totalBytes)
+                    is PullUpdate.Progress -> onProgress("Importieren", update.downloadedBytes, update.totalBytes)
                     is PullUpdate.Completed -> completed = true
                     is PullUpdate.Failed -> {
                         failureCode = update.code
@@ -146,7 +206,7 @@ class SpikeRunner(
                 }
             }
         } catch (e: CancellationException) {
-            log.add("Download abgebrochen (ein erneuter Tipp auf Knopf 1 setzt fort).")
+            log.add("Import abgebrochen (die geladene Zip-Datei bleibt; Knopf 1 importiert sie erneut).")
             tracker.failed(step, "Cancelled")
             throw e
         } catch (t: Throwable) {
@@ -157,15 +217,13 @@ class SpikeRunner(
             fail(step, exception)
             val code = ErrorText.sdkCode(exception)
             val message = ErrorText.sdkMessage(exception)
-            return PullOutcome.Failed(candidate, ErrorText.shortError(code, message, ErrorText.className(exception)),
-                PullPlanner.adviceAfterPullFailure(code, message))
+            return PullOutcome.Failed(candidate, ErrorText.shortError(code, message, ErrorText.className(exception)), PullPlanner.adviceAfterPullFailure(code, message))
         }
         if (!completed) {
             val code = failureCode ?: -1
-            log.addAll(ErrorText.describePull(step, code, failureMessage ?: "Der Download endete ohne Abschlussmeldung"))
+            log.addAll(ErrorText.describePull(step, code, failureMessage ?: "Der Import endete ohne Abschlussmeldung"))
             tracker.failed(step, "PullEvent.Error")
-            return PullOutcome.Failed(candidate, ErrorText.shortError(code, failureMessage, "PullEvent.Error"),
-                PullPlanner.adviceAfterPullFailure(code, failureMessage))
+            return PullOutcome.Failed(candidate, ErrorText.shortError(code, failureMessage, "PullEvent.Error"), PullPlanner.adviceAfterPullFailure(code, failureMessage))
         }
         val present = try {
             port.isModelPresent(candidate.modelName)
@@ -173,28 +231,30 @@ class SpikeRunner(
             throw e
         } catch (t: Throwable) {
             fail(step, t)
-            return PullOutcome.Failed(candidate, ErrorText.shortError(null, ErrorText.sdkMessage(t), ErrorText.className(t)),
-                PullPlanner.adviceAfterPullFailure(null, null))
+            return PullOutcome.Failed(candidate, ErrorText.shortError(null, ErrorText.sdkMessage(t), ErrorText.className(t)), PullPlanner.adviceAfterPullFailure(null, null))
         }
         if (!present) {
             log.add("FEHLER bei Schritt: $step")
-            log.add("  Der Download meldet 'fertig', aber das SDK findet das Modell nicht im Modellspeicher.")
+            log.add("  Der Import meldet 'fertig', aber das SDK findet das Modell nicht im Modellspeicher.")
             tracker.failed(step, "ModelNotPresent")
-            return PullOutcome.Failed(candidate, "Download fertig, Modell nicht im Speicher",
-                PullPlanner.Advice(giveUp = false, repeatUseful = true, deleteFirst = true, cancelled = false))
+            return PullOutcome.Failed(candidate, "Import fertig, Modell nicht im Speicher", PullPlanner.Advice(giveUp = false, repeatUseful = true, deleteFirst = true, cancelled = false))
+        }
+        val facts = readFacts(candidate.modelName)
+        if (facts?.qairt != null && QairtVersion.majorMinor(facts.qairt) != candidate.expectedQairt) {
+            log.add("FEHLER bei Schritt: $step")
+            log.add("  Das Paket ist mit QAIRT ${facts.qairt} gebaut, erwartet war ${candidate.expectedQairt}: Die Zip-Datei war nicht die erwartete Ausgabe.")
+            tracker.failed(step, "WrongBundleVersion")
+            return PullOutcome.Failed(candidate, "Paket hat QAIRT ${facts.qairt} statt ${candidate.expectedQairt}", PullPlanner.Advice(giveUp = true, repeatUseful = false, deleteFirst = false, cancelled = false))
         }
         presentModel = candidate.modelName
-        val facts = readFacts(candidate.modelName)
         presentFacts = facts
-        log.add("  Paket gebaut mit QAIRT: ${facts?.qairt ?: "unbekannt"} (erwartet für diesen Kandidaten: ${candidate.expectedQairt ?: "egal"})")
-        if (candidate.expectedQairt != null && facts?.qairt != null && QairtVersion.majorMinor(facts.qairt) != candidate.expectedQairt) {
-            log.add("FEHLER bei Schritt: $step")
-            log.add("  Das geladene Paket ist mit QAIRT ${facts.qairt} gebaut, erwartet war ${candidate.expectedQairt}: Die Wahl der Ausgabe ${candidate.release} hat im SDK nicht gewirkt.")
-            tracker.failed(step, "WrongBundleVersion")
-            return PullOutcome.Failed(candidate, "Paket hat QAIRT ${facts.qairt} statt ${candidate.expectedQairt}",
-                PullPlanner.Advice(giveUp = true, repeatUseful = false, deleteFirst = false, cancelled = false))
-        }
-        log.add("Download fertig (${candidate.modelName}, ${candidate.chipset}) in ${Metrics.num((clock.nowMs() - started) / 1000.0, 0)} s.")
+        log.add("  Paket gebaut mit QAIRT: ${facts?.qairt ?: "unbekannt"}, Metadaten-Format: " + when (facts?.modelFilesIsList) {
+            true -> "Liste (neu)"
+            false -> "Objekt (das SDK kann es lesen)"
+            null -> "unbekannt"
+        })
+        if (store.deleteTree(zipPath)) log.add("  Zip-Datei nach dem Import gelöscht (Speicher frei).") else log.add("  Zip-Datei konnte nicht gelöscht werden: $zipPath")
+        log.add("Download und Import fertig (${candidate.modelName}) in ${Metrics.num((clock.nowMs() - started) / 1000.0, 0)} s.")
         tracker.end(step)
         return PullOutcome.Success(candidate)
     }
@@ -234,7 +294,7 @@ class SpikeRunner(
         try {
             if (!loaded) {
                 val loadStep = "Modell auf der NPU laden (nur qairt, kein CPU/GPU-Ersatz)"
-                val compat = diagnoseBeforeLoad(modelName)
+                val pre = diagnoseBeforeLoad(modelName)
                 tracker.begin(loadStep)
                 val marker = "secondhand-load-" + clock.nowMs()
                 diag.markLog(marker)
@@ -246,7 +306,7 @@ class SpikeRunner(
                 } catch (t: Throwable) {
                     fail(loadStep, t)
                     afterLoadFailure(marker)
-                    return TestOutcome.Failed(loadFailed = true, bundleNewerThanRuntime = compat == Compat.BUNDLE_NEWER)
+                    return TestOutcome.Failed(loadFailed = true, bundleNewerThanRuntime = pre.compat == Compat.BUNDLE_NEWER, metadataFormatTooNew = pre.formatTooNew)
                 }
                 loadMs = clock.nowMs() - t0
                 val runtime = info.manifestRuntime
@@ -318,12 +378,15 @@ class SpikeRunner(
     }
 
     /** Writes the facts that decide whether the load can work; returns how the bundle's QAIRT compares with the runtime's. */
-    private suspend fun diagnoseBeforeLoad(modelName: String): Compat {
+    private data class Pre(val compat: Compat, val formatTooNew: Boolean)
+
+    private suspend fun diagnoseBeforeLoad(modelName: String): Pre {
         log.add("")
         log.add("Befunde vor dem Laden (jede Zeile sagt, welche Vermutung sie prüft):")
         val runtimeQairt = diag.runtimeQairtVersion()
         this.runtimeQairt = runtimeQairt
         var compat = Compat.UNKNOWN
+        var formatTooNew = false
         try {
             val inspection = port.inspect(modelName)
             if (inspection == null) {
@@ -333,6 +396,9 @@ class SpikeRunner(
                 presentFacts = facts
                 log.addAll(DiagnoseFormatter.bundleLines(inspection, facts, runtimeQairt))
                 compat = QairtVersion.compat(facts.qairt, runtimeQairt)
+                formatTooNew = facts.modelFilesIsList == true
+                val backup = compatBackupPath(modelName)
+                if (store.exists(backup)) log.add("  Hinweis: Die Metadaten dieses Pakets wurden von der App angepasst (Kompatibilitäts-Metadaten); das Original ist gesichert unter $backup.")
             }
         } catch (e: CancellationException) {
             throw e
@@ -344,7 +410,7 @@ class SpikeRunner(
             "PSS der App ${Metrics.mb(m.pssBytes)}, nativer Heap ${Metrics.mb(m.nativeHeapBytes)}")
         diag.environmentLines().takeIf { it.isNotEmpty() }?.let { log.addAll(it) }
         diag.nativeLoadLines().takeIf { it.isNotEmpty() }?.let { log.addAll(it) }
-        return compat
+        return Pre(compat, formatTooNew)
     }
 
     /** After a failed load: the process facts and the runtime's own log lines, filtered. */
@@ -383,29 +449,114 @@ class SpikeRunner(
         }
     }
 
+    private fun compatBackupPath(modelName: String): String =
+        store.backupDir() + "/" + modelName.replace('/', '_') + "/metadata.json.original"
+
+    private fun storeLeftovers(): List<String> {
+        val root = store.modelsRoot()
+        return store.listDirs(root).flatMap { org -> store.listDirs("$root/$org").map { "$org/$it" } }
+    }
+
     /**
-     * Removes every candidate model (complete or partial, as far as the SDK removes partial ones). "Not in the
-     * store" counts as fine.
+     * Removes every model of this app from the SDK's store and checks the result: after the SDK's own remove the files may
+     * still be there (seen on the phone: "Gelöscht" and the bundle was still present), so the app deletes what is left in
+     * the SDK's folder itself (it is the app's private folder) and reports "Gelöscht" only when the folders are gone.
      */
     suspend fun deleteModels(): Boolean {
         val step = "Modell löschen"
         try {
             if (loaded) unload()
-            var allOk = true
-            for (name in PullPlanner.CANDIDATES.map { it.modelName }.distinct()) {
-                val rc = port.deleteModel(name)
-                val ok = rc == 0 || rc == SdkCodes.FILE_NOT_FOUND
-                if (!ok) allOk = false
-                log.add(
-                    when (rc) {
-                        0 -> "Gelöscht: $name"
-                        SdkCodes.FILE_NOT_FOUND -> "Nichts zu löschen: $name"
-                        else -> "Löschen von $name: SDK-Ergebniscode $rc (0 = ok)"
-                    },
-                )
+            val results = PullPlanner.ALL_MODEL_NAMES.map { it to port.deleteModel(it) }
+            log.add("")
+            log.add("Löschen: SDK-Ergebnis je Modell: " + results.joinToString(", ") { (n, rc) -> "$n=$rc" } + " (0 = gelöscht, ${SdkCodes.FILE_NOT_FOUND} = war nicht da)")
+            val root = store.modelsRoot()
+            val left = storeLeftovers()
+            if (left.isNotEmpty()) {
+                log.add("Das SDK hat ${left.size} Ordner nicht entfernt: ${left.joinToString(", ")}. Die App löscht sie selbst:")
+                for (dir in left) {
+                    val path = "$root/$dir"
+                    val bytes = store.treeBytes(path)
+                    val ok = store.deleteTree(path)
+                    log.add("  ${if (ok) "entfernt" else "NICHT entfernt"}: $dir (${Metrics.gb(bytes)})")
+                }
+                for (org in store.listDirs(root)) if (store.listDirs("$root/$org").isEmpty()) store.deleteTree("$root/$org")
             }
-            if (allOk) presentModel = null
-            return allOk
+            val dl = store.downloadsDir()
+            if (store.exists(dl)) {
+                val bytes = store.treeBytes(dl)
+                if (bytes > 0) log.add("  Heruntergeladene Zip-Dateien: " + if (store.deleteTree(dl)) "entfernt (${Metrics.gb(bytes)})" else "NICHT entfernt")
+            }
+            val stillInSdk = PullPlanner.ALL_MODEL_NAMES.filter { port.isModelPresent(it) }
+            val after = storeLeftovers()
+            val ok = stillInSdk.isEmpty() && after.isEmpty()
+            presentModel = stillInSdk.firstOrNull()
+            if (ok) presentFacts = null
+            log.add(
+                if (ok) "Gelöscht und geprüft: Der Modellspeicher des SDK ist leer."
+                else "NICHT vollständig gelöscht. Noch da: " + (stillInSdk.map { "SDK: $it" } + after.map { "Ordner: $it" }).joinToString(", "),
+            )
+            return ok
+        } catch (e: CancellationException) {
+            throw e
+        } catch (t: Throwable) {
+            fail(step, t)
+            return false
+        }
+    }
+
+    /**
+     * Compatibility metadata (an option, never automatic): writes a metadata.json in the old object form next to the
+     * original (kept as a backup outside the model folder). It lets SDK 0.10.0 read a bundle of release v0.67.0 or newer; whether
+     * the context binaries built with QAIRT 2.51 then load on the 2.50.40 runtime is not known.
+     */
+    suspend fun applyCompatMetadata(): Boolean {
+        val step = "Kompatibilitäts-Metadaten schreiben"
+        val name = presentModel
+        log.add("")
+        log.add("$step (Option, kein Download) ...")
+        if (name == null) {
+            log.add("  Kein Paket im Modellspeicher.")
+            return false
+        }
+        try {
+            val inspection = port.inspect(name)
+            val dir = inspection?.modelDir
+            val text = inspection?.texts?.get("metadata.json")
+            if (dir == null || text == null) {
+                log.add("  metadata.json des Pakets nicht lesbar.")
+                return false
+            }
+            when (val r = MetadataCompat.convert(text)) {
+                is MetadataCompat.Result.AlreadyOldFormat -> {
+                    log.add("  Nicht nötig: model_files ist schon ein Objekt.")
+                    return false
+                }
+                is MetadataCompat.Result.Failed -> {
+                    log.add("  Umwandlung nicht möglich: ${r.reason}")
+                    return false
+                }
+                is MetadataCompat.Result.Converted -> {
+                    val backup = compatBackupPath(name)
+                    if (!store.exists(backup) && !store.copyFile("$dir/metadata.json", backup)) {
+                        log.add("  Sicherung des Originals fehlgeschlagen ($backup): nichts geändert.")
+                        return false
+                    }
+                    if (!store.writeText("$dir/metadata.json", r.json)) {
+                        log.add("  Schreiben fehlgeschlagen: nichts mehr sicher, Original liegt unter $backup.")
+                        return false
+                    }
+                    val facts = readFacts(name)
+                    presentFacts = facts
+                    log.add("  Umgewandelt: ${r.files} Graph-Dateien, ${r.tensors} Tensoren, model_files jetzt ein Objekt; runtime, precision, dtype und supplementary_files im alten Stil.")
+                    log.add("  Original gesichert unter $backup. Prüfung nach dem Schreiben: Format " + when (facts?.modelFilesIsList) {
+                        false -> "Objekt (ok)"
+                        true -> "immer noch Liste (FEHLER)"
+                        null -> "nicht lesbar (FEHLER)"
+                    })
+                    log.add("  Das ändert keinen Wert (Formen, Typen, Quantisierung sind gleich); es ändert nichts an den Rechenprogrammen (.bin), die mit QAIRT ${facts?.qairt ?: "?"} gebaut sind.")
+                    return facts?.modelFilesIsList == false
+                }
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (t: Throwable) {

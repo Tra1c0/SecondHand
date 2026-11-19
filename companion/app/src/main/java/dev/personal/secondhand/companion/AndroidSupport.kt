@@ -172,7 +172,7 @@ object DeviceInfo {
 }
 
 object BuildConfigLike {
-    const val VERSION = "Begleit-Spike 0.3 (Etappe 80), SDK geniex-android 0.10.0"
+    const val VERSION = "Begleit-Spike 0.4 (Etappe 80), SDK geniex-android 0.10.0"
 }
 
 /**
@@ -287,4 +287,25 @@ class AndroidDiagnostics(private val context: Context) : Diagnostics {
     } catch (t: Throwable) {
         emptyList()
     }
+}
+
+class AndroidStoreFiles(private val context: Context) : StoreFiles {
+    override fun modelsRoot(): String = java.io.File(context.filesDir, "geniex/models").path
+    override fun downloadsDir(): String = java.io.File(context.filesDir, "companion-dl").path
+    override fun backupDir(): String = java.io.File(context.filesDir, "companion-backup").path
+    override fun exists(path: String): Boolean = java.io.File(path).exists()
+    override fun listDirs(path: String): List<String> = java.io.File(path).listFiles { f -> f.isDirectory }?.map { it.name }?.sorted() ?: emptyList()
+    override fun treeBytes(path: String): Long = java.io.File(path).walkTopDown().filter { it.isFile }.sumOf { it.length() }
+    override fun deleteTree(path: String): Boolean = java.io.File(path).let { !it.exists() || it.deleteRecursively() }
+    override fun readText(path: String): String? = runCatching { java.io.File(path).readText() }.getOrNull()
+    override fun writeText(path: String, text: String): Boolean = runCatching {
+        java.io.File(path).also { it.parentFile?.mkdirs() }.writeText(text)
+    }.isSuccess
+
+    override fun copyFile(from: String, to: String): Boolean = runCatching {
+        java.io.File(to).parentFile?.mkdirs()
+        java.io.File(from).copyTo(java.io.File(to), overwrite = false)
+    }.isSuccess
+
+    override fun freeBytes(): Long = runCatching { StatFs(context.filesDir.path).availableBytes }.getOrDefault(-1L)
 }

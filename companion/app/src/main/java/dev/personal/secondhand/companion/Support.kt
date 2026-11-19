@@ -92,3 +92,38 @@ object NoDiagnostics : Diagnostics {
     override fun markLog(marker: String) {}
     override fun logSince(marker: String): List<String> = emptyList()
 }
+
+/**
+ * The app's own files around the SDK's model store (stage 80d): the store lives in the app's private folder
+ * (files/geniex/models/<org>/<repo>), so the app can verify and, if the SDK leaves files behind, remove them itself.
+ */
+interface StoreFiles {
+    /** The SDK's model store: models/<org>/<repo> below it. */
+    fun modelsRoot(): String
+    fun downloadsDir(): String
+    fun backupDir(): String
+    fun exists(path: String): Boolean
+
+    /** Names of the sub-folders of [path] (empty when it does not exist). */
+    fun listDirs(path: String): List<String>
+    fun treeBytes(path: String): Long
+    fun deleteTree(path: String): Boolean
+    fun readText(path: String): String?
+    fun writeText(path: String, text: String): Boolean
+    fun copyFile(from: String, to: String): Boolean
+    fun freeBytes(): Long
+}
+
+object NoStore : StoreFiles {
+    override fun modelsRoot() = "/none/models"
+    override fun downloadsDir() = "/none/dl"
+    override fun backupDir() = "/none/backup"
+    override fun exists(path: String) = false
+    override fun listDirs(path: String) = emptyList<String>()
+    override fun treeBytes(path: String) = 0L
+    override fun deleteTree(path: String) = true
+    override fun readText(path: String): String? = null
+    override fun writeText(path: String, text: String) = false
+    override fun copyFile(from: String, to: String) = false
+    override fun freeBytes() = -1L
+}

@@ -13,23 +13,46 @@ class PullPlannerTest {
 
     @Test fun theOrderIsInstructFirstThenQwen3_bothFromTheReleaseBuiltWithTheRuntimesQairt() {
         assertEquals(listOf(instruct, qwen3), PullPlanner.CANDIDATES)
-        assertEquals("ai-hub-models/Qwen3-4B-Instruct-2507", instruct.modelName)
-        assertEquals("ai-hub-models/Qwen3-4B", qwen3.modelName)
-        // Qualcomm's list knows "sm8750" as no alias, only "sm8750-ac": plain SM8750 is no candidate
-        assertTrue(PullPlanner.CANDIDATES.all { it.chipset == "SM8750-AC" })
-        // the newest release (v0.67.0, QAIRT 2.51) did not load; v0.66.0 was built with QAIRT 2.50.0, the runtime is 2.50.40
         assertTrue(PullPlanner.CANDIDATES.all { it.release == "v0.66.0" && it.expectedQairt == "2.50" })
         assertNotEquals(instruct.id, qwen3.id)
-        assertEquals("ai-hub-models/Qwen3-4B-Instruct-2507|SM8750-AC|v0.66.0", instruct.id)
+        assertEquals("local/qwen3-4b-instruct-2507-v066|v0.66.0", instruct.id)
     }
 
-    @Test fun aBundleBelongsToACandidateByModelAndQairtVersion() {
-        assertEquals(instruct, PullPlanner.matching("ai-hub-models/Qwen3-4B-Instruct-2507", "2.50.0.260828221209"))
-        assertEquals(qwen3, PullPlanner.matching("ai-hub-models/Qwen3-4B", "2.50.0.260828221209"))
-        // the bundle that failed on the phone (QAIRT 2.51) is none of the candidates
+    @Test fun theZipsAreTheExactFilesOfReleaseV066() {
+        assertTrue(instruct.zipUrl.contains("/qwen3_4b_instruct_2507/releases/v0.66.0/") && instruct.zipUrl.endsWith("-qualcomm_snapdragon_8_elite_for_galaxy.zip"))
+        assertTrue(qwen3.zipUrl.contains("/qwen3_4b/releases/v0.66.0/"))
+        assertEquals(2_659_737_495L, instruct.zipBytes)
+        assertEquals(2_660_599_539L, qwen3.zipBytes)
+        assertTrue(instruct.zipUrl.startsWith("https://qaihub-public-assets.s3.us-west-2.amazonaws.com/"))
+        assertEquals("qwen3_4b_instruct_2507-geniex_qairt-w4a16-qualcomm_snapdragon_8_elite_for_galaxy.zip", instruct.zipFileName)
+    }
+
+    @Test fun storeNamesAreLocalAndTheEarlierAppsNamesAreKnownForCleanup() {
+        assertTrue(PullPlanner.CANDIDATES.all { it.modelName.startsWith("local/") })
+        assertTrue(PullPlanner.ALL_MODEL_NAMES.containsAll(listOf("ai-hub-models/Qwen3-4B", "ai-hub-models/Qwen3-4B-Instruct-2507")))
+        assertEquals(PullPlanner.CANDIDATES.map { it.modelName }, PullPlanner.ALL_MODEL_NAMES.take(2)) // candidates preferred
+    }
+
+    @Test fun aBundleBelongsToACandidateByStoreNameAndQairtVersion() {
+        assertEquals(instruct, PullPlanner.matching("local/qwen3-4b-instruct-2507-v066", "2.50.0.260828221209"))
+        assertEquals(qwen3, PullPlanner.matching("local/qwen3-4b-v066", "2.50.0.260828221209"))
+        // the bundle that failed on the phone (QAIRT 2.51, an AI Hub name) is none of the candidates
         assertNull(PullPlanner.matching("ai-hub-models/Qwen3-4B-Instruct-2507", "2.51.0.260929181845"))
-        assertNull(PullPlanner.matching("ai-hub-models/Qwen3-4B-Instruct-2507", null))
+        assertNull(PullPlanner.matching("local/qwen3-4b-instruct-2507-v066", "2.51.0.260929181845"))
         assertNull(PullPlanner.matching(null, "2.50.0.1"))
+    }
+
+    @Test fun downloadFailuresAreAdvisedByKind() {
+        val notFound = PullPlanner.adviceAfterDownloadFailure(DownloadException.Kind.HTTP_STATUS, 404)
+        assertTrue(notFound.giveUp && !notFound.repeatUseful)
+        assertTrue(PullPlanner.adviceAfterDownloadFailure(DownloadException.Kind.HTTP_STATUS, 403).giveUp)
+        assertFalse(PullPlanner.adviceAfterDownloadFailure(DownloadException.Kind.HTTP_STATUS, 503).giveUp)
+        for (k in listOf(DownloadException.Kind.NETWORK, DownloadException.Kind.NO_SPACE, DownloadException.Kind.SIZE_MISMATCH, DownloadException.Kind.ZIP_INVALID)) {
+            val a = PullPlanner.adviceAfterDownloadFailure(k, null)
+            assertFalse("$k", a.giveUp)
+            assertTrue("$k", a.repeatUseful)
+        }
+        assertTrue(PullPlanner.adviceAfterDownloadFailure(DownloadException.Kind.CANCELLED, null).cancelled)
     }
 
     @Test fun everyCandidateDialogTextSaysSizeAndThatItMayFail() {

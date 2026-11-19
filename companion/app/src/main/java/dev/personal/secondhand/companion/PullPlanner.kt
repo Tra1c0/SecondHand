@@ -1,63 +1,80 @@
 package dev.personal.secondhand.companion
 
-/** One model bundle the spike may pull: a model id, a chipset id and an AI Hub release for the SDK's pull. */
+/** One model bundle the spike may download: a zip of one AI Hub release, imported into the SDK's store under [modelName]. */
 data class Candidate(
+    /** The name in the SDK's model store ("local/..."): the key of the import, no longer the AI Hub name. */
     val modelName: String,
-    val chipset: String,
-    /** The AI Hub release to pull ("v0.66.0"), or null for the newest. */
-    val release: String?,
-    /** The QAIRT version (major.minor) the bundle of this release is built with, from its release-assets list. */
-    val expectedQairt: String?,
+    /** The AI Hub release the zip belongs to ("v0.66.0"). */
+    val release: String,
+    /** The QAIRT version (major.minor) the bundle is built with, from the release's own list. */
+    val expectedQairt: String,
+    val zipUrl: String,
+    /** The exact size of the zip on Qualcomm's server (HEAD request); the download is checked against it. */
+    val zipBytes: Long,
+    /** About how many bytes the unpacked model takes in the SDK's store (for the space check). */
+    val unpackedBytes: Long,
     val title: String,
     val sizeText: String,
     /** What is different from the other candidates, in the words the confirmation dialog shows. */
     val difference: String,
 ) {
-    val id: String get() = "$modelName|$chipset|${release ?: "latest"}"
+    val id: String get() = "$modelName|$release"
+    val zipFileName: String get() = zipUrl.substringAfterLast('/')
 }
 
-// Which bundle to pull, and what to do when a pull fails (stages 80, 80b, 80c). Qualcomm's release manifest knows
-// "sm8750" as NO chipset alias (pull error -100015); the Snapdragon 8 Elite bundles exist only for
-// "qualcomm-snapdragon-8-elite-for-galaxy" (alias "sm8750-ac"). On the Xiaomi 15 the newest bundle (release
-// v0.67.0, built with QAIRT 2.51) downloaded but did not load ("Llm create failed: Model loading failed") while the
-// SDK's runtime is QAIRT 2.50.40; the releases v0.65.0 and v0.66.0 were built with QAIRT 2.50.0, the version of the
-// runtime. The list below is ordered by evidence and never pulled on its own: every pull is one explicit tap with
-// its own dialog.
+// Which bundle to download, and what to do when a download fails (stages 80, 80b, 80c, 80d). Findings of the device
+// runs: a pull with chipset SM8750 fails with -100015 (Qualcomm's chip list knows only sm8750-ac); the newest bundle
+// (release v0.67.0, QAIRT 2.51) downloads but SDK 0.10.0 cannot read its metadata.json ("missing 'model_files'
+// object": since v0.67.0 `model_files` is a list); GENIEX_AIHUBVERSION did not pin an older release. The releases
+// v0.65.0 and v0.66.0 use the object form and were built with QAIRT 2.50.0, the version of the SDK's runtime
+// (2.50.40). The app therefore downloads the zip of the release itself (resumable HTTPS from Qualcomm's S3 bucket,
+// checked against the known byte count and the zip's CRC32s) and imports it through the SDK's documented LOCALFS
+// route. Never started on its own: every download is one explicit tap with its own dialog.
 object PullPlanner {
-    /** The release whose bundles were built with the runtime's QAIRT version (2.50.0 against the runtime 2.50.40). */
+    private const val S3 = "https://qaihub-public-assets.s3.us-west-2.amazonaws.com/qai-hub-models/models"
     const val MATCHING_RELEASE = "v0.66.0"
 
     val INSTRUCT_V66 = Candidate(
-        modelName = "ai-hub-models/Qwen3-4B-Instruct-2507",
-        chipset = GeniexConstants.CHIPSET_GALAXY,
+        modelName = "local/qwen3-4b-instruct-2507-v066",
         release = MATCHING_RELEASE,
         expectedQairt = "2.50",
+        zipUrl = "$S3/qwen3_4b_instruct_2507/releases/v0.66.0/qwen3_4b_instruct_2507-geniex_qairt-w4a16-qualcomm_snapdragon_8_elite_for_galaxy.zip",
+        zipBytes = 2_659_737_495L,
+        unpackedBytes = 3_400_000_000L,
         title = "Qwen3-4B-Instruct-2507, Ausgabe v0.66.0 (QAIRT 2.50)",
         sizeText = "etwa 2,7 GB",
-        difference = "Das ist dasselbe Modell wie das zuletzt geladene, aber die ältere Ausgabe v0.66.0, gebaut mit QAIRT 2.50.0, " +
-            "der Version der Laufzeit in dieser App (2.50.40). Das neuere Paket (QAIRT 2.51) ließ sich auf diesem Telefon nicht laden. " +
-            "Ein vorhandenes Paket wird dabei gelöscht und ersetzt. Das Paket ist für die Galaxy-Variante des Chips gebaut. Es kann scheitern.",
+        difference = "Das ist dasselbe Modell wie das zuletzt geladene, aber die ältere Ausgabe v0.66.0. Sie ist mit QAIRT 2.50.0 gebaut, der Version " +
+            "der Laufzeit in dieser App (2.50.40), und hat das Metadaten-Format, das das SDK lesen kann (die neuere Ausgabe v0.67.0 hat es nicht). " +
+            "Das Paket ist für die Galaxy-Variante des Chips gebaut. Es kann scheitern.",
     )
     val QWEN3_V66 = Candidate(
-        modelName = "ai-hub-models/Qwen3-4B",
-        chipset = GeniexConstants.CHIPSET_GALAXY,
+        modelName = "local/qwen3-4b-v066",
         release = MATCHING_RELEASE,
         expectedQairt = "2.50",
+        zipUrl = "$S3/qwen3_4b/releases/v0.66.0/qwen3_4b-geniex_qairt-w4a16-qualcomm_snapdragon_8_elite_for_galaxy.zip",
+        zipBytes = 2_660_599_539L,
+        unpackedBytes = 3_400_000_000L,
         title = "Qwen3-4B, Ausgabe v0.66.0 (QAIRT 2.50)",
         sizeText = "etwa 2,7 GB",
-        difference = "Das ist ein ANDERES Modell (das ursprünglich gewünschte Qwen3-4B, es kann denken; das Denken wird abgeschaltet), " +
-            "wieder die Ausgabe v0.66.0 mit QAIRT 2.50.0, also noch einmal etwa 2,7 GB Download. Auch dieses Paket ist für die " +
-            "Galaxy-Variante des Chips gebaut. Es kann scheitern.",
+        difference = "Das ist ein ANDERES Modell (das ursprünglich gewünschte Qwen3-4B, es kann denken; das Denken wird abgeschaltet), wieder die " +
+            "Ausgabe v0.66.0 mit QAIRT 2.50.0, also noch einmal etwa 2,7 GB Download. Auch dieses Paket ist für die Galaxy-Variante des Chips gebaut. " +
+            "Es kann scheitern.",
     )
 
     /** Best evidence first. */
     val CANDIDATES = listOf(INSTRUCT_V66, QWEN3_V66)
 
+    /** Names the earlier app versions (0.2 and 0.3) used for their SDK pulls; the bundles may still be on the phone. */
+    val LEGACY_MODEL_NAMES = listOf("ai-hub-models/Qwen3-4B-Instruct-2507", "ai-hub-models/Qwen3-4B")
+
+    /** Every name a bundle of this app can have in the SDK's store, preferred first. */
+    val ALL_MODEL_NAMES: List<String> = CANDIDATES.map { it.modelName } + LEGACY_MODEL_NAMES
+
     fun byId(id: String?): Candidate? = CANDIDATES.firstOrNull { it.id == id }
 
-    /** The candidate a bundle on the phone belongs to: same model and the QAIRT version (major.minor) it was built with. */
+    /** The candidate a bundle on the phone is: the same store name and the QAIRT version (major.minor) the candidate stands for. */
     fun matching(modelName: String?, bundleQairt: String?): Candidate? =
-        CANDIDATES.firstOrNull { it.modelName == modelName && it.expectedQairt != null && it.expectedQairt == QairtVersion.majorMinor(bundleQairt) }
+        CANDIDATES.firstOrNull { it.modelName == modelName && it.expectedQairt == QairtVersion.majorMinor(bundleQairt) }
 
     /** The candidate the next tap on button 1 would pull: the first one not given up. Null when all were given up. */
     fun current(abandoned: Set<String>): Candidate? = CANDIDATES.firstOrNull { it.id !in abandoned }
@@ -79,6 +96,17 @@ object PullPlanner {
         /** True when the user cancelled: no error dialog at all. */
         val cancelled: Boolean,
     )
+
+    fun adviceAfterDownloadFailure(kind: DownloadException.Kind, httpStatus: Int?): Advice = when (kind) {
+        DownloadException.Kind.CANCELLED -> Advice(giveUp = false, repeatUseful = true, deleteFirst = false, cancelled = true)
+        DownloadException.Kind.HTTP_STATUS ->
+            if (httpStatus == 403 || httpStatus == 404 || httpStatus == 410) Advice(giveUp = true, repeatUseful = false, deleteFirst = false, cancelled = false)
+            else Advice(giveUp = false, repeatUseful = true, deleteFirst = false, cancelled = false)
+        DownloadException.Kind.ZIP_INVALID, DownloadException.Kind.SIZE_MISMATCH ->
+            Advice(giveUp = false, repeatUseful = true, deleteFirst = false, cancelled = false)
+        DownloadException.Kind.NETWORK, DownloadException.Kind.NO_SPACE ->
+            Advice(giveUp = false, repeatUseful = true, deleteFirst = false, cancelled = false)
+    }
 
     fun adviceAfterPullFailure(code: Int?, message: String?): Advice = when {
         code == SdkCodes.CANCELLED -> Advice(giveUp = false, repeatUseful = true, deleteFirst = false, cancelled = true)

@@ -15,7 +15,9 @@ class SpikeRunnerTest {
     private val tracker = FakeTracker()
     private val log = ReportLog()
     private val diag = FakeDiagnostics()
-    private val runner = SpikeRunner(port, FakeProbe(), clock, tracker, log, diag)
+    private val store = FakeStore()
+    private val dl = FakeDownloader(store)
+    private val runner = SpikeRunner(port, FakeProbe(), clock, tracker, log, diag, store, dl)
 
     private fun logText() = log.text()
 
@@ -49,82 +51,138 @@ class SpikeRunnerTest {
 
     private val instruct = PullPlanner.INSTRUCT_V66
     private val qwen3 = PullPlanner.QWEN3_V66
+    private val noProgress: (String, Long, Long) -> Unit = { _, _, _ -> }
 
-    @Test fun pullSuccessLogsModelChipsetStorageAndNetwork() = runBlocking {
+    @Test fun downloadThenImportReportsEverythingAndCleansTheZip() = runBlocking {
         port.present.clear()
         port.pullUpdates = listOf(PullUpdate.Progress(100, 1000), PullUpdate.Completed)
-        port.present += instruct.modelName // appears after the pull
-        val seen = mutableListOf<Pair<Long, Long>>()
-        val out = runner.pull(instruct) { d, t -> seen += d to t }
+        dl.progressAt = listOf(5L to 10L)
+        val seen = mutableListOf<Triple<String, Long, Long>>()
+        val out = runner.download(instruct) { ph, d, t -> seen += Triple(ph, d, t) }
         assertEquals(SpikeRunner.PullOutcome.Success(instruct), out)
-        assertEquals(listOf(100L to 1000L), seen)
+        assertEquals(Triple("Laden", 5L, 10L), seen.first())
+        assertEquals(Triple("Importieren", 100L, 1000L), seen.last())
         assertEquals(instruct.modelName, runner.presentModel)
-        val text = logText()
-        assertTrue(text.contains("Modell-ID: ai-hub-models/Qwen3-4B-Instruct-2507, Chipset-ID: SM8750-AC, Ausgabe: v0.66.0"))
-        assertTrue(text.contains("Freier Speicher vorher: 90,0 GB, Netz: WLAN"))
+        val zip = store.downloadsDir() + "/" + instruct.zipFileName
+        assertEquals(listOf("download:${instruct.zipUrl}", "verify:$zip"), dl.calls)
+        assertEquals(listOf("import:${instruct.modelName}:$zip"), port.calls.filter { it.startsWith("import:") })
+        assertFalse(store.exists(zip)) // the zip is deleted after the import
+        val t = logText()
+        assertTrue(t.contains("Modell-Name im SDK: local/qwen3-4b-instruct-2507-v066, Ausgabe: v0.66.0"))
+        assertTrue(t.contains("Erwartete Größe: 2659737495 Bytes"))
+        assertTrue(t.contains("Freier Speicher vorher: 100,0 GB, Netz: WLAN"))
+        assertTrue(t.contains("Prüfsummen (CRC32) aller Dateien stimmen"))
+        assertTrue(t.contains("Zip-Datei nach dem Import gelöscht"))
     }
 
-    @Test fun chipsetUnavailableIsReportedWithCodeNameAndGivesUp() = runBlocking {
-        port.pullUpdates = listOf(PullUpdate.Failed(-100015, "geniex_model_pull failed (rc=-100015)"))
-        val out = runner.pull(instruct) { _, _ -> } as SpikeRunner.PullOutcome.Failed
-        assertEquals(instruct, out.candidate)
+    @Test fun anExistingPartialDownloadIsReportedAsResume() = runBlocking {
+        port.present.clear()
+        store.files[store.downloadsDir() + "/" + instruct.zipFileName + ".part"] = 1_000_000_000L
+        runner.download(instruct, noProgress)
+        assertTrue(logText().contains("davon schon da: 1000000000 (Fortsetzen)"))
+    }
+
+    @Test fun tooLittleSpaceStopsBeforeTheDownloadAndSaysWhatIsNeeded() = runBlocking {
+        port.present.clear()
+        store.free = 4L * 1073741824
+        val out = runner.download(instruct, noProgress) as SpikeRunner.PullOutcome.Failed
+        assertTrue(dl.calls.isEmpty())
+        assertTrue(out.error.startsWith("zu wenig Speicher"))
+        assertTrue(logText().contains("Zu wenig freier Speicher"))
+    }
+
+    @Test fun aNotFoundOnTheServerGivesUpAndOffersNoRepeat() = runBlocking {
+        port.present.clear()
+        dl.downloadError = DownloadException(DownloadException.Kind.HTTP_STATUS, "HTTP-Status 404", httpStatus = 404)
+        val out = runner.download(instruct, noProgress) as SpikeRunner.PullOutcome.Failed
         assertTrue(out.advice.giveUp)
         assertFalse(out.advice.repeatUseful)
-        assertTrue(out.error.startsWith("-100015 (COMMON_CHIPSET_UNAVAILABLE)"))
-        assertTrue(logText().contains("  SDK-Code: -100015 (COMMON_CHIPSET_UNAVAILABLE laut GenieX-Quelltext)"))
-        assertTrue(logText().contains("FEHLER bei Schritt: Modell herunterladen (ai-hub-models/Qwen3-4B-Instruct-2507, Chipset SM8750-AC)"))
+        assertTrue(logText().contains("DownloadException (HTTP_STATUS), HTTP-Status 404"))
+        assertTrue(port.calls.none { it.startsWith("import:") })
     }
 
-    @Test fun afterAFailureTheNextCandidateIsOfferedButNeverPulledOnItsOwn() = runBlocking {
-        port.pullUpdates = listOf(PullUpdate.Failed(-100015, "x"))
-        val out = runner.pull(instruct) { _, _ -> } as SpikeRunner.PullOutcome.Failed
-        val next = PullPlanner.next(out.candidate, setOf(out.candidate.id))
-        assertEquals(qwen3, next)
-        // exactly one pull request went out, the one that was tapped
-        assertEquals(listOf("pull:${instruct.modelName}:SM8750-AC"), port.calls.filter { it.startsWith("pull:") })
-    }
-
-    @Test fun attemptsAreNumberedAndEachLogsItsModelAndChipset() = runBlocking {
-        port.pullUpdates = listOf(PullUpdate.Failed(-100005, "connection reset"))
-        runner.pull(instruct) { _, _ -> }
-        runner.pull(qwen3) { _, _ -> }
-        val text = logText()
-        assertTrue(text.contains("Versuch 1: Modell herunterladen (ai-hub-models/Qwen3-4B-Instruct-2507"))
-        assertTrue(text.contains("Versuch 2: Modell herunterladen (ai-hub-models/Qwen3-4B, Chipset SM8750-AC"))
-        assertTrue(text.contains("Modell-ID: ai-hub-models/Qwen3-4B, Chipset-ID: SM8750-AC, Ausgabe: v0.66.0"))
-    }
-
-    @Test fun networkTypeAndFreeStorageComeFromTheProbe() = runBlocking {
-        val probe = FakeProbe().apply { network = "Mobilfunk"; free = 3L * 1073741824 }
-        val r = SpikeRunner(port, probe, clock, tracker, log)
-        port.pullUpdates = listOf(PullUpdate.Failed(-100005, "x"))
-        r.pull(instruct) { _, _ -> }
-        assertTrue(logText().contains("Freier Speicher vorher: 3,0 GB, Netz: Mobilfunk"))
-    }
-
-    @Test fun networkErrorAllowsRepeatAndKeepsTheCandidate() = runBlocking {
-        port.pullUpdates = listOf(PullUpdate.Failed(-100005, "connection reset by peer"))
-        val out = runner.pull(instruct) { _, _ -> } as SpikeRunner.PullOutcome.Failed
+    @Test fun aNetworkErrorKeepsTheCandidateAndAllowsARepeat() = runBlocking {
+        port.present.clear()
+        dl.downloadError = DownloadException(DownloadException.Kind.NETWORK, "SocketTimeoutException: timed out")
+        val out = runner.download(instruct, noProgress) as SpikeRunner.PullOutcome.Failed
         assertFalse(out.advice.giveUp)
         assertTrue(out.advice.repeatUseful)
     }
 
-    @Test fun pullExceptionWithAKnownCodeIsAdvisedByItsCode() = runBlocking {
-        port.pullThrows = NpuException(-100015, "chipset not available", "com.geniex.sdk.ModelManagerWrapper\$GenieXModelError")
-        val out = runner.pull(instruct) { _, _ -> } as SpikeRunner.PullOutcome.Failed
-        assertTrue(out.advice.giveUp)
+    @Test fun aCancelledDownloadIsNotAnError() = runBlocking {
+        port.present.clear()
+        dl.downloadError = DownloadException(DownloadException.Kind.CANCELLED, "abgebrochen")
+        val out = runner.download(instruct, noProgress) as SpikeRunner.PullOutcome.Failed
+        assertTrue(out.advice.cancelled)
+        assertTrue(logText().contains("Download abgebrochen"))
+        assertFalse(logText().contains("FEHLER bei Schritt"))
     }
 
-    @Test fun completedButModelMissingIsAFailureThatAsksToDeleteFirst() = runBlocking {
+    @Test fun aDamagedZipIsDeletedAndNeverImported() = runBlocking {
         port.present.clear()
-        val out = runner.pull(qwen3) { _, _ -> } as SpikeRunner.PullOutcome.Failed
+        dl.verifyError = DownloadException(DownloadException.Kind.ZIP_INVALID, "part2_of_4.bin: Prüfsumme (CRC32) stimmt nicht")
+        val out = runner.download(instruct, noProgress) as SpikeRunner.PullOutcome.Failed
+        assertTrue(out.advice.repeatUseful)
+        assertFalse(store.exists(store.downloadsDir() + "/" + instruct.zipFileName))
+        assertTrue(logText().contains("beschädigte Zip-Datei wurde gelöscht"))
+        assertTrue(port.calls.none { it.startsWith("import:") })
+    }
+
+    @Test fun anImportErrorIsReportedWithCodeNameAndAdvice() = runBlocking {
+        port.present.clear()
+        port.pullUpdates = listOf(PullUpdate.Failed(-100203, "model invalid"))
+        val out = runner.download(instruct, noProgress) as SpikeRunner.PullOutcome.Failed
+        assertTrue(out.error.startsWith("-100203 (COMMON_MODEL_INVALID)"))
+        assertTrue(out.advice.deleteFirst)
+    }
+
+    @Test fun anImportThatLeavesTheModelMissingIsAFailure() = runBlocking {
+        port.present.clear()
+        port.importAddsPresent = false
+        val out = runner.download(qwen3, noProgress) as SpikeRunner.PullOutcome.Failed
         assertTrue(out.advice.deleteFirst)
         assertTrue(logText().contains("findet das Modell nicht"))
     }
 
-    @Test fun refreshFindsTheFirstPresentCandidateModel() = runBlocking {
+    @Test fun aBundleWithTheWrongQairtVersionAfterTheImportIsAFailure() = runBlocking {
+        port.present.clear()
+        port.bundleQairt = "2.51.0.260929181845"
+        val out = runner.download(instruct, noProgress) as SpikeRunner.PullOutcome.Failed
+        assertTrue(out.advice.giveUp)
+        assertTrue(out.error.contains("2.51.0.260929181845"))
+    }
+
+    @Test fun attemptsAreNumbered() = runBlocking {
+        port.present.clear()
+        dl.downloadError = DownloadException(DownloadException.Kind.NETWORK, "x")
+        runner.download(instruct, noProgress)
+        runner.download(qwen3, noProgress)
+        val t = logText()
+        assertTrue(t.contains("Versuch 1: Modell herunterladen (local/qwen3-4b-instruct-2507-v066"))
+        assertTrue(t.contains("Versuch 2: Modell herunterladen (local/qwen3-4b-v066"))
+    }
+
+    @Test fun networkTypeAndFreeStorageComeFromTheProbeAndTheStore() = runBlocking {
+        val probe = FakeProbe().apply { network = "Mobilfunk" }
+        val r = SpikeRunner(port, probe, clock, tracker, log, diag, store.also { it.free = 30L * 1073741824 }, dl)
+        dl.downloadError = DownloadException(DownloadException.Kind.NETWORK, "x")
+        r.download(instruct, noProgress)
+        assertTrue(logText().contains("Freier Speicher vorher: 30,0 GB, Netz: Mobilfunk"))
+    }
+
+    @Test fun afterAFailureTheNextCandidateIsOfferedButNeverDownloadedOnItsOwn() = runBlocking {
+        port.present.clear()
+        dl.downloadError = DownloadException(DownloadException.Kind.HTTP_STATUS, "HTTP-Status 403", httpStatus = 403)
+        val out = runner.download(instruct, noProgress) as SpikeRunner.PullOutcome.Failed
+        assertEquals(qwen3, PullPlanner.next(out.candidate, setOf(out.candidate.id)))
+        assertEquals(listOf("download:${instruct.zipUrl}"), dl.calls) // only the tapped one
+    }
+
+    @Test fun refreshPrefersTheNewestCandidateOverTheLegacyBundle() = runBlocking {
         port.present.clear()
         assertNull(runner.refreshModelPresent())
+        port.present += "ai-hub-models/Qwen3-4B-Instruct-2507" // the bundle of app 0.2/0.3 (release v0.67.0)
+        assertEquals("ai-hub-models/Qwen3-4B-Instruct-2507", runner.refreshModelPresent())
         port.present += qwen3.modelName
         assertEquals(qwen3.modelName, runner.refreshModelPresent())
         port.present += instruct.modelName
@@ -230,24 +288,54 @@ class SpikeRunnerTest {
         assertFalse(out.result.stoppedByUser)
     }
 
-    @Test fun deleteUnloadsFirstThenRemovesEveryCandidateModel() = runBlocking {
-        runner.runTest(FixedTests.SENTENCE) { }
-        port.deleteResults[PullPlanner.QWEN3_V66.modelName] = -100004 // not in the store: fine
-        assertTrue(runner.deleteModels())
-        assertEquals(
-            listOf("load", "generate:96", "unload", "delete:ai-hub-models/Qwen3-4B-Instruct-2507", "delete:ai-hub-models/Qwen3-4B"),
-            port.calls.filterNot { it.startsWith("inspect") },
-        )
-        assertFalse(runner.loaded)
-        assertNull(runner.presentModel)
-        assertTrue(logText().contains("Nichts zu löschen: ai-hub-models/Qwen3-4B"))
+    private fun sdkLeavesFiles(vararg dirs: String) {
+        dirs.forEach { store.files[store.modelsRoot() + "/" + it + "/part1_of_4.bin"] = 778_182_656L }
     }
 
-    @Test fun deleteWithErrorCodeIsReportedAsNotOk() = runBlocking {
-        runner.refreshModelPresent()
-        port.deleteResult = 4
+    @Test fun deleteUnloadsFirstThenRemovesEveryModelAndChecks() = runBlocking {
+        runner.runTest(FixedTests.SENTENCE) { }
+        port.deleteResults[PullPlanner.QWEN3_V66.modelName] = -100004 // not in the store: fine
+        port.present.clear()
+        assertTrue(runner.deleteModels())
+        val deletes = port.calls.filterNot { it.startsWith("inspect") }
+        assertTrue(deletes.take(3) == listOf("load", "generate:96", "unload"))
+        assertTrue(deletes.any { it == "delete:local/qwen3-4b-instruct-2507-v066" })
+        assertTrue(deletes.any { it == "delete:ai-hub-models/Qwen3-4B" })
+        assertFalse(runner.loaded)
+        assertNull(runner.presentModel)
+        assertTrue(logText().contains("Gelöscht und geprüft: Der Modellspeicher des SDK ist leer."))
+    }
+
+    @Test fun whenTheSdkLeavesTheFilesTheAppDeletesThemItselfAndSaysSo() = runBlocking {
+        // seen on the phone: remove() returned 0, yet the bundle was still there
+        sdkLeavesFiles("qualcomm/Qwen3-4B-Instruct-2507", "qualcomm/Qwen3-4B")
+        store.files[store.downloadsDir() + "/x.zip"] = 5_000_000_000L
+        store.onDeleted = { path -> if (path.contains("Qwen3-4B")) port.present.clear() }
+        assertTrue(runner.deleteModels())
+        assertTrue(store.listDirs(store.modelsRoot()).isEmpty())
+        assertFalse(store.exists(store.downloadsDir()))
+        val t = logText()
+        assertTrue(t.contains("Das SDK hat 2 Ordner nicht entfernt: qualcomm/Qwen3-4B, qualcomm/Qwen3-4B-Instruct-2507"))
+        assertTrue(t.contains("entfernt: qualcomm/Qwen3-4B (0,7 GB)"))
+        assertTrue(t.contains("Heruntergeladene Zip-Dateien: entfernt"))
+        assertTrue(t.contains("Gelöscht und geprüft"))
+    }
+
+    @Test fun deleteNeverSaysDeletedWhenSomethingIsStillThere() = runBlocking {
+        sdkLeavesFiles("qualcomm/Qwen3-4B")
+        store.undeletable += store.modelsRoot() + "/qualcomm/Qwen3-4B"
         assertFalse(runner.deleteModels())
-        assertTrue(logText().contains("SDK-Ergebniscode 4"))
+        val t = logText()
+        assertTrue(t.contains("NICHT entfernt: qualcomm/Qwen3-4B"))
+        assertTrue(t.contains("NICHT vollständig gelöscht. Noch da:"))
+        assertFalse(t.contains("Gelöscht und geprüft"))
+        assertTrue(t.contains("Ordner: qualcomm/Qwen3-4B"))
+    }
+
+    @Test fun deleteStillReportsABundleTheSdkStillKnows() = runBlocking {
+        // the fake SDK keeps knowing the Instruct bundle although no folder is left
+        assertFalse(runner.deleteModels())
+        assertTrue(logText().contains("SDK: local/qwen3-4b-instruct-2507-v066"))
         assertEquals(PullPlanner.INSTRUCT_V66.modelName, runner.presentModel)
     }
 
@@ -261,20 +349,6 @@ class SpikeRunnerTest {
     // ---- stage 80c: diagnostics and release pinning ----
 
     private val fixedTextFragment = "Spaziergang"
-
-    @Test fun pullPassesTheReleaseOfTheCandidateToThePort() = runBlocking {
-        runner.pull(instruct) { _, _ -> }
-        assertEquals(listOf<String?>("v0.66.0"), port.pulledReleases)
-        assertTrue(logText().contains("Paket gebaut mit QAIRT: 2.50.0.260828221209 (erwartet für diesen Kandidaten: 2.50)"))
-    }
-
-    @Test fun aPulledBundleWithTheWrongQairtVersionIsAFailure() = runBlocking {
-        port.bundleQairt = "2.51.0.260929181845" // the pin did not work: the newest release came down
-        val out = runner.pull(instruct) { _, _ -> } as SpikeRunner.PullOutcome.Failed
-        assertTrue(out.advice.giveUp)
-        assertTrue(out.error.contains("2.51.0.260929181845"))
-        assertTrue(logText().contains("hat im SDK nicht gewirkt"))
-    }
 
     @Test fun diagnosticsRunBeforeTheLoadOnTheExistingFilesAndTheLoadIsRetried() = runBlocking {
         port.bundleQairt = "2.51.0.260929181845"
@@ -342,5 +416,65 @@ class SpikeRunnerTest {
         val first = port.calls.count { it.startsWith("inspect") }
         runner.runTest(FixedTests.PARAGRAPH) { }
         assertEquals(first, port.calls.count { it.startsWith("inspect") })
+    }
+
+    // ---- stage 80d: metadata format and compatibility metadata ----
+
+    private val metaPath = "/data/geniex/models/x/metadata.json"
+
+    @Test fun aLoadFailureOfABundleInTheNewFormatIsFlaggedAsTooNew() = runBlocking {
+        port.newFormat = true
+        port.loadError = NpuException(null, "Llm create failed: Model loading failed", "java.lang.RuntimeException")
+        val out = runner.runTest(FixedTests.SENTENCE) { } as SpikeRunner.TestOutcome.Failed
+        assertTrue(out.metadataFormatTooNew)
+        assertTrue(logText().contains("model_files ist eine LISTE"))
+        assertTrue(logText().contains("H6"))
+    }
+
+    @Test fun anObjectFormatBundleIsNotBlamedForTheFormat() = runBlocking {
+        port.loadError = NpuException(null, "Model loading failed", "java.lang.RuntimeException")
+        val out = runner.runTest(FixedTests.SENTENCE) { } as SpikeRunner.TestOutcome.Failed
+        assertFalse(out.metadataFormatTooNew)
+        assertTrue(logText().contains("model_files ist ein Objekt"))
+    }
+
+    @Test fun compatMetadataBacksUpTheOriginalWritesTheOldFormatAndChecksIt() = runBlocking {
+        port.newFormat = true
+        store.texts[metaPath] = "ORIGINAL"
+        port.metaProvider = { store.texts[metaPath]?.takeIf { it != "ORIGINAL" } }
+        runner.refreshModelPresent()
+        assertEquals(true, runner.presentFacts?.modelFilesIsList)
+        // the fake serves the generated new-format metadata until the app wrote its own
+        port.metaProvider = { store.texts[metaPath]?.takeIf { it != "ORIGINAL" } }
+        assertTrue(runner.applyCompatMetadata())
+        val backup = "/data/files/companion-backup/local_qwen3-4b-instruct-2507-v066/metadata.json.original"
+        assertTrue(store.texts.containsKey(backup))
+        val written = MiniJson.parse(store.texts[metaPath]!!)
+        assertTrue(MiniJson.path(written, "model_files") is Map<*, *>)
+        assertEquals(false, runner.presentFacts?.modelFilesIsList)
+        assertTrue(logText().contains("Original gesichert unter $backup"))
+        assertTrue(logText().contains("Format Objekt (ok)"))
+    }
+
+    @Test fun compatMetadataDoesNothingWhenTheBackupFails() = runBlocking {
+        port.newFormat = true
+        store.copyOk = false
+        runner.refreshModelPresent()
+        assertFalse(runner.applyCompatMetadata())
+        assertFalse(store.texts.containsKey(metaPath))
+        assertTrue(logText().contains("Sicherung des Originals fehlgeschlagen"))
+    }
+
+    @Test fun compatMetadataIsNotNeededForTheOldFormat() = runBlocking {
+        runner.refreshModelPresent()
+        assertFalse(runner.applyCompatMetadata())
+        assertTrue(logText().contains("Nicht nötig"))
+        assertTrue(store.texts.isEmpty())
+    }
+
+    @Test fun anAlreadyPatchedBundleIsMarkedInTheDiagnostics() = runBlocking {
+        store.texts["/data/files/companion-backup/local_qwen3-4b-instruct-2507-v066/metadata.json.original"] = "ORIGINAL"
+        runner.runTest(FixedTests.SENTENCE) { }
+        assertTrue(logText().contains("Die Metadaten dieses Pakets wurden von der App angepasst"))
     }
 }

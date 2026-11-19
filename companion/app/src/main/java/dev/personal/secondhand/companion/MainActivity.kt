@@ -55,6 +55,7 @@ class MainActivity : Activity() {
     private lateinit var btnUnload: Button
     private lateinit var btnDelete: Button
     private lateinit var btnList: Button
+    private lateinit var btnCompat: Button
     private lateinit var candidatesView: TextView
     private lateinit var btnCopy: Button
 
@@ -63,12 +64,16 @@ class MainActivity : Activity() {
     private val modelPresent: Boolean get() = runner.presentModel != null
     private var lastProgressUpdate = 0L
 
+    /** Set after the compatibility metadata was written: test 2 starts as soon as the busy state is cleared. */
+    @Volatile
+    private var pendingRetest = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = SpikePrefs(this)
         val tracker = PrefsStepTracker(this)
         headerLines = ReportFormatter.headerLines(DeviceInfo.collect(this))
-        runner = SpikeRunner(GeniexAdapter(this, PullPlanner.CANDIDATES.first().release), AndroidProbe(this), RealClock(), tracker, report, AndroidDiagnostics(this))
+        runner = SpikeRunner(GeniexAdapter(this), AndroidProbe(this), RealClock(), tracker, report, AndroidDiagnostics(this), AndroidStoreFiles(this), HttpZipDownloader())
         buildUi()
         headerView.text = headerLines.joinToString("\n")
         report.listener = {
@@ -132,7 +137,10 @@ class MainActivity : Activity() {
                 .show()
             return
         }
-        confirmPull(candidate, intro = if (modelPresent) "Das vorhandene Paket (${pulledSuffix().trim()}) wird dabei gelöscht und ersetzt.\n\n" else "")
+        confirmPull(
+            candidate,
+            intro = if (modelPresent) "Das vorhandene Paket (${pulledSuffix().trim()}) bleibt dabei erhalten (etwa 3 GB), bis du es mit 'Modell / angefangenen Download löschen' entfernst. Die Tests nehmen dann das neue Paket.\n\n" else "",
+        )
     }
 
     /** The candidate the bundle on the phone belongs to (same model, built with the QAIRT version of that candidate), or null. */
@@ -149,10 +157,10 @@ class MainActivity : Activity() {
             .setMessage(
                 intro +
                     "Paket: ${candidate.title}\n" +
-                    "Modell-ID: ${candidate.modelName}, Chipset-ID: ${candidate.chipset}\n" +
-                    "Größe: ${candidate.sizeText}\n" +
-                    "Quelle: Qualcomms öffentlicher Server (AI Hub). Qualcomm sieht dabei deine IP-Adresse, wie bei jedem Download.\n" +
-                    "Du brauchst etwa 7 GB freien Speicher (Download plus entpacktes Modell).\n" +
+                    "Modell-Name im SDK: ${candidate.modelName}, Ausgabe ${candidate.release}\n" +
+                    "Größe: ${candidate.sizeText} (genau ${candidate.zipBytes} Bytes, die App prüft das und die Prüfsummen der Dateien)\n" +
+                    "Quelle: Qualcomms öffentlicher Server (AI Hub, Amazon S3). Qualcomm sieht dabei deine IP-Adresse, wie bei jedem Download. Die App lädt selbst und setzt bei einem Abbruch fort.\n" +
+                    "Speicher: etwa 2,7 GB für die Zip-Datei, dann etwa 3,2 GB entpackt im Modellspeicher; die Zip-Datei wird danach gelöscht. Gebraucht werden etwa 8 GB frei.\n" +
                     "$netText\n$freeText\n\n" +
                     candidate.difference + "\n\nEs werden keine eigenen Daten gesendet.",
             )
@@ -167,12 +175,7 @@ class MainActivity : Activity() {
         progressBar.progress = 0
         statusView.text = "Lade herunter: ${candidate.title} ..."
         activeJob = scope.launch(Dispatchers.Default) {
-            // a bundle of another release of the same model lives in the same folder: remove it first, so files do not mix
-            if (runner.presentModel != null) {
-                runner.deleteModels()
-                runner.refreshModelPresent()
-            }
-            val outcome = runner.pull(candidate) { done, total -> showProgress(done, total) }
+            val outcome = runner.download(candidate) { phase, done, total -> showProgress(phase, done, total) }
             runOnUiThread {
                 progressBar.visibility = View.GONE
                 when (outcome) {
@@ -234,18 +237,23 @@ class MainActivity : Activity() {
         finishWhenDone()
     }
 
-    private fun showProgress(done: Long, total: Long) {
+    private fun showProgress(phase: String, done: Long, total: Long) {
         val now = System.currentTimeMillis()
         if (now - lastProgressUpdate < 300) return
         lastProgressUpdate = now
+        val verb = when (phase) {
+            "Prüfen" -> "Prüfe die Zip-Datei"
+            "Importieren" -> "Importiere in den Modellspeicher"
+            else -> "Lade herunter"
+        }
         runOnUiThread {
             if (total > 0) {
                 progressBar.isIndeterminate = false
                 progressBar.progress = (done * 1000 / total).toInt()
-                statusView.text = "Lade herunter: ${Metrics.gb(done)} von ${Metrics.gb(total)} (${done * 100 / total} %)"
+                statusView.text = "$verb: ${Metrics.gb(done)} von ${Metrics.gb(total)} (${done * 100 / total} %)"
             } else {
                 progressBar.isIndeterminate = true
-                statusView.text = "Lade herunter: ${Metrics.gb(done)}"
+                statusView.text = "$verb: ${Metrics.gb(done)}"
             }
         }
     }
@@ -287,7 +295,7 @@ class MainActivity : Activity() {
                     is SpikeRunner.TestOutcome.Ok -> statusView.text = "${test.title}: fertig. Zahlen im Bericht unten."
                     is SpikeRunner.TestOutcome.Failed -> {
                         statusView.text = "${test.title}: fehlgeschlagen. Details im Bericht unten."
-                        if (outcome.loadFailed) onLoadFailed(outcome.bundleNewerThanRuntime)
+                        if (outcome.loadFailed) onLoadFailed(outcome)
                     }
                 }
             }
@@ -295,33 +303,76 @@ class MainActivity : Activity() {
         finishWhenDone()
     }
 
-    private fun onLoadFailed(bundleNewerThanRuntime: Boolean) {
+    private fun onLoadFailed(out: SpikeRunner.TestOutcome.Failed) {
         val model = runner.presentModel
         val candidate = PullPlanner.matching(model, runner.presentFacts?.qairt)
         if (candidate != null) prefs.abandon(candidate.id, "Laden auf der NPU gescheitert (Details im Bericht)")
         val next = PullPlanner.current(prefs.abandoned.keys)
         showCandidates()
-        if (candidate == null && bundleNewerThanRuntime && next != null) {
+        if (candidate == null && out.metadataFormatTooNew) {
+            val b = AlertDialog.Builder(this)
+                .setTitle("Paket im neuen Format")
+                .setMessage(
+                    "Das Laden ist gescheitert, bevor der Chip überhaupt benutzt wurde: Das SDK in dieser App (0.10.0) kann die Beschreibung " +
+                        "(metadata.json) dieses Pakets nicht lesen, weil das Paket (Ausgabe v0.67.0, gebaut mit QAIRT ${runner.presentFacts?.qairt ?: "?"}) ein neueres Format hat.\n\n" +
+                        "Zwei Wege:\n" +
+                        "1. Metadaten anpassen (kein Download, rückgängig durch Löschen): Die App schreibt die Beschreibung im alten Format und sichert das Original. " +
+                        "Die Rechenprogramme des Pakets sind mit QAIRT ${runner.presentFacts?.qairt?.let { QairtVersion.majorMinor(it) } ?: "2.51"} gebaut, die Laufzeit ist " +
+                        "${runner.runtimeQairt ?: "älter"}: Es kann danach trotzdem scheitern.\n" +
+                        (if (next != null) "2. ${next.title} laden (${next.sizeText}): hat das alte Format und die Version der Laufzeit.\n" else ""),
+                )
+                .setPositiveButton("Metadaten anpassen und neu testen") { _, _ -> applyCompatAndRetest() }
+                .setNegativeButton("Nicht jetzt", null)
+            if (next != null) b.setNeutralButton("Ältere Ausgabe laden") { _, _ -> confirmPull(next, intro = "") }
+            b.show()
+        } else if (candidate == null && out.bundleNewerThanRuntime && next != null) {
             AlertDialog.Builder(this)
                 .setTitle("Älteres Paket versuchen?")
                 .setMessage(
                     "Das Laden ist gescheitert. Das vorhandene Paket ist mit QAIRT ${runner.presentFacts?.qairt ?: "?"} gebaut, die Laufzeit in dieser " +
-                        "App ist älter (QAIRT ${runner.runtimeQairt ?: "älter"}). Das ist die wahrscheinlichste Ursache, aber noch nicht bewiesen.\n\n" +
+                        "App ist älter (QAIRT ${runner.runtimeQairt ?: "älter"}). Das ist eine mögliche Ursache, noch nicht bewiesen.\n\n" +
                         "Nächstes Paket: ${next.title} (${next.sizeText})\n${next.difference}",
                 )
-                .setPositiveButton("Ja, laden") { _, _ -> confirmPull(next, intro = "Das vorhandene Paket wird gelöscht und ersetzt.\n\n") }
+                .setPositiveButton("Ja, laden") { _, _ -> confirmPull(next, intro = "") }
                 .setNegativeButton("Nicht jetzt", null)
                 .show()
         } else {
             report.add(
                 if (next != null) {
-                    "Hinweis: Das Laden ist gescheitert. Das nächste Paket wäre ${next.title}: tippe 'Modell / angefangenen Download löschen' " +
-                        "und danach Knopf 1, wenn du es versuchen willst."
+                    "Hinweis: Das Laden ist gescheitert. Das nächste Paket wäre ${next.title}: tippe Knopf 1, wenn du es versuchen willst " +
+                        "(das vorhandene Paket bleibt, bis du es löschst)."
                 } else {
                     "Hinweis: Das Laden ist gescheitert, und es gibt kein weiteres Paket zum Probieren."
                 },
             )
         }
+    }
+
+    private fun applyCompatAndRetest() {
+        beginBusy(Kind.OTHER)
+        statusView.text = "Schreibe Kompatibilitäts-Metadaten ..."
+        activeJob = scope.launch(Dispatchers.Default) {
+            val ok = runner.applyCompatMetadata()
+            runOnUiThread {
+                statusView.text = if (ok) "Metadaten angepasst. Teste jetzt neu ..." else "Metadaten konnten nicht angepasst werden, siehe Bericht."
+                showCandidates()
+            }
+            pendingRetest = ok
+        }
+        finishWhenDone()
+    }
+
+    private fun onCompatTapped() {
+        beginBusy(Kind.OTHER)
+        statusView.text = "Schreibe Kompatibilitäts-Metadaten ..."
+        activeJob = scope.launch(Dispatchers.Default) {
+            val ok = runner.applyCompatMetadata()
+            runOnUiThread {
+                statusView.text = if (ok) "Metadaten angepasst. Tippe jetzt Knopf 2." else "Metadaten konnten nicht angepasst werden, siehe Bericht."
+                showCandidates()
+            }
+        }
+        finishWhenDone()
     }
 
     private fun onStopTapped() {
@@ -406,6 +457,10 @@ class MainActivity : Activity() {
                 window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 progressBar.visibility = View.GONE
                 refreshButtons()
+                if (pendingRetest) {
+                    pendingRetest = false
+                    startTest(FixedTests.SENTENCE)
+                }
             }
         }
     }
@@ -420,6 +475,7 @@ class MainActivity : Activity() {
         btnUnload.isEnabled = idle && ready && runner.loaded
         btnDelete.isEnabled = idle && ready
         btnList.isEnabled = idle && ready
+        btnCompat.isEnabled = idle && ready && runner.presentFacts?.modelFilesIsList == true
         btnCopy.isEnabled = true
     }
 
@@ -473,8 +529,9 @@ class MainActivity : Activity() {
         btnUnload = button("Modell entladen") { onUnloadTapped() }
         btnDelete = button("Modell / angefangenen Download löschen") { onDeleteTapped() }
         btnList = button("Paketliste bei Qualcomm abfragen") { onListTapped() }
+        btnCompat = button("Option: Kompatibilitäts-Metadaten (kein Download)") { onCompatTapped() }
         btnCopy = button("Bericht kopieren") { onCopyTapped() }
-        listOf(btnPull, btnTest2, btnTest3, btnStop, btnUnload, btnDelete, btnList, btnCopy).forEach {
+        listOf(btnPull, btnTest2, btnTest3, btnStop, btnUnload, btnDelete, btnList, btnCompat, btnCopy).forEach {
             column.addView(it, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
                 topMargin = dp(8)
             })
