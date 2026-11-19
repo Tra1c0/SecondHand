@@ -40,6 +40,12 @@ class MainActivity : Activity() {
     private lateinit var runner: SpikeRunner
     private lateinit var sampleStore: PrefsSampleStore
     private lateinit var loadWatchdog: LoadWatchdog
+    private lateinit var runLogs: RunLogStore
+    private var previousRunText: String? = null
+    private var previousRunStart: String? = null
+    private var currentRunStart = ""
+    private lateinit var previousView: TextView
+    private lateinit var previousToggleView: Button
     private lateinit var prefs: SpikePrefs
     private lateinit var headerLines: List<String>
 
@@ -78,7 +84,16 @@ class MainActivity : Activity() {
         headerLines = ReportFormatter.headerLines(DeviceInfo.collect(this))
         sampleStore = PrefsSampleStore(this)
         // emergency brake: the app ends itself (it has persisted the reason first) so that Android does not have to kill the launcher
-        loadWatchdog = LoadWatchdog(AndroidMemoryMeter(), sampleStore, RealClock(), { android.os.Process.killProcess(android.os.Process.myPid()) })
+        runLogs = RunLogStore(java.io.File(filesDir, "run-logs"))
+        previousRunText = runLogs.previousRunText()
+        previousRunStart = runLogs.previousRunStart()
+        val runFile = runLogs.start()
+        currentRunStart = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.GERMAN).format(Date())
+        report.sink = { line -> runFile.append(line) }
+        loadWatchdog = LoadWatchdog(
+            AndroidMemoryMeter(), sampleStore, RealClock(), { android.os.Process.killProcess(android.os.Process.myPid()) },
+            onSampleLine = { line -> report.addQuiet(line) },
+        )
         runner = SpikeRunner(
             GeniexAdapter(this), AndroidProbe(this), RealClock(), tracker, report, AndroidDiagnostics(this), AndroidStoreFiles(this), HttpZipDownloader(),
             loadWatchdog,
@@ -91,12 +106,20 @@ class MainActivity : Activity() {
                 logScroll.post { logScroll.fullScroll(View.FOCUS_DOWN) }
             }
         }
-        tracker.takeInterruptedStep()?.let {
+        val interrupted = tracker.takeInterruptedStep()
+        interrupted?.let {
             report.add("WARNUNG: Der vorherige Lauf endete mitten im Schritt '$it' (Absturz oder vom System beendet).")
         }
-        sampleStore.load()?.takeIf { !it.finished }?.let { run -> run.reportLines().forEach { report.add(it) } }
+        // the last stored memory run is shown whenever the previous run was interrupted (a step marker is left) or its sampling did not finish
+        StartupReport.lastRunLines(sampleStore.load(), interrupted).forEach { report.add(it) }
         sampleStore.clear()
         DeviceInfo.lastExitLines(this).forEach { report.add(it) }
+        previousRunText?.let {
+            previousView.text = it
+            previousToggleView.text = "Bericht des vorherigen Laufs anzeigen (gestartet ${previousRunStart ?: "?"}, ${it.lines().size} Zeilen)"
+            previousToggleView.visibility = View.VISIBLE
+            report.add("Bericht des vorherigen Laufs gefunden (Datei, ${it.lines().size} Zeilen, gestartet ${previousRunStart ?: "?"}): oben aufklappbar, \"Bericht kopieren\" nimmt ihn mit.")
+        }
         showCandidates()
         refreshButtons()
         scope.launch(Dispatchers.Default) {
@@ -333,27 +356,48 @@ class MainActivity : Activity() {
 
     /** The memory guard refused: say what to do; "Trotzdem laden" only behind a second, explicit confirmation. */
     private fun onMemoryBlocked(test: FixedTest, b: SpikeRunner.TestOutcome.Blocked) {
-        val smaller = runner.presentBundles.filter { it.binBytes in 1 until b.verdict.binBytes }.minByOrNull { it.binBytes }
+        val dma = !b.verdict.dmabufOk
+        val v = b.verdict
+        if (v.noMeter) {
+            AlertDialog.Builder(this)
+                .setTitle("Nicht messbar")
+                .setMessage(
+                    "Das Modell wurde NICHT geladen. Der Chip-Speicher (dma-buf) der App lässt sich auf diesem Telefon nicht auslesen; ohne diesen Wert kann die App nicht rechtzeitig " +
+                        "vor der HyperOS-Grenze aufhören. Gemessen wird deshalb nur das kleinste Modell: Qwen3-0.6B (etwa 0,6 GB Download, Knopf 1, wenn die Liste es als nächstes zeigt).",
+                )
+                .setPositiveButton("OK", null)
+                .show()
+            return
+        }
         AlertDialog.Builder(this)
-            .setTitle("Zu wenig freier Speicher")
+            .setTitle(if (dma) "Chip-Speicher über der HyperOS-Grenze" else "Zu wenig freier Speicher")
             .setMessage(
-                "Das Modell wurde NICHT geladen. ${b.verdict.ruleText()}\n\n" +
-                    "Beim letzten Versuch mit dem großen Modell hat Android die App und den Launcher wegen Speichermangels beendet.\n\n" +
-                    "Was du tun kannst:\n" +
-                    "1. Andere Apps schließen (Übersicht, alle wegwischen) oder das Telefon neu starten, dann Test noch einmal tippen.\n" +
-                    (if (smaller != null) "2. Das kleinere Modell nehmen: 'Test-Modell wählen' (${smaller.name}).\n" else "2. Das kleinere Modell laden (Knopf 1) und damit testen.\n"),
+                "Das Modell wurde NICHT geladen. ${v.ruleText()}\n\n" +
+                    (if (dma) {
+                        "HyperOS hat die App beim Laden des 1,7B-Modells zwangsbeendet: Es belegte 3,8 GB Chip-Speicher (dma-buf), erlaubt sind 1,5 GB pro App. " +
+                            "Nach der bisherigen Messung belegt ein Modell etwa das 2,4-Fache seiner Rechenprogramme. Aufräumen oder Neustart helfen dagegen nicht.\n\n" +
+                            "'Messversuch' lädt trotzdem. Die App beendet sich dabei voraussichtlich selbst (das ist die Messung): sobald ihr Chip-Speicher ${Metrics.mb(MemoryGuard.DMABUF_BRAKE_BYTES)} erreicht, " +
+                            "also bevor HyperOS bei ${Metrics.mb(MemoryGuard.HYPEROS_DMABUF_LIMIT_BYTES)} eingreift. Das Laden des SDK lässt sich nicht abbrechen, darum endet die ganze App. " +
+                            "Der Verlauf steht danach im Bericht des vorherigen Laufs (Datei, bleibt erhalten)."
+                    } else {
+                        "Was du tun kannst: andere Apps schließen oder das Telefon neu starten, dann Test noch einmal tippen."
+                    }),
             )
             .setPositiveButton("Abbrechen", null)
-            .setNeutralButton("Trotzdem laden ...") { _, _ ->
+            .setNeutralButton(if (dma) "Messversuch ..." else "Trotzdem laden ...") { _, _ ->
                 AlertDialog.Builder(this)
-                    .setTitle("Wirklich trotzdem laden?")
+                    .setTitle("Wirklich?")
                     .setMessage(
-                        "Das Telefon kann dabei in Speichermangel geraten: Der Bildschirm und der Launcher können neu laden, andere Apps werden beendet, " +
-                            "ungespeicherte Eingaben darin gehen verloren. Die App beendet sich bei zu wenig Speicher selbst, das ist aber nicht sicher.\n\n" +
-                            "Nur tippen, wenn du das in Kauf nimmst.",
+                        if (dma) {
+                            "Die App beendet sich beim Messversuch voraussichtlich selbst (sie verschwindet kurz): das ist die Messung. " +
+                                "Öffne sie danach wieder; oben steht der Bericht des vorherigen Laufs mit dem Verlauf des Chip-Speichers."
+                        } else {
+                            "Das Telefon kann dabei in Speichermangel geraten: Der Bildschirm und der Launcher können neu laden, andere Apps werden beendet. " +
+                                "Die App beendet sich bei zu wenig Speicher selbst, das ist aber nicht sicher."
+                        },
                     )
                     .setNegativeButton("Nein, nicht laden", null)
-                    .setPositiveButton("Ja, trotzdem laden") { _, _ -> startTest(test, ignoreMemoryGuard = true) }
+                    .setPositiveButton(if (dma) "Ja, Messversuch" else "Ja, trotzdem laden") { _, _ -> startTest(test, ignoreMemoryGuard = true) }
                     .show()
             }
             .show()
@@ -367,9 +411,9 @@ class MainActivity : Activity() {
         }
         val avail = runner.availBytesNow()
         val labels = bundles.map { b ->
-            val v = MemoryGuard.verdict(if (b.binBytes > 0) b.binBytes else MemoryGuard.UNKNOWN_BIN_BYTES, avail)
+            val v = MemoryGuard.fullVerdict(if (b.binBytes > 0) b.binBytes else MemoryGuard.UNKNOWN_BIN_BYTES, avail)
             b.name.removePrefix("local/") + "\n   Rechenprogramme ${Metrics.gb(b.binBytes)}, QAIRT ${b.facts?.qairt?.let { QairtVersion.majorMinor(it) } ?: "?"}, " +
-                (if (v.ok) "Speicher reicht (frei ${Metrics.gb(avail)})" else "Speicher reicht NICHT (frei ${Metrics.gb(avail)}, nötig ${Metrics.gb(v.neededBytes)})") +
+                (if (v.ok) "Speicher reicht (frei ${Metrics.gb(avail)})" else if (!v.dmabufOk) "Chip-Speicher wohl ${Metrics.gb(v.dmabufPredictedBytes)}: über der HyperOS-Grenze" else "Speicher reicht NICHT (frei ${Metrics.gb(avail)}, nötig ${Metrics.gb(v.neededBytes)})") +
                 if (b.name == runner.presentModel) "  [gewählt]" else ""
         }.toTypedArray()
         AlertDialog.Builder(this)
@@ -512,11 +556,12 @@ class MainActivity : Activity() {
     }
 
     private fun onCopyTapped() {
-        val text = ReportFormatter.fullReport(
+        val current = ReportFormatter.fullReport(
             headerLines,
             report.snapshot(),
             SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.GERMAN).format(Date()),
         )
+        val text = RunLogStore.combined(previousRunText, previousRunStart, current, currentRunStart)
         (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Bericht", text))
         Toast.makeText(this, "Bericht kopiert (${text.lines().size} Zeilen). Jetzt einfügen und senden.", Toast.LENGTH_LONG).show()
     }
@@ -604,6 +649,17 @@ class MainActivity : Activity() {
         column.addView(bannerView)
         headerView = text(15f, mono = true).apply { setTextIsSelectable(true) }
         column.addView(headerView)
+        previousView = text(13f, mono = true).apply {
+            setTextIsSelectable(true)
+            visibility = View.GONE
+        }
+        val previousToggle = button("Bericht des vorherigen Laufs anzeigen") {
+            previousView.visibility = if (previousView.visibility == View.GONE) View.VISIBLE else View.GONE
+        }
+        previousToggle.visibility = View.GONE
+        previousToggleView = previousToggle
+        column.addView(previousToggle)
+        column.addView(previousView)
         column.addView(text(15f).apply {
             text = "Internet: Diese App nutzt das Internet nur für den Modell-Download, nur nach deinem Tipp auf Knopf 1 " +
                 "und deiner Bestätigung. Keine Statistik, kein Hochladen von Texten."

@@ -48,14 +48,25 @@ class ReportLog {
     @Volatile
     var listener: (() -> Unit)? = null
 
+    /** Every line that is added is also handed to this sink (the run file, written and forced to disk line by line). */
+    @Volatile
+    var sink: ((String) -> Unit)? = null
+
     fun add(line: String) {
         synchronized(lines) { lines += line }
+        sink?.invoke(line)
         listener?.invoke()
     }
 
     fun addAll(newLines: List<String>) {
         synchronized(lines) { lines += newLines }
+        newLines.forEach { sink?.invoke(it) }
         listener?.invoke()
+    }
+
+    /** A line only for the run file (the memory samples during a load): it does not appear on the screen or in the copied current report. */
+    fun addQuiet(line: String) {
+        sink?.invoke(line)
     }
 
     fun snapshot(): List<String> = synchronized(lines) { lines.toList() }
@@ -76,6 +87,12 @@ interface Diagnostics {
 
     /** Environment variables and the libraries of the NPU stack that are mapped into the process right now. */
     fun processLines(): List<String>
+
+    /** One line with the process memory at a phase of the run (SDK start, before and after the load, inference, release): dma-buf, its high-water mark, RSS, native heap, free memory. */
+    fun phaseLine(label: String): String = ""
+
+    /** The files that might show dma-buf use or its limit, and what could be read from them (this phone's kernel files are not documented). */
+    fun dmabufLines(): List<String> = emptyList()
 
     /** The version string compiled into the SDK's libQnnHtp.so, or null. */
     fun runtimeQairtVersion(): String?

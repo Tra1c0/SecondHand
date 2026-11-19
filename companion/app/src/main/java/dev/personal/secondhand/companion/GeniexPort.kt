@@ -118,6 +118,34 @@ interface NpuPort {
     suspend fun stop()
 
     suspend fun unload()
+
+    /** How many model instances the adapter holds right now (the SDK is meant to hold at most one). */
+    fun instanceCount(): Int = 0
+}
+
+/** Counts the model instances the adapter created and released (pure, so the rule "at most one" is testable). */
+class InstanceCounter {
+    var current = 0
+        private set
+    var created = 0
+        private set
+    var released = 0
+        private set
+    var peak = 0
+        private set
+
+    fun onCreated() {
+        current++
+        created++
+        if (current > peak) peak = current
+    }
+
+    fun onReleased() {
+        if (current > 0) current--
+        released++
+    }
+
+    fun summary(): String = "Instanzen jetzt $current, höchstens gleichzeitig $peak, erzeugt $created, freigegeben $released"
 }
 
 /** Constants of the SDK calls. */
@@ -131,6 +159,9 @@ object GeniexConstants {
 class GeniexAdapter(context: Context) : NpuPort {
     private val appContext: Context = context.applicationContext
     private var llm: LlmWrapper? = null
+    private val instances = InstanceCounter()
+
+    override fun instanceCount(): Int = instances.current
 
     private fun wrap(t: Throwable): NpuException = when (t) {
         is NpuException -> t
@@ -255,8 +286,16 @@ class GeniexAdapter(context: Context) : NpuPort {
                 runtime_id = RuntimeIdValue.QAIRT.value,
                 compute_unit = ComputeUnitValue.NPU.value,
             )
+            // at most one instance: an old one (a previous test) is destroyed before a new create()
+            llm?.let { old ->
+                llm = null
+                runCatching { old.stopStream() }
+                runCatching { old.destroy() }
+                instances.onReleased()
+            }
             val wrapper = LlmWrapper.builder().llmCreateInput(input).build().getOrThrow()
             llm = wrapper
+            instances.onCreated()
             LoadInfo(manifestRuntime = paths.runtime_id, modelDir = paths.model_dir)
         } catch (e: CancellationException) {
             throw e
@@ -320,6 +359,7 @@ class GeniexAdapter(context: Context) : NpuPort {
             if (wrapper != null) {
                 runCatching { wrapper.stopStream() }
                 runCatching { wrapper.destroy() }
+                instances.onReleased()
             }
         }
     }

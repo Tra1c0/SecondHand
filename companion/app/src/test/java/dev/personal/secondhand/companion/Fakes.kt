@@ -61,6 +61,9 @@ class FakePort(private val clock: FakeClock) : NpuPort {
     var inspectError: Throwable? = null
     var noInspection = false
     var newFormat = false
+    var instances = 0
+    var binBytesOverride: Long? = null
+    override fun instanceCount() = instances
 
     /** Lets a test serve the metadata.json the app wrote (a null result means: the generated one). */
     var metaProvider: (() -> String?)? = null
@@ -91,7 +94,8 @@ class FakePort(private val clock: FakeClock) : NpuPort {
         val htp = "{\"devices\":[{\"soc_model\":69,\"dsp_arch\":\"v79\"}]}"
         return BundleInspection(
             "/data/geniex/models/x", "qairt",
-            listOf(BundleFile("part1_of_4.bin", 778182656), BundleFile("part2_of_4.bin", 659685376), BundleFile("metadata.json", meta.length.toLong())),
+            binBytesOverride?.let { listOf(BundleFile("part1_of_4.bin", it), BundleFile("metadata.json", meta.length.toLong())) }
+                ?: listOf(BundleFile("part1_of_4.bin", 778182656), BundleFile("part2_of_4.bin", 659685376), BundleFile("metadata.json", meta.length.toLong())),
             mapOf("metadata.json" to meta, "htp_backend_ext_config.json" to htp, "genie_config.json" to "{\"dialog\":{}}"),
         )
     }
@@ -118,6 +122,7 @@ class FakePort(private val clock: FakeClock) : NpuPort {
 
     override suspend fun load(modelName: String): LoadInfo {
         calls += "load"
+        instances++
         order?.add("load")
         loadedNames += modelName
         onLoad?.invoke()
@@ -138,13 +143,14 @@ class FakePort(private val clock: FakeClock) : NpuPort {
     }
 
     override suspend fun stop() { calls += "stop" }
-    override suspend fun unload() { calls += "unload" }
+    override suspend fun unload() { calls += "unload"; instances = 0 }
 }
 
 class FakeDiagnostics : Diagnostics {
     val calls = mutableListOf<String>()
     var runtimeVersion: String? = "v2.50.40.260831140417"
     var log: List<String> = emptyList()
+    override fun phaseLine(label: String) = "dma-buf 100 MB (fake)"
     override fun environmentLines() = listOf("Umgebung des Telefons (prüft H2):", "  /vendor/lib64/libcdsprpc.so: vorhanden (1 Bytes)").also { calls += "env" }
     override fun nativeLoadLines() = listOf("Einzel-Ladetest:", "  libcdsprpc.so (Systembibliothek, nach Name): OK").also { calls += "nativeLoad" }
     override fun processLines() = listOf("  Umgebungsvariable ADSP_LIBRARY_PATH = /data/app/x/lib").also { calls += "process" }
@@ -211,6 +217,8 @@ class FakeMeter : MemoryMeter {
     var avail = 4_000L * 1048576
     var rss = 100L * 1048576
     var swapFree = 6_000L * 1048576
+    @Volatile var dmabuf = -1L
+    override fun dmabufBytes() = dmabuf
     override fun availBytes() = avail
     override fun rssBytes() = rss
     override fun swapFreeBytes() = swapFree

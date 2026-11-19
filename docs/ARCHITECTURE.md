@@ -3783,7 +3783,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   SDK-Text bleiben erhalten). Alles andere arbeitet nur mit `NpuPort`, darum kann ein Fake (`Fakes.kt` in den
   Tests) die ganze App-Logik prüfen.
 - App-Logik ohne Android und SDK: `SpikeRunner.kt` (Ablauf: SDK starten, Download, die zwei Tests, Stopp, Entladen,
-  Löschen; schreibt jeden Fehler als Zeilen in den Bericht), `PullPlanner.kt` (80b: die geordnete Liste der Pakete `Candidate`, Rat nach einem fehlgeschlagenen Pull, SDK-Fehlercodes `SdkCodes`; nichts wird von selbst geladen), `MemoryGuard.kt` (80e: die Speicherregel vor dem Laden `MemoryGuard`, der Wächter `LoadWatchdog` mit Notbremse, Messwerte `MemSample`/`StoredRun` und deren Text zum Speichern, Schnittstellen `MemoryMeter`/`SampleStore`/`Watchdog`), `Downloader.kt` (80d: eigener fortsetzbarer HTTPS-Download der Paket-Zip-Datei: `ResumePlan` mit Fortsetzen, Range und Content-Range, Platzbedarf; `HttpZipDownloader`; `ZipCheck` prüft das Zip-Verzeichnis und die CRC32 jeder Datei), `MetadataCompat.kt` (80d: wandelt die Metadaten-Datei des neuen Formats in das alte um, Option ohne Download) und `LoadDiagnose.kt` (80c: kleiner JSON-Leser und -Schreiber `MiniJson`, `BundleFacts` aus die Metadaten-Datei des Pakets und der HTP-Konfiguration, QAIRT-Versionsvergleich `QairtVersion`, Filter `LogFilter` für das Protokoll der Laufzeit, `DiagnoseFormatter` mit den Vermutungen H1 bis H5), `ErrorText.kt` (Fehler zu Berichtszeilen, „Auf diesem Gerät nicht
+  Löschen; schreibt jeden Fehler als Zeilen in den Bericht), `PullPlanner.kt` (80b: die geordnete Liste der Pakete `Candidate`, Rat nach einem fehlgeschlagenen Pull, SDK-Fehlercodes `SdkCodes`; nichts wird von selbst geladen), `RunLog.kt` (80f: der Bericht jedes Laufs wird Zeile für Zeile in eine Datei geschrieben und auf die Platte erzwungen; `RunLogFile`, `RunLogStore` mit den letzten drei Läufen und der Zusammenfassung „Bericht kopieren“) und `MemoryGuard.kt` (80e/80f, jetzt mit der dma-buf-Regel, dem Lesen des dma-buf aus `/proc` `DmaBufParse` und `StartupReport`: die Speicherregel vor dem Laden `MemoryGuard`, der Wächter `LoadWatchdog` mit Notbremse, Messwerte `MemSample`/`StoredRun` und deren Text zum Speichern, Schnittstellen `MemoryMeter`/`SampleStore`/`Watchdog`), `Downloader.kt` (80d: eigener fortsetzbarer HTTPS-Download der Paket-Zip-Datei: `ResumePlan` mit Fortsetzen, Range und Content-Range, Platzbedarf; `HttpZipDownloader`; `ZipCheck` prüft das Zip-Verzeichnis und die CRC32 jeder Datei), `MetadataCompat.kt` (80d: wandelt die Metadaten-Datei des neuen Formats in das alte um, Option ohne Download) und `LoadDiagnose.kt` (80c: kleiner JSON-Leser und -Schreiber `MiniJson`, `BundleFacts` aus die Metadaten-Datei des Pakets und der HTP-Konfiguration, QAIRT-Versionsvergleich `QairtVersion`, Filter `LogFilter` für das Protokoll der Laufzeit, `DiagnoseFormatter` mit den Vermutungen H1 bis H5), `ErrorText.kt` (Fehler zu Berichtszeilen, „Auf diesem Gerät nicht
   unterstützt: <Klasse>“), `Metrics.kt` (Tokens pro Sekunde, Vergleich mit dem erwarteten Satz, Zahlenformat),
   `FixedTests.kt` (die zwei festen deutschen Texte), `ReportFormatter.kt` (Kopfzeilen, Testzeilen, gesamter
   Bericht; Datentypen `DeviceHeader`, `TestResult`) und `Support.kt` (die Schnittstellen `Probe`, `Clock`,
@@ -3794,7 +3794,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   alle Views im Code (Liste der Pakete mit Zustand, Dialoge vor jedem Download und nach jedem Fehler), Hochformat, Bildschirm bleibt während eines Schritts an, SDK-Arbeit nie im Hauptthread,
   Modell wird in `onDestroy` freigegeben).
 - Tests (`companion/app/src/test/java/…`): `MetricsTest`, `ErrorTextTest`, `PullPlannerTest`,
-  `ReportFormatterTest`, `LoadDiagnoseTest`, `DownloaderTest` (mit einem lokalen HTTP-Server des JDK), `MetadataCompatTest` und `RealMetadataCompatTest` (mit den echten Metadaten-Dateien beider Ausgaben unter `src/test/resources/metadata/`), `MemoryGuardTest`, `SpikeRunnerTest` (mit `Fakes.kt`); reines JUnit 4, kein Robolectric, kein SDK-Aufruf.
+  `ReportFormatterTest`, `LoadDiagnoseTest`, `DownloaderTest` (mit einem lokalen HTTP-Server des JDK), `MetadataCompatTest` und `RealMetadataCompatTest` (mit den echten Metadaten-Dateien beider Ausgaben unter `src/test/resources/metadata/`), `MemoryGuardTest` (mit `DmabufTest`), `RunLogTest`, `SpikeRunnerTest` (mit `Fakes.kt`); reines JUnit 4, kein Robolectric, kein SDK-Aufruf.
 - Regeln der App: Internet nur durch den Download des SDK nach Tipp auf Knopf 1 und Bestätigung; kein Textfeld,
   nur zwei feste Texte; mit `android.util.Log` nur Schrittnamen und Fehlerklassen; keine Statistik; nichts
   wird übernommen oder in ein Feld geschrieben.
@@ -6197,13 +6197,25 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   `onTrimMemory`-Meldungen der Activity werden mit Zeit gespeichert. Fällt `MemAvailable` unter 800 MB (Vermutung) oder meldet das System `TRIM_MEMORY_RUNNING_CRITICAL`, beendet sich die App selbst (`Process.killProcess`), nachdem sie den Grund gespeichert hat: Das Laden im SDK
   (`create()`, nativ) lässt sich nicht abbrechen, aber ein früher Tod des Prozesses gibt den Speicher zurück, bevor Android Launcher und andere Apps beendet. Beim nächsten Start steht im Bericht „Letzte Speichermessung vor dem Ende“ mit freiem Speicher, App-Größe, Zeit und Notbremse.
   Ein Vordergrunddienst wurde erwogen und nicht gebaut: Er senkt den Bedarf nicht, und eine sichtbare Vordergrund-App hat bei Android schon die höchste Priorität; beendet wird sie erst, wenn der Speicher nach dem Beenden aller unwichtigeren Prozesse noch nicht reicht (Android-Grundsatz, nicht auf diesem Telefon gemessen).
+- **P342** Begleit-App, HyperOS-Grenze für dma-buf (80f, fünfter Lauf auf dem Xiaomi 15): Das Laden des 1,7B-Pakets (1,74 GB Rechenprogramme) endete mit `ApplicationExitInfo` „vom Nutzer beendet“ und der Beschreibung des Systems
+  `[FORCE STOP] stop dev.personal.secondhand.companion due to used too many dmabuf resource,dmabuf used rss:3966224kb,dmabuf threshold:1572864kb`. HyperOS beendet also eine App, deren dma-buf-Nutzung über 1 572 864 kB (1,5 GiB) liegt; das Modell erreichte 3 966 224 kB, das 2,3-Fache
+  der Rechenprogramme. Die Regel über freien Speicher (80e) und der Wächter sahen das nicht: Sie messen `MemAvailable`, nicht dma-buf. Wahrscheinlich war auch das Ende des 4B-Versuchs (Meldung „Speichermangel“) diese Grenze oder ihre Folge; nicht belegt. Eine Beschreibung der Regel
+  oder Ausnahmen für Nutzer fand die Websuche nicht (siehe VALIDATION 80f). Seit 0.6: Regel 2 sagt vorher (2,4 mal die Rechenprogramme) und sperrt jedes Modell; „Messversuch“ lädt trotzdem, aber `LoadWatchdog` beendet die App selbst, sobald ihr dma-buf 1350 MiB erreicht (88 Prozent der Grenze von 1536 MiB, Vermutung: Zuwachs zwischen zwei Messungen), Messung alle 100 ms. dma-buf der App: `AndroidMemoryMeter.dmabufBytes` nimmt das Größte von `/proc/self/dmabuf_rss` (Xiaomi-Datei, Einheit geschätzt, `DmaBufParse.procBytes`), der Summe der `size:`-Zeilen in `/proc/self/fdinfo` (dma-buf-Dateien haben `exp_name:`) und der Summe der Abbildungen mit „dmabuf“ im Namen in `/proc/self/maps`; ob das die Zählung von HyperOS trifft, ist eine Vermutung.
+- **P343** Begleit-App, Berichte überleben das Ende des Prozesses (80f): Der Bericht lag nur im Speicher; nach dem Zwangsbeenden zeigte der nächste Start nur die Schrittmarke und den Grund des Systems. Jetzt schreibt `ReportLog` jede Zeile über `sink` in die Datei `files/run-logs/run-<Millisekunden>.txt` (`RunLogFile.append`:
+  schreiben, `flush`, `FileDescriptor.sync`), mit Zeitstempel je Zeile; die Messungen während des Ladens gehen nur in die Datei (`addQuiet`, jede fünfte Messung). Oben in jeder Datei steht, dass sie keine Texte des Nutzers enthält (die Prüftexte sind fest eingebaut). Behalten werden die letzten drei Läufe, je höchstens 200 000 Bytes
+  (danach eine Schlusszeile). Beim Start liest `RunLogStore.previousRunText` die Datei des vorherigen Laufs vor dem Anlegen der neuen; sie ist aufklappbar unter der Kopfzeile, „Bericht kopieren“ gibt vorherigen und aktuellen Lauf mit Trennzeilen und Startzeit. **Warum der Block „Letzte Speichermessung“ in 0.5 fehlte, ist nicht bewiesen.** Geprüft: Der Wächter
+  wird im Code vor `port.load` gestartet und schreibt mit `commit()`; der Test `aLoadThatNeverReturns…` bildet ein nie endendes Laden mit dem echten Wächter und der Datei nach und findet Schritt, Befunde und Messungen auf der Platte. Gefunden wurde eine Lücke: 0.5 zeigte den Block nur, wenn die Messung unfertig war (`!finished`); `stop()` setzt `finished`
+  schon bevor der Schritt abgeschlossen ist (`tracker.end` kommt danach), und endet der Prozess in dem Moment, sieht der nächste Start eine Schrittmarke und eine fertige Messung und zeigte nichts. Seit 0.6 zeigt `StartupReport.lastRunLines` den Block, sobald eine Schrittmarke blieb oder die Messung unfertig ist. Offen bleibt, ob `commit()` das Zwangsbeenden von HyperOS nicht überlebt
+  (auf der JVM nicht prüfbar); die Dateizeilen mit `sync` umgehen das.
+- **P344** Begleit-App, Quelltext-Befunde zum Speicher des QAIRT-Wegs (80f, `main` des Plugins, Zeilen siehe VALIDATION 80f): Ein-/Ausgabepuffer immer als dma-buf (`SHARED_BUFFER` fest, `libdmabufheap`), ein Block je Kontextdatei, geteilt von allen Graphvarianten; alle sechs Graphen je Datei (`prompt_ar128_cl{512,1024,4096}`, `token_ar1_cl{512,1024,4096}`) werden geladen, eine Auswahl gibt es nicht (`loadSelectGraphs` und
+  `graphSwitching` fest `false`); `mem_type` und die Schlüssel der Genie-Konfiguration sind wirkungslos. Die Rechenprogramme des 1,7B (1,62 GiB) liegen allein schon über der HyperOS-Grenze (1,5 GiB). Darum: höchstens eine Modell-Instanz (`InstanceCounter` im Adapter, Prüfung im Läufer), die Phasenzeilen (SDK-Start, vor und nach dem Laden, Erzeugung, Entladen) und der Verlauf des dma-buf in der Berichtsdatei. Das GGUF-Backend (`ggml-hexagon`) nutzt ebenfalls `rpcmem` für die auf die NPU gelegten Tensoren; ungemessen.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (713 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (715 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6397,12 +6409,12 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `companion/` (2): build.gradle, settings.gradle
 - `companion/app/` (1): build.gradle
 - `companion/app/src/main/` (1): AndroidManifest
-- `companion/app/src/main/java/dev/personal/secondhand/companion/` (14): AndroidSupport, Downloader,
+- `companion/app/src/main/java/dev/personal/secondhand/companion/` (15): AndroidSupport, Downloader,
   ErrorText, FixedTests, GeniexPort, LoadDiagnose, MainActivity, MemoryGuard, MetadataCompat,
-  Metrics, PullPlanner, ReportFormatter, SpikeRunner, Support
-- `companion/app/src/test/java/dev/personal/secondhand/companion/` (10): DownloaderTest,
+  Metrics, PullPlanner, ReportFormatter, RunLog, SpikeRunner, Support
+- `companion/app/src/test/java/dev/personal/secondhand/companion/` (11): DownloaderTest,
   ErrorTextTest, Fakes, LoadDiagnoseTest, MemoryGuardTest, MetadataCompatTest, MetricsTest,
-  PullPlannerTest, ReportFormatterTest, SpikeRunnerTest
+  PullPlannerTest, ReportFormatterTest, RunLogTest, SpikeRunnerTest
 - `scripts/` (3): docs_sync, docs_sync, install-hooks
 - `tools/` (3): build_german_verb_lemmas, dev, emoji_mix_table
 - `tools/devicetest/` (3): build.gradle, devicetest, settings.gradle

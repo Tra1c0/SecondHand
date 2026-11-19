@@ -17,7 +17,7 @@ class SpikeRunnerTest {
     private val diag = FakeDiagnostics()
     private val store = FakeStore()
     private val dl = FakeDownloader(store)
-    private val runner = SpikeRunner(port, FakeProbe(), clock, tracker, log, diag, store, dl)
+    private val runner = SpikeRunner(port, FakeProbe(), clock, tracker, log, diag, store, dl, dmabufLimitBytes = Long.MAX_VALUE)
 
     private fun logText() = log.text()
 
@@ -164,7 +164,7 @@ class SpikeRunnerTest {
 
     @Test fun networkTypeAndFreeStorageComeFromTheProbeAndTheStore() = runBlocking {
         val probe = FakeProbe().apply { network = "Mobilfunk" }
-        val r = SpikeRunner(port, probe, clock, tracker, log, diag, store.also { it.free = 30L * 1073741824 }, dl)
+        val r = SpikeRunner(port, probe, clock, tracker, log, diag, store.also { it.free = 30L * 1073741824 }, dl, dmabufLimitBytes = Long.MAX_VALUE)
         dl.downloadError = DownloadException(DownloadException.Kind.NETWORK, "x")
         r.download(instruct, noProgress)
         assertTrue(logText().contains("Freier Speicher vorher: 30,0 GB, Netz: Mobilfunk"))
@@ -278,7 +278,7 @@ class SpikeRunnerTest {
 
     @Test fun stopIsPassedToThePortAndFlagsTheResult() = runBlocking {
         val slow = FakePort(clock)
-        val r2 = SpikeRunner(slow, FakeProbe(), clock, tracker, log)
+        val r2 = SpikeRunner(slow, FakeProbe(), clock, tracker, log, dmabufLimitBytes = Long.MAX_VALUE)
         slow.tokens = listOf("a ", "b ")
         r2.refreshModelPresent()
         r2.requestStop()
@@ -484,7 +484,7 @@ class SpikeRunnerTest {
     private fun runnerWithWatchdog(probe: FakeProbe = FakeProbe()): Pair<SpikeRunner, FakeWatchdog> {
         val wd = FakeWatchdog(order)
         port.order = order
-        return SpikeRunner(port, probe, clock, tracker, log, diag, store, dl, wd) to wd
+        return SpikeRunner(port, probe, clock, tracker, log, diag, store, dl, wd, Long.MAX_VALUE) to wd
     }
 
     @Test fun theGuardRefusesALoadThatDoesNotFitAndLoadsNothing() = runBlocking {
@@ -545,5 +545,76 @@ class SpikeRunnerTest {
     @Test fun theBundleSizesComeFromTheBinFiles() = runBlocking {
         runner.refreshModelPresent()
         assertEquals(778182656L + 659685376L, runner.presentBundles.single().binBytes)
+    }
+
+    // ---- stage 80f: dma-buf rule and the run file ----
+
+    @Test fun theDmabufRuleBlocksEveryRealModelBecauseOfTheHyperOsLimit() = runBlocking {
+        // production default limit; the fake bundle has 1.44 GB of context binaries, 2.4x is 3.5 GB > 1.5 GB
+        val r = SpikeRunner(port, FakeProbe(), clock, tracker, log, diag, store, dl)
+        r.refreshModelPresent()
+        val out = r.runTest(FixedTests.SENTENCE) { } as SpikeRunner.TestOutcome.Blocked
+        assertFalse(out.verdict.dmabufOk)
+        assertTrue(out.verdict.memoryOk)
+        assertTrue(logText().contains("HyperOS würde die App zwangsbeenden"))
+        assertTrue(logText().contains("Regel 2: Chip-Speicher (dma-buf) vorhergesagt"))
+        assertTrue(port.calls.none { it == "load" })
+    }
+
+    @Test fun aMeasurementRunLoadsAnywayWithTheBrakeAndSaysSo() = runBlocking {
+        val r = SpikeRunner(port, FakeProbe(), clock, tracker, log, diag, store, dl)
+        r.refreshModelPresent()
+        val out = r.runTest(FixedTests.SENTENCE, ignoreMemoryGuard = true) { }
+        assertTrue(out is SpikeRunner.TestOutcome.Ok)
+        assertTrue(logText().contains("Messversuch"))
+    }
+
+    @Test fun everyReportLineGoesToTheRunFileAndSamplesOnlyThere() {
+        val lines = mutableListOf<String>()
+        log.sink = { lines += it }
+        log.add("auf dem Bildschirm")
+        log.addAll(listOf("a", "b"))
+        log.addQuiet("Messung 1,0 s: frei 3000 MB")
+        assertEquals(listOf("auf dem Bildschirm", "a", "b", "Messung 1,0 s: frei 3000 MB"), lines)
+        assertFalse(log.text().contains("Messung"))
+    }
+
+    // ---- stage 80f: phases and instances ----
+
+    @Test fun theReportShowsTheMemoryAtEveryPhaseOfTheRun() = runBlocking {
+        runner.init()
+        runner.runTest(FixedTests.SENTENCE) { }
+        runner.unload()
+        val t = logText()
+        for (label in listOf("nach dem Start des SDK", "direkt vor dem Laden", "nach dem Laden", "Beginn der Erzeugung", "Ende der Erzeugung", "nach dem Entladen (Freigabe)")) {
+            assertTrue(label, t.contains("Speicher $label: "))
+        }
+        assertTrue(t.contains("Modell-Instanzen: 0"))
+    }
+
+    @Test fun anExistingInstanceIsReleasedBeforeANewLoad() = runBlocking {
+        port.instances = 1
+        runner.runTest(FixedTests.SENTENCE) { }
+        assertTrue(logText().contains("Es besteht schon eine Modell-Instanz (1): Sie wird vor dem neuen Laden freigegeben"))
+        val order = port.calls.filter { it == "unload" || it == "load" }
+        assertEquals(listOf("unload", "load"), order)
+    }
+
+    @Test fun withoutAReadableDmabufTheBigModelIsNotLoadedAndTheSmallOneIs() = runBlocking {
+        val wd = object : Watchdog {
+            override fun start(step: String) {}
+            override fun stop() = emptyList<String>()
+            override fun canMeasureDmabuf() = false
+        }
+        val big = SpikeRunner(port, FakeProbe(), clock, tracker, log, diag, store, dl, wd, Long.MAX_VALUE)
+        port.present.clear(); port.present += PullPlanner.QWEN3_1_7B_V66.modelName
+        port.binBytesOverride = 1_742_958_592L
+        big.refreshModelPresent()
+        val out = big.runTest(FixedTests.SENTENCE) { } as SpikeRunner.TestOutcome.Blocked
+        assertTrue(out.verdict.noMeter)
+        assertTrue(logText().contains("nicht lesbar"))
+        assertTrue(port.calls.none { it == "load" })
+        port.binBytesOverride = 747_008_000L
+        assertTrue(big.runTest(FixedTests.SENTENCE) { } is SpikeRunner.TestOutcome.Ok)
     }
 }

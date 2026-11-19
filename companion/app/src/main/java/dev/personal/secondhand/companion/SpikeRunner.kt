@@ -18,6 +18,7 @@ class SpikeRunner(
     private val store: StoreFiles = NoStore,
     private val downloader: ZipDownloader = NoDownloader,
     private val watchdog: Watchdog = NoWatchdog,
+    private val dmabufLimitBytes: Long = MemoryGuard.HYPEROS_DMABUF_LIMIT_BYTES,
 ) {
     sealed interface PullOutcome {
         data class Success(val candidate: Candidate) : PullOutcome
@@ -98,6 +99,7 @@ class SpikeRunner(
         return try {
             val info = port.init()
             supported = true
+            phase("nach dem Start des SDK")
             log.add("GenieX-SDK gestartet. SDK-Version: ${info.sdkVersion ?: "nicht gemeldet"}, " +
                 "QAIRT-Plugin: ${info.qairtPluginVersion?.ifBlank { null } ?: "nicht gemeldet"}")
             log.add("Chip-Kennung laut SDK (lokal gelesen): ${info.detectedChipset?.ifBlank { null } ?: "nicht gemeldet"}")
@@ -326,25 +328,33 @@ class SpikeRunner(
                 val pre = diagnoseBeforeLoad(modelName)
                 // the memory guard: decide before the load whether it can fit (stage 80e: the 4B bundle ended in the low-memory killer)
                 val avail = probe.memAvailableBytes().takeIf { it >= 0 } ?: probe.memory().systemAvailBytes
-                val verdict = MemoryGuard.verdict(if (pre.binBytes > 0) pre.binBytes else MemoryGuard.UNKNOWN_BIN_BYTES, avail)
+                val verdict = MemoryGuard.fullVerdict(if (pre.binBytes > 0) pre.binBytes else MemoryGuard.UNKNOWN_BIN_BYTES, avail, dmabufLimitBytes, watchdog.canMeasureDmabuf())
                 log.add("Speicherwächter vor dem Laden (prüft ${DiagnoseFormatter.H4}): " + verdict.ruleText())
                 if (!verdict.ok && !ignoreMemoryGuard) {
-                    log.add("NICHT GELADEN: Es ist zu wenig Speicher frei, das Laden würde das Telefon in Speichermangel bringen (so endete der Versuch mit dem 4B-Modell).")
+                    log.add("NICHT GELADEN: " + if (verdict.noMeter) "Der dma-buf-Wert der App ist auf diesem Telefon nicht lesbar; ohne ihn gäbe es keine Notbremse vor der HyperOS-Grenze. Gemessen wird dann nur das kleinste Modell (Qwen3-0.6B)." else if (!verdict.dmabufOk) "Das Modell würde nach der Vorhersage mehr Chip-Speicher (dma-buf) belegen, als HyperOS einer App erlaubt; HyperOS würde die App zwangsbeenden." else "Es ist zu wenig Speicher frei, das Laden würde das Telefon in Speichermangel bringen.")
                     return TestOutcome.Blocked(verdict, modelName)
                 }
-                if (!verdict.ok) log.add("Auf ausdrücklichen Wunsch trotzdem geladen; die Notbremse (Selbstbeendigung der App bei Speichermangel) bleibt aktiv.")
+                if (!verdict.ok) log.add("Auf ausdrücklichen Wunsch trotzdem geladen (Messversuch); die Notbremse (Selbstbeendigung der App bei Speichermangel oder wenn dma-buf ${Metrics.mb(MemoryGuard.DMABUF_BRAKE_BYTES)} erreicht) bleibt aktiv.")
+                if (port.instanceCount() > 0) {
+                    log.add("Es besteht schon eine Modell-Instanz (${port.instanceCount()}): Sie wird vor dem neuen Laden freigegeben (höchstens eine Instanz).")
+                    port.unload()
+                    phase("nach dem Freigeben der alten Instanz")
+                }
+                phase("direkt vor dem Laden")
                 tracker.begin(loadStep)
+                watchdog.setBinBytes(pre.binBytes)
                 watchdog.start(loadStep)
                 val marker = "secondhand-load-" + clock.nowMs()
                 diag.markLog(marker)
                 val t0 = clock.nowMs()
                 val info = try {
-                    port.load(modelName).also { log.addAll(watchdog.stop()) }
+                    port.load(modelName).also { log.addAll(watchdog.stop()); phase("nach dem Laden") }
                 } catch (e: CancellationException) {
                     log.addAll(watchdog.stop())
                     throw e
                 } catch (t: Throwable) {
                     log.addAll(watchdog.stop())
+                    phase("nach dem gescheiterten Laden")
                     fail(loadStep, t)
                     afterLoadFailure(marker)
                     return TestOutcome.Failed(loadFailed = true, bundleNewerThanRuntime = pre.compat == Compat.BUNDLE_NEWER, metadataFormatTooNew = pre.formatTooNew)
@@ -364,6 +374,7 @@ class SpikeRunner(
             }
             val step = "Antwort erzeugen (${test.title})"
             tracker.begin(step)
+            phase("Beginn der Erzeugung")
             val genStart = clock.nowMs()
             var firstTokenAt: Long? = null
             var lastTokenAt = genStart
@@ -385,6 +396,7 @@ class SpikeRunner(
                     is GenEvent.Failed -> error = e.error
                 }
             }
+            phase("Ende der Erzeugung")
             val failure = error
             if (failure != null) {
                 fail(step, failure)
@@ -452,6 +464,7 @@ class SpikeRunner(
         log.add("Arbeitsspeicher direkt vor dem Laden (prüft ${DiagnoseFormatter.H4}): frei im System ${Metrics.mb(m.systemAvailBytes)}, " +
             "PSS der App ${Metrics.mb(m.pssBytes)}, nativer Heap ${Metrics.mb(m.nativeHeapBytes)}")
         diag.environmentLines().takeIf { it.isNotEmpty() }?.let { log.addAll(it) }
+        diag.dmabufLines().takeIf { it.isNotEmpty() }?.let { log.addAll(it) }
         diag.nativeLoadLines().takeIf { it.isNotEmpty() }?.let { log.addAll(it) }
         return Pre(compat, formatTooNew, binBytes)
     }
@@ -487,11 +500,18 @@ class SpikeRunner(
             port.unload()
             loaded = false
             log.add("Modell entladen.")
+            phase("nach dem Entladen (Freigabe)")
         } catch (e: CancellationException) {
             throw e
         } catch (t: Throwable) {
             fail(step, t)
         }
+    }
+
+    /** One line with the process memory at this phase of the run, so that the report shows the curve over init, load, inference and release. */
+    private fun phase(label: String) {
+        val line = diag.phaseLine(label)
+        if (line.isNotBlank()) log.add("Speicher $label: $line; Modell-Instanzen: ${port.instanceCount()}")
     }
 
     private fun compatBackupPath(modelName: String): String =

@@ -181,7 +181,7 @@ object DeviceInfo {
 }
 
 object BuildConfigLike {
-    const val VERSION = "Begleit-Spike 0.5 (Etappe 80), SDK geniex-android 0.10.0"
+    const val VERSION = "Begleit-Spike 0.6 (Etappe 80), SDK geniex-android 0.10.0"
 }
 
 /**
@@ -277,6 +277,45 @@ class AndroidDiagnostics(private val context: Context) : Diagnostics {
         return out
     }
 
+    override fun phaseLine(label: String): String = try {
+        val meter = AndroidMemoryMeter()
+        val r = meter.dmabufReading()
+        fun mb(v: Long?) = if (v == null) "nicht lesbar" else Metrics.mb(v)
+        "dma-buf ${mb(if (r.readable) maxOf(r.rssBytes ?: 0L, r.fdBytes, r.mapBytes) else null)} (dmabuf_rss ${mb(r.rssBytes)}, dmabuf_rss_hwm ${mb(r.hwmBytes)}, Summe fdinfo ${Metrics.mb(r.fdBytes)}, " +
+            "Summe maps ${Metrics.mb(r.mapBytes)}), RSS ${mb(meter.rssBytes().takeIf { it >= 0 })}, nativer Heap ${Metrics.mb(android.os.Debug.getNativeHeapAllocatedSize())}, " +
+            "frei im System ${mb(meter.availBytes().takeIf { it >= 0 })}"
+    } catch (t: Throwable) {
+        "nicht messbar: ${t.javaClass.simpleName}"
+    }
+
+    override fun dmabufLines(): List<String> {
+        val out = mutableListOf<String>()
+        out += "dma-buf: Dateien, die die Nutzung oder ihre Grenze zeigen könnten (was gelesen werden konnte; geprüft für Vermutung H7, HyperOS-Grenze):"
+        for (path in listOf("/proc/self/dmabuf_rss", "/proc/self/dmabuf_rss_hwm", "/proc/self/status", "/proc/meminfo")) {
+            val f = java.io.File(path)
+            val text = runCatching { f.readText() }.getOrNull()
+            out += "  $path: " + when {
+                !f.exists() -> "nicht vorhanden oder nicht sichtbar"
+                text == null -> "vorhanden, aber nicht lesbar"
+                path.endsWith("status") || path.endsWith("meminfo") ->
+                    text.lines().filter { it.contains("dma", ignoreCase = true) || it.contains("ion", ignoreCase = true) && it.contains(":") && it.length < 60 }.take(6).joinToString(" | ").ifBlank { "keine dma-buf-Zeile" }
+                else -> "Inhalt: '" + text.trim().replace('\n', ' ').take(80) + "'"
+            }
+        }
+        for (dir in listOf("/sys/kernel/dmabuf", "/sys/kernel/dma_heap", "/sys/module/dmabuf", "/proc/sys/vm")) {
+            val names = runCatching { java.io.File(dir).list() }.getOrNull()
+            out += "  $dir: " + if (names == null) "nicht lesbar" else "${names.size} Einträge" + (names.filter { it.contains("dma", true) || it.contains("limit", true) || it.contains("thresh", true) }.take(8).takeIf { it.isNotEmpty() }?.let { ": " + it.joinToString(", ") } ?: "")
+        }
+        val r = AndroidMemoryMeter().dmabufReading()
+        out += "  Messquelle der App: " + when {
+            r.rssBytes != null -> "dmabuf_rss (Wert ${Metrics.mb(r.rssBytes)}, Einheit geschätzt), dazu fdinfo ${Metrics.mb(r.fdBytes)} und maps ${Metrics.mb(r.mapBytes)}"
+            r.readable -> "fdinfo ${Metrics.mb(r.fdBytes)} und maps ${Metrics.mb(r.mapBytes)} (dmabuf_rss nicht lesbar)"
+            else -> "KEINE (nichts lesbar)"
+        }
+        out += "  Grenze laut Systemtext der letzten Zwangsbeendigung: ${Metrics.mb(MemoryGuard.HYPEROS_DMABUF_LIMIT_BYTES)} (1 572 864 kB); die Grenze selbst ist auf diesem Telefon nirgends lesbar gefunden worden, falls oben nichts steht"
+        return out
+    }
+
     override fun runtimeQairtVersion(): String? = runCatching {
         QairtVersion.findInBinary(java.io.File(libDir, "libQnnHtp.so").readBytes())
     }.getOrNull()
@@ -330,6 +369,31 @@ class AndroidMemoryMeter : MemoryMeter {
     override fun availBytes(): Long = meminfoKb("MemAvailable").let { if (it < 0) -1L else it * 1024 }
 
     override fun swapFreeBytes(): Long = meminfoKb("SwapFree").let { if (it < 0) -1L else it * 1024 }
+
+    data class DmabufReading(val rssBytes: Long?, val hwmBytes: Long?, val fdBytes: Long, val mapBytes: Long, val readable: Boolean)
+
+    private fun readProc(path: String): String? = runCatching { java.io.File(path).readText().take(300) }.getOrNull()
+
+    /** The app's dma-buf use from the Xiaomi/HyperOS file /proc/self/dmabuf_rss (and _hwm) when it is readable, plus the sums over fdinfo and maps. */
+    fun dmabufReading(): DmabufReading {
+        val fdList = runCatching { java.io.File("/proc/self/fdinfo").list() }.getOrNull()
+        val texts = (fdList ?: emptyArray()).mapNotNull { readProc("/proc/self/fdinfo/$it") }
+        val fdSum = DmaBufParse.sumFdinfos(texts)
+        val mapLines = runCatching { java.io.File("/proc/self/maps").readLines() }.getOrNull()
+        val mapSum = if (mapLines == null) 0L else DmaBufParse.mapsBytes(mapLines)
+        val fdMap = maxOf(fdSum, mapSum)
+        val rss = readProc("/proc/self/dmabuf_rss")?.let { DmaBufParse.procBytes(it, fdMap) }
+        val hwm = readProc("/proc/self/dmabuf_rss_hwm")?.let { DmaBufParse.procBytes(it, fdMap) }
+        return DmabufReading(rss, hwm, fdSum, mapSum, rss != null || fdList != null || mapLines != null)
+    }
+
+    /** The larger of the HyperOS file and the fd/map sums (conservative for the brake); -1 when nothing can be read. */
+    override fun dmabufBytes(): Long = try {
+        val r = dmabufReading()
+        if (!r.readable) -1L else maxOf(r.rssBytes ?: 0L, r.fdBytes, r.mapBytes)
+    } catch (t: Throwable) {
+        -1L
+    }
 
     override fun rssBytes(): Long = runCatching {
         // /proc/self/statm: size resident shared ... in pages
