@@ -15,6 +15,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import helium314.keyboard.agent.PromptError
+import helium314.keyboard.agent.PromptStore
+import helium314.keyboard.agent.security.readBounded
 import helium314.keyboard.dictionarypack.DictionaryPackConstants
 import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.keyboard.emoji.SupportedEmojis
@@ -145,6 +148,8 @@ private fun backupLauncher(onError: (String) -> Unit): ManagedActivityResultLaun
                         fileStream.close()
                         zipStream.closeEntry()
                     }
+                    // stage 76: the prompts (credential-protected storage): no entry when locked or unusable, never a failed backup
+                    runCatching { writePromptsEntry(zipStream, PromptStore(ctx)) }
                     zipStream.putNextEntry(ZipEntry(PREFS_FILE_NAME))
                     settingsToJsonStream(ctx.prefs().all, zipStream)
                     zipStream.closeEntry()
@@ -176,6 +181,8 @@ private fun restoreLauncher(onError: (String) -> Unit): ManagedActivityResultLau
             // stage 65 (S3, S4): moving aside, the work and the roll-back are in restoreWithRollback
             val result = restoreWithRollback(folders, restoredDb, ctx.prefs(), ctx.protectedPrefs()) {
                 var anyMatch = false
+                var promptBytes: ByteArray? = null // stage 76: applied at the very end, so nothing else can fail after it
+                var promptsInvalid = false
                 val filesDir = ctx.filesDir!!
                 val deviceProtectedFilesDir = DeviceProtectedUtils.getFilesDir(ctx)
                 ctx.getActivity()?.contentResolver?.openInputStream(uri)?.use { inputStream ->
@@ -184,7 +191,12 @@ private fun restoreLauncher(onError: (String) -> Unit): ManagedActivityResultLau
                         LayoutUtilsCustom.onLayoutFileChanged()
                         Settings.getInstance().stopListener()
                         while (entry != null) {
-                            if (entry.name.startsWith("unprotected${File.separator}")) {
+                            if (isPromptsEntry(entry.name)) {
+                                // matched exactly, never used as a path; too large reads as invalid
+                                promptBytes = readPromptsEntry(zip)
+                                promptsInvalid = promptBytes == null
+                                anyMatch = true
+                            } else if (entry.name.startsWith("unprotected${File.separator}")) {
                                 val adjustedName = entry.name.substringAfter("unprotected${File.separator}")
                                 if (backupFilePatterns.any { adjustedName.matches(it) }) {
                                     if (!restoreEntryToDir(zip, deviceProtectedFilesDir, adjustedName)) {
@@ -217,6 +229,10 @@ private fun restoreLauncher(onError: (String) -> Unit): ManagedActivityResultLau
                 if (!anyMatch)
                     throw Exception("nothing to restore in the given file")
                 Database.copyFromDb(restoredDb, ctx)
+                // the prompt file lives in noBackupFilesDir, outside both folders of the roll-back: it is written last
+                // and atomically, so a failed restore never reaches it and it is either replaced or untouched
+                if (promptsInvalid) Log.w("AdvancedScreen", "skipping invalid prompts in backup")
+                else promptBytes?.let { restorePrompts(PromptStore(ctx), it) }
             }
             if (result.ok) {
                 if (Looper.myLooper() == null)
@@ -249,6 +265,30 @@ private fun restoreLauncher(onError: (String) -> Unit): ManagedActivityResultLau
         SupportedEmojis.load(ctx)
         KeyboardSwitcher.getInstance().setThemeNeedsReload()
     }
+}
+
+/** Stage 76: name of the prompt file in the zip. Matched exactly, never used as a path. */
+internal const val PROMPTS_ENTRY_NAME = "agent/agent_prompts.json"
+
+internal fun isPromptsEntry(name: String) = name == PROMPTS_ENTRY_NAME
+
+/** Stage 76: adds the prompt file's exact bytes as one entry; nothing if there are none, they are unusable or the device is locked. */
+internal fun writePromptsEntry(zip: ZipOutputStream, store: PromptStore) {
+    val bytes = store.exportBytes() ?: return
+    zip.putNextEntry(ZipEntry(PROMPTS_ENTRY_NAME))
+    zip.write(bytes)
+    zip.closeEntry()
+}
+
+/** Stage 76: the bytes of the current entry (at most the store's limit), or null if it is larger. */
+internal fun readPromptsEntry(zip: ZipInputStream): ByteArray? =
+    runCatching { zip.readBounded(PromptStore.MAX_STORAGE_BYTES) }.getOrNull()
+
+/** Stage 76: replaces the stored prompts if [bytes] are valid; otherwise (also while locked) they stay as they are. Returns the error. */
+internal fun restorePrompts(store: PromptStore, bytes: ByteArray): PromptError? {
+    val result = store.replaceAll(bytes)
+    if (!result.ok) Log.w("AdvancedScreen", "prompts not restored: ${result.error}")
+    return result.error
 }
 
 private fun checkSettingsRestore(ctx: android.content.Context, result: SettingsRestore) {

@@ -147,11 +147,35 @@ class PromptStore(context: Context, private val accessible: () -> Boolean = { cr
         change(current)
     }
 
+    /**
+     * Stage 76 (backup): exactly the bytes of the stored file when it exists, is readable and valid and the device
+     * is unlocked; otherwise null (nothing to save: no file, locked, too large, not understood).
+     */
+    fun exportBytes(): ByteArray? = synchronized(lock) {
+        if (!isAccessible()) return@synchronized null
+        runCatching {
+            if (!file.baseFile.exists() && !File(file.baseFile.path + ".bak").exists()) return@runCatching null
+            val bytes = file.openRead().use { it.readBounded(MAX_STORAGE_BYTES) }
+            decodeBytes(bytes)
+            bytes
+        }.getOrNull()
+    }
+
+    /**
+     * Stage 76 (restore): replaces all stored prompts by the ones in [bytes] (the content of a backed-up file). The
+     * bytes go through the same strict decoder and size limit as the stored file BEFORE anything is touched; invalid
+     * bytes give [PromptError.INVALID_TEXT] and change nothing. Same lock, same write ([AtomicFile], version bump)
+     * and same refusals as the other writes (locked, unreadable current file).
+     */
+    fun replaceAll(bytes: ByteArray): PromptResult {
+        val prompts = runCatching { decodeBytes(bytes) }.getOrNull() ?: return PromptResult.failed(PromptError.INVALID_TEXT)
+        return modify { write(prompts) }
+    }
+
     private fun readFile(): List<Prompt> {
         if (!file.baseFile.exists() && !File(file.baseFile.path + ".bak").exists()) return emptyList()
         val bytes = file.openRead().use { it.readBounded(MAX_STORAGE_BYTES) }
-        return decode(Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
-            .onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes)).toString())
+        return decodeBytes(bytes)
     }
 
     private fun write(prompts: List<Prompt>): PromptResult {
@@ -217,6 +241,13 @@ class PromptStore(context: Context, private val accessible: () -> Boolean = { cr
                 }
             })
         }.toString()
+
+        /** Strict: at most [MAX_STORAGE_BYTES], valid UTF-8, then [decode]; throws otherwise. */
+        private fun decodeBytes(bytes: ByteArray): List<Prompt> {
+            require(bytes.size <= MAX_STORAGE_BYTES)
+            return decode(Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes)).toString())
+        }
 
         fun decode(encoded: String): List<Prompt> {
             val root = Json.parseToJsonElement(encoded).jsonObject
