@@ -24,13 +24,16 @@ Only the standard library is used. Nothing typed here is secret; the texts are f
 """
 
 import argparse
+import base64
 import json
 import os
 import re
 import subprocess
 import sys
+import struct
 import threading
 import time
+import zlib
 
 KEYBOARD_PACKAGE = "dev.personal.agentkeyboard.debug"
 TEST_PACKAGE = "dev.personal.secondhand.devicetest"
@@ -175,13 +178,15 @@ class Screen:
                 if node.package == KEYBOARD_PACKAGE and node.cls.endswith(".Key") and node.desc and node.visible]
         view = self.keyboard_view()
         self.shifted = False
-        if view is not None and keys and not all(view.contains(*key.center) for key in keys):
-            # The keyboard reports its keys relative to its own view when it has not yet read its place
-            # on the screen (KeyboardAccessibilityNodeProvider.updateParentLocation): move them there.
-            if all(view.contains(key.center[0] + view.left, key.center[1] + view.top) for key in keys):
-                for key in keys:
-                    key.move(view.left, view.top)
-                self.shifted = True
+        strip = self.keyboard_node("suggestion_strip_view")
+        if keys and strip is not None and min(key.top for key in keys) < strip.bottom - 8:
+            # The keys cannot lie above the suggestion strip. Run 8 showed the keyboard reporting them
+            # (and its own view) at the top of the screen; the strip, an ordinary view, is where it is
+            # drawn, and the keys start right below it.
+            origin = view.top if view is not None else min(key.top for key in keys)
+            for key in keys:
+                key.move(0, strip.bottom - origin)
+            self.shifted = True
         found = {}
         for node in keys:
             found.setdefault(plain_key_name(node.desc), node)
@@ -189,9 +194,13 @@ class Screen:
 
     def keyboard_view(self):
         """The view that draws the keys (the visible one; the emoji and clipboard views have their own)."""
+        return self.keyboard_node("keyboard_view")
+
+    def keyboard_node(self, name):
+        """The largest visible node of the keyboard with this resource id, or None."""
         best = None
         for node in self.nodes:
-            if node.rid == KEYBOARD_PACKAGE + ":id/keyboard_view" and node.visible:
+            if node.rid == KEYBOARD_PACKAGE + ":id/" + name and node.visible:
                 if best is None or node.area > best.area:
                     best = node
         return best
@@ -233,6 +242,7 @@ class Driver:
         self.out_dir = out_dir
         self.control = control
         self.logged_layouts = set()
+        self.thumbnails = 0
         self.keymap = {}
         self.name = ""
         self.checks = 0
@@ -281,9 +291,14 @@ class Driver:
             log("INFO keys in field %s: %s" % (field, self.key_list()))
             view = screen.keyboard_view()
             sample = next(iter(self.keymap.values()))
-            log("INFO geometry in field %s: field %s, keyboard view %s, key %r %s%s" % (
-                field, node.box, view.box if view else "not found", sample.desc[:12], sample.box,
-                ", keys moved to the view" if screen.shifted else ""))
+            strip = screen.keyboard_node("suggestion_strip_view")
+            log("INFO geometry in field %s: field %s, keyboard view %s, strip %s, key %r %s%s" % (
+                field, node.box, view.box if view else "not found", strip.box if strip else "not found",
+                sample.desc[:12], sample.box, ", keys moved below the strip" if screen.shifted else ""))
+            if len(self.logged_layouts) == 1:  # once: where the keyboard's views are
+                parts = ["%s#%s%s" % (n.cls.rsplit(".", 1)[-1], n.rid.rsplit("/", 1)[-1], n.box)
+                         for n in screen.keyboard_nodes() if not n.cls.endswith(".Key")]
+                log("INFO keyboard window: " + " ".join(parts)[:1800])
         return screen
 
     def field(self, field):
@@ -379,6 +394,37 @@ class Driver:
         except DeviceError:
             pass
         return False
+
+    def thumbnail(self):
+        """Prints a small grey picture of the screen into the log (base64 PNG between THUMB lines):
+        the artifacts cannot be fetched from every place the log can be read from."""
+        try:
+            raw = adb("exec-out", "screencap", timeout=30, binary=True)
+            width, height = struct.unpack("<II", raw[:8])
+            pixels = raw[len(raw) - width * height * 4:]
+            if width <= 0 or height <= 0 or len(pixels) != width * height * 4:
+                return
+            step = 6
+            rows = []
+            for y in range(0, height, step):
+                line = pixels[y * width * 4:(y + 1) * width * 4]
+                red, green, blue = line[0::4 * step], line[1::4 * step], line[2::4 * step]
+                rows.append(b"\x00" + bytes((r * 3 + g * 6 + b) // 10 for r, g, b in zip(red, green, blue)))
+            small_width = len(rows[0]) - 1
+
+            def chunk(kind, data):
+                body = kind + data
+                return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
+
+            png = (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", small_width, len(rows), 8, 0, 0, 0, 0))
+                   + chunk(b"IDAT", zlib.compress(b"".join(rows), 9)) + chunk(b"IEND", b""))
+            text = base64.b64encode(png).decode("ascii")
+            log("THUMB-BEGIN %s %dx%d" % (self.name, small_width, len(rows)))
+            for start in range(0, len(text), 160):
+                log("THUMB " + text[start:start + 160])
+            log("THUMB-END")
+        except (DeviceError, struct.error, IndexError):
+            pass
 
     def save_dump(self, screen, label):
         try:
@@ -616,6 +662,9 @@ def run_scenario(function, driver):
         status, detail = "ERROR", "script: %s: %s" % (type(error).__name__, error)
     driver.name = name
     shot = driver.screenshot("end")
+    if driver.thumbnails < 2 and (status != "PASS" or driver.thumbnails == 0):
+        driver.thumbnails += 1
+        driver.thumbnail()
     if status != "PASS":
         try:
             driver.save_dump(dump(), "end")
