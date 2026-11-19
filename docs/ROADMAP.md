@@ -831,7 +831,11 @@ offen, gebaut wird erst nach einer Entscheidung zu den offenen Fragen.
   kein Rückfall für andere Chips nötig; die Weitergabe-Lizenz der Qualcomm-Laufzeit stellt sich nur, wenn sie in
   einer verteilten APK steckt. Die Builds dieses Projekts sind aber öffentlich herunterladbar (Vorab-Releases),
   also gehört W4 in eine eigene Build-Variante, die nicht veröffentlicht wird, oder in eine getrennte kleine App,
-  die die Tastatur lokal anspricht. Entscheidung offen.
+  die die Tastatur lokal anspricht. **Entschieden (Owner, 2026-11-20): getrennte kleine App** nur auf dem Gerät
+  des Owners; sie hält Laufzeit und Modell und wird nie veröffentlicht, die Tastatur bleibt für alle gleich und
+  ohne proprietären Code. Noch festzulegen beim Bau: die lokale Schnittstelle (nur für die eigene Signatur
+  erreichbar, kein offener Netzwerk-Port), und dass die Regeln der Tastatur weiter gelten (Aufruf nur auf Tipp,
+  Übernahme mit eigenem Klick, nichts loggen). Gebaut wird erst nach der Recherche des Owners zu Tempo und Energie.
 - **W3 Alle Google-Funktionen.** Wortlaut des Owners: „alle Google features“. Deutung des Leads: der
   Funktionsumfang der Google-Tastatur und der KI-Funktionen von Google, soweit eine fremde Tastatur sie nutzen
   oder nachbauen kann. Erster Schritt ist eine Liste: je Funktion „schon vorhanden“, „nachbaubar (lokal oder
