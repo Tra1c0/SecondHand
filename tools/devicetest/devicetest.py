@@ -278,6 +278,7 @@ class Driver:
         self.name = ""
         self.checks = 0
         self.notes = []
+        self.hold_info = ""
 
     # -- app and fields
 
@@ -471,6 +472,9 @@ class Driver:
         shell("input draganddrop %d %d %d %d 700" % (x, y, target.center[0], target.center[1]), timeout=40)
         time.sleep(1.2)
         self.notes.append("held %r and chose %r" % (char, target.desc))
+        self.hold_info = "key %s, popup %s, chose %s %s" % (
+            self.key_for(char).box, " ".join("%s%s" % (d[:10], n.box) for d, n in list(popup.items())[:6]),
+            target.desc[:14], target.box)
         return target.desc
 
     def tap_keyboard_text(self, wanted, outside_strip=True):
@@ -747,7 +751,11 @@ def prompt_store(d):
         d.tap_id("copy_2")
     d.focus("text")
     d.hold_and_choose(",", ("Prompt",))
-    d.tap_keyboard_text("Kopiertes als Prompt speichern")
+    try:
+        d.tap_keyboard_text("Kopiertes als Prompt speichern")
+    except CheckFailed as error:
+        raise CheckFailed("%s | hold: %s | keys now %d" % (
+            str(error)[:260], d.hold_info[:200], len(dump().keys())))
     d.tap_keyboard_text(second)  # the new row shows the first line of its text
     d.expect_field("text", second)
     # the counter-check: the same popup in a password field
