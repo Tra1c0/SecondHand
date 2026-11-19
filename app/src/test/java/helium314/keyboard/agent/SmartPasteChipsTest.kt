@@ -393,8 +393,10 @@ class SmartPasteChipsTest {
     /** Device tests, run 21: with the history off (the default) the first tapped pill was the last. */
     @Test fun aNewClipIsOfferedAgainAfterAPillWasTappedAlsoWithoutTheHistory() {
         val parent = FrameLayout(latinIME)
-        latinIME.prefs().edit().putBoolean(AgentPreferences.SMART_PASTE, false).commit()
-        assertFalse(latinIME.prefs().getBoolean(Settings.PREF_ENABLE_CLIPBOARD_HISTORY, false), "history off")
+        latinIME.prefs().edit().putBoolean(AgentPreferences.SMART_PASTE, false)
+            .putBoolean(Settings.PREF_ENABLE_CLIPBOARD_HISTORY, false).commit()
+        load(textField)
+        assertFalse(Settings.getInstance().current.mClipboardHistoryEnabled, "history off")
         val historyManager = ClipboardHistoryManager(latinIME).apply { onCreate() }
         try {
             copy("erster Text")
@@ -402,7 +404,7 @@ class SmartPasteChipsTest {
             stampNow()
             val first = assertNotNull(historyManager.getClipboardSuggestionView(textField, parent))
             assertEquals("erster Text", first.findViewById<TextView>(R.id.clipboard_suggestion_text).text.toString())
-            first.performClick()
+            first.findViewById<TextView>(R.id.clipboard_suggestion_text).performClick()
             stampNow()
             assertNull(historyManager.getClipboardSuggestionView(textField, parent), "the tapped clip is not offered again")
             copy("zweiter Text")
