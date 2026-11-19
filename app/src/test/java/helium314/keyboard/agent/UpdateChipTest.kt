@@ -109,9 +109,16 @@ class UpdateChipTest {
         startField(android.text.InputType.TYPE_CLASS_TEXT)
         assertEquals(22L, UpdateChip.build(latinIME, Settings.getValues()), "a normal field shows it")
         assertNotNull(chip())
-        startField(android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD)
-        assertNull(UpdateChip.build(latinIME, Settings.getValues()))
-        assertNull(chip(), "no chip in a password field")
+        val passwordTypes = mapOf(
+            "password" to (android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD),
+            "visible password" to (android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD),
+            "web password" to (android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD),
+            "number password" to (android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD))
+        for ((name, type) in passwordTypes) {
+            startField(type)
+            assertNull(UpdateChip.build(latinIME, Settings.getValues()), name)
+            assertNull(chip(), "no chip in a $name field")
+        }
         startField(android.text.InputType.TYPE_CLASS_TEXT)
         assertNotNull(chip(), "and back in the next normal field")
     }

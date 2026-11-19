@@ -15,7 +15,6 @@ import helium314.keyboard.agent.LastField
 import helium314.keyboard.latin.LatinIME
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.settings.SettingsValues
-import helium314.keyboard.latin.utils.InputTypeUtils
 import java.lang.ref.WeakReference
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
@@ -173,11 +172,8 @@ object UpdateOnOpen {
     }.getOrDefault(false)
 
     /** Like [LastField.snapshotOf]: the engine's flag, every password variation, also in the field's own `inputType`. */
-    private fun isPassword(settings: SettingsValues, editorInfo: EditorInfo): Boolean {
-        val attributes = settings.mInputAttributes
-        return attributes.mIsPasswordField || InputTypeUtils.isAnyPasswordInputType(attributes.mInputType)
-            || FieldReport.isPassword(attributes.mInputType) || FieldReport.isPassword(editorInfo.inputType)
-    }
+    private fun isPassword(settings: SettingsValues, editorInfo: EditorInfo): Boolean =
+        UpdateChip.isPasswordField(settings, editorInfo.inputType)
 
     /** The incognito setting, or a field that forbids learning. */
     private fun isIncognito(settings: SettingsValues, editorInfo: EditorInfo): Boolean =

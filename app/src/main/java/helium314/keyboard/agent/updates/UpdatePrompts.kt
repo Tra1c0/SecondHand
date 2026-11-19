@@ -114,11 +114,21 @@ object UpdateChip {
      */
     fun build(context: Context, settings: SettingsValues?): Long? {
         if (settings == null || settings.mIsLocked) return null
-        if (settings.mInputAttributes?.mIsPasswordField == true) return null
+        if (isPasswordField(settings)) return null
         // credential-protected storage: before the first unlock it throws, then there is no chip
         val known = runCatching { UpdateSettings(context).knownBuild }.getOrDefault(0L)
         if (known <= 0 || known <= installed(context)) return null
         return known.takeUnless { locked(context) }
+    }
+
+    /**
+     * The one password check of the update chip and the update-on-open check: the engine's flag, every password
+     * variation in the attributes' input type, and (when given) the field's own raw `inputType`.
+     */
+    internal fun isPasswordField(settings: SettingsValues, rawInputType: Int = 0): Boolean {
+        val attributes = settings.mInputAttributes ?: return false
+        return attributes.mIsPasswordField || helium314.keyboard.latin.utils.InputTypeUtils.isAnyPasswordInputType(attributes.mInputType)
+            || dev.agentkeyboard.core.FieldReport.isPassword(attributes.mInputType) || dev.agentkeyboard.core.FieldReport.isPassword(rawInputType)
     }
 
     /** The chip row for the neutral strip (from `LatinIME.setNeutralSuggestionStrip`), or null. */
