@@ -6055,45 +6055,45 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   frisch aus dem Speicher; die Seite lädt bei `ON_RESUME` neu (das Fenster der Tastatur kann den Speicher inzwischen geändert haben). Der Klick eines
   Chips tut nichts, solange das Fenster nicht sichtbar ist (`this@PromptsView.visibility`, nicht die Sichtbarkeit des Chips): ein veralteter Chip darf
   `rememberedFilter` nicht ändern.
-- **P318** Begleit-App, Modellkonfiguration (80): Für `runtime_id` `qairt` lehnt das SDK `nCtx != 0` und `nGpuLayers != 0`
+- **P321** Begleit-App, Modellkonfiguration (80): Für `runtime_id` `qairt` lehnt das SDK `nCtx != 0` und `nGpuLayers != 0`
   mit `PARAM_NOT_SUPPORTED` ab, aber die Vorgaben von `ModelConfig` in 0.10.0 sind `nCtx = 2048` und `nGpuLayers = -1` (javap des
   Konstruktors; die Doku-Beispiele mit `ModelConfig()` stimmen nicht). `GeniexAdapter.load` setzt beide ausdrücklich auf 0. Die
   Rechenart steht nicht in `ModelConfig`: `LlmCreateInput(runtime_id = "qairt", compute_unit = "npu")`.
-- **P319** Begleit-App, Aufruf der Erzeugung (80): In 0.10.0 ist `generateStreamFlow(prompt, inputIds, embeddings, Int, config)`;
+- **P322** Begleit-App, Aufruf der Erzeugung (80): In 0.10.0 ist `generateStreamFlow(prompt, inputIds, embeddings, Int, config)`;
   das Beispiel der Doku mit `GenerationConfig` als zweitem Argument kompiliert nicht, also benannt `prompt =` und `config =`.
   Immer den Text aus `applyChatTemplate(...).formattedText` übergeben, nie den Rohtext (sonst „degenerate output“). Das Denken wird
   mit dem dritten Parameter `enableThinking = false` von `applyChatTemplate` abgeschaltet, nicht in `ModelConfig`. `maxTokens` hat
   in `GenerationConfig` die Vorgabe 32 und wird darum immer gesetzt (96 und 192). `PullEvent` und `LlmStreamResult` sind
   versiegelt; `Completed` beendet den Strom, `GeniexAdapter` bricht ihn dort per `transformWhile` ab.
-- **P320** Begleit-App, Chip-Kennung (80): Das Xiaomi 15 meldet `SM8750`; Qualcomm veröffentlicht Qwen3-4B nur für die
+- **P323** Begleit-App, Chip-Kennung (80): Das Xiaomi 15 meldet `SM8750`; Qualcomm veröffentlicht Qwen3-4B nur für die
   Galaxy-Variante (`SM8750-AC`, Alias von `snapdragon-8-elite-for-galaxy`). Der erste Pull nutzt `SM8750`; nur wenn der SDK-Text
   „nicht verfügbar“ meldet (Strings aus `libgeniex.so`: „Requested chipset not available for this model“, „No pre-compiled
   assets available for“; dazu „not found“, „unsupported“, HTTP 403/404), bietet `PullPlanner` `SM8750-AC` mit einem eigenen Dialog an
   und lädt nie von selbst. Ein Fehler beim Laden der gepullten Variante markiert sie in `SpikePrefs` als gescheitert; nach „Modell
   löschen“ bietet Knopf 1 dann die andere an. Die Fehlertexte des SDK sind nicht dokumentiert, die Erkennung ist eine Annahme.
-- **P321** Begleit-App, Paketierung (80): Das SDK sucht `libgeniex_plugin_*.so` in `applicationInfo.nativeLibraryDir`, also müssen
+- **P324** Begleit-App, Paketierung (80): Das SDK sucht `libgeniex_plugin_*.so` in `applicationInfo.nativeLibraryDir`, also müssen
   die Bibliotheken auf der Platte liegen: `packaging.jniLibs.useLegacyPackaging = true` und `android:extractNativeLibs="true"`.
   Das AAR deklariert keine Abhängigkeiten, die App muss `kotlinx-coroutines` selbst einbinden, und es deklariert keine
   Berechtigung, die App muss `INTERNET` selbst deklarieren. Das AAR hat nur `arm64-v8a`: Auf anderen Geräten scheitert schon
   das Laden der Klasse `GenieXSdk` (statischer Block `System.loadLibrary("npu_jni")`, aus dem Bytecode gelesen, nicht ausgeführt) mit `UnsatisfiedLinkError`; `GeniexAdapter.init` fängt jedes `Throwable`
   und zeigt „Auf diesem Gerät nicht unterstützt“.
-- **P322** Begleit-App, kein stiller Rückfall (80): `runtime_id` ist fest `qairt`; zusätzlich prüft `SpikeRunner` nach dem Laden die
+- **P325** Begleit-App, kein stiller Rückfall (80): `runtime_id` ist fest `qairt`; zusätzlich prüft `SpikeRunner` nach dem Laden die
   Laufzeit, die der Modellspeicher des SDK für das Paket vermerkt hat (`ModelPaths.runtime_id`), und meldet alles außer `qairt` als
   Fehler `NpuFallbackDetected`; die Version des QAIRT-Plugins steht im Bericht. Ob die Rechnung wirklich auf der NPU läuft, sieht die
   App nicht; Hinweis nur über das Tempo (unter 8 Tokens/s: „auffällig langsam“, Qualcomm nennt 16 bis 21). Das ist eine Heuristik.
-- **P323** Begleit-App, Absturz im nativen Code (80): Ein Fehler der QNN-Laufzeit (z. B. Bundle 2.51 gegen Laufzeit 2.50) kann den Prozess
+- **P326** Begleit-App, Absturz im nativen Code (80): Ein Fehler der QNN-Laufzeit (z. B. Bundle 2.51 gegen Laufzeit 2.50) kann den Prozess
   beenden, ohne dass Kotlin etwas fängt. `PrefsStepTracker` schreibt den laufenden Schritt mit `commit()` (synchron) vor jedem
   Schritt; beim nächsten Start steht im Bericht, in welchem Schritt der Lauf endete, und `DeviceInfo.lastExitLines` nennt den Grund laut
   Android (Absturz, Speichermangel, …). Ohne das wäre „die App ist weg“ der ganze Befund.
-- **P324** Begleit-App, Speicherzahlen (80): Es sind drei verschiedene Zahlen und der Bericht nennt jede mit ihrer Quelle: nativer Heap
+- **P327** Begleit-App, Speicherzahlen (80): Es sind drei verschiedene Zahlen und der Bericht nennt jede mit ihrer Quelle: nativer Heap
   (`Debug.getNativeHeapAllocatedSize`, ohne eingeblendete Dateien), PSS (`Debug.MemoryInfo`) und freier Speicher des ganzen Systems
   (`ActivityManager.MemoryInfo.availMem`). Speicher, den NPU und Treiber außerhalb des Prozesses belegen, ist in keiner enthalten.
-- **P325** Begleit-App, Gradle (80): `-p companion` nimmt `companion/gradle.properties` (nicht die des Hauptprojekts). Der lokale
+- **P328** Begleit-App, Gradle (80): `-p companion` nimmt `companion/gradle.properties` (nicht die des Hauptprojekts). Der lokale
   Maven-Spiegel der Cloud-Umgebung (Init-Skript im Gradle-Benutzerordner, `docs/HANDOFF.md` → Sackgassen) setzt Projekt-Repositories und nimmt nur ein Projekt namens
   `secondhand-devicetest` aus: darum hat `companion/build.gradle.kts` wie das Hauptprojekt `allprojects { repositories {…} }` (kein
   `FAIL_ON_PROJECT_REPOSITORIES`). `pluginManagement` braucht `gradlePluginPortal()`. Das Plugin `kotlin.plugin.serialization` 2.4.0
   (`apply false`) steht nur da, damit AGP 9 mit dem Kotlin 2.4.0 des Hauptprojekts übersetzt (geprüft mit `buildEnvironment`: 2.4.0).
-- **P326** Begleit-App, Weitergabe (80): Die APK enthält Qualcomms Laufzeit (QAIRT/QNN, `llama.cpp`) und ist etwa 97 MB groß. Wegen der
+- **P329** Begleit-App, Weitergabe (80): Die APK enthält Qualcomms Laufzeit (QAIRT/QNN, `llama.cpp`) und ist etwa 97 MB groß. Wegen der
   unklaren Weitergabebedingungen wird sie nie in ein Release, einen Workflow oder das Repository gelegt (`.gitignore` deckt
   `companion/**/build` ab); sie geht nur als Datei an den Owner. Sie ist ein Debug-Build (debuggable) und für diesen Zweck so gewollt.
 

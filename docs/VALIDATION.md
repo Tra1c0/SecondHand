@@ -15,7 +15,7 @@ Emulator oder sonst irgendwo ausgeführt. Alles unten ist aus den Dateien gelese
   `ModelConfig(nCtx, nGpuLayers)`; `LlmWrapper.builder().llmCreateInput(..).build()`, `applyChatTemplate(Array<ChatMessage>, tools, enableThinking, ..)`,
   `generateStreamFlow(prompt, .., config)`, `stopStream`, `destroy`; `GenerationConfig(maxTokens)`; `ProfilingData`. Vollständige Liste im
   Bericht des Lead und in `docs/ARCHITECTURE.md` → Begleit-App. Das Beispiel der Doku für `generateStreamFlow` passt in 0.10.0 nicht
-  (P319); die Namen der Parameter bestätigt erst der Compiler.
+  (P322); die Namen der Parameter bestätigt erst der Compiler.
 - **Gebaut:** `./gradlew -p companion :app:testDebugUnitTest :app:assembleDebug` endet mit BUILD SUCCESSFUL. APK etwa 97 MB, Paket
   `dev.personal.secondhand.companion`, targetSdk 35, nur `arm64-v8a`, Berechtigung nur `INTERNET`, 52 native Bibliotheken des SDK
   (darunter `libgeniex_plugin_qairt.so`, `libQnnHtp.so`, `libQnnHtpV79*.so`, `libnpu_jni.so`), `extractNativeLibs=true`.
@@ -28,7 +28,7 @@ Emulator oder sonst irgendwo ausgeführt. Alles unten ist aus den Dateien gelese
   Erkennung des Fehlers beruht auf Strings aus `libgeniex.so`, nicht auf einem beobachteten Fehler. (2) Das Galaxy-Bundle (`SM8750-AC`)
   läuft auf einem Nicht-Galaxy-SM8750 vielleicht nicht. (3) Bundle QAIRT 2.51 gegen die gebündelte Laufzeit 2.50: Laden scheitert,
   Absturz im nativen Code oder falsche Ausgabe bei voller Geschwindigkeit. (4) Ob `enableThinking = false` bei Qwen3-4B den Denkblock wirklich
-  verhindert, ist nicht belegt. (5) Ob die Rechnung auf der NPU läuft, kann die App nur über Laufzeitkennung und Tempo vermuten (P322).
+  verhindert, ist nicht belegt. (5) Ob die Rechnung auf der NPU läuft, kann die App nur über Laufzeitkennung und Tempo vermuten (P325).
   (6) Nicht geprüft: Aussehen auf dem Telefon, Speicher- und Wärmeverhalten, Rotation (die App ist auf Hochformat fixiert), Abbruch mitten im
   Download oder in der Erzeugung, der Name der Fehlerklassen des SDK.
 - **Nicht geprüft:** `FEATURES.md` führt die Begleit-App nicht (keine Tastaturfunktion).
