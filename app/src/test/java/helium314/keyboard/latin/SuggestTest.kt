@@ -27,6 +27,8 @@ import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.settings.SettingsValuesForSuggestion
 import helium314.keyboard.latin.utils.SuggestionResults
 import helium314.keyboard.latin.utils.prefs
+import dev.agentkeyboard.core.SwappedLetters
+import kotlin.test.assertNotEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -74,6 +76,7 @@ class SuggestTest {
         EmojiSuggestions.setTableForTest(null) // no emojis unless a test loads the table
         mainLocalesKnowingWord = emptyMap()
         mainFrequencyOfWord = emptyMap()
+        mainLookups = 0
     }
 
     @Test fun `'on' to 'in' if 'in' was used before in this context`() {
@@ -1161,19 +1164,24 @@ class SuggestTest {
     }
 
     // fork, stage 75: "idr" -> "dir". The native dictionary cannot run here: the frequencies are those of the real main
-    // dictionaries (dir 108, die 211, und 213, nicht 183 in German, the 222 in English), the engine's results are fixed.
+    // dictionaries, the engine's results are fixed.
+    private val deFrequencies = mapOf("dir" to 108, "mir" to 125, "dich" to 112, "die" to 211, "und" to 213, "nicht" to 183,
+        "sie" to 184, "sei" to 154, "bei" to 186, "ich" to 139, "ebd" to 101)
+    private val enFrequencies = mapOf("the" to 222, "and" to 212, "for" to 196, "you" to 171, "are" to 186, "hub" to 119, "sub" to 131)
     private val andNgram get() = NgramContext(NgramContext.WordInfo("und"))
 
     private fun swapped(typed: String, locale: Locale = Locale.GERMAN, caps: CapsMode = CapsMode.OFF,
-                        engine: List<SuggestedWordInfo> = emptyList(), known: List<String> = emptyList()): SuggestedWords {
+                        engine: List<SuggestedWordInfo> = emptyList(), known: Map<String, List<Locale>> = emptyMap(),
+                        confidence: Float = confidenceVeryAggressive): SuggestedWords {
         currentTypingLocale = locale
-        enableAutocorrect(confidenceVeryAggressive)
-        mainFrequencyOfWord = mapOf("dir" to 108, "die" to 211, "und" to 213, "nicht" to 183, "the" to 222, "sie" to 184,
-            "sei" to 154, "bei" to 186, "lade" to 150)
-        mainLocalesKnowingWord = known.associateWith { listOf(locale) }
+        enableAutocorrect(confidence)
+        mainFrequencyOfWord = mapOf("de" to deFrequencies, "en" to enFrequencies)
+        mainLocalesKnowingWord = known
         tapTypingSuggestions = suggestionResults(engine)
         return getSuggestedWords(false, typed, caps, andNgram)
     }
+
+    private fun knownTo(vararg words: String, locale: Locale = Locale.GERMAN) = words.associateWith { listOf(locale) }
 
     private fun SuggestedWords.correction(): String? =
         if (mWillAutoCorrect) getWord(SuggestedWords.INDEX_OF_AUTO_CORRECTION) else null
@@ -1185,6 +1193,7 @@ class SuggestTest {
         assertEquals("dir", swapped("idr").correction(), "also when the engine offered nothing")
         assertEquals("die", swapped("dei").correction())
         assertEquals("nicht", swapped("nciht").correction())
+        assertEquals("mir", swapped("mri").correction())
         // the normal path is not broken: the engine's own hit for "udn" is the same word
         assertEquals("und", swapped("udn", engine = listOf(suggestion("und", 650000, Locale.GERMAN))).correction())
         assertEquals("und", swapped("udn").correction())
@@ -1193,45 +1202,131 @@ class SuggestTest {
         assertTrue(swapped("idr").mSuggestedWordInfoList.any { it.mWord == "idr" })
     }
 
-    @Test fun `stage 75 capitalisation follows the typed word`() {
+    @Test fun `stage 75 capitalisation follows the typed word, a capital inside the word stops the rule`() {
         assertEquals("Dir", swapped("Idr", caps = CapsMode.MANUAL).correction())
-        assertEquals("DIR", swapped("IDR", caps = CapsMode.MANUAL_LOCKED).correction())
         assertEquals("dir", swapped("idr", caps = CapsMode.OFF).correction())
+        // a capital after the first letter: unchanged
+        assertNull(swapped("idR", caps = CapsMode.OFF).correction())
+        assertNull(swapped("IDR", caps = CapsMode.MANUAL_LOCKED).correction())
+        assertNull(swapped("BSi", caps = CapsMode.OFF).correction())
     }
 
     @Test fun `stage 75 a valid word, an ambiguity and an uncommon candidate change nothing`() {
         assertEquals("dir", swapped("idr").correction()) // control
         // both words exist: "sie" is never turned into "sei" nor the other way round (also with a better engine hit)
-        assertNull(swapped("sie", known = listOf("sie", "sei"), engine = listOf(suggestion("sie", 1500000, Locale.GERMAN))).correction())
-        assertNull(swapped("sei", known = listOf("sie", "sei"), engine = listOf(suggestion("sei", 1500000, Locale.GERMAN))).correction())
-        assertNull(swapped("bei", known = listOf("bei")).correction())
+        assertNull(swapped("sie", known = knownTo("sie", "sei"), engine = listOf(suggestion("sie", 1500000, Locale.GERMAN))).correction())
+        assertNull(swapped("sei", known = knownTo("sie", "sei"), engine = listOf(suggestion("sei", 1500000, Locale.GERMAN))).correction())
+        assertNull(swapped("bei", known = knownTo("bei")).correction())
         // a typed word that only the personal dictionary knows
         val personal = SuggestedWordInfo("idr", "", 200000, KIND_FLAG_APPROPRIATE_FOR_AUTO_CORRECTION,
             Dictionary.PhonyDictionary(Dictionary.TYPE_USER), 0, 0)
         assertNull(swapped("idr", engine = listOf(personal)).correction())
         // two qualifying swaps: "ide" can become "die" and "ied"
         assertEquals("die", swapped("ide").correction(), "control: one swap qualifies")
-        mainFrequencyOfWord = mapOf("die" to 211, "ied" to 150)
+        mainFrequencyOfWord = mapOf("de" to mapOf("die" to 211, "ied" to 150))
         assertNull(getSuggestedWords(false, "ide", CapsMode.OFF, andNgram).correction())
         // the candidate is a word, but not a very common one
-        mainFrequencyOfWord = mapOf("dir" to 60)
+        mainFrequencyOfWord = mapOf("de" to mapOf("dir" to 60))
         assertNull(getSuggestedWords(false, "idr", CapsMode.OFF, andNgram).correction())
         // the candidate cannot be judged
         mainFrequencyOfWord = emptyMap()
         assertNull(getSuggestedWords(false, "idr", CapsMode.OFF, andNgram).correction())
     }
 
-    @Test fun `stage 75 only words of three to five letters, only letters`() {
+    // the reviewer's finding: a noun that exists only capitalised is unknown in lower case, so "ort" became "rot"
+    @Test fun `stage 75 a word that exists only capitalised stays as typed`() {
+        // frequencies of the swaps are taken as very common here (the real ones differ); only the typed word is under test
+        val common = mapOf("rot" to 150, "erst" to 150, "bis" to 150, "eher" to 150)
+        fun typed(word: String, known: Map<String, List<Locale>> = emptyMap(), engine: List<SuggestedWordInfo> = emptyList()): String? {
+            swapped(word, known = known, engine = engine)
+            mainFrequencyOfWord = mapOf("de" to deFrequencies + common)
+            return getSuggestedWords(false, word, CapsMode.OFF, andNgram).correction()
+        }
+        // control: unknown, the swap is common
+        assertEquals("rot", typed("ort"))
+        // the engine's first suggestion is the capitalised word
+        // (the engine's own case correction "Ort" may stay, the swap "rot" must not appear)
+        for ((word, capital) in listOf("ort" to "Ort", "rest" to "Rest", "bsi" to "BSI")) {
+            val c = typed(word, engine = listOf(suggestion(capital, 600000, Locale.GERMAN)))
+            assertTrue(c == null || c == capital, "$word -> $c")
+        }
+        // the dictionary knows the capitalised or upper case form, the engine says nothing
+        assertNull(typed("ort", known = knownTo("Ort")))
+        assertNull(typed("rest", known = knownTo("Rest")))
+        assertNull(typed("bsi", known = knownTo("BSI")))
+        assertNull(typed("ehre", known = knownTo("Ehre")))
+        // only a main-dictionary result knows it (the engine's first suggestion is something else)
+        assertNotEquals("rot", typed("ort", engine = listOf(suggestion("ost", 300000, Locale.GERMAN), suggestion("Ort", 200000, Locale.GERMAN))))
+    }
+
+    @Test fun `stage 75 the engine's own correction wins, the same word is fine`() {
+        val engine = listOf(suggestion("dich", 700000, Locale.GERMAN))
+        // the engine corrects "idr" to another word than the swap: the engine's wins
+        assertEquals("dich", swapped("idr", engine = engine).correction())
+        // the engine corrects to the swap itself
+        assertEquals("dir", swapped("idr", engine = listOf(suggestion("dir", 700000, Locale.GERMAN))).correction())
+        // and a case-only change of the typed word is not replaced by the swap
+        mainFrequencyOfWord = mapOf("de" to deFrequencies + mapOf("rot" to 150))
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("Ort", 700000, Locale.GERMAN)))
+        val c = getSuggestedWords(false, "ort", CapsMode.OFF, andNgram).correction()
+        assertTrue(c == null || c == "Ort", "ort -> $c")
+    }
+
+    @Test fun `stage 75 only the keyboard language is judged, a word of any active language stays`() {
+        val titel = knownTo("Titel", locale = Locale.GERMAN)
+        val title = mapOf("en" to mapOf("title" to 200, "foot" to 200))
+        // German keyboard, "titel" is a German word, "title" an English one: stays
+        mainFrequencyOfWord = title
+        assertNull(swapped("titel", known = titel).correction())
+        // "tilte" is unknown, its only swap is the English "title": not corrected on the German keyboard
+        swapped("tilte")
+        mainFrequencyOfWord = title + ("de" to deFrequencies)
+        assertNull(getSuggestedWords(false, "tilte", CapsMode.OFF, andNgram).correction())
+        // the same word in the English keyboard language is corrected
+        currentTypingLocale = Locale.ENGLISH
+        assertEquals("title", getSuggestedWords(false, "tilte", CapsMode.OFF, andNgram).correction())
+        // the German swap on the German keyboard still works, "teh" on the English one
+        assertEquals("dir", swapped("idr").correction())
+        assertEquals("the", swapped("teh", Locale.ENGLISH).correction())
+        // a word known to another active language is never changed ("the" typed on the German keyboard: swap "teh" is no word anyway)
+        assertNull(swapped("sie", known = knownTo("sie", locale = Locale.ENGLISH)).correction())
+    }
+
+    @Test fun `stage 75 thresholds per language`() {
+        // German 105: dir 108 in, ebd 101 out
+        assertEquals("dir", swapped("idr").correction())
+        assertNull(swapped("deb").correction(), "ebd 101 is below 105")
+        // English 150: "the" 222 in, "hub" 119 and "sub" 131 out
+        assertEquals("the", swapped("teh", Locale.ENGLISH).correction())
+        assertNull(swapped("uhb", Locale.ENGLISH).correction())
+        assertNull(swapped("usb", Locale.ENGLISH).correction())
+        assertEquals("you", swapped("yuo", Locale.ENGLISH).correction())
+        // another language: 130
+        assertEquals(130, SwappedLetters.minFrequency("fr"))
+        mainFrequencyOfWord = mapOf("fr" to mapOf("les" to 129, "des" to 130))
+        currentTypingLocale = Locale.FRENCH
+        assertNull(getSuggestedWords(false, "lse", CapsMode.OFF, andNgram).correction())
+        assertEquals("des", getSuggestedWords(false, "dse", CapsMode.OFF, andNgram).correction())
+    }
+
+    @Test fun `stage 75 only words of three to five letters, only letters, and no lookup for the others`() {
         assertEquals("dir", swapped("idr").correction()) // control
-        mainFrequencyOfWord = mainFrequencyOfWord + mapOf("di" to 200, "nicths" to 200, "-ir" to 200, "d'r" to 200, "ird" to 200)
+        mainFrequencyOfWord = mapOf("de" to deFrequencies + mapOf("di" to 200, "nicths" to 200, "-ir" to 200, "d'r" to 200, "ird" to 200))
+        mainLookups = 0
         for (word in listOf("id", "nciths", "i-r", "id'", "xidr1")) {
             assertNull(getSuggestedWords(false, word, CapsMode.OFF, andNgram).correction(), word)
         }
+        assertEquals(0, mainLookups, "the rule asks no dictionary for a word it cannot change")
     }
 
     @Test fun `stage 75 slang and own words stay as typed`() {
-        // "alde" is on the list of informal words, its swap "lade" is made very common here
-        assertNull(swapped("alde").correction(), "listed slang word")
+        // "alde" is on the list of informal words; its swap "lade" (real frequency 52) is made very common here on
+        // purpose, so that only the protection of the listed word can keep it
+        swapped("alde")
+        mainFrequencyOfWord = mapOf("de" to deFrequencies + mapOf("lade" to 150))
+        assertNull(getSuggestedWords(false, "alde", CapsMode.OFF, andNgram).correction(), "listed slang word")
+        mainFrequencyOfWord = mapOf("de" to deFrequencies + mapOf("lade" to 52))
+        assertNull(getSuggestedWords(false, "alde", CapsMode.OFF, andNgram).correction(), "and with the real frequency")
         // an own word of the memory (here a remembered abbreviation)
         latinIME.prefs().edit { putBoolean(AgentPreferences.MEMORY, true) }
         helium314.keyboard.agent.Memory.resetForTest()
@@ -1245,12 +1340,14 @@ class SuggestTest {
         }
     }
 
-    @Test fun `stage 75 the switch, autocorrect off, gestures and a learned pair`() {
+    @Test fun `stage 75 the switch, autocorrect off, the gentlest strength, gestures and a learned pair`() {
         assertEquals("dir", swapped("idr").correction()) // control
         latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_SWAPPED_LETTERS, false) }
         assertNull(swapped("idr").correction(), "switched off")
         latinIME.prefs().edit { remove(AgentPreferences.AUTOCORRECT_SWAPPED_LETTERS) }
         assertEquals("dir", swapped("idr").correction(), "default is on")
+        // the rule is deterministic and narrow: it fires at the gentlest strength too
+        assertEquals("dir", swapped("idr", confidence = confidenceModest).correction(), "gentlest strength")
 
         latinIME.prefs().edit { putBoolean(Settings.PREF_AUTO_CORRECTION, false) }
         assertNull(getSuggestedWords(false, "idr", CapsMode.OFF, andNgram).correction(), "autocorrect off")
@@ -1265,18 +1362,12 @@ class SuggestTest {
         assertEquals("ihr", swapped("idr").correction())
     }
 
-    @Test fun `stage 75 the correction is an ordinary one that can be reverted`() {
+    @Test fun `stage 75 the correction can be reverted and is not applied again once rejected`() {
         val words = swapped("idr")
         assertEquals("dir", words.correction())
-        // what InputLogic takes: the first suggestion after the typed word is the automatic correction
-        val candidate = words.getInfo(SuggestedWords.INDEX_OF_AUTO_CORRECTION)
-        // Backspace right after it: the pair stays rejected at that position (stage 72), as for every other correction
-        val typedFirst = helium314.keyboard.agent.TypedWordFirst()
-        typedFirst.corrected(12, candidate.mWord, "idr")
-        typedFirst.reverted(12, "idr")
-        assertTrue(typedFirst.rejects(12, "idr", "dir"))
-        assertFalse(typedFirst.rejects(13, "idr", "dir"))
-        // and, with remembering on, the pair is not applied again anywhere, "dir" stays a suggestion
+        // the first suggestion after the typed word is the automatic correction (what InputLogic takes)
+        assertEquals("dir", words.getInfo(SuggestedWords.INDEX_OF_AUTO_CORRECTION).mWord)
+        // with remembering on, a rejected pair is not applied again anywhere, "dir" stays a suggestion
         latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_REMEMBER_REJECTED, true) }
         RejectedCorrections.remember(latinIME, "idr", "dir", Settings.getValues())
         val again = swapped("idr", engine = listOf(suggestion("dir", 300000, Locale.GERMAN)))
@@ -1367,8 +1458,10 @@ private var glideTypingSuggestions = suggestionResults(emptyList())
 private var nextWordSuggestions = suggestionResults(emptyList())
 /** Stage 60: the languages whose main dictionary knows a (lower case) word, for the previous words of a sentence. */
 private var mainLocalesKnowingWord = emptyMap<String, List<Locale>>()
-/** Stage 75: the main-dictionary frequency (0..255) of a lower case word; unknown words give no frequency. */
-private var mainFrequencyOfWord = emptyMap<String, Int>()
+/** Stage 75: per language code, the main-dictionary frequency (0..255) of a lower case word; unknown words give no frequency. */
+private var mainFrequencyOfWord = emptyMap<String, Map<String, Int>>()
+/** Stage 75: how many main-dictionary lookups (known languages, frequency) the shadow answered. */
+private var mainLookups = 0
 
 fun suggestion(word: String, score: Int, locale: Locale = currentTypingLocale, shortcut: Boolean = false) =
     SuggestedWordInfo(
@@ -1398,9 +1491,16 @@ class ShadowFacilitator {
     @Implementation
     fun hasAtLeastOneInitializedMainDictionary() = true // otherwise no autocorrect
     @Implementation
-    fun mainLocalesKnowing(word: String): List<Locale> = mainLocalesKnowingWord[word.lowercase()].orEmpty()
+    // like production: the word as written or in lower case, nothing else (a word that exists only capitalised is not known in lower case)
+    fun mainLocalesKnowing(word: String): List<Locale> {
+        mainLookups++
+        return (mainLocalesKnowingWord[word] ?: mainLocalesKnowingWord[word.lowercase()]).orEmpty()
+    }
     @Implementation
-    fun mainFrequency(word: String): Int = mainFrequencyOfWord[word] ?: Dictionary.NOT_A_PROBABILITY
+    fun mainFrequency(word: String, language: String): Int {
+        mainLookups++
+        return mainFrequencyOfWord[language]?.get(word) ?: Dictionary.NOT_A_PROBABILITY
+    }
     @Implementation
     // what is relevant for facilitator?
     // only detecting whether we want next word suggestions (typed word empty and not batch mode)

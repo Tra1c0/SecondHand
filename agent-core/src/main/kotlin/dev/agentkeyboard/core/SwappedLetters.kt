@@ -10,7 +10,7 @@ import java.util.Locale
  *
  * The rule is deliberately narrow: only a typed word of [MIN_LETTERS] to [MAX_LETTERS] letters that no
  * dictionary knows, only the swap of exactly one pair of different adjacent letters, only a result
- * whose frequency in the main dictionary is at least [MIN_FREQUENCY], and only when exactly one swap
+ * whose frequency in the main dictionary of the keyboard language reaches the threshold of that language ([minFrequency]), and only when exactly one swap
  * qualifies (two qualifying swaps are a real ambiguity: nothing is corrected).
  */
 object SwappedLetters {
@@ -18,12 +18,25 @@ object SwappedLetters {
     const val MAX_LETTERS = 5
 
     /**
-     * Smallest dictionary frequency (the 0..255 unigram probability of the main dictionaries; "ich" 139,
-     * "nicht" 183, "und" 213, "dir" 108 in the German dictionary, "the" 222, "and" 212 in the English one)
-     * that counts as very common. About the 700 most frequent words of three to five letters in German
-     * and the 2500 most frequent in English reach it.
+     * Smallest dictionary frequency (the 0..255 unigram probability of the main dictionary of the keyboard
+     * language) that counts as very common, per language. Values read from the real dictionaries:
+     * - German 105: "dir" 108, "mir" 125, "dich" 112, "ich" 139, "die" 211, "und" 213 qualify; "ebd" 101
+     *   (an abbreviation) does not.
+     * - English 150: "the" 222, "and" 212, "for" 196, "you" 171, "are" 186 qualify; short words that are
+     *   merely known, such as "hub" 119, "bat" 117, "duo" 122, "inch" 126, "sub" 131, do not.
+     * - Any other language 130 (not reviewed yet, so on the cautious side).
      */
-    const val MIN_FREQUENCY = 100
+    const val MIN_FREQUENCY_DE = 105
+    const val MIN_FREQUENCY_EN = 150
+    const val MIN_FREQUENCY_OTHER = 130
+
+    /** The threshold for the language code ("de", "en", ...) of the keyboard language. */
+    @JvmStatic
+    fun minFrequency(language: String): Int = when (language.lowercase(Locale.ROOT)) {
+        "de" -> MIN_FREQUENCY_DE
+        "en" -> MIN_FREQUENCY_EN
+        else -> MIN_FREQUENCY_OTHER
+    }
 
     /** The distinct words that arise from [word] by swapping one pair of adjacent, different letters. */
     @JvmStatic
@@ -40,16 +53,21 @@ object SwappedLetters {
     }
 
     /**
-     * The lower case word that [typed] most likely means, or null. [typedIsKnown]: some dictionary knows
-     * the typed word (then it is never changed). [frequencyOf] gives the main-dictionary frequency of a
-     * lower case word, anything below zero when it is unknown or cannot be judged (the word is then
-     * not a candidate).
+     * The lower case word that [typed] most likely means, or null. [language]: language code of the keyboard
+     * language (chooses the threshold). [typedIsKnown]: some dictionary of any active language knows the
+     * typed word in some case (then it is never changed); asked only after the cheap checks (3 to 5 letters,
+     * only letters, no capital after the first letter), so a longer or shorter word costs no lookup.
+     * [frequencyOf] gives the frequency of a lower case word in the dictionary of the keyboard language,
+     * anything below zero when it is unknown or cannot be judged (the word is then not a candidate).
      */
     @JvmStatic
-    fun candidate(typed: String, typedIsKnown: Boolean, frequencyOf: (String) -> Int): String? {
-        if (typedIsKnown || typed.length < MIN_LETTERS || typed.length > MAX_LETTERS || !typed.all { it.isLetter() }) return null
+    fun candidate(typed: String, language: String, typedIsKnown: () -> Boolean, frequencyOf: (String) -> Int): String? {
+        if (typed.length < MIN_LETTERS || typed.length > MAX_LETTERS || !typed.all { it.isLetter() }) return null
+        if (typed.drop(1).any { it.isUpperCase() }) return null
+        if (typedIsKnown()) return null
         val lower = typed.lowercase(Locale.ROOT)
-        val qualifying = swaps(lower).filter { it != lower && frequencyOf(it) >= MIN_FREQUENCY }
+        val minimum = minFrequency(language)
+        val qualifying = swaps(lower).filter { it != lower && frequencyOf(it) >= minimum }
         return qualifying.singleOrNull()
     }
 }

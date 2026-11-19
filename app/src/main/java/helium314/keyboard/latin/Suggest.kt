@@ -137,8 +137,10 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         val learnedCorrection = applyLearnedCorrection(typedWordString, capsMode, ngramContext, suggestionResults,
             suggestionsContainer, isCorrectionEnabled, wordComposer) { after }
         // fork, stage 75: a very common short word with two swapped letters ("idr" -> "dir"); a learned pair keeps priority
-        val hasAutoCorrection = learnedCorrection || applySwappedLetters(typedWordString, capsMode, suggestionResults,
-            suggestionsContainer, isCorrectionEnabled, wordComposer) || guardedAutoCorrection
+        // (only when the engine has no correction of its own, or the same one; the German verb preference keeps priority)
+        val engineCorrection = if (guardedAutoCorrection) suggestionsContainer.firstOrNull()?.mWord else null
+        val hasAutoCorrection = learnedCorrection || applySwappedLetters(typedWordString, capsMode, ngramContext, suggestionResults,
+            suggestionsContainer, isCorrectionEnabled, wordComposer, engineCorrection) { after } || guardedAutoCorrection
         // fork, stage 46: own words of the memory (offered while typing, behind the correction) and its next word
         addFromMemory(typedWordString, resultsArePredictions, suggestionResults, suggestionsContainer, ngramContext, hasAutoCorrection)
         // fork, stage 51: words of other languages the owner kept (offered while typing, behind the correction)
@@ -274,8 +276,9 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
      * and the rejected-pair memory treat it like every other one.
      */
     private fun applySwappedLetters(
-        typed: String, capsMode: CapsMode, results: SuggestionResults, suggestions: ArrayList<SuggestedWordInfo>,
-        isCorrectionEnabled: Boolean, wordComposer: WordComposer,
+        typed: String, capsMode: CapsMode, ngramContext: NgramContext, results: SuggestionResults,
+        suggestions: ArrayList<SuggestedWordInfo>, isCorrectionEnabled: Boolean, wordComposer: WordComposer,
+        engineCorrection: String?, followingText: () -> CharSequence?,
     ): Boolean {
         val settings = Settings.getValues()
         val facilitator = mDictionaryFacilitator as? DictionaryFacilitatorImpl ?: return false
@@ -287,22 +290,38 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
             || !facilitator.hasAtLeastOneInitializedMainDictionary()) return false
         // a dictionary shortcut or whitelist entry is a wish of the owner or the dictionary
         if (suggestions.firstOrNull()?.let { it.isKindOf(SuggestedWordInfo.KIND_SHORTCUT) || it.isKindOf(SuggestedWordInfo.KIND_WHITELIST) } == true) return false
-        // known to a main dictionary, to the personal dictionary, the contacts or the apps: stays as typed
-        // (the typing history does not count: it also keeps words typed wrongly)
-        val known = facilitator.mainLocalesKnowing(typed).isNotEmpty() || results.any {
-            it.mWord.equals(typed, ignoreCase = true) && (it.mSourceDict.mDictType == Dictionary.TYPE_USER
-                || it.mSourceDict.mDictType == Dictionary.TYPE_CONTACTS || it.mSourceDict.mDictType == Dictionary.TYPE_APPS)
+        // the engine's first suggestion is the typed word in another case ("ort" -> "Ort"): a known word, stays
+        if (suggestions.firstOrNull()?.mWord.equals(typed, ignoreCase = true)) return false
+        // the typed word is known to a main dictionary of any active language as typed, in lower case, with a
+        // capital first letter or in upper case ("Ort", "BSI"), or a main-dictionary result is the typed word in
+        // some case, or the personal dictionary, the contacts or the apps know it (the typing history does not
+        // count: it also keeps words typed wrongly). Asked only for 3 to 5 letters ([SwappedLetters.candidate]).
+        val locale = facilitator.mainLocale
+        val known = {
+            listOf(typed, typed.replaceFirstChar { it.uppercase(locale) }, typed.uppercase(locale)).any { facilitator.mainLocalesKnowing(it).isNotEmpty() } ||
+            results.any {
+                it.mWord.equals(typed, ignoreCase = true) && (it.mSourceDict.mDictType == Dictionary.TYPE_MAIN
+                    || it.mSourceDict.mDictType == Dictionary.TYPE_USER || it.mSourceDict.mDictType == Dictionary.TYPE_CONTACTS
+                    || it.mSourceDict.mDictType == Dictionary.TYPE_APPS)
+            }
         }
-        val meant = SwappedLetters.candidate(typed, known) { facilitator.mainFrequency(it) } ?: return false
+        // the candidate is judged only in the dictionary of the keyboard language
+        val language = locale.language
+        val meant = SwappedLetters.candidate(typed, language, known) { facilitator.mainFrequency(it, language) } ?: return false
+        // the engine's own correction wins unless it is the same word
+        if (engineCorrection != null && !engineCorrection.equals(meant, ignoreCase = true)) return false
         val context = Settings.getCurrentContext()
         // stage 46 / 71 / 51: own words, slang and kept words of another language stay as typed
         if (helium314.keyboard.agent.Memory.isOwnWord(context, typed)) return false
-        val language = ForeignWords.languageOf(settings)
-        if (helium314.keyboard.agent.InformalWordsStore.protects(context, typed, language, facilitator.mainLocale.language)) return false
-        if (ForeignWords.isRemembered(context, settings, language, typed)) return false
+        val learnLanguage = ForeignWords.languageOf(settings)
+        if (helium314.keyboard.agent.InformalWordsStore.protects(context, typed, learnLanguage, language)) return false
+        if (ForeignWords.isRemembered(context, settings, learnLanguage, typed)) return false
         // stage 20a: a correction the owner undid is not applied again
         if (settings.mRememberRejectedCorrections && context != null && RejectedCorrections.contains(context, typed, meant)) return false
         val wanted = capitalize(meant, capsMode, facilitator.mainLocale)
+        // stage 72: the German verb preference keeps priority, as over a learned correction
+        if (settings.mContextualAutocorrection && learnLanguage == "de" &&
+            preferredGermanVerb(typed, wanted, suggestions, results, ngramContext, followingText) != null) return false
         val index = suggestions.indexOfFirst { it.mWord == wanted }
         val info = if (index >= 0) suggestions.removeAt(index)
             else SuggestedWordInfo(wanted, "", SuggestedWordInfo.MAX_SCORE, SuggestedWordInfo.KIND_CORRECTION,

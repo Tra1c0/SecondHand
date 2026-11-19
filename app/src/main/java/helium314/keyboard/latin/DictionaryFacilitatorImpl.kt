@@ -592,11 +592,13 @@ class DictionaryFacilitatorImpl : DictionaryFacilitator {
     }.map { it.locale }
 
     /**
-     * Fork, stage 75: the highest frequency (0..255, below zero when unknown) that a main dictionary of any
-     * active language gives [word] exactly as written; a blacklisted word is unknown. Read-only, takes no
-     * lock, for the suggestion thread.
+     * Fork, stage 75: the highest frequency (0..255, below zero when unknown) that the main dictionary of
+     * the dictionary groups of [language] (a language code such as "de") gives [word] exactly as written;
+     * a blacklisted word is unknown, and so is every word when no active group has that language. Only the
+     * keyboard language is judged, never the other active languages. Read-only, takes no lock, for the
+     * suggestion thread.
      */
-    fun mainFrequency(word: String): Int = dictionaryGroups.maxOfOrNull {
+    fun mainFrequency(word: String, language: String): Int = dictionaryGroups.filter { it.locale.language == language }.maxOfOrNull {
         if (word.isEmpty() || it.isBlacklisted(word)) Dictionary.NOT_A_PROBABILITY
         else it.getDict(Dictionary.TYPE_MAIN)?.getFrequency(word) ?: Dictionary.NOT_A_PROBABILITY
     } ?: Dictionary.NOT_A_PROBABILITY
