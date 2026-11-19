@@ -1,5 +1,30 @@
 # Prüfnachweise
 
+## Bestandsprüfung Datenschutzregeln und zwei Korrekturen (2026-11-19)
+
+- Lesende Prüfung der Regeln (Netz nur nach Freigabe, kein Logging von Inhalten, kein automatisches Ersetzen,
+  sensible Felder und Sperrzustand, Schlüssel nur in der App, keine Erweiterung durch Modellantwort oder Import)
+  durch einen Prüfer; kein schwerer Befund. Nicht geprüft: `PointerTracker`/`InputLogic`, Laufzeitverhalten,
+  ob Lernspeicher in der Sicherung landen, `agent-core` über `ExecutionPolicy` hinaus.
+- Behoben: Sperrzustand in `KeyboardCommands.isBlocked` (P309; `LiveLockGateTest` 2/2, Rot-Nachweis ohne die
+  Korrektur: beide Tests „Expected value to be true“) und Logging in `ScreenshotChip` (P310, fünf Stellen, ohne Test).
+  Tests der berührten Klassen grün laut Bericht des Agenten (ScreenshotChipTest 15, EmojiMix* 29, CommandSystemTest 27,
+  UrlCommandTest 13, QrCommandTest 7); der GitHub-Lauf für diesen Stand steht aus.
+- Offen, nicht behoben: Debug-Modus aus dem Upstream loggt Wörter (`InputLogic.java`, `Suggest.kt`, nur mit
+  eingeschaltetem Debug-Schalter); Wiederherstellen schreibt jeden Einstellungsschlüssel aus der Sicherung;
+  Update-Download folgt Weiterleitungen zu jedem HTTPS-Host (Prüfsumme und Signatur werden geprüft);
+  Emoji-Mixer lädt beim Wählen des zweiten Emojis. Die Update-Abfrage beim Öffnen ist eine Owner-Entscheidung (56).
+
+## Gerätetests — Stand nach Lauf 38 (2026-11-19)
+
+- Lauf 36 (1f730fe): 20 von 21 bestanden; `clipboard_not_readable_in_password` PASS (Korrektur P308 bestätigt).
+- Lauf 38 (4a11fb9, drei Emulatoren, 22 Szenarien): 20, 21 und 21 bestanden. `prompt_store` 3/3 PASS.
+  `autofill_inline` 3/3 FAIL: Ursache in der Test-App (P311), nicht in der Tastatur.
+  `autocorrect_typo_in_sentence` 1/3 FAIL („… es idr “ blieb stehen, Leiste zeigte noch die Vorschläge für „id“);
+  in den Läufen 26 und 31–36 bestanden. Ursache nicht geklärt (Vermutung: Vorschläge kamen im langsamen Emulator
+  zu spät); gilt als unzuverlässig, nicht als bestanden.
+- „SecondHand Tests“ Lauf 138 (4a11fb9): alle vier Jobs grün.
+
 ## Korrektur — Pille im Passwortfeld zeigt Sternchen (2026-11-19)
 
 - Befund aus den Gerätetest-Läufen 26 und 31–35 (`clipboard_not_readable_in_password` FAIL): Der Text der Pille war

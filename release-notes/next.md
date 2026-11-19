@@ -5,6 +5,8 @@
 - **Buchstabendreher**: Sehr häufige kurze Wörter mit zwei vertauschten Buchstaben werden korrigiert („idr“ wird „dir“). Die Rücktaste direkt danach holt das getippte Wort zurück. Ausschalten: Einstellungen → Tippen & Korrektur → Regeln → **Buchstabendreher**.
 - Die Zwischenablage-Pille kommt für jeden neu kopierten Text wieder, auch wenn du sie vorher getippt oder geschlossen hast und den Zwischenablage-Verlauf ausgeschaltet hast.
 - In einem Passwortfeld zeigt die Zwischenablage-Pille den kopierten Text jetzt als Sternchen statt im Klartext. Der Fehler stammt aus HeliBoard und wurde im Emulator-Test gefunden.
+- Befehle wie @clip, @snip, @url und der Emoji-Mixer fragen den Sperrzustand jetzt bei jedem Tipp neu ab, nicht nur beim Öffnen des Feldes.
+- Der Screenshot-Chip schreibt bei Fehlern nur noch die Fehlerklasse ins Systemprotokoll, keine Pfade.
 - Der Hinweis „Build … verfügbar“ in der Leiste erscheint nicht mehr in Passwortfeldern.
 - Die Tastatur meldet Bedienungshilfen (Screenreadern) die Lage ihrer Tasten jetzt genauer.
 

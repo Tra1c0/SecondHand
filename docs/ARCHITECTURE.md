@@ -5947,13 +5947,21 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
   unmarkierten Clip. Wer das Ergebnis mit `?.let { return it }` auswertet, fragt das Passwortfeld nie ab
   (`ClipboardHistoryManager.isClipSensitive`, Gerätetest-Lauf 26: Klartext in der Pille im Passwortfeld). Immer
   `== true` vergleichen. Test: `SmartPasteChipsTest.aPasswordFieldShowsAnUnmarkedClipAsStarsInThePill`.
+- **P309** `SettingsValues.mIsLocked` wird nur beim Feldstart gesetzt. Jede Sperre (`isBlocked`) muss zusätzlich
+  `LockState.isLocked(context)` fragen, sonst gilt sie nicht, wenn das Gerät bei offenem Feld gesperrt wird.
+  `KeyboardCommands.isBlocked` merkt sich dafür den Kontext in `loadNow`. Test: `LiveLockGateTest`.
+- **P310** Im Agent-Paket nie ein Throwable an `Log` übergeben (Meldung und Stacktrace können Pfade oder URIs
+  enthalten), nur `e.javaClass.simpleName`. Kein Test erzwingt das.
+- **P311** Ein Test-`AutofillService` braucht `android:supportsInlineSuggestions="true"` in seiner
+  `android.autofill`-Metadatei, sonst fragt das System die Tastatur nie (`dumpsys autofill`:
+  „Inline Suggestions Enabled: false“, Gerätetest-Lauf 38).
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (678 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (680 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -5988,7 +5996,7 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (112): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (113): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, CharArtWindowTest, ClipCachesTest, ClipCommandTest, ClipVaultTest,
@@ -6000,20 +6008,20 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
   FlatStyleTest, ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest,
   HardeningClipHistoryTest, InformalWordsStoreTest, InsertAtCursorTest, JournaledModelCallTest,
   KeyNodePositionTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LastFieldTest,
-  LearningDataTest, LoadingDotsViewTest, LongTextBudgetTest, ManualWorkflowDraftTest,
-  MemoryScreenTest, MoreCommandsTest, MoreProvidersTest, MyDataScreenTest, MyDataStoreTest,
-  MyDesignsTest, OpenAiProviderTest, PromptStoreTest, PromptsScreenTest, PromptsWindowTest,
-  RgbFrameRateCardTest, RgbLightingRenderTest, RgbPatternEditorTest, RgbSettingsScreenTest,
-  RgbTilesTest, ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest, SettingsAreaAiTest,
-  SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest, SettingsKitTest,
-  SettingsLookScreenTest, SettingsSearchTest, SettingsStartScreenTest, SettingsSystemAreaTest,
-  SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest,
-  SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest, StripRequestsTest,
-  SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest, TouchModelTest,
-  TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest, TypingPerfTest, TypoMemoryTest,
-  UpdateCheckTest, UpdateChipTest, UpdateOnOpenTest, UpdatePromptsTest, WorkflowBuilderContractTest,
-  WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
-  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  LearningDataTest, LiveLockGateTest, LoadingDotsViewTest, LongTextBudgetTest,
+  ManualWorkflowDraftTest, MemoryScreenTest, MoreCommandsTest, MoreProvidersTest, MyDataScreenTest,
+  MyDataStoreTest, MyDesignsTest, OpenAiProviderTest, PromptStoreTest, PromptsScreenTest,
+  PromptsWindowTest, RgbFrameRateCardTest, RgbLightingRenderTest, RgbPatternEditorTest,
+  RgbSettingsScreenTest, RgbTilesTest, ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest,
+  SettingsAreaAiTest, SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest,
+  SettingsKitTest, SettingsLookScreenTest, SettingsSearchTest, SettingsStartScreenTest,
+  SettingsSystemAreaTest, SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest,
+  SliderFeelTest, SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest,
+  StripRequestsTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest,
+  TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest, TypingPerfTest,
+  TypoMemoryTest, UpdateCheckTest, UpdateChipTest, UpdateOnOpenTest, UpdatePromptsTest,
+  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
+  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, LongCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
   TranslateCommandTest, UrlCommandTest
@@ -6148,8 +6156,8 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
 - `tools/devicetest/` (3): build.gradle, devicetest, settings.gradle
 - `tools/devicetest/app/` (1): build.gradle
 - `tools/devicetest/app/src/main/` (1): AndroidManifest
-- `tools/devicetest/app/src/main/java/dev/personal/secondhand/devicetest/` (3): DumpProvider,
-  MainActivity, ProbeAccessibilityService
+- `tools/devicetest/app/src/main/java/dev/personal/secondhand/devicetest/` (4): DumpProvider,
+  FakeAutofillService, MainActivity, ProbeAccessibilityService
 
 </details>
 <!-- /gen:inventory -->

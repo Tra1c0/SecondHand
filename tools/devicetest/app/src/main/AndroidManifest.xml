@@ -40,6 +40,11 @@
             <intent-filter>
                 <action android:name="android.service.autofill.AutofillService" />
             </intent-filter>
+            <!-- without supportsInlineSuggestions the system never asks the keyboard (run 38:
+                 "Inline Suggestions Enabled: false") -->
+            <meta-data
+                android:name="android.autofill"
+                android:resource="@xml/fake_autofill" />
         </service>
 
         <!-- "adb shell content read" on this provider returns the node list of the probe service. -->

@@ -324,6 +324,7 @@ object KeyboardCommands {
     internal fun load(context: Context, field: FieldKey?) = TypingPerf.measure(TypingPerf.Hook.FIELD_START) { loadNow(context, field) }
 
     private fun loadNow(context: Context, field: FieldKey?) {
+        lockContext = context.applicationContext ?: context
         val names = registry.map { it.name }.filter { isCommandEnabled(context, it) }.toSet()
         val longNames = registry.filter { it.longArgument && it.name in names }.map { it.name }.toSet()
         val aiNames = registry.filter { it.aiArgument && it.name in names }.map { it.name }.toSet()
@@ -532,8 +533,13 @@ object KeyboardCommands {
         if (found == null) forget()
     }
 
+    /** Remembered at field start so that [isBlocked] can ask the live lock state of the device ([LockState]). */
+    @Volatile private var lockContext: Context? = null
+
     fun isBlocked(settings: SettingsValues?, editorInfo: EditorInfo?): Boolean {
         if (settings == null || settings.mIncognitoModeEnabled || settings.mIsLocked) return true
+        // the flag above is set once per field start; the device may be locked since (same short-lived answer as the chips)
+        if (lockContext?.let { LockState.isLocked(it) } == true) return true
         val inputType = editorInfo?.inputType ?: return true
         // only text fields: the insertion checks refuse anything else anyway
         if (inputType and android.text.InputType.TYPE_MASK_CLASS != android.text.InputType.TYPE_CLASS_TEXT) return true

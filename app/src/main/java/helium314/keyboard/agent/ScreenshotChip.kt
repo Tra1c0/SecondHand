@@ -251,7 +251,7 @@ object ScreenshotChip {
         val resolver = context.contentResolver
         background.execute {
             val found = try { finder(resolver, now).takeIf { it.isNotEmpty() } } catch (e: Exception) {
-                Log.w(TAG, "could not look for a screenshot", e)
+                Log.w(TAG, "could not look for a screenshot: ${e.javaClass.simpleName}")
                 null
             }
             onMain { deliver(context, found, viaChange) }
@@ -339,7 +339,7 @@ object ScreenshotChip {
                     file = copy
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "could not copy the screenshot for the history", e)
+                Log.w(TAG, "could not copy the screenshot for the history: ${e.javaClass.simpleName}")
                 copy.delete()
                 failed = true
             }
@@ -436,7 +436,7 @@ object ScreenshotChip {
                 ime.resources.displayMetrics.widthPixels / 4) ?: return null
             image.setImageBitmap(thumbnail)
         } catch (e: Exception) {
-            Log.w(TAG, "could not show the screenshot", e) // deleted in the meantime, or no longer allowed
+            Log.w(TAG, "could not show the screenshot: ${e.javaClass.simpleName}") // deleted in the meantime, or no longer allowed
             return null
         }
         image.visibility = View.VISIBLE
@@ -488,7 +488,7 @@ object ScreenshotChip {
         val uri = FileProvider.getUriForFile(context, context.getString(R.string.clipboard_provider_authority), file)
         InputContentInfoCompat(uri, ClipDescription(context.getString(R.string.agent_screenshot_chip), arrayOf(shot.mimeType)), null)
     } catch (e: Exception) {
-        Log.w(TAG, "could not copy the screenshot", e)
+        Log.w(TAG, "could not copy the screenshot: ${e.javaClass.simpleName}")
         null
     }
 
@@ -529,7 +529,7 @@ object ScreenshotChip {
             observer = newObserver
             watchingSinceMillis = clock() / 1000 * 1000
         } catch (e: Exception) {
-            Log.w(TAG, "could not watch for screenshots", e)
+            Log.w(TAG, "could not watch for screenshots: ${e.javaClass.simpleName}")
             observerFailed = true
         }
         stale = true
