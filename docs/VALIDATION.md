@@ -2,6 +2,14 @@
 
 ## Etappe 79 — Autofill-Vorschläge robust
 
+- **Prüfer (lesend, 2026-11-20, Lebenszyklus gegen die AOSP-Quellen von Android 11 gelesen):** kein Befund ab
+  mittlerer Schwere. Offen, nicht behoben: (1) eine leere Antwort des Systems („Chips löschen“) wird wie vor der
+  Etappe ignoriert und macht laufende Chips nicht ungültig; (2) bei einer erneuten Anfrage fürs selbe Feld kann
+  kurz eine unvollständige Chip-Reihe stehen bleiben; (3) die größte Breite ist jetzt Leistenbreite minus 66 dp
+  (auf einem 1080-px-Telefon etwa 900 statt 740 px), ein Passwortmanager mit maximal breiten Chips füllt damit
+  fast die Leiste; (4) die Verdrahtung in `LatinIME` und `createView` deckt kein Test ab, und der Gerätetest mit
+  drei Chips beweist die Reihenfolge der Anzeige, nicht den Umgang mit vertauschter Ankunft.
+
 - **Gelesen und bestätigt (Code, nicht Gerät):** Die vier gemeldeten Schwächen waren alle richtig. (W-a) Feste Breite 100/740 px, dreimal derselbe Wert
   (`InlineAutofillUtils.java`, `createInlineSuggestionRequest`). (W-b) `createView` fügte jedes Chip-Bild im Rückruf mit `container.addView(view)` an,
   also in der Reihenfolge der Fertigstellung; ein `null`-Bild fiel still weg. (W-c) Weder `onInlineSuggestionsResponse` noch der Rückruf prüften Feld
