@@ -562,14 +562,21 @@ def typing_number(d):
 
 def _typed_becomes(d, name, cases):
     """Types each text into a fresh text field, after the dictionary answered, and compares the field."""
+    seen = []
     for typed, expected in cases:
         d.start(name)
         d.focus("text")
         d.type("und")
-        offered = d.wait_for_suggestions()
-        d.notes.append("strip after 'und': %s" % offered[:4])
-        d.type(typed)
-        d.expect_field("text", "Und" + expected)
+        d.wait_for_suggestions()
+        # the word without its final space first: what the strip offers for it goes into the result line
+        d.type(typed.rstrip(" "))
+        seen.append("strip for %r: %s" % (typed.strip(), [t for t in dump().strip_texts() if t not in STRIP_FIXED][:4]))
+        d.notes = seen + d.notes
+        d.type(" " * (len(typed) - len(typed.rstrip(" "))))
+        try:
+            d.expect_field("text", "Und" + expected)
+        except CheckFailed as error:
+            raise CheckFailed("%s; %s" % (error, seen[-1]))
 
 
 def capital_after_period(d):
@@ -583,6 +590,16 @@ def capital_after_period(d):
 def autocorrect_typo(d):
     """A typo of a very common word is corrected when the word ends: "idr" becomes "dir" (stage 71)."""
     _typed_becomes(d, "autocorrect_typo", [(" idr ", " dir ")])
+
+
+def autocorrect_works(d):
+    """Control for the scenarios around it: the real dictionary corrects a plain typo ("nciht")."""
+    _typed_becomes(d, "autocorrect_works", [(" nciht ", " nicht ")])
+
+
+def autocorrect_typo_in_sentence(d):
+    """The same typo "idr" inside a sentence, where the words before it point to "dir"."""
+    _typed_becomes(d, "autocorrect_typo_in_sentence", [(" wie geht es idr ", " wie geht es dir ")])
 
 
 def autocorrect_noun(d):
@@ -611,7 +628,8 @@ def language_switch(d):
 
 
 SCENARIOS = [keyboard_is_secondhand, typing_text, delete_key, typing_password, typing_email, typing_number,
-             capital_after_period, autocorrect_typo, autocorrect_noun, slang_stays, language_switch]
+             capital_after_period, autocorrect_works, autocorrect_typo, autocorrect_typo_in_sentence,
+             autocorrect_noun, slang_stays, language_switch]
 
 
 # ------------------------------------------------------------------------------------------ setup
