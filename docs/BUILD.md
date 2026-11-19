@@ -213,6 +213,37 @@ nutzen einen Debug-Schlüssel, der in jeder neuen Umgebung anders ist; sie sind 
   deinstallieren (alle Daten weg), neuen Schlüssel als Secret anlegen. Der Owner hebt eine Kopie
   im Passwortmanager auf; Keystores werden nie committet.
 
+## Gerätetests im Emulator (73)
+
+- Workflow `.github/workflows/device-tests.yml` („SecondHand Device Tests“): startet bei Pushes auf
+  `claude/**` und `main`, die `app/**`, `agent-core/**`, `tools/devicetest/**`, Gradle-Dateien oder den
+  Workflow ändern, und von Hand (auch auf einem Arbeitsbranch). Eingaben von Hand: `repeats` (1, 3 oder 5
+  Emulatoren nebeneinander, jeder frisch gestartet) und `control` (Kontrolllauf, muss rot werden). Ein neuer Push auf
+  denselben Branch bricht den laufenden Lauf ab; zwei von Hand gestartete Läufe desselben Branches auch.
+- Job „Build the APKs“: `python3 tools/dev.py build --abi x86_64` (die ausgelieferte Variante; mit einer
+  vorgegebenen ABI baut Gradle `libjni_latinime.so` nur für diese, der Emulator ist x86_64) und
+  `./gradlew -p tools/devicetest :app:assembleDebug` (die Test-App, ein eigenes Gradle-Projekt mit
+  demselben Wrapper). Er bricht ab, wenn der Tastatur-APK die x86_64-Bibliothek fehlt oder sie Testcode
+  enthält. Keine Geheimnisse, Wegwerf-Schlüssel des Runners, nichts wird veröffentlicht.
+- Job „Emulator <n>“: KVM freischalten (udev-Regel), `reactivecircus/android-emulator-runner` v2.38.0
+  (per Commit festgelegt) mit API 34, `google_apis`, `x86_64`, Profil `pixel_6`, 4 Kernen, 4096 MB,
+  dann `python3 -I tools/devicetest/devicetest.py --keyboard-apk … --test-apk … --out device-test-out`.
+  Der letzte Schritt „Results“ schreibt die Tabelle in die Job-Zusammenfassung und ins Log und scheitert,
+  wenn `results.json` fehlt oder nicht `ok` ist.
+- Ergebnis lesen: im Job-Log die Zeilen `INFO …`, `RESULT PASS|FAIL|ERROR <szenario> …`, `PROBLEM …`,
+  `CONTROL …`, `SUMMARY OK|FAILED passed= failed= total= expected= videos=`. `FAIL` ist eine nicht erfüllte
+  Erwartung an die Tastatur, `ERROR` ein Problem des Geräts oder des Skripts (zählt auch als rot). Artefakt
+  `device-test-<n>` (14 Tage): `video-NN.mp4`, `<szenario>-end.png`, bei Rot `<szenario>-end.json`
+  (Knotenliste), `results.json`, `summary.md`. Aus der Cloud-Umgebung lassen sich Artefakte und ganze Logs
+  nicht laden (403): mit `get_job_logs` und kleinem `tail_lines` arbeiten oder die Zeilen von einem
+  Hilfs-Agenten herausfiltern lassen.
+- Ein neues Szenario ist eine Funktion in `devicetest.py`, eingetragen in `SCENARIOS`; es beginnt mit
+  `d.start(name)`, tippt mit `d.type`/`d.press` und prüft mit `d.expect_field`/`d.expect_equal`. Ein
+  Szenario ohne Vergleich gilt als `ERROR`. Danach einen Kontrolllauf (`control`) starten: Jedes Szenario
+  muss dort rot werden, sonst steht es unter „CONTROL BROKEN“.
+- Lokal gibt es keinen Emulator (kein `/dev/kvm`); das Skript lässt sich nur gegen ein nachgebautes `adb`
+  trocken prüfen. Jede Annahme über das Verhalten im Emulator gilt erst nach einem GitHub-Lauf.
+
 ## Fremdbibliotheken der Agent-Funktionen
 
 - `com.google.zxing:core` 3.5.4 (Apache-2.0, `LICENSE-Apache-2.0` im Wurzelverzeichnis): nur der

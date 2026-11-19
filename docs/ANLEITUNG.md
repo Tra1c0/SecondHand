@@ -1551,6 +1551,30 @@ Wörter & Lernen → Gelernte Wörter kannst du das Lernen
 pausieren (das Gelernte bleibt), die gelernten Wörter je Sprache zählen, als Datei exportieren
 oder löschen. Wer „Personalisierte Vorschläge“ ausschaltet, löscht dabei alles Gelernte.
 
+## Gerätetests ansehen (Video und Ergebnis)
+
+Die Tastatur wird auf GitHub in einem Android-Emulator automatisch bedient (bisher sechs einfache
+Tipp-Szenarien). So siehst du das Ergebnis, im Browser, angemeldet bei GitHub:
+
+1. `github.com/Tra1c0/SecondHand` öffnen → oben **Actions**.
+2. Links **SecondHand Device Tests** wählen. Jede Zeile ist ein Lauf: grüner Haken = alle Szenarien
+   bestanden, rotes Kreuz = mindestens eines nicht (oder der Emulator kam nicht hoch).
+3. Auf einen Lauf tippen. Unter **Summary** steht die Tabelle „Device tests“: je Szenario PASS oder FAIL
+   und was erwartet und was im Feld gefunden wurde.
+4. Ganz unten auf derselben Seite unter **Artifacts** liegt `device-test-1` (bei drei Emulatoren auch
+   `-2`, `-3`). Antippen lädt eine ZIP-Datei: darin `video-01.mp4` (die Aufnahme des ganzen Laufs; oben im
+   Bild steht der Name des laufenden Szenarios) und je Szenario ein Screenshot. Die Artefakte bleiben
+   14 Tage.
+
+Selbst starten: Actions → SecondHand Device Tests → **Run workflow** → Branch wählen → „Run workflow“.
+„repeats“ startet 1, 3 oder 5 frische Emulatoren nebeneinander (um wacklige Tests zu finden). „control“
+lässt absichtlich das letzte Zeichen weg: dieser Lauf **muss** rot werden und zeigt nur, dass die Tests
+Fehler bemerken. Ein Lauf dauert etwa 12 Minuten. Scheitert er schon im Job „Build the APKs“, hat GitHub
+beim Laden von Bibliotheken gehakt: oben rechts „Re-run failed jobs“.
+
+Grün heißt nur: diese Szenarien, in diesem Emulator. Tippgefühl, Tempo, Vibration und echte Apps prüft das
+nicht.
+
 ## Wenn etwas nicht klappt
 
 Einstellungen → „Diagnose“ (unten auf der Startseite, oder der Knopf „Diagnose“ auf der Karte UPDATES in

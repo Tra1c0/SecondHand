@@ -5780,19 +5780,26 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
   „Idee“): „seee“ und „Kaffeee“ bleiben deshalb stehen, wie getippt; das ist der Preis dafür, „neee“ zu schützen (nach dem Wörterbuch
   lässt es sich nicht unterscheiden, der Kern kennt keins). Ein versehentlich gehaltenes „wennnnn“ wird nicht korrigiert; auf einem
   Touch-Feld ist das selten. Wörter mit Wiederholung in der Mitte („Schifffahrt“, „Kaffeeernte“) sind nicht betroffen: nur der Wortschluss zählt.
-- **P294** Gerätetests (73): Die Tasten sind nur dann einzelne Bedienungshilfen-Knoten, wenn beim
-  Aufbau der Tastatur (`MainKeyboardView.setKeyboard`) ein Bedienungshilfen-Dienst aktiv ist (`AccessibilityManager.isEnabled`).
-  Nie `am force-stop` auf die Test-App: Android beendet und deaktiviert damit auch ihren Dienst (GitHub-Lauf 5: „probe is not
-  connected“; in den Läufen 2 und 4 fehlten deshalb die Tasten im `uiautomator`-Dump, das Skript stoppte die App vor jedem
-  Szenario). Ob `uiautomator dump --windows` die Tasten bei laufendem Dienst zeigen würde, ist nicht geprüft; der
-  `ProbeAccessibilityService` der Test-App liest die Fenster selbst aus. Er fordert kein
-  „Tippen zum Erkunden“ an: Alles, was das Tippen ändert, hängt an `isTouchExplorationEnabled`. In Passwortfeldern heißen
-  alle Zeichentasten „Aufzählungspunkt“, solange `settings put secure speak_password 1` nicht gesetzt ist
-  (`AccessibilityUtils.shouldObscureInput`). Eine Trenntaste (Leertaste, Punkt) heißt bei anstehender Autokorrektur
-  „Mit Leertaste wird "x" in "y" geändert.“ (`getAutoCorrectionDescription`); `devicetest.py` löst das auf. Mit
-  `-Pandroid.injected.build.abi=<ABI>` (`tools/dev.py build --abi …`) baut Gradle `libjni_latinime.so` nur für diese eine
-  ABI: für den Emulator `--abi x86_64`, sonst fehlt die Bibliothek dort (am 2026-11-19 an der Dateiliste der APK
-  nachgesehen; nur `libandroidx.graphics.path.so` liegt für alle vier ABIs bei).
+- **P294** Gerätetests (73), alles in GitHub-Läufen von `device-tests.yml` gesehen (Nachweise: `docs/VALIDATION.md` → Etappe 73):
+  (1) Die Tasten sind nur dann einzelne Bedienungshilfen-Knoten, wenn beim Aufbau der Tastatur (`MainKeyboardView.setKeyboard`) ein
+  Bedienungshilfen-Dienst aktiv ist (`AccessibilityManager.isEnabled`); darum der `ProbeAccessibilityService` der Test-App. Er fordert kein
+  „Tippen zum Erkunden“ an: alles, was das Tippen ändert, hängt an `isTouchExplorationEnabled`. (2) Nie `am force-stop` auf die Test-App:
+  Android beendet und deaktiviert damit auch ihren Dienst (Läufe 2, 4, 5). Felder leert `am start --activity-clear-task`; eine Option
+  `--activity-new-task` gibt es nicht (Lauf 6). (3) `dumpsys accessibility` nennt gebundene Dienste beim App-Namen, aktivierte beim
+  Klassennamen (Lauf 3). (4) Zwei Knoten tragen die ID `keyboard_view`: ein Rahmen so hoch wie das Fenster und die echte Ansicht
+  (Klasse `android.view.View`, direkt unter `suggestion_strip_view`); `devicetest.py` nimmt die kleinste sichtbare `View`. (5) Die Tastatur
+  meldet die Tastenpositionen nicht verlässlich: Lauf 8 ganz oben am Bildschirm, Lauf 9 um 128 Pixel (Höhe der Statusleiste) zu hoch,
+  Läufe 10 und 12 richtig. Vermutet, nicht belegt: `KeyboardAccessibilityNodeProvider.updateParentLocation` liest die Lage der Ansicht nur
+  beim Aufbau des Wurzelknotens, also auch bevor das Fenster an seinem Platz ist. Untereinander stimmen die Positionen; `Screen.keys()`
+  legt den Tastenblock deshalb mit der unteren linken Ecke auf die der echten Ansicht. Das ist HeliBoard-Code und könnte auch TalkBack
+  betreffen (ROADMAP 73, nicht beauftragt). (6) In Passwortfeldern heißen alle Zeichentasten „Aufzählungspunkt“, solange
+  `settings put secure speak_password 1` nicht gesetzt ist (`AccessibilityUtils.shouldObscureInput`). Eine Trenntaste heißt bei
+  anstehender Autokorrektur „Mit Leertaste wird "x" in "y" geändert.“ (`getAutoCorrectionDescription`); `plain_key_name` löst das auf.
+  Die Eingabetaste heißt nach ihrer Aktion („Eingabetaste“, „Weiter“, „Fertig“), die Umschalttaste im Großzustand „Umschalttaste-Taste“.
+  (7) Mit `-Pandroid.injected.build.abi=<ABI>` (`tools/dev.py build --abi …`) baut Gradle `libjni_latinime.so` nur für diese ABI: für den
+  Emulator `--abi x86_64` (an der Dateiliste der APK nachgesehen; nur `libandroidx.graphics.path.so` liegt für alle vier ABIs bei).
+  (8) Ob `uiautomator dump --windows` die Tasten bei laufendem Dienst zeigen würde, ist nicht geprüft; der Dienst liest die Fenster selbst.
+
 - **P295** Prompt-Ablage, Editor (74a): Der Editor der Seite bleibt eine Karte auf der Seite, kein
   `AlertDialog` (P78: ein Textfeld im Dialog wird in Robolectric nie „idle“). Solange er offen ist,
   sind Liste und ihre Knöpfe nicht im Baum (`PromptsScreenTest.withTheEditorOpenNoRowAndNoRowButtonIsInTheTree`).

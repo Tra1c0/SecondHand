@@ -13,6 +13,14 @@ Reihenfolge von oben nach unten.
 - **72 Satzbezogene Autokorrektur**: Für regelmäßige deutsche Verbformen gebaut und abschaltbar.
   Offen sind der Gerätetest mit nativen Wörterbüchern, unregelmäßige Verben und die Auswertung
   weiterer Satzmuster, Sprachen und gemischtsprachiger Texte.
+- **73 Emulator-Testlabor auf GitHub** (Auftrag des Owners vom 2026-11-18, „Ja, bau das“, dort als
+  „Etappe 72“; die Nummer war vergeben): **73a Gerüst gebaut** (Workflow `device-tests.yml`, Test-App,
+  sechs Tipp-Szenarien, Aufnahme; Nachweis in `docs/VALIDATION.md` → Etappe 73). Offen: **73b** Szenarien
+  (Großschreibung, Autokorrektur mit den Slang-Fällen aus 71, Sprachwechsel, Emoji, Passwortfeld ohne Lernen
+  und ohne Zwischenablage-Pille, Zwischenablage-Pille), **73c** Autofill Ende-zu-Ende mit einem
+  Test-Autofill-Dienst in der Test-App. Nicht im Umfang: echte Passwortmanager, Instagram/WhatsApp,
+  Google-Diktat, Firebase Test Lab. Vorgemerkt, nicht beauftragt: die Tastatur meldet Bedienungshilfen ihre
+  Tasten im Emulator teils 128 Pixel zu hoch (P294, HeliBoard-Code; betrifft möglicherweise TalkBack).
 - **74 Prompt-Ablage** (Auftrag des Owners vom 2026-11-19: „eine extra Zwischenablage für Prompts, die
   permanent gespeichert werden und die ich sortieren kann“, Zugang: „Eigenes Symbol beim , gedrückt
   halten“) ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 74): 74a Speicher und

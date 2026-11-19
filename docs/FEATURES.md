@@ -79,6 +79,13 @@ gilt weiter. Mit der Rücktaste lässt sich eine automatische Änderung direkt z
 gleiche Korrekturpaar bleibt an dieser Wortposition im aktuellen Feld verworfen, auch bei
 ausgeschaltetem dauerhaftem Lernen. Die beiden Optionen stehen in „Tippen & Korrektur → Regeln“.
 
+**Gerätetests im Emulator (73a).** Kein Teil der App, sondern ein Prüfstand auf GitHub: Ein
+Android-14-Emulator installiert die Tastatur, ein Skript tippt über die echten Tasten in vier Felder (Text,
+Passwort, E-Mail, Zahl) und vergleicht, was ankommt. Sechs Szenarien, bisher 4 von 4 Durchgängen grün;
+im Kontrolllauf mit einem fehlenden Zeichen 18 von 18 rot. Ergebnis als Tabelle am Lauf, dazu Video und
+Screenshots (`docs/ANLEITUNG.md` → Gerätetests ansehen). Autokorrektur, Slang, Sprachwechsel, Emoji,
+Zwischenablage und Autofill sind noch nicht dabei (ROADMAP 73b, 73c). Ein Emulator ersetzt kein Telefon.
+
 ## KI (eigene API-Schlüssel)
 
 | Funktion | Was sie macht | Status |

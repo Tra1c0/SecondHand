@@ -9,7 +9,11 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 ## Aktueller Stand
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
-- Stand 2026-11-18. Build 33 ist als signiertes Update veröffentlicht. Er ergänzt Build 32 um
+- Stand 2026-11-19, Arbeitsbranch `claude/build-12-completion-3unh51`, noch nicht auf `main`, kein Build: **73a Emulator-Testlabor**
+  (`device-tests.yml`, sechs Tipp-Szenarien, 4 von 4 Durchgängen grün, Kontrolllauf 18 von 18 rot; offen 73b Szenarien, 73c Autofill,
+  Prüfer für 73a) und **74 Prompt-Ablage** (Symbol im Komma-Menü, Fenster, Einstellungsseite; lokal 9 Testklassen grün, drei Prüfer;
+  offen: voller GitHub-Lauf „SecondHand Tests“, Test-Build für den Owner, Gerätetest). Nachweise: `docs/VALIDATION.md` → Etappe 73, 74.
+- Davor, Stand 2026-11-18: Build 33 ist als signiertes Update veröffentlicht. Er ergänzt Build 32 um
   satzbezogene Autokorrektur für regelmäßige deutsche Verben (72) mit Rücknahme im aktuellen
   Feld und Schalter unter „Tippen & Korrektur → Regeln“. Der vollständige GitHub-Lauf 103 ist grün.
   Offen sind der Gerätetest mit dem echten Wörterbuch und echte KI-Aufrufe.
@@ -239,6 +243,8 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
     `settings put global hide_error_dialogs 1`. Ein Tastendruck braucht 1–2 Sekunden.
   - Schlechter: `-qemu -accel tcg,thread=multi` mit zwei Gast-Kernen. Android bootete nach über
     20 Minuten nicht, weil der Systemdienst wegen Zeitüberschreitung immer wieder neu startete.
+  - Seit 73a gibt es den Emulator auf GitHub (`device-tests.yml`, KVM, `docs/BUILD.md` → Gerätetests im Emulator); lokal
+    weiter nicht. Was dabei schiefging und wie das Skript die Tasten findet: `docs/ARCHITECTURE.md` → P294.
   - `uiautomator dump --windows` liefert auch das Tastaturfenster (Texte, IDs) und funktioniert
     auch dort, wo Screenshots wegen `FLAG_SECURE` schwarz sind.
   - 2026-11-12: Dasselbe Abbild mit denselben Optionen kam nicht mehr in einen stabilen
@@ -317,6 +323,20 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
   Checkout zu ändern, verfälscht den Lauf. Solche Änderungen als Patch beiseitelegen.
 - Jeder Push mit Änderungen an getesteten Pfaden bricht den laufenden GitHub-Lauf des Branches ab.
   Vor einem Release den letzten Lauf abwarten und danach nur noch reine Docs pushen.
+
+- Gerätetests (73a, 2026-11-19): elf GitHub-Läufe bis zum ersten Grün, alle wegen ungeprüfter Annahmen des Leads über `adb` und
+  die Emulator-Action (eine Version aus einer unsortierten Tag-Liste, eine erfundene `am`-Option, `am force-stop` auf die App mit
+  dem Hilfsdienst). Vor einem Lauf jede `adb`-Option und jede Action-Version nachschlagen, `git ls-remote --tags … | sort -V`.
+  Logs nie groß in den Kontext holen: ein Hilfs-Agent (haiku) holt `get_job_logs` und gibt nur die `INFO`/`RESULT`/`SUMMARY`-Zeilen
+  zurück. Ein Bericht eines Agenten „alle Tests grün“ stimmte einmal nicht mit den Ergebnisdateien überein (sie zeigten den letzten
+  Rot-Beweis): im Auftrag verlangen, dass der letzte Lauf auf dem Endstand läuft, und die XML-Dateien selbst lesen.
+- Der Container startete am 2026-11-19 zweimal neu, während nur ein einzelner Gradle-Lauf eines Agenten lief (Ursache unbekannt,
+  Speicher war frei). Uncommittete Arbeit überlebte auf der Platte, Hintergrundaufgaben nicht: Agenten nach jedem Schritt committen
+  lassen und nach einem Neustart mit einer Nachricht fortsetzen.
+- Lokales Gradle-Skript für den Spiegel (`~/.gradle/init.d/mirror.gradle`): in `projectsLoaded { rootProject.allprojects { repositories { maven { … } } } }`
+  eintragen (so steht er vor den Repositories der Build-Skripte), nicht am Projektnamen festmachen (eine Arbeitskopie heißt wie ihr
+  Ordner) und für `tools/devicetest` auslassen (`rootProject.name != 'secondhand-devicetest'`, dessen Einstellungen verbieten
+  Projekt-Repositories). Einem Agenten wurde das Anlegen verweigert; der Owner hat es dem Lead am 2026-11-19 erlaubt.
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
 - Build 33 (geprüft, von `main` d051fe8) ergänzt die satzbezogene Autokorrektur (72). GitHub-Lauf 103 grün (Agent, Upstream, Lint, Build). Release-Lauf 33 grün (Signatur, Versionscode und öffentlicher Download geprüft). Die Geräteprüfung steht aus.
