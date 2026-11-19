@@ -1024,10 +1024,207 @@ def autofill_inline(d):
         shell("settings delete secure autofill_service", check=False)
 
 
+FOLDER_NAME = "Arbeit73"  # stage 77: typeable with shift and the symbols layout, and no word the keyboard corrects
+FOLDER_CHIP_DESCRIPTIONS = {  # the descriptions of the filter chips (agent_prompt_strings.xml:59-61)
+    "all": "Alle Prompts zeigen", "none": "Prompts ohne Ordner zeigen", "folder": "Ordner %s zeigen"}
+ROW_PREFIX = "Prompt einfügen: "  # description of a prompt row in the window (agent_prompt_strings.xml:47)
+
+
+def _kb_labels(screen):
+    """The texts and descriptions of the visible nodes of the keyboard app (settings page or window), no keys."""
+    out = []
+    for n in screen.nodes:
+        if n.package == KEYBOARD_PACKAGE and n.visible and not n.cls.endswith(".Key"):
+            for label in (n.text, n.desc):
+                if label and label not in out:
+                    out.append(label)
+    return out
+
+
+def _find_labeled(screen, wanted):
+    """The first visible non-key node of the keyboard app whose text or description is exactly one of the wanted."""
+    for n in screen.nodes:
+        if n.package == KEYBOARD_PACKAGE and n.visible and not n.cls.endswith(".Key") \
+                and (n.text in wanted or n.desc in wanted):
+            return n
+    return None
+
+
+def _tap_labeled(wanted, what, limit=8.0):
+    """Taps the node with exactly one of these labels; waits for it up to the limit."""
+    deadline = time.time() + limit
+    while True:
+        screen = dump()
+        node = _find_labeled(screen, wanted)
+        if node is not None:
+            tap(*node.center)
+            time.sleep(1.0)
+            return node
+        if time.time() > deadline:
+            raise CheckFailed("no %s (%s) on the screen; it shows %s" % (what, " / ".join(wanted), _kb_labels(screen)[:24]))
+        time.sleep(0.8)
+
+
+def _window_rows(screen):
+    """The labels of the prompt rows the store window shows now, in screen order."""
+    return [n.desc[len(ROW_PREFIX):] for n in screen.nodes
+            if n.package == KEYBOARD_PACKAGE and n.visible and n.desc.startswith(ROW_PREFIX)]
+
+
+def _swipe_list(screen, up):
+    """Scrolls the window's list by one swipe (the window shows only two or three rows)."""
+    save = _find_labeled(screen, ("Kopiertes als Prompt speichern",))
+    rows = [n for n in screen.nodes if n.package == KEYBOARD_PACKAGE and n.visible and n.desc.startswith(ROW_PREFIX)]
+    if save is None or not rows:
+        return
+    x, low = save.center[0], max(n.bottom for n in rows)
+    top = save.bottom + 8
+    start, end = (low - 6, top) if up else (top, low - 6)
+    shell("input swipe %d %d %d %d 400" % (x, start, x, end), check=False)
+    time.sleep(0.8)
+
+
+def _all_rows(first=None):
+    """The labels of all rows of the window, scrolling down through the list and back to its top."""
+    screen = first or dump()
+    seen = list(_window_rows(screen))
+    steps = 0
+    for _ in range(5):
+        _swipe_list(screen, True)
+        steps += 1
+        screen = dump()
+        fresh = [r for r in _window_rows(screen) if r not in seen]
+        if not fresh:
+            break
+        seen += fresh
+    for _ in range(steps + 1):
+        _swipe_list(screen, False)
+        screen = dump()
+    return seen
+
+
+def _rows_until(condition, limit=8.0):
+    """All rows of the window, read again until the condition holds on them or the time is over."""
+    deadline = time.time() + limit
+    while True:
+        rows = _all_rows()
+        if condition(rows) or time.time() > deadline:
+            return rows
+        time.sleep(0.8)
+
+
+def _open_prompt_store_window(d):
+    """Holds the comma key and slides to the store's key (the real entry); waits for the window's save row."""
+    d.hold_and_choose(",", ("Prompt",))
+    d.wait(lambda s: _find_labeled(s, ("Kopiertes als Prompt speichern",)) is not None, "the store window", limit=10.0)
+
+
+def _open_prompt_page(d):
+    """Opens the keyboard's settings from scratch (a fresh task) and goes to Leiste & Befehle -> Prompt-Ablage."""
+    shell("am start -W --activity-clear-task -n %s/helium314.keyboard.settings.SettingsActivity" % KEYBOARD_PACKAGE, timeout=60)
+    time.sleep(2.0)
+    for _ in range(2):  # the update dialogs, as in _open_settings_and_switch_on
+        texts = [n.text for n in dump().nodes if n.package == KEYBOARD_PACKAGE and n.text]
+        if any(re.match(r"(Build \d+ ist da|Neu in Build \d+|Build \d+ is available|New in build \d+)", t) for t in texts):
+            shell("input keyevent KEYCODE_BACK", check=False)
+            time.sleep(1.5)
+    d.tap_text("Leiste & Befehle")
+    d.tap_text("Prompt-Ablage")
+    d.wait(lambda s: _find_labeled(s, ("Neuer Ordner",)) is not None, "the prompt store page (button Neuer Ordner)")
+
+
+def prompt_folders(d):
+    """Folders of the prompt store (stage 77) through the real entries: a folder created on the settings
+    page shows as a chip in the store window; "Kopiertes als Prompt speichern" under that chip saves into
+    the folder and a tap on the row inserts the text; the chip filters (a prompt saved under "Alle" is
+    not listed under the folder, the folder's prompt is listed under "Alle"). The text copied for the
+    folder's prompt is text 2 (control run: text 1, so the row is another one)."""
+    first, second, third = CLIP_TEXTS
+    folder_chip = FOLDER_CHIP_DESCRIPTIONS["folder"] % FOLDER_NAME
+    all_chip, none_chip = FOLDER_CHIP_DESCRIPTIONS["all"], FOLDER_CHIP_DESCRIPTIONS["none"]
+
+    # (1) the settings page: a folder with a fixed name through "Neuer Ordner"
+    _open_prompt_page(d)
+    if _find_labeled(dump(), (folder_chip, FOLDER_NAME)) is None:  # a folder of an earlier run is kept
+        d.tap_text("Neuer Ordner")
+        deadline = time.time() + 10
+        while True:
+            screen = dump()
+            field = next((n for n in screen.nodes if n.package == KEYBOARD_PACKAGE and n.visible
+                          and n.cls.endswith("EditText")), None)
+            if field is not None or time.time() > deadline:
+                break
+            time.sleep(0.8)
+        if field is None:
+            raise CheckFailed("no text field for the folder name; the page shows %s" % _kb_labels(screen)[:24])
+        tap(*field.center)
+        d.keymap = d.wait(lambda s: len(s.keys()) >= 10, "the keyboard for the folder name").keys()
+        control, d.control = d.control, False  # the name is setup, the comparisons come later
+        try:
+            d.type(FOLDER_NAME)
+        finally:
+            d.control = control
+        d.tap_text("Speichern")
+    deadline = time.time() + 10
+    while True:
+        screen = dump()
+        chip = _find_labeled(screen, (folder_chip, FOLDER_NAME))
+        if chip is not None or time.time() > deadline:
+            break
+        time.sleep(0.8)
+    d.expect_equal("the folder chip %r on the settings page (page shows %s)" % (FOLDER_NAME, _kb_labels(screen)[:20]),
+                   chip is not None, True)
+    shell("input keyevent KEYCODE_HOME", check=False)
+
+    # (2) the window: chips "Alle" and the folder; save the copied text under the folder chip
+    d.start("prompt_folders")
+    d.tap_id("copy_1" if d.control else "copy_2")
+    d.focus("text")
+    _open_prompt_store_window(d)
+    screen = dump()
+    shown = _kb_labels(screen)
+    d.expect_equal("the window's chips: Alle and the folder (window shows %s)" % shown[:16],
+                   (all_chip in shown) and (folder_chip in shown), True)
+    _tap_labeled((folder_chip,), "folder chip of the window")
+    time.sleep(0.8)
+    before = _rows_until(lambda rows: True, limit=0.1)
+    _tap_labeled(("Kopiertes als Prompt speichern",), "save row")
+    in_folder = _rows_until(lambda rows: second in rows)
+    d.expect_equal("rows under the folder chip after saving (before: %s)" % before, sorted(set(in_folder) - set(before)),
+                   [second])
+    _tap_labeled((ROW_PREFIX + second,), "the new row")
+    d.expect_field("text", second)
+
+    # (3) the filter: a second prompt without folder, saved under "Alle"
+    if _find_labeled(dump(), ("Kopiertes als Prompt speichern",)) is None:  # a pick closes the window
+        _open_prompt_store_window(d)
+    _tap_labeled((all_chip,), "chip Alle")
+    d.tap_id("copy_3")
+    _tap_labeled(("Kopiertes als Prompt speichern",), "save row")
+    everything = _rows_until(lambda rows: third in rows)
+    d.expect_equal("under Alle the prompt saved there is listed (rows %s)" % everything[:6], third in everything, True)
+    d.expect_equal("under Alle the folder's prompt is listed too (rows %s)" % everything[:6], second in everything, True)
+    _tap_labeled((folder_chip,), "folder chip of the window")
+    filtered = _rows_until(lambda rows: third not in rows and second in rows)
+    d.expect_equal("under the folder chip only the folder's prompt, not the one saved under Alle (rows %s)"
+                   % filtered[:6], (second in filtered, third in filtered), (True, False))
+    shown = _kb_labels(dump())
+    d.expect_equal("the chip row now offers Ohne Ordner (window shows %s)" % shown[:16], none_chip in shown, True)
+    _tap_labeled((none_chip,), "chip Ohne Ordner")
+    loose = _rows_until(lambda rows: third in rows)
+    d.expect_equal("under Ohne Ordner the prompt saved under Alle is listed (rows %s)" % loose[:6], third in loose, True)
+    # leave the window on "Alle" (the chip is remembered while the keyboard runs) and close it
+    _tap_labeled((all_chip,), "chip Alle")
+    try:
+        _tap_labeled(("Schließen",), "close button of the window", limit=4.0)
+    except CheckFailed:
+        pass  # the next scenario starts a fresh app; the window is gone with the field
+
+
 SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete_key, typing_password, typing_email, typing_number,
              capital_after_period, autocorrect_works, autocorrect_typo, autocorrect_typo_in_sentence,
              autocorrect_noun, swapped_letters_keep_nouns, swapped_letters_keep_caps, slang_stays, emoji_suggestion, language_switch, clipboard_pill,
-             clipboard_not_readable_in_password, learning_not_in_password, prompt_store, autofill_inline]
+             clipboard_not_readable_in_password, learning_not_in_password, prompt_store, prompt_folders, autofill_inline]
 
 
 # Scenarios that fail because the keyboard does not do what was expected of it, found by these tests
