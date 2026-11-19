@@ -432,27 +432,7 @@ class Driver:
                     list(wanted), [n.text or n.desc for n in nodes][:12]))
             time.sleep(0.8)
 
-    def popup_of(self, char):
-        """Holds the key of the character and returns what its popup offers: description -> Node, read
-        while the finger is still down. The finger then lifts where it went down, which chooses the
-        popup's own first key (for the comma key: the clipboard, which does nothing while the history
-        is off). Use hold_and_choose to pick one."""
-        node = self.key_for(char)
-        if node is None:
-            raise CheckFailed("no key for %r on the keyboard; keys: %s" % (char, self.key_list()))
-        x, y = node.center
-        # "draganddrop" presses, waits for the long press and then moves: here by 2 px in 5 seconds
-        holder = subprocess.Popen(["adb", "shell", "input draganddrop %d %d %d %d 5000" % (x, y, x, y - 2)],
-                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        try:
-            time.sleep(1.8)
-            screen = dump()
-        finally:
-            try:
-                holder.wait(timeout=30)
-            except subprocess.TimeoutExpired:
-                holder.kill()
-        time.sleep(0.8)
+    def _popup_nodes(self, screen):
         main = {(k.left, k.top, k.right, k.bottom) for k in self.keymap.values()}
         popup = {}
         for n in screen.nodes:
@@ -461,19 +441,47 @@ class Driver:
                 popup.setdefault(n.desc, n)
         return popup
 
+    def popup_of(self, char):
+        """Holds the key of the character and returns what its popup offers: description -> Node, read
+        while the finger is still down. The touch is then cancelled, so nothing is chosen."""
+        node = self.key_for(char)
+        if node is None:
+            raise CheckFailed("no key for %r on the keyboard; keys: %s" % (char, self.key_list()))
+        x, y = node.center
+        shell("input motionevent DOWN %d %d" % (x, y), timeout=30)
+        try:
+            time.sleep(1.4)
+            popup = self._popup_nodes(dump())
+        finally:
+            shell("input motionevent CANCEL %d %d" % (x, y), timeout=30, check=False)
+        time.sleep(0.8)
+        return popup
+
     def hold_and_choose(self, char, wanted):
-        """Holds the key of the character, slides to the popup key whose description contains one of
-        the wanted strings and lifts there. Returns the description chosen."""
-        popup = self.popup_of(char)
-        target = next((n for d, n in popup.items() if any(w.lower() in d.lower() for w in wanted)), None)
-        if target is None:
-            raise CheckFailed("the popup of %r offers none of %s but %s" % (char, list(wanted), sorted(popup)[:12]))
-        x, y = self.key_for(char).center
-        shell("input draganddrop %d %d %d %d 700" % (x, y, target.center[0], target.center[1]), timeout=40)
-        time.sleep(1.2)
+        """One touch: presses the key of the character, waits for the popup, moves to the popup key
+        whose description contains one of the wanted strings and lifts there. Returns its description."""
+        node = self.key_for(char)
+        if node is None:
+            raise CheckFailed("no key for %r on the keyboard; keys: %s" % (char, self.key_list()))
+        x, y = node.center
+        shell("input motionevent DOWN %d %d" % (x, y), timeout=30)
+        tx, ty = x, y
+        try:
+            time.sleep(1.4)
+            popup = self._popup_nodes(dump())
+            target = next((n for d, n in popup.items() if any(w.lower() in d.lower() for w in wanted)), None)
+            if target is None:
+                raise CheckFailed("the popup of %r offers none of %s but %s" % (char, list(wanted), sorted(popup)[:12]))
+            tx, ty = target.center
+            shell("input motionevent MOVE %d %d" % ((x + tx) // 2, (y + ty) // 2), timeout=30)
+            shell("input motionevent MOVE %d %d" % (tx, ty), timeout=30)
+            time.sleep(0.5)
+        finally:
+            shell("input motionevent UP %d %d" % (tx, ty), timeout=30, check=False)
+        time.sleep(1.5)
         self.notes.append("held %r and chose %r" % (char, target.desc))
         self.hold_info = "key %s, popup %s, chose %s %s" % (
-            self.key_for(char).box, " ".join("%s%s" % (d[:10], n.box) for d, n in list(popup.items())[:6]),
+            node.box, " ".join("%s%s" % (d[:10], n.box) for d, n in list(popup.items())[:6]),
             target.desc[:14], target.box)
         return target.desc
 
@@ -755,11 +763,13 @@ def prompt_store(d):
         d.tap_keyboard_text("Kopiertes als Prompt speichern")
     except CheckFailed as error:
         later = dump()
-        views = " ".join("%s#%s%s" % (n.cls.rsplit(".", 1)[-1][:12], n.rid.rsplit("/", 1)[-1][:22], n.box)
-                         for n in later.keyboard_nodes() if not n.cls.endswith(".Key") and n.rid and n.visible)
-        keyboxes = [n.box for n in later.keyboard_nodes() if n.cls.endswith(".Key") and n.visible][:3]
+        fresh = " ".join("%s#%s'%s'%s" % (n.cls.rsplit(".", 1)[-1][:10], n.rid.rsplit("/", 1)[-1][:16],
+                                           (n.text or n.desc)[:12], n.box)
+                         for n in later.keyboard_nodes() if n.visible and not n.cls.endswith(".Key")
+                         and not n.cls.endswith("FrameLayout") and not n.cls.endswith("LinearLayout"))
+        keyboxes = [n.box for n in later.keyboard_nodes() if n.cls.endswith(".Key") and n.visible][:2]
         raise CheckFailed("%s | hold: %s | now: %s | keys %s" % (
-            str(error)[:110], d.hold_info[:150], views[:230], keyboxes))
+            str(error)[:60], d.hold_info[:200], fresh[:260], keyboxes))
     d.tap_keyboard_text(second)  # the new row shows the first line of its text
     d.expect_field("text", second)
     # the counter-check: the same popup in a password field
