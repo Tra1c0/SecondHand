@@ -8,6 +8,24 @@ Etappen aus dem ursprünglichen Auftrag; Teilpakete bekommen Buchstaben (15a, 15
 
 ## Beschlossen, noch nicht gebaut
 
+- **Runde 3 (Auftrag des Owners, 2026-11-20, Vergleich mit Gboard auf dem Xiaomi 15).** Bestandsaufnahme mit
+  Codestellen: `docs/RUNDE3-BESTANDSAUFNAHME.md`. Etappen, jede einzeln geprüft:
+  - **81 Symbolseiten wie Gboard, unabhängig vom Stil:** „?123“ und „=\<“ Taste für Taste wie Gboard (keine
+    Zusatzreihe, § statt ¶, ✓, `\` und `%` an Gboards Stelle, keine Zahlenreihe auf Seite 2, keine
+    Vierpfeil-Taste). Die Vorlage „Flacher Look“ hat diese Seiten schon; sie werden Standard.
+  - **82 „Alles markieren“ zeigt Aktionen:** Nach dem Markieren über die Leertaste erscheinen Kopieren,
+    Ausschneiden, Einfügen (eigene Knöpfe der Tastatur, weil Android das Menü der App so nicht öffnet).
+  - **83 Gezeichnete Symbole logisch:** Ein gezeichneter Schrägstrich ergibt „/“, nicht „%“; alle Zuordnungen
+    von „Symbole malen“ durchsehen.
+  - **84 Symbole ohne Verzögerung:** erst messen (Buchstabe gegen Symbol), dann die Ursache beheben.
+  - **85 Leiste wie Gboard:** feste, gleichmäßig verteilte Plätze (1 bis 5 oder 8), Raster-Knopf links,
+    Mikrofon rechts, kein Pfeil, kein Scrollen; Raster aller Werkzeuge. **86** Anpassen per Halten und Ziehen im
+    Tastaturfenster.
+  - **87 Cursor als Trackpad:** Leertaste in vier Richtungen, weiche Beschleunigung, leichter Widerstand an
+    Wortgrenzen („Magnetismus“, Richtwert des Owners 5 %), ebenso das Wischen auf der Löschtaste. Grenze von
+    Android: Die Tastatur sieht das Layout des Textfelds nicht; der Cursor bewegt sich zeichen- und zeilenweise,
+    Animation und Scrollen macht die App.
+
 Reihenfolge von oben nach unten.
 
 - **72 Satzbezogene Autokorrektur**: Für regelmäßige deutsche Verbformen gebaut und abschaltbar.
