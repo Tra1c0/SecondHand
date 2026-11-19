@@ -813,6 +813,15 @@ offen, gebaut wird erst nach einer Entscheidung zu den offenen Fragen.
   nicht verifiziert (die Geräteliste auf developers.google.com war aus der Arbeitsumgebung nicht erreichbar). Die Regeln bleiben: jede Übernahme braucht einen eigenen Klick, lokale Werkzeuge werden als
   lokal gekennzeichnet, sensible Felder und Sperrzustand gelten auch hier. Braucht einen Eintrag in
   `docs/PROVIDERS.md`. (M bis L)
+- **W4 Eigenes lokales Modell (ohne Google).** Idee des Owners vom 2026-11-20: statt oder neben AICore ein offenes
+  Sprachmodell (z. B. von Hugging Face) auf dem Gerät, als weiterer lokaler Provider. Angehalten, bis der Owner
+  seine eigene Recherche zu Tempo, Energieverbrauch und vergleichbaren Projekten abgeschlossen hat („Schnelligkeit
+  und Sparsamkeit sind A und O“). Gedachte Stufen (Deutung des Leads, nichts davon geprüft): (1) Diagnose-Karte, die
+  ein Modell nach ausdrücklicher Freigabe lädt, einen festen Testsatz korrigiert und Dauer, Ladezeit und Speicher
+  zeigt, auf dem Prozessor und dem Grafikchip (`llama.cpp`, MIT); (2) eigener Dienst außerhalb des
+  Tastatur-Prozesses, Modell nur bei Bedarf geladen; (3) KI-Chip über Qualcomms proprietäres Paket nur, wenn (1)
+  zu langsam ist, vorher Lizenzfrage (GPL-3.0) klären; läuft dann nur auf diesem Chip. Vergleichswert: die
+  AICore-Diagnose (78a). Nie beim Tippen, nur auf Tipp für eine KI-Aktion. (L)
 - **W3 Alle Google-Funktionen.** Wortlaut des Owners: „alle Google features“. Deutung des Leads: der
   Funktionsumfang der Google-Tastatur und der KI-Funktionen von Google, soweit eine fremde Tastatur sie nutzen
   oder nachbauen kann. Erster Schritt ist eine Liste: je Funktion „schon vorhanden“, „nachbaubar (lokal oder
