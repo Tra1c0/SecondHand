@@ -13,6 +13,9 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
   (`device-tests.yml`, sechs Tipp-Szenarien, 4 von 4 Durchgängen grün, Kontrolllauf 18 von 18 rot; offen 73b Szenarien, 73c Autofill,
   Prüfer für 73a) und **74 Prompt-Ablage** (Symbol im Komma-Menü, Fenster, Einstellungsseite; lokal 9 Testklassen grün, drei Prüfer;
   GitHub-Lauf 115 grün; Test-Build 34 beim Owner; offen: Gerätetest, Rückmeldung des Owners). Nachweise: `docs/VALIDATION.md` → Etappe 73, 74.
+- Letzter geprüfter Stand des Arbeitsbranches: 7221afa (Update-Chip nicht mehr im Passwortfeld; zwei Gerätetest-Szenarien geparkt).
+  GitHub „SecondHand Tests“ Lauf 123 grün (Agent, Upstream, Lint, Build), Gerätetests Lauf 23 grün. Build 34 beim Owner enthält die
+  Chip-Korrektur noch nicht. Für ein Release: `docs/HANDOFF.md` → Release ab Schritt 3 (der Owner hat es noch nicht verlangt).
 - **Sparmodus (Owner, 2026-11-19):** vorerst nur, was wenig Kontingent kostet: schnelle Korrekturen, nur die nötigen Tests. Angehalten:
   73b-Abschluss (Dreifach-Lauf, Kontrolllauf, Prüfer; `clipboard_not_in_password` und `learning_not_in_password` stehen ungeprüft in
   `PARKED` in `devicetest.py`), 73c Autofill, die rückwirkende Bestandsprüfung der ganzen Tastatur nach dem Arbeitsauftrag
