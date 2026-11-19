@@ -28,4 +28,9 @@
     <string name="agent_prompts_sort_title">Prompts sortieren</string>
     <string name="agent_prompts_sort_changed">Die Liste hat sich inzwischen geändert und wurde neu geladen; die Reihenfolge wurde nicht gespeichert.</string>
     <string name="agent_prompts_sort_failed">Die Reihenfolge konnte nicht gespeichert werden.</string>
+    <string name="agent_prompts_file_full">Nicht genug Platz: Die gespeicherten Prompts würden für die Datei zu groß. Kürze oder lösche einen Prompt.</string>
+    <string name="agent_prompts_invalid_text">Titel oder Text enthalten ein defektes Zeichen und lassen sich nicht speichern.</string>
+    <string name="agent_prompts_reset">Ablage zurücksetzen</string>
+    <string name="agent_prompts_reset_confirm">Die Datei der Prompt-Ablage lässt sich nicht lesen. Beim Zurücksetzen werden die Datei und alle darin gespeicherten Prompts gelöscht. Das lässt sich nicht rückgängig machen.</string>
+    <string name="agent_prompts_reset_failed">Die Prompt-Ablage konnte nicht zurückgesetzt werden.</string>
 </resources>

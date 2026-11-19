@@ -223,12 +223,81 @@ class PromptStoreTest {
         assertNotEquals(0, file.length())
     }
 
-    @Test fun aWriteThatWouldNotFitInTheFileLimitIsRefusedAsFull() {
+    @Test fun aWriteThatWouldNotFitInTheFileLimitIsRefusedAsFileFull() {
         // 8000 CJK characters are 24000 bytes: 100 of them are more than 2 MiB
         var failed: PromptResult? = null
         repeat(100) { if (failed == null) store.add("", "中".repeat(PromptStore.MAX_TEXT)).let { if (!it.ok) failed = it } }
-        assertEquals(PromptError.FULL, failed?.error)
+        assertEquals(PromptError.FILE_FULL, failed?.error)
         assertTrue(file.length() <= PromptStore.MAX_STORAGE_BYTES)
         assertTrue(store.read().isNotEmpty())
+    }
+
+    @Test fun anUnpairedSurrogateIsRejectedAndChangesNothing() {
+        val a = store.add("a", "1").prompt!!
+        val before = file.readBytes()
+        val version = PromptStore.version
+        for (lone in listOf("\uD83D", "\uDE00", "x\uD83Dy", "\uDE00\uD83D")) {
+            assertEquals(PromptError.INVALID_TEXT, store.add("t", "text $lone").error, lone)
+            assertEquals(PromptError.INVALID_TEXT, store.add("t$lone", "text").error, lone)
+            assertEquals(PromptError.INVALID_TEXT, store.update(a.id, "a", "text $lone").error, lone)
+            assertEquals(PromptError.INVALID_TEXT, store.update(a.id, "a$lone", "text").error, lone)
+        }
+        assertTrue(before.contentEquals(file.readBytes()))
+        assertEquals(version, PromptStore.version)
+        // a valid pair still round-trips, in title and text
+        val emoji = "\uD83D\uDE00"
+        assertTrue(store.update(a.id, emoji, "x$emoji").ok)
+        assertEquals(emoji, store.read().single().title)
+        assertEquals("x$emoji", store.read().single().text)
+    }
+
+    @Test fun aFileWithAnUnpairedSurrogateIsUnusable() {
+        file.parentFile!!.mkdirs()
+        val bad = """{"storageVersion":1,"prompts":[{"id":"a","title":"","text":"x\ud83d"}]}"""
+        file.writeText(bad)
+        assertTrue(store.read().isEmpty())
+        assertEquals(PromptStoreState.UNUSABLE, store.state())
+    }
+
+    @Test fun stateTellsLockedFromUnusableFromReady() {
+        assertEquals(PromptStoreState.READY, store.state())
+        file.parentFile!!.mkdirs()
+        file.writeText("garbage")
+        assertEquals(PromptStoreState.UNUSABLE, store.state())
+        accessible = false
+        assertEquals(PromptStoreState.LOCKED, store.state())
+    }
+
+    @Test fun resetOnAnUnusableFileGivesAnEmptyUsableStore() {
+        file.parentFile!!.mkdirs()
+        file.writeText("garbage")
+        File(file.path + ".bak").writeText("old garbage")
+        val version = PromptStore.version
+        assertTrue(store.reset().ok)
+        assertFalse(file.exists())
+        assertFalse(File(file.path + ".bak").exists())
+        assertEquals(version + 1, PromptStore.version)
+        assertEquals(PromptStoreState.READY, store.state())
+        assertTrue(store.add("a", "1").ok)
+        assertEquals(listOf("a"), titles())
+    }
+
+    @Test fun resetWhileLockedDoesNothing() {
+        file.parentFile!!.mkdirs()
+        file.writeText("garbage")
+        val version = PromptStore.version
+        accessible = false
+        assertEquals(PromptError.LOCKED, store.reset().error)
+        assertEquals("garbage", file.readText())
+        assertEquals(version, PromptStore.version)
+    }
+
+    @Test fun reorderOfNothingWithNothingStoredIsASuccessfulNoOp() {
+        val version = PromptStore.version
+        assertTrue(store.reorder(emptyList()).ok)
+        assertFalse(file.exists())
+        assertEquals(version, PromptStore.version)
+        // but a list of unknown ids is still refused
+        assertEquals(PromptError.INVALID_ORDER, store.reorder(listOf("x")).error)
     }
 }

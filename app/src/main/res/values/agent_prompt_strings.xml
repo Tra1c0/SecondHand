@@ -31,4 +31,9 @@
     <string name="agent_prompts_sort_title">Sort prompts</string>
     <string name="agent_prompts_sort_changed">The list changed meanwhile. It was reloaded; the order was not saved.</string>
     <string name="agent_prompts_sort_failed">The order could not be saved.</string>
+    <string name="agent_prompts_file_full">Not enough room: the stored prompts would get too large for the file. Shorten or delete a prompt.</string>
+    <string name="agent_prompts_invalid_text">The title or text contains a broken character and cannot be saved.</string>
+    <string name="agent_prompts_reset">Reset prompt store</string>
+    <string name="agent_prompts_reset_confirm">The file of the prompt store cannot be read. Resetting deletes the file and all prompts stored in it. This cannot be undone.</string>
+    <string name="agent_prompts_reset_failed">The prompt store could not be reset.</string>
 </resources>

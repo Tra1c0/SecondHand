@@ -30,7 +30,19 @@ data class Prompt(val id: String, val title: String, val text: String) {
 }
 
 /** Why a write of [PromptStore] did not happen. */
-enum class PromptError { EMPTY_TEXT, TEXT_TOO_LONG, TITLE_TOO_LONG, FULL, LOCKED, IO, NOT_FOUND, INVALID_ORDER }
+enum class PromptError {
+    EMPTY_TEXT, TEXT_TOO_LONG, TITLE_TOO_LONG,
+    /** A title or text with an unpaired UTF-16 surrogate (it could not be stored as UTF-8). */
+    INVALID_TEXT,
+    /** 200 prompts are stored. */
+    FULL,
+    /** The file would get larger than [PromptStore.MAX_STORAGE_BYTES] (many multi-byte characters). */
+    FILE_FULL,
+    LOCKED, IO, NOT_FOUND, INVALID_ORDER
+}
+
+/** What the store can be used for now: [UNUSABLE] is an existing file that cannot be read (corrupt or too large). */
+enum class PromptStoreState { READY, LOCKED, UNUSABLE }
 
 /** Outcome of a write: [prompt] is the stored prompt for add and update, [error] is set when [ok] is false. */
 class PromptResult private constructor(val prompt: Prompt?, val error: PromptError?) {
@@ -64,6 +76,23 @@ class PromptStore(context: Context, private val accessible: () -> Boolean = { cr
     /** Like [read], but null when the device is locked or the file cannot be used (the page says so instead of "empty"). */
     fun load(): List<Prompt>? = synchronized(lock) { if (isAccessible()) runCatching { readFile() }.getOrNull() else null }
 
+    fun state(): PromptStoreState = synchronized(lock) {
+        when {
+            !isAccessible() -> PromptStoreState.LOCKED
+            runCatching { readFile() }.isSuccess -> PromptStoreState.READY
+            else -> PromptStoreState.UNUSABLE
+        }
+    }
+
+    /** Deletes the file and its backup (all stored prompts are lost), e.g. to get out of an unusable file. Refused while locked. */
+    fun reset(): PromptResult = synchronized(lock) {
+        if (!isAccessible()) return@synchronized PromptResult.failed(PromptError.LOCKED)
+        runCatching { file.delete() }
+        if (file.baseFile.exists() || File(file.baseFile.path + ".bak").exists()) return@synchronized PromptResult.failed(PromptError.IO)
+        version++
+        PromptResult.ok()
+    }
+
     /** Inserts a new prompt at position 0. */
     fun add(title: String, text: String): PromptResult {
         val clean = validate(title, text) ?: return PromptResult.failed(validationError(title, text)!!)
@@ -93,6 +122,8 @@ class PromptStore(context: Context, private val accessible: () -> Boolean = { cr
 
     /** Accepted only when [ids] is exactly the stored ids (no more, no fewer, no duplicates); otherwise nothing changes. */
     fun reorder(ids: List<String>): PromptResult = modify { current ->
+        // nothing stored and nothing to order: a successful no-op, no file is created
+        if (current.isEmpty() && ids.isEmpty()) return@modify PromptResult.ok()
         val byId = current.associateBy { it.id }
         if (ids.size != current.size || ids.toSet().size != ids.size || !byId.keys.containsAll(ids))
             return@modify PromptResult.failed(PromptError.INVALID_ORDER)
@@ -115,8 +146,8 @@ class PromptStore(context: Context, private val accessible: () -> Boolean = { cr
 
     private fun write(prompts: List<Prompt>): PromptResult {
         val bytes = encode(prompts).toByteArray(Charsets.UTF_8)
-        // more than a file may hold (many multi-byte characters) counts as full: it could not be read again
-        if (bytes.size > MAX_STORAGE_BYTES) return PromptResult.failed(PromptError.FULL)
+        // more than a file may hold (many multi-byte characters): it could not be read again
+        if (bytes.size > MAX_STORAGE_BYTES) return PromptResult.failed(PromptError.FILE_FULL)
         val target = file
         val output = try { target.startWrite() } catch (_: Exception) { return PromptResult.failed(PromptError.IO) }
         try { output.write(bytes); target.finishWrite(output) }
@@ -144,10 +175,24 @@ class PromptStore(context: Context, private val accessible: () -> Boolean = { cr
 
         /** What is wrong with a title and text (before saving), or null. Lengths are UTF-16 characters; nothing is ever cut. */
         fun validationError(title: String, text: String): PromptError? = when {
+            hasLoneSurrogate(title) || hasLoneSurrogate(text) -> PromptError.INVALID_TEXT
             cleanTitle(title).length > MAX_TITLE -> PromptError.TITLE_TOO_LONG
             text.isBlank() -> PromptError.EMPTY_TEXT
             text.length > MAX_TEXT -> PromptError.TEXT_TOO_LONG
             else -> null
+        }
+
+        /** True when [s] has a high or low surrogate that is not part of a pair. */
+        fun hasLoneSurrogate(s: String): Boolean {
+            var i = 0
+            while (i < s.length) {
+                val c = s[i]
+                if (Character.isHighSurrogate(c)) {
+                    if (i + 1 < s.length && Character.isLowSurrogate(s[i + 1])) i++ else return true
+                } else if (Character.isLowSurrogate(c)) return true
+                i++
+            }
+            return false
         }
 
         /** The cleaned title when title and text are valid, else null. */
@@ -176,6 +221,7 @@ class PromptStore(context: Context, private val accessible: () -> Boolean = { cr
                     require(it.id.isNotEmpty() && it.id.length <= MAX_ID)
                     require(it.title == cleanTitle(it.title) && it.title.length <= MAX_TITLE)
                     require(it.text.isNotBlank() && it.text.length <= MAX_TEXT)
+                    require(!hasLoneSurrogate(it.title) && !hasLoneSurrogate(it.text))
                 }
             }
             require(prompts.map { it.id }.toSet().size == prompts.size)
