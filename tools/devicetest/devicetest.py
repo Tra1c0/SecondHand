@@ -770,8 +770,9 @@ def prompt_store(d):
     of the comma key does not offer the store."""
     first, second, third = CLIP_TEXTS
     d.start("prompt_store")
-    if not d.control:  # control run: nothing is copied, so nothing can be saved and inserted
-        d.tap_id("copy_2")
+    # control run: another text is copied, so the saved prompt is not the expected one (copying nothing
+    # was not enough: the text of an earlier scenario was still on the clipboard, run 41)
+    d.tap_id("copy_1" if d.control else "copy_2")
     d.focus("text")
     d.hold_and_choose(",", ("Prompt",))
     try:
