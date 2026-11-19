@@ -808,8 +808,9 @@ offen, gebaut wird erst nach einer Entscheidung zu den offenen Fragen.
 - **W2 AICore (KI auf dem Gerät).** Googles AICore mit Gemini Nano als zweiter, lokaler Provider neben dem
   eigenen Schlüssel: Textaufgaben (Korrigieren, Umformulieren, Zusammenfassen, Antwortvorschläge) ohne Netz und
   ohne Kosten. Bekannte Grenzen vor dem Bau zu prüfen (nicht geprüft): AICore gibt es nur auf bestimmten
-  Geräten (u. a. neuere Pixel- und Galaxy-Modelle) und nur mit Google-Diensten; ob das Telefon des Owners es
-  hat, ist offen. Die Regeln bleiben: jede Übernahme braucht einen eigenen Klick, lokale Werkzeuge werden als
+  Geräten (u. a. neuere Pixel- und Galaxy-Modelle) und nur mit Google-Diensten; das Telefon des Owners ist ein
+  Xiaomi 15 (Angabe vom 2026-11-20); ob es von AICore und den ML-Kit-GenAI-Schnittstellen unterstützt wird, ist
+  nicht verifiziert (die Geräteliste auf developers.google.com war aus der Arbeitsumgebung nicht erreichbar). Die Regeln bleiben: jede Übernahme braucht einen eigenen Klick, lokale Werkzeuge werden als
   lokal gekennzeichnet, sensible Felder und Sperrzustand gelten auch hier. Braucht einen Eintrag in
   `docs/PROVIDERS.md`. (M bis L)
 - **W3 Alle Google-Funktionen.** Wortlaut des Owners: „alle Google features“. Deutung des Leads: der
