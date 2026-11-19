@@ -12,7 +12,7 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 - Stand 2026-11-19, Arbeitsbranch `claude/build-12-completion-3unh51`, noch nicht auf `main`, kein Build: **73a Emulator-Testlabor**
   (`device-tests.yml`, sechs Tipp-Szenarien, 4 von 4 Durchgängen grün, Kontrolllauf 18 von 18 rot; offen 73b Szenarien, 73c Autofill,
   Prüfer für 73a) und **74 Prompt-Ablage** (Symbol im Komma-Menü, Fenster, Einstellungsseite; lokal 9 Testklassen grün, drei Prüfer;
-  offen: voller GitHub-Lauf „SecondHand Tests“, Test-Build für den Owner, Gerätetest). Nachweise: `docs/VALIDATION.md` → Etappe 73, 74.
+  GitHub-Lauf 115 grün; Test-Build 34 beim Owner; offen: Gerätetest, Rückmeldung des Owners). Nachweise: `docs/VALIDATION.md` → Etappe 73, 74.
 - Davor, Stand 2026-11-18: Build 33 ist als signiertes Update veröffentlicht. Er ergänzt Build 32 um
   satzbezogene Autokorrektur für regelmäßige deutsche Verben (72) mit Rücknahme im aktuellen
   Feld und Schalter unter „Tippen & Korrektur → Regeln“. Der vollständige GitHub-Lauf 103 ist grün.
@@ -339,6 +339,9 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
   Projekt-Repositories). Einem Agenten wurde das Anlegen verweigert; der Owner hat es dem Lead am 2026-11-19 erlaubt.
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
+- Build 34 (Test, Arbeitsbranch c6526bf): 74 Prompt-Ablage (Symbol im Komma-Menü, Fenster, Einstellungsseite) und 73a Emulator-Testlabor
+  (ändert die App nicht). GitHub-Lauf 115 grün (Agent, Upstream, Lint, Build), Gerätetests Lauf 14 grün; APK nachgeprüft (Prüfsumme,
+  Zertifikat, Versionscode 34, nicht debuggable); dem Owner als Datei geschickt; kein Gerätetest. Nicht auf `main`.
 - Build 33 (geprüft, von `main` d051fe8) ergänzt die satzbezogene Autokorrektur (72). GitHub-Lauf 103 grün (Agent, Upstream, Lint, Build). Release-Lauf 33 grün (Signatur, Versionscode und öffentlicher Download geprüft). Die Geräteprüfung steht aus.
 - Build 32 (geprüft, von `main` 7ada405): Runde 2 teilweise (64a, 64b, 65, 69, 70) mit allen Prüferkorrekturen und Etappe 71 (Slang-Liste,
   1.695 Wörter, zwei Nachprüfungen); am Ende zwei Prüfer über den ganzen Branch (Engine-Zeilen; Zwischenablage und Sicherung), nur niedrige Befunde,

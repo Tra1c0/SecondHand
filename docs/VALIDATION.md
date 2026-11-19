@@ -61,10 +61,20 @@ einen Vergleich (oben so eingeschränkt); Großbuchstaben hätten bei schon gro�
 (Namen ergänzt); `tools/dev.py` löste keinen Lauf aus (ergänzt); ein Kontrolllauf war auch bei einem
 Gerätefehler rot (jetzt: grün genau dann, wenn alle Szenarien an einem Vergleich scheitern). Niedrig: Wettlauf
 beim Beenden der Aufnahme, kein Zeitlimit am Emulator-Schritt (25 Minuten gesetzt), Warten auf die neue
-Seite an der Überschrift. Diese Korrekturen sind lokal nur im Trockenlauf gegen ein nachgebautes `adb`
-gelaufen; ihr GitHub-Lauf (normal und Kontrolle) steht aus.
+Seite an der Überschrift. Diese Korrekturen liefen danach auf GitHub (Commit c6526bf):
+[Lauf 14](https://github.com/Tra1c0/SecondHand/actions/runs/44447534846) normal, ein Emulator, grün; [Lauf 15](https://github.com/Tra1c0/SecondHand/actions/runs/44450446195) Kontrolle auf drei
+Emulatoren, nach der neuen Regel grün (jeder Emulator-Job endet nur dann grün, wenn alle sechs Szenarien an
+einem Vergleich scheitern; die `CONTROL`-Zeilen dieses Laufs hat der Lead nicht einzeln gelesen). Lauf 13
+(Stand mit der Prompt-Ablage, vor den Korrekturen) war ebenfalls grün. Erfolgsquote normaler Durchgänge
+damit 6 von 6 (Läufe 10, 12 ×3, 13, 14).
 
 ## Etappe 74 — Prompt-Ablage
+
+Nachtrag 2026-11-19: Der GitHub-Lauf „SecondHand Tests“ [115](https://github.com/Tra1c0/SecondHand/actions/runs/44447534762) auf c6526bf ist grün
+(Agent, Upstream, Lint, Build), und es gibt den signierten Test-Build 34 (Lauf https://github.com/Tra1c0/SecondHand/actions/runs/44450442570; vom Lead
+geladen und nachgesehen: SHA-256 9710b857…4c2a9a wie in der `.sha256`, Zertifikat des Owners d56e8f00…63602a,
+Versionscode 34, nicht debuggable, `PromptsView` im Code, kein Testcode der Gerätetests). Weiter offen:
+Gerätetest, Emulator-Szenario für die Prompt-Ablage, Prüfer für 5faced3.
 
 Stand: 2026-11-19, Arbeitsbranch, Commits 41fc3c3 bis bad8d4f. Alles Folgende ist nur in Robolectric
 und per Prüfer-Lesen belegt; nichts davon lief auf einem Gerät.
