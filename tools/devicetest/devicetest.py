@@ -472,7 +472,10 @@ class Driver:
             target = next((n for d, n in popup.items() if any(w.lower() in d.lower() for w in wanted)), None)
             if target is None:
                 raise CheckFailed("the popup of %r offers none of %s but %s" % (char, list(wanted), sorted(popup)[:12]))
-            tx, ty = target.center
+            # The popup's key boxes are reported with the top of the whole popup (run 33: two rows, every
+            # key from y 1716), so the row is taken from the lower edge: one key height up from it.
+            tx = target.center[0]
+            ty = target.bottom - (node.bottom - node.top) // 2
             shell("input motionevent MOVE %d %d" % ((x + tx) // 2, (y + ty) // 2), timeout=30)
             shell("input motionevent MOVE %d %d" % (tx, ty), timeout=30)
             time.sleep(0.5)
