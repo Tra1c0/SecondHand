@@ -160,7 +160,8 @@ private fun PromptsContent(store: PromptStore) {
         confirmButton = {
             TextButton(modifier = Modifier.testTag(PROMPTS_RESET_CONFIRM_TAG), onClick = {
                 resetting = false
-                notice = if (store.reset().ok) 0 else R.string.agent_prompts_reset_failed
+                // a readable file is left alone: the page only reloads
+                notice = store.reset().error.let { if (it == null || it == PromptError.READABLE) 0 else R.string.agent_prompts_reset_failed }
                 reload()
             }) { Text(stringResource(R.string.agent_prompts_reset)) }
         },

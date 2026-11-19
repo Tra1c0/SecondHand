@@ -38,7 +38,9 @@ enum class PromptError {
     FULL,
     /** The file would get larger than [PromptStore.MAX_STORAGE_BYTES] (many multi-byte characters). */
     FILE_FULL,
-    LOCKED, IO, NOT_FOUND, INVALID_ORDER
+    LOCKED, IO, NOT_FOUND, INVALID_ORDER,
+    /** [PromptStore.reset] found a readable file and deleted nothing. */
+    READABLE
 }
 
 /** What the store can be used for now: [UNUSABLE] is an existing file that cannot be read (corrupt or too large). */
@@ -61,9 +63,11 @@ class PromptResult private constructor(val prompt: Prompt?, val error: PromptErr
  * first when added). Nothing is readable or writable while the device is locked. Only the settings page
  * writes. Nothing here logs titles or texts, uses the network or learns from prompts.
  *
- * A file that is too large, not valid or not understood reads as an empty list ([read]); a read never
- * changes the file, and every write first needs a readable file, so such a file stays as it is and writes
- * fail with [PromptError.IO] (as in the snippet store).
+ * A file that is too large, not valid or not understood reads as an empty list ([read]); the store itself
+ * never rewrites or deletes such a file, and every write first needs a readable file, so it stays as it is and
+ * writes fail with [PromptError.IO] (as in the snippet store). One thing a read can do: [AtomicFile.openRead]
+ * first finishes an interrupted write, i.e. when a backup file ("agent_prompts.json.bak") exists it deletes the
+ * main file and renames the backup in its place, so a read may restore the last completed write.
  */
 class PromptStore(context: Context, private val accessible: () -> Boolean = { credentialAccessAllowed(context) }) {
     private val storage = credentialContext(context.applicationContext)
@@ -84,9 +88,15 @@ class PromptStore(context: Context, private val accessible: () -> Boolean = { cr
         }
     }
 
-    /** Deletes the file and its backup (all stored prompts are lost), e.g. to get out of an unusable file. Refused while locked. */
+    /**
+     * Deletes the file and its backup (all stored prompts are lost) to get out of an unusable file. Refused while
+     * locked. The file is read again first, under the lock: a readable file (also "no file") is never deleted, the
+     * result is [PromptError.READABLE] and the version does not change (the file may have been repaired meanwhile,
+     * e.g. by a restored backup, or the page showed an old state).
+     */
     fun reset(): PromptResult = synchronized(lock) {
         if (!isAccessible()) return@synchronized PromptResult.failed(PromptError.LOCKED)
+        if (runCatching { readFile() }.isSuccess) return@synchronized PromptResult.failed(PromptError.READABLE)
         runCatching { file.delete() }
         if (file.baseFile.exists() || File(file.baseFile.path + ".bak").exists()) return@synchronized PromptResult.failed(PromptError.IO)
         version++
