@@ -9,17 +9,15 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 ## Aktueller Stand
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
-- Stand 2026-11-19, Arbeitsbranch `claude/build-12-completion-3unh51`, noch nicht auf `main`, kein Build: **73a Emulator-Testlabor**
-  (`device-tests.yml`, sechs Tipp-Szenarien, 4 von 4 Durchgängen grün, Kontrolllauf 18 von 18 rot; offen 73b Szenarien, 73c Autofill,
-  Prüfer für 73a) und **74 Prompt-Ablage** (Symbol im Komma-Menü, Fenster, Einstellungsseite; lokal 9 Testklassen grün, drei Prüfer;
-  GitHub-Lauf 115 grün; Test-Build 34 beim Owner; offen: Gerätetest, Rückmeldung des Owners). Nachweise: `docs/VALIDATION.md` → Etappe 73, 74.
-- Letzter geprüfter Stand des Arbeitsbranches: 7221afa (Update-Chip nicht mehr im Passwortfeld; zwei Gerätetest-Szenarien geparkt).
-  GitHub „SecondHand Tests“ Lauf 123 grün (Agent, Upstream, Lint, Build), Gerätetests Lauf 23 grün. Build 34 beim Owner enthält die
-  Chip-Korrektur noch nicht. Für ein Release: `docs/HANDOFF.md` → Release ab Schritt 3 (der Owner hat es noch nicht verlangt).
-- **Sparmodus (Owner, 2026-11-19):** vorerst nur, was wenig Kontingent kostet: schnelle Korrekturen, nur die nötigen Tests. Angehalten:
-  73b-Abschluss (Dreifach-Lauf, Kontrolllauf, Prüfer; `clipboard_not_in_password` und `learning_not_in_password` stehen ungeprüft in
-  `PARKED` in `devicetest.py`), 73c Autofill, die rückwirkende Bestandsprüfung der ganzen Tastatur nach dem Arbeitsauftrag
-  des Owners (Inventar aus `docs/FEATURES.md` angefangen und abgebrochen). Befund für den Owner offen: „idr“ wird nicht korrigiert.
+- Stand 2026-11-19, Arbeitsbranch `claude/build-12-completion-3unh51` (2205ba7 plus Doku): **73 Emulator-Testlabor** fertig (22 Szenarien
+  inkl. Autofill 73c; Lauf 40 dreimal 22/22, Kontrolllauf 43 dreimal alle rot), **74 Prompt-Ablage**, **75 Buchstabendreher**, **76 Prompts
+  in der Sicherung**, Korrekturen an Pille (Wiederkehr, Sternchen im Passwortfeld P308), Update-Chip, Tastenpositionen, Sperrzustand der
+  Befehle (P309), Logging im Screenshot-Chip. „SecondHand Tests“ Lauf 140 grün. Nachweise: `docs/VALIDATION.md` (oberste Abschnitte).
+- **Regel des Owners (2026-11-19):** Was nach den Prüfmöglichkeiten des Leads lückenlos belegt ist, darf ohne Rückfrage auf `main`,
+  aber leicht rückholbar: vorher den alten Stand von `main` hier notieren. Vor dieser Runde: `main` = 74ed58c.
+- Offen: Autofill-Schwächen der Tastatur (nur gemeldet), rückwirkende Bestandsprüfung (nur Block Datenschutz erledigt; Bedienung und
+  Funktionen fehlen), kleine Datenschutz-Befunde und die Wünsche W1–W3 (`docs/ROADMAP.md` → Unsortiert; für W2 fehlt das Telefonmodell
+  des Owners), `autocorrect_typo_in_sentence` einmal von zwölf Durchgängen rot (ungeklärt). Kein Gerätetest auf einem Telefon.
 - Davor, Stand 2026-11-18: Build 33 ist als signiertes Update veröffentlicht. Er ergänzt Build 32 um
   satzbezogene Autokorrektur für regelmäßige deutsche Verben (72) mit Rücknahme im aktuellen
   Feld und Schalter unter „Tippen & Korrektur → Regeln“. Der vollständige GitHub-Lauf 103 ist grün.

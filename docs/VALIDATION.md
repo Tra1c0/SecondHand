@@ -1,5 +1,27 @@
 # Prüfnachweise
 
+## Gerätetests 73b und 73c — Abschluss (2026-11-19)
+
+- Lauf 40 (c8f0023, drei frisch gestartete Emulatoren, Android 14): 22 von 22 Szenarien bestanden, dreimal
+  (66 von 66). Darin erstmals `autofill_inline` (73c): Der Vorschlag „Test 73c“ des Test-Dienstes erscheint in
+  der Leiste (Knoten `autofill_inline_suggestion_title`), ein Tipp füllt Benutzername und Passwort; ohne
+  gewählten Dienst erscheint kein solcher Knoten. Der Test-Dienst liegt nur in der Test-App (der Workflow
+  prüft, dass kein Testcode in der Tastatur-APK ist).
+- Kontrolllauf 41 (019a898): 21 von 22 rot; `prompt_store` blieb grün (ein Text des vorigen Szenarios lag noch
+  in der Zwischenablage). Skript korrigiert (2205ba7: der Kontrolllauf kopiert dort einen anderen Text).
+  Kontrolllauf 43 (2205ba7, drei Emulatoren): grün, das heißt alle 22 Szenarien wurden auf allen dreien rot.
+- Der normale Ablauf von `prompt_store` ist in 2205ba7 unverändert; ein normaler Lauf auf genau 2205ba7 lief
+  auf dem Arbeitsbranch nicht (Lauf 42 wurde vom Kontrolllauf abgelöst).
+- „SecondHand Tests“: Lauf 139 (91be80e) und Lauf 140 (2205ba7) grün, je vier Jobs.
+- Prüfer (lesend) für die Korrekturen an Pille, Sperrzustand und Logging (`git diff 3a68719..019a898 -- app/`):
+  kein Befund ab mittlerer Schwere. Offen notiert: Die Pille zeigt in Feldern mit sichtbarem Passwort weiter
+  Klartext (wie vorher); `FormatGuardChips` und `ScreenshotChip` fragen den Sperrzustand nur beim Feldstart.
+- Unzuverlässigkeit: `autocorrect_typo_in_sentence` scheiterte in Lauf 38 auf einem von drei Emulatoren und
+  bestand in den Läufen 26, 31–36 und 40 (dreimal). Ursache nicht geklärt.
+- Nicht geprüft: echte Passwortmanager, ein echtes Telefon, Autofill-Schwächen der Tastatur (feste Breite 740 px,
+  Reihenfolge der Chips, Freigabe der Ansichten, verspätete Antworten) sind nur gemeldet, nicht behoben.
+- Ein Emulator ist kein Telefon: grün heißt „diese Szenarien, in diesem Emulator“.
+
 ## Bestandsprüfung Datenschutzregeln und zwei Korrekturen (2026-11-19)
 
 - Lesende Prüfung der Regeln (Netz nur nach Freigabe, kein Logging von Inhalten, kein automatisches Ersetzen,
