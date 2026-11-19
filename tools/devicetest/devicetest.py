@@ -449,12 +449,19 @@ class Driver:
             raise CheckFailed("no key for %r on the keyboard; keys: %s" % (char, self.key_list()))
         x, y = node.center
         shell("input motionevent DOWN %d %d" % (x, y), timeout=30)
+        during = ""
         try:
             time.sleep(1.4)
-            popup = self._popup_nodes(dump())
+            screen = dump()
+            popup = self._popup_nodes(screen)
+            mirror = screen.by_id("mirror_password")
+            during = mirror.text if mirror else "?"
         finally:
             shell("input motionevent CANCEL %d %d" % (x, y), timeout=30, check=False)
         time.sleep(0.8)
+        self.hold_info = "touch at %s: popup %s; password mirror while held %r, after cancel %r" % (
+            node.box, " ".join("%s%s" % (d[:8], n.box) for d, n in list(popup.items())[:6]), during,
+            self.field("password"))
         return popup
 
     def hold_and_choose(self, char, wanted):
@@ -780,7 +787,10 @@ def prompt_store(d):
     offered = sorted(d.popup_of(","))
     d.expect_equal("the store's key in the popup of a password field (popup %s)" % offered[:8],
                    any("prompt" in name.lower() for name in offered), False)
-    d.expect_field("password", "")
+    try:
+        d.expect_field("password", "")
+    except CheckFailed as error:
+        raise CheckFailed("%s | %s" % (str(error)[:120], d.hold_info[:400]))
 
 
 def learning_not_in_password(d):
