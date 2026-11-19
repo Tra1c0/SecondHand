@@ -2,6 +2,19 @@
 
 ## Etappe 77 — Ordner in der Prompt-Ablage
 
+- **Emulator (2026-11-20, Android 14):** neues Szenario `prompt_folders` über die echten Einstiege: Ordner
+  „Arbeit73“ auf der Einstellungsseite anlegen (Name auf der echten Tastatur getippt), im Fenster der Tastatur
+  die Zeile „Alle / Arbeit73 / Ohne Ordner“, Kopiertes im Ordner speichern und einfügen, zweiten Text ohne Ordner
+  speichern, Filter prüfen. Lauf 48 (a689d7f): 23 von 23. Lauf 49 (drei Emulatoren): alle drei grün.
+  Kontrolllauf 50 (drei Emulatoren): grün, das heißt jedes Szenario wurde auf jedem Emulator rot (nur die
+  Job-Ergebnisse gelesen, nicht die einzelnen Zeilen). Läufe 46 und 47 scheiterten am Skript: ein Wisch über
+  eine Zeile einer Liste, die nicht scrollt, fügte die Zeile ein und schloss das Fenster; das Skript wischt
+  jetzt nur noch, wenn die Liste überläuft. Ob ein kurzer Wisch auf einem Telefon ebenso als Tipp zählt, ist
+  nicht geprüft (vermutlich normales Android-Verhalten innerhalb der Zeile). Kein Vergleich wurde geändert.
+- „SecondHand Tests“ Lauf 142 (0add48d) und Lauf 145 (a689d7f) grün, je vier Jobs. Test-Build 36 (0add48d).
+- Weiter nicht geprüft: Aussehen und Scrollen der Ordner-Zeile mit vielen oder langen Namen, Ziehen beim
+  Sortieren, TalkBack, Querformat, ein echtes Telefon.
+
 Stand: 2026-11-19, Arbeitsbranch `wt-folders-77` (Commits siehe Bericht des Lead). Auftrag des Owners: „Kannst du bitte Ordner im prompt
 space möglich machen? Dann wird er von prompt space zur dauerhaften, universellen Ablage“. Betroffen: `PromptStore` (Ordner, Format 2),
 `PromptsView` (Chip-Reihe), `AgentEditorController` (`showPromptFilter`, `saveClipAsPrompt`), `AgentPromptsScreen` (Chips, Ordner-Editor,
