@@ -887,6 +887,21 @@ offen, gebaut wird erst nach einer Entscheidung zu den offenen Fragen.
   ist der eigene Export mit Qualcomms Werkzeug (Konto nötig) die Alternative. (b) Tempo, Speicher und Wärme bewerten (Qualcomm nennt
   16 bis 21 Tokens/s für die Galaxy-Variante). (c) Erst dann die lokale Schnittstelle zwischen Tastatur und Begleit-App (Aufruf nur auf
   Tipp, Übernahme mit eigenem Klick, nichts loggen) und eine eigene Etappe für die Dienstform.
+  **Geparkt (Owner, 2026-11-20):** W4 ruht nach fünf Gerätetests auf dem Xiaomi 15 (Begleit-App 0.1 bis 0.5;
+  0.6 als Messwerkzeug gebaut, vom Owner nicht mehr gefahren). Stand: GenieX startet; die Android-Fassung 0.10.0
+  liest nur das ältere Paketformat (Ausgabe v0.66.0); HyperOS beendet die App hart bei mehr als 1,5 GiB dma-buf,
+  und schon Qwen3-1.7B (1,62 GiB Rechenprogramme) liegt rechnerisch darüber (gemessen 3,97 GiB). Kein Schalter in
+  0.10.0 senkt das. Ungeprüfter Restweg: GGUF Q4_0 über `llama_cpp` mit teilweiser NPU-Nutzung. Einzelheiten:
+  `docs/VALIDATION.md` → Etappe 80 bis 80f. Wieder aufnehmen, wenn Qualcomm das Android-Paket aktualisiert oder
+  der Owner es verlangt.
+- **W6 Spezialisierte Sprachengine statt allgemeinem LLM (Idee des Owners, 2026-11-20, geparkt).** Kleine,
+  auf Tippen zugeschnittene Modelle statt eines LLM: Maßstab „Genauigkeit pro Millisekunde, Megabyte und
+  Millijoule“, offline, CPU. Einschätzung des Leads: Schicht 1 (Wörterbuch, Wortfolgen, räumliches Tippmodell)
+  existiert schon als HeliBoard-Engine; ein neuronales Modell (5–30 Mio. Parameter) sollte die Kandidaten der
+  Engine nur neu sortieren, nicht selbst Wörter erzeugen; Satzkorrektur nur auf Wunsch und nur als Vorschlag;
+  zuerst Deutsch. Offen und teuer: Trainingsdaten, Rechenzeit (hier keine Grafikkarte), Lizenzfragen bei
+  Distillation, Messung falscher Korrekturen. Erster Schritt, wenn es wieder aufgenommen wird: ein Messstand für
+  die heutige Engine (Trefferquote, gesparte Tastendrücke, falsche Korrekturen), ohne Modell.
 - **W5 Sprache auf dem Gerät (Wunsch des Owners, 2026-11-20, noch nicht zugeschnitten).** Präzise
   Spracherfassung auch bei viel Hintergrundlärm, später eventuell Melodie-Erkennung. Das Textmodell aus W4 kann
   kein Audio; es braucht eigene Modelle in derselben Begleit-App. Deutung des Leads, nichts geprüft: (a) Diktat
