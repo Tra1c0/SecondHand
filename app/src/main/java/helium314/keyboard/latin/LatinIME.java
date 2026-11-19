@@ -1474,7 +1474,9 @@ public class LatinIME extends InputMethodService implements
             return null;
         }
 
-        return InlineAutofillUtils.createInlineSuggestionRequest(mDisplayContext);
+        // fork, stage 79: the chips may be as wide as the strip really is (0 while it is not laid out yet)
+        return InlineAutofillUtils.createInlineSuggestionRequest(mDisplayContext,
+                hasSuggestionStripView() ? mSuggestionStripView.getWidth() : 0);
     }
 
     @Override
