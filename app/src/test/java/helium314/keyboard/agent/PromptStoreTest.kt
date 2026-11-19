@@ -282,6 +282,31 @@ class PromptStoreTest {
         assertEquals(listOf("a"), titles())
     }
 
+    @Test fun resetOnAHealthyStoreDeletesNothing() {
+        assertTrue(store.add("a", "1").ok)
+        assertTrue(store.add("b", "2").ok)
+        val version = PromptStore.version
+        assertEquals(PromptError.READABLE, store.reset().error)
+        assertEquals(listOf("b", "a"), titles())
+        assertEquals(version, PromptStore.version)
+        assertTrue(file.exists())
+        // no file at all is healthy too: nothing to delete, no version bump
+        file.delete()
+        assertEquals(PromptError.READABLE, store.reset().error)
+        assertEquals(version, PromptStore.version)
+    }
+
+    @Test fun resetWithOnlyAReadableBackupKeepsTheBackupsPrompts() {
+        assertTrue(store.add("a", "1").ok)
+        // an interrupted write: only the backup is left; reading it restores the main file
+        file.renameTo(File(file.path + ".bak"))
+        assertFalse(file.exists())
+        val version = PromptStore.version
+        assertEquals(PromptError.READABLE, store.reset().error)
+        assertEquals(listOf("a"), titles())
+        assertEquals(version, PromptStore.version)
+    }
+
     @Test fun resetWhileLockedDoesNothing() {
         file.parentFile!!.mkdirs()
         file.writeText("garbage")
