@@ -1,5 +1,37 @@
 # Prüfnachweise
 
+## Etappe 80 — GenieX-Spike (Begleit-App)
+
+**Auf einem Gerät ist NICHTS gelaufen.** Weder die App noch das SDK noch das Modell wurden auf einem Telefon, einem
+Emulator oder sonst irgendwo ausgeführt. Alles unten ist aus den Dateien gelesen oder von der JVM-Prüfung der eigenen Logik.
+
+- **Stand:** 2026-11-19, Arbeitsbranch `wt-companion-80`, nicht gepusht. Auftrag: kleine getrennte App `companion/`, die
+  Qualcomms fertiges Qwen3-4B über GenieX (`com.qualcomm.qti:geniex-android:0.10.0`) auf der NPU des Xiaomi 15 laufen lassen
+  soll und dem Owner zeigt, ob und wie schnell. Keine Änderung an `app/`, `agent-core/` oder dem Haupt-Build; nur
+  `scripts/docs_sync.json` (Quellmuster für `companion/`) und Docs.
+- **Aus den Dateien belegt:** Jeder SDK-Aufruf wurde mit `javap` gegen das AAR (0.10.0) geprüft und kompiliert: `GenieXSdk.getInstance().init(Context, InitCallback)`,
+  `getSdkVersion`, `getPluginVersion`, `getQairtRuntimePath`; `ModelManagerWrapper.pullFlow(ModelPullInput)`, `getPaths`, `remove`;
+  `ModelPullInput(model_name, hub, chipset)`; `LlmCreateInput(model_path, tokenizer_path, config, runtime_id, compute_unit)`;
+  `ModelConfig(nCtx, nGpuLayers)`; `LlmWrapper.builder().llmCreateInput(..).build()`, `applyChatTemplate(Array<ChatMessage>, tools, enableThinking, ..)`,
+  `generateStreamFlow(prompt, .., config)`, `stopStream`, `destroy`; `GenerationConfig(maxTokens)`; `ProfilingData`. Vollständige Liste im
+  Bericht des Lead und in `docs/ARCHITECTURE.md` → Begleit-App. Das Beispiel der Doku für `generateStreamFlow` passt in 0.10.0 nicht
+  (P322); die Namen der Parameter bestätigt erst der Compiler.
+- **Gebaut:** `./gradlew -p companion :app:testDebugUnitTest :app:assembleDebug` endet mit BUILD SUCCESSFUL. APK etwa 97 MB, Paket
+  `dev.personal.secondhand.companion`, targetSdk 35, nur `arm64-v8a`, Berechtigung nur `INTERNET`, 52 native Bibliotheken des SDK
+  (darunter `libgeniex_plugin_qairt.so`, `libQnnHtp.so`, `libQnnHtpV79*.so`, `libnpu_jni.so`), `extractNativeLibs=true`.
+- **Tests (JVM, JUnit 4, ohne SDK):** 48 von 48 grün: `MetricsTest` 7, `ErrorTextTest` 7, `PullPlannerTest` 7,
+  `ReportFormatterTest` 9, `SpikeRunnerTest` 18 (Fake des Ports `NpuPort`). Rotprobe: Faktor in `Metrics.tokensPerSecond` von 1000 auf 100
+  und die Bedingung in `PullPlanner.afterPullFailure` auf `false` gesetzt: 7 Tests rot (je 2 in `MetricsTest`, 1 in `PullPlannerTest`,
+  1 in `ReportFormatterTest`, 3 in `SpikeRunnerTest`); beides zurückgesetzt, danach 48 von 48 grün. Diese Tests belegen die Rechnung,
+  die Entscheidung „zuerst SM8750, dann SM8750-AC anbieten“, die Fehlertexte und den Ablauf gegen einen Fake, nicht das Verhalten des SDK.
+- **Hauptrisiken (alle nur auf dem Gerät klärbar):** (1) Für das Xiaomi 15 gibt es von Qualcomm kein Bundle für `SM8750`; die
+  Erkennung des Fehlers beruht auf Strings aus `libgeniex.so`, nicht auf einem beobachteten Fehler. (2) Das Galaxy-Bundle (`SM8750-AC`)
+  läuft auf einem Nicht-Galaxy-SM8750 vielleicht nicht. (3) Bundle QAIRT 2.51 gegen die gebündelte Laufzeit 2.50: Laden scheitert,
+  Absturz im nativen Code oder falsche Ausgabe bei voller Geschwindigkeit. (4) Ob `enableThinking = false` bei Qwen3-4B den Denkblock wirklich
+  verhindert, ist nicht belegt. (5) Ob die Rechnung auf der NPU läuft, kann die App nur über Laufzeitkennung und Tempo vermuten (P325).
+  (6) Nicht geprüft: Aussehen auf dem Telefon, Speicher- und Wärmeverhalten, Rotation (die App ist auf Hochformat fixiert), Abbruch mitten im
+  Download oder in der Erzeugung, der Name der Fehlerklassen des SDK.
+- **Nicht geprüft:** `FEATURES.md` führt die Begleit-App nicht (keine Tastaturfunktion).
 ## Etappe 79 — Autofill-Vorschläge robust
 
 - **Prüfer (lesend, 2026-11-20, Lebenszyklus gegen die AOSP-Quellen von Android 11 gelesen):** kein Befund ab

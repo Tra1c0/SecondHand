@@ -1591,6 +1591,31 @@ Wörter & Lernen → Gelernte Wörter kannst du das Lernen
 pausieren (das Gelernte bleibt), die gelernten Wörter je Sprache zählen, als Datei exportieren
 oder löschen. Wer „Personalisierte Vorschläge“ ausschaltet, löscht dabei alles Gelernte.
 
+## Begleit-App „Spike“ (Test des KI-Chips, nur als Datei)
+
+Eine kleine, getrennte App, die nur ausprobiert, ob Qualcomms fertiges Sprachmodell (Qwen3-4B) auf dem KI-Chip
+deines Xiaomi 15 läuft und wie schnell. Sie ist keine Tastaturfunktion, steht nicht bei „Releases“ und wird dir
+vom Lead als Datei geschickt (`app-debug.apk`, etwa 97 MB; Größe und SHA-256 stehen in der Nachricht).
+
+1. Datei auf dem Telefon antippen und installieren (wie bei der Tastatur: Android fragt einmal nach der Erlaubnis
+   für unbekannte Apps). Die App heißt „SecondHand Begleit-Spike“ und ersetzt nichts.
+2. **WLAN** einschalten und etwa **7 GB freien Speicher** sicherstellen. App öffnen. Oben stehen Gerät, Chip und Speicher.
+   Steht dort in Rot „Auf diesem Gerät nicht unterstützt …“, tippe nur **Bericht kopieren** (Schritt 6).
+3. **1. Modell laden** tippen und die Frage mit „Jetzt laden“ bestätigen (etwa 2,7 GB von Qualcomms Server; die App
+   bleibt dabei im Vordergrund, der Bildschirm bleibt an). Wenn Qualcomm für deinen Chip kein Paket hat, fragt die
+   App, ob sie das Galaxy-Paket „SM8750-AC“ versuchen soll; es ist für eine andere Chip-Variante gebaut und läuft
+   vielleicht nicht. Das ist ein zweiter, eigener Tipp.
+4. **2. Test: festen Satz korrigieren** tippen. Die App lädt das Modell auf den KI-Chip (das kann eine Weile dauern),
+   lässt es einen festen Satz mit zwei Tippfehlern korrigieren und zeigt Antwort, Ladezeit, Tempo, Speicher und Akku-
+   Temperatur. Optional danach **3. Test: längerer Absatz** (zeigt das Tempo über längere Zeit).
+5. Hängt etwas, hilft **Stopp**. **Modell entladen** gibt den Arbeitsspeicher frei, **Modell löschen** das Modell
+   vom Telefon. Verschwindet die App mitten im Test, öffne sie wieder: Der Bericht sagt dann, in welchem Schritt es passierte.
+6. **Bericht kopieren** tippen, dann in den Chat mit dem Lead einfügen (oder einen Screenshot des Berichts schicken).
+   Der Bericht enthält Gerätedaten, Zahlen und Fehlertexte, keine privaten Texte.
+
+Datenschutz: Die App nutzt das Internet nur für den Download aus Schritt 3, nur nach deiner Bestätigung. Es gibt kein
+Textfeld, nur zwei feste Beispieltexte, keine Statistik und keine Anmeldung. Stand: nichts davon lief bisher auf einem Gerät.
+
 ## Gerätetests ansehen (Video und Ergebnis)
 
 Die Tastatur wird auf GitHub in einem Android-Emulator automatisch bedient (bisher sechs einfache

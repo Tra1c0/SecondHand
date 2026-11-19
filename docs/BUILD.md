@@ -246,6 +246,25 @@ nutzen einen Debug-Schlüssel, der in jeder neuen Umgebung anders ist; sie sind 
 - Lokal gibt es keinen Emulator (kein `/dev/kvm`); das Skript lässt sich nur gegen ein nachgebautes `adb`
   trocken prüfen. Jede Annahme über das Verhalten im Emulator gilt erst nach einem GitHub-Lauf.
 
+## Begleit-App `companion/` (80)
+
+- Ein eigenes Gradle-Projekt neben `tools/devicetest`: `companion/settings.gradle.kts`, `companion/build.gradle.kts`,
+  `companion/gradle.properties`, Modul `companion/app`. Das Haupt-`settings.gradle` kennt es nicht; es nutzt den Wrapper des
+  Hauptprojekts, dieselben Versionen von AGP (9.1.1) und Kotlin (2.4.0, über das Plugin `kotlin.plugin.serialization`
+  mit `apply false`) und `compileSdk = 37`.
+- Bauen und prüfen (der Lauf braucht Internet für `com.qualcomm.qti:geniex-android:0.10.0` und `kotlinx-coroutines`, die
+  Cloud-Umgebung nutzt ihren Maven-Spiegel):
+  `./gradlew -p companion :app:testDebugUnitTest :app:assembleDebug`. Die APK liegt danach unter
+  `companion/app/build/outputs/apk/debug/app-debug.apk` (etwa 97 MB, enthält Qualcomms Laufzeit, nur `arm64-v8a`; nicht versioniert).
+  Es gibt nur diese Debug-Variante, keine Signatur des Owners, keinen Workflow.
+- **Wird nie veröffentlicht:** nicht in `agent-apk.yml`, in kein Release und nicht ins Repository. Grund: Die APK bündelt die
+  Qualcomm-Laufzeit (QAIRT/QNN, `llama.cpp`), und aus den Texten (BSD-3 des GenieX-Codes plus Qualcomms Nutzungsbedingungen, keine
+  eigene Lizenz der Bibliotheken im Paket) ist nicht ablesbar, ob sie so weitergegeben werden darf (`docs/W4-GENIEX-MACHBARKEIT.md` §4).
+  Die Builds dieses Projekts sind öffentlich herunterladbar, darum geht diese APK nur als Datei an den Owner. Nach jedem Bau Dateigröße
+  und SHA-256 notieren und mitschicken.
+- Kein Emulator-Test: Das AAR hat nur `arm64-v8a`, und die Laufzeit braucht die NPU eines Snapdragon 8 Elite. Auf einem x86-Emulator
+  zeigt die App „Auf diesem Gerät nicht unterstützt“ (nicht ausprobiert, aus dem AAR gelesen).
+
 ## Fremdbibliotheken der Agent-Funktionen
 
 - `com.google.zxing:core` 3.5.4 (Apache-2.0, `LICENSE-Apache-2.0` im Wurzelverzeichnis): nur der
