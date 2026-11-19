@@ -14,6 +14,7 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -27,7 +28,10 @@ import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.settings.initPreview
 import helium314.keyboard.settings.screens.AgentPromptsScreen
 import helium314.keyboard.settings.screens.PROMPTS_ADD_TAG
+import helium314.keyboard.settings.screens.PROMPTS_CANCEL_TAG
 import helium314.keyboard.settings.screens.PROMPTS_COUNT_TAG
+import helium314.keyboard.settings.screens.PROMPTS_DISCARD_TAG
+import helium314.keyboard.settings.screens.PROMPTS_KEEP_EDITING_TAG
 import helium314.keyboard.settings.screens.PROMPTS_DELETE_CONFIRM_TAG
 import helium314.keyboard.settings.screens.PROMPTS_DELETE_TAG
 import helium314.keyboard.settings.screens.PROMPTS_EDIT_TAG
@@ -305,5 +309,156 @@ class PromptsScreenTest {
         val cut = rowPreview("a".repeat(299) + emoji + "tail")
         assertEquals("a".repeat(299), cut)
         assertFalse(PromptStore.hasLoneSurrogate(cut))
+    }
+
+    // ---- review of 74a: discard guard, saved state, back ----
+
+    private fun nodeText(tag: String) = fieldText(tag)
+    private fun back() { compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }; compose.waitForIdle() }
+
+    @Test fun cancelWithChangesAsksAndKeepsTheTextOnKeepEditingAndDiscardsOnConfirm() {
+        show()
+        click(PROMPTS_ADD_TAG)
+        compose.onNodeWithTag(PROMPTS_TEXT_FIELD_TAG).performTextInput("abc")
+        click(PROMPTS_CANCEL_TAG)
+        compose.onNodeWithTag(PROMPTS_DISCARD_TAG).assertExists()
+        compose.onNodeWithText("Änderungen verwerfen?").assertExists()
+        compose.onNodeWithTag(PROMPTS_KEEP_EDITING_TAG).performClick(); compose.waitForIdle()
+        compose.onNodeWithTag(PROMPTS_DISCARD_TAG).assertDoesNotExist()
+        assertEquals("abc", nodeText(PROMPTS_TEXT_FIELD_TAG))
+        click(PROMPTS_CANCEL_TAG)
+        compose.onNodeWithTag(PROMPTS_DISCARD_TAG).performClick(); compose.waitForIdle()
+        compose.onNodeWithTag(PROMPTS_TEXT_FIELD_TAG).assertDoesNotExist()
+        compose.onNodeWithTag(PROMPTS_ADD_TAG).assertExists()
+        assertTrue(newStore().read().isEmpty())
+    }
+
+    @Test fun cancelWithoutChangesClosesAtOnce() {
+        val a = newStore().add("t", "x").prompt!!
+        show()
+        click(PROMPTS_ADD_TAG)
+        click(PROMPTS_CANCEL_TAG)
+        compose.onNodeWithTag(PROMPTS_DISCARD_TAG).assertDoesNotExist()
+        compose.onNodeWithTag(PROMPTS_TEXT_FIELD_TAG).assertDoesNotExist()
+        click(PROMPTS_EDIT_TAG + a.id)
+        click(PROMPTS_CANCEL_TAG) // an existing prompt, nothing typed
+        compose.onNodeWithTag(PROMPTS_DISCARD_TAG).assertDoesNotExist()
+        compose.onNodeWithTag(PROMPTS_ADD_TAG).assertExists()
+        // typing something and typing it away again is no change
+        click(PROMPTS_EDIT_TAG + a.id)
+        compose.onNodeWithTag(PROMPTS_TITLE_FIELD_TAG).performTextInput("q")
+        click(PROMPTS_CANCEL_TAG)
+        compose.onNodeWithTag(PROMPTS_DISCARD_TAG).assertExists() // a changed title asks too
+    }
+
+    @Test fun theBackButtonClosesTheEditorInsteadOfLeavingThePageAndAsksOnChanges() {
+        var left = 0
+        initPreview(app)
+        compose.setContent { Theme(dark = true) { AgentPromptsScreen(onClickBack = { left++ }, storeFactory = { newStore(it) }) } }
+        compose.waitForIdle()
+        click(PROMPTS_ADD_TAG)
+        back()
+        compose.onNodeWithTag(PROMPTS_TEXT_FIELD_TAG).assertDoesNotExist() // the editor closed
+        assertEquals(0, left)
+        click(PROMPTS_ADD_TAG)
+        compose.onNodeWithTag(PROMPTS_TEXT_FIELD_TAG).performTextInput("abc")
+        back()
+        compose.onNodeWithTag(PROMPTS_DISCARD_TAG).assertExists()
+        assertEquals("abc", nodeText(PROMPTS_TEXT_FIELD_TAG))
+        assertEquals(0, left)
+    }
+
+    @Test fun theEditorStateSurvivesAnActivityRestore() {
+        newStore().add("Titel", "Text")
+        val tester = StateRestorationTester(compose)
+        initPreview(app)
+        tester.setContent { Theme(dark = true) { AgentPromptsScreen(onClickBack = {}, storeFactory = { newStore(it) }) } }
+        compose.waitForIdle()
+        val id = newStore().read().single().id
+        click(PROMPTS_EDIT_TAG + id)
+        compose.onNodeWithTag(PROMPTS_TITLE_FIELD_TAG).performTextInput("neu")
+        compose.onNodeWithTag(PROMPTS_TEXT_FIELD_TAG).performTextInput(" mehr")
+        tester.emulateSavedInstanceStateRestore()
+        compose.waitForIdle()
+        assertEquals("Titelneu", nodeText(PROMPTS_TITLE_FIELD_TAG))
+        assertEquals("Text mehr", nodeText(PROMPTS_TEXT_FIELD_TAG))
+        compose.onNodeWithTag(PROMPTS_ADD_TAG).assertDoesNotExist() // still the editor, not the list
+        assertEquals("Text", newStore().read().single().text) // nothing was saved by the restore
+    }
+
+    // ---- review of 74a: failures, editor hides the list, invalid text, preview length ----
+
+    @Test fun aFailedDeleteShowsTheFailureNotice() {
+        val a = newStore().add("a", "1").prompt!!
+        show()
+        click(PROMPTS_DELETE_TAG + a.id)
+        accessible = false // locked meanwhile
+        compose.onNodeWithTag(PROMPTS_DELETE_CONFIRM_TAG).performClick(); compose.waitForIdle()
+        compose.onNodeWithTag(PROMPTS_NOTICE_TAG).assert(hasText(app.getString(R.string.agent_prompts_save_failed)))
+        accessible = true
+        assertEquals(1, newStore().read().size)
+    }
+
+    @Test fun aDeleteOnAnUnreadableFileShowsTheFailureNotice() {
+        val a = newStore().add("a", "1").prompt!!
+        show()
+        click(PROMPTS_DELETE_TAG + a.id)
+        file.writeText("garbage")
+        compose.onNodeWithTag(PROMPTS_DELETE_CONFIRM_TAG).performClick(); compose.waitForIdle()
+        compose.onNodeWithTag(PROMPTS_NOTICE_TAG).assert(hasText(app.getString(R.string.agent_prompts_save_failed)))
+        assertEquals("garbage", file.readText())
+    }
+
+    @Test fun aFailedResetShowsItsNotice() {
+        file.parentFile!!.mkdirs(); file.writeText("garbage")
+        show()
+        click(PROMPTS_RESET_TAG)
+        accessible = false // locked before the confirmation
+        compose.onNodeWithTag(PROMPTS_RESET_CONFIRM_TAG).performClick(); compose.waitForIdle()
+        compose.onNodeWithTag(PROMPTS_NOTICE_TAG).assert(hasText(app.getString(R.string.agent_prompts_reset_failed)))
+        assertEquals("garbage", file.readText())
+    }
+
+    @Test fun aResetOfAFileThatHasBecomeReadableOnlyReloads() {
+        file.parentFile!!.mkdirs(); file.writeText("garbage")
+        show()
+        click(PROMPTS_RESET_TAG)
+        // repaired meanwhile
+        file.writeText(PromptStore.encode(listOf(Prompt("id1", "t", "text"))))
+        compose.onNodeWithTag(PROMPTS_RESET_CONFIRM_TAG).performClick(); compose.waitForIdle()
+        compose.onNodeWithTag(PROMPTS_NOTICE_TAG).assertDoesNotExist()
+        compose.onNodeWithTag(PROMPTS_ROW_TAG + "id1").assertExists() // the prompt is still there and listed
+        assertEquals(1, newStore().read().size)
+    }
+
+    @Test fun withTheEditorOpenNoRowAndNoRowButtonIsInTheTree() {
+        val a = newStore().add("a", "1").prompt!!
+        show()
+        click(PROMPTS_EDIT_TAG + a.id)
+        compose.onNodeWithTag(PROMPTS_ROW_TAG + a.id).assertDoesNotExist()
+        compose.onNodeWithTag(PROMPTS_EDIT_TAG + a.id).assertDoesNotExist()
+        compose.onNodeWithTag(PROMPTS_DELETE_TAG + a.id).assertDoesNotExist()
+        compose.onNodeWithTag(PROMPTS_TEXT_FIELD_TAG).assertExists()
+    }
+
+    @Test fun theEditorShowsTheInvalidTextMessageForABrokenCharacter() {
+        show()
+        click(PROMPTS_ADD_TAG)
+        compose.onNodeWithTag(PROMPTS_TEXT_FIELD_TAG).performTextInput("ab\uD83D")
+        compose.waitForIdle()
+        compose.onNodeWithText(app.getString(R.string.agent_prompts_invalid_text)).assertExists()
+        compose.onNodeWithTag(PROMPTS_SAVE_TAG).assertIsNotEnabled()
+    }
+
+    private fun texts(node: androidx.compose.ui.semantics.SemanticsNode): List<String> =
+        listOfNotNull(node.config.getOrNull(SemanticsProperties.Text)?.joinToString("") { it.text }) + node.children.flatMap { texts(it) }
+
+    @Test fun aRowOfALongTextRendersThe300CharacterPreview() {
+        val long = "w".repeat(1000)
+        val a = newStore().add("Titel", long).prompt!!
+        show()
+        val shown = texts(compose.onNodeWithTag(PROMPTS_ROW_TAG + a.id, useUnmergedTree = true).fetchSemanticsNode())
+        assertTrue(shown.contains("Titel"))
+        assertEquals(listOf(300), shown.filter { it.startsWith("w") }.map { it.length })
     }
 }
