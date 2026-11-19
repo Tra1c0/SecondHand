@@ -22,6 +22,8 @@ object AgentPreferences {
     /** Never replace a known word automatically (default off: known words may still be corrected when clearly wrong). */
     const val AUTOCORRECT_KEEP_VALID_WORDS = "agent_autocorrect_keep_valid_words"
     const val AUTOCORRECT_SENTENCE_CONTEXT = "agent_autocorrect_sentence_context"
+    /** Stage 75: a very common short word typed with two letters swapped ("idr" -> "dir") is corrected (default on). */
+    const val AUTOCORRECT_SWAPPED_LETTERS = "agent_autocorrect_swapped_letters"
     /** Never replace a known word by one that differs only by an umlaut, e.g. mochte/möchte (default on). */
     const val AUTOCORRECT_KEEP_UMLAUT_VARIANTS = "agent_autocorrect_keep_umlaut_variants"
     /** Opt-in: remember corrections undone with backspace and never apply them again. */

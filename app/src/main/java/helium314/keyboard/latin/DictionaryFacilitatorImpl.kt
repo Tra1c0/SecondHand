@@ -591,6 +591,16 @@ class DictionaryFacilitatorImpl : DictionaryFacilitator {
         isValidWord(word, MAIN_ONLY, it) || isValidWord(word.lowercase(it.locale), MAIN_ONLY, it)
     }.map { it.locale }
 
+    /**
+     * Fork, stage 75: the highest frequency (0..255, below zero when unknown) that a main dictionary of any
+     * active language gives [word] exactly as written; a blacklisted word is unknown. Read-only, takes no
+     * lock, for the suggestion thread.
+     */
+    fun mainFrequency(word: String): Int = dictionaryGroups.maxOfOrNull {
+        if (word.isEmpty() || it.isBlacklisted(word)) Dictionary.NOT_A_PROBABILITY
+        else it.getDict(Dictionary.TYPE_MAIN)?.getFrequency(word) ?: Dictionary.NOT_A_PROBABILITY
+    } ?: Dictionary.NOT_A_PROBABILITY
+
     // todo: move into dictionaryGroup?
     private fun isValidWord(word: String, dictionariesToCheck: Array<String>, dictionaryGroup: DictionaryGroup): Boolean {
         if (word.isEmpty() || dictionaryGroup.isBlacklisted(word)) return false

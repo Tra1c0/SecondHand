@@ -4,7 +4,7 @@
      a search finds a page in either language). Not translated on purpose. Words are separated by spaces. -->
 <resources>
     <string name="agent_search_kw_area_look" translatable="false">look aussehen farben colors theme design style stil hintergrund background dunkel dark hell</string>
-    <string name="agent_search_kw_area_typing" translatable="false">typing tippen correction korrektur autokorrektur autocorrect suggestions vorschläge wörter words wörterbuch</string>
+    <string name="agent_search_kw_area_typing" translatable="false">typing tippen correction korrektur autokorrektur autocorrect buchstabendreher vertauschte buchstaben swapped letters transposed suggestions vorschläge wörter words wörterbuch</string>
     <string name="agent_search_kw_area_keys" translatable="false">keys tasten languages sprachen layout zahlenreihe number row emoji popups hinweise</string>
     <string name="agent_search_kw_area_gestures" translatable="false">gestures gesten gefühl feel vibration haptik sound ton leertaste space swipe wischen</string>
     <string name="agent_search_kw_area_bar" translatable="false">bar leiste toolbar werkzeugleiste commands befehle schnellzugriff</string>

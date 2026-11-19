@@ -28,6 +28,7 @@ import helium314.keyboard.latin.settings.SettingsValuesForSuggestion
 import helium314.keyboard.latin.utils.SuggestionResults
 import helium314.keyboard.latin.utils.prefs
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -72,6 +73,7 @@ class SuggestTest {
         TypoMemory.clear(latinIME)
         EmojiSuggestions.setTableForTest(null) // no emojis unless a test loads the table
         mainLocalesKnowingWord = emptyMap()
+        mainFrequencyOfWord = emptyMap()
     }
 
     @Test fun `'on' to 'in' if 'in' was used before in this context`() {
@@ -1158,6 +1160,130 @@ class SuggestTest {
         }
     }
 
+    // fork, stage 75: "idr" -> "dir". The native dictionary cannot run here: the frequencies are those of the real main
+    // dictionaries (dir 108, die 211, und 213, nicht 183 in German, the 222 in English), the engine's results are fixed.
+    private val andNgram get() = NgramContext(NgramContext.WordInfo("und"))
+
+    private fun swapped(typed: String, locale: Locale = Locale.GERMAN, caps: CapsMode = CapsMode.OFF,
+                        engine: List<SuggestedWordInfo> = emptyList(), known: List<String> = emptyList()): SuggestedWords {
+        currentTypingLocale = locale
+        enableAutocorrect(confidenceVeryAggressive)
+        mainFrequencyOfWord = mapOf("dir" to 108, "die" to 211, "und" to 213, "nicht" to 183, "the" to 222, "sie" to 184,
+            "sei" to 154, "bei" to 186, "lade" to 150)
+        mainLocalesKnowingWord = known.associateWith { listOf(locale) }
+        tapTypingSuggestions = suggestionResults(engine)
+        return getSuggestedWords(false, typed, caps, andNgram)
+    }
+
+    private fun SuggestedWords.correction(): String? =
+        if (mWillAutoCorrect) getWord(SuggestedWords.INDEX_OF_AUTO_CORRECTION) else null
+
+    @Test fun `stage 75 a swapped pair of letters in a very common word is corrected`() {
+        // the finding: the strip showed IDE, ist, die, never dir
+        val engine = listOf(suggestion("IDE", 300000, Locale.GERMAN), suggestion("ist", 280000, Locale.GERMAN), suggestion("die", 250000, Locale.GERMAN))
+        assertEquals("dir", swapped("idr", engine = engine).correction())
+        assertEquals("dir", swapped("idr").correction(), "also when the engine offered nothing")
+        assertEquals("die", swapped("dei").correction())
+        assertEquals("nicht", swapped("nciht").correction())
+        // the normal path is not broken: the engine's own hit for "udn" is the same word
+        assertEquals("und", swapped("udn", engine = listOf(suggestion("und", 650000, Locale.GERMAN))).correction())
+        assertEquals("und", swapped("udn").correction())
+        assertEquals("the", swapped("teh", Locale.ENGLISH).correction())
+        // the typed word stays selectable
+        assertTrue(swapped("idr").mSuggestedWordInfoList.any { it.mWord == "idr" })
+    }
+
+    @Test fun `stage 75 capitalisation follows the typed word`() {
+        assertEquals("Dir", swapped("Idr", caps = CapsMode.MANUAL).correction())
+        assertEquals("DIR", swapped("IDR", caps = CapsMode.MANUAL_LOCKED).correction())
+        assertEquals("dir", swapped("idr", caps = CapsMode.OFF).correction())
+    }
+
+    @Test fun `stage 75 a valid word, an ambiguity and an uncommon candidate change nothing`() {
+        assertEquals("dir", swapped("idr").correction()) // control
+        // both words exist: "sie" is never turned into "sei" nor the other way round (also with a better engine hit)
+        assertNull(swapped("sie", known = listOf("sie", "sei"), engine = listOf(suggestion("sie", 1500000, Locale.GERMAN))).correction())
+        assertNull(swapped("sei", known = listOf("sie", "sei"), engine = listOf(suggestion("sei", 1500000, Locale.GERMAN))).correction())
+        assertNull(swapped("bei", known = listOf("bei")).correction())
+        // a typed word that only the personal dictionary knows
+        val personal = SuggestedWordInfo("idr", "", 200000, KIND_FLAG_APPROPRIATE_FOR_AUTO_CORRECTION,
+            Dictionary.PhonyDictionary(Dictionary.TYPE_USER), 0, 0)
+        assertNull(swapped("idr", engine = listOf(personal)).correction())
+        // two qualifying swaps: "ide" can become "die" and "ied"
+        assertEquals("die", swapped("ide").correction(), "control: one swap qualifies")
+        mainFrequencyOfWord = mapOf("die" to 211, "ied" to 150)
+        assertNull(getSuggestedWords(false, "ide", CapsMode.OFF, andNgram).correction())
+        // the candidate is a word, but not a very common one
+        mainFrequencyOfWord = mapOf("dir" to 60)
+        assertNull(getSuggestedWords(false, "idr", CapsMode.OFF, andNgram).correction())
+        // the candidate cannot be judged
+        mainFrequencyOfWord = emptyMap()
+        assertNull(getSuggestedWords(false, "idr", CapsMode.OFF, andNgram).correction())
+    }
+
+    @Test fun `stage 75 only words of three to five letters, only letters`() {
+        assertEquals("dir", swapped("idr").correction()) // control
+        mainFrequencyOfWord = mainFrequencyOfWord + mapOf("di" to 200, "nicths" to 200, "-ir" to 200, "d'r" to 200, "ird" to 200)
+        for (word in listOf("id", "nciths", "i-r", "id'", "xidr1")) {
+            assertNull(getSuggestedWords(false, word, CapsMode.OFF, andNgram).correction(), word)
+        }
+    }
+
+    @Test fun `stage 75 slang and own words stay as typed`() {
+        // "alde" is on the list of informal words, its swap "lade" is made very common here
+        assertNull(swapped("alde").correction(), "listed slang word")
+        // an own word of the memory (here a remembered abbreviation)
+        latinIME.prefs().edit { putBoolean(AgentPreferences.MEMORY, true) }
+        helium314.keyboard.agent.Memory.resetForTest()
+        helium314.keyboard.agent.AgentStorageContexts.keyboard(latinIME)
+            .getSharedPreferences(helium314.keyboard.agent.Memory.FILE, android.content.Context.MODE_PRIVATE)
+            .edit { putString(helium314.keyboard.agent.Memory.SHORTCUTS, "v1\n2;CREATED;idr;ich denke richtig") }
+        try {
+            assertNull(swapped("idr").correction(), "an own word of the memory")
+        } finally {
+            helium314.keyboard.agent.Memory.resetForTest()
+        }
+    }
+
+    @Test fun `stage 75 the switch, autocorrect off, gestures and a learned pair`() {
+        assertEquals("dir", swapped("idr").correction()) // control
+        latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_SWAPPED_LETTERS, false) }
+        assertNull(swapped("idr").correction(), "switched off")
+        latinIME.prefs().edit { remove(AgentPreferences.AUTOCORRECT_SWAPPED_LETTERS) }
+        assertEquals("dir", swapped("idr").correction(), "default is on")
+
+        latinIME.prefs().edit { putBoolean(Settings.PREF_AUTO_CORRECTION, false) }
+        assertNull(getSuggestedWords(false, "idr", CapsMode.OFF, andNgram).correction(), "autocorrect off")
+        latinIME.prefs().edit { putBoolean(Settings.PREF_AUTO_CORRECTION, true) }
+
+        // glide typing has its own path and never gets the rule
+        assertFalse(getSuggestedWords(true, "idr", CapsMode.OFF).mSuggestedWordInfoList.any { it.mWord == "dir" })
+
+        // a learned typo pair for the same typed word wins
+        latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_LEARN_TYPOS, true) }
+        repeat(3) { TypoMemory.confirm(latinIME, "idr", "ihr", null, Settings.getValues()) }
+        assertEquals("ihr", swapped("idr").correction())
+    }
+
+    @Test fun `stage 75 the correction is an ordinary one that can be reverted`() {
+        val words = swapped("idr")
+        assertEquals("dir", words.correction())
+        // what InputLogic takes: the first suggestion after the typed word is the automatic correction
+        val candidate = words.getInfo(SuggestedWords.INDEX_OF_AUTO_CORRECTION)
+        // Backspace right after it: the pair stays rejected at that position (stage 72), as for every other correction
+        val typedFirst = helium314.keyboard.agent.TypedWordFirst()
+        typedFirst.corrected(12, candidate.mWord, "idr")
+        typedFirst.reverted(12, "idr")
+        assertTrue(typedFirst.rejects(12, "idr", "dir"))
+        assertFalse(typedFirst.rejects(13, "idr", "dir"))
+        // and, with remembering on, the pair is not applied again anywhere, "dir" stays a suggestion
+        latinIME.prefs().edit { putBoolean(AgentPreferences.AUTOCORRECT_REMEMBER_REJECTED, true) }
+        RejectedCorrections.remember(latinIME, "idr", "dir", Settings.getValues())
+        val again = swapped("idr", engine = listOf(suggestion("dir", 300000, Locale.GERMAN)))
+        assertNull(again.correction())
+        assertTrue(again.mSuggestedWordInfoList.any { it.mWord == "dir" })
+    }
+
     private fun getSuggestedWords(gesture: Boolean, typedWord: String, capsMode: CapsMode,
                                   ngramContext: NgramContext = NgramContext.EMPTY_PREV_WORDS_INFO,
                                   followingText: () -> CharSequence? = { null }): SuggestedWords {
@@ -1241,6 +1367,8 @@ private var glideTypingSuggestions = suggestionResults(emptyList())
 private var nextWordSuggestions = suggestionResults(emptyList())
 /** Stage 60: the languages whose main dictionary knows a (lower case) word, for the previous words of a sentence. */
 private var mainLocalesKnowingWord = emptyMap<String, List<Locale>>()
+/** Stage 75: the main-dictionary frequency (0..255) of a lower case word; unknown words give no frequency. */
+private var mainFrequencyOfWord = emptyMap<String, Int>()
 
 fun suggestion(word: String, score: Int, locale: Locale = currentTypingLocale, shortcut: Boolean = false) =
     SuggestedWordInfo(
@@ -1271,6 +1399,8 @@ class ShadowFacilitator {
     fun hasAtLeastOneInitializedMainDictionary() = true // otherwise no autocorrect
     @Implementation
     fun mainLocalesKnowing(word: String): List<Locale> = mainLocalesKnowingWord[word.lowercase()].orEmpty()
+    @Implementation
+    fun mainFrequency(word: String): Int = mainFrequencyOfWord[word] ?: Dictionary.NOT_A_PROBABILITY
     @Implementation
     // what is relevant for facilitator?
     // only detecting whether we want next word suggestions (typed word empty and not batch mode)
