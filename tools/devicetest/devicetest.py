@@ -214,7 +214,7 @@ class Driver:
         self.notes = []
         # A new activity in a cleared task, not "am force-stop": stopping the package would also stop
         # and disable its accessibility service, and the keyboard would hide its keys again.
-        shell("am start -W --activity-clear-task --activity-new-task -n %s/.MainActivity --es scenario %s"
+        shell("am start -W --activity-clear-task -n %s/.MainActivity --es scenario %s"
               % (TEST_PACKAGE, name), timeout=60)
         self.wait(lambda screen: screen.by_id("field_text") is not None, "the test app with its fields")
 
