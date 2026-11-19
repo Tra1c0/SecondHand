@@ -57,6 +57,7 @@ class AgentEditorController @JvmOverloads constructor(
     private var wheel: AgentWheelView? = null
     private var calculator: CalculatorView? = null
     private var charArt: helium314.keyboard.agent.charart.CharArtView? = null
+    private var prompts: helium314.keyboard.agent.prompts.PromptsView? = null
     private var snapshot: TextSnapshot? = null
     private var preparedResult: String? = null
     private var needsCursorRefresh = false
@@ -90,7 +91,7 @@ class AgentEditorController @JvmOverloads constructor(
         journalFactory?.invoke() ?: EncryptedActionRunStore(ime)) }
     val isAwaitingCursorRefresh: Boolean get() = needsCursorRefresh
     val isBlockingInput: Boolean get() = needsCursorRefresh || panel?.visibility == View.VISIBLE || wheel?.visibility == View.VISIBLE
-        || calculator?.visibility == View.VISIBLE || charArt?.visibility == View.VISIBLE
+        || calculator?.visibility == View.VISIBLE || charArt?.visibility == View.VISIBLE || prompts?.visibility == View.VISIBLE
     val editor = AndroidEditorAdapter(
         connection = { ime.currentInputConnection },
         liveAccess = { access -> access.copy(
@@ -216,6 +217,11 @@ class AgentEditorController @JvmOverloads constructor(
         charArt?.onCopy = ::copyCharArt
         charArt?.onSaveSnippet = ::saveCharArtSnippet
         charArt?.onAllowPictures = ::openPictureSettings
+        prompts = view.findViewById(R.id.agent_prompts)
+        prompts?.onClose = ::close
+        prompts?.onPick = ::insertPrompt
+        prompts?.onSaveClip = ::saveClipAsPrompt
+        prompts?.onManage = ::openPromptSettings
         wheel?.onAction = { action -> if (action == null) open() else { capture(); runLocal(action) } }
         panel?.onClose = {
             val hideKeyboard = needsCursorRefresh
@@ -596,6 +602,134 @@ class AgentEditorController @JvmOverloads constructor(
             ime.startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                 android.net.Uri.fromParts("package", ime.packageName, null)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
         }
+    }
+
+    /** Stage 74b: the prompt store; replaceable in tests. */
+    internal var promptStoreFactory: () -> PromptStore = { PromptStore(ime) }
+
+    /**
+     * Stage 74b: the prompt window in place of the keys, opened by the icon in the comma key's popup.
+     * Never in password fields, incognito, fields without learning or while the device is locked (a
+     * notice, nothing is read). A word still being composed is left as typed first (like the
+     * character art window). The field changes only by a tap on a prompt. False if it cannot open now.
+     */
+    fun openPrompts(): Boolean {
+        val target = prompts ?: return false
+        if (needsCursorRefresh) return false
+        if (editor.protection() != null || Settings.getValues()?.mIsLocked == true) {
+            Toast.makeText(ime, R.string.agent_prompts_protected, Toast.LENGTH_SHORT).show()
+            return false
+        }
+        if (inputLogic.hasActiveComposition()) {
+            if (inputLogic.hasPendingBatchInput()) return false // a gesture is still being processed
+            inputLogic.commitTyped(Settings.getValues(), helium314.keyboard.latin.LastComposedWord.NOT_A_SEPARATOR)
+        }
+        close()
+        KeyboardSwitcher.getInstance().mainKeyboardView?.closing()
+        target.rootView.findViewById<SuggestionStripView>(R.id.suggestion_strip_view)?.dismissMoreSuggestionsPanel()
+        target.show(promptStoreFactory().load())
+        return true
+    }
+
+    /**
+     * The tap on a prompt: its stored text (read again now) goes in at the cursor, once, through the
+     * same path as the calculator and the character art: generated text, one commit, no learning, no
+     * autocorrection. A selection is not replaced (the anchor needs a plain cursor).
+     */
+    private fun insertPrompt(id: String) {
+        val target = prompts?.takeIf { it.visibility == View.VISIBLE } ?: return // a tap on a row of a window already closed does nothing
+        if (editor.protection() != null || isDeviceLocked(ime) || isUserLocked(ime) || Settings.getValues()?.mIsLocked == true) {
+            close()
+            Toast.makeText(ime, R.string.agent_prompts_protected, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val store = promptStoreFactory()
+        val prompt = store.load()?.firstOrNull { it.id == id }
+        if (prompt == null) {
+            target.refresh(store.load())
+            target.showStatus(ime.getString(R.string.agent_prompts_gone))
+            return
+        }
+        when (val captured = editor.captureAnchor()) {
+            is AnchorResult.Captured -> when (editor.insert(captured.anchor, prompt.text)) {
+                ApplyOutcome.SUBMITTED -> close()
+                ApplyOutcome.REJECTED -> target.showStatus(ime.getString(R.string.agent_prompts_expired))
+                ApplyOutcome.UNKNOWN -> charArtUnclear()
+            }
+            is AnchorResult.Denied -> when (captured.reason) {
+                DenialReason.NO_CURSOR -> target.showStatus(ime.getString(R.string.agent_prompts_selection))
+                DenialReason.PASSWORD, DenialReason.INCOGNITO, DenialReason.NO_LEARNING, DenialReason.LOCKED, DenialReason.UNSUPPORTED_EDITOR -> {
+                    close()
+                    Toast.makeText(ime, R.string.agent_prompts_protected, Toast.LENGTH_SHORT).show()
+                }
+                else -> target.showStatus(ime.getString(R.string.agent_prompts_expired))
+            }
+        }
+    }
+
+    /**
+     * The tap on "Save copied text as prompt": the system clipboard is read only here. Text only, at
+     * most [PromptStore.MAX_TEXT] characters, and never what the clipboard history keeps out as a secret
+     * or a one-time code (marked sensitive, copied in a password field, or recognised by its content).
+     * The prompt goes to the top of the store with no title.
+     */
+    private fun saveClipAsPrompt() {
+        val target = prompts ?: return
+        if (editor.protection() != null || isDeviceLocked(ime) || isUserLocked(ime) || Settings.getValues()?.mIsLocked == true) {
+            close()
+            Toast.makeText(ime, R.string.agent_prompts_protected, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val clip = runCatching { (ime.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager)?.primaryClip }.getOrNull()
+        val text = clip?.takeIf { it.itemCount > 0 && it.description?.hasMimeType("text/*") == true }
+            ?.let { runCatching { it.getItemAt(0).coerceToText(ime)?.toString() }.getOrNull() }
+        val store = promptStoreFactory()
+        val message = when {
+            text.isNullOrBlank() -> ime.getString(R.string.agent_prompts_paste_empty)
+            text.length > PromptStore.MAX_TEXT -> ime.getString(R.string.agent_prompts_clip_too_long, PromptStore.MAX_TEXT)
+            isSecretClip(text, clip) -> ime.getString(R.string.agent_prompts_clip_sensitive)
+            store.load()?.firstOrNull()?.text == text -> ime.getString(R.string.agent_prompts_already_saved)
+            else -> {
+                val result = store.add("", text)
+                if (result.ok) target.refresh(store.load())
+                ime.getString(when (result.error) {
+                    null -> R.string.agent_prompts_saved
+                    PromptError.FULL -> R.string.agent_prompts_full
+                    PromptError.TEXT_TOO_LONG -> R.string.agent_prompts_clip_too_long
+                    PromptError.FILE_FULL -> R.string.agent_prompts_file_full
+                    PromptError.INVALID_TEXT -> R.string.agent_prompts_invalid_text
+                    else -> R.string.agent_prompts_save_failed
+                }, if (result.error == PromptError.FULL) PromptStore.MAX_PROMPTS else PromptStore.MAX_TEXT)
+            }
+        }
+        target.showStatus(message)
+    }
+
+    /**
+     * The rule of the clipboard history ([ClipVault.isSecretClip]), with the inputs the history uses: the
+     * clip's own copy time and sensitive mark, so a clip the vault sorted as secret when it was copied
+     * (say in a password field) stays refused here, plus everything the history keeps out by its content:
+     * secrets and a bare one-time code. A text that merely contains a number near a word like "code"
+     * ("Write code that prints 10000 numbers") is stored, as the history keeps it: prompts are often
+     * exactly such texts. Limit: after the keyboard process restarted, the vault no longer knows where a
+     * clip was copied, so a harmless-looking text copied in a password field before the restart is stored.
+     */
+    private fun isSecretClip(text: String, clip: ClipData): Boolean {
+        val marked = helium314.keyboard.compat.ClipboardManagerCompat.getClipSensitivity(clip.description) == true
+        val copiedAt = helium314.keyboard.compat.ClipboardManagerCompat.getClipTimestamp(clip)
+        if (ClipVault.isSecretClip(text, copiedAt, marked)) return true
+        return dev.agentkeyboard.core.clip.ClipGuard.classify(text, marked, ClipVault.region(Settings.getValues()))
+            .keepsOutOfHistory
+    }
+
+    /** "Manage": the settings page of the prompt store, never while the device is locked (P77). */
+    private fun openPromptSettings() {
+        if (isDeviceLocked(ime) || isUserLocked(ime) || Settings.getValues()?.mIsLocked == true) {
+            close()
+            return
+        }
+        close()
+        runCatching { helium314.keyboard.agent.commands.SnipCommand.openSettings(ime, helium314.keyboard.settings.SettingsDestination.AgentPrompts) }
     }
 
     /**
@@ -1175,6 +1309,7 @@ class AgentEditorController @JvmOverloads constructor(
         calculator?.hide()
         calculatorCommand = null
         charArt?.hide()
+        prompts?.hide()
         charArtField = null
         charArtSelection = null
         charArtFieldInPlace = false

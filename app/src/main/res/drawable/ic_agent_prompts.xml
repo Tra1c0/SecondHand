@@ -1,0 +1,13 @@
+<!--
+    Stage 74b: the prompt store key in the popup of the comma key (a speech bubble with three lines).
+    Drawn for this fork. SPDX-License-Identifier: GPL-3.0-only
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:height="24dp"
+    android:width="24dp"
+    android:viewportHeight="24"
+    android:viewportWidth="24">
+    <path android:fillColor="#FFF"
+        android:fillType="evenOdd"
+        android:pathData="M5,3H19A2,2 0 0 1 21,5V15A2,2 0 0 1 19,17H11L6,21V17H5A2,2 0 0 1 3,15V5A2,2 0 0 1 5,3ZM7,7H17V8.5H7ZM7,10H17V11.5H7ZM7,13H13V14.5H7Z"/>
+</vector>

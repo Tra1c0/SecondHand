@@ -30,7 +30,8 @@ class KeyboardIconsSet private constructor() {
             else -> keyboardIconsMaterial
         }
         val overrideIds = customIconIds(context, prefs)
-        val ids = if (overrideIds.isEmpty()) defaultIds else defaultIds + overrideIds
+        // fork, stage 74b: icons of the fork's own popup keys exist in every style (the style and custom icons may still override them)
+        val ids = agentIconIds + if (overrideIds.isEmpty()) defaultIds else defaultIds + overrideIds
         if (!needsReload && ids == iconIds) return
         iconIds = ids
         iconsByName.clear()
@@ -97,6 +98,10 @@ class KeyboardIconsSet private constructor() {
             "settings_key" to ToolbarKey.SETTINGS.name.lowercase(Locale.US),
             "start_onehanded_mode_key" to ToolbarKey.ONE_HANDED.name.lowercase(Locale.US),
         )
+
+        /** Fork, stage 74b: one drawable for all icon styles, tinted like the other icons. */
+        const val NAME_AGENT_PROMPTS_KEY = "agent_prompts_key"
+        private val agentIconIds by lazy { mapOf(NAME_AGENT_PROMPTS_KEY to R.drawable.ic_agent_prompts) }
 
         // todo: incognito and force incognito should not be the same? or not the same as toolbar key?
         private val keyboardIconsHolo by lazy { hashMapOf(

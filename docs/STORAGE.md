@@ -449,6 +449,36 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   alle Bausteine, siehe „Daten der Befehle 24c–24f“) mit `literal: true`; „Kopieren“ legt sie als
   normalen Text in die Zwischenablage (mit eingeschaltetem Verlauf landet sie dort wie jede Kopie).
 
+## Prompt-Ablage (74)
+
+- Datei `noBackupFilesDir/agent_prompts.json` im CE-Speicher (`AtomicFile`, wie `agent_snippets.json`),
+  erst nach dem Entsperren lesbar. Kein Backup, kein Export: Die Prompts sind nicht in der Sicherung
+  der Tastatur („Sichern und Wiederherstellen“), bleiben über Neustarts und App-Updates und gehen
+  beim Deinstallieren oder Löschen der App-Daten verloren. Bei gesperrtem Gerät wird nichts gelesen,
+  geschrieben oder angelegt. Mögliche Folge, nicht gebaut: die Datei in „Sichern“ aufnehmen
+  (ROADMAP).
+- Format: ein JSON-Objekt mit genau den Schlüsseln `storageVersion` (Zahl, heute 1) und `prompts`
+  (Array in der Reihenfolge des Nutzers, der neueste zuerst beim Hinzufügen). Jeder Eintrag hat genau
+  `id` (nicht leer, höchstens 64 Zeichen, eindeutig; vom Speicher erzeugt, nie angezeigt), `title`
+  (eine Zeile, schon bereinigt, höchstens 60 Zeichen, darf leer sein) und `text` (nicht leer oder nur
+  Leerraum, höchstens 8000 Zeichen, genau wie getippt). Längen zählen UTF-16-Zeichen; ein einzelnes
+  Surrogat in Titel oder Text ist verboten.
+- Grenzen: höchstens 200 Prompts, Datei höchstens 2 MiB (`MAX_STORAGE_BYTES`; gelesen wird mit
+  dieser Grenze, geschrieben wird eine größere Datei gar nicht, Fehler `FILE_FULL`). Nie wird gekürzt.
+- Striktes Lesen: eine Datei, die nicht UTF-8 ist, zu groß, kein JSON-Objekt, mit anderen oder
+  fehlenden Schlüsseln, anderer Version, Eintragen außerhalb der Grenzen, doppelten Ids oder
+  einzelnen Surrogaten gilt als unbrauchbar (`PromptStoreState.UNUSABLE`). Dann liest `read()` leer,
+  `load()` ist null, jeder Schreibvorgang gibt `IO` zurück, und die Datei bleibt unverändert; die Seite
+  zeigt einen Hinweis. Nur „Ablage zurücksetzen“ (`PromptStore.reset`) löscht Datei und Backup
+  (`agent_prompts.json.bak`), und nur, wenn die Datei unter dem Lock erneut gelesen wird und
+  unbrauchbar ist; sonst Fehler `READABLE`, nichts wird gelöscht. Android-`AtomicFile` stellt beim
+  Lesen einen unterbrochenen Schreibvorgang aus dem Backup selbst wieder her.
+- Der Titel wird beim Speichern bereinigt (Zeilenumbrüche werden Leerzeichen, dann getrimmt); der
+  Text bleibt unverändert, auch Zeilenumbrüche und Emojis. Titel und Texte werden nie protokolliert
+  (`Prompt.toString` zeigt nur Längen). Im Speicher hält nur die geöffnete Seite bzw. das geöffnete
+  Fenster, was sie zeigen.
+- Das Fenster der Tastatur liest die Datei beim Öffnen und bei jedem Tipp auf eine Zeile neu.
+
 ## Symbole malen (27, 36)
 
 - Schalter `agent_symbol_drawing` in den Tastatureinstellungen (Standard aus).

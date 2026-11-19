@@ -1,5 +1,83 @@
 # Prüfnachweise
 
+## Etappe 74 — Prompt-Ablage
+
+Stand: 2026-11-19, Arbeitsbranch, Commits 41fc3c3 bis bad8d4f. Alles Folgende ist nur in Robolectric
+und per Prüfer-Lesen belegt; nichts davon lief auf einem Gerät.
+
+Belegt:
+
+- Speicher und Einstellungsseite (74a, Commits 41fc3c3, 9a14f97, 859602c, 85cc997, 9c58b70): `PromptStoreTest`
+  (25 Tests: Dauerhaftigkeit, Reihenfolge, Grenzen, gesperrt, kaputte und zu große Datei, Datei voll,
+  Surrogate, `state`, `reset`, `reorder`) und `PromptsScreenTest` (28 am 2026-11-19 auf f16848b, 29 auf
+  bad8d4f: Editor-Karte, Zurück und Abbrechen mit Rückfrage, Wiederherstellung nach Aktivitäts-Neustart,
+  Löschen, Sortieren, gesperrt, Zurücksetzen, Einfügen aus der Zwischenablage, Vorschau).
+- Symbol im Komma-Popup und Fenster (74b, Commits a71ffc2, d66ed9a, 931d285, f16848b, e5689c9, bad8d4f):
+  `PromptsWindowTest` (12 auf f16848b, 24 auf bad8d4f, 25 auf 5faced3, 0 Fehler im Lauf des Leads vom 2026-11-19: Popup-Taste und ihre Bedingungen, Zeilen,
+  Einfügen genau einmal, Markierung, Sperre nach dem Öffnen, Doppeltipp, „Verwalten“, „Kopiertes
+  speichern“ mit allen Ablehnungen).
+- Lokale Läufe (Robolectric, Cloud-Container, 2026-11-19): auf f16848b 9 Klassen, 166 Tests, 0 Fehler
+  (PromptStoreTest 25, PromptsScreenTest 28, PromptsWindowTest 12, CharArtWindowTest 26,
+  SettingsBarAreaTest 11, SettingsSearchTest 6, FlatStyleTest 10, ParserTest 46, KeySpecParserTest 2).
+  Auf bad8d4f der letzte Lauf des Build-Agenten (der Lead las die Ergebnisdateien): PromptsWindowTest 24,
+  PromptsScreenTest 29, PromptStoreTest 25, CharArtWindowTest 26, ClipVaultTest 21, 0 Fehler.
+- Rot-Beweise (Code absichtlich kaputt gemacht, die benannten Tests wurden rot, danach zurückgesetzt):
+  `reorder` nimmt alles an; `load` ignoriert die Sperre; `add` hängt hinten an statt vorn einzufügen;
+  Einfügen aus der Zwischenablage ohne Längenprüfung; die Bedingung „gesperrt“ im Popup-Symbol entfernt;
+  ein Tipp auf die Zeile fügt den Titel statt des Textes ein; die Geheimnisprüfung entfernt (zweimal, mit
+  der alten und der neuen Regel); die Ablehnung des Öffnens bei Passwortfeldern entfernt; „Abbrechen“ ohne
+  die Verwerfen-Frage; „Zurücksetzen“ ohne erneutes Lesen; die Prüfung auf Duplikate entfernt; `close()`
+  blendet das Fenster nicht aus.
+- Prüfer-Lesen: 74a durch zwei Prüfer, nur lesend. Erster Prüfer: drei mittlere bis hohe Befunde zu den
+  Tests und zwei mittlere zum Code, alle behoben. Zweiter Prüfer: alle acht Korrekturen bestätigt, zwei neue
+  mittlere Befunde (Editorzustand ging beim Drehen oder mit Zurück verloren; Zurücksetzen konnte eine
+  lesbare Datei löschen), behoben in den Commits von 74b. 74b durch einen Prüfer: kein hoher Befund; mittlere
+  Befunde: die Geheimnisregel war nicht die des Zwischenablage-Verlaufs (behoben, es gilt
+  `ClipVault.isSecretClip`) und fehlende Tests (ergänzt; sie deckten zwei echte Fehler auf, die behoben
+  wurden: ein Tipp nach dem Sperren ließ das Fenster offen, ein zweiter oder veralteter Tipp auf eine
+  verborgene Zeile konnte erneut einfügen).
+- Regel für „Kopiertes als Prompt speichern“ (5faced3): abgelehnt wird, was der Verlauf draußen hält, also markiert oder vom Tresor
+  beim Kopieren als Geheimnis sortiert (`ClipVault.isSecretClip`) sowie Geheimnis oder bloßer Einmalcode
+  (`ClipGuard …keepsOutOfHistory`). Anlass: Die zweite Prüfung zeigte, dass Alltags-Prompts wie „Write Python code
+  that prints 10000 random numbers“ als Einmalcode abgelehnt wurden. Neu bzw. umbenannt: `aBareOneTimeCodeIsRefused`,
+  `aPromptThatMentionsCodeAndANumberIsStoredLikeTheHistoryKeepsIt`. Rot-Beweis des Leads: Mit der alten Regel
+  (Kategorie OTP) wurde der zweite Test rot („Write Python code that prints 10000 random numbers expected:<1> but was:<0>“),
+  danach zurückgesetzt.
+- Zweite Prüfung der letzten Korrekturen (e5689c9, bad8d4f), erledigt: bestätigt sind die Regel des Verlaufs, die
+  Ablehnung eines Duplikats und die erneute Prüfung von `insertPrompt` beim Tipp. Befunde: mittel, falsche Ablehnung
+  kurzer Code-Prompts (behoben in 5faced3); mittel, die Grenze beim Neustart (siehe unten, angenommen und dokumentiert,
+  nicht behebbar); niedrig, auf Android-Versionen ohne Zeitstempel am Clip kann der Abgleich der Kopierzeit im Tresor nicht greifen
+  (gleiche Schwäche wie im Verlauf); niedrig, die Tests „Sperre nach dem Öffnen“ und „Doppeltipp“ würden vermutlich auch ohne die
+  neuen Schutzzeilen bestehen, weil die Editor-Sitzung schon ablehnt: Sie halten das Verhalten fest, nicht die Zeilen.
+- Berührte Upstream-Dateien: `KeyCode.kt`, `TextKeyData.kt`, `KeyboardIconsSet.kt`,
+  `KeyCodeDescriptionMapper.kt`, `KeyboardActionListenerImpl.kt`, `InputView.java`,
+  `main_keyboard_frame.xml`, `SettingsNavHost.kt`. `InputLogic`, `RichInputConnection` und
+  `PointerTracker` sind unverändert.
+- Docs-Prüfung: `python3 -I scripts/docs_sync.py --check` ohne Fehler.
+
+Nicht geprüft:
+
+- Die Regeländerung 5faced3 hat kein Prüfer gelesen.
+- Kein Gerätetest und kein Emulatortest: Komma-Taste lange drücken, Darstellung des Popups, Aussehen und
+  Einfärbung des Symbols, das Fenster im Querformat, auf Tablets und im flachen Stil, Geschwindigkeit beim
+  Laden von 200 langen Prompts.
+- Der GitHub-Lauf „SecondHand Tests“ (volle Agent-Suite, Upstream-Suite, Lint, Build) lief für diesen Code
+  noch nicht. Es gibt noch keinen signierten Build.
+- Die Läufe oben betreffen nur die genannten Klassen, nicht die ganze Suite.
+
+Nicht abgedeckt, bekannte Grenzen:
+
+- Nach einem Neustart des Tastatur-Prozesses weiß der Tresor nicht mehr, wo ein Clip kopiert wurde; ein harmlos
+  aussehender Text (nicht geheim nach seiner Form), der vorher in einem Passwortfeld kopiert wurde, kann dann als
+  Prompt gespeichert werden. Der Verlauf hat dieselbe Markierung nur im Speicher.
+- Auf Android-Versionen ohne Zeitstempel am Clip kann der Abgleich der Kopierzeit nicht greifen.
+
+Annahmen des Leads (der Owner kann sie ändern):
+
+1. Sortiert wird auf der Einstellungsseite (Ziehen im Dialog „Sortieren“), nicht im Fenster der
+   Tastatur.
+2. Das Symbol fehlt auch in Feldern, die Lernen verbieten.
+
 ## Etappe 72 — Satzabhängige Autokorrektur
 
 - Sieben Kernprüfungen mit Kotlin 2.4.0 und JUnit bestanden. Sie prüfen mehrere Verbformen,

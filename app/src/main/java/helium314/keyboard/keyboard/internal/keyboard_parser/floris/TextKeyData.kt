@@ -99,6 +99,9 @@ sealed interface KeyData : AbstractKeyData {
             val keys = mutableListOf<String>()
             if (!params.mId.deviceLocked)
                 keys.add("!icon/clipboard_normal_key|!code/key_clipboard")
+            // fork, stage 74b: the prompt store, right after the clipboard; not where the window never opens
+            if (helium314.keyboard.agent.prompts.PromptsKey.shown(params.mId))
+                keys.add(helium314.keyboard.agent.prompts.PromptsKey.POPUP_KEY)
             if (!params.mId.emojiKeyEnabled && !params.mId.element.isNumberLayout)
                 keys.add("!icon/emoji_normal_key|!code/key_emoji")
             if (!params.mId.languageSwitchKeyEnabled && !params.mId.element.isNumberLayout && RichInputMethodManager.canSwitchLanguage())

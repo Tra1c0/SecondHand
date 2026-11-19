@@ -228,6 +228,9 @@ fun AgentAreaBarScreen(onNavigate: (String) -> Unit, onClickBack: () -> Unit) {
                 // stage 45: one row to the suggestions switch and "Meine Daten"
                 SettingRow(stringResource(R.string.agent_my_data_title), stringResource(R.string.agent_my_data_row_sub), area.dot,
                     { onNavigate(SettingsDestination.AgentMyData) }, Modifier.testTag(AREA_ROW_TAG + SettingsDestination.AgentMyData))
+                // stage 74a: one row to the prompt store
+                SettingRow(stringResource(R.string.agent_prompts_title), stringResource(R.string.agent_prompts_row_sub), area.dot,
+                    { onNavigate(SettingsDestination.AgentPrompts) }, Modifier.testTag(AREA_ROW_TAG + SettingsDestination.AgentPrompts))
             }
         }
         if (showSkills) SkillPinDialog(prefs, { showSkills = false }) { written++ }

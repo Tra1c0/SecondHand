@@ -13,6 +13,19 @@ Reihenfolge von oben nach unten.
 - **72 Satzbezogene Autokorrektur**: Für regelmäßige deutsche Verbformen gebaut und abschaltbar.
   Offen sind der Gerätetest mit nativen Wörterbüchern, unregelmäßige Verben und die Auswertung
   weiterer Satzmuster, Sprachen und gemischtsprachiger Texte.
+- **74 Prompt-Ablage** (Auftrag des Owners vom 2026-11-19: „eine extra Zwischenablage für Prompts, die
+  permanent gespeichert werden und die ich sortieren kann“, Zugang: „Eigenes Symbol beim , gedrückt
+  halten“) ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 74): 74a Speicher und
+  Einstellungsseite, 74b Symbol im Komma-Popup und Fenster in der Tastatur. Annahmen des Leads, die der
+  Owner ändern kann: (1) Sortiert wird auf der Einstellungsseite (Ziehen im Dialog
+  „Sortieren“), nicht im Fenster der Tastatur. (2) Das Symbol fehlt auch in Feldern, die Lernen verbieten
+  (private Chats), nicht nur in Passwortfeldern. (3) Die Prompts liegen im geschützten Speicher ohne
+  Backup und sind nicht in „Sichern“. „Kopiertes als Prompt speichern“ folgt der Regel des Zwischenablage-Verlaufs (ein Satz mit codeähnlicher Zahl wird gespeichert); bekannte Grenze: nach einem Neustart der Tastatur kennt der Tresor das Herkunftsfeld nicht mehr. Die zweite Prüfung der Korrekturen e5689c9 und bad8d4f ist erledigt; die spätere Regeländerung 5faced3 hat kein Prüfer gelesen.
+  Offen: Gerätetest (Langdruck auf Komma, Symbol und Popup, Fenster im Querformat, auf Tablets und im
+  flachen Stil, Tempo mit 200 langen Prompts); der GitHub-Lauf „SecondHand Tests“ (volle Agent-Suite,
+  Upstream-Suite, Lint, Build) lief für diesen Stand noch nicht; ein signierter Build fehlt.
+  Ideen danach, nicht gebaut: den Prompt-Speicher in „Sichern“ aufnehmen; Ordner oder Kategorien;
+  Sortieren im Fenster der Tastatur; Suche in der Ablage.
 - **27 Symbole malen** (Auftrag des Owners vom 2026-11-13) ist gebaut (siehe FEATURES.md), mit
   Engine-Review (`docs/VALIDATION.md` → Build 12: Prüfer zu Etappe 27), die niedrigen Befunde in
   31. Offen: Gerätetest (Erkennung mit echten Fingern, Schwellen, Spur, Tempo, Tipp-Regel,

@@ -59,6 +59,7 @@ internal val KEYWORDS = mapOf(
     SettingsDestination.AgentCommands to R.string.agent_search_kw_agent_commands,
     SettingsDestination.AgentScreenshots to R.string.agent_search_kw_agent_screenshots,
     SettingsDestination.AgentMyData to R.string.agent_search_kw_agent_my_data,
+    SettingsDestination.AgentPrompts to R.string.agent_search_kw_agent_prompts,
     SettingsDestination.AgentAi to R.string.agent_search_kw_agent_ai,
     SettingsDestination.AgentSkills to R.string.agent_search_kw_agent_skills,
     SettingsDestination.AgentWorkflows to R.string.agent_search_kw_agent_workflows,
