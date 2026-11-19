@@ -754,8 +754,12 @@ def prompt_store(d):
     try:
         d.tap_keyboard_text("Kopiertes als Prompt speichern")
     except CheckFailed as error:
-        raise CheckFailed("%s | hold: %s | keys now %d" % (
-            str(error)[:260], d.hold_info[:200], len(dump().keys())))
+        later = dump()
+        views = " ".join("%s#%s%s" % (n.cls.rsplit(".", 1)[-1][:12], n.rid.rsplit("/", 1)[-1][:22], n.box)
+                         for n in later.keyboard_nodes() if not n.cls.endswith(".Key") and n.rid and n.visible)
+        keyboxes = [n.box for n in later.keyboard_nodes() if n.cls.endswith(".Key") and n.visible][:3]
+        raise CheckFailed("%s | hold: %s | now: %s | keys %s" % (
+            str(error)[:110], d.hold_info[:150], views[:230], keyboxes))
     d.tap_keyboard_text(second)  # the new row shows the first line of its text
     d.expect_field("text", second)
     # the counter-check: the same popup in a password field
