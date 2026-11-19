@@ -85,6 +85,30 @@
         android:inputType="number"
         android:textSize="15sp" />
 
+    <!-- Only for the autofill scenario (MainActivity shows them): a user name and a password field with
+         autofill hints. Not important for autofill until then, so no other scenario sees them. -->
+    <EditText
+        android:id="@+id/field_login"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:autofillHints="username"
+        android:hint="login"
+        android:importantForAutofill="no"
+        android:inputType="textEmailAddress"
+        android:visibility="gone"
+        android:textSize="15sp" />
+
+    <EditText
+        android:id="@+id/field_secret"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:autofillHints="password"
+        android:hint="secret"
+        android:importantForAutofill="no"
+        android:inputType="textPassword"
+        android:visibility="gone"
+        android:textSize="15sp" />
+
     <TextView
         android:id="@+id/mirror_text"
         android:layout_width="match_parent"
@@ -108,4 +132,18 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/mirror_login"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/mirror_secret"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"
+        android:visibility="gone" />
 </LinearLayout>

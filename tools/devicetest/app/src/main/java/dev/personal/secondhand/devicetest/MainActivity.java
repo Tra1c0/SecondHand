@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
 
@@ -35,6 +36,26 @@ public class MainActivity extends Activity {
         mirror(R.id.field_password, R.id.mirror_password);
         mirror(R.id.field_email, R.id.mirror_email);
         mirror(R.id.field_number, R.id.mirror_number);
+        mirror(R.id.field_login, R.id.mirror_login);
+        mirror(R.id.field_secret, R.id.mirror_secret);
+        showAutofillFields(getIntent());
+    }
+
+    /**
+     * Stage 73c: in the autofill scenarios the user name and password fields with autofill hints appear
+     * (and the e-mail and number fields make room). Every other scenario sees the same four fields as before.
+     */
+    private void showAutofillFields(Intent intent) {
+        final String name = intent == null ? null : intent.getStringExtra("scenario");
+        if (name == null || !name.startsWith("autofill")) return;
+        for (int id : new int[]{R.id.field_email, R.id.field_number, R.id.mirror_email, R.id.mirror_number}) {
+            findViewById(id).setVisibility(View.GONE);
+        }
+        for (int id : new int[]{R.id.field_login, R.id.field_secret, R.id.mirror_login, R.id.mirror_secret}) {
+            findViewById(id).setVisibility(View.VISIBLE);
+        }
+        findViewById(R.id.field_login).setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_YES);
+        findViewById(R.id.field_secret).setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_YES);
     }
 
     @Override
