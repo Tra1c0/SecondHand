@@ -3779,22 +3779,22 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   die SDK-freien Typen (`InitInfo`, `LoadInfo`, `PullUpdate`, `GenEvent`, `GenProfile`, `NpuException`), die
   Schnittstelle `NpuPort` (`init`, `isModelPresent`, `pull`, `deleteModel`, `load`, `generate`, `stop`, `unload`),
   die Konstanten (`GeniexConstants`: Laufzeit `qairt`, Chipset `SM8750-AC`) und die echte Umsetzung `GeniexAdapter`. Die Modell-ID ist
-  ein Parameter jedes Aufrufs (80b: zwei Kandidaten); `listHub` fragt Qualcomms Paketliste ab, `InitInfo.detectedChipset` ist die lokal gelesene Chip-Kennung des SDK. SDK-Fehler werden zu `NpuException` (Klasse, SDK-Code,
+  ein Parameter jedes Aufrufs (80b: zwei Kandidaten, 80c: mit Ausgabe wie `v0.66.0`; `inspect` liest die Dateien des Pakets); `listHub` fragt Qualcomms Paketliste ab, `InitInfo.detectedChipset` ist die lokal gelesene Chip-Kennung des SDK. SDK-Fehler werden zu `NpuException` (Klasse, SDK-Code,
   SDK-Text bleiben erhalten). Alles andere arbeitet nur mit `NpuPort`, darum kann ein Fake (`Fakes.kt` in den
   Tests) die ganze App-Logik prüfen.
 - App-Logik ohne Android und SDK: `SpikeRunner.kt` (Ablauf: SDK starten, Download, die zwei Tests, Stopp, Entladen,
-  Löschen; schreibt jeden Fehler als Zeilen in den Bericht), `PullPlanner.kt` (80b: die geordnete Liste der Pakete `Candidate`, Rat nach einem fehlgeschlagenen Pull, SDK-Fehlercodes `SdkCodes`; nichts wird von selbst geladen), `ErrorText.kt` (Fehler zu Berichtszeilen, „Auf diesem Gerät nicht
+  Löschen; schreibt jeden Fehler als Zeilen in den Bericht), `PullPlanner.kt` (80b: die geordnete Liste der Pakete `Candidate`, Rat nach einem fehlgeschlagenen Pull, SDK-Fehlercodes `SdkCodes`; nichts wird von selbst geladen), `LoadDiagnose.kt` (80c: kleiner JSON-Leser `MiniJson`, `BundleFacts` aus die Metadaten-Datei des Pakets und der HTP-Konfiguration, QAIRT-Versionsvergleich `QairtVersion`, Filter `LogFilter` für das Protokoll der Laufzeit, `DiagnoseFormatter` mit den Vermutungen H1 bis H5), `ErrorText.kt` (Fehler zu Berichtszeilen, „Auf diesem Gerät nicht
   unterstützt: <Klasse>“), `Metrics.kt` (Tokens pro Sekunde, Vergleich mit dem erwarteten Satz, Zahlenformat),
   `FixedTests.kt` (die zwei festen deutschen Texte), `ReportFormatter.kt` (Kopfzeilen, Testzeilen, gesamter
   Bericht; Datentypen `DeviceHeader`, `TestResult`) und `Support.kt` (die Schnittstellen `Probe`, `Clock`,
   `StepTracker` und der `ReportLog`).
-- Android-Teil: `AndroidSupport.kt` (Messungen `AndroidProbe`: nativer Heap, PSS, freier Systemspeicher, Akku-
+- Android-Teil: `AndroidSupport.kt` (80c: `AndroidDiagnostics` liest Herstellerbibliotheken, öffentliche Bibliothekslisten, DSP-Ordner, Speicher, Ladetests der Bibliotheken des KI-Chip-Teils, Prozessumgebung und das eigene Protokoll über `logcat`; Messungen `AndroidProbe`: nativer Heap, PSS, freier Systemspeicher, Akku-
   temperatur; `PrefsStepTracker`; `SpikePrefs` merkt das geladene Paket und die aufgegebenen Pakete samt Fehler; `DeviceInfo`:
   Kopfzeilen und Grund des letzten Prozessendes über `ApplicationExitInfo`) und `MainActivity.kt` (ein Bildschirm,
   alle Views im Code (Liste der Pakete mit Zustand, Dialoge vor jedem Download und nach jedem Fehler), Hochformat, Bildschirm bleibt während eines Schritts an, SDK-Arbeit nie im Hauptthread,
   Modell wird in `onDestroy` freigegeben).
 - Tests (`companion/app/src/test/java/…`): `MetricsTest`, `ErrorTextTest`, `PullPlannerTest`,
-  `ReportFormatterTest`, `SpikeRunnerTest` (mit `Fakes.kt`); reines JUnit 4, kein Robolectric, kein SDK-Aufruf.
+  `ReportFormatterTest`, `LoadDiagnoseTest`, `SpikeRunnerTest` (mit `Fakes.kt`); reines JUnit 4, kein Robolectric, kein SDK-Aufruf.
 - Regeln der App: Internet nur durch den Download des SDK nach Tipp auf Knopf 1 und Bestätigung; kein Textfeld,
   nur zwei feste Texte; mit `android.util.Log` nur Schrittnamen und Fehlerklassen; keine Statistik; nichts
   wird übernommen oder in ein Feld geschrieben.
@@ -6082,7 +6082,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   Paketauswahl des SDK): `SM8750` ist bei Qualcomm **kein** Alias eines Chips (bekannt ist nur `sm8750-ac` für
   `qualcomm-snapdragon-8-elite-for-galaxy`), und die Pakete von Qwen3-4B und Qwen3-4B-Instruct-2507 gibt es nur für diesen Galaxy-Chip (und
   Gen 5 for Galaxy, X Elite, QCS); die Anleitung im Netz („chipset SM8750“) stimmt dafür nicht. Darum sind beide Kandidaten
-  `PullPlanner.CANDIDATES` mit `SM8750-AC`, zuerst Instruct-2507 (das Modell der Android-Anleitung, ohne Denkblock, in der Fehlerhilfe der
+  `PullPlanner.CANDIDATES` mit `SM8750-AC` (seit 80c mit der Ausgabe v0.66.0, P334), zuerst Instruct-2507 (das Modell der Android-Anleitung, ohne Denkblock, in der Fehlerhilfe der
   Anleitung als registrierter Name genannt), dann Qwen3-4B. Nach jedem Fehler zeigt die App den Fehler und bietet das nächste Paket mit
   eigenem Dialog an; geladen wird nur nach Tipp. Ob die Galaxy-Pakete auf dem Xiaomi laufen, ist weiter offen.
 - **P324** Begleit-App, Paketierung (80): Das SDK sucht `libgeniex_plugin_*.so` in `applicationInfo.nativeLibraryDir`, also müssen
@@ -6149,13 +6149,32 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   Dafür deklariert die App die normale Berechtigung `ACCESS_NETWORK_STATE` (keine Abfrage beim Nutzer; sie liefert nur die Art der
   Verbindung). Die Signatur der Debug-APK kommt vom Schlüssel `~/.android/debug.keystore` des Containers; ein Update über eine ältere Fassung
   klappt nur mit demselben Schlüssel (SHA-256 des Zertifikats `ba38b227…c1ad`, geprüft für 0.1 und 0.2 mit `apksigner verify --print-certs`).
+- **P333** Begleit-App, Ladefehler ohne Detail (80c, nach dem zweiten Lauf auf dem Xiaomi 15): `LlmWrapper.builder().build()` liefert für jedes Problem
+  der Laufzeit nur `RuntimeException: Llm create failed: Model loading failed`, ohne Code. Die Ursache steht nur im Protokoll der nativen Teile
+  (`libgeniex_core.so` schreibt Zeilen wie `[ERROR] "Device Creation failure"`, „Could not create context from binary“, „Failed to map context Binary“,
+  „Unrecognized system context binary info version“, „HTP arch v… detected“; stdout und stderr werden in logcat umgeleitet). Eine App darf ihre eigenen
+  logcat-Zeilen lesen (`logcat -d`, ohne Berechtigung); `AndroidDiagnostics.logSince` schneidet nach einer Markerzeile vor dem Laden, `LogFilter` behält NPU-
+  Stichwörter und Warnungen und entfernt Zeilen mit Teilen der festen Prüftexte. Eine Java-Schnittstelle für die Protokollstufe gibt es nicht
+  (`JNI_OnLoad` setzt Stufe 4 selbst); die App setzt zusätzlich `GENIEX_LOG=trace` über `android.system.Os.setenv` vor dem Start des SDK (Wirkung nicht belegt).
+- **P334** Begleit-App, Paketausgabe und Laufzeit (80c): Die Laufzeit im AAR 0.10.0 ist QAIRT 2.50.40 (Zeichenkette `v2.50.40.260831140417` in `libQnnHtp.so`, die App
+  liest sie aus der Datei). Das neueste Paket (AI-Hub-Ausgabe v0.67.0) ist mit QAIRT 2.51.0 gebaut (Eintrag tool_versions.qairt in der Metadaten-Datei des Pakets), v0.65.0 und
+  v0.66.0 mit 2.50.0, v0.63.0 und v0.64.0 mit 2.45.0 (Paketlisten je Ausgabe auf Qualcomms S3). Das Plugin prüft nur die QNN-C-Schnittstelle der
+  Laufzeit (Untergrenze 2.27), nicht die Version des Pakets; ob QNN ein Paket einer neueren Version ablehnt, ist nicht dokumentiert (Vermutung H1, nicht belegt).
+  Die Ausgabe wird über die Umgebungsvariable `GENIEX_AIHUBVERSION` festgelegt (Zeichenkette in `libgeniex.so`, Quelltext Datei index im Ordner source/ai_hub: mit gesetzter Variable liest das SDK
+  die Listen der gewählten Ausgabe statt `latest`); die App setzt sie beim Start des SDK und vor jedem Pull (`GeniexAdapter`). Nach dem Pull prüft `SpikeRunner` die Version
+  im Paket und meldet einen Fehler, falls die Festlegung nicht gewirkt hat. Alle Ausgaben desselben Modells liegen im selben Ordner des SDK: Vor dem Pull einer anderen
+  Ausgabe wird das vorhandene Paket gelöscht, damit sich Dateien nicht mischen.
+- **P335** Begleit-App, Diagnose ohne Modell (80c): Das SDK hat in Java keinen Aufruf, der den KI-Chip ohne Modell anspricht. Als Ersatz lädt die App die Bibliotheken
+  des KI-Chip-Teils einzeln (`System.loadLibrary("cdsprpc")`, `System.load` für `libQnnHtp.so`, `libQnnSystem.so` und weitere) und meldet die Systemfehlermeldung; das
+  prüft, ob der Lader der App die Herstellerbibliotheken sieht (H2), nicht ob der Chip antwortet. `libcdsprpc.so` ist für Apps nur über `uses-native-library` und die
+  `public.libraries`-Listen des Herstellers sichtbar; beide Listen stehen im Bericht. Alle Diagnosezeilen sind Fakten des Telefons, kein Nutzertext.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (705 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (707 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6349,10 +6368,11 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `companion/` (2): build.gradle, settings.gradle
 - `companion/app/` (1): build.gradle
 - `companion/app/src/main/` (1): AndroidManifest
-- `companion/app/src/main/java/dev/personal/secondhand/companion/` (10): AndroidSupport, ErrorText,
-  FixedTests, GeniexPort, MainActivity, Metrics, PullPlanner, ReportFormatter, SpikeRunner, Support
-- `companion/app/src/test/java/dev/personal/secondhand/companion/` (6): ErrorTextTest, Fakes,
-  MetricsTest, PullPlannerTest, ReportFormatterTest, SpikeRunnerTest
+- `companion/app/src/main/java/dev/personal/secondhand/companion/` (11): AndroidSupport, ErrorText,
+  FixedTests, GeniexPort, LoadDiagnose, MainActivity, Metrics, PullPlanner, ReportFormatter,
+  SpikeRunner, Support
+- `companion/app/src/test/java/dev/personal/secondhand/companion/` (7): ErrorTextTest, Fakes,
+  LoadDiagnoseTest, MetricsTest, PullPlannerTest, ReportFormatterTest, SpikeRunnerTest
 - `scripts/` (3): docs_sync, docs_sync, install-hooks
 - `tools/` (3): build_german_verb_lemmas, dev, emoji_mix_table
 - `tools/devicetest/` (3): build.gradle, devicetest, settings.gradle

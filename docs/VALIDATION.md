@@ -1,5 +1,45 @@
 # Prüfnachweise
 
+## Etappe 80c — zweiter Lauf auf dem Gerät und Diagnose des Ladefehlers (2026-11-19)
+
+- **Gerätebericht des Owners (Spike 0.2 auf dem Xiaomi 15, Android 16, Update über 0.1 ging):** Chip-Kennung laut SDK (lokal gelesen) `SM8750-AC`, obwohl
+  `Build.SOC_MODEL` `SM8750` sagt. Pull von `ai-hub-models/Qwen3-4B-Instruct-2507` mit `SM8750-AC` über WLAN: „Download fertig in 291 s“. Danach bei Test 2 und
+  3 (dreimal gleich): „FEHLER bei Schritt: Modell auf der NPU laden … java.lang.RuntimeException … Llm create failed: Model loading failed“, ohne Code und
+  ohne weiteres Detail, kein Absturz. Der Knopf „Paketliste“ lief: 21 Modelle; Qwen3 0.6B, 1.7B, 4B, 4B-Instruct-2507 und 8B nennen alle `8-elite-for-galaxy`.
+  RAM 10,9 GB, 222 GB frei. **Das Laden auf der NPU ist damit auf dem Gerät gescheitert; Ursache offen.**
+- **Recherche (aus Qualcomms Dateien gelesen, nichts auf dem Gerät):** (a) Neueres `geniex-android` gibt es nicht auf Maven Central: neueste Fassung 0.10.0
+  (maven-metadata, 2026-10-28), 0.11.0 und 0.10.1 antworten 404. Qualcomms Veröffentlichungsliste auf S3 kennt v0.11.0 (2026-11-12), enthält aber nur CLI- und
+  SDK-Pakete für Linux und Windows, kein Android-AAR (die erratenen AAR-Namen antworten 403). Eine neuere Laufzeit ist so nicht zu bekommen.
+  (b) Versionsregel: Das Plugin lädt QNN über die versionierte C-Schnittstelle mit Untergrenze QNN C API 2.27 („older and newer QAIRT runtimes load without ABI
+  breaks“, Notizen `run.md` des GenieX-Repositorys); gebaut gegen QAIRT 2.50.40. Eine Prüfung der Paketversion gegen die Laufzeit steht in keiner Doku. In
+  `libgeniex_core.so` stehen die Fehlerzeilen, die beim Laden entstehen können („Could not create context from binary“, „Failed to map context Binary“, „Device
+  Creation failure“, „Unrecognized system context binary info version“). Ob „Model loading failed“ mit Laufzeit 2.50.40 und einem 2.51-Paket der erwartete Ausgang ist,
+  ist nirgends belegt; es ist die Hauptvermutung H1. (c) Ältere Ausgaben liegen noch auf S3 (HEAD 200) für beide Modelle, Galaxy-Paket, Laufzeit `GENIEX_QAIRT`: v0.67.0
+  mit QAIRT 2.51.0 (das gescheiterte Paket), **v0.66.0 und v0.65.0 mit QAIRT 2.50.0**, v0.64.0 und v0.63.0 mit 2.45.0; Größen Instruct-2507 v0.66.0 2 659 737 495 Bytes,
+  v0.65.0 2 529 557 705; Qwen3-4B v0.66.0 2 660 599 539, v0.65.0 2 530 270 573. Die Dateien im Paket sind gleich aufgebaut (`metadata.json`, `genie_config.json`,
+  `htp_backend_ext_config.json` von v0.66.0 und v0.67.0 per Bereichsabfrage gelesen: gleiche Konfiguration, SoC 69, DSP v79; nur die Version unterscheidet sich). Das SDK
+  wählt die Ausgabe über die Umgebungsvariable `GENIEX_AIHUBVERSION` (Quelltext: ohne Variable liest es `releases/latest`, mit Variable `releases/<Ausgabe>`; die Listen
+  `releases/v0.66.0/` und `v0.65.0/` bestehen). (d) Die Doku nennt „Model loading failed“ nicht. Nächstliegende Zeilen der Fehlerhilfe: „Qualcomm AI Engine Direct
+  load fails with ‚unknown model name‘ — The model id returned by Qualcomm AI Hub must match an entry in the Qualcomm AI Engine Direct runtime's registry
+  (`qwen3_4b_instruct_2507`, `qwen2_5_vl_7b_instruct`, etc.)“ und für die Konfiguration „Qualcomm AI Engine Direct rejects `nGpuLayers != 0` and `nCtx != 0` with
+  `PARAM_NOT_SUPPORTED`“ (beides ist hier eingehalten: die Konfiguration setzt beide auf 0, der Name ist der registrierte).
+- **Leitende Vermutung H1:** Das Paket der Ausgabe v0.67.0 ist mit QAIRT 2.51 gebaut, die Laufzeit der App ist 2.50.40; die Ausgabe v0.66.0 ist mit der Version der
+  Laufzeit gebaut. Die Ausgabe v0.67.0 erschien nach dem AAR 0.10.0 (2026-10-28), die Anleitung und das AAR gehören also vermutlich zu v0.66.0. Bestätigt wird H1 durch (1) der Bericht
+  nennt Paket 2.51.0 gegen Laufzeit 2.50.40 und (2) nach dem Ersetzen durch v0.66.0 lädt das Modell. Widerlegt wäre H1, wenn auch v0.66.0 mit demselben Fehler scheitert.
+  Konkurrierend: H2 (Systembibliotheken des KI-Chips für die App nicht sichtbar), H3 (Chip-Zugriff, die Zeilen „Device Creation failure“ im Protokoll), H4 (Speicher),
+  H5 (Dateien beschädigt, wenig wahrscheinlich nach „Download fertig“).
+- **Änderung (Version 0.3-spike, versionCode 3):** Knopf 2 führt vor dem Laden Befunde auf den vorhandenen Dateien aus (kein neuer Download, nichts wird gelöscht): Dateiliste
+  mit Größen, QAIRT-Version des Pakets (Metadaten-Datei) gegen die Laufzeit (aus `libQnnHtp.so`), HTP-Konfiguration, Herstellerbibliotheken und deren öffentliche Listen,
+  DSP-Ordner, Speicher, Ladetests der Bibliotheken des KI-Chip-Teils (die Java-Schnittstelle des SDK hat keinen Chip-Selbsttest ohne Modell), dann den Ladeversuch mit
+  Marker im eigenen Protokoll und danach Prozessumgebung (`ADSP_LIBRARY_PATH`, geladene Bibliotheken) und „Protokoll der Laufzeit“ (gefilterte eigene logcat-Zeilen);
+  jede Gruppe nennt die Vermutung, die sie prüft. Die Protokollstufe lässt sich in Java nicht ändern (`JNI_OnLoad` setzt Stufe 4); `GENIEX_LOG=trace` wird per
+  `Os.setenv` versucht. Kandidatenliste neu: Instruct-2507 und Qwen3-4B, je Ausgabe **v0.66.0** (QAIRT 2.50); scheitert das Laden eines Pakets, das neuer als die Laufzeit
+  ist, bietet die App per Dialog das ältere Paket an (ersetzt das vorhandene; 2,7 GB; nur nach Tipp).
+- **Tests (JVM):** 83 von 83 grün (`LoadDiagnoseTest` 13, `PullPlannerTest` 12, `SpikeRunnerTest` 33, `ErrorTextTest` 9, `ReportFormatterTest` 9, `MetricsTest` 7). Rotprobe: Richtung des
+  Versionsvergleichs vertauscht und den Filter für die festen Prüftexte entfernt: 8 Tests rot; zurückgesetzt, alle grün.
+- **APK 0.3:** gleiche Signatur wie 0.1 und 0.2 (Zertifikat-SHA-256 `ba38b227…c1ad`, Debug-Schlüssel des Containers), also ein Update. **Nicht geprüft:** alles davon auf einem Telefon: ob
+  `logcat` aus der App Zeilen liefert, ob `GENIEX_AIHUBVERSION` die Ausgabe wirklich festlegt (die App prüft die Version nach dem Pull und meldet sonst einen Fehler), ob v0.66.0 lädt.
+
 ## Etappe 80b — erster Lauf auf dem Gerät und Korrektur (2026-11-19)
 
 - **Gerätebericht des Owners (Xiaomi 15, Android 16 / API 36, Chip laut System QTI SM8750, RAM 10,9 GB, 222 GB frei):** SDK-Start in

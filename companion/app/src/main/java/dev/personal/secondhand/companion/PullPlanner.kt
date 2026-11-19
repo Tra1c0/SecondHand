@@ -1,46 +1,63 @@
 package dev.personal.secondhand.companion
 
-/** One model bundle the spike may pull: a model id and a chipset id for the SDK's pull. */
+/** One model bundle the spike may pull: a model id, a chipset id and an AI Hub release for the SDK's pull. */
 data class Candidate(
     val modelName: String,
     val chipset: String,
+    /** The AI Hub release to pull ("v0.66.0"), or null for the newest. */
+    val release: String?,
+    /** The QAIRT version (major.minor) the bundle of this release is built with, from its release-assets list. */
+    val expectedQairt: String?,
     val title: String,
     val sizeText: String,
     /** What is different from the other candidates, in the words the confirmation dialog shows. */
     val difference: String,
 ) {
-    val id: String get() = "$modelName|$chipset"
+    val id: String get() = "$modelName|$chipset|${release ?: "latest"}"
 }
 
-// Which bundle to pull, and what to do when a pull fails (stages 80 and 80b). Qualcomm's release manifest
-// (platform.json, read 2026-11-19) knows "sm8750" as NO chipset alias; the Snapdragon 8 Elite bundles of
-// Qwen3-4B and Qwen3-4B-Instruct-2507 exist only for "qualcomm-snapdragon-8-elite-for-galaxy" (alias
-// "sm8750-ac"). A pull with chipset SM8750 therefore always fails with CHIPSET_UNAVAILABLE (-100015), which the
-// first run on the Xiaomi 15 showed. The list below is ordered by evidence; it is never pulled on its own:
-// every pull is one explicit tap with its own dialog.
+// Which bundle to pull, and what to do when a pull fails (stages 80, 80b, 80c). Qualcomm's release manifest knows
+// "sm8750" as NO chipset alias (pull error -100015); the Snapdragon 8 Elite bundles exist only for
+// "qualcomm-snapdragon-8-elite-for-galaxy" (alias "sm8750-ac"). On the Xiaomi 15 the newest bundle (release
+// v0.67.0, built with QAIRT 2.51) downloaded but did not load ("Llm create failed: Model loading failed") while the
+// SDK's runtime is QAIRT 2.50.40; the releases v0.65.0 and v0.66.0 were built with QAIRT 2.50.0, the version of the
+// runtime. The list below is ordered by evidence and never pulled on its own: every pull is one explicit tap with
+// its own dialog.
 object PullPlanner {
-    val INSTRUCT_GALAXY = Candidate(
+    /** The release whose bundles were built with the runtime's QAIRT version (2.50.0 against the runtime 2.50.40). */
+    const val MATCHING_RELEASE = "v0.66.0"
+
+    val INSTRUCT_V66 = Candidate(
         modelName = "ai-hub-models/Qwen3-4B-Instruct-2507",
         chipset = GeniexConstants.CHIPSET_GALAXY,
-        title = "Qwen3-4B-Instruct-2507, Paket für SM8750-AC",
+        release = MATCHING_RELEASE,
+        expectedQairt = "2.50",
+        title = "Qwen3-4B-Instruct-2507, Ausgabe v0.66.0 (QAIRT 2.50)",
         sizeText = "etwa 2,7 GB",
-        difference = "Das ist das Modell, das Qualcomms Android-Anleitung benutzt; es antwortet ohne Denkblock. " +
-            "Das Paket ist für die Galaxy-Variante des Chips (SM8750-AC) gebaut, nicht für diese. Es kann scheitern.",
+        difference = "Das ist dasselbe Modell wie das zuletzt geladene, aber die ältere Ausgabe v0.66.0, gebaut mit QAIRT 2.50.0, " +
+            "der Version der Laufzeit in dieser App (2.50.40). Das neuere Paket (QAIRT 2.51) ließ sich auf diesem Telefon nicht laden. " +
+            "Ein vorhandenes Paket wird dabei gelöscht und ersetzt. Das Paket ist für die Galaxy-Variante des Chips gebaut. Es kann scheitern.",
     )
-    val QWEN3_GALAXY = Candidate(
+    val QWEN3_V66 = Candidate(
         modelName = "ai-hub-models/Qwen3-4B",
         chipset = GeniexConstants.CHIPSET_GALAXY,
-        title = "Qwen3-4B, Paket für SM8750-AC",
+        release = MATCHING_RELEASE,
+        expectedQairt = "2.50",
+        title = "Qwen3-4B, Ausgabe v0.66.0 (QAIRT 2.50)",
         sizeText = "etwa 2,7 GB",
-        difference = "Das ist ein ANDERES Modell als zuvor (das ursprünglich gewünschte Qwen3-4B, es kann denken; das Denken " +
-            "wird abgeschaltet), also noch einmal etwa 2,7 GB Download. Auch dieses Paket ist für die Galaxy-Variante " +
-            "des Chips gebaut. Es kann scheitern, auch weil Qualcomms Anleitung nur das Instruct-Modell nennt.",
+        difference = "Das ist ein ANDERES Modell (das ursprünglich gewünschte Qwen3-4B, es kann denken; das Denken wird abgeschaltet), " +
+            "wieder die Ausgabe v0.66.0 mit QAIRT 2.50.0, also noch einmal etwa 2,7 GB Download. Auch dieses Paket ist für die " +
+            "Galaxy-Variante des Chips gebaut. Es kann scheitern.",
     )
 
     /** Best evidence first. */
-    val CANDIDATES = listOf(INSTRUCT_GALAXY, QWEN3_GALAXY)
+    val CANDIDATES = listOf(INSTRUCT_V66, QWEN3_V66)
 
     fun byId(id: String?): Candidate? = CANDIDATES.firstOrNull { it.id == id }
+
+    /** The candidate a bundle on the phone belongs to: same model and the QAIRT version (major.minor) it was built with. */
+    fun matching(modelName: String?, bundleQairt: String?): Candidate? =
+        CANDIDATES.firstOrNull { it.modelName == modelName && it.expectedQairt != null && it.expectedQairt == QairtVersion.majorMinor(bundleQairt) }
 
     /** The candidate the next tap on button 1 would pull: the first one not given up. Null when all were given up. */
     fun current(abandoned: Set<String>): Candidate? = CANDIDATES.firstOrNull { it.id !in abandoned }

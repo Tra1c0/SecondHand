@@ -36,4 +36,8 @@ object FixedTests {
         maxTokens = 192,
         expected = null,
     )
+
+    /** Fragments of the fixed texts: log lines containing one are dropped from the report. */
+    fun forbiddenLogFragments(): List<String> =
+        listOf("Spatziergang", "Spaziergang", "dannach", "Berger", "Kundendienst", "Lieferanten", "Bestellung vom", "Rechtschreibung und Grammatik")
 }

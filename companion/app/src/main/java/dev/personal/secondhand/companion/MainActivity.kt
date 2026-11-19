@@ -68,7 +68,7 @@ class MainActivity : Activity() {
         prefs = SpikePrefs(this)
         val tracker = PrefsStepTracker(this)
         headerLines = ReportFormatter.headerLines(DeviceInfo.collect(this))
-        runner = SpikeRunner(GeniexAdapter(this), AndroidProbe(this), RealClock(), tracker, report)
+        runner = SpikeRunner(GeniexAdapter(this, PullPlanner.CANDIDATES.first().release), AndroidProbe(this), RealClock(), tracker, report, AndroidDiagnostics(this))
         buildUi()
         headerView.text = headerLines.joinToString("\n")
         report.listener = {
@@ -110,8 +110,9 @@ class MainActivity : Activity() {
     // ---- actions ------------------------------------------------------------------------------
 
     private fun onPullTapped() {
-        if (modelPresent) {
-            info("Das Modell ist schon vorhanden" + pulledSuffix() + ". Zum erneuten Laden tippe zuerst 'Modell / angefangenen Download löschen'.")
+        val present = presentCandidate()
+        if (present != null) {
+            info("Das Paket ist schon vorhanden" + pulledSuffix() + ". Zum erneuten Laden tippe zuerst 'Modell / angefangenen Download löschen'.")
             return
         }
         val candidate = PullPlanner.current(prefs.abandoned.keys)
@@ -131,8 +132,11 @@ class MainActivity : Activity() {
                 .show()
             return
         }
-        confirmPull(candidate, intro = "")
+        confirmPull(candidate, intro = if (modelPresent) "Das vorhandene Paket (${pulledSuffix().trim()}) wird dabei gelöscht und ersetzt.\n\n" else "")
     }
+
+    /** The candidate the bundle on the phone belongs to (same model, built with the QAIRT version of that candidate), or null. */
+    private fun presentCandidate(): Candidate? = PullPlanner.matching(runner.presentModel, runner.presentFacts?.qairt)
 
     /** The one dialog before every download: what, size, source, what differs, "may fail". */
     private fun confirmPull(candidate: Candidate, intro: String) {
@@ -163,6 +167,11 @@ class MainActivity : Activity() {
         progressBar.progress = 0
         statusView.text = "Lade herunter: ${candidate.title} ..."
         activeJob = scope.launch(Dispatchers.Default) {
+            // a bundle of another release of the same model lives in the same folder: remove it first, so files do not mix
+            if (runner.presentModel != null) {
+                runner.deleteModels()
+                runner.refreshModelPresent()
+            }
             val outcome = runner.pull(candidate) { done, total -> showProgress(done, total) }
             runOnUiThread {
                 progressBar.visibility = View.GONE
@@ -247,13 +256,20 @@ class MainActivity : Activity() {
         val current = PullPlanner.current(abandoned.keys)
         candidatesView.text = PullPlanner.CANDIDATES.mapIndexed { i, c ->
             val state = when {
-                runner.presentModel == c.modelName -> "GELADEN"
+                presentCandidate()?.id == c.id -> "GELADEN (QAIRT ${runner.presentFacts?.qairt ?: "?"})"
                 c.id in abandoned -> "gescheitert: " + abandoned[c.id]
                 c.id == current?.id -> "nächster Versuch (Knopf 1)"
                 else -> "noch nicht dran"
             }
             "${i + 1}. ${c.title}\n     $state"
-        }.joinToString("\n")
+        }.joinToString("\n") + presentOtherLine()
+    }
+
+    private fun presentOtherLine(): String {
+        val model = runner.presentModel ?: return ""
+        if (presentCandidate() != null) return ""
+        return "\nVorhanden, aber keines der Pakete oben: $model, gebaut mit QAIRT ${runner.presentFacts?.qairt ?: "unbekannt"} " +
+            "(Ausgabe v0.67.0 oder neuer; Laden dieser Fassung ist auf diesem Telefon gescheitert)"
     }
 
     private fun startTest(test: FixedTest) {
@@ -271,7 +287,7 @@ class MainActivity : Activity() {
                     is SpikeRunner.TestOutcome.Ok -> statusView.text = "${test.title}: fertig. Zahlen im Bericht unten."
                     is SpikeRunner.TestOutcome.Failed -> {
                         statusView.text = "${test.title}: fehlgeschlagen. Details im Bericht unten."
-                        if (outcome.loadFailed) onLoadFailed()
+                        if (outcome.loadFailed) onLoadFailed(outcome.bundleNewerThanRuntime)
                     }
                 }
             }
@@ -279,21 +295,33 @@ class MainActivity : Activity() {
         finishWhenDone()
     }
 
-    private fun onLoadFailed() {
-        val model = runner.presentModel ?: return
-        val candidate = PullPlanner.byId(prefs.pulledCandidateId)?.takeIf { it.modelName == model }
-            ?: PullPlanner.CANDIDATES.firstOrNull { it.modelName == model } ?: return
-        prefs.abandon(candidate.id, "Laden auf der NPU gescheitert (Details im Bericht)")
+    private fun onLoadFailed(bundleNewerThanRuntime: Boolean) {
+        val model = runner.presentModel
+        val candidate = PullPlanner.matching(model, runner.presentFacts?.qairt)
+        if (candidate != null) prefs.abandon(candidate.id, "Laden auf der NPU gescheitert (Details im Bericht)")
         val next = PullPlanner.current(prefs.abandoned.keys)
-        report.add(
-            if (next != null) {
-                "Hinweis: ${candidate.title} ließ sich nicht laden. Zum Probieren des nächsten Pakets tippe 'Modell / angefangenen " +
-                    "Download löschen' und danach Knopf 1: dann wird ${next.title} angeboten."
-            } else {
-                "Hinweis: ${candidate.title} ließ sich nicht laden, und es gibt kein weiteres Paket zum Probieren."
-            },
-        )
         showCandidates()
+        if (candidate == null && bundleNewerThanRuntime && next != null) {
+            AlertDialog.Builder(this)
+                .setTitle("Älteres Paket versuchen?")
+                .setMessage(
+                    "Das Laden ist gescheitert. Das vorhandene Paket ist mit QAIRT ${runner.presentFacts?.qairt ?: "?"} gebaut, die Laufzeit in dieser " +
+                        "App ist älter (QAIRT ${runner.runtimeQairt ?: "älter"}). Das ist die wahrscheinlichste Ursache, aber noch nicht bewiesen.\n\n" +
+                        "Nächstes Paket: ${next.title} (${next.sizeText})\n${next.difference}",
+                )
+                .setPositiveButton("Ja, laden") { _, _ -> confirmPull(next, intro = "Das vorhandene Paket wird gelöscht und ersetzt.\n\n") }
+                .setNegativeButton("Nicht jetzt", null)
+                .show()
+        } else {
+            report.add(
+                if (next != null) {
+                    "Hinweis: Das Laden ist gescheitert. Das nächste Paket wäre ${next.title}: tippe 'Modell / angefangenen Download löschen' " +
+                        "und danach Knopf 1, wenn du es versuchen willst."
+                } else {
+                    "Hinweis: Das Laden ist gescheitert, und es gibt kein weiteres Paket zum Probieren."
+                },
+            )
+        }
     }
 
     private fun onStopTapped() {
@@ -360,8 +388,7 @@ class MainActivity : Activity() {
     }
 
     private fun pulledSuffix(): String =
-        (PullPlanner.byId(prefs.pulledCandidateId) ?: PullPlanner.CANDIDATES.firstOrNull { it.modelName == runner.presentModel })
-            ?.let { " (${it.title})" } ?: ""
+        runner.presentModel?.let { " ($it, QAIRT ${runner.presentFacts?.qairt ?: "unbekannt"})" } ?: ""
 
     // ---- busy state ---------------------------------------------------------------------------
 

@@ -8,16 +8,28 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PullPlannerTest {
-    private val instruct = PullPlanner.INSTRUCT_GALAXY
-    private val qwen3 = PullPlanner.QWEN3_GALAXY
+    private val instruct = PullPlanner.INSTRUCT_V66
+    private val qwen3 = PullPlanner.QWEN3_V66
 
-    @Test fun theOrderIsInstructFirstThenQwen3_bothWithTheGalaxyChipsetId() {
+    @Test fun theOrderIsInstructFirstThenQwen3_bothFromTheReleaseBuiltWithTheRuntimesQairt() {
         assertEquals(listOf(instruct, qwen3), PullPlanner.CANDIDATES)
         assertEquals("ai-hub-models/Qwen3-4B-Instruct-2507", instruct.modelName)
         assertEquals("ai-hub-models/Qwen3-4B", qwen3.modelName)
         // Qualcomm's list knows "sm8750" as no alias, only "sm8750-ac": plain SM8750 is no candidate
         assertTrue(PullPlanner.CANDIDATES.all { it.chipset == "SM8750-AC" })
+        // the newest release (v0.67.0, QAIRT 2.51) did not load; v0.66.0 was built with QAIRT 2.50.0, the runtime is 2.50.40
+        assertTrue(PullPlanner.CANDIDATES.all { it.release == "v0.66.0" && it.expectedQairt == "2.50" })
         assertNotEquals(instruct.id, qwen3.id)
+        assertEquals("ai-hub-models/Qwen3-4B-Instruct-2507|SM8750-AC|v0.66.0", instruct.id)
+    }
+
+    @Test fun aBundleBelongsToACandidateByModelAndQairtVersion() {
+        assertEquals(instruct, PullPlanner.matching("ai-hub-models/Qwen3-4B-Instruct-2507", "2.50.0.260828221209"))
+        assertEquals(qwen3, PullPlanner.matching("ai-hub-models/Qwen3-4B", "2.50.0.260828221209"))
+        // the bundle that failed on the phone (QAIRT 2.51) is none of the candidates
+        assertNull(PullPlanner.matching("ai-hub-models/Qwen3-4B-Instruct-2507", "2.51.0.260929181845"))
+        assertNull(PullPlanner.matching("ai-hub-models/Qwen3-4B-Instruct-2507", null))
+        assertNull(PullPlanner.matching(null, "2.50.0.1"))
     }
 
     @Test fun everyCandidateDialogTextSaysSizeAndThatItMayFail() {

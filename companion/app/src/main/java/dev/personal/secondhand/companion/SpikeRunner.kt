@@ -11,6 +11,7 @@ class SpikeRunner(
     private val clock: Clock,
     private val tracker: StepTracker,
     private val log: ReportLog,
+    private val diag: Diagnostics = NoDiagnostics,
 ) {
     sealed interface PullOutcome {
         data class Success(val candidate: Candidate) : PullOutcome
@@ -22,8 +23,11 @@ class SpikeRunner(
     sealed interface TestOutcome {
         data class Ok(val result: TestResult) : TestOutcome
 
-        /** [loadFailed]: the failure was while loading the model (the pulled candidate is then given up). */
-        data class Failed(val loadFailed: Boolean) : TestOutcome
+        /**
+         * [loadFailed]: the failure was while loading the model. [bundleNewerThanRuntime]: the bundle was built with a
+         * newer QAIRT than the runtime in this app, so an older release of the bundle is the next thing to try.
+         */
+        data class Failed(val loadFailed: Boolean, val bundleNewerThanRuntime: Boolean = false) : TestOutcome
     }
 
     @Volatile
@@ -44,10 +48,24 @@ class SpikeRunner(
     var presentModel: String? = null
         private set
 
+    /** What the files of the present bundle say about it (null: unreadable or no bundle). */
+    @Volatile
+    var presentFacts: BundleFacts? = null
+        private set
+
+    /** The QAIRT version compiled into the SDK's runtime, as read before the last load (null: not read). */
+    @Volatile
+    var runtimeQairt: String? = null
+        private set
+
     @Volatile
     private var stopRequested = false
 
     private var attempts = 0
+
+    private companion object {
+        const val MAX_LOG_LINES = 150
+    }
 
     suspend fun init(): InitInfo? {
         val step = "GenieX-SDK starten"
@@ -79,6 +97,12 @@ class SpikeRunner(
         try {
             val found = PullPlanner.CANDIDATES.map { it.modelName }.distinct().firstOrNull { port.isModelPresent(it) }
             presentModel = found
+            presentFacts = null
+            if (found != null) {
+                val facts = readFacts(found)
+                presentFacts = facts
+                log.add("Vorhandenes Paket: $found, gebaut mit QAIRT ${facts?.qairt ?: "unbekannt"}")
+            }
             return found
         } catch (e: CancellationException) {
             throw e
@@ -88,6 +112,14 @@ class SpikeRunner(
         }
     }
 
+    private suspend fun readFacts(modelName: String): BundleFacts? = try {
+        port.inspect(modelName)?.let { BundleFacts.extract(it.texts["metadata.json"], it.texts["htp_backend_ext_config.json"]) }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (t: Throwable) {
+        null
+    }
+
     suspend fun pull(candidate: Candidate, onProgress: (downloadedBytes: Long, totalBytes: Long) -> Unit): PullOutcome {
         val step = "Modell herunterladen (${candidate.modelName}, Chipset ${candidate.chipset})"
         attempts++
@@ -95,7 +127,7 @@ class SpikeRunner(
         log.add("")
         log.add("Schritt 1, Versuch $attempts: $step ...")
         val free = probe.freeStorageBytes()
-        log.add("  Modell-ID: ${candidate.modelName}, Chipset-ID: ${candidate.chipset}")
+        log.add("  Modell-ID: ${candidate.modelName}, Chipset-ID: ${candidate.chipset}, Ausgabe: ${candidate.release ?: "neueste"}")
         log.add("  Freier Speicher vorher: " + (if (free >= 0) Metrics.gb(free) else "unbekannt") + ", Netz: " + probe.networkType())
         val started = clock.nowMs()
         var failureCode: Int? = null
@@ -103,7 +135,7 @@ class SpikeRunner(
         var failedWithException: Throwable? = null
         var completed = false
         try {
-            port.pull(candidate.modelName, candidate.chipset).collect { update ->
+            port.pull(candidate.modelName, candidate.chipset, candidate.release).collect { update ->
                 when (update) {
                     is PullUpdate.Progress -> onProgress(update.downloadedBytes, update.totalBytes)
                     is PullUpdate.Completed -> completed = true
@@ -152,6 +184,16 @@ class SpikeRunner(
                 PullPlanner.Advice(giveUp = false, repeatUseful = true, deleteFirst = true, cancelled = false))
         }
         presentModel = candidate.modelName
+        val facts = readFacts(candidate.modelName)
+        presentFacts = facts
+        log.add("  Paket gebaut mit QAIRT: ${facts?.qairt ?: "unbekannt"} (erwartet für diesen Kandidaten: ${candidate.expectedQairt ?: "egal"})")
+        if (candidate.expectedQairt != null && facts?.qairt != null && QairtVersion.majorMinor(facts.qairt) != candidate.expectedQairt) {
+            log.add("FEHLER bei Schritt: $step")
+            log.add("  Das geladene Paket ist mit QAIRT ${facts.qairt} gebaut, erwartet war ${candidate.expectedQairt}: Die Wahl der Ausgabe ${candidate.release} hat im SDK nicht gewirkt.")
+            tracker.failed(step, "WrongBundleVersion")
+            return PullOutcome.Failed(candidate, "Paket hat QAIRT ${facts.qairt} statt ${candidate.expectedQairt}",
+                PullPlanner.Advice(giveUp = true, repeatUseful = false, deleteFirst = false, cancelled = false))
+        }
         log.add("Download fertig (${candidate.modelName}, ${candidate.chipset}) in ${Metrics.num((clock.nowMs() - started) / 1000.0, 0)} s.")
         tracker.end(step)
         return PullOutcome.Success(candidate)
@@ -192,7 +234,10 @@ class SpikeRunner(
         try {
             if (!loaded) {
                 val loadStep = "Modell auf der NPU laden (nur qairt, kein CPU/GPU-Ersatz)"
+                val compat = diagnoseBeforeLoad(modelName)
                 tracker.begin(loadStep)
+                val marker = "secondhand-load-" + clock.nowMs()
+                diag.markLog(marker)
                 val t0 = clock.nowMs()
                 val info = try {
                     port.load(modelName)
@@ -200,7 +245,8 @@ class SpikeRunner(
                     throw e
                 } catch (t: Throwable) {
                     fail(loadStep, t)
-                    return TestOutcome.Failed(loadFailed = true)
+                    afterLoadFailure(marker)
+                    return TestOutcome.Failed(loadFailed = true, bundleNewerThanRuntime = compat == Compat.BUNDLE_NEWER)
                 }
                 loadMs = clock.nowMs() - t0
                 val runtime = info.manifestRuntime
@@ -269,6 +315,50 @@ class SpikeRunner(
             log.add("Test abgebrochen.")
             throw e
         }
+    }
+
+    /** Writes the facts that decide whether the load can work; returns how the bundle's QAIRT compares with the runtime's. */
+    private suspend fun diagnoseBeforeLoad(modelName: String): Compat {
+        log.add("")
+        log.add("Befunde vor dem Laden (jede Zeile sagt, welche Vermutung sie prüft):")
+        val runtimeQairt = diag.runtimeQairtVersion()
+        this.runtimeQairt = runtimeQairt
+        var compat = Compat.UNKNOWN
+        try {
+            val inspection = port.inspect(modelName)
+            if (inspection == null) {
+                log.add("  Paket nicht lesbar: das SDK kennt keinen Ordner für $modelName.")
+            } else {
+                val facts = BundleFacts.extract(inspection.texts["metadata.json"], inspection.texts["htp_backend_ext_config.json"])
+                presentFacts = facts
+                log.addAll(DiagnoseFormatter.bundleLines(inspection, facts, runtimeQairt))
+                compat = QairtVersion.compat(facts.qairt, runtimeQairt)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (t: Throwable) {
+            log.addAll(ErrorText.describe("Paket untersuchen", t))
+        }
+        val m = probe.memory()
+        log.add("Arbeitsspeicher direkt vor dem Laden (prüft ${DiagnoseFormatter.H4}): frei im System ${Metrics.mb(m.systemAvailBytes)}, " +
+            "PSS der App ${Metrics.mb(m.pssBytes)}, nativer Heap ${Metrics.mb(m.nativeHeapBytes)}")
+        diag.environmentLines().takeIf { it.isNotEmpty() }?.let { log.addAll(it) }
+        diag.nativeLoadLines().takeIf { it.isNotEmpty() }?.let { log.addAll(it) }
+        return compat
+    }
+
+    /** After a failed load: the process facts and the runtime's own log lines, filtered. */
+    private fun afterLoadFailure(marker: String) {
+        diag.processLines().takeIf { it.isNotEmpty() }?.let {
+            log.add("")
+            log.add("Prozess nach dem gescheiterten Laden (prüft ${DiagnoseFormatter.H2} und ${DiagnoseFormatter.H3}):")
+            log.addAll(it)
+        }
+        val lines = LogFilter.relevant(LogFilter.afterMarker(diag.logSince(marker), marker), FixedTests.forbiddenLogFragments(), MAX_LOG_LINES)
+        log.add("")
+        log.add("Protokoll der Laufzeit (eigene Log-Zeilen dieser App seit Beginn des Ladens, gefiltert auf den KI-Chip-Teil; " +
+            "die Prüftexte sind fest eingebaut, Zeilen mit ihnen werden entfernt; prüft ${DiagnoseFormatter.H1}, ${DiagnoseFormatter.H3}, ${DiagnoseFormatter.H4}):")
+        if (lines.isEmpty()) log.add("  (keine passenden Zeilen; das System gibt der App ihr Protokoll vielleicht nicht frei)") else lines.forEach { log.add("  $it") }
     }
 
     fun freeStorageBytesNow(): Long = probe.freeStorageBytes()

@@ -1614,6 +1614,10 @@ vom Lead als Datei geschickt (`app-debug.apk`, etwa 97 MB; Größe und SHA-256 s
 4. **2. Test: festen Satz korrigieren** tippen. Die App lädt das Modell auf den KI-Chip (das kann eine Weile dauern),
    lässt es einen festen Satz mit zwei Tippfehlern korrigieren und zeigt Antwort, Ladezeit, Tempo, Speicher und Akku-
    Temperatur. Optional danach **3. Test: längerer Absatz** (zeigt das Tempo über längere Zeit).
+   **Wenn Test 2 beim Laden scheitert (Fassung 0.3):** Die App sammelt dabei von selbst Befunde in den Bericht (Dateien des Pakets, Versionen, Systembibliotheken,
+   Speicher, das Protokoll der Laufzeit) und braucht dafür keinen neuen Download. Tippe danach **Bericht kopieren**. Ist das vorhandene Paket neuer als die Laufzeit
+   in der App, fragt sie, ob sie die ältere Ausgabe (v0.66.0, etwa 2,7 GB) laden soll; das ersetzt das vorhandene Paket und läuft nur nach deiner Bestätigung. Danach
+   Test 2 noch einmal.
 5. Hängt etwas, hilft **Stopp**. **Modell entladen** gibt den Arbeitsspeicher frei, **Modell / angefangenen Download löschen** die Modelle
    vom Telefon. Verschwindet die App mitten im Test, öffne sie wieder: Der Bericht sagt dann, in welchem Schritt es passierte.
 6. **Bericht kopieren** tippen, dann in den Chat mit dem Lead einfügen (oder einen Screenshot des Berichts schicken).

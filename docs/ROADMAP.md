@@ -883,7 +883,7 @@ offen, gebaut wird erst nach einer Entscheidung zu den offenen Fragen.
   der Pull mit `SM8750` scheitert mit `-100015` (Chip-Kennung unbekannt: bei Qualcomm gibt es nur `SM8750-AC`, also die Galaxy-Pakete;
   für beide Modelle auf dem Server bestätigt). **80b (0.2-spike):** geordnete Liste (1. Qwen3-4B-Instruct-2507, 2. Qwen3-4B, beide
   `SM8750-AC`), nach jedem Fehler Angebot des nächsten Pakets mit eigenem Dialog. Nächste Schritte, je erst nach dem Bericht des Owners:
-  (a) Läuft ein Galaxy-Paket auf dem Xiaomi? Sonst Ursache klären (Chip, QAIRT 2.51 gegen 2.50, `enableThinking`); wenn keines läuft,
+  **80c (0.3-spike):** das Paket der Ausgabe v0.67.0 (QAIRT 2.51) lud auf dem Xiaomi nicht („Model loading failed“); die Ausgabe v0.66.0 ist mit QAIRT 2.50.0 gebaut, der Version der Laufzeit, und ist jetzt der erste Kandidat; die App sammelt außerdem Befunde zum Ladefehler. (a) Läuft ein Galaxy-Paket auf dem Xiaomi? Sonst Ursache klären (Chip, QAIRT 2.51 gegen 2.50, `enableThinking`); wenn keines läuft,
   ist der eigene Export mit Qualcomms Werkzeug (Konto nötig) die Alternative. (b) Tempo, Speicher und Wärme bewerten (Qualcomm nennt
   16 bis 21 Tokens/s für die Galaxy-Variante). (c) Erst dann die lokale Schnittstelle zwischen Tastatur und Begleit-App (Aufruf nur auf
   Tipp, Übernahme mit eigenem Klick, nichts loggen) und eine eigene Etappe für die Dienstform.

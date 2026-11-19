@@ -59,3 +59,36 @@ class ReportLog {
 
     fun text(): String = snapshot().joinToString("\n")
 }
+
+/**
+ * Facts about the phone and the process that decide whether the NPU runtime can load (stage 80c). Every line the
+ * implementation returns is a fact of the device or the app's own process, never text of a user or a prompt.
+ */
+interface Diagnostics {
+    /** Vendor libraries, the library lists the vendor publishes, DSP directories, memory (tests H2, H3, H4). */
+    fun environmentLines(): List<String>
+
+    /** The result of loading each library of the NPU stack by hand, with the system's own error text (tests H2). */
+    fun nativeLoadLines(): List<String>
+
+    /** Environment variables and the libraries of the NPU stack that are mapped into the process right now. */
+    fun processLines(): List<String>
+
+    /** The version string compiled into the SDK's libQnnHtp.so, or null. */
+    fun runtimeQairtVersion(): String?
+
+    /** Writes a marker line to the app's own log, so [logSince] can cut everything before it. */
+    fun markLog(marker: String)
+
+    /** The app's own log lines after [marker] (raw; the runner filters them). */
+    fun logSince(marker: String): List<String>
+}
+
+object NoDiagnostics : Diagnostics {
+    override fun environmentLines(): List<String> = emptyList()
+    override fun nativeLoadLines(): List<String> = emptyList()
+    override fun processLines(): List<String> = emptyList()
+    override fun runtimeQairtVersion(): String? = null
+    override fun markLog(marker: String) {}
+    override fun logSince(marker: String): List<String> = emptyList()
+}

@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.transformWhile
 import kotlinx.coroutines.withContext
 
@@ -36,6 +37,16 @@ data class InitInfo(
     val qairtRuntimePath: String?,
     /** The chipset id the SDK reads from the phone itself (local probe, no network). */
     val detectedChipset: String?,
+)
+
+data class BundleFile(val name: String, val size: Long)
+
+/** The files of a pulled bundle and the small text files among them (metadata.json, the configs), as found on the phone. */
+data class BundleInspection(
+    val modelDir: String?,
+    val runtimeId: String?,
+    val files: List<BundleFile>,
+    val texts: Map<String, String>,
 )
 
 /** One model of Qualcomm's AI Hub list with the chipsets it has a ready NPU bundle for. */
@@ -84,8 +95,14 @@ interface NpuPort {
     /** True when a complete model bundle of this name is in the SDK's model store. */
     suspend fun isModelPresent(modelName: String): Boolean
 
-    /** Downloads the model for the given chipset id (with [listHub], the only call that uses the network). */
-    fun pull(modelName: String, chipset: String): Flow<PullUpdate>
+    /**
+     * Downloads the model for the given chipset id from the AI Hub release [release] (for example "v0.66.0"; null = the
+     * newest). With [listHub], the only call that uses the network.
+     */
+    fun pull(modelName: String, chipset: String, release: String?): Flow<PullUpdate>
+
+    /** Lists the files of the pulled bundle and reads its small text files; null when the model is not in the store. */
+    suspend fun inspect(modelName: String): BundleInspection?
 
     /** Removes the model (also a partial download, as far as the SDK does) from the SDK's store; returns the SDK's result code (0 = ok). */
     suspend fun deleteModel(modelName: String): Int
@@ -108,10 +125,13 @@ interface NpuPort {
 object GeniexConstants {
     const val RUNTIME_QAIRT = "qairt"
     const val CHIPSET_GALAXY = "SM8750-AC"
+
+    /** The environment variable of the SDK that pins the AI Hub release (libgeniex.so, GENIEX_AIHUBVERSION). */
+    const val ENV_RELEASE = "GENIEX_AIHUBVERSION"
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class GeniexAdapter(context: Context) : NpuPort {
+class GeniexAdapter(context: Context, private val initialRelease: String? = null) : NpuPort {
     private val appContext: Context = context.applicationContext
     private var llm: LlmWrapper? = null
 
@@ -124,6 +144,9 @@ class GeniexAdapter(context: Context) : NpuPort {
     override suspend fun init(): InitInfo = withContext(Dispatchers.IO) {
         try {
             val done = CompletableDeferred<String?>()
+            // the SDK reads these from the process environment while it starts: most detailed log level, pinned release
+            setEnv("GENIEX_LOG", "trace")
+            setEnv(GeniexConstants.ENV_RELEASE, initialRelease)
             // may throw UnsatisfiedLinkError / NoClassDefFoundError on a device without the NPU libraries
             GenieXSdk.getInstance().init(appContext, object : GenieXSdk.InitCallback {
                 override fun onSuccess() {
@@ -160,10 +183,31 @@ class GeniexAdapter(context: Context) : NpuPort {
         }
     }
 
-    override fun pull(modelName: String, chipset: String): Flow<PullUpdate> =
+    override suspend fun inspect(modelName: String): BundleInspection? = withContext(Dispatchers.IO) {
+        try {
+            val paths = ModelManagerWrapper.getPaths(modelName) ?: return@withContext null
+            val dir = java.io.File(paths.model_dir)
+            val files = dir.walkTopDown().filter { it.isFile }.map { BundleFile(it.relativeTo(dir).path, it.length()) }.toList()
+            val wanted = setOf("metadata.json", "genie_config.json", "htp_backend_ext_config.json", "config.json")
+            val texts = files.filter { it.name in wanted && it.size <= 200_000 }
+                .associate { it.name to java.io.File(dir, it.name).readText() }
+            BundleInspection(paths.model_dir, paths.runtime_id, files, texts)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (t: Throwable) {
+            throw wrap(t)
+        }
+    }
+
+    private fun setEnv(name: String, value: String?) {
+        // android.system.Os: the JVM itself cannot setenv; the SDK's native code reads the process environment
+        runCatching { if (value == null) android.system.Os.unsetenv(name) else android.system.Os.setenv(name, value, true) }
+    }
+
+    override fun pull(modelName: String, chipset: String, release: String?): Flow<PullUpdate> =
         ModelManagerWrapper.pullFlow(
             ModelPullInput(model_name = modelName, hub = HubSource.AUTO, chipset = chipset),
-        ).transformWhile { event ->
+        ).onStart { setEnv(GeniexConstants.ENV_RELEASE, release) }.transformWhile { event ->
             when (event) {
                 is ModelManagerWrapper.PullEvent.Progress -> {
                     val total = event.files.sumOf { if (it.total_bytes > 0) it.total_bytes else 0L }

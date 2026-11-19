@@ -172,5 +172,119 @@ object DeviceInfo {
 }
 
 object BuildConfigLike {
-    const val VERSION = "Begleit-Spike 0.2 (Etappe 80), SDK geniex-android 0.10.0"
+    const val VERSION = "Begleit-Spike 0.3 (Etappe 80), SDK geniex-android 0.10.0"
+}
+
+/**
+ * Stage 80c: facts about the phone and the process for the NPU load. Reads only system files that apps may read,
+ * the app's own process and the app's own log; nothing of it is user text.
+ */
+class AndroidDiagnostics(private val context: Context) : Diagnostics {
+    private val libDir: String get() = context.applicationInfo.nativeLibraryDir
+
+    private fun fileFact(path: String): String {
+        val f = java.io.File(path)
+        return if (f.exists()) "vorhanden (${f.length()} Bytes)" else "nicht vorhanden oder für Apps nicht sichtbar"
+    }
+
+    private fun listing(path: String, filter: (String) -> Boolean = { true }, max: Int = 25): String {
+        val names = java.io.File(path).list()
+        return if (names == null) "nicht lesbar" else {
+            val sel = names.filter(filter).sorted()
+            "${sel.size} Einträge" + if (sel.isEmpty()) "" else ": " + sel.take(max).joinToString(", ") + if (sel.size > max) ", ..." else ""
+        }
+    }
+
+    override fun environmentLines(): List<String> {
+        val out = mutableListOf<String>()
+        out += "Umgebung des Telefons (prüft ${DiagnoseFormatter.H2}, ${DiagnoseFormatter.H3}, ${DiagnoseFormatter.H4}):"
+        runCatching {
+            listOf(
+                "/vendor/lib64/libcdsprpc.so", "/vendor/lib64/libadsprpc.so", "/system/lib64/libcdsprpc.so",
+                "/system_ext/lib64/libcdsprpc.so", "/odm/lib64/libcdsprpc.so", "/vendor/lib64/libOpenCL.so",
+            ).forEach { out += "  $it: " + fileFact(it) }
+        }
+        runCatching {
+            listOf("/vendor/etc", "/system/etc", "/system_ext/etc", "/product/etc", "/odm/etc").forEach { dir ->
+                java.io.File(dir).listFiles { f -> f.name.startsWith("public.libraries") }?.sortedBy { it.name }?.forEach { f ->
+                    val text = runCatching { f.readText() }.getOrNull()
+                    out += "  ${f.path}: " + if (text == null) "nicht lesbar" else
+                        "${text.lines().count { it.isNotBlank() }} Zeilen; cdsprpc ${if ("cdsprpc" in text) "JA" else "nein"}, " +
+                            "adsprpc ${if ("adsprpc" in text) "JA" else "nein"}, OpenCL ${if ("OpenCL" in text) "JA" else "nein"}"
+                }
+            }
+        }
+        runCatching {
+            out += "  /vendor/lib64 (Treiber des KI-Chips): " +
+                listing("/vendor/lib64", { n -> listOf("libQnn", "cdsprpc", "adsprpc", "libsnpe", "libcdsp").any { n.contains(it) } })
+            listOf("/vendor/dsp", "/vendor/dsp/cdsp", "/vendor/lib/rfsa/adsp", "/vendor/lib/rfsa/dsp").forEach { out += "  $it: " + listing(it) }
+        }
+        runCatching {
+            val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val mi = ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
+            out += "  Speicher laut System: frei ${Metrics.mb(mi.availMem)} von ${Metrics.mb(mi.totalMem)}, Schwelle ${Metrics.mb(mi.threshold)}, " +
+                "lowMemory=${mi.lowMemory}"
+            val keys = listOf("MemTotal", "MemAvailable", "SwapTotal", "SwapFree")
+            java.io.File("/proc/meminfo").readLines().filter { l -> keys.any { l.startsWith("$it:") } }
+                .forEach { out += "  /proc/meminfo " + it.replace(Regex("\\s+"), " ") }
+        }
+        return out
+    }
+
+    override fun nativeLoadLines(): List<String> {
+        val out = mutableListOf<String>()
+        out += "Einzel-Ladetest der Bibliotheken des KI-Chip-Teils, ohne Modell (prüft ${DiagnoseFormatter.H2}; die Java-Schnittstelle des SDK " +
+            "bietet keinen Chip-Selbsttest ohne Modell, darum wird nur das Laden der Bibliotheken geprüft):"
+        fun attempt(label: String, block: () -> Unit) {
+            out += "  $label: " + try {
+                block()
+                "OK"
+            } catch (t: Throwable) {
+                "FEHLER ${t.javaClass.simpleName}: " + (t.message ?: "").replace('\n', ' ').take(250)
+            }
+        }
+        attempt("libcdsprpc.so (Systembibliothek, nach Name)") { System.loadLibrary("cdsprpc") }
+        attempt("libadsprpc.so (Systembibliothek, nach Name)") { System.loadLibrary("adsprpc") }
+        listOf("libQnnSystem.so", "libQnnHtp.so", "libQnnHtpV79Stub.so", "libgeniex_core.so", "libgeniex_plugin_qairt.so").forEach { name ->
+            attempt("$name (aus dem App-Ordner)") { System.load("$libDir/$name") }
+        }
+        out += "  Skel-Dateien im App-Ordner: " + listing(libDir, { it.contains("Skel") })
+        out += "  App-Ordner der Bibliotheken: $libDir"
+        return out
+    }
+
+    override fun processLines(): List<String> {
+        val out = mutableListOf<String>()
+        for (name in listOf("ADSP_LIBRARY_PATH", "LD_LIBRARY_PATH", "GENIEX_LOG", "GENIEX_AIHUBVERSION", "QUALCOMM_QAIRT_LOG")) {
+            out += "  Umgebungsvariable $name = " + (runCatching { android.system.Os.getenv(name) }.getOrNull() ?: "(nicht gesetzt)")
+        }
+        runCatching {
+            val keys = listOf("cdsprpc", "adsprpc", "QnnHtp", "QnnSystem", "geniex", "OpenCL", "ggml")
+            val names = java.io.File("/proc/self/maps").readLines()
+                .mapNotNull { it.substringAfterLast('/', "").takeIf { n -> n.endsWith(".so") } }
+                .filter { n -> keys.any { n.contains(it) } }.distinct().sorted()
+            out += "  Im Prozess geladene Bibliotheken des KI-Chip-Teils: " + names.joinToString(", ").ifBlank { "(keine)" }
+        }
+        return out
+    }
+
+    override fun runtimeQairtVersion(): String? = runCatching {
+        QairtVersion.findInBinary(java.io.File(libDir, "libQnnHtp.so").readBytes())
+    }.getOrNull()
+
+    override fun markLog(marker: String) {
+        Log.i(TAG, marker)
+    }
+
+    override fun logSince(marker: String): List<String> = try {
+        val proc = ProcessBuilder("logcat", "-d", "-v", "threadtime", "-t", "4000").redirectErrorStream(true).start()
+        val lines = java.util.Collections.synchronizedList(mutableListOf<String>())
+        val reader = Thread { runCatching { proc.inputStream.bufferedReader().forEachLine { lines += it } } }
+        reader.start()
+        reader.join(8000)
+        proc.destroy()
+        synchronized(lines) { lines.toList() }
+    } catch (t: Throwable) {
+        emptyList()
+    }
 }

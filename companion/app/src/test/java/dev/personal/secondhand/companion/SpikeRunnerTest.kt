@@ -14,7 +14,8 @@ class SpikeRunnerTest {
     private val port = FakePort(clock)
     private val tracker = FakeTracker()
     private val log = ReportLog()
-    private val runner = SpikeRunner(port, FakeProbe(), clock, tracker, log)
+    private val diag = FakeDiagnostics()
+    private val runner = SpikeRunner(port, FakeProbe(), clock, tracker, log, diag)
 
     private fun logText() = log.text()
 
@@ -46,8 +47,8 @@ class SpikeRunnerTest {
         assertTrue(logText().contains("QAIRT-Plugin: 2.50"))
     }
 
-    private val instruct = PullPlanner.INSTRUCT_GALAXY
-    private val qwen3 = PullPlanner.QWEN3_GALAXY
+    private val instruct = PullPlanner.INSTRUCT_V66
+    private val qwen3 = PullPlanner.QWEN3_V66
 
     @Test fun pullSuccessLogsModelChipsetStorageAndNetwork() = runBlocking {
         port.present.clear()
@@ -59,7 +60,7 @@ class SpikeRunnerTest {
         assertEquals(listOf(100L to 1000L), seen)
         assertEquals(instruct.modelName, runner.presentModel)
         val text = logText()
-        assertTrue(text.contains("Modell-ID: ai-hub-models/Qwen3-4B-Instruct-2507, Chipset-ID: SM8750-AC"))
+        assertTrue(text.contains("Modell-ID: ai-hub-models/Qwen3-4B-Instruct-2507, Chipset-ID: SM8750-AC, Ausgabe: v0.66.0"))
         assertTrue(text.contains("Freier Speicher vorher: 90,0 GB, Netz: WLAN"))
     }
 
@@ -90,7 +91,7 @@ class SpikeRunnerTest {
         val text = logText()
         assertTrue(text.contains("Versuch 1: Modell herunterladen (ai-hub-models/Qwen3-4B-Instruct-2507"))
         assertTrue(text.contains("Versuch 2: Modell herunterladen (ai-hub-models/Qwen3-4B, Chipset SM8750-AC"))
-        assertTrue(text.contains("Modell-ID: ai-hub-models/Qwen3-4B, Chipset-ID: SM8750-AC"))
+        assertTrue(text.contains("Modell-ID: ai-hub-models/Qwen3-4B, Chipset-ID: SM8750-AC, Ausgabe: v0.66.0"))
     }
 
     @Test fun networkTypeAndFreeStorageComeFromTheProbe() = runBlocking {
@@ -169,8 +170,8 @@ class SpikeRunnerTest {
         assertEquals(11, shown.size)
         assertTrue(r.memAfter.pssBytes > r.memBefore.pssBytes)
         assertTrue(r.tempAfterC!! > r.tempBeforeC!!)
-        assertEquals(listOf("load", "generate:96"), port.calls)
-        assertEquals(listOf(PullPlanner.INSTRUCT_GALAXY.modelName), port.loadedNames)
+        assertEquals(listOf("load", "generate:96"), port.calls.filterNot { it.startsWith("inspect") })
+        assertEquals(listOf(PullPlanner.INSTRUCT_V66.modelName), port.loadedNames)
         assertTrue(logText().contains("Antwort = erwarteter Satz: JA"))
         assertTrue(runner.loaded)
     }
@@ -179,7 +180,7 @@ class SpikeRunnerTest {
         runner.runTest(FixedTests.SENTENCE) { }
         val out = runner.runTest(FixedTests.PARAGRAPH) { } as SpikeRunner.TestOutcome.Ok
         assertNull(out.result.loadMs)
-        assertEquals(listOf("load", "generate:96", "generate:192"), port.calls)
+        assertEquals(listOf("load", "generate:96", "generate:192"), port.calls.filterNot { it.startsWith("inspect") })
     }
 
     @Test fun loadFailureIsReportedWithStepAndMarksTheLoadAsFailed() = runBlocking {
@@ -231,11 +232,11 @@ class SpikeRunnerTest {
 
     @Test fun deleteUnloadsFirstThenRemovesEveryCandidateModel() = runBlocking {
         runner.runTest(FixedTests.SENTENCE) { }
-        port.deleteResults[PullPlanner.QWEN3_GALAXY.modelName] = -100004 // not in the store: fine
+        port.deleteResults[PullPlanner.QWEN3_V66.modelName] = -100004 // not in the store: fine
         assertTrue(runner.deleteModels())
         assertEquals(
             listOf("load", "generate:96", "unload", "delete:ai-hub-models/Qwen3-4B-Instruct-2507", "delete:ai-hub-models/Qwen3-4B"),
-            port.calls,
+            port.calls.filterNot { it.startsWith("inspect") },
         )
         assertFalse(runner.loaded)
         assertNull(runner.presentModel)
@@ -247,7 +248,7 @@ class SpikeRunnerTest {
         port.deleteResult = 4
         assertFalse(runner.deleteModels())
         assertTrue(logText().contains("SDK-Ergebniscode 4"))
-        assertEquals(PullPlanner.INSTRUCT_GALAXY.modelName, runner.presentModel)
+        assertEquals(PullPlanner.INSTRUCT_V66.modelName, runner.presentModel)
     }
 
     @Test fun noLogLineContainsTheModelTextOfAFailedGeneration() = runBlocking {
@@ -255,5 +256,91 @@ class SpikeRunnerTest {
         port.generateEvents = listOf(GenEvent.Failed(NpuException(null, "x", "E")))
         runner.runTest(FixedTests.PARAGRAPH) { }
         assertFalse(logText().contains("Berger"))
+    }
+
+    // ---- stage 80c: diagnostics and release pinning ----
+
+    private val fixedTextFragment = "Spaziergang"
+
+    @Test fun pullPassesTheReleaseOfTheCandidateToThePort() = runBlocking {
+        runner.pull(instruct) { _, _ -> }
+        assertEquals(listOf<String?>("v0.66.0"), port.pulledReleases)
+        assertTrue(logText().contains("Paket gebaut mit QAIRT: 2.50.0.260828221209 (erwartet für diesen Kandidaten: 2.50)"))
+    }
+
+    @Test fun aPulledBundleWithTheWrongQairtVersionIsAFailure() = runBlocking {
+        port.bundleQairt = "2.51.0.260929181845" // the pin did not work: the newest release came down
+        val out = runner.pull(instruct) { _, _ -> } as SpikeRunner.PullOutcome.Failed
+        assertTrue(out.advice.giveUp)
+        assertTrue(out.error.contains("2.51.0.260929181845"))
+        assertTrue(logText().contains("hat im SDK nicht gewirkt"))
+    }
+
+    @Test fun diagnosticsRunBeforeTheLoadOnTheExistingFilesAndTheLoadIsRetried() = runBlocking {
+        port.bundleQairt = "2.51.0.260929181845"
+        port.loadError = NpuException(null, "Llm create failed: Model loading failed", "java.lang.RuntimeException")
+        runner.runTest(FixedTests.SENTENCE) { }
+        val t = logText()
+        assertTrue(t.contains("Befunde vor dem Laden"))
+        assertTrue(t.contains("part1_of_4.bin  778182656"))
+        assertTrue(t.contains("Paket gebaut mit QAIRT: 2.51.0.260929181845"))
+        assertTrue(t.contains("Laufzeit des SDK (libQnnHtp.so): v2.50.40.260831140417"))
+        assertTrue(t.contains("Das Paket ist NEUER als die Laufzeit"))
+        assertTrue(t.contains("libcdsprpc.so (Systembibliothek, nach Name): OK"))
+        assertTrue(t.contains("Arbeitsspeicher direkt vor dem Laden"))
+        // the order: facts first, then the load, then the process facts
+        assertEquals(listOf("env", "nativeLoad", "mark", "process"), diag.calls.filter { it != "unload" })
+        assertFalse(port.calls.contains("delete:x"))
+        assertEquals(PullPlanner.INSTRUCT_V66.modelName, runner.presentModel) // the files stay usable, nothing is deleted
+    }
+
+    @Test fun aLoadFailureWithANewerBundleSaysSoToTheScreen() = runBlocking {
+        port.bundleQairt = "2.51.0.260929181845"
+        port.loadError = NpuException(null, "Model loading failed", "java.lang.RuntimeException")
+        val out = runner.runTest(FixedTests.SENTENCE) { }
+        assertEquals(SpikeRunner.TestOutcome.Failed(loadFailed = true, bundleNewerThanRuntime = true), out)
+    }
+
+    @Test fun aLoadFailureWithAMatchingBundleDoesNotBlameTheVersion() = runBlocking {
+        port.bundleQairt = "2.50.0.260828221209"
+        port.loadError = NpuException(null, "Model loading failed", "java.lang.RuntimeException")
+        val out = runner.runTest(FixedTests.SENTENCE) { }
+        assertEquals(SpikeRunner.TestOutcome.Failed(loadFailed = true, bundleNewerThanRuntime = false), out)
+        assertTrue(logText().contains("Paket nicht neuer als die Laufzeit"))
+    }
+
+    @Test fun theRuntimeLogIsFilteredAndCutAtTheLoadMarker() = runBlocking {
+        port.loadError = NpuException(null, "Model loading failed", "java.lang.RuntimeException")
+        diag.log = listOf(
+            "01-01 00:00:00.000 1 1 E QnnHtp: before the marker",
+            "01-01 00:00:01.000 1 1 I SomeApp: unrelated",
+        )
+        port.onLoad = {
+            diag.log = diag.log + listOf(
+                "01-01 00:00:03.000 1 1 E libgeniex: [ERROR] \"Device Creation failure\"",
+                "01-01 00:00:03.100 1 1 I chatty: nothing about the chip",
+                "01-01 00:00:03.200 1 1 D GenieXSdk: echoed $fixedTextFragment from a prompt",
+            )
+        }
+        runner.runTest(FixedTests.SENTENCE) { }
+        val t = logText()
+        assertTrue(t.contains("Protokoll der Laufzeit"))
+        assertTrue(t.contains("Device Creation failure"))
+        assertFalse(t.contains("before the marker")) // written before the load: cut at the marker
+        assertFalse(t.contains("nothing about the chip"))
+        assertFalse(t.contains(fixedTextFragment + " from a prompt"))
+    }
+
+    @Test fun anEmptyRuntimeLogIsSaidSo() = runBlocking {
+        port.loadError = NpuException(null, "Model loading failed", "java.lang.RuntimeException")
+        runner.runTest(FixedTests.SENTENCE) { }
+        assertTrue(logText().contains("keine passenden Zeilen"))
+    }
+
+    @Test fun diagnosticsAreNotRepeatedOnceTheModelIsLoaded() = runBlocking {
+        runner.runTest(FixedTests.SENTENCE) { }
+        val first = port.calls.count { it.startsWith("inspect") }
+        runner.runTest(FixedTests.PARAGRAPH) { }
+        assertEquals(first, port.calls.count { it.startsWith("inspect") })
     }
 }
