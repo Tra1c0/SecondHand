@@ -866,7 +866,9 @@ offen, gebaut wird erst nach einer Entscheidung zu den offenen Fragen.
   mit einem Whisper-Modell auf dem KI-Chip statt des Geräte-Erkenners, optional mit vorgeschalteter
   Rauschunterdrückung; (b) „Melodie-Erkennung“ ist zweierlei: Gesummtes oder Gespieltes in Noten umsetzen
   (Tonhöhen-Erkennung, lokal machbar) oder ein Lied wiedererkennen (braucht eine Lieddatenbank, also einen
-  Online-Dienst). Offene Frage an den Owner: welche der beiden ist gemeint? Regeln bleiben: Mikrofon nur auf
+  Online-Dienst). Antwort des Owners (2026-11-20): nicht für Gitarre gedacht; die Melodie-Erkennung darf auch
+  über die KI-Schnittstelle laufen (Deutung des Leads: als Cloud-Aufruf mit dem eigenen Schlüssel und Freigabe,
+  nicht auf dem Gerät). Der Owner will W5 („Fan der Idee“); Kern ist das Diktat mit Whisper auf dem KI-Chip. Regeln bleiben: Mikrofon nur auf
   Tipp, nichts wird gespeichert oder geloggt. (L)
 - **W3 Alle Google-Funktionen.** Wortlaut des Owners: „alle Google features“. Deutung des Leads: der
   Funktionsumfang der Google-Tastatur und der KI-Funktionen von Google, soweit eine fremde Tastatur sie nutzen
