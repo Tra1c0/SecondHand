@@ -860,6 +860,15 @@ offen, gebaut wird erst nach einer Entscheidung zu den offenen Fragen.
   **Endstand Modellwahl (Owner, 2026-11-20): das normale, von Qualcomm fertig übersetzte Qwen3-4B**, nicht
   abliteriert, kein eigener Export („kein Bock auf die Kopfschmerzen“). Die abliterierte Fassung ist damit vom
   Tisch, solange der Owner sie nicht wieder verlangt.
+  **Machbarkeit (2026-11-20, `docs/W4-GENIEX-MACHBARKEIT.md`, aus Qualcomms Paket und Seiten gelesen, nichts
+  auf einem Gerät gelaufen):** `com.qualcomm.qti:geniex-android:0.10.0` bringt die KI-Chip-Laufzeit (QAIRT 2.50)
+  im Paket mit; das Modell ist ein öffentliches Zip (2,67 GB, entpackt etwa 3,2 GB, Kontext 4096, ohne Anmeldung).
+  **Hauptrisiko:** Für den normalen Snapdragon 8 Elite des Xiaomi 15 (SM8750) ist kein Qwen3-4B veröffentlicht,
+  nur für die Galaxy-Variante (SM8750-AC); ob dieses Paket auf dem Xiaomi läuft, zeigt nur ein Gerätetest.
+  Zweites Risiko: Das Modell wurde mit QAIRT 2.51 gebaut, die Laufzeit ist 2.50 (Qualcomms Doku warnt vor
+  falschen Ausgaben). Veröffentlichte Geschwindigkeit (Galaxy-Variante): 16 bis 21 Tokens pro Sekunde; zu
+  Energie und Speicher nichts. Weitergabe einer APK mit der Laufzeit: aus den Texten nicht ablesbar, also keine
+  Veröffentlichung. Nächster Schritt: kleiner Spike (Etappe 80), nur als Datei an den Owner.
 - **W5 Sprache auf dem Gerät (Wunsch des Owners, 2026-11-20, noch nicht zugeschnitten).** Präzise
   Spracherfassung auch bei viel Hintergrundlärm, später eventuell Melodie-Erkennung. Das Textmodell aus W4 kann
   kein Audio; es braucht eigene Modelle in derselben Begleit-App. Deutung des Leads, nichts geprüft: (a) Diktat
@@ -868,7 +877,10 @@ offen, gebaut wird erst nach einer Entscheidung zu den offenen Fragen.
   (Tonhöhen-Erkennung, lokal machbar) oder ein Lied wiedererkennen (braucht eine Lieddatenbank, also einen
   Online-Dienst). Antwort des Owners (2026-11-20): nicht für Gitarre gedacht; die Melodie-Erkennung darf auch
   über die KI-Schnittstelle laufen (Deutung des Leads: als Cloud-Aufruf mit dem eigenen Schlüssel und Freigabe,
-  nicht auf dem Gerät). Der Owner will W5 („Fan der Idee“); Kern ist das Diktat mit Whisper auf dem KI-Chip. Regeln bleiben: Mikrofon nur auf
+  nicht auf dem Gerät). Der Owner will W5 („Fan der Idee“); Kern ist das Diktat mit Whisper auf dem KI-Chip.
+  Machbarkeit (2026-11-20): GenieX kann kein Audio. Whisper für den KI-Chip gibt es bei Qualcomm nur für die
+  Galaxy-Variante des 8 Elite und über einen anderen Unterbau (ONNX Runtime mit QNN); das ist ein eigenes Projekt
+  nach W4. Regeln bleiben: Mikrofon nur auf
   Tipp, nichts wird gespeichert oder geloggt. (L)
 - **W3 Alle Google-Funktionen.** Wortlaut des Owners: „alle Google features“. Deutung des Leads: der
   Funktionsumfang der Google-Tastatur und der KI-Funktionen von Google, soweit eine fremde Tastatur sie nutzen
