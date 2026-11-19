@@ -46,4 +46,7 @@
     <string name="agent_prompts_insert_description">Prompt einfügen: %1$s</string>
     <string name="agent_prompts_selection">Erst die Schreibmarke setzen: eine Markierung wird nicht ersetzt.</string>
     <string name="agent_prompts_expired">Das Feld hat sich geändert. Nichts eingefügt.</string>
+    <string name="agent_prompts_discard_confirm">Änderungen verwerfen?</string>
+    <string name="agent_prompts_discard">Verwerfen</string>
+    <string name="agent_prompts_keep_editing">Weiter bearbeiten</string>
 </resources>

@@ -49,4 +49,7 @@
     <string name="agent_prompts_insert_description">Insert prompt: %1$s</string>
     <string name="agent_prompts_selection">Place the cursor first: a selection is not replaced.</string>
     <string name="agent_prompts_expired">The field changed. Nothing was inserted.</string>
+    <string name="agent_prompts_discard_confirm">Discard your changes?</string>
+    <string name="agent_prompts_discard">Discard</string>
+    <string name="agent_prompts_keep_editing">Keep editing</string>
 </resources>

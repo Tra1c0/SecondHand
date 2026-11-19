@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.activity.compose.BackHandler
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -23,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,6 +60,8 @@ const val PROMPTS_TEXT_FIELD_TAG = "agent_prompts_text_field"
 const val PROMPTS_PASTE_TAG = "agent_prompts_paste"
 const val PROMPTS_SAVE_TAG = "agent_prompts_save"
 const val PROMPTS_CANCEL_TAG = "agent_prompts_cancel"
+const val PROMPTS_DISCARD_TAG = "agent_prompts_discard"
+const val PROMPTS_KEEP_EDITING_TAG = "agent_prompts_keep_editing"
 const val PROMPTS_RESET_TAG = "agent_prompts_reset"
 const val PROMPTS_RESET_CONFIRM_TAG = "agent_prompts_reset_confirm"
 
@@ -82,8 +86,8 @@ private fun PromptsContent(store: PromptStore) {
     // null: not readable now (locked device or unusable file, see [state])
     var prompts by remember { mutableStateOf(store.load()) }
     var state by remember { mutableStateOf(store.state()) }
-    // null: closed; a prompt with an empty id: a new one
-    var editing by remember { mutableStateOf<Prompt?>(null) }
+    // null: closed; "": a new prompt; else the id of the prompt being edited. Saved with the activity state (rotation, dark mode).
+    var editingId by rememberSaveable { mutableStateOf<String?>(null) }
     var deleting by remember { mutableStateOf<Prompt?>(null) }
     var sorting by remember { mutableStateOf(false) }
     var resetting by remember { mutableStateOf(false) }
@@ -101,16 +105,21 @@ private fun PromptsContent(store: PromptStore) {
             if (notice != 0) Text(stringResource(notice), Modifier.testTag(PROMPTS_NOTICE_TAG), color = MaterialTheme.colorScheme.error)
             return@Column
         }
-        val open = editing
-        if (open != null) {
-            // the editor is a card on the page; the list and its buttons are not shown meanwhile
-            PromptEditorCard(open, store, onSaved = { reload(); editing = null },
-                onGone = { reload(); notice = R.string.agent_prompts_gone; editing = null }, onDismiss = { editing = null })
-            return@Column
+        val openId = editingId
+        if (openId != null) {
+            // a prompt deleted meanwhile (restored state, another page of the store): the editor closes with a notice
+            val open = if (openId.isEmpty()) Prompt("", "", "") else current.firstOrNull { it.id == openId }
+            if (open == null) { editingId = null; notice = R.string.agent_prompts_gone }
+            else {
+                // the editor is a card on the page; the list and its buttons are not shown meanwhile
+                PromptEditorCard(open, store, onSaved = { reload(); editingId = null },
+                    onGone = { reload(); notice = R.string.agent_prompts_gone; editingId = null }, onDismiss = { editingId = null })
+                return@Column
+            }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Button(enabled = current.size < PromptStore.MAX_PROMPTS, modifier = Modifier.testTag(PROMPTS_ADD_TAG),
-                onClick = { notice = 0; editing = Prompt("", "", "") }) { Text(stringResource(R.string.agent_prompts_new)) }
+                onClick = { notice = 0; editingId = "" }) { Text(stringResource(R.string.agent_prompts_new)) }
             OutlinedButton(enabled = current.size > 1, modifier = Modifier.testTag(PROMPTS_SORT_TAG),
                 onClick = { notice = 0; sorting = true }) { Text(stringResource(R.string.agent_prompts_sort)) }
         }
@@ -127,7 +136,7 @@ private fun PromptsContent(store: PromptStore) {
                     Text(rowPreview(prompt.text), maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
                 }
                 TextButton(modifier = Modifier.testTag(PROMPTS_EDIT_TAG + prompt.id),
-                    onClick = { notice = 0; editing = prompt }) { Text(stringResource(R.string.agent_prompts_edit)) }
+                    onClick = { notice = 0; editingId = prompt.id }) { Text(stringResource(R.string.agent_prompts_edit)) }
                 TextButton(modifier = Modifier.testTag(PROMPTS_DELETE_TAG + prompt.id),
                     onClick = { notice = 0; deleting = prompt }) { Text(stringResource(R.string.agent_prompts_delete)) }
             }
@@ -208,10 +217,18 @@ internal fun rowPreview(text: String): String = promptPreview(text)
 private fun PromptEditorCard(original: Prompt, store: PromptStore, onSaved: () -> Unit, onGone: () -> Unit, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val isNew = original.id.isEmpty()
-    var title by remember(original) { mutableStateOf(original.title) }
+    // saved with the activity state, per prompt (the id, not the object read from the store this time)
+    var title by rememberSaveable(original.id) { mutableStateOf(original.title) }
     // an existing text opens with the cursor at its end
-    var text by remember(original) { mutableStateOf(TextFieldValue(original.text, TextRange(original.text.length))) }
+    var text by rememberSaveable(original.id, stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue(original.text, TextRange(original.text.length)))
+    }
     var message by remember(original) { mutableStateOf("") }
+    var askDiscard by rememberSaveable(original.id) { mutableStateOf(false) }
+    val changed = title != original.title || text.text != original.text
+    // back and "Cancel": unchanged closes at once, changed asks first (the typed text is not lost by a slip)
+    fun cancel() { if (changed) askDiscard = true else onDismiss() }
+    BackHandler(onBack = ::cancel)
     val error = PromptStore.validationError(title, text.text)
     val titleTooLong = error == PromptError.TITLE_TOO_LONG
     val textTooLong = error == PromptError.TEXT_TOO_LONG
@@ -263,9 +280,23 @@ private fun PromptEditorCard(original: Prompt, store: PromptStore, onSaved: () -
                     else -> message = context.getString(R.string.agent_prompts_save_failed)
                 }
             }) { Text(stringResource(R.string.agent_prompts_save)) }
-            OutlinedButton(modifier = Modifier.testTag(PROMPTS_CANCEL_TAG), onClick = onDismiss) {
+            OutlinedButton(modifier = Modifier.testTag(PROMPTS_CANCEL_TAG), onClick = ::cancel) {
                 Text(stringResource(R.string.agent_prompts_cancel))
             }
         }
     }
+    if (askDiscard) AlertDialog(
+        onDismissRequest = { askDiscard = false },
+        text = { Text(stringResource(R.string.agent_prompts_discard_confirm)) },
+        confirmButton = {
+            TextButton(modifier = Modifier.testTag(PROMPTS_DISCARD_TAG), onClick = { askDiscard = false; onDismiss() }) {
+                Text(stringResource(R.string.agent_prompts_discard))
+            }
+        },
+        dismissButton = {
+            TextButton(modifier = Modifier.testTag(PROMPTS_KEEP_EDITING_TAG), onClick = { askDiscard = false }) {
+                Text(stringResource(R.string.agent_prompts_keep_editing))
+            }
+        },
+    )
 }
