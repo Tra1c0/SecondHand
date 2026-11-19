@@ -93,6 +93,11 @@
       "app/src/test/java/helium314/keyboard/latin/{InputLogicTest,SuggestTest,WordListDictionaries}.kt",
 
       "tools/dev.py",
+      "tools/devicetest/devicetest.py",
+      "tools/devicetest/{settings,build}.gradle.kts",
+      "tools/devicetest/app/build.gradle.kts",
+      "tools/devicetest/app/src/main/AndroidManifest.xml",
+      "tools/devicetest/app/src/main/java/**/*.java",
       "tools/build_german_verb_lemmas.py",
       "tools/emoji_mix_table.py",
       "scripts/*.{py,sh,json}",
