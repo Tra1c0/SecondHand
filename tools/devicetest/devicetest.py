@@ -55,6 +55,8 @@ KEY_NAMES = {
     "symbols": ("Symbole", "Symbols"),
     "letters": ("Buchstaben", "Letters"),
 }
+# What the strip shows without any word: the buttons at its ends and the empty slots.
+STRIP_FIXED = ("Mehr Tasten", "More keys", "Kein Vorschlag", "No suggestion", "Textaktionen", "Text actions")
 # A word separator key announces a pending autocorrection instead of its plain name
 # (AccessibilityUtils.getAutoCorrectionDescription): group 1 is the plain name.
 AUTOCORRECT_WRAPPERS = (
@@ -224,6 +226,18 @@ class Screen:
     def keyboard_nodes(self):
         return [node for node in self.nodes if node.package == KEYBOARD_PACKAGE]
 
+    def strip_nodes(self):
+        """What the suggestion strip shows: the nodes with a text or description inside it (words, chips)."""
+        strip = self.keyboard_node("suggestion_strip_view")
+        if strip is None:
+            return []
+        return [node for node in self.nodes
+                if node.package == KEYBOARD_PACKAGE and node is not strip and node.visible
+                and (node.text or node.desc) and strip.contains(*node.center)]
+
+    def strip_texts(self):
+        return [node.text or node.desc for node in self.strip_nodes()]
+
 
 def plain_key_name(description):
     for pattern in AUTOCORRECT_WRAPPERS:
@@ -364,6 +378,17 @@ class Driver:
             if node is None:
                 self.refresh_keys()
                 node = self.key_for(char)
+            if node is None and not char.isalpha():
+                # not in the letters: look on the symbols layout and come back
+                self.press("symbols")
+                self.refresh_keys()
+                node = self.keymap.get(char)
+                if node is None:
+                    raise CheckFailed("no key for %r, also not among the symbols; keys: %s" % (char, self.key_list()))
+                tap(*node.center)
+                self.press("letters")
+                self.refresh_keys()
+                continue
             if node is None:
                 raise CheckFailed("no key for %r on the keyboard; keys: %s" % (char, self.key_list()))
             if char.isalpha() and char.isupper():
@@ -375,6 +400,34 @@ class Driver:
                         raise CheckFailed("shift did not give the key %r; keys: %s" % (char, self.key_list()))
                 node = self.keymap[char]
             tap(*node.center)
+
+    def wait_for_suggestions(self, limit=15.0):
+        """Waits until the strip offers words for what is being typed: the dictionary is loaded then.
+        Without this the first words after a start are typed before the keyboard can correct them."""
+        deadline = time.time() + limit
+        while True:
+            texts = [t for t in dump().strip_texts() if t not in STRIP_FIXED]
+            if texts:
+                return texts
+            if time.time() > deadline:
+                raise DeviceError("the strip offered no word within %ss (dictionary not loaded?)" % int(limit))
+            time.sleep(0.8)
+
+    def tap_in_strip(self, wanted):
+        """Taps the word or chip of the strip whose text contains one of the wanted strings."""
+        deadline = time.time() + 10
+        while True:
+            nodes = dump().strip_nodes()
+            for node in nodes:
+                label = node.text or node.desc
+                if any(w.lower() in label.lower() for w in wanted):
+                    self.notes.append("tapped %r in the strip" % label)
+                    tap(*node.center)
+                    return label
+            if time.time() > deadline:
+                raise CheckFailed("the strip shows none of %s but %s" % (
+                    list(wanted), [n.text or n.desc for n in nodes][:12]))
+            time.sleep(0.8)
 
     def key_for(self, char):
         if char in self.keymap:
@@ -507,7 +560,58 @@ def typing_number(d):
     d.expect_field("number", "12345")
 
 
-SCENARIOS = [keyboard_is_secondhand, typing_text, delete_key, typing_password, typing_email, typing_number]
+def _typed_becomes(d, name, cases):
+    """Types each text into a fresh text field, after the dictionary answered, and compares the field."""
+    for typed, expected in cases:
+        d.start(name)
+        d.focus("text")
+        d.type("und")
+        offered = d.wait_for_suggestions()
+        d.notes.append("strip after 'und': %s" % offered[:4])
+        d.type(typed)
+        d.expect_field("text", "Und" + expected)
+
+
+def capital_after_period(d):
+    """After a full stop and a space the next word starts with a capital letter."""
+    d.start("capital_after_period")
+    d.focus("text")
+    d.type("hallo. du")
+    d.expect_field("text", "Hallo. Du")
+
+
+def autocorrect_typo(d):
+    """A typo of a very common word is corrected when the word ends: "idr" becomes "dir" (stage 71)."""
+    _typed_becomes(d, "autocorrect_typo", [(" idr ", " dir ")])
+
+
+def autocorrect_noun(d):
+    """A common noun typed in lower case gets its capital: "jungs" becomes "Jungs" (stages 48, 71)."""
+    _typed_becomes(d, "autocorrect_noun", [(" jungs ", " Jungs ")])
+
+
+def slang_stays(d):
+    """Informal words are not "corrected" (stage 71): two from the list, one stretched word."""
+    _typed_becomes(d, "slang_stays", [(" gecovert ", " gecovert "), (" lowkey ", " lowkey "), (" neee ", " neee ")])
+
+
+def language_switch(d):
+    """The command @lang offers the active languages; choosing English gives the English layout."""
+    d.start("language_switch")
+    d.focus("text")
+    d.expect_equal("German layout first (has the key ü)", "ü" in d.keymap or "Ü" in d.keymap, True)
+    d.type("@lang")
+    d.tap_in_strip(("Englisch", "English"))
+    time.sleep(1.5)
+    d.refresh_keys()
+    d.expect_equal("English layout now (no key ü)", "ü" in d.keymap or "Ü" in d.keymap, False)
+    d.expect_field("text", "")
+    d.type("the")
+    d.expect_field("text", "The")
+
+
+SCENARIOS = [keyboard_is_secondhand, typing_text, delete_key, typing_password, typing_email, typing_number,
+             capital_after_period, autocorrect_typo, autocorrect_noun, slang_stays, language_switch]
 
 
 # ------------------------------------------------------------------------------------------ setup
@@ -523,6 +627,10 @@ def set_locales():
     adb("wait-for-device", timeout=60)
     shell("settings put system system_locales " + LOCALES)
     shell("setprop persist.sys.locale " + LOCALES.split(",")[0])
+    # Android writes its settings to disk a moment later: stopping at once lost the second language
+    # in most runs (it arrived in runs 6 and 9 only).
+    time.sleep(6)
+    shell("sync", check=False)
     shell("stop; sleep 2; start", timeout=60)
     time.sleep(10)
     wait_for_boot()
