@@ -25,6 +25,7 @@
     <string name="agent_search_kw_agent_commands" translatable="false">befehle commands kürzel shortcuts text snippet baustein</string>
     <string name="agent_search_kw_agent_screenshots" translatable="false">screenshots bildschirmfoto screenshot capture ocr text bild</string>
     <string name="agent_search_kw_agent_my_data" translatable="false">meine daten my data vorschläge suggestions feld kontext context datenschutz privacy</string>
+    <string name="agent_search_kw_agent_prompts" translatable="false">prompt-ablage prompt store prompts prompt ablage ki chat chatgpt texte vorlagen templates reihenfolge order sortieren sort</string>
     <string name="agent_search_kw_agent_ai" translatable="false">ki ai anbieter provider openai anthropic gemini schlüssel key api modell model chatgpt</string>
     <string name="agent_search_kw_agent_skills" translatable="false">skill tasten skills skill-tasten skill keys schnellaktionen aktionen actions</string>
     <string name="agent_search_kw_agent_workflows" translatable="false">workflows abläufe automation automationen schritte steps</string>

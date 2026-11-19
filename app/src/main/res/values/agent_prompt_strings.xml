@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 74a prompt store (own file so parallel work on agent_strings.xml does not collide). English and German only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="agent_prompts_title">Prompt store</string>
+    <string name="agent_prompts_row_sub">Your own prompts for AI chats, in your order</string>
+    <string name="agent_prompts_description">Texts for AI chats. They are stored only on this device, stay until you delete them and keep the order you choose. Nothing is sent anywhere.</string>
+    <string name="agent_prompts_new">New prompt</string>
+    <string name="agent_prompts_sort">Sort</string>
+    <string name="agent_prompts_none">No prompts yet.</string>
+    <string name="agent_prompts_unavailable">The prompts cannot be read or saved now (device locked or file unusable).</string>
+    <!-- %1$d: number of prompts, %2$d: maximum -->
+    <string name="agent_prompts_count">%1$d of %2$d</string>
+    <string name="agent_prompts_full">The prompt store is full (%d prompts). Delete one first.</string>
+    <string name="agent_prompts_edit">Edit</string>
+    <string name="agent_prompts_delete">Delete</string>
+    <string name="agent_prompts_cancel">Cancel</string>
+    <string name="agent_prompts_save">Save</string>
+    <string name="agent_prompts_editor_new">New prompt</string>
+    <string name="agent_prompts_editor_edit">Edit prompt</string>
+    <string name="agent_prompts_field_title">Title (optional)</string>
+    <string name="agent_prompts_field_text">Prompt text</string>
+    <string name="agent_prompts_paste">Paste from clipboard</string>
+    <string name="agent_prompts_paste_empty">The clipboard has no text.</string>
+    <!-- %d: maximum characters -->
+    <string name="agent_prompts_paste_too_long">The clipboard text does not fit (at most %d characters). Nothing was inserted.</string>
+    <string name="agent_prompts_text_too_long">The text is too long (at most %d characters).</string>
+    <string name="agent_prompts_title_too_long">The title is too long (at most %d characters).</string>
+    <string name="agent_prompts_save_failed">Could not save. The prompt store is unavailable.</string>
+    <string name="agent_prompts_gone">This prompt no longer exists.</string>
+    <string name="agent_prompts_delete_confirm">Delete this prompt? This cannot be undone.</string>
+    <string name="agent_prompts_sort_title">Sort prompts</string>
+    <string name="agent_prompts_sort_changed">The list changed meanwhile. It was reloaded; the order was not saved.</string>
+    <string name="agent_prompts_sort_failed">The order could not be saved.</string>
+</resources>

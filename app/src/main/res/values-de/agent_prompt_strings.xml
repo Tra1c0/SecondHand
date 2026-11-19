@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="agent_prompts_title">Prompt-Ablage</string>
+    <string name="agent_prompts_row_sub">Eigene Prompts für KI-Chats, in deiner Reihenfolge</string>
+    <string name="agent_prompts_description">Texte für KI-Chats. Sie liegen nur auf diesem Gerät, bleiben bis zum Löschen erhalten und behalten die Reihenfolge, die du wählst. Es wird nichts gesendet.</string>
+    <string name="agent_prompts_new">Neuer Prompt</string>
+    <string name="agent_prompts_sort">Sortieren</string>
+    <string name="agent_prompts_none">Noch keine Prompts.</string>
+    <string name="agent_prompts_unavailable">Die Prompts sind gerade nicht les- oder speicherbar (Gerät gesperrt oder Datei unbrauchbar).</string>
+    <string name="agent_prompts_count">%1$d von %2$d</string>
+    <string name="agent_prompts_full">Die Prompt-Ablage ist voll (%d Prompts). Lösche zuerst einen.</string>
+    <string name="agent_prompts_edit">Bearbeiten</string>
+    <string name="agent_prompts_delete">Löschen</string>
+    <string name="agent_prompts_cancel">Abbrechen</string>
+    <string name="agent_prompts_save">Speichern</string>
+    <string name="agent_prompts_editor_new">Neuer Prompt</string>
+    <string name="agent_prompts_editor_edit">Prompt bearbeiten</string>
+    <string name="agent_prompts_field_title">Titel (optional)</string>
+    <string name="agent_prompts_field_text">Prompt-Text</string>
+    <string name="agent_prompts_paste">Aus Zwischenablage einfügen</string>
+    <string name="agent_prompts_paste_empty">In der Zwischenablage ist kein Text.</string>
+    <string name="agent_prompts_paste_too_long">Der Text der Zwischenablage passt nicht (höchstens %d Zeichen). Es wurde nichts eingefügt.</string>
+    <string name="agent_prompts_text_too_long">Der Text ist zu lang (höchstens %d Zeichen).</string>
+    <string name="agent_prompts_title_too_long">Der Titel ist zu lang (höchstens %d Zeichen).</string>
+    <string name="agent_prompts_save_failed">Speichern nicht möglich. Die Prompt-Ablage ist nicht verfügbar.</string>
+    <string name="agent_prompts_gone">Diesen Prompt gibt es nicht mehr.</string>
+    <string name="agent_prompts_delete_confirm">Diesen Prompt löschen? Das lässt sich nicht rückgängig machen.</string>
+    <string name="agent_prompts_sort_title">Prompts sortieren</string>
+    <string name="agent_prompts_sort_changed">Die Liste hat sich inzwischen geändert und wurde neu geladen; die Reihenfolge wurde nicht gespeichert.</string>
+    <string name="agent_prompts_sort_failed">Die Reihenfolge konnte nicht gespeichert werden.</string>
+</resources>
