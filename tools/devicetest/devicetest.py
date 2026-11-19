@@ -431,6 +431,15 @@ class Driver:
                     list(wanted), [n.text or n.desc for n in nodes][:12]))
             time.sleep(0.8)
 
+    def strip_until(self, condition, limit=6.0):
+        """The words of the strip, read again until the condition holds or the time is over."""
+        deadline = time.time() + limit
+        while True:
+            texts = [t for t in dump().strip_texts() if t not in STRIP_FIXED]
+            if condition(texts) or time.time() > deadline:
+                return texts
+            time.sleep(0.8)
+
     def tap_id(self, name):
         node = dump().by_id(name)
         if node is None:
@@ -623,13 +632,54 @@ def clipboard_pill(d):
     d.focus("text")
     d.tap_in_strip((CLIP_TEXT,))
     d.expect_field("text", CLIP_TEXT)
-    # the same clip, now with the password field focused: the control above showed the pill exists
+    # Copied again, now with the password field focused: nothing may be offered there. The copy is
+    # made again because the pill is used up by the tap above.
+    d.tap_id("copy_button")
     d.focus("password")
-    time.sleep(2.0)
+    time.sleep(2.5)
     offered = dump().strip_texts()
     d.expect_equal("copied text offered in the password field (strip %s)" % offered[:6],
                    any(CLIP_TEXT in text for text in offered), False)
     d.expect_field("password", "")
+    # And once more for the text field: only if the pill comes back there, its absence in the password
+    # field says something about the password field.
+    d.tap_id("copy_button")
+    d.focus("text")
+    d.tap_in_strip((CLIP_TEXT,))
+    d.expect_field("text", CLIP_TEXT + CLIP_TEXT)
+
+
+def learning_not_in_password(d):
+    """With "Personalisierte Vorschläge" on, a new word chosen three times is offered afterwards; a
+    word typed into a password field is never offered."""
+    _open_settings_and_switch_on(d, ("Tippen & Korrektur", "Alle Korrektur-Einstellungen"),
+                                 "Personalisierte Vorschläge")
+    word, secret = "xqzvok", "pwzzkq"
+    typed = word[:-1] if d.control else word  # what a control run really types
+    d.start("learning_not_in_password")
+    d.focus("text")
+    d.type("und")
+    d.wait_for_suggestions()
+    d.type(" ")
+    for _ in range(3):
+        d.type(word)
+        d.tap_in_strip((typed,))  # the typed word itself, the way a user keeps an unknown word
+        time.sleep(0.8)
+    d.type(word[:4])
+    offered = d.strip_until(lambda texts: word in texts)
+    d.expect_equal("the chosen word is offered for %r (strip %s)" % (word[:3], offered[:5]), word in offered, True)
+
+    d.start("learning_not_in_password")
+    d.focus("password")
+    d.type(secret)
+    d.type(" ")
+    d.type(secret)
+    d.focus("text")
+    d.type(secret[:4])
+    time.sleep(2.5)
+    offered = [t for t in dump().strip_texts() if t not in STRIP_FIXED]
+    d.expect_equal("the password-field word is offered for %r (strip %s)" % (secret[:3], offered[:5]),
+                   any(secret in text for text in offered), False)
 
 
 def _typed_becomes(d, name, cases):
@@ -701,7 +751,8 @@ def language_switch(d):
 
 SCENARIOS = [keyboard_is_secondhand, typing_text, delete_key, typing_password, typing_email, typing_number,
              capital_after_period, autocorrect_works, autocorrect_typo, autocorrect_typo_in_sentence,
-             autocorrect_noun, slang_stays, emoji_suggestion, language_switch, clipboard_pill]
+             autocorrect_noun, slang_stays, emoji_suggestion, language_switch, clipboard_pill,
+             learning_not_in_password]
 
 # Scenarios that fail because the keyboard does not do what was expected of it, found by these tests
 # and reported to the owner. They stay in the list above and keep running; their failure is shown as
