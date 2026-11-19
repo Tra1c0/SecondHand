@@ -1081,6 +1081,18 @@ def _swipe_list(screen, up):
     if save is None or not rows:
         return
     x, low = save.center[0], max(n.bottom for n in rows)
+    # A list that fits does not scroll, and a swipe over a row of it is taken as a tap on the row (run 47:
+    # the row was inserted and the window closed). Swipe only when another row would not fit any more.
+    views = [n for n in screen.nodes if n.package == KEYBOARD_PACKAGE and n.cls.endswith("ScrollView")
+             and not n.cls.endswith("HorizontalScrollView") and n.visible and n.contains(x, save.center[1])]
+    bottom = min((n.bottom for n in views), default=None)
+    if bottom is None:
+        frames = [n.bottom for n in screen.nodes if n.package == KEYBOARD_PACKAGE and n.rid.endswith("main_keyboard_frame")]
+        bottom = frames[0] if frames else 0
+    height = max(n.bottom - n.top for n in rows)
+    if low + height + 8 <= bottom:
+        SCAN_TRACE.append("no swipe: rows end %d, view end %d (%s), row %d" % (low, bottom, "scrollview" if views else "frame", height))
+        return
     top = save.bottom + 8
     start, end = (low - 6, top) if up else (top, low - 6)
     shell("input swipe %d %d %d %d 400" % (x, start, x, end), check=False)
