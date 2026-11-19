@@ -783,7 +783,31 @@ Folgende ist die Entscheidung des Leads.
 
 ## Unsortiert
 
-- (leer)
+Wünsche des Owners vom 2026-11-19, aufgenommen, aber noch nicht zugeschnitten: Umfang und Reihenfolge sind
+offen, gebaut wird erst nach einer Entscheidung zu den offenen Fragen.
+
+- **W1 Eigenes Ökosystem.** Ein eigens aufgesetztes Ökosystem rund um SecondHand. Wortlaut des Owners: „ein
+  eigens aufgesetztes eco system“. Was dazugehört, ist nicht festgelegt. Denkbar (Deutung des Leads, nicht
+  entschieden): Abgleich von Einstellungen, Prompt-Ablage, Workflows und Designprofilen zwischen eigenen
+  Geräten; eine Begleit-App oder Desktop-Gegenstelle; Teilen von Workflows, Designs und Prompts mit Freunden;
+  ein eigener Update- und Erweiterungskanal. Offene Fragen: Welche dieser Teile sind gemeint? Mit eigenem
+  Server oder nur von Gerät zu Gerät bzw. über eigene Dateien? Widerspruch zu klären: Unter „Bewusst nicht im
+  Umfang“ stehen bisher „keine Konten, kein Backend“; ein Ökosystem mit Abgleich hebt das je nach Zuschnitt auf.
+  (L, nach Zuschnitt mehrere Etappen)
+- **W2 AICore (KI auf dem Gerät).** Googles AICore mit Gemini Nano als zweiter, lokaler Provider neben dem
+  eigenen Schlüssel: Textaufgaben (Korrigieren, Umformulieren, Zusammenfassen, Antwortvorschläge) ohne Netz und
+  ohne Kosten. Bekannte Grenzen vor dem Bau zu prüfen (nicht geprüft): AICore gibt es nur auf bestimmten
+  Geräten (u. a. neuere Pixel- und Galaxy-Modelle) und nur mit Google-Diensten; ob das Telefon des Owners es
+  hat, ist offen. Die Regeln bleiben: jede Übernahme braucht einen eigenen Klick, lokale Werkzeuge werden als
+  lokal gekennzeichnet, sensible Felder und Sperrzustand gelten auch hier. Braucht einen Eintrag in
+  `docs/PROVIDERS.md`. (M bis L)
+- **W3 Alle Google-Funktionen.** Wortlaut des Owners: „alle Google features“. Deutung des Leads: der
+  Funktionsumfang der Google-Tastatur und der KI-Funktionen von Google, soweit eine fremde Tastatur sie nutzen
+  oder nachbauen kann. Erster Schritt ist eine Liste: je Funktion „schon vorhanden“, „nachbaubar (lokal oder
+  mit eigenem Schlüssel)“, „nur über Google-Dienste“ oder „für fremde Apps nicht zugänglich“. Schon vorhanden
+  sind u. a. Emoji-Mix, Zwischenablage, Diktat über den Geräte-Erkenner, Textkorrektur per KI. Externe
+  Google-Dienste (Gmail, Kalender) stehen bereits als 16c und sind blockiert, bis der Owner eigene
+  OAuth-Zugänge hat. Offene Frage: Welche Funktionen vermisst der Owner zuerst? (L, Liste zuerst: S)
 
 ## Bewusst nicht im Umfang
 
