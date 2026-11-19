@@ -14,8 +14,9 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
   in der Sicherung**, Korrekturen an Pille (Wiederkehr, Sternchen im Passwortfeld P308), Update-Chip, Tastenpositionen, Sperrzustand der
   Befehle (P309), Logging im Screenshot-Chip. „SecondHand Tests“ Lauf 140 grün. Nachweise: `docs/VALIDATION.md` (oberste Abschnitte).
 - Stand 2026-11-20: **77 Ordner in der Ablage** (bis Build 36 „Prompt-Ablage“; seit 77b „Ablage“, Entscheidung des Owners) fertig, geprüft (Prüfer, Tests Lauf 145, Gerätetests 48–50) und auf `main`; Test-Build 36 beim Owner.
+- 77b Umbenennung in „Ablage“ (nur Texte): Tests Lauf 147 grün, Gerätetests Lauf 52 grün (ein Emulator, kein neuer Kontrolllauf), auf `main`. Noch in keinem Build. In Arbeit: 78a AICore-Diagnose (Arbeitskopie `wt-aicore-78`, nicht eingemischt). W4 (eigenes Modell über GenieX, nur KI-Chip, Begleit-App) wartet auf die Messung des Owners.
 - **Regel des Owners (2026-11-19):** Was nach den Prüfmöglichkeiten des Leads lückenlos belegt ist, darf ohne Rückfrage auf `main`,
-  aber leicht rückholbar: vorher den alten Stand von `main` hier notieren. Vor dieser Runde: `main` = 74ed58c; vor Etappe 77: 90723e1.
+  aber leicht rückholbar: vorher den alten Stand von `main` hier notieren. Vor dieser Runde: `main` = 74ed58c; vor Etappe 77: 90723e1; vor 77b (Umbenennung in „Ablage“): 2301f2d.
 - Offen: Autofill-Schwächen der Tastatur (nur gemeldet), rückwirkende Bestandsprüfung (nur Block Datenschutz erledigt; Bedienung und
   Funktionen fehlen), kleine Datenschutz-Befunde und die Wünsche W1–W3 (`docs/ROADMAP.md` → Unsortiert; für W2 fehlt das Telefonmodell
   des Owners), `autocorrect_typo_in_sentence` einmal von zwölf Durchgängen rot (ungeklärt). Kein Gerätetest auf einem Telefon.
