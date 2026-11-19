@@ -679,6 +679,22 @@ class InputLogicTest {
         assertEquals("hello", text)
     }
 
+    // fork, stage 75: a swapped-letters correction is made of the info that Suggest creates when the engine did not offer the word
+    @Test fun `revert swapped letters autocorrect on delete`() {
+        setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT)
+        chainInput("idr")
+        val typedInfo = SuggestedWordInfo("idr", "", 0, 0, null, 0, 0)
+        val info = SuggestedWordInfo("dir", "", SuggestedWordInfo.MAX_SCORE, SuggestedWordInfo.KIND_CORRECTION,
+            helium314.keyboard.latin.dictionary.Dictionary.PhonyDictionary("agent_swapped_letters"),
+            SuggestedWordInfo.NOT_AN_INDEX, SuggestedWordInfo.NOT_A_CONFIDENCE)
+        latinIME.mInputLogic.setSuggestedWords(SuggestedWords(ArrayList(listOf(typedInfo, info)), null, typedInfo, false, true, false, 0, 0))
+        input(' ')
+        assertEquals("dir ", text)
+        functionalKeyPress(KeyCode.DELETE)
+        assertEquals("idr", text)
+        assertTrue(latinIME.mInputLogic.mTypedWordFirst.rejects(0, "idr", "dir"))
+    }
+
     // fork, stage 20a
     @Test fun `undone correction is remembered only when switched on and not in incognito`() {
         RejectedCorrections.clear(latinIME)
