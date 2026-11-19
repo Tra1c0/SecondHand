@@ -857,6 +857,17 @@ offen, gebaut wird erst nach einer Entscheidung zu den offenen Fragen.
   Owners, lädt die Gewichte zum Übersetzen in Qualcomms Cloud und ist nicht ausprobiert. Reihenfolge: zuerst das
   fertige Qwen3-4B von Qualcomm auf dem Gerät messen (Tempo, Wärme), dann die abliterierte Fassung übersetzen.
   Zu prüfen: feste Kontextlänge der übersetzten Modelle, Qualitätsverlust durch die Quantisierung, Lizenz.
+  **Endstand Modellwahl (Owner, 2026-11-20): das normale, von Qualcomm fertig übersetzte Qwen3-4B**, nicht
+  abliteriert, kein eigener Export („kein Bock auf die Kopfschmerzen“). Die abliterierte Fassung ist damit vom
+  Tisch, solange der Owner sie nicht wieder verlangt.
+- **W5 Sprache auf dem Gerät (Wunsch des Owners, 2026-11-20, noch nicht zugeschnitten).** Präzise
+  Spracherfassung auch bei viel Hintergrundlärm, später eventuell Melodie-Erkennung. Das Textmodell aus W4 kann
+  kein Audio; es braucht eigene Modelle in derselben Begleit-App. Deutung des Leads, nichts geprüft: (a) Diktat
+  mit einem Whisper-Modell auf dem KI-Chip statt des Geräte-Erkenners, optional mit vorgeschalteter
+  Rauschunterdrückung; (b) „Melodie-Erkennung“ ist zweierlei: Gesummtes oder Gespieltes in Noten umsetzen
+  (Tonhöhen-Erkennung, lokal machbar) oder ein Lied wiedererkennen (braucht eine Lieddatenbank, also einen
+  Online-Dienst). Offene Frage an den Owner: welche der beiden ist gemeint? Regeln bleiben: Mikrofon nur auf
+  Tipp, nichts wird gespeichert oder geloggt. (L)
 - **W3 Alle Google-Funktionen.** Wortlaut des Owners: „alle Google features“. Deutung des Leads: der
   Funktionsumfang der Google-Tastatur und der KI-Funktionen von Google, soweit eine fremde Tastatur sie nutzen
   oder nachbauen kann. Erster Schritt ist eine Liste: je Funktion „schon vorhanden“, „nachbaubar (lokal oder
