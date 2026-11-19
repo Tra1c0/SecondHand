@@ -131,6 +131,20 @@ class Node:
     def visible(self):
         return self.right > self.left and self.bottom > self.top
 
+    @property
+    def area(self):
+        return max(0, self.right - self.left) * max(0, self.bottom - self.top)
+
+    @property
+    def box(self):
+        return "[%d,%d][%d,%d]" % (self.left, self.top, self.right, self.bottom)
+
+    def contains(self, x, y):
+        return self.left <= x < self.right and self.top <= y < self.bottom
+
+    def move(self, dx, dy):
+        self.left, self.right, self.top, self.bottom = self.left + dx, self.right + dx, self.top + dy, self.bottom + dy
+
 
 class Screen:
     """The nodes of all windows, the keyboard window included, as the probe service of the test app
@@ -145,6 +159,7 @@ class Screen:
         if not isinstance(data, dict) or "nodes" not in data:
             raise DeviceError("the screen dump has no nodes: %r" % json_text[:160])
         self.nodes = [Node(item) for item in data["nodes"]]
+        self.shifted = False
 
     def by_id(self, name):
         """The node of the test app with this resource id, or None."""
@@ -156,11 +171,30 @@ class Screen:
 
     def keys(self):
         """The keys of the keyboard: description -> Node (virtual nodes of the keyboard view)."""
+        keys = [node for node in self.nodes
+                if node.package == KEYBOARD_PACKAGE and node.cls.endswith(".Key") and node.desc and node.visible]
+        view = self.keyboard_view()
+        self.shifted = False
+        if view is not None and keys and not all(view.contains(*key.center) for key in keys):
+            # The keyboard reports its keys relative to its own view when it has not yet read its place
+            # on the screen (KeyboardAccessibilityNodeProvider.updateParentLocation): move them there.
+            if all(view.contains(key.center[0] + view.left, key.center[1] + view.top) for key in keys):
+                for key in keys:
+                    key.move(view.left, view.top)
+                self.shifted = True
         found = {}
-        for node in self.nodes:
-            if node.package == KEYBOARD_PACKAGE and node.cls.endswith(".Key") and node.desc and node.visible:
-                found.setdefault(plain_key_name(node.desc), node)
+        for node in keys:
+            found.setdefault(plain_key_name(node.desc), node)
         return found
+
+    def keyboard_view(self):
+        """The view that draws the keys (the visible one; the emoji and clipboard views have their own)."""
+        best = None
+        for node in self.nodes:
+            if node.rid == KEYBOARD_PACKAGE + ":id/keyboard_view" and node.visible:
+                if best is None or node.area > best.area:
+                    best = node
+        return best
 
     def keyboard_nodes(self):
         return [node for node in self.nodes if node.package == KEYBOARD_PACKAGE]
@@ -245,6 +279,11 @@ class Driver:
         if field not in self.logged_layouts:  # once per kind of field, for reading a failed run
             self.logged_layouts.add(field)
             log("INFO keys in field %s: %s" % (field, self.key_list()))
+            view = screen.keyboard_view()
+            sample = next(iter(self.keymap.values()))
+            log("INFO geometry in field %s: field %s, keyboard view %s, key %r %s%s" % (
+                field, node.box, view.box if view else "not found", sample.desc[:12], sample.box,
+                ", keys moved to the view" if screen.shifted else ""))
         return screen
 
     def field(self, field):

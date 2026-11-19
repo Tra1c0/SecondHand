@@ -2,6 +2,7 @@ package dev.personal.secondhand.devicetest;
 
 import android.accessibilityservice.AccessibilityService;
 import android.graphics.Rect;
+import android.os.Build;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
@@ -44,6 +45,8 @@ public class ProbeAccessibilityService extends AccessibilityService {
 
     /** All nodes of all windows as JSON: {"nodes":[{"w":window type,"p":package,"c":class,"id":..,"d":..,"t":..,"b":[l,t,r,b]}]}. */
     String dump() throws JSONException {
+        // always a fresh look: the service's node cache may still hold the keyboard before it moved
+        if (Build.VERSION.SDK_INT >= 33) clearCache();
         final JSONArray nodes = new JSONArray();
         final List<AccessibilityWindowInfo> windows = getWindows();
         for (AccessibilityWindowInfo window : windows) {
