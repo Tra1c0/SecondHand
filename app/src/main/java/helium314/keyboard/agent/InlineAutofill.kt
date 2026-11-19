@@ -36,3 +36,35 @@ object InlineAutofillSizing {
         return Math.max(min, base - Math.round(RESERVED_DP * d))
     }
 }
+
+/**
+ * Stage 79 (W-b): the chips are inflated one by one and each callback arrives when it is ready, in any order,
+ * or never. Nothing waits for the others: a chip is put into the row at the place its service-given index
+ * asks for, among the chips that have arrived so far, so the row is always in the service's order and a chip
+ * that fails or never comes only leaves a gap that is not there. Main thread only, like the callbacks.
+ */
+class InlineAutofillSlots(private val count: Int) {
+    private val answered = BooleanArray(Math.max(count, 0))
+    private val present = BooleanArray(Math.max(count, 0))
+
+    /**
+     * Records the result for the suggestion at [index]. Returns the position in the row (the number of
+     * already placed chips with a smaller index) at which a chip is to be inserted, or -1 when nothing is
+     * to be added: the inflation failed ([hasView] false), the index is unknown, or this index answered before.
+     */
+    fun onResult(index: Int, hasView: Boolean): Int {
+        if (index < 0 || index >= answered.size || answered[index]) return -1
+        answered[index] = true
+        if (!hasView) return -1
+        var position = 0
+        for (i in 0 until index) if (present[i]) position++
+        present[index] = true
+        return position
+    }
+
+    /** Whether every suggestion has answered, with a chip or without. */
+    val isComplete: Boolean get() = answered.all { it }
+
+    /** How many chips are in the row now. */
+    val placed: Int get() = present.count { it }
+}

@@ -43,6 +43,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import helium314.keyboard.agent.InlineAutofillSizing;
+import helium314.keyboard.agent.InlineAutofillSlots;
 import helium314.keyboard.latin.R;
 import helium314.keyboard.latin.common.ColorType;
 import helium314.keyboard.latin.common.Colors;
@@ -109,11 +110,15 @@ public class InlineAutofillUtils {
     public static InlineContentClipView createView(final List<InlineSuggestion> inlineSuggestions,
                                                    final Context context) {
         LinearLayout container = new LinearLayout(context);
-        for (InlineSuggestion inlineSuggestion : inlineSuggestions) {
-            inlineSuggestion.inflate(context, new Size(ViewGroup.LayoutParams.WRAP_CONTENT,
+        // fork, stage 79: the callbacks come in any order (or never); each chip goes to the place its index asks for
+        final InlineAutofillSlots slots = new InlineAutofillSlots(inlineSuggestions.size());
+        for (int i = 0; i < inlineSuggestions.size(); i++) {
+            final int index = i;
+            inlineSuggestions.get(i).inflate(context, new Size(ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT), context.getMainExecutor(), (view) -> {
-                if (view != null)
-                    container.addView(view);
+                final int position = slots.onResult(index, view != null);
+                if (position >= 0)
+                    container.addView(view, position);
             });
         }
 
