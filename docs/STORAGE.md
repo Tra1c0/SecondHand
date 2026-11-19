@@ -449,7 +449,7 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   alle Bausteine, siehe „Daten der Befehle 24c–24f“) mit `literal: true`; „Kopieren“ legt sie als
   normalen Text in die Zwischenablage (mit eingeschaltetem Verlauf landet sie dort wie jede Kopie).
 
-## Prompt-Ablage (74)
+## Ablage (74; bis Build 36 „Prompt-Ablage“)
 
 - Datei `noBackupFilesDir/agent_prompts.json` im CE-Speicher (`AtomicFile`, wie `agent_snippets.json`),
   erst nach dem Entsperren lesbar. Kein Android-Backup. Seit Etappe 76 nimmt „Sichern“ (Einstellungen →
@@ -460,14 +460,14 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   wird beim Wiederherstellen nur genau verglichen, nie als Pfad benutzt; kommt er mehrfach vor, zählt der
   letzte. Wiederherstellen (`PromptsEntryCollector`, `restorePromptsFromBackup`,
   `PromptStore.replaceAll`): Der Eintrag wird zuerst mit demselben strengen Leser und der Grenze von 2 MiB
-  geprüft und ersetzt die Prompts erst ganz am Ende, nachdem alles andere gelungen ist (die Prompt-Datei
+  geprüft und ersetzt die Einträge erst ganz am Ende, nachdem alles andere gelungen ist (die Ablage-Datei
   liegt in `noBackupFilesDir`, außerhalb der beiden Ordner des Zurückrollens, deshalb schreibt ein
-  gescheitertes Wiederherstellen sie nie). Die vorhandenen Prompts bleiben bei fehlendem, leerem,
-  beschädigtem oder zu großem Eintrag, bei gesperrtem Gerät und bei unlesbarer Prompt-Datei auf dem
+  gescheitertes Wiederherstellen sie nie). Die vorhandenen Einträge bleiben bei fehlendem, leerem,
+  beschädigtem oder zu großem Eintrag, bei gesperrtem Gerät und bei unlesbarer Ablage-Datei auf dem
   Telefon; die drei Fälle ab „beschädigt“ melden es in einer zweiten Meldung (`restore_prompts_corrupt`,
   `restore_prompts_locked`, `restore_prompts_unreadable`). Eine ältere App-Version überspringt den
   unbekannten Eintrag. Die Datei ist unverschlüsselt (wie der Rest der Sicherung). Ohne Sicherung
-  bleiben die Prompts über Neustarts und App-Updates und gehen beim Deinstallieren oder Löschen der
+  bleiben die Einträge über Neustarts und App-Updates und gehen beim Deinstallieren oder Löschen der
   App-Daten verloren. Bei gesperrtem Gerät wird nichts gelesen, geschrieben oder angelegt.
 - Format 1 (bis Etappe 76, und weiter geschrieben, solange es keinen Ordner gibt): ein JSON-Objekt mit genau den Schlüsseln `storageVersion` (Zahl, 1) und `prompts`
   (Array in der Reihenfolge des Nutzers, der neueste zuerst beim Hinzufügen). Jeder Eintrag hat genau
@@ -479,28 +479,28 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   des Nutzers (neue Ordner hinten); jeder Eintrag hat genau `id` (nicht leer, höchstens 64 Zeichen, eindeutig) und `name` (schon getrimmt,
   1 bis 40 UTF-16-Zeichen, kein Steuerzeichen, kein einzelnes Surrogat; beim Anlegen und Umbenennen ohne Beachtung der Groß-/Kleinschreibung eindeutig, der Leser lehnt eine Kollision nicht ab), höchstens 50
   Einträge. Jeder Eintrag von `prompts` hat zusätzlich genau den Schlüssel `folderId`: `null` (ohne Ordner) oder die Id eines Ordners aus
-  `folders`. `prompts` bleibt EINE Liste in globaler Reihenfolge; die Ansicht eines Ordners zeigt seine Prompts in deren relativer
+  `folders`. `prompts` bleibt EINE Liste in globaler Reihenfolge; die Ansicht eines Ordners zeigt seine Einträge in deren relativer
   Reihenfolge. Der Speicher schreibt Format 1, solange `folders` leer wäre, sonst Format 2; beide Formate werden gelesen. Eine Datei
-  im Format 1 lädt unverändert (alle Prompts ohne Ordner) und bleibt bei jedem Schreiben ohne Ordner byte-gleich im alten Format; mit dem
-  ersten Ordner wird sie im selben Schreibvorgang zu Format 2 (kein Prompt, keine Reihenfolge geht verloren). Ein Ordner löschen schreibt
-  die Prompts mit `folderId: null` zurück (Format 1, wenn es der letzte Ordner war).
-- Unbrauchbar (Etappe 77): Ein Prompt mit `folderId` eines Ordners, den die Datei nicht hat, eine `storageVersion` über 2, Format 2 ohne
-  `folders` oder mit Prompts ohne `folderId`, Format 1 mit `folders` oder `folderId`, doppelte Ordner-Ids, ein Name mit Leerraum am Rand, leer, über 40 Zeichen, mit Steuerzeichen oder einzelnem Surrogat,
+  im Format 1 lädt unverändert (alle Einträge ohne Ordner) und bleibt bei jedem Schreiben ohne Ordner byte-gleich im alten Format; mit dem
+  ersten Ordner wird sie im selben Schreibvorgang zu Format 2 (kein Eintrag, keine Reihenfolge geht verloren). Ein Ordner löschen schreibt
+  die Einträge mit `folderId: null` zurück (Format 1, wenn es der letzte Ordner war).
+- Unbrauchbar (Etappe 77): Ein Eintrag mit `folderId` eines Ordners, den die Datei nicht hat, eine `storageVersion` über 2, Format 2 ohne
+  `folders` oder mit Einträgen ohne `folderId`, Format 1 mit `folders` oder `folderId`, doppelte Ordner-Ids, ein Name mit Leerraum am Rand, leer, über 40 Zeichen, mit Steuerzeichen oder einzelnem Surrogat,
   ein Ordner mit anderen Schlüsseln und mehr als 50 Ordner. Zwei Ordnernamen, die sich nur in der Groß-/Kleinschreibung unterscheiden, lehnt der Leser NICHT ab (die
   Tabellen für Groß- und Kleinbuchstaben unterscheiden sich zwischen Android-Versionen; sonst wäre der ganze Speicher unlesbar): beide Ordner
   bleiben, Schreiben ohne Bezug zu den Ordnern geht weiter; Anlegen und Umbenennen prüfen die Eindeutigkeit nur gegen die anderen Ordner.
-  Entscheidung des Leads: Eine solche Datei wird nie still repariert (ein Prompt
+  Entscheidung des Leads: Eine solche Datei wird nie still repariert (ein Eintrag
   „ohne Ordner“ zu laden würde beim nächsten Schreiben die Zuordnung ändern, ohne dass jemand es merkt), sondern wie jede unbrauchbare
   Datei behandelt: `UNUSABLE`, `read()` leer, Schreibvorgänge `IO`, die Datei bleibt; „Ablage zurücksetzen“ ist der Ausweg. Das gilt auch
   für die Datei einer künftigen, neueren App-Version.
 - Sicherung (seit 77): Der Eintrag `agent/agent_prompts.json` trägt die Bytes der Datei wie sie ist (Format 1 oder 2), aber nur, wenn die Datei
-  mindestens einen Prompt hat. Ordner allein werden nicht gesichert (Grenze), und beim Wiederherstellen gilt ein Eintrag, der zu null
-  Prompts dekodiert, als kein Eintrag (`NO_ENTRY`), egal wie viele Ordner er hat: vorhandene Prompts und Ordner bleiben unberührt. Eine
-  Sicherung aus Version 76 (Format 1) stellt Prompts ohne Ordner wieder her und ersetzt dabei auch vorhandene Ordner (der Stand der
-  Sicherung gilt); eine ungültige Sicherung (zum Beispiel ein Prompt eines fehlenden Ordners) ist `CORRUPT` und lässt alles auf dem Telefon
+  mindestens einen Eintrag hat. Ordner allein werden nicht gesichert (Grenze), und beim Wiederherstellen gilt ein Eintrag, der zu null
+  Einträge dekodiert, als kein Eintrag (`NO_ENTRY`), egal wie viele Ordner er hat: vorhandene Einträge und Ordner bleiben unberührt. Eine
+  Sicherung aus Version 76 (Format 1) stellt Einträge ohne Ordner wieder her und ersetzt dabei auch vorhandene Ordner (der Stand der
+  Sicherung gilt); eine ungültige Sicherung (zum Beispiel ein Eintrag eines fehlenden Ordners) ist `CORRUPT` und lässt alles auf dem Telefon
   unverändert. Eine ältere App-Version kann Format 2 nicht lesen (sie hält die Datei für unbrauchbar).
 - Der gewählte Chip im Fenster der Tastatur wird nicht gespeichert (nur im Prozess, P314).
-- Grenzen: höchstens 200 Prompts, Datei höchstens 2 MiB (`MAX_STORAGE_BYTES`; gelesen wird mit
+- Grenzen: höchstens 200 Einträge, Datei höchstens 2 MiB (`MAX_STORAGE_BYTES`; gelesen wird mit
   dieser Grenze, geschrieben wird eine größere Datei gar nicht, Fehler `FILE_FULL`). Nie wird gekürzt.
 - Striktes Lesen: eine Datei, die nicht UTF-8 ist, zu groß, kein JSON-Objekt, mit anderen oder
   fehlenden Schlüsseln, anderer Version, Eintragen außerhalb der Grenzen, doppelten Ids oder

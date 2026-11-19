@@ -1,71 +1,71 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Stage 74a prompt store (own file so parallel work on agent_strings.xml does not collide). English and German only. -->
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
-    <string name="agent_prompts_title">Prompt store</string>
-    <string name="agent_prompts_row_sub">Your own prompts for AI chats, in your order</string>
+    <string name="agent_prompts_title">Store</string>
+    <string name="agent_prompts_row_sub">Your own entries for AI chats, in your order</string>
     <string name="agent_prompts_description">Texts for AI chats. They are stored only on this device, stay until you delete them and keep the order you choose, optionally in folders. Nothing is sent anywhere.</string>
-    <string name="agent_prompts_new">New prompt</string>
+    <string name="agent_prompts_new">New entry</string>
     <string name="agent_prompts_sort">Sort</string>
-    <string name="agent_prompts_none">No prompts yet.</string>
-    <string name="agent_prompts_unavailable">The prompts cannot be read or saved now (device locked or file unusable).</string>
-    <!-- %1$d: number of prompts, %2$d: maximum -->
+    <string name="agent_prompts_none">No entries yet.</string>
+    <string name="agent_prompts_unavailable">The entries cannot be read or saved now (device locked or file unusable).</string>
+    <!-- %1$d: number of entries, %2$d: maximum -->
     <string name="agent_prompts_count">%1$d of %2$d</string>
-    <string name="agent_prompts_full">The prompt store is full (%d prompts). Delete one first.</string>
+    <string name="agent_prompts_full">The store is full (%d entries). Delete one first.</string>
     <string name="agent_prompts_edit">Edit</string>
     <string name="agent_prompts_delete">Delete</string>
     <string name="agent_prompts_cancel">Cancel</string>
     <string name="agent_prompts_save">Save</string>
-    <string name="agent_prompts_editor_new">New prompt</string>
-    <string name="agent_prompts_editor_edit">Edit prompt</string>
+    <string name="agent_prompts_editor_new">New entry</string>
+    <string name="agent_prompts_editor_edit">Edit entry</string>
     <string name="agent_prompts_field_title">Title (optional)</string>
-    <string name="agent_prompts_field_text">Prompt text</string>
+    <string name="agent_prompts_field_text">Text</string>
     <string name="agent_prompts_paste">Paste from clipboard</string>
     <string name="agent_prompts_paste_empty">The clipboard has no text.</string>
     <!-- %d: maximum characters -->
     <string name="agent_prompts_paste_too_long">The clipboard text does not fit (at most %d characters). Nothing was inserted.</string>
     <string name="agent_prompts_text_too_long">The text is too long (at most %d characters).</string>
     <string name="agent_prompts_title_too_long">The title is too long (at most %d characters).</string>
-    <string name="agent_prompts_save_failed">Could not save. The prompt store is unavailable.</string>
-    <string name="agent_prompts_gone">This prompt no longer exists.</string>
-    <string name="agent_prompts_delete_confirm">Delete this prompt? This cannot be undone.</string>
-    <string name="agent_prompts_sort_title">Sort prompts</string>
+    <string name="agent_prompts_save_failed">Could not save. The store is unavailable.</string>
+    <string name="agent_prompts_gone">This entry no longer exists.</string>
+    <string name="agent_prompts_delete_confirm">Delete this entry? This cannot be undone.</string>
+    <string name="agent_prompts_sort_title">Sort entries</string>
     <string name="agent_prompts_sort_changed">The list changed meanwhile. It was reloaded; the order was not saved.</string>
     <string name="agent_prompts_sort_failed">The order could not be saved.</string>
-    <string name="agent_prompts_file_full">Not enough room: the stored prompts would get too large for the file. Shorten or delete a prompt.</string>
+    <string name="agent_prompts_file_full">Not enough room: the stored entries would get too large for the file. Shorten or delete an entry.</string>
     <string name="agent_prompts_invalid_text">The title or text contains a broken character and cannot be saved.</string>
-    <string name="agent_prompts_reset">Reset prompt store</string>
-    <string name="agent_prompts_reset_confirm">The file of the prompt store cannot be read. Resetting deletes the file and all prompts stored in it. This cannot be undone.</string>
-    <string name="agent_prompts_reset_failed">The prompt store could not be reset.</string>
-    <!-- Stage 74b: the prompt window in the keyboard -->
-    <string name="agent_prompts_key_description">Prompt store in the comma key</string>
+    <string name="agent_prompts_reset">Reset store</string>
+    <string name="agent_prompts_reset_confirm">The file of the store cannot be read. Resetting deletes the file and all entries stored in it. This cannot be undone.</string>
+    <string name="agent_prompts_reset_failed">The store could not be reset.</string>
+    <!-- Stage 74b: the store window in the keyboard -->
+    <string name="agent_prompts_key_description">Store in the comma key</string>
     <string name="agent_prompts_window_manage">Manage</string>
-    <string name="agent_prompts_save_clip">Save copied text as prompt</string>
-    <string name="agent_prompts_window_empty">No prompts yet. Copy a text and save it here, or write prompts under Manage.</string>
-    <string name="agent_prompts_window_unavailable">The prompt store cannot be read now. Open Manage to reset it.</string>
-    <string name="agent_prompts_protected">The prompt store is not available in this field.</string>
-    <string name="agent_prompts_saved">Saved as the first prompt.</string>
+    <string name="agent_prompts_save_clip">Save copied text in the store</string>
+    <string name="agent_prompts_window_empty">No entries yet. Copy a text and save it here, or write entries under Manage.</string>
+    <string name="agent_prompts_window_unavailable">The store cannot be read now. Open Manage to reset it.</string>
+    <string name="agent_prompts_protected">The store is not available in this field.</string>
+    <string name="agent_prompts_saved">Saved as the first entry.</string>
     <string name="agent_prompts_already_saved">Already saved.</string>
     <string name="agent_prompts_clip_too_long">The copied text is too long (at most %d characters). Nothing was saved.</string>
     <string name="agent_prompts_clip_sensitive">The copied text looks like a secret (password, key or code). It is not saved.</string>
-    <string name="agent_prompts_insert_description">Insert prompt: %1$s</string>
+    <string name="agent_prompts_insert_description">Insert entry: %1$s</string>
     <string name="agent_prompts_selection">Place the cursor first: a selection is not replaced.</string>
     <string name="agent_prompts_expired">The field changed. Nothing was inserted.</string>
     <string name="agent_prompts_discard_confirm">Discard your changes?</string>
     <string name="agent_prompts_discard">Discard</string>
     <string name="agent_prompts_keep_editing">Keep editing</string>
-    <string name="restore_prompts_corrupt">The prompts in the backup were not restored: the entry is corrupt. The prompts on this phone are unchanged.</string>
-    <string name="restore_prompts_locked">The prompts in the backup were not restored: the device is locked. The prompts on this phone are unchanged.</string>
-    <string name="restore_prompts_unreadable">The prompts in the backup were not restored: the prompt store on this phone is unreadable. Reset it under Einstellungen → Leiste &amp; Befehle → Prompt-Ablage and restore again.</string>
+    <string name="restore_prompts_corrupt">The entries in the backup were not restored: the entry is corrupt. The entries on this phone are unchanged.</string>
+    <string name="restore_prompts_locked">The entries in the backup were not restored: the device is locked. The entries on this phone are unchanged.</string>
+    <string name="restore_prompts_unreadable">The entries in the backup were not restored: the store on this phone is unreadable. Reset it under Einstellungen → Leiste &amp; Befehle → Ablage and restore again.</string>
     <!-- Stage 77: folders (one level) -->
     <string name="agent_prompts_chip_all">All</string>
     <string name="agent_prompts_chip_none">No folder</string>
-    <string name="agent_prompts_filter_all_description">Show all prompts</string>
-    <string name="agent_prompts_filter_none_description">Show prompts without a folder</string>
+    <string name="agent_prompts_filter_all_description">Show all entries</string>
+    <string name="agent_prompts_filter_none_description">Show entries without a folder</string>
     <string name="agent_prompts_filter_folder_description">Show folder %1$s</string>
     <string name="agent_prompts_state_selected">Selected</string>
-    <string name="agent_prompts_folder_empty">No prompts in this folder yet. Save copied text here, or move prompts here under Manage.</string>
-    <string name="agent_prompts_saved_in_folder">Saved as the first prompt in “%1$s”.</string>
-    <string name="agent_prompts_folder_none_in">No prompts in this folder yet.</string>
+    <string name="agent_prompts_folder_empty">No entries in this folder yet. Save copied text here, or move entries here under Manage.</string>
+    <string name="agent_prompts_saved_in_folder">Saved as the first entry in “%1$s”.</string>
+    <string name="agent_prompts_folder_none_in">No entries in this folder yet.</string>
     <string name="agent_prompts_folder_new">New folder</string>
     <string name="agent_prompts_folder_rename">Rename folder</string>
     <string name="agent_prompts_folder_delete">Delete folder</string>
@@ -76,17 +76,17 @@
     <string name="agent_prompts_folder_field_name">Folder name</string>
     <!-- %1$d: number of folders, %2$d: maximum -->
     <string name="agent_prompts_folder_count">%1$d of %2$d folders</string>
-    <!-- %1$s: folder name, %2$d: number of prompts in it -->
-    <string name="agent_prompts_folder_delete_confirm">Delete the folder “%1$s”? Its prompts (%2$d) are not deleted; they move to “No folder”.</string>
+    <!-- %1$s: folder name, %2$d: number of entries in it -->
+    <string name="agent_prompts_folder_delete_confirm">Delete the folder “%1$s”? Its entries (%2$d) are not deleted; they move to “No folder”.</string>
     <string name="agent_prompts_folder_name_empty">The name must not be empty.</string>
     <string name="agent_prompts_folder_name_too_long">The name is too long (at most %d characters).</string>
     <string name="agent_prompts_folder_name_invalid">The name contains a control character or a broken character.</string>
     <string name="agent_prompts_folder_name_taken">A folder with this name already exists.</string>
     <string name="agent_prompts_folders_full">There are already %d folders. Delete one first.</string>
     <string name="agent_prompts_folder_gone">This folder no longer exists.</string>
-    <string name="agent_prompts_folder_failed">The folder could not be saved. The prompt store is not available.</string>
+    <string name="agent_prompts_folder_failed">The folder could not be saved. The store is not available.</string>
     <string name="agent_prompts_folder_picker_label">Folder</string>
     <string name="agent_prompts_folder_picker_none">No folder</string>
-    <string name="agent_prompts_folder_picker_description">Put the prompt in folder %1$s</string>
-    <string name="agent_prompts_folder_picker_none_description">Put the prompt in no folder</string>
+    <string name="agent_prompts_folder_picker_description">Put the entry in folder %1$s</string>
+    <string name="agent_prompts_folder_picker_none_description">Put the entry in no folder</string>
 </resources>

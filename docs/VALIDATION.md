@@ -1,5 +1,19 @@
 # Prüfnachweise
 
+## Etappe 77b — Umbenennung in „Ablage“
+
+- **Änderung (nur Wortlaut, keine Logik):** Die Prompt-Ablage heißt „Ablage“, ein Prompt „Eintrag“
+  (Entscheidung des Owners: mit Ordnern ist sie eine dauerhafte, allgemeine Ablage). Geändert:
+  `values/` und `values-de/agent_prompt_strings.xml`, `backup_restore_message` in `values/` und
+  `values-de/strings.xml`, Suchbegriffe (`agent_search_kw_agent_prompts` behält „prompt“),
+  `tools/devicetest/devicetest.py` (Texte der Szenarien `prompt_store` und `prompt_folders`; die
+  Gegenprobe im Passwortfeld sucht „ablage in der komma-taste“ und weiter „prompt“), Tests mit
+  Klartexten (`PromptsScreenTest`, sechs Zeilen), Docs. Namen von Ressourcen, Klassen, Dateien,
+  Testmarken und das Speicherformat sind unverändert.
+- **Tests (Robolectric, lokal):** `PromptStoreTest`, `PromptsScreenTest`, `PromptsWindowTest`,
+  `BackupPromptsTest`, `SettingsSearchTest`, `SettingsBarAreaTest`: Zahlen im Bericht des Leads. Kein
+  Gerätetest: Die Emulator-Szenarien sind nur angepasst und nicht gelaufen.
+
 ## Etappe 77 — Ordner in der Prompt-Ablage
 
 - **Emulator (2026-11-20, Android 14):** neues Szenario `prompt_folders` über die echten Einstiege: Ordner

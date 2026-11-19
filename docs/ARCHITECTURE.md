@@ -42,7 +42,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - **Unveränderter Upstream** – Was ohne Änderung von HeliBoard übernommen ist; nur nach Ordnern beschrieben.
 - **Symbole malen** – Etappe 27: Sonderzeichen auf die Buchstaben malen statt Gestenschreiben, lokal erkannt.
 - **Zeichen-Kunst** – Etappe 53 (schließt 39 Text-Stile ein): Fenster in der Tastatur, das Zeichnung, Foto, Text und Rahmen zu Text aus Zeichen macht.
-- **Prompt-Ablage** – Etappe 74: eigene Ablage für Texte für KI-Chats, dauerhaft gespeichert und sortierbar; Einstellungsseite (74a) und Fenster in der Tastatur über das Komma-Popup (74b).
+- **Ablage** – Etappe 74: eigene Ablage für Texte für KI-Chats, dauerhaft gespeichert und sortierbar; Einstellungsseite (74a) und Fenster in der Tastatur über das Komma-Popup (74b).
 - **Build, Tests, CI, Docs-System** – Lokaler Build, Prüfbefehle, Workflows und die Docs-Prüfung.
 - **Fallstricke** – Fehler, die schon passiert sind oder nahelagen: bei jedem Review prüfen.
 - **Datei-Inventar** – Erzeugte Liste aller kartierten Dateien nach Ordner.
@@ -1063,7 +1063,7 @@ Zeichen-Kunst (Etappe 53, Abschnitt „Zeichen-Kunst“; kein `InputLogic`, `Ric
   Hinweis-Label jeder Emoji-Taste (mit „Tasten-Hinweise anzeigen“); Entscheidung des Leads in der
   Nachprüfung: bleibt, es zeigt den Langdruck an (P196).
 
-Prompt-Ablage (Etappe 74, Abschnitt „Prompt-Ablage“; kein `InputLogic`, `RichInputConnection` oder
+Ablage (Etappe 74, Abschnitt „Ablage“; kein `InputLogic`, `RichInputConnection` oder
 `PointerTracker` geändert):
 
 - `TextKeyData.kt`: `getCommaPopupKeys` hängt nach der Zwischenablage-Taste (`key_clipboard`) und vor
@@ -1133,12 +1133,12 @@ Fehlerbehebungen und Buchstabendreher (Etappen 73, 75 und 76, Nachweise in `docs
   Engine selbst korrigieren würde (P302–P304). Dazu die Konstante `SWAPPED_LETTERS_DICTIONARY`.
 - `DictionaryFacilitatorImpl.kt` (75): `mainFrequency(word, language)`, nur lesend, ohne Lock.
 - `SettingsValues.java` (75): `mSwappedLettersCorrection` aus `AgentPreferences.AUTOCORRECT_SWAPPED_LETTERS`, Standard an.
-- `BackupRestorePreference.kt` (76): der Eintrag der Prompts in `backupLauncher` und `restoreLauncher` (Abschnitt
-  „Prompt-Ablage“, P305–P306); sonst unverändert.
+- `BackupRestorePreference.kt` (76): der Eintrag der Einträge in `backupLauncher` und `restoreLauncher` (Abschnitt
+  „Ablage“, P305–P306); sonst unverändert.
 - `ClipboardHistoryManager.kt` (73): `onPrimaryClipChanged` setzt `dontShowCurrentSuggestion = false` auch ohne
   eingeschalteten Verlauf (P307).
 - `KeyboardAccessibilityNodeProvider.kt` (73): `createAccessibilityNodeInfo` ruft `updateParentLocation()` für jede Taste (P294).
-- `strings.xml` (`values`, `values-de`): `backup_restore_message` nennt die Prompts.
+- `strings.xml` (`values`, `values-de`): `backup_restore_message` nennt die Einträge.
 
 Update-Migrationen (Build 12, P84): `AppUpgrade.kt` läuft nach einem Update nur noch die Teile
 für jedes Update (entpackte Wörterbücher leeren, `upgradeToolbarPrefs`, Layout-Cache) und
@@ -3626,20 +3626,20 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   für Vorschau und Blase sind Felder (`previewPaint`, `bubblePaint`). `onDetachedFromWindow` beendet
   den Thread. Test `AT/CharArtWindowTest.theLivePreviewIsMadeInTheBackgroundAndFollowsTheFinger`.
 
-## Prompt-Ablage
+## Ablage
 
 > Etappe 74: eigene Ablage für Texte für KI-Chats, dauerhaft gespeichert und sortierbar; Einstellungsseite (74a) und Fenster in der Tastatur über das Komma-Popup (74b).
 
 Der Owner wollte „eine extra Zwischenablage für Prompts, die permanent gespeichert werden und die ich
 sortieren kann“, erreichbar über „Eigenes Symbol beim , gedrückt halten“. Nur die Einstellungsseite
-bearbeitet, löscht und sortiert; die Tastatur liest und fügt ein und kann mit „Kopiertes als Prompt
-speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder protokolliert Titel oder Texte.
+bearbeitet, löscht und sortiert; die Tastatur liest und fügt ein und kann mit „Kopiertes als Eintrag
+speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder protokolliert Titel oder Texte.
 
 - `A/PromptStore.kt`: `Prompt` (`id`, `title`, `text`, seit 77 `folderId`; `toString` zeigt nur Längen), `PromptError`,
   `PromptStoreState` (`READY`, `LOCKED`, `UNUSABLE`), `PromptResult` und `PromptStore`, nach dem Vorbild
   von `SnippetStore`. Datei „agent_prompts.json“ (`AtomicFile`) in `noBackupFilesDir` des
   CE-Kontexts (`credentialContext`, Zugriff über `credentialAccessAllowed`); Format in
-  `docs/STORAGE.md` → Prompt-Ablage (74). Höchstens `MAX_PROMPTS` = 200, `MAX_TITLE` = 60,
+  `docs/STORAGE.md` → Ablage (74). Höchstens `MAX_PROMPTS` = 200, `MAX_TITLE` = 60,
   `MAX_TEXT` = 8000 Zeichen (UTF-16), `MAX_STORAGE_BYTES` = 2 MiB. `add` fügt vorn ein,
   `update` behält die Stelle, `delete`, `reorder` (nur genau die gespeicherten Ids, sonst
   `INVALID_ORDER`), `reset`. `load()` ist null bei gesperrtem Gerät oder unbrauchbarer Datei, `read()`
@@ -3652,25 +3652,25 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
   `promptLabel` (Titel oder erste nicht leere Zeile), von Seite und Fenster gemeinsam benutzt.
 - Ordner (Etappe 77, P312–P317), alles in `A/PromptStore.kt`, `A/prompts/PromptsView.kt`, `AgentEditorController` und
   `K/settings/screens/AgentPromptsScreen.kt`; kein `InputLogic`, `RichInputConnection`, `PointerTracker`:
-  - Modell: `PromptFolder` (`id`, `name`), `PromptLibrary` (`folders`, `prompts`; eine globale Liste der Prompts, `promptsIn(filter)`,
+  - Modell: `PromptFolder` (`id`, `name`), `PromptLibrary` (`folders`, `prompts`; eine globale Liste der Einträge, `promptsIn(filter)`,
     `offersNoFolder()`, `effective(filter)`), `PromptFilter` (`All`, `NoFolder`, `Folder(id)`; `encode`/`decode` für den
     gespeicherten Zustand der Seite, `folderIdForNew`). Neue `PromptError`: `FOLDER_NAME_EMPTY`, `…_TOO_LONG`, `…_INVALID`,
     `…_TAKEN`, `FOLDERS_FULL`, `FOLDER_NOT_FOUND`. Grenzen: `MAX_FOLDERS` = 50, `MAX_FOLDER_NAME` = 40 (UTF-16, nach dem Trimmen,
     kein Steuerzeichen, kein einzelnes Surrogat; Anlegen und Umbenennen verlangen Eindeutigkeit ohne Groß-/Kleinschreibung, der Leser nicht).
   - Schreiben: `add(title, text, folderId = null)`, `update(id, title, text)` (behält den Ordner) und `update(id, title, text,
-    folderId)` (verschiebt, der Prompt behält seinen globalen Platz), `addFolder` (hängt hinten an), `renameFolder`, `deleteFolder`
-    (die Prompts bleiben, werden „ohne Ordner“; `PromptResult.moved` zählt sie), `reorderFolders`, `reorderInFolder(folderId, ids)`
+    folderId)` (verschiebt, der Eintrag behält seinen globalen Platz), `addFolder` (hängt hinten an), `renameFolder`, `deleteFolder`
+    (die Einträge bleiben, werden „ohne Ordner“; `PromptResult.moved` zählt sie), `reorderFolders`, `reorderInFolder(folderId, ids)`
     (nur genau die Ids des Ordners, sie tauschen nur ihre eigenen Plätze). Lesen: `loadLibrary()`, `readFolders()`; `read()` und
-    `load()` geben weiter alle Prompts.
+    `load()` geben weiter alle Einträge.
   - Format: Format 1 (wie bis 76) wird gelesen und geschrieben, solange es keinen Ordner gibt; mit Ordnern schreibt der Speicher Format 2
-    (`docs/STORAGE.md`). Ein Prompt eines fehlenden Ordners und eine höhere Version machen die Datei unbrauchbar (P312).
+    (`docs/STORAGE.md`). Ein Eintrag eines fehlenden Ordners und eine höhere Version machen die Datei unbrauchbar (P312).
   - Fenster: `PromptsView` hat eine waagerecht scrollbare Chip-Reihe (`agent_prompts_chips`, Ids `agent_prompts_chip_all`/`_none`,
     Tag der Chips ist der `PromptFilter`) nur mit Ordnern; `filter` (der gezeigte Filter), `onFilterChanged`, `show`/`refresh`
     nehmen eine `PromptLibrary`; der gewählte Chip steht nur im Prozess (`PromptsView.rememberedFilter`, P314). Controller:
     `showPromptFilter` (Chip-Tipp: Schutz und Sperre wie bei `insertPrompt`, dann neu lesen), `saveClipAsPrompt` speichert in den
     gezeigten Ordner.
   - Seite: Chip-Reihe als Filter (`FilterChip`), „Neuer Ordner“, „Ordner umbenennen“, „Ordner löschen“ (Dialog ohne Textfeld, nennt die
-    Zahl der Prompts), „Ordner sortieren“ (`confirmFolderOrder`), `FolderEditorCard` (Karte, P315), Ordner-Wähler im `PromptEditorCard`,
+    Zahl der Einträge), „Ordner sortieren“ (`confirmFolderOrder`), `FolderEditorCard` (Karte, P315), Ordner-Wähler im `PromptEditorCard`,
     `confirmPromptOrder(store, filter, ids)` sortiert in einem Ordner.
   - Texte: `agent_prompts_folder_*`, `agent_prompts_chip_*`, `agent_prompts_filter_*` in `agent_prompt_strings.xml` (`values/`, `values-de/`).
 - Sicherung (Etappe 76, P305–P306): `PromptStore.exportBytes` (die Bytes der gespeicherten Datei; null bei gesperrtem
@@ -3685,11 +3685,11 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
   einen Text: `restore_prompts_corrupt`, `…_locked`, `…_unreadable` in `agent_prompt_strings.xml`). Aufgerufen wird sie
   in `restoreLauncher` ganz am Ende des Blocks von `restoreWithRollback`, nach `Database.copyFromDb`; ihr Ergebnis
   wird nach dem Erfolgs-Toast als zweite Meldung gezeigt. Der Text `backup_restore_message` (`strings.xml`,
-  `values-de`) nennt die Prompts. Test `app/src/test/java/helium314/keyboard/settings/BackupPromptsTest.kt` (23: Eintrag,
+  `values-de`) nennt die Einträge. Test `app/src/test/java/helium314/keyboard/settings/BackupPromptsTest.kt` (23: Eintrag,
   Sammler, Entscheidungsfunktion, Meldungen; seit 77 fünf Fälle mit Ordnern), daneben `AT/PromptStoreTest.kt` (47) und das bestehende
   `RestoreSafetyTest.kt` (15, unverändert).
-- `K/settings/screens/AgentPromptsScreen.kt` (74a): die Seite „Prompt-Ablage“ unter Einstellungen →
-  Leiste & Befehle. Liste mit Titel oder erster Zeile und zwei Zeilen Vorschau, „Neuer Prompt“,
+- `K/settings/screens/AgentPromptsScreen.kt` (74a): die Seite „Ablage“ unter Einstellungen →
+  Leiste & Befehle. Liste mit Titel oder erster Zeile und zwei Zeilen Vorschau, „Neuer Eintrag“,
   „Sortieren“ (`ReorderDialog`; `confirmPromptOrder` speichert nur, wenn die Ids noch passen, sonst
   Hinweis `agent_prompts_sort_changed`), je Zeile „Bearbeiten“ und „Löschen“ (mit Rückfrage), Zähler
   „n von 200“. Der Editor ist eine Karte auf der Seite (`PromptEditorCard`), kein Dialog (P78); beim
@@ -3709,8 +3709,8 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
 - `A/prompts/PromptsView.kt` (74b): das Fenster als Overlay in `AgentKeyboardFrame`, aus Views wie die
   anderen Fenster, Farben aus dem Tastatur-Farbsatz (ohne Farbsatz aus dem Thema). Kopf mit Titel,
   „Verwalten“ und „Schließen“, Statuszeile (`accessibilityLiveRegion`), darunter in einer
-  `ScrollView` die erste Zeile „Kopiertes als Prompt speichern“ und eine Zeile je Prompt
-  (Tag = Id, Beschreibung „Prompt einfügen: …“). Es hält nur, was es zeigt (`shownIds`); `hide`
+  `ScrollView` die erste Zeile „Kopiertes in der Ablage speichern“ und eine Zeile je Eintrag
+  (Tag = Id, Beschreibung „Eintrag einfügen: …“). Es hält nur, was es zeigt (`shownIds`); `hide`
   vergisst alles und tut bei geschlossenem Fenster nichts. `setVisibility` meldet dem
   `AgentKeyboardFrame` die geänderte Bedienungshilfe (`updateOverlayAccessibility`). Ohne lesbare
   Ablage zeigt es nur den Hinweis (keine Speichern-Zeile).
@@ -3718,18 +3718,18 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
   `insertPrompt`, `saveClipAsPrompt`, `isSecretClip`, `openPromptSettings`; das Fenster zählt zu
   `isBlockingInput`, `close()` blendet es aus.
   - `openPrompts`: nicht bei `editor.protection() != null` oder gesperrter Tastatur (Hinweis
-    „Die Prompt-Ablage gibt es in diesem Feld nicht.“, nichts gelesen). Ein Wort in Komposition wird
+    „Die Ablage gibt es in diesem Feld nicht.“, nichts gelesen). Ein Wort in Komposition wird
     wie bei der Zeichen-Kunst so abgeschlossen, wie es dasteht (`InputLogic.commitTyped`); läuft noch
     eine Wischgeste, öffnet es nicht. Dann `close()`, Popups und Vorschlags-Panel schließen,
     `show(load())`.
   - `insertPrompt(id)`: tut nichts, wenn das Fenster nicht sichtbar ist; prüft Schutz und Sperrzustand
-    erneut (schließt mit Hinweis), liest die Ablage neu (fehlt der Prompt: Liste neu laden und
-    „Diesen Prompt gibt es nicht mehr.“) und fügt über `editor.captureAnchor`/`editor.insert` ein wie der
+    erneut (schließt mit Hinweis), liest die Ablage neu (fehlt der Eintrag: Liste neu laden und
+    „Diesen Eintrag gibt es nicht mehr.“) und fügt über `editor.captureAnchor`/`editor.insert` ein wie der
     Rechner und die Zeichen-Kunst (generierter Text, ein Commit, kein Lernen, keine Autokorrektur). Eine
     Markierung wird nicht ersetzt („Erst die Schreibmarke setzen …“); eine Ablehnung wegen Feldänderung
     sagt „Das Feld hat sich geändert. Nichts eingefügt.“ (P297). Nach Erfolg schließt das Fenster.
   - `saveClipAsPrompt`: liest die Zwischenablage nur hier (nicht beim Öffnen). Nur Text, höchstens 8000
-    Zeichen, nicht leer; nicht, wenn `isSecretClip` zutrifft; nicht, wenn der oberste Prompt schon genau
+    Zeichen, nicht leer; nicht, wenn `isSecretClip` zutrifft; nicht, wenn der oberste Eintrag schon genau
     dieser Text ist („Schon gespeichert.“); sonst `store.add("", text)` (ohne Titel, vorn) und
     Liste neu laden. Fehler werden als Meldung der Statuszeile gezeigt (voll, zu lang, Datei voll,
     defektes Zeichen, sonst „Speichern nicht möglich …“).
@@ -3743,7 +3743,7 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
   in `agent_search_strings.xml`.
 - Tests (Robolectric): `AT/PromptStoreTest.kt` (47, seit 77 mit Ordnern: Migration aus Format 1, Format je nach Ordnern, Ordner anlegen, umbenennen, löschen, sortieren, Namensregeln, Grenzen, Sortieren im Ordner, strenges Lesen mit 17 unbrauchbaren Dateien, gesperrt, Sicherung; vorher 25: Dauerhaftigkeit in CE/`noBackupFilesDir`, Reihenfolge
   und Ids, Grenzen, Zeichen, gesperrt, kaputte, zu große und fremde Dateien, Datei voll, Surrogate,
-  `state`, `reset`, `reorder`, seit 76 `exportBytes` und `replaceAll`), `AT/PromptsScreenTest.kt` (53, seit 77 mit Ordnern: Chip-Reihe, Anlegen, Umbenennen, Löschen mit Rückfrage, Sortieren, Ordner-Wähler, Standard-Ordner für neue Prompts, Wiederherstellung; vorher 29: Seite, Editor-Karte, Zurück und
+  `state`, `reset`, `reorder`, seit 76 `exportBytes` und `replaceAll`), `AT/PromptsScreenTest.kt` (53, seit 77 mit Ordnern: Chip-Reihe, Anlegen, Umbenennen, Löschen mit Rückfrage, Sortieren, Ordner-Wähler, Standard-Ordner für neue Einträge, Wiederherstellung; vorher 29: Seite, Editor-Karte, Zurück und
   Abbrechen, Wiederherstellung nach Aktivitäts-Neustart, Löschen, Sortieren, gesperrt, Zurücksetzen,
   Einfügen aus der Zwischenablage, Vorschau), `AT/PromptsWindowTest.kt` (35, seit 77 mit Chip-Reihe, Filter, Speichern in den gezeigten Ordner, gemerkter Chip, Schutz beim Chip-Tipp; vorher 25: Popup-Taste und ihre
   Bedingungen, Fenster und Zeilen, Einfügen genau einmal, Markierung, Sperre nach dem Öffnen,

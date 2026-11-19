@@ -84,7 +84,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** Stage 74a: the page "Prompt-Ablage" (empty state, editor card, delete, sort, paste, reset, store order). */
+/** Stage 74a: the page "Ablage" (formerly "Prompt-Ablage") (empty state, editor card, delete, sort, paste, reset, store order). */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [28], qualifiers = "de-w390dp-h2400dp-xhdpi")
 @LooperMode(LooperMode.Mode.PAUSED)
@@ -127,7 +127,7 @@ class PromptsScreenTest {
 
     @Test fun showsTheEmptyStateAndTheCount() {
         show()
-        compose.onNodeWithTag(PROMPTS_EMPTY_TAG).assert(hasText("Noch keine Prompts."))
+        compose.onNodeWithTag(PROMPTS_EMPTY_TAG).assert(hasText("Noch keine Einträge."))
         compose.onNodeWithTag(PROMPTS_COUNT_TAG).assert(hasText("0 von 200"))
         compose.onNodeWithTag(PROMPTS_SORT_TAG).assertIsNotEnabled()
         compose.onNodeWithTag(PROMPTS_ADD_TAG).assertIsEnabled()
@@ -196,7 +196,7 @@ class PromptsScreenTest {
         click(PROMPTS_EDIT_TAG + a.id)
         store.delete(a.id)
         click(PROMPTS_SAVE_TAG)
-        compose.onNodeWithTag(PROMPTS_NOTICE_TAG).assert(hasText("Diesen Prompt gibt es nicht mehr."))
+        compose.onNodeWithTag(PROMPTS_NOTICE_TAG).assert(hasText("Diesen Eintrag gibt es nicht mehr."))
         compose.onNodeWithTag(PROMPTS_TEXT_FIELD_TAG).assertDoesNotExist()
         compose.onNodeWithTag(PROMPTS_EMPTY_TAG).assertExists()
         assertTrue(store.read().isEmpty())
@@ -540,7 +540,7 @@ class PromptsScreenTest {
         compose.onNodeWithTag(chip(f)).assertIsSelected() // the new folder is the one shown, so the next prompt lands in it
         compose.onNodeWithTag(PROMPTS_FILTER_ALL_TAG).assertIsNotSelected()
         compose.onNodeWithTag(PROMPTS_FOLDER_COUNT_TAG).assert(hasText("1 von 50 Ordnern"))
-        compose.onNodeWithTag(PROMPTS_EMPTY_TAG).assert(hasText("In diesem Ordner sind noch keine Prompts."))
+        compose.onNodeWithTag(PROMPTS_EMPTY_TAG).assert(hasText("In diesem Ordner sind noch keine Einträge."))
         assertFalse(exists(PROMPTS_ROW_TAG + p.id), "the prompt without folder is not in this folder")
         compose.onNodeWithTag(PROMPTS_FILTER_NONE_TAG).assertExists()
     }
@@ -665,7 +665,7 @@ class PromptsScreenTest {
         show()
         click(chip(a))
         click(PROMPTS_FOLDER_DELETE_TAG)
-        compose.onNodeWithText("Den Ordner „A“ löschen? Seine Prompts (2) werden nicht gelöscht, sie wandern nach „Ohne Ordner“.").assertExists()
+        compose.onNodeWithText("Den Ordner „A“ löschen? Seine Einträge (2) werden nicht gelöscht, sie wandern nach „Ohne Ordner“.").assertExists()
         // a cancelled dialog deletes nothing
         compose.onNodeWithText("Abbrechen").performClick()
         compose.waitForIdle()
@@ -694,7 +694,7 @@ class PromptsScreenTest {
         show()
         click(chip(a))
         click(PROMPTS_FOLDER_DELETE_TAG)
-        compose.onNodeWithText("Den Ordner „A“ löschen? Seine Prompts (1) werden nicht gelöscht, sie wandern nach „Ohne Ordner“.").assertExists()
+        compose.onNodeWithText("Den Ordner „A“ löschen? Seine Einträge (1) werden nicht gelöscht, sie wandern nach „Ohne Ordner“.").assertExists()
         compose.onNodeWithTag(PROMPTS_FOLDER_DELETE_CONFIRM_TAG).performClick()
         compose.waitForIdle()
         assertTrue(store.readFolders().isEmpty())
@@ -963,7 +963,7 @@ class PromptsScreenTest {
         // the keyboard window (or another page) changed the store meanwhile: two more prompts in the folder
         add(store, "p2", a); add(store, "p3", a)
         click(PROMPTS_FOLDER_DELETE_TAG)
-        compose.onNodeWithText("Den Ordner „A“ löschen? Seine Prompts (3) werden nicht gelöscht, sie wandern nach „Ohne Ordner“.").assertExists()
+        compose.onNodeWithText("Den Ordner „A“ löschen? Seine Einträge (3) werden nicht gelöscht, sie wandern nach „Ohne Ordner“.").assertExists()
     }
 
     @Test fun thePageReloadsTheStoreWhenItResumes() {

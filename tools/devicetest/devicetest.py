@@ -774,9 +774,9 @@ def prompt_store(d):
     # was not enough: the text of an earlier scenario was still on the clipboard, run 41)
     d.tap_id("copy_1" if d.control else "copy_2")
     d.focus("text")
-    d.hold_and_choose(",", ("Prompt",))
+    d.hold_and_choose(",", ("Ablage in der Komma-Taste",))
     try:
-        d.tap_keyboard_text("Kopiertes als Prompt speichern")
+        d.tap_keyboard_text("Kopiertes in der Ablage speichern")
     except CheckFailed as error:
         later = dump()
         fresh = " ".join("%s#%s'%s'%s" % (n.cls.rsplit(".", 1)[-1][:10], n.rid.rsplit("/", 1)[-1][:16],
@@ -792,7 +792,7 @@ def prompt_store(d):
     d.focus("password")
     offered = sorted(d.popup_of(","))
     d.expect_equal("the store's key in the popup of a password field (popup %s)" % offered[:8],
-                   any("prompt" in name.lower() for name in offered), False)
+                   any("ablage in der komma-taste" in name.lower() or "prompt" in name.lower() for name in offered), False)
     # Lifting the finger outside the popup may type the held key's own comma (run 36); anything else in
     # the password field, above all a prompt or the copied text, is a failure.
     left = d.field("password")
@@ -1026,8 +1026,8 @@ def autofill_inline(d):
 
 FOLDER_NAME = "Arbeit73"  # stage 77: typeable with shift and the symbols layout, and no word the keyboard corrects
 FOLDER_CHIP_DESCRIPTIONS = {  # the descriptions of the filter chips (agent_prompt_strings.xml:59-61)
-    "all": "Alle Prompts zeigen", "none": "Prompts ohne Ordner zeigen", "folder": "Ordner %s zeigen"}
-ROW_PREFIX = "Prompt einfügen: "  # description of a prompt row in the window (agent_prompt_strings.xml:47)
+    "all": "Alle Einträge zeigen", "none": "Einträge ohne Ordner zeigen", "folder": "Ordner %s zeigen"}
+ROW_PREFIX = "Eintrag einfügen: "  # description of a prompt row in the window (agent_prompt_strings.xml:47)
 
 
 def _kb_labels(screen):
@@ -1076,7 +1076,7 @@ SCAN_TRACE = []  # diagnostics: what each swipe of the row scan did (shown when 
 
 def _swipe_list(screen, up):
     """Scrolls the window's list by one swipe (the window shows only two or three rows)."""
-    save = _find_labeled(screen, ("Kopiertes als Prompt speichern",))
+    save = _find_labeled(screen, ("Kopiertes in der Ablage speichern",))
     rows = [n for n in screen.nodes if n.package == KEYBOARD_PACKAGE and n.visible and n.desc.startswith(ROW_PREFIX)]
     if save is None or not rows:
         return
@@ -1132,12 +1132,12 @@ def _rows_until(condition, limit=8.0):
 
 def _open_prompt_store_window(d):
     """Holds the comma key and slides to the store's key (the real entry); waits for the window's save row."""
-    d.hold_and_choose(",", ("Prompt",))
-    d.wait(lambda s: _find_labeled(s, ("Kopiertes als Prompt speichern",)) is not None, "the store window", limit=10.0)
+    d.hold_and_choose(",", ("Ablage in der Komma-Taste",))
+    d.wait(lambda s: _find_labeled(s, ("Kopiertes in der Ablage speichern",)) is not None, "the store window", limit=10.0)
 
 
 def _open_prompt_page(d):
-    """Opens the keyboard's settings from scratch (a fresh task) and goes to Leiste & Befehle -> Prompt-Ablage."""
+    """Opens the keyboard's settings from scratch (a fresh task) and goes to Leiste & Befehle -> Ablage (until build 36 "Prompt-Ablage")."""
     shell("am start -W --activity-clear-task -n %s/helium314.keyboard.settings.SettingsActivity" % KEYBOARD_PACKAGE, timeout=60)
     time.sleep(2.0)
     for _ in range(2):  # the update dialogs, as in _open_settings_and_switch_on
@@ -1146,13 +1146,13 @@ def _open_prompt_page(d):
             shell("input keyevent KEYCODE_BACK", check=False)
             time.sleep(1.5)
     d.tap_text("Leiste & Befehle")
-    d.tap_text("Prompt-Ablage")
+    d.tap_text("Ablage")
     d.wait(lambda s: _find_labeled(s, ("Neuer Ordner",)) is not None, "the prompt store page (button Neuer Ordner)")
 
 
 def prompt_folders(d):
     """Folders of the prompt store (stage 77) through the real entries: a folder created on the settings
-    page shows as a chip in the store window; "Kopiertes als Prompt speichern" under that chip saves into
+    page shows as a chip in the store window; "Kopiertes in der Ablage speichern" under that chip saves into
     the folder and a tap on the row inserts the text; the chip filters (a prompt saved under "Alle" is
     not listed under the folder, the folder's prompt is listed under "Alle"). The text copied for the
     folder's prompt is text 2 (control run: text 1, so the row is another one)."""
@@ -1205,7 +1205,7 @@ def prompt_folders(d):
     _tap_labeled((folder_chip,), "folder chip of the window")
     time.sleep(0.8)
     before = _rows_until(lambda rows: True, limit=0.1)
-    _tap_labeled(("Kopiertes als Prompt speichern",), "save row")
+    _tap_labeled(("Kopiertes in der Ablage speichern",), "save row")
     in_folder = _rows_until(lambda rows: second in rows)
     d.expect_equal("rows under the folder chip after saving (before: %s)" % before, sorted(set(in_folder) - set(before)),
                    [second])
@@ -1214,16 +1214,16 @@ def prompt_folders(d):
     except CheckFailed as error:
         late = dump()
         raise CheckFailed("%s | field text %r | window save row %s | scan %s" % (
-            str(error)[:200], d.field("text"), _find_labeled(late, ("Kopiertes als Prompt speichern",)) is not None,
+            str(error)[:200], d.field("text"), _find_labeled(late, ("Kopiertes in der Ablage speichern",)) is not None,
             "; ".join(SCAN_TRACE[-6:])[:420]))
     d.expect_field("text", second)
 
     # (3) the filter: a second prompt without folder, saved under "Alle"
-    if _find_labeled(dump(), ("Kopiertes als Prompt speichern",)) is None:  # a pick closes the window
+    if _find_labeled(dump(), ("Kopiertes in der Ablage speichern",)) is None:  # a pick closes the window
         _open_prompt_store_window(d)
     _tap_labeled((all_chip,), "chip Alle")
     d.tap_id("copy_3")
-    _tap_labeled(("Kopiertes als Prompt speichern",), "save row")
+    _tap_labeled(("Kopiertes in der Ablage speichern",), "save row")
     everything = _rows_until(lambda rows: third in rows)
     d.expect_equal("under Alle the prompt saved there is listed (rows %s)" % everything[:6], third in everything, True)
     d.expect_equal("under Alle the folder's prompt is listed too (rows %s)" % everything[:6], second in everything, True)

@@ -10,10 +10,10 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
 
 <!-- Der Session-Start-Hook gibt diesen Abschnitt aus (bis ca. 10 Zeilen): kurz und aktuell halten. -->
 - Stand 2026-11-19, Arbeitsbranch `claude/build-12-completion-3unh51` (2205ba7 plus Doku): **73 Emulator-Testlabor** fertig (22 Szenarien
-  inkl. Autofill 73c; Lauf 40 dreimal 22/22, Kontrolllauf 43 dreimal alle rot), **74 Prompt-Ablage**, **75 Buchstabendreher**, **76 Prompts
+  inkl. Autofill 73c; Lauf 40 dreimal 22/22, Kontrolllauf 43 dreimal alle rot), **74 Ablage**, **75 Buchstabendreher**, **76 Einträge
   in der Sicherung**, Korrekturen an Pille (Wiederkehr, Sternchen im Passwortfeld P308), Update-Chip, Tastenpositionen, Sperrzustand der
   Befehle (P309), Logging im Screenshot-Chip. „SecondHand Tests“ Lauf 140 grün. Nachweise: `docs/VALIDATION.md` (oberste Abschnitte).
-- Stand 2026-11-20: **77 Ordner in der Prompt-Ablage** fertig, geprüft (Prüfer, Tests Lauf 145, Gerätetests 48–50) und auf `main`; Test-Build 36 beim Owner.
+- Stand 2026-11-20: **77 Ordner in der Ablage** (bis Build 36 „Prompt-Ablage“; seit 77b „Ablage“, Entscheidung des Owners) fertig, geprüft (Prüfer, Tests Lauf 145, Gerätetests 48–50) und auf `main`; Test-Build 36 beim Owner.
 - **Regel des Owners (2026-11-19):** Was nach den Prüfmöglichkeiten des Leads lückenlos belegt ist, darf ohne Rückfrage auf `main`,
   aber leicht rückholbar: vorher den alten Stand von `main` hier notieren. Vor dieser Runde: `main` = 74ed58c; vor Etappe 77: 90723e1.
 - Offen: Autofill-Schwächen der Tastatur (nur gemeldet), rückwirkende Bestandsprüfung (nur Block Datenschutz erledigt; Bedienung und

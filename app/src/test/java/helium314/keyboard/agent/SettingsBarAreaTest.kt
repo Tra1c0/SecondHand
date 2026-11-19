@@ -257,7 +257,7 @@ class SettingsBarAreaTest {
         show()
         // every page the area listed before 38f is a row here (P119), plus the options page for the rest of the clipboard
         val expected = SettingsAreas.entries(SettingsArea.BAR).map { it.route } + SettingsDestination.Preferences
-        // stage 45 adds the page "Meine Daten & Vorschläge", stage 74a the "Prompt-Ablage"
+        // stage 45 adds the page "Meine Daten & Vorschläge", stage 74a the "Ablage" (formerly "Prompt-Ablage")
         assertEquals(listOf(SettingsDestination.Toolbar, SettingsDestination.AgentCommands, SettingsDestination.AgentScreenshots,
             SettingsDestination.AgentMyData, SettingsDestination.AgentPrompts, SettingsDestination.Preferences), expected)
         expected.forEach { click(AREA_ROW_TAG + it) }

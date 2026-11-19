@@ -260,16 +260,16 @@ Wie die Seite „KI-Anbieter“ lässt sie keine Bildschirmfotos zu. Bei gesperr
   ZIP-Datei enthält: Tastatureinstellungen (auch Designs und RGB-Licht, aber ohne die Bilder eigener
   Designs), eigene Layouts, von dir hinzugefügte Wörterbuchdateien, Listen gesperrter Wörter, gelernte Wörter (nur solange „Persönliches
   Wörterbuch des Gerätes verwenden“ aus ist, sonst liegen sie beim System), gesammelte Gestendaten (falls eingeschaltet), Hintergrundbild,
-  Schriften, den Zwischenablage-Verlauf und deine Prompts (nur bei entsperrtem Telefon). Nicht enthalten sind Profile, Gedächtnis, Bausteine, Orte,
+  Schriften, den Zwischenablage-Verlauf und deine Einträge (nur bei entsperrtem Telefon). Nicht enthalten sind Profile, Gedächtnis, Bausteine, Orte,
   gemerkte Korrekturen, Trefferzonen, gemalte Symbole, KI-Einstellungen und -Modelle, Zugangsschlüssel, das
   Persönliche Wörterbuch (es bleibt beim System), mitgelieferte Wörterbücher (werden bei Bedarf neu angelegt)
   und die Bilder eigener Designs. Beim Wiederherstellen wird alles im Datenordner entfernt, was nicht in der
   Datei steht, zum Beispiel Bilder eigener Designs und die geladene Gesten-Bibliothek (Gesten-Tippen danach
   neu laden). Die nicht gesicherten Daten bleiben unverändert auf diesem Telefon (Profile und Workflows lassen sich einzeln als Datei
   exportieren). Die Datei ist nicht verschlüsselt: Gelernte
-  Wörter, gesammelte Gestendaten, Zwischenablage-Einträge und Prompts sind darin lesbar, bewahre sie sicher auf.
-  Wiederherstellen überschreibt vorhandene Daten, nur die Prompts nicht, wenn die Datei keine (oder eine leere
-  Liste) enthält: Dann bleiben die Prompts auf dem Telefon. Zu den Prompts siehe „Prompt-Ablage“ unten.
+  Wörter, gesammelte Gestendaten, Zwischenablage-Einträge und Ablage-Einträge sind darin lesbar, bewahre sie sicher auf.
+  Wiederherstellen überschreibt vorhandene Daten, nur die Einträge nicht, wenn die Datei keine (oder eine leere
+  Liste) enthält: Dann bleiben die Einträge auf dem Telefon. Zu den Einträgen siehe „Ablage“ unten.
 - **Sichern**: „Sichern und Wiederherstellen“ (alle Einstellungen als Datei, derselbe Dialog wie
   bisher), „Profile exportieren“ (öffnet Tastaturprofile). Scheitert das Wiederherstellen,
   holt die App alles zurück, wie es war. Die Meldung sagt „Es wurde nichts geändert“, wenn die
@@ -887,98 +887,100 @@ Unicode-Stilen wie 𝓢𝓬𝓱𝓻𝓲𝓯𝓽 oder 𝗙𝗲𝘁𝘁. Alles pas
   liest TalkBack als „Stift in der Emoji-Taste: Zeichen-Kunst“). Beim Empfänger
   können ein sehr kleiner Bildschirm oder eine große Schrift die Zeilen umbrechen lassen.
 
-## Prompt-Ablage
+## Ablage
 
-Deine eigene Ablage für Texte, die du oft in KI-Chats einfügst (Prompts). Sie bleibt, bis du einen
-Prompt löschst, und hat die Reihenfolge, die du wählst. Alles passiert auf dem Telefon, es wird nichts
+(Bis Build 36 hieß sie „Prompt-Ablage“.)
+
+Deine eigene Ablage für Texte, die du oft in KI-Chats einfügst. Sie bleibt, bis du einen
+Eintrag löschst, und hat die Reihenfolge, die du wählst. Alles passiert auf dem Telefon, es wird nichts
 gesendet. Stand der Prüfung: nur mit automatischen Tests, auf keinem Gerät ausprobiert.
 
-- **Prompt anlegen** (Einstellungen): Einstellungen → Leiste & Befehle → „Prompt-Ablage“ (die Suche
-  findet sie auch). „Neuer Prompt“ öffnet eine Karte mit „Titel (optional)“ und „Prompt-Text“. Ohne Titel
+- **Eintrag anlegen** (Einstellungen): Einstellungen → Leiste & Befehle → „Ablage“ (die Suche
+  findet sie auch). „Neuer Eintrag“ öffnet eine Karte mit „Titel (optional)“ und „Text“. Ohne Titel
   zeigt die Liste die erste Zeile des Texts. „Aus Zwischenablage einfügen“ setzt den kopierten Text an die
   Schreibmarke im Feld; die Zwischenablage wird nur auf diesen Tipp gelesen. Unter den Feldern steht, wie
-  viele Zeichen du hast (Titel höchstens 60, Text höchstens 8000). „Speichern“ legt den Prompt ganz oben
-  ab. Passt etwas nicht, wird es nicht gekürzt: Du bekommst einen Hinweis und der Prompt wird nicht
+  viele Zeichen du hast (Titel höchstens 60, Text höchstens 8000). „Speichern“ legt den Eintrag ganz oben
+  ab. Passt etwas nicht, wird es nicht gekürzt: Du bekommst einen Hinweis und der Eintrag wird nicht
   gespeichert.
-- **Prompt einfügen** (Tastatur): In einem Textfeld die Komma-Taste lange drücken und im Popup auf das
-  Symbol der Prompt-Ablage gleiten (neben dem Symbol der Zwischenablage), dann loslassen. Statt der Tasten
-  erscheint das Fenster „Prompt-Ablage“ mit deinen Prompts (Titel oder erste Zeile, darunter bis zu
+- **Eintrag einfügen** (Tastatur): In einem Textfeld die Komma-Taste lange drücken und im Popup auf das
+  Symbol der Ablage gleiten (neben dem Symbol der Zwischenablage), dann loslassen. Statt der Tasten
+  erscheint das Fenster „Ablage“ mit deinen Einträgen (Titel oder erste Zeile, darunter bis zu
   zwei Zeilen Text). Ein Tipp auf eine Zeile fügt den gespeicherten Text einmal an der Schreibmarke ein und
   schließt das Fenster. Er wird dabei nicht autokorrigiert und nicht gelernt. Steht im Feld etwas
-  markiert, ersetzt der Prompt es nicht: Es erscheint „Erst die Schreibmarke setzen: eine Markierung wird
+  markiert, ersetzt der Eintrag es nicht: Es erscheint „Erst die Schreibmarke setzen: eine Markierung wird
   nicht ersetzt.“ Setze die Schreibmarke und tippe noch einmal. „Schließen“ schließt das Fenster, ohne
   etwas einzufügen; dasselbe tut Zurück.
-- **Kopiertes als Prompt speichern**: Kopiere in einer beliebigen App einen Text, öffne das Fenster und tippe
-  die erste Zeile „Kopiertes als Prompt speichern“. Der Text kommt als neuer erster Prompt (ohne Titel) in
-  die Liste: „Als erster Prompt gespeichert.“ Die Zwischenablage wird nur auf diesen Tipp gelesen, nicht
+- **Kopiertes in der Ablage speichern**: Kopiere in einer beliebigen App einen Text, öffne das Fenster und tippe
+  die erste Zeile „Kopiertes in der Ablage speichern“. Der Text kommt als neuer erster Eintrag (ohne Titel) in
+  die Liste: „Als erster Eintrag gespeichert.“ Die Zwischenablage wird nur auf diesen Tipp gelesen, nicht
   beim Öffnen. Mögliche Meldungen: „In der Zwischenablage ist kein Text.“; „Der kopierte Text ist zu lang
-  (höchstens 8000 Zeichen). Nichts gespeichert.“; „Schon gespeichert.“ (der oberste Prompt ist genau dieser
-  Text); „Die Prompt-Ablage ist voll (200 Prompts). Lösche zuerst einen.“; und „Der kopierte Text sieht nach
+  (höchstens 8000 Zeichen). Nichts gespeichert.“; „Schon gespeichert.“ (der oberste Eintrag ist genau dieser
+  Text); „Die Ablage ist voll (200 Einträge). Lösche zuerst einen.“; und „Der kopierte Text sieht nach
   einem Geheimnis aus (Passwort, Schlüssel oder Code). Er wird nicht gespeichert.“ Diese Sperre folgt der
   Regel des Zwischenablage-Verlaufs: abgelehnt wird, was als vertraulich markiert ist oder beim Kopieren
   als Geheimnis sortiert wurde, ein Geheimnis und ein bloßer Einmalcode. Ein Text, der nur eine
   codeähnliche Zahl in einem Satz enthält (etwa „Schreibe Python-Code, der 10000 Zahlen ausgibt“), wird
   gespeichert. Grenze: Nach einem Neustart der Tastatur weiß sie nicht mehr, wo etwas kopiert wurde; ein
   harmlos aussehender Text, der vorher in einem Passwortfeld kopiert wurde, kann dann gespeichert werden
-  (der Verlauf hat dieselbe Schwäche). Prüfe den Prompt im Zweifel auf der Seite und lösche ihn.
-- **Sortieren**: Auf der Seite „Prompt-Ablage“ gibt es „Sortieren“ (erst ab zwei Prompts). Im Dialog „Prompts
+  (der Verlauf hat dieselbe Schwäche). Prüfe den Eintrag im Zweifel auf der Seite und lösche ihn.
+- **Sortieren**: Auf der Seite „Ablage“ gibt es „Sortieren“ (erst ab zwei Einträgen). Im Dialog „Einträge
   sortieren“ ziehst du die Zeilen in die gewünschte Reihenfolge und bestätigst. Diese Reihenfolge gilt dann
   auch im Fenster der Tastatur. Sortieren geht nur auf der Seite, nicht im Fenster. Hat sich die Liste
   inzwischen geändert, steht „Die Liste hat sich inzwischen geändert und wurde neu geladen; die
   Reihenfolge wurde nicht gespeichert.“
-- **Bearbeiten und löschen**: Je Zeile gibt es „Bearbeiten“ (der Prompt behält seine Stelle) und „Löschen“.
-  Löschen fragt „Diesen Prompt löschen? Das lässt sich nicht rückgängig machen.“ Beim Bearbeiten und
+- **Bearbeiten und löschen**: Je Zeile gibt es „Bearbeiten“ (der Eintrag behält seine Stelle) und „Löschen“.
+  Löschen fragt „Diesen Eintrag löschen? Das lässt sich nicht rückgängig machen.“ Beim Bearbeiten und
   Neuanlegen fragt Zurück oder „Abbrechen“ bei ungespeicherten Änderungen „Änderungen verwerfen?“ („Verwerfen“
   oder „Weiter bearbeiten“); ohne Änderungen schließt es gleich.
-- **Ordner** (seit Etappe 77): Du kannst Prompts in Ordnern ablegen, eine Ebene, höchstens 50 Ordner. Auf der Seite
-  „Prompt-Ablage“ legt „Neuer Ordner“ einen Ordner an (Name 1 bis 40 Zeichen; zwei Ordner dürfen nicht gleich heißen,
-  auch nicht in anderer Groß-/Kleinschreibung; „Neuer Ordner“ und „Ordner umbenennen“ fragen bei einem geänderten Namen vor dem Verwerfen nach, wie der Prompt-Editor). Der neue Ordner wird gleich gezeigt, ein neuer Prompt landet dann darin.
-  Sobald es Ordner gibt, steht über der Liste eine Reihe Chips: „Alle“, deine Ordner und „Ohne Ordner“ (nur, wenn ein Prompt
-  keinen Ordner hat). Ein Tipp auf einen Chip zeigt nur diese Prompts. Ist ein Ordner gewählt, gibt es „Ordner umbenennen“
-  und „Ordner löschen“. Löschen fragt und sagt, wie viele Prompts im Ordner sind: Sie werden nicht gelöscht, sie
+- **Ordner** (seit Etappe 77): Du kannst Einträge in Ordnern ablegen, eine Ebene, höchstens 50 Ordner. Auf der Seite
+  „Ablage“ legt „Neuer Ordner“ einen Ordner an (Name 1 bis 40 Zeichen; zwei Ordner dürfen nicht gleich heißen,
+  auch nicht in anderer Groß-/Kleinschreibung; „Neuer Ordner“ und „Ordner umbenennen“ fragen bei einem geänderten Namen vor dem Verwerfen nach, wie der Editor). Der neue Ordner wird gleich gezeigt, ein neuer Eintrag landet dann darin.
+  Sobald es Ordner gibt, steht über der Liste eine Reihe Chips: „Alle“, deine Ordner und „Ohne Ordner“ (nur, wenn ein Eintrag
+  keinen Ordner hat). Ein Tipp auf einen Chip zeigt nur diese Einträge. Ist ein Ordner gewählt, gibt es „Ordner umbenennen“
+  und „Ordner löschen“. Löschen fragt und sagt, wie viele Einträge im Ordner sind: Sie werden nicht gelöscht, sie
   wandern nach „Ohne Ordner“. „Ordner sortieren“ (ab zwei Ordnern) bestimmt die Reihenfolge der Chips, auch im Fenster der
-  Tastatur. Welchem Ordner ein Prompt gehört, stellst du im Editor des Prompts unter „Ordner“ ein (dort stehen „Ohne Ordner“
-  und deine Ordner); in „Alle“ steht unter jedem Prompt sein Ordner. „Sortieren“ ordnet in einem gewählten Ordner nur dessen
-  Prompts; alle anderen behalten ihren Platz. Im Fenster der Tastatur steht dieselbe Chip-Reihe oben, aber nur, wenn es Ordner
-  gibt; ohne Ordner sieht das Fenster aus wie vorher. „Kopiertes als Prompt speichern“ legt den Text in den Ordner, der
+  Tastatur. Welchem Ordner ein Eintrag gehört, stellst du im Editor des Eintrags unter „Ordner“ ein (dort stehen „Ohne Ordner“
+  und deine Ordner); in „Alle“ steht unter jedem Eintrag sein Ordner. „Sortieren“ ordnet in einem gewählten Ordner nur dessen
+  Einträge; alle anderen behalten ihren Platz. Im Fenster der Tastatur steht dieselbe Chip-Reihe oben, aber nur, wenn es Ordner
+  gibt; ohne Ordner sieht das Fenster aus wie vorher. „Kopiertes in der Ablage speichern“ legt den Text in den Ordner, der
   gerade gezeigt wird („Alle“ und „Ohne Ordner“: ohne Ordner; die Meldung nennt den Ordner). Der zuletzt gewählte Chip bleibt
   nur, solange die Tastatur läuft; nach einem Neustart steht das Fenster wieder auf „Alle“. Ist der gezeigte Ordner inzwischen
   gelöscht, wird nichts gespeichert: „Diesen Ordner gibt es nicht mehr.“ Verschieben in einen anderen Ordner geht nur auf der Seite.
   Stand der Prüfung: nur mit automatischen Tests, auf keinem Gerät ausprobiert (auch nicht, wie die Chip-Reihe aussieht und
   scrollt).
-- **Verwalten**: Im Fenster der Tastatur öffnet „Verwalten“ die Seite „Prompt-Ablage“ (bei gesperrtem Gerät
+- **Verwalten**: Im Fenster der Tastatur öffnet „Verwalten“ die Seite „Ablage“ (bei gesperrtem Gerät
   nicht).
-- **Ablage zurücksetzen**: Nur wenn die Datei der Ablage sich nicht lesen lässt, zeigt die Seite „Die Prompts
+- **Ablage zurücksetzen**: Nur wenn die Datei der Ablage sich nicht lesen lässt, zeigt die Seite „Die Einträge
   sind gerade nicht les- oder speicherbar“ und dazu „Ablage zurücksetzen“. Nach der Rückfrage werden die
-  Datei und alle darin gespeicherten Prompts gelöscht; das lässt sich nicht rückgängig machen. Eine lesbare
+  Datei und alle darin gespeicherten Einträge gelöscht; das lässt sich nicht rückgängig machen. Eine lesbare
   Datei löscht die Tastatur nie. Ist nur das Gerät gesperrt, erscheint der Hinweis ohne diesen Knopf: Entsperre
-  das Telefon. Im Fenster steht bei unlesbarer Ablage „Die Prompt-Ablage lässt sich gerade nicht lesen. Öffne
+  das Telefon. Im Fenster steht bei unlesbarer Ablage „Die Ablage lässt sich gerade nicht lesen. Öffne
   Verwalten, um sie zurückzusetzen.“
 - **Wo es sie nicht gibt**: In Passwortfeldern, im Inkognito-Modus, in Feldern, die Lernen verbieten
   (private Chats), in Zahlen-Layouts und bei gesperrtem Gerät fehlt das Symbol im Popup; wird das Fenster
-  dennoch erreicht (etwa weil das Telefon sperrte, während es offen war), erscheint „Die Prompt-Ablage gibt
+  dennoch erreicht (etwa weil das Telefon sperrte, während es offen war), erscheint „Die Ablage gibt
   es in diesem Feld nicht.“ und es wird nichts eingefügt. Hat sich das Feld geändert, steht „Das Feld hat sich
-  geändert. Nichts eingefügt.“; ein Prompt, den du inzwischen auf der Seite gelöscht hast: „Diesen Prompt
+  geändert. Nichts eingefügt.“; ein Eintrag, den du inzwischen auf der Seite gelöscht hast: „Diesen Eintrag
   gibt es nicht mehr.“
-- **Wo die Prompts liegen und wie sie verloren gehen**: In einer Datei im geschützten Speicher der App, nur
+- **Wo die Einträge liegen und wie sie verloren gehen**: In einer Datei im geschützten Speicher der App, nur
   auf dem Telefon und nur nach dem Entsperren lesbar. Sie bleiben über Neustarts und App-Updates erhalten.
   Sie sind in „Sichern und Wiederherstellen“ (Einstellungen → System & Daten) enthalten, wenn das Telefon beim
-  Sichern entsperrt ist und mindestens ein Prompt da ist (die Ordner der Prompts gehören dazu; Ordner ohne einen einzigen Prompt werden
-  nicht gesichert, und ein Eintrag ohne Prompts ersetzt beim Wiederherstellen nie etwas, auch wenn er Ordner enthält; eine Sicherung aus
-  der Zeit vor den Ordnern stellt Prompts ohne Ordner her und ersetzt vorhandene Ordner); ohne Sicherung gehen sie verloren, wenn du die App
-  deinstallierst oder ihre Daten löschst. Beim Wiederherstellen werden sie ganz zuletzt durch die Prompts
-  der Datei ersetzt (die Prompts auf dem Telefon, die nicht in der Datei stehen, verschwinden dann). Eine
-  Datei ohne Prompts (zum Beispiel von einer älteren Version) und eine Datei mit leerer Liste lassen die
-  Prompts auf dem Telefon, ohne Meldung. In drei Fällen wird die Wiederherstellung der Prompts
+  Sichern entsperrt ist und mindestens ein Eintrag da ist (die Ordner der Einträge gehören dazu; Ordner ohne einen einzigen Eintrag werden
+  nicht gesichert, und ein Backup-Eintrag ohne Einträge ersetzt beim Wiederherstellen nie etwas, auch wenn er Ordner enthält; eine Sicherung aus
+  der Zeit vor den Ordnern stellt Einträge ohne Ordner her und ersetzt vorhandene Ordner); ohne Sicherung gehen sie verloren, wenn du die App
+  deinstallierst oder ihre Daten löschst. Beim Wiederherstellen werden sie ganz zuletzt durch die Einträge
+  der Datei ersetzt (die Einträge auf dem Telefon, die nicht in der Datei stehen, verschwinden dann). Eine
+  Datei ohne Einträge (zum Beispiel von einer älteren Version) und eine Datei mit leerer Liste lassen die
+  Einträge auf dem Telefon, ohne Meldung. In drei Fällen wird die Wiederherstellung der Einträge
   übersprungen und eine zweite Meldung erscheint, die übrige Wiederherstellung gilt trotzdem: „… Der Eintrag
-  ist beschädigt.“ (die Prompts im Backup sind unbrauchbar oder zu groß), „… Das Gerät ist gesperrt.“ (erst
-  entsperren, dann erneut wiederherstellen) und „… Die Prompt-Ablage auf diesem Telefon ist nicht lesbar.“
-  (erst unter Einstellungen → Leiste & Befehle → Prompt-Ablage zurücksetzen und das Backup erneut
-  wiederherstellen). In allen dreien bleiben die Prompts auf dem Telefon unverändert. Die echte
-  Wiederherstellung im Dialog ist nicht auf einem Gerät ausprobiert. Grenzen: 200 Prompts, Titel 60, Text 8000 Zeichen, Datei höchstens 2 MiB (bei vielen
-  Emojis kann die Datei vor 200 Prompts voll sein: „Nicht genug Platz …“).
+  ist beschädigt.“ (die Einträge im Backup sind unbrauchbar oder zu groß), „… Das Gerät ist gesperrt.“ (erst
+  entsperren, dann erneut wiederherstellen) und „… Die Ablage auf diesem Telefon ist nicht lesbar.“
+  (erst unter Einstellungen → Leiste & Befehle → Ablage zurücksetzen und das Backup erneut
+  wiederherstellen). In allen dreien bleiben die Einträge auf dem Telefon unverändert. Die echte
+  Wiederherstellung im Dialog ist nicht auf einem Gerät ausprobiert. Grenzen: 200 Einträge, Titel 60, Text 8000 Zeichen, Datei höchstens 2 MiB (bei vielen
+  Emojis kann die Datei vor 200 Einträgen voll sein: „Nicht genug Platz …“).
 - Ungeprüft: Langdruck auf die Komma-Taste und Aussehen des Popups am echten Gerät, das Fenster im
-  Querformat, auf Tablets und im flachen Stil, und die Geschwindigkeit mit sehr vielen langen Prompts.
+  Querformat, auf Tablets und im flachen Stil, und die Geschwindigkeit mit sehr vielen langen Einträgen.
 
 ## Symbole malen
 

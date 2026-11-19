@@ -27,16 +27,16 @@ Reihenfolge von oben nach unten.
   Etappe 75 (Emulator-Bestätigung ausstehend, `docs/VALIDATION.md` → Etappe 73 und 75). Die Szenarien
   laufen wieder (21 im Stand dieses Branches, `KNOWN_FINDINGS` ist leer), Ergebnisse der Läufe nach
   Lauf 23 stehen aus; 73c nicht begonnen.
-- **74 Prompt-Ablage** (Auftrag des Owners vom 2026-11-19: „eine extra Zwischenablage für Prompts, die
+- **74 Ablage** (bis Build 36 „Prompt-Ablage“) (Auftrag des Owners vom 2026-11-19: „eine extra Zwischenablage für Prompts, die
   permanent gespeichert werden und die ich sortieren kann“, Zugang: „Eigenes Symbol beim , gedrückt
   halten“) ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 74): 74a Speicher und
   Einstellungsseite, 74b Symbol im Komma-Popup und Fenster in der Tastatur. Annahmen des Leads, die der
   Owner ändern kann: (1) Sortiert wird auf der Einstellungsseite (Ziehen im Dialog
   „Sortieren“), nicht im Fenster der Tastatur. (2) Das Symbol fehlt auch in Feldern, die Lernen verbieten
-  (private Chats), nicht nur in Passwortfeldern. (3) Die Prompts liegen im geschützten Speicher ohne
-  Android-Backup; in „Sichern“ sind sie seit Etappe 76. „Kopiertes als Prompt speichern“ folgt der Regel des Zwischenablage-Verlaufs (ein Satz mit codeähnlicher Zahl wird gespeichert); bekannte Grenze: nach einem Neustart der Tastatur kennt der Tresor das Herkunftsfeld nicht mehr. Die zweite Prüfung der Korrekturen e5689c9 und bad8d4f ist erledigt; die spätere Regeländerung 5faced3 hat kein Prüfer gelesen.
+  (private Chats), nicht nur in Passwortfeldern. (3) Die Einträge liegen im geschützten Speicher ohne
+  Android-Backup; in „Sichern“ sind sie seit Etappe 76. „Kopiertes in der Ablage speichern“ folgt der Regel des Zwischenablage-Verlaufs (ein Satz mit codeähnlicher Zahl wird gespeichert); bekannte Grenze: nach einem Neustart der Tastatur kennt der Tresor das Herkunftsfeld nicht mehr. Die zweite Prüfung der Korrekturen e5689c9 und bad8d4f ist erledigt; die spätere Regeländerung 5faced3 hat kein Prüfer gelesen.
   Offen: Gerätetest (Langdruck auf Komma, Symbol und Popup, Fenster im Querformat, auf Tablets und im
-  flachen Stil, Tempo mit 200 langen Prompts); der GitHub-Lauf „SecondHand Tests“ (volle Agent-Suite,
+  flachen Stil, Tempo mit 200 langen Einträge); der GitHub-Lauf „SecondHand Tests“ (volle Agent-Suite,
   Upstream-Suite, Lint, Build) lief für diesen Stand noch nicht; ein signierter Build fehlt.
   Ideen danach, nicht gebaut: Ordner oder Kategorien; Sortieren im Fenster der Tastatur; Suche in der
   Ablage.
@@ -47,18 +47,18 @@ Reihenfolge von oben nach unten.
   150 (Englisch), 130 (andere); Kandidaten zählen nur im Wörterbuch der Tastatursprache. Offen: Emulator mit
   den echten Wörterbüchern („Und idr “ → „Und dir “; „ort“, „rest“, „titel“, „idR“ bleiben richtig), ein
   zweites Review der Fassung 899c017, Gerätetest, Schwellen für andere Sprachen als Deutsch und Englisch.
-- **76 Prompt-Ablage in Sichern** (Reihenfolge des Owners vom 2026-11-19, „Behebe alles“; die Idee aus 74)
-  ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 76): „Sichern“ nimmt die Prompts
+- **76 Ablage in Sichern** (Reihenfolge des Owners vom 2026-11-19, „Behebe alles“; die Idee aus 74)
+  ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 76): „Sichern“ nimmt die Einträge
   mit, „Wiederherstellen“ übernimmt sie zuletzt und nur aus einem gültigen, nicht leeren Eintrag. Annahme des
   Leads, die der Owner ändern kann: Ein leerer Eintrag oder eine Datei ohne Eintrag lässt die vorhandenen
-  Prompts unverändert. Offen: die echte Wiederherstellung im Dialog (braucht eine Activity), Gerätetest;
-  bekannte Grenze: über eine unlesbare Prompt-Datei auf dem Telefon wird kein Backup gespielt (erst
+  Einträge unverändert. Offen: die echte Wiederherstellung im Dialog (braucht eine Activity), Gerätetest;
+  bekannte Grenze: über eine unlesbare Ablage-Datei auf dem Telefon wird kein Backup gespielt (erst
   zurücksetzen).
-- **77 Ordner in der Prompt-Ablage** (Auftrag des Owners vom 2026-11-19: „Ordner im prompt space möglich machen … dann wird er
+- **77 Ordner in der Ablage** (Auftrag des Owners vom 2026-11-19: „Ordner im prompt space möglich machen … dann wird er
   von prompt space zur dauerhaften, universellen Ablage“) ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 77).
-  Entscheidungen des Leads, die der Owner ändern kann: eine Ebene, höchstens 50 Ordner; Prompts bleiben in einer globalen Reihenfolge;
-  ein gelöschter Ordner löscht keine Prompts („Ohne Ordner“); der gewählte Chip im Fenster wird nicht gespeichert; neue Ordner stehen
-  hinten. Offen: Gerätetest, ob der Name „Prompt-Ablage“ bleibt, Prompts per Fenster in Ordner verschieben (heute nur auf der Seite),
+  Entscheidungen des Leads, die der Owner ändern kann: eine Ebene, höchstens 50 Ordner; Einträge bleiben in einer globalen Reihenfolge;
+  ein gelöschter Ordner löscht keine Einträge („Ohne Ordner“); der gewählte Chip im Fenster wird nicht gespeichert; neue Ordner stehen
+  hinten. Der Name „Ablage“ gilt seit Etappe 77b (Entscheidung des Owners). Offen: Gerätetest, Einträge per Fenster in Ordner verschieben (heute nur auf der Seite),
   Ordner schachteln (nicht beauftragt).
 - **27 Symbole malen** (Auftrag des Owners vom 2026-11-13) ist gebaut (siehe FEATURES.md), mit
   Engine-Review (`docs/VALIDATION.md` → Build 12: Prüfer zu Etappe 27), die niedrigen Befunde in
@@ -801,7 +801,7 @@ offen, gebaut wird erst nach einer Entscheidung zu den offenen Fragen.
   abstimmen; ein eigener Passwortspeicher ist nicht gemeint, solange der Owner ihn nicht verlangt.
   (b) Lernende Eingabe: bessere Wortvorhersage und Korrektur aus dem eigenen Tippen, auf dem Gerät, opt-in.
   (c) KI auf dem Gerät: siehe W2.
-  (d) Übergänge zwischen den vorhandenen Teilen: z. B. Kopiertes → Prompt-Ablage → KI-Aktion → Einfügen ohne
+  (d) Übergänge zwischen den vorhandenen Teilen: z. B. Kopiertes → Ablage → KI-Aktion → Einfügen ohne
   Umwege, Vorschläge passend zum Feld (E-Mail, Adresse, Code), Diktat → Korrektur.
   (e) Gmail und Kalender: weiter 16c, blockiert bis zu eigenen OAuth-Zugängen des Owners.
   Erster Schritt: die Liste aus W3. (L, mehrere Etappen)
