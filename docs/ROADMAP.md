@@ -54,6 +54,12 @@ Reihenfolge von oben nach unten.
   Prompts unverändert. Offen: die echte Wiederherstellung im Dialog (braucht eine Activity), Gerätetest;
   bekannte Grenze: über eine unlesbare Prompt-Datei auf dem Telefon wird kein Backup gespielt (erst
   zurücksetzen).
+- **77 Ordner in der Prompt-Ablage** (Auftrag des Owners vom 2026-11-19: „Ordner im prompt space möglich machen … dann wird er
+  von prompt space zur dauerhaften, universellen Ablage“) ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 77).
+  Entscheidungen des Leads, die der Owner ändern kann: eine Ebene, höchstens 50 Ordner; Prompts bleiben in einer globalen Reihenfolge;
+  ein gelöschter Ordner löscht keine Prompts („Ohne Ordner“); der gewählte Chip im Fenster wird nicht gespeichert; neue Ordner stehen
+  hinten. Offen: Gerätetest, ob der Name „Prompt-Ablage“ bleibt, Prompts per Fenster in Ordner verschieben (heute nur auf der Seite),
+  Ordner schachteln (nicht beauftragt).
 - **27 Symbole malen** (Auftrag des Owners vom 2026-11-13) ist gebaut (siehe FEATURES.md), mit
   Engine-Review (`docs/VALIDATION.md` → Build 12: Prüfer zu Etappe 27), die niedrigen Befunde in
   31. Offen: Gerätetest (Erkennung mit echten Fingern, Schwellen, Spur, Tempo, Tipp-Regel,

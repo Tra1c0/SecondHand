@@ -930,6 +930,22 @@ gesendet. Stand der Prüfung: nur mit automatischen Tests, auf keinem Gerät aus
   Löschen fragt „Diesen Prompt löschen? Das lässt sich nicht rückgängig machen.“ Beim Bearbeiten und
   Neuanlegen fragt Zurück oder „Abbrechen“ bei ungespeicherten Änderungen „Änderungen verwerfen?“ („Verwerfen“
   oder „Weiter bearbeiten“); ohne Änderungen schließt es gleich.
+- **Ordner** (seit Etappe 77): Du kannst Prompts in Ordnern ablegen, eine Ebene, höchstens 50 Ordner. Auf der Seite
+  „Prompt-Ablage“ legt „Neuer Ordner“ einen Ordner an (Name 1 bis 40 Zeichen; zwei Ordner dürfen nicht gleich heißen,
+  auch nicht in anderer Groß-/Kleinschreibung). Der neue Ordner wird gleich gezeigt, ein neuer Prompt landet dann darin.
+  Sobald es Ordner gibt, steht über der Liste eine Reihe Chips: „Alle“, deine Ordner und „Ohne Ordner“ (nur, wenn ein Prompt
+  keinen Ordner hat). Ein Tipp auf einen Chip zeigt nur diese Prompts. Ist ein Ordner gewählt, gibt es „Ordner umbenennen“
+  und „Ordner löschen“. Löschen fragt und sagt, wie viele Prompts im Ordner sind: Sie werden nicht gelöscht, sie
+  wandern nach „Ohne Ordner“. „Ordner sortieren“ (ab zwei Ordnern) bestimmt die Reihenfolge der Chips, auch im Fenster der
+  Tastatur. Welchem Ordner ein Prompt gehört, stellst du im Editor des Prompts unter „Ordner“ ein (dort stehen „Ohne Ordner“
+  und deine Ordner); in „Alle“ steht unter jedem Prompt sein Ordner. „Sortieren“ ordnet in einem gewählten Ordner nur dessen
+  Prompts; alle anderen behalten ihren Platz. Im Fenster der Tastatur steht dieselbe Chip-Reihe oben, aber nur, wenn es Ordner
+  gibt; ohne Ordner sieht das Fenster aus wie vorher. „Kopiertes als Prompt speichern“ legt den Text in den Ordner, der
+  gerade gezeigt wird („Alle“ und „Ohne Ordner“: ohne Ordner; die Meldung nennt den Ordner). Der zuletzt gewählte Chip bleibt
+  nur, solange die Tastatur läuft; nach einem Neustart steht das Fenster wieder auf „Alle“. Ist der gezeigte Ordner inzwischen
+  gelöscht, wird nichts gespeichert: „Diesen Ordner gibt es nicht mehr.“ Verschieben in einen anderen Ordner geht nur auf der Seite.
+  Stand der Prüfung: nur mit automatischen Tests, auf keinem Gerät ausprobiert (auch nicht, wie die Chip-Reihe aussieht und
+  scrollt).
 - **Verwalten**: Im Fenster der Tastatur öffnet „Verwalten“ die Seite „Prompt-Ablage“ (bei gesperrtem Gerät
   nicht).
 - **Ablage zurücksetzen**: Nur wenn die Datei der Ablage sich nicht lesen lässt, zeigt die Seite „Die Prompts
@@ -947,7 +963,8 @@ gesendet. Stand der Prüfung: nur mit automatischen Tests, auf keinem Gerät aus
 - **Wo die Prompts liegen und wie sie verloren gehen**: In einer Datei im geschützten Speicher der App, nur
   auf dem Telefon und nur nach dem Entsperren lesbar. Sie bleiben über Neustarts und App-Updates erhalten.
   Sie sind in „Sichern und Wiederherstellen“ (Einstellungen → System & Daten) enthalten, wenn das Telefon beim
-  Sichern entsperrt ist und mindestens ein Prompt da ist; ohne Sicherung gehen sie verloren, wenn du die App
+  Sichern entsperrt ist und mindestens ein Prompt oder ein Ordner da ist (die Ordner gehören dazu; eine Sicherung aus der Zeit
+  vor den Ordnern stellt Prompts ohne Ordner her und ersetzt vorhandene Ordner); ohne Sicherung gehen sie verloren, wenn du die App
   deinstallierst oder ihre Daten löschst. Beim Wiederherstellen werden sie ganz zuletzt durch die Prompts
   der Datei ersetzt (die Prompts auf dem Telefon, die nicht in der Datei stehen, verschwinden dann). Eine
   Datei ohne Prompts (zum Beispiel von einer älteren Version) und eine Datei mit leerer Liste lassen die

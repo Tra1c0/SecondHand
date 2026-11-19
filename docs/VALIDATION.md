@@ -1,5 +1,52 @@
 # Prüfnachweise
 
+## Etappe 77 — Ordner in der Prompt-Ablage
+
+Stand: 2026-11-19, Arbeitsbranch `wt-folders-77` (Commits siehe Bericht des Lead). Auftrag des Owners: „Kannst du bitte Ordner im prompt
+space möglich machen? Dann wird er von prompt space zur dauerhaften, universellen Ablage“. Betroffen: `PromptStore` (Ordner, Format 2),
+`PromptsView` (Chip-Reihe), `AgentEditorController` (`showPromptFilter`, `saveClipAsPrompt`), `AgentPromptsScreen` (Chips, Ordner-Editor,
+Ordner-Wähler), `BackupRestorePreference` (unverändert; `decodeBackup` liefert jetzt eine `PromptLibrary`). Kein `InputLogic`,
+`RichInputConnection`, `PointerTracker`.
+
+- Tests (Robolectric, XML der Läufe gelesen): `PromptStoreTest` 45 von 45 (vorher 25), `PromptsScreenTest` 50 von 50 (vorher 29),
+  `PromptsWindowTest` 35 von 35 (vorher 25), `BackupPromptsTest` 22 von 22 (vorher 18). Die 97 bestehenden Tests blieben
+  unverändert und liefen vor den neuen grün; keine Assertion geändert, entfernt oder geschwächt.
+- Geprüft: Migration einer Datei im Format 1 (Bytes eines Stands von 74, laden, Prompts ohne Ordner, Schreiben ergibt dieselben Bytes,
+  Ausgabe der Sicherung gleich der Datei); Format 1 bleibt, solange es keinen Ordner gibt, Format 2 mit Ordnern, zurück zu Format 1 nach
+  dem letzten Löschen; Ordner anlegen (getrimmt, hinten), umbenennen (Platz und Prompts bleiben), löschen (Prompts bleiben, Plätze und
+  Zahl der verschobenen), sortieren; Namensregeln (leer, nur Leerraum, 40/41 Zeichen auch mit Surrogatpaar, Steuerzeichen, einzelne
+  Surrogate, gleich ohne Beachtung der Schreibweise, Umbenennen auf den eigenen Namen); 50 Ordner; 200 Prompts insgesamt und die
+  Grenzen für Titel, Text und Datei auch in Ordnern; Prompt in einen Ordner legen und verschieben (Platz bleibt); Sortieren in einem
+  Ordner tauscht nur dessen Plätze (Reihenfolge der übrigen bleibt); abgelehnte Änderungen ändern weder Bytes noch `version`; 18 Dateien,
+  die der Leser ablehnt (fehlender Ordner, Version 3, falsche Schlüssel je Format, doppelte Ids und Namen, Namen außerhalb der Regeln, 51
+  Ordner, ...) sind unbrauchbar, bleiben byte-gleich und lassen jeden Schreibvorgang mit `IO` scheitern; „zurücksetzen“ ist der Ausweg;
+  gesperrtes Gerät; Sicherung mit Ordnern, nur mit Ordnern, alte Sicherung (Format 1) stellt wie vorher her und ersetzt die Ordner, kaputte
+  Einträge bleiben `CORRUPT`. Fenster: keine Chip-Reihe ohne Ordner, Chips in der Ordnerreihenfolge, „Ohne Ordner“ nur bei Bedarf,
+  Bedienungshilfe-Texte und Zustand „Ausgewählt“, Filter, leerer Ordner, Einfügen aus gefilterter Liste, Speichern in den gezeigten Ordner
+  (auch „Schon gespeichert“ je Liste), gemerkter Chip ohne Schreiben (Datei und Einstellungen unverändert), Rückfall auf „Alle“, Chip-Tipp
+  nach Sperre, Geheimnis und gesperrtes Feld bleiben abgelehnt, gelöschter Ordner speichert nichts. Seite: keine Chips ohne Ordner,
+  Anlegen/Umbenennen/Löschen/Sortieren, Namensprüfung beim Tippen und im Speicher, 50. Ordner, Rückfrage mit Zahl, Ordner-Wähler,
+  Standard-Ordner für neue Prompts, Verschieben im Editor, Zurück zählt den Ordner als Änderung, gelöschter Ordner im offenen Editor,
+  Zustand nach Neustart der Aktivität, unbrauchbare Datei mit fehlendem Ordner.
+- Rot-Beweise (je ein Lauf mit gleichzeitig eingebauten Fehlern in den Produktionsdateien, danach `git checkout` der Dateien): (1)
+  `deleteFolder` löscht die Prompts des Ordners: `PromptStoreTest.deletingAFolderKeepsItsPromptsInNoFolderAndInTheirPlaces`
+  „nothing deleted, nothing moved in the order expected:<[p4, p3, p2, p1]> but was:<[p4, p2]>“, dazu zwei Tests der Seite
+  („no prompt was deleted“, `deletingTheLastFolderRemovesTheChipRowAndKeepsEveryPrompt`). (2) `encode` schreibt immer Format 2:
+  `anOldFileWithoutFoldersLoadsUnchanged…` (zeigt den Unterschied in den Bytes) und `aFileWithoutFoldersIsWrittenInTheOldFormat…`,
+  dazu der bestehende Test `BackupPromptsTest.aBackupOfAnEmptyListHasNoEntry`
+  (`expected:<{"storageVersion":[1],"prompts":[]}> but was:<{"storageVersion":[2,"folders":[]],"prompts":[]}>`) und
+  `anOldBackupWithoutFoldersRestoresAsBefore` („Array sizes differ“). (3) `exportBytes` prüft nur Prompts: `theBackupCarriesFolders…`
+  („a folder without prompts is worth saving. Actual: null“) und `aBackupWithOnlyFoldersIsSavedAndRestored`. (4) `saveClipAsPrompt`
+  speichert ohne Ordner: `PromptsWindowTest.saveCopiedTextGoesIntoTheFolderShown` („expected:<586638c0-…> but was:<null>“). (5) Chip-Reihe auch
+  ohne Ordner: `withoutFoldersThereIsNoChipRowAndTheWindowLooksAsBefore` („expected:<8> but was:<0>“, also sichtbar statt GONE). (6) Die
+  Seite zeigt immer alle Prompts statt des Filters: `aChipFiltersTheListAndAllShows…` und `sortingInsideAFolderListsOnlyItsPrompts…`
+  („only the prompts of the shown folder are in the dialog“). Danach: Dateien zurückgesetzt, letzter Lauf auf dem Endstand (siehe Zahlen oben).
+- Nicht geprüft: kein Gerät, kein Emulator (Aussehen der Chip-Reihe, Scrollen mit vielen oder langen Ordnernamen, Querformat, Tablets,
+  flacher Stil, TalkBack mit den Chips, echtes Ziehen im Dialog „Ordner sortieren“: die Tests drücken dort „OK“ ohne Ziehen und prüfen die Speicher-Logik
+  getrennt über `confirmFolderOrder` und `confirmPromptOrder`); die echte Wiederherstellung im Dialog (braucht eine Activity, wie in 76); ein Prüfer
+  hat den Stand noch nicht gelesen; der Pfad „Ordner zwischen Lesen und `add` gelöscht“ im Fenster (der Speicher gibt dann `FOLDER_NOT_FOUND`,
+  im Controller nicht eigens getestet); Laden von 200 Prompts in 50 Ordnern; ein Start der App mit einer Datei von Etappe 74 auf einem Gerät.
+
 ## Gerätetests 73b und 73c — Abschluss (2026-11-19)
 
 - Lauf 40 (c8f0023, drei frisch gestartete Emulatoren, Android 14): 22 von 22 Szenarien bestanden, dreimal

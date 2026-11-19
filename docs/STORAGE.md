@@ -469,12 +469,34 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   unbekannten Eintrag. Die Datei ist unverschlüsselt (wie der Rest der Sicherung). Ohne Sicherung
   bleiben die Prompts über Neustarts und App-Updates und gehen beim Deinstallieren oder Löschen der
   App-Daten verloren. Bei gesperrtem Gerät wird nichts gelesen, geschrieben oder angelegt.
-- Format: ein JSON-Objekt mit genau den Schlüsseln `storageVersion` (Zahl, heute 1) und `prompts`
+- Format 1 (bis Etappe 76, und weiter geschrieben, solange es keinen Ordner gibt): ein JSON-Objekt mit genau den Schlüsseln `storageVersion` (Zahl, 1) und `prompts`
   (Array in der Reihenfolge des Nutzers, der neueste zuerst beim Hinzufügen). Jeder Eintrag hat genau
   `id` (nicht leer, höchstens 64 Zeichen, eindeutig; vom Speicher erzeugt, nie angezeigt), `title`
   (eine Zeile, schon bereinigt, höchstens 60 Zeichen, darf leer sein) und `text` (nicht leer oder nur
   Leerraum, höchstens 8000 Zeichen, genau wie getippt). Längen zählen UTF-16-Zeichen; ein einzelnes
   Surrogat in Titel oder Text ist verboten.
+- Format 2 (Etappe 77, Ordner): ein JSON-Objekt mit genau `storageVersion` (2), `folders` und `prompts`. `folders` ist ein Array in der Reihenfolge
+  des Nutzers (neue Ordner hinten); jeder Eintrag hat genau `id` (nicht leer, höchstens 64 Zeichen, eindeutig) und `name` (schon getrimmt,
+  1 bis 40 UTF-16-Zeichen, kein Steuerzeichen, kein einzelnes Surrogat, ohne Beachtung der Groß-/Kleinschreibung eindeutig), höchstens 50
+  Einträge. Jeder Eintrag von `prompts` hat zusätzlich genau den Schlüssel `folderId`: `null` (ohne Ordner) oder die Id eines Ordners aus
+  `folders`. `prompts` bleibt EINE Liste in globaler Reihenfolge; die Ansicht eines Ordners zeigt seine Prompts in deren relativer
+  Reihenfolge. Der Speicher schreibt Format 1, solange `folders` leer wäre, sonst Format 2; beide Formate werden gelesen. Eine Datei
+  im Format 1 lädt unverändert (alle Prompts ohne Ordner) und bleibt bei jedem Schreiben ohne Ordner byte-gleich im alten Format; mit dem
+  ersten Ordner wird sie im selben Schreibvorgang zu Format 2 (kein Prompt, keine Reihenfolge geht verloren). Ein Ordner löschen schreibt
+  die Prompts mit `folderId: null` zurück (Format 1, wenn es der letzte Ordner war).
+- Unbrauchbar (Etappe 77): Ein Prompt mit `folderId` eines Ordners, den die Datei nicht hat, eine `storageVersion` über 2, Format 2 ohne
+  `folders` oder mit Prompts ohne `folderId`, Format 1 mit `folders` oder `folderId`, doppelte Ordner-Ids, zwei Namen, die sich nur in
+  der Groß-/Kleinschreibung unterscheiden, ein Name mit Leerraum am Rand, leer, über 40 Zeichen, mit Steuerzeichen oder einzelnem Surrogat,
+  ein Ordner mit anderen Schlüsseln und mehr als 50 Ordner. Entscheidung des Leads: Eine solche Datei wird nie still repariert (ein Prompt
+  „ohne Ordner“ zu laden würde beim nächsten Schreiben die Zuordnung ändern, ohne dass jemand es merkt), sondern wie jede unbrauchbare
+  Datei behandelt: `UNUSABLE`, `read()` leer, Schreibvorgänge `IO`, die Datei bleibt; „Ablage zurücksetzen“ ist der Ausweg. Das gilt auch
+  für die Datei einer künftigen, neueren App-Version.
+- Sicherung (seit 77): Der Eintrag `agent/agent_prompts.json` trägt die Bytes der Datei wie sie ist (Format 1 oder 2); „leer“ (kein Eintrag)
+  heißt ohne Prompts und ohne Ordner. Eine Sicherung aus Version 76 (Format 1) stellt Prompts ohne Ordner wieder her und ersetzt dabei
+  auch vorhandene Ordner (der Stand der Sicherung gilt); eine ungültige Sicherung (zum Beispiel ein Prompt eines fehlenden Ordners) ist
+  `CORRUPT` und lässt alles auf dem Telefon unverändert. Eine ältere App-Version kann Format 2 nicht lesen (sie hält die Datei für
+  unbrauchbar).
+- Der gewählte Chip im Fenster der Tastatur wird nicht gespeichert (nur im Prozess, P314).
 - Grenzen: höchstens 200 Prompts, Datei höchstens 2 MiB (`MAX_STORAGE_BYTES`; gelesen wird mit
   dieser Grenze, geschrieben wird eine größere Datei gar nicht, Fehler `FILE_FULL`). Nie wird gekürzt.
 - Striktes Lesen: eine Datei, die nicht UTF-8 ist, zu groß, kein JSON-Objekt, mit anderen oder
@@ -489,7 +511,7 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
   Text bleibt unverändert, auch Zeilenumbrüche und Emojis. Titel und Texte werden nie protokolliert
   (`Prompt.toString` zeigt nur Längen). Im Speicher hält nur die geöffnete Seite bzw. das geöffnete
   Fenster, was sie zeigen.
-- Das Fenster der Tastatur liest die Datei beim Öffnen und bei jedem Tipp auf eine Zeile neu.
+- Das Fenster der Tastatur liest die Datei beim Öffnen, bei jedem Tipp auf eine Zeile und bei jedem Tipp auf einen Ordner-Chip neu.
 
 ## Symbole malen (27, 36)
 
