@@ -3795,7 +3795,9 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
   `MainActivity.java`: vier Felder (Text, Passwort, E-Mail, Zahl) und je eine Spiegelzeile mit dem echten
   Inhalt. `ProbeAccessibilityService.java`: Bedienungshilfen-Dienst nur in der Test-App, listet die Knoten
   aller Fenster als JSON und handelt nie; nur solange ein Dienst aktiv ist, legt
-  `MainKeyboardView.setKeyboard` die Tasten als Knoten an (P294).
+  `MainKeyboardView.setKeyboard` die Tasten als Knoten an (P294). `FakeAutofillService.java`: Autofill-Dienst nur in
+  der Test-App für das Szenario `autofill_inline` (73c), bietet feste erfundene Werte als Inline-Vorschlag an,
+  wird nur für dieses Szenario per `settings put secure autofill_service` gewählt und danach abgewählt (P311).
 - Docs-System: `scripts/docs_sync.py` (Konfiguration `scripts/docs_sync.json`),
   `scripts/install-hooks.sh` (optionaler Pre-Commit-Hook), `.claude/hooks/session-start.sh`
   (registriert in `.claude/settings.json`). Bedienung: `docs/HANDOFF.md` → Arbeitsweise.
