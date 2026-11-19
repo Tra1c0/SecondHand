@@ -3,7 +3,7 @@ plugins {
 }
 
 // A tiny target app for the emulator tests: four input fields and helpers the host script needs.
-// Plain Java, no dependencies. It is installed next to the keyboard in the emulator only.
+// Plain Java; the only dependency is androidx.autofill (inline chip of the fake autofill service). It is installed next to the keyboard in the emulator only.
 android {
     namespace = "dev.personal.secondhand.devicetest"
     compileSdk = 37
@@ -25,4 +25,10 @@ android {
         checkReleaseBuilds = false
         abortOnError = false
     }
+}
+
+dependencies {
+    // Stage 73c: the inline suggestion chip of the fake autofill service (the same library and version
+    // as the keyboard uses to style such chips). In this test app only.
+    implementation("androidx.autofill:autofill:1.3.0")
 }

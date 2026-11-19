@@ -36,6 +36,8 @@ import time
 KEYBOARD_PACKAGE = "dev.personal.agentkeyboard.debug"
 TEST_PACKAGE = "dev.personal.secondhand.devicetest"
 PROBE_SERVICE = TEST_PACKAGE + "/" + TEST_PACKAGE + ".ProbeAccessibilityService"
+AUTOFILL_SERVICE = TEST_PACKAGE + "/" + TEST_PACKAGE + ".FakeAutofillService"  # stage 73c, test app only
+FAKE_USER, FAKE_PASSWORD = "testnutzer@example.invalid", "Testpasswort-73c"  # what FakeAutofillService offers
 DUMP_URI = "content://" + TEST_PACKAGE + ".dump/now"
 PROBE_LABEL = "SH Device Test"  # android:label of the test app, as "dumpsys accessibility" names a bound service
 # The system languages of the emulator. The keyboard enables one layout per system language on its
@@ -924,10 +926,107 @@ def language_switch(d):
     d.expect_equal("German layout again (has the key ü)", "ü" in d.keymap or "Ü" in d.keymap, True)
 
 
+def _strip_signature(screen):
+    """The nodes inside the suggestion strip (of any package, text or not), as (class, id, text) -> Node.
+    Inline autofill chips are remote surfaces whose text is probably not readable, so they are found by
+    what appears in the strip, not by what it says."""
+    strip = screen.keyboard_node("suggestion_strip_view")
+    found = {}
+    if strip is None:
+        return strip, found
+    for node in screen.nodes:
+        if node.visible and node is not strip and strip.contains(*node.center):
+            found.setdefault((node.cls.rsplit(".", 1)[-1], node.rid.rsplit("/", 1)[-1], (node.text or node.desc)[:20]), node)
+    return strip, found
+
+
+def _strip_report(strip, found):
+    return "strip %s: %s" % (strip.box if strip else "not found", " ".join(
+        "%s#%s'%s'%s%s" % (c, i, t, n.box, "" if n.package == KEYBOARD_PACKAGE else "(" + n.package + ")")
+        for (c, i, t), n in found.items())[:700] or "no node")
+
+
+def _autofill_state():
+    """Short facts about the system's autofill for a failed run (the lead only sees RESULT lines)."""
+    service = shell("settings get secure autofill_service", check=False)
+    text = shell("dumpsys autofill", check=False, timeout=40)
+    lines = [l.strip() for l in text.splitlines() if re.search(r"(?i)autofill service|enabled|disabled|inline|sessions", l)]
+    return "autofill_service=%s; dumpsys autofill: %s" % (service, " | ".join(lines)[:500])
+
+
+def autofill_inline(d):
+    """Inline autofill (stage 73c): with the test app's fake autofill service selected, focusing a user
+    name field with autofill hints shows a suggestion chip in the keyboard's strip; a tap puts the fake
+    user name and password into the fields. The chip is a remote surface: it is found by the node that
+    appears in the strip (compared with the strip before the service was selected) and tapped by
+    coordinates; the fields prove it. The service is selected only here and unset afterwards."""
+    shell("settings delete secure autofill_service", check=False)
+    try:
+        # (1) no autofill service: the field with hints shows no such node and stays empty
+        d.start("autofill_inline")
+        d.focus("login")
+        time.sleep(4.0)
+        before_screen = dump()
+        strip, before = _strip_signature(before_screen)
+        surfaces = [k for k in before if any(w in k[0] for w in ("Surface", "InlineContent"))]
+        log("INFO autofill, no service: " + _strip_report(strip, before))
+        d.expect_equal("strip nodes of an inline suggestion without an autofill service %s" % surfaces, surfaces, [])
+        d.expect_equal("login field without an autofill service", d.field("login"), "")
+
+        # (2) the service selected, a fresh activity (the autofill session starts when the field is focused)
+        shell("settings put secure autofill_service " + AUTOFILL_SERVICE)
+        time.sleep(2.0)
+        d.start("autofill_inline")
+        d.focus("login")
+        deadline = time.time() + 20
+        appeared = {}
+        while True:
+            strip, now = _strip_signature(dump())
+            appeared = {k: n for k, n in now.items() if k not in before}
+            if appeared or time.time() > deadline:
+                break
+            time.sleep(1.0)
+        report = _strip_report(strip, now)
+        log("INFO autofill, service set: " + report)
+        log("INFO autofill state: " + _autofill_state())
+        d.notes.append("new in the strip: %s" % sorted(appeared)[:8])
+
+        # Where to tap: the chip view itself if it is a node, a node that reads the chip's title, or the
+        # left end of the chip row (the chip is at least 100 px wide and starts at the row's left edge).
+        target, how = None, ""
+        for key, node in appeared.items():
+            if "InlineContentView" in key[0] and node.area > 0:
+                target, how = node.center, "chip view " + node.box
+                break
+        if target is None:
+            for key, node in appeared.items():
+                if "Test 73c" in key[2]:
+                    target, how = node.center, "chip text " + node.box
+                    break
+        if target is None:
+            rows = [n for k, n in appeared.items() if "HorizontalScroll" in k[0] and n.area > 0]
+            if rows:
+                target, how = (rows[0].left + 60, rows[0].center[1]), "left end of the chip row " + rows[0].box
+            elif strip is not None:
+                target, how = (strip.left + 60, strip.center[1]), "BLIND, left end of the strip " + strip.box
+        if target is None:
+            raise CheckFailed("no suggestion strip on the screen; " + report)
+        d.notes.append("tap at %s (%s)" % (target, how))
+        if not d.control:  # control run: the chip is not tapped, so the fields stay empty and the scenario must fail
+            tap(*target)
+        try:
+            d.expect_field("login", FAKE_USER, limit=8.0)
+        except CheckFailed as error:
+            raise CheckFailed("%s | tap at %s (%s) | %s" % (error, target, how, report[:230]))
+        d.expect_field("secret", FAKE_PASSWORD)
+    finally:
+        shell("settings delete secure autofill_service", check=False)
+
+
 SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete_key, typing_password, typing_email, typing_number,
              capital_after_period, autocorrect_works, autocorrect_typo, autocorrect_typo_in_sentence,
              autocorrect_noun, swapped_letters_keep_nouns, swapped_letters_keep_caps, slang_stays, emoji_suggestion, language_switch, clipboard_pill,
-             clipboard_not_readable_in_password, learning_not_in_password, prompt_store]
+             clipboard_not_readable_in_password, learning_not_in_password, prompt_store, autofill_inline]
 
 
 # Scenarios that fail because the keyboard does not do what was expected of it, found by these tests

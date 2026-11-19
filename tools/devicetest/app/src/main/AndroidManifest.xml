@@ -31,6 +31,17 @@
                 android:resource="@xml/probe_accessibility" />
         </service>
 
+        <!-- Fake autofill service of the inline-suggestion scenario (stage 73c). Not selected unless
+             devicetest.py sets it for that scenario. -->
+        <service
+            android:name=".FakeAutofillService"
+            android:exported="true"
+            android:permission="android.permission.BIND_AUTOFILL_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.autofill.AutofillService" />
+            </intent-filter>
+        </service>
+
         <!-- "adb shell content read" on this provider returns the node list of the probe service. -->
         <provider
             android:name=".DumpProvider"
