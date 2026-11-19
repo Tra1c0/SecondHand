@@ -5048,7 +5048,9 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
   das ein. Ob der Build neuer ist, entscheidet immer die gerade installierte Version
   (`newerBuild(installed)`), nie `compared_version`: Nach einem Update ist der gespeicherte Build
   sonst noch „neu“.
-- **P212** Der Update-Chip gehört nur in `setNeutralSuggestionStrip` (nach der Pille), nie in
+- **P212** (Nachtrag 2026-11-19: `UpdateChip.build` gibt in Passwortfeldern nichts zurück, `mInputAttributes.mIsPasswordField`;
+  die Gerätetests hatten den Chip dort gesehen. Test `AT/UpdateChipTest.neverInAPasswordField`.)
+  Der Update-Chip gehört nur in `setNeutralSuggestionStrip` (nach der Pille), nie in
   `setSuggestedWords`/`tryShowCommandChips`: Dort würde er Wortvorschläge oder Befehle verdecken.
   `createView` liest bei jedem neutralen Streifen; `mIsLocked` und der gespeicherte Wert kommen
   zuerst, die Sperre (Binder-Aufrufe) wird live erst gefragt, wenn ein neuerer Build bekannt ist,

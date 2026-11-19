@@ -14,8 +14,8 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
   Prüfer für 73a) und **74 Prompt-Ablage** (Symbol im Komma-Menü, Fenster, Einstellungsseite; lokal 9 Testklassen grün, drei Prüfer;
   GitHub-Lauf 115 grün; Test-Build 34 beim Owner; offen: Gerätetest, Rückmeldung des Owners). Nachweise: `docs/VALIDATION.md` → Etappe 73, 74.
 - **Sparmodus (Owner, 2026-11-19):** vorerst nur, was wenig Kontingent kostet: schnelle Korrekturen, nur die nötigen Tests. Angehalten:
-  73b-Abschluss (Dreifach-Lauf, Kontrolllauf, Prüfer; die Szenarien `clipboard_pill` mit drei Texten und `learning_not_in_password`
-  sind noch nicht grün belegt, Lauf 22), 73c Autofill, die rückwirkende Bestandsprüfung der ganzen Tastatur nach dem Arbeitsauftrag
+  73b-Abschluss (Dreifach-Lauf, Kontrolllauf, Prüfer; `clipboard_not_in_password` und `learning_not_in_password` stehen ungeprüft in
+  `PARKED` in `devicetest.py`), 73c Autofill, die rückwirkende Bestandsprüfung der ganzen Tastatur nach dem Arbeitsauftrag
   des Owners (Inventar aus `docs/FEATURES.md` angefangen und abgebrochen). Befund für den Owner offen: „idr“ wird nicht korrigiert.
 - Davor, Stand 2026-11-18: Build 33 ist als signiertes Update veröffentlicht. Er ergänzt Build 32 um
   satzbezogene Autokorrektur für regelmäßige deutsche Verben (72) mit Rücknahme im aktuellen

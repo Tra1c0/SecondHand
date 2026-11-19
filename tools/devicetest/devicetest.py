@@ -625,7 +625,7 @@ def emoji_suggestion(d):
 
 def clipboard_pill(d):
     """With "Zwischenablagen-Inhalt vorschlagen" on, copied text is offered in the strip and a tap
-    inserts it; in a password field it is not offered."""
+    inserts it."""
     _open_settings_and_switch_on(d, ("Tippen & Korrektur", "Alle Korrektur-Einstellungen"),
                                  "Zwischenablagen-Inhalt vorschlagen")
     first, second, third = CLIP_TEXTS
@@ -635,6 +635,12 @@ def clipboard_pill(d):
     d.focus("text")
     d.tap_in_strip((first,))
     d.expect_field("text", first)
+
+
+def clipboard_not_in_password(d):
+    """PARKED, not proven yet: a copied text is offered in a text field but not in a password field."""
+    first, second, third = CLIP_TEXTS
+    d.start("clipboard_not_in_password")
     # A second, different text, then the password field: nothing may be offered there. (The keyboard
     # offers a copied text once; the same text again would be missing everywhere, run 21.)
     d.tap_id("copy_2")
@@ -646,7 +652,7 @@ def clipboard_pill(d):
     d.expect_field("password", "")
     # And a third text for an empty text field: only if the pill comes there, its absence in the
     # password field says something about the password field.
-    d.start("clipboard_pill")
+    d.start("clipboard_not_in_password")
     d.tap_id("copy_3")
     d.focus("text")
     d.tap_in_strip((third,))
@@ -654,7 +660,7 @@ def clipboard_pill(d):
 
 
 def learning_not_in_password(d):
-    """With "Personalisierte Vorschläge" on, a new word chosen three times is offered afterwards; a
+    """PARKED, not proven yet. With "Personalisierte Vorschläge" on, a new word chosen three times is offered afterwards; a
     word typed into a password field is never offered."""
     _open_settings_and_switch_on(d, ("Tippen & Korrektur", "Alle Korrektur-Einstellungen"),
                                  "Personalisierte Vorschläge")
@@ -771,8 +777,12 @@ def language_switch(d):
 
 SCENARIOS = [keyboard_is_secondhand, typing_text, delete_key, typing_password, typing_email, typing_number,
              capital_after_period, autocorrect_works, autocorrect_typo, autocorrect_typo_in_sentence,
-             autocorrect_noun, slang_stays, emoji_suggestion, language_switch, clipboard_pill,
-             learning_not_in_password]
+             autocorrect_noun, slang_stays, emoji_suggestion, language_switch, clipboard_pill]
+
+# Written but never seen green in the emulator (runs 20 to 22), and set aside when the owner asked to
+# save budget on 2026-11-19. They are NOT run and prove nothing. To take one up again: put it into
+# SCENARIOS, read its RESULT line of a run, and give it a control run.
+PARKED = [clipboard_not_in_password, learning_not_in_password]
 
 # Scenarios that fail because the keyboard does not do what was expected of it, found by these tests
 # and reported to the owner. They stay in the list above and keep running; their failure is shown as

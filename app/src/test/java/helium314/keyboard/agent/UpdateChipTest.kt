@@ -89,6 +89,33 @@ class UpdateChipTest {
         assertNull(UpdateChip.build(latinIME, null))
     }
 
+    private fun startField(inputType: Int) {
+        // the service reads the field from the shadow, as in the other keyboard tests
+        helium314.keyboard.ShadowInputMethodService.text = ""
+        helium314.keyboard.ShadowInputMethodService.selectionStart = 0
+        helium314.keyboard.ShadowInputMethodService.selectionEnd = 0
+        helium314.keyboard.ShadowInputMethodService.currentInputType = inputType
+        helium314.keyboard.ShadowInputMethodService.currentImeOptions = 0
+        val info = android.view.inputmethod.EditorInfo().apply { this.inputType = inputType }
+        latinIME.onStartInput(info, false)
+        latinIME.onStartInputView(info, false)
+        shadowOf(android.os.Looper.getMainLooper()).idle()
+    }
+
+    // the field shadow only here: tapOpensOnlyTheUpdatesPage needs Robolectric's own service shadow
+    @Config(shadows = [ShadowInputMethodManager2::class, ShadowProximityInfo::class, helium314.keyboard.ShadowInputMethodService::class], qualifiers = "de")
+    @Test fun neverInAPasswordField() {
+        known(22)
+        startField(android.text.InputType.TYPE_CLASS_TEXT)
+        assertEquals(22L, UpdateChip.build(latinIME, Settings.getValues()), "a normal field shows it")
+        assertNotNull(chip())
+        startField(android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        assertNull(UpdateChip.build(latinIME, Settings.getValues()))
+        assertNull(chip(), "no chip in a password field")
+        startField(android.text.InputType.TYPE_CLASS_TEXT)
+        assertNotNull(chip(), "and back in the next normal field")
+    }
+
     @Test fun tapOpensOnlyTheUpdatesPage() {
         known(22)
         val view = chip()!!

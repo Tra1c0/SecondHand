@@ -109,10 +109,12 @@ object UpdateChip {
 
     /**
      * The build the chip names, or null: none known above the installed version, keyboard settings
-     * locked, or the device locked right now (asked live only when there is a build to name).
+     * locked, a password field (nothing but the keys belongs there; the device tests of stage 73 saw
+     * the chip in one), or the device locked right now (asked live only when there is a build to name).
      */
     fun build(context: Context, settings: SettingsValues?): Long? {
         if (settings == null || settings.mIsLocked) return null
+        if (settings.mInputAttributes?.mIsPasswordField == true) return null
         // credential-protected storage: before the first unlock it throws, then there is no chip
         val known = runCatching { UpdateSettings(context).knownBuild }.getOrDefault(0L)
         if (known <= 0 || known <= installed(context)) return null

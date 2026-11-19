@@ -6,5 +6,6 @@
 - Anlegen, ändern, löschen und sortieren: Einstellungen → Leiste & Befehle → **Prompt-Ablage**. Die Reihenfolge dort gilt auch in der Tastatur.
 - Grenzen: 200 Prompts, Titel bis 60 und Text bis 8000 Zeichen. Zu Langes wird abgelehnt, nie gekürzt.
 - Die Prompts bleiben nur auf diesem Telefon. Sie sind **nicht** in „Sichern“ und gehen verloren, wenn du die App deinstallierst oder ihre Daten löschst. Es gibt sie nicht in Passwortfeldern, im Inkognito-Modus, in privaten Chats ohne Lernen und bei gesperrtem Gerät.
+- Der Hinweis „Build … verfügbar“ in der Leiste erscheint nicht mehr in Passwortfeldern.
 
 Nur mit automatischen Tests geprüft, noch nicht auf einem Telefon: Langdruck auf die Komma-Taste, Aussehen des Symbols und des Fensters (auch im Querformat) und das Tempo mit sehr vielen langen Prompts. Ein Prüfer hat die letzte Regeländerung noch nicht gelesen.

@@ -66,9 +66,15 @@ vorgegebenen Wörterbuch-Treffern geprüft. Die beiden Szenarien laufen weiter u
 Nicht belegt: dass die Pille im Passwortfeld wegen des Passwortfelds fehlt (in Lauf 19 war sie nach dem
 ersten Tipp ohnehin verbraucht; die Tastatur bietet denselben Text nur einmal an, Lauf 21; die Fassung mit
 drei verschiedenen Texten ist noch nicht grün gelaufen); „kein Lernen im Passwortfeld“ (noch kein grüner
-Lauf; die Leiste zeigt ein unbekanntes getipptes Wort nicht als Vorschlag, Lauf 21). Nicht gemacht:
+Lauf; die Leiste zeigt ein unbekanntes getipptes Wort nicht als Vorschlag, Lauf 21). Diese beiden Prüfungen
+(`clipboard_not_in_password`, `learning_not_in_password`) stehen seit dem 2026-11-19 in `PARKED` in
+`devicetest.py`: geschrieben, nie grün gesehen (Läufe 20–22 rot, Lauf 22 nicht mehr ausgewertet), sie laufen
+nicht mit und belegen nichts. Nicht gemacht:
 Dreifach-Lauf und Kontrolllauf für die 73b-Szenarien, Prüfer für 73b. Beobachtung: Der Chip „⬆ Build 33
-verfügbar“ steht auch im Passwortfeld in der Leiste (laut Code so gebaut, nur bei gesperrtem Gerät nicht).
+verfügbar“ stand auch im Passwortfeld in der Leiste (laut Code so gebaut, nur bei gesperrtem Gerät nicht).
+Behoben am 2026-11-19 (`UpdateChip.build`): Test `UpdateChipTest.neverInAPasswordField` grün (lokal
+UpdateChipTest 4, UpdateOnOpenTest 7, 0 Fehler), ohne die neue Bedingung rot („expected null, but was:<22>“);
+kein Prüfer, kein Emulator-Lauf dazu.
 
 Prüfer (73a, lesend, auf 8cea091): kein Gegenbeispiel für ein fälschlich grünes Szenario; mittlere Befunde,
 alle bearbeitet: die Suche nach Testcode in der Tastatur-APK war wirkungslos (jetzt im Code der APK); ein
