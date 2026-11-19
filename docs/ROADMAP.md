@@ -839,8 +839,14 @@ offen, gebaut wird erst nach einer Entscheidung zu den offenen Fragen.
   Modellwahl (Owner, 2026-11-20): ein **fertig abliteriertes Modell mit 4 Mrd. Parametern** als GGUF in 4-Bit
   (Kandidat: Qwen3-4B abliteriert; Qwen 3.8 gibt es laut Websuche offen nur mit 27B). Grund des Owners: Das
   Werkzeug soll ohne Ablehnungen und angehängte Klauseln redigieren. Die Modelldatei bleibt austauschbar.
-  Vor dem Bau zu prüfen: genaue Quelle und Prüfsumme der Datei, Lizenz des Modells, ob GenieX sie im
-  Hybrid-Modus annimmt.
+  Korrektur (Owner, 2026-11-20): **nur der KI-Chip, kein GGUF** und kein Hybrid-Modus. Das heißt: QAIRT-Weg
+  von GenieX mit einem für den Snapdragon 8 Elite übersetzten Modell. Qualcomm bietet Qwen3-4B fertig übersetzt
+  an (w4a16, QAIRT 2.42, laut Suchauszug der Modellseite), aber nicht abliteriert. Ein abliteriertes Modell hat
+  dieselbe Bauart, müsste also mit Qualcomms Exportwerkzeug (`qai_hub_models`, „custom weights“ ist bei
+  Qwen3-8B ausdrücklich genannt, bei 4B nur vermutet) selbst übersetzt werden: braucht ein Qualcomm-Konto des
+  Owners, lädt die Gewichte zum Übersetzen in Qualcomms Cloud und ist nicht ausprobiert. Reihenfolge: zuerst das
+  fertige Qwen3-4B von Qualcomm auf dem Gerät messen (Tempo, Wärme), dann die abliterierte Fassung übersetzen.
+  Zu prüfen: feste Kontextlänge der übersetzten Modelle, Qualitätsverlust durch die Quantisierung, Lizenz.
 - **W3 Alle Google-Funktionen.** Wortlaut des Owners: „alle Google features“. Deutung des Leads: der
   Funktionsumfang der Google-Tastatur und der KI-Funktionen von Google, soweit eine fremde Tastatur sie nutzen
   oder nachbauen kann. Erster Schritt ist eine Liste: je Funktion „schon vorhanden“, „nachbaubar (lokal oder
