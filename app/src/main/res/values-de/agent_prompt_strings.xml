@@ -33,4 +33,17 @@
     <string name="agent_prompts_reset">Ablage zurücksetzen</string>
     <string name="agent_prompts_reset_confirm">Die Datei der Prompt-Ablage lässt sich nicht lesen. Beim Zurücksetzen werden die Datei und alle darin gespeicherten Prompts gelöscht. Das lässt sich nicht rückgängig machen.</string>
     <string name="agent_prompts_reset_failed">Die Prompt-Ablage konnte nicht zurückgesetzt werden.</string>
+    <!-- Stage 74b: das Prompt-Fenster in der Tastatur -->
+    <string name="agent_prompts_key_description">Prompt-Ablage in der Komma-Taste</string>
+    <string name="agent_prompts_window_manage">Verwalten</string>
+    <string name="agent_prompts_save_clip">Kopiertes als Prompt speichern</string>
+    <string name="agent_prompts_window_empty">Noch keine Prompts. Kopiere einen Text und speichere ihn hier, oder schreibe Prompts unter Verwalten.</string>
+    <string name="agent_prompts_window_unavailable">Die Prompt-Ablage lässt sich gerade nicht lesen. Öffne Verwalten, um sie zurückzusetzen.</string>
+    <string name="agent_prompts_protected">Die Prompt-Ablage gibt es in diesem Feld nicht.</string>
+    <string name="agent_prompts_saved">Als erster Prompt gespeichert.</string>
+    <string name="agent_prompts_clip_too_long">Der kopierte Text ist zu lang (höchstens %d Zeichen). Nichts gespeichert.</string>
+    <string name="agent_prompts_clip_sensitive">Der kopierte Text sieht nach einem Geheimnis aus (Passwort, Schlüssel oder Code). Er wird nicht gespeichert.</string>
+    <string name="agent_prompts_insert_description">Prompt einfügen: %1$s</string>
+    <string name="agent_prompts_selection">Erst die Schreibmarke setzen: eine Markierung wird nicht ersetzt.</string>
+    <string name="agent_prompts_expired">Das Feld hat sich geändert. Nichts eingefügt.</string>
 </resources>

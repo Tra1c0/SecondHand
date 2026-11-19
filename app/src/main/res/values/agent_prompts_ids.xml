@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Prompt window (stage 74b). Own file so parallel work on other id files does not collide. -->
+<resources>
+    <item type="id" name="agent_prompts" />
+    <item type="id" name="agent_prompts_close" />
+    <item type="id" name="agent_prompts_manage" />
+    <item type="id" name="agent_prompts_save_clip" />
+    <item type="id" name="agent_prompts_status" />
+    <item type="id" name="agent_prompts_list" />
+    <item type="id" name="agent_prompts_empty" />
+</resources>

@@ -121,4 +121,9 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:visibility="gone" />
+    <helium314.keyboard.agent.prompts.PromptsView
+        android:id="@+id/agent_prompts"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
 </helium314.keyboard.agent.AgentKeyboardFrame>

@@ -37,6 +37,8 @@ import helium314.keyboard.agent.Prompt
 import helium314.keyboard.agent.PromptError
 import helium314.keyboard.agent.PromptStore
 import helium314.keyboard.agent.PromptStoreState
+import helium314.keyboard.agent.promptLabel
+import helium314.keyboard.agent.promptPreview
 import helium314.keyboard.latin.R
 import helium314.keyboard.settings.SearchSettingsScreen
 import helium314.keyboard.settings.dialogs.ReorderDialog
@@ -194,19 +196,11 @@ internal fun confirmPromptOrder(store: PromptStore, ids: List<String>): Int {
     }
 }
 
-private const val ROW_PREVIEW_CHARS = 300
+/** The title of a prompt, or the first non-blank line of its text when it has none (shared with the keyboard window). */
+private fun rowLabel(prompt: Prompt): String = promptLabel(prompt)
 
-/** The title of a prompt, or the first non-blank line of its text when it has none. */
-private fun rowLabel(prompt: Prompt): String =
-    prompt.title.ifEmpty { rowPreview(prompt.text.lineSequence().map { it.trim() }.firstOrNull { it.isNotEmpty() }.orEmpty()) }
-
-/** At most the first [ROW_PREVIEW_CHARS] characters (not cut inside a surrogate pair): a row shows two lines, never 8000 characters. */
-internal fun rowPreview(text: String): String {
-    val trimmed = text.trim()
-    if (trimmed.length <= ROW_PREVIEW_CHARS) return trimmed
-    val end = if (Character.isHighSurrogate(trimmed[ROW_PREVIEW_CHARS - 1])) ROW_PREVIEW_CHARS - 1 else ROW_PREVIEW_CHARS
-    return trimmed.substring(0, end)
-}
+/** At most the first 300 characters of the text; see [promptPreview] (shared with the keyboard window). */
+internal fun rowPreview(text: String): String = promptPreview(text)
 
 /** Editor of one prompt (a new one when [original] has no id), shown as a card on the page. Saves only on "Save". */
 @Composable

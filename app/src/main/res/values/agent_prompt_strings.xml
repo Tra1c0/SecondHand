@@ -36,4 +36,17 @@
     <string name="agent_prompts_reset">Reset prompt store</string>
     <string name="agent_prompts_reset_confirm">The file of the prompt store cannot be read. Resetting deletes the file and all prompts stored in it. This cannot be undone.</string>
     <string name="agent_prompts_reset_failed">The prompt store could not be reset.</string>
+    <!-- Stage 74b: the prompt window in the keyboard -->
+    <string name="agent_prompts_key_description">Prompt store in the comma key</string>
+    <string name="agent_prompts_window_manage">Manage</string>
+    <string name="agent_prompts_save_clip">Save copied text as prompt</string>
+    <string name="agent_prompts_window_empty">No prompts yet. Copy a text and save it here, or write prompts under Manage.</string>
+    <string name="agent_prompts_window_unavailable">The prompt store cannot be read now. Open Manage to reset it.</string>
+    <string name="agent_prompts_protected">The prompt store is not available in this field.</string>
+    <string name="agent_prompts_saved">Saved as the first prompt.</string>
+    <string name="agent_prompts_clip_too_long">The copied text is too long (at most %d characters). Nothing was saved.</string>
+    <string name="agent_prompts_clip_sensitive">The copied text looks like a secret (password, key or code). It is not saved.</string>
+    <string name="agent_prompts_insert_description">Insert prompt: %1$s</string>
+    <string name="agent_prompts_selection">Place the cursor first: a selection is not replaced.</string>
+    <string name="agent_prompts_expired">The field changed. Nothing was inserted.</string>
 </resources>

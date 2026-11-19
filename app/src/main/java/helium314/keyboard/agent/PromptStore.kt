@@ -235,3 +235,17 @@ class PromptStore(context: Context, private val accessible: () -> Boolean = { cr
         }
     }
 }
+
+private const val PREVIEW_CHARS = 300
+
+/** At most the first [PREVIEW_CHARS] characters (not cut inside a surrogate pair): a row shows two lines, never 8000 characters. */
+fun promptPreview(text: String): String {
+    val trimmed = text.trim()
+    if (trimmed.length <= PREVIEW_CHARS) return trimmed
+    val end = if (Character.isHighSurrogate(trimmed[PREVIEW_CHARS - 1])) PREVIEW_CHARS - 1 else PREVIEW_CHARS
+    return trimmed.substring(0, end)
+}
+
+/** The title of a prompt, or the first non-blank line of its text when it has none. */
+fun promptLabel(prompt: Prompt): String =
+    prompt.title.ifEmpty { promptPreview(prompt.text.lineSequence().map { it.trim() }.firstOrNull { it.isNotEmpty() }.orEmpty()) }
