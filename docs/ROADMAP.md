@@ -21,6 +21,9 @@ Reihenfolge von oben nach unten.
   Test-Autofill-Dienst in der Test-App. Nicht im Umfang: echte Passwortmanager, Instagram/WhatsApp,
   Google-Diktat, Firebase Test Lab. Vorgemerkt, nicht beauftragt: die Tastatur meldet Bedienungshilfen ihre
   Tasten im Emulator teils 128 Pixel zu hoch (P294, HeliBoard-Code; betrifft möglicherweise TalkBack).
+  **Befund aus 73b, Entscheidung des Owners offen:** „idr“ wird mit den echten Wörterbüchern nicht zu „dir“
+  korrigiert (`docs/VALIDATION.md` → Etappe 73); beheben als eigene Etappe oder die Erwartung streichen.
+  73b ist im Sparmodus des Owners (2026-11-19) angehalten, 73c nicht begonnen.
 - **74 Prompt-Ablage** (Auftrag des Owners vom 2026-11-19: „eine extra Zwischenablage für Prompts, die
   permanent gespeichert werden und die ich sortieren kann“, Zugang: „Eigenes Symbol beim , gedrückt
   halten“) ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 74): 74a Speicher und

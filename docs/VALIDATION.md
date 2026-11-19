@@ -53,6 +53,23 @@ KI; die Prompt-Ablage (74); Querformat, andere Bildschirmgrößen, andere Androi
 grundsätzlich nicht zeigt: Tippgefühl, Latenz, Vibration, Akku, echte Apps (WhatsApp, Instagram), echte
 Passwortmanager, das Verhalten des Xiaomi-Telefons.
 
+**73b (Szenarien), Stand 2026-11-19, angehalten im Sparmodus des Owners.** Im Emulator mit den echten
+Wörterbüchern belegt ([Lauf 19](https://github.com/Tra1c0/SecondHand/actions/runs/44456920998), grün: 13 bestanden, 2 bekannte Befunde): „hallo. du“ →
+„Hallo. Du“; „nciht“ → „nicht“ (Kontrollfall der Autokorrektur); „jungs“ → „Jungs“; „gecovert“, „lowkey“,
+„neee“ bleiben; „geil“ und Tipp auf 🔥 in der Leiste → „Und 🔥“; `@lang` und Tipp auf „🌐 English (US)“ →
+Layout ohne „ü“, „the“ → „The“ (Rückweg auf Deutsch erst in Lauf 21 belegt); „Zwischenablagen-Inhalt
+vorschlagen“ über die Einstellungsseite eingeschaltet, kopierter Text als Pille in der Leiste, Tipp fügt
+ihn ein. **Befund an der Tastatur** (Läufe 17–21, jedes Mal gleich): „idr“ wird nicht zu „dir“, weder nach
+„Und“ noch in „wie geht es idr“; die Leiste bietet „IDE“, „ist“, „die“. Etappe 71 hatte das nur mit
+vorgegebenen Wörterbuch-Treffern geprüft. Die beiden Szenarien laufen weiter und stehen als `KNOWN` in
+`KNOWN_FINDINGS` (`devicetest.py`); wird eines grün, wird der Lauf rot.
+Nicht belegt: dass die Pille im Passwortfeld wegen des Passwortfelds fehlt (in Lauf 19 war sie nach dem
+ersten Tipp ohnehin verbraucht; die Tastatur bietet denselben Text nur einmal an, Lauf 21; die Fassung mit
+drei verschiedenen Texten ist noch nicht grün gelaufen); „kein Lernen im Passwortfeld“ (noch kein grüner
+Lauf; die Leiste zeigt ein unbekanntes getipptes Wort nicht als Vorschlag, Lauf 21). Nicht gemacht:
+Dreifach-Lauf und Kontrolllauf für die 73b-Szenarien, Prüfer für 73b. Beobachtung: Der Chip „⬆ Build 33
+verfügbar“ steht auch im Passwortfeld in der Leiste (laut Code so gebaut, nur bei gesperrtem Gerät nicht).
+
 Prüfer (73a, lesend, auf 8cea091): kein Gegenbeispiel für ein fälschlich grünes Szenario; mittlere Befunde,
 alle bearbeitet: die Suche nach Testcode in der Tastatur-APK war wirkungslos (jetzt im Code der APK); ein
 Vergleich in `keyboard_is_secondhand` war immer wahr (entfernt); der Kontrolllauf belegt je Szenario nur

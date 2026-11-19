@@ -13,12 +13,16 @@ gehören nach `docs/ARCHITECTURE.md`, nicht hierher.
   (`device-tests.yml`, sechs Tipp-Szenarien, 4 von 4 Durchgängen grün, Kontrolllauf 18 von 18 rot; offen 73b Szenarien, 73c Autofill,
   Prüfer für 73a) und **74 Prompt-Ablage** (Symbol im Komma-Menü, Fenster, Einstellungsseite; lokal 9 Testklassen grün, drei Prüfer;
   GitHub-Lauf 115 grün; Test-Build 34 beim Owner; offen: Gerätetest, Rückmeldung des Owners). Nachweise: `docs/VALIDATION.md` → Etappe 73, 74.
+- **Sparmodus (Owner, 2026-11-19):** vorerst nur, was wenig Kontingent kostet: schnelle Korrekturen, nur die nötigen Tests. Angehalten:
+  73b-Abschluss (Dreifach-Lauf, Kontrolllauf, Prüfer; die Szenarien `clipboard_pill` mit drei Texten und `learning_not_in_password`
+  sind noch nicht grün belegt, Lauf 22), 73c Autofill, die rückwirkende Bestandsprüfung der ganzen Tastatur nach dem Arbeitsauftrag
+  des Owners (Inventar aus `docs/FEATURES.md` angefangen und abgebrochen). Befund für den Owner offen: „idr“ wird nicht korrigiert.
 - Davor, Stand 2026-11-18: Build 33 ist als signiertes Update veröffentlicht. Er ergänzt Build 32 um
   satzbezogene Autokorrektur für regelmäßige deutsche Verben (72) mit Rücknahme im aktuellen
   Feld und Schalter unter „Tippen & Korrektur → Regeln“. Der vollständige GitHub-Lauf 103 ist grün.
   Offen sind der Gerätetest mit dem echten Wörterbuch und echte KI-Aufrufe.
 - Beim Owner: Build 29, die Test-Builds 30 und 31 (frühere Fassungen der Slang-Liste) und Build 32. Erbeten: Slang tippen („gecovert“, „lowkey“,
-  „neee“ bleiben, „idr“ wird „dir“), Tempo (Diagnose → Karte „Tippen“, ein Screenshot), `@ki` über 6 Zeilen mit Gemini, Instagram-Privatchat.
+  „neee“ bleiben; „idr“ wird entgegen der früheren Angabe NICHT zu „dir“, Befund aus 73b), Tempo (Diagnose → Karte „Tippen“, ein Screenshot), `@ki` über 6 Zeilen mit Gemini, Instagram-Privatchat.
 - Runde 2 ist angehalten (Owner, 2026-11-17: „alles, was nicht zwangsläufig gefixt werden muss, erstmal außen vor lassen“), `docs/ROADMAP.md` →
   „Runde 2 nach dem Scan“, Befunde in `docs/PRUEFBERICHT-2026-11-16.md`. Nicht gebaut: 64c, 64d, 66, 67, 68; die angefangene Arbeit liegt nur als
   lokale Commits in `.claude/worktrees/…` (Offene Punkte).
