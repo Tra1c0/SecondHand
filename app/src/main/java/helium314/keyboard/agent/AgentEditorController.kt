@@ -708,15 +708,18 @@ class AgentEditorController @JvmOverloads constructor(
     /**
      * The rule of the clipboard history ([ClipVault.isSecretClip]), with the inputs the history uses: the
      * clip's own copy time and sensitive mark, so a clip the vault sorted as secret when it was copied
-     * (say in a password field) stays refused here. One-time codes are refused too, also inside a message
-     * (the history keeps such a message, a stored prompt would stay for good).
+     * (say in a password field) stays refused here, plus everything the history keeps out by its content:
+     * secrets and a bare one-time code. A text that merely contains a number near a word like "code"
+     * ("Write code that prints 10000 numbers") is stored, as the history keeps it: prompts are often
+     * exactly such texts. Limit: after the keyboard process restarted, the vault no longer knows where a
+     * clip was copied, so a harmless-looking text copied in a password field before the restart is stored.
      */
     private fun isSecretClip(text: String, clip: ClipData): Boolean {
         val marked = helium314.keyboard.compat.ClipboardManagerCompat.getClipSensitivity(clip.description) == true
         val copiedAt = helium314.keyboard.compat.ClipboardManagerCompat.getClipTimestamp(clip)
         if (ClipVault.isSecretClip(text, copiedAt, marked)) return true
         return dev.agentkeyboard.core.clip.ClipGuard.classify(text, marked, ClipVault.region(Settings.getValues()))
-            .category == dev.agentkeyboard.core.clip.ClipCategory.OTP
+            .keepsOutOfHistory
     }
 
     /** "Manage": the settings page of the prompt store, never while the device is locked (P77). */

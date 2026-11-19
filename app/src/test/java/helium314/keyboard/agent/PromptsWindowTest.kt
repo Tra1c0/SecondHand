@@ -346,12 +346,29 @@ class PromptsWindowTest {
         assertEquals(listOf("Fasse den folgenden Text in drei Sätzen zusammen."), store.read().map { it.text })
     }
 
-    @Test fun aOneTimeCodeInsideALongerMessageIsRefusedToo() {
+    @Test fun aBareOneTimeCodeIsRefused() {
         icon()
-        copy("Dein Code lautet 123456, gib ihn niemandem weiter.")
+        copy("123456")
         tap(R.id.agent_prompts_save_clip)
         assertEquals(string(R.string.agent_prompts_clip_sensitive), status())
         assertTrue(store.read().isEmpty())
+    }
+
+    /** The history keeps such texts, and prompts about code with a number in them are everyday prompts. */
+    @Test fun aPromptThatMentionsCodeAndANumberIsStoredLikeTheHistoryKeepsIt() {
+        val samples = listOf(
+            "Write Python code that prints 10000 random numbers",
+            "Refactor this code and keep it under 2000 lines",
+            "Dein Code lautet 123456, gib ihn niemandem weiter.",
+        )
+        for ((index, sample) in samples.withIndex()) {
+            assertTrue(!dev.agentkeyboard.core.clip.ClipGuard.classify(sample).keepsOutOfHistory, sample)
+            icon()
+            copy(sample)
+            tap(R.id.agent_prompts_save_clip)
+            assertEquals(index + 1, store.read().size, sample)
+            assertEquals(sample, store.read().first().text)
+        }
     }
 
     // ---- saving the same text twice ----
