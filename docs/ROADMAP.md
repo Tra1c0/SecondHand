@@ -786,14 +786,19 @@ Folgende ist die Entscheidung des Leads.
 Wünsche des Owners vom 2026-11-19, aufgenommen, aber noch nicht zugeschnitten: Umfang und Reihenfolge sind
 offen, gebaut wird erst nach einer Entscheidung zu den offenen Fragen.
 
-- **W1 Eigenes Ökosystem.** Ein eigens aufgesetztes Ökosystem rund um SecondHand. Wortlaut des Owners: „ein
-  eigens aufgesetztes eco system“. Was dazugehört, ist nicht festgelegt. Denkbar (Deutung des Leads, nicht
-  entschieden): Abgleich von Einstellungen, Prompt-Ablage, Workflows und Designprofilen zwischen eigenen
-  Geräten; eine Begleit-App oder Desktop-Gegenstelle; Teilen von Workflows, Designs und Prompts mit Freunden;
-  ein eigener Update- und Erweiterungskanal. Offene Fragen: Welche dieser Teile sind gemeint? Mit eigenem
-  Server oder nur von Gerät zu Gerät bzw. über eigene Dateien? Widerspruch zu klären: Unter „Bewusst nicht im
-  Umfang“ stehen bisher „keine Konten, kein Backend“; ein Ökosystem mit Abgleich hebt das je nach Zuschnitt auf.
-  (L, nach Zuschnitt mehrere Etappen)
+- **W1 Ineinandergreifende Funktionen (kein eigenes Ökosystem).** Klarstellung des Owners vom 2026-11-19: kein
+  Server, keine Konten, kein Abgleich, sondern Funktionen, die fließend ineinandergreifen wie bei Googles
+  Tastatur mit Passwortmanager, Gmail, lernender Eingabe und AICore. „Keine Konten, kein Backend“ bleibt
+  gültig. Bausteine (Deutung des Leads, Reihenfolge offen):
+  (a) Passwortmanager: Autofill-Vorschläge in der Leiste zuverlässig machen (die in 73c gemeldeten Schwächen:
+  feste Breite, Reihenfolge, Freigabe der Ansichten, verspätete Antworten) und mit Tresor und Zwischenablage
+  abstimmen; ein eigener Passwortspeicher ist nicht gemeint, solange der Owner ihn nicht verlangt.
+  (b) Lernende Eingabe: bessere Wortvorhersage und Korrektur aus dem eigenen Tippen, auf dem Gerät, opt-in.
+  (c) KI auf dem Gerät: siehe W2.
+  (d) Übergänge zwischen den vorhandenen Teilen: z. B. Kopiertes → Prompt-Ablage → KI-Aktion → Einfügen ohne
+  Umwege, Vorschläge passend zum Feld (E-Mail, Adresse, Code), Diktat → Korrektur.
+  (e) Gmail und Kalender: weiter 16c, blockiert bis zu eigenen OAuth-Zugängen des Owners.
+  Erster Schritt: die Liste aus W3. (L, mehrere Etappen)
 - **W2 AICore (KI auf dem Gerät).** Googles AICore mit Gemini Nano als zweiter, lokaler Provider neben dem
   eigenen Schlüssel: Textaufgaben (Korrigieren, Umformulieren, Zusammenfassen, Antwortvorschläge) ohne Netz und
   ohne Kosten. Bekannte Grenzen vor dem Bau zu prüfen (nicht geprüft): AICore gibt es nur auf bestimmten
