@@ -3,7 +3,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="agent_prompts_title">Prompt store</string>
     <string name="agent_prompts_row_sub">Your own prompts for AI chats, in your order</string>
-    <string name="agent_prompts_description">Texts for AI chats. They are stored only on this device, stay until you delete them and keep the order you choose. Nothing is sent anywhere.</string>
+    <string name="agent_prompts_description">Texts for AI chats. They are stored only on this device, stay until you delete them and keep the order you choose, optionally in folders. Nothing is sent anywhere.</string>
     <string name="agent_prompts_new">New prompt</string>
     <string name="agent_prompts_sort">Sort</string>
     <string name="agent_prompts_none">No prompts yet.</string>
@@ -56,4 +56,37 @@
     <string name="restore_prompts_corrupt">The prompts in the backup were not restored: the entry is corrupt. The prompts on this phone are unchanged.</string>
     <string name="restore_prompts_locked">The prompts in the backup were not restored: the device is locked. The prompts on this phone are unchanged.</string>
     <string name="restore_prompts_unreadable">The prompts in the backup were not restored: the prompt store on this phone is unreadable. Reset it under Einstellungen → Leiste &amp; Befehle → Prompt-Ablage and restore again.</string>
+    <!-- Stage 77: folders (one level) -->
+    <string name="agent_prompts_chip_all">All</string>
+    <string name="agent_prompts_chip_none">No folder</string>
+    <string name="agent_prompts_filter_all_description">Show all prompts</string>
+    <string name="agent_prompts_filter_none_description">Show prompts without a folder</string>
+    <string name="agent_prompts_filter_folder_description">Show folder %1$s</string>
+    <string name="agent_prompts_state_selected">Selected</string>
+    <string name="agent_prompts_folder_empty">No prompts in this folder yet. Save copied text here, or move prompts here under Manage.</string>
+    <string name="agent_prompts_saved_in_folder">Saved as the first prompt in “%1$s”.</string>
+    <string name="agent_prompts_folder_none_in">No prompts in this folder yet.</string>
+    <string name="agent_prompts_folder_new">New folder</string>
+    <string name="agent_prompts_folder_rename">Rename folder</string>
+    <string name="agent_prompts_folder_delete">Delete folder</string>
+    <string name="agent_prompts_folder_sort">Sort folders</string>
+    <string name="agent_prompts_folder_sort_title">Sort folders</string>
+    <string name="agent_prompts_folder_editor_new">New folder</string>
+    <string name="agent_prompts_folder_editor_rename">Rename folder</string>
+    <string name="agent_prompts_folder_field_name">Folder name</string>
+    <!-- %1$d: number of folders, %2$d: maximum -->
+    <string name="agent_prompts_folder_count">%1$d of %2$d folders</string>
+    <!-- %1$s: folder name, %2$d: number of prompts in it -->
+    <string name="agent_prompts_folder_delete_confirm">Delete the folder “%1$s”? Its prompts (%2$d) are not deleted; they move to “No folder”.</string>
+    <string name="agent_prompts_folder_name_empty">The name must not be empty.</string>
+    <string name="agent_prompts_folder_name_too_long">The name is too long (at most %d characters).</string>
+    <string name="agent_prompts_folder_name_invalid">The name contains a control character or a broken character.</string>
+    <string name="agent_prompts_folder_name_taken">A folder with this name already exists.</string>
+    <string name="agent_prompts_folders_full">There are already %d folders. Delete one first.</string>
+    <string name="agent_prompts_folder_gone">This folder no longer exists.</string>
+    <string name="agent_prompts_folder_failed">The folder could not be saved. The prompt store is not available.</string>
+    <string name="agent_prompts_folder_picker_label">Folder</string>
+    <string name="agent_prompts_folder_picker_none">No folder</string>
+    <string name="agent_prompts_folder_picker_description">Put the prompt in folder %1$s</string>
+    <string name="agent_prompts_folder_picker_none_description">Put the prompt in no folder</string>
 </resources>

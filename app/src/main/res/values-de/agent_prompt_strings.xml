@@ -2,7 +2,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="agent_prompts_title">Prompt-Ablage</string>
     <string name="agent_prompts_row_sub">Eigene Prompts für KI-Chats, in deiner Reihenfolge</string>
-    <string name="agent_prompts_description">Texte für KI-Chats. Sie liegen nur auf diesem Gerät, bleiben bis zum Löschen erhalten und behalten die Reihenfolge, die du wählst. Es wird nichts gesendet.</string>
+    <string name="agent_prompts_description">Texte für KI-Chats. Sie liegen nur auf diesem Gerät, bleiben bis zum Löschen erhalten und behalten die Reihenfolge, die du wählst, auf Wunsch in Ordnern. Es wird nichts gesendet.</string>
     <string name="agent_prompts_new">Neuer Prompt</string>
     <string name="agent_prompts_sort">Sortieren</string>
     <string name="agent_prompts_none">Noch keine Prompts.</string>
@@ -53,4 +53,35 @@
     <string name="restore_prompts_corrupt">Die Prompts aus dem Backup wurden nicht wiederhergestellt: Der Eintrag ist beschädigt. Die Prompts auf diesem Telefon sind unverändert.</string>
     <string name="restore_prompts_locked">Die Prompts aus dem Backup wurden nicht wiederhergestellt: Das Gerät ist gesperrt. Die Prompts auf diesem Telefon sind unverändert.</string>
     <string name="restore_prompts_unreadable">Die Prompts aus dem Backup wurden nicht wiederhergestellt: Die Prompt-Ablage auf diesem Telefon ist nicht lesbar. Setze sie unter Einstellungen → Leiste &amp; Befehle → Prompt-Ablage zurück und stelle das Backup erneut her.</string>
+    <!-- Stage 77: Ordner (eine Ebene) -->
+    <string name="agent_prompts_chip_all">Alle</string>
+    <string name="agent_prompts_chip_none">Ohne Ordner</string>
+    <string name="agent_prompts_filter_all_description">Alle Prompts zeigen</string>
+    <string name="agent_prompts_filter_none_description">Prompts ohne Ordner zeigen</string>
+    <string name="agent_prompts_filter_folder_description">Ordner %1$s zeigen</string>
+    <string name="agent_prompts_state_selected">Ausgewählt</string>
+    <string name="agent_prompts_folder_empty">In diesem Ordner sind noch keine Prompts. Speichere Kopiertes hier, oder verschiebe Prompts unter Verwalten hierher.</string>
+    <string name="agent_prompts_saved_in_folder">Als erster Prompt in „%1$s“ gespeichert.</string>
+    <string name="agent_prompts_folder_none_in">In diesem Ordner sind noch keine Prompts.</string>
+    <string name="agent_prompts_folder_new">Neuer Ordner</string>
+    <string name="agent_prompts_folder_rename">Ordner umbenennen</string>
+    <string name="agent_prompts_folder_delete">Ordner löschen</string>
+    <string name="agent_prompts_folder_sort">Ordner sortieren</string>
+    <string name="agent_prompts_folder_sort_title">Ordner sortieren</string>
+    <string name="agent_prompts_folder_editor_new">Neuer Ordner</string>
+    <string name="agent_prompts_folder_editor_rename">Ordner umbenennen</string>
+    <string name="agent_prompts_folder_field_name">Ordnername</string>
+    <string name="agent_prompts_folder_count">%1$d von %2$d Ordnern</string>
+    <string name="agent_prompts_folder_delete_confirm">Den Ordner „%1$s“ löschen? Seine Prompts (%2$d) werden nicht gelöscht, sie wandern nach „Ohne Ordner“.</string>
+    <string name="agent_prompts_folder_name_empty">Der Name darf nicht leer sein.</string>
+    <string name="agent_prompts_folder_name_too_long">Der Name ist zu lang (höchstens %d Zeichen).</string>
+    <string name="agent_prompts_folder_name_invalid">Der Name enthält ein Steuerzeichen oder ein defektes Zeichen.</string>
+    <string name="agent_prompts_folder_name_taken">Einen Ordner mit diesem Namen gibt es schon.</string>
+    <string name="agent_prompts_folders_full">Es gibt schon %d Ordner. Lösche zuerst einen.</string>
+    <string name="agent_prompts_folder_gone">Diesen Ordner gibt es nicht mehr.</string>
+    <string name="agent_prompts_folder_failed">Der Ordner konnte nicht gespeichert werden. Die Prompt-Ablage ist nicht verfügbar.</string>
+    <string name="agent_prompts_folder_picker_label">Ordner</string>
+    <string name="agent_prompts_folder_picker_none">Ohne Ordner</string>
+    <string name="agent_prompts_folder_picker_description">Prompt in den Ordner %1$s legen</string>
+    <string name="agent_prompts_folder_picker_none_description">Prompt in keinen Ordner legen</string>
 </resources>

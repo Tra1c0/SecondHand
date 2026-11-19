@@ -8,4 +8,7 @@
     <item type="id" name="agent_prompts_status" />
     <item type="id" name="agent_prompts_list" />
     <item type="id" name="agent_prompts_empty" />
+    <item type="id" name="agent_prompts_chips" />
+    <item type="id" name="agent_prompts_chip_all" />
+    <item type="id" name="agent_prompts_chip_none" />
 </resources>

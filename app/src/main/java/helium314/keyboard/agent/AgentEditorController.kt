@@ -221,6 +221,7 @@ class AgentEditorController @JvmOverloads constructor(
         prompts?.onClose = ::close
         prompts?.onPick = ::insertPrompt
         prompts?.onSaveClip = ::saveClipAsPrompt
+        prompts?.onFilterChanged = ::showPromptFilter
         prompts?.onManage = ::openPromptSettings
         wheel?.onAction = { action -> if (action == null) open() else { capture(); runLocal(action) } }
         panel?.onClose = {
@@ -627,7 +628,7 @@ class AgentEditorController @JvmOverloads constructor(
         close()
         KeyboardSwitcher.getInstance().mainKeyboardView?.closing()
         target.rootView.findViewById<SuggestionStripView>(R.id.suggestion_strip_view)?.dismissMoreSuggestionsPanel()
-        target.show(promptStoreFactory().load())
+        target.show(promptStoreFactory().loadLibrary())
         return true
     }
 
@@ -646,7 +647,7 @@ class AgentEditorController @JvmOverloads constructor(
         val store = promptStoreFactory()
         val prompt = store.load()?.firstOrNull { it.id == id }
         if (prompt == null) {
-            target.refresh(store.load())
+            target.refresh(store.loadLibrary())
             target.showStatus(ime.getString(R.string.agent_prompts_gone))
             return
         }
@@ -668,10 +669,25 @@ class AgentEditorController @JvmOverloads constructor(
     }
 
     /**
+     * Stage 77: a tap on a folder chip of the prompt window: the view already holds the new filter; this shows the store's
+     * content again for it. The same checks as a tap on a prompt (nothing is read in a protected field or while locked).
+     */
+    private fun showPromptFilter() {
+        val target = prompts?.takeIf { it.visibility == View.VISIBLE } ?: return
+        if (editor.protection() != null || isDeviceLocked(ime) || isUserLocked(ime) || Settings.getValues()?.mIsLocked == true) {
+            close()
+            Toast.makeText(ime, R.string.agent_prompts_protected, Toast.LENGTH_SHORT).show()
+            return
+        }
+        target.showStatus(null)
+        target.refresh(promptStoreFactory().loadLibrary())
+    }
+
+    /**
      * The tap on "Save copied text as prompt": the system clipboard is read only here. Text only, at
      * most [PromptStore.MAX_TEXT] characters, and never what the clipboard history keeps out as a secret
      * or a one-time code (marked sensitive, copied in a password field, or recognised by its content).
-     * The prompt goes to the top of the store with no title.
+     * The prompt goes to the top of the folder shown (stage 77; "All" and "No folder": no folder) with no title.
      */
     private fun saveClipAsPrompt() {
         val target = prompts ?: return
@@ -684,22 +700,27 @@ class AgentEditorController @JvmOverloads constructor(
         val text = clip?.takeIf { it.itemCount > 0 && it.description?.hasMimeType("text/*") == true }
             ?.let { runCatching { it.getItemAt(0).coerceToText(ime)?.toString() }.getOrNull() }
         val store = promptStoreFactory()
+        val library = store.loadLibrary()
+        // the folder shown now, if it still exists; a new clip goes into it (All and No folder: no folder)
+        val shown = library?.effective(target.filter) ?: PromptFilter.All
+        val folder = library?.folders?.firstOrNull { it.id == shown.folderIdForNew }
         val message = when {
             text.isNullOrBlank() -> ime.getString(R.string.agent_prompts_paste_empty)
             text.length > PromptStore.MAX_TEXT -> ime.getString(R.string.agent_prompts_clip_too_long, PromptStore.MAX_TEXT)
             isSecretClip(text, clip) -> ime.getString(R.string.agent_prompts_clip_sensitive)
-            store.load()?.firstOrNull()?.text == text -> ime.getString(R.string.agent_prompts_already_saved)
+            library?.promptsIn(shown)?.firstOrNull()?.text == text -> ime.getString(R.string.agent_prompts_already_saved)
             else -> {
-                val result = store.add("", text)
-                if (result.ok) target.refresh(store.load())
-                ime.getString(when (result.error) {
-                    null -> R.string.agent_prompts_saved
-                    PromptError.FULL -> R.string.agent_prompts_full
-                    PromptError.TEXT_TOO_LONG -> R.string.agent_prompts_clip_too_long
-                    PromptError.FILE_FULL -> R.string.agent_prompts_file_full
-                    PromptError.INVALID_TEXT -> R.string.agent_prompts_invalid_text
-                    else -> R.string.agent_prompts_save_failed
-                }, if (result.error == PromptError.FULL) PromptStore.MAX_PROMPTS else PromptStore.MAX_TEXT)
+                val result = store.add("", text, folder?.id)
+                if (result.ok || result.error == PromptError.FOLDER_NOT_FOUND) target.refresh(store.loadLibrary())
+                when (result.error) {
+                    null -> if (folder != null) ime.getString(R.string.agent_prompts_saved_in_folder, folder.name) else ime.getString(R.string.agent_prompts_saved)
+                    PromptError.FULL -> ime.getString(R.string.agent_prompts_full, PromptStore.MAX_PROMPTS)
+                    PromptError.TEXT_TOO_LONG -> ime.getString(R.string.agent_prompts_clip_too_long, PromptStore.MAX_TEXT)
+                    PromptError.FILE_FULL -> ime.getString(R.string.agent_prompts_file_full)
+                    PromptError.INVALID_TEXT -> ime.getString(R.string.agent_prompts_invalid_text)
+                    PromptError.FOLDER_NOT_FOUND -> ime.getString(R.string.agent_prompts_folder_gone)
+                    else -> ime.getString(R.string.agent_prompts_save_failed)
+                }
             }
         }
         target.showStatus(message)
