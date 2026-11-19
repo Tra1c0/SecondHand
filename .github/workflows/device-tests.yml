@@ -3,7 +3,8 @@
 # real keyboard and compare what arrives in the fields. Result: one RESULT line per scenario and a
 # SUMMARY line in the job log, the same as a table in the job summary, and the artifact
 # "device-test-<n>" with the screen recording, one screenshot per scenario and results.json.
-# No secrets are used; the APK is signed with the runner's throw-away debug key and is never published.
+# No secrets are used; the APK is signed with the runner's throw-away debug key and is not released
+# (it is an artifact of the run for three days, for the emulator jobs).
 # An emulator is not a phone: green means "these scenarios, in this emulator" (docs/VALIDATION.md).
 name: SecondHand Device Tests
 
@@ -16,7 +17,7 @@ on:
         default: '1'
         options: [ '1', '3', '5' ]
       control:
-        description: 'Control run: the last character of every typed text is left out, the run MUST turn red'
+        description: 'Control run: the last character of every typed text is left out; green only if every scenario FAILED'
         type: boolean
         default: false
   push:
@@ -25,6 +26,9 @@ on:
       - 'app/**'
       - 'agent-core/**'
       - 'tools/devicetest/**'
+      # the build helper and the module the root project includes from tools/
+      - 'tools/dev.py'
+      - 'tools/make-emoji-keys/**'
       - '*.gradle*'
       - 'gradle/**'
       - 'gradle.properties'
@@ -88,8 +92,11 @@ jobs:
           # the emulator is x86_64: the keyboard must carry its native library for it
           unzip -l apks/keyboard.apk | grep -q 'lib/x86_64/libjni_latinime.so' \
             || { echo "::error::the keyboard APK has no x86_64 library"; exit 1; }
-          # the helpers of the test (accessibility probe) must only be in the test app
-          if unzip -l apks/keyboard.apk | grep -qi 'devicetest'; then
+          # the helpers of the test (accessibility probe, provider) must only be in the test app:
+          # their classes must be in the test app's code and must not be in the keyboard's
+          unzip -p apks/testapp.apk 'classes*.dex' | grep -aq 'dev/personal/secondhand/devicetest/ProbeAccessibilityService' \
+            || { echo "::error::the check for test code does not find it in the test app itself"; exit 1; }
+          if unzip -p apks/keyboard.apk 'classes*.dex' | grep -aq 'dev/personal/secondhand/devicetest'; then
             echo "::error::test code found in the keyboard APK"; exit 1
           fi
           sha256sum apks/*.apk
@@ -129,6 +136,7 @@ jobs:
           ls -l /dev/kvm
 
       - name: Run the scenarios in the emulator
+        timeout-minutes: 25
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         env:
           DEVICETEST_FLAGS: ${{ inputs.control && '--control' || '' }}

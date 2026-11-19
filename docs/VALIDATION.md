@@ -14,16 +14,16 @@ Belegliste (jede Aussage mit Beleg; Läufe des Workflows `device-tests.yml`, Num
 | Emulator startet auf dem GitHub-Runner mit KVM, Systemsprache Deutsch, Tastatur installiert und aktive Eingabemethode, Dienst der Test-App gebunden | Zeilen `INFO …` der Läufe 10 und 12; erstmals Lauf 2 |
 | Sechs Szenarien tippen über die echte Tastatur, der Feldinhalt stimmt: „A“; „Hallo du“; „Hallo“ → „Hal“; Passwort „geheim“; E-Mail „test@web.de“; Zahl „12345“ | [Lauf 10](https://github.com/Tra1c0/SecondHand/actions/runs/44441180576) (ein Emulator, grün), `RESULT PASS`-Zeilen |
 | Erfolgsquote ohne Eingriff: 4 von 4 Emulator-Durchgängen grün (24 von 24 Szenarien) | Lauf 10 und [Lauf 12](https://github.com/Tra1c0/SecondHand/actions/runs/44444545192) (drei frisch gestartete Emulatoren, alle grün) |
-| Die Szenarien können scheitern: ohne das letzte getippte Zeichen sind 18 von 18 rot, jeweils mit echtem Unterschied im Feld („Hallo d“, „gehei“, „test@web.d“, „1234“, „Hall“, leer) | [Lauf 11](https://github.com/Tra1c0/SecondHand/actions/runs/44442405267), `--control`, drei Emulatoren, Zeile `CONTROL 6 of 6 …` je Emulator |
+| Die Szenarien können scheitern: ohne das letzte getippte Zeichen sind 18 von 18 rot, jeweils mit echtem Unterschied im Feld („Hallo d“, „gehei“, „test@web.d“, „1234“, „Hall“, leer). Das belegt je Szenario den ersten Vergleich, der vom Getippten abhängt, nicht jeden: in `delete_key` wird das Löschen selbst („Hal“) im Kontrolllauf nie erreicht, in `typing_password` der Blick ins Nachbarfeld auch nicht | [Lauf 11](https://github.com/Tra1c0/SecondHand/actions/runs/44442405267), `--control`, drei Emulatoren, Zeile `CONTROL 6 of 6 …` je Emulator |
 | Ohne Ergebnisdatei ist der Lauf rot (kein scheinbares Grün nach einem Absturz) | Lauf 1 (Schritt „Results“: „no results.json“) |
 | Fehlt die Aufnahme, ist der Lauf rot | nur im Trockenlauf gegen ein nachgebautes `adb` gesehen (`PROBLEM no screen recording`), nicht in einem GitHub-Lauf |
 | Aufnahme und Screenshots entstehen und werden hochgeladen | Dateiliste am Ende des Jobs, z. B. Lauf 10: `video-01.mp4` 1 995 352 Byte, sechs PNG; vom Lead nicht angesehen (der Artefakt-Download ist hier gesperrt, HTTP 403) |
 | Von Hand starten geht auch auf dem Arbeitsbranch | Läufe 11 und 12 (`workflow_dispatch`) |
 | Die ausgelieferte App ist durch 73 unverändert | `git diff --name-only 74ed58c f28c9f8` nennt außerhalb von `tools/devicetest/`, `docs/` und dem neuen Workflow nur `scripts/docs_sync.json`; `settings.gradle`, `build.gradle.kts`, `app/build.gradle.kts`, `agent-core/build.gradle.kts`, `gradle.properties` haben dieselbe SHA-256 wie vorher; lokal gebaute APK (`assembleDebugNoMinify`, x86_64) vor und nach: 1267 Einträge, 1263 inhaltsgleich, verschieden nur die drei Signaturdateien und `META-INF/version-control-info.textproto` (Commit-Nummer) |
-| Der Hilfsdienst steckt nur in der Test-App | Schritt „Collect the APKs“ bricht ab, wenn die Tastatur-APK „devicetest“ enthält (jeder Lauf); die Test-App ist ein eigenes Gradle-Projekt |
+| Der Hilfsdienst steckt nur in der Test-App | `settings.gradle` und `app/build.gradle.kts` nennen `tools/devicetest` nicht (gelesen, auch vom Prüfer). Zusätzlich sucht der Schritt „Collect the APKs“ den Paketnamen im Code der Tastatur-APK (`classes*.dex`) und bricht bei einem Treffer ab; lokal an beiden APKs ausprobiert (Test-App: gefunden, Tastatur: nicht). Die erste Fassung der Suche (nur Dateinamen, Läufe 1–13) konnte nie anschlagen (Prüferbefund) |
 | Workflow ohne Geheimnisse, nur `contents: read`, Actions per Commit-Prüfsumme festgelegt | `.github/workflows/device-tests.yml` |
 
-Elf Läufe bis zum ersten Grün, alle wegen Fehlern im Testaufbau, keiner wegen der Tastatur: falsche
+Neun rote Läufe bis zum ersten Grün (Lauf 10), alle wegen Fehlern im Testaufbau, keiner wegen der Tastatur: falsche
 Version der Emulator-Action (1), Prüfung des Dienstes am falschen Merkmal (3), `am force-stop` deaktivierte
 den Dienst (2, 4, 5), erfundene `am`-Option (6), falsche Tastenposition (7–9). Lauf 11 scheiterte zweimal
 schon beim Bau (Gradle fand Bibliotheken nicht, „Could not find …“, ohne Statuscode; derselbe Commit baute
@@ -37,7 +37,8 @@ Annahmen des Leads:
 2. `settings put secure speak_password 1`, damit die Tasten im Passwortfeld ihre Namen behalten. Das ändert
    nur, was die Tastatur Bedienungshilfen meldet, nicht das Tippen.
 3. Ein Bedienungshilfen-Dienst ohne „Tippen zum Erkunden“ ist aktiv. Laut Code hängt alles, was das Tippen
-   ändert, an `isTouchExplorationEnabled`; im Emulator verglichen (mit und ohne Dienst) ist das nicht.
+   ändert, an `isTouchExplorationEnabled`. Das ist nur am Code gelesen: einen Vergleichslauf ohne Dienst gibt
+   es nicht und kann es so nicht geben (ohne Dienst findet das Skript keine Tasten).
 4. Die Tasten werden an der Ansicht ausgerichtet, die sie zeichnet, weil die Tastatur ihre Positionen im
    Emulator teils 128 Pixel zu hoch meldete (P294). Stimmt die Annahme „der Tastenblock füllt die Ansicht bis
    zum unteren Rand“ in einem Layout nicht, treffen die Tipps daneben; das Szenario wird dann rot, nicht grün.
@@ -50,7 +51,18 @@ Nicht geprüft / nicht abgedeckt: alles aus 73b und 73c (Autokorrektur, Slang, S
 Zwischenablage-Pille, Passwortfeld ohne Lernen, Autofill); Gestentippen, langes Drücken, Leiste, Panel, Rad,
 KI; die Prompt-Ablage (74); Querformat, andere Bildschirmgrößen, andere Android-Versionen. Was ein Emulator
 grundsätzlich nicht zeigt: Tippgefühl, Latenz, Vibration, Akku, echte Apps (WhatsApp, Instagram), echte
-Passwortmanager, das Verhalten des Xiaomi-Telefons. Der Prüfer für 73a steht noch aus.
+Passwortmanager, das Verhalten des Xiaomi-Telefons.
+
+Prüfer (73a, lesend, auf 8cea091): kein Gegenbeispiel für ein fälschlich grünes Szenario; mittlere Befunde,
+alle bearbeitet: die Suche nach Testcode in der Tastatur-APK war wirkungslos (jetzt im Code der APK); ein
+Vergleich in `keyboard_is_secondhand` war immer wahr (entfernt); der Kontrolllauf belegt je Szenario nur
+einen Vergleich (oben so eingeschränkt); Großbuchstaben hätten bei schon großgestellter Tastatur klein getippt
+(das Skript sieht jetzt nach, statt Umschalt blind zu drücken) und die Eingabetaste heißt je Feld anders
+(Namen ergänzt); `tools/dev.py` löste keinen Lauf aus (ergänzt); ein Kontrolllauf war auch bei einem
+Gerätefehler rot (jetzt: grün genau dann, wenn alle Szenarien an einem Vergleich scheitern). Niedrig: Wettlauf
+beim Beenden der Aufnahme, kein Zeitlimit am Emulator-Schritt (25 Minuten gesetzt), Warten auf die neue
+Seite an der Überschrift. Diese Korrekturen sind lokal nur im Trockenlauf gegen ein nachgebautes `adb`
+gelaufen; ihr GitHub-Lauf (normal und Kontrolle) steht aus.
 
 ## Etappe 74 — Prompt-Ablage
 

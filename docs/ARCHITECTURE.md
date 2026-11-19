@@ -3741,7 +3741,7 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
   `DumpProvider.java`, der `ProbeAccessibilityService.java` fragt), findet darin die Tasten, tippt mit `input tap` und vergleicht
   den Feldinhalt. Ergebnis: `RESULT`- und `SUMMARY`-Zeilen im Job-Log, Tabelle in der Job-Zusammenfassung,
   Artefakt `device-test-<n>` (Aufnahme, Screenshots, Ergebnisdatei). `--control` lässt das letzte Zeichen
-  jedes getippten Textes weg; dann muss jedes Szenario scheitern.
+  jedes getippten Textes weg; der Kontrolllauf ist grün genau dann, wenn jedes Szenario an einem Vergleich scheitert.
   Die Test-App ist ein eigenes Gradle-Projekt (`tools/devicetest/settings.gradle.kts`,
   `tools/devicetest/build.gradle.kts`, `tools/devicetest/app/build.gradle.kts`,
   `tools/devicetest/app/src/main/AndroidManifest.xml`), gebaut mit
@@ -5780,7 +5780,7 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
   „Idee“): „seee“ und „Kaffeee“ bleiben deshalb stehen, wie getippt; das ist der Preis dafür, „neee“ zu schützen (nach dem Wörterbuch
   lässt es sich nicht unterscheiden, der Kern kennt keins). Ein versehentlich gehaltenes „wennnnn“ wird nicht korrigiert; auf einem
   Touch-Feld ist das selten. Wörter mit Wiederholung in der Mitte („Schifffahrt“, „Kaffeeernte“) sind nicht betroffen: nur der Wortschluss zählt.
-- **P294** Gerätetests (73), alles in GitHub-Läufen von `device-tests.yml` gesehen (Nachweise: `docs/VALIDATION.md` → Etappe 73):
+- **P294** Gerätetests (73), in GitHub-Läufen von `device-tests.yml` gesehen, soweit nicht als vermutet oder ungeprüft markiert (Nachweise: `docs/VALIDATION.md` → Etappe 73):
   (1) Die Tasten sind nur dann einzelne Bedienungshilfen-Knoten, wenn beim Aufbau der Tastatur (`MainKeyboardView.setKeyboard`) ein
   Bedienungshilfen-Dienst aktiv ist (`AccessibilityManager.isEnabled`); darum der `ProbeAccessibilityService` der Test-App. Er fordert kein
   „Tippen zum Erkunden“ an: alles, was das Tippen ändert, hängt an `isTouchExplorationEnabled`. (2) Nie `am force-stop` auf die Test-App:

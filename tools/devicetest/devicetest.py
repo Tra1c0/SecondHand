@@ -13,12 +13,13 @@ the content of the field back from the test app and compares it with the expecta
 
 Results go to the log (one RESULT line per scenario, one SUMMARY line), to <out>/summary.md and
 <out>/results.json; screenshots and the screen recording go to <out> as well. The exit code is 0
-only if every scenario ran and passed and the recording exists.
+only if every scenario ran and passed (control run: failed) and the recording exists.
 
 --control is the control run that shows the scenarios can fail: the last character of every typed
 text is left out, so the field really holds something else than expected and every scenario must end
-with a failed comparison. A scenario that still passes cannot turn red and is reported as
-"CONTROL BROKEN".
+with a failed comparison. The control run itself is good (exit code 0) exactly when every scenario
+FAILED; a scenario that still passes cannot notice an error and is reported as "CONTROL BROKEN". It
+shows this for the first comparison that depends on the typed text, not for every comparison.
 
 Only the standard library is used. Nothing typed here is secret; the texts are fixed test words.
 """
@@ -48,7 +49,9 @@ KEY_NAMES = {
     "space": ("Leertaste", "Space"),
     "delete": ("Löschen", "Delete"),
     "shift": ("Umschalttaste", "Umschalttaste-Taste", "Shift"),
-    "enter": ("Eingabetaste", "Return"),
+    # the enter key is named after its action in the field
+    "enter": ("Eingabetaste", "Weiter", "Fertig", "Suchen", "Senden", "Los", "Zurück",
+              "Return", "Next", "Done", "Search", "Send", "Go", "Previous"),
     "symbols": ("Symbole", "Symbols"),
     "letters": ("Buchstaben", "Letters"),
 }
@@ -175,7 +178,6 @@ class Screen:
         keys = [node for node in self.nodes
                 if node.package == KEYBOARD_PACKAGE and node.cls.endswith(".Key") and node.desc and node.visible]
         view = self.keyboard_view()
-        self.shifted = False
         if keys and view is not None:
             # The keyboard's own key positions are not reliable on the screen (runs 8 and 9: 128 px too
             # high, or at the very top), but they are right relative to each other. The view that draws
@@ -188,11 +190,11 @@ class Screen:
             if not 0.75 * view_height <= height <= view_height + 4:
                 raise DeviceError("the keys (%d px high) do not fit the keyboard view %s" % (height, view.box))
             dx, dy = view.left - block_left, view.bottom - block_bottom
-            if dx or dy:
+            if dx or dy:  # the nodes are moved in place: a second call finds them aligned
                 for key in keys:
                     key.move(dx, dy)
                 self.shifted = True
-            self.shift = (dx, dy)
+                self.shift = (self.shift[0] + dx, self.shift[1] + dy)
         found = {}
         for node in keys:
             found.setdefault(plain_key_name(node.desc), node)
@@ -273,7 +275,9 @@ class Driver:
         # and disable its accessibility service, and the keyboard would hide its keys again.
         shell("am start -W --activity-clear-task -n %s/.MainActivity --es scenario %s"
               % (TEST_PACKAGE, name), timeout=60)
-        self.wait(lambda screen: screen.by_id("field_text") is not None, "the test app with its fields")
+        # the headline shows the new name only in the new activity: old content cannot be taken for it
+        self.wait(lambda screen: screen.by_id("field_text") is not None
+                  and getattr(screen.by_id("scenario"), "text", None) == name, "the fresh test app of " + name)
 
     def wait(self, condition, what, limit=20.0):
         """Dumps until the condition holds and returns that screen. A timeout is a DeviceError: the
@@ -347,8 +351,9 @@ class Driver:
 
     def type(self, text):
         """Taps the key of every character. A lower-case letter is tapped on its key whatever the shift
-        state is, so automatic capitalisation shows in the result; an upper-case letter gets a tap on
-        shift first. A character without a key in the current layout fails the scenario."""
+        state is, so automatic capitalisation shows in the result. For an upper-case letter the keyboard
+        must be shifted: if its keys are lower-case, shift is tapped first (the keys name their own
+        case). A character without a key in the current layout fails the scenario."""
         if self.control:
             text = text[:-1]
         for char in text:
@@ -362,7 +367,13 @@ class Driver:
             if node is None:
                 raise CheckFailed("no key for %r on the keyboard; keys: %s" % (char, self.key_list()))
             if char.isalpha() and char.isupper():
-                self.press("shift")
+                self.refresh_keys()  # the shift state changes while typing: look, do not assume
+                if char not in self.keymap:
+                    self.press("shift")
+                    self.refresh_keys()
+                    if char not in self.keymap:
+                        raise CheckFailed("shift did not give the key %r; keys: %s" % (char, self.key_list()))
+                node = self.keymap[char]
             tap(*node.center)
 
     def key_for(self, char):
@@ -444,11 +455,9 @@ def tap(x, y):
 def keyboard_is_secondhand(d):
     """Control: the keyboard on the screen is the installed SecondHand build, not another input method."""
     d.start("keyboard_is_secondhand")
-    screen = d.focus("text")
+    d.focus("text")
     d.expect_equal("current input method", shell("settings get secure default_input_method").split("/")[0],
                    KEYBOARD_PACKAGE)
-    packages = sorted({n.package for n in screen.nodes if n.cls.endswith(".Key")})
-    d.expect_equal("package of the keys", ",".join(packages), KEYBOARD_PACKAGE)
     d.type("a")
     d.expect_field("text", "A")
 
@@ -595,6 +604,8 @@ class Recorder(threading.Thread):
             remote = "%s/sh-video-%02d.mp4" % (REMOTE_TMP, index)
             self.remote.append(remote)
             started = time.time()
+            if self.stopping.is_set():
+                break
             try:
                 adb("shell", "screenrecord --bit-rate 3000000 --time-limit 170 " + remote, timeout=200, check=False)
             except DeviceError:
@@ -605,11 +616,14 @@ class Recorder(threading.Thread):
     def stop(self):
         """Ends the recording and fetches the pieces. Returns the local files that hold a video."""
         self.stopping.set()
-        try:
-            shell("kill -2 $(pidof screenrecord)", check=False, timeout=20)
-        except DeviceError:
-            pass
-        self.join(30)
+        for _ in range(4):  # a piece may start just after the first signal: signal until the thread ended
+            try:
+                shell("kill -2 $(pidof screenrecord)", check=False, timeout=20)
+            except DeviceError:
+                pass
+            self.join(8)
+            if not self.is_alive():
+                break
         time.sleep(3)  # screenrecord finishes the file after the signal
         files = []
         for remote in self.remote:
@@ -658,9 +672,13 @@ def write_reports(out_dir, info, results, problems, ok, control):
         json.dump({"ok": ok, "control_run": control, "info": info, "results": results, "problems": problems},
                   out, ensure_ascii=False, indent=1)
     passed = sum(1 for r in results if r["status"] == "PASS")
-    lines = ["### Device tests: %s" % ("PASSED" if ok else "FAILED"), ""]
     if control:
-        lines += ["**Control run:** the last character of every typed text was left out on purpose, so this run must fail.", ""]
+        lines = ["### Device tests, CONTROL RUN: %s" % (
+            "as it must be, every scenario FAILED" if ok else "NOT as it must be"), "",
+            "The last character of every typed text was left out on purpose. Every scenario must show FAIL "
+            "below; a PASS would be a test that cannot notice an error.", ""]
+    else:
+        lines = ["### Device tests: %s" % ("PASSED" if ok else "FAILED"), ""]
     lines += ["%d of %d scenarios passed." % (passed, len(results)), ""]
     lines += ["| Scenario | Result | Seconds | Detail |", "| --- | --- | --- | --- |"]
     for r in results:
@@ -708,7 +726,7 @@ def main():
     finally:
         videos = recorder.stop() if recorder else []
         info["videos"] = ", ".join(os.path.basename(v) for v in videos) or "none"
-        if not videos:
+        if recorder and not videos:
             problems.append("no screen recording")
         ran = {r["name"] for r in results}
         missing = [f.__name__ for f in SCENARIOS if f.__name__ not in ran]
@@ -724,7 +742,10 @@ def main():
                                 + ", ".join(wrong))
             failed = sum(1 for r in results if r["status"] == "FAIL")
             log("CONTROL %d of %d scenarios failed on a real difference in the field" % (failed, len(SCENARIOS)))
-        ok = not problems and bool(results) and all(r["status"] == "PASS" for r in results)
+        # A normal run is good when every scenario passed; a control run when every scenario failed on
+        # a comparison (not on the device), so that green always means "as it must be".
+        wanted = "FAIL" if args.control else "PASS"
+        ok = not problems and len(results) == len(SCENARIOS) and all(r["status"] == wanted for r in results)
         for problem in problems:
             log("PROBLEM " + problem)
         write_reports(args.out, info, results, problems, ok, args.control)

@@ -1566,10 +1566,11 @@ Tipp-Szenarien). So siehst du das Ergebnis, im Browser, angemeldet bei GitHub:
    Bild steht der Name des laufenden Szenarios) und je Szenario ein Screenshot. Die Artefakte bleiben
    14 Tage.
 
-Selbst starten: Actions → SecondHand Device Tests → **Run workflow** → Branch wählen → „Run workflow“.
+Selbst starten: Actions → SecondHand Device Tests → **Run workflow** → Branch wählen → „Run workflow“
+(den Knopf zeigt GitHub vermutlich erst, wenn der Workflow auf `main` liegt; bis dahin startet ihn der Lead).
 „repeats“ startet 1, 3 oder 5 frische Emulatoren nebeneinander (um wacklige Tests zu finden). „control“
-lässt absichtlich das letzte Zeichen weg: dieser Lauf **muss** rot werden und zeigt nur, dass die Tests
-Fehler bemerken. Ein Lauf dauert etwa 12 Minuten. Scheitert er schon im Job „Build the APKs“, hat GitHub
+lässt absichtlich das letzte Zeichen weg und zeigt nur, dass die Tests Fehler bemerken: Er ist grün, wenn
+**jedes** Szenario in der Tabelle FAIL zeigt (Überschrift „CONTROL RUN“). Ein Lauf dauert etwa 10 Minuten. Scheitert er schon im Job „Build the APKs“, hat GitHub
 beim Laden von Bibliotheken gehakt: oben rechts „Re-run failed jobs“.
 
 Grün heißt nur: diese Szenarien, in diesem Emulator. Tippgefühl, Tempo, Vibration und echte Apps prüft das
