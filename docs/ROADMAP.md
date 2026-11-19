@@ -13,6 +13,21 @@ Reihenfolge von oben nach unten.
 - **72 Satzbezogene Autokorrektur**: Für regelmäßige deutsche Verbformen gebaut und abschaltbar.
   Offen sind der Gerätetest mit nativen Wörterbüchern, unregelmäßige Verben und die Auswertung
   weiterer Satzmuster, Sprachen und gemischtsprachiger Texte.
+- **74 Prompt-Ablage** (Auftrag des Owners vom 2026-11-19: „eine extra Zwischenablage für Prompts, die
+  permanent gespeichert werden und die ich sortieren kann“, Zugang: „Eigenes Symbol beim , gedrückt
+  halten“) ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 74): 74a Speicher und
+  Einstellungsseite, 74b Symbol im Komma-Popup und Fenster in der Tastatur. Annahmen des Leads, die der
+  Owner ändern kann: (1) Ein Einmalcode innerhalb einer längeren kopierten Nachricht wird von
+  „Kopiertes als Prompt speichern“ abgelehnt, obwohl der Zwischenablage-Verlauf eine solche Nachricht
+  behielte; ein Prompt läuft nie ab. (2) Sortiert wird auf der Einstellungsseite (Ziehen im Dialog
+  „Sortieren“), nicht im Fenster der Tastatur. (3) Das Symbol fehlt auch in Feldern, die Lernen verbieten
+  (private Chats), nicht nur in Passwortfeldern. (4) Die Prompts liegen im geschützten Speicher ohne
+  Backup und sind nicht in „Sichern“. Offen: Nachprüfung der letzten Korrekturen (e5689c9, bad8d4f)
+  steht aus; Gerätetest (Langdruck auf Komma, Symbol und Popup, Fenster im Querformat, auf Tablets und im
+  flachen Stil, Tempo mit 200 langen Prompts); der GitHub-Lauf „SecondHand Tests“ (volle Agent-Suite,
+  Upstream-Suite, Lint, Build) lief für diesen Stand noch nicht; ein signierter Build fehlt.
+  Ideen danach, nicht gebaut: den Prompt-Speicher in „Sichern“ aufnehmen; Ordner oder Kategorien;
+  Sortieren im Fenster der Tastatur; Suche in der Ablage.
 - **27 Symbole malen** (Auftrag des Owners vom 2026-11-13) ist gebaut (siehe FEATURES.md), mit
   Engine-Review (`docs/VALIDATION.md` → Build 12: Prüfer zu Etappe 27), die niedrigen Befunde in
   31. Offen: Gerätetest (Erkennung mit echten Fingern, Schwellen, Spur, Tempo, Tipp-Regel,

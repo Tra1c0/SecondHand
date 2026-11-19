@@ -42,6 +42,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - **Unveränderter Upstream** – Was ohne Änderung von HeliBoard übernommen ist; nur nach Ordnern beschrieben.
 - **Symbole malen** – Etappe 27: Sonderzeichen auf die Buchstaben malen statt Gestenschreiben, lokal erkannt.
 - **Zeichen-Kunst** – Etappe 53 (schließt 39 Text-Stile ein): Fenster in der Tastatur, das Zeichnung, Foto, Text und Rahmen zu Text aus Zeichen macht.
+- **Prompt-Ablage** – Etappe 74: eigene Ablage für Texte für KI-Chats, dauerhaft gespeichert und sortierbar; Einstellungsseite (74a) und Fenster in der Tastatur über das Komma-Popup (74b).
 - **Build, Tests, CI, Docs-System** – Lokaler Build, Prüfbefehle, Workflows und die Docs-Prüfung.
 - **Fallstricke** – Fehler, die schon passiert sind oder nahelagen: bei jedem Review prüfen.
 - **Datei-Inventar** – Erzeugte Liste aller kartierten Dateien nach Ordner.
@@ -1044,6 +1045,27 @@ Zeichen-Kunst (Etappe 53, Abschnitt „Zeichen-Kunst“; kein `InputLogic`, `Ric
   genau das Popup „✎“ mit `AGENT_CHAR_ART` (vorher keines). Das Popup macht „✎“ auch zum
   Hinweis-Label jeder Emoji-Taste (mit „Tasten-Hinweise anzeigen“); Entscheidung des Leads in der
   Nachprüfung: bleibt, es zeigt den Langdruck an (P196).
+
+Prompt-Ablage (Etappe 74, Abschnitt „Prompt-Ablage“; kein `InputLogic`, `RichInputConnection` oder
+`PointerTracker` geändert):
+
+- `TextKeyData.kt`: `getCommaPopupKeys` hängt nach der Zwischenablage-Taste (`key_clipboard`) und vor
+  der Emoji-Taste `PromptsKey.POPUP_KEY` an, wenn `PromptsKey.shown(params.mId)`. Die Reihenfolge ist
+  festgehalten (`PromptsWindowTest.theCommaPopupHasThePromptsKeyRightAfterTheClipboardKey`).
+- `KeyCode.kt`: `AGENT_PROMPTS` = -12007 (in `checkAndConvertCode` durchgereicht).
+- `KeyboardIconsSet.kt`: Namenskonstante `NAME_AGENT_PROMPTS_KEY` und `agentIconIds` (ein Drawable
+  `ic_agent_prompts.xml` für alle Symbolstile); `loadIcons` bildet die Id-Liste jetzt als
+  `agentIconIds + (Stil-Ids bzw. Stil- plus eigene Ids)`: die Ids des Forks stehen zuerst, jede
+  Stil-Zuordnung und jedes eigene Symbol darf sie überschreiben (P298).
+- `KeyCodeDescriptionMapper.kt`: TalkBack-Beschreibung für `AGENT_PROMPTS`
+  (`agent_prompts_key_description`).
+- `KeyboardActionListenerImpl.kt`: `onCodeInput` mit `AGENT_PROMPTS` →
+  `AgentEditorController.openPrompts` (eine Zeile neben den anderen Agent-Codes).
+- `InputView.java`: `agent_prompts` zählt als Overlay (`hasAgentOverlay`).
+- `main_keyboard_frame.xml`: `PromptsView` als weiteres Kind von `AgentKeyboardFrame`.
+- `SettingsNavHost.kt`: Ziel `agent_prompts` (`SettingsDestination.AgentPrompts`, Seite
+  `AgentPromptsScreen`). Die Zeile im Bereich Leiste & Befehle steht in `AgentAreaScreen.kt` und
+  `AgentAreaBarScreen.kt`, der Suchbegriff in `AgentSearchEntries.kt` (alle drei Fork-Dateien).
 
 Emoji-Ansicht (Emoji-Mix, 25a; Abschnitt „Befehle“):
 
@@ -3573,6 +3595,92 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   für Vorschau und Blase sind Felder (`previewPaint`, `bubblePaint`). `onDetachedFromWindow` beendet
   den Thread. Test `AT/CharArtWindowTest.theLivePreviewIsMadeInTheBackgroundAndFollowsTheFinger`.
 
+## Prompt-Ablage
+
+> Etappe 74: eigene Ablage für Texte für KI-Chats, dauerhaft gespeichert und sortierbar; Einstellungsseite (74a) und Fenster in der Tastatur über das Komma-Popup (74b).
+
+Der Owner wollte „eine extra Zwischenablage für Prompts, die permanent gespeichert werden und die ich
+sortieren kann“, erreichbar über „Eigenes Symbol beim , gedrückt halten“. Nur die Einstellungsseite
+bearbeitet, löscht und sortiert; die Tastatur liest und fügt ein und kann mit „Kopiertes als Prompt
+speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder protokolliert Titel oder Texte.
+
+- `A/PromptStore.kt`: `Prompt` (`id`, `title`, `text`; `toString` zeigt nur Längen), `PromptError`,
+  `PromptStoreState` (`READY`, `LOCKED`, `UNUSABLE`), `PromptResult` und `PromptStore`, nach dem Vorbild
+  von `SnippetStore`. Datei „agent_prompts.json“ (`AtomicFile`) in `noBackupFilesDir` des
+  CE-Kontexts (`credentialContext`, Zugriff über `credentialAccessAllowed`); Format in
+  `docs/STORAGE.md` → Prompt-Ablage (74). Höchstens `MAX_PROMPTS` = 200, `MAX_TITLE` = 60,
+  `MAX_TEXT` = 8000 Zeichen (UTF-16), `MAX_STORAGE_BYTES` = 2 MiB. `add` fügt vorn ein,
+  `update` behält die Stelle, `delete`, `reorder` (nur genau die gespeicherten Ids, sonst
+  `INVALID_ORDER`), `reset`. `load()` ist null bei gesperrtem Gerät oder unbrauchbarer Datei, `read()`
+  dann leer, `state()` unterscheidet beides. Alles läuft unter einem Prozess-Lock; `version` zählt
+  erfolgreiche Schreibvorgänge. `decode` ist streng (genau die Schlüssel, Version 1, Grenzen,
+  eindeutige Ids, kein einzelnes Surrogat). Ein Titel ist eine Zeile (`cleanTitle`: Zeilenumbrüche
+  werden Leerzeichen, dann getrimmt). Nie wird etwas gekürzt: zu lang ist ein Fehler
+  (`TEXT_TOO_LONG`, `TITLE_TOO_LONG`), eine Datei über 2 MiB `FILE_FULL`, ein defektes Zeichen
+  `INVALID_TEXT`. Dazu `promptPreview` (höchstens 300 Zeichen, nie mitten in einem Surrogatpaar) und
+  `promptLabel` (Titel oder erste nicht leere Zeile), von Seite und Fenster gemeinsam benutzt.
+- `K/settings/screens/AgentPromptsScreen.kt` (74a): die Seite „Prompt-Ablage“ unter Einstellungen →
+  Leiste & Befehle. Liste mit Titel oder erster Zeile und zwei Zeilen Vorschau, „Neuer Prompt“,
+  „Sortieren“ (`ReorderDialog`; `confirmPromptOrder` speichert nur, wenn die Ids noch passen, sonst
+  Hinweis `agent_prompts_sort_changed`), je Zeile „Bearbeiten“ und „Löschen“ (mit Rückfrage), Zähler
+  „n von 200“. Der Editor ist eine Karte auf der Seite (`PromptEditorCard`), kein Dialog (P78); beim
+  Öffnen verschwinden Liste und Knöpfe. `editingId` und die Felder sind `rememberSaveable`. „Aus
+  Zwischenablage einfügen“ liest die Zwischenablage nur auf diesen Tipp und fügt an der
+  Schreibmarke ein; passt das Ergebnis nicht in 8000 Zeichen, wird nichts eingefügt. Zurück und
+  „Abbrechen“ fragen bei Änderungen „Änderungen verwerfen?“ (P300). Ist die Ablage nicht lesbar,
+  steht ein Hinweis statt der Liste; bei einer unbrauchbaren Datei (nicht bei gesperrtem Gerät)
+  zusätzlich „Ablage zurücksetzen“ mit Rückfrage (`PromptStore.reset`, P296).
+  Der Zugang: `SettingsAreas` (`AgentAreaScreen.kt`) und eine `SettingRow` in `AgentAreaBarScreen.kt`
+  (Bereich Leiste & Befehle, nach „Meine Daten & Vorschläge“), `SettingsDestination.AgentPrompts`, Suche
+  über `KEYWORDS` in `AgentSearchEntries.kt` (`agent_search_kw_agent_prompts`).
+- `A/prompts/PromptsKey.kt` (74b): `POPUP_KEY` (Symbol `agent_prompts_key`, Code `AGENT_PROMPTS`) und
+  `shown(KeyboardId)`: nicht bei gesperrtem Gerät, in Passwortfeldern, in Zahlen-Layouts und in Feldern
+  mit `IME_FLAG_NO_PERSONALIZED_LEARNING`. Der Layout-Parser kennt Inkognito nicht; das prüft der
+  Controller beim Tipp (P301).
+- `A/prompts/PromptsView.kt` (74b): das Fenster als Overlay in `AgentKeyboardFrame`, aus Views wie die
+  anderen Fenster, Farben aus dem Tastatur-Farbsatz (ohne Farbsatz aus dem Thema). Kopf mit Titel,
+  „Verwalten“ und „Schließen“, Statuszeile (`accessibilityLiveRegion`), darunter in einer
+  `ScrollView` die erste Zeile „Kopiertes als Prompt speichern“ und eine Zeile je Prompt
+  (Tag = Id, Beschreibung „Prompt einfügen: …“). Es hält nur, was es zeigt (`shownIds`); `hide`
+  vergisst alles und tut bei geschlossenem Fenster nichts. `setVisibility` meldet dem
+  `AgentKeyboardFrame` die geänderte Bedienungshilfe (`updateOverlayAccessibility`). Ohne lesbare
+  Ablage zeigt es nur den Hinweis (keine Speichern-Zeile).
+- `AgentEditorController` (74b): `promptStoreFactory` (für Tests ersetzbar), `openPrompts`,
+  `insertPrompt`, `saveClipAsPrompt`, `isSecretClip`, `openPromptSettings`; das Fenster zählt zu
+  `isBlockingInput`, `close()` blendet es aus.
+  - `openPrompts`: nicht bei `editor.protection() != null` oder gesperrter Tastatur (Hinweis
+    „Die Prompt-Ablage gibt es in diesem Feld nicht.“, nichts gelesen). Ein Wort in Komposition wird
+    wie bei der Zeichen-Kunst so abgeschlossen, wie es dasteht (`InputLogic.commitTyped`); läuft noch
+    eine Wischgeste, öffnet es nicht. Dann `close()`, Popups und Vorschlags-Panel schließen,
+    `show(load())`.
+  - `insertPrompt(id)`: tut nichts, wenn das Fenster nicht sichtbar ist; prüft Schutz und Sperrzustand
+    erneut (schließt mit Hinweis), liest die Ablage neu (fehlt der Prompt: Liste neu laden und
+    „Diesen Prompt gibt es nicht mehr.“) und fügt über `editor.captureAnchor`/`editor.insert` ein wie der
+    Rechner und die Zeichen-Kunst (generierter Text, ein Commit, kein Lernen, keine Autokorrektur). Eine
+    Markierung wird nicht ersetzt („Erst die Schreibmarke setzen …“); eine Ablehnung wegen Feldänderung
+    sagt „Das Feld hat sich geändert. Nichts eingefügt.“ (P297). Nach Erfolg schließt das Fenster.
+  - `saveClipAsPrompt`: liest die Zwischenablage nur hier (nicht beim Öffnen). Nur Text, höchstens 8000
+    Zeichen, nicht leer; nicht, wenn `isSecretClip` zutrifft; nicht, wenn der oberste Prompt schon genau
+    dieser Text ist („Schon gespeichert.“); sonst `store.add("", text)` (ohne Titel, vorn) und
+    Liste neu laden. Fehler werden als Meldung der Statuszeile gezeigt (voll, zu lang, Datei voll,
+    defektes Zeichen, sonst „Speichern nicht möglich …“).
+  - `isSecretClip` (P299): `ClipVault.isSecretClip(text, Kopierzeit, Markierung)` mit der eigenen
+    Kopierzeit und Vertraulich-Markierung des Clips, dazu `ClipGuard.classify(...)` mit Kategorie `OTP`
+    (ein Einmalcode auch innerhalb einer längeren Nachricht).
+  - `openPromptSettings` („Verwalten“): bei gesperrtem Gerät nur schließen (P77), sonst schließen und
+    `SnipCommand.openSettings(ime, SettingsDestination.AgentPrompts)`.
+- Ressourcen: `agent_prompt_strings.xml` (`values/`, `values-de/`), `agent_prompts_ids.xml`
+  (Ids des Fensters), Symbol `ic_agent_prompts.xml` (ein Drawable für alle Symbolstile), Suchbegriffe
+  in `agent_search_strings.xml`.
+- Tests (Robolectric): `AT/PromptStoreTest.kt` (25: Dauerhaftigkeit in CE/`noBackupFilesDir`, Reihenfolge
+  und Ids, Grenzen, Zeichen, gesperrt, kaputte, zu große und fremde Dateien, Datei voll, Surrogate,
+  `state`, `reset`, `reorder`), `AT/PromptsScreenTest.kt` (29: Seite, Editor-Karte, Zurück und
+  Abbrechen, Wiederherstellung nach Aktivitäts-Neustart, Löschen, Sortieren, gesperrt, Zurücksetzen,
+  Einfügen aus der Zwischenablage, Vorschau), `AT/PromptsWindowTest.kt` (24: Popup-Taste und ihre
+  Bedingungen, Fenster und Zeilen, Einfügen genau einmal, Markierung, Sperre nach dem Öffnen,
+  Doppeltipp, „Verwalten“, „Kopiertes speichern“ mit allen Ablehnungen), dazu `AT/SettingsBarAreaTest.kt`
+  (die Zeile im Bereich Leiste & Befehle).
+
 ## Build, Tests, CI, Docs-System
 
 > Lokaler Build, Prüfbefehle, Workflows und die Docs-Prüfung.
@@ -5685,20 +5793,64 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `-Pandroid.injected.build.abi=<ABI>` (`tools/dev.py build --abi …`) baut Gradle `libjni_latinime.so` nur für diese eine
   ABI: für den Emulator `--abi x86_64`, sonst fehlt die Bibliothek dort (am 2026-11-19 an der Dateiliste der APK
   nachgesehen; nur `libandroidx.graphics.path.so` liegt für alle vier ABIs bei).
+- **P295** Prompt-Ablage, Editor (74a): Der Editor der Seite bleibt eine Karte auf der Seite, kein
+  `AlertDialog` (P78: ein Textfeld im Dialog wird in Robolectric nie „idle“). Solange er offen ist,
+  sind Liste und ihre Knöpfe nicht im Baum (`PromptsScreenTest.withTheEditorOpenNoRowAndNoRowButtonIsInTheTree`).
+- **P296** Prompt-Ablage, kaputte Datei (74a): Eine Datei, die sich nicht lesen lässt (kaputt, zu groß,
+  nicht verstanden), wird nie überschrieben: `modify` liest zuerst und gibt sonst `IO` zurück, auch
+  `add` schreibt dann nichts. Nur `reset` löscht, und nur wenn es die Datei unter dem Lock noch einmal
+  liest und sie unbrauchbar ist; eine lesbare Datei (auch „keine Datei“, auch ein lesbares Backup)
+  ergibt `READABLE`, löscht nichts und ändert `version` nicht. `AtomicFile.openRead` beendet einen
+  unterbrochenen Schreibvorgang selbst (Backup „agent_prompts.json.bak“ ersetzt die Hauptdatei), schon
+  ein Lesen kann also den letzten fertigen Stand zurückholen. Die Seite zeigt „Ablage zurücksetzen“
+  nur bei `PromptStoreState.UNUSABLE`, nie bei gesperrtem Gerät.
+- **P297** Prompt-Ablage, Einfügen (74b): Zwischen Öffnen des Fensters und Tipp kann sich alles ändern.
+  `insertPrompt` prüft deshalb beim Tipp selbst, nicht aus dem Zustand beim Öffnen: Fenster sichtbar (ein
+  zweiter oder veralteter Tipp auf eine Zeile eines schon geschlossenen Fensters tut nichts, ein
+  Doppeltipp fügt einmal ein), Schutz des Felds, Sperre des Geräts und des Nutzers, `mIsLocked`, und
+  liest den Text frisch aus der Ablage. Die Tests zur Prüfung von 74b deckten zwei echte Fehler auf
+  (ein Tipp nach dem Sperren ließ das Fenster offen; ein zweiter Tipp auf eine verborgene Zeile
+  konnte noch einmal einfügen): `aLockAfterOpeningMeansATapInsertsNothing`, `aDoubleTapInsertsOnce`,
+  `aFieldChangeClosesTheWindowAndAStaleRowCannotInsert`. Nie den Text aus dem Fenster übernehmen und
+  nie ohne `editor.captureAnchor` einfügen.
+- **P298** Prompt-Ablage, Symbol (74b): `KeyboardIconsSet.loadIcons` setzt `agentIconIds` vor die Ids des
+  Stils; bei gleichem Namen gewinnt der spätere Eintrag. Die Reihenfolge nicht umdrehen (sonst
+  überschreibt das Symbol des Forks Stil und eigene Symbole) und das Symbol nicht in eine einzelne
+  Stil-Map eintragen (dann fehlt es in den anderen Stilen). Wie das Symbol aussieht und ob es wie die
+  anderen Symbole eingefärbt wird, ist nicht auf einem Gerät geprüft.
+- **P299** Prompt-Ablage, vertrauliche Texte (74b): „Kopiertes als Prompt speichern“ folgt der Regel
+  des Zwischenablage-Verlaufs (`ClipVault.isSecretClip` mit der eigenen Kopierzeit und Markierung des
+  Clips), nicht einer eigenen Prüfung: Ein Clip, den der Tresor beim Kopieren als vertraulich sortiert hat
+  (etwa in einem Passwortfeld), bleibt auch später in einem normalen Feld abgelehnt. Eine eigene,
+  schwächere Regel war ein Befund der Prüfung von 74b. Zusätzlich lehnt `ClipGuard` mit Kategorie
+  `OTP` auch eine längere Nachricht mit Einmalcode ab, die der Verlauf behielte (Entscheidung des Leads:
+  ein Prompt hat kein Ablaufdatum). Tests: `aClipTheVaultSortedAsSecretWhenCopiedIsRefusedLaterInANormalField`,
+  `aClipTheSystemMarkedSensitiveIsRefused`, `everyCategoryTheHistoryKeepsOutIsRefusedHere`,
+  `aOneTimeCodeInsideALongerMessageIsRefusedToo`.
+- **P300** Prompt-Ablage, Zurück im Editor (74a): Der `BackHandler` der Editor-Karte ruft `cancel()`, das
+  Titel und Text beim Aufruf liest; das Callback überlebt Neuzeichnungen, ein beim Zusammensetzen
+  festgehaltener Wert wäre veraltet. Mit angezeigter Liste ist der Handler nicht aktiv, Zurück verlässt
+  die Seite (`withTheListShownTheSystemBackLeavesThePage`). `editingId`, Felder und die Rückfrage sind
+  `rememberSaveable`, damit Drehen oder ein Neustart der Aktivität den Editor nicht verwirft
+  (`theEditorStateSurvivesAnActivityRestore`).
+- **P301** Prompt-Ablage, zwei Prüfungen (74b): `PromptsKey.shown` entscheidet beim Aufbau des Layouts
+  und kennt „Immer Inkognito“ nicht; `openPrompts` und `insertPrompt` prüfen beim Tipp mit
+  `editor.protection()` noch einmal. Keine der beiden Prüfungen streichen. Das Symbol soll auch dort
+  fehlen, wo das Fenster nie aufginge (gesperrt, Passwort, Zahlen-Layout, ohne Lernen).
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (662 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (673 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (6): agent-apk, agent-tests, build-debug-apk, build-test-auto, device-tests,
   docs-check
 - `/` (1): settings
-- `A/` (90): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (91): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand,
   ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand, CorrectionMemory,
@@ -5708,11 +5860,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   FormatGuardChips, GermanVerbLemmas, HapticChain, InformalWordsStore, JournaledModelCall,
   JournaledRun, KeyboardCommands, KeyboardProfileStore, LastField, LearningData, LoadingDotsView,
   LockState, ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData, MyDesigns,
-  OnDeviceSpeechEngine, PlaceCommand, RgbKeyPainter, RgbLighting, RgbOwnPatterns, RgbStrip,
-  RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand, SkillBindingStore,
-  SkillLabels, SliderFeel, SliderHaptics, SmartPasteChips, SpaceDetents, SpaceGestures,
-  SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary, ToolLauncher, TouchCalibration,
-  TouchModel, TypedWordFirst, TypingPerf, TypoMemory, WorkflowApprovalSummary,
+  OnDeviceSpeechEngine, PlaceCommand, PromptStore, RgbKeyPainter, RgbLighting, RgbOwnPatterns,
+  RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand,
+  SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SmartPasteChips, SpaceDetents,
+  SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary, ToolLauncher,
+  TouchCalibration, TouchModel, TypedWordFirst, TypingPerf, TypoMemory, WorkflowApprovalSummary,
   WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary,
   WorkflowStore
 - `A/charart/` (5): CharArtCanvas, CharArtImages, CharArtKey, CharArtKeys, CharArtView
@@ -5720,12 +5872,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   CommandAppSettings, CommandSystem, EmojiMixCommand, EmojiMixRecents, EmojiMixer, InstalledApps,
   LanguageCommand, QrCommand, ScreenReaderService, SensitiveClips, SnipCommand, SnippetStore,
   SubtypeChoice, TimerCommand, TranslateCommand, UrlCommand, WorkflowCommand
+- `A/prompts/` (2): PromptsKey, PromptsView
 - `A/providers/` (5): AnthropicProvider, CloudProviders, CloudTransport, GeminiProvider,
   OpenAiProvider
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (108): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (111): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, CharArtWindowTest, ClipCachesTest, ClipCommandTest, ClipVaultTest,
@@ -5739,17 +5892,18 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   KeyboardCommandsTest, KeyboardProfileStoreTest, LastFieldTest, LearningDataTest,
   LoadingDotsViewTest, LongTextBudgetTest, ManualWorkflowDraftTest, MemoryScreenTest,
   MoreCommandsTest, MoreProvidersTest, MyDataScreenTest, MyDataStoreTest, MyDesignsTest,
-  OpenAiProviderTest, RgbFrameRateCardTest, RgbLightingRenderTest, RgbPatternEditorTest,
-  RgbSettingsScreenTest, RgbTilesTest, ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest,
-  SettingsAreaAiTest, SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest,
-  SettingsKitTest, SettingsLookScreenTest, SettingsSearchTest, SettingsStartScreenTest,
-  SettingsSystemAreaTest, SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest,
-  SliderFeelTest, SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest,
-  StripRequestsTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest,
-  TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest, TypingPerfTest,
-  TypoMemoryTest, UpdateCheckTest, UpdateChipTest, UpdateOnOpenTest, UpdatePromptsTest,
-  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
-  WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
+  OpenAiProviderTest, PromptStoreTest, PromptsScreenTest, PromptsWindowTest, RgbFrameRateCardTest,
+  RgbLightingRenderTest, RgbPatternEditorTest, RgbSettingsScreenTest, RgbTilesTest,
+  ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest, SettingsAreaAiTest,
+  SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest, SettingsKitTest,
+  SettingsLookScreenTest, SettingsSearchTest, SettingsStartScreenTest, SettingsSystemAreaTest,
+  SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest,
+  SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest, StripRequestsTest,
+  SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest, TouchModelTest,
+  TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest, TypingPerfTest, TypoMemoryTest,
+  UpdateCheckTest, UpdateChipTest, UpdateOnOpenTest, UpdatePromptsTest, WorkflowBuilderContractTest,
+  WorkflowBuilderSettingsTest, WorkflowCommandTest, WorkflowConditionSummaryTest,
+  WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, LongCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
   TranslateCommandTest, UrlCommandTest
@@ -5810,17 +5964,18 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `K/settings/dialogs/` (2): ColorPickerDialog, SliderDialog
 - `K/settings/preferences/` (5): BackupRestorePreference, CustomFontPreference,
   KeyboardScalePreference, LoadGestureLibPreference, SliderPreference
-- `K/settings/screens/` (47): AboutScreen, AdvancedScreen, AgentAiScreen, AgentAreaAiScreen,
+- `K/settings/screens/` (48): AboutScreen, AdvancedScreen, AgentAiScreen, AgentAreaAiScreen,
   AgentAreaBarScreen, AgentAreaGesturesScreen, AgentAreaKeysScreen, AgentAreaLookScreen,
   AgentAreaScreen, AgentAreaSystemScreen, AgentAreaTypingScreen, AgentCommandsScreen,
   AgentDesignEditor, AgentDesignScreen, AgentDiagnoseScreen, AgentDictationScreen,
   AgentEmojiMixSection, AgentForcedAppsDialog, AgentLearningScreen, AgentMemoryScreen,
-  AgentMyDataScreen, AgentProfilesScreen, AgentRgbCurveEditor, AgentRgbFrameRate,
-  AgentRgbPatternEditor, AgentRgbScreen, AgentRunStatus, AgentScreenReaderSection,
-  AgentScreenshotScreen, AgentSearchEntries, AgentSettingsKit, AgentSkillsScreen, AgentSlider,
-  AgentSnippetsSection, AgentSpaceScreen, AgentStartScreen, AgentSymbolsScreen, AgentUpdatePrompts,
-  AgentUpdatesScreen, AgentWorkflowsScreen, AppearanceScreen, DictionaryScreen, GestureTypingScreen,
-  MainSettingsScreen, TextCorrectionScreen, WorkflowBuilderDialog, WorkflowDraftProtection
+  AgentMyDataScreen, AgentProfilesScreen, AgentPromptsScreen, AgentRgbCurveEditor,
+  AgentRgbFrameRate, AgentRgbPatternEditor, AgentRgbScreen, AgentRunStatus,
+  AgentScreenReaderSection, AgentScreenshotScreen, AgentSearchEntries, AgentSettingsKit,
+  AgentSkillsScreen, AgentSlider, AgentSnippetsSection, AgentSpaceScreen, AgentStartScreen,
+  AgentSymbolsScreen, AgentUpdatePrompts, AgentUpdatesScreen, AgentWorkflowsScreen,
+  AppearanceScreen, DictionaryScreen, GestureTypingScreen, MainSettingsScreen, TextCorrectionScreen,
+  WorkflowBuilderDialog, WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
 - `app/` (1): build.gradle
@@ -5835,13 +5990,13 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `app/src/main/assets/layouts/more_symbols/` (1): symbols_shifted_flat
 - `app/src/main/assets/layouts/symbols/` (1): symbols_flat
 - `app/src/main/res/drawable-v24/` (1): ic_launcher_background
-- `app/src/main/res/drawable/` (23): btn_keyboard_key_flat, btn_keyboard_key_flat_pill,
+- `app/src/main/res/drawable/` (24): btn_keyboard_key_flat, btn_keyboard_key_flat_pill,
   btn_keyboard_key_flat_rect, btn_keyboard_key_functional_flat, ic_agent_actions, ic_agent_dictate,
-  ic_agent_settings_updates, ic_launcher_foreground, ic_launcher_monochrome, ic_skill_1, ic_skill_2,
-  ic_skill_3, sym_keyboard_clipboard_flat, sym_keyboard_delete_flat, sym_keyboard_go_flat,
-  sym_keyboard_grid_flat, sym_keyboard_mic_flat, sym_keyboard_pen_flat, sym_keyboard_return_flat,
-  sym_keyboard_shift_flat, sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat,
-  sym_keyboard_smiley_flat
+  ic_agent_prompts, ic_agent_settings_updates, ic_launcher_foreground, ic_launcher_monochrome,
+  ic_skill_1, ic_skill_2, ic_skill_3, sym_keyboard_clipboard_flat, sym_keyboard_delete_flat,
+  sym_keyboard_go_flat, sym_keyboard_grid_flat, sym_keyboard_mic_flat, sym_keyboard_pen_flat,
+  sym_keyboard_return_flat, sym_keyboard_shift_flat, sym_keyboard_shift_lock_flat,
+  sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
 - `app/src/main/res/mipmap-anydpi-v26/` (2): ic_launcher, ic_launcher_round
 - `app/src/main/res/mipmap-hdpi/` (2): ic_launcher, ic_launcher_round
@@ -5849,27 +6004,27 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `app/src/main/res/mipmap-xhdpi/` (2): ic_launcher, ic_launcher_round
 - `app/src/main/res/mipmap-xxhdpi/` (2): ic_launcher, ic_launcher_round
 - `app/src/main/res/mipmap-xxxhdpi/` (2): ic_launcher, ic_launcher_round
-- `app/src/main/res/values-de/` (34): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
+- `app/src/main/res/values-de/` (35): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
   agent_charart_strings, agent_clipvault_strings, agent_command_system_strings,
   agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings, agent_format_strings,
   agent_gestures_strings, agent_hardening_strings, agent_language_strings, agent_memory_strings,
-  agent_name_strings, agent_rgb_pattern_strings, agent_rgb_strings, agent_settings_keys_strings,
-  agent_settings_look_strings, agent_settings_strings, agent_settings_system_strings,
-  agent_slider_strings, agent_smart_paste_strings, agent_snippet_strings, agent_space_strings,
-  agent_strings, agent_suggest_strings, agent_symbol_strings, agent_touch_strings,
-  agent_typing_strings, agent_update_prompt_strings, agent_update_strings, strings,
-  strings-talkback-descriptions
-- `app/src/main/res/values/` (42): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+  agent_name_strings, agent_prompt_strings, agent_rgb_pattern_strings, agent_rgb_strings,
+  agent_settings_keys_strings, agent_settings_look_strings, agent_settings_strings,
+  agent_settings_system_strings, agent_slider_strings, agent_smart_paste_strings,
+  agent_snippet_strings, agent_space_strings, agent_strings, agent_suggest_strings,
+  agent_symbol_strings, agent_touch_strings, agent_typing_strings, agent_update_prompt_strings,
+  agent_update_strings, strings, strings-talkback-descriptions
+- `app/src/main/res/values/` (44): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
   agent_bar_strings, agent_charart_ids, agent_charart_strings, agent_clipvault_strings,
   agent_command_system_strings, agent_design_strings, agent_diagnose_strings,
   agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_hardening_strings,
-  agent_ids, agent_language_strings, agent_memory_strings, agent_name_strings,
-  agent_rgb_pattern_strings, agent_rgb_strings, agent_search_strings, agent_settings_keys_strings,
-  agent_settings_look_strings, agent_settings_strings, agent_settings_system_strings,
-  agent_slider_strings, agent_smart_paste_strings, agent_snippet_strings, agent_space_strings,
-  agent_strings, agent_suggest_strings, agent_symbol_strings, agent_touch_strings,
-  agent_typing_strings, agent_update_prompt_strings, agent_update_strings, attrs, clip_provider,
-  donottranslate, gesture_data, strings, themes-flat
+  agent_ids, agent_language_strings, agent_memory_strings, agent_name_strings, agent_prompt_strings,
+  agent_prompts_ids, agent_rgb_pattern_strings, agent_rgb_strings, agent_search_strings,
+  agent_settings_keys_strings, agent_settings_look_strings, agent_settings_strings,
+  agent_settings_system_strings, agent_slider_strings, agent_smart_paste_strings,
+  agent_snippet_strings, agent_space_strings, agent_strings, agent_suggest_strings,
+  agent_symbol_strings, agent_touch_strings, agent_typing_strings, agent_update_prompt_strings,
+  agent_update_strings, attrs, clip_provider, donottranslate, gesture_data, strings, themes-flat
 - `app/src/main/res/xml/` (4): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path, spellchecker
 - `app/src/test/java/helium314/keyboard/` (2): KeyboardParserTest, Shadows

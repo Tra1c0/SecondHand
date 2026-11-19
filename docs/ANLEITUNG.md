@@ -876,6 +876,68 @@ Unicode-Stilen wie 𝓢𝓬𝓱𝓻𝓲𝓯𝓽 oder 𝗙𝗲𝘁𝘁. Alles pas
   liest TalkBack als „Stift in der Emoji-Taste: Zeichen-Kunst“). Beim Empfänger
   können ein sehr kleiner Bildschirm oder eine große Schrift die Zeilen umbrechen lassen.
 
+## Prompt-Ablage
+
+Deine eigene Ablage für Texte, die du oft in KI-Chats einfügst (Prompts). Sie bleibt, bis du einen
+Prompt löschst, und hat die Reihenfolge, die du wählst. Alles passiert auf dem Telefon, es wird nichts
+gesendet. Stand der Prüfung: nur mit automatischen Tests, auf keinem Gerät ausprobiert.
+
+- **Prompt anlegen** (Einstellungen): Einstellungen → Leiste & Befehle → „Prompt-Ablage“ (die Suche
+  findet sie auch). „Neuer Prompt“ öffnet eine Karte mit „Titel (optional)“ und „Prompt-Text“. Ohne Titel
+  zeigt die Liste die erste Zeile des Texts. „Aus Zwischenablage einfügen“ setzt den kopierten Text an die
+  Schreibmarke im Feld; die Zwischenablage wird nur auf diesen Tipp gelesen. Unter den Feldern steht, wie
+  viele Zeichen du hast (Titel höchstens 60, Text höchstens 8000). „Speichern“ legt den Prompt ganz oben
+  ab. Passt etwas nicht, wird es nicht gekürzt: Du bekommst einen Hinweis und der Prompt wird nicht
+  gespeichert.
+- **Prompt einfügen** (Tastatur): In einem Textfeld die Komma-Taste lange drücken und im Popup auf das
+  Symbol der Prompt-Ablage gleiten (neben dem Symbol der Zwischenablage), dann loslassen. Statt der Tasten
+  erscheint das Fenster „Prompt-Ablage“ mit deinen Prompts (Titel oder erste Zeile, darunter bis zu
+  zwei Zeilen Text). Ein Tipp auf eine Zeile fügt den gespeicherten Text einmal an der Schreibmarke ein und
+  schließt das Fenster. Er wird dabei nicht autokorrigiert und nicht gelernt. Steht im Feld etwas
+  markiert, ersetzt der Prompt es nicht: Es erscheint „Erst die Schreibmarke setzen: eine Markierung wird
+  nicht ersetzt.“ Setze die Schreibmarke und tippe noch einmal. „Schließen“ schließt das Fenster, ohne
+  etwas einzufügen; dasselbe tut Zurück.
+- **Kopiertes als Prompt speichern**: Kopiere in einer beliebigen App einen Text, öffne das Fenster und tippe
+  die erste Zeile „Kopiertes als Prompt speichern“. Der Text kommt als neuer erster Prompt (ohne Titel) in
+  die Liste: „Als erster Prompt gespeichert.“ Die Zwischenablage wird nur auf diesen Tipp gelesen, nicht
+  beim Öffnen. Mögliche Meldungen: „In der Zwischenablage ist kein Text.“; „Der kopierte Text ist zu lang
+  (höchstens 8000 Zeichen). Nichts gespeichert.“; „Schon gespeichert.“ (der oberste Prompt ist genau dieser
+  Text); „Die Prompt-Ablage ist voll (200 Prompts). Lösche zuerst einen.“; und „Der kopierte Text sieht nach
+  einem Geheimnis aus (Passwort, Schlüssel oder Code). Er wird nicht gespeichert.“ Diese Sperre folgt der
+  Regel des Zwischenablage-Verlaufs, ein Prompt läuft ja nie ab. Eine Nachricht, in der ein Einmalcode
+  steht, speichert die Tastatur auch dann nicht, wenn der Verlauf sie behielte (Annahme des Leads).
+- **Sortieren**: Auf der Seite „Prompt-Ablage“ gibt es „Sortieren“ (erst ab zwei Prompts). Im Dialog „Prompts
+  sortieren“ ziehst du die Zeilen in die gewünschte Reihenfolge und bestätigst. Diese Reihenfolge gilt dann
+  auch im Fenster der Tastatur. Sortieren geht nur auf der Seite, nicht im Fenster. Hat sich die Liste
+  inzwischen geändert, steht „Die Liste hat sich inzwischen geändert und wurde neu geladen; die
+  Reihenfolge wurde nicht gespeichert.“
+- **Bearbeiten und löschen**: Je Zeile gibt es „Bearbeiten“ (der Prompt behält seine Stelle) und „Löschen“.
+  Löschen fragt „Diesen Prompt löschen? Das lässt sich nicht rückgängig machen.“ Beim Bearbeiten und
+  Neuanlegen fragt Zurück oder „Abbrechen“ bei ungespeicherten Änderungen „Änderungen verwerfen?“ („Verwerfen“
+  oder „Weiter bearbeiten“); ohne Änderungen schließt es gleich.
+- **Verwalten**: Im Fenster der Tastatur öffnet „Verwalten“ die Seite „Prompt-Ablage“ (bei gesperrtem Gerät
+  nicht).
+- **Ablage zurücksetzen**: Nur wenn die Datei der Ablage sich nicht lesen lässt, zeigt die Seite „Die Prompts
+  sind gerade nicht les- oder speicherbar“ und dazu „Ablage zurücksetzen“. Nach der Rückfrage werden die
+  Datei und alle darin gespeicherten Prompts gelöscht; das lässt sich nicht rückgängig machen. Eine lesbare
+  Datei löscht die Tastatur nie. Ist nur das Gerät gesperrt, erscheint der Hinweis ohne diesen Knopf: Entsperre
+  das Telefon. Im Fenster steht bei unlesbarer Ablage „Die Prompt-Ablage lässt sich gerade nicht lesen. Öffne
+  Verwalten, um sie zurückzusetzen.“
+- **Wo es sie nicht gibt**: In Passwortfeldern, im Inkognito-Modus, in Feldern, die Lernen verbieten
+  (private Chats), in Zahlen-Layouts und bei gesperrtem Gerät fehlt das Symbol im Popup; wird das Fenster
+  dennoch erreicht (etwa weil das Telefon sperrte, während es offen war), erscheint „Die Prompt-Ablage gibt
+  es in diesem Feld nicht.“ und es wird nichts eingefügt. Hat sich das Feld geändert, steht „Das Feld hat sich
+  geändert. Nichts eingefügt.“; ein Prompt, den du inzwischen auf der Seite gelöscht hast: „Diesen Prompt
+  gibt es nicht mehr.“
+- **Wo die Prompts liegen und wie sie verloren gehen**: In einer Datei im geschützten Speicher der App, nur
+  auf dem Telefon und nur nach dem Entsperren lesbar. Sie bleiben über Neustarts und App-Updates erhalten.
+  Sie sind **nicht** in „Sichern und Wiederherstellen“ (Einstellungen → System & Daten) und gehen verloren,
+  wenn du die App deinstallierst oder ihre Daten löschst. Kopiere wichtige Prompts also zusätzlich
+  anderswohin. Grenzen: 200 Prompts, Titel 60, Text 8000 Zeichen, Datei höchstens 2 MiB (bei vielen
+  Emojis kann die Datei vor 200 Prompts voll sein: „Nicht genug Platz …“).
+- Ungeprüft: Langdruck auf die Komma-Taste und Aussehen des Popups am echten Gerät, das Fenster im
+  Querformat, auf Tablets und im flachen Stil, und die Geschwindigkeit mit sehr vielen langen Prompts.
+
 ## Symbole malen
 
 Statt Wörter zu wischen, malst du Sonderzeichen auf die Tastatur. Einschalten: Einstellungen →
