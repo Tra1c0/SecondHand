@@ -390,6 +390,31 @@ class SmartPasteChipsTest {
         assertTrue(stripChips(address).isEmpty())
     }
 
+    /** Device tests, run 21: with the history off (the default) the first tapped pill was the last. */
+    @Test fun aNewClipIsOfferedAgainAfterAPillWasTappedAlsoWithoutTheHistory() {
+        val parent = FrameLayout(latinIME)
+        latinIME.prefs().edit().putBoolean(AgentPreferences.SMART_PASTE, false).commit()
+        assertFalse(latinIME.prefs().getBoolean(Settings.PREF_ENABLE_CLIPBOARD_HISTORY, false), "history off")
+        val historyManager = ClipboardHistoryManager(latinIME).apply { onCreate() }
+        try {
+            copy("erster Text")
+            historyManager.onPrimaryClipChanged()
+            stampNow()
+            val first = assertNotNull(historyManager.getClipboardSuggestionView(textField, parent))
+            assertEquals("erster Text", first.findViewById<TextView>(R.id.clipboard_suggestion_text).text.toString())
+            first.performClick()
+            stampNow()
+            assertNull(historyManager.getClipboardSuggestionView(textField, parent), "the tapped clip is not offered again")
+            copy("zweiter Text")
+            historyManager.onPrimaryClipChanged()
+            stampNow()
+            val second = assertNotNull(historyManager.getClipboardSuggestionView(textField, parent), "a new clip is offered")
+            assertEquals("zweiter Text", second.findViewById<TextView>(R.id.clipboard_suggestion_text).text.toString())
+        } finally {
+            historyManager.onDestroy()
+        }
+    }
+
     @Test fun aSecretGetsNoPillAndAPasswordFieldNoChips() {
         val parent = FrameLayout(latinIME)
         val historyManager = ClipboardHistoryManager(latinIME).apply { onCreate() }

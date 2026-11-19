@@ -431,6 +431,68 @@ class Driver:
                     list(wanted), [n.text or n.desc for n in nodes][:12]))
             time.sleep(0.8)
 
+    def popup_of(self, char):
+        """Holds the key of the character and returns what its popup offers: description -> Node, read
+        while the finger is still down. The finger then lifts where it went down, which chooses the
+        popup's own first key (for the comma key: the clipboard, which does nothing while the history
+        is off). Use hold_and_choose to pick one."""
+        node = self.key_for(char)
+        if node is None:
+            raise CheckFailed("no key for %r on the keyboard; keys: %s" % (char, self.key_list()))
+        x, y = node.center
+        # "draganddrop" presses, waits for the long press and then moves: here by 2 px in 5 seconds
+        holder = subprocess.Popen(["adb", "shell", "input draganddrop %d %d %d %d 5000" % (x, y, x, y - 2)],
+                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            time.sleep(1.8)
+            screen = dump()
+        finally:
+            try:
+                holder.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                holder.kill()
+        time.sleep(0.8)
+        main = {(k.left, k.top, k.right, k.bottom) for k in self.keymap.values()}
+        popup = {}
+        for n in screen.nodes:
+            if n.package == KEYBOARD_PACKAGE and n.cls.endswith(".Key") and n.desc and n.visible \
+                    and n.desc not in self.keymap and (n.left, n.top, n.right, n.bottom) not in main:
+                popup.setdefault(n.desc, n)
+        return popup
+
+    def hold_and_choose(self, char, wanted):
+        """Holds the key of the character, slides to the popup key whose description contains one of
+        the wanted strings and lifts there. Returns the description chosen."""
+        popup = self.popup_of(char)
+        target = next((n for d, n in popup.items() if any(w.lower() in d.lower() for w in wanted)), None)
+        if target is None:
+            raise CheckFailed("the popup of %r offers none of %s but %s" % (char, list(wanted), sorted(popup)[:12]))
+        x, y = self.key_for(char).center
+        shell("input draganddrop %d %d %d %d 700" % (x, y, target.center[0], target.center[1]), timeout=40)
+        time.sleep(1.2)
+        self.notes.append("held %r and chose %r" % (char, target.desc))
+        return target.desc
+
+    def tap_keyboard_text(self, wanted, outside_strip=True):
+        """Taps the node of the keyboard (not a key) whose text or description contains the wanted string."""
+        deadline = time.time() + 8
+        while True:
+            screen = dump()
+            strip = screen.keyboard_node("suggestion_strip_view")
+            seen = []
+            for n in screen.nodes:
+                label = n.text or n.desc
+                if n.package != KEYBOARD_PACKAGE or not n.visible or not label or n.cls.endswith(".Key"):
+                    continue
+                seen.append(label)
+                if wanted.lower() in label.lower() and not (outside_strip and strip and strip.contains(*n.center)):
+                    tap(*n.center)
+                    time.sleep(1.0)
+                    return label
+            if time.time() > deadline:
+                raise CheckFailed("the keyboard shows no %r; it shows %s" % (wanted, seen[:14]))
+            time.sleep(0.8)
+
     def strip_until(self, condition, limit=6.0):
         """The words of the strip, read again until the condition holds or the time is over."""
         deadline = time.time() + limit
@@ -650,30 +712,54 @@ def clipboard_pill(d):
     d.expect_field("text", first)
 
 
-def clipboard_not_in_password(d):
-    """PARKED, not proven yet: a copied text is offered in a text field but not in a password field."""
+def clipboard_not_readable_in_password(d):
+    """A copied text is offered again after an earlier pill was tapped (fixed in stage 73: without the
+    history the first tapped pill used to be the last), and in a password field the strip never shows
+    the copied text in the clear (by design the pill there shows stars)."""
     first, second, third = CLIP_TEXTS
-    d.start("clipboard_not_in_password")
+    d.start("clipboard_not_readable_in_password")
     # A second, different text, then the password field: nothing may be offered there. (The keyboard
     # offers a copied text once; the same text again would be missing everywhere, run 21.)
     d.tap_id("copy_2")
     d.focus("password")
     time.sleep(2.5)
     offered = dump().strip_texts()
-    d.expect_equal("copied text offered in the password field (strip %s)" % offered[:6],
+    d.expect_equal("copied text readable in the password field (strip %s)" % offered[:6],
                    any(second in text for text in offered), False)
     d.expect_field("password", "")
     # And a third text for an empty text field: only if the pill comes there, its absence in the
     # password field says something about the password field.
-    d.start("clipboard_not_in_password")
-    d.tap_id("copy_3")
+    d.start("clipboard_not_readable_in_password")
+    if not d.control:  # control run: no third copy, the pill must be missing
+        d.tap_id("copy_3")
     d.focus("text")
     d.tap_in_strip((third,))
     d.expect_field("text", third)
 
 
+def prompt_store(d):
+    """The prompt store (stage 74) at its real entry: hold the comma key, slide to the store's key,
+    save the copied text as a prompt, tap the prompt: it is inserted. In a password field the popup
+    of the comma key does not offer the store."""
+    first, second, third = CLIP_TEXTS
+    d.start("prompt_store")
+    if not d.control:  # control run: nothing is copied, so nothing can be saved and inserted
+        d.tap_id("copy_2")
+    d.focus("text")
+    d.hold_and_choose(",", ("Prompt",))
+    d.tap_keyboard_text("Kopiertes als Prompt speichern")
+    d.tap_keyboard_text(second)  # the new row shows the first line of its text
+    d.expect_field("text", second)
+    # the counter-check: the same popup in a password field
+    d.focus("password")
+    offered = sorted(d.popup_of(","))
+    d.expect_equal("the store's key in the popup of a password field (popup %s)" % offered[:8],
+                   any("prompt" in name.lower() for name in offered), False)
+    d.expect_field("password", "")
+
+
 def learning_not_in_password(d):
-    """PARKED, not proven yet. With "Personalisierte Vorschläge" on, a new word chosen three times is offered afterwards; a
+    """With "Personalisierte Vorschläge" on, a new word chosen three times is offered afterwards; a
     word typed into a password field is never offered."""
     _open_settings_and_switch_on(d, ("Tippen & Korrektur", "Alle Korrektur-Einstellungen"),
                                  "Personalisierte Vorschläge")
@@ -790,12 +876,9 @@ def language_switch(d):
 
 SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete_key, typing_password, typing_email, typing_number,
              capital_after_period, autocorrect_works, autocorrect_typo, autocorrect_typo_in_sentence,
-             autocorrect_noun, slang_stays, emoji_suggestion, language_switch, clipboard_pill]
+             autocorrect_noun, slang_stays, emoji_suggestion, language_switch, clipboard_pill,
+             clipboard_not_readable_in_password, learning_not_in_password, prompt_store]
 
-# Written but never seen green in the emulator (runs 20 to 22), and set aside when the owner asked to
-# save budget on 2026-11-19. They are NOT run and prove nothing. To take one up again: put it into
-# SCENARIOS, read its RESULT line of a run, and give it a control run.
-PARKED = [clipboard_not_in_password, learning_not_in_password]
 
 # Scenarios that fail because the keyboard does not do what was expected of it, found by these tests
 # and reported to the owner. They stay in the list above and keep running; their failure is shown as

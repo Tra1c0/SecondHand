@@ -158,8 +158,11 @@ class ClipboardHistoryManager(
         // Make sure we read clipboard content only if history settings is set
         if (latinIME.mSettings.current.mClipboardHistoryEnabled) {
             fetchPrimaryClip()
-            dontShowCurrentSuggestion = false
         }
+        // Fork (stage 73, found by the device tests): a new clip may be suggested again, with or
+        // without the history. Inside the "if" (as upstream has it) the first tapped or closed pill
+        // was the last one until the keyboard restarted, for everyone who keeps the history off.
+        dontShowCurrentSuggestion = false
     }
 
     // todo for later
