@@ -5674,9 +5674,10 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Touch-Feld ist das selten. Wörter mit Wiederholung in der Mitte („Schifffahrt“, „Kaffeeernte“) sind nicht betroffen: nur der Wortschluss zählt.
 - **P294** Gerätetests (73): Die Tasten sind nur dann einzelne Bedienungshilfen-Knoten, wenn beim
   Aufbau der Tastatur (`MainKeyboardView.setKeyboard`) ein Bedienungshilfen-Dienst aktiv ist (`AccessibilityManager.isEnabled`).
-  `uiautomator dump --windows` zeigte sie auch mit aktivem Dienst nicht (GitHub-Läufe 2 und 4: Fenster und Leiste der Tastatur ja,
-  keine Taste; vermutet, nicht belegt: `uiautomator` hält andere Dienste an, solange es verbunden ist). Darum liest der
-  `ProbeAccessibilityService` der Test-App die Fenster selbst aus. Er fordert kein
+  Nie `am force-stop` auf die Test-App: Android beendet und deaktiviert damit auch ihren Dienst (GitHub-Lauf 5: „probe is not
+  connected“; in den Läufen 2 und 4 fehlten deshalb die Tasten im `uiautomator`-Dump, das Skript stoppte die App vor jedem
+  Szenario). Ob `uiautomator dump --windows` die Tasten bei laufendem Dienst zeigen würde, ist nicht geprüft; der
+  `ProbeAccessibilityService` der Test-App liest die Fenster selbst aus. Er fordert kein
   „Tippen zum Erkunden“ an: Alles, was das Tippen ändert, hängt an `isTouchExplorationEnabled`. In Passwortfeldern heißen
   alle Zeichentasten „Aufzählungspunkt“, solange `settings put secure speak_password 1` nicht gesetzt ist
   (`AccessibilityUtils.shouldObscureInput`). Eine Trenntaste (Leertaste, Punkt) heißt bei anstehender Autokorrektur

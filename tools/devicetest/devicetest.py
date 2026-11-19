@@ -212,8 +212,10 @@ class Driver:
         self.keymap = {}
         self.checks = 0
         self.notes = []
-        shell("am force-stop " + TEST_PACKAGE)
-        shell("am start -W -n %s/.MainActivity --es scenario %s" % (TEST_PACKAGE, name), timeout=60)
+        # A new activity in a cleared task, not "am force-stop": stopping the package would also stop
+        # and disable its accessibility service, and the keyboard would hide its keys again.
+        shell("am start -W --activity-clear-task --activity-new-task -n %s/.MainActivity --es scenario %s"
+              % (TEST_PACKAGE, name), timeout=60)
         self.wait(lambda screen: screen.by_id("field_text") is not None, "the test app with its fields")
 
     def wait(self, condition, what, limit=20.0):
