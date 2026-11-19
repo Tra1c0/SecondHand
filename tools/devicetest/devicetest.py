@@ -1071,6 +1071,9 @@ def _window_rows(screen):
             if n.package == KEYBOARD_PACKAGE and n.visible and n.desc.startswith(ROW_PREFIX)]
 
 
+SCAN_TRACE = []  # diagnostics: what each swipe of the row scan did (shown when a later tap fails)
+
+
 def _swipe_list(screen, up):
     """Scrolls the window's list by one swipe (the window shows only two or three rows)."""
     save = _find_labeled(screen, ("Kopiertes als Prompt speichern",))
@@ -1081,6 +1084,8 @@ def _swipe_list(screen, up):
     top = save.bottom + 8
     start, end = (low - 6, top) if up else (top, low - 6)
     shell("input swipe %d %d %d %d 400" % (x, start, x, end), check=False)
+    SCAN_TRACE.append("%s %d>%d(save %s rows %s)" % ("up" if up else "dn", start, end, save.box,
+                                                      [n.box for n in rows][:3]))
     time.sleep(0.8)
 
 
@@ -1192,7 +1197,13 @@ def prompt_folders(d):
     in_folder = _rows_until(lambda rows: second in rows)
     d.expect_equal("rows under the folder chip after saving (before: %s)" % before, sorted(set(in_folder) - set(before)),
                    [second])
-    _tap_labeled((ROW_PREFIX + second,), "the new row")
+    try:
+        _tap_labeled((ROW_PREFIX + second,), "the new row")
+    except CheckFailed as error:
+        late = dump()
+        raise CheckFailed("%s | field text %r | window save row %s | scan %s" % (
+            str(error)[:200], d.field("text"), _find_labeled(late, ("Kopiertes als Prompt speichern",)) is not None,
+            "; ".join(SCAN_TRACE[-6:])[:420]))
     d.expect_field("text", second)
 
     # (3) the filter: a second prompt without folder, saved under "Alle"
