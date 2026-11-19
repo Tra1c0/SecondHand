@@ -547,6 +547,19 @@ def keyboard_is_secondhand(d):
     d.expect_field("text", "A")
 
 
+def key_positions_reported(d):
+    """The keyboard tells accessibility services where its keys are, and that is where they are drawn
+    (a screen reader taps there). Before the fix of stage 73 they were reported up to a whole screen
+    too high in some starts."""
+    d.start("key_positions_reported")
+    screen = d.focus("text")
+    dx, dy = screen.shift
+    d.expect_equal("keys reported where they are drawn (off by %d, %d px)" % (dx, dy),
+                   abs(dx) <= 12 and abs(dy) <= 12, True)
+    d.type("a")
+    d.expect_field("text", "A")
+
+
 def typing_text(d):
     """Typing in a normal text field; the first letter of the sentence is capitalised by the keyboard."""
     d.start("typing_text")
@@ -775,7 +788,7 @@ def language_switch(d):
     d.expect_equal("German layout again (has the key ü)", "ü" in d.keymap or "Ü" in d.keymap, True)
 
 
-SCENARIOS = [keyboard_is_secondhand, typing_text, delete_key, typing_password, typing_email, typing_number,
+SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete_key, typing_password, typing_email, typing_number,
              capital_after_period, autocorrect_works, autocorrect_typo, autocorrect_typo_in_sentence,
              autocorrect_noun, slang_stays, emoji_suggestion, language_switch, clipboard_pill]
 

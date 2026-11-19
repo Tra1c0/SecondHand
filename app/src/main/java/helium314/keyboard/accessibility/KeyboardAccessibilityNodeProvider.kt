@@ -181,6 +181,11 @@ class KeyboardAccessibilityNodeProvider<KV : KeyboardView>(
         }
         val keyDescription = getKeyDescription(key)
         val boundsInParent = key.hitBox
+        // Fork (stage 73): the view's place on the screen is read for every key, not only when the root
+        // node is built. The root is also built before the keyboard window has its final place; the
+        // keys then stayed where the view had been (device tests, runs 8 and 9: at the top of the screen
+        // or one status bar too high), which sends a screen reader's taps to the wrong place.
+        updateParentLocation()
         // Calculate the key's in-screen bounds.
         mTempBoundsInScreen.set(boundsInParent)
         mTempBoundsInScreen.offset(CoordinateUtils.x(mParentLocation), CoordinateUtils.y(mParentLocation))
