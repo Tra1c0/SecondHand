@@ -982,7 +982,7 @@ public class LatinIME extends InputMethodService implements
 
     private void onStartInputInternal(EditorInfo editorInfo, boolean restarting) {
         super.onStartInput(editorInfo, restarting);
-        mInlineAutofillGeneration.open(); // fork, stage 79: answers to an earlier input are stale
+        mInlineAutofillGeneration.open(); // fork, stage 79: re-opens after a finish; a restart leaves the response in flight alone
 
         // fork, stage 24g fix (P66): a language command's choice survives the app restarting the same field
         if (helium314.keyboard.agent.commands.SubtypeChoice.holds(editorInfo, mRichImm.getCurrentSubtype().getRawSubtype(), () -> mSubtypeState.getSubtypeForLocales(
@@ -1476,7 +1476,7 @@ public class LatinIME extends InputMethodService implements
             return null;
         }
 
-        mInlineAutofillGeneration.open(); // fork, stage 79: a new request, responses to older ones are stale
+        mInlineAutofillGeneration.open(); // fork, stage 79: only re-opens a closed generation (a second request must not drop chips in flight)
         // fork, stage 79: the chips may be as wide as the strip really is (0 while it is not laid out yet)
         return InlineAutofillUtils.createInlineSuggestionRequest(mDisplayContext,
                 hasSuggestionStripView() ? mSuggestionStripView.getWidth() : 0);

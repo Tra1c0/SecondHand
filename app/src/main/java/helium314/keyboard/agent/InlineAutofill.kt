@@ -71,15 +71,21 @@ class InlineAutofillSlots(private val count: Int) {
 
 /**
  * Stage 79 (W-c): which inline autofill response and which late inflation callback still belong to what the
- * keyboard shows. Every response gets a token; a new response, a new input, a finished input or the user closing
- * the chips makes older tokens stale, and a stale callback adds nothing. Main thread only.
+ * keyboard shows. Every response gets a token; a newer response, a finished input or the user closing the chips
+ * makes older tokens stale, and a stale callback adds nothing. A (re)start of the input or a new request does not:
+ * it only re-opens a closed generation. Main thread only.
  */
 class InlineAutofillGeneration {
     private var generation = 0
     private var open = false
 
-    /** An input started or the system asked for a new request: responses are accepted, older ones are stale. */
+    /**
+     * An input started or the system asked for a new request: responses are accepted again. Only re-opens a closed
+     * generation; while open it changes nothing, because a restart or a second request for the same field must not
+     * make the chips of the response being inflated stale (device finding of stage 79: two of three chips).
+     */
     fun open() {
+        if (open) return
         generation++
         open = true
     }

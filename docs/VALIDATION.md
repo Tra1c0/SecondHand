@@ -97,6 +97,18 @@ Emulator oder sonst irgendwo ausgeführt. Alles unten ist aus den Dateien gelese
   bisherigen Prüfungen und der Kontrolllauf sind unverändert. Die Test-App kompiliert (`./gradlew -p tools/devicetest :app:assembleDebug`), das Skript besteht `py_compile`.
   Ungeprüft: ob die Titel-Knoten im Emulator lesbar und eindeutig dem Streifen zugeordnet sind, ob der Dienst drei Datensätze mit den drei Spezifikationen so ausliefert,
   und ob der Tipp auf den linken Chip weiter trifft.
+- **Gerätelauf und Korrektur (Stand 1972217, drei Emulatoren, Android 14):** Auf zwei Emulatoren bestand `autofill_inline` mit allen drei Titeln in
+  der Reihenfolge; ein Emulator scheiterte zweimal (beim ersten Versuch liefen die Szenarien dort gar nicht an) mit „… got ['Test 73c', 'Test 73c-2']“
+  nach den 12 s: ein Chip kam nie. Ursache (aus dem Code geschlossen, nicht am Gerät gesehen): `InlineAutofillGeneration.open()` erhöhte die Generation;
+  ein zweiter `onCreateInlineSuggestionsRequest` oder ein `onStartInputInternal` (Neustart derselben Eingabe) zwischen Antwort und letztem Rückruf machte die Rückrufe
+  der noch gültigen Antwort ungültig, und ohne neue Antwort blieb eine halbe Reihe stehen. Welcher der beiden Wege es auf dem langsamen Emulator war, ist nicht belegt; beide sind behoben. Vor Etappe 79 wäre der
+  späte Chip einfach hinzugekommen (Regression durch die Generationslogik, vom Prüfer als gering vorhergesagt). Regel jetzt: Die Generation ändert sich nur bei einer neuen nicht
+  leeren Antwort, `close()` und `invalidate()`; `open()` öffnet nur eine geschlossene Generation. Neue Tests `aRestartOfTheSameInputKeepsTheResponseInFlightCurrent`,
+  `aSecondRequestForTheSameFieldKeepsTheResponseInFlightCurrent`, `lateCallbacksOfAValidResponseStillAddTheirChipsAfterARestart` (rot mit der alten Fassung: 3 von 12 fehlgeschlagen, XML gelesen; jetzt
+  `InlineAutofillGenerationTest` 12/12, Sizing 10/10, Slots 9/9). Geändert, weil sie die falsche Regel festschrieben: `aFieldThatStartsWithoutAFinishInBetweenAlsoMakesOldCallbacksStale` und
+  `aNewRequestMakesTheOldResponseStale` (ersetzt durch die ersten beiden neuen Tests; „ein Feld nach einem Ende macht alte Rückrufe ungültig“ steht weiter als `aFieldThatStartsAfterAFinishMakesOldCallbacksStale`).
+  Das Szenario schreibt jetzt je Abfrage mit, wie viele Titel sichtbar waren („1@0.8s 2@1.6s 2@12s“), damit ein langsamer dritter Chip von einem fehlenden unterscheidbar ist; die Prüfung und die 12 s sind unverändert.
+  Der Gerätelauf mit der Korrektur steht aus.
 - **Nicht geprüft:** echte Passwortmanager, ein echtes Telefon, Drehen mit offenen Chips (ob das System dann eine neue Anfrage stellt), das Verhalten
   der Plattform bei einer Antwort zwischen Ende und Start der Eingabe, die echte Freigabe der Oberflächen, Aussehen der breiteren Chips (Tablet, Querformat), die Verdrahtung in
   `LatinIME`/`createView` selbst (nur die Entscheidungslogik ist getestet; `InlineSuggestion` lässt sich ohne Plattform nicht erzeugen).

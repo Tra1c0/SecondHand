@@ -1014,16 +1014,19 @@ def autofill_inline(d):
 
         # Stage 79: the service offers three datasets in a fixed order; the chips are inflated one by one and may
         # finish in any order, but the strip must show them left to right in the service's order.
-        titles, title_deadline = [], time.time() + 12
+        titles, title_start = [], time.time()
+        title_deadline, trace = title_start + 12, []
         while True:
             screen = dump()
             strip, now = _strip_signature(screen)
             titles = _chip_titles(screen, strip)
+            trace.append("%d@%.1fs" % (len(titles), time.time() - title_start))  # a slow third chip vs. a missing one
             if len(titles) >= len(AUTOFILL_CHIP_TITLES) or time.time() > title_deadline:
                 break
             time.sleep(1.0)
-        log("INFO autofill chip titles left to right: %s" % titles)
-        d.expect_equal("order of the three inline autofill chips, left to right (%s)" % report[:200], titles, AUTOFILL_CHIP_TITLES)
+        log("INFO autofill chip titles left to right: %s; visible titles per poll: %s" % (titles, " ".join(trace)))
+        d.expect_equal("order of the three inline autofill chips, left to right (polls: %s; %s)" % (" ".join(trace)[-120:], report[:150]),
+                       titles, AUTOFILL_CHIP_TITLES)
 
         # Where to tap: the chip view itself if it is a node, a node that reads the chip's title, or the
         # left end of the chip row (the chip is at least 100 px wide and starts at the row's left edge).

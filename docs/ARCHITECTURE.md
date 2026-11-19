@@ -826,7 +826,7 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
   aus `A/InlineAutofillSizing` (Leistenbreite oder Anzeigebreite, sonst feste dp; die Mindestbreite skaliert mit der
   Dichte; weiter drei gleiche `InlinePresentationSpec`). `createView(…, BooleanSupplier isCurrent)` setzt jedes
   fertige Chip-Bild über `A/InlineAutofillSlots` an die Stelle seines Index und prüft vorher `isCurrent`.
-  `LatinIME` hält eine `A/InlineAutofillGeneration`: `open()` in `onCreateInlineSuggestionsRequest` und am Anfang von
+  `LatinIME` hält eine `A/InlineAutofillGeneration`: `open()` (nur Wiederöffnen) in `onCreateInlineSuggestionsRequest` und am Anfang von
   `onStartInputInternal`, `close()` in `onFinishInputInternal`, `invalidate()` in `removeExternalSuggestions`,
   `beginResponse()` je nicht leerer Antwort; ohne aktive Eingabe oder ohne Leiste liefert
   `onInlineSuggestionsResponse` `false`. Tests: `AT/InlineAutofillSizingTest.kt`, `AT/InlineAutofillSlotsTest.kt`,
@@ -6120,9 +6120,11 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - **P319** Autofill-Chips, Reihenfolge und veraltete Antworten (79): Die Chips werden einzeln aufgeblasen; `InlineAutofillSlots.onResult(index, hasView)` gibt die
   Einfügestelle (Zahl der schon eingesetzten Chips mit kleinerem Index) oder -1 (Fehlschlag `view == null`, unbekannter oder doppelter Index). Bewusst
   kein Warten auf alle und kein Zeitlimit: Ein Chip, der nie zurückgerufen wird, hält die anderen nicht auf; kommt er spät, rutscht er an seine Stelle
-  (die Chips dahinter verschieben sich dann). `InlineAutofillGeneration` macht Tokens ungültig bei neuer Anfrage, Start und Ende der Eingabe, neuer Antwort und
-  Schließen durch den Nutzer. Folge: Ein Rückruf eines Fensters, das schon durch Wörter ersetzt wurde (`setNeutralSuggestionStrip`), fügt weiter in
-  einen losgelösten Container ein (harmlos, ohne Wirkung). `onFinishInputInternal` schließt, `onStartInputInternal` und die Anfrage öffnen; die
+  (die Chips dahinter verschieben sich dann). `InlineAutofillGeneration` macht Tokens nur ungültig bei einer neuen nicht leeren Antwort, beim Ende der Eingabe (`close`) und beim
+  Schließen durch den Nutzer (`invalidate`); `open()` öffnet nur eine geschlossene Generation und ändert sonst nichts, denn ein Neustart
+  derselben Eingabe oder eine zweite Anfrage für dasselbe Feld darf die Chips der laufenden Antwort nicht verwerfen (Gerätelauf: zwei von drei Chips,
+  danach korrigiert; die erste Fassung bumpte in `open()`). Folge: Ein Rückruf eines Fensters, das schon durch Wörter ersetzt wurde (`setNeutralSuggestionStrip`), fügt weiter in
+  einen losgelösten Container ein (harmlos, ohne Wirkung). `onFinishInputInternal` schließt, `onStartInputInternal` und die Anfrage öffnen nur wieder; die
   verzögerten Rückrufe nach dem Drehen (`executePendingImsCallback`) führen beide aus, am Ende ist wieder geöffnet. Fällt `open()` aus, würde
   Autofill still nichts mehr zeigen; darum öffnet auch die Anfrage. Eine Antwort ohne aktive Eingabe liefert `false`.
 - **P320** Autofill-Chips, Freigabe und Datenschutz (79): `InlineContentView` (Android 11+) hat in der öffentlichen Schnittstelle keine Freigabe-Methode (`javap` auf

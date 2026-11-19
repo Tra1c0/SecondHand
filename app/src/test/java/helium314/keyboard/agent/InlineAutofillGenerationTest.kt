@@ -49,17 +49,45 @@ class InlineAutofillGenerationTest {
         assertFalse(g.isCurrent(old))
     }
 
-    @Test fun aFieldThatStartsWithoutAFinishInBetweenAlsoMakesOldCallbacksStale() {
+    // Changed after the device run of stage 79 (two of three chips): open() used to make the response in flight stale.
+    @Test fun aRestartOfTheSameInputKeepsTheResponseInFlightCurrent() {
         val g = started()
-        val old = g.beginResponse()
-        g.open()
-        assertFalse(g.isCurrent(old))
+        val token = g.beginResponse()
+        g.open() // onStartInputInternal(restarting = true), no finish in between
+        assertTrue(g.isCurrent(token))
     }
 
-    @Test fun aNewRequestMakesTheOldResponseStale() {
+    @Test fun aSecondRequestForTheSameFieldKeepsTheResponseInFlightCurrent() {
+        val g = started()
+        val token = g.beginResponse()
+        g.open() // onCreateInlineSuggestionsRequest again
+        g.open()
+        assertTrue(g.isCurrent(token))
+        assertTrue(g.isCurrent(g.beginResponse()))
+    }
+
+    @Test fun lateCallbacksOfAValidResponseStillAddTheirChipsAfterARestart() {
+        val g = started()
+        val slots = InlineAutofillSlots(3)
+        val token = g.beginResponse()
+        val row = ArrayList<Int>()
+        fun callback(index: Int) {
+            if (!g.isCurrent(token)) return
+            val position = slots.onResult(index, true)
+            if (position >= 0) row.add(position, index)
+        }
+        callback(0)
+        g.open() // restart or second request while the others are still being inflated
+        callback(2)
+        callback(1)
+        assertEquals(listOf(0, 1, 2), row)
+    }
+
+    @Test fun aFieldThatStartsAfterAFinishMakesOldCallbacksStale() {
         val g = started()
         val old = g.beginResponse()
-        g.open() // onCreateInlineSuggestionsRequest
+        g.close()
+        g.open()
         assertFalse(g.isCurrent(old))
     }
 
