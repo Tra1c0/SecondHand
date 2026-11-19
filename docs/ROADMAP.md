@@ -836,6 +836,11 @@ offen, gebaut wird erst nach einer Entscheidung zu den offenen Fragen.
   ohne proprietären Code. Noch festzulegen beim Bau: die lokale Schnittstelle (nur für die eigene Signatur
   erreichbar, kein offener Netzwerk-Port), und dass die Regeln der Tastatur weiter gelten (Aufruf nur auf Tipp,
   Übernahme mit eigenem Klick, nichts loggen). Gebaut wird erst nach der Recherche des Owners zu Tempo und Energie.
+  Modellwahl (Owner, 2026-11-20): ein **fertig abliteriertes Modell mit 4 Mrd. Parametern** als GGUF in 4-Bit
+  (Kandidat: Qwen3-4B abliteriert; Qwen 3.8 gibt es laut Websuche offen nur mit 27B). Grund des Owners: Das
+  Werkzeug soll ohne Ablehnungen und angehängte Klauseln redigieren. Die Modelldatei bleibt austauschbar.
+  Vor dem Bau zu prüfen: genaue Quelle und Prüfsumme der Datei, Lizenz des Modells, ob GenieX sie im
+  Hybrid-Modus annimmt.
 - **W3 Alle Google-Funktionen.** Wortlaut des Owners: „alle Google features“. Deutung des Leads: der
   Funktionsumfang der Google-Tastatur und der KI-Funktionen von Google, soweit eine fremde Tastatur sie nutzen
   oder nachbauen kann. Erster Schritt ist eine Liste: je Funktion „schon vorhanden“, „nachbaubar (lokal oder
