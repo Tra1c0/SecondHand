@@ -813,6 +813,16 @@ offen, gebaut wird erst nach einer Entscheidung zu den offenen Fragen.
   nicht verifiziert (die Geräteliste auf developers.google.com war aus der Arbeitsumgebung nicht erreichbar). Die Regeln bleiben: jede Übernahme braucht einen eigenen Klick, lokale Werkzeuge werden als
   lokal gekennzeichnet, sensible Felder und Sperrzustand gelten auch hier. Braucht einen Eintrag in
   `docs/PROVIDERS.md`. (M bis L)
+  **Geparkt (Owner, 2026-11-20):** Etappe 78a „AICore-Diagnose“ ist gebaut und getestet, aber nicht eingemischt
+  und von keinem Prüfer gelesen. Sie liegt als Patch-Serie (7 Commits auf 2301f2d) in
+  `docs/geparkt/78a-aicore-diagnose.patch` (einspielen mit `git am`). Befund der Machbarkeitsprüfung an den
+  Bibliotheken selbst: Googles eigenständiger Client `com.google.ai.edge.aicore:aicore:0.0.1-exp02`
+  (experimentell, proprietäre AICore-Bedingungen, minSdk 31) bindet die System-App AICore direkt, ohne Play
+  services zur Laufzeit und ohne Telemetrie-Bausteine; ML Kit GenAI bringt dagegen einen Autostart-Provider und
+  Telemetrie (datatransport) mit und wurde verworfen. Der Client kennt keine Statusabfrage; ein Test kann einen
+  Modell-Download durch AICore auslösen. Kosten: etwa 1 MB, eine Berechtigung und ein `<queries>`-Eintrag in
+  jeder Installation. Nichts davon lief auf einem Gerät. Grund fürs Parken: Der Owner will lieber sein eigenes
+  Modell auf dem KI-Chip (W4) und ungern Google-Code in der Tastatur.
 - **W4 Eigenes lokales Modell (ohne Google).** Idee des Owners vom 2026-11-20: statt oder neben AICore ein offenes
   Sprachmodell (z. B. von Hugging Face) auf dem Gerät, als weiterer lokaler Provider. Angehalten, bis der Owner
   seine eigene Recherche zu Tempo, Energieverbrauch und vergleichbaren Projekten abgeschlossen hat („Schnelligkeit
