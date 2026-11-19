@@ -799,6 +799,11 @@ offen, gebaut wird erst nach einer Entscheidung zu den offenen Fragen.
   (a) Passwortmanager: Autofill-Vorschläge in der Leiste zuverlässig machen (die in 73c gemeldeten Schwächen:
   feste Breite, Reihenfolge, Freigabe der Ansichten, verspätete Antworten) und mit Tresor und Zwischenablage
   abstimmen; ein eigener Passwortspeicher ist nicht gemeint, solange der Owner ihn nicht verlangt.
+  **Etappe 79 liefert den ersten Teil** (nur lokal, nicht gepusht): Breite aus der echten Leiste und der Dichte, Chips in der Reihenfolge
+  des Dienstes, veraltete Antworten und Rückrufe ignoriert; eine Freigabe-Methode für die Ansichten gibt es in der
+  Plattform-Schnittstelle nicht (P320), die Ansichten werden nur losgelöst. Chips in Passwortfeldern und im Inkognito-Modus
+  sind gewollt und dokumentiert. Offen in (a): ein Lauf des Szenarios `autofill_inline` mit drei Chips, echte
+  Passwortmanager und ein echtes Telefon, die Abstimmung mit Tresor und Zwischenablage.
   (b) Lernende Eingabe: bessere Wortvorhersage und Korrektur aus dem eigenen Tippen, auf dem Gerät, opt-in.
   (c) KI auf dem Gerät: siehe W2.
   (d) Übergänge zwischen den vorhandenen Teilen: z. B. Kopiertes → Ablage → KI-Aktion → Einfügen ohne

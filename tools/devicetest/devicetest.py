@@ -38,6 +38,9 @@ TEST_PACKAGE = "dev.personal.secondhand.devicetest"
 PROBE_SERVICE = TEST_PACKAGE + "/" + TEST_PACKAGE + ".ProbeAccessibilityService"
 AUTOFILL_SERVICE = TEST_PACKAGE + "/" + TEST_PACKAGE + ".FakeAutofillService"  # stage 73c, test app only
 FAKE_USER, FAKE_PASSWORD = "testnutzer@example.invalid", "Testpasswort-73c"  # what FakeAutofillService offers
+# stage 79: the titles of the three datasets of FakeAutofillService, in the order the service ranks them
+AUTOFILL_CHIP_TITLES = ["Test 73c", "Test 73c-2", "Test 73c-3"]
+AUTOFILL_TITLE_ID = "autofill_inline_suggestion_title"
 DUMP_URI = "content://" + TEST_PACKAGE + ".dump/now"
 PROBE_LABEL = "SH Device Test"  # android:label of the test app, as "dumpsys accessibility" names a bound service
 # The system languages of the emulator. The keyboard enables one layout per system language on its
@@ -947,6 +950,23 @@ def _strip_report(strip, found):
         for (c, i, t), n in found.items())[:700] or "no node")
 
 
+def _chip_titles(screen, strip):
+    """Stage 79: the titles of the inline autofill chips in the strip, left to right (by the title nodes' position)."""
+    if strip is None:
+        return []
+    titles = [n for n in screen.nodes if n.visible and n.rid.rsplit("/", 1)[-1] == AUTOFILL_TITLE_ID
+              and (n.text or n.desc) and strip.contains(*n.center)]
+    return [n.text or n.desc for n in sorted(titles, key=lambda n: n.center[0])]
+
+
+def _leftmost_chip_view(screen, strip):
+    """Stage 79: the left-most inline chip view in the strip (the signature of the strip keeps only one of equal nodes)."""
+    if strip is None:
+        return None
+    views = [n for n in screen.nodes if n.visible and "InlineContentView" in n.cls and n.area > 0 and strip.contains(*n.center)]
+    return min(views, key=lambda n: n.left) if views else None
+
+
 def _autofill_state():
     """Short facts about the system's autofill for a failed run (the lead only sees RESULT lines)."""
     service = shell("settings get secure autofill_service", check=False)
@@ -992,16 +1012,28 @@ def autofill_inline(d):
         log("INFO autofill state: " + _autofill_state())
         d.notes.append("new in the strip: %s" % sorted(appeared)[:8])
 
+        # Stage 79: the service offers three datasets in a fixed order; the chips are inflated one by one and may
+        # finish in any order, but the strip must show them left to right in the service's order.
+        titles, title_deadline = [], time.time() + 12
+        while True:
+            screen = dump()
+            strip, now = _strip_signature(screen)
+            titles = _chip_titles(screen, strip)
+            if len(titles) >= len(AUTOFILL_CHIP_TITLES) or time.time() > title_deadline:
+                break
+            time.sleep(1.0)
+        log("INFO autofill chip titles left to right: %s" % titles)
+        d.expect_equal("order of the three inline autofill chips, left to right (%s)" % report[:200], titles, AUTOFILL_CHIP_TITLES)
+
         # Where to tap: the chip view itself if it is a node, a node that reads the chip's title, or the
         # left end of the chip row (the chip is at least 100 px wide and starts at the row's left edge).
         target, how = None, ""
-        for key, node in appeared.items():
-            if "InlineContentView" in key[0] and node.area > 0:
-                target, how = node.center, "chip view " + node.box
-                break
+        first_chip = _leftmost_chip_view(screen, strip)  # stage 79: with three chips, tap the first one
+        if first_chip is not None:
+            target, how = first_chip.center, "left-most chip view " + first_chip.box
         if target is None:
             for key, node in appeared.items():
-                if "Test 73c" in key[2]:
+                if key[2] == AUTOFILL_CHIP_TITLES[0]:
                     target, how = node.center, "chip text " + node.box
                     break
         if target is None:

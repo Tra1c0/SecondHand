@@ -41,7 +41,10 @@ import androidx.autofill.inline.v1.InlineSuggestionUi.Style;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 
+import helium314.keyboard.agent.InlineAutofillSizing;
+import helium314.keyboard.agent.InlineAutofillSlots;
 import helium314.keyboard.latin.R;
 import helium314.keyboard.latin.common.ColorType;
 import helium314.keyboard.latin.common.Colors;
@@ -51,7 +54,10 @@ import helium314.keyboard.latin.settings.Settings;
 @RequiresApi(api = Build.VERSION_CODES.R)
 public class InlineAutofillUtils {
 
-    public static InlineSuggestionsRequest createInlineSuggestionRequest(final Context context) {
+    /**
+     * @param stripWidthPx the real width of the suggestion strip, 0 if it is not laid out yet (stage 79)
+     */
+    public static InlineSuggestionsRequest createInlineSuggestionRequest(final Context context, final int stripWidthPx) {
         final Colors colors = Settings.getValues().mColors;
         final int chipBgDrawableId = androidx.autofill.R.drawable.autofill_inline_suggestion_chip_background;
         final int chipBgColor = colors.get(ColorType.AUTOFILL_BACKGROUND_CHIP);
@@ -86,8 +92,10 @@ public class InlineAutofillUtils {
         Bundle stylesBundle = stylesBuilder.build();
 
         final int height = context.getResources().getDimensionPixelSize(R.dimen.config_suggestions_strip_height);
-        final Size min = new Size(100, height);
-        final Size max = new Size(740, height);
+        // fork, stage 79: the real strip width and the display density instead of a fixed 100 / 740 px
+        final android.util.DisplayMetrics metrics = context.getResources().getDisplayMetrics();
+        final Size min = new Size(InlineAutofillSizing.minWidthPx(metrics.density), height);
+        final Size max = new Size(InlineAutofillSizing.maxWidthPx(stripWidthPx, metrics.widthPixels, metrics.density), height);
 
         // Three InlinePresentationSpec are required for some password managers
         final ArrayList<InlinePresentationSpec> presentationSpecs = new ArrayList<>();
@@ -100,14 +108,23 @@ public class InlineAutofillUtils {
                 .build();
     }
 
+    /**
+     * @param isCurrent whether the response still belongs to what the keyboard shows; a late inflation of a
+     *                  stale response adds nothing (stage 79)
+     */
     public static InlineContentClipView createView(final List<InlineSuggestion> inlineSuggestions,
-                                                   final Context context) {
+                                                   final Context context, final BooleanSupplier isCurrent) {
         LinearLayout container = new LinearLayout(context);
-        for (InlineSuggestion inlineSuggestion : inlineSuggestions) {
-            inlineSuggestion.inflate(context, new Size(ViewGroup.LayoutParams.WRAP_CONTENT,
+        // fork, stage 79: the callbacks come in any order (or never); each chip goes to the place its index asks for
+        final InlineAutofillSlots slots = new InlineAutofillSlots(inlineSuggestions.size());
+        for (int i = 0; i < inlineSuggestions.size(); i++) {
+            final int index = i;
+            inlineSuggestions.get(i).inflate(context, new Size(ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT), context.getMainExecutor(), (view) -> {
-                if (view != null)
-                    container.addView(view);
+                if (!isCurrent.getAsBoolean()) return; // the field changed or the chips were replaced meanwhile
+                final int position = slots.onResult(index, view != null);
+                if (position >= 0)
+                    container.addView(view, position);
             });
         }
 
