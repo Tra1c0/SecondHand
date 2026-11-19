@@ -3629,7 +3629,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   GitHub-Runner einen Emulator (Android 14, `google_apis`, x86_64, KVM) und ruft
   `tools/devicetest/devicetest.py` auf (`python3 -I`, nur Standardbibliothek). Das Skript installiert beide
   APKs, stellt die Systemsprachen auf Deutsch und Englisch, macht die Tastatur zur aktuellen
-  Eingabemethode, findet die Tasten in `uiautomator dump --windows`, tippt mit `input tap` und vergleicht
+  Eingabemethode, liest die Knoten aller Fenster über die Test-App (`adb shell content read` auf
+  `DumpProvider.java`, der `ProbeAccessibilityService.java` fragt), findet darin die Tasten, tippt mit `input tap` und vergleicht
   den Feldinhalt. Ergebnis: `RESULT`- und `SUMMARY`-Zeilen im Job-Log, Tabelle in der Job-Zusammenfassung,
   Artefakt `device-test-<n>` (Aufnahme, Screenshots, Ergebnisdatei). `--control` lässt das letzte Zeichen
   jedes getippten Textes weg; dann muss jedes Szenario scheitern.
@@ -3638,8 +3639,9 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   `tools/devicetest/app/src/main/AndroidManifest.xml`), gebaut mit
   `./gradlew -p tools/devicetest :app:assembleDebug`; das Haupt-`settings.gradle` kennt sie nicht.
   `MainActivity.java`: vier Felder (Text, Passwort, E-Mail, Zahl) und je eine Spiegelzeile mit dem echten
-  Inhalt. `ProbeAccessibilityService.java`: leerer Bedienungshilfen-Dienst; nur solange einer aktiv ist,
-  legt `MainKeyboardView.setKeyboard` die Tasten als Knoten für den Dump an (P294).
+  Inhalt. `ProbeAccessibilityService.java`: Bedienungshilfen-Dienst nur in der Test-App, listet die Knoten
+  aller Fenster als JSON und handelt nie; nur solange ein Dienst aktiv ist, legt
+  `MainKeyboardView.setKeyboard` die Tasten als Knoten an (P294).
 - Docs-System: `scripts/docs_sync.py` (Konfiguration `scripts/docs_sync.json`),
   `scripts/install-hooks.sh` (optionaler Pre-Commit-Hook), `.claude/hooks/session-start.sh`
   (registriert in `.claude/settings.json`). Bedienung: `docs/HANDOFF.md` → Arbeitsweise.
@@ -5670,9 +5672,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   „Idee“): „seee“ und „Kaffeee“ bleiben deshalb stehen, wie getippt; das ist der Preis dafür, „neee“ zu schützen (nach dem Wörterbuch
   lässt es sich nicht unterscheiden, der Kern kennt keins). Ein versehentlich gehaltenes „wennnnn“ wird nicht korrigiert; auf einem
   Touch-Feld ist das selten. Wörter mit Wiederholung in der Mitte („Schifffahrt“, „Kaffeeernte“) sind nicht betroffen: nur der Wortschluss zählt.
-- **P294** Gerätetests (73): Die Tasten stehen nur dann als einzelne Knoten in `uiautomator dump --windows`, wenn beim
-  Aufbau der Tastatur (`MainKeyboardView.setKeyboard`) ein Bedienungshilfen-Dienst aktiv ist (`AccessibilityManager.isEnabled`);
-  `uiautomator` allein reicht dafür nicht. Darum der leere `ProbeAccessibilityService` der Test-App. Er fordert kein
+- **P294** Gerätetests (73): Die Tasten sind nur dann einzelne Bedienungshilfen-Knoten, wenn beim
+  Aufbau der Tastatur (`MainKeyboardView.setKeyboard`) ein Bedienungshilfen-Dienst aktiv ist (`AccessibilityManager.isEnabled`).
+  `uiautomator dump --windows` zeigte sie auch mit aktivem Dienst nicht (GitHub-Läufe 2 und 4: Fenster und Leiste der Tastatur ja,
+  keine Taste; vermutet, nicht belegt: `uiautomator` hält andere Dienste an, solange es verbunden ist). Darum liest der
+  `ProbeAccessibilityService` der Test-App die Fenster selbst aus. Er fordert kein
   „Tippen zum Erkunden“ an: Alles, was das Tippen ändert, hängt an `isTouchExplorationEnabled`. In Passwortfeldern heißen
   alle Zeichentasten „Aufzählungspunkt“, solange `settings put secure speak_password 1` nicht gesetzt ist
   (`AccessibilityUtils.shouldObscureInput`). Eine Trenntaste (Leertaste, Punkt) heißt bei anstehender Autokorrektur
@@ -5686,7 +5690,7 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (661 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (662 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -5876,8 +5880,8 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
 - `tools/devicetest/` (3): build.gradle, devicetest, settings.gradle
 - `tools/devicetest/app/` (1): build.gradle
 - `tools/devicetest/app/src/main/` (1): AndroidManifest
-- `tools/devicetest/app/src/main/java/dev/personal/secondhand/devicetest/` (2): MainActivity,
-  ProbeAccessibilityService
+- `tools/devicetest/app/src/main/java/dev/personal/secondhand/devicetest/` (3): DumpProvider,
+  MainActivity, ProbeAccessibilityService
 
 </details>
 <!-- /gen:inventory -->

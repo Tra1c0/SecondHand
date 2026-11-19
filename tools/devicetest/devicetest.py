@@ -6,9 +6,9 @@ Run on a machine with a booted emulator and adb on the PATH (the workflow device
     python3 -I tools/devicetest/devicetest.py --keyboard-apk <apk> --test-apk <apk> --out <dir>
 
 The script installs the keyboard and the small test app (tools/devicetest/app), makes the keyboard the
-current input method and then works like a user: it finds the keys in "uiautomator dump --windows"
-(the keyboard exposes them as accessibility nodes while an accessibility service is enabled, which is
-what the empty ProbeAccessibilityService of the test app is for), taps them with "input tap", reads
+current input method and then works like a user: it asks the test app's ProbeAccessibilityService
+for the nodes of all windows (the keyboard exposes its keys as accessibility nodes while an
+accessibility service is enabled), finds the keys there, taps them with "input tap", reads
 the content of the field back from the test app and compares it with the expectation.
 
 Results go to the log (one RESULT line per scenario, one SUMMARY line), to <out>/summary.md and
@@ -31,11 +31,11 @@ import subprocess
 import sys
 import threading
 import time
-import xml.etree.ElementTree as ET
 
 KEYBOARD_PACKAGE = "dev.personal.agentkeyboard.debug"
 TEST_PACKAGE = "dev.personal.secondhand.devicetest"
 PROBE_SERVICE = TEST_PACKAGE + "/" + TEST_PACKAGE + ".ProbeAccessibilityService"
+DUMP_URI = "content://" + TEST_PACKAGE + ".dump/now"
 PROBE_LABEL = "SH Device Test"  # android:label of the test app, as "dumpsys accessibility" names a bound service
 # The system languages of the emulator. The keyboard enables one layout per system language on its
 # first start (SubtypeSettings.getDefaultEnabledSubtypes), so this gives German first, then English.
@@ -111,17 +111,17 @@ def wait_for_boot(limit=300):
 # --------------------------------------------------------------------------------------- UI dumps
 
 class Node:
-    __slots__ = ("package", "rid", "desc", "text", "cls", "left", "top", "right", "bottom")
+    __slots__ = ("package", "rid", "desc", "text", "cls", "window", "left", "top", "right", "bottom")
 
-    def __init__(self, element):
-        get = element.attrib.get
-        self.package = get("package", "")
-        self.rid = get("resource-id", "")
-        self.desc = get("content-desc", "")
-        self.text = get("text", "")
-        self.cls = get("class", "")
-        match = re.match(r"\[(-?\d+),(-?\d+)\]\[(-?\d+),(-?\d+)\]", get("bounds", ""))
-        self.left, self.top, self.right, self.bottom = (int(v) for v in match.groups()) if match else (0, 0, 0, 0)
+    def __init__(self, item):
+        self.package = item.get("p", "")
+        self.rid = item.get("id", "")
+        self.desc = item.get("d", "")
+        self.text = item.get("t", "")
+        self.cls = item.get("c", "")
+        self.window = item.get("w", 0)
+        bounds = item.get("b") or [0, 0, 0, 0]
+        self.left, self.top, self.right, self.bottom = (int(v) for v in bounds)
 
     @property
     def center(self):
@@ -133,15 +133,18 @@ class Node:
 
 
 class Screen:
-    """One "uiautomator dump --windows": every node of every window, the keyboard window included."""
+    """The nodes of all windows, the keyboard window included, as the probe service of the test app
+    lists them (ProbeAccessibilityService.dump)."""
 
-    def __init__(self, xml_text):
-        self.xml = xml_text
+    def __init__(self, json_text):
+        self.raw = json_text
         try:
-            root = ET.fromstring(xml_text)
-        except ET.ParseError as error:
-            raise DeviceError("the UI dump is not XML (%s): %r" % (error, xml_text[:120]))
-        self.nodes = [Node(element) for element in root.iter("node")]
+            data = json.loads(json_text)
+        except ValueError as error:
+            raise DeviceError("the screen dump is not JSON (%s): %r" % (error, json_text[:120]))
+        if not isinstance(data, dict) or "nodes" not in data:
+            raise DeviceError("the screen dump has no nodes: %r" % json_text[:160])
+        self.nodes = [Node(item) for item in data["nodes"]]
 
     def by_id(self, name):
         """The node of the test app with this resource id, or None."""
@@ -172,20 +175,19 @@ def plain_key_name(description):
 
 
 def dump():
-    """Reads the UI of all windows. uiautomator fails now and then while the screen changes: three tries."""
-    remote = REMOTE_TMP + "/sh-dump.xml"
+    """Reads the nodes of all windows through the test app's provider. Three tries, because the
+    probe service is briefly away right after it was enabled."""
     last = "no attempt"
     for _ in range(3):
         try:
-            shell("rm -f %s; uiautomator dump --windows %s" % (remote, remote), timeout=40, check=False)
-            text = adb("exec-out", "cat", remote, timeout=20, check=False)
-            if "<node" in text:
+            text = adb("shell", "content read --uri " + DUMP_URI, timeout=40, check=False).strip()
+            if text.startswith("{") and '"nodes"' in text:
                 return Screen(text)
-            last = "dump without nodes: %r" % text[:120]
+            last = "no node list: %r" % text[:160]
         except DeviceError as error:
             last = str(error)
-        time.sleep(1.0)
-    raise DeviceError("uiautomator dump failed three times (%s)" % last)
+        time.sleep(1.5)
+    raise DeviceError("the screen could not be read three times (%s)" % last)
 
 
 # ------------------------------------------------------------------------------------- the driver
@@ -339,9 +341,9 @@ class Driver:
 
     def save_dump(self, screen, label):
         try:
-            with open(os.path.join(self.out_dir, "%s-%s.xml" % (self.name or "setup", label)), "w",
+            with open(os.path.join(self.out_dir, "%s-%s.json" % (self.name or "setup", label)), "w",
                       encoding="utf-8") as out:
-                out.write(screen.xml)
+                out.write(screen.raw)
         except OSError:
             pass
 

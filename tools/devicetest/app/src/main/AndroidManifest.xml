@@ -16,9 +16,9 @@
             </intent-filter>
         </activity>
 
-        <!-- Does nothing. While it is enabled, AccessibilityManager.isEnabled() is true, and only then the
-             keyboard exposes its keys as accessibility nodes (MainKeyboardView.setKeyboard), which is how
-             the host script finds them in "uiautomator dump". It does not request touch exploration. -->
+        <!-- Lists the nodes of all windows for the host script. While it is enabled,
+             AccessibilityManager.isEnabled() is true, and only then the keyboard exposes its keys as
+             accessibility nodes (MainKeyboardView.setKeyboard). It does not request touch exploration. -->
         <service
             android:name=".ProbeAccessibilityService"
             android:exported="true"
@@ -30,5 +30,11 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/probe_accessibility" />
         </service>
+
+        <!-- "adb shell content read" on this provider returns the node list of the probe service. -->
+        <provider
+            android:name=".DumpProvider"
+            android:authorities="dev.personal.secondhand.devicetest.dump"
+            android:exported="true" />
     </application>
 </manifest>
