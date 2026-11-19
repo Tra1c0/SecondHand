@@ -4,6 +4,8 @@
     <string name="agent_typing_autocorrect">Autokorrektur</string>
     <string name="agent_typing_sentence_context">Satzbezogene Autokorrektur</string>
     <string name="agent_typing_sentence_context_sub">Berücksichtigt bei deutschen Verbformen den Satz und respektiert Rücknahmen im aktuellen Feld.</string>
+    <string name="agent_typing_swapped_letters">Buchstabendreher</string>
+    <string name="agent_typing_swapped_letters_sub">Korrigiert sehr häufige kurze Wörter mit vertauschten Buchstaben (idr wird dir, teh wird the).</string>
     <string name="agent_typing_revert_sub">Direkt nach einer Korrektur tippen, um das getippte Wort zurückzuholen.</string>
     <string name="agent_typing_level_off">Aus</string>
     <string name="agent_typing_level_off_hint">Nur Vorschläge, nie automatisch</string>

@@ -4,6 +4,8 @@
     <string name="agent_typing_autocorrect">Autocorrect</string>
     <string name="agent_typing_sentence_context">Contextual autocorrect</string>
     <string name="agent_typing_sentence_context_sub">Uses the sentence to choose German verb forms and respects corrections you undo in the current field.</string>
+    <string name="agent_typing_swapped_letters">Swapped letters</string>
+    <string name="agent_typing_swapped_letters_sub">Corrects very common short words typed with two letters swapped (idr becomes dir, teh becomes the).</string>
     <string name="agent_typing_revert_sub">Tap Backspace right after a correction to restore the word you typed.</string>
     <string name="agent_typing_level_off">Off</string>
     <string name="agent_typing_level_off_hint">Only suggestions, never automatic</string>

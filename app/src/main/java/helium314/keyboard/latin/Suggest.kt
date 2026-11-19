@@ -13,6 +13,7 @@ import helium314.keyboard.agent.TypoMemory
 import helium314.keyboard.agent.GermanVerbLemmas
 import dev.agentkeyboard.core.GermanVerbAgreement
 import dev.agentkeyboard.core.SentenceLanguage
+import dev.agentkeyboard.core.SwappedLetters
 import android.text.TextUtils
 import com.android.inputmethod.latin.utils.BinaryDictionaryUtils
 import helium314.keyboard.keyboard.Keyboard
@@ -133,8 +134,11 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         val guardedAutoCorrection = rawHasAutoCorrection && preferred != typedWordString && guardAllows(typedWordString, suggestionsContainer.firstOrNull(),
             typedWordFirstOccurrenceWordInfo, suggestionResults, ngramContext)
         // fork, stage 20b: a typo the user corrected by hand three times is corrected automatically
-        val hasAutoCorrection = applyLearnedCorrection(typedWordString, capsMode, ngramContext, suggestionResults,
-            suggestionsContainer, isCorrectionEnabled, wordComposer) { after } || guardedAutoCorrection
+        val learnedCorrection = applyLearnedCorrection(typedWordString, capsMode, ngramContext, suggestionResults,
+            suggestionsContainer, isCorrectionEnabled, wordComposer) { after }
+        // fork, stage 75: a very common short word with two swapped letters ("idr" -> "dir"); a learned pair keeps priority
+        val hasAutoCorrection = learnedCorrection || applySwappedLetters(typedWordString, capsMode, suggestionResults,
+            suggestionsContainer, isCorrectionEnabled, wordComposer) || guardedAutoCorrection
         // fork, stage 46: own words of the memory (offered while typing, behind the correction) and its next word
         addFromMemory(typedWordString, resultsArePredictions, suggestionResults, suggestionsContainer, ngramContext, hasAutoCorrection)
         // fork, stage 51: words of other languages the owner kept (offered while typing, behind the correction)
@@ -255,6 +259,54 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         val info = if (index >= 0) suggestions.removeAt(index)
             else SuggestedWordInfo(wanted, "", SuggestedWordInfo.MAX_SCORE,
                 SuggestedWordInfo.KIND_CORRECTION, TypoMemory.DICTIONARY, SuggestedWordInfo.NOT_AN_INDEX, SuggestedWordInfo.NOT_A_CONFIDENCE)
+        suggestions.add(0, info)
+        return true
+    }
+
+    /**
+     * Stage 75: puts the word that [typed] becomes by swapping one pair of adjacent letters first in
+     * [suggestions] and returns true, or changes nothing and returns false. Only for a typed word that no
+     * main dictionary knows, when exactly one swap gives a very common main-dictionary word
+     * ([SwappedLetters]); the same exclusions as the other automatic corrections (own words, slang, words
+     * of another language the owner kept, undone corrections, commands, dictionary shortcuts), and only
+     * with the switch "Swapped letters" on. The engine's own results are not needed: the word is added
+     * when the engine did not offer it. The result is an ordinary automatic correction, so Backspace
+     * and the rejected-pair memory treat it like every other one.
+     */
+    private fun applySwappedLetters(
+        typed: String, capsMode: CapsMode, results: SuggestionResults, suggestions: ArrayList<SuggestedWordInfo>,
+        isCorrectionEnabled: Boolean, wordComposer: WordComposer,
+    ): Boolean {
+        val settings = Settings.getValues()
+        val facilitator = mDictionaryFacilitator as? DictionaryFacilitatorImpl ?: return false
+        if (!settings.mSwappedLettersCorrection || !isCorrectionEnabled || typed.isEmpty() || !wordComposer.isComposingWord
+            || wordComposer.isResumed || wordComposer.hasDigits() || wordComposer.isCursorFrontOrMiddleOfComposingWord
+            || (wordComposer.isMostlyCaps && !wordComposer.isAllUpperCase)
+            || helium314.keyboard.agent.KeyboardCommands.isCommandWord(typed)
+            || helium314.keyboard.agent.KeyboardCommands.suppressesCorrection()
+            || !facilitator.hasAtLeastOneInitializedMainDictionary()) return false
+        // a dictionary shortcut or whitelist entry is a wish of the owner or the dictionary
+        if (suggestions.firstOrNull()?.let { it.isKindOf(SuggestedWordInfo.KIND_SHORTCUT) || it.isKindOf(SuggestedWordInfo.KIND_WHITELIST) } == true) return false
+        // known to a main dictionary, to the personal dictionary, the contacts or the apps: stays as typed
+        // (the typing history does not count: it also keeps words typed wrongly)
+        val known = facilitator.mainLocalesKnowing(typed).isNotEmpty() || results.any {
+            it.mWord.equals(typed, ignoreCase = true) && (it.mSourceDict.mDictType == Dictionary.TYPE_USER
+                || it.mSourceDict.mDictType == Dictionary.TYPE_CONTACTS || it.mSourceDict.mDictType == Dictionary.TYPE_APPS)
+        }
+        val meant = SwappedLetters.candidate(typed, known) { facilitator.mainFrequency(it) } ?: return false
+        val context = Settings.getCurrentContext()
+        // stage 46 / 71 / 51: own words, slang and kept words of another language stay as typed
+        if (helium314.keyboard.agent.Memory.isOwnWord(context, typed)) return false
+        val language = ForeignWords.languageOf(settings)
+        if (helium314.keyboard.agent.InformalWordsStore.protects(context, typed, language, facilitator.mainLocale.language)) return false
+        if (ForeignWords.isRemembered(context, settings, language, typed)) return false
+        // stage 20a: a correction the owner undid is not applied again
+        if (settings.mRememberRejectedCorrections && context != null && RejectedCorrections.contains(context, typed, meant)) return false
+        val wanted = capitalize(meant, capsMode, facilitator.mainLocale)
+        val index = suggestions.indexOfFirst { it.mWord == wanted }
+        val info = if (index >= 0) suggestions.removeAt(index)
+            else SuggestedWordInfo(wanted, "", SuggestedWordInfo.MAX_SCORE, SuggestedWordInfo.KIND_CORRECTION,
+                SWAPPED_LETTERS_DICTIONARY, SuggestedWordInfo.NOT_AN_INDEX, SuggestedWordInfo.NOT_A_CONFIDENCE)
         suggestions.add(0, info)
         return true
     }
@@ -604,6 +656,9 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         // We are sharing the same ID between typing and gesture to save RAM footprint.
         const val SESSION_ID_TYPING = 0
         const val SESSION_ID_GESTURE = 0
+
+        /** Fork, stage 75: source of a swapped-letters correction that the engine did not offer itself. */
+        private val SWAPPED_LETTERS_DICTIONARY = Dictionary.PhonyDictionary("agent_swapped_letters")
 
         // Close to -2**31
         private const val SUPPRESS_SUGGEST_THRESHOLD = -2000000000
