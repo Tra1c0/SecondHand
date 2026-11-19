@@ -604,8 +604,10 @@ def _open_settings_and_switch_on(d, path, switch):
         if any(re.match(r"(Build \d+ ist da|Neu in Build \d+|Build \d+ is available|New in build \d+)", t) for t in texts):
             shell("input keyevent KEYCODE_BACK", check=False)
             time.sleep(1.5)
-    for label in path:
-        d.tap_text(label)
+    # The settings come back where they were left: follow the path only if the setting is not in sight.
+    if not any(switch in (n.text, n.desc) for n in dump().nodes if n.visible):
+        for label in path:
+            d.tap_text(label)
     d.tap_text(switch)
     shell("input keyevent KEYCODE_HOME", check=False)
 
@@ -641,12 +643,14 @@ def clipboard_pill(d):
     d.expect_equal("copied text offered in the password field (strip %s)" % offered[:6],
                    any(CLIP_TEXT in text for text in offered), False)
     d.expect_field("password", "")
-    # And once more for the text field: only if the pill comes back there, its absence in the password
-    # field says something about the password field.
+    # And once more for an empty text field: only if the pill comes back there, its absence in the
+    # password field says something about the password field. (In a field that already holds text the
+    # strip shows words for it and only a small clipboard sign: run 20.)
+    d.start("clipboard_pill")
     d.tap_id("copy_button")
     d.focus("text")
     d.tap_in_strip((CLIP_TEXT,))
-    d.expect_field("text", CLIP_TEXT + CLIP_TEXT)
+    d.expect_field("text", CLIP_TEXT)
 
 
 def learning_not_in_password(d):
@@ -747,6 +751,14 @@ def language_switch(d):
     d.expect_field("text", "")
     d.type("the")
     d.expect_field("text", "The")
+    # back to German, so the scenarios after this one find the keyboard as the others did
+    d.start("language_switch")
+    d.focus("text")
+    d.type("@lang")
+    d.tap_in_strip(("Deutsch", "German"))
+    time.sleep(1.5)
+    d.refresh_keys()
+    d.expect_equal("German layout again (has the key ü)", "ü" in d.keymap or "Ü" in d.keymap, True)
 
 
 SCENARIOS = [keyboard_is_secondhand, typing_text, delete_key, typing_password, typing_email, typing_number,
