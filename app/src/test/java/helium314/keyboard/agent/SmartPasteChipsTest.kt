@@ -439,6 +439,48 @@ class SmartPasteChipsTest {
         }
     }
 
+    /** All texts of every TextView below [view] (the pill text and any chip labels). */
+    private fun allTexts(view: View): List<String> =
+        if (view is TextView) listOf(view.text.toString())
+        else if (view is ViewGroup) (0 until view.childCount).flatMap { allTexts(view.getChildAt(it)) }
+        else emptyList()
+
+    @Test fun aPasswordFieldShowsAnUnmarkedClipAsStarsInThePill() {
+        // device test run 26: an unmarked clip (no sensitive flag) was shown in the clear in a password field
+        val clip = "Noch ein kopierter Text"
+        val parent = FrameLayout(latinIME)
+        val historyManager = ClipboardHistoryManager(latinIME).apply { onCreate() }
+        try {
+            copy(clip)
+            stampNow()
+            val password = EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD }
+            load(password)
+            val pill = assertNotNull(historyManager.getClipboardSuggestionView(password, parent))
+            assertEquals("*".repeat(clip.length), pill.findViewById<TextView>(R.id.clipboard_suggestion_text).text.toString())
+            // no view of the pill (text, chip labels) holds any part of the clip
+            for (text in allTexts(pill)) for (word in clip.split(" "))
+                assertFalse(text.contains(word), "the pill shows '$text' in a password field")
+        } finally {
+            historyManager.onDestroy()
+        }
+    }
+
+    @Test fun aNormalTextFieldShowsAnUnmarkedClipInTheClear() {
+        // the counterpart of the password test above: the same clip is readable here
+        val clip = "Noch ein kopierter Text"
+        val parent = FrameLayout(latinIME)
+        val historyManager = ClipboardHistoryManager(latinIME).apply { onCreate() }
+        try {
+            copy(clip)
+            stampNow()
+            load(textField)
+            val pill = assertNotNull(historyManager.getClipboardSuggestionView(textField, parent))
+            assertEquals(clip, pill.findViewById<TextView>(R.id.clipboard_suggestion_text).text.toString())
+        } finally {
+            historyManager.onDestroy()
+        }
+    }
+
     @Test fun aSavedPlaceIsNamedAfterTheStreetAndSavedOnce() {
         val chip = { stripChips("Musterstraße 12, 10115 Berlin")[1] }
         chip().onTap()

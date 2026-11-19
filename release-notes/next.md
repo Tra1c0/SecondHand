@@ -4,6 +4,7 @@
 - **Prompts in „Sichern“**: Die Sicherung („Sichern und Wiederherstellen“) nimmt die Prompts mit, wenn das Telefon entsperrt ist. Beim Wiederherstellen werden sie zuletzt ersetzt. Eine Datei ohne Prompts (zum Beispiel aus einem älteren Build) lässt die Prompts auf dem Telefon in Ruhe. Kann die Tastatur die Prompts nicht übernehmen (Eintrag beschädigt, Telefon gesperrt oder die Ablage auf dem Telefon nicht lesbar), sagt sie es in einer zweiten Meldung; die Prompts auf dem Telefon bleiben dann, wie sie sind. Ohne Sicherung gehen sie beim Deinstallieren oder Löschen der App-Daten verloren.
 - **Buchstabendreher**: Sehr häufige kurze Wörter mit zwei vertauschten Buchstaben werden korrigiert („idr“ wird „dir“). Die Rücktaste direkt danach holt das getippte Wort zurück. Ausschalten: Einstellungen → Tippen & Korrektur → Regeln → **Buchstabendreher**.
 - Die Zwischenablage-Pille kommt für jeden neu kopierten Text wieder, auch wenn du sie vorher getippt oder geschlossen hast und den Zwischenablage-Verlauf ausgeschaltet hast.
+- In einem Passwortfeld zeigt die Zwischenablage-Pille den kopierten Text jetzt als Sternchen statt im Klartext. Der Fehler stammt aus HeliBoard und wurde im Emulator-Test gefunden.
 - Der Hinweis „Build … verfügbar“ in der Leiste erscheint nicht mehr in Passwortfeldern.
 - Die Tastatur meldet Bedienungshilfen (Screenreadern) die Lage ihrer Tasten jetzt genauer.
 

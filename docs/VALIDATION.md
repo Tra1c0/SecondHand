@@ -1,5 +1,18 @@
 # Prüfnachweise
 
+## Korrektur — Pille im Passwortfeld zeigt Sternchen (2026-11-19)
+
+- Befund aus den Gerätetest-Läufen 26 und 31–35 (`clipboard_not_readable_in_password` FAIL): Der Text der Pille war
+  im Passwortfeld als Klartext im Accessibility-Knoten lesbar. Ursache im Code nachgelesen: `isClipSensitive`
+  endete ab API 24 immer mit `false` (P308). Der Fehler stammt aus dem Upstream-Code.
+- Korrektur: `ClipboardHistoryManager.isClipSensitive` (vier Zeilen).
+- Tests: `SmartPasteChipsTest` 18/18 grün (XML gelesen). Neu: `aPasswordFieldShowsAnUnmarkedClipAsStarsInThePill`
+  und `aNormalTextFieldShowsAnUnmarkedClipInTheClear`. Rot-Nachweis: ohne die Korrektur
+  `expected:<[***********************]> but was:<[Noch ein kopierter Text]>`.
+- Emulator: Bestätigung ausstehend (nächster Lauf nach diesem Push).
+- Gerätetest-Skript: `popup_of` hebt den Finger jetzt weit oberhalb der Tastatur ab, statt die Berührung abzubrechen
+  (Läufe 34/35: nach dem Abbruch stand der kopierte Text im Passwortfeld; Ursache nicht bewiesen).
+
 ## Etappe 76 — Prompt-Ablage in Sichern
 
 Stand: 2026-11-19, Arbeitsbranch (Commits ec97390, 9cbda22, 2d985db, 0db099a). Auftrag: „Behebe alles“ (Owner), die

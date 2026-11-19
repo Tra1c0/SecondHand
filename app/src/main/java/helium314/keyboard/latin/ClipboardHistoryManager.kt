@@ -376,7 +376,9 @@ class ClipboardHistoryManager(
     }
 
     private fun isClipSensitive(inputType: Int): Boolean {
-        ClipboardManagerCompat.getClipSensitivity(clipboardManager.primaryClip?.description)?.let { return it }
+        // getClipSensitivity is only null below API 24: a plain "?.let { return it }" answered false for
+        // every unmarked clip and the password field was never asked (device test run 26)
+        if (ClipboardManagerCompat.getClipSensitivity(clipboardManager.primaryClip?.description) == true) return true
         return InputTypeUtils.isPasswordInputType(inputType)
     }
 

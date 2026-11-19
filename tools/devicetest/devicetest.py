@@ -443,7 +443,7 @@ class Driver:
 
     def popup_of(self, char):
         """Holds the key of the character and returns what its popup offers: description -> Node, read
-        while the finger is still down. The touch is then cancelled, so nothing is chosen."""
+        while the finger is still down. The finger is then lifted far outside the popup, so nothing is chosen."""
         node = self.key_for(char)
         if node is None:
             raise CheckFailed("no key for %r on the keyboard; keys: %s" % (char, self.key_list()))
@@ -457,7 +457,10 @@ class Driver:
             mirror = screen.by_id("mirror_password")
             during = mirror.text if mirror else "?"
         finally:
-            shell("input motionevent CANCEL %d %d" % (x, y), timeout=30, check=False)
+            # lift the finger far above the keyboard, inside the app: a release outside every popup key
+            # chooses nothing (a CANCEL at the key was followed by a paste into the field, runs 34 and 35)
+            shell("input motionevent MOVE %d %d" % (x, 300), timeout=30, check=False)
+            shell("input motionevent UP %d %d" % (x, 300), timeout=30, check=False)
         time.sleep(0.8)
         self.hold_info = "touch at %s: popup %s; password mirror while held %r, after cancel %r" % (
             node.box, " ".join("%s%s" % (d[:8], n.box) for d, n in list(popup.items())[:6]), during,

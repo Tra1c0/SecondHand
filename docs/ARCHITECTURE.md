@@ -5943,6 +5943,10 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
   Datenschutzregel hängt an dem Flag (Prüfer). Test
   `SmartPasteChipsTest.aNewClipIsOfferedAgainAfterAPillWasTappedAlsoWithoutTheHistory` (rot mit der alten Bedingung).
   Bestätigung im Emulator ausstehend.
+- **P308** `ClipboardManagerCompat.getClipSensitivity` liefert ab API 24 nie `null`, sondern `false` für jeden
+  unmarkierten Clip. Wer das Ergebnis mit `?.let { return it }` auswertet, fragt das Passwortfeld nie ab
+  (`ClipboardHistoryManager.isClipSensitive`, Gerätetest-Lauf 26: Klartext in der Pille im Passwortfeld). Immer
+  `== true` vergleichen. Test: `SmartPasteChipsTest.aPasswordFieldShowsAnUnmarkedClipAsStarsInThePill`.
 
 ## Datei-Inventar
 
