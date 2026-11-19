@@ -813,6 +813,11 @@ offen, gebaut wird erst nach einer Entscheidung zu den offenen Fragen.
   sind u. a. Emoji-Mix, Zwischenablage, Diktat über den Geräte-Erkenner, Textkorrektur per KI. Externe
   Google-Dienste (Gmail, Kalender) stehen bereits als 16c und sind blockiert, bis der Owner eigene
   OAuth-Zugänge hat. Offene Frage: Welche Funktionen vermisst der Owner zuerst? (L, Liste zuerst: S)
+  Die Liste liegt seit 2026-11-19 in `docs/GOOGLE-FUNKTIONEN.md` (Bestandsaufnahme mit Empfehlung und fünf
+  offenen Fragen; viele Angaben zu ML Kit und Gboard nur aus Suchauszügen, dort als „nicht verifiziert“
+  markiert). Empfohlene Reihenfolge ohne Google-Dienste: Autofill-Chips robust machen, feldbezogene Vorschläge
+  und Übergänge, Textbearbeitung/Einhandmodus, Antwortvorschläge mit eigenem Schlüssel. Alles mit ML Kit oder
+  AICore wartet auf die Entscheidung des Owners zu Google Play services.
 
 ## Bewusst nicht im Umfang
 
