@@ -256,4 +256,55 @@ class BackupPromptsTest {
         assertEquals(PromptsRestore.CORRUPT, restoreInOrder(valid, "garbage".toByteArray()))
         assertEquals(listOf("keep", "a"), titles())
     }
+
+    // ---- stage 77: folders in the backup ----
+
+    @Test fun theBackupCarriesFoldersAndRestoringBringsThemBackWithTheirPrompts() {
+        val work = store.addFolder("Arbeit").folder!!
+        val home = store.addFolder("Privat").folder!!
+        store.add("c", "3", home.id); store.add("b", "2", null); store.add("a", "1", work.id)
+        val zip = backupZip()
+        assertContentEquals(file.readBytes(), entryBytes(zip, PROMPTS_ENTRY_NAME))
+        // the phone changes: another folder, a deleted one, a moved prompt
+        store.deleteFolder(work.id); store.addFolder("Anderes")
+        assertEquals(PromptsRestore.APPLIED, restore(zip))
+        val library = store.loadLibrary()!!
+        assertEquals(listOf("Arbeit", "Privat"), library.folders.map { it.name })
+        assertEquals(listOf("a", "b", "c"), library.prompts.map { it.title })
+        assertEquals(listOf(work.id, null, home.id), library.prompts.map { it.folderId })
+    }
+
+    @Test fun aBackupWithOnlyFoldersIsSavedAndRestored() {
+        store.addFolder("Leer")
+        assertEquals(listOf("preferences.json", PROMPTS_ENTRY_NAME), names(backupZip()))
+        val zip = backupZip()
+        file.delete()
+        assertEquals(PromptsRestore.APPLIED, restore(zip))
+        assertEquals(listOf("Leer"), store.loadLibrary()!!.folders.map { it.name })
+        assertTrue(store.read().isEmpty())
+    }
+
+    @Test fun anOldBackupWithoutFoldersRestoresAsBefore() {
+        // exactly what stage 76 wrote into a backup
+        val old = "{\"storageVersion\":1,\"prompts\":[{\"id\":\"p-1\",\"title\":\"alt\",\"text\":\"Text\"}]}".toByteArray()
+        store.addFolder("Heute"); store.add("jetzt", "x", store.loadLibrary()!!.folders.single().id)
+        assertEquals(PromptsRestore.APPLIED, restore(zipWith(PROMPTS_ENTRY_NAME to old)))
+        val library = store.loadLibrary()!!
+        assertEquals(listOf("alt"), library.prompts.map { it.title })
+        assertEquals(listOf(null), library.prompts.map { it.folderId })
+        assertTrue(library.folders.isEmpty(), "the backup had no folders, so the restored state has none")
+        assertContentEquals(old, file.readBytes(), "and the file is in the old format again, byte for byte")
+    }
+
+    @Test fun aBackupEntryThatPointsToAMissingFolderIsCorruptAndKeepsTheExistingContent() {
+        val keep = store.addFolder("Bleibt").folder!!
+        store.add("keep", "k", keep.id)
+        val before = file.readBytes()
+        val bad = "{\"storageVersion\":2,\"folders\":[{\"id\":\"f1\",\"name\":\"A\"}],\"prompts\":[{\"id\":\"p\",\"title\":\"\",\"text\":\"x\",\"folderId\":\"f2\"}]}"
+        assertEquals(PromptsRestore.CORRUPT, restore(zipWith(PROMPTS_ENTRY_NAME to bad.toByteArray())))
+        val higher = "{\"storageVersion\":3,\"folders\":[],\"prompts\":[]}"
+        assertEquals(PromptsRestore.CORRUPT, restore(zipWith(PROMPTS_ENTRY_NAME to higher.toByteArray())))
+        assertContentEquals(before, file.readBytes())
+        assertEquals(listOf("keep"), titles())
+    }
 }

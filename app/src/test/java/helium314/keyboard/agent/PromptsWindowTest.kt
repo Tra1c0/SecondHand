@@ -472,4 +472,211 @@ class PromptsWindowTest {
         assertFalse(helium314.keyboard.agent.prompts.PromptsKey.shown(
             id.copy(imeOptions = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING)), "no personalized learning")
     }
+
+    // ---- stage 77: folders ----
+
+    @Before fun forgetTheRememberedChip() { PromptsView.rememberedFilter = PromptFilter.All }
+
+    private fun chipRow() = window.findViewById<View>(R.id.agent_prompts_chips).parent as View
+    private fun chips() = window.findViewById<ViewGroup>(R.id.agent_prompts_chips).let { row -> (0 until row.childCount).map { row.getChildAt(it) as TextView } }
+    private fun chipTexts() = chips().map { it.text.toString() }
+    private fun selectedChip() = chips().filter { it.isSelected }.map { it.text.toString() }
+    private fun tapChip(text: String) { chips().single { it.text.toString() == text }.performClick(); idle() }
+    private fun shownTitles() = store.read().filter { it.id in window.shownIds }.map { it.title }
+    private fun folder(name: String) = store.addFolder(name).folder!!
+    private fun promptIn(title: String, folder: PromptFolder?) = store.add(title, "text of $title", folder?.id).prompt!!
+
+    @Test fun withoutFoldersThereIsNoChipRowAndTheWindowLooksAsBefore() {
+        promptIn("a", null); promptIn("b", null)
+        icon()
+        assertEquals(View.GONE, chipRow().visibility)
+        assertTrue(chips().isEmpty())
+        assertEquals(store.read().map { it.id }, window.shownIds)
+        assertEquals(PromptFilter.All, window.filter)
+        assertNotNull(window.findViewById<View>(R.id.agent_prompts_save_clip))
+        // with no prompt either: the old empty text, no chips
+        tap(R.id.agent_prompts_close)
+        storeFile.delete()
+        icon()
+        assertEquals(View.GONE, chipRow().visibility)
+        assertEquals(string(R.string.agent_prompts_window_empty), (window.findViewById<TextView>(R.id.agent_prompts_empty)).text.toString())
+    }
+
+    @Test fun theChipsAreAllEachFolderInTheUsersOrderAndNoFolderOnlyWhenSomePromptHasNone() {
+        val a = folder("Arbeit"); val b = folder("Privat")
+        promptIn("p1", a)
+        icon()
+        assertEquals(View.VISIBLE, chipRow().visibility)
+        assertEquals(listOf(string(R.string.agent_prompts_chip_all), "Arbeit", "Privat"), chipTexts(), "no prompt without folder: no such chip")
+        assertEquals(listOf(string(R.string.agent_prompts_chip_all)), selectedChip())
+        tap(R.id.agent_prompts_close)
+        promptIn("p2", null)
+        store.reorderFolders(listOf(b.id, a.id))
+        icon()
+        assertEquals(listOf(string(R.string.agent_prompts_chip_all), "Privat", "Arbeit", string(R.string.agent_prompts_chip_none)), chipTexts())
+        // accessibility: every chip speaks, the selected one says so
+        assertTrue(chips().all { it.isClickable && it.contentDescription?.isNotEmpty() == true })
+        assertEquals(latinIME.getString(R.string.agent_prompts_filter_folder_description, "Arbeit"), chips()[2].contentDescription)
+        assertEquals(string(R.string.agent_prompts_filter_none_description), chips()[3].contentDescription)
+        assertEquals(string(R.string.agent_prompts_state_selected), androidx.core.view.ViewCompat.getStateDescription(chips()[0]))
+        assertEquals(null, androidx.core.view.ViewCompat.getStateDescription(chips()[1]))
+    }
+
+    @Test fun aTapOnAChipFiltersTheListInTheStoresOrder() {
+        val a = folder("A"); val b = folder("B"); val empty = folder("Leer")
+        promptIn("a1", a); promptIn("b1", b); promptIn("n1", null); promptIn("a2", a)
+        icon()
+        assertEquals(listOf("a2", "n1", "b1", "a1"), shownTitles())
+        tapChip("A")
+        assertEquals(listOf("a2", "a1"), shownTitles())
+        assertEquals(listOf("A"), selectedChip())
+        assertEquals(PromptFilter.Folder(a.id), window.filter)
+        tapChip("B")
+        assertEquals(listOf("b1"), shownTitles())
+        tapChip(string(R.string.agent_prompts_chip_none))
+        assertEquals(listOf("n1"), shownTitles())
+        tapChip("Leer")
+        assertEquals(emptyList(), window.shownIds)
+        assertEquals(string(R.string.agent_prompts_folder_empty), window.findViewById<TextView>(R.id.agent_prompts_empty).text.toString())
+        assertNotNull(window.findViewById<View>(R.id.agent_prompts_save_clip), "an empty folder still has the save row")
+        tapChip(string(R.string.agent_prompts_chip_all))
+        assertEquals(listOf("a2", "n1", "b1", "a1"), shownTitles())
+        assertEquals(listOf(empty.name, a.name, b.name).sorted(), chipTexts().drop(1).dropLast(1).sorted())
+    }
+
+    @Test fun aTapOnARowOfAFilteredListInsertsThatPromptOnce() {
+        val a = folder("A")
+        promptIn("x", null)
+        val p = store.add("t", "Text im Ordner", a.id).prompt!!
+        startField("Hallo ")
+        icon()
+        tapChip("A")
+        assertEquals(listOf(p.id), rows().map { it.tag })
+        rows().single().performClick()
+        idle()
+        assertEquals("Hallo Text im Ordner", field)
+        assertEquals(View.GONE, window.visibility)
+    }
+
+    @Test fun saveCopiedTextGoesIntoTheFolderShown() {
+        val a = folder("Arbeit"); val b = folder("Privat")
+        promptIn("n", null)
+        icon()
+        // all: no folder
+        copy("Text eins")
+        tap(R.id.agent_prompts_save_clip)
+        assertEquals(string(R.string.agent_prompts_saved), status())
+        assertEquals(null, store.read().first().folderId)
+        // a folder: into that folder, first in it, and the window shows it
+        tapChip("Arbeit")
+        copy("Text zwei")
+        tap(R.id.agent_prompts_save_clip)
+        assertEquals(latinIME.getString(R.string.agent_prompts_saved_in_folder, "Arbeit"), status())
+        val saved = store.read().first()
+        assertEquals("Text zwei", saved.text)
+        assertEquals(a.id, saved.folderId)
+        assertEquals("", saved.title)
+        assertEquals(listOf(saved.id), window.shownIds)
+        // "already saved" is judged by the list shown: the same text in the other folder is new there
+        tap(R.id.agent_prompts_save_clip)
+        assertEquals(string(R.string.agent_prompts_already_saved), status())
+        tapChip("Privat")
+        tap(R.id.agent_prompts_save_clip)
+        assertEquals(latinIME.getString(R.string.agent_prompts_saved_in_folder, "Privat"), status())
+        assertEquals(listOf(b.id, a.id, null, null), store.read().map { it.folderId })
+        // "no folder": no folder
+        tapChip(string(R.string.agent_prompts_chip_none))
+        copy("Text drei")
+        tap(R.id.agent_prompts_save_clip)
+        assertEquals(string(R.string.agent_prompts_saved), status())
+        assertEquals(null, store.read().first().folderId)
+        assertEquals("Text drei", store.read().first().text)
+    }
+
+    @Test fun theChosenChipIsRememberedWhileTheProcessLivesAndNeverSaved() {
+        val a = folder("A"); promptIn("a1", a); promptIn("n1", null)
+        val fileBefore = storeFile.readBytes()
+        val prefsBefore = latinIME.prefs().all.toMap()
+        icon()
+        tapChip("A")
+        tap(R.id.agent_prompts_close)
+        icon()
+        assertEquals(listOf("A"), selectedChip())
+        assertEquals(listOf("a1"), shownTitles())
+        // a new window view (the keyboard view was rebuilt) starts on it too
+        val fresh = PromptsView(window.context)
+        fresh.show(store.loadLibrary())
+        assertEquals(PromptFilter.Folder(a.id), fresh.filter)
+        // nothing was written for it: not the prompt file, not the settings
+        assertTrue(fileBefore.contentEquals(storeFile.readBytes()))
+        assertEquals(prefsBefore, latinIME.prefs().all.toMap())
+        // the folder is deleted meanwhile: the window opens on "all"
+        tap(R.id.agent_prompts_close)
+        store.deleteFolder(a.id)
+        icon()
+        assertEquals(PromptFilter.All, window.filter)
+        assertEquals(2, window.shownIds.size)
+        assertEquals(View.GONE, chipRow().visibility, "and with no folder left the chip row is gone")
+    }
+
+    @Test fun noFolderIsRememberedOnlyWhileSomePromptHasNone() {
+        val a = folder("A"); val p = promptIn("n", null); promptIn("a", a)
+        icon()
+        tapChip(string(R.string.agent_prompts_chip_none))
+        tap(R.id.agent_prompts_close)
+        store.update(p.id, "n", "text of n", a.id) // nothing is without folder any more
+        icon()
+        assertEquals(PromptFilter.All, window.filter)
+        assertFalse(chipTexts().contains(string(R.string.agent_prompts_chip_none)))
+    }
+
+    @Test fun aChipTapAfterTheFieldBecameProtectedClosesTheWindowAndReadsNothing() {
+        val a = folder("A"); promptIn("a1", a)
+        icon()
+        val chip = chips().first { it.text.toString() == "A" }
+        startField("", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        // a field change closes the window; a stale chip of it must do nothing
+        assertEquals(View.GONE, window.visibility)
+        chip.performClick()
+        idle()
+        assertEquals(View.GONE, window.visibility)
+        // and a lock after opening closes it on the tap
+        startField("")
+        icon()
+        lock(true)
+        tapChip(string(R.string.agent_prompts_chip_all)) // the stale tap above already moved the filter to A, so this one changes it
+        assertEquals(View.GONE, window.visibility)
+        assertEquals(string(R.string.agent_prompts_protected), ShadowToast.getTextOfLatestToast())
+    }
+
+    @Test fun savingIntoAFolderStillNeedsAReadableClipAndRefusesSecretsAndLockedFields() {
+        val a = folder("A")
+        icon()
+        tapChip("A")
+        copy("482915")
+        tap(R.id.agent_prompts_save_clip)
+        assertEquals(string(R.string.agent_prompts_clip_sensitive), status())
+        assertTrue(store.read().isEmpty())
+        copy("ein Satz")
+        lock(true)
+        tap(R.id.agent_prompts_save_clip)
+        assertEquals(View.GONE, window.visibility)
+        lock(false)
+        assertTrue(store.read().isEmpty())
+        assertEquals(listOf(a.id), store.readFolders().map { it.id })
+    }
+
+    @Test fun aFolderDeletedWhileTheWindowIsOpenSavesNothingAndSaysSoAndTheWindowFallsBackToAll() {
+        val a = folder("A")
+        promptIn("n", null)
+        icon()
+        tapChip("A")
+        store.deleteFolder(a.id)
+        copy("ein Satz")
+        tap(R.id.agent_prompts_save_clip)
+        assertEquals(string(R.string.agent_prompts_folder_gone), status())
+        assertEquals(listOf("n"), store.read().map { it.title }, "the clip was not put anywhere else")
+        assertEquals(PromptFilter.All, window.filter)
+        assertEquals(View.GONE, chipRow().visibility)
+    }
 }

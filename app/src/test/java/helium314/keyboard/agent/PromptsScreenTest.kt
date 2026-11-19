@@ -11,16 +11,21 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import helium314.keyboard.agent.security.credentialContext
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.utils.Theme
@@ -47,6 +52,23 @@ import helium314.keyboard.settings.screens.PROMPTS_TEXT_FIELD_TAG
 import helium314.keyboard.settings.screens.PROMPTS_TITLE_FIELD_TAG
 import helium314.keyboard.settings.screens.PROMPTS_UNAVAILABLE_TAG
 import helium314.keyboard.settings.screens.confirmPromptOrder
+import helium314.keyboard.settings.screens.PROMPTS_FILTER_ALL_TAG
+import helium314.keyboard.settings.screens.PROMPTS_FILTER_NONE_TAG
+import helium314.keyboard.settings.screens.PROMPTS_FILTER_FOLDER_TAG
+import helium314.keyboard.settings.screens.PROMPTS_FOLDER_NEW_TAG
+import helium314.keyboard.settings.screens.PROMPTS_FOLDER_RENAME_TAG
+import helium314.keyboard.settings.screens.PROMPTS_FOLDER_DELETE_TAG
+import helium314.keyboard.settings.screens.PROMPTS_FOLDER_DELETE_CONFIRM_TAG
+import helium314.keyboard.settings.screens.PROMPTS_FOLDER_SORT_TAG
+import helium314.keyboard.settings.screens.PROMPTS_FOLDER_COUNT_TAG
+import helium314.keyboard.settings.screens.PROMPTS_FOLDER_NAME_FIELD_TAG
+import helium314.keyboard.settings.screens.PROMPTS_FOLDER_SAVE_TAG
+import helium314.keyboard.settings.screens.PROMPTS_FOLDER_CANCEL_TAG
+import helium314.keyboard.settings.screens.PROMPTS_FOLDER_ERROR_TAG
+import helium314.keyboard.settings.screens.PROMPTS_ROW_FOLDER_TAG
+import helium314.keyboard.settings.screens.PROMPTS_PICK_NONE_TAG
+import helium314.keyboard.settings.screens.PROMPTS_PICK_FOLDER_TAG
+import helium314.keyboard.settings.screens.confirmFolderOrder
 import helium314.keyboard.settings.screens.rowPreview
 import org.junit.After
 import org.junit.Before
@@ -474,5 +496,425 @@ class PromptsScreenTest {
         val shown = texts(compose.onNodeWithTag(PROMPTS_ROW_TAG + a.id, useUnmergedTree = true).fetchSemanticsNode())
         assertTrue(shown.contains("Titel"))
         assertEquals(listOf(300), shown.filter { it.startsWith("w") }.map { it.length })
+    }
+
+    // ---- stage 77: folders ----
+
+    private fun folder(store: PromptStore, name: String) = store.addFolder(name).folder!!
+    private fun add(store: PromptStore, title: String, folder: PromptFolder?) = store.add(title, "text of $title", folder?.id).prompt!!
+    private fun chip(f: PromptFolder) = PROMPTS_FILTER_FOLDER_TAG + f.id
+    private fun exists(tag: String) = runCatching { compose.onNodeWithTag(tag).assertExists() }.isSuccess
+    private fun newFolderThroughTheEditor(name: String) {
+        click(PROMPTS_FOLDER_NEW_TAG)
+        compose.onNodeWithTag(PROMPTS_FOLDER_NAME_FIELD_TAG).performTextInput(name)
+        click(PROMPTS_FOLDER_SAVE_TAG)
+    }
+
+    @Test fun withoutFoldersThereIsNoChipRowAndOnlyNewFolderIsOffered() {
+        val store = newStore()
+        add(store, "a", null)
+        show()
+        assertFalse(exists(PROMPTS_FILTER_ALL_TAG))
+        assertFalse(exists(PROMPTS_FILTER_NONE_TAG))
+        assertFalse(exists(PROMPTS_FOLDER_COUNT_TAG))
+        assertFalse(exists(PROMPTS_FOLDER_RENAME_TAG))
+        assertFalse(exists(PROMPTS_FOLDER_DELETE_TAG))
+        assertFalse(exists(PROMPTS_FOLDER_SORT_TAG))
+        compose.onNodeWithTag(PROMPTS_FOLDER_NEW_TAG).assertExists().assertIsEnabled()
+        compose.onNodeWithTag(PROMPTS_COUNT_TAG).assert(hasText("1 von 200"))
+    }
+
+    @Test fun aNewFolderIsMadeInTheEditorCardIsShownAtOnceAndStoredTrimmed() {
+        val store = newStore()
+        val p = add(store, "a", null)
+        show()
+        click(PROMPTS_FOLDER_NEW_TAG)
+        // a card on the page: the list and its buttons are not in the tree meanwhile (P78 pattern)
+        assertFalse(exists(PROMPTS_ROW_TAG + p.id))
+        assertFalse(exists(PROMPTS_ADD_TAG))
+        compose.onNodeWithTag(PROMPTS_FOLDER_SAVE_TAG).assertIsNotEnabled() // empty name
+        compose.onNodeWithTag(PROMPTS_FOLDER_NAME_FIELD_TAG).performTextInput("  Arbeit ")
+        click(PROMPTS_FOLDER_SAVE_TAG)
+        val f = store.readFolders().single()
+        assertEquals("Arbeit", f.name)
+        compose.onNodeWithTag(chip(f)).assertIsSelected() // the new folder is the one shown, so the next prompt lands in it
+        compose.onNodeWithTag(PROMPTS_FILTER_ALL_TAG).assertIsNotSelected()
+        compose.onNodeWithTag(PROMPTS_FOLDER_COUNT_TAG).assert(hasText("1 von 50 Ordnern"))
+        compose.onNodeWithTag(PROMPTS_EMPTY_TAG).assert(hasText("In diesem Ordner sind noch keine Prompts."))
+        assertFalse(exists(PROMPTS_ROW_TAG + p.id), "the prompt without folder is not in this folder")
+        compose.onNodeWithTag(PROMPTS_FILTER_NONE_TAG).assertExists()
+    }
+
+    @Test fun theFolderNameIsCheckedWhileTypingAndNothingBadIsStored() {
+        val store = newStore()
+        folder(store, "Arbeit")
+        show()
+        click(PROMPTS_FOLDER_NEW_TAG)
+        val field = compose.onNodeWithTag(PROMPTS_FOLDER_NAME_FIELD_TAG)
+        field.performTextInput("ARBEIT")
+        compose.onNodeWithTag(PROMPTS_FOLDER_SAVE_TAG).assertIsNotEnabled()
+        compose.onNodeWithText("Einen Ordner mit diesem Namen gibt es schon.").assertExists()
+        field.performTextReplacement("x".repeat(PromptStore.MAX_FOLDER_NAME + 1))
+        compose.waitForIdle()
+        compose.onNodeWithTag(PROMPTS_FOLDER_SAVE_TAG).assertIsNotEnabled()
+        compose.onNodeWithText("Der Name ist zu lang (höchstens 40 Zeichen).").assertExists()
+        field.performTextReplacement("x".repeat(PromptStore.MAX_FOLDER_NAME))
+        compose.waitForIdle()
+        compose.onNodeWithTag(PROMPTS_FOLDER_SAVE_TAG).assertIsEnabled()
+        field.performTextReplacement("   ")
+        compose.waitForIdle()
+        compose.onNodeWithTag(PROMPTS_FOLDER_SAVE_TAG).assertIsNotEnabled()
+        // cancel stores nothing and brings the list back
+        click(PROMPTS_FOLDER_CANCEL_TAG)
+        assertEquals(listOf("Arbeit"), store.readFolders().map { it.name })
+        compose.onNodeWithTag(PROMPTS_FOLDER_NEW_TAG).assertExists()
+    }
+
+    @Test fun aStoreThatRefusesTheNameShowsTheReasonAndKeepsTheCard() {
+        val store = newStore()
+        show()
+        click(PROMPTS_FOLDER_NEW_TAG)
+        compose.onNodeWithTag(PROMPTS_FOLDER_NAME_FIELD_TAG).performTextInput("Neu")
+        // the name is taken behind the page's back (the page still thinks it is free)
+        folder(store, "neu")
+        click(PROMPTS_FOLDER_SAVE_TAG)
+        compose.onNodeWithTag(PROMPTS_FOLDER_ERROR_TAG).assert(hasText("Einen Ordner mit diesem Namen gibt es schon."))
+        assertEquals(listOf("neu"), store.readFolders().map { it.name })
+        compose.onNodeWithTag(PROMPTS_FOLDER_NAME_FIELD_TAG).assertExists()
+    }
+
+    @Test fun theFiftiethFolderIsTheLastOne() {
+        val store = newStore()
+        repeat(PromptStore.MAX_FOLDERS - 1) { folder(store, "f$it") }
+        show()
+        compose.onNodeWithTag(PROMPTS_FOLDER_NEW_TAG).assertIsEnabled()
+        newFolderThroughTheEditor("letzter")
+        assertEquals(PromptStore.MAX_FOLDERS, store.readFolders().size)
+        compose.onNodeWithTag(PROMPTS_FOLDER_NEW_TAG).assertIsNotEnabled()
+        compose.onNodeWithTag(PROMPTS_FOLDER_COUNT_TAG).assert(hasText("50 von 50 Ordnern"))
+    }
+
+    @Test fun aChipFiltersTheListAndAllShowsEverythingWithTheFolderNameOnEachRow() {
+        val store = newStore()
+        val a = folder(store, "A"); val b = folder(store, "B")
+        val pa = add(store, "pa", a); val pb = add(store, "pb", b); val pn = add(store, "pn", null)
+        show()
+        // all: every prompt, with the name of its folder
+        for (p in listOf(pa, pb, pn)) compose.onNodeWithTag(PROMPTS_ROW_TAG + p.id).assertExists()
+        compose.onNodeWithTag(PROMPTS_ROW_FOLDER_TAG + pa.id).assert(hasText("A"))
+        assertFalse(exists(PROMPTS_ROW_FOLDER_TAG + pn.id))
+        click(chip(a))
+        compose.onNodeWithTag(chip(a)).assertIsSelected()
+        compose.onNodeWithTag(PROMPTS_ROW_TAG + pa.id).assertExists()
+        assertFalse(exists(PROMPTS_ROW_TAG + pb.id))
+        assertFalse(exists(PROMPTS_ROW_TAG + pn.id))
+        assertFalse(exists(PROMPTS_ROW_FOLDER_TAG + pa.id), "inside a folder the row needs no folder name")
+        click(PROMPTS_FILTER_NONE_TAG)
+        compose.onNodeWithTag(PROMPTS_ROW_TAG + pn.id).assertExists()
+        assertFalse(exists(PROMPTS_ROW_TAG + pa.id))
+        // the total count stays the total
+        compose.onNodeWithTag(PROMPTS_COUNT_TAG).assert(hasText("3 von 200"))
+        click(PROMPTS_FILTER_ALL_TAG)
+        for (p in listOf(pa, pb, pn)) compose.onNodeWithTag(PROMPTS_ROW_TAG + p.id).assertExists()
+    }
+
+    @Test fun theChipsFollowTheFolderOrderAndNoFolderShowsOnlyWhenSomePromptHasNone() {
+        val store = newStore()
+        val a = folder(store, "A"); val b = folder(store, "B")
+        add(store, "pa", a)
+        store.reorderFolders(listOf(b.id, a.id))
+        show()
+        val tops = listOf(PROMPTS_FILTER_ALL_TAG, chip(b), chip(a)).map { compose.onNodeWithTag(it).fetchSemanticsNode().boundsInRoot.left }
+        assertEquals(tops.sorted(), tops, "$tops")
+        assertEquals(3, tops.toSet().size)
+        assertFalse(exists(PROMPTS_FILTER_NONE_TAG))
+    }
+
+    @Test fun renamingAFolderKeepsItsPlaceAndItsPrompts() {
+        val store = newStore()
+        val a = folder(store, "A"); val b = folder(store, "B")
+        val p = add(store, "p", a)
+        show()
+        click(chip(a))
+        click(PROMPTS_FOLDER_RENAME_TAG)
+        assertEquals("A", fieldText(PROMPTS_FOLDER_NAME_FIELD_TAG))
+        // another folder's name is refused, the own name in another spelling is fine
+        compose.onNodeWithTag(PROMPTS_FOLDER_NAME_FIELD_TAG).performTextReplacement("b")
+        compose.waitForIdle()
+        compose.onNodeWithTag(PROMPTS_FOLDER_SAVE_TAG).assertIsNotEnabled()
+        compose.onNodeWithTag(PROMPTS_FOLDER_NAME_FIELD_TAG).performTextReplacement(" Büro ")
+        click(PROMPTS_FOLDER_SAVE_TAG)
+        assertEquals(listOf("Büro", "B"), store.readFolders().map { it.name })
+        assertEquals(a.id, store.readFolders().first().id)
+        assertEquals(a.id, store.read().single { it.id == p.id }.folderId)
+        compose.onNodeWithTag(chip(a)).assertIsSelected()
+        compose.onNodeWithTag(PROMPTS_ROW_TAG + p.id).assertExists()
+        // the rename button belongs to a shown folder only
+        click(PROMPTS_FILTER_ALL_TAG)
+        assertFalse(exists(PROMPTS_FOLDER_RENAME_TAG))
+        assertFalse(exists(PROMPTS_FOLDER_DELETE_TAG))
+        assertEquals(b.id, store.readFolders()[1].id)
+    }
+
+    @Test fun deletingAFolderAsksSaysWhereThePromptsGoAndKeepsThem() {
+        val store = newStore()
+        val a = folder(store, "A"); val b = folder(store, "B")
+        val p1 = add(store, "p1", a); val p2 = add(store, "p2", a); val p3 = add(store, "p3", b)
+        show()
+        click(chip(a))
+        click(PROMPTS_FOLDER_DELETE_TAG)
+        compose.onNodeWithText("Den Ordner „A“ löschen? Seine Prompts (2) werden nicht gelöscht, sie wandern nach „Ohne Ordner“.").assertExists()
+        // a cancelled dialog deletes nothing
+        compose.onNodeWithText("Abbrechen").performClick()
+        compose.waitForIdle()
+        assertEquals(2, store.readFolders().size)
+        click(PROMPTS_FOLDER_DELETE_TAG)
+        assertEquals(2, store.readFolders().size)
+        compose.onNodeWithTag(PROMPTS_FOLDER_DELETE_CONFIRM_TAG).performClick()
+        compose.waitForIdle()
+        assertEquals(listOf("B"), store.readFolders().map { it.name })
+        assertEquals(setOf(p1.id, p2.id, p3.id), store.read().map { it.id }.toSet(), "no prompt was deleted")
+        assertEquals(listOf(null, null, b.id), store.read().sortedBy { listOf(p1.id, p2.id, p3.id).indexOf(it.id) }.map { it.folderId })
+        // the page falls back to all and the prompts are listed, the ones of the deleted folder as "no folder"
+        compose.onNodeWithTag(PROMPTS_FILTER_ALL_TAG).assertIsSelected()
+        for (p in listOf(p1, p2, p3)) compose.onNodeWithTag(PROMPTS_ROW_TAG + p.id).assertExists()
+        click(PROMPTS_FILTER_NONE_TAG)
+        compose.onNodeWithTag(PROMPTS_ROW_TAG + p1.id).assertExists()
+        compose.onNodeWithTag(PROMPTS_ROW_TAG + p2.id).assertExists()
+        assertFalse(exists(PROMPTS_ROW_TAG + p3.id))
+        compose.onNodeWithTag(PROMPTS_COUNT_TAG).assert(hasText("3 von 200"))
+    }
+
+    @Test fun deletingTheLastFolderRemovesTheChipRowAndKeepsEveryPrompt() {
+        val store = newStore()
+        val a = folder(store, "A")
+        val p = add(store, "p", a)
+        show()
+        click(chip(a))
+        click(PROMPTS_FOLDER_DELETE_TAG)
+        compose.onNodeWithText("Den Ordner „A“ löschen? Seine Prompts (1) werden nicht gelöscht, sie wandern nach „Ohne Ordner“.").assertExists()
+        compose.onNodeWithTag(PROMPTS_FOLDER_DELETE_CONFIRM_TAG).performClick()
+        compose.waitForIdle()
+        assertTrue(store.readFolders().isEmpty())
+        assertEquals(listOf(p.id), store.read().map { it.id })
+        assertFalse(exists(PROMPTS_FILTER_ALL_TAG))
+        compose.onNodeWithTag(PROMPTS_ROW_TAG + p.id).assertExists()
+    }
+
+    @Test fun aFolderDeletedBehindThePagesBackIsReportedOnDelete() {
+        val store = newStore()
+        val a = folder(store, "A")
+        show()
+        click(chip(a))
+        click(PROMPTS_FOLDER_DELETE_TAG)
+        store.deleteFolder(a.id)
+        compose.onNodeWithTag(PROMPTS_FOLDER_DELETE_CONFIRM_TAG).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PROMPTS_NOTICE_TAG).assert(hasText("Diesen Ordner gibt es nicht mehr."))
+    }
+
+    @Test fun foldersCanBeSortedOnlyFromTwoOnAndTheDialogListsThem() {
+        val store = newStore()
+        val a = folder(store, "Alpha")
+        show()
+        assertFalse(exists(PROMPTS_FOLDER_SORT_TAG))
+        newFolderThroughTheEditor("Beta")
+        click(PROMPTS_FOLDER_SORT_TAG)
+        // each name is on its chip and in the dialog
+        compose.onAllNodesWithText("Alpha").assertCountEquals(2)
+        compose.onAllNodesWithText("Beta").assertCountEquals(2)
+        compose.onNodeWithText("OK").performClick() // unchanged order
+        compose.waitForIdle()
+        assertEquals(listOf("Alpha", "Beta"), store.readFolders().map { it.name })
+        assertEquals(a.id, store.readFolders().first().id)
+    }
+
+    @Test fun theFolderOrderIsSavedAndAStaleOneIsReported() {
+        val store = newStore()
+        val a = folder(store, "A"); val b = folder(store, "B"); val c = folder(store, "C")
+        val p = add(store, "p", b)
+        assertEquals(0, confirmFolderOrder(store, listOf(c.id, a.id, b.id)))
+        assertEquals(listOf("C", "A", "B"), store.readFolders().map { it.name })
+        assertEquals(b.id, store.read().single { it.id == p.id }.folderId)
+        store.deleteFolder(a.id)
+        assertEquals(R.string.agent_prompts_sort_changed, confirmFolderOrder(store, listOf(a.id, b.id, c.id)))
+        assertEquals(listOf("C", "B"), store.readFolders().map { it.name })
+        accessible = false
+        assertEquals(R.string.agent_prompts_sort_failed, confirmFolderOrder(store, listOf(b.id, c.id)))
+        // and the page shows the saved order
+        accessible = true
+        show()
+        val lefts = listOf(PROMPTS_FILTER_ALL_TAG, chip(c), chip(b)).map { compose.onNodeWithTag(it).fetchSemanticsNode().boundsInRoot.left }
+        assertEquals(lefts.sorted(), lefts, "$lefts")
+    }
+
+    @Test fun sortingInsideAFolderListsOnlyItsPromptsAndChangesOnlyTheirPlaces() {
+        val store = newStore()
+        val a = folder(store, "A"); val b = folder(store, "B")
+        // global order: n2 a3 b1 a2 n1 a1
+        val a1 = add(store, "a1", a); val n1 = add(store, "n1", null); val a2 = add(store, "a2", a)
+        val b1 = add(store, "b1", b); val a3 = add(store, "a3", a); val n2 = add(store, "n2", null)
+        show()
+        click(chip(a))
+        click(PROMPTS_SORT_TAG)
+        // a title is in the row on the page and in the dialog; b1 and n1 are on neither if the dialog lists only this folder
+        compose.onAllNodesWithText("a3").assertCountEquals(2)
+        compose.onAllNodesWithText("a1").assertCountEquals(2)
+        assertFalse(runCatching { compose.onNodeWithText("b1").assertExists() }.isSuccess, "only the prompts of the shown folder are in the dialog")
+        assertFalse(runCatching { compose.onNodeWithText("n1").assertExists() }.isSuccess)
+        compose.onNodeWithText("Abbrechen").performClick()
+        compose.waitForIdle()
+        // what the confirmed dialog does: only the places of A's prompts are permuted
+        assertEquals(0, confirmPromptOrder(store, PromptFilter.Folder(a.id), listOf(a1.id, a3.id, a2.id)))
+        assertEquals(listOf("n2", "a1", "b1", "a3", "n1", "a2"), store.read().map { it.title })
+        assertEquals(0, confirmPromptOrder(store, PromptFilter.NoFolder, listOf(n1.id, n2.id)))
+        assertEquals(listOf("n1", "a1", "b1", "a3", "n2", "a2"), store.read().map { it.title })
+        // a stale list (a prompt of the folder was deleted meanwhile) is reported and saves nothing
+        store.delete(a3.id)
+        val before = store.read().map { it.id }
+        assertEquals(R.string.agent_prompts_sort_changed, confirmPromptOrder(store, PromptFilter.Folder(a.id), listOf(a1.id, a3.id, a2.id)))
+        assertEquals(R.string.agent_prompts_sort_changed, confirmPromptOrder(store, PromptFilter.Folder("gone"), emptyList()))
+        assertEquals(before, store.read().map { it.id })
+        // "all" still orders everything
+        assertEquals(0, confirmPromptOrder(store, PromptFilter.All, before.reversed()))
+        assertEquals(before.reversed(), store.read().map { it.id })
+        assertEquals(b1.id, store.read().single { it.folderId == b.id }.id)
+    }
+
+    @Test fun aPromptIsMovedBetweenFoldersInTheEditorAndKeepsItsPlace() {
+        val store = newStore()
+        val a = folder(store, "A"); val b = folder(store, "B")
+        val p1 = add(store, "p1", a); val p2 = add(store, "p2", null)
+        show()
+        click(PROMPTS_EDIT_TAG + p1.id)
+        // the picker shows the folder of the prompt
+        compose.onNodeWithTag(PROMPTS_PICK_FOLDER_TAG + a.id).assertIsSelected()
+        compose.onNodeWithTag(PROMPTS_PICK_NONE_TAG).assertIsNotSelected()
+        click(PROMPTS_PICK_FOLDER_TAG + b.id)
+        click(PROMPTS_SAVE_TAG)
+        assertEquals(b.id, store.read().single { it.id == p1.id }.folderId)
+        assertEquals(listOf(p2.id, p1.id), store.read().map { it.id }, "the place in the global order is kept")
+        assertEquals("text of p1", store.read().single { it.id == p1.id }.text)
+        // and out of every folder
+        click(PROMPTS_EDIT_TAG + p1.id)
+        compose.onNodeWithTag(PROMPTS_PICK_FOLDER_TAG + b.id).assertIsSelected()
+        click(PROMPTS_PICK_NONE_TAG)
+        click(PROMPTS_SAVE_TAG)
+        assertEquals(null, store.read().single { it.id == p1.id }.folderId)
+        // a plain edit of the text keeps the folder
+        click(PROMPTS_EDIT_TAG + p2.id)
+        click(PROMPTS_PICK_FOLDER_TAG + a.id)
+        click(PROMPTS_SAVE_TAG)
+        assertEquals(a.id, store.read().single { it.id == p2.id }.folderId)
+        click(PROMPTS_EDIT_TAG + p2.id)
+        compose.onNodeWithTag(PROMPTS_TEXT_FIELD_TAG).performTextInput(" mehr")
+        click(PROMPTS_SAVE_TAG)
+        assertEquals(a.id, store.read().single { it.id == p2.id }.folderId)
+    }
+
+    @Test fun theEditorHasNoFolderPickerWithoutFolders() {
+        val store = newStore()
+        val p = add(store, "p", null)
+        show()
+        click(PROMPTS_EDIT_TAG + p.id)
+        assertFalse(exists(PROMPTS_PICK_NONE_TAG))
+        click(PROMPTS_SAVE_TAG)
+        assertEquals(null, store.read().single().folderId)
+    }
+
+    @Test fun aNewPromptStartsInTheFolderShownAndInNoFolderOtherwise() {
+        val store = newStore()
+        val a = folder(store, "A"); val b = folder(store, "B")
+        show()
+        // all: no folder
+        click(PROMPTS_ADD_TAG)
+        compose.onNodeWithTag(PROMPTS_PICK_NONE_TAG).assertIsSelected()
+        compose.onNodeWithTag(PROMPTS_TEXT_FIELD_TAG).performTextInput("eins")
+        click(PROMPTS_SAVE_TAG)
+        assertEquals(null, store.read().single().folderId)
+        // a folder shown: the picker starts on it and the prompt is stored there
+        click(chip(a))
+        click(PROMPTS_ADD_TAG)
+        compose.onNodeWithTag(PROMPTS_PICK_FOLDER_TAG + a.id).assertIsSelected()
+        compose.onNodeWithTag(PROMPTS_TEXT_FIELD_TAG).performTextInput("zwei")
+        click(PROMPTS_SAVE_TAG)
+        assertEquals(a.id, store.read().first().folderId)
+        assertEquals("zwei", store.read().first().text)
+        // the default can be changed in the editor
+        click(PROMPTS_ADD_TAG)
+        click(PROMPTS_PICK_FOLDER_TAG + b.id)
+        compose.onNodeWithTag(PROMPTS_TEXT_FIELD_TAG).performTextInput("drei")
+        click(PROMPTS_SAVE_TAG)
+        assertEquals(b.id, store.read().first().folderId)
+        // "no folder" shown: no folder
+        click(PROMPTS_FILTER_NONE_TAG)
+        click(PROMPTS_ADD_TAG)
+        compose.onNodeWithTag(PROMPTS_PICK_NONE_TAG).assertIsSelected()
+    }
+
+    @Test fun changingOnlyTheFolderCountsAsAChangeForCancel() {
+        val store = newStore()
+        val a = folder(store, "A")
+        val p = add(store, "p", null)
+        show()
+        click(PROMPTS_EDIT_TAG + p.id)
+        click(PROMPTS_CANCEL_TAG) // unchanged: closes at once
+        compose.onNodeWithTag(PROMPTS_ADD_TAG).assertExists()
+        click(PROMPTS_EDIT_TAG + p.id)
+        click(PROMPTS_PICK_FOLDER_TAG + a.id)
+        click(PROMPTS_CANCEL_TAG)
+        compose.onNodeWithTag(PROMPTS_DISCARD_TAG).assertExists()
+        compose.onNodeWithTag(PROMPTS_DISCARD_TAG).performClick()
+        compose.waitForIdle()
+        assertEquals(null, store.read().single().folderId, "nothing was saved")
+    }
+
+    @Test fun aFolderDeletedWhileThePromptEditorIsOpenIsReportedAndTheSaveGoesToNoFolder() {
+        val store = newStore()
+        val a = folder(store, "A")
+        show()
+        click(chip(a))
+        click(PROMPTS_ADD_TAG)
+        compose.onNodeWithTag(PROMPTS_TEXT_FIELD_TAG).performTextInput("Text")
+        store.deleteFolder(a.id)
+        click(PROMPTS_SAVE_TAG)
+        compose.onNodeWithTag(PROMPTS_NOTICE_TAG).assert(hasText("Diesen Ordner gibt es nicht mehr."))
+        assertTrue(store.read().isEmpty(), "nothing was saved into a folder that is gone")
+        // the picker was reloaded without the folder: saving again stores the prompt without folder
+        assertFalse(exists(PROMPTS_PICK_NONE_TAG))
+        click(PROMPTS_SAVE_TAG)
+        assertEquals(null, store.read().single().folderId)
+    }
+
+    @Test fun theChosenChipAndTheFolderEditorSurviveAnActivityRestore() {
+        val store = newStore()
+        val a = folder(store, "A"); folder(store, "B")
+        add(store, "p", a)
+        val tester = StateRestorationTester(compose)
+        initPreview(app)
+        tester.setContent { Theme(dark = true) { AgentPromptsScreen(onClickBack = {}, storeFactory = { newStore(it) }) } }
+        compose.waitForIdle()
+        click(chip(a))
+        tester.emulateSavedInstanceStateRestore()
+        compose.waitForIdle()
+        compose.onNodeWithTag(chip(a)).assertIsSelected()
+        click(PROMPTS_FOLDER_RENAME_TAG)
+        compose.onNodeWithTag(PROMPTS_FOLDER_NAME_FIELD_TAG).performTextInput("x")
+        tester.emulateSavedInstanceStateRestore()
+        compose.waitForIdle()
+        assertEquals("xA", fieldText(PROMPTS_FOLDER_NAME_FIELD_TAG))
+        assertEquals("A", store.readFolders().first().name, "nothing was saved by the restore")
+    }
+
+    @Test fun anUnusableFileWithAMissingFolderShowsTheResetDeadEndAndNoFolderControls() {
+        file.parentFile!!.mkdirs()
+        val bad = """{"storageVersion":2,"folders":[{"id":"f1","name":"A"}],"prompts":[{"id":"p","title":"","text":"x","folderId":"f2"}]}"""
+        file.writeText(bad)
+        show()
+        compose.onNodeWithTag(PROMPTS_UNAVAILABLE_TAG).assertExists()
+        compose.onNodeWithTag(PROMPTS_RESET_TAG).assertExists()
+        assertFalse(exists(PROMPTS_FOLDER_NEW_TAG))
+        assertFalse(exists(PROMPTS_FILTER_ALL_TAG))
+        assertEquals(bad, file.readText(), "the page changed nothing")
     }
 }

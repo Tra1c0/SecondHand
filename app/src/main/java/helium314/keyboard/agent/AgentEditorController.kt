@@ -701,13 +701,16 @@ class AgentEditorController @JvmOverloads constructor(
             ?.let { runCatching { it.getItemAt(0).coerceToText(ime)?.toString() }.getOrNull() }
         val store = promptStoreFactory()
         val library = store.loadLibrary()
-        // the folder shown now, if it still exists; a new clip goes into it (All and No folder: no folder)
-        val shown = library?.effective(target.filter) ?: PromptFilter.All
+        // the folder shown now; a new clip goes into it (All and No folder: no folder). A folder that is gone saves nothing.
+        val wanted = target.filter
+        val shown = library?.effective(wanted) ?: PromptFilter.All
         val folder = library?.folders?.firstOrNull { it.id == shown.folderIdForNew }
+        val folderGone = library != null && wanted is PromptFilter.Folder && folder == null
         val message = when {
             text.isNullOrBlank() -> ime.getString(R.string.agent_prompts_paste_empty)
             text.length > PromptStore.MAX_TEXT -> ime.getString(R.string.agent_prompts_clip_too_long, PromptStore.MAX_TEXT)
             isSecretClip(text, clip) -> ime.getString(R.string.agent_prompts_clip_sensitive)
+            folderGone -> { target.refresh(library); ime.getString(R.string.agent_prompts_folder_gone) }
             library?.promptsIn(shown)?.firstOrNull()?.text == text -> ime.getString(R.string.agent_prompts_already_saved)
             else -> {
                 val result = store.add("", text, folder?.id)
