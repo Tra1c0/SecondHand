@@ -637,7 +637,7 @@ class AgentEditorController @JvmOverloads constructor(
      * autocorrection. A selection is not replaced (the anchor needs a plain cursor).
      */
     private fun insertPrompt(id: String) {
-        val target = prompts ?: return
+        val target = prompts?.takeIf { it.visibility == View.VISIBLE } ?: return // a tap on a row of a window already closed does nothing
         val store = promptStoreFactory()
         val prompt = store.load()?.firstOrNull { it.id == id }
         if (prompt == null) {
@@ -678,13 +678,13 @@ class AgentEditorController @JvmOverloads constructor(
         val clip = runCatching { (ime.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager)?.primaryClip }.getOrNull()
         val text = clip?.takeIf { it.itemCount > 0 && it.description?.hasMimeType("text/*") == true }
             ?.let { runCatching { it.getItemAt(0).coerceToText(ime)?.toString() }.getOrNull() }
+        val store = promptStoreFactory()
         val message = when {
             text.isNullOrBlank() -> ime.getString(R.string.agent_prompts_paste_empty)
             text.length > PromptStore.MAX_TEXT -> ime.getString(R.string.agent_prompts_clip_too_long, PromptStore.MAX_TEXT)
-            isSecretClip(text, helium314.keyboard.compat.ClipboardManagerCompat.getClipSensitivity(clip.description) == true) ->
-                ime.getString(R.string.agent_prompts_clip_sensitive)
+            isSecretClip(text, clip) -> ime.getString(R.string.agent_prompts_clip_sensitive)
+            store.load()?.firstOrNull()?.text == text -> ime.getString(R.string.agent_prompts_already_saved)
             else -> {
-                val store = promptStoreFactory()
                 val result = store.add("", text)
                 if (result.ok) target.refresh(store.load())
                 ime.getString(when (result.error) {
@@ -700,11 +700,18 @@ class AgentEditorController @JvmOverloads constructor(
         target.showStatus(message)
     }
 
-    /** The rule the clipboard history uses to keep secrets and one-time codes out ([ClipVault], [SensitiveClips]). */
-    private fun isSecretClip(text: String, marked: Boolean): Boolean {
-        if (marked || helium314.keyboard.agent.commands.SensitiveClips.isSensitive(text)) return true
-        val kind = dev.agentkeyboard.core.clip.ClipGuard.classify(text, marked, ClipVault.region(Settings.getValues())).kind
-        return kind.category == dev.agentkeyboard.core.clip.ClipCategory.SECRET || kind.category == dev.agentkeyboard.core.clip.ClipCategory.OTP
+    /**
+     * The rule of the clipboard history ([ClipVault.isSecretClip]), with the inputs the history uses: the
+     * clip's own copy time and sensitive mark, so a clip the vault sorted as secret when it was copied
+     * (say in a password field) stays refused here. One-time codes are refused too, also inside a message
+     * (the history keeps such a message, a stored prompt would stay for good).
+     */
+    private fun isSecretClip(text: String, clip: ClipData): Boolean {
+        val marked = helium314.keyboard.compat.ClipboardManagerCompat.getClipSensitivity(clip.description) == true
+        val copiedAt = helium314.keyboard.compat.ClipboardManagerCompat.getClipTimestamp(clip)
+        if (ClipVault.isSecretClip(text, copiedAt, marked)) return true
+        return dev.agentkeyboard.core.clip.ClipGuard.classify(text, marked, ClipVault.region(Settings.getValues()))
+            .category == dev.agentkeyboard.core.clip.ClipCategory.OTP
     }
 
     /** "Manage": the settings page of the prompt store, never while the device is locked (P77). */

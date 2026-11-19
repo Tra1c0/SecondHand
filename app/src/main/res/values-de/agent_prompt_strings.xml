@@ -41,6 +41,7 @@
     <string name="agent_prompts_window_unavailable">Die Prompt-Ablage lässt sich gerade nicht lesen. Öffne Verwalten, um sie zurückzusetzen.</string>
     <string name="agent_prompts_protected">Die Prompt-Ablage gibt es in diesem Feld nicht.</string>
     <string name="agent_prompts_saved">Als erster Prompt gespeichert.</string>
+    <string name="agent_prompts_already_saved">Schon gespeichert.</string>
     <string name="agent_prompts_clip_too_long">Der kopierte Text ist zu lang (höchstens %d Zeichen). Nichts gespeichert.</string>
     <string name="agent_prompts_clip_sensitive">Der kopierte Text sieht nach einem Geheimnis aus (Passwort, Schlüssel oder Code). Er wird nicht gespeichert.</string>
     <string name="agent_prompts_insert_description">Prompt einfügen: %1$s</string>

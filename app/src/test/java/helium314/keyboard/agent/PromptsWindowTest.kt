@@ -23,6 +23,7 @@ import helium314.keyboard.latin.LatinIME
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.prefs
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -53,10 +54,13 @@ class PromptsWindowTest {
         storeFile.delete(); File(storeFile.path + ".bak").delete()
         shadowOf(latinIME.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager).setIsDeviceLocked(false)
         latinIME.prefs().edit(commit = true) { clear() }
+        ClipVault.clear()
         root = switcher.onCreateInputView(latinIME, true)
         latinIME.setInputView(root)
         startField("")
     }
+
+    @After fun tearDown() { ClipVault.clear() }
 
     private fun idle() = shadowOf(Looper.getMainLooper()).idle()
 
@@ -276,10 +280,183 @@ class PromptsWindowTest {
         assertFalse(store.read().any { it.text == "zu viel" })
     }
 
-    @Test fun theClipboardIsReadOnlyOnTheTap() {
+    /** A clip whose text would be stored on a tap; opening the window alone must not store it (a read cannot be observed in Robolectric). */
+    @Test fun openingTheWindowDoesNotSaveTheClipboard() {
         copy("geheimnisvoller Text")
         icon()
         assertEquals(View.VISIBLE, window.visibility)
         assertTrue(store.read().isEmpty()) // opening did not save the clip
+        idle()
+        assertTrue(store.read().isEmpty())
+        tap(R.id.agent_prompts_save_clip) // only the tap saves it
+        assertEquals(listOf("geheimnisvoller Text"), store.read().map { it.text })
+    }
+
+    // ---- the clipboard history's rule (review of 74b) ----
+
+    private fun clipStamp() = helium314.keyboard.compat.ClipboardManagerCompat.getClipTimestamp(clipboard.primaryClip!!)
+
+    @Test fun aClipTheVaultSortedAsSecretWhenCopiedIsRefusedLaterInANormalField() {
+        icon()
+        copy("harmloser Satz im Passwortfeld kopiert")
+        // what the history does on the copy in a password field: offer it to the vault as marked
+        ClipVault.offer("harmloser Satz im Passwortfeld kopiert", true, clipStamp(), "DE", true)
+        tap(R.id.agent_prompts_save_clip)
+        assertEquals(string(R.string.agent_prompts_clip_sensitive), status())
+        assertTrue(store.read().isEmpty())
+        // the same text copied again later (a new stamp, not marked) is a normal text
+        Thread.sleep(5)
+        copy("harmloser Satz im Passwortfeld kopiert")
+        assertNotEquals(true, ClipVault.isSecretClip("harmloser Satz im Passwortfeld kopiert", clipStamp(), false))
+    }
+
+    @Test fun aClipTheSystemMarkedSensitiveIsRefused() {
+        icon()
+        val clip = ClipData.newPlainText("t", "ein ganz normaler Satz")
+        clip.description.extras = android.os.PersistableBundle().apply { putBoolean("android.content.extra.IS_SENSITIVE", true) }
+        clipboard.setPrimaryClip(clip)
+        tap(R.id.agent_prompts_save_clip)
+        assertEquals(string(R.string.agent_prompts_clip_sensitive), status())
+        assertTrue(store.read().isEmpty())
+    }
+
+    // put together so that the file holds no key-shaped string; not real secrets
+    private val secretSamples = mapOf(
+        "password" to "x7#Kq9" + "!mZ",
+        "api key" to "sk" + "-proj-" + "Ab3dE5fG7hJ9kL1mN3pQ5rS7tU9vW1xY3z" + "7f3a",
+        "token" to "Zq8Lm2Xv9R" + "t4Pk7Wn3Bs6Hd1",
+        "private key" to "-----BEGIN RSA PRIV" + "ATE KEY-----\nMIIEabc\n-----END RSA PRIV" + "ATE KEY-----",
+        "jwt" to "eyJhbGciOiJI" + "UzI1NiJ9.eyJzdWIiOiIx" + "MjM0NTY3ODkwIn0.abcdefghij" + "klmnop",
+        "one-time code" to "482915",
+        "one-time code with spaces" to "482 915",
+    )
+
+    @Test fun everyCategoryTheHistoryKeepsOutIsRefusedHere() {
+        icon()
+        for ((name, sample) in secretSamples) {
+            assertTrue(dev.agentkeyboard.core.clip.ClipGuard.classify(sample).let { it.keepsOutOfHistory }, "$name is kept out of the history")
+            copy(sample)
+            tap(R.id.agent_prompts_save_clip)
+            assertEquals(string(R.string.agent_prompts_clip_sensitive), status(), name)
+            assertTrue(store.read().isEmpty(), name)
+        }
+    }
+
+    @Test fun aNormalSentenceIsStored() {
+        icon()
+        copy("Fasse den folgenden Text in drei Sätzen zusammen.")
+        tap(R.id.agent_prompts_save_clip)
+        assertEquals(string(R.string.agent_prompts_saved), status())
+        assertEquals(listOf("Fasse den folgenden Text in drei Sätzen zusammen."), store.read().map { it.text })
+    }
+
+    @Test fun aOneTimeCodeInsideALongerMessageIsRefusedToo() {
+        icon()
+        copy("Dein Code lautet 123456, gib ihn niemandem weiter.")
+        tap(R.id.agent_prompts_save_clip)
+        assertEquals(string(R.string.agent_prompts_clip_sensitive), status())
+        assertTrue(store.read().isEmpty())
+    }
+
+    // ---- saving the same text twice ----
+
+    @Test fun savingTheNewestPromptsTextAgainAddsNothing() {
+        store.add("alt", "alt")
+        icon()
+        copy("Neuer Text")
+        tap(R.id.agent_prompts_save_clip)
+        assertEquals(string(R.string.agent_prompts_saved), status())
+        tap(R.id.agent_prompts_save_clip)
+        assertEquals(string(R.string.agent_prompts_already_saved), status())
+        assertEquals(listOf("Neuer Text", "alt"), store.read().map { it.text })
+        // a text that is only in second place is added again
+        copy("alt")
+        tap(R.id.agent_prompts_save_clip)
+        assertEquals(listOf("alt", "Neuer Text", "alt"), store.read().map { it.text })
+    }
+
+    // ---- guards on the tap on a row (review of 74b) ----
+
+    @Test fun aFieldChangeClosesTheWindowAndAStaleRowCannotInsert() {
+        store.add("T", "eingefügt")
+        startField("Hallo ")
+        icon()
+        val row = rows().single()
+        startField("anders")
+        assertEquals(View.GONE, window.visibility)
+        assertFalse(controller.isBlockingInput)
+        row.performClick()
+        idle()
+        assertEquals("anders", field)
+    }
+
+    @Test fun aLockAfterOpeningMeansATapInsertsNothing() {
+        store.add("T", "eingefügt")
+        startField("Hallo ")
+        icon()
+        lock(true)
+        rows().single().performClick()
+        idle()
+        assertEquals("Hallo ", field)
+        assertEquals(View.GONE, window.visibility)
+    }
+
+    @Test fun aDoubleTapInsertsOnce() {
+        store.add("T", "X")
+        startField("")
+        icon()
+        val row = rows().single()
+        row.performClick()
+        row.performClick()
+        idle()
+        assertEquals("X", field)
+    }
+
+    @Test fun aRowOfAPromptDeletedMeanwhileInsertsNothingAndSaysSo() {
+        store.add("T", "weg")
+        store.add("U", "bleibt")
+        startField("Hallo ")
+        icon()
+        val gone = store.read().first { it.text == "weg" }
+        val row = rows().first { it.tag == gone.id }
+        assertTrue(store.delete(gone.id).ok)
+        row.performClick()
+        idle()
+        assertEquals("Hallo ", field)
+        assertEquals(View.VISIBLE, window.visibility)
+        assertEquals(string(R.string.agent_prompts_gone), status())
+        assertEquals(listOf("bleibt"), rowTexts().map { it[1] })
+    }
+
+    @Test fun theWindowDoesNotOpenInAnyPasswordVariation() {
+        store.add("T", "x")
+        for (type in listOf(
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD,
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD,
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD,
+            InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD,
+        )) {
+            startField("", type)
+            assertFalse(controller.openPrompts(), "type $type")
+            icon()
+            assertEquals(View.GONE, window.visibility, "type $type")
+            assertFalse(controller.isBlockingInput, "type $type")
+        }
+        startField("")
+        assertTrue(controller.openPrompts())
+    }
+
+    // ---- PromptsKey.shown ----
+
+    @Test fun thePopupKeyIsShownOnlyWhereTheWindowCanOpen() {
+        val id = switcher.keyboard!!.mId
+        assertTrue(helium314.keyboard.agent.prompts.PromptsKey.shown(id))
+        assertFalse(helium314.keyboard.agent.prompts.PromptsKey.shown(id.copy(deviceLocked = true)), "locked")
+        assertFalse(helium314.keyboard.agent.prompts.PromptsKey.shown(
+            id.copy(inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)), "password")
+        assertFalse(helium314.keyboard.agent.prompts.PromptsKey.shown(
+            id.copy(element = helium314.keyboard.keyboard.KeyboardElement.NUMBER)), "number layout")
+        assertFalse(helium314.keyboard.agent.prompts.PromptsKey.shown(
+            id.copy(imeOptions = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING)), "no personalized learning")
     }
 }

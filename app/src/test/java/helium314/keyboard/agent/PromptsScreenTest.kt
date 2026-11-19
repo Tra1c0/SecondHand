@@ -368,6 +368,21 @@ class PromptsScreenTest {
         assertEquals(0, left)
     }
 
+    @Test fun withTheListShownTheSystemBackIsNotHandledByThePage() {
+        initPreview(app)
+        compose.setContent { Theme(dark = true) { AgentPromptsScreen(onClickBack = {}, storeFactory = { newStore(it) }) } }
+        compose.waitForIdle()
+        var enabled = true
+        compose.runOnUiThread { enabled = compose.activity.onBackPressedDispatcher.hasEnabledCallbacks() }
+        assertFalse(enabled, "no back handler while the list is shown: the system back leaves the page")
+        click(PROMPTS_ADD_TAG)
+        compose.runOnUiThread { enabled = compose.activity.onBackPressedDispatcher.hasEnabledCallbacks() }
+        assertTrue(enabled, "the editor handles the back")
+        back()
+        compose.runOnUiThread { enabled = compose.activity.onBackPressedDispatcher.hasEnabledCallbacks() }
+        assertFalse(enabled, "closed again: the list leaves the back to the system")
+    }
+
     @Test fun theEditorStateSurvivesAnActivityRestore() {
         newStore().add("Titel", "Text")
         val tester = StateRestorationTester(compose)

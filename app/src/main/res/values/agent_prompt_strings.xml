@@ -44,6 +44,7 @@
     <string name="agent_prompts_window_unavailable">The prompt store cannot be read now. Open Manage to reset it.</string>
     <string name="agent_prompts_protected">The prompt store is not available in this field.</string>
     <string name="agent_prompts_saved">Saved as the first prompt.</string>
+    <string name="agent_prompts_already_saved">Already saved.</string>
     <string name="agent_prompts_clip_too_long">The copied text is too long (at most %d characters). Nothing was saved.</string>
     <string name="agent_prompts_clip_sensitive">The copied text looks like a secret (password, key or code). It is not saved.</string>
     <string name="agent_prompts_insert_description">Insert prompt: %1$s</string>
