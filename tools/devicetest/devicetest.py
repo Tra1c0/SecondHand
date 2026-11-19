@@ -36,6 +36,7 @@ import xml.etree.ElementTree as ET
 KEYBOARD_PACKAGE = "dev.personal.agentkeyboard.debug"
 TEST_PACKAGE = "dev.personal.secondhand.devicetest"
 PROBE_SERVICE = TEST_PACKAGE + "/" + TEST_PACKAGE + ".ProbeAccessibilityService"
+PROBE_LABEL = "SH Device Test"  # android:label of the test app, as "dumpsys accessibility" names a bound service
 # The system languages of the emulator. The keyboard enables one layout per system language on its
 # first start (SubtypeSettings.getDefaultEnabledSubtypes), so this gives German first, then English.
 LOCALES = "de-DE,en-US"
@@ -449,20 +450,13 @@ def set_locales():
 
 
 def accessibility_state():
-    """Says whether the system has bound the probe service ("bound") or only knows it as enabled."""
+    """What the system says about its accessibility services: "bound" once the probe service runs,
+    followed by the raw lines (the bound services are listed by app label, the enabled ones by class)."""
     text = shell("dumpsys accessibility", check=False, timeout=30)
-    state = []
-    for line in text.splitlines():
-        low = line.strip()
-        if low.startswith("Bound services") and "ProbeAccessibilityService" in low:
-            state.append("bound")
-        elif low.startswith("Enabled services") and "ProbeAccessibilityService" in low:
-            state.append("enabled")
-        elif low.startswith("Binding services") and "ProbeAccessibilityService" in low:
-            state.append("binding")
-        elif low.startswith("Crashed services") and "ProbeAccessibilityService" in low:
-            state.append("crashed")
-    return ",".join(state) or "unknown to the system"
+    lines = [line.strip() for line in text.splitlines()
+             if line.strip().startswith(("Bound services", "Enabled services", "Binding services", "Crashed services"))]
+    bound = any(line.startswith("Bound services") and PROBE_LABEL in line for line in lines)
+    return ("bound; " if bound else "not bound; ") + " | ".join(line[:160] for line in lines)[:520]
 
 
 def setup(keyboard_apk, test_apk, info):
@@ -489,10 +483,10 @@ def setup(keyboard_apk, test_apk, info):
     shell("settings put secure speak_password 1")
     info["accessibility"] = accessibility_state()
     deadline = time.time() + 30
-    while "bound" not in info["accessibility"] and time.time() < deadline:
+    while not info["accessibility"].startswith("bound") and time.time() < deadline:
         time.sleep(2)
         info["accessibility"] = accessibility_state()
-    if "bound" not in info["accessibility"]:
+    if not info["accessibility"].startswith("bound"):
         raise DeviceError("the accessibility probe was not bound by the system: " + info["accessibility"])
 
     ime = ""
