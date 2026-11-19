@@ -125,7 +125,8 @@ class PromptsWindowTest {
         icon()
         assertEquals(View.VISIBLE, window.visibility)
         assertTrue(controller.isBlockingInput)
-        assertNotEquals(KeyCodeDescriptionMapper.getInstance().getDescription(latinIME, KeyCode.AGENT_PROMPTS) ?: "", "")
+        assertEquals(string(R.string.agent_prompts_key_description),
+            KeyCodeDescriptionMapper.instance.getDescriptionForCodePoint(latinIME, KeyCode.AGENT_PROMPTS))
         tap(R.id.agent_prompts_close)
         assertEquals(View.GONE, window.visibility)
         assertFalse(controller.isBlockingInput)
