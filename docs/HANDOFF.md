@@ -344,6 +344,7 @@ Leseoffset nutzen) und die Zusammenfassung des Docs-Checks. Er blockiert nie ein
   Projekt-Repositories). Einem Agenten wurde das Anlegen verweigert; der Owner hat es dem Lead am 2026-11-19 erlaubt.
 
 ## Build-Log (eine Zeile pro Build, neueste zuerst)
+- Build 35 (Arbeitsbranch und `main` edfe3d0, Release-Lauf 35 vom Arbeitsbranch): 73 Emulator-Testlabor mit 22 Szenarien inkl. Autofill, 74, 75, 76, Korrekturen an Pille (P307, P308), Update-Chip, Tastenpositionen, Sperrzustand der Befehle (P309), Logging im Screenshot-Chip (P310). GitHub „SecondHand Tests“ Lauf 140 und auf `main` Lauf 141 grün; Gerätetests Lauf 40 (dreimal 22/22), Kontrolllauf 43 (dreimal alle rot), auf `main` Lauf 44 grün. APK nachgeprüft: SHA-256 d49894d7…689dafe3, Zertifikat des Owners d56e8f00…63602a, Versionscode 35. Dem Owner geschickt. Der Release-Workflow auf `main` (öffentliches Update) wurde nicht gestartet; kein Test auf einem Telefon.
 - Build 34 (Test, Arbeitsbranch c6526bf): 74 Prompt-Ablage (Symbol im Komma-Menü, Fenster, Einstellungsseite) und 73a Emulator-Testlabor
   (ändert die App nicht). GitHub-Lauf 115 grün (Agent, Upstream, Lint, Build), Gerätetests Lauf 14 grün; APK nachgeprüft (Prüfsumme,
   Zertifikat, Versionscode 34, nicht debuggable); dem Owner als Datei geschickt; kein Gerätetest. Nicht auf `main`.
