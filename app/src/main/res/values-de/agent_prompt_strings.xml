@@ -50,4 +50,7 @@
     <string name="agent_prompts_discard_confirm">Änderungen verwerfen?</string>
     <string name="agent_prompts_discard">Verwerfen</string>
     <string name="agent_prompts_keep_editing">Weiter bearbeiten</string>
+    <string name="restore_prompts_corrupt">Die Prompts aus dem Backup wurden nicht wiederhergestellt: Der Eintrag ist beschädigt. Die Prompts auf diesem Telefon sind unverändert.</string>
+    <string name="restore_prompts_locked">Die Prompts aus dem Backup wurden nicht wiederhergestellt: Das Gerät ist gesperrt. Die Prompts auf diesem Telefon sind unverändert.</string>
+    <string name="restore_prompts_unreadable">Die Prompts aus dem Backup wurden nicht wiederhergestellt: Die Prompt-Ablage auf diesem Telefon ist nicht lesbar. Setze sie unter Einstellungen → Leiste &amp; Befehle → Prompt-Ablage zurück und stelle das Backup erneut her.</string>
 </resources>

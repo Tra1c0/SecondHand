@@ -53,4 +53,7 @@
     <string name="agent_prompts_discard_confirm">Discard your changes?</string>
     <string name="agent_prompts_discard">Discard</string>
     <string name="agent_prompts_keep_editing">Keep editing</string>
+    <string name="restore_prompts_corrupt">The prompts in the backup were not restored: the entry is corrupt. The prompts on this phone are unchanged.</string>
+    <string name="restore_prompts_locked">The prompts in the backup were not restored: the device is locked. The prompts on this phone are unchanged.</string>
+    <string name="restore_prompts_unreadable">The prompts in the backup were not restored: the prompt store on this phone is unreadable. Reset it under Einstellungen → Leiste &amp; Befehle → Prompt-Ablage and restore again.</string>
 </resources>

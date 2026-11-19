@@ -149,15 +149,15 @@ class PromptStore(context: Context, private val accessible: () -> Boolean = { cr
 
     /**
      * Stage 76 (backup): exactly the bytes of the stored file when it exists, is readable and valid and the device
-     * is unlocked; otherwise null (nothing to save: no file, locked, too large, not understood).
+     * is unlocked; otherwise null (nothing to save: no file, no prompts in it, locked, too large, not understood).
+     * An empty list is no entry: restoring it later would wipe prompts made since.
      */
     fun exportBytes(): ByteArray? = synchronized(lock) {
         if (!isAccessible()) return@synchronized null
         runCatching {
             if (!file.baseFile.exists() && !File(file.baseFile.path + ".bak").exists()) return@runCatching null
             val bytes = file.openRead().use { it.readBounded(MAX_STORAGE_BYTES) }
-            decodeBytes(bytes)
-            bytes
+            if (decodeBytes(bytes).isEmpty()) null else bytes
         }.getOrNull()
     }
 
@@ -241,6 +241,9 @@ class PromptStore(context: Context, private val accessible: () -> Boolean = { cr
                 }
             })
         }.toString()
+
+        /** The prompts of a backed-up file, or null when [bytes] are not valid (too large, not UTF-8, not understood). */
+        fun decodeBackup(bytes: ByteArray): List<Prompt>? = runCatching { decodeBytes(bytes) }.getOrNull()
 
         /** Strict: at most [MAX_STORAGE_BYTES], valid UTF-8, then [decode]; throws otherwise. */
         private fun decodeBytes(bytes: ByteArray): List<Prompt> {

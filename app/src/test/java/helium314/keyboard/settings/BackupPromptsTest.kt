@@ -2,11 +2,14 @@
 package helium314.keyboard.settings
 
 import android.app.Application
-import helium314.keyboard.agent.PromptError
 import helium314.keyboard.agent.PromptStore
 import helium314.keyboard.agent.security.credentialContext
 import helium314.keyboard.settings.preferences.PROMPTS_ENTRY_NAME
+import helium314.keyboard.settings.preferences.PromptsEntryCollector
+import helium314.keyboard.settings.preferences.PromptsRestore
 import helium314.keyboard.settings.preferences.isPromptsEntry
+import helium314.keyboard.settings.preferences.promptsRestoreMessage
+import helium314.keyboard.latin.R
 import helium314.keyboard.settings.preferences.readPromptsEntry
 import helium314.keyboard.settings.preferences.restorePromptsFromBackup
 import helium314.keyboard.settings.preferences.writePromptsEntry
@@ -70,17 +73,31 @@ class BackupPromptsTest {
         }
     }
 
-    /** What the restore does with a zip, as the restore loop does it: exact name match, bounded read, then the store. */
-    private fun restore(zip: ByteArray): PromptError? {
-        var bytes: ByteArray? = null
-        var found = false
+    /**
+     * What the restore does with a zip: the production [PromptsEntryCollector] and [restorePromptsFromBackup]. Only
+     * the walk over the zip is rebuilt here (the real one sits in a composable and needs an Activity and the files
+     * of the keyboard); it does nothing but offer every entry name to the collector.
+     */
+    private fun restore(zip: ByteArray): PromptsRestore {
+        val collector = PromptsEntryCollector()
         ZipInputStream(ByteArrayInputStream(zip)).use { z ->
             while (true) {
                 val e = z.nextEntry ?: break
-                if (isPromptsEntry(e.name)) { bytes = readPromptsEntry(z); found = true }
+                collector.offer(e.name, z)
             }
         }
-        return restorePromptsFromBackup(store, found, bytes)
+        return collector.apply(store)
+    }
+
+    /**
+     * Two prompt entries in one zip: ZipOutputStream refuses duplicate names, so each entry comes from its own
+     * one-entry zip and both are offered to the same production collector, in order (what the loop does for two entries).
+     */
+    private fun restoreInOrder(first: ByteArray, second: ByteArray): PromptsRestore {
+        val collector = PromptsEntryCollector()
+        for (bytes in listOf(first, second))
+            ZipInputStream(ByteArrayInputStream(zipWith(PROMPTS_ENTRY_NAME to bytes))).use { z -> collector.offer(z.nextEntry.name, z) }
+        return collector.apply(store)
     }
 
     private fun titles() = store.read().map { it.title }
@@ -117,23 +134,23 @@ class BackupPromptsTest {
         assertEquals(listOf("a", "b", "c"), titles())
         store.add("neu", "x"); store.delete(store.read().first { it.title == "b" }.id)
         val before = PromptStore.version
-        assertNull(restore(zip))
+        assertEquals(PromptsRestore.APPLIED, restore(zip))
         assertEquals(listOf("a", "b", "c"), titles())
         assertTrue(PromptStore.version > before)
     }
 
     @Test fun anOldBackupWithoutTheEntryKeepsTheExistingPrompts() {
         store.add("a", "1")
-        assertNull(restore(zipWith("preferences.json" to "x".toByteArray())))
+        assertEquals(PromptsRestore.NO_ENTRY, restore(zipWith("preferences.json" to "x".toByteArray())))
         assertEquals(listOf("a"), titles())
     }
 
     @Test fun aCorruptEntryKeepsTheExistingPromptsAndDoesNotThrow() {
         store.add("a", "1")
         val before = file.readBytes()
-        assertEquals(PromptError.INVALID_TEXT, restore(zipWith(PROMPTS_ENTRY_NAME to "{\"storageVersion\":1,\"prompts\":[{\"id\":\"x\"}]}".toByteArray())))
-        assertEquals(PromptError.INVALID_TEXT, restore(zipWith(PROMPTS_ENTRY_NAME to byteArrayOf(0xC3.toByte(), 0x28))))
-        assertEquals(PromptError.INVALID_TEXT, restore(zipWith(PROMPTS_ENTRY_NAME to "garbage".toByteArray())))
+        assertEquals(PromptsRestore.CORRUPT, restore(zipWith(PROMPTS_ENTRY_NAME to "{\"storageVersion\":1,\"prompts\":[{\"id\":\"x\"}]}".toByteArray())))
+        assertEquals(PromptsRestore.CORRUPT, restore(zipWith(PROMPTS_ENTRY_NAME to byteArrayOf(0xC3.toByte(), 0x28))))
+        assertEquals(PromptsRestore.CORRUPT, restore(zipWith(PROMPTS_ENTRY_NAME to "garbage".toByteArray())))
         assertContentEquals(before, file.readBytes())
         assertEquals(listOf("a"), titles())
     }
@@ -142,7 +159,7 @@ class BackupPromptsTest {
         store.add("a", "1")
         val big = ByteArray(PromptStore.MAX_STORAGE_BYTES + 10) { ' '.code.toByte() }
         assertNull(ZipInputStream(ByteArrayInputStream(zipWith(PROMPTS_ENTRY_NAME to big))).use { it.nextEntry; readPromptsEntry(it) })
-        assertEquals(PromptError.INVALID_TEXT, restore(zipWith(PROMPTS_ENTRY_NAME to big)))
+        assertEquals(PromptsRestore.CORRUPT, restore(zipWith(PROMPTS_ENTRY_NAME to big)))
         assertEquals(listOf("a"), titles())
     }
 
@@ -152,7 +169,7 @@ class BackupPromptsTest {
         store.add("other", "2")
         val before = file.readBytes()
         accessible = false
-        assertEquals(PromptError.LOCKED, restore(zip))
+        assertEquals(PromptsRestore.LOCKED, restore(zip))
         assertContentEquals(before, file.readBytes())
         accessible = true
         assertEquals(listOf("other", "keep"), titles())
@@ -166,7 +183,7 @@ class BackupPromptsTest {
         val zip = backupZip()
         expected.forEach { store.delete(it.id) }
         assertTrue(store.read().isEmpty())
-        assertNull(restore(zip))
+        assertEquals(PromptsRestore.APPLIED, restore(zip))
         assertEquals(expected.map { Triple(it.id, it.title, it.text) }, store.read().map { Triple(it.id, it.title, it.text) })
         assertEquals(3, store.read().size)
     }
@@ -177,10 +194,66 @@ class BackupPromptsTest {
         store.add("b", "2")
         for (name in listOf("../agent_prompts.json", "agent/../agent_prompts.json", "agent_prompts.json", "/agent/agent_prompts.json", "unprotected/agent/agent_prompts.json", "agent/agent_prompts.json/")) {
             assertFalse(isPromptsEntry(name), name)
-            assertNull(restore(zipWith(name to valid)), name)
+            assertEquals(PromptsRestore.NO_ENTRY, restore(zipWith(name to valid)), name)
             assertEquals(listOf("b", "a"), titles(), name)
         }
-        assertNull(restore(zipWith(PROMPTS_ENTRY_NAME to valid)))
+        assertEquals(PromptsRestore.APPLIED, restore(zipWith(PROMPTS_ENTRY_NAME to valid)))
         assertEquals(listOf("a"), titles())
+    }
+
+    private val emptyFile = "{\"storageVersion\":1,\"prompts\":[]}".toByteArray()
+
+    @Test fun aBackupOfAnEmptyListHasNoEntry() {
+        val a = store.add("a", "1").prompt!!
+        store.delete(a.id)
+        assertEquals("{\"storageVersion\":1,\"prompts\":[]}", file.readText().replace(" ", "").replace("\n", ""))
+        assertNull(store.exportBytes())
+        assertEquals(listOf("preferences.json"), names(backupZip()))
+    }
+
+    @Test fun anEntryWithAnEmptyListKeepsTheExistingPrompts() {
+        store.add("a", "1")
+        assertEquals(PromptsRestore.NO_ENTRY, restore(zipWith(PROMPTS_ENTRY_NAME to emptyFile)))
+        assertEquals(listOf("a"), titles())
+    }
+
+    @Test fun theMessageForEachReason() {
+        assertEquals(R.string.restore_prompts_corrupt, promptsRestoreMessage(PromptsRestore.CORRUPT))
+        assertEquals(R.string.restore_prompts_locked, promptsRestoreMessage(PromptsRestore.LOCKED))
+        assertEquals(R.string.restore_prompts_unreadable, promptsRestoreMessage(PromptsRestore.UNREADABLE))
+        assertNull(promptsRestoreMessage(PromptsRestore.NO_ENTRY))
+        assertNull(promptsRestoreMessage(PromptsRestore.APPLIED))
+        for (id in listOf(R.string.restore_prompts_corrupt, R.string.restore_prompts_locked, R.string.restore_prompts_unreadable))
+            assertTrue(app.getString(id).isNotBlank())
+    }
+
+    @Test fun anUnreadableCurrentFileGivesUnreadableAndKeepsTheFile() {
+        store.add("a", "1")
+        val zip = backupZip()
+        file.writeText("{ not json")
+        assertEquals(PromptsRestore.UNREADABLE, restore(zip))
+        assertEquals("{ not json", file.readText())
+    }
+
+    @Test fun aFailingAccessCheckReadsAsLockedAndNeverThrows() {
+        store.add("a", "1"); val valid = file.readBytes()
+        val throwing = PromptStore(app) { throw IllegalStateException("x") }
+        assertEquals(PromptsRestore.LOCKED, restorePromptsFromBackup(throwing, true, valid))
+    }
+
+    @Test fun withTwoEntriesTheLastValidOneWins() {
+        store.add("old", "0")
+        store.add("a", "1"); val one = file.readBytes()
+        store.add("b", "2"); val two = file.readBytes()
+        file.delete(); File(file.path + ".bak").delete()
+        assertEquals(PromptsRestore.APPLIED, restoreInOrder(one, two))
+        assertEquals(listOf("b", "a", "old"), titles())
+    }
+
+    @Test fun withTwoEntriesAnInvalidLastOneKeepsTheExistingPrompts() {
+        store.add("a", "1"); val valid = file.readBytes()
+        store.add("keep", "k")
+        assertEquals(PromptsRestore.CORRUPT, restoreInOrder(valid, "garbage".toByteArray()))
+        assertEquals(listOf("keep", "a"), titles())
     }
 }
