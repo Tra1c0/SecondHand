@@ -822,6 +822,16 @@ offen, gebaut wird erst nach einer Entscheidung zu den offenen Fragen.
   Tastatur-Prozesses, Modell nur bei Bedarf geladen; (3) KI-Chip über Qualcomms proprietäres Paket nur, wenn (1)
   zu langsam ist, vorher Lizenzfrage (GPL-3.0) klären; läuft dann nur auf diesem Chip. Vergleichswert: die
   AICore-Diagnose (78a). Nie beim Tippen, nur auf Tipp für eine KI-Aktion. (L)
+  Nachtrag 2026-11-20: (a) Der Owner nennt Qualcomms **GenieX** (Entwickler-Vorschau seit 2026-06, BSD-3 für den
+  GenieX-Code, zusätzlich Qualcomms Nutzungsbedingungen; Android auf Snapdragon 8 Elite; führt GGUF-Modelle von
+  Hugging Face über `llama.cpp` im Hybrid-Modus auf KI-Chip und Prozessor aus oder vorübersetzte Modelle nur auf
+  dem KI-Chip; Kotlin-Paket über Maven, Demo-App „GenieX Chat“). Quelle: Suchergebnisse zu Qualcomms Seiten, nichts
+  davon selbst ausprobiert; Tempo und Energie unbekannt. GenieX ist damit der bevorzugte Weg statt Stufe (3).
+  (b) Klarstellung des Owners: Das eigene Modell ist **nur für sein eigenes Gerät** (Xiaomi 15) gedacht. Folgen:
+  kein Rückfall für andere Chips nötig; die Weitergabe-Lizenz der Qualcomm-Laufzeit stellt sich nur, wenn sie in
+  einer verteilten APK steckt. Die Builds dieses Projekts sind aber öffentlich herunterladbar (Vorab-Releases),
+  also gehört W4 in eine eigene Build-Variante, die nicht veröffentlicht wird, oder in eine getrennte kleine App,
+  die die Tastatur lokal anspricht. Entscheidung offen.
 - **W3 Alle Google-Funktionen.** Wortlaut des Owners: „alle Google features“. Deutung des Leads: der
   Funktionsumfang der Google-Tastatur und der KI-Funktionen von Google, soweit eine fremde Tastatur sie nutzen
   oder nachbauen kann. Erster Schritt ist eine Liste: je Funktion „schon vorhanden“, „nachbaubar (lokal oder
