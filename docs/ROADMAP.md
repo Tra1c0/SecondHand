@@ -20,10 +20,13 @@ Reihenfolge von oben nach unten.
   und ohne Zwischenablage-Pille, Zwischenablage-Pille), **73c** Autofill Ende-zu-Ende mit einem
   Test-Autofill-Dienst in der Test-App. Nicht im Umfang: echte Passwortmanager, Instagram/WhatsApp,
   Google-Diktat, Firebase Test Lab. Vorgemerkt, nicht beauftragt: die Tastatur meldet Bedienungshilfen ihre
-  Tasten im Emulator teils 128 Pixel zu hoch (P294, HeliBoard-Code; betrifft möglicherweise TalkBack).
-  **Befund aus 73b, Entscheidung des Owners offen:** „idr“ wird mit den echten Wörterbüchern nicht zu „dir“
-  korrigiert (`docs/VALIDATION.md` → Etappe 73); beheben als eigene Etappe oder die Erwartung streichen.
-  73b ist im Sparmodus des Owners (2026-11-19) angehalten, 73c nicht begonnen.
+  Tasten im Emulator teils 128 Pixel zu hoch (P294); Ursache im Code gefunden und behoben (die Position
+  der Ansicht wurde nur beim Wurzelknoten gelesen, jetzt bei jeder Taste; Einheitentest
+  `KeyNodePositionTest`; Emulator-Bestätigung durch das Szenario `key_positions_reported` ausstehend).
+  **Befund aus 73b:** „idr“ wurde mit den echten Wörterbüchern nicht zu „dir“ korrigiert; behoben durch
+  Etappe 75 (Emulator-Bestätigung ausstehend, `docs/VALIDATION.md` → Etappe 73 und 75). Die Szenarien
+  laufen wieder (21 im Stand dieses Branches, `KNOWN_FINDINGS` ist leer), Ergebnisse der Läufe nach
+  Lauf 23 stehen aus; 73c nicht begonnen.
 - **74 Prompt-Ablage** (Auftrag des Owners vom 2026-11-19: „eine extra Zwischenablage für Prompts, die
   permanent gespeichert werden und die ich sortieren kann“, Zugang: „Eigenes Symbol beim , gedrückt
   halten“) ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 74): 74a Speicher und
@@ -31,12 +34,26 @@ Reihenfolge von oben nach unten.
   Owner ändern kann: (1) Sortiert wird auf der Einstellungsseite (Ziehen im Dialog
   „Sortieren“), nicht im Fenster der Tastatur. (2) Das Symbol fehlt auch in Feldern, die Lernen verbieten
   (private Chats), nicht nur in Passwortfeldern. (3) Die Prompts liegen im geschützten Speicher ohne
-  Backup und sind nicht in „Sichern“. „Kopiertes als Prompt speichern“ folgt der Regel des Zwischenablage-Verlaufs (ein Satz mit codeähnlicher Zahl wird gespeichert); bekannte Grenze: nach einem Neustart der Tastatur kennt der Tresor das Herkunftsfeld nicht mehr. Die zweite Prüfung der Korrekturen e5689c9 und bad8d4f ist erledigt; die spätere Regeländerung 5faced3 hat kein Prüfer gelesen.
+  Android-Backup; in „Sichern“ sind sie seit Etappe 76. „Kopiertes als Prompt speichern“ folgt der Regel des Zwischenablage-Verlaufs (ein Satz mit codeähnlicher Zahl wird gespeichert); bekannte Grenze: nach einem Neustart der Tastatur kennt der Tresor das Herkunftsfeld nicht mehr. Die zweite Prüfung der Korrekturen e5689c9 und bad8d4f ist erledigt; die spätere Regeländerung 5faced3 hat kein Prüfer gelesen.
   Offen: Gerätetest (Langdruck auf Komma, Symbol und Popup, Fenster im Querformat, auf Tablets und im
   flachen Stil, Tempo mit 200 langen Prompts); der GitHub-Lauf „SecondHand Tests“ (volle Agent-Suite,
   Upstream-Suite, Lint, Build) lief für diesen Stand noch nicht; ein signierter Build fehlt.
-  Ideen danach, nicht gebaut: den Prompt-Speicher in „Sichern“ aufnehmen; Ordner oder Kategorien;
-  Sortieren im Fenster der Tastatur; Suche in der Ablage.
+  Ideen danach, nicht gebaut: Ordner oder Kategorien; Sortieren im Fenster der Tastatur; Suche in der
+  Ablage.
+- **75 Buchstabendreher** (Reihenfolge des Owners vom 2026-11-19, „Behebe alles“; Anlass: der Befund „idr“
+  aus 73b) ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 75): Ein sehr häufiges
+  kurzes Wort mit zwei vertauschten Nachbarbuchstaben wird korrigiert, abschaltbar. Annahmen des Leads, die
+  der Owner ändern kann: die Regel gilt bei jeder Korrekturstärke; die Häufigkeitsschwellen 105 (Deutsch),
+  150 (Englisch), 130 (andere); Kandidaten zählen nur im Wörterbuch der Tastatursprache. Offen: Emulator mit
+  den echten Wörterbüchern („Und idr “ → „Und dir “; „ort“, „rest“, „titel“, „idR“ bleiben richtig), ein
+  zweites Review der Fassung 899c017, Gerätetest, Schwellen für andere Sprachen als Deutsch und Englisch.
+- **76 Prompt-Ablage in Sichern** (Reihenfolge des Owners vom 2026-11-19, „Behebe alles“; die Idee aus 74)
+  ist gebaut (siehe FEATURES.md, Nachweis in `docs/VALIDATION.md` → Etappe 76): „Sichern“ nimmt die Prompts
+  mit, „Wiederherstellen“ übernimmt sie zuletzt und nur aus einem gültigen, nicht leeren Eintrag. Annahme des
+  Leads, die der Owner ändern kann: Ein leerer Eintrag oder eine Datei ohne Eintrag lässt die vorhandenen
+  Prompts unverändert. Offen: die echte Wiederherstellung im Dialog (braucht eine Activity), Gerätetest;
+  bekannte Grenze: über eine unlesbare Prompt-Datei auf dem Telefon wird kein Backup gespielt (erst
+  zurücksetzen).
 - **27 Symbole malen** (Auftrag des Owners vom 2026-11-13) ist gebaut (siehe FEATURES.md), mit
   Engine-Review (`docs/VALIDATION.md` → Build 12: Prüfer zu Etappe 27), die niedrigen Befunde in
   31. Offen: Gerätetest (Erkennung mit echten Fingern, Schwellen, Spur, Tempo, Tipp-Regel,

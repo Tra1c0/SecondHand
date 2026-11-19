@@ -338,6 +338,23 @@ Kurzformen (auch als `aliases` in der Konfiguration):
   zum Wort- oder Feldwechsel. Der Schalter in `AgentAreaTypingScreen.kt` steuert beides über
   `SettingsValues.mContextualAutocorrection`. Tests: `CT/GermanVerbAgreementTest.kt`,
   `SuggestTest.kt`, `InputLogicTest.kt` und `AT/TypedWordFirstTest.kt`.
+- `C/SwappedLetters.kt` (Etappe 75, P302–P304): reine Funktionen, kein Wörterbuch. `swaps(word)` (Wörter durch Tausch
+  genau eines Paars benachbarter, verschiedener Buchstaben), `minFrequency(language)` (105 Deutsch, 150 Englisch, 130
+  sonst) und `candidate(typed, language, typedIsKnown, frequencyOf)`: nur 3 bis 5 Buchstaben, nur Buchstaben, kein
+  Großbuchstabe nach dem ersten, `typedIsKnown` wird erst danach gefragt, das Ergebnis nur bei genau einem
+  Tausch mit Häufigkeit ≥ Schwelle. Aufruf: `Suggest.applySwappedLetters` (nach `applyLearnedCorrection`, vor
+  `addFromMemory`). Sie läuft nur bei Tipp-Eingabe (kein Gestentippen, das hat seinen eigenen Weg), laufendem Wort
+  ohne Ziffern, eingeschalteter Korrektur und dem Schalter `SettingsValues.mSwappedLettersCorrection`
+  (`AgentPreferences.AUTOCORRECT_SWAPPED_LETTERS`, Standard an, Schalter „Buchstabendreher“ in
+  `AgentAreaTypingScreen.kt`, Texte `agent_typing_strings.xml`). Sie tut nichts, wenn die erste Engine-Zeile eine
+  Kurzform oder ein Whitelist-Eintrag oder die getippte Form in anderer Schreibweise ist, wenn die Engine eine eigene
+  andere Korrektur hat, bei einem eigenen Wort, einem Slang-Wort, einem behaltenen Fremdwort, einem verworfenen Paar
+  und bei der Verb-Bevorzugung (72); ein gelerntes Paar (20b) steht davor. Fehlt das Wort in den Engine-Ergebnissen, legt
+  `Suggest` selbst eine Korrektur der Quelle `SWAPPED_LETTERS_DICTIONARY` an, wie bei einem gelernten Paar, damit
+  Rücktaste und Verwerfen sie wie jede andere behandeln. `DictionaryFacilitatorImpl.mainFrequency(word, language)`
+  liefert die höchste Häufigkeit im Hauptwörterbuch der Gruppen dieser Sprache (kleiner 0: unbekannt, gesperrt oder
+  keine Gruppe der Sprache). Tests: `CT/SwappedLettersTest.kt`, `SuggestTest.kt` („stage 75 …“),
+  `InputLogicTest.kt` („revert swapped letters autocorrect on delete“).
 - `C/InformalWords.kt`, `A/InformalWordsStore.kt` und `app/src/main/assets/agent/informal_words.txt` (Etappe 71, P291–P293; 1.695 Wörter): die eingebaute Liste informeller Wörter, die `Suggest.guardAllows` nicht korrigieren lässt. `InformalWords` (rein): `normalize` (NFC, klein, gerader Apostroph), `parse`, `appliesTo` (nur `de`/`en`), `isExpressive` (gedehnt und Lacher), `protects`. `InformalWordsStore` lädt die Datei einmal aus den Assets (`@Volatile`, Fehler = leere Liste) und fragt mit Tastatursprache und Sprache der Korrektur. Die Liste macht `tools/build_informal_words.py`. Tests `CT/InformalWordsTest.kt` (liest die echte Datei und `agent-core/src/test/resources/informal_cases.tsv`), `AT/InformalWordsStoreTest.kt`, `SuggestTest` „stage 71“.
 - `C/suggest/ContextSuggest.kt` (Etappe 45, Paket `dev.agentkeyboard.core.suggest`, P161–P163):
   `SuggestKind` (EMAIL, PHONE, IBAN, ADDRESS, NAME, OTP, LINK), `AppCategory.of(packageName)`
@@ -1108,6 +1125,20 @@ Einstellungen System & Daten (38h, Abschnitt „Einstellungen und Profile“):
 - `BackupRestorePreference.kt`, `LoadGestureLibPreference.kt`: optionaler letzter Parameter
   `row` zeichnet den Eintrag (Standard: die bisherige `Preference`); so öffnet die Bereichsseite
   denselben Dialog mit denselben Launchern aus ihrer eigenen Zeile. Sonst unverändert.
+
+Fehlerbehebungen und Buchstabendreher (Etappen 73, 75 und 76, Nachweise in `docs/VALIDATION.md`):
+
+- `Suggest.kt` (75): `applySwappedLetters` zwischen `applyLearnedCorrection` und `addFromMemory`; das Ergebnis von
+  `applyLearnedCorrection` steht dazu in `learnedCorrection`, `engineCorrection` ist die erste Engine-Zeile, wenn die
+  Engine selbst korrigieren würde (P302–P304). Dazu die Konstante `SWAPPED_LETTERS_DICTIONARY`.
+- `DictionaryFacilitatorImpl.kt` (75): `mainFrequency(word, language)`, nur lesend, ohne Lock.
+- `SettingsValues.java` (75): `mSwappedLettersCorrection` aus `AgentPreferences.AUTOCORRECT_SWAPPED_LETTERS`, Standard an.
+- `BackupRestorePreference.kt` (76): der Eintrag der Prompts in `backupLauncher` und `restoreLauncher` (Abschnitt
+  „Prompt-Ablage“, P305–P306); sonst unverändert.
+- `ClipboardHistoryManager.kt` (73): `onPrimaryClipChanged` setzt `dontShowCurrentSuggestion = false` auch ohne
+  eingeschalteten Verlauf (P307).
+- `KeyboardAccessibilityNodeProvider.kt` (73): `createAccessibilityNodeInfo` ruft `updateParentLocation()` für jede Taste (P294).
+- `strings.xml` (`values`, `values-de`): `backup_restore_message` nennt die Prompts.
 
 Update-Migrationen (Build 12, P84): `AppUpgrade.kt` läuft nach einem Update nur noch die Teile
 für jedes Update (entpackte Wörterbücher leeren, `upgradeToolbarPrefs`, Layout-Cache) und
@@ -3619,6 +3650,21 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
   (`TEXT_TOO_LONG`, `TITLE_TOO_LONG`), eine Datei über 2 MiB `FILE_FULL`, ein defektes Zeichen
   `INVALID_TEXT`. Dazu `promptPreview` (höchstens 300 Zeichen, nie mitten in einem Surrogatpaar) und
   `promptLabel` (Titel oder erste nicht leere Zeile), von Seite und Fenster gemeinsam benutzt.
+- Sicherung (Etappe 76, P305–P306): `PromptStore.exportBytes` (die Bytes der gespeicherten Datei; null bei gesperrtem
+  Gerät, ohne Datei, unlesbar, ungültig oder leer), `PromptStore.decodeBackup` (strenge Prüfung, null bei Ungültigem)
+  und `PromptStore.replaceAll(bytes)` (prüft zuerst, schreibt dann unter dem Lock wie jede andere Änderung, mit
+  denselben Ablehnungen). In `K/settings/preferences/BackupRestorePreference.kt`: `PROMPTS_ENTRY_NAME`
+  (Name „agent/agent_prompts.json“, genau verglichen, nie als Pfad), `writePromptsEntry` (in `runCatching` im Sichern, ein
+  Fehler dort lässt die Sicherung nicht scheitern), `PromptsEntryCollector` (sammelt den Eintrag, während die
+  Wiederherstellungsschleife die ZIP-Datei liest; bei mehreren Einträgen zählt der letzte; zu große Einträge
+  gelten als ungültig), `restorePromptsFromBackup` (die Entscheidung, wirft nie) mit den Ergebnissen `PromptsRestore`
+  `NO_ENTRY`, `APPLIED`, `CORRUPT`, `LOCKED`, `UNREADABLE` und `promptsRestoreMessage` (nur die drei Fehlerfälle haben
+  einen Text: `restore_prompts_corrupt`, `…_locked`, `…_unreadable` in `agent_prompt_strings.xml`). Aufgerufen wird sie
+  in `restoreLauncher` ganz am Ende des Blocks von `restoreWithRollback`, nach `Database.copyFromDb`; ihr Ergebnis
+  wird nach dem Erfolgs-Toast als zweite Meldung gezeigt. Der Text `backup_restore_message` (`strings.xml`,
+  `values-de`) nennt die Prompts. Test `app/src/test/java/helium314/keyboard/settings/BackupPromptsTest.kt` (18: Eintrag,
+  Sammler, Entscheidungsfunktion, Meldungen), daneben `AT/PromptStoreTest.kt` (25) und das bestehende
+  `RestoreSafetyTest.kt` (15, unverändert).
 - `K/settings/screens/AgentPromptsScreen.kt` (74a): die Seite „Prompt-Ablage“ unter Einstellungen →
   Leiste & Befehle. Liste mit Titel oder erster Zeile und zwei Zeilen Vorschau, „Neuer Prompt“,
   „Sortieren“ (`ReorderDialog`; `confirmPromptOrder` speichert nur, wenn die Ids noch passen, sonst
@@ -3674,7 +3720,7 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
   in `agent_search_strings.xml`.
 - Tests (Robolectric): `AT/PromptStoreTest.kt` (25: Dauerhaftigkeit in CE/`noBackupFilesDir`, Reihenfolge
   und Ids, Grenzen, Zeichen, gesperrt, kaputte, zu große und fremde Dateien, Datei voll, Surrogate,
-  `state`, `reset`, `reorder`), `AT/PromptsScreenTest.kt` (29: Seite, Editor-Karte, Zurück und
+  `state`, `reset`, `reorder`, seit 76 `exportBytes` und `replaceAll`), `AT/PromptsScreenTest.kt` (29: Seite, Editor-Karte, Zurück und
   Abbrechen, Wiederherstellung nach Aktivitäts-Neustart, Löschen, Sortieren, gesperrt, Zurücksetzen,
   Einfügen aus der Zwischenablage, Vorschau), `AT/PromptsWindowTest.kt` (25: Popup-Taste und ihre
   Bedingungen, Fenster und Zeilen, Einfügen genau einmal, Markierung, Sperre nach dem Öffnen,
@@ -5048,8 +5094,10 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
   das ein. Ob der Build neuer ist, entscheidet immer die gerade installierte Version
   (`newerBuild(installed)`), nie `compared_version`: Nach einem Update ist der gespeicherte Build
   sonst noch „neu“.
-- **P212** (Nachtrag 2026-11-19: `UpdateChip.build` gibt in Passwortfeldern nichts zurück, `mInputAttributes.mIsPasswordField`;
-  die Gerätetests hatten den Chip dort gesehen. Test `AT/UpdateChipTest.neverInAPasswordField`.)
+- **P212** (Nachtrag 2026-11-19: `UpdateChip.build` gibt in Passwortfeldern nichts zurück; die Gerätetests hatten den Chip dort gesehen.
+  Die eine Prüfung `UpdateChip.isPasswordField` (Flag der Engine, jede Passwort-Variante in `mInputType`, dazu der rohe
+  `inputType` des Felds, wenn gegeben) gilt für den Chip und für `UpdateOnOpen`; keine zweite Kopie bauen. Test
+  `AT/UpdateChipTest.neverInAPasswordField` mit vier Varianten.)
   Der Update-Chip gehört nur in `setNeutralSuggestionStrip` (nach der Pille), nie in
   `setSuggestedWords`/`tryShowCommandChips`: Dort würde er Wortvorschläge oder Befehle verdecken.
   `createView` liest bei jedem neutralen Streifen; `mIsLocked` und der gespeicherte Wert kommen
@@ -5791,10 +5839,11 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
   Klassennamen (Lauf 3). (4) Zwei Knoten tragen die ID `keyboard_view`: ein Rahmen so hoch wie das Fenster und die echte Ansicht
   (Klasse `android.view.View`, direkt unter `suggestion_strip_view`); `devicetest.py` nimmt die kleinste sichtbare `View`. (5) Die Tastatur
   meldet die Tastenpositionen nicht verlässlich: Lauf 8 ganz oben am Bildschirm, Lauf 9 um 128 Pixel (Höhe der Statusleiste) zu hoch,
-  Läufe 10 und 12 richtig. Vermutet, nicht belegt: `KeyboardAccessibilityNodeProvider.updateParentLocation` liest die Lage der Ansicht nur
-  beim Aufbau des Wurzelknotens, also auch bevor das Fenster an seinem Platz ist. Untereinander stimmen die Positionen; `Screen.keys()`
-  legt den Tastenblock deshalb mit der unteren linken Ecke auf die der echten Ansicht. Das ist HeliBoard-Code und könnte auch TalkBack
-  betreffen (ROADMAP 73, nicht beauftragt). (6) In Passwortfeldern heißen alle Zeichentasten „Aufzählungspunkt“, solange
+  Läufe 10 und 12 richtig. Ursache (der Unit-Test `AT/KeyNodePositionTest.kt` zeigt sie, rot ohne die Zeile): `KeyboardAccessibilityNodeProvider.updateParentLocation` las die Lage der Ansicht nur
+  beim Aufbau des Wurzelknotens, also auch bevor das Fenster an seinem Platz ist; behoben, indem `createAccessibilityNodeInfo` sie für jede Taste liest
+  (Etappe 73; HeliBoard-Code, hätte auch TalkBack betroffen). Bestätigung im Emulator: Szenario `key_positions_reported`, Ergebnis ausstehend.
+  Untereinander stimmen die Positionen; `Screen.keys()`
+  legt den Tastenblock weiter mit der unteren linken Ecke auf die der echten Ansicht. (6) In Passwortfeldern heißen alle Zeichentasten „Aufzählungspunkt“, solange
   `settings put secure speak_password 1` nicht gesetzt ist (`AccessibilityUtils.shouldObscureInput`). Eine Trenntaste heißt bei
   anstehender Autokorrektur „Mit Leertaste wird "x" in "y" geändert.“ (`getAutoCorrectionDescription`); `plain_key_name` löst das auf.
   Die Eingabetaste heißt nach ihrer Aktion („Eingabetaste“, „Weiter“, „Fertig“), die Umschalttaste im Großzustand „Umschalttaste-Taste“.
@@ -5852,13 +5901,55 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
   und kennt „Immer Inkognito“ nicht; `openPrompts` und `insertPrompt` prüfen beim Tipp mit
   `editor.protection()` noch einmal. Keine der beiden Prüfungen streichen. Das Symbol soll auch dort
   fehlen, wo das Fenster nie aufginge (gesperrt, Passwort, Zahlen-Layout, ohne Lernen).
+- **P302** Das Wörterbuch unterscheidet Groß- und Kleinschreibung, und ein Test-Double davon muss es auch (Etappe 75):
+  Die erste Fassung der Buchstabendreher prüfte „bekannt“ mit einem Double, das die Schreibweise ignorierte; dadurch
+  blieb unbemerkt, dass „ort“ im Wörterbuch nur als „Ort“ steht und zu „rot“ geworden wäre (ebenso „rest“ → „erst“,
+  „bsi“ → „bis“). `Suggest.applySwappedLetters` fragt deshalb getippt, mit großem Anfang und ganz groß
+  (`mainLocalesKnowing`) und prüft die Treffer der Engine in jeder Schreibweise; `SuggestTest` hat dafür
+  `mainLocalesKnowingWord` und `mainFrequencyOfWord` je Sprache und den Fall „a word that exists only
+  capitalised stays as typed“. Ein neues Double eines Wörterbuchs muss dieselbe Schreibweise-Regel haben. Rot-Beweis:
+  die Prüfung „in jeder Schreibweise bekannt“ entfernt.
+- **P303** Die Buchstabendreher stehen hinter der eigenen Korrektur der Engine und urteilen nur in der Tastatursprache
+  (Etappe 75): Hat die Engine eine eigene Korrektur (`engineCorrection`, nur wenn `guardedAutoCorrection` gilt), gilt
+  sie, außer es ist dasselbe Wort; die erste Fassung überstimmte sie. Kandidaten zählen nur im Hauptwörterbuch der
+  Tastatursprache (`mainFrequency(wort, sprache)`): Mit allen Sprachen wäre bei deutscher Tastatur „titel“ zu
+  „title“ und „foto“ zu „foot“ geworden. Ein Wort, das ein aktives Wörterbuch irgendeiner Sprache kennt, bleibt, wie
+  getippt. Eine Änderung hier braucht einen Prüfer und die echten Wörterbücher im Emulator (Szenarien
+  `swapped_letters_keep_nouns`, `swapped_letters_keep_caps`; Ergebnis ausstehend).
+- **P304** Die Schwellen der Buchstabendreher (Etappe 75) sind an den echten Wörterbüchern gemessen:
+  `SwappedLetters.MIN_FREQUENCY_DE` 105 (Deutsch: „dir“ 108, „mir“ 125, „dich“ 112, „ich“ 139; „ebd“ 101 fällt heraus),
+  `MIN_FREQUENCY_EN` 150 („the“ 222, „and“ 212; „hub“ 119, „sub“ 131 fallen heraus) und `MIN_FREQUENCY_OTHER` 130
+  (nicht geprüft, vorsichtig). „dir“ liegt nur 3 über der deutschen Schwelle: Ein neues deutsches Wörterbuch kann
+  die Häufigkeit senken und „idr“ → „dir“ ohne Fehlermeldung wieder verschwinden lassen. Die Tabellen in `SuggestTest`
+  (`deFrequencies`, `enFrequencies`) sind gelesene Werte, kein Beleg für ein neues Wörterbuch; das Gerätetest-Szenario
+  `autocorrect_typo` würde es zeigen (Ergebnis ausstehend).
+- **P305** Ein leerer Eintrag der Prompts in einer Sicherung darf vorhandene Prompts nie löschen (Etappe 76):
+  `exportBytes` schreibt keinen Eintrag für eine leere Liste, und `restorePromptsFromBackup` behandelt einen leeren
+  Eintrag wie keinen (`NO_ENTRY`); sonst würde das Wiederherstellen einer Sicherung später angelegte Prompts
+  wegwischen (Befund des Prüfers, `BackupPromptsTest`, Rot-Beweis „leere Liste ausgeführt“). Ein fehlender, leerer,
+  beschädigter oder zu großer Eintrag, ein gesperrtes Gerät und eine unlesbare Prompt-Datei lassen die Prompts
+  unverändert.
+- **P306** Die Prompts werden beim Wiederherstellen zuletzt geschrieben und ein Fehlschlag wird gesagt (Etappe 76): Die
+  Datei liegt in `noBackupFilesDir`, außerhalb der beiden Ordner, die `restoreWithRollback` zurückrollt; deshalb steht
+  `prompts.apply(...)` ganz am Ende des Blocks, nach `Database.copyFromDb`, damit nach ihr nichts mehr scheitern
+  kann, was die Wiederherstellung zurückrollen müsste. Eine Ausnahme dort zählt als `UNREADABLE`, statt die fertige
+  Wiederherstellung zurückzurollen. Ein Fehlschlag erscheint als zweite Meldung, nie still (Befund des Prüfers).
+  Neue Einträge in der Sicherung gehören nach demselben Muster behandelt (genau verglichener Name, Prüfung vor dem
+  Schreiben, zuletzt anwenden).
+- **P307** `ClipboardHistoryManager.dontShowCurrentSuggestion` wird außerhalb der Verlaufsprüfung zurückgesetzt
+  (Etappe 73): In `onPrimaryClipChanged` stand das Zurücksetzen bei HeliBoard im `if` der Verlaufs-Einstellung; ohne
+  Verlauf (Standard) war die erste getippte oder geschlossene Pille bis zum Neustart der Tastatur die letzte
+  (Befund der Gerätetests, Läufe 20–22). Es steht jetzt nach dem `if`. Der Clip-Listener ist immer angemeldet, keine
+  Datenschutzregel hängt an dem Flag (Prüfer). Test
+  `SmartPasteChipsTest.aNewClipIsOfferedAgainAfterAPillWasTappedAlsoWithoutTheHistory` (rot mit der alten Bedingung).
+  Bestätigung im Emulator ausstehend.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (673 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (678 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -5893,7 +5984,7 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (111): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (112): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, CharArtWindowTest, ClipCachesTest, ClipCommandTest, ClipVaultTest,
@@ -5904,12 +5995,12 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
   FieldSuggestionChipsTest, FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest,
   FlatStyleTest, ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest,
   HardeningClipHistoryTest, InformalWordsStoreTest, InsertAtCursorTest, JournaledModelCallTest,
-  KeyboardCommandsTest, KeyboardProfileStoreTest, LastFieldTest, LearningDataTest,
-  LoadingDotsViewTest, LongTextBudgetTest, ManualWorkflowDraftTest, MemoryScreenTest,
-  MoreCommandsTest, MoreProvidersTest, MyDataScreenTest, MyDataStoreTest, MyDesignsTest,
-  OpenAiProviderTest, PromptStoreTest, PromptsScreenTest, PromptsWindowTest, RgbFrameRateCardTest,
-  RgbLightingRenderTest, RgbPatternEditorTest, RgbSettingsScreenTest, RgbTilesTest,
-  ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest, SettingsAreaAiTest,
+  KeyNodePositionTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LastFieldTest,
+  LearningDataTest, LoadingDotsViewTest, LongTextBudgetTest, ManualWorkflowDraftTest,
+  MemoryScreenTest, MoreCommandsTest, MoreProvidersTest, MyDataScreenTest, MyDataStoreTest,
+  MyDesignsTest, OpenAiProviderTest, PromptStoreTest, PromptsScreenTest, PromptsWindowTest,
+  RgbFrameRateCardTest, RgbLightingRenderTest, RgbPatternEditorTest, RgbSettingsScreenTest,
+  RgbTilesTest, ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest, SettingsAreaAiTest,
   SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest, SettingsKitTest,
   SettingsLookScreenTest, SettingsSearchTest, SettingsStartScreenTest, SettingsSystemAreaTest,
   SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest,
@@ -5922,21 +6013,21 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
 - `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, LongCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
   TranslateCommandTest, UrlCommandTest
-- `C/` (54): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
+- `C/` (55): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
   CorrectionRules, DateFormatting, EditorSession, EmojiKeywords, EmojiMix, EmojiNames,
   EmojiSynonyms, EventParser, ExecutionPolicy, FieldReport, ForcedCorrection, GermanVerbAgreement,
   InformalWords, InkDots, InkRecognizer, InkSymbols, InkTiming, LanguageNames, LocalTextActions,
   MathExpression, ModelBudget, ModelProvider, OwnInkSymbols, PendingBatchGate, PersonalInkSymbols,
   Places, Profiles, ReleaseNotes, RgbCurve, RgbLighting, RgbOwnPattern, RgbPatternJson, RgbPatterns,
   SentenceLanguage, SkillBinding, SnippetTemplate, SpecialCharacters, StyledTranslation,
-  SymbolTable, TextCondition, TimerParser, Tool, TouchDynamics, UnitConversion, UpdateOnOpenPolicy,
-  UpdateReleases, UrlDetector, Workflow
+  SwappedLetters, SymbolTable, TextCondition, TimerParser, Tool, TouchDynamics, UnitConversion,
+  UpdateOnOpenPolicy, UpdateReleases, UrlDetector, Workflow
 - `C/charart/` (6): BigFont, CharArt, Raster, Sketch, TextColumns, UnicodeStyle
 - `C/clip/` (6): ClipDates, ClipGuard, LinkCleaner, PrivateRanges, SmartPaste, TrackingNumbers
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `C/memory/` (4): OwnWords, PhraseMemory, ShortcutOffers, SnippetMatcher
 - `C/suggest/` (1): ContextSuggest
-- `CT/` (52): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
+- `CT/` (53): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
   CorrectionRulesTest, DateFormattingTest, EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest,
   EventParserTest, FieldReportTest, ForcedCorrectionTest, GermanVerbAgreementTest,
   InformalWordsTest, InkAreaTest, InkBenchmarkTest, InkDotFlowTest, InkDotsTest, InkFingerModel,
@@ -5945,14 +6036,15 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
   PersonalInkSymbolsTest, PlacesTest, QuestionCaptureTest, ReleaseNotesTest, RgbCurveTest,
   RgbFrameStatsTest, RgbLightingTest, RgbOwnPatternTest, RgbPatternJsonTest, RgbPatternsTest,
   SentenceLanguageTest, SkillBindingTest, SnippetTemplateTest, StyledTranslationTest,
-  SymbolTableTest, TimerParserTest, ToolTest, TouchDynamicsTest, UnitConversionTest,
-  UpdateOnOpenPolicyTest, UpdateReleasesTest, UrlDetectorTest, WorkflowContractTest, WorkflowTest
+  SwappedLettersTest, SymbolTableTest, TimerParserTest, ToolTest, TouchDynamicsTest,
+  UnitConversionTest, UpdateOnOpenPolicyTest, UpdateReleasesTest, UrlDetectorTest,
+  WorkflowContractTest, WorkflowTest
 - `CT/charart/` (2): CharArtTest, SketchTest
 - `CT/clip/` (3): ClipGuardTest, PrivateRangesTest, SmartPasteTest
 - `CT/format/` (1): FormatGuardTest
 - `CT/memory/` (2): MemoryRulesTest, PhraseMemoryTest
 - `CT/suggest/` (1): ContextSuggestTest
-- `K/accessibility/` (1): KeyCodeDescriptionMapper
+- `K/accessibility/` (2): KeyCodeDescriptionMapper, KeyboardAccessibilityNodeProvider
 - `K/keyboard/` (10): FlatStyle, Key, KeyDetector, KeyboardActionListener,
   KeyboardActionListenerImpl, KeyboardSwitcher, KeyboardTheme, KeyboardView, MainKeyboardView,
   PointerTracker
@@ -6046,6 +6138,7 @@ speichern“ vorn einen Prompt hinzufügen. Nichts hier nutzt das Netz oder prot
 - `app/src/test/java/helium314/keyboard/latin/` (3): InputLogicTest, SuggestTest,
   WordListDictionaries
 - `app/src/test/java/helium314/keyboard/latin/inputlogic/` (1): BatchDeliveryTest
+- `app/src/test/java/helium314/keyboard/settings/` (1): BackupPromptsTest
 - `scripts/` (3): docs_sync, docs_sync, install-hooks
 - `tools/` (3): build_german_verb_lemmas, dev, emoji_mix_table
 - `tools/devicetest/` (3): build.gradle, devicetest, settings.gradle

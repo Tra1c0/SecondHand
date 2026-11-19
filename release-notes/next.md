@@ -1,11 +1,10 @@
-# Neu: Prompt-Ablage
+# Neu: Prompts in der Sicherung, Buchstabendreher
 
-- Eine eigene Ablage für Prompts, die du oft in KI-Chats einfügst. Sie bleibt dauerhaft gespeichert und du bestimmst die Reihenfolge.
-- Öffnen: In einem Textfeld die Komma-Taste lange drücken und im Popup auf das neue Symbol gleiten. Ein Tipp auf einen Prompt fügt ihn an der Schreibmarke ein.
-- **Kopiertes als Prompt speichern** legt den kopierten Text vorn in der Ablage ab. Texte, die der Zwischenablage-Verlauf auch draußen hielte (Passwörter, Schlüssel, bloße Codes), lehnt die Tastatur ab.
-- Anlegen, ändern, löschen und sortieren: Einstellungen → Leiste & Befehle → **Prompt-Ablage**. Die Reihenfolge dort gilt auch in der Tastatur.
-- Grenzen: 200 Prompts, Titel bis 60 und Text bis 8000 Zeichen. Zu Langes wird abgelehnt, nie gekürzt.
-- Die Prompts bleiben nur auf diesem Telefon. Sie sind **nicht** in „Sichern“ und gehen verloren, wenn du die App deinstallierst oder ihre Daten löschst. Es gibt sie nicht in Passwortfeldern, im Inkognito-Modus, in privaten Chats ohne Lernen und bei gesperrtem Gerät.
+- **Prompt-Ablage**: Eine eigene, dauerhafte Ablage für Prompts, die du oft in KI-Chats einfügst. Öffnen: In einem Textfeld die Komma-Taste lange drücken und im Popup auf das Symbol der Prompt-Ablage gleiten; ein Tipp fügt den Prompt an der Schreibmarke ein. **Kopiertes als Prompt speichern** legt den kopierten Text vorn ab (Passwörter, Schlüssel und bloße Codes lehnt die Tastatur ab). Anlegen, ändern, löschen und sortieren: Einstellungen → Leiste & Befehle → **Prompt-Ablage**. Grenzen: 200 Prompts, Titel bis 60 und Text bis 8000 Zeichen; Zu Langes wird abgelehnt, nie gekürzt. Es gibt sie nicht in Passwortfeldern, im Inkognito-Modus, in privaten Chats ohne Lernen und bei gesperrtem Gerät.
+- **Prompts in „Sichern“**: Die Sicherung („Sichern und Wiederherstellen“) nimmt die Prompts mit, wenn das Telefon entsperrt ist. Beim Wiederherstellen werden sie zuletzt ersetzt. Eine Datei ohne Prompts (zum Beispiel aus einem älteren Build) lässt die Prompts auf dem Telefon in Ruhe. Kann die Tastatur die Prompts nicht übernehmen (Eintrag beschädigt, Telefon gesperrt oder die Ablage auf dem Telefon nicht lesbar), sagt sie es in einer zweiten Meldung; die Prompts auf dem Telefon bleiben dann, wie sie sind. Ohne Sicherung gehen sie beim Deinstallieren oder Löschen der App-Daten verloren.
+- **Buchstabendreher**: Sehr häufige kurze Wörter mit zwei vertauschten Buchstaben werden korrigiert („idr“ wird „dir“). Die Rücktaste direkt danach holt das getippte Wort zurück. Ausschalten: Einstellungen → Tippen & Korrektur → Regeln → **Buchstabendreher**.
+- Die Zwischenablage-Pille kommt für jeden neu kopierten Text wieder, auch wenn du sie vorher getippt oder geschlossen hast und den Zwischenablage-Verlauf ausgeschaltet hast.
 - Der Hinweis „Build … verfügbar“ in der Leiste erscheint nicht mehr in Passwortfeldern.
+- Die Tastatur meldet Bedienungshilfen (Screenreadern) die Lage ihrer Tasten jetzt genauer.
 
-Nur mit automatischen Tests geprüft, noch nicht auf einem Telefon: Langdruck auf die Komma-Taste, Aussehen des Symbols und des Fensters (auch im Querformat) und das Tempo mit sehr vielen langen Prompts. Ein Prüfer hat die letzte Regeländerung noch nicht gelesen.
+Nur mit automatischen Tests geprüft, noch nicht auf einem Telefon: Langdruck auf die Komma-Taste, Aussehen von Symbol und Fenster (auch im Querformat), das Tempo mit sehr vielen langen Prompts, das Wiederherstellen der Prompts im echten Dialog und die Buchstabendreher mit den echten Wörterbüchern („ort“, „rest“, „titel“ dürfen nicht verändert werden). Die letzte Fassung der Buchstabendreher hat noch kein zweiter Prüfer gelesen.

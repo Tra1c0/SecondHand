@@ -1,5 +1,77 @@
 # Prüfnachweise
 
+## Etappe 76 — Prompt-Ablage in Sichern
+
+Stand: 2026-11-19, Arbeitsbranch (Commits ec97390, 9cbda22, 2d985db, 0db099a). Auftrag: „Behebe alles“ (Owner), die
+Idee „Prompts in Sichern“ aus Etappe 74. Betroffen: `PromptStore.exportBytes`, `replaceAll`, `decodeBackup`,
+`BackupRestorePreference.kt` (Eintrag `agent/agent_prompts.json`, `PromptsEntryCollector`, `restorePromptsFromBackup`,
+`promptsRestoreMessage`), Texte `backup_restore_message` und `restore_prompts_*`.
+
+Belegliste (Behauptung → Beleg):
+
+| Aussage | Beleg |
+| --- | --- |
+| Die Sicherung enthält den Eintrag nur bei lesbarem, gültigem, nicht leerem Speicher und entsperrtem Gerät | `BackupPromptsTest` (18 Tests, 0 Fehler); Rot-Beweis: Eintrag aus der Sicherung weggelassen |
+| Ein ungültiger Eintrag wird vor dem Schreiben abgelehnt, die Prompts bleiben | `BackupPromptsTest`; Rot-Beweis: Prüfung übersprungen |
+| Ein fehlender Eintrag löscht keine Prompts | `BackupPromptsTest`; Rot-Beweis: Prompts bei fehlendem Eintrag gelöscht |
+| Eine leere Liste wird weder exportiert noch angewendet | `BackupPromptsTest`; Rot-Beweis: leere Liste exportiert, leere Liste angewendet |
+| Gesperrtes Gerät gibt die Meldung „… Das Gerät ist gesperrt.“ | `BackupPromptsTest`; Rot-Beweis: Zuordnung der Meldung `LOCKED` entfernt |
+| Zu große, beschädigte und unlesbare Fälle lassen die Prompts auf dem Telefon | `BackupPromptsTest` (Entscheidungsfunktion, Sammler), `PromptStoreTest` (25, 0 Fehler) |
+| Das bestehende Wiederherstellen ist unverändert sicher | `RestoreSafetyTest` (15, unverändert, 0 Fehler) |
+| Prompts werden ganz zuletzt geschrieben, ein gescheitertes Wiederherstellen berührt sie nicht | Prüfer (Sonnet, hoch) hat es am Code gelesen und bestätigt; `restorePromptsFromBackup` am Ende des Blocks von `restoreWithRollback` |
+| Eine ältere App-Version überspringt den Eintrag | am Code der bisherigen Schleife gelesen (ein unbekannter Name trifft keinen Zweig und wird übersprungen); nicht mit einer älteren App ausprobiert |
+
+Befunde des Prüfers (Sonnet, hoch), beide in 0db099a behoben: Eine leere Liste in einer Sicherung hätte später
+angelegte Prompts gelöscht; ein gescheitertes Wiederherstellen der Prompts war still.
+
+Annahmen des Leads (der Owner kann sie ändern):
+
+1. Ein Eintrag mit leerer Liste (und eine Datei ohne Eintrag) lässt die vorhandenen Prompts auf dem Telefon, statt sie
+   zu leeren; wer die Prompts per Sicherung leeren wollte, kann das so nicht.
+2. Beim Wiederherstellen ersetzt ein gültiger Eintrag alle Prompts auf dem Telefon, es wird nicht gemischt.
+3. Über eine unlesbare Prompt-Datei auf dem Telefon wird kein Backup gespielt (erst zurücksetzen; die Meldung sagt es).
+
+Nicht geprüft: die echte Wiederherstellungsschleife im Dialog (sie braucht eine Activity; getestet sind die
+Entscheidungsfunktion und der Sammler), ein Gerätetest, ein Emulator-Lauf, das Verhalten mit einer echten
+älteren App-Version, die zweite Meldung als Toast auf dem Bildschirm.
+
+## Etappe 75 — Buchstabendreher
+
+Stand: 2026-11-19, Arbeitsbranch (erste Fassung 5ae9924, d506372, f2bba34; zweite Fassung 899c017). Anlass: Die
+Emulator-Tests (Etappe 73b) zeigten, dass „idr“ mit den echten Wörterbüchern nicht zu „dir“ wurde, obwohl die Docs seit
+Build 32 es sagten (die Leiste bot „IDE, ist, die“); das deutsche Wörterbuch gibt „dir“ nur die Häufigkeit 108 von 255.
+
+Die Regel, wie gebaut: Das getippte Wort ist in jedem aktiven Wörterbuch in jeder Schreibweise unbekannt und wird von
+der Engine nicht als dasselbe Wort angeboten; 3 bis 5 Buchstaben, kein Großbuchstabe nach dem ersten; genau ein Tausch
+benachbarter Buchstaben ergibt genau ein Wort, dessen Häufigkeit im Wörterbuch der Tastatursprache mindestens 105
+(Deutsch), 150 (Englisch) oder 130 (andere) beträgt; nur wenn die Engine keine eigene Korrektur hat oder dieselbe;
+gelernte Paare, die Verb-Bevorzugung (72), die Slang-Liste (71), eigene Wörter, behaltene Fremdwörter und verworfene
+Paare gehen vor; bei jeder Korrekturstärke; nicht beim Gestentippen; Schalter Tippen & Korrektur → Regeln →
+„Buchstabendreher“, anfangs an; die Rücktaste nimmt sie zurück wie jede Korrektur.
+
+Belegliste (Behauptung → Beleg):
+
+| Aussage | Beleg |
+| --- | --- |
+| Erste Fassung: 86 Tests grün in fünf Klassen, drei Rot-Beweise | lokale Läufe vor dem Review |
+| Die erste Fassung war unsicher | unabhängiger Prüfer (Opus, hoch) hat die echten Wörterbücher entschlüsselt: „ort“ → „rot“, „rest“ → „erst“, „bsi“ → „bis“ wären falsch korrigiert worden, eine deutsche Tastatur hätte zu englischen Wörtern korrigiert („titel“ → „title“, „foto“ → „foot“), „idR“ → „dir“, und die Regel überstimmte die eigene Korrektur der Engine. Ursache des blinden Flecks: Das Test-Double des Wörterbuchs ignorierte die Schreibweise (P302) |
+| Zweite Fassung: Tests grün | SuggestTest 63, SwappedLettersTest 10, InputLogicTest `revert*` 2, 0 Fehler (der Lead hat die Ergebnisdateien gelesen) |
+| Die Bedingungen sind wirksam | vier Rot-Beweise: Prüfung „in jeder Schreibweise bekannt“ entfernt; Bedingung „Engine zuerst“ entfernt; Häufigkeit wieder über alle Sprachen; Großbuchstaben im Wort wieder erlaubt |
+| Rücktaste nimmt die Korrektur zurück, das Paar wird als verworfen gemerkt | `InputLogicTest` „revert swapped letters autocorrect on delete“ |
+| Schalter, Autokorrektur aus, sanfteste Stärke, Gestentippen, gelerntes Paar | `SuggestTest` „stage 75 the switch, …“ |
+
+Annahmen des Leads (der Owner kann sie ändern):
+
+1. Die Regel ist bei jeder Korrekturstärke aktiv, auch bei der sanftesten (sie ist eng und deterministisch).
+2. Die Schwellen 105, 150 und 130 sind an einzelnen Wörtern der echten Wörterbücher gemessen („dir“ 108, „mir“ 125, „dich“ 112,
+   „ich“ 139, „ebd“ 101; „the“ 222, „and“ 212, „hub“ 119, „sub“ 131); „dir“ liegt nur 3 über der deutschen Schwelle (P304).
+   Die Schwelle 130 für andere Sprachen ist nicht an deren Wörterbüchern geprüft.
+3. Kandidaten zählen nur im Wörterbuch der Tastatursprache, nicht in den anderen aktiven Sprachen (P303).
+
+Nicht geprüft: das Verhalten mit den echten Wörterbüchern im Emulator („Und idr “ → „Und dir “; „ort“, „rest“, „titel“, „idR“
+bleiben richtig). Die Szenarien dafür sind in den Gerätetests ergänzt, das Ergebnis ist ausstehend. Kein zweites Review der
+Fassung 899c017, kein Gerätetest, keine Sprachen außer Deutsch und Englisch.
+
 ## Etappe 73 — Emulator-Testlabor auf GitHub (73a Gerüst)
 
 Stand: 2026-11-19, Arbeitsbranch, Commit f28c9f8. Vom Owner als „Etappe 72“ beauftragt; die Nummer 72
@@ -53,7 +125,7 @@ KI; die Prompt-Ablage (74); Querformat, andere Bildschirmgrößen, andere Androi
 grundsätzlich nicht zeigt: Tippgefühl, Latenz, Vibration, Akku, echte Apps (WhatsApp, Instagram), echte
 Passwortmanager, das Verhalten des Xiaomi-Telefons.
 
-**73b (Szenarien), Stand 2026-11-19, angehalten im Sparmodus des Owners.** Im Emulator mit den echten
+**73b (Szenarien), Stand 2026-11-19 (zeitweise angehalten im Sparmodus des Owners, die Szenarien laufen wieder).** Im Emulator mit den echten
 Wörterbüchern belegt ([Lauf 19](https://github.com/Tra1c0/SecondHand/actions/runs/44456920998), grün: 13 bestanden, 2 bekannte Befunde): „hallo. du“ →
 „Hallo. Du“; „nciht“ → „nicht“ (Kontrollfall der Autokorrektur); „jungs“ → „Jungs“; „gecovert“, „lowkey“,
 „neee“ bleiben; „geil“ und Tipp auf 🔥 in der Leiste → „Und 🔥“; `@lang` und Tipp auf „🌐 English (US)“ →
@@ -61,20 +133,44 @@ Layout ohne „ü“, „the“ → „The“ (Rückweg auf Deutsch erst in Lauf
 vorschlagen“ über die Einstellungsseite eingeschaltet, kopierter Text als Pille in der Leiste, Tipp fügt
 ihn ein. **Befund an der Tastatur** (Läufe 17–21, jedes Mal gleich): „idr“ wird nicht zu „dir“, weder nach
 „Und“ noch in „wie geht es idr“; die Leiste bietet „IDE“, „ist“, „die“. Etappe 71 hatte das nur mit
-vorgegebenen Wörterbuch-Treffern geprüft. Die beiden Szenarien laufen weiter und stehen als `KNOWN` in
-`KNOWN_FINDINGS` (`devicetest.py`); wird eines grün, wird der Lauf rot.
+vorgegebenen Wörterbuch-Treffern geprüft. Die beiden Szenarien standen bis Etappe 75 als `KNOWN` in
+`KNOWN_FINDINGS` (`devicetest.py`); seit Etappe 75 (Buchstabendreher) ist die Liste leer, und „idr“ → „dir“ wird
+wieder erwartet. Ob es mit den echten Wörterbüchern im Emulator klappt, ist ausstehend (kein Lauf seit Etappe 75
+ausgewertet, und das Szenario `autocorrect_typo` steht wieder als Erwartung, nicht als bekannter Befund).
 Nicht belegt: dass die Pille im Passwortfeld wegen des Passwortfelds fehlt (in Lauf 19 war sie nach dem
 ersten Tipp ohnehin verbraucht; die Tastatur bietet denselben Text nur einmal an, Lauf 21; die Fassung mit
 drei verschiedenen Texten ist noch nicht grün gelaufen); „kein Lernen im Passwortfeld“ (noch kein grüner
 Lauf; die Leiste zeigt ein unbekanntes getipptes Wort nicht als Vorschlag, Lauf 21). Diese beiden Prüfungen
-(`clipboard_not_in_password`, `learning_not_in_password`) stehen seit dem 2026-11-19 in `PARKED` in
-`devicetest.py`: geschrieben, nie grün gesehen (Läufe 20–22 rot, Lauf 22 nicht mehr ausgewertet), sie laufen
-nicht mit und belegen nichts. Nicht gemacht:
+standen zeitweise in `PARKED` in `devicetest.py` (Läufe 20–22 rot, Lauf 22 nicht mehr ausgewertet, belegten
+nichts). Sie sind zurück in der Liste `SCENARIOS` (jetzt als `clipboard_not_readable_in_password` und
+`learning_not_in_password`; die Pille hatte die Ursache aus Punkt 3 unten, ein Fehler der Tastatur, nicht des
+Testaufbaus); `SCENARIOS` hat im Stand dieses Branches 21 Szenarien, darunter neu `key_positions_reported`,
+`autocorrect_typo_in_sentence`, `autocorrect_noun`, `swapped_letters_keep_nouns`, `swapped_letters_keep_caps`,
+`clipboard_pill` und `prompt_store`. Ergebnisse der Läufe nach Lauf 23: ausstehend, bis dahin belegt keines
+dieser Szenarien etwas. Nicht gemacht:
 Dreifach-Lauf und Kontrolllauf für die 73b-Szenarien, Prüfer für 73b. Beobachtung: Der Chip „⬆ Build 33
 verfügbar“ stand auch im Passwortfeld in der Leiste (laut Code so gebaut, nur bei gesperrtem Gerät nicht).
-Behoben am 2026-11-19 (`UpdateChip.build`): Test `UpdateChipTest.neverInAPasswordField` grün (lokal
-UpdateChipTest 4, UpdateOnOpenTest 7, 0 Fehler), ohne die neue Bedingung rot („expected null, but was:<22>“);
-kein Prüfer, kein Emulator-Lauf dazu.
+Behoben am 2026-11-19 (`UpdateChip.build`, Commits 7221afa und 34b85b9): Test
+`UpdateChipTest.neverInAPasswordField` mit vier Passwort-Varianten grün (lokal UpdateChipTest 4, UpdateOnOpenTest 7,
+0 Fehler), ohne die Prüfung rot („expected null, but was:<22>“). Chip und Prüfung beim Öffnen (`UpdateOnOpen`)
+teilen jetzt die eine Prüfung `UpdateChip.isPasswordField`. Kein Prüfer, kein Emulator-Lauf dazu.
+
+Weitere Korrekturen, die die Gerätetests angestoßen haben (Etappe 73, Nachweis jeweils ein Einheitentest, Emulator
+ausstehend):
+
+1. **Zwischenablage-Pille** (9421ec0, 400e313): `ClipboardHistoryManager.onPrimaryClipChanged` setzt „nicht
+   vorschlagen“ jetzt auch ohne Zwischenablage-Verlauf zurück. Vorher war bei ausgeschaltetem Verlauf (Standard) und
+   eingeschaltetem „Zwischenablagen-Inhalt vorschlagen“ die erste getippte oder geschlossene Pille die letzte bis zum
+   Neustart der Tastatur (Verhalten von HeliBoard; gefunden in den Läufen 20–22). Test
+   `SmartPasteChipsTest.aNewClipIsOfferedAgainAfterAPillWasTappedAlsoWithoutTheHistory` (16 Tests in der Klasse,
+   0 Fehler), rot mit der alten Bedingung („a new clip is offered“). Prüfer: Der Clip-Listener ist immer angemeldet,
+   keine Datenschutzregel hängt an dem Flag. Nicht geprüft: Bestätigung im Emulator (ausstehend).
+2. **Update-Chip im Passwortfeld**: siehe oben.
+3. **Tastenpositionen für Bedienungshilfen** (681fa4e, 3267fa9): `KeyboardAccessibilityNodeProvider.createAccessibilityNodeInfo`
+   liest die Lage der Ansicht jetzt für jeden Tastenknoten. Vorher nur beim Aufbau des Wurzelknotens; der Emulator
+   meldete die Tasten oben am Bildschirm oder 128 Pixel zu hoch, was einen Screenreader fehlleiten könnte. Test
+   `AT/KeyNodePositionTest` (1 Test, rot ohne den Aufruf je Knoten). Die Ursache ist damit durch den Einheitentest
+   gezeigt (vorher „vermutet, nicht belegt“); die Bestätigung im Emulator (Szenario `key_positions_reported`) ist ausstehend.
 
 Prüfer (73a, lesend, auf 8cea091): kein Gegenbeispiel für ein fälschlich grünes Szenario; mittlere Befunde,
 alle bearbeitet: die Suche nach Testcode in der Tastatur-APK war wirkungslos (jetzt im Code der APK); ein
@@ -92,6 +188,8 @@ einem Vergleich scheitern; die `CONTROL`-Zeilen dieses Laufs hat der Lead nicht 
 damit 6 von 6 (Läufe 10, 12 ×3, 13, 14).
 
 ## Etappe 74 — Prompt-Ablage
+
+Nachtrag Etappe 76: Die in diesem Abschnitt genannte Grenze „nicht in der Sicherung“ gilt nicht mehr; seit 76 nimmt „Sichern“ die Prompts mit (Abschnitt „Etappe 76“ oben).
 
 Nachtrag 2026-11-19: Der GitHub-Lauf „SecondHand Tests“ [115](https://github.com/Tra1c0/SecondHand/actions/runs/44447534762) auf c6526bf ist grün
 (Agent, Upstream, Lint, Build), und es gibt den signierten Test-Build 34 (Lauf https://github.com/Tra1c0/SecondHand/actions/runs/44450442570; vom Lead

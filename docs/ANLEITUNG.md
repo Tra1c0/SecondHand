@@ -123,6 +123,17 @@ Verbformen abschalten. Die bisherige Autokorrektur ist dann weiter verfügbar.
 Mit **Rücktaste macht Autokorrektur rückgängig** holst du direkt nach einer Korrektur mit
 der Rücktaste dein getipptes Wort zurück. Beide Schalter sind anfangs an.
 
+Unter **Regeln → Buchstabendreher** korrigiert die Tastatur sehr häufige kurze Wörter, in denen zwei
+Nachbarbuchstaben vertauscht sind: „idr“ wird „dir“, „teh“ wird „the“. Sie greift nur bei Wörtern mit
+3 bis 5 Buchstaben, die kein Wörterbuch kennt, nur wenn genau ein Tausch ein sehr häufiges Wort der
+Tastatursprache ergibt, und nur, wenn die Tastatur nicht schon eine eigene Korrektur hat. Wörter, die es
+in irgendeiner Schreibweise gibt („Ort“, „Rest“, „Titel“), Wörter mit einem Großbuchstaben mitten im Wort
+(„idR“) und Wörter aus deinen eigenen Listen lässt sie stehen; beim Gestentippen greift sie nicht. Sie gilt
+bei jeder Stärke der Autokorrektur, solange die Autokorrektur an ist. Zurücknehmen: direkt nach der
+Korrektur die Rücktaste tippen (sofern „Rücktaste macht Autokorrektur rückgängig“ an ist), das getippte
+Wort ist wieder da. Abschalten: Schalter „Buchstabendreher“ aus, er ist anfangs an. Im Emulator mit den
+echten Wörterbüchern noch nicht bestätigt, auf einem Telefon nicht ausprobiert.
+
 Oben wählst du die Autokorrektur in einem Tipp:
 
 - **AUS**: nur Vorschläge, nie automatisch (schaltet „Autokorrektur“ aus).
@@ -249,16 +260,16 @@ Wie die Seite „KI-Anbieter“ lässt sie keine Bildschirmfotos zu. Bei gesperr
   ZIP-Datei enthält: Tastatureinstellungen (auch Designs und RGB-Licht, aber ohne die Bilder eigener
   Designs), eigene Layouts, von dir hinzugefügte Wörterbuchdateien, Listen gesperrter Wörter, gelernte Wörter (nur solange „Persönliches
   Wörterbuch des Gerätes verwenden“ aus ist, sonst liegen sie beim System), gesammelte Gestendaten (falls eingeschaltet), Hintergrundbild,
-  Schriften und den Zwischenablage-Verlauf. Nicht enthalten sind Profile, Gedächtnis, Bausteine, Orte,
+  Schriften, den Zwischenablage-Verlauf und deine Prompts (nur bei entsperrtem Telefon). Nicht enthalten sind Profile, Gedächtnis, Bausteine, Orte,
   gemerkte Korrekturen, Trefferzonen, gemalte Symbole, KI-Einstellungen und -Modelle, Zugangsschlüssel, das
   Persönliche Wörterbuch (es bleibt beim System), mitgelieferte Wörterbücher (werden bei Bedarf neu angelegt)
   und die Bilder eigener Designs. Beim Wiederherstellen wird alles im Datenordner entfernt, was nicht in der
   Datei steht, zum Beispiel Bilder eigener Designs und die geladene Gesten-Bibliothek (Gesten-Tippen danach
   neu laden). Die nicht gesicherten Daten bleiben unverändert auf diesem Telefon (Profile und Workflows lassen sich einzeln als Datei
   exportieren). Die Datei ist nicht verschlüsselt: Gelernte
-  Wörter, gesammelte Gestendaten und Zwischenablage-Einträge sind darin lesbar, bewahre sie sicher auf. Wiederherstellen
-  überschreibt vorhandene Daten. Ob die Sicherung später um die Daten von SecondHand erweitert wird,
-  steht in ROADMAP.md.
+  Wörter, gesammelte Gestendaten, Zwischenablage-Einträge und Prompts sind darin lesbar, bewahre sie sicher auf.
+  Wiederherstellen überschreibt vorhandene Daten, nur die Prompts nicht, wenn die Datei keine (oder eine leere
+  Liste) enthält: Dann bleiben die Prompts auf dem Telefon. Zu den Prompts siehe „Prompt-Ablage“ unten.
 - **Sichern**: „Sichern und Wiederherstellen“ (alle Einstellungen als Datei, derselbe Dialog wie
   bisher), „Profile exportieren“ (öffnet Tastaturprofile). Scheitert das Wiederherstellen,
   holt die App alles zurück, wie es war. Die Meldung sagt „Es wurde nichts geändert“, wenn die
@@ -935,9 +946,18 @@ gesendet. Stand der Prüfung: nur mit automatischen Tests, auf keinem Gerät aus
   gibt es nicht mehr.“
 - **Wo die Prompts liegen und wie sie verloren gehen**: In einer Datei im geschützten Speicher der App, nur
   auf dem Telefon und nur nach dem Entsperren lesbar. Sie bleiben über Neustarts und App-Updates erhalten.
-  Sie sind **nicht** in „Sichern und Wiederherstellen“ (Einstellungen → System & Daten) und gehen verloren,
-  wenn du die App deinstallierst oder ihre Daten löschst. Kopiere wichtige Prompts also zusätzlich
-  anderswohin. Grenzen: 200 Prompts, Titel 60, Text 8000 Zeichen, Datei höchstens 2 MiB (bei vielen
+  Sie sind in „Sichern und Wiederherstellen“ (Einstellungen → System & Daten) enthalten, wenn das Telefon beim
+  Sichern entsperrt ist und mindestens ein Prompt da ist; ohne Sicherung gehen sie verloren, wenn du die App
+  deinstallierst oder ihre Daten löschst. Beim Wiederherstellen werden sie ganz zuletzt durch die Prompts
+  der Datei ersetzt (die Prompts auf dem Telefon, die nicht in der Datei stehen, verschwinden dann). Eine
+  Datei ohne Prompts (zum Beispiel von einer älteren Version) und eine Datei mit leerer Liste lassen die
+  Prompts auf dem Telefon, ohne Meldung. In drei Fällen wird die Wiederherstellung der Prompts
+  übersprungen und eine zweite Meldung erscheint, die übrige Wiederherstellung gilt trotzdem: „… Der Eintrag
+  ist beschädigt.“ (die Prompts im Backup sind unbrauchbar oder zu groß), „… Das Gerät ist gesperrt.“ (erst
+  entsperren, dann erneut wiederherstellen) und „… Die Prompt-Ablage auf diesem Telefon ist nicht lesbar.“
+  (erst unter Einstellungen → Leiste & Befehle → Prompt-Ablage zurücksetzen und das Backup erneut
+  wiederherstellen). In allen dreien bleiben die Prompts auf dem Telefon unverändert. Die echte
+  Wiederherstellung im Dialog ist nicht auf einem Gerät ausprobiert. Grenzen: 200 Prompts, Titel 60, Text 8000 Zeichen, Datei höchstens 2 MiB (bei vielen
   Emojis kann die Datei vor 200 Prompts voll sein: „Nicht genug Platz …“).
 - Ungeprüft: Langdruck auf die Komma-Taste und Aussehen des Popups am echten Gerät, das Fenster im
   Querformat, auf Tablets und im flachen Stil, und die Geschwindigkeit mit sehr vielen langen Prompts.

@@ -452,11 +452,23 @@ Prompts, Eingaben, Resultate, Zugangsdaten oder Editor-Tokens in irgendeinem Sub
 ## Prompt-Ablage (74)
 
 - Datei `noBackupFilesDir/agent_prompts.json` im CE-Speicher (`AtomicFile`, wie `agent_snippets.json`),
-  erst nach dem Entsperren lesbar. Kein Backup, kein Export: Die Prompts sind nicht in der Sicherung
-  der Tastatur („Sichern und Wiederherstellen“), bleiben über Neustarts und App-Updates und gehen
-  beim Deinstallieren oder Löschen der App-Daten verloren. Bei gesperrtem Gerät wird nichts gelesen,
-  geschrieben oder angelegt. Mögliche Folge, nicht gebaut: die Datei in „Sichern“ aufnehmen
-  (ROADMAP).
+  erst nach dem Entsperren lesbar. Kein Android-Backup. Seit Etappe 76 nimmt „Sichern“ (Einstellungen →
+  System & Daten → „Sichern und Wiederherstellen“, `BackupRestorePreference.kt`) die Datei mit: Eintrag
+  `agent/agent_prompts.json` in der ZIP-Datei, die genauen Bytes der gespeicherten Datei
+  (`PromptStore.exportBytes`). Der Eintrag entsteht nur bei entsperrtem Gerät und nur, wenn die Datei
+  lesbar, gültig und nicht leer ist; sonst fehlt er, und die Sicherung scheitert deswegen nie. Der Name
+  wird beim Wiederherstellen nur genau verglichen, nie als Pfad benutzt; kommt er mehrfach vor, zählt der
+  letzte. Wiederherstellen (`PromptsEntryCollector`, `restorePromptsFromBackup`,
+  `PromptStore.replaceAll`): Der Eintrag wird zuerst mit demselben strengen Leser und der Grenze von 2 MiB
+  geprüft und ersetzt die Prompts erst ganz am Ende, nachdem alles andere gelungen ist (die Prompt-Datei
+  liegt in `noBackupFilesDir`, außerhalb der beiden Ordner des Zurückrollens, deshalb schreibt ein
+  gescheitertes Wiederherstellen sie nie). Die vorhandenen Prompts bleiben bei fehlendem, leerem,
+  beschädigtem oder zu großem Eintrag, bei gesperrtem Gerät und bei unlesbarer Prompt-Datei auf dem
+  Telefon; die drei Fälle ab „beschädigt“ melden es in einer zweiten Meldung (`restore_prompts_corrupt`,
+  `restore_prompts_locked`, `restore_prompts_unreadable`). Eine ältere App-Version überspringt den
+  unbekannten Eintrag. Die Datei ist unverschlüsselt (wie der Rest der Sicherung). Ohne Sicherung
+  bleiben die Prompts über Neustarts und App-Updates und gehen beim Deinstallieren oder Löschen der
+  App-Daten verloren. Bei gesperrtem Gerät wird nichts gelesen, geschrieben oder angelegt.
 - Format: ein JSON-Objekt mit genau den Schlüsseln `storageVersion` (Zahl, heute 1) und `prompts`
   (Array in der Reihenfolge des Nutzers, der neueste zuerst beim Hinzufügen). Jeder Eintrag hat genau
   `id` (nicht leer, höchstens 64 Zeichen, eindeutig; vom Speicher erzeugt, nie angezeigt), `title`
