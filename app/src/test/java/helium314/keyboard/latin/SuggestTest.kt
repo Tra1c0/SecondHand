@@ -1237,7 +1237,7 @@ class SuggestTest {
         helium314.keyboard.agent.Memory.resetForTest()
         helium314.keyboard.agent.AgentStorageContexts.keyboard(latinIME)
             .getSharedPreferences(helium314.keyboard.agent.Memory.FILE, android.content.Context.MODE_PRIVATE)
-            .edit { putString(helium314.keyboard.agent.Memory.SHORTCUTS, "v1\n2;CREATED;idr;ich der Reihe nach") }
+            .edit { putString(helium314.keyboard.agent.Memory.SHORTCUTS, "v1\n2;CREATED;idr;ich denke richtig") }
         try {
             assertNull(swapped("idr").correction(), "an own word of the memory")
         } finally {
