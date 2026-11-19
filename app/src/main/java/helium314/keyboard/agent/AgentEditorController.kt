@@ -638,6 +638,11 @@ class AgentEditorController @JvmOverloads constructor(
      */
     private fun insertPrompt(id: String) {
         val target = prompts?.takeIf { it.visibility == View.VISIBLE } ?: return // a tap on a row of a window already closed does nothing
+        if (editor.protection() != null || isDeviceLocked(ime) || isUserLocked(ime) || Settings.getValues()?.mIsLocked == true) {
+            close()
+            Toast.makeText(ime, R.string.agent_prompts_protected, Toast.LENGTH_SHORT).show()
+            return
+        }
         val store = promptStoreFactory()
         val prompt = store.load()?.firstOrNull { it.id == id }
         if (prompt == null) {
@@ -670,7 +675,7 @@ class AgentEditorController @JvmOverloads constructor(
      */
     private fun saveClipAsPrompt() {
         val target = prompts ?: return
-        if (editor.protection() != null || Settings.getValues()?.mIsLocked == true) {
+        if (editor.protection() != null || isDeviceLocked(ime) || isUserLocked(ime) || Settings.getValues()?.mIsLocked == true) {
             close()
             Toast.makeText(ime, R.string.agent_prompts_protected, Toast.LENGTH_SHORT).show()
             return

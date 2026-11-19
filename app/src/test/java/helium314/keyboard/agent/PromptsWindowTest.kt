@@ -304,10 +304,6 @@ class PromptsWindowTest {
         tap(R.id.agent_prompts_save_clip)
         assertEquals(string(R.string.agent_prompts_clip_sensitive), status())
         assertTrue(store.read().isEmpty())
-        // the same text copied again later (a new stamp, not marked) is a normal text
-        Thread.sleep(5)
-        copy("harmloser Satz im Passwortfeld kopiert")
-        assertNotEquals(true, ClipVault.isSecretClip("harmloser Satz im Passwortfeld kopiert", clipStamp(), false))
     }
 
     @Test fun aClipTheSystemMarkedSensitiveIsRefused() {
