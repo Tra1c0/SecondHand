@@ -849,6 +849,17 @@ def autocorrect_typo_in_sentence(d):
     _typed_becomes(d, "autocorrect_typo_in_sentence", [(" wie geht es idr ", " wie geht es dir ")])
 
 
+def swapped_letters_keep_nouns(d):
+    """The swapped-letters rule (stage 75) leaves nouns alone: "ort", "rest", "titel" get their capital,
+    they do not become "rot", "erst" or "title"."""
+    _typed_becomes(d, "swapped_letters_keep_nouns", [(" ort ", " Ort "), (" rest ", " Rest "), (" titel ", " Titel ")])
+
+
+def swapped_letters_keep_caps(d):
+    """A capital inside the word stops the swapped-letters rule: "idR" stays."""
+    _typed_becomes(d, "swapped_letters_keep_caps", [(" idR ", " idR ")])
+
+
 def autocorrect_noun(d):
     """A common noun typed in lower case gets its capital: "jungs" becomes "Jungs" (stages 48, 71)."""
     _typed_becomes(d, "autocorrect_noun", [(" jungs ", " Jungs ")])
@@ -884,7 +895,7 @@ def language_switch(d):
 
 SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete_key, typing_password, typing_email, typing_number,
              capital_after_period, autocorrect_works, autocorrect_typo, autocorrect_typo_in_sentence,
-             autocorrect_noun, slang_stays, emoji_suggestion, language_switch, clipboard_pill,
+             autocorrect_noun, swapped_letters_keep_nouns, swapped_letters_keep_caps, slang_stays, emoji_suggestion, language_switch, clipboard_pill,
              clipboard_not_readable_in_password, learning_not_in_password, prompt_store]
 
 
