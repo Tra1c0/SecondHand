@@ -56,8 +56,8 @@ KEY_NAMES = {
     "letters": ("Buchstaben", "Letters"),
 }
 # What the strip shows without any word: the buttons at its ends and the empty slots.
-# What the test app's copy button puts on the clipboard (MainActivity.CLIP_TEXT).
-CLIP_TEXT = "Aus der Zwischenablage"
+# What the test app's three copy buttons put on the clipboard (MainActivity.CLIP_TEXTS).
+CLIP_TEXTS = ("Aus der Zwischenablage", "Noch ein kopierter Text", "Der dritte kopierte Text")
 STRIP_FIXED = ("Mehr Tasten", "More keys", "Kein Vorschlag", "No suggestion", "Textaktionen", "Text actions")
 # A word separator key announces a pending autocorrection instead of its plain name
 # (AccessibilityUtils.getAutoCorrectionDescription): group 1 is the plain name.
@@ -628,29 +628,29 @@ def clipboard_pill(d):
     inserts it; in a password field it is not offered."""
     _open_settings_and_switch_on(d, ("Tippen & Korrektur", "Alle Korrektur-Einstellungen"),
                                  "Zwischenablagen-Inhalt vorschlagen")
+    first, second, third = CLIP_TEXTS
     d.start("clipboard_pill")
     if not d.control:  # control run: nothing is copied, so the pill must be missing and the scenario fail
-        d.tap_id("copy_button")  # the test app copies CLIP_TEXT, as a user would copy it somewhere
+        d.tap_id("copy_1")  # the test app copies a text, as a user would copy it somewhere
     d.focus("text")
-    d.tap_in_strip((CLIP_TEXT,))
-    d.expect_field("text", CLIP_TEXT)
-    # Copied again, now with the password field focused: nothing may be offered there. The copy is
-    # made again because the pill is used up by the tap above.
-    d.tap_id("copy_button")
+    d.tap_in_strip((first,))
+    d.expect_field("text", first)
+    # A second, different text, then the password field: nothing may be offered there. (The keyboard
+    # offers a copied text once; the same text again would be missing everywhere, run 21.)
+    d.tap_id("copy_2")
     d.focus("password")
     time.sleep(2.5)
     offered = dump().strip_texts()
     d.expect_equal("copied text offered in the password field (strip %s)" % offered[:6],
-                   any(CLIP_TEXT in text for text in offered), False)
+                   any(second in text for text in offered), False)
     d.expect_field("password", "")
-    # And once more for an empty text field: only if the pill comes back there, its absence in the
-    # password field says something about the password field. (In a field that already holds text the
-    # strip shows words for it and only a small clipboard sign: run 20.)
+    # And a third text for an empty text field: only if the pill comes there, its absence in the
+    # password field says something about the password field.
     d.start("clipboard_pill")
-    d.tap_id("copy_button")
+    d.tap_id("copy_3")
     d.focus("text")
-    d.tap_in_strip((CLIP_TEXT,))
-    d.expect_field("text", CLIP_TEXT)
+    d.tap_in_strip((third,))
+    d.expect_field("text", third)
 
 
 def learning_not_in_password(d):
@@ -659,16 +659,24 @@ def learning_not_in_password(d):
     _open_settings_and_switch_on(d, ("Tippen & Korrektur", "Alle Korrektur-Einstellungen"),
                                  "Personalisierte Vorschläge")
     word, secret = "xqzvok", "pwzzkq"
-    typed = word[:-1] if d.control else word  # what a control run really types
     d.start("learning_not_in_password")
     d.focus("text")
     d.type("und")
     d.wait_for_suggestions()
     d.type(" ")
+    kept = "Und "
     for _ in range(3):
-        d.type(word)
-        d.tap_in_strip((typed,))  # the typed word itself, the way a user keeps an unknown word
-        time.sleep(0.8)
+        # The way a user keeps an unknown word: type it with a space; if the keyboard changed it, one
+        # tap on delete takes the correction back (stage 72), then the space again.
+        d.type(word + " ")
+        time.sleep(1.0)
+        if not d.field("text").endswith(word + " "):
+            d.press("delete")
+            time.sleep(0.8)
+            if d.field("text").endswith(word):
+                d.press("space")
+        kept += word + " "
+    d.expect_field("text", kept)
     d.type(word[:4])
     offered = d.strip_until(lambda texts: word in texts)
     d.expect_equal("the chosen word is offered for %r (strip %s)" % (word[:3], offered[:5]), word in offered, True)

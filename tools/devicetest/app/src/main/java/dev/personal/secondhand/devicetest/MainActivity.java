@@ -16,17 +16,21 @@ import android.widget.TextView;
  * of the start intent is shown as a headline so the recording says which scenario is running.
  */
 public class MainActivity extends Activity {
-    /** What the copy button puts on the clipboard; devicetest.py knows the same text. */
-    static final String CLIP_TEXT = "Aus der Zwischenablage";
+    /** What the three copy buttons put on the clipboard; devicetest.py knows the same texts. */
+    static final String[] CLIP_TEXTS = {"Aus der Zwischenablage", "Noch ein kopierter Text", "Der dritte kopierte Text"};
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
         showScenario(getIntent());
-        findViewById(R.id.copy_button).setOnClickListener(view ->
-                ((ClipboardManager) getSystemService(CLIPBOARD_SERVICE))
-                        .setPrimaryClip(ClipData.newPlainText("device test", CLIP_TEXT)));
+        final int[] buttons = {R.id.copy_1, R.id.copy_2, R.id.copy_3};
+        for (int i = 0; i < buttons.length; i++) {
+            final String text = CLIP_TEXTS[i];
+            findViewById(buttons[i]).setOnClickListener(view ->
+                    ((ClipboardManager) getSystemService(CLIPBOARD_SERVICE))
+                            .setPrimaryClip(ClipData.newPlainText("device test", text)));
+        }
         mirror(R.id.field_text, R.id.mirror_text);
         mirror(R.id.field_password, R.id.mirror_password);
         mirror(R.id.field_email, R.id.mirror_email);
