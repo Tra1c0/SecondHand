@@ -225,10 +225,10 @@ private fun PromptEditorCard(original: Prompt, store: PromptStore, onSaved: () -
     }
     var message by remember(original) { mutableStateOf("") }
     var askDiscard by rememberSaveable(original.id) { mutableStateOf(false) }
-    val changed = title != original.title || text.text != original.text
-    // back and "Cancel": unchanged closes at once, changed asks first (the typed text is not lost by a slip)
-    fun cancel() { if (changed) askDiscard = true else onDismiss() }
-    BackHandler(onBack = ::cancel)
+    // back and "Cancel": unchanged closes at once, changed asks first (the typed text is not lost by a slip).
+    // The state is read when the handler runs, not captured at composition: the back callback outlives recompositions.
+    fun cancel() { if (title != original.title || text.text != original.text) askDiscard = true else onDismiss() }
+    BackHandler { cancel() }
     val error = PromptStore.validationError(title, text.text)
     val titleTooLong = error == PromptError.TITLE_TOO_LONG
     val textTooLong = error == PromptError.TEXT_TOO_LONG

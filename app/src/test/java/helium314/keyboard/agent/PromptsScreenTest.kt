@@ -380,7 +380,7 @@ class PromptsScreenTest {
         compose.onNodeWithTag(PROMPTS_TEXT_FIELD_TAG).performTextInput(" mehr")
         tester.emulateSavedInstanceStateRestore()
         compose.waitForIdle()
-        assertEquals("Titelneu", nodeText(PROMPTS_TITLE_FIELD_TAG))
+        assertEquals("neuTitel", nodeText(PROMPTS_TITLE_FIELD_TAG)) // typed at the cursor, which is at the start of a title
         assertEquals("Text mehr", nodeText(PROMPTS_TEXT_FIELD_TAG))
         compose.onNodeWithTag(PROMPTS_ADD_TAG).assertDoesNotExist() // still the editor, not the list
         assertEquals("Text", newStore().read().single().text) // nothing was saved by the restore
