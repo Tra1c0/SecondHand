@@ -105,6 +105,12 @@ object InkSymbols {
         listOf(poly(90, 0, 10, 38, 90, 76), line(10, 90, 90, 100)),
         listOf(poly(90, 0, 10, 32, 90, 64), line(10, 100, 90, 100)),
     )
+    // stage 83: a bare slash is "/" (owner: "/ gewischt wird zu %"), steeper and flatter as a finger draws it
+    private val slash = listOf(
+        listOf(line(0, 100, 100, 0)),
+        listOf(line(22, 100, 78, 0)),
+        listOf(line(0, 80, 100, 20)),
+    )
     private val plus = listOf(listOf(line(50, 0, 50, 100), line(0, 50, 100, 50)))
     private val plusMinus = listOf(
         listOf(line(50, 0, 50, 70), line(10, 35, 90, 35), line(10, 100, 90, 100)),
@@ -224,6 +230,8 @@ object InkSymbols {
         Symbol("÷", divide),
         Symbol("–", listOf(listOf(line(0, 50, 100, 50)))),
         Symbol("|", listOf(listOf(line(50, 0, 50, 100)))),
+        Symbol("/", slash),
+        Symbol("\\", slash.map { it.mirrorX() }),
         Symbol("∞", infinity),
         Symbol("√", root),
         Symbol("π", pi),
