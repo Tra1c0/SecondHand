@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <!-- Stage 87b: the card "Cursor-Trackpad" of the diagnose page and the status lines of the gestures page. -->
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="agent_trackdiag_title">Cursor trackpad (numbers and names, no text)</string>
     <string name="agent_trackdiag_row_switch">Trackpad – switch “Cursor as a trackpad”</string>
     <string name="agent_trackdiag_row_horizontal">Trackpad – space bar ← and →</string>
