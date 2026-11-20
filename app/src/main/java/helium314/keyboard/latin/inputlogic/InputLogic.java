@@ -1429,7 +1429,11 @@ public final class InputLogic {
             if (settingsValues.mAutoCorrectEnabled && ! isInlineEmojiSearchAction()) {
                 final String separator = shouldAvoidSendingCode ? LastComposedWord.NOT_A_SEPARATOR
                         : StringUtils.newSingleCodePointString(codePoint);
-                commitCurrentAutoCorrection(settingsValues, separator, handler);
+                // fork, stage 84: a symbol that is no space and no ':' (inline emoji search) shows the neutral strip right after
+                // the commit, so the suggestions of the pending update do not need a strip of their own before it
+                final boolean stripFollows = codePoint != Constants.CODE_SPACE && codePoint != INLINE_EMOJI_SEARCH_MARKER
+                        && !Character.isWhitespace(codePoint) && !isInlineEmojiSearchAction();
+                commitCurrentAutoCorrection(settingsValues, separator, handler, !stripFollows);
                 inputTransaction.setDidAutoCorrect();
             } else {
                 commitTyped(settingsValues, StringUtils.newSingleCodePointString(codePoint));
@@ -2034,6 +2038,15 @@ public final class InputLogic {
     }
 
     public void performUpdateSuggestionStripSync(final SettingsValues settingsValues, final int inputStyle) {
+        performUpdateSuggestionStripSync(settingsValues, inputStyle, true);
+    }
+
+    /**
+     * @param showOnStrip fork, stage 84: false only for a separator that shows the neutral strip right after: the suggestions
+     * are still taken (the autocorrection comes from them) but the strip is not built for them just to be replaced.
+     */
+    private void performUpdateSuggestionStripSync(final SettingsValues settingsValues, final int inputStyle,
+            final boolean showOnStrip) {
         long startTimeMillis = 0;
         if (DebugFlags.DEBUG_ENABLED) {
             startTimeMillis = SystemClock.elapsedRealtime();
@@ -2079,7 +2092,9 @@ public final class InputLogic {
                 Constants.GET_SUGGESTED_WORDS_TIMEOUT);
         if (suggestedWords != null) {
             // Prefer clipboard suggestions (if available and setting is enabled) over beginning of sentence predictions.
-            if (!(suggestedWords.mInputStyle == SuggestedWords.INPUT_STYLE_BEGINNING_OF_SENTENCE_PREDICTION
+            if (!showOnStrip) {
+                setSuggestedWords(suggestedWords); // fork, stage 84: what LatinIME.setSuggestions does first, without the strip
+            } else if (!(suggestedWords.mInputStyle == SuggestedWords.INPUT_STYLE_BEGINNING_OF_SENTENCE_PREDICTION
                     && mLatinIME.tryShowClipboardSuggestion())) {
                 mSuggestionStripViewAccessor.setSuggestions(suggestedWords);
             }
@@ -2699,6 +2714,11 @@ public final class InputLogic {
      */
     private void commitCurrentAutoCorrection(final SettingsValues settingsValues,
             final String separator, final LatinIME.UIHandler handler) {
+        commitCurrentAutoCorrection(settingsValues, separator, handler, true);
+    }
+
+    private void commitCurrentAutoCorrection(final SettingsValues settingsValues,
+            final String separator, final LatinIME.UIHandler handler, final boolean showPendingSuggestions) {
         // Complete any pending suggestions query first
         if (handler.hasPendingUpdateSuggestions()) {
             handler.cancelUpdateSuggestionStrip();
@@ -2710,7 +2730,7 @@ public final class InputLogic {
             // for application-specified completions. As for recorrections, we never auto-correct,
             // so we don't come here either. Hence, the input style is necessarily
             // INPUT_STYLE_TYPING.
-            performUpdateSuggestionStripSync(settingsValues, SuggestedWords.INPUT_STYLE_TYPING);
+            performUpdateSuggestionStripSync(settingsValues, SuggestedWords.INPUT_STYLE_TYPING, showPendingSuggestions);
         }
         final String typedWord = mWordComposer.getTypedWord();
         final SuggestedWordInfo candidate = mWordComposer.getAutoCorrectionOrNull();
