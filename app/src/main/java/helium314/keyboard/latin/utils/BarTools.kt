@@ -52,6 +52,9 @@ object BarTools {
 
     fun isCompact(count: Int) = count > FULL_SIZE_MAX
 
+    /** The standard bar ("Zurücksetzen", stage 88): what [migrate] makes of the default old toolbar preferences. */
+    val standard: List<ToolbarKey> by lazy { migrate(listOf(AGENT, SETTINGS, VOICE, CLIPBOARD, UNDO, REDO, SELECT_WORD, COPY, PASTE, LEFT, RIGHT), listOf(AGENT)) }
+
     /**
      * What the bar shows for a user who never edited it: the first [MIGRATED_FROM_ORDER] enabled keys of the old
      * toolbar order, then the pinned keys that are not among them (they were always visible, so they stay),

@@ -34,6 +34,10 @@ class BarEditor(
         private set
     var draggedFromBar = false
         private set
+    /** The bar before the last change, for [undo] (one level, stage 88); null when there is nothing to take back. */
+    var previous: List<ToolbarKey>? = null
+        private set
+    val canUndo get() = previous != null
     /** Whether the last change was refused because the bar holds [BarTools.MAX] tools. */
     var full = false
         private set
@@ -44,6 +48,7 @@ class BarEditor(
     /** Reads the saved bar again (a new edit session, the settings changed it). */
     fun reload() {
         bar = read()
+        previous = null
         preview = null
         dragged = null
         full = false
@@ -89,6 +94,21 @@ class BarEditor(
         }
         return rest.size
     }
+
+    /** Takes the last change back (one level); a second call changes nothing. */
+    fun undo(): Result {
+        val before = previous ?: return Result.UNCHANGED
+        previous = null
+        bar = before
+        write(before)
+        return Result.CHANGED
+    }
+
+    /** The standard bar; [undo] brings the old one back. */
+    fun reset(): Result = commit(BarTools.standard, false)
+
+    /** How many slots the bar has after the dragged tool is dropped on it (without hidden tools). */
+    fun slotCountAfterDrop(): Int = bar.filterNot { it == dragged }.count { !hidden(it) } + 1
 
     /** A tap on a tool of the grid: out of the bar when it is in it, else into the first free place. */
     fun toggle(key: ToolbarKey): Result = if (key in bar) remove(key) else add(key)
@@ -154,6 +174,7 @@ class BarEditor(
         full = wasFull
         if (wasFull) return Result.FULL
         if (next == bar) return Result.UNCHANGED
+        previous = bar
         bar = next
         write(next)
         return Result.CHANGED

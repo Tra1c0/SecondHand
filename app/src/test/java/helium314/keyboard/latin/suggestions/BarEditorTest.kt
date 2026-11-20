@@ -190,4 +190,30 @@ class BarEditorTest {
         assertFalse(only.canShift(UNDO, 1))
         assertEquals(Result.UNCHANGED, only.shift(UNDO, 1))
     }
+
+    @Test fun undoTakesBackTheLastChangeOnceAndResetGivesTheStandardBar() {
+        val e = editor()
+        assertFalse(e.canUndo)
+        e.add(PASTE)
+        assertEquals(listOf(UNDO, REDO, COPY, PASTE), stored)
+        assertTrue(e.canUndo)
+        assertEquals(Result.CHANGED, e.undo())
+        assertEquals(listOf(UNDO, REDO, COPY), stored)
+        assertEquals(Result.UNCHANGED, e.undo()) // one level
+        // reset is a change too and can be taken back
+        assertEquals(Result.CHANGED, e.reset())
+        assertEquals(BarTools.standard, stored)
+        assertEquals(listOf(AGENT, SETTINGS, CLIPBOARD, UNDO, VOICE), BarTools.standard)
+        e.undo()
+        assertEquals(listOf(UNDO, REDO, COPY), stored)
+        e.reset(); assertEquals(Result.UNCHANGED, e.reset()) // already the standard bar: nothing to take back from a second reset
+    }
+
+    @Test fun slotCountAfterADropCountsOnlyVisibleToolsAndTheDraggedOne() {
+        val e = BarEditor({ listOf(UNDO, VOICE, REDO) }, { }, { it == VOICE })
+        e.dragStart(PASTE, fromBar = false)
+        assertEquals(3, e.slotCountAfterDrop())
+        e.dragStart(UNDO, fromBar = true)
+        assertEquals(2, e.slotCountAfterDrop())
+    }
 }

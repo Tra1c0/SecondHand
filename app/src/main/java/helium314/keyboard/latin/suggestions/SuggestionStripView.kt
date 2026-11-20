@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener
 import android.graphics.Color
+import android.graphics.PointF
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.text.TextUtils
@@ -491,7 +492,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         if (fixedBar && view.tag is ToolbarKey && view.parent === toolbar) {
             val key = view.tag as ToolbarKey
             // customizing: dragging a slot, or (no own long press action) starting the edit mode from the slot
-            if (editor != null) return startDrag(view, key, fromBar = true)
+            if (editor != null) return true // the container of the edit mode takes the touches of the slots (BarDrag)
             if (getCodeForToolbarKeyLongClick(key) == KeyCode.UNSPECIFIED) { enterEdit(); return true }
         }
         if (view.tag is ToolbarKey) {
@@ -893,17 +894,12 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         applyBarState()
     }
 
-    // ---- stage 86: customizing the bar in the keyboard ----
-
-    private class DragPayload(val key: ToolbarKey, val fromBar: Boolean)
-
-    /** Starts the system drag; tests replace it (a view without a window cannot start one) and feed the drag events themselves. */
-    internal var dragStarter: (View, android.content.ClipData, View.DragShadowBuilder, Any, Int) -> Boolean =
-        { view, data, shadow, state, flags -> androidx.core.view.ViewCompat.startDragAndDrop(view, data, shadow, state, flags) }
+    // ---- stage 86, rebuilt in stage 88: customizing the bar in the keyboard (see BarDrag and docs/LEISTE-KONZEPT.md) ----
 
     /** What the bar shows: the tools as the edit mode has them, else as saved. Builds the slots again when they changed. */
     private fun populateBar(keys: List<ToolbarKey>) {
         val colors = Settings.getValues().mColors
+        val before = if (editor != null && isAttachedToWindow) slotLefts() else null
         FixedBar.populate(toolbar, keys.map { key ->
             createToolbarKey(context, key, FixedBar.newButton(context)).also { it.layoutParams = toolbarKeyLayoutParams; setupKey(it, colors) }
         })
@@ -922,6 +918,37 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         }
         updateToolAvailability()
         helium314.keyboard.agent.RgbLighting.onStripChanged(this) // the buttons are new: the light finds them again
+        if (before != null) glideSlots(before)
+    }
+
+    /** The left edge of every slot by tool, to let the slots glide from there to their new places (the others make room for the gap in at most 150 ms). */
+    private fun slotLefts(): Map<ToolbarKey, Float> = FixedBar.slots(toolbar).mapNotNull { b -> (b.tag as? ToolbarKey)?.let { it to b.left + b.translationX } }.toMap()
+
+    private fun glideSlots(before: Map<ToolbarKey, Float>) {
+        toolbar.viewTreeObserver.addOnPreDrawListener(object : android.view.ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                toolbar.viewTreeObserver.removeOnPreDrawListener(this)
+                FixedBar.slots(toolbar).forEach { b ->
+                    val old = before[b.tag as? ToolbarKey] ?: return@forEach
+                    val delta = old - b.left
+                    if (Math.abs(delta) < 1f) return@forEach
+                    b.translationX = delta
+                    b.animate().translationX(0f).setDuration(SLOT_GLIDE_MS).start()
+                }
+                return true
+            }
+        })
+    }
+
+    /** A short shake of the slots: the bar is full. */
+    private fun shakeSlots() {
+        if (!isAttachedToWindow) return
+        val d = 6f * resources.displayMetrics.density
+        FixedBar.slots(toolbar).forEach { b ->
+            b.animate().cancel()
+            b.translationX = 0f
+            b.animate().translationX(d).setDuration(50).withEndAction { b.animate().translationX(-d).setDuration(80).withEndAction { b.animate().translationX(0f).setDuration(50).start() }.start() }.start()
+        }
     }
 
     /** The edit mode: the grid shows the hint, the bar its outlined slots, the left key becomes the check button. */
@@ -931,10 +958,12 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         val grid = toolGrid() ?: return
         val ed = BarEditor({ BarTools.read(context.prefs()) }, { BarTools.write(context.prefs(), it) }, ::hasNoSlot)
         editor = ed
-        grid.dropListener = View.OnDragListener { _, event -> onGridDrag(event) }
         grid.setEditing(gridEditListener)
+        grid.dragLogic = BarDrag(ed, barGeometry, BarDrag.Config(slopPx = android.view.ViewConfiguration.get(context).scaledTouchSlop.toFloat()))
+        grid.slotAt = ::slotKeyAt
+        grid.slotCentre = ::slotCentreOf
+        grid.onDragEvents = ::onDragEvents
         grid.setMarked(ed.shown.toSet())
-        toolbarContainer.setOnDragListener { _, event -> onBarDrag(event) }
         populateBar(ed.shown)
         applyBarState()
     }
@@ -945,8 +974,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             ed.dragEnd()
             editor = null
             ghost = null
-            toolbarContainer.setOnDragListener(null)
-            toolGrid()?.apply { setEditing(null); dropListener = null }
+            toolGrid()?.setEditing(null)
             populateBar(BarTools.read(context.prefs()))
             applyBarState()
         }
@@ -961,71 +989,124 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     }
 
     private fun refreshEdit(ed: BarEditor) {
-        ghost = ed.dragged
+        ghost = ed.dragged?.takeIf { it in ed.shown }
         if (renderedBar != ed.shown) populateBar(ed.shown)
-        else updateToolAvailability() // the same slots: only the ghost may have changed
+        else updateToolAvailability()
+        if (editor != null) FixedBar.markEditing(toolbar, flatStyle, Settings.getValues().mColors, ghost)
         toolGrid()?.setMarked(ed.shown.toSet())
         updateLeftKey()
     }
 
     private val gridEditListener = object : ToolGridView.EditListener {
-        override fun onTap(key: ToolbarKey) { afterEdit(editor?.toggle(key)) }
-        override fun onDrag(pill: View, key: ToolbarKey) = startDrag(pill, key, fromBar = false)
+        override fun onTap(key: ToolbarKey) { announce(editor?.toggle(key), key) ; editor?.let { afterEdit(null) } }
+        override fun canUndo() = editor?.canUndo == true
+        override fun onUndo() { editor?.undo(); editor?.let { afterEdit(null) } }
+        override fun onReset() { editor?.reset(); editor?.let { afterEdit(null) } }
         override fun actions(key: ToolbarKey): List<Pair<Int, () -> Boolean>> {
             val inBar = editor?.bar?.contains(key) == true
             return listOf((if (inBar) R.string.agent_bar_action_remove else R.string.agent_bar_action_add) to { afterEdit(editor?.toggle(key)); true })
         }
     }
 
-    /** Starts the system drag of the tool of [view] (a slot or a pill); false when there is no edit mode or the system refused. */
-    private fun startDrag(view: View, key: ToolbarKey, fromBar: Boolean): Boolean {
-        val ed = editor ?: return false
-        ed.dragStart(key, fromBar)
-        val started = dragStarter(view, android.content.ClipData.newPlainText("tool", key.name), View.DragShadowBuilder(view), DragPayload(key, fromBar), 0)
-        if (started) refreshEdit(ed) else ed.dragEnd()
-        return started
+    /** Tells a screen reader what a change did (the tap alternative and the drops). */
+    private fun announce(result: BarEditor.Result?, key: ToolbarKey) {
+        if (result != BarEditor.Result.CHANGED) return
+        val ed = editor ?: return
+        val message = if (key in ed.bar) context.getString(R.string.agent_bar_announce_added, labelOf(key))
+            else context.getString(R.string.agent_bar_announce_removed, labelOf(key))
+        announceForAccessibility(message)
     }
 
-    /**
-     * The place of the bar under the finger at [x]: a new tool that is not shown in the bar yet is inserted after the slots
-     * whose centre is left of the finger; once it is shown (as a ghost), or a tool of the bar is moved, the nearest slot is meant.
-     */
-    private fun dragSlot(ed: BarEditor, x: Float): Int {
-        val count = FixedBar.slots(toolbar).size
-        val slot = if (ed.preview == null && !ed.draggedFromBar && ed.dragged !in ed.bar) FixedBar.slotCentres(toolbar, flatStyle, count).count { it < x }
-            else FixedBar.slotIndexAt(toolbar, flatStyle, x, count)
-        return ed.listIndexForSlot(slot) // slots count the visible tools only, the list also holds a hidden voice key
+    // geometry of the drag, in the coordinates of the grid (the container of the edit mode) ----
+
+    /** The offset of [view] from the grid: the bar and the grid are both in the frame, so the sums of the offsets up to the frame are subtracted. */
+    private fun originIn(view: View, container: View): PointF {
+        fun chain(v: View): PointF {
+            var x = 0f; var y = 0f
+            var current: View? = v
+            while (current != null && current !== container.parent) {
+                x += current.left + current.translationX - ((current.parent as? View)?.scrollX ?: 0)
+                y += current.top + current.translationY - ((current.parent as? View)?.scrollY ?: 0)
+                current = current.parent as? View
+            }
+            return PointF(x, y)
+        }
+        val a = chain(view)
+        val b = chain(container)
+        return PointF(a.x - b.x, a.y - b.y)
+    }
+
+    private val barGeometry = object : BarDrag.Geometry {
+        override fun inBarZone(x: Float, y: Float): Boolean {
+            val grid = toolGrid() ?: return false
+            val stripBottom = originIn(toolbarContainer, grid).y + toolbarContainer.height
+            return y <= stripBottom + BAR_ZONE_BELOW_DP * resources.displayMetrics.density
+        }
+
+        override fun slotAt(x: Float, count: Int): Int {
+            val grid = toolGrid() ?: return 0
+            val left = originIn(toolbar, grid).x
+            // right to left: the first tool is at the right, the places are counted in the order of the list
+            val rel = if (toolbar.layoutDirection == LAYOUT_DIRECTION_RTL) toolbar.width - (x - left) else x - left
+            return FixedBar.slotIndexAt(toolbar, flatStyle, rel, count)
+        }
+    }
+
+    /** The tool of the slot whose cell holds the point (grid coordinates). The whole height of the strip counts. */
+    private fun slotKeyAt(x: Float, y: Float): ToolbarKey? {
+        val grid = toolGrid() ?: return null
+        if (!toolbarContainer.isVisible) return null
+        val origin = originIn(toolbar, grid)
+        val top = originIn(toolbarContainer, grid).y
+        if (y < top - 4 * resources.displayMetrics.density || y > top + toolbarContainer.height) return null
+        for (b in FixedBar.slots(toolbar)) {
+            val left = origin.x + b.left + b.translationX
+            if (x >= left && x < left + b.width) return b.tag as? ToolbarKey
+        }
+        return null
+    }
+
+    /** Where the slot of [key] is after a drop (grid coordinates), from the count alone so that no layout pass is needed. */
+    private fun slotCentreOf(key: ToolbarKey): PointF? {
+        val grid = toolGrid() ?: return null
+        val ed = editor ?: return null
+        val shown = ed.bar.filterNot(::hasNoSlot)
+        val index = shown.indexOf(key)
+        if (index < 0) return null
+        val centres = FixedBar.slotCentres(toolbar, flatStyle, shown.size)
+        val origin = originIn(toolbar, grid)
+        val c = if (toolbar.layoutDirection == LAYOUT_DIRECTION_RTL) toolbar.width - centres[index] else centres[index]
+        return PointF(origin.x + c, originIn(toolbarContainer, grid).y + toolbarContainer.height / 2f)
+    }
+
+    /** What the touch logic found: the model has been updated by it; this updates the bar, the haptics, the hints and the announcements. */
+    private fun onDragEvents(events: List<BarDrag.Event>) {
+        val ed = editor ?: return
+        val haptics = AudioAndHapticFeedbackManager.getInstance()
+        for (e in events) when (e) {
+            is BarDrag.Event.PickedUp -> { haptics.performHapticFeedback(this, HapticEvent.KEY_LONG_PRESS); refreshEdit(ed) }
+            is BarDrag.Event.GapMoved -> { haptics.performHapticFeedback(this, HapticEvent.KEY_PRESS); toolGrid()?.setHint(null); refreshEdit(ed) }
+            is BarDrag.Event.Full -> {
+                haptics.performHapticFeedback(this, HapticEvent.KEY_LONG_PRESS)
+                toolGrid()?.setHint(context.getString(R.string.agent_bar_dropped_full))
+                shakeSlots()
+                announceForAccessibility(context.getString(R.string.agent_bar_dropped_full))
+                refreshEdit(ed)
+            }
+            is BarDrag.Event.Dropped -> {
+                haptics.performHapticFeedback(this, HapticEvent.KEY_PRESS)
+                toolGrid()?.setHint(if (e.result == BarEditor.Result.FULL) context.getString(R.string.agent_bar_dropped_full) else null)
+                refreshEdit(ed)
+                if (e.result == BarEditor.Result.CHANGED) announce(e.result, e.key)
+            }
+            is BarDrag.Event.Cancelled -> { toolGrid()?.setHint(null); refreshEdit(ed) }
+            is BarDrag.Event.Tapped -> { announce(if (e.onPill) ed.toggle(e.key) else ed.remove(e.key), e.key); afterEdit(null) }
+            is BarDrag.Event.Scroll -> Unit
+        }
     }
 
     /** A tool of the list that has no slot: the voice key where there is no voice input. */
     private fun hasNoSlot(key: ToolbarKey) = key == ToolbarKey.VOICE && !Settings.getValues().mShowsVoiceInputKey
-
-    /** The drag events of the bar: over it the tools move over, a drop saves. */
-    private fun onBarDrag(event: android.view.DragEvent): Boolean {
-        val ed = editor ?: return false
-        if (event.localState !is DragPayload) return false
-        when (event.action) {
-            android.view.DragEvent.ACTION_DRAG_ENTERED, android.view.DragEvent.ACTION_DRAG_LOCATION -> {
-                ed.dragOverBar(dragSlot(ed, event.x))
-                afterEdit(if (ed.full) BarEditor.Result.FULL else null)
-            }
-            android.view.DragEvent.ACTION_DRAG_EXITED -> { ed.dragLeftBar(); afterEdit(null) }
-            android.view.DragEvent.ACTION_DROP -> afterEdit(ed.dropOnBar(dragSlot(ed, event.x)))
-            android.view.DragEvent.ACTION_DRAG_ENDED -> { ed.dragEnd(); refreshEdit(ed) } // no drop: nothing was saved
-        }
-        return true
-    }
-
-    /** The drag events of the grid: a tool of the bar dropped here is taken out of it. */
-    private fun onGridDrag(event: android.view.DragEvent): Boolean {
-        val ed = editor ?: return false
-        if (event.localState !is DragPayload) return false
-        when (event.action) {
-            android.view.DragEvent.ACTION_DROP -> afterEdit(ed.dropOnGrid())
-            android.view.DragEvent.ACTION_DRAG_ENDED -> { ed.dragEnd(); refreshEdit(ed) }
-        }
-        return true
-    }
 
     private fun closeGrid() {
         if (!fixedBar) return
@@ -1069,6 +1150,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         @JvmField
         var DEBUG_SUGGESTIONS = false
         private const val DEBUG_INFO_TEXT_SIZE_IN_DIP = 6.5f
+        private const val BAR_ZONE_BELOW_DP = 40f
+        private const val SLOT_GLIDE_MS = 140L
         private val TAG = SuggestionStripView::class.java.simpleName
     }
 }
