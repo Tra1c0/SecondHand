@@ -1170,9 +1170,13 @@ eigenen Designs, alle anderen ihren Standard; die Höhe bleibt. Test: `ForkUpgra
   `getExtractedText` in `copyText` (sein `getSelectedText` zählt, einmal) und die statischen Ersetzungs-Helfer (Antippen, nicht Tippen).
   Der Zähler wirft nie. `LatinIME.onEvent` zählt jeden Tastenbefehl, auch Dauerfeuer und Pfeile des Touchpads (verzerrt nur die Karte „Tippen“).
 - `LatinIME.java` (64a): `onEvent` beginnt mit `TypingPerf.keyPress()` (ein Tastendruck beginnt; nur Zahlen).
-- `LatinIME.java` (82): `getAgentSelection` (markierter Bereich, sonst null), `tryShowSelectionChips` in `setSuggestedWords` (nach den
-  Symbol-Chips, vor dem Screenshot-Chip) und `setNeutralSuggestionStrip` (nach den Symbol-Chips, vor der Pille),
-  `onEvent` ruft am Ende `SelectionChips.afterKey`. `InputLogic` und `RichInputConnection` sind unverändert.
+- `LatinIME.java` (82): `getAgentSelection` (markierter Bereich, sonst null), `getAgentEditorGeneration` (Nummer der Editor-Sitzung,
+  `AndroidEditorAdapter.generation`), `tryShowSelectionChips` (ohne Eingriff in die Werkzeugleiste, nicht mit `mAutoShowToolbar`) in
+  `setSuggestedWords` (nach den Symbol-Chips, vor dem Screenshot-Chip, nicht für Wischtipp-Stile `UPDATE_BATCH`/`TAIL_BATCH` und
+  `APPLICATION_SPECIFIED`) und `setNeutralSuggestionStrip` (nach den Symbol-Chips, vor der Pille), `onEvent` ruft am Ende
+  `SelectionChips.afterKey`, `onUpdateSelection` danach `SelectionChips.afterSelectionUpdate` (dafür steht das Ergebnis von
+  `mInputLogic.onUpdateSelection` in `selectionHandled`; der Rest des Ablaufs ist gleich). `ClipboardHistoryManager.onPrimaryClipChanged`
+  ruft als erste Zeile `SelectionChips.clipChanged`. `InputLogic`, `RichInputConnection` und `PointerTracker` sind unverändert.
 
 Geänderte Upstream-Tests (Leertasten-Gesten): `InputLogicTest.kt` ruft `onSpaceSwipe` statt
 `onHorizontalSpaceSwipe` und hat die Fälle `generatedSpace*` (seit Etappe 33 auch die
@@ -3402,15 +3406,25 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   Wird die Zeichnung
   verworfen, meldet `cancel` eine leere Liste und die Leiste holt ihre Vorschläge zurück
   (`postUpdateSuggestionStrip`); `reset` setzt den Zustand vor `SymbolInk.cancel` zurück (P112).
-- Vollständigkeit (83, `C/InkRecognizer.kt`): `InkMatch.complete` ist falsch, wenn jede nahe Vorlage des Textes mehr Striche
-  (`InkCloud.strokeCount`, Linien plus Punkte) braucht als die Zeichnung hat. `match` führt zwei Listen je Text; ein Text
-  mit einer vollständigen Vorlage zählt nur mit dieser. `InkResult.best` ist der nächste vollständige Kandidat (Annahme und
-  Abstand zum Nächsten nur unter vollständigen); `alternatives` nennt erst vollständige, dann unvollständige (%, wenn nur
-  ein Strich gemalt ist). `candidates` bleibt nach Abstand sortiert und enthält alle. Neue Vorlagen „/“ (drei Steigungen:
-  45°, etwa 60°, etwa 30°) und „\“ (gespiegelt, `InkSymbols.slash`). `InkDots.isDot` (Regel 4) vergleicht nur mit
-  vollständigen Symbolen ohne Punkte und lässt Texte aus, die nur ein gerader Strich sind (`bareLines`: – | / \ und eigene
-  gerade Striche): Eine Linie, die auf Punkte wartet, ist der punktlose Teil von %, ÷, !, kein Symbol, das „klar besser“ passt
-  (ohne das nahm „/“ die Tipps von % weg: 177 statt 195 von 200).
+- Vollständigkeit (83, `C/InkRecognizer.kt`): `InkMatch.complete` ist wahr, wenn irgendeine Vorlage des Textes höchstens so viele
+  Striche (`InkCloud.strokeCount`, Linien plus Punkte) hat, wie gemalt wurden; der Abstand ist dann der der nächsten solchen
+  Vorlage (ohne Nähe-Schwelle: eine ferne vollständige Vorlage verdrängt eine nahe unvollständige desselben Textes aus der Liste,
+  der Text steht dann weit hinten). `match` führt zwei Listen; die Drehprüfung (`near`) rechnet je Art mit dem nächsten Abstand
+  der eigenen Art, eine nahe unvollständige Vorlage kürzt die Drehung der vollständigen nicht. `InkResult.best`: der nächste
+  vollständige Kandidat, wenn er angenommen wird (Abstand ≤ `ACCEPT_DISTANCE`, oder bis `CLEAR_DISTANCE` mit Abstand zum Nächsten
+  unter den vollständigen); nur wenn keiner angenommen wird, der nächste unvollständige nach derselben Regel unter den
+  unvollständigen (Rückfall: „?“ ohne Punkt, „+“ in einem Zug). Ausnahme: ein vollständiger Kandidat, der nur als klarer
+  angenommen wird (über `ACCEPT_DISTANCE`), weicht einem unvollständigen, der innerhalb davon und näher liegt. `alternatives`:
+  erst vollständige, dann unvollständige (% nach „/“), ohne Bestes nur unvollständige. `candidates` bleibt nach Abstand sortiert
+  und enthält alle. Neue Vorlagen „/“ (45°, etwa 60°, etwa 30°) und „\\“ (gespiegelt, `InkSymbols.slash`) sowie Fingervarianten
+  „%“ (Kreise und Strich in einem Zug), „$“ (S und Strich in einem Zug), „≠“ (Balken als Zickzack oder Schrägstrich angehängt).
+  `InkDots.isDot` (Regel 4) vergleicht nur mit vollständigen Symbolen ohne Punkte und lässt Texte aus, die nur ein gerader Strich
+  sind (`bareLines`: – | / \\ und eigene gerade Striche): Eine Linie, die auf Punkte wartet, ist der punktlose Teil von %, ÷, !, kein
+  Symbol, das „klar besser“ passt (ohne das nahm „/“ die Tipps von % weg: 177 statt 195 von 200). Winkel eines einzelnen Strichs
+  (`InkLogicTest.theAnglesOfASingleStrokePinned…`): bis 15° „–“, 18° bis 75° „/“, ab 78° „|“, gespiegelt „\\“. Eine Zeichnung direkt
+  nach dem Tippen, die weder Tipp noch angenommen ist (`SymbolInk.resolve`, `Sink.recognizes` = `best != null`), wird wie vorher
+  als Taste getippt; mit dem Rückfall ist `best` seltener null als nach der ersten Fassung von 83, genauso oft wie vor 83, wo
+  unvollständige Symbole auch gewannen.
 - `A/SymbolDrawing.kt`: Erkennung (eingebaute plus eigene Vorlagen, neu gebaut, wenn sich der
   gespeicherte Text ändert), Einfügen über `LatinIME.onTextInput` (beendet das Wort wie ein
   Satzzeichen, Autokorrektur des Worts davor wie dort), danach bis zu drei Alternativen als Chips
@@ -6224,26 +6238,37 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - **P344** Begleit-App, Quelltext-Befunde zum Speicher des QAIRT-Wegs (80f, `main` des Plugins, Zeilen siehe VALIDATION 80f): Ein-/Ausgabepuffer immer als dma-buf (`SHARED_BUFFER` fest, `libdmabufheap`), ein Block je Kontextdatei, geteilt von allen Graphvarianten; alle sechs Graphen je Datei (`prompt_ar128_cl{512,1024,4096}`, `token_ar1_cl{512,1024,4096}`) werden geladen, eine Auswahl gibt es nicht (`loadSelectGraphs` und
   `graphSwitching` fest `false`); `mem_type` und die Schlüssel der Genie-Konfiguration sind wirkungslos. Die Rechenprogramme des 1,7B (1,62 GiB) liegen allein schon über der HyperOS-Grenze (1,5 GiB). Darum: höchstens eine Modell-Instanz (`InstanceCounter` im Adapter, Prüfung im Läufer), die Phasenzeilen (SDK-Start, vor und nach dem Laden, Erzeugung, Entladen) und der Verlauf des dma-buf in der Berichtsdatei. Das GGUF-Backend (`ggml-hexagon`) nutzt ebenfalls `rpcmem` für die auf die NPU gelegten Tensoren; ungemessen.
 - **P360** Auswahl-Chips (82): Der Zustand wird beim Bauen der Leiste gelesen (`LatinIME.getAgentSelection`), nicht gemerkt; ein
-  Tipp prüft die Markierung (Anfang und Ende) und das Feld noch einmal und tut nichts, wenn sie sich geändert haben. „Alles
-  auswählen“ und „Wort markieren“ gehen über `mIC.performContextMenuAction` bzw. `mIC.setSelection` ohne die erwartete Markierung
-  der `RichInputConnection` zu setzen; die Markierung kommt als normales `onUpdateSelection` zurück (kein „belated“), das über
-  `postResumeSuggestions` die neutrale Leiste baut. Die Robolectric-Schattenverbindung sendet dieses Update nicht und
-  `handleMessages` verwirft die verzögerte Vorschlagsaktualisierung: Tests rufen `reportSelection` und `suggestionsCameBack`
-  selbst (`InputLogicTest`, Etappe 82). Kopieren, Ausschneiden und Einfügen baut die Leiste in `SelectionChips.afterKey` neu (ihre
-  Selektion setzt die Tastatur selbst: kein Update). Ein Tipp, der die Markierung entfernt, baut die Leiste sofort neu, nicht erst
-  nach den Vorschlägen (`shown`-Merker).
-- **P361** Auswahl-Chips stehen in jedem Feld außer Passwort, Inkognito, Feld ohne Lernen und gesperrtem Gerät (`FormatGuardChips.isBlocked`),
-  strenger als die Kopieren-Taste der Werkzeugleiste (`copyText` prüft nichts). Felder, die beim Fokus alles markieren (Adressleiste),
-  zeigen die Chips sofort; Tippen ersetzt die Markierung und nimmt sie weg. Im Modus „Aufklappbar“ blenden sie wie die Symbol-Chips die
-  Werkzeugleiste aus. Kein Schalter in den Einstellungen.
+  Tipp prüft Markierung (Anfang und Ende) und Editor-Sitzung des Feldes (`Bound`) und den Sperrzustand frisch (`LockState`, der Tipp
+  auf einen Chip leert ihn ohnehin, P309) und tut sonst nichts. „Alles auswählen“ und „Wort markieren“ gehen über
+  `mIC.performContextMenuAction` bzw. `mIC.setSelection`, ohne die erwartete Markierung der `RichInputConnection` zu setzen; die
+  Markierung kommt als normales `onUpdateSelection` zurück, das über `postResumeSuggestions` die neutrale Leiste baut, aber
+  `restartSuggestionsOnWordTouchedByCursor` kehrt auf einigen Wegen vorher zurück: darum baut `LatinIME.onUpdateSelection` die Leiste selbst
+  neu, wenn Chips stehen und die Markierung eine andere ist (`afterSelectionUpdate`). Die Robolectric-Schattenverbindung sendet das
+  Update nicht (`reportSelection` in `InputLogicTest`) und `handleMessages` verwirft die verzögerte Vorschlagsaktualisierung.
+  Kopieren, Ausschneiden und Einfügen baut die Leiste in `SelectionChips.afterKey` neu; ein Tipp, der die Markierung entfernt, baut
+  sie sofort neu (`shown`-Merker). Die Zeile kommt aus `KeyboardCommands.rowFor`: bei gleicher Beschriftung wird dieselbe Ansicht
+  wiederverwendet und ihre Tipps an die neue Markierung gebunden (ein „alter“ Chip derselben Zeile gilt also für die jetzige
+  Markierung; nur eine Zeile mit anderen Chips, z. B. neuem „Einfügen“, lässt die alte Ansicht an ihre alte Markierung und ihr altes
+  Feld gebunden). „Einfügen“ fragt die Zwischenablage einmal je Clip (`clipChanged` aus dem Listener des Verlaufs-Managers).
+- **P361** Auswahl-Chips stehen in jedem Feld außer Passwort, Inkognito, Feld ohne Lernen und gesperrtem Gerät (`FormatGuardChips.isBlocked`
+  plus `LockState`), strenger als die Kopieren-Taste der Werkzeugleiste (`copyText` prüft nichts). Felder, die beim Fokus alles
+  markieren (Adressleiste), zeigen die Chips sofort; Tippen ersetzt die Markierung und nimmt sie weg. Sie rufen nie
+  `setToolbarVisibility` auf (die erste Fassung schloss im Modus „Aufklappbar“ bei jedem Neubau die Werkzeugleiste): Eine offene
+  Werkzeugleiste verdeckt sie wie jeden Vorschlag; im Flat-Stil und mit „Leiste automatisch ausblenden“ gilt, was
+  `SuggestionStripView.setExternalSuggestionView` für jede externe Ansicht tut (Werkzeugleiste ausblenden, wie bei der Pille). Mit
+  `mAutoShowToolbar` bauen sie nichts, damit gilt das alte Verhalten (Werkzeugleiste bei Markierung). Schalter
+  `AgentPreferences.SELECTION_CHIPS` („Aktionen bei markiertem Text“, `AgentAreaBarScreen`, Standard an). Wischtippen über einer
+  Markierung: `setSuggestedWords` zeigt für `UPDATE_BATCH`/`TAIL_BATCH` keine Chips, damit die Wörter erscheinen.
 - **P362** `performContextMenuAction(startSelectingText)` fehlt mit Absicht. Aus dem Framework gelesen (nicht auf einem Gerät
   geprüft): `TextView` kennt die Kennung nicht und lehnt sie ab; WebView und andere Editoren schalten damit einen Auswahlmodus ein,
   in dem die nächste Cursorbewegung markiert, also nicht harmlos.
-- **P363** Erkenner (83): Eine neue Vorlage mit mehr Strichen als eine bestehende Zeichnung kann nicht mehr „zufällig“ Erste werden, und
-  eine Vorlage mit nur einem Strich (eigene Symbole, gelernte Zeichnungen) ist für jede Zeichnung vollständig. Wer Vorlagen
-  ergänzt, ergänzt auch die Fingervarianten mit weniger Strichen (ein Pfeil ohne Absetzen, ein Herz in einem Zug); sonst findet der
-  Erkenner das Symbol erst nach allen seinen Strichen. Neue gerade Striche (wie „/“) gehören in `InkDots.bareLines`-Logik (Regel 4);
-  ein einzelner Strich um 20° zählt als „/“, ein flacherer als „–“.
+- **P363** Erkenner (83): Ein Text ist unvollständig, wenn keine seiner Vorlagen so wenige Striche hat wie die Zeichnung; er gewinnt nur,
+  wenn kein vollständiger Kandidat angenommen wird. Eine Vorlage mit nur einem Strich (eigene Symbole, gelernte Zeichnungen) ist für jede
+  Zeichnung vollständig. Wer Vorlagen ergänzt, ergänzt auch die Fingervarianten mit weniger Strichen (ein Pfeil ohne Absetzen, ein
+  Herz in einem Zug, „%“ in einem Zug); sonst gewinnt ein einfacheres Symbol, das zufällig passt, oder es erscheint nichts. Neue gerade
+  Striche (wie „/“) wirken über `InkDots.bareLines` in Regel 4. Einzelne Striche um 18° bis 75° sind „/“, flacher „–“, steiler „|“.
+  Verbundene Fingervarianten mit Sprung (Kreis, Strich, Kreis) werden unter dem Rauschen des Prüfstands schlecht erkannt
+  (`InkRecognizerTest`, verrauschte Zeichnungen: „%“ 69 von 400 nicht erkannt, gesamt 97,5 %; die Variante ist für saubere Zeichnungen da).
 
 ## Datei-Inventar
 

@@ -14,10 +14,11 @@ Etappen aus dem ursprünglichen Auftrag; Teilpakete bekommen Buchstaben (15a, 15
     Zusatzreihe, § statt ¶, ✓, `\` und `%` an Gboards Stelle, keine Zahlenreihe auf Seite 2, keine
     Vierpfeil-Taste). Die Vorlage „Flacher Look“ hat diese Seiten schon; sie werden Standard.
   - **82 „Alles markieren“ zeigt Aktionen:** gebaut (Leiste mit Kopieren, Ausschneiden, Einfügen, Löschen bei
-    jeder Markierung; `docs/VALIDATION.md` → Etappe 82). Ungeprüft: Gerät, andere Apps als Robolectric, ob
+    jeder Markierung, mit Schalter; nach der Prüfung: Sperrzustand frisch, Werkzeugleiste unangetastet, Chips an Feld gebunden;
+    `docs/VALIDATION.md` → Etappe 82). Ungeprüft: Gerät, andere Apps als Robolectric, ob
     `startSelectingText` das Menü der App öffnen würde (nicht eingebaut).
-  - **83 Gezeichnete Symbole logisch:** gebaut („/“ und „\“ als Symbole; ein Symbol mit mehr Strichen als gemalt ist nie
-    das beste Ergebnis; `docs/VALIDATION.md` → Etappe 83). Ungeprüft: Gerät und Finger des Owners. Offen: Es gibt
+  - **83 Gezeichnete Symbole logisch:** gebaut („/“ und „\“ als Symbole; ein unvollständiges Symbol schlägt nie ein angenommenes
+    vollständiges, ist aber Rückfall, wenn keines passt; `docs/VALIDATION.md` → Etappe 83). Ungeprüft: Gerät und Finger des Owners. Offen: Es gibt
     weiter kein „-“, „_“, „:“, „;“, „*“, „<“, „>“ unter den Symbolen.
   - **84 Symbole ohne Verzögerung:** erst messen (Buchstabe gegen Symbol), dann die Ursache beheben.
   - **85 Leiste wie Gboard:** feste, gleichmäßig verteilte Plätze (1 bis 5 oder 8), Raster-Knopf links,

@@ -6026,6 +6026,7 @@ class InputLogicTest {
         root.addView(MainKeyboardView(themed, null).apply { id = R.id.keyboard_view })
         latinIME.updateSuggestionStripView(root)
         helium314.keyboard.agent.SelectionChips.clipHasText = { false }
+        latinIME.agentEditorController.startEditor(EditorInfo().apply { inputType = currentInputType }) // the real entry point also starts the session
         setText(content)
         return container.findViewById(R.id.suggestion_strip_view)
     }
@@ -6327,7 +6328,9 @@ class InputLogicTest {
         helium314.keyboard.agent.SelectionChips.clipChanged(latinIME)
         assertEquals(listOf("Copy", "Cut", "Paste", "Delete"), selectionLabels(strip))
         assertTrue(old !== selectionChip(strip, "Copy"))
-        setText("hello world") // another field with the same text: select all selects the same range
+        // another field with the same text: select all selects the same range (the harness's setText starts no editor session)
+        latinIME.agentEditorController.startEditor(EditorInfo().apply { inputType = currentInputType })
+        setText("hello world")
         selectAllBySpaceHold()
         assertEquals(listOf("Copy", "Cut", "Paste", "Delete"), selectionLabels(strip))
         assertTrue(old.performClick())

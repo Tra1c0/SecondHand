@@ -357,7 +357,10 @@ eine Aktion:
   Löschen, solange etwas markiert ist (auch bei „Wort markieren“, Umschalt und Pfeilen oder wenn du
   von Hand markierst). Ein Tipp auf einen Chip führt es aus; nach Kopieren bleibt die Markierung
   stehen. Die Chips verschwinden, wenn die Markierung weg ist oder du tippst. Nicht in
-  Passwortfeldern, im Inkognito-Modus und bei gesperrtem Gerät.
+  Passwortfeldern, im Inkognito-Modus und bei gesperrtem Gerät. Eine offene Werkzeugleiste bleibt
+  offen (die Chips sind dann dahinter); ist „Werkzeugleiste automatisch zeigen“ an, erscheint wie
+  vorher die Werkzeugleiste und es gibt keine Chips. Ausschalten: Einstellungen → Leiste & Befehle →
+  Zwischenablage & Bilder → „Aktionen bei markiertem Text“.
 - **Standard** im Auswahlfenster stellt die Geste zurück: Sie macht dann wieder, was sie vor
   dieser Seite gemacht hat.
 - **Rückgängig** und **Wiederholen** auf Halten oder Doppeltippen der Leertaste vibrieren wie ein
@@ -1008,7 +1011,10 @@ langes Drücken für Sonderzeichen und das Wischen auf Leer- und Löschtaste ble
 - Ein einzelner Strich schräg nach oben rechts ergibt „/“, schräg nach unten rechts „\“, ein
   flacher „–“, ein senkrechter „|“. Ein Symbol bekommst du nur, wenn du alle seine Striche malst:
   „%“ mit Strich und zwei Punkten (oder zwei Kreisen), „÷“ mit Strich und zwei Punkten, „!“ mit
-  Strich und Punkt. Fehlt ein Teil, schlägt die Leiste das Symbol höchstens als zweite Wahl vor.
+  Strich und Punkt. Ein flacher Strich (bis etwa 15 Grad) bleibt „–“, ein fast senkrechter (ab etwa
+  78 Grad) „|“. Passt ein einfacheres Symbol, gewinnt es: Ein Strich mit nur einem Punkt bleibt „–“
+  oder „/“, die Leiste bietet „÷“ oder „%“ höchstens als zweite Wahl an. Passt keines, nimmt die
+  Tastatur das nächste Symbol, dem Teile fehlen (z. B. „?“ ohne Punkt oder „+“ in einem Zug).
 - Ein Symbol aus mehreren Strichen: den nächsten Strich innerhalb der Pause ansetzen. Die Pause
   ist anfangs 0,9 Sekunden und passt sich deinem Tempo an (etwa 2,5-mal so lang wie deine übliche
   Lücke zwischen zwei Strichen, mindestens 0,6 und höchstens 1,5 Sekunden). Kurze Striche zählen
