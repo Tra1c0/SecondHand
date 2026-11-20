@@ -612,11 +612,14 @@ class AgentEditorController @JvmOverloads constructor(
      * Stage 74b: the prompt window in place of the keys, opened by the icon in the comma key's popup.
      * Never in password fields, incognito, fields without learning or while the device is locked (a
      * notice, nothing is read). A word still being composed is left as typed first (like the
-     * character art window). The field changes only by a tap on a prompt. False if it cannot open now.
+     * character art window). The field changes only by a tap on a prompt. False if it cannot open now (also in number layouts, stage 79b).
      */
     fun openPrompts(): Boolean {
         val target = prompts ?: return false
         if (needsCursorRefresh) return false
+        // stage 79b: not in number layouts, as the comma key's popup (PromptsKey.shown) does not offer it there; the bar's
+        // store tool is dimmed there but a tap on it or a call from elsewhere must be refused too. No notice: nothing is protected.
+        if (KeyboardSwitcher.getInstance().keyboard?.mId?.element?.isNumberLayout == true) return false
         if (editor.protection() != null || Settings.getValues()?.mIsLocked == true) {
             Toast.makeText(ime, R.string.agent_prompts_protected, Toast.LENGTH_SHORT).show()
             return false

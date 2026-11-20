@@ -158,6 +158,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         runCatching { KeyboardSwitcher.getInstance().keyboard?.mId?.element?.isNumberLayout == true }.getOrDefault(false)
     }
 
+    /** The number-layout state the tools were last dimmed for (stage 79b). */
+    private var numberLayoutShown = false
     private var voiceShown: Boolean? = null
     private var leftKeyText = 0
     private var leftKeyCircle = false
@@ -730,7 +732,20 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         if (!fixedBar) return
         exitEdit(andClose = false)
         closeGrid()
+        // stage 79b: what the last field left in the bar state (a sticky choice of the tools for a selection, content that is
+        // gone) must not hold the chips of the new field back; its own content comes with its first strip update
+        barState.reset()
         applyBarState()
+    }
+
+    /**
+     * Stage 79b: the main keyboard changed its layout (the tool bar and the keyboard switcher call this after a switch, also
+     * to a number layout): the tools that a number layout does not offer (the store) are dimmed or enabled again at once,
+     * without waiting for the next update of the strip.
+     */
+    fun onKeyboardLayoutChanged() {
+        if (!fixedBar) return
+        if (numberLayoutProbe() != numberLayoutShown) updateToolAvailability()
     }
 
     /** One consistent set of visibilities for the state of the bar; the only place that decides it in the fixed bar. */
@@ -753,6 +768,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     private fun updateToolAvailability() {
         val values = Settings.getValues()
         val number = numberLayoutProbe()
+        numberLayoutShown = number
         toolbar.forEachChild { button ->
             val key = button.tag as? ToolbarKey ?: return@forEachChild
             val unavailable = BarTools.isUnavailable(key, values.mIncognitoModeEnabled, values.mIsLocked, number)
