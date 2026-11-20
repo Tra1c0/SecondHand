@@ -543,14 +543,14 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   blockiert Eingabe während eines Overlays; Leertasten-Aktionen und Doppeltippen, siehe
   „Editorzugriff, Panel und Rad“; seitliche Einmal-Wische laufen über `SpaceDetents` und spielen
   `HapticChain`).
-- Etappe 87 (Cursor als Trackpad, P410–P429), jede Änderung von einem Prüfer lesen lassen:
+- Etappe 87 (Cursor als Trackpad, P410–P433), jede Änderung von einem Prüfer lesen lassen:
   `PointerTracker.java` (+19 Zeilen, alle als Hinzufügungen: in `onKeySwipe`, vor dem Leertasten-/Löschzweig und hinter der Schnelltipp-Sperre, 12 Zeilen:
   `sListener.onCursorTrack(mPointerId, code, x - mStartX, y - mStartY, eventTime, mStartTime)`; bei `TRACK_OFF` läuft alles wie vorher, sonst kehrt
   die Methode zurück, bei `TRACK_ACTIVE` zusätzlich (bei jedem Move, nicht nur beim ersten) `cancelKeyTimersOf` und `mInHorizontalSwipe = true`, damit das Heben wie
   bei einem seitlichen Wisch endet, bei `TRACK_REFUSED_DRAG` `cancelKeyTimersOf` und `cancelTrackingForAction()` (der Move-Weg und das Heben dieses Fingers tun danach nichts); dazu je eine Zeile `sListener.onCursorTrackEnd(mPointerId)` im Heben-Zweig von `mKeySwipeAllowed` und am Ende
   von `cancelKeyTracking`), `KeyboardActionListener.java` (`TRACK_OFF/PENDING/ACTIVE/REFUSED_DRAG`, `onCursorTrack`, `onCursorTrackEnd`, Vorgabe
   `TRACK_OFF` im `Adapter`), `KeyboardActionListenerImpl.kt` (Zustandsmaschine, siehe `A/CursorTrackpad.kt`; der Schwanz von
-  `onMoveCursorHorizontally` als `applyHorizontalMove`, unverändert), `SettingsValues.java` (zwei Felder). `InputLogic.java` und
+  `onMoveCursorHorizontally` als `applyHorizontalMove`, unverändert), `SettingsValues.java` (zwei Felder), `LatinIME.java` (zwei Zeilen `mKeyboardActionListener.onCursorTrackEnd(-1)` in `onStartInputViewInternal` und `onFinishInputViewInternal`). `InputLogic.java` und
   `RichInputConnection.java` sind unverändert.
 - `InputAttributes.java` (Nachprüfung 45, P180): `mNoLearning` auch für Felder mit
   `privateImeOptions` = `AgentPreferences.NO_LEARNING_FIELD` (die Felder von „Meine Daten“), in
@@ -6606,7 +6606,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   und der Langdruck der Leertaste (450 ms) käme ihm zuvor. Weil die Spur an der ersten angekommenen Probe beginnt (Weg 0), zählt der 16-dp-Sprung nicht mit: der senkrechte Zug geht darum 70 dp weit (54 dp Weg, zwei Zeilen); mit 40 dp (erste Fassung) bewegte sich der Cursor auf dem Emulator nicht (Lauf 44746919230).
 - **P425** Ein verweigerter Finger, der wischt (`TRACK_REFUSED_DRAG`), verwirft seine Berührung. Ein ruhender oder tippender verweigerter Finger bleibt, was er war.
   Ohne die Verwerfung läuft die Wiederholungs-Zeitschaltuhr einer Löschtaste weiter (400 ms nach dem Aufsetzen, dann alle 50 ms ein Zeichen), weil `onKeySwipe` vor dem
-  alten Code zurückkehrt und `cancelKeyTimersOf` nie erreicht. Auch das Heben tippt dann nichts (`mIsTrackingForActionDisabled`).
+  alten Code zurückkehrt und `cancelKeyTimersOf` nie erreicht. Auch das Heben tippt dann nichts (`mIsTrackingForActionDisabled`). Die Berührung ist verworfen, aber die Taste bleibt bis zum Heben als gedrückt gezeichnet, und dieses Heben ruft im Tracker `releaseAllPointersOlderThan`: ein älterer Besitzer endet dann (bestehendes HeliBoard-Verhalten; ein Löschwischen löscht dabei seine Markierung).
 - **P426** Pfeile gibt es nur einzeln und nur mit bekannter Stelle: Ein Pfeil nach oben am ersten und einer nach unten am letzten Feldende wird vom Editor nicht
   behandelt, Android bewegt dann den FOKUS in ein Nachbarfeld (Mailtext → Betreff). Der verlässliche Randmelder ist „der Pfeil bewegte nichts“
   (umbrochene Zeilen sieht die Tastatur nicht); die Vorprüfungen (Cursor 0, kein Text dahinter) sparen nur den ersten Fehlversuch. Grenze: ein Editor, der
@@ -6617,6 +6617,10 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   beim Löschwischen löscht der Abbruch das Markierte (der Tracker behandelt ihn als Heben, genau wie der alte Code).
 - **P429** Prüfstand: Ereigniszeiten wachsen über alle `TouchRig` hinweg (`rigClock`), weil der Tipp-Zeitschreiber des Trackers statisch ist: ein Prüfstand, der in der Zeit zurückspringt, gälte als schnelles Tippen und die Wisch-Geste würde verschluckt (nur in der vollen Klasse sichtbar, GitHub). Der Langdruck der Leertaste öffnet die Eingabemethodenwahl, die ein Fenster-Token braucht: Tests, die ihn auslösen, schalten `PREF_SPACE_TO_CHANGE_LANG` aus. `FakeTimer` im Prüfstand: Die gestylten Attribute der Tests tragen keine Wiederholzeiten (0), der Prüfstand nimmt dann 400 ms Anlauf und 50 ms Takt. Die
   Zeitschaltuhren laufen in der Ereigniszeit des Prüfstands, nicht in der Uhr des Telefons; `SystemClock` im Tracker (Schnelltipp-Sperre) bleibt echte Zeit.
+- **P430** Pfeil unterwegs (Dritte Nachprüfung): Nach jedem gesendeten Pfeil vergisst der Kern seinen Text (`CursorTrack.holdForEditor`) und hält waagerechte Schritte zurück, bis der Editor geantwortet hat und der Listener den Text neu las; sonst setzt ein waagerechter Schritt von der alten Stelle den Pfeil außer Kraft (eine Zeile geht verloren) und `resolveArrow` hielte das eigene `setSelection` für die Antwort des Editors. Ein Schritt, der doch bei laufendem Pfeil ankäme, lässt die Spur neu beginnen. Prüfung im Test: zwischen einem Pfeil (`sendKeyEvent`) und der Antwort darf kein `setSelection` des Schatten-Editors liegen.
+- **P431** Feldstart und Verbergen (`LatinIME.onStartInputViewInternal`, `onFinishInputViewInternal`, je eine Zeile `onCursorTrackEnd(-1)`): gibt jeden Besitz frei; eine aktive Berührung bleibt „aktiv“, bewegt aber nichts mehr (der Tracker hält sie für einen Wisch bis zum Heben); eine Berührung ohne Heben oder Abbruch hinterlässt so keinen Besitzer, der Wische verweigert oder Leertasten-Tipps mit 10 dp Zittern verschluckt.
+- **P432** Löschwischen: Die Länge der Markierung kommt aus der erwarteten Auswahl (`expectedSelectionEnd - expectedSelectionStart`), nicht aus `getSelectedText` (ein Editor darf null antworten); fehlt der markierte Text, gilt der Text als nicht lesbar (Schritte über den alten Pfad `onMoveDeletePointer`), die Vorwärtsgrenze bleibt die Markierungslänge.
+- **P433** Löschen beim Heben nur im selben Feld: `deleteSlideField` hält das Feld (`mInputAttributes`), in dem das Löschwischen begann (Spur und alter Pfad `onMoveDeletePointer`); `onUpWithDeletePointerActive` löscht nichts, wenn es ein anderes ist (eine Adressleiste, die beim Fokus alles markiert). Ohne Eingriff in `PointerTracker` oder `InputLogic`; `ACTION_CANCEL` im selben Feld löscht das Markierte weiterhin.
 
 ## Datei-Inventar
 

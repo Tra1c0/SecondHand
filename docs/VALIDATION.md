@@ -221,6 +221,17 @@ Arbeit der Hauptthread-Schritte je Taste, vorher → nachher (Schritte = Lesen, 
 - **Weitere mögliche Ursachen auf dem Gerät (Codestellen, nicht gemessen):** Tastenvorschau erscheint beim Drücken (`MainKeyboardView.showKeyPreview`, 377) und stört das Tippen nicht; das Popup-Timeout für Langdruck ist 300 ms (`Defaults.PREF_KEY_LONGPRESS_TIMEOUT`), ein Tipp wartet nicht darauf;
   „zurück zu Buchstaben“ gibt es nur nach Leerzeichen und Enter auf Symbolseiten (`KeyboardState.onEvent`, `mAlphaAfterSpace`), nicht nach einem Symbol; Haptik und Ton laufen beim Drücken (`hapticAndAudioFeedback`) auf dem Hauptthread; die RGB-Beleuchtung zeichnet je Bild alle Tasten neu.
 
+### Etappe 87, Dritte Nachprüfung (Prüfer: kein Befund ab mittel, Urteil „als Testbuild mit Standard AN“)
+
+**Auf dem Gerät weiterhin nichts geprüft; senkrechtes Randverhalten in WebView-/Compose-Feldern und alles, was das Gefühl betrifft, ist ohne Gerät ungeprüft.** Erledigt wurden die niedrigen Punkte:
+- **1 Waagerechte Schritte bei laufendem 2. oder 3. Pfeil:** `CursorTrack.holdForEditor` bei jedem gesendeten Pfeil; ein Schritt, der bei laufendem Pfeil ankäme, startet die Spur neu. Test mit einem Schatten-Editor, der die Cursorstelle erst auf `onUpdateSelection` meldet: Wisch nach oben über mehrere Zeilen und sofort zur Seite: alle 4 Pfeile (1 unterwegs, 3 gemerkt) gehen hinaus, zwischen einem Pfeil und der Antwort liegt nie ein `setSelection`, danach wirken die Schritte auf der letzten Zeile. Rot belegt: ohne Halten und ohne den Schutz meldet der Test den waagerechten Schritt bei laufendem Pfeil.
+- **4 Feldstart/Verbergen:** `onCursorTrackEnd(-1)` aus `LatinIME.onStartInputViewInternal` und `onFinishInputViewInternal` gibt jeden Besitz frei. Test: Besitzer ohne Heben, Feldstart (und Verbergen), der nächste Wisch eines anderen Fingers wird beansprucht, nicht verweigert. Rot belegt ohne die zwei Zeilen.
+- **5 `getSelectedText` = null:** Markierungslänge aus der erwarteten Auswahl, Text unlesbar statt halbem Fenster. Test (Neubeginn der Spur bei einem Editor mit null): zurück nach rechts verkleinert die Markierung. Rot belegt mit der alten Rechnung.
+- **6 Feldwechsel beim Löschwischen:** `deleteSlideField` im Listener (Spur und alter Pfad), `onUpWithDeletePointerActive` löscht nichts in einem anderen Feld; weder `PointerTracker` noch `InputLogic` berührt. Tests für beide Wege, auch „im selben Feld löscht das Heben wie immer“. Rot belegt ohne die Prüfung.
+- **2 Wortlaut:** Ein verweigerter Wisch wird verworfen (kein Tipp, keine Wiederholung, kein Langdruck), aber die Taste bleibt bis zum Heben gedrückt gezeichnet und das Heben beendet den Wisch eines älteren Besitzers (HeliBoards `releaseAllPointersOlderThan`; ein Löschwischen löscht dann seine Markierung). KDoc, FEATURES, ANLEITUNG, Hinweise und P425 berichtigt.
+- **7 Prüfstand:** Jeder Tipp bekommt eine eigene Aufsetzzeit (der Prüfstand schiebt `ShadowSystemClock` mit der Ereigniszeit; Test: drei Aufsetzzeiten verschieden); ein neuer Tipp desselben Fingers ohne Ende setzt neu an (Listener-Test); `FakeTimer` bricht beim Auslösen eines Langdrucks die Langdruck-Zeitschaltuhren aller Tracker ab, wie `TimerHandler`.
+- **Lokal (betroffene Klassen):** siehe Bericht; die volle Suite lief auf GitHub.
+
 ## Etappe 83 — Gezeichnete Symbole logisch (2026-11-20)
 
 **Auf dem Gerät nichts geprüft.** Nachweis: JVM-Tests von agent-core und Robolectric.

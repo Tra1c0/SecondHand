@@ -416,6 +416,19 @@ class CursorTrackTest {
         assertTrue(u.horizontal.isNotEmpty() && u.horizontal.all { it.chars == 0 })
     }
 
+    @Test fun `holdForEditor holds horizontal steps like a vertical step does and carries their travel`() {
+        val s = Sim(0f, before = "abcdefghijklmnop")
+        s.by(-20.0, 0.0, slow) // axis horizontal, steps flow
+        val n = s.steps.size
+        assertTrue(n >= 1)
+        s.track.holdForEditor(s.t) // an arrow key was sent
+        s.by(-60.0, 0.0, slow)
+        assertEquals(n, s.steps.size, "nothing is applied to the old position")
+        s.track.setText("abcdefghij", "klmnop", true, true, s.t)
+        s.by(-1.0, 0.0, slow)
+        assertTrue(s.steps.size >= n + 4, "the carried travel is applied once the editor has answered: ${s.steps.size}")
+    }
+
     // ---- determinism
 
     private fun plan(track: CursorTrack, hz: Int, durMs: Long, pathFn: (Double) -> Double): List<String> {
