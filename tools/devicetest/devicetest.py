@@ -1457,7 +1457,7 @@ EDIT_LABELS = ("Anpassen", "Customize")
 IN_BAR_SUFFIXES = (", in der Leiste", ", in the bar")
 SHOT_CHUNK = 4000
 SHOT_MAX_WIDTH = 300
-SHOTS = []  # (name, [lines]) collected during the run and printed at its end, so that the end of the log has them
+SHOTS = []  # (name, [lines]) collected during the run and written to <out>/shots.txt at its end
 
 
 def bar_slots(screen):
@@ -2226,9 +2226,10 @@ def main():
         ok = not problems and len(results) == len(SCENARIOS) and all(r["status"] in wanted for r in results)
         for problem in problems:
             log("PROBLEM " + problem)
-        for name, lines in reversed(SHOTS):  # the most important (the last taken) lies last
-            for line in lines:
-                log(line)
+        if SHOTS:  # a file, which the workflow prints last (the end of the log is what can be read)
+            with open(os.path.join(args.out, "shots.txt"), "w", encoding="utf-8") as shots_out:
+                for name, lines in reversed(SHOTS):  # the first taken lies last
+                    shots_out.write("\n".join(lines) + "\n")
         write_reports(args.out, info, results, problems, ok, args.control)
         passed = sum(1 for r in results if r["status"] == "PASS")
         known = sum(1 for r in results if r["status"] == "KNOWN")
