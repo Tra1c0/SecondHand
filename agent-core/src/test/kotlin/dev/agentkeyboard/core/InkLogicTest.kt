@@ -35,6 +35,13 @@ class InkLogicTest {
         }
     }
 
+    @Test fun aSlightlyTiltedDashOrVerticalStaysADashOrBar() {
+        for (tilt in listOf(-10.0, -5.0, 0.0, 5.0, 10.0)) for (reversed in listOf(false, true)) {
+            assertEquals("–", best(straight(tilt, reversed = reversed)), "dash $tilt°")
+            assertEquals("|", best(straight(90 + tilt, reversed = reversed)), "bar ${90 + tilt}°")
+        }
+    }
+
     @Test fun aHandDrawnSlashIsNeverPercent() {
         val random = Random(83)
         var total = 0; var slash = 0
