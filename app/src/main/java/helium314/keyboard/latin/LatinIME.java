@@ -1029,6 +1029,7 @@ public class LatinIME extends InputMethodService implements
     }
 
     void onStartInputViewInternal(final EditorInfo editorInfo, final boolean restarting) {
+        mKeyboardActionListener.onCursorTrackEnd(-1); // fork, stage 87: no trackpad owner or drag carries over to another field
         // fork, stage 22: personal hit boxes, and the calibration field of our own settings
         helium314.keyboard.agent.TouchModel.load(this, mSettings.getCurrent(), editorInfo, restarting); // stage 50: field and app for the dynamic zones
         helium314.keyboard.agent.KeyboardCommands.load(this);
@@ -1233,6 +1234,7 @@ public class LatinIME extends InputMethodService implements
     void onFinishInputViewInternal(final boolean finishingInput) {
         super.onFinishInputView(finishingInput);
         Log.i(TAG, "onFinishInputView");
+        mKeyboardActionListener.onCursorTrackEnd(-1); // fork, stage 87: nor a hidden keyboard
         helium314.keyboard.agent.SymbolDrawing.reset(); // stage 27: nor a hidden keyboard (back key, screen off)
         helium314.keyboard.agent.ClipVault.fieldFinished(mInputLogic.mFieldCorrections); // fork, stage 65
         cleanupInternalStateForFinishInput();

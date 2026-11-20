@@ -437,8 +437,12 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         keyboardSwitcher.onLongPressAlphaSymbolForNumpad()
     }
 
+    /** The field a delete slide started in (null: none going); a lift in another field deletes nothing. */
+    private var deleteSlideField: Any? = null
+
     override fun onMoveDeletePointer(steps: Int) {
         if (latinIME.agentEditorController.isBlockingInput) return;
+        if (deleteSlideField == null) deleteSlideField = settings.current.mInputAttributes
         inputLogic.finishInput()
         val end = connection.expectedSelectionEnd
         val actualSteps = actualSteps(steps)
@@ -455,6 +459,10 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     }
 
     override fun onUpWithDeletePointerActive() {
+        // the selection to delete is the one the slide made: a field that started meanwhile has another one (a URL bar selects all on focus)
+        val slideField = deleteSlideField
+        deleteSlideField = null
+        if (slideField != null && slideField !== settings.current.mInputAttributes) return
         if (latinIME.agentEditorController.isBlockingInput) return;
         if (!connection.hasSelection()) return
         inputLogic.finishInput()
@@ -614,6 +622,11 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     private var trackOwner = -1
 
     override fun onCursorTrackEnd(pointerId: Int) {
+        if (pointerId < 0) { // -1: the field starts or the keyboard hides (LatinIME): a touch that ended without up or cancel must leave no owner
+            trackOwner = -1
+            for (st in trackStates) if (st.mode == TrackMode.ACTIVE) st.track = null else st.begin(Long.MIN_VALUE, 0) // an active touch has nothing to move in the new field
+            return
+        }
         val st = trackStates.getOrNull(pointerId) ?: return
         st.begin(Long.MIN_VALUE, 0)
         if (trackOwner == pointerId) trackOwner = -1
@@ -629,7 +642,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         if (st.mode == TrackMode.OFF) return KeyboardActionListener.TRACK_OFF
         val density = latinIME.resources.displayMetrics.density.toDouble()
         val sample = TrackSample(eventTime, dx / density, dy / density)
-        if (st.mode == TrackMode.REFUSED) { // a refused finger stays a tap or a hold until it drags: then it does nothing at all
+        if (st.mode == TrackMode.REFUSED) { // a refused finger stays a tap or a hold until it drags: then its touch is dropped
             return if (CursorTrackpad.claims(code == KeyCode.DELETE, sample.dx, sample.dy)) KeyboardActionListener.TRACK_REFUSED_DRAG
             else KeyboardActionListener.TRACK_PENDING
         }
@@ -637,7 +650,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
             if (st.pending.size >= CursorTrackpad.MAX_PENDING) st.pending.removeAt(0) // a finger resting on the key for long
             st.pending += sample
             if (!CursorTrackpad.claims(code == KeyCode.DELETE, sample.dx, sample.dy)) return KeyboardActionListener.TRACK_PENDING
-            if (trackOwner != -1 && trackOwner != pointerId) { // one finger owns the track: this one does nothing at all
+            if (trackOwner != -1 && trackOwner != pointerId) { // one finger owns the track: this one's touch is dropped
                 st.mode = TrackMode.REFUSED; st.pending.clear()
                 return KeyboardActionListener.TRACK_REFUSED_DRAG
             }
@@ -647,6 +660,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
             trackOwner = pointerId
             st.mode = TrackMode.ACTIVE
             st.field = settings.current.mInputAttributes
+            if (code == KeyCode.DELETE) deleteSlideField = st.field
             resetSpaceTap()
             val first = st.pending.first()
             st.originX = first.dx; st.originY = first.dy
@@ -700,7 +714,10 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         val before = connection.getTextBeforeCursor(n, 0)
         val after = connection.getTextAfterCursor(n, 0)
         val selected = if (code == KeyCode.DELETE) connection.getSelectedText(0) else null
-        if (before == null || after == null || before.isEmpty() && after.isEmpty() && selected.isNullOrEmpty()) {
+        // the length of the selection comes from the keyboard's own idea of it, not from getSelectedText (an editor may answer null)
+        val selectedLength = if (code == KeyCode.DELETE) (connection.expectedSelectionEnd - connection.expectedSelectionStart).coerceAtLeast(0) else 0
+        if (before == null || after == null || selectedLength > 0 && selected?.length != selectedLength
+            || before.isEmpty() && after.isEmpty() && selected.isNullOrEmpty()) {
             track.setTextUnavailable(time) // an app that gives no text: one cluster per step through the old path
         } else {
             // a shorter answer than asked may be the real start or end or a cut: one more character is asked for; only if the editor has
@@ -709,7 +726,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
             val atEnd = after.isEmpty() || after.length < n && (connection.getTextAfterCursor(after.length + 1, 0)?.length ?: 0) <= after.length
             track.setText(before, (selected?.toString() ?: "") + after, atStart, atEnd, time)
         }
-        if (code == KeyCode.DELETE) track.forwardLimitChars = selected?.length ?: 0
+        if (code == KeyCode.DELETE) track.forwardLimitChars = selectedLength
     }
 
     /** The real cursor position, read from the editor (one IPC), or null where it cannot be read. */
@@ -783,6 +800,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         if (dir < 0) gestureMoveBackHaptics() else gestureMoveForwardHaptics()
         st.pendingLines -= dir
         st.awaitSelection = true; st.selectionAtArrow = connection.expectedSelectionStart; st.arrowDir = dir; st.arrowTime = time
+        st.track?.holdForEditor(time) // the text read before this arrow is out of date until the editor has answered it
         onCodeInput(if (dir < 0) KeyCode.ARROW_UP else KeyCode.ARROW_DOWN, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
     }
 
@@ -796,6 +814,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
             onMoveCursorHorizontally(if (st.rtl) -run.direction * run.count else run.direction * run.count)
             return
         }
+        if (st.awaitSelection) { st.needsRestart = true; return } // never from the old position while an arrow is on its way (the track holds these back; defensive)
         trackTick(run, forward = run.direction > 0)
         applyHorizontalMove(run.chars)
     }

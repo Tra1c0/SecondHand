@@ -131,7 +131,7 @@ public interface KeyboardActionListener {
     int TRACK_OFF = 0;
     int TRACK_PENDING = 1;
     int TRACK_ACTIVE = 2;
-    /** A refused finger (another one owns the track) dragged past the swipe distance: its touch is dropped, it does nothing at all. */
+    /** A refused finger (another one owns the track) dragged past the swipe distance: its touch is dropped (no tap, no repeat, no long press). */
     int TRACK_REFUSED_DRAG = 3;
     /**
      * Fork (stage 87): the cursor trackpad. Called on every move event for each finger that went down on space or
@@ -139,12 +139,14 @@ public interface KeyboardActionListener {
      * stepped) and the event time in ms. Exactly one finger can own a track: TRACK_OFF means the old step logic of
      * PointerTracker runs for this finger; TRACK_PENDING means nothing happens yet (a tap stays a tap; a finger refused
      * because another one owns the track stays pending until it drags past the swipe distance, then TRACK_REFUSED_DRAG: the
-     * tracker cancels its key timers and drops the touch, so it types, repeats and deletes nothing); TRACK_ACTIVE means the listener moves the
+     * tracker cancels its key timers and drops the touch: no tap, no repeat, no long press. The key stays drawn as pressed until the lift,
+     * and that lift still releases older fingers (upstream releaseAllPointersOlderThan), which ends an older owner's swipe, a delete
+     * slide then deleting its selection); TRACK_ACTIVE means the listener moves the
      * cursor and PointerTracker only marks the swipe (no space typed, no long press, onEndSpaceSwipe at the end).
      * Once a finger got TRACK_ACTIVE it never gets TRACK_OFF again in the same touch.
      */
     int onCursorTrack(int pointerId, int code, int dx, int dy, long eventTime, long downTime);
-    /** Fork (stage 87): the touch of [pointerId] is over (up, cancel, tracking dropped); frees the track it owned. */
+    /** Fork (stage 87): the touch of [pointerId] is over (up, cancel, tracking dropped); frees the track it owned. -1: every touch (a field starts or the keyboard hides). */
     void onCursorTrackEnd(int pointerId);
     void toggleLayout(LayoutDirective.Utility layout, int autoCapsFlags, @Nullable RecapitalizeMode recapitalizeMode);
     void onLongPressAlphaSymbolForNumpad();

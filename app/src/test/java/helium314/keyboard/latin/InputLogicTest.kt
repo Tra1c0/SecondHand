@@ -1531,7 +1531,10 @@ class InputLogicTest {
                 while (true) {
                     val due = entries.filter { it.at <= now }.minByOrNull { it.at } ?: break
                     entries.remove(due)
-                    if (due.longPress) { longPressesFired++; due.tracker.onLongPressed() } else due.tracker.onKeyRepeat(due.code, due.count)
+                    if (due.longPress) {
+                        entries.removeAll { it.longPress } // like TimerHandler: a firing long press cancels the long press timers of every tracker
+                        longPressesFired++; due.tracker.onLongPressed()
+                    } else due.tracker.onKeyRepeat(due.code, due.count)
                 }
             }
             fun clear() = entries.clear()
@@ -1578,6 +1581,8 @@ class InputLogicTest {
             try { helium314.keyboard.keyboard.PointerTracker.getPointerTracker(id).processMotionEvent(event, detector) } finally { event.recycle() }
             handleMessages()
             now += 8
+            // the tracker stamps a touch with the system clock (its down time is the listener's touch token): distinct for every touch
+            org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofMillis(8))
             timer.runDue()
             handleMessages()
         }
@@ -1982,6 +1987,119 @@ class InputLogicTest {
         assertEquals(TRACK_ACTIVE, answer)
         assertEquals(text.length, cursor, "the 5 px since the first sample are no step: the 40 px before it were swallowed by the guard")
         listener.onCursorTrackEnd(0)
+    }
+
+    // ---- third review
+
+    /** The slow editor answers an arrow: its new cursor reaches the keyboard (onUpdateSelection). */
+    private fun editorAnswers() {
+        val old = connection.expectedSelectionStart
+        latinIME.onUpdateSelection(old, old, ShadowInputMethodService.cursor, ShadowInputMethodService.cursor, -1, -1)
+        handleMessages()
+    }
+
+    @Test fun cursor87AFlickOfSeveralLinesThenSidewaysMovesAllAskedLinesAndThenAppliesTheStepsOnTheFinalLine() {
+        latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0) }
+        multiLine("aaaa\nbbbb\ncccc\ndddd\neeee\nffff", 29)
+        trackDrag(Constants.CODE_SPACE, 0.0, -200.0, dps = 1500.0, lift = false) // many lines asked for (one arrow on its way, at most 3 more queued)
+        assertEquals(1, arrows(DPAD_UP))
+        var x = 0.0
+        repeat(12) { // sideways at once; the editor answers each arrow only after the finger moved again
+            trackDrag(Constants.CODE_SPACE, x - 5.0, -200.0, dps = 300.0, from = x to -200.0, lift = false)
+            x -= 5.0
+            editorAnswers()
+        }
+        trackDrag(Constants.CODE_SPACE, x - 5.0, -200.0, dps = 300.0, from = x to -200.0, lift = false)
+        assertEquals(4, arrows(DPAD_UP), "the arrow on its way and the 3 queued ones were all sent")
+        val line = text.substring(0, ShadowInputMethodService.cursor).count { it == '\n' }
+        assertEquals(1, line, "no arrow was overridden by a horizontal step from the old position: cursor ${ShadowInputMethodService.cursor}")
+        assertTrue(ShadowInputMethodService.cursor < 10, "and the sideways steps were applied on the final line: ${ShadowInputMethodService.cursor}")
+        latinIME.mKeyboardActionListener.onCursorTrackEnd(0)
+    }
+
+    @Test fun cursor87AFieldStartFreesTheOwnerOfATouchThatEndedWithoutUpOrCancel() {
+        setText("Hallo Welt und mehr Text")
+        setCursorPosition(20)
+        assertEquals(TRACK_ACTIVE, trackDrag(Constants.CODE_SPACE, -40.0, 0.0, lift = false, pointer = 0)) // no up or cancel ever comes
+        setText("Ein neues Feld mit Text") // onStartInputView
+        setCursorPosition(10)
+        assertEquals(TRACK_ACTIVE, trackDrag(Constants.CODE_SPACE, -40.0, 0.0, pointer = 1), "not refused: the owner is gone")
+        // and the same when the keyboard hides
+        assertEquals(TRACK_ACTIVE, trackDrag(Constants.CODE_SPACE, -40.0, 0.0, lift = false, pointer = 0))
+        latinIME.mHandler.onFinishInputView(false)
+        handleMessages()
+        assertEquals(TRACK_ACTIVE, trackDrag(Constants.CODE_SPACE, -40.0, 0.0, pointer = 1))
+    }
+
+    @Test fun cursor87ANewTouchOfTheSameFingerWithoutAnEndStartsOverAndFreesItsOwnership() {
+        setText("Hallo Welt und mehr Text")
+        setCursorPosition(20)
+        val listener = latinIME.mKeyboardActionListener
+        assertEquals(TRACK_ACTIVE, trackDrag(Constants.CODE_SPACE, -40.0, 0.0, lift = false)) // touch 1, no end
+        val states = org.robolectric.util.ReflectionHelpers.getField<Array<*>>(listener, "trackStates")
+        val first = org.robolectric.util.ReflectionHelpers.getField<Long>(states[0], "token")
+        assertEquals(TRACK_PENDING, trackDrag(Constants.CODE_SPACE, 3.0, 0.0, lift = false)) // touch 2 of the same finger: a tap so far, the old drag is forgotten
+        assertNotEquals(first, org.robolectric.util.ReflectionHelpers.getField<Long>(states[0], "token"))
+        assertEquals(TRACK_ACTIVE, trackDrag(Constants.CODE_SPACE, -40.0, 0.0, pointer = 1), "touch 2 freed the ownership of touch 1")
+        listener.onCursorTrackEnd(0)
+    }
+
+    @Test fun cursor87TheRigGivesEveryTouchItsOwnDownTime() = withRig { rig ->
+        setText("Hallo")
+        val tracker = helium314.keyboard.keyboard.PointerTracker.getPointerTracker(0)
+        val times = ArrayList<Long>()
+        repeat(3) {
+            rig.down(0, SPACE_X, SPACE_Y)
+            times += org.robolectric.util.ReflectionHelpers.getField<Long>(tracker, "mStartTime")
+            rig.up(0)
+        }
+        assertEquals(3, times.toSet().size, "down times: $times")
+    }
+
+    @Test fun cursor87ADeleteSlideWithAnEditorThatAnswersNullForTheSelectedTextCanStillSlideBack() {
+        latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0) }
+        setText("Hallo Welt und mehr Text")
+        ShadowInputMethodService.nullSelectedText = true
+        trackDrag(KeyCode.DELETE, -40.0, 0.0, lift = false)
+        val start = selectionStart
+        assertTrue(start < selectionEnd)
+        // the track starts over (an overlay blocked input meanwhile): the selection is read again, its text is not there
+        org.robolectric.util.ReflectionHelpers.setField(latinIME.agentEditorController, "needsCursorRefresh", true)
+        trackDrag(KeyCode.DELETE, -41.0, 0.0, from = -40.0 to 0.0, lift = false)
+        org.robolectric.util.ReflectionHelpers.setField(latinIME.agentEditorController, "needsCursorRefresh", false)
+        trackDrag(KeyCode.DELETE, 0.0, 0.0, from = -41.0 to 0.0, lift = false) // back to the right
+        assertTrue(selectionStart > start, "the selection shrank: $start -> $selectionStart")
+        latinIME.mKeyboardActionListener.onCursorTrackEnd(0)
+    }
+
+    @Test fun cursor87ALiftInANewFieldDeletesNothingAfterADeleteSlide() {
+        setText("Hallo Welt")
+        trackDrag(KeyCode.DELETE, -62.0, 0.0, lift = false)
+        assertTrue(selectionEnd > selectionStart)
+        setText("Anderes Feld") // the field changes under the finger; the new field selects text on focus
+        setCursorPosition(0, 7)
+        latinIME.mKeyboardActionListener.onUpWithDeletePointerActive() // what PointerTracker does at the lift
+        handleMessages()
+        assertEquals("Anderes Feld", text)
+        latinIME.mKeyboardActionListener.onCursorTrackEnd(0)
+    }
+
+    @Test fun cursor87TheOldDeleteSlideAlsoDeletesNothingInANewField() {
+        latinIME.prefs().edit { putBoolean(AgentPreferences.CURSOR_TRACKPAD, false) }
+        setText("Hallo Welt")
+        latinIME.mKeyboardActionListener.onMoveDeletePointer(-3)
+        assertTrue(selectionEnd > selectionStart)
+        setText("Anderes Feld")
+        setCursorPosition(0, 7)
+        latinIME.mKeyboardActionListener.onUpWithDeletePointerActive()
+        handleMessages()
+        assertEquals("Anderes Feld", text)
+        // and in the same field the lift deletes what the slide selected, as always
+        setText("Hallo Welt")
+        latinIME.mKeyboardActionListener.onMoveDeletePointer(-3)
+        latinIME.mKeyboardActionListener.onUpWithDeletePointerActive()
+        handleMessages()
+        assertEquals("Hallo W", text)
     }
 
     // ---- vertical moves stop at the first and last line, one arrow per answer

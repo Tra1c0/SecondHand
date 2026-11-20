@@ -131,6 +131,14 @@ class CursorTrack(
         lastRequest = tMs
     }
 
+    /**
+     * The app sent an arrow key: the cursor is on its way somewhere the track cannot know. Like after a vertical step of its own, horizontal
+     * steps wait (their travel is carried) until [setText] or [setTextUnavailable].
+     */
+    fun holdForEditor(tMs: Long) {
+        text = null; unavailable = false; needsTextFrom = tMs + SETTLE_MS; sticky = false
+    }
+
     /** The app cannot read the text: steps come without [Step.chars] and without detents, until the next vertical move. */
     fun setTextUnavailable(tMs: Long = 0L) {
         text = null; unavailable = true; lastRequest = tMs

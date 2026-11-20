@@ -167,6 +167,8 @@ class ShadowInputMethodService {
         var dpadIgnored = false
         /** Stage 87: an editor that answers a read of [first] characters with at most [second] (the others are answered fully). */
         var shortAnswer: Pair<Int, Int>? = null
+        /** Stage 87: an editor that answers null for getSelectedText whatever is selected (some editors do). */
+        var nullSelectedText = false
         /** Stage 84: sees every call of the keyboard into the editor (name, and the text of a write), none by default. */
         var callListener: ((String, String?) -> Unit)? = null
 
@@ -203,6 +205,7 @@ class ShadowInputMethodService {
             dpadMovesCursor = false
             dpadIgnored = false
             shortAnswer = null
+            nullSelectedText = false
             callListener = null
         }
     }
@@ -235,7 +238,7 @@ class ShadowInputMethodService {
         // pretty clear
         override fun getSelectedText(p0: Int): CharSequence? {
             callListener?.invoke("getSelectedText", null)
-            return if (selectionStart == selectionEnd) null else text.substring(selectionStart, selectionEnd)
+            return if (selectionStart == selectionEnd || nullSelectedText) null else text.substring(selectionStart, selectionEnd)
         }
         // inserts text at cursor (right?), and sets it as composing text
         // this REPLACES currently composing text (even if at a different position)
