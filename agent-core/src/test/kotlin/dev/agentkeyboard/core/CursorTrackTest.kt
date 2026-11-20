@@ -144,6 +144,7 @@ class CursorTrackTest {
         assertTrue(s.vertical.all { it.direction == 1 })
         val horizontalAfterVertical = s.horizontal.size
         assertTrue(horizontalAfterVertical - horizontalBefore <= 1, "the old axis stops")
+        s.track.setTextUnavailable(s.t) // the app has read the editor again (after a vertical step horizontal steps wait for that)
         s.by(-120.0, 0.0, 100.0)
         assertEquals(Axis.HORIZONTAL, s.track.currentAxis)
         assertTrue(s.horizontal.drop(horizontalAfterVertical).count { it.direction == -1 } >= 5)
@@ -174,6 +175,13 @@ class CursorTrackTest {
         val firstLineAt = s.at[s.steps.indexOfFirst { it.axis == Axis.VERTICAL }].second
         // without the credit it would take the 19 dp of the switch plus a whole line (45 dp)
         assertTrue(firstLineAt - y0 < 38.0, "first line after ${firstLineAt - y0} dp of vertical travel")
+    }
+
+    @Test fun `horizontal-only ignores vertical travel also for the speed`() {
+        val a = Sim(horizontalOnly = true); a.by(-60.0, 0.0, 40.0)
+        val b = Sim(horizontalOnly = true); b.by(-60.0, 400.0, 400.0) // the same sideways 60 dp at 6 dp/s, a fast finger downwards
+        assertEquals(a.horizontal.size, b.horizontal.size)
+        assertTrue(b.horizontal.isNotEmpty())
     }
 
     @Test fun `delete mode is horizontal only`() {
@@ -372,7 +380,7 @@ class CursorTrackTest {
         assertTrue(cut.track.needsText(cut.t + 200))
     }
 
-    @Test fun `after a vertical step the track asks for text again and steps meanwhile are unlabelled`() {
+    @Test fun `after a vertical step the track asks for text again`() {
         val s = Sim(1f, before = hello)
         s.by(0.0, 60.0, slow)
         assertEquals(Axis.VERTICAL, s.track.currentAxis)
@@ -382,6 +390,30 @@ class CursorTrackTest {
         s.track.setText("new text before ", "after", true, true, s.t + 200)
         assertTrue(s.track.hasText)
         assertFalse(s.track.needsText(s.t + 220))
+    }
+
+    @Test fun `horizontal travel right after a vertical step waits for the text and is then applied, not lost`() {
+        val s = Sim(0f, before = "aaa bbb ccc\nddd eee fff")
+        s.by(0.0, 40.0, slow)
+        val lines = s.vertical.size
+        assertTrue(lines >= 1)
+        val before = s.steps.size
+        s.by(-80.0, 0.0, slow) // the editor has not told the new cursor position yet: nothing is applied to a stale one
+        assertEquals(before, s.steps.size, "no horizontal step before the text is known")
+        s.track.setText("aaa bbb ccc\nddd", " eee fff", true, true, s.t)
+        s.by(-1.0, 0.0, slow) // the next movement releases the carried travel against the real position
+        val horizontal = s.horizontal
+        assertTrue(horizontal.size >= 4, "carried travel applied: ${horizontal.size}")
+        assertTrue(horizontal.all { it.chars == -1 && it.direction == -1 })
+        // also when the editor cannot be read at all: held until the app says so, then unlabelled steps
+        val u = Sim(0f, before = "abc\ndef")
+        u.by(0.0, 40.0, slow)
+        val n = u.steps.size
+        u.by(-60.0, 0.0, slow)
+        assertEquals(n, u.steps.size)
+        u.track.setTextUnavailable(u.t)
+        u.by(-1.0, 0.0, slow)
+        assertTrue(u.horizontal.isNotEmpty() && u.horizontal.all { it.chars == 0 })
     }
 
     // ---- determinism

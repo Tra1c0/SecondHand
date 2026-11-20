@@ -1084,7 +1084,7 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         // fork (stage 87): the cursor trackpad (space bar) and the delete slider take the raw distance from the
         // touch-down point; the listener keeps the state and says when the swipe has begun (TRACK_ACTIVE)
         if (code == Constants.CODE_SPACE || code == KeyCode.DELETE) {
-            final int track = sListener.onCursorTrack(code, x - mStartX, y - mStartY, eventTime);
+            final int track = sListener.onCursorTrack(mPointerId, code, x - mStartX, y - mStartY, eventTime, mStartTime);
             if (track != KeyboardActionListener.TRACK_OFF) {
                 if (track == KeyboardActionListener.TRACK_ACTIVE && !mInHorizontalSwipe) {
                     sTimerProxy.cancelKeyTimersOf(this);
@@ -1266,6 +1266,7 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
 
             // Touchpad mode
             mTouchpadHandler.disableTouchpadMode();
+            sListener.onCursorTrackEnd(mPointerId); // fork (stage 87): this finger's trackpad drag is over
 
             if (mInHorizontalSwipe || mInVerticalSwipe) {
                 mInHorizontalSwipe = false;
@@ -1396,6 +1397,7 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         mInHorizontalSwipe = false;
         mInVerticalSwipe = false;
         mTouchpadHandler.disableTouchpadMode();
+        sListener.onCursorTrackEnd(mPointerId); // fork (stage 87): also where the tracker leaves the queue without an up
     }
 
     private void onCancelEvent(final int x, final int y, final long eventTime) {

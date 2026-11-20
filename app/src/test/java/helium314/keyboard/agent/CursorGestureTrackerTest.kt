@@ -128,8 +128,8 @@ class CursorGestureTrackerTest {
 
     private fun script(vararg answers: Int) {
         val queue = ArrayDeque(answers.toList())
-        `when`(listener.onCursorTrack(anyInt(), anyInt(), anyInt(), anyLong())).thenAnswer {
-            calls += listOf(it.getArgument<Int>(0), it.getArgument<Int>(1), it.getArgument<Int>(2), it.getArgument<Long>(3))
+        `when`(listener.onCursorTrack(anyInt(), anyInt(), anyInt(), anyInt(), anyLong(), anyLong())).thenAnswer {
+            calls += listOf(it.getArgument<Int>(0), it.getArgument<Int>(1), it.getArgument<Int>(2), it.getArgument<Int>(3), it.getArgument<Long>(4), it.getArgument<Long>(5))
             if (queue.size > 1) queue.removeFirst() else queue.first()
         }
     }
@@ -137,8 +137,10 @@ class CursorGestureTrackerTest {
     @Test fun trackpadGetsRawDistancesFromTouchDownAndTheOldStepLogicStaysOut() {
         script(KeyboardActionListener.TRACK_PENDING, KeyboardActionListener.TRACK_ACTIVE)
         down(); move(104f, 103f); move(160f, 70f); move(150f, 90f); up(150f, 90f)
-        assertEquals(listOf(listOf(32, 4, 3), listOf(32, 60, -30), listOf(32, 50, -10)), calls.map { it.take(3).map { n -> n.toInt() } })
-        assertTrue(calls.map { it[3].toLong() }.zipWithNext().all { (a, b) -> a < b }, "event times grow")
+        // pointer 0, the key, the distance from the touch-down point in px
+        assertEquals(listOf(listOf(0, 32, 4, 3), listOf(0, 32, 60, -30), listOf(0, 32, 50, -10)), calls.map { it.take(4).map { n -> n.toInt() } })
+        assertTrue(calls.map { it[4].toLong() }.zipWithNext().all { (a, b) -> a < b }, "event times grow")
+        assertEquals(1, calls.map { it[5] }.toSet().size, "one touch, one token")
         // no old step reports, no space typed; the end is reported once
         assertEquals(listOf("end"), log)
     }
@@ -180,7 +182,7 @@ class CursorGestureTrackerTest {
         script(KeyboardActionListener.TRACK_ACTIVE)
         down(); move(85f, 100f); move(60f, 101f); up(60f, 101f)
         assertEquals(listOf("delete-up", "end"), log) // no onMoveDeletePointer from the tracker any more
-        assertEquals(listOf(KeyCode.DELETE, KeyCode.DELETE), calls.map { it[0].toInt() })
+        assertEquals(listOf(KeyCode.DELETE, KeyCode.DELETE), calls.map { it[1].toInt() })
     }
 
     @Test fun trackpadOnALetterKeyIsNeverAsked() {
@@ -190,10 +192,46 @@ class CursorGestureTrackerTest {
         assertTrue(calls.isEmpty())
     }
 
-    @Test fun trackpadOffAfterAnActiveDragGivesTheOldStepsAgain() {
-        // a listener that says OFF (settings, selection, bound swipe) leaves everything to the old logic, also mid-gesture
+    @Test fun trackpadOffFromTheStartLeavesEverythingToTheOldLogic() {
+        // a listener that says OFF (settings, selection, bound swipe) leaves the whole touch to the old logic (it decides once per touch)
         script(KeyboardActionListener.TRACK_OFF)
         down(); move(113f, 100f); move(131f, 100f); up(131f, 100f)
         assertEquals(listOf("swipe SWIPE_RIGHT 1", "swipe SWIPE_RIGHT 2", "end"), log)
+    }
+
+    @Test fun theEndOfAFingersTouchIsReportedWithItsPointerAtUpAndAtCancel() {
+        script(KeyboardActionListener.TRACK_ACTIVE)
+        val ends = mutableListOf<Int>()
+        `when`(listener.onCursorTrackEnd(anyInt())).thenAnswer { ends += it.getArgument<Int>(0); null }
+        down(); move(130f, 100f); up(130f, 100f)
+        assertEquals(listOf(0), ends)
+        down(); move(130f, 100f); touch(MotionEvent.ACTION_CANCEL, 130f, 100f)
+        assertEquals(listOf(0, 0), ends)
+    }
+
+    @Test fun twoFingersEachGetTheirOwnPointerIdAndTokenAndOnlyTheirOwnEnd() {
+        script(KeyboardActionListener.TRACK_PENDING)
+        val ends = mutableListOf<Int>()
+        `when`(listener.onCursorTrackEnd(anyInt())).thenAnswer { ends += it.getArgument<Int>(0); null }
+        val second = PointerTracker.getPointerTracker(1)
+        `when`(detector.detectHitKey(eq(300), anyInt())).thenReturn(key)
+        down()
+        val props = Array(2) { id -> MotionEvent.PointerProperties().apply { this.id = id; toolType = MotionEvent.TOOL_TYPE_FINGER } }
+        val coords = arrayOf(MotionEvent.PointerCoords().apply { x = 100f; y = 100f; pressure = 1f; size = 1f },
+            MotionEvent.PointerCoords().apply { x = 300f; y = 100f; pressure = 1f; size = 1f })
+        fun packet(action: Int) = MotionEvent.obtain(now, now, action, 2, props, coords, 0, 0, 1f, 1f, 0, 0, android.view.InputDevice.SOURCE_TOUCHSCREEN, 0)
+        val down2 = packet(MotionEvent.ACTION_POINTER_DOWN or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT))
+        try { second.processMotionEvent(down2, detector) } finally { down2.recycle() }
+        coords[0].x = 106f
+        val moved = packet(MotionEvent.ACTION_MOVE)
+        try { tracker.processMotionEvent(moved, detector) } finally { moved.recycle() }
+        val pointers = calls.map { it[0].toInt() }.toSet()
+        assertEquals(setOf(0, 1), pointers, "every finger is asked for itself")
+        assertEquals(2, calls.map { it[5].toLong() }.toSet().size, "each touch has its own token")
+        val up2 = packet(MotionEvent.ACTION_POINTER_UP or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT))
+        try { second.processMotionEvent(up2, detector) } finally { up2.recycle() }
+        assertEquals(listOf(1), ends, "B's end names B only")
+        up(106f, 100f)
+        assertEquals(listOf(1, 0), ends)
     }
 }

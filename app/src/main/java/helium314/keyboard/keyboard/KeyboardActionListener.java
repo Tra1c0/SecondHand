@@ -132,12 +132,17 @@ public interface KeyboardActionListener {
     int TRACK_PENDING = 1;
     int TRACK_ACTIVE = 2;
     /**
-     * Fork (stage 87): the cursor trackpad. Called on every move of a finger that went down on space or delete,
-     * with the distance from the touch-down point in px (not stepped) and the event time in ms. TRACK_OFF means the
-     * old step logic of PointerTracker runs; otherwise the listener moves the cursor itself and PointerTracker only
-     * marks the swipe (no space typed, no long press, onEndSpaceSwipe at the end).
+     * Fork (stage 87): the cursor trackpad. Called on every move event for each finger that went down on space or
+     * delete ([pointerId]; [downTime] identifies its touch), with the distance from its touch-down point in px (not
+     * stepped) and the event time in ms. Exactly one finger can own a track: TRACK_OFF means the old step logic of
+     * PointerTracker runs for this finger; TRACK_PENDING means nothing happens yet (a tap stays a tap; a finger refused
+     * because another one owns the track stays pending for its whole touch); TRACK_ACTIVE means the listener moves the
+     * cursor and PointerTracker only marks the swipe (no space typed, no long press, onEndSpaceSwipe at the end).
+     * Once a finger got TRACK_ACTIVE it never gets TRACK_OFF again in the same touch.
      */
-    int onCursorTrack(int code, int dx, int dy, long eventTime);
+    int onCursorTrack(int pointerId, int code, int dx, int dy, long eventTime, long downTime);
+    /** Fork (stage 87): the touch of [pointerId] is over (up, cancel, tracking dropped); frees the track it owned. */
+    void onCursorTrackEnd(int pointerId);
     void toggleLayout(LayoutDirective.Utility layout, int autoCapsFlags, @Nullable RecapitalizeMode recapitalizeMode);
     void onLongPressAlphaSymbolForNumpad();
 
@@ -197,7 +202,9 @@ public interface KeyboardActionListener {
         @Override
         public void onEndSpaceSwipe() {}
         @Override
-        public int onCursorTrack(int code, int dx, int dy, long eventTime) { return TRACK_OFF; }
+        public int onCursorTrack(int pointerId, int code, int dx, int dy, long eventTime, long downTime) { return TRACK_OFF; }
+        @Override
+        public void onCursorTrackEnd(int pointerId) {}
         @Override
         public void onMoveDeletePointer(int steps) {}
         @Override

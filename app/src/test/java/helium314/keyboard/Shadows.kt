@@ -161,6 +161,10 @@ class ShadowInputMethodService {
         val contextMenuActions = mutableListOf<Int>()
         /** Android key codes of the key-down events the keyboard sent to the field (stage 87: DPAD moves of the trackpad). */
         val keyDownCodes = mutableListOf<Int>()
+        /** Stage 87: DPAD up/down move the cursor by line in the field (the keyboard learns it only when a test delivers onUpdateSelection). */
+        var dpadMovesCursor = false
+        /** Stage 87: an editor that returns at most this many characters from getTextBefore/AfterCursor, whatever is asked. */
+        var maxTextReturn: Int? = null
 
         // convenience for access
         val textBeforeCursor get() = text.substring(0, selectionStart)
@@ -192,6 +196,8 @@ class ShadowInputMethodService {
             editorMode = EditorMode.NORMAL
             contextMenuActions.clear()
             keyDownCodes.clear()
+            dpadMovesCursor = false
+            maxTextReturn = null
         }
     }
 
@@ -217,9 +223,9 @@ class ShadowInputMethodService {
         // pretty clear (though this may be slow depending on the editor)
         // bad return value here is likely the cause for that weird bug improved/fixed by fixIncorrectLength
         // the n characters right before the cursor, as Android returns them (not the first n of the field)
-        override fun getTextBeforeCursor(p0: Int, p1: Int): CharSequence = textBeforeCursor.takeLast(p0)
+        override fun getTextBeforeCursor(p0: Int, p1: Int): CharSequence = textBeforeCursor.takeLast(minOf(p0, maxTextReturn ?: p0))
         // pretty clear (though this may be slow depending on the editor)
-        override fun getTextAfterCursor(p0: Int, p1: Int): CharSequence = textAfterCursor.take(p0)
+        override fun getTextAfterCursor(p0: Int, p1: Int): CharSequence = textAfterCursor.take(minOf(p0, maxTextReturn ?: p0))
         // pretty clear
         override fun getSelectedText(p0: Int): CharSequence? = if (selectionStart == selectionEnd) null
         else text.substring(selectionStart, selectionEnd)
@@ -331,6 +337,19 @@ class ShadowInputMethodService {
         override fun sendKeyEvent(p0: KeyEvent): Boolean {
             if (p0.action != KeyEvent.ACTION_DOWN) return true // only change the text on key down, like RichInputConnection does
             keyDownCodes += p0.keyCode
+            if (dpadMovesCursor && (p0.keyCode == KeyEvent.KEYCODE_DPAD_DOWN || p0.keyCode == KeyEvent.KEYCODE_DPAD_UP)) {
+                val lineStart = text.lastIndexOf('\n', selectionStart - 1) + 1
+                val column = selectionStart - lineStart
+                val target = if (p0.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                    val next = text.indexOf('\n', selectionStart)
+                    if (next < 0) selectionStart else minOf(next + 1 + column, text.indexOf('\n', next + 1).let { if (it < 0) text.length else it })
+                } else if (lineStart == 0) selectionStart else {
+                    val previousStart = text.lastIndexOf('\n', lineStart - 2) + 1
+                    minOf(previousStart + column, lineStart - 1)
+                }
+                selectionStart = target; selectionEnd = target
+                return true
+            }
             if (p0.keyCode == KeyEvent.KEYCODE_DEL) {
                 if (selectionEnd == 0) return true // nothing to delete
                 if (selectedText.isEmpty()) {

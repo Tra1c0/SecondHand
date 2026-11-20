@@ -36,7 +36,9 @@ import kotlin.math.min
  *     steps of travel. The speed factor is 1 for a slow finger and falls to 0 between
  *     [DETENT_FULL_BELOW_DPS] and [DETENT_NONE_ABOVE_DPS]. Inside a word, and at the start position,
  *     the cost is 1.
- *  7. Carry. What is left of a step's travel stays in the axis' remainder; nothing is lost or counted
+ *  7. After a vertical step horizontal steps wait (their travel is carried) until [setText] or [setTextUnavailable]
+ *     says where the cursor is; the editor needs time to move it.
+ *  8. Carry. What is left of a step's travel stays in the axis' remainder; nothing is lost or counted
  *     twice. The remainder is dropped only at an axis switch (the credit replaces it) and where the
  *     text ends (no wind-up beyond the end).
  *
@@ -157,7 +159,8 @@ class CursorTrack(
             tickT += TICK_MS
             val (px, py) = positionAt(tickT)
             val (wx, wy) = positionAt(tickT - WINDOW_MS)
-            speed = hypot(px - wx, py - wy) / WINDOW_MS * 1000.0
+            // horizontal-only: vertical finger travel is ignored altogether, also for the speed
+            speed = (if (horizontalOnly) abs(px - wx) else hypot(px - wx, py - wy)) / WINDOW_MS * 1000.0
             val dx = px - gridX; val dy = py - gridY
             gridX = px; gridY = py
             process(dx, dy, tickT, out)
@@ -245,7 +248,7 @@ class CursorTrack(
                 val dir = if (v.u > 0) 1 else -1
                 v.u -= dir
                 out += Step(Axis.VERTICAL, dir)
-                // the cursor jumped somewhere the track cannot know: no word edges until the app reads the text again
+                // the cursor jumped somewhere the track cannot know: horizontal steps wait until the app reads the text again
                 text = null; unavailable = false; needsTextFrom = t + SETTLE_MS; sticky = false
             }
             return
@@ -254,6 +257,9 @@ class CursorTrack(
             val cost = if (sticky) 1.0 + magnetism * MAX_DETENT_EXTRA * detentFactor(speed) else 1.0
             val dir = when { h.u >= cost -> 1; h.u <= -cost -> -1; else -> break }
             val w = text
+            // after a vertical step the cursor is somewhere the track cannot know until the app has read the editor again:
+            // horizontal travel is kept (carried) and applied then, not applied to a stale position
+            if (w == null && !unavailable) break
             if (w == null) {
                 h.u -= dir * cost
                 out += Step(Axis.HORIZONTAL, dir)

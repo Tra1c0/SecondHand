@@ -8,10 +8,21 @@ import dev.agentkeyboard.core.CursorTrack
  * on their own. The state machine itself lives in KeyboardActionListenerImpl.onCursorTrack.
  */
 object CursorTrackpad {
-    /** A drag becomes a swipe at this distance from the touch-down point (dp), as the old swipe did at its first 10 dp step. */
+    /** A drag becomes a swipe at this distance (dp) on the swiping axis, as the old swipe did at its first 10 dp step. */
     const val CLAIM_DP = 10.0
     /** Characters read before and after the cursor for the word edges. */
     const val WINDOW_CHARS = 200
+    /** Samples kept while a finger has not become a swipe (a finger resting on the key). */
+    const val MAX_PENDING = 64
+    /** After an arrow key the horizontal moves wait at most this long (ms) for the editor's new cursor position. */
+    const val SELECTION_WAIT_MS = 300L
+
+    /**
+     * Whether a drag of ([dx], [dy]) dp from the touch-down point is a swipe and no tap any more: the old tolerance, 10 dp on
+     * the swiping axis (the delete slider only counts sideways, a vertical drag counts when it is longer than the sideways one).
+     */
+    @JvmStatic fun claims(sidewaysOnly: Boolean, dx: Double, dy: Double): Boolean =
+        Math.abs(dx) >= CLAIM_DP || !sidewaysOnly && Math.abs(dy) >= CLAIM_DP && Math.abs(dx) < Math.abs(dy)
 
     /**
      * The space bar becomes a trackpad only where its sideways swipes move the cursor and the vertical ones are free

@@ -512,10 +512,12 @@ class Driver:
             self._density = (int(match.group(1)) if match else 420) / 160.0
         return self._density
 
-    def drag_on(self, name, dx_dp, dy_dp, step_dp=4.0, pause=0.0):
-        """One finger on a named key (space, delete), moved slowly by (dx, dy) dp in steps of at most
-        step_dp, then lifted. `input motionevent` needs 100 to 300 ms per call, so a step of 4 dp is a
-        finger of about 20 dp/s, the slow finger the cursor trackpad is tuned for (stage 87)."""
+    def drag_on(self, name, dx_dp, dy_dp, step_dp=4.0, pause=0.0, claim_dp=16.0):
+        """One finger on a named key (space, delete), moved by (dx, dy) dp, then lifted. The first MOVE follows the
+        DOWN at once and is claim_dp long (the trackpad takes a drag as a swipe from 10 dp, so the swipe is claimed
+        and the long press of the space bar, 450 ms, is cancelled before it can fire); the rest goes in steps of at
+        most step_dp. `input motionevent` needs 100 to 300 ms per call, so such a step is a finger of about 20 dp/s,
+        the slow finger the cursor trackpad is tuned for (stage 87)."""
         node = self.find_key(KEY_NAMES[name])
         if node is None:
             self.refresh_keys()
@@ -524,20 +526,26 @@ class Driver:
             raise CheckFailed("no key %r on the keyboard; keys: %s" % (name, self.key_list()))
         x, y = node.center
         px = self.density()
-        steps = max(1, int(math.ceil(math.hypot(dx_dp, dy_dp) / step_dp)))
+        total = math.hypot(dx_dp, dy_dp)
+        first = min(total, claim_dp)
+        # positions along the line, in dp from the touch-down point: one big step first, then small ones
+        marks = [first] if first > 0 else []
+        left = total - first
+        steps = int(math.ceil(left / step_dp)) if left > 0 else 0
+        marks += [first + left * i / steps for i in range(1, steps + 1)]
         shell("input motionevent DOWN %d %d" % (x, y), timeout=30)
         tx, ty = x, y
         try:
-            for i in range(1, steps + 1):
-                tx = int(round(x + dx_dp * px * i / steps))
-                ty = int(round(y + dy_dp * px * i / steps))
+            for mark in marks:
+                tx = int(round(x + dx_dp * px * mark / total))
+                ty = int(round(y + dy_dp * px * mark / total))
                 shell("input motionevent MOVE %d %d" % (tx, ty), timeout=30)
                 if pause:
                     time.sleep(pause)
         finally:
             shell("input motionevent UP %d %d" % (tx, ty), timeout=30, check=False)
         time.sleep(0.8)
-        self.notes.append("dragged on %s by (%d, %d) dp in %d steps" % (name, dx_dp, dy_dp, steps))
+        self.notes.append("dragged on %s by (%d, %d) dp in %d moves, the first %d dp" % (name, dx_dp, dy_dp, len(marks), first))
 
     def tap_keyboard_text(self, wanted, outside_strip=True):
         """Taps the node of the keyboard (not a key) whose text or description contains the wanted string."""
