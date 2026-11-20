@@ -27,7 +27,7 @@ class InkLogicTest {
 
     @Test fun aSlashStrokeIsASlashAndABackslashStrokeABackslash() {
         // bottom left to top right is a slash at positive angles (y grows downward on the screen)
-        for (degrees in listOf(40.0, 50.0, 60.0, 70.0, 80.0)) for (reversed in listOf(false, true)) {
+        for (degrees in listOf(35.0, 45.0, 55.0, 65.0, 70.0)) for (reversed in listOf(false, true)) {
             val result = recognizer.recognize(listOf(straight(degrees, reversed = reversed)))
             assertEquals("/", result.best?.text, "slash $degrees° reversed=$reversed: ${result.candidates.take(4)}")
             val back = recognizer.recognize(listOf(straight(180 - degrees, reversed = reversed)))
@@ -39,7 +39,7 @@ class InkLogicTest {
         val random = Random(83)
         var total = 0; var slash = 0
         repeat(300) {
-            val degrees = random.nextDouble(40.0, 80.0)
+            val degrees = random.nextDouble(35.0, 70.0)
             val result = recognizer.recognize(listOf(straight(degrees, random.nextDouble(120.0, 400.0).toFloat(), random.nextBoolean(), random.nextDouble(-8.0, 8.0))))
             assertNotEquals("%", result.best?.text, "$degrees°: ${result.candidates.take(4)}")
             total++; if (result.best?.text == "/") slash++

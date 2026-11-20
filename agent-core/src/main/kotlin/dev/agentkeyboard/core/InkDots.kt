@@ -78,6 +78,14 @@ class InkDots(templates: List<InkTemplate>, private val whole: InkRecognizer = I
     private fun hasDots(text: String) = dotCounts[text]?.any { it > 0 } == true
 
     /**
+     * Stage 83: texts that are only ever one straight stroke (– | / \ and such own symbols). A line that
+     * waits for a dot is the dotless part of ÷ ! ?, % and ‰ and no finished symbol of its own that could
+     * fit it "clearly better" (rule 4), whatever its slope; without this the new "/" took the taps of %.
+     */
+    private val bareLines: Set<String> = templates.groupBy { it.text }
+        .filterValues { all -> all.all { it.cloud.strokeCount == 1 && axisOf(it.cloud.xs, it.cloud.ys) != null } }.keys
+
+    /**
      * Whether a tap at ([x], [y]) may be a dot of the drawing [strokes] (screen coordinates, strokes so
      * far, earlier possible dots included); [keeps] decides when the drawing is written.
      */
@@ -92,7 +100,7 @@ class InkDots(templates: List<InkTemplate>, private val whole: InkRecognizer = I
             if (shape.dots.none { hypot(tx - it.x, ty - it.y) <= DOT_REACH * shape.box.size }) continue
             // (4) the drawing as it would be written now: the same question as when the tap is a letter;
             // stage 43: only symbols without dots count (with two dots % beat the slash of ‰ here)
-            val best = whole.recognize(strokes).candidates.firstOrNull { !hasDots(it.text) }?.distance ?: return true
+            val best = whole.recognize(strokes).candidates.firstOrNull { it.complete && !hasDots(it.text) && it.text !in bareLines }?.distance ?: return true
             if (match.distance <= best * CLEAR_FACTOR + CLEAR_SLACK) return true
         }
         return false
