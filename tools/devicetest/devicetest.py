@@ -1456,7 +1456,8 @@ GRID_NODE_IDS = {"hint": "agent_tool_grid_hint", "undo": "agent_tool_grid_undo",
 EDIT_LABELS = ("Anpassen", "Customize")
 IN_BAR_SUFFIXES = (", in der Leiste", ", in the bar")
 SHOT_CHUNK = 4000
-SHOT_MAX_WIDTH = 540
+SHOT_MAX_WIDTH = 400
+SHOTS = []  # (name, [lines]) collected during the run and printed at its end, so that the end of the log has them
 
 
 def bar_slots(screen):
@@ -1550,17 +1551,52 @@ def wait_report(d, condition, what, limit=15.0):
         time.sleep(0.7)
 
 
+SHOW_TOOLS_LABELS = ("Werkzeuge zeigen", "Show tools")
+
+
+def ensure_tools(d):
+    """The strip shows the tools (after typing, or with a clipboard chip, it shows content and the left key says "Werkzeuge zeigen")."""
+    for _ in range(3):
+        screen = dump()
+        key = left_key(screen)
+        if key is not None and key.desc in SHOW_TOOLS_LABELS:
+            tap(*key.center)
+            time.sleep(0.8)
+        else:
+            return screen
+    return dump()
+
+
+def _has_edit_button(screen):
+    return any(n.text in EDIT_LABELS for n in screen.nodes if n.package == KEYBOARD_PACKAGE and n.visible)
+
+
 def open_edit_mode(d):
-    """Opens the grid with the left key and the edit mode with its button; waits for the hint."""
+    """Opens the grid with the left key and the edit mode with its button; waits for the hint. If the tap does not open
+    the grid it is tried again and then as a long press (which starts the edit mode itself); what happened is in the failure."""
+    ensure_tools(d)
+    tried = []
     screen = dump()
-    key = left_key(screen)
-    if key is None:
-        raise CheckFailed("no left key of the bar")
-    tap(*key.center)
-    screen = wait_report(d, lambda s: any(n.text in EDIT_LABELS for n in s.nodes if n.package == KEYBOARD_PACKAGE and n.visible),
-                         "the grid with its button Anpassen")
+    for attempt in ("tap", "tap", "long press"):
+        key = left_key(screen)
+        if key is None:
+            raise CheckFailed("no left key of the bar; the keyboard shows: " + bar_report(screen))
+        if attempt == "tap":
+            tap(*key.center)
+        else:
+            shell("input swipe %d %d %d %d 800" % (key.center[0], key.center[1], key.center[0], key.center[1]), check=False)
+        time.sleep(1.2)
+        screen = dump()
+        tried.append("%s at %s -> left key %r, button %s, hint %s" % (attempt, key.center, getattr(left_key(screen), "desc", None),
+                                                                  _has_edit_button(screen), grid_node(screen, "hint") is not None))
+        if grid_node(screen, "hint") is not None:
+            return screen
+        if _has_edit_button(screen):
+            break
+    else:
+        raise CheckFailed("the grid did not open: %s; the keyboard shows: %s" % ("; ".join(tried), bar_report(screen)))
     tap(*next(n for n in screen.nodes if n.package == KEYBOARD_PACKAGE and n.visible and n.text in EDIT_LABELS).center)
-    return wait_report(d, lambda s: grid_node(s, "hint") is not None, "the edit mode with its hint")
+    return wait_report(d, lambda s: grid_node(s, "hint") is not None, "the edit mode with its hint (%s)" % "; ".join(tried))
 
 
 def finish_edit_mode(d):
@@ -1632,12 +1668,11 @@ def shot(d, label):
             return
         w, h, pixels = raw
         strip = dump().keyboard_node("suggestion_strip_view")
-        top = (strip.top - 200) if strip else int(h * 0.55)
+        top = (strip.top - 120) if strip else int(h * 0.55)
         data = base64.b64encode(png_of(w, h, pixels, top)).decode("ascii")
         parts = [data[i:i + SHOT_CHUNK] for i in range(0, len(data), SHOT_CHUNK)] or [""]
         name = "%s-%s" % (d.name, label)
-        for i, part in enumerate(parts, 1):
-            log("SHOT %s %d/%d %s" % (name, i, len(parts), part))
+        SHOTS.append((name, ["SHOT %s %d/%d %s" % (name, i, len(parts), part) for i, part in enumerate(parts, 1)]))
     except Exception as error:  # a picture is evidence, not a test
         log("INFO no picture for %s: %s" % (label, error))
 
@@ -1705,7 +1740,7 @@ def bar_icons_visible(d):
             time.sleep(2.5)
             hide_and_reopen(d)
             time.sleep(0.8)
-            screen = dump()
+            screen = ensure_tools(d)
             slots = bar_slots(screen)
             if len(slots) < 2:
                 raise CheckFailed("the bar shows %d tools; the keyboard shows: %s" % (len(slots), bar_report(screen)))
@@ -2083,14 +2118,16 @@ def run_scenario(function, driver):
     except Exception as error:  # a bug in this script must not look like a pass
         status, detail = "ERROR", "script: %s: %s" % (type(error).__name__, error)
     driver.name = name
-    shot = driver.screenshot("end")
+    if status != "PASS" and name.startswith("bar_"):
+        shot(driver, "failed")
+    shot_ok = driver.screenshot("end")
     if status != "PASS":
         try:
             driver.save_dump(dump(), "end")
         except DeviceError:
             pass
     return {"name": name, "status": status, "detail": detail[:(3000 if name.startswith("bar_") and status != "PASS" else 600)], "seconds": round(time.time() - started, 1),
-            "screenshot": shot, "doc": (function.__doc__ or "").strip().split("\n")[0]}
+            "screenshot": shot_ok, "doc": (function.__doc__ or "").strip().split("\n")[0]}
 
 
 def write_reports(out_dir, info, results, problems, ok, control):
@@ -2184,6 +2221,9 @@ def main():
         ok = not problems and len(results) == len(SCENARIOS) and all(r["status"] in wanted for r in results)
         for problem in problems:
             log("PROBLEM " + problem)
+        for name, lines in reversed(SHOTS):  # the most important (the last taken) lies last
+            for line in lines:
+                log(line)
         write_reports(args.out, info, results, problems, ok, args.control)
         passed = sum(1 for r in results if r["status"] == "PASS")
         known = sum(1 for r in results if r["status"] == "KNOWN")
