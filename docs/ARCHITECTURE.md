@@ -542,6 +542,14 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   blockiert Eingabe während eines Overlays; Leertasten-Aktionen und Doppeltippen, siehe
   „Editorzugriff, Panel und Rad“; seitliche Einmal-Wische laufen über `SpaceDetents` und spielen
   `HapticChain`).
+- Etappe 87 (Cursor als Trackpad, P390–P399), jede Änderung von einem Prüfer lesen lassen:
+  `PointerTracker.java` (+12 Zeilen in `onKeySwipe`, vor dem Leertasten-/Löschzweig und hinter der Schnelltipp-Sperre: fragt
+  `sListener.onCursorTrack(code, x - mStartX, y - mStartY, eventTime)`; bei `TRACK_OFF` läuft alles wie vorher, sonst kehrt
+  die Methode zurück, bei `TRACK_ACTIVE` zusätzlich `cancelKeyTimersOf` und `mInHorizontalSwipe = true`, damit das Heben wie
+  bei einem seitlichen Wisch endet), `KeyboardActionListener.java` (`TRACK_OFF/PENDING/ACTIVE`, `onCursorTrack`, Vorgabe
+  `TRACK_OFF` im `Adapter`), `KeyboardActionListenerImpl.kt` (Zustandsmaschine, siehe `A/CursorTrackpad.kt`; ein Reset in
+  `onPressKey` und `onEndSpaceSwipe`; der Schwanz von `onMoveCursorHorizontally` als `applyHorizontalMove`, unverändert),
+  `SettingsValues.java` (zwei Felder). `InputLogic.java` und `RichInputConnection.java` sind unverändert.
 - `InputAttributes.java` (Nachprüfung 45, P180): `mNoLearning` auch für Felder mit
   `privateImeOptions` = `AgentPreferences.NO_LEARNING_FIELD` (die Felder von „Meine Daten“), in
   jeder Feldklasse und API-Stufe; daraus wird wie beim Flag `IME_FLAG_NO_PERSONALIZED_LEARNING`
@@ -1293,6 +1301,35 @@ Symbolseiten wie Gboard (Etappe 81, Fallstricke P345–P348):
   Impuls auch, wenn die Aktion danach nichts tut (z. B. nichts rückgängig zu machen).
   `Device` ist die Naht für Tests (`deviceForTest`); eine Ausnahme des Vibrators wird geschluckt
   (P67).
+- `C/CursorTrack.kt` (Etappe 87, Cursor als Trackpad): der reine Kern ohne Android. Eingabe: `begin(t)`, dann
+  `moveTo(xDp, yDp, tMs)` (Abstand vom Aufsetzpunkt, Ereigniszeit) und optional `setText(vor, nach, amAnfang, amEnde)`;
+  Ausgabe: Einzelschritte `Step(Achse, Richtung, chars, boundary, detent)` (ein Graphem-Cluster waagerecht, eine Zeile
+  senkrecht; `chars` = Zeichen im Fenster, 0 ohne Text). Reihenfolge der Verarbeitung: 4-ms-Raster mit linearer Interpolation
+  (gleiche Bewegung bei 60 und 120 Hz), Geschwindigkeit als Sehne über 60 ms, Kurve `gain(v, max)` = 1 bis 90 dp/s, glatt
+  (smoothstep) bis `HORIZONTAL_GAIN` 4 / `VERTICAL_GAIN` 2 ab 1100 dp/s, Achswahl (Gedächtnis 20 dp Weg, Wechsel bei Verhältnis
+  1,6, Weg der anderen Achse bleibt als Guthaben), Spiel 3 dp bei Umkehr (Backlash; die erste Bewegung einer Achse hat keines),
+  Magnetismus als Hysterese (Schritt, der eine über einen Schritt erreichte Wortgrenze verlässt, kostet
+  `1 + magnetism · 1,0 · detentFactor(v)`; `detentFactor` 1 bis 120 dp/s, 0 ab 600 dp/s), Rest bleibt in `u`. Wortgrenze =
+  Wechsel Wort/Leerraum/Sonstiges zwischen zwei Clustern (Apostroph zwischen Buchstaben gehört zum Wort; Textrand zählt nur im
+  echten Textanfang/-ende, nicht am Fensterrand). Cluster nach `TextColumns.graphemes` (eigene Regeln, auf jeder JVM gleich).
+  `forwardLimitChars` (Löschwisch) und `horizontalOnly`. Alle Konstanten stehen im `companion` und sind erste Schätzungen.
+  Test `CT/CursorTrackTest.kt`.
+- `A/CursorTrackpad.kt` (Etappe 87): `appliesToSpace(SpaceGestureSettings)` (Trackpad nur, wo links/rechts „Cursor bewegen“
+  sind und oben/unten nichts oder „Cursor bewegen“), `CLAIM_DP` = 10, `WINDOW_CHARS` = 200 und `runs` (gleiche Achse und
+  Richtung hintereinander zu einem Zug mit einem Tick). Die Zustandsmaschine steht in
+  `KeyboardActionListenerImpl.onCursorTrack(code, dx, dy, zeit)`: `UNDECIDED` → beim ersten Aufruf einer Berührung
+  `decideTrackMode` (`mCursorTrackpad` an, kein Overlay, Leertaste: `appliesToSpace` und keine Markierung; Löschtaste: immer) →
+  `OFF` (der alte Code läuft) oder `PENDING` (Proben sammeln, bis 10 dp: noch ein Tipp) → `ACTIVE` (Text einmal lesen, Proben
+  abspielen, danach jede Probe in den Kern). Ausführung: waagerecht `applyHorizontalMove(chars)` (der Schwanz des alten
+  `onMoveCursorHorizontally`, unverändert herausgezogen: Wortinneres, `finishInput`, Prüfpunkt, Vorschläge neu starten); ohne
+  Text der alte Pfad `onMoveCursorHorizontally(Cluster)` samt Pfeiltasten-Rückfall; senkrecht je Zeile `ARROW_UP`/`ARROW_DOWN` über
+  `onCodeInput`; Löschwisch `moveDeleteRun` wie `onMoveDeletePointer` (Auswahlanfang, nie hinter das Ende). Haptik: ein Tick je Zug
+  (`gestureMove…Haptics`), an einer Wortgrenze bei langsamem Finger `HapticChain.DETENT`. RTL: x wird für Leertaste umgekehrt wie
+  im alten Wisch, nicht fürs Löschen. Einstellungen: `AgentPreferences.CURSOR_TRACKPAD` (Schalter, anfangs an),
+  `CURSOR_MAGNETISM` (0–100, anfangs 35) → `SettingsValues.mCursorTrackpad/mCursorMagnetism`; Zeilen in
+  `AgentAreaGesturesScreen` (Treffen & Wischen), Regler `GestureSlider.MAGNETISM`, Texte `agent_gestures_strings.xml`.
+  Tests: `AT/CursorGestureTrackerTest.kt` (echter `PointerTracker`, Mock-Listener: der alte Fixture-Teil und das Protokoll),
+  `InputLogicTest` (`cursor87*`, echter Listener und `LatinIME`), `SettingsAreaGesturesTest` unverändert.
 - `K/settings/screens/AgentSpaceScreen.kt`: Seite „Leertaste“ (eine `ListPreference` je Geste,
   Vorgabe = geerbter Wert, „Standard“ entfernt den eigenen Wert), erreichbar über Erweitert und
   Tastaturprofile → Gesten. Texte in `agent_space_strings.xml`.
@@ -6318,27 +6355,60 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   Striche (wie „/“) wirken über `InkDots.bareLines` in Regel 4. Einzelne Striche um 18° bis 75° sind „/“, flacher „–“, steiler „|“.
   Verbundene Fingervarianten mit Sprung (Kreis, Strich, Kreis) werden unter dem Rauschen des Prüfstands schlecht erkannt
   (`InkRecognizerTest`, verrauschte Zeichnungen: „%“ 69 von 400 nicht erkannt, gesamt 97,5 %; die Variante ist für saubere Zeichnungen da).
+- **P390** Cursor als Trackpad (87), Hook im `PointerTracker`: `onCursorTrack` wird für jeden Move auf Leer- und Löschtaste gefragt, nach der
+  Schnelltipp-Sperre. Ein Listener, der nichts weiß (Mock = 0, `Adapter`), ergibt `TRACK_OFF` und damit den alten Code
+  Zeile für Zeile (`CursorGestureTrackerTest`, alter Fixture-Teil). Wer den Hook vor die Schnelltipp-Sperre zöge, ließe Tipps beim
+  schnellen Tippen zu Wischen werden. Das Trackpad ändert `mStartX`/`mStartY` nie; `SpaceDetents.cancelsHold` rechnet weiter mit ihnen.
+- **P391** Der Zustand des Trackpads liegt im Listener, nicht im Tracker. Zurückgesetzt wird er in `onPressKey` (nur Leer- und
+  Löschtaste, damit ein Finger auf einer Buchstabentaste einen Wisch des anderen nicht zurücksetzt) und in `onEndSpaceSwipe`; die
+  Abbruchwege des Trackers (`cancelKeyTracking`, Halten) rufen `onEndSpaceSwipe` nicht, darum zählt der Reset beim nächsten Druck. Ein zweiter
+  Finger auf Leer-/Löschtaste setzt den Wisch des ersten zurück (er beginnt dann neu, mit einem Sprung): bekannt, selten.
+- **P392** Ein Wisch beginnt erst bei 10 dp Abstand vom Aufsetzpunkt (`CLAIM_DP`, Löschen: seitlich). Davor ist es für den Tracker ein
+  Tipp (Leerzeichen beim Heben). Der Listener sammelt die Proben bis dahin, liest den Text erst beim Beginn und spielt die Proben dann in den Kern;
+  ein Tippen mit zitterndem Finger fragt den Editor nie.
+- **P393** Textfenster: 200 Zeichen vor und hinter dem Cursor, einmal beim Beginn (`getTextAfterCursor` ist ein IPC). Danach liest der Kern nur
+  neu (`needsText`), wenn der Cursor weniger als 24 Zeichen vom Rand eines gekürzten Fensters steht, höchstens alle 60 ms, und 100 ms
+  nach einem senkrechten Schritt (der Editor braucht Zeit; bis dahin keine Wortgrenzen, Schritte ohne `chars`). Der Kern führt die Position
+  selbst mit; setzt der Editor anders (Rand, Ablehnung), driftet sie bis zum nächsten Lesen. Geben Vor- und Nachtext beide nichts, gilt der
+  Text als nicht lesbar: der alte Pfad schickt Pfeiltasten.
+- **P394** Der Kern teilt Cluster nach `TextColumns.graphemes` (eigene Regeln), der alte Pfad (Rückfall ohne Text) nach `BreakIterator`/ICU. Beide
+  stimmen für Akzente, Emoji-Folgen, Flaggen und Hautfarben überein (Test `steps are whole grapheme clusters`), nicht für alle Schriften (Hangul, Indisch).
+- **P395** Magnetismus: Nur das Verlassen einer über einen Schritt erreichten Wortgrenze kostet mehr, nie die Startposition. Ein Leerzeichen
+  zwischen Wörtern sind zwei Grenzen, ein Emoji neben einem Buchstaben eine. Tests, die Zeichenzahlen prüfen, setzen `CURSOR_MAGNETISM` auf 0 oder
+  rechnen die 35 % ein (13 dp · 1,35 = 17,55 dp).
+- **P396** Zeit: Der Kern rastert in 4-ms-Schritten ab `begin`; der letzte angebrochene Schritt (<4 ms) einer Geste wird nicht gerechnet
+  (höchstens 1 Schritt bei sehr schnellem Finger). Eine Pause über 100 ms ohne Ereignis gilt als Ruhe bis 16 ms vor dem nächsten (sonst gäbe ein
+  `input motionevent` aus adb einen Geschwindigkeitssprung). Zeiten sind `MotionEvent.getEventTime()` in ms.
+- **P397** Mit Markierung kein Trackpad auf der Leertaste (der alte Weg setzt `Start + Schritte` und löst die Markierung auf). Die Entscheidung fällt
+  beim ersten Aufruf jeder Berührung (`decideTrackMode`), nicht mitten im Wisch; ebenso die Prüfung der Belegung (`appliesToSpace`). Ein Wisch
+  mit anderer Aktion (Sprache, Rückgängig, Touchpad-Modus …) bleibt unberührt.
+- **P398** Löschwisch: Fenster = Text vor dem Auswahlanfang + markierter Text + Text dahinter; `forwardLimitChars` = Länge der Markierung (wächst mit
+  jedem Schritt nach links); nach rechts nie hinter das Ende (zusätzlich die alte Prüfung `start > end`). Das Heben löscht über das bestehende
+  `onUpWithDeletePointerActive`. Keine RTL-Umkehr wie früher. Der Schalter „Cursor als Trackpad“ gilt auch für das Löschwischen, unabhängig von der Leertaste.
+- **P399** Tests: `setText` startet das Feld neu und setzt den Subtyp zurück (ein RTL-Test wechselt danach); `InputLogicTest` kennt im Schatten
+  des Editors `keyDownCodes` (Android-Tastencodes der gesendeten Tasten, für DPAD). Die Robolectric-Dichte ist 1: dp = px. Die Gerätetests
+  `cursor_trackpad` und `cursor_trackpad_vertical` sind geschrieben, nicht gelaufen (`Driver.drag_on`: 4-dp-Schritte, je `input motionevent` 100–300 ms).
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (721 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (725 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (6): agent-apk, agent-tests, build-debug-apk, build-test-auto, device-tests,
   docs-check
 - `/` (1): settings
-- `A/` (93): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (94): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand,
   ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand, CorrectionMemory,
-  DateCommand, DebugModeReset, DesignLook, DesignTiles, Diagnose, Dictation, EmojiCommand,
-  EmojiMixPalette, EmojiSuggestions, EncryptedActionRunStore, EventCommand, FieldCorrections,
-  FieldSuggestionChips, FlatMenuView, FlatPanelStyle, FlatPreset, ForcedApps, ForeignWords,
-  FormatGuardChips, GermanVerbLemmas, HapticChain, InformalWordsStore, InlineAutofill,
+  CursorTrackpad, DateCommand, DebugModeReset, DesignLook, DesignTiles, Diagnose, Dictation,
+  EmojiCommand, EmojiMixPalette, EmojiSuggestions, EncryptedActionRunStore, EventCommand,
+  FieldCorrections, FieldSuggestionChips, FlatMenuView, FlatPanelStyle, FlatPreset, ForcedApps,
+  ForeignWords, FormatGuardChips, GermanVerbLemmas, HapticChain, InformalWordsStore, InlineAutofill,
   JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore, LastField, LearningData,
   LoadingDotsView, LockState, ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData,
   MyDesigns, OnDeviceSpeechEngine, PlaceCommand, PromptStore, RgbKeyPainter, RgbLighting,
@@ -6359,38 +6429,39 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (117): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (118): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, CharArtWindowTest, ClipCachesTest, ClipCommandTest, ClipVaultTest,
   CommandReplaceTest, CommandTemplatesTest, ContactCommandTest, CorrectionMemoryTest,
-  DatePlaceCommandsTest, DebugPrivacyTest, DesignEditorTest, DesignTilesTest, DiagnoseScreenTest,
-  DictationSessionTest, DictationUiTest, EmojiMixPaletteTest, EmojiMixRecentsTest,
-  EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, FieldCorrectionMemoryTest,
-  FieldSuggestionChipsTest, FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest,
-  FlatStyleTest, ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest,
-  HardeningClipHistoryTest, InformalWordsStoreTest, InlineAutofillGenerationTest,
-  InlineAutofillSizingTest, InlineAutofillSlotsTest, InsertAtCursorTest, JournaledModelCallTest,
-  KeyNodePositionTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LastFieldTest,
-  LearningDataTest, LiveLockGateTest, LoadingDotsViewTest, LongTextBudgetTest,
-  ManualWorkflowDraftTest, MemoryScreenTest, MoreCommandsTest, MoreProvidersTest, MyDataScreenTest,
-  MyDataStoreTest, MyDesignsTest, OpenAiProviderTest, PromptStoreTest, PromptsScreenTest,
-  PromptsWindowTest, RgbFrameRateCardTest, RgbLightingRenderTest, RgbPatternEditorTest,
-  RgbSettingsScreenTest, RgbTilesTest, ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest,
-  SettingsAreaAiTest, SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest,
-  SettingsKitTest, SettingsLookScreenTest, SettingsSearchTest, SettingsStartScreenTest,
-  SettingsSystemAreaTest, SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest,
-  SliderFeelTest, SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest,
-  StripRequestsTest, SymbolInkTest, SymbolPagesTest, SymbolSettingsScreenTest, TestRunJournal,
-  ToolRunnerTest, TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest,
-  TypingPerfTest, TypoMemoryTest, UpdateCheckTest, UpdateChipTest, UpdateOnOpenTest,
-  UpdatePromptsTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
+  CursorGestureTrackerTest, DatePlaceCommandsTest, DebugPrivacyTest, DesignEditorTest,
+  DesignTilesTest, DiagnoseScreenTest, DictationSessionTest, DictationUiTest, EmojiMixPaletteTest,
+  EmojiMixRecentsTest, EncryptedActionRunStoreTest, EncryptedCredentialStoreTest,
+  FieldCorrectionMemoryTest, FieldSuggestionChipsTest, FlatClipboardTest, FlatMenuTest,
+  FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, ForkUpgradeTest,
+  FormatGuardChipsTest, HapticChainTest, HardeningClipHistoryTest, InformalWordsStoreTest,
+  InlineAutofillGenerationTest, InlineAutofillSizingTest, InlineAutofillSlotsTest,
+  InsertAtCursorTest, JournaledModelCallTest, KeyNodePositionTest, KeyboardCommandsTest,
+  KeyboardProfileStoreTest, LastFieldTest, LearningDataTest, LiveLockGateTest, LoadingDotsViewTest,
+  LongTextBudgetTest, ManualWorkflowDraftTest, MemoryScreenTest, MoreCommandsTest,
+  MoreProvidersTest, MyDataScreenTest, MyDataStoreTest, MyDesignsTest, OpenAiProviderTest,
+  PromptStoreTest, PromptsScreenTest, PromptsWindowTest, RgbFrameRateCardTest,
+  RgbLightingRenderTest, RgbPatternEditorTest, RgbSettingsScreenTest, RgbTilesTest,
+  ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest, SettingsAreaAiTest,
+  SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest, SettingsKitTest,
+  SettingsLookScreenTest, SettingsSearchTest, SettingsStartScreenTest, SettingsSystemAreaTest,
+  SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest,
+  SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest, StripRequestsTest,
+  SymbolInkTest, SymbolPagesTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest,
+  TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest, TypingPerfTest,
+  TypoMemoryTest, UpdateCheckTest, UpdateChipTest, UpdateOnOpenTest, UpdatePromptsTest,
+  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
   WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, LongCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
   TranslateCommandTest, UrlCommandTest
-- `C/` (55): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
-  CorrectionRules, DateFormatting, EditorSession, EmojiKeywords, EmojiMix, EmojiNames,
+- `C/` (56): AiTextAction, AlarmParser, ApplyOutcome, CivilDate, CommandGrammar, Commands,
+  CorrectionRules, CursorTrack, DateFormatting, EditorSession, EmojiKeywords, EmojiMix, EmojiNames,
   EmojiSynonyms, EventParser, ExecutionPolicy, FieldReport, ForcedCorrection, GermanVerbAgreement,
   InformalWords, InkDots, InkRecognizer, InkSymbols, InkTiming, LanguageNames, LocalTextActions,
   MathExpression, ModelBudget, ModelProvider, OwnInkSymbols, PendingBatchGate, PersonalInkSymbols,
@@ -6403,9 +6474,9 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `C/format/` (5): DecimalHint, EmailCheck, FormatGuard, IbanCheck, PhoneFormat
 - `C/memory/` (4): OwnWords, PhraseMemory, ShortcutOffers, SnippetMatcher
 - `C/suggest/` (1): ContextSuggest
-- `CT/` (54): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
-  CorrectionRulesTest, DateFormattingTest, EditorPolicyTest, EmojiKeywordsTest, EmojiMixTest,
-  EventParserTest, FieldReportTest, ForcedCorrectionTest, GermanVerbAgreementTest,
+- `CT/` (55): AiTextActionTest, AlarmParserTest, CommandGrammarTest, CommandSyntaxTest,
+  CorrectionRulesTest, CursorTrackTest, DateFormattingTest, EditorPolicyTest, EmojiKeywordsTest,
+  EmojiMixTest, EventParserTest, FieldReportTest, ForcedCorrectionTest, GermanVerbAgreementTest,
   InformalWordsTest, InkAreaTest, InkBenchmarkTest, InkDotFlowTest, InkDotsTest, InkFingerModel,
   InkLogicTest, InkRecognizerTest, InkTimingTest, InsertionAnchorTest, LanguageNamesTest,
   LocalTextActionsTest, MathExpressionTest, ModelBudgetTest, OwnInkSymbolsTest,
