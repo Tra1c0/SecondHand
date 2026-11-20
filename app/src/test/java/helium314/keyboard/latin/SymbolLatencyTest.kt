@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package helium314.keyboard.agent
+package helium314.keyboard.latin
 
 import helium314.keyboard.ShadowInputMethodManager2
 import helium314.keyboard.ShadowInputMethodService
 import helium314.keyboard.ShadowLocaleManagerCompat
 import helium314.keyboard.ShadowBinaryDictionaryUtils
 import helium314.keyboard.ShadowProximityInfo
-import helium314.keyboard.latin.LatinIME
+import helium314.keyboard.agent.ClipVault
+import helium314.keyboard.agent.LockState
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -44,6 +45,9 @@ class SymbolLatencyTest {
         Case("e ( after a word        (hello+()", { startField(""); type("hello") }, '('),
         Case("e @ on the symbol page  (hello+@)", { startField(""); type("hello"); symbolPage() }, '@'),
         Case("e - on the symbol page  (hello+-)", { startField(""); type("hello"); symbolPage() }, '-'),
+        Case("e , after a word        (hello+,)", { startField(""); type("hello") }, ','),
+        Case("e ! after a word        (hello+!)", { startField(""); type("hello") }, '!'),
+        Case("f . after a space       (hello_+.)", { startField(""); type("hello ") }, '.'),
         Case("f @ after a space       (hello_+@)", { startField(""); type("hello ") }, '@'),
         Case("f - after a space       (hello_+-)", { startField(""); type("hello ") }, '-'),
         Case("g second symbol         (hello-+-)", { startField(""); type("hello-") }, '-'),
@@ -92,6 +96,19 @@ class SymbolLatencyTest {
         }
         println(out)
         File("build/latency84-work-table.txt").apply { parentFile?.mkdirs() }.writeText(out.toString())
+    }
+
+    /** Which symbols the keyboard treats as part of a word and which end it, and what each costs in the batch (English, after a word). */
+    @Test fun theSymbolSurvey() {
+        val out = StringBuilder("symbol after \"hello\": kind (word = stays in the composing word, separator = ends it), reads, work in the batch after the character, work before it\n")
+        for (c in "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~€£¥§°".toList()) {
+            rig.startField(""); rig.type("hello")
+            val t = rig.measureKey(c.code)
+            val kind = if (rig.composing.endsWith(c)) "word     " else "separator"
+            out.appendLine(String.format("%s  %s reads%2d inBatch%2d before%2d later%2d", c, kind, t.reads, t.insideBatchAfterEdit, t.beforeEdit, t.later))
+        }
+        println(out)
+        File("build/latency84-symbols.txt").apply { parentFile?.mkdirs() }.writeText(out.toString())
     }
 
     /** For the report only, no assertion: the median wall time of the main thread's part, per case (the editor here is instant). */

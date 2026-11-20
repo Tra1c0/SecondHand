@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package helium314.keyboard.agent
+package helium314.keyboard.latin
 
 import android.app.KeyguardManager
 import android.content.ClipData
@@ -12,14 +12,12 @@ import android.view.inputmethod.EditorInfo
 import helium314.keyboard.ShadowInputMethodService
 import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
-import helium314.keyboard.latin.DictionaryFacilitator
-import helium314.keyboard.latin.LatinIME
-import helium314.keyboard.latin.Suggest
+import helium314.keyboard.agent.ClipVault
+import helium314.keyboard.agent.LockState
+import helium314.keyboard.agent.TypingPerf
 import helium314.keyboard.latin.common.ComposedData
 import helium314.keyboard.latin.common.Constants
 import helium314.keyboard.latin.settings.Settings
-import helium314.keyboard.latin.suggestion
-import helium314.keyboard.latin.suggestionResults
 import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.event.HapticEvent
 import org.robolectric.Shadows.shadowOf
@@ -76,7 +74,10 @@ class TypingRig(val ime: LatinIME) {
 
     fun clip(text: String?) {
         val clipboard = ime.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        if (text == null) clipboard.setPrimaryClip(ClipData.newPlainText("t", "")) else clipboard.setPrimaryClip(ClipData.newPlainText("t", text))
+        clipboard.setPrimaryClip(ClipData.newPlainText("t", text ?: ""))
+        // a clip the system just took has its time (the pill is for clips of the last three minutes)
+        android.content.ClipDescription::class.java.getMethod("setTimestamp", Long::class.javaPrimitiveType)
+            .invoke(clipboard.primaryClip!!.description, System.currentTimeMillis())
     }
 
     /** A new field (or the same one again, [restarting]) holding [text] with the cursor at its end. */
@@ -99,12 +100,16 @@ class TypingRig(val ime: LatinIME) {
             .get(ime.mInputLogic.mSuggest) as DictionaryFacilitator
         val stub = java.lang.reflect.Proxy.newProxyInstance(DictionaryFacilitator::class.java.classLoader,
             arrayOf(DictionaryFacilitator::class.java)) { _, method, args ->
-            if (method.name == "getSuggestionResults") {
+            if (method.name == "hasAtLeastOneInitializedMainDictionary") true // otherwise no autocorrect
+            else if (method.name == "getCurrentLocale" || method.name == "getMainLocale") java.util.Locale.ENGLISH
+            else if (method.name == "mainLocalesKnowing") (args!![0] as String).let { if (it in known) listOf(java.util.Locale.ENGLISH) else emptyList() }
+            else if (method.name == "isValidSpellingWord") (args!![0] as String) in known
+            else if (method.name == "getSuggestionResults") {
                 lookups.incrementAndGet()
                 val typed = (args!![0] as ComposedData).mTypedWord
                 when {
                     typed in known -> suggestionResults(listOf(suggestion(typed, 1_500_000)))
-                    typed in typos -> suggestionResults(listOf(suggestion(typos.getValue(typed), 600_000)))
+                    typed in typos -> suggestionResults(listOf(suggestion(typos.getValue(typed), 1_200_000)))
                     else -> suggestionResults(emptyList())
                 }
             } else method.invoke(real, *(args ?: emptyArray()))
