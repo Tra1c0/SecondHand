@@ -1832,9 +1832,15 @@ class InputLogicTest {
     @Test fun cursor87ALongSweepIsNotStoppedByAShortAnswerOfTheEditor() {
         latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0) }
         setText("word ".repeat(60))
-        ShadowInputMethodService.maxTextReturn = 50
-        assertEquals(TRACK_ACTIVE, trackDrag(Constants.CODE_SPACE, -500.0, 0.0, dps = 600.0, lift = false))
-        assertTrue(cursor < 300 - 60, "went on past the 50 characters of the answers: $cursor")
+        selectionStart = 0; selectionEnd = 0 // the helper setCursorPosition checks 100 characters at most: tell the keyboard by hand
+        latinIME.onUpdateSelection(300, 300, 0, 0, -1, -1)
+        handleMessages()
+        assertEquals(0, connection.expectedSelectionStart)
+        // the keyboard reads the text before the cursor from its own cache, so the sweep goes to the right, where the
+        // editor answers the window read (200) with 50 characters: that is no end of the text
+        ShadowInputMethodService.shortAnswer = 200 to 50
+        assertEquals(TRACK_ACTIVE, trackDrag(Constants.CODE_SPACE, 500.0, 0.0, dps = 600.0, lift = false))
+        assertTrue(cursor > 60, "went on past the 50 characters of the answers: $cursor")
         latinIME.mKeyboardActionListener.onCursorTrackEnd(0)
     }
 

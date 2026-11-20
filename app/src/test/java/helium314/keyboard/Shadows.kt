@@ -163,8 +163,8 @@ class ShadowInputMethodService {
         val keyDownCodes = mutableListOf<Int>()
         /** Stage 87: DPAD up/down move the cursor by line in the field (the keyboard learns it only when a test delivers onUpdateSelection). */
         var dpadMovesCursor = false
-        /** Stage 87: an editor that returns at most this many characters from getTextBefore/AfterCursor, whatever is asked. */
-        var maxTextReturn: Int? = null
+        /** Stage 87: an editor that answers a read of [first] characters with at most [second] (the others are answered fully). */
+        var shortAnswer: Pair<Int, Int>? = null
 
         // convenience for access
         val textBeforeCursor get() = text.substring(0, selectionStart)
@@ -197,7 +197,7 @@ class ShadowInputMethodService {
             contextMenuActions.clear()
             keyDownCodes.clear()
             dpadMovesCursor = false
-            maxTextReturn = null
+            shortAnswer = null
         }
     }
 
@@ -223,9 +223,9 @@ class ShadowInputMethodService {
         // pretty clear (though this may be slow depending on the editor)
         // bad return value here is likely the cause for that weird bug improved/fixed by fixIncorrectLength
         // the n characters right before the cursor, as Android returns them (not the first n of the field)
-        override fun getTextBeforeCursor(p0: Int, p1: Int): CharSequence = textBeforeCursor.takeLast(minOf(p0, maxTextReturn ?: p0))
+        override fun getTextBeforeCursor(p0: Int, p1: Int): CharSequence = textBeforeCursor.takeLast(shortAnswer?.takeIf { it.first == p0 }?.second ?: p0)
         // pretty clear (though this may be slow depending on the editor)
-        override fun getTextAfterCursor(p0: Int, p1: Int): CharSequence = textAfterCursor.take(minOf(p0, maxTextReturn ?: p0))
+        override fun getTextAfterCursor(p0: Int, p1: Int): CharSequence = textAfterCursor.take(shortAnswer?.takeIf { it.first == p0 }?.second ?: p0)
         // pretty clear
         override fun getSelectedText(p0: Int): CharSequence? = if (selectionStart == selectionEnd) null
         else text.substring(selectionStart, selectionEnd)
