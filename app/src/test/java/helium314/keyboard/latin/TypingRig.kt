@@ -61,6 +61,8 @@ class TypingRig(val ime: LatinIME) {
     // --- the field and the engine ---
 
     fun setUp(withClipboardPill: Boolean = false) {
+        // the emoji table loads on its own thread: a strip that sometimes has emojis is no state to compare
+        helium314.keyboard.agent.EmojiSuggestions.setTableForTest(null)
         ShadowInputMethodService.reset()
         shadowOf(ime.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager).setIsDeviceLocked(false)
         LockState.resetForTest()
@@ -162,8 +164,11 @@ class TypingRig(val ime: LatinIME) {
             val code = if (c == BACKSPACE_MARK) KeyCode.DELETE else c.code
             if (fast) tapFast(code) else tap(code)
         }
-        idle()
+        settle()
     }
+
+    /** The delayed messages run until nothing is left; the real suggestion thread gets a moment between the rounds. */
+    fun settle() { repeat(4) { idle(); Thread.sleep(10) } }
 
     fun symbolPage() { listener.onCodeInput(KeyCode.SYMBOL, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false); idle() }
 
@@ -191,6 +196,9 @@ class TypingRig(val ime: LatinIME) {
         private fun count(vararg names: String, phase: String? = null) =
             ui.count { it.what in names && (phase == null || it.phase == phase) }
 
+        /** How often the step [name] (an editor call or a [TypingPerf.Work] name) happened on the main thread. */
+        fun count(name: String) = ui.count { it.what == name }
+
         val reads get() = count("getTextBeforeCursor", "getTextAfterCursor", "getSelectedText", "getExtractedText")
         val writes get() = count("setComposingText", "commitText", "finishComposingText", "deleteSurroundingText", "sendKeyEvent",
             "setSelection", "setComposingRegion", "commitCorrection")
@@ -214,6 +222,10 @@ class TypingRig(val ime: LatinIME) {
         val beforeEdit get() = steps.take(editIndex.let { if (it < 0) steps.size else it }).count { heavy(it) && it.phase == "up" }
         /** Work of the key up between the character and the end of the batch edit: the app shows nothing new before the batch ends. */
         val insideBatchAfterEdit get() = if (editIndex < 0) 0 else steps.drop(editIndex + 1).count { heavy(it) && it.phase == "up" && it.inBatch }
+        /** Reads of the editor after the character and before the batch edit ends: the app answers them, the end of the batch waits. */
+        val readsInsideBatchAfterEdit get() = if (editIndex < 0) 0 else steps.drop(editIndex + 1).count {
+            it.ui && it.phase == "up" && it.inBatch && it.what in setOf("getTextBeforeCursor", "getTextAfterCursor", "getSelectedText", "getExtractedText")
+        }
         /** Work of the key up after the last batch edit of the key ended. */
         val afterBatch get() = steps.indexOfLast { it.ui && it.phase == "up" && it.what == "endBatchEdit" }.let { end ->
             if (end < 0) 0 else steps.drop(end + 1).count { heavy(it) && it.phase == "up" }

@@ -17,6 +17,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.File
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * Stage 84 "Symbole ohne Verzögerung": how much work one key causes, counted (not timed), letters against symbols.
@@ -151,6 +152,37 @@ class SymbolLatencyTest {
         }
         println(out)
         File("build/latency84-wall-clock.txt").apply { parentFile?.mkdirs() }.writeText(out.toString())
+    }
+
+    private fun after(prefix: String, key: Char): TypingRig.Timeline { rig.startField(""); rig.type(prefix); return rig.measureKey(key.code) }
+
+    @Test fun aSeparatorsStripWorkRunsAfterTheBatchEditEnds() {
+        // the app shows nothing new before the keyboard ends the batch edit, so the character has to be out of the batch first
+        for (prefix in listOf("hello", "hello ")) for (c in ".,!(") {
+            val t = after(prefix, c)
+            assertEquals(0, t.beforeEdit, "$prefix$c: nothing before the character\n${t.names()}")
+            assertEquals(0, t.insideBatchAfterEdit, "$prefix$c: no strip work inside the batch\n${t.names()}")
+            assertEquals(1, t.stripNeutral, "$prefix$c: the strip is still made, once\n${t.names()}")
+            assertEquals(1, t.stripWords, "$prefix$c\n${t.names()}")
+            assertTrue(t.afterBatch > 0, "$prefix$c: ... after the batch\n${t.names()}")
+        }
+    }
+
+    @Test fun theNeutralStripAsksEachChipSourceOnce() {
+        val t = after("hello", '.')
+        for (source in listOf("CHIPS_COMMAND", "CHIPS_SYMBOL", "CHIPS_SELECTION", "CHIPS_CLIPBOARD", "CHIPS_UPDATE"))
+            assertEquals(1, t.count(source), "$source\n${t.names()}")
+        assertEquals(5, t.chipEvaluations, t.names())
+    }
+
+    @Test fun aSymbolThatStartsAWordDoesItsReadsOutsideTheBatch() {
+        for (c in "-@1#_") {
+            val t = after("hello ", c)
+            assertEquals(0, t.readsInsideBatchAfterEdit, "hello $c\n${t.names()}")
+        }
+        // and nothing is read less than before: the reads moved, the same ones are asked
+        val t = after("hello ", '-')
+        assertEquals(3, t.reads, t.names())
     }
 
     @Test fun theRigTypesLikeAFinger() {

@@ -106,6 +106,14 @@ class TypingEquivalenceTest {
         for (i in actual.indices) assertEquals(expected[i], actual[i], "transcript ${i + 1}")
     }
 
+    @Test fun theTranscriptsAreTheSameEveryTime() {
+        val first = all()
+        for (round in 1..2) {
+            val again = all()
+            for (i in first.indices) assertEquals(first[i], again[i], "round $round, transcript ${i + 1}")
+        }
+    }
+
     @Test fun theSequencesDoSomething() {
         // guards the fixture itself: corrections happen, symbols end words, backspace reverts
         val lines = all()
