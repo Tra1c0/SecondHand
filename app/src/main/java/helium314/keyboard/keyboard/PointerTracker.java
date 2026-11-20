@@ -1086,9 +1086,13 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         if (code == Constants.CODE_SPACE || code == KeyCode.DELETE) {
             final int track = sListener.onCursorTrack(mPointerId, code, x - mStartX, y - mStartY, eventTime, mStartTime);
             if (track != KeyboardActionListener.TRACK_OFF) {
-                if (track == KeyboardActionListener.TRACK_ACTIVE && !mInHorizontalSwipe) {
+                if (track == KeyboardActionListener.TRACK_ACTIVE) {
                     sTimerProxy.cancelKeyTimersOf(this);
                     mInHorizontalSwipe = true; // up ends it like a sideways swipe: onEndSpaceSwipe, no space typed
+                } else if (track == KeyboardActionListener.TRACK_REFUSED_DRAG) {
+                    // another finger owns the cursor: this drag does nothing at all (no tap, no repeat, no long press)
+                    sTimerProxy.cancelKeyTimersOf(this);
+                    cancelTrackingForAction();
                 }
                 return;
             }

@@ -1339,6 +1339,7 @@ class InputLogicTest {
     private val TRACK_OFF = helium314.keyboard.keyboard.KeyboardActionListener.TRACK_OFF
     private val TRACK_PENDING = helium314.keyboard.keyboard.KeyboardActionListener.TRACK_PENDING
     private val TRACK_ACTIVE = helium314.keyboard.keyboard.KeyboardActionListener.TRACK_ACTIVE
+    private val TRACK_REFUSED_DRAG = helium314.keyboard.keyboard.KeyboardActionListener.TRACK_REFUSED_DRAG
 
     @Test fun cursor87SpaceSwipeRightMovesThreeClusters() {
         setText("hello world foo")
@@ -1362,8 +1363,9 @@ class InputLogicTest {
         spaceTrack(0.0, 30.0)
         assertEquals(listOf(android.view.KeyEvent.KEYCODE_DPAD_DOWN), ShadowInputMethodService.keyDownCodes)
         ShadowInputMethodService.keyDownCodes.clear()
-        spaceTrack(0.0, -60.0) // 2 lines up
-        assertEquals(listOf(android.view.KeyEvent.KEYCODE_DPAD_UP, android.view.KeyEvent.KEYCODE_DPAD_UP), ShadowInputMethodService.keyDownCodes)
+        // 2 lines up asked for; this editor never answers (its cursor stays), so after one arrow the track knows the end and sends no more
+        spaceTrack(0.0, -60.0)
+        assertEquals(listOf(android.view.KeyEvent.KEYCODE_DPAD_UP), ShadowInputMethodService.keyDownCodes)
     }
 
     @Test fun cursor87OneDragMovesSidewaysThenDownWithoutLifting() {
@@ -1505,10 +1507,34 @@ class InputLogicTest {
      */
     private inner class TouchRig {
         val drawing = Mockito.mock(helium314.keyboard.keyboard.internal.DrawingProxy::class.java)
-        val timer = helium314.keyboard.keyboard.internal.TimerHandler(drawing, 0, 100)
+        val timer = FakeTimer()
         val detector = Mockito.mock(helium314.keyboard.keyboard.KeyDetector::class.java)
         var now = 50_000L
         private val fingers = java.util.TreeMap<Int, FloatArray>()
+
+        /** Key repeat and long press timers that really fire, in the rig's virtual time (the event time): run by [wait] and by every event. */
+        inner class FakeTimer : helium314.keyboard.keyboard.internal.TimerProxy.Adapter() {
+            private inner class Entry(val at: Long, val tracker: helium314.keyboard.keyboard.PointerTracker, val longPress: Boolean, val code: Int, val count: Int)
+            private val entries = ArrayList<Entry>()
+            var longPressesFired = 0
+            override fun startKeyRepeatTimerOf(tracker: helium314.keyboard.keyboard.PointerTracker, repeatCount: Int, delay: Int) {
+                val key = tracker.key ?: return
+                // the test's styled attributes carry no repeat timing (0): the usual 400 ms start and 50 ms interval
+                val wait = if (delay != 0) delay else if (repeatCount == 1) 400 else 50
+                entries += Entry(now + wait, tracker, false, key.code, repeatCount)
+            }
+            override fun startLongPressTimerOf(tracker: helium314.keyboard.keyboard.PointerTracker, delay: Int) { entries += Entry(now + delay, tracker, true, 0, 0) }
+            override fun cancelLongPressTimersOf(tracker: helium314.keyboard.keyboard.PointerTracker) { entries.removeAll { it.tracker === tracker && it.longPress } }
+            override fun cancelKeyTimersOf(tracker: helium314.keyboard.keyboard.PointerTracker) { entries.removeAll { it.tracker === tracker } }
+            fun runDue() {
+                while (true) {
+                    val due = entries.filter { it.at <= now }.minByOrNull { it.at } ?: break
+                    entries.remove(due)
+                    if (due.longPress) { longPressesFired++; due.tracker.onLongPressed() } else due.tracker.onKeyRepeat(due.code, due.count)
+                }
+            }
+            fun clear() = entries.clear()
+        }
         private fun key(code: Int) = Mockito.mock(helium314.keyboard.keyboard.Key::class.java).also {
             Mockito.`when`(it.code).thenReturn(code)
             Mockito.`when`(it.isEnabled).thenReturn(true)
@@ -1549,6 +1575,8 @@ class InputLogicTest {
             try { helium314.keyboard.keyboard.PointerTracker.getPointerTracker(id).processMotionEvent(event, detector) } finally { event.recycle() }
             handleMessages()
             now += 8
+            timer.runDue()
+            handleMessages()
         }
 
         fun down(id: Int, x: Float, y: Float) { fingers[id] = floatArrayOf(x, y); send(if (fingers.size == 1) android.view.MotionEvent.ACTION_DOWN else android.view.MotionEvent.ACTION_POINTER_DOWN, id) }
@@ -1567,9 +1595,13 @@ class InputLogicTest {
         fun repeatDelete(id: Int, count: Int) {
             for (n in 1..count) { helium314.keyboard.keyboard.PointerTracker.getPointerTracker(id).onKeyRepeat(KeyCode.DELETE, n); still() }
         }
+        /** Lets [ms] of virtual time pass with the fingers still: a MOVE event every 8 ms, as a real touch screen sends while a finger rests. */
+        fun wait(ms: Int) { var passed = 0; while (passed < ms) { still(); passed += 8 } }
+        /** Android cancels the touch (a system gesture, a window opening). */
+        fun cancel() { send(android.view.MotionEvent.ACTION_CANCEL, fingers.keys.first()); fingers.clear() }
         fun close() {
             for (id in fingers.keys.toList()) up(id)
-            timer.cancelAllMessages()
+            timer.clear()
             helium314.keyboard.keyboard.PointerTracker.setKeyboardActionListener(helium314.keyboard.keyboard.KeyboardActionListener.EMPTY_LISTENER)
         }
     }
@@ -1651,7 +1683,7 @@ class InputLogicTest {
         setText("Hallo Welt und mehr Text")
         setCursorPosition(20)
         rig.down(1, DELETE_X, SPACE_Y)
-        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X - 100, SPACE_Y) // B's MOVE events come with every move of A
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X - 30, SPACE_Y, 150f) // B's MOVE events come with every move of A; short of B's repeat (400 ms)
         assertEquals("Hallo Welt und mehr Text", text, "nothing deleted while B rests")
         assertEquals(selectionStart, selectionEnd)
         val moved = cursor
@@ -1684,6 +1716,85 @@ class InputLogicTest {
         assertEquals("Hallo Welt und mehr Text".length - 3, text.length, "the lift of a repeated key deletes nothing more")
     }
 
+    // second review: real timers (the rig fires key repeat and long press in virtual time); again only old API, so they run on the old code too
+
+    private fun deletionsWhileHolding(rig: TouchRig, id: Int, ms: Int): Int {
+        val before = text.length
+        rig.down(id, DELETE_X, SPACE_Y)
+        rig.wait(ms)
+        rig.up(id)
+        return before - text.length
+    }
+
+    @Test fun twoFingersTimersSoloDeleteHoldRepeatsAndASecondFingerHoldingNextToASwipeRepeatsTheSame() = withRig { rig ->
+        setText("Hallo Welt und mehr Text, und noch viel mehr Text dahinter")
+        val solo = deletionsWhileHolding(rig, 0, 700)
+        assertTrue(solo >= 4, "a held delete key repeats: $solo")
+        setText("Hallo Welt und mehr Text, und noch viel mehr Text dahinter")
+        setCursorPosition(40)
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X - 60, SPACE_Y) // A swipes on space
+        assertEquals(solo, deletionsWhileHolding(rig, 1, 700), "B holding delete without moving repeats as before")
+        rig.up(0)
+    }
+
+    @Test fun twoFingersTimersSoloSpaceLongPressFiresAndAClaimedDragCancelsBothTimers() = withRig { rig ->
+        setText("Hallo Welt")
+        rig.down(0, SPACE_X, SPACE_Y); rig.wait(700)
+        assertEquals(1, rig.timer.longPressesFired, "a held space bar fires its long press")
+        rig.up(0)
+        val fired = rig.timer.longPressesFired
+        setText("Hallo Welt")
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X - 40, SPACE_Y); rig.wait(700)
+        assertEquals(fired, rig.timer.longPressesFired, "a space swipe cancels the long press")
+        rig.up(0)
+        val length = text.length
+        rig.down(0, DELETE_X, SPACE_Y); rig.slide(0, DELETE_X - 40, SPACE_Y); rig.wait(700)
+        assertEquals(length, text.length, "a delete slide cancels the repeat: nothing is deleted before the lift")
+        rig.up(0)
+        assertTrue(text.length < length, "the lift deletes what the slide selected")
+    }
+
+    @Test fun twoFingersTimersASecondFingerDraggingVerticallyOnSpaceFiresNoLongPressAndTypesNoSpace() = withRig { rig ->
+        setText("Hallo Welt und mehr Text")
+        setCursorPosition(20)
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X - 60, SPACE_Y)
+        val fired = rig.timer.longPressesFired
+        val length = text.length
+        rig.down(1, 150f, SPACE_Y); rig.slide(1, 150f, SPACE_Y - 40f); rig.wait(600)
+        assertEquals(fired, rig.timer.longPressesFired, "no long press")
+        rig.up(1)
+        assertEquals(length, text.length, "no space typed")
+        rig.up(0)
+        assertEquals(length, text.length)
+    }
+
+    @Test fun twoFingersSlidingOffTheSpaceBarOntoLettersTypesNoLetter() = withRig { rig ->
+        setText("Hallo Welt und mehr Text")
+        setCursorPosition(20)
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X - 40, SPACE_Y); rig.slide(0, SPACE_X - 40, 100f)
+        rig.up(0)
+        assertEquals("Hallo Welt und mehr Text", text, "nothing typed")
+    }
+
+    @Test fun twoFingersACancelDuringASpaceSwipeKeepsTheCursorAndDeletesNothing() = withRig { rig ->
+        setText("Hallo Welt und mehr Text")
+        setCursorPosition(20)
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X - 60, SPACE_Y)
+        val moved = cursor
+        rig.cancel()
+        assertEquals("Hallo Welt und mehr Text", text)
+        assertEquals(moved, cursor)
+    }
+
+    @Test fun twoFingersACancelDuringADeleteSlideDeletesTheHighlightedTextAsTheOldCodeDid() = withRig { rig ->
+        setText("Hallo Welt")
+        rig.down(0, DELETE_X, SPACE_Y); rig.slide(0, DELETE_X - 62, SPACE_Y)
+        assertTrue(selectionEnd > selectionStart)
+        rig.cancel()
+        assertTrue(text.length < "Hallo Welt".length, "the cancel is an up for the slide: the selection goes")
+        assertEquals(selectionStart, selectionEnd)
+    }
+
     // ---- new behavior of the trackpad with several fingers: one owner, the others stay as before
 
     @Test fun cursor87OnlyOneFingerOwnsTheTrackAndASecondFingerStaysATap() {
@@ -1693,14 +1804,14 @@ class InputLogicTest {
         val moved = cursor
         // B puts a finger on delete and wobbles far: refused, a tap for its whole touch (it never slides, never selects)
         trackDrag(KeyCode.DELETE, -2.0, 0.0, lift = false, pointer = 1)
-        assertEquals(TRACK_PENDING, trackDrag(KeyCode.DELETE, -80.0, 0.0, from = -2.0 to 0.0, lift = false, pointer = 1))
+        assertEquals(TRACK_REFUSED_DRAG, trackDrag(KeyCode.DELETE, -80.0, 0.0, from = -2.0 to 0.0, lift = false, pointer = 1))
         assertEquals(moved, cursor)
         assertEquals(selectionStart, selectionEnd)
         // and it does not free the track or reset A: A goes on from where it is
         assertEquals(TRACK_ACTIVE, trackDrag(Constants.CODE_SPACE, -90.0, 0.0, from = -60.0 to 0.0, lift = false, pointer = 0))
         assertTrue(cursor < moved && cursor >= moved - 4, "A moved by its own 30 dp: $moved -> $cursor")
         latinIME.mKeyboardActionListener.onCursorTrackEnd(1) // B lifts: A still owns the track
-        assertEquals(TRACK_PENDING, trackDrag(KeyCode.DELETE, -80.0, 0.0, lift = true, pointer = 1)) // a second touch of B meanwhile: still refused
+        assertEquals(TRACK_REFUSED_DRAG, trackDrag(KeyCode.DELETE, -80.0, 0.0, lift = true, pointer = 1)) // a second touch of B meanwhile: still refused
         latinIME.mKeyboardActionListener.onCursorTrackEnd(0)
         assertEquals(TRACK_ACTIVE, trackDrag(KeyCode.DELETE, -40.0, 0.0, lift = false, pointer = 1)) // A lifted: the track is free
         latinIME.mKeyboardActionListener.onCursorTrackEnd(1)
@@ -1766,6 +1877,179 @@ class InputLogicTest {
         assertEquals(TRACK_ACTIVE, trackDrag(Constants.CODE_SPACE, -30.0, 0.0, from = 0.0 to 0.0, lift = false))
         assertTrue(cursor in 17..19, "cursor $cursor")
         listener.onCursorTrackEnd(0)
+    }
+
+    // ---- second review: a refused finger does nothing at all (real timers), three fingers, field change
+
+    @Test fun cursor87ARefusedFingerDraggingOnDeleteDeletesNothingNotEvenThroughTheAutoRepeat() = withRig { rig ->
+        setText("Hallo Welt und mehr Text, und noch viel mehr Text dahinter")
+        setCursorPosition(40)
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X - 60, SPACE_Y) // A owns the track
+        val moved = cursor
+        val before = text
+        rig.down(1, DELETE_X, SPACE_Y); rig.slide(1, DELETE_X - 80, SPACE_Y, 80f) // B slides for about a second: its repeat would start at 400 ms
+        assertEquals(before, text, "nothing deleted while B drags")
+        assertEquals(selectionStart, selectionEnd, "nothing selected")
+        rig.wait(400)
+        assertEquals(before, text)
+        rig.up(1)
+        assertEquals(before, text, "B's lift is no tap either")
+        rig.up(0)
+        assertEquals(before, text)
+        assertTrue(moved < 40)
+    }
+
+    @Test fun cursor87ARefusedFingerThatDoesNotMoveStaysATapAndAHold() = withRig { rig ->
+        setText("Hallo Welt und mehr Text, und noch viel mehr Text dahinter")
+        setCursorPosition(40)
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X - 60, SPACE_Y)
+        val before = text
+        rig.down(1, DELETE_X, SPACE_Y); rig.wait(16); rig.up(1) // a tap
+        assertEquals(before.length - 1, text.length, "a tap on delete deletes one character")
+    }
+
+    @Test fun cursor87ThreeFingersABusyBRefusedCTypes() = withRig { rig ->
+        setText("Hallo Welt und mehr Text")
+        setCursorPosition(20)
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X - 60, SPACE_Y)
+        val moved = cursor
+        val before = text
+        rig.down(1, DELETE_X, SPACE_Y); rig.slide(1, DELETE_X - 60, SPACE_Y)
+        rig.down(2, 100f, 100f); rig.still(); rig.up(2)
+        assertEquals(before.length + 1, text.length, "one letter, nothing deleted")
+        assertEquals(before, text.removeRange(moved, moved + 1), "the letter went to A's cursor")
+    }
+
+    @Test fun cursor87ADeleteSlideOwnsTheTrackAFingerOnSpaceIsRefusedAndTheSelectionStays() {
+        setText("Hallo Welt")
+        assertEquals(TRACK_ACTIVE, trackDrag(KeyCode.DELETE, -62.0, 0.0, lift = false, pointer = 0))
+        val start = selectionStart; val end = selectionEnd
+        assertTrue(end > start)
+        assertEquals(TRACK_REFUSED_DRAG, trackDrag(Constants.CODE_SPACE, -60.0, 0.0, lift = false, pointer = 1))
+        assertEquals(start, selectionStart); assertEquals(end, selectionEnd)
+        latinIME.mKeyboardActionListener.onCursorTrackEnd(1)
+        latinIME.mKeyboardActionListener.onCursorTrackEnd(0)
+    }
+
+    @Test fun cursor87AStepThatCannotBeAppliedRestartsTheDeleteTrackInsteadOfDriftingAway() {
+        latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0) }
+        setText("Hallo Welt")
+        trackDrag(KeyCode.DELETE, -40.0, 0.0, lift = false)
+        assertEquals(7, selectionStart)
+        connection.setSelection(10, 10) // the field changes under the finger: nothing is selected any more
+        trackDrag(KeyCode.DELETE, 40.0, 0.0, from = -40.0 to 0.0, lift = false) // right: the start would pass the end
+        assertEquals(selectionStart, selectionEnd)
+        trackDrag(KeyCode.DELETE, -5.0, 0.0, from = 40.0 to 0.0, lift = false, dps = 60.0) // and left again (45 dp) from the real place
+        assertEquals(10 - 3, selectionStart)
+        latinIME.mKeyboardActionListener.onCursorTrackEnd(0)
+    }
+
+    @Test fun cursor87ANewFieldEndsTheTouchNothingReachesIt() {
+        latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0) }
+        setText("Hallo Welt und mehr Text")
+        setCursorPosition(20)
+        trackDrag(Constants.CODE_SPACE, -30.0, 0.0, lift = false)
+        val moved = cursor
+        assertTrue(moved < 20)
+        setText("Ganz anderes Feld hier") // closing: a new field starts under the finger
+        val cursorThere = cursor
+        trackDrag(Constants.CODE_SPACE, -120.0, 0.0, from = -30.0 to 0.0, lift = false)
+        assertEquals(cursorThere, cursor, "no step reaches the new field")
+        assertEquals(cursorThere, selectionStart)
+        // and the track is free for the next touch
+        latinIME.mKeyboardActionListener.onCursorTrackEnd(0)
+        assertEquals(TRACK_ACTIVE, trackDrag(Constants.CODE_SPACE, -30.0, 0.0))
+        assertTrue(cursor < cursorThere)
+    }
+
+    @Test fun cursor87ARestAfterTheFastTypingGuardDoesNotOvershoot() {
+        latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0) }
+        setText("Hallo Welt und mehr Text und noch mehr davon hier")
+        val listener = latinIME.mKeyboardActionListener
+        val token = ++trackTime
+        // the guard swallowed the first moves: the first sample that arrives is already 40 px away
+        trackTime += 200
+        var answer = listener.onCursorTrack(0, Constants.CODE_SPACE, -40, 0, trackTime, token)
+        for (i in 1..5) { trackTime += 8; answer = listener.onCursorTrack(0, Constants.CODE_SPACE, -40 - i, 0, trackTime, token) }
+        assertEquals(TRACK_ACTIVE, answer)
+        assertEquals(text.length, cursor, "the 5 px since the first sample are no step: the 40 px before it were swallowed by the guard")
+        listener.onCursorTrackEnd(0)
+    }
+
+    // ---- vertical moves stop at the first and last line, one arrow per answer
+
+    private fun arrows(code: Int) = ShadowInputMethodService.keyDownCodes.count { it == code }
+    private val DPAD_UP = android.view.KeyEvent.KEYCODE_DPAD_UP
+    private val DPAD_DOWN = android.view.KeyEvent.KEYCODE_DPAD_DOWN
+
+    private fun multiLine(text: String, at: Int) {
+        setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE)
+        setText(text)
+        setCursorPosition(at)
+        ShadowInputMethodService.keyDownCodes.clear()
+        ShadowInputMethodService.dpadMovesCursor = true
+    }
+
+    @Test fun cursor87OneVisualLineSendsAtMostOneArrowUpAndThenStops() {
+        multiLine("hello world", 5)
+        trackDrag(Constants.CODE_SPACE, 0.0, -150.0, dps = 60.0)
+        assertEquals(1, arrows(DPAD_UP), "the editor moved to the start; a second arrow would move the focus")
+        assertEquals(0, ShadowInputMethodService.cursor)
+    }
+
+    @Test fun cursor87TheFirstLineOfThreeStopsAfterTheArrowThatMovedToTheStart() {
+        multiLine("aaa\nbbb\nccc", 2)
+        trackDrag(Constants.CODE_SPACE, 0.0, -150.0, dps = 60.0)
+        assertEquals(1, arrows(DPAD_UP))
+    }
+
+    @Test fun cursor87TheMiddleLineMovesUp() {
+        multiLine("aaa\nbbb\nccc", 5)
+        trackDrag(Constants.CODE_SPACE, 0.0, -40.0, dps = 60.0)
+        assertTrue(arrows(DPAD_UP) >= 1)
+        assertTrue(ShadowInputMethodService.cursor <= 3, "moved to the first line: ${ShadowInputMethodService.cursor}")
+    }
+
+    @Test fun cursor87TheLastLineStopsAfterTheArrowThatMovedToTheEnd() {
+        multiLine("aaa\nbbb\nccc", 9)
+        trackDrag(Constants.CODE_SPACE, 0.0, 150.0, dps = 60.0)
+        assertEquals(1, arrows(DPAD_DOWN))
+        assertEquals(11, ShadowInputMethodService.cursor)
+    }
+
+    @Test fun cursor87AnEditorThatEatsTheArrowIsAskedOnceNotRepeatedly() {
+        multiLine("aaa\nbbb\nccc", 5)
+        ShadowInputMethodService.dpadIgnored = true // wrapped lines the keyboard cannot see, an end it cannot know: the arrow moves nothing
+        trackDrag(Constants.CODE_SPACE, 0.0, 150.0, dps = 60.0)
+        assertEquals(1, arrows(DPAD_DOWN), "an arrow that moved nothing is the edge: no more arrows that way")
+        // the other way is still free
+        ShadowInputMethodService.dpadIgnored = false
+        trackDrag(Constants.CODE_SPACE, 0.0, -40.0, dps = 60.0)
+        assertTrue(arrows(DPAD_UP) >= 1)
+    }
+
+    @Test fun cursor87AFastVerticalFlickSendsOneArrowPerAnswerNeverABurst() {
+        multiLine("a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk", 10)
+        trackDrag(Constants.CODE_SPACE, 0.0, 200.0, dps = 1500.0, lift = false) // about 130 ms, many lines asked for
+        assertEquals(1, arrows(DPAD_DOWN), "one arrow, then waiting for the editor")
+        val cursorNow = ShadowInputMethodService.cursor
+        latinIME.onUpdateSelection(10, 10, cursorNow, cursorNow, -1, -1) // the editor answers
+        handleMessages()
+        trackDrag(Constants.CODE_SPACE, 0.0, 204.0, dps = 1500.0, from = 0.0 to 200.0, lift = false)
+        assertEquals(2, arrows(DPAD_DOWN), "the next arrow goes out after the answer, one only")
+        latinIME.mKeyboardActionListener.onCursorTrackEnd(0)
+    }
+
+    @Test fun cursor87AnEditorThatAnswersLateIsAskedForItsRealCursorBeforeHorizontalStepsAreApplied() {
+        latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0) }
+        multiLine("aaa bbb ccc\nddd eee fff", 7)
+        trackDrag(Constants.CODE_SPACE, 0.0, 40.0, dps = 200.0, lift = false) // the arrow: the editor is on 19 and tells the keyboard nothing
+        assertEquals(19, ShadowInputMethodService.cursor)
+        assertEquals(7, connection.expectedSelectionStart)
+        // the finger goes on sideways for 1.4 s; after 300 ms the keyboard reads the real position (no answer needed)
+        trackDrag(Constants.CODE_SPACE, -100.0, 40.0, dps = 70.0, from = 0.0 to 40.0, lift = false)
+        assertTrue(ShadowInputMethodService.cursor in 8..18, "steps went from the real position 19: ${ShadowInputMethodService.cursor}")
+        latinIME.mKeyboardActionListener.onCursorTrackEnd(0)
     }
 
     // ---- vertical moves only in multi-line fields

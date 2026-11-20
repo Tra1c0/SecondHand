@@ -131,12 +131,15 @@ public interface KeyboardActionListener {
     int TRACK_OFF = 0;
     int TRACK_PENDING = 1;
     int TRACK_ACTIVE = 2;
+    /** A refused finger (another one owns the track) dragged past the swipe distance: its touch is dropped, it does nothing at all. */
+    int TRACK_REFUSED_DRAG = 3;
     /**
      * Fork (stage 87): the cursor trackpad. Called on every move event for each finger that went down on space or
      * delete ([pointerId]; [downTime] identifies its touch), with the distance from its touch-down point in px (not
      * stepped) and the event time in ms. Exactly one finger can own a track: TRACK_OFF means the old step logic of
      * PointerTracker runs for this finger; TRACK_PENDING means nothing happens yet (a tap stays a tap; a finger refused
-     * because another one owns the track stays pending for its whole touch); TRACK_ACTIVE means the listener moves the
+     * because another one owns the track stays pending until it drags past the swipe distance, then TRACK_REFUSED_DRAG: the
+     * tracker cancels its key timers and drops the touch, so it types, repeats and deletes nothing); TRACK_ACTIVE means the listener moves the
      * cursor and PointerTracker only marks the swipe (no space typed, no long press, onEndSpaceSwipe at the end).
      * Once a finger got TRACK_ACTIVE it never gets TRACK_OFF again in the same touch.
      */

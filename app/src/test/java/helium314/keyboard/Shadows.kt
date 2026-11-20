@@ -163,6 +163,8 @@ class ShadowInputMethodService {
         val keyDownCodes = mutableListOf<Int>()
         /** Stage 87: DPAD up/down move the cursor by line in the field (the keyboard learns it only when a test delivers onUpdateSelection). */
         var dpadMovesCursor = false
+        /** Stage 87: an editor that eats DPAD up/down without moving anything (the end of the field in some editors). */
+        var dpadIgnored = false
         /** Stage 87: an editor that answers a read of [first] characters with at most [second] (the others are answered fully). */
         var shortAnswer: Pair<Int, Int>? = null
 
@@ -197,6 +199,7 @@ class ShadowInputMethodService {
             contextMenuActions.clear()
             keyDownCodes.clear()
             dpadMovesCursor = false
+            dpadIgnored = false
             shortAnswer = null
         }
     }
@@ -338,12 +341,13 @@ class ShadowInputMethodService {
             if (p0.action != KeyEvent.ACTION_DOWN) return true // only change the text on key down, like RichInputConnection does
             keyDownCodes += p0.keyCode
             if (dpadMovesCursor && (p0.keyCode == KeyEvent.KEYCODE_DPAD_DOWN || p0.keyCode == KeyEvent.KEYCODE_DPAD_UP)) {
+                if (dpadIgnored) return true
                 val lineStart = text.lastIndexOf('\n', selectionStart - 1) + 1
                 val column = selectionStart - lineStart
                 val target = if (p0.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                     val next = text.indexOf('\n', selectionStart)
-                    if (next < 0) selectionStart else minOf(next + 1 + column, text.indexOf('\n', next + 1).let { if (it < 0) text.length else it })
-                } else if (lineStart == 0) selectionStart else {
+                    if (next < 0) text.length else minOf(next + 1 + column, text.indexOf('\n', next + 1).let { if (it < 0) text.length else it })
+                } else if (lineStart == 0) 0 else {
                     val previousStart = text.lastIndexOf('\n', lineStart - 2) + 1
                     minOf(previousStart + column, lineStart - 1)
                 }

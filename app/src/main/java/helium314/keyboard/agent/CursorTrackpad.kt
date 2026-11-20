@@ -14,6 +14,8 @@ object CursorTrackpad {
     const val WINDOW_CHARS = 200
     /** Samples kept while a finger has not become a swipe (a finger resting on the key). */
     const val MAX_PENDING = 64
+    /** Lines asked for but not yet sent as arrow keys (one arrow goes out per answer of the editor), at most this many either way. */
+    const val MAX_PENDING_LINES = 3
     /** After an arrow key the horizontal moves wait at most this long (ms) for the editor's new cursor position. */
     const val SELECTION_WAIT_MS = 300L
 

@@ -14,6 +14,7 @@ import helium314.keyboard.agent.SymbolInk
 import android.os.SystemClock
 import android.util.SparseArray
 import android.view.KeyEvent
+import android.view.inputmethod.ExtractedTextRequest
 import android.view.inputmethod.InputMethodSubtype
 import androidx.core.util.forEach
 import androidx.core.view.inputmethod.EditorInfoCompat
@@ -588,12 +589,18 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         var rtl = false
         var track: CursorTrack? = null
         var needsRestart = false
-        var awaitSelection = false // an arrow key was sent: horizontal moves wait for the editor's new cursor position
+        var awaitSelection = false // an arrow key was sent: nothing else is sent and horizontal moves wait for the editor's answer
         var selectionAtArrow = 0
+        var arrowDir = 0
         var arrowTime = 0L
+        var pendingLines = 0 // lines the finger asked for and no arrow was sent for yet (at most MAX_PENDING_LINES either way)
+        var edgeUp = false // an arrow in this direction moved nothing (or the cursor was at the start): none is sent for the rest of the touch
+        var edgeDown = false
+        var field: Any? = null // the field the track started in: a new field ends it
         fun begin(token: Long, code: Int) {
             this.token = token; this.code = code; mode = TrackMode.UNDECIDED; pending.clear()
             originX = 0.0; originY = 0.0; track = null; needsRestart = false; awaitSelection = false
+            pendingLines = 0; edgeUp = false; edgeDown = false; field = null
         }
     }
     private val spaceTrack = CursorTrack()
@@ -614,26 +621,31 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
             st.begin(downTime, code)
         }
         if (st.mode == TrackMode.UNDECIDED) st.mode = decideTrackMode(pointerId, code)
-        when (st.mode) {
-            TrackMode.OFF -> return KeyboardActionListener.TRACK_OFF
-            TrackMode.REFUSED, TrackMode.UNDECIDED -> return KeyboardActionListener.TRACK_PENDING
-            else -> Unit
-        }
+        if (st.mode == TrackMode.OFF) return KeyboardActionListener.TRACK_OFF
         val density = latinIME.resources.displayMetrics.density.toDouble()
         val sample = TrackSample(eventTime, dx / density, dy / density)
+        if (st.mode == TrackMode.REFUSED) { // a refused finger stays a tap or a hold until it drags: then it does nothing at all
+            return if (CursorTrackpad.claims(code == KeyCode.DELETE, sample.dx, sample.dy)) KeyboardActionListener.TRACK_REFUSED_DRAG
+            else KeyboardActionListener.TRACK_PENDING
+        }
         if (st.mode == TrackMode.PENDING) {
             if (st.pending.size >= CursorTrackpad.MAX_PENDING) st.pending.removeAt(0) // a finger resting on the key for long
             st.pending += sample
             if (!CursorTrackpad.claims(code == KeyCode.DELETE, sample.dx, sample.dy)) return KeyboardActionListener.TRACK_PENDING
-            if (trackOwner != -1 && trackOwner != pointerId) { // one finger owns the track: this one stays a tap for its whole touch
+            if (trackOwner != -1 && trackOwner != pointerId) { // one finger owns the track: this one does nothing at all
                 st.mode = TrackMode.REFUSED; st.pending.clear()
-                return KeyboardActionListener.TRACK_PENDING
+                return KeyboardActionListener.TRACK_REFUSED_DRAG
             }
-            // the drag is a swipe now: read the text once, then replay what the finger did so far
+            // the drag is a swipe now: read the text once, then replay what the finger did so far. The track starts at the first
+            // sample that arrived (zero travel, zero speed): what the finger did before (the fast-typing guard swallows the first
+            // moves) is not replayed as one jump
             trackOwner = pointerId
             st.mode = TrackMode.ACTIVE
+            st.field = settings.current.mInputAttributes
             resetSpaceTap()
-            startTrack(st, code, st.pending.first().t - 10, eventTime)
+            val first = st.pending.first()
+            st.originX = first.dx; st.originY = first.dy
+            startTrack(st, code, first.t, eventTime)
             val replay = ArrayList(st.pending)
             st.pending.clear()
             for (s in replay) feedTrack(st, code, s)
@@ -646,6 +658,8 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     private fun decideTrackMode(pointerId: Int, code: Int): TrackMode {
         val values = settings.current
         if (!values.mCursorTrackpad || latinIME.agentEditorController.isBlockingInput) return TrackMode.OFF
+        // one owner for every swipe on space and delete: while a finger owns a track (or a delete slide is going) no other finger swipes
+        if ((code == Constants.CODE_SPACE || code == KeyCode.DELETE) && trackOwner != -1 && trackOwner != pointerId) return TrackMode.REFUSED
         val candidate = when {
             // with a selection the old behavior stays (no selection extension in stage 87)
             code == Constants.CODE_SPACE -> CursorTrackpad.appliesToSpace(values.mSpaceGestures) && !connection.hasSelection()
@@ -653,7 +667,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
             else -> false
         }
         if (!candidate) return TrackMode.OFF
-        return if (trackOwner != -1 && trackOwner != pointerId) TrackMode.REFUSED else TrackMode.PENDING
+        return TrackMode.PENDING
     }
 
     /** Vertical moves only where the field is known to be multi-line: in a single-line field DPAD_DOWN leaves the field or steps through suggestions. */
@@ -689,36 +703,84 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         if (code == KeyCode.DELETE) track.forwardLimitChars = selected?.length ?: 0
     }
 
+    /** The real cursor position, read from the editor (one IPC), or null where it cannot be read. */
+    private fun readEditorSelection(): Int? = try {
+        latinIME.currentInputConnection?.getExtractedText(ExtractedTextRequest(), 0)?.let { it.selectionStart + it.startOffset }
+    } catch (e: Exception) { null }
+
     private fun feedTrack(st: TrackState, code: Int, s: TrackSample) {
         val track = st.track ?: return
+        if (st.field !== settings.current.mInputAttributes) { // a new field (or the window closed): the touch has nothing to move any more
+            if (trackOwner == trackStates.indexOf(st)) trackOwner = -1
+            st.track = null
+            return
+        }
         if (latinIME.agentEditorController.isBlockingInput) { st.needsRestart = true; return }
         if (st.needsRestart) {
             // nothing was fed meanwhile: go on from where the finger is now, with no travel from before (never one lump)
-            st.needsRestart = false; st.awaitSelection = false
+            st.needsRestart = false; st.awaitSelection = false; st.pendingLines = 0
             st.originX = s.dx; st.originY = s.dy
             track.begin(s.t - 10)
             provideTrackText(st, code, s.t)
         }
-        if (st.awaitSelection && (connection.expectedSelectionStart != st.selectionAtArrow || s.t - st.arrowTime >= CursorTrackpad.SELECTION_WAIT_MS))
-            st.awaitSelection = false
+        if (st.awaitSelection) resolveArrow(st, s.t)
         // not before the editor has moved its cursor after an arrow key: the text would be read at the old place
         if (!st.awaitSelection && track.needsText(s.t)) provideTrackText(st, code, s.t)
         val fx = s.dx - st.originX
         val x = if (st.rtl) -fx else fx // for RTL languages the finger follows the visual direction (as the old swipe)
         val steps = track.moveTo(x, s.dy - st.originY, s.t)
         for (run in CursorTrackpad.runs(steps)) {
-            if (code == KeyCode.DELETE) moveDeleteRun(run) else moveCursorRun(st, run, s.t)
+            if (code == KeyCode.DELETE) { if (!moveDeleteRun(run)) st.needsRestart = true } else moveCursorRun(st, run)
+        }
+        pumpArrows(st, s.t)
+    }
+
+    /**
+     * After an arrow key: has the editor answered (its cursor position changed)? After [CursorTrackpad.SELECTION_WAIT_MS] the real position
+     * is read from the editor: moved (the answer is only late: the keyboard's idea of the cursor is corrected) or not moved (the end of
+     * the field in that direction: no further arrow that way in this touch, an unhandled arrow would move the focus to another field).
+     */
+    private fun resolveArrow(st: TrackState, time: Long) {
+        var moved = connection.expectedSelectionStart != st.selectionAtArrow
+        if (!moved && time - st.arrowTime >= CursorTrackpad.SELECTION_WAIT_MS) {
+            val real = readEditorSelection()
+            if (real != null && real != st.selectionAtArrow) {
+                connection.resetCachesUponCursorMoveAndReturnSuccess(real, real, false)
+                moved = true
+            } else {
+                if (st.arrowDir < 0) st.edgeUp = true else st.edgeDown = true
+                st.pendingLines = 0
+                st.awaitSelection = false
+                return
+            }
+        }
+        if (moved) {
+            st.awaitSelection = false
+            if (st.arrowDir < 0) st.edgeDown = false else st.edgeUp = false
         }
     }
 
-    private fun moveCursorRun(st: TrackState, run: CursorTrackpad.Run, time: Long) {
+    /** Sends at most one arrow key, and only when the editor has answered the last one (a flick cannot queue a burst). */
+    private fun pumpArrows(st: TrackState, time: Long) {
+        if (st.awaitSelection || st.pendingLines == 0) return
+        val dir = if (st.pendingLines < 0) -1 else 1
+        val atEnd = if (dir < 0) st.edgeUp || connection.expectedSelectionStart <= 0
+        else st.edgeDown || !connection.hasTextAfterCursor()
+        if (atEnd) { // known first/last position: no arrow (the next one would leave the field)
+            if (dir < 0) st.edgeUp = true else st.edgeDown = true
+            st.pendingLines = 0
+            return
+        }
+        if (dir < 0) gestureMoveBackHaptics() else gestureMoveForwardHaptics()
+        st.pendingLines -= dir
+        st.awaitSelection = true; st.selectionAtArrow = connection.expectedSelectionStart; st.arrowDir = dir; st.arrowTime = time
+        onCodeInput(if (dir < 0) KeyCode.ARROW_UP else KeyCode.ARROW_DOWN, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+    }
+
+    private fun moveCursorRun(st: TrackState, run: CursorTrackpad.Run) {
         if (run.axis == CursorTrack.Axis.VERTICAL) {
-            // the editor moves by visual line and scrolls by itself; one key per line, as the old vertical swipe
-            if (run.direction < 0) gestureMoveBackHaptics() else gestureMoveForwardHaptics()
-            st.awaitSelection = true; st.selectionAtArrow = connection.expectedSelectionStart; st.arrowTime = time
-            repeat(run.count) {
-                onCodeInput(if (run.direction < 0) KeyCode.ARROW_UP else KeyCode.ARROW_DOWN, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
-            }
+            // the editor moves by visual line and scrolls by itself: the lines are asked for here and sent one arrow at a time (pumpArrows)
+            st.pendingLines = (st.pendingLines + run.direction * run.count).coerceIn(-CursorTrackpad.MAX_PENDING_LINES, CursorTrackpad.MAX_PENDING_LINES)
             return
         }
         if (run.chars == 0) { // no text known: the old path moves by clusters and falls back to arrow keys
@@ -729,15 +791,17 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         applyHorizontalMove(run.chars)
     }
 
-    private fun moveDeleteRun(run: CursorTrackpad.Run) {
-        if (run.chars == 0) { onMoveDeletePointer(run.direction * run.count); return }
+    /** Returns false when the step could not be applied (the track and the field disagree: the caller restarts the track). */
+    private fun moveDeleteRun(run: CursorTrackpad.Run): Boolean {
+        if (run.chars == 0) { onMoveDeletePointer(run.direction * run.count); return true }
         // as onMoveDeletePointer: the selection start moves, the end stays; never past the end
         inputLogic.finishInput()
         val end = connection.expectedSelectionEnd
         val start = connection.expectedSelectionStart + run.chars
-        if (start > end) return
+        if (start > end || start < 0) return false
         trackTick(run, forward = false)
         connection.setSelection(start, end)
+        return true
     }
 
     /** One tick per run, the stronger detent where a slow finger reached a word edge (the haptic settings decide whether it is felt). */
