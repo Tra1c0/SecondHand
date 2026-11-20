@@ -31,7 +31,11 @@ Etappen aus dem ursprünglichen Auftrag; Teilpakete bekommen Buchstaben (15a, 15
     als Rückweg; `docs/VALIDATION.md` → Etappe 85). Ungeprüft: Gerät, Aussehen in den bunten Stilen des Owners, Querformat, kleine Bildschirme. Offen: das Flat-Menü (`FlatMenuView`) ist nur noch bei
     ausgeschaltetem Schalter erreichbar; entfernen, sobald der Owner die feste Leiste bestätigt hat. „Größe ändern“ als Werkzeug gibt es nicht.
     **86** Anpassen per Halten und Ziehen im Tastaturfenster: gebaut (Raster mit Hinweis „Zum Personalisieren halten und ziehen“, Umrandung der Plätze, Einfügen, Verschieben, Herausziehen, Speichern beim Loslassen,
-    Tippen und Screenreader-Aktionen statt Ziehen, höchstens 8; `docs/VALIDATION.md` → Etappe 86). Ziehen wurde nur simuliert; ungeprüft: echter Finger, Halten gegen Scrollen im Raster, Schatten-Ansicht.
+    Tippen und Screenreader-Aktionen statt Ziehen, höchstens 8; `docs/VALIDATION.md` → Etappe 86). Das Systemziehen schnappte auf dem Gerät des Owners zurück (Build 41).
+    **88 Leiste v2:** gebaut (Konzept `docs/LEISTE-KONZEPT.md`): sichtbare Symbole in jedem Design (Kontrastregel, weiße Symbole der Fork), gleiche Lücken zwischen den sichtbaren Rändern, nicht verfügbare
+    Werkzeuge blass mit Schloss und dem Grund beim Tippen, Ziehen mit eigener Berührungsverarbeitung (Kopie am Finger, Lücke, Ablegen, Herausziehen, voll, Abbruch, Rückgängig, Zurücksetzen), Rückgängig
+    bietet Wiederholen an (`docs/VALIDATION.md` → Etappe 88). Offen: auf dem Telefon des Owners prüfen (Gefühl der Haltezeit 180 ms, Zone 40 dp, Lage der Pille im Raster, Griff mit dem Daumen);
+    Vorschläge mit Rückfrage stehen im Bericht der Etappe (Werkzeuge sichtbar lassen, solange Wiederholen angeboten wird; Zwei-Hälften-Platz bei höchstens drei Werkzeugen).
   - **87 Cursor als Trackpad:** gebaut (siehe FEATURES), offen ist nur, was am Telefon entschieden wird: Die Konstanten
     (13 dp je Zeichen, 26 dp je Zeile, Beschleunigung, Magnetismus 35 %, Spiel 3 dp) sind erste Schätzungen und
     brauchen den Finger des Owners; der Gerätetest (`cursor_trackpad`, `cursor_trackpad_vertical` sind geschrieben,
