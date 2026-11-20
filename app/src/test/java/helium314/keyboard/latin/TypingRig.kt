@@ -153,7 +153,21 @@ class TypingRig(val ime: LatinIME) {
 
     fun backspace() = tap(KeyCode.DELETE)
 
+    /**
+     * Types [script] key by key; the character BACKSPACE_MARK is the backspace key. [fast] leaves the delayed messages
+     * alone between the keys (a fast typist), otherwise every key is followed by the time the engine needs.
+     */
+    fun play(script: String, fast: Boolean = false) {
+        for (c in script) {
+            val code = if (c == BACKSPACE_MARK) KeyCode.DELETE else c.code
+            if (fast) tapFast(code) else tap(code)
+        }
+        idle()
+    }
+
     fun symbolPage() { listener.onCodeInput(KeyCode.SYMBOL, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false); idle() }
+
+    companion object { const val BACKSPACE_MARK = '\u232B' }
 
     // --- the timeline ---
 
