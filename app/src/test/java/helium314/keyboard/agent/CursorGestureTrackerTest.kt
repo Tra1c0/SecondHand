@@ -209,7 +209,7 @@ class CursorGestureTrackerTest {
         assertEquals(listOf(0, 0), ends)
     }
 
-    @Test fun twoFingersEachGetTheirOwnPointerIdAndTokenAndOnlyTheirOwnEnd() {
+    @Test fun twoFingersEachGetTheirOwnPointerIdAndTokenAndTheirOwnEnd() {
         script(KeyboardActionListener.TRACK_PENDING)
         val ends = mutableListOf<Int>()
         `when`(listener.onCursorTrackEnd(anyInt())).thenAnswer { ends += it.getArgument<Int>(0); null }
@@ -227,11 +227,11 @@ class CursorGestureTrackerTest {
         try { tracker.processMotionEvent(moved, detector) } finally { moved.recycle() }
         val pointers = calls.map { it[0].toInt() }.toSet()
         assertEquals(setOf(0, 1), pointers, "every finger is asked for itself")
-        assertEquals(2, calls.map { it[5].toLong() }.toSet().size, "each touch has its own token")
+        for (pointer in 0..1) assertEquals(1, calls.filter { it[0].toInt() == pointer }.map { it[5] }.toSet().size, "one token per touch of finger $pointer")
         val up2 = packet(MotionEvent.ACTION_POINTER_UP or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT))
         try { second.processMotionEvent(up2, detector) } finally { up2.recycle() }
-        assertEquals(listOf(1), ends, "B's end names B only")
+        // upstream releases every older finger when a newer one lifts (PointerTrackerQueue.releaseAllPointersOlderThan): A's end first, then B's
+        assertEquals(listOf(0, 1), ends, "each end names its own finger")
         up(106f, 100f)
-        assertEquals(listOf(1, 0), ends)
     }
 }

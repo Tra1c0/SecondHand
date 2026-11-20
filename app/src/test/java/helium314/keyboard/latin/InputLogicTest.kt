@@ -1504,8 +1504,8 @@ class InputLogicTest {
      * and delete. Only old API is used (no trackpad names), so the same block runs on the code before stage 87 (the fixture).
      */
     private inner class TouchRig {
-        val drawing = Mockito.mock(helium314.keyboard.keyboard.DrawingProxy::class.java)
-        val timer = helium314.keyboard.keyboard.TimerHandler(drawing, 0, 100)
+        val drawing = Mockito.mock(helium314.keyboard.keyboard.internal.DrawingProxy::class.java)
+        val timer = helium314.keyboard.keyboard.internal.TimerHandler(drawing, 0, 100)
         val detector = Mockito.mock(helium314.keyboard.keyboard.KeyDetector::class.java)
         var now = 50_000L
         private val fingers = java.util.TreeMap<Int, FloatArray>()
@@ -1522,10 +1522,10 @@ class InputLogicTest {
             helium314.keyboard.keyboard.PointerTracker.init(attrs, timer, drawing)
             attrs.recycle()
             val letter = key('a'.code); val space = key(32); val delete = key(KeyCode.DELETE)
-            val keyboard = helium314.keyboard.keyboard.Keyboard(helium314.keyboard.keyboard.KeyboardParams().apply {
+            val keyboard = helium314.keyboard.keyboard.Keyboard(helium314.keyboard.keyboard.internal.KeyboardParams().apply {
                 GRID_WIDTH = 1; GRID_HEIGHT = 1; mMostCommonKeyWidth = 50; mMostCommonKeyHeight = 50
                 mOccupiedHeight = 200; mOccupiedWidth = 360
-                mId = helium314.keyboard.keyboard.KeyboardLayoutSet.getFakeKeyboardId(helium314.keyboard.keyboard.internal.KeyboardElement.ALPHABET)
+                mId = helium314.keyboard.keyboard.KeyboardLayoutSet.getFakeKeyboardId(helium314.keyboard.keyboard.KeyboardElement.ALPHABET)
             })
             Mockito.`when`(detector.keyboard).thenReturn(keyboard)
             Mockito.`when`(detector.detectHitKey(Mockito.anyInt(), Mockito.anyInt())).thenAnswer {
@@ -1610,7 +1610,7 @@ class InputLogicTest {
         assertEquals(before.length + 1, text.length, "A's lift typed no further space")
     }
 
-    @Test fun twoFingersBHoldsDeleteWhileASwipesOnSpaceFourCharactersGoAndTheCursorDoesNotRunAway() = withRig { rig ->
+    @Test fun twoFingersBHoldsDeleteWhileASwipesOnSpaceThreeRepeatsDeleteThreeAndTheCursorDoesNotRunAway() = withRig { rig ->
         setText("Hallo Welt und mehr Text")
         setCursorPosition(20)
         rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X - 100, SPACE_Y)
@@ -1618,10 +1618,10 @@ class InputLogicTest {
         val before = text
         rig.down(1, DELETE_X, SPACE_Y)
         rig.repeatDelete(1, 3) // three auto-repeats after the first delete of the press
-        assertEquals(before.removeRange(moved - 4, moved), text, "the press and three repeats: four characters")
-        assertEquals(moved - 4, cursor, "A's cursor did not run")
+        assertEquals(before.removeRange(moved - 3, moved), text, "three repeats: three characters (the press itself deletes nothing, the lift nothing more)")
+        assertEquals(moved - 3, cursor, "A's cursor did not run")
         rig.up(1); rig.up(0)
-        assertEquals(before.length - 4, text.length)
+        assertEquals(before.length - 3, text.length)
     }
 
     @Test fun twoFingersADeleteSlideBTapsALetterOldBehavior() = withRig { rig ->
@@ -1640,10 +1640,11 @@ class InputLogicTest {
         setText("")
         rig.down(0, SPACE_X, SPACE_Y)
         for (n in 0 until 3) { rig.down(1, 100f, 100f); rig.still(); rig.up(1) }
-        assertEquals("aaa", text.lowercase())
-        assertEquals(3, cursor)
-        rig.up(0) // A's tap types its space
-        assertEquals("aaa ", text.lowercase())
+        // B's first touch releases A's key (the keyboard's two-thumb typing): A's space comes first, then the letters
+        assertEquals(" aaa", text.lowercase())
+        assertEquals(4, cursor)
+        rig.up(0)
+        assertEquals(" aaa", text.lowercase(), "A's lift typed nothing more")
     }
 
     @Test fun twoFingersBRestsOnDeleteWhileASwipesNothingIsDeletedUntilBLifts() = withRig { rig ->
@@ -1670,6 +1671,17 @@ class InputLogicTest {
         rig.down(0, SPACE_X, SPACE_Y); rig.up(0)
         assertEquals(text, wobbled, "wobbly taps give what plain taps give (two spaces after a word: period and space)")
         assertTrue(wobbled.endsWith(" "), wobbled)
+    }
+
+    @Test fun twoFingersOneFingerHoldingDeleteRepeatsThroughTheRealListener() = withRig { rig ->
+        setText("Hallo Welt und mehr Text")
+        rig.down(0, DELETE_X, SPACE_Y)
+        rig.repeatDelete(0, 3)
+        assertEquals("Hallo Welt und mehr ", text.take(20))
+        assertEquals("Hallo Welt und mehr Text".length - 3, text.length)
+        assertEquals(selectionStart, selectionEnd)
+        rig.up(0)
+        assertEquals("Hallo Welt und mehr Text".length - 3, text.length, "the lift of a repeated key deletes nothing more")
     }
 
     // ---- new behavior of the trackpad with several fingers: one owner, the others stay as before
