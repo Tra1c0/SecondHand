@@ -164,6 +164,10 @@ internal object FixedBar {
         button.contentDescription = if (available) label else unavailableLabel(label)
     }
 
+    /** Where a new tool would be inserted at the horizontal position [x]: after as many slots as have their centre left of it. */
+    fun insertionIndexAt(toolbar: ViewGroup, x: Float): Int =
+        slots(toolbar).count { (it.left + it.right) / 2f < x }
+
     /** The index among [slots] of the slot whose centre is nearest to the horizontal position [x] of the row. */
     fun slotIndexAt(toolbar: ViewGroup, x: Float): Int {
         val slots = slots(toolbar)

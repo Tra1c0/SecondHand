@@ -860,17 +860,25 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         return started
     }
 
+    /**
+     * The place of the bar under the finger at [x]: a new tool that is not shown in the bar yet is inserted after the slots
+     * whose centre is left of the finger; once it is shown (as a ghost), or a tool of the bar is moved, the nearest slot is meant.
+     */
+    private fun dragSlot(ed: BarEditor, x: Float): Int =
+        if (ed.preview == null && !ed.draggedFromBar && ed.dragged !in ed.bar) FixedBar.insertionIndexAt(toolbar, x)
+        else FixedBar.slotIndexAt(toolbar, x)
+
     /** The drag events of the bar: over it the tools move over, a drop saves. */
     private fun onBarDrag(event: android.view.DragEvent): Boolean {
         val ed = editor ?: return false
         if (event.localState !is DragPayload) return false
         when (event.action) {
             android.view.DragEvent.ACTION_DRAG_ENTERED, android.view.DragEvent.ACTION_DRAG_LOCATION -> {
-                ed.dragOverBar(FixedBar.slotIndexAt(toolbar, event.x))
+                ed.dragOverBar(dragSlot(ed, event.x))
                 afterEdit(if (ed.full) BarEditor.Result.FULL else null)
             }
             android.view.DragEvent.ACTION_DRAG_EXITED -> { ed.dragLeftBar(); afterEdit(null) }
-            android.view.DragEvent.ACTION_DROP -> afterEdit(ed.dropOnBar(FixedBar.slotIndexAt(toolbar, event.x)))
+            android.view.DragEvent.ACTION_DROP -> afterEdit(ed.dropOnBar(dragSlot(ed, event.x)))
             android.view.DragEvent.ACTION_DRAG_ENDED -> { ed.dragEnd(); refreshEdit(ed) } // no drop: nothing was saved
         }
         return true
