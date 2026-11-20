@@ -57,6 +57,7 @@ import androidx.core.content.edit
 import helium314.keyboard.agent.AgentPreferences
 import helium314.keyboard.agent.CursorTrackText
 import helium314.keyboard.agent.CursorTrackVerdict
+import helium314.keyboard.agent.CursorTrackpad
 import helium314.keyboard.agent.SpaceAction
 import helium314.keyboard.agent.SpaceGesture
 import helium314.keyboard.agent.SpaceGestures
@@ -331,7 +332,8 @@ private fun TouchSection(context: Context, prefs: SharedPreferences, area: Setti
             }, Modifier.testTag(ROW_TAG + TOUCH_CALIBRATION))
         // stage 87: the trackpad cursor of the space bar and the delete slider
         val trackpad = prefs.getBoolean(AgentPreferences.CURSOR_TRACKPAD, true)
-        SettingSwitchRow(stringResource(R.string.agent_gestures_trackpad), stringResource(R.string.agent_gestures_trackpad_summary), area.dot,
+        SettingSwitchRow(stringResource(R.string.agent_gestures_trackpad),
+            stringResource(if (CursorTrackpad.spaceReason(gestures) == CursorTrackpad.SpaceReason.NOT_NO_CURSOR_DIRECTION) R.string.agent_gestures_trackpad_summary_none else R.string.agent_gestures_trackpad_summary), area.dot,
             trackpad, { putBoolean(AgentPreferences.CURSOR_TRACKPAD, it) }, area.from, area.to, Modifier.testTag(ROW_TAG + AgentPreferences.CURSOR_TRACKPAD))
         // stage 87b: whether the space bar and the delete key qualify right now, and what to change if not (the listener's own rules)
         Text(CursorTrackText.spaceLine(context, CursorTrackVerdict.space(prefs)), style = AgentSettingsType.Small, color = AgentSettingsTokens.Muted,

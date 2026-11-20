@@ -13,11 +13,9 @@
     <string name="agent_trackdiag_now_active">trackpad active</string>
     <string name="agent_trackdiag_now_inactive">not active because %1$s</string>
     <string name="agent_trackdiag_why_switch">the switch “Cursor as a trackpad” is off</string>
-    <string name="agent_trackdiag_why_binding">%1$s is bound to “%2$s” (needed: ← and → “%3$s”, ↑ and ↓ “%4$s” or “%3$s”)</string>
     <string name="agent_trackdiag_why_delete_swipe">“Delete by swiping” is off</string>
     <string name="agent_trackdiag_row_space_touches">Space bar – touches since start</string>
     <string name="agent_trackdiag_row_space_decisions">Space bar – decisions</string>
-    <string name="agent_trackdiag_row_space_blocker">Space bar – binding that blocked last</string>
     <string name="agent_trackdiag_row_space_steps">Space bar – movement</string>
     <string name="agent_trackdiag_row_space_field">Space bar – field of the last trackpad swipe</string>
     <string name="agent_trackdiag_row_space_last">Last swipe on the space bar</string>
@@ -26,7 +24,6 @@
     <string name="agent_trackdiag_row_delete_steps">Delete key – movement</string>
     <string name="agent_trackdiag_row_delete_lifts">Delete slide – lifts</string>
     <string name="agent_trackdiag_row_delete_last">Last swipe on the delete key</string>
-    <string name="agent_trackdiag_decisions">trackpad %1$d, off %2$d (switch %3$d, input blocked %4$d, bindings %5$d, selection %6$d), refused %7$d, lifted before the swipe distance %8$d</string>
     <string name="agent_trackdiag_decisions_delete">trackpad %1$d, off %2$d (switch %3$d, input blocked %4$d), refused %5$d, lifted before the swipe distance %6$d</string>
     <string name="agent_trackdiag_blocker">%1$s = %2$s</string>
     <string name="agent_trackdiag_steps">%1$d steps sideways, %2$d arrows sent vertically, %3$d vertical suppressed (single-line field), %4$d detents</string>
@@ -45,15 +42,30 @@
     <string name="agent_trackdiag_last_off">trackpad not started because %1$s</string>
     <string name="agent_trackdiag_off_switch">the switch is off</string>
     <string name="agent_trackdiag_off_blocked">input was blocked (a panel is open)</string>
-    <string name="agent_trackdiag_off_bindings">the bindings do not qualify (%1$s)</string>
-    <string name="agent_trackdiag_off_selection">a selection existed</string>
     <string name="agent_trackdiag_last_refused">refused because another finger was moving the cursor</string>
     <string name="agent_trackdiag_last_never">finger lifted before the swipe distance was reached; the trackpad never took over</string>
-    <string name="agent_trackdiag_line_space_active">Space bar: active</string>
-    <string name="agent_trackdiag_line_space_switch">Space bar: not active – “Cursor as a trackpad” is off; switch it on</string>
-    <string name="agent_trackdiag_line_space_horizontal">Space bar: not active – %1$s is bound to “%2$s”; set ← and → to “%3$s”</string>
-    <string name="agent_trackdiag_line_space_vertical">Space bar: not active – %1$s is bound to “%2$s”; set ↑ and ↓ to “%3$s” or “%4$s”</string>
     <string name="agent_trackdiag_line_delete_active">Delete key: active</string>
     <string name="agent_trackdiag_line_delete_switch">Delete key: not active – “Cursor as a trackpad” is off; switch it on</string>
     <string name="agent_trackdiag_line_delete_swipe">Delete key: not active – “Delete by swiping” is off</string>
+    <string name="agent_trackdiag_or">" or "</string>
+    <string name="agent_trackdiag_start_decides">a swipe starting %1$s moves the cursor freely%2$s</string>
+    <string name="agent_trackdiag_start_first">; one starting %1$s runs “%2$s”</string>
+    <string name="agent_trackdiag_start_next">, %1$s “%2$s”</string>
+    <string name="agent_trackdiag_detail_all">every swipe moves the cursor freely</string>
+    <string name="agent_trackdiag_detail_none">no direction is set to “Move cursor”</string>
+    <string name="agent_trackdiag_detail_switch">“Cursor as a trackpad” is off; switch it on</string>
+    <string name="agent_trackdiag_line_space_active">Space bar: active – %1$s</string>
+    <string name="agent_trackdiag_line_space_inactive">Space bar: not active – %1$s</string>
+    <string name="agent_trackdiag_now_active_detail">trackpad active – %1$s</string>
+    <string name="agent_trackdiag_now_inactive_detail">not active – %1$s</string>
+    <string name="agent_trackdiag_row_space_action">Space bar – last action instead of the trackpad</string>
+    <string name="agent_trackdiag_row_space_collapsed">Space bar – selection collapsed</string>
+    <string name="agent_trackdiag_collapsed">%1$d times, last time %2$s</string>
+    <string name="agent_trackdiag_collapsed_none">never</string>
+    <string name="agent_trackdiag_decisions">trackpad %1$d, action instead of the trackpad %2$d, off %3$d (switch %4$d, input blocked %5$d, no cursor direction %6$d), refused %7$d (another finger moves the cursor %8$d, another finger runs an action %9$d), lifted before the swipe distance %10$d</string>
+    <string name="agent_trackdiag_last_collapsed">, a selection was collapsed</string>
+    <string name="agent_trackdiag_last_action">start %1$s: action “%2$s” (%3$s), no trackpad – as configured</string>
+    <string name="agent_trackdiag_last_nothing">start %1$s: nothing (%2$s), no trackpad – the direction does nothing in this field</string>
+    <string name="agent_trackdiag_off_no_direction">no direction is set to “Move cursor”</string>
+    <string name="agent_trackdiag_last_refused_action">refused because another finger was running a space bar action</string>
 </resources>

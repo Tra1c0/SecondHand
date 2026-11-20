@@ -16,15 +16,25 @@ import helium314.keyboard.latin.settings.Settings
  */
 class CursorTrackCounters {
     enum class Key { SPACE, DELETE }
-    enum class Decision { ACTIVE, OFF, REFUSED, NEVER_CLAIMED }
+    /** [ACTION]: the swipe started in a direction bound to an action of its own (stage 87c): that action runs, no trackpad; a decision, not a failure. */
+    enum class Decision { ACTIVE, ACTION, OFF, REFUSED, NEVER_CLAIMED }
     /** Why a touch was left to the old swipe code ([Decision.OFF]). */
-    enum class OffReason { SWITCH, BLOCKED, BINDINGS, SELECTION }
+    enum class OffReason { SWITCH, BLOCKED, NO_CURSOR_DIRECTION }
+    /** Why a second touch was refused: another finger owns the track, or another finger runs an action of the space bar. */
+    enum class RefusedWhy { OTHER_OWNER, OTHER_ACTION }
 
     class PerKey {
         var touches = 0
         var active = 0
         val off = IntArray(OffReason.entries.size)
         var refused = 0
+        val refusedBy = IntArray(RefusedWhy.entries.size)
+        var actions = 0
+        /** The start direction and action of the last swipe that ran an action instead of the trackpad (enum names). */
+        var lastActionGesture: SpaceGesture? = null
+        var lastActionAction: SpaceAction? = null
+        var collapsed = 0
+        var lastCollapsed: Boolean? = null
         var neverClaimed = 0
         var steps = 0
         var verticalArrows = 0
@@ -32,9 +42,7 @@ class CursorTrackCounters {
         var detents = 0
         var lastDecision: Decision? = null
         var lastReason: OffReason? = null
-        /** The swipe that disqualified the space bar the last time, with its action (enum names). */
-        var lastBlockerGesture: SpaceGesture? = null
-        var lastBlockerAction: SpaceAction? = null
+        var lastRefusedWhy: RefusedWhy? = null
         /** The field kind of the last claimed track, flags only (null: no track claimed yet). */
         var lastClassText: Boolean? = null
         var lastMultiLine: Boolean? = null
@@ -49,9 +57,9 @@ class CursorTrackCounters {
         var lastLiftDeleted: Boolean? = null
 
         fun copy() = PerKey().also {
-            it.touches = touches; it.active = active; off.copyInto(it.off); it.refused = refused; it.neverClaimed = neverClaimed
+            it.touches = touches; it.active = active; off.copyInto(it.off); it.refused = refused; refusedBy.copyInto(it.refusedBy); it.actions = actions; it.lastActionGesture = lastActionGesture; it.lastActionAction = lastActionAction; it.collapsed = collapsed; it.lastCollapsed = lastCollapsed; it.neverClaimed = neverClaimed
             it.steps = steps; it.verticalArrows = verticalArrows; it.suppressedArrows = suppressedArrows; it.detents = detents
-            it.lastDecision = lastDecision; it.lastReason = lastReason; it.lastBlockerGesture = lastBlockerGesture; it.lastBlockerAction = lastBlockerAction
+            it.lastDecision = lastDecision; it.lastReason = lastReason; it.lastRefusedWhy = lastRefusedWhy
             it.lastClassText = lastClassText; it.lastMultiLine = lastMultiLine
             it.lastSteps = lastSteps; it.lastVerticalArrows = lastVerticalArrows; it.lastSuppressedArrows = lastSuppressedArrows
             it.lifts = lifts; it.liftsDeleted = liftsDeleted; it.lastSelectedChars = lastSelectedChars; it.lastLiftDeleted = lastLiftDeleted
@@ -70,14 +78,23 @@ class CursorTrackCounters {
     /** A touch of the key reached the trackpad code. */
     fun onTouch(key: Key) { of(key).touches++ }
 
-    fun onOff(key: Key, reason: OffReason, blocker: Pair<SpaceGesture, SpaceAction>? = null) {
+    fun onOff(key: Key, reason: OffReason) {
         val k = of(key)
         k.off[reason.ordinal]++
         k.lastDecision = Decision.OFF; k.lastReason = reason
-        if (blocker != null) { k.lastBlockerGesture = blocker.first; k.lastBlockerAction = blocker.second }
     }
 
-    fun onRefused(key: Key) { val k = of(key); k.refused++; k.lastDecision = Decision.REFUSED; k.lastReason = null }
+    fun onRefused(key: Key, why: RefusedWhy) { val k = of(key); k.refused++; k.refusedBy[why.ordinal]++; k.lastDecision = Decision.REFUSED; k.lastReason = null; k.lastRefusedWhy = why }
+
+    /** The start direction of a space bar swipe decided for an action of its own ([action] may be NONE: the swipe is swallowed). */
+    fun onAction(gesture: SpaceGesture, action: SpaceAction) {
+        val k = space
+        k.actions++; k.lastDecision = Decision.ACTION; k.lastReason = null
+        k.lastActionGesture = gesture; k.lastActionAction = action
+    }
+
+    /** The trackpad started with a selection and collapsed it (a flag, never the selection). */
+    fun onCollapsed() { space.collapsed++; space.lastCollapsed = true }
     fun onNeverClaimed(key: Key) { val k = of(key); k.neverClaimed++; k.lastDecision = Decision.NEVER_CLAIMED; k.lastReason = null }
 
     /** The finger became a swipe: the field kind is read from the input type (flags only). */
@@ -85,7 +102,7 @@ class CursorTrackCounters {
         val k = of(key)
         k.active++; k.lastDecision = Decision.ACTIVE; k.lastReason = null
         k.lastClassText = CursorTrackpad.isTextClass(inputType); k.lastMultiLine = CursorTrackpad.hasMultiLineFlag(inputType)
-        k.lastSteps = 0; k.lastVerticalArrows = 0; k.lastSuppressedArrows = 0
+        k.lastSteps = 0; k.lastVerticalArrows = 0; k.lastSuppressedArrows = 0; k.lastCollapsed = false
     }
 
     fun onSteps(key: Key, count: Int) { val k = of(key); k.steps += count; k.lastSteps += count }
@@ -107,21 +124,26 @@ class CursorTrackCounters {
 }
 
 /**
- * Stage 87b: whether the space bar and the delete key qualify for the trackpad according to the preferences, with the reason
- * where not. The rules are those of [CursorTrackpad] (the listener's own functions); the field and the panels are only known
- * while typing, so they are not part of this verdict.
+ * Stage 87b (on the rule of stage 87c): whether the space bar and the delete key are a trackpad according to the preferences, with
+ * the reason where not. The only rule is [CursorTrackpad.spaceReason] (the listener's own function); the field, the panels and a
+ * second finger are only known while typing, so they are not part of this verdict.
  */
 object CursorTrackVerdict {
-    enum class Why { SWITCH_OFF, BINDING, DELETE_SWIPE_OFF }
+    enum class Why { SWITCH_OFF, NO_CURSOR_DIRECTION, DELETE_SWIPE_OFF }
 
-    class Verdict(val active: Boolean, val why: Why? = null, val gesture: SpaceGesture? = null, val action: SpaceAction? = null)
+    class Verdict(val active: Boolean, val why: Why? = null, val reason: CursorTrackpad.SpaceReason? = null, val gestures: SpaceGestureSettings? = null)
 
     fun trackpadOn(prefs: SharedPreferences) = prefs.getBoolean(AgentPreferences.CURSOR_TRACKPAD, true)
 
     fun space(prefs: SharedPreferences): Verdict {
-        if (!trackpadOn(prefs)) return Verdict(false, Why.SWITCH_OFF)
-        val blocker = CursorTrackpad.spaceBlocker(SpaceGestures.read(prefs)) ?: return Verdict(true)
-        return Verdict(false, Why.BINDING, blocker.first, blocker.second)
+        val gestures = SpaceGestures.read(prefs)
+        val reason = CursorTrackpad.spaceReason(gestures, trackpadOn(prefs))
+        val why = when (reason) {
+            CursorTrackpad.SpaceReason.NOT_SETTING_OFF -> Why.SWITCH_OFF
+            CursorTrackpad.SpaceReason.NOT_NO_CURSOR_DIRECTION -> Why.NO_CURSOR_DIRECTION
+            else -> null
+        }
+        return Verdict(reason.qualifies, why, reason, gestures)
     }
 
     fun delete(prefs: SharedPreferences): Verdict = when {
@@ -133,30 +155,43 @@ object CursorTrackVerdict {
 
 /** Stage 87b: the words of the card and of the status lines (German or English by the app's language). */
 object CursorTrackText {
-    private fun gestureLabel(context: Context, gesture: SpaceGesture) = context.getString(when (gesture) {
-        SpaceGesture.SWIPE_LEFT -> R.string.agent_gestures_key_left
-        SpaceGesture.SWIPE_RIGHT -> R.string.agent_gestures_key_right
-        SpaceGesture.SWIPE_UP -> R.string.agent_gestures_key_up
-        SpaceGesture.SWIPE_DOWN -> R.string.agent_gestures_key_down
-        SpaceGesture.HOLD -> R.string.agent_gestures_key_hold
-        SpaceGesture.DOUBLE_TAP -> R.string.agent_gestures_key_double_tap
-    })
+    private fun arrow(g: SpaceGesture) = when (g) { SpaceGesture.SWIPE_LEFT -> "←"; SpaceGesture.SWIPE_RIGHT -> "→"; SpaceGesture.SWIPE_UP -> "↑"; SpaceGesture.SWIPE_DOWN -> "↓"; else -> "?" }
 
     private fun action(context: Context, action: SpaceAction) = context.getString(action.labelResource())
 
-    /** The line under the switch "Cursor als Trackpad": whether the space bar qualifies and, if not, why and what to change. */
-    fun spaceLine(context: Context, verdict: CursorTrackVerdict.Verdict): String = when {
-        verdict.active -> context.getString(R.string.agent_trackdiag_line_space_active)
-        verdict.why == CursorTrackVerdict.Why.SWITCH_OFF -> context.getString(R.string.agent_trackdiag_line_space_switch)
-        else -> {
-            val gesture = verdict.gesture ?: SpaceGesture.SWIPE_LEFT
-            val bound = action(context, verdict.action ?: SpaceAction.NONE)
-            if (gesture.isHorizontal) context.getString(R.string.agent_trackdiag_line_space_horizontal,
-                gestureLabel(context, gesture), bound, action(context, SpaceAction.MOVE_CURSOR))
-            else context.getString(R.string.agent_trackdiag_line_space_vertical,
-                gestureLabel(context, gesture), bound, action(context, SpaceAction.NONE), action(context, SpaceAction.MOVE_CURSOR))
+    private val directions = listOf(SpaceGesture.SWIPE_LEFT, SpaceGesture.SWIPE_RIGHT, SpaceGesture.SWIPE_UP, SpaceGesture.SWIPE_DOWN)
+
+    /** "← oder →" */
+    private fun or(context: Context, list: List<SpaceGesture>) = list.joinToString(context.getString(R.string.agent_trackdiag_or)) { arrow(it) }
+
+    /**
+     * What a swipe does by its start direction, in one sentence: the directions that move the cursor freely (bound to "Cursor bewegen" or to
+     * nothing, as [CursorTrackpad.decideStart] takes them) and the ones that run their own action.
+     */
+    private fun startDecides(context: Context, gestures: SpaceGestureSettings): String {
+        val free = directions.filter { CursorTrackpad.isFree(gestures, it) }
+        val own = directions.filterNot { CursorTrackpad.isFree(gestures, it) }.groupBy { gestures[it] }
+        val parts = own.entries.mapIndexed { i, (action, list) ->
+            context.getString(if (i == 0) R.string.agent_trackdiag_start_first else R.string.agent_trackdiag_start_next, or(context, list), action(context, action))
         }
+        return context.getString(R.string.agent_trackdiag_start_decides, or(context, free), parts.joinToString(""))
     }
+
+    /** The part after "Leertaste: aktiv – " and "nicht aktiv – ": what the space bar does now, from the settings. */
+    private fun spaceDetail(context: Context, verdict: CursorTrackVerdict.Verdict): String = when (verdict.reason) {
+        CursorTrackpad.SpaceReason.QUALIFIES_ALL_AXES -> context.getString(R.string.agent_trackdiag_detail_all)
+        CursorTrackpad.SpaceReason.QUALIFIES_START_DECIDES -> startDecides(context, verdict.gestures ?: SpaceGestureSettings(emptyMap()))
+        CursorTrackpad.SpaceReason.NOT_NO_CURSOR_DIRECTION -> context.getString(R.string.agent_trackdiag_detail_none)
+        else -> context.getString(R.string.agent_trackdiag_detail_switch)
+    }
+
+    /** The one statement under the switch "Cursor als Trackpad": whether the space bar qualifies and what each start direction does. */
+    fun spaceLine(context: Context, verdict: CursorTrackVerdict.Verdict): String =
+        context.getString(if (verdict.active) R.string.agent_trackdiag_line_space_active else R.string.agent_trackdiag_line_space_inactive, spaceDetail(context, verdict))
+
+    /** The value of the card's row for the space bar. */
+    fun spaceNow(context: Context, verdict: CursorTrackVerdict.Verdict): String =
+        context.getString(if (verdict.active) R.string.agent_trackdiag_now_active_detail else R.string.agent_trackdiag_now_inactive_detail, spaceDetail(context, verdict))
 
     /** The line for the delete key. */
     fun deleteLine(context: Context, verdict: CursorTrackVerdict.Verdict): String = context.getString(when {
@@ -165,36 +200,40 @@ object CursorTrackText {
         else -> R.string.agent_trackdiag_line_delete_swipe
     })
 
-    /** "Trackpad aktiv" or "nicht aktiv, weil ..." for the card. */
-    fun now(context: Context, verdict: CursorTrackVerdict.Verdict): String {
+    /** "Trackpad aktiv" or "nicht aktiv, weil ..." for the delete key on the card. */
+    fun deleteNow(context: Context, verdict: CursorTrackVerdict.Verdict): String {
         if (verdict.active) return context.getString(R.string.agent_trackdiag_now_active)
-        val why = when (verdict.why) {
-            CursorTrackVerdict.Why.SWITCH_OFF -> context.getString(R.string.agent_trackdiag_why_switch)
-            CursorTrackVerdict.Why.DELETE_SWIPE_OFF -> context.getString(R.string.agent_trackdiag_why_delete_swipe)
-            else -> context.getString(R.string.agent_trackdiag_why_binding, gestureLabel(context, verdict.gesture ?: SpaceGesture.SWIPE_LEFT),
-                action(context, verdict.action ?: SpaceAction.NONE), action(context, SpaceAction.MOVE_CURSOR), action(context, SpaceAction.NONE))
-        }
+        val why = context.getString(if (verdict.why == CursorTrackVerdict.Why.SWITCH_OFF) R.string.agent_trackdiag_why_switch else R.string.agent_trackdiag_why_delete_swipe)
         return context.getString(R.string.agent_trackdiag_now_inactive, why)
     }
 
     fun pair(context: Context, prefs: SharedPreferences, first: SpaceGesture, second: SpaceGesture): String {
         val gestures = SpaceGestures.read(prefs)
-        fun arrow(g: SpaceGesture) = when (g) { SpaceGesture.SWIPE_LEFT -> "←"; SpaceGesture.SWIPE_RIGHT -> "→"; SpaceGesture.SWIPE_UP -> "↑"; else -> "↓" }
         return context.getString(R.string.agent_trackdiag_pair, arrow(first), action(context, gestures[first]), arrow(second), action(context, gestures[second]))
     }
 
     private fun yesNo(context: Context, value: Boolean?) =
         context.getString(if (value == true) R.string.agent_diagnose_yes else R.string.agent_diagnose_no)
 
-    fun decisions(context: Context, k: CursorTrackCounters.PerKey, withBindings: Boolean): String {
+    fun decisions(context: Context, k: CursorTrackCounters.PerKey, forSpace: Boolean): String {
         val off = k.off
-        val offTotal = off.sum()
         fun o(r: CursorTrackCounters.OffReason) = off[r.ordinal]
-        return if (withBindings) context.getString(R.string.agent_trackdiag_decisions, k.active, offTotal, o(CursorTrackCounters.OffReason.SWITCH),
-            o(CursorTrackCounters.OffReason.BLOCKED), o(CursorTrackCounters.OffReason.BINDINGS), o(CursorTrackCounters.OffReason.SELECTION), k.refused, k.neverClaimed)
+        val offTotal = off.sum()
+        return if (forSpace) context.getString(R.string.agent_trackdiag_decisions, k.active, k.actions, offTotal, o(CursorTrackCounters.OffReason.SWITCH),
+            o(CursorTrackCounters.OffReason.BLOCKED), o(CursorTrackCounters.OffReason.NO_CURSOR_DIRECTION), k.refused,
+            k.refusedBy[CursorTrackCounters.RefusedWhy.OTHER_OWNER.ordinal], k.refusedBy[CursorTrackCounters.RefusedWhy.OTHER_ACTION.ordinal], k.neverClaimed)
         else context.getString(R.string.agent_trackdiag_decisions_delete, k.active, offTotal, o(CursorTrackCounters.OffReason.SWITCH),
             o(CursorTrackCounters.OffReason.BLOCKED), k.refused, k.neverClaimed)
     }
+
+    /** The action the last swipe ran instead of the trackpad, as enum names ("SWIPE_UP = UNDO"). */
+    fun lastAction(context: Context, k: CursorTrackCounters.PerKey): String =
+        if (k.lastActionGesture == null) context.getString(R.string.agent_trackdiag_lifts_none)
+        else context.getString(R.string.agent_trackdiag_blocker, k.lastActionGesture!!.name, k.lastActionAction?.name ?: "?")
+
+    fun collapsed(context: Context, k: CursorTrackCounters.PerKey): String =
+        if (k.collapsed == 0) context.getString(R.string.agent_trackdiag_collapsed_none)
+        else context.getString(R.string.agent_trackdiag_collapsed, k.collapsed, yesNo(context, k.lastCollapsed))
 
     fun field(context: Context, k: CursorTrackCounters.PerKey): String =
         if (k.lastClassText == null) context.getString(R.string.agent_trackdiag_field_none)
@@ -209,19 +248,26 @@ object CursorTrackText {
                 if (space) {
                     if (k.lastMultiLine != true || k.lastClassText != true) append(context.getString(R.string.agent_trackdiag_last_single_line))
                     else if (k.lastVerticalArrows > 0) append(context.getString(R.string.agent_trackdiag_last_vertical, k.lastVerticalArrows))
+                    if (k.lastCollapsed == true) append(context.getString(R.string.agent_trackdiag_last_collapsed))
                 } else if (k.lastLiftDeleted != null) {
                     append(context.getString(R.string.agent_trackdiag_last_lift, k.lastSelectedChars,
                         context.getString(if (k.lastLiftDeleted == true) R.string.agent_trackdiag_last_deleted else R.string.agent_trackdiag_last_kept)))
                 }
             }
+            CursorTrackCounters.Decision.ACTION -> {
+                val gesture = k.lastActionGesture ?: SpaceGesture.SWIPE_LEFT
+                val act = k.lastActionAction ?: SpaceAction.NONE
+                val names = context.getString(R.string.agent_trackdiag_blocker, gesture.name, act.name)
+                if (act == SpaceAction.NONE) context.getString(R.string.agent_trackdiag_last_nothing, arrow(gesture), names)
+                else context.getString(R.string.agent_trackdiag_last_action, arrow(gesture), action(context, act), names)
+            }
             CursorTrackCounters.Decision.OFF -> context.getString(R.string.agent_trackdiag_last_off, when (k.lastReason) {
                 CursorTrackCounters.OffReason.BLOCKED -> context.getString(R.string.agent_trackdiag_off_blocked)
-                CursorTrackCounters.OffReason.BINDINGS -> context.getString(R.string.agent_trackdiag_off_bindings,
-                    context.getString(R.string.agent_trackdiag_blocker, k.lastBlockerGesture?.name ?: "?", k.lastBlockerAction?.name ?: "?"))
-                CursorTrackCounters.OffReason.SELECTION -> context.getString(R.string.agent_trackdiag_off_selection)
+                CursorTrackCounters.OffReason.NO_CURSOR_DIRECTION -> context.getString(R.string.agent_trackdiag_off_no_direction)
                 else -> context.getString(R.string.agent_trackdiag_off_switch)
             })
-            CursorTrackCounters.Decision.REFUSED -> context.getString(R.string.agent_trackdiag_last_refused)
+            CursorTrackCounters.Decision.REFUSED -> context.getString(
+                if (k.lastRefusedWhy == CursorTrackCounters.RefusedWhy.OTHER_ACTION) R.string.agent_trackdiag_last_refused_action else R.string.agent_trackdiag_last_refused)
             CursorTrackCounters.Decision.NEVER_CLAIMED -> context.getString(R.string.agent_trackdiag_last_never)
         }
     }

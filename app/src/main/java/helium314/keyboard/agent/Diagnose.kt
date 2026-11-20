@@ -666,13 +666,13 @@ object Diagnose {
         rows += Row(s(R.string.agent_trackdiag_row_switch), onOff(context, CursorTrackVerdict.trackpadOn(prefs)))
         rows += Row(s(R.string.agent_trackdiag_row_horizontal), CursorTrackText.pair(context, prefs, SpaceGesture.SWIPE_LEFT, SpaceGesture.SWIPE_RIGHT))
         rows += Row(s(R.string.agent_trackdiag_row_vertical), CursorTrackText.pair(context, prefs, SpaceGesture.SWIPE_UP, SpaceGesture.SWIPE_DOWN))
-        rows += Row(s(R.string.agent_trackdiag_row_space_now), CursorTrackText.now(context, CursorTrackVerdict.space(prefs)))
+        rows += Row(s(R.string.agent_trackdiag_row_space_now), CursorTrackText.spaceNow(context, CursorTrackVerdict.space(prefs)))
         rows += Row(s(R.string.agent_trackdiag_row_delete_swipe), onOff(context, prefs.getBoolean(Settings.PREF_DELETE_SWIPE, Defaults.PREF_DELETE_SWIPE)))
-        rows += Row(s(R.string.agent_trackdiag_row_delete_now), CursorTrackText.now(context, CursorTrackVerdict.delete(prefs)))
+        rows += Row(s(R.string.agent_trackdiag_row_delete_now), CursorTrackText.deleteNow(context, CursorTrackVerdict.delete(prefs)))
         rows += Row(s(R.string.agent_trackdiag_row_space_touches), space.touches.toString())
         rows += Row(s(R.string.agent_trackdiag_row_space_decisions), CursorTrackText.decisions(context, space, true))
-        if (space.lastBlockerGesture != null) rows += Row(s(R.string.agent_trackdiag_row_space_blocker),
-            context.getString(R.string.agent_trackdiag_blocker, space.lastBlockerGesture!!.name, space.lastBlockerAction?.name ?: "?"))
+        rows += Row(s(R.string.agent_trackdiag_row_space_action), CursorTrackText.lastAction(context, space))
+        rows += Row(s(R.string.agent_trackdiag_row_space_collapsed), CursorTrackText.collapsed(context, space))
         rows += Row(s(R.string.agent_trackdiag_row_space_steps), context.getString(R.string.agent_trackdiag_steps,
             space.steps, space.verticalArrows, space.suppressedArrows, space.detents))
         rows += Row(s(R.string.agent_trackdiag_row_space_field), CursorTrackText.field(context, space))
