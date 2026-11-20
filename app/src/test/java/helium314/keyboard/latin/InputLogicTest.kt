@@ -1627,6 +1627,8 @@ class InputLogicTest {
     private fun swipeCalls(spy: helium314.keyboard.keyboard.KeyboardActionListenerImpl): List<String> =
         Mockito.mockingDetails(spy).invocations.filter { it.method.name in setOf("onSpaceSwipe", "onCodeInput", "toggleLayout", "onEndSpaceSwipe") }
             .map { inv -> "${inv.method.name} ${inv.arguments.take(2).joinToString(" ")}" }
+            .fold(ArrayList<Pair<String, Int>>()) { acc, c -> if (acc.isNotEmpty() && acc.last().first == c) acc[acc.size - 1] = c to acc.last().second + 1 else acc.add(c to 1); acc }
+            .map { (c, n) -> if (n > 1) "$c x$n" else c } // consecutive equal reports as one entry with a count
 
     private val SPACE_X = 100f
     private val SPACE_Y = 200f
@@ -1828,23 +1830,21 @@ class InputLogicTest {
         bindVertical(SpaceAction.UNDO, SpaceAction.REDO)
         setText("Hallo Welt")
         rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X, SPACE_Y - 40f); rig.up(0)
-        assertEquals("FIXTURE-UP", swipeCalls(spy).joinToString("|"))
-        assertEquals("Hallo Welt", text); assertEquals(10, cursor)
+        assertEquals("onSpaceSwipe SWIPE_UP -1|onCodeInput -131 -1|onEndSpaceSwipe ", swipeCalls(spy).joinToString("|"))
     }
 
     @Test fun bindings87cADownwardStartRunsTheActionOfDown() = withSpyRig { rig, spy ->
         bindVertical(SpaceAction.UNDO, SpaceAction.REDO)
         setText("Hallo Welt")
         rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X, SPACE_Y + 40f); rig.up(0)
-        assertEquals("FIXTURE-DOWN", swipeCalls(spy).joinToString("|"))
-        assertEquals(10, cursor)
+        assertEquals("onSpaceSwipe SWIPE_DOWN 1|onCodeInput -132 -1|onEndSpaceSwipe ", swipeCalls(spy).joinToString("|"))
     }
 
     @Test fun bindings87cAContinuousActionOnUpGetsEveryStep() = withSpyRig { rig, spy ->
         bindVertical(SpaceAction.SWITCH_LANGUAGE, SpaceAction.NONE)
         setText("Hallo Welt")
         rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X, SPACE_Y - 90f); rig.up(0)
-        assertEquals("FIXTURE-LANG", swipeCalls(spy).joinToString("|"))
+        assertEquals("onSpaceSwipe SWIPE_UP -1 x21|onSpaceSwipe SWIPE_UP -2 x21|onSpaceSwipe SWIPE_UP -3 x21|onSpaceSwipe SWIPE_UP -4 x21|onSpaceSwipe SWIPE_UP -5 x21|onSpaceSwipe SWIPE_UP -6 x21|onSpaceSwipe SWIPE_UP -7 x21|onSpaceSwipe SWIPE_UP -8 x20|onSpaceSwipe SWIPE_UP -9 x3|onEndSpaceSwipe ", swipeCalls(spy).joinToString("|"))
         assertEquals(10, cursor)
     }
 
@@ -1854,8 +1854,8 @@ class InputLogicTest {
         rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X, SPACE_Y - 120f); rig.up(0)
         val up = swipeCalls(spy).joinToString("|")
         rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X, SPACE_Y + 40f); rig.up(0)
-        assertEquals("FIXTURE-TOUCHPAD", up)
-        assertEquals("FIXTURE-NUMPAD", swipeCalls(spy).joinToString("|"))
+        assertEquals("onSpaceSwipe SWIPE_UP -1 x21|onSpaceSwipe SWIPE_UP -2 x21|onSpaceSwipe SWIPE_UP -3 x21|onSpaceSwipe SWIPE_UP -4 x21|onSpaceSwipe SWIPE_UP -5 x20|onSpaceSwipe SWIPE_UP -6 x21|onSpaceSwipe SWIPE_UP -7 x21|onSpaceSwipe SWIPE_UP -8|onSpaceSwipe SWIPE_UP -1 x21|onSpaceSwipe SWIPE_UP -2 x21|onSpaceSwipe SWIPE_UP -3 x20|onSpaceSwipe SWIPE_UP -4 x3|onEndSpaceSwipe ", up)
+        assertEquals("$up|onSpaceSwipe SWIPE_DOWN 1|toggleLayout NUMPAD 0|onEndSpaceSwipe ", swipeCalls(spy).joinToString("|"))
         assertEquals(10, cursor)
     }
 
@@ -1863,8 +1863,7 @@ class InputLogicTest {
         bindVertical(SpaceAction.UNDO, SpaceAction.REDO)
         setText("Hallo Welt")
         rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X, SPACE_Y - 30f); rig.slide(0, SPACE_X + 80f, SPACE_Y - 30f); rig.up(0)
-        assertEquals("FIXTURE-THENSIDE", swipeCalls(spy).joinToString("|"))
-        assertEquals(10, cursor)
+        assertEquals("onSpaceSwipe SWIPE_UP -1|onCodeInput -131 -1|onEndSpaceSwipe ", swipeCalls(spy).joinToString("|"))
     }
 
     @Test fun bindings87cLeftOrRightBoundToAnotherActionIsTheOldSwipe() = withSpyRig { rig, spy ->
@@ -1872,7 +1871,7 @@ class InputLogicTest {
         bindVertical(SpaceAction.UNDO, SpaceAction.REDO)
         setText("Hallo Welt")
         rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X - 60f, SPACE_Y); rig.up(0)
-        assertEquals("FIXTURE-LEFTOTHER", swipeCalls(spy).joinToString("|"))
+        assertEquals("onSpaceSwipe SWIPE_LEFT -1 x21|onSpaceSwipe SWIPE_LEFT -2 x21|onSpaceSwipe SWIPE_LEFT -3 x21|onSpaceSwipe SWIPE_LEFT -4 x21|onSpaceSwipe SWIPE_LEFT -5 x20|onSpaceSwipe SWIPE_LEFT -6 x3|onEndSpaceSwipe ", swipeCalls(spy).joinToString("|"))
         assertEquals(10, cursor)
     }
 
@@ -2075,6 +2074,63 @@ class InputLogicTest {
         assertEquals(TRACK_ACTIVE, answer)
         assertEquals(text.length, cursor, "the 5 px since the first sample are no step: the 40 px before it were swallowed by the guard")
         listener.onCursorTrackEnd(0)
+    }
+
+    // ---- stage 87c: a swipe that starts sideways is the trackpad, also when up and down are bound to actions
+
+    @Test fun cursor87cASidewaysStartIsTheTrackpadAndThenAllowsUpWithoutTheBoundAction() = withSpyRig { rig, spy ->
+        bindVertical(SpaceAction.UNDO, SpaceAction.REDO)
+        latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0) }
+        multiLine("aaaa aaaa\nbbbb bbbb\ncccc cccc", 28)
+        val start = cursor
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X - 40f, SPACE_Y)
+        assertTrue(cursor < start, "the trackpad moved the cursor: $cursor")
+        rig.slide(0, SPACE_X - 40f, SPACE_Y - 70f, 40f) // now up: a line, not the action
+        rig.up(0)
+        assertTrue(arrows(DPAD_UP) >= 1, "up moved a line")
+        val calls = swipeCalls(spy)
+        assertTrue(calls.none { it.startsWith("onSpaceSwipe") || it.contains("-131") || it.contains("-132") }, "the bound actions did not run: $calls")
+    }
+
+    @Test fun cursor87cAVerticalStartStillRunsTheBoundActionAndTheCursorStays() = withSpyRig { rig, spy ->
+        bindVertical(SpaceAction.UNDO, SpaceAction.REDO)
+        multiLine("aaaa aaaa\nbbbb bbbb\ncccc cccc", 28)
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X, SPACE_Y - 40f); rig.up(0)
+        assertTrue(arrows(DPAD_UP) == 0 && swipeCalls(spy).any { it.contains("-131") }, "undo ran: ${swipeCalls(spy)}")
+    }
+
+    @Test fun cursor87cTheDiagonalStartFollowsTheDocumentedRule() = withSpyRig { rig, spy ->
+        bindVertical(SpaceAction.UNDO, SpaceAction.REDO)
+        latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0) }
+        multiLine("aaaa aaaa\nbbbb bbbb\ncccc cccc", 28)
+        val start = cursor
+        // 45 degrees: wait until 16 dp, then the larger axis decides, a tie is sideways: the trackpad
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X - 40f, SPACE_Y - 40f); rig.up(0)
+        assertTrue(swipeCalls(spy).none { it.contains("-131") }, "no undo at 45 degrees: ${swipeCalls(spy)}")
+        assertTrue(cursor != start || arrows(DPAD_UP) > 0, "the trackpad moved something")
+        // steeper than 1.5 : 1 vertically: the action
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X - 10f, SPACE_Y - 60f); rig.up(0)
+        assertTrue(swipeCalls(spy).any { it.contains("-131") }, "undo at 80 degrees: ${swipeCalls(spy)}")
+    }
+
+    @Test fun cursor87cAVerticalStartThenSidewaysNeverBecomesTheTrackpad() = withSpyRig { rig, _ ->
+        bindVertical(SpaceAction.UNDO, SpaceAction.REDO)
+        latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0) }
+        multiLine("aaaa aaaa\nbbbb bbbb\ncccc cccc", 28)
+        val start = cursor
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X, SPACE_Y - 30f); rig.slide(0, SPACE_X - 90f, SPACE_Y - 30f); rig.up(0)
+        assertTrue(cursor >= start, "the cursor did not run left ($start -> $cursor; undo may touch it)")
+        assertEquals(0, arrows(DPAD_UP) + arrows(DPAD_DOWN), "no arrows: the old swipe ran")
+    }
+
+    @Test fun cursor87cOneVerticalBindingOnlyTheFreeDirectionIsTheTrackpad() = withSpyRig { rig, spy ->
+        bindVertical(SpaceAction.UNDO, SpaceAction.NONE)
+        latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0) }
+        multiLine("aaaa aaaa\nbbbb bbbb\ncccc cccc", 20)
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X, SPACE_Y + 60f); rig.up(0) // down is free: a trackpad drag (a line, no space)
+        assertTrue(swipeCalls(spy).none { it.startsWith("onSpaceSwipe") }, "no old swipe: ${swipeCalls(spy)}")
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X, SPACE_Y - 40f); rig.up(0) // up has an action
+        assertTrue(swipeCalls(spy).any { it.contains("-131") }, "undo ran: ${swipeCalls(spy)}")
     }
 
     // ---- third review
