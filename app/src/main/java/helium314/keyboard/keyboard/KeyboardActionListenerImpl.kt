@@ -462,9 +462,18 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     override fun onUpWithDeletePointerActive() {
         val tracked = deleteClaimed // stage 87b: a slide the trackpad took (counts only)
         deleteClaimed = false
-        val selected = if (tracked) (connection.expectedSelectionEnd - connection.expectedSelectionStart).coerceAtLeast(0) else 0
+        // the length of the selection is a partial fact about the field's text: not read at all in a protected field (password, incognito, locked device)
+        val protectedField = tracked && isProtectedField()
+        val selected = if (tracked && !protectedField) (connection.expectedSelectionEnd - connection.expectedSelectionStart).coerceAtLeast(0) else 0
         val deleted = deleteAtLift()
-        if (tracked) CursorTrackCounters.shared.onDeleteLift(selected, deleted)
+        if (tracked) CursorTrackCounters.shared.onDeleteLift(selected, deleted, protectedField)
+    }
+
+    /** Stage 87b (counters only): a field whose text must leave no trace in the diagnosis: password, incognito or no-learning field, locked device. */
+    private fun isProtectedField(): Boolean {
+        val values = settings.current
+        return values.mInputAttributes?.mIsPasswordField == true || values.mIncognitoModeEnabled ||
+            helium314.keyboard.compat.isDeviceLocked(latinIME) || helium314.keyboard.compat.isUserLocked(latinIME)
     }
 
     /** Deletes what the slide selected; false where nothing was deleted. */
@@ -621,13 +630,14 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         var edgeUp = false // an arrow in this direction moved nothing (or the cursor was at the start): none is sent for the rest of the touch
         var edgeDown = false
         var field: Any? = null // the field the track started in: a new field ends it
+        var protectedField = false // stage 87b (counters only): a field whose text leaves no trace in the diagnosis
         var suppressedLines = 0 // stage 87b (counters only): vertical steps a finger made in a field that is not multi-line
         var runsAction = false // stage 87c review: this finger's start direction decided an old action (OFF) and the finger is still down: no other finger takes the trackpad meanwhile
         var startDecides = false // stage 87c: some direction has an action: the start direction of the swipe decides between trackpad and that action
         fun begin(token: Long, code: Int) {
             this.token = token; this.code = code; mode = TrackMode.UNDECIDED; pending.clear()
             originX = 0.0; originY = 0.0; track = null; needsRestart = false; awaitSelection = false
-            pendingLines = 0; edgeUp = false; edgeDown = false; field = null; startDecides = false; runsAction = false; suppressedLines = 0
+            pendingLines = 0; edgeUp = false; edgeDown = false; field = null; startDecides = false; runsAction = false; suppressedLines = 0; protectedField = false
         }
     }
     private val spaceTrack = CursorTrack()
@@ -638,6 +648,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     override fun onCursorTrackEnd(pointerId: Int) {
         if (pointerId < 0) { // -1: the field starts or the keyboard hides (LatinIME): a touch that ended without up or cancel must leave no owner
             trackOwner = -1
+            deleteClaimed = false // a slide claimed in the old field: its lift must not count the selection of the new one (stage 87b)
             for (st in trackStates) when (st.mode) {
                 TrackMode.ACTIVE -> st.track = null // an active touch has nothing to move in the new field
                 TrackMode.OFF -> st.runsAction = false // a swipe that began as the old action stays that: it must not turn into the trackpad of the new field (stage 87c); it stops locking out other fingers, so a lock whose end never came cannot stay
@@ -647,7 +658,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         }
         val st = trackStates.getOrNull(pointerId) ?: return
         countNeverClaimed(st)
-        if (st.code == KeyCode.DELETE) deleteClaimed = false // (a lift has read it before: onUpWithDeletePointerActive)
+        if (st.code == KeyCode.DELETE && st.mode == TrackMode.ACTIVE) deleteClaimed = false // only the claiming finger's end (a lift has read it before); a refused second finger leaves it
         st.begin(Long.MIN_VALUE, 0)
         if (trackOwner == pointerId) trackOwner = -1
     }
@@ -657,6 +668,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         if (st.token != downTime || st.code != code) { // a new touch of this finger: whatever it had before is gone
             if (trackOwner == pointerId) trackOwner = -1
             countNeverClaimed(st)
+            if (st.code == KeyCode.DELETE && st.mode == TrackMode.ACTIVE) deleteClaimed = false // its end never came (stage 87b)
             st.begin(downTime, code)
             trackKey(code)?.let { CursorTrackCounters.shared.onTouch(it) } // stage 87b
         }
@@ -704,6 +716,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
             st.mode = TrackMode.ACTIVE
             st.field = settings.current.mInputAttributes
             if (code == KeyCode.DELETE) { deleteSlideField = st.field; deleteClaimed = true }
+            st.protectedField = isProtectedField()
             trackKey(code)?.let { CursorTrackCounters.shared.onClaimed(it, settings.current.mInputAttributes?.mInputType) } // stage 87b: counts and flags only
             resetSpaceTap()
             val first = st.pending.first()
@@ -834,7 +847,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         if (st.needsRestart) {
             // nothing was fed meanwhile: go on from where the finger is now, with no travel from before (never one lump)
             st.needsRestart = false; st.awaitSelection = false; st.pendingLines = 0
-            st.originX = s.dx; st.originY = s.dy
+            st.originX = s.dx; st.originY = s.dy; st.suppressedLines = 0 // (87b: the travel for the count starts here too)
             track.begin(s.t - 10)
             provideTrackText(st, code, s.t)
         }
@@ -847,7 +860,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         val diag = CursorTrackCounters.shared
         val key = if (code == KeyCode.DELETE) CursorTrackCounters.Key.DELETE else CursorTrackCounters.Key.SPACE
         for (run in CursorTrackpad.runs(steps)) {
-            if (run.detent) diag.onDetent(key)
+            if (run.detent && !st.protectedField) diag.onDetent(key) // detents say where word edges are: not counted in a protected field
             if (code == KeyCode.DELETE) { if (moveDeleteRun(run)) diag.onSteps(key, run.count) else st.needsRestart = true } else moveCursorRun(st, run)
         }
         if (code == Constants.CODE_SPACE && track === flatTrack) { // stage 87b: arrows a finger asked for in a field that is not multi-line (counted per 26 dp of vertical travel)

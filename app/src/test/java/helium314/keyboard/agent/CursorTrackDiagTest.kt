@@ -40,12 +40,22 @@ class CursorTrackDiagTest {
 
     @Test fun oneActionDirectionNamesOnlyThatOne() {
         set(SpaceGesture.SWIPE_LEFT, SpaceAction.UNDO)
-        assertEquals("Leertaste: aktiv – Start nach → oder ↑ oder ↓ bewegt den Cursor frei; Start nach ← löst „Rückgängig“ aus", space())
+        assertEquals("Leertaste: aktiv – Start nach → oder ↑ oder ↓ bewegt den Cursor frei (↑ oder ↓ nur in mehrzeiligen Feldern); Start nach ← löst „Rückgängig“ aus", space())
+    }
+
+    @Test fun nothingOnUpAndDownIsOnlyFreeInMultiLineFields() {
+        // review M-1: in a single-line field "nothing" on up/down swallows the swipe (decideStart), so the line must not promise a free cursor there
+        set(SpaceGesture.SWIPE_LEFT, SpaceAction.MOVE_CURSOR); set(SpaceGesture.SWIPE_RIGHT, SpaceAction.UNDO)
+        set(SpaceGesture.SWIPE_UP, SpaceAction.NONE); set(SpaceGesture.SWIPE_DOWN, SpaceAction.NONE)
+        assertEquals("Leertaste: aktiv – Start nach ← oder ↑ oder ↓ bewegt den Cursor frei (↑ oder ↓ nur in mehrzeiligen Feldern); Start nach → löst „Rückgängig“ aus", space())
+        // ... and the card says the same
+        val rows = Diagnose.trackpad(app, prefs, CursorTrackCounters().snapshot()).rows.associate { it.label to it.value }
+        assertTrue(rows["Trackpad – Leertaste jetzt"]!!.contains("nur in mehrzeiligen Feldern"))
     }
 
     @Test fun allFourDirectionsOnTheCursorSayEverySwipeMovesFreely() {
         for (g in listOf(SpaceGesture.SWIPE_LEFT, SpaceGesture.SWIPE_RIGHT, SpaceGesture.SWIPE_UP, SpaceGesture.SWIPE_DOWN)) set(g, SpaceAction.MOVE_CURSOR)
-        assertEquals("Leertaste: aktiv – jeder Wisch bewegt den Cursor frei", space())
+        assertEquals("Leertaste: aktiv – jeder Wisch bewegt den Cursor frei (hoch und runter nur in mehrzeiligen Feldern)", space())
     }
 
     @Test fun noDirectionOnTheCursorSaysNotActiveWithoutAskingForSpecificBindings() {
@@ -56,8 +66,8 @@ class CursorTrackDiagTest {
 
     @Test fun theSwitchOffSaysSoForBothKeys() {
         prefs.edit().putBoolean(AgentPreferences.CURSOR_TRACKPAD, false).commit()
-        assertEquals("Leertaste: nicht aktiv – „Cursor als Trackpad“ ist aus; schalte es ein", space())
-        assertEquals("Löschtaste: nicht aktiv – „Cursor als Trackpad“ ist aus; schalte es ein", delete())
+        assertEquals("Aus: Leertaste und Löschtaste arbeiten wie bisher (ohne Trackpad).", space())
+        assertEquals(space(), delete()) // one statement for both keys: the screen shows it once
     }
 
     @Test fun theDeleteSwipeOffSaysSo() {
@@ -100,7 +110,7 @@ class CursorTrackDiagTest {
         val rows = Diagnose.trackpad(app, prefs, counters.snapshot()).rows.associate { it.label to it.value }
         assertEquals("Trackpad, 14 Schritte, senkrecht nicht möglich, weil das Feld einzeilig gemeldet ist", rows["Letzter Wisch auf der Leertaste"])
         assertEquals("Textklasse ja, Mehrzeilig-Flag nein", rows["Leertaste – Feld des letzten Trackpad-Wischs"])
-        assertEquals("14 Schritte waagerecht, 0 Pfeile senkrecht gesendet, 3 senkrecht unterdrückt (Feld einzeilig), 0 Rasten", rows["Leertaste – Bewegung"])
+        assertEquals("14 Schritte waagerecht, 0 Pfeile senkrecht gesendet, etwa 3 Pfeile senkrecht unterdrückt (Feld einzeilig), 0 Rasten", rows["Leertaste – Bewegung"])
         assertFalse(Diagnose.text(app, listOf(Diagnose.trackpad(app, prefs, counters.snapshot()))).isEmpty())
     }
 
@@ -124,7 +134,7 @@ class CursorTrackDiagTest {
         counters.onAction(SpaceGesture.SWIPE_UP, SpaceAction.UNDO)
         var rows = Diagnose.trackpad(app, prefs, counters.snapshot()).rows.associate { it.label to it.value }
         assertEquals("Start nach ↑: Aktion „Rückgängig“ (SWIPE_UP = UNDO), kein Trackpad – so ist es eingestellt", rows["Letzter Wisch auf der Leertaste"])
-        assertEquals("SWIPE_UP = UNDO", rows["Leertaste – zuletzt Aktion statt Trackpad"])
+        assertEquals("↑ Rückgängig (SWIPE_UP = UNDO)", rows["Leertaste – zuletzt Aktion statt Trackpad"])
         counters.onAction(SpaceGesture.SWIPE_DOWN, SpaceAction.NONE)
         rows = Diagnose.trackpad(app, prefs, counters.snapshot()).rows.associate { it.label to it.value }
         assertTrue(rows["Letzter Wisch auf der Leertaste"]!!.startsWith("Start nach ↓: nichts (SWIPE_DOWN = NONE), kein Trackpad"))
@@ -135,6 +145,31 @@ class CursorTrackDiagTest {
         counters.onRefused(CursorTrackCounters.Key.SPACE, CursorTrackCounters.RefusedWhy.OTHER_OWNER)
         rows = Diagnose.trackpad(app, prefs, counters.snapshot()).rows.associate { it.label to it.value }
         assertEquals("abgewiesen, weil ein anderer Finger den Cursor führte", rows["Letzter Wisch auf der Leertaste"])
+    }
+
+    @Test fun aProtectedLiftShowsNoSelectionLengthAndOverwritesTheOldOne() {
+        val counters = CursorTrackCounters()
+        counters.onDeleteLift(7, true)
+        counters.onDeleteLift(12, true, protectedField = true)
+        val s = counters.snapshot().delete
+        assertEquals(-1, s.lastSelectedChars); assertTrue(s.lastLiftProtected)
+        val rows = Diagnose.trackpad(app, prefs, counters.snapshot()).rows.associate { it.label to it.value }
+        assertEquals("2, davon 2 mit Löschen; zuletzt nicht erfasst (geschütztes Feld)", rows["Löschwisch – Loslassen"])
+        assertFalse(rows.values.any { "12" in it.split(" ", ",", ";") }, rows.toString())
+        assertTrue(rows["Letzter Wisch auf der Löschtaste"]!!.isNotEmpty())
+    }
+
+    @Test fun wordsFitTheirNouns() {
+        val counters = CursorTrackCounters()
+        var rows = Diagnose.trackpad(app, prefs, counters.snapshot()).rows.associate { it.label to it.value }
+        assertEquals("noch keine", rows["Leertaste – zuletzt Aktion statt Trackpad"])
+        assertEquals("noch keins", rows["Löschwisch – Loslassen"])
+        assertEquals("noch nie", rows["Leertaste – Markierung zusammengezogen"])
+        counters.onCollapsed()
+        rows = Diagnose.trackpad(app, prefs, counters.snapshot()).rows.associate { it.label to it.value }
+        assertEquals("einmal, zuletzt ja", rows["Leertaste – Markierung zusammengezogen"])
+        assertTrue("Leertaste – Wische seit dem Start der Tastatur" in rows)
+        assertTrue("Löschtaste – Wische seit dem Start der Tastatur" in rows)
     }
 
     @Test fun countersDoNotMixTheTwoKeysAndResetStartsOver() {

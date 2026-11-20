@@ -336,10 +336,11 @@ private fun TouchSection(context: Context, prefs: SharedPreferences, area: Setti
             stringResource(R.string.agent_gestures_trackpad_summary), area.dot, // one explanation in every case; the status line below says the current state (stage 87b)
             trackpad, { putBoolean(AgentPreferences.CURSOR_TRACKPAD, it) }, area.from, area.to, Modifier.testTag(ROW_TAG + AgentPreferences.CURSOR_TRACKPAD))
         // stage 87b: whether the space bar and the delete key qualify right now, and what to change if not (the listener's own rules)
-        Text(CursorTrackText.spaceLine(context, CursorTrackVerdict.space(prefs)), style = AgentSettingsType.Small, color = AgentSettingsTokens.Muted,
-            modifier = Modifier.testTag(TRACKPAD_SPACE_TAG))
-        Text(CursorTrackText.deleteLine(context, CursorTrackVerdict.delete(prefs)), style = AgentSettingsType.Small, color = AgentSettingsTokens.Muted,
-            modifier = Modifier.testTag(TRACKPAD_DELETE_TAG))
+        val spaceLine = CursorTrackText.spaceLine(context, CursorTrackVerdict.space(prefs))
+        val deleteLine = CursorTrackText.deleteLine(context, CursorTrackVerdict.delete(prefs))
+        Text(spaceLine, style = AgentSettingsType.Small, color = AgentSettingsTokens.Muted, modifier = Modifier.testTag(TRACKPAD_SPACE_TAG))
+        // with the switch off both keys say the same: one statement
+        if (deleteLine != spaceLine) Text(deleteLine, style = AgentSettingsType.Small, color = AgentSettingsTokens.Muted, modifier = Modifier.testTag(TRACKPAD_DELETE_TAG))
         if (trackpad) SettingRow(stringResource(R.string.agent_gestures_magnetism), stringResource(R.string.agent_gestures_magnetism_summary), area.dot,
             { onDialog(GestureSlider.MAGNETISM.key) }, Modifier.testTag(ROW_TAG + GestureSlider.MAGNETISM.key), GestureSlider.MAGNETISM.value(prefs))
         SettingSwitchRow(stringResource(R.string.agent_gestures_delete_swipe), stringResource(R.string.agent_gestures_delete_swipe_summary), area.dot,

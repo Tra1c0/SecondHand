@@ -54,6 +54,8 @@ class CursorTrackCounters {
         var lifts = 0
         var liftsDeleted = 0
         var lastSelectedChars = -1
+        /** The last lift happened in a protected field (password, incognito, locked device): the selection length was not read. */
+        var lastLiftProtected = false
         var lastLiftDeleted: Boolean? = null
 
         fun copy() = PerKey().also {
@@ -62,7 +64,7 @@ class CursorTrackCounters {
             it.lastDecision = lastDecision; it.lastReason = lastReason; it.lastRefusedWhy = lastRefusedWhy
             it.lastClassText = lastClassText; it.lastMultiLine = lastMultiLine
             it.lastSteps = lastSteps; it.lastVerticalArrows = lastVerticalArrows; it.lastSuppressedArrows = lastSuppressedArrows
-            it.lifts = lifts; it.liftsDeleted = liftsDeleted; it.lastSelectedChars = lastSelectedChars; it.lastLiftDeleted = lastLiftDeleted
+            it.lifts = lifts; it.liftsDeleted = liftsDeleted; it.lastSelectedChars = lastSelectedChars; it.lastLiftProtected = lastLiftProtected; it.lastLiftDeleted = lastLiftDeleted
         }
     }
 
@@ -111,10 +113,10 @@ class CursorTrackCounters {
     fun onDetent(key: Key) { of(key).detents++ }
 
     /** The finger of a delete slide lifted: [selected] characters were selected, [deleted] says whether they were deleted. */
-    fun onDeleteLift(selected: Int, deleted: Boolean) {
+    fun onDeleteLift(selected: Int, deleted: Boolean, protectedField: Boolean = false) {
         val k = delete
         k.lifts++; if (deleted) k.liftsDeleted++
-        k.lastSelectedChars = selected; k.lastLiftDeleted = deleted
+        k.lastSelectedChars = if (protectedField) -1 else selected; k.lastLiftProtected = protectedField; k.lastLiftDeleted = deleted
     }
 
     companion object {
@@ -174,7 +176,10 @@ object CursorTrackText {
         val parts = own.entries.mapIndexed { i, (action, list) ->
             context.getString(if (i == 0) R.string.agent_trackdiag_start_first else R.string.agent_trackdiag_start_next, or(context, list), action(context, action))
         }
-        return context.getString(R.string.agent_trackdiag_start_decides, or(context, free), parts.joinToString(""))
+        // up and down never move a cursor in a field that is not multi-line (there "nothing" even swallows the swipe, see decideStart): say so
+        val vertical = free.filter { !it.isHorizontal }
+        val note = if (vertical.isEmpty()) "" else context.getString(R.string.agent_trackdiag_multiline_only, or(context, vertical))
+        return context.getString(R.string.agent_trackdiag_start_decides, or(context, free), note + parts.joinToString(""))
     }
 
     /** The part after "Leertaste: aktiv – " and "nicht aktiv – ": what the space bar does now, from the settings. */
@@ -182,29 +187,29 @@ object CursorTrackText {
         CursorTrackpad.SpaceReason.QUALIFIES_ALL_AXES -> context.getString(R.string.agent_trackdiag_detail_all)
         CursorTrackpad.SpaceReason.QUALIFIES_START_DECIDES -> startDecides(context, verdict.gestures ?: SpaceGestureSettings(emptyMap()))
         CursorTrackpad.SpaceReason.NOT_NO_CURSOR_DIRECTION -> context.getString(R.string.agent_trackdiag_detail_none)
-        else -> context.getString(R.string.agent_trackdiag_detail_switch)
+        else -> context.getString(R.string.agent_trackdiag_off_both)
     }
 
     /** The one statement under the switch "Cursor als Trackpad": whether the space bar qualifies and what each start direction does. */
     fun spaceLine(context: Context, verdict: CursorTrackVerdict.Verdict): String =
-        context.getString(if (verdict.active) R.string.agent_trackdiag_line_space_active else R.string.agent_trackdiag_line_space_inactive, spaceDetail(context, verdict))
+        if (verdict.why == CursorTrackVerdict.Why.SWITCH_OFF) context.getString(R.string.agent_trackdiag_off_both) else context.getString(if (verdict.active) R.string.agent_trackdiag_line_space_active else R.string.agent_trackdiag_line_space_inactive, spaceDetail(context, verdict))
 
     /** The value of the card's row for the space bar. */
     fun spaceNow(context: Context, verdict: CursorTrackVerdict.Verdict): String =
-        context.getString(if (verdict.active) R.string.agent_trackdiag_now_active_detail else R.string.agent_trackdiag_now_inactive_detail, spaceDetail(context, verdict))
+        if (verdict.why == CursorTrackVerdict.Why.SWITCH_OFF) context.getString(R.string.agent_trackdiag_now_switch_off) else context.getString(if (verdict.active) R.string.agent_trackdiag_now_active_detail else R.string.agent_trackdiag_now_inactive_detail, spaceDetail(context, verdict))
 
     /** The line for the delete key. */
     fun deleteLine(context: Context, verdict: CursorTrackVerdict.Verdict): String = context.getString(when {
         verdict.active -> R.string.agent_trackdiag_line_delete_active
-        verdict.why == CursorTrackVerdict.Why.SWITCH_OFF -> R.string.agent_trackdiag_line_delete_switch
+        verdict.why == CursorTrackVerdict.Why.SWITCH_OFF -> R.string.agent_trackdiag_off_both
         else -> R.string.agent_trackdiag_line_delete_swipe
     })
 
     /** "Trackpad aktiv" or "nicht aktiv, weil ..." for the delete key on the card. */
     fun deleteNow(context: Context, verdict: CursorTrackVerdict.Verdict): String {
         if (verdict.active) return context.getString(R.string.agent_trackdiag_now_active)
-        val why = context.getString(if (verdict.why == CursorTrackVerdict.Why.SWITCH_OFF) R.string.agent_trackdiag_why_switch else R.string.agent_trackdiag_why_delete_swipe)
-        return context.getString(R.string.agent_trackdiag_now_inactive, why)
+        if (verdict.why == CursorTrackVerdict.Why.SWITCH_OFF) return context.getString(R.string.agent_trackdiag_now_switch_off)
+        return context.getString(R.string.agent_trackdiag_now_inactive, context.getString(R.string.agent_trackdiag_why_delete_swipe))
     }
 
     fun pair(context: Context, prefs: SharedPreferences, first: SpaceGesture, second: SpaceGesture): String {
@@ -228,11 +233,13 @@ object CursorTrackText {
 
     /** The action the last swipe ran instead of the trackpad, as enum names ("SWIPE_UP = UNDO"). */
     fun lastAction(context: Context, k: CursorTrackCounters.PerKey): String =
-        if (k.lastActionGesture == null) context.getString(R.string.agent_trackdiag_lifts_none)
-        else context.getString(R.string.agent_trackdiag_blocker, k.lastActionGesture!!.name, k.lastActionAction?.name ?: "?")
+        if (k.lastActionGesture == null) context.getString(R.string.agent_trackdiag_action_none)
+        else context.getString(R.string.agent_trackdiag_action_value, arrow(k.lastActionGesture!!), action(context, k.lastActionAction ?: SpaceAction.NONE),
+            context.getString(R.string.agent_trackdiag_blocker, k.lastActionGesture!!.name, k.lastActionAction?.name ?: "?"))
 
     fun collapsed(context: Context, k: CursorTrackCounters.PerKey): String =
         if (k.collapsed == 0) context.getString(R.string.agent_trackdiag_collapsed_none)
+        else if (k.collapsed == 1) context.getString(R.string.agent_trackdiag_collapsed_once, yesNo(context, k.lastCollapsed))
         else context.getString(R.string.agent_trackdiag_collapsed, k.collapsed, yesNo(context, k.lastCollapsed))
 
     fun field(context: Context, k: CursorTrackCounters.PerKey): String =
@@ -250,7 +257,7 @@ object CursorTrackText {
                     else if (k.lastVerticalArrows > 0) append(context.getString(R.string.agent_trackdiag_last_vertical, k.lastVerticalArrows))
                     if (k.lastCollapsed == true) append(context.getString(R.string.agent_trackdiag_last_collapsed))
                 } else if (k.lastLiftDeleted != null) {
-                    append(context.getString(R.string.agent_trackdiag_last_lift, k.lastSelectedChars,
+                    append(context.getString(if (k.lastLiftProtected) R.string.agent_trackdiag_last_lift_protected else R.string.agent_trackdiag_last_lift, k.lastSelectedChars,
                         context.getString(if (k.lastLiftDeleted == true) R.string.agent_trackdiag_last_deleted else R.string.agent_trackdiag_last_kept)))
                 }
             }
