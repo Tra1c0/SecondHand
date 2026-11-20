@@ -1505,7 +1505,7 @@ class InputLogicTest {
      * The real PointerTracker with the real listener and several fingers. Letters above y = 150, below it space (x < 200)
      * and delete. Only old API is used (no trackpad names), so the same block runs on the code before stage 87 (the fixture).
      */
-    private inner class TouchRig {
+    private inner class TouchRig(val listener: helium314.keyboard.keyboard.KeyboardActionListener = latinIME.mKeyboardActionListener) {
         val drawing = Mockito.mock(helium314.keyboard.keyboard.internal.DrawingProxy::class.java)
         val timer = FakeTimer()
         val detector = Mockito.mock(helium314.keyboard.keyboard.KeyDetector::class.java)
@@ -1565,7 +1565,7 @@ class InputLogicTest {
                 if (y < 150) letter else if (x < 200) space else delete
             }
             helium314.keyboard.keyboard.PointerTracker.setKeyDetector(detector)
-            helium314.keyboard.keyboard.PointerTracker.setKeyboardActionListener(latinIME.mKeyboardActionListener)
+            helium314.keyboard.keyboard.PointerTracker.setKeyboardActionListener(listener)
         }
 
         private fun packet(action: Int, id: Int): android.view.MotionEvent {
@@ -1616,6 +1616,17 @@ class InputLogicTest {
     }
 
     private fun withRig(block: (TouchRig) -> Unit) { val rig = TouchRig(); try { block(rig) } finally { rig.close() } }
+
+    // stage 87c: what the tracker told the real listener (a spy), for bindings of the vertical swipes
+    private fun withSpyRig(block: (TouchRig, helium314.keyboard.keyboard.KeyboardActionListenerImpl) -> Unit) {
+        val spy = Mockito.spy(latinIME.mKeyboardActionListener as helium314.keyboard.keyboard.KeyboardActionListenerImpl)
+        val rig = TouchRig(spy)
+        try { block(rig, spy) } finally { rig.close() }
+    }
+
+    private fun swipeCalls(spy: helium314.keyboard.keyboard.KeyboardActionListenerImpl): List<String> =
+        Mockito.mockingDetails(spy).invocations.filter { it.method.name in setOf("onSpaceSwipe", "onCodeInput", "toggleLayout", "onEndSpaceSwipe") }
+            .map { inv -> "${inv.method.name} ${inv.arguments.take(2).joinToString(" ")}" }
 
     private val SPACE_X = 100f
     private val SPACE_Y = 200f
@@ -1804,6 +1815,83 @@ class InputLogicTest {
         rig.cancel()
         assertTrue(text.length < "Hallo Welt".length, "the cancel is an up for the slide: the selection goes")
         assertEquals(selectionStart, selectionEnd)
+    }
+
+    // stage 87c: bindings of the vertical swipes. Only old API: the same tests run on the code before 87c (the fixture)
+
+    private fun bindVertical(up: SpaceAction, down: SpaceAction) {
+        setSpaceGesture(SpaceGesture.SWIPE_UP, up)
+        setSpaceGesture(SpaceGesture.SWIPE_DOWN, down)
+    }
+
+    @Test fun bindings87cAnUpwardStartRunsTheActionOfUp() = withSpyRig { rig, spy ->
+        bindVertical(SpaceAction.UNDO, SpaceAction.REDO)
+        setText("Hallo Welt")
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X, SPACE_Y - 40f); rig.up(0)
+        assertEquals("FIXTURE-UP", swipeCalls(spy).joinToString("|"))
+        assertEquals("Hallo Welt", text); assertEquals(10, cursor)
+    }
+
+    @Test fun bindings87cADownwardStartRunsTheActionOfDown() = withSpyRig { rig, spy ->
+        bindVertical(SpaceAction.UNDO, SpaceAction.REDO)
+        setText("Hallo Welt")
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X, SPACE_Y + 40f); rig.up(0)
+        assertEquals("FIXTURE-DOWN", swipeCalls(spy).joinToString("|"))
+        assertEquals(10, cursor)
+    }
+
+    @Test fun bindings87cAContinuousActionOnUpGetsEveryStep() = withSpyRig { rig, spy ->
+        bindVertical(SpaceAction.SWITCH_LANGUAGE, SpaceAction.NONE)
+        setText("Hallo Welt")
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X, SPACE_Y - 90f); rig.up(0)
+        assertEquals("FIXTURE-LANG", swipeCalls(spy).joinToString("|"))
+        assertEquals(10, cursor)
+    }
+
+    @Test fun bindings87cTouchpadModeAndNumpadOnUpRunAsBefore() = withSpyRig { rig, spy ->
+        bindVertical(SpaceAction.TOUCHPAD_MODE, SpaceAction.TOGGLE_NUMPAD)
+        setText("Hallo Welt")
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X, SPACE_Y - 120f); rig.up(0)
+        val up = swipeCalls(spy).joinToString("|")
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X, SPACE_Y + 40f); rig.up(0)
+        assertEquals("FIXTURE-TOUCHPAD", up)
+        assertEquals("FIXTURE-NUMPAD", swipeCalls(spy).joinToString("|"))
+        assertEquals(10, cursor)
+    }
+
+    @Test fun bindings87cAVerticalStartThenSidewaysStaysTheOldSwipe() = withSpyRig { rig, spy ->
+        bindVertical(SpaceAction.UNDO, SpaceAction.REDO)
+        setText("Hallo Welt")
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X, SPACE_Y - 30f); rig.slide(0, SPACE_X + 80f, SPACE_Y - 30f); rig.up(0)
+        assertEquals("FIXTURE-THENSIDE", swipeCalls(spy).joinToString("|"))
+        assertEquals(10, cursor)
+    }
+
+    @Test fun bindings87cLeftOrRightBoundToAnotherActionIsTheOldSwipe() = withSpyRig { rig, spy ->
+        setSpaceGesture(SpaceGesture.SWIPE_LEFT, SpaceAction.SWITCH_LANGUAGE)
+        bindVertical(SpaceAction.UNDO, SpaceAction.REDO)
+        setText("Hallo Welt")
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X - 60f, SPACE_Y); rig.up(0)
+        assertEquals("FIXTURE-LEFTOTHER", swipeCalls(spy).joinToString("|"))
+        assertEquals(10, cursor)
+    }
+
+    @Test fun bindings87cATapWithWobbleAHoldAndTheDoubleSpacePeriodAreUnchanged() = withRig { rig ->
+        bindVertical(SpaceAction.UNDO, SpaceAction.REDO)
+        latinIME.prefs().edit { putBoolean(Settings.PREF_SPACE_TO_CHANGE_LANG, false) }
+        setText("hello")
+        rig.down(0, SPACE_X, SPACE_Y); rig.move(0, SPACE_X + 8, SPACE_Y + 8); rig.up(0) // wobble 8/8: no swipe
+        rig.down(0, SPACE_X, SPACE_Y); rig.move(0, SPACE_X - 8, SPACE_Y - 8); rig.up(0)
+        val wobbled = text
+        setText("hello")
+        rig.down(0, SPACE_X, SPACE_Y); rig.up(0); rig.down(0, SPACE_X, SPACE_Y); rig.up(0)
+        assertEquals(text, wobbled, "the double space period works with these bindings")
+        assertTrue(wobbled.endsWith(" "), wobbled)
+        // a hold (select all) is no swipe either
+        setSpaceGesture(SpaceGesture.HOLD, SpaceAction.SELECT_ALL)
+        setText("Hallo Welt")
+        rig.down(0, SPACE_X, SPACE_Y); rig.wait(700); rig.up(0)
+        assertEquals(10, selectionEnd - selectionStart, "hold selected everything")
     }
 
     // ---- new behavior of the trackpad with several fingers: one owner, the others stay as before
