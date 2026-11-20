@@ -4117,6 +4117,9 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - Docs-System: `scripts/docs_sync.py` (Konfiguration `scripts/docs_sync.json`),
   `scripts/install-hooks.sh` (optionaler Pre-Commit-Hook), `.claude/hooks/session-start.sh`
   (registriert in `.claude/settings.json`). Bedienung: `docs/HANDOFF.md` → Arbeitsweise.
+  `.claude/skills/product-initiative/SKILL.md` ist der Projekt-Skill zur Regel „Verantworte das Produkt“ in
+  `CLAUDE.md` (Auftrag durchdenken, eigene Ideen einordnen, wie der Owner prüfen, Bericht in vier Teilen); er
+  enthält keine eigenen Regeln.
 
 ## Fallstricke
 
@@ -6643,10 +6646,11 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (746 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (747 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
+- `.claude/skills/product-initiative/` (1): SKILL
 - `.github/workflows/` (6): agent-apk, agent-tests, build-debug-apk, build-test-auto, device-tests,
   docs-check
 - `/` (1): settings

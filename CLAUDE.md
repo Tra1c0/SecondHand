@@ -55,7 +55,8 @@ genannten Datei. `AGENTS.md` ist eine automatisch erzeugte Kopie dieser Datei f�
   und nur, wenn die Entwicklung nicht pausiert ist (`docs/HANDOFF.md` → Aktueller Stand).
 - Verantworte das Produkt, nicht nur die Anweisung (Owner, 2026-11-20). Ein Auftrag ist der Ausgangspunkt,
   keine vollständige Spezifikation: Lies ihn im Zusammenhang mit Zweck, vorhandenen Funktionen und dem Arbeitsfluss
-  des Owners und denke mit, was davor, dabei und danach passiert.
+  des Owners und denke mit, was davor, dabei und danach passiert. Die Arbeitsweise dazu mit Beispielen steht im
+  Skill `product-initiative` (`.claude/skills/product-initiative/SKILL.md`); verbindlich sind die Punkte hier.
   - Vor dem Bau einer größeren Funktion steht ein kurzes Konzept in `docs/` (Muster: `docs/LEISTE-KONZEPT.md`):
     was der Owner will, was dem widerspricht, der vollständige Ablauf mit Randfällen und Abbruch, was
     unausgesprochen dazugehört, wie es zu den vorhandenen Funktionen passt, wie es geprüft wird. Kleine Aufgaben
