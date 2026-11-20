@@ -32,6 +32,13 @@ zuverlässig, bzw. gar nicht“: Die Symbole folgten dem Finger, schnappten zur�
   Kontrolllauf lässt das letzte Zeichen weg und lässt sie darum scheitern) und stellt die Standard-Leiste über die Oberfläche wieder her. Der erste Lauf dieser Szenarien scheiterte an den Szenarien, nicht an der Tastatur: nach dem
   Öffnen der Tastatur zeigte die Leiste noch den Zwischenablage-Chip aus dem Szenario davor („Werkzeuge zeigen“ zuerst tippen, jetzt `ensure_tools`). Die Szenarien fanden sonst nichts; die Drag-Szenarien hatten in den Läufen
   nach dieser Korrektur keinen Fehlschlag.
+- **Läufe auf GitHub (Zweig `claude/etappe-88-leiste`, Stand `d3a849b`):** „SecondHand Tests“ 44814865700: beim ersten Versuch rot durch `RgbOwnPatternTest.ownPatternsStayWithinTheBudget` in `agent-core`
+  (ein Zeitbudget, das auf GitHub schon vorher in zwei von vier Läufen eines Tages scheiterte; `agent-core` ist in dieser Etappe unverändert), dadurch liefen die App-Tests in diesem Versuch nicht; beim einmaligen Wiederholen
+  der fehlgeschlagenen Jobs grün (alle vier Jobs). Zuvor auf `448a6fe` (App-Code derselbe): 44798815483 grün. „SecondHand Device Tests“: 44811097485 (ein Emulator, `58cbabc`): 31 von 31 grün; 44814865726 (Push, `d3a849b`):
+  30 von 31, rot allein durch `clipboard_pill` (altes Szenario: nach dem Zurück aus den Einstellungen kam die Test-App 20 s lang nicht nach vorn; die sechs neuen Szenarien grün; sonst in jedem anderen Lauf grün, nicht untersucht);
+  44818635598 (**fünf Emulatoren**, Hand): im ersten Versuch vier grün und ein Emulator ohne Start (das System-Image ließ sich nicht installieren, „Error on ZipFile unknown archive“; kein Szenario lief), im Wiederholen (alle fünf
+  Emulatoren neu gestartet) **alle fünf grün, je 31 von 31**; 44825244436 (**Kontrolllauf**, drei Emulatoren, `--control`): der Bau scheiterte zuerst am Netz („Could not find …“ bei Maven), nach dem Wiederholen alle drei Emulatoren
+  grün, das heißt hier: jedes Szenario, auch die sechs neuen, scheiterte am Vergleich, wie es soll.
 - **Bilder (durch das Job-Protokoll, `shots_from_log.py`; 270 × 175 px, Farben auf 4 Bit gekürzt):** Gesehen wurden: Standardleiste im Tag- und im Nachtlook (alle fünf Werkzeuge und der Raster-Knopf lesbar, gleichmäßig verteilt,
   Mikrofon im Kreis rechts), der Anpassen-Modus (Plätze umrandet, Häkchen links, Hinweis, „Rückgängig“ ausgegraut, „Zurücksetzen“, markierte Pille „Textaktionen“), mitten im Ziehen (Kopie mit Ring am Finger über der Leiste,
   zwischen Zahnrad und Zwischenablage), nach dem Ablegen (sechs Werkzeuge, „Rückgängig“ jetzt hell), acht Werkzeuge (kompakt, alle lesbar, gleichmäßig), drei Werkzeuge (weit, gleichmäßig) und eines (der Raster-Knopf ganz links,
