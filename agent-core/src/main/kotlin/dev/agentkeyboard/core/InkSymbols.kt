@@ -99,6 +99,9 @@ object InkSymbols {
         listOf(line(0, 34, 100, 34), line(0, 66, 100, 66), line(30, 100, 70, 0)),
         listOf(line(0, 38, 100, 38), line(0, 62, 100, 62), line(40, 95, 60, 5)),
         listOf(line(0, 35, 100, 35), line(0, 65, 100, 65), line(22, 95, 78, 5)),
+        // stage 83: the bars in one zigzag and the slash on its own, or the slash drawn on after the second bar
+        listOf(poly(0, 34, 100, 34, 0, 66, 100, 66), line(30, 100, 70, 0)),
+        listOf(line(0, 34, 100, 34), poly(0, 66, 100, 66, 70, 0, 30, 100)),
     )
     private val lessEqual = listOf(
         listOf(poly(90, 0, 10, 38, 90, 76), line(10, 100, 90, 100)),
@@ -166,6 +169,8 @@ object InkSymbols {
     private val sShape = joined(arcPoints(50, 28, 34, 22, 335, 90), arcPoints(50, 72, 34, 22, 270, 515))
     private val dollar = listOf(
         listOf(sShape, line(50, 0, 50, 100)),
+        // stage 83: S and bar without lifting the finger
+        listOf(joined(sShape.coordinates, pts(50, 0, 50, 100))),
         listOf(sShape, line(50, 0, 50, 22), line(50, 78, 50, 100)),
     )
     private val section = listOf(
@@ -190,6 +195,8 @@ object InkSymbols {
         listOf(arc(15, 15, 12, 12, 0, 360), line(80, 5, 20, 95), arc(85, 85, 12, 12, 0, 360)),
         // stage 43 (owner feedback on build 19): the circles drawn as dots or as tiny circles
         listOf(line(85, 0, 15, 100), dot(18, 18), dot(82, 82)),
+        // stage 83: the circles and the slash in one stroke
+        listOf(joined(arcPoints(20, 20, 17, 17, 0, 360), pts(85, 0, 15, 100), arcPoints(80, 80, 17, 17, 0, 360))),
     )
     // stage 43: ‰ with circles and with dots
     private val perMille = listOf(

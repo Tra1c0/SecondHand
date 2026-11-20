@@ -8,4 +8,6 @@
     <string name="agent_selection_paste_description">Text aus der Zwischenablage anstelle der Markierung einfügen</string>
     <string name="agent_selection_delete">Löschen</string>
     <string name="agent_selection_delete_description">Markierten Text löschen</string>
+    <string name="agent_selection_setting">Aktionen bei markiertem Text</string>
+    <string name="agent_selection_setting_sub">Solange Text markiert ist, zeigt die Leiste Kopieren, Ausschneiden, Einfügen und Löschen. Nicht in Passwortfeldern und nicht, wenn die Werkzeugleiste bei einer Markierung von selbst erscheint.</string>
 </resources>

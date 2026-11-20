@@ -41,6 +41,8 @@ object AgentPreferences {
     const val FORMAT_GUARD = "agent_format_guard"
     /** Stage 45: field and context suggestions in the strip (default on; "Meine Daten" starts empty). */
     const val FIELD_SUGGESTIONS = "agent_field_suggestions"
+    /** Stage 82: copy, cut, paste and delete chips in the strip while text is selected (default on). */
+    const val SELECTION_CHIPS = "agent_selection_chips_on"
     /** Stage 40: Smart Paste chips with the clipboard pill and in the clipboard history (default on). */
     const val SMART_PASTE = "agent_smart_paste"
     /** The page "Meine Daten & Vorschläge" (SettingsDestination.AgentMyData), opened from the vault. */

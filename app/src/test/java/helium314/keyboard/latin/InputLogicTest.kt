@@ -13,6 +13,7 @@ import android.os.Message
 import android.text.InputType
 import android.view.inputmethod.*
 import androidx.core.content.edit
+import androidx.core.view.isVisible
 import helium314.keyboard.ShadowBinaryDictionaryUtils
 import helium314.keyboard.ShadowInputMethodManager2
 import helium314.keyboard.ShadowInputMethodService
@@ -6154,8 +6155,7 @@ class InputLogicTest {
         setText("hello world")
         selectAllBySpaceHold()
         assertTrue(selectionChips(strip).isNotEmpty())
-        setCursorPosition(3) // the user taps into the text
-        suggestionsCameBack()
+        setCursorPosition(3) // the user taps into the text: no suggestion update needed, the chips go at once
         assertEquals(emptyList(), selectionLabels(strip))
 
         selectAllBySpaceHold()
@@ -6179,7 +6179,6 @@ class InputLogicTest {
         assertEquals(3, selectionStart)
         assertEquals(3, selectionEnd)
         reportSelection(0, 3) // the editor reports the collapse (the keyboard's expected selection is only set by that)
-        suggestionsCameBack()
         assertEquals(emptyList(), selectionLabels(strip))
     }
 
@@ -6213,7 +6212,6 @@ class InputLogicTest {
         setCursorPosition(2, 5) // like dragging the handles
         assertEquals(listOf("Copy", "Cut", "Delete"), selectionLabels(strip))
         setCursorPosition(3)
-        suggestionsCameBack()
         assertEquals(emptyList(), selectionLabels(strip))
         // the keyboard's select word goes through the editor like select all: the editor reports the selection
         latinIME.onEvent(Event.createSoftwareKeypressEvent(Event.NOT_A_CODE_POINT, KeyCode.CLIPBOARD_SELECT_WORD, 0,
@@ -6227,7 +6225,6 @@ class InputLogicTest {
         handleMessages()
         assertEquals(5, selectionStart)
         reportSelection(0, 5)
-        suggestionsCameBack()
         assertEquals(emptyList(), selectionLabels(strip))
     }
 
@@ -6254,6 +6251,135 @@ class InputLogicTest {
         handleMessages()
         assertEquals(emptyList(), selectionLabels(strip))
         assertTrue("hallo" in stripWords(strip)) // after the selection the words are back
+    }
+
+    // ---- stage 82, after the review: live lock, toolbar, stuck chips, field binding, reuse, switch, gestures ----
+
+    private val keyguard get() = latinIME.getSystemService(android.content.Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+    private fun toolbarOf(strip: android.view.View) = strip.findViewById<android.view.View>(R.id.toolbar_container)
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun aDeviceLockedAfterTheFieldStartedTakesTheChipsAndTheirTaps() {
+        var now = 1_000L
+        helium314.keyboard.agent.LockState.clock = { now }
+        org.robolectric.Shadows.shadowOf(keyguard).setIsDeviceLocked(false)
+        val strip = selectionStrip()
+        selectAllBySpaceHold()
+        assertEquals(listOf("Copy", "Cut", "Delete"), selectionLabels(strip))
+        assertFalse(Settings.getValues().mIsLocked)
+        val shown = selectionChip(strip, "Copy")
+        org.robolectric.Shadows.shadowOf(keyguard).setIsDeviceLocked(true) // the field-start flag stays false
+        assertFalse(Settings.getValues().mIsLocked)
+        assertTrue(shown.performClick()) // a tap on a chip already shown: nothing is copied
+        handleMessages()
+        assertEquals(null, clipboard.primaryClip)
+        now += helium314.keyboard.agent.LockState.UNLOCKED_MILLIS + 1 // the short "unlocked" answer has run out
+        latinIME.setNeutralSuggestionStrip()
+        assertEquals(emptyList(), selectionLabels(strip))
+        org.robolectric.Shadows.shadowOf(keyguard).setIsDeviceLocked(false)
+    }
+
+    private fun selectionStripWithPrefs(vararg prefs: Pair<String, Any>): helium314.keyboard.latin.suggestions.SuggestionStripView {
+        latinIME.prefs().edit { prefs.forEach { (key, value) -> if (value is Boolean) putBoolean(key, value) else putString(key, value as String) } }
+        return selectionStrip() // setText loads the settings
+    }
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun theChipsNeverCloseAToolbarTheUserHasOpen() {
+        val strip = selectionStripWithPrefs(Settings.PREF_TOOLBAR_MODE to helium314.keyboard.latin.utils.ToolbarMode.EXPANDABLE.name,
+            Settings.PREF_AUTO_SHOW_TOOLBAR to false)
+        strip.setToolbarVisibility(true) // opened by hand
+        selectAllBySpaceHold()
+        assertTrue(selectionChips(strip).isNotEmpty())
+        assertTrue(toolbarOf(strip).isVisible) // still open (the chips wait behind it, as every suggestion does)
+        setCursorPosition(3)
+        assertTrue(toolbarOf(strip).isVisible) // and still open after the selection
+        strip.setToolbarVisibility(false)
+        selectAllBySpaceHold()
+        assertEquals(listOf("Copy", "Cut", "Delete"), selectionLabels(strip))
+        assertFalse(toolbarOf(strip).isVisible) // closed: the chips are what the strip shows
+        assertTrue(strip.findViewById<android.view.View>(R.id.suggestions_strip).isVisible)
+        // many rebuilds (a handle being dragged) change nothing about the toolbar
+        repeat(5) { setCursorPosition(1, 3 + it) }
+        assertFalse(toolbarOf(strip).isVisible)
+    }
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun withAutoShowToolbarTheToolbarShowsForASelectionAsBeforeAndThereAreNoChips() {
+        val strip = selectionStripWithPrefs(Settings.PREF_TOOLBAR_MODE to helium314.keyboard.latin.utils.ToolbarMode.EXPANDABLE.name,
+            Settings.PREF_AUTO_SHOW_TOOLBAR to true)
+        assertTrue(Settings.getValues().mAutoShowToolbar)
+        strip.setToolbarVisibility(false)
+        selectAllBySpaceHold()
+        assertEquals(emptyList(), selectionLabels(strip))
+        assertTrue(toolbarOf(strip).isVisible) // the old behaviour: the toolbar appears for a selection
+    }
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun aChipIsBoundToTheFieldItWasShownIn() {
+        val strip = selectionStrip()
+        selectAllBySpaceHold()
+        val old = selectionChip(strip, "Copy")
+        setText("hello world") // another field with the same text: select all selects the same range
+        selectAllBySpaceHold()
+        assertEquals(listOf("Copy", "Cut", "Delete"), selectionLabels(strip))
+        assertTrue(old.performClick())
+        handleMessages()
+        assertEquals(null, clipboard.primaryClip) // refused
+        assertTrue(selectionChip(strip, "Copy").performClick()) // the chip of this field works
+        handleMessages()
+        assertEquals("hello world", clipboard.primaryClip!!.getItemAt(0).text.toString())
+    }
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun aHandleBeingDraggedReusesTheRowAndAsksTheClipboardOnce() {
+        val strip = selectionStrip()
+        var asked = 0
+        helium314.keyboard.agent.SelectionChips.clipHasText = { asked++; true }
+        setCursorPosition(2, 5)
+        assertEquals(listOf("Copy", "Cut", "Paste", "Delete"), selectionLabels(strip))
+        val rows = helium314.keyboard.agent.KeyboardCommands.rowsBuilt
+        val first = strip.findViewById<android.view.View>(R.id.agent_selection_chips)
+        repeat(6) { setCursorPosition(2, 6 + it) }
+        assertEquals(rows, helium314.keyboard.agent.KeyboardCommands.rowsBuilt) // no new row
+        assertTrue(first === strip.findViewById<android.view.View>(R.id.agent_selection_chips))
+        assertEquals(1, asked)
+        assertEquals(1, helium314.keyboard.agent.SelectionChips.clipChecks)
+        // a changed clipboard is asked again
+        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("", "x"))
+        helium314.keyboard.agent.SelectionChips.clipChanged(latinIME) // the listener of the history manager does this on a device
+        assertEquals(2, asked)
+        // a tap still works on the reused row
+        assertTrue(selectionChip(strip, "Copy").performClick())
+        handleMessages()
+        assertEquals("llo world", clipboard.primaryClip!!.getItemAt(0).text.toString())
+    }
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun theSwitchTurnsTheChipsOff() {
+        val strip = selectionStripWithPrefs(helium314.keyboard.agent.AgentPreferences.SELECTION_CHIPS to false)
+        selectAllBySpaceHold()
+        assertEquals(emptyList(), selectionLabels(strip))
+        latinIME.prefs().edit { putBoolean(helium314.keyboard.agent.AgentPreferences.SELECTION_CHIPS, true) }
+        latinIME.setNeutralSuggestionStrip()
+        assertEquals(listOf("Copy", "Cut", "Delete"), selectionLabels(strip)) // read live, default on
+    }
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun gestureTypingOverASelectionStillShowsItsWordsAndTheChipsComeBack() {
+        val strip = selectionStrip()
+        selectAllBySpaceHold()
+        assertTrue(selectionChips(strip).isNotEmpty())
+        for (style in listOf(SuggestedWords.INPUT_STYLE_UPDATE_BATCH, SuggestedWords.INPUT_STYLE_TAIL_BATCH)) {
+            val words = SuggestedWords(arrayListOf(SuggestedWordInfo("hallo", "", 100, SuggestedWordInfo.KIND_CORRECTION, null, 0, 0)),
+                null, null, false, false, false, style, SuggestedWords.NOT_A_SEQUENCE_NUMBER)
+            latinIME.setSuggestions(words)
+            handleMessages()
+            assertEquals(emptyList(), selectionLabels(strip), "style $style")
+            assertTrue("hallo" in stripWords(strip), "style $style")
+            latinIME.setNeutralSuggestionStrip() // the selection is still there afterwards
+            assertTrue(selectionChips(strip).isNotEmpty())
+        }
     }
 
     @Test fun theChipTextsExistInGermanToo() {
@@ -7031,7 +7157,8 @@ class InputLogicTest {
         currentScript = ScriptUtils.SCRIPT_LATIN
         ShadowInputMethodService.reset()
         helium314.keyboard.agent.ScreenshotChip.resetForTest()
-        helium314.keyboard.agent.SelectionChips.clipHasText = helium314.keyboard.agent.SelectionChips::systemClipHasText
+        helium314.keyboard.agent.SelectionChips.resetForTest()
+        helium314.keyboard.agent.LockState.resetForTest()
         helium314.keyboard.agent.EmojiSuggestions.setTableForTest(null) // no emojis unless a test loads the table
         lastAddedWord = ""
 

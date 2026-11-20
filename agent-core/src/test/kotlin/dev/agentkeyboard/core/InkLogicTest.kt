@@ -88,31 +88,110 @@ class InkLogicTest {
         assertNotEquals("€", best(arc))
     }
 
-    @Test fun anIncompleteCandidateIsNeverBestAndOnlyASecondaryOffer() {
-        val result = InkResult(listOf(InkMatch("%", 0.5f, false, complete = false), InkMatch("/", 1.0f, false)))
-        assertEquals("/", result.best?.text)
-        assertEquals(listOf("%"), result.alternatives.map { it.text })
-        // nothing complete close enough: no best match at all, not the incomplete one
-        assertNull(InkResult(listOf(InkMatch("%", 0.5f, false, complete = false), InkMatch("/", 2.5f, false))).best)
-        assertNull(InkResult(listOf(InkMatch("%", 0.5f, false, complete = false))).best)
+    @Test fun aCompleteCandidateBeatsAnIncompleteOneButNotWhenNoneIsAccepted() {
+        // "/" is complete and accepted: "%" (incomplete, closer in raw distance) is only an alternative
+        val slash = InkResult(listOf(InkMatch("%", 0.5f, false, complete = false), InkMatch("/", 1.0f, false)))
+        assertEquals("/", slash.best?.text)
+        assertEquals(listOf("%"), slash.alternatives.map { it.text })
+        // no complete candidate accepted (too far): the closest incomplete one is the best match (a hook is a "?")
+        val hook = InkResult(listOf(InkMatch("?", 1.0f, false, complete = false), InkMatch("(", 2.5f, false)))
+        assertEquals("?", hook.best?.text)
+        // nothing accepted at all
+        assertNull(InkResult(listOf(InkMatch("%", 2.45f, false, complete = false), InkMatch("/", 2.7f, false))).best)
+        // a sloppy complete candidate (accepted only as the clear one) gives way to a close incomplete one
+        assertEquals("?", InkResult(listOf(InkMatch("?", 1.5f, false, complete = false), InkMatch("°", 2.2f, false))).best?.text)
+        assertEquals("°", InkResult(listOf(InkMatch("?", 1.0f, false, complete = false), InkMatch("°", 1.5f, false))).best?.text)
+        // alternatives do not need a best match: the incomplete ones are offered, a complete one that was not accepted is not
+        val none = InkResult(listOf(InkMatch("%", 2.45f, false, complete = false), InkMatch("/", 2.5f, false)))
+        assertNull(none.best)
+        assertEquals(listOf("%"), none.alternatives.map { it.text })
+    }
+
+    // --- stage 83 follow-up: symbols people draw with fewer strokes than the first template must still be found ---
+
+    /** A polyline in the 100 box, enlarged to finger size. */
+    private fun poly(vararg xy: Number) = InkStroke(FloatArray(xy.size) { xy[it].toFloat() * 2.5f })
+
+    private fun arc(cx: Double, cy: Double, rx: Double, ry: Double, from: Double, to: Double): List<Number> {
+        val points = ArrayList<Number>()
+        for (k in 0..24) { val a = Math.toRadians(from + (to - from) * k / 24); points += cx + rx * cos(a); points += cy + ry * sin(a) }
+        return points
+    }
+
+    private fun draw(vararg parts: List<Number>) = parts.map { poly(*it.toTypedArray()) }
+
+    private fun bestOf(strokes: List<InkStroke>) = recognizer.recognize(strokes).best?.text
+
+    @Test fun symbolsDrawnWithFewerStrokesThanTheirFirstTemplateAreStillFound() {
+        val hook = arc(50.0, 27.0, 28.0, 25.0, 195.0, 405.0) + listOf(50, 60, 50, 76)
+        assertEquals("?", bestOf(draw(hook)), "? without its dot")
+        assertEquals("¿", bestOf(draw(hook.map { 100 - it.toDouble() })), "¿ without its dot")
+        assertEquals("+", bestOf(draw(listOf(50, 0, 50, 100, 50, 50, 0, 50, 100, 50))), "+ in one stroke")
+        assertEquals("×", bestOf(draw(listOf(0, 0, 100, 100, 50, 50, 100, 0, 0, 100))), "× in one stroke")
+        assertEquals("=", bestOf(draw(listOf(0, 34, 100, 34, 0, 66, 100, 66))), "= in one stroke")
+        assertEquals("#", bestOf(draw(listOf(38, 0, 26, 100), listOf(76, 0, 64, 100), listOf(0, 32, 100, 32, 0, 68, 100, 68))), "# in three strokes")
+        assertEquals("↗", bestOf(draw(listOf(0, 100, 100, 0, 50, 0, 100, 0, 100, 50))), "↗ in one stroke")
+        assertEquals("↘", bestOf(draw(listOf(0, 0, 100, 100, 50, 100, 100, 100, 100, 50))), "↘ in one stroke")
+        val circle = { cx: Double, cy: Double -> arc(cx, cy, 15.0, 15.0, 0.0, 360.0) }
+        assertEquals("%", bestOf(draw(circle(20.0, 20.0) + listOf(85, 0, 15, 100) + circle(80.0, 80.0))), "% in one stroke")
+        assertEquals("%", bestOf(draw(circle(20.0, 20.0) + listOf(85, 0, 15, 100), circle(80.0, 80.0))), "% in two strokes")
+        assertEquals("±", bestOf(draw(listOf(50, 0, 50, 70, 50, 35, 10, 35, 90, 35), listOf(10, 100, 90, 100))), "± in two strokes")
+        assertEquals("≠", bestOf(draw(listOf(0, 34, 100, 34, 0, 66, 100, 66), listOf(30, 100, 70, 0))), "≠ in two strokes")
+        assertEquals("π", bestOf(draw(listOf(0, 12, 100, 12), listOf(32, 12, 32, 100, 50, 50, 68, 12, 68, 90))), "π in two strokes")
+        val s = arc(50.0, 28.0, 34.0, 22.0, 335.0, 450.0) + arc(50.0, 72.0, 34.0, 22.0, 270.0, 515.0)
+        assertEquals("$", bestOf(draw(s + listOf(50, 0, 50, 100))), "$ in one stroke")
+    }
+
+    @Test fun aCompleteSimplerSymbolStillWinsOverTheFuller() {
+        assertEquals("–", best(InkStroke.of(20f, 80f, 300f, 80f), InkStroke.of(160f, 40f)), "dash and one dot")
+        assertEquals("/", best(straight(60.0), InkStroke.of(60f, 40f)), "slash and one dot")
+        assertEquals("|", best(InkStroke.of(100f, 10f, 100f, 140f)), "bar without its dot")
     }
 
     /**
-     * The general rule on every built-in drawing: leave strokes out of it and the result is never a symbol
-     * that has no drawing with so few strokes (the audit of stage 83 found 65 such results before the rule).
+     * The angles of a single straight stroke (pixels, y down, 0° flat, 90° upright; the mirrored angle is the
+     * backslash). A slightly rising dash and a slightly leaning bar keep their meaning.
      */
-    @Test fun noPartialDrawingBecomesASymbolThatNeedsMoreStrokes() {
-        val bad = ArrayList<String>()
-        for (symbol in InkSymbols.all) for ((index, variant) in symbol.variants.withIndex()) {
+    @Test fun theAnglesOfASingleStrokeArePinned() {
+        val expected = mapOf(0 to "–", 5 to "–", 10 to "–", 15 to "–", 20 to "/", 25 to "/", 30 to "/", 45 to "/", 60 to "/",
+            70 to "/", 75 to "/", 80 to "|", 90 to "|")
+        for ((degrees, text) in expected) for (reversed in listOf(false, true)) {
+            assertEquals(text, best(straight(degrees.toDouble(), reversed = reversed)), "$degrees°")
+            assertEquals(if (text == "/") "\\" else text, best(straight(180.0 - degrees, reversed = reversed)), "${180 - degrees}° (mirrored)")
+        }
+    }
+
+    @Test fun anIncompleteNearestTemplateDoesNotCutTheTurningOfTheCompleteOnes() {
+        // a slash tilted by up to 10° off the 60° template: the incomplete "%" may be the nearest template upright
+        for (tilt in listOf(-10.0, -6.0, 6.0, 10.0)) {
+            val result = recognizer.recognize(listOf(straight(60.0 + tilt)))
+            assertEquals("/", result.best?.text, "$tilt: ${result.candidates.take(4)}")
+        }
+    }
+
+    /**
+     * The general rule on every built-in drawing: leave strokes out of it and the first result is a symbol
+     * with a template that fits the strokes drawn, unless no such symbol is accepted; then it is an incomplete
+     * one (the audit of stage 83 found 65 results before the rule; 22 remain, all partial drawings of that very
+     * symbol that no simpler symbol matches: ↔ ⇒ ≠ = ? $ # % ¿).
+     */
+    @Test fun anIncompleteFirstResultOnlyComesWhenNoCompleteSymbolIsAccepted() {
+        val incompleteFirst = ArrayList<String>()
+        for (symbol in InkSymbols.all) for (variant in symbol.variants) {
             if (variant.size > 5) continue
             for (mask in 1 until (1 shl variant.size) - 1) {
                 val subset = variant.filterIndexed { i, _ -> mask and (1 shl i) != 0 }
-                val best = recognizer.recognize(subset).best?.text ?: continue
-                val needs = InkSymbols.all.first { it.text == best }.variants.minOf { it.size }
-                if (needs > subset.size) bad += "${symbol.text}#$index $mask -> $best (needs $needs, drawn ${subset.size})"
+                val result = recognizer.recognize(subset)
+                val best = result.best ?: continue
+                if (best.complete) continue
+                incompleteFirst += best.text
+                // no simpler symbol was accepted, except the sloppy one that gave way to a close incomplete match
+                val simpler = InkResult(result.candidates.filter { it.complete }).best
+                assertTrue(simpler == null || simpler.distance > InkRecognizer.ACCEPT_DISTANCE, "${symbol.text} $mask: ${result.candidates.take(3)}")
             }
         }
-        assertTrue(bad.isEmpty(), bad.joinToString("; "))
+        println("stage 83 audit: ${incompleteFirst.size} incomplete first results: $incompleteFirst")
+        assertTrue(incompleteFirst.size <= 40, "${incompleteFirst.size}: $incompleteFirst")
     }
 
     @Test fun everyBuiltInSymbolStillNeedsAllItsStrokesButIsFoundWithThem() {

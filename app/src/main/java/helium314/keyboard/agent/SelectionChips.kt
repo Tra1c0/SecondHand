@@ -11,6 +11,7 @@ import helium314.keyboard.latin.LatinIME
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.common.Constants
 import helium314.keyboard.latin.settings.Settings
+import helium314.keyboard.latin.utils.prefs
 
 /**
  * Stage 82 "Alles markieren zeigt Aktionen": while text is selected, the strip shows chips
@@ -28,11 +29,17 @@ import helium314.keyboard.latin.settings.Settings
  * A tap sends the normal key code (`CLIPBOARD_COPY`, `CLIPBOARD_CUT`, `CLIPBOARD_PASTE`, `DELETE`)
  * through [LatinIME.onEvent], so nothing is copied, cut, pasted or deleted without the tap. A tap is
  * refused when the selection is no longer the one the chip was built for. Never in password,
- * incognito or no-learning fields and while the device is locked (stricter than the copy key of the
- * toolbar, which has no such check), never while input is blocked. The clipboard content is never
- * read, only its type ([ClipboardManager.getPrimaryClipDescription]). Nothing is logged.
+ * incognito or no-learning fields and while the device is locked (asked live, like the command chips: a lock
+ * after the field started counts, when the chips are built and on the tap; stricter than the copy key of the
+ * toolbar, which has no such check), never while input is blocked. A chip is bound to the selection and to the
+ * editor session of the field it was built for. Switch: "Aktionen bei markiertem Text" (default on). Not with
+ * "auto show toolbar" and never touching the toolbar ([LatinIME.tryShowSelectionChips]). The row is reused
+ * while selection, field and "Einfügen" stay the same, and the clipboard service is asked once per clip. The
+ * clipboard content is never read, only its type ([ClipboardManager.getPrimaryClipDescription]). Nothing is logged.
  */
 object SelectionChips {
+    fun isEnabled(context: Context) = context.prefs().getBoolean(AgentPreferences.SELECTION_CHIPS, true)
+
     /** Whether the clipboard holds text: its type only, never its content. */
     fun systemClipHasText(context: Context): Boolean =
         (context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager)?.primaryClipDescription?.hasMimeType("text/*") == true
@@ -40,22 +47,49 @@ object SelectionChips {
     /** Replaced in tests. */
     @JvmStatic var clipHasText: (Context) -> Boolean = ::systemClipHasText
 
-    /** No chips without settings, in incognito (also no-learning and password fields) or while the device is locked. */
+    /** Replaced in tests: whether the device is locked right now (the shared, short-lived answer). */
+    @JvmStatic var deviceLocked: (Context) -> Boolean = { LockState.isLocked(it) }
+
+    /** No chips without settings, in incognito (also no-learning and password fields) or while the device is locked, now. */
     private fun isBlocked(ime: LatinIME) =
-        FormatGuardChips.isBlocked(Settings.getValues(), ime.currentInputEditorInfo) || ime.agentEditorController.isBlockingInput
+        FormatGuardChips.isBlocked(Settings.getValues(), ime.currentInputEditorInfo) || ime.agentEditorController.isBlockingInput ||
+            deviceLocked(ime)
 
-    /** Whether the strip was last built with the chips (the next key then rebuilds it once the selection is gone). */
-    @Volatile private var shown = false
+    /** What a row was built for: the selected range and the editor session of the field. */
+    private class Bound(val start: Int, val end: Int, val generation: Long) {
+        fun matches(ime: LatinIME): Boolean {
+            val now = ime.agentSelection ?: return false
+            return now[0] == start && now[1] == end && ime.agentEditorGeneration == generation
+        }
+    }
 
-    /** LatinIME: the chips for the selection that exists now, or null (no selection, blocked field). */
+    /** Whether the strip was last built with the chips, and for what. */
+    @Volatile private var shown: Bound? = null
+
+    /** Whether the clipboard had text when last asked; asked again after a clip change ([clipChanged]) or a copy or cut. */
+    private var clipText: Boolean? = null
+
+    /** How often the clipboard service was asked (tests). */
+    @Volatile internal var clipChecks = 0
+        private set
+
+    internal fun resetForTest() { shown = null; clipText = null; clipChecks = 0; clipHasText = ::systemClipHasText; deviceLocked = { LockState.isLocked(it) } }
+
+    private fun pasteAvailable(ime: LatinIME): Boolean = clipText ?: run {
+        clipChecks++
+        clipHasText(ime).also { clipText = it }
+    }
+
+    /** LatinIME: the chips for the selection that exists now, or null (no selection, blocked field, switched off). */
     @JvmStatic fun createChipsView(ime: LatinIME, parent: ViewGroup): View? {
-        shown = false
+        shown = null
         val selection = ime.agentSelection ?: return null
-        if (isBlocked(ime)) return null
-        shown = true
+        if (!isEnabled(ime) || isBlocked(ime)) return null
+        val bound = Bound(selection[0], selection[1], ime.agentEditorGeneration)
+        shown = bound
         fun press(code: Int) {
-            // the chip belongs to this selection (and field); after any change it does nothing
-            if (ime.agentSelection?.contentEquals(selection) != true || isBlocked(ime)) return
+            // the chip belongs to this selection and field; after any change (or a lock) it does nothing
+            if (!bound.matches(ime) || isBlocked(ime)) return
             ime.onEvent(Event.createSoftwareKeypressEvent(code, 0, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false))
         }
         val chips = ArrayList<KeyboardCommands.Chip>()
@@ -65,11 +99,12 @@ object SelectionChips {
         chips += KeyboardCommands.Chip(ime.getString(R.string.agent_selection_cut), ime.getString(R.string.agent_selection_cut_description)) {
             press(KeyCode.CLIPBOARD_CUT)
         }
-        if (clipHasText(ime)) chips += KeyboardCommands.Chip(ime.getString(R.string.agent_selection_paste),
+        if (pasteAvailable(ime)) chips += KeyboardCommands.Chip(ime.getString(R.string.agent_selection_paste),
             ime.getString(R.string.agent_selection_paste_description)) { press(KeyCode.CLIPBOARD_PASTE) }
         chips += KeyboardCommands.Chip(ime.getString(R.string.agent_selection_delete), ime.getString(R.string.agent_selection_delete_description),
             kind = KeyboardCommands.Chip.Kind.MUTED) { press(KeyCode.DELETE) }
-        return KeyboardCommands.chipRow(parent, chips).apply { id = R.id.agent_selection_chips }
+        // the row of the last build when nothing visible changed (a handle being dragged rebuilds the strip often)
+        return KeyboardCommands.rowFor(parent, chips).apply { id = R.id.agent_selection_chips }
     }
 
     /**
@@ -81,6 +116,22 @@ object SelectionChips {
      */
     @JvmStatic fun afterKey(ime: LatinIME, keyCode: Int) {
         val own = keyCode == KeyCode.CLIPBOARD_COPY || keyCode == KeyCode.CLIPBOARD_CUT || keyCode == KeyCode.CLIPBOARD_PASTE
-        if (own || (shown && ime.agentSelection == null)) ime.setNeutralSuggestionStrip()
+        if (keyCode == KeyCode.CLIPBOARD_COPY || keyCode == KeyCode.CLIPBOARD_CUT) clipText = null
+        if (own || (shown != null && ime.agentSelection == null)) ime.setNeutralSuggestionStrip()
+    }
+
+    /**
+     * LatinIME.onUpdateSelection, after the input logic: chips of a selection that is gone or another one go at
+     * once (the input logic returns before it rebuilds the strip on some paths, e.g. a word it does not resume).
+     */
+    @JvmStatic fun afterSelectionUpdate(ime: LatinIME) {
+        val bound = shown ?: return
+        if (!bound.matches(ime)) ime.setNeutralSuggestionStrip()
+    }
+
+    /** ClipboardHistoryManager: a new clip, so "Einfügen" is asked again; chips on show are built again. */
+    @JvmStatic fun clipChanged(ime: LatinIME) {
+        clipText = null
+        if (shown != null) ime.setNeutralSuggestionStrip()
     }
 }

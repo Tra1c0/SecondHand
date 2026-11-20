@@ -73,6 +73,9 @@ class AndroidEditorAdapter(
         if (changed) invalidate()
     }
 
+    /** Stage 82: the number of the current editor session (new for every field start), -1 without one. */
+    val generation: Long get() = session.token?.generation ?: -1L
+
     fun invalidate() {
         session.invalidate()
         notifyInvalidation()
