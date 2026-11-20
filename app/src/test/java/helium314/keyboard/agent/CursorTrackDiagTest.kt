@@ -55,7 +55,7 @@ class CursorTrackDiagTest {
 
     @Test fun allFourDirectionsOnTheCursorSayEverySwipeMovesFreely() {
         for (g in listOf(SpaceGesture.SWIPE_LEFT, SpaceGesture.SWIPE_RIGHT, SpaceGesture.SWIPE_UP, SpaceGesture.SWIPE_DOWN)) set(g, SpaceAction.MOVE_CURSOR)
-        assertEquals("Leertaste: aktiv – jeder Wisch bewegt den Cursor frei (hoch und runter nur in mehrzeiligen Feldern)", space())
+        assertEquals("Leertaste: aktiv – jeder Wisch bewegt den Cursor frei (↑ oder ↓ nur in mehrzeiligen Feldern)", space())
     }
 
     @Test fun noDirectionOnTheCursorSaysNotActiveWithoutAskingForSpecificBindings() {
@@ -147,16 +147,51 @@ class CursorTrackDiagTest {
         assertEquals("abgewiesen, weil ein anderer Finger den Cursor führte", rows["Letzter Wisch auf der Leertaste"])
     }
 
-    @Test fun aProtectedLiftShowsNoSelectionLengthAndOverwritesTheOldOne() {
+    @Test fun aProtectedSwipeRecordsNoMovementValueAtAll() {
+        // the rule: in a protected field only the decision and that a swipe happened are kept (review of stage 87b)
+        for (key in CursorTrackCounters.Key.entries) {
+            val counters = CursorTrackCounters()
+            // an earlier, unprotected swipe leaves its values: they stay, and the protected one adds nothing and wipes the "last" values
+            counters.onClaimed(key, android.text.InputType.TYPE_CLASS_TEXT)
+            counters.onSteps(key, 2); counters.onVerticalArrow(key); counters.onSuppressedArrows(key, 1); counters.onDetent(key)
+            if (key == CursorTrackCounters.Key.SPACE) counters.onCollapsed() else counters.onDeleteLift(5, true)
+            val before = counters.snapshot().let { if (key == CursorTrackCounters.Key.SPACE) it.space else it.delete }
+            counters.onClaimed(key, android.text.InputType.TYPE_CLASS_TEXT, protectedField = true)
+            counters.onSteps(key, 7); counters.onVerticalArrow(key); counters.onSuppressedArrows(key, 4); counters.onDetent(key)
+            counters.onCollapsed(); counters.onDeleteLift(9, true)
+            val after = counters.snapshot().let { if (key == CursorTrackCounters.Key.SPACE) it.space else it.delete }
+            val fresh = CursorTrackCounters.Movement()
+            for (f in CursorTrackCounters.Movement::class.java.declaredFields.filterNot { it.isSynthetic || java.lang.reflect.Modifier.isStatic(it.modifiers) }) {
+                f.isAccessible = true
+                val total = f.get(after.m); val was = f.get(before.m)
+                when {
+                    f.name.startsWith("last") -> assertEquals(f.get(fresh).let { if (f.name == "lastCollapsed") false else it }, total, "${key.name}.${f.name}: the last-swipe values are wiped at a protected claim")
+                    else -> assertEquals(was, total, "${key.name}.${f.name}: a protected swipe adds nothing to a total")
+                }
+            }
+            assertTrue(after.protectedSwipe && after.lastProtected)
+        }
+        // every number a PerKey holds outside Movement is a decision count (not a movement): a new one must be added here on purpose
+        val decisionCounts = setOf("touches", "active", "refused", "actions", "neverClaimed", "lifts")
+        for (f in CursorTrackCounters.PerKey::class.java.declaredFields.filterNot { it.isSynthetic || java.lang.reflect.Modifier.isStatic(it.modifiers) }) {
+            if (f.type == Int::class.javaPrimitiveType) assertTrue(f.name in decisionCounts, "${f.name}: a movement value belongs into CursorTrackCounters.Movement (recorded through move)")
+        }
+    }
+
+    @Test fun theCardSaysMovementWasNotRecordedInAProtectedField() {
         val counters = CursorTrackCounters()
-        counters.onDeleteLift(7, true)
-        counters.onDeleteLift(12, true, protectedField = true)
-        val s = counters.snapshot().delete
-        assertEquals(-1, s.lastSelectedChars); assertTrue(s.lastLiftProtected)
+        counters.onTouch(CursorTrackCounters.Key.DELETE)
+        counters.onClaimed(CursorTrackCounters.Key.DELETE, android.text.InputType.TYPE_CLASS_TEXT, protectedField = true)
+        counters.onSteps(CursorTrackCounters.Key.DELETE, 4)
+        counters.onDeleteLift(4, true)
+        counters.onClaimed(CursorTrackCounters.Key.SPACE, android.text.InputType.TYPE_CLASS_TEXT, protectedField = true)
+        counters.onSteps(CursorTrackCounters.Key.SPACE, 12)
         val rows = Diagnose.trackpad(app, prefs, counters.snapshot()).rows.associate { it.label to it.value }
-        assertEquals("2, davon 2 mit Löschen; zuletzt nicht erfasst (geschütztes Feld)", rows["Löschwisch – Loslassen"])
-        assertFalse(rows.values.any { "12" in it.split(" ", ",", ";") }, rows.toString())
-        assertTrue(rows["Letzter Wisch auf der Löschtaste"]!!.isNotEmpty())
+        assertEquals("Trackpad – Bewegung nicht erfasst (geschütztes Feld)", rows["Letzter Wisch auf der Löschtaste"])
+        assertEquals("Trackpad – Bewegung nicht erfasst (geschütztes Feld)", rows["Letzter Wisch auf der Leertaste"])
+        assertEquals("1; zuletzt nicht erfasst (geschütztes Feld)", rows["Löschwisch – Loslassen"])
+        assertEquals("0 Schritte, 0 Rasten", rows["Löschtaste – Bewegung"])
+        assertFalse(rows.values.any { Regex("\\b(4|12)\\b").containsMatchIn(it) }, rows.toString())
     }
 
     @Test fun wordsFitTheirNouns() {

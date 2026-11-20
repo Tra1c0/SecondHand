@@ -49,7 +49,7 @@
     <string name="agent_trackdiag_start_decides">Start nach %1$s bewegt den Cursor frei%2$s</string>
     <string name="agent_trackdiag_start_first">; Start nach %1$s löst „%2$s“ aus</string>
     <string name="agent_trackdiag_start_next">, nach %1$s „%2$s“</string>
-    <string name="agent_trackdiag_detail_all">jeder Wisch bewegt den Cursor frei (hoch und runter nur in mehrzeiligen Feldern)</string>
+    <string name="agent_trackdiag_detail_all">jeder Wisch bewegt den Cursor frei (↑ oder ↓ nur in mehrzeiligen Feldern)</string>
     <string name="agent_trackdiag_detail_none">keine Richtung steht auf „Cursor bewegen“; lege unter „Leertaste“ eine Richtung (zum Beispiel links) darauf</string>
     <string name="agent_trackdiag_line_space_active">Leertaste: aktiv – %1$s</string>
     <string name="agent_trackdiag_line_space_inactive">Leertaste: nicht aktiv – %1$s</string>
@@ -71,6 +71,6 @@
     <string name="agent_trackdiag_action_none">noch keine</string>
     <string name="agent_trackdiag_action_value">%1$s %2$s (%3$s)</string>
     <string name="agent_trackdiag_collapsed_once">einmal, zuletzt %1$s</string>
-    <string name="agent_trackdiag_lifts_protected">%1$d, davon %2$d mit Löschen; zuletzt nicht erfasst (geschütztes Feld)</string>
-    <string name="agent_trackdiag_last_lift_protected">, beim Loslassen nicht erfasst (geschütztes Feld), %2$s</string>
+    <string name="agent_trackdiag_lifts_protected">%1$d; zuletzt nicht erfasst (geschütztes Feld)</string>
+    <string name="agent_trackdiag_last_protected">Trackpad – Bewegung nicht erfasst (geschütztes Feld)</string>
 </resources>

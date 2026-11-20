@@ -23,6 +23,37 @@ class CursorTrackCounters {
     /** Why a second touch was refused: another finger owns the track, or another finger runs an action of the space bar. */
     enum class RefusedWhy { OTHER_OWNER, OTHER_ACTION }
 
+    /**
+     * Everything a finger's movement tells about the field: how far it went, how many arrows, detents (word edges), the length of a
+     * selection. Written only through [CursorTrackCounters.move], which records nothing in a protected field (password, incognito,
+     * locked device): there the diagnosis keeps the decision and that a swipe happened, never a movement value. A new movement
+     * counter belongs here, so it is covered by that rule (and by the test that compares every field of this class).
+     */
+    class Movement {
+        var steps = 0
+        var verticalArrows = 0
+        var suppressedArrows = 0
+        var detents = 0
+        var collapsed = 0
+        var liftsDeleted = 0
+        // the last swipe alone
+        var lastSteps = 0
+        var lastVerticalArrows = 0
+        var lastSuppressedArrows = 0
+        var lastCollapsed: Boolean? = null
+        var lastSelectedChars = -1
+        var lastLiftDeleted: Boolean? = null
+
+        fun resetLast() { lastSteps = 0; lastVerticalArrows = 0; lastSuppressedArrows = 0; lastCollapsed = false; lastSelectedChars = -1; lastLiftDeleted = null }
+
+        fun copy() = Movement().also {
+            it.steps = steps; it.verticalArrows = verticalArrows; it.suppressedArrows = suppressedArrows; it.detents = detents
+            it.collapsed = collapsed; it.liftsDeleted = liftsDeleted
+            it.lastSteps = lastSteps; it.lastVerticalArrows = lastVerticalArrows; it.lastSuppressedArrows = lastSuppressedArrows
+            it.lastCollapsed = lastCollapsed; it.lastSelectedChars = lastSelectedChars; it.lastLiftDeleted = lastLiftDeleted
+        }
+    }
+
     class PerKey {
         var touches = 0
         var active = 0
@@ -33,38 +64,42 @@ class CursorTrackCounters {
         /** The start direction and action of the last swipe that ran an action instead of the trackpad (enum names). */
         var lastActionGesture: SpaceGesture? = null
         var lastActionAction: SpaceAction? = null
-        var collapsed = 0
-        var lastCollapsed: Boolean? = null
         var neverClaimed = 0
-        var steps = 0
-        var verticalArrows = 0
-        var suppressedArrows = 0
-        var detents = 0
         var lastDecision: Decision? = null
         var lastReason: OffReason? = null
         var lastRefusedWhy: RefusedWhy? = null
         /** The field kind of the last claimed track, flags only (null: no track claimed yet). */
         var lastClassText: Boolean? = null
         var lastMultiLine: Boolean? = null
-        /** The last claimed track alone. */
-        var lastSteps = 0
-        var lastVerticalArrows = 0
-        var lastSuppressedArrows = 0
-        // the delete slide
+        /** The delete slides that lifted (a decision-level count; what they selected is movement). */
         var lifts = 0
-        var liftsDeleted = 0
-        var lastSelectedChars = -1
-        /** The last lift happened in a protected field (password, incognito, locked device): the selection length was not read. */
-        var lastLiftProtected = false
-        var lastLiftDeleted: Boolean? = null
+        /** The movement values (see [Movement]); never written while [protectedSwipe]. */
+        var m = Movement()
+        /** The current (last claimed) swipe runs in a protected field: no movement is recorded. */
+        var protectedSwipe = false
+        /** The last claimed swipe was in a protected field. */
+        var lastProtected = false
+
+        val steps get() = m.steps
+        val verticalArrows get() = m.verticalArrows
+        val suppressedArrows get() = m.suppressedArrows
+        val detents get() = m.detents
+        val collapsed get() = m.collapsed
+        val liftsDeleted get() = m.liftsDeleted
+        val lastSteps get() = m.lastSteps
+        val lastVerticalArrows get() = m.lastVerticalArrows
+        val lastSuppressedArrows get() = m.lastSuppressedArrows
+        val lastCollapsed get() = m.lastCollapsed
+        val lastSelectedChars get() = m.lastSelectedChars
+        val lastLiftDeleted get() = m.lastLiftDeleted
+        val lastLiftProtected get() = lastProtected
 
         fun copy() = PerKey().also {
-            it.touches = touches; it.active = active; off.copyInto(it.off); it.refused = refused; refusedBy.copyInto(it.refusedBy); it.actions = actions; it.lastActionGesture = lastActionGesture; it.lastActionAction = lastActionAction; it.collapsed = collapsed; it.lastCollapsed = lastCollapsed; it.neverClaimed = neverClaimed
-            it.steps = steps; it.verticalArrows = verticalArrows; it.suppressedArrows = suppressedArrows; it.detents = detents
+            it.touches = touches; it.active = active; off.copyInto(it.off); it.refused = refused; refusedBy.copyInto(it.refusedBy); it.actions = actions
+            it.lastActionGesture = lastActionGesture; it.lastActionAction = lastActionAction; it.neverClaimed = neverClaimed
             it.lastDecision = lastDecision; it.lastReason = lastReason; it.lastRefusedWhy = lastRefusedWhy
-            it.lastClassText = lastClassText; it.lastMultiLine = lastMultiLine
-            it.lastSteps = lastSteps; it.lastVerticalArrows = lastVerticalArrows; it.lastSuppressedArrows = lastSuppressedArrows
-            it.lifts = lifts; it.liftsDeleted = liftsDeleted; it.lastSelectedChars = lastSelectedChars; it.lastLiftProtected = lastLiftProtected; it.lastLiftDeleted = lastLiftDeleted
+            it.lastClassText = lastClassText; it.lastMultiLine = lastMultiLine; it.lifts = lifts
+            it.m = m.copy(); it.protectedSwipe = protectedSwipe; it.lastProtected = lastProtected
         }
     }
 
@@ -76,6 +111,15 @@ class CursorTrackCounters {
 
     fun snapshot() = Snapshot(space.copy(), delete.copy())
     fun reset() { space = PerKey(); delete = PerKey() }
+
+    /** The one place of the rule: movement values are recorded only while the swipe of [key] is not in a protected field. */
+    private inline fun move(key: Key, record: Movement.() -> Unit) {
+        val k = of(key)
+        if (!k.protectedSwipe) k.m.record()
+    }
+
+    /** Whether the current swipe of [key] runs in a protected field (the listener then does not even read what it would record). */
+    fun isProtectedSwipe(key: Key) = of(key).protectedSwipe
 
     /** A touch of the key reached the trackpad code. */
     fun onTouch(key: Key) { of(key).touches++ }
@@ -95,28 +139,33 @@ class CursorTrackCounters {
         k.lastActionGesture = gesture; k.lastActionAction = action
     }
 
-    /** The trackpad started with a selection and collapsed it (a flag, never the selection). */
-    fun onCollapsed() { space.collapsed++; space.lastCollapsed = true }
     fun onNeverClaimed(key: Key) { val k = of(key); k.neverClaimed++; k.lastDecision = Decision.NEVER_CLAIMED; k.lastReason = null }
 
-    /** The finger became a swipe: the field kind is read from the input type (flags only). */
-    fun onClaimed(key: Key, inputType: Int?) {
+    /**
+     * The finger became a swipe: the field kind is read from the input type (flags only). [protectedField]: the swipe runs in a protected
+     * field, so every movement counter ignores it until the next claim.
+     */
+    fun onClaimed(key: Key, inputType: Int?, protectedField: Boolean = false) {
         val k = of(key)
         k.active++; k.lastDecision = Decision.ACTIVE; k.lastReason = null
         k.lastClassText = CursorTrackpad.isTextClass(inputType); k.lastMultiLine = CursorTrackpad.hasMultiLineFlag(inputType)
-        k.lastSteps = 0; k.lastVerticalArrows = 0; k.lastSuppressedArrows = 0; k.lastCollapsed = false
+        k.protectedSwipe = protectedField; k.lastProtected = protectedField
+        k.m.resetLast()
     }
 
-    fun onSteps(key: Key, count: Int) { val k = of(key); k.steps += count; k.lastSteps += count }
-    fun onVerticalArrow(key: Key) { val k = of(key); k.verticalArrows++; k.lastVerticalArrows++ }
-    fun onSuppressedArrows(key: Key, count: Int) { val k = of(key); k.suppressedArrows += count; k.lastSuppressedArrows += count }
-    fun onDetent(key: Key) { of(key).detents++ }
+    // ---- movement values (all through move)
+
+    /** The trackpad started with a selection and collapsed it (a flag, never the selection). */
+    fun onCollapsed() = move(Key.SPACE) { collapsed++; lastCollapsed = true }
+    fun onSteps(key: Key, count: Int) = move(key) { steps += count; lastSteps += count }
+    fun onVerticalArrow(key: Key) = move(key) { verticalArrows++; lastVerticalArrows++ }
+    fun onSuppressedArrows(key: Key, count: Int) = move(key) { suppressedArrows += count; lastSuppressedArrows += count }
+    fun onDetent(key: Key) = move(key) { detents++ }
 
     /** The finger of a delete slide lifted: [selected] characters were selected, [deleted] says whether they were deleted. */
-    fun onDeleteLift(selected: Int, deleted: Boolean, protectedField: Boolean = false) {
-        val k = delete
-        k.lifts++; if (deleted) k.liftsDeleted++
-        k.lastSelectedChars = if (protectedField) -1 else selected; k.lastLiftProtected = protectedField; k.lastLiftDeleted = deleted
+    fun onDeleteLift(selected: Int, deleted: Boolean) {
+        delete.lifts++
+        move(Key.DELETE) { if (deleted) liftsDeleted++; lastSelectedChars = selected; lastLiftDeleted = deleted }
     }
 
     companion object {
@@ -251,13 +300,17 @@ object CursorTrackText {
         val decision = k.lastDecision ?: return context.getString(R.string.agent_trackdiag_last_none)
         return when (decision) {
             CursorTrackCounters.Decision.ACTIVE -> buildString {
+                if (k.lastProtected) { // a protected field: the decision and that a swipe happened, no movement value
+                    append(context.getString(R.string.agent_trackdiag_last_protected))
+                    return@buildString
+                }
                 append(context.getString(R.string.agent_trackdiag_last_active, k.lastSteps))
                 if (space) {
                     if (k.lastMultiLine != true || k.lastClassText != true) append(context.getString(R.string.agent_trackdiag_last_single_line))
                     else if (k.lastVerticalArrows > 0) append(context.getString(R.string.agent_trackdiag_last_vertical, k.lastVerticalArrows))
                     if (k.lastCollapsed == true) append(context.getString(R.string.agent_trackdiag_last_collapsed))
                 } else if (k.lastLiftDeleted != null) {
-                    append(context.getString(if (k.lastLiftProtected) R.string.agent_trackdiag_last_lift_protected else R.string.agent_trackdiag_last_lift, k.lastSelectedChars,
+                    append(context.getString(R.string.agent_trackdiag_last_lift, k.lastSelectedChars,
                         context.getString(if (k.lastLiftDeleted == true) R.string.agent_trackdiag_last_deleted else R.string.agent_trackdiag_last_kept)))
                 }
             }

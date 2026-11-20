@@ -681,7 +681,7 @@ object Diagnose {
         rows += Row(s(R.string.agent_trackdiag_row_delete_decisions), CursorTrackText.decisions(context, delete, false))
         rows += Row(s(R.string.agent_trackdiag_row_delete_steps), context.getString(R.string.agent_trackdiag_steps_delete, delete.steps, delete.detents))
         rows += Row(s(R.string.agent_trackdiag_row_delete_lifts), if (delete.lifts == 0) s(R.string.agent_trackdiag_lifts_none)
-            else if (delete.lastLiftProtected) context.getString(R.string.agent_trackdiag_lifts_protected, delete.lifts, delete.liftsDeleted)
+            else if (delete.lastProtected) context.getString(R.string.agent_trackdiag_lifts_protected, delete.lifts)
             else context.getString(R.string.agent_trackdiag_lifts, delete.lifts, delete.liftsDeleted, delete.lastSelectedChars))
         rows += Row(s(R.string.agent_trackdiag_row_delete_last), CursorTrackText.last(context, delete, false))
         return Section(Part.TRACKPAD, s(R.string.agent_trackdiag_title), rows)

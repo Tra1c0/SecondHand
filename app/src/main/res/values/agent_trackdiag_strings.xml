@@ -49,7 +49,7 @@
     <string name="agent_trackdiag_start_decides">a swipe starting %1$s moves the cursor freely%2$s</string>
     <string name="agent_trackdiag_start_first">; one starting %1$s runs “%2$s”</string>
     <string name="agent_trackdiag_start_next">, %1$s “%2$s”</string>
-    <string name="agent_trackdiag_detail_all">every swipe moves the cursor freely (up and down only in multi-line fields)</string>
+    <string name="agent_trackdiag_detail_all">every swipe moves the cursor freely (↑ or ↓ only in multi-line fields)</string>
     <string name="agent_trackdiag_detail_none">no direction is set to “Move cursor”; under “Space bar” set one direction (for instance left) to it</string>
     <string name="agent_trackdiag_line_space_active">Space bar: active – %1$s</string>
     <string name="agent_trackdiag_line_space_inactive">Space bar: not active – %1$s</string>
@@ -71,6 +71,6 @@
     <string name="agent_trackdiag_action_none">none yet</string>
     <string name="agent_trackdiag_action_value">%1$s %2$s (%3$s)</string>
     <string name="agent_trackdiag_collapsed_once">once, last time %1$s</string>
-    <string name="agent_trackdiag_lifts_protected">%1$d, %2$d of them deleted; last time not recorded (protected field)</string>
-    <string name="agent_trackdiag_last_lift_protected">, not recorded at the lift (protected field), %2$s</string>
+    <string name="agent_trackdiag_lifts_protected">%1$d; last time not recorded (protected field)</string>
+    <string name="agent_trackdiag_last_protected">trackpad – movement not recorded (protected field)</string>
 </resources>

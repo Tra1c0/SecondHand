@@ -1608,11 +1608,13 @@ class InputLogicTest {
     }
 
     @Test fun cursor87bAProtectedFieldRecordsNoSelectionLengthAndNoDetents() {
-        for (protection in listOf("password", "incognito")) {
+        for (protection in listOf("password", "incognito", "locked")) {
+            helium314.keyboard.agent.LockState.resetForTest()
             helium314.keyboard.agent.CursorTrackCounters.shared.reset()
             latinIME.prefs().edit { clear() }
             if (protection == "password") setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
-            else { setInputType(InputType.TYPE_CLASS_TEXT); latinIME.prefs().edit { putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true) } }
+            else if (protection == "incognito") { setInputType(InputType.TYPE_CLASS_TEXT); latinIME.prefs().edit { putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true) } }
+            else { setInputType(InputType.TYPE_CLASS_TEXT); helium314.keyboard.agent.LockState.normal.read = { true } } // the live lock question says: locked
             setText("geheim 1234 abc")
             // a first, unprotected-looking length must not survive: record one, then slide again
             assertEquals(TRACK_ACTIVE, trackDrag(KeyCode.DELETE, -62.0, 0.0, lift = false), protection)
@@ -1622,9 +1624,16 @@ class InputLogicTest {
             val delete = trackSnapshot().delete
             assertEquals(1, delete.lifts, protection)
             assertEquals(-1, delete.lastSelectedChars, protection); assertTrue(delete.lastLiftProtected, protection)
-            assertEquals(0, delete.detents, protection)
-            assertEquals("1, 1 of them deleted; last time not recorded (protected field)", trackRow(R.string.agent_trackdiag_row_delete_lifts), protection)
-            assertTrue(trackRow(R.string.agent_trackdiag_row_delete_last).contains("not recorded at the lift (protected field)"), protection)
+            assertEquals(0, delete.detents, protection); assertEquals(0, delete.steps, protection); assertEquals(0, delete.lastSteps, protection)
+            assertEquals("1; last time not recorded (protected field)", trackRow(R.string.agent_trackdiag_row_delete_lifts), protection)
+            assertEquals("trackpad – movement not recorded (protected field)", trackRow(R.string.agent_trackdiag_row_delete_last), protection)
+            assertEquals("0 steps, 0 detents", trackRow(R.string.agent_trackdiag_row_delete_steps), protection)
+            // the space bar in the same field: the decision is counted, no movement value
+            setText("geheim 1234 abc"); setCursorPosition(0)
+            assertEquals(TRACK_ACTIVE, spaceTrack(42.0, 0.0), protection)
+            val space = trackSnapshot().space
+            assertEquals(1, space.active, protection); assertEquals(0, space.steps, protection); assertEquals(0, space.lastSteps, protection)
+            assertEquals("trackpad – movement not recorded (protected field)", trackRow(R.string.agent_trackdiag_row_space_last), protection)
         }
     }
 
