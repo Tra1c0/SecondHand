@@ -112,6 +112,51 @@ ist fertig, das Raster scrollt); `up` vor allem → Antippen (Leistensymbol: her
 der Pille). `DRAGGING`: Finger in Zone → Lücke an Index; außerhalb → Lücke zu; `up` → Ablegen; `cancel` → zurück.
 Ein zweiter Zeiger wird ignoriert. Jede Berührung endet in `IDLE`.
 
+## 4a. Zusätze zum Anpassen (Entscheidungen beim Bau)
+
+- **Hochheben vom Raster:** Die Kopie sitzt unter dem Finger (nicht mit dem Versatz zur Pille, denn die Pille ist halb so breit wie
+  der Bildschirm). Vom Leistensymbol aus bleibt der Versatz klein und wird nicht gesondert gerechnet.
+- **Halten und auf der Stelle loslassen** (ohne dass der Finger sich um den Touch-Slop bewegt hat) legt das Werkzeug zurück:
+  nichts ändert sich. Grund: Eine Pille, die durch Scrollen nah an der Leiste steht, läge sonst in der Zone und würde ohne
+  Absicht eingefügt.
+- **Antippen** (kurze Berührung) einer Pille oder eines Leistensymbols wird im Behälter selbst erledigt (anhängen/herausnehmen),
+  nicht über den Klick der Pille: der Klick läuft über einen `post`, den eine Ansicht ohne Fenster nie ausführt (Test), und ein
+  vom Behälter abgebrochenes Kind klickt nicht zweimal. Die Klicks der Pillen bleiben für Screenreader.
+- **Rückgängig und Zurücksetzen** im Hinweisbereich des Anpassen-Modus (Befund 3), Zurücksetzen mit Frage „Ja / Nein“ im Raster.
+- **Tippen auf ein nicht verfügbares Werkzeug** sagt den Grund (Abschnitt 2), in der Leiste und im Raster.
+- **Gleiten:** beim Öffnen und Schließen der Lücke gleiten die Symbole in 140 ms an ihren Platz (nur Bewegung, kein Zustand).
+- **Das Raster scrollt weiter**, wenn der Finger auf einer Pille senkrecht zieht, bevor die Haltezeit um ist; ein Ziehen von Hand in die Leiste
+  braucht darum Halten oder eine seitliche Bewegung.
+
+## 4b. Kontextwerkzeuge: Rückgängig bietet Wiederholen an
+
+**Auftrag (Owner):** „Rückgängig sollte beim Benutzen zu ‚Wiederholen‘ werden, denn es wurde ja schon rückgängig gemacht.“
+**Widerspricht:** ein Umschalten des Symbols (dann ginge wiederholtes Rückgängig nicht mehr: Tippen, Tippen, Tippen); ein Werkzeug,
+das den Platz wechselt oder breiter wird; ein Wiederholen, das auch bei einer Taste angeboten wird, die der Nutzer schon in der Leiste hat.
+
+**Entscheidung (Korrektur am Entwurf des Leads):** Der Entwurf teilte den Platz in zwei Hälften (↶ ↷). Ein Platz ist 40 dp breit (Kompakt
+30 dp), eine Hälfte also 20 dp, weit unter den geforderten 36 bis 40 dp; verbreitern darf man ihn nicht (nichts darf wandern). Darum
+gilt überall die Rückfalllösung des Entwurfs: **Nach einem Rückgängig trägt das Symbol einen kleinen Wiederholen-Pfeil (oben rechts am
+Symbol)**; Wiederholen ist der **Langdruck auf Rückgängig** (der besteht seit jeher, `getCodeForToolbarKeyLongClick`: UNDO → REDO) und
+für Screenreader die Aktion „Wiederholen“; die Beschreibung sagt „…, Halten zum Wiederholen“. Ein Tippen bleibt Rückgängig (so
+geht wiederholtes Rückgängig). Wiederholen und Rückgängig wechseln sich damit beliebig ab, der Pfeil bleibt.
+**Zwei getrennte Knoten** (Entwurf, Screenreader) gibt es nicht: ein Knoten mit der Aktion; zwei Knoten bräuchten einen virtuellen
+Ansichtsbaum für ein 20 dp breites Ziel.
+**Heuristik:** Die Tastatur weiß nicht, ob die App etwas zu wiederholen hat (Strg+Z und Strg+Umschalt+Z sind Tastenereignisse, die App
+entscheidet). Das Angebot beginnt mit einem Rückgängig und endet mit jeder Eingabe, die den Text ändert (Zeichen, Löschen,
+Einfügen, Textaktion), einem neuen Feld oder dem Verstecken der Tastatur (`UndoOffer`). Hat der Nutzer Wiederholen selbst in der
+Leiste, geschieht nichts. Außerhalb der Leiste ändert sich nichts (das Raster hat Rückgängig und Wiederholen getrennt).
+**Offene Frage (Vorschlag mit Rückfrage):** Nach einem Rückgängig zeigt die Leiste oft Wörter statt der Werkzeuge (der Text hat sich
+geändert); dann ist das Symbol bis zum Tippen auf den Pfeil „Werkzeuge zeigen“ nicht sichtbar. Die Werkzeuge solange stehen zu lassen,
+wie Wiederholen angeboten wird, wäre bequem, ändert aber die Rangfolge von Wörtern und Werkzeugen und bleibt darum aus.
+
+## 4c. Zusätze, die nicht bestellt waren
+
+Gebaut (harmlos, in sich geschlossen): Rückgängig und Zurücksetzen im Anpassen-Modus; der Grund bei einem nicht verfügbaren Werkzeug;
+das Gleiten der Plätze; das Schloss am nicht verfügbaren Werkzeug; der Wiederholen-Pfeil (4b). Nicht gebaut, mit Rückfrage im Bericht:
+Werkzeuge sichtbar lassen, solange Wiederholen angeboten wird; Zwei-Hälften-Platz bei höchstens drei Werkzeugen; das Raster
+nach zuletzt benutzten Werkzeugen ordnen.
+
 ## 5. Zu prüfen (Konsistenzliste)
 
 Einstellungsseite der Leiste (Sortier-Dialog), Skill-Taste anheften, flache Voreinstellung, Schalter „Feste Leiste“ aus,
