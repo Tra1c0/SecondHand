@@ -920,6 +920,12 @@ offen, gebaut wird erst nach einer Entscheidung zu den offenen Fragen.
   zuerst Deutsch. Offen und teuer: Trainingsdaten, Rechenzeit (hier keine Grafikkarte), Lizenzfragen bei
   Distillation, Messung falscher Korrekturen. Erster Schritt, wenn es wieder aufgenommen wird: ein Messstand für
   die heutige Engine (Trefferquote, gesparte Tastendrücke, falsche Korrekturen), ohne Modell.
+- **W7 Leertaste als bewegte, reagierende Höhenlinien (Idee des Owners, 2026-11-20, nicht beauftragt).**
+  Entscheidungsvorlage mit Audit des fremden Architekturvorschlags, Variantenvergleich, Messkonzept und
+  Umsetzungsstufen: `docs/LEERTASTE-ANIMATION.md` (Grundlagen: `docs/LEERTASTE-BESTAND.md`,
+  `docs/LEERTASTE-RECHERCHE.md`). Kern: Heute wird für das Licht je Bild die ganze Tastatur neu gezeichnet; das
+  zuerst beheben, Messung vor Umbau, Zeichenweg (AGSL gegen Vektoren auf dem Prozessor) am Gerät entscheiden.
+  Offene Entscheidung des Owners: Dauerbewegung im Leerlauf oder Auslaufen nach dem Tippen.
 - **W5 Sprache auf dem Gerät (Wunsch des Owners, 2026-11-20, noch nicht zugeschnitten).** Präzise
   Spracherfassung auch bei viel Hintergrundlärm, später eventuell Melodie-Erkennung. Das Textmodell aus W4 kann
   kein Audio; es braucht eigene Modelle in derselben Begleit-App. Deutung des Leads, nichts geprüft: (a) Diktat
