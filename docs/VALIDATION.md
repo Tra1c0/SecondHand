@@ -26,7 +26,13 @@ Schatten-Ansicht aussieht, ob Halten und Ziehen sich gut anfühlt und ob die Pil
   und in einer neuen Leiste noch da, volle Leiste (neuntes Werkzeug abgelehnt, Zeile im Raster sagt es, danach wieder Platz), Tippen statt Ziehen, Aktionen für Screenreader (Zur Leiste hinzufügen, Aus der Leiste
   entfernen, Nach links, Nach rechts, jeweils nur wo sinnvoll, und sie speichern), dieselbe gespeicherte Reihenfolge wie die Einstellungen (Dialog-Format, Eintrag in `createToolbarSettings`), Passwortfeld.
   Das reine Modell (`BarEditor`, `BarTools`): Einfügen an einem Platz, Entfernen, Verschieben, Grenze 8, Speicherformat, Umzug (`BarToolsTest`, siehe 85).
-- **Rot belegt:** siehe unten (Sammellauf der absichtlich kaputten Stellen).
+- **Rot belegt (Sammellauf):** Sechs Stellen absichtlich kaputt gemacht (Speichern schon beim Ziehen, `onKeyboardHidden` ohne `exitEdit`, `BarEditor.dropOnGrid` nimmt nie heraus, `toggle` nimmt nie heraus, Langdruck auf
+  einen Platz ohne eigene Aktion startet den Modus nicht, `dragEnd` löscht die Vorschau nicht): Von 22 Tests (`BarEditModeTest` 13, `BarEditorTest` 9) schlugen 10 fehl (6 und 4); fünf der sechs Stellen sind je durch mindestens einen Test allein belegt. Die zweite
+  (Schließen ohne `exitEdit`) ist doppelt gesichert: Das Schließen des Rasters beendet den Modus ebenfalls (`onClosed`), ein Test hängt nur an der ersten Stelle; sie ist also nicht einzeln belegt. Danach alle grün.
+- **Lauf auf dem Endstand (nach allen Änderungen beider Etappen, `:app:testDebugUnitTest`, 150 Testdateien, ~25 min mit Wartezeit):** **1906 Tests, 7 Fehler, alle bekannt:** die fünf geerbten
+  (`InputLogicTest.insertLetterIntoWordHangulFails`, `StringUtilsTest.detectEmojisAtEndFails`, `XLinkTest.layoutsLinks`, `readmeLinks`, `knownDictionaries`) und die zwei der Cloud-Umgebung
+  (`XLinkTest.layoutsLinksInternal`, `otherLinks`, HTTP 403 des Netzwerkfilters). Neue Tests dieser Runde (alle grün): `FixedBarTest` 16, `BarEditModeTest` 13, `BarToolsTest` 10, `BarEditorTest` 9, `BarStateTest` 6 (54);
+  `InputLogicTest` 308 (ein neuer Test der festen Leiste), `FlatStyleRenderTest` 6 (ein neuer), `SettingsBarAreaTest` 12, `FlatMenuTest` 6, `LastFieldTest` 19, `RgbLightingRenderTest` 30. `agent-core` nicht berührt, nicht gelaufen.
 - **Ungeprüft:** alles Sichtbare und das echte Ziehen mit dem Finger; Auswahl-Verhalten von Halten gegen Scrollen im Raster (Android startet ein Ziehen aus einem Langdruck, das Scrollen des Rasters kann
   mit einem Ziehen nach oben/unten konkurrieren); wie die Schatten-Ansicht einer Pille aussieht; der Fall, dass die Tastatur im Ziehen neu gebaut wird.
 
