@@ -1,5 +1,75 @@
 # Prüfnachweise
 
+## Etappe 84 — Symbole ohne Verzögerung (2026-11-20)
+
+**Auf dem Gerät nichts geprüft, und nichts auf einem Telefon gemessen.** Nachweis: Robolectric mit echter `LatinIME`, echter `SuggestionStripView`, echter Vorschlags-Thread,
+Schattenverbindung des Editors; gezählt wird Arbeit (Aufrufe, Schritte), nicht Zeit. Die Zeiten der Tabelle unten sind nur zum Einordnen und nicht geprüft.
+
+- **Was gemessen wurde (vor jeder Änderung, `SymbolLatencyTest.theWorkTable`, Messwerkzeug: ARCHITECTURE → Etappe 84):** je Taste die Aufrufe der Tastatur in den Editor (Lesen, Schreiben,
+  `beginBatchEdit`/`endBatchEdit`), Wartezeiten auf den Vorschlags-Thread, Umbauten der Leiste, geprüfte Chip-Quellen, Aufrufe des Zwischenablage-Dienstes und gebaute Pillen, jeweils mit der Angabe,
+  ob der Batch des Editors offen war. Die Wörterbuchantwort ist eine kleine Wortliste (`TypingRig`), die Autokorrektur („teh“ wird „the“) läuft durch das echte `Suggest`.
+- **Befund 1 (die Ursache):** 23 von 37 ASCII-Symbolen (`! " & ( ) * + , . / : ; < = > ? [ ] _ { | } °`) beenden ein Wort (`handleSeparatorEvent`), 14 (`# $ % ' - @ \ ^ ` ~ € £ ¥ §`) bleiben im Wort
+  und kosten wie ein Buchstabe. Bei den 23 baute die Tastatur die neutrale Leiste (`setNeutralSuggestionStrip`: 5 Chip-Quellen, dann `setSuggestedWords` mit weiteren 4, Leistenumbau; mit Pille
+  Dienstaufruf und Inflate) **innerhalb** des Batches der Eingabe: 11 Schritte zwischen Zeichen und `endBatchEdit()`, bei einem Buchstaben und beim Leerzeichen 0. Im Framework gelesen (Bytecode von Android 16,
+  `TextView.handleTextChanged`: `updateAfterEdit()` nur bei `mBatchEditNesting == 0`): Ein `EditText` zeichnet das Zeichen erst, wenn der Batch endet; die Zeit der Leiste lag also zwischen Tippen und Anzeige.
+  Das gilt für `EditText`, nicht gelesen für WebView und Compose. Der Commit selbst stand schon vor der Leiste (`commitCodePoint` vor `setNeutralSuggestionStrip`); dass er nicht angezeigt wurde, lag am offenen Batch.
+- **Befund 2:** Zeichen wie `-`, `@`, `1` nach einem Leerzeichen lasen nach dem Commit noch zweimal das Textfeld (`getWordAtCursor`, `getTextBeforeCursor`/`getTextAfterCursor`), ebenfalls im Batch (Anfragen an die App, die im Editor warten).
+- **Befund 3:** Mit sichtbarer Zwischenablage-Pille fragte `getClipboardSuggestionView` den Dienst zweimal (`primaryClip`, dann `isClipSensitive` noch einmal; im flachen Stil dreimal) und inflatete die Pille bei jedem Trennzeichen neu.
+- **Befund 4:** Kommt ein Trennzeichen früher als 100 ms nach dem Buchstaben, wartet der Hauptthread synchron auf den Vorschlags-Thread (`commitCurrentAutoCorrection`, bis `GET_SUGGESTED_WORDS_TIMEOUT`, 200 ms im Release),
+  und baute dafür die Leiste mit den Wörtern des Wortes, das im selben Zug festgeschrieben und durch die neutrale Leiste ersetzt wird: 6 Schritte vor dem Zeichen. Das Warten selbst bleibt (die Autokorrektur hängt daran, Kommentar im Code).
+- **Nicht symbolspezifisch (gemessen, nicht geändert):** das Warten auf den Vorschlags-Thread 100 ms nach jedem Buchstaben und jedem Leerzeichen (`wait 1`, 6 bis 12 Schritte), die zweifache Prüfung von Befehls-, Symbol- und Auswahl-Chips je neutraler Leiste (zweite Runde nach `mSuggestedWords`, siehe P371),
+  `getTextAfterCursor` vor dem ersten Zeichen eines Wortes (`isCursorTouchingWord`, eine Anfrage an die App, auch bei Buchstaben).
+
+Arbeit der Hauptthread-Schritte je Taste, vorher → nachher (Schritte = Lesen, Chip-Quellen, Leistenumbauten, Wartezeiten, Dienstaufrufe; „Batch“ = zwischen Zeichen und `endBatchEdit()`, „vor“ = vor dem Zeichen,
+„danach“ = nach dem Ende des Batches, „später“ = die verzögerte Aktualisierung nach 100 ms):
+
+| Fall | Lesen (App) | Warten | vor dem Zeichen | im Batch | danach | später |
+| --- | --- | --- | --- | --- | --- | --- |
+| a Buchstabe im Wort (hel+l) | 0 | 0 | 0 | 0 | 0 | 6 (1 Warten) |
+| b Buchstabe am Wortanfang (hello_+w) | 1 | 0 | 1 | 0 | 0 | 6 (1 Warten) |
+| c Leerzeichen nach Wort | 0 | 0 | 0 | 0 | 0 | 12 (1 Warten) |
+| d `.` nach Wort (auch `,` `!` `(`) | 0 | 0 | 0 | **11 → 0** | **0 → 11** | 0 |
+| e `@`, `-` nach Wort (bleiben im Wort); `@`/`-` auf der Symbolseite | 0 | 0 | 0 | 0 | 0 | 6 (1 Warten) |
+| e' `(` nach Wort | 0 | 0 | 0 | **11 → 0** | **0 → 11** | 0 |
+| f `.` nach Leerzeichen | 0 | 0 | 0 | **11 → 0** | **0 → 11** | 0 |
+| f `-` nach Leerzeichen | 3 | 0 | 1 | **2 → 0** | **0 → 2** | 12 (1 Warten) |
+| f `@` nach Leerzeichen (Befehls-Chips) | 0 | 0 | 0 | 0 | 0 | 4 |
+| g zweites Symbol (`hello-` + `-`, `hello@` + `-`) | 0 | 0 | 0 | 0 | 0 | 6 |
+| schnell: `.` unter 100 ms nach dem Buchstaben | 0 | 1 | **6 → 1** | **11 → 0** | **0 → 11** | 0 |
+| schnell: Leerzeichen unter 100 ms | 0 | 1 | 6 | 0 | 0 | 12 |
+| Autokorrektur `teh` + `.` | 0 | 0 | 0 | **11 → 0** | **0 → 11** | 0 |
+| h Pille, `.` nach Wort | 0 | 0 | 0 | **9 → 0** | **0 → 8** | 0 |
+| h Pille, `-` nach Leerzeichen | 3 | 0 | 1 | **2 → 0** | **0 → 2** | 10 → 9 |
+| i Werkzeugleiste offen, `-` nach Leerzeichen | 3 | 0 | 1 | **2 → 0** | **0 → 2** | 12 |
+
+- **Zwischenablage-Pille:** Dienstaufrufe je gebauter Pille 2 → 1 (Spalte nicht in der Tabelle; `theClipboardPillIsReadOnceAndBuiltOncePerStrip`); eine Pille wird weiter je Trennzeichen neu gebaut (1 Inflate), das Behalten zwischen zwei Tasten ist nicht gebaut (ROADMAP).
+- **Zeiten (nur Einordnung, Robolectric auf der Entwicklermaschine, Median von 200 Läufen nach 30 Vorläufen, der Editor antwortet sofort):** Taste hoch, Buchstabe im Wort 0,13 ms; Buchstabe am Wortanfang 0,12 ms; Leerzeichen 0,30 ms;
+  `.` nach Wort 0,40 ms (vorher 0,57 ms, im Rauschen: die Arbeit ist insgesamt dieselbe, sie liegt nur nach dem Batch); `-`/`@` im Wort 0,02 bis 0,05 ms; `.` mit sichtbarer Pille 1,9 ms. Der Gewinn
+  (der Editor zeichnet früher) ist in einem Test ohne zweiten Prozess nicht zu sehen und nicht gemessen.
+- **Rangfolge der Kosten je Taste (Hauptthread, ohne Binder):** Trennzeichen mit sichtbarer Pille ≫ Trennzeichen ohne Pille > Leerzeichen > Buchstabe > Symbol, das im Wort bleibt.
+- **Geändert:** `InputLogic.java` (Felder, `onCodeInput` nach `endBatchEdit`, `setNeutralStripAfterBatch`/`flushNeutralStrip`, `handleSeparatorEvent`, `commitCurrentAutoCorrection`/`performUpdateSuggestionStripSync` mit `showOnStrip`),
+  `ClipboardHistoryManager.kt` (`isClipSensitive` liest nicht selbst), Zählstellen (`TypingPerf.work` in `LatinIME.java`, `SuggestionStripView.kt`, `AsyncResultHolder.java`, `ClipboardHistoryManager.kt`). Zeilen: ARCHITECTURE → Etappe 84.
+  **Nicht geändert:** `RichInputConnection.java`, `PointerTracker.java`, Autokorrektur, Lernen, Doppelleerzeichen-Punkt, Großschreibung nach Satzende, Rücktaste-macht-rückgängig.
+  Ein Versuch, die zweite Runde der Chip-Quellen je neutraler Leiste zu überspringen, wurde zurückgenommen (P371): `screenshotChipKeepsTheAppsCompletionsAndInlineAutofill` wurde rot.
+- **Gleichheit des Editorinhalts:** `TypingEquivalenceTest` vergleicht 41 Tippfolgen (Wörter, Tippfehler, die korrigiert werden, Zeichen jeder Art, Leerzeichen, Rücktasten, Doppelleerzeichen) je in zwei Weisen (nach jeder Taste läuft die
+  verzögerte Aktualisierung; die nächste Taste kommt davor) mit den Aufzeichnungen aus dem Stand vor der Etappe (`src/test/resources/stage84/typing-transcripts.txt`: Text, Rest der Komposition, jeder
+  Schreibaufruf in den Editor mit seinem Text in der Reihenfolge, bei Folgen ohne Rücktaste im normalen Tempo auch die Wörter der Leiste): gleich. Vor den Änderungen aufgenommen, auf dem Stand mit den Änderungen grün.
+  Dazu: `InputLogicTest` 307 Tests, ein Fehler, das geerbte `insertLetterIntoWordHangulFails` (keine geänderte Erwartung), `SuggestTest` 63 grün.
+- **Neue Tests** (`SymbolLatencyTest` 8, `TypingEquivalenceTest` 3, beide `T/latin/`): `aSeparatorsStripWorkRunsAfterTheBatchEditEnds` (`. , ! (` nach Wort und nach Leerzeichen: nichts vor dem Zeichen, 0 im Batch, die Leiste genau einmal gebaut, danach),
+  `aSymbolThatStartsAWordDoesItsReadsOutsideTheBatch` (`- @ 1 # _` nach Leerzeichen: keine Lesezugriffe im Batch, weiter 3 Lesezugriffe), `aSeparatorTypedBeforeTheDelayedUpdateDoesNotBuildTheStripItReplacesAnyway`,
+  `theClipboardPillIsReadOnceAndBuiltOncePerStrip`, `theWorkTable`, `theSymbolSurvey`, `theWallClockProbe` (nur Datei, kein Assert), `theRigTypesLikeAFinger`; `theEditorTranscriptsAreTheOnesRecordedBeforeStage84`,
+  `theTranscriptsAreTheSameEveryTime`, `theSequencesDoSomething` (prüft, dass die Aufzeichnung Korrekturen, Punkt statt Doppelleerzeichen und das Zurückholen mit der Rücktaste enthält).
+- **Rot belegt (auf dem Stand vor der jeweiligen Änderung, Gradle-Lauf mit den neuen Tests):** `aSeparatorsStripWorkRunsAfterTheBatchEditEnds`: „hello.: no strip work inside the batch … expected:<0> but was:<11>“ (Folge `|beginBatchEdit |commitText |commitText |STRIP_NEUTRAL |CHIPS_COMMAND … |endBatchEdit`);
+  `aSymbolThatStartsAWordDoesItsReadsOutsideTheBatch`: „hello - / |beginBatchEdit |getTextAfterCursor |commitText |getTextBeforeCursor |getTextAfterCursor |endBatchEdit expected:<0> but was:<2>“;
+  `theClipboardPillIsReadOnceAndBuiltOncePerStrip`: „one call to the clipboard service, not one more for the mark … expected:<1> but was:<2>“;
+  `aSeparatorTypedBeforeTheDelayedUpdateDoesNotBuildTheStripItReplacesAnyway`: „.: only the neutral strip is made … expected:<1> but was:<2>“. Ein fünfter Test (jede Chip-Quelle genau einmal) wurde mit der zurückgenommenen Änderung gestrichen.
+- **Lauf auf dem Endstand (`:app:testDebugUnitTest`, alle, 19 Minuten):** 147 Dateien, 1861 Tests, 7 Fehler, alle nicht aus dieser Etappe: `XLinkTest` (5: Netz im Prüfrechner gesperrt, 403 vom Proxy), `InputLogicTest.insertLetterIntoWordHangulFails` und `StringUtilsTest.detectEmojisAtEndFails` (geerbt, Name „…Fails“). Nicht gelaufen: `agent-core` (unverändert).
+- **Nicht gemessen / ungeprüft:** jede Zeit auf einem Telefon (Xiaomi 15); wie lange die Anfragen an die App wirklich dauern (Binder, Lesen von Text); ob die App des Owners das Zeichen erst nach `endBatchEdit()` zeichnet (nur `TextView` im Framework-Bytecode gelesen); die Wirkung in WebView/Compose-Feldern;
+  `onUpdateSelection` je Taste (der Test-Editor meldet keine Auswahländerungen); Tastenvorschau, Haptik und Ton, RGB-Beleuchtung (`RgbLighting` zeichnet über `Choreographer` alle Tasten neu, `view.invalidateAllKeys()`); ein Gerätetest-Szenario
+  (der Treiber tippt mit `adb shell input tap` und `time.sleep(0.15)`, ein Abstand von 60 ms ist so nicht möglich; nicht gebaut).
+- **Weitere mögliche Ursachen auf dem Gerät (Codestellen, nicht gemessen):** Tastenvorschau erscheint beim Drücken (`MainKeyboardView.showKeyPreview`, 377) und stört das Tippen nicht; das Popup-Timeout für Langdruck ist 300 ms (`Defaults.PREF_KEY_LONGPRESS_TIMEOUT`), ein Tipp wartet nicht darauf;
+  „zurück zu Buchstaben“ gibt es nur nach Leerzeichen und Enter auf Symbolseiten (`KeyboardState.onEvent`, `mAlphaAfterSpace`), nicht nach einem Symbol; Haptik und Ton laufen beim Drücken (`hapticAndAudioFeedback`) auf dem Hauptthread; die RGB-Beleuchtung zeichnet je Bild alle Tasten neu.
+
 ## Etappe 83 — Gezeichnete Symbole logisch (2026-11-20)
 
 **Auf dem Gerät nichts geprüft.** Nachweis: JVM-Tests von agent-core und Robolectric.

@@ -1224,6 +1224,31 @@ Symbolseiten wie Gboard (Etappe 81, Fallstricke P345–P348):
   Layout und `symbols_arabic`, Tablet/Khipro, Reihenhöhe); `AT/SettingsKeysScreenTest.kt` prüft die Zusammenfassung
   der Zeile; `AT/FlatStyleRenderTest.kt` erwartet `∆`.
 
+Symbole ohne Verzögerung (Etappe 84, Fallstricke P370–P374). Zeilen, die die geschützten Dateien ändern (`InputLogic`,
+`RichInputConnection`, `PointerTracker`; `RichInputConnection` und `PointerTracker` sind unverändert):
+
+- `InputLogic.java`: die Felder `mCodeInputBatchOpen`, `mNeutralStripPending`; `onCodeInput` setzt sie nach `beginBatchEdit`,
+  ruft `flushNeutralStrip()` zwischen zwei Ereignissen derselben Eingabe und nach `endBatchEdit()` und liest das „Wort am Cursor“
+  (`mWordBeingCorrectedByCursor`, zwei Leseanfragen an die App bei Zeichen wie `-` nach einem Leerzeichen) erst danach.
+  `setNeutralStripAfterBatch()` ersetzt die zwei `setNeutralSuggestionStrip()`-Aufrufe von `handleSeparatorEvent` (Tausch von Leerzeichen
+  und Satzzeichen, Trennzeichen). `performUpdateSuggestionStripSync(…, showOnStrip)` und `commitCurrentAutoCorrection(…, showPendingSuggestions)`:
+  ein Trennzeichen außer Leerzeichen, `:` und Leerraum nimmt die Vorschläge einer wartenden Aktualisierung (die Autokorrektur kommt
+  daraus), baut dafür aber keine Leiste, die gleich durch die neutrale ersetzt wird (`handleSeparatorEvent`: `stripFollows`).
+- `LatinIME.java`: je eine Zeile `TypingPerf.work(…)` in `tryShow*Chips`, `tryShowClipboardSuggestion`, `setSuggestedWords` und
+  `setNeutralSuggestionStrip`; `SuggestionStripView.setExternalSuggestionView`, `AsyncResultHolder.get` (nur der Hauptthread zählt im Test)
+  und `ClipboardHistoryManager` (Dienstaufruf, Pille gebaut) haben dieselbe Zeile. `ClipboardHistoryManager.isClipSensitive(inputType, description)`
+  liest die Zwischenablage nicht mehr selbst (ein Aufruf des Dienstes statt zwei, im flachen Stil drei).
+- `A/TypingPerf.kt` (84): `Work` (feste Namen der Arbeitsstellen: `SUGGEST_WAIT`, `STRIP_NEUTRAL`, `STRIP_WORDS`, `STRIP_EXTERNAL`,
+  `CHIPS_*`, `CLIPBOARD_SERVICE`, `CLIP_VIEW_BUILT`) und `work(place)`, das nur etwas tut, wenn ein Test `workListener` gesetzt hat.
+  Keine Zahlen im Gerät, nichts auf der Diagnose-Karte.
+- Messwerkzeug (Tests, `T/latin/`): `TypingRig.kt` tippt wie ein Finger (`KeyboardActionListenerImpl.onPressKey`/`onCodeInput`/`onReleaseKey`,
+  echte `LatinIME`, echte Leiste, die Wörterbuchantwort aus einer kleinen Wortliste auf dem echten Vorschlags-Thread) und schreibt je Taste eine
+  Zeitfolge: Aufrufe in den Editor (`Shadows.kt`: `ShadowInputMethodService.callListener`, nur Namen und der Text eines Schreibens) und Arbeitsstellen
+  (`TypingPerf.workListener`), mit der Angabe, ob der Batch des Editors offen war. `SymbolLatencyTest` druckt die Tabelle (`build/latency84-work-table.txt`,
+  `…-symbols.txt`, `…-wall-clock.txt`) und beweist die Änderungen mit Zählern; `TypingEquivalenceTest` vergleicht 41 Tippfolgen mit
+  `src/test/resources/stage84/typing-transcripts.txt` (vor der Änderung aufgenommen: Text, Schreibaufrufe mit Text, Leistenwörter nur wo sie nicht von der
+  Reihenfolge zweier Nachrichten abhängen).
+
 ## Editorzugriff, Panel und Rad
 
 > Wie die Tastatur Auswahl liest, Aktionen zeigt und Ergebnisse übernimmt.
@@ -6318,13 +6343,33 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   Striche (wie „/“) wirken über `InkDots.bareLines` in Regel 4. Einzelne Striche um 18° bis 75° sind „/“, flacher „–“, steiler „|“.
   Verbundene Fingervarianten mit Sprung (Kreis, Strich, Kreis) werden unter dem Rauschen des Prüfstands schlecht erkannt
   (`InkRecognizerTest`, verrauschte Zeichnungen: „%“ 69 von 400 nicht erkannt, gesamt 97,5 %; die Variante ist für saubere Zeichnungen da).
+- **P370** Die Leiste eines Trennzeichens kommt nach `endBatchEdit()`, nicht davor (84). Gelesen im Framework (`TextView.handleTextChanged`,
+  Bytecode von Android 16, nicht auf einem Gerät geprüft): ein `EditText` ruft `updateAfterEdit()` (Neuzeichnen) nur bei `mBatchEditNesting == 0`; innerhalb von
+  `beginBatchEdit`/`endBatchEdit` zeigt es das Zeichen also nicht. Jede Arbeit, die der Editor nicht braucht (Leiste, Chips, Lesen für das Lernen),
+  gehört hinter `endBatchEdit()` in `onCodeInput`; sonst wartet das Zeichen darauf. Neue Arbeit in `handleSeparatorEvent`: `setNeutralStripAfterBatch()`,
+  nicht `setNeutralSuggestionStrip()`. Bei mehreren Ereignissen einer Eingabe (kombinierte Zeichen) läuft die Leiste zwischen den Ereignissen, damit das nächste sie wie
+  früher sieht. Ein Aufruf außerhalb von `onCodeInput` zeigt die Leiste sofort.
+- **P371** Die zweite Runde der Chip-Quellen in `setNeutralSuggestionStrip` (`setSuggestedWords` fragt Befehl, Symbol, Auswahl und Screenshot noch einmal)
+  ist nicht überflüssig: `InputLogic.setSuggestedWords` setzt dazwischen `mSuggestedWords`, und der Screenshot-Chip (`screenshotMayReplaceStrip`) und die
+  Vorhersage-Chips lesen es. Der erste Versuch, sie zu überspringen, ließ `screenshotChipKeepsTheAppsCompletionsAndInlineAutofill` rot werden. 9 Prüfungen je Trennzeichen
+  (5 + 4) sind der Stand; ein Weglassen braucht einen Beweis je Quelle, dass sie `mSuggestedWords` nicht liest.
+- **P372** Nach einem Trennzeichen außer Leerzeichen kommt immer die neutrale Leiste (Ausnahmen: `:` wegen der Emoji-Suche im Text, Leerraum, und wenn die Suche läuft). Darum baut
+  die synchrone Vorschlagsabfrage vor dem Festschreiben (wartende 100-ms-Aktualisierung) für sie keine Leiste (`showOnStrip` false); `InputLogic.setSuggestedWords` läuft weiter,
+  denn aus ihm kommt die Autokorrektur und die blaue Unterstreichung. Bei Leerzeichen bleibt es wie früher: die Leiste zeigt die Wörter bis zur nächsten Aktualisierung. Wer ein
+  neues Trennzeichen mit eigener Folge einführt (Zeichen, nach dem keine neutrale Leiste kommt), nimmt es in `stripFollows` aus.
+- **P373** Die Messung zählt Arbeit, nicht Zeit: `SymbolLatencyTest` schreibt die Wanduhr-Zeiten nur in eine Datei (kein Assert). Der Editor im Test antwortet sofort; Binder-Aufrufe
+  (Lesen von Text, Zwischenablage) kosten dort nichts. Zahlen der Tabelle: Schritte der Hauptthread-Arbeit je Taste, nicht Millisekunden. Neue Arbeit auf dem Tastenpfad bekommt eine
+  Zeile `TypingPerf.work(Work.…)` (Eintrag in `Work` nachtragen) und einen Fall in der Tabelle.
+- **P374** `TypingEquivalenceTest`: die Wörter der Leiste nach einer Rücktaste oder nach dem schnellen Tippen hängen davon ab, welche von zwei Nachrichten (verzögerte Aktualisierung,
+  Wiederaufnahme der Vorschläge) zuerst beantwortet wird, und wechselten bei ausgelastetem Rechner; der Emoji-Tabellen-Thread (`EmojiSuggestions`) füllt die Leiste mit Emojis, wenn er fertig
+  ist (`TypingRig.setUp` schaltet ihn aus). Verglichen wird dort nur der Editor. Wer Folgen ergänzt: `strip=` nur für Folgen ohne Rücktaste.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (721 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (725 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6441,8 +6486,8 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `K/latin/settings/` (2): Defaults, SettingsValues
 - `K/latin/spellcheck/` (1): AndroidSpellCheckerService
 - `K/latin/suggestions/` (2): FlatStrip, SuggestionStripView
-- `K/latin/utils/` (7): CapsModeUtils, DictionaryInfoUtils, DictionaryUtils, InlineAutofillUtils,
-  LayoutUtilsCustom, SubtypeUtils, ToolbarUtils
+- `K/latin/utils/` (8): AsyncResultHolder, CapsModeUtils, DictionaryInfoUtils, DictionaryUtils,
+  InlineAutofillUtils, LayoutUtilsCustom, SubtypeUtils, ToolbarUtils
 - `K/settings/` (4): SearchScreen, SettingsActivity, SettingsContainer, SettingsNavHost
 - `K/settings/dialogs/` (2): ColorPickerDialog, SliderDialog
 - `K/settings/preferences/` (5): BackupRestorePreference, CustomFontPreference,
@@ -6513,8 +6558,8 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `app/src/main/res/xml/` (4): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path, spellchecker
 - `app/src/test/java/helium314/keyboard/` (2): KeyboardParserTest, Shadows
-- `app/src/test/java/helium314/keyboard/latin/` (3): InputLogicTest, SuggestTest,
-  WordListDictionaries
+- `app/src/test/java/helium314/keyboard/latin/` (6): InputLogicTest, SuggestTest, SymbolLatencyTest,
+  TypingEquivalenceTest, TypingRig, WordListDictionaries
 - `app/src/test/java/helium314/keyboard/latin/inputlogic/` (1): BatchDeliveryTest
 - `app/src/test/java/helium314/keyboard/settings/` (1): BackupPromptsTest
 - `companion/` (2): build.gradle, settings.gradle
