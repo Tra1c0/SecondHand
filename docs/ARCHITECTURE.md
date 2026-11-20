@@ -747,9 +747,9 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
 - `Key.java`: `KeyParams.mVerticalGapScale` (Lücke unter einer Taste je Taste skalierbar) und
   der Zustand `KeyBackgroundState.LAYOUT_SWITCH` (`state_single`) für die Tasten „?123“/„ABC“.
 - `KeyboardParser.kt`: ruft im flachen Stil `FlatStyle.shortenNumberRow` auf; auf der zweiten
-  Symbolseite (`SYMBOLS_SHIFTED`) gibt es im flachen Stil keine Zahlenreihe (23a); die
-  Buchstaben-Hinweise kommen bei `symbols_flat` weiter aus dem Standard-Layout `symbols`.
-- `LayoutParser.kt`: `parseLayout` nimmt optional einen festen Layoutnamen (für die Hinweise).
+  Symbolseite (`SYMBOLS_SHIFTED`) gibt es im flachen Stil keine Zahlenreihe (23a). Seit 81 sind die
+  Symbolseiten stilunabhängig, siehe „Symbolseiten wie Gboard (Etappe 81)“ weiter unten in diesem Abschnitt;
+  `LayoutParser.parseLayout` hat den Parameter `nameOverride` aus 23a nicht mehr (wieder wie Upstream).
 - `KeyboardView.java`: Schrift für Beschriftung und Hinweise, rechtsbündige Hinweise,
   angehobene Kleinbuchstaben, jeweils nur im flachen Stil. Dazu (23f2) ein Aufruf
   `DesignLook.load` nach dem Laden der vier Tastenhintergründe (Rundung und Schrift eines
@@ -1183,6 +1183,32 @@ des Felds auf `commitContent`, 25a),
 `InputLogicTest.kt` (zusätzliche erzeugte Fälle, `typedCommand*` für 24a, `screenshotChip*` für
 23g, `symbolDraw*` für 27, `typedEmoji*` für 25a), `SuggestTest.kt` (Personalisierung im Test
 ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
+
+Symbolseiten wie Gboard (Etappe 81, Fallstricke P345–P348):
+
+- `assets/layouts/symbols/symbols.txt` und `more_symbols/symbols_shifted.txt` (Upstream-Dateien, jetzt
+  geändert) haben den Inhalt der früheren Flat-Dateien; `symbols_shifted.txt` behält eine letzte Reihe
+  mit `<` und `>` (Zweiergruppe), damit andere Funktions-Layouts (Tablet, eigene) sie wie bei Upstream
+  anstelle von Komma und Punkt benutzen. `∆` (U+2206) ist Hauptzeichen, `Δ` das Popup.
+- `assets/layouts/symbol_hints/symbols_hints.txt` (neu, kein wählbares Layout: der Ordner gehört zu keinem
+  `LayoutType`): die alte erste Seite mit der Reihe `% \ | = [ ] < > { }`. Nur
+  `KeyboardParser.addSymbolPopupKeys` liest sie (`builtInSymbolHintLabels`, nur die Beschriftungen, einmal
+  je Prozess) für die Hinweise und Popups der Buchstabentasten.
+- `KeyboardParser.kt`: `usesBuiltInSymbols(type)` (Layoutname = Standardname oder ein früherer Flat-Name
+  `symbols_flat` / `symbols_shifted_flat`); `hasNumberRow()` ersetzt die drei Stellen mit der Stilbedingung:
+  Seite 1 mit dem eingebauten Layout hat immer die Zahlenreihe, Seite 2 (eingebaut oder im flachen Stil)
+  nie, sonst gilt wie bisher `numberRowEnabled`; `addNumberRowOrPopupKeys` ersetzt die erste Reihe nur noch
+  bei nicht eingebauten Layouts. `FlatStyle.shortenNumberRow` hängt an `hasNumberRow()`.
+  Hinweise: eingebaut = Datei oben, sonst das gewählte Layout wie vor 81.
+- `functional_keys.json`: `moreSymbols` für `<`, `>` (mit den Popups `‹ ≤ «` und `› ≥ »`, ohne die
+  Werkzeug-Popups des Kommas) und „12/34“; die Pfeiltaste bleibt hinter `dpadKeyEnabled`.
+  `Defaults.PREF_SHOW_DPAD_KEY` ist jetzt `false`: nur ungesetzte Werte folgen, ein gesetzter bleibt.
+- `FlatPreset` schreibt `layout_SYMBOLS`/`layout_MORE_SYMBOLS` nicht mehr (nur noch `layout_FUNCTIONAL`).
+  Steht der alte Name noch in den Einstellungen, ist die Datei weg: `LayoutUtils.getContent` fällt auf den
+  Standard zurück, `usesBuiltInSymbols` zählt den Namen als eingebaut. Keine Datenmigration.
+- Tests: `AT/SymbolPagesTest.kt` (Seiten Taste für Taste in vier Stilen, Zahlenreihe an/aus, Englisch,
+  Pfeiltaste, Buchstaben-Hinweise gegen `src/test/resources/symbols81/letter_keys.txt`, vor der Änderung
+  aufgenommen); `AT/FlatStyleRenderTest.kt` erwartet `∆`.
 
 ## Editorzugriff, Panel und Rad
 
@@ -2424,11 +2450,11 @@ ausdrücklich eingeschaltet, weil sie jetzt opt-in ist).
   genau eine Form ohne Kante, Schatten oder Ebenen: ein `drawRoundRect` je Taste.
 - Icons `sym_keyboard_{shift,shifted,shift_lock,delete,smiley,go,return}_flat.xml`: Vektoren im
   Pixelmaß der Vorlage (Viewport 91 = 28 dp), deshalb keine Skalierung beim Zeichnen.
-- `assets/layouts/functional/functional_keys_flat.json`: wie `functional_keys.json`, aber die
-  Emoji- und die 1234-Taste haben `"type": "character"` (heller Hintergrund), keine Pfeiltaste,
-  und auf der zweiten Symbolseite `<` und `>` statt Komma und Punkt.
-- `assets/layouts/symbols/symbols_flat.txt` und `assets/layouts/more_symbols/symbols_shifted_flat.txt`:
-  Symbolseiten nach der Gboard-Vorlage (23a), von `FlatPreset` gesetzt.
+- `assets/layouts/functional/functional_keys_flat.json`: wie `functional_keys.json` (seit 81 auch dort
+  `<`, `>` und „12/34“ auf der zweiten Symbolseite), aber die Emoji- und die 1234-Taste haben
+  `"type": "character"` (heller Hintergrund) und es gibt nie eine Pfeiltaste.
+- Die Symbolseiten `symbols_flat.txt` und `symbols_shifted_flat.txt` (23a) gibt es seit 81 nicht mehr:
+  ihr Inhalt ist `symbols.txt` und `symbols_shifted.txt`, `FlatPreset` setzt keine Symbol-Layouts mehr.
 - `K/agent/FlatPreset.kt`: schreibt 24 Darstellungs-, Layout- und Leisten-Einstellungen für das Hochformat
   (Liste: `values()`), berechnet die Höhenskala aus Bildschirmbreite und Standardhöhe und
   sichert die ersetzten Werte in `agent_flat_preset_backup` (siehe `docs/STORAGE.md`): beim ersten
@@ -6209,13 +6235,29 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   (auf der JVM nicht prüfbar); die Dateizeilen mit `sync` umgehen das.
 - **P344** Begleit-App, Quelltext-Befunde zum Speicher des QAIRT-Wegs (80f, `main` des Plugins, Zeilen siehe VALIDATION 80f): Ein-/Ausgabepuffer immer als dma-buf (`SHARED_BUFFER` fest, `libdmabufheap`), ein Block je Kontextdatei, geteilt von allen Graphvarianten; alle sechs Graphen je Datei (`prompt_ar128_cl{512,1024,4096}`, `token_ar1_cl{512,1024,4096}`) werden geladen, eine Auswahl gibt es nicht (`loadSelectGraphs` und
   `graphSwitching` fest `false`); `mem_type` und die Schlüssel der Genie-Konfiguration sind wirkungslos. Die Rechenprogramme des 1,7B (1,62 GiB) liegen allein schon über der HyperOS-Grenze (1,5 GiB). Darum: höchstens eine Modell-Instanz (`InstanceCounter` im Adapter, Prüfung im Läufer), die Phasenzeilen (SDK-Start, vor und nach dem Laden, Erzeugung, Entladen) und der Verlauf des dma-buf in der Berichtsdatei. Das GGUF-Backend (`ggml-hexagon`) nutzt ebenfalls `rpcmem` für die auf die NPU gelegten Tensoren; ungemessen.
+- **P345** Symbolseiten (81): Die Hinweise und Popups der Buchstabentasten kamen aus der ersten Reihe der Standard-Datei
+  `symbols.txt`. Wer diese Reihe aus der Seite nimmt (wie Gboard), verschiebt jeden Hinweis (q zeigt dann `@` statt `%`).
+  Darum liegen sie in `symbol_hints/symbols_hints.txt`; `SymbolPagesTest.letterKeysKeepTheirHintsAndPopupKeys` vergleicht
+  jede Buchstabentaste in vier Stilen, Deutsch und Englisch, Zahlenreihe an und aus, mit einer Aufnahme von vor der
+  Änderung. Die Datei darf kein wählbares Layout sein (nicht in `layouts/symbols/`, sonst bietet sie die Layout-Auswahl an).
+- **P346** Symbolseiten (81): „Zahlenreihe in Symbolen“ ersetzte die erste Symbolreihe durch Ziffern. Mit der Gboard-Seite
+  wäre das die Reihe `@ # € …` gewesen (nur noch als Popups). Für das eingebaute Layout ist die Zahlenreihe auf Seite 1
+  immer Reihe 1 und ersetzt nichts. Eigene Layouts behalten das alte Verhalten. Ein Test der Seiten muss beide
+  Einstellungen durchspielen (`SymbolPagesTest.theNumberRowSettingDoesNotChangeAnythingOnThePages`).
+- **P347** Symbolseiten (81): `<` und `>` der zweiten Seite kamen früher über die letzte Basisreihe (Zweiergruppe) und erbten
+  dabei die Popups von Komma und Punkt (Zwischenablage, Prompt-Ablage, Emoji, Einhandmodus …). Jetzt stehen sie als
+  `moreSymbols` in `functional_keys.json` mit eigenen Popups; die Basisreihe bleibt nur für andere Funktions-Layouts.
+  Ändert man die Reihenfolge der Auswahl in `KeyboardStateSelector.compute`, ändern sich beide Seiten.
+- **P348** Symbolseiten (81): Die Pfeiltaste ist ab jetzt standardmäßig aus (`Defaults.PREF_SHOW_DPAD_KEY`). Eine Einstellung, die
+  der Owner einmal gesetzt hat (auch „an“), steht als gesetzter Wert in den Einstellungen und gewinnt gegen den Standard; nichts
+  wird migriert. Keine Stelle im Code darf alle Standardwerte in die Einstellungen schreiben, sonst gilt der alte Wert weiter.
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (715 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (717 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6250,7 +6292,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (116): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (117): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
   CalendarToolLauncherTest, CharArtWindowTest, ClipCachesTest, ClipCommandTest, ClipVaultTest,
@@ -6272,10 +6314,10 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   SettingsKitTest, SettingsLookScreenTest, SettingsSearchTest, SettingsStartScreenTest,
   SettingsSystemAreaTest, SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest,
   SliderFeelTest, SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest,
-  StripRequestsTest, SymbolInkTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest,
-  TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest, TypingPerfTest,
-  TypoMemoryTest, UpdateCheckTest, UpdateChipTest, UpdateOnOpenTest, UpdatePromptsTest,
-  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
+  StripRequestsTest, SymbolInkTest, SymbolPagesTest, SymbolSettingsScreenTest, TestRunJournal,
+  ToolRunnerTest, TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest,
+  TypingPerfTest, TypoMemoryTest, UpdateCheckTest, UpdateChipTest, UpdateOnOpenTest,
+  UpdatePromptsTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
   WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, LongCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
@@ -6318,7 +6360,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `K/keyboard/clipboard/` (3): ClipboardAdapter, ClipboardHistoryView, FlatClipboard
 - `K/keyboard/emoji/` (2): EmojiPalettesView, EmojiSearchActivity
 - `K/keyboard/internal/` (1): KeyboardIconsSet
-- `K/keyboard/internal/keyboard_parser/` (2): KeyboardParser, LayoutParser
+- `K/keyboard/internal/keyboard_parser/` (1): KeyboardParser
 - `K/keyboard/internal/keyboard_parser/floris/` (3): KeyCode, KeyLabel, TextKeyData
 - `K/latin/` (11): App, AppUpgrade, ClipboardHistoryEntry, ClipboardHistoryManager,
   ClipboardThumbnails, DictionaryFacilitatorImpl, InputAttributes, InputView, LatinIME,
@@ -6360,9 +6402,10 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `app/src/main/assets/agent/` (1): german_verb_lemmas
 - `app/src/main/assets/dicts/` (3): emoji_de, emoji_en, emoji_es
 - `app/src/main/assets/layouts/emoji_bottom/` (2): emoji_bottom_row, emoji_bottom_row_with_action
-- `app/src/main/assets/layouts/functional/` (1): functional_keys_flat
-- `app/src/main/assets/layouts/more_symbols/` (1): symbols_shifted_flat
-- `app/src/main/assets/layouts/symbols/` (1): symbols_flat
+- `app/src/main/assets/layouts/functional/` (2): functional_keys, functional_keys_flat
+- `app/src/main/assets/layouts/more_symbols/` (1): symbols_shifted
+- `app/src/main/assets/layouts/symbol_hints/` (1): symbols_hints
+- `app/src/main/assets/layouts/symbols/` (1): symbols
 - `app/src/main/res/drawable-v24/` (1): ic_launcher_background
 - `app/src/main/res/drawable/` (24): btn_keyboard_key_flat, btn_keyboard_key_flat_pill,
   btn_keyboard_key_flat_rect, btn_keyboard_key_functional_flat, ic_agent_actions, ic_agent_dictate,

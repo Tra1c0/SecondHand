@@ -7,7 +7,7 @@
   [
     { "label": "symbol_alpha", "width": 0.15 },
     { "$": "keyboard_state_selector",
-      "moreSymbols": { "label": "<", "labelFlags": 1073741824, "type": "function" },
+      "moreSymbols": { "label": "<", "labelFlags": 1073741824, "type": "function", "popup": { "relevant": [ { "label": "‹" }, { "label": "≤" }, { "label": "«" } ] } },
       "default": { "$": "variation_selector",
         "default":  { "label": "comma", "labelFlags": 1073741824 },
         "email":    { "label": "@", "labelFlags": 1073741824, "groupId": 1, "type": "function" },
@@ -20,7 +20,7 @@
     { "label": "space" },
     { "$": "keyboard_state_selector", "dpad": { "label": "symbol" } },
     { "$": "keyboard_state_selector",
-      "moreSymbols": { "label": ">", "labelFlags": 1073741824, "type": "function" },
+      "moreSymbols": { "label": ">", "labelFlags": 1073741824, "type": "function", "popup": { "relevant": [ { "label": "›" }, { "label": "≥" }, { "label": "»" } ] } },
       "default": { "label": "period", "labelFlags": 1073741824 }
     },
     { "label": "action", "width": 0.15, "labelFlags": 1073741824 }
