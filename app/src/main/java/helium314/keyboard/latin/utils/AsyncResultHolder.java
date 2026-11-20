@@ -52,6 +52,7 @@ public class AsyncResultHolder<E> {
      * @return if the result is set before the time limit then the result, otherwise defaultValue.
      */
     public E get(final E defaultValue, final long timeOut) {
+        helium314.keyboard.agent.TypingPerf.work(helium314.keyboard.agent.TypingPerf.Work.SUGGEST_WAIT); // fork, stage 84
         try {
             return mLatch.await(timeOut, TimeUnit.MILLISECONDS) ? mResult : defaultValue;
         } catch (InterruptedException e) {

@@ -297,6 +297,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     }
 
     fun setExternalSuggestionView(view: View?, addCloseButton: Boolean) {
+        helium314.keyboard.agent.TypingPerf.work(helium314.keyboard.agent.TypingPerf.Work.STRIP_EXTERNAL) // fork, stage 84
         clear()
         isExternalSuggestionVisible = true
         reportToLastField(newContent = true)
