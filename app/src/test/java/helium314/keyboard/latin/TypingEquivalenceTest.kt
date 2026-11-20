@@ -89,9 +89,9 @@ class TypingEquivalenceTest {
         val writes = timeline.steps.filter { it.ui && it.what in WRITES }
             .joinToString(";") { it.what + (it.text?.let { t -> ":" + t } ?: "") }
         val words = latinIME.mInputLogic.mSuggestedWords.let { w -> (0 until w.size()).joinToString(",") { w.getWord(it) } }
-        // the words of the strip after the fast typist's last key depend on which of two messages the suggestion thread answers first
-        // when the machine is busy: only the editor is compared then
-        val strip = if (fast) "" else "|strip=$words"
+        // the words of the strip after a backspace (the suggestions come back for the word the cursor is in) or after the fast
+        // typist's last key depend on which of two messages is answered first when the machine is busy: only the editor is compared then
+        val strip = if (fast || script.contains(b)) "" else "|strip=$words"
         return "$name|${if (fast) "fast" else "normal"}|text=${rig.text}|composing=${rig.composing}$strip|writes=$writes"
             .replace("\n", "⏎")
     }
