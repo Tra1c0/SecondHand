@@ -43,10 +43,10 @@ internal object StripIconColors {
     fun ensureContrast(fg: Int, bg: Int, target: Double = NORMAL_CONTRAST): Int {
         val solid = RgbColors.over(fg, bg)
         if (RgbColors.contrast(solid, bg) >= target) return solid
-        val towards = if (RgbColors.luminance(bg) > 0.18) RgbColors.BLACK else RgbColors.WHITE
-        val other = if (towards == RgbColors.BLACK) RgbColors.WHITE else RgbColors.BLACK
-        // a background in the middle can be served better by the other extreme
-        val way = if (RgbColors.contrast(towards, bg) >= RgbColors.contrast(other, bg)) towards else other
+        // keep the direction the design chose (a lighter icon on a darker ground gets lighter), the other one only if that cannot reach the contrast
+        val preferred = if (RgbColors.luminance(solid) >= RgbColors.luminance(bg)) RgbColors.WHITE else RgbColors.BLACK
+        val other = if (preferred == RgbColors.BLACK) RgbColors.WHITE else RgbColors.BLACK
+        val way = if (RgbColors.contrast(preferred, bg) >= target) preferred else other
         var t = 0f
         var result = solid
         while (t < 1f && RgbColors.contrast(result, bg) < target) {

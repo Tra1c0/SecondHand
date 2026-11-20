@@ -196,7 +196,8 @@ internal object FixedBar {
 
     private fun circle(button: ImageButton, flat: Boolean, colors: Colors, s: Sizes, tint: ColorStateList) {
         val fill = if (flat) FlatStyle.STRIP_CIRCLE else colors.get(ColorType.ACTION_KEY_BACKGROUND)
-        val icon = StripIconColors.ensureContrast(if (flat) FlatStyle.STRIP_CIRCLE_ICON else colors.get(ColorType.ACTION_KEY_ICON), fill)
+        // an icon on the accent circle is a large graphic object: 3:1 is the rule here (the design's white on a pink accent stays white)
+        val icon = StripIconColors.ensureContrast(if (flat) FlatStyle.STRIP_CIRCLE_ICON else colors.get(ColorType.ACTION_KEY_ICON), fill, StripIconColors.MIN_CONTRAST)
         button.background = CircleBadge(fill, s.circle)
         button.setTag(R.id.agent_bar_circle, s.circle)
         button.setTag(R.id.agent_bar_tint, ColorStateList.valueOf(icon))
@@ -367,6 +368,7 @@ internal object FixedBar {
         fun redoOffered(value: Boolean) { if (redo != value) { redo = value; invalidate() } }
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
         private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+        private val halo = Paint(Paint.ANTI_ALIAS_FLAG)
 
         fun badge(off: Boolean, color: Int) {
             paint.color = color
@@ -378,13 +380,23 @@ internal object FixedBar {
             super.onDraw(canvas)
             if (redo) drawRedoArrow(canvas)
             if (!off) return
-            val d = resources.displayMetrics.density
+            val d0 = resources.displayMetrics.density
+            // the lock follows the size of the glyph (the compact row has smaller glyphs)
+            val d = d0 * ((width - paddingLeft - paddingRight) / (GLYPH_DP * d0)).coerceIn(0.7f, 1f)
             val right = width - paddingRight + 2f * d
             val bottom = height - paddingBottom + 1.5f * d
             val w = 9f * d
             val h = 6.5f * d
             val left = right - w
             val top = bottom - h
+            // a halo in the colour behind the icon, so that the lock reads where it lies over the glyph
+            (getTag(R.id.agent_bar_icon_bg) as? Int)?.let { behind ->
+                halo.color = behind
+                halo.strokeWidth = 4f * d
+                canvas.drawRoundRect(left - 1.2f * d, top - 1.2f * d, right + 1.2f * d, bottom + 1.2f * d, 2.4f * d, 2.4f * d, halo.apply { style = Paint.Style.FILL })
+                halo.style = Paint.Style.STROKE
+                canvas.drawArc(left + 1.6f * d, top - 4.4f * d, right - 1.6f * d, top + 3.2f * d, 180f, 180f, false, halo)
+            }
             canvas.drawRoundRect(left, top, right, bottom, 1.5f * d, 1.5f * d, paint)
             stroke.strokeWidth = 1.4f * d
             canvas.drawArc(left + 1.6f * d, top - 4.4f * d, right - 1.6f * d, top + 3.2f * d, 180f, 180f, false, stroke)

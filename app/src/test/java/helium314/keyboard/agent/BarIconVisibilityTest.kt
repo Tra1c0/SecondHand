@@ -213,9 +213,43 @@ class BarIconVisibilityTest {
                 val rect = glyphRect(row, button)
                 val ink = inkColour(picture, rect, fill)
                 assertTrue(ink != null, "$name $key: no icon on the circle")
-                assertTrue(RgbColors.contrast(ink.first, fill) >= StripIconColors.NORMAL_CONTRAST - 0.3, "$name $key: icon ${Integer.toHexString(ink.first)} on circle ${Integer.toHexString(fill)}: ${RgbColors.contrast(ink.first, fill)}")
+                assertTrue(RgbColors.contrast(ink.first, fill) >= StripIconColors.MIN_CONTRAST - 0.2, "$name $key: icon ${Integer.toHexString(ink.first)} on circle ${Integer.toHexString(fill)}: ${RgbColors.contrast(ink.first, fill)}")
             }
         }
+    }
+
+    // ---- pictures to look at (not versioned: app/build/owner-bars/*.png) ----
+
+    /** The strip as it is drawn in the owner-like design: the bar with the left key (disc and grid icon), at 3.25 px per dp, 1200 px wide, twice as high as the strip for a margin. */
+    private fun picture(name: String, keys: List<ToolbarKey>, off: Set<ToolbarKey> = emptySet(), colors: Colors = owner) {
+        val row = row(keys, colors)
+        val expand = row.wrapper.getChildAt(0) as ImageButton
+        val bg = row.bg
+        // the left key: its disc (toolbar_expand_key_background in the colour of the design) and the grid icon with the contrast of the rule
+        val disc = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.toolbar_expand_key_background)!!.mutate()
+        disc.colorFilter = android.graphics.PorterDuffColorFilter(colors.get(ColorType.TOOL_BAR_EXPAND_KEY_BACKGROUND), android.graphics.PorterDuff.Mode.SRC_IN)
+        expand.background = disc
+        expand.setImageDrawable(androidx.core.content.ContextCompat.getDrawable(context, R.drawable.sym_keyboard_grid_flat)!!.mutate())
+        expand.scaleType = android.widget.ImageView.ScaleType.CENTER
+        val behind = RgbColors.over(colors.get(ColorType.TOOL_BAR_EXPAND_KEY_BACKGROUND), bg)
+        expand.colorFilter = android.graphics.PorterDuffColorFilter(StripIconColors.ensureContrast(colors.get(ColorType.TOOL_BAR_EXPAND_KEY), behind), android.graphics.PorterDuff.Mode.SRC_IN)
+        row.buttons.forEachIndexed { i, b -> if (keys[i] in off) FixedBar.setAvailable(b, BarTools.Reason.PRIVATE_FIELD, false, keys[i].name) { it } }
+        layout(row)
+        val strip = render(row)
+        val picture = Bitmap.createBitmap(WIDTH, HEIGHT * 2, Bitmap.Config.ARGB_8888)
+        Canvas(picture).apply { drawColor(bg); drawBitmap(strip, 0f, HEIGHT / 2f, null) }
+        java.io.File("build/owner-bars").apply { mkdirs() }.resolve("owner-$name.png").outputStream().use { picture.compress(Bitmap.CompressFormat.PNG, 100, it) }
+    }
+
+    @Test fun theOwnerLikeBarsAreWrittenAsPicturesToLookAt() {
+        picture("5-standard", listOf(ToolbarKey.AGENT, ToolbarKey.SETTINGS, ToolbarKey.CLIPBOARD, ToolbarKey.UNDO, ToolbarKey.VOICE))
+        picture("6-owner", listOf(ToolbarKey.AGENT, ToolbarKey.SETTINGS, ToolbarKey.CLIPBOARD, ToolbarKey.UNDO, ToolbarKey.SKILL_1, ToolbarKey.VOICE))
+        picture("8-compact", listOf(ToolbarKey.AGENT, ToolbarKey.SETTINGS, ToolbarKey.CLIPBOARD, ToolbarKey.UNDO, ToolbarKey.SKILL_1, ToolbarKey.EMOJI, ToolbarKey.CHAR_ART, ToolbarKey.VOICE))
+        val keys = listOf(ToolbarKey.AGENT, ToolbarKey.SETTINGS, ToolbarKey.SKILL_1, ToolbarKey.UNDO, ToolbarKey.DICTATE)
+        picture("5-unavailable", keys, off = setOf(ToolbarKey.AGENT, ToolbarKey.SKILL_1, ToolbarKey.DICTATE))
+        picture("8-unavailable", listOf(ToolbarKey.AGENT, ToolbarKey.SETTINGS, ToolbarKey.CLIPBOARD, ToolbarKey.UNDO, ToolbarKey.SKILL_1, ToolbarKey.PROMPTS, ToolbarKey.CHAR_ART, ToolbarKey.DICTATE),
+            off = setOf(ToolbarKey.AGENT, ToolbarKey.SKILL_1, ToolbarKey.PROMPTS, ToolbarKey.CHAR_ART, ToolbarKey.DICTATE))
+        assertTrue(java.io.File("build/owner-bars/owner-5-standard.png").length() > 1000)
     }
 
     @Test fun theForkIconsThatWereBlackAreTintedLikeAnyOther() {

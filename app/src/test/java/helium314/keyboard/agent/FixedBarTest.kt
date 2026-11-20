@@ -194,6 +194,50 @@ class FixedBarTest {
         }
     }
 
+    private fun layoutAt(h: Harness, width: Int) {
+        h.root.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(STRIP + KEYBOARD, View.MeasureSpec.EXACTLY))
+        h.root.layout(0, 0, width, STRIP + KEYBOARD)
+    }
+
+    /** Stage 88: on a narrow screen (360 dp and 320 dp) every item is wholly inside the bar and no two cells overlap, up to eight tools. */
+    private fun checkNarrow(flat: Boolean) {
+        val tools = listOf(UNDO, REDO, COPY, PASTE, CUT, SELECT_ALL, SELECT_WORD, CLIPBOARD)
+        for (dp in listOf(360, 320)) {
+            val width = Math.round(dp * 3.25f)
+            for (count in 0..8) {
+                // the last one is a microphone key in the second round: the wider circle must fit too
+                for (mic in listOf(false, true)) {
+                    val bar = tools.take(count).let { if (mic && count > 0) it.dropLast(1) + DICTATE else it }
+                    setBar(bar)
+                    reload()
+                    val h = build()
+                    h.strip.setToolbarVisibility(true)
+                    layoutAt(h, width)
+                    val label = "flat=$flat dp=$dp count=$count mic=$mic"
+                    val items = listOf(leftKey(h)) + slots(h)
+                    val rowLeft = toolbar(h).leftIn(h.root)
+                    val boxes = listOf(leftKey(h).let { android.graphics.RectF(it.left.toFloat(), 0f, it.right.toFloat(), 1f) }) +
+                        slots(h).map { FixedBar.visualBox(it).let { b -> android.graphics.RectF(b.left + rowLeft, 0f, b.right + rowLeft, 1f) } }
+                    // the cells (what a finger can hit) lie inside the bar and do not overlap
+                    val cells = listOf(leftKey(h).left to leftKey(h).right) + slots(h).map { it.leftIn(h.root) to it.leftIn(h.root) + it.width }
+                    cells.forEach { (l, r) -> assertTrue(l >= 0 && r <= width, "$label cell $l..$r outside 0..$width") }
+                    cells.zipWithNext { a, b -> assertTrue(b.first >= a.second, "$label cells overlap: $a $b") }
+                    // the visible shapes keep a margin to the screen edge on both sides and a visible gap between them
+                    boxes.forEach { assertTrue(it.left >= 3f * 3.25f - 0.5f && it.right <= width - 3f * 3.25f + 0.5f, "$label box ${it.left}..${it.right} too near the edge of $width") }
+                    boxes.zipWithNext { a, b -> assertTrue(b.left - a.right >= 4f * 3.25f, "$label gap ${b.left - a.right} px between ${a.right} and ${b.left}") }
+                    assertEquals(items.size, boxes.size)
+                }
+            }
+        }
+    }
+
+    @Test fun upToEightToolsFitOnNarrowScreensInTheDefaultLook() = checkNarrow(flat = false)
+
+    @Test fun upToEightToolsFitOnNarrowScreensInTheFlatLook() {
+        flatPreset()
+        checkNarrow(flat = true)
+    }
+
     private fun assertNoScrolling(view: View) {
         assertFalse(view is HorizontalScrollView, "scroll view in the strip")
         if (view is ViewGroup) (0 until view.childCount).forEach { assertNoScrolling(view.getChildAt(it)) }
