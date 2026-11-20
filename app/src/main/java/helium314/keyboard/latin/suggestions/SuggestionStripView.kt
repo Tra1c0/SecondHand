@@ -796,6 +796,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             }
         }
         updateToolAvailability()
+        helium314.keyboard.agent.RgbLighting.onStripChanged(this) // the buttons are new: the light finds them again
     }
 
     /** The edit mode: the grid shows the hint, the bar its outlined slots, the left key becomes the check button. */
