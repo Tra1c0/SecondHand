@@ -1456,7 +1456,7 @@ GRID_NODE_IDS = {"hint": "agent_tool_grid_hint", "undo": "agent_tool_grid_undo",
 EDIT_LABELS = ("Anpassen", "Customize")
 IN_BAR_SUFFIXES = (", in der Leiste", ", in the bar")
 SHOT_CHUNK = 4000
-SHOT_MAX_WIDTH = 400
+SHOT_MAX_WIDTH = 300
 SHOTS = []  # (name, [lines]) collected during the run and printed at its end, so that the end of the log has them
 
 
@@ -1623,7 +1623,9 @@ def hide_and_reopen(d, field="text"):
     shell("input keyevent KEYCODE_BACK", check=False)
     d.wait(lambda s: len(s.keys()) < 10, "the keyboard to hide")
     time.sleep(0.5)
-    return d.focus(field)
+    d.focus(field)
+    time.sleep(0.6)
+    return ensure_tools(d)
 
 
 def screen_raw():
@@ -1639,13 +1641,15 @@ def screen_raw():
     return None
 
 
-def png_of(w, h, pixels, top, max_width=SHOT_MAX_WIDTH):
-    """A PNG (stdlib only) of the rows from top down, shrunk by dropping pixels so that it is at most max_width wide."""
+def png_of(w, h, pixels, top, max_width=SHOT_MAX_WIDTH, bottom=None, levels=0xF0):
+    """A PNG (stdlib only) of the rows from top down to bottom, shrunk by dropping pixels so that it is at most max_width
+    wide; the colours are cut to 4 bits per channel so that it is small (it goes through the job log as text)."""
     factor = max(1, -(-w // max_width))
     rows = []
-    for y in range(max(0, top), h, factor):
+    mask = bytes((v & levels) for v in range(256))
+    for y in range(max(0, top), min(h, bottom if bottom else h), factor):
         row = pixels[y * w * 4:(y + 1) * w * 4]
-        r, g, b = row[0::4][::factor], row[1::4][::factor], row[2::4][::factor]
+        r, g, b = (row[0::4][::factor]).translate(mask), (row[1::4][::factor]).translate(mask), (row[2::4][::factor]).translate(mask)
         out = bytearray(1 + 3 * len(r))
         out[1::3], out[2::3], out[3::3] = r, g, b
         rows.append(bytes(out))
@@ -1654,7 +1658,7 @@ def png_of(w, h, pixels, top, max_width=SHOT_MAX_WIDTH):
     def chunk(kind, body):
         return struct.pack(">I", len(body)) + kind + body + struct.pack(">I", zlib.crc32(kind + body) & 0xFFFFFFFF)
     return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, len(rows), 8, 2, 0, 0, 0))
-            + chunk(b"IDAT", zlib.compress(b"".join(rows), 6)) + chunk(b"IEND", b""))
+            + chunk(b"IDAT", zlib.compress(b"".join(rows), 9)) + chunk(b"IEND", b""))
 
 
 def shot(d, label):
@@ -1670,7 +1674,7 @@ def shot(d, label):
         w, h, pixels = raw
         strip = dump().keyboard_node("suggestion_strip_view")
         top = (strip.top - 120) if strip else int(h * 0.55)
-        data = base64.b64encode(png_of(w, h, pixels, top)).decode("ascii")
+        data = base64.b64encode(png_of(w, h, pixels, top, bottom=top + 700)).decode("ascii")
         parts = [data[i:i + SHOT_CHUNK] for i in range(0, len(data), SHOT_CHUNK)] or [""]
         name = "%s-%s" % (d.name, label)
         SHOTS.append((name, ["SHOT %s %d/%d %s" % (name, i, len(parts), part) for i, part in enumerate(parts, 1)]))
