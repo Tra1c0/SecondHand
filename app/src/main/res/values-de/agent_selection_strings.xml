@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="agent_selection_copy">Kopieren</string>
+    <string name="agent_selection_copy_description">Markierten Text kopieren</string>
+    <string name="agent_selection_cut">Ausschneiden</string>
+    <string name="agent_selection_cut_description">Markierten Text ausschneiden</string>
+    <string name="agent_selection_paste">Einfügen</string>
+    <string name="agent_selection_paste_description">Text aus der Zwischenablage anstelle der Markierung einfügen</string>
+    <string name="agent_selection_delete">Löschen</string>
+    <string name="agent_selection_delete_description">Markierten Text löschen</string>
+</resources>

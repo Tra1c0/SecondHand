@@ -6013,6 +6013,259 @@ class InputLogicTest {
         handleMessages()
     }
 
+    // ---- stage 82: actions for selected text in the strip ------------------------------------------------------
+
+    /** A strip like the keyboard's in a text field holding [content]. */
+    private fun selectionStrip(content: String = "hello world"): helium314.keyboard.latin.suggestions.SuggestionStripView {
+        helium314.keyboard.keyboard.internal.KeyboardIconsSet.instance.loadIcons(latinIME)
+        val themed = android.view.ContextThemeWrapper(latinIME, R.style.KeyboardTheme_Flat)
+        val root = android.widget.FrameLayout(themed)
+        val container = android.view.LayoutInflater.from(themed).inflate(R.layout.strip_container, root, false) as android.view.ViewGroup
+        root.addView(container)
+        root.addView(MainKeyboardView(themed, null).apply { id = R.id.keyboard_view })
+        latinIME.updateSuggestionStripView(root)
+        helium314.keyboard.agent.SelectionChips.clipHasText = { false }
+        setText(content)
+        return container.findViewById(R.id.suggestion_strip_view)
+    }
+
+    /** The chips of the selection row by their descriptions (the labels are the first words of them). */
+    private fun selectionChips(strip: android.view.View): List<android.view.View> {
+        val scroll = strip.findViewById<android.view.ViewGroup>(R.id.agent_selection_chips) ?: return emptyList()
+        val row = scroll.getChildAt(0) as android.view.ViewGroup // the scroll view holds the row of chips
+        return (0 until row.childCount).map { row.getChildAt(it) }
+    }
+    private fun selectionLabels(strip: android.view.View) = selectionChips(strip).map { (it as android.widget.TextView).text.toString() }
+    private fun selectionChip(strip: android.view.View, label: String) =
+        selectionChips(strip).first { (it as android.widget.TextView).text.toString() == label }
+
+    /** What Android does after "select all": the editor has selected, then reports it (the shadow editor does not call back). */
+    private fun reportSelection(oldStart: Int, oldEnd: Int) {
+        latinIME.onUpdateSelection(oldStart, oldEnd, selectionStart, selectionEnd, composingStart, composingEnd)
+        handleMessages()
+    }
+
+    /** The suggestion update that follows a cursor move; handleMessages drops it (it has a delay), so the test sends its result. */
+    private fun suggestionsCameBack() {
+        latinIME.setNeutralSuggestionStrip()
+        handleMessages()
+    }
+
+    private fun selectAllBySpaceHold() {
+        val oldStart = selectionStart
+        val oldEnd = selectionEnd
+        setSpaceGesture(SpaceGesture.HOLD, SpaceAction.SELECT_ALL)
+        assertTrue(latinIME.mKeyboardActionListener.onCustomRequest(helium314.keyboard.keyboard.KeyboardActionListener.CustomAction.SPACE_HOLD))
+        handleMessages()
+        reportSelection(oldStart, oldEnd)
+    }
+
+    private val clipboard get() = latinIME.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun selectAllOnTheSpaceBarShowsCopyCutAndDeleteInTheStrip() {
+        val strip = selectionStrip()
+        assertEquals(emptyList(), selectionLabels(strip))
+        selectAllBySpaceHold()
+        assertEquals("hello world", selectedText)
+        // the keyboard asks the editor for select all and nothing else (no start-selecting-text)
+        assertEquals(listOf(android.R.id.selectAll), ShadowInputMethodService.contextMenuActions)
+        assertEquals(listOf("Copy", "Cut", "Delete"), selectionLabels(strip)) // no text on the clipboard: no Paste
+        assertEquals(listOf("Copy the selected text", "Cut the selected text", "Delete the selected text"),
+            selectionChips(strip).map { it.contentDescription.toString() })
+        assertTrue(selectionChips(strip).all { it.isClickable })
+        // nothing happened to the text or the clipboard by itself
+        assertEquals("hello world", text)
+        assertEquals(null, clipboard.primaryClip)
+    }
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun pasteChipComesOnlyWithAClipboardText() {
+        val strip = selectionStrip()
+        selectAllBySpaceHold()
+        assertFalse("Paste" in selectionLabels(strip))
+        helium314.keyboard.agent.SelectionChips.clipHasText = helium314.keyboard.agent.SelectionChips::systemClipHasText // the real check
+        clipboard.setPrimaryClip(android.content.ClipData(android.content.ClipDescription("image", arrayOf("image/png")),
+            android.content.ClipData.Item(android.net.Uri.parse("content://example/1"))))
+        latinIME.setNeutralSuggestionStrip()
+        assertEquals(listOf("Copy", "Cut", "Delete"), selectionLabels(strip))
+        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("", "from clipboard"))
+        latinIME.setNeutralSuggestionStrip()
+        assertEquals(listOf("Copy", "Cut", "Paste", "Delete"), selectionLabels(strip))
+        assertEquals("Paste the clipboard text in place of the selection", selectionChip(strip, "Paste").contentDescription.toString())
+    }
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun copyChipCopiesOnItsTapKeepsTheSelectionAndOffersPaste() {
+        val strip = selectionStrip()
+        selectAllBySpaceHold()
+        helium314.keyboard.agent.SelectionChips.clipHasText = { clipboard.primaryClip != null }
+        assertEquals(null, clipboard.primaryClip)
+        assertTrue(selectionChip(strip, "Copy").performClick())
+        handleMessages()
+        assertEquals("hello world", clipboard.primaryClip!!.getItemAt(0).text.toString())
+        assertEquals("hello world", text) // copy changes no text
+        assertEquals(0, selectionStart)
+        assertEquals(11, selectionEnd)
+        // the selection stays, so do the chips; the clipboard has text now
+        assertEquals(listOf("Copy", "Cut", "Paste", "Delete"), selectionLabels(strip))
+    }
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun cutChipRemovesTheTextOnlyOnItsTapAndTheChipsGo() {
+        val strip = selectionStrip()
+        selectAllBySpaceHold()
+        assertEquals("hello world", text)
+        assertTrue(selectionChip(strip, "Cut").performClick())
+        handleMessages()
+        assertEquals("", text)
+        assertEquals("hello world", clipboard.primaryClip!!.getItemAt(0).text.toString())
+        assertEquals(emptyList(), selectionLabels(strip))
+    }
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun pasteChipReplacesTheSelectionAndDeleteChipDeletesIt() {
+        val strip = selectionStrip()
+        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("", "new"))
+        helium314.keyboard.agent.SelectionChips.clipHasText = { true }
+        selectAllBySpaceHold()
+        assertTrue(selectionChip(strip, "Paste").performClick())
+        handleMessages()
+        assertEquals("new", text)
+        assertEquals(emptyList(), selectionLabels(strip))
+
+        setText("one two")
+        selectAllBySpaceHold()
+        assertTrue(selectionChip(strip, "Delete").performClick())
+        handleMessages()
+        assertEquals("", text)
+        assertEquals(emptyList(), selectionLabels(strip))
+    }
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun typingCollapsingAndANewFieldTakeTheChipsAway() {
+        val strip = selectionStrip()
+        selectAllBySpaceHold()
+        assertTrue(selectionChips(strip).isNotEmpty())
+        input('x') // replaces the selection
+        assertEquals("x", text)
+        assertEquals(emptyList(), selectionLabels(strip))
+
+        setText("hello world")
+        selectAllBySpaceHold()
+        assertTrue(selectionChips(strip).isNotEmpty())
+        setCursorPosition(3) // the user taps into the text
+        suggestionsCameBack()
+        assertEquals(emptyList(), selectionLabels(strip))
+
+        selectAllBySpaceHold()
+        assertTrue(selectionChips(strip).isNotEmpty())
+        setText("other field") // new field, nothing selected
+        assertEquals(emptyList(), selectionLabels(strip))
+    }
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun noChipsInAnEmptyFieldAndSelectAllOnAFullSelectionCollapses() {
+        val strip = selectionStrip("")
+        selectAllBySpaceHold()
+        assertEquals("", selectedText)
+        assertEquals(emptyList(), selectionLabels(strip))
+        setText("abc")
+        selectAllBySpaceHold()
+        assertEquals(3, selectionChips(strip).size)
+        // select all again with everything selected puts the cursor at the end: the keyboard collapses it itself
+        assertTrue(latinIME.mKeyboardActionListener.onCustomRequest(helium314.keyboard.keyboard.KeyboardActionListener.CustomAction.SPACE_HOLD))
+        handleMessages()
+        assertEquals(3, selectionStart)
+        assertEquals(3, selectionEnd)
+        reportSelection(0, 3) // the editor reports the collapse (the keyboard's expected selection is only set by that)
+        suggestionsCameBack()
+        assertEquals(emptyList(), selectionLabels(strip))
+    }
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun noChipsInPasswordIncognitoOrNoLearningFields() {
+        for (type in listOf(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD,
+                InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD,
+                InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD)) {
+            currentInputType = type
+            val strip = selectionStrip("secret")
+            selectAllBySpaceHold()
+            assertEquals("secret", selectedText)
+            assertEquals(emptyList(), selectionLabels(strip), "type $type")
+        }
+        currentInputType = InputType.TYPE_CLASS_TEXT
+        val strip = selectionStrip("plain")
+        ShadowInputMethodService.currentImeOptions = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
+        setText("plain")
+        selectAllBySpaceHold()
+        assertEquals(emptyList(), selectionLabels(strip), "no-learning flag")
+        ShadowInputMethodService.currentImeOptions = 0
+        setText("plain")
+        selectAllBySpaceHold()
+        assertEquals(3, selectionChips(strip).size)
+    }
+
+    /** Decision of stage 82: every non-empty selection gets the chips, the keyboard's own and one made by hand. */
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun aSelectionMadeByHandOrWithSelectWordGetsTheChipsToo() {
+        val strip = selectionStrip()
+        setCursorPosition(2, 5) // like dragging the handles
+        assertEquals(listOf("Copy", "Cut", "Delete"), selectionLabels(strip))
+        setCursorPosition(3)
+        suggestionsCameBack()
+        assertEquals(emptyList(), selectionLabels(strip))
+        // the keyboard's select word goes through the editor like select all: the editor reports the selection
+        latinIME.onEvent(Event.createSoftwareKeypressEvent(Event.NOT_A_CODE_POINT, KeyCode.CLIPBOARD_SELECT_WORD, 0,
+            Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false))
+        handleMessages()
+        assertEquals("hello", selectedText)
+        reportSelection(3, 3)
+        assertEquals(listOf("Copy", "Cut", "Delete"), selectionLabels(strip))
+        latinIME.onEvent(Event.createSoftwareKeypressEvent(Event.NOT_A_CODE_POINT, KeyCode.CLIPBOARD_SELECT_WORD, 0,
+            Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)) // a second press collapses it
+        handleMessages()
+        assertEquals(5, selectionStart)
+        reportSelection(0, 5)
+        suggestionsCameBack()
+        assertEquals(emptyList(), selectionLabels(strip))
+    }
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun theChipsStandInFrontOfWordSuggestionsAndAChipOfAnOldSelectionDoesNothing() {
+        val strip = selectionStrip()
+        selectAllBySpaceHold()
+        val words = SuggestedWords(arrayListOf(SuggestedWordInfo("hallo", "", 100, SuggestedWordInfo.KIND_CORRECTION, null, 0, 0)),
+            null, null, false, false, false, SuggestedWords.INPUT_STYLE_PREDICTION, SuggestedWords.NOT_A_SEQUENCE_NUMBER)
+        latinIME.setSuggestions(words)
+        handleMessages()
+        assertEquals(listOf("Copy", "Cut", "Delete"), selectionLabels(strip)) // words wait while text is selected
+        assertFalse("hallo" in stripWords(strip))
+
+        val stale = selectionChip(strip, "Cut")
+        setCursorPosition(1, 4) // another selection: the row is built for it
+        assertTrue(stale.performClick())
+        handleMessages()
+        assertEquals("hello world", text) // the old chip is refused
+        assertEquals(null, clipboard.primaryClip)
+
+        setCursorPosition(4)
+        latinIME.setSuggestions(words)
+        handleMessages()
+        assertEquals(emptyList(), selectionLabels(strip))
+        assertTrue("hallo" in stripWords(strip)) // after the selection the words are back
+    }
+
+    @Test fun theChipTextsExistInGermanToo() {
+        val german = latinIME.createConfigurationContext(android.content.res.Configuration().apply { setLocale(Locale.GERMAN) })
+        assertEquals(listOf("Kopieren", "Ausschneiden", "Einfügen", "Löschen"), listOf(R.string.agent_selection_copy,
+            R.string.agent_selection_cut, R.string.agent_selection_paste, R.string.agent_selection_delete).map { german.getString(it) })
+        listOf(R.string.agent_selection_copy_description, R.string.agent_selection_cut_description,
+            R.string.agent_selection_paste_description, R.string.agent_selection_delete_description).forEach {
+            assertNotEquals(latinIME.getString(it), german.getString(it))
+        }
+    }
+
     /** Stage 41: the format guard's chip changes the field only on a tap, exactly once, with the real host. */
     @Test fun formatGuardChipChangesTheFieldOnlyOnATapAndOnce() {
         val strip = android.widget.FrameLayout(latinIME)
@@ -6778,6 +7031,7 @@ class InputLogicTest {
         currentScript = ScriptUtils.SCRIPT_LATIN
         ShadowInputMethodService.reset()
         helium314.keyboard.agent.ScreenshotChip.resetForTest()
+        helium314.keyboard.agent.SelectionChips.clipHasText = helium314.keyboard.agent.SelectionChips::systemClipHasText
         helium314.keyboard.agent.EmojiSuggestions.setTableForTest(null) // no emojis unless a test loads the table
         lastAddedWord = ""
 
