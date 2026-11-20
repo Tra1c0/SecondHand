@@ -66,6 +66,8 @@ class InkCloud internal constructor(val xs: FloatArray, val ys: FloatArray, val 
     /** Stage 36: strokes that are lines (not dots) and dots, for the structure term of the match. */
     val lineCount: Int get() = counts.first
     val dotCount: Int get() = counts.second
+    /** Stage 83: how many strokes the drawing has (lines and dots). */
+    val strokeCount: Int get() = lineCount + dotCount
     private val counts: Pair<Int, Int> by lazy(LazyThreadSafetyMode.PUBLICATION) {
         var lines = 0; var dots = 0
         var start = 0
@@ -183,22 +185,40 @@ class InkCloud internal constructor(val xs: FloatArray, val ys: FloatArray, val 
 /** A symbol the recognizer knows: the [text] it inserts and one drawing of it. */
 class InkTemplate(val text: String, val cloud: InkCloud, val own: Boolean = false)
 
-/** A candidate: [distance] is the `$P` distance of its closest template (smaller is better). */
-class InkMatch(val text: String, val distance: Float, val own: Boolean) {
-    override fun toString() = "$text(${"%.2f".format(distance)})"
+/**
+ * A candidate: [distance] is the `$P` distance of its closest template (smaller is better). Stage 83:
+ * [complete] is false when every template that was close needs more strokes than the drawing has (a "%"
+ * for a single slash, a "÷" for a dash and one dot, an "€" for the arc alone): such a candidate was matched,
+ * but the drawing is not that symbol yet, so it is never the best match, only a secondary offer.
+ */
+class InkMatch(val text: String, val distance: Float, val own: Boolean, val complete: Boolean = true) {
+    override fun toString() = "$text(${"%.2f".format(distance)}${if (complete) "" else " incomplete"})"
 }
 
-/** The outcome of one drawing: [best] is null when nothing was close enough ("Nicht erkannt"). */
+/**
+ * The outcome of one drawing: [best] is null when nothing was close enough ("Nicht erkannt").
+ * [candidates] are all texts by distance (incomplete ones among them, see [InkMatch.complete]).
+ */
 class InkResult(val candidates: List<InkMatch>) {
-    val best: InkMatch? get() = candidates.firstOrNull()?.takeIf { first ->
-        first.distance <= InkRecognizer.ACCEPT_DISTANCE ||
-            // a sloppy drawing is still clear when nothing else comes close
-            (first.distance <= InkRecognizer.CLEAR_DISTANCE &&
-                (candidates.getOrNull(1)?.distance ?: Float.MAX_VALUE) >= first.distance * InkRecognizer.CLEAR_MARGIN)
+    /** The closest candidate that the drawing is complete for, if it is close enough. */
+    val best: InkMatch? get() {
+        val first = candidates.firstOrNull { it.complete } ?: return null
+        // a sloppy drawing is still clear when no other symbol the drawing could be comes close
+        val next = candidates.firstOrNull { it.complete && it !== first }?.distance ?: Float.MAX_VALUE
+        return first.takeIf {
+            it.distance <= InkRecognizer.ACCEPT_DISTANCE ||
+                (it.distance <= InkRecognizer.CLEAR_DISTANCE && next >= it.distance * InkRecognizer.CLEAR_MARGIN)
+        }
     }
-    /** Up to [InkRecognizer.ALTERNATIVES] further candidates after [best], each also close enough. */
-    val alternatives: List<InkMatch> get() = if (best == null) emptyList()
-        else candidates.drop(1).filter { it.distance <= InkRecognizer.ALTERNATIVE_DISTANCE }.take(InkRecognizer.ALTERNATIVES)
+    /**
+     * Up to [InkRecognizer.ALTERNATIVES] further candidates after [best], each also close enough: first the
+     * ones the drawing is complete for, then the incomplete ones (a "%" after a slash).
+     */
+    val alternatives: List<InkMatch> get() {
+        val best = best ?: return emptyList()
+        val others = candidates.filter { it !== best && it.distance <= InkRecognizer.ALTERNATIVE_DISTANCE }
+        return (others.filter { it.complete } + others.filter { !it.complete }).take(InkRecognizer.ALTERNATIVES)
+    }
 }
 
 /**
@@ -254,14 +274,25 @@ class InkRecognizer(templates: List<InkTemplate>, private val tuning: Tuning = T
     }
 
     private fun match(cloud: InkCloud): InkResult {
-        val best = LinkedHashMap<String, InkMatch>()
+        // stage 83: a template needing more strokes than drawn is matched on its own list: such a text is
+        // a candidate only when no template of it fits the drawing's stroke count
+        val complete = LinkedHashMap<String, InkMatch>()
+        val incomplete = LinkedHashMap<String, InkMatch>()
+        val drawn = cloud.strokeCount
+        fun listFor(template: InkTemplate) = if (template.cloud.strokeCount <= drawn) complete else incomplete
         fun note(template: InkTemplate, d: Float) {
-            val known = best[template.text]
+            val list = listFor(template)
+            val known = list[template.text]
             // an own symbol with the same text as a built-in one is the same candidate
-            if (known == null || d < known.distance) best[template.text] = InkMatch(template.text, d, template.own)
+            if (known == null || d < known.distance) list[template.text] = InkMatch(template.text, d, template.own, list === complete)
+        }
+        fun result(): InkResult {
+            val all = complete.values.toMutableList()
+            incomplete.values.filter { it.text !in complete }.forEach { all += it }
+            return InkResult(all.sortedBy { it.distance })
         }
         // nothing farther than CUTOFF changes the result: stop summing there (stage 36, speed)
-        fun limit(template: InkTemplate) = min(best[template.text]?.distance ?: Float.MAX_VALUE, CUTOFF)
+        fun limit(template: InkTemplate) = min(listFor(template)[template.text]?.distance ?: Float.MAX_VALUE, CUTOFF)
         val structure = FloatArray(templates.size) { k ->
             val t = templates[k].cloud
             tuning.lineWeight * abs(cloud.lineCount - t.lineCount) + tuning.dotWeight * abs(cloud.dotCount - t.dotCount)
@@ -280,7 +311,7 @@ class InkRecognizer(templates: List<InkTemplate>, private val tuning: Tuning = T
         // rotation tolerance), far less than the 45° between → and ↗ or + and ×; stage 36: only for
         // templates that came close upright (turning gains far less than [Tuning.turnNear] times)
         val turned = tuning.rotations.filter { it != 0f }.map { InkCloud.rotated(cloud, it) }
-        if (turned.isEmpty()) return InkResult(best.values.sortedBy { it.distance })
+        if (turned.isEmpty()) return result()
         val near = min(nearest * tuning.turnNear, CUTOFF)
         for ((k, template) in templates.withIndex()) {
             if (upright[k] > near) continue
@@ -289,7 +320,7 @@ class InkRecognizer(templates: List<InkTemplate>, private val tuning: Tuning = T
             for (candidate in turned) d = min(d, greedyCloudMatch(candidate, template.cloud, d, tuning.angleWeight))
             note(template, d + structure[k])
         }
-        return InkResult(best.values.sortedBy { it.distance })
+        return result()
     }
 
     companion object {
