@@ -41,8 +41,8 @@ import androidx.autofill.inline.v1.InlineSuggestionUi.Style;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.BooleanSupplier;
 
+import helium314.keyboard.agent.InlineAutofillResponse;
 import helium314.keyboard.agent.InlineAutofillSizing;
 import helium314.keyboard.agent.InlineAutofillSlots;
 import helium314.keyboard.latin.R;
@@ -109,25 +109,13 @@ public class InlineAutofillUtils {
     }
 
     /**
-     * @param isCurrent whether the response still belongs to what the keyboard shows; a late inflation of a
-     *                  stale response adds nothing (stage 79)
+     * @param response the bookkeeping of this response (stage 79b): it knows whether the response is still current
+     *                 (a late inflation of a stale response adds nothing), counts the callbacks, and runs the "first
+     *                 chip placed" action, which is where the caller shows the container; until then nothing shows
      */
     public static InlineContentClipView createView(final List<InlineSuggestion> inlineSuggestions,
-                                                   final Context context, final BooleanSupplier isCurrent) {
+                                                   final Context context, final InlineAutofillResponse response) {
         LinearLayout container = new LinearLayout(context);
-        // fork, stage 79: the callbacks come in any order (or never); each chip goes to the place its index asks for
-        final InlineAutofillSlots slots = new InlineAutofillSlots(inlineSuggestions.size());
-        for (int i = 0; i < inlineSuggestions.size(); i++) {
-            final int index = i;
-            inlineSuggestions.get(i).inflate(context, new Size(ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT), context.getMainExecutor(), (view) -> {
-                if (!isCurrent.getAsBoolean()) return; // the field changed or the chips were replaced meanwhile
-                final int position = slots.onResult(index, view != null);
-                if (position >= 0)
-                    container.addView(view, position);
-            });
-        }
-
         HorizontalScrollView inlineSuggestionView = new HorizontalScrollView(context);
         inlineSuggestionView.setHorizontalScrollBarEnabled(false);
         inlineSuggestionView.setOverScrollMode(View.OVER_SCROLL_NEVER);
@@ -135,6 +123,15 @@ public class InlineAutofillUtils {
 
         InlineContentClipView scrollableSuggestionsClip = new InlineContentClipView(context);
         scrollableSuggestionsClip.addView(inlineSuggestionView);
+
+        // fork, stage 79: the callbacks come in any order (or never); each chip goes to the place its index asks for.
+        // Stage 79b: started only after the container exists, so the first-chip action can already use it.
+        for (int i = 0; i < inlineSuggestions.size(); i++) {
+            final int index = i;
+            inlineSuggestions.get(i).inflate(context, new Size(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT), context.getMainExecutor(), (view) ->
+                    response.onResult(index, view != null, position -> container.addView(view, position)));
+        }
         return scrollableSuggestionsClip;
     }
 

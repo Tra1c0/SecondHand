@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.agent
 
+import java.util.function.BooleanSupplier
+import java.util.function.IntConsumer
+import java.util.function.LongSupplier
+
 /**
  * Stage 79: the decisions of the inline autofill chips (password managers) that do not need the platform's
  * remote views, so they can be tested without a device. `InlineAutofillUtils` and `LatinIME` call them.
@@ -110,7 +114,116 @@ class InlineAutofillGeneration {
 
     fun isCurrent(token: Int): Boolean = open && token != NONE && token == generation
 
+    /** Whether responses are accepted now (for the counters of stage 79b). */
+    val isOpen: Boolean get() = open
+
     companion object {
         const val NONE = -1
+    }
+}
+
+/**
+ * Stage 79b: one inline autofill response as the keyboard sees it. It owns the row of chips ([InlineAutofillSlots]),
+ * decides when the autofill container may be shown (not on the response, but when the first chip has been placed
+ * for the current generation) and counts what happened to every callback. Numbers only, never a suggestion's text
+ * or title. Callbacks arrive on the main thread; the fields are volatile because `dump()` reads them from a binder
+ * thread and the diagnose page from the settings.
+ */
+class InlineAutofillResponse @JvmOverloads constructor(
+    val count: Int,
+    private val isCurrent: BooleanSupplier,
+    private val onFirstChip: Runnable,
+    private val clock: LongSupplier = LongSupplier { System.nanoTime() / 1_000_000 },
+) {
+    private val slots = InlineAutofillSlots(count)
+    private val startedAt = clock.asLong
+    private var firstChipFired = false
+
+    /** Callbacks that brought a view / null / arrived after the response went stale. */
+    @Volatile var withView = 0; private set
+    @Volatile var nullViews = 0; private set
+    @Volatile var staleDrops = 0; private set
+
+    /** Milliseconds from the response to the first callback of any kind, -1 while none came. */
+    @Volatile var firstCallbackMillis = -1L; private set
+
+    /** Whether the first-chip action ran, that is, the container was shown for this response. */
+    @Volatile var shown = false; private set
+
+    /** Suggestions whose callback has not come yet. */
+    val pending: Int get() = Math.max(0, count - withView - nullViews - staleDrops)
+
+    /** Chips in the row now. */
+    val placed: Int get() = slots.placed
+
+    /**
+     * The callback of the suggestion at [index]. A stale response (the field changed, a newer response came, the user
+     * closed the chips) only counts. Otherwise a chip is put at its place by [place] (the position in the row), and when
+     * that is the first chip of this response, [onFirstChip] runs exactly once, after [place]. Returns whether it ran.
+     */
+    fun onResult(index: Int, hasView: Boolean, place: IntConsumer): Boolean {
+        if (firstCallbackMillis < 0) firstCallbackMillis = Math.max(0L, clock.asLong - startedAt)
+        if (!isCurrent.asBoolean) { staleDrops++; return false }
+        val position = slots.onResult(index, hasView)
+        if (position < 0) {
+            if (!hasView) nullViews++
+            return false
+        }
+        withView++
+        place.accept(position)
+        if (firstChipFired) return false
+        firstChipFired = true
+        onFirstChip.run()
+        shown = true
+        return true
+    }
+}
+
+/**
+ * Stage 79b: what the keyboard did with inline autofill responses since the process started: totals and the last
+ * response, as numbers only. Read by `LatinIME.dump()` (`adb shell dumpsys input_method` prints one line
+ * "InlineAutofill: ...") and by the diagnose page, so the owner can read it on the phone after a miss. Nothing is
+ * stored or logged; nothing happens unless a response arrives.
+ */
+class InlineAutofillCounters {
+    @Volatile var accepted = 0; private set
+    @Volatile var empty = 0; private set
+    @Volatile var refused = 0; private set
+    @Volatile var stripWidthPx = -1; private set
+    @Volatile var generationOpen = false
+    @Volatile private var last: InlineAutofillResponse? = null
+
+    class Snapshot(
+        val accepted: Int, val empty: Int, val refused: Int, val stripWidthPx: Int, val generationOpen: Boolean,
+        /** The last response, or null while none was accepted. */
+        val last: InlineAutofillResponse?,
+    )
+
+    /** The strip width the request asked for (0 = not laid out yet). */
+    fun onRequest(stripWidthPx: Int) { this.stripWidthPx = stripWidthPx }
+    fun onEmpty() { empty++ }
+    fun onRefused() { refused++ }
+    fun onAccepted(response: InlineAutofillResponse) { accepted++; last = response }
+
+    fun snapshot() = Snapshot(accepted, empty, refused, stripWidthPx, generationOpen, last)
+
+    /** The one line of `dump()`. */
+    fun line(): String {
+        val s = snapshot()
+        val sb = StringBuilder("InlineAutofill: responses accepted=").append(s.accepted)
+            .append(" empty=").append(s.empty).append(" refused=").append(s.refused)
+        val l = s.last
+        if (l == null) sb.append(" last=none")
+        else sb.append(" last: suggestions=").append(l.count).append(" withView=").append(l.withView)
+            .append(" null=").append(l.nullViews).append(" stale=").append(l.staleDrops)
+            .append(" pending=").append(l.pending).append(" placed=").append(l.placed)
+            .append(" firstCallbackMs=").append(l.firstCallbackMillis).append(" shown=").append(l.shown)
+        return sb.append("; stripWidthPx=").append(s.stripWidthPx)
+            .append(" generation=").append(if (s.generationOpen) "open" else "closed").toString()
+    }
+
+    companion object {
+        /** The one instance of the keyboard process. */
+        @JvmField val shared = InlineAutofillCounters()
     }
 }

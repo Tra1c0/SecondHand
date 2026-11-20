@@ -1007,7 +1007,7 @@ public class LatinIME extends InputMethodService implements
 
     private void onStartInputInternal(EditorInfo editorInfo, boolean restarting) {
         super.onStartInput(editorInfo, restarting);
-        mInlineAutofillGeneration.open(); // fork, stage 79: re-opens after a finish; a restart leaves the response in flight alone
+        openInlineAutofillGeneration(); // fork, stage 79: re-opens after a finish; a restart leaves the response in flight alone
 
         // fork, stage 24g fix (P66): a language command's choice survives the app restarting the same field
         if (helium314.keyboard.agent.commands.SubtypeChoice.holds(editorInfo, mRichImm.getCurrentSubtype().getRawSubtype(), () -> mSubtypeState.getSubtypeForLocales(
@@ -1220,6 +1220,7 @@ public class LatinIME extends InputMethodService implements
         super.onFinishInput();
         Log.i(TAG, "onFinishInput");
         mInlineAutofillGeneration.close(); // fork, stage 79: an inline response arriving now belongs to nothing
+        helium314.keyboard.agent.InlineAutofillCounters.shared.setGenerationOpen(false); // stage 79b
         helium314.keyboard.agent.SymbolDrawing.reset(); // stage 27: a waiting drawing never reaches a finished editor
         helium314.keyboard.agent.ClipVault.fieldFinished(mInputLogic.mFieldCorrections); // fork, stage 65: no active field, the last field's text does not stay in memory
 
@@ -1507,10 +1508,11 @@ public class LatinIME extends InputMethodService implements
             return null;
         }
 
-        mInlineAutofillGeneration.open(); // fork, stage 79: only re-opens a closed generation (a second request must not drop chips in flight)
+        openInlineAutofillGeneration(); // fork, stage 79: only re-opens a closed generation (a second request must not drop chips in flight)
         // fork, stage 79: the chips may be as wide as the strip really is (0 while it is not laid out yet)
-        return InlineAutofillUtils.createInlineSuggestionRequest(mDisplayContext,
-                hasSuggestionStripView() ? mSuggestionStripView.getWidth() : 0);
+        final int stripWidth = hasSuggestionStripView() ? mSuggestionStripView.getWidth() : 0;
+        helium314.keyboard.agent.InlineAutofillCounters.shared.onRequest(stripWidth); // stage 79b: a number
+        return InlineAutofillUtils.createInlineSuggestionRequest(mDisplayContext, stripWidth);
     }
 
     @Override
@@ -1522,20 +1524,37 @@ public class LatinIME extends InputMethodService implements
         }
 
         final List<InlineSuggestion> inlineSuggestions = response.getInlineSuggestions();
+        final helium314.keyboard.agent.InlineAutofillCounters counters = helium314.keyboard.agent.InlineAutofillCounters.shared;
         if (inlineSuggestions.isEmpty()) {
+            counters.onEmpty();
             return false;
         }
 
         // fork, stage 79: nothing for a finished input or a strip that is not there; a newer response makes older ones stale
         final int token = mInlineAutofillGeneration.beginResponse();
         if (token == helium314.keyboard.agent.InlineAutofillGeneration.NONE || !hasSuggestionStripView()) {
+            counters.onRefused();
             return false;
         }
 
-        final View inlineSuggestionView = InlineAutofillUtils.createView(inlineSuggestions, mDisplayContext,
-                () -> mInlineAutofillGeneration.isCurrent(token));
-        showInlineAutofill(inlineSuggestionView);
+        // fork, stage 79b: the container (with its close button) is shown only when the first chip has been placed, so
+        // a response whose chips never arrive leaves no empty box. Until then the strip keeps what it shows. When the
+        // chip comes, the container takes the strip like it always did on the response (autofill has priority over
+        // words, tools and the clipboard pill); a newer response or a finished input before that makes this one stale.
+        final View[] container = new View[1];
+        final helium314.keyboard.agent.InlineAutofillResponse tracked = new helium314.keyboard.agent.InlineAutofillResponse(
+                inlineSuggestions.size(), () -> mInlineAutofillGeneration.isCurrent(token), () -> {
+                    // the callbacks are posted to the main executor, so the container exists by now
+                    if (container[0] != null) showInlineAutofill(container[0]);
+                });
+        counters.onAccepted(tracked);
+        container[0] = InlineAutofillUtils.createView(inlineSuggestions, mDisplayContext, tracked);
         return true;
+    }
+
+    private void openInlineAutofillGeneration() {
+        mInlineAutofillGeneration.open();
+        helium314.keyboard.agent.InlineAutofillCounters.shared.setGenerationOpen(mInlineAutofillGeneration.isOpen());
     }
 
     // the inline autofill view while it may be shown; the screenshot chip (stage 23g) leaves it in place
@@ -2109,6 +2128,7 @@ public class LatinIME extends InputMethodService implements
         SettingsValues settingsValues = mSettings.getCurrent();
         p.println(settingsValues.dump());
         p.println(mDictionaryFacilitator.dump(this));
+        p.println(helium314.keyboard.agent.InlineAutofillCounters.shared.line()); // stage 79b: numbers only
     }
 
     // slightly modified from Simple Keyboard: https://github.com/rkkr/simple-keyboard/blob/master/app/src/main/java/rkr/simplekeyboard/inputmethod/latin/LatinIME.java

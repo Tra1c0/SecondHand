@@ -249,4 +249,26 @@
     <string name="agent_diagnose_excluded_go_next">single-line field with the Go or Next action</string>
     <string name="agent_diagnose_excluded_ascii">ASCII characters only</string>
     <string name="agent_diagnose_excluded_not_text">no text field</string>
+    <!-- stage 79b: inline autofill counters -->
+    <string name="agent_diagnose_autofill">Autofill suggestions (password manager, numbers only)</string>
+    <string name="agent_diagnose_autofill_responses">Responses since start</string>
+    <string name="agent_diagnose_autofill_none">none yet – open a field with autofill suggestions, then open this page again</string>
+    <string name="agent_diagnose_autofill_responses_value">%1$d accepted, %2$d empty, %3$d refused</string>
+    <string name="agent_diagnose_autofill_requested">Last response: suggestions requested</string>
+    <string name="agent_diagnose_autofill_arrived">Last response: chips arrived</string>
+    <string name="agent_diagnose_autofill_null">Last response: arrived empty</string>
+    <string name="agent_diagnose_autofill_stale">Last response: dropped (stale)</string>
+    <string name="agent_diagnose_autofill_pending">Last response: not answered yet</string>
+    <string name="agent_diagnose_autofill_placed">Last response: chips in the strip</string>
+    <string name="agent_diagnose_autofill_first">Time to the first callback</string>
+    <string name="agent_diagnose_autofill_no_callback">no callback</string>
+    <string name="agent_diagnose_autofill_ms">%1$d ms</string>
+    <string name="agent_diagnose_autofill_shown">Autofill box shown</string>
+    <string name="agent_diagnose_autofill_width">Strip width at the request</string>
+    <string name="agent_diagnose_autofill_no_request">no request yet</string>
+    <string name="agent_diagnose_autofill_not_laid_out">not laid out yet</string>
+    <string name="agent_diagnose_autofill_px">%1$d px</string>
+    <string name="agent_diagnose_autofill_input">Input</string>
+    <string name="agent_diagnose_autofill_input_open">active</string>
+    <string name="agent_diagnose_autofill_input_closed">finished</string>
 </resources>
