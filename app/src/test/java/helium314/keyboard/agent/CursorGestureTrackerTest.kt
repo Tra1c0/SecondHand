@@ -120,4 +120,80 @@ class CursorGestureTrackerTest {
         down(); move(104f, 102f); up(104f, 102f)
         assertEquals(listOf("code 32"), log)
     }
+
+    // ---- the trackpad protocol (stage 87): the tracker hands over raw px distances and only marks the swipe
+
+    private val calls = mutableListOf<List<Number>>()
+    private var answer = KeyboardActionListener.TRACK_OFF
+
+    private fun script(vararg answers: Int) {
+        val queue = ArrayDeque(answers.toList())
+        `when`(listener.onCursorTrack(anyInt(), anyInt(), anyInt(), anyLong())).thenAnswer {
+            calls += listOf(it.getArgument<Int>(0), it.getArgument<Int>(1), it.getArgument<Int>(2), it.getArgument<Long>(3))
+            if (queue.size > 1) queue.removeFirst() else queue.first()
+        }
+    }
+
+    @Test fun trackpadGetsRawDistancesFromTouchDownAndTheOldStepLogicStaysOut() {
+        script(KeyboardActionListener.TRACK_PENDING, KeyboardActionListener.TRACK_ACTIVE)
+        down(); move(104f, 103f); move(160f, 70f); move(150f, 90f); up(150f, 90f)
+        assertEquals(listOf(listOf(32, 4, 3), listOf(32, 60, -30), listOf(32, 50, -10)), calls.map { it.take(3).map { n -> n.toInt() } })
+        assertTrue(calls.map { it[3].toLong() }.zipWithNext().all { (a, b) -> a < b }, "event times grow")
+        // no old step reports, no space typed; the end is reported once
+        assertEquals(listOf("end"), log)
+    }
+
+    @Test fun trackpadPendingIsATapForTheTracker() {
+        script(KeyboardActionListener.TRACK_PENDING)
+        down(); move(104f, 102f); up(104f, 102f)
+        assertEquals(listOf("code 32"), log)
+    }
+
+    @Test fun trackpadActiveMarksTheSwipeAndEndsItLikeASidewaysSwipe() {
+        script(KeyboardActionListener.TRACK_ACTIVE)
+        down(); move(120f, 100f)
+        assertTrue(ReflectionHelpers.getField<Boolean>(tracker, "mInHorizontalSwipe"))
+        assertFalse(ReflectionHelpers.getField<Boolean>(tracker, "mInVerticalSwipe"))
+        up(120f, 100f)
+        assertFalse(ReflectionHelpers.getField<Boolean>(tracker, "mInHorizontalSwipe"))
+        assertFalse(ReflectionHelpers.getField<Boolean>(tracker, "mKeySwipeAllowed"))
+        assertEquals(listOf("end"), log)
+    }
+
+    @Test fun trackpadVerticalDragIsTheSameSwipe() {
+        script(KeyboardActionListener.TRACK_ACTIVE)
+        down(); move(100f, 60f); move(100f, 20f); up(100f, 20f)
+        assertEquals(listOf("end"), log) // no old vertical report, no space
+    }
+
+    @Test fun trackpadActiveCancelsTheSpaceHold() {
+        script(KeyboardActionListener.TRACK_ACTIVE)
+        down(); move(120f, 100f)
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper())
+            .idleFor(java.time.Duration.ofMillis((Settings.getValues().mKeyLongpressTimeout * 2).toLong()))
+        verify(listener, never()).onCustomRequest(KeyboardActionListener.CustomAction.SPACE_HOLD)
+        up(120f, 100f)
+    }
+
+    @Test fun trackpadDeleteSlideMarksTheSwipeAndTheLiftDeletes() {
+        `when`(key.code).thenReturn(KeyCode.DELETE)
+        script(KeyboardActionListener.TRACK_ACTIVE)
+        down(); move(85f, 100f); move(60f, 101f); up(60f, 101f)
+        assertEquals(listOf("delete-up", "end"), log) // no onMoveDeletePointer from the tracker any more
+        assertEquals(listOf(KeyCode.DELETE, KeyCode.DELETE), calls.map { it[0].toInt() })
+    }
+
+    @Test fun trackpadOnALetterKeyIsNeverAsked() {
+        `when`(key.code).thenReturn('a'.code)
+        script(KeyboardActionListener.TRACK_ACTIVE)
+        down(); move(140f, 100f); up(140f, 100f)
+        assertTrue(calls.isEmpty())
+    }
+
+    @Test fun trackpadOffAfterAnActiveDragGivesTheOldStepsAgain() {
+        // a listener that says OFF (settings, selection, bound swipe) leaves everything to the old logic, also mid-gesture
+        script(KeyboardActionListener.TRACK_OFF)
+        down(); move(113f, 100f); move(131f, 100f); up(131f, 100f)
+        assertEquals(listOf("swipe SWIPE_RIGHT 1", "swipe SWIPE_RIGHT 2", "end"), log)
+    }
 }

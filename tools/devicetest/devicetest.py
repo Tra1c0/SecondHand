@@ -26,6 +26,7 @@ Only the standard library is used. Nothing typed here is secret; the texts are f
 
 import argparse
 import json
+import math
 import os
 import re
 import subprocess
@@ -503,6 +504,41 @@ class Driver:
             target.desc[:14], target.box)
         return target.desc
 
+    def density(self):
+        """Pixels per dp of the screen (stage 87), read from `wm density` once."""
+        if getattr(self, "_density", None) is None:
+            lines = shell("wm density", check=False).strip().splitlines()
+            match = re.search(r"(\d+)\s*$", lines[-1]) if lines else None  # the override line, if any, comes last
+            self._density = (int(match.group(1)) if match else 420) / 160.0
+        return self._density
+
+    def drag_on(self, name, dx_dp, dy_dp, step_dp=4.0, pause=0.0):
+        """One finger on a named key (space, delete), moved slowly by (dx, dy) dp in steps of at most
+        step_dp, then lifted. `input motionevent` needs 100 to 300 ms per call, so a step of 4 dp is a
+        finger of about 20 dp/s, the slow finger the cursor trackpad is tuned for (stage 87)."""
+        node = self.find_key(KEY_NAMES[name])
+        if node is None:
+            self.refresh_keys()
+            node = self.find_key(KEY_NAMES[name])
+        if node is None:
+            raise CheckFailed("no key %r on the keyboard; keys: %s" % (name, self.key_list()))
+        x, y = node.center
+        px = self.density()
+        steps = max(1, int(math.ceil(math.hypot(dx_dp, dy_dp) / step_dp)))
+        shell("input motionevent DOWN %d %d" % (x, y), timeout=30)
+        tx, ty = x, y
+        try:
+            for i in range(1, steps + 1):
+                tx = int(round(x + dx_dp * px * i / steps))
+                ty = int(round(y + dy_dp * px * i / steps))
+                shell("input motionevent MOVE %d %d" % (tx, ty), timeout=30)
+                if pause:
+                    time.sleep(pause)
+        finally:
+            shell("input motionevent UP %d %d" % (tx, ty), timeout=30, check=False)
+        time.sleep(0.8)
+        self.notes.append("dragged on %s by (%d, %d) dp in %d steps" % (name, dx_dp, dy_dp, steps))
+
     def tap_keyboard_text(self, wanted, outside_strip=True):
         """Taps the node of the keyboard (not a key) whose text or description contains the wanted string."""
         deadline = time.time() + 8
@@ -695,6 +731,42 @@ def typing_number(d):
     d.focus("number")
     d.type("12345")
     d.expect_field("number", "12345")
+
+
+def cursor_trackpad(d):
+    """The space bar moves the cursor like a trackpad (stage 87): a slow swipe to the left through
+    "Hallo welt" crosses the start of "welt" and stops at word edges. The exact position depends on the
+    finger's speed and the detents, so the check is a set: the new letter must land left of the space
+    (the swipe crossed the word edge) and not before the second letter (no runaway). The control run
+    fails because the typed letter is left out."""
+    d.start("cursor_trackpad")
+    d.focus("text")
+    d.type("hallo welt")
+    d.expect_field("text", "Hallo welt")
+    d.drag_on("space", -100, 0)  # 7 steps of 13 dp without word edges, 4 to 5 with them
+    d.type("x")
+    time.sleep(1.0)
+    text = d.field("text")
+    d.expect_equal("the field without the new letter", text.replace("x", "").replace("X", ""), "Hallo welt")
+    index = max(text.find("x"), text.find("X"))
+    d.expect_equal("the new letter landed in 'Hallo', not after the space (index %d of %r)" % (index, text), 2 <= index <= 5, True)
+
+
+def cursor_trackpad_vertical(d):
+    """One vertical swipe on the space bar moves the cursor one line up in a multi-line field (stage 87):
+    the keyboard sends DPAD_UP and the editor decides where it lands. The letter typed afterwards must
+    be in the first line. The test app's text field holds two lines."""
+    d.start("cursor_trackpad_vertical")
+    d.focus("text")
+    d.type("eins")
+    d.press("enter")
+    d.type("zwei")
+    time.sleep(1.0)
+    d.drag_on("space", 0, -40)
+    d.type("x")
+    time.sleep(1.0)
+    lines = d.field("text").replace("\r", "").split("\n")
+    d.expect_equal("two lines with the letter in the first (%r)" % lines, len(lines) == 2 and "x" in lines[0].lower() and "x" not in lines[1].lower(), True)
 
 
 def _open_settings_and_switch_on(d, path, switch):
@@ -1282,7 +1354,8 @@ def prompt_folders(d):
 SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete_key, typing_password, typing_email, typing_number,
              capital_after_period, autocorrect_works, autocorrect_typo, autocorrect_typo_in_sentence,
              autocorrect_noun, swapped_letters_keep_nouns, swapped_letters_keep_caps, slang_stays, emoji_suggestion, language_switch, clipboard_pill,
-             clipboard_not_readable_in_password, learning_not_in_password, prompt_store, prompt_folders, autofill_inline]
+             clipboard_not_readable_in_password, learning_not_in_password, prompt_store, prompt_folders, autofill_inline,
+             cursor_trackpad, cursor_trackpad_vertical]
 
 
 # Scenarios that fail because the keyboard does not do what was expected of it, found by these tests

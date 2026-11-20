@@ -1301,6 +1301,181 @@ class InputLogicTest {
         assertEquals(5, cursor)
     }
 
+    // ------- stage 87: cursor trackpad on the real listener (KeyboardActionListenerImpl.onCursorTrack) -------
+
+    private var trackTime = 10_000L
+
+    /**
+     * One finger on the space or delete key, as PointerTracker feeds it: a new touch, then the distance from
+     * the touch-down point in px at 8 ms intervals along a straight line at [dps] dp/s, then (when [lift]) the end.
+     * [from] continues a drag: the line starts at that distance. Returns the last answer.
+     */
+    private fun trackDrag(code: Int, dxDp: Double, dyDp: Double, dps: Double = 60.0, from: Pair<Double, Double>? = null, lift: Boolean = true): Int {
+        val listener = latinIME.mKeyboardActionListener
+        val density = latinIME.resources.displayMetrics.density
+        if (from == null) listener.onEndSpaceSwipe() // a new touch: the listener forgets the last drag
+        val x0 = from?.first ?: 0.0
+        val y0 = from?.second ?: 0.0
+        val length = Math.hypot(dxDp - x0, dyDp - y0)
+        val n = Math.ceil(length / dps * 1000 / 8).toInt().coerceAtLeast(1)
+        var answer = helium314.keyboard.keyboard.KeyboardActionListener.TRACK_OFF
+        for (i in 1..n) {
+            trackTime += 8
+            val x = x0 + (dxDp - x0) * i / n
+            val y = y0 + (dyDp - y0) * i / n
+            answer = listener.onCursorTrack(code, Math.round(x * density).toInt(), Math.round(y * density).toInt(), trackTime)
+            handleMessages()
+            if (answer == helium314.keyboard.keyboard.KeyboardActionListener.TRACK_OFF) break
+        }
+        if (lift) { listener.onEndSpaceSwipe(); handleMessages() }
+        return answer
+    }
+
+    private fun spaceTrack(dx: Double, dy: Double, dps: Double = 60.0) = trackDrag(Constants.CODE_SPACE, dx, dy, dps)
+
+    private val TRACK_OFF = helium314.keyboard.keyboard.KeyboardActionListener.TRACK_OFF
+    private val TRACK_PENDING = helium314.keyboard.keyboard.KeyboardActionListener.TRACK_PENDING
+    private val TRACK_ACTIVE = helium314.keyboard.keyboard.KeyboardActionListener.TRACK_ACTIVE
+
+    @Test fun cursor87SpaceSwipeRightMovesThreeClusters() {
+        setText("hello world foo")
+        setCursorPosition(0)
+        assertEquals(TRACK_ACTIVE, spaceTrack(42.0, 0.0)) // 3 steps of 13 dp, a little over
+        assertEquals(3, cursor)
+        assertEquals("hello world foo", text)
+    }
+
+    @Test fun cursor87SpaceSwipeLeftOverAnEmojiAndAccentMovesWholeClusters() {
+        latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0) } // an emoji next to a letter is a word edge: not what is tested here
+        setText("a\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67e\u0301")
+        assertEquals(TRACK_ACTIVE, spaceTrack(-30.0, 0.0)) // two clusters: the accent cluster (2 chars) and the family (8 chars)
+        assertEquals(1, cursor)
+    }
+
+    @Test fun cursor87SpaceSwipeDownSendsDpadDownAndUpSendsDpadUp() {
+        setText("one\ntwo\nthree")
+        setCursorPosition(4)
+        spaceTrack(0.0, 30.0)
+        assertEquals(listOf(android.view.KeyEvent.KEYCODE_DPAD_DOWN), ShadowInputMethodService.keyDownCodes)
+        ShadowInputMethodService.keyDownCodes.clear()
+        spaceTrack(0.0, -60.0) // 2 lines up
+        assertEquals(listOf(android.view.KeyEvent.KEYCODE_DPAD_UP, android.view.KeyEvent.KEYCODE_DPAD_UP), ShadowInputMethodService.keyDownCodes)
+    }
+
+    @Test fun cursor87OneDragMovesSidewaysThenDownWithoutLifting() {
+        setText("abc abc abc\nabc abc abc")
+        setCursorPosition(11)
+        val listener = latinIME.mKeyboardActionListener
+        trackDrag(Constants.CODE_SPACE, -42.0, 0.0, lift = false) // 3 characters left
+        assertEquals(8, cursor)
+        trackDrag(Constants.CODE_SPACE, -42.0, 40.0, from = -42.0 to 0.0, lift = false)
+        assertEquals(listOf(android.view.KeyEvent.KEYCODE_DPAD_DOWN), ShadowInputMethodService.keyDownCodes) // the 2-D switch, one line
+        listener.onEndSpaceSwipe()
+    }
+
+    @Test fun cursor87WordEdgeCostsALittleMoreTravelAndNeverSnaps() {
+        setText("Hallo Welt")
+        // 4 steps land at the start of "Welt" (an edge); the fifth then needs 35 % of a step more: 65 dp would give it, 67 dp not
+        spaceTrack(-67.0, 0.0)
+        assertEquals(6, cursor)
+        setText("Hallo Welt")
+        spaceTrack(-74.0, 0.0)
+        assertEquals(5, cursor) // freely movable: it does move on, one step at a time
+        // the same path with magnetism 0: the fifth step comes at 65 dp
+        latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0) }
+        setText("Hallo Welt")
+        spaceTrack(-67.0, 0.0)
+        assertEquals(5, cursor)
+    }
+
+    @Test fun cursor87LegacyModeGivesBackTheOldBehavior() {
+        latinIME.prefs().edit { putBoolean(AgentPreferences.CURSOR_TRACKPAD, false) }
+        setText("hello")
+        assertEquals(TRACK_OFF, spaceTrack(-42.0, 0.0))
+        assertEquals(5, cursor) // nothing moved here: the old steps come from PointerTracker (onSpaceSwipe), tested in CursorGestureTrackerTest
+        assertEquals(TRACK_OFF, trackDrag(KeyCode.DELETE, -42.0, 0.0))
+        // and the old step path itself is as before
+        latinIME.mKeyboardActionListener.onSpaceSwipe(SpaceGesture.SWIPE_LEFT, -2)
+        assertEquals(3, cursor)
+    }
+
+    @Test fun cursor87ASwipeBoundToAnotherActionKeepsItsAction() {
+        setSpaceGesture(SpaceGesture.SWIPE_LEFT, SpaceAction.SWITCH_LANGUAGE)
+        setText("hello")
+        assertEquals(TRACK_OFF, spaceTrack(-42.0, 0.0))
+        // a vertical swipe with an action of its own keeps it too
+        setSpaceGesture(SpaceGesture.SWIPE_LEFT, SpaceAction.MOVE_CURSOR)
+        setSpaceGesture(SpaceGesture.SWIPE_UP, SpaceAction.UNDO)
+        assertEquals(TRACK_OFF, spaceTrack(-42.0, 0.0))
+        // the delete slider does not depend on the space bar
+        assertEquals(TRACK_ACTIVE, trackDrag(KeyCode.DELETE, -20.0, 0.0))
+    }
+
+    @Test fun cursor87WithASelectionTheOldBehaviorStays() {
+        setText("hello world")
+        setCursorPosition(2, 5)
+        assertEquals(TRACK_OFF, spaceTrack(-42.0, 0.0))
+        assertEquals(2, selectionStart); assertEquals(5, selectionEnd)
+    }
+
+    @Test fun cursor87ATapOrASmallWiggleIsNoSwipe() {
+        setText("hello")
+        assertEquals(TRACK_PENDING, spaceTrack(6.0, 3.0)) // under 10 dp: still a tap for PointerTracker
+        assertEquals(5, cursor)
+        assertEquals(TRACK_PENDING, trackDrag(KeyCode.DELETE, 5.0, 40.0)) // the delete slider only counts sideways travel
+    }
+
+    @Test fun cursor87SpaceTrackpadFinishesComposingTextLikeTheOldSwipe() {
+        chainInput("hello")
+        spaceSwipe(-2)
+        val legacy = Triple(cursor, text, composingText)
+        setText("")
+        chainInput("hello")
+        spaceTrack(-30.0, 0.0) // 2 steps
+        assertEquals(legacy, Triple(cursor, text, composingText))
+    }
+
+    @Test fun cursor87DeleteSlideSelectsToTheWordStartAndDeletesExactlyThatOnRelease() {
+        setText("Hallo Welt")
+        assertEquals(TRACK_ACTIVE, trackDrag(KeyCode.DELETE, -62.0, 0.0, lift = false))
+        assertEquals(6, selectionStart); assertEquals(10, selectionEnd) // "Welt", stops at the word start
+        assertEquals("Hallo Welt", text)
+        latinIME.mKeyboardActionListener.onUpWithDeletePointerActive() // what PointerTracker does at the lift
+        handleMessages()
+        assertEquals("Hallo ", text)
+        latinIME.mKeyboardActionListener.onEndSpaceSwipe()
+    }
+
+    @Test fun cursor87DeleteSlideBackToTheRightUnselectsButNeverPastTheStart() {
+        setText("Hallo Welt")
+        trackDrag(KeyCode.DELETE, -62.0, 0.0, lift = false)
+        assertEquals(6, selectionStart)
+        trackDrag(KeyCode.DELETE, -22.0, 0.0, from = -62.0 to 0.0, lift = false) // 40 dp back to the right
+        assertEquals(7, selectionStart)
+        assertEquals(10, selectionEnd)
+        trackDrag(KeyCode.DELETE, 150.0, 0.0, from = -22.0 to 0.0, lift = false) // far beyond
+        assertEquals(10, selectionStart) // empty selection at the start of the slide: nothing left to delete
+        latinIME.mKeyboardActionListener.onUpWithDeletePointerActive()
+        handleMessages()
+        assertEquals("Hallo Welt", text)
+        latinIME.mKeyboardActionListener.onEndSpaceSwipe()
+    }
+
+    @Test fun cursor87DeleteSlideWithMagnetismOffIsPlainClusters() {
+        latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0) }
+        setText("Hallo Welt")
+        trackDrag(KeyCode.DELETE, -67.0, 0.0, lift = false)
+        assertEquals(5, selectionStart) // 65 dp: five clusters, through the word start
+        latinIME.mKeyboardActionListener.onEndSpaceSwipe()
+    }
+
+    @Test fun cursor87BlockingInputMovesNothing() {
+        setText("hello")
+        org.robolectric.util.ReflectionHelpers.setField(latinIME.agentEditorController, "needsCursorRefresh", true)
+        assertEquals(TRACK_OFF, spaceTrack(-42.0, 0.0))
+        assertEquals(5, cursor)
+    }
+
     // ------- helper functions ---------
 
     @Test fun generatedSelectionReplacementPreservesSurroundingTextAndSingleDelete() {

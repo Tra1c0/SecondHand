@@ -127,6 +127,17 @@ public interface KeyboardActionListener {
      */
     void onSpaceSwipeDistance(SpaceGesture gesture, int distance, int keyWidth);
     void onEndSpaceSwipe();
+    /** Fork (stage 87): [onCursorTrack] answers: not handled here (the old step logic runs), a drag that has not become a swipe yet, a swipe. */
+    int TRACK_OFF = 0;
+    int TRACK_PENDING = 1;
+    int TRACK_ACTIVE = 2;
+    /**
+     * Fork (stage 87): the cursor trackpad. Called on every move of a finger that went down on space or delete,
+     * with the distance from the touch-down point in px (not stepped) and the event time in ms. TRACK_OFF means the
+     * old step logic of PointerTracker runs; otherwise the listener moves the cursor itself and PointerTracker only
+     * marks the swipe (no space typed, no long press, onEndSpaceSwipe at the end).
+     */
+    int onCursorTrack(int code, int dx, int dy, long eventTime);
     void toggleLayout(LayoutDirective.Utility layout, int autoCapsFlags, @Nullable RecapitalizeMode recapitalizeMode);
     void onLongPressAlphaSymbolForNumpad();
 
@@ -185,6 +196,8 @@ public interface KeyboardActionListener {
         public void onLongPressAlphaSymbolForNumpad() {}
         @Override
         public void onEndSpaceSwipe() {}
+        @Override
+        public int onCursorTrack(int code, int dx, int dy, long eventTime) { return TRACK_OFF; }
         @Override
         public void onMoveDeletePointer(int steps) {}
         @Override

@@ -97,6 +97,9 @@ public class SettingsValues {
     public final int mTouchpadSensitivity;
     public final boolean mTouchpadEdgeScroll;
     public final boolean mDeleteSwipeEnabled;
+    /** Stage 87: the space bar cursor and the delete slider as a trackpad, and its magnetism at word edges (0..100). */
+    public final boolean mCursorTrackpad;
+    public final int mCursorMagnetism;
     public final boolean mAutospaceAfterPunctuation;
     public final boolean mAutospaceAfterSuggestion;
     public final boolean mAutospaceAfterGestureTyping;
@@ -303,6 +306,9 @@ public class SettingsValues {
             Defaults.PREF_TOUCHPAD_SENSITIVITY);
         mTouchpadEdgeScroll = prefs.getBoolean(Settings.PREF_TOUCHPAD_EDGE_SCROLL, Defaults.PREF_TOUCHPAD_EDGE_SCROLL);
         mDeleteSwipeEnabled = prefs.getBoolean(Settings.PREF_DELETE_SWIPE, Defaults.PREF_DELETE_SWIPE);
+        mCursorTrackpad = prefs.getBoolean(helium314.keyboard.agent.AgentPreferences.CURSOR_TRACKPAD, true);
+        mCursorMagnetism = Math.max(0, Math.min(100, prefs.getInt(helium314.keyboard.agent.AgentPreferences.CURSOR_MAGNETISM,
+                helium314.keyboard.agent.AgentPreferences.CURSOR_MAGNETISM_DEFAULT)));
         mAutospaceAfterPunctuation = prefs.getBoolean(Settings.PREF_AUTOSPACE_AFTER_PUNCTUATION, Defaults.PREF_AUTOSPACE_AFTER_PUNCTUATION);
         mAutospaceAfterSuggestion = prefs.getBoolean(Settings.PREF_AUTOSPACE_AFTER_SUGGESTION, Defaults.PREF_AUTOSPACE_AFTER_SUGGESTION);
         mAutospaceAfterGestureTyping = prefs.getBoolean(Settings.PREF_AUTOSPACE_AFTER_GESTURE_TYPING, Defaults.PREF_AUTOSPACE_AFTER_GESTURE_TYPING);

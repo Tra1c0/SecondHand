@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.keyboard
 
+import dev.agentkeyboard.core.CursorTrack
+import helium314.keyboard.agent.CursorTrackpad
 import helium314.keyboard.agent.TouchCalibration
 import android.text.InputType
 import helium314.keyboard.agent.HapticChain
@@ -61,6 +63,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     private var subtypeSwitchCount = 0
 
     override fun onPressKey(primaryCode: Int, repeatCount: Int, pointerCount: Int, hapticEvent: HapticEvent) {
+        if (primaryCode == Constants.CODE_SPACE || primaryCode == KeyCode.DELETE) cursorTrackReset() // stage 87: a new touch starts a new trackpad drag
         if (latinIME.agentEditorController.isBlockingInput) return;
         helium314.keyboard.agent.SymbolDrawing.beforeOtherInput() // a waiting drawn symbol comes first (stage 27)
         spaceKeyDown = primaryCode == Constants.CODE_SPACE
@@ -329,6 +332,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     }
 
     override fun onEndSpaceSwipe() {
+        cursorTrackReset()
         spaceDetents.end() // lifted before the last detent: nothing happened
         if (latinIME.agentEditorController.isBlockingInput) return;
         initialSubtype = null
@@ -537,6 +541,11 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
             }
             gestureMoveForwardHaptics(text.isNotEmpty())
         }
+        return applyHorizontalMove(moveSteps)
+    }
+
+    /** Moves the cursor by [moveSteps] chars (signed) through the editor: the end of the old horizontal swipe step, unchanged (stage 87 extracted it). */
+    private fun applyHorizontalMove(moveSteps: Int): Boolean {
         inputLogic.setExpectCursorMove()
 
         // the shortcut below causes issues due to horrible handling of text fields by Firefox and forks
@@ -563,6 +572,119 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         connection.setSelection(newPosition, newPosition)
         inputLogic.restartSuggestionsOnWordTouchedByCursor(settings.current, keyboardSwitcher.currentKeyboardScript)
         return true
+    }
+
+    // ---- stage 87: cursor trackpad (space bar: all directions; delete slider: word-aware), see CursorTrack in agent-core
+
+    private enum class TrackMode { UNDECIDED, OFF, PENDING, ACTIVE }
+    private val spaceTrack = CursorTrack()
+    private val deleteTrack = CursorTrack(horizontalOnly = true)
+    private var activeTrack = spaceTrack
+    private var trackMode = TrackMode.UNDECIDED
+    private var trackRtl = false
+    private class TrackSample(val t: Long, val dx: Double, val dy: Double)
+    private val trackPending = ArrayList<TrackSample>()
+
+    private fun cursorTrackReset() {
+        trackMode = TrackMode.UNDECIDED
+        trackPending.clear()
+    }
+
+    override fun onCursorTrack(code: Int, dx: Int, dy: Int, eventTime: Long): Int {
+        if (trackMode == TrackMode.UNDECIDED) trackMode = decideTrackMode(code)
+        if (trackMode == TrackMode.OFF) return KeyboardActionListener.TRACK_OFF
+        val density = latinIME.resources.displayMetrics.density.toDouble()
+        val sample = TrackSample(eventTime, dx / density, dy / density)
+        if (trackMode == TrackMode.PENDING) {
+            trackPending += sample
+            val distance = if (code == KeyCode.DELETE) abs(sample.dx) else Math.hypot(sample.dx, sample.dy)
+            if (distance < CursorTrackpad.CLAIM_DP) return KeyboardActionListener.TRACK_PENDING
+            // the drag is a swipe now: read the text once, then replay what the finger did so far
+            resetSpaceTap()
+            trackMode = TrackMode.ACTIVE
+            activeTrack = if (code == KeyCode.DELETE) deleteTrack else spaceTrack
+            trackRtl = code == Constants.CODE_SPACE && RichInputMethodManager.getInstance().currentSubtype.isRtlSubtype
+            activeTrack.magnetism = CursorTrack.magnetismOfPercent(settings.current.mCursorMagnetism)
+            activeTrack.begin(trackPending.first().t - 10)
+            provideTrackText(code, eventTime)
+            val replay = ArrayList(trackPending)
+            trackPending.clear()
+            for (s in replay) feedTrack(code, s)
+            return KeyboardActionListener.TRACK_ACTIVE
+        }
+        feedTrack(code, sample)
+        return KeyboardActionListener.TRACK_ACTIVE
+    }
+
+    private fun decideTrackMode(code: Int): TrackMode {
+        val values = settings.current
+        if (!values.mCursorTrackpad || latinIME.agentEditorController.isBlockingInput) return TrackMode.OFF
+        // with a selection the old behavior stays (no selection extension in stage 87)
+        return when {
+            code == Constants.CODE_SPACE && CursorTrackpad.appliesToSpace(values.mSpaceGestures) && !connection.hasSelection() -> TrackMode.PENDING
+            code == KeyCode.DELETE -> TrackMode.PENDING
+            else -> TrackMode.OFF
+        }
+    }
+
+    /** The text around the cursor for word edges; for the delete slider around the start of the selection, the selected part included. */
+    private fun provideTrackText(code: Int, time: Long) {
+        val n = CursorTrackpad.WINDOW_CHARS
+        val before = connection.getTextBeforeCursor(n, 0)
+        val after = connection.getTextAfterCursor(n, 0)
+        val selected = if (code == KeyCode.DELETE) connection.getSelectedText(0) else null
+        if (before == null || after == null || before.isEmpty() && after.isEmpty() && selected.isNullOrEmpty()) {
+            activeTrack.setTextUnavailable(time) // an app that gives no text: one cluster per step through the old path
+            if (code == KeyCode.DELETE) activeTrack.forwardLimitChars = selected?.length ?: 0
+            return
+        }
+        activeTrack.setText(before, (selected?.toString() ?: "") + after, before.length < n, after.length < n, time)
+        if (code == KeyCode.DELETE) activeTrack.forwardLimitChars = selected?.length ?: 0
+    }
+
+    private fun feedTrack(code: Int, s: TrackSample) {
+        if (latinIME.agentEditorController.isBlockingInput) return
+        val track = activeTrack
+        if (track.needsText(s.t)) provideTrackText(code, s.t) // also sets the delete slider's limit from the real selection
+        val x = if (trackRtl) -s.dx else s.dx // for RTL languages the finger follows the visual direction (as the old swipe)
+        val steps = track.moveTo(x, s.dy, s.t)
+        for (run in CursorTrackpad.runs(steps)) {
+            if (code == KeyCode.DELETE) moveDeleteRun(run) else moveCursorRun(run)
+        }
+    }
+
+    private fun moveCursorRun(run: CursorTrackpad.Run) {
+        if (run.axis == CursorTrack.Axis.VERTICAL) {
+            // the editor moves by visual line and scrolls by itself; one key per line, as the old vertical swipe
+            if (run.direction < 0) gestureMoveBackHaptics() else gestureMoveForwardHaptics()
+            repeat(run.count) {
+                onCodeInput(if (run.direction < 0) KeyCode.ARROW_UP else KeyCode.ARROW_DOWN, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+            }
+            return
+        }
+        if (run.chars == 0) { // no text known: the old path moves by clusters and falls back to arrow keys
+            onMoveCursorHorizontally(if (trackRtl) -run.direction * run.count else run.direction * run.count)
+            return
+        }
+        trackTick(run, forward = run.direction > 0)
+        applyHorizontalMove(run.chars)
+    }
+
+    private fun moveDeleteRun(run: CursorTrackpad.Run) {
+        if (run.chars == 0) { onMoveDeletePointer(run.direction * run.count); return }
+        // as onMoveDeletePointer: the selection start moves, the end stays; never past the end
+        inputLogic.finishInput()
+        val end = connection.expectedSelectionEnd
+        val start = connection.expectedSelectionStart + run.chars
+        if (start > end) return
+        trackTick(run, forward = false)
+        connection.setSelection(start, end)
+    }
+
+    /** One tick per run, the stronger detent where a slow finger reached a word edge (the haptic settings decide whether it is felt). */
+    private fun trackTick(run: CursorTrackpad.Run, forward: Boolean) {
+        if (run.detent) HapticChain.play(latinIME, settings.current, HapticChain.Feel.DETENT)
+        else if (forward) gestureMoveForwardHaptics(true) else gestureMoveBackHaptics()
     }
 
     private fun gestureMoveBackHaptics() {

@@ -159,6 +159,8 @@ class ShadowInputMethodService {
         var editorMode = EditorMode.NORMAL
         /** The ids of the context menu actions the keyboard asked for (stage 82). */
         val contextMenuActions = mutableListOf<Int>()
+        /** Android key codes of the key-down events the keyboard sent to the field (stage 87: DPAD moves of the trackpad). */
+        val keyDownCodes = mutableListOf<Int>()
 
         // convenience for access
         val textBeforeCursor get() = text.substring(0, selectionStart)
@@ -189,6 +191,7 @@ class ShadowInputMethodService {
             contentCommit = null
             editorMode = EditorMode.NORMAL
             contextMenuActions.clear()
+            keyDownCodes.clear()
         }
     }
 
@@ -327,6 +330,7 @@ class ShadowInputMethodService {
         }
         override fun sendKeyEvent(p0: KeyEvent): Boolean {
             if (p0.action != KeyEvent.ACTION_DOWN) return true // only change the text on key down, like RichInputConnection does
+            keyDownCodes += p0.keyCode
             if (p0.keyCode == KeyEvent.KEYCODE_DEL) {
                 if (selectionEnd == 0) return true // nothing to delete
                 if (selectedText.isEmpty()) {

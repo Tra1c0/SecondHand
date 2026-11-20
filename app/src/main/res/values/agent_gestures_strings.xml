@@ -55,6 +55,10 @@
     <string name="agent_gestures_touch_calibrate_summary">Type a short text</string>
     <string name="agent_gestures_delete_swipe">Delete by swiping</string>
     <string name="agent_gestures_delete_swipe_summary">Drag over the delete key</string>
+    <string name="agent_gestures_trackpad">Cursor as a trackpad</string>
+    <string name="agent_gestures_trackpad_summary">On: the space bar moves the cursor in every direction (where its swipes move the cursor) and the delete slider stops at word starts. Off: as before, left and right only.</string>
+    <string name="agent_gestures_magnetism">Magnetism at word edges</string>
+    <string name="agent_gestures_magnetism_summary">A light resistance at the start and end of words, never a snap. 0 % switches it off.</string>
     <string name="agent_gestures_touchpad">Touchpad sensitivity</string>
     <string name="agent_gestures_touchpad_summary">For the touchpad mode</string>
     <string name="agent_gestures_edge_scroll">Scroll at the touchpad edge</string>

@@ -327,6 +327,12 @@ private fun TouchSection(context: Context, prefs: SharedPreferences, area: Setti
                 runCatching { TouchModel.loadStored(context) }
                 onDialog(TOUCH_CALIBRATION)
             }, Modifier.testTag(ROW_TAG + TOUCH_CALIBRATION))
+        // stage 87: the trackpad cursor of the space bar and the delete slider
+        val trackpad = prefs.getBoolean(AgentPreferences.CURSOR_TRACKPAD, true)
+        SettingSwitchRow(stringResource(R.string.agent_gestures_trackpad), stringResource(R.string.agent_gestures_trackpad_summary), area.dot,
+            trackpad, { putBoolean(AgentPreferences.CURSOR_TRACKPAD, it) }, area.from, area.to, Modifier.testTag(ROW_TAG + AgentPreferences.CURSOR_TRACKPAD))
+        if (trackpad) SettingRow(stringResource(R.string.agent_gestures_magnetism), stringResource(R.string.agent_gestures_magnetism_summary), area.dot,
+            { onDialog(GestureSlider.MAGNETISM.key) }, Modifier.testTag(ROW_TAG + GestureSlider.MAGNETISM.key), GestureSlider.MAGNETISM.value(prefs))
         SettingSwitchRow(stringResource(R.string.agent_gestures_delete_swipe), stringResource(R.string.agent_gestures_delete_swipe_summary), area.dot,
             prefs.getBoolean(Settings.PREF_DELETE_SWIPE, Defaults.PREF_DELETE_SWIPE), { putBoolean(Settings.PREF_DELETE_SWIPE, it) },
             area.from, area.to, Modifier.testTag(ROW_TAG + Settings.PREF_DELETE_SWIPE))
@@ -354,7 +360,8 @@ internal enum class GestureSlider(val key: String, val title: Int, val default: 
     VIBRATION(Settings.PREF_VIBRATION_DURATION_SETTINGS, R.string.prefs_keypress_vibration_duration_settings, Defaults.PREF_VIBRATION_DURATION_SETTINGS, -1f..100f),
     VOLUME(Settings.PREF_KEYPRESS_SOUND_VOLUME, R.string.prefs_keypress_sound_volume_settings, Defaults.PREF_KEYPRESS_SOUND_VOLUME, -0.01f..1f),
     TOUCHPAD(Settings.PREF_TOUCHPAD_SENSITIVITY, R.string.touchpad_sensitivity, Defaults.PREF_TOUCHPAD_SENSITIVITY, 0f..100f),
-    LANGUAGE_DISTANCE(Settings.PREF_LANGUAGE_SWIPE_DISTANCE, R.string.prefs_language_swipe_distance, Defaults.PREF_LANGUAGE_SWIPE_DISTANCE, 2f..18f);
+    LANGUAGE_DISTANCE(Settings.PREF_LANGUAGE_SWIPE_DISTANCE, R.string.prefs_language_swipe_distance, Defaults.PREF_LANGUAGE_SWIPE_DISTANCE, 2f..18f),
+    MAGNETISM(AgentPreferences.CURSOR_MAGNETISM, R.string.agent_gestures_magnetism, AgentPreferences.CURSOR_MAGNETISM_DEFAULT, 0f..100f, 5);
 
     fun read(prefs: SharedPreferences): Float = getPrefOfType(prefs, key, default).toFloat()
 
@@ -364,6 +371,7 @@ internal enum class GestureSlider(val key: String, val title: Int, val default: 
         VIBRATION -> if (v < 0) stringResource(R.string.settings_system_default) else stringResource(R.string.abbreviation_unit_milliseconds, v.toInt().toString())
         VOLUME -> if (v < 0) stringResource(R.string.settings_system_default) else (v * 100).toInt().toString()
         TOUCHPAD, LANGUAGE_DISTANCE -> v.toInt().toString()
+        MAGNETISM -> "${v.toInt()} %"
     }
 
     @Composable
@@ -374,7 +382,7 @@ internal enum class GestureSlider(val key: String, val title: Int, val default: 
             TRAIL -> stringResource(R.string.agent_gestures_seconds, String.format(Locale.getDefault(), "%.1f", (v + 100f) / 1000f))
             VIBRATION -> if (v < 0) stringResource(R.string.agent_gestures_system) else describe(v)
             VOLUME -> if (v < 0) stringResource(R.string.agent_gestures_system) else "${(v * 100).toInt()} %"
-            TOUCHPAD, LANGUAGE_DISTANCE -> describe(v)
+            TOUCHPAD, LANGUAGE_DISTANCE, MAGNETISM -> describe(v)
         }
     }
 }

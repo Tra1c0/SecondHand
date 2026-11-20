@@ -55,6 +55,10 @@
     <string name="agent_gestures_touch_calibrate_summary">Kurzen Text abtippen</string>
     <string name="agent_gestures_delete_swipe">Löschen durch Wischen</string>
     <string name="agent_gestures_delete_swipe_summary">Über die Löschtaste ziehen</string>
+    <string name="agent_gestures_trackpad">Cursor als Trackpad</string>
+    <string name="agent_gestures_trackpad_summary">An: Die Leertaste bewegt den Cursor in alle Richtungen (wo ihr Wischen den Cursor bewegt), das Löschwischen hält an Wortanfängen. Aus: wie bisher, nur links und rechts.</string>
+    <string name="agent_gestures_magnetism">Magnetismus an Wortgrenzen</string>
+    <string name="agent_gestures_magnetism_summary">Ein leichter Widerstand am Anfang und Ende von Wörtern, nie ein Einrasten. 0 % schaltet ihn aus.</string>
     <string name="agent_gestures_touchpad">Touchpad-Empfindlichkeit</string>
     <string name="agent_gestures_touchpad_summary">Für den Touchpad-Modus</string>
     <string name="agent_gestures_edge_scroll">Scrollen am Touchpad-Rand</string>

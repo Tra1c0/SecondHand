@@ -1081,6 +1081,18 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         // see https://github.com/openboard-team/openboard/pull/566
         if (code != KeyCode.DELETE && SystemClock.elapsedRealtime() < mStartTime + fastTypingTimeout && sTypingTimeRecorder.isInFastTyping(eventTime))
             return;
+        // fork (stage 87): the cursor trackpad (space bar) and the delete slider take the raw distance from the
+        // touch-down point; the listener keeps the state and says when the swipe has begun (TRACK_ACTIVE)
+        if (code == Constants.CODE_SPACE || code == KeyCode.DELETE) {
+            final int track = sListener.onCursorTrack(code, x - mStartX, y - mStartY, eventTime);
+            if (track != KeyboardActionListener.TRACK_OFF) {
+                if (track == KeyboardActionListener.TRACK_ACTIVE && !mInHorizontalSwipe) {
+                    sTimerProxy.cancelKeyTimersOf(this);
+                    mInHorizontalSwipe = true; // up ends it like a sideways swipe: onEndSpaceSwipe, no space typed
+                }
+                return;
+            }
+        }
         if (code == Constants.CODE_SPACE) {
             int dX = x - mStartX;
             int dY = y - mStartY;
