@@ -2,6 +2,18 @@
 
 ## Etappe 79b — Autofill ohne leeren Kasten, Diagnose
 
+- **Prüfer (lesend, 2026-11-20):** kein Befund ab mittlerer Schwere. Behoben: `showInlineAutofill` prüft jetzt,
+  ob es die Leiste noch gibt (der Aufruf kommt seit 79b aus einem späteren Rückruf; ohne die Prüfung wäre ein
+  Absturz möglich gewesen, wenn die Leiste zwischen Antwort und erstem Chip verschwindet; eine Zeile, ohne
+  eigenen Test). Offen, nicht behoben: (1) tippt man, bevor die Chips da sind, können die ungefilterten Chips
+  der ersten Antwort kurz die Wortvorschläge ersetzen, bis zum nächsten Tastendruck; (2) kommt für eine zweite
+  Antwort nie ein Chip, bleiben die alten Chips stehen; (3) der Zähler hält die Ansichten der letzten Antwort
+  bis zur nächsten im Speicher; (4) die Tests prüfen die neuen Klassen, nicht die Verdrahtung in `LatinIME`.
+  Zum Ausfall „keine Rückmeldung für die erste Antwort“ (Zähler: `pending=3 withView=0`): wahrscheinlichste
+  Erklärung aus den AOSP-Quellen ist, dass das Fenster der Tastatur beim ersten Feld nach einem Start des
+  Tastatur-Prozesses noch kein Eingabe-Token hat und der Zeichendienst die Anfrage deshalb ohne Rückruf ablehnt;
+  nicht am Gerät bestätigt, keine verlässliche Abhilfe in der Tastatur bekannt.
+
 **Auslöser:** Auf dem Gerätelauf des Leads zeigte einer von drei Emulatoren 14 s lang den Autofill-**Kasten** (Container mit Schließen-Kreuz) ohne einen einzigen Chip (erwartet: drei vom Test-Dienst). Eine Prüfung durch Lesen schloss die Slot- und Generationslogik der Tastatur aus; der Kasten stand schon vor jedem Chip (so macht es auch Upstream). Wenn der Renderdienst der Plattform die Ansichten nie liefert oder für alle `null`, bleibt ein leerer Kasten mit Kreuz stehen, und der Code konnte „null“, „nie“ und „veraltet“ nicht unterscheiden. Kein Logcat verfügbar.
 **Die Ursache auf der Plattformseite ist NICHT bewiesen.** Diese Etappe beseitigt den leeren Kasten und macht den nächsten Fehlschlag lesbar; sie behebt nicht, was den Chip ausbleiben ließ.
 

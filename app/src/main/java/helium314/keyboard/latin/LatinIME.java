@@ -1565,6 +1565,9 @@ public class LatinIME extends InputMethodService implements
             new helium314.keyboard.agent.InlineAutofillGeneration(); // stage 79
 
     void showInlineAutofill(final View inlineSuggestionView) {
+        // stage 79b: this now runs from the first chip's callback; the strip may be gone by then
+        // (toolbar mode switched to hidden, emoji search)
+        if (mSuggestionStripView == null) return;
         mInlineAutofillView = inlineSuggestionView;
         // Without this function the inline autofill suggestions will not be visible
         mHandler.cancelResumeSuggestions();
