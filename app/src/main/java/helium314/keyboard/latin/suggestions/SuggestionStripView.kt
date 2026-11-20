@@ -152,7 +152,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     private var gridRoot: View? = null
     private var gridCache: helium314.keyboard.agent.ToolGridView? = null
     private val labels = HashMap<ToolbarKey, String>()
-    private val unavailableLabels = HashMap<ToolbarKey, String>()
+    private val unavailableLabels = HashMap<Pair<ToolbarKey, BarTools.Reason>, String>()
     /** Whether the keyboard is a number layout (the store is not offered there); tests replace the probe. */
     internal var numberLayoutProbe: () -> Boolean = {
         runCatching { KeyboardSwitcher.getInstance().keyboard?.mId?.element?.isNumberLayout == true }.getOrDefault(false)
@@ -163,6 +163,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     private var voiceShown: Boolean? = null
     private var leftKeyText = 0
     private var leftKeyCircle = false
+    private var leftKeyIconBase = 0
+    private var leftKeyIconBehind = 0
     /** What the strip tells the diagnose card ([helium314.keyboard.agent.LastField.onStripView]); tests read it. */
     internal var stripReporter: (newContent: Boolean, wordsOffered: Boolean, external: Boolean, toolbar: Boolean, emojis: Boolean) -> Unit =
         { newContent, words, external, toolbar, emojis -> helium314.keyboard.agent.LastField.onStripView(newContent, words, external, toolbar, emojis) }
@@ -454,7 +456,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             return
         }
         if (tag is ToolbarKey) {
-            if (!view.isEnabled) return // a dimmed tool of the fixed bar: this field does not allow it (touch input never gets here)
+            if (fixedBar && FixedBar.reasonOf(view) != null) { showUnavailableHint(view); return } // a tool in the "off" look: say why
+            if (!view.isEnabled) return
             if (flatStyle && !fixedBar) FlatStrip.closeMenu(this)
             closeGrid()
             onClickToolbarKey(view) { listener.onCodeInput(it, Constants.SUGGESTION_STRIP_COORDINATE, Constants.SUGGESTION_STRIP_COORDINATE, false) }
@@ -491,6 +494,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             if (getCodeForToolbarKeyLongClick(key) == KeyCode.UNSPECIFIED) { enterEdit(); return true }
         }
         if (view.tag is ToolbarKey) {
+            if (fixedBar && FixedBar.reasonOf(view) != null) { showUnavailableHint(view); return true }
             if (!view.isEnabled) return true
             if (flatStyle && !fixedBar) FlatStrip.closeMenu(this)
             closeGrid()
@@ -724,7 +728,21 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         key.name.lowercase(java.util.Locale.ROOT).getStringResourceOrName("", context)
     }
 
-    private fun unavailableLabelOf(key: ToolbarKey) = unavailableLabels.getOrPut(key) { context.getString(R.string.agent_bar_tool_unavailable, labelOf(key)) }
+    private fun unavailableLabelOf(key: ToolbarKey, reason: BarTools.Reason) =
+        unavailableLabels.getOrPut(key to reason) { context.getString(R.string.agent_bar_tool_unavailable_why, labelOf(key), reasonText(reason)) }
+
+    /** The real reason a tool does nothing in this field (the check that blocks it), as a short sentence. */
+    private fun reasonText(reason: BarTools.Reason) = context.getString(when (reason) {
+        BarTools.Reason.PRIVATE_FIELD -> R.string.agent_bar_hint_private
+        BarTools.Reason.LOCKED_DEVICE -> R.string.agent_bar_hint_locked
+        BarTools.Reason.NUMBER_LAYOUT -> R.string.agent_bar_hint_number
+    })
+
+    /** A tap on a tool in the "off" look: not a dead tap, the strip says why (stage 88). */
+    private fun showUnavailableHint(view: View) {
+        val reason = FixedBar.reasonOf(view) ?: return
+        FixedBar.showHint(toolbarContainer as ViewGroup, reasonText(reason), Settings.getValues().mColors)
+    }
 
 
     /** A new field starts without the keyboard having been hidden: no grid and no edit mode over it (nothing pending is saved). */
@@ -771,9 +789,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         numberLayoutShown = number
         toolbar.forEachChild { button ->
             val key = button.tag as? ToolbarKey ?: return@forEachChild
-            val unavailable = BarTools.isUnavailable(key, values.mIncognitoModeEnabled, values.mIsLocked, number)
-            FixedBar.setAvailable(button, !unavailable, editor != null, labelOf(key)) { unavailableLabelOf(key) }
-            if (key == ghost) button.alpha = GHOST_ALPHA
+            val reason = BarTools.unavailableReason(key, values.mIncognitoModeEnabled, values.mIsLocked, number)
+            FixedBar.setAvailable(button, reason, editor != null, labelOf(key)) { reason?.let { unavailableLabelOf(key, it) } }
         }
     }
 
@@ -810,6 +827,16 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             toolbarExpandKey.contentDescription = context.getString(text)
         }
         val circle = grid || editor != null
+        // stage 88: the icon of the left key has the guaranteed contrast against what is behind it (its disc, or the strip)
+        val colors = Settings.getValues().mColors
+        val behind = if (flatStyle) { if (circle) colors.get(ColorType.FUNCTIONAL_KEY_BACKGROUND) else StripIconColors.background(colors) }
+            else dev.agentkeyboard.core.RgbColors.over(colors.get(ColorType.TOOL_BAR_EXPAND_KEY_BACKGROUND), StripIconColors.background(colors))
+        val base = colors.get(ColorType.TOOL_BAR_EXPAND_KEY)
+        if (base != leftKeyIconBase || behind != leftKeyIconBehind || toolbarExpandKey.colorFilter == null) {
+            leftKeyIconBase = base
+            leftKeyIconBehind = behind
+            toolbarExpandKey.colorFilter = android.graphics.PorterDuffColorFilter(StripIconColors.ensureContrast(base, behind), android.graphics.PorterDuff.Mode.SRC_IN)
+        }
         if (flatStyle && circle != leftKeyCircle) {
             leftKeyCircle = circle
             toolbarExpandKey.background = if (!circle) null else GradientDrawable().apply {
@@ -842,7 +869,10 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             (key != ToolbarKey.VOICE || values.mShowsVoiceInputKey)
                 && (key != ToolbarKey.BACKGROUND_GATHERING || helium314.keyboard.latin.utils.GestureDataGatheringSettings.hasBackgroundGatheringPref(context.prefs()))
                 && (key !in BarTools.DESTRUCTIVE || key in usedBefore)
-        }.map { helium314.keyboard.agent.ToolGridView.Tool(it, !BarTools.isUnavailable(it, values.mIncognitoModeEnabled, values.mIsLocked, numberLayoutProbe())) }
+        }.map {
+            val reason = BarTools.unavailableReason(it, values.mIncognitoModeEnabled, values.mIsLocked, numberLayoutProbe())
+            helium314.keyboard.agent.ToolGridView.Tool(it, reason == null, reason)
+        }
     }
 
     private fun openGrid() {
@@ -850,6 +880,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         val keys = rootView.findViewById<View>(R.id.keyboard_view_wrapper)
         dismissMoreSuggestionsPanel()
         grid.onTool = { key -> runTool(key) }
+        grid.onUnavailable = { _, reason -> reason?.let { FixedBar.showHint(toolbarContainer as ViewGroup, reasonText(it), Settings.getValues().mColors) } }
         grid.onEditRequested = { enterEdit() }
         grid.onClosed = {
             keys?.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
@@ -873,7 +904,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     private fun populateBar(keys: List<ToolbarKey>) {
         val colors = Settings.getValues().mColors
         FixedBar.populate(toolbar, keys.map { key ->
-            createToolbarKey(context, key).also { it.layoutParams = toolbarKeyLayoutParams; setupKey(it, colors) }
+            createToolbarKey(context, key, FixedBar.newButton(context)).also { it.layoutParams = toolbarKeyLayoutParams; setupKey(it, colors) }
         })
         renderedBar = keys
         BarCounters.barBuilds++
@@ -959,8 +990,9 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
      * whose centre is left of the finger; once it is shown (as a ghost), or a tool of the bar is moved, the nearest slot is meant.
      */
     private fun dragSlot(ed: BarEditor, x: Float): Int {
-        val slot = if (ed.preview == null && !ed.draggedFromBar && ed.dragged !in ed.bar) FixedBar.insertionIndexAt(toolbar, flatStyle, x)
-            else FixedBar.slotIndexAt(toolbar, flatStyle, x)
+        val count = FixedBar.slots(toolbar).size
+        val slot = if (ed.preview == null && !ed.draggedFromBar && ed.dragged !in ed.bar) FixedBar.slotCentres(toolbar, flatStyle, count).count { it < x }
+            else FixedBar.slotIndexAt(toolbar, flatStyle, x, count)
         return ed.listIndexForSlot(slot) // slots count the visible tools only, the list also holds a hidden voice key
     }
 
@@ -1036,7 +1068,6 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         @JvmField
         var DEBUG_SUGGESTIONS = false
         private const val DEBUG_INFO_TEXT_SIZE_IN_DIP = 6.5f
-        private const val GHOST_ALPHA = 0.45f
         private val TAG = SuggestionStripView::class.java.simpleName
     }
 }

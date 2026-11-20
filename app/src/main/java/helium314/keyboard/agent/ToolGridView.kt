@@ -21,6 +21,7 @@ import helium314.keyboard.keyboard.internal.KeyboardIconsSet
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.common.ColorType
 import helium314.keyboard.latin.settings.Settings
+import helium314.keyboard.latin.suggestions.StripIconColors
 import helium314.keyboard.latin.utils.ToolbarKey
 import helium314.keyboard.latin.utils.getStringResourceOrName
 import java.util.Locale
@@ -39,7 +40,7 @@ import java.util.Locale
  */
 class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context, attrs) {
     /** One pill: the tool and whether the current field allows it. */
-    class Tool(val key: ToolbarKey, val available: Boolean = true)
+    class Tool(val key: ToolbarKey, val available: Boolean = true, val reason: helium314.keyboard.latin.utils.BarTools.Reason? = null)
 
     /** What the panel asks of the edit mode of the bar (stage 86). */
     interface EditListener {
@@ -51,6 +52,8 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         fun actions(key: ToolbarKey): List<Pair<Int, () -> Boolean>>
     }
 
+    /** A pill of a tool that the field does not allow was tapped: the owner of the panel says why (stage 88). */
+    var onUnavailable: ((ToolbarKey, helium314.keyboard.latin.utils.BarTools.Reason?) -> Unit)? = null
     /** Called after the panel has closed itself because a pill was tapped. */
     var onTool: ((ToolbarKey) -> Unit)? = null
     /** The button "Anpassen" was tapped; the owner of the panel starts the edit mode. */
@@ -64,6 +67,8 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
     private var hintText: CharSequence? = null
     private var marked = emptySet<ToolbarKey>()
     private var lastTools = emptyList<Tool>()
+    private var pillBackground = 0
+    private val reasons = HashMap<ToolbarKey, helium314.keyboard.latin.utils.BarTools.Reason?>()
     /** Called whenever the panel goes away, for whatever reason. */
     var onClosed: (() -> Unit)? = null
 
@@ -147,11 +152,13 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         lastTools = tools
         content.removeAllViews()
         pills.clear()
+        reasons.clear()
         val colors = Settings.getValues()?.mColors
         val background = colors?.get(ColorType.MAIN_BACKGROUND) ?: FlatStyle.BACKGROUND
         val pill = colors?.get(ColorType.KEY_BACKGROUND) ?: FlatStyle.KEY
         val text = colors?.get(ColorType.KEY_TEXT) ?: FlatStyle.LABEL
         val icon = colors?.get(ColorType.KEY_ICON) ?: FlatStyle.FUNCTIONAL_LABEL
+        pillBackground = pill
 
         scroll.setBackgroundColor(background)
         content.setPadding(dp(SIDE_DP), dp(SIDE_DP), dp(SIDE_DP), dp(SIDE_DP))
@@ -220,10 +227,14 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         val key = tool.key
         val button = Button(context, null, 0) // no default style: no shadow, no minimum size, no caps
         val label = key.name.lowercase(Locale.ROOT).getStringResourceOrName("", context)
+        // the text and the icon have the guaranteed contrast against the pill; an unavailable tool gets the "off" colour (a real colour, not an alpha)
+        val off = !tool.available && editListener == null
+        val text = StripIconColors.ensureContrast(textColor, pillColor).let { if (off) StripIconColors.off(it, pillColor) else it }
+        val iconTint = StripIconColors.ensureContrast(iconColor, pillColor).let { if (off) StripIconColors.off(it, pillColor) else it }
         button.tag = key
         button.text = label
         button.isAllCaps = false
-        button.setTextColor(textColor)
+        button.setTextColor(text)
         button.setTextSize(TypedValue.COMPLEX_UNIT_DIP, TEXT_DP)
         button.typeface = FlatStyle.labelTypeface
         FlatStyle.scrollWhenTooLong(button)
@@ -231,29 +242,28 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         button.isSoundEffectsEnabled = false
         button.background = roundedBackground(pillColor, dp(PILL_HEIGHT_DP) / 2f)
         button.setPadding(dp(ICON_START_DP), 0, dp(ICON_START_DP), 0)
-        val start = KeyboardIconsSet.instance.getNewDrawable(key.name, context)?.mutate()?.apply { setTint(iconColor) }
+        val start = KeyboardIconsSet.instance.getNewDrawable(key.name, context)?.mutate()?.apply { setTint(iconTint) }
             ?.let { InsetDrawable(it, 0, 0, dp(ICON_GAP_DP), 0) }
         button.setCompoundDrawablesRelativeWithIntrinsicBounds(start, null, null, null)
         val editing = editListener
         if (editing != null) {
             // customizing is about the layout of the bar: also a tool the field does not allow can be moved
             button.setOnClickListener { editing.onTap(key) }
-            button.setOnLongClickListener { editing.onDrag(button, key) }
             editing.actions(key).forEach { (labelRes, action) ->
                 androidx.core.view.ViewCompat.addAccessibilityAction(button, context.getString(labelRes)) { _, _ -> action() }
             }
             applyMark(key, button)
             return button
         }
-        button.isEnabled = tool.available
-        button.alpha = if (tool.available) 1f else DIMMED_ALPHA
+        reasons[key] = if (tool.available) null else (tool.reason ?: helium314.keyboard.latin.utils.BarTools.Reason.PRIVATE_FIELD)
+        // a tool the field does not allow stays tappable for the touch system: the tap says why (stage 88)
         button.contentDescription = if (tool.available) label else context.getString(R.string.agent_bar_tool_unavailable, label)
         button.setOnClickListener { act(key) }
         return button
     }
 
     private fun act(key: ToolbarKey) {
-        if (pills[key]?.isEnabled == false) return // dimmed: the field does not allow it
+        if (key in reasons && reasons[key] != null) { onUnavailable?.invoke(key, reasons[key]); return } // "off": say why, stay open
         close()
         onTool?.invoke(key)
     }
@@ -272,7 +282,6 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         private const val TEXT_DP = 16f
         private const val ICON_START_DP = 18f
         private const val ICON_GAP_DP = 15f
-        private const val DIMMED_ALPHA = 0.38f
         private const val MARKED_ALPHA = 0.5f
         private const val EDIT_HEIGHT_DP = 40f
     }

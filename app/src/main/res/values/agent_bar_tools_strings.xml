@@ -28,4 +28,18 @@
     <string name="agent_bar_show_actions">Show selection actions</string>
     <string name="agent_bar_show_actions_incognito">Show selection actions (incognito is on)</string>
     <string name="agent_bar_pin_full">The bar is full (at most 8 tools). Take one out first.</string>
+    <!-- Stage 88: why a tool does nothing, rest of the edit mode -->
+    <string name="agent_bar_tool_unavailable_why">%1$s. %2$s</string>
+    <string name="agent_bar_hint_private">Not available in this field: private field</string>
+    <string name="agent_bar_hint_locked">Not available: device is locked</string>
+    <string name="agent_bar_hint_number">Not available in this field: number field</string>
+    <string name="agent_bar_edit_undo">Undo</string>
+    <string name="agent_bar_edit_reset">Reset</string>
+    <string name="agent_bar_reset_ask">Restore the standard bar?</string>
+    <string name="agent_bar_reset_yes">Yes</string>
+    <string name="agent_bar_reset_no">No</string>
+    <string name="agent_bar_dropped_full">The bar is full \u2013 drag a tool out first</string>
+    <string name="agent_bar_announce_added">%1$s added to the bar</string>
+    <string name="agent_bar_announce_removed">%1$s removed from the bar</string>
+    <string name="agent_bar_announce_moved">%1$s moved to place %2$d</string>
 </resources>

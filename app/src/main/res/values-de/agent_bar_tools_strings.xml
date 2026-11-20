@@ -27,4 +27,18 @@
     <string name="agent_bar_show_actions">Auswahl-Aktionen zeigen</string>
     <string name="agent_bar_show_actions_incognito">Auswahl-Aktionen zeigen (Inkognito ist an)</string>
     <string name="agent_bar_pin_full">Die Leiste ist voll (höchstens 8 Werkzeuge). Nimm zuerst eines heraus.</string>
+    <!-- Etappe 88: warum ein Werkzeug nichts tut, Rest des Anpassen-Modus -->
+    <string name="agent_bar_tool_unavailable_why">%1$s. %2$s</string>
+    <string name="agent_bar_hint_private">In diesem Feld nicht verfügbar: privates Feld</string>
+    <string name="agent_bar_hint_locked">Nicht verfügbar: gesperrtes Gerät</string>
+    <string name="agent_bar_hint_number">In diesem Feld nicht verfügbar: Zahlenfeld</string>
+    <string name="agent_bar_edit_undo">Rückgängig</string>
+    <string name="agent_bar_edit_reset">Zurücksetzen</string>
+    <string name="agent_bar_reset_ask">Standard-Leiste wiederherstellen?</string>
+    <string name="agent_bar_reset_yes">Ja</string>
+    <string name="agent_bar_reset_no">Nein</string>
+    <string name="agent_bar_dropped_full">Die Leiste ist voll \u2013 zieh erst ein Werkzeug heraus</string>
+    <string name="agent_bar_announce_added">%1$s zur Leiste hinzugefügt</string>
+    <string name="agent_bar_announce_removed">%1$s aus der Leiste entfernt</string>
+    <string name="agent_bar_announce_moved">%1$s auf Platz %2$d</string>
 </resources>
