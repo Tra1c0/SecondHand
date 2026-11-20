@@ -542,12 +542,12 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   blockiert Eingabe während eines Overlays; Leertasten-Aktionen und Doppeltippen, siehe
   „Editorzugriff, Panel und Rad“; seitliche Einmal-Wische laufen über `SpaceDetents` und spielen
   `HapticChain`).
-- Etappe 87 (Cursor als Trackpad, P390–P404), jede Änderung von einem Prüfer lesen lassen:
-  `PointerTracker.java` (+14 Zeilen: in `onKeySwipe`, vor dem Leertasten-/Löschzweig und hinter der Schnelltipp-Sperre, 12 Zeilen:
+- Etappe 87 (Cursor als Trackpad, P390–P409), jede Änderung von einem Prüfer lesen lassen:
+  `PointerTracker.java` (+19 Zeilen, alle als Hinzufügungen: in `onKeySwipe`, vor dem Leertasten-/Löschzweig und hinter der Schnelltipp-Sperre, 12 Zeilen:
   `sListener.onCursorTrack(mPointerId, code, x - mStartX, y - mStartY, eventTime, mStartTime)`; bei `TRACK_OFF` läuft alles wie vorher, sonst kehrt
-  die Methode zurück, bei `TRACK_ACTIVE` zusätzlich `cancelKeyTimersOf` und `mInHorizontalSwipe = true`, damit das Heben wie
-  bei einem seitlichen Wisch endet; dazu je eine Zeile `sListener.onCursorTrackEnd(mPointerId)` im Heben-Zweig von `mKeySwipeAllowed` und am Ende
-  von `cancelKeyTracking`), `KeyboardActionListener.java` (`TRACK_OFF/PENDING/ACTIVE`, `onCursorTrack`, `onCursorTrackEnd`, Vorgabe
+  die Methode zurück, bei `TRACK_ACTIVE` zusätzlich (bei jedem Move, nicht nur beim ersten) `cancelKeyTimersOf` und `mInHorizontalSwipe = true`, damit das Heben wie
+  bei einem seitlichen Wisch endet, bei `TRACK_REFUSED_DRAG` `cancelKeyTimersOf` und `cancelTrackingForAction()` (der Move-Weg und das Heben dieses Fingers tun danach nichts); dazu je eine Zeile `sListener.onCursorTrackEnd(mPointerId)` im Heben-Zweig von `mKeySwipeAllowed` und am Ende
+  von `cancelKeyTracking`), `KeyboardActionListener.java` (`TRACK_OFF/PENDING/ACTIVE/REFUSED_DRAG`, `onCursorTrack`, `onCursorTrackEnd`, Vorgabe
   `TRACK_OFF` im `Adapter`), `KeyboardActionListenerImpl.kt` (Zustandsmaschine, siehe `A/CursorTrackpad.kt`; der Schwanz von
   `onMoveCursorHorizontally` als `applyHorizontalMove`, unverändert), `SettingsValues.java` (zwei Felder). `InputLogic.java` und
   `RichInputConnection.java` sind unverändert.
@@ -1321,28 +1321,37 @@ Symbolseiten wie Gboard (Etappe 81, Fallstricke P345–P348):
   `SELECTION_WAIT_MS` = 300). Die Zustandsmaschine steht in
   `KeyboardActionListenerImpl.onCursorTrack(pointerId, code, dx, dy, zeit, downTime)`: **ein Zustand je Finger** (`trackStates[pointerId]`,
   Schlüssel `downTime` = Beginn der Berührung) und **höchstens ein Besitzer** (`trackOwner`). `UNDECIDED` → beim ersten Aufruf einer
-  Berührung `decideTrackMode` (`mCursorTrackpad` an, kein Overlay, Leertaste: `appliesToSpace` und keine Markierung; Löschtaste: immer) →
-  `OFF` (der alte Code läuft, die ganze Berührung lang), `REFUSED` (ein anderer Finger besitzt die Spur: dieser bleibt für die ganze
-  Berührung `TRACK_PENDING`, also ein Tipp mit Wiederholung, nie ein Wisch, auch kein altes Löschwischen) oder `PENDING` (Proben sammeln, bis
-  `claims`) → `ACTIVE` (Besitz nehmen, Text einmal lesen, Proben abspielen, danach jede Probe in den Kern; nie wieder `OFF`). Der Besitz endet
+  Berührung `decideTrackMode` (`mCursorTrackpad` an, kein Overlay; **zuerst** der Besitz: besitzt ein anderer Finger die Spur oder ein Löschwischen,
+  ist jeder Wisch auf Leer-/Löschtaste `REFUSED`; dann Leertaste: `appliesToSpace` und keine Markierung; Löschtaste: immer) →
+  `OFF` (der alte Code läuft, die ganze Berührung lang), `REFUSED` (ein anderer Finger besitzt die Spur: dieser bleibt `TRACK_PENDING`, also ein Tipp
+  oder Halten mit Wiederholung, bis er die Wischschwelle überschreitet; dann `TRACK_REFUSED_DRAG`: der Tracker bricht seine Tastentimer ab und
+  verwirft die Berührung mit `cancelTrackingForAction`, sie tippt, wiederholt und löscht nichts) oder `PENDING` (Proben sammeln, bis
+  `claims`) → `ACTIVE` (Besitz nehmen, Feld merken, Text einmal lesen, die Spur beginnt an der ERSTEN angekommenen Probe mit Weg 0 und Tempo 0 (die
+  Schnelltipp-Sperre schluckt die ersten Moves, ihr Weg wird nicht als Sprung nachgespielt), Proben abspielen, danach jede Probe in den Kern; nie wieder `OFF`).
+  Ein neues Feld (anderes `mInputAttributes`) beendet die Berührung für die Spur: kein Schritt erreicht das neue Feld, der Besitz ist frei. Der Besitz endet
   nur durch `onCursorTrackEnd(pointerId)` (Heben, Abbruch, `cancelKeyTracking`) oder eine neue Berührung desselben Fingers. Kein Druck, keine
   Wiederholung und kein Ende eines anderen Fingers rührt einen Zustand an. Spur: Leertaste in einem Feld mit `TYPE_TEXT_FLAG_MULTI_LINE`
   (Klasse Text) die zweidimensionale `spaceTrack`, sonst und fürs Löschen die nur waagerechte `flatTrack` (senkrechte Bewegung wird
   ignoriert, auch für die Geschwindigkeit; unbekannter Feldtyp = nicht mehrzeilig). Ausführung: waagerecht `applyHorizontalMove(chars)` (der Schwanz
   des alten `onMoveCursorHorizontally`, unverändert herausgezogen: Wortinneres, `finishInput`, Prüfpunkt, Vorschläge neu starten); ohne
   Text der alte Pfad `onMoveCursorHorizontally(Cluster)` samt Pfeiltasten-Rückfall; senkrecht je Zeile `ARROW_UP`/`ARROW_DOWN` über
-  `onCodeInput`, danach wartet der Zustand (`awaitSelection`), bis `expectedSelectionStart` sich ändert oder 300 ms vergangen sind, und liest
-  den Text erst dann neu (der Kern hält waagerechte Schritte bis dahin zurück und trägt den Weg); Löschwisch `moveDeleteRun` wie `onMoveDeletePointer`
-  (Auswahlanfang, nie hinter das Ende). Während ein Overlay Eingaben sperrt, wird nichts gefüttert; danach beginnt die Spur am Finger neu
+  `onCodeInput` — aber **einen Pfeil je Antwort des Editors** (`pendingLines`, höchstens 3 gemerkt, `pumpArrows`): Nach einem Pfeil wartet der Zustand
+  (`awaitSelection`), bis `expectedSelectionStart` sich ändert (Antwort) oder 300 ms vergangen sind; dann liest er die echte Stelle aus dem Editor
+  (`getExtractedText`, ein IPC): verschoben = verspätete Antwort (die Zwischenspeicher werden mit `resetCachesUponCursorMoveAndReturnSuccess` nachgezogen),
+  nicht verschoben = Rand erreicht (`edgeUp`/`edgeDown`: kein weiterer Pfeil in diese Richtung in dieser Berührung). Nie ein Pfeil nach oben bei
+  Cursor 0, nie einer nach unten ohne Text dahinter. Den Text liest er erst nach der Antwort neu (der Kern hält waagerechte Schritte bis dahin zurück und trägt den Weg); Löschwisch `moveDeleteRun` wie `onMoveDeletePointer`
+  (Auswahlanfang, nie hinter das Ende; kann ein Schritt nicht angewandt werden, beginnt die Spur am Finger neu, statt dem Feld davonzulaufen). Während ein Overlay Eingaben sperrt, wird nichts gefüttert; danach beginnt die Spur am Finger neu
   (`needsRestart`: Ursprung = Fingerstelle, kein Weg von vorher, nie ein Klumpen). Haptik: ein Tick je Zug
   (`gestureMove…Haptics`), an einer Wortgrenze bei langsamem Finger `HapticChain.DETENT`. RTL: x wird für Leertaste umgekehrt wie
-  im alten Wisch, nicht fürs Löschen. Textfenster: ein kürzerer Rückgabewert des Editors ist weder Textanfang noch Textende, nur eine leere Antwort
-  ist es. Einstellungen: `AgentPreferences.CURSOR_TRACKPAD` (Schalter, anfangs an),
+  im alten Wisch, nicht fürs Löschen. Textfenster: ein kürzerer Rückgabewert des Editors ist nur dann Textanfang/-ende, wenn eine Nachfrage nach einem weiteren Zeichen nichts mehr liefert
+  (leere Antwort bzw. kein Zuwachs); sonst ein Fensterrand. Einstellungen: `AgentPreferences.CURSOR_TRACKPAD` (Schalter, anfangs an),
   `CURSOR_MAGNETISM` (0–100, anfangs 35) → `SettingsValues.mCursorTrackpad/mCursorMagnetism`; Zeilen in
   `AgentAreaGesturesScreen` (Treffen & Wischen), Regler `GestureSlider.MAGNETISM`, Texte `agent_gestures_strings.xml`.
   Tests: `AT/CursorGestureTrackerTest.kt` (echter `PointerTracker`, Mock-Listener: der alte Fixture-Teil und das Protokoll),
   `InputLogicTest` (`cursor87*`: echter Listener und `LatinIME`; `twoFingers*`: echter `PointerTracker` mit mehreren Fingern und echtem
-  Listener über die Prüfstand-Klasse `TouchRig`, die nur alte Schnittstellen benutzt und deshalb auch auf dem Code vor Etappe 87 läuft),
+  Listener über die Prüfstand-Klasse `TouchRig`, deren `FakeTimer` (ein `TimerProxy.Adapter`) Tastenwiederholung und Langdruck in virtueller Zeit
+  wirklich auslöst, `wait(ms)` schickt alle 8 ms ein MOVE; die `twoFingers*`-Tests benutzen nur alte Schnittstellen und laufen deshalb auch auf dem Code
+  vor Etappe 87),
   `SettingsAreaGesturesTest` unverändert.
 - `K/settings/screens/AgentSpaceScreen.kt`: Seite „Leertaste“ (eine `ListPreference` je Geste,
   Vorgabe = geerbter Wert, „Standard“ entfernt den eigenen Wert), erreichbar über Erweitert und
@@ -6413,13 +6422,28 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - **P401** Nach einem Pfeil schickt der Editor die neue Cursorstelle später als `onUpdateSelection`. Bis dahin hält der Kern waagerechte Schritte zurück
   (er trägt den Weg) und der Listener liest den Text nicht neu (`awaitSelection`: bis `expectedSelectionStart` sich ändert oder 300 ms); am ersten Zeilenanfang
   oder -ende ändert ein Pfeil nichts, dann gilt die Wartezeit voll. Ein Editor, der länger als 300 ms braucht, bekommt Schritte auf der alten Stelle.
-- **P402** Textfenster: Ein Editor darf weniger zurückgeben als gefragt. Nur eine leere Antwort gilt als Textanfang bzw. -ende (`atStart`/`atEnd`); eine kürzere
-  Antwort ist ein Fensterrand ohne Wortgrenze und ohne Anschlag, der Kern fragt dort neu (`needsText`, Rand 24 Zeichen, höchstens alle 60 ms).
+- **P402** Textfenster: Ein Editor darf weniger zurückgeben als gefragt. Ein Fensterrand ist nur dann Textanfang bzw. -ende (`atStart`/`atEnd`), wenn die Antwort
+  leer ist oder eine Nachfrage nach einem weiteren Zeichen nichts Neues bringt; sonst ist er ein Rand ohne Wortgrenze und ohne Anschlag, der Kern
+  fragt dort neu (`needsText`, Rand 24 Zeichen, höchstens alle 60 ms). Ohne die Nachfrage würde jeder Cursor in den ersten 24 Zeichen eines kurzen
+  Textes alle 60 ms lesen.
 - **P403** Die Schwelle zum Wisch ist die alte: 10 dp auf der Wischachse (`CursorTrackpad.claims`), nicht die Länge des Weges. 7 dp zittern in beide Richtungen sind ein Tipp
   (Leerzeichen, Doppel-Leerzeichen-Punkt funktioniert); ein Wisch, der die Spur bekam, bekommt nie wieder `TRACK_OFF` (Einstellung oder Markierung
   mitten in der Geste ändern nichts, erst die nächste Berührung).
 - **P404** Gerätetest-Szenarien (nicht gelaufen): Der erste `MOVE` von `drag_on` folgt dem `DOWN` sofort und ist 16 dp lang; sonst käme der Wisch nach 300–900 ms
   und der Langdruck der Leertaste (450 ms) käme ihm zuvor.
+- **P405** Ein verweigerter Finger, der wischt (`TRACK_REFUSED_DRAG`), verwirft seine Berührung. Ein ruhender oder tippender verweigerter Finger bleibt, was er war.
+  Ohne die Verwerfung läuft die Wiederholungs-Zeitschaltuhr einer Löschtaste weiter (400 ms nach dem Aufsetzen, dann alle 50 ms ein Zeichen), weil `onKeySwipe` vor dem
+  alten Code zurückkehrt und `cancelKeyTimersOf` nie erreicht. Auch das Heben tippt dann nichts (`mIsTrackingForActionDisabled`).
+- **P406** Pfeile gibt es nur einzeln und nur mit bekannter Stelle: Ein Pfeil nach oben am ersten und einer nach unten am letzten Feldende wird vom Editor nicht
+  behandelt, Android bewegt dann den FOKUS in ein Nachbarfeld (Mailtext → Betreff). Der verlässliche Randmelder ist „der Pfeil bewegte nichts“
+  (umbrochene Zeilen sieht die Tastatur nicht); die Vorprüfungen (Cursor 0, kein Text dahinter) sparen nur den ersten Fehlversuch. Grenze: ein Editor, der
+  nach 300 ms noch nicht geantwortet hat und dessen Stelle nicht lesbar ist, gilt als „Rand“; dort gibt es bis zum Ende der Berührung keinen Pfeil in diese Richtung.
+- **P407** Besitz über Löschwischen: Ein Löschwischen ist ein Besitzer wie die Leertaste. Solange es läuft, werden Leertasten-Wische anderer Finger verweigert (früher
+  lief der alte Leertasten-Wisch neben der Auswahl und löste sie auf). Mit ausgeschaltetem Schalter ist alles `OFF`, wie vor Etappe 87.
+- **P408** Ein Wisch während `ACTION_CANCEL` (Fenster, Systemgeste): Für die Leertaste bleibt der Cursor, wo er ist, nichts wird gelöscht und kein Leerzeichen getippt;
+  beim Löschwischen löscht der Abbruch das Markierte (der Tracker behandelt ihn als Heben, genau wie der alte Code).
+- **P409** `FakeTimer` im Prüfstand: Die gestylten Attribute der Tests tragen keine Wiederholzeiten (0), der Prüfstand nimmt dann 400 ms Anlauf und 50 ms Takt. Die
+  Zeitschaltuhren laufen in der Ereigniszeit des Prüfstands, nicht in der Uhr des Telefons; `SystemClock` im Tracker (Schnelltipp-Sperre) bleibt echte Zeit.
 
 ## Datei-Inventar
 
