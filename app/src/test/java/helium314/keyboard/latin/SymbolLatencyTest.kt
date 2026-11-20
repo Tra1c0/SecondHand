@@ -180,6 +180,22 @@ class SymbolLatencyTest {
         assertEquals(3, t.reads, t.names())
     }
 
+    @Test fun aSeparatorTypedBeforeTheDelayedUpdateDoesNotBuildTheStripItReplacesAnyway() {
+        for (c in ".,!(") {
+            rig.startField(""); rig.type("hell"); rig.tapFast('o'.code)
+            val t = rig.measureKey(c.code, fast = true)
+            assertEquals(1, t.count("SUGGEST_WAIT", "up"), "$c: the engine is still asked, the autocorrection depends on it\n${t.names()}")
+            assertEquals(1, t.count("STRIP_WORDS", "up"), "$c: only the neutral strip is made\n${t.names()}")
+            assertEquals(1, t.beforeEdit, "$c: nothing but the wait before the character\n${t.names()}")
+            assertEquals(1, t.stripNeutral, t.names())
+        }
+        // the space does not replace the strip at once: it shows the suggestions the engine answered with, as before
+        rig.startField(""); rig.type("hell"); rig.tapFast('o'.code)
+        val t = rig.measureKey(' '.code, fast = true)
+        assertEquals(1, t.count("STRIP_WORDS", "up"), t.names())
+        assertEquals(6, t.beforeEdit, t.names())
+    }
+
     @Test fun theClipboardPillIsReadOnceAndBuiltOncePerStrip() {
         rig.setUp(withClipboardPill = true)
         rig.clip("some copied text")

@@ -198,6 +198,8 @@ class TypingRig(val ime: LatinIME) {
 
         /** How often the step [name] (an editor call or a [TypingPerf.Work] name) happened on the main thread. */
         fun count(name: String) = ui.count { it.what == name }
+        /** The same, only in the key up ("up"), the key down ("down") or the delayed update that follows ("later"). */
+        fun count(name: String, phase: String) = ui.count { it.what == name && it.phase == phase }
 
         val reads get() = count("getTextBeforeCursor", "getTextAfterCursor", "getSelectedText", "getExtractedText")
         val writes get() = count("setComposingText", "commitText", "finishComposingText", "deleteSurroundingText", "sendKeyEvent",
