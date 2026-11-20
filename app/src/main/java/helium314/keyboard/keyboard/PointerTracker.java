@@ -106,6 +106,7 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
     // Parameters for pointer handling.
     private static PointerTrackerParams sParams;
     private static final int sPointerStep = KtxKt.dpToPx(10, Resources.getSystem());
+    static int getPointerStep() { return sPointerStep; } // fork (stage 87c): the listener decides where the old swipe begins with this very value
     // fork (stage 33): a sideways move this long ends the space hold before the first swipe step
     private static final int sHoldCancelDistance = KtxKt.dpToPx(SpaceDetents.HOLD_CANCEL_DP, Resources.getSystem());
     private static GestureStrokeRecognitionParams sGestureStrokeRecognitionParams;
