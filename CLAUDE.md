@@ -53,6 +53,13 @@ genannten Datei. `AGENTS.md` ist eine automatisch erzeugte Kopie dieser Datei f�
   Upstream-Doku) sind auf Englisch.
 - Baue nur, was der Owner beauftragt oder was in `docs/ROADMAP.md` unter „Beschlossen“ steht,
   und nur, wenn die Entwicklung nicht pausiert ist (`docs/HANDOFF.md` → Aktueller Stand).
+- Denke wie ein eigenständiger Entwickler voraus (Owner, 2026-11-20). Vor dem Bau einer Funktion steht ein
+  kurzes Konzept in `docs/` (Muster: `docs/LEISTE-KONZEPT.md`): was der Owner will, was dem widerspricht, der
+  vollständige Ablauf mit Randfällen und Abbruch, was unausgesprochen dazugehört, wie es zu den vorhandenen
+  Funktionen passt, und wie es am echten Einstieg geprüft wird (Gesten mit echten Berührungen im Emulator,
+  Sichtbares mit angesehenen Bildern). Eigene Zusätze: harmlos und in sich geschlossen → einbauen und im Konzept
+  nennen; alles, was vorhandenes Verhalten ändert, sich mit anderen Funktionen überschneidet oder sie ersetzt →
+  vorher fragen.
 - Arbeite in Etappen: eine Etappe fügt genau ein prüfbares Verhalten hinzu. Ein großer Umbau und
   eine neue Funktion sind getrennte Etappen. Prüfe und committe jede Etappe, bevor eine davon
   abhängige beginnt.
