@@ -358,7 +358,7 @@ eine Aktion:
   oder „Cursor bewegen“ gestellt, bewegt ein Wisch auf der Leertaste den Cursor in alle Richtungen,
   ohne dass du den Finger absetzt: Setze auf der Leertaste auf und ziehe nach links oder rechts (ein
   Zeichen je Daumenbreite etwa 13 dp, bei langsamer Bewegung zeichengenau), dann ohne Absetzen nach oben oder
-  unten (eine Zeile je 26 dp); das Feld scrollt dabei selbst. Je schneller du ziehst, desto mehr
+  unten (eine Zeile je 26 dp); das Feld scrollt dabei selbst. Nach oben und unten geht es nur in mehrzeiligen Textfeldern; in einzeiligen Feldern (und wo die Tastatur den Feldtyp nicht kennt) zählt nur das Seitwärts-Stück deines Wischs, damit „Pfeil runter“ nicht aus dem Feld springt. Je schneller du ziehst, desto mehr
   Zeichen je Weg, bis zum Vierfachen (senkrecht Doppelten); langsam bleibt es genau. Die Achse wechselt
   erst bei einer klaren Bewegung (etwa 20 dp): Ein leicht schräger Wisch nach links springt nie eine Zeile
   höher. An Wortanfang und Wortende (auch vor und nach Satzzeichen und Leerzeichen) merkst du einen leichten
