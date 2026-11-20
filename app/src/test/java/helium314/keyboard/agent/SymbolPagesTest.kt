@@ -179,6 +179,20 @@ class SymbolPagesTest {
         assertEquals(listOf("[abc]", ",", "[numpad]", "[space]", "[dpad]", ".", "[enter]"), bottom)
     }
 
+    @Test fun theFormerFlatLayoutNamesStillGiveTheGboardPagesAndTheSameHints() {
+        for (look in listOf(Look.MATERIAL, Look.FLAT)) for (numberRow in listOf(false, true)) {
+            reload(look, Locale.GERMANY, numberRow)
+            val plain = dump(build(look, KeyboardElement.ALPHABET, Locale.GERMANY, "qwertz"))
+            reload(look, Locale.GERMANY, numberRow) {
+                putString("layout_SYMBOLS", "symbols_flat")
+                putString("layout_MORE_SYMBOLS", "symbols_shifted_flat")
+            }
+            assertEquals(page1de, pageNames(build(look, KeyboardElement.SYMBOLS, Locale.GERMANY, "qwertz")), "$look $numberRow")
+            assertEquals(page2de, pageNames(build(look, KeyboardElement.SYMBOLS_SHIFTED, Locale.GERMANY, "qwertz")), "$look $numberRow")
+            assertEquals(plain, dump(build(look, KeyboardElement.ALPHABET, Locale.GERMANY, "qwertz")), "$look $numberRow hints")
+        }
+    }
+
     // ---------------------------------------------------------------- hints and popups of the letter keys
 
     /**

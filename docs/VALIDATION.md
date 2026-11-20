@@ -1,5 +1,16 @@
 # Prüfnachweise
 
+## Etappe 81 — Symbolseiten wie Gboard (2026-11-20)
+
+**Auf keinem Gerät gesehen.** Alles unten sind Robolectric-Tests (JVM), kein Gerätetest.
+
+- **Was gebaut ist:** Beide Symbolseiten sind in jedem Stil gleich und Taste für Taste wie Gboard (Zeilen siehe FEATURES); die Hinweise der Buchstabentasten kommen aus `symbol_hints/symbols_hints.txt`; Pfeiltaste standardmäßig aus; „12/34“, `<`, `>` auf Seite 2 über `functional_keys.json`. Einzelheiten: ARCHITECTURE → „Symbolseiten wie Gboard (Etappe 81)“, P345–P348.
+- **Rot vor dem Umbau:** `SymbolPagesTest` (ohne den später ergänzten Test der alten Flat-Namen) lief gegen den alten Stand: 6 von 7 Tests rot (Seiten, Währung in Englisch, Zahlenreihe an/aus, Reihenanzahl 5 statt 4, Pfeiltaste, Hinweis-Aufnahme fehlte). Danach wurde die Hinweis-Aufnahme (`src/test/resources/symbols81/letter_keys.txt`, 88 Zeilen: Material, Rund, Holo, Flach × Deutsch, Englisch × Zahlenreihe an, aus) aus dem alten Stand geschrieben. **Rot beim Hinweis-Test:** mit der neuen Seite als Hinweisquelle (statt `symbols_hints.txt`) zeigt q `@` statt `%`; der Test schlug fehl (`expected ... q | 1 | 1 [% ; ...`), nach dem Zurücksetzen der Datei grün.
+- **Grün nach dem Umbau:** `SymbolPagesTest` 8 von 8: beide Seiten Taste für Taste in vier Stilen (Material, Rund, Holo, Flach-Vorlage) mit Zahlenreihe an und aus; Englisch (nur `$` statt `€` auf Seite 1); Seiten mit „Zahlenreihe an“ und „aus“ und „Zahlenreihe in Symbolen aus“ identisch inklusive Popups; vier Reihen, Höhe unverändert; Pfeiltaste nur mit gesetztem `show_dpad_key`; Hinweise und Popups aller Buchstabentasten gleich der Aufnahme von vor der Änderung; ein noch gespeichertes `layout_SYMBOLS = symbols_flat` / `layout_MORE_SYMBOLS = symbols_shifted_flat` ergibt dieselben Seiten und Hinweise. Die übrigen 22 Klassen der Liste aus der Bestandsaufnahme (Flat*, Settings*, ParserTest, SubtypeTest, SymbolInkTest, TouchZonesDynamicTest, FieldCorrectionMemoryTest, InputLogicTest u. a.): 594 Tests, 1 rot (`InputLogicTest.insertLetterIntoWordHangulFails`, geerbt, Baseline in HANDOFF).
+- **Geänderte Erwartung (einzige):** `FlatStyleRenderTest.shiftedKeyboardAndUrlFieldRender` erwartete `Δ` (U+0394) als zehnte Taste von Seite 2, jetzt `∆` (U+2206, so schreibt der Owner Gboard; `Δ` ist Popup). Alle anderen Zeilen (Seite 1, Zeile 2 und 3 von Seite 2, Boden mit „1234“, `<`, `>`, keine Pfeiltaste) sind unverändert und grün, obwohl der Test jetzt über den gemeinsamen Weg läuft statt über die Flat-Dateien.
+- **Gerätetests:** `tools/devicetest/devicetest.py` tippt nur Buchstaben, Ziffern (`12345`, `Arbeit73`), `@` und `.`; alle sind auf Seite 1 (oder der Buchstabenseite) erreichbar, `Driver.type` sucht sie über die Taste „Symbole“ und die Beschreibung. Keine Änderung am Skript. Nicht ausgeführt.
+- **Nicht geprüft:** Aussehen auf dem Telefon, Langdruck-Popups von Hand, Verhalten bei eigenen Symbol-Layouts und beim mitgelieferten `symbols_arabic` (kein Test mit einer eigenen Datei).
+
 ## Etappe 80f — HyperOS-Grenze für dma-buf (2026-11-19)
 
 **Auf dem Gerät ist von 0.6 noch nichts gelaufen.** Alles unten ist aus Dateien, Quelltexten und Servern gelesen oder von der JVM-Prüfung der eigenen Logik; „belegt“ heißt: in einer Quelle oder einer Messung des Owners steht es so.
