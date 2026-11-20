@@ -1795,6 +1795,8 @@ mit.
 
 **Kommen die Passwortmanager-Vorschläge nicht?** Öffne das Feld, warte kurz (das Feld mit dem Kreuz erscheint erst, wenn der erste Chip da ist), öffne dann Einstellungen → Diagnose und schick einen Screenshot der Karte „Autofill-Vorschläge“. „0 angekommen, 3 angefragt“ heißt: Die Tastatur hat Vorschläge bekommen, das System hat die Chips aber nicht geliefert; „3 angekommen“ bei nicht sichtbarem Kasten wäre ein Fehler der Tastatur. Es sind nur Zahlen, nie Titel oder Texte.
 
+**Tut der Cursor-Trackpad auf der Leertaste oder der Löschtaste nichts?** Schau zuerst unter Einstellungen → Gesten & Gefühl → Treffen & Wischen, direkt unter „Cursor als Trackpad“: Dort steht „Leertaste: aktiv“ oder „nicht aktiv – …“ mit dem, was du ändern musst (zum Beispiel ← und → auf „Cursor bewegen“), und genauso für die Löschtaste. Steht dort „aktiv“ und es geht trotzdem nicht: Wische einmal auf der Leertaste nach links und rechts und einmal auf der Löschtaste (in einem Textfeld ohne Markierung), öffne dann Einstellungen → Diagnose, tippe „Kopieren“ oder mach einen Screenshot der Karte „Cursor-Trackpad“ (zwischen „Tippen“ und „Autofill-Vorschläge“) und schick ihn mit. Die Karte sagt, ob die Tastatur den Wisch überhaupt gesehen hat („Berührungen“), warum sie ihn übernommen oder nicht übernommen hat und was der letzte Wisch war. Es sind nur Zahlen und Namen, nie ein Text und nie der Name einer App.
+
 **Keine Vorschläge, keine Großschreibung oder keine Autokorrektur?** Lass die App, in der es
 passiert, offen, wechsle direkt zu Einstellungen → Diagnose (ohne vorher in einer anderen App in ein
 Textfeld zu tippen; die Suche der Einstellungen zählt nicht) und mach einen Screenshot der ersten

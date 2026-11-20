@@ -847,6 +847,11 @@ Flacher Stil (jeweils nur ein Aufruf in `FlatStyle`, Details im Abschnitt „Fla
   `InlineAutofillCounters` (Summen und letzte Antwort, `shared`); `InlineAutofillGeneration.isOpen`. `InlineAutofillUtils.createView(…, InlineAutofillResponse)` startet die Rückrufe erst, wenn der Container steht.
   `LatinIME`: `onInlineSuggestionsResponse` zeigt den Kasten (`showInlineAutofill`) nur aus der Aktion „erster Chip“, zählt leer/abgelehnt/angenommen; `dump()` druckt `InlineAutofillCounters.line()`;
   `openInlineAutofillGeneration()` hält `generationOpen` der Zähler. Diagnose: `Diagnose.autofill` (Part `AUTOFILL`, vor „App und Telefon“) und `AgentDiagnoseScreen`. Tests: `AT/InlineAutofillResponseTest.kt`, `AT/InlineAutofillCardTest.kt` (P440–P443).
+- Etappe 87b (Trackpad sichtbar machen): neue Datei `A/CursorTrackDiag.kt` mit `CursorTrackCounters` (Zähler je Taste, `shared`), `CursorTrackVerdict` (passt die Einstellung für Leertaste und Löschtaste, mit Grund) und
+  `CursorTrackText` (die Worte für Statuszeile und Karte). `A/CursorTrackpad.kt` bekommt `spaceBlocker` und die Feldart-Hilfen (`isTextClass`, `hasMultiLineFlag`, `isMultiLine`).
+  `KeyboardActionListenerImpl` ruft die Zähler an den Entscheidungsstellen des Trackpads (siehe P451). Diagnose: `Diagnose.trackpad` (Part `TRACKPAD`), Karte in `AgentDiagnoseScreen`;
+  `AgentAreaGesturesScreen`: zwei Statuszeilen unter dem Schalter (Tags `TRACKPAD_SPACE_TAG`, `TRACKPAD_DELETE_TAG`). Texte: `values*/agent_trackdiag_strings.xml`.
+  Tests: `AT/CursorTrackDiagTest.kt`, `InputLogicTest` `cursor87b…` (P450–P453). `InputLogic`, `RichInputConnection` und `PointerTracker` sind unberührt.
 - `KeyboardActionListenerImpl.kt`: `KeyCode.AGENT_ACTIONS` öffnet im flachen Stil das Panel statt
   des Rads.
 - `InputView.java`: zählt `agent_menu` zu den Overlays. `SettingsActivity.kt`: Extra
@@ -6386,6 +6391,10 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - **P444** Leiste und Zahlenlayouts (79b): Die Abdunklung der Ablage (`BarTools.NOT_IN_NUMBER_LAYOUTS`) wurde nur in `applyBarState` neu berechnet; `KeyboardSwitcher.setKeyboard` ruft jetzt `SuggestionStripView.onKeyboardLayoutChanged` (nur bei geändertem Zahlenzustand). `AgentEditorController.openPrompts` prüft das Zahlenlayout selbst (still, kein Hinweis), weil der Weg über die Leiste, den Code `AGENT_PROMPTS` und das Popup verschiedene Quellen hat.
   `SuggestionStripView.onFieldStarted` setzt `barState` zurück (sonst überlebt `stickyTools` ein neues Feld derselben App).
 - **P445** Test-Feldwechsel (79b): `InputLogicTest.setText` startet ein Feld nur über `latinIME.mHandler`; `LatinIME.onStartInput` und damit `AgentEditorController.startEditor` (verwirft gemerkte Wahlen) laufen dabei nicht. Wer in diesem Prüfstand ein „anderes Feld“ prüft, ruft `controller.startEditor` selbst auf, sonst hängt das Ergebnis an einer asynchronen Aufgabe (Fortsetzung auf dem IO-Thread unter Legacy-Looper).
+- **P450** Trackpad-Zähler (87b): `CursorTrackCounters` hält nur Zahlen, Enum-Namen und zwei Feld-Flags (Textklasse, Mehrzeilig); nie Text, nie den Paketnamen der App (`mTargetApplicationPackageName`), nie eine Position. Wer ein Feld hinzufügt, prüft den Test `cursor87bTheCardHoldsNoTextOfTheFieldAndNoPackageName`. Die Zähler sind pro Prozess und beginnen bei null; die Karte liest beim Öffnen.
+- **P451** Trackpad, Zählstellen (87b): Eine Entscheidung wird genau einmal gezählt: Aus-Gründe und „abgewiesen“ in `decideTrackMode`, „abgewiesen“ auch beim Anspruch (zweiter Finger), „nie übernommen“ in `countNeverClaimed` (Ende oder Ersatz einer PENDING-Berührung, auch beim Feldwechsel `onCursorTrackEnd(-1)`). Ein neuer Weg, der einen Zustand verwirft, muss `countNeverClaimed` aufrufen. Das Löschen beim Loslassen zählt nur, wenn der Wisch vom Trackpad übernommen war (`deleteClaimed`); `onUpWithDeletePointerActive` liest die Markierung vor `deleteAtLift`.
+- **P452** Trackpad, unterdrückte Pfeile (87b): In einem nicht mehrzeiligen Feld läuft die flache Spur, senkrechter Weg erzeugt keinen Schritt; gezählt wird `Weg / VERTICAL_STEP_DP` (26 dp) je Berührung, also eine Schätzung, kein gesendeter Pfeil. Nur auf der Leertaste.
+- **P453** Trackpad, eine Regel (87b): `CursorTrackpad.spaceBlocker` ist die einzige Stelle der Bindungsregel; `appliesToSpace` (Listener), `CursorTrackVerdict` (Statuszeile, Karte) und die Zählung rufen sie. Die Statuszeile kennt Markierung, Panel und Feldart nicht (nur beim Tippen bekannt): „aktiv“ dort heißt „die Einstellung passt“, nicht „hat gerade gewirkt“.
 
 - **P330** Begleit-App, Fehlercodes (80b): Der Kotlin-Wrapper des SDK macht aus jedem Pull-Fehler nur `geniex_model_pull failed (rc=<Code>)`; die
   Klartextmeldung des Rust-Teils (`geniex_model_last_error_message`, z. B. „chipset … not available for this model; supported: …“) ist über
@@ -6643,19 +6652,19 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (746 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (750 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (6): agent-apk, agent-tests, build-debug-apk, build-test-auto, device-tests,
   docs-check
 - `/` (1): settings
-- `A/` (96): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (97): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand,
   ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand, CorrectionMemory,
-  CursorTrackpad, DateCommand, DebugModeReset, DesignLook, DesignTiles, Diagnose, Dictation,
-  EmojiCommand, EmojiMixPalette, EmojiSuggestions, EncryptedActionRunStore, EventCommand,
+  CursorTrackDiag, CursorTrackpad, DateCommand, DebugModeReset, DesignLook, DesignTiles, Diagnose,
+  Dictation, EmojiCommand, EmojiMixPalette, EmojiSuggestions, EncryptedActionRunStore, EventCommand,
   FieldCorrections, FieldSuggestionChips, FlatMenuView, FlatPanelStyle, FlatPreset, ForcedApps,
   ForeignWords, FormatGuardChips, GermanVerbLemmas, HapticChain, InformalWordsStore, InlineAutofill,
   JournaledModelCall, JournaledRun, KeyboardCommands, KeyboardProfileStore, LastField, LearningData,
@@ -6678,33 +6687,34 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (123): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (124): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BarEditModeTest, BarToolsTest, BundledEmojiDictTest,
   CalculatorViewTest, CalendarToolLauncherTest, CharArtWindowTest, ClipCachesTest, ClipCommandTest,
   ClipVaultTest, CommandReplaceTest, CommandTemplatesTest, ContactCommandTest, CorrectionMemoryTest,
-  CursorGestureTrackerTest, DatePlaceCommandsTest, DebugPrivacyTest, DesignEditorTest,
-  DesignTilesTest, DiagnoseScreenTest, DictationSessionTest, DictationUiTest, EmojiMixPaletteTest,
-  EmojiMixRecentsTest, EncryptedActionRunStoreTest, EncryptedCredentialStoreTest,
-  FieldCorrectionMemoryTest, FieldSuggestionChipsTest, FixedBarTest, FlatClipboardTest,
-  FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest,
-  ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest, HardeningClipHistoryTest,
-  InformalWordsStoreTest, InlineAutofillCardTest, InlineAutofillGenerationTest,
-  InlineAutofillResponseTest, InlineAutofillSizingTest, InlineAutofillSlotsTest, InsertAtCursorTest,
-  JournaledModelCallTest, KeyNodePositionTest, KeyboardCommandsTest, KeyboardProfileStoreTest,
-  LastFieldTest, LearningDataTest, LiveLockGateTest, LoadingDotsViewTest, LongTextBudgetTest,
-  ManualWorkflowDraftTest, MemoryScreenTest, MoreCommandsTest, MoreProvidersTest, MyDataScreenTest,
-  MyDataStoreTest, MyDesignsTest, OpenAiProviderTest, PromptStoreTest, PromptsScreenTest,
-  PromptsWindowTest, RgbFrameRateCardTest, RgbLightingRenderTest, RgbPatternEditorTest,
-  RgbSettingsScreenTest, RgbTilesTest, ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest,
-  SettingsAreaAiTest, SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest,
-  SettingsKitTest, SettingsLookScreenTest, SettingsSearchTest, SettingsStartScreenTest,
-  SettingsSystemAreaTest, SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest,
-  SliderFeelTest, SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest,
-  StripRequestsTest, SymbolInkTest, SymbolPagesTest, SymbolSettingsScreenTest, TestRunJournal,
-  ToolRunnerTest, TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest,
-  TypingPerfTest, TypoMemoryTest, UpdateCheckTest, UpdateChipTest, UpdateOnOpenTest,
-  UpdatePromptsTest, WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
+  CursorGestureTrackerTest, CursorTrackDiagTest, DatePlaceCommandsTest, DebugPrivacyTest,
+  DesignEditorTest, DesignTilesTest, DiagnoseScreenTest, DictationSessionTest, DictationUiTest,
+  EmojiMixPaletteTest, EmojiMixRecentsTest, EncryptedActionRunStoreTest,
+  EncryptedCredentialStoreTest, FieldCorrectionMemoryTest, FieldSuggestionChipsTest, FixedBarTest,
+  FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest,
+  ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest,
+  HardeningClipHistoryTest, InformalWordsStoreTest, InlineAutofillCardTest,
+  InlineAutofillGenerationTest, InlineAutofillResponseTest, InlineAutofillSizingTest,
+  InlineAutofillSlotsTest, InsertAtCursorTest, JournaledModelCallTest, KeyNodePositionTest,
+  KeyboardCommandsTest, KeyboardProfileStoreTest, LastFieldTest, LearningDataTest, LiveLockGateTest,
+  LoadingDotsViewTest, LongTextBudgetTest, ManualWorkflowDraftTest, MemoryScreenTest,
+  MoreCommandsTest, MoreProvidersTest, MyDataScreenTest, MyDataStoreTest, MyDesignsTest,
+  OpenAiProviderTest, PromptStoreTest, PromptsScreenTest, PromptsWindowTest, RgbFrameRateCardTest,
+  RgbLightingRenderTest, RgbPatternEditorTest, RgbSettingsScreenTest, RgbTilesTest,
+  ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest, SettingsAreaAiTest,
+  SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest, SettingsKitTest,
+  SettingsLookScreenTest, SettingsSearchTest, SettingsStartScreenTest, SettingsSystemAreaTest,
+  SettingsTypingAreaTest, SkillBindingStoreTest, SkillSettingsTest, SliderFeelTest,
+  SmartPasteChipsTest, SnipCommandTest, SpaceDetentsTest, SpaceGesturesTest, StripRequestsTest,
+  SymbolInkTest, SymbolPagesTest, SymbolSettingsScreenTest, TestRunJournal, ToolRunnerTest,
+  TouchModelTest, TouchScenesScreenTest, TouchZonesDynamicTest, TypedWordFirstTest, TypingPerfTest,
+  TypoMemoryTest, UpdateCheckTest, UpdateChipTest, UpdateOnOpenTest, UpdatePromptsTest,
+  WorkflowBuilderContractTest, WorkflowBuilderSettingsTest, WorkflowCommandTest,
   WorkflowConditionSummaryTest, WorkflowDraftRunnerTest, WorkflowSettingsTest, WorkflowStoreTest
 - `AT/commands/` (10): ClockCommandsTest, CommandSystemTest, EmojiMixCommandTest,
   LanguageCommandTest, LongCommandTest, QrCommandTest, ScreenReaderServiceTest, SubtypeChoiceTest,
@@ -6808,7 +6818,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `app/src/main/res/mipmap-xhdpi/` (2): ic_launcher, ic_launcher_round
 - `app/src/main/res/mipmap-xxhdpi/` (2): ic_launcher, ic_launcher_round
 - `app/src/main/res/mipmap-xxxhdpi/` (2): ic_launcher, ic_launcher_round
-- `app/src/main/res/values-de/` (37): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
+- `app/src/main/res/values-de/` (38): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
   agent_bar_tools_strings, agent_charart_strings, agent_clipvault_strings,
   agent_command_system_strings, agent_design_strings, agent_diagnose_strings,
   agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_hardening_strings,
@@ -6817,9 +6827,9 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   agent_settings_keys_strings, agent_settings_look_strings, agent_settings_strings,
   agent_settings_system_strings, agent_slider_strings, agent_smart_paste_strings,
   agent_snippet_strings, agent_space_strings, agent_strings, agent_suggest_strings,
-  agent_symbol_strings, agent_touch_strings, agent_typing_strings, agent_update_prompt_strings,
-  agent_update_strings, strings, strings-talkback-descriptions
-- `app/src/main/res/values/` (46): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+  agent_symbol_strings, agent_touch_strings, agent_trackdiag_strings, agent_typing_strings,
+  agent_update_prompt_strings, agent_update_strings, strings, strings-talkback-descriptions
+- `app/src/main/res/values/` (47): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
   agent_bar_strings, agent_bar_tools_strings, agent_charart_ids, agent_charart_strings,
   agent_clipvault_strings, agent_command_system_strings, agent_design_strings,
   agent_diagnose_strings, agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings,
@@ -6829,8 +6839,8 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   agent_settings_look_strings, agent_settings_strings, agent_settings_system_strings,
   agent_slider_strings, agent_smart_paste_strings, agent_snippet_strings, agent_space_strings,
   agent_strings, agent_suggest_strings, agent_symbol_strings, agent_touch_strings,
-  agent_typing_strings, agent_update_prompt_strings, agent_update_strings, attrs, clip_provider,
-  donottranslate, gesture_data, strings, themes-flat
+  agent_trackdiag_strings, agent_typing_strings, agent_update_prompt_strings, agent_update_strings,
+  attrs, clip_provider, donottranslate, gesture_data, strings, themes-flat
 - `app/src/main/res/xml/` (4): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path, spellchecker
 - `app/src/test/java/helium314/keyboard/` (2): KeyboardParserTest, Shadows
