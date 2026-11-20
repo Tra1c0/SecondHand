@@ -185,6 +185,16 @@ class SymbolLatencyTest {
         assertEquals(3, t.reads, t.names())
     }
 
+    @Test fun theClipboardPillIsReadOnceAndBuiltOncePerStrip() {
+        rig.setUp(withClipboardPill = true)
+        rig.clip("some copied text")
+        val t = after("hello", '.')
+        assertEquals(1, t.stripExternal, "the pill stands in the strip\n${t.names()}")
+        assertEquals(1, t.count("CLIP_VIEW_BUILT"), t.names())
+        assertEquals(1, t.count("CLIPBOARD_SERVICE"), "one call to the clipboard service, not one more for the mark\n${t.names()}")
+        assertEquals(0, t.insideBatchAfterEdit, t.names())
+    }
+
     @Test fun theRigTypesLikeAFinger() {
         rig.type("hello")
         assertEquals("hello", rig.text)
