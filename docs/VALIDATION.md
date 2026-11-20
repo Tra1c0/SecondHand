@@ -1,5 +1,33 @@
 # Prüfnachweise
 
+## Etappe 88 — Leiste v2: sichtbare Symbole, echtes Ziehen
+
+**Auslöser (Owner, Build 41, Xiaomi 15, eigenes dunkles Design):** „Die Leiste ist nicht gleichmäßig.“ Zwei Symbole (Textaktionen, Skill-Taste) waren nicht zu sehen; das Drag and Drop „funktioniert nicht
+zuverlässig, bzw. gar nicht“: Die Symbole folgten dem Finger, schnappten zurück, und erst ein Tippen setzte sie irgendwohin. Dazu: Die Funktionen seien gut getestet, aber nicht durchdacht.
+
+**Was falsch war:**
+- **Schwarze Symbole:** Die Leiste färbt Symbole mit einer Farbliste im Modus MULTIPLY (`Colors.setColor(…, TOOL_BAR_KEY)`); die Symbole der Fork `ic_agent_actions` (Füllung `#FF000000`), `ic_skill_1…3` und `ic_agent_dictate`
+  (Strich `#FF000000`) waren schwarz, `ic_edit` (Zeichen-Kunst) grau: schwarz mal Farbe ist schwarz. Auf dunklem Grund sind sie Löcher. Die Mitten lagen schon gleichmäßig (175 bis 178 px, gemessen); das „ungleichmäßig“ war die Sichtbarkeit.
+  Es hat nie jemand ein Bild in einem dunklen Design angesehen; die Tests prüften Mitten, nicht Pixel.
+- **Systemziehen:** `startDragAndDrop` im Tastaturfenster (IME-Fenster: nicht fokussierbar, neben dem App-Fenster) lieferte auf dem Gerät kein Ablegen. Der Grund wurde nicht bewiesen (aus den Regeln der Plattform
+  abgeleitet, `docs/LEISTE-KONZEPT.md` → 6); die Entscheidung war, es nicht mehr zu verwenden. Die Tests von Etappe 86 simulierten `DragEvent`s und konnten das nicht finden.
+
+**Was jetzt geprüft ist (Tests, Robolectric, lokal):**
+- `BarIconVisibilityTest` (5): jedes `ToolbarKey` (alle angebotenen Werkzeuge) wird mit dem echten Anordnungscode in ein Bitmap gezeichnet und die Farbe der Kernpixel des Symbols gemessen, in fünf Designs (Farben des
+  Owners: Grund `#0A0001`, Mint `#C8FFEE`, Rosa, Dunkelrot; hell; fast unsichtbare Symbolfarbe; mittleres Grau; flacher Stil): normal mindestens 4,5:1, nicht verfügbar mindestens 2:1 und sichtbar blasser, Kreis mit Symbol
+  auf seiner Füllung, die früher schwarzen Symbole sind Mint. **Rot-Nachweis:** Mit den alten schwarzen `ic_agent_actions` und `ic_skill_1` schlugen 2 der 5 Tests fehl („owner AGENT: no icon is drawn at all“).
+- `FixedBarTest` (30): Mitten gleichmäßig für 0, 1, 2, 3, 4, 5, 6 und 8 Werkzeuge im Standard- und im flachen Stil (je drei Mengen, mit und ohne Kreis am Ende), gleiche Symbolflächen und gleiche sichtbare Lücken zwischen gleich
+  großen Symbolen; nicht verfügbar nach Grund (privates Feld, Zahlenfeld; gesperrtes Gerät im Modell): Beschreibung, Zeile bei Tipp und Langdruck, Raster; Rückgängig-Angebot (Pfeil als echte Pixel, Plätze unverändert, Ende bei
+  Eingabe, Verstecken und neuem Feld, Aktion für Screenreader, nichts bei Wiederholen in der Leiste, kompakte Reihe).
+- `BarDragTest` (16, reine Logik mit falscher Uhr), `BarEditorTest` (inkl. Rückgängig, Zurücksetzen), `BarEditModeTest` (24, **echte `MotionEvent`s** an den Behälter, kein `DragEvent`): Pille halten und zwischen zwei Werkzeuge
+  ziehen (Lücke öffnet sich, Kopie unter dem Finger, Speichern erst beim Loslassen), jede Lücke 0 bis 4, Umordnen, Herausziehen nach unten, Abbruch, Tastatur mitten im Ziehen versteckt, voll (neuntes Werkzeug), leere Leiste,
+  zweiter Finger, senkrechter Zug scrollt, Tippen, Halten und auf der Stelle loslassen, rechts nach links, verstecktes Sprachwerkzeug. **Rot-Nachweise (Sabotage in `BarDrag`):** Ablegen fügt nie ein: 13 von 39 Tests rot;
+  „Halten auf der Stelle legt zurück“ entfernt: 2; ein zweiter Finger wird angenommen: 1.
+- `UndoOfferTest` (5).
+- Geänderte bestehende Erwartungen: `FixedBarTest` (nicht verfügbar ist kein `isEnabled=false`/Alpha mehr, sondern `FixedBar.reasonOf`; die Beschreibung nennt den Grund), `PromptsWindowTest` (dasselbe), alle `DragEvent`-Tests von
+  `BarEditModeTest` ersetzt, `EditListener.onDrag` und `dropListener` entfallen. Die Mitten-Erwartung der flachen Referenzbilder (`FlatStyleRenderTest`) ist unverändert: ich hatte erst gleiche Lücken statt gleicher Mitten gebaut, der Test
+  zeigte den Widerspruch zu den Referenzbildern des Owners, ich habe es zurückgenommen.
+
 ## Etappe 79b — Autofill ohne leeren Kasten, Diagnose
 
 - **Prüfer (lesend, 2026-11-20):** kein Befund ab mittlerer Schwere. Behoben: `showInlineAutofill` prüft jetzt,
