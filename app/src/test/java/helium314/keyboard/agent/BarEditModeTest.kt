@@ -83,7 +83,10 @@ class BarEditModeTest {
         KeyboardIconsSet.instance.loadIcons(context)
     }
 
-    private fun setBar(keys: List<ToolbarKey>) { prefs.edit { putString(AgentPreferences.BAR_TOOLS, BarTools.format(keys)) } }
+    private var initialBar: List<ToolbarKey>? = null
+    private fun setBar(keys: List<ToolbarKey>) { initialBar = keys; prefs.edit { putString(AgentPreferences.BAR_TOOLS, BarTools.format(keys)) } }
+    /** Nothing was written since the bar was set up (or, without a set up bar, nothing at all). */
+    private fun assertUnsaved() = assertEquals(initialBar, saved())
     private fun saved() = BarTools.parse(prefs.getString(AgentPreferences.BAR_TOOLS, null))
 
     private fun build(): Harness {
@@ -148,7 +151,15 @@ class BarEditModeTest {
     /** The grid's drop area: the content of its scroll view. */
     private fun gridDropArea(h: Harness): View = (h.grid.getChildAt(0) as ViewGroup).getChildAt(0)
 
-    private fun send(view: View, action: Int, x: Float, state: Any?) = view.dispatchDragEvent(dragEvent(action, x, 20f, state))
+    /**
+     * The drag event to the listener of [view], as the system's dispatch does after its own checks (a view tree without a
+     * window has no `ViewRootImpl`, which the dispatch of a `ViewGroup` needs).
+     */
+    private fun send(view: View, action: Int, x: Float, state: Any?): Boolean {
+        val info = View::class.java.getDeclaredField("mListenerInfo").apply { isAccessible = true }.get(view) ?: return false
+        val listener = info.javaClass.getDeclaredField("mOnDragListener").apply { isAccessible = true }.get(info) as? View.OnDragListener ?: return false
+        return listener.onDrag(view, dragEvent(action, x, 20f, state))
+    }
 
     /** A position of the root, as the bar (whose events are relative to its own container) gets it. */
     private fun Harness.bx(rootX: Float) = rootX - (container(this).centreIn(root) - container(this).width / 2f)
@@ -204,7 +215,7 @@ class BarEditModeTest {
         listOf(UNDO, REDO, COPY, DICTATE).forEach { assertTrue(h.grid.pill(it)!!.alpha < 1f, it.name) }
         listOf(PASTE, CUT, AGENT).forEach { assertEquals(1f, h.grid.pill(it)!!.alpha, it.name) }
         // nothing was written by looking
-        assertNull(saved())
+        assertUnsaved()
 
         // the check button ends the mode and closes the grid
         leftKey(h).performClick()
@@ -213,7 +224,7 @@ class BarEditModeTest {
         assertEquals(listOf(UNDO, REDO, COPY, DICTATE), tags(h))
         slots(h).forEach { assertFalse(it.background is GradientDrawable, "outline of ${it.tag} gone") }
         assertEquals(latinIME.getString(R.string.agent_bar_all_tools), leftKey(h).contentDescription)
-        assertNull(saved()) // no edit, nothing stored
+        assertUnsaved() // no edit, nothing stored
     }
 
     @Test fun theGermanTextsAreThere() {
@@ -277,7 +288,7 @@ class BarEditModeTest {
         assertEquals(0.45f, slots(h)[1].alpha) // the ghost of the dragged tool
         assertTrue(centres(h).size == 5 && centres(h)[0] < before[0] + 1000f)
         assertNotEquals(before.take(4), centres(h).take(4), "the others moved over")
-        assertNull(saved())
+        assertUnsaved()
         assertTrue(h.grid.pill(PASTE)!!.alpha < 1f) // already counted as in the bar
 
         // moving to the far right slot puts it last
@@ -316,7 +327,7 @@ class BarEditModeTest {
         h.toBar(DragEvent.ACTION_DRAG_LOCATION, centres(h).last(), state)
         layout(h)
         assertEquals(listOf(REDO, COPY, CUT, UNDO), tags(h))
-        assertNull(saved())
+        assertUnsaved()
         h.toBar(DragEvent.ACTION_DROP, centres(h).last(), state)
         h.toBar(DragEvent.ACTION_DRAG_ENDED, 0f, state)
         assertEquals(listOf(REDO, COPY, CUT, UNDO), saved())
@@ -353,7 +364,7 @@ class BarEditModeTest {
         layout(h)
         assertEquals(listOf(UNDO, REDO, COPY), tags(h))
         assertEquals(before, centres(h))
-        assertNull(saved())
+        assertUnsaved()
         // out of the bar and gone
         state = holdSlot(h, REDO)
         h.toBar(DragEvent.ACTION_DRAG_STARTED, 0f, state)
@@ -361,7 +372,7 @@ class BarEditModeTest {
         assertEquals(listOf(UNDO, COPY), tags(h))
         h.toBar(DragEvent.ACTION_DRAG_ENDED, 0f, state)
         assertEquals(listOf(UNDO, REDO, COPY), tags(h))
-        assertNull(saved())
+        assertUnsaved()
     }
 
     @Test fun theKeyboardClosedMidDragLeavesTheSavedBarAndNoEditMode() {
@@ -483,7 +494,7 @@ class BarEditModeTest {
 
     @Test fun theSettingsListAndTheEditModeEditTheSameStoredOrder() {
         // a user who never edited: the settings dialog shows the migration, an edit in the keyboard stores the list
-        assertNull(saved())
+        assertUnsaved()
         val before = BarTools.read(prefs)
         reload()
         val h = build()

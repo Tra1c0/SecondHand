@@ -837,7 +837,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     private fun refreshEdit(ed: BarEditor) {
         ghost = ed.dragged
         if (renderedBar != ed.shown) populateBar(ed.shown)
-        else toolbar.forEachChild { (it.tag as? ToolbarKey)?.let { key -> if (key == ghost) it.alpha = GHOST_ALPHA } }
+        else updateToolAvailability() // the same slots: only the ghost may have changed
         toolGrid()?.setMarked(ed.shown.toSet())
         updateLeftKey()
     }
@@ -865,8 +865,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
      * whose centre is left of the finger; once it is shown (as a ghost), or a tool of the bar is moved, the nearest slot is meant.
      */
     private fun dragSlot(ed: BarEditor, x: Float): Int =
-        if (ed.preview == null && !ed.draggedFromBar && ed.dragged !in ed.bar) FixedBar.insertionIndexAt(toolbar, x)
-        else FixedBar.slotIndexAt(toolbar, x)
+        if (ed.preview == null && !ed.draggedFromBar && ed.dragged !in ed.bar) FixedBar.insertionIndexAt(toolbar, flatStyle, x)
+        else FixedBar.slotIndexAt(toolbar, flatStyle, x)
 
     /** The drag events of the bar: over it the tools move over, a drop saves. */
     private fun onBarDrag(event: android.view.DragEvent): Boolean {

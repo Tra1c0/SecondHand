@@ -164,16 +164,27 @@ internal object FixedBar {
         button.contentDescription = if (available) label else unavailableLabel(label)
     }
 
-    /** Where a new tool would be inserted at the horizontal position [x]: after as many slots as have their centre left of it. */
-    fun insertionIndexAt(toolbar: ViewGroup, x: Float): Int =
-        slots(toolbar).count { (it.left + it.right) / 2f < x }
-
-    /** The index among [slots] of the slot whose centre is nearest to the horizontal position [x] of the row. */
-    fun slotIndexAt(toolbar: ViewGroup, x: Float): Int {
-        val slots = slots(toolbar)
-        if (slots.isEmpty()) return 0
-        return slots.indices.minByOrNull { Math.abs((slots[it].left + slots[it].right) / 2f - x) } ?: 0
+    /**
+     * The horizontal centres of the slots in the row, from the count alone (as the layout puts them: one button width, equal
+     * gaps before each button). Independent of whether the views have been laid out since the last change, which matters
+     * while the slots are rebuilt on every drag event.
+     */
+    fun slotCentres(toolbar: ViewGroup, flat: Boolean): List<Float> {
+        val count = slots(toolbar).size
+        val width = toolbar.width.toFloat()
+        if (count == 0 || width <= 0f) return slots(toolbar).map { (it.left + it.right) / 2f }
+        val density = toolbar.resources.displayMetrics.density
+        val button = (if (BarTools.isCompact(count)) COMPACT_BUTTON_DP else if (flat) FLAT_BUTTON_DP else BUTTON_DP) * density
+        val gap = (width - count * button) / count
+        return (0 until count).map { (it + 1) * gap + it * button + button / 2f }
     }
+
+    /** Where a new tool would be inserted at the horizontal position [x]: after as many slots as have their centre left of it. */
+    fun insertionIndexAt(toolbar: ViewGroup, flat: Boolean, x: Float): Int = slotCentres(toolbar, flat).count { it < x }
+
+    /** The index among the slots of the one whose centre is nearest to the horizontal position [x] of the row. */
+    fun slotIndexAt(toolbar: ViewGroup, flat: Boolean, x: Float): Int =
+        slotCentres(toolbar, flat).let { centres -> centres.indices.minByOrNull { Math.abs(centres[it] - x) } ?: 0 }
 
     /** A filled circle in the middle of its bounds, at most [maxDiameter] wide; a little lighter while pressed. */
     private class CircleBadge(private val color: Int, private val maxDiameter: Int) : Drawable() {
