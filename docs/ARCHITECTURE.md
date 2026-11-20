@@ -4114,6 +4114,9 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   „Test 73c-2“, „Test 73c-3“ in dieser Reihenfolge als Inline-Vorschläge an (das Szenario prüft die Reihenfolge der Chips von links nach rechts
   über die Titel-Knoten und tippt den linken; nicht gelaufen),
   wird nur für dieses Szenario per `settings put secure autofill_service` gewählt und danach abgewählt (P311).
+  Diagnose (Untersuchung clipboard_pill): `foreground_info` in `devicetest.py` schreibt als INFO-Zeilen die fortgesetzte Aktivität
+  (`dumpsys activity activities`) und die letzten Aktivitätsstarts (nur Komponentennamen aus `START u0` im Log des ActivityTaskManager),
+  wenn eine Wartezeit abläuft oder `field_…`/`copy_…` fehlt, sowie einmal nach dem Home-Druck in `_open_settings_and_switch_on`. Keine Feldinhalte.
 - Docs-System: `scripts/docs_sync.py` (Konfiguration `scripts/docs_sync.json`),
   `scripts/install-hooks.sh` (optionaler Pre-Commit-Hook), `.claude/hooks/session-start.sh`
   (registriert in `.claude/settings.json`). Bedienung: `docs/HANDOFF.md` → Arbeitsweise.
