@@ -1469,6 +1469,22 @@ class InputLogicTest {
         latinIME.mKeyboardActionListener.onEndSpaceSwipe()
     }
 
+    @Test fun cursor87RtlFollowsTheVisualDirectionLikeTheOldSwipe() {
+        val arabic = SubtypeSettings.getResourceSubtypesForLocale("ar".constructLocale()).first()
+        latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0) }
+        setText("abcdef") // starting a field resets the subtype: switch after it
+        latinIME.switchToSubtype(arabic)
+        assertTrue(RichInputMethodManager.getInstance().currentSubtype.isRtlSubtype)
+        // the old swipe: the finger to the right is towards the start of the text in a right-to-left language
+        assertTrue(latinIME.mKeyboardActionListener.onSpaceSwipe(SpaceGesture.SWIPE_RIGHT, 2))
+        assertEquals(4, cursor)
+        setCursorPosition(6)
+        spaceTrack(30.0, 0.0) // 2 steps to the right: the same
+        assertEquals(4, cursor)
+        spaceTrack(-30.0, 0.0) // to the left: towards the end
+        assertEquals(6, cursor)
+    }
+
     @Test fun cursor87BlockingInputMovesNothing() {
         setText("hello")
         org.robolectric.util.ReflectionHelpers.setField(latinIME.agentEditorController, "needsCursorRefresh", true)

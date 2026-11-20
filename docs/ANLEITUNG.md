@@ -353,6 +353,29 @@ eine Aktion:
   Tastendruck“ an ist, und nicht bei „Bitte nicht stören“ (außer du hast Vibration dort
   erlaubt); der Android-Schalter für Berührungs-Haptik spielt keine Rolle. Kann dein Telefon die
   Stärke nicht steuern, ist der letzte Rastpunkt ein langer statt eines kurzen Pulses.
+- **Cursor als Trackpad** (Einstellungen → Gesten & Gefühl → Treffen & Wischen → „Cursor als Trackpad“, anfangs an):
+  Sind „nach links“ und „nach rechts wischen“ auf „Cursor bewegen“ und „nach oben/unten“ auf nichts
+  oder „Cursor bewegen“ gestellt, bewegt ein Wisch auf der Leertaste den Cursor in alle Richtungen,
+  ohne dass du den Finger absetzt: Setze auf der Leertaste auf und ziehe nach links oder rechts (ein
+  Zeichen je Daumenbreite etwa 13 dp, bei langsamer Bewegung zeichengenau), dann ohne Absetzen nach oben oder
+  unten (eine Zeile je 26 dp); das Feld scrollt dabei selbst. Je schneller du ziehst, desto mehr
+  Zeichen je Weg, bis zum Vierfachen (senkrecht Doppelten); langsam bleibt es genau. Die Achse wechselt
+  erst bei einer klaren Bewegung (etwa 20 dp): Ein leicht schräger Wisch nach links springt nie eine Zeile
+  höher. An Wortanfang und Wortende (auch vor und nach Satzzeichen und Leerzeichen) merkst du einen leichten
+  Widerstand und einen stärkeren Tick, wenn du langsam bist: der „Magnetismus“ (Regler darunter, anfangs
+  35 %, 0 % schaltet ihn aus). Er hält nichts fest, er verlangt nur ein kleines Stück mehr Weg, um das Wort
+  zu verlassen; wer schnell zieht, spürt ihn nicht. Der Cursor bleibt überall frei beweglich. Ehrlich im
+  Vergleich zu iOS: Die Tastatur sieht das Textlayout der App nicht und kann den Cursor nicht auf einen
+  Pixel setzen. Sie schickt Zeichenschritte und „Pfeil hoch/runter“ und hört bei jedem Schritt mit einem Tick
+  zu; das Gleiten des Cursors, das Scrollen und der Zeilensprung sind Sache der App. Am Textrand hält die
+  Bewegung an, ein Dauerlauf bei stehendem Finger fehlt. Ist eine Markierung da, gilt das alte Wischen (ein
+  Zeichen je 10 dp, nur links/rechts); ebenso, wenn du eine andere Aktion auf den Wisch gelegt hast (z. B.
+  Sprache wechseln) oder den Schalter ausschaltest („wie bisher“). Rechts-nach-links-Sprachen: Der Finger
+  folgt der sichtbaren Richtung. Die Zahlen sind erste Schätzungen und werden am Telefon abgestimmt.
+- **Löschen durch Wischen** (Schalter „Löschen durch Wischen“): Ziehe auf der Löschtaste nach links; die Auswahl
+  wächst Zeichen für Zeichen und hält an Wortanfängen (gleiche Kurve und Magnetismus wie oben). Ziehst du
+  zurück nach rechts, wird sie kleiner, nie über den Startpunkt hinaus. Erst beim Loslassen wird gelöscht,
+  genau das Markierte. Mit „Cursor als Trackpad“ aus wie bisher (10 dp je Zeichen).
 - **Halten**: Leertaste lange drücken, z. B. für das Aktionsrad oder „Tastatur auswählen“.
   Bewegst du den Finger dabei deutlich nach links oder rechts, ist das Halten sofort vorbei und
   nur der Wisch zählt; auch ein langsamer Wisch löst das Halten nie aus.

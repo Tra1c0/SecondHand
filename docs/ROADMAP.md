@@ -25,10 +25,12 @@ Etappen aus dem ursprünglichen Auftrag; Teilpakete bekommen Buchstaben (15a, 15
   - **85 Leiste wie Gboard:** feste, gleichmäßig verteilte Plätze (1 bis 5 oder 8), Raster-Knopf links,
     Mikrofon rechts, kein Pfeil, kein Scrollen; Raster aller Werkzeuge. **86** Anpassen per Halten und Ziehen im
     Tastaturfenster.
-  - **87 Cursor als Trackpad:** Leertaste in vier Richtungen, weiche Beschleunigung, leichter Widerstand an
-    Wortgrenzen („Magnetismus“, Richtwert des Owners 5 %), ebenso das Wischen auf der Löschtaste. Grenze von
-    Android: Die Tastatur sieht das Layout des Textfelds nicht; der Cursor bewegt sich zeichen- und zeilenweise,
-    Animation und Scrollen macht die App.
+  - **87 Cursor als Trackpad:** gebaut (siehe FEATURES), offen ist nur, was am Telefon entschieden wird: Die Konstanten
+    (13 dp je Zeichen, 26 dp je Zeile, Beschleunigung, Magnetismus 35 %, Spiel 3 dp) sind erste Schätzungen und
+    brauchen den Finger des Owners; der Gerätetest (`cursor_trackpad`, `cursor_trackpad_vertical` sind geschrieben,
+    nicht gelaufen). Nicht gebaut, weil nicht verlangt: Auswahl erweitern (mit einer Markierung läuft das alte
+    Wischen), Dauerlauf am Rand (Android scrollt das Feld nur mit dem Cursor), Zeilenschritt aus der Zeilenhöhe
+    (`CursorAnchorInfo`, API 34 `VISIBLE_LINE_BOUNDS`; ohne Layout bleibt es ein fester Weg).
 
 Reihenfolge von oben nach unten.
 
