@@ -505,6 +505,9 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         button.setTextSize(TypedValue.COMPLEX_UNIT_DIP, TEXT_DP)
         button.typeface = FlatStyle.labelTypeface
         FlatStyle.scrollWhenTooLong(button)
+        // a long name ("Diktieren (auf dem Gerät)") shrinks to fit the pill instead of being cut off; short names keep the full size
+        button.maxLines = 1
+        androidx.core.widget.TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(button, 11, TEXT_DP.toInt(), 1, TypedValue.COMPLEX_UNIT_DIP)
         button.gravity = Gravity.START or Gravity.CENTER_VERTICAL
         button.isSoundEffectsEnabled = false
         button.background = roundedBackground(pillColor, dp(PILL_HEIGHT_DP) / 2f)

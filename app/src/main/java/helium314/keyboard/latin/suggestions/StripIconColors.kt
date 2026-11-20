@@ -27,6 +27,8 @@ internal object StripIconColors {
     /** What an unavailable icon still has: visibly "off", still recognisable. */
     const val OFF_CONTRAST = 2.0
     const val OFF_MIX = 0.5f
+    /** Between a switched-on and a switched-off tool of a theme that tells them apart: at least this contrast ratio. */
+    const val MIN_STATE_STEP = 1.25
 
     private val PRESSED = intArrayOf(android.R.attr.state_pressed)
     private val PRESSED_ACTIVATED = intArrayOf(android.R.attr.state_pressed, android.R.attr.state_activated)
@@ -82,9 +84,30 @@ internal object StripIconColors {
     fun guaranteed(colors: Colors, theme: ColorStateList?): ColorStateList {
         val bg = background(colors)
         val fallback = colors.get(ColorType.TOOL_BAR_KEY)
-        fun of(state: IntArray) = ensureContrast(theme?.getColorForState(state, theme.defaultColor) ?: fallback, bg)
+        fun original(state: IntArray) = theme?.getColorForState(state, theme.defaultColor) ?: fallback
+        fun of(state: IntArray) = ensureContrast(original(state), bg)
+        var on = of(ACTIVATED)
+        var off = of(NONE)
+        // a theme that shows a switched-on tool (activated) differently from a switched-off one keeps that difference: lifting both
+        // to the contrast must not make them equal
+        if (original(ACTIVATED) != original(NONE) && RgbColors.contrast(on, off) < MIN_STATE_STEP) {
+            val lighter = RgbColors.luminance(on) >= RgbColors.luminance(off)
+            val extreme = if (lighter) RgbColors.WHITE else RgbColors.BLACK
+            var t = 0f
+            while (t < 1f && RgbColors.contrast(on, off) < MIN_STATE_STEP) { t += 0.05f; on = RgbColors.lerp(of(ACTIVATED), extreme, t) }
+            // the extreme was not enough (the switched-off colour is itself near it): the off colour goes back towards the ground, to the floor
+            t = 0f
+            var floor = off
+            while (t < 1f && RgbColors.contrast(on, floor) < MIN_STATE_STEP) {
+                t += 0.05f
+                val next = RgbColors.lerp(of(NONE), bg or RgbColors.BLACK, t)
+                if (RgbColors.contrast(next, bg) < MIN_CONTRAST) break
+                floor = next
+            }
+            off = floor
+        }
         return ColorStateList(arrayOf(PRESSED_ACTIVATED, PRESSED, ACTIVATED, NONE),
-            intArrayOf(of(PRESSED_ACTIVATED), of(PRESSED), of(ACTIVATED), of(NONE)))
+            intArrayOf(of(PRESSED_ACTIVATED), of(PRESSED), on, off))
     }
 
     /** The colour of an icon at rest in [tint] (not pressed, not activated). */

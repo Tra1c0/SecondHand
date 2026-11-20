@@ -625,6 +625,17 @@ class FixedBarTest {
         assertEquals(BarTools.Reason.INCOGNITO_SWITCH, BarTools.unavailableReason(AGENT, true, false, alwaysIncognito = true))
     }
 
+    @Test fun aLongToolNameShrinksInItsPillInsteadOfBeingCutOff() {
+        val h = build()
+        leftKey(h).performClick()
+        h.grid.listed.forEach {
+            val pill = h.grid.pill(it)!!
+            assertEquals(androidx.core.widget.TextViewCompat.AUTO_SIZE_TEXT_TYPE_UNIFORM, androidx.core.widget.TextViewCompat.getAutoSizeTextType(pill), it.name)
+            assertEquals(1, pill.maxLines)
+        }
+        assertTrue(androidx.core.widget.TextViewCompat.getAutoSizeMinTextSize(h.grid.pill(DICTATE)!!) < androidx.core.widget.TextViewCompat.getAutoSizeMaxTextSize(h.grid.pill(DICTATE)!!))
+    }
+
     @Test fun incognitoShowsItsIconOnTheLeftKeyAndKeepsItsFunction() {
         prefs.edit { putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true) }
         reload()

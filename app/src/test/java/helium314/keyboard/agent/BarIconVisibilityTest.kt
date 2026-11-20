@@ -218,6 +218,28 @@ class BarIconVisibilityTest {
         }
     }
 
+    @Test fun aSwitchedOnToolStaysApartFromASwitchedOffOneAfterTheLift() {
+        // themes that tell the two apart: the flat preset (grey on, darker grey off) and the default colours (light and dark)
+        val dark = helium314.keyboard.latin.common.DefaultColors("Material", true, 0xFF8AB4F8.toInt(), 0xFF101010.toInt(), 0xFF303030.toInt(), 0xFF404040.toInt(), 0xFF303030.toInt(), 0xFFE0E0E0.toInt(), 0xFFB0B0B0.toInt())
+        val bright = helium314.keyboard.latin.common.DefaultColors("Material", true, 0xFF1A73E8.toInt(), 0xFFF2F2F2.toInt(), 0xFFFFFFFF.toInt(), 0xFFDDDDDD.toInt(), 0xFFFFFFFF.toInt(), 0xFF202020.toInt(), 0xFF606060.toInt())
+        val lowOff = helium314.keyboard.latin.common.DefaultColors("Material", true, 0xFF8AB4F8.toInt(), 0xFF202020.toInt(), 0xFF303030.toInt(), 0xFF404040.toInt(), 0xFF303030.toInt(), 0xFF707070.toInt(), 0xFF606060.toInt())
+        for ((name, colors) in listOf("flat" to flat, "dark default" to dark, "light default" to bright, "dim text" to lowOff)) {
+            val theme = StripIconColors.themeTint(colors, context)
+            val adjusted = StripIconColors.guaranteed(colors, theme)
+            val bg = StripIconColors.background(colors)
+            val on = adjusted.getColorForState(intArrayOf(android.R.attr.state_activated), adjusted.defaultColor)
+            val off = StripIconColors.normalOf(adjusted)
+            val originalsDiffer = theme != null && theme.getColorForState(intArrayOf(android.R.attr.state_activated), theme.defaultColor) != theme.getColorForState(intArrayOf(), theme.defaultColor)
+            if (originalsDiffer) assertTrue(RgbColors.contrast(on, off) >= StripIconColors.MIN_STATE_STEP - 0.02, "$name: on ${Integer.toHexString(on)} and off ${Integer.toHexString(off)} must differ (${RgbColors.contrast(on, off)})")
+            assertTrue(RgbColors.contrast(on, bg) >= StripIconColors.MIN_CONTRAST - 0.05, "$name on vs ground")
+            assertTrue(RgbColors.contrast(off, bg) >= StripIconColors.MIN_CONTRAST - 0.05, "$name off vs ground ${RgbColors.contrast(off, bg)}")
+        }
+        // a design without a difference (the owner's: one colour for both) has none to keep
+        val ownerTheme = StripIconColors.themeTint(owner, context)
+        val a = StripIconColors.guaranteed(owner, ownerTheme)
+        assertEquals(a.getColorForState(intArrayOf(android.R.attr.state_activated), 0), StripIconColors.normalOf(a))
+    }
+
     // ---- pictures to look at (not versioned: app/build/owner-bars/*.png) ----
 
     /** The strip as it is drawn in the owner-like design: the bar with the left key (disc and grid icon), at 3.25 px per dp, 1200 px wide, twice as high as the strip for a margin. */
