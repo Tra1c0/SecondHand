@@ -1992,7 +1992,10 @@ class InputLogicTest {
     // ---- third review
 
     /** The slow editor answers an arrow: its new cursor reaches the keyboard (onUpdateSelection). */
+    private var editorEvents: MutableList<String>? = null
+
     private fun editorAnswers() {
+        editorEvents?.add("answer")
         val old = connection.expectedSelectionStart
         latinIME.onUpdateSelection(old, old, ShadowInputMethodService.cursor, ShadowInputMethodService.cursor, -1, -1)
         handleMessages()
@@ -2000,20 +2003,32 @@ class InputLogicTest {
 
     @Test fun cursor87AFlickOfSeveralLinesThenSidewaysMovesAllAskedLinesAndThenAppliesTheStepsOnTheFinalLine() {
         latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0) }
-        multiLine("aaaa\nbbbb\ncccc\ndddd\neeee\nffff", 29)
+        multiLine((0..5).joinToString("\n") { "a".repeat(12) }, 65) // six lines of 12, the cursor at the start of the last (line k starts at 13 k)
+        val events = ArrayList<String>()
+        editorEvents = events
+        ShadowInputMethodService.callListener = { name, _ -> if (name == "sendKeyEvent" || name == "setSelection") events += name }
         trackDrag(Constants.CODE_SPACE, 0.0, -200.0, dps = 1500.0, lift = false) // many lines asked for (one arrow on its way, at most 3 more queued)
         assertEquals(1, arrows(DPAD_UP))
         var x = 0.0
-        repeat(12) { // sideways at once; the editor answers each arrow only after the finger moved again
-            trackDrag(Constants.CODE_SPACE, x - 5.0, -200.0, dps = 300.0, from = x to -200.0, lift = false)
-            x -= 5.0
-            editorAnswers()
+        repeat(10) { i -> // sideways to the right at once (the track is on the sideways axis before the editor answers the first arrow);
+            // then the editor answers each arrow only after the finger moved again
+            trackDrag(Constants.CODE_SPACE, x + 10.0, -200.0, dps = 600.0, from = x to -200.0, lift = false)
+            x += 10.0
+            if (i >= 3) editorAnswers()
         }
-        trackDrag(Constants.CODE_SPACE, x - 5.0, -200.0, dps = 300.0, from = x to -200.0, lift = false)
+        trackDrag(Constants.CODE_SPACE, x + 10.0, -200.0, dps = 600.0, from = x to -200.0, lift = false)
         assertEquals(4, arrows(DPAD_UP), "the arrow on its way and the 3 queued ones were all sent")
-        val line = text.substring(0, ShadowInputMethodService.cursor).count { it == '\n' }
-        assertEquals(1, line, "no arrow was overridden by a horizontal step from the old position: cursor ${ShadowInputMethodService.cursor}")
-        assertTrue(ShadowInputMethodService.cursor < 10, "and the sideways steps were applied on the final line: ${ShadowInputMethodService.cursor}")
+        // the keyboard never moves the cursor itself (setSelection) between an arrow and the editor's answer to it
+        var inFlight = false
+        for (e in events) when (e) {
+            "sendKeyEvent" -> inFlight = true
+            "answer" -> inFlight = false
+            "setSelection" -> assertFalse(inFlight, "a horizontal step was applied while an arrow was on its way: $events")
+        }
+        editorEvents = null
+        // 4 lines up from line 5 is line 1 (starts at 13): the sideways steps came after the arrows and moved the cursor right from there
+        val c = ShadowInputMethodService.cursor
+        assertTrue(c > 13, "the sideways steps were applied on the final line: $c")
         latinIME.mKeyboardActionListener.onCursorTrackEnd(0)
     }
 
