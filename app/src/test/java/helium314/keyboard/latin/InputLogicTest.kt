@@ -2298,14 +2298,15 @@ class InputLogicTest {
 
     @Test fun cursor87cASecondFingerWhoseStartWouldRunAnActionDoesNothingWhileAnotherFingerOwnsTheTrackpad() = withSpyRig { rig, spy ->
         bindVertical(SpaceAction.UNDO, SpaceAction.REDO)
-        latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0) }
+        setSpaceGesture(SpaceGesture.HOLD, SpaceAction.NONE) // B rests while A slides: its hold must not open a picker here
+        latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0); putBoolean(Settings.PREF_SPACE_TO_CHANGE_LANG, false) }
         multiLine("aaaa aaaa\nbbbb bbbb\ncccc cccc", 28)
         rig.down(0, SPACE_X, SPACE_Y)
         rig.down(1, SPACE_X + 60f, SPACE_Y)
         rig.move(1, SPACE_X + 63f, SPACE_Y) // B is a tap so far: nobody owns the trackpad yet, B is pending
-        rig.slide(0, SPACE_X - 40f, SPACE_Y) // A's start is the cursor: A owns the trackpad
+        rig.slide(0, SPACE_X - 40f, SPACE_Y, 600f) // A's start is the cursor: A owns the trackpad (fast: B's hold timer does not run out)
         val before = text
-        rig.slide(1, SPACE_X + 63f, SPACE_Y - 40f) // B starts upwards: that would be undo
+        rig.slide(1, SPACE_X + 63f, SPACE_Y - 40f, 600f) // B starts upwards: that would be undo
         rig.up(1)
         assertTrue(swipeCalls(spy).none { it.startsWith("onSpaceSwipe ") || it.contains("-131") || it.contains("-132") }, "B ran no action: ${swipeCalls(spy)}")
         assertEquals(before, text, "B typed nothing (no space on its lift)")
