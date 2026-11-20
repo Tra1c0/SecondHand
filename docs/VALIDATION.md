@@ -2,6 +2,15 @@
 
 ## Etappe 84 — Symbole ohne Verzögerung (2026-11-20)
 
+- **Prüfer (lesend, höchste Stufe, 2026-11-20):** kein Befund ab mittlerer Schwere; Urteil „für eine täglich
+  benutzte Tastatur vertretbar“ (nur gelesen, nichts ausgeführt). Offen, nicht behoben: (1) mit „Leiste
+  automatisch zeigen“ und „automatisch ausblenden“ (beide anfangs aus) verschwindet die Leiste bei einem schnell
+  getippten Trennzeichen erst mit den Vorschlägen des nächsten Worts; (2) TalkBacks gemerkte Autokorrektur wird
+  auf diesem Weg nicht mehr aufgefrischt; (3) die 41 Vergleichsabfolgen laufen nur in einem normalen Textfeld mit
+  Standardeinstellungen (keine Passwort-, Inkognito-, Markierungs-, Gesten-, Popup-Tasten-Fälle), und im
+  Schnelltipp-Weg wird nur das Textfeld verglichen, nicht die Leiste. Nur am Gerät prüfbar: der spürbare Gewinn
+  und Apps, die Änderungen verzögert übernehmen (Browser, Compose, Flutter).
+
 **Auf dem Gerät nichts geprüft, und nichts auf einem Telefon gemessen.** Nachweis: Robolectric mit echter `LatinIME`, echter `SuggestionStripView`, echter Vorschlags-Thread,
 Schattenverbindung des Editors; gezählt wird Arbeit (Aufrufe, Schritte), nicht Zeit. Die Zeiten der Tabelle unten sind nur zum Einordnen und nicht geprüft.
 
