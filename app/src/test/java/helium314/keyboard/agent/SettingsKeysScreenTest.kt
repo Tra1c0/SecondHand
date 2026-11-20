@@ -120,6 +120,12 @@ class SettingsKeysScreenTest {
         assertEquals(tops.sorted(), tops)
     }
 
+    /** Stage 81: the built-in symbol page always shows the digits, so the switch only matters for own layouts. */
+    @Test fun numberRowInSymbolsSaysItOnlyAppliesToOwnSymbolLayouts() {
+        start(german)
+        assertTrue(exists("Gilt nur für eigene Symbol-Layouts; die eingebaute Seite zeigt die Ziffern immer"))
+    }
+
     @Test fun oneCardPerEnabledLanguageWithLayoutDictionariesAndTheActiveOne() {
         start(german, english, spanish, selected = english)
         val enabled = SubtypeSettings.getEnabledSubtypes(true)

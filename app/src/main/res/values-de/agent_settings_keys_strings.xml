@@ -41,4 +41,5 @@
     <string name="agent_keys_needs_number_row">Zuerst „Zahlenreihe“ einschalten</string>
     <string name="agent_keys_needs_hints_and_number_row">Braucht „Tasten-Hinweise“ und „Zahlenreihe“</string>
     <string name="agent_keys_number_row_already_on">Nicht nötig, solange die Zahlenreihe an ist</string>
+    <string name="agent_keys_number_row_in_symbols_sub">Gilt nur für eigene Symbol-Layouts; die eingebaute Seite zeigt die Ziffern immer</string>
 </resources>

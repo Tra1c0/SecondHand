@@ -193,6 +193,16 @@ und aus Erweitert Langdruck-Dauer, Währungen, Zeitstempel-Format und „Zurück
 „Weitere Optionen“; Vibration und Ton liegen bei Gesten & Gefühl, die Zwischenablage bei
 Leiste & Befehle.
 
+**Symbolseiten („?123“ und „=\<“)** sehen in jedem Stil aus wie bei Gboard: Seite 1 mit den Ziffern oben, dann
+`@ # € _ & - + ( ) /` und `* " ' : ; ! ?`; Seite 2 mit `~ ` | • √ π ÷ × § ∆`, `£ ¥ $ ¢ ^ ° = { } \` und
+`% © ® ™ ✓ [ ]`. Unten steht auf beiden Seiten die Taste „12/34“ (Ziffernblock); auf Seite 2 sind `<` und `>`
+die Tasten neben der Leertaste. Die Ziffern stehen auf Seite 1 immer, auch wenn „Zahlenreihe“ aus ist; der Schalter
+„Zahlenreihe in Symbolen“ betrifft nur noch eigene Symbol-Layouts (so steht es auch in seiner Zeile). Das Steuerkreuz (vier Pfeile neben der Leertaste)
+ist aus, solange du es nicht unter Tasten & Sprachen → „Steuerkreuz-Taste“ einschaltest; eine Einstellung, die du dort
+schon einmal gesetzt hast, bleibt. Die Pfeile erreichst du sonst über eine Leertasten-Geste mit der Aktion „Steuerkreuz“ oder über die Werkzeug-Taste
+„Steuerkreuz“ der Leiste (falls dort eingestellt). Langes Drücken zeigt meist Varianten desselben Zeichens (`<` zeigt `‹ ≤ «`, `%` zeigt `‰ ℅`, `-` die
+Striche), bei ein paar Tasten verwandte Zeichen (`•` zeigt `♪ ♥ ♠ ♦ ♣`, `^` die Pfeile, `*` zeigt `† ‡ ★`, `°` zeigt `′ ″`). Bei eingeschalteter Zahlenreihe hat die Buchstabenseite fünf Reihen und die Symbolseiten vier höhere Reihen, die Gesamthöhe bleibt gleich. Eigene Symbol-Layouts (Tasten & Sprachen → Layouts → Symbole) und das mitgelieferte arabische bleiben unverändert.
+
 ### Leiste & Befehle
 
 „Leiste“ heißt hier, was HeliBoard „Symbolleiste“ nannte: die Zeile über den Tasten. Oben wählst

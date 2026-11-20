@@ -10,9 +10,10 @@ Etappen aus dem ursprünglichen Auftrag; Teilpakete bekommen Buchstaben (15a, 15
 
 - **Runde 3 (Auftrag des Owners, 2026-11-20, Vergleich mit Gboard auf dem Xiaomi 15).** Bestandsaufnahme mit
   Codestellen: `docs/RUNDE3-BESTANDSAUFNAHME.md`. Etappen, jede einzeln geprüft:
-  - **81 Symbolseiten wie Gboard, unabhängig vom Stil:** „?123“ und „=\<“ Taste für Taste wie Gboard (keine
-    Zusatzreihe, § statt ¶, ✓, `\` und `%` an Gboards Stelle, keine Zahlenreihe auf Seite 2, keine
-    Vierpfeil-Taste). Die Vorlage „Flacher Look“ hat diese Seiten schon; sie werden Standard.
+  - **81 Symbolseiten wie Gboard, unabhängig vom Stil: gebaut** (steht in `docs/FEATURES.md`, Nachweis in
+    `docs/VALIDATION.md` → Etappe 81). Offen: der Blick auf einem Telefon (Aussehen der Tasten „12/34“, `<`, `>`
+    in den Stilen des Owners, Langdruck-Popups, Höhe der Seite mit vier Reihen), und ob die Zeichen `% \ | = [ ] < > { }`,
+    die Seite 1 früher oben hatte, dem Owner auf Seite 2 genügen (sie liegen dort an Gboards Stelle).
   - **82 „Alles markieren“ zeigt Aktionen:** Nach dem Markieren über die Leertaste erscheinen Kopieren,
     Ausschneiden, Einfügen (eigene Knöpfe der Tastatur, weil Android das Menü der App so nicht öffnet).
   - **83 Gezeichnete Symbole logisch:** Ein gezeichneter Schrägstrich ergibt „/“, nicht „%“; alle Zuordnungen

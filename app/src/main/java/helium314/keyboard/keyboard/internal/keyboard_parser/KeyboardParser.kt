@@ -18,6 +18,7 @@ import helium314.keyboard.keyboard.internal.keyboard_parser.floris.SimplePopups
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.TextKeyData
 import helium314.keyboard.latin.common.isEmoji
 import helium314.keyboard.latin.define.DebugFlags
+import helium314.keyboard.latin.settings.Defaults.default
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.latin.utils.LayoutType
@@ -88,8 +89,7 @@ class KeyboardParser(private val params: KeyboardParams, private val context: Co
             keysInRows.forEachIndexed { i, row ->
                 row.forEach { it.mHeight *= if (i == keysInRows.lastIndex) bottomRowScale else otherRowScale }
             }
-            if (params.mThemeId == KeyboardTheme.THEME_ID_FLAT && params.mId.element.isAlphaOrSymbol && params.mId.numberRowEnabled
-                    && params.mId.element != KeyboardElement.SYMBOLS_SHIFTED)
+            if (params.mThemeId == KeyboardTheme.THEME_ID_FLAT && hasNumberRow() && params.mId.element != KeyboardElement.SYMBOLS_SHIFTED)
                 FlatStyle.shortenNumberRow(keysInRows)
         }
 
@@ -110,9 +110,7 @@ class KeyboardParser(private val params: KeyboardParams, private val context: Co
         addNumberRowOrPopupKeys(baseKeys, numberRow)
         if (element.isAlphabet)
             addSymbolPopupKeys(baseKeys)
-        // fork, stage 23a: in the Flat style the second symbol page has its own first row instead of digits
-        val flatMoreSymbols = params.mThemeId == KeyboardTheme.THEME_ID_FLAT && element == KeyboardElement.SYMBOLS_SHIFTED
-        if (element.isAlphaOrSymbol && params.mId.numberRowEnabled && !flatMoreSymbols) {
+        if (hasNumberRow()) {
             val newLabelFlags = defaultLabelFlags or
                     if (Settings.getValues().mShowNumberRowHints) 0 else Key.LABEL_FLAGS_DISABLE_HINT_LABEL
             baseKeys.add(0, numberRow.mapTo(mutableListOf()) { it.copy(newLabelFlags = newLabelFlags) })
@@ -279,7 +277,8 @@ class KeyboardParser(private val params: KeyboardParams, private val context: Co
     }
 
     private fun addNumberRowOrPopupKeys(baseKeys: MutableList<MutableList<KeyData>>, numberRow: MutableList<KeyData>) {
-        if (!params.mId.numberRowEnabled && params.mId.numberRowInSymbols && params.mId.element == KeyboardElement.SYMBOLS) {
+        if (!params.mId.numberRowEnabled && params.mId.numberRowInSymbols && params.mId.element == KeyboardElement.SYMBOLS
+                && !usesBuiltInSymbols(LayoutType.SYMBOLS)) {
             // replace first symbols row with number row, but use the labels as popupKeys
             val numberRowCopy = numberRow.toMutableList()
             numberRowCopy.forEachIndexed { index, keyData -> keyData.popup.symbol = baseKeys[0].getOrNull(index)?.label }
@@ -301,17 +300,40 @@ class KeyboardParser(private val params: KeyboardParams, private val context: Co
     }
 
     private fun addSymbolPopupKeys(baseKeys: MutableList<MutableList<KeyData>>) {
-        // fork, stage 23a: the Flat symbol page drops the row % \ | = [ ] ... that the letter hints
-        // come from; the hints keep following the default symbol layout, as in the reference
-        val flatSymbols = params.mThemeId == KeyboardTheme.THEME_ID_FLAT
-            && (params.mId.subtype.layouts[LayoutType.SYMBOLS] ?: Settings.readDefaultLayoutName(LayoutType.SYMBOLS, context.prefs())) == FLAT_SYMBOLS
-        val layout = LayoutParser.parseLayout(LayoutType.SYMBOLS, params, context, if (flatSymbols) "symbols" else null)
-        layout.forEachIndexed { i, row ->
+        // fork, stage 81: the built-in symbol page is the Gboard page and no longer has the row % \ | = [ ] < > { },
+        // but the hints of the letter keys still come from that row: they stay in their own file
+        val labels = if (usesBuiltInSymbols(LayoutType.SYMBOLS)) builtInSymbolHintLabels(context)
+            else LayoutParser.parseLayout(LayoutType.SYMBOLS, params, context).map { row -> row.map { it.label } }
+        labels.forEachIndexed { i, row ->
             val baseRow = baseKeys.getOrNull(i) ?: return@forEachIndexed
-            row.forEachIndexed { j, key ->
-                baseRow.getOrNull(j)?.popup?.symbol = key.label
+            row.forEachIndexed { j, label ->
+                baseRow.getOrNull(j)?.popup?.symbol = label
             }
         }
+    }
+
+    /**
+     * Fork, stage 81: true if the layout in use for [type] (SYMBOLS or MORE_SYMBOLS) is the one that ships with the app,
+     * i.e. the Gboard-like page. Own layouts and the other shipped ones (e.g. symbols_arabic) keep the old behaviour.
+     * The names of the former flat pages (stage 23a) count as the built-in layout, their file is gone.
+     */
+    private fun usesBuiltInSymbols(type: LayoutType): Boolean {
+        val name = params.mId.subtype.layouts[type] ?: Settings.readDefaultLayoutName(type, context.prefs())
+        return name == type.default || name == FORMER_FLAT_LAYOUTS[type]
+    }
+
+    /**
+     * Fork, stage 81: whether this page has a row of digits at the top. On the built-in first symbol page the digits
+     * are always row 1 (as in Gboard), the setting "number row" and "number row in symbols" do not matter there;
+     * the built-in second page and (as since stage 23a) any second page in the Flat style have none.
+     */
+    private fun hasNumberRow(): Boolean {
+        val element = params.mId.element
+        if (!element.isAlphaOrSymbol) return false
+        if (element == KeyboardElement.SYMBOLS && usesBuiltInSymbols(LayoutType.SYMBOLS)) return true
+        if (element == KeyboardElement.SYMBOLS_SHIFTED
+                && (params.mThemeId == KeyboardTheme.THEME_ID_FLAT || usesBuiltInSymbols(LayoutType.MORE_SYMBOLS))) return false
+        return params.mId.numberRowEnabled
     }
 
     private fun getNumberRow(): MutableList<KeyData> {
@@ -355,5 +377,14 @@ class KeyboardParser(private val params: KeyboardParams, private val context: Co
 
 }
 
-/** Symbol layout of the Flat preset, see FlatPreset. */
-private const val FLAT_SYMBOLS = "symbols_flat"
+/** Names the Flat preset (stage 23a) wrote to the symbol layout settings; since stage 81 the built-in pages are the same. */
+private val FORMER_FLAT_LAYOUTS = mapOf(LayoutType.SYMBOLS to "symbols_flat", LayoutType.MORE_SYMBOLS to "symbols_shifted_flat")
+
+private const val SYMBOL_HINTS_ASSET = "layouts/symbol_hints/symbols_hints.txt"
+private var symbolHintLabels: List<List<String>>? = null
+
+/** The rows of the first symbol page before stage 81, see [KeyboardParser.addSymbolPopupKeys]: labels only. */
+private fun builtInSymbolHintLabels(context: Context): List<List<String>> = symbolHintLabels
+    ?: LayoutParser.parseSimpleString(context.assets.open(SYMBOL_HINTS_ASSET).reader().use { it.readText() })
+        .map { row -> row.map { it.label } }
+        .also { symbolHintLabels = it }

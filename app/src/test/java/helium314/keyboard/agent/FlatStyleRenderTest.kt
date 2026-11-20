@@ -138,7 +138,7 @@ class FlatStyleRenderTest {
         assertEquals(listOf("*", "\"", "'", ":", ";", "!", "?"), labels(first[2]).drop(1).dropLast(1))
         assertEquals(4, first.size)
         val second = rows(more)
-        assertEquals(listOf("~", "`", "|", "•", "√", "π", "÷", "×", "§", "Δ"), labels(second[0]))
+        assertEquals(listOf("~", "`", "|", "•", "√", "π", "÷", "×", "§", "∆"), labels(second[0])) // stage 81: U+2206 as in Gboard, Δ is the popup
         assertEquals(listOf("£", "¥", "$", "¢", "^", "°", "=", "{", "}", "\\"), labels(second[1]))
         assertEquals(listOf("%", "©", "®", "™", "✓", "[", "]"), labels(second[2]).drop(1).dropLast(1))
         // bottom rows: ABC, comma or <, the light 1234 key, space, period or >, enter; no dpad key

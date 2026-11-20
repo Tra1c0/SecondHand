@@ -1,0 +1,88 @@
+### MATERIAL de-DE numberRow=false
+q | 1 | 1 % ; w | 2 | 2 \ ; e | 3 | 3 | é è ê ë ē ; r | 4 | 4 = ; t | 5 | 5 [ ; z | 6 | 6 ] ; u | 7 | ü 7 < ú û ù ū ; i | 8 | 8 > í î ï ī ì ; o | 9 | ö 9 { ó ô ò œ ø ō õ ; p | 0 | 0 }
+a | @ | ä @ à á â æ ã å ā ; s | # | ß # ; d | € | € ; f | _ | _ ; g | & | & ; h | - | - ; j | + | + ; k | ( | ( ; l | ) | )
+[shift] |  |   ; y | * | * ; x | " | " ; c | ' | ' ç ; v | : | : ; b | ; | ; ; n | ! | ! ñ ; m | ? | ? ; [del] |  | 
+[abc] |  |  ; , |  | clipboard_normal_key agent_prompts_key emoji_normal_key start_onehanded_mode_key floating settings_key ; [space] |  |  ; . |  | , ? ! # ) ( / ; ' @ : - " + % & ; [enter] |  | clipboard_action_key emoji_action_key
+### MATERIAL de-DE numberRow=true
+1 |  | ¹ ½ ⅓ ¼ ⅛ ; 2 |  | ² ⅔ ; 3 |  | ³ ¾ ⅜ ; 4 |  | ⁴ ; 5 |  | ⁵ ⅝ ; 6 |  | ⁶ ; 7 |  | ⁷ ⅞ ; 8 |  | ⁸ ; 9 |  | ⁹ ; 0 |  | ⁰ ⁿ ∅
+q | % | % ; w | \ | \ ; e | | | | é è ê ë ē ; r | = | = ; t | [ | [ ; z | ] | ] ; u | < | ü < ú û ù ū ; i | > | > í î ï ī ì ; o | { | ö { ó ô ò œ ø ō õ ; p | } | }
+a | @ | ä @ à á â æ ã å ā ; s | # | ß # ; d | € | € ; f | _ | _ ; g | & | & ; h | - | - ; j | + | + ; k | ( | ( ; l | ) | )
+[shift] |  |   ; y | * | * ; x | " | " ; c | ' | ' ç ; v | : | : ; b | ; | ; ; n | ! | ! ñ ; m | ? | ? ; [del] |  | 
+[abc] |  |  ; , |  | clipboard_normal_key agent_prompts_key emoji_normal_key start_onehanded_mode_key floating settings_key ; [space] |  |  ; . |  | , ? ! # ) ( / ; ' @ : - " + % & ; [enter] |  | clipboard_action_key emoji_action_key
+### MATERIAL en-US numberRow=false
+q | 1 | 1 % ; w | 2 | 2 \ ; e | 3 | 3 | é è ê ë ē ; r | 4 | 4 = ; t | 5 | 5 [ ; y | 6 | 6 ] ; u | 7 | 7 < ú û ü ù ū ; i | 8 | 8 > í î ï ī ì ; o | 9 | 9 { ó ô ö ò œ ø ō õ ; p | 0 | 0 }
+a | @ | @ à á â ä æ ã å ā ; s | # | # ß ; d | $ | $ ; f | _ | _ ; g | & | & ; h | - | - ; j | + | + ; k | ( | ( ; l | ) | )
+[shift] |  |   ; z | * | * ; x | " | " ; c | ' | ' ç ; v | : | : ; b | ; | ; ; n | ! | ! ñ ; m | ? | ? ; [del] |  | 
+[abc] |  |  ; , |  | clipboard_normal_key agent_prompts_key emoji_normal_key start_onehanded_mode_key floating settings_key ; [space] |  |  ; . |  | , ? ! # ) ( / ; ' @ : - " + % & ; [enter] |  | clipboard_action_key emoji_action_key
+### MATERIAL en-US numberRow=true
+1 |  | ¹ ½ ⅓ ¼ ⅛ ; 2 |  | ² ⅔ ; 3 |  | ³ ¾ ⅜ ; 4 |  | ⁴ ; 5 |  | ⁵ ⅝ ; 6 |  | ⁶ ; 7 |  | ⁷ ⅞ ; 8 |  | ⁸ ; 9 |  | ⁹ ; 0 |  | ⁰ ⁿ ∅
+q | % | % ; w | \ | \ ; e | | | | é è ê ë ē ; r | = | = ; t | [ | [ ; y | ] | ] ; u | < | < ú û ü ù ū ; i | > | > í î ï ī ì ; o | { | { ó ô ö ò œ ø ō õ ; p | } | }
+a | @ | @ à á â ä æ ã å ā ; s | # | # ß ; d | $ | $ ; f | _ | _ ; g | & | & ; h | - | - ; j | + | + ; k | ( | ( ; l | ) | )
+[shift] |  |   ; z | * | * ; x | " | " ; c | ' | ' ç ; v | : | : ; b | ; | ; ; n | ! | ! ñ ; m | ? | ? ; [del] |  | 
+[abc] |  |  ; , |  | clipboard_normal_key agent_prompts_key emoji_normal_key start_onehanded_mode_key floating settings_key ; [space] |  |  ; . |  | , ? ! # ) ( / ; ' @ : - " + % & ; [enter] |  | clipboard_action_key emoji_action_key
+### ROUNDED de-DE numberRow=false
+q | 1 | 1 % ; w | 2 | 2 \ ; e | 3 | 3 | é è ê ë ē ; r | 4 | 4 = ; t | 5 | 5 [ ; z | 6 | 6 ] ; u | 7 | ü 7 < ú û ù ū ; i | 8 | 8 > í î ï ī ì ; o | 9 | ö 9 { ó ô ò œ ø ō õ ; p | 0 | 0 }
+a | @ | ä @ à á â æ ã å ā ; s | # | ß # ; d | € | € ; f | _ | _ ; g | & | & ; h | - | - ; j | + | + ; k | ( | ( ; l | ) | )
+[shift] |  |   ; y | * | * ; x | " | " ; c | ' | ' ç ; v | : | : ; b | ; | ; ; n | ! | ! ñ ; m | ? | ? ; [del] |  | 
+[abc] |  |  ; , |  | clipboard_normal_key agent_prompts_key emoji_normal_key start_onehanded_mode_key floating settings_key ; [space] |  |  ; . |  | , ? ! # ) ( / ; ' @ : - " + % & ; [enter] |  | clipboard_action_key emoji_action_key
+### ROUNDED de-DE numberRow=true
+1 |  | ¹ ½ ⅓ ¼ ⅛ ; 2 |  | ² ⅔ ; 3 |  | ³ ¾ ⅜ ; 4 |  | ⁴ ; 5 |  | ⁵ ⅝ ; 6 |  | ⁶ ; 7 |  | ⁷ ⅞ ; 8 |  | ⁸ ; 9 |  | ⁹ ; 0 |  | ⁰ ⁿ ∅
+q | % | % ; w | \ | \ ; e | | | | é è ê ë ē ; r | = | = ; t | [ | [ ; z | ] | ] ; u | < | ü < ú û ù ū ; i | > | > í î ï ī ì ; o | { | ö { ó ô ò œ ø ō õ ; p | } | }
+a | @ | ä @ à á â æ ã å ā ; s | # | ß # ; d | € | € ; f | _ | _ ; g | & | & ; h | - | - ; j | + | + ; k | ( | ( ; l | ) | )
+[shift] |  |   ; y | * | * ; x | " | " ; c | ' | ' ç ; v | : | : ; b | ; | ; ; n | ! | ! ñ ; m | ? | ? ; [del] |  | 
+[abc] |  |  ; , |  | clipboard_normal_key agent_prompts_key emoji_normal_key start_onehanded_mode_key floating settings_key ; [space] |  |  ; . |  | , ? ! # ) ( / ; ' @ : - " + % & ; [enter] |  | clipboard_action_key emoji_action_key
+### ROUNDED en-US numberRow=false
+q | 1 | 1 % ; w | 2 | 2 \ ; e | 3 | 3 | é è ê ë ē ; r | 4 | 4 = ; t | 5 | 5 [ ; y | 6 | 6 ] ; u | 7 | 7 < ú û ü ù ū ; i | 8 | 8 > í î ï ī ì ; o | 9 | 9 { ó ô ö ò œ ø ō õ ; p | 0 | 0 }
+a | @ | @ à á â ä æ ã å ā ; s | # | # ß ; d | $ | $ ; f | _ | _ ; g | & | & ; h | - | - ; j | + | + ; k | ( | ( ; l | ) | )
+[shift] |  |   ; z | * | * ; x | " | " ; c | ' | ' ç ; v | : | : ; b | ; | ; ; n | ! | ! ñ ; m | ? | ? ; [del] |  | 
+[abc] |  |  ; , |  | clipboard_normal_key agent_prompts_key emoji_normal_key start_onehanded_mode_key floating settings_key ; [space] |  |  ; . |  | , ? ! # ) ( / ; ' @ : - " + % & ; [enter] |  | clipboard_action_key emoji_action_key
+### ROUNDED en-US numberRow=true
+1 |  | ¹ ½ ⅓ ¼ ⅛ ; 2 |  | ² ⅔ ; 3 |  | ³ ¾ ⅜ ; 4 |  | ⁴ ; 5 |  | ⁵ ⅝ ; 6 |  | ⁶ ; 7 |  | ⁷ ⅞ ; 8 |  | ⁸ ; 9 |  | ⁹ ; 0 |  | ⁰ ⁿ ∅
+q | % | % ; w | \ | \ ; e | | | | é è ê ë ē ; r | = | = ; t | [ | [ ; y | ] | ] ; u | < | < ú û ü ù ū ; i | > | > í î ï ī ì ; o | { | { ó ô ö ò œ ø ō õ ; p | } | }
+a | @ | @ à á â ä æ ã å ā ; s | # | # ß ; d | $ | $ ; f | _ | _ ; g | & | & ; h | - | - ; j | + | + ; k | ( | ( ; l | ) | )
+[shift] |  |   ; z | * | * ; x | " | " ; c | ' | ' ç ; v | : | : ; b | ; | ; ; n | ! | ! ñ ; m | ? | ? ; [del] |  | 
+[abc] |  |  ; , |  | clipboard_normal_key agent_prompts_key emoji_normal_key start_onehanded_mode_key floating settings_key ; [space] |  |  ; . |  | , ? ! # ) ( / ; ' @ : - " + % & ; [enter] |  | clipboard_action_key emoji_action_key
+### HOLO de-DE numberRow=false
+q | 1 | 1 % ; w | 2 | 2 \ ; e | 3 | 3 | é è ê ë ē ; r | 4 | 4 = ; t | 5 | 5 [ ; z | 6 | 6 ] ; u | 7 | ü 7 < ú û ù ū ; i | 8 | 8 > í î ï ī ì ; o | 9 | ö 9 { ó ô ò œ ø ō õ ; p | 0 | 0 }
+a | @ | ä @ à á â æ ã å ā ; s | # | ß # ; d | € | € ; f | _ | _ ; g | & | & ; h | - | - ; j | + | + ; k | ( | ( ; l | ) | )
+[shift] |  |   ; y | * | * ; x | " | " ; c | ' | ' ç ; v | : | : ; b | ; | ; ; n | ! | ! ñ ; m | ? | ? ; [del] |  | 
+[abc] |  |  ; , |  | clipboard_normal_key agent_prompts_key emoji_normal_key start_onehanded_mode_key floating settings_key ; [space] |  |  ; . |  | , ? ! # ) ( / ; ' @ : - " + % & ; [enter] |  | clipboard_action_key emoji_action_key
+### HOLO de-DE numberRow=true
+1 |  | ¹ ½ ⅓ ¼ ⅛ ; 2 |  | ² ⅔ ; 3 |  | ³ ¾ ⅜ ; 4 |  | ⁴ ; 5 |  | ⁵ ⅝ ; 6 |  | ⁶ ; 7 |  | ⁷ ⅞ ; 8 |  | ⁸ ; 9 |  | ⁹ ; 0 |  | ⁰ ⁿ ∅
+q | % | % ; w | \ | \ ; e | | | | é è ê ë ē ; r | = | = ; t | [ | [ ; z | ] | ] ; u | < | ü < ú û ù ū ; i | > | > í î ï ī ì ; o | { | ö { ó ô ò œ ø ō õ ; p | } | }
+a | @ | ä @ à á â æ ã å ā ; s | # | ß # ; d | € | € ; f | _ | _ ; g | & | & ; h | - | - ; j | + | + ; k | ( | ( ; l | ) | )
+[shift] |  |   ; y | * | * ; x | " | " ; c | ' | ' ç ; v | : | : ; b | ; | ; ; n | ! | ! ñ ; m | ? | ? ; [del] |  | 
+[abc] |  |  ; , |  | clipboard_normal_key agent_prompts_key emoji_normal_key start_onehanded_mode_key floating settings_key ; [space] |  |  ; . |  | , ? ! # ) ( / ; ' @ : - " + % & ; [enter] |  | clipboard_action_key emoji_action_key
+### HOLO en-US numberRow=false
+q | 1 | 1 % ; w | 2 | 2 \ ; e | 3 | 3 | é è ê ë ē ; r | 4 | 4 = ; t | 5 | 5 [ ; y | 6 | 6 ] ; u | 7 | 7 < ú û ü ù ū ; i | 8 | 8 > í î ï ī ì ; o | 9 | 9 { ó ô ö ò œ ø ō õ ; p | 0 | 0 }
+a | @ | @ à á â ä æ ã å ā ; s | # | # ß ; d | $ | $ ; f | _ | _ ; g | & | & ; h | - | - ; j | + | + ; k | ( | ( ; l | ) | )
+[shift] |  |   ; z | * | * ; x | " | " ; c | ' | ' ç ; v | : | : ; b | ; | ; ; n | ! | ! ñ ; m | ? | ? ; [del] |  | 
+[abc] |  |  ; , |  | clipboard_normal_key agent_prompts_key emoji_normal_key start_onehanded_mode_key floating settings_key ; [space] |  |  ; . |  | , ? ! # ) ( / ; ' @ : - " + % & ; [enter] |  | clipboard_action_key emoji_action_key
+### HOLO en-US numberRow=true
+1 |  | ¹ ½ ⅓ ¼ ⅛ ; 2 |  | ² ⅔ ; 3 |  | ³ ¾ ⅜ ; 4 |  | ⁴ ; 5 |  | ⁵ ⅝ ; 6 |  | ⁶ ; 7 |  | ⁷ ⅞ ; 8 |  | ⁸ ; 9 |  | ⁹ ; 0 |  | ⁰ ⁿ ∅
+q | % | % ; w | \ | \ ; e | | | | é è ê ë ē ; r | = | = ; t | [ | [ ; y | ] | ] ; u | < | < ú û ü ù ū ; i | > | > í î ï ī ì ; o | { | { ó ô ö ò œ ø ō õ ; p | } | }
+a | @ | @ à á â ä æ ã å ā ; s | # | # ß ; d | $ | $ ; f | _ | _ ; g | & | & ; h | - | - ; j | + | + ; k | ( | ( ; l | ) | )
+[shift] |  |   ; z | * | * ; x | " | " ; c | ' | ' ç ; v | : | : ; b | ; | ; ; n | ! | ! ñ ; m | ? | ? ; [del] |  | 
+[abc] |  |  ; , |  | clipboard_normal_key agent_prompts_key emoji_normal_key start_onehanded_mode_key floating settings_key ; [space] |  |  ; . |  | , ? ! # ) ( / ; ' @ : - " + % & ; [enter] |  | clipboard_action_key emoji_action_key
+### FLAT de-DE numberRow=false
+q | 1 | 1 % ; w | 2 | 2 \ ; e | 3 | 3 | é è ê ë ē ; r | 4 | 4 = ; t | 5 | 5 [ ; z | 6 | 6 ] ; u | 7 | ü 7 < ú û ù ū ; i | 8 | 8 > í î ï ī ì ; o | 9 | ö 9 { ó ô ò œ ø ō õ ; p | 0 | 0 }
+a | @ | ä @ à á â æ ã å ā ; s | # | ß # ; d | € | € ; f | _ | _ ; g | & | & ; h | - | - ; j | + | + ; k | ( | ( ; l | ) | )
+[shift] |  |   ; y | * | * ; x | " | " ; c | ' | ' ç ; v | : | : ; b | ; | ; ; n | ! | ! ñ ; m | ? | ? ; [del] |  | 
+[abc] |  |  ; , |  | clipboard_normal_key agent_prompts_key start_onehanded_mode_key floating settings_key ; [emoji] | ✎ | ✎ ; [space] |  |  ; . |  | , ? ! # ) ( / ; ' @ : - " + % & ; [enter] |  | clipboard_action_key emoji_action_key
+### FLAT de-DE numberRow=true
+1 |  | ¹ ½ ⅓ ¼ ⅛ ; 2 |  | ² ⅔ ; 3 |  | ³ ¾ ⅜ ; 4 |  | ⁴ ; 5 |  | ⁵ ⅝ ; 6 |  | ⁶ ; 7 |  | ⁷ ⅞ ; 8 |  | ⁸ ; 9 |  | ⁹ ; 0 |  | ⁰ ⁿ ∅
+q | % | % ; w | \ | \ ; e | | | | é è ê ë ē ; r | = | = ; t | [ | [ ; z | ] | ] ; u | < | ü < ú û ù ū ; i | > | > í î ï ī ì ; o | { | ö { ó ô ò œ ø ō õ ; p | } | }
+a | @ | ä @ à á â æ ã å ā ; s | # | ß # ; d | € | € ; f | _ | _ ; g | & | & ; h | - | - ; j | + | + ; k | ( | ( ; l | ) | )
+[shift] |  |   ; y | * | * ; x | " | " ; c | ' | ' ç ; v | : | : ; b | ; | ; ; n | ! | ! ñ ; m | ? | ? ; [del] |  | 
+[abc] |  |  ; , |  | clipboard_normal_key agent_prompts_key start_onehanded_mode_key floating settings_key ; [emoji] | ✎ | ✎ ; [space] |  |  ; . |  | , ? ! # ) ( / ; ' @ : - " + % & ; [enter] |  | clipboard_action_key emoji_action_key
+### FLAT en-US numberRow=false
+q | 1 | 1 % ; w | 2 | 2 \ ; e | 3 | 3 | é è ê ë ē ; r | 4 | 4 = ; t | 5 | 5 [ ; y | 6 | 6 ] ; u | 7 | 7 < ú û ü ù ū ; i | 8 | 8 > í î ï ī ì ; o | 9 | 9 { ó ô ö ò œ ø ō õ ; p | 0 | 0 }
+a | @ | @ à á â ä æ ã å ā ; s | # | # ß ; d | $ | $ ; f | _ | _ ; g | & | & ; h | - | - ; j | + | + ; k | ( | ( ; l | ) | )
+[shift] |  |   ; z | * | * ; x | " | " ; c | ' | ' ç ; v | : | : ; b | ; | ; ; n | ! | ! ñ ; m | ? | ? ; [del] |  | 
+[abc] |  |  ; , |  | clipboard_normal_key agent_prompts_key start_onehanded_mode_key floating settings_key ; [emoji] | ✎ | ✎ ; [space] |  |  ; . |  | , ? ! # ) ( / ; ' @ : - " + % & ; [enter] |  | clipboard_action_key emoji_action_key
+### FLAT en-US numberRow=true
+1 |  | ¹ ½ ⅓ ¼ ⅛ ; 2 |  | ² ⅔ ; 3 |  | ³ ¾ ⅜ ; 4 |  | ⁴ ; 5 |  | ⁵ ⅝ ; 6 |  | ⁶ ; 7 |  | ⁷ ⅞ ; 8 |  | ⁸ ; 9 |  | ⁹ ; 0 |  | ⁰ ⁿ ∅
+q | % | % ; w | \ | \ ; e | | | | é è ê ë ē ; r | = | = ; t | [ | [ ; y | ] | ] ; u | < | < ú û ü ù ū ; i | > | > í î ï ī ì ; o | { | { ó ô ö ò œ ø ō õ ; p | } | }
+a | @ | @ à á â ä æ ã å ā ; s | # | # ß ; d | $ | $ ; f | _ | _ ; g | & | & ; h | - | - ; j | + | + ; k | ( | ( ; l | ) | )
+[shift] |  |   ; z | * | * ; x | " | " ; c | ' | ' ç ; v | : | : ; b | ; | ; ; n | ! | ! ñ ; m | ? | ? ; [del] |  | 
+[abc] |  |  ; , |  | clipboard_normal_key agent_prompts_key start_onehanded_mode_key floating settings_key ; [emoji] | ✎ | ✎ ; [space] |  |  ; . |  | , ? ! # ) ( / ; ' @ : - " + % & ; [enter] |  | clipboard_action_key emoji_action_key

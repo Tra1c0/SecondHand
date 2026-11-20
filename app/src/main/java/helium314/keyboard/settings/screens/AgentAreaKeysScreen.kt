@@ -215,7 +215,7 @@ fun AgentAreaKeysScreen(onNavigate: (String) -> Unit, onClickBack: () -> Unit) {
                         else -> R.string.agent_keys_needs_number_row
                     }))
                 SwitchRow(Settings.PREF_SHOW_NUMBER_ROW_IN_SYMBOLS, Defaults.PREF_SHOW_NUMBER_ROW_IN_SYMBOLS,
-                    stringResource(R.string.number_row_in_symbols), null, themeReload, !numberRow,
+                    stringResource(R.string.number_row_in_symbols), stringResource(R.string.agent_keys_number_row_in_symbols_sub), themeReload, !numberRow,
                     stringResource(R.string.agent_keys_number_row_already_on))
                 SwitchRow(Settings.PREF_SHOW_EMOJI_KEY, Defaults.PREF_SHOW_EMOJI_KEY,
                     stringResource(R.string.show_emoji_key), stringResource(R.string.agent_keys_emoji_key_sub), reload)
