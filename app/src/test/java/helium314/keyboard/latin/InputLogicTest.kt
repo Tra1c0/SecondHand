@@ -2381,6 +2381,121 @@ class InputLogicTest {
         assertTrue(arrows(DPAD_DOWN) >= 1, "multi-line: the trackpad moved a line")
     }
 
+    // review of stage 87c (second look): N-1, the px/dp rounding edge, and the other order of two fingers
+
+    /**
+     * Runs [block] at the density of [qualifiers] ([density], from the system resources the listener and the tracker read). The tracker keeps its
+     * step from the class load (10 px at the test's density 1.0): the densities used here between 1.0 and 1.1 give floor(10 * density) = 10 px
+     * as well, so the tracker's step stays right, and 10 dp are more than 10 px, the same px/dp edge as at 2.625 (26 px against 26.25).
+     */
+    private fun atDensity(qualifiers: String, density: Float, block: () -> Unit) {
+        org.robolectric.RuntimeEnvironment.setQualifiers(qualifiers)
+        assertEquals(density.toDouble(), android.content.res.Resources.getSystem().displayMetrics.density.toDouble(), 1e-4, "the density the tracker and the listener read")
+        assertEquals(density.toDouble(), latinIME.resources.displayMetrics.density.toDouble(), 1e-4, "the density of the keyboard's resources")
+        assertEquals(10, org.robolectric.util.ReflectionHelpers.getStaticField<Int>(helium314.keyboard.keyboard.PointerTracker::class.java, "sPointerStep"), "the tracker's step")
+        block()
+    }
+
+    @Test fun cursor87cTheListenersStepIsTheTrackersStepAtEveryDensity() {
+        val tracker = helium314.keyboard.keyboard.PointerTracker::class.java
+        assertEquals(org.robolectric.util.ReflectionHelpers.getStaticField<Int>(tracker, "sPointerStep"),
+            helium314.keyboard.agent.CursorTrackpad.pointerStepPx(android.content.res.Resources.getSystem()), "the value the tracker uses")
+        for ((qualifiers, step) in listOf("+160dpi" to 10, "+168dpi" to 10, "+420dpi" to 26, "+440dpi" to 27, "+480dpi" to 30)) {
+            org.robolectric.RuntimeEnvironment.setQualifiers(qualifiers)
+            assertEquals(step, helium314.keyboard.agent.CursorTrackpad.pointerStepPx(android.content.res.Resources.getSystem()), "floor(10 * density) at $qualifiers")
+        }
+    }
+
+    @Test fun bindings87cAtDensity105RestingAtTheStepTheVerticalSwipeHasBegunAndNoHoldFires() = withSpyRig { rig, spy ->
+        atDensity("+168dpi", 1.05f) {
+            bindVertical(SpaceAction.UNDO, SpaceAction.REDO)
+            setSpaceGesture(SpaceGesture.HOLD, SpaceAction.SELECT_ALL)
+            setText("Hallo Welt")
+            // 5 sideways and 10 px up: the old swipe goes up at 10 px (stepsY = -1, 5 < 10); 10 px are 9.5 dp
+            rig.down(0, SPACE_X, SPACE_Y); rig.move(0, SPACE_X + 5f, SPACE_Y - 10f); rig.wait(700); rig.up(0)
+            assertEquals("onSpaceSwipe SWIPE_UP -1|onCodeInput -131 -1|onEndSpaceSwipe ", swipeCalls(spy).joinToString("|"))
+            assertEquals(selectionStart, selectionEnd, "the hold did not select everything")
+        }
+    }
+
+    @Test fun cursor87cAtDensity105ASidewaysStartAtTheStepIsTheTrackpadAndALiftThereTypesNoSpace() = withSpyRig { rig, spy ->
+        atDensity("+168dpi", 1.05f) {
+            bindVertical(SpaceAction.UNDO, SpaceAction.REDO)
+            setSpaceGesture(SpaceGesture.HOLD, SpaceAction.SELECT_ALL)
+            latinIME.prefs().edit { putBoolean(Settings.PREF_SPACE_TO_CHANGE_LANG, false) }
+            setText("Hallo Welt")
+            rig.down(0, SPACE_X, SPACE_Y); rig.move(0, SPACE_X + 10f, SPACE_Y + 5f); rig.wait(700); rig.up(0) // 10 px sideways = 9.5 dp: the old swipe is sideways here
+            assertEquals("Hallo Welt", text, "no space typed, no hold")
+            assertEquals(selectionStart, selectionEnd)
+            rig.down(0, SPACE_X, SPACE_Y); rig.move(0, SPACE_X - 10f, SPACE_Y - 5f); rig.up(0) // and a lift right after the first move
+            assertEquals("Hallo Welt", text, "no space typed")
+            assertTrue(swipeCalls(spy).none { it.contains("-131") || it.contains("-132") }, "no action: ${swipeCalls(spy)}")
+        }
+    }
+
+    @Test fun cursor87cAtDensity105TheDirectionDoesNotFlipBetweenTwoReports() = withSpyRig { rig, spy ->
+        atDensity("+168dpi", 1.05f) {
+            bindVertical(SpaceAction.UNDO, SpaceAction.REDO)
+            latinIME.prefs().edit { putBoolean(Settings.PREF_SPACE_TO_CHANGE_LANG, false); putInt(AgentPreferences.CURSOR_MAGNETISM, 0) }
+            multiLine("aaaa aaaa\nbbbb bbbb\ncccc cccc", 28)
+            // 10/4 px: the old swipe is sideways (the vertical travel is below the step); 11/12 px a report later would be vertical by itself
+            rig.down(0, SPACE_X, SPACE_Y); rig.move(0, SPACE_X - 10f, SPACE_Y - 4f); rig.move(0, SPACE_X - 11f, SPACE_Y - 12f); rig.up(0)
+            assertTrue(swipeCalls(spy).none { it.contains("-131") || it.startsWith("onSpaceSwipe ") }, "no undo: the start was sideways: ${swipeCalls(spy)}")
+        }
+    }
+
+    // two fingers, the other order: B has decided an old action by its start, then A starts the trackpad
+
+    @Test fun cursor87cAFingerThatRunsAnOldActionKeepsAnotherFingerFromTakingTheTrackpad() = withSpyRig { rig, spy ->
+        setSpaceGesture(SpaceGesture.SWIPE_UP, SpaceAction.SWITCH_LANGUAGE) // continuing: every step runs
+        setSpaceGesture(SpaceGesture.SWIPE_DOWN, SpaceAction.NONE)
+        latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0); putBoolean(Settings.PREF_SPACE_TO_CHANGE_LANG, false) }
+        setSpaceGesture(SpaceGesture.HOLD, SpaceAction.NONE)
+        setText("Hallo Welt und mehr Text")
+        setCursorPosition(20)
+        rig.down(0, SPACE_X, SPACE_Y)
+        rig.down(1, SPACE_X + 60f, SPACE_Y)
+        rig.slide(1, SPACE_X + 60f, SPACE_Y - 20f, 600f) // B starts upwards: the language action, from its start direction
+        assertTrue(swipeCalls(spy).any { it.startsWith("onSpaceSwipe SWIPE_UP") }, "B's action runs: ${swipeCalls(spy)}")
+        rig.slide(0, SPACE_X - 60f, SPACE_Y, 600f) // A's start is the cursor, but B is running an old action
+        assertEquals(20, cursor, "A did not take the trackpad")
+        rig.slide(1, SPACE_X + 60f, SPACE_Y - 60f, 600f) // B goes on with its own swipe
+        rig.up(1)
+        assertEquals(20, cursor)
+        rig.slide(0, SPACE_X - 90f, SPACE_Y, 600f) // A stays refused for the rest of this touch
+        rig.up(0)
+        assertEquals(20, cursor)
+        // B has ended: nothing locks the next touch out
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X - 60f, SPACE_Y); rig.up(0)
+        assertTrue(cursor < 20, "the lock ended with B's lift: $cursor")
+    }
+
+    @Test fun cursor87cTheLockOfAFingerThatRunsAnOldActionEndsWithItsCancel() = withSpyRig { rig, _ ->
+        setSpaceGesture(SpaceGesture.SWIPE_UP, SpaceAction.SWITCH_LANGUAGE)
+        latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0); putBoolean(Settings.PREF_SPACE_TO_CHANGE_LANG, false) }
+        setSpaceGesture(SpaceGesture.HOLD, SpaceAction.NONE)
+        setText("Hallo Welt und mehr Text")
+        setCursorPosition(20)
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X, SPACE_Y - 20f, 600f) // an old action
+        rig.cancel() // Android cancels the touch
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X - 60f, SPACE_Y); rig.up(0)
+        assertTrue(cursor < 20, "the trackpad works again: $cursor")
+    }
+
+    @Test fun cursor87cASwallowedSwipeOfAnotherFingerDoesNotLockTheTrackpadOut() = withSpyRig { rig, _ ->
+        setSpaceGesture(SpaceGesture.SWIPE_UP, SpaceAction.UNDO); setSpaceGesture(SpaceGesture.SWIPE_DOWN, SpaceAction.NONE)
+        latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0); putBoolean(Settings.PREF_SPACE_TO_CHANGE_LANG, false) }
+        setSpaceGesture(SpaceGesture.HOLD, SpaceAction.NONE)
+        setText("Hallo Welt und mehr Text") // a single-line field: a downward start with nothing bound does nothing
+        setCursorPosition(20)
+        rig.down(0, SPACE_X, SPACE_Y)
+        rig.down(1, SPACE_X + 60f, SPACE_Y)
+        rig.slide(1, SPACE_X + 60f, SPACE_Y + 30f, 600f) // B: swallowed, no action runs
+        rig.slide(0, SPACE_X - 60f, SPACE_Y, 600f)
+        assertTrue(cursor < 20, "A's trackpad works: $cursor")
+        rig.up(1); rig.up(0)
+    }
+
     // ---- third review
 
     /** The slow editor answers an arrow: its new cursor reaches the keyboard (onUpdateSelection). */

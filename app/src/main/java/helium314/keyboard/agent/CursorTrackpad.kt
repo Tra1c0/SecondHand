@@ -2,6 +2,7 @@
 package helium314.keyboard.agent
 
 import dev.agentkeyboard.core.CursorTrack
+import helium314.keyboard.latin.utils.dpToPx
 
 /**
  * Stage 87: the decisions around the cursor trackpad that need no touch or editor, so they are testable
@@ -23,8 +24,16 @@ object CursorTrackpad {
      * Whether a drag of ([dx], [dy]) dp from the touch-down point is a swipe and no tap any more: the old tolerance, 10 dp on
      * the swiping axis (the delete slider only counts sideways, a vertical drag counts when it is longer than the sideways one).
      */
-    @JvmStatic fun claims(sidewaysOnly: Boolean, dx: Double, dy: Double): Boolean =
-        Math.abs(dx) >= CLAIM_DP || !sidewaysOnly && Math.abs(dy) >= CLAIM_DP && Math.abs(dx) < Math.abs(dy)
+    @JvmStatic fun claims(sidewaysOnly: Boolean, dx: Double, dy: Double, claim: Double = CLAIM_DP): Boolean =
+        Math.abs(dx) >= claim || !sidewaysOnly && Math.abs(dy) >= claim && Math.abs(dx) < Math.abs(dy)
+
+    /**
+     * The distance in px at which the old swipe begins: PointerTracker.sPointerStep, which is `10.dpToPx(Resources.getSystem())` (Ktx.kt cuts to
+     * an Int, so it is floor(10 * density), for example 26 px at 2.625 and 27 px at 2.75). The listener compares the raw px of a touch with this
+     * value, the same formula and density source as the tracker: a comparison in dp would decide up to one px later than the old swipe
+     * (review of stage 87c, N-1). Pass it as the `claim` of [claims], [startDirection] and [decideStart] together with the travel in px.
+     */
+    @JvmStatic fun pointerStepPx(resources: android.content.res.Resources): Int = 10.dpToPx(resources)
 
     /** Why the space bar is, or is not, a cursor trackpad now (stage 87c; the diagnose text of stage 87b can say it). */
     enum class SpaceReason {
@@ -65,10 +74,10 @@ object CursorTrackpad {
     /**
      * The direction a swipe started in, from its travel ([dx], [dy]) in dp, by the rule of the old swipe in PointerTracker.onKeySwipe: it is
      * vertical when the vertical travel has reached [CLAIM_DP] and is strictly longer than the sideways one (so a tie is sideways), else sideways;
-     * the sign gives the direction. The old swipe decides at the first move that reaches [CLAIM_DP] on either axis, with exactly this comparison.
+     * the sign gives the direction ([claim]: the threshold in the unit of [dx] and [dy], dp by default, px with [pointerStepPx]). The old swipe decides at the first move that reaches [CLAIM_DP] on either axis, with exactly this comparison.
      */
-    @JvmStatic fun startDirection(dx: Double, dy: Double): SpaceGesture = when {
-        Math.abs(dy) >= CLAIM_DP && Math.abs(dx) < Math.abs(dy) -> if (dy < 0) SpaceGesture.SWIPE_UP else SpaceGesture.SWIPE_DOWN
+    @JvmStatic fun startDirection(dx: Double, dy: Double, claim: Double = CLAIM_DP): SpaceGesture = when {
+        Math.abs(dy) >= claim && Math.abs(dx) < Math.abs(dy) -> if (dy < 0) SpaceGesture.SWIPE_UP else SpaceGesture.SWIPE_DOWN
         else -> if (dx < 0) SpaceGesture.SWIPE_LEFT else SpaceGesture.SWIPE_RIGHT
     }
 
@@ -80,9 +89,9 @@ object CursorTrackpad {
      * (legacy), a direction bound to nothing is the trackpad too (some direction is the cursor, nothing else would happen there), except an upward or
      * downward start in a field that is not [multiLine], where nothing should happen (legacy: the swipe is swallowed).
      */
-    @JvmStatic fun decideStart(gestures: SpaceGestureSettings, dx: Double, dy: Double, multiLine: Boolean = true): Start {
-        if (Math.max(Math.abs(dx), Math.abs(dy)) < CLAIM_DP) return Start.UNDECIDED
-        val direction = startDirection(dx, dy)
+    @JvmStatic fun decideStart(gestures: SpaceGestureSettings, dx: Double, dy: Double, multiLine: Boolean = true, claim: Double = CLAIM_DP): Start {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) < claim) return Start.UNDECIDED
+        val direction = startDirection(dx, dy, claim)
         return when (gestures[direction]) {
             SpaceAction.MOVE_CURSOR -> Start.TRACKPAD
             SpaceAction.NONE -> if (!direction.isHorizontal && !multiLine) Start.LEGACY else Start.TRACKPAD

@@ -65,6 +65,35 @@ class CursorTrackpadReasonTest {
         }
     }
 
+    @Test fun theStartAgreesWithTheOldSwipeInPixelsAtEveryDensity() {
+        // review N-1: the old swipe begins at PointerTracker.sPointerStep = floor(10 * density) px (26 px at 2.625, 27 at 2.75, 30 at 3.0);
+        // the raw px are compared with that value, so there is no px in which the old swipe has begun and the trackpad still waits
+        val g = gestures(left = cur, right = SpaceAction.REDO, up = SpaceAction.UNDO, down = SpaceAction.NONE)
+        for (density in listOf(1.0f, 2.625f, 2.75f, 3.0f)) {
+            val step = Math.floor(10.0 * density).toInt()
+            for (dx in -3 * step..3 * step) for (dy in -3 * step..3 * step) {
+                val old: SpaceGesture? = when {
+                    Math.abs(dy) >= step && Math.abs(dx) < Math.abs(dy) -> if (dy < 0) SpaceGesture.SWIPE_UP else SpaceGesture.SWIPE_DOWN
+                    Math.abs(dx) >= step -> if (dx < 0) SpaceGesture.SWIPE_LEFT else SpaceGesture.SWIPE_RIGHT
+                    else -> null
+                }
+                val expected = when (old) {
+                    null -> Start.UNDECIDED
+                    SpaceGesture.SWIPE_LEFT, SpaceGesture.SWIPE_DOWN -> Start.TRACKPAD
+                    else -> Start.LEGACY
+                }
+                assertEquals(expected, CursorTrackpad.decideStart(g, dx.toDouble(), dy.toDouble(), true, step.toDouble()), "density $density dx=$dx dy=$dy")
+                if (old != null) assertEquals(old, CursorTrackpad.startDirection(dx.toDouble(), dy.toDouble(), step.toDouble()), "direction density $density dx=$dx dy=$dy")
+            }
+            // the two flows of the review: a finger resting just inside the vertical range, a lift right after the first move
+            assertEquals(Start.LEGACY, CursorTrackpad.decideStart(g, step - 1.0, -(step + 2.0), true, step.toDouble()), "resting at ($step-1, -($step+2))")
+            assertEquals(Start.TRACKPAD, CursorTrackpad.decideStart(g, -step.toDouble(), step - 1.0, true, step.toDouble()), "left at the step: the cursor")
+            assertEquals(Start.TRACKPAD, CursorTrackpad.decideStart(g, -step.toDouble(), step - 6.0, true, step.toDouble()), "12/9 scaled: sideways, the vertical travel is below the step")
+            assertEquals(Start.TRACKPAD, CursorTrackpad.decideStart(g, -step.toDouble(), 10.0, true, step.toDouble()), "26/10 px: sideways, and 27/28 later is the same swipe")
+            assertEquals(Start.UNDECIDED, CursorTrackpad.decideStart(g, step - 1.0, step - 1.0, true, step.toDouble()))
+        }
+    }
+
     @Test fun theStartDirectionDecidesByItsOwnBinding() {
         // left = cursor only, right = redo: left start is the trackpad, right start the action
         val g = gestures(right = SpaceAction.REDO)
