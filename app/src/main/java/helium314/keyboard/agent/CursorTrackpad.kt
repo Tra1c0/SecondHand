@@ -26,11 +26,6 @@ object CursorTrackpad {
     @JvmStatic fun claims(sidewaysOnly: Boolean, dx: Double, dy: Double): Boolean =
         Math.abs(dx) >= CLAIM_DP || !sidewaysOnly && Math.abs(dy) >= CLAIM_DP && Math.abs(dx) < Math.abs(dy)
 
-    /** Stage 87c: a swipe whose start is this much longer on one axis than on the other starts on that axis. */
-    const val DOMINANCE = 1.5
-    /** Stage 87c: a start between the two (a diagonal) waits up to this travel (dp, the larger axis), then the larger axis decides; a tie is horizontal. */
-    const val DECIDE_CAP_DP = 16.0
-
     /** Why the space bar is, or is not, a cursor trackpad now (stage 87c; the diagnose text of stage 87b can say it). */
     enum class SpaceReason {
         /** Every direction is "Cursor bewegen" or nothing (and at least one is the cursor): the trackpad takes every swipe, as in stage 87. */
@@ -64,34 +59,30 @@ object CursorTrackpad {
     /** Whether the space bar is a trackpad with the switch on (the name from stage 87; true for both qualifying reasons). */
     @JvmStatic fun appliesToSpace(gestures: SpaceGestureSettings): Boolean = spaceReason(gestures).qualifies
 
-    /** What the start of a swipe decides, for the reason QUALIFIES_START_DECIDES. */
+    /** What the start of a swipe decides, for the reason QUALIFIES_START_DECIDES (UNDECIDED: less than [CLAIM_DP] on both axes, a tap or a hold so far). */
     enum class Start { UNDECIDED, TRACKPAD, LEGACY }
 
-    /** The direction a swipe started in, from its travel ([dx], [dy]) in dp: the axis with the larger travel, then the sign. */
+    /**
+     * The direction a swipe started in, from its travel ([dx], [dy]) in dp, by the rule of the old swipe in PointerTracker.onKeySwipe: it is
+     * vertical when the vertical travel has reached [CLAIM_DP] and is strictly longer than the sideways one (so a tie is sideways), else sideways;
+     * the sign gives the direction. The old swipe decides at the first move that reaches [CLAIM_DP] on either axis, with exactly this comparison.
+     */
     @JvmStatic fun startDirection(dx: Double, dy: Double): SpaceGesture = when {
-        Math.abs(dx) >= Math.abs(dy) -> if (dx < 0) SpaceGesture.SWIPE_LEFT else SpaceGesture.SWIPE_RIGHT
-        else -> if (dy < 0) SpaceGesture.SWIPE_UP else SpaceGesture.SWIPE_DOWN
+        Math.abs(dy) >= CLAIM_DP && Math.abs(dx) < Math.abs(dy) -> if (dy < 0) SpaceGesture.SWIPE_UP else SpaceGesture.SWIPE_DOWN
+        else -> if (dx < 0) SpaceGesture.SWIPE_LEFT else SpaceGesture.SWIPE_RIGHT
     }
 
     /**
      * The start of a swipe for the reason [SpaceReason.QUALIFIES_START_DECIDES], from the travel ([dx], [dy]) in dp since touch-down.
-     * Nothing is decided below [CLAIM_DP] on the larger axis. A start at least [DOMINANCE] times longer on one axis than on the other starts
-     * in the direction of that axis and sign; in between (a diagonal, about 34 to 56 degrees) the touch waits until the larger axis has
-     * [DECIDE_CAP_DP], then the larger axis decides, a tie is sideways. A direction bound to "Cursor bewegen" is the trackpad, a direction bound
-     * to an action runs that action (legacy), a direction bound to nothing is the trackpad too (some direction is the cursor, nothing else would
-     * happen there), except an upward or downward start in a field that is not [multiLine], where nothing should happen (legacy: the swipe is swallowed).
+     * Nothing is decided below [CLAIM_DP] on both axes. At the first report that reaches it the start is decided at once, with the comparison the
+     * old swipe uses to tell a sideways from a vertical swipe ([startDirection]): there is no waiting zone, so a touch is never pending longer than
+     * the old code would have kept it a tap. A direction bound to "Cursor bewegen" is the trackpad, a direction bound to an action runs that action
+     * (legacy), a direction bound to nothing is the trackpad too (some direction is the cursor, nothing else would happen there), except an upward or
+     * downward start in a field that is not [multiLine], where nothing should happen (legacy: the swipe is swallowed).
      */
     @JvmStatic fun decideStart(gestures: SpaceGestureSettings, dx: Double, dy: Double, multiLine: Boolean = true): Start {
-        val ax = Math.abs(dx)
-        val ay = Math.abs(dy)
-        val larger = Math.max(ax, ay)
-        if (larger < CLAIM_DP) return Start.UNDECIDED
-        val direction = when {
-            ax >= DOMINANCE * ay -> if (dx < 0) SpaceGesture.SWIPE_LEFT else SpaceGesture.SWIPE_RIGHT
-            ay >= DOMINANCE * ax -> if (dy < 0) SpaceGesture.SWIPE_UP else SpaceGesture.SWIPE_DOWN
-            larger < DECIDE_CAP_DP -> return Start.UNDECIDED
-            else -> startDirection(dx, dy)
-        }
+        if (Math.max(Math.abs(dx), Math.abs(dy)) < CLAIM_DP) return Start.UNDECIDED
+        val direction = startDirection(dx, dy)
         return when (gestures[direction]) {
             SpaceAction.MOVE_CURSOR -> Start.TRACKPAD
             SpaceAction.NONE -> if (!direction.isHorizontal && !multiLine) Start.LEGACY else Start.TRACKPAD

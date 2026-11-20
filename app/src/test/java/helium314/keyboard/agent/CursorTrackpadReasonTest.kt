@@ -30,18 +30,39 @@ class CursorTrackpadReasonTest {
         assertEquals(false, CursorTrackpad.appliesToSpace(gestures(left = SpaceAction.NONE, right = SpaceAction.NONE)))
     }
 
-    @Test fun theStartDecidesWithAMargin() {
+    @Test fun theStartIsDecidedAtTheFirstReportOf10DpWithTheComparisonOfTheOldSwipe() {
         val g = gestures(up = SpaceAction.UNDO, down = SpaceAction.REDO)
         assertEquals(Start.UNDECIDED, CursorTrackpad.decideStart(g, -9.0, 0.0))
+        assertEquals(Start.UNDECIDED, CursorTrackpad.decideStart(g, 9.9, -9.9)) // below 10 dp on both axes: a tap or a hold so far
         assertEquals(Start.TRACKPAD, CursorTrackpad.decideStart(g, -10.0, 0.0)) // a plain sideways swipe: decided at the old claim distance
-        assertEquals(Start.TRACKPAD, CursorTrackpad.decideStart(g, 10.0, 6.0)) // 10 : 6 is 1.67 : 1
-        assertEquals(Start.UNDECIDED, CursorTrackpad.decideStart(g, 10.0, 8.0)) // a diagonal waits ...
-        assertEquals(Start.UNDECIDED, CursorTrackpad.decideStart(g, 15.0, 15.0))
-        assertEquals(Start.TRACKPAD, CursorTrackpad.decideStart(g, 16.0, 16.0)) // ... until 16 dp, a tie is sideways
-        assertEquals(Start.LEGACY, CursorTrackpad.decideStart(g, 16.0, 17.0)) // then the larger axis
-        assertEquals(Start.LEGACY, CursorTrackpad.decideStart(g, 5.0, -10.0)) // 2 : 1 vertically at 10 dp
+        // no waiting zone (review of stage 87c): where the old swipe has begun, the start is decided
+        assertEquals(Start.LEGACY, CursorTrackpad.decideStart(g, 9.0, -12.0)) // the old swipe: vertical, up = undo
+        assertEquals(Start.LEGACY, CursorTrackpad.decideStart(g, 9.0, 12.0)) // vertical, down = redo
+        assertEquals(Start.TRACKPAD, CursorTrackpad.decideStart(g, 12.0, 9.0)) // the vertical travel has not reached 10 dp: sideways
+        assertEquals(Start.TRACKPAD, CursorTrackpad.decideStart(g, 12.0, 11.0)) // both over 10, sideways is longer: sideways
+        assertEquals(Start.LEGACY, CursorTrackpad.decideStart(g, 11.0, 12.0)) // vertical is longer: vertical
+        assertEquals(Start.TRACKPAD, CursorTrackpad.decideStart(g, 12.0, 12.0)) // a tie is sideways, as in the old swipe
+        assertEquals(Start.TRACKPAD, CursorTrackpad.decideStart(g, 10.0, 8.0))
         assertEquals(Start.LEGACY, CursorTrackpad.decideStart(g, 0.0, 12.0))
-        assertEquals(Start.TRACKPAD, CursorTrackpad.decideStart(g, 17.0, 16.0))
+    }
+
+    @Test fun theStartAgreesWithTheOldSwipeOnEveryPointOfAGrid() {
+        // the old swipe (PointerTracker.onKeySwipe, density 1): vertical when |dy| >= 10 and |dx| < |dy|, else sideways when |dx| >= 10, else nothing yet
+        val g = gestures(left = cur, right = SpaceAction.REDO, up = SpaceAction.UNDO, down = SpaceAction.NONE)
+        for (dx in -30..30) for (dy in -30..30) {
+            val old: SpaceGesture? = when {
+                Math.abs(dy) >= 10 && Math.abs(dx) < Math.abs(dy) -> if (dy < 0) SpaceGesture.SWIPE_UP else SpaceGesture.SWIPE_DOWN
+                Math.abs(dx) >= 10 -> if (dx < 0) SpaceGesture.SWIPE_LEFT else SpaceGesture.SWIPE_RIGHT
+                else -> null
+            }
+            val expected = when (old) {
+                null -> Start.UNDECIDED
+                SpaceGesture.SWIPE_LEFT, SpaceGesture.SWIPE_DOWN -> Start.TRACKPAD // cursor; nothing (multi-line)
+                else -> Start.LEGACY // redo, undo
+            }
+            assertEquals(expected, CursorTrackpad.decideStart(g, dx.toDouble(), dy.toDouble(), multiLine = true), "dx=$dx dy=$dy")
+            if (old != null) assertEquals(old, CursorTrackpad.startDirection(dx.toDouble(), dy.toDouble()), "direction dx=$dx dy=$dy")
+        }
     }
 
     @Test fun theStartDirectionDecidesByItsOwnBinding() {

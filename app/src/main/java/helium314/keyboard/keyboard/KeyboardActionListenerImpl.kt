@@ -625,7 +625,11 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     override fun onCursorTrackEnd(pointerId: Int) {
         if (pointerId < 0) { // -1: the field starts or the keyboard hides (LatinIME): a touch that ended without up or cancel must leave no owner
             trackOwner = -1
-            for (st in trackStates) if (st.mode == TrackMode.ACTIVE) st.track = null else st.begin(Long.MIN_VALUE, 0) // an active touch has nothing to move in the new field
+            for (st in trackStates) when (st.mode) {
+                TrackMode.ACTIVE -> st.track = null // an active touch has nothing to move in the new field
+                TrackMode.OFF -> Unit // a swipe that began as the old action stays that: it must not turn into the trackpad of the new field (stage 87c)
+                else -> st.begin(Long.MIN_VALUE, 0)
+            }
             return
         }
         val st = trackStates.getOrNull(pointerId) ?: return
@@ -650,18 +654,19 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         if (st.mode == TrackMode.PENDING) {
             if (st.pending.size >= CursorTrackpad.MAX_PENDING) st.pending.removeAt(0) // a finger resting on the key for long
             st.pending += sample
+            var legacy = false
             if (st.startDecides) {
-                // stage 87c: the start decides; LEGACY is possible only here, before the claim: the old code then runs from the touch-down point
-                when (CursorTrackpad.decideStart(settings.current.mSpaceGestures, sample.dx, sample.dy, isMultiLineField())) {
-                    CursorTrackpad.Start.UNDECIDED -> return KeyboardActionListener.TRACK_PENDING
-                    CursorTrackpad.Start.LEGACY -> { st.mode = TrackMode.OFF; st.pending.clear(); return KeyboardActionListener.TRACK_OFF }
-                    CursorTrackpad.Start.TRACKPAD -> Unit
-                }
+                // stage 87c: the start decides, at the first report that reaches 10 dp (the old swipe's own moment and comparison: no waiting zone)
+                val start = CursorTrackpad.decideStart(settings.current.mSpaceGestures, sample.dx, sample.dy, isMultiLineField())
+                if (start == CursorTrackpad.Start.UNDECIDED) return KeyboardActionListener.TRACK_PENDING
+                legacy = start == CursorTrackpad.Start.LEGACY
             } else if (!CursorTrackpad.claims(code == KeyCode.DELETE, sample.dx, sample.dy)) return KeyboardActionListener.TRACK_PENDING
-            if (trackOwner != -1 && trackOwner != pointerId) { // one finger owns the track: this one's touch is dropped
+            if (trackOwner != -1 && trackOwner != pointerId) { // one finger owns the track: this one's touch is dropped, a swipe that would run an action included
                 st.mode = TrackMode.REFUSED; st.pending.clear()
                 return KeyboardActionListener.TRACK_REFUSED_DRAG
             }
+            // LEGACY is possible only here, before the claim: the old code then runs from the touch-down point
+            if (legacy) { st.mode = TrackMode.OFF; st.pending.clear(); return KeyboardActionListener.TRACK_OFF }
             // the drag is a swipe now: read the text once, then replay what the finger did so far. The track starts at the first
             // sample that arrived (zero travel, zero speed): what the finger did before (the fast-typing guard swallows the first
             // moves) is not replayed as one jump
@@ -713,7 +718,9 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         val rtl = RichInputMethodManager.getInstance().currentSubtype.isRtlSubtype
         val toStart = CursorTrackpad.collapsesToStart(CursorTrackpad.startDirection(dx, dy), rtl)
         val position = if (toStart) connection.expectedSelectionStart else connection.expectedSelectionEnd
+        inputLogic.setExpectCursorMove() // like applyHorizontalMove: the selection update of this move is the keyboard's own
         inputLogic.finishInput()
+        inputLogic.checkpointFieldCorrectionsBeforeOwnCursorMove(settings.current)
         connection.setSelection(position, position)
     }
 
