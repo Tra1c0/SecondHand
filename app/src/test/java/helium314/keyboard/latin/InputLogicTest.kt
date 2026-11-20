@@ -6319,14 +6319,17 @@ class InputLogicTest {
         assertEquals(listOf("Copy", "Cut", "Delete"), selectionLabels(strip))
         assertFalse(toolbarOf(strip).isVisible) // the chips replace the tools, as every suggestion does
         assertTrue(strip.findViewById<android.view.View>(R.id.suggestions_strip).isVisible)
-        // the left key shows the tools; the chips come back with the next update of the strip (a moved handle)
+        // the left key shows the tools; since the review of 85/86 they stay for as long as this selection lasts (the next test),
+        // so a moved handle no longer brings the chips back
         assertTrue(left.performClick())
         assertTrue(toolbarOf(strip).isVisible)
         assertFalse(strip.findViewById<android.view.View>(R.id.suggestions_strip).isVisible)
         setCursorPosition(1, 4)
+        assertTrue(toolbarOf(strip).isVisible)
+        assertEquals(listOf("Copy", "Cut", "Delete"), selectionLabels(strip)) // the chips are current behind the tools
+        // the chips come back by the left key; many rebuilds (a handle being dragged) keep them; no selection: the tools again
+        assertTrue(left.performClick())
         assertFalse(toolbarOf(strip).isVisible)
-        assertEquals(listOf("Copy", "Cut", "Delete"), selectionLabels(strip))
-        // many rebuilds (a handle being dragged) keep the chips; no selection: the tools again
         repeat(5) { setCursorPosition(1, 3 + it) }
         assertFalse(toolbarOf(strip).isVisible)
         setCursorPosition(3)
@@ -6369,12 +6372,11 @@ class InputLogicTest {
         assertFalse(toolbarOf(strip).isVisible)
         assertEquals(listOf("Copy", "Cut", "Delete"), selectionLabels(strip))
 
-        // typing ends the choice too: words replace the tools
+        // typing ends the choice too: words replace the tools (the strip is given words directly: the harness keeps the selection)
         left.performClick()
         assertTrue(toolbarOf(strip).isVisible)
-        latinIME.setSuggestions(SuggestedWords(arrayListOf(SuggestedWordInfo("hallo", "", 100, SuggestedWordInfo.KIND_CORRECTION, null, 0, 0)),
-            null, null, false, false, false, SuggestedWords.INPUT_STYLE_PREDICTION, SuggestedWords.NOT_A_SEQUENCE_NUMBER))
-        handleMessages()
+        strip.setSuggestions(SuggestedWords(arrayListOf(SuggestedWordInfo("hallo", "", 100, SuggestedWordInfo.KIND_CORRECTION, null, 0, 0)),
+            null, null, false, false, false, SuggestedWords.INPUT_STYLE_PREDICTION, SuggestedWords.NOT_A_SEQUENCE_NUMBER), false)
         assertFalse(toolbarOf(strip).isVisible)
     }
 

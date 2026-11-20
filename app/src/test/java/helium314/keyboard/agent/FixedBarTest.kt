@@ -11,6 +11,11 @@ import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
 import android.widget.ImageButton
 import androidx.core.content.edit
+import helium314.keyboard.latin.utils.getPinnedToolbarKeys
+import helium314.keyboard.latin.utils.isKeyPinned
+import helium314.keyboard.latin.utils.pinKey
+import helium314.keyboard.latin.utils.unpinKey
+import helium314.keyboard.latin.suggestions.BarCounters
 import helium314.keyboard.ShadowInputMethodManager2
 import helium314.keyboard.ShadowProximityInfo
 import helium314.keyboard.keyboard.MainKeyboardView
@@ -342,7 +347,8 @@ class FixedBarTest {
         val h = build()
         assertEquals(listOf(CLIPBOARD, EMOJI, AGENT, DICTATE), slots(h).map { it.tag })
         assertTrue(FixedBar.isCircle(slots(h).last()))
-        assertFalse(prefs.contains(AgentPreferences.BAR_TOOLS))
+        // since the review the preset stores its bar (and its backup restores the previous one), see the preset test below
+        assertEquals(listOf(CLIPBOARD, EMOJI, AGENT, DICTATE), BarTools.parse(prefs.getString(AgentPreferences.BAR_TOOLS, null)))
     }
 
     @Test fun aStoredChoiceIsNeverOverwrittenByTheMigration() {

@@ -159,6 +159,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     }
 
     private var voiceShown: Boolean? = null
+    private var leftKeyText = 0
+    private var leftKeyCircle = false
     /** What the strip tells the diagnose card ([helium314.keyboard.agent.LastField.onStripView]); tests read it. */
     internal var stripReporter: (newContent: Boolean, wordsOffered: Boolean, external: Boolean, toolbar: Boolean, emojis: Boolean) -> Unit =
         { newContent, words, external, toolbar, emojis -> helium314.keyboard.agent.LastField.onStripView(newContent, words, external, toolbar, emojis) }
@@ -331,10 +333,10 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             // tools over content (chosen by the user or forced, e.g. auto show) are a toolbar, and then the content is covered
             val tools = if (fixedBar) barState.show == BarState.Show.TOOLS else toolbarContainer.isVisible
             stripReporter(newContent,
-                wordsOffered = !isExternalSuggestionVisible && !suggestedWords.isEmpty && !suggestedWords.isPunctuationSuggestions,
-                external = isExternalSuggestionVisible && !(fixedBar && tools && barState.hasContent),
-                toolbar = tools && (!fixedBar || barState.hasContent),
-                emojis = emojiRow?.isVisible == true)
+                !isExternalSuggestionVisible && !suggestedWords.isEmpty && !suggestedWords.isPunctuationSuggestions, // words offered
+                isExternalSuggestionVisible && !(fixedBar && tools && barState.hasContent), // external
+                tools && (!fixedBar || barState.hasContent), // toolbar
+                emojiRow?.isVisible == true) // emojis
         }
     }
 
@@ -786,10 +788,17 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         // the back arrow points to the start of the strip, the other icons are symmetric
         // (the arrow of "show the chips" points the other way)
         toolbarExpandKey.scaleX = if (!grid && !toGrid && !toContent && !incognito && editor == null) -direction.toFloat() else direction.toFloat()
-        toolbarExpandKey.contentDescription = context.getString(text)
-        if (flatStyle) toolbarExpandKey.background = if (!grid && editor == null) null else GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(Settings.getValues().mColors.get(ColorType.FUNCTIONAL_KEY_BACKGROUND))
+        if (text != leftKeyText) { // not on every update of the strip: the same text and background as before need no work
+            leftKeyText = text
+            toolbarExpandKey.contentDescription = context.getString(text)
+        }
+        val circle = grid || editor != null
+        if (flatStyle && circle != leftKeyCircle) {
+            leftKeyCircle = circle
+            toolbarExpandKey.background = if (!circle) null else GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Settings.getValues().mColors.get(ColorType.FUNCTIONAL_KEY_BACKGROUND))
+            }
         }
     }
 
@@ -800,7 +809,9 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         if (emojisShown()) { openGrid(); return }
         when (barState.onLeftKey()) {
             BarState.LeftKey.GRID -> openGrid()
-            BarState.LeftKey.SHOW_TOOLS, BarState.LeftKey.SHOW_CONTENT -> applyBarState()
+            BarState.LeftKey.SHOW_TOOLS -> { applyBarState(); reportToLastField(newContent = false) } // the tools now cover the content
+            // uncovering is a new report for the diagnose card (it never takes a "covered" back without new content)
+            BarState.LeftKey.SHOW_CONTENT -> { applyBarState(); reportToLastField(newContent = true) }
         }
     }
 

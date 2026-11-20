@@ -1315,12 +1315,18 @@ Symbolen, mehr als 8 passen nicht, die übrigen stehen im Raster).
   (zwei Spalten, nach unten scrollbar): Textaktionen, Diktat, Skill-Tasten, Ablage, Zeichen-Kunst, Zwischenablage, Emoji, Rückgängig,
   Kopieren, Einfügen, Cursor-Tasten, Einhandmodus, Inkognito, Einstellungen, Design und alle weiteren. Ein Tipp auf eine Pille
   schließt das Raster und führt das Werkzeug aus, genau wie seine Taste. Der Knopf links oben ist jetzt ein Kreuz und schließt
-  das Raster ohne etwas auszuführen. Das Mikrofon (Spracheingabe) erscheint nur, wenn dein Telefon eine Spracheingabe hat.
+  das Raster ohne etwas auszuführen. Das Mikrofon (Spracheingabe) erscheint nur, wenn dein Telefon eine Spracheingabe hat. „Zwischenablage leeren“ (löscht Verlauf, Tresor und Zwischenablage mit einem Tipp) steht nur im
+  Raster, wenn du es vorher in einer deiner Listen hattest. Die Ablage ist in Zahlenfeldern abgedunkelt, wie ihr Symbol im Komma-Popup.
 - **Was bei dir in der Leiste liegt, wenn du nie etwas eingestellt hast:** die ersten fünf Werkzeuge deiner bisherigen Reihenfolge
   (anfangs Textaktionen, Einstellungen, Zwischenablage, Rückgängig und die Mikrofon-Taste, die an das rechte Ende rückt), dazu
   die bisher angehefteten Tasten, wenn sie nicht darunter sind. Alles andere, was du bisher in der Leiste hattest (Wiederholen, Wort
   markieren, Kopieren, Einfügen, Pfeile), steht jetzt im Raster. Hast du die Reihenfolge schon in den Einstellungen verändert, gilt
   deine Reihenfolge. Die Tastatur schreibt dafür nichts weg, bevor du selbst etwas änderst.
+- **Markierter Text und die Werkzeuge:** Markierst du Text, zeigt die Leiste Kopieren, Ausschneiden, Einfügen und Löschen statt der Werkzeuge. Zu den
+  Werkzeugen (zum Beispiel den Textaktionen) kommst du mit dem Pfeil „<“ ganz links („Werkzeuge zeigen“). Das gilt **für diese Markierung**: Ziehst du die Griffe oder
+  meldet die App die Markierung neu, bleiben die Werkzeuge stehen, bis die Markierung endet oder du tippst. Der Pfeil links heißt dann „Auswahl-Aktionen zeigen“ und
+  bringt Kopieren und Co. zurück; ein weiterer Tipp zeigt wieder die Werkzeuge. Während die Werkzeuge für eine Markierung stehen, öffnest du das Raster, indem du den Pfeil
+  lange drückst (Anpassen) oder die Markierung aufhebst; dann ist es wieder der Raster-Knopf.
 - **Passwortfelder und Inkognito:** Werkzeuge, die dort nicht erlaubt sind (Textaktionen, Diktat, Skill-Tasten, Ablage, Zeichen-Kunst),
   bleiben an ihrem Platz, sind aber abgedunkelt und reagieren nicht; im Raster ebenso. Beim gesperrten Telefon gibt es die Leiste nicht.
   Ist Inkognito an, zeigt der Knopf links wie bisher das Inkognito-Symbol; er tut dasselbe wie sonst.

@@ -6395,7 +6395,10 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   plus `LockState`), strenger als die Kopieren-Taste der Werkzeugleiste (`copyText` prüft nichts). Felder, die beim Fokus alles
   markieren (Adressleiste), zeigen die Chips sofort; Tippen ersetzt die Markierung und nimmt sie weg. Sie rufen nie
   `setToolbarVisibility` auf (die erste Fassung schloss im Modus „Aufklappbar“ bei jedem Neubau die Werkzeugleiste): Eine offene
-  Werkzeugleiste verdeckt sie wie jeden Vorschlag; im Flat-Stil und mit „Leiste automatisch ausblenden“ gilt, was
+  Werkzeugleiste verdeckt sie wie jeden Vorschlag (**in der festen Leiste seit 85 nicht mehr:** die Chips ersetzen die Werkzeuge, der Tipp auf
+  „Werkzeuge zeigen“ gilt aber für diese Markierung **klebrig**, `BarState.stickyTools`: Bereichsänderungen und das Echo der App bauen die Chips
+  dahinter neu und lassen die Werkzeuge stehen, bis die Markierung endet (neutrale Leiste) oder Wörter kommen; der Pfeil links bringt die Chips
+  zurück und wieder die Werkzeuge, `LeftKey.SHOW_CONTENT`; `LatinIME.tryShowSelectionChips` meldet `selection = true`); im Flat-Stil und mit „Leiste automatisch ausblenden“ gilt, was
   `SuggestionStripView.setExternalSuggestionView` für jede externe Ansicht tut (Werkzeugleiste ausblenden, wie bei der Pille). Mit
   `mAutoShowToolbar` bauen sie nichts, damit gilt das alte Verhalten (Werkzeugleiste bei Markierung). Schalter
   `AgentPreferences.SELECTION_CHIPS` („Aktionen bei markiertem Text“, `AgentAreaBarScreen`, Standard an). Wischtippen über einer
@@ -6430,6 +6433,19 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - **P386** Anpassen (86): `startDragAndDrop` gibt es nur mit Fenster; Tests ersetzen `SuggestionStripView.dragStarter` und rufen den Zuhörer der Leiste (`toolbarContainer`) und des Rasters (`ToolGridView.dropListener` an Inhalt und Scroll-View) mit echten
   `DragEvent`-Objekten auf. Eine Änderung der Ereignislogik (`onBarDrag`, `onGridDrag`, `dragSlot`, `BarEditor`) prüft `BarEditModeTest` und `BarEditorTest`, ein echter Fingertest steht aus. Der Zustand der Ablage liegt im `BarEditor` (nur dort wird gespeichert, beim Loslassen); die Leiste
   baut ihre Plätze nur neu, wenn sich die angezeigte Liste ändert (`renderedBar`). Der Langdruck auf einen Platz ohne eigene Aktion startet den Modus; ein neues Werkzeug mit Langdruck-Aktion (`getCodeForToolbarKeyLongClick`) behält sie.
+
+- **P387** Auswahl und Werkzeuge (Nachprüfung 85/86): Die Wahl „Werkzeuge zeigen“ ist nur für Auswahl-Chips klebrig (`setExternalSuggestionView(…, selection = true)`); Wörter, andere Chips und eine neutrale Leiste beenden sie. Wer einen
+  neuen Inhalt einführt, der sich bei jedem Neubau wiederholt (Echo der App), gibt ihm dieselbe Behandlung oder verliert die Wahl des Nutzers. Solange die Wahl klebt, ist der Pfeil links „Auswahl-Aktionen zeigen“ und das Raster nur über
+  Langdruck erreichbar (nach dem Ende der Markierung ist es wieder der Raster-Knopf); `onContentRequested` („Leiste automatisch ausblenden“) lässt die Werkzeuge ebenfalls stehen.
+- **P388** Platz gegen Listenstelle (Nachprüfung 85/86): Ein verstecktes Werkzeug (`VOICE` ohne Spracheingabe) bleibt in der gespeicherten Liste, hat aber keinen Platz. Plätze zählen nur sichtbare Werkzeuge, `BarTools.move/insert` zählen
+  die ganze Liste: Zwischen beiden vermittelt `BarEditor.listIndexForSlot` (und `canShift`/`shift` überspringen versteckte Werkzeuge). Neue Stellen, die Plätze in Listenstellen umrechnen, nehmen diese Funktion.
+- **P389** Kosten je Tastendruck (Nachprüfung 85/86): `applyBarState` läuft bei jedem Neubau der Leiste. Das Raster wird je Wurzel-View nur einmal gesucht (`toolGrid`), Beschreibungen kommen aus einem Zwischenspeicher (`labelOf`), `FixedBar.arrange` läuft nur bei
+  Änderung der Sichtbarkeit der Sprachtaste und bei jedem Neubau der Plätze, die linke Taste setzt Symbol und Text nur bei Änderung. `BarCounters` zählt Suche, Neubau, Anordnung und Textabrufe; `FixedBarTest.aStripUpdateWhileTyping…` hält sie bei 0.
+- **P390** Feldwechsel (Nachprüfung 85/86): Ohne `hideWindow` zwischen zwei Feldern (`onStartInputView` mit anderem Feld) schließt `LatinIME` über `SuggestionStripView.onFieldStarted` das Raster und den Anpassen-Modus (nichts Ausstehendes wird gespeichert,
+  ein Neustart im selben Feld lässt es offen). Gedimmte Werkzeuge werden danach aus den neuen Einstellungen berechnet. `KeyCode.AGENT_DESIGN` prüft den Sperrzustand live (`LockState`), wie `KeyCode.SETTINGS` (gesperrt: nichts).
+- **P391** Zerstörende Werkzeuge (Nachprüfung 85/86): Das Raster bietet `BarTools.DESTRUCTIVE` (`CLEAR_CLIPBOARD`: leert Verlauf, Tresor und Zwischenablage mit einem Tipp) nur, wenn der Nutzer es vorher in einer Liste hatte (Leiste, alte Leistenliste, angeheftet). Alle
+  anderen Werkzeuge des Rasters schalten einen Modus, öffnen ein Fenster oder bearbeiten Text (Rückgängig); `BACKGROUND_GATHERING` (Daten sichern oder verwerfen) erscheint wie in den Einstellungen nur nach der ersten Nutzung. Der Speicher `agent_bar_tools` gilt als
+  unbrauchbar (Rückfall auf die Berechnung, ohne zu schreiben), wenn er leer ist oder ein Eintrag nicht `NAME:true`/`NAME:false` ist. `FlatPreset` setzt und sichert `agent_bar_tools` mit den anderen Leistenwerten (die Karte „angewendet“ sieht es).
 
 ## Datei-Inventar
 
