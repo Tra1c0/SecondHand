@@ -56,7 +56,8 @@
     <string name="agent_gestures_delete_swipe">Löschen durch Wischen</string>
     <string name="agent_gestures_delete_swipe_summary">Über die Löschtaste ziehen</string>
     <string name="agent_gestures_trackpad">Cursor als Trackpad</string>
-    <string name="agent_gestures_trackpad_summary">An: Die Leertaste bewegt den Cursor in alle Richtungen (wo ihr Wischen den Cursor bewegt), das Löschwischen hält an Wortanfängen. Aus: wie bisher, nur links und rechts. Beginnt der Wisch seitlich, steuert er den Cursor in alle Richtungen; beginnt er nach oben oder unten, läuft die dort belegte Aktion.</string>
+    <string name="agent_gestures_trackpad_summary">An: Beginnt ein Wisch auf der Leertaste in einer Richtung, die auf „Cursor bewegen“ liegt, bewegt sich der Cursor frei in alle Richtungen; beginnt er in einer Richtung mit anderer Aktion, läuft diese. Das Löschwischen hält an Wortanfängen. Aus: wie bisher.</string>
+    <string name="agent_gestures_trackpad_summary_none">Keine Wischrichtung der Leertaste ist auf „Cursor bewegen“ gestellt, darum bleibt alles wie bisher. Lege unter Leertaste eine Richtung (zum Beispiel links) auf „Cursor bewegen“. Das Löschwischen hält an Wortanfängen.</string>
     <string name="agent_gestures_magnetism">Magnetismus an Wortgrenzen</string>
     <string name="agent_gestures_magnetism_summary">Ein leichter Widerstand am Anfang und Ende von Wörtern, nie ein Einrasten. Bei 0 Prozent ist er aus.</string>
     <string name="agent_gestures_touchpad">Touchpad-Empfindlichkeit</string>

@@ -610,11 +610,11 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         var edgeUp = false // an arrow in this direction moved nothing (or the cursor was at the start): none is sent for the rest of the touch
         var edgeDown = false
         var field: Any? = null // the field the track started in: a new field ends it
-        var horizontalStart = false // stage 87c: a vertical action is bound: the start of the swipe decides between trackpad and that action
+        var startDecides = false // stage 87c: some direction has an action: the start direction of the swipe decides between trackpad and that action
         fun begin(token: Long, code: Int) {
             this.token = token; this.code = code; mode = TrackMode.UNDECIDED; pending.clear()
             originX = 0.0; originY = 0.0; track = null; needsRestart = false; awaitSelection = false
-            pendingLines = 0; edgeUp = false; edgeDown = false; field = null; horizontalStart = false
+            pendingLines = 0; edgeUp = false; edgeDown = false; field = null; startDecides = false
         }
     }
     private val spaceTrack = CursorTrack()
@@ -650,9 +650,9 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         if (st.mode == TrackMode.PENDING) {
             if (st.pending.size >= CursorTrackpad.MAX_PENDING) st.pending.removeAt(0) // a finger resting on the key for long
             st.pending += sample
-            if (st.horizontalStart) {
+            if (st.startDecides) {
                 // stage 87c: the start decides; LEGACY is possible only here, before the claim: the old code then runs from the touch-down point
-                when (CursorTrackpad.decideStart(settings.current.mSpaceGestures, sample.dx, sample.dy)) {
+                when (CursorTrackpad.decideStart(settings.current.mSpaceGestures, sample.dx, sample.dy, isMultiLineField())) {
                     CursorTrackpad.Start.UNDECIDED -> return KeyboardActionListener.TRACK_PENDING
                     CursorTrackpad.Start.LEGACY -> { st.mode = TrackMode.OFF; st.pending.clear(); return KeyboardActionListener.TRACK_OFF }
                     CursorTrackpad.Start.TRACKPAD -> Unit
@@ -671,6 +671,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
             if (code == KeyCode.DELETE) deleteSlideField = st.field
             resetSpaceTap()
             val first = st.pending.first()
+            if (code == Constants.CODE_SPACE && connection.hasSelection()) collapseSelection(sample.dx, sample.dy)
             st.originX = first.dx; st.originY = first.dy
             startTrack(st, code, first.t, eventTime)
             val replay = ArrayList(st.pending)
@@ -687,20 +688,33 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         if (!values.mCursorTrackpad || latinIME.agentEditorController.isBlockingInput) return TrackMode.OFF
         // one owner for every swipe on space and delete: while a finger owns a track (or a delete slide is going) no other finger swipes
         if ((code == Constants.CODE_SPACE || code == KeyCode.DELETE) && trackOwner != -1 && trackOwner != pointerId) return TrackMode.REFUSED
-        var horizontalStart = false
+        var startDecides = false
         val candidate = when {
-            // with a selection the old behavior stays (no selection extension in stage 87)
+            // a selection does not matter here (stage 87c): the trackpad collapses it when it starts
             code == Constants.CODE_SPACE -> {
-                val reason = CursorTrackpad.spaceReason(values.mSpaceGestures, true, connection.hasSelection())
-                horizontalStart = reason == CursorTrackpad.SpaceReason.QUALIFIES_HORIZONTAL_START
+                val reason = CursorTrackpad.spaceReason(values.mSpaceGestures, true)
+                startDecides = reason == CursorTrackpad.SpaceReason.QUALIFIES_START_DECIDES
                 reason.qualifies
             }
             code == KeyCode.DELETE -> true
             else -> false
         }
         if (!candidate) return TrackMode.OFF
-        trackStates.getOrNull(pointerId)?.horizontalStart = horizontalStart
+        trackStates.getOrNull(pointerId)?.startDecides = startDecides
         return TrackMode.PENDING
+    }
+
+    /**
+     * The trackpad starts with a selection (for instance after "select all" on hold): like arrow keys in a text editor, a swipe that starts
+     * towards the left or up collapses it to its start, towards the right or down to its end; the free movement goes on from there.
+     * Nothing is typed, deleted or replaced.
+     */
+    private fun collapseSelection(dx: Double, dy: Double) {
+        val rtl = RichInputMethodManager.getInstance().currentSubtype.isRtlSubtype
+        val toStart = CursorTrackpad.collapsesToStart(CursorTrackpad.startDirection(dx, dy), rtl)
+        val position = if (toStart) connection.expectedSelectionStart else connection.expectedSelectionEnd
+        inputLogic.finishInput()
+        connection.setSelection(position, position)
     }
 
     /** Vertical moves only where the field is known to be multi-line: in a single-line field DPAD_DOWN leaves the field or steps through suggestions. */

@@ -1419,11 +1419,13 @@ class InputLogicTest {
         assertEquals(TRACK_ACTIVE, trackDrag(KeyCode.DELETE, -20.0, 0.0))
     }
 
-    @Test fun cursor87WithASelectionTheOldBehaviorStays() {
+    @Test fun cursor87WithASelectionTheTrackpadCollapsesItAndMovesOn() { // stage 87c: before, a selection kept the old swipe (this expectation is the one that changed)
+        latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0) }
         setText("hello world")
         setCursorPosition(2, 5)
-        assertEquals(TRACK_OFF, spaceTrack(-42.0, 0.0))
-        assertEquals(2, selectionStart); assertEquals(5, selectionEnd)
+        assertEquals(TRACK_ACTIVE, spaceTrack(-30.0, 0.0)) // left: to the start of the selection, then two clusters on
+        assertEquals("hello world", text)
+        assertEquals(0, cursor)
     }
 
     @Test fun cursor87ATapOrASmallWiggleIsNoSwipe() {
@@ -1626,8 +1628,8 @@ class InputLogicTest {
     }
 
     private fun swipeCalls(spy: helium314.keyboard.keyboard.KeyboardActionListenerImpl): List<String> =
-        Mockito.mockingDetails(spy).invocations.filter { it.method.name in setOf("onSpaceSwipe", "onCodeInput", "toggleLayout", "onEndSpaceSwipe") }
-            .map { inv -> "${inv.method.name} ${inv.arguments.take(2).joinToString(" ")}" }
+        Mockito.mockingDetails(spy).invocations.filter { it.method.name in setOf("onSpaceSwipe", "onSpaceSwipeDistance", "onCodeInput", "toggleLayout", "onEndSpaceSwipe") }
+            .map { inv -> "${inv.method.name} ${inv.arguments.take(if (inv.method.name == "onSpaceSwipeDistance") 1 else 2).joinToString(" ")}" }
             .fold(ArrayList<Pair<String, Int>>()) { acc, c -> if (acc.isNotEmpty() && acc.last().first == c) acc[acc.size - 1] = c to acc.last().second + 1 else acc.add(c to 1); acc }
             .map { it.first } // consecutive equal reports as one entry: how many events the finger needed depends on the typing recorder left by earlier tests
 
@@ -1894,6 +1896,31 @@ class InputLogicTest {
         assertEquals(10, selectionEnd - selectionStart, "hold selected everything")
     }
 
+    @Test fun bindings87cRightBoundToAnActionRunsItsDetentSwipeWhileLeftIsTheCursor() = withSpyRig { rig, spy ->
+        setSpaceGesture(SpaceGesture.SWIPE_RIGHT, SpaceAction.REDO)
+        setSpaceGesture(SpaceGesture.SWIPE_UP, SpaceAction.NONE); setSpaceGesture(SpaceGesture.SWIPE_DOWN, SpaceAction.NONE)
+        setText("Hallo Welt")
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X + 150f, SPACE_Y); rig.up(0)
+        assertEquals("FIXTURE-RIGHTREDO", swipeCalls(spy).joinToString("|"))
+    }
+
+    @Test fun bindings87cVerticalIsTheCursorHorizontalSwitchesTheLanguage() = withSpyRig { rig, spy ->
+        setSpaceGesture(SpaceGesture.SWIPE_LEFT, SpaceAction.SWITCH_LANGUAGE); setSpaceGesture(SpaceGesture.SWIPE_RIGHT, SpaceAction.SWITCH_LANGUAGE)
+        setSpaceGesture(SpaceGesture.SWIPE_UP, SpaceAction.MOVE_CURSOR); setSpaceGesture(SpaceGesture.SWIPE_DOWN, SpaceAction.MOVE_CURSOR)
+        setText("Hallo Welt")
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X - 60f, SPACE_Y); rig.up(0)
+        assertEquals("onSpaceSwipe SWIPE_LEFT -1|onSpaceSwipe SWIPE_LEFT -2|onSpaceSwipe SWIPE_LEFT -3", swipeCalls(spy).take(3).joinToString("|"))
+    }
+
+    @Test fun bindings87cNoDirectionIsTheCursorEverythingIsTheOldSwipe() = withSpyRig { rig, spy ->
+        for (g in listOf(SpaceGesture.SWIPE_LEFT, SpaceGesture.SWIPE_RIGHT, SpaceGesture.SWIPE_UP, SpaceGesture.SWIPE_DOWN)) setSpaceGesture(g, SpaceAction.NONE)
+        setSpaceGesture(SpaceGesture.SWIPE_RIGHT, SpaceAction.UNDO)
+        setText("Hallo Welt")
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X - 40f, SPACE_Y); rig.up(0)
+        assertEquals("FIXTURE-NONE", swipeCalls(spy).joinToString("|"))
+        assertEquals(10, cursor)
+    }
+
     // ---- new behavior of the trackpad with several fingers: one owner, the others stay as before
 
     @Test fun cursor87OnlyOneFingerOwnsTheTrackAndASecondFingerStaysATap() {
@@ -2132,6 +2159,96 @@ class InputLogicTest {
         assertTrue(swipeCalls(spy).none { it.startsWith("onSpaceSwipe") }, "no old swipe: ${swipeCalls(spy)}")
         rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X, SPACE_Y - 40f); rig.up(0) // up has an action
         assertTrue(swipeCalls(spy).any { it.contains("-131") }, "undo ran: ${swipeCalls(spy)}")
+    }
+
+    @Test fun cursor87cLeftIsTheCursorRightIsAnActionTheLeftStartIsFreeAlsoToTheRight() = withSpyRig { rig, spy ->
+        setSpaceGesture(SpaceGesture.SWIPE_RIGHT, SpaceAction.REDO)
+        setSpaceGesture(SpaceGesture.SWIPE_UP, SpaceAction.NONE); setSpaceGesture(SpaceGesture.SWIPE_DOWN, SpaceAction.NONE)
+        latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0) }
+        setText("Hallo Welt und mehr Text")
+        setCursorPosition(20)
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X - 60f, SPACE_Y)
+        val left = cursor
+        assertTrue(left < 20)
+        rig.slide(0, SPACE_X - 20f, SPACE_Y) // now to the right: the cursor follows, no redo
+        assertTrue(cursor > left, "free movement to the right: $left -> $cursor")
+        rig.up(0)
+        assertTrue(swipeCalls(spy).none { it.contains("-132") || it.startsWith("onSpaceSwipe") }, "no action ran: ${swipeCalls(spy)}")
+    }
+
+    @Test fun cursor87cVerticalIsTheCursorHorizontalIsTheLanguageAVerticalStartIsFreeInAMultiLineField() = withSpyRig { rig, spy ->
+        setSpaceGesture(SpaceGesture.SWIPE_LEFT, SpaceAction.SWITCH_LANGUAGE); setSpaceGesture(SpaceGesture.SWIPE_RIGHT, SpaceAction.SWITCH_LANGUAGE)
+        setSpaceGesture(SpaceGesture.SWIPE_UP, SpaceAction.MOVE_CURSOR); setSpaceGesture(SpaceGesture.SWIPE_DOWN, SpaceAction.MOVE_CURSOR)
+        latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0) }
+        multiLine("aaaa aaaa\nbbbb bbbb\ncccc cccc", 28)
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X, SPACE_Y - 60f, 40f); rig.slide(0, SPACE_X - 40f, SPACE_Y - 60f, 40f); rig.up(0)
+        assertTrue(arrows(DPAD_UP) >= 1, "a vertical start moved a line")
+        assertTrue(swipeCalls(spy).none { it.startsWith("onSpaceSwipe") }, "no language swipe: ${swipeCalls(spy)}")
+    }
+
+    @Test fun cursor87cNothingBoundAndNoCursorDirectionTheTrackpadIsOff() {
+        for (g in listOf(SpaceGesture.SWIPE_LEFT, SpaceGesture.SWIPE_RIGHT, SpaceGesture.SWIPE_UP, SpaceGesture.SWIPE_DOWN)) setSpaceGesture(g, SpaceAction.NONE)
+        setText("hello")
+        assertEquals(TRACK_OFF, spaceTrack(-42.0, 0.0))
+        assertEquals(TRACK_OFF, spaceTrack(0.0, -42.0))
+    }
+
+    @Test fun cursor87cAVerticalStartWithNothingBoundDoesNothingInASingleLineFieldAndMovesInAMultiLineField() {
+        setSpaceGesture(SpaceGesture.SWIPE_UP, SpaceAction.UNDO); setSpaceGesture(SpaceGesture.SWIPE_DOWN, SpaceAction.NONE)
+        setText("hello world")
+        assertEquals(TRACK_OFF, spaceTrack(0.0, 40.0), "single line: the old swipe (nothing happens)")
+        assertTrue(ShadowInputMethodService.keyDownCodes.isEmpty())
+        multiLine("a\nb\nc", 0)
+        assertEquals(TRACK_ACTIVE, spaceTrack(0.0, 40.0), "multi-line: the trackpad")
+    }
+
+    // a selection: the trackpad collapses it like arrow keys do and goes on, nothing is typed or deleted
+
+    @Test fun cursor87cALeftStartCollapsesTheSelectionToItsStartAndMovesOnFromThere() {
+        latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0) }
+        setText("Hallo Welt und mehr Text")
+        setCursorPosition(6, 10)
+        assertEquals(TRACK_ACTIVE, spaceTrack(-30.0, 0.0)) // 2 steps
+        assertEquals("Hallo Welt und mehr Text", text)
+        assertEquals(selectionStart, selectionEnd)
+        assertEquals(4, cursor, "start 6, two clusters left")
+    }
+
+    @Test fun cursor87cARightStartCollapsesTheSelectionToItsEndAndMovesOnFromThere() {
+        latinIME.prefs().edit { putInt(AgentPreferences.CURSOR_MAGNETISM, 0) }
+        setText("Hallo Welt und mehr Text")
+        setCursorPosition(6, 10)
+        assertEquals(TRACK_ACTIVE, spaceTrack(30.0, 0.0))
+        assertEquals("Hallo Welt und mehr Text", text)
+        assertEquals(12, cursor, "end 10, two clusters right (the old swipe gave start + 2 = 8)")
+    }
+
+    @Test fun cursor87cADownStartCollapsesToTheEndAndAnUpStartToTheStart() {
+        multiLine("aaaa\nbbbb\ncccc", 0)
+        setCursorPosition(6, 12)
+        spaceTrack(0.0, 14.0) // a short vertical start: collapsed to the end, no arrow yet worth a line (13 dp)
+        assertEquals("aaaa\nbbbb\ncccc", text)
+        assertEquals(selectionStart, selectionEnd)
+        assertTrue(ShadowInputMethodService.cursor >= 12, "collapsed to the end: ${ShadowInputMethodService.cursor}")
+        setCursorPosition(6, 12)
+        spaceTrack(0.0, -14.0)
+        assertEquals(selectionStart, selectionEnd)
+        assertTrue(ShadowInputMethodService.cursor <= 6, "collapsed to the start: ${ShadowInputMethodService.cursor}")
+    }
+
+    @Test fun cursor87cHoldSelectsAllThenASwipeCollapsesItAndTheDeleteSlideIsUnchanged() = withRig { rig ->
+        latinIME.prefs().edit { putBoolean(Settings.PREF_SPACE_TO_CHANGE_LANG, false) }
+        setSpaceGesture(SpaceGesture.HOLD, SpaceAction.SELECT_ALL)
+        setText("Hallo Welt")
+        rig.down(0, SPACE_X, SPACE_Y); rig.wait(700); rig.up(0) // the hold fires while the finger rests
+        assertEquals(10, selectionEnd - selectionStart, "select all")
+        rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X + 40f, SPACE_Y); rig.up(0)
+        assertEquals("Hallo Welt", text)
+        assertEquals(selectionStart, selectionEnd)
+        // the delete slide with a selection is the old one: it selects further back and the lift deletes
+        setCursorPosition(10)
+        rig.down(0, DELETE_X, SPACE_Y); rig.slide(0, DELETE_X - 62f, SPACE_Y); rig.up(0)
+        assertTrue(text.length < 10)
     }
 
     // ---- third review
