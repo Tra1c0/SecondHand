@@ -349,9 +349,20 @@ internal object FixedBar {
         override fun getOpacity() = PixelFormat.TRANSLUCENT
     }
 
-    /** A tool button that draws a small lock at the lower right of its glyph while the tool is unavailable (the second sign besides the colour). */
+    /** Shows or hides the small redo arrow on the undo tool (stage 88: "Kontextwerkzeuge"); the slot keeps its size and place. */
+    fun setRedoOffered(button: View, offered: Boolean) {
+        (button as? BarToolButton)?.redoOffered(offered)
+    }
+
+    fun isRedoOffered(button: View) = (button as? BarToolButton)?.redo == true
+
+    /** A tool button that draws a small lock at the lower right of its glyph while the tool is unavailable (the second sign besides the colour), and the redo arrow after an undo. */
     private class BarToolButton(context: Context) : ImageButton(context, null, R.attr.suggestionWordStyle) {
         private var off = false
+        var redo = false
+            private set
+
+        fun redoOffered(value: Boolean) { if (redo != value) { redo = value; invalidate() } }
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
         private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
 
@@ -363,6 +374,7 @@ internal object FixedBar {
 
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
+            if (redo) drawRedoArrow(canvas)
             if (!off) return
             val d = resources.displayMetrics.density
             val right = width - paddingRight + 2f * d
@@ -374,6 +386,29 @@ internal object FixedBar {
             canvas.drawRoundRect(left, top, right, bottom, 1.5f * d, 1.5f * d, paint)
             stroke.strokeWidth = 1.4f * d
             canvas.drawArc(left + 1.6f * d, top - 4.4f * d, right - 1.6f * d, top + 3.2f * d, 180f, 180f, false, stroke)
+        }
+
+        /** A small arrow that turns clockwise (redo) at the upper right of the glyph, in the colour of the icon. */
+        private fun drawRedoArrow(canvas: Canvas) {
+            val d = resources.displayMetrics.density
+            val colour = (getTag(R.id.agent_bar_tint) as? ColorStateList)?.let { StripIconColors.normalOf(it) } ?: return
+            stroke.color = colour
+            paint.color = colour
+            stroke.strokeWidth = 1.6f * d
+            val right = width - paddingRight + 3f * d
+            val top = paddingTop - 3f * d
+            val r = 4f * d
+            val cx = right - r
+            val cy = top + r
+            canvas.drawArc(cx - r, cy - r, cx + r, cy + r, 200f, 250f, false, stroke)
+            // the head at the end of the arc, pointing clockwise
+            val a = Math.toRadians(450.0)
+            val hx = cx + (r * Math.cos(a)).toFloat()
+            val hy = cy + (r * Math.sin(a)).toFloat()
+            val path = android.graphics.Path().apply {
+                moveTo(hx - 2.6f * d, hy - 1.6f * d); lineTo(hx + 2.4f * d, hy - 0.4f * d); lineTo(hx - 0.4f * d, hy + 2.4f * d); close()
+            }
+            canvas.drawPath(path, paint)
         }
     }
 

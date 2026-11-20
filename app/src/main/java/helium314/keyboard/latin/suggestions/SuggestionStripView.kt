@@ -164,6 +164,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     private var voiceShown: Boolean? = null
     private var leftKeyText = 0
     private var leftKeyCircle = false
+    private val undoOfferListener: () -> Unit = { updateUndoOffer() } // called on the main thread by the key handling
     private var leftKeyIconBase = 0
     private var leftKeyIconBehind = 0
     /** What the strip tells the diagnose card ([helium314.keyboard.agent.LastField.onStripView]); tests read it. */
@@ -244,6 +245,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             pinnedKeys.visibility = GONE
             if (flatStyle) FlatStrip.arrangeLeftKey(this, toolbarExpandKey) else FixedBar.arrangeLeftKey(toolbarExpandKey)
             populateBar(BarTools.read(context.prefs()))
+            helium314.keyboard.agent.UndoOffer.onChange = undoOfferListener
         }
         if (flatStyle) {
             if (!fixedBar) FlatStrip.arrange(this, findViewById(R.id.suggestions_strip_wrapper), toolbarExpandKey, toolbarContainer, toolbar, pinnedKeys)
@@ -426,6 +428,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
+        if (helium314.keyboard.agent.UndoOffer.onChange === undoOfferListener) helium314.keyboard.agent.UndoOffer.onChange = null
         dismissMoreSuggestionsPanel()
     }
 
@@ -703,6 +706,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     fun onKeyboardHidden() {
         if (!fixedBar) { setToolbarVisibility(false); return }
         exitEdit(andClose = false) // what was dropped is saved; a drag in progress saves nothing
+        helium314.keyboard.agent.UndoOffer.reset()
         closeGrid()
         barState.reset()
         applyBarState()
@@ -751,6 +755,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     fun onFieldStarted() {
         if (!fixedBar) return
         exitEdit(andClose = false)
+        helium314.keyboard.agent.UndoOffer.reset()
         closeGrid()
         // stage 79b: what the last field left in the bar state (a sticky choice of the tools for a selection, content that is
         // gone) must not hold the chips of the new field back; its own content comes with its first strip update
@@ -793,7 +798,26 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             val key = button.tag as? ToolbarKey ?: return@forEachChild
             val reason = BarTools.unavailableReason(key, values.mIncognitoModeEnabled, values.mIsLocked, number)
             FixedBar.setAvailable(button, reason, editor != null, labelOf(key)) { reason?.let { unavailableLabelOf(key, it) } }
+            if (key == ToolbarKey.UNDO) applyUndoOffer(button)
         }
+    }
+
+    /**
+     * Stage 88 ("Kontextwerkzeuge"): after an undo the undo tool carries a small redo arrow (and says so to a screen reader) until
+     * the text changes, the field changes or the keyboard hides ([helium314.keyboard.agent.UndoOffer]). Redo itself is the long press
+     * of the undo tool (as before) or, for a screen reader, a custom action. Nothing is offered when REDO is a tool of the bar itself
+     * or while the bar is edited. The slot keeps its size and place.
+     */
+    private fun applyUndoOffer(button: View) {
+        val offer = editor == null && helium314.keyboard.agent.UndoOffer.active && ToolbarKey.REDO !in (renderedBar ?: emptyList())
+        FixedBar.setRedoOffered(button, offer)
+        if (offer && FixedBar.reasonOf(button) == null)
+            button.contentDescription = context.getString(R.string.agent_bar_undo_offers_redo, labelOf(ToolbarKey.UNDO))
+    }
+
+    private fun updateUndoOffer() {
+        if (!fixedBar) return
+        toolbar.forEachChild { if (it.tag == ToolbarKey.UNDO) { FixedBar.setAvailable(it, BarTools.unavailableReason(ToolbarKey.UNDO, false, false), editor != null, labelOf(ToolbarKey.UNDO)) { null }; applyUndoOffer(it) } }
     }
 
     private inline fun ViewGroup.forEachChild(action: (View) -> Unit) {
@@ -915,6 +939,10 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
                 if (ed.canShift(key, -1)) androidx.core.view.ViewCompat.addAccessibilityAction(button, context.getString(R.string.agent_bar_action_left)) { _, _ -> afterEdit(ed.shift(key, -1)); true }
                 if (ed.canShift(key, 1)) androidx.core.view.ViewCompat.addAccessibilityAction(button, context.getString(R.string.agent_bar_action_right)) { _, _ -> afterEdit(ed.shift(key, 1)); true }
             }
+        }
+        if (ed == null && ToolbarKey.REDO !in keys) toolbar.forEachChild { button ->
+            if (button.tag == ToolbarKey.UNDO) androidx.core.view.ViewCompat.addAccessibilityAction(button, context.getString(R.string.agent_bar_action_redo)) { _, _ ->
+                listener.onCodeInput(KeyCode.REDO, Constants.SUGGESTION_STRIP_COORDINATE, Constants.SUGGESTION_STRIP_COORDINATE, false); true }
         }
         updateToolAvailability()
         helium314.keyboard.agent.RgbLighting.onStripChanged(this) // the buttons are new: the light finds them again

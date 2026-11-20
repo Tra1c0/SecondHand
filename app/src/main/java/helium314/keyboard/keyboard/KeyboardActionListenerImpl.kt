@@ -153,6 +153,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     override fun onCodeInput(primaryCode: Int, x: Int, y: Int, isKeyRepeat: Boolean) {
         if (latinIME.agentEditorController.isBlockingInput) return;
         helium314.keyboard.agent.SymbolDrawing.beforeOtherInput() // codes without a key press, e.g. from the strip
+        helium314.keyboard.agent.UndoOffer.onCode(primaryCode) // stage 88: after an undo the bar offers a redo until the text changes
         if (TouchCalibration.active) keyboardSwitcher.mainKeyboardView?.let { view ->
             // view to keyboard coordinates, as KeyDetector does
             TouchCalibration.onKey(primaryCode, x, y, view.paddingLeft, view.paddingTop, keyboardSwitcher.keyboard)

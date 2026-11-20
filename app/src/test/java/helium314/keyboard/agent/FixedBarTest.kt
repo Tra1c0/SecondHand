@@ -466,6 +466,83 @@ class FixedBarTest {
         assertNull(BarTools.unavailableReason(UNDO, true, true, true))
     }
 
+    // ---- stage 88: "Kontextwerkzeuge", undo offers redo ----
+
+    private fun drawn(view: View): android.graphics.Bitmap =
+        android.graphics.Bitmap.createBitmap(view.width, view.height, android.graphics.Bitmap.Config.ARGB_8888).also { view.draw(android.graphics.Canvas(it)) }
+
+    @Test fun afterAnUndoTheUndoToolOffersRedoNothingMovesAndTheTextChangeTakesItAway() {
+        helium314.keyboard.agent.UndoOffer.reset()
+        setBar(listOf(AGENT, UNDO, CLIPBOARD, COPY, VOICE))
+        reload()
+        val h = build()
+        val undo = slots(h).first { it.tag == UNDO }
+        val places = slots(h).map { it.centreIn(h.root) }
+        val plain = drawn(undo)
+        assertFalse(FixedBar.isRedoOffered(undo))
+        val label = undo.contentDescription.toString()
+        // the tool run from the bar goes through the real key handling, which tells the offer (here the same call)
+        undo.performClick()
+        assertEquals(listOf(KeyCode.UNDO), h.codes)
+        helium314.keyboard.agent.UndoOffer.onCode(KeyCode.UNDO)
+        layout(h)
+        assertTrue(FixedBar.isRedoOffered(undo))
+        assertTrue(undo.contentDescription.toString() != label && latinIME.getString(R.string.agent_bar_undo_offers_redo, label) == undo.contentDescription.toString())
+        // the slot shows it: the corner differs; the places of all tools and the size of the slot are the same
+        val offered = drawn(undo)
+        assertEquals(plain.width, offered.width)
+        var differing = 0
+        for (y in 0 until offered.height) for (x in 0 until offered.width) if (offered.getPixel(x, y) != plain.getPixel(x, y)) differing++
+        assertTrue(differing > 20, "the redo arrow is drawn ($differing pixels)")
+        assertEquals(places, slots(h).map { it.centreIn(h.root) })
+        // redo is the long press of the undo tool (as before) and keeps the offer; so does undo again
+        assertTrue(undo.performLongClick())
+        assertEquals(listOf(KeyCode.UNDO, KeyCode.REDO), h.codes)
+        helium314.keyboard.agent.UndoOffer.onCode(KeyCode.REDO)
+        assertTrue(FixedBar.isRedoOffered(undo))
+        // a screen reader gets the action
+        val action = undo.createAccessibilityNodeInfo().actionList.first { it.label?.toString() == latinIME.getString(R.string.agent_bar_action_redo) }
+        assertTrue(undo.performAccessibilityAction(action.id, null))
+        assertEquals(KeyCode.REDO, h.codes.last())
+        // typing ends it
+        helium314.keyboard.agent.UndoOffer.onCode('a'.code)
+        assertFalse(FixedBar.isRedoOffered(undo))
+        assertEquals(label, undo.contentDescription.toString())
+        // so does the keyboard going away and a new field
+        helium314.keyboard.agent.UndoOffer.onCode(KeyCode.UNDO)
+        assertTrue(FixedBar.isRedoOffered(undo))
+        h.strip.onKeyboardHidden()
+        assertFalse(FixedBar.isRedoOffered(slots(h).first { it.tag == UNDO }))
+        helium314.keyboard.agent.UndoOffer.onCode(KeyCode.UNDO)
+        h.strip.onFieldStarted()
+        assertFalse(FixedBar.isRedoOffered(slots(h).first { it.tag == UNDO }))
+        helium314.keyboard.agent.UndoOffer.reset()
+    }
+
+    @Test fun withRedoAsATooloftheBarNothingSpecialHappensAndTheCompactRowShowsItToo() {
+        helium314.keyboard.agent.UndoOffer.reset()
+        setBar(listOf(UNDO, REDO, CLIPBOARD))
+        reload()
+        var h = build()
+        helium314.keyboard.agent.UndoOffer.onCode(KeyCode.UNDO)
+        assertFalse(FixedBar.isRedoOffered(slots(h).first { it.tag == UNDO }))
+        assertTrue(undoActions(h).isEmpty())
+        // eight tools: the compact row offers it with the same arrow, nothing moves
+        setBar(listOf(AGENT, UNDO, CLIPBOARD, COPY, PASTE, CUT, EMOJI, SETTINGS))
+        reload()
+        h = build()
+        val places = slots(h).map { it.centreIn(h.root) }
+        helium314.keyboard.agent.UndoOffer.onCode(KeyCode.REDO)
+        helium314.keyboard.agent.UndoOffer.reset()
+        helium314.keyboard.agent.UndoOffer.onCode(KeyCode.UNDO)
+        assertTrue(FixedBar.isRedoOffered(slots(h).first { it.tag == UNDO }))
+        assertEquals(places, slots(h).map { it.centreIn(h.root) })
+        helium314.keyboard.agent.UndoOffer.reset()
+    }
+
+    private fun undoActions(h: Harness) = slots(h).first { it.tag == UNDO }.createAccessibilityNodeInfo().actionList
+        .filter { it.label?.toString() == latinIME.getString(R.string.agent_bar_action_redo) }
+
     @Test fun incognitoShowsItsIconOnTheLeftKeyAndKeepsItsFunction() {
         prefs.edit { putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true) }
         reload()
