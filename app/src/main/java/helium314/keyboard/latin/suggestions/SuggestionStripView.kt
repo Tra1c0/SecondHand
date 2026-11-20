@@ -624,7 +624,14 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         toolbar.findViewWithTag<View>(ToolbarKey.VOICE)?.isVisible = show
         pinnedKeys.findViewWithTag<View>(ToolbarKey.VOICE)?.isVisible = show
         // a hidden voice key leaves its cell to the others and the last microphone key may become the circle
-        if (fixedBar) FixedBar.arrange(toolbar, toolbarExpandKey, flatStyle, Settings.getValues().mColors)
+        if (fixedBar) arrangeBar()
+    }
+
+    /** The geometry of the slots; in the edit mode they keep their outlines (every update of the strip comes through here). */
+    private fun arrangeBar() {
+        val colors = Settings.getValues().mColors
+        FixedBar.arrange(toolbar, toolbarExpandKey, flatStyle, colors)
+        if (editor != null) FixedBar.markEditing(toolbar, flatStyle, colors, ghost)
     }
 
     private fun updateKeys() {
@@ -659,9 +666,6 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     }
 
     // ---- fork, stage 85: the fixed bar (BarState, FixedBar) ----
-
-    /** What the strip shows now: the tools or the content (a test reads it). */
-    val barShowsTools get() = fixedBar && toolbarContainer.isVisible
 
     /** The keyboard goes away: the next time the bar starts with the tools (or, in the other modes, with the suggestions). */
     fun onKeyboardHidden() {
@@ -786,7 +790,6 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         updateVoiceKey() // hides the voice key without a voice input and arranges the slots
         val ed = editor
         if (ed != null) {
-            FixedBar.markEditing(toolbar, flatStyle, colors, ghost)
             toolbar.forEachChild { button ->
                 val key = button.tag as? ToolbarKey ?: return@forEachChild
                 val at = ed.bar.indexOf(key)

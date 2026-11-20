@@ -1328,8 +1328,11 @@ Symbolen, mehr als 8 passen nicht, die übrigen stehen im Raster).
   Reihenfolge; höchstens 8 schalten sich ein, die ersten 8 gelten). „Standard“ im Dialog stellt wieder die Reihenfolge von vorher her.
   Genauso, bequemer, direkt in der Tastatur: siehe nächster Abschnitt. Auch die Skill-Tasten-Schalter („Skill-Tasten anheften“) legen
   die Taste in die Leiste (auf den ersten freien Platz; ist die Leiste voll, passiert nichts).
+- **Zurück zur alten Leiste:** Einstellungen → Leiste & Befehle → „Knöpfe wählen und sortieren“ → Schalter „Feste Leiste wie Gboard“ aus
+  (nur bei „Tasten + Vorschläge“ sichtbar). Dann gilt wieder die ausklappbare Leiste mit Pfeil, scrollbaren Werkzeugen, angehefteten Knöpfen und,
+  im flachen Look, dem kleinen Menü hinter dem Raster-Symbol; die Liste „Werkzeuge in der Leiste“ ist dann nicht in Gebrauch. Der Schalter ist
+  der Rückweg, falls die feste Leiste auf deinem Telefon nicht gefällt (sie wurde noch nicht auf einem Gerät gesehen).
 - Die anderen Modi sehen aus wie bisher: „Nur Vorschläge“ (nur Wortvorschläge und angeheftete Knöpfe), „Versteckt“, „Nur Leisten-Tasten“.
-  Der Pfeil zum Ein- und Ausklappen der Werkzeuge und das Scrollen der Werkzeugzeile gibt es nur noch dort, nicht mehr bei „Tasten + Vorschläge“.
 
 ### In der Tastatur anpassen (halten und ziehen)
 
@@ -1373,8 +1376,7 @@ dabei nicht gesichert.
   (Einstellungen → Leiste & Befehle → „Knöpfe wählen und sortieren“ oder halten und ziehen in der Tastatur).
 - Raster-Knopf: öffnet das Raster aller Werkzeuge (siehe „Die Leiste wie Gboard“), darunter Design (öffnet die Einstellungen zum
   Aussehen), Rückgängig, Einhandmodus, Emoji, Inkognito und die frei verschiebbare Tastatur. Das X schließt das Raster. Das
-  kleine Menü mit sechs Pillen und dem Stift-Knopf gibt es nur noch, wenn du einen anderen Leistenmodus als
-  „Tasten + Vorschläge“ gewählt hast.
+  kleine Menü mit sechs Pillen und dem Stift-Knopf gibt es nur noch, wenn du „Feste Leiste wie Gboard“ ausgeschaltet hast.
 - Die Zwischenablage-Taste fügt den aktuellen Inhalt der Zwischenablage an der Schreibmarke
   ein, solange der Zwischenablageverlauf aus ist (so ist er anfangs). Erst mit eingeschaltetem
   Verlauf (Einstellungen → Leiste & Befehle → Zwischenablage & Bilder → „Zwischenablage-Verlauf“) öffnet sie die
