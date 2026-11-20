@@ -738,9 +738,13 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     private fun unavailableLabelOf(key: ToolbarKey, reason: BarTools.Reason) =
         unavailableLabels.getOrPut(key to reason) { context.getString(R.string.agent_bar_tool_unavailable_why, labelOf(key), reasonText(reason)) }
 
+    /** The user's own switch "Always incognito" is on (it makes every field incognito). */
+    private fun alwaysIncognito() = context.prefs().getBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, Defaults.PREF_ALWAYS_INCOGNITO_MODE)
+
     /** The real reason a tool does nothing in this field (the check that blocks it), as a short sentence. */
     private fun reasonText(reason: BarTools.Reason) = context.getString(when (reason) {
         BarTools.Reason.PRIVATE_FIELD -> R.string.agent_bar_hint_private
+        BarTools.Reason.INCOGNITO_SWITCH -> R.string.agent_bar_hint_incognito
         BarTools.Reason.LOCKED_DEVICE -> R.string.agent_bar_hint_locked
         BarTools.Reason.NUMBER_LAYOUT -> R.string.agent_bar_hint_number
     })
@@ -797,7 +801,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         numberLayoutShown = number
         toolbar.forEachChild { button ->
             val key = button.tag as? ToolbarKey ?: return@forEachChild
-            val reason = BarTools.unavailableReason(key, values.mIncognitoModeEnabled, values.mIsLocked, number)
+            val reason = BarTools.unavailableReason(key, values.mIncognitoModeEnabled, values.mIsLocked, number, alwaysIncognito())
             FixedBar.setAvailable(button, reason, editor != null, labelOf(key)) { reason?.let { unavailableLabelOf(key, it) } }
             if (key == ToolbarKey.UNDO) applyUndoOffer(button)
         }
@@ -897,7 +901,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
                 && (key != ToolbarKey.BACKGROUND_GATHERING || helium314.keyboard.latin.utils.GestureDataGatheringSettings.hasBackgroundGatheringPref(context.prefs()))
                 && (key !in BarTools.DESTRUCTIVE || key in usedBefore)
         }.map {
-            val reason = BarTools.unavailableReason(it, values.mIncognitoModeEnabled, values.mIsLocked, numberLayoutProbe())
+            val reason = BarTools.unavailableReason(it, values.mIncognitoModeEnabled, values.mIsLocked, numberLayoutProbe(), alwaysIncognito())
             helium314.keyboard.agent.ToolGridView.Tool(it, reason == null, reason)
         }
     }

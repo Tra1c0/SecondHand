@@ -43,4 +43,5 @@
     <string name="agent_bar_announce_moved">%1$s auf Platz %2$d</string>
     <string name="agent_bar_action_redo">Wiederholen</string>
     <string name="agent_bar_undo_offers_redo">%1$s. Halten zum Wiederholen</string>
+    <string name="agent_bar_hint_incognito">Nicht verfügbar: „Immer Inkognito“ ist eingeschaltet</string>
 </resources>

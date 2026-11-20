@@ -607,6 +607,24 @@ class FixedBarTest {
     private fun undoActions(h: Harness) = slots(h).first { it.tag == UNDO }.createAccessibilityNodeInfo().actionList
         .filter { it.label?.toString() == latinIME.getString(R.string.agent_bar_action_redo) }
 
+    @Test fun aSwitchOfTheUserForAlwaysIncognitoSaysSoNotPrivateField() {
+        setBar(listOf(AGENT, UNDO))
+        prefs.edit { putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true) }
+        reload()
+        val h = build()
+        val agent = slots(h).first { it.tag == AGENT }
+        assertEquals(BarTools.Reason.INCOGNITO_SWITCH, FixedBar.reasonOf(agent))
+        agent.performClick()
+        val hint = h.strip.findViewById<android.widget.TextView>(R.id.agent_bar_hint).text.toString()
+        assertEquals(latinIME.getString(R.string.agent_bar_hint_incognito), hint)
+        assertTrue(hint != latinIME.getString(R.string.agent_bar_hint_private))
+        leftKey(h).performClick()
+        assertEquals(BarTools.Reason.INCOGNITO_SWITCH, h.grid.reason(AGENT))
+        // without the switch a password field is a private field
+        assertEquals(BarTools.Reason.PRIVATE_FIELD, BarTools.unavailableReason(AGENT, true, false))
+        assertEquals(BarTools.Reason.INCOGNITO_SWITCH, BarTools.unavailableReason(AGENT, true, false, alwaysIncognito = true))
+    }
+
     @Test fun incognitoShowsItsIconOnTheLeftKeyAndKeepsItsFunction() {
         prefs.edit { putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true) }
         reload()

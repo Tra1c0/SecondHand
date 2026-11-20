@@ -139,12 +139,13 @@ object BarTools {
     // ---- availability ----
 
     /** Why a tool is shown in the "off" look (stage 88): the real reason of the check that blocks it. */
-    enum class Reason { PRIVATE_FIELD, LOCKED_DEVICE, NUMBER_LAYOUT }
+    enum class Reason { PRIVATE_FIELD, INCOGNITO_SWITCH, LOCKED_DEVICE, NUMBER_LAYOUT }
 
     /** The reason [key] is unavailable in the current field, or null when it is available. */
-    fun unavailableReason(key: ToolbarKey, incognitoOrProtectedField: Boolean, locked: Boolean, numberLayout: Boolean = false): Reason? = when {
+    fun unavailableReason(key: ToolbarKey, incognitoOrProtectedField: Boolean, locked: Boolean, numberLayout: Boolean = false, alwaysIncognito: Boolean = false): Reason? = when {
         key in PROTECTED && locked -> Reason.LOCKED_DEVICE
-        key in PROTECTED && incognitoOrProtectedField -> Reason.PRIVATE_FIELD
+        // the user's own switch "Always incognito" makes every field incognito: say that, not "private field"
+        key in PROTECTED && incognitoOrProtectedField -> if (alwaysIncognito) Reason.INCOGNITO_SWITCH else Reason.PRIVATE_FIELD
         key in NOT_IN_NUMBER_LAYOUTS && numberLayout -> Reason.NUMBER_LAYOUT
         else -> null
     }
