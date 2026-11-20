@@ -10,10 +10,10 @@ import android.graphics.drawable.Drawable
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.widget.HorizontalScrollView
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.Space
 import androidx.core.view.children
 import helium314.keyboard.keyboard.FlatStyle
 import helium314.keyboard.latin.R
@@ -23,33 +23,59 @@ import helium314.keyboard.latin.utils.BarTools
 import helium314.keyboard.latin.utils.ToolbarKey
 
 /**
- * Fork, stage 85: the geometry of the fixed bar. The tool row has no scrolling and no expand arrow: it is a row of
- * cells of equal width, one per tool, and a cell is as wide as the row divided by the number of tools. So the
- * place of a slot depends only on how many tools there are, never on which ones or on what is typed. With
- * more than [BarTools.FULL_SIZE_MAX] tools the icons are smaller (compact row). The last tool is drawn in a circle
- * when it is a microphone key. A tool that is unavailable in the field stays in its cell, dimmed.
+ * Fork, stage 85: the geometry of the fixed bar. The tool row has no scrolling and no expand arrow. Its buttons have
+ * one size and equal gaps before, between and after them (spacers of equal weight, one layout pass), and the right
+ * margin equals the left margin of the left key. So the centres of the left key and the tools are evenly spread
+ * from edge to edge, and the place of a slot depends only on how many tools there are, never on which ones or on
+ * what is typed. With more than [BarTools.FULL_SIZE_MAX] tools the buttons and icons are smaller (compact row). The
+ * last tool is drawn in a circle when it is a microphone key. A tool that is unavailable in the field stays in its
+ * place, dimmed.
  */
 internal object FixedBar {
     private const val CIRCLE_MAX_DP = 34f
-    /** Compact row: the icon gets this much room above and below inside the 40 dp strip (24 dp icon at full size). */
+    /** Margin of the left key and of the right end of the row. */
+    private const val EDGE_DP = 6f
+    private const val FLAT_BUTTON_DP = 34f
+    private const val BUTTON_DP = 40f
+    private const val COMPACT_BUTTON_DP = 30f
+    /** Compact row: the 24 dp icon is shown at 20 dp, so it gets this much room above and below inside the 40 dp strip. */
     private const val COMPACT_PADDING_DP = 10f
     const val DIMMED_ALPHA = 0.38f
 
+    fun edgePx(density: Float) = Math.round(EDGE_DP * density)
+
+    /** The left key of the other styles: as big as a tool button and as far from the edge as the row is from the right one. */
+    fun arrangeLeftKey(expandKey: ImageButton) {
+        val density = expandKey.resources.displayMetrics.density
+        val size = Math.round(BUTTON_DP * density)
+        val stripHeight = expandKey.resources.getDimensionPixelSize(R.dimen.config_suggestions_strip_height)
+        (expandKey.layoutParams as LinearLayout.LayoutParams).apply { width = size; height = minOf(size, stripHeight); marginStart = edgePx(density) }
+        expandKey.scaleType = ImageView.ScaleType.CENTER
+    }
+
     /**
      * Replaces the horizontal scroll view of the strip by a plain container with the same id around the same
-     * `toolbar` row, and returns it. The row is stretched over the room between the left key and the end.
+     * `toolbar` row, and returns it. The row is stretched over the room between the left key and the right margin;
+     * a spacer is put before every button.
      */
     fun install(wrapper: ViewGroup, scroll: View, toolbar: ViewGroup): FrameLayout {
         val index = wrapper.indexOfChild(scroll)
         val id = scroll.id
-        (scroll as? HorizontalScrollView)?.removeAllViews() ?: (scroll as ViewGroup).removeAllViews()
+        (scroll as ViewGroup).removeAllViews()
         wrapper.removeView(scroll)
         val container = FrameLayout(wrapper.context)
         container.id = id
         container.visibility = View.GONE
-        container.addView(toolbar, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         (toolbar as LinearLayout).apply { minimumWidth = 0; setPadding(0, 0, 0, 0) }
-        wrapper.addView(container, index, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
+        for (i in toolbar.childCount - 1 downTo 0) {
+            val gap = Space(wrapper.context)
+            gap.setTag(R.id.agent_bar_gap, true)
+            toolbar.addView(gap, i, LinearLayout.LayoutParams(0, 0, 1f))
+        }
+        container.addView(toolbar, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        wrapper.addView(container, index, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply {
+            marginEnd = edgePx(wrapper.resources.displayMetrics.density)
+        })
         (wrapper as? LinearLayout)?.layoutTransition = null // the bar switches without animation, in one layout pass
         return container
     }
@@ -58,19 +84,35 @@ internal object FixedBar {
     fun slots(toolbar: ViewGroup): List<ImageButton> =
         toolbar.children.filter { it.visibility != View.GONE }.filterIsInstance<ImageButton>().toList()
 
-    /** Sets the cells, the compact size and the circle of the last microphone key. Cheap; call after every change of the row. */
-    fun arrange(toolbar: ViewGroup, flat: Boolean, colors: Colors) {
+    /** Sets the sizes, the gaps, the compact size and the circle of the last microphone key. Cheap; call after every change of the row. */
+    fun arrange(toolbar: ViewGroup, expandKey: ImageButton, flat: Boolean, colors: Colors) {
         val density = toolbar.resources.displayMetrics.density
         val slots = slots(toolbar)
         val compact = BarTools.isCompact(slots.size)
-        toolbar.children.filterIsInstance<ImageButton>().forEach { button ->
-            button.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
-            val vertical = if (compact) Math.round(COMPACT_PADDING_DP * density) else 0
-            button.setPadding(0, vertical, 0, vertical)
-            button.scaleType = if (compact) ImageView.ScaleType.FIT_CENTER else ImageView.ScaleType.CENTER
-            if (flat) button.background = null else colors.setBackground(button, ColorType.STRIP_BACKGROUND)
-            colors.setColor(button, ColorType.TOOL_BAR_KEY)
-            button.setTag(R.id.agent_bar_circle, null)
+        val width = Math.round((if (compact) COMPACT_BUTTON_DP else if (flat) FLAT_BUTTON_DP else BUTTON_DP) * density)
+        // the left key is as wide as a tool, so that the centres of all buttons are evenly spread
+        val stripHeight = expandKey.resources.getDimensionPixelSize(R.dimen.config_suggestions_strip_height)
+        (expandKey.layoutParams as LinearLayout.LayoutParams).apply {
+            this.width = width
+            height = if (flat || compact) width else minOf(width, stripHeight)
+        }
+        expandKey.requestLayout()
+        val children = toolbar.children.toList()
+        children.forEachIndexed { i, view ->
+            if (view !is ImageButton) {
+                // the gap before a button follows the button
+                view.visibility = children.getOrNull(i + 1)?.visibility ?: View.GONE
+                return@forEachIndexed
+            }
+            view.id = R.id.agent_bar_tool
+            view.layoutParams = LinearLayout.LayoutParams(width, if (flat || compact) width else LinearLayout.LayoutParams.MATCH_PARENT)
+                .apply { gravity = android.view.Gravity.CENTER_VERTICAL }
+            val vertical = if (compact) Math.round(width * 0.17f) else 0
+            view.setPadding(vertical, vertical, vertical, vertical)
+            view.scaleType = if (compact) ImageView.ScaleType.FIT_CENTER else ImageView.ScaleType.CENTER
+            if (flat) view.background = null else colors.setBackground(view, ColorType.STRIP_BACKGROUND)
+            colors.setColor(view, ColorType.TOOL_BAR_KEY)
+            view.setTag(R.id.agent_bar_circle, null)
         }
         val last = slots.lastOrNull() ?: return
         if (last.tag in BarTools.MIC_KEYS) circle(last, flat, colors, density)
@@ -97,12 +139,11 @@ internal object FixedBar {
         button.contentDescription = if (available) label else unavailableLabel(label)
     }
 
-    /** The index among [slots] of the cell that contains the horizontal position [x] of the row, clamped to the row. */
+    /** The index among [slots] of the slot whose centre is nearest to the horizontal position [x] of the row. */
     fun slotIndexAt(toolbar: ViewGroup, x: Float): Int {
         val slots = slots(toolbar)
         if (slots.isEmpty()) return 0
-        val index = slots.indexOfFirst { x < it.right }
-        return if (index < 0) slots.size - 1 else index
+        return slots.indices.minByOrNull { Math.abs((slots[it].left + slots[it].right) / 2f - x) } ?: 0
     }
 
     /** A filled circle in the middle of its bounds, at most [maxDiameter] wide; a little lighter while pressed. */

@@ -35,6 +35,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - **Act Builder** – Natürliche Beschreibung → freigegebene Anfrage → streng validierter Workflow-Entwurf.
 - **Einstellungen und Profile** – Compose-Seiten der Agent-Funktionen sowie Design-, Layout- und Gestenprofile.
 - **Flacher Stil** – Tastenstil „Flat“, Farbsatz „Flach schwarz“ und die Vorlage, die beides mit Größen einstellt.
+- **Feste Leiste** – Die Leiste wie Gboard (Etappen 85 und 86): feste Plätze für die Werkzeuge, Raster aller Werkzeuge, Anpassen in der Tastatur.
 - **RGB-Beleuchtung** – Animierte Farben für Tasten, Beschriftung, Hintergrund und Leiste (Etappe 26, überarbeitet in 29): Rechnen im Kern, Zeichnen über einen Painter.
 - **Diktat** – Diktieren über den On-device-Erkenner des Systems: zuhören, Vorschau, Einfügen erst nach eigenem Klick.
 - **Lerndaten** – Was die Tastatur aus dem Tippen lernt: pausieren, zählen, exportieren, löschen. Alles auf dem Gerät.
@@ -2598,6 +2599,70 @@ Symbolseiten wie Gboard (Etappe 81, Fallstricke P345–P348):
   wieder sichtbar wird (`setVisibility`, `onWindowVisibilityChanged`) und die Anfrage noch läuft.
   Tests `AT/FlatMenuTest.theTickerStopsAfterAFewRuns`,
   `AT/FlatPanelTest.theLoadingPulseStopsWhileThePanelIsClosedAndResumesWhenItIsShownAgain`.
+
+## Feste Leiste
+
+> Die Leiste wie Gboard (Etappen 85 und 86): feste Plätze für die Werkzeuge, Raster aller Werkzeuge, Anpassen in der Tastatur.
+
+- Auftrag (Owner, 2026-11-20): Die Leiste soll in jedem Stil feste, gleichmäßig verteilte Plätze haben (1 bis 5 oder 8
+  Werkzeuge, nichts scrollt, kein Pfeil) und sich anpassen lassen. Gilt für den Modus „Tasten + Vorschläge“
+  (`ToolbarMode.EXPANDABLE`, Standard); die anderen Modi (`TOOLBAR_KEYS`, `SUGGESTION_STRIP`, `HIDDEN`) sehen aus und
+  verhalten sich wie vorher. Wer den Modus je ändern musste, hat ihn nie geändert, solange er auf dem Standard steht.
+  `SuggestionStripView.fixedBar` ist `mToolbarMode == EXPANDABLE`, gelesen beim Bauen der Ansicht (jede Änderung der Leiste
+  baut sie neu, `setThemeNeedsReload`).
+- Modell: `K/latin/utils/BarTools.kt` (rein, ohne Ansicht). Die Leiste ist eine geordnete Liste von höchstens `MAX` = 8
+  `ToolbarKey`; bis `FULL_SIZE_MAX` = 5 volle Größe, darüber die kompakte Reihe. Gespeichert in
+  `AgentPreferences.BAR_TOOLS` (`agent_bar_tools`) im Format der alten Leistenwerte (`NAME:true|NAME:false|…`, die
+  eingeschalteten in Leistenreihenfolge), damit der Sortier-Dialog der Einstellungen (`ReorderSwitchPreference`) sie
+  unverändert bearbeitet (`ToolbarScreen.kt`: im Modus EXPANDABLE steht dort „Werkzeuge in der Leiste“ statt
+  „Leisten-Tasten“, ohne „Angeheftete“ und ohne „Beim Halten anheften“). Fehlt der Wert, **berechnet** `BarTools.read`
+  die Leiste aus den alten Werten (`migrate`) und schreibt nichts; geschrieben wird nur bei einer Bearbeitung
+  (`write`, `pinKey`, `unpinKey`, Etappe 86: jede Ablage). `migrate`: die ersten fünf eingeschalteten Tasten der alten
+  Reihenfolge, danach die angehefteten Tasten, die nicht darunter sind (sie waren immer sichtbar), höchstens acht; steht
+  keine Mikrofon-Taste (`MIC_KEYS` = `VOICE`, `DICTATE`) zuletzt, wandert die erste `VOICE` (sonst `DICTATE`) ans Ende, denn
+  die letzte Mikrofon-Taste sitzt im Kreis rechts. Ergebnisse: Standard (AGENT, SETTINGS, VOICE, CLIPBOARD, UNDO, …, angeheftet
+  AGENT) → AGENT, SETTINGS, CLIPBOARD, UNDO, VOICE; Flacher Look (CLIPBOARD, EMOJI, AGENT, angeheftet DICTATE) → CLIPBOARD, EMOJI,
+  AGENT, DICTATE (wie die Leiste vorher). Alles andere der alten Liste liegt im Raster.
+- Neue Werkzeuge im Enum `ToolbarKey`: `PROMPTS` (Ablage, Code `AGENT_PROMPTS`), `CHAR_ART` (Zeichen-Kunst, `AGENT_CHAR_ART`)
+  und `DESIGN` (Einstellungen → Aussehen, neuer `KeyCode.AGENT_DESIGN` = -12008, behandelt in `KeyboardActionListenerImpl`
+  über `A/SettingsLauncher.kt`), je mit Zeichenkette und Symbol (`ic_palette.xml` für Design, `ic_agent_prompts`, `ic_edit`). Sie erscheinen
+  auch in den alten Listen der Einstellungen (ausgeschaltet). „Größe ändern“ gibt es in der Tastatur nirgends als Werkzeug und wurde nicht erfunden.
+  `BarTools.offered` = alle Werkzeuge außer `CLOSE_HISTORY` (interne Taste der Zwischenablage-Ansicht); `gridOrder` ordnet das Raster
+  (Textaktionen, Diktat, Skill-Tasten, Ablage, Zeichen-Kunst, Zwischenablage, Emoji, … danach der Rest in Enum-Reihenfolge).
+- Zustand: `K/latin/suggestions/BarState.kt` (rein). Zeigt die Leiste die Werkzeuge (`TOOLS`) oder Inhalt (`CONTENT`: Wortvorschläge,
+  Befehls-, Auswahl-, Symbol-Chips, Zwischenablage-Pille, Screenshot-Pille, Autofill, Update-Chip)? Welcher Inhalt gewinnt, bleibt
+  unverändert bei `LatinIME` (`setSuggestedWords`, `setNeutralSuggestionStrip`); `BarState` sieht nur „es gibt Inhalt“.
+  `setSuggestions(leer)` → `onNeutral` (Werkzeuge); `setSuggestions(nicht leer)` und `setExternalSuggestionView` → `onContent`;
+  `setToolbarVisibility(true/false)` (die alten Aufrufe von `LatinIME`) → `onToolsRequested` / `onContentRequested` (ohne Inhalt bleibt es bei
+  den Werkzeugen, damit die Leiste nie leer ist); `onKeyboardHidden` (aus `LatinIME.hideWindow`) → `reset`. Linke Taste: bei Werkzeugen
+  das Raster (`openGrid`, Zustand bleibt), bei Inhalt „Werkzeuge zeigen“ (`onLeftKey`: `TOOLS`, `toolsChosen`; der Inhalt kommt mit der
+  nächsten Aktualisierung zurück, also dem nächsten Tastendruck oder Cursorsprung), bei offenem Raster das Kreuz. Der Modus
+  „Automatisch zeigen“ (`mAutoShowToolbar`) gilt weiter (Werkzeuge bei Markierung und Zeilenanfang statt der Auswahl-Chips); „Automatisch
+  ausblenden“ ist in diesem Modus ohne Wirkung (Inhalt ersetzt die Werkzeuge immer).
+  `applyBarState` setzt alle Sichtbarkeiten an einer Stelle (Werkzeuge, Vorschlagsleiste, angeheftete Tasten immer weg, Verfügbarkeit, linke Taste).
+- Geometrie: `K/latin/suggestions/FixedBar.kt`. Die `HorizontalScrollView` der Leiste wird in `install` durch einen `FrameLayout` mit
+  derselben Kennung `toolbar_container` ersetzt (die Zeile `toolbar` darin bleibt; Tests und `RgbStrip` finden beide wie bisher). Vor jedem
+  Knopf steht ein Abstandhalter (`Space`, Gewicht 1, `agent_bar_gap`); alle Knöpfe und die linke Taste haben eine Größe (voll 40 dp, im
+  flachen Stil 34 dp, kompakt ab sechs Werkzeugen 30 dp mit Rand um das Symbol), links sechs dp Rand, rechts sechs dp Rand der Zeile: die Mitten
+  von linker Taste und Werkzeugen liegen gleichmäßig von Rand zu Rand, der Platz hängt nur von der **Anzahl** ab, nie vom Werkzeug oder vom
+  Inhalt (ein Layoutdurchlauf, keine `LayoutTransition`). Die letzte Mikrofon-Taste bekommt einen Kreis (`CircleBadge`, höchstens 34 dp,
+  Farbe `ACTION_KEY_BACKGROUND`, im flachen Stil `FlatStyle.STRIP_CIRCLE`). Die Knöpfe tragen die Kennung `agent_bar_tool` (der Gerätetest
+  filtert sie damit). Ein Werkzeug, das das Feld nicht erlaubt (`BarTools.PROTECTED` bei Passwortfeld, Inkognito, `mIncognitoModeEnabled`, oder
+  gesperrtem Gerät), bleibt am Platz, zu 38 % sichtbar, nicht anklickbar, Beschreibung „…, in diesem Feld nicht verfügbar“; die Steuerungen der
+  Werkzeuge prüfen beim Tipp weiter selbst (das Dimmen ist nur der Hinweis). Die Zwischenablage-Taste ist nie gedimmt (sie hat kein eigenes Feld-Verbot).
+  Bei gesperrtem Gerät gibt es die Leiste gar nicht (`mToolbarMode` = HIDDEN).
+- Raster: `K/agent/ToolGridView.kt`, Kind von `AgentKeyboardFrame` (`agent_tool_grid`, nach `agent_menu`), in jedem Stil. Gleiches Maß wie
+  `FlatMenuView` (Pillen 48 dp hoch, zwei Spalten, Ränder 24 dp, Lücken 8 dp), `ScrollView`, malt und fängt Touches nur unter der Leiste,
+  schließt sich mit dem Tastaturfenster. Eine Pille je Werkzeug (Symbol und Name, Beschreibung = Name), Tipp schließt zuerst das Raster und
+  sendet dann denselben Tastencode wie die Taste (`getCodeForToolbarKey`, auch eigene Codes der Einstellungen) über den Listener der Leiste.
+  `VOICE` nur mit Spracheingabe, `BACKGROUND_GATHERING` nur wenn je benutzt (wie die Einstellungen). `InputView.hasAgentOverlay` und
+  `AgentKeyboardFrame.isKeyAreaMenu` zählen das Raster wie das flache Menü. Das flache Menü (`FlatMenuView`) bleibt für den flachen Stil in den
+  anderen Modi (nur dort noch erreichbar).
+- Überspringen alter Wege: Schnell-Anheften (`mQuickPinToolbarKeys`) ist immer aus; die Skill-Tasten-Schalter (`pinKey`/`unpinKey`/`isKeyPinned`
+  in `ToolbarUtils.kt`) schreiben die alte Liste der angehefteten Tasten und im Modus EXPANDABLE zusätzlich die Leiste (voll: nichts).
+- Tests: `AT/BarToolsTest.kt` (Modell), `CT/BarStateTest.kt` (Zustand, `app/src/test/…/latin/suggestions/`), `AT/FixedBarTest.kt` (Geometrie
+  für 0, 1, 2, 3, 4, 5, 6 und 8 Werkzeuge im Standard- und im flachen Stil, Zustandsmaschine an der echten Leiste, Raster, Umzug aus drei
+  gespeicherten Einstellungen, Dimmen, andere Modi).
 
 ## RGB-Beleuchtung
 
@@ -6324,14 +6389,14 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (721 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (727 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (6): agent-apk, agent-tests, build-debug-apk, build-test-auto, device-tests,
   docs-check
 - `/` (1): settings
-- `A/` (93): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (95): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand,
   ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand, CorrectionMemory,
@@ -6343,11 +6408,11 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   LoadingDotsView, LockState, ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData,
   MyDesigns, OnDeviceSpeechEngine, PlaceCommand, PromptStore, RgbKeyPainter, RgbLighting,
   RgbOwnPatterns, RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand,
-  SelectionChips, SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SmartPasteChips,
-  SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary,
-  ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst, TypingPerf, TypoMemory,
-  WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner,
-  WorkflowInputSummary, WorkflowStore
+  SelectionChips, SettingsLauncher, SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics,
+  SmartPasteChips, SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk,
+  ToolApprovalSummary, ToolGridView, ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst,
+  TypingPerf, TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract,
+  WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
 - `A/charart/` (5): CharArtCanvas, CharArtImages, CharArtKey, CharArtKeys, CharArtView
 - `A/commands/` (22): AiCommandChips, AlarmCommand, AreaCommands, AskCommand, ClipCommand,
   CommandAppSettings, CommandSystem, EmojiMixCommand, EmojiMixRecents, EmojiMixer, InstalledApps,
@@ -6359,17 +6424,17 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (117): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (119): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
-  ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
-  CalendarToolLauncherTest, CharArtWindowTest, ClipCachesTest, ClipCommandTest, ClipVaultTest,
-  CommandReplaceTest, CommandTemplatesTest, ContactCommandTest, CorrectionMemoryTest,
+  ApprovedWorkflowRunnerTest, AskCommandTest, BarToolsTest, BundledEmojiDictTest,
+  CalculatorViewTest, CalendarToolLauncherTest, CharArtWindowTest, ClipCachesTest, ClipCommandTest,
+  ClipVaultTest, CommandReplaceTest, CommandTemplatesTest, ContactCommandTest, CorrectionMemoryTest,
   DatePlaceCommandsTest, DebugPrivacyTest, DesignEditorTest, DesignTilesTest, DiagnoseScreenTest,
   DictationSessionTest, DictationUiTest, EmojiMixPaletteTest, EmojiMixRecentsTest,
   EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, FieldCorrectionMemoryTest,
-  FieldSuggestionChipsTest, FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest,
-  FlatStyleTest, ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest,
-  HardeningClipHistoryTest, InformalWordsStoreTest, InlineAutofillGenerationTest,
+  FieldSuggestionChipsTest, FixedBarTest, FlatClipboardTest, FlatMenuTest, FlatPanelTest,
+  FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest,
+  HapticChainTest, HardeningClipHistoryTest, InformalWordsStoreTest, InlineAutofillGenerationTest,
   InlineAutofillSizingTest, InlineAutofillSlotsTest, InsertAtCursorTest, JournaledModelCallTest,
   KeyNodePositionTest, KeyboardCommandsTest, KeyboardProfileStoreTest, LastFieldTest,
   LearningDataTest, LiveLockGateTest, LoadingDotsViewTest, LongTextBudgetTest,
@@ -6488,28 +6553,29 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `app/src/main/res/mipmap-xhdpi/` (2): ic_launcher, ic_launcher_round
 - `app/src/main/res/mipmap-xxhdpi/` (2): ic_launcher, ic_launcher_round
 - `app/src/main/res/mipmap-xxxhdpi/` (2): ic_launcher, ic_launcher_round
-- `app/src/main/res/values-de/` (36): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
-  agent_charart_strings, agent_clipvault_strings, agent_command_system_strings,
-  agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings, agent_format_strings,
-  agent_gestures_strings, agent_hardening_strings, agent_language_strings, agent_memory_strings,
-  agent_name_strings, agent_prompt_strings, agent_rgb_pattern_strings, agent_rgb_strings,
-  agent_selection_strings, agent_settings_keys_strings, agent_settings_look_strings,
-  agent_settings_strings, agent_settings_system_strings, agent_slider_strings,
-  agent_smart_paste_strings, agent_snippet_strings, agent_space_strings, agent_strings,
-  agent_suggest_strings, agent_symbol_strings, agent_touch_strings, agent_typing_strings,
-  agent_update_prompt_strings, agent_update_strings, strings, strings-talkback-descriptions
-- `app/src/main/res/values/` (45): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
-  agent_bar_strings, agent_charart_ids, agent_charart_strings, agent_clipvault_strings,
+- `app/src/main/res/values-de/` (37): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
+  agent_bar_tools_strings, agent_charart_strings, agent_clipvault_strings,
   agent_command_system_strings, agent_design_strings, agent_diagnose_strings,
   agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_hardening_strings,
-  agent_ids, agent_language_strings, agent_memory_strings, agent_name_strings, agent_prompt_strings,
-  agent_prompts_ids, agent_rgb_pattern_strings, agent_rgb_strings, agent_search_strings,
-  agent_selection_strings, agent_settings_keys_strings, agent_settings_look_strings,
-  agent_settings_strings, agent_settings_system_strings, agent_slider_strings,
-  agent_smart_paste_strings, agent_snippet_strings, agent_space_strings, agent_strings,
-  agent_suggest_strings, agent_symbol_strings, agent_touch_strings, agent_typing_strings,
-  agent_update_prompt_strings, agent_update_strings, attrs, clip_provider, donottranslate,
-  gesture_data, strings, themes-flat
+  agent_language_strings, agent_memory_strings, agent_name_strings, agent_prompt_strings,
+  agent_rgb_pattern_strings, agent_rgb_strings, agent_selection_strings,
+  agent_settings_keys_strings, agent_settings_look_strings, agent_settings_strings,
+  agent_settings_system_strings, agent_slider_strings, agent_smart_paste_strings,
+  agent_snippet_strings, agent_space_strings, agent_strings, agent_suggest_strings,
+  agent_symbol_strings, agent_touch_strings, agent_typing_strings, agent_update_prompt_strings,
+  agent_update_strings, strings, strings-talkback-descriptions
+- `app/src/main/res/values/` (46): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+  agent_bar_strings, agent_bar_tools_strings, agent_charart_ids, agent_charart_strings,
+  agent_clipvault_strings, agent_command_system_strings, agent_design_strings,
+  agent_diagnose_strings, agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings,
+  agent_hardening_strings, agent_ids, agent_language_strings, agent_memory_strings,
+  agent_name_strings, agent_prompt_strings, agent_prompts_ids, agent_rgb_pattern_strings,
+  agent_rgb_strings, agent_search_strings, agent_selection_strings, agent_settings_keys_strings,
+  agent_settings_look_strings, agent_settings_strings, agent_settings_system_strings,
+  agent_slider_strings, agent_smart_paste_strings, agent_snippet_strings, agent_space_strings,
+  agent_strings, agent_suggest_strings, agent_symbol_strings, agent_touch_strings,
+  agent_typing_strings, agent_update_prompt_strings, agent_update_strings, attrs, clip_provider,
+  donottranslate, gesture_data, strings, themes-flat
 - `app/src/main/res/xml/` (4): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path, spellchecker
 - `app/src/test/java/helium314/keyboard/` (2): KeyboardParserTest, Shadows

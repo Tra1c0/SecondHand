@@ -13,7 +13,7 @@ import helium314.keyboard.latin.utils.ToolbarKey.*
  * the editor, the network or any text.
  *
  * Storage: the preference [AgentPreferences.BAR_TOOLS] in the format of the old toolbar preferences
- * (`NAME,true;NAME,false;...`, the enabled entries in bar order), so that the settings reorder dialog edits it
+ * (`NAME:true|NAME:false|...`, the enabled entries in bar order), so that the settings reorder dialog edits it
  * unchanged. It is written only when the user edits the bar. While it is missing, [read] derives the bar from
  * what the user had before (see [migrate]), without writing anything.
  */

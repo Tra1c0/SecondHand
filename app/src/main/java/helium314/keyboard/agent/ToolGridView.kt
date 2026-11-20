@@ -147,6 +147,7 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
     }
 
     private fun act(key: ToolbarKey) {
+        if (pills[key]?.isEnabled == false) return // dimmed: the field does not allow it
         close()
         onTool?.invoke(key)
     }

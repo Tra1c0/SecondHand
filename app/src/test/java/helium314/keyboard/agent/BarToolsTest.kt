@@ -39,23 +39,23 @@ class BarToolsTest {
     @Test fun theStoredFormatRoundTripsAndKeepsEveryOtherToolAsDisabled() {
         val bar = listOf(CLIPBOARD, AGENT, VOICE)
         val text = BarTools.format(bar)
-        assertTrue(text.startsWith("CLIPBOARD,true;AGENT,true;VOICE,true;"))
+        assertTrue(text.startsWith("CLIPBOARD:true|AGENT:true|VOICE:true|"))
         assertEquals(bar, BarTools.parse(text))
         // every offered tool appears exactly once, the internal "close history" key never
-        val names = text.split(";").map { it.substringBefore(",") }
+        val names = text.split("|").map { it.substringBefore(":") }
         assertEquals(BarTools.offered.map { it.name }.toSet(), names.toSet())
         assertEquals(names.size, names.toSet().size)
         assertFalse(CLOSE_HISTORY.name in names)
         // the old toolbar format is the same, so the settings dialog edits it unchanged
-        assertEquals(listOf(UNDO, REDO), BarTools.parse("UNDO,true;COPY,false;REDO,true"))
+        assertEquals(listOf(UNDO, REDO), BarTools.parse("UNDO:true|COPY:false|REDO:true"))
     }
 
     @Test fun parsingIgnoresJunkLimitsToEightAndTellsMissingFromEmpty() {
         assertEquals(null, BarTools.parse(null))
         assertEquals(emptyList(), BarTools.parse(""))
-        assertEquals(emptyList(), BarTools.parse("UNDO,false"))
-        assertEquals(listOf(UNDO), BarTools.parse("NOPE,true;UNDO,true;UNDO,true;COPY,maybe;CLOSE_HISTORY,true;broken"))
-        val nine = ToolbarKey.entries.filter { it != CLOSE_HISTORY }.take(9).joinToString(";") { it.name + ",true" }
+        assertEquals(emptyList(), BarTools.parse("UNDO:false"))
+        assertEquals(listOf(UNDO), BarTools.parse("NOPE:true|UNDO:true|UNDO:true|COPY:maybe|CLOSE_HISTORY:true|broken"))
+        val nine = ToolbarKey.entries.filter { it != CLOSE_HISTORY }.take(9).joinToString("|") { it.name + ":true" }
         assertEquals(BarTools.MAX, BarTools.parse(nine)!!.size)
         assertEquals(ToolbarKey.entries.filter { it != CLOSE_HISTORY }.take(8), BarTools.parse(nine))
     }

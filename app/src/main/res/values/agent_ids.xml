@@ -31,6 +31,8 @@
     <item type="id" name="agent_menu" />
     <item type="id" name="agent_tool_grid" />
     <item type="id" name="agent_bar_circle" />
+    <item type="id" name="agent_bar_gap" />
+    <item type="id" name="agent_bar_tool" />
     <item type="id" name="agent_menu_design" />
     <item type="id" name="agent_menu_undo" />
     <item type="id" name="agent_menu_one_handed" />

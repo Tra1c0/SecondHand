@@ -214,8 +214,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         if (fixedBar) {
             toolbarContainer = FixedBar.install(findViewById(R.id.suggestions_strip_wrapper), toolbarContainer, toolbar)
             pinnedKeys.visibility = GONE
-            if (flatStyle) FlatStrip.arrangeLeftKey(this, toolbarExpandKey)
-            FixedBar.arrange(toolbar, flatStyle, colors)
+            if (flatStyle) FlatStrip.arrangeLeftKey(this, toolbarExpandKey) else FixedBar.arrangeLeftKey(toolbarExpandKey)
+            FixedBar.arrange(toolbar, toolbarExpandKey, flatStyle, colors)
         }
         if (flatStyle) {
             if (!fixedBar) FlatStrip.arrange(this, findViewById(R.id.suggestions_strip_wrapper), toolbarExpandKey, toolbarContainer, toolbar, pinnedKeys)
@@ -417,6 +417,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     override fun onClick(view: View) {
         val tag = view.tag
         if (tag is ToolbarKey) {
+            if (!view.isEnabled) return // a dimmed tool of the fixed bar: this field does not allow it (touch input never gets here)
             if (flatStyle && !fixedBar) FlatStrip.closeMenu(this)
             closeGrid()
             onClickToolbarKey(view) { listener.onCodeInput(it, Constants.SUGGESTION_STRIP_COORDINATE, Constants.SUGGESTION_STRIP_COORDINATE, false) }
@@ -442,6 +443,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
 
     override fun onLongClick(view: View): Boolean {
         if (view.tag is ToolbarKey) {
+            if (!view.isEnabled) return true
             if (flatStyle && !fixedBar) FlatStrip.closeMenu(this)
             closeGrid()
             onLongClickToolbarKey(view)
@@ -598,7 +600,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         toolbar.findViewWithTag<View>(ToolbarKey.VOICE)?.isVisible = show
         pinnedKeys.findViewWithTag<View>(ToolbarKey.VOICE)?.isVisible = show
         // a hidden voice key leaves its cell to the others and the last microphone key may become the circle
-        if (fixedBar) FixedBar.arrange(toolbar, flatStyle, Settings.getValues().mColors)
+        if (fixedBar) FixedBar.arrange(toolbar, toolbarExpandKey, flatStyle, Settings.getValues().mColors)
     }
 
     private fun updateKeys() {

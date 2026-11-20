@@ -63,7 +63,11 @@ KEY_NAMES = {
 # What the strip shows without any word: the buttons at its ends and the empty slots.
 # What the test app's three copy buttons put on the clipboard (MainActivity.CLIP_TEXTS).
 CLIP_TEXTS = ("Aus der Zwischenablage", "Noch ein kopierter Text", "Der dritte kopierte Text")
-STRIP_FIXED = ("Mehr Tasten", "More keys", "Kein Vorschlag", "No suggestion", "Textaktionen", "Text actions")
+STRIP_FIXED = ("Mehr Tasten", "More keys", "Kein Vorschlag", "No suggestion", "Textaktionen", "Text actions",
+               # stage 85: the fixed bar's left key (grid, back arrow, close; with and without "Inkognito ist an")
+               "Alle Werkzeuge", "All tools", "Werkzeuge zeigen", "Show tools", "Alle Werkzeuge schließen", "Close all tools")
+# stage 85: the tools of the fixed bar are strip nodes with a description but they are never words or chips; they carry this id
+STRIP_TOOL_IDS = (KEYBOARD_PACKAGE + ":id/agent_bar_tool", KEYBOARD_PACKAGE + ":id/suggestions_strip_toolbar_key")
 # A word separator key announces a pending autocorrection instead of its plain name
 # (AccessibilityUtils.getAutoCorrectionDescription): group 1 is the plain name.
 AUTOCORRECT_WRAPPERS = (
@@ -240,6 +244,7 @@ class Screen:
             return []
         return [node for node in self.nodes
                 if node.package == KEYBOARD_PACKAGE and node is not strip and node.visible
+                and node.rid not in STRIP_TOOL_IDS
                 and (node.text or node.desc) and strip.contains(*node.center)]
 
     def strip_texts(self):

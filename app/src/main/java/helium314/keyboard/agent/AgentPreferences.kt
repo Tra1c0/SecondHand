@@ -42,7 +42,7 @@ object AgentPreferences {
     /** Stage 45: field and context suggestions in the strip (default on; "Meine Daten" starts empty). */
     const val FIELD_SUGGESTIONS = "agent_field_suggestions"
     /**
-     * Stage 85: the tools of the fixed bar in `NAME,true;NAME,false` form (enabled entries in bar order, at most 8).
+     * Stage 85: the tools of the fixed bar in `NAME:true|NAME:false` form (enabled entries in bar order, at most 8).
      * Missing for a user who never edited the bar: it is then derived from the old toolbar preferences and not written.
      */
     const val BAR_TOOLS = "agent_bar_tools"
