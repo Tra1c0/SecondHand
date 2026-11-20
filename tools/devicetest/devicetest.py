@@ -320,6 +320,7 @@ class Driver:
                 return screen
             if time.time() > deadline:
                 self.save_dump(screen, "timeout")
+                foreground_info("waited for " + what)
                 raise DeviceError("waited %ss for %s; on screen: %s" % (int(limit), what, describe(screen)))
             time.sleep(0.7)
 
@@ -328,6 +329,7 @@ class Driver:
         screen = dump()
         node = screen.by_id("field_" + field)
         if node is None:
+            foreground_info("field_%s missing" % field)
             raise DeviceError("field_%s is not on the screen" % field)
         tap(*node.center)
         screen = self.wait(lambda s: len(s.keys()) >= 10, "the keyboard with its keys")
@@ -587,6 +589,7 @@ class Driver:
     def tap_id(self, name):
         node = dump().by_id(name)
         if node is None:
+            foreground_info("%s missing" % name)
             raise DeviceError("%s is not on the screen" % name)
         tap(*node.center)
 
@@ -671,6 +674,28 @@ def describe(screen):
         parts.append(label)
     return ("%d nodes of %s; keyboard nodes %d: %s" % (
         len(screen.nodes), ",".join(packages), len(keyboard), " ".join(parts)))[:1100]
+
+
+def foreground_info(why):
+    """INFO lines for a test app that is not in front (flaky runs of clipboard_pill and prompt_folders):
+    the resumed activity and the last activity starts of the ActivityTaskManager, as component names only.
+    Never a field content, clipboard text or intent extra."""
+    try:
+        text = shell("dumpsys activity activities", timeout=30, check=False)
+        resumed = [re.sub(r"\s+", " ", l.strip())[:200] for l in text.splitlines()
+                   if "ResumedActivity" in l or "topResumedActivity" in l][:3]
+        log("INFO foreground (%s): %s" % (why, " | ".join(resumed) or "no resumed-activity line"))
+        raw = adb("logcat", "-d", "-t", "3000", "ActivityTaskManager:I", "*:S", timeout=30, check=False)
+        starts = []
+        for l in raw.splitlines():
+            if "START u0" in l:
+                comp = re.search(r"cmp=(\S+)", l)
+                caller = re.search(r"from uid (\d+)", l)
+                starts.append("%s %s%s" % (l[:18].strip(), comp.group(1) if comp else "?",
+                                           " uid " + caller.group(1) if caller else ""))
+        log("INFO recent activity starts (%s): %s" % (why, " ; ".join(starts[-10:]) or "none"))
+    except DeviceError as error:
+        log("INFO foreground (%s): not readable: %s" % (why, error))
 
 
 def tap(x, y):
@@ -803,6 +828,8 @@ def _open_settings_and_switch_on(d, path, switch):
             d.tap_text(label)
     d.tap_text(switch)
     shell("input keyevent KEYCODE_HOME", check=False)
+    time.sleep(1.0)
+    foreground_info("after Home")  # investigation of the flaky clipboard_pill: is the settings task left?
 
 
 def emoji_suggestion(d):
@@ -1547,6 +1574,7 @@ def wait_report(d, condition, what, limit=15.0):
         if condition(screen):
             return screen
         if time.time() > deadline:
+            foreground_info("waited for " + what)  # which activity is in front (stage 87c diagnosis)
             raise CheckFailed("waited %ds for %s; the keyboard shows: %s" % (int(limit), what, bar_report(screen)))
         time.sleep(0.7)
 
@@ -1580,6 +1608,7 @@ def open_edit_mode(d):
     for attempt in ("tap", "tap", "long press"):
         key = left_key(screen)
         if key is None:
+            foreground_info("no left key of the bar")
             raise CheckFailed("no left key of the bar; the keyboard shows: " + bar_report(screen))
         if attempt == "tap":
             tap(*key.center)
@@ -1594,6 +1623,7 @@ def open_edit_mode(d):
         if _has_edit_button(screen):
             break
     else:
+        foreground_info("the grid did not open")
         crash = shell("logcat -d -t 300 -s AndroidRuntime:E DEBUG:F", check=False)[-700:].replace("\n", " | ")
         raise CheckFailed("the grid did not open: %s; log: %s; the keyboard shows: %s" % ("; ".join(tried), crash, bar_report(screen)))
     tap(*next(n for n in screen.nodes if n.package == KEYBOARD_PACKAGE and n.visible and n.text in EDIT_LABELS).center)
@@ -1881,6 +1911,83 @@ def bar_edit_drag_out(d):
     _typed_still_works(d)
 
 
+def lowest_free_pill(screen, skip=()):
+    """The tool outside the bar that lies lowest in the visible grid (fully inside the keyboard window)."""
+    view = screen.keyboard_view()
+    limit = view.bottom if view is not None else 10 ** 6
+    free = [n for n in grid_pills(screen) if not n.desc.endswith(IN_BAR_SUFFIXES) and n.text not in EDIT_LABELS
+            and n.text not in skip and n.bottom <= limit]
+    return max(free, key=lambda n: n.top) if free else None
+
+
+def drag_pill_into_bar(d, pill, before):
+    """Holds a pill of the grid and drags it between the second and third tool of the bar (real touch); checks the gap
+    while the finger is down and the bar after the lift. Returns the order of the bar."""
+    slots = bar_slots(dump())
+    y = (slots[0].top + slots[0].bottom) // 2
+    target = ((slots[1].left + slots[1].right) // 2 + (slots[2].left + slots[2].right) // 2) // 2
+    at = pill.center
+    touch_down(*at)
+    try:
+        time.sleep(0.6)  # the hold: the tool is in the hand
+        at = glide(at, (target, y), steps=8)
+        time.sleep(0.5)
+        during = bar_order(dump())
+        d.expect_equal("while the finger is down (%s) the bar has one place more" % pill.text, len(during), len(before) + 1)
+    finally:
+        touch_up(*at)
+    time.sleep(1.0)
+    after = bar_order(dump())
+    d.expect_equal("%s is where the gap was" % pill.text, after, during)
+    d.expect_equal("the others kept their order", [x for x in after if x != pill.text], before)
+    return after
+
+
+def bar_edit_scroll_then_drag(d):
+    """The grid has some 25 tools, so it is scrolled before a tool far down is dragged into the bar (real touches).
+    Build 41 + stage 88 before the fix: a scroll that started on a pill left the container stuck, no drag worked
+    afterwards until the edit mode was left. A second drag in the same edit mode must work too."""
+    d.start("bar_edit_scroll_then_drag")
+    d.focus("text")
+    try:
+        reset_bar(d)
+        before = bar_order(dump())
+        screen = open_edit_mode(d)
+        first = lowest_free_pill(screen)
+        if first is None:
+            raise CheckFailed("the grid shows no tool outside the bar; it shows %s" % [n.text for n in grid_pills(screen)][:12])
+        tops = {n.text: n.top for n in grid_pills(screen)}
+        # scroll with a finger that starts on a pill, as a user does (not on the free margin)
+        start = first.center
+        touch_down(*start)
+        try:
+            glide(start, (start[0], start[1] - 650), steps=10)
+        finally:
+            touch_up(start[0], start[1] - 650)
+        time.sleep(0.8)
+        screen = dump()
+        moved = [t for t in grid_pills(screen) if t.text in tops and abs(t.top - tops[t.text]) > 100]
+        d.expect_equal("the grid scrolled under the finger (%d pills moved)" % len(moved), len(moved) > 0, True)
+        pill = lowest_free_pill(screen)
+        if pill is None:
+            raise CheckFailed("no tool left in the scrolled grid")
+        shot(d, "scrolled")
+        after = drag_pill_into_bar(d, pill, before)
+        # a second drag in the same edit mode, after the first one and the scroll
+        second = lowest_free_pill(dump(), skip=(pill.text,))
+        if second is None:
+            raise CheckFailed("no second tool in the grid")
+        after2 = drag_pill_into_bar(d, second, after)
+        d.expect_equal("two tools were added", len(after2), len(before) + 2)
+        finish_edit_mode(d)
+        hide_and_reopen(d)
+        d.expect_equal("the order was saved", bar_order(dump()), after2)
+    finally:
+        _restore_default_bar(d)
+    d.focus("text")
+    _typed_still_works(d)
+
+
 def bar_edit_undo(d):
     """A tap on a tool of the grid appends it, Rückgängig takes it back, Zurücksetzen (with its question) brings the
     standard bar back."""
@@ -1960,7 +2067,7 @@ SCENARIOS = [keyboard_is_secondhand, key_positions_reported, typing_text, delete
              clipboard_not_readable_in_password, learning_not_in_password, prompt_store, prompt_folders, autofill_inline,
              cursor_trackpad, cursor_trackpad_vertical,
              # stage 88: the bar with real touches; each leaves the standard bar behind
-             bar_icons_visible, bar_edit_drag_in, bar_edit_reorder, bar_edit_drag_out, bar_edit_undo, bar_shots]
+             bar_icons_visible, bar_edit_drag_in, bar_edit_reorder, bar_edit_drag_out, bar_edit_scroll_then_drag, bar_edit_undo, bar_shots]
 
 
 # Scenarios that fail because the keyboard does not do what was expected of it, found by these tests
