@@ -127,6 +127,9 @@ public final class InputLogic {
 
     private int mDeleteCount;
     private boolean mAgentHistorySuppressed;
+    // fork, stage 84: the strip work of a separator waits until the batch edit of the key has ended
+    private boolean mCodeInputBatchOpen;
+    private boolean mNeutralStripPending;
 
     public boolean hasActiveComposition() { return mWordComposer.isComposingWord() || mInputLogicHandler.hasPendingBatchInput(); }
     /** Stage 42: a gesture is still being processed; {@link #replaceCommandText} refuses until it is done. */
@@ -728,6 +731,8 @@ public final class InputLogic {
         }
         mLastKeyTime = inputTransaction.getTimestamp();
         mConnection.beginBatchEdit();
+        mCodeInputBatchOpen = true; // fork, stage 84
+        mNeutralStripPending = false;
         final int privateSelStart = mConnection.getExpectedSelectionStart(), privateSelEnd = mConnection.getExpectedSelectionEnd(); // fork (B4)
         if (!processedEvent.isFunctionalKeyEvent() || processedEvent.getKeyCode() == KeyCode.DELETE)
             privateTextBeforeEdit(privateSelStart, privateSelEnd); // fork, third review 44/45
@@ -752,21 +757,11 @@ public final class InputLogic {
                 handleNonFunctionalEvent(currentEvent, inputTransaction, handler);
             }
             currentEvent = currentEvent.getNextEvent();
+            if (currentEvent != null) flushNeutralStrip(); // fork, stage 84: the next event sees the strip as before
         }
         // fork (B4, second review): typing or deleting before a private text moves it, deleting in it shortens it
         if (!processedEvent.isFunctionalKeyEvent() || processedEvent.getKeyCode() == KeyCode.DELETE)
             privateTextEdited(privateSelStart, privateSelEnd, mConnection.getExpectedSelectionStart());
-        // Try to record the word being corrected when the user enters a word character or
-        // the backspace key.
-        if (!mConnection.hasSlowInputConnection() && !mWordComposer.isComposingWord()
-                && (settingsValues.isWordCodePoint(processedEvent.getCodePoint())
-                    || processedEvent.getKeyCode() == KeyCode.DELETE)
-                ) {
-            mWordBeingCorrectedByCursor = getWordAtCursor(settingsValues, currentKeyboardScript);
-            // fork (B4, second review): decided now, not when it is learned at the next cursor position
-            final int wordLength = mWordBeingCorrectedByCursor.length();
-            if (wordLength > 0 && privateTextAtCursor(wordLength, wordLength)) mWordBeingCorrectedByCursor = null;
-        }
         if (!inputTransaction.didAutoCorrect() && processedEvent.getKeyCode() != KeyCode.SHIFT
                 && processedEvent.getKeyCode() != KeyCode.CAPS_LOCK
                 && processedEvent.getKeyCode() != KeyCode.SYMBOL_ALPHA
@@ -777,7 +772,33 @@ public final class InputLogic {
             mEnteredText = null;
         }
         mConnection.endBatchEdit();
+        // fork, stage 84: what the app shows waits for endBatchEdit, so everything that only the keyboard needs comes after it
+        mCodeInputBatchOpen = false;
+        flushNeutralStrip();
+        // Try to record the word being corrected when the user enters a word character or
+        // the backspace key. (Stage 84: after the batch edit, the two reads of the editor in it delayed the end of it.)
+        if (!mConnection.hasSlowInputConnection() && !mWordComposer.isComposingWord()
+                && (settingsValues.isWordCodePoint(processedEvent.getCodePoint())
+                    || processedEvent.getKeyCode() == KeyCode.DELETE)
+                ) {
+            mWordBeingCorrectedByCursor = getWordAtCursor(settingsValues, currentKeyboardScript);
+            // fork (B4, second review): decided now, not when it is learned at the next cursor position
+            final int wordLength = mWordBeingCorrectedByCursor.length();
+            if (wordLength > 0 && privateTextAtCursor(wordLength, wordLength)) mWordBeingCorrectedByCursor = null;
+        }
         return inputTransaction;
+    }
+
+    /** Fork, stage 84: the neutral strip of a separator at once, or, inside the batch edit of a key, after it (see {@link #flushNeutralStrip}). */
+    private void setNeutralStripAfterBatch() {
+        if (mCodeInputBatchOpen) mNeutralStripPending = true;
+        else mSuggestionStripViewAccessor.setNeutralSuggestionStrip();
+    }
+
+    private void flushNeutralStrip() {
+        if (!mNeutralStripPending) return;
+        mNeutralStripPending = false;
+        mSuggestionStripViewAccessor.setNeutralSuggestionStrip();
     }
 
     public void onStartBatchInput(final SettingsValues settingsValues,
@@ -1445,7 +1466,7 @@ public final class InputLogic {
             StatsUtils.onDoubleSpacePeriod();
         } else if (swapWeakSpace && trySwapSwapperAndSpace(event, inputTransaction)) {
             mSpaceState = SpaceState.SWAP_PUNCTUATION;
-            mSuggestionStripViewAccessor.setNeutralSuggestionStrip();
+            setNeutralStripAfterBatch(); // fork, stage 84
         } else if (Constants.CODE_SPACE == codePoint) {
             if (!mSuggestedWords.isPunctuationSuggestions()) {
                 mSpaceState = SpaceState.WEAK;
@@ -1497,7 +1518,8 @@ public final class InputLogic {
             } else {
                 // Set punctuation right away. onUpdateSelection will fire but tests whether it is
                 // already displayed or not, so it's okay.
-                mSuggestionStripViewAccessor.setNeutralSuggestionStrip();
+                // (fork, stage 84: right away is right after the batch edit of this key, not inside it)
+                setNeutralStripAfterBatch();
             }
         }
 
