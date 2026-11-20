@@ -1594,7 +1594,8 @@ def open_edit_mode(d):
         if _has_edit_button(screen):
             break
     else:
-        raise CheckFailed("the grid did not open: %s; the keyboard shows: %s" % ("; ".join(tried), bar_report(screen)))
+        crash = shell("logcat -d -t 300 -s AndroidRuntime:E DEBUG:F", check=False)[-700:].replace("\n", " | ")
+        raise CheckFailed("the grid did not open: %s; log: %s; the keyboard shows: %s" % ("; ".join(tried), crash, bar_report(screen)))
     tap(*next(n for n in screen.nodes if n.package == KEYBOARD_PACKAGE and n.visible and n.text in EDIT_LABELS).center)
     return wait_report(d, lambda s: grid_node(s, "hint") is not None, "the edit mode with its hint (%s)" % "; ".join(tried))
 
