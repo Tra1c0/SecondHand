@@ -41,4 +41,5 @@
     <string name="agent_keys_needs_number_row">Turn on \"Number row\" first</string>
     <string name="agent_keys_needs_hints_and_number_row">Needs \"Key hints\" and \"Number row\"</string>
     <string name="agent_keys_number_row_already_on">Not needed while the number row is on</string>
+    <string name="agent_keys_number_row_in_symbols_sub">Only for own symbol layouts; the built-in page always shows the digits</string>
 </resources>

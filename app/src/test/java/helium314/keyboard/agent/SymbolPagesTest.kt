@@ -292,8 +292,9 @@ class SymbolPagesTest {
             // the comma of page 1 keeps the tools as on the letter page
             val comma = rows(build(look, KeyboardElement.SYMBOLS, Locale.GERMANY, "qwertz")).last().single { it.label == "," }
             val letterComma = rows(build(look, KeyboardElement.ALPHABET, Locale.GERMANY, "qwertz")).last().single { it.label == "," }
-            assertEquals(listOf("clipboard_normal_key", "agent_prompts_key", "emoji_normal_key", "start_onehanded_mode_key", "floating", "settings_key"),
-                icons(comma), "$look")
+            // the flat preset shows its own emoji key, so the popup does not repeat it
+            val tools = listOf("clipboard_normal_key", "agent_prompts_key", "emoji_normal_key", "start_onehanded_mode_key", "floating", "settings_key")
+            assertEquals(if (look == Look.FLAT) tools - "emoji_normal_key" else tools, icons(comma), "$look")
             assertEquals(icons(letterComma), icons(comma), "$look as on the letter page")
             assertTrue(comma.popupKeys!!.any { it.mCode == KeyCode.AGENT_PROMPTS })
         }
@@ -318,7 +319,7 @@ class SymbolPagesTest {
     private fun ownSymbolLayout(): String {
         val name = LayoutUtilsCustom.getLayoutName("stage81", LayoutType.SYMBOLS)
         LayoutUtilsCustom.getLayoutFile(name + "txt", LayoutType.SYMBOLS, latinIME).writeText(
-            "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\n\nk\nl\nm\n\nn\no\n")
+            "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\n\nk\nl\nm\n\nn\no\np\n")
         LayoutUtilsCustom.onLayoutFileChanged()
         return name
     }
