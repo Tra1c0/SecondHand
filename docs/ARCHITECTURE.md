@@ -1188,7 +1188,7 @@ Symbolseiten wie Gboard (Etappe 81, Fallstricke P345–P348):
 
 - `assets/layouts/symbols/symbols.txt` und `more_symbols/symbols_shifted.txt` (Upstream-Dateien, jetzt
   geändert) haben den Inhalt der früheren Flat-Dateien; `symbols_shifted.txt` behält eine letzte Reihe
-  mit `<` und `>` (Zweiergruppe), damit andere Funktions-Layouts (Tablet, eigene) sie wie bei Upstream
+  mit `<` und `>` (Zweiergruppe), damit eigene Funktions-Layouts ohne `moreSymbols`-Eintrag sie wie bei Upstream
   anstelle von Komma und Punkt benutzen. `∆` (U+2206) ist Hauptzeichen, `Δ` das Popup.
 - `assets/layouts/symbol_hints/symbols_hints.txt` (neu, kein wählbares Layout: der Ordner gehört zu keinem
   `LayoutType`): die alte erste Seite mit der Reihe `% \ | = [ ] < > { }`. Nur
@@ -1200,15 +1200,21 @@ Symbolseiten wie Gboard (Etappe 81, Fallstricke P345–P348):
   nie, sonst gilt wie bisher `numberRowEnabled`; `addNumberRowOrPopupKeys` ersetzt die erste Reihe nur noch
   bei nicht eingebauten Layouts. `FlatStyle.shortenNumberRow` hängt an `hasNumberRow()`.
   Hinweise: eingebaut = Datei oben, sonst das gewählte Layout wie vor 81.
-- `functional_keys.json`: `moreSymbols` für `<`, `>` (mit den Popups `‹ ≤ «` und `› ≥ »`, ohne die
-  Werkzeug-Popups des Kommas) und „12/34“; die Pfeiltaste bleibt hinter `dpadKeyEnabled`.
+- `functional_keys.json`, `functional_keys_tablet.json`, `functional_keys_khipro.json`: `moreSymbols` für `<`, `>`
+  (mit den Popups `‹ ≤ «` und `› ≥ »`, ohne die Werkzeug-Popups des Kommas) und „12/34“; die Pfeiltaste bleibt hinter
+  `dpadKeyEnabled`. Nur eigene (benutzerdefinierte) Funktions-Layouts ohne diese Einträge behalten die alte zweite
+  Seite (kein „12/34“, `<`/`>` mit den Popups von Komma und Punkt).
+- `AgentAreaKeysScreen.kt` und `PreferencesScreen.kt`: die Zeile „Zahlenreihe in Symbolen“ trägt die Zusammenfassung
+  `agent_keys_number_row_in_symbols_sub` (gilt nur für eigene Symbol-Layouts).
   `Defaults.PREF_SHOW_DPAD_KEY` ist jetzt `false`: nur ungesetzte Werte folgen, ein gesetzter bleibt.
 - `FlatPreset` schreibt `layout_SYMBOLS`/`layout_MORE_SYMBOLS` nicht mehr (nur noch `layout_FUNCTIONAL`).
   Steht der alte Name noch in den Einstellungen, ist die Datei weg: `LayoutUtils.getContent` fällt auf den
   Standard zurück, `usesBuiltInSymbols` zählt den Namen als eingebaut. Keine Datenmigration.
 - Tests: `AT/SymbolPagesTest.kt` (Seiten Taste für Taste in vier Stilen, Zahlenreihe an/aus, Englisch,
   Pfeiltaste, Buchstaben-Hinweise gegen `src/test/resources/symbols81/letter_keys.txt`, vor der Änderung
-  aufgenommen); `AT/FlatStyleRenderTest.kt` erwartet `∆`.
+  aufgenommen; dazu Tasten-Codes, Zustandsmaschine des Ziffernblocks, Popups, Pfeiltaste gesetzt/ungesetzt, eigenes
+  Layout und `symbols_arabic`, Tablet/Khipro, Reihenhöhe); `AT/SettingsKeysScreenTest.kt` prüft die Zusammenfassung
+  der Zeile; `AT/FlatStyleRenderTest.kt` erwartet `∆`.
 
 ## Editorzugriff, Panel und Rad
 
@@ -6248,6 +6254,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   dabei die Popups von Komma und Punkt (Zwischenablage, Prompt-Ablage, Emoji, Einhandmodus …). Jetzt stehen sie als
   `moreSymbols` in `functional_keys.json` mit eigenen Popups; die Basisreihe bleibt nur für andere Funktions-Layouts.
   Ändert man die Reihenfolge der Auswahl in `KeyboardStateSelector.compute`, ändern sich beide Seiten.
+  Eigene Funktions-Layouts ohne `moreSymbols` haben weiter die alte Unterreihe.
 - **P348** Symbolseiten (81): Die Pfeiltaste ist ab jetzt standardmäßig aus (`Defaults.PREF_SHOW_DPAD_KEY`). Eine Einstellung, die
   der Owner einmal gesetzt hat (auch „an“), steht als gesetzter Wert in den Einstellungen und gewinnt gegen den Standard; nichts
   wird migriert. Keine Stelle im Code darf alle Standardwerte in die Einstellungen schreiben, sonst gilt der alte Wert weiter.
