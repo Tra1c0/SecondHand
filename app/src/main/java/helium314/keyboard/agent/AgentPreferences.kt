@@ -32,6 +32,14 @@ object AgentPreferences {
     const val AUTOCORRECT_LEARN_TYPOS = "agent_autocorrect_learn_typos"
     /** Opt-in: personal hit boxes for letter keys (stage 22). */
     const val ADAPT_TOUCH = "agent_adapt_touch"
+    /**
+     * Stage 87: the space bar cursor and the delete slider as a trackpad (boolean, default true). Off is "Wie bisher": 10 dp per
+     * character, left/right only. The space bar only becomes a trackpad where its sideways swipes move the cursor.
+     */
+    const val CURSOR_TRACKPAD = "agent_cursor_trackpad"
+    /** Stage 87: magnetism of the trackpad at word edges, 0..100 percent (int, default [CURSOR_MAGNETISM_DEFAULT]). */
+    const val CURSOR_MAGNETISM = "agent_cursor_magnetism"
+    const val CURSOR_MAGNETISM_DEFAULT = 35
     /** Opt-in on top of [ADAPT_TOUCH]: short-term layer and scene profiles of the hit zones (stage 50). */
     const val ADAPT_TOUCH_DYNAMIC = "agent_adapt_touch_dynamic"
     const val SCREENSHOT_CHIP = "agent_screenshot_chip"
