@@ -13,7 +13,7 @@ import helium314.keyboard.latin.utils.ToolbarKey
  * IDLE --down on a pill or a slot--> PRESSED
  * PRESSED --held [Config.holdMs]--> DRAGGING
  * PRESSED --moved >= slop on a slot (any direction), or sideways on a pill--> DRAGGING
- * PRESSED --moved >= slop vertically on a pill--> SCROLLING (the grid scrolls; this logic is done)
+ * PRESSED --moved >= slop vertically on a pill--> IDLE with [Event.Scroll] (the grid scrolls; the scroll view may keep the end of the gesture to itself)
  * PRESSED --up--> a tap ([Event.Tapped]): on a slot the tool leaves the bar, on a pill it goes in or out
  * DRAGGING --finger in the bar zone--> the gap follows the finger ([Event.GapMoved]); outside --> the gap is closed
  * DRAGGING --up--> [Event.Dropped]; cancel --> [Event.Cancelled], nothing saved
@@ -103,7 +103,8 @@ class BarDrag(private val editor: BarEditor, private val geometry: Geometry, pri
                 now - downAt >= config.holdMs -> pickUp()
                 !moved -> emptyList()
                 target is Target.Slot -> pickUp()
-                Math.abs(dy) > Math.abs(dx) -> { phase = Phase.SCROLLING; listOf(Event.Scroll) }
+                // the grid scrolls: the scroll view owns this gesture and may never send its end, so this logic is idle at once
+                Math.abs(dy) > Math.abs(dx) -> { reset(); listOf(Event.Scroll) }
                 else -> pickUp()
             }
         }

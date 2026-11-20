@@ -97,6 +97,10 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
 
     init {
         visibility = GONE
+        // one finger at a time: a second finger on another pill must not act (stage 88, B7)
+        isMotionEventSplittingEnabled = false
+        scroll.isMotionEventSplittingEnabled = false
+        content.isMotionEventSplittingEnabled = false
         content.orientation = LinearLayout.VERTICAL
         // swallow touches between the pills so that they do not reach the keys underneath
         content.isClickable = true
@@ -164,6 +168,11 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         onClosed?.invoke()
     }
 
+    override fun onDetachedFromWindow() {
+        cancelTouch()
+        super.onDetachedFromWindow()
+    }
+
     override fun onWindowVisibilityChanged(visibility: Int) {
         super.onWindowVisibilityChanged(visibility)
         if (visibility != VISIBLE) close() // the keyboard was hidden
@@ -174,9 +183,20 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
     private var trackedPointer = -1
     private var floating: ImageView? = null
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var downScrollY = 0
     private val holdTimer = Runnable {
         val logic = dragLogic ?: return@Runnable
+        // the panel moved under the finger: the scroll view has the gesture (it may never tell the container), no pick-up
+        if (scroll.scrollY != downScrollY) { endTouch(logic); return@Runnable }
         handle(logic.tick(SystemClock.uptimeMillis()))
+    }
+
+    /** Forgets a touch (whatever state it was in); a drag in progress is given back like a cancel. */
+    private fun endTouch(logic: BarDrag) {
+        handler.removeCallbacks(holdTimer)
+        trackedPointer = -1
+        val events = logic.cancel()
+        if (events.isNotEmpty()) handle(events)
     }
 
     private fun targetAt(x: Float, y: Float): BarDrag.Target? {
@@ -220,7 +240,9 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         val logic = dragLogic ?: return false
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                trackedPointer = -1
+                // a new gesture never fails on an old state: the end of the last one may have gone to the scroll view or a child
+                endTouch(logic)
+                downScrollY = scroll.scrollY
                 val on = targetAt(ev.x, ev.y) ?: return false
                 if (!logic.down(ev.getPointerId(0), ev.x, ev.y, ev.eventTime, on)) return false
                 trackedPointer = ev.getPointerId(0)
@@ -364,7 +386,7 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         content.addView(header(text, icon, pill), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             .apply { bottomMargin = dp(GAP_DP) })
         tools.chunked(COLUMNS).forEachIndexed { rowIndex, rowTools ->
-            val row = LinearLayout(context)
+            val row = LinearLayout(context).apply { isMotionEventSplittingEnabled = false }
             rowTools.forEachIndexed { column, tool ->
                 val params = LinearLayout.LayoutParams(0, dp(PILL_HEIGHT_DP), 1f)
                 if (column > 0) params.marginStart = dp(GAP_DP)

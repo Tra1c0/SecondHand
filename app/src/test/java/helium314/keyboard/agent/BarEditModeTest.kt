@@ -148,6 +148,8 @@ class BarEditModeTest {
         for (i in 1..steps) moveTo(h, from.first + (x - from.first) * i / steps, from.second + (y - from.second) * i / steps)
     }
 
+    private fun assertUnsavedOrEqual(expected: List<ToolbarKey>) = assertTrue(saved() == expected || (saved() == null && BarTools.read(prefs) == expected))
+
     private val barY get() = STRIP / 2f
     private fun flat() = helium314.keyboard.keyboard.FlatStyle.isActive(Settings.getValues().mColors)
     /** Where [count] slots are after a drop, in the coordinates of the root. */
@@ -521,6 +523,100 @@ class BarEditModeTest {
         up(h, at.first, at.second - 120f)
         assertUnsaved()
         assertEquals(listOf(UNDO, REDO), tags(h))
+    }
+
+    /** A real scroll: the finger goes up the grid (the panel scrolls down), then lifts. */
+    private fun scrollGrid(h: Harness, dy: Float = 180f) {
+        val at = pillPoint(h, COPY)
+        down(h, at.first, at.second)
+        glide(h, at, at.first, at.second - dy, steps = 8)
+        up(h, at.first, at.second - dy)
+    }
+
+    @Test fun afterScrollingTheGridAPillCanStillBeDraggedIntoTheBarAndThisRepeats() {
+        setBar(listOf(UNDO, REDO))
+        reload()
+        val h = build()
+        startEdit(h)
+        var expected = listOf(UNDO, REDO)
+        for (key in listOf(PASTE, CUT, SELECT_ALL)) {
+            scrollGrid(h)
+            assertUnsavedOrEqual(expected)
+            val at = holdPill(h, key)
+            val x = finalCentres(h, expected.size + 1).last()
+            glide(h, at, x, barY)
+            up(h, x, barY)
+            expected = expected + key
+            assertEquals(expected, saved(), "after scrolling, $key dragged in")
+            layout(h)
+        }
+    }
+
+    @Test fun afterScrollingTheGridASlotCanStillBeReordered() {
+        setBar(listOf(UNDO, REDO, COPY))
+        reload()
+        val h = build()
+        startEdit(h)
+        for (round in 1..2) {
+            scrollGrid(h)
+            val grab = grabSlot(h, 0)
+            val x = finalCentres(h, 3).last()
+            glide(h, grab, x, barY)
+            up(h, x, barY)
+            layout(h)
+        }
+        assertEquals(listOf(COPY, UNDO, REDO), saved()) // twice the first to the end: UNDO,REDO,COPY -> REDO,COPY,UNDO -> COPY,UNDO,REDO
+    }
+
+    @Test fun aScrollThatTheContainerNeverSeesTheEndOfDoesNotBlockTheNextTouch() {
+        setBar(listOf(UNDO, REDO))
+        reload()
+        val h = build()
+        startEdit(h)
+        // the gesture goes to the scroll view: the container gets the moves up to the first and then nothing (the scroll view asks not to be intercepted)
+        val at = pillPoint(h, COPY)
+        down(h, at.first, at.second)
+        moveTo(h, at.first, at.second - 120f)
+        idle(600) // the hold time passes while the panel scrolls: no pick-up
+        assertNull(h.grid.floatingCopy)
+        // no UP, no CANCEL ever arrives; the next finger starts
+        val next = pillPoint(h, PASTE)
+        down(h, next.first, next.second)
+        idle(250)
+        assertNotNull(h.grid.floatingCopy, "a new touch is never blocked by an old one")
+        val x = finalCentres(h, 3).last()
+        glide(h, next, x, barY)
+        up(h, x, barY)
+        assertEquals(listOf(UNDO, REDO, PASTE), saved())
+    }
+
+    @Test fun aSecondFingerOnAnotherPillDuringTheFirstHundredAndEightyMsDoesNothing() {
+        setBar(listOf(UNDO, REDO))
+        reload()
+        val h = build()
+        startEdit(h)
+        val a = pillPoint(h, AGENT)
+        val b = pillPoint(h, DICTATE) // both in the first row: no scrolling between the two points
+        var secondTouched = 0
+        h.grid.pill(DICTATE)!!.setOnTouchListener { _, _ -> secondTouched++; false }
+        assertFalse(h.grid.isMotionEventSplittingEnabled)
+        down(h, a.first, a.second)
+        fun two(action: Int, index: Int): Boolean {
+            val props = arrayOf(MotionEvent.PointerProperties().apply { id = 0; toolType = MotionEvent.TOOL_TYPE_FINGER },
+                MotionEvent.PointerProperties().apply { id = 1; toolType = MotionEvent.TOOL_TYPE_FINGER })
+            val coords = arrayOf(MotionEvent.PointerCoords().apply { x = a.first; y = a.second }, MotionEvent.PointerCoords().apply { x = b.first; y = b.second })
+            val e = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), action or (index shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), 2, props, coords, 0, 0, 1f, 1f, 0, 0, 0, 0)
+            return try { h.grid.dispatchTouchEvent(e) } finally { e.recycle() }
+        }
+        idle(30)
+        two(MotionEvent.ACTION_POINTER_DOWN, 1)
+        idle(30)
+        two(MotionEvent.ACTION_POINTER_UP, 1)
+        idle(30)
+        up(h, a.first, a.second)
+        // only the first finger acted: a tap on its pill; the pill of the second finger never got a touch
+        assertEquals(0, secondTouched)
+        assertEquals(listOf(UNDO, REDO, AGENT), saved())
     }
 
     @Test fun aShortTouchOnAPillIsATapThatAppendsAndOnASlotRemoves() {

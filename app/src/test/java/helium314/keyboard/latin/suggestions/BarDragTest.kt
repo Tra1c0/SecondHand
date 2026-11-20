@@ -58,12 +58,14 @@ class BarDragTest {
         d = drag()
         d.down(0, 100f, 500f, now, Target.Pill(PASTE))
         assertEquals(listOf(Event.Scroll), d.move(0, 102f, 440f, now + 20).map { it })
-        assertEquals(Phase.SCROLLING, d.phase)
+        assertEquals(Phase.IDLE, d.phase) // the scroll view owns the gesture and may never send its end: idle at once
         assertEquals(emptyList(), d.tick(now + 500)) // the hold time passes while scrolling: no pick-up
         assertEquals(emptyList(), d.move(0, 300f, 100f, now + 600)) // no matter where the finger goes
         assertEquals(emptyList(), d.up(0, 300f, 100f, now + 700))
         assertEquals(Phase.IDLE, d.phase)
         assertEquals(listOf(UNDO, REDO, COPY), stored)
+        // and a new finger is taken at once
+        assertTrue(d.down(0, 100f, 500f, now + 800, Target.Pill(PASTE)))
     }
 
     @Test fun aMoveOnABarSlotPicksUpInAnyDirection() {
