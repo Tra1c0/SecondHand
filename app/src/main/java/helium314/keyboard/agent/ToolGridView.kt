@@ -95,6 +95,9 @@ class ToolGridView(context: Context, attrs: AttributeSet?) : FrameLayout(context
         (parent as? AgentKeyboardFrame)?.updateOverlayAccessibility()
     }
 
+    /** Why the pill of [key] is in the "off" look, or null when the tool is available (stage 88). */
+    fun reason(key: ToolbarKey) = reasons[key]
+
     /** The pill of [key], or null when the panel does not list it. */
     fun pill(key: ToolbarKey): Button? = pills[key]
 

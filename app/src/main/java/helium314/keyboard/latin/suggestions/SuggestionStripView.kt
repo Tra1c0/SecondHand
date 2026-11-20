@@ -456,6 +456,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             return
         }
         if (tag is ToolbarKey) {
+            if (fixedBar) FixedBar.hideHint(toolbarContainer as ViewGroup)
             if (fixedBar && FixedBar.reasonOf(view) != null) { showUnavailableHint(view); return } // a tool in the "off" look: say why
             if (!view.isEnabled) return
             if (flatStyle && !fixedBar) FlatStrip.closeMenu(this)

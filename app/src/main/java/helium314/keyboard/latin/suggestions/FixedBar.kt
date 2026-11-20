@@ -283,6 +283,14 @@ internal object FixedBar {
         container.findViewById<View>(R.id.agent_bar_hint)?.visibility = View.GONE
     }
 
+    /** The visible box of the left key (its disc, or the glyph in the flat style) in the coordinates of its parent, for the arrangement of [count] tools. */
+    fun leftBox(expandKey: View, flat: Boolean, count: Int): RectF {
+        val v = sizes(expandKey, flat, count).leftVisual
+        val cx = (expandKey.left + expandKey.right) / 2f
+        val cy = (expandKey.top + expandKey.bottom) / 2f
+        return RectF(cx - v / 2f, cy - v / 2f, cx + v / 2f, cy + v / 2f)
+    }
+
     /** The visible box of a slot in the coordinates of its row: the circle, or the glyph area. */
     fun visualBox(button: View): RectF {
         val circle = button.getTag(R.id.agent_bar_circle) as? Int

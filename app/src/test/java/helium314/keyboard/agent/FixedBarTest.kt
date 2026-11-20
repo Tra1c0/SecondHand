@@ -137,6 +137,7 @@ class FixedBarTest {
     private val sets = listOf(
         listOf(UNDO, REDO, COPY, PASTE, CUT, SELECT_ALL, SELECT_WORD, CLIPBOARD),
         listOf(AGENT, EMOJI, SKILL_1, SKILL_2, SKILL_3, PROMPTS, CHAR_ART, DESIGN),
+        listOf(PASTE, CUT, EMOJI, SELECT_WORD, REDO, UNDO, COPY, DESIGN),
     )
 
     private fun checkGeometry(flat: Boolean) {
@@ -154,23 +155,34 @@ class FixedBarTest {
                 val tools2 = slots(h)
                 assertEquals(bar, tools2.map { it.tag }, label)
                 val left = leftKey(h)
-                val centres = (listOf(left) + tools2).map { it.centreIn(h.root) }
-                // left key first, then the tools in order, evenly spread from the left margin to the right margin
-                assertEquals(centres.sorted(), centres, label)
-                centres.zipWithNext { a, b -> if (centres.size > 2) assertTrue(abs((b - a) - (centres[1] - centres[0])) <= 1.5f, "$label pitch ${b - a}") }
-                if (count > 0) assertTrue(abs(centres.first() - (WIDTH - centres.last())) <= 2.5f, "$label symmetric ${centres.first()} / ${centres.last()}")
-                // the same count gives the same places whichever tools are in it
-                val previous = patterns.put(count, centres)
+                // stage 88: the gaps between the visible boxes of neighbours are equal, and so are the insets at both ends
+                val rowLeft = toolbar(h).leftIn(h.root).toFloat()
+                val leftBox = FixedBar.leftBox(left, flat, count).let { android.graphics.RectF(it.left + left.leftIn(h.root) - left.left, it.top, it.right + left.leftIn(h.root) - left.left, it.bottom) }
+                val boxes = listOf(leftBox) + tools2.map { FixedBar.visualBox(it).let { b -> android.graphics.RectF(b.left + rowLeft, b.top, b.right + rowLeft, b.bottom) } }
+                assertEquals(boxes.sortedBy { it.left }, boxes, label)
+                val gaps = boxes.zipWithNext { a, b -> b.left - a.right }
+                gaps.forEach { assertTrue(abs(it - gaps.first()) <= 2.5f, "$label gaps $gaps") }
+                if (count > 0) {
+                    assertTrue(abs(boxes.first().left - (WIDTH - boxes.last().right)) <= 2.5f, "$label insets ${boxes.first().left} / ${WIDTH - boxes.last().right}")
+                    assertTrue(abs(boxes.first().left - 12f * 3.25f) <= 2.5f, "$label inset ${boxes.first().left}")
+                    assertTrue(gaps.first() > 0, "$label gap")
+                }
+                // the same count (and the same kind of last item) gives the same places whichever tools are in it
+                val centres = boxes.map { (it.left + it.right) / 2f }
+                val previous = patterns.put(count * 2 + (if (variant == 1) 1 else 0), centres)
                 if (previous != null) assertTrue(previous.zip(centres).all { (a, b) -> abs(a - b) <= 1f }, "$label equal places: $previous vs $centres")
                 // no scrolling and no expand arrow in the strip
                 assertNoScrolling(h.strip)
                 assertNull(h.strip.findViewById<View>(R.id.pinned_keys)?.takeIf { (it as ViewGroup).childCount > 0 })
-                // compact from six tools: smaller buttons
-                tools2.forEach { assertEquals(tools2.first().width, it.width, label) }
+                // compact from six tools: smaller glyphs, all the same size (the circle at the end is wider)
+                val plain = tools2.filter { !FixedBar.isCircle(it) }
+                plain.forEach { assertEquals(plain.first().width, it.width, label) }
                 if (count > 0) {
                     val full = Math.round((if (flat) 34f else 40f) * 3.25f)
                     val compact = Math.round(30f * 3.25f)
-                    assertEquals(if (BarTools.isCompact(count)) compact else full, tools2.first().width, label)
+                    plain.firstOrNull()?.let { assertEquals(if (BarTools.isCompact(count)) compact else full, it.width, label) }
+                    val glyph = Math.round((if (BarTools.isCompact(count)) 20f else 24f) * 3.25f)
+                    plain.forEach { assertTrue(abs(glyph - FixedBar.visualBox(it).width()) <= 1.5f, label) }
                 }
                 // the last microphone key is the circle, no other slot is
                 assertEquals(variant == 1 && count > 0, tools2.lastOrNull()?.let { FixedBar.isCircle(it) } ?: false, label)
@@ -371,7 +383,7 @@ class FixedBarTest {
         reload()
         val open = build()
         val placesOpen = slots(open).map { it.centreIn(open.root) }
-        slots(open).forEach { assertTrue(it.isEnabled && it.alpha == 1f, "${it.tag}") }
+        slots(open).forEach { assertTrue(FixedBar.reasonOf(it) == null, "${it.tag}") }
 
         // a password field: the settings are reloaded for the field the way the keyboard does at a field start
         Settings.getInstance().loadSettings(latinIME, Locale.GERMANY,
@@ -383,11 +395,11 @@ class FixedBarTest {
         layout(closed)
         // same places
         assertTrue(placesOpen.zip(slotsClosed.map { it.centreIn(closed.root) }).all { (a, b) -> abs(a - b) <= 1f })
-        val dimmed = slotsClosed.filter { !it.isEnabled }.map { it.tag }
+        val dimmed = slotsClosed.filter { FixedBar.reasonOf(it) != null }.map { it.tag }
         assertEquals(listOf(AGENT, SKILL_1, DICTATE), dimmed)
-        slotsClosed.filter { !it.isEnabled }.forEach {
-            assertTrue(it.alpha < 0.5f)
-            assertTrue("not available" in it.contentDescription.toString(), it.contentDescription.toString())
+        slotsClosed.filter { FixedBar.reasonOf(it) != null }.forEach {
+            assertEquals(1f, it.alpha) // not an alpha: a real colour and a lock (stage 88)
+            assertTrue(latinIME.getString(R.string.agent_bar_hint_private) in it.contentDescription.toString(), it.contentDescription.toString())
             it.performClick() // a dimmed slot does not react (a touch never reaches a disabled view; the strip also ignores the call)
         }
         assertEquals(emptyList(), closed.codes)
@@ -395,7 +407,7 @@ class FixedBarTest {
         assertEquals(listOf(KeyCode.UNDO), closed.codes)
         // the grid: the same tools dimmed, none removed
         leftKey(closed).performClick()
-        assertEquals(BarTools.PROTECTED.size, closed.grid.listed.count { !closed.grid.pill(it)!!.isEnabled })
+        assertEquals(BarTools.PROTECTED.size, closed.grid.listed.count { closed.grid.reason(it) != null })
         assertTrue(BarTools.PROTECTED.all { closed.grid.pill(it) != null })
         closed.grid.pill(AGENT)!!.performClick()
         assertEquals(listOf(KeyCode.UNDO), closed.codes)
@@ -403,7 +415,55 @@ class FixedBarTest {
         // the field is left: the tools are available again
         Settings.getInstance().loadSettings(latinIME, Locale.GERMANY, InputAttributes(EditorInfo(), false, latinIME.packageName))
         val again = build()
-        assertTrue(slots(again).all { it.isEnabled && it.alpha == 1f })
+        assertTrue(slots(again).all { FixedBar.reasonOf(it) == null })
+    }
+
+    @Test fun aTapOnAToolInTheOffLookSaysWhyForEveryReason() {
+        setBar(listOf(AGENT, UNDO, PROMPTS))
+        reload()
+        // a number layout: the store is off
+        var h = build()
+        h.strip.numberLayoutProbe = { true }
+        h.strip.onKeyboardLayoutChanged()
+        val prompts = slots(h).first { it.tag == PROMPTS }
+        assertEquals(BarTools.Reason.NUMBER_LAYOUT, FixedBar.reasonOf(prompts))
+        fun hint() = h.strip.findViewById<android.widget.TextView>(R.id.agent_bar_hint)
+        assertNull(hint())
+        prompts.performClick()
+        assertEquals(latinIME.getString(R.string.agent_bar_hint_number), hint().text.toString())
+        assertEquals(View.VISIBLE, hint().visibility)
+        assertTrue(latinIME.getString(R.string.agent_bar_hint_number) in prompts.contentDescription.toString())
+        assertEquals(emptyList(), h.codes)
+        hint().performClick() // a touch on the line clears it
+        assertEquals(View.GONE, hint().visibility)
+        // a private field: the protected tools are off
+        Settings.getInstance().loadSettings(latinIME, Locale.GERMANY,
+            InputAttributes(EditorInfo().apply { inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD }, false, latinIME.packageName))
+        h = build()
+        val agent = slots(h).first { it.tag == AGENT }
+        assertEquals(BarTools.Reason.PRIVATE_FIELD, FixedBar.reasonOf(agent))
+        agent.performClick()
+        assertEquals(latinIME.getString(R.string.agent_bar_hint_private), hint().text.toString())
+        assertTrue(latinIME.getString(R.string.agent_bar_hint_private) in agent.contentDescription.toString())
+        assertEquals(emptyList(), h.codes)
+        // a tool that works clears the line and runs
+        slots(h).first { it.tag == UNDO }.performClick()
+        assertEquals(View.GONE, hint().visibility)
+        assertEquals(listOf(KeyCode.UNDO), h.codes)
+        // a long press on a tool without an own long press action starts customizing, also for a tool in the off look
+        assertTrue(agent.performLongClick())
+        h.strip.onKeyboardHidden()
+        // the grid: the pill says why and stays open
+        leftKey(h).performClick()
+        assertEquals(BarTools.Reason.PRIVATE_FIELD, h.grid.reason(AGENT))
+        h.grid.pill(AGENT)!!.performClick()
+        assertTrue(h.grid.isOpen)
+        assertEquals(View.VISIBLE, hint().visibility)
+        assertEquals(listOf(KeyCode.UNDO), h.codes)
+        // the locked device: the reason of the model (the bar itself is not shown on a locked device)
+        assertEquals(BarTools.Reason.LOCKED_DEVICE, BarTools.unavailableReason(AGENT, false, true))
+        assertEquals(BarTools.Reason.NUMBER_LAYOUT, BarTools.unavailableReason(PROMPTS, false, false, true))
+        assertNull(BarTools.unavailableReason(UNDO, true, true, true))
     }
 
     @Test fun incognitoShowsItsIconOnTheLeftKeyAndKeepsItsFunction() {
@@ -617,13 +677,13 @@ class FixedBarTest {
         setBar(listOf(PROMPTS, CHAR_ART, UNDO))
         reload()
         val h = build()
-        assertTrue(slots(h).all { it.isEnabled })
+        assertTrue(slots(h).all { FixedBar.reasonOf(it) == null })
         h.strip.numberLayoutProbe = { true }
         h.strip.setSuggestions(SuggestedWords.getEmptyInstance(), false)
-        assertEquals(listOf(PROMPTS), slots(h).filter { !it.isEnabled }.map { it.tag })
+        assertEquals(listOf(PROMPTS), slots(h).filter { FixedBar.reasonOf(it) != null }.map { it.tag })
         leftKey(h).performClick()
-        assertFalse(h.grid.pill(PROMPTS)!!.isEnabled)
-        assertTrue(h.grid.pill(CHAR_ART)!!.isEnabled)
+        assertNotNull(h.grid.reason(PROMPTS))
+        assertNull(h.grid.reason(CHAR_ART))
         h.grid.pill(PROMPTS)!!.performClick()
         assertTrue(h.grid.isOpen); assertEquals(emptyList(), h.codes)
     }
@@ -646,13 +706,13 @@ class FixedBarTest {
         setBar(listOf(PROMPTS, CHAR_ART, UNDO))
         reload()
         val h = build()
-        assertTrue(slots(h).all { it.isEnabled })
+        assertTrue(slots(h).all { FixedBar.reasonOf(it) == null })
         h.strip.numberLayoutProbe = { true }
         h.strip.onKeyboardLayoutChanged() // no strip update in between
-        assertEquals(listOf(PROMPTS), slots(h).filter { !it.isEnabled }.map { it.tag })
+        assertEquals(listOf(PROMPTS), slots(h).filter { FixedBar.reasonOf(it) != null }.map { it.tag })
         h.strip.numberLayoutProbe = { false }
         h.strip.onKeyboardLayoutChanged()
-        assertTrue(slots(h).all { it.isEnabled })
+        assertTrue(slots(h).all { FixedBar.reasonOf(it) == null })
     }
 
     private companion object {
