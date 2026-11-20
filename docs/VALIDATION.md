@@ -24,6 +24,22 @@ zuverlässig, bzw. gar nicht“: Die Symbole folgten dem Finger, schnappten zur�
   zweiter Finger, senkrechter Zug scrollt, Tippen, Halten und auf der Stelle loslassen, rechts nach links, verstecktes Sprachwerkzeug. **Rot-Nachweise (Sabotage in `BarDrag`):** Ablegen fügt nie ein: 13 von 39 Tests rot;
   „Halten auf der Stelle legt zurück“ entfernt: 2; ein zweiter Finger wird angenommen: 1.
 - `UndoOfferTest` (5).
+- **Emulator (Android 14, 1080 × 2400, 420 dpi, echte Berührungen mit `input motionevent`), `tools/devicetest/devicetest.py`:** sechs neue Szenarien, alle 31 Szenarien grün auf jedem Emulator, der startete:
+  `bar_icons_visible` (Kern-Pixel jedes Werkzeugs der Standard-Leiste gegen den Streifen, Tag- und Nachtlook: Kontrast 6,9 bzw. 10,4, der Kreis 4,6 bzw. 5,9, also über 3:1; das Symbol der Textaktionen, in Build 41 schwarz, ist dabei),
+  `bar_edit_drag_in` (Pille halten, zwischen zwei Werkzeuge ziehen: während der Finger unten ist, hat die Leiste einen Platz mehr und die Lücke liegt zwischen zwei Werkzeugen, nach dem Loslassen steht das Werkzeug dort,
+  die anderen in alter Reihenfolge, nach Verstecken und Öffnen der Tastatur unverändert), `bar_edit_reorder` (erstes Werkzeug ans Ende; während des Ziehens und danach, gespeichert), `bar_edit_drag_out` (nach unten ins Raster:
+  die Leiste rückt schon beim Ziehen zusammen, gespeichert), `bar_edit_undo` (Tippen hängt an, „Rückgängig“, Zurücksetzen mit „Nein“ und „Ja“) und `bar_shots` (8, 3 und 1 Werkzeug). Jedes endet mit dem Tippen von „ab“ (der
+  Kontrolllauf lässt das letzte Zeichen weg und lässt sie darum scheitern) und stellt die Standard-Leiste über die Oberfläche wieder her. Der erste Lauf dieser Szenarien scheiterte an den Szenarien, nicht an der Tastatur: nach dem
+  Öffnen der Tastatur zeigte die Leiste noch den Zwischenablage-Chip aus dem Szenario davor („Werkzeuge zeigen“ zuerst tippen, jetzt `ensure_tools`). Die Szenarien fanden sonst nichts; die Drag-Szenarien hatten in den Läufen
+  nach dieser Korrektur keinen Fehlschlag.
+- **Bilder (durch das Job-Protokoll, `shots_from_log.py`; 270 × 175 px, Farben auf 4 Bit gekürzt):** Gesehen wurden: Standardleiste im Tag- und im Nachtlook (alle fünf Werkzeuge und der Raster-Knopf lesbar, gleichmäßig verteilt,
+  Mikrofon im Kreis rechts), der Anpassen-Modus (Plätze umrandet, Häkchen links, Hinweis, „Rückgängig“ ausgegraut, „Zurücksetzen“, markierte Pille „Textaktionen“), mitten im Ziehen (Kopie mit Ring am Finger über der Leiste,
+  zwischen Zahnrad und Zwischenablage), nach dem Ablegen (sechs Werkzeuge, „Rückgängig“ jetzt hell), acht Werkzeuge (kompakt, alle lesbar, gleichmäßig), drei Werkzeuge (weit, gleichmäßig) und eines (der Raster-Knopf ganz links,
+  das Werkzeug ganz rechts: so folgt es aus „Mitten von Rand zu Rand“, wirkt bei einem Werkzeug allein aber verloren; nicht geändert, Vorschlag mit Rückfrage). Nichts war abgeschnitten, keine Überlappung, kein Loch.
+  Die Pille „Diktieren (auf dem Gerät)“ ist in der halben Breite abgeschnitten (die Beschriftung läuft wie in allen Pillen; alt). **Nicht in seinem Design:** Der Emulator hat die Standardfarben; für die Farben des Owners (dunkel, Mint,
+  Dunkelrot, Rosa) gibt es nur den Test `BarIconVisibilityTest` mit seiner Palette (Farben aus seinem Bild geschätzt): ein eigenes Design lässt sich in der nicht debugbaren Tastatur nicht über `adb` setzen (kein `run-as`),
+  über die Oberfläche wäre es ein langer Weg; nicht gemacht.
+
 - Geänderte bestehende Erwartungen: `FixedBarTest` (nicht verfügbar ist kein `isEnabled=false`/Alpha mehr, sondern `FixedBar.reasonOf`; die Beschreibung nennt den Grund), `PromptsWindowTest` (dasselbe), alle `DragEvent`-Tests von
   `BarEditModeTest` ersetzt, `EditListener.onDrag` und `dropListener` entfallen. Die Mitten-Erwartung der flachen Referenzbilder (`FlatStyleRenderTest`) ist unverändert: ich hatte erst gleiche Lücken statt gleicher Mitten gebaut, der Test
   zeigte den Widerspruch zu den Referenzbildern des Owners, ich habe es zurückgenommen.
