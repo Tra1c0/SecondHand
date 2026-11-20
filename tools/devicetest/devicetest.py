@@ -320,6 +320,7 @@ class Driver:
                 return screen
             if time.time() > deadline:
                 self.save_dump(screen, "timeout")
+                foreground_info("waited for " + what)
                 raise DeviceError("waited %ss for %s; on screen: %s" % (int(limit), what, describe(screen)))
             time.sleep(0.7)
 
@@ -328,6 +329,7 @@ class Driver:
         screen = dump()
         node = screen.by_id("field_" + field)
         if node is None:
+            foreground_info("field_%s missing" % field)
             raise DeviceError("field_%s is not on the screen" % field)
         tap(*node.center)
         screen = self.wait(lambda s: len(s.keys()) >= 10, "the keyboard with its keys")
@@ -587,6 +589,7 @@ class Driver:
     def tap_id(self, name):
         node = dump().by_id(name)
         if node is None:
+            foreground_info("%s missing" % name)
             raise DeviceError("%s is not on the screen" % name)
         tap(*node.center)
 
@@ -671,6 +674,28 @@ def describe(screen):
         parts.append(label)
     return ("%d nodes of %s; keyboard nodes %d: %s" % (
         len(screen.nodes), ",".join(packages), len(keyboard), " ".join(parts)))[:1100]
+
+
+def foreground_info(why):
+    """INFO lines for a test app that is not in front (flaky runs of clipboard_pill and prompt_folders):
+    the resumed activity and the last activity starts of the ActivityTaskManager, as component names only.
+    Never a field content, clipboard text or intent extra."""
+    try:
+        text = shell("dumpsys activity activities", timeout=30, check=False)
+        resumed = [re.sub(r"\s+", " ", l.strip())[:200] for l in text.splitlines()
+                   if "ResumedActivity" in l or "topResumedActivity" in l][:3]
+        log("INFO foreground (%s): %s" % (why, " | ".join(resumed) or "no resumed-activity line"))
+        raw = adb("logcat", "-d", "-t", "3000", "ActivityTaskManager:I", "*:S", timeout=30, check=False)
+        starts = []
+        for l in raw.splitlines():
+            if "START u0" in l:
+                comp = re.search(r"cmp=(\S+)", l)
+                caller = re.search(r"from uid (\d+)", l)
+                starts.append("%s %s%s" % (l[:18].strip(), comp.group(1) if comp else "?",
+                                           " uid " + caller.group(1) if caller else ""))
+        log("INFO recent activity starts (%s): %s" % (why, " ; ".join(starts[-10:]) or "none"))
+    except DeviceError as error:
+        log("INFO foreground (%s): not readable: %s" % (why, error))
 
 
 def tap(x, y):
@@ -803,6 +828,8 @@ def _open_settings_and_switch_on(d, path, switch):
             d.tap_text(label)
     d.tap_text(switch)
     shell("input keyevent KEYCODE_HOME", check=False)
+    time.sleep(1.0)
+    foreground_info("after Home")  # investigation of the flaky clipboard_pill: is the settings task left?
 
 
 def emoji_suggestion(d):
@@ -1547,6 +1574,7 @@ def wait_report(d, condition, what, limit=15.0):
         if condition(screen):
             return screen
         if time.time() > deadline:
+            foreground_info("waited for " + what)  # which activity is in front (stage 87c diagnosis)
             raise CheckFailed("waited %ds for %s; the keyboard shows: %s" % (int(limit), what, bar_report(screen)))
         time.sleep(0.7)
 
@@ -1580,6 +1608,7 @@ def open_edit_mode(d):
     for attempt in ("tap", "tap", "long press"):
         key = left_key(screen)
         if key is None:
+            foreground_info("no left key of the bar")
             raise CheckFailed("no left key of the bar; the keyboard shows: " + bar_report(screen))
         if attempt == "tap":
             tap(*key.center)
@@ -1594,6 +1623,7 @@ def open_edit_mode(d):
         if _has_edit_button(screen):
             break
     else:
+        foreground_info("the grid did not open")
         crash = shell("logcat -d -t 300 -s AndroidRuntime:E DEBUG:F", check=False)[-700:].replace("\n", " | ")
         raise CheckFailed("the grid did not open: %s; log: %s; the keyboard shows: %s" % ("; ".join(tried), crash, bar_report(screen)))
     tap(*next(n for n in screen.nodes if n.package == KEYBOARD_PACKAGE and n.visible and n.text in EDIT_LABELS).center)

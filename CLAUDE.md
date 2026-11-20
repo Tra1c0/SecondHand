@@ -53,6 +53,23 @@ genannten Datei. `AGENTS.md` ist eine automatisch erzeugte Kopie dieser Datei f�
   Upstream-Doku) sind auf Englisch.
 - Baue nur, was der Owner beauftragt oder was in `docs/ROADMAP.md` unter „Beschlossen“ steht,
   und nur, wenn die Entwicklung nicht pausiert ist (`docs/HANDOFF.md` → Aktueller Stand).
+- Verantworte das Produkt, nicht nur die Anweisung (Owner, 2026-11-20). Ein Auftrag ist der Ausgangspunkt,
+  keine vollständige Spezifikation: Lies ihn im Zusammenhang mit Zweck, vorhandenen Funktionen und dem Arbeitsfluss
+  des Owners und denke mit, was davor, dabei und danach passiert. Die Arbeitsweise dazu mit Beispielen steht im
+  Skill `product-initiative` (`.claude/skills/product-initiative/SKILL.md`); verbindlich sind die Punkte hier.
+  - Vor dem Bau einer größeren Funktion steht ein kurzes Konzept in `docs/` (Muster: `docs/LEISTE-KONZEPT.md`):
+    was der Owner will, was dem widerspricht, der vollständige Ablauf mit Randfällen und Abbruch, was
+    unausgesprochen dazugehört, wie es zu den vorhandenen Funktionen passt, wie es geprüft wird. Kleine Aufgaben
+    brauchen kein Konzept.
+  - Eigene Zusätze nur mit klarem Nutzen für den Owner, nie um Initiative zu zeigen. Harmlos, direkt zugehörig und
+    leicht entfernbar → einbauen und nennen. Alles, was vorhandenes Verhalten ändert, sich mit anderen Funktionen
+    überschneidet oder sie ersetzt → vorher vorschlagen. Einstellungen und Gewohnheiten des Owners bleiben erhalten.
+  - Kläre Unklares zuerst selbst (Code, Tests, Docs, Werkzeuge) und frage nur, was sich so nicht klären lässt.
+  - Prüfe am echten Einstieg und in der Einrichtung des Owners, nicht nur mit Standardwerten: Gesten mit echten
+    Berührungen im Emulator, Sichtbares mit angesehenen Bildern, dazu sein Design (dunkel, eigene Farben) und seine
+    Belegungen. Kennst du seine Einrichtung nicht, lass die App sie anzeigen (Diagnose) oder frage.
+  - Schließe mit einem kurzen Bericht in vier Teilen: bestellt, eigene Zusätze, offene Risiken, was wie geprüft
+    wurde und was nur der Owner am Telefon prüfen kann.
 - Arbeite in Etappen: eine Etappe fügt genau ein prüfbares Verhalten hinzu. Ein großer Umbau und
   eine neue Funktion sind getrennte Etappen. Prüfe und committe jede Etappe, bevor eine davon
   abhängige beginnt.

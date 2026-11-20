@@ -544,7 +544,7 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   „Editorzugriff, Panel und Rad“; seitliche Einmal-Wische laufen über `SpaceDetents` und spielen
   `HapticChain`).
 - Etappe 87 (Cursor als Trackpad, P410–P433), jede Änderung von einem Prüfer lesen lassen:
-  `PointerTracker.java` (+19 Zeilen, alle als Hinzufügungen: in `onKeySwipe`, vor dem Leertasten-/Löschzweig und hinter der Schnelltipp-Sperre, 12 Zeilen:
+  `PointerTracker.java` (+19 Zeilen in Etappe 87, dazu in Etappe 87c +1 Zeile: `static int getPointerStep()`, der Getter für `sPointerStep`, sonst nichts; alle als Hinzufügungen: in `onKeySwipe`, vor dem Leertasten-/Löschzweig und hinter der Schnelltipp-Sperre, 12 Zeilen:
   `sListener.onCursorTrack(mPointerId, code, x - mStartX, y - mStartY, eventTime, mStartTime)`; bei `TRACK_OFF` läuft alles wie vorher, sonst kehrt
   die Methode zurück, bei `TRACK_ACTIVE` zusätzlich (bei jedem Move, nicht nur beim ersten) `cancelKeyTimersOf` und `mInHorizontalSwipe = true`, damit das Heben wie
   bei einem seitlichen Wisch endet, bei `TRACK_REFUSED_DRAG` `cancelKeyTimersOf` und `cancelTrackingForAction()` (der Move-Weg und das Heben dieses Fingers tun danach nichts); dazu je eine Zeile `sListener.onCursorTrackEnd(mPointerId)` im Heben-Zweig von `mKeySwipeAllowed` und am Ende
@@ -1365,14 +1365,14 @@ Symbole ohne Verzögerung (Etappe 84, Fallstricke P370–P374). Zeilen, die die 
   echten Textanfang/-ende, nicht am Fensterrand). Cluster nach `TextColumns.graphemes` (eigene Regeln, auf jeder JVM gleich).
   `forwardLimitChars` (Löschwisch) und `horizontalOnly`. Alle Konstanten stehen im `companion` und sind erste Schätzungen.
   Test `CT/CursorTrackTest.kt`.
-- `A/CursorTrackpad.kt` (Etappe 87): `appliesToSpace(SpaceGestureSettings)` (Trackpad nur, wo links/rechts „Cursor bewegen“
-  sind und oben/unten nichts oder „Cursor bewegen“), `CLAIM_DP` = 10, `WINDOW_CHARS` = 200 und `runs` (gleiche Achse und
+  Test der reinen Entscheidungen von `A/CursorTrackpad.kt` (Gründe, Start): `AT/CursorTrackpadReasonTest.kt`.
+- `A/CursorTrackpad.kt` (Etappe 87): `spaceReason(Belegung, Schalter)` mit `SpaceReason` (Etappe 87c: `QUALIFIES_ALL_AXES` = jede Richtung Cursor oder nichts, mindestens eine Cursor; `QUALIFIES_START_DECIDES` = mindestens eine Richtung Cursor, eine andere mit Aktion; `NOT_SETTING_OFF`, `NOT_NO_CURSOR_DIRECTION`), `appliesToSpace` (Name aus Etappe 87, wahr für beide Gründe), `decideStart(Belegung, dx, dy, mehrzeilig)` (`Start` UNDECIDED/TRACKPAD/LEGACY; UNDECIDED nur unter 10 dp, keine Wartezone), `startDirection` (Vergleich des alten Wischens: senkrecht, wenn |dy| ≥ 10 dp und |dx| < |dy|, sonst seitlich), `collapsesToStart`, `CLAIM_DP` = 10, `WINDOW_CHARS` = 200 und `runs` (gleiche Achse und
   Richtung hintereinander zu einem Zug mit einem Tick; `claims` = die alte Schwelle von 10 dp auf der Wischachse, `MAX_PENDING` = 64 Proben,
   `SELECTION_WAIT_MS` = 300). Die Zustandsmaschine steht in
   `KeyboardActionListenerImpl.onCursorTrack(pointerId, code, dx, dy, zeit, downTime)`: **ein Zustand je Finger** (`trackStates[pointerId]`,
   Schlüssel `downTime` = Beginn der Berührung) und **höchstens ein Besitzer** (`trackOwner`). `UNDECIDED` → beim ersten Aufruf einer
   Berührung `decideTrackMode` (`mCursorTrackpad` an, kein Overlay; **zuerst** der Besitz: besitzt ein anderer Finger die Spur oder ein Löschwischen,
-  ist jeder Wisch auf Leer-/Löschtaste `REFUSED`; dann Leertaste: `appliesToSpace` und keine Markierung; Löschtaste: immer) →
+  ist jeder Wisch auf Leer-/Löschtaste `REFUSED`; dann Leertaste: `spaceReason(...).qualifies` (die Markierung zählt seit Etappe 87c nicht mehr, sie wird beim Anspruch zusammengezogen); Löschtaste: immer) →
   `OFF` (der alte Code läuft, die ganze Berührung lang), `REFUSED` (ein anderer Finger besitzt die Spur: dieser bleibt `TRACK_PENDING`, also ein Tipp
   oder Halten mit Wiederholung, bis er die Wischschwelle überschreitet; dann `TRACK_REFUSED_DRAG`: der Tracker bricht seine Tastentimer ab und
   verwirft die Berührung mit `cancelTrackingForAction`, sie tippt, wiederholt und löscht nichts) oder `PENDING` (Proben sammeln, bis
@@ -4129,9 +4129,15 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   „Test 73c-2“, „Test 73c-3“ in dieser Reihenfolge als Inline-Vorschläge an (das Szenario prüft die Reihenfolge der Chips von links nach rechts
   über die Titel-Knoten und tippt den linken; nicht gelaufen),
   wird nur für dieses Szenario per `settings put secure autofill_service` gewählt und danach abgewählt (P311).
+  Diagnose (Untersuchung clipboard_pill): `foreground_info` in `devicetest.py` schreibt als INFO-Zeilen die fortgesetzte Aktivität
+  (`dumpsys activity activities`) und die letzten Aktivitätsstarts (nur Komponentennamen aus `START u0` im Log des ActivityTaskManager),
+  wenn eine Wartezeit abläuft oder `field_…`/`copy_…` fehlt, sowie einmal nach dem Home-Druck in `_open_settings_and_switch_on`. Keine Feldinhalte.
 - Docs-System: `scripts/docs_sync.py` (Konfiguration `scripts/docs_sync.json`),
   `scripts/install-hooks.sh` (optionaler Pre-Commit-Hook), `.claude/hooks/session-start.sh`
   (registriert in `.claude/settings.json`). Bedienung: `docs/HANDOFF.md` → Arbeitsweise.
+  `.claude/skills/product-initiative/SKILL.md` ist der Projekt-Skill zur Regel „Verantworte das Produkt“ in
+  `CLAUDE.md` (Auftrag durchdenken, eigene Ideen einordnen, wie der Owner prüfen, Bericht in vier Teilen); er
+  enthält keine eigenen Regeln.
 
 ## Fallstricke
 
@@ -6680,16 +6686,25 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - **P431** Feldstart und Verbergen (`LatinIME.onStartInputViewInternal`, `onFinishInputViewInternal`, je eine Zeile `onCursorTrackEnd(-1)`): gibt jeden Besitz frei; eine aktive Berührung bleibt „aktiv“, bewegt aber nichts mehr (der Tracker hält sie für einen Wisch bis zum Heben); eine Berührung ohne Heben oder Abbruch hinterlässt so keinen Besitzer, der Wische verweigert oder Leertasten-Tipps mit 10 dp Zittern verschluckt.
 - **P432** Löschwischen: Die Länge der Markierung kommt aus der erwarteten Auswahl (`expectedSelectionEnd - expectedSelectionStart`), nicht aus `getSelectedText` (ein Editor darf null antworten); fehlt der markierte Text, gilt der Text als nicht lesbar (Schritte über den alten Pfad `onMoveDeletePointer`), die Vorwärtsgrenze bleibt die Markierungslänge.
 - **P433** Löschen beim Heben nur im selben Feld: `deleteSlideField` hält das Feld (`mInputAttributes`), in dem das Löschwischen begann (Spur und alter Pfad `onMoveDeletePointer`); `onUpWithDeletePointerActive` löscht nichts, wenn es ein anderes ist (eine Adressleiste, die beim Fokus alles markiert). Ohne Eingriff in `PointerTracker` oder `InputLogic`; `ACTION_CANCEL` im selben Feld löscht das Markierte weiterhin.
+- **P460** Start entscheidet (Etappe 87c): Ist mindestens eine Richtung der Leertaste „Cursor bewegen“ und eine andere mit Aktion belegt (`QUALIFIES_START_DECIDES`), bleibt die Berührung `PENDING`, bis `CursorTrackpad.decideStart` entscheidet, und zwar **bei der ersten Meldung, die 10 dp auf einer Achse erreicht, nach dem Vergleich, mit dem `PointerTracker.onKeySwipe` seitlich von senkrecht trennt** (senkrecht, wenn |dy| ≥ 10 dp und |dx| < |dy|, sonst seitlich, Gleichstand seitlich; dann das Vorzeichen). Die Schwelle ist in px der Wert des Trackers selbst, `PointerTracker.getPointerStep()` (floor(10 · Dichte) beim Laden der Klasse; N-1: ein Vergleich in dp entschied bis zu 1 px später als der alte Wisch; N-2: eine eigene Formel über die aktuelle Dichte liefe nach einer Änderung der Anzeigegröße auseinander, weil `sPointerStep` `static final` ist). Es gibt keine Wartezone: `PENDING` dauert nie länger, als der alte Code die Berührung ein Tipp oder Halten sein ließ (Prüferbefund M-1: eine Wartezone ließ „Alles auswählen“ feuern, wo der alte Wisch schon begonnen hatte, und ein Loslassen dort schrieb ein Leerzeichen). Die Entscheidung kommt vor dem Besitz-Check: Besitzt ein anderer Finger die Spur, ist auch ein Wisch, der eine Aktion auslösen würde, `REFUSED` (L-1). Belegung der Startrichtung: „Cursor bewegen“ oder nichts = Trackpad (alle vier Richtungen für den Rest der Berührung), eine Aktion = `TRACK_OFF` für den Rest der Berührung (der alte Code rechnet immer vom Aufsetzpunkt aus). Ausnahme: Start nach oben/unten mit „nichts“ in einem nicht mehrzeiligen Feld ist `LEGACY` (nichts soll geschehen). `OFF` ist nur VOR dem Anspruch möglich; wer die Spur hat, bekommt nie wieder `TRACK_OFF`. `onCursorTrackEnd(-1)` (neues Feld, Tastatur weg) lässt `OFF`-Finger `OFF`: ein als Aktion begonnener Wisch wird im neuen Feld nicht zum Trackpad (L-2). Sind alle Richtungen frei (`QUALIFIES_ALL_AXES`), gilt wie in Etappe 87 der Anspruch auf jeder Achse bei 10 dp (`claims`).
+- **P461** `PENDING` → `OFF` gegen den alten Code geprüft: `PointerTracker.onKeySwipe` hält vor dem Haken nur die Schnelltipp-Sperre und `SpaceDetents.cancelsHold` (beide laufen weiter) und rechnet danach aus `mStartX`/`mStartY` neu; kein Zustand wird in der PENDING-Zeit vorweggenommen. Einmal-Aktionen oben/unten laufen bei der ersten Meldung (`onSpaceSwipe(Richtung, Schritte)`), seitliche mit Rastpunkten zählen den Abstand ab Aufsetzpunkt (`onSpaceSwipeDistance`), fortlaufende (Sprache, Touchpad-Modus) bekommen die Schritte ab Aufsetzpunkt (`mStartX`/`mStartY` rücken nur bei `true` vor). Fixture `bindings87c*` in `InputLogicTest` (Aufruffolge des echten Listeners, zwölf Tests, auf 31d0787 und nach 87c gleich, darunter Ruhe und Loslassen in der Diagonalzone); Sprachwechsel nur in den ersten drei Meldungen verglichen (die Folge danach hängt von den aktivierten Sprachen ab).
+- **P462** Markierung (Etappe 87c): kein Ausschlussgrund mehr. Beim Anspruch zieht `collapseSelection` die Markierung zusammen (`CursorTrackpad.collapsesToStart`: Start links/oben, Ende rechts/unten, in Rechts-nach-links-Sprachen links = Ende), `setExpectCursorMove`, `finishInput`, `checkpointFieldCorrectionsBeforeOwnCursorMove` und `setSelection(p, p)` (wie `applyHorizontalMove`, L-3), danach beginnt die Spur an der Stelle; nichts wird getippt oder gelöscht. Das Löschwischen bleibt unverändert und die Leertasten-Haltegeste feuert wie vorher (der Anspruch bricht sie ab). Der Editor muss die Auswahl der Tastatur gemeldet haben (`hasSelection` nutzt die erwartete Auswahl): Tests rufen nach „Alles auswählen“ `onUpdateSelection` selbst auf.
+- **P463** Warum Etappe 87 beim Owner nie anlief und kein Test es sah: Seine Belegung war links/rechts „Cursor bewegen“, oben/unten mit anderen Aktionen; die Prüfung verlangte oben/unten frei. Alle Tests der Etappe 87 benutzten die Vorgabe oder „Cursor bewegen“ für oben/unten.
+- **P464** Prüfstand: Der Rig-Start liegt hinter `SystemClock.uptimeMillis()` plus 10 s, damit Tipp-Zeiten früherer Tests im statischen Tipp-Zeitschreiber die Wisch-Meldungen nicht verschlucken; die Meldungsfolgen der Fixture sind ohne Zählung gleicher Folgemeldungen verglichen (ihre Zahl hängt von der Ereignisanzahl ab).
+- **P465** Einstellungszeile (`AgentAreaGesturesScreen`, Karte „Treffen & Wischen“): Der Text unter dem Schalter kommt aus `CursorTrackpad.spaceReason(gestures)`; bei `NOT_NO_CURSOR_DIRECTION` steht `agent_gestures_trackpad_summary_none`. Die Diagnose-Karte von 87b soll dieselbe reine Funktion benutzen.
+- **P466** Sperre durch eine alte Aktion (Nachprüfung 87c): `TrackState.runsAction` (nur bei `LEGACY` über die Startrichtung mit einer anderen Aktion als „nichts“, nur solange `OFF` und der Finger unten) lässt `otherFingerRunsAnAction` einen anderen Finger auf der Leertaste, der das Trackpad beanspruchen würde, `REFUSED` machen. Ende: `onCursorTrackEnd(Finger)` oder `-1`; wer `-1` hört, bleibt `OFF` ohne Sperre. Zwei alte Aktionen nebeneinander bleiben erlaubt; Schalter aus und gesperrte Eingabe setzen die Sperre nie. Der Tracker bleibt unberührt.
+- **P467** Dichte im Test: `PointerTracker.sPointerStep` ist `static final` und wird beim Laden der Klasse gesetzt (Robolectric: Dichte 1,0, 10 px). Der Listener liest ihn über `PointerTracker.getPointerStep()` (Etappe 87c, N-2). Die Tests ändern die Dichte NACH dem Laden (`RuntimeEnvironment.setQualifiers("+168dpi")`, `+420dpi` = 2,625, `+480dpi` = 3,0) und prüfen am echten Tracker, dass der Listener bei 10 px entscheidet, wie der Tracker, nicht bei floor(10 · neue Dichte) (26 bzw. 30 px); `10.dpToPx(Resources.getSystem())` zeigt in `cursor87cTheTrackersStepComesFromTheTrackerAndDoesNotFollowALaterDensityChange` das Auseinanderlaufen. Echte Startdichten wie 2,625 prüft nur das reine Gitter (Entscheidungsfunktion mit px-Schwelle).
 
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (751 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (753 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
+- `.claude/skills/product-initiative/` (1): SKILL
 - `.github/workflows/` (6): agent-apk, agent-tests, build-debug-apk, build-test-auto, device-tests,
   docs-check
 - `/` (1): settings
@@ -6721,18 +6736,18 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (125): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (126): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
   ApprovedWorkflowRunnerTest, AskCommandTest, BarEditModeTest, BarIconVisibilityTest, BarToolsTest,
   BundledEmojiDictTest, CalculatorViewTest, CalendarToolLauncherTest, CharArtWindowTest,
   ClipCachesTest, ClipCommandTest, ClipVaultTest, CommandReplaceTest, CommandTemplatesTest,
-  ContactCommandTest, CorrectionMemoryTest, CursorGestureTrackerTest, DatePlaceCommandsTest,
-  DebugPrivacyTest, DesignEditorTest, DesignTilesTest, DiagnoseScreenTest, DictationSessionTest,
-  DictationUiTest, EmojiMixPaletteTest, EmojiMixRecentsTest, EncryptedActionRunStoreTest,
-  EncryptedCredentialStoreTest, FieldCorrectionMemoryTest, FieldSuggestionChipsTest, FixedBarTest,
-  FlatClipboardTest, FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest,
-  ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest,
-  HardeningClipHistoryTest, InformalWordsStoreTest, InlineAutofillCardTest,
+  ContactCommandTest, CorrectionMemoryTest, CursorGestureTrackerTest, CursorTrackpadReasonTest,
+  DatePlaceCommandsTest, DebugPrivacyTest, DesignEditorTest, DesignTilesTest, DiagnoseScreenTest,
+  DictationSessionTest, DictationUiTest, EmojiMixPaletteTest, EmojiMixRecentsTest,
+  EncryptedActionRunStoreTest, EncryptedCredentialStoreTest, FieldCorrectionMemoryTest,
+  FieldSuggestionChipsTest, FixedBarTest, FlatClipboardTest, FlatMenuTest, FlatPanelTest,
+  FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, ForkUpgradeTest, FormatGuardChipsTest,
+  HapticChainTest, HardeningClipHistoryTest, InformalWordsStoreTest, InlineAutofillCardTest,
   InlineAutofillGenerationTest, InlineAutofillResponseTest, InlineAutofillSizingTest,
   InlineAutofillSlotsTest, InsertAtCursorTest, JournaledModelCallTest, KeyNodePositionTest,
   KeyboardCommandsTest, KeyboardProfileStoreTest, LastFieldTest, LearningDataTest, LiveLockGateTest,
