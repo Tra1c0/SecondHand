@@ -66,6 +66,7 @@
       "app/src/main/java/helium314/keyboard/latin/makedict/Ver4DictEncoder.java",
       "app/src/main/java/helium314/keyboard/latin/spellcheck/AndroidSpellCheckerService.java",
       "app/src/main/java/helium314/keyboard/latin/utils/{BarTools,ToolbarUtils}.kt",
+      "app/src/main/java/helium314/keyboard/latin/utils/{ToolbarUtils.kt,AsyncResultHolder.java}",
       "app/src/main/java/helium314/keyboard/latin/utils/InlineAutofillUtils.java",
       "app/src/main/java/helium314/keyboard/latin/utils/LayoutUtilsCustom.kt",
       "app/src/main/java/helium314/keyboard/latin/utils/CapsModeUtils.java",
@@ -96,7 +97,7 @@
       "app/src/main/java/helium314/keyboard/settings/preferences/{SliderPreference,KeyboardScalePreference,CustomFontPreference}.kt",
       "app/src/test/java/helium314/keyboard/{Shadows,KeyboardParserTest}.kt",
       "app/src/test/java/helium314/keyboard/Shadows.kt",
-      "app/src/test/java/helium314/keyboard/latin/{InputLogicTest,SuggestTest,WordListDictionaries}.kt",
+      "app/src/test/java/helium314/keyboard/latin/{InputLogicTest,SuggestTest,WordListDictionaries,TypingRig,SymbolLatencyTest,TypingEquivalenceTest}.kt",
 
       "tools/dev.py",
       "tools/devicetest/devicetest.py",

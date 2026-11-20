@@ -21,7 +21,11 @@ Etappen aus dem ursprünglichen Auftrag; Teilpakete bekommen Buchstaben (15a, 15
   - **83 Gezeichnete Symbole logisch:** gebaut („/“ und „\“ als Symbole; ein unvollständiges Symbol schlägt nie ein angenommenes
     vollständiges, ist aber Rückfall, wenn keines passt; `docs/VALIDATION.md` → Etappe 83). Ungeprüft: Gerät und Finger des Owners. Offen: Es gibt
     weiter kein „-“, „_“, „:“, „;“, „*“, „<“, „>“ unter den Symbolen.
-  - **84 Symbole ohne Verzögerung:** erst messen (Buchstabe gegen Symbol), dann die Ursache beheben.
+  - **84 Symbole ohne Verzögerung:** gebaut (gemessen mit Zählern, nicht mit Zeit: 23 von 37 ASCII-Symbolen beenden ein Wort und
+    bauten die Leiste innerhalb der Eingabe; jetzt danach; `docs/VALIDATION.md` → Etappe 84). Ungeprüft: Telefon (Xiaomi 15). Offen, nicht gebaut: das
+    Lesen von „Text nach dem Cursor“ vor dem ersten Zeichen eines Wortes (eine Anfrage an die App), die Zwischenablage-Pille
+    zwischen zwei Tasten behalten (Prüfung auf veralteten Inhalt nötig), die Leiste nicht neu bauen, wenn sie schon dasselbe zeigt;
+    Messung auf dem Gerät mit dem Zeitstempel des Textfelds (`docs/RUNDE3-BESTANDSAUFNAHME.md` → 4).
   - **85 Leiste wie Gboard:** gebaut (feste, gleichmäßig verteilte Plätze für 1 bis 5 Werkzeuge in voller Größe und 6 bis 8 als kompakte Reihe, Raster-Knopf links, Mikrofon im Kreis rechts,
     kein Pfeil, kein Scrollen, Vorschläge und Chips ersetzen die Werkzeuge, Pfeil „<“ bringt sie zurück; Raster aller Werkzeuge; Umzug aus den alten Einstellungen; Schalter „Feste Leiste wie Gboard“
     als Rückweg; `docs/VALIDATION.md` → Etappe 85). Ungeprüft: Gerät, Aussehen in den bunten Stilen des Owners, Querformat, kleine Bildschirme. Offen: das Flat-Menü (`FlatMenuView`) ist nur noch bei

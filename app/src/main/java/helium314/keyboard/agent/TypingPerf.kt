@@ -40,6 +40,35 @@ object TypingPerf {
         LEARNING,
     }
 
+    /**
+     * Stage 84: places of work on the key path that are counted for the work measurement (a test), by a fixed name.
+     * Not shown on the card; [work] does nothing unless a test set [workListener].
+     */
+    enum class Work {
+        /** The main thread waits for the suggestion thread (`AsyncResultHolder.get`). */
+        SUGGEST_WAIT,
+        /** `LatinIME.setNeutralSuggestionStrip` runs. */
+        STRIP_NEUTRAL,
+        /** `LatinIME.setSuggestedWords` runs (a strip rebuild with words). */
+        STRIP_WORDS,
+        /** The strip shows an external view (chips, pill): the strip is cleared and rebuilt. */
+        STRIP_EXTERNAL,
+        CHIPS_COMMAND, CHIPS_SYMBOL, CHIPS_SELECTION, CHIPS_CLIPBOARD, CHIPS_SCREENSHOT, CHIPS_UPDATE,
+        /** One request to the clipboard service for the pill (`ClipboardManager.getPrimaryClip`). */
+        CLIPBOARD_SERVICE,
+        /** The clipboard pill view is inflated and styled. */
+        CLIP_VIEW_BUILT,
+    }
+
+    /** Set by the work measurement only (tests); null in the app, so [work] costs one read. */
+    @Volatile internal var workListener: ((Work) -> Unit)? = null
+
+    /** One place of work was reached (stage 84). Numbers only; never throws. */
+    @JvmStatic fun work(place: Work) {
+        val listener = workListener ?: return
+        try { listener(place) } catch (_: Throwable) {}
+    }
+
     /** Key presses kept; older ones fall out. */
     const val PRESSES = 500
     /** Slowest hook runs kept. */

@@ -359,6 +359,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     /** [selection]: the view is the chips of a selected text; a user's choice of the tools then holds for that selection (see [BarState]). */
     @JvmOverloads
     fun setExternalSuggestionView(view: View?, addCloseButton: Boolean, selection: Boolean = false) {
+        helium314.keyboard.agent.TypingPerf.work(helium314.keyboard.agent.TypingPerf.Work.STRIP_EXTERNAL) // fork, stage 84
         clear()
         isExternalSuggestionVisible = true
         reportToLastField(newContent = true)
