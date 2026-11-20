@@ -1460,8 +1460,16 @@ SHOT_MAX_WIDTH = 540
 
 
 def bar_slots(screen):
-    """The tool slots of the bar, left to right."""
-    return sorted((n for n in screen.nodes if n.rid == BAR_TOOL_ID and n.visible), key=lambda n: n.left)
+    """The tool slots of the bar, left to right: the views with the id agent_bar_tool; if the dump does not carry that id,
+    the image buttons inside the strip other than the left key."""
+    found = [n for n in screen.nodes if n.rid == BAR_TOOL_ID and n.visible]
+    if not found:
+        strip = screen.keyboard_node("suggestion_strip_view")
+        if strip is not None:
+            found = [n for n in screen.nodes if n.package == KEYBOARD_PACKAGE and n.visible and n.cls.endswith("ImageButton")
+                     and n.rid != LEFT_KEY_ID and n.desc and strip.left <= n.center[0] < strip.right
+                     and strip.top <= n.center[1] < strip.bottom]
+    return sorted(found, key=lambda n: n.left)
 
 
 def bar_order(screen):
@@ -1515,6 +1523,33 @@ def glide(start, end, steps=6):
     return end
 
 
+def bar_report(screen):
+    """What the strip and the grid show, for a failure message: class#id'description or text'[box], strip first."""
+    strip = screen.keyboard_node("suggestion_strip_view")
+    parts = []
+    for n in screen.nodes:
+        if n.package != KEYBOARD_PACKAGE or n.cls.endswith(".Key") or not n.visible:
+            continue
+        inside = strip is not None and strip.left <= n.center[0] < strip.right and strip.top <= n.center[1] < strip.bottom
+        label = (n.desc or n.text)[:24]
+        if inside or label:
+            parts.append("%s%s%s%s%s" % ("S:" if inside else "", n.cls.rsplit(".", 1)[-1][:14], "#" + n.rid.rsplit("/", 1)[-1] if n.rid else "",
+                                         "'%s'" % label if label else "", n.box))
+    return " ".join(parts)[:2400]
+
+
+def wait_report(d, condition, what, limit=15.0):
+    """Like Driver.wait, but a timeout is a failed check that says what the keyboard showed."""
+    deadline = time.time() + limit
+    while True:
+        screen = dump()
+        if condition(screen):
+            return screen
+        if time.time() > deadline:
+            raise CheckFailed("waited %ds for %s; the keyboard shows: %s" % (int(limit), what, bar_report(screen)))
+        time.sleep(0.7)
+
+
 def open_edit_mode(d):
     """Opens the grid with the left key and the edit mode with its button; waits for the hint."""
     screen = dump()
@@ -1522,10 +1557,10 @@ def open_edit_mode(d):
     if key is None:
         raise CheckFailed("no left key of the bar")
     tap(*key.center)
-    screen = d.wait(lambda s: any(n.text in EDIT_LABELS for n in s.nodes if n.package == KEYBOARD_PACKAGE and n.visible),
-                    "the grid with its button Anpassen")
+    screen = wait_report(d, lambda s: any(n.text in EDIT_LABELS for n in s.nodes if n.package == KEYBOARD_PACKAGE and n.visible),
+                         "the grid with its button Anpassen")
     tap(*next(n for n in screen.nodes if n.package == KEYBOARD_PACKAGE and n.visible and n.text in EDIT_LABELS).center)
-    return d.wait(lambda s: grid_node(s, "hint") is not None, "the edit mode with its hint")
+    return wait_report(d, lambda s: grid_node(s, "hint") is not None, "the edit mode with its hint")
 
 
 def finish_edit_mode(d):
@@ -1673,7 +1708,7 @@ def bar_icons_visible(d):
             screen = dump()
             slots = bar_slots(screen)
             if len(slots) < 2:
-                raise CheckFailed("the bar shows %d tools" % len(slots))
+                raise CheckFailed("the bar shows %d tools; the keyboard shows: %s" % (len(slots), bar_report(screen)))
             raw = screen_raw()
             if raw is None:
                 raise DeviceError("the screen could not be read")
@@ -2054,7 +2089,7 @@ def run_scenario(function, driver):
             driver.save_dump(dump(), "end")
         except DeviceError:
             pass
-    return {"name": name, "status": status, "detail": detail[:600], "seconds": round(time.time() - started, 1),
+    return {"name": name, "status": status, "detail": detail[:(3000 if name.startswith("bar_") and status != "PASS" else 600)], "seconds": round(time.time() - started, 1),
             "screenshot": shot, "doc": (function.__doc__ or "").strip().split("\n")[0]}
 
 
