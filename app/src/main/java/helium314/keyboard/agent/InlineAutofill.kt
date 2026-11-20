@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.agent
 
-import java.util.function.BooleanSupplier
-import java.util.function.IntConsumer
-import java.util.function.LongSupplier
-
 /**
  * Stage 79: the decisions of the inline autofill chips (password managers) that do not need the platform's
  * remote views, so they can be tested without a device. `InlineAutofillUtils` and `LatinIME` call them.
@@ -131,12 +127,17 @@ class InlineAutofillGeneration {
  */
 class InlineAutofillResponse @JvmOverloads constructor(
     val count: Int,
-    private val isCurrent: BooleanSupplier,
+    private val isCurrent: Current,
     private val onFirstChip: Runnable,
-    private val clock: LongSupplier = LongSupplier { System.nanoTime() / 1_000_000 },
+    private val clock: Clock = Clock { System.nanoTime() / 1_000_000 },
 ) {
+    // own small interfaces: java.util.function types need API 24 (lint NewApi), the app supports 21
+    fun interface Current { fun isCurrent(): Boolean }
+    fun interface Clock { fun now(): Long }
+    fun interface Place { fun at(position: Int) }
+
     private val slots = InlineAutofillSlots(count)
-    private val startedAt = clock.asLong
+    private val startedAt = clock.now()
     private var firstChipFired = false
 
     /** Callbacks that brought a view / null / arrived after the response went stale. */
@@ -161,16 +162,16 @@ class InlineAutofillResponse @JvmOverloads constructor(
      * closed the chips) only counts. Otherwise a chip is put at its place by [place] (the position in the row), and when
      * that is the first chip of this response, [onFirstChip] runs exactly once, after [place]. Returns whether it ran.
      */
-    fun onResult(index: Int, hasView: Boolean, place: IntConsumer): Boolean {
-        if (firstCallbackMillis < 0) firstCallbackMillis = Math.max(0L, clock.asLong - startedAt)
-        if (!isCurrent.asBoolean) { staleDrops++; return false }
+    fun onResult(index: Int, hasView: Boolean, place: Place): Boolean {
+        if (firstCallbackMillis < 0) firstCallbackMillis = Math.max(0L, clock.now() - startedAt)
+        if (!isCurrent.isCurrent()) { staleDrops++; return false }
         val position = slots.onResult(index, hasView)
         if (position < 0) {
             if (!hasView) nullViews++
             return false
         }
         withView++
-        place.accept(position)
+        place.at(position)
         if (firstChipFired) return false
         firstChipFired = true
         onFirstChip.run()

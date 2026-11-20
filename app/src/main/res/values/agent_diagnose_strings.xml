@@ -252,7 +252,7 @@
     <!-- stage 79b: inline autofill counters -->
     <string name="agent_diagnose_autofill">Autofill suggestions (password manager, numbers only)</string>
     <string name="agent_diagnose_autofill_responses">Responses since start</string>
-    <string name="agent_diagnose_autofill_none">none yet – open a field with autofill suggestions, then open this page again</string>
+    <string name="agent_diagnose_autofill_none">none yet; open a field with autofill suggestions, then open this page again</string>
     <string name="agent_diagnose_autofill_responses_value">%1$d accepted, %2$d empty, %3$d refused</string>
     <string name="agent_diagnose_autofill_requested">Last response: suggestions requested</string>
     <string name="agent_diagnose_autofill_arrived">Last response: chips arrived</string>
