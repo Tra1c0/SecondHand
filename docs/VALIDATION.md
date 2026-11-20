@@ -51,6 +51,26 @@ zuverlässig, bzw. gar nicht“: Die Symbole folgten dem Finger, schnappten zur�
   `BarEditModeTest` ersetzt, `EditListener.onDrag` und `dropListener` entfallen. Die Mitten-Erwartung der flachen Referenzbilder (`FlatStyleRenderTest`) ist unverändert: ich hatte erst gleiche Lücken statt gleicher Mitten gebaut, der Test
   zeigte den Widerspruch zu den Referenzbildern des Owners, ich habe es zurückgenommen.
 
+### Prüferbefunde zu Stand 2006b1f und ihre Behebung (2026-11-20)
+
+- **HIGH, Ziehen nach dem Scrollen:** Nach einem senkrechten Zug auf einer Pille ging kein Ziehen mehr, bis der Anpassen-Modus verlassen wurde (der Behälter blieb in `SCROLLING`, der `ScrollView` hatte das Ende der Geste). Das ist genau die Klage des Owners („nur Antippen“), und sein Raster hat rund 25
+  Werkzeuge. **Behebung:** `BarDrag.kt` (Scroll geht sofort nach `IDLE`), `ToolGridView.kt` (`endTouch` bei jedem DOWN, Timer prüft `scrollY`, `onDetachedFromWindow`). **Tests:** `BarEditModeTest.afterScrollingTheGridAPillCanStillBeDraggedIntoTheBarAndThisRepeats` (drei Werkzeuge hintereinander nach je einem Scrollen),
+  `afterScrollingTheGridASlotCanStillBeReordered`, `aScrollThatTheContainerNeverSeesTheEndOfDoesNotBlockTheNextTouch`; **vorher rot** (alle drei auf dem alten Code: „the tool is picked up after the hold“, „actual value is null“, „a new touch is never blocked by an old one“). Gerätetest `bar_edit_scroll_then_drag` (Raster mit dem Finger
+  scrollen, ein Werkzeug von weit unten in die Leiste ziehen, danach ein zweites im selben Modus, gespeichert).
+- **LOW 1, zweiter Finger auf einer zweiten Pille:** `ToolGridView` schaltet geteilte Berührungen aus. `aSecondFingerOnAnotherPillDuringTheFirstHundredAndEightyMsDoesNothing`; rot mit eingeschalteter Teilung (Assertion).
+- **LOW 2, Wiederholen-Angebot:** endet jetzt auch bei `onTextInput`, Gestenbeginn, gewähltem Vorschlag und Umschalt+Enter (`UndoOffer.onTextChange`, Hooks im Listener und in der Leiste). `UndoOfferTest`, `FixedBarTest.everyWayTextComesIn…`; rot ohne die Hooks („onTextInput“).
+- **LOW 3, falscher Grund:** eigener Grund `INCOGNITO_SWITCH` für den Schalter „Immer Inkognito“ (`BarTools.unavailableReason`, `SuggestionStripView.alwaysIncognito`). `FixedBarTest.aSwitchOfTheUserForAlwaysIncognitoSaysSoNotPrivateField`.
+- **LOW 4a, an/aus:** Test `BarIconVisibilityTest.aSwitchedOnToolStaysApartFromASwitchedOffOneAfterTheLift` zeigte bei einem Design mit dunklem Symbolgrau (an `#707070`, aus `#606060` über `#202020`) nach dem Anheben fast gleiche Farben (1,10:1); die Regel hält jetzt 1,25:1 zwischen beiden (`StripIconColors.guaranteed`);
+  rot ohne den Abschnitt. Die Farben des Owners (`AllColors`) kennen keinen Unterschied. **LOW 4b:** das Hintergrundbild des Designs wird von der Kontrastregel nicht berücksichtigt (nicht gebaut, P483).
+
+### Zusätze nach der Rückmeldung des Leads
+
+- **Owner-Bilder:** `BarIconVisibilityTest.theOwnerLikeBarsAreWrittenAsPicturesToLookAt` schreibt die Leiste in der Palette des Owners nach `app/build/owner-bars/` (1200 × 260 px, nicht versioniert; fünf, sechs, acht Werkzeuge, nicht verfügbar mit Schloss). Gesehen: alle Symbole in Mint gut lesbar und gleichmäßig verteilt,
+  das Mikrofon weiß auf Rosa; die Scheibe der linken Taste (Dunkelrot auf fast Schwarz) ist wie in seinem Design nur schwach zu sehen. Nicht verfügbare Werkzeuge: grünliches Grau, deutlich blasser als Mint, Form gut erkennbar, mit Schloss; nicht wie ein Loch. Schwächen: Das Schloss deckt einen Teil des Symbols (rechte Zacke des Funkens,
+  unteres Eck der „1“); im Kreis ist das Mikrofon blassrosa auf Rosa mit Schloss (gerade noch lesbar, 3:1). Erste Fassung: Das weiße Mikrofon auf Rosa war wegen der Regel (4,5:1; Weiß hat 4,35:1) schwarz geworden, ein Eingriff in sein Design; jetzt gilt für Symbole im Akzentkreis 3:1 und die Anhebung folgt der Richtung des Designs.
+- **Schmale Bildschirme:** `FixedBarTest.upToEightToolsFitOnNarrowScreensIn…` (360 dp und 320 dp, 0 bis 8 Werkzeuge, mit und ohne Mikrofonkreis, beide Stile): jede Zelle liegt im Bild, keine überlappt, die sichtbaren Flächen haben 3 dp Abstand zum Rand und 4 dp zueinander.
+- **Pille „Diktieren (auf dem Gerät)“:** Die Pillen verkleinern lange Namen bis 11 dp statt sie abzuschneiden (`TextViewCompat` Auto-Größe, einzeilig); kurze Namen bleiben bei 16 dp.
+
 ## Etappe 87c — Trackpad startet seitlich, auch wenn ↑/↓ belegt sind (2026-11-20)
 
 **Auf dem Gerät nichts geprüft.** Nachweis: Robolectric mit echtem `PointerTracker` und echtem Listener (`TouchRig` mit Zeitschaltuhren in virtueller Zeit), reine Funktionen.

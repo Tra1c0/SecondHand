@@ -107,10 +107,9 @@ wiederherstellen? Ja / Nein“, kein Systemdialog), und ist mit „Rückgängig�
 ## 4. Die Zustände einer Berührung (Zustandsmaschine von `BarDrag`)
 
 `IDLE` → `down` auf Pille/Leistensymbol → `PRESSED`. Aus `PRESSED`: Zeit ≥ Haltezeit → `DRAGGING`; Bewegung ≥ Slop auf
-Leistensymbol → `DRAGGING`; seitlich ≥ Slop auf Pille → `DRAGGING`; senkrecht ≥ Slop auf Pille → `SCROLLING` (die Logik
-ist fertig, das Raster scrollt); `up` vor allem → Antippen (Leistensymbol: herausnehmen; Pille: das normale Klicken
-der Pille). `DRAGGING`: Finger in Zone → Lücke an Index; außerhalb → Lücke zu; `up` → Ablegen; `cancel` → zurück.
-Ein zweiter Zeiger wird ignoriert. Jede Berührung endet in `IDLE`.
+Leistensymbol → `DRAGGING`; seitlich ≥ Slop auf Pille → `DRAGGING`; senkrecht ≥ Slop auf Pille → sofort wieder `IDLE` mit Ereignis „scrollen“ (die Logik
+ist fertig, das Raster scrollt; der `ScrollView` behält das Ende der Geste für sich, darum darf kein Zustand daran hängen: jedes neue `down` setzt einen alten Zustand zurück); `up` vor allem → Antippen (Leistensymbol: herausnehmen; Pille: ein- oder ausschalten, vom Behälter selbst erledigt). `DRAGGING`: Finger in Zone → Lücke an Index; außerhalb → Lücke zu; `up` → Ablegen; `cancel` → zurück.
+Ein zweiter Zeiger wird ignoriert (im Raster sind geteilte Berührungen ausgeschaltet). Jede Berührung endet in `IDLE`.
 
 ## 4a. Zusätze zum Anpassen (Entscheidungen beim Bau)
 
