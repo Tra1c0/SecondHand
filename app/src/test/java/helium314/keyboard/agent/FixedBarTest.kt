@@ -435,6 +435,37 @@ class FixedBarTest {
         assertFalse(h.grid.isOpen)
     }
 
+    @Test fun theSwitchBringsBackTheExpandableBarOfBefore() {
+        prefs.edit { putBoolean(AgentPreferences.FIXED_BAR, false) }
+        reload()
+        assertEquals(ToolbarMode.EXPANDABLE, Settings.getValues().mToolbarMode)
+        assertFalse(Settings.getValues().mFixedBar)
+        val h = build()
+        // the scrolling toolbar with all enabled keys, the pinned key beside the suggestions, the arrow toggling the toolbar
+        assertTrue(h.strip.findViewById<View>(R.id.toolbar_container) is HorizontalScrollView)
+        assertEquals(helium314.keyboard.latin.utils.getEnabledToolbarKeys(prefs), toolbar(h).let { t -> (0 until t.childCount).map { t.getChildAt(it).tag }.filterNotNull() })
+        assertEquals(listOf(AGENT), h.strip.findViewById<ViewGroup>(R.id.pinned_keys).let { p -> (0 until p.childCount).map { p.getChildAt(it).tag } })
+        assertFalse(toolsVisible(h))
+        assertTrue(leftKey(h).performClick())
+        assertTrue(toolsVisible(h))
+        assertFalse(h.grid.isOpen) // no grid in the old bar
+        assertEquals(latinIME.getString(R.string.more_keys_strip_description), leftKey(h).contentDescription)
+        // a settings choice that was made for the old bar works again: long press pins
+        prefs.edit { putBoolean(Settings.PREF_QUICK_PIN_TOOLBAR_KEYS, true) }
+        reload()
+        assertTrue(Settings.getValues().mQuickPinToolbarKeys)
+    }
+
+    @Test fun theSwitchDoesNotChangeAnythingForTheOtherModes() {
+        prefs.edit { putString(Settings.PREF_TOOLBAR_MODE, ToolbarMode.SUGGESTION_STRIP.name) }
+        reload()
+        assertFalse(Settings.getValues().mFixedBar)
+        prefs.edit { putBoolean(AgentPreferences.FIXED_BAR, true) }
+        reload()
+        assertFalse(Settings.getValues().mFixedBar)
+        assertTrue(build().strip.findViewById<View>(R.id.toolbar_container) is HorizontalScrollView)
+    }
+
     private companion object {
         const val WIDTH = 1200
         const val STRIP = 130

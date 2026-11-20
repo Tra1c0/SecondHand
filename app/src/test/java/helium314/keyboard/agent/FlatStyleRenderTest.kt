@@ -192,7 +192,14 @@ class FlatStyleRenderTest {
         }
     }
 
-    @Test fun symbolPagesShowRecentEmojisInsteadOfTheTools() {
+    @Test fun symbolPagesShowRecentEmojisInsteadOfTheTools() = recentEmojisInsteadOfTheTools(fixedBar = true)
+
+    @Test fun symbolPagesShowRecentEmojisInsteadOfTheToolsInTheOldBar() = recentEmojisInsteadOfTheTools(fixedBar = false)
+
+    private fun recentEmojisInsteadOfTheTools(fixedBar: Boolean) {
+        // stage 85: the old expandable bar is the switch off; the fixed bar has no pinned keys, its dictation key is one of the tools
+        prefs.edit().putBoolean(AgentPreferences.FIXED_BAR, fixedBar).commit()
+        Settings.getInstance().loadSettings(latinIME, Locale.GERMANY, InputAttributes(EditorInfo(), false, latinIME.packageName))
         val context = ContextThemeWrapper(latinIME, R.style.KeyboardTheme_Flat)
         KeyboardIconsSet.instance.loadIcons(context)
         helium314.keyboard.keyboard.emoji.RecentEmojis.set(listOf("🤠", "👍"))
@@ -209,7 +216,8 @@ class FlatStyleRenderTest {
         val shown = (0 until emojis.childCount).map(emojis::getChildAt).filterIsInstance<android.widget.TextView>().map { it.text.toString() }
         assertEquals(listOf("🤠", "👍", "😂", "❤️", "🙏", "😊"), shown) // recent first, then defaults without the duplicate
         assertEquals(View.VISIBLE, strip.findViewById<View>(R.id.suggestions_strip_toolbar_key).visibility) // menu stays
-        assertEquals(View.VISIBLE, strip.findViewById<View>(R.id.pinned_keys).visibility) // dictation stays
+        // the old bar keeps its dictation key beside the emojis; the fixed bar has it among the tools, which the emojis replace
+        assertEquals(if (fixedBar) View.GONE else View.VISIBLE, strip.findViewById<View>(R.id.pinned_keys).visibility)
         strip.setToolbarVisibility(true) // e.g. the strip went neutral: the emojis stay
         assertEquals(View.GONE, toolbar.visibility)
         container.measure(View.MeasureSpec.makeMeasureSpec(WIDTH, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(130, View.MeasureSpec.EXACTLY))

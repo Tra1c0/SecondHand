@@ -46,6 +46,11 @@ object AgentPreferences {
      * Missing for a user who never edited the bar: it is then derived from the old toolbar preferences and not written.
      */
     const val BAR_TOOLS = "agent_bar_tools"
+    /**
+     * Stage 85: the mode "toolbar keys and suggestions" shows the fixed bar (default on). Off brings back the expandable bar of
+     * before (arrow, scrolling toolbar, pinned keys, in the flat style the menu), as a way back until the new bar has been seen on a device.
+     */
+    const val FIXED_BAR = "agent_fixed_bar"
     /** Stage 82: copy, cut, paste and delete chips in the strip while text is selected (default on). */
     const val SELECTION_CHIPS = "agent_selection_chips_on"
     /** Stage 40: Smart Paste chips with the clipboard pill and in the clipboard history (default on). */

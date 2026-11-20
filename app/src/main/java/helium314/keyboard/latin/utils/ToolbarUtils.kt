@@ -10,6 +10,7 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import androidx.core.content.edit
 import androidx.core.view.forEach
+import helium314.keyboard.agent.AgentPreferences
 import helium314.keyboard.event.HapticEvent
 import helium314.keyboard.keyboard.internal.KeyboardIconsSet
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
@@ -219,7 +220,8 @@ fun removePinnedKey(prefs: SharedPreferences, key: ToolbarKey) {
 
 // ---- stage 85: "pin" for the skill keys, on both lists while the fixed bar is the active mode ----
 
-private fun fixedBarActive(prefs: SharedPreferences) = Settings.readToolbarMode(prefs) == ToolbarMode.EXPANDABLE
+private fun fixedBarActive(prefs: SharedPreferences) =
+    Settings.readToolbarMode(prefs) == ToolbarMode.EXPANDABLE && prefs.getBoolean(AgentPreferences.FIXED_BAR, true)
 
 /** Whether [key] is pinned (old pinned list) or, with the fixed bar, one of the tools of the bar. */
 fun isKeyPinned(prefs: SharedPreferences, key: ToolbarKey) =

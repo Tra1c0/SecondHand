@@ -13,4 +13,6 @@
     <string name="agent_bar_tool_unavailable">%1$s, not available in this field</string>
     <string name="agent_bar_tools_setting">Tools in the bar</string>
     <string name="agent_bar_tools_setting_summary">The tools of the bar in order; at most 8 are shown</string>
+    <string name="agent_fixed_bar_setting">Fixed bar like Gboard</string>
+    <string name="agent_fixed_bar_setting_summary">Tools in fixed places, suggestions while typing. Off brings back the expandable bar of before.</string>
 </resources>

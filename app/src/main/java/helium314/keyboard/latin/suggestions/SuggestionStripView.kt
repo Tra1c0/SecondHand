@@ -136,7 +136,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
      * left, the tools in equal cells, no scrolling and no expand arrow; suggestions and chips replace the tools,
      * see [BarState] and [FixedBar]. The other modes keep their old look.
      */
-    private val fixedBar = !isGone && Settings.getValues().mToolbarMode == ToolbarMode.EXPANDABLE
+    private val fixedBar = !isGone && Settings.getValues().mFixedBar
     private val barState = BarState()
     private val gridIcon = ContextCompat.getDrawable(context, R.drawable.sym_keyboard_grid_flat)
     private val backIcon = ContextCompat.getDrawable(context, R.drawable.ic_arrow_left)
@@ -308,7 +308,9 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         runCatching {
             helium314.keyboard.agent.LastField.onStripView(newContent,
                 wordsOffered = !isExternalSuggestionVisible && !suggestedWords.isEmpty && !suggestedWords.isPunctuationSuggestions,
-                external = isExternalSuggestionVisible, toolbar = toolbarContainer.isVisible, emojis = emojiRow?.isVisible == true)
+                // the fixed bar shows the tools when there is nothing else: that is an empty strip, not a toolbar covering words
+                external = isExternalSuggestionVisible, toolbar = toolbarContainer.isVisible && (!fixedBar || barState.toolsChosen),
+                emojis = emojiRow?.isVisible == true)
         }
     }
 

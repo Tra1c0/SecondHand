@@ -12,4 +12,6 @@
     <string name="agent_bar_tool_unavailable">%1$s, in diesem Feld nicht verfügbar</string>
     <string name="agent_bar_tools_setting">Werkzeuge in der Leiste</string>
     <string name="agent_bar_tools_setting_summary">Die Werkzeuge der Leiste der Reihe nach; höchstens 8 werden gezeigt</string>
+    <string name="agent_fixed_bar_setting">Feste Leiste wie Gboard</string>
+    <string name="agent_fixed_bar_setting_summary">Werkzeuge an festen Plätzen, beim Tippen Vorschläge. Aus: die ausklappbare Leiste von vorher.</string>
 </resources>

@@ -6289,8 +6289,9 @@ class InputLogicTest {
 
     @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
     @Test fun theChipsNeverCloseAToolbarTheUserHasOpen() {
+        // stage 85: this is the old expandable bar (the fixed bar shows chips instead of the tools, see the next test)
         val strip = selectionStripWithPrefs(Settings.PREF_TOOLBAR_MODE to helium314.keyboard.latin.utils.ToolbarMode.EXPANDABLE.name,
-            Settings.PREF_AUTO_SHOW_TOOLBAR to false)
+            AgentPreferences.FIXED_BAR to false, Settings.PREF_AUTO_SHOW_TOOLBAR to false)
         strip.setToolbarVisibility(true) // opened by hand
         selectAllBySpaceHold()
         assertTrue(selectionChips(strip).isNotEmpty())
@@ -6305,6 +6306,32 @@ class InputLogicTest {
         // many rebuilds (a handle being dragged) change nothing about the toolbar
         repeat(5) { setCursorPosition(1, 3 + it) }
         assertFalse(toolbarOf(strip).isVisible)
+    }
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun theChipsReplaceTheToolsOfTheFixedBarAndTheLeftKeyBringsTheToolsBack() {
+        val strip = selectionStripWithPrefs(Settings.PREF_TOOLBAR_MODE to helium314.keyboard.latin.utils.ToolbarMode.EXPANDABLE.name,
+            Settings.PREF_AUTO_SHOW_TOOLBAR to false)
+        assertTrue(Settings.getValues().mFixedBar)
+        val left = strip.findViewById<android.widget.ImageButton>(R.id.suggestions_strip_toolbar_key)
+        assertTrue(toolbarOf(strip).isVisible) // nothing typed, nothing selected: the tools
+        selectAllBySpaceHold()
+        assertEquals(listOf("Copy", "Cut", "Delete"), selectionLabels(strip))
+        assertFalse(toolbarOf(strip).isVisible) // the chips replace the tools, as every suggestion does
+        assertTrue(strip.findViewById<android.view.View>(R.id.suggestions_strip).isVisible)
+        // the left key shows the tools; the chips come back with the next update of the strip (a moved handle)
+        assertTrue(left.performClick())
+        assertTrue(toolbarOf(strip).isVisible)
+        assertFalse(strip.findViewById<android.view.View>(R.id.suggestions_strip).isVisible)
+        setCursorPosition(1, 4)
+        assertFalse(toolbarOf(strip).isVisible)
+        assertEquals(listOf("Copy", "Cut", "Delete"), selectionLabels(strip))
+        // many rebuilds (a handle being dragged) keep the chips; no selection: the tools again
+        repeat(5) { setCursorPosition(1, 3 + it) }
+        assertFalse(toolbarOf(strip).isVisible)
+        setCursorPosition(3)
+        assertEquals(emptyList(), selectionLabels(strip))
+        assertTrue(toolbarOf(strip).isVisible)
     }
 
     @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)

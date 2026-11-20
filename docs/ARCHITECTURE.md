@@ -1225,6 +1225,24 @@ Symbolseiten wie Gboard (Etappe 81, Fallstricke P345–P348):
   Layout und `symbols_arabic`, Tablet/Khipro, Reihenhöhe); `AT/SettingsKeysScreenTest.kt` prüft die Zusammenfassung
   der Zeile; `AT/FlatStyleRenderTest.kt` erwartet `∆`.
 
+Feste Leiste (Etappe 85, 86; Beschreibung: „Feste Leiste“, Fallstricke P380–P386):
+
+- `SuggestionStripView.kt`: `fixedBar` (Modus EXPANDABLE), `barState`, `applyBarState`, `updateLeftKey`, Raster (`openGrid`, `runTool`,
+  `gridTools`), `onKeyboardHidden`; `setToolbarVisibility`, `setSuggestions`, `setExternalSuggestionView`, `onClick`, `onLongClick`,
+  `updateKeys`, `updateVoiceKey` und `clear` verzweigen für die feste Leiste. Der Teil für die anderen Modi und den flachen Stil
+  (`FlatStrip.arrange`, Menü) ist unverändert. `FlatStrip.arrangeLeftKey` ist aus `arrange` herausgezogen, `openSettings` ruft `SettingsLauncher`.
+  Etappe 86: Anpassen-Modus (`editor`, `enterEdit`, `exitEdit`, `onBarDrag`, `onGridDrag`, `startDrag`, `populateBar`).
+- `LatinIME.java`: `hideWindow` ruft `mSuggestionStripView.onKeyboardHidden()` (statt `setToolbarVisibility(false)`) im Modus EXPANDABLE. Sonst
+  nichts: die Rangfolge der Chips in `setSuggestedWords` und `setNeutralSuggestionStrip` ist unverändert. `InputLogic`, `RichInputConnection`
+  und `PointerTracker` sind nicht berührt.
+- `InputView.java`: `agent_tool_grid` zählt als Overlay (`hasAgentOverlay`), wie das flache Menü. `main_keyboard_frame.xml`: `ToolGridView`.
+- `SettingsValues.java`: `mQuickPinToolbarKeys` ist immer aus (die feste Leiste hat keine angehefteten Tasten).
+- `ToolbarUtils.kt`: `ToolbarKey.PROMPTS`, `CHAR_ART`, `DESIGN` (mit Codes), `isKeyPinned`/`pinKey`/`unpinKey`. `KeyCode.kt`: `AGENT_DESIGN`.
+  `KeyboardActionListenerImpl.kt`: `AGENT_DESIGN` öffnet die Einstellungen zum Aussehen. `KeyCodeDescriptionMapper.kt`, `KeyboardIconsSet.kt`
+  (Symbole der drei neuen Werkzeuge in allen drei Symbolsätzen).
+- `ToolbarScreen.kt`: im Modus EXPANDABLE „Werkzeuge in der Leiste“ (`AgentPreferences.BAR_TOOLS`) statt Leisten-Tasten, keine angehefteten Tasten, kein Schnell-Anheften.
+  `AgentAreaBarScreen.kt` und `AgentSkillsScreen.kt` (Fork-Dateien): Skill-Tasten-Schalter über `pinKey`/`unpinKey`.
+
 ## Editorzugriff, Panel und Rad
 
 > Wie die Tastatur Auswahl liest, Aktionen zeigt und Ergebnisse übernimmt.

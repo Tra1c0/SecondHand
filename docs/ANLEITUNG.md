@@ -90,7 +90,7 @@ die installierte App.
 3. Zurück zur alten Tastatur kommst du jederzeit über dasselbe Symbol.
 
 Die Einstellungen der Tastatur öffnest du über das App-Symbol „SecondHand“ oder
-in der Tastatur über den Pfeil links in der Leiste und dann das Zahnrad.
+in der Tastatur über den Raster-Knopf links in der Leiste und dort „Einstellungen“ (das Zahnrad).
 
 ## Einstellungen finden
 
@@ -208,8 +208,8 @@ Striche), bei ein paar Tasten verwandte Zeichen (`•` zeigt `♪ ♥ ♠ ♦ �
 „Leiste“ heißt hier, was HeliBoard „Symbolleiste“ nannte: die Zeile über den Tasten. Oben wählst
 du in einem Tipp, was sie zeigt:
 
-- **TASTEN + VORSCHLÄGE**: ausklappbar, angeheftete Knöpfe bleiben (HeliBoard: „Leisten-Tasten und
-  Vorschläge“).
+- **TASTEN + VORSCHLÄGE**: die feste Leiste (siehe „Die Leiste wie Gboard“ unten): Werkzeuge an festen
+  Plätzen, beim Tippen die Vorschläge (HeliBoard: „Leisten-Tasten und Vorschläge“).
 - **NUR VORSCHLÄGE**: nur Vorschläge und angeheftete Knöpfe.
 - **VERSTECKT**: keine Leiste, mehr Platz für Tasten.
 
@@ -218,7 +218,8 @@ Steht „Eigene Einstellung“ darunter, ist der vierte Modus „Nur Leisten-Tas
 Befehle; ein Tipp auf einen Befehl schaltet ihn einzeln an oder aus, der Schalter oben rechts
 schaltet das Erkennen getippter Befehle ganz aus. `@contact` fragt beim Einschalten nach dem
 Zugriff auf Kontakte. Darunter: „Knöpfe wählen und sortieren“ (die bisherige Leisten-Seite mit
-Modus, Tasten, angehefteten Tasten, Zwischenablage-Tasten), „Automatisch zeigen“ (nur bei TASTEN +
+Modus, Tasten, angehefteten Tasten, Zwischenablage-Tasten; bei TASTEN + VORSCHLÄGE steht dort statt
+Tasten und angehefteten Tasten „Werkzeuge in der Leiste“, die Liste der festen Leiste), „Automatisch zeigen“ (nur bei TASTEN +
 VORSCHLÄGE), „Wischen blendet aus“, „Skill-Tasten anheften“ (zeigt, wie viele der drei angeheftet
 sind) sowie Zwischenablage-Verlauf, Aufbewahrung (Regler), Bilder und Dateien, Screenshots
 anbieten (fragt nach dem Zugriff auf Bilder), Emoji-Mix in der Leiste und Smart Paste (siehe
@@ -367,9 +368,9 @@ eine Aktion:
   Löschen, solange etwas markiert ist (auch bei „Wort markieren“, Umschalt und Pfeilen oder wenn du
   von Hand markierst). Ein Tipp auf einen Chip führt es aus; nach Kopieren bleibt die Markierung
   stehen. Die Chips verschwinden, wenn die Markierung weg ist oder du tippst. Nicht in
-  Passwortfeldern, im Inkognito-Modus und bei gesperrtem Gerät. Eine offene Werkzeugleiste bleibt
-  offen (die Chips sind dann dahinter); ist „Werkzeugleiste automatisch zeigen“ an, erscheint wie
-  vorher die Werkzeugleiste und es gibt keine Chips. Ausschalten: Einstellungen → Leiste & Befehle →
+  Passwortfeldern, im Inkognito-Modus und bei gesperrtem Gerät. Seit Etappe 85 ersetzen die Chips die Werkzeuge der
+  festen Leiste wie jeden Vorschlag (der Pfeil „<“ links zeigt die Werkzeuge); ist „Werkzeugleiste automatisch zeigen“ an,
+  erscheint wie vorher die Werkzeugleiste und es gibt keine Chips. Ausschalten: Einstellungen → Leiste & Befehle →
   Zwischenablage & Bilder → „Aktionen bei markiertem Text“.
 - **Standard** im Auswahlfenster stellt die Geste zurück: Sie macht dann wieder, was sie vor
   dieser Seite gemacht hat.
@@ -1296,6 +1297,60 @@ einem inzwischen gelöschten Muster zeigt das eingebaute Muster, nie ein anderes
 Spot und Reaktionen eigener Muster ruhen wie die übrigen Tipp-Reaktionen in Passwortfeldern und im
 Inkognito-Modus.
 
+## Die Leiste wie Gboard
+
+Im Leistenmodus „Tasten + Vorschläge“ (so ist die Tastatur anfangs eingestellt) sieht die Leiste in jedem Stil gleich
+aufgebaut aus, wie in Gboard: links der **Raster-Knopf**, dann deine **Werkzeuge** in festen, gleichmäßig verteilten
+Plätzen, ganz rechts das **Mikrofon** im Kreis (die Sprach- oder die Diktat-Taste, je nachdem, was in der Leiste liegt).
+Nichts scrollt, es gibt keinen Pfeil zum Ein- und Ausblenden. Ein Werkzeug sitzt immer am selben Platz; die Plätze hängen nur
+davon ab, **wie viele** Werkzeuge in der Leiste liegen (1 bis 5 in voller Größe, 6 bis 8 als kompakte Reihe mit kleineren
+Symbolen, mehr als 8 passen nicht, die übrigen stehen im Raster).
+
+- **Was die Leiste zeigt:** Solange nichts getippt wird, die Werkzeuge. Tippst du, ersetzen die Wortvorschläge sie; ebenso
+  Befehls-Chips, Auswahl-Chips, die Zwischenablage-Pille, Autofill und die Hinweise auf neue Builds (die Reihenfolge, in der
+  diese sich gegenseitig verdrängen, ist unverändert). Der Pfeil „<“ ganz links zeigt dann die Werkzeuge wieder; mit dem nächsten
+  Tastendruck kommen die Vorschläge zurück. Ist das Wort fertig oder das Feld leer, stehen die Werkzeuge wieder da. Schließt du die Tastatur,
+  beginnt sie beim nächsten Öffnen mit den Werkzeugen.
+- **Raster aller Werkzeuge:** Den Raster-Knopf antippen. Über den Tasten erscheinen alle Werkzeuge als Pillen mit Symbol und Namen
+  (zwei Spalten, nach unten scrollbar): Textaktionen, Diktat, Skill-Tasten, Ablage, Zeichen-Kunst, Zwischenablage, Emoji, Rückgängig,
+  Kopieren, Einfügen, Cursor-Tasten, Einhandmodus, Inkognito, Einstellungen, Design und alle weiteren. Ein Tipp auf eine Pille
+  schließt das Raster und führt das Werkzeug aus, genau wie seine Taste. Der Knopf links oben ist jetzt ein Kreuz und schließt
+  das Raster ohne etwas auszuführen. Das Mikrofon (Spracheingabe) erscheint nur, wenn dein Telefon eine Spracheingabe hat.
+- **Was bei dir in der Leiste liegt, wenn du nie etwas eingestellt hast:** die ersten fünf Werkzeuge deiner bisherigen Reihenfolge
+  (anfangs Textaktionen, Einstellungen, Zwischenablage, Rückgängig und die Mikrofon-Taste, die an das rechte Ende rückt), dazu
+  die bisher angehefteten Tasten, wenn sie nicht darunter sind. Alles andere, was du bisher in der Leiste hattest (Wiederholen, Wort
+  markieren, Kopieren, Einfügen, Pfeile), steht jetzt im Raster. Hast du die Reihenfolge schon in den Einstellungen verändert, gilt
+  deine Reihenfolge. Die Tastatur schreibt dafür nichts weg, bevor du selbst etwas änderst.
+- **Passwortfelder und Inkognito:** Werkzeuge, die dort nicht erlaubt sind (Textaktionen, Diktat, Skill-Tasten, Ablage, Zeichen-Kunst),
+  bleiben an ihrem Platz, sind aber abgedunkelt und reagieren nicht; im Raster ebenso. Beim gesperrten Telefon gibt es die Leiste nicht.
+  Ist Inkognito an, zeigt der Knopf links wie bisher das Inkognito-Symbol; er tut dasselbe wie sonst.
+- **Die Leiste anpassen:** Einstellungen → Leiste & Befehle → „Knöpfe wählen und sortieren“ → „Werkzeuge in der Leiste“ (Schalter und
+  Reihenfolge; höchstens 8 schalten sich ein, die ersten 8 gelten). „Standard“ im Dialog stellt wieder die Reihenfolge von vorher her.
+  Genauso, bequemer, direkt in der Tastatur: siehe nächster Abschnitt. Auch die Skill-Tasten-Schalter („Skill-Tasten anheften“) legen
+  die Taste in die Leiste (auf den ersten freien Platz; ist die Leiste voll, passiert nichts).
+- Die anderen Modi sehen aus wie bisher: „Nur Vorschläge“ (nur Wortvorschläge und angeheftete Knöpfe), „Versteckt“, „Nur Leisten-Tasten“.
+  Der Pfeil zum Ein- und Ausklappen der Werkzeuge und das Scrollen der Werkzeugzeile gibt es nur noch dort, nicht mehr bei „Tasten + Vorschläge“.
+
+### In der Tastatur anpassen (halten und ziehen)
+
+1. Raster-Knopf antippen, oben im Raster „Anpassen“ antippen. Oder: ein Werkzeug in der Leiste lange drücken, das keine eigene
+   Langdruck-Aktion hat (Textaktionen, Einstellungen, Ablage …), oder den Raster-Knopf lange drücken. (Rückgängig, Zwischenablage, Pfeiltasten
+   und andere behalten ihre Langdruck-Aktion.)
+2. Die Leiste zeigt ihre Plätze als Umrandungen, im Raster steht „Zum Personalisieren halten und ziehen“ und der Raster-Knopf ist ein
+   Häkchen. Werkzeuge, die schon in der Leiste liegen, sind im Raster abgedunkelt.
+3. **Ein Werkzeug in die Leiste:** eine Pille lange drücken und auf einen Platz der Leiste ziehen. Die anderen Werkzeuge rücken schon
+   beim Ziehen zur Seite; loslassen legt es ab. **Reihenfolge ändern:** ein Werkzeug der Leiste lange drücken und an einen anderen Platz
+   ziehen. **Herausnehmen:** ein Werkzeug der Leiste lange drücken und ins Raster ziehen. Jedes Ablegen speichert sofort; wird die Tastatur
+   mitten im Ziehen geschlossen oder lässt du außerhalb los, ändert sich nichts.
+4. **Ohne Ziehen:** im Anpassen-Modus eine Pille antippen legt das Werkzeug auf den ersten freien Platz, eine schon eingebaute Pille
+   antippen nimmt es heraus; ein Werkzeug der Leiste antippen nimmt es heraus. Für Screenreader haben die Pillen die Aktionen „Zur Leiste
+   hinzufügen“ und „Aus der Leiste entfernen“, die Plätze „Aus der Leiste entfernen“, „Nach links“ und „Nach rechts“.
+5. Voll ist die Leiste bei 8 Werkzeugen: eine neunte Pille wird abgelehnt, die Zeile oben im Raster sagt es. Nimm zuerst eines heraus.
+6. Das **Häkchen** links beendet das Anpassen und schließt das Raster. Das Anpassen geht auch in Passwortfeldern (es liest und schreibt
+   nichts im Feld); abgedunkelte Werkzeuge lassen sich ebenso verschieben und herausnehmen.
+7. **Zurück zu deiner alten Reihenfolge:** Einstellungen → Leiste & Befehle → „Knöpfe wählen und sortieren“ → „Werkzeuge in der
+   Leiste“ → „Standard“.
+
 ## Aussehen: flacher Look
 
 Einstellungen → System & Daten → Karte „Profile“ → „+ Neues Profil“ (öffnet Tastaturprofile) →
@@ -1312,13 +1367,14 @@ dabei nicht gesichert.
 - Die Schrift ist die Systemschrift deines Telefons. Eine eigene Schriftdatei lässt sich unter
   Aussehen → „Benutzerdefinierte Schriftart aus Datei festlegen“ laden.
 - Stil „Flach“ und Farben „Flach schwarz“ lassen sich unter Aussehen auch einzeln wählen.
-- Leiste über den Tasten, von links: Menü (Raster), Zwischenablage, Emoji, Aktionen (Stift,
-  öffnet das Aktionspanel) und im Kreis das Diktat. Beim Tippen stehen in der Mitte die
-  Wortvorschläge. Welche Tasten dort liegen, änderst du unter Einstellungen → Leiste & Befehle → „Knöpfe wählen und sortieren“ oder
-  über den Stift-Knopf im Menü.
-- Menü: Raster antippen. Design öffnet die Einstellungen zum Aussehen, die anderen Pillen
-  schalten Rückgängig, Einhandmodus, Emoji, Inkognito und die frei verschiebbare Tastatur.
-  Das X schließt das Menü.
+- Leiste über den Tasten, von links: Raster-Knopf, Zwischenablage, Emoji, Aktionen (Stift,
+  öffnet das Aktionspanel) und im Kreis das Diktat. Beim Tippen stehen an ihrer Stelle die
+  Wortvorschläge. Welche Werkzeuge dort liegen und wie du sie anpasst, steht oben unter „Die Leiste wie Gboard“
+  (Einstellungen → Leiste & Befehle → „Knöpfe wählen und sortieren“ oder halten und ziehen in der Tastatur).
+- Raster-Knopf: öffnet das Raster aller Werkzeuge (siehe „Die Leiste wie Gboard“), darunter Design (öffnet die Einstellungen zum
+  Aussehen), Rückgängig, Einhandmodus, Emoji, Inkognito und die frei verschiebbare Tastatur. Das X schließt das Raster. Das
+  kleine Menü mit sechs Pillen und dem Stift-Knopf gibt es nur noch, wenn du einen anderen Leistenmodus als
+  „Tasten + Vorschläge“ gewählt hast.
 - Die Zwischenablage-Taste fügt den aktuellen Inhalt der Zwischenablage an der Schreibmarke
   ein, solange der Zwischenablageverlauf aus ist (so ist er anfangs). Erst mit eingeschaltetem
   Verlauf (Einstellungen → Leiste & Befehle → Zwischenablage & Bilder → „Zwischenablage-Verlauf“) öffnet sie die
