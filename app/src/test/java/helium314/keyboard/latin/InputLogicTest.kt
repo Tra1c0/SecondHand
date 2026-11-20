@@ -1901,7 +1901,7 @@ class InputLogicTest {
         setSpaceGesture(SpaceGesture.SWIPE_UP, SpaceAction.NONE); setSpaceGesture(SpaceGesture.SWIPE_DOWN, SpaceAction.NONE)
         setText("Hallo Welt")
         rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X + 150f, SPACE_Y); rig.up(0)
-        assertEquals("FIXTURE-RIGHTREDO", swipeCalls(spy).joinToString("|"))
+        assertEquals("onSpaceSwipeDistance SWIPE_RIGHT|onCodeInput -132 -1|onSpaceSwipeDistance SWIPE_RIGHT|onEndSpaceSwipe ", swipeCalls(spy).joinToString("|"))
     }
 
     @Test fun bindings87cVerticalIsTheCursorHorizontalSwitchesTheLanguage() = withSpyRig { rig, spy ->
@@ -1917,7 +1917,7 @@ class InputLogicTest {
         setSpaceGesture(SpaceGesture.SWIPE_RIGHT, SpaceAction.UNDO)
         setText("Hallo Welt")
         rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X - 40f, SPACE_Y); rig.up(0)
-        assertEquals("FIXTURE-NONE", swipeCalls(spy).joinToString("|"))
+        assertEquals("onSpaceSwipeDistance SWIPE_LEFT|onEndSpaceSwipe ", swipeCalls(spy).joinToString("|"))
         assertEquals(10, cursor)
     }
 
@@ -2242,6 +2242,8 @@ class InputLogicTest {
         setText("Hallo Welt")
         rig.down(0, SPACE_X, SPACE_Y); rig.wait(700); rig.up(0) // the hold fires while the finger rests
         assertEquals(10, selectionEnd - selectionStart, "select all")
+        latinIME.onUpdateSelection(10, 10, selectionStart, selectionEnd, -1, -1) // the editor tells the keyboard (the shadow editor does not)
+        handleMessages()
         rig.down(0, SPACE_X, SPACE_Y); rig.slide(0, SPACE_X + 40f, SPACE_Y); rig.up(0)
         assertEquals("Hallo Welt", text)
         assertEquals(selectionStart, selectionEnd)

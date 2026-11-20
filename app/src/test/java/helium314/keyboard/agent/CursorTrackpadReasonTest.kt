@@ -57,7 +57,7 @@ class CursorTrackpadReasonTest {
         val k = gestures(up = SpaceAction.UNDO, down = SpaceAction.NONE)
         assertEquals(Start.TRACKPAD, CursorTrackpad.decideStart(k, 0.0, 12.0, multiLine = true))
         assertEquals(Start.LEGACY, CursorTrackpad.decideStart(k, 0.0, 12.0, multiLine = false))
-        assertEquals(Start.TRACKPAD, CursorTrackpad.decideStart(gestures(up = cur, left = SpaceAction.UNDO), 0.0, 12.0, multiLine = false)) // cursor movement: the trackpad, flat there
+        assertEquals(Start.TRACKPAD, CursorTrackpad.decideStart(gestures(up = cur, left = SpaceAction.UNDO), 0.0, -12.0, multiLine = false)) // cursor movement: the trackpad, flat there
         assertEquals(Start.TRACKPAD, CursorTrackpad.decideStart(gestures(right = SpaceAction.REDO, up = SpaceAction.NONE), -12.0, 0.0, multiLine = false)) // sideways: no difference
     }
 
