@@ -2,6 +2,7 @@
 package helium314.keyboard.keyboard
 
 import dev.agentkeyboard.core.CursorTrack
+import helium314.keyboard.agent.CursorTrackCounters
 import helium314.keyboard.agent.CursorTrackpad
 import helium314.keyboard.agent.TouchCalibration
 import android.text.InputType
@@ -459,14 +460,24 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     }
 
     override fun onUpWithDeletePointerActive() {
+        val tracked = deleteClaimed // stage 87b: a slide the trackpad took (counts only)
+        deleteClaimed = false
+        val selected = if (tracked) (connection.expectedSelectionEnd - connection.expectedSelectionStart).coerceAtLeast(0) else 0
+        val deleted = deleteAtLift()
+        if (tracked) CursorTrackCounters.shared.onDeleteLift(selected, deleted)
+    }
+
+    /** Deletes what the slide selected; false where nothing was deleted. */
+    private fun deleteAtLift(): Boolean {
         // the selection to delete is the one the slide made: a field that started meanwhile has another one (a URL bar selects all on focus)
         val slideField = deleteSlideField
         deleteSlideField = null
-        if (slideField != null && slideField !== settings.current.mInputAttributes) return
-        if (latinIME.agentEditorController.isBlockingInput) return;
-        if (!connection.hasSelection()) return
+        if (slideField != null && slideField !== settings.current.mInputAttributes) return false
+        if (latinIME.agentEditorController.isBlockingInput) return false
+        if (!connection.hasSelection()) return false
         inputLogic.finishInput()
         onCodeInput(KeyCode.DELETE, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+        return true
     }
 
     override fun resetMetaState() {
@@ -610,10 +621,11 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         var edgeUp = false // an arrow in this direction moved nothing (or the cursor was at the start): none is sent for the rest of the touch
         var edgeDown = false
         var field: Any? = null // the field the track started in: a new field ends it
+        var suppressedLines = 0 // stage 87b (counters only): vertical steps a finger made in a field that is not multi-line
         fun begin(token: Long, code: Int) {
             this.token = token; this.code = code; mode = TrackMode.UNDECIDED; pending.clear()
             originX = 0.0; originY = 0.0; track = null; needsRestart = false; awaitSelection = false
-            pendingLines = 0; edgeUp = false; edgeDown = false; field = null
+            pendingLines = 0; edgeUp = false; edgeDown = false; field = null; suppressedLines = 0
         }
     }
     private val spaceTrack = CursorTrack()
@@ -624,10 +636,12 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     override fun onCursorTrackEnd(pointerId: Int) {
         if (pointerId < 0) { // -1: the field starts or the keyboard hides (LatinIME): a touch that ended without up or cancel must leave no owner
             trackOwner = -1
-            for (st in trackStates) if (st.mode == TrackMode.ACTIVE) st.track = null else st.begin(Long.MIN_VALUE, 0) // an active touch has nothing to move in the new field
+            for (st in trackStates) if (st.mode == TrackMode.ACTIVE) st.track = null else { countNeverClaimed(st); st.begin(Long.MIN_VALUE, 0) } // an active touch has nothing to move in the new field
             return
         }
         val st = trackStates.getOrNull(pointerId) ?: return
+        countNeverClaimed(st)
+        if (st.code == KeyCode.DELETE) deleteClaimed = false // (a lift has read it before: onUpWithDeletePointerActive)
         st.begin(Long.MIN_VALUE, 0)
         if (trackOwner == pointerId) trackOwner = -1
     }
@@ -636,7 +650,9 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         val st = trackStates.getOrNull(pointerId) ?: return KeyboardActionListener.TRACK_OFF
         if (st.token != downTime || st.code != code) { // a new touch of this finger: whatever it had before is gone
             if (trackOwner == pointerId) trackOwner = -1
+            countNeverClaimed(st)
             st.begin(downTime, code)
+            trackKey(code)?.let { CursorTrackCounters.shared.onTouch(it) } // stage 87b
         }
         if (st.mode == TrackMode.UNDECIDED) st.mode = decideTrackMode(pointerId, code)
         if (st.mode == TrackMode.OFF) return KeyboardActionListener.TRACK_OFF
@@ -652,6 +668,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
             if (!CursorTrackpad.claims(code == KeyCode.DELETE, sample.dx, sample.dy)) return KeyboardActionListener.TRACK_PENDING
             if (trackOwner != -1 && trackOwner != pointerId) { // one finger owns the track: this one's touch is dropped
                 st.mode = TrackMode.REFUSED; st.pending.clear()
+                trackKey(code)?.let { CursorTrackCounters.shared.onRefused(it) } // stage 87b
                 return KeyboardActionListener.TRACK_REFUSED_DRAG
             }
             // the drag is a swipe now: read the text once, then replay what the finger did so far. The track starts at the first
@@ -660,7 +677,8 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
             trackOwner = pointerId
             st.mode = TrackMode.ACTIVE
             st.field = settings.current.mInputAttributes
-            if (code == KeyCode.DELETE) deleteSlideField = st.field
+            if (code == KeyCode.DELETE) { deleteSlideField = st.field; deleteClaimed = true }
+            trackKey(code)?.let { CursorTrackCounters.shared.onClaimed(it, settings.current.mInputAttributes?.mInputType) } // stage 87b: counts and flags only
             resetSpaceTap()
             val first = st.pending.first()
             st.originX = first.dx; st.originY = first.dy
@@ -676,12 +694,23 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
 
     private fun decideTrackMode(pointerId: Int, code: Int): TrackMode {
         val values = settings.current
-        if (!values.mCursorTrackpad || latinIME.agentEditorController.isBlockingInput) return TrackMode.OFF
+        val diag = CursorTrackCounters.shared
+        val key = trackKey(code)
+        if (!values.mCursorTrackpad) { key?.let { diag.onOff(it, CursorTrackCounters.OffReason.SWITCH) }; return TrackMode.OFF }
+        if (latinIME.agentEditorController.isBlockingInput) { key?.let { diag.onOff(it, CursorTrackCounters.OffReason.BLOCKED) }; return TrackMode.OFF }
         // one owner for every swipe on space and delete: while a finger owns a track (or a delete slide is going) no other finger swipes
-        if ((code == Constants.CODE_SPACE || code == KeyCode.DELETE) && trackOwner != -1 && trackOwner != pointerId) return TrackMode.REFUSED
+        if ((code == Constants.CODE_SPACE || code == KeyCode.DELETE) && trackOwner != -1 && trackOwner != pointerId) {
+            key?.let { diag.onRefused(it) }
+            return TrackMode.REFUSED
+        }
         val candidate = when {
             // with a selection the old behavior stays (no selection extension in stage 87)
-            code == Constants.CODE_SPACE -> CursorTrackpad.appliesToSpace(values.mSpaceGestures) && !connection.hasSelection()
+            code == Constants.CODE_SPACE -> {
+                val blocker = CursorTrackpad.spaceBlocker(values.mSpaceGestures)
+                if (blocker != null) { diag.onOff(CursorTrackCounters.Key.SPACE, CursorTrackCounters.OffReason.BINDINGS, blocker); false }
+                else if (connection.hasSelection()) { diag.onOff(CursorTrackCounters.Key.SPACE, CursorTrackCounters.OffReason.SELECTION); false }
+                else true
+            }
             code == KeyCode.DELETE -> true
             else -> false
         }
@@ -689,10 +718,23 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         return TrackMode.PENDING
     }
 
+    private fun trackKey(code: Int): CursorTrackCounters.Key? = when (code) {
+        Constants.CODE_SPACE -> CursorTrackCounters.Key.SPACE
+        KeyCode.DELETE -> CursorTrackCounters.Key.DELETE
+        else -> null
+    }
+
+    /** Stage 87b: a finger that rested or dragged short of the claim distance and is gone (or replaced) never became a swipe. */
+    private fun countNeverClaimed(st: TrackState) {
+        if (st.mode == TrackMode.PENDING) trackKey(st.code)?.let { CursorTrackCounters.shared.onNeverClaimed(it) }
+    }
+
+    /** Stage 87b: a delete slide went through the trackpad (read and reset by its lift). */
+    private var deleteClaimed = false
+
     /** Vertical moves only where the field is known to be multi-line: in a single-line field DPAD_DOWN leaves the field or steps through suggestions. */
     private fun isMultiLineField(): Boolean {
-        val type = settings.current.mInputAttributes?.mInputType ?: return false
-        return type and InputType.TYPE_MASK_CLASS == InputType.TYPE_CLASS_TEXT && type and InputType.TYPE_TEXT_FLAG_MULTI_LINE != 0
+        return CursorTrackpad.isMultiLine(settings.current.mInputAttributes?.mInputType)
     }
 
     private fun startTrack(st: TrackState, code: Int, begin: Long, time: Long) {
@@ -755,8 +797,15 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         val fx = s.dx - st.originX
         val x = if (st.rtl) -fx else fx // for RTL languages the finger follows the visual direction (as the old swipe)
         val steps = track.moveTo(x, s.dy - st.originY, s.t)
+        val diag = CursorTrackCounters.shared
+        val key = if (code == KeyCode.DELETE) CursorTrackCounters.Key.DELETE else CursorTrackCounters.Key.SPACE
         for (run in CursorTrackpad.runs(steps)) {
-            if (code == KeyCode.DELETE) { if (!moveDeleteRun(run)) st.needsRestart = true } else moveCursorRun(st, run)
+            if (run.detent) diag.onDetent(key)
+            if (code == KeyCode.DELETE) { if (moveDeleteRun(run)) diag.onSteps(key, run.count) else st.needsRestart = true } else moveCursorRun(st, run)
+        }
+        if (code == Constants.CODE_SPACE && track === flatTrack) { // stage 87b: arrows a finger asked for in a field that is not multi-line (counted per 26 dp of vertical travel)
+            val lines = (Math.abs(s.dy - st.originY) / CursorTrack.VERTICAL_STEP_DP).toInt()
+            if (lines > st.suppressedLines) { diag.onSuppressedArrows(key, lines - st.suppressedLines); st.suppressedLines = lines }
         }
         pumpArrows(st, s.t)
     }
@@ -802,6 +851,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         st.awaitSelection = true; st.selectionAtArrow = connection.expectedSelectionStart; st.arrowDir = dir; st.arrowTime = time
         st.track?.holdForEditor(time) // the text read before this arrow is out of date until the editor has answered it
         onCodeInput(if (dir < 0) KeyCode.ARROW_UP else KeyCode.ARROW_DOWN, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+        CursorTrackCounters.shared.onVerticalArrow(CursorTrackCounters.Key.SPACE)
     }
 
     private fun moveCursorRun(st: TrackState, run: CursorTrackpad.Run) {
@@ -812,11 +862,13 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         }
         if (run.chars == 0) { // no text known: the old path moves by clusters and falls back to arrow keys
             onMoveCursorHorizontally(if (st.rtl) -run.direction * run.count else run.direction * run.count)
+            CursorTrackCounters.shared.onSteps(CursorTrackCounters.Key.SPACE, run.count)
             return
         }
         if (st.awaitSelection) { st.needsRestart = true; return } // never from the old position while an arrow is on its way (the track holds these back; defensive)
         trackTick(run, forward = run.direction > 0)
         applyHorizontalMove(run.chars)
+        CursorTrackCounters.shared.onSteps(CursorTrackCounters.Key.SPACE, run.count)
     }
 
     /** Returns false when the step could not be applied (the track and the field disagree: the caller restarts the track). */

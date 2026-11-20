@@ -95,7 +95,9 @@ fun AgentDiagnoseScreen(onClickBack: () -> Unit) {
     val typing = remember(typingVersion) { Diagnose.typing(context, helium314.keyboard.agent.TypingPerf.snapshot(), System.currentTimeMillis()) }
     // stage 79b: the card "Autofill-Vorschläge", numbers only, read when the page opens
     val autofill = remember { Diagnose.autofill(context, helium314.keyboard.agent.InlineAutofillCounters.shared.snapshot()) }
-    val shown = remember(sections, typing, autofill) { sections.flatMap { if (it.part == Diagnose.Part.DEVICE) listOf(typing, autofill, it) else listOf(it) } }
+    // stage 87b: the card "Cursor-Trackpad": configuration and decisions, numbers only, read when the page opens
+    val trackpad = remember { Diagnose.trackpad(context, context.prefs(), helium314.keyboard.agent.CursorTrackCounters.shared.snapshot()) }
+    val shown = remember(sections, typing, autofill, trackpad) { sections.flatMap { if (it.part == Diagnose.Part.DEVICE) listOf(typing, trackpad, autofill, it) else listOf(it) } }
     val windowWidth = androidx.compose.ui.platform.LocalWindowInfo.current.containerSize.width
     val narrow = with(androidx.compose.ui.platform.LocalDensity.current) { windowWidth.toDp() } < 400.dp
     SearchSettingsScreen(onClickBack, stringResource(R.string.agent_diagnose_title), emptyList()) {

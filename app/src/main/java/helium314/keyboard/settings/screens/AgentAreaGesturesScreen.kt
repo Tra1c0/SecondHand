@@ -55,6 +55,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.edit
 import helium314.keyboard.agent.AgentPreferences
+import helium314.keyboard.agent.CursorTrackText
+import helium314.keyboard.agent.CursorTrackVerdict
 import helium314.keyboard.agent.SpaceAction
 import helium314.keyboard.agent.SpaceGesture
 import helium314.keyboard.agent.SpaceGestures
@@ -331,6 +333,11 @@ private fun TouchSection(context: Context, prefs: SharedPreferences, area: Setti
         val trackpad = prefs.getBoolean(AgentPreferences.CURSOR_TRACKPAD, true)
         SettingSwitchRow(stringResource(R.string.agent_gestures_trackpad), stringResource(R.string.agent_gestures_trackpad_summary), area.dot,
             trackpad, { putBoolean(AgentPreferences.CURSOR_TRACKPAD, it) }, area.from, area.to, Modifier.testTag(ROW_TAG + AgentPreferences.CURSOR_TRACKPAD))
+        // stage 87b: whether the space bar and the delete key qualify right now, and what to change if not (the listener's own rules)
+        Text(CursorTrackText.spaceLine(context, CursorTrackVerdict.space(prefs)), style = AgentSettingsType.Small, color = AgentSettingsTokens.Muted,
+            modifier = Modifier.testTag(TRACKPAD_SPACE_TAG))
+        Text(CursorTrackText.deleteLine(context, CursorTrackVerdict.delete(prefs)), style = AgentSettingsType.Small, color = AgentSettingsTokens.Muted,
+            modifier = Modifier.testTag(TRACKPAD_DELETE_TAG))
         if (trackpad) SettingRow(stringResource(R.string.agent_gestures_magnetism), stringResource(R.string.agent_gestures_magnetism_summary), area.dot,
             { onDialog(GestureSlider.MAGNETISM.key) }, Modifier.testTag(ROW_TAG + GestureSlider.MAGNETISM.key), GestureSlider.MAGNETISM.value(prefs))
         SettingSwitchRow(stringResource(R.string.agent_gestures_delete_swipe), stringResource(R.string.agent_gestures_delete_swipe_summary), area.dot,
@@ -462,6 +469,8 @@ private val DETENT = Color(0xFFC084FC)
 private val LAST_DETENT = Color(0xFFE9D5FF)
 
 const val GESTURE_TAG = "agent_gestures_space_"
+const val TRACKPAD_SPACE_TAG = "agent_gestures_trackpad_space"
+const val TRACKPAD_DELETE_TAG = "agent_gestures_trackpad_delete"
 const val SPACE_BAR_TAG = "agent_gestures_space_bar"
 const val ROW_TAG = "agent_gestures_row_"
 const val SWIPE_NONE = "swipe_none"
