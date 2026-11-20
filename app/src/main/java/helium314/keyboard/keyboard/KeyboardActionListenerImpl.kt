@@ -698,7 +698,11 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         if (before == null || after == null || before.isEmpty() && after.isEmpty() && selected.isNullOrEmpty()) {
             track.setTextUnavailable(time) // an app that gives no text: one cluster per step through the old path
         } else {
-            track.setText(before, (selected?.toString() ?: "") + after, before.isEmpty(), after.isEmpty(), time)
+            // a shorter answer than asked may be the real start or end or a cut: one more character is asked for; only if the editor has
+            // nothing more (an empty answer for the further read) the window reaches the start/end of the field
+            val atStart = before.isEmpty() || before.length < n && (connection.getTextBeforeCursor(before.length + 1, 0)?.length ?: 0) <= before.length
+            val atEnd = after.isEmpty() || after.length < n && (connection.getTextAfterCursor(after.length + 1, 0)?.length ?: 0) <= after.length
+            track.setText(before, (selected?.toString() ?: "") + after, atStart, atEnd, time)
         }
         if (code == KeyCode.DELETE) track.forwardLimitChars = selected?.length ?: 0
     }

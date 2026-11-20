@@ -1939,6 +1939,8 @@ class InputLogicTest {
         connection.setSelection(10, 10) // the field changes under the finger: nothing is selected any more
         trackDrag(KeyCode.DELETE, 40.0, 0.0, from = -40.0 to 0.0, lift = false) // right: the start would pass the end
         assertEquals(selectionStart, selectionEnd)
+        val track = org.robolectric.util.ReflectionHelpers.getField<Array<*>>(latinIME.mKeyboardActionListener, "trackStates")[0]
+        assertTrue(org.robolectric.util.ReflectionHelpers.getField<Double>(track, "originX") < -5.0, "the track restarted at the finger after the step that could not be applied")
         trackDrag(KeyCode.DELETE, -5.0, 0.0, from = 40.0 to 0.0, lift = false, dps = 60.0) // and left again (45 dp) from the real place
         assertEquals(10 - 3, selectionStart)
         latinIME.mKeyboardActionListener.onCursorTrackEnd(0)

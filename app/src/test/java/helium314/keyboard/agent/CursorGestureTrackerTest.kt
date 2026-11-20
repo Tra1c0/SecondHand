@@ -234,4 +234,30 @@ class CursorGestureTrackerTest {
         assertEquals(listOf(0, 1), ends, "each end names its own finger")
         up(106f, 100f)
     }
+
+    @Test fun aRefusedDragCancelsTheTimersAndTheLiftTypesNothing() {
+        script(KeyboardActionListener.TRACK_PENDING, KeyboardActionListener.TRACK_REFUSED_DRAG)
+        down(); move(104f, 100f); move(130f, 100f)
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper())
+            .idleFor(java.time.Duration.ofMillis((Settings.getValues().mKeyLongpressTimeout * 2).toLong()))
+        verify(listener, never()).onCustomRequest(KeyboardActionListener.CustomAction.SPACE_HOLD)
+        verify(listener, never()).onCustomRequest(KeyboardActionListener.CustomAction.SHOW_INPUT_METHOD_PICKER)
+        move(150f, 100f) // the dropped touch gets no further calls
+        assertEquals(2, calls.size)
+        up(150f, 100f)
+        assertEquals(emptyList(), log, "no space, no end of a swipe")
+    }
+
+    @Test fun aRefusedDragOnDeleteTypesNoDeleteAtTheLift() {
+        `when`(key.code).thenReturn(KeyCode.DELETE)
+        script(KeyboardActionListener.TRACK_REFUSED_DRAG)
+        down(); move(130f, 100f); up(130f, 100f)
+        assertEquals(emptyList(), log, "neither a delete nor the old slide's delete-up")
+    }
+
+    @Test fun aRefusedFingerThatStaysPendingIsATapAsBefore() {
+        script(KeyboardActionListener.TRACK_PENDING)
+        down(); move(104f, 102f); up(104f, 102f)
+        assertEquals(listOf("code 32"), log)
+    }
 }
