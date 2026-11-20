@@ -10,6 +10,7 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import androidx.core.content.edit
 import androidx.core.view.forEach
+import helium314.keyboard.agent.AgentPreferences
 import helium314.keyboard.event.HapticEvent
 import helium314.keyboard.keyboard.internal.KeyboardIconsSet
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
@@ -100,6 +101,9 @@ fun getCodeForToolbarKey(key: ToolbarKey) = Settings.getInstance().getCustomTool
     SPLIT -> KeyCode.SPLIT_LAYOUT
     FLOATING -> KeyCode.TOGGLE_FLOATING_WINDOW
     BACKGROUND_GATHERING -> KeyCode.BACKGROUND_GATHERING
+    PROMPTS -> KeyCode.AGENT_PROMPTS
+    CHAR_ART -> KeyCode.AGENT_CHAR_ART
+    DESIGN -> KeyCode.AGENT_DESIGN
 }
 
 fun getCodeForToolbarKeyLongClick(key: ToolbarKey) = Settings.getInstance().getCustomToolbarLongpressCode(key) ?: when (key) {
@@ -126,7 +130,13 @@ fun getCodeForToolbarKeyLongClick(key: ToolbarKey) = Settings.getInstance().getC
 enum class ToolbarKey {
     VOICE, CLIPBOARD, NUMPAD, DPAD, UNDO, REDO, SETTINGS, SELECT_ALL, SELECT_WORD, COPY, CUT, PASTE, ONE_HANDED, FLOATING, SPLIT,
     INCOGNITO, AUTOCORRECT, CLEAR_CLIPBOARD, CLOSE_HISTORY, EMOJI, LEFT, RIGHT, UP, DOWN, WORD_LEFT, WORD_RIGHT,
-    PAGE_UP, PAGE_DOWN, FULL_LEFT, FULL_RIGHT, PAGE_START, PAGE_END, BACKGROUND_GATHERING, AGENT, SKILL_1, SKILL_2, SKILL_3, DICTATE
+    PAGE_UP, PAGE_DOWN, FULL_LEFT, FULL_RIGHT, PAGE_START, PAGE_END, BACKGROUND_GATHERING, AGENT, SKILL_1, SKILL_2, SKILL_3, DICTATE,
+    /** Fork, stage 85: the prompt store ("Ablage") window, so that the all-tools grid can offer it. */
+    PROMPTS,
+    /** Fork, stage 85: the character art window. */
+    CHAR_ART,
+    /** Fork, stage 85: the settings page for the look of the keyboard. */
+    DESIGN,
 }
 
 enum class ToolbarMode {
@@ -206,6 +216,41 @@ fun removePinnedKey(prefs: SharedPreferences, key: ToolbarKey) {
         else it
     }
     prefs.edit { putString(Settings.PREF_PINNED_TOOLBAR_KEYS, result) }
+}
+
+// ---- stage 85: "pin" for the skill keys, on both lists while the fixed bar is the active mode ----
+
+private fun fixedBarActive(prefs: SharedPreferences) =
+    Settings.readToolbarMode(prefs) == ToolbarMode.EXPANDABLE && prefs.getBoolean(AgentPreferences.FIXED_BAR, true)
+
+/**
+ * Whether [key] is pinned: with the fixed bar one of the tools of the bar (a tool taken out of the bar in the edit mode is no longer
+ * pinned; for a user who never edited the bar the bar includes his pinned keys), else in the old pinned list.
+ */
+fun isKeyPinned(prefs: SharedPreferences, key: ToolbarKey) =
+    if (fixedBarActive(prefs)) key in BarTools.read(prefs) else key in getPinnedToolbarKeys(prefs)
+
+/**
+ * Pins [key]: the pinned list as before, and with the fixed bar the first free place of the bar. Returns false, and changes
+ * neither list, when the fixed bar is full (the caller says so); true when the key is pinned.
+ */
+fun pinKey(prefs: SharedPreferences, key: ToolbarKey): Boolean {
+    if (fixedBarActive(prefs)) {
+        val bar = BarTools.read(prefs)
+        if (key !in bar) {
+            if (bar.size >= BarTools.MAX) return false
+            BarTools.write(prefs, BarTools.add(bar, key))
+        }
+    }
+    addPinnedKey(prefs, key)
+    return true
+}
+
+fun unpinKey(prefs: SharedPreferences, key: ToolbarKey) {
+    removePinnedKey(prefs, key)
+    if (!fixedBarActive(prefs)) return
+    val bar = BarTools.read(prefs)
+    if (key in bar) BarTools.write(prefs, BarTools.remove(bar, key))
 }
 
 private fun getEnabledToolbarKeys(prefs: SharedPreferences, pref: String, default: String): List<ToolbarKey> {

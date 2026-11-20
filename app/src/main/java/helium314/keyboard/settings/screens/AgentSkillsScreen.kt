@@ -116,7 +116,7 @@ fun AgentSkillsScreen(onClickBack: () -> Unit) {
                     var workflowMenu by remember { mutableStateOf(false) }
                     var menu by remember { mutableStateOf(false) }
                     val toolbarKey = skillToolbarKey(binding.slot)
-                    var pinned by remember { mutableStateOf(toolbarKey in getPinnedToolbarKeys(context.prefs())) }
+                    var pinned by remember { mutableStateOf(isKeyPinned(context.prefs(), toolbarKey)) }
                     Card(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(stringResource(R.string.agent_skill_slot, binding.slot), style = MaterialTheme.typography.titleMedium)
@@ -171,8 +171,10 @@ fun AgentSkillsScreen(onClickBack: () -> Unit) {
                                 Text(stringResource(R.string.agent_skill_pin), Modifier.weight(1f))
                                 val pinLabel = stringResource(R.string.agent_skill_pin)
                                 Switch(checked = pinned, enabled = !displayedBusy, modifier = Modifier.semantics { contentDescription = pinLabel }, onCheckedChange = { enabled ->
-                                    if (enabled) addPinnedKey(context.prefs(), toolbarKey) else removePinnedKey(context.prefs(), toolbarKey)
-                                    pinned = enabled
+                                    // a full fixed bar (8 tools) takes no ninth: the switch stays off and says so
+                                    val done = if (enabled) pinKey(context.prefs(), toolbarKey) else { unpinKey(context.prefs(), toolbarKey); true }
+                                    if (!done) android.widget.Toast.makeText(context, R.string.agent_bar_pin_full, android.widget.Toast.LENGTH_LONG).show()
+                                    pinned = enabled && done
                                     KeyboardSwitcher.getInstance().setThemeNeedsReload()
                                 })
                             }

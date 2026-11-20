@@ -167,6 +167,8 @@ class ShadowInputMethodService {
         var dpadIgnored = false
         /** Stage 87: an editor that answers a read of [first] characters with at most [second] (the others are answered fully). */
         var shortAnswer: Pair<Int, Int>? = null
+        /** Stage 84: sees every call of the keyboard into the editor (name, and the text of a write), none by default. */
+        var callListener: ((String, String?) -> Unit)? = null
 
         // convenience for access
         val textBeforeCursor get() = text.substring(0, selectionStart)
@@ -201,6 +203,7 @@ class ShadowInputMethodService {
             dpadMovesCursor = false
             dpadIgnored = false
             shortAnswer = null
+            callListener = null
         }
     }
 
@@ -226,19 +229,24 @@ class ShadowInputMethodService {
         // pretty clear (though this may be slow depending on the editor)
         // bad return value here is likely the cause for that weird bug improved/fixed by fixIncorrectLength
         // the n characters right before the cursor, as Android returns them (not the first n of the field)
-        override fun getTextBeforeCursor(p0: Int, p1: Int): CharSequence = textBeforeCursor.takeLast(shortAnswer?.takeIf { it.first == p0 }?.second ?: p0)
+        override fun getTextBeforeCursor(p0: Int, p1: Int): CharSequence { callListener?.invoke("getTextBeforeCursor", null); return textBeforeCursor.takeLast(shortAnswer?.takeIf { it.first == p0 }?.second ?: p0) }
         // pretty clear (though this may be slow depending on the editor)
-        override fun getTextAfterCursor(p0: Int, p1: Int): CharSequence = textAfterCursor.take(shortAnswer?.takeIf { it.first == p0 }?.second ?: p0)
+        override fun getTextAfterCursor(p0: Int, p1: Int): CharSequence { callListener?.invoke("getTextAfterCursor", null); return textAfterCursor.take(shortAnswer?.takeIf { it.first == p0 }?.second ?: p0) }
         // pretty clear
-        override fun getSelectedText(p0: Int): CharSequence? = if (selectionStart == selectionEnd) null
-        else text.substring(selectionStart, selectionEnd)
+        override fun getSelectedText(p0: Int): CharSequence? {
+            callListener?.invoke("getSelectedText", null)
+            return if (selectionStart == selectionEnd) null else text.substring(selectionStart, selectionEnd)
+        }
         // inserts text at cursor (right?), and sets it as composing text
         // this REPLACES currently composing text (even if at a different position)
         // moves the cursor: positive means relative to composing text start, negative means relative to start
-        override fun setComposingText(newText: CharSequence, cursor: Int): Boolean = when (editorMode) {
-            EditorMode.NORMAL -> doSetComposingText(newText, cursor)
-            EditorMode.UPPERCASE -> doSetComposingText(newText.toString().uppercase(), cursor)
-            EditorMode.IGNORE_COMPOSING -> true // takes nothing, answers as if it did
+        override fun setComposingText(newText: CharSequence, cursor: Int): Boolean {
+            callListener?.invoke("setComposingText", newText.toString())
+            return when (editorMode) {
+                EditorMode.NORMAL -> doSetComposingText(newText, cursor)
+                EditorMode.UPPERCASE -> doSetComposingText(newText.toString().uppercase(), cursor)
+                EditorMode.IGNORE_COMPOSING -> true // takes nothing, answers as if it did
+            }
         }
         private fun doSetComposingText(newText: CharSequence, cursor: Int): Boolean {
             // first remove the composing text if any
@@ -268,6 +276,7 @@ class ShadowInputMethodService {
             return true
         }
         override fun setComposingRegion(p0: Int, p1: Int): Boolean {
+            callListener?.invoke("setComposingRegion", null)
             println("setComposingRegion, $p0, $p1")
             composingStart = p0
             composingEnd = p1
@@ -275,24 +284,29 @@ class ShadowInputMethodService {
         }
         // sets composing text empty, but doesn't change actual text
         override fun finishComposingText(): Boolean {
+            callListener?.invoke("finishComposingText", null)
             composingStart = -1
             composingEnd = -1
             return true // always true
         }
         // as per documentation: "This behaves like calling setComposingText(text, newCursorPosition) then finishComposingText()"
         override fun commitText(p0: CharSequence, p1: Int): Boolean {
+            callListener?.invoke("commitText", p0.toString())
             doSetComposingText(if (editorMode == EditorMode.UPPERCASE) p0.toString().uppercase() else p0, p1)
-            finishComposingText()
+            composingStart = -1
+            composingEnd = -1
             return true // whether we added the text
         }
         // just tells the text field that we add many updated, and that the editor should not
         // send status updates until batch edit ended (not actually used for this simulation)
         override fun beginBatchEdit(): Boolean {
+            callListener?.invoke("beginBatchEdit", null)
             ++batchEdit
             return true // always true
         }
         // end a batch edit, but maybe there are multiple batch edits happening
         override fun endBatchEdit(): Boolean {
+            callListener?.invoke("endBatchEdit", null)
             if (batchEdit > 0)
                 return --batchEdit == 0
             return false // returns true if there is still a batch edit ongoing
@@ -305,6 +319,7 @@ class ShadowInputMethodService {
             return false
         }
         override fun setSelection(p0: Int, p1: Int): Boolean {
+            callListener?.invoke("setSelection", null)
             selectionStart = p0
             selectionEnd = p1
             // todo: call InputMethodService.onUpdateSelection(int, int, int, int, int, int), but only after batch edit is done!
@@ -314,6 +329,7 @@ class ShadowInputMethodService {
         // chars, not codepoints or glyphs
         // todo: may delete only one half of a surrogate pair, but this should be avoided by RichInputConnection (maybe throw error)
         override fun deleteSurroundingText(beforeLength: Int, afterLength: Int): Boolean {
+            callListener?.invoke("deleteSurroundingText", null)
             // delete only before or after selection
             text = textBeforeCursor.substring(0, textBeforeCursor.length - beforeLength) +
                 text.substring(selectionStart, selectionEnd) +
@@ -338,6 +354,7 @@ class ShadowInputMethodService {
             return true
         }
         override fun sendKeyEvent(p0: KeyEvent): Boolean {
+            callListener?.invoke("sendKeyEvent", null)
             if (p0.action != KeyEvent.ACTION_DOWN) return true // only change the text on key down, like RichInputConnection does
             keyDownCodes += p0.keyCode
             if (dpadMovesCursor && (p0.keyCode == KeyEvent.KEYCODE_DPAD_DOWN || p0.keyCode == KeyEvent.KEYCODE_DPAD_UP)) {
@@ -382,6 +399,7 @@ class ShadowInputMethodService {
         }
         // implementation is only to work with getTextBeforeCursorAndDetectLaggyConnection
         override fun getExtractedText(p0: ExtractedTextRequest?, p1: Int): ExtractedText {
+            callListener?.invoke("getExtractedText", null)
             return ExtractedText().also {
                 it.startOffset = 0
                 it.selectionStart = selectionStart
@@ -389,7 +407,7 @@ class ShadowInputMethodService {
             }
         }
         // only effect is flashing, so whatever...
-        override fun commitCorrection(p0: CorrectionInfo?): Boolean = true
+        override fun commitCorrection(p0: CorrectionInfo?): Boolean { callListener?.invoke("commitCorrection", null); return true }
         // implement only when necessary
         override fun getCursorCapsMode(p0: Int): Int = TODO("Not yet implemented")
         override fun deleteSurroundingTextInCodePoints(p0: Int, p1: Int): Boolean = TODO("Not yet implemented")

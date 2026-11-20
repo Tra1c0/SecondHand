@@ -3,7 +3,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="agent_bar_mode">Bar</string>
     <string name="agent_bar_mode_expandable">Keys + suggestions</string>
-    <string name="agent_bar_mode_expandable_hint">Expandable, pinned buttons stay</string>
+    <string name="agent_bar_mode_expandable_hint">Fixed bar, suggestions while typing</string>
     <string name="agent_bar_mode_suggestions">Suggestions only</string>
     <string name="agent_bar_mode_suggestions_hint">Buttons only when tapped</string>
     <string name="agent_bar_mode_hidden">Hidden</string>

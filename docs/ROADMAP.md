@@ -21,10 +21,17 @@ Etappen aus dem ursprünglichen Auftrag; Teilpakete bekommen Buchstaben (15a, 15
   - **83 Gezeichnete Symbole logisch:** gebaut („/“ und „\“ als Symbole; ein unvollständiges Symbol schlägt nie ein angenommenes
     vollständiges, ist aber Rückfall, wenn keines passt; `docs/VALIDATION.md` → Etappe 83). Ungeprüft: Gerät und Finger des Owners. Offen: Es gibt
     weiter kein „-“, „_“, „:“, „;“, „*“, „<“, „>“ unter den Symbolen.
-  - **84 Symbole ohne Verzögerung:** erst messen (Buchstabe gegen Symbol), dann die Ursache beheben.
-  - **85 Leiste wie Gboard:** feste, gleichmäßig verteilte Plätze (1 bis 5 oder 8), Raster-Knopf links,
-    Mikrofon rechts, kein Pfeil, kein Scrollen; Raster aller Werkzeuge. **86** Anpassen per Halten und Ziehen im
-    Tastaturfenster.
+  - **84 Symbole ohne Verzögerung:** gebaut (gemessen mit Zählern, nicht mit Zeit: 23 von 37 ASCII-Symbolen beenden ein Wort und
+    bauten die Leiste innerhalb der Eingabe; jetzt danach; `docs/VALIDATION.md` → Etappe 84). Ungeprüft: Telefon (Xiaomi 15). Offen, nicht gebaut: das
+    Lesen von „Text nach dem Cursor“ vor dem ersten Zeichen eines Wortes (eine Anfrage an die App), die Zwischenablage-Pille
+    zwischen zwei Tasten behalten (Prüfung auf veralteten Inhalt nötig), die Leiste nicht neu bauen, wenn sie schon dasselbe zeigt;
+    Messung auf dem Gerät mit dem Zeitstempel des Textfelds (`docs/RUNDE3-BESTANDSAUFNAHME.md` → 4).
+  - **85 Leiste wie Gboard:** gebaut (feste, gleichmäßig verteilte Plätze für 1 bis 5 Werkzeuge in voller Größe und 6 bis 8 als kompakte Reihe, Raster-Knopf links, Mikrofon im Kreis rechts,
+    kein Pfeil, kein Scrollen, Vorschläge und Chips ersetzen die Werkzeuge, Pfeil „<“ bringt sie zurück; Raster aller Werkzeuge; Umzug aus den alten Einstellungen; Schalter „Feste Leiste wie Gboard“
+    als Rückweg; `docs/VALIDATION.md` → Etappe 85). Ungeprüft: Gerät, Aussehen in den bunten Stilen des Owners, Querformat, kleine Bildschirme. Offen: das Flat-Menü (`FlatMenuView`) ist nur noch bei
+    ausgeschaltetem Schalter erreichbar; entfernen, sobald der Owner die feste Leiste bestätigt hat. „Größe ändern“ als Werkzeug gibt es nicht.
+    **86** Anpassen per Halten und Ziehen im Tastaturfenster: gebaut (Raster mit Hinweis „Zum Personalisieren halten und ziehen“, Umrandung der Plätze, Einfügen, Verschieben, Herausziehen, Speichern beim Loslassen,
+    Tippen und Screenreader-Aktionen statt Ziehen, höchstens 8; `docs/VALIDATION.md` → Etappe 86). Ziehen wurde nur simuliert; ungeprüft: echter Finger, Halten gegen Scrollen im Raster, Schatten-Ansicht.
   - **87 Cursor als Trackpad:** gebaut (siehe FEATURES), offen ist nur, was am Telefon entschieden wird: Die Konstanten
     (13 dp je Zeichen, 26 dp je Zeile, Beschleunigung, Magnetismus 35 %, Spiel 3 dp) sind erste Schätzungen und
     brauchen den Finger des Owners; der Gerätetest (`cursor_trackpad`, `cursor_trackpad_vertical` sind geschrieben,

@@ -65,15 +65,18 @@ class AgentKeyboardFrame(context: Context, attrs: AttributeSet?) : FrameLayout(c
         // (stage 70, A1); the flat menu covers only the key area below the strip (N1)
         if (isAttachedToWindow) {
             val shown = (1 until childCount).map(::getChildAt).filter { it.visibility == View.VISIBLE }
-            RgbLighting.setOverlayOpen(shown.any { it !is FlatMenuView }, shown.any { it is FlatMenuView })
+            RgbLighting.setOverlayOpen(shown.any { !isKeyAreaMenu(it) }, shown.any { isKeyAreaMenu(it) })
         }
         // the menu keeps the strip usable and hides only the keys itself, see FlatStrip.toggleMenu
-        val show = (1 until childCount).map(::getChildAt).any { it.visibility == View.VISIBLE && it !is FlatMenuView }
+        val show = (1 until childCount).map(::getChildAt).any { it.visibility == View.VISIBLE && !isKeyAreaMenu(it) }
         getChildAt(0).importantForAccessibility = if (show)
             View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS else View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
     }
 
     companion object {
+        /** The flat menu and the tool grid (stage 85) cover only the key area; the strip above stays usable. */
+        private fun isKeyAreaMenu(view: View) = view is FlatMenuView || view is ToolGridView
+
         /** Pure geometry: the part of [0, frameBottom] that lies below the bar's top edge. */
         internal fun navigationOverlap(frameBottom: Int, windowHeight: Int, barHeight: Int): Int =
             (frameBottom - (windowHeight - barHeight)).coerceIn(0, barHeight.coerceAtLeast(0))

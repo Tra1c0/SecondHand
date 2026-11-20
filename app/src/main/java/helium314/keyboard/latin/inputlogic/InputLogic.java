@@ -127,6 +127,9 @@ public final class InputLogic {
 
     private int mDeleteCount;
     private boolean mAgentHistorySuppressed;
+    // fork, stage 84: the strip work of a separator waits until the batch edit of the key has ended
+    private boolean mCodeInputBatchOpen;
+    private boolean mNeutralStripPending;
 
     public boolean hasActiveComposition() { return mWordComposer.isComposingWord() || mInputLogicHandler.hasPendingBatchInput(); }
     /** Stage 42: a gesture is still being processed; {@link #replaceCommandText} refuses until it is done. */
@@ -728,6 +731,8 @@ public final class InputLogic {
         }
         mLastKeyTime = inputTransaction.getTimestamp();
         mConnection.beginBatchEdit();
+        mCodeInputBatchOpen = true; // fork, stage 84
+        mNeutralStripPending = false;
         final int privateSelStart = mConnection.getExpectedSelectionStart(), privateSelEnd = mConnection.getExpectedSelectionEnd(); // fork (B4)
         if (!processedEvent.isFunctionalKeyEvent() || processedEvent.getKeyCode() == KeyCode.DELETE)
             privateTextBeforeEdit(privateSelStart, privateSelEnd); // fork, third review 44/45
@@ -752,21 +757,11 @@ public final class InputLogic {
                 handleNonFunctionalEvent(currentEvent, inputTransaction, handler);
             }
             currentEvent = currentEvent.getNextEvent();
+            if (currentEvent != null) flushNeutralStrip(); // fork, stage 84: the next event sees the strip as before
         }
         // fork (B4, second review): typing or deleting before a private text moves it, deleting in it shortens it
         if (!processedEvent.isFunctionalKeyEvent() || processedEvent.getKeyCode() == KeyCode.DELETE)
             privateTextEdited(privateSelStart, privateSelEnd, mConnection.getExpectedSelectionStart());
-        // Try to record the word being corrected when the user enters a word character or
-        // the backspace key.
-        if (!mConnection.hasSlowInputConnection() && !mWordComposer.isComposingWord()
-                && (settingsValues.isWordCodePoint(processedEvent.getCodePoint())
-                    || processedEvent.getKeyCode() == KeyCode.DELETE)
-                ) {
-            mWordBeingCorrectedByCursor = getWordAtCursor(settingsValues, currentKeyboardScript);
-            // fork (B4, second review): decided now, not when it is learned at the next cursor position
-            final int wordLength = mWordBeingCorrectedByCursor.length();
-            if (wordLength > 0 && privateTextAtCursor(wordLength, wordLength)) mWordBeingCorrectedByCursor = null;
-        }
         if (!inputTransaction.didAutoCorrect() && processedEvent.getKeyCode() != KeyCode.SHIFT
                 && processedEvent.getKeyCode() != KeyCode.CAPS_LOCK
                 && processedEvent.getKeyCode() != KeyCode.SYMBOL_ALPHA
@@ -777,7 +772,33 @@ public final class InputLogic {
             mEnteredText = null;
         }
         mConnection.endBatchEdit();
+        // fork, stage 84: what the app shows waits for endBatchEdit, so everything that only the keyboard needs comes after it
+        mCodeInputBatchOpen = false;
+        flushNeutralStrip();
+        // Try to record the word being corrected when the user enters a word character or
+        // the backspace key. (Stage 84: after the batch edit, the two reads of the editor in it delayed the end of it.)
+        if (!mConnection.hasSlowInputConnection() && !mWordComposer.isComposingWord()
+                && (settingsValues.isWordCodePoint(processedEvent.getCodePoint())
+                    || processedEvent.getKeyCode() == KeyCode.DELETE)
+                ) {
+            mWordBeingCorrectedByCursor = getWordAtCursor(settingsValues, currentKeyboardScript);
+            // fork (B4, second review): decided now, not when it is learned at the next cursor position
+            final int wordLength = mWordBeingCorrectedByCursor.length();
+            if (wordLength > 0 && privateTextAtCursor(wordLength, wordLength)) mWordBeingCorrectedByCursor = null;
+        }
         return inputTransaction;
+    }
+
+    /** Fork, stage 84: the neutral strip of a separator at once, or, inside the batch edit of a key, after it (see {@link #flushNeutralStrip}). */
+    private void setNeutralStripAfterBatch() {
+        if (mCodeInputBatchOpen) mNeutralStripPending = true;
+        else mSuggestionStripViewAccessor.setNeutralSuggestionStrip();
+    }
+
+    private void flushNeutralStrip() {
+        if (!mNeutralStripPending) return;
+        mNeutralStripPending = false;
+        mSuggestionStripViewAccessor.setNeutralSuggestionStrip();
     }
 
     public void onStartBatchInput(final SettingsValues settingsValues,
@@ -1408,7 +1429,11 @@ public final class InputLogic {
             if (settingsValues.mAutoCorrectEnabled && ! isInlineEmojiSearchAction()) {
                 final String separator = shouldAvoidSendingCode ? LastComposedWord.NOT_A_SEPARATOR
                         : StringUtils.newSingleCodePointString(codePoint);
-                commitCurrentAutoCorrection(settingsValues, separator, handler);
+                // fork, stage 84: a symbol that is no space and no ':' (inline emoji search) shows the neutral strip right after
+                // the commit, so the suggestions of the pending update do not need a strip of their own before it
+                final boolean stripFollows = codePoint != Constants.CODE_SPACE && codePoint != INLINE_EMOJI_SEARCH_MARKER
+                        && !Character.isWhitespace(codePoint) && !isInlineEmojiSearchAction();
+                commitCurrentAutoCorrection(settingsValues, separator, handler, !stripFollows);
                 inputTransaction.setDidAutoCorrect();
             } else {
                 commitTyped(settingsValues, StringUtils.newSingleCodePointString(codePoint));
@@ -1445,7 +1470,7 @@ public final class InputLogic {
             StatsUtils.onDoubleSpacePeriod();
         } else if (swapWeakSpace && trySwapSwapperAndSpace(event, inputTransaction)) {
             mSpaceState = SpaceState.SWAP_PUNCTUATION;
-            mSuggestionStripViewAccessor.setNeutralSuggestionStrip();
+            setNeutralStripAfterBatch(); // fork, stage 84
         } else if (Constants.CODE_SPACE == codePoint) {
             if (!mSuggestedWords.isPunctuationSuggestions()) {
                 mSpaceState = SpaceState.WEAK;
@@ -1497,7 +1522,8 @@ public final class InputLogic {
             } else {
                 // Set punctuation right away. onUpdateSelection will fire but tests whether it is
                 // already displayed or not, so it's okay.
-                mSuggestionStripViewAccessor.setNeutralSuggestionStrip();
+                // (fork, stage 84: right away is right after the batch edit of this key, not inside it)
+                setNeutralStripAfterBatch();
             }
         }
 
@@ -2012,6 +2038,15 @@ public final class InputLogic {
     }
 
     public void performUpdateSuggestionStripSync(final SettingsValues settingsValues, final int inputStyle) {
+        performUpdateSuggestionStripSync(settingsValues, inputStyle, true);
+    }
+
+    /**
+     * @param showOnStrip fork, stage 84: false only for a separator that shows the neutral strip right after: the suggestions
+     * are still taken (the autocorrection comes from them) but the strip is not built for them just to be replaced.
+     */
+    private void performUpdateSuggestionStripSync(final SettingsValues settingsValues, final int inputStyle,
+            final boolean showOnStrip) {
         long startTimeMillis = 0;
         if (DebugFlags.DEBUG_ENABLED) {
             startTimeMillis = SystemClock.elapsedRealtime();
@@ -2057,7 +2092,9 @@ public final class InputLogic {
                 Constants.GET_SUGGESTED_WORDS_TIMEOUT);
         if (suggestedWords != null) {
             // Prefer clipboard suggestions (if available and setting is enabled) over beginning of sentence predictions.
-            if (!(suggestedWords.mInputStyle == SuggestedWords.INPUT_STYLE_BEGINNING_OF_SENTENCE_PREDICTION
+            if (!showOnStrip) {
+                setSuggestedWords(suggestedWords); // fork, stage 84: what LatinIME.setSuggestions does first, without the strip
+            } else if (!(suggestedWords.mInputStyle == SuggestedWords.INPUT_STYLE_BEGINNING_OF_SENTENCE_PREDICTION
                     && mLatinIME.tryShowClipboardSuggestion())) {
                 mSuggestionStripViewAccessor.setSuggestions(suggestedWords);
             }
@@ -2677,6 +2714,11 @@ public final class InputLogic {
      */
     private void commitCurrentAutoCorrection(final SettingsValues settingsValues,
             final String separator, final LatinIME.UIHandler handler) {
+        commitCurrentAutoCorrection(settingsValues, separator, handler, true);
+    }
+
+    private void commitCurrentAutoCorrection(final SettingsValues settingsValues,
+            final String separator, final LatinIME.UIHandler handler, final boolean showPendingSuggestions) {
         // Complete any pending suggestions query first
         if (handler.hasPendingUpdateSuggestions()) {
             handler.cancelUpdateSuggestionStrip();
@@ -2688,7 +2730,7 @@ public final class InputLogic {
             // for application-specified completions. As for recorrections, we never auto-correct,
             // so we don't come here either. Hence, the input style is necessarily
             // INPUT_STYLE_TYPING.
-            performUpdateSuggestionStripSync(settingsValues, SuggestedWords.INPUT_STYLE_TYPING);
+            performUpdateSuggestionStripSync(settingsValues, SuggestedWords.INPUT_STYLE_TYPING, showPendingSuggestions);
         }
         final String typedWord = mWordComposer.getTypedWord();
         final SuggestedWordInfo candidate = mWordComposer.getAutoCorrectionOrNull();

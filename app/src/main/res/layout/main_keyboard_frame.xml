@@ -101,6 +101,11 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:visibility="gone" />
+    <helium314.keyboard.agent.ToolGridView
+        android:id="@+id/agent_tool_grid"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
     <helium314.keyboard.agent.AgentPanelView
         android:id="@+id/agent_panel"
         android:layout_width="match_parent"

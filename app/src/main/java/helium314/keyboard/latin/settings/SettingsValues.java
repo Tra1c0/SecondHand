@@ -37,6 +37,7 @@ import helium314.keyboard.latin.utils.JniUtils;
 import helium314.keyboard.latin.utils.ScriptUtils;
 import helium314.keyboard.latin.utils.SubtypeSettings;
 import helium314.keyboard.latin.utils.SubtypeUtilsKt;
+import helium314.keyboard.agent.AgentPreferences;
 import helium314.keyboard.latin.utils.ToolbarMode;
 
 import java.util.EnumSet;
@@ -144,6 +145,8 @@ public class SettingsValues {
     public final float mBottomPaddingScale;
     public final float mSidePaddingScale;
     public final ToolbarMode mToolbarMode;
+    /** Fork, stage 85: the fixed bar is shown (mode "toolbar keys and suggestions" and the switch on). */
+    public final boolean mFixedBar;
     public final boolean mToolbarSwipeDownToHide;
     public final boolean mToolbarHidingGlobal;
     public final boolean mAutoShowToolbar;
@@ -204,6 +207,7 @@ public class SettingsValues {
         mIsLocked = IsLockedCompatKt.isDeviceLocked(context);
         // we want to hide the toolbar / suggestion strip entirely if device is locked
         mToolbarMode = mIsLocked ? ToolbarMode.HIDDEN : Settings.readToolbarMode(prefs);
+        mFixedBar = mToolbarMode == ToolbarMode.EXPANDABLE && prefs.getBoolean(AgentPreferences.FIXED_BAR, true);
         mToolbarSwipeDownToHide = prefs.getBoolean(Settings.PREF_TOOLBAR_SWIPE_DOWN_TO_HIDE, Defaults.PREF_TOOLBAR_SWIPE_DOWN_TO_HIDE);
         mToolbarHidingGlobal = mIsLocked || prefs.getBoolean(Settings.PREF_TOOLBAR_HIDING_GLOBAL, Defaults.PREF_TOOLBAR_HIDING_GLOBAL);
         mAutoCap = prefs.getBoolean(Settings.PREF_AUTO_CAP, Defaults.PREF_AUTO_CAP) && ScriptUtils.scriptSupportsUppercase(mLocale);
@@ -273,7 +277,8 @@ public class SettingsValues {
         mSplitKeyboardSpacerRelativeWidth = mIsSplitKeyboardEnabled
                 ? Math.min(Math.max((displayWidthDp - 600) / 600f + 0.15f, 0.15f), 0.35f) * Settings.readSplitSpacerScale(prefs, isLandscape, isFolded)
                 : 0f;
-        mQuickPinToolbarKeys = mToolbarMode == ToolbarMode.EXPANDABLE && prefs.getBoolean(Settings.PREF_QUICK_PIN_TOOLBAR_KEYS, Defaults.PREF_QUICK_PIN_TOOLBAR_KEYS);
+        // fork, stage 85: the fixed bar has no pinned keys, so a long press never pins there
+        mQuickPinToolbarKeys = mToolbarMode == ToolbarMode.EXPANDABLE && !mFixedBar && prefs.getBoolean(Settings.PREF_QUICK_PIN_TOOLBAR_KEYS, Defaults.PREF_QUICK_PIN_TOOLBAR_KEYS);
 
         // Compute other readable settings
         mKeyLongpressTimeout = prefs.getInt(Settings.PREF_KEY_LONGPRESS_TIMEOUT, Defaults.PREF_KEY_LONGPRESS_TIMEOUT);

@@ -169,6 +169,9 @@ class KeyboardIconsSet private constructor() {
                     ToolbarKey.SKILL_2 -> R.drawable.ic_skill_2
                     ToolbarKey.SKILL_3 -> R.drawable.ic_skill_3
                     ToolbarKey.DICTATE -> R.drawable.ic_agent_dictate
+                    ToolbarKey.PROMPTS -> R.drawable.ic_agent_prompts
+                    ToolbarKey.CHAR_ART -> R.drawable.ic_edit
+                    ToolbarKey.DESIGN -> R.drawable.ic_palette
                 })
             }
         } }
@@ -240,6 +243,9 @@ class KeyboardIconsSet private constructor() {
                     ToolbarKey.SKILL_2 -> R.drawable.ic_skill_2
                     ToolbarKey.SKILL_3 -> R.drawable.ic_skill_3
                     ToolbarKey.DICTATE -> R.drawable.ic_agent_dictate
+                    ToolbarKey.PROMPTS -> R.drawable.ic_agent_prompts
+                    ToolbarKey.CHAR_ART -> R.drawable.ic_edit
+                    ToolbarKey.DESIGN -> R.drawable.ic_palette
                 })
             }
         } }
@@ -309,6 +315,9 @@ class KeyboardIconsSet private constructor() {
                     ToolbarKey.SKILL_2 -> R.drawable.ic_skill_2
                     ToolbarKey.SKILL_3 -> R.drawable.ic_skill_3
                     ToolbarKey.DICTATE -> R.drawable.ic_agent_dictate
+                    ToolbarKey.PROMPTS -> R.drawable.ic_agent_prompts
+                    ToolbarKey.CHAR_ART -> R.drawable.ic_edit
+                    ToolbarKey.DESIGN -> R.drawable.ic_palette
                 })
             }
         } }

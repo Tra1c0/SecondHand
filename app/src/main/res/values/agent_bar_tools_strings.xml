@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 85: the fixed bar and the grid of all tools. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <!-- Names of the toolbar keys that the fork adds (the name is the lowercase key name) -->
+    <string name="prompts" tools:keep="@string/prompts">Store (prompts)</string>
+    <string name="char_art" tools:keep="@string/char_art">Character art</string>
+    <string name="design" tools:keep="@string/design">Design</string>
+    <string name="agent_bar_all_tools">All tools</string>
+    <string name="agent_bar_all_tools_incognito">All tools (incognito is on)</string>
+    <string name="agent_bar_show_tools">Show tools</string>
+    <string name="agent_bar_show_tools_incognito">Show tools (incognito is on)</string>
+    <string name="agent_bar_close_tools">Close all tools</string>
+    <string name="agent_bar_tool_unavailable">%1$s, not available in this field</string>
+    <string name="agent_bar_tools_setting">Tools in the bar</string>
+    <string name="agent_bar_tools_setting_summary">The tools of the bar in order; at most 8 are shown</string>
+    <string name="agent_fixed_bar_setting">Fixed bar like Gboard</string>
+    <string name="agent_fixed_bar_setting_summary">Tools in fixed places, suggestions while typing. Off brings back the expandable bar of before.</string>
+    <!-- Stage 86: customizing the bar in the keyboard -->
+    <string name="agent_grid_edit">Customize</string>
+    <string name="agent_grid_edit_hint">Hold and drag to customize</string>
+    <string name="agent_grid_full">The bar is full (at most 8 tools). Take one out first.</string>
+    <string name="agent_bar_edit_done">Finish customizing</string>
+    <string name="agent_bar_action_add">Add to bar</string>
+    <string name="agent_bar_action_remove">Remove from bar</string>
+    <string name="agent_bar_action_left">Move left</string>
+    <string name="agent_bar_action_right">Move right</string>
+    <string name="agent_bar_in_bar">%1$s, in the bar</string>
+    <string name="agent_bar_show_actions">Show selection actions</string>
+    <string name="agent_bar_show_actions_incognito">Show selection actions (incognito is on)</string>
+    <string name="agent_bar_pin_full">The bar is full (at most 8 tools). Take one out first.</string>
+</resources>

@@ -35,6 +35,7 @@ Kurzformen (auch als `aliases` in der Konfiguration):
 - **Act Builder** – Natürliche Beschreibung → freigegebene Anfrage → streng validierter Workflow-Entwurf.
 - **Einstellungen und Profile** – Compose-Seiten der Agent-Funktionen sowie Design-, Layout- und Gestenprofile.
 - **Flacher Stil** – Tastenstil „Flat“, Farbsatz „Flach schwarz“ und die Vorlage, die beides mit Größen einstellt.
+- **Feste Leiste** – Die Leiste wie Gboard (Etappen 85 und 86): feste Plätze für die Werkzeuge, Raster aller Werkzeuge, Anpassen in der Tastatur.
 - **RGB-Beleuchtung** – Animierte Farben für Tasten, Beschriftung, Hintergrund und Leiste (Etappe 26, überarbeitet in 29): Rechnen im Kern, Zeichnen über einen Painter.
 - **Diktat** – Diktieren über den On-device-Erkenner des Systems: zuhören, Vorschau, Einfügen erst nach eigenem Klick.
 - **Lerndaten** – Was die Tastatur aus dem Tippen lernt: pausieren, zählen, exportieren, löschen. Alles auf dem Gerät.
@@ -542,7 +543,7 @@ Engine-Einbindung (nur eng ändern, jede Änderung von einem Prüfer lesen lasse
   blockiert Eingabe während eines Overlays; Leertasten-Aktionen und Doppeltippen, siehe
   „Editorzugriff, Panel und Rad“; seitliche Einmal-Wische laufen über `SpaceDetents` und spielen
   `HapticChain`).
-- Etappe 87 (Cursor als Trackpad, P390–P409), jede Änderung von einem Prüfer lesen lassen:
+- Etappe 87 (Cursor als Trackpad, P410–P429), jede Änderung von einem Prüfer lesen lassen:
   `PointerTracker.java` (+19 Zeilen, alle als Hinzufügungen: in `onKeySwipe`, vor dem Leertasten-/Löschzweig und hinter der Schnelltipp-Sperre, 12 Zeilen:
   `sListener.onCursorTrack(mPointerId, code, x - mStartX, y - mStartY, eventTime, mStartTime)`; bei `TRACK_OFF` läuft alles wie vorher, sonst kehrt
   die Methode zurück, bei `TRACK_ACTIVE` zusätzlich (bei jedem Move, nicht nur beim ersten) `cancelKeyTimersOf` und `mInHorizontalSwipe = true`, damit das Heben wie
@@ -1232,6 +1233,49 @@ Symbolseiten wie Gboard (Etappe 81, Fallstricke P345–P348):
   aufgenommen; dazu Tasten-Codes, Zustandsmaschine des Ziffernblocks, Popups, Pfeiltaste gesetzt/ungesetzt, eigenes
   Layout und `symbols_arabic`, Tablet/Khipro, Reihenhöhe); `AT/SettingsKeysScreenTest.kt` prüft die Zusammenfassung
   der Zeile; `AT/FlatStyleRenderTest.kt` erwartet `∆`.
+
+Feste Leiste (Etappe 85, 86; Beschreibung: „Feste Leiste“, Fallstricke P380–P391):
+
+- `SuggestionStripView.kt`: `fixedBar` (Modus EXPANDABLE), `barState`, `applyBarState`, `updateLeftKey`, Raster (`openGrid`, `runTool`,
+  `gridTools`), `onKeyboardHidden`; `setToolbarVisibility`, `setSuggestions`, `setExternalSuggestionView`, `onClick`, `onLongClick`,
+  `updateKeys`, `updateVoiceKey` und `clear` verzweigen für die feste Leiste. Der Teil für die anderen Modi und den flachen Stil
+  (`FlatStrip.arrange`, Menü) ist unverändert. `FlatStrip.arrangeLeftKey` ist aus `arrange` herausgezogen, `openSettings` ruft `SettingsLauncher`.
+  Etappe 86: Anpassen-Modus (`editor`, `enterEdit`, `exitEdit`, `onBarDrag`, `onGridDrag`, `startDrag`, `populateBar`).
+- `LatinIME.java`: `hideWindow` ruft `mSuggestionStripView.onKeyboardHidden()` (statt `setToolbarVisibility(false)`) im Modus EXPANDABLE. Sonst
+  nichts: die Rangfolge der Chips in `setSuggestedWords` und `setNeutralSuggestionStrip` ist unverändert. `InputLogic`, `RichInputConnection`
+  und `PointerTracker` sind nicht berührt.
+- `InputView.java`: `agent_tool_grid` zählt als Overlay (`hasAgentOverlay`), wie das flache Menü. `main_keyboard_frame.xml`: `ToolGridView`.
+- `SettingsValues.java`: `mQuickPinToolbarKeys` ist immer aus (die feste Leiste hat keine angehefteten Tasten).
+- `ToolbarUtils.kt`: `ToolbarKey.PROMPTS`, `CHAR_ART`, `DESIGN` (mit Codes), `isKeyPinned`/`pinKey`/`unpinKey`. `KeyCode.kt`: `AGENT_DESIGN`.
+  `KeyboardActionListenerImpl.kt`: `AGENT_DESIGN` öffnet die Einstellungen zum Aussehen. `KeyCodeDescriptionMapper.kt`, `KeyboardIconsSet.kt`
+  (Symbole der drei neuen Werkzeuge in allen drei Symbolsätzen).
+- `ToolbarScreen.kt`: im Modus EXPANDABLE „Werkzeuge in der Leiste“ (`AgentPreferences.BAR_TOOLS`) statt Leisten-Tasten, keine angehefteten Tasten, kein Schnell-Anheften.
+  `AgentAreaBarScreen.kt` und `AgentSkillsScreen.kt` (Fork-Dateien): Skill-Tasten-Schalter über `pinKey`/`unpinKey`.
+
+Symbole ohne Verzögerung (Etappe 84, Fallstricke P370–P374). Zeilen, die die geschützten Dateien ändern (`InputLogic`,
+`RichInputConnection`, `PointerTracker`; `RichInputConnection` und `PointerTracker` sind unverändert):
+
+- `InputLogic.java`: die Felder `mCodeInputBatchOpen`, `mNeutralStripPending`; `onCodeInput` setzt sie nach `beginBatchEdit`,
+  ruft `flushNeutralStrip()` zwischen zwei Ereignissen derselben Eingabe und nach `endBatchEdit()` und liest das „Wort am Cursor“
+  (`mWordBeingCorrectedByCursor`, zwei Leseanfragen an die App bei Zeichen wie `-` nach einem Leerzeichen) erst danach.
+  `setNeutralStripAfterBatch()` ersetzt die zwei `setNeutralSuggestionStrip()`-Aufrufe von `handleSeparatorEvent` (Tausch von Leerzeichen
+  und Satzzeichen, Trennzeichen). `performUpdateSuggestionStripSync(…, showOnStrip)` und `commitCurrentAutoCorrection(…, showPendingSuggestions)`:
+  ein Trennzeichen außer Leerzeichen, `:` und Leerraum nimmt die Vorschläge einer wartenden Aktualisierung (die Autokorrektur kommt
+  daraus), baut dafür aber keine Leiste, die gleich durch die neutrale ersetzt wird (`handleSeparatorEvent`: `stripFollows`).
+- `LatinIME.java`: je eine Zeile `TypingPerf.work(…)` in `tryShow*Chips`, `tryShowClipboardSuggestion`, `setSuggestedWords` und
+  `setNeutralSuggestionStrip`; `SuggestionStripView.setExternalSuggestionView`, `AsyncResultHolder.get` (nur der Hauptthread zählt im Test)
+  und `ClipboardHistoryManager` (Dienstaufruf, Pille gebaut) haben dieselbe Zeile. `ClipboardHistoryManager.isClipSensitive(inputType, description)`
+  liest die Zwischenablage nicht mehr selbst (ein Aufruf des Dienstes statt zwei, im flachen Stil drei).
+- `A/TypingPerf.kt` (84): `Work` (feste Namen der Arbeitsstellen: `SUGGEST_WAIT`, `STRIP_NEUTRAL`, `STRIP_WORDS`, `STRIP_EXTERNAL`,
+  `CHIPS_*`, `CLIPBOARD_SERVICE`, `CLIP_VIEW_BUILT`) und `work(place)`, das nur etwas tut, wenn ein Test `workListener` gesetzt hat.
+  Keine Zahlen im Gerät, nichts auf der Diagnose-Karte.
+- Messwerkzeug (Tests, `T/latin/`): `TypingRig.kt` tippt wie ein Finger (`KeyboardActionListenerImpl.onPressKey`/`onCodeInput`/`onReleaseKey`,
+  echte `LatinIME`, echte Leiste, die Wörterbuchantwort aus einer kleinen Wortliste auf dem echten Vorschlags-Thread) und schreibt je Taste eine
+  Zeitfolge: Aufrufe in den Editor (`Shadows.kt`: `ShadowInputMethodService.callListener`, nur Namen und der Text eines Schreibens) und Arbeitsstellen
+  (`TypingPerf.workListener`), mit der Angabe, ob der Batch des Editors offen war. `SymbolLatencyTest` druckt die Tabelle (`build/latency84-work-table.txt`,
+  `…-symbols.txt`, `…-wall-clock.txt`) und beweist die Änderungen mit Zählern; `TypingEquivalenceTest` vergleicht 41 Tippfolgen mit
+  `src/test/resources/stage84/typing-transcripts.txt` (vor der Änderung aufgenommen: Text, Schreibaufrufe mit Text, Leistenwörter nur wo sie nicht von der
+  Reihenfolge zweier Nachrichten abhängen).
 
 ## Editorzugriff, Panel und Rad
 
@@ -2658,6 +2702,79 @@ Symbolseiten wie Gboard (Etappe 81, Fallstricke P345–P348):
   wieder sichtbar wird (`setVisibility`, `onWindowVisibilityChanged`) und die Anfrage noch läuft.
   Tests `AT/FlatMenuTest.theTickerStopsAfterAFewRuns`,
   `AT/FlatPanelTest.theLoadingPulseStopsWhileThePanelIsClosedAndResumesWhenItIsShownAgain`.
+
+## Feste Leiste
+
+> Die Leiste wie Gboard (Etappen 85 und 86): feste Plätze für die Werkzeuge, Raster aller Werkzeuge, Anpassen in der Tastatur.
+
+- Auftrag (Owner, 2026-11-20): Die Leiste soll in jedem Stil feste, gleichmäßig verteilte Plätze haben (1 bis 5 oder 8
+  Werkzeuge, nichts scrollt, kein Pfeil) und sich anpassen lassen. Gilt für den Modus „Tasten + Vorschläge“
+  (`ToolbarMode.EXPANDABLE`, Standard); die anderen Modi (`TOOLBAR_KEYS`, `SUGGESTION_STRIP`, `HIDDEN`) sehen aus und
+  verhalten sich wie vorher. Wer den Modus je ändern musste, hat ihn nie geändert, solange er auf dem Standard steht.
+  `SuggestionStripView.fixedBar` ist `mToolbarMode == EXPANDABLE`, gelesen beim Bauen der Ansicht (jede Änderung der Leiste
+  baut sie neu, `setThemeNeedsReload`).
+- Modell: `K/latin/utils/BarTools.kt` (rein, ohne Ansicht). Die Leiste ist eine geordnete Liste von höchstens `MAX` = 8
+  `ToolbarKey`; bis `FULL_SIZE_MAX` = 5 volle Größe, darüber die kompakte Reihe. Gespeichert in
+  `AgentPreferences.BAR_TOOLS` (`agent_bar_tools`) im Format der alten Leistenwerte (`NAME:true|NAME:false|…`, die
+  eingeschalteten in Leistenreihenfolge), damit der Sortier-Dialog der Einstellungen (`ReorderSwitchPreference`) sie
+  unverändert bearbeitet (`ToolbarScreen.kt`: im Modus EXPANDABLE steht dort „Werkzeuge in der Leiste“ statt
+  „Leisten-Tasten“, ohne „Angeheftete“ und ohne „Beim Halten anheften“). Fehlt der Wert, **berechnet** `BarTools.read`
+  die Leiste aus den alten Werten (`migrate`) und schreibt nichts; geschrieben wird nur bei einer Bearbeitung
+  (`write`, `pinKey`, `unpinKey`, Etappe 86: jede Ablage). `migrate`: die ersten fünf eingeschalteten Tasten der alten
+  Reihenfolge, danach die angehefteten Tasten, die nicht darunter sind (sie waren immer sichtbar), höchstens acht; steht
+  keine Mikrofon-Taste (`MIC_KEYS` = `VOICE`, `DICTATE`) zuletzt, wandert die erste `VOICE` (sonst `DICTATE`) ans Ende, denn
+  die letzte Mikrofon-Taste sitzt im Kreis rechts. Ergebnisse: Standard (AGENT, SETTINGS, VOICE, CLIPBOARD, UNDO, …, angeheftet
+  AGENT) → AGENT, SETTINGS, CLIPBOARD, UNDO, VOICE; Flacher Look (CLIPBOARD, EMOJI, AGENT, angeheftet DICTATE) → CLIPBOARD, EMOJI,
+  AGENT, DICTATE (wie die Leiste vorher). Alles andere der alten Liste liegt im Raster.
+- Neue Werkzeuge im Enum `ToolbarKey`: `PROMPTS` (Ablage, Code `AGENT_PROMPTS`), `CHAR_ART` (Zeichen-Kunst, `AGENT_CHAR_ART`)
+  und `DESIGN` (Einstellungen → Aussehen, neuer `KeyCode.AGENT_DESIGN` = -12008, behandelt in `KeyboardActionListenerImpl`
+  über `A/SettingsLauncher.kt`), je mit Zeichenkette und Symbol (`ic_palette.xml` für Design, `ic_agent_prompts`, `ic_edit`). Sie erscheinen
+  auch in den alten Listen der Einstellungen (ausgeschaltet). „Größe ändern“ gibt es in der Tastatur nirgends als Werkzeug und wurde nicht erfunden.
+  `BarTools.offered` = alle Werkzeuge außer `CLOSE_HISTORY` (interne Taste der Zwischenablage-Ansicht); `gridOrder` ordnet das Raster
+  (Textaktionen, Diktat, Skill-Tasten, Ablage, Zeichen-Kunst, Zwischenablage, Emoji, … danach der Rest in Enum-Reihenfolge).
+- Zustand: `K/latin/suggestions/BarState.kt` (rein). Zeigt die Leiste die Werkzeuge (`TOOLS`) oder Inhalt (`CONTENT`: Wortvorschläge,
+  Befehls-, Auswahl-, Symbol-Chips, Zwischenablage-Pille, Screenshot-Pille, Autofill, Update-Chip)? Welcher Inhalt gewinnt, bleibt
+  unverändert bei `LatinIME` (`setSuggestedWords`, `setNeutralSuggestionStrip`); `BarState` sieht nur „es gibt Inhalt“.
+  `setSuggestions(leer)` → `onNeutral` (Werkzeuge); `setSuggestions(nicht leer)` und `setExternalSuggestionView` → `onContent`;
+  `setToolbarVisibility(true/false)` (die alten Aufrufe von `LatinIME`) → `onToolsRequested` / `onContentRequested` (ohne Inhalt bleibt es bei
+  den Werkzeugen, damit die Leiste nie leer ist); `onKeyboardHidden` (aus `LatinIME.hideWindow`) → `reset`. Linke Taste: bei Werkzeugen
+  das Raster (`openGrid`, Zustand bleibt), bei Inhalt „Werkzeuge zeigen“ (`onLeftKey`: `TOOLS`, `toolsChosen`; der Inhalt kommt mit der
+  nächsten Aktualisierung zurück, also dem nächsten Tastendruck oder Cursorsprung), bei offenem Raster das Kreuz. Der Modus
+  „Automatisch zeigen“ (`mAutoShowToolbar`) gilt weiter (Werkzeuge bei Markierung und Zeilenanfang statt der Auswahl-Chips); „Automatisch
+  ausblenden“ ist in diesem Modus ohne Wirkung (Inhalt ersetzt die Werkzeuge immer).
+  `applyBarState` setzt alle Sichtbarkeiten an einer Stelle (Werkzeuge, Vorschlagsleiste, angeheftete Tasten immer weg, Verfügbarkeit, linke Taste).
+- Geometrie: `K/latin/suggestions/FixedBar.kt`. Die `HorizontalScrollView` der Leiste wird in `install` durch einen `FrameLayout` mit
+  derselben Kennung `toolbar_container` ersetzt (die Zeile `toolbar` darin bleibt; Tests und `RgbStrip` finden beide wie bisher). Vor jedem
+  Knopf steht ein Abstandhalter (`Space`, Gewicht 1, `agent_bar_gap`); alle Knöpfe und die linke Taste haben eine Größe (voll 40 dp, im
+  flachen Stil 34 dp, kompakt ab sechs Werkzeugen 30 dp mit Rand um das Symbol), links sechs dp Rand, rechts sechs dp Rand der Zeile: die Mitten
+  von linker Taste und Werkzeugen liegen gleichmäßig von Rand zu Rand, der Platz hängt nur von der **Anzahl** ab, nie vom Werkzeug oder vom
+  Inhalt (ein Layoutdurchlauf, keine `LayoutTransition`). Die letzte Mikrofon-Taste bekommt einen Kreis (`CircleBadge`, höchstens 34 dp,
+  Farbe `ACTION_KEY_BACKGROUND`, im flachen Stil `FlatStyle.STRIP_CIRCLE`). Die Knöpfe tragen die Kennung `agent_bar_tool` (der Gerätetest
+  filtert sie damit). Ein Werkzeug, das das Feld nicht erlaubt (`BarTools.PROTECTED` bei Passwortfeld, Inkognito, `mIncognitoModeEnabled`, oder
+  gesperrtem Gerät), bleibt am Platz, zu 38 % sichtbar, nicht anklickbar, Beschreibung „…, in diesem Feld nicht verfügbar“; die Steuerungen der
+  Werkzeuge prüfen beim Tipp weiter selbst (das Dimmen ist nur der Hinweis). Die Zwischenablage-Taste ist nie gedimmt (sie hat kein eigenes Feld-Verbot).
+  Bei gesperrtem Gerät gibt es die Leiste gar nicht (`mToolbarMode` = HIDDEN).
+- Raster: `K/agent/ToolGridView.kt`, Kind von `AgentKeyboardFrame` (`agent_tool_grid`, nach `agent_menu`), in jedem Stil. Gleiches Maß wie
+  `FlatMenuView` (Pillen 48 dp hoch, zwei Spalten, Ränder 24 dp, Lücken 8 dp), `ScrollView`, malt und fängt Touches nur unter der Leiste,
+  schließt sich mit dem Tastaturfenster. Eine Pille je Werkzeug (Symbol und Name, Beschreibung = Name), Tipp schließt zuerst das Raster und
+  sendet dann denselben Tastencode wie die Taste (`getCodeForToolbarKey`, auch eigene Codes der Einstellungen) über den Listener der Leiste.
+  `VOICE` nur mit Spracheingabe, `BACKGROUND_GATHERING` nur wenn je benutzt (wie die Einstellungen). `InputView.hasAgentOverlay` und
+  `AgentKeyboardFrame.isKeyAreaMenu` zählen das Raster wie das flache Menü. Das flache Menü (`FlatMenuView`) bleibt für den flachen Stil in den
+  anderen Modi (nur dort noch erreichbar).
+- Überspringen alter Wege: Schnell-Anheften (`mQuickPinToolbarKeys`) ist immer aus; die Skill-Tasten-Schalter (`pinKey`/`unpinKey`/`isKeyPinned`
+  in `ToolbarUtils.kt`) schreiben die alte Liste der angehefteten Tasten und im Modus EXPANDABLE zusätzlich die Leiste (voll: nichts).
+- Anpassen (Etappe 86): `K/latin/suggestions/BarEditor.kt` (rein): Zustand des Anpassen-Modus. `bar` ist die gespeicherte Leiste, `preview` die Leiste, wie sie nach dem Ablegen
+  aussähe (die anderen Werkzeuge rücken schon beim Ziehen zur Seite), `shown` was die Leiste zeichnet. Operationen: `add`, `remove`, `shift`, `toggle` (Antippen und Screenreader),
+  `dragStart`, `dragOverBar`, `dragLeftBar`, `dropOnBar`, `dropOnGrid`, `dragEnd`. **Gespeichert wird beim Loslassen** (`write` in `commit`, höchstens eine Schreibung je Änderung; ein Ziehen ohne Ablegen
+  schreibt nichts). Verdrahtung in `SuggestionStripView`: `enterEdit` (aus der Pille „Anpassen“ im Raster, per Langdruck auf einen Platz ohne eigene Langdruck-Aktion oder auf die linke Taste) öffnet das Raster
+  in der Anpassen-Fassung (`ToolGridView.setEditing`: Hinweis „Zum Personalisieren halten und ziehen“ statt der Pille, Tippen auf eine Pille = `toggle`, Halten = Ziehen, Aktionen für Screenreader, Pillen
+  der Werkzeuge in der Leiste gedimmt), umrandet die Plätze (`FixedBar.markEditing`), macht die linke Taste zum Häkchen (`ic_setup_check`) und hängt die Zuhörer für `DragEvent` an `toolbar_container` (Ablegen
+  in die Leiste) und an das Raster (`dropListener`, Ablegen auf dem Raster nimmt das Werkzeug heraus). Der Platz unter dem Finger: `dragSlot` (neues Werkzeug vor dem ersten Bild: Einfügestelle nach den Plätzen
+  links vom Finger, sonst nächster Platz; `FixedBar.slotCentres` rechnet aus Anzahl und Breite). `exitEdit` (Häkchen, Raster geschlossen, `onKeyboardHidden`) lässt gespeichertes stehen und verwirft ein laufendes Ziehen.
+  `populateBar` baut die Plätze aus einer Liste (auch beim Start der Leiste); Texte in `agent_bar_tools_strings.xml` (Englisch und Deutsch).
+- Tests: `AT/BarToolsTest.kt` (Modell), `AT/BarEditModeTest.kt` (Anpassen an der echten Leiste mit simulierten Drag-Ereignissen), `BarStateTest.kt` und `BarEditorTest.kt` (Zustand und Anpassen-Modell, `app/src/test/…/latin/suggestions/`), `AT/FixedBarTest.kt` (Geometrie
+  für 0, 1, 2, 3, 4, 5, 6 und 8 Werkzeuge im Standard- und im flachen Stil, Zustandsmaschine an der echten Leiste, Raster, Umzug aus drei
+  gespeicherten Einstellungen, Dimmen, andere Modi).
 
 ## RGB-Beleuchtung
 
@@ -6363,7 +6480,10 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   plus `LockState`), strenger als die Kopieren-Taste der Werkzeugleiste (`copyText` prüft nichts). Felder, die beim Fokus alles
   markieren (Adressleiste), zeigen die Chips sofort; Tippen ersetzt die Markierung und nimmt sie weg. Sie rufen nie
   `setToolbarVisibility` auf (die erste Fassung schloss im Modus „Aufklappbar“ bei jedem Neubau die Werkzeugleiste): Eine offene
-  Werkzeugleiste verdeckt sie wie jeden Vorschlag; im Flat-Stil und mit „Leiste automatisch ausblenden“ gilt, was
+  Werkzeugleiste verdeckt sie wie jeden Vorschlag (**in der festen Leiste seit 85 nicht mehr:** die Chips ersetzen die Werkzeuge, der Tipp auf
+  „Werkzeuge zeigen“ gilt aber für diese Markierung **klebrig**, `BarState.stickyTools`: Bereichsänderungen und das Echo der App bauen die Chips
+  dahinter neu und lassen die Werkzeuge stehen, bis die Markierung endet (neutrale Leiste) oder Wörter kommen; der Pfeil links bringt die Chips
+  zurück und wieder die Werkzeuge, `LeftKey.SHOW_CONTENT`; `LatinIME.tryShowSelectionChips` meldet `selection = true`); im Flat-Stil und mit „Leiste automatisch ausblenden“ gilt, was
   `SuggestionStripView.setExternalSuggestionView` für jede externe Ansicht tut (Werkzeugleiste ausblenden, wie bei der Pille). Mit
   `mAutoShowToolbar` bauen sie nichts, damit gilt das alte Verhalten (Werkzeugleiste bei Markierung). Schalter
   `AgentPreferences.SELECTION_CHIPS` („Aktionen bei markiertem Text“, `AgentAreaBarScreen`, Standard an). Wischtippen über einer
@@ -6378,11 +6498,64 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   Striche (wie „/“) wirken über `InkDots.bareLines` in Regel 4. Einzelne Striche um 18° bis 75° sind „/“, flacher „–“, steiler „|“.
   Verbundene Fingervarianten mit Sprung (Kreis, Strich, Kreis) werden unter dem Rauschen des Prüfstands schlecht erkannt
   (`InkRecognizerTest`, verrauschte Zeichnungen: „%“ 69 von 400 nicht erkannt, gesamt 97,5 %; die Variante ist für saubere Zeichnungen da).
-- **P390** Cursor als Trackpad (87), Hook im `PointerTracker`: `onCursorTrack` wird für jeden Move auf Leer- und Löschtaste gefragt, nach der
+- **P370** Die Leiste eines Trennzeichens kommt nach `endBatchEdit()`, nicht davor (84). Gelesen im Framework (`TextView.handleTextChanged`,
+  Bytecode von Android 16, nicht auf einem Gerät geprüft): ein `EditText` ruft `updateAfterEdit()` (Neuzeichnen) nur bei `mBatchEditNesting == 0`; innerhalb von
+  `beginBatchEdit`/`endBatchEdit` zeigt es das Zeichen also nicht. Jede Arbeit, die der Editor nicht braucht (Leiste, Chips, Lesen für das Lernen),
+  gehört hinter `endBatchEdit()` in `onCodeInput`; sonst wartet das Zeichen darauf. Neue Arbeit in `handleSeparatorEvent`: `setNeutralStripAfterBatch()`,
+  nicht `setNeutralSuggestionStrip()`. Bei mehreren Ereignissen einer Eingabe (kombinierte Zeichen) läuft die Leiste zwischen den Ereignissen, damit das nächste sie wie
+  früher sieht. Ein Aufruf außerhalb von `onCodeInput` zeigt die Leiste sofort.
+- **P371** Die zweite Runde der Chip-Quellen in `setNeutralSuggestionStrip` (`setSuggestedWords` fragt Befehl, Symbol, Auswahl und Screenshot noch einmal)
+  ist nicht überflüssig: `InputLogic.setSuggestedWords` setzt dazwischen `mSuggestedWords`, und der Screenshot-Chip (`screenshotMayReplaceStrip`) und die
+  Vorhersage-Chips lesen es. Der erste Versuch, sie zu überspringen, ließ `screenshotChipKeepsTheAppsCompletionsAndInlineAutofill` rot werden. 9 Prüfungen je Trennzeichen
+  (5 + 4) sind der Stand; ein Weglassen braucht einen Beweis je Quelle, dass sie `mSuggestedWords` nicht liest.
+- **P372** Nach einem Trennzeichen außer Leerzeichen kommt immer die neutrale Leiste (Ausnahmen: `:` wegen der Emoji-Suche im Text, Leerraum, und wenn die Suche läuft). Darum baut
+  die synchrone Vorschlagsabfrage vor dem Festschreiben (wartende 100-ms-Aktualisierung) für sie keine Leiste (`showOnStrip` false); `InputLogic.setSuggestedWords` läuft weiter,
+  denn aus ihm kommt die Autokorrektur und die blaue Unterstreichung. Bei Leerzeichen bleibt es wie früher: die Leiste zeigt die Wörter bis zur nächsten Aktualisierung. Wer ein
+  neues Trennzeichen mit eigener Folge einführt (Zeichen, nach dem keine neutrale Leiste kommt), nimmt es in `stripFollows` aus.
+- **P373** Die Messung zählt Arbeit, nicht Zeit: `SymbolLatencyTest` schreibt die Wanduhr-Zeiten nur in eine Datei (kein Assert). Der Editor im Test antwortet sofort; Binder-Aufrufe
+  (Lesen von Text, Zwischenablage) kosten dort nichts. Zahlen der Tabelle: Schritte der Hauptthread-Arbeit je Taste, nicht Millisekunden. Neue Arbeit auf dem Tastenpfad bekommt eine
+  Zeile `TypingPerf.work(Work.…)` (Eintrag in `Work` nachtragen) und einen Fall in der Tabelle.
+- **P374** `TypingEquivalenceTest`: die Wörter der Leiste nach einer Rücktaste oder nach dem schnellen Tippen hängen davon ab, welche von zwei Nachrichten (verzögerte Aktualisierung,
+  Wiederaufnahme der Vorschläge) zuerst beantwortet wird, und wechselten bei ausgelastetem Rechner; der Emoji-Tabellen-Thread (`EmojiSuggestions`) füllt die Leiste mit Emojis, wenn er fertig
+  ist (`TypingRig.setUp` schaltet ihn aus). Verglichen wird dort nur der Editor. Wer Folgen ergänzt: `strip=` nur für Folgen ohne Rücktaste.
+
+- **P380** Feste Leiste, nur ein Ort setzt Sichtbarkeiten (85): `SuggestionStripView.applyBarState` setzt Werkzeuge, Vorschlagsleiste, angeheftete Tasten, Verfügbarkeit und linke Taste
+  zusammen aus `BarState` (und dem offenen Raster). Alte Wege, die `suggestionsStrip.isVisible` oder `toolbarContainer.isVisible` selbst setzen (`clear`, `removeSuggestion`,
+  `onVisibilityChanged`, `setToolbarVisibility`), sind für die feste Leiste umgeleitet oder gesperrt; wer einen neuen setzt, zeigt Wörter neben den Werkzeugen. Eigene Sichtbarkeit nie
+  an `toolbar_container` setzen: es ist in der festen Leiste ein `FrameLayout` mit der Kennung des alten `HorizontalScrollView`.
+- **P381** Feste Leiste, Mitten (85): Die Mitten von linker Taste und Werkzeugen liegen nur dann gleichmäßig von Rand zu Rand, wenn alle gleich breit sind. `FixedBar.arrange` setzt die Breite der
+  linken Taste mit (voll 40 dp, flach 34 dp, kompakt 30 dp). Wer Größen ändert, ändert den Test `FixedBarTest.slotsAreEvenlySpread…` mit (er fand den Fehler im ersten Lauf: 171 gegen 175 px).
+  Beim Ziehen werden die Plätze bei jedem Ereignis neu gebaut; bis zum Layout haben sie Breite 0. Die Zuordnung zum Platz (`FixedBar.slotCentres`) rechnet darum aus Anzahl und Breite der Zeile.
+- **P382** Gedimmte Werkzeuge (85): `View.performClick` prüft `isEnabled` nicht (Berührungen schon). `SuggestionStripView.onClick`/`onLongClick` und `ToolGridView.act` prüfen es selbst. Im Anpassen-Modus
+  (86) sind gedimmte Plätze und Pillen aktiv (nur der Alpha-Wert bleibt), damit man sie herausnehmen kann. Das Dimmen ist ein Hinweis: Die Steuerungen der Werkzeuge (`AgentEditorController`) prüfen beim Tipp weiter
+  selbst. Die Menge der gedimmten Werkzeuge (`BarTools.PROTECTED`) ist aus ihren Verweigerungsgründen (Passwort, Inkognito, kein Lernen, gesperrt) gelesen; kommt ein Werkzeug dazu, das so prüft, gehört es hinein.
+- **P383** Speicherformat (85): `Constants.Separators.KV` ist `:` und `ENTRY` ist `|` (nicht `,` und `;`). Die Einstellung `agent_bar_tools` ist `NAME:true|NAME:false|…`. Ein leerer Wert ist eine Wahl (keine Werkzeuge), ein fehlender Wert
+  heißt „nie bearbeitet“ und wird jedes Mal neu aus den alten Einstellungen **berechnet** (`BarTools.read` schreibt nie). Geschrieben wird nur bei Bearbeitung (`write`, `pinKey`, `unpinKey`, jedes Ablegen im Anpassen-Modus).
+- **P384** Diagnose (85): `LastField.onStripView` bekommt `toolbar = toolbarContainer.isVisible && (!fixedBar || barState.toolsChosen)`. Die neutrale feste Leiste (Werkzeuge, nichts vorgeschlagen) ist „leer“, nicht „Werkzeugleiste“; sonst
+  lehnt `UpdateOnOpen.refresh` ab (`LastField.stripNeutral`) und die Diagnose meldet Wörter unter der Werkzeugleiste. Nur „Werkzeuge zeigen“ per Hand zählt als Werkzeugleiste.
+- **P385** Flaches Menü (85): `FlatMenuView` und `FlatStrip.toggleMenu` sind nur noch bei ausgeschaltetem Schalter „Feste Leiste wie Gboard“ im flachen Stil erreichbar (die linke Taste gab es in keinem anderen Modus). Wer das Menü ändert, prüft es mit
+  `FlatMenuTest` (Schalter aus); wer das Raster ändert, mit `FixedBarTest`/`BarEditModeTest`. Beide dürfen nie gleichzeitig offen sein (`FlatStrip.closeMenu` ist in der festen Leiste ausgeschaltet).
+- **P386** Anpassen (86): `startDragAndDrop` gibt es nur mit Fenster; Tests ersetzen `SuggestionStripView.dragStarter` und rufen den Zuhörer der Leiste (`toolbarContainer`) und des Rasters (`ToolGridView.dropListener` an Inhalt und Scroll-View) mit echten
+  `DragEvent`-Objekten auf. Eine Änderung der Ereignislogik (`onBarDrag`, `onGridDrag`, `dragSlot`, `BarEditor`) prüft `BarEditModeTest` und `BarEditorTest`, ein echter Fingertest steht aus. Der Zustand der Ablage liegt im `BarEditor` (nur dort wird gespeichert, beim Loslassen); die Leiste
+  baut ihre Plätze nur neu, wenn sich die angezeigte Liste ändert (`renderedBar`). Der Langdruck auf einen Platz ohne eigene Aktion startet den Modus; ein neues Werkzeug mit Langdruck-Aktion (`getCodeForToolbarKeyLongClick`) behält sie.
+
+- **P387** Auswahl und Werkzeuge (Nachprüfung 85/86): Die Wahl „Werkzeuge zeigen“ ist nur für Auswahl-Chips klebrig (`setExternalSuggestionView(…, selection = true)`); Wörter, andere Chips und eine neutrale Leiste beenden sie. Wer einen
+  neuen Inhalt einführt, der sich bei jedem Neubau wiederholt (Echo der App), gibt ihm dieselbe Behandlung oder verliert die Wahl des Nutzers. Solange die Wahl klebt, ist der Pfeil links „Auswahl-Aktionen zeigen“ und das Raster nur über
+  Langdruck erreichbar (nach dem Ende der Markierung ist es wieder der Raster-Knopf); `onContentRequested` („Leiste automatisch ausblenden“) lässt die Werkzeuge ebenfalls stehen.
+- **P388** Platz gegen Listenstelle (Nachprüfung 85/86): Ein verstecktes Werkzeug (`VOICE` ohne Spracheingabe) bleibt in der gespeicherten Liste, hat aber keinen Platz. Plätze zählen nur sichtbare Werkzeuge, `BarTools.move/insert` zählen
+  die ganze Liste: Zwischen beiden vermittelt `BarEditor.listIndexForSlot` (und `canShift`/`shift` überspringen versteckte Werkzeuge). Neue Stellen, die Plätze in Listenstellen umrechnen, nehmen diese Funktion.
+- **P389** Kosten je Tastendruck (Nachprüfung 85/86): `applyBarState` läuft bei jedem Neubau der Leiste. Das Raster wird je Wurzel-View nur einmal gesucht (`toolGrid`), Beschreibungen kommen aus einem Zwischenspeicher (`labelOf`), `FixedBar.arrange` läuft nur bei
+  Änderung der Sichtbarkeit der Sprachtaste und bei jedem Neubau der Plätze, die linke Taste setzt Symbol und Text nur bei Änderung. `BarCounters` zählt Suche, Neubau, Anordnung und Textabrufe; `FixedBarTest.aStripUpdateWhileTyping…` hält sie bei 0.
+- **P390** Feldwechsel (Nachprüfung 85/86): Ohne `hideWindow` zwischen zwei Feldern (`onStartInputView` mit anderem Feld) schließt `LatinIME` über `SuggestionStripView.onFieldStarted` das Raster und den Anpassen-Modus (nichts Ausstehendes wird gespeichert,
+  ein Neustart im selben Feld lässt es offen). Gedimmte Werkzeuge werden danach aus den neuen Einstellungen berechnet. `KeyCode.AGENT_DESIGN` prüft den Sperrzustand live (`LockState`), wie `KeyCode.SETTINGS` (gesperrt: nichts).
+- **P391** Zerstörende Werkzeuge (Nachprüfung 85/86): Das Raster bietet `BarTools.DESTRUCTIVE` (`CLEAR_CLIPBOARD`: leert Verlauf, Tresor und Zwischenablage mit einem Tipp) nur, wenn der Nutzer es vorher in einer Liste hatte (Leiste, alte Leistenliste, angeheftet). Alle
+  anderen Werkzeuge des Rasters schalten einen Modus, öffnen ein Fenster oder bearbeiten Text (Rückgängig); `BACKGROUND_GATHERING` (Daten sichern oder verwerfen) erscheint wie in den Einstellungen nur nach der ersten Nutzung. Der Speicher `agent_bar_tools` gilt als
+  unbrauchbar (Rückfall auf die Berechnung, ohne zu schreiben), wenn er leer ist oder ein Eintrag nicht `NAME:true`/`NAME:false` ist. `FlatPreset` setzt und sichert `agent_bar_tools` mit den anderen Leistenwerten (die Karte „angewendet“ sieht es).
+- **P410** Cursor als Trackpad (87), Hook im `PointerTracker`: `onCursorTrack` wird für jeden Move auf Leer- und Löschtaste gefragt, nach der
   Schnelltipp-Sperre. Ein Listener, der nichts weiß (Mock = 0, `Adapter`), ergibt `TRACK_OFF` und damit den alten Code
   Zeile für Zeile (`CursorGestureTrackerTest`, alter Fixture-Teil). Wer den Hook vor die Schnelltipp-Sperre zöge, ließe Tipps beim
   schnellen Tippen zu Wischen werden. Das Trackpad ändert `mStartX`/`mStartY` nie; `SpaceDetents.cancelsHold` rechnet weiter mit ihnen.
-- **P391** Mehrere Finger (Korrektur nach der Prüfung; die erste Fassung hielt EINEN Zustand für alle Finger und setzte ihn bei jedem `onPressKey` zurück,
+- **P411** Mehrere Finger (Korrektur nach der Prüfung; die erste Fassung hielt EINEN Zustand für alle Finger und setzte ihn bei jedem `onPressKey` zurück,
   das nahm einem laufenden Wisch den Besitzer und löschte still, siehe VALIDATION Etappe 87). `PointerTracker.processMotionEvent` gibt jedes
   `ACTION_MOVE` an jeden Tracker, auch an ruhende Finger, darum bekommt jeder Finger auf Leer-/Löschtaste Aufrufe mit seinem Abstand vom Aufsetzpunkt.
   Seitdem: Zustand je `pointerId`, ein Besitzer, `downTime` als Berührungskennung, `onCursorTrackEnd` vom Tracker. Ein zweiter Finger bekommt
@@ -6390,59 +6563,59 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   Halten wiederholt (`onKeyRepeat` setzt `mKeySwipeAllowed` zurück, der Hook wird dann nicht mehr gefragt), aber er kann nicht wischen, also auch nicht
   das alte Löschwischen (vor Etappe 87 ging das parallel). Ein Druck oder eine Wiederholung (`onPressKey`, `repeatCount > 0`) setzt nichts zurück. Bleibt
   ein Besitz hängen (Ende nie gemeldet), endet er mit der nächsten Berührung desselben Fingers; bis dahin sind andere Finger Tippfinger.
-- **P392** Ein Wisch beginnt erst bei 10 dp Abstand vom Aufsetzpunkt (`CLAIM_DP`, Löschen: seitlich). Davor ist es für den Tracker ein
+- **P412** Ein Wisch beginnt erst bei 10 dp Abstand vom Aufsetzpunkt (`CLAIM_DP`, Löschen: seitlich). Davor ist es für den Tracker ein
   Tipp (Leerzeichen beim Heben). Der Listener sammelt die Proben bis dahin, liest den Text erst beim Beginn und spielt die Proben dann in den Kern;
   ein Tippen mit zitterndem Finger fragt den Editor nie.
-- **P393** Textfenster: 200 Zeichen vor und hinter dem Cursor, einmal beim Beginn (`getTextAfterCursor` ist ein IPC). Danach liest der Kern nur
+- **P413** Textfenster: 200 Zeichen vor und hinter dem Cursor, einmal beim Beginn (`getTextAfterCursor` ist ein IPC). Danach liest der Kern nur
   neu (`needsText`), wenn der Cursor weniger als 24 Zeichen vom Rand eines gekürzten Fensters steht, höchstens alle 60 ms, und 100 ms
   nach einem senkrechten Schritt (der Editor braucht Zeit; bis dahin keine Wortgrenzen, Schritte ohne `chars`). Der Kern führt die Position
   selbst mit; setzt der Editor anders (Rand, Ablehnung), driftet sie bis zum nächsten Lesen. Geben Vor- und Nachtext beide nichts, gilt der
   Text als nicht lesbar: der alte Pfad schickt Pfeiltasten.
-- **P394** Der Kern teilt Cluster nach `TextColumns.graphemes` (eigene Regeln), der alte Pfad (Rückfall ohne Text) nach `BreakIterator`/ICU. Beide
+- **P414** Der Kern teilt Cluster nach `TextColumns.graphemes` (eigene Regeln), der alte Pfad (Rückfall ohne Text) nach `BreakIterator`/ICU. Beide
   stimmen für Akzente, Emoji-Folgen, Flaggen und Hautfarben überein (Test `steps are whole grapheme clusters`), nicht für alle Schriften (Hangul, Indisch).
-- **P395** Magnetismus: Nur das Verlassen einer über einen Schritt erreichten Wortgrenze kostet mehr, nie die Startposition. Ein Leerzeichen
+- **P415** Magnetismus: Nur das Verlassen einer über einen Schritt erreichten Wortgrenze kostet mehr, nie die Startposition. Ein Leerzeichen
   zwischen Wörtern sind zwei Grenzen, ein Emoji neben einem Buchstaben eine. Tests, die Zeichenzahlen prüfen, setzen `CURSOR_MAGNETISM` auf 0 oder
   rechnen die 35 % ein (13 dp · 1,35 = 17,55 dp).
-- **P396** Zeit: Der Kern rastert in 4-ms-Schritten ab `begin`; der letzte angebrochene Schritt (<4 ms) einer Geste wird nicht gerechnet
+- **P416** Zeit: Der Kern rastert in 4-ms-Schritten ab `begin`; der letzte angebrochene Schritt (<4 ms) einer Geste wird nicht gerechnet
   (höchstens 1 Schritt bei sehr schnellem Finger). Eine Pause über 100 ms ohne Ereignis gilt als Ruhe bis 16 ms vor dem nächsten (sonst gäbe ein
   `input motionevent` aus adb einen Geschwindigkeitssprung). Zeiten sind `MotionEvent.getEventTime()` in ms.
-- **P397** Mit Markierung kein Trackpad auf der Leertaste (der alte Weg setzt `Start + Schritte` und löst die Markierung auf). Die Entscheidung fällt
+- **P417** Mit Markierung kein Trackpad auf der Leertaste (der alte Weg setzt `Start + Schritte` und löst die Markierung auf). Die Entscheidung fällt
   beim ersten Aufruf jeder Berührung (`decideTrackMode`), nicht mitten im Wisch; ebenso die Prüfung der Belegung (`appliesToSpace`). Ein Wisch
   mit anderer Aktion (Sprache, Rückgängig, Touchpad-Modus …) bleibt unberührt.
-- **P398** Löschwisch: Fenster = Text vor dem Auswahlanfang + markierter Text + Text dahinter; `forwardLimitChars` = Länge der Markierung (wächst mit
+- **P418** Löschwisch: Fenster = Text vor dem Auswahlanfang + markierter Text + Text dahinter; `forwardLimitChars` = Länge der Markierung (wächst mit
   jedem Schritt nach links); nach rechts nie hinter das Ende (zusätzlich die alte Prüfung `start > end`). Das Heben löscht über das bestehende
   `onUpWithDeletePointerActive`. Keine RTL-Umkehr wie früher. Der Schalter „Cursor als Trackpad“ gilt auch für das Löschwischen, unabhängig von der Leertaste.
-- **P399** Tests: `setText` startet das Feld neu und setzt den Subtyp zurück (ein RTL-Test wechselt danach); `InputLogicTest` kennt im Schatten
+- **P419** Tests: `setText` startet das Feld neu und setzt den Subtyp zurück (ein RTL-Test wechselt danach); `InputLogicTest` kennt im Schatten
   des Editors `keyDownCodes` (Android-Tastencodes der gesendeten Tasten, für DPAD). Die Robolectric-Dichte ist 1: dp = px. Die Gerätetests
   `cursor_trackpad` und `cursor_trackpad_vertical` sind geschrieben, nicht gelaufen (`Driver.drag_on`: erster Schritt 16 dp sofort nach dem Aufsetzen, damit die Geste vor dem Langdruck der Leertaste (450 ms) beginnt, dann 4-dp-Schritte, je `input motionevent` 100–300 ms).
-- **P400** Senkrechte Bewegung nur in mehrzeiligen Feldern (`isMultiLineField`: `inputType`-Klasse Text mit `TYPE_TEXT_FLAG_MULTI_LINE`). `IME_MULTI_LINE`
+- **P420** Senkrechte Bewegung nur in mehrzeiligen Feldern (`isMultiLineField`: `inputType`-Klasse Text mit `TYPE_TEXT_FLAG_MULTI_LINE`). `IME_MULTI_LINE`
   zählt nicht (Browser melden es für jedes Feld), ein unbekannter Typ auch nicht. In einem einzeiligen Feld würde `DPAD_DOWN` aus dem Feld springen,
   Vorschläge der Adressleiste durchlaufen oder in Termux den Verlauf rufen. Dort läuft die nur waagerechte `flatTrack`; ein senkrechter Zug ist noch
   ein Wisch (kein Leerzeichen beim Heben, wie früher bei einem senkrechten Wisch ohne Aktion), bewegt aber nichts.
-- **P401** Nach einem Pfeil schickt der Editor die neue Cursorstelle später als `onUpdateSelection`. Bis dahin hält der Kern waagerechte Schritte zurück
+- **P421** Nach einem Pfeil schickt der Editor die neue Cursorstelle später als `onUpdateSelection`. Bis dahin hält der Kern waagerechte Schritte zurück
   (er trägt den Weg) und der Listener liest den Text nicht neu (`awaitSelection`: bis `expectedSelectionStart` sich ändert oder 300 ms); am ersten Zeilenanfang
   oder -ende ändert ein Pfeil nichts, dann gilt die Wartezeit voll. Ein Editor, der länger als 300 ms braucht, bekommt Schritte auf der alten Stelle.
-- **P402** Textfenster: Ein Editor darf weniger zurückgeben als gefragt. Ein Fensterrand ist nur dann Textanfang bzw. -ende (`atStart`/`atEnd`), wenn die Antwort
+- **P422** Textfenster: Ein Editor darf weniger zurückgeben als gefragt. Ein Fensterrand ist nur dann Textanfang bzw. -ende (`atStart`/`atEnd`), wenn die Antwort
   leer ist oder eine Nachfrage nach einem weiteren Zeichen nichts Neues bringt; sonst ist er ein Rand ohne Wortgrenze und ohne Anschlag, der Kern
   fragt dort neu (`needsText`, Rand 24 Zeichen, höchstens alle 60 ms). Ohne die Nachfrage würde jeder Cursor in den ersten 24 Zeichen eines kurzen
   Textes alle 60 ms lesen.
-- **P403** Die Schwelle zum Wisch ist die alte: 10 dp auf der Wischachse (`CursorTrackpad.claims`), nicht die Länge des Weges. 7 dp zittern in beide Richtungen sind ein Tipp
+- **P423** Die Schwelle zum Wisch ist die alte: 10 dp auf der Wischachse (`CursorTrackpad.claims`), nicht die Länge des Weges. 7 dp zittern in beide Richtungen sind ein Tipp
   (Leerzeichen, Doppel-Leerzeichen-Punkt funktioniert); ein Wisch, der die Spur bekam, bekommt nie wieder `TRACK_OFF` (Einstellung oder Markierung
   mitten in der Geste ändern nichts, erst die nächste Berührung).
-- **P404** Gerätetest-Szenarien (nicht gelaufen): Der erste `MOVE` von `drag_on` folgt dem `DOWN` sofort und ist 16 dp lang; sonst käme der Wisch nach 300–900 ms
+- **P424** Gerätetest-Szenarien (nicht gelaufen): Der erste `MOVE` von `drag_on` folgt dem `DOWN` sofort und ist 16 dp lang; sonst käme der Wisch nach 300–900 ms
   und der Langdruck der Leertaste (450 ms) käme ihm zuvor.
-- **P405** Ein verweigerter Finger, der wischt (`TRACK_REFUSED_DRAG`), verwirft seine Berührung. Ein ruhender oder tippender verweigerter Finger bleibt, was er war.
+- **P425** Ein verweigerter Finger, der wischt (`TRACK_REFUSED_DRAG`), verwirft seine Berührung. Ein ruhender oder tippender verweigerter Finger bleibt, was er war.
   Ohne die Verwerfung läuft die Wiederholungs-Zeitschaltuhr einer Löschtaste weiter (400 ms nach dem Aufsetzen, dann alle 50 ms ein Zeichen), weil `onKeySwipe` vor dem
   alten Code zurückkehrt und `cancelKeyTimersOf` nie erreicht. Auch das Heben tippt dann nichts (`mIsTrackingForActionDisabled`).
-- **P406** Pfeile gibt es nur einzeln und nur mit bekannter Stelle: Ein Pfeil nach oben am ersten und einer nach unten am letzten Feldende wird vom Editor nicht
+- **P426** Pfeile gibt es nur einzeln und nur mit bekannter Stelle: Ein Pfeil nach oben am ersten und einer nach unten am letzten Feldende wird vom Editor nicht
   behandelt, Android bewegt dann den FOKUS in ein Nachbarfeld (Mailtext → Betreff). Der verlässliche Randmelder ist „der Pfeil bewegte nichts“
   (umbrochene Zeilen sieht die Tastatur nicht); die Vorprüfungen (Cursor 0, kein Text dahinter) sparen nur den ersten Fehlversuch. Grenze: ein Editor, der
   nach 300 ms noch nicht geantwortet hat und dessen Stelle nicht lesbar ist, gilt als „Rand“; dort gibt es bis zum Ende der Berührung keinen Pfeil in diese Richtung.
-- **P407** Besitz über Löschwischen: Ein Löschwischen ist ein Besitzer wie die Leertaste. Solange es läuft, werden Leertasten-Wische anderer Finger verweigert (früher
+- **P427** Besitz über Löschwischen: Ein Löschwischen ist ein Besitzer wie die Leertaste. Solange es läuft, werden Leertasten-Wische anderer Finger verweigert (früher
   lief der alte Leertasten-Wisch neben der Auswahl und löste sie auf). Mit ausgeschaltetem Schalter ist alles `OFF`, wie vor Etappe 87.
-- **P408** Ein Wisch während `ACTION_CANCEL` (Fenster, Systemgeste): Für die Leertaste bleibt der Cursor, wo er ist, nichts wird gelöscht und kein Leerzeichen getippt;
+- **P428** Ein Wisch während `ACTION_CANCEL` (Fenster, Systemgeste): Für die Leertaste bleibt der Cursor, wo er ist, nichts wird gelöscht und kein Leerzeichen getippt;
   beim Löschwischen löscht der Abbruch das Markierte (der Tracker behandelt ihn als Heben, genau wie der alte Code).
-- **P409** `FakeTimer` im Prüfstand: Die gestylten Attribute der Tests tragen keine Wiederholzeiten (0), der Prüfstand nimmt dann 400 ms Anlauf und 50 ms Takt. Die
+- **P429** `FakeTimer` im Prüfstand: Die gestylten Attribute der Tests tragen keine Wiederholzeiten (0), der Prüfstand nimmt dann 400 ms Anlauf und 50 ms Takt. Die
   Zeitschaltuhren laufen in der Ereigniszeit des Prüfstands, nicht in der Uhr des Telefons; `SystemClock` im Tracker (Schnelltipp-Sperre) bleibt echte Zeit.
 
 ## Datei-Inventar
@@ -6450,14 +6623,14 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (725 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (744 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
 - `.github/workflows/` (6): agent-apk, agent-tests, build-debug-apk, build-test-auto, device-tests,
   docs-check
 - `/` (1): settings
-- `A/` (94): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
+- `A/` (96): Abbreviations, ActionRunJournal, AgentDocumentIO, AgentEditorController,
   AgentFileProvider, AgentKeyboardFrame, AgentPanelView, AgentPreferences, AgentStorageContexts,
   AgentWheelView, AndroidEditorAdapter, ApprovedActionRunner, CalculatorView, CharacterCommand,
   ClipVault, ClipVaultSection, ContactCommand, ContextLearning, ConvertCommand, CorrectionMemory,
@@ -6469,11 +6642,11 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   LoadingDotsView, LockState, ManualWorkflowDraft, Memory, MemoryChips, ModelSettings, MyData,
   MyDesigns, OnDeviceSpeechEngine, PlaceCommand, PromptStore, RgbKeyPainter, RgbLighting,
   RgbOwnPatterns, RgbStrip, RgbTexture, RunSubjectCodec, SavedPlaces, ScreenshotChip, SearchCommand,
-  SelectionChips, SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics, SmartPasteChips,
-  SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk, ToolApprovalSummary,
-  ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst, TypingPerf, TypoMemory,
-  WorkflowApprovalSummary, WorkflowBuilderContract, WorkflowConditionSummary, WorkflowDraftRunner,
-  WorkflowInputSummary, WorkflowStore
+  SelectionChips, SettingsLauncher, SkillBindingStore, SkillLabels, SliderFeel, SliderHaptics,
+  SmartPasteChips, SpaceDetents, SpaceGestures, SubtypeSwitchLog, SymbolDrawing, SymbolInk,
+  ToolApprovalSummary, ToolGridView, ToolLauncher, TouchCalibration, TouchModel, TypedWordFirst,
+  TypingPerf, TypoMemory, WorkflowApprovalSummary, WorkflowBuilderContract,
+  WorkflowConditionSummary, WorkflowDraftRunner, WorkflowInputSummary, WorkflowStore
 - `A/charart/` (5): CharArtCanvas, CharArtImages, CharArtKey, CharArtKeys, CharArtView
 - `A/commands/` (22): AiCommandChips, AlarmCommand, AreaCommands, AskCommand, ClipCommand,
   CommandAppSettings, CommandSystem, EmojiMixCommand, EmojiMixRecents, EmojiMixer, InstalledApps,
@@ -6485,23 +6658,23 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (118): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (121): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
-  ApprovedWorkflowRunnerTest, AskCommandTest, BundledEmojiDictTest, CalculatorViewTest,
-  CalendarToolLauncherTest, CharArtWindowTest, ClipCachesTest, ClipCommandTest, ClipVaultTest,
-  CommandReplaceTest, CommandTemplatesTest, ContactCommandTest, CorrectionMemoryTest,
+  ApprovedWorkflowRunnerTest, AskCommandTest, BarEditModeTest, BarToolsTest, BundledEmojiDictTest,
+  CalculatorViewTest, CalendarToolLauncherTest, CharArtWindowTest, ClipCachesTest, ClipCommandTest,
+  ClipVaultTest, CommandReplaceTest, CommandTemplatesTest, ContactCommandTest, CorrectionMemoryTest,
   CursorGestureTrackerTest, DatePlaceCommandsTest, DebugPrivacyTest, DesignEditorTest,
   DesignTilesTest, DiagnoseScreenTest, DictationSessionTest, DictationUiTest, EmojiMixPaletteTest,
   EmojiMixRecentsTest, EncryptedActionRunStoreTest, EncryptedCredentialStoreTest,
-  FieldCorrectionMemoryTest, FieldSuggestionChipsTest, FlatClipboardTest, FlatMenuTest,
-  FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest, ForkUpgradeTest,
-  FormatGuardChipsTest, HapticChainTest, HardeningClipHistoryTest, InformalWordsStoreTest,
-  InlineAutofillGenerationTest, InlineAutofillSizingTest, InlineAutofillSlotsTest,
-  InsertAtCursorTest, JournaledModelCallTest, KeyNodePositionTest, KeyboardCommandsTest,
-  KeyboardProfileStoreTest, LastFieldTest, LearningDataTest, LiveLockGateTest, LoadingDotsViewTest,
-  LongTextBudgetTest, ManualWorkflowDraftTest, MemoryScreenTest, MoreCommandsTest,
-  MoreProvidersTest, MyDataScreenTest, MyDataStoreTest, MyDesignsTest, OpenAiProviderTest,
-  PromptStoreTest, PromptsScreenTest, PromptsWindowTest, RgbFrameRateCardTest,
+  FieldCorrectionMemoryTest, FieldSuggestionChipsTest, FixedBarTest, FlatClipboardTest,
+  FlatMenuTest, FlatPanelTest, FlatStyleRenderTest, FlatStyleTest, ForkIdentityTest,
+  ForkUpgradeTest, FormatGuardChipsTest, HapticChainTest, HardeningClipHistoryTest,
+  InformalWordsStoreTest, InlineAutofillGenerationTest, InlineAutofillSizingTest,
+  InlineAutofillSlotsTest, InsertAtCursorTest, JournaledModelCallTest, KeyNodePositionTest,
+  KeyboardCommandsTest, KeyboardProfileStoreTest, LastFieldTest, LearningDataTest, LiveLockGateTest,
+  LoadingDotsViewTest, LongTextBudgetTest, ManualWorkflowDraftTest, MemoryScreenTest,
+  MoreCommandsTest, MoreProvidersTest, MyDataScreenTest, MyDataStoreTest, MyDesignsTest,
+  OpenAiProviderTest, PromptStoreTest, PromptsScreenTest, PromptsWindowTest, RgbFrameRateCardTest,
   RgbLightingRenderTest, RgbPatternEditorTest, RgbSettingsScreenTest, RgbTilesTest,
   ScreenshotChipTest, SecureWindowTest, SelectedTextCommitTest, SettingsAreaAiTest,
   SettingsAreaGesturesTest, SettingsBarAreaTest, SettingsKeysScreenTest, SettingsKitTest,
@@ -6567,14 +6740,14 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `K/latin/makedict/` (1): Ver4DictEncoder
 - `K/latin/settings/` (2): Defaults, SettingsValues
 - `K/latin/spellcheck/` (1): AndroidSpellCheckerService
-- `K/latin/suggestions/` (2): FlatStrip, SuggestionStripView
-- `K/latin/utils/` (7): CapsModeUtils, DictionaryInfoUtils, DictionaryUtils, InlineAutofillUtils,
-  LayoutUtilsCustom, SubtypeUtils, ToolbarUtils
+- `K/latin/suggestions/` (5): BarEditor, BarState, FixedBar, FlatStrip, SuggestionStripView
+- `K/latin/utils/` (9): AsyncResultHolder, BarTools, CapsModeUtils, DictionaryInfoUtils,
+  DictionaryUtils, InlineAutofillUtils, LayoutUtilsCustom, SubtypeUtils, ToolbarUtils
 - `K/settings/` (4): SearchScreen, SettingsActivity, SettingsContainer, SettingsNavHost
 - `K/settings/dialogs/` (2): ColorPickerDialog, SliderDialog
 - `K/settings/preferences/` (5): BackupRestorePreference, CustomFontPreference,
   KeyboardScalePreference, LoadGestureLibPreference, SliderPreference
-- `K/settings/screens/` (48): AboutScreen, AdvancedScreen, AgentAiScreen, AgentAreaAiScreen,
+- `K/settings/screens/` (49): AboutScreen, AdvancedScreen, AgentAiScreen, AgentAreaAiScreen,
   AgentAreaBarScreen, AgentAreaGesturesScreen, AgentAreaKeysScreen, AgentAreaLookScreen,
   AgentAreaScreen, AgentAreaSystemScreen, AgentAreaTypingScreen, AgentCommandsScreen,
   AgentDesignEditor, AgentDesignScreen, AgentDiagnoseScreen, AgentDictationScreen,
@@ -6585,7 +6758,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   AgentSkillsScreen, AgentSlider, AgentSnippetsSection, AgentSpaceScreen, AgentStartScreen,
   AgentSymbolsScreen, AgentUpdatePrompts, AgentUpdatesScreen, AgentWorkflowsScreen,
   AppearanceScreen, DictionaryScreen, GestureTypingScreen, MainSettingsScreen, TextCorrectionScreen,
-  WorkflowBuilderDialog, WorkflowDraftProtection
+  ToolbarScreen, WorkflowBuilderDialog, WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
 - `app/` (1): build.gradle
@@ -6601,13 +6774,13 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `app/src/main/assets/layouts/symbol_hints/` (1): symbols_hints
 - `app/src/main/assets/layouts/symbols/` (1): symbols
 - `app/src/main/res/drawable-v24/` (1): ic_launcher_background
-- `app/src/main/res/drawable/` (24): btn_keyboard_key_flat, btn_keyboard_key_flat_pill,
+- `app/src/main/res/drawable/` (25): btn_keyboard_key_flat, btn_keyboard_key_flat_pill,
   btn_keyboard_key_flat_rect, btn_keyboard_key_functional_flat, ic_agent_actions, ic_agent_dictate,
   ic_agent_prompts, ic_agent_settings_updates, ic_launcher_foreground, ic_launcher_monochrome,
-  ic_skill_1, ic_skill_2, ic_skill_3, sym_keyboard_clipboard_flat, sym_keyboard_delete_flat,
-  sym_keyboard_go_flat, sym_keyboard_grid_flat, sym_keyboard_mic_flat, sym_keyboard_pen_flat,
-  sym_keyboard_return_flat, sym_keyboard_shift_flat, sym_keyboard_shift_lock_flat,
-  sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
+  ic_palette, ic_skill_1, ic_skill_2, ic_skill_3, sym_keyboard_clipboard_flat,
+  sym_keyboard_delete_flat, sym_keyboard_go_flat, sym_keyboard_grid_flat, sym_keyboard_mic_flat,
+  sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
+  sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
 - `app/src/main/res/mipmap-anydpi-v26/` (2): ic_launcher, ic_launcher_round
 - `app/src/main/res/mipmap-hdpi/` (2): ic_launcher, ic_launcher_round
@@ -6615,34 +6788,36 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `app/src/main/res/mipmap-xhdpi/` (2): ic_launcher, ic_launcher_round
 - `app/src/main/res/mipmap-xxhdpi/` (2): ic_launcher, ic_launcher_round
 - `app/src/main/res/mipmap-xxxhdpi/` (2): ic_launcher, ic_launcher_round
-- `app/src/main/res/values-de/` (36): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
-  agent_charart_strings, agent_clipvault_strings, agent_command_system_strings,
-  agent_design_strings, agent_diagnose_strings, agent_emoji_mix_strings, agent_format_strings,
-  agent_gestures_strings, agent_hardening_strings, agent_language_strings, agent_memory_strings,
-  agent_name_strings, agent_prompt_strings, agent_rgb_pattern_strings, agent_rgb_strings,
-  agent_selection_strings, agent_settings_keys_strings, agent_settings_look_strings,
-  agent_settings_strings, agent_settings_system_strings, agent_slider_strings,
-  agent_smart_paste_strings, agent_snippet_strings, agent_space_strings, agent_strings,
-  agent_suggest_strings, agent_symbol_strings, agent_touch_strings, agent_typing_strings,
-  agent_update_prompt_strings, agent_update_strings, strings, strings-talkback-descriptions
-- `app/src/main/res/values/` (45): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
-  agent_bar_strings, agent_charart_ids, agent_charart_strings, agent_clipvault_strings,
+- `app/src/main/res/values-de/` (37): agent_ai_area_strings, agent_alarm_strings, agent_bar_strings,
+  agent_bar_tools_strings, agent_charart_strings, agent_clipvault_strings,
   agent_command_system_strings, agent_design_strings, agent_diagnose_strings,
   agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings, agent_hardening_strings,
-  agent_ids, agent_language_strings, agent_memory_strings, agent_name_strings, agent_prompt_strings,
-  agent_prompts_ids, agent_rgb_pattern_strings, agent_rgb_strings, agent_search_strings,
-  agent_selection_strings, agent_settings_keys_strings, agent_settings_look_strings,
-  agent_settings_strings, agent_settings_system_strings, agent_slider_strings,
-  agent_smart_paste_strings, agent_snippet_strings, agent_space_strings, agent_strings,
-  agent_suggest_strings, agent_symbol_strings, agent_touch_strings, agent_typing_strings,
-  agent_update_prompt_strings, agent_update_strings, attrs, clip_provider, donottranslate,
-  gesture_data, strings, themes-flat
+  agent_language_strings, agent_memory_strings, agent_name_strings, agent_prompt_strings,
+  agent_rgb_pattern_strings, agent_rgb_strings, agent_selection_strings,
+  agent_settings_keys_strings, agent_settings_look_strings, agent_settings_strings,
+  agent_settings_system_strings, agent_slider_strings, agent_smart_paste_strings,
+  agent_snippet_strings, agent_space_strings, agent_strings, agent_suggest_strings,
+  agent_symbol_strings, agent_touch_strings, agent_typing_strings, agent_update_prompt_strings,
+  agent_update_strings, strings, strings-talkback-descriptions
+- `app/src/main/res/values/` (46): agent_ai_area_strings, agent_alarm_strings, agent_attrs,
+  agent_bar_strings, agent_bar_tools_strings, agent_charart_ids, agent_charart_strings,
+  agent_clipvault_strings, agent_command_system_strings, agent_design_strings,
+  agent_diagnose_strings, agent_emoji_mix_strings, agent_format_strings, agent_gestures_strings,
+  agent_hardening_strings, agent_ids, agent_language_strings, agent_memory_strings,
+  agent_name_strings, agent_prompt_strings, agent_prompts_ids, agent_rgb_pattern_strings,
+  agent_rgb_strings, agent_search_strings, agent_selection_strings, agent_settings_keys_strings,
+  agent_settings_look_strings, agent_settings_strings, agent_settings_system_strings,
+  agent_slider_strings, agent_smart_paste_strings, agent_snippet_strings, agent_space_strings,
+  agent_strings, agent_suggest_strings, agent_symbol_strings, agent_touch_strings,
+  agent_typing_strings, agent_update_prompt_strings, agent_update_strings, attrs, clip_provider,
+  donottranslate, gesture_data, strings, themes-flat
 - `app/src/main/res/xml/` (4): agent_data_extraction_rules, agent_screen_reader,
   clipboard_provider_path, spellchecker
 - `app/src/test/java/helium314/keyboard/` (2): KeyboardParserTest, Shadows
-- `app/src/test/java/helium314/keyboard/latin/` (3): InputLogicTest, SuggestTest,
-  WordListDictionaries
+- `app/src/test/java/helium314/keyboard/latin/` (6): InputLogicTest, SuggestTest, SymbolLatencyTest,
+  TypingEquivalenceTest, TypingRig, WordListDictionaries
 - `app/src/test/java/helium314/keyboard/latin/inputlogic/` (1): BatchDeliveryTest
+- `app/src/test/java/helium314/keyboard/latin/suggestions/` (2): BarEditorTest, BarStateTest
 - `app/src/test/java/helium314/keyboard/settings/` (1): BackupPromptsTest
 - `companion/` (2): build.gradle, settings.gradle
 - `companion/app/` (1): build.gradle

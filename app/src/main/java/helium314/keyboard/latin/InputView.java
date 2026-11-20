@@ -35,6 +35,7 @@ public final class InputView extends FrameLayout {
     private View mAgentPanel;
     private View mAgentWheel;
     private View mAgentMenu;
+    private View mAgentToolGrid;
     private View mAgentCalculator;
     private View mAgentCharArt;
     private View mAgentPrompts;
@@ -43,6 +44,7 @@ public final class InputView extends FrameLayout {
         return (mAgentPanel != null && mAgentPanel.getVisibility() == VISIBLE)
                 || (mAgentWheel != null && mAgentWheel.getVisibility() == VISIBLE)
                 || (mAgentMenu != null && mAgentMenu.getVisibility() == VISIBLE)
+                || (mAgentToolGrid != null && mAgentToolGrid.getVisibility() == VISIBLE)
                 || (mAgentCalculator != null && mAgentCalculator.getVisibility() == VISIBLE)
                 || (mAgentCharArt != null && mAgentCharArt.getVisibility() == VISIBLE)
                 || (mAgentPrompts != null && mAgentPrompts.getVisibility() == VISIBLE);
@@ -58,6 +60,7 @@ public final class InputView extends FrameLayout {
         mAgentPanel = findViewById(R.id.agent_panel);
         mAgentWheel = findViewById(R.id.agent_wheel);
         mAgentMenu = findViewById(R.id.agent_menu);
+        mAgentToolGrid = findViewById(R.id.agent_tool_grid);
         mAgentCalculator = findViewById(R.id.agent_calculator);
         mAgentCharArt = findViewById(R.id.agent_char_art);
         mAgentPrompts = findViewById(R.id.agent_prompts);

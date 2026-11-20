@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 85: die feste Leiste und das Raster mit allen Werkzeugen. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="prompts" tools:keep="@string/prompts">Ablage</string>
+    <string name="char_art" tools:keep="@string/char_art">Zeichen-Kunst</string>
+    <string name="design" tools:keep="@string/design">Design</string>
+    <string name="agent_bar_all_tools">Alle Werkzeuge</string>
+    <string name="agent_bar_all_tools_incognito">Alle Werkzeuge (Inkognito ist an)</string>
+    <string name="agent_bar_show_tools">Werkzeuge zeigen</string>
+    <string name="agent_bar_show_tools_incognito">Werkzeuge zeigen (Inkognito ist an)</string>
+    <string name="agent_bar_close_tools">Alle Werkzeuge schließen</string>
+    <string name="agent_bar_tool_unavailable">%1$s, in diesem Feld nicht verfügbar</string>
+    <string name="agent_bar_tools_setting">Werkzeuge in der Leiste</string>
+    <string name="agent_bar_tools_setting_summary">Die Werkzeuge der Leiste der Reihe nach; höchstens 8 werden gezeigt</string>
+    <string name="agent_fixed_bar_setting">Feste Leiste wie Gboard</string>
+    <string name="agent_fixed_bar_setting_summary">Werkzeuge an festen Plätzen, beim Tippen Vorschläge. Aus: die ausklappbare Leiste von vorher.</string>
+    <!-- Etappe 86: die Leiste in der Tastatur anpassen -->
+    <string name="agent_grid_edit">Anpassen</string>
+    <string name="agent_grid_edit_hint">Zum Personalisieren halten und ziehen</string>
+    <string name="agent_grid_full">Die Leiste ist voll (höchstens 8 Werkzeuge). Nimm zuerst eines heraus.</string>
+    <string name="agent_bar_edit_done">Anpassen beenden</string>
+    <string name="agent_bar_action_add">Zur Leiste hinzufügen</string>
+    <string name="agent_bar_action_remove">Aus der Leiste entfernen</string>
+    <string name="agent_bar_action_left">Nach links</string>
+    <string name="agent_bar_action_right">Nach rechts</string>
+    <string name="agent_bar_in_bar">%1$s, in der Leiste</string>
+    <string name="agent_bar_show_actions">Auswahl-Aktionen zeigen</string>
+    <string name="agent_bar_show_actions_incognito">Auswahl-Aktionen zeigen (Inkognito ist an)</string>
+    <string name="agent_bar_pin_full">Die Leiste ist voll (höchstens 8 Werkzeuge). Nimm zuerst eines heraus.</string>
+</resources>

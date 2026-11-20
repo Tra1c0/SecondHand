@@ -69,11 +69,11 @@ import helium314.keyboard.latin.database.ClipboardDao
 import helium314.keyboard.latin.settings.Defaults
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.ToolbarMode
-import helium314.keyboard.latin.utils.addPinnedKey
+import helium314.keyboard.latin.utils.isKeyPinned
+import helium314.keyboard.latin.utils.pinKey
+import helium314.keyboard.latin.utils.unpinKey
 import helium314.keyboard.latin.utils.getActivity
-import helium314.keyboard.latin.utils.getPinnedToolbarKeys
 import helium314.keyboard.latin.utils.prefs
-import helium314.keyboard.latin.utils.removePinnedKey
 import helium314.keyboard.settings.SettingsActivity
 import helium314.keyboard.settings.SettingsDestination
 import helium314.keyboard.settings.dialogs.SliderDialog
@@ -97,7 +97,7 @@ object BarModes {
     }
 
     /** How many of the three skill keys are pinned to the bar. */
-    fun pinnedSkills(prefs: SharedPreferences): Int = (1..3).count { skillToolbarKey(it) in getPinnedToolbarKeys(prefs) }
+    fun pinnedSkills(prefs: SharedPreferences): Int = (1..3).count { isKeyPinned(prefs, skillToolbarKey(it)) }
 }
 
 /**
@@ -411,15 +411,17 @@ private fun BarNavRow(title: String, summary: String, value: String, enabled: Bo
 /** The three skill keys as switches; OK pins or unpins them like the skill page (addPinnedKey). */
 @Composable
 private fun SkillPinDialog(prefs: SharedPreferences, onDismiss: () -> Unit, onWritten: () -> Unit) {
+    val context = LocalContext.current
     val keys = (1..3).map { skillToolbarKey(it) }
-    var pinned by remember { mutableStateOf(keys.filter { it in getPinnedToolbarKeys(prefs) }.toSet()) }
+    var pinned by remember { mutableStateOf(keys.filter { isKeyPinned(prefs, it) }.toSet()) }
     ThreeButtonAlertDialog(
         onDismissRequest = onDismiss,
         onConfirmed = {
-            val before = getPinnedToolbarKeys(prefs)
             keys.forEach { key ->
-                if (key in pinned && key !in before) addPinnedKey(prefs, key)
-                if (key !in pinned && key in before) removePinnedKey(prefs, key)
+                val before = isKeyPinned(prefs, key)
+                if (key in pinned && !before && !pinKey(prefs, key))
+                    android.widget.Toast.makeText(context, R.string.agent_bar_pin_full, android.widget.Toast.LENGTH_LONG).show()
+                if (key !in pinned && before) unpinKey(prefs, key)
             }
             KeyboardSwitcher.getInstance().setThemeNeedsReload()
             onWritten()

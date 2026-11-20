@@ -164,6 +164,9 @@ class FlatMenuTest {
     }
 
     @Test fun leftStripKeyTogglesTheMenuAndAnyToolbarKeyClosesIt() {
+        // stage 85: the mode "toolbar keys and suggestions" shows the fixed bar and its grid; the menu belongs to the old bar (switch off)
+        latinIME.prefs().edit().putBoolean(AgentPreferences.FIXED_BAR, false).commit()
+        Settings.getInstance().loadSettings(latinIME, Locale.GERMANY, InputAttributes(EditorInfo(), false, latinIME.packageName))
         val root = ltrFrame()
         val container = LayoutInflater.from(context).inflate(R.layout.strip_container, root, false) as ViewGroup
         container.id = R.id.strip_container

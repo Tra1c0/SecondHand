@@ -183,6 +183,7 @@ public class LatinIME extends InputMethodService implements
         return target >= 0 && connection.setSelection(target, target);
     }
     private boolean tryShowCommandChips() {
+        helium314.keyboard.agent.TypingPerf.work(helium314.keyboard.agent.TypingPerf.Work.CHIPS_COMMAND); // fork, stage 84: numbers only
         // also without a visible strip: the guard keeps the autocorrection off a typed command name
         helium314.keyboard.agent.KeyboardCommands.updateGuard(
                 getAgentCommandCursor() < 0 ? null : getAgentTextBeforeCursor(helium314.keyboard.agent.KeyboardCommands.readLength(getAgentCommandCursor())));
@@ -198,6 +199,7 @@ public class LatinIME extends InputMethodService implements
     }
     /** Stage 27: the alternatives (or "Nicht erkannt") of the symbol drawn last, while the cursor stays. */
     private boolean tryShowSymbolChips() {
+        helium314.keyboard.agent.TypingPerf.work(helium314.keyboard.agent.TypingPerf.Work.CHIPS_SYMBOL); // fork, stage 84: numbers only
         if (!hasSuggestionStripView() || !onEvaluateInputViewShown()) return false;
         final View chips = helium314.keyboard.agent.SymbolDrawing.createChipsView(this, mSuggestionStripView);
         if (chips == null) return false;
@@ -222,10 +224,11 @@ public class LatinIME extends InputMethodService implements
      * the toolbar for a selection.
      */
     private boolean tryShowSelectionChips() {
+        helium314.keyboard.agent.TypingPerf.work(helium314.keyboard.agent.TypingPerf.Work.CHIPS_SELECTION); // fork, stage 84: numbers only
         if (!hasSuggestionStripView() || !onEvaluateInputViewShown() || mSettings.getCurrent().mAutoShowToolbar) return false;
         final View chips = helium314.keyboard.agent.SelectionChips.createChipsView(this, mSuggestionStripView);
         if (chips == null) return false;
-        mSuggestionStripView.setExternalSuggestionView(chips, false);
+        mSuggestionStripView.setExternalSuggestionView(chips, false, true); // selection: the fixed bar keeps a chosen toolbar while it lasts
         return true;
     }
     public void onAgentTextSubmitted() {
@@ -1056,6 +1059,9 @@ public class LatinIME extends InputMethodService implements
             if (hasSuggestionStripView())
                 mSuggestionStripView.updateVoiceKey();
         }
+        // stage 85: a new field must not start under an open tool grid or edit mode (hideWindow is not always called in between)
+        if (isDifferentTextField && hasSuggestionStripView())
+            mSuggestionStripView.onFieldStarted();
 
         switcher.updateKeyboardTheme(mDisplayContext);
         MainKeyboardView mainKeyboardView = switcher.getMainKeyboardView();
@@ -1318,7 +1324,7 @@ public class LatinIME extends InputMethodService implements
         mAgentEditorController.finishEditor();
         Log.i(TAG, "hideWindow");
         if (hasSuggestionStripView() && mSettings.getCurrent().mToolbarMode == ToolbarMode.EXPANDABLE)
-            mSuggestionStripView.setToolbarVisibility(false);
+            mSuggestionStripView.onKeyboardHidden(); // stage 85: the fixed bar starts with the tools again
         mKeyboardSwitcher.onHideWindow();
 
         if (TRACE) Debug.stopMethodTracing();
@@ -1737,6 +1743,7 @@ public class LatinIME extends InputMethodService implements
     }
 
     private void setSuggestedWords(final SuggestedWords suggestedWords) {
+        helium314.keyboard.agent.TypingPerf.work(helium314.keyboard.agent.TypingPerf.Work.STRIP_WORDS); // fork, stage 84: numbers only
         final SettingsValues currentSettingsValues = mSettings.getCurrent();
         mInputLogic.setSuggestedWords(suggestedWords);
         // TODO: Modify this when we support suggestions with hard keyboard
@@ -1820,6 +1827,7 @@ public class LatinIME extends InputMethodService implements
      *  returns whether a clipboard suggestion has been set.
      */
     public boolean tryShowClipboardSuggestion() {
+        helium314.keyboard.agent.TypingPerf.work(helium314.keyboard.agent.TypingPerf.Work.CHIPS_CLIPBOARD); // fork, stage 84: numbers only
         if (!hasSuggestionStripView()) return false;
         View clipboardView = mClipboardHistoryManager.getClipboardSuggestionView(getCurrentInputEditorInfo(), mSuggestionStripView);
         if (clipboardView != null) {
@@ -1831,6 +1839,7 @@ public class LatinIME extends InputMethodService implements
 
     /** Stage 54: "⬆ Build N verfügbar" while the last update check knows a newer build, never while locked. */
     private boolean tryShowUpdateChip() {
+        helium314.keyboard.agent.TypingPerf.work(helium314.keyboard.agent.TypingPerf.Work.CHIPS_UPDATE); // fork, stage 84: numbers only
         if (!hasSuggestionStripView()) return false;
         final View view = helium314.keyboard.agent.updates.UpdateChip.createView(this, mSuggestionStripView);
         if (view == null) return false;
@@ -1843,6 +1852,7 @@ public class LatinIME extends InputMethodService implements
 
     /** Stage 23g: shows the screenshot chip, only between words (see ClipboardHistoryManager). */
     private boolean tryShowScreenshotChip() {
+        helium314.keyboard.agent.TypingPerf.work(helium314.keyboard.agent.TypingPerf.Work.CHIPS_SCREENSHOT); // fork, stage 84: numbers only
         if (!helium314.keyboard.agent.ScreenshotChip.INSTANCE.isEnabled(this)) return false;
         final View view = mClipboardHistoryManager.getScreenshotSuggestionView(getCurrentInputEditorInfo(), mSuggestionStripView);
         if (view == null) return false;
@@ -1860,6 +1870,7 @@ public class LatinIME extends InputMethodService implements
     // and there is a selection of text or it's the start of a line.
     @Override
     public void setNeutralSuggestionStrip() {
+        helium314.keyboard.agent.TypingPerf.work(helium314.keyboard.agent.TypingPerf.Work.STRIP_NEUTRAL); // fork, stage 84: numbers only
         final SettingsValues currentSettings = mSettings.getCurrent();
         if (tryShowCommandChips()) return;
         if (tryShowSymbolChips()) return;
