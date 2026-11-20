@@ -76,13 +76,13 @@ class CursorTrackDiagTest {
         val card = Diagnose.trackpad(app, prefs, CursorTrackCounters().snapshot())
         assertEquals(Diagnose.Part.TRACKPAD, card.part)
         val rows = card.rows.associate { it.label to it.value }
-        assertEquals("an", rows["Trackpad: Schalter „Cursor als Trackpad“"])
-        assertEquals("← Rückgängig, → Cursor bewegen", rows["Trackpad: Leertaste ← und →"])
-        assertEquals("↑ Nichts, ↓ Nichts", rows["Trackpad: Leertaste ↑ und ↓"])
-        assertTrue(rows["Trackpad: Leertaste jetzt"]!!.startsWith("nicht aktiv, weil ← Wischen mit „Rückgängig“ belegt ist"))
-        assertEquals("Trackpad aktiv", rows["Trackpad: Löschtaste jetzt"])
+        assertEquals("an", rows["Trackpad – Schalter „Cursor als Trackpad“"])
+        assertEquals("← Rückgängig, → Cursor bewegen", rows["Trackpad – Leertaste ← und →"])
+        assertEquals("↑ Nichts, ↓ Nichts", rows["Trackpad – Leertaste ↑ und ↓"])
+        assertTrue(rows["Trackpad – Leertaste jetzt"]!!.startsWith("nicht aktiv, weil ← Wischen mit „Rückgängig“ belegt ist"))
+        assertEquals("Trackpad aktiv", rows["Trackpad – Löschtaste jetzt"])
         assertEquals("noch keiner seit dem Start", rows["Letzter Wisch auf der Leertaste"])
-        assertEquals("noch kein Trackpad-Wisch", rows["Leertaste: Feld des letzten Trackpad-Wischs"])
+        assertEquals("noch kein Trackpad-Wisch", rows["Leertaste – Feld des letzten Trackpad-Wischs"])
     }
 
     @Test fun theCardRendersTheLastDecisionInPlainGerman() {
@@ -94,8 +94,8 @@ class CursorTrackDiagTest {
         counters.onSuppressedArrows(key, 3)
         val rows = Diagnose.trackpad(app, prefs, counters.snapshot()).rows.associate { it.label to it.value }
         assertEquals("Trackpad, 14 Schritte, senkrecht nicht möglich, weil das Feld einzeilig gemeldet ist", rows["Letzter Wisch auf der Leertaste"])
-        assertEquals("Textklasse ja, Mehrzeilig-Flag nein", rows["Leertaste: Feld des letzten Trackpad-Wischs"])
-        assertEquals("14 Schritte waagerecht, 0 Pfeile senkrecht gesendet, 3 senkrecht unterdrückt (Feld einzeilig), 0 Rasten", rows["Leertaste: Bewegung"])
+        assertEquals("Textklasse ja, Mehrzeilig-Flag nein", rows["Leertaste – Feld des letzten Trackpad-Wischs"])
+        assertEquals("14 Schritte waagerecht, 0 Pfeile senkrecht gesendet, 3 senkrecht unterdrückt (Feld einzeilig), 0 Rasten", rows["Leertaste – Bewegung"])
         assertFalse(Diagnose.text(app, listOf(Diagnose.trackpad(app, prefs, counters.snapshot()))).isEmpty())
     }
 
