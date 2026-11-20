@@ -35,6 +35,13 @@ class UndoOfferTest {
         }
     }
 
+    @Test fun aLineBreakFromShiftEnterAndTextWithoutAKeyCodeEndTheOffer() {
+        UndoOffer.onCode(KeyCode.UNDO); UndoOffer.onCode(KeyCode.SHIFT_ENTER)
+        assertFalse(UndoOffer.active, "shift+enter inserts a line break")
+        UndoOffer.onCode(KeyCode.UNDO); UndoOffer.onTextChange()
+        assertFalse(UndoOffer.active)
+    }
+
     @Test fun keysThatChangeNoTextLeaveTheOfferAlone() {
         UndoOffer.onCode(KeyCode.UNDO)
         for (code in listOf(KeyCode.SHIFT, KeyCode.CAPS_LOCK, KeyCode.SYMBOL, KeyCode.ALPHA, KeyCode.LANGUAGE_SWITCH)) {
