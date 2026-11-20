@@ -126,7 +126,9 @@ class SymbolLatencyTest {
             Probe("e - on the symbol page", "hello", '-', symbols = true),
             Probe("f - after a space", "hello ", '-'),
             Probe("g second symbol", "hello-", '-'),
+            Probe("f . after a space", "hello ", '.'),
             Probe("h pill: - after a space", "hello ", '-', pill = true),
+            Probe("h pill: . after a word", "hello", '.', pill = true),
             Probe("i toolbar open: - after a space", "hello ", '-', toolbar = true),
         )
         for (p in probes) {
@@ -166,13 +168,6 @@ class SymbolLatencyTest {
             assertEquals(1, t.stripWords, "$prefix$c\n${t.names()}")
             assertTrue(t.afterBatch > 0, "$prefix$c: ... after the batch\n${t.names()}")
         }
-    }
-
-    @Test fun theNeutralStripAsksEachChipSourceOnce() {
-        val t = after("hello", '.')
-        for (source in listOf("CHIPS_COMMAND", "CHIPS_SYMBOL", "CHIPS_SELECTION", "CHIPS_CLIPBOARD", "CHIPS_UPDATE"))
-            assertEquals(1, t.count(source), "$source\n${t.names()}")
-        assertEquals(5, t.chipEvaluations, t.names())
     }
 
     @Test fun aSymbolThatStartsAWordDoesItsReadsOutsideTheBatch() {

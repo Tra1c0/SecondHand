@@ -376,11 +376,11 @@ class ClipboardHistoryManager(
         clipboardDao?.listener = listener
     }
 
-    private fun isClipSensitive(inputType: Int): Boolean {
+    /** Fork, stage 84: of the clip the caller has read already (a second read of the clip is a call into the system). */
+    private fun isClipSensitive(inputType: Int, description: android.content.ClipDescription?): Boolean {
         // getClipSensitivity is only null below API 24: a plain "?.let { return it }" answered false for
         // every unmarked clip and the password field was never asked (device test run 26)
-        helium314.keyboard.agent.TypingPerf.work(helium314.keyboard.agent.TypingPerf.Work.CLIPBOARD_SERVICE) // fork, stage 84
-        if (ClipboardManagerCompat.getClipSensitivity(clipboardManager.primaryClip?.description) == true) return true
+        if (ClipboardManagerCompat.getClipSensitivity(description) == true) return true
         return InputTypeUtils.isPasswordInputType(inputType)
     }
 
@@ -424,7 +424,7 @@ class ClipboardHistoryManager(
             if (InputTypeUtils.isNumberInputType(inputType) && !content.isValidNumber()) return null
             val shortenedContent = content.take(200) // for display only
             KeyboardTypeface.applyToTextView(textView)
-            textView.text = (if (isClipSensitive(inputType)) "*".repeat(shortenedContent.length) else shortenedContent)
+            textView.text = (if (isClipSensitive(inputType, clipData.description)) "*".repeat(shortenedContent.length) else shortenedContent)
         }
         // stage 40: the pill alone, or the row of the pill and its Smart Paste chips
         var shownView: View = binding.root
@@ -471,7 +471,7 @@ class ClipboardHistoryManager(
         if (FlatStyle.isActive(colors)) {
             val label = clipData.description?.label?.toString()?.trim().orEmpty()
             FlatClipboard.styleChip(binding.root, textView, binding.clipboardSuggestionImage, closeButton, hasImage,
-                if (label.length in 1..FlatClipboard.MAX_CHIP_LABEL && !isClipSensitive(inputType)) label else null
+                if (label.length in 1..FlatClipboard.MAX_CHIP_LABEL && !isClipSensitive(inputType, clipData.description)) label else null
             ) { removeClipboardSuggestion() }
         }
 

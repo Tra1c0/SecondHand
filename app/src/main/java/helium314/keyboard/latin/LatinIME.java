@@ -1740,38 +1740,27 @@ public class LatinIME extends InputMethodService implements
     }
 
     private void setSuggestedWords(final SuggestedWords suggestedWords) {
-        setSuggestedWords(suggestedWords, false);
-    }
-
-    /**
-     * [chipSourcesAsked]: the caller (setNeutralSuggestionStrip) has just asked the chip sources of this method, command,
-     * drawn symbol, selection and screenshot (the clipboard source holds it), and none had anything; asking again in the same
-     * call gives the same answer (stage 84).
-     */
-    private void setSuggestedWords(final SuggestedWords suggestedWords, final boolean chipSourcesAsked) {
         helium314.keyboard.agent.TypingPerf.work(helium314.keyboard.agent.TypingPerf.Work.STRIP_WORDS); // fork, stage 84: numbers only
         final SettingsValues currentSettingsValues = mSettings.getCurrent();
         mInputLogic.setSuggestedWords(suggestedWords);
         // TODO: Modify this when we support suggestions with hard keyboard
         if (!hasSuggestionStripView()) {
-            if (!chipSourcesAsked) tryShowCommandChips(); // only updates the command guard here
+            tryShowCommandChips(); // only updates the command guard here
             return;
         }
         if (!onEvaluateInputViewShown()) {
             return;
         }
-        if (!chipSourcesAsked) {
-            // a typed command shows its chips instead of word suggestions (stage 24)
-            if (tryShowCommandChips()) return;
-            if (tryShowSymbolChips()) return; // stage 27: alternatives of a drawn symbol
-            // stage 82: actions while text is selected; gesture typing over a selection and the app's own completions keep their words
-            final int style = suggestedWords.mInputStyle;
-            if (style != SuggestedWords.INPUT_STYLE_UPDATE_BATCH && style != SuggestedWords.INPUT_STYLE_TAIL_BATCH
-                    && style != SuggestedWords.INPUT_STYLE_APPLICATION_SPECIFIED && tryShowSelectionChips()) return;
-            // between words a fresh screenshot comes before next-word suggestions (stage 23g); the
-            // suggestions above stay with InputLogic, so autocorrection is unchanged
-            if (tryShowScreenshotChip()) return;
-        }
+        // a typed command shows its chips instead of word suggestions (stage 24)
+        if (tryShowCommandChips()) return;
+        if (tryShowSymbolChips()) return; // stage 27: alternatives of a drawn symbol
+        // stage 82: actions while text is selected; gesture typing over a selection and the app's own completions keep their words
+        final int style = suggestedWords.mInputStyle;
+        if (style != SuggestedWords.INPUT_STYLE_UPDATE_BATCH && style != SuggestedWords.INPUT_STYLE_TAIL_BATCH
+                && style != SuggestedWords.INPUT_STYLE_APPLICATION_SPECIFIED && tryShowSelectionChips()) return;
+        // between words a fresh screenshot comes before next-word suggestions (stage 23g); the
+        // suggestions above stay with InputLogic, so autocorrection is unchanged
+        if (tryShowScreenshotChip()) return;
 
         final boolean isEmptyApplicationSpecifiedCompletions =
                 currentSettingsValues.mInputAttributes.mApplicationSpecifiedCompletionOn
@@ -1893,7 +1882,7 @@ public class LatinIME extends InputMethodService implements
         final SuggestedWords neutralSuggestions = currentSettings.mSuggestPunctuation
                 ? currentSettings.mPunctuationSuggestions
                 : SuggestedWords.getEmptyInstance();
-        setSuggestedWords(neutralSuggestions, true); // stage 84: the chip sources above had nothing
+        setSuggestedWords(neutralSuggestions);
         if (hasSuggestionStripView() && currentSettings.mAutoShowToolbar) {
             final int codePointBeforeCursor = mInputLogic.mConnection.getCodePointBeforeCursor();
             if (mInputLogic.mConnection.hasSelection()
