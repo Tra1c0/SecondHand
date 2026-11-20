@@ -6334,6 +6334,91 @@ class InputLogicTest {
         assertTrue(toolbarOf(strip).isVisible)
     }
 
+    // ---- stage 85/86 review: the tools stay for a selection, a new field closes the grid ----
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun theToolsChosenForASelectionStayWhileItLastsAndTheLeftKeyTogglesBetweenToolsAndChips() {
+        val strip = selectionStripWithPrefs(Settings.PREF_TOOLBAR_MODE to helium314.keyboard.latin.utils.ToolbarMode.EXPANDABLE.name,
+            Settings.PREF_AUTO_SHOW_TOOLBAR to false)
+        val left = strip.findViewById<android.widget.ImageButton>(R.id.suggestions_strip_toolbar_key)
+        selectAllBySpaceHold()
+        assertEquals(listOf("Copy", "Cut", "Delete"), selectionLabels(strip)) // the chips replace the tools
+        assertFalse(toolbarOf(strip).isVisible)
+        assertEquals(latinIME.getString(R.string.agent_bar_show_tools), left.contentDescription)
+
+        assertTrue(left.performClick()) // "Werkzeuge zeigen": the tools, for this selection
+        assertTrue(toolbarOf(strip).isVisible)
+        assertEquals(latinIME.getString(R.string.agent_bar_show_actions), left.contentDescription)
+        // the range changes three times (handles, the app's echo): the chips are rebuilt behind the tools, which stay
+        setCursorPosition(1, 4); assertTrue(toolbarOf(strip).isVisible)
+        setCursorPosition(1, 5); assertTrue(toolbarOf(strip).isVisible)
+        setCursorPosition(2, 6); assertTrue(toolbarOf(strip).isVisible)
+        assertEquals(listOf("Copy", "Cut", "Delete"), selectionLabels(strip)) // the chips are current behind them
+
+        assertTrue(left.performClick()) // one tap back to the chips
+        assertFalse(toolbarOf(strip).isVisible)
+        assertEquals(listOf("Copy", "Cut", "Delete"), selectionLabels(strip))
+        assertTrue(left.performClick()) // and again to the tools: the toggle
+        assertTrue(toolbarOf(strip).isVisible)
+
+        // the selection ends: the tools (the neutral strip); the next selection starts with the chips again
+        setCursorPosition(3)
+        assertTrue(toolbarOf(strip).isVisible)
+        assertEquals(emptyList(), selectionLabels(strip))
+        selectAllBySpaceHold()
+        assertFalse(toolbarOf(strip).isVisible)
+        assertEquals(listOf("Copy", "Cut", "Delete"), selectionLabels(strip))
+
+        // typing ends the choice too: words replace the tools
+        left.performClick()
+        assertTrue(toolbarOf(strip).isVisible)
+        latinIME.setSuggestions(SuggestedWords(arrayListOf(SuggestedWordInfo("hallo", "", 100, SuggestedWordInfo.KIND_CORRECTION, null, 0, 0)),
+            null, null, false, false, false, SuggestedWords.INPUT_STYLE_PREDICTION, SuggestedWords.NOT_A_SEQUENCE_NUMBER))
+        handleMessages()
+        assertFalse(toolbarOf(strip).isVisible)
+    }
+
+    private fun stripWithGrid(): Pair<helium314.keyboard.latin.suggestions.SuggestionStripView, helium314.keyboard.agent.ToolGridView> {
+        helium314.keyboard.keyboard.internal.KeyboardIconsSet.instance.loadIcons(latinIME)
+        val themed = android.view.ContextThemeWrapper(latinIME, R.style.KeyboardTheme_Flat)
+        val root = android.widget.FrameLayout(themed)
+        val container = android.view.LayoutInflater.from(themed).inflate(R.layout.strip_container, root, false) as android.view.ViewGroup
+        container.id = R.id.strip_container
+        root.addView(container)
+        root.addView(android.widget.FrameLayout(themed).apply {
+            id = R.id.keyboard_view_wrapper
+            addView(MainKeyboardView(themed, null).apply { id = R.id.keyboard_view })
+        })
+        val grid = helium314.keyboard.agent.ToolGridView(themed, null).apply { id = R.id.agent_tool_grid }
+        root.addView(grid)
+        latinIME.updateSuggestionStripView(root)
+        setText("")
+        return container.findViewById<helium314.keyboard.latin.suggestions.SuggestionStripView>(R.id.suggestion_strip_view) to grid
+    }
+
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    @Test fun aNewFieldClosesTheToolGridAndTheEditModeAndSavesNothingPending() {
+        val (strip, grid) = stripWithGrid()
+        val left = strip.findViewById<android.widget.ImageButton>(R.id.suggestions_strip_toolbar_key)
+        left.performClick()
+        assertTrue(grid.isOpen)
+        grid.findViewById<android.view.View>(R.id.agent_tool_grid_edit).performClick()
+        assertNotNull(grid.editListener)
+        val before = latinIME.prefs().getString(AgentPreferences.BAR_TOOLS, null)
+        // the next field starts without the keyboard having been hidden (no hideWindow in between)
+        startField("another.app", content = "x")
+        assertFalse(grid.isOpen)
+        assertEquals(null, grid.editListener)
+        assertEquals(latinIME.getString(R.string.agent_bar_all_tools), left.contentDescription)
+        assertEquals(before, latinIME.prefs().getString(AgentPreferences.BAR_TOOLS, null))
+        // a restart in the same field (rotation, a reload) leaves an open grid alone
+        left.performClick()
+        assertTrue(grid.isOpen)
+        latinIME.mHandler.onStartInputView(latinIME.currentInputEditorInfo, true)
+        handleMessages()
+        assertTrue(grid.isOpen)
+    }
+
     @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
     @Test fun withAutoShowToolbarTheToolbarShowsForASelectionAsBeforeAndThereAreNoChips() {
         val strip = selectionStripWithPrefs(Settings.PREF_TOOLBAR_MODE to helium314.keyboard.latin.utils.ToolbarMode.EXPANDABLE.name,

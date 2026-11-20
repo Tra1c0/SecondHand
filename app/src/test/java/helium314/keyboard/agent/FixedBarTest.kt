@@ -265,10 +265,11 @@ class FixedBarTest {
         assertTrue(toolsVisible(h)) // the tools stay in view while the grid is open
         layout(h)
 
-        // every tool of the fork, except the voice key without a voice input and the data gathering key never used
-        val expected = BarTools.gridOrder.filter { it != VOICE && it != BACKGROUND_GATHERING }
+        // every tool of the fork, except the voice key without a voice input, the data gathering key never used and the
+        // clipboard clearing tool (one tap destroys the history, the vault and the clip) that the user never had in a list
+        val expected = BarTools.gridOrder.filter { it != VOICE && it != BACKGROUND_GATHERING && it != CLEAR_CLIPBOARD }
         assertEquals(expected, h.grid.listed)
-        assertTrue(expected.size >= 38)
+        assertTrue(expected.size >= 37)
         // two columns, scrollable, tools listed in rows of two
         val pills = expected.map { h.grid.pill(it)!! }
         pills.forEach { assertTrue(!it.contentDescription.isNullOrBlank() && it.text.isNotBlank(), "label of ${it.tag}") }
@@ -464,6 +465,161 @@ class FixedBarTest {
         reload()
         assertFalse(Settings.getValues().mFixedBar)
         assertTrue(build().strip.findViewById<View>(R.id.toolbar_container) is HorizontalScrollView)
+    }
+
+
+    // ---- review of stages 85/86 ----
+
+    @Test fun theClipboardClearingToolIsOnlyInTheGridForAUserWhoHadItInAList() {
+        var h = build()
+        leftKey(h).performClick()
+        assertNull(h.grid.pill(CLEAR_CLIPBOARD)) // never by default: one tap would clear history, vault and clip
+        // no other tool of the grid is irreversible: the rest toggles a mode, opens a window or edits text (undoable)
+        assertEquals(setOf(CLEAR_CLIPBOARD), BarTools.DESTRUCTIVE)
+        // in the old toolbar list ...
+        prefs.edit { putString(Settings.PREF_TOOLBAR_KEYS, "CLEAR_CLIPBOARD:true|UNDO:true") }
+        h = build(); leftKey(h).performClick()
+        assertNotNull(h.grid.pill(CLEAR_CLIPBOARD))
+        // ... or in the bar
+        prefs.edit { remove(Settings.PREF_TOOLBAR_KEYS) }
+        setBar(listOf(UNDO, CLEAR_CLIPBOARD)); reload()
+        h = build(); leftKey(h).performClick()
+        assertNotNull(h.grid.pill(CLEAR_CLIPBOARD))
+    }
+
+    @Test fun pinningAKeyToAFullBarSaysSoAndChangesNeitherList() {
+        val eight = BarTools.offered.filter { it !in BarTools.MIC_KEYS && it != SKILL_1 }.take(BarTools.MAX)
+        setBar(eight)
+        val pinnedBefore = getPinnedToolbarKeys(prefs)
+        assertFalse(pinKey(prefs, SKILL_1)) // the skill screen shows a message for this
+        assertEquals(pinnedBefore, getPinnedToolbarKeys(prefs))
+        assertEquals(eight, BarTools.parse(prefs.getString(AgentPreferences.BAR_TOOLS, null)))
+        assertFalse(isKeyPinned(prefs, SKILL_1))
+        // with room it pins in both lists, and unpinning takes it out of both
+        setBar(eight.drop(1))
+        assertTrue(pinKey(prefs, SKILL_1))
+        assertTrue(isKeyPinned(prefs, SKILL_1))
+        assertTrue(SKILL_1 in getPinnedToolbarKeys(prefs))
+        unpinKey(prefs, SKILL_1)
+        assertFalse(isKeyPinned(prefs, SKILL_1))
+        assertFalse(SKILL_1 in getPinnedToolbarKeys(prefs))
+    }
+
+    @Test fun aKeyTakenOutOfTheBarNoLongerCountsAsPinned() {
+        setBar(listOf(SKILL_1, UNDO))
+        helium314.keyboard.latin.utils.addPinnedKey(prefs, SKILL_1) // the old list says pinned
+        assertTrue(isKeyPinned(prefs, SKILL_1))
+        BarTools.write(prefs, listOf(UNDO)) // taken out in the edit mode
+        assertTrue(SKILL_1 in getPinnedToolbarKeys(prefs)) // the old list is not touched ...
+        assertFalse(isKeyPinned(prefs, SKILL_1)) // ... but the bar is what counts
+        // the other modes still read the old list
+        prefs.edit { putString(Settings.PREF_TOOLBAR_MODE, ToolbarMode.SUGGESTION_STRIP.name) }
+        assertTrue(isKeyPinned(prefs, SKILL_1))
+    }
+
+    @Test fun aGarbledStoredBarFallsBackToTheMigrationAndIsLeftAloneUntilTheUserEdits() {
+        val migrated = BarTools.read(prefs)
+        prefs.edit { putString(AgentPreferences.BAR_TOOLS, "UNDO:true|COPY:maybe|???") }
+        assertEquals(migrated, BarTools.read(prefs)) // not an empty bar
+        assertFalse(BarTools.isCustomised(prefs))
+        reload()
+        assertEquals(migrated.filter { it != VOICE }, slots(build()).map { it.tag }) // the voice key is hidden here
+        assertEquals("UNDO:true|COPY:maybe|???", prefs.getString(AgentPreferences.BAR_TOOLS, null)) // not overwritten by looking
+        prefs.edit { putString(AgentPreferences.BAR_TOOLS, "") }
+        assertEquals(migrated, BarTools.read(prefs))
+        // an edit writes a good value
+        BarTools.write(prefs, listOf(UNDO))
+        assertEquals(listOf(UNDO), BarTools.read(prefs))
+    }
+
+    @Test fun theFlatPresetSetsTheBarToItsFourToolsAndItsBackupRestoresThePreviousBar() {
+        setBar(listOf(UNDO, REDO))
+        val preset = FlatPreset(latinIME)
+        assertFalse(preset.isApplied())
+        preset.apply()
+        assertEquals(listOf(CLIPBOARD, EMOJI, AGENT, DICTATE), BarTools.read(prefs)) // a stored bar did not survive the preset's toolbar
+        assertTrue(preset.isApplied())
+        // changing the bar by hand makes the card "not applied" like any other value of the preset
+        BarTools.write(prefs, listOf(UNDO))
+        assertFalse(preset.isApplied())
+        preset.apply()
+        preset.restore()
+        assertEquals(listOf(UNDO, REDO), BarTools.read(prefs))
+        // a user without a stored bar gets none back: the migration is his bar again
+        prefs.edit().clear().commit()
+        val migrated = BarTools.read(prefs)
+        preset.apply()
+        preset.restore()
+        assertFalse(prefs.contains(AgentPreferences.BAR_TOOLS))
+        assertEquals(migrated, BarTools.read(prefs))
+    }
+
+    @Test fun theDiagnoseReportMatchesWhatIsOnScreen() {
+        val h = build()
+        class Report(val words: Boolean, val external: Boolean, val toolbar: Boolean, val emojis: Boolean)
+        var last: Report? = null
+        h.strip.stripReporter = { _, words, external, toolbar, emojis -> last = Report(words, external, toolbar, emojis) }
+        h.strip.setSuggestions(SuggestedWords.getEmptyInstance(), false)
+        assertEquals(false, last!!.toolbar) // the neutral tools are an empty strip
+        h.strip.setSuggestions(words("hallo"), false)
+        assertTrue(last!!.words); assertFalse(last!!.toolbar)
+        // the tools forced over words (auto show): words under the toolbar, not "words"
+        h.strip.setToolbarVisibility(true)
+        assertTrue(last!!.toolbar); assertTrue(last!!.words)
+        h.strip.setSuggestions(words("halli"), false)
+        leftKey(h).performClick() // chosen by hand: the same
+        assertTrue(last!!.toolbar)
+        // tools over an external view (the pill): the toolbar covers it, it is not reported as shown
+        h.strip.setExternalSuggestionView(android.widget.TextView(context), false)
+        assertFalse(last!!.toolbar); assertTrue(last!!.external)
+        h.strip.setToolbarVisibility(true)
+        assertTrue(last!!.toolbar); assertFalse(last!!.external)
+    }
+
+    @Test fun whileTheRecentEmojisShowTheLeftKeyOpensTheGridInsteadOfPromisingTheTools() {
+        flatPreset()
+        helium314.keyboard.keyboard.emoji.RecentEmojis.set(listOf("🤠"))
+        val h = build()
+        h.strip.setSuggestions(words("hallo"), false) // content: the key would say "Werkzeuge zeigen"
+        assertEquals(latinIME.getString(R.string.agent_bar_show_tools), leftKey(h).contentDescription)
+        h.strip.showRecentEmojis(true)
+        // the emojis cover tools and words alike: a tap on "show the tools" would change nothing visible
+        assertEquals(latinIME.getString(R.string.agent_bar_all_tools), leftKey(h).contentDescription)
+        assertTrue(leftKey(h).performClick())
+        assertTrue(h.grid.isOpen)
+        h.grid.close()
+        h.strip.showRecentEmojis(false)
+        assertEquals(latinIME.getString(R.string.agent_bar_show_tools), leftKey(h).contentDescription) // back to what is on screen
+    }
+
+    @Test fun aStripUpdateWhileTypingBuildsLooksUpAndArrangesNothingForTheBar() {
+        val h = build()
+        h.strip.setSuggestions(SuggestedWords.getEmptyInstance(), false) // warm up: the first update finds the grid of this window
+        h.strip.setSuggestions(words("a"), false)
+        BarCounters.reset()
+        repeat(30) {
+            h.strip.setSuggestions(words("ha", "hal", "hallo"), false)
+            h.strip.setSuggestions(SuggestedWords.getEmptyInstance(), false)
+        }
+        assertEquals(0, BarCounters.gridLookups, "grid looked up")
+        assertEquals(0, BarCounters.barBuilds, "slots built")
+        assertEquals(0, BarCounters.arranges, "slots arranged")
+        assertEquals(0, BarCounters.labelLookups, "descriptions read from the resources")
+    }
+
+    @Test fun theStoreIsDimmedInANumberLayoutAndTheCharacterArtIsNot() {
+        setBar(listOf(PROMPTS, CHAR_ART, UNDO))
+        reload()
+        val h = build()
+        assertTrue(slots(h).all { it.isEnabled })
+        h.strip.numberLayoutProbe = { true }
+        h.strip.setSuggestions(SuggestedWords.getEmptyInstance(), false)
+        assertEquals(listOf(PROMPTS), slots(h).filter { !it.isEnabled }.map { it.tag })
+        leftKey(h).performClick()
+        assertFalse(h.grid.pill(PROMPTS)!!.isEnabled)
+        assertTrue(h.grid.pill(CHAR_ART)!!.isEnabled)
+        h.grid.pill(PROMPTS)!!.performClick()
+        assertTrue(h.grid.isOpen); assertEquals(emptyList(), h.codes)
     }
 
     private companion object {

@@ -225,7 +225,7 @@ public class LatinIME extends InputMethodService implements
         if (!hasSuggestionStripView() || !onEvaluateInputViewShown() || mSettings.getCurrent().mAutoShowToolbar) return false;
         final View chips = helium314.keyboard.agent.SelectionChips.createChipsView(this, mSuggestionStripView);
         if (chips == null) return false;
-        mSuggestionStripView.setExternalSuggestionView(chips, false);
+        mSuggestionStripView.setExternalSuggestionView(chips, false, true); // selection: the fixed bar keeps a chosen toolbar while it lasts
         return true;
     }
     public void onAgentTextSubmitted() {
@@ -1056,6 +1056,9 @@ public class LatinIME extends InputMethodService implements
             if (hasSuggestionStripView())
                 mSuggestionStripView.updateVoiceKey();
         }
+        // stage 85: a new field must not start under an open tool grid or edit mode (hideWindow is not always called in between)
+        if (isDifferentTextField && hasSuggestionStripView())
+            mSuggestionStripView.onFieldStarted();
 
         switcher.updateKeyboardTheme(mDisplayContext);
         MainKeyboardView mainKeyboardView = switcher.getMainKeyboardView();

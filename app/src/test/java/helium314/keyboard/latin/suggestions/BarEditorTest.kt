@@ -149,4 +149,45 @@ class BarEditorTest {
         fresh.reload()
         assertEquals(fresh.bar, fresh.shown)
     }
+
+    private fun hiddenVoice() = BarEditor({ stored }, { stored = it; writes += it }, { it == VOICE })
+
+    @Test fun aHiddenVoiceKeyInTheMiddleDoesNotShiftTheDropPlace() {
+        stored = listOf(UNDO, VOICE, REDO, COPY) // the voice key is in the list but has no slot: visible slots are UNDO, REDO, COPY
+        val e = hiddenVoice()
+        e.dragStart(PASTE, fromBar = false)
+        // between redo (slot 1) and copy (slot 2): the list index is 3, not 2
+        assertEquals(3, e.listIndexForSlot(2))
+        assertTrue(e.dragOverBar(e.listIndexForSlot(2)))
+        assertEquals(Result.CHANGED, e.dropOnBar(e.listIndexForSlot(2)))
+        assertEquals(listOf(UNDO, VOICE, REDO, PASTE, COPY), stored)
+        // first slot: before undo; past all slots: the end
+        e.dragStart(CUT, fromBar = false)
+        assertEquals(0, e.listIndexForSlot(0))
+        assertEquals(stored.size, e.listIndexForSlot(9))
+    }
+
+    @Test fun aToolMovedInTheBarLandsOnTheVisibleSlotWhateverHiddenToolsLieBetween() {
+        stored = listOf(UNDO, VOICE, REDO, COPY)
+        val e = hiddenVoice()
+        e.dragStart(UNDO, fromBar = true)
+        // to the second visible slot (behind redo)
+        val index = e.listIndexForSlot(1)
+        assertEquals(Result.CHANGED, e.dropOnBar(index))
+        assertEquals(listOf(VOICE, REDO, UNDO, COPY), stored)
+    }
+
+    @Test fun shiftingSkipsAHiddenToolAndOnlyOffersActionsWithAVisibleNeighbour() {
+        stored = listOf(UNDO, VOICE, REDO)
+        val e = hiddenVoice()
+        assertTrue(e.canShift(UNDO, 1)); assertFalse(e.canShift(UNDO, -1))
+        assertTrue(e.canShift(REDO, -1)); assertFalse(e.canShift(REDO, 1))
+        assertEquals(Result.CHANGED, e.shift(UNDO, 1)) // a visible change: undo is behind redo now
+        assertEquals(listOf(VOICE, REDO, UNDO), stored)
+        // with only hidden neighbours there is nothing to move
+        stored = listOf(UNDO, VOICE)
+        val only = hiddenVoice()
+        assertFalse(only.canShift(UNDO, 1))
+        assertEquals(Result.UNCHANGED, only.shift(UNDO, 1))
+    }
 }

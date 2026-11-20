@@ -149,6 +149,19 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     /** Stage 86: the tool being dragged is drawn half transparent where it would land. */
     private var ghost: ToolbarKey? = null
     private var renderedBar: List<ToolbarKey>? = null
+    private var gridRoot: View? = null
+    private var gridCache: helium314.keyboard.agent.ToolGridView? = null
+    private val labels = HashMap<ToolbarKey, String>()
+    private val unavailableLabels = HashMap<ToolbarKey, String>()
+    /** Whether the keyboard is a number layout (the store is not offered there); tests replace the probe. */
+    internal var numberLayoutProbe: () -> Boolean = {
+        runCatching { KeyboardSwitcher.getInstance().keyboard?.mId?.element?.isNumberLayout == true }.getOrDefault(false)
+    }
+
+    private var voiceShown: Boolean? = null
+    /** What the strip tells the diagnose card ([helium314.keyboard.agent.LastField.onStripView]); tests read it. */
+    internal var stripReporter: (newContent: Boolean, wordsOffered: Boolean, external: Boolean, toolbar: Boolean, emojis: Boolean) -> Unit =
+        { newContent, words, external, toolbar, emojis -> helium314.keyboard.agent.LastField.onStripView(newContent, words, external, toolbar, emojis) }
     /** Flat style: recent emojis shown instead of tools and words while a symbol page is open (stage 23b). */
     private var emojiRow: android.view.ViewGroup? = null
     private var toolbarBeforeEmojis = false
@@ -314,10 +327,13 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
      */
     private fun reportToLastField(newContent: Boolean) {
         runCatching {
-            helium314.keyboard.agent.LastField.onStripView(newContent,
+            // the fixed bar shows the tools when there is nothing else: that is an empty strip, not a toolbar covering words;
+            // tools over content (chosen by the user or forced, e.g. auto show) are a toolbar, and then the content is covered
+            val tools = if (fixedBar) barState.show == BarState.Show.TOOLS else toolbarContainer.isVisible
+            stripReporter(newContent,
                 wordsOffered = !isExternalSuggestionVisible && !suggestedWords.isEmpty && !suggestedWords.isPunctuationSuggestions,
-                // the fixed bar shows the tools when there is nothing else: that is an empty strip, not a toolbar covering words
-                external = isExternalSuggestionVisible, toolbar = toolbarContainer.isVisible && (!fixedBar || barState.toolsChosen),
+                external = isExternalSuggestionVisible && !(fixedBar && tools && barState.hasContent),
+                toolbar = tools && (!fixedBar || barState.hasContent),
                 emojis = emojiRow?.isVisible == true)
         }
     }
@@ -338,7 +354,9 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         updateKeys()
     }
 
-    fun setExternalSuggestionView(view: View?, addCloseButton: Boolean) {
+    /** [selection]: the view is the chips of a selected text; a user's choice of the tools then holds for that selection (see [BarState]). */
+    @JvmOverloads
+    fun setExternalSuggestionView(view: View?, addCloseButton: Boolean, selection: Boolean = false) {
         clear()
         isExternalSuggestionVisible = true
         reportToLastField(newContent = true)
@@ -363,7 +381,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         }
 
         // The fixed bar: chips and every other external view replace the tools (the left key brings them back).
-        if (fixedBar) { barState.onContent(); applyBarState(); return }
+        if (fixedBar) { barState.onContent(selection); applyBarState(); reportToLastField(newContent = false); return }
         // In the Flat style the left key opens the menu and cannot collapse the toolbar, so an external
         // suggestion (inline autofill, clipboard) always takes its place.
         if (Settings.getValues().mAutoHideToolbar || flatStyle) setToolbarVisibility(false)
@@ -460,7 +478,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             if (editor == null && (barState.show == BarState.Show.TOOLS || gridOpen())) enterEdit()
             return true
         }
-        if (fixedBar && view.tag is ToolbarKey) {
+        // only the slots of the bar customize (the close cross of the inline autofill is also a ToolbarKey button, in the suggestion area)
+        if (fixedBar && view.tag is ToolbarKey && view.parent === toolbar) {
             val key = view.tag as ToolbarKey
             // customizing: dragging a slot, or (no own long press action) starting the edit mode from the slot
             if (editor != null) return startDrag(view, key, fromBar = true)
@@ -624,11 +643,13 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         toolbar.findViewWithTag<View>(ToolbarKey.VOICE)?.isVisible = show
         pinnedKeys.findViewWithTag<View>(ToolbarKey.VOICE)?.isVisible = show
         // a hidden voice key leaves its cell to the others and the last microphone key may become the circle
-        if (fixedBar) arrangeBar()
+        if (fixedBar && show != voiceShown) { voiceShown = show; arrangeBar() }
     }
+
 
     /** The geometry of the slots; in the edit mode they keep their outlines (every update of the strip comes through here). */
     private fun arrangeBar() {
+        BarCounters.arranges++
         val colors = Settings.getValues().mColors
         FixedBar.arrange(toolbar, toolbarExpandKey, flatStyle, colors)
         if (editor != null) FixedBar.markEditing(toolbar, flatStyle, colors, ghost)
@@ -676,9 +697,38 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         applyBarState()
     }
 
-    private fun toolGrid() = rootView.findViewById<helium314.keyboard.agent.ToolGridView>(R.id.agent_tool_grid)
+
+    /** The grid of this window; looked up once per root view, not on every update of the strip. */
+    private fun toolGrid(): helium314.keyboard.agent.ToolGridView? {
+        val root = rootView
+        if (root !== gridRoot) {
+            gridRoot = root
+            gridCache = root.findViewById(R.id.agent_tool_grid)
+            BarCounters.gridLookups++
+        }
+        return gridCache
+    }
 
     private fun gridOpen() = toolGrid()?.isOpen == true
+
+    private fun emojisShown() = emojiRow?.isVisible == true
+
+
+    private fun labelOf(key: ToolbarKey) = labels.getOrPut(key) {
+        BarCounters.labelLookups++
+        key.name.lowercase(java.util.Locale.ROOT).getStringResourceOrName("", context)
+    }
+
+    private fun unavailableLabelOf(key: ToolbarKey) = unavailableLabels.getOrPut(key) { context.getString(R.string.agent_bar_tool_unavailable, labelOf(key)) }
+
+
+    /** A new field starts without the keyboard having been hidden: no grid and no edit mode over it (nothing pending is saved). */
+    fun onFieldStarted() {
+        if (!fixedBar) return
+        exitEdit(andClose = false)
+        closeGrid()
+        applyBarState()
+    }
 
     /** One consistent set of visibilities for the state of the bar; the only place that decides it in the fixed bar. */
     private fun applyBarState() {
@@ -699,11 +749,11 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     /** Tools that the field does not allow stay in their cell, dimmed; their own controllers still check again on a tap. */
     private fun updateToolAvailability() {
         val values = Settings.getValues()
+        val number = numberLayoutProbe()
         toolbar.forEachChild { button ->
             val key = button.tag as? ToolbarKey ?: return@forEachChild
-            val unavailable = BarTools.isUnavailable(key, values.mIncognitoModeEnabled, values.mIsLocked)
-            val label = key.name.lowercase(java.util.Locale.ROOT).getStringResourceOrName("", context)
-            FixedBar.setAvailable(button, !unavailable, editor != null, label) { context.getString(R.string.agent_bar_tool_unavailable, it) }
+            val unavailable = BarTools.isUnavailable(key, values.mIncognitoModeEnabled, values.mIsLocked, number)
+            FixedBar.setAvailable(button, !unavailable, editor != null, labelOf(key)) { unavailableLabelOf(key) }
             if (key == ghost) button.alpha = GHOST_ALPHA
         }
     }
@@ -716,12 +766,17 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     private fun updateLeftKey() {
         val incognito = Settings.getValues().mIncognitoModeEnabled
         val grid = gridOpen()
-        val toGrid = barState.leftKey == BarState.LeftKey.GRID
+        // the recent emojis (flat) cover tools and content alike: then the key can only open the grid
+        val function = if (emojisShown()) BarState.LeftKey.GRID else barState.leftKey
+        val toGrid = function == BarState.LeftKey.GRID
+        val toContent = function == BarState.LeftKey.SHOW_CONTENT
         val icon: Drawable?
         val text: Int
         when {
             editor != null -> { icon = doneIcon; text = R.string.agent_bar_edit_done }
             grid -> { icon = closeIcon; text = R.string.agent_bar_close_tools }
+            toContent -> { icon = if (incognito) incognitoIcon else backIcon
+                text = if (incognito) R.string.agent_bar_show_actions_incognito else R.string.agent_bar_show_actions }
             toGrid -> { icon = if (incognito) incognitoIcon else gridIcon
                 text = if (incognito) R.string.agent_bar_all_tools_incognito else R.string.agent_bar_all_tools }
             else -> { icon = if (incognito) incognitoIcon else backIcon
@@ -729,7 +784,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         }
         if (toolbarExpandKey.drawable !== icon) toolbarExpandKey.setImageDrawable(icon)
         // the back arrow points to the start of the strip, the other icons are symmetric
-        toolbarExpandKey.scaleX = if (!grid && !toGrid && !incognito && editor == null) -direction.toFloat() else direction.toFloat()
+        // (the arrow of "show the chips" points the other way)
+        toolbarExpandKey.scaleX = if (!grid && !toGrid && !toContent && !incognito && editor == null) -direction.toFloat() else direction.toFloat()
         toolbarExpandKey.contentDescription = context.getString(text)
         if (flatStyle) toolbarExpandKey.background = if (!grid && editor == null) null else GradientDrawable().apply {
             shape = GradientDrawable.OVAL
@@ -741,19 +797,24 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         if (editor != null) { exitEdit(andClose = true); return } // the check button: the places are saved already
         val grid = toolGrid()
         if (grid?.isOpen == true) { grid.close(); return }
+        if (emojisShown()) { openGrid(); return }
         when (barState.onLeftKey()) {
             BarState.LeftKey.GRID -> openGrid()
-            BarState.LeftKey.SHOW_TOOLS -> applyBarState()
+            BarState.LeftKey.SHOW_TOOLS, BarState.LeftKey.SHOW_CONTENT -> applyBarState()
         }
     }
 
     /** All tools in the order of the grid; the voice key only with a voice input, the data gathering key only once it was ever used. */
     private fun gridTools(): List<helium314.keyboard.agent.ToolGridView.Tool> {
         val values = Settings.getValues()
+        // a tool that destroys something with one tap (clear the clipboard) is only offered to a user who had it in one of the lists before
+        val prefs = context.prefs()
+        val usedBefore = BarTools.read(prefs) + getEnabledToolbarKeys(prefs) + getPinnedToolbarKeys(prefs)
         return BarTools.gridOrder.filter { key ->
             (key != ToolbarKey.VOICE || values.mShowsVoiceInputKey)
                 && (key != ToolbarKey.BACKGROUND_GATHERING || helium314.keyboard.latin.utils.GestureDataGatheringSettings.hasBackgroundGatheringPref(context.prefs()))
-        }.map { helium314.keyboard.agent.ToolGridView.Tool(it, !BarTools.isUnavailable(it, values.mIncognitoModeEnabled, values.mIsLocked)) }
+                && (key !in BarTools.DESTRUCTIVE || key in usedBefore)
+        }.map { helium314.keyboard.agent.ToolGridView.Tool(it, !BarTools.isUnavailable(it, values.mIncognitoModeEnabled, values.mIsLocked, numberLayoutProbe())) }
     }
 
     private fun openGrid() {
@@ -787,15 +848,16 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             createToolbarKey(context, key).also { it.layoutParams = toolbarKeyLayoutParams; setupKey(it, colors) }
         })
         renderedBar = keys
+        BarCounters.barBuilds++
+        voiceShown = null // the new buttons have not been arranged
         updateVoiceKey() // hides the voice key without a voice input and arranges the slots
         val ed = editor
         if (ed != null) {
             toolbar.forEachChild { button ->
                 val key = button.tag as? ToolbarKey ?: return@forEachChild
-                val at = ed.bar.indexOf(key)
                 androidx.core.view.ViewCompat.addAccessibilityAction(button, context.getString(R.string.agent_bar_action_remove)) { _, _ -> afterEdit(ed.remove(key)); true }
-                if (at > 0) androidx.core.view.ViewCompat.addAccessibilityAction(button, context.getString(R.string.agent_bar_action_left)) { _, _ -> afterEdit(ed.shift(key, -1)); true }
-                if (at in 0 until ed.bar.size - 1) androidx.core.view.ViewCompat.addAccessibilityAction(button, context.getString(R.string.agent_bar_action_right)) { _, _ -> afterEdit(ed.shift(key, 1)); true }
+                if (ed.canShift(key, -1)) androidx.core.view.ViewCompat.addAccessibilityAction(button, context.getString(R.string.agent_bar_action_left)) { _, _ -> afterEdit(ed.shift(key, -1)); true }
+                if (ed.canShift(key, 1)) androidx.core.view.ViewCompat.addAccessibilityAction(button, context.getString(R.string.agent_bar_action_right)) { _, _ -> afterEdit(ed.shift(key, 1)); true }
             }
         }
         updateToolAvailability()
@@ -807,7 +869,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         if (!fixedBar || editor != null) return
         if (!gridOpen()) openGrid()
         val grid = toolGrid() ?: return
-        val ed = BarEditor({ BarTools.read(context.prefs()) }, { BarTools.write(context.prefs(), it) })
+        val ed = BarEditor({ BarTools.read(context.prefs()) }, { BarTools.write(context.prefs(), it) }, ::hasNoSlot)
         editor = ed
         grid.dropListener = View.OnDragListener { _, event -> onGridDrag(event) }
         grid.setEditing(gridEditListener)
@@ -868,9 +930,14 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
      * The place of the bar under the finger at [x]: a new tool that is not shown in the bar yet is inserted after the slots
      * whose centre is left of the finger; once it is shown (as a ghost), or a tool of the bar is moved, the nearest slot is meant.
      */
-    private fun dragSlot(ed: BarEditor, x: Float): Int =
-        if (ed.preview == null && !ed.draggedFromBar && ed.dragged !in ed.bar) FixedBar.insertionIndexAt(toolbar, flatStyle, x)
-        else FixedBar.slotIndexAt(toolbar, flatStyle, x)
+    private fun dragSlot(ed: BarEditor, x: Float): Int {
+        val slot = if (ed.preview == null && !ed.draggedFromBar && ed.dragged !in ed.bar) FixedBar.insertionIndexAt(toolbar, flatStyle, x)
+            else FixedBar.slotIndexAt(toolbar, flatStyle, x)
+        return ed.listIndexForSlot(slot) // slots count the visible tools only, the list also holds a hidden voice key
+    }
+
+    /** A tool of the list that has no slot: the voice key where there is no voice input. */
+    private fun hasNoSlot(key: ToolbarKey) = key == ToolbarKey.VOICE && !Settings.getValues().mShowsVoiceInputKey
 
     /** The drag events of the bar: over it the tools move over, a drop saves. */
     private fun onBarDrag(event: android.view.DragEvent): Boolean {

@@ -44,6 +44,12 @@ object BarTools {
         first + offered.filterNot { it in first }
     }
 
+    /** The store is not offered in number layouts, as the popup key of the comma key (`PromptsKey.shown`); the character art has no such rule. */
+    val NOT_IN_NUMBER_LAYOUTS = setOf(PROMPTS)
+
+    /** Tools that destroy something with one tap: the grid does not offer them unless the user had them in a list before. */
+    val DESTRUCTIVE = setOf(CLEAR_CLIPBOARD)
+
     fun isCompact(count: Int) = count > FULL_SIZE_MAX
 
     /**
@@ -61,13 +67,18 @@ object BarTools {
         return bar
     }
 
-    /** The enabled tools of a stored value, in order, without duplicates and unknown names, at most [MAX]; null for no value. */
+    /**
+     * The enabled tools of a stored value, in order, without duplicates and unknown names (a tool a later version dropped), at
+     * most [MAX]. Null when there is no value or it is garbled (blank, or an entry that is not `NAME:true` or `NAME:false`): the
+     * caller then derives the bar from the old preferences, and the value stays as it is until the user edits.
+     */
     fun parse(stored: String?): List<ToolbarKey>? {
-        if (stored == null) return null
-        return stored.split(Separators.ENTRY).mapNotNull { entry ->
-            val parts = entry.split(Separators.KV)
-            if (parts.size != 2 || parts[1] != "true") return@mapNotNull null
-            ToolbarKey.entries.firstOrNull { it.name == parts[0] }
+        if (stored.isNullOrBlank()) return null
+        val entries = stored.split(Separators.ENTRY).map { it.split(Separators.KV) }
+        if (entries.any { it.size != 2 || it[1] != "true" && it[1] != "false" }) return null
+        return entries.mapNotNull { (name, state) ->
+            if (state != "true") return@mapNotNull null
+            ToolbarKey.entries.firstOrNull { it.name == name }
         }.filter { it in offered }.distinct().take(MAX)
     }
 
@@ -75,7 +86,7 @@ object BarTools {
     fun read(prefs: SharedPreferences): List<ToolbarKey> =
         parse(prefs.getString(AgentPreferences.BAR_TOOLS, null)) ?: migrated(prefs)
 
-    fun isCustomised(prefs: SharedPreferences) = prefs.contains(AgentPreferences.BAR_TOOLS)
+    fun isCustomised(prefs: SharedPreferences) = parse(prefs.getString(AgentPreferences.BAR_TOOLS, null)) != null
 
     private fun migrated(prefs: SharedPreferences) = migrate(getEnabledToolbarKeys(prefs), getPinnedToolbarKeys(prefs))
 
@@ -125,6 +136,6 @@ object BarTools {
     // ---- availability ----
 
     /** Whether [key] is dimmed in the current field: the tools that refuse password fields, incognito and a locked device. */
-    fun isUnavailable(key: ToolbarKey, incognitoOrProtectedField: Boolean, locked: Boolean) =
-        key in PROTECTED && (incognitoOrProtectedField || locked)
+    fun isUnavailable(key: ToolbarKey, incognitoOrProtectedField: Boolean, locked: Boolean, numberLayout: Boolean = false) =
+        key in PROTECTED && (incognitoOrProtectedField || locked) || key in NOT_IN_NUMBER_LAYOUTS && numberLayout
 }

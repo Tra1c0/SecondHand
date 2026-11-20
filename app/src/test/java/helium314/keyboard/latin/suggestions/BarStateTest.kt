@@ -73,4 +73,45 @@ class BarStateTest {
         assertFalse(state.hasContent)
         assertFalse(state.toolsChosen)
     }
+
+    @Test fun theToolsChosenForASelectionAreStickyUntilTheSelectionEndsOrWordsCome() {
+        val state = BarState()
+        state.onContent(selection = true)
+        assertEquals(LeftKey.SHOW_TOOLS, state.onLeftKey())
+        assertTrue(state.stickyTools)
+        assertEquals(LeftKey.SHOW_CONTENT, state.leftKey) // the key now brings the chips back
+        // the range changes: the chips are rebuilt, the tools stay
+        repeat(3) { state.onContent(selection = true); assertEquals(Show.TOOLS, state.show); assertTrue(state.stickyTools) }
+        state.onContentRequested() // an "auto hide" call does not take the tools away either
+        assertEquals(Show.TOOLS, state.show)
+        // the toggle: chips, then tools again
+        assertEquals(LeftKey.SHOW_CONTENT, state.onLeftKey())
+        assertEquals(Show.CONTENT, state.show)
+        assertFalse(state.stickyTools)
+        assertEquals(LeftKey.SHOW_TOOLS, state.onLeftKey())
+        assertTrue(state.stickyTools)
+        // the selection ends: neutral, and the next selection starts with the chips
+        state.onNeutral()
+        assertFalse(state.stickyTools)
+        state.onContent(selection = true)
+        assertEquals(Show.CONTENT, state.show)
+        // words end the choice
+        state.onLeftKey()
+        state.onContent(selection = false)
+        assertEquals(Show.CONTENT, state.show)
+        assertFalse(state.stickyTools)
+    }
+
+    @Test fun aChoiceOfTheToolsOverWordsIsNotStickyAndOtherContentIsNotASelection() {
+        val state = BarState()
+        state.onContent() // words
+        state.onLeftKey()
+        assertFalse(state.stickyTools)
+        state.onContent(selection = true) // a selection chip arrives after typing: chips
+        assertEquals(Show.CONTENT, state.show)
+        state.onContent(selection = false) // a clipboard pill: a different content, not sticky
+        state.onLeftKey()
+        state.onContent(selection = true)
+        assertEquals(Show.CONTENT, state.show)
+    }
 }

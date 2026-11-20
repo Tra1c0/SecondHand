@@ -223,16 +223,27 @@ fun removePinnedKey(prefs: SharedPreferences, key: ToolbarKey) {
 private fun fixedBarActive(prefs: SharedPreferences) =
     Settings.readToolbarMode(prefs) == ToolbarMode.EXPANDABLE && prefs.getBoolean(AgentPreferences.FIXED_BAR, true)
 
-/** Whether [key] is pinned (old pinned list) or, with the fixed bar, one of the tools of the bar. */
+/**
+ * Whether [key] is pinned: with the fixed bar one of the tools of the bar (a tool taken out of the bar in the edit mode is no longer
+ * pinned; for a user who never edited the bar the bar includes his pinned keys), else in the old pinned list.
+ */
 fun isKeyPinned(prefs: SharedPreferences, key: ToolbarKey) =
-    key in getPinnedToolbarKeys(prefs) || (fixedBarActive(prefs) && key in BarTools.read(prefs))
+    if (fixedBarActive(prefs)) key in BarTools.read(prefs) else key in getPinnedToolbarKeys(prefs)
 
-/** Pins [key]: the pinned list as before, and with the fixed bar the first free place of the bar (nothing when the bar is full). */
-fun pinKey(prefs: SharedPreferences, key: ToolbarKey) {
+/**
+ * Pins [key]: the pinned list as before, and with the fixed bar the first free place of the bar. Returns false, and changes
+ * neither list, when the fixed bar is full (the caller says so); true when the key is pinned.
+ */
+fun pinKey(prefs: SharedPreferences, key: ToolbarKey): Boolean {
+    if (fixedBarActive(prefs)) {
+        val bar = BarTools.read(prefs)
+        if (key !in bar) {
+            if (bar.size >= BarTools.MAX) return false
+            BarTools.write(prefs, BarTools.add(bar, key))
+        }
+    }
     addPinnedKey(prefs, key)
-    if (!fixedBarActive(prefs)) return
-    val bar = BarTools.read(prefs)
-    if (key !in bar) BarTools.write(prefs, BarTools.add(bar, key))
+    return true
 }
 
 fun unpinKey(prefs: SharedPreferences, key: ToolbarKey) {

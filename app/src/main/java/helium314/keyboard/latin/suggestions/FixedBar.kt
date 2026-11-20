@@ -31,6 +31,15 @@ import helium314.keyboard.latin.utils.ToolbarKey
  * last tool is drawn in a circle when it is a microphone key. A tool that is unavailable in the field stays in its
  * place, dimmed.
  */
+/** Counters for the test that a strip update while typing builds, looks up and arranges nothing for the bar (stage 85 review, point 9). */
+internal object BarCounters {
+    var gridLookups = 0
+    var barBuilds = 0
+    var arranges = 0
+    var labelLookups = 0
+    fun reset() { gridLookups = 0; barBuilds = 0; arranges = 0; labelLookups = 0 }
+}
+
 internal object FixedBar {
     private const val CIRCLE_MAX_DP = 34f
     /** Margin of the left key and of the right end of the row. */

@@ -24,4 +24,7 @@
     <string name="agent_bar_action_left">Nach links</string>
     <string name="agent_bar_action_right">Nach rechts</string>
     <string name="agent_bar_in_bar">%1$s, in der Leiste</string>
+    <string name="agent_bar_show_actions">Auswahl-Aktionen zeigen</string>
+    <string name="agent_bar_show_actions_incognito">Auswahl-Aktionen zeigen (Inkognito ist an)</string>
+    <string name="agent_bar_pin_full">Die Leiste ist voll (höchstens 8 Werkzeuge). Nimm zuerst eines heraus.</string>
 </resources>

@@ -171,8 +171,10 @@ fun AgentSkillsScreen(onClickBack: () -> Unit) {
                                 Text(stringResource(R.string.agent_skill_pin), Modifier.weight(1f))
                                 val pinLabel = stringResource(R.string.agent_skill_pin)
                                 Switch(checked = pinned, enabled = !displayedBusy, modifier = Modifier.semantics { contentDescription = pinLabel }, onCheckedChange = { enabled ->
-                                    if (enabled) pinKey(context.prefs(), toolbarKey) else unpinKey(context.prefs(), toolbarKey)
-                                    pinned = enabled
+                                    // a full fixed bar (8 tools) takes no ninth: the switch stays off and says so
+                                    val done = if (enabled) pinKey(context.prefs(), toolbarKey) else { unpinKey(context.prefs(), toolbarKey); true }
+                                    if (!done) android.widget.Toast.makeText(context, R.string.agent_bar_pin_full, android.widget.Toast.LENGTH_LONG).show()
+                                    pinned = enabled && done
                                     KeyboardSwitcher.getInstance().setThemeNeedsReload()
                                 })
                             }

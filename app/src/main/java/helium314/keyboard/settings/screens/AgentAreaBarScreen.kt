@@ -411,6 +411,7 @@ private fun BarNavRow(title: String, summary: String, value: String, enabled: Bo
 /** The three skill keys as switches; OK pins or unpins them like the skill page (addPinnedKey). */
 @Composable
 private fun SkillPinDialog(prefs: SharedPreferences, onDismiss: () -> Unit, onWritten: () -> Unit) {
+    val context = LocalContext.current
     val keys = (1..3).map { skillToolbarKey(it) }
     var pinned by remember { mutableStateOf(keys.filter { isKeyPinned(prefs, it) }.toSet()) }
     ThreeButtonAlertDialog(
@@ -418,7 +419,8 @@ private fun SkillPinDialog(prefs: SharedPreferences, onDismiss: () -> Unit, onWr
         onConfirmed = {
             keys.forEach { key ->
                 val before = isKeyPinned(prefs, key)
-                if (key in pinned && !before) pinKey(prefs, key)
+                if (key in pinned && !before && !pinKey(prefs, key))
+                    android.widget.Toast.makeText(context, R.string.agent_bar_pin_full, android.widget.Toast.LENGTH_LONG).show()
                 if (key !in pinned && before) unpinKey(prefs, key)
             }
             KeyboardSwitcher.getInstance().setThemeNeedsReload()

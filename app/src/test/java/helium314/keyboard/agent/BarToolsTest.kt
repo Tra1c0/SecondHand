@@ -50,11 +50,18 @@ class BarToolsTest {
         assertEquals(listOf(UNDO, REDO), BarTools.parse("UNDO:true|COPY:false|REDO:true"))
     }
 
-    @Test fun parsingIgnoresJunkLimitsToEightAndTellsMissingFromEmpty() {
+    @Test fun parsingLimitsToEightAndTellsMissingOrGarbledFromAChoice() {
         assertEquals(null, BarTools.parse(null))
-        assertEquals(emptyList(), BarTools.parse(""))
-        assertEquals(emptyList(), BarTools.parse("UNDO:false"))
-        assertEquals(listOf(UNDO), BarTools.parse("NOPE:true|UNDO:true|UNDO:true|COPY:maybe|CLOSE_HISTORY:true|broken"))
+        assertEquals(null, BarTools.parse("")) // blank: no usable value
+        assertEquals(null, BarTools.parse("   "))
+        assertEquals(emptyList(), BarTools.parse("UNDO:false")) // a real choice: no tools
+        // a tool a later version dropped is ignored, duplicates and the internal close key too
+        assertEquals(listOf(UNDO), BarTools.parse("NOPE:true|UNDO:true|UNDO:true|COPY:false|CLOSE_HISTORY:true"))
+        // garbled: an entry that is not NAME:true or NAME:false makes the whole value unusable (the caller uses the migration)
+        assertEquals(null, BarTools.parse("UNDO:true|COPY:maybe"))
+        assertEquals(null, BarTools.parse("UNDO:true|broken"))
+        assertEquals(null, BarTools.parse("UNDO,true;COPY,true")) // the old test format with the wrong separators
+        assertEquals(null, BarTools.parse("UNDO:true||COPY:true"))
         val nine = ToolbarKey.entries.filter { it != CLOSE_HISTORY }.take(9).joinToString("|") { it.name + ":true" }
         assertEquals(BarTools.MAX, BarTools.parse(nine)!!.size)
         assertEquals(ToolbarKey.entries.filter { it != CLOSE_HISTORY }.take(8), BarTools.parse(nine))
@@ -109,5 +116,17 @@ class BarToolsTest {
         // the keys that edit or move text stay usable in a password field
         assertFalse(BarTools.isUnavailable(UNDO, true, true))
         assertFalse(BarTools.isUnavailable(CLIPBOARD, true, true))
+    }
+
+    @Test fun theStoreIsDimmedInNumberLayoutsLikeItsPopupKeyAndTheCharacterArtIsNot() {
+        assertTrue(BarTools.isUnavailable(PROMPTS, incognitoOrProtectedField = false, locked = false, numberLayout = true))
+        assertFalse(BarTools.isUnavailable(PROMPTS, false, false, numberLayout = false))
+        assertFalse(BarTools.isUnavailable(CHAR_ART, false, false, numberLayout = true)) // CharArtKey.popupKeys has no such rule
+        assertFalse(BarTools.isUnavailable(UNDO, false, false, numberLayout = true))
+        assertTrue(BarTools.isUnavailable(CHAR_ART, true, false, numberLayout = false)) // the field rules still hold
+    }
+
+    @Test fun onlyTheClipboardClearingToolDestroysSomethingWithOneTap() {
+        assertEquals(setOf(CLEAR_CLIPBOARD), BarTools.DESTRUCTIVE)
     }
 }

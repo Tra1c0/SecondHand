@@ -535,6 +535,72 @@ class BarEditModeTest {
         assertEquals(emptyList(), h.codes)
     }
 
+    // ---- review of stages 85/86 ----
+
+    @Test fun theCloseCrossOfTheInlineAutofillNeverStartsTheEditMode() {
+        val h = build()
+        h.strip.setExternalSuggestionView(android.widget.TextView(context).apply { text = "Autofill" }, true)
+        val suggestions = h.strip.findViewById<ViewGroup>(R.id.suggestions_strip)
+        val close = (0 until suggestions.childCount).map { suggestions.getChildAt(it) }.first { it.tag == CLOSE_HISTORY }
+        close.performLongClick()
+        assertNull(h.grid.editListener)
+        assertFalse(h.grid.isOpen)
+        // a real slot still does it
+        h.strip.setSuggestions(SuggestedWords.getEmptyInstance(), false)
+        assertTrue(slots(h).first { it.tag == AGENT }.performLongClick())
+        assertNotNull(h.grid.editListener)
+    }
+
+    @Test fun aHiddenVoiceKeyInTheListDoesNotShiftTheDropPlace() {
+        setBar(listOf(UNDO, VOICE, REDO, COPY)) // no voice input here: the voice key has no slot
+        reload()
+        assertFalse(Settings.getValues().mShowsVoiceInputKey)
+        val h = build()
+        startEdit(h)
+        assertEquals(listOf(UNDO, REDO, COPY), tags(h))
+        val c = centres(h)
+        val state = holdPill(h, PASTE)
+        // between the slots of redo and copy
+        h.toBar(DragEvent.ACTION_DRAG_LOCATION, (c[1] + c[2]) / 2f, state)
+        layout(h)
+        assertEquals(listOf(UNDO, REDO, PASTE, COPY), tags(h))
+        h.toBar(DragEvent.ACTION_DROP, centres(h)[2], state)
+        h.toBar(DragEvent.ACTION_DRAG_ENDED, 0f, state)
+        assertEquals(listOf(UNDO, VOICE, REDO, PASTE, COPY), saved()) // the list index is behind the hidden key
+        assertEquals(listOf(UNDO, REDO, PASTE, COPY), tags(h))
+        // a move of the first tool behind the second visible one
+        val hold = holdSlot(h, UNDO)
+        h.toBar(DragEvent.ACTION_DRAG_LOCATION, centres(h)[1] + 5f, hold)
+        layout(h)
+        h.toBar(DragEvent.ACTION_DROP, centres(h)[1], hold)
+        assertEquals(listOf(VOICE, REDO, UNDO, PASTE, COPY), saved())
+        assertEquals(listOf(REDO, UNDO, PASTE, COPY), tags(h))
+        // the screen reader's "move right" skips the hidden key too
+        val moveRight = slots(h)[0].createAccessibilityNodeInfo().actionList.first { it.label?.toString() == "Move right" }
+        assertTrue(slots(h)[0].performAccessibilityAction(moveRight.id, null))
+        assertEquals(listOf(VOICE, UNDO, REDO, PASTE, COPY), saved())
+    }
+
+    @Test fun theDesignToolDoesNotOpenTheSettingsWhileTheDeviceIsLocked() {
+        val keyguard = latinIME.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+        try {
+            helium314.keyboard.agent.LockState.drop()
+            org.robolectric.Shadows.shadowOf(keyguard).setIsDeviceLocked(true) // locked after the field started: asked live
+            assertFalse(Settings.getValues().mIsLocked)
+            latinIME.mKeyboardActionListener.onCodeInput(KeyCode.AGENT_DESIGN, -1, -1, false)
+            assertNull(org.robolectric.Shadows.shadowOf(latinIME.application).nextStartedActivity)
+            helium314.keyboard.agent.LockState.drop()
+            org.robolectric.Shadows.shadowOf(keyguard).setIsDeviceLocked(false)
+            helium314.keyboard.agent.LockState.clock = { System.nanoTime() / 1_000_000 + 10_000 }
+            latinIME.mKeyboardActionListener.onCodeInput(KeyCode.AGENT_DESIGN, -1, -1, false)
+            val intent = org.robolectric.Shadows.shadowOf(latinIME.application).nextStartedActivity
+            assertEquals(helium314.keyboard.settings.SettingsDestination.AgentDesign, intent.getStringExtra(AgentPreferences.OPEN_SETTINGS_DESTINATION))
+        } finally {
+            org.robolectric.Shadows.shadowOf(keyguard).setIsDeviceLocked(false)
+            helium314.keyboard.agent.LockState.resetForTest()
+        }
+    }
+
     private fun words(vararg word: String) = SuggestedWords(ArrayList(word.map { SuggestedWordInfo(it, "", 100, SuggestedWordInfo.KIND_CORRECTION, null, 0, 0) }),
         null, null, false, false, false, SuggestedWords.INPUT_STYLE_PREDICTION, SuggestedWords.NOT_A_SEQUENCE_NUMBER)
 

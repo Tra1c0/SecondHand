@@ -16,7 +16,12 @@ import helium314.keyboard.latin.utils.ToolbarKey
  * While a drag is over the bar, [preview] holds the bar as it would be after the drop, so that the other tools
  * visibly move over. [shown] is what the bar draws.
  */
-class BarEditor(private val read: () -> List<ToolbarKey>, private val write: (List<ToolbarKey>) -> Unit) {
+class BarEditor(
+    private val read: () -> List<ToolbarKey>,
+    private val write: (List<ToolbarKey>) -> Unit,
+    /** Tools of the list that have no slot right now (the voice key without a voice input): they stay in the list. */
+    private val hidden: (ToolbarKey) -> Boolean = { false },
+) {
     enum class Result { CHANGED, FULL, UNCHANGED }
 
     /** The saved bar. */
@@ -50,8 +55,40 @@ class BarEditor(private val read: () -> List<ToolbarKey>, private val write: (Li
 
     fun remove(key: ToolbarKey): Result = commit(BarTools.remove(bar, key), false)
 
-    /** Moves [key] one place to the left or right ([delta] -1 or 1). */
-    fun shift(key: ToolbarKey, delta: Int): Result = commit(BarTools.shift(bar, key, delta), false)
+    /** Moves [key] one visible place to the left or right ([delta] -1 or 1), past hidden tools. */
+    fun shift(key: ToolbarKey, delta: Int): Result {
+        val target = neighbour(key, delta) ?: return Result.UNCHANGED
+        return commit(BarTools.move(bar, key, target), false)
+    }
+
+    /** Whether [key] has a visible neighbour in the direction [delta]. */
+    fun canShift(key: ToolbarKey, delta: Int) = neighbour(key, delta) != null
+
+    /** The list index of the next tool with a slot from [key] in direction [delta]; null at the ends. */
+    private fun neighbour(key: ToolbarKey, delta: Int): Int? {
+        var i = bar.indexOf(key)
+        if (i < 0) return null
+        while (true) {
+            i += delta
+            if (i !in bar.indices) return null
+            if (!hidden(bar[i])) return i
+        }
+    }
+
+    /**
+     * The index in the list for the dragged tool when the bar shows it at visible slot [slot]: before the tool that has that
+     * slot among the others, at the end for a slot past all of them. Hidden tools have no slot, so a slot number is not a list index.
+     */
+    fun listIndexForSlot(slot: Int): Int {
+        val rest = bar.filterNot { it == dragged }
+        var seen = 0
+        for ((i, key) in rest.withIndex()) {
+            if (hidden(key)) continue
+            if (seen == slot) return i
+            seen++
+        }
+        return rest.size
+    }
 
     /** A tap on a tool of the grid: out of the bar when it is in it, else into the first free place. */
     fun toggle(key: ToolbarKey): Result = if (key in bar) remove(key) else add(key)

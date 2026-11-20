@@ -25,4 +25,7 @@
     <string name="agent_bar_action_left">Move left</string>
     <string name="agent_bar_action_right">Move right</string>
     <string name="agent_bar_in_bar">%1$s, in the bar</string>
+    <string name="agent_bar_show_actions">Show selection actions</string>
+    <string name="agent_bar_show_actions_incognito">Show selection actions (incognito is on)</string>
+    <string name="agent_bar_pin_full">The bar is full (at most 8 tools). Take one out first.</string>
 </resources>

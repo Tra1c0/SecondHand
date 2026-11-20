@@ -13,6 +13,7 @@ import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.settings.createPrefKeyForBooleanSettings
 import helium314.keyboard.latin.common.Constants.Separators
 import helium314.keyboard.latin.utils.LayoutType
+import helium314.keyboard.latin.utils.BarTools
 import helium314.keyboard.latin.utils.ToolbarKey
 import helium314.keyboard.latin.utils.ToolbarMode
 import helium314.keyboard.latin.utils.prefs
@@ -44,6 +45,8 @@ class FlatPreset(private val context: Context) {
         Settings.PREF_AUTO_HIDE_TOOLBAR to true,
         Settings.PREF_TOOLBAR_KEYS to toolbarPref(TOOLBAR_KEYS),
         Settings.PREF_PINNED_TOOLBAR_KEYS to toolbarPref(PINNED_KEYS),
+        // stage 85: the fixed bar of the mode above holds the same four tools (the backup restores the bar the user had, or none)
+        AgentPreferences.BAR_TOOLS to BarTools.format(BarTools.migrate(TOOLBAR_KEYS, PINNED_KEYS)),
         // clipboard header: back and title are fixed, these keys follow as round buttons
         Settings.PREF_CLIPBOARD_TOOLBAR_KEYS to toolbarPref(CLIPBOARD_KEYS, withCloseHistory = true),
         Settings.PREF_LAYOUT_PREFIX + LayoutType.FUNCTIONAL.name to FUNCTIONAL_LAYOUT,
