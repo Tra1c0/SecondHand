@@ -15,4 +15,14 @@
     <string name="agent_bar_tools_setting_summary">The tools of the bar in order; at most 8 are shown</string>
     <string name="agent_fixed_bar_setting">Fixed bar like Gboard</string>
     <string name="agent_fixed_bar_setting_summary">Tools in fixed places, suggestions while typing. Off brings back the expandable bar of before.</string>
+    <!-- Stage 86: customizing the bar in the keyboard -->
+    <string name="agent_grid_edit">Customize</string>
+    <string name="agent_grid_edit_hint">Hold and drag to customize</string>
+    <string name="agent_grid_full">The bar is full (at most 8 tools). Take one out first.</string>
+    <string name="agent_bar_edit_done">Finish customizing</string>
+    <string name="agent_bar_action_add">Add to bar</string>
+    <string name="agent_bar_action_remove">Remove from bar</string>
+    <string name="agent_bar_action_left">Move left</string>
+    <string name="agent_bar_action_right">Move right</string>
+    <string name="agent_bar_in_bar">%1$s, in the bar</string>
 </resources>

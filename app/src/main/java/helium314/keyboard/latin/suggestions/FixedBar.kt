@@ -67,17 +67,41 @@ internal object FixedBar {
         container.id = id
         container.visibility = View.GONE
         (toolbar as LinearLayout).apply { minimumWidth = 0; setPadding(0, 0, 0, 0) }
-        for (i in toolbar.childCount - 1 downTo 0) {
-            val gap = Space(wrapper.context)
-            gap.setTag(R.id.agent_bar_gap, true)
-            toolbar.addView(gap, i, LinearLayout.LayoutParams(0, 0, 1f))
-        }
         container.addView(toolbar, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         wrapper.addView(container, index, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply {
             marginEnd = edgePx(wrapper.resources.displayMetrics.density)
         })
         (wrapper as? LinearLayout)?.layoutTransition = null // the bar switches without animation, in one layout pass
         return container
+    }
+
+    /** Fills the row with [buttons], a spacer before each; the spacers spread them (see [arrange]). */
+    fun populate(toolbar: ViewGroup, buttons: List<ImageButton>) {
+        toolbar.removeAllViews()
+        buttons.forEach { button ->
+            val gap = Space(toolbar.context)
+            gap.setTag(R.id.agent_bar_gap, true)
+            toolbar.addView(gap, LinearLayout.LayoutParams(0, 0, 1f))
+            toolbar.addView(button)
+        }
+    }
+
+    /**
+     * Edit mode (stage 86): every slot gets an outline so that the places are visible; the tool that is being dragged
+     * ([ghost]) is shown half transparent where it would land. Call after [arrange].
+     */
+    fun markEditing(toolbar: ViewGroup, flat: Boolean, colors: Colors, ghost: ToolbarKey?) {
+        val density = toolbar.resources.displayMetrics.density
+        val line = if (flat) FlatStyle.STRIP_CIRCLE_ICON else colors.get(ColorType.ACTION_KEY_BACKGROUND)
+        slots(toolbar).forEach { button ->
+            if (isCircle(button)) return@forEach // the circle is outline enough
+            button.background = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                cornerRadius = 8f * density
+                setColor(android.graphics.Color.TRANSPARENT)
+                setStroke(Math.round(1.5f * density), line)
+            }
+        }
     }
 
     /** The tool buttons of the row that take part in the layout (the voice key may be hidden without a voice input). */
@@ -133,8 +157,9 @@ internal object FixedBar {
     fun isCircle(button: View) = button.getTag(R.id.agent_bar_circle) == true
 
     /** Dims a slot in place; it keeps its cell. A dimmed slot does not react. */
-    fun setAvailable(button: View, available: Boolean, label: CharSequence?, unavailableLabel: (CharSequence?) -> CharSequence?) {
-        button.isEnabled = available
+    fun setAvailable(button: View, available: Boolean, editing: Boolean, label: CharSequence?, unavailableLabel: (CharSequence?) -> CharSequence?) {
+        // customizing is about the layout: while the bar is edited a dimmed tool can still be taken out or moved
+        button.isEnabled = available || editing
         button.alpha = if (available) 1f else DIMMED_ALPHA
         button.contentDescription = if (available) label else unavailableLabel(label)
     }

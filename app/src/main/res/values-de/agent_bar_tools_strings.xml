@@ -14,4 +14,14 @@
     <string name="agent_bar_tools_setting_summary">Die Werkzeuge der Leiste der Reihe nach; höchstens 8 werden gezeigt</string>
     <string name="agent_fixed_bar_setting">Feste Leiste wie Gboard</string>
     <string name="agent_fixed_bar_setting_summary">Werkzeuge an festen Plätzen, beim Tippen Vorschläge. Aus: die ausklappbare Leiste von vorher.</string>
+    <!-- Etappe 86: die Leiste in der Tastatur anpassen -->
+    <string name="agent_grid_edit">Anpassen</string>
+    <string name="agent_grid_edit_hint">Zum Personalisieren halten und ziehen</string>
+    <string name="agent_grid_full">Die Leiste ist voll (höchstens 8 Werkzeuge). Nimm zuerst eines heraus.</string>
+    <string name="agent_bar_edit_done">Anpassen beenden</string>
+    <string name="agent_bar_action_add">Zur Leiste hinzufügen</string>
+    <string name="agent_bar_action_remove">Aus der Leiste entfernen</string>
+    <string name="agent_bar_action_left">Nach links</string>
+    <string name="agent_bar_action_right">Nach rechts</string>
+    <string name="agent_bar_in_bar">%1$s, in der Leiste</string>
 </resources>
