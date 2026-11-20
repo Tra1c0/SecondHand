@@ -41,6 +41,11 @@ object AgentPreferences {
     const val FORMAT_GUARD = "agent_format_guard"
     /** Stage 45: field and context suggestions in the strip (default on; "Meine Daten" starts empty). */
     const val FIELD_SUGGESTIONS = "agent_field_suggestions"
+    /**
+     * Stage 85: the tools of the fixed bar in `NAME,true;NAME,false` form (enabled entries in bar order, at most 8).
+     * Missing for a user who never edited the bar: it is then derived from the old toolbar preferences and not written.
+     */
+    const val BAR_TOOLS = "agent_bar_tools"
     /** Stage 82: copy, cut, paste and delete chips in the strip while text is selected (default on). */
     const val SELECTION_CHIPS = "agent_selection_chips_on"
     /** Stage 40: Smart Paste chips with the clipboard pill and in the clipboard history (default on). */

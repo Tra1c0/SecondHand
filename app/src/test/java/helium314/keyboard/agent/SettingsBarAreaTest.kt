@@ -283,7 +283,7 @@ class SettingsBarAreaTest {
         node(AREA_TAG + SettingsDestination.AreaBar).assertExists()
         node(HERO_TAG).assert(hasText("05")).assert(hasText("Leiste & Befehle"))
             .assert(hasText("Die Leiste über den Tasten und was du dort mit @ aufrufst."))
-        listOf("LEISTE", "TASTEN + VORSCHLÄGE", "Ausklappbar, angeheftete Knöpfe bleiben", "NUR VORSCHLÄGE", "Knöpfe nur beim Antippen",
+        listOf("LEISTE", "TASTEN + VORSCHLÄGE", "Feste Leiste, Vorschläge beim Tippen", "NUR VORSCHLÄGE", "Knöpfe nur beim Antippen",
             "VERSTECKT", "Mehr Platz für Tasten", "@-Befehle", "Präfix @",
             "Antippen schaltet einzeln an/aus. Textbausteine, Orte und Bildschirm-Lesen stehen beim jeweiligen Befehl.",
             "Leiste", "Knöpfe wählen und sortieren", "Werkzeuge, Anheften, Zwischenablage", "Automatisch zeigen", "Bei Eingabe oder Auswahl",

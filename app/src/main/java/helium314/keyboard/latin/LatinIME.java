@@ -1318,7 +1318,7 @@ public class LatinIME extends InputMethodService implements
         mAgentEditorController.finishEditor();
         Log.i(TAG, "hideWindow");
         if (hasSuggestionStripView() && mSettings.getCurrent().mToolbarMode == ToolbarMode.EXPANDABLE)
-            mSuggestionStripView.setToolbarVisibility(false);
+            mSuggestionStripView.onKeyboardHidden(); // stage 85: the fixed bar starts with the tools again
         mKeyboardSwitcher.onHideWindow();
 
         if (TRACE) Debug.stopMethodTracing();

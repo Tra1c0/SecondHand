@@ -44,6 +44,7 @@ internal class KeyCodeDescriptionMapper private constructor() {
         put(KeyCode.AGENT_EMOJI_MIXER, R.string.agent_emoji_mixer_key)
         put(KeyCode.AGENT_CHAR_ART, R.string.agent_char_art_key_description)
         put(KeyCode.AGENT_PROMPTS, R.string.agent_prompts_key_description) // stage 74b
+        put(KeyCode.AGENT_DESIGN, R.string.design) // stage 85
         // Because the upper-case and lower-case mappings of the following letters is depending on
         // the locale, the upper case descriptions should be defined here. The lower case
         // descriptions are handled in {@link #getSpokenLetterDescriptionId(Context,int)}.

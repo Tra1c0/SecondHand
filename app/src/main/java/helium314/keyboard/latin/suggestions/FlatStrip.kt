@@ -2,7 +2,6 @@
 package helium314.keyboard.latin.suggestions
 
 import android.content.Context
-import android.content.Intent
 import android.graphics.PorterDuff
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
@@ -16,13 +15,12 @@ import android.widget.Space
 import androidx.core.content.ContextCompat
 import androidx.core.view.children
 import androidx.core.view.isVisible
-import helium314.keyboard.agent.AgentPreferences
+import helium314.keyboard.agent.SettingsLauncher
 import helium314.keyboard.agent.FlatMenuView
 import helium314.keyboard.keyboard.FlatStyle
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.common.ColorType
 import helium314.keyboard.latin.settings.Settings
-import helium314.keyboard.settings.SettingsActivity
 
 /**
  * Arrangement of the strip above the keys in the Flat style, measured on the reference
@@ -39,6 +37,25 @@ internal object FlatStrip {
     /** Height of the row the buttons sit in; a higher strip gets the rest as padding above it (4 dp at 40 dp). */
     private const val CONTENT_ROW_DP = 36f
 
+    /**
+     * The strip height and the left key of the Flat style: the strip keeps its height and gets the rest as padding
+     * above the 36 dp row; the left key is a plain 34 dp icon 6 dp from the edge. Used by the fixed bar too (stage 85).
+     */
+    fun arrangeLeftKey(strip: ViewGroup, expandKey: ImageButton) {
+        val density = strip.resources.displayMetrics.density
+        val button = Math.round(BUTTON_DP * density)
+        val edge = Math.round(EDGE_DP * density)
+        // 40 dp in portrait, 36 dp in phone landscape, where no padding is left
+        val stripHeight = strip.resources.getDimensionPixelSize(R.dimen.config_suggestions_strip_height)
+        strip.setPadding(0, (stripHeight - Math.round(CONTENT_ROW_DP * density)).coerceAtLeast(0), 0, 0)
+        (expandKey.layoutParams as LinearLayout.LayoutParams).apply {
+            width = button; height = button; marginStart = edge
+        }
+        expandKey.scaleType = ImageView.ScaleType.CENTER
+        expandKey.background = null
+        expandKey.contentDescription = expandKey.context.getString(R.string.agent_menu_open)
+    }
+
     fun arrange(
         strip: ViewGroup, wrapper: ViewGroup, expandKey: ImageButton, toolbarContainer: View,
         toolbar: ViewGroup, pinnedKeys: ViewGroup,
@@ -47,18 +64,9 @@ internal object FlatStrip {
         val button = Math.round(BUTTON_DP * density)
         val edge = Math.round(EDGE_DP * density)
 
-        // 40 dp in portrait, 36 dp in phone landscape, where no padding is left
-        val stripHeight = strip.resources.getDimensionPixelSize(R.dimen.config_suggestions_strip_height)
-        strip.setPadding(0, (stripHeight - Math.round(CONTENT_ROW_DP * density)).coerceAtLeast(0), 0, 0)
         (wrapper as? LinearLayout)?.layoutTransition = null
 
-        // left key: plain icon instead of the tinted circle
-        (expandKey.layoutParams as LinearLayout.LayoutParams).apply {
-            width = button; height = button; marginStart = edge
-        }
-        expandKey.scaleType = ImageView.ScaleType.CENTER
-        expandKey.background = null
-        expandKey.contentDescription = expandKey.context.getString(R.string.agent_menu_open)
+        arrangeLeftKey(strip, expandKey)
 
         // The toolbar takes the room between the left key and the pinned keys. Spacers with equal
         // weight before, between and after its keys spread them in the same measure pass; with more
@@ -204,12 +212,5 @@ internal object FlatStrip {
         key.contentDescription = key.context.getString(R.string.agent_menu_open)
     }
 
-    private fun openSettings(context: Context, destination: String) {
-        context.startActivity(
-            Intent(context, SettingsActivity::class.java)
-                // clear an existing settings task: it would only come to the front and ignore the destination
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                .putExtra(AgentPreferences.OPEN_SETTINGS_DESTINATION, destination)
-        )
-    }
+    private fun openSettings(context: Context, destination: String) = SettingsLauncher.open(context, destination)
 }

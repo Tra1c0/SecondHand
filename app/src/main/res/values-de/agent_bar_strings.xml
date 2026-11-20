@@ -3,7 +3,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="agent_bar_mode">Leiste</string>
     <string name="agent_bar_mode_expandable">Tasten + Vorschläge</string>
-    <string name="agent_bar_mode_expandable_hint">Ausklappbar, angeheftete Knöpfe bleiben</string>
+    <string name="agent_bar_mode_expandable_hint">Feste Leiste, Vorschläge beim Tippen</string>
     <string name="agent_bar_mode_suggestions">Nur Vorschläge</string>
     <string name="agent_bar_mode_suggestions_hint">Knöpfe nur beim Antippen</string>
     <string name="agent_bar_mode_hidden">Versteckt</string>

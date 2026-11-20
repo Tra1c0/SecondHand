@@ -116,7 +116,7 @@ fun AgentSkillsScreen(onClickBack: () -> Unit) {
                     var workflowMenu by remember { mutableStateOf(false) }
                     var menu by remember { mutableStateOf(false) }
                     val toolbarKey = skillToolbarKey(binding.slot)
-                    var pinned by remember { mutableStateOf(toolbarKey in getPinnedToolbarKeys(context.prefs())) }
+                    var pinned by remember { mutableStateOf(isKeyPinned(context.prefs(), toolbarKey)) }
                     Card(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(stringResource(R.string.agent_skill_slot, binding.slot), style = MaterialTheme.typography.titleMedium)
@@ -171,7 +171,7 @@ fun AgentSkillsScreen(onClickBack: () -> Unit) {
                                 Text(stringResource(R.string.agent_skill_pin), Modifier.weight(1f))
                                 val pinLabel = stringResource(R.string.agent_skill_pin)
                                 Switch(checked = pinned, enabled = !displayedBusy, modifier = Modifier.semantics { contentDescription = pinLabel }, onCheckedChange = { enabled ->
-                                    if (enabled) addPinnedKey(context.prefs(), toolbarKey) else removePinnedKey(context.prefs(), toolbarKey)
+                                    if (enabled) pinKey(context.prefs(), toolbarKey) else unpinKey(context.prefs(), toolbarKey)
                                     pinned = enabled
                                     KeyboardSwitcher.getInstance().setThemeNeedsReload()
                                 })

@@ -18,7 +18,9 @@ import helium314.keyboard.latin.settings.Defaults
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.GestureDataGatheringSettings.filterBackgroundGatheringToolbarKeys
 import helium314.keyboard.latin.utils.Log
+import helium314.keyboard.latin.utils.BarTools
 import helium314.keyboard.latin.utils.ToolbarMode
+import helium314.keyboard.agent.AgentPreferences
 import helium314.keyboard.latin.utils.getActivity
 import helium314.keyboard.latin.utils.getStringResourceOrName
 import helium314.keyboard.latin.utils.prefs
@@ -49,17 +51,18 @@ fun ToolbarScreen(
         Settings.PREF_TOOLBAR_MODE,
         if (toolbarMode == ToolbarMode.HIDDEN) Settings.PREF_TOOLBAR_HIDING_GLOBAL else null,
         if (toolbarMode != ToolbarMode.HIDDEN) Settings.PREF_TOOLBAR_SWIPE_DOWN_TO_HIDE else null,
+        // stage 85: the mode with suggestions shows the fixed bar, whose tools are one list (BarTools); it has no pinned keys
         when (toolbarMode) {
-             ToolbarMode.EXPANDABLE, ToolbarMode.TOOLBAR_KEYS -> Settings.PREF_TOOLBAR_KEYS
+             ToolbarMode.EXPANDABLE -> AgentPreferences.BAR_TOOLS
+             ToolbarMode.TOOLBAR_KEYS -> Settings.PREF_TOOLBAR_KEYS
              else -> null
         },
         when (toolbarMode) {
-            ToolbarMode.EXPANDABLE, ToolbarMode.SUGGESTION_STRIP -> Settings.PREF_PINNED_TOOLBAR_KEYS
+            ToolbarMode.SUGGESTION_STRIP -> Settings.PREF_PINNED_TOOLBAR_KEYS
             else -> null
         },
         if (clipboardToolbarVisible) Settings.PREF_CLIPBOARD_TOOLBAR_KEYS else null,
         if (clipboardToolbarVisible) Settings.PREF_TOOLBAR_CUSTOM_KEY_CODES else null,
-        if (toolbarMode == ToolbarMode.EXPANDABLE) Settings.PREF_QUICK_PIN_TOOLBAR_KEYS else null,
         if (toolbarMode == ToolbarMode.EXPANDABLE) Settings.PREF_AUTO_SHOW_TOOLBAR else null,
         if (toolbarMode == ToolbarMode.EXPANDABLE) Settings.PREF_AUTO_HIDE_TOOLBAR else null,
         if (toolbarMode != ToolbarMode.HIDDEN) Settings.PREF_SHOW_ONLY_TOOLBAR_WITH_HARDWARE_KEYBOARD else null,
@@ -96,6 +99,10 @@ fun createToolbarSettings(context: Context) = listOf(
     Setting(context, Settings.PREF_TOOLBAR_KEYS, R.string.toolbar_keys) {
         val keys = Defaults.PREF_TOOLBAR_KEYS.filterBackgroundGatheringToolbarKeys(LocalContext.current.prefs())
         ReorderSwitchPreference(it, keys)
+    },
+    Setting(context, AgentPreferences.BAR_TOOLS, R.string.agent_bar_tools_setting, R.string.agent_bar_tools_setting_summary) {
+        // the current value is the stored choice or what the old toolbar preferences make of it (BarTools.migrate)
+        ReorderSwitchPreference(it, BarTools.currentFormatted(LocalContext.current.prefs()))
     },
     Setting(context, Settings.PREF_PINNED_TOOLBAR_KEYS, R.string.pinned_toolbar_keys) {
         val keys = Defaults.PREF_PINNED_TOOLBAR_KEYS.filterBackgroundGatheringToolbarKeys(LocalContext.current.prefs())

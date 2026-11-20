@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stage 85: the fixed bar and the grid of all tools. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <!-- Names of the toolbar keys that the fork adds (the name is the lowercase key name) -->
+    <string name="prompts" tools:keep="@string/prompts">Store (prompts)</string>
+    <string name="char_art" tools:keep="@string/char_art">Character art</string>
+    <string name="design" tools:keep="@string/design">Design</string>
+    <string name="agent_bar_all_tools">All tools</string>
+    <string name="agent_bar_all_tools_incognito">All tools (incognito is on)</string>
+    <string name="agent_bar_show_tools">Show tools</string>
+    <string name="agent_bar_show_tools_incognito">Show tools (incognito is on)</string>
+    <string name="agent_bar_close_tools">Close all tools</string>
+    <string name="agent_bar_tool_unavailable">%1$s, not available in this field</string>
+    <string name="agent_bar_tools_setting">Tools in the bar</string>
+    <string name="agent_bar_tools_setting_summary">The tools of the bar in order; at most 8 are shown</string>
+</resources>
