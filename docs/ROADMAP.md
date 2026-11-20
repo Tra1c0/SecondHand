@@ -13,10 +13,12 @@ Etappen aus dem ursprünglichen Auftrag; Teilpakete bekommen Buchstaben (15a, 15
   - **81 Symbolseiten wie Gboard, unabhängig vom Stil:** „?123“ und „=\<“ Taste für Taste wie Gboard (keine
     Zusatzreihe, § statt ¶, ✓, `\` und `%` an Gboards Stelle, keine Zahlenreihe auf Seite 2, keine
     Vierpfeil-Taste). Die Vorlage „Flacher Look“ hat diese Seiten schon; sie werden Standard.
-  - **82 „Alles markieren“ zeigt Aktionen:** Nach dem Markieren über die Leertaste erscheinen Kopieren,
-    Ausschneiden, Einfügen (eigene Knöpfe der Tastatur, weil Android das Menü der App so nicht öffnet).
-  - **83 Gezeichnete Symbole logisch:** Ein gezeichneter Schrägstrich ergibt „/“, nicht „%“; alle Zuordnungen
-    von „Symbole malen“ durchsehen.
+  - **82 „Alles markieren“ zeigt Aktionen:** gebaut (Leiste mit Kopieren, Ausschneiden, Einfügen, Löschen bei
+    jeder Markierung; `docs/VALIDATION.md` → Etappe 82). Ungeprüft: Gerät, andere Apps als Robolectric, ob
+    `startSelectingText` das Menü der App öffnen würde (nicht eingebaut).
+  - **83 Gezeichnete Symbole logisch:** gebaut („/“ und „\“ als Symbole; ein Symbol mit mehr Strichen als gemalt ist nie
+    das beste Ergebnis; `docs/VALIDATION.md` → Etappe 83). Ungeprüft: Gerät und Finger des Owners. Offen: Es gibt
+    weiter kein „-“, „_“, „:“, „;“, „*“, „<“, „>“ unter den Symbolen.
   - **84 Symbole ohne Verzögerung:** erst messen (Buchstabe gegen Symbol), dann die Ursache beheben.
   - **85 Leiste wie Gboard:** feste, gleichmäßig verteilte Plätze (1 bis 5 oder 8), Raster-Knopf links,
     Mikrofon rechts, kein Pfeil, kein Scrollen; Raster aller Werkzeuge. **86** Anpassen per Halten und Ziehen im

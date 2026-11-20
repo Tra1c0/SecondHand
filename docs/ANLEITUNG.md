@@ -352,6 +352,12 @@ eine Aktion:
 - **Befehlsliste** tippt das Befehlspräfix (z. B. `@`) an einen Wortanfang; die Leiste zeigt dann
   alle Befehle. In Passwortfeldern, im Inkognito-Modus und bei ausgeschalteten Befehlen passiert
   nichts.
+- **Alles auswählen** markiert den ganzen Text. Weil Android dabei das Menü der App nicht öffnet,
+  zeigt die Leiste Kopieren, Ausschneiden, Einfügen (nur wenn Text in der Zwischenablage liegt) und
+  Löschen, solange etwas markiert ist (auch bei „Wort markieren“, Umschalt und Pfeilen oder wenn du
+  von Hand markierst). Ein Tipp auf einen Chip führt es aus; nach Kopieren bleibt die Markierung
+  stehen. Die Chips verschwinden, wenn die Markierung weg ist oder du tippst. Nicht in
+  Passwortfeldern, im Inkognito-Modus und bei gesperrtem Gerät.
 - **Standard** im Auswahlfenster stellt die Geste zurück: Sie macht dann wieder, was sie vor
   dieser Seite gemacht hat.
 - **Rückgängig** und **Wiederholen** auf Halten oder Doppeltippen der Leertaste vibrieren wie ein
@@ -999,6 +1005,10 @@ langes Drücken für Sonderzeichen und das Wischen auf Leer- und Löschtaste ble
   Strich direkt nach einem Wort malst du darum etwas länger oder mit einem zweiten Strich (=).
   Liegt dabei ein zweiter Finger auf der Tastatur (zwei Daumen), beginnt direkt nach dem Tippen
   keine Zeichnung, beide Buchstaben kommen.
+- Ein einzelner Strich schräg nach oben rechts ergibt „/“, schräg nach unten rechts „\“, ein
+  flacher „–“, ein senkrechter „|“. Ein Symbol bekommst du nur, wenn du alle seine Striche malst:
+  „%“ mit Strich und zwei Punkten (oder zwei Kreisen), „÷“ mit Strich und zwei Punkten, „!“ mit
+  Strich und Punkt. Fehlt ein Teil, schlägt die Leiste das Symbol höchstens als zweite Wahl vor.
 - Ein Symbol aus mehreren Strichen: den nächsten Strich innerhalb der Pause ansetzen. Die Pause
   ist anfangs 0,9 Sekunden und passt sich deinem Tempo an (etwa 2,5-mal so lang wie deine übliche
   Lücke zwischen zwei Strichen, mindestens 0,6 und höchstens 1,5 Sekunden). Kurze Striche zählen
