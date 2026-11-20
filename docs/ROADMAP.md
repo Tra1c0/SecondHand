@@ -22,9 +22,12 @@ Etappen aus dem ursprünglichen Auftrag; Teilpakete bekommen Buchstaben (15a, 15
     vollständiges, ist aber Rückfall, wenn keines passt; `docs/VALIDATION.md` → Etappe 83). Ungeprüft: Gerät und Finger des Owners. Offen: Es gibt
     weiter kein „-“, „_“, „:“, „;“, „*“, „<“, „>“ unter den Symbolen.
   - **84 Symbole ohne Verzögerung:** erst messen (Buchstabe gegen Symbol), dann die Ursache beheben.
-  - **85 Leiste wie Gboard:** feste, gleichmäßig verteilte Plätze (1 bis 5 oder 8), Raster-Knopf links,
-    Mikrofon rechts, kein Pfeil, kein Scrollen; Raster aller Werkzeuge. **86** Anpassen per Halten und Ziehen im
-    Tastaturfenster.
+  - **85 Leiste wie Gboard:** gebaut (feste, gleichmäßig verteilte Plätze für 1 bis 5 Werkzeuge in voller Größe und 6 bis 8 als kompakte Reihe, Raster-Knopf links, Mikrofon im Kreis rechts,
+    kein Pfeil, kein Scrollen, Vorschläge und Chips ersetzen die Werkzeuge, Pfeil „<“ bringt sie zurück; Raster aller Werkzeuge; Umzug aus den alten Einstellungen; Schalter „Feste Leiste wie Gboard“
+    als Rückweg; `docs/VALIDATION.md` → Etappe 85). Ungeprüft: Gerät, Aussehen in den bunten Stilen des Owners, Querformat, kleine Bildschirme. Offen: das Flat-Menü (`FlatMenuView`) ist nur noch bei
+    ausgeschaltetem Schalter erreichbar; entfernen, sobald der Owner die feste Leiste bestätigt hat. „Größe ändern“ als Werkzeug gibt es nicht.
+    **86** Anpassen per Halten und Ziehen im Tastaturfenster: gebaut (Raster mit Hinweis „Zum Personalisieren halten und ziehen“, Umrandung der Plätze, Einfügen, Verschieben, Herausziehen, Speichern beim Loslassen,
+    Tippen und Screenreader-Aktionen statt Ziehen, höchstens 8; `docs/VALIDATION.md` → Etappe 86). Ziehen wurde nur simuliert; ungeprüft: echter Finger, Halten gegen Scrollen im Raster, Schatten-Ansicht.
   - **87 Cursor als Trackpad:** Leertaste in vier Richtungen, weiche Beschleunigung, leichter Widerstand an
     Wortgrenzen („Magnetismus“, Richtwert des Owners 5 %), ebenso das Wischen auf der Löschtaste. Grenze von
     Android: Die Tastatur sieht das Layout des Textfelds nicht; der Cursor bewegt sich zeichen- und zeilenweise,

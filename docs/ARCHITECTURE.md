@@ -2678,7 +2678,16 @@ Feste Leiste (Etappe 85, 86; Beschreibung: „Feste Leiste“, Fallstricke P380�
   anderen Modi (nur dort noch erreichbar).
 - Überspringen alter Wege: Schnell-Anheften (`mQuickPinToolbarKeys`) ist immer aus; die Skill-Tasten-Schalter (`pinKey`/`unpinKey`/`isKeyPinned`
   in `ToolbarUtils.kt`) schreiben die alte Liste der angehefteten Tasten und im Modus EXPANDABLE zusätzlich die Leiste (voll: nichts).
-- Tests: `AT/BarToolsTest.kt` (Modell), `CT/BarStateTest.kt` (Zustand, `app/src/test/…/latin/suggestions/`), `AT/FixedBarTest.kt` (Geometrie
+- Anpassen (Etappe 86): `K/latin/suggestions/BarEditor.kt` (rein): Zustand des Anpassen-Modus. `bar` ist die gespeicherte Leiste, `preview` die Leiste, wie sie nach dem Ablegen
+  aussähe (die anderen Werkzeuge rücken schon beim Ziehen zur Seite), `shown` was die Leiste zeichnet. Operationen: `add`, `remove`, `shift`, `toggle` (Antippen und Screenreader),
+  `dragStart`, `dragOverBar`, `dragLeftBar`, `dropOnBar`, `dropOnGrid`, `dragEnd`. **Gespeichert wird beim Loslassen** (`write` in `commit`, höchstens eine Schreibung je Änderung; ein Ziehen ohne Ablegen
+  schreibt nichts). Verdrahtung in `SuggestionStripView`: `enterEdit` (aus der Pille „Anpassen“ im Raster, per Langdruck auf einen Platz ohne eigene Langdruck-Aktion oder auf die linke Taste) öffnet das Raster
+  in der Anpassen-Fassung (`ToolGridView.setEditing`: Hinweis „Zum Personalisieren halten und ziehen“ statt der Pille, Tippen auf eine Pille = `toggle`, Halten = Ziehen, Aktionen für Screenreader, Pillen
+  der Werkzeuge in der Leiste gedimmt), umrandet die Plätze (`FixedBar.markEditing`), macht die linke Taste zum Häkchen (`ic_setup_check`) und hängt die Zuhörer für `DragEvent` an `toolbar_container` (Ablegen
+  in die Leiste) und an das Raster (`dropListener`, Ablegen auf dem Raster nimmt das Werkzeug heraus). Der Platz unter dem Finger: `dragSlot` (neues Werkzeug vor dem ersten Bild: Einfügestelle nach den Plätzen
+  links vom Finger, sonst nächster Platz; `FixedBar.slotCentres` rechnet aus Anzahl und Breite). `exitEdit` (Häkchen, Raster geschlossen, `onKeyboardHidden`) lässt gespeichertes stehen und verwirft ein laufendes Ziehen.
+  `populateBar` baut die Plätze aus einer Liste (auch beim Start der Leiste); Texte in `agent_bar_tools_strings.xml` (Englisch und Deutsch).
+- Tests: `AT/BarToolsTest.kt` (Modell), `AT/BarEditModeTest.kt` (Anpassen an der echten Leiste mit simulierten Drag-Ereignissen), `BarStateTest.kt` und `BarEditorTest.kt` (Zustand und Anpassen-Modell, `app/src/test/…/latin/suggestions/`), `AT/FixedBarTest.kt` (Geometrie
   für 0, 1, 2, 3, 4, 5, 6 und 8 Werkzeuge im Standard- und im flachen Stil, Zustandsmaschine an der echten Leiste, Raster, Umzug aus drei
   gespeicherten Einstellungen, Dimmen, andere Modi).
 
@@ -6402,12 +6411,32 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   Verbundene Fingervarianten mit Sprung (Kreis, Strich, Kreis) werden unter dem Rauschen des Prüfstands schlecht erkannt
   (`InkRecognizerTest`, verrauschte Zeichnungen: „%“ 69 von 400 nicht erkannt, gesamt 97,5 %; die Variante ist für saubere Zeichnungen da).
 
+- **P380** Feste Leiste, nur ein Ort setzt Sichtbarkeiten (85): `SuggestionStripView.applyBarState` setzt Werkzeuge, Vorschlagsleiste, angeheftete Tasten, Verfügbarkeit und linke Taste
+  zusammen aus `BarState` (und dem offenen Raster). Alte Wege, die `suggestionsStrip.isVisible` oder `toolbarContainer.isVisible` selbst setzen (`clear`, `removeSuggestion`,
+  `onVisibilityChanged`, `setToolbarVisibility`), sind für die feste Leiste umgeleitet oder gesperrt; wer einen neuen setzt, zeigt Wörter neben den Werkzeugen. Eigene Sichtbarkeit nie
+  an `toolbar_container` setzen: es ist in der festen Leiste ein `FrameLayout` mit der Kennung des alten `HorizontalScrollView`.
+- **P381** Feste Leiste, Mitten (85): Die Mitten von linker Taste und Werkzeugen liegen nur dann gleichmäßig von Rand zu Rand, wenn alle gleich breit sind. `FixedBar.arrange` setzt die Breite der
+  linken Taste mit (voll 40 dp, flach 34 dp, kompakt 30 dp). Wer Größen ändert, ändert den Test `FixedBarTest.slotsAreEvenlySpread…` mit (er fand den Fehler im ersten Lauf: 171 gegen 175 px).
+  Beim Ziehen werden die Plätze bei jedem Ereignis neu gebaut; bis zum Layout haben sie Breite 0. Die Zuordnung zum Platz (`FixedBar.slotCentres`) rechnet darum aus Anzahl und Breite der Zeile.
+- **P382** Gedimmte Werkzeuge (85): `View.performClick` prüft `isEnabled` nicht (Berührungen schon). `SuggestionStripView.onClick`/`onLongClick` und `ToolGridView.act` prüfen es selbst. Im Anpassen-Modus
+  (86) sind gedimmte Plätze und Pillen aktiv (nur der Alpha-Wert bleibt), damit man sie herausnehmen kann. Das Dimmen ist ein Hinweis: Die Steuerungen der Werkzeuge (`AgentEditorController`) prüfen beim Tipp weiter
+  selbst. Die Menge der gedimmten Werkzeuge (`BarTools.PROTECTED`) ist aus ihren Verweigerungsgründen (Passwort, Inkognito, kein Lernen, gesperrt) gelesen; kommt ein Werkzeug dazu, das so prüft, gehört es hinein.
+- **P383** Speicherformat (85): `Constants.Separators.KV` ist `:` und `ENTRY` ist `|` (nicht `,` und `;`). Die Einstellung `agent_bar_tools` ist `NAME:true|NAME:false|…`. Ein leerer Wert ist eine Wahl (keine Werkzeuge), ein fehlender Wert
+  heißt „nie bearbeitet“ und wird jedes Mal neu aus den alten Einstellungen **berechnet** (`BarTools.read` schreibt nie). Geschrieben wird nur bei Bearbeitung (`write`, `pinKey`, `unpinKey`, jedes Ablegen im Anpassen-Modus).
+- **P384** Diagnose (85): `LastField.onStripView` bekommt `toolbar = toolbarContainer.isVisible && (!fixedBar || barState.toolsChosen)`. Die neutrale feste Leiste (Werkzeuge, nichts vorgeschlagen) ist „leer“, nicht „Werkzeugleiste“; sonst
+  lehnt `UpdateOnOpen.refresh` ab (`LastField.stripNeutral`) und die Diagnose meldet Wörter unter der Werkzeugleiste. Nur „Werkzeuge zeigen“ per Hand zählt als Werkzeugleiste.
+- **P385** Flaches Menü (85): `FlatMenuView` und `FlatStrip.toggleMenu` sind nur noch bei ausgeschaltetem Schalter „Feste Leiste wie Gboard“ im flachen Stil erreichbar (die linke Taste gab es in keinem anderen Modus). Wer das Menü ändert, prüft es mit
+  `FlatMenuTest` (Schalter aus); wer das Raster ändert, mit `FixedBarTest`/`BarEditModeTest`. Beide dürfen nie gleichzeitig offen sein (`FlatStrip.closeMenu` ist in der festen Leiste ausgeschaltet).
+- **P386** Anpassen (86): `startDragAndDrop` gibt es nur mit Fenster; Tests ersetzen `SuggestionStripView.dragStarter` und rufen den Zuhörer der Leiste (`toolbarContainer`) und des Rasters (`ToolGridView.dropListener` an Inhalt und Scroll-View) mit echten
+  `DragEvent`-Objekten auf. Eine Änderung der Ereignislogik (`onBarDrag`, `onGridDrag`, `dragSlot`, `BarEditor`) prüft `BarEditModeTest` und `BarEditorTest`, ein echter Fingertest steht aus. Der Zustand der Ablage liegt im `BarEditor` (nur dort wird gespeichert, beim Loslassen); die Leiste
+  baut ihre Plätze nur neu, wenn sich die angezeigte Liste ändert (`renderedBar`). Der Langdruck auf einen Platz ohne eigene Aktion startet den Modus; ein neues Werkzeug mit Langdruck-Aktion (`getCodeForToolbarKeyLongClick`) behält sie.
+
 ## Datei-Inventar
 
 > Erzeugte Liste aller kartierten Dateien nach Ordner.
 
 <!-- gen:inventory -->
-<details><summary>Alle kartierten Dateien nach Ordner (727 files; generated, do not edit)</summary>
+<details><summary>Alle kartierten Dateien nach Ordner (736 files; generated, do not edit)</summary>
 
 - `.claude/` (1): settings
 - `.claude/hooks/` (1): session-start
@@ -6442,9 +6471,9 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `A/security/` (2): EncryptedCredentialStore, SecretCipher
 - `A/updates/` (7): GitHubUpdateClient, UpdateCheckJob, UpdateInstaller, UpdateOnOpen,
   UpdatePrompts, UpdateSettings, Updates
-- `AT/` (119): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
+- `AT/` (120): AgentDocumentIOTest, AgentPanelViewTest, AgentSliderTest, AgentSpaceGestureTest,
   AgentStorageContextsTest, AgentWheelViewTest, AndroidEditorAdapterTest, ApprovedActionRunnerTest,
-  ApprovedWorkflowRunnerTest, AskCommandTest, BarToolsTest, BundledEmojiDictTest,
+  ApprovedWorkflowRunnerTest, AskCommandTest, BarEditModeTest, BarToolsTest, BundledEmojiDictTest,
   CalculatorViewTest, CalendarToolLauncherTest, CharArtWindowTest, ClipCachesTest, ClipCommandTest,
   ClipVaultTest, CommandReplaceTest, CommandTemplatesTest, ContactCommandTest, CorrectionMemoryTest,
   DatePlaceCommandsTest, DebugPrivacyTest, DesignEditorTest, DesignTilesTest, DiagnoseScreenTest,
@@ -6523,14 +6552,14 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `K/latin/makedict/` (1): Ver4DictEncoder
 - `K/latin/settings/` (2): Defaults, SettingsValues
 - `K/latin/spellcheck/` (1): AndroidSpellCheckerService
-- `K/latin/suggestions/` (2): FlatStrip, SuggestionStripView
-- `K/latin/utils/` (7): CapsModeUtils, DictionaryInfoUtils, DictionaryUtils, InlineAutofillUtils,
-  LayoutUtilsCustom, SubtypeUtils, ToolbarUtils
+- `K/latin/suggestions/` (5): BarEditor, BarState, FixedBar, FlatStrip, SuggestionStripView
+- `K/latin/utils/` (8): BarTools, CapsModeUtils, DictionaryInfoUtils, DictionaryUtils,
+  InlineAutofillUtils, LayoutUtilsCustom, SubtypeUtils, ToolbarUtils
 - `K/settings/` (4): SearchScreen, SettingsActivity, SettingsContainer, SettingsNavHost
 - `K/settings/dialogs/` (2): ColorPickerDialog, SliderDialog
 - `K/settings/preferences/` (5): BackupRestorePreference, CustomFontPreference,
   KeyboardScalePreference, LoadGestureLibPreference, SliderPreference
-- `K/settings/screens/` (48): AboutScreen, AdvancedScreen, AgentAiScreen, AgentAreaAiScreen,
+- `K/settings/screens/` (49): AboutScreen, AdvancedScreen, AgentAiScreen, AgentAreaAiScreen,
   AgentAreaBarScreen, AgentAreaGesturesScreen, AgentAreaKeysScreen, AgentAreaLookScreen,
   AgentAreaScreen, AgentAreaSystemScreen, AgentAreaTypingScreen, AgentCommandsScreen,
   AgentDesignEditor, AgentDesignScreen, AgentDiagnoseScreen, AgentDictationScreen,
@@ -6541,7 +6570,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
   AgentSkillsScreen, AgentSlider, AgentSnippetsSection, AgentSpaceScreen, AgentStartScreen,
   AgentSymbolsScreen, AgentUpdatePrompts, AgentUpdatesScreen, AgentWorkflowsScreen,
   AppearanceScreen, DictionaryScreen, GestureTypingScreen, MainSettingsScreen, TextCorrectionScreen,
-  WorkflowBuilderDialog, WorkflowDraftProtection
+  ToolbarScreen, WorkflowBuilderDialog, WorkflowDraftProtection
 - `K/settings/screens/gesturedata/` (1): Share
 - `agent-core/` (1): build.gradle
 - `app/` (1): build.gradle
@@ -6557,13 +6586,13 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `app/src/main/assets/layouts/symbol_hints/` (1): symbols_hints
 - `app/src/main/assets/layouts/symbols/` (1): symbols
 - `app/src/main/res/drawable-v24/` (1): ic_launcher_background
-- `app/src/main/res/drawable/` (24): btn_keyboard_key_flat, btn_keyboard_key_flat_pill,
+- `app/src/main/res/drawable/` (25): btn_keyboard_key_flat, btn_keyboard_key_flat_pill,
   btn_keyboard_key_flat_rect, btn_keyboard_key_functional_flat, ic_agent_actions, ic_agent_dictate,
   ic_agent_prompts, ic_agent_settings_updates, ic_launcher_foreground, ic_launcher_monochrome,
-  ic_skill_1, ic_skill_2, ic_skill_3, sym_keyboard_clipboard_flat, sym_keyboard_delete_flat,
-  sym_keyboard_go_flat, sym_keyboard_grid_flat, sym_keyboard_mic_flat, sym_keyboard_pen_flat,
-  sym_keyboard_return_flat, sym_keyboard_shift_flat, sym_keyboard_shift_lock_flat,
-  sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
+  ic_palette, ic_skill_1, ic_skill_2, ic_skill_3, sym_keyboard_clipboard_flat,
+  sym_keyboard_delete_flat, sym_keyboard_go_flat, sym_keyboard_grid_flat, sym_keyboard_mic_flat,
+  sym_keyboard_pen_flat, sym_keyboard_return_flat, sym_keyboard_shift_flat,
+  sym_keyboard_shift_lock_flat, sym_keyboard_shifted_flat, sym_keyboard_smiley_flat
 - `app/src/main/res/layout/` (1): main_keyboard_frame
 - `app/src/main/res/mipmap-anydpi-v26/` (2): ic_launcher, ic_launcher_round
 - `app/src/main/res/mipmap-hdpi/` (2): ic_launcher, ic_launcher_round
@@ -6600,6 +6629,7 @@ speichern“ vorn einen Eintrag hinzufügen. Nichts hier nutzt das Netz oder pro
 - `app/src/test/java/helium314/keyboard/latin/` (3): InputLogicTest, SuggestTest,
   WordListDictionaries
 - `app/src/test/java/helium314/keyboard/latin/inputlogic/` (1): BatchDeliveryTest
+- `app/src/test/java/helium314/keyboard/latin/suggestions/` (2): BarEditorTest, BarStateTest
 - `app/src/test/java/helium314/keyboard/settings/` (1): BackupPromptsTest
 - `companion/` (2): build.gradle, settings.gradle
 - `companion/app/` (1): build.gradle

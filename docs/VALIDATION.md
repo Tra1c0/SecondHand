@@ -1,5 +1,65 @@
 # Prüfnachweise
 
+## Etappe 86 — Leiste in der Tastatur anpassen (2026-11-20)
+
+**Auf dem Gerät nichts geprüft, und Ziehen mit dem Finger wurde nie ausgeführt.** Die Drags sind **simuliert**: Eine View ohne Fenster kann
+`startDragAndDrop` nicht ausführen (kein `ViewRootImpl`); die Tests ersetzen darum den Starter der Leiste (`SuggestionStripView.dragStarter`),
+nehmen den Zustand, den sie bekommt, und schicken echte `DragEvent`-Objekte (STARTED, ENTERED, LOCATION, EXITED, DROP, ENDED) an den Zuhörer der Leiste und
+des Rasters (nicht durch `ViewGroup.dispatchDragEvent`, das ohne Fenster nicht läuft). Ob das System diese Ereignisse wirklich so sendet, ob die
+Schatten-Ansicht aussieht, ob Halten und Ziehen sich gut anfühlt und ob die Pillen im Raster das Halten nicht mit dem Scrollen verwechseln, ist ungeprüft.
+
+- **Entscheidungen:** (1) **Gespeichert wird beim Loslassen**, jedes Ablegen schreibt sofort `agent_bar_tools`; das Häkchen beendet nur den Modus und schließt das Raster.
+  Ein Ziehen, das nicht mit einem Ablegen auf Leiste oder Raster endet (Tastatur geschlossen, Finger woanders), speichert nichts (`BarEditor.dragEnd`, `onKeyboardHidden`).
+  (2) Das Anpassen ist **überall** möglich, wo die Leiste steht, auch in Passwortfeldern und im Inkognito-Modus: es liest und schreibt nichts im Feld, nur die Einstellung; gedimmte
+  Werkzeuge lassen sich dort verschieben und herausnehmen, laufen aber nie. Bei gesperrtem Gerät gibt es die Leiste nicht. (3) Langdruck auf einen Platz startet den Modus nur bei
+  Werkzeugen **ohne eigene Langdruck-Aktion** (Textaktionen, Einstellungen, Ablage, …); Rückgängig (Wiederholen), Zwischenablage (Einfügen), Pfeile (Wiederholen) behalten ihre
+  Aktion, sonst gäbe es sie nicht mehr. Dazu: Langdruck auf den Raster-Knopf und der Knopf „Anpassen“ im Raster. (4) Im Anpassen-Modus sind Pillen von Werkzeugen, die in der
+  Leiste liegen, gedimmt; Tippen auf eine Pille legt ans Ende oder nimmt heraus, Tippen auf einen Platz nimmt heraus (die Aktion des Werkzeugs läuft nie).
+- **Zuordnung des Ziehens:** ein neues Werkzeug (noch nicht in der Leiste) wird vor dem ersten Ereignis hinter alle Plätze eingefügt, deren Mitte links vom Finger liegt
+  (`FixedBar.insertionIndexAt`), danach und beim Verschieben im Rahmen der **nächste** Platz der angezeigten Leiste (`slotIndexAt`). Die Mitten werden aus der Anzahl
+  und der Breite der Zeile **gerechnet** (`FixedBar.slotCentres`), nicht aus den Views: Beim Ziehen werden die Plätze bei jedem Ereignis neu gebaut und sind bis zum
+  nächsten Layout-Durchlauf noch nicht gelegt (gefunden im ersten Lauf: ein Platz mit Breite 0 ergab immer Platz 0).
+- **Tests** (`AT/BarEditModeTest.kt` 13, `CT/BarEditorTest.kt` 9, alle grün): Einstieg über „Anpassen“ (Hinweis, Umrandungen, Häkchen, Pillen in der Leiste gedimmt, nichts geschrieben),
+  Langdruck auf Platz mit und ohne eigene Aktion und auf den Raster-Knopf, deutsche Texte, Einfügen aus dem Raster mit sichtbarem Platzmachen vor dem Loslassen und Speichern **genau
+  einmal** beim Loslassen (danach sechs Werkzeuge: kompakte Reihe), Verschieben in der Leiste, Herausziehen (verschwindet schon beim Verlassen der Leiste, gespeichert erst beim Ablegen auf dem Raster),
+  Ziehen ohne Ablegen (nichts gespeichert, Leiste wie vorher), Tastatur während des Ziehens geschlossen (kein Modus, nichts gespeichert, ein spätes Ablegen wirkt nicht), nach Ablegen und Schließen
+  und in einer neuen Leiste noch da, volle Leiste (neuntes Werkzeug abgelehnt, Zeile im Raster sagt es, danach wieder Platz), Tippen statt Ziehen, Aktionen für Screenreader (Zur Leiste hinzufügen, Aus der Leiste
+  entfernen, Nach links, Nach rechts, jeweils nur wo sinnvoll, und sie speichern), dieselbe gespeicherte Reihenfolge wie die Einstellungen (Dialog-Format, Eintrag in `createToolbarSettings`), Passwortfeld.
+  Das reine Modell (`BarEditor`, `BarTools`): Einfügen an einem Platz, Entfernen, Verschieben, Grenze 8, Speicherformat, Umzug (`BarToolsTest`, siehe 85).
+- **Rot belegt:** siehe unten (Sammellauf der absichtlich kaputten Stellen).
+- **Ungeprüft:** alles Sichtbare und das echte Ziehen mit dem Finger; Auswahl-Verhalten von Halten gegen Scrollen im Raster (Android startet ein Ziehen aus einem Langdruck, das Scrollen des Rasters kann
+  mit einem Ziehen nach oben/unten konkurrieren); wie die Schatten-Ansicht einer Pille aussieht; der Fall, dass die Tastatur im Ziehen neu gebaut wird.
+
+## Etappe 85 — Leiste wie Gboard: feste Plätze und Raster aller Werkzeuge (2026-11-20)
+
+**Auf dem Gerät nichts geprüft.** Nachweis: Robolectric (echte `SuggestionStripView`, `ToolGridView`, `LatinIME`), reine JVM-Tests des Modells.
+
+- **Bestandsaufnahme gelesen und am Code geprüft** (`docs/RUNDE3-BESTANDSAUFNAHME.md` Abschnitt 2): **Richtig:** Aufbau der Leiste (`suggestions_strip.xml`, `SuggestionStripView`), `ToolbarMode` mit Standard EXPANDABLE, Flat-Zweig (`FlatStrip`, `FlatMenuView`) mit Raster-Taste, gleichmäßiger Verteilung und Kreis, die Rangfolge der Chips
+  (`setSuggestedWords`, `setNeutralSuggestionStrip`), `auto_show_toolbar`/`auto_hide_toolbar` (beide aus), Tests und `STRIP_FIXED` im Gerätetest. **Falsch oder zu ergänzen:** (a) Das Flat-Menü ist im Flat-Stil nur über die linke Taste erreichbar, und die ist nur im
+  Modus EXPANDABLE sichtbar (`toolbarExpandKey.isVisible = toolbarIsExpandable`): in keinem anderen Modus gab es das Menü je; „andere Modi unverändert“ lässt es also nur noch hinter einem Schalter zurück (siehe unten). (b) „Mikrofon rechts im Kreis“ ist im Flat-Stil die **letzte angeheftete** Taste
+  (Diktat), im Standard ist die angeheftete Taste die Textaktionen-Taste; die Spracheingabe (`VOICE`) steht im Standard mitten in der Toolbar. (c) Es gibt keine Werkzeuge „Ablage“, „Zeichen-Kunst“ und „Design“ als `ToolbarKey`, nur als Tastencodes (`AGENT_PROMPTS`,
+  `AGENT_CHAR_ART`) und als Pille des Flat-Menüs; sie sind jetzt Werkzeuge. „Größe ändern“ gibt es nirgends als Werkzeug und ist nicht erfunden. (d) Die Leiste meldet der Diagnose (`LastField`) „Werkzeugleiste offen“; die neutrale feste Leiste (Werkzeuge) musste als leer gemeldet werden, sonst zeigte
+  der Update-Chip (`UpdateOnOpen.refresh`) nichts mehr (gefunden im ersten Vollauf, `InputLogicTest.updateChipAppearsAtOnce…`). (e) Skill-Tasten-Schalter und „Skill-Tasten anheften“ schrieben nur die alte Liste der angehefteten Tasten.
+- **Gebaut:** siehe `docs/ARCHITECTURE.md` → „Feste Leiste“. Zustandsmaschine (`BarState`), Zuordnung der Modi (nur EXPANDABLE, Schalter „Feste Leiste wie Gboard“ unter Leiste & Befehle → Knöpfe wählen und sortieren, Standard an; aus = die alte aufklappbare Leiste mit Pfeil, angehefteten Tasten und im flachen Stil dem Menü, als
+  Rückweg, weil nichts auf einem Gerät gesehen wurde), Umzug aus den alten Einstellungen (`BarTools.migrate`, schreibt nichts), Dimmen statt Entfernen, Raster mit allen Werkzeugen.
+- **Was beim Owner nach dem Update in der Leiste liegt** (Berechnung, `BarToolsTest`, `FixedBarTest.aUserWhoNeverCustomised…`): Wenn er den Modus und die Reihenfolge nie geändert hat (Annahme): Textaktionen, Einstellungen, Zwischenablage, Rückgängig und die Mikrofon-Taste (Spracheingabe, nur wenn sein Telefon eine hat; sonst vier Werkzeuge),
+  ganz rechts im Kreis; im Raster stehen Wiederholen, Wort markieren, Kopieren, Einfügen, Cursor-Pfeile und alles andere. Hat er „Flacher Look“ angewendet: Zwischenablage, Emoji, Textaktionen und Diktat im Kreis (wie vorher). Hat er die Leiste in den Einstellungen sortiert: seine ersten fünf plus die angehefteten.
+- **Tests:** `FixedBarTest` 16 (Geometrie für 0, 1, 2, 3, 4, 5, 6 und 8 Werkzeuge im Standard- und im flachen Stil: Mitten gleichmäßig von Rand zu Rand und symmetrisch, gleiche Plätze für gleiche Anzahl bei anderen Werkzeugen, kompakte Größe ab 6, Kreis nur bei der letzten Mikrofon-Taste, keine `HorizontalScrollView`, Raster-Knopf links; Zustandsmaschine an der echten Leiste; Raster listet alle Werkzeuge und führt das getippte mit dem Code seiner Taste aus; Umzug aus drei Einstellungen; Dimmen im Passwortfeld; andere
+  Modi unverändert; Schalter aus gibt die alte Leiste zurück), `BarToolsTest` 10, `BarStateTest` 6 (rein, ohne Robolectric). Läufe: Zielläufe `helium314.keyboard.agent.*`-Klassen der Leiste/Menü/Zwischenablage/Einstellungen plus `InputLogicTest` (17 Dateien, 527 Tests, 1 Fehler: der geerbte `insertLetterIntoWordHangulFails`), Vollauf vor den Korrekturen: 148 Dateien, 1880 Tests, 11 Fehler = 7 bekannte (die fünf geerbten und die zwei 403 der Cloud) und 4 neue
+  (siehe unten, alle behoben).
+- **Geänderte Erwartungen (jede Zeile mit Grund; nichts Sicherheitsrelevantes abgeschwächt):**
+  1. `SettingsBarAreaTest` Zeile mit „Ausklappbar, angeheftete Knöpfe bleiben“ → „Feste Leiste, Vorschläge beim Tippen“: der Hinweis der Karte „Tasten + Vorschläge“ (`agent_bar_mode_expandable_hint`) war nicht mehr wahr.
+  2. `FlatMenuTest.leftStripKeyTogglesTheMenuAndAnyToolbarKeyClosesIt`: drei Zeilen am Anfang schalten „Feste Leiste“ aus; die Behauptungen sind unverändert. Das Flat-Menü gehört zur alten Leiste.
+  3. `FlatStyleRenderTest.symbolPagesShowRecentEmojisInsteadOfTheTools`: jetzt Hilfsfunktion mit `fixedBar`; die alte Fassung läuft als `…InTheOldBar` mit allen alten Behauptungen; in der festen Leiste ist nur die Zeile „angeheftete Tasten (Diktat) bleiben sichtbar“ anders: `pinned_keys` ist GONE (das Diktat ist eines der Werkzeuge,
+     die die Emojis ersetzen).
+  4. `InputLogicTest.theChipsNeverCloseAToolbarTheUserHasOpen`: läuft mit `FIXED_BAR = false` (alte Leiste, alle Behauptungen unverändert); dazu neu `theChipsReplaceTheToolsOfTheFixedBarAndTheLeftKeyBringsTheToolsBack` (P361 „eine offene Werkzeugleiste verdeckt die Chips“ gilt in der festen Leiste nicht mehr: Chips ersetzen die Werkzeuge).
+  Nicht geändert, laufen aber (gleiche gemessene Positionen): `FlatStyleRenderTest.stripShowsFiveEvenlySpacedButtonsWithTheLastOneInACircle` (Mitten 75,5 / 338 / 600 / 861 / 1124,5 px, Kreis, Pixelfarben), `RgbLightingRenderTest`, `FlatStyleTest`, `FlatClipboardTest`, `LastFieldTest`, `SettingsTypingAreaTest`.
+- **Rot belegt (Sammellauf):** Sechs Stellen absichtlich kaputt gemacht (`BarState.onLeftKey` ohne Wechsel, `BarTools.migrate` ohne Mikrofon-Verschiebung, `BarTools.isUnavailable` immer falsch, `BarTools.insert` ohne Grenze 8, `setSuggestions` immer Inhalt, linke Taste ohne gleiche Breite): von 41 Tests (`FixedBarTest` 16, `BarToolsTest` 10, `BarStateTest` 6, `BarEditorTest` 9)
+  schlugen 13 fehl (BarToolsTest 4, FixedBarTest 6, BarEditorTest 1, BarStateTest 2), je Stelle mindestens einer; danach alle grün. Zusätzlich war die Geometrie im ersten Lauf von selbst rot (kompakte Reihe: linke Taste 40 dp gegen Werkzeuge 30 dp, Abstand 171 gegen 175 px), daraus folgt „linke Taste so breit wie ein Werkzeug“.
+- **Gerätetest-Skript** (`tools/devicetest/devicetest.py`, `py_compile` bestanden, nicht gelaufen): `STRIP_FIXED` um die Beschreibungen der linken Taste ergänzt („Alle Werkzeuge“, „All tools“, „Werkzeuge zeigen“, „Show tools“, „Alle Werkzeuge schließen“, „Close all tools“), neu `STRIP_TOOL_IDS` und eine Bedingung in `strip_nodes`
+  (Werkzeug-Knöpfe tragen die Kennung `agent_bar_tool`, die linke Taste `suggestions_strip_toolbar_key`): sonst gälten die Werkzeuge in der neutralen Leiste als „Wortvorschlag“ (`wait_for_suggestions`, `tap_in_strip`). Szenarionamen unverändert; die Szenarien prüfen dasselbe (Wörter, Zwischenablage-Pille, Autofill-Chips, Passwortfeld).
+- **Ungeprüft:** alles Sichtbare (Größe und Lage der Symbole, Kreis, Farben in den vom Owner eigenen bunten Stilen), das Verhalten auf dem Telefon des Owners (Modus vermutlich Standard), die Rangfolge der Chips live (nur die vorhandenen Robolectric-Tests), Querformat (Leistenhöhe 36 dp: die linke Taste ist dort 36 dp hoch statt 40), kleine Bildschirme mit acht Werkzeugen (30 dp breite Knöpfe: bei 320 dp bleiben sechs dp Abstand), RTL.
+
 ## Etappe 83 — Gezeichnete Symbole logisch (2026-11-20)
 
 **Auf dem Gerät nichts geprüft.** Nachweis: JVM-Tests von agent-core und Robolectric.
